@@ -1,6 +1,6 @@
 # Next Customer: Full Build Plan
 
-> Status: draft v0.3. **This plan will change.** Each prototype playtest round can rewrite parts of it. Update the changelog when it does.
+> Status: draft v0.4. **This plan will change.** Each prototype playtest round can rewrite parts of it. Update the changelog when it does.
 > Starts only after the prototype passes its decision gate (`docs/PROTOTYPE_PLAN.md`, section 9).
 > Engine: Godot 4 (exact version pinned in `AGENTS.md`), GDScript with static typing. Platform: Windows, mouse. Steam is the main store; itch.io hosts a web demo.
 
@@ -37,6 +37,7 @@ See `docs/PROTOTYPE_PLAN.md`. Its result: the scoring engine, data model, shift 
 - Keep the event log and browser build running for every playtest round
 - Framework for register upgrades (uses the same scoring hooks as coupons), with 3 placeholder upgrades
 - Framework for inspections, with 1 rule
+- Data model for unlocks, no content yet: the remaining `DeckDefinition` fields, `CardDefinition.variant_of` and `ProfileState` (section 7)
 - Deck view, reward rules (controlled pool, at least one generally useful option, skip)
 - Save and resume at stable points (planning and reward screens only, never mid-animation)
 - Title and results screens (plain)
@@ -73,7 +74,7 @@ See `docs/PROTOTYPE_PLAN.md`. Its result: the scoring engine, data model, shift 
 
 ## 4. Technical architecture
 
-The prototype structure carries over (`core/`, `data/`, `ui/`, `presentation/`, `debug/`, `tests/`). Additions:
+The prototype structure carries over (`core/`, `data/`, `ui/`, `presentation/`, `debug/`, `telemetry/`, `tests/`). Additions:
 
 ```
 core/
@@ -85,7 +86,7 @@ core/
 data/
   upgrades/*.tres
   inspections/*.tres
-  decks/*.tres            # DeckDefinition: id, name, cards[], unlock condition
+  decks/*.tres            # DeckDefinition (fields in section 7)
 tools/
   balance_sim/            # headless simulator (section 8)
 platform/
@@ -172,7 +173,7 @@ Respecting the player:
 
 ## 7. Unlockable decks and cards (architecture now, content later)
 
-The data model supports this from the prototype onwards, so adding it later is a content task:
+The prototype already has `DeckDefinition` (id, name, cards) and data-driven cards. Phase 1 adds the remaining fields below, so adding decks and variants after that is a content task:
 
 - `DeckDefinition`: id, name, description, card list, starting upgrade (optional), unlock condition
 - `CardDefinition.variant_of`: card variants (e.g. "Organic Banana" as a variant of Banana)
@@ -237,3 +238,4 @@ Content freeze at the end of phase 3. No new features after that.
 | v0.1 | 2026-10-05 | First plan, before the prototype |
 | v0.2 | 2026-10-05 | Aligned with prototype plan v0.2: click-to-place first and drag-and-drop in phase 1 if cut, browser build and event log carried over, prototype estimate 18–24 hours |
 | v0.3 | 2026-10-05 | Re-aligned with prototype plan v0.3 (15-card deck limit, seeded-RNG and stateless-rule rules, `generally_useful` card flag) · engine version defers to `AGENTS.md` · simulator row count corrected to about 29,000 |
+| v0.4 | 2026-10-05 | Re-aligned with prototype plan v0.4: `telemetry/` carried over · the prototype's `DeckDefinition` has id, name and cards; phase 1 adds the other deck fields, `variant_of` and `ProfileState` · one `DeckDefinition` field list (section 7) |

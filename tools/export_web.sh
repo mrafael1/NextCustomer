@@ -1,7 +1,9 @@
 #!/bin/sh
-# Exports the single-threaded web build to build/web/.
+# Exports the single-threaded web build to build/web/. Fails if Godot reports any error.
 set -e
 cd "$(dirname "$0")/.."
-GODOT_BIN="${GODOT_BIN:-$(command -v godot)}"
+. tools/godot_env.sh
+godot_import
 mkdir -p build/web
-"$GODOT_BIN" --headless --path . --export-release "Web" build/web/index.html
+godot_checked --headless --path . --export-release "Web" build/web/index.html
+echo "Exported build/web/."
