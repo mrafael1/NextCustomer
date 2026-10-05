@@ -6,35 +6,19 @@ This folder holds the rules of the game. Changing behaviour here changes the des
 
 - **No engine scene code.** No `Node`, no scene tree, no autoloads, no signals to the UI. Only `RefCounted`, `Resource` and plain data, so everything runs headless in tests.
 - **Deterministic scoring.** `score()` is a pure function: the same row and context always give the same `ScoreResult`. No randomness, no time, no global state inside scoring.
-- **Seeded randomness elsewhere.** Draws and reward offers use the run's seeded RNG only. The same seed, game version, content and player actions produce the same draws and reward offers. (Redraws and reward choices change how much of the RNG is used afterwards.)
+- **Seeded randomness elsewhere.** Draws and reward offers use the run's seeded `RandomNumberGenerator` instance only. Never use `Array.shuffle()`, `pick_random()`, `randi()`, `randf()` or any other global random function: they use the global RNG and silently break replay from a seed. The same seed, game version, content and player actions produce the same draws and reward offers. (Redraws and reward choices change how much of the RNG is used afterwards.)
+- **Rules are stateless.** A loaded `Resource` is cached and shared, so a rule never stores anything on itself. Per-score state (Egg charges, waiting Coffee bonuses) lives in a state object created for each `score()` call. Numbers inside rules (Cheese's +4, Eggs' 2 charges) are `@export` fields on rule resources in `data/`, not literals in `core/` scripts.
 - **Card definitions are never changed at runtime.** `CardDefinition` resources are shared by reference. Per-run state lives in `CardInstance` or run state, never on the definition.
 - **Duplicates are separate instances.** Two copies of a card are two `CardInstance`s with their own IDs.
 - **One result, many consumers.** The preview, the receipt, the count-up animation and the tests all use the same `ScoreResult.steps`. Every value change appears as a step with its source.
 
-## Agreed scoring rules (prototype plan v0.2)
+## Agreed scoring rules
 
-These are decided. Don't change them without explicit approval, and update the plan's changelog when one changes.
-
-| Rule | Plan section |
-|---|---|
-| Two passes: context (tags, adjacency) for the whole row, then values left to right | 3.2, 4 |
-| Per product: base → all flat bonuses → all multipliers → payout → effects for later cards | 3.2 |
-| The row is compacted; "last slot" is the last filled slot | 3.1 |
-| Flat bonuses add; multipliers multiply together (Eggs ×2 and Multipack ×2 = ×4) | 3.3 |
-| A later Egg resets charges to 2; it never stacks a second ×2 | 3.3, 3.5 |
-| Coupons neither use nor receive Egg charges | 3.5 |
-| Each Coffee's +3 goes once, to the next Breakfast product after it (Coffee itself is Breakfast) | 3.3 |
-| Repeat copies the final payout of the product just before it; the copy is never multiplied again and triggers nothing; after a coupon or in slot 1 it pays 0 | 3.3, 3.4 |
-| A coupon breaks adjacency, except a connector (Bundle); consecutive connectors act as one bridge | 3.4 |
-| Breakfast sticker affects the next slot only; wasted on a coupon or empty slot | 3.4 |
-| Multipack uses the tags of the product just before it, after the context pass; nothing after a coupon or in slot 1 | 3.4 |
-| Banana and Frozen peas add their base as a flat bonus when their condition is met | 5 |
-| Whole euros only; no fractional multipliers in the prototype | 3.3 |
-| Product tags as listed | 3.6 |
+The agreed rules are the ones written in the plan: section 3.1 (row), 3.2 (order of resolution), 3.3 (stacking), 3.4 (adjacency), 3.5 (other rules), 3.6 (tags) and the card rules in section 5. They are decided. Don't change them without explicit approval, and update the plan's changelog when one changes. This file doesn't copy them, so the plan is the single source.
 
 ## Golden tests (must always pass)
 
-The full list is in plan section 3.7. These two come from the original design and are never changed:
+The full list is in plan section 3.7. They run on the frozen fixture `tests/fixtures/cards_v0_2/` (named for the rules version it froze), not on the live `data/` files, so tuning values never breaks them. These two come from the original design and their expected totals are never changed:
 
 | Row | Total |
 |---|---|
@@ -56,5 +40,8 @@ The plan does not decide these interactions. **Don't pick an answer.** If a task
 | Scoring: a Coffee bonus with no later Breakfast product: is it simply lost, or does it apply somewhere else? | Changes totals |
 | Presentation: should an unused effect (e.g. a Coffee bonus that found no target) appear on the receipt as wasted? | Readability; doesn't change totals |
 | Can the player commit an empty or one-card row? | Scoring of edge rows and UI validation |
+| Bundle next to a coupon that isn't a connector (e.g. Banana, Bundle, Multipack, Banana): does it bridge over that coupon, link only to the nearest product, or do nothing? | Edge case in any row with two coupons together |
+| Between shifts, is each hand drawn from the whole deck (everything reshuffled), or are used cards set aside until the deck runs out? | Changes how often a card appears and what the 15-card limit means |
+| Which cards carry the `generally_useful` flag used by reward offers? | Needed before reward offers are built |
 
 Add new questions here when they come up instead of guessing.

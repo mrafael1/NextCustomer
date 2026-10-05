@@ -1,8 +1,8 @@
 # Next Customer: Full Build Plan
 
-> Status: draft v0.2. **This plan will change.** Each prototype playtest round can rewrite parts of it. Update the changelog when it does.
+> Status: draft v0.3. **This plan will change.** Each prototype playtest round can rewrite parts of it. Update the changelog when it does.
 > Starts only after the prototype passes its decision gate (`docs/PROTOTYPE_PLAN.md`, section 9).
-> Engine: Godot 4.7, GDScript with static typing. Platform: Windows, mouse. Steam is the main store; itch.io hosts a web demo.
+> Engine: Godot 4 (exact version pinned in `AGENTS.md`), GDScript with static typing. Platform: Windows, mouse. Steam is the main store; itch.io hosts a web demo.
 
 ## 1. Pillars
 
@@ -187,7 +187,7 @@ Card changes: unlock variants that replace a starting card (e.g. swap 1 Banana f
 ## 8. Balance simulator
 
 A command-line tool, run headless, that uses `core/` directly:
-- For a given hand, it tries every selection and order (8 choose 6 × 6! ≈ 20,000 rows) and finds the best possible score
+- For a given hand, it tries every selection and order of up to 6 cards (about 29,000 rows: 20,160 full rows plus the shorter ones, because a shorter row can score higher) and finds the best possible score
 - It simulates thousands of seeded runs with simple drafting strategies (greedy, build-focused)
 - Outputs: the distribution of best scores per shift (to set quotas), win rate per build, how often each card is in the best row (finds dominant or useless cards)
 
@@ -236,3 +236,4 @@ Content freeze at the end of phase 3. No new features after that.
 |---|---|---|
 | v0.1 | 2026-10-05 | First plan, before the prototype |
 | v0.2 | 2026-10-05 | Aligned with prototype plan v0.2: click-to-place first and drag-and-drop in phase 1 if cut, browser build and event log carried over, prototype estimate 18–24 hours |
+| v0.3 | 2026-10-05 | Re-aligned with prototype plan v0.3 (15-card deck limit, seeded-RNG and stateless-rule rules, `generally_useful` card flag) · engine version defers to `AGENTS.md` · simulator row count corrected to about 29,000 |

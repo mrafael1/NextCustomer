@@ -1,8 +1,8 @@
 # Next Customer: Prototype Plan
 
-> Status: draft v0.2, written before development starts. Update it after every playtest round (see the changelog at the bottom).
+> Status: draft v0.3, written before development starts. Update it after every playtest round (see the changelog at the bottom).
 > Source: the original "Receipt Rogue" game design plan, plus the decisions made in planning.
-> Engine: Godot 4.7, GDScript with static typing. Playtest builds are delivered in the browser.
+> Engine: Godot 4 (exact version pinned in `AGENTS.md`), GDScript with static typing. Playtest builds are delivered in the browser.
 
 ## 1. The question the prototype answers
 
@@ -25,12 +25,12 @@ The prototype has to show three things:
 - One shift: read the quota, draw 8, redraw up to 2 once, place up to 6 cards in order with **click-to-place** (select a card, click a slot), see the live projected total, run checkout
 - The point-count sequence: receipt lines print one by one, the source of each bonus is highlighted, the subtotal ticks up, with beep and print sounds and a fast-forward option
 - A run of 5 shifts with quotas 10 / 15 / 22 / 32 / 48 (placeholders)
-- After each successful shift, pick 1 of 3 stock cards or skip; deck view; 18-card limit with replacement
+- After each successful shift, pick 1 of 3 stock cards or skip; deck view; 15-card limit with replacement (the 13-card start deck reaches it after two picks, so replacement is reachable from the third reward)
 - Win and lose screens, instant restart
 - Seeded random numbers (the seed is shown on screen, and a run can be replayed from its seed)
 - An event log written automatically, which can be exported from the browser (section 8)
 - **A browser build** for playtesters (section 7), plus a Windows build as a fallback
-- A debug panel: set the seed, add any card to the hand, skip to a shift
+- A debug panel: set the seed, add any card to the hand, skip to a shift. It exists in development builds only; playtest builds exclude it (export feature tag), so playtesters can't spoil the data. Any use in a development build is logged as a `debug` event.
 - **Drag-and-drop only if time allows.** It is the first thing cut (section 6).
 
 ### Out of scope (deliberately)
@@ -126,6 +126,17 @@ Scoring runs in two passes (section 4):
 | Repeat, Repeat | **0** | Repeat after a coupon (or in slot 1) pays 0 |
 | Soup, Frozen peas | 0 + 3 = **3** | Soup beside Frozen pays 0 |
 | Bread, Final markdown | 3 + 6 = **9** | Final markdown in the last slot |
+| Final markdown, Bread | 0 + 3 = **3** | Final markdown outside the last slot pays nothing |
+| Eggs, Bread, Repeat, Bread | 1 + 6 + 6 + 6 = **19** | Repeat doesn't use up an Egg charge, so the second Bread is still doubled |
+| Bread, Multipack, Bread, Repeat | 3 + 0 + 6 + 6 = **15** | The Repeat copy is not multiplied again |
+| Multipack, Bread, Bread | 0 + 3 + 3 = **6** | Multipack in slot 1 does nothing |
+| Bread, Repeat, Multipack, Bread | 3 + 3 + 0 + 3 = **9** | Multipack right after a coupon does nothing |
+| Breakfast sticker, Repeat, Banana, Milk | 0 + 0 + 2 + 3 = **5** | The sticker lands on a coupon and is wasted, so Banana stays non-Breakfast |
+| Frozen peas, Frozen peas | 6 + 6 = **12** | "Beside" works in both directions, so both get the bonus |
+| Soup, Bundle, Frozen peas | 0 + 0 + 3 = **3** | Bundle makes Soup count as beside Frozen peas |
+| Soup, Repeat, Frozen peas | 5 + 5 + 3 = **13** | A coupon breaks the pair, so Soup keeps its value |
+
+Golden rows use a frozen copy of the card data (`tests/fixtures/cards_v0_2/`, named for the rules version it froze), so tuning values in `data/` between playtest rounds doesn't break them. The live data gets its own tests with expected totals that are updated when values change.
 
 Also tested: duplicate cards are separate instances · the redraw cannot bring back a card that was just replaced · the same seed gives the same draws.
 
@@ -136,13 +147,13 @@ The prototype code is the start of the real game. Only the presentation layer is
 ```
 res://
   core/                 # pure logic: no Nodes, no scene tree, fully testable
-    card_definition.gd  # Resource: id, name, tags, base, rules[], art_ref
+    card_definition.gd  # Resource: id, name, tags, base, rules[], generally_useful, art_ref
     card_instance.gd    # a reference to a definition + a unique instance id
     rule.gd             # base class for product and coupon rules (hook methods)
     rules/              # one script per reusable trigger and effect
     scoring.gd          # score(row, context) -> ScoreResult {total, steps[]}
     score_step.gd       # one explanation line: slot, source, kind, value change, text
-    deck.gd             # draw, redraw, reward insertion, seeded RNG
+    deck.gd             # draw, redraw, reward insertion; takes the run's RandomNumberGenerator
     run_state.gd        # deck, shift, quota, seed, (later: upgrades, inspection)
   data/
     cards/*.tres        # one CardDefinition resource per card
@@ -150,7 +161,8 @@ res://
     balance/quotas.tres # quotas and reward pool, tunable without code changes
   ui/                   # scenes: shift screen, reward screen, results screen
   presentation/         # count-up sequencer: plays back the ScoreResult steps
-  debug/                # debug panel, event logger, log export
+  debug/                # debug panel (excluded from playtest builds)
+  telemetry/            # event logger, log export (included in playtest builds)
   tests/                # GdUnit4 tests, runnable headless
 ```
 
@@ -199,7 +211,7 @@ Coupons are the core of the game, so players meet one from the first shift inste
 ### Rewards
 - Reward pool: every card above, including Cheese, Frozen peas and all 5 coupons.
 - **The first reward offer always includes one of the combination coupons** (Bundle, Breakfast sticker or Multipack).
-- Each later set of 3 offers has at least 1 coupon and at least 1 card that is generally useful.
+- Each later set of 3 offers has at least 1 coupon and at least 1 card that is generally useful (a `generally_useful` flag on the card's data resource; which cards carry it is tuned in `data/`, not decided in code; the list is still an open question in `core/AGENTS.md`).
 
 ## 6. Build schedule (18 hours is the target, 24 is realistic)
 
@@ -225,7 +237,7 @@ The two-pass engine, click-to-place UI, count-up animation, browser export and l
 
 Playtesters open a link instead of downloading a build. This lowers the barrier for strangers and matches the web demo planned for the full build.
 
-- Godot 4.7 web export with GDScript (C# could not export to the web)
+- Godot 4 web export with GDScript (C# could not export to the web)
 - **Single-threaded export** so it runs on itch.io without special server headers
 - Hosted on a **private itch.io page** (restricted or password-protected), with a Windows build as a fallback
 - A "click to start" title screen so browsers allow audio
@@ -235,7 +247,7 @@ Playtesters open a link instead of downloading a build. This lowers the barrier 
 
 ## 8. Event log
 
-The prototype writes one JSON line per **event** to `user://playtest_logs/<session_id>.jsonl`. Each line contains: `session_id`, `run_id`, `seq` (order number), `time`, `build`, `type`, and the data for that type. The file is flushed after every event, so closing the tab loses nothing already written.
+The prototype writes one JSON line per **event** to `user://playtest_logs/<session_id>.jsonl`. Each line contains: `session_id`, `run_id`, `seq` (order number), `time`, `build`, `type`, and the data for that type. Each event is written by opening the file, appending the line and closing it again (`FileAccess.READ_WRITE` then `seek_end()`; `WRITE` and `WRITE_READ` truncate the file, so use them only to create it the first time). On the web, `user://` is persisted to the browser's storage asynchronously and a long-open file is not guaranteed to be saved, so keeping a file open and flushing it is not enough. Test this early: play a few events, close the tab, reopen the build and check the log survived.
 
 Choices and actions that happen after a checkout (rewards, the end of a run, restarts) are their own events. They are not stuffed into the checkout record.
 
@@ -245,10 +257,11 @@ Choices and actions that happen after a checkout (rewards, the end of a run, res
 | `shift_start` | shift, quota, the 8 cards drawn |
 | `redraw` | cards replaced, cards received |
 | `checkout` | final order, score, pass or fail, number of rearrangements before committing, number of distinct projected totals seen, planning time, count-up time, fast-forward used, input method (click or drag) |
-| `reward` | the 3 cards offered, card picked or skipped, card replaced (at the 18-card limit), time to decide, whether the deck view was opened |
+| `reward` | the 3 cards offered, card picked or skipped, card replaced (at the 15-card limit), time to decide, whether the deck view was opened |
 | `run_end` | win or loss, shift reached, last score, run length |
 | `restart` | time since `run_end`, from which screen |
 | `log_export` | when the player exported the log |
+| `debug` | which debug action was used and its arguments (development builds only) |
 
 **Getting the log back:** the title and results screens have an **Export log** button that downloads the file (on the web, via `JavaScriptBridge.download_buffer`). Playtesters send that file. On desktop the button opens the log folder.
 
@@ -319,3 +332,4 @@ Rules for iterating: **one major variable per round**, card values tweaked only 
 |---|---|---|
 | v0.1 | 2026-10-05 | First plan, before development |
 | v0.2 | 2026-10-05 | Banana and Frozen peas use "+ base as a flat bonus" · stacking and adjacency fully specified, with more test cases · a coupon in the starting deck and a combination coupon in the first reward · browser delivery for playtests · event log with separate reward, run-end and restart events, plus log export · rearrangement count treated as a clue combined with the interview · click-to-place first, drag-and-drop cut first · realistic estimate of 18–24 hours |
+| v0.3 | 2026-10-05 | Deck limit lowered from 18 to 15 so replacement is reachable · event log opens, appends and closes per event (web persistence) · golden tests run on frozen card data · the debug panel is excluded from playtest builds and its use is logged · rules are stateless · 9 more required test cases · a `generally_useful` card flag · engine version pinned in `AGENTS.md` only · rule numbers live in data · all randomness uses the run's seeded RNG |

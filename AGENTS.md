@@ -6,8 +6,9 @@ A single-player 2D roguelike about a supermarket cashier. Players draft grocery 
 
 ## Engine and language
 
-- Godot 4.7.2, GDScript only, with static typing everywhere.
-- Godot 4 syntax only. Never use Godot 3 forms: `yield` (use `await`), `export var` (use `@export`), `onready var` (use `@onready`), `KinematicBody2D` (use `CharacterBody2D`), `Tween.new()` nodes (use `create_tween()`).
+- Godot 4.7.2, GDScript only, with static typing everywhere. The engine version is pinned here (and in the table below); the plans just say Godot 4.
+- Static typing is enforced by the project setting `debug/gdscript/warnings/untyped_declaration`, set to **Error** on `chore/project-setup`. Without it, "no warnings" doesn't catch missing types.
+- Godot 4 syntax only. Never use Godot 3 forms: `yield` (use `await`), `export var` (use `@export`), `onready var` (use `@onready`), `KinematicBody2D` (use `CharacterBody2D`), `Tween.new()` nodes (use `create_tween()`), `instance()` (use `instantiate()`), `connect("signal", obj, "method")` with strings (use `signal_name.connect(callable)`), `setget` (use property `set:` and `get:` blocks).
 - Follow the official GDScript style guide: `snake_case` file and folder names, member order signals → enums → constants → `@export` → variables → methods.
 
 ## Commands
@@ -32,7 +33,7 @@ What each check covers:
 ## Architecture
 
 - `core/` holds pure game logic. See `core/AGENTS.md` before changing anything there.
-- Card, deck and balance values live only in `data/` (`.tres` resources). Never hard-code card values in scripts.
+- Card, deck and balance values live only in `data/` (`.tres` resources). Never hard-code card values in scripts. This includes the numbers inside rules (bonuses, multipliers, charges): they are `@export` fields on rule resources.
 - UI and presentation display a `ScoreResult`; they never calculate scores themselves.
 - Expose a scene's behaviour through its root node; keep references to internal nodes encapsulated. Communicate upward with signals and downward with method calls.
 - Keep autoloads to genuinely global services (e.g. the event log). Run state is passed explicitly, never stored in an autoload.
@@ -45,6 +46,7 @@ What each check covers:
 - Branch names: `type/short-description` in lowercase, with `type` one of `feature`, `fix`, `docs`, `chore`, `refactor`, `test`. Never put agent or tool names in branch names.
 - Commit `.uid` and `.import` files. Never add them to `.gitignore`.
 - When moving or renaming a script, move its `.uid` file with it (`git mv a.gd b.gd` and `git mv a.gd.uid b.gd.uid`).
+- Commit `export_presets.cfg` (web and Windows). Godot keeps export credentials in `.godot/`, which is never committed. Never set a script encryption key in a committed preset: that key is stored in the preset file.
 - `.gitignore` covers `.godot/`, build output and generated test reports. It is set up on `chore/project-setup`.
 - Don't commit or push without being asked.
 
