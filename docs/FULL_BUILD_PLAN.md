@@ -1,6 +1,6 @@
 # Next Customer: Full Build Plan
 
-> Status: draft v0.1. **This plan will change.** Each prototype playtest round can rewrite parts of it. Update the changelog when it does.
+> Status: draft v0.2. **This plan will change.** Each prototype playtest round can rewrite parts of it. Update the changelog when it does.
 > Starts only after the prototype passes its decision gate (`docs/PROTOTYPE_PLAN.md`, section 9).
 > Engine: Godot 4.7, GDScript with static typing. Platform: Windows, mouse. Steam is the main store; itch.io hosts a web demo.
 
@@ -20,7 +20,7 @@ Every feature must support at least one of these. If it doesn't, it waits.
 | Content | About 20 products, **8–10 coupons** (more than the original 6, because coupons are the core), 8 register upgrades |
 | Run | 8 shifts, 3 reusable inspection rules |
 | Screens | Title, shift (checkout), reward, upgrade choice, deck view, results / final receipt, settings, pause |
-| Player support | Tutorial shift, resume save, audio and text-size settings, reduced motion, click-to-place alternative |
+| Player support | Tutorial shift, resume save, audio and text-size settings, reduced motion, click-to-place and drag-and-drop (both supported) |
 | Meta | 1 starting deck. **The architecture is ready for unlockable decks and cards** (section 7), but they are only added if time allows, otherwise after launch. |
 | Platform | Windows with Steam (achievements, cloud save via GodotSteam). A web demo on itch.io. |
 
@@ -28,11 +28,13 @@ Every feature must support at least one of these. If it doesn't, it waits.
 
 The hours follow the original 160-hour budget. Your additions (more coupons, higher art standards, a smarter upgrade design) put pressure on that budget. Section 10 lists what gets cut first.
 
-### Phase 0: Prototype (about 18 hours + up to 12 for iteration)
-See `docs/PROTOTYPE_PLAN.md`. Its result: the scoring engine, data model, shift screen, count-up sequencer and playtest logger, all reused from here on.
+### Phase 0: Prototype (18–24 hours + up to 12 for iteration)
+See `docs/PROTOTYPE_PLAN.md`. Its result: the scoring engine, data model, shift screen with click-to-place, count-up sequencer, event log with export, and the browser build pipeline, all reused from here on.
 
 ### Phase 1: The complete run loop (about 24 hours)
 - Extend to 8 shifts; quotas live in a data file
+- Drag-and-drop on top of click-to-place (if it was cut from the prototype)
+- Keep the event log and browser build running for every playtest round
 - Framework for register upgrades (uses the same scoring hooks as coupons), with 3 placeholder upgrades
 - Framework for inspections, with 1 rule
 - Deck view, reward rules (controlled pool, at least one generally useful option, skip)
@@ -60,7 +62,7 @@ See `docs/PROTOTYPE_PLAN.md`. Its result: the scoring engine, data model, shift 
 - Tutorial shift (a fixed hand, guided, no penalty)
 - Settings, accessibility, pause
 - Steam integration: achievements, cloud save. Store page, trailer, capsule art.
-- Web demo export for itch.io (a short run, with a link to the Steam page)
+- Public web demo on itch.io, built with the pipeline from the prototype (a short run, with a link to the Steam page)
 - Playtest with 5–8 new players, fix bugs
 - *Done when:* a stable build is ready for review and the store page is ready
 
@@ -233,3 +235,4 @@ Content freeze at the end of phase 3. No new features after that.
 | Version | Date | Change |
 |---|---|---|
 | v0.1 | 2026-10-05 | First plan, before the prototype |
+| v0.2 | 2026-10-05 | Aligned with prototype plan v0.2: click-to-place first and drag-and-drop in phase 1 if cut, browser build and event log carried over, prototype estimate 18–24 hours |
