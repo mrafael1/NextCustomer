@@ -6,23 +6,26 @@ A single-player 2D roguelike about a supermarket cashier. Players draft grocery 
 
 ## Engine and language
 
-- Godot 4.7.2, GDScript only, with static typing everywhere. The engine version is pinned here (and in the table below); the plans just say Godot 4.
-- Static typing is enforced by the project setting `debug/gdscript/warnings/untyped_declaration`, set to **Error** on `chore/project-setup`. Without it, "no warnings" doesn't catch missing types.
+- Godot 4.7 (4.7.stable), GDScript only, with static typing everywhere. The engine version is pinned here (and in the table below); the plans just say Godot 4.
+- Static typing is enforced by the project setting `debug/gdscript/warnings/untyped_declaration`, set to **Error** in `project.godot`. Without it, "no warnings" doesn't catch missing types.
 - Godot 4 syntax only. Never use Godot 3 forms: `yield` (use `await`), `export var` (use `@export`), `onready var` (use `@onready`), `KinematicBody2D` (use `CharacterBody2D`), `Tween.new()` nodes (use `create_tween()`), `instance()` (use `instantiate()`), `connect("signal", obj, "method")` with strings (use `signal_name.connect(callable)`), `setget` (use property `set:` and `get:` blocks).
 - Follow the official GDScript style guide: `snake_case` file and folder names, member order signals → enums → constants → `@export` → variables → methods.
 
 ## Commands
 
-> **Pending verification.** These are filled in on `chore/project-setup`, after each one has run successfully on this project. Until then, don't guess commands or add unverified ones here.
+Run these from the repo root in a POSIX shell (Git Bash on Windows). `godot` must be on the `PATH`, or set `GODOT_BIN` to the Godot executable. Install the Python tools once with `python -m pip install -r tools/requirements.txt`.
 
 | Purpose | Command | Exact version |
 |---|---|---|
-| Run tests (GdUnit4) | *pending* | *pending* |
-| Parse and type-check a script | *pending* | Godot 4.7.2 |
-| Lint (gdlint) | *pending* | *pending* |
-| Format (gdformat) | *pending* | *pending* |
-| Re-import after editing scenes or resources | *pending* | Godot 4.7.2 |
-| Export the web build | *pending* | Godot 4.7.2 |
+| Run tests (GdUnit4) | `sh tools/test.sh` (one suite: `sh tools/test.sh -a res://tests/path_test.gd`) | GdUnit4 6.2.1 |
+| Parse and type-check a script, then lint and format-check it | `sh tools/check.sh path/to/script.gd` (no arguments: every script outside `addons/`) | Godot 4.7.stable |
+| Lint (gdlint) | `python -m gdtoolkit.linter <paths>` | gdtoolkit 4.5.0 |
+| Format (gdformat) | `python -m gdtoolkit.formatter <paths>` | gdtoolkit 4.5.0 |
+| Re-import after editing scenes or resources | `godot --headless --path . --import` | Godot 4.7.stable |
+| Export the web build | `sh tools/export_web.sh` (output in `build/web/`) | Godot 4.7.stable |
+| Export the Windows build | `sh tools/export_windows.sh` (output in `build/windows/`) | Godot 4.7.stable |
+
+Test reports are written to `reports/` (ignored by git). The build label shown to players and in the log (`proto-r1` …) is the project setting `next_customer/build_label`; `application/config/version` stays numeric because Windows requires it.
 
 What each check covers:
 - **Tests** verify the behaviour they cover. Passing tests don't prove that every rule is correct.
@@ -49,6 +52,7 @@ What each check covers:
 - Commit `export_presets.cfg` (web and Windows). Godot keeps export credentials in `.godot/`, which is never committed. Never set a script encryption key in a committed preset: that key is stored in the preset file.
 - `.gitignore` covers `.godot/`, build output and generated test reports. It is set up on `chore/project-setup`.
 - Don't commit or push without being asked.
+- Never merge into `main`, push to `main` or commit on it, even when asked to push. Work happens on its own branch and reaches `main` only through a pull request that the user reviews and merges.
 
 ## Working agreement
 
