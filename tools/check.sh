@@ -9,9 +9,9 @@ if [ $# -eq 0 ]; then
 fi
 status=0
 for script in "$@"; do
-	if ! "$GODOT_BIN" --headless --path . --check-only --script "res://$script" > /dev/null 2>&1; then
+	if ! output=$("$GODOT_BIN" --headless --path . --check-only --script "res://$script" 2>&1); then
 		echo "FAIL parse/type: $script"
-		"$GODOT_BIN" --headless --path . --check-only --script "res://$script" 2>&1 | grep -E "ERROR|WARNING" || true
+		printf '%s\n' "$output"
 		status=1
 	fi
 done

@@ -8,6 +8,7 @@ A single-player 2D roguelike about a supermarket cashier. Players draft grocery 
 
 - Godot 4.7 (4.7.stable), GDScript only, with static typing everywhere. The engine version is pinned here (and in the table below); the plans just say Godot 4.
 - Static typing is enforced by the project setting `debug/gdscript/warnings/untyped_declaration`, set to **Error** in `project.godot`. Without it, "no warnings" doesn't catch missing types.
+- Every enabled GDScript warning is set to **Error** so `tools/check.sh` rejects warnings. Disabled warnings stay disabled, and third-party addons use Godot's default warning exclusion.
 - Godot 4 syntax only. Never use Godot 3 forms: `yield` (use `await`), `export var` (use `@export`), `onready var` (use `@onready`), `KinematicBody2D` (use `CharacterBody2D`), `Tween.new()` nodes (use `create_tween()`), `instance()` (use `instantiate()`), `connect("signal", obj, "method")` with strings (use `signal_name.connect(callable)`), `setget` (use property `set:` and `get:` blocks).
 - Follow the official GDScript style guide: `snake_case` file and folder names, member order signals → enums → constants → `@export` → variables → methods.
 
