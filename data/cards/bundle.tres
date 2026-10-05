@@ -1,0 +1,19 @@
+[gd_resource type="Resource" script_class="CardDefinition" format=3]
+
+[ext_resource type="Script" path="res://core/rule.gd" id="1_wxh1e"]
+[ext_resource type="Script" path="res://core/rules/connector_bridge_rule.gd" id="2_1jlqr"]
+[ext_resource type="Script" path="res://core/card_definition.gd" id="3_rd8rl"]
+
+[sub_resource type="Resource" id="Resource_xf33c"]
+script = ExtResource("2_1jlqr")
+receipt_text = "Bundle"
+
+[resource]
+script = ExtResource("3_rd8rl")
+id = &"bundle"
+display_name = "Bundle"
+kind = 2
+is_connector = true
+tags = PackedStringArray()
+rules = Array[ExtResource("1_wxh1e")]([SubResource("Resource_xf33c")])
+rule_text = "The products on either side of it count as adjacent to each other"

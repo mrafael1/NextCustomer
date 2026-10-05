@@ -1,0 +1,22 @@
+[gd_resource type="Resource" script_class="CardDefinition" format=3]
+
+[ext_resource type="Script" path="res://core/rule.gd" id="1_1pj1i"]
+[ext_resource type="Script" path="res://core/rules/adjacent_match_bonus_rule.gd" id="2_3er7f"]
+[ext_resource type="Script" path="res://core/card_definition.gd" id="3_4dxqc"]
+
+[sub_resource type="Resource" id="Resource_uvnrk"]
+script = ExtResource("2_3er7f")
+match_by = 1
+position = 1
+bonus_is_base = true
+receipt_text = "Banana pair"
+
+[resource]
+script = ExtResource("3_4dxqc")
+id = &"banana"
+display_name = "Banana"
+kind = 1
+tags = PackedStringArray("Food", "Produce")
+base = 2
+rules = Array[ExtResource("1_1pj1i")]([SubResource("Resource_uvnrk")])
+rule_text = "+ its base value (+2) as a flat bonus if immediately after another Banana"

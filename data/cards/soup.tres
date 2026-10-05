@@ -1,0 +1,20 @@
+[gd_resource type="Resource" script_class="CardDefinition" format=3]
+
+[ext_resource type="Script" path="res://core/rule.gd" id="1_ip6lg"]
+[ext_resource type="Script" path="res://core/rules/zero_payout_beside_tag_rule.gd" id="2_3tgjy"]
+[ext_resource type="Script" path="res://core/card_definition.gd" id="3_ookye"]
+
+[sub_resource type="Resource" id="Resource_5qoac"]
+script = ExtResource("2_3tgjy")
+tag = "Frozen"
+receipt_text = "Soup beside Frozen"
+
+[resource]
+script = ExtResource("3_ookye")
+id = &"soup"
+display_name = "Soup"
+kind = 1
+tags = PackedStringArray("Food")
+base = 5
+rules = Array[ExtResource("1_ip6lg")]([SubResource("Resource_5qoac")])
+rule_text = "Pays 0 if beside a Frozen product"

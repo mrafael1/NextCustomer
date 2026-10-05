@@ -35,15 +35,7 @@ The plan does not decide these interactions. **Don't pick an answer.** If a task
 
 | Question | Why it matters |
 |---|---|
-| Soup "pays 0" beside Frozen: does it set the payout to 0 after flat bonuses and multipliers, or set the base to 0 (so flat bonuses like Coffee's +3 still count)? | A stickered Soup with a Coffee bonus scores differently |
-| Does a product that pays 0 still use up an Egg charge? | Changes Eggs value next to Soup |
-| Bundle in the first or last slot (a product on only one side): no effect, or something else? | Edge case in every row |
-| Breakfast sticker on a product that is already Breakfast: wasted, or another effect? | Affects how good the sticker is |
-| Scoring: a Coffee bonus with no later Breakfast product: is it simply lost, or does it apply somewhere else? | Changes totals |
-| Presentation: should an unused effect (e.g. a Coffee bonus that found no target) appear on the receipt as wasted? | Readability; doesn't change totals |
 | Can the player commit an empty or one-card row? | Scoring of edge rows and UI validation |
-| Bundle next to a coupon that isn't a connector (e.g. Banana, Bundle, Multipack, Banana): does it bridge over that coupon, link only to the nearest product, or do nothing? | Edge case in any row with two coupons together |
-| Between shifts, is each hand drawn from the whole deck (everything reshuffled), or are used cards set aside until the deck runs out? | Changes how often a card appears and what the 15-card limit means |
 | Which cards carry the `generally_useful` flag used by reward offers? | Needed before reward offers are built |
 
 Add new questions here when they come up instead of guessing.

@@ -1,0 +1,13 @@
+[gd_resource type="Resource" script_class="CardDefinition" format=3]
+
+[ext_resource type="Script" path="res://core/rule.gd" id="1_oitjh"]
+[ext_resource type="Script" path="res://core/card_definition.gd" id="2_ex8hi"]
+
+[resource]
+script = ExtResource("2_ex8hi")
+id = &"bread"
+display_name = "Bread"
+kind = 1
+tags = PackedStringArray("Food", "Breakfast", "Bakery")
+base = 3
+rule_text = "No rule"
