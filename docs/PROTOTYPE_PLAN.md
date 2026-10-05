@@ -1,6 +1,6 @@
 # Next Customer: Prototype Plan
 
-> Status: draft v0.3, written before development starts. Update it after every playtest round (see the changelog at the bottom).
+> Status: draft v0.4, written before development starts. Update it after every playtest round (see the changelog at the bottom).
 > Source: the original "Receipt Rogue" game design plan, plus the decisions made in planning.
 > Engine: Godot 4 (exact version pinned in `AGENTS.md`), GDScript with static typing. Playtest builds are delivered in the browser.
 
@@ -26,11 +26,11 @@ The prototype has to show three things:
 - The point-count sequence: receipt lines print one by one, the source of each bonus is highlighted, the subtotal ticks up, with beep and print sounds and a fast-forward option
 - A run of 5 shifts with quotas 10 / 15 / 22 / 32 / 48 (placeholders)
 - After each successful shift, pick 1 of 3 stock cards or skip; deck view; 15-card limit with replacement (the 13-card start deck reaches it after two picks, so replacement is reachable from the third reward)
-- Win and lose screens, instant restart
-- Seeded random numbers (the seed is shown on screen, and a run can be replayed from its seed)
-- An event log written automatically, which can be exported from the browser (section 8)
+- Win and lose screens, instant restart. A restart starts a new run with a **new random seed**; replaying a fixed seed is only possible from the debug panel. New run seeds come from a randomized `RandomNumberGenerator` owned outside `core/` (the same one that makes the `session_id`) and are passed in when a run is created; `core/` never makes its own seeds.
+- Seeded random numbers (the seed is shown on screen, and a run can be replayed from its seed in development builds)
+- An event log written automatically, which can be exported from the browser (section 8), and a small script that summarises the logs
 - **A browser build** for playtesters (section 7), plus a Windows build as a fallback
-- A debug panel: set the seed, add any card to the hand, skip to a shift. It exists in development builds only; playtest builds exclude it (export feature tag), so playtesters can't spoil the data. Any use in a development build is logged as a `debug` event.
+- A debug panel: set the seed, add any card to the hand, skip to a shift. It exists in development builds only, so playtesters can't spoil the data: both export presets carry the `playtest` feature tag and exclude `debug/*`, and the panel is loaded with `load()` only when `OS.has_feature("playtest")` is false. It is never preloaded or placed in a shipped scene, and scripts outside `debug/` never name a `debug/` class (no type hints, `.new()` or `is` checks): the excluded classes don't exist in a playtest build, so such a reference would fail to compile there. They load the panel scene by path and treat it as a plain `Control`. Any use in a development build is logged as a `debug` event.
 - **Drag-and-drop only if time allows.** It is the first thing cut (section 6).
 
 ### Out of scope (deliberately)
@@ -54,12 +54,14 @@ The original design doc is the base. These decisions resolve its ambiguities. Ea
 Scoring runs in two passes (section 4):
 
 1. **Context pass:** tag changes and adjacency changes from coupons are applied to the whole row first.
-2. **Value pass, left to right**, for each product:
+2. **Value pass, left to right**, for each card, product or coupon:
    1. Base value
    2. **+ all flat bonuses** (its own rule, Coffee bonuses waiting for it, and so on)
    3. **× all multipliers** (Eggs charges, Multipack, …)
    4. Payout added to the subtotal
-   5. Its effects for later cards become active (Eggs charges, Coffee bonus, …)
+   5. Its effects for later cards become active (Eggs charges, Coffee bonus, Multipack's ×2, …)
+
+Coupons go through the same steps at their own slot. A coupon has base 0 and no tags, so it never receives an Egg charge, a Coffee bonus, a Multipack ×2 or any other effect aimed at products. Its payout comes only from its own rule: Final markdown's +6 is its own flat bonus, and Repeat's payout is the copy (section 3.3). Every coupon appears on the receipt, even when it pays 0.
 
 ### 3.3 Stacking
 
@@ -119,7 +121,7 @@ Scoring runs in two passes (section 4):
 | Banana, Repeat, Banana | 2 + 2 + 2 = **6** | A coupon breaks the pair |
 | Bread, Bundle, Cheese | 3 + 0 + 7 = **10** | Bundle connects Bread and Cheese |
 | Eggs, Bread, Multipack, Bread | 1 + 6 + 0 + 12 = **19** | Eggs ×2 and Multipack ×2 stack to ×4 |
-| Milk, Multipack, Cheese | 3 + 0 + 6 = **9** | Multipack by a shared tag (Dairy) |
+| Milk, Multipack, Cheese | 3 + 0 + 6 = **9** | Multipack by a shared tag (Food and Dairy) |
 | Coffee, Coffee, Bread | 2 + 5 + 6 = **13** | Each Coffee bonus used once |
 | Breakfast sticker, Banana, Milk | 0 + 2 + 5 = **7** | The sticker makes Banana Breakfast for Milk |
 | Eggs, Eggs, Bread, Bread, Bread | 1 + 2 + 6 + 6 + 3 = **18** | The second Egg uses a charge, then resets to 2 |
@@ -135,10 +137,27 @@ Scoring runs in two passes (section 4):
 | Frozen peas, Frozen peas | 6 + 6 = **12** | "Beside" works in both directions, so both get the bonus |
 | Soup, Bundle, Frozen peas | 0 + 0 + 3 = **3** | Bundle makes Soup count as beside Frozen peas |
 | Soup, Repeat, Frozen peas | 5 + 5 + 3 = **13** | A coupon breaks the pair, so Soup keeps its value |
+| Eggs, Coffee, Bread, Bread | 1 + 2 + 12 + 6 = **21** | Coffee isn't Food, so it doesn't use an Egg charge; Coffee's +3 is added before the ×2 |
+| Coffee, Banana, Bread | 2 + 2 + 6 = **10** | Coffee's bonus skips a non-Breakfast product and reaches a later one |
+| Coffee, Bread, Milk | 2 + 6 + 7 = **15** | Milk counts every earlier Breakfast product (+2 each) |
+| Coffee, Repeat, Bread | 2 + 2 + 6 = **10** | The Repeat copy doesn't trigger Coffee's bonus a second time |
+| Coffee, Multipack, Banana, Bread | 2 + 0 + 2 + 12 = **16** | Multipack matches on a tag other than Food (Breakfast), skips a product that shares no tag, and reaches past the next slot; Coffee's +3 is added before the ×2 |
+| Bread, Multipack, Bread, Multipack, Bread | 3 + 0 + 6 + 0 + 12 = **21** | Two Multipacks stack (×2 × ×2) |
+| Breakfast sticker, Banana, Multipack, Coffee, Bread | 0 + 2 + 0 + 4 + 12 = **18** | Multipack sees the Breakfast tag added by the sticker, so Coffee is doubled |
+| Banana, Bundle, Bundle, Banana | 2 + 0 + 0 + 4 = **6** | Two connectors in a row act as one bridge |
+| Bread, Bundle, Repeat | 3 + 0 + 0 = **3** | Repeat after Bundle pays 0 |
 
-Golden rows use a frozen copy of the card data (`tests/fixtures/cards_v0_2/`, named for the rules version it froze), so tuning values in `data/` between playtest rounds doesn't break them. The live data gets its own tests with expected totals that are updated when values change.
+Golden rows use a frozen copy of the card data, `tests/fixtures/cards_v0_4/` (named for the rules version it froze), so tuning values in `data/` between playtest rounds doesn't break them. The live data gets its own tests with expected totals that are updated when values change.
 
-Also tested: duplicate cards are separate instances · the redraw cannot bring back a card that was just replaced · the same seed gives the same draws.
+How the fixture is built:
+- It is **self-contained**: each card `.tres` embeds its rule resources as sub-resources and references nothing in `data/`. A test checks that no file in the fixture mentions `res://data/`.
+- Write it by hand from the values in sections 3.6 and 5. If you start from copies of `data/` files, remove their `uid=` strings and let Godot assign new ones on import, because two resources must never share a UID.
+- It freezes **values**, not rule scripts. Rule scripts are shared with the game, so changing a rule script can still change golden totals, and that is a rule change that needs approval.
+- Rule scripts give every `@export` number a neutral default (0 for bonuses, 1 for multipliers, 0 for charges). Godot doesn't write a value to a `.tres` file when it equals the script default, so a non-neutral default would let a script change silently alter the fixture.
+
+No row may leave a Coffee bonus without a later Breakfast product, or depend on any other question in the unresolved table of `core/AGENTS.md`, until that question is decided.
+
+Also tested: duplicate cards are separate instances · the redraw cannot bring back a card that was just replaced · the same seed gives the same draws · a restart uses a new seed (the test injects the seed source) · every `@export` number in a rule script defaults to its neutral value · no card in `data/` or the fixture has `kind` left at `UNSET` · every `.tres` and `.tscn` in `data/`, `ui/`, `presentation/`, `debug/`, `telemetry/` and the fixture loads, and is of the expected type (`tools/test.sh` also fails on any Godot error printed while loading).
 
 ## 4. Architecture (built to last, not thrown away)
 
@@ -147,12 +166,13 @@ The prototype code is the start of the real game. Only the presentation layer is
 ```
 res://
   core/                 # pure logic: no Nodes, no scene tree, fully testable
-    card_definition.gd  # Resource: id, name, tags, base, rules[], generally_useful, art_ref
+    card_definition.gd  # Resource: id, name, kind (UNSET, PRODUCT or COUPON), is_connector, tags, base, rules[], generally_useful, art_ref
+    deck_definition.gd  # Resource: id, name, cards[]
     card_instance.gd    # a reference to a definition + a unique instance id
     rule.gd             # base class for product and coupon rules (hook methods)
     rules/              # one script per reusable trigger and effect
     scoring.gd          # score(row, context) -> ScoreResult {total, steps[]}
-    score_step.gd       # one explanation line: slot, source, kind, value change, text
+    score_step.gd       # one explanation line: slot, source, step_type, value change, text
     deck.gd             # draw, redraw, reward insertion; takes the run's RandomNumberGenerator
     run_state.gd        # deck, shift, quota, seed, (later: upgrades, inspection)
   data/
@@ -170,8 +190,10 @@ res://
 
 Coupons need to be able to **change the rules**, not only add numbers. So scoring runs in two passes:
 
-1. **Context pass** (the whole row, before any values are calculated): rules can change *tags* ("the next product gains Breakfast") and *adjacency* ("the products on either side of me count as adjacent"). This produces a final list of tags and neighbours for each slot.
-2. **Value pass** (left to right): each product goes through base → flat bonuses → multipliers → payout → effects for later cards, using the results of the context pass (section 3.2).
+1. **Context pass** (the whole row, before any values are calculated): rules can change *tags* ("the product in the next slot gains Breakfast"), and connectors change *adjacency* ("the products on either side of me count as adjacent"). This produces a final list of tags and neighbours for each slot.
+2. **Value pass** (left to right): each card, product or coupon, goes through base → flat bonuses → multipliers → payout → effects for later cards, using the results of the context pass (section 3.2).
+
+`kind` tells the passes whether a slot holds a product or a coupon (coupons break adjacency, never receive product effects, and can't be copied by Repeat). `is_connector` marks coupons like Bundle that bridge adjacency instead of breaking it. Adjacency changes still go through the context hook (`modify_context`), so later coupons and upgrades can change adjacency the same way; Bundle's rule uses that hook and reads `is_connector` to treat consecutive connectors as one bridge. It links the product immediately before a run of connectors to the product immediately after it (section 3.4). When either neighbour isn't a product (Bundle at an end of the row, or next to a coupon that isn't a connector), the result is still undecided: see the unresolved table in `core/AGENTS.md`. Code reads the flags, never card ids. `kind`'s first value is `UNSET`, so every card file must state its kind (Godot doesn't write a value that equals the default).
 
 Every rule overrides only the hooks it needs (`modify_context`, `flat_bonus`, `multiplier`, `on_scanned`, `copy_payout` …). Register upgrades and inspections in the full build will use the **same hooks**, so no rewrite will be needed.
 
@@ -199,7 +221,7 @@ Every rule overrides only the hooks it needs (`modify_context`, `flat_bonus`, `m
 | Repeat | Copy the payout of the product just before it | Plain amplification |
 | Final markdown | +6 if in the last slot | Position pressure, competes with Repeat |
 | **Bundle** | The products on either side of it count as adjacent to each other | Coupons that *enable* combinations instead of breaking them |
-| **Breakfast sticker** | The next product gains the Breakfast tag | Changing tags creates new builds (Banana into a Milk build) |
+| **Breakfast sticker** | The product in the next slot gains the Breakfast tag | Changing tags creates new builds (Banana into a Milk build) |
 | **Multipack** | ×2 to every later product that shares a tag with the product just before this coupon | A big multiplier with an ordering puzzle around it |
 
 ### Starting deck (13 cards, with an early coupon)
@@ -221,15 +243,13 @@ The two-pass engine, click-to-place UI, count-up animation, browser export and l
 |---|---|---|
 | 1 | Project setup, GdUnit4, **browser export check with an empty scene** (catches export problems early), card data resources, scoring engine with both passes, all tests from section 3.7 | Tests pass headless. An empty web build runs in the browser. |
 | 2 | Shift screen: draw, redraw, click-to-place into 6 slots, live preview and receipt explanation, deck and seed, debug panel, event logger with all event types | One shift is playable and logged from start to finish |
-| 3 | Count-up sequencer and sounds, reward screen, 5-shift run, win and lose screens, restart, log export, web build uploaded. First playtest with 1–2 people. | A stranger can play a complete run in the browser without being told what to do, and send back the log |
+| 3 | Count-up sequencer and sounds, reward screen, 5-shift run, win and lose screens, restart, log export, log summary script, web build uploaded. First playtest with 1–2 people. | A stranger can play a complete run in the browser without being told what to do, and send back the log |
 
 ### What gets cut if time runs out (in this order)
 
 1. **Drag-and-drop.** Click-to-place tests selection and ordering just as well.
-2. Hover breakdown for each card (the receipt explanation stays)
-3. Debug panel features other than the seed
-4. The log summary script (read the logs by hand)
-5. Sound beyond the scanner beep and printer
+2. Debug panel features other than the seed
+3. The log summary script (read the logs by hand)
 
 **Never cut:** the scoring engine and its tests, the count-up sequence, the event log, the browser build.
 
@@ -243,33 +263,52 @@ Playtesters open a link instead of downloading a build. This lowers the barrier 
 - A "click to start" title screen so browsers allow audio
 - Fonts embedded in the build; test in Chrome and Firefox (Safari if possible)
 - On the web, `user://` is stored in the browser, so the log has to be exported (section 8)
-- Every build shows its version (e.g. `proto-r1`) on the title screen and in the log
+- Every build shows its build label (e.g. `proto-r1`, the project setting `next_customer/build_label`) on the title screen and in the log
 
 ## 8. Event log
 
-The prototype writes one JSON line per **event** to `user://playtest_logs/<session_id>.jsonl`. Each line contains: `session_id`, `run_id`, `seq` (order number), `time`, `build`, `type`, and the data for that type. Each event is written by opening the file, appending the line and closing it again (`FileAccess.READ_WRITE` then `seek_end()`; `WRITE` and `WRITE_READ` truncate the file, so use them only to create it the first time). On the web, `user://` is persisted to the browser's storage asynchronously and a long-open file is not guaranteed to be saved, so keeping a file open and flushing it is not enough. Test this early: play a few events, close the tab, reopen the build and check the log survived.
+The prototype writes one JSON line per **event** to `user://playtest_logs/<start time>_<session_id>.jsonl`, where the start time is UTC like `20261005T143000`, so name order is chronological. A **session** is one launch of the game (one page load on the web); its `session_id` is random and made with its own `RandomNumberGenerator`, never the run's. Each line contains:
+
+- `session_id`, `run_id`, `seq` (order number within the session), `build` (the build label), `type`, and the data for that type
+- `time`: wall-clock time in ISO 8601 UTC, written as `Time.get_datetime_string_from_system(true) + "Z"` (e.g. `2026-10-05T14:30:00Z`), for matching logs to interviews
+- `t_ms`: milliseconds since launch from `Time.get_ticks_msec()`, a monotonic clock used for every duration
+
+At startup the logger creates the folder with `DirAccess.make_dir_recursive_absolute("user://playtest_logs")`, because `FileAccess.open` doesn't create folders. If opening the file returns null, it reports `FileAccess.get_open_error()` through its error reporter (`push_error` by default, a recorder in tests; see `AGENTS.md`) instead of failing silently. Each event is written by opening the file, appending the line and closing it again (`FileAccess.READ_WRITE` then `seek_end()`; `WRITE` and `WRITE_READ` truncate the file, so use them only to create it the first time). On the web, `user://` is persisted to the browser's storage asynchronously and a long-open file is not guaranteed to be saved, so keeping a file open and flushing it is not enough. Test this early: play a few events, close the tab, reopen the build and check the log survived.
 
 Choices and actions that happen after a checkout (rewards, the end of a run, restarts) are their own events. They are not stuffed into the checkout record.
 
 | Event | Data |
 |---|---|
-| `run_start` | seed, starting deck |
+| `run_start` | seed (a new random seed for every run, including after a restart), starting deck |
 | `shift_start` | shift, quota, the 8 cards drawn |
 | `redraw` | cards replaced, cards received |
-| `checkout` | final order, score, pass or fail, number of rearrangements before committing, number of distinct projected totals seen, planning time, count-up time, fast-forward used, input method (click or drag) |
-| `reward` | the 3 cards offered, card picked or skipped, card replaced (at the 15-card limit), time to decide, whether the deck view was opened |
+| `checkout` | final order, score, pass or fail, placements, removals, rearrangements, distinct projected totals, planning time, count-up time, fast-forward used, input method (click or drag); see the definitions below |
+| `reward` | shift, the 3 cards offered, card picked or skipped, card replaced (at the 15-card limit), time to decide, whether the deck view was opened |
 | `run_end` | win or loss, shift reached, last score, run length |
 | `restart` | time since `run_end`, from which screen |
-| `log_export` | when the player exported the log |
+| `log_export` | which screen the export was started from, number of session files joined |
 | `debug` | which debug action was used and its arguments (development builds only) |
 
-**Getting the log back:** the title and results screens have an **Export log** button that downloads the file (on the web, via `JavaScriptBridge.download_buffer`). Playtesters send that file. On desktop the button opens the log folder.
+### Checkout measures
 
-A small script summarises the logs: rearrangements per checkout, how often each coupon was picked, win rate per shift, which builds appear, restart rate.
+| Field | Definition |
+|---|---|
+| placements | Number of times a card was put into a slot. Moving a card already in the row counts as 1 placement and 0 removals. Redraws don't count. |
+| removals | Number of times a card was taken out of the row. Removing one card counts once, even though the cards after it shift left. |
+| rearrangements | `placements` minus the number of cards committed. Placing each committed card once gives 0; every extra placement counts 1. |
+| distinct projected totals | Number of different preview totals shown for rows with the same number of cards as the committed row. A total seen again counts once. |
+| planning time | From `shift_start` to the checkout click, in ms of `t_ms`, minus any time the game window was unfocused (the root window's `focus_exited` / `focus_entered` signals, which also fire in the browser when the player switches tabs; the `NOTIFICATION_APPLICATION_FOCUS_*` notifications don't fire on the web). Check this in the browser test: switch tabs during a shift and confirm the planning time doesn't include it. |
+| count-up time | From the checkout click to the final total being shown, in ms of `t_ms`. |
+
+**Getting the log back:** an **Export log** button is visible on every screen: title, shift, reward and results. It downloads **every file** in `user://playtest_logs/`, joined into one `.jsonl` file in name order (each line already carries its `session_id`), so sessions from before a reload or a closed tab are included. On the web it uses `JavaScriptBridge.download_buffer`. On desktop it writes the same joined file to `user://playtest_export.jsonl` and opens that folder, so desktop testers also send one file. The `log_export` event is written, and its file closed, **before** the files are read, so the exported file contains it. Playtesters send that one file.
+
+A small script summarises the logs: rearrangements per checkout, each coupon's pick rate (picks divided by the times it was offered, with each run's first offer reported separately, because it always contains a combination coupon; the `reward` event's `shift` identifies it), win rate per shift, which builds appear, restart rate.
 
 ### How to read the numbers
 
-**A high rearrangement count is a clue, not proof of blind shuffling.** A player might rearrange a lot because they are exploring combinations on purpose. Always combine the count with the interview (section 9):
+**A high rearrangement count is a clue, not proof of blind shuffling.** A player might rearrange a lot because they are exploring combinations on purpose. Always combine the count with the interview (section 9).
+
+Provisional threshold, for checkouts of 3 or more cards: a checkout is **High** when its rearrangements are at least twice the number of cards committed (12 or more for a full row), otherwise **Low**. Checkouts of 0–2 cards are left out. A player is High when most of their checkouts are. Re-check the threshold against the first round's logs and record any change in the changelog.
 
 | Rearrangements | Player can explain the payout and why they chose the order | Interpretation |
 |---|---|---|
@@ -333,3 +372,4 @@ Rules for iterating: **one major variable per round**, card values tweaked only 
 | v0.1 | 2026-10-05 | First plan, before development |
 | v0.2 | 2026-10-05 | Banana and Frozen peas use "+ base as a flat bonus" · stacking and adjacency fully specified, with more test cases · a coupon in the starting deck and a combination coupon in the first reward · browser delivery for playtests · event log with separate reward, run-end and restart events, plus log export · rearrangement count treated as a clue combined with the interview · click-to-place first, drag-and-drop cut first · realistic estimate of 18–24 hours |
 | v0.3 | 2026-10-05 | Deck limit lowered from 18 to 15 so replacement is reachable · event log opens, appends and closes per event (web persistence) · golden tests run on frozen card data · the debug panel is excluded from playtest builds and its use is logged · rules are stateless · 9 more required test cases · a `generally_useful` card flag · engine version pinned in `AGENTS.md` only · rule numbers live in data · all randomness uses the run's seeded RNG |
+| v0.4 | 2026-10-05 | Coupons go through the value pass at their own slot (base 0, no tags) · card definitions get `kind` and `is_connector`, plus a `DeckDefinition` script · 9 more required test cases (none depends on an unresolved question), and test 8 notes that Food is also shared · the golden fixture (`cards_v0_4`) is self-contained and built by hand, and rule scripts use neutral `@export` defaults · the debug panel is excluded from playtest exports (`debug/*`) and loaded only without the `playtest` tag · a restart uses a new seed from an RNG outside `core/` · Bundle bridges through the context hook and uses `is_connector` to join consecutive connectors; its edge cases stay unresolved · `kind` starts at `UNSET`, and the step field is `step_type` · scripts outside `debug/` never name `debug/` classes · every coupon gets a receipt line, even at 0 · the build label is the project setting `next_customer/build_label` · the log summary script is in scope (day 3) · Breakfast sticker text says "next slot" · the cut list holds only items in scope · a test loads every scene and resource in the game folders and the fixture (section 3.7), and `tools/test.sh` fails on any Godot error · code that reports errors takes an injectable reporter, so tests never print errors · event log: sessions with time-ordered file names, `time` (exact format) and `t_ms`, planning time paused on window focus loss (works on the web), desktop export also writes one joined file, `reward` records the shift, folder creation and open errors, checkout measures defined, provisional High threshold, export bundles every session file from any screen, `log_export` written before the export, coupon pick rate per offer |
