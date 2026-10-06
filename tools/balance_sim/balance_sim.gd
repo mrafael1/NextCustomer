@@ -11,7 +11,7 @@ extends SceneTree
 ##   --out=PATH        also write the report as JSON
 ##   --cache=DIR       where the search cache is kept between runs, or "none" (default
 ##                     reports/balance_sim_cache). The file is named by a fingerprint of core/,
-##                     the cards, upgrades and inspections in play and the row limits, so a
+##                     the deck, cards, upgrades and inspections in play and the row limits, so a
 ##                     change to any of them starts a new cache; quotas, pools, inspected
 ##                     shifts and strategies don't.
 ## Process modes (set by the wrapper):
@@ -202,7 +202,8 @@ func _merge(paths: PackedStringArray, search: SimRowSearch) -> bool:
 
 ## The cache file for this simulation, or "" with --cache=none. Its name is a fingerprint of
 ## everything a cached best row depends on: core's scripts, the search script, the files of the
-## cards, upgrades and inspections in play and the row limits.
+## deck, the cards, upgrades (the deck's starting upgrade too) and inspections in play and the
+## row limits.
 func _cache_file() -> String:
 	if _options["cache"] == "none":
 		return ""
@@ -215,7 +216,11 @@ func _cache_file() -> String:
 	cards.append_array(_balance.first_offer_pool)
 	for card: CardDefinition in cards:
 		context[card.resource_path] = FileAccess.get_file_as_string(card.resource_path)
-	for upgrade: UpgradeDefinition in _balance.upgrade_pool:
+	context["deck"] = FileAccess.get_file_as_string(_starter.resource_path)
+	var upgrades: Array[UpgradeDefinition] = _balance.upgrade_pool.duplicate()
+	if _starter.starting_upgrade != null:
+		upgrades.append(_starter.starting_upgrade)
+	for upgrade: UpgradeDefinition in upgrades:
 		context[upgrade.resource_path] = FileAccess.get_file_as_string(upgrade.resource_path)
 	for inspection: InspectionDefinition in _balance.inspection_pool:
 		context[inspection.resource_path] = FileAccess.get_file_as_string(inspection.resource_path)

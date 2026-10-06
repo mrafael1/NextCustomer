@@ -108,6 +108,23 @@ func test_tickets_follow_the_reward_only_on_upgrade_shifts() -> void:
 	assert_int(int(upgrade["decide_ms"])).is_greater_equal(450)
 
 
+## Full build plan 7.3: a deck's starting upgrade takes a pre-stamped box of its own, before the
+## upgrade-shift boxes.
+func test_a_starting_upgrade_has_its_own_stamped_box() -> void:
+	var runner: GdUnitSceneRunner = scene_runner(SCREEN)
+	var screen: ShiftScreen = runner.scene()
+	var deck: DeckDefinition = (load("res://data/decks/starter.tres") as DeckDefinition).duplicate()
+	deck.starting_upgrade = load(COUPON_ENGINE)
+	screen.run = RunState.new(61, deck, screen.run.balance)
+	screen.run.start_shift()
+	screen._on_shift_started()
+	var texts: PackedStringArray = screen._loyalty_card.box_texts()
+	assert_int(texts.size()).is_equal(screen.run.balance.upgrade_shifts.size() + 1)
+	assert_str(texts[0]).is_equal("CoE")
+	assert_str(texts[1]).is_empty()
+	assert_int(screen._loyalty_card.stamped_boxes().size()).is_equal(1)
+
+
 ## Every ticket shows the same fields in the same order (full build plan 5.2).
 func test_a_ticket_shows_its_fields_in_order() -> void:
 	var coupon_engine: UpgradeDefinition = load(COUPON_ENGINE)

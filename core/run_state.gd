@@ -17,6 +17,8 @@ const BASE_REDRAWS := 1
 
 var run_seed: int = 0
 var balance: BalanceDefinition
+## The starting deck the run began with.
+var starter: DeckDefinition
 var deck: Deck
 ## 0-based index of the current shift.
 var shift_index: int = 0
@@ -30,7 +32,8 @@ var last_result: ScoreResult
 ## The cards offered after the last passed shift (empty outside the REWARD phase).
 var offer: Array[CardDefinition] = []
 var offers_made: int = 0
-## Owned upgrades, in pick order. Scoring steps name them by index in this list.
+## Owned upgrades, in pick order (a starting deck's upgrade first). Scoring steps name them by
+## index in this list.
 var upgrades: Array[UpgradeDefinition] = []
 ## The upgrades offered after the last passed upgrade shift. Built at checkout with the reward
 ## offer, kept through the REWARD and UPGRADE phases (non-empty during REWARD means an upgrade
@@ -48,12 +51,18 @@ var history: Array[ShiftRecord] = []
 var _rng: RandomNumberGenerator
 
 
-func _init(seed_value: int, starter: DeckDefinition, run_balance: BalanceDefinition) -> void:
+func _init(
+	seed_value: int, deck_definition: DeckDefinition, run_balance: BalanceDefinition
+) -> void:
 	run_seed = seed_value
 	balance = run_balance
+	starter = deck_definition
 	_rng = RandomNumberGenerator.new()
 	_rng.seed = seed_value
-	deck = Deck.from_definition(starter, _rng)
+	deck = Deck.from_definition(deck_definition, _rng)
+	# Full build plan 7.3: a deck's starting upgrade is owned from the first shift.
+	if deck_definition.starting_upgrade != null:
+		upgrades.append(deck_definition.starting_upgrade)
 
 
 func shift_count() -> int:
@@ -154,6 +163,8 @@ func checkout() -> ScoreResult:
 		return last_result
 	last_result = Scoring.score(row, upgrades, inspections)
 	var record: ShiftRecord = ShiftRecord.new(shift_index + 1, quota(), last_result.total)
+	for card: CardInstance in row:
+		record.played.append(card.definition)
 	if not inspections.is_empty():
 		record.inspection = inspections[0]
 	history.append(record)

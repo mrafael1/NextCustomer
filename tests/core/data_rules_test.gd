@@ -11,6 +11,7 @@ const NEUTRAL_SCRIPTS := [
 	"res://core/balance_definition.gd",
 	"res://core/upgrade_definition.gd",
 	"res://core/inspection_definition.gd",
+	"res://core/unlock_condition.gd",
 ]
 const RULE_DIRS := ["res://core/rules", "res://core/upgrades", "res://core/inspections"]
 const UPGRADE_DIR := "res://data/upgrades"
@@ -137,6 +138,35 @@ func test_every_inspection_states_its_id_and_notice() -> void:
 		assert_str(inspection.display_name).override_failure_message(file).is_not_empty()
 		assert_str(inspection.notice_text).override_failure_message(file).is_not_empty()
 	assert_int(ids.size()).is_equal(1)
+
+
+## Full build plan 7.3: every deck has an id matching its file, a name and a description; a
+## variant is a variant of a card that is not itself a variant, of the same kind; and every
+## unlock condition can work.
+func test_decks_and_variants_are_well_formed() -> void:
+	var deck_dir: String = "res://data/decks"
+	for file: String in DirAccess.get_files_at(deck_dir):
+		if not file.ends_with(".tres"):
+			continue
+		var deck: DeckDefinition = load("%s/%s" % [deck_dir, file])
+		assert_str(String(deck.id)).override_failure_message(file).is_equal(file.get_basename())
+		assert_str(deck.display_name).override_failure_message(file).is_not_empty()
+		assert_str(deck.description).override_failure_message(file).is_not_empty()
+		assert_array(deck.cards).override_failure_message(file).is_not_empty()
+		if deck.unlock_condition != null:
+			assert_array(deck.unlock_condition.problems()).override_failure_message(file).is_empty()
+	for dir: String in CARD_DIRS:
+		for file: String in DirAccess.get_files_at(dir):
+			if not file.ends_with(".tres"):
+				continue
+			var card: CardDefinition = load("%s/%s" % [dir, file])
+			if card.unlock_condition != null:
+				(
+					assert_array(card.unlock_condition.problems())
+					. override_failure_message(file)
+					. is_empty()
+				)
+			assert_array(card.variant_problems()).override_failure_message(file).is_empty()
 
 
 func test_fixture_never_points_at_live_data() -> void:
