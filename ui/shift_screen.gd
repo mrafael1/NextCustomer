@@ -8,6 +8,7 @@ extends Control
 ##
 ## Click-to-place: click a hand card to pick it up, then click a slot to put it there (a
 ## filled slot pushes the cards from there to the right). Click a row card to pick it back up.
+## Drag-and-drop does the same (CardDrag): drop on a slot to place, anywhere else to let go.
 ##
 ## The row has slot_count product slots plus coupon-only slots (plan section 3.1). The row is
 ## compacted, so the coupon slot is a capacity, not a position: no panel is marked as the
@@ -19,8 +20,6 @@ const DEBUG_PANEL := "res://debug/debug_panel.tscn"
 const CARDS_FOLDER := "res://data/cards"
 const UPGRADES_FOLDER := "res://data/upgrades"
 const INSPECTIONS_FOLDER := "res://data/inspections"
-## How long a notice (e.g. a product that doesn't fit) stays before it fades.
-const NOTICE_SECONDS := 2.2
 
 var run: RunState
 var tracker: CheckoutTracker = CheckoutTracker.new()
@@ -54,8 +53,8 @@ var _row_views: Array[CardView] = []
 var _hand_box: HBoxContainer
 var _projected_label: Label
 var _capacity_label: Label
-var _notice_label: Label
-var _notice_tween: Tween
+var _notice_label: NoticeLabel
+var _drag: CardDrag
 var _subtotal_label: Label
 var _receipt: ReceiptView
 var _redraw_button: Button
@@ -111,7 +110,8 @@ func start_new_run(seed_value: int) -> void:
 
 
 func _on_shift_started() -> void:
-	_clear_notice()
+	_notice_label.clear_notice()
+	_drag.cancel()
 	_picked = null
 	_picked_from_row = false
 	_redraw_mode = false
@@ -144,10 +144,12 @@ func _on_hand_card_clicked(view: CardView) -> void:
 		elif _redraw_pick.size() < run.balance.redraw_limit:
 			_redraw_pick.append(view.card)
 	elif _picked == view.card:
-		_drop_pick()
+		# Let go on the release, unless the press becomes a drag of the picked card.
+		_drag.arm(view.card, get_viewport().get_mouse_position(), true)
 	else:
 		_pick(view.card, false)
 		_explain_if_refused(view.card)
+		_drag.arm(view.card, get_viewport().get_mouse_position())
 	_refresh()
 
 
@@ -163,6 +165,7 @@ func _on_row_card_clicked(view: CardView) -> void:
 		_place_picked(slot)
 	elif run.remove(view.card):
 		_pick(view.card, true)
+		_drag.arm(view.card, get_viewport().get_mouse_position())
 		_refresh()
 
 
@@ -175,9 +178,26 @@ func _on_slot_input(event: InputEvent, slot: int) -> void:
 	_place_picked(slot)
 
 
-func _place_picked(slot: int) -> void:
+## Drag-and-drop: a drop on a slot places the card as a click there would; anywhere else lets
+## go of it (a card from the row goes back to the hand). A click on the picked card lets go.
+func _on_card_released(card: CardInstance, slot: int, dragged: bool) -> void:
+	if _counting or _redraw_mode or _picked != card:
+		return
+	if dragged and slot >= 0:
+		_place_picked(slot, true)
+	if _picked == card:
+		_drop_pick(dragged)
+		_refresh()
+
+
+## Where a dropped card would land: the row is compacted, so a slot past the end is the end.
+func _landing_slot(card: CardInstance, slot: int) -> int:
+	return mini(slot, run.row.size()) if run.can_place(card) else -1
+
+
+func _place_picked(slot: int, dragged: bool = false) -> void:
 	if run.place(_picked, slot):
-		tracker.on_place()
+		tracker.on_place(dragged)
 		_sfx.play("click", 1.2)
 		_picked = null
 		_picked_from_row = false
@@ -186,36 +206,10 @@ func _place_picked(slot: int) -> void:
 		_explain_if_refused(_picked)
 
 
-## Plan section 3.1: a product doesn't fit once every product slot is used, even when the
-## coupon slot is still free. Says so instead of silently ignoring the click.
+## Plan section 3.1: says why a product doesn't fit instead of silently ignoring the click.
 func _explain_if_refused(card: CardInstance) -> void:
-	if card.definition.is_coupon() or not RowCapacity.products_full(run.balance, run.row):
-		return
-	var products: String = (
-		"%d/%d products" % [RowCapacity.product_count(run.row), run.balance.slot_count]
-	)
-	if run.row.size() < RowCapacity.card_limit(run.balance):
-		_show_notice("%s: only a coupon fits now" % products)
-	else:
-		_show_notice("%s: take a product out first" % products)
-
-
-func _show_notice(text: String) -> void:
-	_notice_label.text = text
-	_notice_label.modulate = Color.WHITE
-	_sfx.play("denied", 1.4, -6.0)
-	if _notice_tween != null:
-		_notice_tween.kill()
-	_notice_tween = create_tween()
-	_notice_tween.tween_interval(NOTICE_SECONDS)
-	_notice_tween.tween_property(_notice_label, "modulate", Color(1, 1, 1, 0), 0.4)
-
-
-func _clear_notice() -> void:
-	if _notice_tween != null:
-		_notice_tween.kill()
-		_notice_tween = null
-	_notice_label.text = ""
+	if _notice_label.explain_refusal(card.definition, run.balance, run.row):
+		_sfx.play("denied", 1.4, -6.0)
 
 
 func _pick(card: CardInstance, from_row: bool) -> void:
@@ -225,9 +219,9 @@ func _pick(card: CardInstance, from_row: bool) -> void:
 
 
 ## Lets go of the picked card. A card taken from the row stays in the hand: a removal.
-func _drop_pick() -> void:
+func _drop_pick(dragged: bool = false) -> void:
 	if _picked != null and _picked_from_row:
-		tracker.on_remove()
+		tracker.on_remove(dragged)
 	_picked = null
 	_picked_from_row = false
 
@@ -270,7 +264,8 @@ func _on_checkout_pressed() -> void:
 		return
 	_counting = true
 	_drop_pick()
-	_clear_notice()
+	_notice_label.clear_notice()
+	_drag.cancel()
 	_redraw_mode = false
 	_deck_view.visible = false
 	_click_ms = Time.get_ticks_msec()
@@ -858,9 +853,8 @@ func _build() -> void:
 	_subtotal_label.add_theme_color_override("font_color", Palette.MUSTARD)
 	_subtotal_label.add_theme_constant_override("outline_size", 8)
 	_subtotal_label.add_theme_color_override("font_outline_color", Palette.INK)
-	_notice_label = _info_label(totals, 16)
-	_notice_label.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-	_notice_label.add_theme_color_override("font_color", Palette.TOMATO)
+	_notice_label = NoticeLabel.new()
+	totals.add_child(_notice_label)
 	_receipt = ReceiptView.new()
 	_receipt.custom_minimum_size = Vector2(300, 0)
 	_receipt.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -868,7 +862,7 @@ func _build() -> void:
 
 	var hint: Label = _info_label(page, 14)
 	hint.text = (
-		"Click a card, then a slot to place it  ·  click a placed card to take it back"
+		"Click a card then a slot, or drag it there  ·  click or drag a placed card to take it back"
 		+ "  ·  hold Space or the mouse to fast-forward the count"
 	)
 	hint.modulate = Color(1, 1, 1, 0.6)
@@ -901,6 +895,10 @@ func _build() -> void:
 	_count_up = CountUp.new()
 	add_child(_count_up)
 	_count_up.setup(_overlay, _receipt, _subtotal_label, _sfx, _row_box)
+	_drag = CardDrag.new()
+	add_child(_drag)
+	_drag.setup(_overlay, _slots, _hand_box, _landing_slot)
+	_drag.released.connect(_on_card_released)
 
 	_shade = ColorRect.new()
 	_shade.color = Color(0, 0, 0, 0.5)
