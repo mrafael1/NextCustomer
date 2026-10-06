@@ -8,7 +8,11 @@ extends Resource
 @export var hand_size: int = 0
 ## How many cards one redraw can replace. A shift has one redraw.
 @export var redraw_limit: int = 0
+## Product slots: the most products the row holds (plan section 3.1).
 @export var slot_count: int = 0
+## Coupon-only slots on top of the product slots: the row holds at most slot_count +
+## coupon_slot_count cards, and only coupons can use the extra room.
+@export var coupon_slot_count: int = 0
 @export var deck_limit: int = 0
 ## Cards that reward offers draw from (plan section 5).
 @export var reward_pool: Array[CardDefinition] = []
