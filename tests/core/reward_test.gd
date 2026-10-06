@@ -91,7 +91,7 @@ func test_a_passed_shift_offers_rewards_and_taking_one_grows_the_deck() -> void:
 	var run: RunState = _passed_run(5)
 	assert_int(run.phase).is_equal(RunState.Phase.REWARD)
 	assert_int(run.offer.size()).is_equal(3)
-	assert_bool(run.can_advance()).is_false()
+	assert_bool(run.next_shift()).is_false()
 	var card: CardDefinition = run.offer[0]
 	assert_bool(run.take_reward(card)).is_true()
 	assert_int(run.deck.size()).is_equal(14)

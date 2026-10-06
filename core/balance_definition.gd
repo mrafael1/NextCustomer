@@ -6,7 +6,8 @@ extends Resource
 ## One quota per shift; the run has as many shifts as quotas.
 @export var quotas: PackedInt32Array = PackedInt32Array()
 @export var hand_size: int = 0
-## How many cards one redraw can replace. A shift has one redraw.
+## How many cards one redraw can replace. A shift has one redraw, plus each owned upgrade's
+## extra_redraws (plan section 3.8).
 @export var redraw_limit: int = 0
 ## Product slots: the most products the row holds (plan section 3.1).
 @export var slot_count: int = 0
@@ -19,3 +20,10 @@ extends Resource
 ## The run's first offer always includes one of these (the combination coupons).
 @export var first_offer_pool: Array[CardDefinition] = []
 @export var offer_size: int = 0
+## 1-based shift numbers after which an upgrade is offered, once the reward is picked or
+## skipped (plan section 3.8). Each is a shift of the run and never the last one.
+@export var upgrade_shifts: PackedInt32Array = PackedInt32Array()
+## Upgrades that upgrade offers draw from.
+@export var upgrade_pool: Array[UpgradeDefinition] = []
+## The most upgrades one offer shows.
+@export var upgrade_offer_size: int = 0

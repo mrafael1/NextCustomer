@@ -1,6 +1,6 @@
 # Next Customer: Prototype Plan
 
-> Status: v0.12, closed at proto-r1. The full build (`docs/FULL_BUILD_PLAN.md`) has taken over; this plan stays the scoring-rule spec (sections 3–5) and changes only when a rule does.
+> Status: v0.13, closed at proto-r1. The full build (`docs/FULL_BUILD_PLAN.md`) has taken over; this plan stays the scoring-rule spec (sections 3–5) and changes only when a rule does.
 > Source: the original "Receipt Rogue" game design plan, plus the decisions made in planning.
 > Engine: Godot 4 (exact version pinned in `AGENTS.md`), GDScript with static typing. Playtest builds are delivered in the browser.
 
@@ -57,12 +57,12 @@ Scoring runs in two passes (section 4):
 1. **Context pass:** tag changes and adjacency changes from coupons are applied to the whole row first.
 2. **Value pass, left to right**, for each card, product or coupon:
    1. Base value
-   2. **+ all flat bonuses** (its own rule, Coffee bonuses waiting for it, and so on)
-   3. **× all multipliers** (Eggs charges, Multipack, …)
+   2. **+ all flat bonuses** (its own rule, Coffee bonuses waiting for it, and so on; upgrade bonuses come last, section 3.8)
+   3. **× all multipliers** (Eggs charges, Multipack, …; upgrade multipliers come last, after any copy, section 3.8)
    4. Payout added to the subtotal
    5. Its effects for later cards become active (Eggs charges, Coffee bonus, Multipack's ×2, …), each with an `EFFECT_ARMED` step that changes no value (section 4)
 
-Coupons go through the same steps at their own slot. A coupon has base 0 and no tags, so it never receives an Egg charge, a Coffee bonus, a Multipack ×2 or any other effect aimed at products. Its payout comes only from its own rule: Final markdown's +6 is its own flat bonus, and Repeat's payout is the copy (section 3.3). Every coupon appears on the receipt, even when it pays 0.
+Coupons go through the same steps at their own slot. A coupon has base 0 and no tags, so it never receives an Egg charge, a Coffee bonus, a Multipack ×2 or any other effect aimed at products. Its payout comes only from its own rule and upgrades (section 3.8): Final markdown's +6 is its own flat bonus, and Repeat's payout is the copy (section 3.3). Every coupon appears on the receipt, even when it pays 0.
 
 ### 3.3 Stacking
 
@@ -75,7 +75,7 @@ Coupons go through the same steps at their own slot. A coupon has base 0 and no 
 | Two Eggs | A later Egg resets the charges to 2. It does **not** add a second ×2. |
 | Two Multipacks | Each applies separately (they stack ×2 × ×2). Watch this in playtests. |
 | Two Coffees | Each Coffee's +3 goes **once** to the next Breakfast product after it. Coffee is Breakfast, so in Coffee → Coffee → Bread, the first bonus goes to the second Coffee and the second bonus goes to Bread. |
-| Repeat | Copies the final payout (after all flat bonuses and multipliers) of the product just before it. The copy is never multiplied again and never triggers effects. |
+| Repeat | Copies the final payout (after all flat bonuses and multipliers) of the product just before it. The copy is never multiplied again by card or effect multipliers (an upgrade can multiply it, section 3.8) and never triggers effects. |
 
 ### 3.4 Adjacency
 
@@ -172,7 +172,41 @@ How the fixture is built:
 
 No row may depend on a question that is still in the unresolved table of `core/AGENTS.md`.
 
-Also tested: duplicate cards are separate instances · the redraw cannot bring back a card that was just replaced · the same seed gives the same draws · a restart uses a new seed (the test injects the seed source) · every `@export` number in a rule script defaults to its neutral value · no card in `data/` or the fixture has `kind` left at `UNSET` · every `.tres` and `.tscn` in `data/`, `ui/`, `presentation/`, `debug/`, `telemetry/` and the fixture loads, and is of the expected type (`tools/test.sh` also fails on any Godot error printed while loading).
+Also tested: duplicate cards are separate instances · the redraw cannot bring back a card that was just replaced · the same seed gives the same draws · a restart uses a new seed (the test injects the seed source) · every `@export` number in a rule or upgrade script defaults to its neutral value · no card in `data/` or the fixture has `kind` left at `UNSET`, and no upgrade has `type` left at `UNSET` · every `.tres` and `.tscn` in `data/` (including `data/upgrades/`), `ui/`, `presentation/`, `debug/`, `telemetry/` and the fixture loads, and is of the expected type (`tools/test.sh` also fails on any Godot error printed while loading) · scoring with no upgrades, or with upgrades whose rules do nothing, gives exactly the steps it gives without the upgrade argument, on every golden row (section 3.8).
+
+### 3.8 Upgrades (full build phase 1)
+
+Decided with the user (v0.13). Register upgrades (`docs/FULL_BUILD_PLAN.md` section 5.2) last for the whole run and live on the loyalty card. Phase 1 has 3 placeholder upgrades; their numbers are `@export` fields in `data/upgrades/`.
+
+**Scoring.** `Scoring.score(row, upgrades)` takes the run's upgrades in pick order; the default is none, and with no upgrades every result is exactly what it was before upgrades existed. The live preview and the checkout pass the same upgrades, so they never disagree. An upgrade's rules (`UpgradeRule` scripts in `core/upgrades/`, stateless like card rules, with the same hook names: `flat_bonus`, `multiplier`, `wasted_reason`) are asked about every slot by the scoring loop. They are never attached to a card definition.
+
+| Topic | Rule |
+|---|---|
+| Stacking | Flat bonuses: the card's own, then effects, then upgrades. Multipliers: the card's own, then effects, then upgrades. All flat bonuses still come before all multipliers (section 3.3), so an Egg charge doubles an upgrade's flat bonus. |
+| Upgrade multipliers and copies | Upgrade multipliers come after a copy, so a Repeat's copied payout can be multiplied by an upgrade. A card's own and effect multipliers still come before the copy and never touch it (section 3.3). Products never copy, so for a product the upgrade multipliers come straight after its other multipliers. Order per slot: `BASE`, `FLAT` (own, effects, upgrades), `MULTIPLIER` (own, effects), `COPY`, `MULTIPLIER` (upgrades), `PAYOUT_OVERRIDE`, `PAYOUT`, `EFFECT_ARMED`, then `WASTED` (the card's own, then upgrades). |
+| Effects | Upgrades never receive or arm card effects. |
+| Copies | A copy never re-triggers upgrades. A Repeat copies the earlier product's final payout, which already includes anything an upgrade added to that product. Only an upgrade's own rule can multiply the Repeat itself (the Coupon engine, when the Repeat is the first coupon). |
+| Payout overrides | An upgrade bonus aimed at a card whose payout is overridden (Soup beside Frozen) is spent like any bonus aimed at Soup (section 3.5): its step stays on the receipt, the payout becomes 0, and there is no `WASTED` step. |
+| Nothing to multiply | An upgrade multiplier aimed at a card whose value is 0 at that point gets no `MULTIPLIER` step. It fizzles instead: a `WASTED` step with the upgrade's reason, after the card's own `WASTED` steps. |
+| Source | Upgrade steps have `source_kind` `UPGRADE` and `source_index` = the upgrade's index in the run's upgrades (pick order). `slot` and `source_slot` are both the slot the step lands on (never −1). The text is the rule's receipt text, or the upgrade's name. |
+
+| Upgrade | Type | Rule | Data |
+|---|---|---|---|
+| Coupon engine | Coupon engine | The first coupon in the row (the lowest slot holding a coupon) pays ×2, after its own rules: Final markdown's +6 becomes 12, and a Repeat's copy is doubled. Only the first coupon. If it has nothing to multiply (a Breakfast sticker, a Multipack, a Repeat with nothing to copy, a Final markdown outside the last slot), it fizzles with the reason "the first coupon paid nothing". With no coupon in the row it does nothing and has no step: the receipt doesn't mention it, because there is no card to fizzle on. | `factor` 2 |
+| Category engine | Category engine | +3 for each different tag among the row's products, using tags after the context pass (a Breakfast sticker's tag counts), as a flat bonus on the **last product** in the row (not the last slot: a coupon after it doesn't take the bonus, and a Repeat after it copies it). It comes after that product's own and effect flat bonuses, so the product's multipliers apply to it. With no product in the row, no step. | `bonus_per_tag` 3 |
+| Extra redraw | Economy | One more redraw each shift. No scoring step. | `extra_redraws` 1 |
+
+**Redraws.** A shift allows 1 redraw plus the `extra_redraws` of every owned upgrade. Each redraw replaces up to `redraw_limit` hand cards (never row cards), and every redraw rule holds for each one: cards replaced by any redraw are set aside for the rest of the shift.
+
+**The upgrade step.**
+- Upgrade shifts are the 1-based shift numbers in `upgrade_shifts` in balance data (2, 4 and 6). A test checks that each one is a shift of the run and not the last one.
+- When an upgrade shift is passed, checkout builds the reward offer and then the upgrade offer, both from the run's seeded RNG, so later draws never depend on UI timing.
+- The offer: up to `upgrade_offer_size` (3) upgrades from `upgrade_pool` that the run doesn't own yet, each of a different type, chosen from the pool shuffled with the run's RNG. Placeholder limitation: the 3 placeholders have 3 different types, so the offers on shifts 2, 4 and 6 hold 3, 2 and 1 options. The rule "at least one fitting the current deck" (`docs/FULL_BUILD_PLAN.md` section 5.2) waits for build tags in phase 2. An empty offer (every pool upgrade owned) skips the step.
+- The upgrade step comes after that shift's reward pick or skip, and after any deck-full replacement. The player **must** pick one of the offered tickets: there is no skip. Only an offered upgrade is accepted. It joins the run's upgrades (in pick order) and applies from the next shift on.
+- Losing a shift ends the run as before, with no upgrade. The last shift has no reward and no upgrade.
+- Run history: one entry per played shift, with the shift number, quota, total, pass or fail, the reward card picked (or skipped, or none offered) and the upgrade taken (or none).
+
+`UpgradeDefinition` fields: `id`, `display_name`, `type` (`RULE_BENDER`, `SLOT_ENGINE`, `CATEGORY_ENGINE`, `COUPON_ENGINE`, `ECONOMY`, `RISKY`; its default `UNSET` is rejected by a test, like `CardDefinition.kind`), `effect_text`, `condition_text` (its own line on the ticket; may be empty), `supported_build`, `rules` (scoring) and run modifiers (`extra_redraws`). Perk icons come later; the greybox shows the name's initials.
 
 ## 4. Architecture (built to last, not thrown away)
 
@@ -187,20 +221,25 @@ res://
     rule.gd             # base class for product and coupon rules (hook methods)
     rules/              # one script per reusable rule (shared by cards, numbers set in data)
     effects/            # per-score effects that rules leave for later products
+    upgrade_definition.gd # Resource: id, display_name, type, effect_text, condition_text, supported_build, rules[], extra_redraws (3.8)
+    upgrades/           # UpgradeRule base class and one script per upgrade rule (numbers set in data, 3.8)
+    upgrade_offer.gd    # builds an upgrade offer from the pool with the run's RandomNumberGenerator (3.8)
     score_state.gd      # working state of one score() call (tags, adjacency, effects, steps)
-    scoring.gd          # score(row) -> ScoreResult {total, payouts[], tags[], steps[]}
+    scoring.gd          # score(row, upgrades) -> ScoreResult {total, payouts[], tags[], steps[]}
     score_step.gd       # one explanation line: slot, source (source_kind + slot or index), step_type, value change, text
     deck.gd             # draw, redraw, reward insertion; takes the run's RandomNumberGenerator
-    run_state.gd        # deck, shift, quota, seed, (later: upgrades, inspection)
+    run_state.gd        # deck, shift, quota, seed, redraws, upgrades[], upgrade offer and step, history (later: inspection)
+    shift_record.gd     # one run-history entry: shift, quota, total, passed, reward, upgrade (3.8)
     row_capacity.gd     # row limits by kind: slot_count products, + coupon_slot_count cards (3.1)
   data/
     cards/*.tres        # one CardDefinition resource per card
     decks/starter.tres  # DeckDefinition (ready for unlockable decks later)
-    balance/balance.tres # quotas and reward pool, tunable without code changes
-  ui/                   # scenes: shift screen, reward screen, results screen
+    upgrades/*.tres     # one UpgradeDefinition resource per upgrade (3.8)
+    balance/balance.tres # quotas, reward pool, upgrade shifts and pool, tunable without code changes
+  ui/                   # scenes: shift screen, reward screen, upgrade ticket panel, loyalty card, results screen with run history
   presentation/         # count-up sequencer: plays back the ScoreResult steps
   debug/                # debug panel (excluded from playtest builds)
-  telemetry/            # event logger, log export (included in playtest builds)
+  telemetry/            # event logger, log export, upgrade event builders (run_events.gd) (included in playtest builds)
   tests/                # GdUnit4 tests, runnable headless
 ```
 
@@ -213,12 +252,12 @@ Coupons need to be able to **change the rules**, not only add numbers. So scorin
 
 `kind` tells the passes whether a slot holds a product or a coupon (coupons break adjacency, never receive product effects, and can't be copied by Repeat). `is_connector` marks coupons like Bundle that bridge adjacency instead of breaking it. Adjacency changes still go through the context hook (`modify_context`), so later coupons and upgrades can change adjacency the same way; Bundle's rule uses that hook and reads `is_connector` to treat consecutive connectors as one bridge. It links the product immediately before a run of connectors to the product immediately after it (section 3.4). When either neighbour isn't a product (Bundle at an end of the row, or next to a coupon that isn't a connector), nothing is bridged (section 3.4). Code reads the flags, never card ids. `kind`'s first value is `UNSET`, so every card file must state its kind (Godot doesn't write a value that equals the default).
 
-Every rule overrides only the hooks it needs (`modify_context`, `flat_bonus`, `multiplier`, `copied_from`, `final_payout`, `wasted_reason`, `on_scanned`). Effects a card leaves for later products (Egg charges, a waiting Coffee bonus, Multipack's ×2) are objects that live in the per-score state, so rules stay stateless; an effect reports what it wasted through `waste_reason` (at the end of the row) or `reset_reason` (when a later card of the same group replaces it). Every step type, its fields and the playback order are documented in `core/score_step.gd`. Register upgrades and inspections in the full build will use the **same hooks**, so no rewrite will be needed.
+Every rule overrides only the hooks it needs (`modify_context`, `flat_bonus`, `multiplier`, `copied_from`, `final_payout`, `wasted_reason`, `on_scanned`). Effects a card leaves for later products (Egg charges, a waiting Coffee bonus, Multipack's ×2) are objects that live in the per-score state, so rules stay stateless; an effect reports what it wasted through `waste_reason` (at the end of the row) or `reset_reason` (when a later card of the same group replaces it). Every step type, its fields and the playback order are documented in `core/score_step.gd`. Register upgrades use the same hook names through `UpgradeRule` (section 3.8), and inspections in the full build will too, so no rewrite will be needed.
 
 The step contract (v0.11):
-- **Source.** Every step has a `source_kind`: `CARD` (the card in `source_slot`), `UPGRADE` or `INSPECTION` (entry `source_index` of the run's upgrades or inspections, in the full build). Today every step is `CARD`, with `source_index` 0. A non-card source is never a −1 sentinel in `source_slot`: consumers branch on `source_kind`.
+- **Source.** Every step has a `source_kind`: `CARD` (the card in `source_slot`), `UPGRADE` or `INSPECTION` (entry `source_index` of the run's upgrades or inspections). Card steps have `source_index` 0. Upgrade steps (section 3.8) set `source_slot` to the slot they land on. A non-card source is never a −1 sentinel in `source_slot`: consumers branch on `source_kind`.
 - **Armed effects.** When a card's rule registers an effect for later cards (Eggs' charges, Coffee's bonus, Multipack's ×2; every effect goes through `ScoreState.add_effect`), an `EFFECT_ARMED` step follows the card's `PAYOUT`: `slot` and `source_slot` are the arming card, `value` is the effect's bonus or factor from the rule's data, `value_after` is the card's payout and `subtotal` is unchanged, and `text` is the effect's receipt text (the same text as the later steps it causes). A Multipack with no product before it arms nothing and fizzles instead.
-- **Order per slot.** `BASE`, `FLAT`, `MULTIPLIER`, `COPY`, `PAYOUT_OVERRIDE`, `PAYOUT`, then one `EFFECT_ARMED` per armed effect, then the card's own `WASTED` steps. An Egg reset arms the new Egg first; the old Egg's "wiped by a reset" `WASTED` step follows straight after. Context-pass steps come before the first slot, and leftover effects fizzle after the last.
+- **Order per slot.** `BASE`, `FLAT`, `MULTIPLIER`, `COPY`, `PAYOUT_OVERRIDE`, `PAYOUT`, then one `EFFECT_ARMED` per armed effect, then the card's own `WASTED` steps. Upgrades add their `FLAT` steps after the effects' and their `MULTIPLIER` steps after `COPY`, and their `WASTED` steps after the card's own (section 3.8). An Egg reset arms the new Egg first; the old Egg's "wiped by a reset" `WASTED` step follows straight after. Context-pass steps come before the first slot, and leftover effects fizzle after the last.
 - **Consumers.** The receipt prints no line for `EFFECT_ARMED` (what the effect does is printed where it lands, or as its fizzle). The count-up gives it a short beat on the arming card. Totals and every golden total are unchanged.
 
 `score()` is a pure function. The live preview, the receipt explanation, the animated count-up and the tests all use the same `ScoreResult`, so they can never disagree.
@@ -311,7 +350,8 @@ Choices and actions that happen after a checkout (rewards, the end of a run, res
 | `checkout` | shift, final order, score, quota, pass or fail, placements, removals, rearrangements, distinct projected totals, planning time, input method (click or drag); see the definitions below. Logged at the checkout click, so closing the game during the count-up loses nothing. |
 | `count_up` | shift, count-up time, fast-forward used. Logged when the count-up ends. |
 | `reward` | shift, the 3 cards offered, card picked (empty if skipped), skipped, card replaced (at the 15-card limit, else empty), time to decide (`decide_ms`), whether the deck view was opened |
-| `run_end` | win or loss, shift reached, last score, run length |
+| `upgrade` | shift, the upgrades offered (`offered`, ids in offer order), the upgrade picked (`picked`), time to decide (`decide_ms`, from the tickets appearing to the pick, like `reward`). Logged after the `reward` event on upgrade shifts (section 3.8); there is no skip. Since v0.13. |
+| `run_end` | win or loss, shift reached, last score, run length, the upgrades owned (`upgrades`, ids in pick order, since v0.13) |
 | `restart` | time since `run_end`, from which screen |
 | `log_export` | which screen the export was started from, number of session files joined |
 | `debug` | which debug action was used and its arguments (development builds only) |
@@ -410,3 +450,4 @@ Rules for iterating: **one major variable per round**, card values tweaked only 
 | v0.10 | 2026-10-06 | Bundle out of the offer pools (full build phase 1, `docs/FULL_BUILD_PLAN.md` section 5.1): removed from `reward_pool` and `first_offer_pool` in balance data until it returns as "2 for 1" in phase 2 · the first-offer pool is now Breakfast sticker or Multipack, so Multipack fills the guaranteed first-offer slot 50% of the time instead of 33%; read coupon pick rates with that in mind · `bundle.tres` stays in `data/cards/` outside every pool, and its rule and golden rows stay on the frozen `cards_v0_4` fixture · scoring and every golden total are unchanged |
 | v0.11 | 2026-10-06 | Score step contract (full build phase 1, `docs/FULL_BUILD_PLAN.md` section 4): every step has a `source_kind` (`CARD`, `UPGRADE`, `INSPECTION`) and a `source_index` for non-card sources, never a −1 sentinel; all steps are `CARD` today · a new `EFFECT_ARMED` step right after a card's `PAYOUT` for each effect it arms for later cards (Eggs, Coffee, Multipack), with the effect's bonus or factor and receipt text; the card's own fizzles now come after it, and an Egg reset's fizzle follows the new Egg's `EFFECT_ARMED` (section 4) · `to_dictionary()` gains `source_kind` and `source_index` · the receipt prints no line for it; the count-up plays a short beat (the arming card glows and pulses, the effect's name floats up, a soft high "bonus" sound, about 0.18 s; fast-forward speeds it up like every beat), so a row with armers plays about 0.2 s longer per armed effect · the count-up looks up a step's source card only when `source_kind` is `CARD` · scoring and every golden total are unchanged |
 | v0.12 | 2026-10-06 | 8 shifts (full build phase 1, `docs/FULL_BUILD_PLAN.md`): quotas 10 / 13 / 17 / 22 / 27 / 33 / 40 / 48 in `data/balance/balance.tres`, chosen with the user as placeholders until the balance simulator (phase 2) · the number of shifts is the number of quotas; the shift header, results screen, last-shift win and the debug panel's shift jump all follow it · `run_start` gains `shift_count`, so `shift_reached` in `run_end` reads against it (proto-r1 logs have 5 shifts) · scoring and every golden total are unchanged |
+| v0.13 | 2026-10-06 | Upgrades (full build phase 1, section 3.8; `docs/FULL_BUILD_PLAN.md` section 5.2), decided with the user: 3 placeholder upgrades in `data/upgrades/` (Coupon engine: the first coupon pays ×2, fizzling when it pays nothing; Category engine: +3 per different product tag on the last product; Extra redraw: one more redraw each shift) · `score(row, upgrades)`: upgrade flat bonuses after effects, upgrade multipliers after effects and after a copy, upgrade steps with `source_kind` `UPGRADE` and `source_index`; with no upgrades every result and every golden total is unchanged · a shift allows 1 + `extra_redraws` redraws · after the reward pick or skip on the shifts in `upgrade_shifts` (2, 4, 6), the player **must** pick 1 of up to `upgrade_offer_size` (3) unowned upgrades of different types from `upgrade_pool`, built at checkout from the run's RNG (with 3 placeholders the offers hold 3, 2 and 1) · run history: one entry per played shift · shift screen: after the reward (and any deck-full replacement) on an upgrade shift, a plain ticket panel ("EXIT KIOSK: pick your prize") shows 1–3 tickets with the fields name, type, effect, condition (its own line, "No condition" when empty) and supported build; no skip button, tickets react only once the mouse is released after the panel appears, the shade blocks clicks behind it, and the top bar's Deck button opens the deck and comes back to the tickets · loyalty card greybox beside the shift and quota: one box per upgrade shift, a picked upgrade stamps the next box with its initials (first word's first two letters plus the other words' initials, so "Coupon engine" CoE and "Category engine" CaE differ) with a stamp punch and the stamp sound; hovering a stamped box shows its name, type, effect and condition · count-up: upgrade bonuses and factors fly in from the upgrade's box, its fizzles puff out of the box; receipt lines name the upgrade · the redraw button shows the redraws left ("Redraw up to 2 (1 left)") · the results screen lists the run history (shift, total / quota, pass or fail, card picked or skipped, upgrade taken) · event log: a new `upgrade` event (shift, offered, picked, `decide_ms`), and `run_end` gains `upgrades` (section 8) · debug panel: give an upgrade directly (restarts the current shift with a fresh hand) |

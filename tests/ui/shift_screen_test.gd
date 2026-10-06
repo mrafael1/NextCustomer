@@ -35,7 +35,7 @@ func test_a_shift_from_draw_to_next_shift() -> void:
 	screen._on_hand_card_clicked(_view_for(screen, hand[6]))
 	screen._on_hand_card_clicked(_view_for(screen, hand[7]))
 	screen._on_redraw_pressed()
-	assert_bool(run.redraw_used).is_true()
+	assert_int(run.redraws_used).is_equal(1)
 	assert_bool(run.hand().has(hand[6])).is_false()
 
 	# Place three cards with clicks: pick up a hand card, then click a slot.

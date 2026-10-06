@@ -34,17 +34,27 @@ func clear() -> void:
 		line.queue_free()
 
 
-## The whole receipt at once, for the live preview.
-func show_result(result: ScoreResult, names: PackedStringArray) -> void:
+## The whole receipt at once, for the live preview. `upgrade_names` are the run's upgrades'
+## names in pick order, for the lines upgrades cause.
+func show_result(
+	result: ScoreResult,
+	names: PackedStringArray,
+	upgrade_names: PackedStringArray = PackedStringArray()
+) -> void:
 	clear()
 	for step: ScoreStep in result.steps:
-		add_step(step, names)
+		add_step(step, names, upgrade_names)
 	add_total(result.total)
 
 
 ## Prints the line for one step and returns it, so the count-up can animate it. Returns null
 ## for a step that prints no line.
-func add_step(step: ScoreStep, names: PackedStringArray) -> Control:
+func add_step(
+	step: ScoreStep,
+	names: PackedStringArray,
+	upgrade_names: PackedStringArray = PackedStringArray()
+) -> Control:
+	var cause: String = source_text(step, upgrade_names)
 	var left: String = ""
 	var right: String = ""
 	var style: LineStyle = LineStyle.DETAIL
@@ -56,17 +66,17 @@ func add_step(step: ScoreStep, names: PackedStringArray) -> Control:
 			left = "%s links %s + %s" % [step.text, names[step.slot], names[step.linked_slot]]
 			style = LineStyle.CONTEXT
 		ScoreStep.StepType.WASTED:
-			left = "  %s: %s" % [step.text, step.reason]
+			left = "  %s: %s" % [cause, step.reason]
 			right = "fizzle"
 			style = LineStyle.FIZZLE
 		ScoreStep.StepType.BASE:
 			left = names[step.slot].to_upper()
 			right = str(step.value)
 		ScoreStep.StepType.FLAT:
-			left = "  + " + step.text
+			left = "  + " + cause
 			right = "+%d" % step.value
 		ScoreStep.StepType.MULTIPLIER:
-			left = "  × " + step.text
+			left = "  × " + cause
 			right = "×%d" % step.value
 		ScoreStep.StepType.COPY:
 			left = "  %s: copy of %s" % [step.text, names[step.linked_slot]]
@@ -82,6 +92,20 @@ func add_step(step: ScoreStep, names: PackedStringArray) -> Control:
 			# effect does is printed where it lands (its FLAT or MULTIPLIER line, or a fizzle).
 			return null
 	return add_line(left, right, style)
+
+
+## Who caused a step, as the receipt names it. A card's rule is named by its receipt text; an
+## upgrade's line always names the upgrade (plan section 3.8), with its rule's receipt text
+## after it when that text is something else.
+static func source_text(step: ScoreStep, upgrade_names: PackedStringArray) -> String:
+	if step.source_kind != ScoreStep.SourceKind.UPGRADE:
+		return step.text
+	if step.source_index < 0 or step.source_index >= upgrade_names.size():
+		return step.text
+	var upgrade_name: String = upgrade_names[step.source_index]
+	if step.text.is_empty() or step.text == upgrade_name:
+		return upgrade_name
+	return "%s (%s)" % [step.text, upgrade_name]
 
 
 func add_total(total: int) -> Control:

@@ -1,0 +1,20 @@
+[gd_resource type="Resource" script_class="UpgradeDefinition" format=3]
+
+[ext_resource type="Script" path="res://core/upgrades/upgrade_rule.gd" id="1_rule"]
+[ext_resource type="Script" path="res://core/upgrades/first_coupon_multiplier_rule.gd" id="2_first_coupon"]
+[ext_resource type="Script" path="res://core/upgrade_definition.gd" id="3_upgrade"]
+
+[sub_resource type="Resource" id="Resource_first_coupon"]
+script = ExtResource("2_first_coupon")
+factor = 2
+receipt_text = "Coupon engine"
+
+[resource]
+script = ExtResource("3_upgrade")
+id = &"coupon_engine"
+display_name = "Coupon engine"
+type = 4
+effect_text = "The first coupon in the row pays ×2"
+condition_text = "Only the first coupon, and only if it pays something"
+supported_build = "Coupon specialist"
+rules = Array[ExtResource("1_rule")]([SubResource("Resource_first_coupon")])

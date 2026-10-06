@@ -1,6 +1,6 @@
 # Next Customer: Full Build Plan
 
-> Status: draft v0.5. **This plan will change.** Each full-build playtest round (section 9) can rewrite parts of it. Update the changelog when it does.
+> Status: draft v0.6. **This plan will change.** Each full-build playtest round (section 9) can rewrite parts of it. Update the changelog when it does.
 > The prototype (`docs/PROTOTYPE_PLAN.md`) closed at proto-r1. Its outside playtest and decision gate (section 9 there) were not run; their questions move to the full build's playtest rounds (section 9).
 > Engine: Godot 4 (exact version pinned in `AGENTS.md`), GDScript with static typing. Platform: Windows, mouse. Steam is the main store; itch.io hosts a web demo.
 
@@ -100,7 +100,10 @@ The prototype structure carries over (`core/`, `data/`, `ui/`, `presentation/`, 
 ```
 core/
   score_step.gd           # + source_kind (CARD / UPGRADE / INSPECTION) and source index; + EFFECT_ARMED
-  upgrade_definition.gd   # Resource: id, name, rules[], perk icon
+  upgrade_definition.gd   # Resource: id, name, type, effect, condition, supported build, rules[],
+                          #   run modifiers (extra_redraws); perk icon later (docs/PROTOTYPE_PLAN.md 3.8)
+  upgrades/               # UpgradeRule and the upgrade rule scripts
+  upgrade_offer.gd        # upgrade offer from the pool; pure, run RNG
   inspection_definition.gd# Resource: id, name, rules[], announcement text
   aisle_definition.gd     # Resource: id, display_name, sign colour, base_cards[], capsule_cards[] (key item first)
   run_stock.gd            # builds the run's stock (section 7.2); pure; uses RNG only for "Surprise me"
@@ -114,7 +117,7 @@ data/
   upgrades/*.tres
   inspections/*.tres
   decks/*.tres            # DeckDefinition (fields in section 7.3)
-  balance/balance.tres    # + coupon_slot_count, upgrade_shifts, upgrade_pool, coin amounts, aisles,
+  balance/balance.tres    # + coupon_slot_count, upgrade_shifts, upgrade_pool, upgrade_offer_size, coin amounts, aisles,
                           #   coupon_pool (replaces reward_pool), run_aisle_picks, aisle_stock_budget,
                           #   aisle_listable_min, end_cap_max, end_cap_window_runs
 tools/
@@ -124,7 +127,7 @@ platform/
 ```
 
 Rules:
-- Products, coupons, upgrades and inspections are **all made of the same `Rule` hooks**. A new idea is a new rule script plus a data file, never a change to the scoring code.
+- Products, coupons, upgrades and inspections are **all made of the same rule hooks** (upgrades through `UpgradeRule`, which has the same hook names as `Rule` and is asked about every slot by the scoring loop; `docs/PROTOTYPE_PLAN.md` section 3.8). A new idea is a new rule script plus a data file, never a change to the scoring code.
 - `score()` stays a pure function. All presentation plays back `ScoreResult.steps`.
 - Save files include a format version from the first save. A run save holds the seed, the impulse-rack pick, the listed aisle ids and the stock's card ids, so a run can be rebuilt; `run_start` logs the same.
 - The stock is built before `RunState` and passed in. It is ordered staples → listed aisles (aisle data order) → new arrivals → `coupon_pool`, each in data order, never by unlock order. Unlock recency ("newest first", section 7.2) only decides which new arrivals get in, not where they sit. The stored stock ids make replay independent of the profile.
@@ -158,12 +161,12 @@ Good coupon rules:
 
 ### 5.2 Register upgrades (designed carefully)
 
-Upgrades last for the whole run. They live on the **loyalty card**: it starts empty, each upgrade stamps one box and shows its perk icon, and the upgrade's receipt lines and count-up fly-ins come from that box. They are offered after the shifts in `upgrade_shifts` (2, 4 and 6), after that shift's normal reward pick: the receipt goes into the exit kiosk, which drops 3 prize tickets, fully revealed (a cosmetic "INSTANT WINNER!" gag at most, never a hidden face). The exit kiosk sells nothing and is a separate prop from the capsule machines (section 7.1).
+Upgrades last for the whole run. They live on the **loyalty card**: it starts empty, each upgrade stamps one box and shows its perk icon, and the upgrade's receipt lines and count-up fly-ins come from that box. They are offered after the shifts in `upgrade_shifts` (2, 4 and 6), after that shift's normal reward pick or skip: the receipt goes into the exit kiosk, which drops up to 3 prize tickets (see the offer rule below), fully revealed (a cosmetic "INSTANT WINNER!" gag at most, never a hidden face). The exit kiosk sells nothing and is a separate prop from the capsule machines (section 7.1).
 
 Good upgrades:
 1. **Change what you draft or how you order cards.** A flat "+N to everything" is not allowed.
 2. **Push towards a build without making it mandatory.** Each upgrade states which build it supports.
-3. **Have a tradeoff or a condition.** For example "the first coupon pays ×2", but then the first slot must be a coupon.
+3. **Have a tradeoff or a condition.** For example "the first coupon in the row pays ×2", but only the first one, and only if it pays something (`docs/PROTOTYPE_PLAN.md` section 3.8).
 4. **Use the existing hooks.** If an upgrade needs a new hook, it is a design flag to discuss.
 5. **Are visible:** stamped on the loyalty card and named in the receipt explanation.
 
@@ -176,7 +179,7 @@ Good upgrades:
 | Economy | +1 redraw per shift · +1 card drawn · +1 coupon slot |
 | Risky | One extra product slot, but the quota +15% |
 
-Upgrade offers: 3 options, from different types, at least one fitting the current deck. Every ticket shows the same fields in the same order: name, type, effect, condition (its own line), supported build.
+Upgrade offers: 3 options, from different types, at least one fitting the current deck (the fitting rule needs build tags and starts in phase 2; phase 1 offers unowned upgrades of different types, so its 3 placeholders give offers of 3, 2 and 1). The player must pick one: there is no skip. Every ticket shows the same fields in the same order: name, type, effect, condition (its own line), supported build.
 
 ### 5.3 Inspections
 Visible restrictions that test a build. One is announced before the previous shift's reward choice, printed as a red notice on the receipt under the total (before the kiosk on upgrade shifts). Inspections never go on the loyalty card. Never disable several parts of a build at once. Start with 3 of: only 5 product slots · the 3rd product pays 0 · duplicate payouts capped at 4 · the coupon slot is closed.
@@ -346,3 +349,4 @@ Content freeze at the end of phase 3. No new features after that.
 | v0.3 | 2026-10-05 | Re-aligned with prototype plan v0.3 (15-card deck limit, seeded-RNG and stateless-rule rules, `generally_useful` card flag) · engine version defers to `AGENTS.md` · simulator row count corrected to about 29,000 |
 | v0.4 | 2026-10-05 | Re-aligned with prototype plan v0.4: `telemetry/` carried over · the prototype's `DeckDefinition` has id, name and cards; phase 1 adds the other deck fields, `variant_of` and `ProfileState` · one `DeckDefinition` field list (section 7) |
 | v0.5 | 2026-10-06 | From the developer's proto-r1 runs: prototype closed, no outside playtest or proto-r2; full-build playtest rounds take the gate's questions, and the end-of-phase-1 round adds timing and condition-line checks · coupon slots decided (6 shared + 1 coupon-only, phase 1) · loyalty card and exit kiosk for upgrades · reward print-out (7.2) · dessert, escalation and skip rules (6.2) · `source_kind` and `EFFECT_ARMED` · Bundle out of the pools until "2 for 1" (phase 2), so Multipack fills the guaranteed first-offer slot 50% of the time; Connector redefined · inspections print as a red receipt notice; "the coupon slot is closed" added · impulse rack in phase 1 · meta in 1.0: capsule machines and coins (7.1); the store page states no microtransactions · run stock and shopping list (7.2) replace the prototype's "reward pool: every card"; `reward_pool` becomes `coupon_pool` · `ProfileState` field list and telemetry fields · simulator: 7-card rows, redraw, coupon slot, percentiles, dominated cards, list gate, coins per run · cut order and open decisions updated · decided with the user: the shopping list (7.2) and 6 aisles at full collection · `AGENTS.md` now points to this plan (phase 1) |
+| v0.6 | 2026-10-06 | Aligned with the upgrade framework (`docs/PROTOTYPE_PLAN.md` v0.13, section 3.8): `UpgradeDefinition` fields, `core/upgrades/` and `upgrade_offer.gd` in the tree, `upgrade_offer_size` in balance data, upgrades use `UpgradeRule` with the same hook names, phase 1 offers skip the "fits the deck" rule until build tags exist, and the upgrade pick has no skip (decided with the user) |

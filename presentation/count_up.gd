@@ -8,6 +8,9 @@ extends Node
 ## a short glow when a card arms an effect for later cards, fizzle puffs, a receipt printer
 ## that speeds up as the subtotal grows, a register rattle on big payouts, then a pause and the
 ## total slammed against the quota. Hold the mouse button or Space to fast-forward.
+##
+## Steps caused by an upgrade (source_kind UPGRADE) come from that upgrade's loyalty-card box:
+## bonuses and multipliers fly in from it, and its fizzles puff out of it.
 
 signal finished
 
@@ -23,6 +26,10 @@ var total_shown_ms: int = 0
 var _overlay: Control
 var _views: Array[CardView] = []
 var _names: PackedStringArray = PackedStringArray()
+## The loyalty-card boxes and names of the run's upgrades, indexed like the run's upgrades
+## (a step's source_index). Never mixed up with _views, which is indexed by slot.
+var _upgrade_boxes: Array[Control] = []
+var _upgrade_names: PackedStringArray = PackedStringArray()
 var _receipt: ReceiptView
 var _subtotal_label: Label
 var _sfx: Sfx
@@ -50,10 +57,17 @@ func setup(
 
 
 func play(
-	result: ScoreResult, views: Array[CardView], names: PackedStringArray, quota: int
+	result: ScoreResult,
+	views: Array[CardView],
+	names: PackedStringArray,
+	quota: int,
+	upgrade_boxes: Array[Control] = [],
+	upgrade_names: PackedStringArray = PackedStringArray()
 ) -> void:
 	_views = views
 	_names = names
+	_upgrade_boxes = upgrade_boxes
+	_upgrade_names = upgrade_names
 	_shown_subtotal = 0
 	_chain = 0
 	fast_forward_used = false
@@ -111,7 +125,7 @@ func _play_step(step: ScoreStep) -> void:
 
 
 func _tag_added(step: ScoreStep) -> void:
-	_receipt.add_step(step, _names)
+	_receipt.add_step(step, _names, _upgrade_names)
 	var target: CardView = _views[step.slot]
 	var source: CardView = _source_view(step)
 	if source == null:
@@ -125,7 +139,7 @@ func _tag_added(step: ScoreStep) -> void:
 
 
 func _linked(step: ScoreStep) -> void:
-	_receipt.add_step(step, _names)
+	_receipt.add_step(step, _names, _upgrade_names)
 	var left: CardView = _views[step.slot]
 	var right: CardView = _views[step.linked_slot]
 	var line: Line2D = Line2D.new()
@@ -147,24 +161,38 @@ func _linked(step: ScoreStep) -> void:
 	line.queue_free()
 
 
-## A fizzle: the card shudders, greys out for a moment, and lets out a little puff.
+## A fizzle: the card shudders, greys out for a moment, and lets out a little puff. An
+## upgrade's fizzle comes out of its loyalty-card box instead (the card it had nothing to work
+## on gives a small nudge).
 func _fizzle(step: ScoreStep) -> void:
-	_receipt.add_step(step, _names)
+	_receipt.add_step(step, _names, _upgrade_names)
 	var view: CardView = _views[step.slot]
+	var shaken: Control = view.body
+	var puff_at: Vector2 = view.center() + Vector2(0, -30)
+	var puff_to: Vector2 = puff_at + Vector2(0, -50)
+	var upgrade_box: Control = _upgrade_box(step)
 	var resetter: CardView = _source_view(step)
-	if resetter != null and step.source_slot != step.slot:
+	if upgrade_box != null:
+		shaken = upgrade_box
+		# The box sits in the top bar: the puff drifts down from it, onto the screen.
+		puff_at = _center(upgrade_box) + Vector2(0, 26)
+		puff_to = puff_at + Vector2(0, 50)
+		_punch(view.body, 1.06)
+	elif resetter != null and step.source_slot != step.slot:
 		# A reset: show the card that wiped this one's effect.
 		_punch(resetter.body, 1.15)
 		await _fly_text("reset", resetter.center(), view.center(), Palette.LIGHT_TEXT, 20, 0.3)
 	_sfx.play("fizzle")
+	shaken.pivot_offset = shaken.size / 2.0
+	# An upgrade's box keeps its stamp tilt: the shake ends where it started.
+	var rest: float = shaken.rotation if upgrade_box != null else 0.0
 	var tween: Tween = _tween()
-	tween.tween_property(view.body, "modulate", Color(0.6, 0.6, 0.6), 0.08)
-	tween.tween_property(view.body, "rotation", deg_to_rad(-5.0), 0.06)
-	tween.tween_property(view.body, "rotation", deg_to_rad(5.0), 0.08)
-	tween.tween_property(view.body, "rotation", 0.0, 0.06)
-	tween.tween_property(view.body, "modulate", Color.WHITE, 0.2)
-	var start: Vector2 = view.center() + Vector2(0, -30)
-	_fly_text("pfff…", start, start + Vector2(0, -50), Palette.LIGHT_TEXT, 20, 0.55, true)
+	tween.tween_property(shaken, "modulate", Color(0.6, 0.6, 0.6), 0.08)
+	tween.tween_property(shaken, "rotation", rest + deg_to_rad(-5.0), 0.06)
+	tween.tween_property(shaken, "rotation", rest + deg_to_rad(5.0), 0.08)
+	tween.tween_property(shaken, "rotation", rest, 0.06)
+	tween.tween_property(shaken, "modulate", Color.WHITE, 0.2)
+	_fly_text("pfff…", puff_at, puff_to, Palette.LIGHT_TEXT, 20, 0.55, true)
 	await tween.finished
 	await _wait(0.1)
 
@@ -172,7 +200,7 @@ func _fizzle(step: ScoreStep) -> void:
 ## The scanner: the card lifts and its base value pops up.
 func _base(step: ScoreStep) -> void:
 	_chain = 0
-	_receipt.add_step(step, _names)
+	_receipt.add_step(step, _names, _upgrade_names)
 	var view: CardView = _views[step.slot]
 	var tween: Tween = _tween().set_parallel().set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
 	tween.tween_property(view.body, "position:y", SCAN_LIFT, 0.18)
@@ -184,24 +212,25 @@ func _base(step: ScoreStep) -> void:
 	await _wait(0.08)
 
 
-## A bonus flies in from the card that caused it (or pops on the card for its own rules).
+## A bonus flies in from the card that caused it, or from the upgrade's loyalty-card box (or
+## pops on the card for its own rules).
 func _bonus(step: ScoreStep) -> void:
 	_chain += 1
-	_receipt.add_step(step, _names)
+	_receipt.add_step(step, _names, _upgrade_names)
 	var target: CardView = _views[step.slot]
-	# A copy flies in from the copied card; any other bonus from the card that caused it,
-	# unless it is the target's own rule or has no card source.
-	var source: CardView = null
+	# A copy flies in from the copied card; any other bonus from the card or upgrade that
+	# caused it, unless it is the target's own rule.
+	var source: Control = null
 	if step.step_type == ScoreStep.StepType.COPY:
 		source = _views[step.linked_slot]
-	elif step.source_slot != step.slot:
-		source = _source_view(step)
+	elif step.source_kind == ScoreStep.SourceKind.UPGRADE or step.source_slot != step.slot:
+		source = _source_control(step)
 	var text: String = "+%d" % step.value
 	if source != null:
-		_punch(source.body, 1.1)
+		_punch(_moving_part(source), 1.1)
 		if step.step_type == ScoreStep.StepType.COPY:
 			_sfx.play("copy")
-		await _fly_text(text, source.center(), target.center(), Palette.MUSTARD, 30, 0.32)
+		await _fly_text(text, _center(source), target.center(), Palette.MUSTARD, 30, 0.32)
 	else:
 		var above: Vector2 = target.center() + Vector2(0, -20)
 		await _fly_text(text, above, above + Vector2(0, -40), Palette.MUSTARD, 30, 0.3)
@@ -211,13 +240,19 @@ func _bonus(step: ScoreStep) -> void:
 	await _wait(0.12)
 
 
-## A multiplier lands like a stamp: big, rotated, slammed down, with a shake.
+## A multiplier lands like a stamp: big, rotated, slammed down, with a shake. An upgrade's
+## factor first flies in from its loyalty-card box.
 func _stamp(step: ScoreStep) -> void:
 	_chain += 1
-	_receipt.add_step(step, _names)
+	_receipt.add_step(step, _names, _upgrade_names)
 	var target: CardView = _views[step.slot]
+	var upgrade_box: Control = _upgrade_box(step)
 	var source: CardView = _source_view(step)
-	if source != null and step.source_slot != step.slot:
+	if upgrade_box != null:
+		_punch(upgrade_box, 1.3)
+		var factor: String = "×%d" % step.value
+		await _fly_text(factor, _center(upgrade_box), target.center(), Palette.TOMATO, 26, 0.3)
+	elif source != null and step.source_slot != step.slot:
 		_punch(source.body, 1.12)
 	var stamp: Label = _text_label("×%d" % step.value, Palette.TOMATO, 54)
 	_overlay.add_child(stamp)
@@ -244,7 +279,7 @@ func _stamp(step: ScoreStep) -> void:
 
 ## Soup beside Frozen: a hard "denied" as its value is wiped to 0.
 func _denied(step: ScoreStep) -> void:
-	_receipt.add_step(step, _names)
+	_receipt.add_step(step, _names, _upgrade_names)
 	var view: CardView = _views[step.slot]
 	var cross: Label = _text_label("0", Palette.TOMATO, 64)
 	_overlay.add_child(cross)
@@ -268,7 +303,7 @@ func _denied(step: ScoreStep) -> void:
 ## The payout drops onto the receipt and the subtotal ticks up, harder for bigger payouts.
 func _payout(step: ScoreStep) -> void:
 	var view: CardView = _views[step.slot]
-	var line: Control = _receipt.add_step(step, _names)
+	var line: Control = _receipt.add_step(step, _names, _upgrade_names)
 	if line:
 		line.modulate.a = 0.0
 		_tween().tween_property(line, "modulate:a", 1.0, 0.15)
@@ -311,6 +346,33 @@ func _source_view(step: ScoreStep) -> CardView:
 	if step.source_kind != ScoreStep.SourceKind.CARD:
 		return null
 	return _views[step.source_slot]
+
+
+## The loyalty-card box of the upgrade that caused a step, or null when the step's source is
+## not an upgrade (or its box is missing): source_index is only read for UPGRADE sources.
+func _upgrade_box(step: ScoreStep) -> Control:
+	if step.source_kind != ScoreStep.SourceKind.UPGRADE:
+		return null
+	if step.source_index < 0 or step.source_index >= _upgrade_boxes.size():
+		return null
+	return _upgrade_boxes[step.source_index]
+
+
+## Where a step comes from on screen: its card, or its upgrade's loyalty-card box.
+func _source_control(step: ScoreStep) -> Control:
+	var upgrade_box: Control = _upgrade_box(step)
+	return upgrade_box if upgrade_box != null else _source_view(step)
+
+
+## The part of a source that is punched: a card's body (its layout box stays still), or the
+## whole loyalty-card box.
+static func _moving_part(source: Control) -> Control:
+	var view: CardView = source as CardView
+	return view.body if view != null else source
+
+
+static func _center(control: Control) -> Vector2:
+	return control.get_global_rect().get_center()
 
 
 ## The final moment: the total slams down beside the quota, green and cheerful if it is
