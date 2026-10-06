@@ -22,6 +22,10 @@ func _init(
 	charges = charge_count
 
 
+func armed_value() -> int:
+	return factor
+
+
 func multiplier(state: ScoreState, slot: int) -> int:
 	if charges <= 0 or not state.has_tag(slot, tag):
 		return 1

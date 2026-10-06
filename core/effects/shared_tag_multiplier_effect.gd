@@ -16,6 +16,10 @@ func _init(
 	factor = shared_factor
 
 
+func armed_value() -> int:
+	return factor
+
+
 func multiplier(state: ScoreState, slot: int) -> int:
 	for tag: String in tags:
 		if state.has_tag(slot, tag):

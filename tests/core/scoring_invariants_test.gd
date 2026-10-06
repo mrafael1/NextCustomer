@@ -69,11 +69,27 @@ func test_steps_replay_to_each_payout() -> void:
 						. override_failure_message("%s slot %d" % [ids, step.slot])
 						. is_equal(result.payouts[step.slot])
 					)
+				ScoreStep.StepType.EFFECT_ARMED, ScoreStep.StepType.WASTED:
+					pass  # Value unchanged: checked by value_after below.
+				ScoreStep.StepType.TAG_ADDED, ScoreStep.StepType.LINKED:
+					pass  # Context only: no running value.
 			var context_only: Array = [ScoreStep.StepType.TAG_ADDED, ScoreStep.StepType.LINKED]
 			if context_only.has(step.step_type):
 				continue
 			# A fizzle before the card is scanned (context pass) carries 0.
 			assert_int(step.value_after).is_equal(int(running.get(step.slot, 0)))
+
+
+## The subtotal changes only on PAYOUT steps, so a count-up can tick it from the steps alone.
+func test_subtotal_changes_only_on_payouts() -> void:
+	for ids: String in SAMPLE_ROWS:
+		var previous: int = 0
+		for step: ScoreStep in Scoring.score(_row(ids)).steps:
+			if step.step_type == ScoreStep.StepType.PAYOUT:
+				assert_int(step.subtotal).is_equal(previous + step.value)
+			else:
+				assert_int(step.subtotal).override_failure_message(ids).is_equal(previous)
+			previous = step.subtotal
 
 
 func test_context_pass_steps_are_recorded() -> void:

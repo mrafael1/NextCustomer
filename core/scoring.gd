@@ -92,13 +92,14 @@ static func _scan(state: ScoreState, slot: int) -> void:
 
 	state.record_payout(slot, value)
 
+	# Only now do this card's effects for later cards become active, each with an
+	# EFFECT_ARMED step (and the WASTED step of any effect it replaces, an Egg reset).
+	for rule: Rule in card.rules:
+		rule.on_scanned(state, slot)
+
 	# Fizzles of this card's own rules (Repeat with nothing to copy, Final markdown not last).
 	for rule: Rule in card.rules:
 		var reason: String = rule.wasted_reason(state, slot)
 		if not reason.is_empty():
 			state.add_waste(slot, rule.text_for(card), reason)
-
-	# Only now do this card's effects for later cards become active.
-	for rule: Rule in card.rules:
-		rule.on_scanned(state, slot)
 	state.drop_spent_effects()

@@ -1,6 +1,6 @@
 # Next Customer: Prototype Plan
 
-> Status: v0.10, closed at proto-r1. The full build (`docs/FULL_BUILD_PLAN.md`) has taken over; this plan stays the scoring-rule spec (sections 3–5) and changes only when a rule does.
+> Status: v0.11, closed at proto-r1. The full build (`docs/FULL_BUILD_PLAN.md`) has taken over; this plan stays the scoring-rule spec (sections 3–5) and changes only when a rule does.
 > Source: the original "Receipt Rogue" game design plan, plus the decisions made in planning.
 > Engine: Godot 4 (exact version pinned in `AGENTS.md`), GDScript with static typing. Playtest builds are delivered in the browser.
 
@@ -60,7 +60,7 @@ Scoring runs in two passes (section 4):
    2. **+ all flat bonuses** (its own rule, Coffee bonuses waiting for it, and so on)
    3. **× all multipliers** (Eggs charges, Multipack, …)
    4. Payout added to the subtotal
-   5. Its effects for later cards become active (Eggs charges, Coffee bonus, Multipack's ×2, …)
+   5. Its effects for later cards become active (Eggs charges, Coffee bonus, Multipack's ×2, …), each with an `EFFECT_ARMED` step that changes no value (section 4)
 
 Coupons go through the same steps at their own slot. A coupon has base 0 and no tags, so it never receives an Egg charge, a Coffee bonus, a Multipack ×2 or any other effect aimed at products. Its payout comes only from its own rule: Final markdown's +6 is its own flat bonus, and Repeat's payout is the copy (section 3.3). Every coupon appears on the receipt, even when it pays 0.
 
@@ -101,7 +101,7 @@ Coupons go through the same steps at their own slot. A coupon has base 0 and no 
 | Loss | A checkout below the quota ends the run (no warning in v1) |
 | Checkout | Always allowed, whatever the row holds: an empty row scores 0 (and fails the quota), a one-card row scores that card. |
 | Preview | The exact projected total is always visible. The receipt preview shows each line. |
-| Wasted effects ("fizzles") | Every effect that does nothing gets its own 0-value receipt step, so the count-up can play a small "fizzle" on that card and players learn why an order was worse: a Coffee bonus with no later Breakfast product · Egg charges left unused, or wiped by a later Egg's reset · a Breakfast sticker on a coupon, an empty slot or a product that is already Breakfast · a Bundle that bridges nothing · a Multipack with no product before it, or whose ×2 hits no later product · Repeat with nothing to copy · Final markdown outside the last slot. The scoring needs to be **juicy**: the steps carry everything the count-up needs (source slots for fly-ins, separate multiplier steps for stamps, running values, fizzles). |
+| Wasted effects ("fizzles") | Every effect that does nothing gets its own 0-value receipt step, so the count-up can play a small "fizzle" on that card and players learn why an order was worse: a Coffee bonus with no later Breakfast product · Egg charges left unused, or wiped by a later Egg's reset · a Breakfast sticker on a coupon, an empty slot or a product that is already Breakfast · a Bundle that bridges nothing · a Multipack with no product before it, or whose ×2 hits no later product · Repeat with nothing to copy · Final markdown outside the last slot. An effect that was armed and then fizzles keeps its `EFFECT_ARMED` step, so the count-up shows it armed first. The scoring needs to be **juicy**: the steps carry everything the count-up needs (source slots for fly-ins, armed effects, separate multiplier steps for stamps, running values, fizzles). |
 
 ### 3.6 Product tags
 
@@ -189,7 +189,7 @@ res://
     effects/            # per-score effects that rules leave for later products
     score_state.gd      # working state of one score() call (tags, adjacency, effects, steps)
     scoring.gd          # score(row) -> ScoreResult {total, payouts[], tags[], steps[]}
-    score_step.gd       # one explanation line: slot, source, step_type, value change, text
+    score_step.gd       # one explanation line: slot, source (source_kind + slot or index), step_type, value change, text
     deck.gd             # draw, redraw, reward insertion; takes the run's RandomNumberGenerator
     run_state.gd        # deck, shift, quota, seed, (later: upgrades, inspection)
     row_capacity.gd     # row limits by kind: slot_count products, + coupon_slot_count cards (3.1)
@@ -214,6 +214,12 @@ Coupons need to be able to **change the rules**, not only add numbers. So scorin
 `kind` tells the passes whether a slot holds a product or a coupon (coupons break adjacency, never receive product effects, and can't be copied by Repeat). `is_connector` marks coupons like Bundle that bridge adjacency instead of breaking it. Adjacency changes still go through the context hook (`modify_context`), so later coupons and upgrades can change adjacency the same way; Bundle's rule uses that hook and reads `is_connector` to treat consecutive connectors as one bridge. It links the product immediately before a run of connectors to the product immediately after it (section 3.4). When either neighbour isn't a product (Bundle at an end of the row, or next to a coupon that isn't a connector), nothing is bridged (section 3.4). Code reads the flags, never card ids. `kind`'s first value is `UNSET`, so every card file must state its kind (Godot doesn't write a value that equals the default).
 
 Every rule overrides only the hooks it needs (`modify_context`, `flat_bonus`, `multiplier`, `copied_from`, `final_payout`, `wasted_reason`, `on_scanned`). Effects a card leaves for later products (Egg charges, a waiting Coffee bonus, Multipack's ×2) are objects that live in the per-score state, so rules stay stateless; an effect reports what it wasted through `waste_reason` (at the end of the row) or `reset_reason` (when a later card of the same group replaces it). Every step type, its fields and the playback order are documented in `core/score_step.gd`. Register upgrades and inspections in the full build will use the **same hooks**, so no rewrite will be needed.
+
+The step contract (v0.11):
+- **Source.** Every step has a `source_kind`: `CARD` (the card in `source_slot`), `UPGRADE` or `INSPECTION` (entry `source_index` of the run's upgrades or inspections, in the full build). Today every step is `CARD`, with `source_index` 0. A non-card source is never a −1 sentinel in `source_slot`: consumers branch on `source_kind`.
+- **Armed effects.** When a card's rule registers an effect for later cards (Eggs' charges, Coffee's bonus, Multipack's ×2; every effect goes through `ScoreState.add_effect`), an `EFFECT_ARMED` step follows the card's `PAYOUT`: `slot` and `source_slot` are the arming card, `value` is the effect's bonus or factor from the rule's data, `value_after` is the card's payout and `subtotal` is unchanged, and `text` is the effect's receipt text (the same text as the later steps it causes). A Multipack with no product before it arms nothing and fizzles instead.
+- **Order per slot.** `BASE`, `FLAT`, `MULTIPLIER`, `COPY`, `PAYOUT_OVERRIDE`, `PAYOUT`, then one `EFFECT_ARMED` per armed effect, then the card's own `WASTED` steps. An Egg reset arms the new Egg first; the old Egg's "wiped by a reset" `WASTED` step follows straight after. Context-pass steps come before the first slot, and leftover effects fizzle after the last.
+- **Consumers.** The receipt prints no line for `EFFECT_ARMED` (what the effect does is printed where it lands, or as its fizzle). The count-up gives it a short beat on the arming card. Totals and every golden total are unchanged.
 
 `score()` is a pure function. The live preview, the receipt explanation, the animated count-up and the tests all use the same `ScoreResult`, so they can never disagree.
 
@@ -402,3 +408,4 @@ Rules for iterating: **one major variable per round**, card values tweaked only 
 | v0.8 | 2026-10-06 | Closed at proto-r1 after the developer's runs; the outside playtest and decision gate were not run, and their questions move to the full build's playtest rounds · this plan stays the scoring-rule spec · decisions taken from the runs (coupon slots, Bundle as "2 for 1", run stock) are recorded in `docs/FULL_BUILD_PLAN.md` v0.5 and land here when phase 1 or 2 changes the rule |
 | v0.9 | 2026-10-06 | Coupon slots, decided with the user (full build phase 1, `docs/FULL_BUILD_PLAN.md` section 5.1): the row has 6 shared slots + 1 coupon-only slot, at most 6 products and 7 cards (`coupon_slot_count` in balance data, checked by `kind` in `RunState.can_place`) · the row stays flat and compacted, coupons still break adjacency, scoring and every golden total are unchanged · the shift screen shows 7 identical slots (no panel is marked as the coupon slot, so coupons don't look tied to one position), a "Products n/6 · Coupon slot n/1" count, and a short notice when a product doesn't fit · the section 8 High threshold for a full row is now 14 rearrangements (twice 7 cards) |
 | v0.10 | 2026-10-06 | Bundle out of the offer pools (full build phase 1, `docs/FULL_BUILD_PLAN.md` section 5.1): removed from `reward_pool` and `first_offer_pool` in balance data until it returns as "2 for 1" in phase 2 · the first-offer pool is now Breakfast sticker or Multipack, so Multipack fills the guaranteed first-offer slot 50% of the time instead of 33%; read coupon pick rates with that in mind · `bundle.tres` stays in `data/cards/` outside every pool, and its rule and golden rows stay on the frozen `cards_v0_4` fixture · scoring and every golden total are unchanged |
+| v0.11 | 2026-10-06 | Score step contract (full build phase 1, `docs/FULL_BUILD_PLAN.md` section 4): every step has a `source_kind` (`CARD`, `UPGRADE`, `INSPECTION`) and a `source_index` for non-card sources, never a −1 sentinel; all steps are `CARD` today · a new `EFFECT_ARMED` step right after a card's `PAYOUT` for each effect it arms for later cards (Eggs, Coffee, Multipack), with the effect's bonus or factor and receipt text; the card's own fizzles now come after it, and an Egg reset's fizzle follows the new Egg's `EFFECT_ARMED` (section 4) · `to_dictionary()` gains `source_kind` and `source_index` · the receipt prints no line for it; the count-up plays a short beat (the arming card glows and pulses, the effect's name floats up, a soft high "bonus" sound, about 0.18 s; fast-forward speeds it up like every beat), so a row with armers plays about 0.2 s longer per armed effect · the count-up looks up a step's source card only when `source_kind` is `CARD` · scoring and every golden total are unchanged |

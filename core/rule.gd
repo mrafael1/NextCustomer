@@ -40,13 +40,15 @@ func final_payout(_state: ScoreState, _slot: int, payout: int) -> int:
 	return payout
 
 
-## After this card's payout: why this rule did nothing in this slot, or "" if it worked.
-## A non-empty reason becomes a WASTED step, a "fizzle" moment for the receipt and count-up.
+## After this card's payout and its armed effects: why this rule did nothing in this slot, or
+## "" if it worked. A non-empty reason becomes a WASTED step, a "fizzle" moment for the receipt
+## and count-up.
 func wasted_reason(_state: ScoreState, _slot: int) -> String:
 	return ""
 
 
-## After this card's payout: start effects for later cards.
+## After this card's payout: start effects for later cards through ScoreState.add_effect,
+## which records an EFFECT_ARMED step for each one.
 func on_scanned(_state: ScoreState, _slot: int) -> void:
 	pass
 

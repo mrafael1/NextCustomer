@@ -42,7 +42,8 @@ func show_result(result: ScoreResult, names: PackedStringArray) -> void:
 	add_total(result.total)
 
 
-## Prints the line for one step and returns it, so the count-up can animate it.
+## Prints the line for one step and returns it, so the count-up can animate it. Returns null
+## for a step that prints no line.
 func add_step(step: ScoreStep, names: PackedStringArray) -> Control:
 	var left: String = ""
 	var right: String = ""
@@ -76,6 +77,10 @@ func add_step(step: ScoreStep, names: PackedStringArray) -> Control:
 		ScoreStep.StepType.PAYOUT:
 			right = "€%d" % step.value
 			style = LineStyle.ITEM
+		ScoreStep.StepType.EFFECT_ARMED:
+			# No line: the receipt stays a straight list of payouts and explanations. What the
+			# effect does is printed where it lands (its FLAT or MULTIPLIER line, or a fizzle).
+			return null
 	return add_line(left, right, style)
 
 

@@ -16,6 +16,10 @@ func _init(
 	bonus = bonus_amount
 
 
+func armed_value() -> int:
+	return bonus
+
+
 func flat_bonus(state: ScoreState, slot: int) -> int:
 	if _used or not state.has_tag(slot, tag):
 		return 0

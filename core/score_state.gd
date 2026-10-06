@@ -95,9 +95,15 @@ func add_waste(slot: int, text: String, reason: String, source_slot: int = -1) -
 	step.reason = reason
 
 
-## Effects with the same non-empty group replace each other. Whatever the replaced effect
-## had left is wasted (an Egg reset wipes the earlier Egg's unused charges).
+## Arms an effect for later cards, with an EFFECT_ARMED step. Effects with the same non-empty
+## group replace each other. Whatever the replaced effect had left is wasted, right after the
+## new effect's EFFECT_ARMED step (an Egg reset wipes the earlier Egg's unused charges).
 func add_effect(effect: ScoreEffect) -> void:
+	var source: int = effect.source_slot
+	var running: int = payouts[source] if _scanned[source] else 0
+	add_step(
+		ScoreStep.StepType.EFFECT_ARMED, source, source, effect.armed_value(), running, effect.text
+	)
 	if effect.group != &"":
 		var kept: Array[ScoreEffect] = []
 		for existing: ScoreEffect in effects:
