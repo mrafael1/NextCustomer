@@ -22,6 +22,11 @@ enum Kind { UNSET, PRODUCT, COUPON }
 ## Reward offers include at least one card with this flag (plan section 5).
 @export var generally_useful: bool = false
 @export var art_ref: String = ""
+## A card variant (full build plan section 7.3): the card it is a variant of, e.g. Organic
+## Banana of Banana. None for a card that is not a variant.
+@export var variant_of: CardDefinition
+## What unlocks this variant; none means it is available from the start.
+@export var unlock_condition: UnlockCondition
 
 
 func is_product() -> bool:
@@ -30,3 +35,18 @@ func is_product() -> bool:
 
 func is_coupon() -> bool:
 	return kind == Kind.COUPON
+
+
+## Why this card can't be a variant as data, or an empty list (checked by a data test): a
+## variant is a variant of another card that is not itself a variant, of the same kind.
+func variant_problems() -> PackedStringArray:
+	var found: PackedStringArray = PackedStringArray()
+	if variant_of == null:
+		return found
+	if variant_of == self:
+		found.append("variant_of is itself")
+	elif variant_of.variant_of != null:
+		found.append("variant_of is a variant")
+	if variant_of.kind != kind:
+		found.append("variant_of has a different kind")
+	return found

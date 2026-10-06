@@ -1,9 +1,10 @@
 class_name LoyaltyCard
 extends PanelContainer
-## The loyalty card greybox (full build plan 5.2): one box per upgrade shift, empty until an
-## upgrade is taken. A taken upgrade stamps the next box with its initials (a placeholder for
-## its perk icon). Hovering a stamped box shows the upgrade's name, type, effect and condition,
-## so nothing about an upgrade is shown only inside an animation.
+## The loyalty card greybox (full build plan 5.2): one box per upgrade shift (plus one for a
+## starting deck's upgrade, 7.3), empty until an upgrade is taken. A taken upgrade stamps the
+## next box with its initials (a placeholder for its perk icon). Hovering a stamped box shows the
+## upgrade's name, type, effect and condition, so nothing about an upgrade is shown only inside
+## an animation.
 ##
 ## The count-up flies upgrade steps in from these boxes: box(i) belongs to the run's upgrade i.
 
@@ -45,8 +46,9 @@ func _init() -> void:
 	row.add_child(_boxes)
 
 
-## Shows the owned upgrades in pick order, one per box. `box_count` is the number of upgrade
-## shifts (balance data); more upgrades than boxes (debug) add boxes.
+## Shows the owned upgrades in pick order, one per box. `box_count` comes from the caller: one
+## box per upgrade shift (balance data), plus one when the deck has a starting upgrade (full
+## build plan 7.3). More upgrades than boxes (debug) add boxes.
 func show_upgrades(box_count: int, upgrades: Array[UpgradeDefinition]) -> void:
 	if box_count == _box_count and upgrades == _shown:
 		return

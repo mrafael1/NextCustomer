@@ -17,6 +17,8 @@ var reward_skipped: bool = false
 var upgrade_taken: UpgradeDefinition
 ## The inspection this shift was played under, or null.
 var inspection: InspectionDefinition
+## The cards checked out, in row order (coupon uses for unlocks, full build plan 7.3).
+var played: Array[CardDefinition] = []
 
 
 func _init(shift_number: int, shift_quota: int, shift_total: int) -> void:
@@ -36,4 +38,5 @@ func to_dictionary() -> Dictionary:
 		"reward_skipped": reward_skipped,
 		"upgrade_taken": String(upgrade_taken.id) if upgrade_taken != null else "",
 		"inspection": String(inspection.id) if inspection != null else "",
+		"played": played.map(func(card: CardDefinition) -> String: return String(card.id)),
 	}

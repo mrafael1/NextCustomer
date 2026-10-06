@@ -474,8 +474,12 @@ func _on_upgrade_picked(upgrade: UpgradeDefinition) -> void:
 	_on_shift_started()
 
 
+## One box per upgrade shift, plus one for a starting deck's upgrade (full build plan 7.3).
 func _refresh_loyalty_card() -> void:
-	_loyalty_card.show_upgrades(run.balance.upgrade_shifts.size(), run.upgrades)
+	var boxes: int = run.balance.upgrade_shifts.size()
+	_loyalty_card.show_upgrades(
+		boxes + (0 if run.starter.starting_upgrade == null else 1), run.upgrades
+	)
 
 
 func _on_export_pressed() -> void:

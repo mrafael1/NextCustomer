@@ -1,6 +1,6 @@
 # Next Customer: Full Build Plan
 
-> Status: draft v0.7. **This plan will change.** Each full-build playtest round (section 9) can rewrite parts of it. Update the changelog when it does.
+> Status: draft v0.8. **This plan will change.** Each full-build playtest round (section 9) can rewrite parts of it. Update the changelog when it does.
 > The prototype (`docs/PROTOTYPE_PLAN.md`) closed at proto-r1. Its outside playtest and decision gate (section 9 there) were not run; their questions move to the full build's playtest rounds (section 9).
 > Engine: Godot 4 (exact version pinned in `AGENTS.md`), GDScript with static typing. Platform: Windows, mouse. Steam is the main store; itch.io hosts a web demo.
 
@@ -109,9 +109,13 @@ core/
   inspection_schedule.gd  # inspected shifts; draws an inspection from the pool; pure, run RNG
   aisle_definition.gd     # Resource: id, display_name, sign colour, base_cards[], capsule_cards[] (key item first)
   run_stock.gd            # builds the run's stock (section 7.2); pure; uses RNG only for "Surprise me"
-  run_state.gd            # + upgrades[], next inspection, run history, upgrade step, the run's stock
+  run_state.gd            # + upgrades[] (a deck's starting upgrade first), next inspection, run history,
+                          #   upgrade step, the run's stock
+  unlock_condition.gd     # Resource: kind (UNSET rejected), card, amount; summary text (section 7.3)
+  unlock_check.gd         # pure check of an unlock condition against an ended run (section 7.3)
   profile_state.gd        # meta (the one field list): coins, run count, unlocked item ids (with the run index
-                          # each came out in), last shopping list, unlocked decks and variants, first-seen flags
+                          # each came out in), last shopping list, unlocked decks and variants, coupon uses by
+                          # card id (unlocks, section 7.3), first-seen flags
                           # for long animations, achievements, stats, settings (separate from the run save)
   save_service.gd         # run save + profile save; versioned format; Steam cloud paths
 data/
@@ -164,7 +168,7 @@ Good coupon rules:
 
 ### 5.2 Register upgrades (designed carefully)
 
-Upgrades last for the whole run. They live on the **loyalty card**: it starts empty, each upgrade stamps one box and shows its perk icon, and the upgrade's receipt lines and count-up fly-ins come from that box. They are offered after the shifts in `upgrade_shifts` (2, 4 and 6), after that shift's normal reward pick or skip: the receipt goes into the exit kiosk, which drops up to 3 prize tickets (see the offer rule below), fully revealed (a cosmetic "INSTANT WINNER!" gag at most, never a hidden face). The exit kiosk sells nothing and is a separate prop from the capsule machines (section 7.1).
+Upgrades last for the whole run. They live on the **loyalty card**: it starts empty (a starting deck's upgrade comes pre-stamped in a box of its own before the upgrade-shift boxes, section 7.3), each upgrade stamps one box and shows its perk icon, and the upgrade's receipt lines and count-up fly-ins come from that box. They are offered after the shifts in `upgrade_shifts` (2, 4 and 6), after that shift's normal reward pick or skip: the receipt goes into the exit kiosk, which drops up to 3 prize tickets (see the offer rule below), fully revealed (a cosmetic "INSTANT WINNER!" gag at most, never a hidden face). The exit kiosk sells nothing and is a separate prop from the capsule machines (section 7.1).
 
 Good upgrades:
 1. **Change what you draft or how you order cards.** A flat "+N to everything" is not allowed.
@@ -274,9 +278,14 @@ The reward prints from the receipt as the reward print-out: coupons plus promo p
 The prototype already has `DeckDefinition` (id, name, cards) and data-driven cards. Phase 1 adds the remaining fields below, so adding decks and variants after that is a content task:
 
 - `DeckDefinition`: id, name, description, card list, starting upgrade (optional), unlock condition. Its distinct products are its staples (section 7.2)
-- `CardDefinition.variant_of`: card variants (e.g. "Organic Banana" as a variant of Banana)
+- `CardDefinition.variant_of`: card variants (e.g. "Organic Banana" as a variant of Banana), with their own optional unlock condition. A variant is a variant of a card that is not itself a variant, of the same kind (a data test)
 - `ProfileState` (fields in section 4) holds the deck and variant unlocks. Saved separately from the run.
-- Unlock conditions are data (`win a run with X`, `score Y in one checkout`, `use coupon Z N times`) and are checked when a run ends
+- Unlock conditions are data (`UnlockCondition`: kind, card, amount) and are checked when a run ends. No condition means available from the start. Decided with the user (phase 1):
+  - **Win a run with X:** X is a card in the run's final deck, and the run must be won.
+  - **Score Y in one checkout:** any checkout of the run that just ended totals at least Y.
+  - **Use coupon Z N times:** across runs, every copy of Z in a checked-out row counts once. The run history records each shift's checked-out cards; earlier runs' counts come from `ProfileState`.
+  - The check is pure (`UnlockCheck`, tested in phase 1). Running it at the end of a run, and storing the unlocks and coupon counts, comes with `ProfileState`.
+- **Starting upgrade (decided with the user):** a run started with a deck that has one owns it from the first shift. Upgrade offers skip it like any owned upgrade, it counts for redraws and scoring, and the loyalty card gives it a pre-stamped box of its own before the upgrade-shift boxes. The starter deck has none.
 
 Possible ideas: Breakfast deck (start with Coffee and Milk), Coupon deck (fewer products, 2 starting coupons), Frozen deck (Frozen peas, Soup risk).
 Card changes: unlock variants that replace a starting card (e.g. swap 1 Banana for an Organic Banana in the run start screen).
@@ -356,3 +365,4 @@ Content freeze at the end of phase 3. No new features after that.
 | v0.5 | 2026-10-06 | From the developer's proto-r1 runs: prototype closed, no outside playtest or proto-r2; full-build playtest rounds take the gate's questions, and the end-of-phase-1 round adds timing and condition-line checks · coupon slots decided (6 shared + 1 coupon-only, phase 1) · loyalty card and exit kiosk for upgrades · reward print-out (7.2) · dessert, escalation and skip rules (6.2) · `source_kind` and `EFFECT_ARMED` · Bundle out of the pools until "2 for 1" (phase 2), so Multipack fills the guaranteed first-offer slot 50% of the time; Connector redefined · inspections print as a red receipt notice; "the coupon slot is closed" added · impulse rack in phase 1 · meta in 1.0: capsule machines and coins (7.1); the store page states no microtransactions · run stock and shopping list (7.2) replace the prototype's "reward pool: every card"; `reward_pool` becomes `coupon_pool` · `ProfileState` field list and telemetry fields · simulator: 7-card rows, redraw, coupon slot, percentiles, dominated cards, list gate, coins per run · cut order and open decisions updated · decided with the user: the shopping list (7.2) and 6 aisles at full collection · `AGENTS.md` now points to this plan (phase 1) |
 | v0.6 | 2026-10-06 | Aligned with the upgrade framework (`docs/PROTOTYPE_PLAN.md` v0.13, section 3.8): `UpgradeDefinition` fields, `core/upgrades/` and `upgrade_offer.gd` in the tree, `upgrade_offer_size` in balance data, upgrades use `UpgradeRule` with the same hook names, phase 1 offers skip the "fits the deck" rule until build tags exist, and the upgrade pick has no skip (decided with the user) |
 | v0.7 | 2026-10-06 | Aligned with the inspection framework (`docs/PROTOTYPE_PLAN.md` v0.14, section 3.9): `InspectionDefinition` fields, `core/inspections/` and `inspection_schedule.gd` in the tree, `inspection_shifts` (3, 5, 7) and `inspection_pool` in balance data, the placeholder "the 3rd product pays 0" (like Soup), drawn with the run's RNG at the previous passed checkout, and a red top-bar tag during the inspected shift (decided with the user) |
+| v0.8 | 2026-10-06 | Unlock data model (phase 1, section 7.3), decided with the user: `DeckDefinition` gains description, starting upgrade and unlock condition; `CardDefinition` gains `variant_of` and an unlock condition · `UnlockCondition` (win a run with a card in the final deck, score Y in one checkout, use a coupon N times across runs, every checked-out copy counting once) with a pure `UnlockCheck`; hooking it up at run end comes with `ProfileState` · a deck's starting upgrade is owned from the first shift, skipped by offers, and gets a pre-stamped loyalty-card box · the run history records each shift's checked-out cards · `ProfileState` gains coupon uses by card id · section 5.2 points to the pre-stamped box |
