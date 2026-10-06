@@ -1,0 +1,19 @@
+[gd_resource type="Resource" script_class="CardDefinition" format=3]
+
+[ext_resource type="Script" path="res://core/rule.gd" id="1_3dg8t"]
+[ext_resource type="Script" path="res://core/rules/grant_shared_tag_multiplier_rule.gd" id="2_4hoof"]
+[ext_resource type="Script" path="res://core/card_definition.gd" id="3_jpb0u"]
+
+[sub_resource type="Resource" id="Resource_ooo7t"]
+script = ExtResource("2_4hoof")
+factor = 2
+receipt_text = "Multipack ×2"
+
+[resource]
+script = ExtResource("3_jpb0u")
+id = &"multipack"
+display_name = "Multipack"
+kind = 2
+tags = PackedStringArray()
+rules = Array[ExtResource("1_3dg8t")]([SubResource("Resource_ooo7t")])
+rule_text = "×2 to every later product that shares a tag with the product just before this coupon"

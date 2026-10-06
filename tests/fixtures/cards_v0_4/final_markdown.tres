@@ -1,0 +1,19 @@
+[gd_resource type="Resource" script_class="CardDefinition" format=3]
+
+[ext_resource type="Script" path="res://core/rule.gd" id="1_qs03m"]
+[ext_resource type="Script" path="res://core/rules/last_slot_bonus_rule.gd" id="2_7axte"]
+[ext_resource type="Script" path="res://core/card_definition.gd" id="3_px6pm"]
+
+[sub_resource type="Resource" id="Resource_mvcjl"]
+script = ExtResource("2_7axte")
+bonus = 6
+receipt_text = "Final markdown"
+
+[resource]
+script = ExtResource("3_px6pm")
+id = &"final_markdown"
+display_name = "Final markdown"
+kind = 2
+tags = PackedStringArray()
+rules = Array[ExtResource("1_qs03m")]([SubResource("Resource_mvcjl")])
+rule_text = "+6 if in the last slot"

@@ -1,0 +1,23 @@
+[gd_resource type="Resource" script_class="CardDefinition" format=3]
+
+[ext_resource type="Script" path="res://core/rule.gd" id="1_tkmva"]
+[ext_resource type="Script" path="res://core/rules/grant_charged_multiplier_rule.gd" id="2_kityu"]
+[ext_resource type="Script" path="res://core/card_definition.gd" id="3_2wrse"]
+
+[sub_resource type="Resource" id="Resource_bythu"]
+script = ExtResource("2_kityu")
+tag = "Food"
+factor = 2
+charges = 2
+group = &"egg_charges"
+receipt_text = "Eggs ×2"
+
+[resource]
+script = ExtResource("3_2wrse")
+id = &"eggs"
+display_name = "Eggs"
+kind = 1
+tags = PackedStringArray("Food", "Breakfast")
+base = 1
+rules = Array[ExtResource("1_tkmva")]([SubResource("Resource_bythu")])
+rule_text = "Double the next 2 Food payouts (resets, does not stack)"

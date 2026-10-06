@@ -1,6 +1,6 @@
 # Next Customer: Prototype Plan
 
-> Status: draft v0.4, written before development starts. Update it after every playtest round (see the changelog at the bottom).
+> Status: draft v0.5, written before development starts. Update it after every playtest round (see the changelog at the bottom).
 > Source: the original "Receipt Rogue" game design plan, plus the decisions made in planning.
 > Engine: Godot 4 (exact version pinned in `AGENTS.md`), GDScript with static typing. Playtest builds are delivered in the browser.
 
@@ -83,9 +83,9 @@ Coupons go through the same steps at their own slot. A coupon has base 0 and no 
 | "Immediately after X" | The slot just before this card holds X, after the context pass |
 | "Beside X" | The slot just before or just after this card holds X |
 | A coupon between two products | **Breaks adjacency** between them, unless the coupon is a connector (Bundle) |
-| Bundle | In the context pass, the product before Bundle and the product after it count as adjacent to each other (for both "immediately after" and "beside"). Several connector coupons in a row act as one bridge. |
+| Bundle | In the context pass, the product before Bundle and the product after it count as adjacent to each other (for both "immediately after" and "beside"). Several connector coupons in a row act as one bridge. When a neighbour isn't a product (Bundle at an end of the row, or next to a coupon that isn't a connector), Bundle bridges nothing and breaks adjacency like any coupon. |
 | Repeat after Bundle | Still pays 0. Repeat only copies a *product* in the slot just before it; Bundle does not change that. |
-| Breakfast sticker | Affects the next slot only. If that slot is a coupon or empty, the sticker is wasted. |
+| Breakfast sticker | Affects the next slot only. If that slot is a coupon or empty, or the product there is already Breakfast, the sticker is wasted. |
 | Multipack | Uses the tags of the product just before it (after the context pass). In slot 1, or after a coupon, it does nothing. |
 
 ### 3.5 Other rules
@@ -93,9 +93,13 @@ Coupons go through the same steps at their own slot. A coupon has base 0 and no 
 | Topic | Decision |
 |---|---|
 | Eggs | Doubles the next 2 Food payouts. An Egg is Food. An Egg does not boost itself, but it can use up a charge left by an earlier Egg. Coupons neither use up nor receive the charge. |
-| Coffee "+3 to the next Breakfast product" | The next Breakfast product anywhere later in the row, not only the adjacent slot |
+| Coffee "+3 to the next Breakfast product" | The next Breakfast product anywhere later in the row, not only the adjacent slot. With no later Breakfast product, the bonus is lost. |
+| Soup "pays 0 if beside a Frozen product" | The final payout becomes 0, after flat bonuses and multipliers. Bonuses aimed at Soup (e.g. a Coffee +3) are spent and lost. |
+| A product that pays 0 | Still uses up an Egg charge (Soup is Food). |
+| Drawing | Every shift draws 8 from the whole deck, freshly shuffled. Cards replaced by the redraw are set aside for the rest of that shift. |
 | Loss | A checkout below the quota ends the run (no warning in v1) |
 | Preview | The exact projected total is always visible. The receipt preview shows each line. |
+| Wasted effects ("fizzles") | Every effect that does nothing gets its own 0-value receipt step, so the count-up can play a small "fizzle" on that card and players learn why an order was worse: a Coffee bonus with no later Breakfast product · Egg charges left unused, or wiped by a later Egg's reset · a Breakfast sticker on a coupon, an empty slot or a product that is already Breakfast · a Bundle that bridges nothing · a Multipack with no product before it, or whose ×2 hits no later product · Repeat with nothing to copy · Final markdown outside the last slot. The scoring needs to be **juicy**: the steps carry everything the count-up needs (source slots for fly-ins, separate multiplier steps for stamps, running values, fizzles). |
 
 ### 3.6 Product tags
 
@@ -146,6 +150,15 @@ Coupons go through the same steps at their own slot. A coupon has base 0 and no 
 | Breakfast sticker, Banana, Multipack, Coffee, Bread | 0 + 2 + 0 + 4 + 12 = **18** | Multipack sees the Breakfast tag added by the sticker, so Coffee is doubled |
 | Banana, Bundle, Bundle, Banana | 2 + 0 + 0 + 4 = **6** | Two connectors in a row act as one bridge |
 | Bread, Bundle, Repeat | 3 + 0 + 0 = **3** | Repeat after Bundle pays 0 |
+| Coffee, Breakfast sticker, Soup, Frozen peas, Bread | 2 + 0 + 0 + 3 + 3 = **8** | Soup's payout becomes 0 even after Coffee's +3, and the bonus is spent (Bread doesn't get it) |
+| Eggs, Soup, Frozen peas, Bread | 1 + 0 + 6 + 3 = **10** | Soup paying 0 still uses an Egg charge |
+| Banana, Bundle, Multipack, Banana | 2 + 0 + 0 + 2 = **4** | Bundle next to a coupon that isn't a connector bridges nothing |
+| Bundle, Banana, Banana, Bundle | 0 + 2 + 4 + 0 = **6** | Bundle at either end of the row does nothing |
+| Bread, Coffee | 3 + 2 = **5** | A Coffee bonus with no later Breakfast product is lost |
+| Breakfast sticker, Bread, Milk | 0 + 3 + 5 = **8** | A sticker on a product that is already Breakfast is wasted |
+| Bread, Repeat, Repeat | 3 + 3 + 0 = **6** | Repeat after a coupon that paid something still pays 0 (it copies only products) |
+| Coffee, Breakfast sticker, Banana | 2 + 0 + 5 = **7** | Coffee's bonus reaches a product made Breakfast by the sticker |
+| Coffee, Multipack, Breakfast sticker, Banana | 2 + 0 + 0 + 10 = **12** | Multipack reaches a later product that gained the shared tag from the sticker |
 
 Golden rows use a frozen copy of the card data, `tests/fixtures/cards_v0_4/` (named for the rules version it froze), so tuning values in `data/` between playtest rounds doesn't break them. The live data gets its own tests with expected totals that are updated when values change.
 
@@ -155,7 +168,7 @@ How the fixture is built:
 - It freezes **values**, not rule scripts. Rule scripts are shared with the game, so changing a rule script can still change golden totals, and that is a rule change that needs approval.
 - Rule scripts give every `@export` number a neutral default (0 for bonuses, 1 for multipliers, 0 for charges). Godot doesn't write a value to a `.tres` file when it equals the script default, so a non-neutral default would let a script change silently alter the fixture.
 
-No row may leave a Coffee bonus without a later Breakfast product, or depend on any other question in the unresolved table of `core/AGENTS.md`, until that question is decided.
+No row may depend on a question that is still in the unresolved table of `core/AGENTS.md`.
 
 Also tested: duplicate cards are separate instances · the redraw cannot bring back a card that was just replaced · the same seed gives the same draws · a restart uses a new seed (the test injects the seed source) · every `@export` number in a rule script defaults to its neutral value · no card in `data/` or the fixture has `kind` left at `UNSET` · every `.tres` and `.tscn` in `data/`, `ui/`, `presentation/`, `debug/`, `telemetry/` and the fixture loads, and is of the expected type (`tools/test.sh` also fails on any Godot error printed while loading).
 
@@ -166,12 +179,14 @@ The prototype code is the start of the real game. Only the presentation layer is
 ```
 res://
   core/                 # pure logic: no Nodes, no scene tree, fully testable
-    card_definition.gd  # Resource: id, name, kind (UNSET, PRODUCT or COUPON), is_connector, tags, base, rules[], generally_useful, art_ref
+    card_definition.gd  # Resource: id, name, kind (UNSET, PRODUCT or COUPON), is_connector, tags, base, rules[], rule_text, generally_useful, art_ref
     deck_definition.gd  # Resource: id, name, cards[]
     card_instance.gd    # a reference to a definition + a unique instance id
     rule.gd             # base class for product and coupon rules (hook methods)
-    rules/              # one script per reusable trigger and effect
-    scoring.gd          # score(row, context) -> ScoreResult {total, steps[]}
+    rules/              # one script per reusable rule (shared by cards, numbers set in data)
+    effects/            # per-score effects that rules leave for later products
+    score_state.gd      # working state of one score() call (tags, adjacency, effects, steps)
+    scoring.gd          # score(row) -> ScoreResult {total, payouts[], tags[], steps[]}
     score_step.gd       # one explanation line: slot, source, step_type, value change, text
     deck.gd             # draw, redraw, reward insertion; takes the run's RandomNumberGenerator
     run_state.gd        # deck, shift, quota, seed, (later: upgrades, inspection)
@@ -193,9 +208,9 @@ Coupons need to be able to **change the rules**, not only add numbers. So scorin
 1. **Context pass** (the whole row, before any values are calculated): rules can change *tags* ("the product in the next slot gains Breakfast"), and connectors change *adjacency* ("the products on either side of me count as adjacent"). This produces a final list of tags and neighbours for each slot.
 2. **Value pass** (left to right): each card, product or coupon, goes through base → flat bonuses → multipliers → payout → effects for later cards, using the results of the context pass (section 3.2).
 
-`kind` tells the passes whether a slot holds a product or a coupon (coupons break adjacency, never receive product effects, and can't be copied by Repeat). `is_connector` marks coupons like Bundle that bridge adjacency instead of breaking it. Adjacency changes still go through the context hook (`modify_context`), so later coupons and upgrades can change adjacency the same way; Bundle's rule uses that hook and reads `is_connector` to treat consecutive connectors as one bridge. It links the product immediately before a run of connectors to the product immediately after it (section 3.4). When either neighbour isn't a product (Bundle at an end of the row, or next to a coupon that isn't a connector), the result is still undecided: see the unresolved table in `core/AGENTS.md`. Code reads the flags, never card ids. `kind`'s first value is `UNSET`, so every card file must state its kind (Godot doesn't write a value that equals the default).
+`kind` tells the passes whether a slot holds a product or a coupon (coupons break adjacency, never receive product effects, and can't be copied by Repeat). `is_connector` marks coupons like Bundle that bridge adjacency instead of breaking it. Adjacency changes still go through the context hook (`modify_context`), so later coupons and upgrades can change adjacency the same way; Bundle's rule uses that hook and reads `is_connector` to treat consecutive connectors as one bridge. It links the product immediately before a run of connectors to the product immediately after it (section 3.4). When either neighbour isn't a product (Bundle at an end of the row, or next to a coupon that isn't a connector), nothing is bridged (section 3.4). Code reads the flags, never card ids. `kind`'s first value is `UNSET`, so every card file must state its kind (Godot doesn't write a value that equals the default).
 
-Every rule overrides only the hooks it needs (`modify_context`, `flat_bonus`, `multiplier`, `on_scanned`, `copy_payout` …). Register upgrades and inspections in the full build will use the **same hooks**, so no rewrite will be needed.
+Every rule overrides only the hooks it needs (`modify_context`, `flat_bonus`, `multiplier`, `copied_from`, `final_payout`, `wasted_reason`, `on_scanned`). Effects a card leaves for later products (Egg charges, a waiting Coffee bonus, Multipack's ×2) are objects that live in the per-score state, so rules stay stateless; an effect reports what it wasted through `waste_reason` (at the end of the row) or `reset_reason` (when a later card of the same group replaces it). Every step type, its fields and the playback order are documented in `core/score_step.gd`. Register upgrades and inspections in the full build will use the **same hooks**, so no rewrite will be needed.
 
 `score()` is a pure function. The live preview, the receipt explanation, the animated count-up and the tests all use the same `ScoreResult`, so they can never disagree.
 
@@ -373,3 +388,4 @@ Rules for iterating: **one major variable per round**, card values tweaked only 
 | v0.2 | 2026-10-05 | Banana and Frozen peas use "+ base as a flat bonus" · stacking and adjacency fully specified, with more test cases · a coupon in the starting deck and a combination coupon in the first reward · browser delivery for playtests · event log with separate reward, run-end and restart events, plus log export · rearrangement count treated as a clue combined with the interview · click-to-place first, drag-and-drop cut first · realistic estimate of 18–24 hours |
 | v0.3 | 2026-10-05 | Deck limit lowered from 18 to 15 so replacement is reachable · event log opens, appends and closes per event (web persistence) · golden tests run on frozen card data · the debug panel is excluded from playtest builds and its use is logged · rules are stateless · 9 more required test cases · a `generally_useful` card flag · engine version pinned in `AGENTS.md` only · rule numbers live in data · all randomness uses the run's seeded RNG |
 | v0.4 | 2026-10-05 | Coupons go through the value pass at their own slot (base 0, no tags) · card definitions get `kind` and `is_connector`, plus a `DeckDefinition` script · 9 more required test cases (none depends on an unresolved question), and test 8 notes that Food is also shared · the golden fixture (`cards_v0_4`) is self-contained and built by hand, and rule scripts use neutral `@export` defaults · the debug panel is excluded from playtest exports (`debug/*`) and loaded only without the `playtest` tag · a restart uses a new seed from an RNG outside `core/` · Bundle bridges through the context hook and uses `is_connector` to join consecutive connectors; its edge cases stay unresolved · `kind` starts at `UNSET`, and the step field is `step_type` · scripts outside `debug/` never name `debug/` classes · every coupon gets a receipt line, even at 0 · the build label is the project setting `next_customer/build_label` · the log summary script is in scope (day 3) · Breakfast sticker text says "next slot" · the cut list holds only items in scope · a test loads every scene and resource in the game folders and the fixture (section 3.7), and `tools/test.sh` fails on any Godot error · code that reports errors takes an injectable reporter, so tests never print errors · event log: sessions with time-ordered file names, `time` (exact format) and `t_ms`, planning time paused on window focus loss (works on the web), desktop export also writes one joined file, `reward` records the shift, folder creation and open errors, checkout measures defined, provisional High threshold, export bundles every session file from any screen, `log_export` written before the export, coupon pick rate per offer |
+| v0.5 | 2026-10-06 | Decided with the user before building the scoring engine: Soup's final payout becomes 0 (bonuses aimed at it are spent) · a product that pays 0 still uses an Egg charge · Bundle bridges nothing when a neighbour isn't a product · an unused Coffee bonus is lost · a Breakfast sticker on a Breakfast product is wasted · every shift draws from the whole deck, freshly shuffled · 6 test rows for these decisions, plus 3 found by mutation testing (41 in total) · wasted effects get their own receipt step ("fizzles"), and the scoring must be juicy · hook names and the `core/` tree match the engine (`copied_from`, `final_payout`, `wasted_reason`, `effects/`, `score_state.gd`, `rule_text`) · a copy step always names the copied slot, and an Egg reset's fizzle names the Egg that reset it |

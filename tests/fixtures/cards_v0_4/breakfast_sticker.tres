@@ -1,0 +1,19 @@
+[gd_resource type="Resource" script_class="CardDefinition" format=3]
+
+[ext_resource type="Script" path="res://core/rule.gd" id="1_n3yvh"]
+[ext_resource type="Script" path="res://core/rules/grant_tag_to_next_slot_rule.gd" id="2_tp8kk"]
+[ext_resource type="Script" path="res://core/card_definition.gd" id="3_drgs2"]
+
+[sub_resource type="Resource" id="Resource_cokqv"]
+script = ExtResource("2_tp8kk")
+tag = "Breakfast"
+receipt_text = "Breakfast sticker"
+
+[resource]
+script = ExtResource("3_drgs2")
+id = &"breakfast_sticker"
+display_name = "Breakfast sticker"
+kind = 2
+tags = PackedStringArray()
+rules = Array[ExtResource("1_n3yvh")]([SubResource("Resource_cokqv")])
+rule_text = "The product in the next slot gains the Breakfast tag"

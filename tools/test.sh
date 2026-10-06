@@ -1,6 +1,7 @@
 #!/bin/sh
 # Runs every GdUnit4 test headless. Extra arguments go to GdUnit4 (e.g. -a res://tests/core).
-# Fails if a test fails or if Godot prints any error during the run (GdUnit4 doesn't fail a test
+# Runs every suite even after a failure (-c), so every failure is reported. Fails if a test
+# fails or if Godot prints any error during the run (GdUnit4 doesn't fail a test
 # when Godot logs an error, e.g. a resource that fails to load).
 set -e
 cd "$(dirname "$0")/.."
@@ -8,7 +9,7 @@ cd "$(dirname "$0")/.."
 godot_import
 if [ $# -eq 0 ]; then set -- -a res://tests; fi
 test_status=0
-test_output=$(sh addons/gdUnit4/runtest.sh --headless --ignoreHeadlessMode "$@" 2>&1) || test_status=$?
+test_output=$(sh addons/gdUnit4/runtest.sh --headless --ignoreHeadlessMode -c "$@" 2>&1) || test_status=$?
 printf '%s\n' "$test_output"
 # GdUnit4's runner points the remote debugger at port 0 on purpose (it blocks Godot's interactive
 # debugger), which always prints these two errors. They are the only lines ignored.
