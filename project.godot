@@ -12,8 +12,12 @@ config_version=5
 
 config/name="Next Customer"
 config/version="0.1.0"
-run/main_scene="res://ui/main.tscn"
+run/main_scene="res://ui/shift_screen.tscn"
 config/features=PackedStringArray("4.7", "GL Compatibility")
+
+[autoload]
+
+EventLog="*res://telemetry/event_log.gd"
 
 [debug]
 

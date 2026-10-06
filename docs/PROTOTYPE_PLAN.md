@@ -1,6 +1,6 @@
 # Next Customer: Prototype Plan
 
-> Status: draft v0.5, written before development starts. Update it after every playtest round (see the changelog at the bottom).
+> Status: draft v0.6, written before development starts. Update it after every playtest round (see the changelog at the bottom).
 > Source: the original "Receipt Rogue" game design plan, plus the decisions made in planning.
 > Engine: Godot 4 (exact version pinned in `AGENTS.md`), GDScript with static typing. Playtest builds are delivered in the browser.
 
@@ -98,6 +98,7 @@ Coupons go through the same steps at their own slot. A coupon has base 0 and no 
 | A product that pays 0 | Still uses up an Egg charge (Soup is Food). |
 | Drawing | Every shift draws 8 from the whole deck, freshly shuffled. Cards replaced by the redraw are set aside for the rest of that shift. |
 | Loss | A checkout below the quota ends the run (no warning in v1) |
+| Checkout | Always allowed, whatever the row holds: an empty row scores 0 (and fails the quota), a one-card row scores that card. |
 | Preview | The exact projected total is always visible. The receipt preview shows each line. |
 | Wasted effects ("fizzles") | Every effect that does nothing gets its own 0-value receipt step, so the count-up can play a small "fizzle" on that card and players learn why an order was worse: a Coffee bonus with no later Breakfast product · Egg charges left unused, or wiped by a later Egg's reset · a Breakfast sticker on a coupon, an empty slot or a product that is already Breakfast · a Bundle that bridges nothing · a Multipack with no product before it, or whose ×2 hits no later product · Repeat with nothing to copy · Final markdown outside the last slot. The scoring needs to be **juicy**: the steps carry everything the count-up needs (source slots for fly-ins, separate multiplier steps for stamps, running values, fizzles). |
 
@@ -257,8 +258,8 @@ The two-pass engine, click-to-place UI, count-up animation, browser export and l
 | Day | Work | Done when |
 |---|---|---|
 | 1 | Project setup, GdUnit4, **browser export check with an empty scene** (catches export problems early), card data resources, scoring engine with both passes, all tests from section 3.7 | Tests pass headless. An empty web build runs in the browser. |
-| 2 | Shift screen: draw, redraw, click-to-place into 6 slots, live preview and receipt explanation, deck and seed, debug panel, event logger with all event types | One shift is playable and logged from start to finish |
-| 3 | Count-up sequencer and sounds, reward screen, 5-shift run, win and lose screens, restart, log export, log summary script, web build uploaded. First playtest with 1–2 people. | A stranger can play a complete run in the browser without being told what to do, and send back the log |
+| 2 | Shift screen: draw, redraw, click-to-place into 6 slots, live preview and receipt explanation, deck and seed, debug panel, event logger with all event types, and a **first rough count-up** for checkout (scan, fly-ins from the source card, multiplier stamps, fizzles, ticking subtotal, fast-forward) so the scoring feel is tested from the first playable build | One shift is playable, counted up and logged from start to finish |
+| 3 | Count-up polish and sounds, reward screen, 5-shift run, win and lose screens, restart, log export, log summary script, web build uploaded. First playtest with 1–2 people. | A stranger can play a complete run in the browser without being told what to do, and send back the log |
 
 ### What gets cut if time runs out (in this order)
 
@@ -278,6 +279,7 @@ Playtesters open a link instead of downloading a build. This lowers the barrier 
 - A "click to start" title screen so browsers allow audio
 - Fonts embedded in the build; test in Chrome and Firefox (Safari if possible)
 - On the web, `user://` is stored in the browser, so the log has to be exported (section 8)
+- **Known risk (day 3, with the log export):** two tabs of the same build share the browser storage, and each tab writes back its own copy of `user://`, so one tab can wipe the other's log. Ask testers to keep one tab open; consider storing each event per key (e.g. through `JavaScriptBridge`) when building the export.
 - Every build shows its build label (e.g. `proto-r1`, the project setting `next_customer/build_label`) on the title screen and in the log
 
 ## 8. Event log
@@ -297,7 +299,8 @@ Choices and actions that happen after a checkout (rewards, the end of a run, res
 | `run_start` | seed (a new random seed for every run, including after a restart), starting deck |
 | `shift_start` | shift, quota, the 8 cards drawn |
 | `redraw` | cards replaced, cards received |
-| `checkout` | final order, score, pass or fail, placements, removals, rearrangements, distinct projected totals, planning time, count-up time, fast-forward used, input method (click or drag); see the definitions below |
+| `checkout` | shift, final order, score, quota, pass or fail, placements, removals, rearrangements, distinct projected totals, planning time, input method (click or drag); see the definitions below. Logged at the checkout click, so closing the game during the count-up loses nothing. |
+| `count_up` | shift, count-up time, fast-forward used. Logged when the count-up ends. |
 | `reward` | shift, the 3 cards offered, card picked or skipped, card replaced (at the 15-card limit), time to decide, whether the deck view was opened |
 | `run_end` | win or loss, shift reached, last score, run length |
 | `restart` | time since `run_end`, from which screen |
@@ -312,8 +315,8 @@ Choices and actions that happen after a checkout (rewards, the end of a run, res
 | removals | Number of times a card was taken out of the row. Removing one card counts once, even though the cards after it shift left. |
 | rearrangements | `placements` minus the number of cards committed. Placing each committed card once gives 0; every extra placement counts 1. |
 | distinct projected totals | Number of different preview totals shown for rows with the same number of cards as the committed row. A total seen again counts once. |
-| planning time | From `shift_start` to the checkout click, in ms of `t_ms`, minus any time the game window was unfocused (the root window's `focus_exited` / `focus_entered` signals, which also fire in the browser when the player switches tabs; the `NOTIFICATION_APPLICATION_FOCUS_*` notifications don't fire on the web). Check this in the browser test: switch tabs during a shift and confirm the planning time doesn't include it. |
-| count-up time | From the checkout click to the final total being shown, in ms of `t_ms`. |
+| planning time | From `shift_start` to the checkout click, in ms of `t_ms`, minus the time the player was away within that span. On the web, "away" means the page was hidden (`document.visibilitychange`: another tab, minimised): canvas focus would also drop on any click outside the game, e.g. on the itch.io page, while the player can still see the hand. On desktop it means the window was unfocused (`focus_exited` / `focus_entered`). Focus changes after the click don't count. Check this in the browser test: switch tabs during a shift and confirm the planning time doesn't include it. |
+| count-up time | From the checkout click to the moment the final total is shown, in ms of `t_ms` (not including the short pause after it). |
 
 **Getting the log back:** an **Export log** button is visible on every screen: title, shift, reward and results. It downloads **every file** in `user://playtest_logs/`, joined into one `.jsonl` file in name order (each line already carries its `session_id`), so sessions from before a reload or a closed tab are included. On the web it uses `JavaScriptBridge.download_buffer`. On desktop it writes the same joined file to `user://playtest_export.jsonl` and opens that folder, so desktop testers also send one file. The `log_export` event is written, and its file closed, **before** the files are read, so the exported file contains it. Playtesters send that one file.
 
@@ -389,3 +392,4 @@ Rules for iterating: **one major variable per round**, card values tweaked only 
 | v0.3 | 2026-10-05 | Deck limit lowered from 18 to 15 so replacement is reachable · event log opens, appends and closes per event (web persistence) · golden tests run on frozen card data · the debug panel is excluded from playtest builds and its use is logged · rules are stateless · 9 more required test cases · a `generally_useful` card flag · engine version pinned in `AGENTS.md` only · rule numbers live in data · all randomness uses the run's seeded RNG |
 | v0.4 | 2026-10-05 | Coupons go through the value pass at their own slot (base 0, no tags) · card definitions get `kind` and `is_connector`, plus a `DeckDefinition` script · 9 more required test cases (none depends on an unresolved question), and test 8 notes that Food is also shared · the golden fixture (`cards_v0_4`) is self-contained and built by hand, and rule scripts use neutral `@export` defaults · the debug panel is excluded from playtest exports (`debug/*`) and loaded only without the `playtest` tag · a restart uses a new seed from an RNG outside `core/` · Bundle bridges through the context hook and uses `is_connector` to join consecutive connectors; its edge cases stay unresolved · `kind` starts at `UNSET`, and the step field is `step_type` · scripts outside `debug/` never name `debug/` classes · every coupon gets a receipt line, even at 0 · the build label is the project setting `next_customer/build_label` · the log summary script is in scope (day 3) · Breakfast sticker text says "next slot" · the cut list holds only items in scope · a test loads every scene and resource in the game folders and the fixture (section 3.7), and `tools/test.sh` fails on any Godot error · code that reports errors takes an injectable reporter, so tests never print errors · event log: sessions with time-ordered file names, `time` (exact format) and `t_ms`, planning time paused on window focus loss (works on the web), desktop export also writes one joined file, `reward` records the shift, folder creation and open errors, checkout measures defined, provisional High threshold, export bundles every session file from any screen, `log_export` written before the export, coupon pick rate per offer |
 | v0.5 | 2026-10-06 | Decided with the user before building the scoring engine: Soup's final payout becomes 0 (bonuses aimed at it are spent) · a product that pays 0 still uses an Egg charge · Bundle bridges nothing when a neighbour isn't a product · an unused Coffee bonus is lost · a Breakfast sticker on a Breakfast product is wasted · every shift draws from the whole deck, freshly shuffled · 6 test rows for these decisions, plus 3 found by mutation testing (41 in total) · wasted effects get their own receipt step ("fizzles"), and the scoring must be juicy · hook names and the `core/` tree match the engine (`copied_from`, `final_payout`, `wasted_reason`, `effects/`, `score_state.gd`, `rule_text`) · a copy step always names the copied slot, and an Egg reset's fizzle names the Egg that reset it |
+| v0.6 | 2026-10-06 | Checkout is always allowed, even with an empty or one-card row (decided with the user) · a first rough count-up moves into day 2, so juice is tested from the first playable build; day 3 polishes it and adds sound · `checkout` is logged at the click and a new `count_up` event carries count-up time and fast-forward · on the web, planning time pauses only while the page is hidden · known risk noted: two open tabs can overwrite each other's log |

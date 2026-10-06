@@ -66,6 +66,14 @@ func hand() -> Array[CardInstance]:
 	return _hand.duplicate()
 
 
+## Debug panel only: a copy of a card for this shift's hand. It is not added to the deck.
+func add_to_hand(card_definition: CardDefinition) -> CardInstance:
+	var card: CardInstance = CardInstance.new(card_definition, _next_instance_id)
+	_next_instance_id += 1
+	_hand.append(card)
+	return card
+
+
 ## Fisher-Yates shuffle with the run's RNG. Array.shuffle() would use the global RNG.
 func _shuffle(pile: Array[CardInstance]) -> void:
 	for index: int in range(pile.size() - 1, 0, -1):

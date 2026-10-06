@@ -4,7 +4,11 @@ extends GdUnitTestSuite
 
 const FIXTURE_DIR := "res://tests/fixtures/cards_v0_4"
 const CARD_DIRS := ["res://data/cards", FIXTURE_DIR]
-const NEUTRAL_SCRIPTS := ["res://core/card_definition.gd", "res://core/deck_definition.gd"]
+const NEUTRAL_SCRIPTS := [
+	"res://core/card_definition.gd",
+	"res://core/deck_definition.gd",
+	"res://core/balance_definition.gd",
+]
 
 
 ## Godot omits values equal to the script default from .tres files, so a non-neutral default
@@ -38,7 +42,7 @@ func test_exported_values_default_to_neutral() -> void:
 				TYPE_FLOAT:
 					var neutral_float: float = 1.0 if property_name.ends_with("factor") else 0.0
 					assert_float(value).override_failure_message(where).is_equal(neutral_float)
-				TYPE_PACKED_STRING_ARRAY, TYPE_ARRAY, TYPE_DICTIONARY:
+				TYPE_PACKED_STRING_ARRAY, TYPE_PACKED_INT32_ARRAY, TYPE_ARRAY, TYPE_DICTIONARY:
 					assert_int(value.size()).override_failure_message(where).is_equal(0)
 				TYPE_NIL, TYPE_OBJECT:
 					assert_object(value).override_failure_message(where).is_null()

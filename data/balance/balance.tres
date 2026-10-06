@@ -1,0 +1,11 @@
+[gd_resource type="Resource" script_class="BalanceDefinition" format=3]
+
+[ext_resource type="Script" path="res://core/balance_definition.gd" id="1_balance"]
+
+[resource]
+script = ExtResource("1_balance")
+quotas = PackedInt32Array(10, 15, 22, 32, 48)
+hand_size = 8
+redraw_limit = 2
+slot_count = 6
+deck_limit = 15
