@@ -26,7 +26,7 @@ Run these from the repo root in a POSIX shell (Git Bash on Windows). `godot` mus
 | Export the web build (fails on any Godot error) | `sh tools/export_web.sh` (output in `build/web/`) | Godot 4.7.stable |
 | Export the Windows build (fails on any Godot error) | `sh tools/export_windows.sh` (output in `build/windows/`) | Godot 4.7.stable |
 
-Test reports are written to `reports/` (ignored by git). The build label shown to players and in the log (`proto-r1` …) is the project setting `next_customer/build_label`; `application/config/version` stays numeric because Windows requires it.
+Test reports are written to `reports/` (ignored by git). The build label shown to players and in the log (`fb-p1` …) is the project setting `next_customer/build_label`; `application/config/version` stays numeric because Windows requires it.
 
 What each check covers:
 - **Tests** verify the behaviour they cover. Passing tests don't prove that every rule is correct.
