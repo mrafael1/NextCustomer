@@ -20,3 +20,4 @@ tags = PackedStringArray("Food", "Produce")
 base = 2
 rules = Array[ExtResource("1_h6p8l")]([SubResource("Resource_5sgdl")])
 rule_text = "+ its base value (+2) as a flat bonus if immediately after another Banana"
+generally_useful = true
