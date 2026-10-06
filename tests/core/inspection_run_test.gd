@@ -78,7 +78,8 @@ func test_the_last_shift_announces_nothing() -> void:
 	# The shift after the last one doesn't exist: listing it means only the last-shift rule
 	# stops the draw.
 	balance.inspection_shifts = PackedInt32Array([3, 5, 7, balance.quotas.size() + 1])
-	var run: RunState = RunState.new(44, load(STARTER), balance)
+	var deck: DeckDefinition = load(STARTER)
+	var run: RunState = RunState.new(44, deck, balance, RunStock.starting(deck, balance))
 	run.start_shift()
 	run.debug_skip_to_shift(balance.quotas.size() - 1)
 	assert_bool(InspectionSchedule.is_inspection_shift(balance, run.shift_index + 2)).is_true()
@@ -118,7 +119,8 @@ func test_an_empty_pool_draws_nothing_and_uses_no_rng() -> void:
 	assert_object(InspectionSchedule.draw(rng, balance)).is_null()
 	assert_int(rng.state).is_equal(state)
 	# A run with no pool plays its inspected shifts without an inspection.
-	var run: RunState = RunState.new(46, load(STARTER), balance)
+	var deck: DeckDefinition = load(STARTER)
+	var run: RunState = RunState.new(46, deck, balance, RunStock.starting(deck, balance))
 	run.start_shift()
 	run.debug_skip_to_shift(1)
 	_pass(run)
@@ -162,7 +164,8 @@ static func _two_inspection_run(seed_value: int, inspection_shifts: PackedInt32A
 	var pool: Array[InspectionDefinition] = [load(SPOT_CHECK), other]
 	balance.inspection_pool = pool
 	balance.inspection_shifts = inspection_shifts
-	var run: RunState = RunState.new(seed_value, load(STARTER), balance)
+	var deck: DeckDefinition = load(STARTER)
+	var run: RunState = RunState.new(seed_value, deck, balance, RunStock.starting(deck, balance))
 	run.start_shift()
 	return run
 
@@ -181,7 +184,9 @@ static func _low_quotas() -> BalanceDefinition:
 
 ## A run whose quotas are all 5, so two Breads (6) pass any shift, inspected or not.
 static func _run(seed_value: int) -> RunState:
-	var run: RunState = RunState.new(seed_value, load(STARTER), _low_quotas())
+	var balance: BalanceDefinition = _low_quotas()
+	var deck: DeckDefinition = load(STARTER)
+	var run: RunState = RunState.new(seed_value, deck, balance, RunStock.starting(deck, balance))
 	run.start_shift()
 	return run
 

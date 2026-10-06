@@ -95,7 +95,8 @@ func _ready() -> void:
 
 ## Starts a run with a seed (a new random one, or one set from the debug panel).
 func start_new_run(seed_value: int) -> void:
-	run = RunState.new(seed_value, load(STARTER_DECK), _balance)
+	var deck: DeckDefinition = load(STARTER_DECK)
+	run = RunState.new(seed_value, deck, _balance, RunStock.starting(deck, _balance))
 	_run_started_ms = Time.get_ticks_msec()
 	_run_ended_ms = -1
 	_log.begin_run()
@@ -104,7 +105,7 @@ func start_new_run(seed_value: int) -> void:
 		"starting_deck": _ids(run.deck.cards),
 		"shift_count": run.shift_count(),
 	}
-	_log.log_event("run_start", start)
+	_log.log_event("run_start", start.merged(run.stock.to_dictionary()))
 	run.start_shift()
 	_on_shift_started()
 

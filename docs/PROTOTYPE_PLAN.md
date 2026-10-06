@@ -1,6 +1,6 @@
 # Next Customer: Prototype Plan
 
-> Status: v0.16, closed at proto-r1. The full build (`docs/FULL_BUILD_PLAN.md`) has taken over; this plan stays the scoring-rule spec (sections 3–5) and changes only when a rule does.
+> Status: v0.17, closed at proto-r1. The full build (`docs/FULL_BUILD_PLAN.md`) has taken over; this plan stays the scoring-rule spec (sections 3–5) and changes only when a rule does.
 > Source: the original "Receipt Rogue" game design plan, plus the decisions made in planning.
 > Engine: Godot 4 (exact version pinned in `AGENTS.md`), GDScript with static typing. Playtest builds are delivered in the browser.
 
@@ -259,7 +259,8 @@ res://
     scoring.gd          # score(row, upgrades, inspections) -> ScoreResult {total, payouts[], tags[], steps[]}
     score_step.gd       # one explanation line: slot, source (source_kind + slot or index), step_type, value change, text
     deck.gd             # draw, redraw, reward insertion; takes the run's RandomNumberGenerator
-    run_state.gd        # deck, shift, quota, seed, redraws, upgrades[], upgrade offer and step, inspections[] and the next one, history
+    run_stock.gd        # the run's stock: staples, listed aisles, new arrivals, coupon pool (full build 7.2)
+    run_state.gd        # stock, deck, shift, quota, seed, redraws, upgrades[], upgrade offer and step, inspections[] and the next one, history
     shift_record.gd     # one run-history entry: shift, quota, total, passed, reward, upgrade (3.8), inspection (3.9), cards played
     row_capacity.gd     # row limits by kind: slot_count products, + coupon_slot_count cards (3.1)
   data/
@@ -267,7 +268,8 @@ res://
     decks/starter.tres  # DeckDefinition (ready for unlockable decks later)
     upgrades/*.tres     # one UpgradeDefinition resource per upgrade (3.8)
     inspections/*.tres  # one InspectionDefinition resource per inspection (3.9)
-    balance/balance.tres # quotas, reward pool, upgrade shifts and pool, inspection shifts and pool, tunable without code changes
+    aisles/*.tres       # one AisleDefinition resource per aisle (full build 7.2)
+    balance/balance.tres # quotas, aisles, coupon pool and stock numbers, upgrade shifts and pool, inspection shifts and pool, tunable without code changes
   ui/                   # scenes: shift screen, reward screen, upgrade ticket panel, loyalty card, results screen with run history
   presentation/         # count-up sequencer: plays back the ScoreResult steps
   debug/                # debug panel (excluded from playtest builds)
@@ -326,10 +328,10 @@ The step contract (v0.11):
 Coupons are the core of the game, so players meet one from the first shift instead of waiting for a reward.
 
 ### Rewards
-- Reward pool: every card above except Bundle, including Cheese, Frozen peas and the other 4 coupons. Bundle is out of every offer pool until it returns as "2 for 1" (full build phase 2, `docs/FULL_BUILD_PLAN.md` section 5.1, v0.10); `bundle.tres` stays in `data/cards/` and its rule stays for the frozen `cards_v0_4` golden fixture.
+- Offers draw from the run's stock (`docs/FULL_BUILD_PLAN.md` section 7.2, since v0.17): the starting deck's products, the listed aisles, the new arrivals and `coupon_pool`. Phase 1 has one placeholder aisle (Cheese, Frozen peas) and no unlocks, so the stock is every card above except Bundle: the 8 products and the 4 coupons other than Bundle. Bundle is out of every offer pool until it returns as "2 for 1" (full build phase 2, `docs/FULL_BUILD_PLAN.md` section 5.1, v0.10); `bundle.tres` stays in `data/cards/` and its rule stays for the frozen `cards_v0_4` golden fixture.
 - **The first reward offer always includes one of the combination coupons** (Breakfast sticker or Multipack).
 - Each later set of 3 offers has at least 1 coupon and at least 1 card that is generally useful (a `generally_useful` flag on the card's data resource, tuned in `data/`, not decided in code). Decided with the user: Bread, Eggs, Milk and Banana are generally useful; Cheese, Coffee, Soup and Frozen peas stay situational.
-- The reward pool, the first-offer pool (Breakfast sticker, Multipack) and the offer size (3) live in `data/balance/balance.tres`. An offer never shows the same card twice.
+- The aisles, `coupon_pool` (which replaced `reward_pool` in v0.17), the first-offer pool (Breakfast sticker, Multipack; a stocked one is offered) and the offer size (3) live in `data/balance/balance.tres`. An offer never shows the same card twice, and never a card outside the run's stock.
 
 ## 6. Build schedule (18 hours is the target, 24 is realistic)
 
@@ -376,7 +378,7 @@ Choices and actions that happen after a checkout (rewards, the end of a run, res
 
 | Event | Data |
 |---|---|
-| `run_start` | seed (a new random seed for every run, including after a restart), starting deck, number of shifts (`shift_count`, since v0.12) |
+| `run_start` | seed (a new random seed for every run, including after a restart), starting deck, number of shifts (`shift_count`, since v0.12), the run's stock (since v0.17): the aisles stocked whole (`listed_aisles`, ids in data order; every listable aisle when the list is skipped) and the stocked card ids in stock order (`stock`) |
 | `shift_start` | shift, quota, the 8 cards drawn, the shift's inspections (`inspections`, ids, since v0.14) |
 | `redraw` | cards replaced, cards received |
 | `checkout` | shift, final order, score, quota, pass or fail, placements, removals, rearrangements, distinct projected totals, planning time, input method (`click`, `drag` or `both`, since v0.15); see the definitions below. The inspection announced for the next shift (`next_inspection`, id or empty, since v0.14). Logged at the checkout click, so closing the game during the count-up loses nothing. |
@@ -487,3 +489,4 @@ Rules for iterating: **one major variable per round**, card values tweaked only 
 | v0.14 | 2026-10-06 | Inspections (full build phase 1, section 3.9; `docs/FULL_BUILD_PLAN.md` section 5.3), decided with the user: 1 placeholder inspection in `data/inspections/`, Spot check: the 3rd product pays 0, like Soup beside Frozen (products only, after bonuses and multipliers, bonuses aimed at it spent, it still uses an Egg charge and still arms its own effects, a Repeat after it copies 0) · `score(row, upgrades, inspections)`: inspection payout overrides after the card's own, steps with `source_kind` `INSPECTION` and `source_index`; with no inspections every result and every golden total is unchanged · `inspection_shifts` (3, 5, 7) and `inspection_pool` in balance data: a passed shift before an inspected one draws its inspection from the run's RNG after the reward and upgrade offers · run history records each shift's inspection · count-up: a red "INSPECTION NEXT SHIFT" notice under the total, before the reward and the kiosk; the reward panel repeats it; a red tag in the top bar during the inspected shift, where its steps play from · results screen: an Inspection column · event log: `inspections` in `shift_start`, `next_inspection` in `checkout` (section 8) · debug panel: set or clear the shift's inspection (restarts the shift) · balance simulator: inspected shifts are searched under their inspection, and the search cache keeps them apart |
 | v0.15 | 2026-10-06 | Drag-and-drop on top of click-to-place (full build phase 1, `docs/FULL_BUILD_PLAN.md` section 3): a press still picks a card up as a click does; moving 8 px with the button held drags it (a ghost card follows the mouse; the slot where it would land lights up, or the card there that would be pushed right, and nothing lights up where it cannot go); releasing on a slot places it there (a filled slot pushes the cards right, like a click), anywhere else lets go (a row card goes back to the hand). A card already picked up can be dragged too: a click on it now lets go on the release instead of the press. No scoring or rule change · event log: `input_method` in `checkout` is `click`, `drag` or `both` (section 8) |
 | v0.16 | 2026-10-06 | Unlock data model (full build phase 1, `docs/FULL_BUILD_PLAN.md` section 7.3), decided with the user: deck description, starting upgrade (owned from the first shift, first in the run's upgrades, skipped by offers, a pre-stamped loyalty-card box) and unlock condition; card `variant_of` and unlock condition · the run history records each shift's checked-out cards (`played`), for coupon-use unlocks. No scoring change |
+| v0.17 | 2026-10-06 | Run stock (full build phase 1, `docs/FULL_BUILD_PLAN.md` section 7.2): reward offers draw from the run's stock, built before the run by a pure `RunStock` (staples, listed aisles, new arrivals, `coupon_pool`, each in data order) and passed to `RunState` · `reward_pool` becomes `coupon_pool` (Repeat, Final markdown, Breakfast sticker, Multipack); the first offer's combination coupon must be stocked · `AisleDefinition` in `data/aisles/`, with one placeholder base aisle (Cheese, Frozen peas); the budget rule stocks it, so the stock holds the same 12 cards as the old reward pool. Its order is new (staples first), so a seed's reward offers differ from v0.16 · event log: `listed_aisles` and `stock` in `run_start` (section 8). No scoring change |
