@@ -4,8 +4,8 @@ extends GdUnitTestSuite
 ## fails here. A new folder of scenes or resources must be added to FOLDERS.
 
 ## Subfolders are loaded too, so "res://data" covers data/cards, data/decks, data/balance,
-## data/upgrades, data/inspections and data/aisles; test_every_data_folder_is_loaded checks
-## that.
+## data/upgrades, data/inspections, data/aisles and data/catalogue;
+## test_every_data_folder_is_loaded checks that.
 const FOLDERS := [
 	"res://data",
 	"res://ui",
@@ -36,6 +36,10 @@ func test_every_scene_and_resource_loads() -> void:
 			assert_object(resource).override_failure_message(path).is_instanceof(
 				InspectionDefinition
 			)
+		elif path.contains("/catalogue/"):
+			assert_object(resource).override_failure_message(path).is_instanceof(
+				CatalogueDefinition
+			)
 		elif path.contains("/aisles/"):
 			assert_object(resource).override_failure_message(path).is_instanceof(AisleDefinition)
 		elif path.contains("/balance/"):
@@ -55,7 +59,9 @@ static func _collect(folder: String, files: Array[String]) -> void:
 func test_every_data_folder_is_loaded() -> void:
 	var files: Array[String] = []
 	_collect("res://data", files)
-	for folder: String in ["cards", "decks", "balance", "upgrades", "inspections", "aisles"]:
+	for folder: String in [
+		"cards", "decks", "balance", "upgrades", "inspections", "aisles", "catalogue"
+	]:
 		var prefix: String = "res://data/%s/" % folder
 		var found: bool = files.any(func(path: String) -> bool: return path.begins_with(prefix))
 		assert_bool(found).override_failure_message(prefix).is_true()

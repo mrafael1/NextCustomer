@@ -12,11 +12,14 @@ var _folder: String = ""
 func before_test() -> void:
 	_folder = "user://test_logs_%d" % Time.get_ticks_usec()
 	_event_log().use_folder(_folder)
+	# The profile save goes there too, never to the real user:// profile.
+	ProjectSettings.set_setting(SaveService.FOLDER_SETTING, _folder)
 	Engine.time_scale = 8.0
 
 
 func after_test() -> void:
 	Engine.time_scale = 1.0
+	ProjectSettings.set_setting(SaveService.FOLDER_SETTING, null)
 	if DirAccess.dir_exists_absolute(_folder):
 		for file_name: String in DirAccess.get_files_at(_folder):
 			DirAccess.remove_absolute(_folder.path_join(file_name))

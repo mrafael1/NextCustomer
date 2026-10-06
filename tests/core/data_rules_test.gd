@@ -13,6 +13,7 @@ const NEUTRAL_SCRIPTS := [
 	"res://core/inspection_definition.gd",
 	"res://core/unlock_condition.gd",
 	"res://core/aisle_definition.gd",
+	"res://core/catalogue_definition.gd",
 ]
 const RULE_DIRS := ["res://core/rules", "res://core/upgrades", "res://core/inspections"]
 const UPGRADE_DIR := "res://data/upgrades"
@@ -141,6 +142,27 @@ func test_every_inspection_states_its_id_and_notice() -> void:
 		assert_str(inspection.display_name).override_failure_message(file).is_not_empty()
 		assert_str(inspection.notice_text).override_failure_message(file).is_not_empty()
 	assert_int(ids.size()).is_equal(1)
+
+
+## Full build plan 7.3: the catalogue lists every deck file and every card variant, each once,
+## so the end-of-run unlock check sees them all.
+func test_the_catalogue_lists_every_deck_and_variant() -> void:
+	var catalogue: CatalogueDefinition = load("res://data/catalogue/catalogue.tres")
+	var decks: Array[DeckDefinition] = []
+	for file: String in DirAccess.get_files_at("res://data/decks"):
+		if file.ends_with(".tres"):
+			decks.append(load("res://data/decks/" + file))
+	assert_int(catalogue.decks.size()).is_equal(decks.size())
+	assert_array(catalogue.decks).contains_exactly_in_any_order(decks)
+	var variants: Array[CardDefinition] = []
+	for file: String in DirAccess.get_files_at("res://data/cards"):
+		var card: CardDefinition = (
+			load("res://data/cards/" + file) if file.ends_with(".tres") else null
+		)
+		if card != null and card.variant_of != null:
+			variants.append(card)
+	assert_int(catalogue.variants.size()).is_equal(variants.size())
+	assert_array(catalogue.variants).contains_exactly_in_any_order(variants)
 
 
 ## Full build plan 7.3: every deck has an id matching its file, a name and a description; a

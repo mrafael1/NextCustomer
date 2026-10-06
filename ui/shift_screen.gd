@@ -16,18 +16,24 @@ extends Control
 
 const STARTER_DECK := "res://data/decks/starter.tres"
 const BALANCE := "res://data/balance/balance.tres"
+const CATALOGUE := "res://data/catalogue/catalogue.tres"
 const DEBUG_PANEL := "res://debug/debug_panel.tscn"
 const CARDS_FOLDER := "res://data/cards"
 const UPGRADES_FOLDER := "res://data/upgrades"
 const INSPECTIONS_FOLDER := "res://data/inspections"
 
 var run: RunState
+## The meta progress (full build plan section 4): loaded at start, recorded and saved when a
+## run ends. A run restarted before its end records nothing.
+var profile: ProfileState
 var tracker: CheckoutTracker = CheckoutTracker.new()
 var _picked: CardInstance
 ## True when the picked card was taken from the row: placing it again is a move (plan 8:
 ## 1 placement, 0 removals); only leaving it in the hand counts as a removal.
 var _picked_from_row: bool = false
 var _balance: BalanceDefinition
+var _catalogue: CatalogueDefinition
+var _saves: SaveService
 var _click_ms: int = 0
 var _redraw_mode: bool = false
 var _redraw_pick: Array[CardInstance] = []
@@ -86,6 +92,9 @@ var _visibility_callback: JavaScriptObject
 
 func _ready() -> void:
 	_balance = load(BALANCE)
+	_catalogue = load(CATALOGUE)
+	_saves = SaveService.new(SaveService.default_folder())
+	profile = _saves.load_profile()
 	_build()
 	_watch_focus()
 	_add_debug_panel()
@@ -96,16 +105,15 @@ func _ready() -> void:
 ## Starts a run with a seed (a new random one, or one set from the debug panel).
 func start_new_run(seed_value: int) -> void:
 	var deck: DeckDefinition = load(STARTER_DECK)
-	run = RunState.new(seed_value, deck, _balance, RunStock.starting(deck, _balance))
+	# Phase 3's shopping list will set the list; until then the profile's last one is kept.
+	var stock: RunStock = RunStock.build(
+		deck, _balance, profile.last_list, profile.unlocked_items, profile.run_count
+	)
+	run = RunState.new(seed_value, deck, _balance, stock)
 	_run_started_ms = Time.get_ticks_msec()
 	_run_ended_ms = -1
 	_log.begin_run()
-	var start: Dictionary = {
-		"seed": seed_value,
-		"starting_deck": _ids(run.deck.cards),
-		"shift_count": run.shift_count(),
-	}
-	_log.log_event("run_start", start.merged(run.stock.to_dictionary()))
+	_log.log_event("run_start", RunEvents.run_start(run))
 	run.start_shift()
 	_on_shift_started()
 
@@ -286,19 +294,10 @@ func _on_checkout_pressed() -> void:
 	_log.log_event("checkout", checkout_data)
 	if run.phase == RunState.Phase.WON or run.phase == RunState.Phase.LOST:
 		_run_ended_ms = Time.get_ticks_msec()
-		(
-			_log
-			. log_event(
-				"run_end",
-				{
-					"result": "win" if run.phase == RunState.Phase.WON else "loss",
-					"shift_reached": run.shift_index + 1,
-					"last_score": result.total,
-					"run_ms": _run_ended_ms - _run_started_ms,
-					"upgrades": RunEvents.upgrade_ids(run.upgrades),
-				}
-			)
-		)
+		_log.log_event("run_end", RunEvents.run_end(run, _run_ended_ms - _run_started_ms))
+		# Saved at the click too, so closing the game during the count-up loses nothing.
+		profile.record_run(run, _catalogue)
+		_saves.save_profile(profile)
 	_refresh()
 	await _count_up.play(
 		result,
