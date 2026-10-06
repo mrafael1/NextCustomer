@@ -25,6 +25,7 @@ Run these from the repo root in a POSIX shell (Git Bash on Windows). `godot` mus
 | Re-import after editing scenes or resources | `sh tools/import.sh` | Godot 4.7.stable |
 | Export the web build (fails on any Godot error) | `sh tools/export_web.sh` (output in `build/web/`) | Godot 4.7.stable |
 | Export the Windows build (fails on any Godot error) | `sh tools/export_windows.sh` (output in `build/windows/`) | Godot 4.7.stable |
+| Balance simulator (plan section 8); fails on any Godot error | `sh tools/balance_sim.sh --runs=200 --strategy=greedy,random,skip` (options in `tools/balance_sim/balance_sim.gd`; report in `reports/balance_sim/report.txt`) | Godot 4.7.stable |
 
 Test reports are written to `reports/` (ignored by git). The build label shown to players and in the log (`fb-p1` …) is the project setting `next_customer/build_label`; `application/config/version` stays numeric because Windows requires it.
 
