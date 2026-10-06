@@ -1,6 +1,6 @@
 # Next Customer: Prototype Plan
 
-> Status: v0.9, closed at proto-r1. The full build (`docs/FULL_BUILD_PLAN.md`) has taken over; this plan stays the scoring-rule spec (sections 3–5) and changes only when a rule does.
+> Status: v0.12, closed at proto-r1. The full build (`docs/FULL_BUILD_PLAN.md`) has taken over; this plan stays the scoring-rule spec (sections 3–5) and changes only when a rule does.
 > Source: the original "Receipt Rogue" game design plan, plus the decisions made in planning.
 > Engine: Godot 4 (exact version pinned in `AGENTS.md`), GDScript with static typing. Playtest builds are delivered in the browser.
 
@@ -24,7 +24,7 @@ The prototype has to show three things:
 - 8 products and 5 coupons (section 5), with one coupon in the starting deck
 - One shift: read the quota, draw 8, redraw up to 2 once, place up to 6 products and 7 cards in order (section 3.1) with **click-to-place** (select a card, click a slot), see the live projected total, run checkout
 - The point-count sequence: receipt lines print one by one, the source of each bonus is highlighted, the subtotal ticks up, with beep and print sounds and a fast-forward option
-- A run of 5 shifts with quotas 10 / 15 / 22 / 32 / 48 (placeholders)
+- A run of 5 shifts with quotas 10 / 15 / 22 / 32 / 48 (placeholders; 8 shifts, quotas 10 / 13 / 17 / 22 / 27 / 33 / 40 / 48 since v0.12)
 - After each successful shift, pick 1 of 3 stock cards or skip; deck view; 15-card limit with replacement (the 13-card start deck reaches it after two picks, so replacement is reachable from the third reward)
 - Win and lose screens, instant restart. A restart starts a new run with a **new random seed**; replaying a fixed seed is only possible from the debug panel. New run seeds come from a randomized `RandomNumberGenerator` owned outside `core/` (the same one that makes the `session_id`) and are passed in when a run is created; `core/` never makes its own seeds.
 - Seeded random numbers (the seed is shown on screen, and a run can be replayed from its seed in development builds)
@@ -60,7 +60,7 @@ Scoring runs in two passes (section 4):
    2. **+ all flat bonuses** (its own rule, Coffee bonuses waiting for it, and so on)
    3. **× all multipliers** (Eggs charges, Multipack, …)
    4. Payout added to the subtotal
-   5. Its effects for later cards become active (Eggs charges, Coffee bonus, Multipack's ×2, …)
+   5. Its effects for later cards become active (Eggs charges, Coffee bonus, Multipack's ×2, …), each with an `EFFECT_ARMED` step that changes no value (section 4)
 
 Coupons go through the same steps at their own slot. A coupon has base 0 and no tags, so it never receives an Egg charge, a Coffee bonus, a Multipack ×2 or any other effect aimed at products. Its payout comes only from its own rule: Final markdown's +6 is its own flat bonus, and Repeat's payout is the copy (section 3.3). Every coupon appears on the receipt, even when it pays 0.
 
@@ -101,7 +101,7 @@ Coupons go through the same steps at their own slot. A coupon has base 0 and no 
 | Loss | A checkout below the quota ends the run (no warning in v1) |
 | Checkout | Always allowed, whatever the row holds: an empty row scores 0 (and fails the quota), a one-card row scores that card. |
 | Preview | The exact projected total is always visible. The receipt preview shows each line. |
-| Wasted effects ("fizzles") | Every effect that does nothing gets its own 0-value receipt step, so the count-up can play a small "fizzle" on that card and players learn why an order was worse: a Coffee bonus with no later Breakfast product · Egg charges left unused, or wiped by a later Egg's reset · a Breakfast sticker on a coupon, an empty slot or a product that is already Breakfast · a Bundle that bridges nothing · a Multipack with no product before it, or whose ×2 hits no later product · Repeat with nothing to copy · Final markdown outside the last slot. The scoring needs to be **juicy**: the steps carry everything the count-up needs (source slots for fly-ins, separate multiplier steps for stamps, running values, fizzles). |
+| Wasted effects ("fizzles") | Every effect that does nothing gets its own 0-value receipt step, so the count-up can play a small "fizzle" on that card and players learn why an order was worse: a Coffee bonus with no later Breakfast product · Egg charges left unused, or wiped by a later Egg's reset · a Breakfast sticker on a coupon, an empty slot or a product that is already Breakfast · a Bundle that bridges nothing · a Multipack with no product before it, or whose ×2 hits no later product · Repeat with nothing to copy · Final markdown outside the last slot. An effect that was armed and then fizzles keeps its `EFFECT_ARMED` step, so the count-up shows it armed first. The scoring needs to be **juicy**: the steps carry everything the count-up needs (source slots for fly-ins, armed effects, separate multiplier steps for stamps, running values, fizzles). |
 
 ### 3.6 Product tags
 
@@ -189,14 +189,14 @@ res://
     effects/            # per-score effects that rules leave for later products
     score_state.gd      # working state of one score() call (tags, adjacency, effects, steps)
     scoring.gd          # score(row) -> ScoreResult {total, payouts[], tags[], steps[]}
-    score_step.gd       # one explanation line: slot, source, step_type, value change, text
+    score_step.gd       # one explanation line: slot, source (source_kind + slot or index), step_type, value change, text
     deck.gd             # draw, redraw, reward insertion; takes the run's RandomNumberGenerator
     run_state.gd        # deck, shift, quota, seed, (later: upgrades, inspection)
     row_capacity.gd     # row limits by kind: slot_count products, + coupon_slot_count cards (3.1)
   data/
     cards/*.tres        # one CardDefinition resource per card
     decks/starter.tres  # DeckDefinition (ready for unlockable decks later)
-    balance/quotas.tres # quotas and reward pool, tunable without code changes
+    balance/balance.tres # quotas and reward pool, tunable without code changes
   ui/                   # scenes: shift screen, reward screen, results screen
   presentation/         # count-up sequencer: plays back the ScoreResult steps
   debug/                # debug panel (excluded from playtest builds)
@@ -214,6 +214,12 @@ Coupons need to be able to **change the rules**, not only add numbers. So scorin
 `kind` tells the passes whether a slot holds a product or a coupon (coupons break adjacency, never receive product effects, and can't be copied by Repeat). `is_connector` marks coupons like Bundle that bridge adjacency instead of breaking it. Adjacency changes still go through the context hook (`modify_context`), so later coupons and upgrades can change adjacency the same way; Bundle's rule uses that hook and reads `is_connector` to treat consecutive connectors as one bridge. It links the product immediately before a run of connectors to the product immediately after it (section 3.4). When either neighbour isn't a product (Bundle at an end of the row, or next to a coupon that isn't a connector), nothing is bridged (section 3.4). Code reads the flags, never card ids. `kind`'s first value is `UNSET`, so every card file must state its kind (Godot doesn't write a value that equals the default).
 
 Every rule overrides only the hooks it needs (`modify_context`, `flat_bonus`, `multiplier`, `copied_from`, `final_payout`, `wasted_reason`, `on_scanned`). Effects a card leaves for later products (Egg charges, a waiting Coffee bonus, Multipack's ×2) are objects that live in the per-score state, so rules stay stateless; an effect reports what it wasted through `waste_reason` (at the end of the row) or `reset_reason` (when a later card of the same group replaces it). Every step type, its fields and the playback order are documented in `core/score_step.gd`. Register upgrades and inspections in the full build will use the **same hooks**, so no rewrite will be needed.
+
+The step contract (v0.11):
+- **Source.** Every step has a `source_kind`: `CARD` (the card in `source_slot`), `UPGRADE` or `INSPECTION` (entry `source_index` of the run's upgrades or inspections, in the full build). Today every step is `CARD`, with `source_index` 0. A non-card source is never a −1 sentinel in `source_slot`: consumers branch on `source_kind`.
+- **Armed effects.** When a card's rule registers an effect for later cards (Eggs' charges, Coffee's bonus, Multipack's ×2; every effect goes through `ScoreState.add_effect`), an `EFFECT_ARMED` step follows the card's `PAYOUT`: `slot` and `source_slot` are the arming card, `value` is the effect's bonus or factor from the rule's data, `value_after` is the card's payout and `subtotal` is unchanged, and `text` is the effect's receipt text (the same text as the later steps it causes). A Multipack with no product before it arms nothing and fizzles instead.
+- **Order per slot.** `BASE`, `FLAT`, `MULTIPLIER`, `COPY`, `PAYOUT_OVERRIDE`, `PAYOUT`, then one `EFFECT_ARMED` per armed effect, then the card's own `WASTED` steps. An Egg reset arms the new Egg first; the old Egg's "wiped by a reset" `WASTED` step follows straight after. Context-pass steps come before the first slot, and leftover effects fizzle after the last.
+- **Consumers.** The receipt prints no line for `EFFECT_ARMED` (what the effect does is printed where it lands, or as its fizzle). The count-up gives it a short beat on the arming card. Totals and every golden total are unchanged.
 
 `score()` is a pure function. The live preview, the receipt explanation, the animated count-up and the tests all use the same `ScoreResult`, so they can never disagree.
 
@@ -249,10 +255,10 @@ Every rule overrides only the hooks it needs (`modify_context`, `flat_bonus`, `m
 Coupons are the core of the game, so players meet one from the first shift instead of waiting for a reward.
 
 ### Rewards
-- Reward pool: every card above, including Cheese, Frozen peas and all 5 coupons.
-- **The first reward offer always includes one of the combination coupons** (Bundle, Breakfast sticker or Multipack).
+- Reward pool: every card above except Bundle, including Cheese, Frozen peas and the other 4 coupons. Bundle is out of every offer pool until it returns as "2 for 1" (full build phase 2, `docs/FULL_BUILD_PLAN.md` section 5.1, v0.10); `bundle.tres` stays in `data/cards/` and its rule stays for the frozen `cards_v0_4` golden fixture.
+- **The first reward offer always includes one of the combination coupons** (Breakfast sticker or Multipack).
 - Each later set of 3 offers has at least 1 coupon and at least 1 card that is generally useful (a `generally_useful` flag on the card's data resource, tuned in `data/`, not decided in code). Decided with the user: Bread, Eggs, Milk and Banana are generally useful; Cheese, Coffee, Soup and Frozen peas stay situational.
-- The reward pool, the first-offer pool (Bundle, Breakfast sticker, Multipack) and the offer size (3) live in `data/balance/balance.tres`. An offer never shows the same card twice.
+- The reward pool, the first-offer pool (Breakfast sticker, Multipack) and the offer size (3) live in `data/balance/balance.tres`. An offer never shows the same card twice.
 
 ## 6. Build schedule (18 hours is the target, 24 is realistic)
 
@@ -299,7 +305,7 @@ Choices and actions that happen after a checkout (rewards, the end of a run, res
 
 | Event | Data |
 |---|---|
-| `run_start` | seed (a new random seed for every run, including after a restart), starting deck |
+| `run_start` | seed (a new random seed for every run, including after a restart), starting deck, number of shifts (`shift_count`, since v0.12) |
 | `shift_start` | shift, quota, the 8 cards drawn |
 | `redraw` | cards replaced, cards received |
 | `checkout` | shift, final order, score, quota, pass or fail, placements, removals, rearrangements, distinct projected totals, planning time, input method (click or drag); see the definitions below. Logged at the checkout click, so closing the game during the count-up loses nothing. |
@@ -401,3 +407,6 @@ Rules for iterating: **one major variable per round**, card values tweaked only 
 | v0.7 | 2026-10-06 | Day 3: generally useful cards decided with the user (Bread, Eggs, Milk, Banana) · reward pool, first-offer pool and offer size in balance data · `reward` event fields spelled out · placeholder sounds generated by `tools/make_sfx.py`, receipt in JetBrains Mono (SIL OFL) · in-game buttons never take keyboard focus (Space is the fast-forward key) · reward and results buttons only react once the mouse is released after they appear · a shade blocks clicks behind panels · `deck_view_opened` counts only views the player chose |
 | v0.8 | 2026-10-06 | Closed at proto-r1 after the developer's runs; the outside playtest and decision gate were not run, and their questions move to the full build's playtest rounds · this plan stays the scoring-rule spec · decisions taken from the runs (coupon slots, Bundle as "2 for 1", run stock) are recorded in `docs/FULL_BUILD_PLAN.md` v0.5 and land here when phase 1 or 2 changes the rule |
 | v0.9 | 2026-10-06 | Coupon slots, decided with the user (full build phase 1, `docs/FULL_BUILD_PLAN.md` section 5.1): the row has 6 shared slots + 1 coupon-only slot, at most 6 products and 7 cards (`coupon_slot_count` in balance data, checked by `kind` in `RunState.can_place`) · the row stays flat and compacted, coupons still break adjacency, scoring and every golden total are unchanged · the shift screen shows 7 identical slots (no panel is marked as the coupon slot, so coupons don't look tied to one position), a "Products n/6 · Coupon slot n/1" count, and a short notice when a product doesn't fit · the section 8 High threshold for a full row is now 14 rearrangements (twice 7 cards) |
+| v0.10 | 2026-10-06 | Bundle out of the offer pools (full build phase 1, `docs/FULL_BUILD_PLAN.md` section 5.1): removed from `reward_pool` and `first_offer_pool` in balance data until it returns as "2 for 1" in phase 2 · the first-offer pool is now Breakfast sticker or Multipack, so Multipack fills the guaranteed first-offer slot 50% of the time instead of 33%; read coupon pick rates with that in mind · `bundle.tres` stays in `data/cards/` outside every pool, and its rule and golden rows stay on the frozen `cards_v0_4` fixture · scoring and every golden total are unchanged |
+| v0.11 | 2026-10-06 | Score step contract (full build phase 1, `docs/FULL_BUILD_PLAN.md` section 4): every step has a `source_kind` (`CARD`, `UPGRADE`, `INSPECTION`) and a `source_index` for non-card sources, never a −1 sentinel; all steps are `CARD` today · a new `EFFECT_ARMED` step right after a card's `PAYOUT` for each effect it arms for later cards (Eggs, Coffee, Multipack), with the effect's bonus or factor and receipt text; the card's own fizzles now come after it, and an Egg reset's fizzle follows the new Egg's `EFFECT_ARMED` (section 4) · `to_dictionary()` gains `source_kind` and `source_index` · the receipt prints no line for it; the count-up plays a short beat (the arming card glows and pulses, the effect's name floats up, a soft high "bonus" sound, about 0.18 s; fast-forward speeds it up like every beat), so a row with armers plays about 0.2 s longer per armed effect · the count-up looks up a step's source card only when `source_kind` is `CARD` · scoring and every golden total are unchanged |
+| v0.12 | 2026-10-06 | 8 shifts (full build phase 1, `docs/FULL_BUILD_PLAN.md`): quotas 10 / 13 / 17 / 22 / 27 / 33 / 40 / 48 in `data/balance/balance.tres`, chosen with the user as placeholders until the balance simulator (phase 2) · the number of shifts is the number of quotas; the shift header, results screen, last-shift win and the debug panel's shift jump all follow it · `run_start` gains `shift_count`, so `shift_reached` in `run_end` reads against it (proto-r1 logs have 5 shifts) · scoring and every golden total are unchanged |

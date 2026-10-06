@@ -89,7 +89,12 @@ func start_new_run(seed_value: int) -> void:
 	_run_started_ms = Time.get_ticks_msec()
 	_run_ended_ms = -1
 	_log.begin_run()
-	_log.log_event("run_start", {"seed": seed_value, "starting_deck": _ids(run.deck.cards)})
+	var start: Dictionary = {
+		"seed": seed_value,
+		"starting_deck": _ids(run.deck.cards),
+		"shift_count": run.shift_count(),
+	}
+	_log.log_event("run_start", start)
 	run.start_shift()
 	_on_shift_started()
 

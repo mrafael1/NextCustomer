@@ -5,14 +5,17 @@ extends Node
 ##
 ## Scan lift and beep, bonuses flying in from the card that caused them (each one in a chain
 ## pitched higher), multiplier stamps, copies, Soup's "denied", sticker and Bundle moments,
-## fizzle puffs, a receipt printer that speeds up as the subtotal grows, a register rattle on
-## big payouts, then a pause and the total slammed against the quota. Hold the mouse button or
-## Space to fast-forward.
+## a short glow when a card arms an effect for later cards, fizzle puffs, a receipt printer
+## that speeds up as the subtotal grows, a register rattle on big payouts, then a pause and the
+## total slammed against the quota. Hold the mouse button or Space to fast-forward.
 
 signal finished
 
 const FAST_FORWARD := 5.0
 const SCAN_LIFT := -22.0
+## The armed beat is short and soft: it hints at what is coming, the payoff plays at the target.
+const ARMED_BEAT := 0.18
+const ARMED_GLOW := Color(1.3, 1.3, 1.15)
 
 var fast_forward_used: bool = false
 ## Time.get_ticks_msec() when the final total was shown (plan 8: count-up time ends there).
@@ -103,12 +106,16 @@ func _play_step(step: ScoreStep) -> void:
 			await _denied(step)
 		ScoreStep.StepType.PAYOUT:
 			await _payout(step)
+		ScoreStep.StepType.EFFECT_ARMED:
+			await _armed(step)
 
 
 func _tag_added(step: ScoreStep) -> void:
 	_receipt.add_step(step, _names)
-	var source: CardView = _views[step.source_slot]
 	var target: CardView = _views[step.slot]
+	var source: CardView = _source_view(step)
+	if source == null:
+		source = target
 	_punch(source.body, 1.1)
 	await _fly_text("+" + step.tag, source.center(), target.center(), Palette.LIGHT_TEXT, 24, 0.35)
 	_sfx.play("tag")
@@ -128,7 +135,9 @@ func _linked(step: ScoreStep) -> void:
 	line.add_point(right.center() - _overlay.global_position)
 	_overlay.add_child(line)
 	_sfx.play("link")
-	_punch(_views[step.source_slot].body, 1.15)
+	var source: CardView = _source_view(step)
+	if source != null:
+		_punch(source.body, 1.15)
 	_punch(left.body, 1.12)
 	_punch(right.body, 1.12)
 	var tween: Tween = _tween()
@@ -142,9 +151,9 @@ func _linked(step: ScoreStep) -> void:
 func _fizzle(step: ScoreStep) -> void:
 	_receipt.add_step(step, _names)
 	var view: CardView = _views[step.slot]
-	if step.source_slot != step.slot:
+	var resetter: CardView = _source_view(step)
+	if resetter != null and step.source_slot != step.slot:
 		# A reset: show the card that wiped this one's effect.
-		var resetter: CardView = _views[step.source_slot]
 		_punch(resetter.body, 1.15)
 		await _fly_text("reset", resetter.center(), view.center(), Palette.LIGHT_TEXT, 20, 0.3)
 	_sfx.play("fizzle")
@@ -180,12 +189,15 @@ func _bonus(step: ScoreStep) -> void:
 	_chain += 1
 	_receipt.add_step(step, _names)
 	var target: CardView = _views[step.slot]
-	var from_slot: int = (
-		step.linked_slot if step.step_type == ScoreStep.StepType.COPY else step.source_slot
-	)
+	# A copy flies in from the copied card; any other bonus from the card that caused it,
+	# unless it is the target's own rule or has no card source.
+	var source: CardView = null
+	if step.step_type == ScoreStep.StepType.COPY:
+		source = _views[step.linked_slot]
+	elif step.source_slot != step.slot:
+		source = _source_view(step)
 	var text: String = "+%d" % step.value
-	if from_slot >= 0 and from_slot != step.slot:
-		var source: CardView = _views[from_slot]
+	if source != null:
 		_punch(source.body, 1.1)
 		if step.step_type == ScoreStep.StepType.COPY:
 			_sfx.play("copy")
@@ -204,8 +216,9 @@ func _stamp(step: ScoreStep) -> void:
 	_chain += 1
 	_receipt.add_step(step, _names)
 	var target: CardView = _views[step.slot]
-	if step.source_slot != step.slot:
-		_punch(_views[step.source_slot].body, 1.12)
+	var source: CardView = _source_view(step)
+	if source != null and step.source_slot != step.slot:
+		_punch(source.body, 1.12)
 	var stamp: Label = _text_label("×%d" % step.value, Palette.TOMATO, 54)
 	_overlay.add_child(stamp)
 	stamp.global_position = target.center() - stamp.size / 2.0
@@ -275,6 +288,29 @@ func _payout(step: ScoreStep) -> void:
 		_shake(_rattle_target, minf(3.0 + step.value / 4.0, 12.0))
 	await tick.finished
 	await _wait(0.12)
+
+
+## A card arms an effect for later cards (Eggs charges, Coffee, Multipack): it glows and
+## pulses, the effect's name floats up from it, and a soft, high "bonus" plays. The beat is
+## short; the label keeps fading while the next step starts. No receipt line.
+func _armed(step: ScoreStep) -> void:
+	var view: CardView = _views[step.slot]
+	_punch(view.body, 1.08)
+	var glow: Tween = _tween()
+	glow.tween_property(view.body, "modulate", ARMED_GLOW, 0.05)
+	glow.tween_property(view.body, "modulate", Color.WHITE, 0.13)
+	_sfx.play("bonus", 1.6, -8.0)
+	var start: Vector2 = view.center() + Vector2(0, -40)
+	_fly_text(step.text, start, start + Vector2(0, -36), Palette.MUSTARD, 18, 0.45, true)
+	await _wait(ARMED_BEAT)
+
+
+## The card that caused a step, or null when its source is not a card (an upgrade or an
+## inspection, full build): source_slot is only read for CARD sources (plan section 4).
+func _source_view(step: ScoreStep) -> CardView:
+	if step.source_kind != ScoreStep.SourceKind.CARD:
+		return null
+	return _views[step.source_slot]
 
 
 ## The final moment: the total slams down beside the quota, green and cheerful if it is

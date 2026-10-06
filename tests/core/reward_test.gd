@@ -4,7 +4,9 @@ extends GdUnitTestSuite
 const STARTER := "res://data/decks/starter.tres"
 const BALANCE := "res://data/balance/balance.tres"
 const BREAD := "res://data/cards/bread.tres"
-const COMBINATION_COUPONS := [&"bundle", &"breakfast_sticker", &"multipack"]
+const BUNDLE := "res://data/cards/bundle.tres"
+## Bundle is out of the pools until it returns as "2 for 1" (plan section 5).
+const COMBINATION_COUPONS := [&"breakfast_sticker", &"multipack"]
 
 
 func test_generally_useful_cards_are_the_decided_four() -> void:
@@ -18,14 +20,23 @@ func test_generally_useful_cards_are_the_decided_four() -> void:
 	assert_array(useful).is_equal(["banana", "bread", "eggs", "milk"])
 
 
-func test_reward_pool_is_every_card_and_first_pool_the_combination_coupons() -> void:
+func test_reward_pool_is_every_card_but_bundle_and_first_pool_the_combination_coupons() -> void:
 	var balance: BalanceDefinition = load(BALANCE)
-	assert_int(balance.reward_pool.size()).is_equal(13)
+	assert_int(balance.reward_pool.size()).is_equal(12)
 	assert_int(balance.offer_size).is_equal(3)
 	var first: Array = balance.first_offer_pool.map(
 		func(card: CardDefinition) -> StringName: return card.id
 	)
 	assert_array(first).contains_exactly_in_any_order(COMBINATION_COUPONS)
+
+
+func test_no_offer_pool_contains_bundle() -> void:
+	var balance: BalanceDefinition = load(BALANCE)
+	var bundle: CardDefinition = load(BUNDLE)
+	assert_bool(balance.reward_pool.has(bundle)).is_false()
+	assert_bool(balance.first_offer_pool.has(bundle)).is_false()
+	for card: CardDefinition in balance.reward_pool + balance.first_offer_pool:
+		assert_str(String(card.id)).is_not_equal("bundle")
 
 
 func test_first_offer_always_has_a_combination_coupon() -> void:
@@ -65,7 +76,7 @@ func test_offers_reach_every_card_and_every_position() -> void:
 			seen[offer[position].id] = true
 			if offer[position].is_coupon():
 				guaranteed_positions[position] = true
-	assert_int(seen.size()).is_equal(13)
+	assert_int(seen.size()).is_equal(12)
 	assert_int(guaranteed_positions.size()).is_equal(3)
 
 
@@ -134,15 +145,15 @@ func test_the_last_shift_wins_without_an_offer() -> void:
 	var run: RunState = RunState.new(10, load(STARTER), load(BALANCE))
 	run.start_shift()
 	run.debug_skip_to_shift(run.shift_count() - 1)
-	var bread: CardDefinition = load(BREAD)
-	var multipack: CardDefinition = load("res://data/cards/multipack.tres")
-	var eggs: CardDefinition = load("res://data/cards/eggs.tres")
-	# Eggs, Bread, Multipack, Bread, Bread, Bread = 1 + 6 + 0 + 12 + 6 + 6 = 31.
-	for card: CardDefinition in [eggs, bread, multipack, bread, bread, bread]:
-		run.place(run.debug_add_to_hand(card), run.row.size())
-	run.checkout()
+	assert_bool(run.is_last_shift()).is_true()
+	# Bread, Multipack, then four Milks at x2: 3 + 0 + 2 * (5 + 7 + 9 + 11) = 67.
+	for id: String in ["bread", "multipack", "milk", "milk", "milk", "milk"]:
+		run.place(run.debug_add_to_hand(load("res://data/cards/%s.tres" % id)), run.row.size())
+	var result: ScoreResult = run.checkout()
+	assert_int(result.total).is_equal(67)
+	assert_int(result.total).is_greater_equal(run.quota())
 	assert_array(run.offer).is_empty()
-	assert_int(run.phase).is_not_equal(RunState.Phase.REWARD)
+	assert_int(run.phase).is_equal(RunState.Phase.WON)
 
 
 static func _passed_run(seed_value: int) -> RunState:

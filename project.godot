@@ -73,7 +73,7 @@ enabled=PackedStringArray("res://addons/gdUnit4/plugin.cfg")
 
 [next_customer]
 
-build_label="proto-r0"
+build_label="fb-p1"
 
 [rendering]
 

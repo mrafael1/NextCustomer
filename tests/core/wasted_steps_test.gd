@@ -70,8 +70,9 @@ func test_fizzles(
 
 
 ## The count-up plays steps in order, so fizzles must sit where core/score_step.gd says:
-## context-pass fizzles first, own-rule fizzles right after the card's PAYOUT, a reset fizzle
-## right after the resetting card's PAYOUT, and leftover effects at the very end.
+## context-pass fizzles first, own-rule fizzles right after the card's PAYOUT (and any
+## EFFECT_ARMED), a reset fizzle right after the resetting card's EFFECT_ARMED, and leftover
+## effects at the very end.
 func test_fizzle_order(
 	row: String,
 	sequence: Array,
@@ -81,9 +82,11 @@ func test_fizzle_order(
 			[
 				"BASE 0",
 				"PAYOUT 0",
+				"EFFECT_ARMED 0",
 				"BASE 1",
 				"MULTIPLIER 1",
 				"PAYOUT 1",
+				"EFFECT_ARMED 1",
 				"WASTED 0",
 				"BASE 2",
 				"MULTIPLIER 2",
@@ -102,6 +105,26 @@ func test_fizzle_order(
 				"WASTED 1",
 				"BASE 2",
 				"PAYOUT 2",
+			]
+		],
+		[
+			"bread,coffee",
+			["BASE 0", "PAYOUT 0", "BASE 1", "PAYOUT 1", "EFFECT_ARMED 1", "WASTED 1"]
+		],
+		["multipack,bread", ["BASE 0", "PAYOUT 0", "WASTED 0", "BASE 1", "PAYOUT 1"]],
+		[
+			"coffee,multipack,banana",
+			[
+				"BASE 0",
+				"PAYOUT 0",
+				"EFFECT_ARMED 0",
+				"BASE 1",
+				"PAYOUT 1",
+				"EFFECT_ARMED 1",
+				"BASE 2",
+				"PAYOUT 2",
+				"WASTED 0",
+				"WASTED 1",
 			]
 		],
 	]

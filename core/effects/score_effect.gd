@@ -17,6 +17,12 @@ func _init(effect_source_slot: int, effect_text: String, effect_group: StringNam
 	group = effect_group
 
 
+## The number shown when the effect is armed (its EFFECT_ARMED step's value): the flat bonus
+## or the factor it will give, from the rule's data. 0 when no single number fits.
+func armed_value() -> int:
+	return 0
+
+
 func flat_bonus(_state: ScoreState, _slot: int) -> int:
 	return 0
 
