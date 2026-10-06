@@ -18,6 +18,8 @@
 [ext_resource type="Resource" path="res://data/upgrades/coupon_engine.tres" id="u2_coupon_engine"]
 [ext_resource type="Resource" path="res://data/upgrades/category_engine.tres" id="u3_category_engine"]
 [ext_resource type="Resource" path="res://data/upgrades/extra_redraw.tres" id="u4_extra_redraw"]
+[ext_resource type="Script" path="res://core/inspection_definition.gd" id="i1_inspection"]
+[ext_resource type="Resource" path="res://data/inspections/spot_check.tres" id="i2_spot_check"]
 
 [resource]
 script = ExtResource("1_balance")
@@ -33,3 +35,5 @@ offer_size = 3
 upgrade_shifts = PackedInt32Array(2, 4, 6)
 upgrade_pool = Array[ExtResource("u1_upgrade")]([ExtResource("u2_coupon_engine"), ExtResource("u3_category_engine"), ExtResource("u4_extra_redraw")])
 upgrade_offer_size = 3
+inspection_shifts = PackedInt32Array(3, 5, 7)
+inspection_pool = Array[ExtResource("i1_inspection")]([ExtResource("i2_spot_check")])

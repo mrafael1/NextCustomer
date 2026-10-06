@@ -4,7 +4,7 @@ extends PanelContainer
 ## with the score. Used for the live preview (all lines at once) and the count-up (line by
 ## line, as each step plays).
 
-enum LineStyle { DETAIL, ITEM, CONTEXT, FIZZLE, TOTAL }
+enum LineStyle { DETAIL, ITEM, CONTEXT, FIZZLE, TOTAL, NOTICE }
 
 ## Monospace for the receipt (plan section 2). JetBrains Mono, SIL Open Font License.
 const MONO_FONT := preload("res://fonts/JetBrainsMono-Regular.ttf")
@@ -35,15 +35,17 @@ func clear() -> void:
 
 
 ## The whole receipt at once, for the live preview. `upgrade_names` are the run's upgrades'
-## names in pick order, for the lines upgrades cause.
+## names in pick order and `inspection_names` the shift's inspections' names, for the lines
+## they cause.
 func show_result(
 	result: ScoreResult,
 	names: PackedStringArray,
-	upgrade_names: PackedStringArray = PackedStringArray()
+	upgrade_names: PackedStringArray = PackedStringArray(),
+	inspection_names: PackedStringArray = PackedStringArray()
 ) -> void:
 	clear()
 	for step: ScoreStep in result.steps:
-		add_step(step, names, upgrade_names)
+		add_step(step, names, upgrade_names, inspection_names)
 	add_total(result.total)
 
 
@@ -52,9 +54,10 @@ func show_result(
 func add_step(
 	step: ScoreStep,
 	names: PackedStringArray,
-	upgrade_names: PackedStringArray = PackedStringArray()
+	upgrade_names: PackedStringArray = PackedStringArray(),
+	inspection_names: PackedStringArray = PackedStringArray()
 ) -> Control:
-	var cause: String = source_text(step, upgrade_names)
+	var cause: String = source_text(step, upgrade_names, inspection_names)
 	var left: String = ""
 	var right: String = ""
 	var style: LineStyle = LineStyle.DETAIL
@@ -82,7 +85,7 @@ func add_step(
 			left = "  %s: copy of %s" % [step.text, names[step.linked_slot]]
 			right = "+%d" % step.value
 		ScoreStep.StepType.PAYOUT_OVERRIDE:
-			left = "  " + step.text
+			left = "  " + cause
 			right = "= %d" % step.value
 		ScoreStep.StepType.PAYOUT:
 			right = "€%d" % step.value
@@ -96,20 +99,38 @@ func add_step(
 
 ## Who caused a step, as the receipt names it. A card's rule is named by its receipt text; an
 ## upgrade's line always names the upgrade (plan section 3.8), with its rule's receipt text
-## after it when that text is something else.
-static func source_text(step: ScoreStep, upgrade_names: PackedStringArray) -> String:
-	if step.source_kind != ScoreStep.SourceKind.UPGRADE:
-		return step.text
-	if step.source_index < 0 or step.source_index >= upgrade_names.size():
-		return step.text
-	var upgrade_name: String = upgrade_names[step.source_index]
-	if step.text.is_empty() or step.text == upgrade_name:
-		return upgrade_name
-	return "%s (%s)" % [step.text, upgrade_name]
+## after it when that text is something else. An inspection's line starts with the
+## inspection's name (plan section 3.9): "Spot check: the 3rd product pays €0".
+static func source_text(
+	step: ScoreStep,
+	upgrade_names: PackedStringArray,
+	inspection_names: PackedStringArray = PackedStringArray()
+) -> String:
+	match step.source_kind:
+		ScoreStep.SourceKind.UPGRADE:
+			if step.source_index < 0 or step.source_index >= upgrade_names.size():
+				return step.text
+			var upgrade_name: String = upgrade_names[step.source_index]
+			if step.text.is_empty() or step.text == upgrade_name:
+				return upgrade_name
+			return "%s (%s)" % [step.text, upgrade_name]
+		ScoreStep.SourceKind.INSPECTION:
+			if step.source_index < 0 or step.source_index >= inspection_names.size():
+				return step.text
+			var inspection_name: String = inspection_names[step.source_index]
+			if step.text.is_empty() or step.text == inspection_name:
+				return inspection_name
+			return "%s: %s" % [inspection_name, step.text]
+	return step.text
 
 
 func add_total(total: int) -> Control:
 	return add_line("TOTAL", "€%d" % total, LineStyle.TOTAL)
+
+
+## A red notice under the total (plan section 3.9: the next shift's inspection).
+func add_notice(text: String) -> Control:
+	return add_line(text, "", LineStyle.NOTICE)
 
 
 func add_line(left: String, right: String, style: LineStyle) -> Control:
@@ -143,6 +164,9 @@ func _label(text: String, style: LineStyle) -> Label:
 			color = Palette.MUTED_INK
 		LineStyle.TOTAL:
 			font_size = 22
+		LineStyle.NOTICE:
+			font_size = 15
+			color = Palette.TOMATO
 	label.add_theme_font_override("font", MONO_FONT)
 	label.add_theme_font_size_override("font_size", font_size)
 	label.add_theme_color_override("font_color", color)

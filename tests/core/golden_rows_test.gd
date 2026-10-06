@@ -3,7 +3,8 @@ extends GdUnitTestSuite
 ## tests/fixtures/cards_v0_4 (never the live data/). Each row checks every slot's payout and
 ## the total. If one fails, the change is wrong unless the user approved a rule change.
 ## Each row also scores identically, step for step, with no upgrades and with upgrades whose
-## rules do nothing (plan section 3.8).
+## rules do nothing (plan section 3.8), and with no inspections and with inspections whose rules
+## do nothing (section 3.9).
 
 const FIXTURE_DIR := "res://tests/fixtures/cards_v0_4"
 
@@ -74,6 +75,10 @@ func test_golden_row(
 	for upgrades: Array[UpgradeDefinition] in [no_upgrades, _neutral_upgrades()]:
 		var upgraded: Array = _steps_as_data(Scoring.score(_row(row), upgrades))
 		assert_array(upgraded).override_failure_message(row).is_equal(plain)
+	var no_inspections: Array[InspectionDefinition] = []
+	for inspections: Array[InspectionDefinition] in [no_inspections, _neutral_inspections()]:
+		var inspected: Array = _steps_as_data(Scoring.score(_row(row), no_upgrades, inspections))
+		assert_array(inspected).override_failure_message(row).is_equal(plain)
 
 
 ## Upgrades that change no score: rules with neutral numbers, and a run modifier only.
@@ -86,6 +91,15 @@ static func _neutral_upgrades() -> Array[UpgradeDefinition]:
 	redraw.type = UpgradeDefinition.Type.ECONOMY
 	redraw.extra_redraws = 1
 	return [neutral, redraw]
+
+
+## Inspections that change no score: a rule with neutral numbers (product_number 0 means no
+## product), and an inspection without rules.
+static func _neutral_inspections() -> Array[InspectionDefinition]:
+	var rules: Array[InspectionRule] = [NthProductZeroPayoutRule.new()]
+	var neutral: InspectionDefinition = InspectionDefinition.new()
+	neutral.rules = rules
+	return [neutral, InspectionDefinition.new()]
 
 
 static func _steps_as_data(result: ScoreResult) -> Array:

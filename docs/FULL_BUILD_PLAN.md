@@ -1,6 +1,6 @@
 # Next Customer: Full Build Plan
 
-> Status: draft v0.6. **This plan will change.** Each full-build playtest round (section 9) can rewrite parts of it. Update the changelog when it does.
+> Status: draft v0.7. **This plan will change.** Each full-build playtest round (section 9) can rewrite parts of it. Update the changelog when it does.
 > The prototype (`docs/PROTOTYPE_PLAN.md`) closed at proto-r1. Its outside playtest and decision gate (section 9 there) were not run; their questions move to the full build's playtest rounds (section 9).
 > Engine: Godot 4 (exact version pinned in `AGENTS.md`), GDScript with static typing. Platform: Windows, mouse. Steam is the main store; itch.io hosts a web demo.
 
@@ -104,7 +104,9 @@ core/
                           #   run modifiers (extra_redraws); perk icon later (docs/PROTOTYPE_PLAN.md 3.8)
   upgrades/               # UpgradeRule and the upgrade rule scripts
   upgrade_offer.gd        # upgrade offer from the pool; pure, run RNG
-  inspection_definition.gd# Resource: id, name, rules[], announcement text
+  inspection_definition.gd# Resource: id, display_name, notice_text (the announcement), rules[]
+  inspections/            # InspectionRule and the inspection rule scripts
+  inspection_schedule.gd  # inspected shifts; draws an inspection from the pool; pure, run RNG
   aisle_definition.gd     # Resource: id, display_name, sign colour, base_cards[], capsule_cards[] (key item first)
   run_stock.gd            # builds the run's stock (section 7.2); pure; uses RNG only for "Surprise me"
   run_state.gd            # + upgrades[], next inspection, run history, upgrade step, the run's stock
@@ -115,9 +117,10 @@ core/
 data/
   aisles/*.tres
   upgrades/*.tres
-  inspections/*.tres
+  inspections/*.tres      # InspectionDefinition (docs/PROTOTYPE_PLAN.md 3.9)
   decks/*.tres            # DeckDefinition (fields in section 7.3)
-  balance/balance.tres    # + coupon_slot_count, upgrade_shifts, upgrade_pool, upgrade_offer_size, coin amounts, aisles,
+  balance/balance.tres    # + coupon_slot_count, upgrade_shifts, upgrade_pool, upgrade_offer_size, inspection_shifts,
+                          #   inspection_pool, coin amounts, aisles,
                           #   coupon_pool (replaces reward_pool), run_aisle_picks, aisle_stock_budget,
                           #   aisle_listable_min, end_cap_max, end_cap_window_runs
 tools/
@@ -183,6 +186,8 @@ Upgrade offers: 3 options, from different types, at least one fitting the curren
 
 ### 5.3 Inspections
 Visible restrictions that test a build. One is announced before the previous shift's reward choice, printed as a red notice on the receipt under the total (before the kiosk on upgrade shifts). Inspections never go on the loyalty card. Never disable several parts of a build at once. Start with 3 of: only 5 product slots · the 3rd product pays 0 · duplicate payouts capped at 4 · the coupon slot is closed.
+
+Phase 1 (decided, `docs/PROTOTYPE_PLAN.md` section 3.9): shifts 3, 5 and 7 are inspected, each with an inspection drawn from the pool with the run's RNG at the previous passed checkout. The placeholder is "the 3rd product pays 0", which behaves like Soup beside Frozen. During the shift, a red tag in the top bar shows it. Capacity inspections add run modifiers in phase 2; "duplicate payouts capped at 4" needs "duplicate" defined first.
 
 ## 6. Art direction and counting presentation
 
@@ -350,3 +355,4 @@ Content freeze at the end of phase 3. No new features after that.
 | v0.4 | 2026-10-05 | Re-aligned with prototype plan v0.4: `telemetry/` carried over · the prototype's `DeckDefinition` has id, name and cards; phase 1 adds the other deck fields, `variant_of` and `ProfileState` · one `DeckDefinition` field list (section 7) |
 | v0.5 | 2026-10-06 | From the developer's proto-r1 runs: prototype closed, no outside playtest or proto-r2; full-build playtest rounds take the gate's questions, and the end-of-phase-1 round adds timing and condition-line checks · coupon slots decided (6 shared + 1 coupon-only, phase 1) · loyalty card and exit kiosk for upgrades · reward print-out (7.2) · dessert, escalation and skip rules (6.2) · `source_kind` and `EFFECT_ARMED` · Bundle out of the pools until "2 for 1" (phase 2), so Multipack fills the guaranteed first-offer slot 50% of the time; Connector redefined · inspections print as a red receipt notice; "the coupon slot is closed" added · impulse rack in phase 1 · meta in 1.0: capsule machines and coins (7.1); the store page states no microtransactions · run stock and shopping list (7.2) replace the prototype's "reward pool: every card"; `reward_pool` becomes `coupon_pool` · `ProfileState` field list and telemetry fields · simulator: 7-card rows, redraw, coupon slot, percentiles, dominated cards, list gate, coins per run · cut order and open decisions updated · decided with the user: the shopping list (7.2) and 6 aisles at full collection · `AGENTS.md` now points to this plan (phase 1) |
 | v0.6 | 2026-10-06 | Aligned with the upgrade framework (`docs/PROTOTYPE_PLAN.md` v0.13, section 3.8): `UpgradeDefinition` fields, `core/upgrades/` and `upgrade_offer.gd` in the tree, `upgrade_offer_size` in balance data, upgrades use `UpgradeRule` with the same hook names, phase 1 offers skip the "fits the deck" rule until build tags exist, and the upgrade pick has no skip (decided with the user) |
+| v0.7 | 2026-10-06 | Aligned with the inspection framework (`docs/PROTOTYPE_PLAN.md` v0.14, section 3.9): `InspectionDefinition` fields, `core/inspections/` and `inspection_schedule.gd` in the tree, `inspection_shifts` (3, 5, 7) and `inspection_pool` in balance data, the placeholder "the 3rd product pays 0" (like Soup), drawn with the run's RNG at the previous passed checkout, and a red top-bar tag during the inspected shift (decided with the user) |

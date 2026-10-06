@@ -145,3 +145,15 @@ func test_upgrade_event_fields() -> void:
 	# JSON-friendly: plain strings, not StringNames.
 	assert_str(JSON.stringify(event)).contains('"picked":"coupon_engine"')
 	assert_array(RunEvents.upgrade_ids([])).is_empty()
+
+
+## Plan sections 3.9 and 8: inspection ids as logged (shift_start, checkout), plain strings.
+func test_inspection_fields() -> void:
+	var spot_check: InspectionDefinition = load("res://data/inspections/spot_check.tres")
+	var inspections: Array[InspectionDefinition] = [spot_check]
+	assert_array(RunEvents.inspection_ids(inspections)).is_equal(["spot_check"])
+	assert_array(RunEvents.inspection_ids([])).is_empty()
+	assert_str(RunEvents.inspection_id(spot_check)).is_equal("spot_check")
+	assert_str(RunEvents.inspection_id(null)).is_equal("")
+	var event: Dictionary = {"next_inspection": RunEvents.inspection_id(spot_check)}
+	assert_str(JSON.stringify(event)).is_equal('{"next_inspection":"spot_check"}')

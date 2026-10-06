@@ -1,20 +1,25 @@
 extends PanelContainer
 ## Debug panel (development builds only; plan section 2): set the seed, add any card to the
-## hand, give an upgrade, skip to a shift. F1 shows or hides it. Playtest exports leave out
-## debug/, and other scripts never name this class: the shift screen loads the scene by path
-## and connects to these signals by name.
+## hand, give an upgrade, set the shift's inspection, skip to a shift. F1 shows or hides it.
+## Playtest exports leave out debug/, and other scripts never name this class: the shift
+## screen loads the scene by path and connects to these signals by name.
 
 signal seed_requested(seed_value: int)
 signal card_requested(card_id: String)
 signal upgrade_requested(upgrade_id: String)
+## An empty id clears the shift's inspection.
+signal inspection_requested(inspection_id: String)
 signal shift_requested(shift_number: int)
 
 const CARDS_FOLDER := "res://data/cards"
 const UPGRADES_FOLDER := "res://data/upgrades"
+const INSPECTIONS_FOLDER := "res://data/inspections"
+const NO_INSPECTION := "(no inspection)"
 
 var _seed_input: SpinBox
 var _card_choice: OptionButton
 var _upgrade_choice: OptionButton
+var _inspection_choice: OptionButton
 var _shift_input: SpinBox
 
 
@@ -42,6 +47,10 @@ func _ready() -> void:
 
 	_upgrade_choice = _file_choice(column, UPGRADES_FOLDER)
 	_button(column, "Give upgrade (restarts the shift)", _on_upgrade_pressed)
+
+	_inspection_choice = _file_choice(column, INSPECTIONS_FOLDER)
+	_inspection_choice.add_item(NO_INSPECTION)
+	_button(column, "Set inspection (restarts the shift)", _on_inspection_pressed)
 
 	# The run length comes from balance data: set_shift_count() sets the maximum.
 	_shift_input = _spin(column, 1, 1)
@@ -73,6 +82,13 @@ func _on_card_pressed() -> void:
 func _on_upgrade_pressed() -> void:
 	if _upgrade_choice.selected >= 0:
 		upgrade_requested.emit(_upgrade_choice.get_item_text(_upgrade_choice.selected))
+
+
+func _on_inspection_pressed() -> void:
+	if _inspection_choice.selected < 0:
+		return
+	var choice: String = _inspection_choice.get_item_text(_inspection_choice.selected)
+	inspection_requested.emit("" if choice == NO_INSPECTION else choice)
 
 
 func _on_shift_pressed() -> void:

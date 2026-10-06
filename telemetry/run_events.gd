@@ -1,7 +1,7 @@
 class_name RunEvents
 extends RefCounted
-## Builds the data of the upgrade-related log events (plan section 8), so their fields are
-## defined and tested in one place. The shift screen logs them.
+## Builds the data of the upgrade- and inspection-related log fields (plan section 8), so they
+## are defined and tested in one place. The shift screen logs them.
 
 
 ## The `upgrade` event: the shift (1-based), the upgrades offered (ids, in offer order), the
@@ -23,3 +23,16 @@ static func upgrade_ids(upgrades: Array[UpgradeDefinition]) -> Array:
 	for upgrade: UpgradeDefinition in upgrades:
 		ids.append(String(upgrade.id))
 	return ids
+
+
+## Inspection ids in order, as logged (`inspections` in `shift_start`).
+static func inspection_ids(inspections: Array[InspectionDefinition]) -> Array:
+	var ids: Array = []
+	for inspection: InspectionDefinition in inspections:
+		ids.append(String(inspection.id))
+	return ids
+
+
+## One inspection's id, or "" for none (`next_inspection` in `checkout`).
+static func inspection_id(inspection: InspectionDefinition) -> String:
+	return String(inspection.id) if inspection != null else ""

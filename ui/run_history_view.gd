@@ -1,9 +1,10 @@
 class_name RunHistoryView
 extends GridContainer
 ## The run history on the results screen (plan section 3.8): one plain row per played shift
-## with its total against the quota, pass or fail, the card picked and the upgrade taken.
+## with its total against the quota, pass or fail, the card picked, the upgrade taken and the
+## inspection it was played under (plan section 3.9).
 
-const HEADERS := ["Shift", "Total / Quota", "Result", "Card", "Upgrade"]
+const HEADERS := ["Shift", "Total / Quota", "Result", "Card", "Upgrade", "Inspection"]
 
 
 func _init() -> void:
@@ -31,6 +32,7 @@ static func row_texts(record: ShiftRecord) -> PackedStringArray:
 	elif record.reward_skipped:
 		card = "skipped"
 	var upgrade: String = record.upgrade_taken.display_name if record.upgrade_taken != null else "—"
+	var inspection: String = record.inspection.display_name if record.inspection != null else "—"
 	return PackedStringArray(
 		[
 			str(record.shift),
@@ -38,6 +40,7 @@ static func row_texts(record: ShiftRecord) -> PackedStringArray:
 			"pass" if record.passed else "fail",
 			card,
 			upgrade,
+			inspection,
 		]
 	)
 

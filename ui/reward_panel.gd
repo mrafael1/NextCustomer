@@ -1,7 +1,9 @@
 class_name RewardPanel
 extends PanelContainer
 ## The reward choice after a passed shift (plan section 2): pick 1 of the offered cards for
-## the deck, or skip. It only shows the offer and reports the choice; RunState applies it.
+## the deck, or skip. It only shows the offer and reports the choice; RunState applies it. When
+## the next shift is inspected, its notice shows in red above the cards (plan section 3.9), so
+## the pick can take it into account.
 
 signal picked(card: CardDefinition)
 signal skipped
@@ -9,6 +11,7 @@ signal deck_requested
 
 var _headline: Label
 var _note: Label
+var _warning: Label
 var _cards: HBoxContainer
 var _deck_button: Button
 var _skip_button: Button
@@ -35,6 +38,10 @@ func _init() -> void:
 	_note = UiKit.label("Pick a card for your deck, or skip.", 16, Palette.MUTED_INK)
 	_note.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	column.add_child(_note)
+	_warning = UiKit.label("", 18, Palette.TOMATO)
+	_warning.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_warning.visible = false
+	column.add_child(_warning)
 	_cards = HBoxContainer.new()
 	_cards.alignment = BoxContainer.ALIGNMENT_CENTER
 	_cards.add_theme_constant_override("separation", 22)
@@ -63,10 +70,17 @@ func _set_armed(armed: bool) -> void:
 	_deck_button.disabled = not armed
 
 
+## `warning` is the next shift's inspection notice, or "" for none.
 func show_offer(
-	offer: Array[CardDefinition], headline: String, deck_size: int, deck_limit: int
+	offer: Array[CardDefinition],
+	headline: String,
+	deck_size: int,
+	deck_limit: int,
+	warning: String = ""
 ) -> void:
 	_headline.text = headline
+	_warning.text = warning
+	_warning.visible = not warning.is_empty()
 	var full: bool = deck_size >= deck_limit
 	_note.text = (
 		"Your deck is full: picking a card means removing one."
@@ -84,6 +98,11 @@ func show_offer(
 	_shown_ms = Time.get_ticks_msec()
 	_set_armed(false)
 	UiKit.pop_in(self)
+
+
+## The inspection notice shown, or "" (for tests).
+func warning_text() -> String:
+	return _warning.text if _warning.visible else ""
 
 
 func _on_card_clicked(view: CardView) -> void:

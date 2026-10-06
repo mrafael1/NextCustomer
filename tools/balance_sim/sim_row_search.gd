@@ -35,7 +35,13 @@ func _init(balance: BalanceDefinition) -> void:
 	_balance = balance
 
 
-func search(hand: Array[CardInstance], upgrades: Array[UpgradeDefinition]) -> SimHandBest:
+## `inspections` are the shift's inspections (plan section 3.9); a search without them scores
+## like an uninspected shift.
+func search(
+	hand: Array[CardInstance],
+	upgrades: Array[UpgradeDefinition],
+	inspections: Array[InspectionDefinition] = []
+) -> SimHandBest:
 	var groups: Dictionary[String, Array] = {}
 	for card: CardInstance in hand:
 		var id: String = String(card.definition.id)
@@ -51,13 +57,13 @@ func search(hand: Array[CardInstance], upgrades: Array[UpgradeDefinition]) -> Si
 		limits.append(groups[id].size())
 		for _copy: int in range(groups[id].size()):
 			everything.append(id)
-	var upgrade_key: String = _upgrade_key(upgrades)
+	var upgrade_key: String = _upgrade_key(upgrades) + _inspection_key(inspections)
 	# A hand's best also depends on the row limits.
 	var limits_key: String = "%d/%d:" % [_balance.slot_count, RowCapacity.card_limit(_balance)]
 	var hand_key: String = "hand " + limits_key + ",".join(everything) + upgrade_key
 	var entry: Array = _cache.get(hand_key, [])
 	if entry.is_empty():
-		entry = _search_hand(ids, limits, upgrades, upgrade_key)
+		entry = _search_hand(ids, limits, upgrades, inspections, upgrade_key)
 		_store(hand_key, entry)
 	else:
 		cache_hits += 1
@@ -132,6 +138,7 @@ func _search_hand(
 	ids: PackedStringArray,
 	limits: PackedInt32Array,
 	upgrades: Array[UpgradeDefinition],
+	inspections: Array[InspectionDefinition],
 	upgrade_key: String
 ) -> Array:
 	var card_limit: int = RowCapacity.card_limit(_balance)
@@ -156,7 +163,7 @@ func _search_hand(
 			for _copy: int in range(choice[index]):
 				multiset.append(ids[index])
 		if multiset.size() <= card_limit and products <= _balance.slot_count:
-			var entry: Array = _best_order(multiset, upgrades, upgrade_key)
+			var entry: Array = _best_order(multiset, upgrades, inspections, upgrade_key)
 			var total: int = entry[0]
 			var shorter: bool = multiset.size() < best_order.size()
 			if not found or total > best_total or (total == best_total and shorter):
@@ -181,7 +188,10 @@ func _search_hand(
 ## The best order of exactly these cards (ids sorted ascending): [total, order as ids]. Of
 ## several best orders, the first in lexicographic order by id wins.
 func _best_order(
-	multiset: PackedStringArray, upgrades: Array[UpgradeDefinition], upgrade_key: String
+	multiset: PackedStringArray,
+	upgrades: Array[UpgradeDefinition],
+	inspections: Array[InspectionDefinition],
+	upgrade_key: String
 ) -> Array:
 	var key: String = ",".join(multiset) + upgrade_key
 	var entry: Array = _cache.get(key, [])
@@ -199,7 +209,7 @@ func _best_order(
 	var best: PackedInt32Array = PackedInt32Array()
 	var first: bool = true
 	while true:
-		var total: int = Scoring.score(_row_of(order, distinct), upgrades).total
+		var total: int = Scoring.score(_row_of(order, distinct), upgrades, inspections).total
 		rows_scored += 1
 		if first or total > best_total:
 			first = false
@@ -245,4 +255,14 @@ static func _upgrade_key(upgrades: Array[UpgradeDefinition]) -> String:
 	for upgrade: UpgradeDefinition in upgrades:
 		if not upgrade.rules.is_empty():
 			key += String(upgrade.id) + ","
+	return key
+
+
+## The inspections that can change a score, in order (scoring steps name them by index), so a
+## cached best row of an uninspected shift is never reused under an inspection.
+static func _inspection_key(inspections: Array[InspectionDefinition]) -> String:
+	var key: String = "!"
+	for inspection: InspectionDefinition in inspections:
+		if not inspection.rules.is_empty():
+			key += String(inspection.id) + ","
 	return key

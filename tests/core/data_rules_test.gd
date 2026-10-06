@@ -1,7 +1,7 @@
 extends GdUnitTestSuite
-## Data rules from plan sections 3.7 and 3.8 and core/AGENTS.md: neutral defaults in rule,
-## upgrade and card scripts, every card states its kind, every upgrade its type, and the golden
-## fixture is self-contained.
+## Data rules from plan sections 3.7, 3.8 and 3.9 and core/AGENTS.md: neutral defaults in
+## rule, upgrade, inspection and card scripts, every card states its kind, every upgrade its
+## type, every inspection its id and notice, and the golden fixture is self-contained.
 
 const FIXTURE_DIR := "res://tests/fixtures/cards_v0_4"
 const CARD_DIRS := ["res://data/cards", FIXTURE_DIR]
@@ -10,9 +10,11 @@ const NEUTRAL_SCRIPTS := [
 	"res://core/deck_definition.gd",
 	"res://core/balance_definition.gd",
 	"res://core/upgrade_definition.gd",
+	"res://core/inspection_definition.gd",
 ]
-const RULE_DIRS := ["res://core/rules", "res://core/upgrades"]
+const RULE_DIRS := ["res://core/rules", "res://core/upgrades", "res://core/inspections"]
 const UPGRADE_DIR := "res://data/upgrades"
+const INSPECTION_DIR := "res://data/inspections"
 
 
 ## Godot omits values equal to the script default from .tres files, so a non-neutral default
@@ -26,6 +28,7 @@ func test_exported_values_default_to_neutral() -> void:
 			if file.ends_with(".gd"):
 				scripts.append("%s/%s" % [dir, file])
 	assert_bool(scripts.has("res://core/upgrades/upgrade_rule.gd")).is_true()
+	assert_bool(scripts.has("res://core/inspections/inspection_rule.gd")).is_true()
 	assert_int(scripts.size()).is_greater(15)
 	for path: String in scripts:
 		var instance: Object = (load(path) as GDScript).new()
@@ -116,6 +119,24 @@ func test_every_upgrade_states_its_type_and_id() -> void:
 		assert_str(upgrade.effect_text).override_failure_message(file).is_not_empty()
 		assert_str(upgrade.supported_build).override_failure_message(file).is_not_empty()
 	assert_int(ids.size()).is_equal(3)
+
+
+## Plan section 3.9: every inspection has an id matching its file name (unique), a name and a
+## notice to announce.
+func test_every_inspection_states_its_id_and_notice() -> void:
+	var ids: Dictionary = {}
+	for file: String in DirAccess.get_files_at(INSPECTION_DIR):
+		if not file.ends_with(".tres"):
+			continue
+		var inspection: InspectionDefinition = load("%s/%s" % [INSPECTION_DIR, file])
+		assert_str(String(inspection.id)).override_failure_message(file).is_equal(
+			file.get_basename()
+		)
+		assert_bool(ids.has(inspection.id)).override_failure_message(file).is_false()
+		ids[inspection.id] = true
+		assert_str(inspection.display_name).override_failure_message(file).is_not_empty()
+		assert_str(inspection.notice_text).override_failure_message(file).is_not_empty()
+	assert_int(ids.size()).is_equal(1)
 
 
 func test_fixture_never_points_at_live_data() -> void:

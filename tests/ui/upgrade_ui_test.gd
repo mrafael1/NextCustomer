@@ -248,8 +248,8 @@ func test_the_results_screen_lists_the_run_history() -> void:
 	assert_bool(screen._banner.visible).is_true()
 	var cells: PackedStringArray = screen._history_view.cell_texts()
 	var expected: Array = RunHistoryView.HEADERS.duplicate()
-	expected.append_array(["1", "€27 / €10", "pass", "skipped", "—"])
-	expected.append_array(["2", "€0 / €13", "fail", "—", "—"])
+	expected.append_array(["1", "€27 / €10", "pass", "skipped", "—", "—"])
+	expected.append_array(["2", "€0 / €13", "fail", "—", "—", "—"])
 	assert_array(Array(cells)).is_equal(expected)
 	# A full 8-shift history still fits the window.
 	var full: Array[ShiftRecord] = []
@@ -259,14 +259,17 @@ func test_the_results_screen_lists_the_run_history() -> void:
 	await _frames(2)
 	var height: int = ProjectSettings.get_setting("display/window/size/viewport_height")
 	assert_float(screen._banner.get_combined_minimum_size().y).is_less_equal(height)
+	var width: int = ProjectSettings.get_setting("display/window/size/viewport_width")
+	assert_float(screen._banner.get_combined_minimum_size().x).is_less_equal(width)
 
 
-func test_history_rows_name_the_card_and_upgrade() -> void:
+func test_history_rows_name_the_card_upgrade_and_inspection() -> void:
 	var record: ShiftRecord = ShiftRecord.new(4, 22, 30)
 	record.card_picked = load(BREAD)
 	record.upgrade_taken = load(CATEGORY_ENGINE)
+	record.inspection = load("res://data/inspections/spot_check.tres")
 	assert_array(Array(RunHistoryView.row_texts(record))).is_equal(
-		["4", "€30 / €22", "pass", "Bread", "Category engine"]
+		["4", "€30 / €22", "pass", "Bread", "Category engine", "Spot check"]
 	)
 
 
