@@ -355,6 +355,17 @@ func _last_event(type: String) -> Dictionary:
 	return {}
 
 
+## run_start logs the run's stock (full build plan section 4), so a run can be rebuilt without
+## the profile: the aisles stocked whole and the card ids in stock order.
+func test_run_start_logs_the_stock() -> void:
+	var runner: GdUnitSceneRunner = scene_runner(SCREEN)
+	var screen: ShiftScreen = runner.scene()
+	var start: Dictionary = _last_event("run_start")
+	assert_array(start["listed_aisles"]).is_equal(["placeholder"])
+	assert_array(start["stock"]).is_equal(screen.run.stock.card_ids())
+	assert_int((start["stock"] as Array).size()).is_equal(12)
+
+
 ## The run length comes from balance data: the header, the debug shift jump, the win screen and
 ## the log all follow it. Jumps straight to the last shift instead of playing every shift.
 func test_winning_the_last_shift_shows_the_results() -> void:

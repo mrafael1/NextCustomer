@@ -212,7 +212,7 @@ func _cache_file() -> String:
 	context["search"] = FileAccess.get_file_as_string("res://tools/balance_sim/sim_row_search.gd")
 	var cards: Array[CardDefinition] = []
 	cards.append_array(_starter.cards)
-	cards.append_array(_balance.reward_pool)
+	cards.append_array(RunStock.starting(_starter, _balance).cards)
 	cards.append_array(_balance.first_offer_pool)
 	for card: CardDefinition in cards:
 		context[card.resource_path] = FileAccess.get_file_as_string(card.resource_path)

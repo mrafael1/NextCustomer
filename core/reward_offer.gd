@@ -1,22 +1,27 @@
 class_name RewardOffer
 extends RefCounted
-## Builds the cards offered after a passed shift (plan section 5), using only the RNG passed in.
+## Builds the cards offered after a passed shift (plan section 5), from the run's stock (full
+## build plan 7.2), using only the RNG passed in.
 ##
-## The run's first offer always includes a combination coupon. Every later offer has at least
+## The run's first offer always includes a combination coupon (a stocked one: every run stocks
+## coupon_pool, which holds the first-offer pool, a data test). Every later offer has at least
 ## one coupon and at least one generally useful card. An offer never shows a card twice.
 
 
 static func make(
-	rng: RandomNumberGenerator, balance: BalanceDefinition, first_offer: bool
+	rng: RandomNumberGenerator,
+	balance: BalanceDefinition,
+	stock: Array[CardDefinition],
+	first_offer: bool
 ) -> Array[CardDefinition]:
 	var offer: Array[CardDefinition] = []
 	if first_offer:
-		_add_one_of(rng, balance.first_offer_pool, offer)
+		_add_one_of(rng, _stocked(balance.first_offer_pool, stock), offer)
 	else:
-		_add_one_of(rng, _coupons(balance.reward_pool), offer)
-		_add_one_of(rng, _generally_useful(balance.reward_pool), offer)
+		_add_one_of(rng, _coupons(stock), offer)
+		_add_one_of(rng, _generally_useful(stock), offer)
 	while offer.size() < balance.offer_size:
-		if not _add_one_of(rng, balance.reward_pool, offer):
+		if not _add_one_of(rng, stock, offer):
 			break
 	_shuffle(rng, offer)
 	return offer
@@ -34,6 +39,17 @@ static func _add_one_of(
 		return false
 	offer.append(candidates[rng.randi_range(0, candidates.size() - 1)])
 	return true
+
+
+## The cards of `pool` that are in the stock, in pool order.
+static func _stocked(
+	pool: Array[CardDefinition], stock: Array[CardDefinition]
+) -> Array[CardDefinition]:
+	var found: Array[CardDefinition] = []
+	for card: CardDefinition in pool:
+		if stock.has(card):
+			found.append(card)
+	return found
 
 
 static func _coupons(pool: Array[CardDefinition]) -> Array[CardDefinition]:

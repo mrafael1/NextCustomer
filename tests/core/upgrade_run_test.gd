@@ -174,7 +174,8 @@ func test_losing_an_upgrade_shift_ends_the_run_without_an_upgrade() -> void:
 func test_the_last_shift_has_no_upgrade() -> void:
 	var balance: BalanceDefinition = _low_quotas()
 	balance.upgrade_shifts = PackedInt32Array([balance.quotas.size()])
-	var run: RunState = RunState.new(27, load(STARTER), balance)
+	var deck: DeckDefinition = load(STARTER)
+	var run: RunState = RunState.new(27, deck, balance, RunStock.starting(deck, balance))
 	run.start_shift()
 	run.debug_skip_to_shift(balance.quotas.size() - 1)
 	_pass(run)
@@ -290,7 +291,9 @@ static func _low_quotas() -> BalanceDefinition:
 
 ## A run whose quotas are all 5, so two Breads (6) pass any shift.
 static func _run(seed_value: int) -> RunState:
-	var run: RunState = RunState.new(seed_value, load(STARTER), _low_quotas())
+	var balance: BalanceDefinition = _low_quotas()
+	var deck: DeckDefinition = load(STARTER)
+	var run: RunState = RunState.new(seed_value, deck, balance, RunStock.starting(deck, balance))
 	run.start_shift()
 	return run
 

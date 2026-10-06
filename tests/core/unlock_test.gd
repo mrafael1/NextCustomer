@@ -169,7 +169,8 @@ static func _run(seed_value: int) -> RunState:
 
 
 static func _run_with_deck(seed_value: int, deck: DeckDefinition) -> RunState:
-	var run: RunState = RunState.new(seed_value, deck, _low_quotas())
+	var balance: BalanceDefinition = _low_quotas()
+	var run: RunState = RunState.new(seed_value, deck, balance, RunStock.starting(deck, balance))
 	run.start_shift()
 	return run
 

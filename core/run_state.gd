@@ -1,11 +1,12 @@
 class_name RunState
 extends RefCounted
-## One run: the deck, the current shift, the hand, the checkout row, the owned upgrades, the
-## shift's inspections and the run history.
+## One run: the stock, the deck, the current shift, the hand, the checkout row, the owned
+## upgrades, the shift's inspections and the run history.
 ##
 ## The UI calls these methods and displays the results; it never applies rules itself. The
 ## run's seed is passed in (core never makes seeds), and every draw and offer uses the RNG built
-## from it.
+## from it. The stock is built before the run (RunStock) and passed in, so a run never depends
+## on a profile that changes after it starts.
 
 ## PLANNING: placing cards. REWARD: a passed shift's offer is waiting for a pick or a skip.
 ## UPGRADE: on an upgrade shift, after the reward, an upgrade offer is waiting for a pick (there
@@ -19,6 +20,8 @@ var run_seed: int = 0
 var balance: BalanceDefinition
 ## The starting deck the run began with.
 var starter: DeckDefinition
+## The cards reward offers draw from (full build plan 7.2).
+var stock: RunStock
 var deck: Deck
 ## 0-based index of the current shift.
 var shift_index: int = 0
@@ -52,11 +55,15 @@ var _rng: RandomNumberGenerator
 
 
 func _init(
-	seed_value: int, deck_definition: DeckDefinition, run_balance: BalanceDefinition
+	seed_value: int,
+	deck_definition: DeckDefinition,
+	run_balance: BalanceDefinition,
+	run_stock: RunStock
 ) -> void:
 	run_seed = seed_value
 	balance = run_balance
 	starter = deck_definition
+	stock = run_stock
 	_rng = RandomNumberGenerator.new()
 	_rng.seed = seed_value
 	deck = Deck.from_definition(deck_definition, _rng)
@@ -173,7 +180,7 @@ func checkout() -> ScoreResult:
 	elif is_last_shift():
 		phase = Phase.WON
 	else:
-		offer = RewardOffer.make(_rng, balance, offers_made == 0)
+		offer = RewardOffer.make(_rng, balance, stock.cards, offers_made == 0)
 		offers_made += 1
 		if UpgradeOffer.is_upgrade_shift(balance, shift_index + 1):
 			upgrade_offer = UpgradeOffer.make(_rng, balance, upgrades)

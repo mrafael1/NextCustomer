@@ -15,9 +15,23 @@ extends Resource
 ## coupon_slot_count cards, and only coupons can use the extra room.
 @export var coupon_slot_count: int = 0
 @export var deck_limit: int = 0
-## Cards that reward offers draw from (plan section 5).
-@export var reward_pool: Array[CardDefinition] = []
-## The run's first offer always includes one of these (the combination coupons).
+## The store's aisles in data order (full build plan 7.2). The run's stock (RunStock) holds
+## the starting deck's products, the listed aisles, the new arrivals and coupon_pool.
+@export var aisles: Array[AisleDefinition] = []
+## Coupons every run stocks. Coupons are never in aisles or capsules.
+@export var coupon_pool: Array[CardDefinition] = []
+## How many aisles the shopping list picks when the listable aisles exceed the budget.
+@export var run_aisle_picks: int = 0
+## The most products the listable aisles may hold together for all of them to be stocked
+## without a list.
+@export var aisle_stock_budget: int = 0
+## Items a machine-opened aisle (no base cards) must hold to be listable.
+@export var aisle_listable_min: int = 0
+## The most new arrivals (end-cap items) a run stocks.
+@export var end_cap_max: int = 0
+## New arrivals are capsule items that came out in this many previous runs.
+@export var end_cap_window_runs: int = 0
+## The run's first offer always includes one of these (the combination coupons), when stocked.
 @export var first_offer_pool: Array[CardDefinition] = []
 @export var offer_size: int = 0
 ## 1-based shift numbers after which an upgrade is offered, once the reward is picked or

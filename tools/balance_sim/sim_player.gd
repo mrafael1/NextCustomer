@@ -3,7 +3,8 @@ extends RefCounted
 ## Plays runs for the balance simulator (plan section 8) through RunState, as the game does:
 ## the same seeded draws, redraws, row limits, reward offers, upgrade offers and inspections.
 ## Only the choices come from the simulator. An inspected shift's best row is searched under its
-## inspection; reward and upgrade picks don't look ahead to the next shift's inspection.
+## inspection; reward and upgrade picks don't look ahead to the next shift's inspection. Every
+## run stocks what a new profile does (RunStock.starting, full build plan 7.2).
 ##
 ## Every shift plays the best row of the hand (SimRowSearch). First it redraws, for as long as
 ## redraws are left, the hand cards the best row doesn't use (at most redraw_limit each time,
@@ -23,6 +24,7 @@ const STRATEGIES: Array[String] = ["greedy", "random", "skip", "favour:"]
 
 var _starter: DeckDefinition
 var _balance: BalanceDefinition
+var _stock: RunStock
 var _search: SimRowSearch
 var _strategy: String
 var _favoured: Array[StringName] = []
@@ -41,6 +43,7 @@ func _init(
 ) -> void:
 	_starter = starter
 	_balance = balance
+	_stock = RunStock.starting(starter, balance)
 	_search = search
 	_strategy = strategy
 	_samples = maxi(samples, 1)
@@ -56,7 +59,7 @@ static func is_known_strategy(strategy: String) -> bool:
 
 
 func play(run_seed: int) -> SimRunRecord:
-	var run: RunState = RunState.new(run_seed, _starter, _balance)
+	var run: RunState = RunState.new(run_seed, _starter, _balance, _stock)
 	_rng.seed = hash("balance_sim:%d" % run_seed)
 	var record: SimRunRecord = SimRunRecord.new()
 	record.run_seed = run_seed

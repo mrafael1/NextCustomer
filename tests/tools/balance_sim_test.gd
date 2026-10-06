@@ -218,8 +218,14 @@ func _player(strategy: String, inspection_shifts: Array = []) -> SimPlayer:
 	balance.redraw_limit = 2
 	balance.deck_limit = 8
 	balance.offer_size = 3
-	for id: String in ["banana", "bread", "milk", "cheese", "repeat", "multipack"]:
-		balance.reward_pool.append(_card(id))
+	# The stock: the deck's products, then this aisle, then the coupons.
+	var aisle: AisleDefinition = AisleDefinition.new()
+	aisle.id = &"test"
+	aisle.base_cards.append(_card("cheese"))
+	balance.aisles.append(aisle)
+	balance.aisle_stock_budget = 16
+	for id: String in ["repeat", "multipack"]:
+		balance.coupon_pool.append(_card(id))
 	balance.first_offer_pool.append(_card("multipack"))
 	var deck: DeckDefinition = DeckDefinition.new()
 	deck.id = &"test"

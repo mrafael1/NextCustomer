@@ -12,6 +12,7 @@ const NEUTRAL_SCRIPTS := [
 	"res://core/upgrade_definition.gd",
 	"res://core/inspection_definition.gd",
 	"res://core/unlock_condition.gd",
+	"res://core/aisle_definition.gd",
 ]
 const RULE_DIRS := ["res://core/rules", "res://core/upgrades", "res://core/inspections"]
 const UPGRADE_DIR := "res://data/upgrades"
@@ -54,6 +55,8 @@ func test_exported_values_default_to_neutral() -> void:
 					assert_float(value).override_failure_message(where).is_equal(neutral_float)
 				TYPE_PACKED_STRING_ARRAY, TYPE_PACKED_INT32_ARRAY, TYPE_ARRAY, TYPE_DICTIONARY:
 					assert_int(value.size()).override_failure_message(where).is_equal(0)
+				TYPE_COLOR:
+					assert_that(value).override_failure_message(where).is_equal(Color())
 				TYPE_NIL, TYPE_OBJECT:
 					assert_object(value).override_failure_message(where).is_null()
 				_:

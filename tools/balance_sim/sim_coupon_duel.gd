@@ -13,12 +13,12 @@ var _balance: BalanceDefinition
 var _seed: int = 0
 
 
-## The coupons are those of the balance data's offer pools, in pool order.
+## The coupons are those of the first-offer pool and coupon_pool, in pool order.
 func _init(deck: DeckDefinition, balance: BalanceDefinition, duel_seed: int) -> void:
 	_deck = deck.cards
 	_balance = balance
 	_seed = duel_seed
-	for card: CardDefinition in balance.first_offer_pool + balance.reward_pool:
+	for card: CardDefinition in balance.first_offer_pool + balance.coupon_pool:
 		if card.is_coupon() and not coupons.has(card):
 			coupons.append(card)
 

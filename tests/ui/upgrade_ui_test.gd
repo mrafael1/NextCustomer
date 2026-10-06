@@ -115,7 +115,9 @@ func test_a_starting_upgrade_has_its_own_stamped_box() -> void:
 	var screen: ShiftScreen = runner.scene()
 	var deck: DeckDefinition = (load("res://data/decks/starter.tres") as DeckDefinition).duplicate()
 	deck.starting_upgrade = load(COUPON_ENGINE)
-	screen.run = RunState.new(61, deck, screen.run.balance)
+	screen.run = RunState.new(
+		61, deck, screen.run.balance, RunStock.starting(deck, screen.run.balance)
+	)
 	screen.run.start_shift()
 	screen._on_shift_started()
 	var texts: PackedStringArray = screen._loyalty_card.box_texts()
