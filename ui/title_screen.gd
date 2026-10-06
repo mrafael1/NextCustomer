@@ -1,13 +1,17 @@
 class_name TitleScreen
 extends Control
 ## The title screen (plan section 7): a click starts the game, which also lets browsers play
-## audio. The Export log button works here too, so testers can send their log at any time.
+## audio. The Export log button works here too, so testers can send their log at any time. It
+## shows the run's length from balance data and the profile's coins (full build plan 7.1).
 
 const SHIFT_SCREEN := "res://ui/shift_screen.tscn"
+const BALANCE := "res://data/balance/balance.tres"
 
 ## Tests turn this off so starting doesn't replace the test runner's scene.
 var changes_scene: bool = true
 var _starting: bool = false
+var _subtitle: Label
+var _coins: Label
 @onready var _log: EventLogService = get_node("/root/EventLog")
 
 
@@ -30,13 +34,19 @@ func _ready() -> void:
 	title.add_theme_constant_override("outline_size", 14)
 	title.add_theme_color_override("font_outline_color", Palette.INK)
 	column.add_child(title)
-	var subtitle: Label = UiKit.label(
-		"Scan groceries and coupons in the best order. Meet the quota every shift.",
+	var shifts: int = (load(BALANCE) as BalanceDefinition).quotas.size()
+	_subtitle = UiKit.label(
+		"Scan groceries and coupons in the best order. Meet the quota on all %d shifts." % shifts,
 		22,
 		Palette.LIGHT_TEXT
 	)
-	subtitle.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	column.add_child(subtitle)
+	_subtitle.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	column.add_child(_subtitle)
+	_coins = UiKit.label(
+		coins_text(SaveService.new(SaveService.default_folder())), 22, Palette.MUSTARD
+	)
+	_coins.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	column.add_child(_coins)
 	var prompt: Label = UiKit.label("Click anywhere to start", 30, Palette.CREAM)
 	prompt.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	column.add_child(prompt)
@@ -58,6 +68,15 @@ func _ready() -> void:
 	build.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	build.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 	corner.add_child(build)
+
+
+## The coin line: the saved profile's coins, read without reporting or backing anything up (the
+## shift screen does that when it loads the profile).
+static func coins_text(saves: SaveService) -> String:
+	var profile: ProfileState = saves.peek_profile()
+	if profile == null:
+		return "Coins: ?"
+	return "Coins: %d" % profile.coins
 
 
 func _unhandled_key_input(event: InputEvent) -> void:

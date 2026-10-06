@@ -34,6 +34,8 @@ var _picked_from_row: bool = false
 var _balance: BalanceDefinition
 var _catalogue: CatalogueDefinition
 var _saves: SaveService
+## False when the ended run's profile couldn't be saved: the results then show no coin total.
+var _profile_saved: bool = true
 var _click_ms: int = 0
 var _redraw_mode: bool = false
 var _redraw_pick: Array[CardInstance] = []
@@ -73,6 +75,7 @@ var _banner_button: Button
 var _reward_panel: RewardPanel
 var _upgrade_panel: UpgradePanel
 var _history_view: RunHistoryView
+var _coin_receipt: CoinReceipt
 ## Dims the screen and blocks clicks behind the reward and upgrade panels, deck view and
 ## results.
 var _shade: ColorRect
@@ -134,7 +137,7 @@ func _on_shift_started() -> void:
 	var start: Dictionary = {
 		"shift": run.shift_index + 1,
 		"quota": run.quota(),
-		"cards_drawn": _ids(run.hand()),
+		"cards_drawn": RunEvents.card_ids(run.hand()),
 		"inspections": RunEvents.inspection_ids(run.inspections),
 	}
 	_log.log_event("shift_start", start)
@@ -254,9 +257,7 @@ func _on_redraw_pressed() -> void:
 	else:
 		var replaced: Array[CardInstance] = _redraw_pick.duplicate()
 		var received: Array[CardInstance] = run.redraw(replaced)
-		_log.log_event(
-			"redraw", {"cards_replaced": _ids(replaced), "cards_received": _ids(received)}
-		)
+		_log.log_event("redraw", RunEvents.redraw(replaced, received))
 		_redraw_mode = false
 		_redraw_pick = []
 	_refresh()
@@ -284,7 +285,7 @@ func _on_checkout_pressed() -> void:
 	# Logged at the click, so closing the game during the count-up loses nothing.
 	var checkout_data: Dictionary = {
 		"shift": run.shift_index + 1,
-		"final_order": _ids(committed),
+		"final_order": RunEvents.card_ids(committed),
 		"score": result.total,
 		"quota": run.quota(),
 		"passed": run.passed(),
@@ -297,7 +298,7 @@ func _on_checkout_pressed() -> void:
 		_log.log_event("run_end", RunEvents.run_end(run, _run_ended_ms - _run_started_ms))
 		# Saved at the click too, so closing the game during the count-up loses nothing.
 		profile.record_run(run, _catalogue)
-		_saves.save_profile(profile)
+		_profile_saved = _saves.save_profile(profile)
 	_refresh()
 	await _count_up.play(
 		result,
@@ -764,6 +765,7 @@ func _show_results(result: ScoreResult) -> void:
 			]
 		)
 	_history_view.show_history(run.history)
+	_coin_receipt.show_payout(CoinPayout.for_run(run), profile.coins if _profile_saved else -1)
 	_banner_button.text = "New run"
 	# Like the reward panel: New run waits for the mouse to be released after it appears.
 	_banner_button.disabled = true
@@ -934,6 +936,9 @@ func _build() -> void:
 	_history_view = RunHistoryView.new()
 	_history_view.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 	banner_column.add_child(_history_view)
+	_coin_receipt = CoinReceipt.new()
+	_coin_receipt.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	banner_column.add_child(_coin_receipt)
 	var banner_buttons: HBoxContainer = HBoxContainer.new()
 	banner_buttons.alignment = BoxContainer.ALIGNMENT_CENTER
 	banner_buttons.add_theme_constant_override("separation", 16)
@@ -983,13 +988,6 @@ func _button(parent: Control, text: String, action: Callable, font_size: int) ->
 	button.pressed.connect(action)
 	parent.add_child(button)
 	return button
-
-
-static func _ids(cards: Array[CardInstance]) -> Array:
-	var ids: Array = []
-	for card: CardInstance in cards:
-		ids.append(String(card.definition.id))
-	return ids
 
 
 static func _names(cards: Array[CardInstance]) -> PackedStringArray:
