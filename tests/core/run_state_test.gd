@@ -1,7 +1,7 @@
 extends GdUnitTestSuite
 ## RunState: the shift flow from plan sections 2 and 3 (draw 8, redraw up to 2 once, place up
-## to 6 products and 7 cards in a compacted row, checkout always allowed, 5 shifts with rising
-## quotas).
+## to 6 products and 7 cards in a compacted row, checkout always allowed, one shift per quota
+## with rising quotas).
 
 const STARTER := "res://data/decks/starter.tres"
 const BALANCE := "res://data/balance/balance.tres"
@@ -11,7 +11,8 @@ const REPEAT := "res://data/cards/repeat.tres"
 
 func test_balance_matches_the_plan() -> void:
 	var balance: BalanceDefinition = load(BALANCE)
-	assert_array(Array(balance.quotas)).is_equal([10, 15, 22, 32, 48])
+	# 8 shifts, placeholder quotas until the balance simulator (plan v0.12).
+	assert_array(Array(balance.quotas)).is_equal([10, 13, 17, 22, 27, 33, 40, 48])
 	assert_int(balance.hand_size).is_equal(8)
 	assert_int(balance.redraw_limit).is_equal(2)
 	assert_int(balance.slot_count).is_equal(6)
@@ -220,7 +221,7 @@ func test_passing_a_shift_moves_to_the_next_quota() -> void:
 	assert_int(run.phase).is_equal(RunState.Phase.SCORED)
 	assert_bool(run.next_shift()).is_true()
 	assert_int(run.shift_index).is_equal(1)
-	assert_int(run.quota()).is_equal(15)
+	assert_int(run.quota()).is_equal(13)
 	assert_array(run.row).is_empty()
 	assert_int(run.hand().size()).is_equal(8)
 	assert_bool(run.redraw_used).is_false()

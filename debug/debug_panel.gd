@@ -41,7 +41,8 @@ func _ready() -> void:
 	column.add_child(_card_choice)
 	_button(column, "Add card to hand", _on_card_pressed)
 
-	_shift_input = _spin(column, 1, 5)
+	# The run length comes from balance data: set_shift_count() sets the maximum.
+	_shift_input = _spin(column, 1, 1)
 	_button(column, "Skip to shift", _on_shift_pressed)
 	visible = false
 

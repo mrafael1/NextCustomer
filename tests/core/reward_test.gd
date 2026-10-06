@@ -145,15 +145,15 @@ func test_the_last_shift_wins_without_an_offer() -> void:
 	var run: RunState = RunState.new(10, load(STARTER), load(BALANCE))
 	run.start_shift()
 	run.debug_skip_to_shift(run.shift_count() - 1)
-	var bread: CardDefinition = load(BREAD)
-	var multipack: CardDefinition = load("res://data/cards/multipack.tres")
-	var eggs: CardDefinition = load("res://data/cards/eggs.tres")
-	# Eggs, Bread, Multipack, Bread, Bread, Bread = 1 + 6 + 0 + 12 + 6 + 6 = 31.
-	for card: CardDefinition in [eggs, bread, multipack, bread, bread, bread]:
-		run.place(run.debug_add_to_hand(card), run.row.size())
-	run.checkout()
+	assert_bool(run.is_last_shift()).is_true()
+	# Bread, Multipack, then four Milks at x2: 3 + 0 + 2 * (5 + 7 + 9 + 11) = 67.
+	for id: String in ["bread", "multipack", "milk", "milk", "milk", "milk"]:
+		run.place(run.debug_add_to_hand(load("res://data/cards/%s.tres" % id)), run.row.size())
+	var result: ScoreResult = run.checkout()
+	assert_int(result.total).is_equal(67)
+	assert_int(result.total).is_greater_equal(run.quota())
 	assert_array(run.offer).is_empty()
-	assert_int(run.phase).is_not_equal(RunState.Phase.REWARD)
+	assert_int(run.phase).is_equal(RunState.Phase.WON)
 
 
 static func _passed_run(seed_value: int) -> RunState:

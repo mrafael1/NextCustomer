@@ -17,7 +17,7 @@
 
 [resource]
 script = ExtResource("1_balance")
-quotas = PackedInt32Array(10, 15, 22, 32, 48)
+quotas = PackedInt32Array(10, 13, 17, 22, 27, 33, 40, 48)
 hand_size = 8
 redraw_limit = 2
 slot_count = 6

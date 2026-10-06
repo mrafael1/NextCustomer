@@ -355,6 +355,33 @@ func _last_event(type: String) -> Dictionary:
 	return {}
 
 
+## The run length comes from balance data: the header, the debug shift jump, the win screen and
+## the log all follow it. Jumps straight to the last shift instead of playing every shift.
+func test_winning_the_last_shift_shows_the_results() -> void:
+	var runner: GdUnitSceneRunner = scene_runner(SCREEN)
+	var screen: ShiftScreen = runner.scene()
+	var count: int = screen.run.shift_count()
+	assert_int(int(_last_event("run_start")["shift_count"])).is_equal(count)
+	assert_str(screen._shift_label.text).is_equal("Shift 1 / %d" % count)
+	var shift_input: SpinBox = screen._debug_panel.get("_shift_input")
+	assert_int(int(shift_input.max_value)).is_equal(count)
+
+	screen._on_debug_shift(count)
+	assert_bool(screen.run.is_last_shift()).is_true()
+	assert_str(screen._shift_label.text).is_equal("Shift %d / %d" % [count, count])
+	assert_int(int(_last_event("shift_start")["shift"])).is_equal(count)
+	# Bread, Multipack, then four Milks at x2: 67, above the last quota.
+	_place_ids(screen, ["bread", "multipack", "milk", "milk", "milk", "milk"])
+	await screen._on_checkout_pressed()
+	assert_int(screen.run.phase).is_equal(RunState.Phase.WON)
+	assert_bool(screen._banner.visible).is_true()
+	assert_bool(screen._reward_panel.visible).is_false()
+	assert_str(screen._banner_detail.text).starts_with("All %d shifts cleared." % count)
+	var run_end: Dictionary = _last_event("run_end")
+	assert_str(run_end["result"]).is_equal("win")
+	assert_int(int(run_end["shift_reached"])).is_equal(count)
+
+
 func test_empty_checkout_loses_and_logs_run_end() -> void:
 	var runner: GdUnitSceneRunner = scene_runner(SCREEN)
 	var screen: ShiftScreen = runner.scene()
