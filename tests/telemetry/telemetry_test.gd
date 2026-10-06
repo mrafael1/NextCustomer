@@ -74,6 +74,25 @@ func test_checkout_measures() -> void:
 	assert_str(measures["input_method"]).is_equal("click")
 
 
+## Plan section 8: input_method is "click", "drag" or "both", from the placements and
+## removals of this shift only.
+func test_input_method_follows_placements_and_removals() -> void:
+	var tracker: CheckoutTracker = CheckoutTracker.new()
+	tracker.begin(0)
+	assert_str(tracker.measures(0)["input_method"]).is_equal("click")
+	tracker.on_place(true)
+	tracker.on_place(true)
+	assert_str(tracker.measures(2)["input_method"]).is_equal("drag")
+	tracker.on_remove()
+	assert_str(tracker.measures(1)["input_method"]).is_equal("both")
+	assert_int(tracker.placements).is_equal(2)
+	assert_int(tracker.removals).is_equal(1)
+	tracker.begin(100)
+	assert_str(tracker.input_method).is_equal("click")
+	tracker.on_remove(true)
+	assert_str(tracker.input_method).is_equal("drag")
+
+
 func test_checkout_while_unfocused_stops_the_clock_at_focus_loss() -> void:
 	var tracker: CheckoutTracker = CheckoutTracker.new()
 	tracker.begin(0)

@@ -5,7 +5,11 @@ extends RefCounted
 
 var placements: int = 0
 var removals: int = 0
+## How cards were placed and taken out: "click", "drag" or "both" (plan section 8). A shift
+## with no placements or removals counts as "click".
 var input_method: String = "click"
+var _clicked: bool = false
+var _dragged: bool = false
 var _start_ms: int = 0
 var _unfocused_ms: int = 0
 var _focus_lost_at: int = -1
@@ -18,6 +22,9 @@ var _totals_by_size: Dictionary = {}
 func begin(now_ms: int, focused: bool = true) -> void:
 	placements = 0
 	removals = 0
+	input_method = "click"
+	_clicked = false
+	_dragged = false
 	_start_ms = now_ms
 	_unfocused_ms = 0
 	_focus_lost_at = -1 if focused else now_ms
@@ -25,14 +32,28 @@ func begin(now_ms: int, focused: bool = true) -> void:
 	_totals_by_size = {}
 
 
-## A card put into a slot, including a card moved within the row.
-func on_place() -> void:
+## A card put into a slot, including a card moved within the row; `dragged` when by drag.
+func on_place(dragged: bool = false) -> void:
 	placements += 1
+	_note_method(dragged)
 
 
-## A card taken out of the row (once, even though later cards shift left).
-func on_remove() -> void:
+## A card taken out of the row (once, even though later cards shift left); `dragged` when by
+## drag.
+func on_remove(dragged: bool = false) -> void:
 	removals += 1
+	_note_method(dragged)
+
+
+func _note_method(dragged: bool) -> void:
+	if dragged:
+		_dragged = true
+	else:
+		_clicked = true
+	if _dragged and _clicked:
+		input_method = "both"
+	else:
+		input_method = "drag" if _dragged else "click"
 
 
 func on_preview(row_size: int, total: int) -> void:
