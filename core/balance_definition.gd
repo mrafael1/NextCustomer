@@ -46,3 +46,10 @@ extends Resource
 @export var inspection_shifts: PackedInt32Array = PackedInt32Array()
 ## Inspections that an inspected shift draws from.
 @export var inspection_pool: Array[InspectionDefinition] = []
+## Coins a run pays at its end (full build plan 7.1, CoinPayout), by the number of shifts
+## passed: index 0 to the number of shifts (a won run). Shorter tables use their last entry.
+@export var coins_by_shifts_passed: PackedInt32Array = PackedInt32Array()
+## Overtime coins: one per this many euros over quota, summed over the passed shifts (0: none).
+@export var overtime_coin_euros: int = 0
+## The most overtime coins one run pays.
+@export var overtime_coin_max: int = 0

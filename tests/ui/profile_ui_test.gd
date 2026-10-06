@@ -4,6 +4,7 @@ extends GdUnitTestSuite
 ## its end.
 
 const SCREEN := "res://ui/shift_screen.tscn"
+const TITLE := "res://ui/title_screen.tscn"
 const REPEAT := "res://data/cards/repeat.tres"
 
 var _folder: String = ""
@@ -51,6 +52,91 @@ func test_an_ended_run_is_saved_to_the_profile_and_a_restart_is_not() -> void:
 	assert_int(read.run_count).is_equal(4)
 	assert_dict(read.coupon_uses).is_equal({&"repeat": 2})
 	assert_int(screen.profile.run_count).is_equal(4)
+
+
+## Full build plan 7.1: the results print the run's coins at the bottom, with the profile's
+## total, and the results fit the 1280 x 720 screen even with 8 history rows.
+func test_the_results_print_the_coins_and_fit_the_screen() -> void:
+	var saves: SaveService = SaveService.new(_folder)
+	var saved: ProfileState = ProfileState.new()
+	saved.coins = 6
+	saves.save_profile(saved)
+	var runner: GdUnitSceneRunner = scene_runner(SCREEN)
+	var screen: ShiftScreen = runner.scene()
+	var count: int = screen.run.shift_count()
+	screen._on_debug_shift(count)
+	# The debug jump writes no history: the 7 earlier shifts are passed records, each €2 over.
+	for shift: int in range(count - 1, 0, -1):
+		screen.run.history.push_front(ShiftRecord.new(shift, 10, 12))
+	# Bread, Multipack, then four Milks at x2: 67 against the last quota.
+	for id: String in ["bread", "multipack", "milk", "milk", "milk", "milk"]:
+		var card: CardDefinition = load("res://data/cards/%s.tres" % id)
+		screen.run.place(screen.run.debug_add_to_hand(card), screen.run.row.size())
+	await screen._on_checkout_pressed()
+	assert_int(screen.run.phase).is_equal(RunState.Phase.WON)
+	# 8 shifts passed pay 2; overtime 7 x 2 + (67 - 48) = 33, under the €60 step.
+	var texts: PackedStringArray = screen._coin_receipt.texts()
+	assert_int(texts.size()).is_equal(3)
+	assert_str(texts[0]).starts_with("Shifts passed 8").ends_with("+2")
+	assert_str(texts[1]).starts_with("Overtime €33").ends_with("+0")
+	assert_str(texts[2]).starts_with("COINS +2").ends_with("you have 8")
+	assert_int(saves.load_profile().coins).is_equal(8)
+	for frame: int in range(4):
+		await get_tree().process_frame
+	var banner: Rect2 = screen._banner.get_global_rect()
+	assert_float(banner.size.y).is_less_equal(720.0)
+	assert_float(banner.size.x).is_less_equal(1280.0)
+	assert_bool(banner.encloses(screen._coin_receipt.get_global_rect())).is_true()
+	assert_float(screen._coin_receipt.size.y).is_greater(40.0)
+
+
+## The receipt's lines all have the same width, so the amounts form a column, and an unknown
+## total (the profile couldn't be saved) prints "?".
+func test_coin_receipt_lines_align_and_show_an_unknown_total() -> void:
+	var payout: CoinPayout = CoinPayout.new()
+	payout.shifts_passed = 5
+	payout.shift_coins = 1
+	payout.overtime = 140
+	payout.overtime_coins = 1
+	var lines: PackedStringArray = CoinReceipt.lines(payout, 1234)
+	(
+		assert_array(Array(lines))
+		. is_equal(
+			[
+				"Shifts passed 5                 +1",
+				"Overtime €140                   +1",
+				"COINS +2             you have 1234",
+			]
+		)
+	)
+	for line: String in lines:
+		assert_int(line.length()).is_equal(CoinReceipt.WIDTH)
+	assert_str(CoinReceipt.lines(payout, -1)[2]).ends_with("you have ?")
+
+
+## The title screen shows the run's length from balance data and the profile's coins, read
+## without reporting or backing up an unreadable save.
+func test_the_title_shows_the_shift_count_and_the_coins() -> void:
+	var saved: ProfileState = ProfileState.new()
+	saved.coins = 9
+	SaveService.new(_folder).save_profile(saved)
+	var runner: GdUnitSceneRunner = scene_runner(TITLE)
+	var title: TitleScreen = runner.scene()
+	title.changes_scene = false
+	var shifts: int = (load("res://data/balance/balance.tres") as BalanceDefinition).quotas.size()
+	assert_str(title._subtitle.text).contains("all %d shifts" % shifts)
+	assert_str(title._coins.text).is_equal("Coins: 9")
+	var file: FileAccess = FileAccess.open(
+		_folder.path_join(SaveService.PROFILE_FILE), FileAccess.WRITE
+	)
+	file.store_string("{broken")
+	file.close()
+	assert_str(TitleScreen.coins_text(SaveService.new(_folder))).is_equal("Coins: ?")
+	var backup: String = _folder.path_join(SaveService.PROFILE_FILE + SaveService.BACKUP_SUFFIX)
+	assert_bool(FileAccess.file_exists(backup)).is_false()
+	assert_str(TitleScreen.coins_text(SaveService.new(_folder.path_join("none")))).is_equal(
+		"Coins: 0"
+	)
 
 
 func test_without_a_save_the_screen_starts_a_fresh_profile() -> void:

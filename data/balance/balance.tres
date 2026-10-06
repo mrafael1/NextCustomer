@@ -37,3 +37,6 @@ upgrade_pool = Array[ExtResource("u1_upgrade")]([ExtResource("u2_coupon_engine")
 upgrade_offer_size = 3
 inspection_shifts = PackedInt32Array(3, 5, 7)
 inspection_pool = Array[ExtResource("i1_inspection")]([ExtResource("i2_spot_check")])
+coins_by_shifts_passed = PackedInt32Array(0, 0, 1, 1, 1, 1, 1, 1, 2)
+overtime_coin_euros = 60
+overtime_coin_max = 1

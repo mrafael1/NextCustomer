@@ -42,10 +42,8 @@ func profile_path() -> String:
 ## (reported and backed up, see the class doc). A save interrupted between removing the old
 ## file and moving the new one in left only the complete temporary file: it is read.
 func load_profile() -> ProfileState:
-	var path: String = profile_path()
-	if not FileAccess.file_exists(path) and FileAccess.file_exists(path + TEMP_SUFFIX):
-		path += TEMP_SUFFIX
-	if not FileAccess.file_exists(path):
+	var path: String = _existing_path()
+	if path.is_empty():
 		return ProfileState.new()
 	# Opened, not get_file_as_string: a file that can't be opened (locked by another program) is
 	# told apart from bad content, and nothing prints an engine error.
@@ -59,14 +57,10 @@ func load_profile() -> ProfileState:
 			)
 		)
 		return ProfileState.new()
-	var text: String = file.get_as_text()
+	var profile: ProfileState = _parse(file.get_as_text())
 	file.close()
-	# A JSON instance: unlike JSON.parse_string, it never prints a parse error itself.
-	var json: JSON = JSON.new()
-	if json.parse(text) == OK and json.data is Dictionary:
-		var profile: ProfileState = ProfileState.from_dictionary(json.data)
-		if profile != null:
-			return profile
+	if profile != null:
+		return profile
 	var backup: String = _free_backup_path()
 	var error: Error = DirAccess.copy_absolute(path, backup)
 	if error == OK:
@@ -77,6 +71,21 @@ func load_profile() -> ProfileState:
 			"Profile: can't read %s or back it up (error %d); not saved over" % [path, error]
 		)
 	return ProfileState.new()
+
+
+## The saved profile for display only (the title screen): a fresh one when there is none yet,
+## null when it can't be read. It never reports or backs anything up: load_profile, run by the
+## shift screen, does that once.
+func peek_profile() -> ProfileState:
+	var path: String = _existing_path()
+	if path.is_empty():
+		return ProfileState.new()
+	var file: FileAccess = FileAccess.open(path, FileAccess.READ)
+	if file == null:
+		return null
+	var profile: ProfileState = _parse(file.get_as_text())
+	file.close()
+	return profile
 
 
 ## Writes the profile: to a temporary file first, then over the save. A write that fails
@@ -115,6 +124,26 @@ func save_profile(profile: ProfileState) -> bool:
 		_report_error.call("Profile: can't move %s to %s (error %d)" % [temp, path, error])
 		return false
 	return true
+
+
+## The save to read: profile.json, else a complete temporary file left by an interrupted save,
+## else "" (no save yet).
+func _existing_path() -> String:
+	var path: String = profile_path()
+	if FileAccess.file_exists(path):
+		return path
+	if FileAccess.file_exists(path + TEMP_SUFFIX):
+		return path + TEMP_SUFFIX
+	return ""
+
+
+## A profile from saved text, or null when it isn't one this version can read.
+static func _parse(text: String) -> ProfileState:
+	# A JSON instance: unlike JSON.parse_string, it never prints a parse error itself.
+	var json: JSON = JSON.new()
+	if json.parse(text) != OK or not json.data is Dictionary:
+		return null
+	return ProfileState.from_dictionary(json.data)
 
 
 ## profile.json.bad, or the first of .bad.2, .bad.3, … not taken yet.

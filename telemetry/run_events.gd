@@ -1,19 +1,16 @@
 class_name RunEvents
 extends RefCounted
-## Builds the data of the run_start and run_end events and the upgrade- and inspection-related
-## log fields (plan section 8), so they are defined and tested in one place. The shift screen
-## logs them.
+## Builds the data of the run_start, run_end and redraw events, the card id lists
+## (starting_deck, cards_drawn, final_order) and the upgrade- and inspection-related log fields
+## (plan section 8), so they are defined and tested in one place. The shift screen logs them.
 
 
 ## The `run_start` event: the seed, the starting deck (card ids), the number of shifts and the
 ## run's stock (listed_aisles, stock; full build plan section 4).
 static func run_start(run: RunState) -> Dictionary:
-	var ids: Array = []
-	for card: CardInstance in run.deck.cards:
-		ids.append(String(card.definition.id))
 	var data: Dictionary = {
 		"seed": run.run_seed,
-		"starting_deck": ids,
+		"starting_deck": card_ids(run.deck.cards),
 		"shift_count": run.shift_count(),
 	}
 	return data.merged(run.stock.to_dictionary())
@@ -42,6 +39,19 @@ static func upgrade_pick(
 		"picked": String(picked.id),
 		"decide_ms": decide_ms,
 	}
+
+
+## The `redraw` event: the cards replaced and the cards received (ids).
+static func redraw(replaced: Array[CardInstance], received: Array[CardInstance]) -> Dictionary:
+	return {"cards_replaced": card_ids(replaced), "cards_received": card_ids(received)}
+
+
+## Card ids in order, as logged (`starting_deck`, `cards_drawn`, `final_order`, redraws).
+static func card_ids(cards: Array[CardInstance]) -> Array:
+	var ids: Array = []
+	for card: CardInstance in cards:
+		ids.append(String(card.definition.id))
+	return ids
 
 
 ## Upgrade ids in order, as logged (`offered` in `upgrade`, `upgrades` in `run_end`).

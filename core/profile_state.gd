@@ -50,8 +50,8 @@ func has_variant(variant: CardDefinition) -> bool:
 
 ## Records a run that ended (won or lost; anything else is ignored and returns nothing):
 ## checks every locked deck's and variant's condition with the coupon uses from before this
-## run, then adds this run's coupon uses and counts the run. Returns the ids unlocked now,
-## decks first, each in catalogue order.
+## run, then adds the run's coins (CoinPayout) and coupon uses and counts the run. Returns the
+## ids unlocked now, decks first, each in catalogue order.
 func record_run(run: RunState, catalogue: CatalogueDefinition) -> Array[StringName]:
 	var unlocked_now: Array[StringName] = []
 	if run.phase != RunState.Phase.WON and run.phase != RunState.Phase.LOST:
@@ -67,6 +67,7 @@ func record_run(run: RunState, catalogue: CatalogueDefinition) -> Array[StringNa
 		):
 			unlocked_variants.append(variant.id)
 			unlocked_now.append(variant.id)
+	coins += CoinPayout.for_run(run).total()
 	var uses: Dictionary[StringName, int] = UnlockCheck.coupon_uses(run.history)
 	for id: StringName in uses:
 		coupon_uses[id] = coupon_uses.get(id, 0) + uses[id]
