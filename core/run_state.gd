@@ -87,8 +87,11 @@ func redraw(cards: Array[CardInstance]) -> Array[CardInstance]:
 	return received
 
 
+## Plan section 3.1: the row's product and card limits, checked by kind (RowCapacity).
 func can_place(card: CardInstance) -> bool:
-	return phase == Phase.PLANNING and hand().has(card) and row.size() < balance.slot_count
+	if phase != Phase.PLANNING or not hand().has(card):
+		return false
+	return RowCapacity.fits(balance, row, card.definition)
 
 
 ## Puts a hand card into the row at `slot`. The row stays compacted: a slot past the end

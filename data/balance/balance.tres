@@ -22,6 +22,7 @@ quotas = PackedInt32Array(10, 15, 22, 32, 48)
 hand_size = 8
 redraw_limit = 2
 slot_count = 6
+coupon_slot_count = 1
 deck_limit = 15
 reward_pool = Array[ExtResource("2_card")]([ExtResource("c3_banana"), ExtResource("c4_bread"), ExtResource("c5_cheese"), ExtResource("c6_eggs"), ExtResource("c7_milk"), ExtResource("c8_coffee"), ExtResource("c9_soup"), ExtResource("c10_frozen_peas"), ExtResource("c11_repeat"), ExtResource("c12_final_markdown"), ExtResource("c13_bundle"), ExtResource("c14_breakfast_sticker"), ExtResource("c15_multipack")])
 first_offer_pool = Array[ExtResource("2_card")]([ExtResource("c13_bundle"), ExtResource("c14_breakfast_sticker"), ExtResource("c15_multipack")])

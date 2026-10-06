@@ -112,14 +112,90 @@ func test_dropping_a_picked_row_card_counts_as_a_removal() -> void:
 func test_full_row_highlights_no_slot() -> void:
 	var runner: GdUnitSceneRunner = scene_runner(SCREEN)
 	var screen: ShiftScreen = runner.scene()
-	var hand: Array[CardInstance] = screen.run.hand()
-	for index: int in range(6):
-		screen._on_hand_card_clicked(_view_for(screen, hand[index]))
-		screen._on_slot_input(_left_click(), index)
-	screen._on_hand_card_clicked(_view_for(screen, hand[6]))
-	for panel: PanelContainer in screen._slots:
-		var style: StyleBoxFlat = panel.get_theme_stylebox("panel") as StyleBoxFlat
-		assert_bool(style.border_color == Palette.MUSTARD).is_false()
+	_place_ids(screen, ["bread", "bread", "repeat", "bread", "bread", "bread", "bread"])
+	assert_int(screen.run.row.size()).is_equal(7)
+	for id: String in ["bread", "repeat"]:
+		screen._on_debug_card(id)
+		screen._on_hand_card_clicked(_view_for(screen, screen.run.hand()[-1]))
+		for panel: PanelContainer in screen._slots:
+			var style: StyleBoxFlat = panel.get_theme_stylebox("panel") as StyleBoxFlat
+			assert_bool(style.border_color == Palette.MUSTARD).is_false()
+
+
+## Plan section 3.1: 6 shared slots + 1 coupon-only slot, and the window fits all 7. The coupon
+## slot is a count, not a position: no panel is marked for coupons, because a new player
+## would read that as "coupons only go here" (playtest feedback).
+func test_the_row_shows_the_coupon_slot() -> void:
+	var runner: GdUnitSceneRunner = scene_runner(SCREEN)
+	var screen: ShiftScreen = runner.scene()
+	assert_int(screen._slots.size()).is_equal(7)
+	for slot: int in range(7):
+		assert_str(_slot_hint(screen, slot)).is_equal(str(slot + 1))
+	assert_str(screen._capacity_label.text).contains("Products 0/6").contains("Coupon slot 0/1")
+	_place_ids(screen, ["bread", "repeat"])
+	assert_str(screen._capacity_label.text).contains("Products 1/6").contains("Coupon slot 1/1")
+	_place_ids(screen, ["repeat"])
+	assert_str(screen._capacity_label.text).contains("Products 1/6").contains("Coupon slot 1/1")
+	await _frames(2)
+	var margin: MarginContainer = null
+	for child: Node in screen.get_children():
+		if child is MarginContainer:
+			margin = child
+	var width: int = ProjectSettings.get_setting("display/window/size/viewport_width")
+	assert_float(margin.get_combined_minimum_size().x).is_less_equal(width)
+
+
+## A product that doesn't fit says why instead of doing nothing; a coupon still fits.
+func test_a_seventh_product_is_refused_with_a_notice() -> void:
+	var runner: GdUnitSceneRunner = scene_runner(SCREEN)
+	var screen: ShiftScreen = runner.scene()
+	_place_ids(screen, ["bread", "bread", "bread", "bread", "bread", "bread"])
+	assert_str(screen._notice_label.text).is_empty()
+	screen._on_debug_card("bread")
+	var product: CardInstance = screen.run.hand()[-1]
+	screen._on_hand_card_clicked(_view_for(screen, product))
+	assert_str(screen._notice_label.text).contains("6/6 products").contains("coupon")
+	screen._notice_label.text = ""
+	screen._on_slot_input(_left_click(), 6)
+	assert_int(screen.run.row.size()).is_equal(6)
+	assert_bool(screen.run.row.has(product)).is_false()
+	assert_str(screen._notice_label.text).contains("6/6 products")
+	screen._on_debug_card("repeat")
+	var coupon: CardInstance = screen.run.hand()[-1]
+	screen._on_hand_card_clicked(_view_for(screen, coupon))
+	screen._on_slot_input(_left_click(), 2)
+	assert_object(screen.run.row[2]).is_same(coupon)
+	assert_int(screen.run.row.size()).is_equal(7)
+
+
+## The notice says to take a product out: clicking a row product does that, it doesn't
+## repeat the refusal.
+func test_a_refused_pick_lets_a_row_card_be_taken_out() -> void:
+	var runner: GdUnitSceneRunner = scene_runner(SCREEN)
+	var screen: ShiftScreen = runner.scene()
+	_place_ids(screen, ["bread", "bread", "bread", "bread", "bread", "bread", "repeat"])
+	screen._on_debug_card("bread")
+	var product: CardInstance = screen.run.hand()[-1]
+	screen._on_hand_card_clicked(_view_for(screen, product))
+	assert_str(screen._notice_label.text).contains("take a product out")
+	var row_card: CardInstance = screen.run.row[1]
+	screen._on_row_card_clicked(_row_view(screen, 1))
+	assert_int(screen.run.row.size()).is_equal(6)
+	assert_bool(screen.run.row.has(row_card)).is_false()
+	assert_object(screen._picked).is_same(row_card)
+	assert_bool(screen.run.hand().has(product)).is_true()
+
+
+## While product room is left, any panel takes a product: the 7th panel isn't reserved.
+func test_the_seventh_panel_takes_a_product_while_room_is_left() -> void:
+	var runner: GdUnitSceneRunner = scene_runner(SCREEN)
+	var screen: ShiftScreen = runner.scene()
+	screen._on_debug_card("bread")
+	var product: CardInstance = screen.run.hand()[-1]
+	screen._on_hand_card_clicked(_view_for(screen, product))
+	screen._on_slot_input(_left_click(), 6)
+	assert_object(screen.run.row[0]).is_same(product)
+	assert_str(screen._notice_label.text).is_empty()
 
 
 func test_picking_a_reward_adds_it_to_the_deck_and_logs_it() -> void:
@@ -251,6 +327,19 @@ func _pass_first_shift(screen: ShiftScreen) -> void:
 		screen._on_slot_input(_left_click(), screen.run.row.size())
 	await screen._on_checkout_pressed()
 	assert_int(screen.run.phase).is_equal(RunState.Phase.REWARD)
+
+
+## Adds the cards to the hand through the debug panel and places them at the end of the row.
+func _place_ids(screen: ShiftScreen, ids: Array[String]) -> void:
+	for id: String in ids:
+		screen._on_debug_card(id)
+		screen._on_hand_card_clicked(_view_for(screen, screen.run.hand()[-1]))
+		screen._on_slot_input(_left_click(), screen.run.row.size())
+
+
+static func _slot_hint(screen: ShiftScreen, slot: int) -> String:
+	var hint: Label = screen._slots[slot].get_child(0) as Label
+	return hint.text if hint != null else ""
 
 
 func _frames(count: int) -> void:

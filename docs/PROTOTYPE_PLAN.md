@@ -1,6 +1,6 @@
 # Next Customer: Prototype Plan
 
-> Status: v0.8, closed at proto-r1. The full build (`docs/FULL_BUILD_PLAN.md`) has taken over; this plan stays the scoring-rule spec (sections 3–5) and changes only when a rule does.
+> Status: v0.9, closed at proto-r1. The full build (`docs/FULL_BUILD_PLAN.md`) has taken over; this plan stays the scoring-rule spec (sections 3–5) and changes only when a rule does.
 > Source: the original "Receipt Rogue" game design plan, plus the decisions made in planning.
 > Engine: Godot 4 (exact version pinned in `AGENTS.md`), GDScript with static typing. Playtest builds are delivered in the browser.
 
@@ -22,7 +22,7 @@ The prototype has to show three things:
 
 - The full scoring engine with coupon hook points (section 4), with unit tests
 - 8 products and 5 coupons (section 5), with one coupon in the starting deck
-- One shift: read the quota, draw 8, redraw up to 2 once, place up to 6 cards in order with **click-to-place** (select a card, click a slot), see the live projected total, run checkout
+- One shift: read the quota, draw 8, redraw up to 2 once, place up to 6 products and 7 cards in order (section 3.1) with **click-to-place** (select a card, click a slot), see the live projected total, run checkout
 - The point-count sequence: receipt lines print one by one, the source of each bonus is highlighted, the subtotal ticks up, with beep and print sounds and a fast-forward option
 - A run of 5 shifts with quotas 10 / 15 / 22 / 32 / 48 (placeholders)
 - After each successful shift, pick 1 of 3 stock cards or skip; deck view; 15-card limit with replacement (the 13-card start deck reaches it after two picks, so replacement is reachable from the third reward)
@@ -47,7 +47,8 @@ The original design doc is the base. These decisions resolve its ambiguities. Ea
 
 - The checkout row is **compacted**: cards always fill slots from the left, with no gaps. Removing a card shifts the ones after it to the left.
 - The **last slot** means the last filled slot.
-- Coupons take a slot like products.
+- The row has **6 shared slots + 1 coupon-only slot** (decided with the user, v0.9): it holds at most `slot_count` products (6) and at most `slot_count + coupon_slot_count` cards (7), both in balance data. One coupon can take the coupon slot; extra coupons can still take product slots. The check is by `kind`, never card ids.
+- The coupon slot is a capacity, not a position: the row stays one flat, compacted, ordered list, so a product can sit in the 7th slot when a coupon is earlier. Coupons in the row still break adjacency exactly as before, so scoring doesn't change, and every row that was legal before stays legal.
 
 ### 3.2 Order of resolution
 
@@ -191,6 +192,7 @@ res://
     score_step.gd       # one explanation line: slot, source, step_type, value change, text
     deck.gd             # draw, redraw, reward insertion; takes the run's RandomNumberGenerator
     run_state.gd        # deck, shift, quota, seed, (later: upgrades, inspection)
+    row_capacity.gd     # row limits by kind: slot_count products, + coupon_slot_count cards (3.1)
   data/
     cards/*.tres        # one CardDefinition resource per card
     decks/starter.tres  # DeckDefinition (ready for unlockable decks later)
@@ -259,7 +261,7 @@ The two-pass engine, click-to-place UI, count-up animation, browser export and l
 | Day | Work | Done when |
 |---|---|---|
 | 1 | Project setup, GdUnit4, **browser export check with an empty scene** (catches export problems early), card data resources, scoring engine with both passes, all tests from section 3.7 | Tests pass headless. An empty web build runs in the browser. |
-| 2 | Shift screen: draw, redraw, click-to-place into 6 slots, live preview and receipt explanation, deck and seed, debug panel, event logger with all event types, and a **first rough count-up** for checkout (scan, fly-ins from the source card, multiplier stamps, fizzles, ticking subtotal, fast-forward) so the scoring feel is tested from the first playable build | One shift is playable, counted up and logged from start to finish |
+| 2 | Shift screen: draw, redraw, click-to-place into 6 slots (7 since v0.9, section 3.1), live preview and receipt explanation, deck and seed, debug panel, event logger with all event types, and a **first rough count-up** for checkout (scan, fly-ins from the source card, multiplier stamps, fizzles, ticking subtotal, fast-forward) so the scoring feel is tested from the first playable build | One shift is playable, counted up and logged from start to finish |
 | 3 | Count-up polish and sounds, reward screen, 5-shift run, win and lose screens, restart, log export, log summary script, web build uploaded. First playtest with 1–2 people. | A stranger can play a complete run in the browser without being told what to do, and send back the log |
 
 ### What gets cut if time runs out (in this order)
@@ -327,7 +329,7 @@ A small script summarises the logs: rearrangements per checkout, each coupon's p
 
 **A high rearrangement count is a clue, not proof of blind shuffling.** A player might rearrange a lot because they are exploring combinations on purpose. Always combine the count with the interview (section 9).
 
-Provisional threshold, for checkouts of 3 or more cards: a checkout is **High** when its rearrangements are at least twice the number of cards committed (12 or more for a full row), otherwise **Low**. Checkouts of 0–2 cards are left out. A player is High when most of their checkouts are. Re-check the threshold against the first round's logs and record any change in the changelog.
+Provisional threshold, for checkouts of 3 or more cards: a checkout is **High** when its rearrangements are at least twice the number of cards committed (14 or more for a full 7-card row), otherwise **Low**. Checkouts of 0–2 cards are left out. A player is High when most of their checkouts are. Re-check the threshold against the first round's logs and record any change in the changelog.
 
 | Rearrangements | Player can explain the payout and why they chose the order | Interpretation |
 |---|---|---|
@@ -398,3 +400,4 @@ Rules for iterating: **one major variable per round**, card values tweaked only 
 | v0.6 | 2026-10-06 | Checkout is always allowed, even with an empty or one-card row (decided with the user) · a first rough count-up moves into day 2, so juice is tested from the first playable build; day 3 polishes it and adds sound · `checkout` is logged at the click and a new `count_up` event carries count-up time and fast-forward · on the web, planning time pauses only while the page is hidden · known risk noted: two open tabs can overwrite each other's log |
 | v0.7 | 2026-10-06 | Day 3: generally useful cards decided with the user (Bread, Eggs, Milk, Banana) · reward pool, first-offer pool and offer size in balance data · `reward` event fields spelled out · placeholder sounds generated by `tools/make_sfx.py`, receipt in JetBrains Mono (SIL OFL) · in-game buttons never take keyboard focus (Space is the fast-forward key) · reward and results buttons only react once the mouse is released after they appear · a shade blocks clicks behind panels · `deck_view_opened` counts only views the player chose |
 | v0.8 | 2026-10-06 | Closed at proto-r1 after the developer's runs; the outside playtest and decision gate were not run, and their questions move to the full build's playtest rounds · this plan stays the scoring-rule spec · decisions taken from the runs (coupon slots, Bundle as "2 for 1", run stock) are recorded in `docs/FULL_BUILD_PLAN.md` v0.5 and land here when phase 1 or 2 changes the rule |
+| v0.9 | 2026-10-06 | Coupon slots, decided with the user (full build phase 1, `docs/FULL_BUILD_PLAN.md` section 5.1): the row has 6 shared slots + 1 coupon-only slot, at most 6 products and 7 cards (`coupon_slot_count` in balance data, checked by `kind` in `RunState.can_place`) · the row stays flat and compacted, coupons still break adjacency, scoring and every golden total are unchanged · the shift screen shows 7 identical slots (no panel is marked as the coupon slot, so coupons don't look tied to one position), a "Products n/6 · Coupon slot n/1" count, and a short notice when a product doesn't fit · the section 8 High threshold for a full row is now 14 rearrangements (twice 7 cards) |

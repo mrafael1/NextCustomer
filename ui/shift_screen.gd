@@ -6,11 +6,17 @@ extends Control
 ##
 ## Click-to-place: click a hand card to pick it up, then click a slot to put it there (a
 ## filled slot pushes the cards from there to the right). Click a row card to pick it back up.
+##
+## The row has slot_count product slots plus coupon-only slots (plan section 3.1). The row is
+## compacted, so the coupon slot is a capacity, not a position: no panel is marked as the
+## coupon slot (a coupon can go anywhere), and the capacity label counts it instead.
 
 const STARTER_DECK := "res://data/decks/starter.tres"
 const BALANCE := "res://data/balance/balance.tres"
 const DEBUG_PANEL := "res://debug/debug_panel.tscn"
 const CARDS_FOLDER := "res://data/cards"
+## How long a notice (e.g. a product that doesn't fit) stays before it fades.
+const NOTICE_SECONDS := 2.2
 
 var run: RunState
 var tracker: CheckoutTracker = CheckoutTracker.new()
@@ -39,6 +45,9 @@ var _slots: Array[PanelContainer] = []
 var _row_views: Array[CardView] = []
 var _hand_box: HBoxContainer
 var _projected_label: Label
+var _capacity_label: Label
+var _notice_label: Label
+var _notice_tween: Tween
 var _subtotal_label: Label
 var _receipt: ReceiptView
 var _redraw_button: Button
@@ -86,6 +95,7 @@ func start_new_run(seed_value: int) -> void:
 
 
 func _on_shift_started() -> void:
+	_clear_notice()
 	_picked = null
 	_picked_from_row = false
 	_redraw_mode = false
@@ -117,6 +127,7 @@ func _on_hand_card_clicked(view: CardView) -> void:
 		_drop_pick()
 	else:
 		_pick(view.card, false)
+		_explain_if_refused(view.card)
 	_refresh()
 
 
@@ -124,6 +135,10 @@ func _on_row_card_clicked(view: CardView) -> void:
 	if _counting or _redraw_mode or run.phase != RunState.Phase.PLANNING:
 		return
 	var slot: int = run.row.find(view.card)
+	# A hand card that fits nowhere (the notice says to take a product out) is let go, so this
+	# click takes the row card out instead of repeating the refusal.
+	if _picked != null and not _picked_from_row and not run.can_place(_picked):
+		_drop_pick()
 	if _picked != null:
 		_place_picked(slot)
 	elif run.remove(view.card):
@@ -147,6 +162,40 @@ func _place_picked(slot: int) -> void:
 		_picked = null
 		_picked_from_row = false
 		_refresh()
+	else:
+		_explain_if_refused(_picked)
+
+
+## Plan section 3.1: a product doesn't fit once every product slot is used, even when the
+## coupon slot is still free. Says so instead of silently ignoring the click.
+func _explain_if_refused(card: CardInstance) -> void:
+	if card.definition.is_coupon() or not RowCapacity.products_full(run.balance, run.row):
+		return
+	var products: String = (
+		"%d/%d products" % [RowCapacity.product_count(run.row), run.balance.slot_count]
+	)
+	if run.row.size() < RowCapacity.card_limit(run.balance):
+		_show_notice("%s: only a coupon fits now" % products)
+	else:
+		_show_notice("%s: take a product out first" % products)
+
+
+func _show_notice(text: String) -> void:
+	_notice_label.text = text
+	_notice_label.modulate = Color.WHITE
+	_sfx.play("denied", 1.4, -6.0)
+	if _notice_tween != null:
+		_notice_tween.kill()
+	_notice_tween = create_tween()
+	_notice_tween.tween_interval(NOTICE_SECONDS)
+	_notice_tween.tween_property(_notice_label, "modulate", Color(1, 1, 1, 0), 0.4)
+
+
+func _clear_notice() -> void:
+	if _notice_tween != null:
+		_notice_tween.kill()
+		_notice_tween = null
+	_notice_label.text = ""
 
 
 func _pick(card: CardInstance, from_row: bool) -> void:
@@ -201,6 +250,7 @@ func _on_checkout_pressed() -> void:
 		return
 	_counting = true
 	_drop_pick()
+	_clear_notice()
 	_redraw_mode = false
 	_deck_view.visible = false
 	_click_ms = Time.get_ticks_msec()
@@ -480,6 +530,15 @@ func _refresh() -> void:
 	_quota_label.text = "Quota €%d" % run.quota()
 	_deck_button.text = "Deck %d/%d" % [run.deck.size(), run.balance.deck_limit]
 	_seed_label.text = "Seed %d" % run.run_seed
+	_capacity_label.text = (
+		"Products %d/%d  ·  Coupon slot %d/%d"
+		% [
+			RowCapacity.product_count(run.row),
+			run.balance.slot_count,
+			RowCapacity.coupon_slots_used(run.balance, run.row),
+			run.balance.coupon_slot_count
+		]
+	)
 	_refresh_row()
 	_refresh_hand()
 	_refresh_buttons()
@@ -500,17 +559,22 @@ func _refresh_row() -> void:
 			panel.add_child(view)
 			_row_views.append(view)
 		else:
-			var hint: Label = Label.new()
-			hint.text = str(slot + 1)
-			hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-			hint.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-			hint.add_theme_font_size_override("font_size", 28)
-			hint.add_theme_color_override("font_color", Color(1, 1, 1, 0.18))
-			hint.mouse_filter = Control.MOUSE_FILTER_IGNORE
-			panel.add_child(hint)
+			panel.add_child(_empty_slot_hint(slot))
 		var placeable: bool = _picked != null and run.can_place(_picked) and slot <= run.row.size()
 		var style: StyleBoxFlat = panel.get_theme_stylebox("panel") as StyleBoxFlat
 		style.border_color = Palette.MUSTARD if placeable else Color(1, 1, 1, 0.15)
+
+
+## An empty panel shows its slot number.
+func _empty_slot_hint(slot: int) -> Label:
+	var hint: Label = Label.new()
+	hint.text = str(slot + 1)
+	hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	hint.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	hint.add_theme_font_size_override("font_size", 28)
+	hint.add_theme_color_override("font_color", Color(1, 1, 1, 0.18))
+	hint.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	return hint
 
 
 func _refresh_hand() -> void:
@@ -636,16 +700,24 @@ func _build() -> void:
 	row_column.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	row_column.add_theme_constant_override("separation", 10)
 	middle.add_child(row_column)
-	var row_title: Label = _info_label(row_column, 16)
-	row_title.text = "CHECKOUT  (scanned left to right)"
+	var row_header: HBoxContainer = HBoxContainer.new()
+	row_header.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	# Room above the row for the value badges over each card.
-	row_title.custom_minimum_size = Vector2(0, 72)
-	row_title.vertical_alignment = VERTICAL_ALIGNMENT_TOP
+	row_header.custom_minimum_size = Vector2(0, 72)
+	row_column.add_child(row_header)
+	var row_title: Label = _info_label(row_header, 16)
+	row_title.text = "CHECKOUT  (scanned left to right)"
+	row_title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	row_title.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
+	_capacity_label = _info_label(row_header, 16)
+	_capacity_label.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
+	_capacity_label.modulate = Color(1, 1, 1, 0.75)
 	_row_box = HBoxContainer.new()
 	_row_box.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_row_box.add_theme_constant_override("separation", 14)
+	# Narrow enough that 7 slots and the receipt fit the 1280 px window (plan section 3.1).
+	_row_box.add_theme_constant_override("separation", 10)
 	row_column.add_child(_row_box)
-	for slot: int in range(_balance.slot_count):
+	for slot: int in range(RowCapacity.card_limit(_balance)):
 		_row_box.add_child(_slot_panel(slot))
 	var totals: HBoxContainer = HBoxContainer.new()
 	totals.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -656,8 +728,11 @@ func _build() -> void:
 	_subtotal_label.add_theme_color_override("font_color", Palette.MUSTARD)
 	_subtotal_label.add_theme_constant_override("outline_size", 8)
 	_subtotal_label.add_theme_color_override("font_outline_color", Palette.INK)
+	_notice_label = _info_label(totals, 16)
+	_notice_label.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	_notice_label.add_theme_color_override("font_color", Palette.TOMATO)
 	_receipt = ReceiptView.new()
-	_receipt.custom_minimum_size = Vector2(330, 0)
+	_receipt.custom_minimum_size = Vector2(300, 0)
 	_receipt.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	middle.add_child(_receipt)
 
