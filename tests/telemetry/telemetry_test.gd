@@ -127,3 +127,21 @@ func test_export_joins_every_session_and_includes_its_own_event() -> void:
 	for file_name: String in DirAccess.get_files_at(folder):
 		DirAccess.remove_absolute(folder.path_join(file_name))
 	DirAccess.remove_absolute(folder)
+
+
+## Plan section 8: the upgrade event's fields, and upgrade ids in pick order (run_end).
+func test_upgrade_event_fields() -> void:
+	var coupon_engine: UpgradeDefinition = load("res://data/upgrades/coupon_engine.tres")
+	var category_engine: UpgradeDefinition = load("res://data/upgrades/category_engine.tres")
+	var offered: Array[UpgradeDefinition] = [category_engine, coupon_engine]
+	var event: Dictionary = RunEvents.upgrade_pick(4, offered, coupon_engine, 1234)
+	assert_array(event.keys()).contains_exactly_in_any_order(
+		["shift", "offered", "picked", "decide_ms"]
+	)
+	assert_int(event["shift"]).is_equal(4)
+	assert_array(event["offered"]).is_equal(["category_engine", "coupon_engine"])
+	assert_str(event["picked"]).is_equal("coupon_engine")
+	assert_int(event["decide_ms"]).is_equal(1234)
+	# JSON-friendly: plain strings, not StringNames.
+	assert_str(JSON.stringify(event)).contains('"picked":"coupon_engine"')
+	assert_array(RunEvents.upgrade_ids([])).is_empty()

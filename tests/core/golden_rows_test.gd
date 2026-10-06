@@ -2,6 +2,8 @@ extends GdUnitTestSuite
 ## The required rows from docs/PROTOTYPE_PLAN.md section 3.7, scored with the frozen fixture
 ## tests/fixtures/cards_v0_4 (never the live data/). Each row checks every slot's payout and
 ## the total. If one fails, the change is wrong unless the user approved a rule change.
+## Each row also scores identically, step for step, with no upgrades and with upgrades whose
+## rules do nothing (plan section 3.8).
 
 const FIXTURE_DIR := "res://tests/fixtures/cards_v0_4"
 
@@ -67,6 +69,30 @@ func test_golden_row(
 		. override_failure_message("%s: total %d, expected %d" % [row, result.total, total])
 		. is_equal(total)
 	)
+	var plain: Array = _steps_as_data(result)
+	var no_upgrades: Array[UpgradeDefinition] = []
+	for upgrades: Array[UpgradeDefinition] in [no_upgrades, _neutral_upgrades()]:
+		var upgraded: Array = _steps_as_data(Scoring.score(_row(row), upgrades))
+		assert_array(upgraded).override_failure_message(row).is_equal(plain)
+
+
+## Upgrades that change no score: rules with neutral numbers, and a run modifier only.
+static func _neutral_upgrades() -> Array[UpgradeDefinition]:
+	var rules: Array[UpgradeRule] = [FirstCouponMultiplierRule.new(), DistinctTagBonusRule.new()]
+	var neutral: UpgradeDefinition = UpgradeDefinition.new()
+	neutral.type = UpgradeDefinition.Type.COUPON_ENGINE
+	neutral.rules = rules
+	var redraw: UpgradeDefinition = UpgradeDefinition.new()
+	redraw.type = UpgradeDefinition.Type.ECONOMY
+	redraw.extra_redraws = 1
+	return [neutral, redraw]
+
+
+static func _steps_as_data(result: ScoreResult) -> Array:
+	var data: Array = []
+	for step: ScoreStep in result.steps:
+		data.append(step.to_dictionary())
+	return data
 
 
 static func _row(ids: String) -> Array[CardInstance]:

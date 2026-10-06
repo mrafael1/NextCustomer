@@ -1,13 +1,19 @@
 class_name RunState
 extends RefCounted
-## One run: the deck, the current shift, the hand and the checkout row.
+## One run: the deck, the current shift, the hand, the checkout row, the owned upgrades and
+## the run history.
 ##
 ## The UI calls these methods and displays the results; it never applies rules itself. The
-## run's seed is passed in (core never makes seeds), and every draw uses the RNG built from it.
+## run's seed is passed in (core never makes seeds), and every draw and offer uses the RNG built
+## from it.
 
 ## PLANNING: placing cards. REWARD: a passed shift's offer is waiting for a pick or a skip.
-## SCORED: ready for the next shift. WON / LOST: the run is over.
-enum Phase { PLANNING, REWARD, SCORED, WON, LOST }
+## UPGRADE: on an upgrade shift, after the reward, an upgrade offer is waiting for a pick (there
+## is no skip, plan section 3.8). SCORED: ready for the next shift. WON / LOST: the run is over.
+enum Phase { PLANNING, REWARD, UPGRADE, SCORED, WON, LOST }
+
+## Redraws every shift allows before upgrades (one redraw of up to redraw_limit cards).
+const BASE_REDRAWS := 1
 
 var run_seed: int = 0
 var balance: BalanceDefinition
@@ -16,11 +22,22 @@ var deck: Deck
 var shift_index: int = 0
 var phase: Phase = Phase.PLANNING
 var row: Array[CardInstance] = []
-var redraw_used: bool = false
+## Redraws made this shift, and how many it allows: BASE_REDRAWS plus each owned upgrade's
+## extra_redraws, set when the shift starts.
+var redraws_used: int = 0
+var redraws_allowed: int = 0
 var last_result: ScoreResult
 ## The cards offered after the last passed shift (empty outside the REWARD phase).
 var offer: Array[CardDefinition] = []
 var offers_made: int = 0
+## Owned upgrades, in pick order. Scoring steps name them by index in this list.
+var upgrades: Array[UpgradeDefinition] = []
+## The upgrades offered after the last passed upgrade shift. Built at checkout with the reward
+## offer, kept through the REWARD and UPGRADE phases (non-empty during REWARD means an upgrade
+## step follows) and cleared by pick_upgrade; empty otherwise.
+var upgrade_offer: Array[UpgradeDefinition] = []
+## One entry per played shift, in order.
+var history: Array[ShiftRecord] = []
 var _rng: RandomNumberGenerator
 
 
@@ -48,7 +65,10 @@ func is_last_shift() -> bool:
 func start_shift() -> void:
 	deck.draw_hand(balance.hand_size)
 	row = []
-	redraw_used = false
+	redraws_used = 0
+	redraws_allowed = BASE_REDRAWS
+	for upgrade: UpgradeDefinition in upgrades:
+		redraws_allowed += upgrade.extra_redraws
 	last_result = null
 	phase = Phase.PLANNING
 
@@ -63,7 +83,7 @@ func hand() -> Array[CardInstance]:
 
 
 func can_redraw(cards: Array[CardInstance]) -> bool:
-	if phase != Phase.PLANNING or redraw_used:
+	if phase != Phase.PLANNING or redraws_used >= redraws_allowed:
 		return false
 	if cards.is_empty() or cards.size() > balance.redraw_limit:
 		return false
@@ -74,7 +94,8 @@ func can_redraw(cards: Array[CardInstance]) -> bool:
 	return true
 
 
-## Replaces hand cards (not row cards) once per shift. Returns the cards received.
+## Replaces hand cards (not row cards), up to redraws_allowed times per shift. Cards replaced by
+## any redraw are set aside for the rest of the shift. Returns the cards received.
 func redraw(cards: Array[CardInstance]) -> Array[CardInstance]:
 	var received: Array[CardInstance] = []
 	if not can_redraw(cards):
@@ -83,7 +104,7 @@ func redraw(cards: Array[CardInstance]) -> Array[CardInstance]:
 	for card: CardInstance in deck.redraw(cards):
 		if not before.has(card):
 			received.append(card)
-	redraw_used = true
+	redraws_used += 1
 	return received
 
 
@@ -111,16 +132,19 @@ func remove(card: CardInstance) -> bool:
 	return true
 
 
-## The live preview: exactly what checkout would score now.
+## The live preview: exactly what checkout would score now, with the run's upgrades.
 func preview() -> ScoreResult:
-	return Scoring.score(row)
+	return Scoring.score(row, upgrades)
 
 
-## Scores the row. Always allowed, even for an empty row (plan section 3.5).
+## Scores the row with the run's upgrades. Always allowed, even for an empty row (plan section
+## 3.5). A pass builds the reward offer and, on an upgrade shift, the upgrade offer, in that
+## order, from the run's RNG (plan section 3.8).
 func checkout() -> ScoreResult:
 	if phase != Phase.PLANNING:
 		return last_result
-	last_result = Scoring.score(row)
+	last_result = Scoring.score(row, upgrades)
+	history.append(ShiftRecord.new(shift_index + 1, quota(), last_result.total))
 	if last_result.total < quota():
 		phase = Phase.LOST
 	elif is_last_shift():
@@ -128,6 +152,8 @@ func checkout() -> ScoreResult:
 	else:
 		offer = RewardOffer.make(_rng, balance, offers_made == 0)
 		offers_made += 1
+		if UpgradeOffer.is_upgrade_shift(balance, shift_index + 1):
+			upgrade_offer = UpgradeOffer.make(_rng, balance, upgrades)
 		phase = Phase.REWARD
 	return last_result
 
@@ -150,6 +176,7 @@ func take_reward(card: CardDefinition, replaced: CardInstance = null) -> bool:
 			return false
 		deck.remove_card(replaced)
 	deck.add_card(card)
+	history[-1].card_picked = card
 	_finish_reward()
 	return true
 
@@ -157,21 +184,33 @@ func take_reward(card: CardDefinition, replaced: CardInstance = null) -> bool:
 func skip_reward() -> bool:
 	if phase != Phase.REWARD:
 		return false
+	history[-1].reward_skipped = true
 	_finish_reward()
 	return true
 
 
+## After the reward: the upgrade step if an upgrade offer is waiting, else ready for the next
+## shift. An empty offer (every pool upgrade owned) skips the step.
 func _finish_reward() -> void:
 	offer = []
+	phase = Phase.SCORED if upgrade_offer.is_empty() else Phase.UPGRADE
+
+
+## Takes one of the offered upgrades (plan section 3.8). The player must pick: there is no skip.
+## It applies from the next shift on.
+func pick_upgrade(upgrade: UpgradeDefinition) -> bool:
+	if phase != Phase.UPGRADE or not upgrade_offer.has(upgrade):
+		return false
+	upgrades.append(upgrade)
+	history[-1].upgrade_taken = upgrade
+	upgrade_offer = []
 	phase = Phase.SCORED
+	return true
 
 
-func can_advance() -> bool:
-	return phase == Phase.SCORED
-
-
+## Starts the next shift. Only from SCORED: after the reward, and the upgrade on upgrade shifts.
 func next_shift() -> bool:
-	if not can_advance():
+	if phase != Phase.SCORED:
 		return false
 	shift_index += 1
 	start_shift()
@@ -187,4 +226,5 @@ func debug_add_to_hand(card_definition: CardDefinition) -> CardInstance:
 func debug_skip_to_shift(index: int) -> void:
 	shift_index = clampi(index, 0, shift_count() - 1)
 	offer = []
+	upgrade_offer = []
 	start_shift()

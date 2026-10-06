@@ -1,8 +1,9 @@
 class_name ShiftScreen
 extends Control
 ## The shift screen (plan section 2): draw, redraw, click-to-place into the row, the live
-## projected total and receipt, checkout with the count-up, the reward choice, the deck view,
-## and the run's results. It only displays RunState and ScoreResult; every rule lives in core/.
+## projected total and receipt, checkout with the count-up, the reward choice, the upgrade
+## choice and loyalty card on upgrade shifts (plan section 3.8), the deck view, and the run's
+## results with its history. It only displays RunState and ScoreResult; every rule lives in core/.
 ##
 ## Click-to-place: click a hand card to pick it up, then click a slot to put it there (a
 ## filled slot pushes the cards from there to the right). Click a row card to pick it back up.
@@ -15,6 +16,7 @@ const STARTER_DECK := "res://data/decks/starter.tres"
 const BALANCE := "res://data/balance/balance.tres"
 const DEBUG_PANEL := "res://debug/debug_panel.tscn"
 const CARDS_FOLDER := "res://data/cards"
+const UPGRADES_FOLDER := "res://data/upgrades"
 ## How long a notice (e.g. a product that doesn't fit) stays before it fades.
 const NOTICE_SECONDS := 2.2
 
@@ -36,9 +38,12 @@ var _run_ended_ms: int = -1
 var _reward_shown_ms: int = 0
 var _deck_viewed_for_reward: bool = false
 var _pending_reward: CardDefinition
+## When the upgrade tickets appeared (decide_ms in the upgrade event).
+var _upgrade_shown_ms: int = 0
 
 var _shift_label: Label
 var _quota_label: Label
+var _loyalty_card: LoyaltyCard
 var _deck_button: Button
 var _seed_label: Label
 var _slots: Array[PanelContainer] = []
@@ -58,7 +63,10 @@ var _banner_label: Label
 var _banner_detail: Label
 var _banner_button: Button
 var _reward_panel: RewardPanel
-## Dims the screen and blocks clicks behind the reward panel, deck view and results.
+var _upgrade_panel: UpgradePanel
+var _history_view: RunHistoryView
+## Dims the screen and blocks clicks behind the reward and upgrade panels, deck view and
+## results.
 var _shade: ColorRect
 var _banner_armed_ms: int = 0
 var _deck_view: DeckView
@@ -107,6 +115,7 @@ func _on_shift_started() -> void:
 	_redraw_pick = []
 	_banner.visible = false
 	_reward_panel.visible = false
+	_upgrade_panel.visible = false
 	_deck_view.visible = false
 	_pending_reward = null
 	tracker.begin(Time.get_ticks_msec(), _has_focus())
@@ -283,11 +292,19 @@ func _on_checkout_pressed() -> void:
 					"shift_reached": run.shift_index + 1,
 					"last_score": result.total,
 					"run_ms": _run_ended_ms - _run_started_ms,
+					"upgrades": RunEvents.upgrade_ids(run.upgrades),
 				}
 			)
 		)
 	_refresh()
-	await _count_up.play(result, _row_views, _names(committed), run.quota())
+	await _count_up.play(
+		result,
+		_row_views,
+		_names(committed),
+		run.quota(),
+		_loyalty_card.stamped_boxes(),
+		_upgrade_names()
+	)
 	(
 		_log
 		. log_event(
@@ -363,6 +380,8 @@ func _on_deck_closed() -> void:
 	if run.phase == RunState.Phase.REWARD:
 		_pending_reward = null
 		_reward_panel.visible = true
+	elif run.phase == RunState.Phase.UPGRADE:
+		_upgrade_panel.visible = true
 
 
 func _on_reward_deck_requested() -> void:
@@ -379,12 +398,15 @@ func _on_deck_button_pressed() -> void:
 	if run.phase == RunState.Phase.REWARD:
 		_on_reward_deck_requested()
 		return
+	# The tickets come back when the deck view closes; there is still no way past them.
+	_upgrade_panel.visible = false
 	_deck_view.open(
 		run.deck.cards, "Your deck (%d/%d)" % [run.deck.size(), run.balance.deck_limit], false
 	)
 
 
-## Applies the choice (card null = skip), logs it, and starts the next shift.
+## Applies the choice (card null = skip), logs it, and starts the next shift, or shows the
+## upgrade tickets on an upgrade shift.
 func _finish_reward(card: CardDefinition, replaced: CardInstance) -> void:
 	var offered: Array = run.offer.map(
 		func(offered_card: CardDefinition) -> String: return String(offered_card.id)
@@ -411,8 +433,50 @@ func _finish_reward(card: CardDefinition, replaced: CardInstance) -> void:
 	_reward_panel.visible = false
 	_deck_view.visible = false
 	_sfx.play("click")
+	if run.phase == RunState.Phase.UPGRADE:
+		_show_upgrades()
+		return
 	run.next_shift()
 	_on_shift_started()
+
+
+# --- Upgrades and the loyalty card ---------------------------------------------------------
+
+
+## Plan section 3.8: after the reward on an upgrade shift, the player must pick a ticket.
+func _show_upgrades() -> void:
+	_upgrade_shown_ms = Time.get_ticks_msec()
+	_upgrade_panel.show_offer(run.upgrade_offer)
+
+
+func _on_upgrade_picked(upgrade: UpgradeDefinition) -> void:
+	if run.phase != RunState.Phase.UPGRADE:
+		return
+	var offered: Array[UpgradeDefinition] = run.upgrade_offer.duplicate()
+	if not run.pick_upgrade(upgrade):
+		return
+	var decide_ms: int = Time.get_ticks_msec() - _upgrade_shown_ms
+	_log.log_event(
+		"upgrade", RunEvents.upgrade_pick(run.shift_index + 1, offered, upgrade, decide_ms)
+	)
+	_upgrade_panel.visible = false
+	_deck_view.visible = false
+	_refresh_loyalty_card()
+	_loyalty_card.play_stamp(run.upgrades.size() - 1)
+	_sfx.play("stamp")
+	run.next_shift()
+	_on_shift_started()
+
+
+func _refresh_loyalty_card() -> void:
+	_loyalty_card.show_upgrades(run.balance.upgrade_shifts.size(), run.upgrades)
+
+
+func _upgrade_names() -> PackedStringArray:
+	var names: PackedStringArray = PackedStringArray()
+	for upgrade: UpgradeDefinition in run.upgrades:
+		names.append(upgrade.display_name)
+	return names
 
 
 func _on_export_pressed() -> void:
@@ -423,6 +487,8 @@ func _on_export_pressed() -> void:
 		screen = "results"
 	elif run.phase == RunState.Phase.REWARD:
 		screen = "reward"
+	elif run.phase == RunState.Phase.UPGRADE:
+		screen = "upgrade"
 	_log.export_logs(screen)
 
 
@@ -475,6 +541,7 @@ func _add_debug_panel() -> void:
 	_debug_panel.call("set_shift_count", _balance.quotas.size())
 	_debug_panel.connect(&"seed_requested", _on_debug_seed)
 	_debug_panel.connect(&"card_requested", _on_debug_card)
+	_debug_panel.connect(&"upgrade_requested", _on_debug_upgrade)
 	_debug_panel.connect(&"shift_requested", _on_debug_shift)
 
 
@@ -516,6 +583,25 @@ func _on_debug_card(card_id: String) -> void:
 	_refresh()
 
 
+## Gives an upgrade straight away, for testing. The shift restarts (a fresh hand), so its
+## redraws are counted again with the new upgrade. An owned upgrade isn't given twice.
+func _on_debug_upgrade(upgrade_id: String) -> void:
+	if _counting or run.phase != RunState.Phase.PLANNING:
+		return
+	var path: String = "%s/%s.tres" % [UPGRADES_FOLDER, upgrade_id]
+	if not ResourceLoader.exists(path):
+		return
+	var upgrade: UpgradeDefinition = load(path)
+	if run.upgrades.has(upgrade):
+		return
+	_log.log_event("debug", {"action": "give_upgrade", "upgrade": upgrade_id})
+	run.upgrades.append(upgrade)
+	run.debug_skip_to_shift(run.shift_index)
+	_refresh_loyalty_card()
+	_loyalty_card.play_stamp(run.upgrades.size() - 1)
+	_on_shift_started()
+
+
 func _on_debug_shift(shift_number: int) -> void:
 	if _counting:
 		return
@@ -533,6 +619,7 @@ func _on_debug_shift(shift_number: int) -> void:
 func _refresh() -> void:
 	_shift_label.text = "Shift %d / %d" % [run.shift_index + 1, run.shift_count()]
 	_quota_label.text = "Quota €%d" % run.quota()
+	_refresh_loyalty_card()
 	_deck_button.text = "Deck %d/%d" % [run.deck.size(), run.balance.deck_limit]
 	_seed_label.text = "Seed %d" % run.run_seed
 	_capacity_label.text = (
@@ -599,22 +686,26 @@ func _refresh_hand() -> void:
 func _refresh_buttons() -> void:
 	var planning: bool = run.phase == RunState.Phase.PLANNING and not _counting
 	_checkout_button.disabled = not planning
-	_redraw_button.disabled = not planning or run.redraw_used
+	var redraw_left: bool = run.redraws_used < run.redraws_allowed
+	_redraw_button.disabled = not planning or not redraw_left
 	_cancel_button.visible = _redraw_mode
 	if _redraw_mode:
 		_redraw_button.text = (
 			"Confirm redraw (%d/%d)" % [_redraw_pick.size(), run.balance.redraw_limit]
 		)
-	else:
+	elif redraw_left:
 		_redraw_button.text = (
-			"Redraw used" if run.redraw_used else "Redraw up to %d" % [run.balance.redraw_limit]
+			"Redraw up to %d (%d left)"
+			% [run.balance.redraw_limit, run.redraws_allowed - run.redraws_used]
 		)
+	else:
+		_redraw_button.text = "Redraw used"
 
 
 func _refresh_preview() -> void:
 	var result: ScoreResult = run.preview()
 	tracker.on_preview(run.row.size(), result.total)
-	_receipt.show_result(result, _names(run.row))
+	_receipt.show_result(result, _names(run.row), _upgrade_names())
 	for slot: int in range(_row_views.size()):
 		_row_views[slot].show_badge(result.payouts[slot], false)
 		_row_views[slot].set_tags(result.tags[slot])
@@ -648,6 +739,7 @@ func _show_results(result: ScoreResult) -> void:
 				run.quota() - result.total,
 			]
 		)
+	_history_view.show_history(run.history)
 	_banner_button.text = "New run"
 	# Like the reward panel: New run waits for the mouse to be released after it appears.
 	_banner_button.disabled = true
@@ -656,7 +748,9 @@ func _show_results(result: ScoreResult) -> void:
 
 
 func _process(_delta: float) -> void:
-	_shade.visible = _reward_panel.visible or _deck_view.visible or _banner.visible
+	_shade.visible = (
+		_reward_panel.visible or _upgrade_panel.visible or _deck_view.visible or _banner.visible
+	)
 	var waited: bool = Time.get_ticks_msec() >= _banner_armed_ms
 	if _banner.visible and _banner_button.disabled and waited:
 		if not Input.is_mouse_button_pressed(MOUSE_BUTTON_LEFT):
@@ -688,6 +782,9 @@ func _build() -> void:
 	page.add_child(top)
 	_shift_label = _info_label(top, 22)
 	_quota_label = _info_label(top, 22)
+	_loyalty_card = LoyaltyCard.new()
+	_loyalty_card.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	top.add_child(_loyalty_card)
 	_deck_button = UiKit.button(top, "", _on_deck_button_pressed, 16)
 	_seed_label = _info_label(top, 16)
 	var build: Label = _info_label(top, 14)
@@ -790,6 +887,9 @@ func _build() -> void:
 	_reward_panel.picked.connect(_on_reward_picked)
 	_reward_panel.skipped.connect(_on_reward_skipped)
 	_reward_panel.deck_requested.connect(_on_reward_deck_requested)
+	_upgrade_panel = UpgradePanel.new()
+	add_child(_upgrade_panel)
+	_upgrade_panel.picked.connect(_on_upgrade_picked)
 	_banner = UiKit.paper_panel()
 	add_child(_banner)
 	var banner_column: VBoxContainer = VBoxContainer.new()
@@ -801,6 +901,9 @@ func _build() -> void:
 	_banner_detail = UiKit.label("", 20, Palette.INK)
 	_banner_detail.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	banner_column.add_child(_banner_detail)
+	_history_view = RunHistoryView.new()
+	_history_view.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	banner_column.add_child(_history_view)
 	var banner_buttons: HBoxContainer = HBoxContainer.new()
 	banner_buttons.alignment = BoxContainer.ALIGNMENT_CENTER
 	banner_buttons.add_theme_constant_override("separation", 16)

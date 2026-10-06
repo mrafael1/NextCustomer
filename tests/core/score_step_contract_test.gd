@@ -146,7 +146,7 @@ func test_armed_steps_never_change_values() -> void:
 			assert_int(step.subtotal).is_equal(result.steps[index - 1].subtotal)
 
 
-## Today every source is a card: no upgrades or inspections exist yet.
+## Without upgrades every source is a card (upgrade sources: upgrade_scoring_test.gd).
 func test_every_step_has_a_card_source() -> void:
 	var rows: PackedStringArray = [
 		"eggs,bread,cheese,banana,banana,repeat",

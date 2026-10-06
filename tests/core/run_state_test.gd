@@ -175,7 +175,7 @@ func test_redraw_up_to_two_hand_cards_once() -> void:
 	assert_int(received.size()).is_equal(2)
 	assert_bool(run.hand().has(cards[0])).is_false()
 	assert_bool(run.hand().has(received[0])).is_true()
-	assert_bool(run.redraw_used).is_true()
+	assert_int(run.redraws_used).is_equal(1)
 	assert_bool(run.can_redraw([cards[2]])).is_false()
 	assert_array(run.redraw([cards[2]])).is_empty()
 	assert_bool(run.row.has(cards[3])).is_true()
@@ -224,7 +224,7 @@ func test_passing_a_shift_moves_to_the_next_quota() -> void:
 	assert_int(run.quota()).is_equal(13)
 	assert_array(run.row).is_empty()
 	assert_int(run.hand().size()).is_equal(8)
-	assert_bool(run.redraw_used).is_false()
+	assert_int(run.redraws_used).is_equal(0)
 
 
 func test_win_on_the_last_shift() -> void:

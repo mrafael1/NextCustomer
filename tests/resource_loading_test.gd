@@ -3,6 +3,8 @@ extends GdUnitTestSuite
 ## fails on any Godot error printed while loading, so a broken link inside a .tres or .tscn
 ## fails here. A new folder of scenes or resources must be added to FOLDERS.
 
+## Subfolders are loaded too, so "res://data" covers data/cards, data/decks, data/balance and
+## data/upgrades; test_every_data_folder_is_loaded checks that.
 const FOLDERS := [
 	"res://data",
 	"res://ui",
@@ -27,6 +29,10 @@ func test_every_scene_and_resource_loads() -> void:
 			assert_object(resource).override_failure_message(path).is_instanceof(CardDefinition)
 		elif path.contains("/decks/"):
 			assert_object(resource).override_failure_message(path).is_instanceof(DeckDefinition)
+		elif path.contains("/upgrades/"):
+			assert_object(resource).override_failure_message(path).is_instanceof(UpgradeDefinition)
+		elif path.contains("/balance/"):
+			assert_object(resource).override_failure_message(path).is_instanceof(BalanceDefinition)
 
 
 static func _collect(folder: String, files: Array[String]) -> void:
@@ -37,3 +43,12 @@ static func _collect(folder: String, files: Array[String]) -> void:
 			files.append("%s/%s" % [folder, file])
 	for sub: String in DirAccess.get_directories_at(folder):
 		_collect("%s/%s" % [folder, sub], files)
+
+
+func test_every_data_folder_is_loaded() -> void:
+	var files: Array[String] = []
+	_collect("res://data", files)
+	for folder: String in ["cards", "decks", "balance", "upgrades"]:
+		var prefix: String = "res://data/%s/" % folder
+		var found: bool = files.any(func(path: String) -> bool: return path.begins_with(prefix))
+		assert_bool(found).override_failure_message(prefix).is_true()
