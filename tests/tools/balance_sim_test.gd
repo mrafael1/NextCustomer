@@ -93,6 +93,34 @@ func test_saved_cache_gives_the_same_result_without_scoring() -> void:
 	assert_array(_ids(again.row)).is_equal(_ids(best.row))
 
 
+## Plan section 3.9: an inspected shift's best row is searched under its inspection, and a
+## cached best row of an uninspected hand is never reused under one (or the other way round).
+func test_search_respects_inspections_and_keeps_their_cache_apart() -> void:
+	var no_upgrades: Array[UpgradeDefinition] = []
+	var inspections: Array[InspectionDefinition] = [_third_product_pays_zero()]
+	var search: SimRowSearch = SimRowSearch.new(_balance(6, 1))
+	var plain: SimHandBest = search.search(_cards("bread,bread,bread,bread"), no_upgrades)
+	assert_int(plain.score).is_equal(12)
+	var inspected: SimHandBest = search.search(
+		_cards("bread,bread,bread,bread"), no_upgrades, inspections
+	)
+	# 3 + 3 + 0 + 3: the 3rd Bread pays 0, and a 4th still beats stopping at 2.
+	assert_int(inspected.score).is_equal(9)
+	assert_int(Scoring.score(inspected.row, no_upgrades, inspections).total).is_equal(9)
+	var again: SimHandBest = search.search(_cards("bread,bread,bread,bread"), no_upgrades)
+	assert_int(again.score).is_equal(12)
+
+
+## The player plays inspected shifts under their inspection: its own check (the checkout total
+## equals the searched best) would print an error otherwise, and tools/test.sh fails on it.
+func test_the_player_plays_inspected_shifts() -> void:
+	var player: SimPlayer = _player("greedy", [2, 3])
+	var record: SimRunRecord = player.play(11)
+	assert_str(record.shifts[0]["inspection"]).is_empty()
+	if record.shifts.size() > 1:
+		assert_str(record.shifts[1]["inspection"]).is_equal("third_product")
+
+
 func test_same_seed_plays_the_same_run() -> void:
 	var first: SimRunRecord = _player("greedy").play(5)
 	var second: SimRunRecord = _player("greedy").play(5)
@@ -180,8 +208,11 @@ func _brute_force(
 			_brute_force(balance, hand, row + [card], result)
 
 
-func _player(strategy: String) -> SimPlayer:
+func _player(strategy: String, inspection_shifts: Array = []) -> SimPlayer:
 	var balance: BalanceDefinition = _balance(6, 1)
+	balance.inspection_shifts = PackedInt32Array(inspection_shifts)
+	if not inspection_shifts.is_empty():
+		balance.inspection_pool.append(_third_product_pays_zero())
 	balance.quotas = PackedInt32Array([5, 8, 12])
 	balance.hand_size = 5
 	balance.redraw_limit = 2
@@ -195,6 +226,16 @@ func _player(strategy: String) -> SimPlayer:
 	for id: String in ["banana", "banana", "bread", "eggs", "milk", "repeat"]:
 		deck.cards.append(_card(id))
 	return SimPlayer.new(deck, balance, SimRowSearch.new(balance), strategy, 2)
+
+
+static func _third_product_pays_zero() -> InspectionDefinition:
+	var rule: NthProductZeroPayoutRule = NthProductZeroPayoutRule.new()
+	rule.product_number = 3
+	var rules: Array[InspectionRule] = [rule]
+	var inspection: InspectionDefinition = InspectionDefinition.new()
+	inspection.id = &"third_product"
+	inspection.rules = rules
+	return inspection
 
 
 static func _balance(slots: int, coupon_slots: int) -> BalanceDefinition:

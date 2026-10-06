@@ -11,8 +11,9 @@ extends SceneTree
 ##   --out=PATH        also write the report as JSON
 ##   --cache=DIR       where the search cache is kept between runs, or "none" (default
 ##                     reports/balance_sim_cache). The file is named by a fingerprint of core/,
-##                     the cards and upgrades in play and the row limits, so a change to any of
-##                     them starts a new cache; quotas, pools and strategies don't.
+##                     the cards, upgrades and inspections in play and the row limits, so a
+##                     change to any of them starts a new cache; quotas, pools, inspected
+##                     shifts and strategies don't.
 ## Process modes (set by the wrapper):
 ##   --shard=I/N --raw=PATH  play only runs and duel samples whose index % N == I, and write
 ##                           them to PATH (and the cache entries found to PATH.cache) instead
@@ -201,7 +202,7 @@ func _merge(paths: PackedStringArray, search: SimRowSearch) -> bool:
 
 ## The cache file for this simulation, or "" with --cache=none. Its name is a fingerprint of
 ## everything a cached best row depends on: core's scripts, the search script, the files of the
-## cards and upgrades in play and the row limits.
+## cards, upgrades and inspections in play and the row limits.
 func _cache_file() -> String:
 	if _options["cache"] == "none":
 		return ""
@@ -216,6 +217,8 @@ func _cache_file() -> String:
 		context[card.resource_path] = FileAccess.get_file_as_string(card.resource_path)
 	for upgrade: UpgradeDefinition in _balance.upgrade_pool:
 		context[upgrade.resource_path] = FileAccess.get_file_as_string(upgrade.resource_path)
+	for inspection: InspectionDefinition in _balance.inspection_pool:
+		context[inspection.resource_path] = FileAccess.get_file_as_string(inspection.resource_path)
 	context["limits"] = [_balance.slot_count, _balance.coupon_slot_count]
 	var keys: Array = context.keys()
 	keys.sort()
@@ -281,6 +284,13 @@ func _report(summaries: Array[SimSummary], seconds: float) -> String:
 				_options["seed"],
 				_options["samples"]
 			]
+		)
+	)
+	var inspection_ids: Array = RunEvents.inspection_ids(_balance.inspection_pool)
+	report.append(
+		(
+			"Inspections on shifts %s, drawn from %s"
+			% [Array(_balance.inspection_shifts), inspection_ids]
 		)
 	)
 	for summary: SimSummary in summaries:

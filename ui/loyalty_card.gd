@@ -75,6 +75,14 @@ func stamped_boxes() -> Array[Control]:
 	return stamped
 
 
+## The upgrades' names, indexed like the run's upgrades, for the receipt.
+static func names(upgrades: Array[UpgradeDefinition]) -> PackedStringArray:
+	var result: PackedStringArray = PackedStringArray()
+	for upgrade: UpgradeDefinition in upgrades:
+		result.append(upgrade.display_name)
+	return result
+
+
 ## Every box's text, empty for an empty box.
 func box_texts() -> PackedStringArray:
 	var texts: PackedStringArray = PackedStringArray()

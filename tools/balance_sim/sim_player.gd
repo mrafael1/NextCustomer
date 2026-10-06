@@ -1,8 +1,9 @@
 class_name SimPlayer
 extends RefCounted
 ## Plays runs for the balance simulator (plan section 8) through RunState, as the game does:
-## the same seeded draws, redraws, row limits, reward offers and upgrade offers. Only the
-## choices come from the simulator.
+## the same seeded draws, redraws, row limits, reward offers, upgrade offers and inspections.
+## Only the choices come from the simulator. An inspected shift's best row is searched under its
+## inspection; reward and upgrade picks don't look ahead to the next shift's inspection.
 ##
 ## Every shift plays the best row of the hand (SimRowSearch). First it redraws, for as long as
 ## redraws are left, the hand cards the best row doesn't use (at most redraw_limit each time,
@@ -81,13 +82,13 @@ func play(run_seed: int) -> SimRunRecord:
 func _play_shift(
 	run: RunState, record: SimRunRecord, usage: Dictionary[CardDefinition, int]
 ) -> void:
-	var best: SimHandBest = _search.search(run.hand(), run.upgrades)
+	var best: SimHandBest = _search.search(run.hand(), run.upgrades, run.inspections)
 	while run.redraws_used < run.redraws_allowed:
 		var replaced: Array[CardInstance] = _redraw_pick(run.hand(), best)
 		if replaced.is_empty() or run.redraw(replaced).is_empty():
 			break
 		record.redraws += 1
-		best = _search.search(run.hand(), run.upgrades)
+		best = _search.search(run.hand(), run.upgrades, run.inspections)
 	for card: CardInstance in best.row:
 		run.place(card, run.row.size())
 	var result: ScoreResult = run.checkout()

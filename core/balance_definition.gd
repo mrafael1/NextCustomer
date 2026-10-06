@@ -27,3 +27,8 @@ extends Resource
 @export var upgrade_pool: Array[UpgradeDefinition] = []
 ## The most upgrades one offer shows.
 @export var upgrade_offer_size: int = 0
+## 1-based shift numbers played under an inspection (plan section 3.9). Each is announced on
+## the previous shift's receipt, so each is a shift of the run and never shift 1.
+@export var inspection_shifts: PackedInt32Array = PackedInt32Array()
+## Inspections that an inspected shift draws from.
+@export var inspection_pool: Array[InspectionDefinition] = []

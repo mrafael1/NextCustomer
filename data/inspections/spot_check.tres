@@ -1,0 +1,17 @@
+[gd_resource type="Resource" script_class="InspectionDefinition" format=3]
+
+[ext_resource type="Script" path="res://core/inspections/inspection_rule.gd" id="1_rule"]
+[ext_resource type="Script" path="res://core/inspections/nth_product_zero_payout_rule.gd" id="2_nth_product"]
+[ext_resource type="Script" path="res://core/inspection_definition.gd" id="3_inspection"]
+
+[sub_resource type="Resource" id="Resource_nth_product"]
+script = ExtResource("2_nth_product")
+product_number = 3
+receipt_text = "the 3rd product pays €0"
+
+[resource]
+script = ExtResource("3_inspection")
+id = &"spot_check"
+display_name = "Spot check"
+notice_text = "The 3rd product pays €0"
+rules = Array[ExtResource("1_rule")]([SubResource("Resource_nth_product")])

@@ -1,16 +1,22 @@
 class_name Scoring
 extends RefCounted
 ## Scores a checkout row in two passes (plan sections 3.2 and 4), with the run's register
-## upgrades (plan section 3.8).
+## upgrades (plan section 3.8) and the shift's inspections (plan section 3.9).
 ##
-## score() is a pure function: the same row and upgrades always give the same ScoreResult. It
-## uses no randomness, no time and no global state, and never changes card or upgrade
-## definitions. With no upgrades, every result is exactly what it was before upgrades existed.
+## score() is a pure function: the same row, upgrades and inspections always give the same
+## ScoreResult. It uses no randomness, no time and no global state, and never changes card,
+## upgrade or inspection definitions. With no upgrades and no inspections, every result is
+## exactly what it was before they existed.
 
 
 ## `upgrades` are the run's upgrades in pick order; an upgrade step's source_index is its index
-## in this list.
-static func score(row: Array[CardInstance], upgrades: Array[UpgradeDefinition] = []) -> ScoreResult:
+## in this list. `inspections` are the shift's inspections; an inspection step's source_index
+## is its index in that list.
+static func score(
+	row: Array[CardInstance],
+	upgrades: Array[UpgradeDefinition] = [],
+	inspections: Array[InspectionDefinition] = []
+) -> ScoreResult:
 	var state: ScoreState = ScoreState.new(row)
 	# Context pass: tag and adjacency changes for the whole row, before any values.
 	for slot: int in range(state.size()):
@@ -18,13 +24,18 @@ static func score(row: Array[CardInstance], upgrades: Array[UpgradeDefinition] =
 			rule.modify_context(state, slot)
 	# Value pass, left to right, for every card, product or coupon.
 	for slot: int in range(state.size()):
-		_scan(state, slot, upgrades)
+		_scan(state, slot, upgrades, inspections)
 	# Effects that never found a target fizzle at the end (a lost Coffee bonus, unused charges).
 	state.report_unused_effects()
 	return state.to_result()
 
 
-static func _scan(state: ScoreState, slot: int, upgrades: Array[UpgradeDefinition]) -> void:
+static func _scan(
+	state: ScoreState,
+	slot: int,
+	upgrades: Array[UpgradeDefinition],
+	inspections: Array[InspectionDefinition]
+) -> void:
 	var card: CardDefinition = state.definition(slot)
 	var value: int = card.base
 	state.add_step(ScoreStep.StepType.BASE, slot, slot, card.base, value, card.display_name)
@@ -100,6 +111,8 @@ static func _scan(state: ScoreState, slot: int, upgrades: Array[UpgradeDefinitio
 			state.add_step(
 				ScoreStep.StepType.PAYOUT_OVERRIDE, slot, slot, value, value, rule.text_for(card)
 			)
+	# Then the shift's inspections (plan section 3.9: the 3rd product pays 0), like Soup's.
+	value = _inspection_overrides(state, slot, value, inspections)
 
 	state.record_payout(slot, value)
 
@@ -180,6 +193,31 @@ static func _upgrade_multipliers(
 				value,
 				rule.text_for(upgrade)
 			)
+	return value
+
+
+## Applies the inspections' final payout overrides, each with a PAYOUT_OVERRIDE step when it
+## changes the value.
+static func _inspection_overrides(
+	state: ScoreState, slot: int, value: int, inspections: Array[InspectionDefinition]
+) -> int:
+	for index: int in range(inspections.size()):
+		var inspection: InspectionDefinition = inspections[index]
+		for rule: InspectionRule in inspection.rules:
+			var final_value: int = rule.final_payout(state, slot, value)
+			if final_value == value:
+				continue
+			value = final_value
+			var step: ScoreStep = state.add_step(
+				ScoreStep.StepType.PAYOUT_OVERRIDE,
+				slot,
+				slot,
+				value,
+				value,
+				rule.text_for(inspection)
+			)
+			step.source_kind = ScoreStep.SourceKind.INSPECTION
+			step.source_index = index
 	return value
 
 

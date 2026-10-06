@@ -2,8 +2,9 @@ class_name ShiftScreen
 extends Control
 ## The shift screen (plan section 2): draw, redraw, click-to-place into the row, the live
 ## projected total and receipt, checkout with the count-up, the reward choice, the upgrade
-## choice and loyalty card on upgrade shifts (plan section 3.8), the deck view, and the run's
-## results with its history. It only displays RunState and ScoreResult; every rule lives in core/.
+## choice and loyalty card on upgrade shifts (plan section 3.8), the shift's inspection and
+## the next one's notice (plan section 3.9), the deck view, and the run's results with its
+## history. It only displays RunState and ScoreResult; every rule lives in core/.
 ##
 ## Click-to-place: click a hand card to pick it up, then click a slot to put it there (a
 ## filled slot pushes the cards from there to the right). Click a row card to pick it back up.
@@ -17,6 +18,7 @@ const BALANCE := "res://data/balance/balance.tres"
 const DEBUG_PANEL := "res://debug/debug_panel.tscn"
 const CARDS_FOLDER := "res://data/cards"
 const UPGRADES_FOLDER := "res://data/upgrades"
+const INSPECTIONS_FOLDER := "res://data/inspections"
 ## How long a notice (e.g. a product that doesn't fit) stays before it fades.
 const NOTICE_SECONDS := 2.2
 
@@ -43,6 +45,7 @@ var _upgrade_shown_ms: int = 0
 
 var _shift_label: Label
 var _quota_label: Label
+var _inspection_tag: InspectionTag
 var _loyalty_card: LoyaltyCard
 var _deck_button: Button
 var _seed_label: Label
@@ -119,10 +122,13 @@ func _on_shift_started() -> void:
 	_deck_view.visible = false
 	_pending_reward = null
 	tracker.begin(Time.get_ticks_msec(), _has_focus())
-	_log.log_event(
-		"shift_start",
-		{"shift": run.shift_index + 1, "quota": run.quota(), "cards_drawn": _ids(run.hand())}
-	)
+	var start: Dictionary = {
+		"shift": run.shift_index + 1,
+		"quota": run.quota(),
+		"cards_drawn": _ids(run.hand()),
+		"inspections": RunEvents.inspection_ids(run.inspections),
+	}
+	_log.log_event("shift_start", start)
 	_refresh()
 
 
@@ -278,6 +284,7 @@ func _on_checkout_pressed() -> void:
 		"score": result.total,
 		"quota": run.quota(),
 		"passed": run.passed(),
+		"next_inspection": RunEvents.inspection_id(run.next_inspection),
 	}
 	checkout_data.merge(tracker.measures(committed.size()))
 	_log.log_event("checkout", checkout_data)
@@ -303,7 +310,10 @@ func _on_checkout_pressed() -> void:
 		_names(committed),
 		run.quota(),
 		_loyalty_card.stamped_boxes(),
-		_upgrade_names()
+		LoyaltyCard.names(run.upgrades),
+		_inspection_tag.sources(run.inspections),
+		InspectionTag.names(run.inspections),
+		InspectionTag.next_notice(run.next_inspection)
 	)
 	(
 		_log
@@ -342,7 +352,8 @@ func _show_rewards(result: ScoreResult) -> void:
 		run.offer,
 		"Shift passed!  €%d / €%d" % [result.total, run.quota()],
 		run.deck.size(),
-		run.balance.deck_limit
+		run.balance.deck_limit,
+		InspectionTag.next_notice(run.next_inspection)
 	)
 
 
@@ -472,13 +483,6 @@ func _refresh_loyalty_card() -> void:
 	_loyalty_card.show_upgrades(run.balance.upgrade_shifts.size(), run.upgrades)
 
 
-func _upgrade_names() -> PackedStringArray:
-	var names: PackedStringArray = PackedStringArray()
-	for upgrade: UpgradeDefinition in run.upgrades:
-		names.append(upgrade.display_name)
-	return names
-
-
 func _on_export_pressed() -> void:
 	var screen: String = "shift"
 	if _counting:
@@ -542,6 +546,7 @@ func _add_debug_panel() -> void:
 	_debug_panel.connect(&"seed_requested", _on_debug_seed)
 	_debug_panel.connect(&"card_requested", _on_debug_card)
 	_debug_panel.connect(&"upgrade_requested", _on_debug_upgrade)
+	_debug_panel.connect(&"inspection_requested", _on_debug_inspection)
 	_debug_panel.connect(&"shift_requested", _on_debug_shift)
 
 
@@ -602,6 +607,20 @@ func _on_debug_upgrade(upgrade_id: String) -> void:
 	_on_shift_started()
 
 
+## Puts the current shift under an inspection (none for an empty id) and restarts it.
+func _on_debug_inspection(inspection_id: String) -> void:
+	var path: String = "%s/%s.tres" % [INSPECTIONS_FOLDER, inspection_id]
+	var known: bool = inspection_id.is_empty() or ResourceLoader.exists(path)
+	if _counting or run.phase != RunState.Phase.PLANNING or not known:
+		return
+	_log.log_event("debug", {"action": "set_inspection", "inspection": inspection_id})
+	run.inspections = []
+	if not inspection_id.is_empty():
+		run.inspections.append(load(path))
+	run.debug_skip_to_shift(run.shift_index)  # Restarting the shift keeps its inspections.
+	_on_shift_started()
+
+
 func _on_debug_shift(shift_number: int) -> void:
 	if _counting:
 		return
@@ -619,6 +638,7 @@ func _on_debug_shift(shift_number: int) -> void:
 func _refresh() -> void:
 	_shift_label.text = "Shift %d / %d" % [run.shift_index + 1, run.shift_count()]
 	_quota_label.text = "Quota €%d" % run.quota()
+	_inspection_tag.show_inspections(run.inspections)
 	_refresh_loyalty_card()
 	_deck_button.text = "Deck %d/%d" % [run.deck.size(), run.balance.deck_limit]
 	_seed_label.text = "Seed %d" % run.run_seed
@@ -705,7 +725,12 @@ func _refresh_buttons() -> void:
 func _refresh_preview() -> void:
 	var result: ScoreResult = run.preview()
 	tracker.on_preview(run.row.size(), result.total)
-	_receipt.show_result(result, _names(run.row), _upgrade_names())
+	_receipt.show_result(
+		result,
+		_names(run.row),
+		LoyaltyCard.names(run.upgrades),
+		InspectionTag.names(run.inspections)
+	)
 	for slot: int in range(_row_views.size()):
 		_row_views[slot].show_badge(result.payouts[slot], false)
 		_row_views[slot].set_tags(result.tags[slot])
@@ -782,6 +807,9 @@ func _build() -> void:
 	page.add_child(top)
 	_shift_label = _info_label(top, 22)
 	_quota_label = _info_label(top, 22)
+	_inspection_tag = InspectionTag.new()
+	_inspection_tag.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	top.add_child(_inspection_tag)
 	_loyalty_card = LoyaltyCard.new()
 	_loyalty_card.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	top.add_child(_loyalty_card)

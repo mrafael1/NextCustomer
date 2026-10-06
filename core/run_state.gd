@@ -1,7 +1,7 @@
 class_name RunState
 extends RefCounted
-## One run: the deck, the current shift, the hand, the checkout row, the owned upgrades and
-## the run history.
+## One run: the deck, the current shift, the hand, the checkout row, the owned upgrades, the
+## shift's inspections and the run history.
 ##
 ## The UI calls these methods and displays the results; it never applies rules itself. The
 ## run's seed is passed in (core never makes seeds), and every draw and offer uses the RNG built
@@ -36,6 +36,13 @@ var upgrades: Array[UpgradeDefinition] = []
 ## offer, kept through the REWARD and UPGRADE phases (non-empty during REWARD means an upgrade
 ## step follows) and cleared by pick_upgrade; empty otherwise.
 var upgrade_offer: Array[UpgradeDefinition] = []
+## The current shift's inspections (plan section 3.9; empty or one). Scoring steps name them by
+## index in this list.
+var inspections: Array[InspectionDefinition] = []
+## The inspection announced for the next shift: drawn at a passed checkout when the next shift
+## is inspected, kept through the REWARD and UPGRADE phases and moved to `inspections` by
+## next_shift. Null otherwise.
+var next_inspection: InspectionDefinition
 ## One entry per played shift, in order.
 var history: Array[ShiftRecord] = []
 var _rng: RandomNumberGenerator
@@ -132,19 +139,24 @@ func remove(card: CardInstance) -> bool:
 	return true
 
 
-## The live preview: exactly what checkout would score now, with the run's upgrades.
+## The live preview: exactly what checkout would score now, with the run's upgrades and the
+## shift's inspections.
 func preview() -> ScoreResult:
-	return Scoring.score(row, upgrades)
+	return Scoring.score(row, upgrades, inspections)
 
 
-## Scores the row with the run's upgrades. Always allowed, even for an empty row (plan section
-## 3.5). A pass builds the reward offer and, on an upgrade shift, the upgrade offer, in that
-## order, from the run's RNG (plan section 3.8).
+## Scores the row with the run's upgrades and the shift's inspections. Always allowed, even for
+## an empty row (plan section 3.5). A pass builds the reward offer, the upgrade offer on an
+## upgrade shift (plan section 3.8) and, when the next shift is inspected, draws its inspection
+## (section 3.9), in that order, from the run's RNG.
 func checkout() -> ScoreResult:
 	if phase != Phase.PLANNING:
 		return last_result
-	last_result = Scoring.score(row, upgrades)
-	history.append(ShiftRecord.new(shift_index + 1, quota(), last_result.total))
+	last_result = Scoring.score(row, upgrades, inspections)
+	var record: ShiftRecord = ShiftRecord.new(shift_index + 1, quota(), last_result.total)
+	if not inspections.is_empty():
+		record.inspection = inspections[0]
+	history.append(record)
 	if last_result.total < quota():
 		phase = Phase.LOST
 	elif is_last_shift():
@@ -154,6 +166,8 @@ func checkout() -> ScoreResult:
 		offers_made += 1
 		if UpgradeOffer.is_upgrade_shift(balance, shift_index + 1):
 			upgrade_offer = UpgradeOffer.make(_rng, balance, upgrades)
+		if InspectionSchedule.is_inspection_shift(balance, shift_index + 2):
+			next_inspection = InspectionSchedule.draw(_rng, balance)
 		phase = Phase.REWARD
 	return last_result
 
@@ -209,10 +223,15 @@ func pick_upgrade(upgrade: UpgradeDefinition) -> bool:
 
 
 ## Starts the next shift. Only from SCORED: after the reward, and the upgrade on upgrade shifts.
+## The announced inspection, if any, applies to it.
 func next_shift() -> bool:
 	if phase != Phase.SCORED:
 		return false
 	shift_index += 1
+	inspections = []
+	if next_inspection != null:
+		inspections.append(next_inspection)
+	next_inspection = null
 	start_shift()
 	return true
 
@@ -222,9 +241,18 @@ func debug_add_to_hand(card_definition: CardDefinition) -> CardInstance:
 	return deck.add_to_hand(card_definition)
 
 
-## Debug panel only: jumps to a shift and starts it.
+## Debug panel only: jumps to a shift and starts it. Jumping to another shift draws that
+## shift's inspection if it is inspected; restarting the current shift keeps its inspections.
 func debug_skip_to_shift(index: int) -> void:
-	shift_index = clampi(index, 0, shift_count() - 1)
+	var target: int = clampi(index, 0, shift_count() - 1)
+	if target != shift_index:
+		inspections = []
+		if InspectionSchedule.is_inspection_shift(balance, target + 1):
+			var drawn: InspectionDefinition = InspectionSchedule.draw(_rng, balance)
+			if drawn != null:
+				inspections.append(drawn)
+	shift_index = target
 	offer = []
 	upgrade_offer = []
+	next_inspection = null
 	start_shift()

@@ -10,7 +10,10 @@ extends Node
 ## total slammed against the quota. Hold the mouse button or Space to fast-forward.
 ##
 ## Steps caused by an upgrade (source_kind UPGRADE) come from that upgrade's loyalty-card box:
-## bonuses and multipliers fly in from it, and its fizzles puff out of it.
+## bonuses and multipliers fly in from it, and its fizzles puff out of it. Steps caused by an
+## inspection (source_kind INSPECTION, plan section 3.9) come from its tag in the top bar: it is
+## punched as its "0" lands. On a passed shift followed by an inspected one, the notice prints in
+## red under the total.
 
 signal finished
 
@@ -30,6 +33,10 @@ var _names: PackedStringArray = PackedStringArray()
 ## (a step's source_index). Never mixed up with _views, which is indexed by slot.
 var _upgrade_boxes: Array[Control] = []
 var _upgrade_names: PackedStringArray = PackedStringArray()
+## Where the shift's inspections are shown and their names, indexed like the shift's
+## inspections (a step's source_index).
+var _inspection_sources: Array[Control] = []
+var _inspection_names: PackedStringArray = PackedStringArray()
 var _receipt: ReceiptView
 var _subtotal_label: Label
 var _sfx: Sfx
@@ -62,12 +69,17 @@ func play(
 	names: PackedStringArray,
 	quota: int,
 	upgrade_boxes: Array[Control] = [],
-	upgrade_names: PackedStringArray = PackedStringArray()
+	upgrade_names: PackedStringArray = PackedStringArray(),
+	inspection_sources: Array[Control] = [],
+	inspection_names: PackedStringArray = PackedStringArray(),
+	notice: String = ""
 ) -> void:
 	_views = views
 	_names = names
 	_upgrade_boxes = upgrade_boxes
 	_upgrade_names = upgrade_names
+	_inspection_sources = inspection_sources
+	_inspection_names = inspection_names
 	_shown_subtotal = 0
 	_chain = 0
 	fast_forward_used = false
@@ -86,6 +98,8 @@ func play(
 	_receipt.add_total(result.total)
 	total_shown_ms = Time.get_ticks_msec()
 	await _total_slam(result.total, quota)
+	if not notice.is_empty():
+		await _print_notice(notice)
 	_playing = false
 	finished.emit()
 
@@ -125,7 +139,7 @@ func _play_step(step: ScoreStep) -> void:
 
 
 func _tag_added(step: ScoreStep) -> void:
-	_receipt.add_step(step, _names, _upgrade_names)
+	_receipt.add_step(step, _names, _upgrade_names, _inspection_names)
 	var target: CardView = _views[step.slot]
 	var source: CardView = _source_view(step)
 	if source == null:
@@ -139,7 +153,7 @@ func _tag_added(step: ScoreStep) -> void:
 
 
 func _linked(step: ScoreStep) -> void:
-	_receipt.add_step(step, _names, _upgrade_names)
+	_receipt.add_step(step, _names, _upgrade_names, _inspection_names)
 	var left: CardView = _views[step.slot]
 	var right: CardView = _views[step.linked_slot]
 	var line: Line2D = Line2D.new()
@@ -165,7 +179,7 @@ func _linked(step: ScoreStep) -> void:
 ## upgrade's fizzle comes out of its loyalty-card box instead (the card it had nothing to work
 ## on gives a small nudge).
 func _fizzle(step: ScoreStep) -> void:
-	_receipt.add_step(step, _names, _upgrade_names)
+	_receipt.add_step(step, _names, _upgrade_names, _inspection_names)
 	var view: CardView = _views[step.slot]
 	var shaken: Control = view.body
 	var puff_at: Vector2 = view.center() + Vector2(0, -30)
@@ -200,7 +214,7 @@ func _fizzle(step: ScoreStep) -> void:
 ## The scanner: the card lifts and its base value pops up.
 func _base(step: ScoreStep) -> void:
 	_chain = 0
-	_receipt.add_step(step, _names, _upgrade_names)
+	_receipt.add_step(step, _names, _upgrade_names, _inspection_names)
 	var view: CardView = _views[step.slot]
 	var tween: Tween = _tween().set_parallel().set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
 	tween.tween_property(view.body, "position:y", SCAN_LIFT, 0.18)
@@ -216,7 +230,7 @@ func _base(step: ScoreStep) -> void:
 ## pops on the card for its own rules).
 func _bonus(step: ScoreStep) -> void:
 	_chain += 1
-	_receipt.add_step(step, _names, _upgrade_names)
+	_receipt.add_step(step, _names, _upgrade_names, _inspection_names)
 	var target: CardView = _views[step.slot]
 	# A copy flies in from the copied card; any other bonus from the card or upgrade that
 	# caused it, unless it is the target's own rule.
@@ -244,7 +258,7 @@ func _bonus(step: ScoreStep) -> void:
 ## factor first flies in from its loyalty-card box.
 func _stamp(step: ScoreStep) -> void:
 	_chain += 1
-	_receipt.add_step(step, _names, _upgrade_names)
+	_receipt.add_step(step, _names, _upgrade_names, _inspection_names)
 	var target: CardView = _views[step.slot]
 	var upgrade_box: Control = _upgrade_box(step)
 	var source: CardView = _source_view(step)
@@ -277,10 +291,14 @@ func _stamp(step: ScoreStep) -> void:
 	await _wait(0.22)
 
 
-## Soup beside Frozen: a hard "denied" as its value is wiped to 0.
+## Soup beside Frozen, or an inspection: a hard "denied" as its value is wiped to 0. An
+## inspection's tag is punched first, so the 0 visibly comes from it.
 func _denied(step: ScoreStep) -> void:
-	_receipt.add_step(step, _names, _upgrade_names)
+	_receipt.add_step(step, _names, _upgrade_names, _inspection_names)
 	var view: CardView = _views[step.slot]
+	var inspection: Control = _inspection_source(step)
+	if inspection != null:
+		_punch(inspection, 1.25)
 	var cross: Label = _text_label("0", Palette.TOMATO, 64)
 	_overlay.add_child(cross)
 	cross.global_position = view.center() - cross.size / 2.0
@@ -303,7 +321,7 @@ func _denied(step: ScoreStep) -> void:
 ## The payout drops onto the receipt and the subtotal ticks up, harder for bigger payouts.
 func _payout(step: ScoreStep) -> void:
 	var view: CardView = _views[step.slot]
-	var line: Control = _receipt.add_step(step, _names, _upgrade_names)
+	var line: Control = _receipt.add_step(step, _names, _upgrade_names, _inspection_names)
 	if line:
 		line.modulate.a = 0.0
 		_tween().tween_property(line, "modulate:a", 1.0, 0.15)
@@ -358,10 +376,34 @@ func _upgrade_box(step: ScoreStep) -> Control:
 	return _upgrade_boxes[step.source_index]
 
 
-## Where a step comes from on screen: its card, or its upgrade's loyalty-card box.
+## Where the inspection that caused a step is shown, or null when the step's source is not an
+## inspection (or nothing shows it): source_index is only read for INSPECTION sources.
+func _inspection_source(step: ScoreStep) -> Control:
+	if step.source_kind != ScoreStep.SourceKind.INSPECTION:
+		return null
+	if step.source_index < 0 or step.source_index >= _inspection_sources.size():
+		return null
+	return _inspection_sources[step.source_index]
+
+
+## Where a step comes from on screen: its card, its upgrade's loyalty-card box, or its
+## inspection's tag.
 func _source_control(step: ScoreStep) -> Control:
 	var upgrade_box: Control = _upgrade_box(step)
-	return upgrade_box if upgrade_box != null else _source_view(step)
+	if upgrade_box != null:
+		return upgrade_box
+	var inspection: Control = _inspection_source(step)
+	return inspection if inspection != null else _source_view(step)
+
+
+## The next shift's inspection prints in red under the total, with a stamp.
+func _print_notice(notice: String) -> void:
+	await _wait(0.2)
+	var line: Control = _receipt.add_notice(notice)
+	_sfx.play("stamp")
+	line.modulate.a = 0.0
+	_tween().tween_property(line, "modulate:a", 1.0, 0.15)
+	await _wait(0.35)
 
 
 ## The part of a source that is punched: a card's body (its layout box stays still), or the

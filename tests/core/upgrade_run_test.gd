@@ -210,6 +210,7 @@ func test_history_has_one_entry_per_played_shift() -> void:
 				"card_picked": String(card.id),
 				"reward_skipped": false,
 				"upgrade_taken": "",
+				"inspection": "",
 			}
 		)
 	)
