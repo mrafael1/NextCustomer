@@ -35,6 +35,6 @@ The plan does not decide these interactions. **Don't pick an answer.** If a task
 
 | Question | Why it matters |
 |---|---|
-| Which cards carry the `generally_useful` flag used by reward offers? | Needed before reward offers are built |
+| *(none open right now)* | |
 
 Add new questions here when they come up instead of guessing.

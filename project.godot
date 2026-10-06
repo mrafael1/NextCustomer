@@ -12,7 +12,7 @@ config_version=5
 
 config/name="Next Customer"
 config/version="0.1.0"
-run/main_scene="res://ui/shift_screen.tscn"
+run/main_scene="res://ui/title_screen.tscn"
 config/features=PackedStringArray("4.7", "GL Compatibility")
 
 [autoload]
@@ -21,8 +21,6 @@ EventLog="*res://telemetry/event_log.gd"
 
 [debug]
 
-; Promote enabled warnings to errors so --check-only enforces warning-free scripts.
-; Third-party addons retain Godot's default directory exclusion.
 gdscript/warnings/unassigned_variable=2
 gdscript/warnings/unassigned_variable_op_assign=2
 gdscript/warnings/unused_variable=2
@@ -39,7 +37,6 @@ gdscript/warnings/standalone_expression=2
 gdscript/warnings/standalone_ternary=2
 gdscript/warnings/incompatible_ternary=2
 gdscript/warnings/untyped_declaration=2
-gdscript/warnings/inferred_declaration=0
 gdscript/warnings/unsafe_void_return=2
 gdscript/warnings/static_called_on_instance=2
 gdscript/warnings/missing_tool=2
@@ -74,11 +71,11 @@ window/stretch/aspect="expand"
 
 enabled=PackedStringArray("res://addons/gdUnit4/plugin.cfg")
 
+[next_customer]
+
+build_label="proto-r0"
+
 [rendering]
 
 renderer/rendering_method="gl_compatibility"
 renderer/rendering_method.mobile="gl_compatibility"
-
-[next_customer]
-
-build_label="proto-r0"

@@ -3,10 +3,11 @@ extends Node
 ## Plays a ScoreResult back step by step: the "counting points feels good" moment (plan
 ## sections 1 and 6, full build plan 6.2). Everything comes from the steps, never from rules.
 ##
-## First rough version (day 2): scan lift, base pop, bonuses flying in from the card that
-## caused them, multiplier stamps, copies, Soup's "denied", sticker and Bundle moments, fizzle
-## puffs, receipt lines and a ticking subtotal that punches harder as it grows. Hold the mouse
-## button or Space to fast-forward.
+## Scan lift and beep, bonuses flying in from the card that caused them (each one in a chain
+## pitched higher), multiplier stamps, copies, Soup's "denied", sticker and Bundle moments,
+## fizzle puffs, a receipt printer that speeds up as the subtotal grows, a register rattle on
+## big payouts, then a pause and the total slammed against the quota. Hold the mouse button or
+## Space to fast-forward.
 
 signal finished
 
@@ -21,6 +22,9 @@ var _views: Array[CardView] = []
 var _names: PackedStringArray = PackedStringArray()
 var _receipt: ReceiptView
 var _subtotal_label: Label
+var _sfx: Sfx
+## Shaken on big payouts (the register rattle).
+var _rattle_target: Control
 var _shown_subtotal: int = 0
 ## Consecutive bonuses on the current card: each one lands a little harder.
 var _chain: int = 0
@@ -29,15 +33,22 @@ var _playing: bool = false
 var _ignore_held: bool = false
 ## Running tweens: their speed follows fast-forward every frame, not only when they start.
 var _live: Array[Tween] = []
+var _last_tick_ms: int = 0
 
 
-func setup(overlay: Control, receipt: ReceiptView, subtotal_label: Label) -> void:
+func setup(
+	overlay: Control, receipt: ReceiptView, subtotal_label: Label, sfx: Sfx, rattle_target: Control
+) -> void:
 	_overlay = overlay
 	_receipt = receipt
 	_subtotal_label = subtotal_label
+	_sfx = sfx
+	_rattle_target = rattle_target
 
 
-func play(result: ScoreResult, views: Array[CardView], names: PackedStringArray) -> void:
+func play(
+	result: ScoreResult, views: Array[CardView], names: PackedStringArray, quota: int
+) -> void:
 	_views = views
 	_names = names
 	_shown_subtotal = 0
@@ -53,9 +64,11 @@ func play(result: ScoreResult, views: Array[CardView], names: PackedStringArray)
 	await _wait(0.25)
 	for step: ScoreStep in result.steps:
 		await _play_step(step)
+	# A held breath, then the total lands against the quota.
+	await _wait(0.45)
 	_receipt.add_total(result.total)
 	total_shown_ms = Time.get_ticks_msec()
-	await _wait(0.35)
+	await _total_slam(result.total, quota)
 	_playing = false
 	finished.emit()
 
@@ -98,6 +111,7 @@ func _tag_added(step: ScoreStep) -> void:
 	var target: CardView = _views[step.slot]
 	_punch(source.body, 1.1)
 	await _fly_text("+" + step.tag, source.center(), target.center(), Palette.LIGHT_TEXT, 24, 0.35)
+	_sfx.play("tag")
 	target.add_tag(step.tag)
 	_punch(target.body, 1.15)
 	await _wait(0.15)
@@ -113,6 +127,7 @@ func _linked(step: ScoreStep) -> void:
 	line.add_point(left.center() - _overlay.global_position)
 	line.add_point(right.center() - _overlay.global_position)
 	_overlay.add_child(line)
+	_sfx.play("link")
 	_punch(_views[step.source_slot].body, 1.15)
 	_punch(left.body, 1.12)
 	_punch(right.body, 1.12)
@@ -132,6 +147,7 @@ func _fizzle(step: ScoreStep) -> void:
 		var resetter: CardView = _views[step.source_slot]
 		_punch(resetter.body, 1.15)
 		await _fly_text("reset", resetter.center(), view.center(), Palette.LIGHT_TEXT, 20, 0.3)
+	_sfx.play("fizzle")
 	var tween: Tween = _tween()
 	tween.tween_property(view.body, "modulate", Color(0.6, 0.6, 0.6), 0.08)
 	tween.tween_property(view.body, "rotation", deg_to_rad(-5.0), 0.06)
@@ -152,6 +168,7 @@ func _base(step: ScoreStep) -> void:
 	var tween: Tween = _tween().set_parallel().set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
 	tween.tween_property(view.body, "position:y", SCAN_LIFT, 0.18)
 	tween.tween_property(view.badge, "position:y", CardView.BADGE_Y + SCAN_LIFT, 0.18)
+	_sfx.play("scan")
 	view.show_badge(step.value_after, true)
 	_punch(view.badge, 1.3)
 	await tween.finished
@@ -170,10 +187,13 @@ func _bonus(step: ScoreStep) -> void:
 	if from_slot >= 0 and from_slot != step.slot:
 		var source: CardView = _views[from_slot]
 		_punch(source.body, 1.1)
+		if step.step_type == ScoreStep.StepType.COPY:
+			_sfx.play("copy")
 		await _fly_text(text, source.center(), target.center(), Palette.MUSTARD, 30, 0.32)
 	else:
 		var above: Vector2 = target.center() + Vector2(0, -20)
 		await _fly_text(text, above, above + Vector2(0, -40), Palette.MUSTARD, 30, 0.3)
+	_sfx.play("bonus", 1.0 + 0.12 * (_chain - 1))
 	target.show_badge(step.value_after, true)
 	_punch(target.badge, 1.25 + 0.08 * _chain)
 	await _wait(0.12)
@@ -198,6 +218,7 @@ func _stamp(step: ScoreStep) -> void:
 	slam.tween_property(stamp, "rotation", deg_to_rad(-8.0), 0.16)
 	slam.tween_property(stamp, "modulate:a", 1.0, 0.1)
 	await slam.finished
+	_sfx.play("stamp", 1.0 + 0.06 * (_chain - 1))
 	_shake(target.body, 7.0)
 	target.show_badge(step.value_after, true)
 	_punch(target.badge, 1.35 + 0.08 * _chain)
@@ -220,6 +241,7 @@ func _denied(step: ScoreStep) -> void:
 	var tween: Tween = _tween().set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
 	tween.tween_property(cross, "scale", Vector2.ONE, 0.2)
 	await tween.finished
+	_sfx.play("denied")
 	_shake(view.body, 10.0)
 	view.show_badge(step.value_after, true)
 	view.badge.add_theme_color_override("font_color", Palette.TOMATO)
@@ -241,16 +263,58 @@ func _payout(step: ScoreStep) -> void:
 	drop.tween_property(view.body, "position:y", 0.0, 0.22)
 	drop.tween_property(view.badge, "position:y", CardView.BADGE_Y, 0.22)
 	var from: int = _shown_subtotal
+	# The printer runs faster and higher as the subtotal grows.
+	_sfx.play("print", 1.0 + minf(step.subtotal / 60.0, 0.7))
 	var tick: Tween = _tween()
-	var duration: float = clampf(0.12 + 0.02 * step.value, 0.12, 0.5)
+	var speed_up: float = 1.0 + step.subtotal / 40.0
+	var duration: float = clampf((0.12 + 0.02 * step.value) / speed_up, 0.08, 0.5)
 	tick.tween_method(_set_subtotal, float(from), float(step.subtotal), duration)
 	_punch(_subtotal_label, 1.1 + minf(step.value / 25.0, 0.5))
+	if step.value >= 10:
+		# A big payout rattles the register.
+		_shake(_rattle_target, minf(3.0 + step.value / 4.0, 12.0))
 	await tick.finished
 	await _wait(0.12)
 
 
+## The final moment: the total slams down beside the quota, green and cheerful if it is
+## enough, red and deflated if not.
+func _total_slam(total: int, quota: int) -> void:
+	var enough: bool = total >= quota
+	var verdict: Label = _text_label(
+		"€%d / €%d" % [total, quota], Palette.GOOD if enough else Palette.TOMATO, 72
+	)
+	_overlay.add_child(verdict)
+	var center: Vector2 = _overlay.get_global_rect().get_center() + Vector2(0, -40)
+	verdict.global_position = center - verdict.size / 2.0
+	verdict.pivot_offset = verdict.size / 2.0
+	verdict.scale = Vector2(3.2, 3.2)
+	verdict.modulate.a = 0.0
+	var slam: Tween = _tween().set_parallel().set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
+	slam.tween_property(verdict, "scale", Vector2.ONE, 0.2)
+	slam.tween_property(verdict, "modulate:a", 1.0, 0.12)
+	await slam.finished
+	# A bright chord only for a pass; a miss lands with a dull thud.
+	_sfx.play("total" if enough else "miss")
+	_shake(_rattle_target, 10.0 if enough else 4.0)
+	_punch(_subtotal_label, 1.5)
+	await _wait(0.25)
+	_sfx.play("pass" if enough else "fail")
+	await _wait(0.6)
+	var fade: Tween = _tween()
+	fade.tween_property(verdict, "modulate:a", 0.0, 0.25)
+	fade.tween_callback(verdict.queue_free)
+
+
 func _set_subtotal(value: float) -> void:
-	_shown_subtotal = roundi(value)
+	var shown: int = roundi(value)
+	if shown != _shown_subtotal and _playing:
+		# The printer ticks as the subtotal rolls, a little higher as it grows.
+		var now: int = Time.get_ticks_msec()
+		if now - _last_tick_ms >= 35:
+			_last_tick_ms = now
+			_sfx.play("tick", 1.0 + minf(shown / 80.0, 0.8))
+	_shown_subtotal = shown
 	_subtotal_label.text = "€%d" % _shown_subtotal
 
 
@@ -326,5 +390,12 @@ func _speed() -> float:
 	return FAST_FORWARD if held and not _ignore_held else 1.0
 
 
+## Space, or the mouse held anywhere except on a button (clicking Export log or Deck during
+## the count is not a fast-forward).
 func _is_held() -> bool:
-	return Input.is_mouse_button_pressed(MOUSE_BUTTON_LEFT) or Input.is_key_pressed(KEY_SPACE)
+	if Input.is_key_pressed(KEY_SPACE):
+		return true
+	if not Input.is_mouse_button_pressed(MOUSE_BUTTON_LEFT):
+		return false
+	var hovered: Control = get_viewport().gui_get_hovered_control()
+	return not hovered is BaseButton

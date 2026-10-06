@@ -11,3 +11,4 @@ kind = 1
 tags = PackedStringArray("Food", "Breakfast", "Bakery")
 base = 3
 rule_text = "No rule"
+generally_useful = true

@@ -5,7 +5,9 @@ extends RefCounted
 ## The UI calls these methods and displays the results; it never applies rules itself. The
 ## run's seed is passed in (core never makes seeds), and every draw uses the RNG built from it.
 
-enum Phase { PLANNING, SCORED, WON, LOST }
+## PLANNING: placing cards. REWARD: a passed shift's offer is waiting for a pick or a skip.
+## SCORED: ready for the next shift. WON / LOST: the run is over.
+enum Phase { PLANNING, REWARD, SCORED, WON, LOST }
 
 var run_seed: int = 0
 var balance: BalanceDefinition
@@ -16,14 +18,18 @@ var phase: Phase = Phase.PLANNING
 var row: Array[CardInstance] = []
 var redraw_used: bool = false
 var last_result: ScoreResult
+## The cards offered after the last passed shift (empty outside the REWARD phase).
+var offer: Array[CardDefinition] = []
+var offers_made: int = 0
+var _rng: RandomNumberGenerator
 
 
 func _init(seed_value: int, starter: DeckDefinition, run_balance: BalanceDefinition) -> void:
 	run_seed = seed_value
 	balance = run_balance
-	var rng: RandomNumberGenerator = RandomNumberGenerator.new()
-	rng.seed = seed_value
-	deck = Deck.from_definition(starter, rng)
+	_rng = RandomNumberGenerator.new()
+	_rng.seed = seed_value
+	deck = Deck.from_definition(starter, _rng)
 
 
 func shift_count() -> int:
@@ -117,12 +123,44 @@ func checkout() -> ScoreResult:
 	elif is_last_shift():
 		phase = Phase.WON
 	else:
-		phase = Phase.SCORED
+		offer = RewardOffer.make(_rng, balance, offers_made == 0)
+		offers_made += 1
+		phase = Phase.REWARD
 	return last_result
 
 
 func passed() -> bool:
 	return last_result != null and last_result.total >= quota()
+
+
+## True when taking a card needs another card out of the deck (plan section 2: 15-card limit).
+func deck_is_full() -> bool:
+	return deck.size() >= balance.deck_limit
+
+
+## Adds an offered card to the deck. At the deck limit, `replaced` (a deck card) leaves it.
+func take_reward(card: CardDefinition, replaced: CardInstance = null) -> bool:
+	if phase != Phase.REWARD or not offer.has(card):
+		return false
+	if deck_is_full():
+		if replaced == null or not deck.cards.has(replaced):
+			return false
+		deck.remove_card(replaced)
+	deck.add_card(card)
+	_finish_reward()
+	return true
+
+
+func skip_reward() -> bool:
+	if phase != Phase.REWARD:
+		return false
+	_finish_reward()
+	return true
+
+
+func _finish_reward() -> void:
+	offer = []
+	phase = Phase.SCORED
 
 
 func can_advance() -> bool:
@@ -145,4 +183,5 @@ func debug_add_to_hand(card_definition: CardDefinition) -> CardInstance:
 ## Debug panel only: jumps to a shift and starts it.
 func debug_skip_to_shift(index: int) -> void:
 	shift_index = clampi(index, 0, shift_count() - 1)
+	offer = []
 	start_shift()

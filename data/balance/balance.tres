@@ -1,6 +1,20 @@
 [gd_resource type="Resource" script_class="BalanceDefinition" format=3]
 
 [ext_resource type="Script" path="res://core/balance_definition.gd" id="1_balance"]
+[ext_resource type="Script" path="res://core/card_definition.gd" id="2_card"]
+[ext_resource type="Resource" path="res://data/cards/banana.tres" id="c3_banana"]
+[ext_resource type="Resource" path="res://data/cards/bread.tres" id="c4_bread"]
+[ext_resource type="Resource" path="res://data/cards/cheese.tres" id="c5_cheese"]
+[ext_resource type="Resource" path="res://data/cards/eggs.tres" id="c6_eggs"]
+[ext_resource type="Resource" path="res://data/cards/milk.tres" id="c7_milk"]
+[ext_resource type="Resource" path="res://data/cards/coffee.tres" id="c8_coffee"]
+[ext_resource type="Resource" path="res://data/cards/soup.tres" id="c9_soup"]
+[ext_resource type="Resource" path="res://data/cards/frozen_peas.tres" id="c10_frozen_peas"]
+[ext_resource type="Resource" path="res://data/cards/repeat.tres" id="c11_repeat"]
+[ext_resource type="Resource" path="res://data/cards/final_markdown.tres" id="c12_final_markdown"]
+[ext_resource type="Resource" path="res://data/cards/bundle.tres" id="c13_bundle"]
+[ext_resource type="Resource" path="res://data/cards/breakfast_sticker.tres" id="c14_breakfast_sticker"]
+[ext_resource type="Resource" path="res://data/cards/multipack.tres" id="c15_multipack"]
 
 [resource]
 script = ExtResource("1_balance")
@@ -9,3 +23,6 @@ hand_size = 8
 redraw_limit = 2
 slot_count = 6
 deck_limit = 15
+reward_pool = Array[ExtResource("2_card")]([ExtResource("c3_banana"), ExtResource("c4_bread"), ExtResource("c5_cheese"), ExtResource("c6_eggs"), ExtResource("c7_milk"), ExtResource("c8_coffee"), ExtResource("c9_soup"), ExtResource("c10_frozen_peas"), ExtResource("c11_repeat"), ExtResource("c12_final_markdown"), ExtResource("c13_bundle"), ExtResource("c14_breakfast_sticker"), ExtResource("c15_multipack")])
+first_offer_pool = Array[ExtResource("2_card")]([ExtResource("c13_bundle"), ExtResource("c14_breakfast_sticker"), ExtResource("c15_multipack")])
+offer_size = 3

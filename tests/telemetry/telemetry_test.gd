@@ -106,3 +106,24 @@ func test_rearrangements_never_negative() -> void:
 	tracker.begin(0)
 	tracker.on_place()
 	assert_int(tracker.rearrangements(3)).is_equal(0)
+
+
+func test_export_joins_every_session_and_includes_its_own_event() -> void:
+	var event_log: EventLogService = (Engine.get_main_loop() as SceneTree).root.get_node(
+		"/root/EventLog"
+	)
+	var folder: String = _folder.path_join("playtest_logs")
+	EventLogWriter.new(folder, "20200101T000000_old.jsonl").append({"type": "run_start"})
+	event_log.use_folder(folder)
+	var joined: String = event_log.export_logs("title", false)
+	var lines: PackedStringArray = joined.split("\n", false)
+	assert_int(lines.size()).is_equal(2)
+	var last: Dictionary = JSON.parse_string(lines[1])
+	assert_str(last["type"]).is_equal("log_export")
+	assert_str(last["screen"]).is_equal("title")
+	assert_int(int(last["files"])).is_equal(2)
+	var exported: String = _folder.path_join("playtest_export.jsonl")
+	assert_str(FileAccess.get_file_as_string(exported)).is_equal(joined)
+	for file_name: String in DirAccess.get_files_at(folder):
+		DirAccess.remove_absolute(folder.path_join(file_name))
+	DirAccess.remove_absolute(folder)
