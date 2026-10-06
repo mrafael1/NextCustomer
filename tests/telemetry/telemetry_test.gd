@@ -148,6 +148,27 @@ func test_export_joins_every_session_and_includes_its_own_event() -> void:
 	DirAccess.remove_absolute(folder)
 
 
+## Plan section 8: run_start's and run_end's fields, JSON-friendly.
+func test_run_start_and_run_end_fields() -> void:
+	var deck: DeckDefinition = load("res://data/decks/starter.tres")
+	var balance: BalanceDefinition = load("res://data/balance/balance.tres")
+	var run: RunState = RunState.new(77, deck, balance, RunStock.starting(deck, balance))
+	run.start_shift()
+	var start: Dictionary = RunEvents.run_start(run)
+	assert_array(start.keys()).contains_exactly_in_any_order(
+		["seed", "starting_deck", "shift_count", "listed_aisles", "stock"]
+	)
+	assert_int(start["seed"]).is_equal(77)
+	assert_int((start["starting_deck"] as Array).size()).is_equal(13)
+	assert_str(JSON.stringify(start)).contains('"listed_aisles":["placeholder"]')
+	run.checkout()
+	assert_int(run.phase).is_equal(RunState.Phase.LOST)
+	var end: Dictionary = RunEvents.run_end(run, 4321)
+	assert_dict(end).is_equal(
+		{"result": "loss", "shift_reached": 1, "last_score": 0, "run_ms": 4321, "upgrades": []}
+	)
+
+
 ## Plan section 8: the upgrade event's fields, and upgrade ids in pick order (run_end).
 func test_upgrade_event_fields() -> void:
 	var coupon_engine: UpgradeDefinition = load("res://data/upgrades/coupon_engine.tres")

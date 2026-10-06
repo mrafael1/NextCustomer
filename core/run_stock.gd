@@ -53,8 +53,8 @@ static func build(
 	return stock
 
 
-## The stock of a profile with no unlocks, before its first run and with no list: what every
-## run stocks until ProfileState (#14) and the shopping list (phase 3) exist.
+## The stock of a new profile: no unlocks, no list, run index 0. The game builds each run's
+## stock from its ProfileState; tests and the balance simulator use this one.
 static func starting(deck: DeckDefinition, balance: BalanceDefinition) -> RunStock:
 	var unlocked: Dictionary[StringName, int] = {}
 	return build(deck, balance, [], unlocked, 0)

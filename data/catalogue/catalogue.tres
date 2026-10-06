@@ -1,0 +1,9 @@
+[gd_resource type="Resource" script_class="CatalogueDefinition" format=3]
+
+[ext_resource type="Script" path="res://core/catalogue_definition.gd" id="1_catalogue"]
+[ext_resource type="Script" path="res://core/deck_definition.gd" id="2_deck"]
+[ext_resource type="Resource" path="res://data/decks/starter.tres" id="3_starter"]
+
+[resource]
+script = ExtResource("1_catalogue")
+decks = Array[ExtResource("2_deck")]([ExtResource("3_starter")])

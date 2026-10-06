@@ -1,6 +1,6 @@
 # Next Customer: Full Build Plan
 
-> Status: draft v0.9. **This plan will change.** Each full-build playtest round (section 9) can rewrite parts of it. Update the changelog when it does.
+> Status: draft v0.10. **This plan will change.** Each full-build playtest round (section 9) can rewrite parts of it. Update the changelog when it does.
 > The prototype (`docs/PROTOTYPE_PLAN.md`) closed at proto-r1. Its outside playtest and decision gate (section 9 there) were not run; their questions move to the full build's playtest rounds (section 9).
 > Engine: Godot 4 (exact version pinned in `AGENTS.md`), GDScript with static typing. Platform: Windows, mouse. Steam is the main store; itch.io hosts a web demo.
 
@@ -117,12 +117,14 @@ core/
                           # each came out in), last shopping list, unlocked decks and variants, coupon uses by
                           # card id (unlocks, section 7.3), first-seen flags
                           # for long animations, achievements, stats, settings (separate from the run save)
+  catalogue_definition.gd # Resource: every deck and card variant, for the end-of-run unlock check (section 7.3)
   save_service.gd         # run save + profile save; versioned format; Steam cloud paths
 data/
   aisles/*.tres
   upgrades/*.tres
   inspections/*.tres      # InspectionDefinition (docs/PROTOTYPE_PLAN.md 3.9)
   decks/*.tres            # DeckDefinition (fields in section 7.3)
+  catalogue/catalogue.tres# CatalogueDefinition: every deck and variant (a data test checks it against the files)
   balance/balance.tres    # + coupon_slot_count, upgrade_shifts, upgrade_pool, upgrade_offer_size, inspection_shifts,
                           #   inspection_pool, coin amounts, aisles,
                           #   coupon_pool (replaces reward_pool), run_aisle_picks, aisle_stock_budget,
@@ -136,7 +138,7 @@ platform/
 Rules:
 - Products, coupons, upgrades and inspections are **all made of the same rule hooks** (upgrades through `UpgradeRule`, which has the same hook names as `Rule` and is asked about every slot by the scoring loop; `docs/PROTOTYPE_PLAN.md` section 3.8). A new idea is a new rule script plus a data file, never a change to the scoring code.
 - `score()` stays a pure function. All presentation plays back `ScoreResult.steps`.
-- Save files include a format version from the first save. A run save holds the seed, the impulse-rack pick, the listed aisle ids and the stock's card ids, so a run can be rebuilt; `run_start` logs the same.
+- Save files include a format version from the first save. The profile save (decided with the user, phase 1) is `profile.json` in `user://`: JSON (it never runs code, unlike a resource file loaded from `user://`), written to a temporary file and then moved over the save. A profile that can't be read (bad JSON, a missing or newer format version, a field of the wrong type) is reported, kept as `profile.json.bad` (then `.bad.2`, …: a backup is never overwritten), and replaced by a fresh profile. A save that can't be opened or backed up is kept as it is and never saved over in that session; a failed write leaves the save unchanged. A run save holds the seed, the impulse-rack pick, the listed aisle ids and the stock's card ids, so a run can be rebuilt; `run_start` logs the same.
 - The stock is built before `RunState` and passed in. It is ordered staples → listed aisles (aisle data order) → new arrivals → `coupon_pool`, each in data order, never by unlock order. Unlock recency ("newest first", section 7.2) only decides which new arrivals get in, not where they sit. The stored stock ids make replay independent of the profile.
 - Derived streams (impulse rack, "Surprise me") are separate `RandomNumberGenerator` instances seeded from `hash([run_seed, "<stream name>"])`, created by the caller outside `core/` and passed in, so `core/` still never makes a seed.
 - `CardDefinition.art_ref` stays a path; presentation loads the sprite, so `core/` stays free of art.
@@ -284,7 +286,7 @@ The prototype already has `DeckDefinition` (id, name, cards) and data-driven car
   - **Win a run with X:** X is a card in the run's final deck, and the run must be won.
   - **Score Y in one checkout:** any checkout of the run that just ended totals at least Y.
   - **Use coupon Z N times:** across runs, every copy of Z in a checked-out row counts once. The run history records each shift's checked-out cards; earlier runs' counts come from `ProfileState`.
-  - The check is pure (`UnlockCheck`, tested in phase 1). Running it at the end of a run, and storing the unlocks and coupon counts, comes with `ProfileState`.
+  - The check is pure (`UnlockCheck`, tested in phase 1). At the end of a run (won or lost), `ProfileState.record_run` checks every locked deck and variant in `data/catalogue/catalogue.tres` with the coupon counts from before the run, then adds the run's coupon uses and counts the run; the profile is saved at the checkout click. Decided with the user (phase 1): a run restarted before its end records nothing.
 - **Starting upgrade (decided with the user):** a run started with a deck that has one owns it from the first shift. Upgrade offers skip it like any owned upgrade, it counts for redraws and scoring, and the loyalty card gives it a pre-stamped box of its own before the upgrade-shift boxes. The starter deck has none.
 
 Possible ideas: Breakfast deck (start with Coffee and Milk), Coupon deck (fewer products, 2 starting coupons), Frozen deck (Frozen peas, Soup risk).
@@ -367,3 +369,4 @@ Content freeze at the end of phase 3. No new features after that.
 | v0.7 | 2026-10-06 | Aligned with the inspection framework (`docs/PROTOTYPE_PLAN.md` v0.14, section 3.9): `InspectionDefinition` fields, `core/inspections/` and `inspection_schedule.gd` in the tree, `inspection_shifts` (3, 5, 7) and `inspection_pool` in balance data, the placeholder "the 3rd product pays 0" (like Soup), drawn with the run's RNG at the previous passed checkout, and a red top-bar tag during the inspected shift (decided with the user) |
 | v0.8 | 2026-10-06 | Unlock data model (phase 1, section 7.3), decided with the user: `DeckDefinition` gains description, starting upgrade and unlock condition; `CardDefinition` gains `variant_of` and an unlock condition · `UnlockCondition` (win a run with a card in the final deck, score Y in one checkout, use a coupon N times across runs, every checked-out copy counting once) with a pure `UnlockCheck`; hooking it up at run end comes with `ProfileState` · a deck's starting upgrade is owned from the first shift, skipped by offers, and gets a pre-stamped loyalty-card box · the run history records each shift's checked-out cards · `ProfileState` gains coupon uses by card id · section 5.2 points to the pre-stamped box |
 | v0.9 | 2026-10-06 | Run stock built (phase 1, section 7.2, `docs/PROTOTYPE_PLAN.md` v0.17): `AisleDefinition` (id, name, sign colour, base cards, capsule cards), one placeholder base aisle (Cheese, Frozen peas), the stock numbers and `coupon_pool` in balance data, and a pure `RunStock` built before `RunState` and passed in; reward offers draw from it · new arrivals decided with the user: a window of run indices, newest first, later draw first within a run; the window applies to a not-yet-listable aisle's items too, so they no longer ride the end-cap until it holds 4 · `run_start` logs `listed_aisles` and `stock` · until `ProfileState` (#14) and the list note (phase 3), every run stocks a new profile's stock; the simulator does the same · the non-size aisle rules (products only, every product a staple or in exactly one aisle, at most 2 `generally_useful` per aisle, at least 2 per deck's staples) are data tests from now on |
+| v0.10 | 2026-10-06 | `ProfileState` and the profile save (phase 1, sections 4 and 7.3), decided with the user: every field in section 4 (achievements, stats and settings stay empty until their content exists) · the end-of-run unlock check and coupon counts, over a new `data/catalogue/catalogue.tres` listing every deck and variant (exported builds can't list `res://` folders reliably) · only a won or lost run is recorded; a restart before the end records nothing · `profile.json` with `format_version` 1, written through a temporary file; an unreadable save is reported and kept as `profile.json.bad` (numbered, never overwritten), one that can't be opened or backed up is never saved over, and a failed write leaves the save unchanged · the shift screen loads the profile at start, builds each run's stock from it (unlocked items, last list, run count) and saves it at the checkout click that ends a run · the `run_start` and `run_end` event fields move to `RunEvents` (unchanged) |
