@@ -21,3 +21,4 @@ tags = PackedStringArray("Food", "Breakfast")
 base = 1
 rules = Array[ExtResource("1_tkmva")]([SubResource("Resource_bythu")])
 rule_text = "Double the next 2 Food payouts (resets, does not stack)"
+generally_useful = true

@@ -6,6 +6,9 @@ extends PanelContainer
 
 enum LineStyle { DETAIL, ITEM, CONTEXT, FIZZLE, TOTAL }
 
+## Monospace for the receipt (plan section 2). JetBrains Mono, SIL Open Font License.
+const MONO_FONT := preload("res://fonts/JetBrainsMono-Regular.ttf")
+
 var _lines: VBoxContainer
 var _scroll: ScrollContainer
 
@@ -111,6 +114,7 @@ func _label(text: String, style: LineStyle) -> Label:
 			color = Palette.MUTED_INK
 		LineStyle.TOTAL:
 			font_size = 22
+	label.add_theme_font_override("font", MONO_FONT)
 	label.add_theme_font_size_override("font_size", font_size)
 	label.add_theme_color_override("font_color", color)
 	return label

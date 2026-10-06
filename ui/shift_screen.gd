@@ -1,8 +1,8 @@
 class_name ShiftScreen
 extends Control
-## The shift screen (plan section 2, day 2): draw, redraw, click-to-place into the row, the
-## live projected total and receipt, checkout with the count-up, then the next shift or a new
-## run. It only displays RunState and ScoreResult; every rule lives in core/.
+## The shift screen (plan section 2): draw, redraw, click-to-place into the row, the live
+## projected total and receipt, checkout with the count-up, the reward choice, the deck view,
+## and the run's results. It only displays RunState and ScoreResult; every rule lives in core/.
 ##
 ## Click-to-place: click a hand card to pick it up, then click a slot to put it there (a
 ## filled slot pushes the cards from there to the right). Click a row card to pick it back up.
@@ -25,10 +25,15 @@ var _redraw_pick: Array[CardInstance] = []
 var _counting: bool = false
 var _run_started_ms: int = 0
 var _run_ended_ms: int = -1
+## The offer on screen: when it appeared, whether the deck view was opened, and a picked card
+## waiting for the player to choose which deck card it replaces.
+var _reward_shown_ms: int = 0
+var _deck_viewed_for_reward: bool = false
+var _pending_reward: CardDefinition
 
 var _shift_label: Label
 var _quota_label: Label
-var _deck_label: Label
+var _deck_button: Button
 var _seed_label: Label
 var _slots: Array[PanelContainer] = []
 var _row_views: Array[CardView] = []
@@ -41,9 +46,17 @@ var _cancel_button: Button
 var _checkout_button: Button
 var _banner: PanelContainer
 var _banner_label: Label
+var _banner_detail: Label
 var _banner_button: Button
+var _reward_panel: RewardPanel
+## Dims the screen and blocks clicks behind the reward panel, deck view and results.
+var _shade: ColorRect
+var _banner_armed_ms: int = 0
+var _deck_view: DeckView
+var _row_box: HBoxContainer
 var _overlay: Control
 var _count_up: CountUp
+var _sfx: Sfx
 var _debug_panel: Control
 ## Web only: keeps the page-visibility callback alive.
 var _visibility_callback: JavaScriptObject
@@ -78,6 +91,9 @@ func _on_shift_started() -> void:
 	_redraw_mode = false
 	_redraw_pick = []
 	_banner.visible = false
+	_reward_panel.visible = false
+	_deck_view.visible = false
+	_pending_reward = null
 	tracker.begin(Time.get_ticks_msec(), _has_focus())
 	_log.log_event(
 		"shift_start",
@@ -127,6 +143,7 @@ func _on_slot_input(event: InputEvent, slot: int) -> void:
 func _place_picked(slot: int) -> void:
 	if run.place(_picked, slot):
 		tracker.on_place()
+		_sfx.play("click", 1.2)
 		_picked = null
 		_picked_from_row = false
 		_refresh()
@@ -185,6 +202,7 @@ func _on_checkout_pressed() -> void:
 	_counting = true
 	_drop_pick()
 	_redraw_mode = false
+	_deck_view.visible = false
 	_click_ms = Time.get_ticks_msec()
 	tracker.on_checkout(_click_ms)
 	var committed: Array[CardInstance] = run.row.duplicate()
@@ -214,7 +232,7 @@ func _on_checkout_pressed() -> void:
 			)
 		)
 	_refresh()
-	await _count_up.play(result, _row_views, _names(committed))
+	await _count_up.play(result, _row_views, _names(committed), run.quota())
 	(
 		_log
 		. log_event(
@@ -227,19 +245,130 @@ func _on_checkout_pressed() -> void:
 		)
 	)
 	_counting = false
-	_show_banner(result)
-
-
-func _on_banner_pressed() -> void:
-	if run.can_advance():
-		run.next_shift()
-		_on_shift_started()
+	if run.phase == RunState.Phase.REWARD:
+		_show_rewards(result)
 	else:
-		_log.log_event(
-			"restart",
-			{"since_run_end_ms": Time.get_ticks_msec() - _run_ended_ms, "screen": "results"}
+		_show_results(result)
+
+
+## Results screen: New run.
+func _on_banner_pressed() -> void:
+	_log.log_event(
+		"restart", {"since_run_end_ms": Time.get_ticks_msec() - _run_ended_ms, "screen": "results"}
+	)
+	start_new_run(_log.new_run_seed())
+
+
+# --- Rewards and deck view -------------------------------------------------------------------
+
+
+func _show_rewards(result: ScoreResult) -> void:
+	_reward_shown_ms = Time.get_ticks_msec()
+	_deck_viewed_for_reward = false
+	_pending_reward = null
+	_reward_panel.show_offer(
+		run.offer,
+		"Shift passed!  €%d / €%d" % [result.total, run.quota()],
+		run.deck.size(),
+		run.balance.deck_limit
+	)
+
+
+func _on_reward_picked(card: CardDefinition) -> void:
+	if run.phase != RunState.Phase.REWARD:
+		return
+	if not run.deck_is_full():
+		_finish_reward(card, null)
+		return
+	# Plan section 2: at the deck limit, taking a card means choosing one to remove.
+	# The forced chooser is not the player choosing to look at their deck.
+	_pending_reward = card
+	_reward_panel.visible = false
+	_deck_view.open(
+		run.deck.cards,
+		(
+			"Deck full (%d/%d): choose a card to remove for %s"
+			% [run.deck.size(), run.balance.deck_limit, card.display_name]
+		),
+		true
+	)
+
+
+func _on_reward_skipped() -> void:
+	if run.phase == RunState.Phase.REWARD:
+		_finish_reward(null, null)
+
+
+func _on_deck_card_chosen(card: CardInstance) -> void:
+	if _pending_reward != null:
+		_finish_reward(_pending_reward, card)
+
+
+func _on_deck_closed() -> void:
+	if run.phase == RunState.Phase.REWARD:
+		_pending_reward = null
+		_reward_panel.visible = true
+
+
+func _on_reward_deck_requested() -> void:
+	_deck_viewed_for_reward = true
+	_reward_panel.visible = false
+	_deck_view.open(
+		run.deck.cards, "Your deck (%d/%d)" % [run.deck.size(), run.balance.deck_limit], false
+	)
+
+
+func _on_deck_button_pressed() -> void:
+	if _counting:
+		return
+	if run.phase == RunState.Phase.REWARD:
+		_on_reward_deck_requested()
+		return
+	_deck_view.open(
+		run.deck.cards, "Your deck (%d/%d)" % [run.deck.size(), run.balance.deck_limit], false
+	)
+
+
+## Applies the choice (card null = skip), logs it, and starts the next shift.
+func _finish_reward(card: CardDefinition, replaced: CardInstance) -> void:
+	var offered: Array = run.offer.map(
+		func(offered_card: CardDefinition) -> String: return String(offered_card.id)
+	)
+	var taken: bool = run.take_reward(card, replaced) if card != null else run.skip_reward()
+	if not taken:
+		return
+	(
+		_log
+		. log_event(
+			"reward",
+			{
+				"shift": run.shift_index + 1,
+				"offered": offered,
+				"picked": String(card.id) if card != null else "",
+				"skipped": card == null,
+				"replaced": String(replaced.definition.id) if replaced != null else "",
+				"decide_ms": Time.get_ticks_msec() - _reward_shown_ms,
+				"deck_view_opened": _deck_viewed_for_reward,
+			}
 		)
-		start_new_run(_log.new_run_seed())
+	)
+	_pending_reward = null
+	_reward_panel.visible = false
+	_deck_view.visible = false
+	_sfx.play("click")
+	run.next_shift()
+	_on_shift_started()
+
+
+func _on_export_pressed() -> void:
+	var screen: String = "shift"
+	if _counting:
+		screen = "count_up"
+	elif _banner.visible:
+		screen = "results"
+	elif run.phase == RunState.Phase.REWARD:
+		screen = "reward"
+	_log.export_logs(screen)
 
 
 ## Planning time pauses while the player is away. On the web that means the page is hidden
@@ -349,7 +478,7 @@ func _on_debug_shift(shift_number: int) -> void:
 func _refresh() -> void:
 	_shift_label.text = "Shift %d / %d" % [run.shift_index + 1, run.shift_count()]
 	_quota_label.text = "Quota €%d" % run.quota()
-	_deck_label.text = "Deck %d" % run.deck.size()
+	_deck_button.text = "Deck %d/%d" % [run.deck.size(), run.balance.deck_limit]
 	_seed_label.text = "Seed %d" % run.run_seed
 	_refresh_row()
 	_refresh_hand()
@@ -429,24 +558,40 @@ func _refresh_preview() -> void:
 	_subtotal_label.text = ""
 
 
-func _show_banner(result: ScoreResult) -> void:
-	match run.phase:
-		RunState.Phase.SCORED:
-			_banner_label.text = "Shift passed!  €%d / €%d" % [result.total, run.quota()]
-			_banner_button.text = "Next shift"
-		RunState.Phase.WON:
-			_banner_label.text = "Run won!  €%d / €%d" % [result.total, run.quota()]
-			_banner_button.text = "New run"
-		RunState.Phase.LOST:
-			_banner_label.text = (
-				"Short by €%d.  €%d / €%d" % [run.quota() - result.total, result.total, run.quota()]
-			)
-			_banner_button.text = "New run"
-	_banner.visible = true
-	_banner.pivot_offset = _banner.size / 2.0
-	_banner.scale = Vector2(0.6, 0.6)
-	var tween: Tween = create_tween().set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
-	tween.tween_property(_banner, "scale", Vector2.ONE, 0.25)
+## The win and lose screens (plan section 2).
+func _show_results(result: ScoreResult) -> void:
+	var won: bool = run.phase == RunState.Phase.WON
+	_banner_label.text = "RUN WON!" if won else "RUN OVER"
+	_banner_label.add_theme_color_override("font_color", Palette.GOOD if won else Palette.TOMATO)
+	if won:
+		_banner_detail.text = (
+			"All %d shifts cleared. Last checkout €%d / €%d."
+			% [run.shift_count(), result.total, run.quota()]
+		)
+	else:
+		_banner_detail.text = (
+			"Shift %d / %d: €%d of €%d, short by €%d."
+			% [
+				run.shift_index + 1,
+				run.shift_count(),
+				result.total,
+				run.quota(),
+				run.quota() - result.total,
+			]
+		)
+	_banner_button.text = "New run"
+	# Like the reward panel: New run waits for the mouse to be released after it appears.
+	_banner_button.disabled = true
+	_banner_armed_ms = Time.get_ticks_msec() + 350
+	UiKit.pop_in(_banner)
+
+
+func _process(_delta: float) -> void:
+	_shade.visible = _reward_panel.visible or _deck_view.visible or _banner.visible
+	var waited: bool = Time.get_ticks_msec() >= _banner_armed_ms
+	if _banner.visible and _banner_button.disabled and waited:
+		if not Input.is_mouse_button_pressed(MOUSE_BUTTON_LEFT):
+			_banner_button.disabled = false
 
 
 func _build() -> void:
@@ -474,12 +619,13 @@ func _build() -> void:
 	page.add_child(top)
 	_shift_label = _info_label(top, 22)
 	_quota_label = _info_label(top, 22)
-	_deck_label = _info_label(top, 16)
+	_deck_button = UiKit.button(top, "", _on_deck_button_pressed, 16)
 	_seed_label = _info_label(top, 16)
 	var build: Label = _info_label(top, 14)
 	build.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	build.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 	build.text = str(ProjectSettings.get_setting("next_customer/build_label", ""))
+	UiKit.button(top, "Export log", _on_export_pressed, 14)
 
 	var middle: HBoxContainer = HBoxContainer.new()
 	middle.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -495,12 +641,12 @@ func _build() -> void:
 	# Room above the row for the value badges over each card.
 	row_title.custom_minimum_size = Vector2(0, 72)
 	row_title.vertical_alignment = VERTICAL_ALIGNMENT_TOP
-	var row: HBoxContainer = HBoxContainer.new()
-	row.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	row.add_theme_constant_override("separation", 14)
-	row_column.add_child(row)
+	_row_box = HBoxContainer.new()
+	_row_box.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_row_box.add_theme_constant_override("separation", 14)
+	row_column.add_child(_row_box)
 	for slot: int in range(_balance.slot_count):
-		row.add_child(_slot_panel(slot))
+		_row_box.add_child(_slot_panel(slot))
 	var totals: HBoxContainer = HBoxContainer.new()
 	totals.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	totals.add_theme_constant_override("separation", 30)
@@ -515,6 +661,12 @@ func _build() -> void:
 	_receipt.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	middle.add_child(_receipt)
 
+	var hint: Label = _info_label(page, 14)
+	hint.text = (
+		"Click a card, then a slot to place it  ·  click a placed card to take it back"
+		+ "  ·  hold Space or the mouse to fast-forward the count"
+	)
+	hint.modulate = Color(1, 1, 1, 0.6)
 	var bottom: HBoxContainer = HBoxContainer.new()
 	bottom.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	bottom.add_theme_constant_override("separation", 16)
@@ -539,32 +691,48 @@ func _build() -> void:
 	_overlay.set_anchors_preset(Control.PRESET_FULL_RECT)
 	_overlay.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(_overlay)
+	_sfx = Sfx.new()
+	add_child(_sfx)
 	_count_up = CountUp.new()
 	add_child(_count_up)
-	_count_up.setup(_overlay, _receipt, _subtotal_label)
+	_count_up.setup(_overlay, _receipt, _subtotal_label, _sfx, _row_box)
 
-	_banner = PanelContainer.new()
-	var banner_style: StyleBoxFlat = StyleBoxFlat.new()
-	banner_style.bg_color = Palette.PAPER
-	banner_style.border_color = Palette.INK
-	banner_style.set_border_width_all(4)
-	banner_style.set_corner_radius_all(12)
-	banner_style.set_content_margin_all(24)
-	_banner.add_theme_stylebox_override("panel", banner_style)
-	_banner.set_anchors_preset(Control.PRESET_CENTER)
-	_banner.grow_horizontal = Control.GROW_DIRECTION_BOTH
-	_banner.grow_vertical = Control.GROW_DIRECTION_BOTH
+	_shade = ColorRect.new()
+	_shade.color = Color(0, 0, 0, 0.5)
+	_shade.set_anchors_preset(Control.PRESET_FULL_RECT)
+	# Below the top bar, so Export log and Deck stay reachable on every screen.
+	_shade.offset_top = 64
+	_shade.mouse_filter = Control.MOUSE_FILTER_STOP
+	_shade.visible = false
+	add_child(_shade)
+	_reward_panel = RewardPanel.new()
+	add_child(_reward_panel)
+	_reward_panel.picked.connect(_on_reward_picked)
+	_reward_panel.skipped.connect(_on_reward_skipped)
+	_reward_panel.deck_requested.connect(_on_reward_deck_requested)
+	_banner = UiKit.paper_panel()
 	add_child(_banner)
 	var banner_column: VBoxContainer = VBoxContainer.new()
 	banner_column.add_theme_constant_override("separation", 16)
 	_banner.add_child(banner_column)
-	_banner_label = Label.new()
-	_banner_label.add_theme_font_size_override("font_size", 32)
-	_banner_label.add_theme_color_override("font_color", Palette.INK)
+	_banner_label = UiKit.label("", 48, Palette.INK)
 	_banner_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	banner_column.add_child(_banner_label)
-	_banner_button = _button(banner_column, "", _on_banner_pressed, 22)
+	_banner_detail = UiKit.label("", 20, Palette.INK)
+	_banner_detail.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	banner_column.add_child(_banner_detail)
+	var banner_buttons: HBoxContainer = HBoxContainer.new()
+	banner_buttons.alignment = BoxContainer.ALIGNMENT_CENTER
+	banner_buttons.add_theme_constant_override("separation", 16)
+	banner_column.add_child(banner_buttons)
+	_banner_button = _button(banner_buttons, "", _on_banner_pressed, 22)
+	_button(banner_buttons, "Export log", _on_export_pressed, 18)
 	_banner.visible = false
+	# Added last, so the deck view sits above the reward panel and the results.
+	_deck_view = DeckView.new()
+	add_child(_deck_view)
+	_deck_view.card_chosen.connect(_on_deck_card_chosen)
+	_deck_view.closed.connect(_on_deck_closed)
 
 
 func _slot_panel(slot: int) -> PanelContainer:
@@ -576,6 +744,8 @@ func _slot_panel(slot: int) -> PanelContainer:
 	style.border_color = Color(1, 1, 1, 0.15)
 	style.set_border_width_all(2)
 	style.set_corner_radius_all(10)
+	# No content margin: a filled slot stays exactly card-sized, so the row never shifts.
+	style.set_content_margin_all(0)
 	panel.add_theme_stylebox_override("panel", style)
 	panel.gui_input.connect(_on_slot_input.bind(slot))
 	_slots.append(panel)
@@ -594,6 +764,8 @@ func _info_label(parent: Control, font_size: int) -> Label:
 func _button(parent: Control, text: String, action: Callable, font_size: int) -> Button:
 	var button: Button = Button.new()
 	button.text = text
+	# Mouse-only buttons: keyboard focus would let Space (the fast-forward key) press CHECKOUT.
+	button.focus_mode = Control.FOCUS_NONE
 	button.add_theme_font_size_override("font_size", font_size)
 	button.pressed.connect(action)
 	parent.add_child(button)

@@ -55,5 +55,35 @@ func log_event(type: String, data: Dictionary = {}) -> void:
 	_writer.append(event)
 
 
+## The Export log button (plan section 8): every session file joined into one .jsonl. On the
+## web it is downloaded; on desktop it is written next to the logs and the folder is opened.
+## The log_export event is written first, so the exported file contains it. Returns the
+## joined text.
+func export_logs(screen: String, open_folder: bool = true) -> String:
+	var folder: String = _writer.folder
+	var files: int = 0
+	if DirAccess.dir_exists_absolute(folder):
+		for file_name: String in DirAccess.get_files_at(folder):
+			if file_name.ends_with(".jsonl"):
+				files += 1
+	if not FileAccess.file_exists(_writer.file_path):
+		files += 1
+	log_event("log_export", {"screen": screen, "files": files})
+	var joined: String = EventLogWriter.join_logs(folder)
+	var stamp: String = Time.get_datetime_string_from_system(true).replace(":", "-")
+	var file_name: String = "next_customer_logs_%s.jsonl" % stamp
+	if OS.has_feature("web"):
+		JavaScriptBridge.download_buffer(joined.to_utf8_buffer(), file_name, "application/x-ndjson")
+	else:
+		var export_path: String = folder.get_base_dir().path_join("playtest_export.jsonl")
+		var file: FileAccess = FileAccess.open(export_path, FileAccess.WRITE)
+		if file:
+			file.store_string(joined)
+			file.close()
+		if open_folder:
+			OS.shell_open(ProjectSettings.globalize_path(folder.get_base_dir()))
+	return joined
+
+
 func _random_id() -> String:
 	return "%08x%08x" % [_rng.randi(), _rng.randi()]
