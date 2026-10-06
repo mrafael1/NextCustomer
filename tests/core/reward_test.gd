@@ -4,7 +4,9 @@ extends GdUnitTestSuite
 const STARTER := "res://data/decks/starter.tres"
 const BALANCE := "res://data/balance/balance.tres"
 const BREAD := "res://data/cards/bread.tres"
-const COMBINATION_COUPONS := [&"bundle", &"breakfast_sticker", &"multipack"]
+const BUNDLE := "res://data/cards/bundle.tres"
+## Bundle is out of the pools until it returns as "2 for 1" (plan section 5).
+const COMBINATION_COUPONS := [&"breakfast_sticker", &"multipack"]
 
 
 func test_generally_useful_cards_are_the_decided_four() -> void:
@@ -18,14 +20,23 @@ func test_generally_useful_cards_are_the_decided_four() -> void:
 	assert_array(useful).is_equal(["banana", "bread", "eggs", "milk"])
 
 
-func test_reward_pool_is_every_card_and_first_pool_the_combination_coupons() -> void:
+func test_reward_pool_is_every_card_but_bundle_and_first_pool_the_combination_coupons() -> void:
 	var balance: BalanceDefinition = load(BALANCE)
-	assert_int(balance.reward_pool.size()).is_equal(13)
+	assert_int(balance.reward_pool.size()).is_equal(12)
 	assert_int(balance.offer_size).is_equal(3)
 	var first: Array = balance.first_offer_pool.map(
 		func(card: CardDefinition) -> StringName: return card.id
 	)
 	assert_array(first).contains_exactly_in_any_order(COMBINATION_COUPONS)
+
+
+func test_no_offer_pool_contains_bundle() -> void:
+	var balance: BalanceDefinition = load(BALANCE)
+	var bundle: CardDefinition = load(BUNDLE)
+	assert_bool(balance.reward_pool.has(bundle)).is_false()
+	assert_bool(balance.first_offer_pool.has(bundle)).is_false()
+	for card: CardDefinition in balance.reward_pool + balance.first_offer_pool:
+		assert_str(String(card.id)).is_not_equal("bundle")
 
 
 func test_first_offer_always_has_a_combination_coupon() -> void:
@@ -65,7 +76,7 @@ func test_offers_reach_every_card_and_every_position() -> void:
 			seen[offer[position].id] = true
 			if offer[position].is_coupon():
 				guaranteed_positions[position] = true
-	assert_int(seen.size()).is_equal(13)
+	assert_int(seen.size()).is_equal(12)
 	assert_int(guaranteed_positions.size()).is_equal(3)
 
 
