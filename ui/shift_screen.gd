@@ -1,10 +1,11 @@
 class_name ShiftScreen
 extends Control
-## The shift screen (plan section 2): draw, redraw, click-to-place into the row, the live
-## projected total and receipt, checkout with the count-up, the reward choice, the upgrade
-## choice and loyalty card on upgrade shifts (plan section 3.8), the shift's inspection and
-## the next one's notice (plan section 3.9), the deck view, and the run's results with its
-## history. It only displays RunState and ScoreResult; every rule lives in core/.
+## The shift screen (plan section 2): the impulse rack before shift 1 (full build plan
+## section 3), draw, redraw, click-to-place into the row, the live projected total and receipt,
+## checkout with the count-up, the reward choice, the upgrade choice and loyalty card on upgrade
+## shifts (plan section 3.8), the shift's inspection and the next one's notice (plan section
+## 3.9), the deck view, and the run's results with its history. It only displays RunState and
+## ScoreResult; every rule lives in core/.
 ##
 ## Click-to-place: click a hand card to pick it up, then click a slot to put it there (a
 ## filled slot pushes the cards from there to the right). Click a row card to pick it back up.
@@ -42,8 +43,8 @@ var _redraw_pick: Array[CardInstance] = []
 var _counting: bool = false
 var _run_started_ms: int = 0
 var _run_ended_ms: int = -1
-## The offer on screen: when it appeared, whether the deck view was opened, and a picked card
-## waiting for the player to choose which deck card it replaces.
+## The offer on screen (a reward or the impulse rack): when it appeared, whether the deck view
+## was opened, and a picked card waiting for the player to choose which deck card it replaces.
 var _reward_shown_ms: int = 0
 var _deck_viewed_for_reward: bool = false
 var _pending_reward: CardDefinition
@@ -68,26 +69,19 @@ var _receipt: ReceiptView
 var _redraw_button: Button
 var _cancel_button: Button
 var _checkout_button: Button
-var _banner: PanelContainer
-var _banner_label: Label
-var _banner_detail: Label
-var _banner_button: Button
+var _results: ResultsPanel
 var _reward_panel: RewardPanel
 var _upgrade_panel: UpgradePanel
-var _history_view: RunHistoryView
-var _coin_receipt: CoinReceipt
 ## Dims the screen and blocks clicks behind the reward and upgrade panels, deck view and
 ## results.
 var _shade: ColorRect
-var _banner_armed_ms: int = 0
 var _deck_view: DeckView
 var _row_box: HBoxContainer
 var _overlay: Control
 var _count_up: CountUp
 var _sfx: Sfx
 var _debug_panel: Control
-## Web only: keeps the page-visibility callback alive.
-var _visibility_callback: JavaScriptObject
+var _focus: FocusWatch
 ## The EventLog autoload, typed. Fetched from the tree because standalone script checks
 ## don't know autoload names.
 @onready var _log: EventLogService = get_node("/root/EventLog")
@@ -99,41 +93,48 @@ func _ready() -> void:
 	_saves = SaveService.new(SaveService.default_folder())
 	profile = _saves.load_profile()
 	_build()
-	_watch_focus()
 	_add_debug_panel()
 	start_new_run(_log.new_run_seed())
 	_maybe_play_demo_row()
 
 
-## Starts a run with a seed (a new random one, or one set from the debug panel).
-func start_new_run(seed_value: int) -> void:
+## Starts a run with a seed (a new random one, or one set from the debug panel) and opens the
+## impulse rack. The debug replay passes `replays_rack` with the logged pick (a card id, or ""
+## for a skip) to apply at once; a pick that isn't in the offer is refused and the rack stays.
+func start_new_run(seed_value: int, replays_rack: bool = false, replayed_pick: String = "") -> void:
 	var deck: DeckDefinition = load(STARTER_DECK)
 	# Phase 3's shopping list will set the list; until then the profile's last one is kept.
 	var stock: RunStock = RunStock.build(
 		deck, _balance, profile.last_list, profile.unlocked_items, profile.run_count
 	)
-	run = RunState.new(seed_value, deck, _balance, stock)
+	var stream: RandomNumberGenerator = EventLogService.derived_stream(
+		seed_value, EventLogService.IMPULSE_RACK_STREAM
+	)
+	run = RunState.new(seed_value, deck, _balance, stock, stream)
+	# run_end's run_ms counts from here, so the run's length includes the impulse rack.
 	_run_started_ms = Time.get_ticks_msec()
 	_run_ended_ms = -1
 	_log.begin_run()
-	_log.log_event("run_start", RunEvents.run_start(run))
+	_close_overlays()
+	if run.phase != RunState.Phase.IMPULSE:
+		_start_first_shift(0, false)
+		return
+	_show_impulse_rack()
+	if replays_rack:
+		_replay_impulse_rack(replayed_pick)
+
+
+## After the impulse rack: logs run_start (with the rack's offer, pick and decision time) and
+## starts shift 1.
+func _start_first_shift(decide_ms: int, deck_viewed: bool) -> void:
+	_log.log_event("run_start", RunEvents.run_start(run, decide_ms, deck_viewed))
 	run.start_shift()
 	_on_shift_started()
 
 
 func _on_shift_started() -> void:
-	_notice_label.clear_notice()
-	_drag.cancel()
-	_picked = null
-	_picked_from_row = false
-	_redraw_mode = false
-	_redraw_pick = []
-	_banner.visible = false
-	_reward_panel.visible = false
-	_upgrade_panel.visible = false
-	_deck_view.visible = false
-	_pending_reward = null
-	tracker.begin(Time.get_ticks_msec(), _has_focus())
+	_close_overlays()
+	tracker.begin(Time.get_ticks_msec(), _focus.is_player_present())
 	var start: Dictionary = {
 		"shift": run.shift_index + 1,
 		"quota": run.quota(),
@@ -142,6 +143,21 @@ func _on_shift_started() -> void:
 	}
 	_log.log_event("shift_start", start)
 	_refresh()
+
+
+## Hides every panel and lets go of any picked or dragged card.
+func _close_overlays() -> void:
+	_notice_label.clear_notice()
+	_drag.cancel()
+	_picked = null
+	_picked_from_row = false
+	_redraw_mode = false
+	_redraw_pick = []
+	_results.visible = false
+	_reward_panel.visible = false
+	_upgrade_panel.visible = false
+	_deck_view.visible = false
+	_pending_reward = null
 
 
 # --- Input -------------------------------------------------------------------------------
@@ -330,11 +346,59 @@ func _on_checkout_pressed() -> void:
 
 
 ## Results screen: New run.
-func _on_banner_pressed() -> void:
+func _on_new_run_pressed() -> void:
 	_log.log_event(
 		"restart", {"since_run_end_ms": Time.get_ticks_msec() - _run_ended_ms, "screen": "results"}
 	)
 	start_new_run(_log.new_run_seed())
+
+
+# --- Impulse rack ----------------------------------------------------------------------------
+
+
+## Full build plan section 3: before shift 1, pick 1 of the rack's stocked products or skip.
+## The reward panel shows it; its pick, skip and deck view go through the reward handlers, and
+## RunState takes it like a reward.
+func _show_impulse_rack() -> void:
+	_refresh()
+	# The last run's receipt and totals go: shift 1's preview only shows once it starts.
+	_receipt.clear()
+	_projected_label.text = ""
+	_subtotal_label.text = ""
+	_reward_shown_ms = Time.get_ticks_msec()
+	_deck_viewed_for_reward = false
+	_pending_reward = null
+	_reward_panel.show_offer(
+		run.impulse_offer,
+		"Impulse rack: grab one before shift 1?",
+		run.deck.size(),
+		run.balance.deck_limit
+	)
+
+
+## The debug replay, on the rack shown: applies a logged pick ("" for a skip). A card that isn't
+## in the offer is refused and the rack stays. At the deck limit the deck view asks which card
+## leaves.
+func _replay_impulse_rack(card_id: String) -> void:
+	if card_id.is_empty():
+		_finish_impulse(null, null)
+		return
+	for card: CardDefinition in run.impulse_offer:
+		if String(card.id) == card_id:
+			_on_reward_picked(card)
+			return
+	_log.log_event("debug", {"action": "impulse_pick_refused", "card": card_id})
+
+
+## Applies the rack choice (card null = skip), then logs run_start and starts shift 1.
+func _finish_impulse(card: CardDefinition, replaced: CardInstance) -> void:
+	if run.phase != RunState.Phase.IMPULSE:
+		return
+	var taken: bool = run.take_reward(card, replaced) if card != null else run.skip_reward()
+	if not taken:
+		return
+	_sfx.play("click")
+	_start_first_shift(Time.get_ticks_msec() - _reward_shown_ms, _deck_viewed_for_reward)
 
 
 # --- Rewards and deck view -------------------------------------------------------------------
@@ -354,10 +418,10 @@ func _show_rewards(result: ScoreResult) -> void:
 
 
 func _on_reward_picked(card: CardDefinition) -> void:
-	if run.phase != RunState.Phase.REWARD:
+	if run.phase != RunState.Phase.REWARD and run.phase != RunState.Phase.IMPULSE:
 		return
 	if not run.deck_is_full():
-		_finish_reward(card, null)
+		_finish_offer(card, null)
 		return
 	# Plan section 2: at the deck limit, taking a card means choosing one to remove.
 	# The forced chooser is not the player choosing to look at their deck.
@@ -374,17 +438,24 @@ func _on_reward_picked(card: CardDefinition) -> void:
 
 
 func _on_reward_skipped() -> void:
-	if run.phase == RunState.Phase.REWARD:
-		_finish_reward(null, null)
+	_finish_offer(null, null)
 
 
 func _on_deck_card_chosen(card: CardInstance) -> void:
 	if _pending_reward != null:
-		_finish_reward(_pending_reward, card)
+		_finish_offer(_pending_reward, card)
+
+
+## The panel's choice (card null = skip) for the offer on screen: the impulse rack or a reward.
+func _finish_offer(card: CardDefinition, replaced: CardInstance) -> void:
+	if run.phase == RunState.Phase.IMPULSE:
+		_finish_impulse(card, replaced)
+	elif run.phase == RunState.Phase.REWARD:
+		_finish_reward(card, replaced)
 
 
 func _on_deck_closed() -> void:
-	if run.phase == RunState.Phase.REWARD:
+	if run.phase == RunState.Phase.REWARD or run.phase == RunState.Phase.IMPULSE:
 		_pending_reward = null
 		_reward_panel.visible = true
 	elif run.phase == RunState.Phase.UPGRADE:
@@ -402,7 +473,7 @@ func _on_reward_deck_requested() -> void:
 func _on_deck_button_pressed() -> void:
 	if _counting:
 		return
-	if run.phase == RunState.Phase.REWARD:
+	if run.phase == RunState.Phase.REWARD or run.phase == RunState.Phase.IMPULSE:
 		_on_reward_deck_requested()
 		return
 	# The tickets come back when the deck view closes; there is still no way past them.
@@ -487,8 +558,10 @@ func _on_export_pressed() -> void:
 	var screen: String = "shift"
 	if _counting:
 		screen = "count_up"
-	elif _banner.visible:
+	elif _results.visible:
 		screen = "results"
+	elif run.phase == RunState.Phase.IMPULSE:
+		screen = "impulse_rack"
 	elif run.phase == RunState.Phase.REWARD:
 		screen = "reward"
 	elif run.phase == RunState.Phase.UPGRADE:
@@ -496,33 +569,7 @@ func _on_export_pressed() -> void:
 	_log.export_logs(screen)
 
 
-## Planning time pauses while the player is away. On the web that means the page is hidden
-## (another tab, minimised): canvas focus also drops on any click outside the game, e.g. on
-## the itch.io page, while the player can still see the hand and think. On desktop it is
-## window focus.
-func _watch_focus() -> void:
-	if OS.has_feature("web"):
-		var document: JavaScriptObject = JavaScriptBridge.get_interface("document")
-		_visibility_callback = JavaScriptBridge.create_callback(_on_page_visibility_changed)
-		document.call("addEventListener", "visibilitychange", _visibility_callback)
-	else:
-		get_window().focus_exited.connect(_on_focus_exited)
-		get_window().focus_entered.connect(_on_focus_entered)
-
-
-func _has_focus() -> bool:
-	if OS.has_feature("web"):
-		return not bool(JavaScriptBridge.eval("document.hidden", true))
-	return get_window().has_focus()
-
-
-func _on_page_visibility_changed(_arguments: Array) -> void:
-	if _has_focus():
-		_on_focus_entered()
-	else:
-		_on_focus_exited()
-
-
+## Planning time pauses while the player is away (FocusWatch).
 func _on_focus_exited() -> void:
 	tracker.on_focus_lost(Time.get_ticks_msec())
 
@@ -560,6 +607,7 @@ func _maybe_play_demo_row() -> void:
 			continue
 		var card_ids: PackedStringArray = argument.trim_prefix("--demo-row=").split(",", false)
 		_log.log_event("debug", {"action": "demo_row", "cards": Array(card_ids)})
+		_finish_impulse(null, null)
 		for card_id: String in card_ids:
 			var path: String = "%s/%s.tres" % [CARDS_FOLDER, card_id]
 			if ResourceLoader.exists(path):
@@ -570,11 +618,16 @@ func _maybe_play_demo_row() -> void:
 		_on_checkout_pressed()
 
 
-func _on_debug_seed(seed_value: int) -> void:
+## A new run with this seed. With `replays_rack`, the impulse rack takes `impulse_pick` (a card
+## id, or "" for a skip, as run_start logs it) instead of showing.
+func _on_debug_seed(seed_value: int, replays_rack: bool, impulse_pick: String) -> void:
 	if _counting:
 		return
-	_log.log_event("debug", {"action": "set_seed", "seed": seed_value})
-	start_new_run(seed_value)
+	var data: Dictionary = {"action": "set_seed", "seed": seed_value}
+	if replays_rack:
+		data["impulse_pick"] = impulse_pick
+	_log.log_event("debug", data)
+	start_new_run(seed_value, replays_rack, impulse_pick)
 
 
 func _on_debug_card(card_id: String) -> void:
@@ -622,12 +675,15 @@ func _on_debug_inspection(inspection_id: String) -> void:
 
 
 func _on_debug_shift(shift_number: int) -> void:
-	if _counting:
+	if _counting or run.phase == RunState.Phase.IMPULSE:
 		return
 	_log.log_event("debug", {"action": "skip_to_shift", "shift": shift_number})
 	if run.phase == RunState.Phase.WON or run.phase == RunState.Phase.LOST:
-		# An ended run stays ended: replay its seed as a new run instead.
-		start_new_run(run.run_seed)
+		# An ended run stays ended: replay its seed, and its impulse-rack choice, as a new run.
+		var pick: String = String(run.impulse_pick.id) if run.impulse_pick != null else ""
+		start_new_run(run.run_seed, true, pick)
+		if run.phase != RunState.Phase.PLANNING:
+			return  # The replayed pick waits for a deck card to remove.
 	run.debug_skip_to_shift(shift_number - 1)
 	_on_shift_started()
 
@@ -745,42 +801,13 @@ func _refresh_preview() -> void:
 
 ## The win and lose screens (plan section 2).
 func _show_results(result: ScoreResult) -> void:
-	var won: bool = run.phase == RunState.Phase.WON
-	_banner_label.text = "RUN WON!" if won else "RUN OVER"
-	_banner_label.add_theme_color_override("font_color", Palette.GOOD if won else Palette.TOMATO)
-	if won:
-		_banner_detail.text = (
-			"All %d shifts cleared. Last checkout €%d / €%d."
-			% [run.shift_count(), result.total, run.quota()]
-		)
-	else:
-		_banner_detail.text = (
-			"Shift %d / %d: €%d of €%d, short by €%d."
-			% [
-				run.shift_index + 1,
-				run.shift_count(),
-				result.total,
-				run.quota(),
-				run.quota() - result.total,
-			]
-		)
-	_history_view.show_history(run.history)
-	_coin_receipt.show_payout(CoinPayout.for_run(run), profile.coins if _profile_saved else -1)
-	_banner_button.text = "New run"
-	# Like the reward panel: New run waits for the mouse to be released after it appears.
-	_banner_button.disabled = true
-	_banner_armed_ms = Time.get_ticks_msec() + 350
-	UiKit.pop_in(_banner)
+	_results.show_results(run, result, profile.coins if _profile_saved else -1)
 
 
 func _process(_delta: float) -> void:
 	_shade.visible = (
-		_reward_panel.visible or _upgrade_panel.visible or _deck_view.visible or _banner.visible
+		_reward_panel.visible or _upgrade_panel.visible or _deck_view.visible or _results.visible
 	)
-	var waited: bool = Time.get_ticks_msec() >= _banner_armed_ms
-	if _banner.visible and _banner_button.disabled and waited:
-		if not Input.is_mouse_button_pressed(MOUSE_BUTTON_LEFT):
-			_banner_button.disabled = false
 
 
 func _build() -> void:
@@ -887,10 +914,10 @@ func _build() -> void:
 	buttons.custom_minimum_size = Vector2(170, 0)
 	buttons.add_theme_constant_override("separation", 10)
 	bottom.add_child(buttons)
-	_checkout_button = _button(buttons, "CHECKOUT", _on_checkout_pressed, 22)
+	_checkout_button = UiKit.button(buttons, "CHECKOUT", _on_checkout_pressed, 22)
 	_checkout_button.custom_minimum_size = Vector2(0, 70)
-	_redraw_button = _button(buttons, "", _on_redraw_pressed, 15)
-	_cancel_button = _button(buttons, "Cancel", _on_cancel_pressed, 14)
+	_redraw_button = UiKit.button(buttons, "", _on_redraw_pressed, 15)
+	_cancel_button = UiKit.button(buttons, "Cancel", _on_cancel_pressed, 14)
 
 	_overlay = Control.new()
 	_overlay.set_anchors_preset(Control.PRESET_FULL_RECT)
@@ -898,6 +925,10 @@ func _build() -> void:
 	add_child(_overlay)
 	_sfx = Sfx.new()
 	add_child(_sfx)
+	_focus = FocusWatch.new()
+	add_child(_focus)
+	_focus.player_left.connect(_on_focus_exited)
+	_focus.player_returned.connect(_on_focus_entered)
 	_count_up = CountUp.new()
 	add_child(_count_up)
 	_count_up.setup(_overlay, _receipt, _subtotal_label, _sfx, _row_box)
@@ -922,30 +953,10 @@ func _build() -> void:
 	_upgrade_panel = UpgradePanel.new()
 	add_child(_upgrade_panel)
 	_upgrade_panel.picked.connect(_on_upgrade_picked)
-	_banner = UiKit.paper_panel()
-	add_child(_banner)
-	var banner_column: VBoxContainer = VBoxContainer.new()
-	banner_column.add_theme_constant_override("separation", 16)
-	_banner.add_child(banner_column)
-	_banner_label = UiKit.label("", 48, Palette.INK)
-	_banner_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	banner_column.add_child(_banner_label)
-	_banner_detail = UiKit.label("", 20, Palette.INK)
-	_banner_detail.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	banner_column.add_child(_banner_detail)
-	_history_view = RunHistoryView.new()
-	_history_view.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
-	banner_column.add_child(_history_view)
-	_coin_receipt = CoinReceipt.new()
-	_coin_receipt.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
-	banner_column.add_child(_coin_receipt)
-	var banner_buttons: HBoxContainer = HBoxContainer.new()
-	banner_buttons.alignment = BoxContainer.ALIGNMENT_CENTER
-	banner_buttons.add_theme_constant_override("separation", 16)
-	banner_column.add_child(banner_buttons)
-	_banner_button = _button(banner_buttons, "", _on_banner_pressed, 22)
-	_button(banner_buttons, "Export log", _on_export_pressed, 18)
-	_banner.visible = false
+	_results = ResultsPanel.new()
+	add_child(_results)
+	_results.new_run_requested.connect(_on_new_run_pressed)
+	_results.export_requested.connect(_on_export_pressed)
 	# Added last, so the deck view sits above the reward panel and the results.
 	_deck_view = DeckView.new()
 	add_child(_deck_view)
@@ -977,17 +988,6 @@ func _info_label(parent: Control, font_size: int) -> Label:
 	label.add_theme_color_override("font_color", Palette.LIGHT_TEXT)
 	parent.add_child(label)
 	return label
-
-
-func _button(parent: Control, text: String, action: Callable, font_size: int) -> Button:
-	var button: Button = Button.new()
-	button.text = text
-	# Mouse-only buttons: keyboard focus would let Space (the fast-forward key) press CHECKOUT.
-	button.focus_mode = Control.FOCUS_NONE
-	button.add_theme_font_size_override("font_size", font_size)
-	button.pressed.connect(action)
-	parent.add_child(button)
-	return button
 
 
 static func _names(cards: Array[CardInstance]) -> PackedStringArray:

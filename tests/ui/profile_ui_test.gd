@@ -35,9 +35,11 @@ func test_an_ended_run_is_saved_to_the_profile_and_a_restart_is_not() -> void:
 	saves.save_profile(saved)
 	var runner: GdUnitSceneRunner = scene_runner(SCREEN)
 	var screen: ShiftScreen = runner.scene()
+	screen._on_reward_skipped()  # Past the impulse rack.
 	assert_int(screen.profile.run_count).is_equal(3)
 	# A new run before this one ends (the debug seed) records nothing.
 	screen.start_new_run(5)
+	screen._on_reward_skipped()
 	assert_int(saves.load_profile().run_count).is_equal(3)
 	# A Repeat alone pays 0: the run is lost, recorded and saved at the click.
 	screen.run.place(screen.run.debug_add_to_hand(load(REPEAT)), 0)
@@ -63,6 +65,7 @@ func test_the_results_print_the_coins_and_fit_the_screen() -> void:
 	saves.save_profile(saved)
 	var runner: GdUnitSceneRunner = scene_runner(SCREEN)
 	var screen: ShiftScreen = runner.scene()
+	screen._on_reward_skipped()  # Past the impulse rack.
 	var count: int = screen.run.shift_count()
 	screen._on_debug_shift(count)
 	# The debug jump writes no history: the 7 earlier shifts are passed records, each €2 over.
@@ -75,7 +78,7 @@ func test_the_results_print_the_coins_and_fit_the_screen() -> void:
 	await screen._on_checkout_pressed()
 	assert_int(screen.run.phase).is_equal(RunState.Phase.WON)
 	# 8 shifts passed pay 2; overtime 7 x 2 + (67 - 48) = 33, under the €60 step.
-	var texts: PackedStringArray = screen._coin_receipt.texts()
+	var texts: PackedStringArray = screen._results._coin_receipt.texts()
 	assert_int(texts.size()).is_equal(3)
 	assert_str(texts[0]).starts_with("Shifts passed 8").ends_with("+2")
 	assert_str(texts[1]).starts_with("Overtime €33").ends_with("+0")
@@ -83,11 +86,11 @@ func test_the_results_print_the_coins_and_fit_the_screen() -> void:
 	assert_int(saves.load_profile().coins).is_equal(8)
 	for frame: int in range(4):
 		await get_tree().process_frame
-	var banner: Rect2 = screen._banner.get_global_rect()
+	var banner: Rect2 = screen._results.get_global_rect()
 	assert_float(banner.size.y).is_less_equal(720.0)
 	assert_float(banner.size.x).is_less_equal(1280.0)
-	assert_bool(banner.encloses(screen._coin_receipt.get_global_rect())).is_true()
-	assert_float(screen._coin_receipt.size.y).is_greater(40.0)
+	assert_bool(banner.encloses(screen._results._coin_receipt.get_global_rect())).is_true()
+	assert_float(screen._results._coin_receipt.size.y).is_greater(40.0)
 
 
 ## The receipt's lines all have the same width, so the amounts form a column, and an unknown
@@ -142,6 +145,7 @@ func test_the_title_shows_the_shift_count_and_the_coins() -> void:
 func test_without_a_save_the_screen_starts_a_fresh_profile() -> void:
 	var runner: GdUnitSceneRunner = scene_runner(SCREEN)
 	var screen: ShiftScreen = runner.scene()
+	screen._on_reward_skipped()  # Past the impulse rack.
 	assert_int(screen.profile.run_count).is_equal(0)
 	assert_bool(FileAccess.file_exists(_folder.path_join(SaveService.PROFILE_FILE))).is_false()
 

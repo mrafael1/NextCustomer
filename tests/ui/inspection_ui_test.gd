@@ -32,6 +32,7 @@ func after_test() -> void:
 func test_the_notice_comes_before_the_reward_and_the_kiosk() -> void:
 	var runner: GdUnitSceneRunner = scene_runner(SCREEN)
 	var screen: ShiftScreen = runner.scene()
+	screen._on_reward_skipped()  # Past the impulse rack.
 	var run: RunState = screen.run
 	assert_bool(screen._inspection_tag.visible).is_false()
 
@@ -86,6 +87,7 @@ func test_the_notice_comes_before_the_reward_and_the_kiosk() -> void:
 func test_inspection_steps_print_and_play_from_the_tag() -> void:
 	var runner: GdUnitSceneRunner = scene_runner(SCREEN)
 	var screen: ShiftScreen = runner.scene()
+	screen._on_reward_skipped()  # Past the impulse rack.
 	screen._on_debug_inspection("spot_check")
 	assert_bool(screen._inspection_tag.visible).is_true()
 	assert_str(_last_event("debug")["action"]).is_equal("set_inspection")
@@ -107,6 +109,7 @@ func test_inspection_steps_print_and_play_from_the_tag() -> void:
 func test_the_debug_panel_clears_the_inspection() -> void:
 	var runner: GdUnitSceneRunner = scene_runner(SCREEN)
 	var screen: ShiftScreen = runner.scene()
+	screen._on_reward_skipped()  # Past the impulse rack.
 	screen._on_debug_inspection("spot_check")
 	assert_array(_last_event("shift_start")["inspections"]).is_equal(["spot_check"])
 	screen._on_debug_inspection("")

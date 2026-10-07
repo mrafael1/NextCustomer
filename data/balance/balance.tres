@@ -32,6 +32,7 @@ end_cap_max = 3
 end_cap_window_runs = 3
 first_offer_pool = Array[ExtResource("2_card")]([ExtResource("c14_breakfast_sticker"), ExtResource("c15_multipack")])
 offer_size = 3
+impulse_rack_size = 3
 upgrade_shifts = PackedInt32Array(2, 4, 6)
 upgrade_pool = Array[ExtResource("u1_upgrade")]([ExtResource("u2_coupon_engine"), ExtResource("u3_category_engine"), ExtResource("u4_extra_redraw")])
 upgrade_offer_size = 3

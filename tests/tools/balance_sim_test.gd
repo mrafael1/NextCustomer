@@ -144,6 +144,59 @@ func test_favour_strategy_takes_a_favoured_card_when_offered() -> void:
 	assert_str(record.shifts[0]["card_picked"]).is_equal("multipack")
 
 
+## The simulator meets the impulse rack as the game does and picks it like a reward: skip
+## skips it, random always takes a product, and the record keeps the pick.
+func test_the_player_picks_the_impulse_rack_like_a_reward() -> void:
+	var skip: SimRunRecord = _player("skip", [], 3).play(3)
+	assert_bool(skip.impulse_offered).is_true()
+	assert_str(skip.impulse_pick).is_empty()
+	for seed_value: int in range(1, 6):
+		var picked: SimRunRecord = _player("random", [], 3).play(seed_value)
+		assert_bool(picked.impulse_offered).is_true()
+		(
+			assert_bool(["banana", "bread", "eggs", "milk", "cheese"].has(picked.impulse_pick))
+			. is_true()
+		)
+		var copy: SimRunRecord = SimRunRecord.from_dictionary(
+			JSON.parse_string(JSON.stringify(picked.to_dictionary()))
+		)
+		assert_str(copy.impulse_pick).is_equal(picked.impulse_pick)
+	# A skipped rack survives the JSON merge too.
+	var skip_copy: SimRunRecord = SimRunRecord.from_dictionary(
+		JSON.parse_string(JSON.stringify(skip.to_dictionary()))
+	)
+	assert_bool(skip_copy.impulse_offered).is_true()
+	assert_str(skip_copy.impulse_pick).is_empty()
+	# favour takes its card whenever the rack shows it.
+	var cheese_seen: bool = false
+	for seed_value: int in range(1, 30):
+		var player: SimPlayer = _player("favour:cheese", [], 3)
+		var record: SimRunRecord = player.play(seed_value)
+		var offered: bool = _rack_offer(seed_value, 3).has(&"cheese")
+		cheese_seen = cheese_seen or offered
+		if offered:
+			assert_str(record.impulse_pick).is_equal("cheese")
+	assert_bool(cheese_seen).is_true()
+	# greedy meets the rack too: a stocked product or a skip.
+	var greedy: SimRunRecord = _player("greedy", [], 3).play(6)
+	assert_bool(greedy.impulse_offered).is_true()
+	(
+		assert_bool(["", "banana", "bread", "eggs", "milk", "cheese"].has(greedy.impulse_pick))
+		. is_true()
+	)
+	var random: SimRunRecord = _player("random", [], 3).play(1)
+	var summary: SimSummary = SimSummary.new("test", PackedInt32Array([5, 8, 12]))
+	summary.add(skip)
+	summary.add(random)
+	assert_int(summary.impulse_skips).is_equal(1)
+	assert_dict(summary.impulse_picks).is_equal({random.impulse_pick: 1})
+	assert_str(summary.format()).contains(
+		"Impulse rack picks: %s 1, skipped 1" % random.impulse_pick
+	)
+	# Without a rack (impulse_rack_size 0) nothing is offered.
+	assert_bool(_player("random").play(1).impulse_offered).is_false()
+
+
 func test_strategy_names() -> void:
 	assert_bool(SimPlayer.is_known_strategy("greedy")).is_true()
 	assert_bool(SimPlayer.is_known_strategy("favour:eggs+milk")).is_true()
@@ -208,8 +261,9 @@ func _brute_force(
 			_brute_force(balance, hand, row + [card], result)
 
 
-func _player(strategy: String, inspection_shifts: Array = []) -> SimPlayer:
+func _player(strategy: String, inspection_shifts: Array = [], rack_size: int = 0) -> SimPlayer:
 	var balance: BalanceDefinition = _balance(6, 1)
+	balance.impulse_rack_size = rack_size
 	balance.inspection_shifts = PackedInt32Array(inspection_shifts)
 	if not inspection_shifts.is_empty():
 		balance.inspection_pool.append(_third_product_pays_zero())
@@ -232,6 +286,19 @@ func _player(strategy: String, inspection_shifts: Array = []) -> SimPlayer:
 	for id: String in ["banana", "banana", "bread", "eggs", "milk", "repeat"]:
 		deck.cards.append(_card(id))
 	return SimPlayer.new(deck, balance, SimRowSearch.new(balance), strategy, 2)
+
+
+## The impulse rack the test player's run with this seed is offered (product ids).
+func _rack_offer(seed_value: int, rack_size: int) -> Array:
+	var player: SimPlayer = _player("skip", [], rack_size)
+	var run: RunState = RunState.new(
+		seed_value,
+		player._starter,
+		player._balance,
+		player._stock,
+		EventLogService.derived_stream(seed_value, EventLogService.IMPULSE_RACK_STREAM)
+	)
+	return run.impulse_offer.map(func(card: CardDefinition) -> StringName: return card.id)
 
 
 static func _third_product_pays_zero() -> InspectionDefinition:
