@@ -428,7 +428,7 @@ func _on_reward_picked(card: CardDefinition) -> void:
 	_pending_reward = card
 	_reward_panel.visible = false
 	_deck_view.open(
-		run.deck.cards,
+		run,
 		(
 			"Deck full (%d/%d): choose a card to remove for %s"
 			% [run.deck.size(), run.balance.deck_limit, card.display_name]
@@ -465,9 +465,7 @@ func _on_deck_closed() -> void:
 func _on_reward_deck_requested() -> void:
 	_deck_viewed_for_reward = true
 	_reward_panel.visible = false
-	_deck_view.open(
-		run.deck.cards, "Your deck (%d/%d)" % [run.deck.size(), run.balance.deck_limit], false
-	)
+	_deck_view.open(run, "Your deck (%d/%d)" % [run.deck.size(), run.balance.deck_limit], false)
 
 
 func _on_deck_button_pressed() -> void:
@@ -478,9 +476,7 @@ func _on_deck_button_pressed() -> void:
 		return
 	# The tickets come back when the deck view closes; there is still no way past them.
 	_upgrade_panel.visible = false
-	_deck_view.open(
-		run.deck.cards, "Your deck (%d/%d)" % [run.deck.size(), run.balance.deck_limit], false
-	)
+	_deck_view.open(run, "Your deck (%d/%d)" % [run.deck.size(), run.balance.deck_limit], false)
 
 
 ## Applies the choice (card null = skip), logs it, and starts the next shift, or shows the
