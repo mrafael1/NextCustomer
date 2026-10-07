@@ -253,7 +253,7 @@ func _screen() -> ShiftScreen:
 
 ## Adds a card to the hand through the debug panel's handler.
 func _add(screen: ShiftScreen, id: String) -> CardInstance:
-	screen._on_debug_card(id)
+	screen._debug.add_card(id)
 	return screen.run.hand()[-1]
 
 

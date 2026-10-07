@@ -60,6 +60,22 @@ static func starting(deck: DeckDefinition, balance: BalanceDefinition) -> RunSto
 	return build(deck, balance, [], unlocked, 0)
 
 
+## A stock restored from a run save (RunSave), so a resumed run never depends on a profile
+## that changed after it started. The cards are kept in the order given.
+static func from_saved(
+	stock_cards: Array[CardDefinition],
+	stocked_aisle_ids: Array[StringName],
+	skipped: bool,
+	arrivals: Array[CardDefinition]
+) -> RunStock:
+	var stock: RunStock = RunStock.new()
+	stock.cards = stock_cards.duplicate()
+	stock.aisle_ids = stocked_aisle_ids.duplicate()
+	stock.list_skipped = skipped
+	stock.new_arrivals = arrivals.duplicate()
+	return stock
+
+
 ## The starting deck's own products, each once, in deck order.
 static func staples(deck: DeckDefinition) -> Array[CardDefinition]:
 	var found: Array[CardDefinition] = []

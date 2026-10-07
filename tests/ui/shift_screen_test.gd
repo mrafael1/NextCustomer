@@ -122,7 +122,7 @@ func test_full_row_highlights_no_slot() -> void:
 	_place_ids(screen, ["bread", "bread", "repeat", "bread", "bread", "bread", "bread"])
 	assert_int(screen.run.row.size()).is_equal(7)
 	for id: String in ["bread", "repeat"]:
-		screen._on_debug_card(id)
+		screen._debug.add_card(id)
 		screen._on_hand_card_clicked(_view_for(screen, screen.run.hand()[-1]))
 		for panel: PanelContainer in screen._slots:
 			var style: StyleBoxFlat = panel.get_theme_stylebox("panel") as StyleBoxFlat
@@ -160,7 +160,7 @@ func test_a_seventh_product_is_refused_with_a_notice() -> void:
 	screen._on_reward_skipped()  # Past the impulse rack.
 	_place_ids(screen, ["bread", "bread", "bread", "bread", "bread", "bread"])
 	assert_str(screen._notice_label.text).is_empty()
-	screen._on_debug_card("bread")
+	screen._debug.add_card("bread")
 	var product: CardInstance = screen.run.hand()[-1]
 	screen._on_hand_card_clicked(_view_for(screen, product))
 	assert_str(screen._notice_label.text).contains("6/6 products").contains("coupon")
@@ -169,7 +169,7 @@ func test_a_seventh_product_is_refused_with_a_notice() -> void:
 	assert_int(screen.run.row.size()).is_equal(6)
 	assert_bool(screen.run.row.has(product)).is_false()
 	assert_str(screen._notice_label.text).contains("6/6 products")
-	screen._on_debug_card("repeat")
+	screen._debug.add_card("repeat")
 	var coupon: CardInstance = screen.run.hand()[-1]
 	screen._on_hand_card_clicked(_view_for(screen, coupon))
 	screen._on_slot_input(_left_click(), 2)
@@ -184,7 +184,7 @@ func test_a_refused_pick_lets_a_row_card_be_taken_out() -> void:
 	var screen: ShiftScreen = runner.scene()
 	screen._on_reward_skipped()  # Past the impulse rack.
 	_place_ids(screen, ["bread", "bread", "bread", "bread", "bread", "bread", "repeat"])
-	screen._on_debug_card("bread")
+	screen._debug.add_card("bread")
 	var product: CardInstance = screen.run.hand()[-1]
 	screen._on_hand_card_clicked(_view_for(screen, product))
 	assert_str(screen._notice_label.text).contains("take a product out")
@@ -201,7 +201,7 @@ func test_the_seventh_panel_takes_a_product_while_room_is_left() -> void:
 	var runner: GdUnitSceneRunner = scene_runner(SCREEN)
 	var screen: ShiftScreen = runner.scene()
 	screen._on_reward_skipped()  # Past the impulse rack.
-	screen._on_debug_card("bread")
+	screen._debug.add_card("bread")
 	var product: CardInstance = screen.run.hand()[-1]
 	screen._on_hand_card_clicked(_view_for(screen, product))
 	screen._on_slot_input(_left_click(), 6)
@@ -337,7 +337,7 @@ func test_reward_cards_ignore_clicks_until_armed() -> void:
 ## Places a row that always passes the first quota: Bread, Multipack, Bread x4 = 27.
 func _pass_first_shift(screen: ShiftScreen) -> void:
 	for id: String in ["bread", "multipack", "bread", "bread", "bread", "bread"]:
-		screen._on_debug_card(id)
+		screen._debug.add_card(id)
 	var added: Array[CardInstance] = screen.run.hand().slice(-6)
 	for card: CardInstance in added:
 		screen._on_hand_card_clicked(_view_for(screen, card))
@@ -349,7 +349,7 @@ func _pass_first_shift(screen: ShiftScreen) -> void:
 ## Adds the cards to the hand through the debug panel and places them at the end of the row.
 func _place_ids(screen: ShiftScreen, ids: Array[String]) -> void:
 	for id: String in ids:
-		screen._on_debug_card(id)
+		screen._debug.add_card(id)
 		screen._on_hand_card_clicked(_view_for(screen, screen.run.hand()[-1]))
 		screen._on_slot_input(_left_click(), screen.run.row.size())
 
@@ -393,10 +393,10 @@ func test_winning_the_last_shift_shows_the_results() -> void:
 	var count: int = screen.run.shift_count()
 	assert_int(int(_last_event("run_start")["shift_count"])).is_equal(count)
 	assert_str(screen._shift_label.text).is_equal("Shift 1 / %d" % count)
-	var shift_input: SpinBox = screen._debug_panel.get("_shift_input")
+	var shift_input: SpinBox = screen._debug.panel.get("_shift_input")
 	assert_int(int(shift_input.max_value)).is_equal(count)
 
-	screen._on_debug_shift(count)
+	screen._debug.skip_to_shift(count)
 	assert_bool(screen.run.is_last_shift()).is_true()
 	assert_str(screen._shift_label.text).is_equal("Shift %d / %d" % [count, count])
 	assert_int(int(_last_event("shift_start")["shift"])).is_equal(count)

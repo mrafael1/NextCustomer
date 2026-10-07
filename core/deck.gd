@@ -66,6 +66,32 @@ func hand() -> Array[CardInstance]:
 	return _hand.duplicate()
 
 
+## The cards not drawn this shift, the next one to draw last. Cards a redraw replaced are in
+## neither the hand nor the draw pile.
+func draw_pile() -> Array[CardInstance]:
+	return _draw_pile.duplicate()
+
+
+## The instance id the next new copy gets.
+func next_instance_id() -> int:
+	return _next_instance_id
+
+
+## The run save only (RunSave): puts back the saved cards, hand, draw pile and next instance id.
+## The hand and the draw pile hold the deck's own instances; a hand card that isn't a deck card
+## (a debug copy, or a card a reward replaced after the checkout) is an instance of its own.
+func restore(
+	deck_cards: Array[CardInstance],
+	hand_cards: Array[CardInstance],
+	pile: Array[CardInstance],
+	next_id: int
+) -> void:
+	cards = deck_cards.duplicate()
+	_hand = hand_cards.duplicate()
+	_draw_pile = pile.duplicate()
+	_next_instance_id = next_id
+
+
 ## Debug panel only: a copy of a card for this shift's hand. It is not added to the deck.
 func add_to_hand(card_definition: CardDefinition) -> CardInstance:
 	var card: CardInstance = CardInstance.new(card_definition, _next_instance_id)

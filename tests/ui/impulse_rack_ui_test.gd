@@ -107,7 +107,7 @@ func test_the_debug_shift_jump_after_a_run_replays_its_rack_choice() -> void:
 	screen._on_reward_picked(card)
 	await screen._on_checkout_pressed()
 	assert_int(screen.run.phase).is_equal(RunState.Phase.LOST)
-	screen._on_debug_shift(3)
+	screen._debug.skip_to_shift(3)
 	assert_int(screen.run.phase).is_equal(RunState.Phase.PLANNING)
 	assert_int(screen.run.shift_index).is_equal(2)
 	assert_int(screen.run.run_seed).is_equal(seed_value)
@@ -138,7 +138,7 @@ func test_the_deck_view_returns_to_the_rack() -> void:
 	assert_bool(screen._reward_panel.visible).is_true()
 	assert_int(screen.run.phase).is_equal(RunState.Phase.IMPULSE)
 	# The debug shift jump waits for the rack too.
-	screen._on_debug_shift(3)
+	screen._debug.skip_to_shift(3)
 	assert_int(screen.run.shift_index).is_equal(0)
 	assert_int(screen.run.phase).is_equal(RunState.Phase.IMPULSE)
 
@@ -176,7 +176,7 @@ func test_the_debug_replay_applies_a_logged_pick() -> void:
 	var offered: Array[CardDefinition] = screen.run.impulse_offer.duplicate()
 	screen.start_new_run(1234)
 	assert_array(screen.run.impulse_offer).is_equal(offered)
-	screen._on_debug_seed(1234, true, String(offered[2].id))
+	screen._debug.replay_seed(1234, true, String(offered[2].id))
 	assert_int(screen.run.phase).is_equal(RunState.Phase.PLANNING)
 	assert_object(screen.run.impulse_pick).is_same(offered[2])
 	assert_bool(screen._reward_panel.visible).is_false()
@@ -186,7 +186,7 @@ func test_the_debug_replay_applies_a_logged_pick() -> void:
 	var debug: Dictionary = _last_event("debug")
 	assert_str(debug["action"]).is_equal("set_seed")
 	assert_str(debug["impulse_pick"]).is_equal(String(offered[2].id))
-	screen._on_debug_seed(1234, true, "")
+	screen._debug.replay_seed(1234, true, "")
 	assert_int(screen.run.phase).is_equal(RunState.Phase.PLANNING)
 	assert_object(screen.run.impulse_pick).is_null()
 	assert_int(screen.run.deck.size()).is_equal(13)
@@ -194,7 +194,7 @@ func test_the_debug_replay_applies_a_logged_pick() -> void:
 
 func test_the_debug_replay_refuses_a_card_not_in_the_offer() -> void:
 	var screen: ShiftScreen = await _screen()
-	screen._on_debug_seed(99, true, "repeat")
+	screen._debug.replay_seed(99, true, "repeat")
 	assert_int(screen.run.phase).is_equal(RunState.Phase.IMPULSE)
 	assert_bool(screen._reward_panel.visible).is_true()
 	var refused: Dictionary = _last_event("debug")
@@ -205,7 +205,7 @@ func test_the_debug_replay_refuses_a_card_not_in_the_offer() -> void:
 ## The debug panel's choice: show the rack (the default), skip it, or a card id to replay.
 func test_the_debug_panel_sends_the_rack_choice() -> void:
 	var screen: ShiftScreen = await _screen()
-	var panel: Control = screen._debug_panel
+	var panel: Control = screen._debug.panel
 	var sent: Array = []
 	panel.connect(
 		&"seed_requested",

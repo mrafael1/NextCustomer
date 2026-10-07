@@ -194,6 +194,33 @@ func test_decks_and_variants_are_well_formed() -> void:
 			assert_array(card.variant_problems()).override_failure_message(file).is_empty()
 
 
+## Full build plan section 4: a run save names content by id, so every card, upgrade,
+## inspection and deck file must resolve through ContentLookup by its file name (a plain name
+## equal to the resource's id), and every aisle of the balance by its id.
+func test_every_data_id_resolves_through_the_content_lookup() -> void:
+	var lookup: ContentLookup = ContentLookup.new(load("res://data/balance/balance.tres"))
+	var resolvers: Dictionary[String, Callable] = {
+		ContentLookup.CARDS_FOLDER: lookup.card,
+		ContentLookup.UPGRADES_FOLDER: lookup.upgrade,
+		ContentLookup.INSPECTIONS_FOLDER: lookup.inspection,
+		ContentLookup.DECKS_FOLDER: lookup.deck,
+	}
+	var checked: int = 0
+	for folder: String in resolvers:
+		var dir: String = ContentLookup.DATA_ROOT.path_join(folder)
+		for file: String in DirAccess.get_files_at(dir):
+			if not file.ends_with(".tres"):
+				continue
+			var resolved: Resource = resolvers[folder].call(file.get_basename())
+			assert_object(resolved).override_failure_message(file).is_same(
+				load(dir.path_join(file))
+			)
+			checked += 1
+	assert_int(checked).is_greater(15)
+	for aisle: AisleDefinition in lookup.balance.aisles:
+		assert_object(lookup.aisle(String(aisle.id))).is_same(aisle)
+
+
 func test_fixture_never_points_at_live_data() -> void:
 	for file: String in DirAccess.get_files_at(FIXTURE_DIR):
 		var text: String = FileAccess.get_file_as_string("%s/%s" % [FIXTURE_DIR, file])

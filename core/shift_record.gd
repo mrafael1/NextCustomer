@@ -2,7 +2,8 @@ class_name ShiftRecord
 extends RefCounted
 ## One entry of the run history (plan section 3.8): a played shift, its result, the reward card
 ## picked (or skipped), the upgrade taken and the inspection it was played under (section 3.9).
-## Created at checkout and completed by the choices that follow it.
+## Created at checkout and completed by the choices that follow it. to_dictionary is the form
+## the event log and the run save (RunSave) use; from_dictionary reads it back.
 
 ## 1-based shift number.
 var shift: int = 0
@@ -40,3 +41,24 @@ func to_dictionary() -> Dictionary:
 		"inspection": String(inspection.id) if inspection != null else "",
 		"played": played.map(func(card: CardDefinition) -> String: return String(card.id)),
 	}
+
+
+## Reads to_dictionary's form (as parsed from JSON), resolving ids through `lookup`. Returns
+## null when a field is missing or of the wrong type, an id doesn't resolve, or `passed`
+## doesn't match the total and quota.
+static func from_dictionary(data: Dictionary, lookup: ContentLookup) -> ShiftRecord:
+	var reader: SaveReader = SaveReader.new(data, lookup)
+	var record: ShiftRecord = ShiftRecord.new(
+		reader.whole("shift", 1),
+		reader.whole("quota"),
+		reader.whole("total", -SaveReader.MAX_EXACT)
+	)
+	var saved_passed: bool = reader.flag("passed")
+	record.card_picked = reader.card("card_picked")
+	record.reward_skipped = reader.flag("reward_skipped")
+	record.upgrade_taken = reader.upgrade("upgrade_taken")
+	record.inspection = reader.inspection("inspection")
+	record.played = reader.cards("played")
+	if not reader.ok or saved_passed != record.passed:
+		return null
+	return record

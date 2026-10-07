@@ -247,3 +247,40 @@ func test_inspection_fields() -> void:
 	assert_str(RunEvents.inspection_id(null)).is_equal("")
 	var event: Dictionary = {"next_inspection": RunEvents.inspection_id(spot_check)}
 	assert_str(JSON.stringify(event)).is_equal('{"next_inspection":"spot_check"}')
+
+
+## Full build plan section 4: run_resume and run_abandon name the shift (1-based) and the save
+## point by its run save name, and add the played time so far.
+func test_run_resume_and_run_abandon_fields() -> void:
+	var deck: DeckDefinition = load(STARTER)
+	var balance: BalanceDefinition = load(BALANCE)
+	var stream: RandomNumberGenerator = EventLogService.derived_stream(
+		79, EventLogService.IMPULSE_RACK_STREAM
+	)
+	var run: RunState = RunState.new(79, deck, balance, RunStock.starting(deck, balance), stream)
+	assert_dict(RunEvents.run_resume(run, 1500)).is_equal(
+		{"shift": 1, "phase": "impulse_rack", "run_ms": 1500}
+	)
+	assert_dict(RunEvents.run_abandon(run, 1500)).is_equal(
+		{"shift": 1, "phase": "impulse_rack", "run_ms": 1500}
+	)
+	run.skip_reward()
+	run.start_shift()
+	run.debug_skip_to_shift(2)
+	assert_dict(RunEvents.run_resume(run, 90000)).is_equal(
+		{"shift": 3, "phase": "planning", "run_ms": 90000}
+	)
+	assert_dict(RunEvents.run_abandon(run, 90000)).is_equal(
+		{"shift": 3, "phase": "planning", "run_ms": 90000}
+	)
+
+
+## A resumed run logs under its saved run id; begin_run then starts a new one.
+func test_resume_run_sets_the_run_id() -> void:
+	var event_log: EventLogService = EventLogService.new()
+	event_log.resume_run("0123456789abcdef")
+	assert_str(event_log.run_id).is_equal("0123456789abcdef")
+	event_log.begin_run()
+	assert_str(event_log.run_id).is_not_equal("0123456789abcdef")
+	assert_int(event_log.run_id.length()).is_equal(16)
+	event_log.free()

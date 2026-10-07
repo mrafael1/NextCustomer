@@ -5,7 +5,8 @@ extends Control
 ## checkout with the count-up, the reward choice, the upgrade choice and loyalty card on upgrade
 ## shifts (plan section 3.8), the shift's inspection and the next one's notice (plan section
 ## 3.9), the deck view, and the run's results with its history. It only displays RunState and
-## ScoreResult; every rule lives in core/.
+## ScoreResult; every rule lives in core/. The run is saved at every stable point and resumed
+## when the screen opens (full build plan section 4); the debug tools live in ShiftDebug.
 ##
 ## Click-to-place: click a hand card to pick it up, then click a slot to put it there (a
 ## filled slot pushes the cards from there to the right). Click a row card to pick it back up.
@@ -18,12 +19,11 @@ extends Control
 const STARTER_DECK := "res://data/decks/starter.tres"
 const BALANCE := "res://data/balance/balance.tres"
 const CATALOGUE := "res://data/catalogue/catalogue.tres"
-const DEBUG_PANEL := "res://debug/debug_panel.tscn"
-const CARDS_FOLDER := "res://data/cards"
-const UPGRADES_FOLDER := "res://data/upgrades"
-const INSPECTIONS_FOLDER := "res://data/inspections"
 
 var run: RunState
+## Where the save errors go (push_error by default). Tests set it before the screen enters the
+## tree, so an unreadable save they write on purpose prints nothing.
+var report_error: Callable = Callable()
 ## The meta progress (full build plan section 4): loaded at start, recorded and saved when a
 ## run ends. A run restarted before its end records nothing.
 var profile: ProfileState
@@ -37,6 +37,8 @@ var _catalogue: CatalogueDefinition
 var _saves: SaveService
 ## False when the ended run's profile couldn't be saved: the results then show no coin total.
 var _profile_saved: bool = true
+## False for a --demo-row run (ShiftDebug): it never writes or deletes the run save.
+var _saves_run: bool = true
 var _click_ms: int = 0
 var _redraw_mode: bool = false
 var _redraw_pick: Array[CardInstance] = []
@@ -80,7 +82,7 @@ var _row_box: HBoxContainer
 var _overlay: Control
 var _count_up: CountUp
 var _sfx: Sfx
-var _debug_panel: Control
+var _debug: ShiftDebug
 var _focus: FocusWatch
 ## The EventLog autoload, typed. Fetched from the tree because standalone script checks
 ## don't know autoload names.
@@ -90,18 +92,31 @@ var _focus: FocusWatch
 func _ready() -> void:
 	_balance = load(BALANCE)
 	_catalogue = load(CATALOGUE)
-	_saves = SaveService.new(SaveService.default_folder())
+	_saves = SaveService.new(SaveService.default_folder(), report_error)
 	profile = _saves.load_profile()
 	_build()
-	_add_debug_panel()
-	start_new_run(_log.new_run_seed())
-	_maybe_play_demo_row()
+	_debug = ShiftDebug.new(self, _log)
+	_debug.add_panel(_balance.quotas.size())
+	if _debug.wants_demo_row():
+		_debug.play_demo_row()  # A new run that leaves the run save as it is.
+		return
+	# Full build plan section 4: a saved run continues; without one (or with an unreadable one,
+	# reported and backed up) a new run starts and overwrites it at its first save point.
+	var saved: RunSave = _saves.load_run(ContentLookup.new(_balance))
+	if saved != null:
+		_resume_run(saved)
+	else:
+		start_new_run(_log.new_run_seed())
 
 
 ## Starts a run with a seed (a new random one, or one set from the debug panel) and opens the
 ## impulse rack. The debug replay passes `replays_rack` with the logged pick (a card id, or ""
 ## for a skip) to apply at once; a pick that isn't in the offer is refused and the rack stays.
-func start_new_run(seed_value: int, replays_rack: bool = false, replayed_pick: String = "") -> void:
+## Without `saves_run` (the --demo-row run) the run never writes or deletes the run save.
+func start_new_run(
+	seed_value: int, replays_rack: bool = false, replayed_pick: String = "", saves_run: bool = true
+) -> void:
+	_saves_run = saves_run
 	var deck: DeckDefinition = load(STARTER_DECK)
 	# Phase 3's shopping list will set the list; until then the profile's last one is kept.
 	var stock: RunStock = RunStock.build(
@@ -143,6 +158,45 @@ func _on_shift_started() -> void:
 	}
 	_log.log_event("shift_start", start)
 	_refresh()
+	_save_run()
+
+
+## Continues a saved run where it stopped (full build plan section 4), under its run id and with
+## its played time, exactly as if it had never stopped. Only run_resume is logged: no
+## shift_start, and the shift's checkout measures start over here.
+func _resume_run(saved: RunSave) -> void:
+	run = saved.run
+	_run_started_ms = Time.get_ticks_msec() - saved.run_ms
+	_run_ended_ms = -1
+	_log.resume_run(saved.run_id)
+	_log.log_event("run_resume", RunEvents.run_resume(run, saved.run_ms))
+	_close_overlays()
+	if run.phase == RunState.Phase.IMPULSE:
+		_show_impulse_rack()
+		return
+	tracker.begin(Time.get_ticks_msec(), _focus.is_player_present())
+	_refresh()
+	if run.phase == RunState.Phase.PLANNING:
+		return
+	# After the checkout: the row, its receipt (with the next shift's inspection notice) and
+	# totals as the count-up left them.
+	_show_score(run.last_result)
+	var notice: String = InspectionTag.next_notice(run.next_inspection)
+	if not notice.is_empty():
+		_receipt.add_notice(notice)
+	_show_projected(run.last_result.total)
+	_subtotal_label.text = "€%d" % run.last_result.total
+	if run.phase == RunState.Phase.REWARD:
+		_show_rewards(run.last_result)
+	else:
+		_show_upgrades()
+
+
+## Writes the run save at a save point (full build plan section 4): the rack shown, the shift
+## started, every place, remove and redraw, the checkout click and the upgrade tickets shown.
+func _save_run() -> void:
+	if _saves_run:
+		_saves.save_run(run, _log.run_id, Time.get_ticks_msec() - _run_started_ms)
 
 
 ## Hides every panel and lets go of any picked or dragged card.
@@ -195,6 +249,7 @@ func _on_row_card_clicked(view: CardView) -> void:
 		_pick(view.card, true)
 		_drag.arm(view.card, get_viewport().get_mouse_position())
 		_refresh()
+		_save_run()
 
 
 func _on_slot_input(event: InputEvent, slot: int) -> void:
@@ -230,6 +285,7 @@ func _place_picked(slot: int, dragged: bool = false) -> void:
 		_picked = null
 		_picked_from_row = false
 		_refresh()
+		_save_run()
 	else:
 		_explain_if_refused(_picked)
 
@@ -276,6 +332,7 @@ func _on_redraw_pressed() -> void:
 		_log.log_event("redraw", RunEvents.redraw(replaced, received))
 		_redraw_mode = false
 		_redraw_pick = []
+		_save_run()
 	_refresh()
 
 
@@ -315,6 +372,11 @@ func _on_checkout_pressed() -> void:
 		# Saved at the click too, so closing the game during the count-up loses nothing.
 		profile.record_run(run, _catalogue)
 		_profile_saved = _saves.save_profile(profile)
+		if _saves_run:
+			_saves.delete_run()
+	else:
+		# The reward waits: quitting during the count-up resumes on it.
+		_save_run()
 	_refresh()
 	await _count_up.play(
 		result,
@@ -374,6 +436,7 @@ func _show_impulse_rack() -> void:
 		run.deck.size(),
 		run.balance.deck_limit
 	)
+	_save_run()
 
 
 ## The debug replay, on the rack shown: applies a logged pick ("" for a skip). A card that isn't
@@ -521,6 +584,7 @@ func _finish_reward(card: CardDefinition, replaced: CardInstance) -> void:
 func _show_upgrades() -> void:
 	_upgrade_shown_ms = Time.get_ticks_msec()
 	_upgrade_panel.show_offer(run.upgrade_offer)
+	_save_run()
 
 
 func _on_upgrade_picked(upgrade: UpgradeDefinition) -> void:
@@ -572,116 +636,6 @@ func _on_focus_exited() -> void:
 
 func _on_focus_entered() -> void:
 	tracker.on_focus_gained(Time.get_ticks_msec())
-
-
-# --- Debug panel (development builds only) -------------------------------------------------
-
-
-## Plan section 2: the panel is excluded from playtest exports, so it is only loaded by path
-## here and never named by class outside debug/.
-func _add_debug_panel() -> void:
-	if OS.has_feature("playtest") or not ResourceLoader.exists(DEBUG_PANEL):
-		return
-	var scene: PackedScene = load(DEBUG_PANEL)
-	_debug_panel = scene.instantiate()
-	add_child(_debug_panel)
-	_debug_panel.call("set_shift_count", _balance.quotas.size())
-	_debug_panel.connect(&"seed_requested", _on_debug_seed)
-	_debug_panel.connect(&"card_requested", _on_debug_card)
-	_debug_panel.connect(&"upgrade_requested", _on_debug_upgrade)
-	_debug_panel.connect(&"inspection_requested", _on_debug_inspection)
-	_debug_panel.connect(&"shift_requested", _on_debug_shift)
-
-
-## Development builds only: `godot --path . -- --demo-row=eggs,coffee,banana` fills the row with
-## those cards and checks out, to watch (or record) the count-up for a chosen row.
-func _maybe_play_demo_row() -> void:
-	if OS.has_feature("playtest"):
-		return
-	for argument: String in OS.get_cmdline_user_args():
-		if not argument.begins_with("--demo-row="):
-			continue
-		var card_ids: PackedStringArray = argument.trim_prefix("--demo-row=").split(",", false)
-		_log.log_event("debug", {"action": "demo_row", "cards": Array(card_ids)})
-		_finish_impulse(null, null)
-		for card_id: String in card_ids:
-			var path: String = "%s/%s.tres" % [CARDS_FOLDER, card_id]
-			if ResourceLoader.exists(path):
-				_pick(run.debug_add_to_hand(load(path)), false)
-				_place_picked(run.row.size())
-		_refresh()
-		await get_tree().create_timer(0.8).timeout
-		_on_checkout_pressed()
-
-
-## A new run with this seed. With `replays_rack`, the impulse rack takes `impulse_pick` (a card
-## id, or "" for a skip, as run_start logs it) instead of showing.
-func _on_debug_seed(seed_value: int, replays_rack: bool, impulse_pick: String) -> void:
-	if _counting:
-		return
-	var data: Dictionary = {"action": "set_seed", "seed": seed_value}
-	if replays_rack:
-		data["impulse_pick"] = impulse_pick
-	_log.log_event("debug", data)
-	start_new_run(seed_value, replays_rack, impulse_pick)
-
-
-func _on_debug_card(card_id: String) -> void:
-	if _counting or run.phase != RunState.Phase.PLANNING:
-		return
-	var path: String = "%s/%s.tres" % [CARDS_FOLDER, card_id]
-	if not ResourceLoader.exists(path):
-		return
-	_log.log_event("debug", {"action": "add_card", "card": card_id})
-	run.debug_add_to_hand(load(path))
-	_refresh()
-
-
-## Gives an upgrade straight away, for testing. The shift restarts (a fresh hand), so its
-## redraws are counted again with the new upgrade. An owned upgrade isn't given twice.
-func _on_debug_upgrade(upgrade_id: String) -> void:
-	if _counting or run.phase != RunState.Phase.PLANNING:
-		return
-	var path: String = "%s/%s.tres" % [UPGRADES_FOLDER, upgrade_id]
-	if not ResourceLoader.exists(path):
-		return
-	var upgrade: UpgradeDefinition = load(path)
-	if run.upgrades.has(upgrade):
-		return
-	_log.log_event("debug", {"action": "give_upgrade", "upgrade": upgrade_id})
-	run.upgrades.append(upgrade)
-	run.debug_skip_to_shift(run.shift_index)
-	_refresh_loyalty_card()
-	_loyalty_card.play_stamp(run.upgrades.size() - 1)
-	_on_shift_started()
-
-
-## Puts the current shift under an inspection (none for an empty id) and restarts it.
-func _on_debug_inspection(inspection_id: String) -> void:
-	var path: String = "%s/%s.tres" % [INSPECTIONS_FOLDER, inspection_id]
-	var known: bool = inspection_id.is_empty() or ResourceLoader.exists(path)
-	if _counting or run.phase != RunState.Phase.PLANNING or not known:
-		return
-	_log.log_event("debug", {"action": "set_inspection", "inspection": inspection_id})
-	run.inspections = []
-	if not inspection_id.is_empty():
-		run.inspections.append(load(path))
-	run.debug_skip_to_shift(run.shift_index)  # Restarting the shift keeps its inspections.
-	_on_shift_started()
-
-
-func _on_debug_shift(shift_number: int) -> void:
-	if _counting or run.phase == RunState.Phase.IMPULSE:
-		return
-	_log.log_event("debug", {"action": "skip_to_shift", "shift": shift_number})
-	if run.phase == RunState.Phase.WON or run.phase == RunState.Phase.LOST:
-		# An ended run stays ended: replay its seed, and its impulse-rack choice, as a new run.
-		var pick: String = String(run.impulse_pick.id) if run.impulse_pick != null else ""
-		start_new_run(run.run_seed, true, pick)
-		if run.phase != RunState.Phase.PLANNING:
-			return  # The replayed pick waits for a deck card to remove.
-	run.debug_skip_to_shift(shift_number - 1)
-	_on_shift_started()
 
 
 # --- Display -------------------------------------------------------------------------------
@@ -777,6 +731,22 @@ func _refresh_buttons() -> void:
 func _refresh_preview() -> void:
 	var result: ScoreResult = run.preview()
 	tracker.on_preview(run.row.size(), result.total)
+	_show_score(result)
+	_show_projected(result.total)
+	# The big subtotal belongs to the count-up; while planning, the projected total is enough.
+	_subtotal_label.text = ""
+
+
+## The projected total, green when it meets the quota. The count-up leaves the last one shown.
+func _show_projected(total: int) -> void:
+	_projected_label.text = "Projected €%d" % total
+	_projected_label.add_theme_color_override(
+		"font_color", Palette.GOOD if total >= run.quota() else Palette.TOMATO
+	)
+
+
+## The row's receipt and value badges for a result: the preview, or a resumed checkout's.
+func _show_score(result: ScoreResult) -> void:
 	_receipt.show_result(
 		result,
 		_names(run.row),
@@ -786,13 +756,6 @@ func _refresh_preview() -> void:
 	for slot: int in range(_row_views.size()):
 		_row_views[slot].show_badge(result.payouts[slot], false)
 		_row_views[slot].set_tags(result.tags[slot])
-	_projected_label.text = "Projected €%d" % result.total
-	var enough: bool = result.total >= run.quota()
-	_projected_label.add_theme_color_override(
-		"font_color", Palette.GOOD if enough else Palette.TOMATO
-	)
-	# The big subtotal belongs to the count-up; while planning, the projected total is enough.
-	_subtotal_label.text = ""
 
 
 ## The win and lose screens (plan section 2).

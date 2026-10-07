@@ -52,6 +52,12 @@ func begin_run() -> void:
 	run_id = _random_id()
 
 
+## Continues logging under a saved run's id (full build plan section 4): a resumed run, or the
+## title screen's abandon of one, logs as the same run.
+func resume_run(saved_run_id: String) -> void:
+	run_id = saved_run_id
+
+
 func log_event(type: String, data: Dictionary = {}) -> void:
 	_seq += 1
 	var event: Dictionary = {
