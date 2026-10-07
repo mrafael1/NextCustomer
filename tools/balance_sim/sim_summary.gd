@@ -2,7 +2,7 @@ class_name SimSummary
 extends RefCounted
 ## The simulated runs of one strategy, added up for the report (plan section 8): win rate,
 ## per-shift pass rates and best-score percentiles, how often each card is in the best row and
-## needed there, and the reward and upgrade picks.
+## needed there, and the impulse-rack, reward and upgrade picks.
 
 ## Percentiles reported per shift.
 const PERCENTILES: Array[int] = [10, 25, 50, 75, 90]
@@ -24,6 +24,9 @@ var needed: Dictionary[String, int] = {}
 ## Reward cards taken (by id), and skipped rewards.
 var picks: Dictionary[String, int] = {}
 var skips: int = 0
+## Impulse-rack products taken (by id), and skipped racks.
+var impulse_picks: Dictionary[String, int] = {}
+var impulse_skips: int = 0
 ## Upgrades taken, and how many of those runs were won.
 var upgrades_taken: Dictionary[String, int] = {}
 var upgrade_wins: Dictionary[String, int] = {}
@@ -43,6 +46,10 @@ func add(record: SimRunRecord) -> void:
 	if record.won:
 		wins += 1
 	redraws += record.redraws
+	if not record.impulse_pick.is_empty():
+		impulse_picks[record.impulse_pick] = impulse_picks.get(record.impulse_pick, 0) + 1
+	elif record.impulse_offered:
+		impulse_skips += 1
 	for entry: Dictionary in record.shifts:
 		var index: int = entry["shift"] - 1
 		reached[index] += 1
@@ -135,6 +142,11 @@ func format() -> String:
 		)
 	)
 	lines.append("")
+	var impulse_texts: PackedStringArray = PackedStringArray()
+	for id: String in _sorted_by_count(impulse_picks):
+		impulse_texts.append("%s %d" % [id, impulse_picks[id]])
+	impulse_texts.append("skipped %d" % impulse_skips)
+	lines.append("Impulse rack picks: " + ", ".join(impulse_texts))
 	var pick_texts: PackedStringArray = PackedStringArray()
 	for id: String in _sorted_by_count(picks):
 		pick_texts.append("%s %d" % [id, picks[id]])
@@ -186,6 +198,8 @@ func to_dictionary() -> Dictionary:
 		"shifts": shifts,
 		"cards": cards,
 		"dominated": dominated(),
+		"impulse_picks": impulse_picks,
+		"impulse_skips": impulse_skips,
 		"reward_picks": picks,
 		"reward_skips": skips,
 		"upgrades_taken": upgrades_taken,

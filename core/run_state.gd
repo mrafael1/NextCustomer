@@ -1,17 +1,22 @@
 class_name RunState
 extends RefCounted
-## One run: the stock, the deck, the current shift, the hand, the checkout row, the owned
-## upgrades, the shift's inspections and the run history.
+## One run: the stock, the impulse rack, the deck, the current shift, the hand, the checkout
+## row, the owned upgrades, the shift's inspections and the run history.
 ##
 ## The UI calls these methods and displays the results; it never applies rules itself. The
 ## run's seed is passed in (core never makes seeds), and every draw and offer uses the RNG built
-## from it. The stock is built before the run (RunStock) and passed in, so a run never depends
-## on a profile that changes after it starts.
+## from it, except the impulse rack's offer (below). The stock is built before the run
+## (RunStock) and passed in, so a run never depends on a profile that changes after it starts.
+##
+## The impulse rack (full build plan 7.2) comes before shift 1. It opens when the run is created
+## with the rack's derived stream (full build plan section 4), so the run's own RNG is untouched
+## by it; it is picked or skipped like a reward, then the caller starts the shift.
 
+## IMPULSE: before shift 1, the impulse rack's offer is waiting for a pick or a skip.
 ## PLANNING: placing cards. REWARD: a passed shift's offer is waiting for a pick or a skip.
 ## UPGRADE: on an upgrade shift, after the reward, an upgrade offer is waiting for a pick (there
 ## is no skip, plan section 3.8). SCORED: ready for the next shift. WON / LOST: the run is over.
-enum Phase { PLANNING, REWARD, UPGRADE, SCORED, WON, LOST }
+enum Phase { IMPULSE, PLANNING, REWARD, UPGRADE, SCORED, WON, LOST }
 
 ## Redraws every shift allows before upgrades (one redraw of up to redraw_limit cards).
 const BASE_REDRAWS := 1
@@ -32,9 +37,17 @@ var row: Array[CardInstance] = []
 var redraws_used: int = 0
 var redraws_allowed: int = 0
 var last_result: ScoreResult
-## The cards offered after the last passed shift (empty outside the REWARD phase).
+## The cards offered after the last passed shift, or by the impulse rack (empty outside the
+## REWARD and IMPULSE phases).
 var offer: Array[CardDefinition] = []
+## Reward offers made (the impulse rack doesn't count).
 var offers_made: int = 0
+## The impulse rack's offer, in offer order (empty when the run had no rack). Kept after the
+## pick or skip, with the product picked and the deck card it replaced at the deck limit (null
+## for none), for the run_start event and the run save.
+var impulse_offer: Array[CardDefinition] = []
+var impulse_pick: CardDefinition
+var impulse_replaced: CardDefinition
 ## Owned upgrades, in pick order (a starting deck's upgrade first). Scoring steps name them by
 ## index in this list.
 var upgrades: Array[UpgradeDefinition] = []
@@ -54,11 +67,14 @@ var history: Array[ShiftRecord] = []
 var _rng: RandomNumberGenerator
 
 
+## `impulse_stream`, the impulse rack's derived stream, opens the rack (when impulse_rack_size
+## is above 0); without it the run has no rack.
 func _init(
 	seed_value: int,
 	deck_definition: DeckDefinition,
 	run_balance: BalanceDefinition,
-	run_stock: RunStock
+	run_stock: RunStock,
+	impulse_stream: RandomNumberGenerator = null
 ) -> void:
 	run_seed = seed_value
 	balance = run_balance
@@ -70,6 +86,11 @@ func _init(
 	# Full build plan 7.3: a deck's starting upgrade is owned from the first shift.
 	if deck_definition.starting_upgrade != null:
 		upgrades.append(deck_definition.starting_upgrade)
+	if impulse_stream != null:
+		impulse_offer = RewardOffer.make_impulse(impulse_stream, balance, stock)
+	if not impulse_offer.is_empty():
+		offer = impulse_offer.duplicate()
+		phase = Phase.IMPULSE
 
 
 func shift_count() -> int:
@@ -84,8 +105,11 @@ func is_last_shift() -> bool:
 	return shift_index == shift_count() - 1
 
 
-## Starts the current shift: draws a fresh hand from the whole deck and empties the row.
+## Starts the current shift: draws a fresh hand from the whole deck and empties the row. Not
+## while the impulse rack waits for its pick or skip.
 func start_shift() -> void:
+	if phase == Phase.IMPULSE:
+		return
 	deck.draw_hand(balance.hand_size)
 	row = []
 	redraws_used = 0
@@ -199,33 +223,50 @@ func deck_is_full() -> bool:
 	return deck.size() >= balance.deck_limit
 
 
-## Adds an offered card to the deck. At the deck limit, `replaced` (a deck card) leaves it.
+## Adds an offered card to the deck: a reward, or the impulse rack's product before shift 1.
+## At the deck limit, `replaced` (a deck card) leaves it.
 func take_reward(card: CardDefinition, replaced: CardInstance = null) -> bool:
-	if phase != Phase.REWARD or not offer.has(card):
+	if not _offer_waiting() or not offer.has(card):
 		return false
+	var removed: CardDefinition = null
 	if deck_is_full():
 		if replaced == null or not deck.cards.has(replaced):
 			return false
 		deck.remove_card(replaced)
+		removed = replaced.definition
 	deck.add_card(card)
-	history[-1].card_picked = card
+	if phase == Phase.IMPULSE:
+		impulse_pick = card
+		impulse_replaced = removed
+	else:
+		history[-1].card_picked = card
 	_finish_reward()
 	return true
 
 
+## Skips the reward, or the impulse rack.
 func skip_reward() -> bool:
-	if phase != Phase.REWARD:
+	if not _offer_waiting():
 		return false
-	history[-1].reward_skipped = true
+	if phase == Phase.REWARD:
+		history[-1].reward_skipped = true
 	_finish_reward()
 	return true
 
 
-## After the reward: the upgrade step if an upgrade offer is waiting, else ready for the next
-## shift. An empty offer (every pool upgrade owned) skips the step.
+func _offer_waiting() -> bool:
+	return phase == Phase.REWARD or phase == Phase.IMPULSE
+
+
+## After the impulse rack: ready for shift 1 to start. After a reward: the upgrade step if an
+## upgrade offer is waiting, else ready for the next shift. An empty upgrade offer (every pool
+## upgrade owned) skips the step.
 func _finish_reward() -> void:
 	offer = []
-	phase = Phase.SCORED if upgrade_offer.is_empty() else Phase.UPGRADE
+	if phase == Phase.IMPULSE:
+		phase = Phase.PLANNING
+	else:
+		phase = Phase.SCORED if upgrade_offer.is_empty() else Phase.UPGRADE
 
 
 ## Takes one of the offered upgrades (plan section 3.8). The player must pick: there is no skip.
@@ -261,7 +302,10 @@ func debug_add_to_hand(card_definition: CardDefinition) -> CardInstance:
 
 ## Debug panel only: jumps to a shift and starts it. Jumping to another shift draws that
 ## shift's inspection if it is inspected; restarting the current shift keeps its inspections.
+## Not while the impulse rack is open.
 func debug_skip_to_shift(index: int) -> void:
+	if phase == Phase.IMPULSE:
+		return
 	var target: int = clampi(index, 0, shift_count() - 1)
 	if target != shift_index:
 		inspections = []

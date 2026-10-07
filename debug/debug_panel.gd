@@ -1,10 +1,13 @@
 extends PanelContainer
-## Debug panel (development builds only; plan section 2): set the seed, add any card to the
-## hand, give an upgrade, set the shift's inspection, skip to a shift. F1 shows or hides it.
+## Debug panel (development builds only; plan section 2): set the seed (and replay the impulse
+## rack's logged pick with it), add any card to the hand, give an upgrade, set the shift's
+## inspection, skip to a shift. F1 shows or hides it.
 ## Playtest exports leave out debug/, and other scripts never name this class: the shift
 ## screen loads the scene by path and connects to these signals by name.
 
-signal seed_requested(seed_value: int)
+## With `replays_rack`, the new run's impulse rack takes `impulse_pick` (a card id, or "" for a
+## skip, as run_start logs it) instead of showing.
+signal seed_requested(seed_value: int, replays_rack: bool, impulse_pick: String)
 signal card_requested(card_id: String)
 signal upgrade_requested(upgrade_id: String)
 ## An empty id clears the shift's inspection.
@@ -15,8 +18,11 @@ const CARDS_FOLDER := "res://data/cards"
 const UPGRADES_FOLDER := "res://data/upgrades"
 const INSPECTIONS_FOLDER := "res://data/inspections"
 const NO_INSPECTION := "(no inspection)"
+const SHOW_RACK := "(show the impulse rack)"
+const SKIP_RACK := "(skip the impulse rack)"
 
 var _seed_input: SpinBox
+var _impulse_choice: OptionButton
 var _card_choice: OptionButton
 var _upgrade_choice: OptionButton
 var _inspection_choice: OptionButton
@@ -40,6 +46,14 @@ func _ready() -> void:
 
 	# Run seeds come from RandomNumberGenerator.randi(): 0 to 2^32 - 1.
 	_seed_input = _spin(column, 0, 4294967295)
+	# The impulse pick to replay: run_start's impulse_pick ("" is a skip).
+	_impulse_choice = OptionButton.new()
+	_impulse_choice.add_item(SHOW_RACK)
+	_impulse_choice.add_item(SKIP_RACK)
+	for file: String in DirAccess.get_files_at(CARDS_FOLDER):
+		if file.ends_with(".tres"):
+			_impulse_choice.add_item(file.get_basename())
+	column.add_child(_impulse_choice)
 	_button(column, "New run with this seed", _on_seed_pressed)
 
 	_card_choice = _file_choice(column, CARDS_FOLDER)
@@ -71,7 +85,11 @@ func _unhandled_key_input(event: InputEvent) -> void:
 
 
 func _on_seed_pressed() -> void:
-	seed_requested.emit(int(_seed_input.value))
+	var choice: String = _impulse_choice.get_item_text(maxi(_impulse_choice.selected, 0))
+	if choice == SHOW_RACK:
+		seed_requested.emit(int(_seed_input.value), false, "")
+	else:
+		seed_requested.emit(int(_seed_input.value), true, "" if choice == SKIP_RACK else choice)
 
 
 func _on_card_pressed() -> void:

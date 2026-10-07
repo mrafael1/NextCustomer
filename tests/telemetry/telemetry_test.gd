@@ -1,6 +1,9 @@
 extends GdUnitTestSuite
 ## Event log writing and checkout measures (plan section 8).
 
+const STARTER := "res://data/decks/starter.tres"
+const BALANCE := "res://data/balance/balance.tres"
+
 var _folder: String = ""
 
 
@@ -150,16 +153,36 @@ func test_export_joins_every_session_and_includes_its_own_event() -> void:
 
 ## Plan section 8: run_start's and run_end's fields, JSON-friendly.
 func test_run_start_and_run_end_fields() -> void:
-	var deck: DeckDefinition = load("res://data/decks/starter.tres")
-	var balance: BalanceDefinition = load("res://data/balance/balance.tres")
+	var deck: DeckDefinition = load(STARTER)
+	var balance: BalanceDefinition = load(BALANCE)
 	var run: RunState = RunState.new(77, deck, balance, RunStock.starting(deck, balance))
 	run.start_shift()
 	var start: Dictionary = RunEvents.run_start(run)
-	assert_array(start.keys()).contains_exactly_in_any_order(
-		["seed", "starting_deck", "shift_count", "listed_aisles", "stock"]
+	(
+		assert_array(start.keys())
+		. contains_exactly_in_any_order(
+			[
+				"seed",
+				"starting_deck",
+				"shift_count",
+				"listed_aisles",
+				"stock",
+				"impulse_offer",
+				"impulse_pick",
+				"impulse_replaced",
+				"impulse_decide_ms",
+				"impulse_deck_view_opened",
+			]
+		)
 	)
 	assert_int(start["seed"]).is_equal(77)
 	assert_int((start["starting_deck"] as Array).size()).is_equal(13)
+	# Without a rack: no offer, no pick.
+	assert_array(start["impulse_offer"]).is_empty()
+	assert_str(start["impulse_pick"]).is_empty()
+	assert_str(start["impulse_replaced"]).is_empty()
+	assert_int(start["impulse_decide_ms"]).is_equal(0)
+	assert_bool(start["impulse_deck_view_opened"]).is_false()
 	assert_str(JSON.stringify(start)).contains('"listed_aisles":["placeholder"]')
 	run.checkout()
 	assert_int(run.phase).is_equal(RunState.Phase.LOST)
@@ -167,6 +190,33 @@ func test_run_start_and_run_end_fields() -> void:
 	assert_dict(end).is_equal(
 		{"result": "loss", "shift_reached": 1, "last_score": 0, "run_ms": 4321, "upgrades": []}
 	)
+
+
+## Full build plan section 4: run_start is logged after the impulse rack, with its offer (ids in
+## offer order), the pick and the replaced card; starting_deck is the deck before the rack.
+func test_run_start_logs_the_impulse_rack() -> void:
+	var deck: DeckDefinition = load(STARTER)
+	var balance: BalanceDefinition = load(BALANCE)
+	var stream: RandomNumberGenerator = EventLogService.derived_stream(
+		78, EventLogService.IMPULSE_RACK_STREAM
+	)
+	var run: RunState = RunState.new(78, deck, balance, RunStock.starting(deck, balance), stream)
+	var offered: Array = run.impulse_offer.map(
+		func(card: CardDefinition) -> String: return String(card.id)
+	)
+	while not run.deck_is_full():
+		run.deck.add_card(load("res://data/cards/soup.tres"))
+	var replaced: CardInstance = run.deck.cards[0]
+	assert_bool(run.take_reward(run.impulse_offer[2], replaced)).is_true()
+	var start: Dictionary = RunEvents.run_start(run, 2500, true)
+	assert_array(start["impulse_offer"]).is_equal(offered)
+	assert_int(start["impulse_decide_ms"]).is_equal(2500)
+	assert_bool(start["impulse_deck_view_opened"]).is_true()
+	assert_int(offered.size()).is_equal(3)
+	assert_str(start["impulse_pick"]).is_equal(offered[2])
+	assert_str(start["impulse_replaced"]).is_equal(String(replaced.definition.id))
+	assert_int((start["starting_deck"] as Array).size()).is_equal(13)
+	assert_str(JSON.stringify(start)).contains('"impulse_pick":"%s"' % offered[2])
 
 
 ## Plan section 8: the upgrade event's fields, and upgrade ids in pick order (run_end).

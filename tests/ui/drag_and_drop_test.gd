@@ -246,6 +246,7 @@ func test_no_drag_while_redrawing() -> void:
 func _screen() -> ShiftScreen:
 	var runner: GdUnitSceneRunner = scene_runner(SCREEN)
 	var screen: ShiftScreen = runner.scene()
+	screen._on_reward_skipped()  # Past the impulse rack.
 	await _frames(2)
 	return screen
 

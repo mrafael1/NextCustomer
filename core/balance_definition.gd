@@ -34,6 +34,8 @@ extends Resource
 ## The run's first offer always includes one of these (the combination coupons), when stocked.
 @export var first_offer_pool: Array[CardDefinition] = []
 @export var offer_size: int = 0
+## Stocked products the impulse rack offers before shift 1 (full build plan 7.2). 0: no rack.
+@export var impulse_rack_size: int = 0
 ## 1-based shift numbers after which an upgrade is offered, once the reward is picked or
 ## skipped (plan section 3.8). Each is a shift of the run and never the last one.
 @export var upgrade_shifts: PackedInt32Array = PackedInt32Array()

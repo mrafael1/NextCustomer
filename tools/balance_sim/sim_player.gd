@@ -1,7 +1,8 @@
 class_name SimPlayer
 extends RefCounted
 ## Plays runs for the balance simulator (plan section 8) through RunState, as the game does:
-## the same seeded draws, redraws, row limits, reward offers, upgrade offers and inspections.
+## the same impulse rack, seeded draws, redraws, row limits, reward offers, upgrade offers and
+## inspections.
 ## Only the choices come from the simulator. An inspected shift's best row is searched under its
 ## inspection; reward and upgrade picks don't look ahead to the next shift's inspection. Every
 ## run stocks what a new profile does (RunStock.starting, full build plan 7.2).
@@ -11,7 +12,7 @@ extends RefCounted
 ## lowest base value first). The best row stays in the hand, so such a redraw never lowers the
 ## best total.
 ##
-## Strategies, for the reward pick:
+## Strategies, for the reward picks and the impulse rack before shift 1 (picked like a reward):
 ## - "greedy": the offered card, or skip, with the highest mean best total over sample hands
 ##   of the deck it makes (redraws included)
 ## - "random": a random offered card, never a skip
@@ -59,12 +60,19 @@ static func is_known_strategy(strategy: String) -> bool:
 
 
 func play(run_seed: int) -> SimRunRecord:
-	var run: RunState = RunState.new(run_seed, _starter, _balance, _stock)
+	var stream: RandomNumberGenerator = EventLogService.derived_stream(
+		run_seed, EventLogService.IMPULSE_RACK_STREAM
+	)
+	var run: RunState = RunState.new(run_seed, _starter, _balance, _stock, stream)
 	_rng.seed = hash("balance_sim:%d" % run_seed)
 	var record: SimRunRecord = SimRunRecord.new()
 	record.run_seed = run_seed
 	# Per card definition: how many of the run's best rows used it.
 	var usage: Dictionary[CardDefinition, int] = {}
+	if run.phase == RunState.Phase.IMPULSE:
+		_pick_reward(run, usage)
+		record.impulse_offered = true
+		record.impulse_pick = String(run.impulse_pick.id) if run.impulse_pick != null else ""
 	run.start_shift()
 	while true:
 		_play_shift(run, record, usage)

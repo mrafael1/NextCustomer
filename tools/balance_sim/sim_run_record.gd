@@ -16,6 +16,9 @@ var in_best: Dictionary[String, int] = {}
 var needed: Dictionary[String, int] = {}
 ## Redraws made over the run.
 var redraws: int = 0
+## Whether the run had an impulse rack, and the product picked there ("" for a skip).
+var impulse_offered: bool = false
+var impulse_pick: String = ""
 
 
 static func from_dictionary(data: Dictionary) -> SimRunRecord:
@@ -35,6 +38,8 @@ static func from_dictionary(data: Dictionary) -> SimRunRecord:
 	for id: String in data["needed"]:
 		record.needed[id] = int(data["needed"][id])
 	record.redraws = int(data["redraws"])
+	record.impulse_offered = bool(data["impulse_offered"])
+	record.impulse_pick = String(data["impulse_pick"])
 	return record
 
 
@@ -48,6 +53,8 @@ func to_dictionary() -> Dictionary:
 		"in_best": in_best,
 		"needed": needed,
 		"redraws": redraws,
+		"impulse_offered": impulse_offered,
+		"impulse_pick": impulse_pick,
 	}
 
 

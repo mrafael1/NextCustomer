@@ -1,6 +1,6 @@
 # Next Customer: Prototype Plan
 
-> Status: v0.17, closed at proto-r1. The full build (`docs/FULL_BUILD_PLAN.md`) has taken over; this plan stays the scoring-rule spec (sections 3–5) and changes only when a rule does.
+> Status: v0.18, closed at proto-r1. The full build (`docs/FULL_BUILD_PLAN.md`) has taken over; this plan stays the scoring-rule spec (sections 3–5) and changes only when a rule does.
 > Source: the original "Receipt Rogue" game design plan, plus the decisions made in planning.
 > Engine: Godot 4 (exact version pinned in `AGENTS.md`), GDScript with static typing. Playtest builds are delivered in the browser.
 
@@ -378,16 +378,16 @@ Choices and actions that happen after a checkout (rewards, the end of a run, res
 
 | Event | Data |
 |---|---|
-| `run_start` | seed (a new random seed for every run, including after a restart), starting deck, number of shifts (`shift_count`, since v0.12), the run's stock (since v0.17): the aisles stocked whole (`listed_aisles`, ids in data order; every listable aisle when the list is skipped) and the stocked card ids in stock order (`stock`) |
+| `run_start` | seed (a new random seed for every run, including after a restart), starting deck, number of shifts (`shift_count`, since v0.12), the run's stock (since v0.17): the aisles stocked whole (`listed_aisles`, ids in data order; every listable aisle when the list is skipped) and the stocked card ids in stock order (`stock`). Since v0.18 it is logged once the impulse rack before shift 1 is picked or skipped, with the products offered (`impulse_offer`, ids in offer order; empty without a rack), the one picked (`impulse_pick`, empty for a skip), the deck card it replaced at the 15-card limit (`impulse_replaced`, else empty), the time to decide (`impulse_decide_ms`) and whether the deck view was opened (`impulse_deck_view_opened`); the starting deck is the deck before the rack |
 | `shift_start` | shift, quota, the 8 cards drawn, the shift's inspections (`inspections`, ids, since v0.14) |
 | `redraw` | cards replaced, cards received |
 | `checkout` | shift, final order, score, quota, pass or fail, placements, removals, rearrangements, distinct projected totals, planning time, input method (`click`, `drag` or `both`, since v0.15); see the definitions below. The inspection announced for the next shift (`next_inspection`, id or empty, since v0.14). Logged at the checkout click, so closing the game during the count-up loses nothing. |
 | `count_up` | shift, count-up time, fast-forward used. Logged when the count-up ends. |
 | `reward` | shift, the 3 cards offered, card picked (empty if skipped), skipped, card replaced (at the 15-card limit, else empty), time to decide (`decide_ms`), whether the deck view was opened |
 | `upgrade` | shift, the upgrades offered (`offered`, ids in offer order), the upgrade picked (`picked`), time to decide (`decide_ms`, from the tickets appearing to the pick, like `reward`). Logged after the `reward` event on upgrade shifts (section 3.8); there is no skip. Since v0.13. |
-| `run_end` | win or loss, shift reached, last score, run length, the upgrades owned (`upgrades`, ids in pick order, since v0.13) |
+| `run_end` | win or loss, shift reached, last score, run length (from the run's start, impulse rack included, since v0.18), the upgrades owned (`upgrades`, ids in pick order, since v0.13) |
 | `restart` | time since `run_end`, from which screen |
-| `log_export` | which screen the export was started from, number of session files joined |
+| `log_export` | which screen the export was started from (`impulse_rack` since v0.18), number of session files joined |
 | `debug` | which debug action was used and its arguments (development builds only) |
 
 ### Checkout measures
@@ -490,3 +490,4 @@ Rules for iterating: **one major variable per round**, card values tweaked only 
 | v0.15 | 2026-10-06 | Drag-and-drop on top of click-to-place (full build phase 1, `docs/FULL_BUILD_PLAN.md` section 3): a press still picks a card up as a click does; moving 8 px with the button held drags it (a ghost card follows the mouse; the slot where it would land lights up, or the card there that would be pushed right, and nothing lights up where it cannot go); releasing on a slot places it there (a filled slot pushes the cards right, like a click), anywhere else lets go (a row card goes back to the hand). A card already picked up can be dragged too: a click on it now lets go on the release instead of the press. No scoring or rule change · event log: `input_method` in `checkout` is `click`, `drag` or `both` (section 8) |
 | v0.16 | 2026-10-06 | Unlock data model (full build phase 1, `docs/FULL_BUILD_PLAN.md` section 7.3), decided with the user: deck description, starting upgrade (owned from the first shift, first in the run's upgrades, skipped by offers, a pre-stamped loyalty-card box) and unlock condition; card `variant_of` and unlock condition · the run history records each shift's checked-out cards (`played`), for coupon-use unlocks. No scoring change |
 | v0.17 | 2026-10-06 | Run stock (full build phase 1, `docs/FULL_BUILD_PLAN.md` section 7.2): reward offers draw from the run's stock, built before the run by a pure `RunStock` (staples, listed aisles, new arrivals, `coupon_pool`, each in data order) and passed to `RunState` · `reward_pool` becomes `coupon_pool` (Repeat, Final markdown, Breakfast sticker, Multipack); the first offer's combination coupon must be stocked · `AisleDefinition` in `data/aisles/`, with one placeholder base aisle (Cheese, Frozen peas); the budget rule stocks it, so the stock holds the same 12 cards as the old reward pool. Its order is new (staples first), so a seed's reward offers differ from v0.16 · event log: `listed_aisles` and `stock` in `run_start` (section 8). No scoring change |
+| v0.18 | 2026-10-07 | Impulse rack (full build phase 1, `docs/FULL_BUILD_PLAN.md` v0.12, section 7.2): event schema only, no rule change · `run_start` is logged after the rack choice and adds `impulse_offer`, `impulse_pick`, `impulse_replaced`, `impulse_decide_ms` and `impulse_deck_view_opened`; `starting_deck` is the deck before the rack · run length includes the rack · `log_export` can name the `impulse_rack` screen |
