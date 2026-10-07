@@ -8,6 +8,10 @@ signal picked(upgrade: UpgradeDefinition)
 
 const TITLE := "EXIT KIOSK: pick your prize"
 
+## The offer's presentation timeline (presented_ms, armed_ms, decide_ms, presentation_skipped;
+## plan section 8), started by show_offer and kept while the panel is hidden and shown again.
+## A skippable presentation (phase 3) sets its presentation_skipped.
+var timeline: OfferTimeline = OfferTimeline.new()
 var _headline: Label
 var _tickets: HBoxContainer
 ## Like the reward panel: tickets only react once the mouse has been released after the panel
@@ -54,6 +58,7 @@ func _process(_delta: float) -> void:
 	var waited: bool = Time.get_ticks_msec() - _shown_ms >= 350
 	if waited and not Input.is_mouse_button_pressed(MOUSE_BUTTON_LEFT):
 		_set_armed(true)
+		timeline.mark_armed(Time.get_ticks_msec())
 
 
 func show_offer(offer: Array[UpgradeDefinition]) -> void:
@@ -65,8 +70,14 @@ func show_offer(offer: Array[UpgradeDefinition]) -> void:
 		ticket.clicked.connect(_on_ticket_clicked)
 		_tickets.add_child(ticket)
 	_shown_ms = Time.get_ticks_msec()
+	timeline = OfferTimeline.new(_shown_ms)
 	_set_armed(false)
-	UiKit.pop_in(self)
+	timeline.presented_when(UiKit.pop_in(self))
+
+
+## Shown but not yet accepting clicks (the top bar's Deck waits for it too).
+func is_arming() -> bool:
+	return visible and not _armed
 
 
 ## The tickets on show, in offer order.

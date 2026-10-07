@@ -13,11 +13,10 @@ func before_test() -> void:
 	_event_log().use_folder(_folder)
 	# The profile save goes there too, never to the real user:// profile.
 	ProjectSettings.set_setting(SaveService.FOLDER_SETTING, _folder)
-	Engine.time_scale = 8.0
 
 
 func after_test() -> void:
-	Engine.time_scale = 1.0
+	_event_log().opens_export_folder = true
 	ProjectSettings.set_setting(SaveService.FOLDER_SETTING, null)
 	if DirAccess.dir_exists_absolute(_folder):
 		for file_name: String in DirAccess.get_files_at(_folder):
@@ -75,6 +74,7 @@ func test_a_pick_joins_the_deck_and_run_start_logs_it() -> void:
 ## reward event.
 func test_run_start_logs_the_rack_decision() -> void:
 	var screen: ShiftScreen = await _screen()
+	await _until_armed(screen._reward_panel)
 	screen._on_deck_button_pressed()
 	screen._on_deck_closed()
 	await get_tree().create_timer(0.4).timeout
@@ -131,6 +131,10 @@ func test_a_skip_starts_shift_1_with_the_starting_deck() -> void:
 ## The deck view opens from the rack and comes back to it; the rack stays until a choice.
 func test_the_deck_view_returns_to_the_rack() -> void:
 	var screen: ShiftScreen = await _screen()
+	# The top bar's Deck waits for the rack to arm.
+	screen._on_deck_button_pressed()
+	assert_bool(screen._deck_view.visible).is_false()
+	await _until_armed(screen._reward_panel)
 	screen._on_deck_button_pressed()
 	assert_bool(screen._deck_view.visible).is_true()
 	assert_bool(screen._reward_panel.visible).is_false()
@@ -162,10 +166,23 @@ func test_a_pick_at_the_deck_limit_asks_which_card_leaves() -> void:
 	)
 
 
+## The export is written beside the log folder, so the logs go to a subfolder: the export then
+## stays in this test's folder, never in the real user:// folder, and no file browser opens.
 func test_export_during_the_rack_names_the_screen() -> void:
 	var screen: ShiftScreen = await _screen()
+	var logs: String = _folder.path_join("logs")
+	_event_log().use_folder(logs)
+	_event_log().opens_export_folder = false
 	screen._on_export_pressed()
-	assert_str(_last_event("log_export")["screen"]).is_equal("impulse_rack")
+	var lines: PackedStringArray = EventLogWriter.join_logs(logs).split("\n", false)
+	var last: Dictionary = JSON.parse_string(lines[-1])
+	assert_str(last["type"]).is_equal("log_export")
+	assert_str(last["screen"]).is_equal("impulse_rack")
+	var exported: String = _folder.path_join("playtest_export.jsonl")
+	assert_str(FileAccess.get_file_as_string(exported)).contains("impulse_rack")
+	for file_name: String in DirAccess.get_files_at(logs):
+		DirAccess.remove_absolute(logs.path_join(file_name))
+	DirAccess.remove_absolute(logs)
 
 
 ## The debug replay: the same seed shows the same rack, and "New run with this seed" can apply
@@ -231,6 +248,14 @@ func _screen() -> ShiftScreen:
 	for frame: int in range(4):
 		await get_tree().process_frame
 	return screen
+
+
+## Waits until the panel accepts clicks (a generous wall-clock limit).
+func _until_armed(panel: RewardPanel) -> void:
+	var start: int = Time.get_ticks_msec()
+	while panel.is_arming() and Time.get_ticks_msec() - start < 3000:
+		await get_tree().process_frame
+	assert_bool(panel.is_arming()).is_false()
 
 
 static func _ids(cards: Array[CardDefinition]) -> Array:

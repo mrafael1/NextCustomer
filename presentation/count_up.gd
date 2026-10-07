@@ -7,7 +7,19 @@ extends Node
 ## pitched higher), multiplier stamps, copies, Soup's "denied", sticker and Bundle moments,
 ## a short glow when a card arms an effect for later cards, fizzle puffs, a receipt printer
 ## that speeds up as the subtotal grows, a register rattle on big payouts, then a pause and the
-## total slammed against the quota. Hold the mouse button or Space to fast-forward.
+## total slammed against the quota.
+##
+## Respecting the player (full build plan 6.2): a press of Space or the mouse (anywhere except on
+## a button that can be pressed) released before HOLD_THRESHOLD_MS is a tap. The first tap speeds
+## the count to the verdict (the final total shown) at TAP_SKIP; what follows it (the slam, pass
+## or fail, the next-shift notice) then plays at normal speed, unless a second tap (or a first one
+## after the verdict) skips it at DESSERT_SKIP. A press held past the threshold fast-forwards at
+## FAST_FORWARD while held. The fastest of these wins. Skips only speed tweens up, never kill
+## them, so every line, sound and shake still happens and the receipt ends up the same. Presses
+## are read from the input events, so a press and release within one frame is still a tap. The
+## checkout click is ignored (a press still held at the start is ignored up to its release), so is
+## the second click of a double-click on it (CHECKOUT fires on the first click's release), and a
+## tap after the count-up does nothing.
 ##
 ## Steps caused by an upgrade (source_kind UPGRADE) come from that upgrade's loyalty-card box:
 ## bonuses and multipliers fly in from it, and its fizzles puff out of it. Steps caused by an
@@ -17,15 +29,35 @@ extends Node
 
 signal finished
 
+## A hold's speed, from HOLD_THRESHOLD_MS on.
 const FAST_FORWARD := 5.0
+## A press released before this (in ms of Time.get_ticks_msec()) is a tap; one held this long is
+## a hold.
+const HOLD_THRESHOLD_MS := 200
+## The speed after the first tap, up to the verdict.
+const TAP_SKIP := 12.0
+## The speed of everything left after a tap that skips the dessert.
+const DESSERT_SKIP := 30.0
+## A double-click's second press this soon (in ms) after the count-up started is the end of the
+## checkout click's double-click, not a tap. Later ones are real taps (the second of two quick
+## taps is a double-click too, and still skips the dessert).
+const CHECKOUT_DOUBLE_CLICK_MS := 500
+## The sources of a press, as bits of _down and _ignored.
+const PRESS_SPACE := 1
+const PRESS_MOUSE := 2
 const SCAN_LIFT := -22.0
 ## The armed beat is short and soft: it hints at what is coming, the payoff plays at the target.
 const ARMED_BEAT := 0.18
 const ARMED_GLOW := Color(1.3, 1.3, 1.15)
 
+## A hold past HOLD_THRESHOLD_MS sped this count-up up (plan 8's fast-forward used).
 var fast_forward_used: bool = false
 ## Time.get_ticks_msec() when the final total was shown (plan 8: count-up time ends there).
 var total_shown_ms: int = 0
+## Time.get_ticks_msec() of this count-up's first tap, or -1 for none (plan 8's skip_at_ms).
+var first_tap_ms: int = -1
+## A tap skipped the dessert: a second tap, or a first one after the verdict.
+var dessert_skipped: bool = false
 var _overlay: Control
 var _views: Array[CardView] = []
 var _names: PackedStringArray = PackedStringArray()
@@ -46,11 +78,22 @@ var _shown_subtotal: int = 0
 ## Consecutive bonuses on the current card: each one lands a little harder.
 var _chain: int = 0
 var _playing: bool = false
-## The click that started checkout may still be held: it only counts once released.
-var _ignore_held: bool = false
+## The sources (PRESS_SPACE, PRESS_MOUSE) already held when the count-up started, such as the
+## checkout click: ignored up to their release.
+var _ignored: int = 0
+## The sources down in the press being tracked: it ends when the last one is released.
+var _down: int = 0
+## When the press being tracked started (Time.get_ticks_msec()), or -1 while nothing is pressed.
+var _press_ms: int = -1
+## A tap has sped the count up (to the verdict, unless it skipped the dessert).
+var _tapped: bool = false
+## The final total is shown: what follows is the dessert.
+var _verdict_shown: bool = false
 ## Running tweens: their speed follows fast-forward every frame, not only when they start.
 var _live: Array[Tween] = []
 var _last_tick_ms: int = 0
+## Time.get_ticks_msec() when this count-up started (for CHECKOUT_DOUBLE_CLICK_MS).
+var _started_ms: int = 0
 
 
 func setup(
@@ -83,8 +126,19 @@ func play(
 	_shown_subtotal = 0
 	_chain = 0
 	fast_forward_used = false
+	first_tap_ms = -1
+	dessert_skipped = false
+	_tapped = false
+	_verdict_shown = false
+	_press_ms = -1
+	_down = 0
+	_ignored = 0
+	_started_ms = Time.get_ticks_msec()
+	if Input.is_key_pressed(KEY_SPACE):
+		_ignored |= PRESS_SPACE
+	if Input.is_mouse_button_pressed(MOUSE_BUTTON_LEFT):
+		_ignored |= PRESS_MOUSE
 	_playing = true
-	_ignore_held = _is_held()
 	_receipt.clear()
 	_set_subtotal(0.0)
 	for view: CardView in _views:
@@ -97,6 +151,7 @@ func play(
 	await _wait(0.45)
 	_receipt.add_total(result.total)
 	total_shown_ms = Time.get_ticks_msec()
+	_verdict_shown = true
 	await _total_slam(result.total, quota)
 	if not notice.is_empty():
 		await _print_notice(notice)
@@ -105,6 +160,7 @@ func play(
 
 
 func _process(_delta: float) -> void:
+	_drop_lost_presses()
 	var speed: float = _speed()
 	var live: Array[Tween] = []
 	for tween: Tween in _live:
@@ -112,8 +168,77 @@ func _process(_delta: float) -> void:
 			tween.set_speed_scale(speed)
 			live.append(tween)
 	_live = live
-	if _playing and speed > 1.0 and not _live.is_empty():
+	if _playing and _is_holding() and FAST_FORWARD > _skip_speed() and not _live.is_empty():
 		fast_forward_used = true
+
+
+## Follows the presses of Space and the mouse during the count-up from their events, so a press
+## and release within one frame, or around a long frame, are timed as they came: a release before
+## HOLD_THRESHOLD_MS is a tap. Events are never marked handled, so the buttons still get them.
+func _input(event: InputEvent) -> void:
+	var source: int = _press_source(event)
+	if not _playing or source == 0:
+		return
+	var now: int = Time.get_ticks_msec()
+	if event.is_pressed():
+		# A new press of an ignored source means its release was missed: it is tracked again.
+		_ignored &= ~source
+		if source == PRESS_MOUSE and not _is_tap_target():
+			return
+		if source == PRESS_MOUSE and _ends_checkout_double_click(event, now):
+			_ignored |= PRESS_MOUSE  # Its release is dropped too.
+			return
+		if _down == 0:
+			_press_ms = now
+		_down |= source
+		return
+	if (_ignored & source) != 0:
+		_ignored &= ~source
+		return
+	if (_down & source) == 0:
+		return
+	_down &= ~source
+	if _down == 0:
+		if now - _press_ms < HOLD_THRESHOLD_MS:
+			_tap(now)
+		_press_ms = -1
+
+
+## Forgets presses whose release never came (the window lost focus) and, once the count-up has
+## ended, every press: neither is a tap or a hold.
+func _drop_lost_presses() -> void:
+	if not _playing:
+		_down = 0
+		_ignored = 0
+	if not Input.is_key_pressed(KEY_SPACE):
+		_down &= ~PRESS_SPACE
+		_ignored &= ~PRESS_SPACE
+	if not Input.is_mouse_button_pressed(MOUSE_BUTTON_LEFT):
+		_down &= ~PRESS_MOUSE
+		_ignored &= ~PRESS_MOUSE
+	if _down == 0:
+		_press_ms = -1
+
+
+## PRESS_SPACE or PRESS_MOUSE for a Space key (not an echo) or left mouse button event, else 0.
+static func _press_source(event: InputEvent) -> int:
+	var key: InputEventKey = event as InputEventKey
+	if key != null:
+		return PRESS_SPACE if key.keycode == KEY_SPACE and not key.echo else 0
+	var mouse: InputEventMouseButton = event as InputEventMouseButton
+	if mouse != null and mouse.button_index == MOUSE_BUTTON_LEFT:
+		return PRESS_MOUSE
+	return 0
+
+
+## The first tap speeds the count to the verdict; a second one, or one after the verdict, skips
+## the dessert too.
+func _tap(now: int) -> void:
+	if first_tap_ms < 0:
+		first_tap_ms = now
+	if _tapped or _verdict_shown:
+		dessert_skipped = true
+	_tapped = true
 
 
 func _play_step(step: ScoreStep) -> void:
@@ -523,19 +648,33 @@ func _wait(seconds: float) -> void:
 	await tween.finished
 
 
+## The fastest of the taps' skip and a hold's fast-forward.
 func _speed() -> float:
-	var held: bool = _is_held()
-	if _ignore_held and not held:
-		_ignore_held = false
-	return FAST_FORWARD if held and not _ignore_held else 1.0
+	return maxf(_skip_speed(), FAST_FORWARD if _is_holding() else 1.0)
 
 
-## Space, or the mouse held anywhere except on a button (clicking Export log or Deck during
-## the count is not a fast-forward).
-func _is_held() -> bool:
-	if Input.is_key_pressed(KEY_SPACE):
-		return true
-	if not Input.is_mouse_button_pressed(MOUSE_BUTTON_LEFT):
-		return false
-	var hovered: Control = get_viewport().gui_get_hovered_control()
-	return not hovered is BaseButton
+func _skip_speed() -> float:
+	if dessert_skipped:
+		return DESSERT_SKIP
+	return TAP_SKIP if _tapped and not _verdict_shown else 1.0
+
+
+## A press held past HOLD_THRESHOLD_MS (the checkout click never is: it is ignored, not tracked).
+func _is_holding() -> bool:
+	return _press_ms >= 0 and Time.get_ticks_msec() - _press_ms >= HOLD_THRESHOLD_MS
+
+
+## A mouse press counts anywhere except on a button that can be pressed (clicking Export log or
+## Deck during the count is neither a tap nor a hold). A disabled button, such as CHECKOUT under
+## the cursor during its own count, does nothing, so a press on it counts, except for the second
+## click of a double-click on CHECKOUT (see _ends_checkout_double_click).
+func _is_tap_target() -> bool:
+	var button: BaseButton = get_viewport().gui_get_hovered_control() as BaseButton
+	return button == null or button.disabled
+
+
+## A double-click's second press within CHECKOUT_DOUBLE_CLICK_MS of the start: the player
+## double-clicked CHECKOUT, which is one intent to check out, not a tap.
+func _ends_checkout_double_click(event: InputEvent, now: int) -> bool:
+	var mouse: InputEventMouseButton = event as InputEventMouseButton
+	return mouse.double_click and now - _started_ms < CHECKOUT_DOUBLE_CLICK_MS

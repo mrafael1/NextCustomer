@@ -171,6 +171,9 @@ func test_run_start_and_run_end_fields() -> void:
 				"impulse_pick",
 				"impulse_replaced",
 				"impulse_decide_ms",
+				"impulse_presented_ms",
+				"impulse_armed_ms",
+				"impulse_presentation_skipped",
 				"impulse_deck_view_opened",
 			]
 		)
@@ -182,6 +185,9 @@ func test_run_start_and_run_end_fields() -> void:
 	assert_str(start["impulse_pick"]).is_empty()
 	assert_str(start["impulse_replaced"]).is_empty()
 	assert_int(start["impulse_decide_ms"]).is_equal(0)
+	assert_int(start["impulse_presented_ms"]).is_equal(0)
+	assert_int(start["impulse_armed_ms"]).is_equal(0)
+	assert_bool(start["impulse_presentation_skipped"]).is_false()
 	assert_bool(start["impulse_deck_view_opened"]).is_false()
 	assert_str(JSON.stringify(start)).contains('"listed_aisles":["placeholder"]')
 	run.checkout()
@@ -208,9 +214,15 @@ func test_run_start_logs_the_impulse_rack() -> void:
 		run.deck.add_card(load("res://data/cards/soup.tres"))
 	var replaced: CardInstance = run.deck.cards[0]
 	assert_bool(run.take_reward(run.impulse_offer[2], replaced)).is_true()
-	var start: Dictionary = RunEvents.run_start(run, 2500, true)
+	var rack: OfferTimeline = OfferTimeline.new(1000)
+	rack.mark_presented(1230)
+	rack.mark_armed(1360)
+	var start: Dictionary = RunEvents.run_start(run, rack.fields(3500), true)
 	assert_array(start["impulse_offer"]).is_equal(offered)
 	assert_int(start["impulse_decide_ms"]).is_equal(2500)
+	assert_int(start["impulse_presented_ms"]).is_equal(230)
+	assert_int(start["impulse_armed_ms"]).is_equal(360)
+	assert_bool(start["impulse_presentation_skipped"]).is_false()
 	assert_bool(start["impulse_deck_view_opened"]).is_true()
 	assert_int(offered.size()).is_equal(3)
 	assert_str(start["impulse_pick"]).is_equal(offered[2])
@@ -224,14 +236,29 @@ func test_upgrade_event_fields() -> void:
 	var coupon_engine: UpgradeDefinition = load("res://data/upgrades/coupon_engine.tres")
 	var category_engine: UpgradeDefinition = load("res://data/upgrades/category_engine.tres")
 	var offered: Array[UpgradeDefinition] = [category_engine, coupon_engine]
-	var event: Dictionary = RunEvents.upgrade_pick(4, offered, coupon_engine, 1234)
-	assert_array(event.keys()).contains_exactly_in_any_order(
-		["shift", "offered", "picked", "decide_ms"]
+	var tickets: OfferTimeline = OfferTimeline.new(100)
+	tickets.mark_presented(330)
+	tickets.mark_armed(460)
+	tickets.presentation_skipped = true
+	var event: Dictionary = RunEvents.upgrade_pick(4, offered, coupon_engine, tickets.fields(1334))
+	assert_array(event.keys()).is_equal(
+		[
+			"shift",
+			"offered",
+			"picked",
+			"decide_ms",
+			"presented_ms",
+			"armed_ms",
+			"presentation_skipped"
+		]
 	)
 	assert_int(event["shift"]).is_equal(4)
 	assert_array(event["offered"]).is_equal(["category_engine", "coupon_engine"])
 	assert_str(event["picked"]).is_equal("coupon_engine")
 	assert_int(event["decide_ms"]).is_equal(1234)
+	assert_int(event["presented_ms"]).is_equal(230)
+	assert_int(event["armed_ms"]).is_equal(360)
+	assert_bool(event["presentation_skipped"]).is_true()
 	# JSON-friendly: plain strings, not StringNames.
 	assert_str(JSON.stringify(event)).contains('"picked":"coupon_engine"')
 	assert_array(RunEvents.upgrade_ids([])).is_empty()

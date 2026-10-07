@@ -13,6 +13,8 @@ const IMPULSE_RACK_STREAM := "impulse_rack"
 var session_id: String = ""
 var run_id: String = ""
 var build_label: String = ""
+## Tests only: false keeps the Export log button from opening a file browser on desktop.
+var opens_export_folder: bool = true
 var _seq: int = 0
 var _writer: EventLogWriter
 ## Its own RNG for ids and new run seeds: never the run's seeded RNG.
@@ -98,7 +100,7 @@ func export_logs(screen: String, open_folder: bool = true) -> String:
 		if file:
 			file.store_string(joined)
 			file.close()
-		if open_folder:
+		if open_folder and opens_export_folder:
 			OS.shell_open(ProjectSettings.globalize_path(folder.get_base_dir()))
 	return joined
 

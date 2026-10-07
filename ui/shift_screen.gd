@@ -45,13 +45,11 @@ var _redraw_pick: Array[CardInstance] = []
 var _counting: bool = false
 var _run_started_ms: int = 0
 var _run_ended_ms: int = -1
-## The offer on screen (a reward or the impulse rack): when it appeared, whether the deck view
-## was opened, and a picked card waiting for the player to choose which deck card it replaces.
-var _reward_shown_ms: int = 0
+## The offer on screen (a reward or the impulse rack): whether the deck view was opened, and a
+## picked card waiting for the player to choose which deck card it replaces. Its times are the
+## panel's timeline (OfferTimeline), like the upgrade tickets'.
 var _deck_viewed_for_reward: bool = false
 var _pending_reward: CardDefinition
-## When the upgrade tickets appeared (decide_ms in the upgrade event).
-var _upgrade_shown_ms: int = 0
 
 var _shift_label: Label
 var _quota_label: Label
@@ -132,17 +130,17 @@ func start_new_run(
 	_log.begin_run()
 	_close_overlays()
 	if run.phase != RunState.Phase.IMPULSE:
-		_start_first_shift(0, false)
+		_start_first_shift({}, false)
 		return
 	_show_impulse_rack()
 	if replays_rack:
 		_replay_impulse_rack(replayed_pick)
 
 
-## After the impulse rack: logs run_start (with the rack's offer, pick and decision time) and
-## starts shift 1.
-func _start_first_shift(decide_ms: int, deck_viewed: bool) -> void:
-	_log.log_event("run_start", RunEvents.run_start(run, decide_ms, deck_viewed))
+## After the impulse rack: logs run_start (with the rack's offer, pick and times, {} for none)
+## and starts shift 1.
+func _start_first_shift(impulse_timing: Dictionary, deck_viewed: bool) -> void:
+	_log.log_event("run_start", RunEvents.run_start(run, impulse_timing, deck_viewed))
 	run.start_shift()
 	_on_shift_started()
 
@@ -389,17 +387,15 @@ func _on_checkout_pressed() -> void:
 		InspectionTag.names(run.inspections),
 		InspectionTag.next_notice(run.next_inspection)
 	)
-	(
-		_log
-		. log_event(
-			"count_up",
-			{
-				"shift": run.shift_index + 1,
-				"count_up_ms": _count_up.total_shown_ms - _click_ms,
-				"fast_forward_used": _count_up.fast_forward_used,
-			}
-		)
+	var counted: Dictionary = RunEvents.count_up(
+		run.shift_index + 1,
+		_click_ms,
+		_count_up.total_shown_ms,
+		_count_up.fast_forward_used,
+		_count_up.first_tap_ms,
+		_count_up.dessert_skipped
 	)
+	_log.log_event("count_up", counted)
 	_counting = false
 	if run.phase == RunState.Phase.REWARD:
 		_show_rewards(result)
@@ -427,7 +423,6 @@ func _show_impulse_rack() -> void:
 	_receipt.clear()
 	_projected_label.text = ""
 	_subtotal_label.text = ""
-	_reward_shown_ms = Time.get_ticks_msec()
 	_deck_viewed_for_reward = false
 	_pending_reward = null
 	_reward_panel.show_offer(
@@ -441,13 +436,17 @@ func _show_impulse_rack() -> void:
 
 ## The debug replay, on the rack shown: applies a logged pick ("" for a skip). A card that isn't
 ## in the offer is refused and the rack stays. At the deck limit the deck view asks which card
-## leaves.
+## leaves. A replay applied at once logs 0 times (the player never saw the rack); a refused one,
+## or one left to the deck-full chooser, keeps the rack's real timeline for the player's choice.
 func _replay_impulse_rack(card_id: String) -> void:
 	if card_id.is_empty():
+		_reward_panel.timeline = OfferTimeline.new()
 		_finish_impulse(null, null)
 		return
 	for card: CardDefinition in run.impulse_offer:
 		if String(card.id) == card_id:
+			if not run.deck_is_full():
+				_reward_panel.timeline = OfferTimeline.new()
 			_on_reward_picked(card)
 			return
 	_log.log_event("debug", {"action": "impulse_pick_refused", "card": card_id})
@@ -461,14 +460,15 @@ func _finish_impulse(card: CardDefinition, replaced: CardInstance) -> void:
 	if not taken:
 		return
 	_sfx.play("click")
-	_start_first_shift(Time.get_ticks_msec() - _reward_shown_ms, _deck_viewed_for_reward)
+	_start_first_shift(
+		_reward_panel.timeline.fields(Time.get_ticks_msec()), _deck_viewed_for_reward
+	)
 
 
 # --- Rewards and deck view -------------------------------------------------------------------
 
 
 func _show_rewards(result: ScoreResult) -> void:
-	_reward_shown_ms = Time.get_ticks_msec()
 	_deck_viewed_for_reward = false
 	_pending_reward = null
 	_reward_panel.show_offer(
@@ -532,7 +532,8 @@ func _on_reward_deck_requested() -> void:
 
 
 func _on_deck_button_pressed() -> void:
-	if _counting:
+	# Like the panels' own View deck: an offer can't be hidden before it arms (plan 8's armed_ms).
+	if _counting or _reward_panel.is_arming() or _upgrade_panel.is_arming():
 		return
 	if run.phase == RunState.Phase.REWARD or run.phase == RunState.Phase.IMPULSE:
 		_on_reward_deck_requested()
@@ -545,26 +546,14 @@ func _on_deck_button_pressed() -> void:
 ## Applies the choice (card null = skip), logs it, and starts the next shift, or shows the
 ## upgrade tickets on an upgrade shift.
 func _finish_reward(card: CardDefinition, replaced: CardInstance) -> void:
-	var offered: Array = run.offer.map(
-		func(offered_card: CardDefinition) -> String: return String(offered_card.id)
-	)
+	var offered: Array[CardDefinition] = run.offer.duplicate()
+	var timing: Dictionary = _reward_panel.timeline.fields(Time.get_ticks_msec())
 	var taken: bool = run.take_reward(card, replaced) if card != null else run.skip_reward()
 	if not taken:
 		return
-	(
-		_log
-		. log_event(
-			"reward",
-			{
-				"shift": run.shift_index + 1,
-				"offered": offered,
-				"picked": String(card.id) if card != null else "",
-				"skipped": card == null,
-				"replaced": String(replaced.definition.id) if replaced != null else "",
-				"decide_ms": Time.get_ticks_msec() - _reward_shown_ms,
-				"deck_view_opened": _deck_viewed_for_reward,
-			}
-		)
+	var shift: int = run.shift_index + 1
+	_log.log_event(
+		"reward", RunEvents.reward(shift, offered, card, replaced, timing, _deck_viewed_for_reward)
 	)
 	_pending_reward = null
 	_reward_panel.visible = false
@@ -582,7 +571,6 @@ func _finish_reward(card: CardDefinition, replaced: CardInstance) -> void:
 
 ## Plan section 3.8: after the reward on an upgrade shift, the player must pick a ticket.
 func _show_upgrades() -> void:
-	_upgrade_shown_ms = Time.get_ticks_msec()
 	_upgrade_panel.show_offer(run.upgrade_offer)
 	_save_run()
 
@@ -593,10 +581,8 @@ func _on_upgrade_picked(upgrade: UpgradeDefinition) -> void:
 	var offered: Array[UpgradeDefinition] = run.upgrade_offer.duplicate()
 	if not run.pick_upgrade(upgrade):
 		return
-	var decide_ms: int = Time.get_ticks_msec() - _upgrade_shown_ms
-	_log.log_event(
-		"upgrade", RunEvents.upgrade_pick(run.shift_index + 1, offered, upgrade, decide_ms)
-	)
+	var timing: Dictionary = _upgrade_panel.timeline.fields(Time.get_ticks_msec())
+	_log.log_event("upgrade", RunEvents.upgrade_pick(run.shift_index + 1, offered, upgrade, timing))
 	_upgrade_panel.visible = false
 	_deck_view.visible = false
 	_refresh_loyalty_card()
@@ -855,7 +841,7 @@ func _build() -> void:
 	var hint: Label = _info_label(page, 14)
 	hint.text = (
 		"Click a card then a slot, or drag it there  ·  click or drag a placed card to take it back"
-		+ "  ·  hold Space or the mouse to fast-forward the count"
+		+ "  ·  tap Space or the mouse to skip the count, hold to fast-forward"
 	)
 	hint.modulate = Color(1, 1, 1, 0.6)
 	var bottom: HBoxContainer = HBoxContainer.new()

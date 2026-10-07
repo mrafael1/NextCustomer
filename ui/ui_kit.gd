@@ -2,6 +2,9 @@ class_name UiKit
 extends RefCounted
 ## Small helpers shared by the placeholder screens, so they look alike.
 
+## How long a panel's pop-in lasts, in seconds of game time.
+const POP_IN_SECONDS := 0.22
+
 
 static func paper_panel(border: int = 4) -> PanelContainer:
 	var panel: PanelContainer = PanelContainer.new()
@@ -35,8 +38,9 @@ static func button(parent: Control, text: String, action: Callable, font_size: i
 	return result
 
 
-## Centers a panel on the screen and pops it in.
-static func pop_in(panel: Control) -> void:
+## Centers a panel on the screen and pops it in. Returns the pop-in's tween: the panel is fully
+## shown when it finishes (an offer's presented_ms, OfferTimeline).
+static func pop_in(panel: Control) -> Tween:
 	panel.visible = true
 	# Size the panel to its content first, then center it with that size.
 	panel.reset_size()
@@ -46,4 +50,5 @@ static func pop_in(panel: Control) -> void:
 	panel.pivot_offset = panel.get_combined_minimum_size() / 2.0
 	panel.scale = Vector2(0.7, 0.7)
 	var tween: Tween = panel.create_tween().set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
-	tween.tween_property(panel, "scale", Vector2.ONE, 0.22)
+	tween.tween_property(panel, "scale", Vector2.ONE, POP_IN_SECONDS)
+	return tween
