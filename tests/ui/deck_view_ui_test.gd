@@ -99,8 +99,8 @@ func test_the_run_info_tab_shows_upgrades_inspections_and_stock() -> void:
 	assert_int(view.card_views().size()).is_equal(screen.run.stock.cards.size())
 	assert_int(view.card_views().size()).is_equal(12)
 	view._close()
-	screen._on_debug_upgrade("category_engine")
-	screen._on_debug_inspection("spot_check")
+	screen._debug.give_upgrade("category_engine")
+	screen._debug.set_inspection("spot_check")
 	screen._on_deck_button_pressed()
 	view.show_page(true)
 	texts = view.texts()
@@ -125,7 +125,7 @@ func test_the_run_info_tab_shows_upgrades_inspections_and_stock() -> void:
 ## the last shift has no next shift.
 func test_run_info_announces_a_scheduled_inspection() -> void:
 	var screen: ShiftScreen = await _screen()
-	screen._on_debug_shift(2)
+	screen._debug.skip_to_shift(2)
 	screen._on_deck_button_pressed()
 	var view: DeckView = screen._deck_view
 	view.show_page(true)
@@ -133,7 +133,7 @@ func test_run_info_announces_a_scheduled_inspection() -> void:
 		["This shift: no inspection.", "Next shift: inspected (announced at checkout)."]
 	)
 	view._close()
-	screen._on_debug_shift(screen.run.shift_count())
+	screen._debug.skip_to_shift(screen.run.shift_count())
 	screen._on_deck_button_pressed()
 	view.show_page(true)
 	var texts: PackedStringArray = view.texts()
@@ -150,7 +150,7 @@ func test_run_info_announces_a_scheduled_inspection() -> void:
 ## is no longer called "This shift".
 func test_run_info_during_the_reward_shows_the_drawn_inspection() -> void:
 	var screen: ShiftScreen = await _screen()
-	screen._on_debug_shift(2)
+	screen._debug.skip_to_shift(2)
 	for id: String in ["bread", "multipack", "bread", "bread", "bread", "bread"]:
 		var card: CardDefinition = load("res://data/cards/%s.tres" % id)
 		screen.run.place(screen.run.debug_add_to_hand(card), screen.run.row.size())

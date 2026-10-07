@@ -67,7 +67,7 @@ func test_the_results_print_the_coins_and_fit_the_screen() -> void:
 	var screen: ShiftScreen = runner.scene()
 	screen._on_reward_skipped()  # Past the impulse rack.
 	var count: int = screen.run.shift_count()
-	screen._on_debug_shift(count)
+	screen._debug.skip_to_shift(count)
 	# The debug jump writes no history: the 7 earlier shifts are passed records, each €2 over.
 	for shift: int in range(count - 1, 0, -1):
 		screen.run.history.push_front(ShiftRecord.new(shift, 10, 12))

@@ -1,6 +1,6 @@
 # Next Customer: Prototype Plan
 
-> Status: v0.18, closed at proto-r1. The full build (`docs/FULL_BUILD_PLAN.md`) has taken over; this plan stays the scoring-rule spec (sections 3–5) and changes only when a rule does.
+> Status: v0.19, closed at proto-r1. The full build (`docs/FULL_BUILD_PLAN.md`) has taken over; this plan stays the scoring-rule spec (sections 3–5) and changes only when a rule does.
 > Source: the original "Receipt Rogue" game design plan, plus the decisions made in planning.
 > Engine: Godot 4 (exact version pinned in `AGENTS.md`), GDScript with static typing. Playtest builds are delivered in the browser.
 
@@ -385,7 +385,9 @@ Choices and actions that happen after a checkout (rewards, the end of a run, res
 | `count_up` | shift, count-up time, fast-forward used. Logged when the count-up ends. |
 | `reward` | shift, the 3 cards offered, card picked (empty if skipped), skipped, card replaced (at the 15-card limit, else empty), time to decide (`decide_ms`), whether the deck view was opened |
 | `upgrade` | shift, the upgrades offered (`offered`, ids in offer order), the upgrade picked (`picked`), time to decide (`decide_ms`, from the tickets appearing to the pick, like `reward`). Logged after the `reward` event on upgrade shifts (section 3.8); there is no skip. Since v0.13. |
-| `run_end` | win or loss, shift reached, last score, run length (from the run's start, impulse rack included, since v0.18), the upgrades owned (`upgrades`, ids in pick order, since v0.13) |
+| `run_end` | win or loss, shift reached, last score, run length (from the run's start, impulse rack included, since v0.18; played time only, across resumes, since v0.19), the upgrades owned (`upgrades`, ids in pick order, since v0.13) |
+| `run_resume` | Since v0.19: a saved run continues (`docs/FULL_BUILD_PLAN.md` section 4), logged under the saved run's `run_id`: the shift (1-based), the save point it continues from (`phase`: `impulse_rack`, `planning`, `reward` or `upgrade`) and the played time so far (`run_ms`). No `shift_start` is logged again; a resumed shift's checkout measures count from the resume |
+| `run_abandon` | Since v0.19: the title screen's New run abandons a saved run, logged under the saved run's `run_id`: the shift (1-based), the save point (`phase`, as in `run_resume`) and the played time up to its last save (`run_ms`). The run records nothing in the profile |
 | `restart` | time since `run_end`, from which screen |
 | `log_export` | which screen the export was started from (`impulse_rack` since v0.18), number of session files joined |
 | `debug` | which debug action was used and its arguments (development builds only) |
@@ -491,3 +493,4 @@ Rules for iterating: **one major variable per round**, card values tweaked only 
 | v0.16 | 2026-10-06 | Unlock data model (full build phase 1, `docs/FULL_BUILD_PLAN.md` section 7.3), decided with the user: deck description, starting upgrade (owned from the first shift, first in the run's upgrades, skipped by offers, a pre-stamped loyalty-card box) and unlock condition; card `variant_of` and unlock condition · the run history records each shift's checked-out cards (`played`), for coupon-use unlocks. No scoring change |
 | v0.17 | 2026-10-06 | Run stock (full build phase 1, `docs/FULL_BUILD_PLAN.md` section 7.2): reward offers draw from the run's stock, built before the run by a pure `RunStock` (staples, listed aisles, new arrivals, `coupon_pool`, each in data order) and passed to `RunState` · `reward_pool` becomes `coupon_pool` (Repeat, Final markdown, Breakfast sticker, Multipack); the first offer's combination coupon must be stocked · `AisleDefinition` in `data/aisles/`, with one placeholder base aisle (Cheese, Frozen peas); the budget rule stocks it, so the stock holds the same 12 cards as the old reward pool. Its order is new (staples first), so a seed's reward offers differ from v0.16 · event log: `listed_aisles` and `stock` in `run_start` (section 8). No scoring change |
 | v0.18 | 2026-10-07 | Impulse rack (full build phase 1, `docs/FULL_BUILD_PLAN.md` v0.12, section 7.2): event schema only, no rule change · `run_start` is logged after the rack choice and adds `impulse_offer`, `impulse_pick`, `impulse_replaced`, `impulse_decide_ms` and `impulse_deck_view_opened`; `starting_deck` is the deck before the rack · run length includes the rack · `log_export` can name the `impulse_rack` screen |
+| v0.19 | 2026-10-07 | Save and resume (full build phase 1, `docs/FULL_BUILD_PLAN.md` v0.14, section 4): event schema only, no rule change · new `run_resume` (shift, phase, `run_ms`) and `run_abandon` (shift, phase, `run_ms`) events, logged under the saved run's `run_id` · `run_end`'s run length counts played time only, across resumes |

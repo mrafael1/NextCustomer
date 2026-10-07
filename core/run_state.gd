@@ -64,6 +64,17 @@ var inspections: Array[InspectionDefinition] = []
 var next_inspection: InspectionDefinition
 ## One entry per played shift, in order.
 var history: Array[ShiftRecord] = []
+## True once the debug panel jumped to another shift, or restarted the current one after its
+## checkout: the history then no longer holds one entry per shift before the current one
+## (RunSave skips that check for such a run).
+var debug_jumped: bool = false
+## The run RNG's state, for the run save (RunSave): setting it continues the RNG's sequence from
+## that point, so a restored run draws and offers exactly what the saved one would have.
+var rng_state: int:
+	get:
+		return _rng.state
+	set(value):
+		_rng.state = value
 var _rng: RandomNumberGenerator
 
 
@@ -307,6 +318,8 @@ func debug_skip_to_shift(index: int) -> void:
 	if phase == Phase.IMPULSE:
 		return
 	var target: int = clampi(index, 0, shift_count() - 1)
+	if target != shift_index or history.size() != target:
+		debug_jumped = true
 	if target != shift_index:
 		inspections = []
 		if InspectionSchedule.is_inspection_shift(balance, target + 1):

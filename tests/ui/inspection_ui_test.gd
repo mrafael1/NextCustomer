@@ -88,7 +88,7 @@ func test_inspection_steps_print_and_play_from_the_tag() -> void:
 	var runner: GdUnitSceneRunner = scene_runner(SCREEN)
 	var screen: ShiftScreen = runner.scene()
 	screen._on_reward_skipped()  # Past the impulse rack.
-	screen._on_debug_inspection("spot_check")
+	screen._debug.set_inspection("spot_check")
 	assert_bool(screen._inspection_tag.visible).is_true()
 	assert_str(_last_event("debug")["action"]).is_equal("set_inspection")
 	_place_ids(screen, ["bread", "bread", "bread", "bread"])
@@ -110,14 +110,14 @@ func test_the_debug_panel_clears_the_inspection() -> void:
 	var runner: GdUnitSceneRunner = scene_runner(SCREEN)
 	var screen: ShiftScreen = runner.scene()
 	screen._on_reward_skipped()  # Past the impulse rack.
-	screen._on_debug_inspection("spot_check")
+	screen._debug.set_inspection("spot_check")
 	assert_array(_last_event("shift_start")["inspections"]).is_equal(["spot_check"])
-	screen._on_debug_inspection("")
+	screen._debug.set_inspection("")
 	assert_bool(screen._inspection_tag.visible).is_false()
 	assert_array(screen.run.inspections).is_empty()
 	assert_array(_last_event("shift_start")["inspections"]).is_empty()
 	# An unknown id changes nothing.
-	screen._on_debug_inspection("no_such_inspection")
+	screen._debug.set_inspection("no_such_inspection")
 	assert_str(_last_event("debug")["inspection"]).is_empty()
 
 
@@ -131,7 +131,7 @@ func _pass_shift(screen: ShiftScreen) -> void:
 ## Adds the cards to the hand through the debug panel and places them at the end of the row.
 func _place_ids(screen: ShiftScreen, ids: Array[String]) -> void:
 	for id: String in ids:
-		screen._on_debug_card(id)
+		screen._debug.add_card(id)
 		screen._on_hand_card_clicked(_view_for(screen, screen.run.hand()[-1]))
 		screen._on_slot_input(_left_click(), screen.run.row.size())
 

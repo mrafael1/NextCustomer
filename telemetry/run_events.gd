@@ -1,9 +1,9 @@
 class_name RunEvents
 extends RefCounted
-## Builds the data of the run_start, run_end and redraw events, the card id lists
-## (starting_deck, impulse_offer, cards_drawn, final_order) and the upgrade- and
-## inspection-related log fields
-## (plan section 8), so they are defined and tested in one place. The shift screen logs them.
+## Builds the data of the run_start, run_end, run_resume, run_abandon and redraw events, the
+## card id lists (starting_deck, impulse_offer, cards_drawn, final_order) and the upgrade- and
+## inspection-related log fields (plan section 8), so they are defined and tested in one place.
+## The shift screen logs them (the title screen logs run_abandon).
 
 
 ## The `run_start` event, logged once the impulse rack is picked or skipped: the seed, the
@@ -39,6 +39,20 @@ static func run_end(run: RunState, run_ms: int) -> Dictionary:
 		"run_ms": run_ms,
 		"upgrades": upgrade_ids(run.upgrades),
 	}
+
+
+## The `run_resume` event, logged under the saved run's id when a saved run continues (full
+## build plan section 4): the shift (1-based), the save point it continues from (RunSave's
+## phase names: impulse_rack, planning, reward, upgrade) and the played time so far.
+static func run_resume(run: RunState, run_ms: int) -> Dictionary:
+	return {"shift": run.shift_index + 1, "phase": RunSave.phase_name(run.phase), "run_ms": run_ms}
+
+
+## The `run_abandon` event, logged under the saved run's id when the title screen's New run
+## abandons it: the shift (1-based), the save point it was at and the played time (`run_ms`, up
+## to its last save).
+static func run_abandon(run: RunState, run_ms: int) -> Dictionary:
+	return {"shift": run.shift_index + 1, "phase": RunSave.phase_name(run.phase), "run_ms": run_ms}
 
 
 ## The `upgrade` event: the shift (1-based), the upgrades offered (ids, in offer order), the

@@ -175,8 +175,8 @@ func test_upgrade_steps_play_from_the_loyalty_card() -> void:
 	var runner: GdUnitSceneRunner = scene_runner(SCREEN)
 	var screen: ShiftScreen = runner.scene()
 	screen._on_reward_skipped()  # Past the impulse rack.
-	screen._on_debug_upgrade("coupon_engine")
-	screen._on_debug_upgrade("category_engine")
+	screen._debug.give_upgrade("coupon_engine")
+	screen._debug.give_upgrade("category_engine")
 	assert_int(screen.run.upgrades.size()).is_equal(2)
 	_place_ids(screen, ["bread", "milk", "final_markdown"])
 	var preview: ScoreResult = screen.run.preview()
@@ -205,7 +205,7 @@ func test_an_upgrade_fizzle_plays_and_prints() -> void:
 	var runner: GdUnitSceneRunner = scene_runner(SCREEN)
 	var screen: ShiftScreen = runner.scene()
 	screen._on_reward_skipped()  # Past the impulse rack.
-	screen._on_debug_upgrade("coupon_engine")
+	screen._debug.give_upgrade("coupon_engine")
 	_place_ids(screen, ["bread", "multipack", "bread"])
 	var wasted: Array[ScoreStep] = _upgrade_steps(screen.run.preview())
 	assert_int(wasted.size()).is_equal(1)
@@ -225,9 +225,9 @@ func test_every_stamped_box_keeps_its_tilt() -> void:
 	var runner: GdUnitSceneRunner = scene_runner(SCREEN)
 	var screen: ShiftScreen = runner.scene()
 	screen._on_reward_skipped()  # Past the impulse rack.
-	screen._on_debug_upgrade("coupon_engine")
+	screen._debug.give_upgrade("coupon_engine")
 	await _frames(2)
-	screen._on_debug_upgrade("category_engine")
+	screen._debug.give_upgrade("category_engine")
 	await _frames(2)
 	var boxes: Array[Control] = screen._loyalty_card.stamped_boxes()
 	assert_int(boxes.size()).is_equal(2)
@@ -254,7 +254,7 @@ func test_extra_redraw_gives_a_second_redraw() -> void:
 	var screen: ShiftScreen = runner.scene()
 	screen._on_reward_skipped()  # Past the impulse rack.
 	assert_str(screen._redraw_button.text).contains("(1 left)")
-	screen._on_debug_upgrade("extra_redraw")
+	screen._debug.give_upgrade("extra_redraw")
 	assert_int(screen.run.redraws_allowed).is_equal(2)
 	assert_str(screen._redraw_button.text).contains("(2 left)")
 	assert_str(screen._loyalty_card.box_texts()[0]).is_equal("ExR")
@@ -307,10 +307,10 @@ func test_run_end_lists_the_upgrades() -> void:
 	var runner: GdUnitSceneRunner = scene_runner(SCREEN)
 	var screen: ShiftScreen = runner.scene()
 	screen._on_reward_skipped()  # Past the impulse rack.
-	screen._on_debug_upgrade("coupon_engine")
-	screen._on_debug_upgrade("category_engine")
+	screen._debug.give_upgrade("coupon_engine")
+	screen._debug.give_upgrade("category_engine")
 	# An owned upgrade isn't given twice.
-	screen._on_debug_upgrade("coupon_engine")
+	screen._debug.give_upgrade("coupon_engine")
 	assert_int(screen.run.upgrades.size()).is_equal(2)
 	await screen._on_checkout_pressed()
 	var run_end: Dictionary = _last_event("run_end")
@@ -342,7 +342,7 @@ func _pass_shift(screen: ShiftScreen) -> void:
 ## Adds the cards to the hand through the debug panel and places them at the end of the row.
 func _place_ids(screen: ShiftScreen, ids: Array[String]) -> void:
 	for id: String in ids:
-		screen._on_debug_card(id)
+		screen._debug.add_card(id)
 		screen._on_hand_card_clicked(_view_for(screen, screen.run.hand()[-1]))
 		screen._on_slot_input(_left_click(), screen.run.row.size())
 
