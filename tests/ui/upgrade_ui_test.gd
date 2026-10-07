@@ -17,11 +17,9 @@ func before_test() -> void:
 	_event_log().use_folder(_folder)
 	# The profile save goes there too, never to the real user:// profile.
 	ProjectSettings.set_setting(SaveService.FOLDER_SETTING, _folder)
-	Engine.time_scale = 8.0
 
 
 func after_test() -> void:
-	Engine.time_scale = 1.0
 	ProjectSettings.set_setting(SaveService.FOLDER_SETTING, null)
 	if DirAccess.dir_exists_absolute(_folder):
 		for file_name: String in DirAccess.get_files_at(_folder):
@@ -69,6 +67,14 @@ func test_tickets_follow_the_reward_only_on_upgrade_shifts() -> void:
 	# There is no skip: the panel has no button at all.
 	assert_array(screen._upgrade_panel.find_children("*", "BaseButton", true, false)).is_empty()
 
+	# A click before the panel is armed does nothing, and the top bar's Deck waits too.
+	var ticket: UpgradeTicket = tickets[0]
+	screen._upgrade_panel._on_ticket_clicked(ticket)
+	assert_int(run.phase).is_equal(RunState.Phase.UPGRADE)
+	screen._on_deck_button_pressed()
+	assert_bool(screen._deck_view.visible).is_false()
+	await _wait_wall_ms(450)
+
 	# The deck view (top bar) goes back to the tickets, never past them.
 	screen._on_deck_button_pressed()
 	assert_bool(screen._deck_view.visible).is_true()
@@ -76,12 +82,6 @@ func test_tickets_follow_the_reward_only_on_upgrade_shifts() -> void:
 	screen._deck_view._close()
 	assert_bool(screen._upgrade_panel.visible).is_true()
 	assert_int(run.phase).is_equal(RunState.Phase.UPGRADE)
-
-	# A click before the panel is armed does nothing.
-	var ticket: UpgradeTicket = tickets[0]
-	screen._upgrade_panel._on_ticket_clicked(ticket)
-	assert_int(run.phase).is_equal(RunState.Phase.UPGRADE)
-	await _wait_wall_ms(450)
 	screen._upgrade_panel._on_ticket_clicked(ticket)
 
 	var picked: UpgradeDefinition = ticket.upgrade

@@ -53,10 +53,15 @@ func play_demo_row() -> void:
 	var argument: String = _demo_row_argument()
 	if argument.is_empty():
 		return
-	var card_ids: PackedStringArray = argument.trim_prefix("--demo-row=").split(",", false)
+	await play_row(argument.trim_prefix("--demo-row=").split(",", false))
+
+
+## The demo row's run for these card ids (see play_demo_row). The rack is skipped like the debug
+## replay's "" skip, so run_start logs its times as 0: the player never saw it.
+func play_row(card_ids: PackedStringArray) -> void:
 	_screen.start_new_run(_log.new_run_seed(), false, "", false)
 	_log.log_event("debug", {"action": "demo_row", "cards": Array(card_ids)})
-	_screen._finish_impulse(null, null)
+	_screen._replay_impulse_rack("")
 	for card_id: String in card_ids:
 		var path: String = "%s/%s.tres" % [CARDS_FOLDER, card_id]
 		if ResourceLoader.exists(path):
