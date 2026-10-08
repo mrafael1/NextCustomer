@@ -1,0 +1,14 @@
+; The inspection's red tag, a 9-slice (3 art px margins).
+@size 10x10
+@kind frame
+@scale 2
+.########.
+#oooooooo#
+#oRRRRRRr#
+#oRRRRRRr#
+#oRRRRRRr#
+#oRRRRRRr#
+#oRRRRRRr#
+#oRRRRRRr#
+#rrrrrrrr#
+.########.

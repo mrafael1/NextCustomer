@@ -1,0 +1,15 @@
+; The checkout counter, a 9-slice (3 art px margins): plain cream laminate with a mustard trim
+; along the top.
+@size 10x10
+@kind frame
+@scale 2
+##########
+#YYYYYYYY#
+#mmmmmmmm#
+#cccccccb#
+#cccccccb#
+#cccccccb#
+#cccccccb#
+#cccccccb#
+#bbbbbbbb#
+##########

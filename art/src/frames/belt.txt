@@ -1,0 +1,17 @@
+; The conveyor belt, a 3-slice that tiles sideways: steel rails at the top (4 rows) and bottom
+; (3 rows), black rubber with ridges between them.
+@size 16x12
+@kind frame
+@scale 2
+################
+::::::::::::::::
+----------------
+################
+%%%=%%%=%%%=%%%=
+%%%=%%%=%%%=%%%=
+%%%=%%%=%%%=%%%=
+%%%=%%%=%%%=%%%=
+%%%=%%%=%%%=%%%=
+################
+----------------
+################

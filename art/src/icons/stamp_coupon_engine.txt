@@ -1,0 +1,20 @@
+; Coupon engine's perk stamp: a worn tomato ring around a percent sign.
+@size 17x17
+@kind perk
+.......RRR.......
+....RRRRRrRRR....
+...RRR.....RRR...
+..RR.........RR..
+.RR...........rR.
+.rR..RR....R..RR.
+.R...RR...R....R.
+RR.......R.....RR
+RR......R......RR
+RR.....R.......rR
+.R....R...RR...R.
+.RR..R....RR..RR.
+.RR...........RR.
+..RR.........RR..
+...RRr.....RRR...
+....RRRRRRRRR....
+.......RRR.......

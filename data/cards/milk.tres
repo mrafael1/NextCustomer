@@ -20,3 +20,4 @@ base = 3
 rules = Array[ExtResource("1_ivcki")]([SubResource("Resource_8j62u")])
 rule_text = "+2 for each earlier Breakfast product"
 generally_useful = true
+art_ref = "res://art/items/milk.png"

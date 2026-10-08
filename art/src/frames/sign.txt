@@ -1,0 +1,14 @@
+; A hanging store sign, a 9-slice (3 art px margins): teal board, lit from the top left.
+@size 10x10
+@kind frame
+@scale 2
+##########
+#55555555#
+#54444443#
+#54444443#
+#54444443#
+#54444443#
+#54444443#
+#54444443#
+#33333333#
+##########

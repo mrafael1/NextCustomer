@@ -1,0 +1,17 @@
+; The register's receipt printer, a 9-slice (4 art px margins): yellowed plastic, the paper
+; slot along the bottom.
+@size 12x12
+@kind frame
+@scale 2
+..########..
+.#cccccccc#.
+#wccccccccb#
+#wccccccccb#
+#wccccccccb#
+#wccccccccb#
+#wccccccccb#
+#wccccccccb#
+#wccccccccb#
+#bbbbbbbbbb#
+#%%%%%%%%%%#
+############
