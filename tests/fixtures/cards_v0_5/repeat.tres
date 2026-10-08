@@ -1,0 +1,18 @@
+[gd_resource type="Resource" script_class="CardDefinition" format=3]
+
+[ext_resource type="Script" path="res://core/rule.gd" id="1_bttt8"]
+[ext_resource type="Script" path="res://core/rules/copy_previous_payout_rule.gd" id="2_285xc"]
+[ext_resource type="Script" path="res://core/card_definition.gd" id="3_e5kuj"]
+
+[sub_resource type="Resource" id="Resource_i57fc"]
+script = ExtResource("2_285xc")
+receipt_text = "Repeat"
+
+[resource]
+script = ExtResource("3_e5kuj")
+id = &"repeat"
+display_name = "Repeat"
+kind = 2
+tags = PackedStringArray()
+rules = Array[ExtResource("1_bttt8")]([SubResource("Resource_i57fc")])
+rule_text = "Copy the payout of the product just before it"

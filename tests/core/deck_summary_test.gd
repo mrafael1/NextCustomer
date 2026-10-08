@@ -65,10 +65,12 @@ func test_view_order_puts_products_first_then_names() -> void:
 				"soup",
 				"tea_bags",
 				"yogurt",
+				"two_for_one",
 				"breakfast_sticker",
 				"final_markdown",
 				"multipack",
 				"repeat",
+				"shelf_swap",
 			]
 		)
 	)

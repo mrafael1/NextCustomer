@@ -10,7 +10,7 @@ extends Rule
 func final_payout(state: ScoreState, slot: int, payout: int) -> int:
 	if tag.is_empty():
 		return payout
-	for neighbour: int in [state.product_before[slot], state.product_after[slot]]:
+	for neighbour: int in state.products_beside(slot):
 		if state.is_product(neighbour) and state.has_tag(neighbour, tag):
 			return 0
 	return payout

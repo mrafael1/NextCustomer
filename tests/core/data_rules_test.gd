@@ -4,7 +4,9 @@ extends GdUnitTestSuite
 ## type, every inspection its id and notice, and the golden fixture is self-contained.
 
 const FIXTURE_DIR := "res://tests/fixtures/cards_v0_4"
-const CARD_DIRS := ["res://data/cards", FIXTURE_DIR]
+const FIXTURE_V0_5_DIR := "res://tests/fixtures/cards_v0_5"
+const FIXTURE_DIRS := [FIXTURE_DIR, FIXTURE_V0_5_DIR]
+const CARD_DIRS := ["res://data/cards", FIXTURE_DIR, FIXTURE_V0_5_DIR]
 const NEUTRAL_SCRIPTS := [
 	"res://core/card_definition.gd",
 	"res://core/deck_definition.gd",
@@ -88,6 +90,7 @@ func test_every_card_states_its_kind() -> void:
 func test_card_ids_are_valid() -> void:
 	for dir: String in CARD_DIRS:
 		var ids: Dictionary = {}
+		var by_id: Dictionary[StringName, CardDefinition] = {}
 		var cards: Array[CardDefinition] = []
 		for file: String in DirAccess.get_files_at(dir):
 			if not file.ends_with(".tres"):
@@ -96,6 +99,7 @@ func test_card_ids_are_valid() -> void:
 			assert_str(String(card.id)).override_failure_message(file).is_equal(file.get_basename())
 			assert_bool(ids.has(card.id)).override_failure_message(file).is_false()
 			ids[card.id] = true
+			by_id[card.id] = card
 			cards.append(card)
 		for card: CardDefinition in cards:
 			for rule: Rule in card.rules:
@@ -103,6 +107,14 @@ func test_card_ids_are_valid() -> void:
 				if match_rule and match_rule.match_by == AdjacentMatchBonusRule.Match.CARD_ID:
 					var named: StringName = StringName(match_rule.match_value)
 					assert_bool(ids.has(named)).override_failure_message(card.id).is_true()
+					# A variant counts as its base card (plan 3.4, "same product"), so a rule
+					# that named a variant could never match: it must name the base card.
+					if ids.has(named):
+						(
+							assert_object(by_id[named].variant_of)
+							. override_failure_message("%s names a variant" % card.id)
+							. is_null()
+						)
 
 
 ## Plan section 3.8: like a card's kind, an upgrade's type has an UNSET default that no
@@ -221,7 +233,8 @@ func test_every_data_id_resolves_through_the_content_lookup() -> void:
 		assert_object(lookup.aisle(String(aisle.id))).is_same(aisle)
 
 
-func test_fixture_never_points_at_live_data() -> void:
-	for file: String in DirAccess.get_files_at(FIXTURE_DIR):
-		var text: String = FileAccess.get_file_as_string("%s/%s" % [FIXTURE_DIR, file])
-		assert_bool(text.contains("res://data/")).override_failure_message(file).is_false()
+func test_fixtures_never_point_at_live_data() -> void:
+	for fixture: String in FIXTURE_DIRS:
+		for file: String in DirAccess.get_files_at(fixture):
+			var text: String = FileAccess.get_file_as_string("%s/%s" % [fixture, file])
+			assert_bool(text.contains("res://data/")).override_failure_message(file).is_false()

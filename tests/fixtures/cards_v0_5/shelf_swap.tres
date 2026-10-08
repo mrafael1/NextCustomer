@@ -1,0 +1,18 @@
+[gd_resource type="Resource" script_class="CardDefinition" format=3]
+
+[ext_resource type="Script" path="res://core/rule.gd" id="1_rule"]
+[ext_resource type="Script" path="res://core/rules/first_product_link_rule.gd" id="2_shelf_swap"]
+[ext_resource type="Script" path="res://core/card_definition.gd" id="3_card"]
+
+[sub_resource type="Resource" id="Resource_shelf_swap"]
+script = ExtResource("2_shelf_swap")
+receipt_text = "Shelf swap"
+
+[resource]
+script = ExtResource("3_card")
+id = &"shelf_swap"
+display_name = "Shelf swap"
+kind = 2
+tags = PackedStringArray()
+rules = Array[ExtResource("1_rule")]([SubResource("Resource_shelf_swap")])
+rule_text = "The product in the next slot also counts as just after the first product"
