@@ -1,0 +1,23 @@
+[gd_resource type="Resource" script_class="CardDefinition" format=3]
+
+[ext_resource type="Script" path="res://core/rule.gd" id="1_rule"]
+[ext_resource type="Script" path="res://core/rules/adjacent_match_bonus_rule.gd" id="2_yogurt"]
+[ext_resource type="Script" path="res://core/card_definition.gd" id="3_card"]
+
+[sub_resource type="Resource" id="Resource_yogurt"]
+script = ExtResource("2_yogurt")
+match_by = 2
+match_value = "banana"
+position = 1
+bonus = 3
+receipt_text = "Yogurt after Banana"
+
+[resource]
+script = ExtResource("3_card")
+id = &"yogurt"
+display_name = "Yogurt"
+kind = 1
+tags = PackedStringArray("Food", "Dairy", "Breakfast")
+base = 2
+rules = Array[ExtResource("1_rule")]([SubResource("Resource_yogurt")])
+rule_text = "+3 if immediately after Banana"

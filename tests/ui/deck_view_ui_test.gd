@@ -90,12 +90,12 @@ func test_the_run_info_tab_shows_upgrades_inspections_and_stock() -> void:
 				"None yet.",
 				"This shift: no inspection.",
 				"Next shift: no inspection.",
-				"Aisles: Placeholder aisle",
+				"Aisles: Cold cases, Pantry, Household",
 			]
 		)
 	)
 	assert_int(view.card_views().size()).is_equal(screen.run.stock.cards.size())
-	assert_int(view.card_views().size()).is_equal(12)
+	assert_int(view.card_views().size()).is_equal(24)
 	view._close()
 	screen._debug.give_upgrade("category_engine")
 	screen._debug.set_inspection("spot_check")
@@ -236,11 +236,12 @@ func test_browsing_clicks_choose_nothing() -> void:
 	assert_bool(screen._deck_view.visible).is_true()
 
 
-## A full collection's stock (about 25 cards) and a deck of 15 distinct cards still fit the
-## window: the pages scroll inside a fixed area.
+## A full collection's stock (the base stock plus 15 more cards, about 40) and a deck of 15
+## distinct cards still fit the window: the pages scroll inside a fixed area.
 func test_a_big_stock_and_deck_fit_the_screen() -> void:
 	var screen: ShiftScreen = await _screen()
 	var run: RunState = screen.run
+	var base_stock: int = run.stock.cards.size()
 	for index: int in range(15):
 		run.stock.cards.append(_product("extra_%d" % index))
 	for index: int in range(8):
@@ -258,7 +259,7 @@ func test_a_big_stock_and_deck_fit_the_screen() -> void:
 		assert_float(rect.size.x).is_less_equal(width)
 		var content: Control = view._scroll.get_child(0)
 		assert_float(content.size.y).is_greater(view._scroll.size.y)
-	assert_int(view.card_views().size()).is_equal(27)
+	assert_int(view.card_views().size()).is_equal(base_stock + 15)
 
 
 func _screen() -> ShiftScreen:

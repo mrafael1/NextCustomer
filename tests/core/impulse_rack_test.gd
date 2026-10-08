@@ -6,9 +6,28 @@ const STARTER := "res://data/decks/starter.tres"
 const BALANCE := "res://data/balance/balance.tres"
 const BREAD := "res://data/cards/bread.tres"
 const REPEAT := "res://data/cards/repeat.tres"
-## The starter's stocked products with the placeholder aisle, in stock order.
+## The starter's stocked products with the 3 base aisles, in stock order.
 const STOCKED_PRODUCTS := [
-	&"banana", &"bread", &"milk", &"eggs", &"coffee", &"soup", &"cheese", &"frozen_peas"
+	&"banana",
+	&"bread",
+	&"milk",
+	&"eggs",
+	&"coffee",
+	&"soup",
+	&"cheese",
+	&"frozen_peas",
+	&"butter",
+	&"yogurt",
+	&"reduced_yogurt",
+	&"cereal",
+	&"tea_bags",
+	&"crackers",
+	&"dented_can",
+	&"day_old_buns",
+	&"carrier_bag",
+	&"scissors",
+	&"batteries",
+	&"flickering_bulb",
 ]
 
 

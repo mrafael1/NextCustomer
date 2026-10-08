@@ -1,0 +1,20 @@
+[gd_resource type="Resource" script_class="CardDefinition" format=3]
+
+[ext_resource type="Script" path="res://core/rule.gd" id="1_rule"]
+[ext_resource type="Script" path="res://core/rules/count_earlier_coupon_bonus_rule.gd" id="2_scissors"]
+[ext_resource type="Script" path="res://core/card_definition.gd" id="3_card"]
+
+[sub_resource type="Resource" id="Resource_scissors"]
+script = ExtResource("2_scissors")
+bonus_each = 2
+receipt_text = "Scissors: earlier coupons"
+
+[resource]
+script = ExtResource("3_card")
+id = &"scissors"
+display_name = "Scissors"
+kind = 1
+tags = PackedStringArray("Household")
+base = 1
+rules = Array[ExtResource("1_rule")]([SubResource("Resource_scissors")])
+rule_text = "+2 for each earlier coupon"

@@ -9,7 +9,8 @@ const BUNDLE := "res://data/cards/bundle.tres"
 const CHEESE := "res://data/cards/cheese.tres"
 ## Bundle is out of the pools until it returns as "2 for 1" (plan section 5).
 const COMBINATION_COUPONS := [&"breakfast_sticker", &"multipack"]
-## The starter's stock with the placeholder aisle: every card but Bundle, in stock order.
+## The starter's stock with the 3 base aisles: the staples, the aisles' products and every
+## coupon but Bundle, in stock order.
 const STARTING_STOCK := [
 	"banana",
 	"bread",
@@ -19,6 +20,18 @@ const STARTING_STOCK := [
 	"soup",
 	"cheese",
 	"frozen_peas",
+	"butter",
+	"yogurt",
+	"reduced_yogurt",
+	"cereal",
+	"tea_bags",
+	"crackers",
+	"dented_can",
+	"day_old_buns",
+	"carrier_bag",
+	"scissors",
+	"batteries",
+	"flickering_bulb",
 	"repeat",
 	"final_markdown",
 	"breakfast_sticker",
@@ -26,7 +39,9 @@ const STARTING_STOCK := [
 ]
 
 
-func test_generally_useful_cards_are_the_decided_four() -> void:
+## The prototype's four (Banana, Bread, Eggs, Milk) and one per base aisle (Butter, Cereal,
+## Carrier bag), all decided with the user.
+func test_generally_useful_cards_are_the_decided_ones() -> void:
 	var useful: Array = []
 	for file: String in DirAccess.get_files_at("res://data/cards"):
 		if file.ends_with(".tres"):
@@ -34,7 +49,9 @@ func test_generally_useful_cards_are_the_decided_four() -> void:
 			if card.generally_useful:
 				useful.append(String(card.id))
 	useful.sort()
-	assert_array(useful).is_equal(["banana", "bread", "eggs", "milk"])
+	assert_array(useful).is_equal(
+		["banana", "bread", "butter", "carrier_bag", "cereal", "eggs", "milk"]
+	)
 
 
 func test_coupon_pool_is_every_coupon_but_bundle_and_first_pool_the_combination_coupons() -> void:
@@ -50,8 +67,8 @@ func test_coupon_pool_is_every_coupon_but_bundle_and_first_pool_the_combination_
 	assert_array(first).contains_exactly_in_any_order(COMBINATION_COUPONS)
 
 
-## Nothing changes on screen yet: the starting stock is the prototype's reward pool.
-func test_the_starting_stock_is_every_card_but_bundle() -> void:
+## A new profile stocks the staples and every base aisle (they fit the budget), plus the coupons.
+func test_the_starting_stock_is_the_base_aisles_and_every_coupon_but_bundle() -> void:
 	(
 		assert_array(_stock().map(func(card: CardDefinition) -> String: return String(card.id)))
 		. is_equal(STARTING_STOCK)
@@ -111,7 +128,7 @@ func test_offers_reach_every_card_and_every_position() -> void:
 			seen[offer[position].id] = true
 			if offer[position].is_coupon():
 				guaranteed_positions[position] = true
-	assert_int(seen.size()).is_equal(12)
+	assert_int(seen.size()).is_equal(STARTING_STOCK.size())
 	assert_int(guaranteed_positions.size()).is_equal(3)
 
 

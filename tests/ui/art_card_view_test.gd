@@ -1,6 +1,6 @@
 extends GdUnitTestSuite
 ## The pixel-art card (full build plan section 6.1): every card in data/cards fits ArtCardView's
-## fixed size with the real fonts, including the longest tag any card can gain while scoring,
+## fixed size with the real fonts, including every tag a coupon can grant it while scoring,
 ## and the fonts have every character the game prints. This is the test that sets
 ## ArtCardView.SIZE.y: a failure lists each card's spare pixels (negative when it overflows).
 
@@ -10,11 +10,11 @@ const CARDS := "res://data/cards"
 func test_every_card_fits_the_art_card() -> void:
 	var definitions: Array[CardDefinition] = _cards()
 	assert_int(definitions.size()).is_greater(0)
-	var longest_tag: String = _longest_tag(definitions)
+	var granted: PackedStringArray = _grantable_tags(definitions)
 	var spare: Dictionary[String, float] = {}
 	var overflow: Array[String] = []
 	for definition: CardDefinition in definitions:
-		var view: ArtCardView = await _laid_out(definition, longest_tag)
+		var view: ArtCardView = await _laid_out(definition, granted)
 		var height: float = view._column.get_combined_minimum_size().y
 		var available: float = ArtCardView.SIZE.y - 2.0 * view.padding().y
 		spare[definition.display_name] = available - height
@@ -37,7 +37,7 @@ func test_every_card_fits_the_art_card() -> void:
 ## an item stands), and every card's content stays inside its body.
 func test_the_price_sticker_and_content_fit() -> void:
 	for definition: CardDefinition in _cards():
-		var view: ArtCardView = await _laid_out(definition, "")
+		var view: ArtCardView = await _laid_out(definition, PackedStringArray())
 		var body: Rect2 = view.body.get_global_rect()
 		var column: Rect2 = view._column.get_global_rect()
 		if definition.is_product():
@@ -93,11 +93,12 @@ func test_every_art_ref_exists() -> void:
 			)
 
 
-func _laid_out(definition: CardDefinition, extra_tag: String) -> ArtCardView:
+func _laid_out(definition: CardDefinition, extra_tags: PackedStringArray) -> ArtCardView:
 	var view: ArtCardView = auto_free(ArtCardView.new(CardInstance.new(definition, 1)))
 	add_child(view)
-	if extra_tag != "" and definition.is_product():
-		view.add_tag(extra_tag)
+	if definition.is_product():
+		for tag: String in extra_tags:
+			view.add_tag(tag)
 	await get_tree().process_frame
 	await get_tree().process_frame
 	return view
@@ -111,11 +112,13 @@ func _cards() -> Array[CardDefinition]:
 	return result
 
 
-## The longest tag on any card: a coupon can grant a tag the product doesn't print.
-static func _longest_tag(definitions: Array[CardDefinition]) -> String:
-	var longest: String = ""
+## Every tag a coupon can grant (Breakfast sticker's Breakfast): a product shows it beside the
+## tags it prints, so the worst case is a product that gains them all.
+static func _grantable_tags(definitions: Array[CardDefinition]) -> PackedStringArray:
+	var tags: PackedStringArray = PackedStringArray()
 	for definition: CardDefinition in definitions:
-		for tag: String in definition.tags:
-			if tag.length() > longest.length():
-				longest = tag
-	return longest
+		for rule: Rule in definition.rules:
+			var grant: GrantTagToNextSlotRule = rule as GrantTagToNextSlotRule
+			if grant != null and grant.tag != "" and not tags.has(grant.tag):
+				tags.append(grant.tag)
+	return tags

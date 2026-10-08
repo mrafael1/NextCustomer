@@ -90,17 +90,33 @@ func test_stock_numbers_match_the_plan() -> void:
 	assert_int(balance.end_cap_window_runs).is_equal(3)
 
 
-## Phase 1's placeholder base aisle: Cheese and Frozen peas, so the budget rule stocks it and
-## the starting stock is the prototype's reward pool.
-func test_the_placeholder_aisle_holds_cheese_and_frozen_peas() -> void:
+## The 3 base aisles (issue #34, decided with the user): 5/5/4 products open from the start, 14
+## in all, within the stock budget, so a new profile stocks every one and skips the list.
+func test_the_base_aisles_hold_the_agreed_products() -> void:
 	var balance: BalanceDefinition = load(BALANCE)
-	assert_int(balance.aisles.size()).is_equal(1)
-	var aisle: AisleDefinition = balance.aisles[0]
+	var expected: Dictionary[StringName, Array] = {
+		&"cold_cases": [&"cheese", &"frozen_peas", &"butter", &"yogurt", &"reduced_yogurt"],
+		&"pantry": [&"cereal", &"tea_bags", &"crackers", &"dented_can", &"day_old_buns"],
+		&"household": [&"carrier_bag", &"scissors", &"batteries", &"flickering_bulb"],
+	}
 	(
-		assert_array(aisle.base_cards.map(func(card: CardDefinition) -> StringName: return card.id))
-		. is_equal([&"cheese", &"frozen_peas"])
+		assert_array(
+			balance.aisles.map(func(aisle: AisleDefinition) -> StringName: return aisle.id)
+		)
+		. is_equal(expected.keys())
 	)
-	assert_array(aisle.capsule_cards).is_empty()
+	var products: int = 0
+	for aisle: AisleDefinition in balance.aisles:
+		(
+			assert_array(
+				aisle.base_cards.map(func(card: CardDefinition) -> StringName: return card.id)
+			)
+			. is_equal(expected[aisle.id])
+		)
+		assert_array(aisle.capsule_cards).is_empty()
+		products += aisle.base_cards.size()
+	assert_int(products).is_equal(14)
+	assert_int(products).is_less_equal(balance.aisle_stock_budget)
 	var unlocked: Dictionary[StringName, int] = {}
 	assert_bool(RunStock.needs_list(balance, unlocked)).is_false()
 

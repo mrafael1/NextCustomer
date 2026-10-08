@@ -1,0 +1,16 @@
+[gd_resource type="Resource" script_class="AisleDefinition" format=3]
+
+[ext_resource type="Script" path="res://core/aisle_definition.gd" id="1_aisle"]
+[ext_resource type="Script" path="res://core/card_definition.gd" id="2_card"]
+[ext_resource type="Resource" path="res://data/cards/cheese.tres" id="3_cheese"]
+[ext_resource type="Resource" path="res://data/cards/frozen_peas.tres" id="4_frozen_peas"]
+[ext_resource type="Resource" path="res://data/cards/butter.tres" id="5_butter"]
+[ext_resource type="Resource" path="res://data/cards/yogurt.tres" id="6_yogurt"]
+[ext_resource type="Resource" path="res://data/cards/reduced_yogurt.tres" id="7_reduced_yogurt"]
+
+[resource]
+script = ExtResource("1_aisle")
+id = &"cold_cases"
+display_name = "Cold cases"
+sign_color = Color(0.3098, 0.6039, 0.5804, 1)
+base_cards = Array[ExtResource("2_card")]([ExtResource("3_cheese"), ExtResource("4_frozen_peas"), ExtResource("5_butter"), ExtResource("6_yogurt"), ExtResource("7_reduced_yogurt")])

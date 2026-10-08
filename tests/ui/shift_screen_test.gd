@@ -377,9 +377,9 @@ func test_run_start_logs_the_stock() -> void:
 	var screen: ShiftScreen = runner.scene()
 	screen._on_reward_skipped()  # Past the impulse rack.
 	var start: Dictionary = _last_event("run_start")
-	assert_array(start["listed_aisles"]).is_equal(["placeholder"])
+	assert_array(start["listed_aisles"]).is_equal(["cold_cases", "pantry", "household"])
 	assert_array(start["stock"]).is_equal(screen.run.stock.card_ids())
-	assert_int((start["stock"] as Array).size()).is_equal(12)
+	assert_int((start["stock"] as Array).size()).is_equal(24)
 
 
 ## The run length comes from balance data: the header, the debug shift jump, the win screen and

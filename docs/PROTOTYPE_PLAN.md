@@ -1,6 +1,6 @@
 # Next Customer: Prototype Plan
 
-> Status: v0.21, closed at proto-r1. The full build (`docs/FULL_BUILD_PLAN.md`) has taken over; this plan stays the scoring-rule spec (sections 3–5) and changes only when a rule does.
+> Status: v0.22, closed at proto-r1. The full build (`docs/FULL_BUILD_PLAN.md`) has taken over; this plan stays the scoring-rule spec (sections 3–5) and changes only when a rule does.
 > Source: the original "Receipt Rogue" game design plan, plus the decisions made in planning.
 > Engine: Godot 4 (exact version pinned in `AGENTS.md`), GDScript with static typing. Playtest builds are delivered in the browser.
 
@@ -101,7 +101,7 @@ Coupons go through the same steps at their own slot. A coupon has base 0 and no 
 | Loss | A checkout below the quota ends the run (no warning in v1) |
 | Checkout | Always allowed, whatever the row holds: an empty row scores 0 (and fails the quota), a one-card row scores that card. |
 | Preview | The exact projected total is always visible. The receipt preview shows each line. |
-| Wasted effects ("fizzles") | Every effect that does nothing gets its own 0-value receipt step, so the count-up can play a small "fizzle" on that card and players learn why an order was worse: a Coffee bonus with no later Breakfast product · Egg charges left unused, or wiped by a later Egg's reset · a Breakfast sticker on a coupon, an empty slot or a product that is already Breakfast · a Bundle that bridges nothing · a Multipack with no product before it, or whose ×2 hits no later product · Repeat with nothing to copy · Final markdown outside the last slot. An effect that was armed and then fizzles keeps its `EFFECT_ARMED` step, so the count-up shows it armed first. The scoring needs to be **juicy**: the steps carry everything the count-up needs (source slots for fly-ins, armed effects, separate multiplier steps for stamps, running values, fizzles). |
+| Wasted effects ("fizzles") | Every effect that does nothing gets its own 0-value receipt step, so the count-up can play a small "fizzle" on that card and players learn why an order was worse: a Coffee bonus with no later Breakfast product (and a Flickering bulb's with no later Clearance product, v0.22) · Egg charges left unused, or wiped by a later Egg's reset (and a Tea bags charge left unused) · a Breakfast sticker on a coupon, an empty slot or a product that is already Breakfast · a Bundle that bridges nothing · a Multipack with no product before it, or whose ×2 hits no later product · Repeat with nothing to copy · Final markdown (or Batteries) outside the last slot · Scissors with no coupon before it (it counts every earlier coupon, whether or not that coupon did anything). An effect that was armed and then fizzles keeps its `EFFECT_ARMED` step, so the count-up shows it armed first. The scoring needs to be **juicy**: the steps carry everything the count-up needs (source slots for fly-ins, armed effects, separate multiplier steps for stamps, running values, fizzles). |
 
 ### 3.6 Product tags
 
@@ -115,6 +115,23 @@ Coupons go through the same steps at their own slot. A coupon has base 0 and no 
 | Coffee | Breakfast (not Food) |
 | Soup | Food |
 | Frozen peas | Food, Frozen, Produce |
+
+The base aisles' products (full build phase 2, v0.22) add two tags: **Household** for non-food goods (not Food, so Eggs skips them) and **Clearance** for reduced items.
+
+| Product | Tags |
+|---|---|
+| Butter | Food, Dairy |
+| Yogurt | Food, Dairy, Breakfast |
+| Reduced yogurt | Food, Dairy, Clearance |
+| Cereal | Food, Breakfast |
+| Tea bags | Breakfast (not Food) |
+| Crackers | Food, Bakery |
+| Dented can | Food, Clearance |
+| Day-old buns | Food, Bakery, Clearance |
+| Carrier bag | Household |
+| Scissors | Household |
+| Batteries | Household |
+| Flickering bulb | Household, Clearance |
 
 ### 3.7 Required test cases (written before the UI)
 
@@ -311,6 +328,32 @@ The step contract (v0.11):
 | Soup | 5 | Pays 0 if beside a Frozen product |
 | Frozen peas | 3 | **+ its base value (+3) as a flat bonus** if beside another Frozen product |
 
+### Base aisles (full build phase 2, v0.22)
+
+Decided with the user (issue #34). The 3 base aisles are open from the start (`docs/FULL_BUILD_PLAN.md` section 7.2): 14 products, within the stock budget of 16, so a new profile stocks them all and skips the list. Cheese and Frozen peas move from phase 1's placeholder aisle into Cold cases. Sign colours come from the art palette (section 6.1 there); tomato stays off aisle signs, because inspection notices are red, and each sign shows its name, so colour is never the only signal. Every number is an `@export` field in `data/`; only Scissors needed a new rule script. The numbers are starting values for the simulator (`docs/FULL_BUILD_PLAN.md` section 8).
+
+| Card | Aisle | Base | Rule | Generally useful |
+|---|---|---|---|---|
+| Cheese | Cold cases (teal) | 3 | +4 if immediately after Bread | |
+| Frozen peas | Cold cases | 3 | + its base value (+3) as a flat bonus if beside another Frozen product | |
+| Butter | Cold cases | 2 | +3 if beside a Bakery product | yes |
+| Yogurt | Cold cases | 2 | +3 if immediately after Banana | |
+| Reduced yogurt | Cold cases | 2 | +3 if beside a Clearance product | |
+| Cereal | Pantry (mustard) | 2 | +3 if beside Milk | yes |
+| Tea bags | Pantry | 1 | Double the next Breakfast payout (its own charges: it never resets Eggs) | |
+| Crackers | Pantry | 2 | +3 if beside Soup | |
+| Dented can | Pantry | 2 | +2 for each earlier Clearance product | |
+| Day-old buns | Pantry | 2 | +3 if immediately after a Clearance product | |
+| Carrier bag | Household (grey) | 1 | +1 for each earlier Food product | yes |
+| Scissors | Household | 1 | +2 for each earlier coupon | |
+| Batteries | Household | 1 | +4 if in the last slot | |
+| Flickering bulb | Household | 1 | +3 to the next Clearance product | |
+
+- **Scissors** counts every coupon before it in the row, whether or not that coupon did anything (decided with the user), and none after it. With no earlier coupon it fizzles ("no coupon before it", section 3.5). It counts any coupon, not only coupons in the coupon-only slot.
+- **Tea bags** fizzles like Eggs when its charge is unused ("1 charge unused"). Every Tea bags prints Breakfast, so a second Tea always spends the first one's charge: its reset can't happen.
+- **Batteries** and **Flickering bulb** fizzle like Final markdown and Coffee ("not in the last slot", "no Clearance product after it").
+- The other conditional products pay no bonus when their condition fails, silently, like Banana, Cheese and Milk. Showing those as fizzles is issue #45.
+
 ### Coupons (the fun multiplier: 2 from the doc + 3 that create combinations)
 
 | Coupon | Rule | What it tests |
@@ -328,9 +371,9 @@ The step contract (v0.11):
 Coupons are the core of the game, so players meet one from the first shift instead of waiting for a reward.
 
 ### Rewards
-- Offers draw from the run's stock (`docs/FULL_BUILD_PLAN.md` section 7.2, since v0.17): the starting deck's products, the listed aisles, the new arrivals and `coupon_pool`. Phase 1 has one placeholder aisle (Cheese, Frozen peas) and no unlocks, so the stock is every card above except Bundle: the 8 products and the 4 coupons other than Bundle. Bundle is out of every offer pool until it returns as "2 for 1" (full build phase 2, `docs/FULL_BUILD_PLAN.md` section 5.1, v0.10); `bundle.tres` stays in `data/cards/` and its rule stays for the frozen `cards_v0_4` golden fixture.
+- Offers draw from the run's stock (`docs/FULL_BUILD_PLAN.md` section 7.2, since v0.17): the starting deck's products, the listed aisles, the new arrivals and `coupon_pool`. Since v0.22 the 3 base aisles (14 products) fit the stock budget and there are no unlocks yet, so the stock is the 6 staples, the 14 base-aisle products and the 4 coupons other than Bundle. Bundle is out of every offer pool until it returns as "2 for 1" (full build phase 2, `docs/FULL_BUILD_PLAN.md` section 5.1, v0.10); `bundle.tres` stays in `data/cards/` and its rule stays for the frozen `cards_v0_4` golden fixture.
 - **The first reward offer always includes one of the combination coupons** (Breakfast sticker or Multipack).
-- Each later set of 3 offers has at least 1 coupon and at least 1 card that is generally useful (a `generally_useful` flag on the card's data resource, tuned in `data/`, not decided in code). Decided with the user: Bread, Eggs, Milk and Banana are generally useful; Cheese, Coffee, Soup and Frozen peas stay situational.
+- Each later set of 3 offers has at least 1 coupon and at least 1 card that is generally useful (a `generally_useful` flag on the card's data resource, tuned in `data/`, not decided in code). Decided with the user: Bread, Eggs, Milk and Banana are generally useful; Cheese, Coffee, Soup and Frozen peas stay situational. Each base aisle has one: Butter, Cereal and Carrier bag (v0.22).
 - The aisles, `coupon_pool` (which replaced `reward_pool` in v0.17), the first-offer pool (Breakfast sticker, Multipack; a stocked one is offered) and the offer size (3) live in `data/balance/balance.tres`. An offer never shows the same card twice, and never a card outside the run's stock.
 
 ## 6. Build schedule (18 hours is the target, 24 is realistic)
@@ -538,3 +581,4 @@ Rules for iterating: **one major variable per round**, card values tweaked only 
 | v0.19 | 2026-10-07 | Save and resume (full build phase 1, `docs/FULL_BUILD_PLAN.md` v0.14, section 4): event schema only, no rule change · new `run_resume` (shift, phase, `run_ms`) and `run_abandon` (shift, phase, `run_ms`) events, logged under the saved run's `run_id` · `run_end`'s run length counts played time only, across resumes |
 | v0.20 | 2026-10-07 | Telemetry additions and the count-up tap (full build phase 1, `docs/FULL_BUILD_PLAN.md` v0.15, sections 3 and 6.2), decided with the user: event schema and count-up input only, no rule change · offers (the impulse rack, rewards, the upgrade tickets) log a presentation timeline from the offer's show: `presented_ms` (fully shown: the pop-in's end), `armed_ms` (accepts clicks) and `presentation_skipped` (always false until phase 3's ceremonies), beside the unchanged `decide_ms`, on `reward` and `upgrade` and as `impulse_presented_ms`, `impulse_armed_ms` and `impulse_presentation_skipped` on `run_start`; −1 for a moment the choice came before; the full build's non-interactive reward and upgrade time is the sum of `armed_ms` (section 8); the top bar's Deck waits for the offer to arm · count-up: a press released within 200 ms is a tap; the first tap speeds the count to the verdict (×12), a second tap (or a first one after the verdict) skips the dessert (×30); only a press held past 200 ms fast-forwards (×5); the checkout click and clicks on buttons that can be pressed are neither; presses are read from input events, so a same-frame tap counts; skips never cut a line, sound or shake · `count_up` gains `skip_used`, `skip_at_ms` and `dessert_skipped`; `fast_forward_used` no longer counts short presses · the shift screen's hint reads "tap Space or the mouse to skip the count, hold to fast-forward" |
 | v0.21 | 2026-10-08 | Log summary script (full build phase 1, `docs/FULL_BUILD_PLAN.md` v0.16, section 3), decided with the user: tooling only, no rule or event change · `tools/log_summary.py`, Python standard library only, with unittest tests that `tools/test.sh` runs in its full run · each input file is one player (`--one-player` for the game's own per-session folder, the default input), and files that share a session (a tester's two exports) are one; runs joined across sessions by `run_id` and ordered by their first event, so run 2 is the player's second run · debug runs left out by default · the measures are defined in section 8 ("Log summary"): the prototype's (rearrangements and High / Low, pick rates with the first reward offer apart, win rate per shift, builds, restart rate) plus the v0.20 offer and count-up fields, win rate per list, the non-interactive offer time and the second-run skip rate (`presentation_skipped` over run 2's offers, with the count-up tap and dessert skips reported separately) · a build is the final deck's coupons, rebuilt from `run_start` and the `reward` events with each card's `kind` read from `data/cards/`, plus the upgrades taken |
+| v0.22 | 2026-10-08 | Base products (full build phase 2, `docs/FULL_BUILD_PLAN.md` v0.19, issue #34), decided with the user: the 3 base aisles replace the placeholder aisle: Cold cases (Cheese, Frozen peas, Butter, Yogurt, Reduced yogurt), Pantry (Cereal, Tea bags, Crackers, Dented can, Day-old buns) and Household (Carrier bag, Scissors, Batteries, Flickering bulb), 12 new products (section 5) · new tags Household and Clearance (3.6) · Scissors' new rule counts every earlier coupon and fizzles with none (3.5); Tea bags, Batteries and Flickering bulb reuse existing rules and their fizzles · the reward stock is now 20 products and 4 coupons · Butter, Cereal and Carrier bag are generally useful · no change to existing cards or golden totals |
