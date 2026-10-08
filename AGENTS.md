@@ -18,7 +18,7 @@ Run these from the repo root in a POSIX shell (Git Bash on Windows). `godot` mus
 
 | Purpose | Command | Exact version |
 |---|---|---|
-| Run tests (GdUnit4); fails on a failed test or any Godot error | `sh tools/test.sh` (one suite: `sh tools/test.sh -a res://tests/path_test.gd`) | GdUnit4 6.2.1 |
+| Run tests (GdUnit4); fails on a failed test or any Godot error | `sh tools/test.sh` (one suite: `sh tools/test.sh -a res://tests/path_test.gd`; the full run also runs the Python tools' tests, `tools/*_test.py`, with `$PYTHON`, else `python3`, else `python`) | GdUnit4 6.2.1 |
 | Re-import, parse and type-check a script, then lint and format-check it | `sh tools/check.sh path/to/script.gd` (no arguments: every script outside `addons/`) | Godot 4.7.stable |
 | Lint (gdlint) | `python -m gdtoolkit.linter <paths>` | gdtoolkit 4.5.0 |
 | Format (gdformat) | `python -m gdtoolkit.formatter <paths>` | gdtoolkit 4.5.0 |
@@ -26,6 +26,7 @@ Run these from the repo root in a POSIX shell (Git Bash on Windows). `godot` mus
 | Export the web build (fails on any Godot error) | `sh tools/export_web.sh` (output in `build/web/`) | Godot 4.7.stable |
 | Export the Windows build (fails on any Godot error) | `sh tools/export_windows.sh` (output in `build/windows/`) | Godot 4.7.stable |
 | Balance simulator (plan section 8); fails on any Godot error | `sh tools/balance_sim.sh --runs=200 --strategy=greedy,random,skip` (options in `tools/balance_sim/balance_sim.gd`; report in `reports/balance_sim/report.txt`) | Godot 4.7.stable |
+| Log summary (`docs/PROTOTYPE_PLAN.md` section 8): summarises playtest logs; each file is one player | `python tools/log_summary.py <exported .jsonl files or folders>` (no path: the desktop game's `playtest_logs` folder as one player; options in the script's docstring; report in `reports/log_summary/report.txt`); its tests: `python tools/log_summary_test.py` | Python 3.11+ (standard library only) |
 
 Test reports are written to `reports/` (ignored by git). The build label shown to players and in the log (`fb-p1` …) is the project setting `next_customer/build_label`; `application/config/version` stays numeric because Windows requires it.
 
@@ -34,6 +35,7 @@ What each check covers:
 - **Godot's parser and warnings** check syntax and types. A check of one script covers only that script, not the whole game.
 - **gdlint** checks its configured lint rules only. It is not a type checker.
 - **gdformat** formats; don't hand-format against it.
+- **The Python tests** (`tools/*_test.py`, unittest) cover the Python tools, such as the log summary, on synthetic logs. They need no Godot.
 
 ## Architecture
 
