@@ -1,0 +1,11 @@
+; The receipt's paper, a 9-slice (2 art px margins): white paper, ink outline, a grey shade
+; down the right and along the bottom.
+@size 6x6
+@kind frame
+@scale 2
+######
+#www:#
+#www:#
+#www:#
+#::::#
+######

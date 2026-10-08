@@ -1,0 +1,15 @@
+; A chunky tomato button, a 9-slice (3 art px margins at the top and sides, the bottom carries
+; the 2-pixel ledge that makes it look pressable).
+@size 10x10
+@kind frame
+@scale 2
+.########.
+#OOOOOOOO#
+#oRRRRRRr#
+#oRRRRRRr#
+#oRRRRRRr#
+#oRRRRRRr#
+#oRRRRRRr#
+#rrrrrrrr#
+#qqqqqqqq#
+.########.

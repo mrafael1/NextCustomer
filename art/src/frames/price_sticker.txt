@@ -1,0 +1,11 @@
+; The base value's price-gun sticker, a 9-slice (2 art px margins; the middle 3x3 stretches).
+@size 7x7
+@kind frame
+@scale 2
+.#####.
+#YYYYm#
+#YMMMm#
+#YMMMm#
+#YMMMm#
+#mmmmm#
+.#####.

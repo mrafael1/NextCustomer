@@ -1,0 +1,14 @@
+; The loyalty card, a 9-slice (3 art px margins): cream card with a teal stripe along the top.
+@size 10x10
+@kind frame
+@scale 2
+..######..
+.#555555#.
+#44444444#
+#wccccccb#
+#wccccccb#
+#wccccccb#
+#wccccccb#
+#wccccccb#
+.#bbbbbb#.
+..######..

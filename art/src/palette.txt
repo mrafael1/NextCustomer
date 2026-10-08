@@ -1,0 +1,37 @@
+; The game's palette (docs/FULL_BUILD_PLAN.md section 6.1): ramps of ink, grey, cream, teal,
+; tomato and mustard, plus green and brown for food. One line per colour: key, hex colour, name.
+; Light comes from the top left. Interior lines use the ramp's darkest shade; only the outline
+; is ink. Keys are one character; '.' is transparent.
+. transparent
+# 2b2420 ink
+% 4a3f38 ink light
+= 5e574d grey dark
+- 8a8172 grey
+: c7beab grey light
+a b39f78 cream darkest
+b ddcba5 cream shade
+c f3e9d2 cream
+w fbf7ee paper
+1 1f3b3a teal darkest
+2 2a4d4b teal dark
+3 3a7672 teal shade
+4 4f9a94 teal
+5 86c2b6 teal light
+6 c3e0d4 teal pale
+q 6e2630 tomato darkest
+r a83a3c tomato dark
+R d9534f tomato
+o ec8a6e tomato light
+O f5bfa0 tomato pale
+u 7a5a1c mustard darkest
+m b38425 mustard dark
+M e2b33c mustard
+y f1d27a mustard light
+Y faecbc mustard pale
+g 3d7a45 green dark
+G 5fae5a green
+z a5d17e green light
+e 4a3022 brown darkest
+f 7a5232 brown dark
+F a87a4e brown
+h d2a874 brown light

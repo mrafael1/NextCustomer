@@ -1,0 +1,15 @@
+; Product card frame, a 9-slice (3 art px margins; the middle 4x4 stretches).
+; Cream paper, ink outline, light from the top left.
+@size 10x10
+@kind frame
+@scale 2
+..######..
+.#wwwwwb#.
+#wccccccb#
+#wccccccb#
+#wccccccb#
+#wccccccb#
+#wccccccb#
+#wccccccb#
+.#bbbbbb#.
+..######..
