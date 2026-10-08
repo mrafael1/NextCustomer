@@ -31,7 +31,7 @@ func test_each_kind_resolves_from_the_data_folders() -> void:
 		load("res://data/inspections/spot_check.tres")
 	)
 	assert_object(lookup.deck("starter")).is_same(load("res://data/decks/starter.tres"))
-	assert_object(lookup.aisle("placeholder")).is_same(lookup.balance.aisles[0])
+	assert_object(lookup.aisle("cold_cases")).is_same(lookup.balance.aisles[0])
 
 
 func test_unknown_ids_and_the_wrong_kind_give_null() -> void:

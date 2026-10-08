@@ -189,7 +189,9 @@ func test_run_start_and_run_end_fields() -> void:
 	assert_int(start["impulse_armed_ms"]).is_equal(0)
 	assert_bool(start["impulse_presentation_skipped"]).is_false()
 	assert_bool(start["impulse_deck_view_opened"]).is_false()
-	assert_str(JSON.stringify(start)).contains('"listed_aisles":["placeholder"]')
+	assert_str(JSON.stringify(start)).contains(
+		'"listed_aisles":["cold_cases","pantry","household"]'
+	)
 	run.checkout()
 	assert_int(run.phase).is_equal(RunState.Phase.LOST)
 	var end: Dictionary = RunEvents.run_end(run, 4321)

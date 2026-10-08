@@ -1,0 +1,23 @@
+[gd_resource type="Resource" script_class="CardDefinition" format=3]
+
+[ext_resource type="Script" path="res://core/rule.gd" id="1_rule"]
+[ext_resource type="Script" path="res://core/rules/grant_charged_multiplier_rule.gd" id="2_tea_bags"]
+[ext_resource type="Script" path="res://core/card_definition.gd" id="3_card"]
+
+[sub_resource type="Resource" id="Resource_tea_bags"]
+script = ExtResource("2_tea_bags")
+tag = "Breakfast"
+factor = 2
+charges = 1
+group = &"tea_charges"
+receipt_text = "Tea bags ×2"
+
+[resource]
+script = ExtResource("3_card")
+id = &"tea_bags"
+display_name = "Tea bags"
+kind = 1
+tags = PackedStringArray("Breakfast")
+base = 1
+rules = Array[ExtResource("1_rule")]([SubResource("Resource_tea_bags")])
+rule_text = "Double the next Breakfast payout"

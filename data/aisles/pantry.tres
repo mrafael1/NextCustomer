@@ -1,0 +1,16 @@
+[gd_resource type="Resource" script_class="AisleDefinition" format=3]
+
+[ext_resource type="Script" path="res://core/aisle_definition.gd" id="1_aisle"]
+[ext_resource type="Script" path="res://core/card_definition.gd" id="2_card"]
+[ext_resource type="Resource" path="res://data/cards/cereal.tres" id="3_cereal"]
+[ext_resource type="Resource" path="res://data/cards/tea_bags.tres" id="4_tea_bags"]
+[ext_resource type="Resource" path="res://data/cards/crackers.tres" id="5_crackers"]
+[ext_resource type="Resource" path="res://data/cards/dented_can.tres" id="6_dented_can"]
+[ext_resource type="Resource" path="res://data/cards/day_old_buns.tres" id="7_day_old_buns"]
+
+[resource]
+script = ExtResource("1_aisle")
+id = &"pantry"
+display_name = "Pantry"
+sign_color = Color(0.8863, 0.702, 0.2353, 1)
+base_cards = Array[ExtResource("2_card")]([ExtResource("3_cereal"), ExtResource("4_tea_bags"), ExtResource("5_crackers"), ExtResource("6_dented_can"), ExtResource("7_day_old_buns")])

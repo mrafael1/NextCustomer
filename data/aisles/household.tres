@@ -1,0 +1,15 @@
+[gd_resource type="Resource" script_class="AisleDefinition" format=3]
+
+[ext_resource type="Script" path="res://core/aisle_definition.gd" id="1_aisle"]
+[ext_resource type="Script" path="res://core/card_definition.gd" id="2_card"]
+[ext_resource type="Resource" path="res://data/cards/carrier_bag.tres" id="3_carrier_bag"]
+[ext_resource type="Resource" path="res://data/cards/scissors.tres" id="4_scissors"]
+[ext_resource type="Resource" path="res://data/cards/batteries.tres" id="5_batteries"]
+[ext_resource type="Resource" path="res://data/cards/flickering_bulb.tres" id="6_flickering_bulb"]
+
+[resource]
+script = ExtResource("1_aisle")
+id = &"household"
+display_name = "Household"
+sign_color = Color(0.5412, 0.5059, 0.4471, 1)
+base_cards = Array[ExtResource("2_card")]([ExtResource("3_carrier_bag"), ExtResource("4_scissors"), ExtResource("5_batteries"), ExtResource("6_flickering_bulb")])

@@ -1,0 +1,20 @@
+[gd_resource type="Resource" script_class="CardDefinition" format=3]
+
+[ext_resource type="Script" path="res://core/rule.gd" id="1_rule"]
+[ext_resource type="Script" path="res://core/rules/last_slot_bonus_rule.gd" id="2_batteries"]
+[ext_resource type="Script" path="res://core/card_definition.gd" id="3_card"]
+
+[sub_resource type="Resource" id="Resource_batteries"]
+script = ExtResource("2_batteries")
+bonus = 4
+receipt_text = "Batteries last"
+
+[resource]
+script = ExtResource("3_card")
+id = &"batteries"
+display_name = "Batteries"
+kind = 1
+tags = PackedStringArray("Household")
+base = 1
+rules = Array[ExtResource("1_rule")]([SubResource("Resource_batteries")])
+rule_text = "+4 if in the last slot"
