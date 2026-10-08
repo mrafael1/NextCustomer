@@ -37,6 +37,16 @@ func is_coupon() -> bool:
 	return kind == Kind.COUPON
 
 
+## The product this card counts as for "same product" (plan section 3): a variant counts as
+## its base card, everywhere (2 for 1, duplicates, and rules that name a card).
+func product_card() -> CardDefinition:
+	return variant_of if variant_of != null else self
+
+
+func is_same_product(other: CardDefinition) -> bool:
+	return other != null and product_card().id == other.product_card().id
+
+
 ## Why this card can't be a variant as data, or an empty list (checked by a data test): a
 ## variant is a variant of another card that is not itself a variant, of the same kind.
 func variant_problems() -> PackedStringArray:

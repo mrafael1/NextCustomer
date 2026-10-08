@@ -25,9 +25,13 @@ func flat_bonus(state: ScoreState, slot: int) -> int:
 func _has_adjacent_match(state: ScoreState, slot: int) -> bool:
 	if position == Position.NONE or match_by == Match.NONE:
 		return false
-	if _matches(state, slot, state.product_before[slot]):
-		return true
-	return position == Position.BESIDE and _matches(state, slot, state.product_after[slot])
+	var neighbours: PackedInt32Array = (
+		state.products_beside(slot) if position == Position.BESIDE else state.products_before(slot)
+	)
+	for other: int in neighbours:
+		if _matches(state, slot, other):
+			return true
+	return false
 
 
 func _matches(state: ScoreState, slot: int, other: int) -> bool:
@@ -35,9 +39,10 @@ func _matches(state: ScoreState, slot: int, other: int) -> bool:
 		return false
 	match match_by:
 		Match.SAME_CARD:
-			return state.definition(other).id == state.definition(slot).id
+			return state.definition(other).is_same_product(state.definition(slot))
 		Match.CARD_ID:
-			return String(state.definition(other).id) == match_value
+			# A variant counts as its base card (plan section 3, "same product").
+			return String(state.definition(other).product_card().id) == match_value
 		Match.TAG:
 			return state.has_tag(other, match_value)
 	return false

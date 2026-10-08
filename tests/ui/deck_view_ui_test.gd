@@ -95,7 +95,7 @@ func test_the_run_info_tab_shows_upgrades_inspections_and_stock() -> void:
 		)
 	)
 	assert_int(view.card_views().size()).is_equal(screen.run.stock.cards.size())
-	assert_int(view.card_views().size()).is_equal(24)
+	assert_int(view.card_views().size()).is_equal(26)
 	view._close()
 	screen._debug.give_upgrade("category_engine")
 	screen._debug.set_inspection("spot_check")

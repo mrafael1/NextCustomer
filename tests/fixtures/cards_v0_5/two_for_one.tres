@@ -1,0 +1,19 @@
+[gd_resource type="Resource" script_class="CardDefinition" format=3]
+
+[ext_resource type="Script" path="res://core/rule.gd" id="1_rule"]
+[ext_resource type="Script" path="res://core/rules/two_for_one_rule.gd" id="2_two_for_one"]
+[ext_resource type="Script" path="res://core/card_definition.gd" id="3_card"]
+
+[sub_resource type="Resource" id="Resource_two_for_one"]
+script = ExtResource("2_two_for_one")
+factor = 2
+receipt_text = "2 for 1 ×2"
+
+[resource]
+script = ExtResource("3_card")
+id = &"two_for_one"
+display_name = "2 for 1"
+kind = 2
+tags = PackedStringArray()
+rules = Array[ExtResource("1_rule")]([SubResource("Resource_two_for_one")])
+rule_text = "Same product on both sides: they count as adjacent; the second pays ×2"

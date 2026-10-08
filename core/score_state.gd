@@ -6,9 +6,6 @@ extends RefCounted
 var row: Array[CardInstance] = []
 ## Tags of each slot, changed by the context pass. Copies: definitions are never changed.
 var tags: Array[PackedStringArray] = []
-## For each product, the slot of the product counted as just before / just after it, or -1.
-var product_before: PackedInt32Array = PackedInt32Array()
-var product_after: PackedInt32Array = PackedInt32Array()
 ## Final payout of each slot, filled in as slots are scanned.
 var payouts: PackedInt32Array = PackedInt32Array()
 ## Effects left by scanned cards for later products.
@@ -17,6 +14,11 @@ var steps: Array[ScoreStep] = []
 var subtotal: int = 0
 ## Which slots have been scanned (their payout is final).
 var _scanned: PackedByteArray = PackedByteArray()
+## For each slot, the products counted as just before / just after it (plan section 3.4). A
+## product has its real neighbours, plus any a connector links to it (2 for 1, Shelf swap); a
+## link works both ways, so one side can hold several products.
+var _before: Array[PackedInt32Array] = []
+var _after: Array[PackedInt32Array] = []
 
 
 func _init(row_cards: Array[CardInstance]) -> void:
@@ -24,12 +26,10 @@ func _init(row_cards: Array[CardInstance]) -> void:
 	var count: int = row.size()
 	payouts.resize(count)
 	_scanned.resize(count)
-	product_before.resize(count)
-	product_after.resize(count)
 	for slot: int in range(count):
 		tags.append(definition(slot).tags.duplicate())
-		product_before[slot] = -1
-		product_after[slot] = -1
+		_before.append(PackedInt32Array())
+		_after.append(PackedInt32Array())
 	# Neighbouring products are adjacent. A coupon between them breaks adjacency unless a
 	# connector's rule bridges it in the context pass.
 	for slot: int in range(1, count):
@@ -55,6 +55,24 @@ func is_product(slot: int) -> bool:
 
 func is_coupon(slot: int) -> bool:
 	return is_in_row(slot) and definition(slot).is_coupon()
+
+
+## The products counted as just before this slot: its real neighbour and any linked to it.
+func products_before(slot: int) -> PackedInt32Array:
+	return _before[slot] if is_in_row(slot) else PackedInt32Array()
+
+
+## The products counted as beside this slot, on either side.
+func products_beside(slot: int) -> PackedInt32Array:
+	return _before[slot] + _after[slot] if is_in_row(slot) else PackedInt32Array()
+
+
+## The row's first product (coupons skipped), or -1 when the row holds none.
+func first_product() -> int:
+	for slot: int in range(row.size()):
+		if is_product(slot):
+			return slot
+	return -1
 
 
 func is_connector(slot: int) -> bool:
@@ -173,6 +191,13 @@ func to_result() -> ScoreResult:
 	return result
 
 
+## Packed arrays are copied when read out of an Array, so each side is written back.
 func _link(left: int, right: int) -> void:
-	product_after[left] = right
-	product_before[right] = left
+	var after: PackedInt32Array = _after[left]
+	if not after.has(right):
+		after.append(right)
+		_after[left] = after
+	var before: PackedInt32Array = _before[right]
+	if not before.has(left):
+		before.append(left)
+		_before[right] = before

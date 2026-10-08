@@ -7,6 +7,9 @@ extends GdUnitTestSuite
 ## do nothing (section 3.9).
 
 const FIXTURE_DIR := "res://tests/fixtures/cards_v0_4"
+## 2 for 1 and Shelf swap (plan section 3.7, v0.23) have their own frozen fixture, so the
+## cards_v0_4 rows stay exactly as they were.
+const FIXTURE_V0_5_DIR := "res://tests/fixtures/cards_v0_5"
 
 
 func test_golden_row(
@@ -59,7 +62,34 @@ func test_golden_row(
 		["coffee,multipack,breakfast_sticker,banana", [2, 0, 0, 10], 12],
 	]
 ) -> void:
-	var result: ScoreResult = Scoring.score(_row(row))
+	_check_row(FIXTURE_DIR, row, payouts, total)
+
+
+## 2 for 1 (same product on both sides: linked, the second pays ×2) and Shelf swap (the next
+## product also counts as just after the row's first product), decided with the user (#37).
+func test_golden_row_v0_5(
+	row: String,
+	payouts: Array,
+	total: int,
+	_test_parameters := [
+		["banana,two_for_one,banana", [2, 0, 8], 10],
+		["bread,two_for_one,cheese", [3, 0, 3], 6],
+		["banana,two_for_one,two_for_one,banana", [2, 0, 0, 2], 4],
+		["frozen_peas,two_for_one,frozen_peas", [6, 0, 12], 18],
+		["eggs,banana,two_for_one,banana,repeat", [1, 4, 0, 16, 16], 37],
+		["bread,banana,shelf_swap,cheese", [3, 2, 0, 7], 12],
+		["soup,bread,shelf_swap,frozen_peas", [0, 3, 0, 3], 6],
+		# The link works both ways: the first Frozen peas is beside the last one too.
+		["frozen_peas,bread,shelf_swap,frozen_peas", [6, 3, 0, 6], 15],
+		# Two links on one side of the first Banana: 2 for 1's and Shelf swap's.
+		["banana,two_for_one,banana,shelf_swap,banana", [2, 0, 8, 0, 4], 14],
+	]
+) -> void:
+	_check_row(FIXTURE_V0_5_DIR, row, payouts, total)
+
+
+func _check_row(fixture: String, row: String, payouts: Array, total: int) -> void:
+	var result: ScoreResult = Scoring.score(_row(row, fixture))
 	(
 		assert_array(Array(result.payouts))
 		. override_failure_message("%s: payouts %s, expected %s" % [row, result.payouts, payouts])
@@ -73,11 +103,13 @@ func test_golden_row(
 	var plain: Array = _steps_as_data(result)
 	var no_upgrades: Array[UpgradeDefinition] = []
 	for upgrades: Array[UpgradeDefinition] in [no_upgrades, _neutral_upgrades()]:
-		var upgraded: Array = _steps_as_data(Scoring.score(_row(row), upgrades))
+		var upgraded: Array = _steps_as_data(Scoring.score(_row(row, fixture), upgrades))
 		assert_array(upgraded).override_failure_message(row).is_equal(plain)
 	var no_inspections: Array[InspectionDefinition] = []
 	for inspections: Array[InspectionDefinition] in [no_inspections, _neutral_inspections()]:
-		var inspected: Array = _steps_as_data(Scoring.score(_row(row), no_upgrades, inspections))
+		var inspected: Array = _steps_as_data(
+			Scoring.score(_row(row, fixture), no_upgrades, inspections)
+		)
 		assert_array(inspected).override_failure_message(row).is_equal(plain)
 
 
@@ -109,9 +141,9 @@ static func _steps_as_data(result: ScoreResult) -> Array:
 	return data
 
 
-static func _row(ids: String) -> Array[CardInstance]:
+static func _row(ids: String, fixture: String = FIXTURE_DIR) -> Array[CardInstance]:
 	var row: Array[CardInstance] = []
 	for card_id: String in ids.split(","):
-		var definition: CardDefinition = load("%s/%s.tres" % [FIXTURE_DIR, card_id])
+		var definition: CardDefinition = load("%s/%s.tres" % [fixture, card_id])
 		row.append(CardInstance.new(definition, row.size() + 1))
 	return row

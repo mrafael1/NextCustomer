@@ -1,0 +1,23 @@
+[gd_resource type="Resource" script_class="CardDefinition" format=3]
+
+[ext_resource type="Script" path="res://core/rule.gd" id="1_1qkdp"]
+[ext_resource type="Script" path="res://core/rules/adjacent_match_bonus_rule.gd" id="2_4e6c6"]
+[ext_resource type="Script" path="res://core/card_definition.gd" id="3_8k68k"]
+
+[sub_resource type="Resource" id="Resource_1u6p6"]
+script = ExtResource("2_4e6c6")
+match_by = 2
+match_value = "bread"
+position = 1
+bonus = 4
+receipt_text = "Cheese after Bread"
+
+[resource]
+script = ExtResource("3_8k68k")
+id = &"cheese"
+display_name = "Cheese"
+kind = 1
+tags = PackedStringArray("Food", "Dairy")
+base = 3
+rules = Array[ExtResource("1_1qkdp")]([SubResource("Resource_1u6p6")])
+rule_text = "+4 if immediately after Bread"

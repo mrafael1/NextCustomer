@@ -7,8 +7,8 @@ const BALANCE := "res://data/balance/balance.tres"
 const BREAD := "res://data/cards/bread.tres"
 const BUNDLE := "res://data/cards/bundle.tres"
 const CHEESE := "res://data/cards/cheese.tres"
-## Bundle is out of the pools until it returns as "2 for 1" (plan section 5).
-const COMBINATION_COUPONS := [&"breakfast_sticker", &"multipack"]
+## Bundle returned as 2 for 1, which took its place in both pools (plan v0.23).
+const COMBINATION_COUPONS := [&"breakfast_sticker", &"multipack", &"two_for_one"]
 ## The starter's stock with the 3 base aisles: the staples, the aisles' products and every
 ## coupon but Bundle, in stock order.
 const STARTING_STOCK := [
@@ -36,6 +36,8 @@ const STARTING_STOCK := [
 	"final_markdown",
 	"breakfast_sticker",
 	"multipack",
+	"two_for_one",
+	"shelf_swap",
 ]
 
 
@@ -54,12 +56,24 @@ func test_generally_useful_cards_are_the_decided_ones() -> void:
 	)
 
 
-func test_coupon_pool_is_every_coupon_but_bundle_and_first_pool_the_combination_coupons() -> void:
+func test_coupon_pool_and_first_pool_hold_the_agreed_coupons() -> void:
 	var balance: BalanceDefinition = load(BALANCE)
 	var coupons: Array = balance.coupon_pool.map(
 		func(card: CardDefinition) -> String: return String(card.id)
 	)
-	assert_array(coupons).is_equal(["repeat", "final_markdown", "breakfast_sticker", "multipack"])
+	(
+		assert_array(coupons)
+		. is_equal(
+			[
+				"repeat",
+				"final_markdown",
+				"breakfast_sticker",
+				"multipack",
+				"two_for_one",
+				"shelf_swap",
+			]
+		)
+	)
 	assert_int(balance.offer_size).is_equal(3)
 	var first: Array = balance.first_offer_pool.map(
 		func(card: CardDefinition) -> StringName: return card.id
@@ -68,7 +82,7 @@ func test_coupon_pool_is_every_coupon_but_bundle_and_first_pool_the_combination_
 
 
 ## A new profile stocks the staples and every base aisle (they fit the budget), plus the coupons.
-func test_the_starting_stock_is_the_base_aisles_and_every_coupon_but_bundle() -> void:
+func test_the_starting_stock_is_the_base_aisles_and_the_coupon_pool() -> void:
 	(
 		assert_array(_stock().map(func(card: CardDefinition) -> String: return String(card.id)))
 		. is_equal(STARTING_STOCK)
@@ -139,8 +153,11 @@ func test_offers_draw_only_from_the_stock() -> void:
 	var stock: Array[CardDefinition] = _stock()
 	var cheese: CardDefinition = load(CHEESE)
 	var sticker: CardDefinition = load("res://data/cards/breakfast_sticker.tres")
+	var two_for_one: CardDefinition = load("res://data/cards/two_for_one.tres")
 	stock.erase(cheese)
 	stock.erase(sticker)
+	# Multipack is then the only stocked combination coupon.
+	stock.erase(two_for_one)
 	for seed_value: int in range(1, 300):
 		var where: String = "seed %d" % seed_value
 		var first: Array[CardDefinition] = RewardOffer.make(_rng(seed_value), balance, stock, true)
