@@ -92,7 +92,7 @@ func test_a_starting_upgrade_is_owned_from_the_first_shift() -> void:
 	run.debug_skip_to_shift(1)
 	_pass(run, [BREAD, BREAD])
 	assert_bool(run.upgrade_offer.has(load(EXTRA_REDRAW))).is_false()
-	assert_int(run.upgrade_offer.size()).is_equal(2)
+	assert_int(run.upgrade_offer.size()).is_equal(3)
 
 
 func test_a_starting_upgrade_scores_from_the_first_shift() -> void:

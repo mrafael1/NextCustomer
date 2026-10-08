@@ -51,7 +51,7 @@ func _init(ticket_upgrade: UpgradeDefinition) -> void:
 		Palette.TOMATO if not condition.is_empty() else Palette.MUTED_INK
 	)
 	var build: Label = _add_field(
-		column, "Supports: %s" % upgrade.supported_build, 13, Palette.MUTED_INK
+		column, "Supports: %s" % upgrade.build_names(), 13, Palette.MUTED_INK
 	)
 	build.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	build.vertical_alignment = VERTICAL_ALIGNMENT_BOTTOM

@@ -13,6 +13,14 @@ extends Resource
 @export var receipt_text: String = ""
 
 
+## Context pass, after every card's own context changes: change adjacency in the row (Rule
+## bender), through ScoreState.link_products. Scoring marks the steps added here as this
+## upgrade's (source_kind UPGRADE) and gives them the upgrade's receipt text, so a rule passes
+## its own slot as the source and an empty text.
+func modify_context(_state: ScoreState, _slot: int) -> void:
+	pass
+
+
 ## Value pass, after the card's own and effect flat bonuses: a flat bonus for this slot.
 func flat_bonus(_state: ScoreState, _slot: int) -> int:
 	return 0

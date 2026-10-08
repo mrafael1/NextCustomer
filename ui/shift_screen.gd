@@ -77,6 +77,7 @@ var _upgrade_panel: UpgradePanel
 var _shade: ColorRect
 var _deck_view: DeckView
 var _row_box: HBoxContainer
+var _row_strip: RowStrip
 var _overlay: Control
 var _count_up: CountUp
 var _sfx: Sfx
@@ -290,7 +291,7 @@ func _place_picked(slot: int, dragged: bool = false) -> void:
 
 ## Plan section 3.1: says why a product doesn't fit instead of silently ignoring the click.
 func _explain_if_refused(card: CardInstance) -> void:
-	if _notice_label.explain_refusal(card.definition, run.balance, run.row):
+	if _notice_label.explain_refusal(card.definition, run.limits, run.row):
 		_sfx.play("denied", 1.4, -6.0)
 
 
@@ -635,12 +636,13 @@ func _refresh() -> void:
 	_deck_button.text = "Deck %d/%d" % [run.deck.size(), run.balance.deck_limit]
 	_seed_label.text = "Seed %d" % run.run_seed
 	_capacity_label.text = (
-		"Products %d/%d  ·  Coupon slot %d/%d"
+		"Products %d/%d  ·  Coupon slot%s %d/%d"
 		% [
 			RowCapacity.product_count(run.row),
-			run.balance.slot_count,
-			RowCapacity.coupon_slots_used(run.balance, run.row),
-			run.balance.coupon_slot_count
+			run.limits.slot_count,
+			"s" if run.limits.coupon_slot_count > 1 else "",
+			RowCapacity.coupon_slots_used(run.limits, run.row),
+			run.limits.coupon_slot_count
 		]
 	)
 	_refresh_row()
@@ -650,35 +652,13 @@ func _refresh() -> void:
 		_refresh_preview()
 
 
+## One slot per card the shift allows (upgrades can add slots), then the row's cards.
 func _refresh_row() -> void:
-	_row_views = []
-	for slot: int in range(_slots.size()):
-		var panel: PanelContainer = _slots[slot]
-		for child: Node in panel.get_children():
-			panel.remove_child(child)
-			child.queue_free()
-		if slot < run.row.size():
-			var view: CardView = CardView.new(run.row[slot])
-			view.clicked.connect(_on_row_card_clicked)
-			panel.add_child(view)
-			_row_views.append(view)
-		else:
-			panel.add_child(_empty_slot_hint(slot))
-		var placeable: bool = _picked != null and run.can_place(_picked) and slot <= run.row.size()
-		var style: StyleBoxFlat = panel.get_theme_stylebox("panel") as StyleBoxFlat
-		style.border_color = Palette.MUSTARD if placeable else Color(1, 1, 1, 0.15)
-
-
-## An empty panel shows its slot number.
-func _empty_slot_hint(slot: int) -> Label:
-	var hint: Label = Label.new()
-	hint.text = str(slot + 1)
-	hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	hint.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	hint.add_theme_font_size_override("font_size", 28)
-	hint.add_theme_color_override("font_color", Color(1, 1, 1, 0.18))
-	hint.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	return hint
+	_row_strip.set_slot_count(RowCapacity.card_limit(run.limits))
+	var placeable: bool = _picked != null and run.can_place(_picked)
+	_row_views = _row_strip.show_cards(
+		run.row, run.row.size() if placeable else -1, _on_row_card_clicked
+	)
 
 
 func _refresh_hand() -> void:
@@ -815,13 +795,14 @@ func _build() -> void:
 	_capacity_label = _info_label(row_header, 16)
 	_capacity_label.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
 	_capacity_label.modulate = Color(1, 1, 1, 0.75)
-	_row_box = HBoxContainer.new()
-	_row_box.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	# Narrow enough that 7 slots and the receipt fit the 1280 px window (plan section 3.1).
-	_row_box.add_theme_constant_override("separation", 10)
-	row_column.add_child(_row_box)
-	for slot: int in range(RowCapacity.card_limit(_balance)):
-		_row_box.add_child(_slot_panel(slot))
+	# 7 slots and the receipt fit the 1280 px window (plan section 3.1); a wider row scales.
+	_row_strip = RowStrip.new()
+	_row_strip.slot_input.connect(_on_slot_input)
+	row_column.add_child(_row_strip)
+	_row_box = _row_strip.box
+	# The same array as the strip's, kept in place across rebuilds, so CardDrag sees new slots.
+	_slots = _row_strip.slots
+	_row_strip.set_slot_count(_balance.slot_count + _balance.coupon_slot_count)
 	var totals: HBoxContainer = HBoxContainer.new()
 	totals.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	totals.add_theme_constant_override("separation", 30)
@@ -907,23 +888,6 @@ func _build() -> void:
 	add_child(_deck_view)
 	_deck_view.card_chosen.connect(_on_deck_card_chosen)
 	_deck_view.closed.connect(_on_deck_closed)
-
-
-func _slot_panel(slot: int) -> PanelContainer:
-	var panel: PanelContainer = PanelContainer.new()
-	panel.custom_minimum_size = CardView.CARD_SIZE
-	panel.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
-	var style: StyleBoxFlat = StyleBoxFlat.new()
-	style.bg_color = Palette.PANEL
-	style.border_color = Color(1, 1, 1, 0.15)
-	style.set_border_width_all(2)
-	style.set_corner_radius_all(10)
-	# No content margin: a filled slot stays exactly card-sized, so the row never shifts.
-	style.set_content_margin_all(0)
-	panel.add_theme_stylebox_override("panel", style)
-	panel.gui_input.connect(_on_slot_input.bind(slot))
-	_slots.append(panel)
-	return panel
 
 
 func _info_label(parent: Control, font_size: int) -> Label:

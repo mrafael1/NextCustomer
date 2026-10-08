@@ -183,6 +183,9 @@ func _pick_upgrade(run: RunState) -> void:
 			var upgrades: Array[UpgradeDefinition] = run.upgrades.duplicate()
 			upgrades.append(upgrade)
 			var value: float = _sample_value(deck, upgrades, _redraws_with(upgrades), sample_seed)
+			# Big basket's quota raise costs as much as it adds: compare totals against the
+			# quota they have to reach, not raw totals.
+			value = value * 100.0 / (100.0 + _quota_percent(upgrades))
 			if value > best_value:
 				best_value = value
 				choice = upgrade
@@ -237,11 +240,15 @@ func _least_used(run: RunState, usage: Dictionary[CardDefinition, int]) -> CardI
 	return least
 
 
-func _redraws_with(upgrades: Array[UpgradeDefinition]) -> int:
-	var redraws: int = RunState.BASE_REDRAWS
+static func _quota_percent(upgrades: Array[UpgradeDefinition]) -> int:
+	var percent: int = 0
 	for upgrade: UpgradeDefinition in upgrades:
-		redraws += upgrade.extra_redraws
-	return redraws
+		percent += upgrade.quota_percent
+	return percent
+
+
+func _redraws_with(upgrades: Array[UpgradeDefinition]) -> int:
+	return ShiftLimits.for_shift(_balance, upgrades, 0).redraws
 
 
 static func _deck_definitions(cards: Array[CardInstance]) -> Array[CardDefinition]:

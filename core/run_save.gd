@@ -126,6 +126,12 @@ static func from_dictionary(data: Dictionary, lookup: ContentLookup) -> RunSave:
 	restored.upgrades = reader.upgrades("upgrades")
 	restored.inspections = reader.inspections("inspections")
 	restored.next_inspection = reader.inspection("next_inspection")
+	# Every save point comes before the shift's upgrade pick, so the saved upgrades rebuild the
+	# limits the shift started with (its quota and slots).
+	if restored.shift_index < restored.shift_count():
+		restored.limits = ShiftLimits.for_shift(
+			restored.balance, restored.upgrades, restored.shift_index
+		)
 	var history_ok: bool = _restore_history(restored, reader.dictionaries("history"), lookup)
 	var cards_ok: bool = _restore_cards(restored, reader)
 	var save: RunSave = RunSave.new()
@@ -203,8 +209,8 @@ static func _is_consistent(restored: RunState) -> bool:
 	var ok: bool = _history_fits(restored) and _phase_fits(restored)
 	# The row's limits, as place() keeps them: a save made before the balance's slots were
 	# lowered can't be resumed.
-	ok = ok and restored.row.size() <= RowCapacity.card_limit(restored.balance)
-	ok = ok and RowCapacity.product_count(restored.row) <= restored.balance.slot_count
+	ok = ok and restored.row.size() <= RowCapacity.card_limit(restored.limits)
+	ok = ok and RowCapacity.product_count(restored.row) <= restored.limits.slot_count
 	ok = ok and restored.redraws_used <= restored.redraws_allowed
 	ok = ok and (restored.impulse_pick == null or restored.impulse_offer.has(restored.impulse_pick))
 	ok = ok and (restored.impulse_replaced == null or restored.impulse_pick != null)

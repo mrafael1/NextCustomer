@@ -32,6 +32,8 @@ func test_every_scene_and_resource_loads() -> void:
 			assert_object(resource).override_failure_message(path).is_instanceof(DeckDefinition)
 		elif path.contains("/upgrades/"):
 			assert_object(resource).override_failure_message(path).is_instanceof(UpgradeDefinition)
+		elif path.contains("/builds/"):
+			assert_object(resource).override_failure_message(path).is_instanceof(BuildDefinition)
 		elif path.contains("/inspections/"):
 			assert_object(resource).override_failure_message(path).is_instanceof(
 				InspectionDefinition
@@ -60,7 +62,7 @@ func test_every_data_folder_is_loaded() -> void:
 	var files: Array[String] = []
 	_collect("res://data", files)
 	for folder: String in [
-		"cards", "decks", "balance", "upgrades", "inspections", "aisles", "catalogue"
+		"cards", "decks", "balance", "upgrades", "inspections", "aisles", "catalogue", "builds"
 	]:
 		var prefix: String = "res://data/%s/" % folder
 		var found: bool = files.any(func(path: String) -> bool: return path.begins_with(prefix))

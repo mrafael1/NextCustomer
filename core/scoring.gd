@@ -22,6 +22,7 @@ static func score(
 	for slot: int in range(state.size()):
 		for rule: Rule in state.definition(slot).rules:
 			rule.modify_context(state, slot)
+	_upgrade_context(state, upgrades)
 	# Value pass, left to right, for every card, product or coupon.
 	for slot: int in range(state.size()):
 		_scan(state, slot, upgrades, inspections)
@@ -141,6 +142,21 @@ static func _scan(
 		)
 		waste.reason = upgrade_rule.wasted_reason(state, slot)
 	state.drop_spent_effects()
+
+
+## The upgrades' context pass (Rule bender), after the cards': every step it adds is the
+## upgrade's, named by its index in the run's upgrades.
+static func _upgrade_context(state: ScoreState, upgrades: Array[UpgradeDefinition]) -> void:
+	for index: int in range(upgrades.size()):
+		var upgrade: UpgradeDefinition = upgrades[index]
+		for rule: UpgradeRule in upgrade.rules:
+			for slot: int in range(state.size()):
+				var first_new: int = state.steps.size()
+				rule.modify_context(state, slot)
+				for step: ScoreStep in state.steps.slice(first_new):
+					step.source_kind = ScoreStep.SourceKind.UPGRADE
+					step.source_index = index
+					step.text = rule.text_for(upgrade)
 
 
 static func _upgrade_flat_bonuses(

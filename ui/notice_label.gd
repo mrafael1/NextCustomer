@@ -28,13 +28,11 @@ func show_notice(notice: String) -> void:
 
 ## Plan section 3.1: a product doesn't fit once every product slot is used, even when the
 ## coupon slot is still free. Shows why and returns true, or returns false when it fits.
-func explain_refusal(
-	card: CardDefinition, balance: BalanceDefinition, row: Array[CardInstance]
-) -> bool:
-	if card.is_coupon() or not RowCapacity.products_full(balance, row):
+func explain_refusal(card: CardDefinition, limits: ShiftLimits, row: Array[CardInstance]) -> bool:
+	if card.is_coupon() or not RowCapacity.products_full(limits, row):
 		return false
-	var products: String = "%d/%d products" % [RowCapacity.product_count(row), balance.slot_count]
-	if row.size() < RowCapacity.card_limit(balance):
+	var products: String = "%d/%d products" % [RowCapacity.product_count(row), limits.slot_count]
+	if row.size() < RowCapacity.card_limit(limits):
 		show_notice("%s: only a coupon fits now" % products)
 	else:
 		show_notice("%s: take a product out first" % products)

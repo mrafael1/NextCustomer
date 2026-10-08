@@ -17,9 +17,7 @@ func test_the_row_hand_and_receipt_lay_out_on_the_stage() -> void:
 	var drawn: int = StyleFrame.ROW_IDS.size() + StyleFrame.HAND_IDS.size()
 	assert_int(drawn).is_equal(StyleFrame.BALANCE.hand_size)
 	# The empty slots fill the row up to its capacity.
-	assert_int(frame._row_box.get_child_count()).is_equal(
-		RowCapacity.card_limit(StyleFrame.BALANCE)
-	)
+	assert_int(frame._row_box.get_child_count()).is_equal(RowCapacity.card_limit(frame._limits()))
 	assert_float(frame._receipt.get_global_rect().size.x).is_equal(StyleFrame.RECEIPT_WIDTH)
 	for view: CardView in frame._row_views:
 		var card: Rect2 = view.body.get_global_rect()

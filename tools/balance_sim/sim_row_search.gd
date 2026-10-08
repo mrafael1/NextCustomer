@@ -58,12 +58,14 @@ func search(
 		for _copy: int in range(groups[id].size()):
 			everything.append(id)
 	var upgrade_key: String = _upgrade_key(upgrades) + _inspection_key(inspections)
-	# A hand's best also depends on the row limits.
-	var limits_key: String = "%d/%d:" % [_balance.slot_count, RowCapacity.card_limit(_balance)]
+	# A hand's best also depends on the row limits, which upgrades can raise (ShiftLimits; the
+	# quota doesn't matter here).
+	var row_limits: ShiftLimits = ShiftLimits.for_shift(_balance, upgrades, 0)
+	var limits_key: String = "%d/%d:" % [row_limits.slot_count, row_limits.card_limit()]
 	var hand_key: String = "hand " + limits_key + ",".join(everything) + upgrade_key
 	var entry: Array = _cache.get(hand_key, [])
 	if entry.is_empty():
-		entry = _search_hand(ids, limits, upgrades, inspections, upgrade_key)
+		entry = _search_hand(ids, limits, row_limits, upgrades, inspections, upgrade_key)
 		_store(hand_key, entry)
 	else:
 		cache_hits += 1
@@ -137,11 +139,12 @@ static func next_permutation(order: PackedInt32Array) -> bool:
 func _search_hand(
 	ids: PackedStringArray,
 	limits: PackedInt32Array,
+	row_limits: ShiftLimits,
 	upgrades: Array[UpgradeDefinition],
 	inspections: Array[InspectionDefinition],
 	upgrade_key: String
 ) -> Array:
-	var card_limit: int = RowCapacity.card_limit(_balance)
+	var card_limit: int = row_limits.card_limit()
 	var coupons: Array[bool] = []
 	for id: String in ids:
 		coupons.append(_definitions[id].is_coupon())
@@ -162,7 +165,7 @@ func _search_hand(
 				products += choice[index]
 			for _copy: int in range(choice[index]):
 				multiset.append(ids[index])
-		if multiset.size() <= card_limit and products <= _balance.slot_count:
+		if multiset.size() <= card_limit and products <= row_limits.slot_count:
 			var entry: Array = _best_order(multiset, upgrades, inspections, upgrade_key)
 			var total: int = entry[0]
 			var shorter: bool = multiset.size() < best_order.size()

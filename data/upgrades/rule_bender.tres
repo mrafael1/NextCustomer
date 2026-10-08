@@ -1,0 +1,21 @@
+[gd_resource type="Resource" script_class="UpgradeDefinition" format=3]
+
+[ext_resource type="Script" path="res://core/upgrades/upgrade_rule.gd" id="1_rule"]
+[ext_resource type="Script" path="res://core/upgrades/coupon_bridge_rule.gd" id="2_rule_bender"]
+[ext_resource type="Script" path="res://core/upgrade_definition.gd" id="3_upgrade"]
+[ext_resource type="Script" path="res://core/build_definition.gd" id="4_build"]
+[ext_resource type="Resource" path="res://data/builds/bulk_buyer.tres" id="5_bulk_buyer"]
+
+[sub_resource type="Resource" id="Resource_rule_bender"]
+script = ExtResource("2_rule_bender")
+receipt_text = "Rule bender"
+
+[resource]
+script = ExtResource("3_upgrade")
+id = &"rule_bender"
+display_name = "Rule bender"
+type = 1
+effect_text = "Coupons no longer break adjacency between products"
+condition_text = "Hazards too: Soup beside Frozen through a coupon pays €0"
+builds = Array[ExtResource("4_build")]([ExtResource("5_bulk_buyer")])
+rules = Array[ExtResource("1_rule")]([SubResource("Resource_rule_bender")])

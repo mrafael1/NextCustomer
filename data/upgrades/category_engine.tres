@@ -3,6 +3,8 @@
 [ext_resource type="Script" path="res://core/upgrades/upgrade_rule.gd" id="1_rule"]
 [ext_resource type="Script" path="res://core/upgrades/distinct_tag_bonus_rule.gd" id="2_distinct_tags"]
 [ext_resource type="Script" path="res://core/upgrade_definition.gd" id="3_upgrade"]
+[ext_resource type="Script" path="res://core/build_definition.gd" id="4_build"]
+[ext_resource type="Resource" path="res://data/builds/mixed_basket.tres" id="5_mixed_basket"]
 
 [sub_resource type="Resource" id="Resource_distinct_tags"]
 script = ExtResource("2_distinct_tags")
@@ -16,5 +18,5 @@ display_name = "Category engine"
 type = 3
 effect_text = "+3 for each different tag among your products"
 condition_text = "Paid on the last product in the row"
-supported_build = "Mixed basket"
+builds = Array[ExtResource("4_build")]([ExtResource("5_mixed_basket")])
 rules = Array[ExtResource("1_rule")]([SubResource("Resource_distinct_tags")])

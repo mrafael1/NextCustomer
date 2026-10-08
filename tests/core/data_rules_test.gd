@@ -12,6 +12,7 @@ const NEUTRAL_SCRIPTS := [
 	"res://core/deck_definition.gd",
 	"res://core/balance_definition.gd",
 	"res://core/upgrade_definition.gd",
+	"res://core/build_definition.gd",
 	"res://core/inspection_definition.gd",
 	"res://core/unlock_condition.gd",
 	"res://core/aisle_definition.gd",
@@ -134,8 +135,32 @@ func test_every_upgrade_states_its_type_and_id() -> void:
 		ids[upgrade.id] = true
 		assert_str(upgrade.display_name).override_failure_message(file).is_not_empty()
 		assert_str(upgrade.effect_text).override_failure_message(file).is_not_empty()
-		assert_str(upgrade.supported_build).override_failure_message(file).is_not_empty()
-	assert_int(ids.size()).is_equal(3)
+		for build: BuildDefinition in upgrade.builds:
+			assert_object(build).override_failure_message(file).is_not_null()
+		# Only Extra redraw supports any build (no build listed).
+		if upgrade.id != &"extra_redraw":
+			assert_array(upgrade.builds).override_failure_message(file).is_not_empty()
+	assert_int(ids.size()).is_equal(7)
+
+
+## Plan section 5.2: like an upgrade's type, a build's measure has an UNSET default that no
+## build file may keep. Ids are present, unique and match the file name, and every build needs
+## at least one card to fit.
+func test_every_build_states_its_measure_and_id() -> void:
+	var ids: Dictionary = {}
+	for file: String in DirAccess.get_files_at("res://data/builds"):
+		if not file.ends_with(".tres"):
+			continue
+		var build: BuildDefinition = load("res://data/builds/%s" % file)
+		assert_int(build.measure).override_failure_message(file).is_not_equal(
+			BuildDefinition.Measure.UNSET
+		)
+		assert_str(String(build.id)).override_failure_message(file).is_equal(file.get_basename())
+		assert_bool(ids.has(build.id)).override_failure_message(file).is_false()
+		ids[build.id] = true
+		assert_str(build.display_name).override_failure_message(file).is_not_empty()
+		assert_int(build.min_count).override_failure_message(file).is_greater(0)
+	assert_int(ids.size()).is_equal(5)
 
 
 ## Plan section 3.9: every inspection has an id matching its file name (unique), a name and a

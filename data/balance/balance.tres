@@ -16,6 +16,10 @@
 [ext_resource type="Resource" path="res://data/upgrades/coupon_engine.tres" id="u2_coupon_engine"]
 [ext_resource type="Resource" path="res://data/upgrades/category_engine.tres" id="u3_category_engine"]
 [ext_resource type="Resource" path="res://data/upgrades/extra_redraw.tres" id="u4_extra_redraw"]
+[ext_resource type="Resource" path="res://data/upgrades/rule_bender.tres" id="u5_rule_bender"]
+[ext_resource type="Resource" path="res://data/upgrades/slot_engine.tres" id="u6_slot_engine"]
+[ext_resource type="Resource" path="res://data/upgrades/extra_coupon_slot.tres" id="u7_extra_coupon_slot"]
+[ext_resource type="Resource" path="res://data/upgrades/big_basket.tres" id="u8_big_basket"]
 [ext_resource type="Script" path="res://core/inspection_definition.gd" id="i1_inspection"]
 [ext_resource type="Resource" path="res://data/inspections/spot_check.tres" id="i2_spot_check"]
 
@@ -38,7 +42,7 @@ first_offer_pool = Array[ExtResource("2_card")]([ExtResource("c14_breakfast_stic
 offer_size = 3
 impulse_rack_size = 3
 upgrade_shifts = PackedInt32Array(2, 4, 6)
-upgrade_pool = Array[ExtResource("u1_upgrade")]([ExtResource("u2_coupon_engine"), ExtResource("u3_category_engine"), ExtResource("u4_extra_redraw")])
+upgrade_pool = Array[ExtResource("u1_upgrade")]([ExtResource("u2_coupon_engine"), ExtResource("u3_category_engine"), ExtResource("u4_extra_redraw"), ExtResource("u5_rule_bender"), ExtResource("u6_slot_engine"), ExtResource("u7_extra_coupon_slot"), ExtResource("u8_big_basket")])
 upgrade_offer_size = 3
 inspection_shifts = PackedInt32Array(3, 5, 7)
 inspection_pool = Array[ExtResource("i1_inspection")]([ExtResource("i2_spot_check")])

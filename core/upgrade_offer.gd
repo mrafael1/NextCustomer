@@ -3,7 +3,9 @@ extends RefCounted
 ## Builds the upgrades offered after an upgrade shift (plan section 3.8), using only the RNG
 ## passed in. The offer holds up to upgrade_offer_size upgrades from upgrade_pool that the run
 ## doesn't own yet, each of a different type, chosen from the pool shuffled with the run's RNG.
-## The rule "at least one fitting the current deck" waits for build tags (full build phase 2).
+## At least one fits the deck (UpgradeDefinition.fits) when any unowned upgrade does; when none
+## does, the offer is built the same way without that guarantee, never shorter. The offer is
+## shuffled again at the end, so the fitting option isn't always first.
 
 
 ## Whether the 1-based shift number is an upgrade shift.
@@ -12,7 +14,10 @@ static func is_upgrade_shift(balance: BalanceDefinition, shift_number: int) -> b
 
 
 static func make(
-	rng: RandomNumberGenerator, balance: BalanceDefinition, owned: Array[UpgradeDefinition]
+	rng: RandomNumberGenerator,
+	balance: BalanceDefinition,
+	owned: Array[UpgradeDefinition],
+	deck: Array[CardDefinition]
 ) -> Array[UpgradeDefinition]:
 	var candidates: Array[UpgradeDefinition] = []
 	for upgrade: UpgradeDefinition in balance.upgrade_pool:
@@ -21,12 +26,19 @@ static func make(
 	_shuffle(rng, candidates)
 	var offer: Array[UpgradeDefinition] = []
 	var types: Dictionary = {}
+	if balance.upgrade_offer_size > 0:
+		for upgrade: UpgradeDefinition in candidates:
+			if upgrade.fits(deck):
+				types[upgrade.type] = true
+				offer.append(upgrade)
+				break
 	for upgrade: UpgradeDefinition in candidates:
 		if offer.size() >= balance.upgrade_offer_size:
 			break
 		if not types.has(upgrade.type):
 			types[upgrade.type] = true
 			offer.append(upgrade)
+	_shuffle(rng, offer)
 	return offer
 
 
