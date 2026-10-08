@@ -266,7 +266,7 @@ func _build_belt() -> void:
 		var view: ArtCardView = ArtCardView.new(card)
 		_row_views.append(view)
 		_row_box.add_child(view)
-	for _slot: int in range(RowCapacity.card_limit(BALANCE) - _row.size()):
+	for _slot: int in range(RowCapacity.card_limit(_limits()) - _row.size()):
 		var empty: TextureRect = _sprite(SLOT_EMPTY)
 		empty.custom_minimum_size = ArtCardView.SIZE
 		_row_box.add_child(empty)
@@ -278,9 +278,9 @@ func _build_row_status() -> void:
 			"Products %d/%d · Coupon slot %d/%d"
 			% [
 				RowCapacity.product_count(_row),
-				BALANCE.slot_count,
-				RowCapacity.coupon_slots_used(BALANCE, _row),
-				BALANCE.coupon_slot_count,
+				_limits().slot_count,
+				RowCapacity.coupon_slots_used(_limits(), _row),
+				_limits().coupon_slot_count,
 			]
 		),
 		14
@@ -317,10 +317,9 @@ func _build_hand() -> void:
 	_checkout_button.position = Vector2(712, 412)
 	_checkout_button.pressed.connect(_on_checkout_pressed)
 	_stage.add_child(_checkout_button)
-	var redraws: int = RunState.BASE_REDRAWS
-	for upgrade: UpgradeDefinition in _upgrades():
-		redraws += upgrade.extra_redraws
-	var redraw_text: String = "Redraw up to %d (%d left)" % [BALANCE.redraw_limit, redraws]
+	var redraw_text: String = (
+		"Redraw up to %d (%d left)" % [BALANCE.redraw_limit, _limits().redraws]
+	)
 	var redraw: Button = _button(redraw_text, 15, SIGN_FRAME, Vector2(220, 44))
 	(redraw.get_child(1) as Label).add_theme_font_override("font", ArtStyle.number_font())
 	redraw.position = Vector2(712, 500)
@@ -461,7 +460,12 @@ func _capture_folder() -> String:
 
 
 func _quota() -> int:
-	return BALANCE.quotas[SHIFT - 1]
+	return _limits().quota
+
+
+## The shift's limits, as the game computes them (ShiftLimits).
+func _limits() -> ShiftLimits:
+	return ShiftLimits.for_shift(BALANCE, _upgrades(), SHIFT - 1)
 
 
 func _upgrades() -> Array[UpgradeDefinition]:

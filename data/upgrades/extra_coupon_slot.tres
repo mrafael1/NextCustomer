@@ -1,0 +1,15 @@
+[gd_resource type="Resource" script_class="UpgradeDefinition" format=3]
+
+[ext_resource type="Script" path="res://core/upgrade_definition.gd" id="3_upgrade"]
+[ext_resource type="Script" path="res://core/build_definition.gd" id="4_build"]
+[ext_resource type="Resource" path="res://data/builds/coupon_specialist.tres" id="5_coupon_specialist"]
+
+[resource]
+script = ExtResource("3_upgrade")
+id = &"extra_coupon_slot"
+display_name = "Extra coupon slot"
+type = 5
+effect_text = "+1 coupon-only slot"
+condition_text = "Only a coupon can use it"
+builds = Array[ExtResource("4_build")]([ExtResource("5_coupon_specialist")])
+extra_coupon_slots = 1

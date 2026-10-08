@@ -1,0 +1,11 @@
+[gd_resource type="Resource" script_class="BuildDefinition" format=3]
+
+[ext_resource type="Script" path="res://core/build_definition.gd" id="1_build"]
+
+[resource]
+script = ExtResource("1_build")
+id = &"clearance_collector"
+display_name = "Clearance collector"
+measure = 1
+tag = "Clearance"
+min_count = 2

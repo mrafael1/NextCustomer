@@ -8,5 +8,4 @@ id = &"extra_redraw"
 display_name = "Extra redraw"
 type = 5
 effect_text = "+1 redraw each shift"
-supported_build = "Any build"
 extra_redraws = 1

@@ -32,8 +32,11 @@ var deck: Deck
 var shift_index: int = 0
 var phase: Phase = Phase.PLANNING
 var row: Array[CardInstance] = []
-## Redraws made this shift, and how many it allows: BASE_REDRAWS plus each owned upgrade's
-## extra_redraws, set when the shift starts.
+## The current shift's limits (slots, redraws, quota), fixed when the shift starts from the
+## balance data and the upgrades owned then (ShiftLimits).
+var limits: ShiftLimits
+## Redraws made this shift, and how many it allows (limits.redraws: BASE_REDRAWS plus each
+## owned upgrade's extra_redraws), set when the shift starts.
 var redraws_used: int = 0
 var redraws_allowed: int = 0
 var last_result: ScoreResult
@@ -97,6 +100,8 @@ func _init(
 	# Full build plan 7.3: a deck's starting upgrade is owned from the first shift.
 	if deck_definition.starting_upgrade != null:
 		upgrades.append(deck_definition.starting_upgrade)
+	# Shift 1's limits already show while the impulse rack waits (its quota in the top bar).
+	limits = ShiftLimits.for_shift(balance, upgrades, shift_index)
 	if impulse_stream != null:
 		impulse_offer = RewardOffer.make_impulse(impulse_stream, balance, stock)
 	if not impulse_offer.is_empty():
@@ -108,8 +113,9 @@ func shift_count() -> int:
 	return balance.quotas.size()
 
 
+## The current shift's quota: the balance data's, raised by Big basket (ShiftLimits).
 func quota() -> int:
-	return balance.quotas[shift_index]
+	return limits.quota
 
 
 func is_last_shift() -> bool:
@@ -121,12 +127,11 @@ func is_last_shift() -> bool:
 func start_shift() -> void:
 	if phase == Phase.IMPULSE:
 		return
+	limits = ShiftLimits.for_shift(balance, upgrades, shift_index)
 	deck.draw_hand(balance.hand_size)
 	row = []
 	redraws_used = 0
-	redraws_allowed = BASE_REDRAWS
-	for upgrade: UpgradeDefinition in upgrades:
-		redraws_allowed += upgrade.extra_redraws
+	redraws_allowed = limits.redraws
 	last_result = null
 	phase = Phase.PLANNING
 
@@ -170,7 +175,7 @@ func redraw(cards: Array[CardInstance]) -> Array[CardInstance]:
 func can_place(card: CardInstance) -> bool:
 	if phase != Phase.PLANNING or not hand().has(card):
 		return false
-	return RowCapacity.fits(balance, row, card.definition)
+	return RowCapacity.fits(limits, row, card.definition)
 
 
 ## Puts a hand card into the row at `slot`. The row stays compacted: a slot past the end
@@ -218,7 +223,10 @@ func checkout() -> ScoreResult:
 		offer = RewardOffer.make(_rng, balance, stock.cards, offers_made == 0)
 		offers_made += 1
 		if UpgradeOffer.is_upgrade_shift(balance, shift_index + 1):
-			upgrade_offer = UpgradeOffer.make(_rng, balance, upgrades)
+			var deck_cards: Array[CardDefinition] = []
+			for card: CardInstance in deck.cards:
+				deck_cards.append(card.definition)
+			upgrade_offer = UpgradeOffer.make(_rng, balance, upgrades, deck_cards)
 		if InspectionSchedule.is_inspection_shift(balance, shift_index + 2):
 			next_inspection = InspectionSchedule.draw(_rng, balance)
 		phase = Phase.REWARD

@@ -1,6 +1,6 @@
 # Next Customer: Full Build Plan
 
-> Status: draft v0.20. **This plan will change.** Each full-build playtest round (section 9) can rewrite parts of it. Update the changelog when it does.
+> Status: draft v0.21. **This plan will change.** Each full-build playtest round (section 9) can rewrite parts of it. Update the changelog when it does.
 > The prototype (`docs/PROTOTYPE_PLAN.md`) closed at proto-r1. Its outside playtest and decision gate (section 9 there) were not run; their questions move to the full build's playtest rounds (section 9).
 > Engine: Godot 4 (exact version pinned in `AGENTS.md`), GDScript with static typing. Platform: Windows, mouse. Steam is the main store; itch.io hosts a web demo.
 
@@ -62,7 +62,7 @@ See `docs/PROTOTYPE_PLAN.md`. It closed at proto-r1 after the developer's own ru
 - One of the 3 base aisles is non-food. Check what non-Food items do to Eggs and Multipack; no new "pays 0" hazards beyond Soup
 - Aisles authored to the aisle rules (section 7.2): the 3 base aisles grow to about 7 through their machines, and 3 more aisles open through theirs (8/8/7). Every key item combos with a staple
 - Bundle returns as "2 for 1" (section 5.1). Connectors are redesigned to link products that are not neighbours. "2 for 1" is a new card id and a new rule script. The Bundle golden rows stay on the frozen `cards_v0_4` fixture, so `ConnectorBridgeRule` stays for that fixture; a new fixture version gets the 2-for-1 rows (same product, different product, two in a row). Decide whether `is_connector` is kept for Shelf swap or retired, and update `core/AGENTS.md` and `docs/PROTOTYPE_PLAN.md` sections 3.4 and 3.7 with the approved rule change
-- 8 register upgrades, 3 inspections
+- 7 register upgrades (decided in v0.21: "+1 card drawn" cut), 3 inspections
 - Reward economy and quota curve before single-card tuning: the prototype starter passes shifts 1–4 almost always, Multipack dominates, Breakfast sticker is near blank, Eggs is a single point of failure
 - Balance passes with the simulator plus a small playtest
 - Simulator: a stock parameter, the list gate and the coins-per-run report (section 8)
@@ -100,10 +100,13 @@ The prototype structure carries over (`core/`, `data/`, `ui/`, `presentation/`, 
 ```
 core/
   score_step.gd           # + source_kind (CARD / UPGRADE / INSPECTION) and source index; + EFFECT_ARMED
-  upgrade_definition.gd   # Resource: id, name, type, effect, condition, supported build, rules[],
-                          #   run modifiers (extra_redraws); perk icon later (docs/PROTOTYPE_PLAN.md 3.8)
+  upgrade_definition.gd   # Resource: id, name, type, effect, condition, builds[], rules[],
+                          #   run modifiers (extra_redraws, extra_slots, extra_coupon_slots,
+                          #   quota_percent); perk icon later (docs/PROTOTYPE_PLAN.md 3.8)
   upgrades/               # UpgradeRule and the upgrade rule scripts
-  upgrade_offer.gd        # upgrade offer from the pool; pure, run RNG
+  upgrade_offer.gd        # upgrade offer from the pool, one fitting the deck; pure, run RNG
+  build_definition.gd     # Resource: a build measured from the deck (data/builds/)
+  shift_limits.gd         # a shift's slots, redraws and quota, from balance data and upgrades
   inspection_definition.gd# Resource: id, display_name, notice_text (the announcement), rules[]
   inspections/            # InspectionRule and the inspection rule scripts
   inspection_schedule.gd  # inspected shifts; draws an inspection from the pool; pure, run RNG
@@ -185,13 +188,13 @@ Good upgrades:
 | Type | Example |
 |---|---|
 | Rule bender | Coupons no longer break adjacency |
-| Slot engine | The 6th product slot ×2, but only for a product |
+| Slot engine | The 6th product ×2 (coupons don't count) |
 | Category engine | +3 per category present when the last product is scanned |
 | Coupon engine | The first coupon's payout ×2 |
-| Economy | +1 redraw per shift · +1 card drawn · +1 coupon slot |
+| Economy | +1 redraw per shift · +1 coupon slot ("+1 card drawn" was cut in v0.21: it overlapped the redraw) |
 | Risky | One extra product slot, but the quota +15% |
 
-Upgrade offers: 3 options, from different types, at least one fitting the current deck (the fitting rule needs build tags and starts in phase 2; phase 1 offers unowned upgrades of different types, so its 3 placeholders give offers of 3, 2 and 1). The player must pick one: there is no skip. Every ticket shows the same fields in the same order: name, type, effect, condition (its own line), supported build.
+Upgrade offers: 3 options, from different types, at least one fitting the current deck (since v0.21: builds are data files measured from the deck, `docs/PROTOTYPE_PLAN.md` section 3.8). The player must pick one: there is no skip. Every ticket shows the same fields in the same order: name, type, effect, condition (its own line), supported builds.
 
 ### 5.3 Inspections
 Visible restrictions that test a build. One is announced before the previous shift's reward choice, printed as a red notice on the receipt under the total (before the kiosk on upgrade shifts). Inspections never go on the loyalty card. Never disable several parts of a build at once. Start with 3 of: only 5 product slots · the 3rd product pays 0 · duplicate payouts capped at 4 · the coupon slot is closed.
@@ -305,7 +308,7 @@ Card changes: unlock variants that replace a starting card (e.g. swap 1 Banana f
 ## 8. Balance simulator
 
 A command-line tool, run headless, that uses `core/` directly:
-- For a given hand, it tries every selection and order of up to 7 cards with at most 6 products (section 5.1), including shorter rows, because a shorter row can score higher, and finds the best possible score. That is up to about 69,000 rows for a hand of 8 (40,320 seven-card rows plus the shorter ones), and about 4× more with "+1 card drawn"
+- For a given hand, it tries every selection and order of up to 7 cards with at most 6 products (section 5.1), including shorter rows, because a shorter row can score higher, and finds the best possible score. That is up to about 69,000 rows for a hand of 8 (40,320 seven-card rows plus the shorter ones), and about 1.6× more when an upgrade adds a slot (Extra coupon slot or Big basket; with both, the hand of 8 still caps a row at 8 cards). "+1 card drawn", which would have made it about 4×, was cut in v0.21
 - It simulates thousands of seeded runs with simple drafting strategies (greedy, build-focused)
 - Outputs: the distribution of best scores per shift (to set quotas), win rate per build, how often each card is in the best row (finds dominant or useless cards)
 - Models the redraw, the coupon slot, the impulse rack (picked with the strategy's reward rule, decided with the user, phase 1) and a starting-deck parameter
@@ -387,3 +390,4 @@ Content freeze at the end of phase 3. No new features after that.
 | v0.18 | 2026-10-08 | Phase 1 closed; phase 2 starts (its tasks are the "Phase 2" milestone) · the Steam store page moves from phase 2 to phase 3, once the game has its final look (decided with the user; section 11), and phase 4 finishes it |
 | v0.19 | 2026-10-08 | Base products (phase 2, issue #34; `docs/PROTOTYPE_PLAN.md` v0.22), decided with the user: the 3 base aisles Cold cases (teal), Pantry (mustard) and Household (grey, the non-food aisle), 5/5/4 products with 12 new ones, replace the placeholder aisle · new tags Household and Clearance; non-food items are not Food, so Eggs skips them and Multipack can double a Household or Clearance family · one new rule script (Scissors) · tomato stays off aisle signs (the inspection notice is red) · condition fizzles for silent conditional cards are issue #45 |
 | v0.20 | 2026-10-08 | 2 for 1 and Shelf swap (phase 2, issue #37; `docs/PROTOTYPE_PLAN.md` v0.23), decided with the user: 2 for 1 links the same product on both sides and the second pays ×2 (an armed effect); Shelf swap links the next product to the row's first product, both ways; links can stack on one side · "same product" means a variant counts as its base card, everywhere (#39 uses it for duplicates) · `is_connector` is set only by Bundle, which stays in `data/cards/` outside every pool, and read only by its rule for the frozen fixture · 2 for 1 replaces Bundle in `coupon_pool` and `first_offer_pool` (Multipack back to a third of the guaranteed slot), and Shelf swap joins `coupon_pool` |
+| v0.21 | 2026-10-08 | Register upgrades (phase 2, issue #38; `docs/PROTOTYPE_PLAN.md` v0.24), decided with the user: 7 upgrades (Rule bender, Slot engine, Category engine, Coupon engine, Extra redraw, Extra coupon slot, Big basket), "+1 card drawn" cut · Rule bender needs an upgrade context hook (approved design flag) · one raised quota for Big basket, fixed when the shift starts · shift limits (`ShiftLimits`) carry the run modifiers that #39's capacity inspections extend · build files in `data/builds/` and the offer's "fits the deck" guarantee · a row wider than 7 slots is scaled · flags for #41: Slot engine is strong (Repeat copies the doubled product), Category engine can reach +24, Big basket breaks even or loses on the current quotas |

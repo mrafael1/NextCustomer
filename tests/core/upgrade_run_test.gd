@@ -21,8 +21,22 @@ func test_balance_upgrade_data_fits_the_run() -> void:
 		ids.append(String(upgrade.id))
 		types[upgrade.type] = true
 	ids.sort()
-	assert_array(ids).is_equal(["category_engine", "coupon_engine", "extra_redraw"])
-	assert_int(types.size()).is_equal(3)
+	(
+		assert_array(ids)
+		. is_equal(
+			[
+				"big_basket",
+				"category_engine",
+				"coupon_engine",
+				"extra_coupon_slot",
+				"extra_redraw",
+				"rule_bender",
+				"slot_engine",
+			]
+		)
+	)
+	# One per type, and two Economy upgrades (plan v0.24).
+	assert_int(types.size()).is_equal(6)
 	assert_int(balance.upgrade_offer_size).is_equal(3)
 
 
@@ -75,8 +89,8 @@ func test_upgrade_step_follows_a_deck_full_replacement() -> void:
 	assert_int(run.phase).is_equal(RunState.Phase.UPGRADE)
 
 
-## With 3 placeholders of 3 types, the offers on shifts 2, 4 and 6 hold 3, 2 and 1 upgrades,
-## never one the run owns, each of a different type.
+## With 7 upgrades of 6 types, the offers on shifts 2, 4 and 6 always hold 3 upgrades, never
+## one the run owns, each of a different type.
 func test_offers_hold_only_unowned_upgrades_of_different_types() -> void:
 	var run: RunState = _run(23)
 	var sizes: Array = []
@@ -93,7 +107,7 @@ func test_offers_hold_only_unowned_upgrades_of_different_types() -> void:
 			assert_bool(run.pick_upgrade(run.upgrade_offer[-1])).is_true()
 		if run.phase == RunState.Phase.SCORED:
 			run.next_shift()
-	assert_array(sizes).is_equal([3, 2, 1])
+	assert_array(sizes).is_equal([3, 3, 3])
 	assert_int(run.upgrades.size()).is_equal(3)
 
 
@@ -102,20 +116,25 @@ func test_offer_is_the_same_for_the_same_seed() -> void:
 	assert_array(_offer_ids_on_shift_two(31)).is_equal(first)
 	var balance: BalanceDefinition = load(BALANCE)
 	var none: Array[UpgradeDefinition] = []
-	var one: Array[UpgradeDefinition] = UpgradeOffer.make(_rng(5), balance, none)
-	assert_array(UpgradeOffer.make(_rng(5), balance, none)).is_equal(one)
+	var one: Array[UpgradeDefinition] = UpgradeOffer.make(_rng(5), balance, none, _no_cards())
+	assert_array(UpgradeOffer.make(_rng(5), balance, none, _no_cards())).is_equal(one)
 	# The pool is shuffled with the run's RNG, so seeds give different orders.
 	var orders: Dictionary = {}
 	for seed_value: int in range(40):
-		orders[str(_ids(UpgradeOffer.make(_rng(seed_value), balance, none)))] = true
+		var offer: Array[UpgradeDefinition] = UpgradeOffer.make(
+			_rng(seed_value), balance, none, _no_cards()
+		)
+		orders[str(_ids(offer))] = true
 	assert_int(orders.size()).is_greater(1)
 
 
 ## Repeats of a type, duplicates in the pool and owned upgrades never reach an offer.
 func test_offer_skips_owned_upgrades_and_repeated_types() -> void:
 	var balance: BalanceDefinition = load(BALANCE).duplicate()
-	var pool: Array[UpgradeDefinition] = []
-	pool.assign(balance.upgrade_pool)
+	# Phase 1's three upgrades, so only two types are left once Category engine is owned.
+	var pool: Array[UpgradeDefinition] = [
+		_upgrade("coupon_engine"), _upgrade("category_engine"), _upgrade("extra_redraw")
+	]
 	var second_coupon_engine: UpgradeDefinition = UpgradeDefinition.new()
 	second_coupon_engine.id = &"second_coupon_engine"
 	second_coupon_engine.type = UpgradeDefinition.Type.COUPON_ENGINE
@@ -124,7 +143,9 @@ func test_offer_skips_owned_upgrades_and_repeated_types() -> void:
 	balance.upgrade_pool = pool
 	var owned: Array[UpgradeDefinition] = [_upgrade("category_engine")]
 	for seed_value: int in range(30):
-		var offer: Array[UpgradeDefinition] = UpgradeOffer.make(_rng(seed_value), balance, owned)
+		var offer: Array[UpgradeDefinition] = UpgradeOffer.make(
+			_rng(seed_value), balance, owned, _no_cards()
+		)
 		assert_int(offer.size()).is_equal(2)
 		var types: Array = offer.map(func(upgrade: UpgradeDefinition) -> int: return upgrade.type)
 		types.sort()
@@ -134,7 +155,7 @@ func test_offer_skips_owned_upgrades_and_repeated_types() -> void:
 		assert_bool(offer.has(owned[0])).is_false()
 	# Every pool upgrade owned: an empty offer.
 	balance.upgrade_pool = owned
-	assert_array(UpgradeOffer.make(_rng(1), balance, owned)).is_empty()
+	assert_array(UpgradeOffer.make(_rng(1), balance, owned, _no_cards())).is_empty()
 
 
 ## The offer is built at checkout, so it is fixed before the player chooses anything.
@@ -238,7 +259,8 @@ func test_extra_redraw_allows_a_second_redraw() -> void:
 	_pass(run)
 	run.skip_reward()
 	var extra: UpgradeDefinition = _upgrade("extra_redraw")
-	assert_bool(run.upgrade_offer.has(extra)).is_true()
+	# With 7 upgrades the seed's offer may not hold it: offer it for this test.
+	run.upgrade_offer = [extra]
 	run.pick_upgrade(extra)
 	# It applies from the next shift on.
 	assert_bool(run.next_shift()).is_true()
@@ -322,6 +344,10 @@ static func _ids(upgrades: Array) -> Array:
 	for upgrade: UpgradeDefinition in upgrades:
 		ids.append(String(upgrade.id))
 	return ids
+
+
+static func _no_cards() -> Array[CardDefinition]:
+	return []
 
 
 static func _rng(seed_value: int) -> RandomNumberGenerator:

@@ -257,7 +257,10 @@ func _brute_force(
 		if not used:
 			without[card.definition] = maxi(without.get(card.definition, -1), total)
 	for card: CardInstance in hand:
-		if not row.has(card) and RowCapacity.fits(balance, typed_row, card.definition):
+		if (
+			not row.has(card)
+			and RowCapacity.fits(_no_upgrade_limits(balance), typed_row, card.definition)
+		):
 			_brute_force(balance, hand, row + [card], result)
 
 
@@ -331,3 +334,8 @@ static func _cards(ids: String) -> Array[CardInstance]:
 
 static func _ids(cards: Array[CardInstance]) -> Array:
 	return cards.map(func(card: CardInstance) -> String: return String(card.definition.id))
+
+
+static func _no_upgrade_limits(balance: BalanceDefinition) -> ShiftLimits:
+	var none: Array[UpgradeDefinition] = []
+	return ShiftLimits.for_shift(balance, none, 0)

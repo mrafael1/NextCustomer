@@ -437,7 +437,7 @@ static func _json(data: Dictionary) -> Dictionary:
 ## Fills the row with one product more than the product slots, and no more cards than the row
 ## holds: extra Banana copies join the hand, as the debug panel adds them.
 func _over_products(data: Dictionary) -> void:
-	assert_int(_balance.slot_count + 1).is_less_equal(RowCapacity.card_limit(_balance))
+	assert_int(_balance.slot_count + 1).is_less_equal(RowCapacity.card_limit(_no_upgrade_limits()))
 	var products: Array = []
 	for pair: Array in data["hand"]:
 		if not _lookup.card(pair[1]).is_coupon():
@@ -498,3 +498,9 @@ static func _ids(resources: Array) -> Array:
 	for resource: Resource in resources:
 		ids.append(str(resource.get("id")))
 	return ids
+
+
+## The row's limits with no upgrades, as a new run's shift starts.
+func _no_upgrade_limits() -> ShiftLimits:
+	var none: Array[UpgradeDefinition] = []
+	return ShiftLimits.for_shift(_balance, none, 0)

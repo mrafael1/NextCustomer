@@ -51,7 +51,7 @@ func test_six_products_then_only_a_coupon_fits() -> void:
 	for index: int in range(6):
 		assert_bool(run.place(_add(run, BREAD), index)).is_true()
 	var product: CardInstance = _add(run, BREAD)
-	assert_bool(RowCapacity.products_full(run.balance, run.row)).is_true()
+	assert_bool(RowCapacity.products_full(run.limits, run.row)).is_true()
 	assert_bool(run.can_place(product)).is_false()
 	assert_bool(run.place(product, 6)).is_false()
 	var coupon: CardInstance = _add(run, REPEAT)
@@ -68,7 +68,7 @@ func test_seven_cards_fill_the_row() -> void:
 	for index: int in range(6):
 		run.place(_add(run, BREAD), index)
 	run.place(_add(run, REPEAT), 0)
-	assert_int(run.row.size()).is_equal(RowCapacity.card_limit(run.balance))
+	assert_int(run.row.size()).is_equal(RowCapacity.card_limit(run.limits))
 	assert_bool(run.can_place(_add(run, BREAD))).is_false()
 	var coupon: CardInstance = _add(run, REPEAT)
 	assert_bool(run.can_place(coupon)).is_false()
@@ -84,7 +84,7 @@ func test_two_coupons_and_five_products_fit() -> void:
 	assert_bool(run.place(_add(run, REPEAT), 3)).is_true()
 	assert_int(run.row.size()).is_equal(7)
 	assert_int(RowCapacity.product_count(run.row)).is_equal(5)
-	assert_int(RowCapacity.coupon_slots_used(run.balance, run.row)).is_equal(1)
+	assert_int(RowCapacity.coupon_slots_used(run.limits, run.row)).is_equal(1)
 
 
 func test_a_coupon_in_the_row_does_not_let_a_seventh_product_in() -> void:
@@ -96,7 +96,7 @@ func test_a_coupon_in_the_row_does_not_let_a_seventh_product_in() -> void:
 	# Without the coupon: six products and one free slot, and that slot is the coupon slot.
 	run.remove(run.row[0])
 	assert_int(run.row.size()).is_equal(6)
-	assert_int(RowCapacity.coupon_slots_used(run.balance, run.row)).is_equal(0)
+	assert_int(RowCapacity.coupon_slots_used(run.limits, run.row)).is_equal(0)
 	assert_bool(run.can_place(_add(run, BREAD))).is_false()
 	assert_bool(run.can_place(_add(run, REPEAT))).is_true()
 
@@ -120,11 +120,11 @@ func test_remove_frees_capacity_again() -> void:
 func test_the_first_coupon_takes_the_coupon_slot() -> void:
 	var run: RunState = _run(17)
 	run.place(_add(run, BREAD), 0)
-	assert_int(RowCapacity.coupon_slots_used(run.balance, run.row)).is_equal(0)
+	assert_int(RowCapacity.coupon_slots_used(run.limits, run.row)).is_equal(0)
 	run.place(_add(run, REPEAT), 0)
-	assert_int(RowCapacity.coupon_slots_used(run.balance, run.row)).is_equal(1)
+	assert_int(RowCapacity.coupon_slots_used(run.limits, run.row)).is_equal(1)
 	run.place(_add(run, REPEAT), 1)
-	assert_int(RowCapacity.coupon_slots_used(run.balance, run.row)).is_equal(1)
+	assert_int(RowCapacity.coupon_slots_used(run.limits, run.row)).is_equal(1)
 
 
 ## The neutral script default: without coupon slots the row holds slot_count cards of any kind.
@@ -136,7 +136,7 @@ func test_without_coupon_slots_the_row_holds_slot_count_cards() -> void:
 	run.start_shift()
 	for index: int in range(6):
 		run.place(_add(run, REPEAT if index == 2 else BREAD), index)
-	assert_int(RowCapacity.card_limit(run.balance)).is_equal(6)
+	assert_int(RowCapacity.card_limit(run.limits)).is_equal(6)
 	assert_bool(run.can_place(_add(run, REPEAT))).is_false()
 	assert_bool(run.can_place(_add(run, BREAD))).is_false()
 

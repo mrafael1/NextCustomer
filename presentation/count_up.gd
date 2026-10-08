@@ -288,9 +288,15 @@ func _linked(step: ScoreStep) -> void:
 	line.add_point(right.center() - _overlay.global_position)
 	_overlay.add_child(line)
 	_sfx.play("link")
-	var source: CardView = _source_view(step)
+	# A coupon's link punches the coupon. An upgrade's (Rule bender) comes out of its
+	# loyalty-card box: its name flies to the link, so the player sees what joined the cards.
+	var source: Control = _source_control(step)
 	if source != null:
-		_punch(source.body, 1.15)
+		_punch(_moving_part(source), 1.15)
+	var box: Control = _upgrade_box(step)
+	if box != null:
+		var middle: Vector2 = (left.center() + right.center()) / 2.0
+		_fly_text(step.text, _center(box), middle, Palette.TEAL, 20, 0.35, true)
 	_punch(left.body, 1.12)
 	_punch(right.body, 1.12)
 	var tween: Tween = _tween()

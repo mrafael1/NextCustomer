@@ -144,7 +144,7 @@ func test_a_ticket_shows_its_fields_in_order() -> void:
 				coupon_engine.type_label().to_upper(),
 				coupon_engine.effect_text,
 				coupon_engine.condition_text,
-				"Supports: %s" % coupon_engine.supported_build,
+				"Supports: %s" % coupon_engine.build_names(),
 			]
 		)
 	)
@@ -416,3 +416,32 @@ static func _left_click() -> InputEventMouseButton:
 
 static func _event_log() -> EventLogService:
 	return (Engine.get_main_loop() as SceneTree).root.get_node("/root/EventLog")
+
+
+## Big basket and Extra coupon slot make a 9-slot row: it is rebuilt with 9 slots and scaled to
+## the width the screen was laid out for, so every slot stays on screen, apart, and clear of the
+## receipt. The usual 7-slot row is never scaled.
+func test_a_nine_slot_row_fits_the_screen() -> void:
+	var runner: GdUnitSceneRunner = scene_runner(SCREEN)
+	var screen: ShiftScreen = runner.scene()
+	screen._on_reward_skipped()  # Past the impulse rack.
+	await await_idle_frame()
+	assert_int(screen._slots.size()).is_equal(7)
+	assert_vector(screen._row_box.scale).is_equal(Vector2.ONE)
+	screen._debug.give_upgrade("big_basket")
+	screen._debug.give_upgrade("extra_coupon_slot")
+	for _frame: int in range(3):
+		await await_idle_frame()
+	assert_int(screen._slots.size()).is_equal(9)
+	assert_float(screen._row_box.scale.x).is_less(1.0)
+	assert_str(screen._capacity_label.text).contains("Products 0/7").contains("Coupon slots 0/2")
+	var window: Rect2 = screen.get_viewport_rect()
+	var receipt: Rect2 = screen._receipt.get_global_rect()
+	var previous: Rect2 = Rect2()
+	for slot: int in range(screen._slots.size()):
+		var rect: Rect2 = screen._slots[slot].get_global_rect()
+		assert_bool(window.encloses(rect)).override_failure_message(str(rect)).is_true()
+		assert_bool(rect.intersects(receipt)).override_failure_message(str(rect)).is_false()
+		if slot > 0:
+			assert_float(rect.position.x).is_greater_equal(previous.end.x)
+		previous = rect

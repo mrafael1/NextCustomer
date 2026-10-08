@@ -1,0 +1,10 @@
+[gd_resource type="Resource" script_class="BuildDefinition" format=3]
+
+[ext_resource type="Script" path="res://core/build_definition.gd" id="1_build"]
+
+[resource]
+script = ExtResource("1_build")
+id = &"mixed_basket"
+display_name = "Mixed basket"
+measure = 4
+min_count = 6
