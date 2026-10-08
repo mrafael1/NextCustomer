@@ -6,3 +6,6 @@ build/
 
 # Generated test reports
 reports/
+
+# Python bytecode (tools/*.py)
+__pycache__/
