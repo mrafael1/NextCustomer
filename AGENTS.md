@@ -2,7 +2,7 @@
 
 A single-player 2D roguelike about a supermarket cashier. Players draft grocery and coupon cards, arrange their scanning order, and meet a sales quota each shift. Windows (mouse) with a browser build for playtests.
 
-**Current phase: full build, phase 1.** Read `docs/FULL_BUILD_PLAN.md` before starting work; build only the current phase, and ask before starting work from a later one. The prototype closed at proto-r1; `docs/PROTOTYPE_PLAN.md` stays the scoring-rule spec that `core/AGENTS.md` points to.
+**Current phase: full build, phase 2.** Phase 1 closed on 2026-10-08; phase 2's tasks are the issues on the GitHub milestone "Phase 2", each starting with what to decide with the user. Read `docs/FULL_BUILD_PLAN.md` before starting work; build only the current phase, and ask before starting work from a later one. The prototype closed at proto-r1; `docs/PROTOTYPE_PLAN.md` stays the scoring-rule spec that `core/AGENTS.md` points to.
 
 ## Engine and language
 
