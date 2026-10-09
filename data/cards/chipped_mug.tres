@@ -1,0 +1,23 @@
+[gd_resource type="Resource" script_class="CardDefinition" format=3]
+
+[ext_resource type="Script" path="res://core/rule.gd" id="1_rule"]
+[ext_resource type="Script" path="res://core/rules/adjacent_match_bonus_rule.gd" id="2_chipped_mug"]
+[ext_resource type="Script" path="res://core/card_definition.gd" id="3_card"]
+
+[sub_resource type="Resource" id="Resource_chipped_mug"]
+script = ExtResource("2_chipped_mug")
+match_by = 2
+match_value = "coffee"
+position = 2
+bonus = 3
+receipt_text = "Chipped mug beside Coffee"
+
+[resource]
+script = ExtResource("3_card")
+id = &"chipped_mug"
+display_name = "Chipped mug"
+kind = 1
+tags = PackedStringArray("Household", "Clearance")
+base = 1
+rules = Array[ExtResource("1_rule")]([SubResource("Resource_chipped_mug")])
+rule_text = "+3 if beside Coffee"

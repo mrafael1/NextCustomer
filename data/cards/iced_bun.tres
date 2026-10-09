@@ -1,0 +1,23 @@
+[gd_resource type="Resource" script_class="CardDefinition" format=3]
+
+[ext_resource type="Script" path="res://core/rule.gd" id="1_rule"]
+[ext_resource type="Script" path="res://core/rules/grant_charged_multiplier_rule.gd" id="2_iced_bun"]
+[ext_resource type="Script" path="res://core/card_definition.gd" id="3_card"]
+
+[sub_resource type="Resource" id="Resource_iced_bun"]
+script = ExtResource("2_iced_bun")
+tag = "Bakery"
+factor = 2
+charges = 1
+group = &"bun_charges"
+receipt_text = "Iced bun ×2"
+
+[resource]
+script = ExtResource("3_card")
+id = &"iced_bun"
+display_name = "Iced bun"
+kind = 1
+tags = PackedStringArray("Food", "Bakery")
+base = 1
+rules = Array[ExtResource("1_rule")]([SubResource("Resource_iced_bun")])
+rule_text = "Double the next Bakery payout"

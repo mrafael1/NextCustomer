@@ -7,6 +7,8 @@
 [ext_resource type="Resource" path="res://data/cards/butter.tres" id="5_butter"]
 [ext_resource type="Resource" path="res://data/cards/yogurt.tres" id="6_yogurt"]
 [ext_resource type="Resource" path="res://data/cards/reduced_yogurt.tres" id="7_reduced_yogurt"]
+[ext_resource type="Resource" path="res://data/cards/cream.tres" id="8_cream"]
+[ext_resource type="Resource" path="res://data/cards/ham_ends.tres" id="9_ham_ends"]
 
 [resource]
 script = ExtResource("1_aisle")
@@ -14,3 +16,4 @@ id = &"cold_cases"
 display_name = "Cold cases"
 sign_color = Color(0.3098, 0.6039, 0.5804, 1)
 base_cards = Array[ExtResource("2_card")]([ExtResource("3_cheese"), ExtResource("4_frozen_peas"), ExtResource("5_butter"), ExtResource("6_yogurt"), ExtResource("7_reduced_yogurt")])
+capsule_cards = Array[ExtResource("2_card")]([ExtResource("8_cream"), ExtResource("9_ham_ends")])

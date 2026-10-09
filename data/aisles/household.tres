@@ -6,6 +6,9 @@
 [ext_resource type="Resource" path="res://data/cards/scissors.tres" id="4_scissors"]
 [ext_resource type="Resource" path="res://data/cards/batteries.tres" id="5_batteries"]
 [ext_resource type="Resource" path="res://data/cards/flickering_bulb.tres" id="6_flickering_bulb"]
+[ext_resource type="Resource" path="res://data/cards/egg_timer.tres" id="7_egg_timer"]
+[ext_resource type="Resource" path="res://data/cards/chipped_mug.tres" id="8_chipped_mug"]
+[ext_resource type="Resource" path="res://data/cards/odd_socks.tres" id="9_odd_socks"]
 
 [resource]
 script = ExtResource("1_aisle")
@@ -13,3 +16,4 @@ id = &"household"
 display_name = "Household"
 sign_color = Color(0.5412, 0.5059, 0.4471, 1)
 base_cards = Array[ExtResource("2_card")]([ExtResource("3_carrier_bag"), ExtResource("4_scissors"), ExtResource("5_batteries"), ExtResource("6_flickering_bulb")])
+capsule_cards = Array[ExtResource("2_card")]([ExtResource("7_egg_timer"), ExtResource("8_chipped_mug"), ExtResource("9_odd_socks")])

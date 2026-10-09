@@ -1,0 +1,21 @@
+[gd_resource type="Resource" script_class="CardDefinition" format=3]
+
+[ext_resource type="Script" path="res://core/rule.gd" id="1_rule"]
+[ext_resource type="Script" path="res://core/rules/count_earlier_tag_bonus_rule.gd" id="2_dusty_toffees"]
+[ext_resource type="Script" path="res://core/card_definition.gd" id="3_card"]
+
+[sub_resource type="Resource" id="Resource_dusty_toffees"]
+script = ExtResource("2_dusty_toffees")
+tag = "Clearance"
+bonus_each = 2
+receipt_text = "Dusty toffees: earlier Clearance"
+
+[resource]
+script = ExtResource("3_card")
+id = &"dusty_toffees"
+display_name = "Dusty toffees"
+kind = 1
+tags = PackedStringArray("Food", "Snack", "Clearance")
+base = 1
+rules = Array[ExtResource("1_rule")]([SubResource("Resource_dusty_toffees")])
+rule_text = "+2 for each earlier Clearance product"

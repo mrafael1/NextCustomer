@@ -1,0 +1,19 @@
+[gd_resource type="Resource" script_class="AisleDefinition" format=3]
+
+[ext_resource type="Script" path="res://core/aisle_definition.gd" id="1_aisle"]
+[ext_resource type="Script" path="res://core/card_definition.gd" id="2_card"]
+[ext_resource type="Resource" path="res://data/cards/baguette.tres" id="3_baguette"]
+[ext_resource type="Resource" path="res://data/cards/scone.tres" id="4_scone"]
+[ext_resource type="Resource" path="res://data/cards/croissant.tres" id="5_croissant"]
+[ext_resource type="Resource" path="res://data/cards/broken_biscuit.tres" id="6_broken_biscuit"]
+[ext_resource type="Resource" path="res://data/cards/iced_bun.tres" id="7_iced_bun"]
+[ext_resource type="Resource" path="res://data/cards/birthday_candles.tres" id="8_birthday_candles"]
+[ext_resource type="Resource" path="res://data/cards/squashed_cake.tres" id="9_squashed_cake"]
+[ext_resource type="Resource" path="res://data/cards/stale_doughnut.tres" id="10_stale_doughnut"]
+
+[resource]
+script = ExtResource("1_aisle")
+id = &"bakery"
+display_name = "Bakery"
+sign_color = Color(0.8235, 0.6588, 0.4549, 1)
+capsule_cards = Array[ExtResource("2_card")]([ExtResource("3_baguette"), ExtResource("4_scone"), ExtResource("5_croissant"), ExtResource("6_broken_biscuit"), ExtResource("7_iced_bun"), ExtResource("8_birthday_candles"), ExtResource("9_squashed_cake"), ExtResource("10_stale_doughnut")])

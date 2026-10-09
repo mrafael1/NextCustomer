@@ -1,0 +1,21 @@
+[gd_resource type="Resource" script_class="CardDefinition" format=3]
+
+[ext_resource type="Script" path="res://core/rule.gd" id="1_rule"]
+[ext_resource type="Script" path="res://core/rules/grant_next_tag_bonus_rule.gd" id="2_birthday_candles"]
+[ext_resource type="Script" path="res://core/card_definition.gd" id="3_card"]
+
+[sub_resource type="Resource" id="Resource_birthday_candles"]
+script = ExtResource("2_birthday_candles")
+tag = "Bakery"
+bonus = 3
+receipt_text = "Birthday candles bonus"
+
+[resource]
+script = ExtResource("3_card")
+id = &"birthday_candles"
+display_name = "Birthday candles"
+kind = 1
+tags = PackedStringArray("Household")
+base = 1
+rules = Array[ExtResource("1_rule")]([SubResource("Resource_birthday_candles")])
+rule_text = "+3 to the next Bakery product"

@@ -43,8 +43,9 @@ const STARTING_STOCK := [
 ]
 
 
-## The prototype's four (Banana, Bread, Eggs, Milk) and one per base aisle (Butter, Cereal,
-## Carrier bag), all decided with the user.
+## The prototype's four (Banana, Bread, Eggs, Milk), one per base aisle (Butter, Cereal,
+## Carrier bag, v0.22) and the capsule items' (Mixed herbs in Pantry, Strawberries, Scone and
+## Crisps in the machine-opened aisles, v0.27), all decided with the user.
 func test_generally_useful_cards_are_the_decided_ones() -> void:
 	var useful: Array = []
 	for file: String in DirAccess.get_files_at("res://data/cards"):
@@ -53,8 +54,23 @@ func test_generally_useful_cards_are_the_decided_ones() -> void:
 			if card.generally_useful:
 				useful.append(String(card.id))
 	useful.sort()
-	assert_array(useful).is_equal(
-		["banana", "bread", "butter", "carrier_bag", "cereal", "eggs", "milk"]
+	(
+		assert_array(useful)
+		. is_equal(
+			[
+				"banana",
+				"bread",
+				"butter",
+				"carrier_bag",
+				"cereal",
+				"crisps",
+				"eggs",
+				"milk",
+				"mixed_herbs",
+				"scone",
+				"strawberries",
+			]
+		)
 	)
 
 

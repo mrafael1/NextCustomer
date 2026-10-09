@@ -1,0 +1,18 @@
+[gd_resource type="Resource" script_class="AisleDefinition" format=3]
+
+[ext_resource type="Script" path="res://core/aisle_definition.gd" id="1_aisle"]
+[ext_resource type="Script" path="res://core/card_definition.gd" id="2_card"]
+[ext_resource type="Resource" path="res://data/cards/crisps.tres" id="3_crisps"]
+[ext_resource type="Resource" path="res://data/cards/cereal_bar.tres" id="4_cereal_bar"]
+[ext_resource type="Resource" path="res://data/cards/bent_lolly.tres" id="5_bent_lolly"]
+[ext_resource type="Resource" path="res://data/cards/pick_n_mix.tres" id="6_pick_n_mix"]
+[ext_resource type="Resource" path="res://data/cards/stale_popcorn.tres" id="7_stale_popcorn"]
+[ext_resource type="Resource" path="res://data/cards/breadsticks.tres" id="8_breadsticks"]
+[ext_resource type="Resource" path="res://data/cards/dusty_toffees.tres" id="9_dusty_toffees"]
+
+[resource]
+script = ExtResource("1_aisle")
+id = &"snacks"
+display_name = "Snacks"
+sign_color = Color(0.4784, 0.3216, 0.1961, 1)
+capsule_cards = Array[ExtResource("2_card")]([ExtResource("3_crisps"), ExtResource("4_cereal_bar"), ExtResource("5_bent_lolly"), ExtResource("6_pick_n_mix"), ExtResource("7_stale_popcorn"), ExtResource("8_breadsticks"), ExtResource("9_dusty_toffees")])

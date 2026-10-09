@@ -1,0 +1,19 @@
+[gd_resource type="Resource" script_class="AisleDefinition" format=3]
+
+[ext_resource type="Script" path="res://core/aisle_definition.gd" id="1_aisle"]
+[ext_resource type="Script" path="res://core/card_definition.gd" id="2_card"]
+[ext_resource type="Resource" path="res://data/cards/fruit_salad.tres" id="3_fruit_salad"]
+[ext_resource type="Resource" path="res://data/cards/strawberries.tres" id="4_strawberries"]
+[ext_resource type="Resource" path="res://data/cards/grapefruit.tres" id="5_grapefruit"]
+[ext_resource type="Resource" path="res://data/cards/wonky_carrot.tres" id="6_wonky_carrot"]
+[ext_resource type="Resource" path="res://data/cards/lemon.tres" id="7_lemon"]
+[ext_resource type="Resource" path="res://data/cards/bruised_apples.tres" id="8_bruised_apples"]
+[ext_resource type="Resource" path="res://data/cards/soft_tomatoes.tres" id="9_soft_tomatoes"]
+[ext_resource type="Resource" path="res://data/cards/potatoes.tres" id="10_potatoes"]
+
+[resource]
+script = ExtResource("1_aisle")
+id = &"fruit_and_veg"
+display_name = "Fruit & veg"
+sign_color = Color(0.2392, 0.4784, 0.2706, 1)
+capsule_cards = Array[ExtResource("2_card")]([ExtResource("3_fruit_salad"), ExtResource("4_strawberries"), ExtResource("5_grapefruit"), ExtResource("6_wonky_carrot"), ExtResource("7_lemon"), ExtResource("8_bruised_apples"), ExtResource("9_soft_tomatoes"), ExtResource("10_potatoes")])
