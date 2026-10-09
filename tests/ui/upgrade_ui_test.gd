@@ -278,8 +278,8 @@ func test_the_results_screen_lists_the_run_history() -> void:
 	assert_bool(screen._results.visible).is_true()
 	var cells: PackedStringArray = screen._results._history_view.cell_texts()
 	var expected: Array = RunHistoryView.HEADERS.duplicate()
-	expected.append_array(["1", "€27 / €10", "pass", "skipped", "—", "—"])
-	expected.append_array(["2", "€0 / €13", "fail", "—", "—", "—"])
+	expected.append_array(["1", "€115 / €41", "pass", "skipped", "—", "—"])
+	expected.append_array(["2", "€0 / €42", "fail", "—", "—", "—"])
 	assert_array(Array(cells)).is_equal(expected)
 	# A full 8-shift history still fits the window.
 	var full: Array[ShiftRecord] = []
@@ -332,9 +332,9 @@ func test_the_receipt_names_the_upgrade() -> void:
 	assert_str(ReceiptView.source_text(step, names)).is_equal("tag bonus")
 
 
-## Places a row that passes the first two quotas: Bread, Multipack, Bread x4 = 27.
+## Places a row that passes the first five quotas: Eggs, Multipack, Milk x5 = 115.
 func _pass_shift(screen: ShiftScreen) -> void:
-	_place_ids(screen, ["bread", "multipack", "bread", "bread", "bread", "bread"])
+	_place_ids(screen, ["eggs", "multipack", "milk", "milk", "milk", "milk", "milk"])
 	await screen._on_checkout_pressed()
 	assert_int(screen.run.phase).is_equal(RunState.Phase.REWARD)
 

@@ -31,6 +31,10 @@ var passed: PackedInt32Array = PackedInt32Array()
 ## Per shift: runs that played it against a raised quota (Big basket). `quotas` are the base.
 var raised: PackedInt32Array = PackedInt32Array()
 var scores: Array[PackedInt32Array] = []
+## Per shift: the exact best totals, and each played total as a share of its best in percent
+## (100 when the best is 0). They differ from `scores` only for "@sensible" strategies.
+var best_scores: Array[PackedInt32Array] = []
+var best_shares: Array[PackedInt32Array] = []
 var drawn: Dictionary[String, int] = {}
 var in_best: Dictionary[String, int] = {}
 var needed: Dictionary[String, int] = {}
@@ -63,6 +67,8 @@ func _init(strategy_name: String, run_quotas: PackedInt32Array, summary_title: S
 	raised.resize(quotas.size())
 	for _shift: int in range(quotas.size()):
 		scores.append(PackedInt32Array())
+		best_scores.append(PackedInt32Array())
+		best_shares.append(PackedInt32Array())
 
 
 func add(record: SimRunRecord) -> void:
@@ -78,6 +84,9 @@ func add(record: SimRunRecord) -> void:
 		var index: int = entry["shift"] - 1
 		reached[index] += 1
 		scores[index].append(entry["total"])
+		var best: int = entry.get("best", entry["total"])
+		best_scores[index].append(best)
+		best_shares[index].append(100 if best <= 0 else floori(100.0 * entry["total"] / best))
 		if entry["passed"]:
 			passed[index] += 1
 		if int(entry["quota"]) > quotas[index]:
@@ -210,12 +219,15 @@ func format() -> String:
 			line += "%5s" % _score_text(percentile(index, percent))
 		line += "%6s" % _score_text(percentile(index, 100))
 		lines.append(line)
+	if strategy.ends_with(SimPlayer.SENSIBLE_SUFFIX):
+		lines.append("")
+		lines.append_array(_best_lines())
 	lines.append("")
-	lines.append("Card               Hands  In best row  Needed")
+	lines.append("Card               Hands  In row  Needed")
 	for id: String in _card_ids():
 		lines.append(
 			(
-				"%-17s %6d  %11s  %6s"
+				"%-17s %6d  %6s  %6s"
 				% [
 					id,
 					drawn[id],
@@ -262,6 +274,38 @@ func format() -> String:
 	lines.append("")
 	lines.append_array(_coin_lines())
 	return "\n".join(lines)
+
+
+## The exact best rows beside the sensible rows played (decided with the user, #41).
+func _best_lines() -> PackedStringArray:
+	var lines: PackedStringArray = PackedStringArray()
+	lines.append("Exact best rows of the same hands, and the rows played as a share of them")
+	var header: String = "Shift  "
+	for percent: int in PERCENTILES:
+		header += "%5s" % ("p%d" % percent)
+	lines.append(header + "   Share p10  p50  mean  At best")
+	for index: int in range(quotas.size()):
+		var line: String = "%5d  " % (index + 1)
+		for percent: int in PERCENTILES:
+			line += "%5s" % _score_text(nearest_rank(best_scores[index], percent))
+		var shares: PackedInt32Array = best_shares[index]
+		var at_best: int = 0
+		var sum: int = 0
+		for share: int in shares:
+			sum += share
+			if share >= 100:
+				at_best += 1
+		line += (
+			"   %8s%% %3s%% %5s  %7s"
+			% [
+				_score_text(nearest_rank(shares, 10)),
+				_score_text(nearest_rank(shares, 50)),
+				"%.1f" % (float(sum) / shares.size()) if not shares.is_empty() else "-",
+				percent_text(at_best, shares.size()),
+			]
+		)
+		lines.append(line)
+	return lines
 
 
 func _build_lines() -> PackedStringArray:
@@ -331,12 +375,16 @@ func _coin_lines() -> PackedStringArray:
 	return lines
 
 
+## Each shift's "best_totals" are the percentiles of the totals played (the name predates the
+## sensible rows); "exact_best_totals" are the exact best rows', the same for best rows.
 func to_dictionary() -> Dictionary:
 	var shifts: Array[Dictionary] = []
 	for index: int in range(quotas.size()):
 		var percentiles: Dictionary[String, int] = {}
+		var best_percentiles: Dictionary[String, int] = {}
 		for percent: int in PERCENTILES + [100]:
 			percentiles["p%d" % percent] = percentile(index, percent)
+			best_percentiles["p%d" % percent] = nearest_rank(best_scores[index], percent)
 		(
 			shifts
 			. append(
@@ -347,6 +395,8 @@ func to_dictionary() -> Dictionary:
 					"played": reached[index],
 					"passed": passed[index],
 					"best_totals": percentiles,
+					"exact_best_totals": best_percentiles,
+					"share_of_best_p50": nearest_rank(best_shares[index], 50),
 				}
 			)
 		)

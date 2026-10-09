@@ -228,7 +228,7 @@ func test_the_first_reward_after_a_pick_is_still_the_combination_offer() -> void
 	var run: RunState = _run(8)
 	run.take_reward(run.impulse_offer[0])
 	run.start_shift()
-	for id: String in ["bread", "multipack", "bread", "bread", "bread", "bread"]:
+	for id: String in ["eggs", "multipack", "milk", "milk", "milk", "milk", "milk"]:
 		run.place(run.debug_add_to_hand(load("res://data/cards/%s.tres" % id)), run.row.size())
 	run.checkout()
 	assert_int(run.phase).is_equal(RunState.Phase.REWARD)

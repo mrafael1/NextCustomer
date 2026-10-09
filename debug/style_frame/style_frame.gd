@@ -206,7 +206,7 @@ func _build_top_bar() -> void:
 	sign_row.add_child(_number("€%d" % _quota(), 20, true))
 
 	var card: PanelContainer = _panel(LOYALTY_FRAME, 3, Vector4(10, 6, 8, 4))
-	card.position = Vector2(300, 6)
+	card.position = Vector2(320, 6)
 	_stage.add_child(card)
 	var card_row: HBoxContainer = HBoxContainer.new()
 	card_row.add_theme_constant_override("separation", 6)
@@ -227,7 +227,7 @@ func _build_top_bar() -> void:
 		card_row.add_child(box)
 
 	_tag = _panel(TAG_FRAME, 3, Vector4(10, 4, 10, 5))
-	_tag.position = Vector2(520, 12)
+	_tag.position = Vector2(540, 12)
 	_tag.tooltip_text = INSPECTION.notice_text
 	_tag.mouse_filter = Control.MOUSE_FILTER_PASS
 	_stage.add_child(_tag)

@@ -149,7 +149,7 @@ func test_run_info_announces_a_scheduled_inspection() -> void:
 func test_run_info_during_the_reward_shows_the_drawn_inspection() -> void:
 	var screen: ShiftScreen = await _screen()
 	screen._debug.skip_to_shift(2)
-	for id: String in ["bread", "multipack", "bread", "bread", "bread", "bread"]:
+	for id: String in ["eggs", "multipack", "milk", "milk", "milk", "milk", "milk"]:
 		var card: CardDefinition = load("res://data/cards/%s.tres" % id)
 		screen.run.place(screen.run.debug_add_to_hand(card), screen.run.row.size())
 	await screen._on_checkout_pressed()
@@ -211,7 +211,7 @@ func test_a_reward_at_the_deck_limit_removes_one_copy_of_a_grouped_card() -> voi
 	var run: RunState = screen.run
 	while not run.deck_is_full():
 		run.deck.add_card(load("res://data/cards/soup.tres"))
-	for id: String in ["bread", "multipack", "bread", "bread", "bread", "bread"]:
+	for id: String in ["eggs", "multipack", "milk", "milk", "milk", "milk", "milk"]:
 		var card: CardDefinition = load("res://data/cards/%s.tres" % id)
 		run.place(run.debug_add_to_hand(card), run.row.size())
 	await screen._on_checkout_pressed()

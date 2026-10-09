@@ -7,8 +7,8 @@ extends GdUnitTestSuite
 
 const SCREEN := "res://ui/shift_screen.tscn"
 const BALANCE := "res://data/balance/balance.tres"
-## Bread, Multipack, Bread x4 = 27: passes the first two quotas.
-const PASSING_ROW: Array[String] = ["bread", "multipack", "bread", "bread", "bread", "bread"]
+## Eggs, Multipack, Milk x5 = 115: passes the first five quotas.
+const PASSING_ROW: Array[String] = ["eggs", "multipack", "milk", "milk", "milk", "milk", "milk"]
 
 var _folder: String = ""
 var _errors: Array[String] = []
@@ -53,7 +53,7 @@ func test_the_screen_saves_at_every_save_point_and_deletes_the_save_at_the_end()
 	assert_int(int(_saved()["redraws_used"])).is_equal(1)
 	assert_array(_hand_ids(_saved())).is_equal(_instance_ids(screen.run.deck.hand()))
 	_place_ids(screen, PASSING_ROW)
-	assert_int((_saved()["row"] as Array).size()).is_equal(6)
+	assert_int((_saved()["row"] as Array).size()).is_equal(PASSING_ROW.size())
 
 	screen._on_checkout_pressed()
 	assert_bool(screen._counting).is_true()

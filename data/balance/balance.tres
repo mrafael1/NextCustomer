@@ -32,7 +32,7 @@
 
 [resource]
 script = ExtResource("1_balance")
-quotas = PackedInt32Array(10, 13, 17, 22, 27, 33, 40, 48)
+quotas = PackedInt32Array(41, 42, 65, 77, 87, 123, 124, 149)
 hand_size = 8
 redraw_limit = 2
 slot_count = 6
@@ -53,6 +53,6 @@ upgrade_pool = Array[ExtResource("u1_upgrade")]([ExtResource("u2_coupon_engine")
 upgrade_offer_size = 3
 inspection_shifts = PackedInt32Array(3, 5, 7)
 inspection_pool = Array[ExtResource("i1_inspection")]([ExtResource("i2_spot_check"), ExtResource("i3_short_belt"), ExtResource("i4_coupon_slot_closed")])
-coins_by_shifts_passed = PackedInt32Array(0, 0, 1, 1, 1, 1, 1, 1, 2)
-overtime_coin_euros = 60
+coins_by_shifts_passed = PackedInt32Array(0, 0, 0, 0, 1, 1, 1, 1, 2)
+overtime_coin_euros = 700
 overtime_coin_max = 1
