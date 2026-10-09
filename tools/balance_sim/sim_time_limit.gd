@@ -1,9 +1,10 @@
 class_name SimTimeLimit
 extends RefCounted
 ## The balance simulator's time limit (--max-minutes): the time is shared out between its phases
-## (each strategy's runs, then the coupon duel), so a run cut short still plays some of every
-## strategy. A phase may use what earlier phases left over. A run or sample under way when its
-## phase's time is up still finishes. 0 minutes: no limit.
+## (each collection state's runs with each strategy, then the coupon duel, then the orphan
+## check), so a run cut short still plays some of every one. A phase may use what earlier phases
+## left over. The row search stops at its phase's end, so a run or sample still under way then is
+## dropped, never reported half played. 0 minutes: no limit.
 
 var _limited: bool = false
 var _end_msec: int = 0
