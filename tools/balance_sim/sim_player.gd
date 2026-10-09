@@ -5,7 +5,8 @@ extends RefCounted
 ## inspections.
 ## Only the choices come from the simulator. An inspected shift's best row is searched under its
 ## inspection; reward and upgrade picks don't look ahead to the next shift's inspection. Every
-## run stocks what a new profile does (RunStock.starting, full build plan 7.2).
+## run stocks the stock it is given (a collection state's, SimCollection), by default what a new
+## profile stocks (RunStock.starting, full build plan 7.2).
 ##
 ## Every shift plays the best row of the hand (SimRowSearch). First it redraws, for as long as
 ## redraws are left, the hand cards the best row doesn't use (at most redraw_limit each time,
@@ -18,10 +19,14 @@ extends RefCounted
 ## - "random": a random offered card, never a skip
 ## - "skip": always skips, so the deck stays the starting deck
 ## - "favour:id+id": the first offered card in its list, else as greedy (a build-focused player)
+## - "build:id": drafts towards a build (SimBuilds, decided with the user, #40): of the offered
+##   cards, those that raise the build's measure most, the best of them as greedy judges it
+##   (never a skip); when none raises it, as greedy. Its upgrade pick is the first offered
+##   upgrade that lists the build, else as greedy.
 ## Upgrades are always picked (there is no skip): at random by "random", else greedily. At the
 ## deck limit, the card that leaves is the deck card the run's best rows used least.
 
-const STRATEGIES: Array[String] = ["greedy", "random", "skip", "favour:"]
+const STRATEGIES: Array[String] = ["greedy", "random", "skip", "favour:", "build:"]
 
 var _starter: DeckDefinition
 var _balance: BalanceDefinition
@@ -29,6 +34,9 @@ var _stock: RunStock
 var _search: SimRowSearch
 var _strategy: String
 var _favoured: Array[StringName] = []
+var _builds: SimBuilds
+## The build a "build:id" strategy drafts towards, else null.
+var _target: BuildDefinition
 var _samples: int
 ## The strategy's own randomness (picks, sample hands), seeded from the run seed. The run's
 ## draws and offers keep using the run's RNG, as in the game.
@@ -40,22 +48,29 @@ func _init(
 	balance: BalanceDefinition,
 	search: SimRowSearch,
 	strategy: String,
-	samples: int
+	samples: int,
+	stock: RunStock = null,
+	builds: SimBuilds = null
 ) -> void:
 	_starter = starter
 	_balance = balance
-	_stock = RunStock.starting(starter, balance)
+	_stock = stock if stock != null else RunStock.starting(starter, balance)
+	var no_builds: Array[BuildDefinition] = []
+	_builds = builds if builds != null else SimBuilds.new(no_builds)
 	_search = search
 	_strategy = strategy
 	_samples = maxi(samples, 1)
 	if strategy.begins_with("favour:"):
 		for id: String in strategy.trim_prefix("favour:").split("+", false):
 			_favoured.append(StringName(id))
+	if strategy.begins_with("build:"):
+		_target = _builds.find(strategy.trim_prefix("build:"))
 
 
 static func is_known_strategy(strategy: String) -> bool:
-	if strategy.begins_with("favour:"):
-		return not strategy.trim_prefix("favour:").is_empty()
+	for prefix: String in ["favour:", "build:"]:
+		if strategy.begins_with(prefix):
+			return not strategy.trim_prefix(prefix).is_empty()
 	return STRATEGIES.has(strategy)
 
 
@@ -92,6 +107,10 @@ func play(run_seed: int) -> SimRunRecord:
 		record.shifts.append(entry.to_dictionary())
 	for card: CardInstance in run.deck.cards:
 		record.final_deck.append(String(card.definition.id))
+	record.main_build = _builds.main_build(_deck_definitions(run.deck.cards))
+	var payout: CoinPayout = CoinPayout.for_run(run)
+	record.coins = payout.total()
+	record.overtime_coins = payout.overtime_coins
 	return record
 
 
@@ -148,8 +167,10 @@ func _pick_reward(run: RunState, usage: Dictionary[CardDefinition, int]) -> void
 			for card: CardDefinition in run.offer:
 				if choice == null and card.id == id:
 					choice = card
+		if choice == null and _target != null:
+			choice = _build_card(run, usage)
 		if choice == null:
-			choice = _greedy_card(run, usage)
+			choice = _greedy_card(run, usage, run.offer, true)
 	if choice == null:
 		run.skip_reward()
 		return
@@ -157,18 +178,54 @@ func _pick_reward(run: RunState, usage: Dictionary[CardDefinition, int]) -> void
 	run.take_reward(choice, replaced)
 
 
-## The offered card with the highest mean best total, or null when skipping does at least as
-## well. Every option is judged on the same sample shuffles.
-func _greedy_card(run: RunState, usage: Dictionary[CardDefinition, int]) -> CardDefinition:
+## For "build:id": the offered card that raises the build's measure most (the best of those as
+## greedy judges them), or null when none raises it.
+func _build_card(run: RunState, usage: Dictionary[CardDefinition, int]) -> CardDefinition:
+	var candidates: Array[CardDefinition] = raising_cards(
+		_target, _kept_deck(run, usage), run.offer
+	)
+	if candidates.size() <= 1:
+		return null if candidates.is_empty() else candidates[0]
+	return _greedy_card(run, usage, candidates, false)
+
+
+## The offered cards that raise the build's measure most when added to `deck` (none when no
+## card raises it), in offer order.
+static func raising_cards(
+	build: BuildDefinition, deck: Array[CardDefinition], offer: Array[CardDefinition]
+) -> Array[CardDefinition]:
+	var before: int = build.count(deck)
+	var best_gain: int = 0
+	var candidates: Array[CardDefinition] = []
+	for card: CardDefinition in offer:
+		var with_card: Array[CardDefinition] = deck.duplicate()
+		with_card.append(card)
+		var gain: int = build.count(with_card) - before
+		if gain > best_gain:
+			best_gain = gain
+			candidates.clear()
+		if gain > 0 and gain == best_gain:
+			candidates.append(card)
+	return candidates
+
+
+## The card of `options` with the highest mean best total; when `can_skip`, null if skipping
+## does at least as well. Every option is judged on the same sample shuffles.
+func _greedy_card(
+	run: RunState,
+	usage: Dictionary[CardDefinition, int],
+	options: Array[CardDefinition],
+	can_skip: bool
+) -> CardDefinition:
 	var current: Array[CardDefinition] = _deck_definitions(run.deck.cards)
-	var kept: Array[CardDefinition] = current.duplicate()
-	if run.deck_is_full():
-		kept.erase(_least_used(run, usage).definition)
+	var kept: Array[CardDefinition] = _kept_deck(run, usage)
 	var redraws: int = _redraws_with(run.upgrades)
 	var sample_seed: int = _rng.randi()
 	var choice: CardDefinition = null
-	var best_value: float = _sample_value(current, run.upgrades, redraws, sample_seed)
-	for card: CardDefinition in run.offer:
+	var best_value: float = -1.0
+	if can_skip:
+		best_value = _sample_value(current, run.upgrades, redraws, sample_seed)
+	for card: CardDefinition in options:
 		var deck: Array[CardDefinition] = kept.duplicate()
 		deck.append(card)
 		var value: float = _sample_value(deck, run.upgrades, redraws, sample_seed)
@@ -178,10 +235,35 @@ func _greedy_card(run: RunState, usage: Dictionary[CardDefinition, int]) -> Card
 	return choice
 
 
+## The offered upgrades that list the build (compared by id, so a build file loaded apart from
+## the upgrades' still matches), in offer order.
+static func upgrades_listing(
+	build: BuildDefinition, offer: Array[UpgradeDefinition]
+) -> Array[UpgradeDefinition]:
+	var listing: Array[UpgradeDefinition] = []
+	for upgrade: UpgradeDefinition in offer:
+		if upgrade.builds.any(func(listed: BuildDefinition) -> bool: return listed.id == build.id):
+			listing.append(upgrade)
+	return listing
+
+
+## The deck a reward joins: at the deck limit, without the card that would leave.
+func _kept_deck(run: RunState, usage: Dictionary[CardDefinition, int]) -> Array[CardDefinition]:
+	var kept: Array[CardDefinition] = _deck_definitions(run.deck.cards)
+	if run.deck_is_full():
+		kept.erase(_least_used(run, usage).definition)
+	return kept
+
+
 func _pick_upgrade(run: RunState) -> void:
 	var offer: Array[UpgradeDefinition] = run.upgrade_offer
 	var choice: UpgradeDefinition = offer[0]
-	if _strategy == "random":
+	var fitting: Array[UpgradeDefinition] = []
+	if _target != null:
+		fitting = upgrades_listing(_target, offer)
+	if not fitting.is_empty():
+		choice = fitting[0]
+	elif _strategy == "random":
 		choice = offer[_rng.randi_range(0, offer.size() - 1)]
 	else:
 		var deck: Array[CardDefinition] = _deck_definitions(run.deck.cards)
