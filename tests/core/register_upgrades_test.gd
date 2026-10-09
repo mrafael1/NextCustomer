@@ -44,8 +44,8 @@ func test_big_basket_raises_every_quota_rounded_up() -> void:
 	var raised: Array = []
 	for shift: int in range(balance.quotas.size()):
 		raised.append(ShiftLimits.for_shift(balance, owned, shift).quota)
-	assert_array(Array(balance.quotas)).is_equal([10, 13, 17, 22, 27, 33, 40, 48])
-	assert_array(raised).is_equal([12, 15, 20, 26, 32, 38, 46, 56])
+	assert_array(Array(balance.quotas)).is_equal([41, 42, 65, 77, 87, 123, 124, 149])
+	assert_array(raised).is_equal([48, 49, 75, 89, 101, 142, 143, 172])
 	assert_int(ShiftLimits.raised_quota(20, 15)).is_equal(23)
 	assert_int(ShiftLimits.raised_quota(17, 0)).is_equal(17)
 

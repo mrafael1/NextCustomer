@@ -49,7 +49,7 @@ func test_the_notice_comes_before_the_reward_and_the_kiosk() -> void:
 	# Each line is a left and a right label: TOTAL, its amount, then the notice and its empty
 	# right side.
 	var lines: PackedStringArray = _receipt_lines(screen)
-	assert_array(Array(lines.slice(-4))).is_equal(["TOTAL", "€27", NOTICE, ""])
+	assert_array(Array(lines.slice(-4))).is_equal(["TOTAL", "€115", NOTICE, ""])
 	var notice: Label = _receipt_label(screen, NOTICE)
 	assert_bool(notice.get_theme_color("font_color") == Palette.TOMATO).is_true()
 	assert_str(screen._reward_panel.warning_text()).is_equal(NOTICE)
@@ -122,9 +122,9 @@ func test_the_debug_panel_clears_the_inspection() -> void:
 	assert_str(_last_event("debug")["inspection"]).is_empty()
 
 
-## Places a row that passes the first two quotas: Bread, Multipack, Bread x4 = 27.
+## Places a row that passes the first five quotas: Eggs, Multipack, Milk x5 = 115.
 func _pass_shift(screen: ShiftScreen) -> void:
-	_place_ids(screen, ["bread", "multipack", "bread", "bread", "bread", "bread"])
+	_place_ids(screen, ["eggs", "multipack", "milk", "milk", "milk", "milk", "milk"])
 	await screen._on_checkout_pressed()
 	assert_int(screen.run.phase).is_equal(RunState.Phase.REWARD)
 

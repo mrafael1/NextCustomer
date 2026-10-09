@@ -24,15 +24,29 @@ extends RefCounted
 ##   (never a skip); when none raises it, as greedy. Its upgrade pick is the first offered
 ##   upgrade that lists the build, else as greedy.
 ## Upgrades are always picked (there is no skip): at random by "random", else greedily. At the
-## deck limit, the card that leaves is the deck card the run's best rows used least.
+## deck limit, the card that leaves is the deck card the run's rows used least.
+##
+## Row players (decided with the user, #41): a strategy plays the best row (above) unless it
+## ends in "@sensible" (e.g. "greedy@sensible"). Then every row, the shift's and the greedy
+## valuation's sample hands alike, is the one SimHillClimb plays (a sensible but not optimal
+## order), its redraws replace the cards that row leaves out, and after each redraw it climbs
+## again from the row it kept, with another SimHillClimb.SENSIBLE_CHANGES changes (decided with
+## the user, #41: a player rearranges once new cards arrive). The shift still searches the
+## exact best row to record it beside the played total (the "best" field of each shift). Each
+## shift also records its hand at checkout ("hand", card ids), so a card's absence can be
+## compared with its presence.
 
 const STRATEGIES: Array[String] = ["greedy", "random", "skip", "favour:", "build:"]
+const SENSIBLE_SUFFIX := "@sensible"
 
 var _starter: DeckDefinition
 var _balance: BalanceDefinition
 var _stock: RunStock
 var _search: SimRowSearch
 var _strategy: String
+## True for an "@sensible" strategy: rows come from _climber instead of the exact search.
+var _sensible: bool = false
+var _climber: SimHillClimb = SimHillClimb.new()
 var _favoured: Array[StringName] = []
 var _builds: SimBuilds
 ## The build a "build:id" strategy drafts towards, else null.
@@ -58,16 +72,18 @@ func _init(
 	var no_builds: Array[BuildDefinition] = []
 	_builds = builds if builds != null else SimBuilds.new(no_builds)
 	_search = search
-	_strategy = strategy
+	_sensible = strategy.ends_with(SENSIBLE_SUFFIX)
+	_strategy = strategy.trim_suffix(SENSIBLE_SUFFIX)
 	_samples = maxi(samples, 1)
-	if strategy.begins_with("favour:"):
-		for id: String in strategy.trim_prefix("favour:").split("+", false):
+	if _strategy.begins_with("favour:"):
+		for id: String in _strategy.trim_prefix("favour:").split("+", false):
 			_favoured.append(StringName(id))
-	if strategy.begins_with("build:"):
-		_target = _builds.find(strategy.trim_prefix("build:"))
+	if _strategy.begins_with("build:"):
+		_target = _builds.find(_strategy.trim_prefix("build:"))
 
 
 static func is_known_strategy(strategy: String) -> bool:
+	strategy = strategy.trim_suffix(SENSIBLE_SUFFIX)
 	for prefix: String in ["favour:", "build:"]:
 		if strategy.begins_with(prefix):
 			return not strategy.trim_prefix(prefix).is_empty()
@@ -103,8 +119,11 @@ func play(run_seed: int) -> SimRunRecord:
 			_pick_upgrade(run)
 		run.next_shift()
 	record.won = run.phase == RunState.Phase.WON
-	for entry: ShiftRecord in run.history:
-		record.shifts.append(entry.to_dictionary())
+	for index: int in range(run.history.size()):
+		var entry: Dictionary = run.history[index].to_dictionary()
+		entry["best"] = record.best_totals[index]
+		entry["hand"] = record.hands[index]
+		record.shifts.append(entry)
 	for card: CardInstance in run.deck.cards:
 		record.final_deck.append(String(card.definition.id))
 	record.main_build = _builds.main_build(_deck_definitions(run.deck.cards))
@@ -117,36 +136,65 @@ func play(run_seed: int) -> SimRunRecord:
 func _play_shift(
 	run: RunState, record: SimRunRecord, usage: Dictionary[CardDefinition, int]
 ) -> void:
-	var best: SimHandBest = _search.search(run.hand(), run.upgrades, run.inspections)
+	var no_row: Array[CardInstance] = []
+	var played: SimHandBest = _play_row(
+		run.hand(), run.upgrades, run.inspections, run.limits, no_row
+	)
 	while run.redraws_used < run.redraws_allowed and not _search.stopped:
-		var replaced: Array[CardInstance] = _redraw_pick(run.hand(), best)
+		var replaced: Array[CardInstance] = _redraw_pick(run.hand(), played)
 		if replaced.is_empty() or run.redraw(replaced).is_empty():
 			break
 		record.redraws += 1
+		played = _play_row(run.hand(), run.upgrades, run.inspections, run.limits, played.row)
+	var best: SimHandBest = played
+	if _sensible and not _search.stopped:
 		best = _search.search(run.hand(), run.upgrades, run.inspections)
 	# The time limit stopped the search: the run is dropped, so the shift isn't played.
 	if _search.stopped:
 		return
-	for card: CardInstance in best.row:
+	# The hand at checkout: placing the row moves its cards out of run.hand().
+	var hand_ids: Array[String] = _ids(run.hand())
+	for card: CardInstance in played.row:
 		run.place(card, run.row.size())
 	var result: ScoreResult = run.checkout()
-	if result.total != best.score:
+	if result.total != played.score:
 		push_error(
-			"balance_sim: the best row scored %d, the search said %d" % [result.total, best.score]
+			"balance_sim: the row scored %d, the player said %d" % [result.total, played.score]
 		)
-	record.count_hand(run.deck.hand(), best)
+	record.count_hand(run.deck.hand(), played, best)
+	record.best_totals.append(best.score)
+	record.hands.append(hand_ids)
 	var counted: Array[CardDefinition] = []
-	for card: CardInstance in best.row:
+	for card: CardInstance in played.row:
 		if not counted.has(card.definition):
 			counted.append(card.definition)
 			usage[card.definition] = usage.get(card.definition, 0) + 1
 
 
-## The hand cards the best row doesn't use, lowest base value first, at most redraw_limit.
-func _redraw_pick(hand: Array[CardInstance], best: SimHandBest) -> Array[CardInstance]:
+## The row this strategy plays with `hand`: the exact best (SimRowSearch), or for "@sensible"
+## the one SimHillClimb climbs to from `start` (the row kept through a redraw; empty: the hand).
+func _play_row(
+	hand: Array[CardInstance],
+	upgrades: Array[UpgradeDefinition],
+	inspections: Array[InspectionDefinition],
+	limits: ShiftLimits,
+	start: Array[CardInstance]
+) -> SimHandBest:
+	if _sensible:
+		return _climber.climb(hand, limits, upgrades, inspections, start)
+	return _search.search(hand, upgrades, inspections)
+
+
+## Rows the sensible player scored, for the summary.
+func rows_climbed() -> int:
+	return _climber.rows_scored
+
+
+## The hand cards the played row doesn't use, lowest base value first, at most redraw_limit.
+func _redraw_pick(hand: Array[CardInstance], played: SimHandBest) -> Array[CardInstance]:
 	var unused: Array[CardInstance] = []
 	for card: CardInstance in hand:
-		if not best.row.has(card):
+		if not played.row.has(card):
 			unused.append(card)
 	var order: Array[CardInstance] = unused.duplicate()
 	order.sort_custom(
@@ -282,8 +330,8 @@ func _pick_upgrade(run: RunState) -> void:
 	run.pick_upgrade(choice)
 
 
-## Mean best total of `_samples` hands drawn from these cards, each played as a shift is
-## (redraws of the unused cards included).
+## Mean total of `_samples` hands drawn from these cards, each played as a shift is (the
+## strategy's row player, redraws of the unused cards included).
 func _sample_value(
 	deck: Array[CardDefinition], upgrades: Array[UpgradeDefinition], redraws: int, sample_seed: int
 ) -> float:
@@ -292,6 +340,9 @@ func _sample_value(
 	var cards: Array[CardInstance] = []
 	for index: int in range(deck.size()):
 		cards.append(CardInstance.new(deck[index], index + 1))
+	var limits: ShiftLimits = ShiftLimits.for_shift(_balance, upgrades, 0)
+	var no_row: Array[CardInstance] = []
+	var no_inspections: Array[InspectionDefinition] = []
 	var total: int = 0
 	for _sample: int in range(_samples):
 		var pile: Array[CardInstance] = cards.duplicate()
@@ -299,7 +350,7 @@ func _sample_value(
 		var hand: Array[CardInstance] = []
 		while hand.size() < _balance.hand_size and not pile.is_empty():
 			hand.append(pile.pop_back())
-		var best: SimHandBest = _search.search(hand, upgrades)
+		var best: SimHandBest = _play_row(hand, upgrades, no_inspections, limits, no_row)
 		for _redraw: int in range(redraws):
 			var replaced: Array[CardInstance] = _redraw_pick(hand, best)
 			if replaced.is_empty() or pile.is_empty():
@@ -307,12 +358,12 @@ func _sample_value(
 			for card: CardInstance in replaced:
 				if not pile.is_empty():
 					hand[hand.find(card)] = pile.pop_back()
-			best = _search.search(hand, upgrades)
+			best = _play_row(hand, upgrades, no_inspections, limits, best.row)
 		total += best.score
 	return float(total) / float(_samples)
 
 
-## The deck card the run's best rows used least; ties go to the lower base value, then to the
+## The deck card the run's rows used least; ties go to the lower base value, then to the
 ## card earlier in the deck.
 func _least_used(run: RunState, usage: Dictionary[CardDefinition, int]) -> CardInstance:
 	var least: CardInstance = null
@@ -339,6 +390,13 @@ static func _quota_percent(upgrades: Array[UpgradeDefinition]) -> int:
 
 func _redraws_with(upgrades: Array[UpgradeDefinition]) -> int:
 	return ShiftLimits.for_shift(_balance, upgrades, 0).redraws
+
+
+static func _ids(cards: Array[CardInstance]) -> Array[String]:
+	var ids: Array[String] = []
+	for card: CardInstance in cards:
+		ids.append(String(card.definition.id))
+	return ids
 
 
 static func _deck_definitions(cards: Array[CardInstance]) -> Array[CardDefinition]:

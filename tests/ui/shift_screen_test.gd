@@ -332,11 +332,11 @@ func test_reward_cards_ignore_clicks_until_armed() -> void:
 	assert_bool(panel._skip_button.disabled).is_false()
 
 
-## Places a row that always passes the first quota: Bread, Multipack, Bread x4 = 27.
+## Places a row that passes the first five quotas: Eggs, Multipack, Milk x5 = 115.
 func _pass_first_shift(screen: ShiftScreen) -> void:
-	for id: String in ["bread", "multipack", "bread", "bread", "bread", "bread"]:
+	for id: String in ["eggs", "multipack", "milk", "milk", "milk", "milk", "milk"]:
 		screen._debug.add_card(id)
-	var added: Array[CardInstance] = screen.run.hand().slice(-6)
+	var added: Array[CardInstance] = screen.run.hand().slice(-7)
 	for card: CardInstance in added:
 		screen._on_hand_card_clicked(_view_for(screen, card))
 		screen._on_slot_input(_left_click(), screen.run.row.size())
@@ -398,7 +398,9 @@ func test_winning_the_last_shift_shows_the_results() -> void:
 	assert_bool(screen.run.is_last_shift()).is_true()
 	assert_str(screen._shift_label.text).is_equal("Shift %d / %d" % [count, count])
 	assert_int(int(_last_event("shift_start")["shift"])).is_equal(count)
-	# Bread, Multipack, then four Milks at x2: 67, above the last quota.
+	# The last quota (plan v0.28) expects upgrades: this test plays it against 48 instead.
+	screen.run.limits.quota = 48
+	# Bread, Multipack, then four Milks at x2: 67, above that quota.
 	_place_ids(screen, ["bread", "multipack", "milk", "milk", "milk", "milk"])
 	await screen._on_checkout_pressed()
 	assert_int(screen.run.phase).is_equal(RunState.Phase.WON)

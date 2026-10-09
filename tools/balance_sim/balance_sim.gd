@@ -4,8 +4,13 @@ extends SceneTree
 ##   --runs=N          runs per strategy (per collection state and strategy with --list-gate)
 ##                     (default 500)
 ##   --seed=N          run i of each strategy uses seed + i (default 1)
-##   --strategy=A,B    greedy, random, skip, favour:id+id or build:id (default greedy); see
-##                     SimPlayer
+##   --strategy=A,B    greedy, random, skip, favour:id+id or build:id (default greedy), each
+##                     playing the best rows, or with "@sensible" (e.g. greedy@sensible) the
+##                     rows of a sensible but not optimal player (SimHillClimb); see SimPlayer
+##   --quotas=A,B,...  the quotas instead of the balance data's: one per shift, or one for every
+##                     shift. --quotas=0 never loses a shift; no simulator choice reads the
+##                     quota, so these runs are the runs of any quota curve, each cut at its
+##                     first failed shift (tools/quota_fit.py fits curves to their --records)
 ##   --samples=N       sample hands per greedy pick (default 6)
 ##   --deck=PATH       starting deck (default the starter deck)
 ##   --balance=PATH    balance data (default the live balance data)
@@ -26,7 +31,13 @@ extends SceneTree
 ##   --orphan-samples=N hands per capsule item for the orphan check (full build plan 7.2), 0 to
 ##                     leave it out (default 30)
 ##   --duel-samples=N  hands for the coupon-slot comparison, 0 to leave it out (default 200)
+##   --chains=N        also play N chained profiles per strategy (SimChain, decided with the user
+##                     in #41): each starts fresh and plays run after run, its coins buying
+##                     capsules, to measure the runs to 30 unlocks (default 0: none)
+##   --chain-runs=N    the most runs a chain plays (default 60)
 ##   --out=PATH        also write the report as JSON
+##   --records=PATH    also write every run record (per scenario key) as JSON, with the quota
+##                     and coin data a curve fit needs (tools/quota_fit.py)
 ##   --max-minutes=N   stop after N minutes and report the runs played so far (default 15; 0: no
 ##                     limit). The time is shared out between the phases (each collection
 ##                     state's runs with each strategy, the coupon duel, the orphan check;
@@ -70,9 +81,13 @@ const SIMULATION_DEFAULTS: Dictionary[String, String] = {
 	"offer-samples": "1000",
 	"orphan-samples": "30",
 	"duel-samples": "200",
+	"quotas": "",
+	"chains": "0",
+	"chain-runs": "60",
 }
 const PROCESS_DEFAULTS: Dictionary[String, String] = {
 	"out": "",
+	"records": "",
 	"shard": "0/1",
 	"raw": "",
 	"merge": "",
@@ -80,8 +95,18 @@ const PROCESS_DEFAULTS: Dictionary[String, String] = {
 	"max-minutes": "15",
 }
 const NUMBER_OPTIONS: Array[String] = [
-	"runs", "seed", "samples", "duel-samples", "max-minutes", "offer-samples", "orphan-samples"
+	"runs",
+	"seed",
+	"samples",
+	"duel-samples",
+	"max-minutes",
+	"offer-samples",
+	"orphan-samples",
+	"chains",
+	"chain-runs",
 ]
+## Chain i's run j uses seed + CHAIN_SEED_STEP * (i + 1) + j, apart from the single runs' seeds.
+const CHAIN_SEED_STEP := 100000
 ## Options given without a value (--list-gate): they read "true".
 const FLAG_OPTIONS: Array[String] = ["list-gate"]
 
@@ -93,9 +118,13 @@ var _builds: SimBuilds
 var _states: Array[SimCollection] = []
 ## Per scenario key (Scenario), its runs in run order.
 var _records: Dictionary[String, Array] = {}
+## Per strategy, its chains (SimChain) in chain order.
+var _chains: Dictionary[String, Array] = {}
 var _duel: SimCouponDuel
 var _orphans: SimOrphans
 var _rows_scored: int = 0
+## Rows the sensible players scored (SimHillClimb), counted in _rows_scored.
+var _rows_climbed: int = 0
 var _cache_hits: int = 0
 ## Whether the time limit stopped a process (any shard's, for a merge) before all its runs.
 var _timed_out: bool = false
@@ -146,6 +175,8 @@ func _run() -> int:
 		summaries.append(summary)
 	print("")
 	print(_report(summaries, seconds))
+	if not _options["records"].is_empty() and _write_records() != 0:
+		return 1
 	if not _options["out"].is_empty():
 		return _write_json(summaries, seconds)
 	return 0
@@ -183,13 +214,39 @@ func _parse_options() -> bool:
 		return false
 	_builds = SimBuilds.new(SimBuilds.load_folder(_options["builds"]))
 	for strategy: String in _strategies():
+		var base: String = strategy.trim_suffix(SimPlayer.SENSIBLE_SUFFIX)
 		var unknown_build: bool = (
-			strategy.begins_with("build:") and _builds.find(strategy.trim_prefix("build:")) == null
+			base.begins_with("build:") and _builds.find(base.trim_prefix("build:")) == null
 		)
 		if not SimPlayer.is_known_strategy(strategy) or unknown_build:
 			push_error("balance_sim: unknown strategy %s" % strategy)
 			return false
-	return _make_states()
+	return _override_quotas(_options["quotas"]) and _make_states()
+
+
+## Plays with these quotas (--quotas) instead of the balance data's, on a copy of the balance
+## (none given: the balance data's).
+func _override_quotas(text: String) -> bool:
+	if text.is_empty():
+		return true
+	var quotas: PackedInt32Array = PackedInt32Array()
+	for part: String in text.split(",", false):
+		if not part.is_valid_int() or int(part) < 0:
+			push_error("balance_sim: --quotas needs whole numbers, got %s" % text)
+			return false
+		quotas.append(int(part))
+	if quotas.size() == 1:
+		var value: int = quotas[0]
+		quotas.resize(_balance.quotas.size())
+		quotas.fill(value)
+	if quotas.size() != _balance.quotas.size():
+		push_error(
+			"balance_sim: --quotas needs 1 or %d values, got %s" % [_balance.quotas.size(), text]
+		)
+		return false
+	_balance = _balance.duplicate()
+	_balance.quotas = quotas
+	return true
 
 
 ## The collection states to play (SimCollection): the list gate's, or the one the options give.
@@ -278,9 +335,15 @@ func _simulate(shard: int, shards: int, search: SimRowSearch) -> void:
 	var duel_samples: int = int(_options["duel-samples"])
 	var orphan_samples: int = _orphans.sample_total()
 	var scenarios: Array[Scenario] = _scenarios()
+	var chains: int = int(_options["chains"])
 	var limit: SimTimeLimit = SimTimeLimit.new(
 		int(_options["max-minutes"]),
-		scenarios.size() + (1 if duel_samples > 0 else 0) + (1 if orphan_samples > 0 else 0),
+		(
+			scenarios.size()
+			+ (_strategies().size() if chains > 0 else 0)
+			+ (1 if duel_samples > 0 else 0)
+			+ (1 if orphan_samples > 0 else 0)
+		),
 		Time.get_ticks_msec()
 	)
 	var stocks: Dictionary[SimCollection, RunStock] = {}
@@ -310,6 +373,11 @@ func _simulate(shard: int, shards: int, search: SimRowSearch) -> void:
 			records.append(record)
 			_print_progress(records.size(), share)
 		_records[scenario.key] = records
+		_rows_climbed += player.rows_climbed()
+	for strategy: String in _strategies() if chains > 0 else PackedStringArray():
+		print("Playing chained profiles: %s (shard %d/%d)..." % [strategy, shard, shards])
+		_begin_phase(limit, search)
+		_chains[strategy] = _play_chains(strategy, shard, shards, search, limit)
 	if duel_samples > 0:
 		print("Comparing coupons (shard %d/%d)..." % [shard, shards])
 		_begin_phase(limit, search)
@@ -331,8 +399,34 @@ func _simulate(shard: int, shards: int, search: SimRowSearch) -> void:
 				limit.hit()
 				break
 	_timed_out = limit.was_hit()
-	_rows_scored = search.rows_scored
+	_rows_scored = search.rows_scored + _rows_climbed
 	_cache_hits = search.cache_hits
+
+
+## This process's share of a strategy's chains (index % shards == shard), each from a fresh
+## profile; a chain the time limit stops is dropped.
+func _play_chains(
+	strategy: String, shard: int, shards: int, search: SimRowSearch, limit: SimTimeLimit
+) -> Array[SimChain]:
+	var played: Array[SimChain] = []
+	var make_player: Callable = func(stock: RunStock) -> SimPlayer:
+		var player: SimPlayer = SimPlayer.new(
+			_starter, _balance, search, strategy, int(_options["samples"]), stock, _builds
+		)
+		return player
+	for index: int in range(shard, int(_options["chains"]), shards):
+		if limit.is_phase_over(Time.get_ticks_msec()):
+			limit.hit()
+			break
+		var chain_seed: int = int(_options["seed"]) + CHAIN_SEED_STEP * (index + 1)
+		var chain: SimChain = SimChain.new(_starter, _balance, make_player, chain_seed)
+		chain.play(chain_seed, int(_options["chain-runs"]))
+		if chain.stopped:
+			limit.hit()
+			break
+		played.append(chain)
+		print("  chain %d: %d runs" % [index, chain.coins.size()])
+	return played
 
 
 ## Starts a phase of the time limit: the search stops at its end.
@@ -354,9 +448,15 @@ func _write_raw() -> int:
 		records[key] = _records[key].map(
 			func(record: SimRunRecord) -> Dictionary: return record.to_dictionary()
 		)
+	var chains: Dictionary[String, Array] = {}
+	for strategy: String in _chains:
+		chains[strategy] = _chains[strategy].map(
+			func(chain: SimChain) -> Dictionary: return chain.to_dictionary()
+		)
 	var data: Dictionary = {
 		"options": _simulation_options(),
 		"records": records,
+		"chains": chains,
 		"duel": _duel.samples_to_array(),
 		"orphans": _orphans.samples_to_array(),
 		"rows_scored": _rows_scored,
@@ -379,6 +479,11 @@ func _merge(paths: PackedStringArray, search: SimRowSearch) -> bool:
 		for scenario: Scenario in scenarios:
 			for entry: Dictionary in data["records"][scenario.key]:
 				runs[scenario.key].append(SimRunRecord.from_dictionary(entry))
+		for strategy: String in data.get("chains", {}):
+			if not _chains.has(strategy):
+				_chains[strategy] = []
+			for entry: Dictionary in data["chains"][strategy]:
+				_chains[strategy].append(SimChain.from_dictionary(entry))
 		_duel.add_samples(data["duel"])
 		_orphans.add_samples(data["orphans"])
 		if FileAccess.file_exists(path + ".cache"):
@@ -535,6 +640,9 @@ func _report(summaries: Array[SimSummary], seconds: float) -> String:
 					]
 				)
 			)
+	if not _chains.is_empty():
+		report.append("")
+		report.append(SimChainSummary.format(_chains, SimChain.capsule_count(_balance)))
 	if _duel.sample_count() > 0:
 		report.append("")
 		report.append(_duel.format())
@@ -653,6 +761,7 @@ func _write_json(summaries: Array[SimSummary], seconds: float) -> int:
 		"strategies": strategies,
 		"key_card_chances": chances,
 		"list_gate": _gate_verdicts(summaries, chances) if _is_gate() else [],
+		"chains": SimChainSummary.to_dictionary(_chains, SimChain.capsule_count(_balance)),
 		"coupon_duel": _duel.to_dictionary(),
 		"orphans": _orphans.to_dictionary(),
 		"rows_scored": _rows_scored,
@@ -662,6 +771,35 @@ func _write_json(summaries: Array[SimSummary], seconds: float) -> int:
 	var status: int = _write_file(_options["out"], JSON.stringify(data, "\t"))
 	if status == 0:
 		print("Report written to %s" % _options["out"])
+	return status
+
+
+## Every run record by scenario key, with the quota and coin data tools/quota_fit.py needs to
+## replay the runs under another quota curve: the base quotas played, each upgrade's
+## quota_percent (Big basket raises the quota from the shift after its pick) and the coin
+## amounts (CoinPayout).
+func _write_records() -> int:
+	var scenarios: Dictionary[String, Array] = {}
+	for key: String in _records:
+		scenarios[key] = _records[key].map(
+			func(record: SimRunRecord) -> Dictionary: return record.to_dictionary()
+		)
+	var percents: Dictionary[String, int] = {}
+	for upgrade: UpgradeDefinition in _balance.upgrade_pool:
+		percents[String(upgrade.id)] = upgrade.quota_percent
+	var data: Dictionary = {
+		"build_label": ProjectSettings.get_setting("next_customer/build_label", ""),
+		"options": _simulation_options(),
+		"quotas": Array(_balance.quotas),
+		"upgrade_quota_percent": percents,
+		"coins_by_shifts_passed": Array(_balance.coins_by_shifts_passed),
+		"overtime_coin_euros": _balance.overtime_coin_euros,
+		"overtime_coin_max": _balance.overtime_coin_max,
+		"scenarios": scenarios,
+	}
+	var status: int = _write_file(_options["records"], JSON.stringify(data))
+	if status == 0:
+		print("Run records written to %s" % _options["records"])
 	return status
 
 

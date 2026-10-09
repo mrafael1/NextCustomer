@@ -11,8 +11,8 @@ const REPEAT := "res://data/cards/repeat.tres"
 
 func test_balance_matches_the_plan() -> void:
 	var balance: BalanceDefinition = load(BALANCE)
-	# 8 shifts, placeholder quotas until the balance simulator (plan v0.12).
-	assert_array(Array(balance.quotas)).is_equal([10, 13, 17, 22, 27, 33, 40, 48])
+	# 8 shifts, quotas fitted with the balance simulator (plan v0.28, issue #41).
+	assert_array(Array(balance.quotas)).is_equal([41, 42, 65, 77, 87, 123, 124, 149])
 	assert_int(balance.hand_size).is_equal(8)
 	assert_int(balance.redraw_limit).is_equal(2)
 	assert_int(balance.slot_count).is_equal(6)
@@ -24,7 +24,7 @@ func test_start_shift_draws_a_hand_and_empties_the_row() -> void:
 	var run: RunState = _run(1)
 	assert_int(run.hand().size()).is_equal(8)
 	assert_array(run.row).is_empty()
-	assert_int(run.quota()).is_equal(10)
+	assert_int(run.quota()).is_equal(41)
 	assert_int(run.phase).is_equal(RunState.Phase.PLANNING)
 
 
@@ -211,10 +211,10 @@ func test_no_changes_after_checkout() -> void:
 
 func test_passing_a_shift_moves_to_the_next_quota() -> void:
 	var run: RunState = _run(9)
-	# Bread, Multipack, then four Breads at x2: 3 + 0 + 4 * 6 = 27, above the first quota of 10.
-	for id: String in ["bread", "multipack", "bread", "bread", "bread", "bread"]:
+	# Eggs, Multipack, then five Milks: 115, above the first quota of 41.
+	for id: String in ["eggs", "multipack", "milk", "milk", "milk", "milk", "milk"]:
 		run.place(run.debug_add_to_hand(load("res://data/cards/%s.tres" % id)), run.row.size())
-	assert_int(run.checkout().total).is_equal(27)
+	assert_int(run.checkout().total).is_equal(115)
 	assert_bool(run.passed()).is_true()
 	assert_int(run.phase).is_equal(RunState.Phase.REWARD)
 	assert_bool(run.next_shift()).is_false()
@@ -222,7 +222,7 @@ func test_passing_a_shift_moves_to_the_next_quota() -> void:
 	assert_int(run.phase).is_equal(RunState.Phase.SCORED)
 	assert_bool(run.next_shift()).is_true()
 	assert_int(run.shift_index).is_equal(1)
-	assert_int(run.quota()).is_equal(13)
+	assert_int(run.quota()).is_equal(42)
 	assert_array(run.row).is_empty()
 	assert_int(run.hand().size()).is_equal(8)
 	assert_int(run.redraws_used).is_equal(0)

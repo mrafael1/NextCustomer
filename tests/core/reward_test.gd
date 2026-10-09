@@ -268,7 +268,12 @@ func test_only_the_first_offer_of_a_run_is_the_combination_offer() -> void:
 
 
 func test_the_last_shift_wins_without_an_offer() -> void:
-	var balance: BalanceDefinition = load(BALANCE)
+	# Late quotas expect upgrades (plan v0.28): a copy whose every quota the row below passes.
+	var balance: BalanceDefinition = (load(BALANCE) as BalanceDefinition).duplicate()
+	var quotas: PackedInt32Array = PackedInt32Array()
+	quotas.resize(balance.quotas.size())
+	quotas.fill(1)
+	balance.quotas = quotas
 	var deck: DeckDefinition = load(STARTER)
 	var run: RunState = RunState.new(10, deck, balance, RunStock.starting(deck, balance))
 	run.start_shift()
@@ -293,9 +298,9 @@ static func _passed_run(seed_value: int) -> RunState:
 	return run
 
 
-## Bread, Multipack, then four Breads: 3 + 0 + 4 * 6 = 27, enough for the first two quotas.
+## Eggs, Multipack, then five Milks: 115, enough for the first five quotas.
 static func _fill_and_pass(run: RunState) -> void:
-	for id: String in ["bread", "multipack", "bread", "bread", "bread", "bread"]:
+	for id: String in ["eggs", "multipack", "milk", "milk", "milk", "milk", "milk"]:
 		run.place(run.debug_add_to_hand(load("res://data/cards/%s.tres" % id)), run.row.size())
 	run.checkout()
 

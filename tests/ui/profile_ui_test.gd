@@ -69,13 +69,15 @@ func test_the_results_print_the_coins_and_fit_the_screen() -> void:
 	# The debug jump writes no history: the 7 earlier shifts are passed records, each €2 over.
 	for shift: int in range(count - 1, 0, -1):
 		screen.run.history.push_front(ShiftRecord.new(shift, 10, 12))
-	# Bread, Multipack, then four Milks at x2: 67 against the last quota.
+	# The last quota (plan v0.28) expects upgrades: this test plays it against 48 instead.
+	screen.run.limits.quota = 48
+	# Bread, Multipack, then four Milks at x2: 67 against that quota.
 	for id: String in ["bread", "multipack", "milk", "milk", "milk", "milk"]:
 		var card: CardDefinition = load("res://data/cards/%s.tres" % id)
 		screen.run.place(screen.run.debug_add_to_hand(card), screen.run.row.size())
 	await screen._on_checkout_pressed()
 	assert_int(screen.run.phase).is_equal(RunState.Phase.WON)
-	# 8 shifts passed pay 2; overtime 7 x 2 + (67 - 48) = 33, under the €60 step.
+	# 8 shifts passed pay 2; overtime 7 x 2 + (67 - 48) = 33, under the €700 step.
 	var texts: PackedStringArray = screen._results._coin_receipt.texts()
 	assert_int(texts.size()).is_equal(3)
 	assert_str(texts[0]).starts_with("Shifts passed 8").ends_with("+2")

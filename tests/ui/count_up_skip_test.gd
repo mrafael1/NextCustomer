@@ -8,8 +8,8 @@ extends GdUnitTestSuite
 ## handler.
 
 const SCREEN := "res://ui/shift_screen.tscn"
-## Bread, Multipack, Bread x4 = 27: passes the first two quotas.
-const PASSING_ROW: Array[String] = ["bread", "multipack", "bread", "bread", "bread", "bread"]
+## Eggs, Multipack, Milk x5 = 115: passes the first five quotas.
+const PASSING_ROW: Array[String] = ["eggs", "multipack", "milk", "milk", "milk", "milk", "milk"]
 
 var _folder: String = ""
 var _runner: GdUnitSceneRunner
