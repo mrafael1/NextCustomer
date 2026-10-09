@@ -1,0 +1,23 @@
+[gd_resource type="Resource" script_class="CardDefinition" format=3]
+
+[ext_resource type="Script" path="res://core/rule.gd" id="1_rdeag"]
+[ext_resource type="Script" path="res://core/rules/adjacent_match_bonus_rule.gd" id="2_6qgbm"]
+[ext_resource type="Script" path="res://core/card_definition.gd" id="3_v6jfv"]
+
+[sub_resource type="Resource" id="Resource_6s4mr"]
+script = ExtResource("2_6qgbm")
+match_by = 3
+match_value = "Frozen"
+position = 2
+bonus_is_base = true
+receipt_text = "Frozen pair"
+
+[resource]
+script = ExtResource("3_v6jfv")
+id = &"frozen_peas"
+display_name = "Frozen peas"
+kind = 1
+tags = PackedStringArray("Food", "Frozen", "Produce")
+base = 3
+rules = Array[ExtResource("1_rdeag")]([SubResource("Resource_6s4mr")])
+rule_text = "+ its base value (+3) as a flat bonus if beside another Frozen product"

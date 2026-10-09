@@ -1,6 +1,6 @@
 # Next Customer: Full Build Plan
 
-> Status: draft v0.22. **This plan will change.** Each full-build playtest round (section 9) can rewrite parts of it. Update the changelog when it does.
+> Status: draft v0.23. **This plan will change.** Each full-build playtest round (section 9) can rewrite parts of it. Update the changelog when it does.
 > The prototype (`docs/PROTOTYPE_PLAN.md`) closed at proto-r1. Its outside playtest and decision gate (section 9 there) were not run; their questions move to the full build's playtest rounds (section 9).
 > Engine: Godot 4 (exact version pinned in `AGENTS.md`), GDScript with static typing. Platform: Windows, mouse. Steam is the main store; itch.io hosts a web demo.
 
@@ -161,9 +161,9 @@ Coupons fall into four types. 1.0 has at least 2 of each type, except Connector 
 | Type | What it does | Examples |
 |---|---|---|
 | **Connector** | Creates adjacency between products that are not neighbours | Shelf swap (the next product also counts as just after the row's first product; built in phase 2, v0.20) |
-| **Relabeller** | Changes tags | Breakfast sticker, Organic label (the next product becomes Produce), Clearance tag |
+| **Relabeller** | Changes tags | Breakfast sticker, Clearance tag (the next product gains Clearance; built in phase 2, v0.23), Organic label (the next product gains Produce; held until a card reads Produce) |
 | **Amplifier** | Multiplies or copies | Repeat, Multipack, 2 for 1 (same product on both sides: the second one pays ×2; it fizzles otherwise, and two in a row both fizzle) |
-| **Position** | Rewards placement | Final markdown, Opening deal (the first slot ×2) |
+| **Position** | Rewards placement | Final markdown, Opening deal (if in the first slot, the next product pays ×3; built in phase 2, v0.23) |
 
 **Coupon slots (decided):** 6 shared slots + 1 coupon-only slot. A row holds at most `slot_count` products (6) and at most `slot_count + coupon_slot_count` cards (7); upgrades and inspections that add or remove a slot change one of these two numbers for the run or the shift. One coupon can take the coupon slot; extra coupons can still take product slots. Coupons in the row still break adjacency, so every positional coupon keeps its meaning and `score()` doesn't change. Every row that was legal before stays legal.
 
@@ -394,3 +394,4 @@ Content freeze at the end of phase 3. No new features after that.
 | v0.20 | 2026-10-08 | 2 for 1 and Shelf swap (phase 2, issue #37; `docs/PROTOTYPE_PLAN.md` v0.23), decided with the user: 2 for 1 links the same product on both sides and the second pays ×2 (an armed effect); Shelf swap links the next product to the row's first product, both ways; links can stack on one side · "same product" means a variant counts as its base card, everywhere (#39 uses it for duplicates) · `is_connector` is set only by Bundle, which stays in `data/cards/` outside every pool, and read only by its rule for the frozen fixture · 2 for 1 replaces Bundle in `coupon_pool` and `first_offer_pool` (Multipack back to a third of the guaranteed slot), and Shelf swap joins `coupon_pool` |
 | v0.21 | 2026-10-08 | Register upgrades (phase 2, issue #38; `docs/PROTOTYPE_PLAN.md` v0.24), decided with the user: 7 upgrades (Rule bender, Slot engine, Category engine, Coupon engine, Extra redraw, Extra coupon slot, Big basket), "+1 card drawn" cut · Rule bender needs an upgrade context hook (approved design flag) · one raised quota for Big basket, fixed when the shift starts · shift limits (`ShiftLimits`) carry the run modifiers that #39's capacity inspections extend · build files in `data/builds/` and the offer's "fits the deck" guarantee · a row wider than 7 slots is scaled · flags for #41: Slot engine is strong (Repeat copies the doubled product), Category engine can reach +24, Big basket breaks even or loses on the current quotas |
 | v0.22 | 2026-10-09 | Inspections (phase 2, issue #39; `docs/PROTOTYPE_PLAN.md` v0.25), decided with the user: Spot check, Short belt (one product slot fewer than the run has) and Coupon slot closed (one coupon slot fewer), as shift modifiers on top of the upgrades' (`ShiftLimits`) · Short belt may turn Slot engine off and Big basket counters it · "duplicate payouts capped at 4" rejected · no inspection twice in a row · CLOSED panels on the row |
+| v0.23 | 2026-10-09 | Coupons (phase 2, issue #36; `docs/PROTOTYPE_PLAN.md` v0.26), decided with the user: Clearance tag (Relabeller) and Opening deal (Position, in the first slot the next product pays ×3, raised from the plan's ×2 so it competes with Final markdown for the coupon slot) join `coupon_pool`, which holds 8 coupons meeting section 5.1 · Organic label is held until a card reads Produce (none does yet; revisit with the capsule aisles, #35) · the first-offer pool is unchanged · Opening deal and the Coupon engine pull against each other (a working Opening deal is the first coupon and pays 0), accepted as its cost |

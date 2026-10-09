@@ -1,0 +1,19 @@
+[gd_resource type="Resource" script_class="CardDefinition" format=3]
+
+[ext_resource type="Script" path="res://core/rule.gd" id="1_rule"]
+[ext_resource type="Script" path="res://core/rules/first_slot_multiplier_rule.gd" id="2_opening_deal"]
+[ext_resource type="Script" path="res://core/card_definition.gd" id="3_card"]
+
+[sub_resource type="Resource" id="Resource_opening_deal"]
+script = ExtResource("2_opening_deal")
+factor = 3
+receipt_text = "Opening deal ×3"
+
+[resource]
+script = ExtResource("3_card")
+id = &"opening_deal"
+display_name = "Opening deal"
+kind = 2
+tags = PackedStringArray()
+rules = Array[ExtResource("1_rule")]([SubResource("Resource_opening_deal")])
+rule_text = "If in the first slot: the next product pays ×3"

@@ -38,6 +38,8 @@ const STARTING_STOCK := [
 	"multipack",
 	"two_for_one",
 	"shelf_swap",
+	"clearance_tag",
+	"opening_deal",
 ]
 
 
@@ -71,6 +73,8 @@ func test_coupon_pool_and_first_pool_hold_the_agreed_coupons() -> void:
 				"multipack",
 				"two_for_one",
 				"shelf_swap",
+				"clearance_tag",
+				"opening_deal",
 			]
 		)
 	)

@@ -8,6 +8,8 @@
 [ext_resource type="Resource" path="res://data/cards/multipack.tres" id="c15_multipack"]
 [ext_resource type="Resource" path="res://data/cards/two_for_one.tres" id="c16_two_for_one"]
 [ext_resource type="Resource" path="res://data/cards/shelf_swap.tres" id="c17_shelf_swap"]
+[ext_resource type="Resource" path="res://data/cards/clearance_tag.tres" id="c18_clearance_tag"]
+[ext_resource type="Resource" path="res://data/cards/opening_deal.tres" id="c19_opening_deal"]
 [ext_resource type="Script" path="res://core/aisle_definition.gd" id="a1_aisle"]
 [ext_resource type="Resource" path="res://data/aisles/cold_cases.tres" id="a2_cold_cases"]
 [ext_resource type="Resource" path="res://data/aisles/pantry.tres" id="a3_pantry"]
@@ -34,7 +36,7 @@ slot_count = 6
 coupon_slot_count = 1
 deck_limit = 15
 aisles = Array[ExtResource("a1_aisle")]([ExtResource("a2_cold_cases"), ExtResource("a3_pantry"), ExtResource("a4_household")])
-coupon_pool = Array[ExtResource("2_card")]([ExtResource("c11_repeat"), ExtResource("c12_final_markdown"), ExtResource("c14_breakfast_sticker"), ExtResource("c15_multipack"), ExtResource("c16_two_for_one"), ExtResource("c17_shelf_swap")])
+coupon_pool = Array[ExtResource("2_card")]([ExtResource("c11_repeat"), ExtResource("c12_final_markdown"), ExtResource("c14_breakfast_sticker"), ExtResource("c15_multipack"), ExtResource("c16_two_for_one"), ExtResource("c17_shelf_swap"), ExtResource("c18_clearance_tag"), ExtResource("c19_opening_deal")])
 run_aisle_picks = 2
 aisle_stock_budget = 16
 aisle_listable_min = 4

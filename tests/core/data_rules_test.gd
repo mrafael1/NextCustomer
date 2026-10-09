@@ -5,8 +5,9 @@ extends GdUnitTestSuite
 
 const FIXTURE_DIR := "res://tests/fixtures/cards_v0_4"
 const FIXTURE_V0_5_DIR := "res://tests/fixtures/cards_v0_5"
-const FIXTURE_DIRS := [FIXTURE_DIR, FIXTURE_V0_5_DIR]
-const CARD_DIRS := ["res://data/cards", FIXTURE_DIR, FIXTURE_V0_5_DIR]
+const FIXTURE_V0_6_DIR := "res://tests/fixtures/cards_v0_6"
+const FIXTURE_DIRS := [FIXTURE_DIR, FIXTURE_V0_5_DIR, FIXTURE_V0_6_DIR]
+const CARD_DIRS := ["res://data/cards", FIXTURE_DIR, FIXTURE_V0_5_DIR, FIXTURE_V0_6_DIR]
 const NEUTRAL_SCRIPTS := [
 	"res://core/card_definition.gd",
 	"res://core/deck_definition.gd",
