@@ -15,10 +15,17 @@ extends RefCounted
 
 ## Results kept in memory before the cache stops growing (the warm entries stay).
 const CACHE_LIMIT := 1500000
+## The time limit is checked once every this many rows scored.
+const STOP_CHECK_ROWS := 2048
 
 ## Rows scored, and lookups answered from the cache, for the summary.
 var rows_scored: int = 0
 var cache_hits: int = 0
+## The time limit (balance_sim's --max-minutes): past this Time.get_ticks_msec() a search stops
+## where it is (0: never), and `stopped` stays true until reset. A stopped search's result is
+## meaningless and never cached: the run or sample asking for it must be dropped.
+var stop_at_msec: int = 0
+var stopped: bool = false
 var _balance: BalanceDefinition
 ## Key -> [best total, best order as card ids] for a multiset, or [best total, best order, best
 ## total without each card id (in sorted id order)] for a hand.
@@ -42,6 +49,8 @@ func search(
 	upgrades: Array[UpgradeDefinition],
 	inspections: Array[InspectionDefinition] = []
 ) -> SimHandBest:
+	if _past_stop():
+		return SimHandBest.new()
 	var groups: Dictionary[String, Array] = {}
 	for card: CardInstance in hand:
 		var id: String = String(card.definition.id)
@@ -66,6 +75,8 @@ func search(
 	var entry: Array = _cache.get(hand_key, [])
 	if entry.is_empty():
 		entry = _search_hand(ids, limits, row_limits, upgrades, inspections, upgrade_key)
+		if stopped:
+			return SimHandBest.new()
 		_store(hand_key, entry)
 	else:
 		cache_hits += 1
@@ -167,6 +178,8 @@ func _search_hand(
 				multiset.append(ids[index])
 		if multiset.size() <= card_limit and products <= row_limits.slot_count:
 			var entry: Array = _best_order(multiset, upgrades, inspections, upgrade_key)
+			if stopped:
+				break
 			var total: int = entry[0]
 			var shorter: bool = multiset.size() < best_order.size()
 			if not found or total > best_total or (total == best_total and shorter):
@@ -214,6 +227,8 @@ func _best_order(
 	while true:
 		var total: int = Scoring.score(_row_of(order, distinct), upgrades, inspections).total
 		rows_scored += 1
+		if rows_scored % STOP_CHECK_ROWS == 0 and _past_stop():
+			return [0, PackedStringArray()]
 		if first or total > best_total:
 			first = false
 			best_total = total
@@ -226,6 +241,13 @@ func _best_order(
 	entry = [best_total, best_ids]
 	_store(key, entry)
 	return entry
+
+
+## Whether the time limit has passed; once it has, the search counts as stopped.
+func _past_stop() -> bool:
+	if stop_at_msec > 0 and Time.get_ticks_msec() >= stop_at_msec:
+		stopped = true
+	return stopped
 
 
 func _store(key: String, entry: Array) -> void:

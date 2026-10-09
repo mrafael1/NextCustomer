@@ -58,6 +58,9 @@ func run_sample(search: SimRowSearch, index: int) -> void:
 		var with_coupon: Array[CardInstance] = hand.duplicate()
 		with_coupon.append(CardInstance.new(coupon, _deck.size() + 1))
 		var best: SimHandBest = search.search(with_coupon, no_upgrades)
+		# The time limit stopped the search: the sample is dropped.
+		if search.stopped:
+			return
 		totals.append(best.score)
 		needed.append(1 if best.is_needed(coupon) else 0)
 	_totals[index] = totals

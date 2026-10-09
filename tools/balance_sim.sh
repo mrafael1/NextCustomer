@@ -3,14 +3,18 @@
 # (worker threads sharing the card resources ran slower than one thread). Arguments go to the
 # simulator, e.g.
 #   sh tools/balance_sim.sh --runs=200 --strategy=greedy,random,skip --out=reports/sim.json
-# The options are listed in tools/balance_sim/balance_sim.gd. --jobs=N sets the number of
-# processes (default: the number of CPUs). The report is also saved to
+# The options are listed in tools/balance_sim/balance_sim.gd (--max-minutes=N stops it after N
+# minutes, default 15). --cpu-percent=P keeps it to P% of the CPUs (default 80: one process per
+# CPU in that share, at least one); --jobs=N sets the number of processes instead. The report is
+# also saved to
 # reports/balance_sim/report.txt. Fails if Godot prints any error (e.g. a best row that
 # checkout scored differently from the search).
 set -e
 cd "$(dirname "$0")/.."
 . tools/godot_env.sh
-jobs=$(nproc 2>/dev/null || echo 4)
+cpus=$(nproc 2>/dev/null || echo 4)
+cpu_percent=80
+jobs=""
 count=$#
 while [ "$count" -gt 0 ]; do
 	argument=$1
@@ -18,9 +22,14 @@ while [ "$count" -gt 0 ]; do
 	count=$((count - 1))
 	case "$argument" in
 		--jobs=*) jobs=${argument#--jobs=} ;;
+		--cpu-percent=*) cpu_percent=${argument#--cpu-percent=} ;;
 		*) set -- "$@" "$argument" ;;
 	esac
 done
+if [ -z "$jobs" ]; then
+	jobs=$((cpus * cpu_percent / 100))
+	[ "$jobs" -ge 1 ] || jobs=1
+fi
 godot_import
 work=reports/balance_sim
 rm -rf "$work"
@@ -36,7 +45,7 @@ while [ "$index" -lt "$jobs" ]; do
 	shards="$shards,res://$work/shard_$index.json"
 	index=$((index + 1))
 done
-echo "Simulating in $jobs processes. Progress of the first one:"
+echo "Simulating in $jobs processes ($cpus CPUs). Progress of the first one:"
 first_pid=${pids# }
 first_pid=${first_pid%% *}
 tail -n +1 -f --pid="$first_pid" "$work/shard_0.log" 2>/dev/null || true
