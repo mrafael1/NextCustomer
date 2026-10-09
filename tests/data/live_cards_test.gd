@@ -31,8 +31,8 @@ func test_starter_deck_matches_the_plan() -> void:
 	)
 
 
-## The phase 2 cards' rows (the base products, #34; 2 for 1 and Shelf swap, #37), worked out by
-## hand from the rules.
+## The phase 2 cards' rows (the base products, #34; 2 for 1 and Shelf swap, #37; Clearance tag
+## and Opening deal, #36), worked out by hand from the rules.
 func test_phase_2_cards_score_the_design_examples(
 	row: String,
 	total: int,
@@ -53,6 +53,10 @@ func test_phase_2_cards_score_the_design_examples(
 		["banana,two_for_one,banana", 10],
 		# Shelf swap: Cheese counts as just after Bread, the first product (3 + 2 + 0 + 7).
 		["bread,banana,shelf_swap,cheese", 12],
+		# Clearance tag makes Bread Clearance: Day-old buns 2 + 3 after it (0 + 3 + 5).
+		["clearance_tag,bread,day_old_buns", 8],
+		# Opening deal in the first slot: Soup pays 5 x3 (0 + 15 + 3).
+		["opening_deal,soup,bread", 18],
 	]
 ) -> void:
 	assert_int(Scoring.score(_row(row)).total).is_equal(total)
@@ -80,12 +84,12 @@ func test_base_products_fizzle(
 	assert_array(fizzles).is_equal(expected)
 
 
-func test_all_twenty_seven_cards_exist() -> void:
+func test_all_twenty_nine_cards_exist() -> void:
 	var ids: Array = []
 	for file: String in DirAccess.get_files_at(CARDS_DIR):
 		if file.ends_with(".tres"):
 			ids.append((load("%s/%s" % [CARDS_DIR, file]) as CardDefinition).id)
-	assert_int(ids.size()).is_equal(27)
+	assert_int(ids.size()).is_equal(29)
 
 
 static func _row(ids: String) -> Array[CardInstance]:

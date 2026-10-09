@@ -1,0 +1,22 @@
+[gd_resource type="Resource" script_class="CardDefinition" format=3]
+
+[ext_resource type="Script" path="res://core/rule.gd" id="1_ivcki"]
+[ext_resource type="Script" path="res://core/rules/count_earlier_tag_bonus_rule.gd" id="2_wbvgr"]
+[ext_resource type="Script" path="res://core/card_definition.gd" id="3_8cl8l"]
+
+[sub_resource type="Resource" id="Resource_8j62u"]
+script = ExtResource("2_wbvgr")
+tag = "Breakfast"
+bonus_each = 2
+receipt_text = "Milk: earlier Breakfast"
+
+[resource]
+script = ExtResource("3_8cl8l")
+id = &"milk"
+display_name = "Milk"
+kind = 1
+tags = PackedStringArray("Food", "Breakfast", "Dairy")
+base = 3
+rules = Array[ExtResource("1_ivcki")]([SubResource("Resource_8j62u")])
+rule_text = "+2 for each earlier Breakfast product"
+art_ref = "res://art/items/milk.png"

@@ -1,6 +1,6 @@
 extends GdUnitTestSuite
 ## The pixel-art card (full build plan section 6.1): every card in data/cards fits ArtCardView's
-## fixed size with the real fonts, including every tag a coupon can grant it while scoring,
+## fixed size with the real fonts, including any tag a coupon can grant it while scoring,
 ## and the fonts have every character the game prints. This is the test that sets
 ## ArtCardView.SIZE.y: a failure lists each card's spare pixels (negative when it overflows).
 
@@ -10,20 +10,28 @@ const CARDS := "res://data/cards"
 func test_every_card_fits_the_art_card() -> void:
 	var definitions: Array[CardDefinition] = _cards()
 	assert_int(definitions.size()).is_greater(0)
-	var granted: PackedStringArray = _grantable_tags(definitions)
+	# A product gains at most one tag while scoring: the only tag grant is a relabeller's, on
+	# the product in its next slot (Breakfast sticker, Clearance tag). So each card is laid out
+	# with each grantable tag in turn, and with none, and its worst fit counts.
+	var tag_sets: Array[PackedStringArray] = [PackedStringArray()]
+	for tag: String in _grantable_tags(definitions):
+		tag_sets.append(PackedStringArray([tag]))
 	var spare: Dictionary[String, float] = {}
 	var overflow: Array[String] = []
 	for definition: CardDefinition in definitions:
-		var view: ArtCardView = await _laid_out(definition, granted)
-		var height: float = view._column.get_combined_minimum_size().y
-		var available: float = ArtCardView.SIZE.y - 2.0 * view.padding().y
-		spare[definition.display_name] = available - height
-		var body: Rect2 = view.body.get_global_rect()
-		var rule: Rect2 = view._rule_label.get_global_rect()
-		var rule_label: Label = view._rule_label
-		var clipped: bool = rule_label.get_visible_line_count() < rule_label.get_line_count()
-		if height > available or clipped or not body.encloses(rule):
-			overflow.append(definition.display_name)
+		for granted: PackedStringArray in tag_sets:
+			var view: ArtCardView = await _laid_out(definition, granted)
+			var height: float = view._column.get_combined_minimum_size().y
+			var available: float = ArtCardView.SIZE.y - 2.0 * view.padding().y
+			var card_name: String = definition.display_name
+			spare[card_name] = minf(spare.get(card_name, available - height), available - height)
+			var body: Rect2 = view.body.get_global_rect()
+			var rule: Rect2 = view._rule_label.get_global_rect()
+			var rule_label: Label = view._rule_label
+			var clipped: bool = rule_label.get_visible_line_count() < rule_label.get_line_count()
+			if height > available or clipped or not body.encloses(rule):
+				if not overflow.has(card_name):
+					overflow.append(card_name)
 	(
 		assert_array(overflow)
 		. override_failure_message(
@@ -112,8 +120,8 @@ func _cards() -> Array[CardDefinition]:
 	return result
 
 
-## Every tag a coupon can grant (Breakfast sticker's Breakfast): a product shows it beside the
-## tags it prints, so the worst case is a product that gains them all.
+## Every tag a coupon can grant (Breakfast sticker's Breakfast, Clearance tag's Clearance). A
+## product gains at most one of them while scoring, so the fit test lays out each one in turn.
 static func _grantable_tags(definitions: Array[CardDefinition]) -> PackedStringArray:
 	var tags: PackedStringArray = PackedStringArray()
 	for definition: CardDefinition in definitions:

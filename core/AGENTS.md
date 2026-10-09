@@ -20,7 +20,7 @@ The agreed rules are the ones written in the plan: section 3.1 (row), 3.2 (order
 
 ## Golden tests (must always pass)
 
-The full list is in plan section 3.7. They run on the frozen fixtures `tests/fixtures/cards_v0_4/` and `tests/fixtures/cards_v0_5/` (2 for 1 and Shelf swap, plan v0.23), each named for the rules version it froze, not on the live `data/` files, so tuning values never breaks them. Each fixture is self-contained and built as described in plan section 3.7; never point one at `data/`. These two come from the original design and their expected totals are never changed:
+The full list is in plan section 3.7. They run on the frozen fixtures `tests/fixtures/cards_v0_4/`, `tests/fixtures/cards_v0_5/` (2 for 1 and Shelf swap, plan v0.23) and `tests/fixtures/cards_v0_6/` (Clearance tag and Opening deal, plan v0.26), each named for the rules version it froze, not on the live `data/` files, so tuning values never breaks them. Each fixture is self-contained and built as described in plan section 3.7; never point one at `data/`. These two come from the original design and their expected totals are never changed:
 
 | Row | Total |
 |---|---|

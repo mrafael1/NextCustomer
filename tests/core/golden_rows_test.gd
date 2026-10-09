@@ -10,6 +10,8 @@ const FIXTURE_DIR := "res://tests/fixtures/cards_v0_4"
 ## 2 for 1 and Shelf swap (plan section 3.7, v0.23) have their own frozen fixture, so the
 ## cards_v0_4 rows stay exactly as they were.
 const FIXTURE_V0_5_DIR := "res://tests/fixtures/cards_v0_5"
+## Clearance tag and Opening deal (plan section 3.7, v0.26) have their own frozen fixture too.
+const FIXTURE_V0_6_DIR := "res://tests/fixtures/cards_v0_6"
 
 
 func test_golden_row(
@@ -86,6 +88,34 @@ func test_golden_row_v0_5(
 	]
 ) -> void:
 	_check_row(FIXTURE_V0_5_DIR, row, payouts, total)
+
+
+## Clearance tag (the next product gains Clearance) and Opening deal (in the first slot, the
+## next product pays ×3), decided with the user (#36).
+func test_golden_row_v0_6(
+	row: String,
+	payouts: Array,
+	total: int,
+	_test_parameters := [
+		["clearance_tag,bread,day_old_buns", [0, 3, 5], 8],
+		["clearance_tag,day_old_buns,day_old_buns", [0, 2, 5], 7],
+		["bread,clearance_tag", [3, 0], 3],
+		["flickering_bulb,clearance_tag,bread", [1, 0, 6], 7],
+		["clearance_tag,bread,dented_can,dented_can", [0, 3, 4, 6], 13],
+		["clearance_tag,bread,reduced_yogurt", [0, 3, 5], 8],
+		["opening_deal,soup,bread", [0, 15, 3], 18],
+		["bread,opening_deal,soup", [3, 0, 5], 8],
+		["opening_deal,repeat", [0, 0], 0],
+		["opening_deal,soup,repeat", [0, 15, 15], 30],
+		["opening_deal,soup,eggs,bread,milk", [0, 15, 1, 6, 14], 36],
+		["opening_deal,breakfast_sticker,banana,milk", [0, 0, 6, 5], 11],
+		["opening_deal,frozen_peas,bread,shelf_swap,frozen_peas", [0, 18, 3, 0, 6], 27],
+		["opening_deal,soup,frozen_peas", [0, 0, 3], 3],
+		["opening_deal,clearance_tag,bread,day_old_buns", [0, 0, 9, 5], 14],
+		["clearance_tag,opening_deal,bread", [0, 0, 3], 3],
+	]
+) -> void:
+	_check_row(FIXTURE_V0_6_DIR, row, payouts, total)
 
 
 func _check_row(fixture: String, row: String, payouts: Array, total: int) -> void:
