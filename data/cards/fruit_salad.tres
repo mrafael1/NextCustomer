@@ -1,0 +1,21 @@
+[gd_resource type="Resource" script_class="CardDefinition" format=3]
+
+[ext_resource type="Script" path="res://core/rule.gd" id="1_rule"]
+[ext_resource type="Script" path="res://core/rules/count_earlier_tag_bonus_rule.gd" id="2_fruit_salad"]
+[ext_resource type="Script" path="res://core/card_definition.gd" id="3_card"]
+
+[sub_resource type="Resource" id="Resource_fruit_salad"]
+script = ExtResource("2_fruit_salad")
+tag = "Produce"
+bonus_each = 2
+receipt_text = "Fruit salad: earlier Produce"
+
+[resource]
+script = ExtResource("3_card")
+id = &"fruit_salad"
+display_name = "Fruit salad"
+kind = 1
+tags = PackedStringArray("Food", "Produce")
+base = 2
+rules = Array[ExtResource("1_rule")]([SubResource("Resource_fruit_salad")])
+rule_text = "+2 for each earlier Produce product"

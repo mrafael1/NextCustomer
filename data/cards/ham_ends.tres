@@ -1,0 +1,23 @@
+[gd_resource type="Resource" script_class="CardDefinition" format=3]
+
+[ext_resource type="Script" path="res://core/rule.gd" id="1_rule"]
+[ext_resource type="Script" path="res://core/rules/adjacent_match_bonus_rule.gd" id="2_ham_ends"]
+[ext_resource type="Script" path="res://core/card_definition.gd" id="3_card"]
+
+[sub_resource type="Resource" id="Resource_ham_ends"]
+script = ExtResource("2_ham_ends")
+match_by = 3
+match_value = "Dairy"
+position = 1
+bonus = 3
+receipt_text = "Ham ends after Dairy"
+
+[resource]
+script = ExtResource("3_card")
+id = &"ham_ends"
+display_name = "Ham ends"
+kind = 1
+tags = PackedStringArray("Food", "Clearance")
+base = 2
+rules = Array[ExtResource("1_rule")]([SubResource("Resource_ham_ends")])
+rule_text = "+3 if immediately after a Dairy product"

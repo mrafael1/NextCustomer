@@ -7,6 +7,8 @@
 [ext_resource type="Resource" path="res://data/cards/crackers.tres" id="5_crackers"]
 [ext_resource type="Resource" path="res://data/cards/dented_can.tres" id="6_dented_can"]
 [ext_resource type="Resource" path="res://data/cards/day_old_buns.tres" id="7_day_old_buns"]
+[ext_resource type="Resource" path="res://data/cards/sugar_cubes.tres" id="8_sugar_cubes"]
+[ext_resource type="Resource" path="res://data/cards/mixed_herbs.tres" id="9_mixed_herbs"]
 
 [resource]
 script = ExtResource("1_aisle")
@@ -14,3 +16,4 @@ id = &"pantry"
 display_name = "Pantry"
 sign_color = Color(0.8863, 0.702, 0.2353, 1)
 base_cards = Array[ExtResource("2_card")]([ExtResource("3_cereal"), ExtResource("4_tea_bags"), ExtResource("5_crackers"), ExtResource("6_dented_can"), ExtResource("7_day_old_buns")])
+capsule_cards = Array[ExtResource("2_card")]([ExtResource("8_sugar_cubes"), ExtResource("9_mixed_herbs")])

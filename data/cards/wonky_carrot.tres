@@ -1,0 +1,23 @@
+[gd_resource type="Resource" script_class="CardDefinition" format=3]
+
+[ext_resource type="Script" path="res://core/rule.gd" id="1_rule"]
+[ext_resource type="Script" path="res://core/rules/adjacent_match_bonus_rule.gd" id="2_wonky_carrot"]
+[ext_resource type="Script" path="res://core/card_definition.gd" id="3_card"]
+
+[sub_resource type="Resource" id="Resource_wonky_carrot"]
+script = ExtResource("2_wonky_carrot")
+match_by = 3
+match_value = "Produce"
+position = 1
+bonus = 3
+receipt_text = "Wonky carrot after Produce"
+
+[resource]
+script = ExtResource("3_card")
+id = &"wonky_carrot"
+display_name = "Wonky carrot"
+kind = 1
+tags = PackedStringArray("Food", "Produce", "Clearance")
+base = 2
+rules = Array[ExtResource("1_rule")]([SubResource("Resource_wonky_carrot")])
+rule_text = "+3 if immediately after a Produce product"

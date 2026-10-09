@@ -14,6 +14,9 @@
 [ext_resource type="Resource" path="res://data/aisles/cold_cases.tres" id="a2_cold_cases"]
 [ext_resource type="Resource" path="res://data/aisles/pantry.tres" id="a3_pantry"]
 [ext_resource type="Resource" path="res://data/aisles/household.tres" id="a4_household"]
+[ext_resource type="Resource" path="res://data/aisles/fruit_and_veg.tres" id="a5_fruit_and_veg"]
+[ext_resource type="Resource" path="res://data/aisles/bakery.tres" id="a6_bakery"]
+[ext_resource type="Resource" path="res://data/aisles/snacks.tres" id="a7_snacks"]
 [ext_resource type="Script" path="res://core/upgrade_definition.gd" id="u1_upgrade"]
 [ext_resource type="Resource" path="res://data/upgrades/coupon_engine.tres" id="u2_coupon_engine"]
 [ext_resource type="Resource" path="res://data/upgrades/category_engine.tres" id="u3_category_engine"]
@@ -35,7 +38,7 @@ redraw_limit = 2
 slot_count = 6
 coupon_slot_count = 1
 deck_limit = 15
-aisles = Array[ExtResource("a1_aisle")]([ExtResource("a2_cold_cases"), ExtResource("a3_pantry"), ExtResource("a4_household")])
+aisles = Array[ExtResource("a1_aisle")]([ExtResource("a2_cold_cases"), ExtResource("a3_pantry"), ExtResource("a4_household"), ExtResource("a5_fruit_and_veg"), ExtResource("a6_bakery"), ExtResource("a7_snacks")])
 coupon_pool = Array[ExtResource("2_card")]([ExtResource("c11_repeat"), ExtResource("c12_final_markdown"), ExtResource("c14_breakfast_sticker"), ExtResource("c15_multipack"), ExtResource("c16_two_for_one"), ExtResource("c17_shelf_swap"), ExtResource("c18_clearance_tag"), ExtResource("c19_opening_deal")])
 run_aisle_picks = 2
 aisle_stock_budget = 16

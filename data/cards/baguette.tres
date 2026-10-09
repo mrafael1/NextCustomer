@@ -1,0 +1,21 @@
+[gd_resource type="Resource" script_class="CardDefinition" format=3]
+
+[ext_resource type="Script" path="res://core/rule.gd" id="1_rule"]
+[ext_resource type="Script" path="res://core/rules/count_earlier_tag_bonus_rule.gd" id="2_baguette"]
+[ext_resource type="Script" path="res://core/card_definition.gd" id="3_card"]
+
+[sub_resource type="Resource" id="Resource_baguette"]
+script = ExtResource("2_baguette")
+tag = "Bakery"
+bonus_each = 2
+receipt_text = "Baguette: earlier Bakery"
+
+[resource]
+script = ExtResource("3_card")
+id = &"baguette"
+display_name = "Baguette"
+kind = 1
+tags = PackedStringArray("Food", "Bakery")
+base = 2
+rules = Array[ExtResource("1_rule")]([SubResource("Resource_baguette")])
+rule_text = "+2 for each earlier Bakery product"

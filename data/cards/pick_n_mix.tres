@@ -1,0 +1,21 @@
+[gd_resource type="Resource" script_class="CardDefinition" format=3]
+
+[ext_resource type="Script" path="res://core/rule.gd" id="1_rule"]
+[ext_resource type="Script" path="res://core/rules/count_earlier_tag_bonus_rule.gd" id="2_pick_n_mix"]
+[ext_resource type="Script" path="res://core/card_definition.gd" id="3_card"]
+
+[sub_resource type="Resource" id="Resource_pick_n_mix"]
+script = ExtResource("2_pick_n_mix")
+tag = "Snack"
+bonus_each = 2
+receipt_text = "Pick 'n' mix: earlier Snack"
+
+[resource]
+script = ExtResource("3_card")
+id = &"pick_n_mix"
+display_name = "Pick 'n' mix"
+kind = 1
+tags = PackedStringArray("Food", "Snack")
+base = 1
+rules = Array[ExtResource("1_rule")]([SubResource("Resource_pick_n_mix")])
+rule_text = "+2 for each earlier Snack product"

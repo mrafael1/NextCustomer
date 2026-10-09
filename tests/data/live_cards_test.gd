@@ -32,7 +32,7 @@ func test_starter_deck_matches_the_plan() -> void:
 
 
 ## The phase 2 cards' rows (the base products, #34; 2 for 1 and Shelf swap, #37; Clearance tag
-## and Opening deal, #36), worked out by hand from the rules.
+## and Opening deal, #36; the capsule items, #35), worked out by hand from the rules.
 func test_phase_2_cards_score_the_design_examples(
 	row: String,
 	total: int,
@@ -57,6 +57,26 @@ func test_phase_2_cards_score_the_design_examples(
 		["clearance_tag,bread,day_old_buns", 8],
 		# Opening deal in the first slot: Soup pays 5 x3 (0 + 15 + 3).
 		["opening_deal,soup,bread", 18],
+		# Fruit & veg: Grapefruit 2; Banana 2 + 3; Lemon 1; Strawberries (2 + 3) x2; Wonky
+		# carrot 2 + 3; Fruit salad 2 + 2 x 5 earlier Produce.
+		["grapefruit,banana,lemon,strawberries,wonky_carrot,fruit_salad", 35],
+		# Bakery: Bread 3; Iced bun 1; Birthday candles 1; Baguette (2 + 2 x 2 + 3) x2.
+		["bread,iced_bun,birthday_candles,baguette", 23],
+		# Snacks: Bread 3; Crisps 5; Stale popcorn 2; Cereal bar 2 + 2 + 3; Bent lolly 5; Pick 'n'
+		# mix 1 + 2 x 4 earlier Snack.
+		["bread,crisps,stale_popcorn,cereal_bar,bent_lolly,pick_n_mix", 31],
+		# Clearance: Ham ends 2; Squashed cake 2; Reduced yogurt (2 + 3) x2; Dented can 2 + 2 x 3.
+		["ham_ends,squashed_cake,reduced_yogurt,dented_can", 22],
+		# Key items: Egg timer 1 + 4 after Eggs; Milk (3 + 2 x 3 earlier Breakfast) x2.
+		["eggs,egg_timer,bread,milk", 30],
+		# Cream x2 = 4 and +2 to Milk: (3 + 2 + 2) x2; Ham ends 2 + 3; Reduced yogurt 2 + 3.
+		["eggs,cream,milk,ham_ends,reduced_yogurt", 29],
+		# Sugar cubes 2 + 4 after Coffee, not Breakfast: Coffee's +3 and Milk's count pass over
+		# it. Milk 3 + 2 x 1 earlier Breakfast + 3 from Coffee (18 if Sugar cubes were Breakfast).
+		["coffee,sugar_cubes,milk", 16],
+		# Coffee 2; Chipped mug 1 + 3 beside Coffee; Egg timer 1 + Coffee's 3 (it is Breakfast);
+		# Odd socks 1 + 2 x 2 earlier Household.
+		["coffee,chipped_mug,egg_timer,odd_socks", 15],
 	]
 ) -> void:
 	assert_int(Scoring.score(_row(row)).total).is_equal(total)
@@ -74,6 +94,10 @@ func test_base_products_fizzle(
 		["tea_bags,soup", [[0, "Tea bags ×2", "1 charge unused"]]],
 		["flickering_bulb,bread", [[0, "Flickering bulb bonus", "no Clearance product after it"]]],
 		["batteries,bread", [[0, "Batteries last", "not in the last slot"]]],
+		# The capsule items reuse these rules' fizzles (#35).
+		["lemon,bread", [[0, "Lemon ×2", "1 charge unused"]]],
+		["cream,bread", [[0, "Cream bonus", "no Dairy product after it"]]],
+		["stale_doughnut,bread", [[0, "Stale doughnut last", "not in the last slot"]]],
 		["eggs,carrier_bag,bread,bread", []],
 	]
 ) -> void:
@@ -84,12 +108,12 @@ func test_base_products_fizzle(
 	assert_array(fizzles).is_equal(expected)
 
 
-func test_all_twenty_nine_cards_exist() -> void:
+func test_all_fifty_nine_cards_exist() -> void:
 	var ids: Array = []
 	for file: String in DirAccess.get_files_at(CARDS_DIR):
 		if file.ends_with(".tres"):
 			ids.append((load("%s/%s" % [CARDS_DIR, file]) as CardDefinition).id)
-	assert_int(ids.size()).is_equal(29)
+	assert_int(ids.size()).is_equal(59)
 
 
 static func _row(ids: String) -> Array[CardInstance]:

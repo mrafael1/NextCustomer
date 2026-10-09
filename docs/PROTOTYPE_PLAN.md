@@ -1,6 +1,6 @@
 # Next Customer: Prototype Plan
 
-> Status: v0.26, closed at proto-r1. The full build (`docs/FULL_BUILD_PLAN.md`) has taken over; this plan stays the scoring-rule spec (sections 3–5) and changes only when a rule does.
+> Status: v0.27, closed at proto-r1. The full build (`docs/FULL_BUILD_PLAN.md`) has taken over; this plan stays the scoring-rule spec (sections 3–5) and changes only when a rule does.
 > Source: the original "Receipt Rogue" game design plan, plus the decisions made in planning.
 > Engine: Godot 4 (exact version pinned in `AGENTS.md`), GDScript with static typing. Playtest builds are delivered in the browser.
 
@@ -108,7 +108,7 @@ Coupons go through the same steps at their own slot. A coupon has base 0 and no 
 | Loss | A checkout below the quota ends the run (no warning in v1) |
 | Checkout | Always allowed, whatever the row holds: an empty row scores 0 (and fails the quota), a one-card row scores that card. |
 | Preview | The exact projected total is always visible. The receipt preview shows each line. |
-| Wasted effects ("fizzles") | Every effect that does nothing gets its own 0-value receipt step, so the count-up can play a small "fizzle" on that card and players learn why an order was worse: a Coffee bonus with no later Breakfast product (and a Flickering bulb's with no later Clearance product, v0.22) · Egg charges left unused, or wiped by a later Egg's reset (and a Tea bags charge left unused) · a Breakfast sticker on a coupon, an empty slot or a product that is already Breakfast · a Bundle that bridges nothing · a Multipack with no product before it, or whose ×2 hits no later product · Repeat with nothing to copy · Final markdown (or Batteries) outside the last slot · Scissors with no coupon before it (it counts every earlier coupon, whether or not that coupon did anything) · 2 for 1 without a product on both sides, or without the same product on both sides · Shelf swap with no product in the next slot, or when that product is the row's first · a Clearance tag on a coupon, an empty slot or a product that is already Clearance · Opening deal outside the first slot, or with no product after it. An effect that was armed and then fizzles keeps its `EFFECT_ARMED` step, so the count-up shows it armed first. The scoring needs to be **juicy**: the steps carry everything the count-up needs (source slots for fly-ins, armed effects, separate multiplier steps for stamps, running values, fizzles). |
+| Wasted effects ("fizzles") | Every effect that does nothing gets its own 0-value receipt step, so the count-up can play a small "fizzle" on that card and players learn why an order was worse: a Coffee bonus with no later Breakfast product (and a Flickering bulb's with no later Clearance product, v0.22) · Egg charges left unused, or wiped by a later Egg's reset (and a Tea bags charge left unused) · a Breakfast sticker on a coupon, an empty slot or a product that is already Breakfast · a Bundle that bridges nothing · a Multipack with no product before it, or whose ×2 hits no later product · Repeat with nothing to copy · Final markdown (or Batteries) outside the last slot · Scissors with no coupon before it (it counts every earlier coupon, whether or not that coupon did anything) · 2 for 1 without a product on both sides, or without the same product on both sides · Shelf swap with no product in the next slot, or when that product is the row's first · a Clearance tag on a coupon, an empty slot or a product that is already Clearance · Opening deal outside the first slot, or with no product after it · the capsule items reuse these fizzles (v0.27): a Cream, Mixed herbs, Grapefruit, Birthday candles or Stale popcorn bonus with no later product of its tag, a Lemon, Iced bun or Squashed cake charge left unused, and a Stale doughnut outside the last slot. An effect that was armed and then fizzles keeps its `EFFECT_ARMED` step, so the count-up shows it armed first. The scoring needs to be **juicy**: the steps carry everything the count-up needs (source slots for fly-ins, armed effects, separate multiplier steps for stamps, running values, fizzles). |
 
 ### 3.6 Product tags
 
@@ -139,6 +139,28 @@ The base aisles' products (full build phase 2, v0.22) add two tags: **Household*
 | Scissors | Household |
 | Batteries | Household |
 | Flickering bulb | Household, Clearance |
+
+The capsule items (full build phase 2, v0.27, issue #35) add one tag: **Snack**, printed only by the Snacks aisle, so cutting that aisle removes it.
+
+| Product | Tags |
+|---|---|
+| Cream | Food, Dairy |
+| Ham ends | Food, Clearance |
+| Sugar cubes | Food |
+| Mixed herbs | Food |
+| Egg timer | Household, Breakfast |
+| Chipped mug | Household, Clearance |
+| Odd socks | Household |
+| Fruit salad, Strawberries, Lemon, Potatoes | Food, Produce |
+| Grapefruit | Food, Produce, Breakfast |
+| Wonky carrot, Bruised apples, Soft tomatoes | Food, Produce, Clearance |
+| Baguette, Scone, Iced bun | Food, Bakery |
+| Croissant | Food, Bakery, Breakfast |
+| Broken biscuit, Squashed cake, Stale doughnut | Food, Bakery, Clearance |
+| Birthday candles | Household |
+| Crisps, Pick 'n' mix, Breadsticks | Food, Snack |
+| Cereal bar | Food, Snack, Breakfast |
+| Bent lolly, Stale popcorn, Dusty toffees | Food, Snack, Clearance |
 
 ### 3.7 Required test cases (written before the UI)
 
@@ -411,6 +433,51 @@ Decided with the user (issue #34). The 3 base aisles are open from the start (`d
 - **Batteries** and **Flickering bulb** fizzle like Final markdown and Coffee ("not in the last slot", "no Clearance product after it").
 - The other conditional products pay no bonus when their condition fails, silently, like Banana, Cheese and Milk. Showing those as fizzles is issue #45.
 
+### Capsule items (full build phase 2, v0.27)
+
+Decided with the user (issue #35). Each aisle's machine (`docs/FULL_BUILD_PLAN.md` section 7.1) holds its capsule items, key item first: the base aisles' machines add 2, 2 and 3 items (to 7 each), and three aisles open through their machines, with no base products: **Fruit & veg** (sign dark green `3d7a45`), **Bakery** (light brown `d2a874`) and **Snacks** (dark brown `7a5232`), 8, 8 and 7 items. That is 30 capsule items and 50 products in all. Every item uses an existing rule script with its numbers in `data/`; no rule script, hook or "pays 0" hazard is new. The numbers are starting values for the simulator. Each key item combos with a staple. Capsule items can't be unlocked in play in phase 2 (the machines are phase 3): only the simulator's collection states and the tests reach them.
+
+| Card | Aisle | Base | Rule | Generally useful |
+|---|---|---|---|---|
+| **Cream** (key) | Cold cases | 2 | +2 to the next Dairy product | |
+| Ham ends | Cold cases | 2 | +3 if immediately after a Dairy product | |
+| **Sugar cubes** (key) | Pantry | 2 | +4 if immediately after Coffee | |
+| Mixed herbs | Pantry | 1 | +3 to the next Food product | yes |
+| **Egg timer** (key) | Household | 1 | +4 if immediately after Eggs | |
+| Chipped mug | Household | 1 | +3 if beside Coffee | |
+| Odd socks | Household | 1 | +2 for each earlier Household product | |
+| **Fruit salad** (key) | Fruit & veg | 2 | +2 for each earlier Produce product | |
+| Strawberries | Fruit & veg | 2 | +3 if beside a Produce product | yes |
+| Grapefruit | Fruit & veg | 2 | +3 to the next Produce product | |
+| Wonky carrot | Fruit & veg | 2 | +3 if immediately after a Produce product | |
+| Lemon | Fruit & veg | 1 | Double the next Produce payout | |
+| Bruised apples | Fruit & veg | 2 | +3 if beside a Clearance product | |
+| Soft tomatoes | Fruit & veg | 2 | +2 if beside Soup | |
+| Potatoes | Fruit & veg | 3 | No rule | |
+| **Baguette** (key) | Bakery | 2 | +2 for each earlier Bakery product | |
+| Scone | Bakery | 2 | +3 if beside a Dairy product | yes |
+| Croissant | Bakery | 2 | +2 if beside a Bakery product | |
+| Broken biscuit | Bakery | 2 | +3 if immediately after a Bakery product | |
+| Iced bun | Bakery | 1 | Double the next Bakery payout | |
+| Birthday candles | Bakery | 1 | +3 to the next Bakery product | |
+| Squashed cake | Bakery | 2 | Double the next Clearance payout | |
+| Stale doughnut | Bakery | 1 | +3 if in the last slot | |
+| **Crisps** (key) | Snacks | 2 | +3 if beside Bread | yes |
+| Cereal bar | Snacks | 2 | +2 if beside a Snack product | |
+| Bent lolly | Snacks | 2 | +3 if immediately after a Snack product | |
+| Pick 'n' mix | Snacks | 1 | +2 for each earlier Snack product | |
+| Stale popcorn | Snacks | 2 | +3 to the next Snack product | |
+| Breadsticks | Snacks | 2 | +2 if immediately after Soup | |
+| Dusty toffees | Snacks | 1 | +2 for each earlier Clearance product | |
+
+- **Givers** (Cream, Mixed herbs, Grapefruit, Birthday candles, Stale popcorn) work like Coffee: the bonus goes once to the next product with the tag anywhere later, and fizzles when there is none ("no Dairy product after it").
+- **Doublers** (Lemon, Iced bun, Squashed cake) work like Tea bags: one charge for the next payout with the tag, in their own charge groups (they never reset Eggs, Tea bags or each other), fizzling with "1 charge unused". Each prints the tag it doubles, so a second copy always spends the first one's charge.
+- **Stale doughnut** fizzles like Batteries ("not in the last slot"). The other conditional items pay no bonus when their condition fails, silently (issue #45).
+- **Egg timer** prints Breakfast (decided with the user), so Coffee's bonus and Milk's count reach it; it isn't Food, so Egg charges pass over it. **Sugar cubes** isn't Breakfast: Coffee's +3 passes over it to the next Breakfast product.
+- **Wonky carrot** and **Broken biscuit** are singular so their titles fit the card on one line (decided with the user).
+- **Organic label** (the next product gains Produce) stays held: every Produce reader is in Fruit & veg, so it would do nothing in a fresh profile and in the lists without that aisle.
+- Each machine's data order is key item, generally useful item, Breakfast item, Clearance item, then the rest, so the simulator's "new aisle at 4 items" state is a typical first draw. In play, draws after the key item stay random (section 7.1 there).
+
 ### Coupons (the fun multiplier: 2 from the doc + 3 that create combinations)
 
 | Coupon | Rule | What it tests |
@@ -425,7 +492,7 @@ Decided with the user (issue #34). The 3 base aisles are open from the start (`d
 | **Clearance tag** (v0.26) | The product in the next slot gains the Clearance tag | A second Relabeller: staples join the Clearance build (Bread before Day-old buns or Dented can) |
 | **Opening deal** (v0.26) | If in the first slot: the next product pays ×3 | A second Position coupon: it pulls a strong product to the front and competes with Final markdown for the coupon slot |
 
-Since v0.26 `coupon_pool` holds 8 coupons, meeting `docs/FULL_BUILD_PLAN.md` section 5.1: Amplifier 3 (Repeat, Multipack, 2 for 1), Relabeller 2 (Breakfast sticker, Clearance tag), Position 2 (Final markdown, Opening deal), Connector 1 (Shelf swap). Opening deal's ×3 (`factor` on `FirstSlotMultiplierRule`) is a starting value the reward-economy pass may retune. Organic label (the next product gains Produce) is held until a card reads Produce: none does yet (decided with the user, issue #36).
+Since v0.26 `coupon_pool` holds 8 coupons, meeting `docs/FULL_BUILD_PLAN.md` section 5.1: Amplifier 3 (Repeat, Multipack, 2 for 1), Relabeller 2 (Breakfast sticker, Clearance tag), Position 2 (Final markdown, Opening deal), Connector 1 (Shelf swap). Opening deal's ×3 (`factor` on `FirstSlotMultiplierRule`) is a starting value the reward-economy pass may retune. Organic label (the next product gains Produce) stays held (decided with the user, issue #36, and kept in v0.27, issue #35): every Produce reader is in Fruit & veg (see Capsule items above).
 
 ### Starting deck (13 cards, with an early coupon)
 
@@ -434,9 +501,9 @@ Since v0.26 `coupon_pool` holds 8 coupons, meeting `docs/FULL_BUILD_PLAN.md` sec
 Coupons are the core of the game, so players meet one from the first shift instead of waiting for a reward.
 
 ### Rewards
-- Offers draw from the run's stock (`docs/FULL_BUILD_PLAN.md` section 7.2, since v0.17): the starting deck's products, the listed aisles, the new arrivals and `coupon_pool`. Since v0.22 the 3 base aisles (14 products) fit the stock budget and there are no unlocks yet, so the stock is the 6 staples, the 14 base-aisle products and the coupons in `coupon_pool` (8 since v0.26). Bundle returned as 2 for 1 (v0.23), which takes its place in `coupon_pool` and the first-offer pool, and Shelf swap joins `coupon_pool`; `bundle.tres` stays in `data/cards/`, outside every pool, and its rule stays for the frozen `cards_v0_4` golden fixture.
+- Offers draw from the run's stock (`docs/FULL_BUILD_PLAN.md` section 7.2, since v0.17): the starting deck's products, the listed aisles, the new arrivals and `coupon_pool`. Since v0.22 the 3 base aisles (14 products) fit the stock budget and there are no unlocks in play yet (the capsule items of v0.27 come with the phase 3 machines), so the stock is the 6 staples, the 14 base-aisle products and the coupons in `coupon_pool` (8 since v0.26). Bundle returned as 2 for 1 (v0.23), which takes its place in `coupon_pool` and the first-offer pool, and Shelf swap joins `coupon_pool`; `bundle.tres` stays in `data/cards/`, outside every pool, and its rule stays for the frozen `cards_v0_4` golden fixture.
 - **The first reward offer always includes one of the combination coupons** (Breakfast sticker, Multipack or 2 for 1).
-- Each later set of 3 offers has at least 1 coupon and at least 1 card that is generally useful (a `generally_useful` flag on the card's data resource, tuned in `data/`, not decided in code). Decided with the user: Bread, Eggs, Milk and Banana are generally useful; Cheese, Coffee, Soup and Frozen peas stay situational. Each base aisle has one: Butter, Cereal and Carrier bag (v0.22).
+- Each later set of 3 offers has at least 1 coupon and at least 1 card that is generally useful (a `generally_useful` flag on the card's data resource, tuned in `data/`, not decided in code). Decided with the user: Bread, Eggs, Milk and Banana are generally useful; Cheese, Coffee, Soup and Frozen peas stay situational. Each base aisle has one: Butter, Cereal and Carrier bag (v0.22); the capsule items add Mixed herbs (Pantry), Strawberries, Scone and Crisps (v0.27).
 - The aisles, `coupon_pool` (which replaced `reward_pool` in v0.17), the first-offer pool (Breakfast sticker, Multipack, 2 for 1; a stocked one is offered) and the offer size (3) live in `data/balance/balance.tres`. An offer never shows the same card twice, and never a card outside the run's stock.
 
 ## 6. Build schedule (18 hours is the target, 24 is realistic)
@@ -649,3 +716,4 @@ Rules for iterating: **one major variable per round**, card values tweaked only 
 | v0.24 | 2026-10-08 | Register upgrades (full build phase 2, `docs/FULL_BUILD_PLAN.md` v0.21, issue #38), decided with the user: 7 upgrades, adding Rule bender (coupons no longer break adjacency, hazards included; a new upgrade `modify_context` hook, approved), Slot engine (the 6th product ×2, coupons skipped), Extra coupon slot and Big basket (+1 product slot, quota +15% rounded up from the next shift); "+1 card drawn" cut · shift limits fixed when a shift starts, one raised quota everywhere (3.8) · offers guarantee an upgrade that fits the deck, measured by build files (`data/builds/`), which replace `supported_build` · the shift screen scales a row wider than 7 slots · no golden total changes |
 | v0.25 | 2026-10-09 | Inspections (full build phase 2, `docs/FULL_BUILD_PLAN.md` v0.22, issue #39), decided with the user: Spot check, Short belt (one product slot fewer than the run has: 5, or 6 with Big basket) and Coupon slot closed (one coupon slot fewer: 0, or 1 with Extra coupon slot), as shift modifiers in `ShiftLimits` · Short belt may turn Slot engine off; Big basket counters it (moved here from `core/AGENTS.md`'s unresolved table) · "duplicate payouts capped at 4" rejected (it cancels several parts of Bulk buyer at once) · the draw never repeats the run's last inspection · a closed slot shows as a CLOSED panel, so an inspection never rescales the row · no scoring change, no golden total changes |
 | v0.26 | 2026-10-09 | Coupons (full build phase 2, `docs/FULL_BUILD_PLAN.md` v0.23, issue #36), decided with the user: two new coupons make 8 in `coupon_pool` · **Clearance tag** (Relabeller): the product in the next slot gains Clearance, on Breakfast sticker's rule script, with its fizzles (3.4, 3.5) · **Opening deal** (Position): in the row's first slot (any kind), the next product (coupons skipped: the row's first product) pays ×3, an armed one-slot multiplier like 2 for 1's; it fizzles outside the first slot or with no product after it (3.5). ×3 rather than the plan's ×2, so it competes with Final markdown for the coupon slot; 3.3 now allows whole-number multipliers other than ×2 · the Coupon engine fizzling on a working Opening deal (the first coupon, paying 0) is accepted as its cost; the upgrade rule is unchanged · Organic label held until a card reads Produce · the first-offer pool is unchanged · golden rows on a new frozen fixture `cards_v0_6` (3.7); `cards_v0_4` and `cards_v0_5` are unchanged · no new scoring hook, step type or pipeline change |
+| v0.27 | 2026-10-09 | Capsule items (full build phase 2, `docs/FULL_BUILD_PLAN.md` v0.25, issue #35), decided with the user: 30 capsule items, key item first · the base aisles' machines add Cream and Ham ends (Cold cases), Sugar cubes and Mixed herbs (Pantry), Egg timer, Chipped mug and Odd socks (Household), to 7 items each · three machine-opened aisles: Fruit & veg (8), Bakery (8) and Snacks (7), with sign colours from the art palette · a new **Snack** tag (3.6) · every item on an existing rule script, reusing its fizzles (3.5) · Egg timer prints Breakfast · Wonky carrot and Broken biscuit are singular so their titles fit the card · Organic label stays held · no scoring rule changes, and no golden row changes |
