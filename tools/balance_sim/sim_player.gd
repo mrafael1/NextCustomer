@@ -59,6 +59,7 @@ static func is_known_strategy(strategy: String) -> bool:
 	return STRATEGIES.has(strategy)
 
 
+## Plays the run of `run_seed`, or returns null if the search's time limit stopped it partway.
 func play(run_seed: int) -> SimRunRecord:
 	var stream: RandomNumberGenerator = EventLogService.derived_stream(
 		run_seed, EventLogService.IMPULSE_RACK_STREAM
@@ -76,9 +77,13 @@ func play(run_seed: int) -> SimRunRecord:
 	run.start_shift()
 	while true:
 		_play_shift(run, record, usage)
+		if _search.stopped:
+			return null
 		if run.phase != RunState.Phase.REWARD:
 			break
 		_pick_reward(run, usage)
+		if _search.stopped:
+			return null
 		if run.phase == RunState.Phase.UPGRADE:
 			_pick_upgrade(run)
 		run.next_shift()
@@ -94,12 +99,15 @@ func _play_shift(
 	run: RunState, record: SimRunRecord, usage: Dictionary[CardDefinition, int]
 ) -> void:
 	var best: SimHandBest = _search.search(run.hand(), run.upgrades, run.inspections)
-	while run.redraws_used < run.redraws_allowed:
+	while run.redraws_used < run.redraws_allowed and not _search.stopped:
 		var replaced: Array[CardInstance] = _redraw_pick(run.hand(), best)
 		if replaced.is_empty() or run.redraw(replaced).is_empty():
 			break
 		record.redraws += 1
 		best = _search.search(run.hand(), run.upgrades, run.inspections)
+	# The time limit stopped the search: the run is dropped, so the shift isn't played.
+	if _search.stopped:
+		return
 	for card: CardInstance in best.row:
 		run.place(card, run.row.size())
 	var result: ScoreResult = run.checkout()

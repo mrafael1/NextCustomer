@@ -9,6 +9,10 @@ extends SceneTree
 ##   --balance=PATH    balance data (default the live balance data)
 ##   --duel-samples=N  hands for the coupon-slot comparison, 0 to leave it out (default 200)
 ##   --out=PATH        also write the report as JSON
+##   --max-minutes=N   stop after N minutes and report the runs played so far (default 15; 0: no
+##                     limit). The time is shared out between the strategies and the coupon
+##                     duel (SimTimeLimit), and every process keeps to it, so the report still
+##                     covers each of them; its first line says how many runs it got through
 ##   --cache=DIR       where the search cache is kept between runs, or "none" (default
 ##                     reports/balance_sim_cache). The file is named by a fingerprint of core/,
 ##                     the deck, cards, upgrades and inspections in play and the row limits, so a
@@ -38,8 +42,9 @@ const PROCESS_DEFAULTS: Dictionary[String, String] = {
 	"raw": "",
 	"merge": "",
 	"cache": "res://reports/balance_sim_cache",
+	"max-minutes": "15",
 }
-const NUMBER_OPTIONS: Array[String] = ["runs", "seed", "samples", "duel-samples"]
+const NUMBER_OPTIONS: Array[String] = ["runs", "seed", "samples", "duel-samples", "max-minutes"]
 
 var _options: Dictionary[String, String] = {}
 var _starter: DeckDefinition
@@ -49,6 +54,8 @@ var _records: Dictionary[String, Array] = {}
 var _duel: SimCouponDuel
 var _rows_scored: int = 0
 var _cache_hits: int = 0
+## Whether the time limit stopped a process (any shard's, for a merge) before all its runs.
+var _timed_out: bool = false
 
 
 func _initialize() -> void:
@@ -133,23 +140,50 @@ func _strategies() -> PackedStringArray:
 func _simulate(shard: int, shards: int, search: SimRowSearch) -> void:
 	var runs: int = int(_options["runs"])
 	var share: int = ceili(float(runs - shard) / shards)
+	var duel_samples: int = int(_options["duel-samples"])
+	var limit: SimTimeLimit = SimTimeLimit.new(
+		int(_options["max-minutes"]),
+		_strategies().size() + (1 if duel_samples > 0 else 0),
+		Time.get_ticks_msec()
+	)
 	for strategy: String in _strategies():
 		print("Simulating runs with strategy %s (shard %d/%d)..." % [strategy, shard, shards])
 		var player: SimPlayer = SimPlayer.new(
 			_starter, _balance, search, strategy, int(_options["samples"])
 		)
 		var records: Array[SimRunRecord] = []
+		_begin_phase(limit, search)
 		for index: int in range(shard, runs, shards):
-			records.append(player.play(int(_options["seed"]) + index))
+			var record: SimRunRecord = null
+			if not limit.is_phase_over(Time.get_ticks_msec()):
+				record = player.play(int(_options["seed"]) + index)
+			if record == null:
+				limit.hit()
+				print("  time limit: stopped at %d/%d runs" % [records.size(), share])
+				break
+			records.append(record)
 			_print_progress(records.size(), share)
 		_records[strategy] = records
-	var duel_samples: int = int(_options["duel-samples"])
 	if duel_samples > 0:
 		print("Comparing coupons (shard %d/%d)..." % [shard, shards])
+		_begin_phase(limit, search)
 		for index: int in range(shard, duel_samples, shards):
+			if limit.is_phase_over(Time.get_ticks_msec()):
+				break
 			_duel.run_sample(search, index)
+			if search.stopped:
+				limit.hit()
+				break
+	_timed_out = limit.was_hit()
 	_rows_scored = search.rows_scored
 	_cache_hits = search.cache_hits
+
+
+## Starts a phase of the time limit: the search stops at its end.
+static func _begin_phase(limit: SimTimeLimit, search: SimRowSearch) -> void:
+	limit.begin_phase(Time.get_ticks_msec())
+	search.stop_at_msec = limit.phase_end_msec()
+	search.stopped = false
 
 
 func _print_progress(done: int, total: int) -> void:
@@ -170,6 +204,7 @@ func _write_raw() -> int:
 		"duel": _duel.samples_to_array(),
 		"rows_scored": _rows_scored,
 		"cache_hits": _cache_hits,
+		"timed_out": _timed_out,
 	}
 	return _write_file(_options["raw"], JSON.stringify(data))
 
@@ -191,6 +226,7 @@ func _merge(paths: PackedStringArray, search: SimRowSearch) -> bool:
 			search.load_cache(path + ".cache")
 		_rows_scored += int(data["rows_scored"])
 		_cache_hits += int(data["cache_hits"])
+		_timed_out = _timed_out or bool(data.get("timed_out", false))
 	for strategy: String in _strategies():
 		var records: Array = runs[strategy]
 		records.sort_custom(
@@ -271,8 +307,8 @@ func _report(summaries: Array[SimSummary], seconds: float) -> String:
 	var build_label: String = ProjectSettings.get_setting("next_customer/build_label", "?")
 	report.append(
 		(
-			"Next Customer balance simulator · build %s · deck %s · %s runs per strategy"
-			% [build_label, _starter.id, _options["runs"]]
+			"Next Customer balance simulator · build %s · deck %s · %s"
+			% [build_label, _starter.id, _runs_text(summaries)]
 		)
 	)
 	var row_text: String = (
@@ -331,6 +367,19 @@ func _report(summaries: Array[SimSummary], seconds: float) -> String:
 	return "\n".join(report)
 
 
+## The runs per strategy: --runs, or, when the time limit stopped them, how many were played of it.
+func _runs_text(summaries: Array[SimSummary]) -> String:
+	if not _timed_out:
+		return "%s runs per strategy" % _options["runs"]
+	var played: int = int(_options["runs"])
+	for summary: SimSummary in summaries:
+		played = mini(played, summary.runs)
+	return (
+		"%d of %s runs per strategy (time limit of %s min reached)"
+		% [played, _options["runs"], _options["max-minutes"]]
+	)
+
+
 func _write_json(summaries: Array[SimSummary], seconds: float) -> int:
 	var strategies: Array = summaries.map(
 		func(summary: SimSummary) -> Dictionary: return summary.to_dictionary()
@@ -343,6 +392,7 @@ func _write_json(summaries: Array[SimSummary], seconds: float) -> int:
 		"coupon_duel": _duel.to_dictionary(),
 		"rows_scored": _rows_scored,
 		"seconds": seconds,
+		"timed_out": _timed_out,
 	}
 	var status: int = _write_file(_options["out"], JSON.stringify(data, "\t"))
 	if status == 0:
