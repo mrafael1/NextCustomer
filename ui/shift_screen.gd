@@ -636,13 +636,15 @@ func _refresh() -> void:
 	_deck_button.text = "Deck %d/%d" % [run.deck.size(), run.balance.deck_limit]
 	_seed_label.text = "Seed %d" % run.run_seed
 	_capacity_label.text = (
-		"Products %d/%d  ·  Coupon slot%s %d/%d"
+		"Products %d/%d%s  ·  Coupon slot%s %d/%d%s"
 		% [
 			RowCapacity.product_count(run.row),
 			run.limits.slot_count,
+			_closed_text(run.limits.closed_slots, run.limits.slot_count),
 			"s" if run.limits.coupon_slot_count > 1 else "",
 			RowCapacity.coupon_slots_used(run.limits, run.row),
-			run.limits.coupon_slot_count
+			run.limits.coupon_slot_count,
+			_closed_text(run.limits.closed_coupon_slots, run.limits.coupon_slot_count)
 		]
 	)
 	_refresh_row()
@@ -652,9 +654,20 @@ func _refresh() -> void:
 		_refresh_preview()
 
 
+## " (inspection -1)" when the shift's inspection closed slots, " (closed)" when none are left.
+static func _closed_text(closed: int, left: int) -> String:
+	if closed <= 0:
+		return ""
+	return "  (closed)" if left == 0 else "  (inspection −%d)" % closed
+
+
 ## One slot per card the shift allows (upgrades can add slots), then the row's cards.
 func _refresh_row() -> void:
-	_row_strip.set_slot_count(RowCapacity.card_limit(run.limits))
+	var closed: int = run.limits.closed_slots + run.limits.closed_coupon_slots
+	var reason: String = (
+		"Closed by the inspection: %s" % ", ".join(InspectionTag.names(run.inspections))
+	)
+	_row_strip.set_slot_count(RowCapacity.card_limit(run.limits), closed, reason)
 	var placeable: bool = _picked != null and run.can_place(_picked)
 	_row_views = _row_strip.show_cards(
 		run.row, run.row.size() if placeable else -1, _on_row_card_clicked
@@ -798,6 +811,9 @@ func _build() -> void:
 	# 7 slots and the receipt fit the 1280 px window (plan section 3.1); a wider row scales.
 	_row_strip = RowStrip.new()
 	_row_strip.slot_input.connect(_on_slot_input)
+	_row_strip.closed_clicked.connect(
+		func() -> void: _notice_label.show_notice("Closed by the inspection this shift")
+	)
 	row_column.add_child(_row_strip)
 	_row_box = _row_strip.box
 	# The same array as the strip's, kept in place across rebuilds, so CardDrag sees new slots.

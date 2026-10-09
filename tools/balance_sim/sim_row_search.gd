@@ -60,7 +60,7 @@ func search(
 	var upgrade_key: String = _upgrade_key(upgrades) + _inspection_key(inspections)
 	# A hand's best also depends on the row limits, which upgrades can raise (ShiftLimits; the
 	# quota doesn't matter here).
-	var row_limits: ShiftLimits = ShiftLimits.for_shift(_balance, upgrades, 0)
+	var row_limits: ShiftLimits = ShiftLimits.for_shift(_balance, upgrades, 0, inspections)
 	var limits_key: String = "%d/%d:" % [row_limits.slot_count, row_limits.card_limit()]
 	var hand_key: String = "hand " + limits_key + ",".join(everything) + upgrade_key
 	var entry: Array = _cache.get(hand_key, [])

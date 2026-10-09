@@ -1,0 +1,10 @@
+[gd_resource type="Resource" script_class="InspectionDefinition" format=3]
+
+[ext_resource type="Script" path="res://core/inspection_definition.gd" id="1_inspection"]
+
+[resource]
+script = ExtResource("1_inspection")
+id = &"short_belt"
+display_name = "Short belt"
+notice_text = "One product slot fewer"
+extra_slots = -1

@@ -22,6 +22,8 @@
 [ext_resource type="Resource" path="res://data/upgrades/big_basket.tres" id="u8_big_basket"]
 [ext_resource type="Script" path="res://core/inspection_definition.gd" id="i1_inspection"]
 [ext_resource type="Resource" path="res://data/inspections/spot_check.tres" id="i2_spot_check"]
+[ext_resource type="Resource" path="res://data/inspections/short_belt.tres" id="i3_short_belt"]
+[ext_resource type="Resource" path="res://data/inspections/coupon_slot_closed.tres" id="i4_coupon_slot_closed"]
 
 [resource]
 script = ExtResource("1_balance")
@@ -45,7 +47,7 @@ upgrade_shifts = PackedInt32Array(2, 4, 6)
 upgrade_pool = Array[ExtResource("u1_upgrade")]([ExtResource("u2_coupon_engine"), ExtResource("u3_category_engine"), ExtResource("u4_extra_redraw"), ExtResource("u5_rule_bender"), ExtResource("u6_slot_engine"), ExtResource("u7_extra_coupon_slot"), ExtResource("u8_big_basket")])
 upgrade_offer_size = 3
 inspection_shifts = PackedInt32Array(3, 5, 7)
-inspection_pool = Array[ExtResource("i1_inspection")]([ExtResource("i2_spot_check")])
+inspection_pool = Array[ExtResource("i1_inspection")]([ExtResource("i2_spot_check"), ExtResource("i3_short_belt"), ExtResource("i4_coupon_slot_closed")])
 coins_by_shifts_passed = PackedInt32Array(0, 0, 1, 1, 1, 1, 1, 1, 2)
 overtime_coin_euros = 60
 overtime_coin_max = 1

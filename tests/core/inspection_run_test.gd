@@ -16,7 +16,9 @@ func test_balance_inspection_data_fits_the_run() -> void:
 	for shift_number: int in balance.inspection_shifts:
 		# Announced on the previous shift's receipt, so never shift 1.
 		assert_int(shift_number).is_between(2, balance.quotas.size())
-	assert_array(RunEvents.inspection_ids(balance.inspection_pool)).is_equal(["spot_check"])
+	assert_array(RunEvents.inspection_ids(balance.inspection_pool)).is_equal(
+		["spot_check", "short_belt", "coupon_slot_closed"]
+	)
 
 
 func test_the_inspection_is_announced_at_the_previous_checkout() -> void:
@@ -176,9 +178,13 @@ static func _definition_ids(definitions: Array) -> Array:
 	)
 
 
+## Quotas all 5, and a pool holding only Spot check: these tests follow Spot check through the
+## run. The other inspections are tested in inspections_test.
 static func _low_quotas() -> BalanceDefinition:
 	var balance: BalanceDefinition = (load(BALANCE) as BalanceDefinition).duplicate()
 	balance.quotas = PackedInt32Array([5, 5, 5, 5, 5, 5, 5, 5])
+	var pool: Array[InspectionDefinition] = [load("res://data/inspections/spot_check.tres")]
+	balance.inspection_pool = pool
 	return balance
 
 

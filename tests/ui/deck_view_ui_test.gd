@@ -159,7 +159,10 @@ func test_run_info_during_the_reward_shows_the_drawn_inspection() -> void:
 	var view: DeckView = screen._deck_view
 	view.show_page(true)
 	var texts: PackedStringArray = view.texts()
-	assert_array(Array(texts)).contains(["Next shift: Spot check, The 3rd product pays €0"])
+	var drawn: InspectionDefinition = screen.run.next_inspection
+	assert_array(Array(texts)).contains(
+		["Next shift: %s, %s" % [drawn.display_name, drawn.notice_text]]
+	)
 	(
 		assert_bool(
 			Array(texts).any(func(text: String) -> bool: return text.begins_with("This shift"))
