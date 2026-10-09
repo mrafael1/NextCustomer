@@ -130,7 +130,7 @@ static func from_dictionary(data: Dictionary, lookup: ContentLookup) -> RunSave:
 	# limits the shift started with (its quota and slots).
 	if restored.shift_index < restored.shift_count():
 		restored.limits = ShiftLimits.for_shift(
-			restored.balance, restored.upgrades, restored.shift_index
+			restored.balance, restored.upgrades, restored.shift_index, restored.inspections
 		)
 	var history_ok: bool = _restore_history(restored, reader.dictionaries("history"), lookup)
 	var cards_ok: bool = _restore_cards(restored, reader)

@@ -30,6 +30,7 @@ func after_test() -> void:
 func test_the_notice_comes_before_the_reward_and_the_kiosk() -> void:
 	var runner: GdUnitSceneRunner = scene_runner(SCREEN)
 	var screen: ShiftScreen = runner.scene()
+	_only_spot_check(screen)
 	screen._on_reward_skipped()  # Past the impulse rack.
 	var run: RunState = screen.run
 	assert_bool(screen._inspection_tag.visible).is_false()
@@ -85,6 +86,7 @@ func test_the_notice_comes_before_the_reward_and_the_kiosk() -> void:
 func test_inspection_steps_print_and_play_from_the_tag() -> void:
 	var runner: GdUnitSceneRunner = scene_runner(SCREEN)
 	var screen: ShiftScreen = runner.scene()
+	_only_spot_check(screen)
 	screen._on_reward_skipped()  # Past the impulse rack.
 	screen._debug.set_inspection("spot_check")
 	assert_bool(screen._inspection_tag.visible).is_true()
@@ -107,6 +109,7 @@ func test_inspection_steps_print_and_play_from_the_tag() -> void:
 func test_the_debug_panel_clears_the_inspection() -> void:
 	var runner: GdUnitSceneRunner = scene_runner(SCREEN)
 	var screen: ShiftScreen = runner.scene()
+	_only_spot_check(screen)
 	screen._on_reward_skipped()  # Past the impulse rack.
 	screen._debug.set_inspection("spot_check")
 	assert_array(_last_event("shift_start")["inspections"]).is_equal(["spot_check"])
@@ -200,3 +203,62 @@ static func _left_click() -> InputEventMouseButton:
 
 static func _event_log() -> EventLogService:
 	return (Engine.get_main_loop() as SceneTree).root.get_node("/root/EventLog")
+
+
+## These tests follow Spot check through the screen: the run draws from a pool holding only it
+## (a copy of the balance data, so the shared resource is untouched).
+static func _only_spot_check(screen: ShiftScreen) -> void:
+	var balance: BalanceDefinition = screen.run.balance.duplicate()
+	var pool: Array[InspectionDefinition] = [load("res://data/inspections/spot_check.tres")]
+	balance.inspection_pool = pool
+	screen.run.balance = balance
+
+
+## Short belt on the shift screen: 5 open slots plus a CLOSED panel after them, so the row keeps
+## its usual 7 panels and its scale; the panel names the inspection, a click on it explains, and
+## the counter says what the inspection took.
+func test_a_closed_slot_shows_on_the_row() -> void:
+	var runner: GdUnitSceneRunner = scene_runner(SCREEN)
+	var screen: ShiftScreen = runner.scene()
+	screen._on_reward_skipped()  # Past the impulse rack.
+	var run: RunState = screen.run
+	run.inspections = [load("res://data/inspections/short_belt.tres")]
+	run.debug_skip_to_shift(run.shift_index)
+	screen._on_shift_started()
+	await _frames(3)
+	assert_int(screen._slots.size()).is_equal(6)
+	assert_int(screen._row_strip.closed.size()).is_equal(1)
+	assert_int(screen._row_box.get_child_count()).is_equal(7)
+	assert_vector(screen._row_box.scale).is_equal(Vector2.ONE)
+	var panel: PanelContainer = screen._row_strip.closed[0]
+	assert_str(panel.tooltip_text).contains("Short belt")
+	assert_str((panel.get_child(0) as Label).text).is_equal("CLOSED")
+	var window: Rect2 = screen.get_viewport_rect()
+	var closed_rect: Rect2 = panel.get_global_rect()
+	assert_bool(window.encloses(closed_rect)).is_true()
+	assert_float(closed_rect.position.x).is_greater_equal(screen._slots[-1].get_global_rect().end.x)
+	assert_bool(closed_rect.intersects(screen._receipt.get_global_rect())).is_false()
+	assert_str(screen._capacity_label.text).contains("Products 0/5  (inspection −1)")
+	screen._row_strip.closed_clicked.emit()
+	assert_str(screen._notice_label.text).contains("Closed by the inspection")
+
+
+## Coupon slot closed: one coupon and 5 products fill the 6-card row before the products are
+## full, so a 6th product is refused with a notice, never silently.
+func test_a_full_row_explains_why_a_product_does_not_fit() -> void:
+	var runner: GdUnitSceneRunner = scene_runner(SCREEN)
+	var screen: ShiftScreen = runner.scene()
+	screen._on_reward_skipped()  # Past the impulse rack.
+	var run: RunState = screen.run
+	run.inspections = [load("res://data/inspections/coupon_slot_closed.tres")]
+	run.debug_skip_to_shift(run.shift_index)
+	screen._on_shift_started()
+	var bread: CardDefinition = load("res://data/cards/bread.tres")
+	run.place(run.debug_add_to_hand(load("res://data/cards/repeat.tres")), 0)
+	for index: int in range(5):
+		run.place(run.debug_add_to_hand(bread), index + 1)
+	assert_int(run.row.size()).is_equal(RowCapacity.card_limit(run.limits))
+	var extra: CardInstance = run.debug_add_to_hand(bread)
+	assert_bool(run.can_place(extra)).is_false()
+	screen._explain_if_refused(extra)
+	assert_str(screen._notice_label.text).contains("Row full (6/6 cards)")

@@ -33,7 +33,7 @@ var shift_index: int = 0
 var phase: Phase = Phase.PLANNING
 var row: Array[CardInstance] = []
 ## The current shift's limits (slots, redraws, quota), fixed when the shift starts from the
-## balance data and the upgrades owned then (ShiftLimits).
+## balance data, the upgrades owned then and the shift's inspections (ShiftLimits).
 var limits: ShiftLimits
 ## Redraws made this shift, and how many it allows (limits.redraws: BASE_REDRAWS plus each
 ## owned upgrade's extra_redraws), set when the shift starts.
@@ -127,7 +127,7 @@ func is_last_shift() -> bool:
 func start_shift() -> void:
 	if phase == Phase.IMPULSE:
 		return
-	limits = ShiftLimits.for_shift(balance, upgrades, shift_index)
+	limits = ShiftLimits.for_shift(balance, upgrades, shift_index, inspections)
 	deck.draw_hand(balance.hand_size)
 	row = []
 	redraws_used = 0
@@ -228,7 +228,7 @@ func checkout() -> ScoreResult:
 				deck_cards.append(card.definition)
 			upgrade_offer = UpgradeOffer.make(_rng, balance, upgrades, deck_cards)
 		if InspectionSchedule.is_inspection_shift(balance, shift_index + 2):
-			next_inspection = InspectionSchedule.draw(_rng, balance)
+			next_inspection = InspectionSchedule.draw(_rng, balance, _last_inspection())
 		phase = Phase.REWARD
 	return last_result
 
@@ -329,9 +329,10 @@ func debug_skip_to_shift(index: int) -> void:
 	if target != shift_index or history.size() != target:
 		debug_jumped = true
 	if target != shift_index:
+		var previous: InspectionDefinition = _last_inspection()
 		inspections = []
 		if InspectionSchedule.is_inspection_shift(balance, target + 1):
-			var drawn: InspectionDefinition = InspectionSchedule.draw(_rng, balance)
+			var drawn: InspectionDefinition = InspectionSchedule.draw(_rng, balance, previous)
 			if drawn != null:
 				inspections.append(drawn)
 	shift_index = target
@@ -339,3 +340,14 @@ func debug_skip_to_shift(index: int) -> void:
 	upgrade_offer = []
 	next_inspection = null
 	start_shift()
+
+
+## The run's last inspection: the current shift's, else the last inspected shift's (no
+## inspection twice in a row, InspectionSchedule.draw).
+func _last_inspection() -> InspectionDefinition:
+	if not inspections.is_empty():
+		return inspections[0]
+	for index: int in range(history.size() - 1, -1, -1):
+		if history[index].inspection != null:
+			return history[index].inspection
+	return null

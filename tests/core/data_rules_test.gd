@@ -178,7 +178,7 @@ func test_every_inspection_states_its_id_and_notice() -> void:
 		ids[inspection.id] = true
 		assert_str(inspection.display_name).override_failure_message(file).is_not_empty()
 		assert_str(inspection.notice_text).override_failure_message(file).is_not_empty()
-	assert_int(ids.size()).is_equal(1)
+	assert_int(ids.size()).is_equal(3)
 
 
 ## Full build plan 7.3: the catalogue lists every deck file and every card variant, each once,

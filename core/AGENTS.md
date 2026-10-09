@@ -35,6 +35,6 @@ The plan does not decide these interactions. **Don't pick an answer.** If a task
 
 | Question | Why it matters |
 |---|---|
-| The "only 5 product slots" inspection (#39) with Slot engine (the 6th product ×2, plan 3.8): the inspection turns Slot engine off for that shift. Proposed as acceptable, because inspections are announced; confirm with the user when #39 builds it. | It decides whether a capacity inspection may silently disable an owned upgrade ("never disable several parts of a build at once", full build plan 5.3). |
+| *(none open right now)* | |
 
 Add new questions here when they come up instead of guessing.

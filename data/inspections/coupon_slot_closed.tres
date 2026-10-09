@@ -1,0 +1,10 @@
+[gd_resource type="Resource" script_class="InspectionDefinition" format=3]
+
+[ext_resource type="Script" path="res://core/inspection_definition.gd" id="1_inspection"]
+
+[resource]
+script = ExtResource("1_inspection")
+id = &"coupon_slot_closed"
+display_name = "Coupon slot closed"
+notice_text = "One coupon slot fewer"
+extra_coupon_slots = -1

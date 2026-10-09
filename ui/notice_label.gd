@@ -26,11 +26,19 @@ func show_notice(notice: String) -> void:
 	_tween.tween_property(self, "modulate", Color(1, 1, 1, 0), 0.4)
 
 
-## Plan section 3.1: a product doesn't fit once every product slot is used, even when the
-## coupon slot is still free. Shows why and returns true, or returns false when it fits.
+## Plan section 3.1: no card fits once the row holds as many cards as the shift allows (a coupon
+## past the coupon-only slots uses a product slot, so this can come before the products are
+## full), and a product doesn't fit once every product slot is used, even when a coupon slot is
+## still free. Shows why and returns true, or returns false when it fits.
 func explain_refusal(card: CardDefinition, limits: ShiftLimits, row: Array[CardInstance]) -> bool:
+	var row_full: bool = row.size() >= RowCapacity.card_limit(limits)
 	if card.is_coupon() or not RowCapacity.products_full(limits, row):
-		return false
+		if not row_full:
+			return false
+		show_notice(
+			"Row full (%d/%d cards): take a card out first" % [row.size(), limits.card_limit()]
+		)
+		return true
 	var products: String = "%d/%d products" % [RowCapacity.product_count(row), limits.slot_count]
 	if row.size() < RowCapacity.card_limit(limits):
 		show_notice("%s: only a coupon fits now" % products)
