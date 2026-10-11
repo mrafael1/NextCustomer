@@ -12,7 +12,7 @@ const REPEAT := "res://data/cards/repeat.tres"
 func test_balance_matches_the_plan() -> void:
 	var balance: BalanceDefinition = load(BALANCE)
 	# 8 shifts, quotas fitted with the balance simulator (plan v0.28, issue #41).
-	assert_array(Array(balance.quotas)).is_equal([41, 42, 65, 77, 87, 123, 124, 149])
+	assert_array(Array(balance.quotas)).is_equal([34, 35, 53, 61, 73, 98, 111, 120])
 	assert_int(balance.hand_size).is_equal(8)
 	assert_int(balance.redraw_limit).is_equal(2)
 	assert_int(balance.slot_count).is_equal(6)
@@ -24,7 +24,7 @@ func test_start_shift_draws_a_hand_and_empties_the_row() -> void:
 	var run: RunState = _run(1)
 	assert_int(run.hand().size()).is_equal(8)
 	assert_array(run.row).is_empty()
-	assert_int(run.quota()).is_equal(41)
+	assert_int(run.quota()).is_equal(34)
 	assert_int(run.phase).is_equal(RunState.Phase.PLANNING)
 
 
@@ -144,12 +144,12 @@ func test_without_coupon_slots_the_row_holds_slot_count_cards() -> void:
 ## Scoring has no row limit of its own: a 7-card row scores like any other (plan section 3.1).
 func test_a_seven_card_row_scores_as_usual() -> void:
 	var bread_six: Array = ["bread", "bread", "bread", "bread", "bread", "bread"]
-	# Six Breads, then Final markdown in the last slot: 6 * 3 + 6 = 24.
-	assert_int(_checkout_ids(19, bread_six + ["final_markdown"])).is_equal(24)
-	# Final markdown in slot 6 of 7 isn't the last slot: 5 * 3 + 0 + 3 = 18.
-	assert_int(_checkout_ids(20, bread_six.slice(1) + ["final_markdown", "bread"])).is_equal(18)
-	# Repeat as the 7th card copies the Bread before it: 6 * 3 + 3 = 21.
-	assert_int(_checkout_ids(21, bread_six + ["repeat"])).is_equal(21)
+	# Six Breads, then Final markdown in the last slot: 6 * 5 + 4 = 34.
+	assert_int(_checkout_ids(19, bread_six + ["final_markdown"])).is_equal(34)
+	# Final markdown in slot 6 of 7 isn't the last slot: 5 * 5 + 0 + 5 = 30.
+	assert_int(_checkout_ids(20, bread_six.slice(1) + ["final_markdown", "bread"])).is_equal(30)
+	# Repeat as the 7th card copies the Bread before it: 6 * 5 + 5 = 35.
+	assert_int(_checkout_ids(21, bread_six + ["repeat"])).is_equal(35)
 
 
 func test_cannot_place_a_card_twice_or_from_outside_the_hand() -> void:
@@ -211,10 +211,10 @@ func test_no_changes_after_checkout() -> void:
 
 func test_passing_a_shift_moves_to_the_next_quota() -> void:
 	var run: RunState = _run(9)
-	# Eggs, Multipack, then five Milks: 115, above the first quota of 41.
-	for id: String in ["eggs", "multipack", "milk", "milk", "milk", "milk", "milk"]:
+	# Milk, Multipack, then five Milks: 109, above the first quota of 34.
+	for id: String in ["milk", "multipack", "milk", "milk", "milk", "milk", "milk"]:
 		run.place(run.debug_add_to_hand(load("res://data/cards/%s.tres" % id)), run.row.size())
-	assert_int(run.checkout().total).is_equal(115)
+	assert_int(run.checkout().total).is_equal(109)
 	assert_bool(run.passed()).is_true()
 	assert_int(run.phase).is_equal(RunState.Phase.REWARD)
 	assert_bool(run.next_shift()).is_false()
@@ -222,7 +222,7 @@ func test_passing_a_shift_moves_to_the_next_quota() -> void:
 	assert_int(run.phase).is_equal(RunState.Phase.SCORED)
 	assert_bool(run.next_shift()).is_true()
 	assert_int(run.shift_index).is_equal(1)
-	assert_int(run.quota()).is_equal(42)
+	assert_int(run.quota()).is_equal(35)
 	assert_array(run.row).is_empty()
 	assert_int(run.hand().size()).is_equal(8)
 	assert_int(run.redraws_used).is_equal(0)

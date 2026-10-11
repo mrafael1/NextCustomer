@@ -2,10 +2,11 @@ class_name SimListGate
 extends RefCounted
 ## The list gate's verdicts (full build plan section 8): every state SimCollection.gate_states
 ## makes is held against the fresh profile's runs. A state passes when, for every strategy
-## played, its run win rate is within WIN_RATE_POINTS of the fresh profile's; when no main build
-## is over the 40% bar in its greedy runs (SimSummary); and, for the full-collection states,
-## when each build's key-card offer chance (SimBuilds) is at least KEY_CARD_SHARE of the fresh
-## profile's. Passing the gate itself belongs to the balance passes (#42).
+## played, its run win rate is within WIN_RATE_POINTS of the fresh profile's; and, for the
+## full-collection states, when each build's key-card offer chance (SimBuilds) is at least
+## KEY_CARD_SHARE of the fresh profile's. A main build over the 40% bar in its greedy runs
+## (SimSummary) is reported as a warning: since #42 the bar is no longer a gate (decided with
+## the user).
 
 const WIN_RATE_POINTS := 5.0
 const KEY_CARD_SHARE := 0.85
@@ -40,10 +41,11 @@ static func check(
 		deltas[summary.strategy] = points
 		if absf(points) > WIN_RATE_POINTS:
 			failures.append("%s win rate %+.1f points" % [summary.strategy, points])
-		if summary.strategy == SimSummary.BAR_STRATEGY:
+		if SimSummary.is_bar_strategy(summary.strategy):
 			over_bar = summary.builds_over_bar()
+	var warnings: Array[String] = []
 	if not over_bar.is_empty():
-		failures.append("over the 40%% bar: %s" % ", ".join(over_bar))
+		warnings.append("over the 40%% bar: %s" % ", ".join(over_bar))
 	var ratios: Dictionary[String, float] = {}
 	if state.group == KEY_CARD_GROUP:
 		var short: Array[String] = []
@@ -67,6 +69,7 @@ static func check(
 		"builds_over_bar": over_bar,
 		"key_card_ratios": ratios,
 		"failures": failures,
+		"warnings": warnings,
 		"passed": failures.is_empty(),
 	}
 
@@ -111,6 +114,8 @@ static func format(verdicts: Array[Dictionary], fresh: Array[SimSummary]) -> Str
 		if not verdict["passed"]:
 			failed += 1
 			result = "FAIL: " + "; ".join(verdict["failures"])
+		if not verdict["warnings"].is_empty():
+			result += " · warning: " + "; ".join(verdict["warnings"])
 		lines.append("%s · %s · %s" % [verdict["state"], ", ".join(rates), result])
 	lines.append(
 		(

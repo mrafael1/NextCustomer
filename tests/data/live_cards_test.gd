@@ -6,8 +6,9 @@ const CARDS_DIR := "res://data/cards"
 
 
 func test_live_cards_score_the_design_examples() -> void:
-	assert_int(Scoring.score(_row("eggs,bread,cheese,banana,banana,repeat")).total).is_equal(31)
-	assert_int(Scoring.score(_row("banana,repeat,bread,eggs,banana,cheese")).total).is_equal(18)
+	# The design doc's 31 / 18 (kept on the frozen fixture) with Eggs' 1 charge and Bread 5 (#42).
+	assert_int(Scoring.score(_row("eggs,bread,cheese,banana,banana,repeat")).total).is_equal(28)
+	assert_int(Scoring.score(_row("banana,repeat,bread,eggs,banana,cheese")).total).is_equal(17)
 
 
 func test_starter_deck_matches_the_plan() -> void:
@@ -25,7 +26,7 @@ func test_starter_deck_matches_the_plan() -> void:
 				&"eggs": 2,
 				&"coffee": 2,
 				&"soup": 1,
-				&"repeat": 1,
+				&"final_markdown": 1,
 			}
 		)
 	)
@@ -37,40 +38,43 @@ func test_phase_2_cards_score_the_design_examples(
 	row: String,
 	total: int,
 	_test_parameters := [
-		# Milk: (3 + 2 x 2 earlier Breakfast) x2 Eggs x2 Tea bags x2 Multipack = 56.
-		["eggs,tea_bags,multipack,milk", 58],
+		# Yogurt 2 x2 Eggs (its one charge); Multipack reads Yogurt's Dairy, never Food or
+		# Breakfast (#42); Milk (4 + 1 x 2 earlier Breakfast) x3 Multipack = 18; 1 + 4 + 18.
+		["eggs,yogurt,multipack,milk", 23],
 		# Bulb 1; buns 2 + 3 after Clearance + 3 from the bulb; can 2 + 2 x 2 earlier Clearance.
 		["flickering_bulb,day_old_buns,dented_can", 15],
-		# Repeat copies Bread's 3; Scissors 1 + 2 for Repeat; Batteries 1 + 4 in the last slot.
-		["bread,repeat,scissors,batteries", 14],
-		# Butter 5, Bread 3, Crackers 5, Soup 5, Cereal 5, Milk 3 + 2 x 2 (Bread, Cereal) = 7.
-		["butter,bread,crackers,soup,cereal,milk", 30],
-		# Banana 2, Yogurt 5, Carrier bag 1 + 2 earlier Food, Reduced yogurt 5, Dented can 4.
-		["banana,yogurt,carrier_bag,reduced_yogurt,dented_can", 19],
-		# Tea bags isn't Food: Eggs skips it. Tea doubles Bread: 1 + 6.
-		["tea_bags,bread", 7],
+		# Repeat copies Bread's 5; Scissors 1 + 2 for Repeat; Batteries 1 + 4 in the last slot.
+		["bread,repeat,scissors,batteries", 18],
+		# Butter 5, Bread 5, Crackers 5, Soup 5, Cereal 5, Milk 4 + 1 x 2 (Bread, Cereal) = 6.
+		["butter,bread,crackers,soup,cereal,milk", 31],
+		# Banana 2, Yogurt 5, Carrier bag 1 + 5 x 2 earlier Food, Reduced yogurt 5, Dented can 4.
+		["banana,yogurt,carrier_bag,reduced_yogurt,dented_can", 27],
+		# Tea bags isn't Food: Eggs skips it. Tea bags x4 on Bread: 1 + 20.
+		["tea_bags,bread", 21],
 		# 2 for 1 links the Bananas: the pair bonus applies, then ×2 (2 + 0 + 8).
 		["banana,two_for_one,banana", 10],
-		# Shelf swap: Cheese counts as just after Bread, the first product (3 + 2 + 0 + 7).
-		["bread,banana,shelf_swap,cheese", 12],
-		# Clearance tag makes Bread Clearance: Day-old buns 2 + 3 after it (0 + 3 + 5).
-		["clearance_tag,bread,day_old_buns", 8],
-		# Opening deal in the first slot: Soup pays 5 x3 (0 + 15 + 3).
-		["opening_deal,soup,bread", 18],
+		# Shelf swap: Cheese counts as just after Bread, the first product (5 + 2 + 0 + 7).
+		["bread,banana,shelf_swap,cheese", 14],
+		# Clearance tag makes Bread Clearance: Day-old buns 2 + 3 after it (0 + 5 + 5).
+		["clearance_tag,bread,day_old_buns", 10],
+		# Opening deal in the first slot: Soup pays 5 x5 (0 + 25 + 5).
+		["opening_deal,soup,bread", 30],
 		# Fruit & veg: Grapefruit 2; Banana 2 + 3; Lemon 1; Strawberries (2 + 3) x2; Wonky
 		# carrot 2 + 3; Fruit salad 2 + 2 x 5 earlier Produce.
 		["grapefruit,banana,lemon,strawberries,wonky_carrot,fruit_salad", 35],
-		# Bakery: Bread 3; Iced bun 1; Birthday candles 1; Baguette (2 + 2 x 2 + 3) x2.
-		["bread,iced_bun,birthday_candles,baguette", 23],
-		# Snacks: Bread 3; Crisps 5; Stale popcorn 2; Cereal bar 2 + 2 + 3; Bent lolly 5; Pick 'n'
+		# Bakery: Bread 5; Iced bun 1; Birthday candles 1; Baguette (2 + 2 x 2 + 3) x2.
+		["bread,iced_bun,birthday_candles,baguette", 25],
+		# Snacks: Bread 5; Crisps 5; Stale popcorn 2; Cereal bar 2 + 2 + 3; Bent lolly 5; Pick 'n'
 		# mix 1 + 2 x 4 earlier Snack.
-		["bread,crisps,stale_popcorn,cereal_bar,bent_lolly,pick_n_mix", 31],
+		["bread,crisps,stale_popcorn,cereal_bar,bent_lolly,pick_n_mix", 33],
 		# Clearance: Ham ends 2; Squashed cake 2; Reduced yogurt (2 + 3) x2; Dented can 2 + 2 x 3.
 		["ham_ends,squashed_cake,reduced_yogurt,dented_can", 22],
-		# Key items: Egg timer 1 + 4 after Eggs; Milk (3 + 2 x 3 earlier Breakfast) x2.
-		["eggs,egg_timer,bread,milk", 30],
-		# Cream x2 = 4 and +2 to Milk: (3 + 2 + 2) x2; Ham ends 2 + 3; Reduced yogurt 2 + 3.
-		["eggs,cream,milk,ham_ends,reduced_yogurt", 29],
+		# Key items: Egg timer 1 + 4 after Eggs; Bread 5 x2 takes Eggs' one charge; Milk 4 + 1 x 3
+		# earlier Breakfast.
+		["eggs,egg_timer,bread,milk", 23],
+		# Cream x2 = 4 (Eggs' one charge) and +2 to Milk: 3 + 2 + 2; Ham ends 2 + 3; Reduced
+		# yogurt 2 + 3.
+		["eggs,cream,milk,ham_ends,reduced_yogurt", 22],
 		# Sugar cubes 2 + 4 after Coffee, not Breakfast: Coffee's +3 and Milk's count pass over
 		# it. Milk 3 + 2 x 1 earlier Breakfast + 3 from Coffee (18 if Sugar cubes were Breakfast).
 		["coffee,sugar_cubes,milk", 16],
@@ -91,7 +95,7 @@ func test_base_products_fizzle(
 		["scissors", [[0, "Scissors: earlier coupons", "no coupon before it"]]],
 		["bread,scissors", [[1, "Scissors: earlier coupons", "no coupon before it"]]],
 		["repeat,scissors", [[0, "Repeat", "no product just before it to copy"]]],
-		["tea_bags,soup", [[0, "Tea bags ×2", "1 charge unused"]]],
+		["tea_bags,soup", [[0, "Tea bags ×4", "1 charge unused"]]],
 		["flickering_bulb,bread", [[0, "Flickering bulb bonus", "no Clearance product after it"]]],
 		["batteries,bread", [[0, "Batteries last", "not in the last slot"]]],
 		# The capsule items reuse these rules' fizzles (#35).
@@ -99,6 +103,11 @@ func test_base_products_fizzle(
 		["cream,bread", [[0, "Cream bonus", "no Dairy product after it"]]],
 		["stale_doughnut,bread", [[0, "Stale doughnut last", "not in the last slot"]]],
 		["eggs,carrier_bag,bread,bread", []],
+		# Coffee is only Breakfast, which Multipack ignores (#42).
+		[
+			"coffee,multipack,milk",
+			[[1, "Multipack ×3", "the product just before it has no tag but Food or Breakfast"]]
+		],
 	]
 ) -> void:
 	var fizzles: Array = []

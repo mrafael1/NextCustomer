@@ -56,9 +56,9 @@ func test_the_inspected_shift_scores_and_records_it() -> void:
 	for _index: int in range(3):
 		run.place(run.debug_add_to_hand(load(BREAD)), run.row.size())
 	# Three Breads: the 3rd pays 0, in the preview and at checkout.
-	assert_array(Array(run.preview().payouts)).is_equal([3, 3, 0])
+	assert_array(Array(run.preview().payouts)).is_equal([5, 5, 0])
 	var result: ScoreResult = run.checkout()
-	assert_int(result.total).is_equal(6)
+	assert_int(result.total).is_equal(10)
 	var inspection_steps: Array = result.steps.filter(
 		func(step: ScoreStep) -> bool: return step.source_kind == ScoreStep.SourceKind.INSPECTION
 	)

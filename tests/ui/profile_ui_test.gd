@@ -71,17 +71,17 @@ func test_the_results_print_the_coins_and_fit_the_screen() -> void:
 		screen.run.history.push_front(ShiftRecord.new(shift, 10, 12))
 	# The last quota (plan v0.28) expects upgrades: this test plays it against 48 instead.
 	screen.run.limits.quota = 48
-	# Bread, Multipack, then four Milks at x2: 67 against that quota.
-	for id: String in ["bread", "multipack", "milk", "milk", "milk", "milk"]:
+	# Milk, Multipack, then four Milks at x3 (they share Dairy): 82 against that quota.
+	for id: String in ["milk", "multipack", "milk", "milk", "milk", "milk"]:
 		var card: CardDefinition = load("res://data/cards/%s.tres" % id)
 		screen.run.place(screen.run.debug_add_to_hand(card), screen.run.row.size())
 	await screen._on_checkout_pressed()
 	assert_int(screen.run.phase).is_equal(RunState.Phase.WON)
-	# 8 shifts passed pay 2; overtime 7 x 2 + (67 - 48) = 33, under the €700 step.
+	# 8 shifts passed pay 2; overtime 7 x 2 + (82 - 48) = 48, under the €923 step.
 	var texts: PackedStringArray = screen._results._coin_receipt.texts()
 	assert_int(texts.size()).is_equal(3)
 	assert_str(texts[0]).starts_with("Shifts passed 8").ends_with("+2")
-	assert_str(texts[1]).starts_with("Overtime €33").ends_with("+0")
+	assert_str(texts[1]).starts_with("Overtime €48").ends_with("+0")
 	assert_str(texts[2]).starts_with("COINS +2").ends_with("you have 8")
 	assert_int(saves.load_profile().coins).is_equal(8)
 	for frame: int in range(4):

@@ -6,8 +6,8 @@ extends GdUnitTestSuite
 ## don't deliver input events.
 
 const SCREEN := "res://ui/shift_screen.tscn"
-## Eggs, Multipack, Milk x5 = 115: passes the first five quotas.
-const PASSING_ROW: Array[String] = ["eggs", "multipack", "milk", "milk", "milk", "milk", "milk"]
+## Milk, Multipack, Milk x5 = 109: passes the first five quotas.
+const PASSING_ROW: Array[String] = ["milk", "multipack", "milk", "milk", "milk", "milk", "milk"]
 ## The panels' arming delay (RewardPanel, UpgradePanel), in wall-clock ms.
 const ARMING_MS := 350
 ## A tween counts game time from the frame before it started, so in wall-clock time the pop-in

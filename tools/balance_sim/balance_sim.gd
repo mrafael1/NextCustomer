@@ -25,7 +25,8 @@ extends SceneTree
 ##                     every state SimCollection.gate_states makes, and report each one's win
 ##                     rate against the fresh profile's, the 40% bar and the key-card offer
 ##                     chance; not with --profile, --collection or --list, and it needs the
-##                     greedy strategy (the 40% bar is a share of its won runs)
+##                     greedy or greedy@sensible strategy (the 40% bar, a warning since #42,
+##                     is a share of its won runs)
 ##   --offer-samples=N later reward offers made per stock for the key-card offer chance
 ##                     (default 1000)
 ##   --orphan-samples=N hands per capsule item for the orphan check (full build plan 7.2), 0 to
@@ -290,10 +291,10 @@ func _collection_option_problem() -> String:
 	var given: String = _options["profile"] + _options["collection"] + _options["list"]
 	if _is_gate() and not given.is_empty():
 		return "--list-gate makes its own states: no --profile, --collection, --list"
-	if _is_gate() and not _strategies().has(SimSummary.BAR_STRATEGY):
+	if _is_gate() and not Array(_strategies()).any(SimSummary.is_bar_strategy):
 		return (
-			"--list-gate needs the %s strategy (the 40%% bar is a share of its won runs)"
-			% SimSummary.BAR_STRATEGY
+			"--list-gate needs the %s or %s%s strategy (the 40%% bar is a share of its won runs)"
+			% [SimSummary.BAR_STRATEGY, SimSummary.BAR_STRATEGY, SimPlayer.SENSIBLE_SUFFIX]
 		)
 	if not _options["collection"] in ["", "full"]:
 		return "--collection takes full, got %s" % _options["collection"]

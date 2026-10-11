@@ -12,6 +12,9 @@ var payouts: PackedInt32Array = PackedInt32Array()
 var effects: Array[ScoreEffect] = []
 var steps: Array[ScoreStep] = []
 var subtotal: int = 0
+## Product slots the shift has more (+) or fewer (-) than the balance data's, from the run's
+## upgrades and the shift's inspections (Big basket +1, Short belt -1). Set by Scoring.score().
+var product_slot_change: int = 0
 ## Which slots have been scanned (their payout is final).
 var _scanned: PackedByteArray = PackedByteArray()
 ## For each slot, the products counted as just before / just after it (plan section 3.4). A

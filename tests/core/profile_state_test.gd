@@ -7,6 +7,7 @@ const STARTER := "res://data/decks/starter.tres"
 const BALANCE := "res://data/balance/balance.tres"
 const BREAD := "res://data/cards/bread.tres"
 const REPEAT := "res://data/cards/repeat.tres"
+const FINAL_MARKDOWN := "res://data/cards/final_markdown.tres"
 const BANANA := "res://data/cards/banana.tres"
 
 
@@ -43,17 +44,19 @@ func test_only_an_ended_run_is_recorded() -> void:
 
 func test_a_locked_deck_unlocks_when_its_condition_is_met() -> void:
 	var profile: ProfileState = ProfileState.new()
-	var deck: DeckDefinition = _deck(&"repeat_deck", UnlockCondition.Kind.WIN_WITH_CARD, REPEAT, 0)
+	var deck: DeckDefinition = _deck(
+		&"markdown_deck", UnlockCondition.Kind.WIN_WITH_CARD, FINAL_MARKDOWN, 0
+	)
 	var catalogue: CatalogueDefinition = _catalogue([load(STARTER), deck], [])
 	assert_bool(profile.has_deck(deck)).is_false()
 	var lost: RunState = _run(3)
 	_check_out(lost, [])
 	assert_array(profile.record_run(lost, catalogue)).is_empty()
-	assert_array(profile.record_run(_won_run(4), catalogue)).is_equal([&"repeat_deck"])
+	assert_array(profile.record_run(_won_run(4), catalogue)).is_equal([&"markdown_deck"])
 	assert_bool(profile.has_deck(deck)).is_true()
 	# Unlocked once; a deck without a condition is never listed.
 	assert_array(profile.record_run(_won_run(5), catalogue)).is_empty()
-	assert_array(profile.unlocked_decks).is_equal([&"repeat_deck"])
+	assert_array(profile.unlocked_decks).is_equal([&"markdown_deck"])
 
 
 func test_coupon_use_unlocks_count_earlier_runs_then_add_this_one() -> void:

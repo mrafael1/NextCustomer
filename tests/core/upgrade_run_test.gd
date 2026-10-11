@@ -30,13 +30,12 @@ func test_balance_upgrade_data_fits_the_run() -> void:
 				"coupon_engine",
 				"extra_coupon_slot",
 				"extra_redraw",
-				"rule_bender",
 				"slot_engine",
 			]
 		)
 	)
-	# One per type, and two Economy upgrades (plan v0.24).
-	assert_int(types.size()).is_equal(6)
+	# One per type, and two Economy upgrades (plan v0.24); Rule bender left the pool in #42.
+	assert_int(types.size()).is_equal(5)
 	assert_int(balance.upgrade_offer_size).is_equal(3)
 
 
@@ -227,7 +226,7 @@ func test_history_has_one_entry_per_played_shift() -> void:
 			{
 				"shift": 1,
 				"quota": 5,
-				"total": 6,
+				"total": 10,
 				"passed": true,
 				"card_picked": String(card.id),
 				"reward_skipped": false,
@@ -297,12 +296,12 @@ func test_preview_and_checkout_use_the_run_upgrades() -> void:
 	run.place(run.debug_add_to_hand(load(BREAD)), 0)
 	run.place(run.debug_add_to_hand(load("res://data/cards/final_markdown.tres")), 1)
 	var preview: ScoreResult = run.preview()
-	assert_int(preview.total).is_equal(15)
+	assert_int(preview.total).is_equal(13)
 	var upgrade_steps: Array = preview.steps.filter(
 		func(step: ScoreStep) -> bool: return step.source_kind == ScoreStep.SourceKind.UPGRADE
 	)
 	assert_int(upgrade_steps.size()).is_equal(1)
-	assert_int(run.checkout().total).is_equal(15)
+	assert_int(run.checkout().total).is_equal(13)
 
 
 static func _low_quotas() -> BalanceDefinition:

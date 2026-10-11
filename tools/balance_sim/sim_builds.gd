@@ -61,6 +61,16 @@ func main_build(deck: Array[CardDefinition]) -> String:
 	return String(best.id) if best != null else NO_BUILD
 
 
+## The ids of every build the deck fits, in build order (viability's formation check, #42: a
+## build strategy's target build fits the final deck).
+func fitted(deck: Array[CardDefinition]) -> PackedStringArray:
+	var ids_found: PackedStringArray = PackedStringArray()
+	for build: BuildDefinition in builds:
+		if build.fits(deck):
+			ids_found.append(String(build.id))
+	return ids_found
+
+
 static func is_key_card(build: BuildDefinition, card: CardDefinition) -> bool:
 	var alone: Array[CardDefinition] = [card]
 	return build.count(alone) > 0

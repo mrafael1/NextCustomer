@@ -6,8 +6,8 @@
 
 [sub_resource type="Resource" id="Resource_opening_deal"]
 script = ExtResource("2_opening_deal")
-factor = 3
-receipt_text = "Opening deal ×3"
+factor = 5
+receipt_text = "Opening deal ×5"
 
 [resource]
 script = ExtResource("3_card")
@@ -16,4 +16,4 @@ display_name = "Opening deal"
 kind = 2
 tags = PackedStringArray()
 rules = Array[ExtResource("1_rule")]([SubResource("Resource_opening_deal")])
-rule_text = "If in the first slot: the next product pays ×3"
+rule_text = "If in the first slot: the next product pays ×5"

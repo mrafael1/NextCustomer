@@ -7,12 +7,12 @@
 [ext_resource type="Resource" path="res://data/cards/eggs.tres" id="5_57nlt"]
 [ext_resource type="Resource" path="res://data/cards/coffee.tres" id="6_lpcs8"]
 [ext_resource type="Resource" path="res://data/cards/soup.tres" id="7_bmeym"]
-[ext_resource type="Resource" path="res://data/cards/repeat.tres" id="8_4qg83"]
+[ext_resource type="Resource" path="res://data/cards/final_markdown.tres" id="8_fmkdn"]
 [ext_resource type="Script" path="res://core/deck_definition.gd" id="9_rscb3"]
 
 [resource]
 script = ExtResource("9_rscb3")
 id = &"starter"
 display_name = "Starter deck"
-description = "Everyday staples and a single Repeat coupon."
-cards = Array[ExtResource("1_1jfx1")]([ExtResource("2_2solj"), ExtResource("2_2solj"), ExtResource("2_2solj"), ExtResource("3_pkkbx"), ExtResource("3_pkkbx"), ExtResource("4_htfqu"), ExtResource("4_htfqu"), ExtResource("5_57nlt"), ExtResource("5_57nlt"), ExtResource("6_lpcs8"), ExtResource("6_lpcs8"), ExtResource("7_bmeym"), ExtResource("8_4qg83")])
+description = "Everyday staples and a single Final markdown coupon."
+cards = Array[ExtResource("1_1jfx1")]([ExtResource("2_2solj"), ExtResource("2_2solj"), ExtResource("2_2solj"), ExtResource("3_pkkbx"), ExtResource("3_pkkbx"), ExtResource("4_htfqu"), ExtResource("4_htfqu"), ExtResource("5_57nlt"), ExtResource("5_57nlt"), ExtResource("6_lpcs8"), ExtResource("6_lpcs8"), ExtResource("7_bmeym"), ExtResource("8_fmkdn")])

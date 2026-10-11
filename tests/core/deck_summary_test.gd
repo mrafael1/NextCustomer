@@ -13,7 +13,7 @@ func test_the_starter_groups_products_by_name_then_coupons() -> void:
 	for group: DeckSummary.Group in groups:
 		found.append("%s %d" % [group.card.id, group.copies.size()])
 	assert_array(found).is_equal(
-		["banana 3", "bread 2", "coffee 2", "eggs 2", "milk 2", "soup 1", "repeat 1"]
+		["banana 3", "bread 2", "coffee 2", "eggs 2", "milk 2", "soup 1", "final_markdown 1"]
 	)
 
 

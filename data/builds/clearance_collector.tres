@@ -1,6 +1,8 @@
 [gd_resource type="Resource" script_class="BuildDefinition" format=3]
 
 [ext_resource type="Script" path="res://core/build_definition.gd" id="1_build"]
+[ext_resource type="Script" path="res://core/card_definition.gd" id="2_card"]
+[ext_resource type="Resource" path="res://data/cards/clearance_tag.tres" id="3_tag"]
 
 [resource]
 script = ExtResource("1_build")
@@ -9,3 +11,4 @@ display_name = "Clearance collector"
 measure = 1
 tag = "Clearance"
 min_count = 2
+cards = Array[ExtResource("2_card")]([ExtResource("3_tag")])

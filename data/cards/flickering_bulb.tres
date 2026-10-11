@@ -19,3 +19,4 @@ tags = PackedStringArray("Household", "Clearance")
 base = 1
 rules = Array[ExtResource("1_rule")]([SubResource("Resource_flickering_bulb")])
 rule_text = "+3 to the next Clearance product"
+generally_useful = true

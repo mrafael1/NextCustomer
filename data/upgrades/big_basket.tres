@@ -3,6 +3,7 @@
 [ext_resource type="Script" path="res://core/upgrade_definition.gd" id="3_upgrade"]
 [ext_resource type="Script" path="res://core/build_definition.gd" id="4_build"]
 [ext_resource type="Resource" path="res://data/builds/clearance_collector.tres" id="5_clearance_collector"]
+[ext_resource type="Resource" path="res://data/builds/bulk_buyer.tres" id="6_bulk_buyer"]
 
 [resource]
 script = ExtResource("3_upgrade")
@@ -11,6 +12,6 @@ display_name = "Big basket"
 type = 6
 effect_text = "+1 product slot"
 condition_text = "Your quota is 15% higher from the next shift (rounded up)"
-builds = Array[ExtResource("4_build")]([ExtResource("5_clearance_collector")])
+builds = Array[ExtResource("4_build")]([ExtResource("5_clearance_collector"), ExtResource("6_bulk_buyer")])
 extra_slots = 1
 quota_percent = 15

@@ -35,23 +35,23 @@ func test_coins_follow_the_shifts_passed() -> void:
 	assert_int(CoinPayout.for_run(won).total()).is_equal(2)
 
 
-## Overtime is the margin over quota on passed shifts only: 2 Breads (6) over 5 is 1, and the
-## lost shift's total doesn't count.
+## Overtime is the margin over quota on passed shifts only: 2 Breads (10) over 5 is 5, 4 Breads
+## (20) over 5 is 15, and the lost shift's total doesn't count.
 func test_overtime_sums_the_passed_margins() -> void:
 	var run: RunState = _run(_balance([0], 0, 0), 2)
 	_pass_and_continue(run, [BREAD, BREAD])
 	_pass_and_continue(run, [BREAD, BREAD, BREAD, BREAD])
-	_check_out(run, [BREAD])
+	_check_out(run, [])
 	assert_int(run.phase).is_equal(RunState.Phase.LOST)
-	assert_int(CoinPayout.for_run(run).overtime).is_equal(1 + 7)
+	assert_int(CoinPayout.for_run(run).overtime).is_equal(5 + 15)
 
 
 func test_overtime_coins_have_a_step_and_a_cap() -> void:
-	# Two passes with overtime 1 and 7 = 8.
-	assert_int(_overtime_coins(_balance([0], 8, 1))).is_equal(1)
-	assert_int(_overtime_coins(_balance([0], 9, 1))).is_equal(0)
-	assert_int(_overtime_coins(_balance([0], 4, 1))).is_equal(1)
-	assert_int(_overtime_coins(_balance([0], 4, 5))).is_equal(2)
+	# Two passes with overtime 5 and 15 = 20.
+	assert_int(_overtime_coins(_balance([0], 20, 1))).is_equal(1)
+	assert_int(_overtime_coins(_balance([0], 21, 1))).is_equal(0)
+	assert_int(_overtime_coins(_balance([0], 10, 1))).is_equal(1)
+	assert_int(_overtime_coins(_balance([0], 10, 5))).is_equal(2)
 	assert_int(_overtime_coins(_balance([0], 0, 5))).is_equal(0)
 
 
@@ -86,7 +86,7 @@ func test_live_coin_amounts() -> void:
 	assert_array(Array(table)).is_equal([0, 0, 0, 0, 1, 1, 1, 1, 2])
 	for index: int in range(1, table.size()):
 		assert_int(table[index]).is_greater_equal(table[index - 1])
-	assert_int(balance.overtime_coin_euros).is_equal(700)
+	assert_int(balance.overtime_coin_euros).is_equal(923)
 	assert_int(balance.overtime_coin_max).is_equal(1)
 
 
@@ -129,7 +129,7 @@ static func _pass_and_continue(run: RunState, paths: Array) -> void:
 	run.next_shift()
 
 
-## All 8 shifts passed with two Breads each (overtime 8 x 1 = 8).
+## All 8 shifts passed with two Breads each (overtime 8 x 5 = 40).
 static func _won_run(balance: BalanceDefinition) -> RunState:
 	var run: RunState = _run(balance, 9)
 	for shift: int in range(7):

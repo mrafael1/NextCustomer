@@ -19,11 +19,11 @@ func test_the_placeholder_inspection_matches_the_plan() -> void:
 func test_the_live_inspection_scores_the_plan_example() -> void:
 	var inspections: Array[InspectionDefinition] = [load(SPOT_CHECK)]
 	var no_upgrades: Array[UpgradeDefinition] = []
-	# Banana 2, Bread 3, Milk 3 + 2 (Bread is Breakfast) = 5, paid 0 as the 3rd product.
+	# Banana 2, Bread 5, Milk 3 + 2 (Bread is Breakfast) = 5, paid 0 as the 3rd product.
 	var row: Array[CardInstance] = _row(["banana", "bread", "milk"])
-	assert_int(Scoring.score(row, no_upgrades).total).is_equal(10)
+	assert_int(Scoring.score(row, no_upgrades).total).is_equal(12)
 	var inspected: ScoreResult = Scoring.score(row, no_upgrades, inspections)
-	assert_array(Array(inspected.payouts)).is_equal([2, 3, 0])
+	assert_array(Array(inspected.payouts)).is_equal([2, 5, 0])
 	var lines: PackedStringArray = PackedStringArray()
 	var names: PackedStringArray = PackedStringArray(["Spot check"])
 	for step: ScoreStep in inspected.steps:
