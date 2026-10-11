@@ -201,6 +201,7 @@ func test_build_strategy_runs_record_builds_and_coins() -> void:
 		for id: String in record.final_deck:
 			final_deck.append(_card(id))
 		assert_str(record.main_build).is_equal(_builds().main_build(final_deck))
+		assert_array(Array(record.fitted_builds)).is_equal(Array(_builds().fitted(final_deck)))
 		var passed: int = 0
 		var overtime: int = 0
 		for shift: Dictionary in record.shifts:
@@ -270,13 +271,18 @@ func test_summary_builds_bar_and_coins() -> void:
 	assert_int(summary.lost_on_shift_2).is_equal(1)
 	assert_int(summary.lost_on_shift_2_overtime).is_equal(1)
 	assert_str(summary.format()).contains(
-		"40% bar (no main build over 40% of the won runs): FAIL (a)"
+		"40% bar (no main build over 40% of the won runs): WARNING (a)"
 	)
 	assert_str(summary.format()).contains("Runs to 30 unlocks (30 ÷ mean coins): 30.0")
-	# Only the greedy strategy is held to the bar.
+	# Only the greedy strategy is held to the bar, with either row player (#42).
 	var other: SimSummary = SimSummary.new("random", PackedInt32Array([10, 10, 10]))
 	other.add(_record(true, 3, "a", 2, 0))
 	assert_str(other.format()).not_contains("40% bar")
+	assert_bool(SimSummary.is_bar_strategy("greedy@sensible")).is_true()
+	assert_bool(SimSummary.is_bar_strategy("random@sensible")).is_false()
+	var sensible: SimSummary = SimSummary.new("greedy@sensible", PackedInt32Array([10, 10, 10]))
+	sensible.add(_record(true, 3, "a", 2, 0))
+	assert_str(sensible.format()).contains("40% bar")
 
 
 ## Runs that fit no build aren't a build: they never fail the bar, but count in the won runs.
@@ -302,15 +308,16 @@ func test_list_gate_verdicts() -> void:
 		mixed.add(_record(index < 77, 1, ["a", "b", "c"][index % 3], 0, 0))
 	var passing: Dictionary = SimListGate.check(full, [mixed], fresh, good_chances, fresh_chances)
 	assert_bool(passing["passed"]).override_failure_message(str(passing["failures"])).is_true()
-	# 10 points off, a build over the bar and key cards short.
+	# 10 points off and key cards short; a build over the bar is only a warning (#42).
 	var short_chances: Dictionary[String, float] = {"a": 0.4, "b": 0.5}
 	var failing: Dictionary = SimListGate.check(
 		full, [_summary_with(10, 7, "a")], [_summary_with(10, 8, "a")], short_chances, fresh_chances
 	)
 	assert_bool(failing["passed"]).is_false()
 	assert_array(failing["failures"]).is_equal(
-		["greedy win rate -10.0 points", "over the 40% bar: a", "key cards below 85%: a 50%"]
+		["greedy win rate -10.0 points", "key cards below 85%: a 50%"]
 	)
+	assert_array(failing["warnings"]).is_equal(["over the 40% bar: a"])
 	# The key-card check is for the full collection only.
 	var first: SimCollection = SimCollection.new()
 	first.group = "first list"
@@ -319,6 +326,16 @@ func test_list_gate_verdicts() -> void:
 	var report: String = SimListGate.format([passing, failing], fresh)
 	assert_str(report).contains("Gate: FAIL (1 of 2 states pass)")
 	assert_str(report).contains("full: x+y · greedy 77.0% (-3.0, 100 runs) · pass")
+	assert_str(report).contains("key cards below 85%: a 50% · warning: over the 40% bar: a")
+	# A state whose only problem is the 40% bar passes with a warning.
+	var dominated: SimSummary = SimSummary.new("greedy", PackedInt32Array([10]))
+	for index: int in range(10):
+		dominated.add(_record(index < 8, 1, "a", 0, 0))
+	var warned: Dictionary = SimListGate.check(
+		first, [dominated], fresh, short_chances, fresh_chances
+	)
+	assert_bool(warned["passed"]).is_true()
+	assert_array(warned["warnings"]).is_equal(["over the 40% bar: a"])
 
 
 ## ±5 points is inclusive both ways, counted exactly (150 and 170 of 200 against 160 of 200).

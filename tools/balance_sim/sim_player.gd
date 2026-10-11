@@ -19,10 +19,14 @@ extends RefCounted
 ## - "random": a random offered card, never a skip
 ## - "skip": always skips, so the deck stays the starting deck
 ## - "favour:id+id": the first offered card in its list, else as greedy (a build-focused player)
-## - "build:id": drafts towards a build (SimBuilds, decided with the user, #40): of the offered
+## - "build:id": drafts towards a build (SimBuilds, decided with the user, #40; revised in #42):
+##   while the deck's measure is under the build's min_count + BUILD_MARGIN, of the offered
 ##   cards, those that raise the build's measure most, the best of them as greedy judges it
-##   (never a skip); when none raises it, as greedy. Its upgrade pick is the first offered
-##   upgrade that lists the build, else as greedy.
+##   (never a skip); when none raises it, or once the measure reaches that, as greedy. At the
+##   deck limit it never lets go of a card whose loss lowers the measure while the measure is
+##   at most min_count + BUILD_MARGIN. Its upgrade pick is the offered upgrade that lists the
+##   build and that greedy values most, if that value is within LISTED_UPGRADE_SHARE of the
+##   best offered upgrade's, else as greedy.
 ## Upgrades are always picked (there is no skip): at random by "random", else greedily. At the
 ## deck limit, the card that leaves is the deck card the run's rows used least.
 ##
@@ -38,6 +42,11 @@ extends RefCounted
 
 const STRATEGIES: Array[String] = ["greedy", "random", "skip", "favour:", "build:"]
 const SENSIBLE_SUFFIX := "@sensible"
+## A "build:id" strategy drafts towards its build until the measure is min_count + this.
+const BUILD_MARGIN := 2
+## A "build:id" strategy picks an upgrade listing its build when greedy values it at least this
+## share of the best offered upgrade.
+const LISTED_UPGRADE_SHARE := 0.95
 
 var _starter: DeckDefinition
 var _balance: BalanceDefinition
@@ -126,7 +135,9 @@ func play(run_seed: int) -> SimRunRecord:
 		record.shifts.append(entry)
 	for card: CardInstance in run.deck.cards:
 		record.final_deck.append(String(card.definition.id))
-	record.main_build = _builds.main_build(_deck_definitions(run.deck.cards))
+	var final_cards: Array[CardDefinition] = _deck_definitions(run.deck.cards)
+	record.main_build = _builds.main_build(final_cards)
+	record.fitted_builds = _builds.fitted(final_cards)
 	var payout: CoinPayout = CoinPayout.for_run(run)
 	record.coins = payout.total()
 	record.overtime_coins = payout.overtime_coins
@@ -215,7 +226,11 @@ func _pick_reward(run: RunState, usage: Dictionary[CardDefinition, int]) -> void
 			for card: CardDefinition in run.offer:
 				if choice == null and card.id == id:
 					choice = card
-		if choice == null and _target != null:
+		if (
+			choice == null
+			and _target != null
+			and still_building(_target, _deck_definitions(run.deck.cards))
+		):
 			choice = _build_card(run, usage)
 		if choice == null:
 			choice = _greedy_card(run, usage, run.offer, true)
@@ -224,6 +239,34 @@ func _pick_reward(run: RunState, usage: Dictionary[CardDefinition, int]) -> void
 		return
 	var replaced: CardInstance = _least_used(run, usage) if run.deck_is_full() else null
 	run.take_reward(choice, replaced)
+
+
+## For "build:id": whether the deck's measure is still under the build's aim (min_count +
+## BUILD_MARGIN), so the strategy drafts towards it.
+static func still_building(build: BuildDefinition, deck: Array[CardDefinition]) -> bool:
+	return build.count(deck) < build.min_count + BUILD_MARGIN
+
+
+## For "build:id" while the measure is at most min_count + BUILD_MARGIN: the indices of the deck
+## cards whose loss would lower the measure, which the strategy keeps at the deck limit. Once
+## the measure is over that, none.
+static func kept_for_build(build: BuildDefinition, deck: Array[CardDefinition]) -> Array[int]:
+	var kept: Array[int] = []
+	var measure: int = build.count(deck)
+	if measure > build.min_count + BUILD_MARGIN:
+		return kept
+	for index: int in range(deck.size()):
+		var without: Array[CardDefinition] = deck.duplicate()
+		without.remove_at(index)
+		if build.count(without) < measure:
+			kept.append(index)
+	return kept
+
+
+## For "build:id": whether the best offered upgrade listing the build is taken over the best
+## offered upgrade, as greedy values them.
+static func prefers_listed(listed_value: float, best_value: float) -> bool:
+	return listed_value >= best_value * LISTED_UPGRADE_SHARE
 
 
 ## For "build:id": the offered card that raises the build's measure most (the best of those as
@@ -306,17 +349,17 @@ func _kept_deck(run: RunState, usage: Dictionary[CardDefinition, int]) -> Array[
 func _pick_upgrade(run: RunState) -> void:
 	var offer: Array[UpgradeDefinition] = run.upgrade_offer
 	var choice: UpgradeDefinition = offer[0]
-	var fitting: Array[UpgradeDefinition] = []
-	if _target != null:
-		fitting = upgrades_listing(_target, offer)
-	if not fitting.is_empty():
-		choice = fitting[0]
-	elif _strategy == "random":
+	if _strategy == "random":
 		choice = offer[_rng.randi_range(0, offer.size() - 1)]
 	else:
+		var fitting: Array[UpgradeDefinition] = []
+		if _target != null:
+			fitting = upgrades_listing(_target, offer)
 		var deck: Array[CardDefinition] = _deck_definitions(run.deck.cards)
 		var sample_seed: int = _rng.randi()
 		var best_value: float = -1.0
+		var best_fitting: UpgradeDefinition = null
+		var best_fitting_value: float = -1.0
 		for upgrade: UpgradeDefinition in offer:
 			var upgrades: Array[UpgradeDefinition] = run.upgrades.duplicate()
 			upgrades.append(upgrade)
@@ -327,6 +370,11 @@ func _pick_upgrade(run: RunState) -> void:
 			if value > best_value:
 				best_value = value
 				choice = upgrade
+			if fitting.has(upgrade) and value > best_fitting_value:
+				best_fitting_value = value
+				best_fitting = upgrade
+		if best_fitting != null and prefers_listed(best_fitting_value, best_value):
+			choice = best_fitting
 	run.pick_upgrade(choice)
 
 
@@ -364,10 +412,33 @@ func _sample_value(
 
 
 ## The deck card the run's rows used least; ties go to the lower base value, then to the
-## card earlier in the deck.
+## card earlier in the deck. A "build:id" strategy keeps the cards whose loss lowers its
+## measure while the measure is at most min_count + BUILD_MARGIN (when every card is kept, it
+## lets go of the least used of all).
 func _least_used(run: RunState, usage: Dictionary[CardDefinition, int]) -> CardInstance:
+	var least: CardInstance = _least_used_of(run.deck.cards, usage, _protected(run.deck.cards))
+	if least == null:
+		var none: Array[CardInstance] = []
+		least = _least_used_of(run.deck.cards, usage, none)
+	return least
+
+
+## For "build:id": the deck cards kept_for_build keeps. Otherwise none.
+func _protected(cards: Array[CardInstance]) -> Array[CardInstance]:
+	var kept: Array[CardInstance] = []
+	if _target != null:
+		for index: int in kept_for_build(_target, _deck_definitions(cards)):
+			kept.append(cards[index])
+	return kept
+
+
+static func _least_used_of(
+	cards: Array[CardInstance], usage: Dictionary[CardDefinition, int], kept: Array[CardInstance]
+) -> CardInstance:
 	var least: CardInstance = null
-	for card: CardInstance in run.deck.cards:
+	for card: CardInstance in cards:
+		if kept.has(card):
+			continue
 		if least == null:
 			least = card
 			continue

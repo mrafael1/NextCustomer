@@ -29,10 +29,10 @@ func test_placeholder_upgrades_match_the_plan() -> void:
 
 func test_live_upgrades_score_the_plan_examples() -> void:
 	var coupon: Array[UpgradeDefinition] = [_upgrade("coupon_engine")]
-	assert_int(Scoring.score(_row("bread,final_markdown"), coupon).total).is_equal(15)
-	assert_int(Scoring.score(_row("bread,repeat"), coupon).total).is_equal(9)
+	assert_int(Scoring.score(_row("bread,final_markdown"), coupon).total).is_equal(13)
+	assert_int(Scoring.score(_row("bread,repeat"), coupon).total).is_equal(15)
 	var category: Array[UpgradeDefinition] = [_upgrade("category_engine")]
-	assert_int(Scoring.score(_row("bread,banana"), category).total).is_equal(17)
+	assert_int(Scoring.score(_row("bread,banana"), category).total).is_equal(19)
 
 
 static func _upgrade(id: String) -> UpgradeDefinition:

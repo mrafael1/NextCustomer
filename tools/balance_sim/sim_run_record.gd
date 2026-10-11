@@ -25,9 +25,10 @@ var redraws: int = 0
 ## Whether the run had an impulse rack, and the product picked there ("" for a skip).
 var impulse_offered: bool = false
 var impulse_pick: String = ""
-## The final deck's main build (SimBuilds), and the coins the run paid (CoinPayout): in all,
-## and its overtime coins.
+## The final deck's main build (SimBuilds), every build it fits, and the coins the run paid
+## (CoinPayout): in all, and its overtime coins.
 var main_build: String = ""
+var fitted_builds: PackedStringArray = PackedStringArray()
 var coins: int = 0
 var overtime_coins: int = 0
 
@@ -52,6 +53,7 @@ static func from_dictionary(data: Dictionary) -> SimRunRecord:
 	record.impulse_offered = bool(data["impulse_offered"])
 	record.impulse_pick = String(data["impulse_pick"])
 	record.main_build = String(data["main_build"])
+	record.fitted_builds = PackedStringArray(data.get("fitted_builds", []))
 	record.coins = int(data["coins"])
 	record.overtime_coins = int(data["overtime_coins"])
 	return record
@@ -70,6 +72,7 @@ func to_dictionary() -> Dictionary:
 		"impulse_offered": impulse_offered,
 		"impulse_pick": impulse_pick,
 		"main_build": main_build,
+		"fitted_builds": fitted_builds,
 		"coins": coins,
 		"overtime_coins": overtime_coins,
 	}

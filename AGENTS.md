@@ -31,7 +31,7 @@ Run these from the repo root in a POSIX shell (Git Bash on Windows). `godot` mus
 | Pixel art (`docs/FULL_BUILD_PLAN.md` section 6.1): builds `art/**/*.png` from the text sources in `art/src/` | `python tools/pixel_art.py build` (then `sh tools/import.sh`); `check` lints the sources and fails on a missing or stale PNG; `sheet` writes review previews to `reports/art/`; its tests: `python tools/pixel_art_test.py` | Python 3.11+ (standard library only) |
 | Log summary (`docs/PROTOTYPE_PLAN.md` section 8): summarises playtest logs; each file is one player | `python tools/log_summary.py <exported .jsonl files or folders>` (no path: the desktop game's `playtest_logs` folder as one player; options in the script's docstring; report in `reports/log_summary/report.txt`); its tests: `python tools/log_summary_test.py` | Python 3.11+ (standard library only) |
 
-Test reports are written to `reports/` (ignored by git). The build label shown to players and in the log (`fb-p1` …) is the project setting `next_customer/build_label`; `application/config/version` stays numeric because Windows requires it.
+Test reports are written to `reports/` (ignored by git). The build label shown to players and in the log (`fb-p1`, `fb-p2` …) is the project setting `next_customer/build_label`; `application/config/version` stays numeric because Windows requires it.
 
 What each check covers:
 - **Tests** verify the behaviour they cover. Passing tests don't prove that every rule is correct.

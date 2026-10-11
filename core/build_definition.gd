@@ -9,9 +9,10 @@ extends Resource
 ## equals the default into a .tres file. That is why `measure` starts at UNSET: every build file
 ## must state its measure, and a test rejects UNSET.
 
-## TAG: cards printing `tag`. COUPONS: coupons. COPIES: copies of the deck's most repeated
-## product (a variant counts as its base card). DISTINCT_TAGS: different tags among its
-## products. CARDS: copies of any of `cards`.
+## TAG: cards printing `tag`, and copies of any of `cards` (Clearance collector lists Clearance
+## tag, the coupon that gives the tag; plan v0.27). COUPONS: coupons. COPIES: copies of the
+## deck's most repeated product (a variant counts as its base card). DISTINCT_TAGS: different
+## tags among its products. CARDS: copies of any of `cards`.
 enum Measure { UNSET, TAG, COUPONS, COPIES, DISTINCT_TAGS, CARDS }
 
 @export var id: StringName = &""
@@ -31,7 +32,7 @@ func fits(deck: Array[CardDefinition]) -> bool:
 func count(deck: Array[CardDefinition]) -> int:
 	match measure:
 		Measure.TAG:
-			return deck.filter(func(card: CardDefinition) -> bool: return card.tags.has(tag)).size()
+			return deck.filter(_is_tagged_or_listed).size()
 		Measure.COUPONS:
 			return deck.filter(func(card: CardDefinition) -> bool: return card.is_coupon()).size()
 		Measure.COPIES:
@@ -41,6 +42,10 @@ func count(deck: Array[CardDefinition]) -> int:
 		Measure.CARDS:
 			return deck.filter(_is_listed).size()
 	return 0
+
+
+func _is_tagged_or_listed(card: CardDefinition) -> bool:
+	return card.tags.has(tag) or _is_listed(card)
 
 
 func _is_listed(card: CardDefinition) -> bool:

@@ -8,24 +8,27 @@ const BALANCE := "res://data/balance/balance.tres"
 const BREAD := "res://data/cards/bread.tres"
 const MULTIPACK := "res://data/cards/multipack.tres"
 const REPEAT := "res://data/cards/repeat.tres"
+const FINAL_MARKDOWN := "res://data/cards/final_markdown.tres"
 const BANANA := "res://data/cards/banana.tres"
 const COUPON_ENGINE := "res://data/upgrades/coupon_engine.tres"
 const EXTRA_REDRAW := "res://data/upgrades/extra_redraw.tres"
 
 
 func test_win_with_card_needs_a_win_and_the_card_in_the_final_deck() -> void:
-	var with_repeat: UnlockCondition = _condition(UnlockCondition.Kind.WIN_WITH_CARD, REPEAT, 0)
+	var with_markdown: UnlockCondition = _condition(
+		UnlockCondition.Kind.WIN_WITH_CARD, FINAL_MARKDOWN, 0
+	)
 	var with_multipack: UnlockCondition = _condition(
 		UnlockCondition.Kind.WIN_WITH_CARD, MULTIPACK, 0
 	)
 	var won: RunState = _won_run(51)
-	# The starter deck holds a Repeat, not a Multipack.
-	assert_bool(UnlockCheck.is_met(with_repeat, won)).is_true()
+	# The starter deck holds a Final markdown, not a Multipack.
+	assert_bool(UnlockCheck.is_met(with_markdown, won)).is_true()
 	assert_bool(UnlockCheck.is_met(with_multipack, won)).is_false()
 	var lost: RunState = _run(52)
 	lost.checkout()
 	assert_int(lost.phase).is_equal(RunState.Phase.LOST)
-	assert_bool(UnlockCheck.is_met(with_repeat, lost)).is_false()
+	assert_bool(UnlockCheck.is_met(with_markdown, lost)).is_false()
 
 
 func test_score_in_one_checkout_looks_at_every_shift() -> void:
@@ -35,10 +38,11 @@ func test_score_in_one_checkout_looks_at_every_shift() -> void:
 	run.next_shift()
 	run.checkout()
 	assert_int(run.phase).is_equal(RunState.Phase.LOST)
-	var nine: UnlockCondition = _condition(UnlockCondition.Kind.SCORE_IN_ONE_CHECKOUT, "", 9)
-	var ten: UnlockCondition = _condition(UnlockCondition.Kind.SCORE_IN_ONE_CHECKOUT, "", 10)
-	assert_bool(UnlockCheck.is_met(nine, run)).is_true()
-	assert_bool(UnlockCheck.is_met(ten, run)).is_false()
+	# Three Breads (5 each) made the best checkout: 15.
+	var fifteen: UnlockCondition = _condition(UnlockCondition.Kind.SCORE_IN_ONE_CHECKOUT, "", 15)
+	var sixteen: UnlockCondition = _condition(UnlockCondition.Kind.SCORE_IN_ONE_CHECKOUT, "", 16)
+	assert_bool(UnlockCheck.is_met(fifteen, run)).is_true()
+	assert_bool(UnlockCheck.is_met(sixteen, run)).is_false()
 
 
 func test_use_coupon_counts_every_checked_out_copy_across_runs() -> void:
@@ -99,7 +103,7 @@ func test_a_starting_upgrade_scores_from_the_first_shift() -> void:
 	var run: RunState = _run_with_deck(57, _deck_with_upgrade(COUPON_ENGINE))
 	run.place(run.debug_add_to_hand(load(BREAD)), 0)
 	run.place(run.debug_add_to_hand(load("res://data/cards/final_markdown.tres")), 1)
-	assert_int(run.preview().total).is_equal(15)
+	assert_int(run.preview().total).is_equal(13)
 	var upgrade_steps: Array = run.preview().steps.filter(
 		func(step: ScoreStep) -> bool: return step.source_kind == ScoreStep.SourceKind.UPGRADE
 	)

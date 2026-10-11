@@ -9,6 +9,6 @@ id = &"bread"
 display_name = "Bread"
 kind = 1
 tags = PackedStringArray("Food", "Breakfast", "Bakery")
-base = 3
+base = 5
 rule_text = "No rule"
 generally_useful = true

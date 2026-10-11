@@ -18,6 +18,10 @@ static func score(
 	inspections: Array[InspectionDefinition] = []
 ) -> ScoreResult:
 	var state: ScoreState = ScoreState.new(row)
+	for upgrade: UpgradeDefinition in upgrades:
+		state.product_slot_change += upgrade.extra_slots
+	for inspection: InspectionDefinition in inspections:
+		state.product_slot_change += inspection.extra_slots
 	# Context pass: tag and adjacency changes for the whole row, before any values.
 	for slot: int in range(state.size()):
 		for rule: Rule in state.definition(slot).rules:

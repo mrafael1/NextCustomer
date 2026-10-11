@@ -44,8 +44,8 @@ func test_big_basket_raises_every_quota_rounded_up() -> void:
 	var raised: Array = []
 	for shift: int in range(balance.quotas.size()):
 		raised.append(ShiftLimits.for_shift(balance, owned, shift).quota)
-	assert_array(Array(balance.quotas)).is_equal([41, 42, 65, 77, 87, 123, 124, 149])
-	assert_array(raised).is_equal([48, 49, 75, 89, 101, 142, 143, 172])
+	assert_array(Array(balance.quotas)).is_equal([34, 35, 53, 61, 73, 98, 111, 120])
+	assert_array(raised).is_equal([40, 41, 61, 71, 84, 113, 128, 138])
 	assert_int(ShiftLimits.raised_quota(20, 15)).is_equal(23)
 	assert_int(ShiftLimits.raised_quota(17, 0)).is_equal(17)
 
@@ -194,11 +194,18 @@ func test_builds_measure_the_deck() -> void:
 	var coupons: Array[CardDefinition] = starter.duplicate()
 	coupons.append(load(FINAL_MARKDOWN))
 	assert_bool((load(BUILDS % "coupon_specialist") as BuildDefinition).fits(coupons)).is_true()
+	# Clearance tag counts towards Clearance collector like a Clearance product (v0.27).
+	var clearance: BuildDefinition = load(BUILDS % "clearance_collector")
+	var tagged: Array[CardDefinition] = starter.duplicate()
+	tagged.append(load("res://data/cards/clearance_tag.tres"))
+	assert_int(clearance.count(tagged)).is_equal(1)
+	tagged.append(load("res://data/cards/dented_can.tres"))
+	assert_bool(clearance.fits(tagged)).is_true()
 	# An Economy upgrade never counts as fitting, even when its build does.
 	assert_bool(_upgrade("extra_coupon_slot").fits(coupons)).is_false()
 	assert_bool(_upgrade("coupon_engine").fits(coupons)).is_true()
 	assert_str(_upgrade("extra_redraw").build_names()).is_equal("Any build")
-	assert_str(_upgrade("big_basket").build_names()).is_equal("Clearance collector")
+	assert_str(_upgrade("big_basket").build_names()).is_equal("Clearance collector, Bulk buyer")
 
 
 ## The offer guarantees an upgrade that fits the deck when one is unowned, keeps 3 options of

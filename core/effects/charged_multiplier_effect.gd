@@ -1,6 +1,6 @@
 class_name ChargedMultiplierEffect
 extends ScoreEffect
-## A multiplier for the next N products with a tag (Eggs: ×2 to the next 2 Food products).
+## A multiplier for the next N products with a tag (Eggs: ×2 to the next Food product).
 ## A product with that tag uses a charge even when its payout ends up 0.
 
 var tag: String = ""

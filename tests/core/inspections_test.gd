@@ -2,7 +2,8 @@ extends GdUnitTestSuite
 ## Phase 2's inspections (issue #39, plan section 3.9, v0.25): Short belt (one product slot
 ## fewer than the run has) and Coupon slot closed (one coupon slot fewer) through the shift's
 ## limits, Slot engine under Short belt with and without Big basket, and the draw that never
-## repeats the run's last inspection.
+## repeats the run's last inspection. Since #42 Slot engine doubles the last regular product
+## slot, so Short belt moves it to the 5th product instead of turning it off.
 
 const STARTER := "res://data/decks/starter.tres"
 const BALANCE := "res://data/balance/balance.tres"
@@ -50,8 +51,9 @@ func test_coupon_slot_closed_takes_one_coupon_slot() -> void:
 	assert_bool(run.can_place(run.debug_add_to_hand(load(REPEAT)))).is_false()
 
 
-## Short belt turns an owned Slot engine off when the run has no Big basket (no 6th product can
-## be placed), and Big basket counters it (decided with the user).
+## Short belt leaves 5 product slots, and an owned Slot engine doubles the 5th product, the
+## last one (decided with the user in #42; until then Short belt turned it off). With Big basket
+## the row keeps 6 product slots and Slot engine the 6th.
 func test_short_belt_and_slot_engine() -> void:
 	var run: RunState = _run(52, "short_belt")
 	run.upgrades.append(_upgrade("slot_engine"))
@@ -59,13 +61,49 @@ func test_short_belt_and_slot_engine() -> void:
 	for index: int in range(5):
 		run.place(run.debug_add_to_hand(load(BREAD)), index)
 	assert_bool(run.can_place(run.debug_add_to_hand(load(BREAD)))).is_false()
-	assert_int(_upgrade_multipliers(run.preview())).is_equal(0)
+	assert_int(_upgrade_multipliers(run.preview())).is_equal(1)
+	assert_int(run.preview().payouts[4]).is_equal(10)
 	run.upgrades.append(_upgrade("big_basket"))
 	run.debug_skip_to_shift(run.shift_index)
 	for index: int in range(6):
 		assert_bool(run.place(run.debug_add_to_hand(load(BREAD)), index)).is_true()
 	assert_int(_upgrade_multipliers(run.preview())).is_equal(1)
-	assert_int(run.preview().payouts[5]).is_equal(6)
+	assert_int(run.preview().payouts[4]).is_equal(5)
+	assert_int(run.preview().payouts[5]).is_equal(10)
+
+
+## Slot engine's product follows the shift's product slots (#42): the 6th with none of them, the
+## 7th with Big basket, the 5th on a Short belt shift and the 6th with both. Coupons don't count.
+func test_slot_engine_doubles_the_last_regular_product_slot() -> void:
+	var engine: UpgradeDefinition = _upgrade("slot_engine")
+	var basket: UpgradeDefinition = _upgrade("big_basket")
+	var belt: Array[InspectionDefinition] = [_inspection("short_belt")]
+	var none: Array[InspectionDefinition] = []
+	var row: Array[CardInstance] = []
+	for index: int in range(7):
+		row.append(CardInstance.new(load(BREAD), index + 1))
+	row.insert(2, CardInstance.new(load(REPEAT), 8))
+	var cases: Array[Array] = [
+		[[engine], none, 6],
+		[[engine, basket], none, 7],
+		[[engine], belt, 5],
+		[[engine, basket], belt, 6],
+	]
+	for case: Array in cases:
+		var upgrades: Array[UpgradeDefinition] = []
+		upgrades.assign(case[0])
+		var inspections: Array[InspectionDefinition] = []
+		inspections.assign(case[1])
+		var result: ScoreResult = Scoring.score(row, upgrades, inspections)
+		var doubled: Array[int] = []
+		for step: ScoreStep in result.steps:
+			if (
+				step.step_type == ScoreStep.StepType.MULTIPLIER
+				and step.source_kind == ScoreStep.SourceKind.UPGRADE
+			):
+				doubled.append(step.slot)
+		# The Repeat in slot index 2 puts the Nth product (N >= 3) at slot index N.
+		assert_array(doubled).override_failure_message(str(case)).is_equal([case[2]])
 
 
 ## The shift's inspection reaches the run save: a resumed run gets the same closed slot.

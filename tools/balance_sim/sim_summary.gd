@@ -10,7 +10,8 @@ const PERCENTILES: Array[int] = [10, 25, 50, 75, 90]
 ## Hands a card must appear in before "never needed" counts as dominated.
 const DOMINATED_MIN_HANDS := 30
 ## The 40% bar (full build plan section 3, decided with the user in #40): no main build may be
-## more than this share of the greedy strategy's won runs.
+## more than this share of the greedy strategy's won runs. Since #42 it is a warning, not a
+## gate (decided with the user).
 const BUILD_BAR := 0.4
 const BAR_STRATEGY := "greedy"
 ## The capsule unlocks a collection holds (full build plan 7.1): runs to unlock them all.
@@ -47,9 +48,10 @@ var impulse_skips: int = 0
 ## Upgrades taken, and how many of those runs were won.
 var upgrades_taken: Dictionary[String, int] = {}
 var upgrade_wins: Dictionary[String, int] = {}
-## Runs and won runs by main build.
+## Runs and won runs by main build, and runs whose final deck fits each build.
 var build_runs: Dictionary[String, int] = {}
 var build_wins: Dictionary[String, int] = {}
+var build_fits: Dictionary[String, int] = {}
 ## Each run's coins, in the order added.
 var coins: PackedInt32Array = PackedInt32Array()
 ## Runs lost on shift 2 (one shift passed), and how many of them paid the overtime coin from
@@ -110,11 +112,25 @@ func add(record: SimRunRecord) -> void:
 	build_runs[record.main_build] = build_runs.get(record.main_build, 0) + 1
 	if record.won:
 		build_wins[record.main_build] = build_wins.get(record.main_build, 0) + 1
+	for build: String in record.fitted_builds:
+		build_fits[build] = build_fits.get(build, 0) + 1
 	coins.append(record.coins)
 	if not record.won and record.shifts.size() == 2:
 		lost_on_shift_2 += 1
 		if record.overtime_coins > 0:
 			lost_on_shift_2_overtime += 1
+
+
+## Whether `strategy_name` is held to the 40% bar: greedy, with the best rows or (since #42, as
+## the quotas are fitted to it) the sensible player's.
+static func is_bar_strategy(strategy_name: String) -> bool:
+	return strategy_name.trim_suffix(SimPlayer.SENSIBLE_SUFFIX) == BAR_STRATEGY
+
+
+## The build a "build:<id>" strategy drafts towards, or "" for any other strategy.
+func target_build() -> String:
+	var plain: String = strategy.trim_suffix(SimPlayer.SENSIBLE_SUFFIX)
+	return plain.trim_prefix("build:") if plain.begins_with("build:") else ""
 
 
 ## A main build's share of the won runs.
@@ -327,14 +343,27 @@ func _build_lines() -> PackedStringArray:
 				)
 			)
 		)
-	if strategy == BAR_STRATEGY:
+	var target: String = target_build()
+	if not target.is_empty():
+		lines.append(
+			(
+				"Target build %s fits the final deck: %d of %d runs (%s)"
+				% [
+					target,
+					build_fits.get(target, 0),
+					runs,
+					percent_text(build_fits.get(target, 0), runs)
+				]
+			)
+		)
+	if is_bar_strategy(strategy):
 		var over: Array[String] = builds_over_bar()
 		lines.append(
 			(
 				"40%% bar (no main build over %d%% of the won runs): %s"
 				% [
 					roundi(BUILD_BAR * 100),
-					"pass" if over.is_empty() else "FAIL (%s)" % ", ".join(over)
+					"pass" if over.is_empty() else "WARNING (%s)" % ", ".join(over)
 				]
 			)
 		)
@@ -423,7 +452,8 @@ func to_dictionary() -> Dictionary:
 		"upgrade_wins": upgrade_wins,
 		"main_builds": build_runs,
 		"main_build_wins": build_wins,
-		"builds_over_bar": builds_over_bar() if strategy == BAR_STRATEGY else [],
+		"build_fits": build_fits,
+		"builds_over_bar": builds_over_bar() if is_bar_strategy(strategy) else [],
 		"coins":
 		{
 			"mean": coin_mean(),

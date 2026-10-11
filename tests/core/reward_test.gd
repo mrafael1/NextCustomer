@@ -45,7 +45,8 @@ const STARTING_STOCK := [
 
 ## The prototype's four (Banana, Bread, Eggs, Milk), one per base aisle (Butter, Cereal,
 ## Carrier bag, v0.22) and the capsule items' (Mixed herbs in Pantry, Strawberries, Scone and
-## Crisps in the machine-opened aisles, v0.27), all decided with the user.
+## Crisps in the machine-opened aisles, v0.27), and Reduced yogurt and Flickering bulb so offers
+## show Clearance cards (#42, full build plan v0.27), all decided with the user.
 func test_generally_useful_cards_are_the_decided_ones() -> void:
 	var useful: Array = []
 	for file: String in DirAccess.get_files_at("res://data/cards"):
@@ -65,8 +66,10 @@ func test_generally_useful_cards_are_the_decided_ones() -> void:
 				"cereal",
 				"crisps",
 				"eggs",
+				"flickering_bulb",
 				"milk",
 				"mixed_herbs",
+				"reduced_yogurt",
 				"scone",
 				"strawberries",
 			]
@@ -279,11 +282,11 @@ func test_the_last_shift_wins_without_an_offer() -> void:
 	run.start_shift()
 	run.debug_skip_to_shift(run.shift_count() - 1)
 	assert_bool(run.is_last_shift()).is_true()
-	# Bread, Multipack, then four Milks at x2: 3 + 0 + 2 * (5 + 7 + 9 + 11) = 67.
-	for id: String in ["bread", "multipack", "milk", "milk", "milk", "milk"]:
+	# Milk, Multipack, then four Milks at x3 (they share Dairy): 4 + 0 + 3 * (5 + 6 + 7 + 8) = 82.
+	for id: String in ["milk", "multipack", "milk", "milk", "milk", "milk"]:
 		run.place(run.debug_add_to_hand(load("res://data/cards/%s.tres" % id)), run.row.size())
 	var result: ScoreResult = run.checkout()
-	assert_int(result.total).is_equal(67)
+	assert_int(result.total).is_equal(82)
 	assert_int(result.total).is_greater_equal(run.quota())
 	assert_array(run.offer).is_empty()
 	assert_int(run.phase).is_equal(RunState.Phase.WON)
@@ -298,9 +301,9 @@ static func _passed_run(seed_value: int) -> RunState:
 	return run
 
 
-## Eggs, Multipack, then five Milks: 115, enough for the first five quotas.
+## Milk, Multipack, then five Milks: 109, enough for the first five quotas.
 static func _fill_and_pass(run: RunState) -> void:
-	for id: String in ["eggs", "multipack", "milk", "milk", "milk", "milk", "milk"]:
+	for id: String in ["milk", "multipack", "milk", "milk", "milk", "milk", "milk"]:
 		run.place(run.debug_add_to_hand(load("res://data/cards/%s.tres" % id)), run.row.size())
 	run.checkout()
 

@@ -1,7 +1,7 @@
 class_name GrantChargedMultiplierRule
 extends Rule
 ## After scanning, multiplies the next N products with a tag.
-## Eggs: ×2 to the next 2 Food products. A later card with the same `group` resets the
+## Eggs: ×2 to the next Food product. A later card with the same `group` resets the
 ## charges instead of adding a second multiplier.
 
 @export var tag: String = ""

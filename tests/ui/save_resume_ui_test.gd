@@ -7,8 +7,8 @@ extends GdUnitTestSuite
 
 const SCREEN := "res://ui/shift_screen.tscn"
 const BALANCE := "res://data/balance/balance.tres"
-## Eggs, Multipack, Milk x5 = 115: passes the first five quotas.
-const PASSING_ROW: Array[String] = ["eggs", "multipack", "milk", "milk", "milk", "milk", "milk"]
+## Milk, Multipack, Milk x5 = 109: passes the first five quotas.
+const PASSING_ROW: Array[String] = ["milk", "multipack", "milk", "milk", "milk", "milk", "milk"]
 
 var _folder: String = ""
 var _errors: Array[String] = []

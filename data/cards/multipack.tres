@@ -6,8 +6,9 @@
 
 [sub_resource type="Resource" id="Resource_w6vyg"]
 script = ExtResource("2_2xmqd")
-factor = 2
-receipt_text = "Multipack ×2"
+factor = 3
+ignored_tags = PackedStringArray("Food", "Breakfast")
+receipt_text = "Multipack ×3"
 
 [resource]
 script = ExtResource("3_enggy")
@@ -16,4 +17,4 @@ display_name = "Multipack"
 kind = 2
 tags = PackedStringArray()
 rules = Array[ExtResource("1_ru2h7")]([SubResource("Resource_w6vyg")])
-rule_text = "×2 to every later product that shares a tag with the product just before this coupon"
+rule_text = "×3 to later products sharing a tag with the product just before it (not Food or Breakfast)"
