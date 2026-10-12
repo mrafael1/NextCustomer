@@ -8,6 +8,10 @@ extends Node
 ## of the card through the same code as a click. A press and release without moving stays a
 ## click. A press on the card already picked up is armed to let go of it, but only on a release
 ## without a drag, so a picked card can still be dragged.
+##
+## Sounds (#62, on the scene's Sfx): a soft slot_tick each time the landing slot changes during
+## a drag, at most one per SLOT_TICK_MS of real time; and card_pickup when a drag starts on the
+## card already picked up (a first press already sounded its pick-up on the shift screen).
 
 ## The button was released: after a drag (`dragged`, `slot` the row slot under the mouse or
 ## -1), or without one on a card armed to let go on a click.
@@ -20,6 +24,8 @@ const GHOST_TILT := -4.0
 ## The landing slot: an empty panel brightens; a card that would be pushed right warms.
 const HOVER_TINT := Color(1.7, 1.7, 1.4)
 const PUSH_TINT := Color(1.0, 0.82, 0.5)
+## At most one slot_tick per this many ms of real time.
+const SLOT_TICK_MS := 60
 
 var _overlay: Control
 var _slots: Array[PanelContainer] = []
@@ -34,6 +40,8 @@ var _lets_go_on_click: bool = false
 var _ghost: CardView
 var _dimmed: CardView
 var _hovered: int = -1
+## Time.get_ticks_msec() of the last slot_tick.
+var _slot_tick_ms: int = -SLOT_TICK_MS
 
 
 func setup(
@@ -125,6 +133,8 @@ func _start(mouse_position: Vector2) -> void:
 	_ghost.body.rotation = deg_to_rad(GHOST_TILT)
 	_ghost.body.modulate = Color(1, 1, 1, 0.92)
 	_dim_source()
+	if _lets_go_on_click:
+		Sfx.play_at(self, "card_pickup")
 	_follow(mouse_position)
 
 
@@ -154,6 +164,16 @@ func _set_hovered(slot: int) -> void:
 	_hovered = slot
 	if _hovered >= 0 and _hovered < _slots.size():
 		_tint(_slots[_hovered], HOVER_TINT, PUSH_TINT)
+		_tick()
+
+
+## A soft tick for the new landing slot, unless one sounded less than SLOT_TICK_MS ago.
+func _tick() -> void:
+	var now: int = Time.get_ticks_msec()
+	if not _dragging or now - _slot_tick_ms < SLOT_TICK_MS:
+		return
+	_slot_tick_ms = now
+	Sfx.play_at(self, "slot_tick")
 
 
 static func _tint(panel: PanelContainer, panel_tint: Color, card_tint: Color) -> void:

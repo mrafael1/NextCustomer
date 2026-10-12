@@ -1,18 +1,26 @@
 class_name TitleScreen
 extends Control
 ## The title screen (plan section 7): a click starts the game, which also lets browsers play
-## audio. The Export log button works here too, so testers can send their log at any time. It
-## shows the run's length from balance data and the profile's coins (full build plan 7.1).
+## audio: the title's first click or key press (on a button too) starts its music, the front
+## loop (#62, Q2), unless that press starts the run; the shift screen crossfades it away. The
+## Export log button works here too, so testers can send their log at any time. It shows the
+## run's length from balance data and the profile's coins (full build plan 7.1).
 ##
 ## When a run save can be read (full build plan section 4), the title offers Continue (the
 ## shift screen resumes the save) and New run instead, and a background click starts nothing.
 ## Enter or Space continues. New run asks first; on yes the saved run is abandoned (deleted,
 ## and logged as run_abandon under its run id) and a new run starts. An abandoned run records
 ## nothing in the profile, like a restart before the end.
+##
+## The title has its own Sfx (#62), warmed up when it opens: its buttons click (UiKit), the
+## start click too, the New run confirmation opens and closes (ui_open, ui_close) and the log
+## export confirms. The Sfx outlives the title for a moment when the shift screen replaces it,
+## so the start click is heard in full.
 
 const SHIFT_SCREEN := "res://ui/shift_screen.tscn"
 const BALANCE := "res://data/balance/balance.tres"
 const ABANDON_QUESTION := "Abandon the run in progress? It won't count."
+const MUSIC := &"front"
 
 ## Tests turn this off so starting doesn't replace the test runner's scene.
 var changes_scene: bool = true
@@ -29,7 +37,11 @@ var _confirm_shade: ColorRect
 var _confirm: PanelContainer
 var _abandon_button: Button
 var _keep_button: Button
+var _sfx: Sfx
+## The first click or key press started the music.
+var _music_started: bool = false
 @onready var _log: EventLogService = get_node("/root/EventLog")
+@onready var _music: MusicService = get_node("/root/Music")
 
 
 func _ready() -> void:
@@ -39,6 +51,9 @@ func _ready() -> void:
 	background.set_anchors_preset(Control.PRESET_FULL_RECT)
 	background.gui_input.connect(_on_background_input)
 	add_child(background)
+	_sfx = Sfx.new()
+	add_child(_sfx)
+	_sfx.warm_up()
 
 	var column: VBoxContainer = VBoxContainer.new()
 	column.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -79,7 +94,7 @@ func _ready() -> void:
 	corner.offset_right = -20
 	corner.offset_bottom = -16
 	add_child(corner)
-	UiKit.button(corner, "Export log", _on_export_pressed, 16)
+	UiKit.button(corner, "Export log", _on_export_pressed, 16, "")
 	var build: Label = UiKit.label(
 		str(ProjectSettings.get_setting("next_customer/build_label", "")), 14, Palette.LIGHT_TEXT
 	)
@@ -148,7 +163,44 @@ func _add_confirmation() -> void:
 	buttons.add_theme_constant_override("separation", 16)
 	column.add_child(buttons)
 	_abandon_button = UiKit.button(buttons, "Yes, start a new run", _on_abandon_confirmed, 20)
-	_keep_button = UiKit.button(buttons, "No, keep it", _on_abandon_cancelled, 20)
+	_keep_button = UiKit.button(buttons, "No, keep it", _on_abandon_cancelled, 20, "ui_close")
+
+
+## Browsers play audio only after a click or key press, so the music starts on the first one,
+## once the buttons and the background have handled it: a press that starts the run (a click
+## on the background, Enter or Space without a save, or a mouse press on a button that starts
+## it on release) leaves it to the shift screen's loop, so the front loop isn't loaded only to
+## be faded out.
+func _input(event: InputEvent) -> void:
+	if _music_started or not is_audio_gesture(event) or _presses_start_button(event):
+		return
+	_music_started = true
+	_start_music.call_deferred()
+
+
+func _start_music() -> void:
+	if not _starting:
+		_music.play(MUSIC)
+
+
+## A mouse press on Continue or "Yes, start a new run": buttons act on release, after the
+## deferred music start would already have run.
+func _presses_start_button(event: InputEvent) -> bool:
+	var press: InputEventMouseButton = event as InputEventMouseButton
+	if press == null:
+		return false
+	for button: Button in [_continue_button, _abandon_button]:
+		if button != null and button.is_visible_in_tree():
+			if button.get_global_rect().has_point(press.position):
+				return true
+	return false
+
+
+## A press that lets browsers play audio: a mouse button, a key or a touch.
+static func is_audio_gesture(event: InputEvent) -> bool:
+	if event is InputEventMouseButton or event is InputEventKey or event is InputEventScreenTouch:
+		return event.is_pressed() and not event.is_echo()
+	return false
 
 
 func _unhandled_key_input(event: InputEvent) -> void:
@@ -156,9 +208,9 @@ func _unhandled_key_input(event: InputEvent) -> void:
 	if not (key and key.pressed and (key.keycode == KEY_ENTER or key.keycode == KEY_SPACE)):
 		return
 	if _saved_run == null:
-		_start()
+		_click_start()
 	elif not _confirm.visible:
-		_on_continue_pressed()
+		_click_start()  # Continue.
 
 
 ## Without a run save, a click anywhere starts. With one, only the buttons do.
@@ -166,11 +218,12 @@ func _on_background_input(event: InputEvent) -> void:
 	var press: InputEventMouseButton = event as InputEventMouseButton
 	if press and press.pressed and press.button_index == MOUSE_BUTTON_LEFT:
 		if _saved_run == null:
-			_start()
+			_click_start()
 
 
 func _on_export_pressed() -> void:
 	_log.export_logs("title")
+	_sfx.play("ui_confirm")
 
 
 ## The shift screen resumes the save.
@@ -203,9 +256,18 @@ func _on_abandon_confirmed() -> void:
 	_start()
 
 
+## A start without a button (a background click, Enter or Space) clicks like one.
+func _click_start() -> void:
+	if not _starting:
+		_sfx.play(UiKit.CLICK_SOUND)
+	_start()
+
+
 func _start() -> void:
 	if _starting:
 		return
 	_starting = true
 	if changes_scene:
+		# The start click finishes over the shift screen.
+		_sfx.outlive_scene()
 		get_tree().change_scene_to_file(SHIFT_SCREEN)

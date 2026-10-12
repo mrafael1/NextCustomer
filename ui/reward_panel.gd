@@ -55,8 +55,9 @@ func _init() -> void:
 	buttons.alignment = BoxContainer.ALIGNMENT_CENTER
 	buttons.add_theme_constant_override("separation", 16)
 	column.add_child(buttons)
-	_skip_button = UiKit.button(buttons, "Skip", func() -> void: skipped.emit(), 18)
-	_deck_button = UiKit.button(buttons, "", func() -> void: deck_requested.emit(), 18)
+	_skip_button = UiKit.button(buttons, "Skip", func() -> void: skipped.emit(), 18, "ui_back")
+	# The deck view makes its own sound as it opens.
+	_deck_button = UiKit.button(buttons, "", func() -> void: deck_requested.emit(), 18, "")
 	visible = false
 
 

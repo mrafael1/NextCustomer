@@ -7,6 +7,7 @@ const TITLE := "res://ui/title_screen.tscn"
 const STARTER := "res://data/decks/starter.tres"
 const BALANCE := "res://data/balance/balance.tres"
 const RUN_ID := "0011223344556677"
+const RECORDING_SFX := preload("res://tests/presentation/recording_sfx.gd")
 
 var _folder: String = ""
 
@@ -83,11 +84,15 @@ func test_continue_keeps_the_save() -> void:
 	assert_bool(FileAccess.file_exists(_run_file())).is_true()
 
 
-## New run asks first, in a panel inside the window. No keeps the save; yes deletes it, logs
-## run_abandon under the saved run id and starts a new run.
+## New run asks first, in a panel inside the window, that pops in with ui_open. No closes it
+## with ui_close (#62) and keeps the save; yes deletes it, logs run_abandon under the saved run
+## id and starts a new run.
 func test_new_run_asks_before_abandoning_the_save() -> void:
 	_save_run_at_shift(2)
 	var title: TitleScreen = await _title()
+	var sfx: Sfx = RECORDING_SFX.new()
+	title.add_child(sfx)
+	title._sfx = sfx
 	title._new_run_button.pressed.emit()
 	assert_bool(title._starting).is_false()
 	assert_bool(title._confirm.visible).is_true()
@@ -105,6 +110,7 @@ func test_new_run_asks_before_abandoning_the_save() -> void:
 	assert_bool(title._starting).is_false()
 
 	title._keep_button.pressed.emit()
+	assert_array(sfx.call("sound_names")).is_equal(["ui_click", "ui_open", "ui_close"])
 	assert_bool(title._confirm.visible).is_false()
 	assert_bool(title._confirm_shade.visible).is_false()
 	assert_bool(FileAccess.file_exists(_run_file())).is_true()

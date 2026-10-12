@@ -5,11 +5,17 @@ extends GdUnitTestSuite
 ## threshold fast-forwards. The checkout click and clicks on buttons that can be pressed are
 ## neither. Skips only speed tweens up, so the receipt ends up the same. Input goes through the
 ## scene runner (the count-up reads the input events); the checkout itself is sent to the screen's
-## handler.
+## handler. A tapped or held count plays the same step-driven sounds as an untouched one (#62).
 
 const SCREEN := "res://ui/shift_screen.tscn"
+const RecordingSfx := preload("res://tests/presentation/recording_sfx.gd")
 ## Milk, Multipack, Milk x5 = 109: passes the first five quotas.
 const PASSING_ROW: Array[String] = ["milk", "multipack", "milk", "milk", "milk", "milk", "milk"]
+## The count-up's reference row (with Coupon engine, Slot engine and a Spot check): scans, notes,
+## bonuses, stamps, echoes, armed shimmers, a denied, rattles, the ding and the register bell.
+const FULL_ROW: Array[String] = ["eggs", "bread", "milk", "multipack", "milk", "milk", "milk"]
+## Low enough for the ding to sound mid-row.
+const SOUND_QUOTA := 50
 
 var _folder: String = ""
 var _runner: GdUnitSceneRunner
@@ -261,6 +267,45 @@ func test_a_press_and_release_in_one_frame_is_a_tap() -> void:
 	assert_bool(mouse["fast_forward_used"]).is_false()
 
 
+## A tapped count and a held one play every sound and note of the untouched count, as often,
+## the notes in the same order at the same volumes (#62). Only `tick`, three tween callbacks per
+## payout roll that frame timing can bunch up, is left out.
+func test_a_tapped_or_held_count_plays_the_same_sounds() -> void:
+	var screen: ShiftScreen = await _screen()
+	var sfx: RecordingSfx = RecordingSfx.new()
+	screen.add_child(sfx)
+	screen._count_up._sfx = sfx
+	screen._debug.give_upgrade("coupon_engine")
+	screen._debug.give_upgrade("slot_engine")
+	screen._debug.set_inspection("spot_check")
+	_place(screen, FULL_ROW)
+	var result: ScoreResult = screen.run.preview()
+	_play(screen, result)
+	await _played(screen)
+	var untouched: Dictionary = _heard(sfx)
+	for sound: String in ["scan", "stamp", "armed", "denied", "ding", "register_bell", "rattle_l"]:
+		assert_int(int(untouched.get(sound, 0))).override_failure_message(sound).is_greater(0)
+	assert_int((untouched["notes"] as Array).size()).is_greater(5)
+
+	sfx.clear()
+	_play(screen, result)
+	await _frames(3)
+	await _tap()
+	await _played(screen)
+	assert_bool(screen._count_up._tapped).is_true()
+	assert_dict(_heard(sfx)).is_equal(untouched)
+
+	sfx.clear()
+	_play(screen, result)
+	await _frames(3)
+	_runner.simulate_key_press(KEY_SPACE)
+	await _wall_ms(CountUp.HOLD_THRESHOLD_MS + 300)
+	_runner.simulate_key_release(KEY_SPACE)
+	await _played(screen)
+	assert_bool(screen._count_up.fast_forward_used).is_true()
+	assert_dict(_heard(sfx)).is_equal(untouched)
+
+
 ## A tap after the count-up has ended does nothing.
 func test_a_tap_after_the_count_up_does_nothing() -> void:
 	var screen: ShiftScreen = await _screen()
@@ -305,6 +350,40 @@ static func _lines(receipt: ReceiptView) -> Array[String]:
 	return lines
 
 
+## Plays `result` on the screen's row from the same context every time (shift 1, no best yet).
+func _play(screen: ShiftScreen, result: ScoreResult) -> void:
+	screen._count_up.play(
+		result,
+		screen._row_views,
+		ShiftScreen._names(screen.run.row),
+		SOUND_QUOTA,
+		CountUpContext.new(1, 0),
+		screen._loyalty_card.stamped_boxes(),
+		LoyaltyCard.names(screen.run.upgrades),
+		screen._inspection_tag.sources(screen.run.inspections),
+		InspectionTag.names(screen.run.inspections)
+	)
+
+
+func _played(screen: ShiftScreen) -> void:
+	while screen._count_up._playing:
+		await get_tree().process_frame
+
+
+## What a recording Sfx heard: how often each sound was asked for but `tick`, and under "notes"
+## every note as "index@volume_db", in order.
+static func _heard(sfx: RecordingSfx) -> Dictionary:
+	var heard: Dictionary = {}
+	for sound: String in sfx.sound_names():
+		if sound != "tick":
+			heard[sound] = int(heard.get(sound, 0)) + 1
+	var notes: Array[String] = []
+	for entry: Dictionary in sfx.notes:
+		notes.append("%d@%.1f" % [int(entry["index"]), float(entry["volume_db"])])
+	heard["notes"] = notes
+	return heard
+
+
 func _screen() -> ShiftScreen:
 	_runner = scene_runner(SCREEN)
 	var screen: ShiftScreen = _runner.scene()
@@ -324,11 +403,15 @@ func _disabled_button_at_the_mouse(screen: ShiftScreen) -> void:
 
 
 func _place_row(screen: ShiftScreen) -> void:
-	for id: String in PASSING_ROW:
+	_place(screen, PASSING_ROW)
+
+
+func _place(screen: ShiftScreen, ids: Array[String]) -> void:
+	for id: String in ids:
 		screen._debug.add_card(id)
 		screen._on_hand_card_clicked(_view_for(screen, screen.run.hand()[-1]))
 		screen._on_slot_input(_left_click(), screen.run.row.size())
-	assert_int(screen.run.row.size()).is_equal(PASSING_ROW.size())
+	assert_int(screen.run.row.size()).is_equal(ids.size())
 
 
 ## A quick press and release of Space, a couple of frames apart.

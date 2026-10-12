@@ -15,10 +15,18 @@ extends Control
 ## The row has slot_count product slots plus coupon-only slots (plan section 3.1). The row is
 ## compacted, so the coupon slot is a capacity, not a position: no panel is marked as the
 ## coupon slot (a coupon can go anywhere), and the capacity label counts it instead.
+##
+## Sounds (#62) play on the screen's own Sfx, warmed up when it opens: cards picked up, placed
+## and let go, refusals, the redraw, CHECKOUT, a reward or ticket taken and the log export here;
+## buttons and panels in UiKit, drag slot ticks in CardDrag, music in ShiftMusic; none on hover.
 
 const STARTER_DECK := "res://data/decks/starter.tres"
 const BALANCE := "res://data/balance/balance.tres"
 const CATALOGUE := "res://data/catalogue/catalogue.tres"
+## A refused card or a closed slot plays `denied` this much softer than the count-up does.
+const REFUSED_DB := -6.0
+## After a redraw's shuffle, each card dealt lands this many seconds after the last.
+const DEAL_GAP := 0.08
 
 var run: RunState
 ## Where the save errors go (push_error by default). Tests set it before the screen enters the
@@ -88,6 +96,8 @@ var _focus: FocusWatch
 ## The EventLog autoload, typed. Fetched from the tree because standalone script checks
 ## don't know autoload names.
 @onready var _log: EventLogService = get_node("/root/EventLog")
+## The Music autoload (#62), typed like EventLog. Tests may swap it before a checkout.
+@onready var _music: MusicService = get_node("/root/Music")
 
 
 func _ready() -> void:
@@ -96,6 +106,8 @@ func _ready() -> void:
 	_saves = SaveService.new(SaveService.default_folder(), report_error)
 	profile = _saves.load_profile()
 	_build()
+	_sfx.warm_up()
+	ShiftMusic.screen_opened(_music)
 	_debug = ShiftDebug.new(self, _log)
 	_debug.add_panel(_balance.quotas.size())
 	if _debug.wants_demo_row():
@@ -118,6 +130,7 @@ func start_new_run(
 	seed_value: int, replays_rack: bool = false, replayed_pick: String = "", saves_run: bool = true
 ) -> void:
 	_saves_run = saves_run
+	ShiftMusic.new_run(_music)
 	var deck: DeckDefinition = load(STARTER_DECK)
 	# Phase 3's shopping list will set the list; until then the profile's last one is kept.
 	var stock: RunStock = RunStock.build(
@@ -226,13 +239,16 @@ func _on_hand_card_clicked(view: CardView) -> void:
 	if _redraw_mode:
 		if _redraw_pick.has(view.card):
 			_redraw_pick.erase(view.card)
+			_sfx.play("card_return")
 		elif _redraw_pick.size() < run.balance.redraw_limit:
 			_redraw_pick.append(view.card)
+			_sfx.play("card_pickup")
 	elif _picked == view.card:
 		# Let go on the release, unless the press becomes a drag of the picked card.
 		_drag.arm(view.card, get_viewport().get_mouse_position(), true)
 	else:
 		_pick(view.card, false)
+		_sfx.play("card_pickup")
 		_explain_if_refused(view.card)
 		_drag.arm(view.card, get_viewport().get_mouse_position())
 	_refresh()
@@ -250,6 +266,7 @@ func _on_row_card_clicked(view: CardView) -> void:
 		_place_picked(slot)
 	elif run.remove(view.card):
 		_pick(view.card, true)
+		_sfx.play("card_pickup")
 		_drag.arm(view.card, get_viewport().get_mouse_position())
 		_refresh()
 		_save_run()
@@ -272,8 +289,14 @@ func _on_card_released(card: CardInstance, slot: int, dragged: bool) -> void:
 	if dragged and slot >= 0:
 		_place_picked(slot, true)
 	if _picked == card:
-		_drop_pick(dragged)
-		_refresh()
+		_let_go(dragged)
+
+
+## The picked card goes back to the hand (card_return).
+func _let_go(dragged: bool = false) -> void:
+	_drop_pick(dragged)
+	_sfx.play("card_return")
+	_refresh()
 
 
 ## Where a dropped card would land: the row is compacted, so a slot past the end is the end.
@@ -284,7 +307,7 @@ func _landing_slot(card: CardInstance, slot: int) -> int:
 func _place_picked(slot: int, dragged: bool = false) -> void:
 	if run.place(_picked, slot):
 		tracker.on_place(dragged)
-		_sfx.play("click", 1.2)
+		_sfx.play("card_place")
 		_picked = null
 		_picked_from_row = false
 		_refresh()
@@ -296,7 +319,7 @@ func _place_picked(slot: int, dragged: bool = false) -> void:
 ## Plan section 3.1: says why a product doesn't fit instead of silently ignoring the click.
 func _explain_if_refused(card: CardInstance) -> void:
 	if _notice_label.explain_refusal(card.definition, run.limits, run.row):
-		_sfx.play("denied", 1.4, -6.0)
+		_sfx.play("denied", 1.0, REFUSED_DB)
 
 
 func _pick(card: CardInstance, from_row: bool) -> void:
@@ -318,17 +341,19 @@ func _on_background_input(event: InputEvent) -> void:
 	if not (press and press.pressed and press.button_index == MOUSE_BUTTON_LEFT):
 		return
 	if _picked != null and not _counting:
-		_drop_pick()
-		_refresh()
+		_let_go()
 
 
+## Redraw mode fans the hand out; confirming shuffles and deals (or, with no pick, backs out).
 func _on_redraw_pressed() -> void:
 	if not _redraw_mode:
 		_redraw_mode = true
 		_drop_pick()
 		_redraw_pick = []
+		_sfx.play("fan")
 	elif _redraw_pick.is_empty():
 		_redraw_mode = false
+		_sfx.play("ui_back")
 	else:
 		var replaced: Array[CardInstance] = _redraw_pick.duplicate()
 		var received: Array[CardInstance] = run.redraw(replaced)
@@ -336,6 +361,8 @@ func _on_redraw_pressed() -> void:
 		_redraw_mode = false
 		_redraw_pick = []
 		_save_run()
+		_sfx.play("shuffle")
+		_sfx.play_series("card_place", received.size(), DEAL_GAP, DEAL_GAP)
 	_refresh()
 
 
@@ -348,6 +375,7 @@ func _on_cancel_pressed() -> void:
 func _on_checkout_pressed() -> void:
 	if _counting or run.phase != RunState.Phase.PLANNING:
 		return
+	_sfx.play("checkout")
 	_counting = true
 	_drop_pick()
 	_notice_label.clear_notice()
@@ -494,7 +522,8 @@ func _finish_impulse(card: CardDefinition, replaced: CardInstance) -> void:
 	var taken: bool = run.take_reward(card, replaced) if card != null else run.skip_reward()
 	if not taken:
 		return
-	_sfx.play("click")
+	if card != null:
+		_sfx.play("card_place")
 	_start_first_shift(
 		_reward_panel.timeline.fields(Time.get_ticks_msec()), _deck_viewed_for_reward
 	)
@@ -504,6 +533,7 @@ func _finish_impulse(card: CardDefinition, replaced: CardInstance) -> void:
 
 
 func _show_rewards(result: ScoreResult) -> void:
+	ShiftMusic.rewards_shown(_music)
 	_deck_viewed_for_reward = false
 	_pending_reward = null
 	_reward_panel.show_offer(
@@ -593,7 +623,8 @@ func _finish_reward(card: CardDefinition, replaced: CardInstance) -> void:
 	_pending_reward = null
 	_reward_panel.visible = false
 	_deck_view.visible = false
-	_sfx.play("click")
+	if card != null:  # A skip sounded on its button.
+		_sfx.play("card_place")
 	if run.phase == RunState.Phase.UPGRADE:
 		_show_upgrades()
 		return
@@ -622,7 +653,7 @@ func _on_upgrade_picked(upgrade: UpgradeDefinition) -> void:
 	_deck_view.visible = false
 	_refresh_loyalty_card()
 	_loyalty_card.play_stamp(run.upgrades.size() - 1)
-	_sfx.play("stamp")
+	_sfx.play("stamp_loyalty")
 	run.next_shift()
 	_on_shift_started()
 
@@ -648,6 +679,7 @@ func _on_export_pressed() -> void:
 	elif run.phase == RunState.Phase.UPGRADE:
 		screen = "upgrade"
 	_log.export_logs(screen)
+	_sfx.play("ui_confirm")
 
 
 ## Planning time pauses while the player is away (FocusWatch).
@@ -771,9 +803,10 @@ func _show_score(result: ScoreResult) -> void:
 		_row_views[slot].set_tags(result.tags[slot])
 
 
-## The win and lose screens (plan section 2).
+## The win and lose screens (plan section 2), with their music cue (ShiftMusic).
 func _show_results(result: ScoreResult) -> void:
 	_results.show_results(run, result, profile.coins if _profile_saved else -1)
+	ShiftMusic.results_shown(_music, _results.coins_seconds())
 
 
 func _process(_delta: float) -> void:
@@ -819,13 +852,13 @@ func _build() -> void:
 	_loyalty_card = LoyaltyCard.new()
 	_loyalty_card.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	top.add_child(_loyalty_card)
-	_deck_button = UiKit.button(top, "", _on_deck_button_pressed, 16)
+	_deck_button = UiKit.button(top, "", _on_deck_button_pressed, 16, "")  # The deck view sounds.
 	_seed_label = _info_label(top, 16)
 	var build: Label = _info_label(top, 14)
 	build.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	build.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 	build.text = str(ProjectSettings.get_setting("next_customer/build_label", ""))
-	UiKit.button(top, "Export log", _on_export_pressed, 14)
+	UiKit.button(top, "Export log", _on_export_pressed, 14, "")
 
 	var middle: HBoxContainer = HBoxContainer.new()
 	middle.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -851,9 +884,7 @@ func _build() -> void:
 	# 7 slots and the receipt fit the 1280 px window (plan section 3.1); a wider row scales.
 	_row_strip = RowStrip.new()
 	_row_strip.slot_input.connect(_on_slot_input)
-	_row_strip.closed_clicked.connect(
-		func() -> void: _notice_label.show_notice("Closed by the inspection this shift")
-	)
+	_row_strip.closed_clicked.connect(_on_closed_slot_clicked)
 	row_column.add_child(_row_strip)
 	_row_box = _row_strip.box
 	# The same array as the strip's, kept in place across rebuilds, so CardDrag sees new slots.
@@ -897,10 +928,10 @@ func _build() -> void:
 	buttons.custom_minimum_size = Vector2(170, 0)
 	buttons.add_theme_constant_override("separation", 10)
 	bottom.add_child(buttons)
-	_checkout_button = UiKit.button(buttons, "CHECKOUT", _on_checkout_pressed, 22)
+	_checkout_button = UiKit.button(buttons, "CHECKOUT", _on_checkout_pressed, 22, "")
 	_checkout_button.custom_minimum_size = Vector2(0, 70)
-	_redraw_button = UiKit.button(buttons, "", _on_redraw_pressed, 15)
-	_cancel_button = UiKit.button(buttons, "Cancel", _on_cancel_pressed, 14)
+	_redraw_button = UiKit.button(buttons, "", _on_redraw_pressed, 15, "")
+	_cancel_button = UiKit.button(buttons, "Cancel", _on_cancel_pressed, 14, "ui_back")
 
 	_overlay = Control.new()
 	_overlay.set_anchors_preset(Control.PRESET_FULL_RECT)
@@ -915,6 +946,7 @@ func _build() -> void:
 	_count_up = CountUp.new()
 	add_child(_count_up)
 	_count_up.setup(_overlay, _receipt, _subtotal_label, _sfx, _row_box, _paper_pile)
+	_count_up.music = _music
 	_drag = CardDrag.new()
 	add_child(_drag)
 	_drag.setup(_overlay, _slots, _hand_box, _landing_slot)
@@ -945,6 +977,11 @@ func _build() -> void:
 	add_child(_deck_view)
 	_deck_view.card_chosen.connect(_on_deck_card_chosen)
 	_deck_view.closed.connect(_on_deck_closed)
+
+
+func _on_closed_slot_clicked() -> void:
+	_notice_label.show_notice("Closed by the inspection this shift")
+	_sfx.play("denied", 1.0, REFUSED_DB)
 
 
 func _info_label(parent: Control, font_size: int) -> Label:

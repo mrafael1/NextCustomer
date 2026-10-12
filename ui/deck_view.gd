@@ -42,9 +42,9 @@ func _init() -> void:
 	_title = UiKit.label("", 22, Palette.LIGHT_TEXT)
 	_title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	header.add_child(_title)
-	_deck_tab = UiKit.button(header, "Deck", func() -> void: show_page(false), 16)
-	_info_tab = UiKit.button(header, "Run info", func() -> void: show_page(true), 16)
-	UiKit.button(header, "Close", func() -> void: _close(), 16)
+	_deck_tab = UiKit.button(header, "Deck", func() -> void: show_page(false), 16, "ui_switch")
+	_info_tab = UiKit.button(header, "Run info", func() -> void: show_page(true), 16, "ui_switch")
+	UiKit.button(header, "Close", func() -> void: _close(), 16, "ui_close")
 	_scroll = ScrollContainer.new()
 	_scroll.custom_minimum_size = PAGE_SIZE
 	_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
@@ -66,6 +66,8 @@ func open(run: RunState, title: String, choosing: bool) -> void:
 	_deck_tab.visible = not choosing
 	_info_tab.visible = not choosing
 	show_page(false)
+	# The cards fan out as the panel pops in (#62).
+	Sfx.play_at(self, "fan")
 	UiKit.pop_in(self)
 
 

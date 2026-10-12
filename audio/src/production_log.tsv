@@ -1,0 +1,61 @@
+asset	sources	licence	processing	agent_minutes	user_rounds	user_review_minutes	accepted	notes
+sfx/scan	synthesised (make_sfx.scan)	project	sine at C7 with a -18 dB 2nd partial, 4 ms attack, 30 ms decay; 3 ms band-passed noise tick at -20 dB; 120 ms; peak 0.45	3	0		pending	Agent minutes in this log are estimates: the session total (about 150 minutes for downloads, analysis, generator and tests) split by effort. The user has not heard any sound yet.
+sfx/bonus_00	vcsl/Xylo_Soft_G3_pp_01_far (G4, 0 st)	CC0 1.0	tuned -13 c to A440; 1 ms before onset, 2 ms fade-in; 0.9 s, flat to 0.35 s then exponential fade; peak 0.40	2	0		pending	Ladder G4; soft mallets pp
+sfx/bonus_01	vcsl/Xylo_Soft_G3_pp_01_far (+2 st)	CC0 1.0	as bonus_00, Lanczos shift +2 st; peak 0.412	2	0		pending	A4
+sfx/bonus_02	vcsl/Xylo_Soft_C4_pp_01_far (C5, 0 st)	CC0 1.0	as bonus_00, tuned -12 c; peak 0.424	2	0		pending	C5
+sfx/bonus_03	vcsl/Xylo_Soft_C4_pp_01_far (+2 st)	CC0 1.0	as bonus_00; peak 0.436	2	0		pending	D5
+sfx/bonus_04	vcsl/Xylo_Soft_G4_pp_01_far (-3 st)	CC0 1.0	as bonus_00, tuned -13.5 c; peak 0.448	2	0		pending	E5
+sfx/bonus_05	vcsl/Xylo_Soft_G4_ff_01_far (G5, 0 st)	CC0 1.0	as bonus_00; peak 0.46	2	0		pending	G5; soft mallets ff from here
+sfx/bonus_06	vcsl/Xylo_Soft_G4_ff_01_far (+2 st)	CC0 1.0	as bonus_00; peak 0.472	2	0		pending	A5
+sfx/bonus_07	vcsl/Xylo_Soft_C5_ff_01_far (C6, 0 st)	CC0 1.0	as bonus_00, tuned -15.5 c; peak 0.484	2	0		pending	C6
+sfx/bonus_08	vcsl/Xylo_Medium_C5_ff_01_far (+2 st)	CC0 1.0	as bonus_00; peak 0.496	2	0		pending	D6; medium mallets ff from here
+sfx/bonus_09	vcsl/Xylo_Medium_G5_ff_01_far (-3 st)	CC0 1.0	as bonus_00, tuned -16 c; peak 0.508	2	0		pending	E6
+sfx/bonus_10	vcsl/Xylo_Medium_G5_ff_01_far (G6, 0 st)	CC0 1.0	as bonus_00; peak 0.52	2	0		pending	G6
+sfx/print	freesound/210094_receipt_printer (Freesound 210094)	CC0 1.0	fold to mono; high-pass 150 Hz; 200 ms burst with 5 ms fades; peak 0.5	3	0		pending	Single file (no round robin); Sfx still pitches it with the printer speed (<= 1.26)
+sfx/tick	kenney/tick_001	CC0 1.0	low-pass 9 kHz; 23 ms; peak 0.3	1	0		pending	Played at -8 dB; may be faint under music
+sfx/stamp_1	freesound/470710_rubber_stamp + kenney/impactSoft_heavy_000	CC0 1.0	stamp and thump aligned at onset, thump -6 dB; low shelf +3 dB at 120 Hz; high-pass 50 Hz; 280 ms, 60 ms fade; peak 0.9	3	0		pending	Round-robin take 1
+sfx/stamp_2	freesound/470710_rubber_stamp (-0.3 st) + kenney/impactSoft_heavy_001	CC0 1.0	as stamp_1	1	0		pending	Round-robin take 2
+sfx/stamp_3	freesound/470710_rubber_stamp (+0.3 st) + kenney/impactSoft_heavy_002	CC0 1.0	as stamp_1	1	0		pending	Round-robin take 3
+sfx/stamp_paid	freesound/470710_rubber_stamp (-2 st) + kenney/impactPunch_heavy_000 + freesound/452572_drawer_slam	CC0 1.0	punch -4 dB, drawer -10 dB; low shelf +4 dB at 120 Hz; high-pass 45 Hz; 400 ms, 100 ms fade; peak 0.95	3	0		pending	For #61's PAID beat (not wired yet)
+sfx/stamp_loyalty	freesound/470710_rubber_stamp (+2 st) + vcsl/glock_soft_C5_02 (C6)	CC0 1.0	stamp 250 ms; glock -9 dB from +20 ms, rings out by 0.6 s; peak 0.85	2	0		pending	Glock tuned -12 c
+sfx/stamp_notice	freesound/448474_self_inking_stamp	CC0 1.0	48 to 44.1 kHz; high-pass 60 Hz; click, hit and spring in 350 ms; peak 0.6	2	0		pending
+sfx/rattle_s	freesound/452572_rattle_s	CC0 1.0	48 to 44.1 kHz; high-pass 60 Hz; from the drawer clunk, 180 ms, 60 ms fade; peak 0.5	3	0		pending	No bell in any rattle
+sfx/rattle_m	freesound/452572_rattle_m	CC0 1.0	as rattle_s; 300 ms, 100 ms fade; peak 0.65	1	0		pending
+sfx/rattle_l	freesound/452572_rattle_l	CC0 1.0	as rattle_s; 500 ms of coin-tray rattle, 150 ms fade; peak 0.8	1	0		pending
+sfx/register_bell	freesound/452572_bell	CC0 1.0	one clean ring moved -1.61 st (A6-39c to G6); high-pass 200 Hz; 0.9 s, fade from 0.3 s; peak 0.7	3	0		pending
+sfx/ding	vcsl/glock_soft_C5_02 (C6) + vcsl/sus_C5_r01_main (C6) + freesound/221515_desk_bell	CC0 1.0	chime -6 dB, desk-bell strike (40 ms) -12 dB; 1.2 s, fade from 0.4 s; peak 0.55	3	0		pending	Glock and chime both tuned to A440
+sfx/tag	freesound/564128_card_tap + vcsl/glock_soft_G5_01 (G6)	CC0 1.0	tap 60 ms; ping -12 dB from +10 ms, 300 ms; peak 0.5	2	0		pending	Quiet by its nature; raise the ping if it gets lost
+sfx/link	vcsl/glock_soft_C5_02 (C6) + vcsl/glock_soft_G5_01 (G6)	CC0 1.0	C6 then G6 60 ms later, each 350 ms with a fade from 80 ms; peak 0.45	2	0		pending
+sfx/copy	kenney/card-slide-3	CC0 1.0	+2 st; high-pass 200 Hz; 160 ms, 50 ms fade; peak 0.45	1	0		pending
+sfx/fizzle	synthesised (make_sfx.fizzle)	project	noise swell low-passed twice at 1.4 kHz, sine glide G5 to C5 at -14 dB; 380 ms; peak 0.4	2	0		pending
+sfx/denied	kenney/error_001	CC0 1.0	+1 st (two plucks on E and G); low-pass 3.5 kHz; 155 ms; peak 0.5	3	0		pending	Picked by measurement: error_005..008 are low buzzes or thumps, error_002/003 noisy
+sfx/total	vcsl/Xylo_Medium_C4_ff (C5) + Xylo_Medium_G4_ff (-3 st E5, 0 st G5) + Xylo_Medium_C5_ff (C6) + kenney/impactPunch_heavy_001	CC0 1.0	chord struck together (E5, G5 -2 dB, C6 -1 dB), punch -6 dB; 1.1 s, fade from 0.4 s; peak 0.85	2	0		pending
+sfx/miss	kenney/impactSoft_medium_002 + vcsl/Marimba_hit_Outrigger_C4_soft_01 (-3 st, A4)	CC0 1.0	thud high-passed 60 Hz, marimba -8 dB; 500 ms, fade from 0.15 s; peak 0.6	2	0		pending
+sfx/pass	vcsl/Xylo_Soft_C4_ff, Xylo_Soft_G4_ff (-3, 0 st), Xylo_Soft_C5_ff, Xylo_Soft_G5_ff (-3 st) + vcsl/BellTree_Stroke_3_Mid	CC0 1.0	C5 E5 G5 C6 E6 80 ms apart, rising -3 to 0 dB, last rings 0.8 s; bell tree high-passed 2 kHz at -10 dB; 1.12 s; peak 0.7	3	0		pending
+sfx/fail	vcsl/Marimba_hit_Outrigger_G4_soft_01 (-3 st, E5) + Marimba_hit_Outrigger_C4_soft_01 (+2 st D5, -3 st A4)	CC0 1.0	E5 D5 A4 180 ms apart; 1.2 s, fade from 0.7 s; peak 0.55	2	0		pending
+sfx/rip	freesound/451644_perforated_tear	CC0 1.0	96 to 44.1 kHz at 1.15x speed; high-pass 200 Hz; 360 ms, 80 ms fade; peak 0.65	2	0		pending	For #61's tear (not wired yet); single file
+sfx/armed	vcsl/BellTree_Hit_E5_rr1_Mid	CC0 1.0	high-pass 1.5 kHz; 150 ms, fade from 40 ms; peak 0.3	1	0		pending	Optional per #62 Q4: drop it if it feels busy
+sfx/card_place_1	kenney/card-place-1	CC0 1.0	fold to mono; high-pass 40 Hz; from 20 ms before the main slap, 220 ms, 60 ms fade; peak 0.5	2	0		pending	Round-robin take 1
+sfx/card_place_2	kenney/card-place-2	CC0 1.0	as card_place_1	1	0		pending
+sfx/card_place_3	kenney/card-place-3	CC0 1.0	as card_place_1	1	0		pending
+sfx/card_place_4	kenney/card-place-4	CC0 1.0	as card_place_1	1	0		pending
+sfx/card_pickup_1	kenney/card-slide-1	CC0 1.0	high-pass 40 Hz; 120 ms from onset, 40 ms fade; peak 0.4	1	0		pending
+sfx/card_pickup_2	kenney/card-slide-2	CC0 1.0	as card_pickup_1	1	0		pending
+sfx/card_pickup_3	kenney/card-slide-5	CC0 1.0	as card_pickup_1	1	0		pending
+sfx/card_return_1	kenney/card-shove-1	CC0 1.0	high-pass 40 Hz; 150 ms, 50 ms fade; peak 0.35	1	0		pending
+sfx/card_return_2	kenney/card-shove-2	CC0 1.0	as card_return_1	1	0		pending
+sfx/slot_tick	kenney/tick_004	CC0 1.0	low-pass 9 kHz; 50 ms; peak 0.25	1	0		pending
+sfx/shuffle	kenney/card-shuffle	CC0 1.0	high-pass 40 Hz; 0.6 s, 120 ms fade; peak 0.45	1	0		pending
+sfx/fan	kenney/card-fan-1	CC0 1.0	high-pass 40 Hz; 0.7 s, 100 ms fade; peak 0.45	1	0		pending
+sfx/checkout	kenney/impactMetal_light_001 + freesound/452572_drawer_chunk	CC0 1.0	key clack, drawer chunk at -4 dB 25 ms later; 200 ms, 50 ms fade; peak 0.6	2	0		pending
+sfx/ui_click_1	kenney/click_001	CC0 1.0	low-pass 9 kHz, high-pass 150 Hz; 30 ms; peak 0.35	1	0		pending
+sfx/ui_click_2	kenney/click_002	CC0 1.0	as ui_click_1 (10 ms)	1	0		pending
+sfx/ui_click_3	kenney/click_003	CC0 1.0	as ui_click_1 (10 ms)	1	0		pending
+sfx/ui_open	kenney/maximize_008	CC0 1.0	low-pass 9 kHz; 150 ms, 40 ms fade; peak 0.3	1	0		pending
+sfx/ui_close	kenney/minimize_008	CC0 1.0	as ui_open	1	0		pending
+sfx/ui_back	kenney/back_001	CC0 1.0	low-pass 9 kHz; 64 ms; peak 0.3	1	0		pending
+sfx/ui_confirm	kenney/confirmation_001	CC0 1.0	low-pass 9 kHz; 290 ms; peak 0.35	1	0		pending	Its notes are D5 and G5, in key
+sfx/ui_switch	kenney/switch_002	CC0 1.0	low-pass 9 kHz; 140 ms; peak 0.3	1	0		pending
+sfx/coin_1	freesound/367273_coin_1	CC0 1.0	high-pass 300 Hz; 250 ms from onset, 60 ms fade; peak 0.55	2	0		pending
+sfx/coin_2	freesound/367273_coin_2 (+2 st)	CC0 1.0	as coin_1	1	0		pending
+sfx/coin_3	freesound/367273_coin_3 (+4 st)	CC0 1.0	as coin_1	1	0		pending
