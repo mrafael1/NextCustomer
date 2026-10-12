@@ -112,13 +112,24 @@ static func upgrade_pick(
 ## fast_forward_used is a hold past CountUp.HOLD_THRESHOLD_MS that sped it up; a tap (CountUp)
 ## sets skip_used and skip_at_ms (from the click to the first tap, -1 for none), and
 ## dessert_skipped is a tap that sped up what follows the total.
+##
+## The speed it ran at (plan section 8, since v0.30): base_speed is the auto speed-up times the
+## speed setting, as used (1.0, 1.25, 1.5 or 1.875); speed_setting is the player's setting (1.0
+## Normal, 1.5 Fast); reduced_motion is the player's setting; step_count is the number of score
+## steps in the row; planned_ms is the beat plan's fitted estimate of count_up_ms without taps.
+## Left out, they log 1.0, 1.0, false, 0 and 0.
 static func count_up(
 	shift: int,
 	click_ms: int,
 	total_shown_ms: int,
 	fast_forward_used: bool,
 	first_tap_ms: int,
-	dessert_skipped: bool
+	dessert_skipped: bool,
+	base_speed: float = 1.0,
+	speed_setting: float = 1.0,
+	reduced_motion: bool = false,
+	step_count: int = 0,
+	planned_ms: int = 0
 ) -> Dictionary:
 	return {
 		"shift": shift,
@@ -127,6 +138,11 @@ static func count_up(
 		"skip_used": first_tap_ms >= 0,
 		"skip_at_ms": first_tap_ms - click_ms if first_tap_ms >= 0 else -1,
 		"dessert_skipped": dessert_skipped,
+		"base_speed": base_speed,
+		"speed_setting": speed_setting,
+		"reduced_motion": reduced_motion,
+		"step_count": step_count,
+		"planned_ms": planned_ms,
 	}
 
 

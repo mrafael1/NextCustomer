@@ -200,7 +200,7 @@ func test_the_second_click_of_a_checkout_double_click_is_ignored() -> void:
 	assert_bool(screen.get_viewport().gui_get_hovered_control() is Button).is_true()
 	assert_bool(screen._counting).is_true()
 	_runner.simulate_mouse_button_press(MOUSE_BUTTON_LEFT, true)
-	var since_start: int = Time.get_ticks_msec() - screen._count_up._started_ms
+	var since_start: int = Time.get_ticks_msec() - screen._count_up._presses.started_ms
 	assert_int(since_start).is_less(CountUp.CHECKOUT_DOUBLE_CLICK_MS)
 	await _frames(2)
 	_runner.simulate_mouse_button_release(MOUSE_BUTTON_LEFT)

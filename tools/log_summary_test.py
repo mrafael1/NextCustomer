@@ -123,10 +123,13 @@ class Session:
                  next_inspection="")
 
     def count_up(self, run_id: str, shift: int, skip_used: bool = False, skip_at: int = -1,
-                 dessert: bool = False, fast_forward: bool = False) -> None:
+                 dessert: bool = False, fast_forward: bool = False,
+                 speed: dict | None = None) -> None:
+        """`speed` holds the fields logged since v0.30 (base_speed, speed_setting,
+        reduced_motion, step_count, planned_ms); left out, the event is an older build's."""
         self.log("count_up", run_id, shift=shift, count_up_ms=2000,
                  fast_forward_used=fast_forward, skip_used=skip_used, skip_at_ms=skip_at,
-                 dessert_skipped=dessert)
+                 dessert_skipped=dessert, **(speed or {}))
 
     def reward(self, run_id: str, shift: int, offered: tuple, picked: str = "",
                replaced: str = "", times: tuple = (220, 350, 1500),
@@ -570,6 +573,28 @@ class TimesTest(LogTestCase):
         self.assertEqual(second["count_up_tap"], {"count": 1, "n": 2, "rate": 0.5})
         self.assertEqual(second["dessert_skipped"]["count"], 1)
         self.assertEqual(summary["second_run"]["all_runs"]["presentation_skipped"]["n"], 5)
+
+    def test_count_up_reads_logs_with_and_without_the_speed_fields(self) -> None:
+        """Since v0.30 count_up logs base_speed, speed_setting, reduced_motion, step_count and
+        planned_ms; older logs lack them. Both read the same, with no new summary line."""
+        speed = {"base_speed": 1.875, "speed_setting": 1.5, "reduced_motion": True,
+                 "step_count": 27, "planned_ms": 4900}
+        summaries = []
+        for name, fields in (("old", None), ("new", speed)):
+            a = Session("a")
+            a.run_start("a1", seed=7)
+            a.count_up("a1", 1, skip_used=True, skip_at=300, speed=fields)
+            a.count_up("a1", 2, fast_forward=True, speed=fields)
+            summaries.append(self.summary(self.write(f"{name}.jsonl", a)))
+        old, new = summaries
+        self.assertNotIn("planned_ms", self.logs.joinpath("old.jsonl").read_text("utf-8"))
+        self.assertIn('"planned_ms": 4900', self.logs.joinpath("new.jsonl").read_text("utf-8"))
+        self.assertEqual(new["count_up"], old["count_up"])
+        self.assertEqual(new["count_up"]["count_ups"], 2)
+        self.assertEqual(new["count_up"]["count_up_ms"]["median"], 2000)
+        self.assertEqual(new["count_up"]["skip_used"], {"count": 1, "n": 2, "rate": 0.5})
+        self.assertEqual(new["second_run"], old["second_run"])
+        self.assertEqual(ls.render(new), ls.render(old).replace("old.jsonl", "new.jsonl"))
 
 
 class SameNamedExportsTest(LogTestCase):

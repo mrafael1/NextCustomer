@@ -2,7 +2,8 @@ class_name ShiftDebug
 extends RefCounted
 ## The shift screen's development tools (plan section 2): the debug panel (a new run with a
 ## seed, replaying the impulse rack's logged pick; add a card to the hand; give an upgrade; set
-## the shift's inspection; skip to a shift) and the --demo-row command-line option. Split out of
+## the shift's inspection; skip to a shift; for now, the count-up settings) and the --demo-row
+## command-line option. Split out of
 ## ShiftScreen to keep that file short; it is a part of the screen and works on its run and
 ## display through the screen's own methods.
 ##
@@ -38,6 +39,15 @@ func add_panel(shift_count: int) -> void:
 	panel.connect(&"upgrade_requested", give_upgrade)
 	panel.connect(&"inspection_requested", set_inspection)
 	panel.connect(&"shift_requested", skip_to_shift)
+	# TEMPORARY (#60): the count-up settings, until phase 4's settings screen replaces them.
+	var profile: ProfileState = _screen.profile
+	panel.call(
+		"set_count_up_settings",
+		profile.count_up_speed() == ProfileState.COUNT_UP_FAST,
+		profile.reduced_motion()
+	)
+	panel.connect(&"count_up_speed_requested", set_fast_count_up)
+	panel.connect(&"reduced_motion_requested", set_reduced_motion)
 
 
 ## Whether the game was started with --demo-row (development builds only).
@@ -82,6 +92,22 @@ func replay_seed(seed_value: int, replays_rack: bool, impulse_pick: String) -> v
 		data["impulse_pick"] = impulse_pick
 	_log.log_event("debug", data)
 	_screen.start_new_run(seed_value, replays_rack, impulse_pick)
+
+
+## TEMPORARY (#60): the count-up speed setting, Fast or Normal, saved in the profile at once.
+## The next count-up uses it (its count_up event logs it, so no debug event is needed). Phase
+## 4's settings screen replaces it.
+func set_fast_count_up(fast: bool) -> void:
+	var speed: float = ProfileState.COUNT_UP_FAST if fast else ProfileState.COUNT_UP_NORMAL
+	_screen.profile.set_count_up_speed(speed)
+	_screen._saves.save_profile(_screen.profile)
+
+
+## TEMPORARY (#60): the reduced motion setting, saved in the profile at once. The next
+## count-up uses it. Phase 4's settings screen replaces it.
+func set_reduced_motion(on: bool) -> void:
+	_screen.profile.set_reduced_motion(on)
+	_screen._saves.save_profile(_screen.profile)
 
 
 ## Puts a copy of a card into the hand (not the deck). The run save keeps it in the hand.

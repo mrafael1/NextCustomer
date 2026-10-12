@@ -121,6 +121,78 @@ func test_missing_fields_keep_defaults_and_unknown_ones_are_ignored() -> void:
 	assert_array(read.last_list).is_empty()
 
 
+func test_the_count_up_settings_default_to_normal_speed_and_full_motion() -> void:
+	var profile: ProfileState = ProfileState.new()
+	assert_float(profile.count_up_speed()).is_equal(ProfileState.COUNT_UP_NORMAL)
+	assert_bool(profile.reduced_motion()).is_false()
+	# An old profile, saved before these settings existed.
+	var old: ProfileState = ProfileState.from_dictionary(
+		{"format_version": 1.0, "settings": {"volume": 0.5}}
+	)
+	assert_float(old.count_up_speed()).is_equal(ProfileState.COUNT_UP_NORMAL)
+	assert_bool(old.reduced_motion()).is_false()
+	assert_float(ProfileState.COUNT_UP_NORMAL).is_equal(1.0)
+	assert_float(ProfileState.COUNT_UP_FAST).is_equal(1.5)
+
+
+## The count-up settings survive a profile save and load, as JSON in the profile's settings.
+func test_the_count_up_settings_survive_a_save_and_load() -> void:
+	var folder: String = "user://test_profile_settings_%d" % Time.get_ticks_usec()
+	var errors: Array[String] = []
+	var service: SaveService = SaveService.new(
+		folder, func(message: String) -> void: errors.append(message)
+	)
+	var profile: ProfileState = ProfileState.new()
+	profile.settings["volume"] = 0.5
+	profile.set_count_up_speed(ProfileState.COUNT_UP_FAST)
+	profile.set_reduced_motion(true)
+	assert_dict(profile.settings).is_equal(
+		{"volume": 0.5, "count_up_speed": 1.5, "reduced_motion": true}
+	)
+	assert_bool(service.save_profile(profile)).is_true()
+	var read: ProfileState = service.load_profile()
+	assert_float(read.count_up_speed()).is_equal(ProfileState.COUNT_UP_FAST)
+	assert_bool(read.reduced_motion()).is_true()
+	read.set_count_up_speed(ProfileState.COUNT_UP_NORMAL)
+	read.set_reduced_motion(false)
+	assert_bool(service.save_profile(read)).is_true()
+	var again: ProfileState = service.load_profile()
+	assert_float(again.count_up_speed()).is_equal(ProfileState.COUNT_UP_NORMAL)
+	assert_bool(again.reduced_motion()).is_false()
+	assert_float(again.settings["volume"]).is_equal(0.5)
+	assert_array(errors).is_empty()
+	for file_name: String in DirAccess.get_files_at(folder):
+		DirAccess.remove_absolute(folder.path_join(file_name))
+	DirAccess.remove_absolute(folder)
+
+
+## A wrong-typed or unknown value (a hand-edited or older save) reads as the default; the
+## profile still loads.
+func test_wrong_count_up_settings_fall_back_to_the_defaults() -> void:
+	var wrong: Array[Dictionary] = [
+		{"count_up_speed": "fast", "reduced_motion": "yes"},
+		{"count_up_speed": true, "reduced_motion": 1.0},
+		{"count_up_speed": 3.0, "reduced_motion": null},
+		{"count_up_speed": [1.5], "reduced_motion": {}},
+	]
+	for settings: Dictionary in wrong:
+		var read: ProfileState = ProfileState.from_dictionary(
+			{"format_version": 1, "settings": settings}
+		)
+		assert_object(read).override_failure_message(str(settings)).is_not_null()
+		assert_float(read.count_up_speed()).override_failure_message(str(settings)).is_equal(
+			ProfileState.COUNT_UP_NORMAL
+		)
+		assert_bool(read.reduced_motion()).override_failure_message(str(settings)).is_false()
+	# JSON numbers load as floats, so an int is not a stored speed: it reads as Normal. A speed
+	# other than the two is stored as Normal.
+	var profile: ProfileState = ProfileState.new()
+	profile.settings["count_up_speed"] = 1
+	assert_float(profile.count_up_speed()).is_equal(ProfileState.COUNT_UP_NORMAL)
+	profile.set_count_up_speed(2.0)
+	assert_float(profile.settings["count_up_speed"]).is_equal(ProfileState.COUNT_UP_NORMAL)
+
+
 func test_unreadable_forms_are_rejected() -> void:
 	var bad: Array[Dictionary] = [
 		{},
