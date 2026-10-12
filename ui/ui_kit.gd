@@ -1,9 +1,15 @@
 class_name UiKit
 extends RefCounted
-## Small helpers shared by the placeholder screens, so they look alike.
+## Small helpers shared by the placeholder screens, so they look and sound alike. Buttons and
+## panels play their UI sounds (#62) on the Sfx of their scene (Sfx.find): nothing when the
+## scene has none. No control makes a sound on hover.
 
 ## How long a panel's pop-in lasts, in seconds of game time.
 const POP_IN_SECONDS := 0.22
+## The sound of a button press, unless the button names another (or "" for none).
+const CLICK_SOUND := "ui_click"
+## The sound of a panel popping in.
+const OPEN_SOUND := "ui_open"
 
 
 static func paper_panel(border: int = 4) -> PanelContainer:
@@ -27,21 +33,28 @@ static func label(text: String, font_size: int, color: Color) -> Label:
 	return result
 
 
-static func button(parent: Control, text: String, action: Callable, font_size: int) -> Button:
+## A button that calls `action` when pressed, after playing `sound` (CLICK_SOUND by default; a
+## button whose action plays its own sound passes "").
+static func button(
+	parent: Control, text: String, action: Callable, font_size: int, sound: String = CLICK_SOUND
+) -> Button:
 	var result: Button = Button.new()
 	result.text = text
 	# Mouse-only buttons: keyboard focus would let Space (the fast-forward key) press them.
 	result.focus_mode = Control.FOCUS_NONE
 	result.add_theme_font_size_override("font_size", font_size)
+	if not sound.is_empty():
+		result.pressed.connect(func() -> void: Sfx.play_at(result, sound))
 	result.pressed.connect(action)
 	parent.add_child(result)
 	return result
 
 
-## Centers a panel on the screen and pops it in. Returns the pop-in's tween: the panel is fully
-## shown when it finishes (an offer's presented_ms, OfferTimeline).
+## Centers a panel on the screen and pops it in with OPEN_SOUND. Returns the pop-in's tween: the
+## panel is fully shown when it finishes (an offer's presented_ms, OfferTimeline).
 static func pop_in(panel: Control) -> Tween:
 	panel.visible = true
+	Sfx.play_at(panel, OPEN_SOUND)
 	# Size the panel to its content first, then center it with that size.
 	panel.reset_size()
 	panel.set_anchors_and_offsets_preset(Control.PRESET_CENTER, Control.PRESET_MODE_MINSIZE)

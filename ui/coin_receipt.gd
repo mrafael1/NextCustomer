@@ -2,12 +2,20 @@ class_name CoinReceipt
 extends VBoxContainer
 ## The coins printed at the bottom of the plain final receipt (full build plan 7.1), on the
 ## results screen: the shifts passed, the overtime, then the run's coins and the profile's
-## total. It only displays a CoinPayout; core computes it.
+## total. It only displays a CoinPayout; core computes it. Each coin earned clinks (#62), one
+## after another once the results panel has popped in, up to MAX_COIN_SOUNDS.
 
 ## Characters per line, so the amounts line up in the monospace receipt font (every line has
 ## the same font size, or the columns would drift).
 const WIDTH := 34
 const FONT_SIZE := 16
+## The coin sounds start after the panel's pop-in and follow each other this far apart, in
+## seconds; a big payout plays at most MAX_COIN_SOUNDS of them.
+const COIN_GAP := 0.07
+const MAX_COIN_SOUNDS := 15
+
+## The shown payout's coin sounds (#62): the music stays ducked until they have all played.
+var coin_sounds_shown: int = 0
 
 
 func _init() -> void:
@@ -27,6 +35,25 @@ func show_payout(payout: CoinPayout, coins_owned: int) -> void:
 		if last:
 			line.add_theme_color_override("font_color", Palette.TEAL)
 		add_child(line)
+	coin_sounds_shown = coin_sounds(payout.total())
+	_play_coins(payout.total())
+
+
+## How many coin sounds a payout of `coins` plays.
+static func coin_sounds(coins: int) -> int:
+	return clampi(coins, 0, MAX_COIN_SOUNDS)
+
+
+## Seconds from the payout shown until one COIN_GAP after its last coin sound.
+func coins_seconds() -> float:
+	return UiKit.POP_IN_SECONDS + coin_sounds_shown * COIN_GAP
+
+
+## One `coin` per coin earned (capped), in turn after the pop-in; nothing without an Sfx.
+func _play_coins(coins: int) -> void:
+	var sfx: Sfx = Sfx.find(self)
+	if sfx != null:
+		sfx.play_series("coin", coin_sounds(coins), COIN_GAP, UiKit.POP_IN_SECONDS)
 
 
 ## The receipt's lines: one per payout part, then the total.

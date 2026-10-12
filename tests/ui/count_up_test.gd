@@ -525,6 +525,98 @@ func _assert_sounds(sfx: Sfx, plan: CountUpPlan) -> void:
 			)
 	prints("#60 tick gaps (real/planned ms):", " ".join(gaps))
 	assert_int(_sounds(sfx, "bonus")).is_equal(0)
+	_assert_rattle_and_armed_sounds(sfx, plan)
+
+
+## #62: every armed beat plays its shimmer; every rattling payout and a large total's pause play
+## a rattle take for their pixels, at the volume for their pixels (louder for more); a huge total
+## rings the register bell.
+func _assert_rattle_and_armed_sounds(sfx: Sfx, plan: CountUpPlan) -> void:
+	var armed: int = 0
+	var rattle_px: Array[float] = []
+	for beat: CountUpBeat in plan.beats:
+		if beat.kind == CountUpBeat.Kind.ARMED:
+			armed += 1
+		if CountUpPlan.is_payout_beat(beat) and beat.payout > 0 and beat.roll_ms > 0:
+			if beat.rattle_px > 0.0:
+				rattle_px.append(beat.rattle_px)
+	var tuning: CountUpTuning = load(CountUp.TUNING_PATH)
+	if plan.size == CountUpPlan.Size.HUGE:
+		rattle_px.append(tuning.final_rattle_huge_px)
+	elif plan.size == CountUpPlan.Size.LARGE:
+		rattle_px.append(tuning.final_rattle_large_px)
+	assert_int(_sounds(sfx, "armed")).is_equal(armed)
+	var heard: Array[Dictionary] = []
+	for entry: Dictionary in sfx.get("sounds"):
+		if String(entry["sound"]).begins_with("rattle_"):
+			heard.append(entry)
+	assert_int(heard.size()).is_equal(rattle_px.size())
+	for index: int in range(mini(heard.size(), rattle_px.size())):
+		var px: float = rattle_px[index]
+		assert_str(String(heard[index]["sound"])).is_equal(_rattle_take(px))
+		var volume: float = lerpf(
+			CountUp.RATTLE_QUIET_DB, 0.0, clampf(px / CountUp.RATTLE_FULL_PX, 0.0, 1.0)
+		)
+		assert_float(float(heard[index]["volume_db"])).is_equal_approx(volume, 0.01)
+	var bell: int = 1 if plan.size == CountUpPlan.Size.HUGE else 0
+	assert_int(_sounds(sfx, "register_bell")).is_equal(bell)
+
+
+static func _rattle_take(px: float) -> String:
+	if px >= CountUp.RATTLE_LARGE_PX:
+		return "rattle_l"
+	return "rattle_m" if px >= CountUp.RATTLE_MEDIUM_PX else "rattle_s"
+
+
+## #62: the register rattle's take and volume for a shake of some pixels, written out: rattle_s
+## under 6 px, rattle_m from 6, rattle_l from 10; from -10 dB at 0 px up to 0 dB at 12 px.
+func test_a_stronger_rattle_plays_a_bigger_take_louder() -> void:
+	var screen: ShiftScreen = await _screen()
+	var sfx: Sfx = _recording_sfx(screen)
+	for px: float in [3.0, 6.0, 10.0, 12.0, 16.0]:
+		screen._count_up._play_rattle(px)
+	var takes: Array[String] = []
+	var volumes: Array[float] = []
+	for entry: Dictionary in sfx.get("sounds"):
+		takes.append(String(entry["sound"]))
+		volumes.append(float(entry["volume_db"]))
+	assert_array(takes).is_equal(["rattle_s", "rattle_m", "rattle_l", "rattle_l", "rattle_l"])
+	var expected: Array[float] = [-7.5, -5.0, -10.0 / 6.0, 0.0, 0.0]
+	for index: int in range(expected.size()):
+		assert_float(volumes[index]).is_equal_approx(expected[index], 0.01)
+
+
+## #62, Q5: the next shift's notice prints with the printer's feed (at the printer's pitch), and
+## the clerk's stamp lands just after it, last of all.
+func test_the_notice_prints_then_its_stamp_lands() -> void:
+	var screen: ShiftScreen = await _screen()
+	var sfx: Sfx = _recording_sfx(screen)
+	await _place(screen, ["milk"])
+	var count_up: CountUp = screen._count_up
+	count_up.play(
+		screen.run.preview(),
+		screen._row_views,
+		ShiftScreen._names(screen.run.row),
+		1,
+		CountUpContext.new(1, 0),
+		screen._loyalty_card.stamped_boxes(),
+		LoyaltyCard.names(screen.run.upgrades),
+		screen._inspection_tag.sources(screen.run.inspections),
+		InspectionTag.names(screen.run.inspections),
+		"Next shift: test notice"
+	)
+	await _played(screen)
+	var sounds: Array[Dictionary] = sfx.get("sounds")
+	assert_int(sounds.size()).is_greater(2)
+	var stamp: Dictionary = sounds[-1]
+	var feed: Dictionary = sounds[-2]
+	assert_str(String(stamp["sound"])).is_equal("stamp_notice")
+	assert_str(String(feed["sound"])).is_equal("print")
+	var tuning: CountUpTuning = load(CountUp.TUNING_PATH)
+	var pitch: float = minf(count_up.plan.printer_speed, tuning.print_pitch_max)
+	assert_float(float(feed["pitch"])).is_equal_approx(pitch, 0.0001)
+	var gap_ms: float = (int(stamp["usec"]) - int(feed["usec"])) / 1000.0
+	assert_float(gap_ms).is_between(CountUp.NOTICE_STAMP_GAP * 1000.0 - 5.0, 200.0)
 
 
 ## One marker per landing, all of one armed beat made in the same frame, and none left after

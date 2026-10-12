@@ -1,7 +1,8 @@
 extends GdUnitTestSuite
 ## Loads every scene and resource in the game folders and the golden fixture. tools/test.sh
 ## fails on any Godot error printed while loading, so a broken link inside a .tres or .tscn
-## fails here. A new folder of scenes or resources must be added to FOLDERS.
+## fails here. A new folder of scenes or resources must be added to FOLDERS, and a resource
+## outside them to FILES.
 
 ## Subfolders are loaded too, so "res://data" covers data/cards, data/decks, data/balance,
 ## data/upgrades, data/inspections, data/aisles and data/catalogue;
@@ -14,12 +15,16 @@ const FOLDERS := [
 	"res://telemetry",
 	"res://tests/fixtures",
 ]
+## Resources outside FOLDERS: the audio bus layout at the project root (#62).
+const FILES := ["res://default_bus_layout.tres"]
 
 
 func test_every_scene_and_resource_loads() -> void:
 	var files: Array[String] = []
 	for folder: String in FOLDERS:
 		_collect(folder, files)
+	for path: String in FILES:
+		files.append(path)
 	assert_int(files.size()).is_greater(0)
 	for path: String in files:
 		var resource: Resource = load(path)
@@ -48,6 +53,8 @@ func test_every_scene_and_resource_loads() -> void:
 			assert_object(resource).override_failure_message(path).is_instanceof(CountUpTuning)
 		elif path.contains("/balance/"):
 			assert_object(resource).override_failure_message(path).is_instanceof(BalanceDefinition)
+		elif path.ends_with("_bus_layout.tres"):
+			assert_object(resource).override_failure_message(path).is_instanceof(AudioBusLayout)
 
 
 static func _collect(folder: String, files: Array[String]) -> void:

@@ -19,9 +19,13 @@ extends Node
 ## payouts; a PaperPile that grows with every line; the quota ding with a lasting "QUOTA" chip;
 ## then a held breath (longer and rattling for a large total) and the TOTAL line.
 ##
-## Sound (D1): gain beats climb the plan's note ladder (Sfx.play_note), an armed beat replays
-## the current note quietly and a stamp plays its sample with the note under it. Nothing
-## follows the subtotal.
+## Sound (D1, #62): gain beats climb the plan's note ladder (Sfx.play_note), an armed beat
+## replays the current note quietly over its shimmer (`armed`) and a stamp plays its sample (3
+## takes in turn) with the note under it. Nothing follows the subtotal. A payout's register
+## rattle sounds with its shake, its take and volume following the shake's pixels (rattle_s,
+## rattle_m, rattle_l); a large total rattles through the pause, and a huge one rings the
+## register bell too. The next-shift notice prints with the printer's feed, then the light
+## clerk's stamp (stamp_notice). A fail holds the count-up until its fail sound has rung out.
 ##
 ## Time (D6): every beat length runs at _speed(), the fastest of the taps' skip, a hold's
 ## fast-forward and the plan's base_speed (the auto speed-up times the speed setting). Hit-stops
@@ -75,6 +79,13 @@ const ARMED_NOTE_DB := -10.0
 const STAMP_NOTE_DB := -6.0
 ## An echo's stamp sample, softer than a full stamp.
 const ECHO_STAMP_DB := -8.0
+## The register rattle's sound (#62): a rattle of RATTLE_MEDIUM_PX pixels or more plays
+## rattle_m, RATTLE_LARGE_PX or more rattle_l, anything less rattle_s; its volume climbs from
+## RATTLE_QUIET_DB to 0 dB at RATTLE_FULL_PX.
+const RATTLE_MEDIUM_PX := 6.0
+const RATTLE_LARGE_PX := 10.0
+const RATTLE_FULL_PX := 12.0
+const RATTLE_QUIET_DB := -10.0
 ## Motion lengths at speed 1, in seconds, each the longest it gets: a beat shorter than its
 ## motion shortens it (see _motion).
 const SCAN_LIFT_TIME := 0.18
@@ -105,6 +116,17 @@ const SUBTOTAL_PUNCH_MAX := 0.5
 ## The pile's settle bounce: squashed this tall, back over PILE_SETTLE_TIME (D4: 80 ms).
 const PILE_SETTLE := 1.06
 const PILE_SETTLE_TIME := 0.08
+## The dessert ducks the music (#62, Q6): this far, over DUCK_ATTACK_S, then a hush of HUSH_S
+## (at the count-up's speed) before the slam starts, so the slam lands about 250 ms into
+## near-silence. A tap that skips the dessert brings the music back over SKIP_UNDUCK_S.
+const DESSERT_DUCK_DB := -24.0
+const DUCK_ATTACK_S := 0.12
+const HUSH_S := 0.17
+const SKIP_UNDUCK_S := 0.15
+## The verdict stays this long after the pass or fail sound starts, then fades.
+const VERDICT_HOLD_S := 0.6
+## The next-shift notice: the clerk's stamp lands this long after the printer feeds the line.
+const NOTICE_STAMP_GAP := 0.08
 
 ## A hold past HOLD_THRESHOLD_MS sped this count-up up (plan 8's fast-forward used).
 var fast_forward_used: bool = false
@@ -116,6 +138,8 @@ var first_tap_ms: int = -1
 var dessert_skipped: bool = false
 ## The plan being played (or last played), built by play().
 var plan: CountUpPlan
+## The Music autoload the dessert ducks (#62), or null for none (the shift screen sets it).
+var music: MusicService
 ## How big the ending was, for what follows the total (#61). Set when the total is shown; null
 ## before that.
 var intensity: CountUpIntensity
@@ -153,6 +177,8 @@ var _presses: PressReader
 var _tapped: bool = false
 ## The final total is shown: what follows is the dessert.
 var _verdict_shown: bool = false
+## This count-up ducked the music and hasn't brought it back.
+var _ducked: bool = false
 ## Running tweens: their speed follows fast-forward every frame, not only when they start.
 var _live: Array[Tween] = []
 ## Real ms left of the running hit-stop (D6), counted down in _process.
@@ -232,6 +258,7 @@ func play(
 	dessert_skipped = false
 	_tapped = false
 	_verdict_shown = false
+	_ducked = false
 	_presses.begin()
 	_playing = true
 	_receipt.clear()
@@ -318,6 +345,9 @@ func _tap(now: int) -> void:
 		first_tap_ms = now
 	if _tapped or _verdict_shown:
 		dessert_skipped = true
+		if _ducked:
+			_ducked = false
+			music.unduck(SKIP_UNDUCK_S)
 	_tapped = true
 
 
@@ -635,6 +665,7 @@ func _land_payout(beat: CountUpBeat, step: ScoreStep, line: Control) -> void:
 		)
 		if beat.rattle_px > 0.0:
 			_fx.shake(_rattle_target, beat.rattle_px)
+			_play_rattle(beat.rattle_px)
 	_roll_subtotal(step.subtotal, roll)
 	if roll > 0.0:
 		await _wait(roll)
@@ -651,6 +682,7 @@ func _armed(index: int, beat: CountUpBeat, step: ScoreStep) -> void:
 	var view: CardView = _views[step.slot]
 	_fx.punch(view.body, 1.08)
 	_fx.glow(view.body)
+	_sfx.play("armed")
 	if beat.note >= 0:
 		_sfx.play_note(beat.note, ARMED_NOTE_DB)
 	if beat.targets.is_empty():
@@ -702,8 +734,14 @@ func _start_pile(start_px: float) -> void:
 
 ## The held breath before the TOTAL line (D4): pause_ms of real time, sped up only by a tap or
 ## a hold. The printer is silent; a large total rattles the register and curls the pile (a huge
-## one also spills a strip).
+## one also spills a strip and rings the register bell). The rattle and the bell sound under
+## reduced motion too: only the shake goes.
 func _pause() -> void:
+	if plan.size != CountUpPlan.Size.NORMAL:
+		var huge: bool = plan.size == CountUpPlan.Size.HUGE
+		if huge:
+			_sfx.play("register_bell")
+		_play_rattle(_tuning.final_rattle_huge_px if huge else _tuning.final_rattle_large_px)
 	if plan.final_rattle_px > 0.0:
 		# The rattle fills the pause: the pause runs in real time (sped up only by a tap or a
 		# hold), the shake's tween at _speed() (base_speed included), so it gets that many more
@@ -733,6 +771,17 @@ func _land(beat: CountUpBeat) -> void:
 	_hit_stop_left_ms = maxf(_hit_stop_left_ms, beat.hit_stop_ms)
 	_hit_stop_us = Time.get_ticks_usec()
 	_apply_speed()
+
+
+## The register rattle's sound for a rattle of `px` pixels: rattle_s, rattle_m or rattle_l,
+## louder for a stronger rattle.
+func _play_rattle(px: float) -> void:
+	var take: String = "rattle_s"
+	if px >= RATTLE_LARGE_PX:
+		take = "rattle_l"
+	elif px >= RATTLE_MEDIUM_PX:
+		take = "rattle_m"
+	_sfx.play(take, 1.0, lerpf(RATTLE_QUIET_DB, 0.0, clampf(px / RATTLE_FULL_PX, 0.0, 1.0)))
 
 
 ## The printer's three ticks, spread over the payout's roll (D1).
@@ -802,14 +851,17 @@ func _source_control(step: ScoreStep) -> Control:
 	return inspection if inspection != null else _source_view(step)
 
 
-## The next shift's inspection prints in red under the total, with a stamp.
+## The next shift's inspection prints in red under the total: the printer feeds it, then the
+## clerk's stamp lands (#62, Q5).
 func _print_notice(notice: String) -> void:
 	await _wait(0.2)
 	var line: Control = _receipt.add_notice(notice)
-	_sfx.play("stamp")
+	_sfx.play("print", _print_pitch())
 	line.modulate.a = 0.0
 	_tween().tween_property(line, "modulate:a", 1.0, 0.15)
-	await _wait(0.35)
+	await _wait(NOTICE_STAMP_GAP)
+	_sfx.play("stamp_notice")
+	await _wait(0.35 - NOTICE_STAMP_GAP)
 
 
 ## How many receipt lines the count-up prints for `steps`: one per step but EFFECT_ARMED (which
@@ -835,8 +887,16 @@ static func _center(control: Control) -> Vector2:
 
 ## The final moment: the total slams down beside the quota, green and cheerful if it is
 ## enough, red and deflated if not. #61's dessert takes it over (D11).
+##
+## The music ducks first (#62, Q6) and stays ducked: the shift screen brings it back when the
+## reward panel appears, or crossfades to the results on a fail, which waits until the fail sound
+## has ended. #61 moves these hooks to its dessert (the reward print-out unducks).
 func _total_slam(total: int, quota: int) -> void:
 	var enough: bool = total >= quota
+	if music != null and not dessert_skipped:
+		music.duck(DESSERT_DUCK_DB, DUCK_ATTACK_S)
+		_ducked = true
+	await _wait(HUSH_S)
 	var verdict: Label = CountUpMotion.text_label(
 		"€%d / €%d" % [total, quota], Palette.GOOD if enough else Palette.TOMATO, 72
 	)
@@ -856,10 +916,14 @@ func _total_slam(total: int, quota: int) -> void:
 	_fx.punch(_subtotal_label, 1.5)
 	await _wait(0.25)
 	_sfx.play("pass" if enough else "fail")
-	await _wait(0.6)
+	await _wait(VERDICT_HOLD_S)
 	var fade: Tween = _tween()
 	fade.tween_property(verdict, "modulate:a", 0.0, 0.25)
 	fade.tween_callback(verdict.queue_free)
+	if not enough:
+		# The music stays ducked through the whole fail sound (Q6): the results crossfade starts
+		# when play() returns.
+		await _wait(maxf(_sfx.sound_length("fail") - VERDICT_HOLD_S, 0.0))
 
 
 ## Rolls the shown subtotal to `to` over `seconds` (at once for 0). A roll still running ends at

@@ -44,7 +44,8 @@ func _init() -> void:
 	buttons.add_theme_constant_override("separation", 16)
 	column.add_child(buttons)
 	_new_run_button = UiKit.button(buttons, "New run", func() -> void: new_run_requested.emit(), 22)
-	UiKit.button(buttons, "Export log", func() -> void: export_requested.emit(), 18)
+	# The export confirms itself once done (ShiftScreen).
+	UiKit.button(buttons, "Export log", func() -> void: export_requested.emit(), 18, "")
 	visible = false
 
 
@@ -82,6 +83,11 @@ func show_results(run: RunState, result: ScoreResult, coins_total: int) -> void:
 	_new_run_button.disabled = true
 	_armed_ms = Time.get_ticks_msec() + 350
 	UiKit.pop_in(self)
+
+
+## Seconds from show_results until the final receipt's coins have clinked (CoinReceipt).
+func coins_seconds() -> float:
+	return _coin_receipt.coins_seconds()
 
 
 ## The line under the headline (for tests).
