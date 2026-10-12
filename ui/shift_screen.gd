@@ -79,6 +79,8 @@ var _deck_view: DeckView
 var _row_box: HBoxContainer
 var _row_strip: RowStrip
 var _overlay: Control
+## The placeholder paper pile beside the receipt (#60, D4), grown by the count-up.
+var _paper_pile: PaperPile
 var _count_up: CountUp
 var _sfx: Sfx
 var _debug: ShiftDebug
@@ -157,6 +159,7 @@ func _on_shift_started() -> void:
 	}
 	_log.log_event("shift_start", start)
 	_refresh()
+	_count_up.show_pile_for_shift(run.shift_index + 1)
 	_save_run()
 
 
@@ -176,15 +179,16 @@ func _resume_run(saved: RunSave) -> void:
 	tracker.begin(Time.get_ticks_msec(), _focus.is_player_present())
 	_refresh()
 	if run.phase == RunState.Phase.PLANNING:
+		_count_up.show_pile_for_shift(run.shift_index + 1)
 		return
-	# After the checkout: the row, its receipt (with the next shift's inspection notice) and
-	# totals as the count-up left them.
+	# After the checkout: the row, its receipt (with the next shift's inspection notice), totals,
+	# quota chip and paper pile as the count-up left them.
 	_show_score(run.last_result)
 	var notice: String = InspectionTag.next_notice(run.next_inspection)
 	if not notice.is_empty():
 		_receipt.add_notice(notice)
 	_show_projected(run.last_result.total)
-	_subtotal_label.text = "€%d" % run.last_result.total
+	_count_up.show_end_state(run.last_result, run.quota(), count_up_context())
 	if run.phase == RunState.Phase.REWARD:
 		_show_rewards(run.last_result)
 	else:
@@ -377,11 +381,13 @@ func _on_checkout_pressed() -> void:
 		# The reward waits: quitting during the count-up resumes on it.
 		_save_run()
 	_refresh()
+	var context: CountUpContext = count_up_context()
 	await _count_up.play(
 		result,
 		_row_views,
 		_names(committed),
 		run.quota(),
+		context,
 		_loyalty_card.stamped_boxes(),
 		LoyaltyCard.names(run.upgrades),
 		_inspection_tag.sources(run.inspections),
@@ -394,7 +400,12 @@ func _on_checkout_pressed() -> void:
 		_count_up.total_shown_ms,
 		_count_up.fast_forward_used,
 		_count_up.first_tap_ms,
-		_count_up.dessert_skipped
+		_count_up.dessert_skipped,
+		_count_up.plan.base_speed,
+		context.speed_setting,
+		context.reduced_motion,
+		_count_up.plan.step_count,
+		_count_up.plan.planned_ms
 	)
 	_log.log_event("count_up", counted)
 	_counting = false
@@ -402,6 +413,27 @@ func _on_checkout_pressed() -> void:
 		_show_rewards(result)
 	else:
 		_show_results(result)
+
+
+## What the count-up knows about the run (#60, D3): the shift, the best checkout of the run's
+## earlier shifts, and the player's speed and reduced motion settings. Called after
+## RunState.checkout(), which has already added the shift being counted to the history: its
+## record (the last) is left out.
+func count_up_context() -> CountUpContext:
+	return CountUpContext.new(
+		run.shift_index + 1,
+		best_earlier_total(run.history),
+		profile.count_up_speed(),
+		profile.reduced_motion()
+	)
+
+
+## The best total of every shift record but the last (the shift being counted), 0 for none.
+static func best_earlier_total(history: Array[ShiftRecord]) -> int:
+	var best: int = 0
+	for index: int in range(history.size() - 1):
+		best = maxi(best, history[index].total)
+	return best
 
 
 ## Results screen: New run.
@@ -424,6 +456,8 @@ func _show_impulse_rack() -> void:
 	_receipt.clear()
 	_projected_label.text = ""
 	_subtotal_label.text = ""
+	# A new run has printed nothing yet.
+	_count_up.show_pile_for_shift(1)
 	_deck_viewed_for_reward = false
 	_pending_reward = null
 	_reward_panel.show_offer(
@@ -755,6 +789,12 @@ func _build() -> void:
 	background.set_anchors_preset(Control.PRESET_FULL_RECT)
 	background.gui_input.connect(_on_background_input)
 	add_child(background)
+	# Behind everything else, so it peeks out from behind the receipt.
+	_paper_pile = PaperPile.new()
+	# Hidden until #55's register prop draws it as paper from the printer (decided with the user):
+	# on its own it reads as noise. The count-up still grows it, so #55 only has to show it.
+	_paper_pile.visible = false
+	add_child(_paper_pile)
 
 	var margin: MarginContainer = MarginContainer.new()
 	margin.set_anchors_preset(Control.PRESET_FULL_RECT)
@@ -834,6 +874,7 @@ func _build() -> void:
 	_receipt.custom_minimum_size = Vector2(300, 0)
 	_receipt.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	middle.add_child(_receipt)
+	_paper_pile.follow(_receipt)
 
 	var hint: Label = _info_label(page, 14)
 	hint.text = (
@@ -873,7 +914,7 @@ func _build() -> void:
 	_focus.player_returned.connect(_on_focus_entered)
 	_count_up = CountUp.new()
 	add_child(_count_up)
-	_count_up.setup(_overlay, _receipt, _subtotal_label, _sfx, _row_box)
+	_count_up.setup(_overlay, _receipt, _subtotal_label, _sfx, _row_box, _paper_pile)
 	_drag = CardDrag.new()
 	add_child(_drag)
 	_drag.setup(_overlay, _slots, _hand_box, _landing_slot)

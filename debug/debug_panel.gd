@@ -1,7 +1,8 @@
 extends PanelContainer
 ## Debug panel (development builds only; plan section 2): set the seed (and replay the impulse
 ## rack's logged pick with it), add any card to the hand, give an upgrade, set the shift's
-## inspection, skip to a shift. F1 shows or hides it.
+## inspection, skip to a shift, and (temporarily) the count-up's speed and reduced motion
+## settings. F1 shows or hides it.
 ## Playtest exports leave out debug/, and other scripts never name this class: the shift
 ## screen loads the scene by path and connects to these signals by name.
 
@@ -13,6 +14,11 @@ signal upgrade_requested(upgrade_id: String)
 ## An empty id clears the shift's inspection.
 signal inspection_requested(inspection_id: String)
 signal shift_requested(shift_number: int)
+## TEMPORARY (#60): the count-up speed setting, Fast or Normal. Phase 4's settings screen
+## replaces it.
+signal count_up_speed_requested(fast: bool)
+## TEMPORARY (#60): the reduced motion setting. Phase 4's settings screen replaces it.
+signal reduced_motion_requested(on: bool)
 
 const CARDS_FOLDER := "res://data/cards"
 const UPGRADES_FOLDER := "res://data/upgrades"
@@ -27,12 +33,19 @@ var _card_choice: OptionButton
 var _upgrade_choice: OptionButton
 var _inspection_choice: OptionButton
 var _shift_input: SpinBox
+var _fast_count_up: CheckBox
+var _reduced_motion: CheckBox
 
 
 func _ready() -> void:
 	set_anchors_preset(Control.PRESET_TOP_RIGHT)
 	grow_horizontal = Control.GROW_DIRECTION_BEGIN
-	position = Vector2(-20, 60)
+	# 20 px from the right edge and 60 from the top, from offsets: a position set here would
+	# depend on the screen's size at this moment (in a test, the panel ended off screen).
+	offset_left = -20
+	offset_right = -20
+	offset_top = 60
+	offset_bottom = 60
 	var style: StyleBoxFlat = StyleBoxFlat.new()
 	style.bg_color = Color(0, 0, 0, 0.85)
 	style.set_content_margin_all(12)
@@ -69,12 +82,23 @@ func _ready() -> void:
 	# The run length comes from balance data: set_shift_count() sets the maximum.
 	_shift_input = _spin(column, 1, 1)
 	_button(column, "Skip to shift", _on_shift_pressed)
+
+	# TEMPORARY (#60): the count-up settings until phase 4's settings screen replaces them.
+	_fast_count_up = _check(column, "Count-up speed: Fast", count_up_speed_requested.emit)
+	_reduced_motion = _check(column, "Reduced motion", reduced_motion_requested.emit)
 	visible = false
 
 
 ## Called by the shift screen with the number of shifts in a run.
 func set_shift_count(count: int) -> void:
 	_shift_input.max_value = count
+
+
+## TEMPORARY (#60): called by the shift screen with the profile's count-up settings. Doesn't
+## emit the settings' signals.
+func set_count_up_settings(fast: bool, reduced_motion: bool) -> void:
+	_fast_count_up.set_pressed_no_signal(fast)
+	_reduced_motion.set_pressed_no_signal(reduced_motion)
 
 
 func _unhandled_key_input(event: InputEvent) -> void:
@@ -130,6 +154,14 @@ func _spin(parent: Control, min_value: int, max_value: int) -> SpinBox:
 	spin.rounded = true
 	parent.add_child(spin)
 	return spin
+
+
+func _check(parent: Control, text: String, action: Callable) -> CheckBox:
+	var check: CheckBox = CheckBox.new()
+	check.text = text
+	check.toggled.connect(action)
+	parent.add_child(check)
+	return check
 
 
 func _button(parent: Control, text: String, action: Callable) -> void:

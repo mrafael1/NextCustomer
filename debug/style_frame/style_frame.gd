@@ -20,6 +20,9 @@ const UPGRADE := preload("res://data/upgrades/coupon_engine.tres")
 const INSPECTION := preload("res://data/inspections/spot_check.tres")
 const BALANCE := preload("res://data/balance/balance.tres")
 const SHIFT := 3
+## The count-up's run context (#60): the best checkout of shifts 1 and 2, normal speed and no
+## reduced motion.
+const BEST_SO_FAR := 47
 const MILK_ID := "milk"
 
 const STAGE_SIZE := Vector2(1280, 720)
@@ -70,6 +73,7 @@ var _tag: PanelContainer
 var _sizes_panel: PanelContainer
 var _sizes_shade: ColorRect
 var _overlay: Control
+var _pile: PaperPile
 var _count_up: CountUp
 var _counting: bool = false
 var _sharp: bool = true
@@ -127,6 +131,7 @@ func _on_checkout_pressed() -> void:
 		_row_views,
 		_names(_row),
 		_quota(),
+		CountUpContext.new(SHIFT, BEST_SO_FAR, ProfileState.COUNT_UP_NORMAL, false),
 		stamps,
 		LoyaltyCard.names(_upgrades()),
 		tags,
@@ -189,7 +194,7 @@ func _build() -> void:
 	add_child(sfx)
 	_count_up = CountUp.new()
 	add_child(_count_up)
-	_count_up.setup(_overlay, _receipt, _subtotal_label, sfx, _row_box)
+	_count_up.setup(_overlay, _receipt, _subtotal_label, sfx, _row_box, _pile)
 	_build_sizes_panel()
 
 
@@ -347,6 +352,13 @@ func _build_register() -> void:
 	_receipt.size = Vector2(RECEIPT_WIDTH, RECEIPT_HEIGHT)
 	_stage.add_child(_receipt)
 	_stage.move_child(_receipt, printer.get_index())
+	# The paper pile peeks out from behind the receipt's foot, on the counter.
+	_pile = PaperPile.new()
+	# Hidden until #55 draws it, as on the shift screen.
+	_pile.visible = false
+	_stage.add_child(_pile)
+	_stage.move_child(_pile, _receipt.get_index())
+	_pile.follow(_receipt)
 
 
 ## Milk at its three sizes: alone (1x, the conveyor and the shelf), on its card (2x) and

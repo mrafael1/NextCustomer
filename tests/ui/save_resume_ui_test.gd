@@ -138,6 +138,9 @@ func test_quitting_during_the_count_up_resumes_on_the_reward_panel() -> void:
 	assert_int(resumed.run.phase).is_equal(RunState.Phase.REWARD)
 	assert_int(resumed.run.last_result.total).is_equal(first.run.last_result.total)
 	assert_str(resumed._subtotal_label.text).is_equal("€%d" % first.run.last_result.total)
+	# A passed count-up leaves the subtotal green with its lasting QUOTA chip (#60, D5).
+	assert_that(resumed._subtotal_label.get_theme_color("font_color")).is_equal(Palette.GOOD)
+	assert_object(resumed._count_up._quota_chip).is_not_null()
 	assert_str(_last_event("run_resume")["phase"]).is_equal("reward")
 	assert_bool(resumed._reward_panel.visible).is_true()
 	assert_bool(resumed._shade.visible).is_true()
@@ -151,9 +154,21 @@ func test_quitting_during_the_count_up_resumes_on_the_reward_panel() -> void:
 	assert_bool(panel.encloses(resumed._reward_panel._skip_button.get_global_rect())).is_true()
 
 	await _count_up_end(first)
-	# The receipt and totals behind the panel, as the count-up left them.
+	# The receipt, totals, chip and paper pile behind the panel, as the count-up left them.
 	assert_array(_receipt_lines(resumed)).is_equal(_receipt_lines(first))
 	assert_str(resumed._projected_label.text).is_equal(first._projected_label.text)
+	assert_that(resumed._subtotal_label.get_theme_color("font_color")).is_equal(
+		first._subtotal_label.get_theme_color("font_color")
+	)
+	var chip: QuotaChip = resumed._count_up._quota_chip
+	assert_object(first._count_up._quota_chip).is_not_null()
+	assert_bool(chip.visible).is_true()
+	assert_bool(resumed.get_global_rect().encloses(chip.get_global_rect())).is_true()
+	var pile: PaperPile = resumed._paper_pile
+	assert_float(pile.height_px).is_greater(0.0)
+	assert_float(pile.height_px).is_equal(first._paper_pile.height_px)
+	assert_bool(pile.curled).is_equal(first._paper_pile.curled)
+	assert_bool(pile.spilled).is_equal(first._paper_pile.spilled)
 	first._on_reward_skipped()
 	resumed._on_reward_skipped()
 	assert_int(resumed.run.shift_index).is_equal(1)

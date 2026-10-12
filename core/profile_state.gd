@@ -11,6 +11,15 @@ extends RefCounted
 ## The profile save's format version, written from the first save. Raise it when the saved
 ## form changes, and read the older versions in from_dictionary.
 const FORMAT_VERSION := 1
+## The settings key of the count-up's speed (full build plan 6.2): COUNT_UP_NORMAL or
+## COUNT_UP_FAST, read with count_up_speed().
+const COUNT_UP_SPEED_KEY := "count_up_speed"
+## The settings key of reduced motion (no shakes; full build plan 6.2), read with
+## reduced_motion().
+const REDUCED_MOTION_KEY := "reduced_motion"
+## The count-up speed setting's two values: Normal and Fast.
+const COUNT_UP_NORMAL := 1.0
+const COUNT_UP_FAST := 1.5
 
 ## Coins from final receipts (full build plan 7.1); 1 coin = 1 capsule.
 var coins: int = 0
@@ -34,7 +43,8 @@ var seen: Array[StringName] = []
 var achievements: Array[StringName] = []
 ## Lifetime numbers by name; their content comes later.
 var stats: Dictionary[StringName, int] = {}
-## Player settings by name, JSON values only; their content comes later.
+## Player settings by name, JSON values only. Read and change the known ones with their
+## accessors (count_up_speed, reduced_motion), which tolerate a missing or wrong-typed value.
 var settings: Dictionary = {}
 
 
@@ -46,6 +56,32 @@ func has_deck(deck: DeckDefinition) -> bool:
 ## Whether the card variant is available: no unlock condition, or unlocked.
 func has_variant(variant: CardDefinition) -> bool:
 	return variant.unlock_condition == null or unlocked_variants.has(variant.id)
+
+
+## The count-up speed setting: COUNT_UP_FAST when set so, else COUNT_UP_NORMAL (also for a
+## missing, wrong-typed or unknown value, such as an old save's).
+func count_up_speed() -> float:
+	var value: Variant = settings.get(COUNT_UP_SPEED_KEY)
+	if value is float and value == COUNT_UP_FAST:
+		return COUNT_UP_FAST
+	return COUNT_UP_NORMAL
+
+
+## Sets the count-up speed setting. A speed other than COUNT_UP_FAST is stored as
+## COUNT_UP_NORMAL.
+func set_count_up_speed(speed: float) -> void:
+	settings[COUNT_UP_SPEED_KEY] = COUNT_UP_FAST if speed == COUNT_UP_FAST else COUNT_UP_NORMAL
+
+
+## The reduced motion setting: off unless set to true (a missing or wrong-typed value, such as
+## an old save's, is off).
+func reduced_motion() -> bool:
+	var value: Variant = settings.get(REDUCED_MOTION_KEY)
+	return value is bool and value
+
+
+func set_reduced_motion(on: bool) -> void:
+	settings[REDUCED_MOTION_KEY] = on
 
 
 ## Records a run that ended (won or lost; anything else is ignored and returns nothing):

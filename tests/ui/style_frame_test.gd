@@ -5,6 +5,23 @@ extends GdUnitTestSuite
 
 const SCENE := "res://debug/style_frame/style_frame.tscn"
 
+var _folder: String = ""
+
+
+func before_test() -> void:
+	# The frame saves and logs nothing; anything that would goes to a temporary folder.
+	_folder = "user://test_logs_%d" % Time.get_ticks_usec()
+	_event_log().use_folder(_folder)
+	ProjectSettings.set_setting(SaveService.FOLDER_SETTING, _folder)
+
+
+func after_test() -> void:
+	ProjectSettings.set_setting(SaveService.FOLDER_SETTING, null)
+	if DirAccess.dir_exists_absolute(_folder):
+		for file_name: String in DirAccess.get_files_at(_folder):
+			DirAccess.remove_absolute(_folder.path_join(file_name))
+		DirAccess.remove_absolute(_folder)
+
 
 func test_the_row_hand_and_receipt_lay_out_on_the_stage() -> void:
 	var frame: StyleFrame = await _frame()
@@ -113,6 +130,41 @@ func test_the_shader_switches_off_and_on() -> void:
 		assert_object(item.material).is_same(ArtStyle.pixel_material())
 
 
+## CHECKOUT plays the real count-up as shift 3 with a best of €47 at normal speed (#60): the
+## auto speed-up, the receipt as long as the preview's, the paper pile on the stage, and no
+## quota chip for its failing row.
+func test_checkout_plays_the_count_up_as_shift_three() -> void:
+	var frame: StyleFrame = await _frame()
+	frame._on_checkout_pressed()
+	var count_up: CountUp = frame._count_up
+	count_up._tap(Time.get_ticks_msec())
+	count_up._tap(Time.get_ticks_msec())
+	var stage: Rect2 = frame._stage.get_global_rect()
+	while frame._counting:
+		await get_tree().process_frame
+		if frame._pile.height_px > 0.0:
+			var paper: Rect2 = frame._pile.paper_rect()
+			assert_bool(stage.encloses(paper)).override_failure_message(str(paper)).is_true()
+	var plan: CountUpPlan = count_up.plan
+	assert_int(plan.best).is_equal(StyleFrame.BEST_SO_FAR)
+	assert_float(plan.base_speed).is_equal(1.25)
+	assert_float(plan.pile_start_px).is_equal(12.0)
+	var expected: ReceiptView = auto_free(ReceiptView.new())
+	expected.show_result(
+		frame._result,
+		StyleFrame._names(frame._row),
+		LoyaltyCard.names(frame._upgrades()),
+		InspectionTag.names(frame._inspections())
+	)
+	assert_int(frame._receipt._lines.get_child_count()).is_equal(expected._lines.get_child_count())
+	# The frame's row (€16) misses shift 3's quota (€53): no ding, no chip, the subtotal keeps
+	# its colour.
+	assert_int(frame._result.total).is_less(frame._quota())
+	assert_object(count_up._quota_chip).is_null()
+	assert_int(plan.ding_beat).is_equal(-1)
+	assert_that(frame._subtotal_label.get_theme_color("font_color")).is_equal(Palette.PAPER)
+
+
 func _frame() -> StyleFrame:
 	var frame: StyleFrame = auto_free((load(SCENE) as PackedScene).instantiate())
 	add_child(frame)
@@ -129,3 +181,7 @@ static func _pixel_art(node: Node) -> Array[CanvasItem]:
 	for child: Node in node.get_children():
 		result.append_array(_pixel_art(child))
 	return result
+
+
+static func _event_log() -> EventLogService:
+	return (Engine.get_main_loop() as SceneTree).root.get_node("/root/EventLog")

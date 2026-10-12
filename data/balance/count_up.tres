@@ -1,0 +1,66 @@
+[gd_resource type="Resource" script_class="CountUpTuning" format=3]
+
+[ext_resource type="Script" path="res://presentation/count_up_tuning.gd" id="1_tuning"]
+
+[resource]
+script = ExtResource("1_tuning")
+note_count = 11
+first_best_floor = 45
+large_floor = 50
+large_factor = 1.25
+huge_factor = 2.0
+auto_speed = 1.25
+auto_speed_from_shift = 3
+printer_speed_max = 1.4
+printer_speed_per_shift = 0.05
+printer_speed_per_step = 0.01
+printer_free_steps = 14
+print_pitch_max = 1.26
+roll_min_ms = 110
+roll_extra_ms = 50
+roll_full_share = 0.25
+rattle_min_payout = 10
+rattle_min_share = 0.2
+rattle_base_px = 3.0
+rattle_per_best_px = 6.0
+rattle_max_px = 12.0
+passes_best_rattle_px = 2.0
+passes_best_punch = 0.1
+pile_start_px_per_shift = 6.0
+pile_start_max_px = 42.0
+pile_px_per_line = 2.0
+pile_cap_px = 120.0
+pause_normal_ms = 300
+pause_large_ms = 500
+pause_huge_ms = 700
+final_rattle_large_px = 8.0
+final_rattle_huge_px = 12.0
+hit_stop_card_stamp_ms = 50
+hit_stop_upgrade_stamp_ms = 70
+hit_stop_denied_ms = 70
+hit_stop_ding_ms = 100
+hit_stop_merge_ms = 200
+pre_roll_ms = 120
+gap_ms = 60
+merged_ms = 240
+merged_zero_ms = 180
+armed_ms = 160
+base_ms = 130
+bonus_other_ms = 220
+bonus_own_ms = 190
+stamp_card_ms = 240
+stamp_upgrade_ms = 300
+denied_ms = 240
+payout_zero_ms = 120
+fizzle_ms = 340
+fizzle_reset_ms = 480
+tag_ms = 260
+link_ms = 340
+fit_target_ms = 5500
+fit_gap_ms = 40
+echo_ms = 140
+fit_roll_max_ms = 100
+fly_in_factor = 0.75
+fly_in_min_ms = 150
+fit_max_factor = 1.3
+fizzle_hold_min_ms = 300

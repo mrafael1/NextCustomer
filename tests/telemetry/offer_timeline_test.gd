@@ -125,6 +125,11 @@ func test_count_up_event_fields() -> void:
 				"skip_used",
 				"skip_at_ms",
 				"dessert_skipped",
+				"base_speed",
+				"speed_setting",
+				"reduced_motion",
+				"step_count",
+				"planned_ms",
 			]
 		)
 	)
@@ -140,3 +145,40 @@ func test_count_up_event_fields() -> void:
 	assert_bool(untouched["skip_used"]).is_false()
 	assert_int(untouched["skip_at_ms"]).is_equal(-1)
 	assert_bool(untouched["dessert_skipped"]).is_false()
+
+
+## The count_up event's speed fields (since v0.30): the speed used, the player's settings, the
+## row's step count and the beat plan's estimate, with their types; left out, 1.0, 1.0, false, 0
+## and 0.
+func test_count_up_event_speed_fields() -> void:
+	var fast: Dictionary = RunEvents.count_up(
+		3, 1000, 4200, false, -1, false, 1.875, 1.5, true, 27, 3100
+	)
+	assert_int(typeof(fast["base_speed"])).is_equal(TYPE_FLOAT)
+	assert_float(fast["base_speed"]).is_equal(1.875)
+	assert_int(typeof(fast["speed_setting"])).is_equal(TYPE_FLOAT)
+	assert_float(fast["speed_setting"]).is_equal(1.5)
+	assert_int(typeof(fast["reduced_motion"])).is_equal(TYPE_BOOL)
+	assert_bool(fast["reduced_motion"]).is_true()
+	assert_int(typeof(fast["step_count"])).is_equal(TYPE_INT)
+	assert_int(fast["step_count"]).is_equal(27)
+	assert_int(typeof(fast["planned_ms"])).is_equal(TYPE_INT)
+	assert_int(fast["planned_ms"]).is_equal(3100)
+	assert_int(fast["count_up_ms"]).is_equal(3200)
+	var line: String = JSON.stringify(fast)
+	assert_str(line).contains('"base_speed":1.875')
+	assert_str(line).contains('"speed_setting":1.5')
+	assert_str(line).contains('"reduced_motion":true')
+	assert_str(line).contains('"step_count":27')
+	assert_str(line).contains('"planned_ms":3100')
+	var unset: Dictionary = RunEvents.count_up(1, 1000, 5000, false, -1, false)
+	assert_int(typeof(unset["base_speed"])).is_equal(TYPE_FLOAT)
+	assert_float(unset["base_speed"]).is_equal(1.0)
+	assert_int(typeof(unset["speed_setting"])).is_equal(TYPE_FLOAT)
+	assert_float(unset["speed_setting"]).is_equal(1.0)
+	assert_bool(unset["reduced_motion"]).is_false()
+	assert_int(typeof(unset["step_count"])).is_equal(TYPE_INT)
+	assert_int(unset["step_count"]).is_equal(0)
+	assert_int(typeof(unset["planned_ms"])).is_equal(TYPE_INT)
+	assert_int(unset["planned_ms"]).is_equal(0)
+	assert_str(JSON.stringify(unset)).contains('"base_speed":1.0')
