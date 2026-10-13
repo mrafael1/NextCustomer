@@ -46,7 +46,7 @@ func test_no_input_skips_nothing() -> void:
 	assert_int(int(count_up["skip_at_ms"])).is_equal(-1)
 	assert_bool(count_up["fast_forward_used"]).is_false()
 	assert_bool(count_up["dessert_skipped"]).is_false()
-	_assert_full_receipt(screen)
+	await _assert_full_receipt(screen)
 
 
 ## A tap speeds the count to the verdict: the same row counts up clearly faster, the dessert still
@@ -68,7 +68,7 @@ func test_a_tap_speeds_the_count_to_the_verdict() -> void:
 	assert_bool(count_up["fast_forward_used"]).is_false()
 	assert_bool(count_up["dessert_skipped"]).is_false()
 	assert_int(int(count_up["count_up_ms"]) * 2).is_less(untouched)
-	_assert_full_receipt(screen)
+	await _assert_full_receipt(screen)
 
 
 ## A second tap skips the dessert too; every line still prints.
@@ -85,7 +85,7 @@ func test_a_second_tap_skips_the_dessert() -> void:
 	assert_bool(count_up["skip_used"]).is_true()
 	assert_bool(count_up["dessert_skipped"]).is_true()
 	assert_bool(count_up["fast_forward_used"]).is_false()
-	_assert_full_receipt(screen)
+	await _assert_full_receipt(screen)
 
 
 ## A press held past the threshold fast-forwards; it is not a tap.
@@ -102,7 +102,7 @@ func test_a_hold_fast_forwards_and_is_not_a_tap() -> void:
 	assert_bool(count_up["fast_forward_used"]).is_true()
 	assert_bool(count_up["skip_used"]).is_false()
 	assert_int(int(count_up["skip_at_ms"])).is_equal(-1)
-	_assert_full_receipt(screen)
+	await _assert_full_receipt(screen)
 
 
 ## The checkout click, still held when the count-up starts, is neither a tap when released quickly
@@ -215,7 +215,7 @@ func test_the_second_click_of_a_checkout_double_click_is_ignored() -> void:
 	assert_bool(count_up["skip_used"]).is_false()
 	assert_int(int(count_up["skip_at_ms"])).is_equal(-1)
 	assert_bool(count_up["fast_forward_used"]).is_false()
-	_assert_full_receipt(screen)
+	await _assert_full_receipt(screen)
 
 
 ## A double-click press well after the start is a real tap (the second of two quick taps is a
@@ -252,7 +252,7 @@ func test_a_press_and_release_in_one_frame_is_a_tap() -> void:
 	var key: Dictionary = _last_event("count_up")
 	assert_bool(key["skip_used"]).is_true()
 	assert_bool(key["fast_forward_used"]).is_false()
-	_assert_full_receipt(screen)
+	await _assert_full_receipt(screen)
 
 	screen._on_reward_skipped()
 	_runner.set_mouse_position(screen._receipt.get_global_rect().get_center())
@@ -317,9 +317,12 @@ func test_a_tap_after_the_count_up_does_nothing() -> void:
 	assert_bool(screen._count_up.dessert_skipped).is_false()
 
 
-## The count-up's receipt is the whole result's, line for line (with the next shift's inspection
-## notice when there is one), every line fully shown.
+## The count-up's receipt is the whole result's, line for line, ended by the dessert (the
+## verdict, the margin, PAID on a pass, the tear and the next shift's inspection notice when
+## there is one), every line fully shown once the last fades (which overlap the printer feed)
+## have ended.
 func _assert_full_receipt(screen: ShiftScreen) -> void:
+	await _lines_shown(screen._receipt)
 	var run: RunState = screen.run
 	var expected: ReceiptView = auto_free(ReceiptView.new())
 	expected.show_result(
@@ -329,11 +332,22 @@ func _assert_full_receipt(screen: ShiftScreen) -> void:
 		InspectionTag.names(run.inspections)
 	)
 	var notice: String = InspectionTag.next_notice(run.next_inspection)
-	if not notice.is_empty():
-		expected.add_notice(notice)
+	expected.show_shift_end(run.last_result.total, run.quota(), notice)
 	assert_array(_lines(screen._receipt)).is_equal(_lines(expected))
 	for line: Node in screen._receipt._lines.get_children():
 		assert_float((line as CanvasItem).modulate.a).is_equal(1.0)
+
+
+## Waits until every receipt line has faded in, or half a second.
+func _lines_shown(receipt: ReceiptView) -> void:
+	var start: int = Time.get_ticks_msec()
+	while Time.get_ticks_msec() - start < 500:
+		var fading: bool = false
+		for line: Node in receipt._lines.get_children():
+			fading = fading or (line as CanvasItem).modulate.a < 1.0
+		if not fading:
+			return
+		await get_tree().process_frame
 
 
 ## A receipt's lines as text ("left | right"; "---" for the rule above the total).

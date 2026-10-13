@@ -46,20 +46,25 @@ func _init() -> void:
 	row.add_child(_boxes)
 
 
-## Shows the owned upgrades in pick order, one per box. `box_count` comes from the caller: one
-## box per upgrade shift (balance data), plus one when the deck has a starting upgrade (full
-## build plan 7.3). More upgrades than boxes (debug) add boxes.
-func show_upgrades(box_count: int, upgrades: Array[UpgradeDefinition]) -> void:
-	if box_count == _box_count and upgrades == _shown:
+## Shows the owned upgrades in pick order, one per box. `boxes` comes from the caller (usually
+## box_count). More upgrades than boxes (debug) add boxes.
+func show_upgrades(boxes: int, upgrades: Array[UpgradeDefinition]) -> void:
+	if boxes == _box_count and upgrades == _shown:
 		return
-	_box_count = box_count
+	_box_count = boxes
 	_shown = upgrades.duplicate()
 	for child: Node in _boxes.get_children():
 		_boxes.remove_child(child)
 		child.queue_free()
-	for index: int in range(maxi(box_count, upgrades.size())):
+	for index: int in range(maxi(boxes, upgrades.size())):
 		var upgrade: UpgradeDefinition = upgrades[index] if index < upgrades.size() else null
 		_boxes.add_child(_make_box(upgrade))
+
+
+## The run's boxes: one per upgrade shift (balance data), plus one when its deck has a starting
+## upgrade (full build plan 7.3).
+static func box_count(run: RunState) -> int:
+	return run.balance.upgrade_shifts.size() + (0 if run.starter.starting_upgrade == null else 1)
 
 
 ## The box of the run's upgrade `index` (pick order), or null.

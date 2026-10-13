@@ -43,13 +43,28 @@ func test_the_notice_comes_before_the_reward_and_the_kiosk() -> void:
 	screen._on_reward_skipped()
 	assert_bool(screen._inspection_tag.visible).is_false()
 
-	# Shift 3 is: the notice prints in red right under shift 2's total, and the reward panel
-	# shows it too, so the pick can take it into account. The kiosk comes after.
+	# Shift 3 is: the notice prints in red under shift 2's dessert (after the tear, #61), and the
+	# reward panel shows it too, so the pick can take it into account. The kiosk comes after.
 	await _pass_shift(screen)
-	# Each line is a left and a right label: TOTAL, its amount, then the notice and its empty
-	# right side.
+	# Each line is a left and a right label: TOTAL and its verdict, the margin and PAID, the
+	# tear, then the notice; the last two with an empty right side.
 	var lines: PackedStringArray = _receipt_lines(screen)
-	assert_array(Array(lines.slice(-4))).is_equal(["TOTAL", "€109", NOTICE, ""])
+	var quota: int = run.quota()
+	(
+		assert_array(Array(lines.slice(-8)))
+		. is_equal(
+			[
+				"TOTAL",
+				ReceiptView.verdict_text(109, quota),
+				ReceiptView.margin_text(ShiftMargin.Kind.OVER, 109 - quota),
+				ReceiptView.PAID_TEXT,
+				ReceiptView.TEAR_PATTERN.repeat(ReceiptView.TEAR_REPEAT),
+				"",
+				NOTICE,
+				"",
+			]
+		)
+	)
 	var notice: Label = _receipt_label(screen, NOTICE)
 	assert_bool(notice.get_theme_color("font_color") == Palette.TOMATO).is_true()
 	assert_str(screen._reward_panel.warning_text()).is_equal(NOTICE)

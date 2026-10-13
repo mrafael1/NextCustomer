@@ -6,8 +6,8 @@ extends RefCounted
 ## tested in one place. The shift screen logs them (the title screen logs run_abandon).
 ##
 ## An offer's times (`timing`) are OfferTimeline.fields(): decide_ms, presented_ms, armed_ms and
-## presentation_skipped, each in ms from the offer starting to present (-1 for a moment the
-## choice came before).
+## presentation_skipped, each in ms from the offer starting to present (a reward's printer feed,
+## #61; -1 for a moment the choice came before).
 
 
 ## The `run_start` event, logged once the impulse rack is picked or skipped: the seed, the
@@ -107,11 +107,12 @@ static func upgrade_pick(
 	}
 
 
-## The `count_up` event, logged when the count-up ends; every time is Time.get_ticks_msec(). The
-## count-up's time runs from the checkout click (`click_ms`) to the final total shown;
-## fast_forward_used is a hold past CountUp.HOLD_THRESHOLD_MS that sped it up; a tap (CountUp)
-## sets skip_used and skip_at_ms (from the click to the first tap, -1 for none), and
-## dessert_skipped is a tap that sped up what follows the total.
+## The `count_up` event, logged when the shift's dessert ends (#61: at the printer feed on a
+## pass, after the tear on a miss), since dessert_skipped is only known then; every time is
+## Time.get_ticks_msec(). The count-up's time runs from the checkout click (`click_ms`) to the
+## final total shown (the verdict); fast_forward_used is a hold past PressReader's threshold that
+## sped it up; a tap (CountUp) sets skip_used and skip_at_ms (from the click to the first tap, -1
+## for none), and dessert_skipped is a tap that sped up the dessert after the total.
 ##
 ## The speed it ran at (plan section 8, since v0.30): base_speed is the auto speed-up times the
 ## speed setting, as used (1.0, 1.25, 1.5 or 1.875); speed_setting is the player's setting (1.0

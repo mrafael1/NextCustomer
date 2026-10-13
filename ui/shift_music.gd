@@ -9,7 +9,7 @@ const RESULTS_MUSIC := &"front"
 ## The music comes back over this when the dessert's duck ends (#62, Q6).
 const UNDUCK_S := 0.6
 ## The final receipt ducks the music this far while its coins print, then brings it back
-## after the last coin, and at the earliest COINS_PRINT_S later (#62, Q6).
+## after the last coin, and at the earliest COINS_PRINT_S after the coins start (#62, Q6).
 const COINS_DUCK_DB := -18.0
 const COINS_DUCK_S := 0.12
 const COINS_PRINT_S := 1.0
@@ -29,15 +29,21 @@ static func new_run(music: MusicService) -> void:
 		music.unduck(UNDUCK_S)
 
 
-## The reward offer after a won shift. #61 moves this to its reward print-out.
+## The reward print-out after a won shift (#61): the music comes back over UNDUCK_S at the
+## dessert's printer feed, as the print-out appears.
 static func rewards_shown(music: MusicService) -> void:
 	music.unduck(UNDUCK_S)
 
 
 ## The win and lose screens: the music crossfades to the front loop, still ducked from the
-## dessert, and ducks to COINS_DUCK_DB while the coins clink (`coins_s`, ResultsPanel), then
-## comes back. `duck` cancels a pending unduck, so it goes first.
-static func results_shown(music: MusicService, coins_s: float) -> void:
+## dessert. The final receipt ducks it for its coins (coins_printing).
+static func results_shown(music: MusicService) -> void:
 	music.play(RESULTS_MUSIC)
+
+
+## The final receipt's coin lines print (ResultsPanel, #61): the music ducks to COINS_DUCK_DB
+## while the coins clink, until `coins_s` from now (one gap after the last coin) and at least
+## COINS_PRINT_S, then comes back. `duck` cancels a pending unduck, so it goes first.
+static func coins_printing(music: MusicService, coins_s: float) -> void:
 	music.duck(COINS_DUCK_DB, COINS_DUCK_S)
 	music.unduck(UNDUCK_S, maxf(COINS_PRINT_S, coins_s))

@@ -1,12 +1,13 @@
 extends GdUnitTestSuite
 ## The music on the real screens (#62, Q2, Q6): the title starts the front loop on its first
-## click or key press, never before; on the shift screen the count-up's dessert ducks the Music
-## bus 24 dB down with near-silence before the slam lands, and it comes back when the reward panel
-## appears (a pass), stays ducked through the fail sound then crossfades to the front loop and
+## click or key press, never before; on the shift screen the count-up ducks the Music bus 24 dB
+## down as the pause before the total starts, so the dessert's slam lands in near-silence (#61),
+## and it comes back when the reward panel appears (a pass), stays ducked through the fail
+## sound then crossfades to the front loop and, once the final receipt prints its coin lines,
 ## ducks 18 dB down until the last coin (a fail), or comes back fast when a tap skips the
 ## dessert. The bus volume is read frame by frame (headless runs on the dummy audio driver).
-## Each test plays on its own MusicService with streaming off; the real saves and logs are
-## never touched.
+## Each test plays on its own MusicService with streaming off; the real saves and logs are never
+## touched.
 
 const SCREEN := "res://ui/shift_screen.tscn"
 const TITLE := "res://ui/title_screen.tscn"
@@ -23,7 +24,7 @@ const SLACK_S := 0.12
 const NEAR_DB := 0.5
 ## About one frame of the headless runner, in ms.
 const FRAME_MS := 20
-## A payout big enough for the most coin sounds (CoinReceipt.MAX_COIN_SOUNDS).
+## A payout big enough for the most coin sounds (FinalReceipt.MAX_COIN_SOUNDS).
 const BIG_PAYOUT := 40
 
 var _folder: String = ""
@@ -141,9 +142,9 @@ func test_the_shift_screen_plays_the_shift_loop() -> void:
 
 
 ## A pass, the count tapped once (the dessert plays at normal speed): the bus stays at its level
-## through the count, ducks 24 dB at the verdict over about 120 ms, is there when the slam
-## lands at least 250 ms later and through the pass sound, and comes back over 600 ms once the
-## reward panel appears.
+## through the count, ducks 24 dB over about 120 ms as the pause before the total starts (before
+## the verdict, #61), is there when the slam lands at least 250 ms later and through the pass
+## sound, and comes back over 600 ms once the reward panel appears.
 func test_a_pass_ducks_the_dessert_and_comes_back_with_the_reward() -> void:
 	var screen: ShiftScreen = await _screen()
 	var music: MusicService = _inject_music(screen)
@@ -157,8 +158,12 @@ func test_a_pass_ducks_the_dessert_and_comes_back_with_the_reward() -> void:
 	assert_bool(screen._reward_panel.visible).is_true()
 	assert_bool(screen._count_up.dessert_skipped).is_false()
 	for frame: Dictionary in frames:
-		if not frame["verdict"]:
+		if not frame["ducked"]:
 			assert_float(frame["bus"]).is_equal_approx(base, 0.01)
+	var ducked_ms: int = _first_ms(frames, func(f: Dictionary) -> bool: return f["ducked"])
+	var verdict_ms: int = _first_ms(frames, func(f: Dictionary) -> bool: return f["verdict"])
+	assert_int(ducked_ms).is_greater_equal(0)
+	assert_int(ducked_ms).is_less(verdict_ms)
 	var duck_ms: int = _first_ms(
 		frames, func(f: Dictionary) -> bool: return f["bus"] < base - NEAR_DB
 	)
@@ -173,7 +178,7 @@ func test_a_pass_ducks_the_dessert_and_comes_back_with_the_reward() -> void:
 	)
 	var panel_ms: int = _first_ms(frames, func(f: Dictionary) -> bool: return f["panel"])
 	prints("#62 pass: duck", duck_ms, "deep", deep_ms, "slam", slam_ms, "panel", panel_ms)
-	assert_int(duck_ms).is_greater_equal(0)
+	assert_int(duck_ms).is_greater_equal(ducked_ms)
 	assert_int(deep_ms - duck_ms).is_between(60, roundi((0.12 + SLACK_S) * 1000.0))
 	assert_int(slam_ms - duck_ms).is_greater_equal(250)
 	assert_int(pass_ms).is_greater(slam_ms)
@@ -184,9 +189,10 @@ func test_a_pass_ducks_the_dessert_and_comes_back_with_the_reward() -> void:
 
 
 ## A fail: ducked through the whole fail sound (the front loop not started yet), then the
-## results crossfade to the front loop and the coins duck it 18 dB down until the last coin of a
-## big payout (past COINS_PRINT_S), and it comes back over 600 ms after them. A new run from the
-## debug panel goes back to the shift loop.
+## results crossfade to the front loop, still 24 dB down while the final receipt prints (#61);
+## its coin lines duck it 18 dB down until the last coin of a big payout (past COINS_PRINT_S),
+## and it comes back over 600 ms after them. A new run from the debug panel goes back to the
+## shift loop.
 func test_a_fail_stays_ducked_then_the_results_duck_for_the_coins() -> void:
 	var screen: ShiftScreen = await _screen()
 	var music: MusicService = _inject_music(screen)
@@ -201,12 +207,17 @@ func test_a_fail_stays_ducked_then_the_results_duck_for_the_coins() -> void:
 	screen._on_checkout_pressed()
 	await _frames(2)
 	screen._count_up._tap(Time.get_ticks_msec())
-	var coins_s: float = UiKit.POP_IN_SECONDS + CoinReceipt.MAX_COIN_SOUNDS * CoinReceipt.COIN_GAP
-	var hold: float = coins_s + ShiftMusic.UNDUCK_S + SLACK_S
-	var frames: Array[Dictionary] = await _record(screen, sfx, "_results", hold)
+	var frames: Array[Dictionary] = await _record(screen, sfx, "_results", 3.0)
 	assert_bool(screen._results.visible).is_true()
-	assert_float(screen._results.coins_seconds()).is_equal_approx(coins_s, 0.001)
-	assert_float(coins_s).is_greater(ShiftMusic.COINS_PRINT_S + 0.2)
+	var results: ResultsPanel = screen._results
+	# The coins clink from the COINS line, the last one, on: the lines after the first coin line.
+	var tuning: CountUpTuning = load(CountUp.TUNING_PATH)
+	var coins_delay_s: float = (
+		(results.texts().size() - 1 - results.coin_line_index()) * tuning.final_line_ms / 1000.0
+	)
+	var coins_s: float = coins_delay_s + FinalReceipt.MAX_COIN_SOUNDS * FinalReceipt.COIN_GAP
+	assert_float(results.coins_seconds()).is_equal_approx(coins_s, 0.001)
+	assert_float(coins_s).is_greater(ShiftMusic.COINS_PRINT_S + 0.15)
 	var deep_ms: int = _first_ms(
 		frames, func(f: Dictionary) -> bool: return f["bus"] <= base - 24.0 + NEAR_DB
 	)
@@ -215,26 +226,31 @@ func test_a_fail_stays_ducked_then_the_results_duck_for_the_coins() -> void:
 	)
 	var results_ms: int = _first_ms(frames, func(f: Dictionary) -> bool: return f["panel"])
 	var front_ms: int = _first_ms(frames, func(f: Dictionary) -> bool: return f["front"] > 0.0)
-	prints("#62 fail: deep", deep_ms, "fail sound", fail_ms, "results", results_ms)
+	var coins_ms: int = _first_ms(frames, func(f: Dictionary) -> bool: return f["coins"])
+	prints("#62 fail: deep", deep_ms, "fail", fail_ms, "results", results_ms, "coins", coins_ms)
 	assert_int(deep_ms).is_greater_equal(0)
 	assert_int(fail_ms).is_greater(deep_ms)
 	# The fail sound rings out in full (give or take a frame) before the results and their loop.
 	var fail_end: int = fail_ms + roundi(sfx.sound_length("fail") * 1000.0) - FRAME_MS
 	assert_int(results_ms).is_greater_equal(fail_end)
 	assert_int(front_ms).is_greater_equal(results_ms)
+	# The coin lines print after the headline, the shift and the shortfall (one line apart).
+	var print_ms: int = results.coin_line_index() * tuning.final_line_ms
+	assert_int(coins_ms - results_ms).is_between(print_ms - FRAME_MS, print_ms + 150)
 	for frame: Dictionary in frames:
-		if int(frame["ms"]) >= deep_ms and int(frame["ms"]) < results_ms:
+		if int(frame["ms"]) >= deep_ms and int(frame["ms"]) < coins_ms:
 			var bus: float = frame["bus"]
 			assert_float(bus).override_failure_message(_dump(frames)).is_less_equal(
 				base - 24.0 + NEAR_DB
 			)
+		if int(frame["ms"]) >= deep_ms and int(frame["ms"]) < results_ms:
 			assert_float(frame["front"]).is_equal(0.0)
 	assert_str(str(music.current_track())).is_equal(ShiftMusic.RESULTS_MUSIC)
 	assert_float(music.track_gain(ShiftMusic.RESULTS_MUSIC)).is_equal(1.0)
 	assert_float(music.track_gain(ShiftMusic.SHIFT_MUSIC)).is_equal(0.0)
 	# While the coins print: up from the dessert's 24 dB down to 18 dB down, and held there.
-	var coins_from: int = results_ms + roundi((ShiftMusic.COINS_DUCK_S + SLACK_S) * 1000.0)
-	var coins_to: int = results_ms + roundi(coins_s * 1000.0)
+	var coins_from: int = coins_ms + roundi((ShiftMusic.COINS_DUCK_S + SLACK_S) * 1000.0)
+	var coins_to: int = coins_ms + roundi(coins_s * 1000.0)
 	var coin_frames: int = 0
 	for frame: Dictionary in frames:
 		if int(frame["ms"]) >= coins_from and int(frame["ms"]) < coins_to:
@@ -247,15 +263,16 @@ func test_a_fail_stays_ducked_then_the_results_duck_for_the_coins() -> void:
 	assert_str(str(music.current_track())).is_equal(ShiftMusic.SHIFT_MUSIC)
 
 
-## ShiftMusic's results cue on its own: the coin duck holds until `coins_s` when that is past
-## COINS_PRINT_S, then the music rises back over UNDUCK_S.
+## ShiftMusic's results and coin cues on their own: the coin duck holds until `coins_s` when
+## that is past COINS_PRINT_S, then the music rises back over UNDUCK_S.
 func test_the_coin_duck_holds_until_the_last_coin() -> void:
 	var music: MusicService = _music()
 	var base: float = music.base_db()
 	music.play(ShiftMusic.SHIFT_MUSIC)
 	music.duck(CountUp.DESSERT_DUCK_DB, 0.0)
 	var coins_s: float = 1.5
-	ShiftMusic.results_shown(music, coins_s)
+	ShiftMusic.results_shown(music)
+	ShiftMusic.coins_printing(music, coins_s)
 	assert_str(str(music.current_track())).is_equal(ShiftMusic.RESULTS_MUSIC)
 	var elapsed: float = 0.0
 	var back_s: float = -1.0
@@ -318,9 +335,10 @@ func test_a_skipped_dessert_brings_the_music_back_fast() -> void:
 
 
 ## The Music bus on every frame from now until `seconds` after the screen's `panel` shows (or
-## 15 s): {"ms": process time since the start (the tweens' time), "bus": dB, "verdict": the
-## total shown, "sounds": the sounds played so far, "panel": the panel visible, "front": the
-## front loop's fade gain}.
+## 15 s): {"ms": process time since the start (the tweens' time), "bus": dB, "ducked": the
+## count-up has ducked the music, "verdict": the total shown, "sounds": the sounds played so
+## far, "panel": the panel visible, "front": the front loop's fade gain, "coins": the final
+## receipt's coin lines have printed}.
 func _record(screen: ShiftScreen, sfx: Sfx, panel: String, seconds: float) -> Array[Dictionary]:
 	var frames: Array[Dictionary] = []
 	var elapsed: float = 0.0
@@ -338,10 +356,12 @@ func _record(screen: ShiftScreen, sfx: Sfx, panel: String, seconds: float) -> Ar
 		var frame: Dictionary = {
 			"ms": now,
 			"bus": _bus_now(),
+			"ducked": screen._count_up._ducked,
 			"verdict": screen._count_up._verdict_shown,
 			"sounds": sounds,
 			"panel": visible,
 			"front": screen._music.track_gain(ShiftMusic.RESULTS_MUSIC),
+			"coins": screen._results.coins_started_ms >= 0,
 		}
 		frames.append(frame)
 		await get_tree().process_frame

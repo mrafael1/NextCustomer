@@ -18,6 +18,9 @@ extends Node
 ## faster as the run goes on, with three ticks per payout roll; a register rattle on big
 ## payouts; a PaperPile that grows with every line; the quota ding with a lasting "QUOTA" chip;
 ## then a held breath (longer and rattling for a large total) and the TOTAL line.
+## Then the dessert (#61, CountUpDessert): the slam onto the TOTAL line, the margin, PAID, the
+## tear and the next shift's notice; a passed shift's ends at the printer feed (`printer_feed`),
+## where the reward print-out takes over.
 ##
 ## Sound (D1, #62): gain beats climb the plan's note ladder (Sfx.play_note), an armed beat
 ## replays the current note quietly over its shimmer (`armed`) and a stamp plays its sample (3
@@ -25,18 +28,22 @@ extends Node
 ## rattle sounds with its shake, its take and volume following the shake's pixels (rattle_s,
 ## rattle_m, rattle_l); a large total rattles through the pause, and a huge one rings the
 ## register bell too. The next-shift notice prints with the printer's feed, then the light
-## clerk's stamp (stamp_notice). A fail holds the count-up until its fail sound has rung out.
+## clerk's stamp (stamp_notice). A fail holds the count-up until its fail sound has rung out and
+## the receipt has torn. The music ducks (#62, Q6) as the pause before the total starts, so the
+## slam lands in near-silence; the shift screen brings it back at the printer feed, or
+## crossfades to the results.
 ##
 ## Time (D6): every beat length runs at _speed(), the fastest of the taps' skip, a hold's
 ## fast-forward and the plan's base_speed (the auto speed-up times the speed setting). Hit-stops
 ## freeze only the count-up's own tweens (_live) for real milliseconds, measured in _process
 ## (never a tween, never Engine.time_scale); they and the pause before the total are never sped
-## up by base_speed, only by a tap or a hold.
+## up by base_speed, only by a tap or a hold. After the verdict, the dessert runs at the speed
+## setting alone (Fast's x1.5, never the auto speed-up).
 ##
 ## Respecting the player (full build plan 6.2): a press of Space or the mouse (anywhere except on
 ## a button that can be pressed) released before HOLD_THRESHOLD_MS is a tap. The first tap speeds
-## the count to the verdict (the final total shown) at TAP_SKIP; what follows it (the slam, pass
-## or fail, the next-shift notice) then plays at normal speed, unless a second tap (or a first one
+## the count to the verdict (the final total shown) at TAP_SKIP; what follows it (the dessert)
+## then plays at its own speed, unless a second tap (or a first one
 ## after the verdict) skips it at DESSERT_SKIP. A press held past the threshold fast-forwards at
 ## FAST_FORWARD while held. The fastest of these wins. Skips only speed tweens up, never kill
 ## them, so every line, sound and shake still happens and the receipt ends up the same. A
@@ -45,14 +52,17 @@ extends Node
 ## ignored up to its release), so is the second click of a double-click on it (CHECKOUT fires on
 ## the first click's release), and a tap after the count-up does nothing. Reduced motion (the
 ## context's) removes every shake and rattle and the pile's bounce, and markers fade in instead
-## of flying.
+## of flying; the dessert's slam fades in at full size, unshaken.
 ##
 ## Steps caused by an upgrade (source_kind UPGRADE) come from that upgrade's loyalty-card box:
 ## bonuses and multipliers fly in from it, and its fizzles puff out of it. Steps caused by an
 ## inspection (source_kind INSPECTION, plan section 3.9) come from its tag in the top bar: it is
 ## punched as its "0" lands. On a passed shift followed by an inspected one, the notice prints in
-## red under the total.
+## red under the dessert's tear.
 
+## The dessert of a passed shift reached the printer feed (#61): the reward print-out starts
+## here. play() returns right after it.
+signal printer_feed
 signal finished
 
 ## A hold's speed, from HOLD_THRESHOLD_MS on.
@@ -116,17 +126,12 @@ const SUBTOTAL_PUNCH_MAX := 0.5
 ## The pile's settle bounce: squashed this tall, back over PILE_SETTLE_TIME (D4: 80 ms).
 const PILE_SETTLE := 1.06
 const PILE_SETTLE_TIME := 0.08
-## The dessert ducks the music (#62, Q6): this far, over DUCK_ATTACK_S, then a hush of HUSH_S
-## (at the count-up's speed) before the slam starts, so the slam lands about 250 ms into
-## near-silence. A tap that skips the dessert brings the music back over SKIP_UNDUCK_S.
+## The dessert ducks the music (#62, Q6, #61): this far, over DUCK_ATTACK_S, as the pause before
+## the total starts, so the slam lands in near-silence. A tap that skips the dessert brings the
+## music back over SKIP_UNDUCK_S.
 const DESSERT_DUCK_DB := -24.0
 const DUCK_ATTACK_S := 0.12
-const HUSH_S := 0.17
 const SKIP_UNDUCK_S := 0.15
-## The verdict stays this long after the pass or fail sound starts, then fades.
-const VERDICT_HOLD_S := 0.6
-## The next-shift notice: the clerk's stamp lands this long after the printer feeds the line.
-const NOTICE_STAMP_GAP := 0.08
 
 ## A hold past HOLD_THRESHOLD_MS sped this count-up up (plan 8's fast-forward used).
 var fast_forward_used: bool = false
@@ -143,6 +148,11 @@ var music: MusicService
 ## How big the ending was, for what follows the total (#61). Set when the total is shown; null
 ## before that.
 var intensity: CountUpIntensity
+## The shift's margin against its quota (#61), set when the dessert starts; null before that.
+var margin: ShiftMargin
+## Time.get_ticks_msec() of the printer feed (a passed shift's dessert ending), -1 before it or
+## on a miss.
+var printer_feed_ms: int = -1
 var _tuning: CountUpTuning
 var _overlay: Control
 var _views: Array[CardView] = []
@@ -187,6 +197,8 @@ var _hit_stop_left_ms: float = 0.0
 var _hit_stop_us: int = 0
 ## Punches, shakes, lifts and flying labels, on this count-up's tweens.
 var _fx: CountUpMotion
+## What follows the verdict (#61), on this count-up's tweens.
+var _dessert: CountUpDessert
 ## The armed effects' tokens, markers and pips of the row being played, or null.
 var _tokens: EffectTokens
 ## The lasting "QUOTA" chip beside the subtotal, or null.
@@ -219,6 +231,7 @@ func setup(
 	_rattle_target = rattle_target
 	_pile = pile
 	_tuning = tuning if tuning != null else load(TUNING_PATH) as CountUpTuning
+	_dessert = CountUpDessert.new(overlay, receipt, sfx, _fx, rattle_target, _tween)
 
 
 ## Plays `result` on the row's card views. `context` is the run around the row (shift, best so
@@ -246,6 +259,8 @@ func play(
 	_inspection_names = inspection_names
 	plan = CountUpPlan.build(result.steps, quota, context, _tuning)
 	intensity = null
+	margin = null
+	printer_feed_ms = -1
 	_fx.reset(plan.reduced_motion)
 	_clear_row()
 	_tokens = EffectTokens.new(_overlay, plan, _steps, _views, _names, _tween)
@@ -272,6 +287,7 @@ func play(
 		_play_beat(index)
 		await _wait_ms(plan.beats[index].duration_ms)
 	_tokens.dissolve()
+	_duck_for_dessert()
 	await _pause()
 	_finish_roll()
 	_print_line(_receipt.add_total(result.total))
@@ -282,11 +298,16 @@ func play(
 	total_shown_ms = Time.get_ticks_msec()
 	intensity = CountUpIntensity.from_plan(plan)
 	_verdict_shown = true
-	# Until #61 takes them over (decision D11), today's slam and the next-shift notice still
-	# play here, after total_shown_ms and so outside the count-up's time budget.
-	await _total_slam(result.total, quota)
-	if not notice.is_empty():
-		await _print_notice(notice)
+	margin = ShiftMargin.of(result.total, quota)
+	# The dessert plays the count-up's own Sfx (a test may swap it after setup()).
+	_dessert.sfx = _sfx
+	_dessert.speed_setting = plan.speed_setting
+	await _dessert.play(
+		result.total, quota, notice, _tuning, intensity, plan.reduced_motion, _print_pitch()
+	)
+	if margin.passed():
+		printer_feed_ms = Time.get_ticks_msec()
+		printer_feed.emit()
 	_playing = false
 	_presses.end()
 	finished.emit()
@@ -851,19 +872,6 @@ func _source_control(step: ScoreStep) -> Control:
 	return inspection if inspection != null else _source_view(step)
 
 
-## The next shift's inspection prints in red under the total: the printer feeds it, then the
-## clerk's stamp lands (#62, Q5).
-func _print_notice(notice: String) -> void:
-	await _wait(0.2)
-	var line: Control = _receipt.add_notice(notice)
-	_sfx.play("print", _print_pitch())
-	line.modulate.a = 0.0
-	_tween().tween_property(line, "modulate:a", 1.0, 0.15)
-	await _wait(NOTICE_STAMP_GAP)
-	_sfx.play("stamp_notice")
-	await _wait(0.35 - NOTICE_STAMP_GAP)
-
-
 ## How many receipt lines the count-up prints for `steps`: one per step but EFFECT_ARMED (which
 ## prints none), and the TOTAL line.
 static func _printed_lines(steps: Array[ScoreStep]) -> int:
@@ -885,45 +893,13 @@ static func _center(control: Control) -> Vector2:
 	return control.get_global_rect().get_center()
 
 
-## The final moment: the total slams down beside the quota, green and cheerful if it is
-## enough, red and deflated if not. #61's dessert takes it over (D11).
-##
-## The music ducks first (#62, Q6) and stays ducked: the shift screen brings it back when the
-## reward panel appears, or crossfades to the results on a fail, which waits until the fail sound
-## has ended. #61 moves these hooks to its dessert (the reward print-out unducks).
-func _total_slam(total: int, quota: int) -> void:
-	var enough: bool = total >= quota
+## The music ducks as the pause before the total starts (#62, Q6; #61), unless a tap has
+## already skipped the dessert. It stays ducked: the shift screen brings it back at the printer
+## feed, or crossfades to the results after a miss.
+func _duck_for_dessert() -> void:
 	if music != null and not dessert_skipped:
 		music.duck(DESSERT_DUCK_DB, DUCK_ATTACK_S)
 		_ducked = true
-	await _wait(HUSH_S)
-	var verdict: Label = CountUpMotion.text_label(
-		"€%d / €%d" % [total, quota], Palette.GOOD if enough else Palette.TOMATO, 72
-	)
-	_overlay.add_child(verdict)
-	var center: Vector2 = _overlay.get_global_rect().get_center() + Vector2(0, -40)
-	verdict.global_position = center - verdict.size / 2.0
-	verdict.pivot_offset = verdict.size / 2.0
-	verdict.scale = Vector2(3.2, 3.2)
-	verdict.modulate.a = 0.0
-	var slam: Tween = _tween().set_parallel().set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
-	slam.tween_property(verdict, "scale", Vector2.ONE, 0.2)
-	slam.tween_property(verdict, "modulate:a", 1.0, 0.12)
-	await slam.finished
-	# A bright chord only for a pass; a miss lands with a dull thud.
-	_sfx.play("total" if enough else "miss")
-	_fx.shake(_rattle_target, 10.0 if enough else 4.0)
-	_fx.punch(_subtotal_label, 1.5)
-	await _wait(0.25)
-	_sfx.play("pass" if enough else "fail")
-	await _wait(VERDICT_HOLD_S)
-	var fade: Tween = _tween()
-	fade.tween_property(verdict, "modulate:a", 0.0, 0.25)
-	fade.tween_callback(verdict.queue_free)
-	if not enough:
-		# The music stays ducked through the whole fail sound (Q6): the results crossfade starts
-		# when play() returns.
-		await _wait(maxf(_sfx.sound_length("fail") - VERDICT_HOLD_S, 0.0))
 
 
 ## Rolls the shown subtotal to `to` over `seconds` (at once for 0). A roll still running ends at
@@ -967,11 +943,14 @@ func _wait_ms(ms: int) -> void:
 
 
 ## How fast the count-up's tweens run: 0 during a hit-stop, else the fastest of the taps' skip,
-## a hold's fast-forward and, up to the verdict, the plan's base_speed (D6).
+## a hold's fast-forward and the plan's base_speed (D6) up to the verdict, its speed setting
+## alone after it (the dessert, #61).
 func _speed() -> float:
 	if _hit_stop_left_ms > 0.0:
 		return 0.0
-	var base: float = plan.base_speed if plan != null and not _verdict_shown else 1.0
+	var base: float = 1.0
+	if plan != null:
+		base = plan.speed_setting if _verdict_shown else plan.base_speed
 	return maxf(_press_speed(), base)
 
 

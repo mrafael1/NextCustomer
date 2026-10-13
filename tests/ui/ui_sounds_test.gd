@@ -215,31 +215,13 @@ func test_the_deck_view_and_reward_panel_sounds() -> void:
 	assert_array(sfx.sound_names()).is_equal(["ui_open", "ui_back"])
 
 
-## The final receipt's coins clink one by one after the pop-in: one per coin, MAX_COIN_SOUNDS
-## at most, and none for no coins.
+## The final receipt clinks one coin sound per coin, MAX_COIN_SOUNDS at most, and none for no
+## coins (their timing: tests/ui/results_panel_test.gd).
 func test_the_coins_clink_one_by_one() -> void:
-	var scene: Control = auto_free(Control.new())
-	add_child(scene)
-	var sfx: RecordingSfx = RecordingSfx.new()
-	scene.add_child(sfx)
-	var receipt: CoinReceipt = CoinReceipt.new()
-	scene.add_child(receipt)
 	for coins: int in [7, 0, 40]:
-		sfx.clear()
-		var payout: CoinPayout = CoinPayout.new()
-		payout.shift_coins = coins
-		receipt.show_payout(payout, 100)
-		assert_int(sfx.sounds.size()).is_equal(0)
-		var expected: int = mini(coins, CoinReceipt.MAX_COIN_SOUNDS)
-		# The results music stays ducked until one gap after the last coin (ShiftMusic).
-		var last_coin_s: float = UiKit.POP_IN_SECONDS + (expected - 1) * CoinReceipt.COIN_GAP
-		assert_float(receipt.coins_seconds()).is_greater(last_coin_s)
-		var start: int = Time.get_ticks_msec()
-		while sfx.sounds.size() < expected and Time.get_ticks_msec() - start < 3000:
-			await get_tree().process_frame
-		await _frames(5)
-		assert_int(sfx.count("coin")).is_equal(expected)
-		assert_int(sfx.sounds.size()).is_equal(expected)
+		var expected: int = mini(coins, FinalReceipt.MAX_COIN_SOUNDS)
+		assert_int(FinalReceipt.coin_sounds(coins)).is_equal(expected)
+	assert_int(FinalReceipt.coin_sounds(-3)).is_equal(0)
 
 
 ## The title has its own Sfx (its scene's): the start click and the log export sound on it.
