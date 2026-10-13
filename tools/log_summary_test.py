@@ -574,6 +574,29 @@ class TimesTest(LogTestCase):
         self.assertEqual(second["dessert_skipped"]["count"], 1)
         self.assertEqual(summary["second_run"]["all_runs"]["presentation_skipped"]["n"], 5)
 
+    def test_a_skipped_reward_printout(self) -> None:
+        """Since v0.32 a reward's presentation_skipped is its print-out skipped, with its
+        shift's dessert (#61): counted in presentations skipped, and in print-outs skipped,
+        which leave out the rack and the upgrade tickets."""
+        a = Session("a")
+        a.run_start("a1")
+        a.count_up("a1", 1, skip_used=True, skip_at=300, dessert=True)
+        a.reward("a1", 1, ("repeat",), times=(5, 40, 900), skipped=True)
+        a.count_up("a1", 2)
+        a.reward("a1", 2, ("repeat",), times=(150, 160, 1200))
+        a.upgrade("a1", 2, "coupon_engine")
+        a.run_end("a1", False, 3)
+        summary = self.summary(self.write("a.jsonl", a))
+        rates = summary["second_run"]["all_runs"]
+        self.assertEqual(rates["presentation_skipped"], {"count": 1, "n": 4, "rate": 0.25})
+        self.assertEqual(rates["printout_skipped"], {"count": 1, "n": 2, "rate": 0.5})
+        self.assertEqual(rates["dessert_skipped"], {"count": 1, "n": 2, "rate": 0.5})
+        self.assertEqual(summary["second_run"]["run_2"]["printout_skipped"]["n"], 0)
+        reward = summary["offer_times"]["reward"]["times"]
+        self.assertEqual(reward["presented_ms"]["dist"]["n"], 2)
+        self.assertEqual(reward["armed_ms"]["dist"]["median"], 100)
+        self.assertIn("print-outs skipped", ls.render(summary))
+
     def test_count_up_reads_logs_with_and_without_the_speed_fields(self) -> None:
         """Since v0.30 count_up logs base_speed, speed_setting, reduced_motion, step_count and
         planned_ms; older logs lack them. Both read the same, with no new summary line."""

@@ -78,8 +78,8 @@ func test_the_results_print_the_coins_and_fit_the_screen() -> void:
 	await screen._on_checkout_pressed()
 	assert_int(screen.run.phase).is_equal(RunState.Phase.WON)
 	# 8 shifts passed pay 2; overtime 7 x 2 + (82 - 48) = 48, under the €923 step.
-	var texts: PackedStringArray = screen._results._coin_receipt.texts()
-	assert_int(texts.size()).is_equal(3)
+	screen._results.skip_printing()
+	var texts: PackedStringArray = screen._results.texts().slice(-3)
 	assert_str(texts[0]).starts_with("Shifts passed 8").ends_with("+2")
 	assert_str(texts[1]).starts_with("Overtime €48").ends_with("+0")
 	assert_str(texts[2]).starts_with("COINS +2").ends_with("you have 8")
@@ -89,8 +89,9 @@ func test_the_results_print_the_coins_and_fit_the_screen() -> void:
 	var banner: Rect2 = screen._results.get_global_rect()
 	assert_float(banner.size.y).is_less_equal(720.0)
 	assert_float(banner.size.x).is_less_equal(1280.0)
-	assert_bool(banner.encloses(screen._results._coin_receipt.get_global_rect())).is_true()
-	assert_float(screen._results._coin_receipt.size.y).is_greater(40.0)
+	var coins: Label = screen._results._lines[-1]
+	assert_bool(banner.encloses(coins.get_global_rect())).is_true()
+	assert_float(coins.size.y).is_greater(12.0)
 
 
 ## The receipt's lines all have the same width, so the amounts form a column, and an unknown
@@ -101,20 +102,20 @@ func test_coin_receipt_lines_align_and_show_an_unknown_total() -> void:
 	payout.shift_coins = 1
 	payout.overtime = 140
 	payout.overtime_coins = 1
-	var lines: PackedStringArray = CoinReceipt.lines(payout, 1234)
+	var lines: PackedStringArray = FinalReceipt.coin_lines(payout, 1234)
 	(
 		assert_array(Array(lines))
 		. is_equal(
 			[
-				"Shifts passed 5                 +1",
-				"Overtime €140                   +1",
-				"COINS +2             you have 1234",
+				"Shifts passed 5                           +1",
+				"Overtime €140                             +1",
+				"COINS +2                       you have 1234",
 			]
 		)
 	)
 	for line: String in lines:
-		assert_int(line.length()).is_equal(CoinReceipt.WIDTH)
-	assert_str(CoinReceipt.lines(payout, -1)[2]).ends_with("you have ?")
+		assert_int(line.length()).is_equal(FinalReceipt.WIDTH)
+	assert_str(FinalReceipt.coin_lines(payout, -1)[2]).ends_with("you have ?")
 
 
 ## The title screen shows the run's length from balance data and the profile's coins, read

@@ -1,10 +1,11 @@
 class_name CountUpTuning
 extends Resource
 ## The count-up's tuning numbers (#60, decisions D1 to D7): its note ladder, intensity, pauses,
-## hit-stops, beat lengths and the long-row fit. They live in data/balance/count_up.tres so
-## they can be tuned by ear without code changes; CountUpPlan reads them and never hard-codes
-## one. Every default is neutral (0), like the core definitions, so a script edit can never
-## silently change the tuned values in the file. Times are in ms at speed 1 unless a field says
+## hit-stops, beat lengths and the long-row fit; the shift's dessert after it and the run's final
+## receipt (#61). They live in data/balance/count_up.tres so they can be tuned by ear without
+## code changes; CountUpPlan, CountUpDessert and ResultsPanel read them and never hard-code one.
+## Every default is neutral (0), like the core definitions, so a script edit can never silently
+## change the tuned values in the file. Times are in ms at speed 1 unless a field says
 ## otherwise; beat lengths run start to start and include the trailing gap.
 
 @export_group("Notes")
@@ -151,3 +152,40 @@ extends Resource
 @export var fit_max_factor: float = 0.0
 ## A fizzle's grey hold never gets shorter than this.
 @export var fizzle_hold_min_ms: int = 0
+
+@export_group("Dessert")
+## The shift's dessert after the verdict (#61), in ms at speed 1 (the speed setting applies, the
+## auto speed-up doesn't). A pass with no notice: the slam starts at 100 and lands at 300, the
+## margin counts 300 to 500 with `pass` at 450, PAID at 520, the tear at 560 and the printer feed
+## at 700; the print-out's lift ends at 850.
+## From the verdict (the TOTAL line) to the slam's start.
+@export var dessert_slam_delay_ms: int = 0
+## The slam, from its start to its landing on the TOTAL line (`total` or `miss`, the shake).
+@export var dessert_slam_ms: int = 0
+## The margin line counts up for this long from the landing.
+@export var dessert_margin_ms: int = 0
+## `pass` or `fail` sounds this long after the landing, while the margin counts.
+@export var dessert_verdict_sound_ms: int = 0
+## PAID is stamped this long after the margin has counted (a pass).
+@export var dessert_paid_ms: int = 0
+## The receipt tears this long after PAID; on a miss, this long after `fail` has rung out.
+@export var dessert_tear_ms: int = 0
+## The next shift's notice prints this long after the tear (inside the printer feed's wait).
+@export var dessert_notice_ms: int = 0
+## The printer feeds (a pass ends here) this long after the tear.
+@export var dessert_feed_ms: int = 0
+## A miss ends this long after the tear.
+@export var dessert_miss_end_ms: int = 0
+## The shake as the slam lands, in pixels: a pass's and a miss's, before intensity.
+@export var dessert_shake_pass_px: float = 0.0
+@export var dessert_shake_miss_px: float = 0.0
+## A large total shakes this share more, a huge one twice that (none under reduced motion).
+@export var dessert_shake_step: float = 0.0
+## The reward print-out (RewardPanel) lifts into full cards over this, from the printer feed;
+## it arms once the lift has ended and the mouse is up.
+@export var printout_lift_ms: int = 0
+
+@export_group("Final receipt")
+## The run's final receipt (#61, ResultsPanel) prints a line this often, from the headline down;
+## a tap prints the rest at once.
+@export var final_line_ms: int = 0

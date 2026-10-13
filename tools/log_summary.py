@@ -1088,15 +1088,19 @@ def count_up_summary(runs: list[Run]) -> dict:
 
 
 def skip_rates(runs: list[Run]) -> dict:
-    """presentation_skipped over the runs' shown offers; skip_used (a tap) and dessert_skipped
-    over their count_up events."""
+    """presentation_skipped over the runs' shown offers, and over their rewards alone (the
+    reward print-out, the only skippable presentation since v0.32: the dessert skipped before
+    it armed, an earlier second tap included); skip_used (a tap) and dessert_skipped over their
+    count_up events."""
     offers = [
         o for run in runs for o in run.offers() if not o.never_shown and o.skipped is not None
     ]
+    printouts = [o for o in offers if o.kind == "reward"]
     count_ups = [e for run in runs for e in run.of_type("count_up")]
     return {
         "runs": len(runs),
         "presentation_skipped": rate(sum(o.skipped for o in offers), len(offers)),
+        "printout_skipped": rate(sum(o.skipped for o in printouts), len(printouts)),
         "count_up_tap": _flag_rate(count_ups, "skip_used"),
         "dessert_skipped": _flag_rate(count_ups, "dessert_skipped"),
     }
@@ -1390,7 +1394,8 @@ def render_lists(s: dict) -> list[str]:
 def render_offer_times(s: dict) -> list[str]:
     lines = heading(
         "Offer presentation times (ms)",
-        "From the offer's show (section 8, \"Offer presentation times\"). -1 (not reached) "
+        "From the offer's show (section 8, \"Offer presentation times\"; a reward's since v0.32: "
+        "the printer feed, presented_ms at the end of the print-out's lift). -1 (not reached) "
         "values and never-shown offers (rack replays logging 0) are left out and counted.",
     )
     for kind in OFFER_KINDS:
@@ -1443,15 +1448,20 @@ def render_second_run(s: dict) -> list[str]:
     for label, key in (("run 2", "run_2"), ("all runs", "all_runs")):
         v = r[key]
         rows.append([label, str(v["runs"]), fmt_rate(v["presentation_skipped"]),
-                     fmt_rate(v["count_up_tap"]), fmt_rate(v["dessert_skipped"])])
+                     fmt_rate(v["printout_skipped"]), fmt_rate(v["count_up_tap"]),
+                     fmt_rate(v["dessert_skipped"])])
     return heading(
         "Second-run skip rate",
         "Run 2 is each player's second run. Presentations skipped = presentation_skipped over "
         "the run's shown offers (rewards, upgrades, the impulse rack); target below about "
-        f"{target} for run 2 (full build plan section 9). It stays 0% until phase 3 adds "
-        "skippable presentations. The count-up tap (skip_used) and dessert_skipped are over "
-        "the run's count_up events, reported apart.",
-    ) + table(["", "runs", "presentations skipped", "count-up tap", "dessert skipped"], rows)
+        f"{target} for run 2 (full build plan section 9). Since v0.32 only the reward "
+        "print-out can be skipped (the rack and the upgrade tickets never are), so print-outs "
+        "skipped is the same flag over the rewards alone. A print-out counts as skipped when "
+        "its shift's dessert was skipped before it armed, an earlier second tap included, so "
+        "it mostly follows dessert_skipped on passed shifts. The count-up tap (skip_used) and "
+        "dessert_skipped are over the run's count_up events, reported apart.",
+    ) + table(["", "runs", "presentations skipped", "print-outs skipped", "count-up tap",
+               "dessert skipped"], rows)
 
 
 def render_files(s: dict) -> list[str]:

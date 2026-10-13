@@ -406,7 +406,7 @@ func test_winning_the_last_shift_shows_the_results() -> void:
 	assert_int(screen.run.phase).is_equal(RunState.Phase.WON)
 	assert_bool(screen._results.visible).is_true()
 	assert_bool(screen._reward_panel.visible).is_false()
-	assert_str(screen._results.detail_text()).starts_with("All %d shifts cleared." % count)
+	assert_str(screen._results.texts()[0]).is_equal("RUN WON!")
 	var run_end: Dictionary = _last_event("run_end")
 	assert_str(run_end["result"]).is_equal("win")
 	assert_int(int(run_end["shift_reached"])).is_equal(count)

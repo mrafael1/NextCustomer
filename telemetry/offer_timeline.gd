@@ -2,25 +2,29 @@ class_name OfferTimeline
 extends RefCounted
 ## The presentation timeline of one offer (a reward, the impulse rack or the upgrade tickets),
 ## logged with its choice (plan section 8, since v0.20). Every time is in ms from the moment the
-## offer starts presenting (its panel's show_offer), up to:
-## - `presented_ms`: the offer is fully shown (today the end of the panel's pop-in, UiKit.pop_in;
-##   later phase 3's print-out or kiosk ceremony);
-## - `armed_ms`: the offer accepts clicks (today 350 ms after the show, once the mouse is released);
+## offer starts presenting: a reward's at the dessert's printer feed (RewardPanel.show_printout,
+## #61), the impulse rack's and the upgrade tickets' at their panel's show_offer. Up to:
+## - `presented_ms`: the offer is fully shown: the end of the reward print-out's lift, or of the
+##   rack's and the tickets' pop-in (UiKit.pop_in; #66's kiosk ceremony later);
+## - `armed_ms`: the offer accepts clicks: the print-out once its lift has ended, the pop-ins 350
+##   ms after the show, both once the mouse is released;
 ## - `decide_ms`: the choice is applied (at the deck limit, once the card to remove is chosen).
 ## A moment the choice came before is logged as NOT_REACHED (-1). An offer shown again after the
 ## deck view or the deck-full chooser keeps its timeline (it starts at the first show, as decide_ms
-## always did); a resumed offer starts a new one at its show. An offer that was never shown (no
-## rack, a debug replay of the rack applied at once, or a --demo-row run's skipped rack) logs 0 for
-## every time. The top bar's Deck can't hide an offer before it arms, so armed_ms never includes
-## time in the deck view.
+## always did); a resumed offer starts a new one at its show (a resumed reward has no dessert: its
+## print-out is shown lifted, presented at once). An offer that was never shown (no rack, a debug
+## replay of the rack applied at once, or a --demo-row run's skipped rack) logs 0 for every time.
+## The top bar's Deck can't hide an offer before it arms, so armed_ms never includes time in the
+## deck view.
 ##
 ## All times come in as Time.get_ticks_msec() values, passed in so tests can control them.
 
 const NOT_REACHED := -1
 
 ## Set by a skippable presentation when the player skips it (the full build plan's measure of
-## skipped presentations). Phase 1's pop-in can't be skipped, so it stays false until phase 3's
-## print-out and kiosk ceremony set it.
+## skipped presentations): the reward print-out, when its shift's dessert was skipped before it
+## armed (a second tap during the count included) or a tap skipped its lift (#61). The pop-ins
+## can't be skipped, so the rack's and the tickets' stay false (until #66's kiosk ceremony).
 var presentation_skipped: bool = false
 ## When the offer started presenting, or -1 for an offer that was never shown.
 var _shown_at: int = -1
@@ -39,7 +43,7 @@ func mark_presented(now_ms: int) -> void:
 		_presented_at = now_ms
 
 
-## Marks the offer presented when `presentation` (its pop-in, later its ceremony) finishes.
+## Marks the offer presented when `presentation` (its pop-in) finishes.
 func presented_when(presentation: Tween) -> void:
 	presentation.finished.connect(func() -> void: mark_presented(Time.get_ticks_msec()))
 

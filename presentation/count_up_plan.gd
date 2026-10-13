@@ -34,6 +34,9 @@ var beats: Array[CountUpBeat] = []
 ## The auto speed-up times the speed setting (D6); divides every beat length, never hit-stops
 ## or the pause.
 var base_speed: float = 1.0
+## The player's speed setting alone: the dessert after the verdict runs at it (#61), without the
+## auto speed-up.
+var speed_setting: float = 1.0
 ## How fast the receipt printer runs (D3): divides the payout rolls.
 var printer_speed: float = 1.0
 ## The best so far the intensity is measured against: at least the tuning's first_best_floor.
@@ -95,6 +98,7 @@ func _init(
 	best = maxi(tuning.first_best_floor, context.best_so_far)
 	var auto: float = tuning.auto_speed if context.shift >= tuning.auto_speed_from_shift else 1.0
 	base_speed = auto * context.speed_setting
+	speed_setting = context.speed_setting
 	var extra_steps: int = maxi(0, step_count - tuning.printer_free_steps)
 	printer_speed = minf(
 		tuning.printer_speed_max,

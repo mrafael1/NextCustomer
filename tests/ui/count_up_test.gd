@@ -77,7 +77,7 @@ func test_the_full_row_counts_up_on_screen_in_four_to_six_seconds() -> void:
 	assert_int(int(event["step_count"])).is_equal(27)
 	assert_int(int(event["planned_ms"])).is_equal(plan.planned_ms)
 
-	_assert_sounds(sfx, plan)
+	_assert_sounds(sfx, plan, count_up.printer_feed_ms)
 	_assert_markers(screen, probe)
 	# Shift 1's quota (34) is reached mid-row: the ding, then a chip that stays.
 	assert_int(plan.ding_beat).is_greater_equal(0)
@@ -99,7 +99,7 @@ func test_the_full_row_counts_up_on_screen_in_four_to_six_seconds() -> void:
 	assert_object(count_up.intensity).is_not_null()
 	assert_bool(count_up.intensity.is_huge).is_true()
 	assert_float(screen._row_box.position.x).is_equal(rest)
-	_assert_full_receipt(screen)
+	await _assert_full_receipt(screen)
 
 
 ## Fast (set through the temporary debug toggle, saved in the profile): faster than planned at
@@ -129,7 +129,7 @@ func test_the_fast_setting_counts_faster_with_the_same_receipt() -> void:
 	_assert_rattle_fills_the_pause(screen._count_up, probe)
 	assert_float(float(event["base_speed"])).is_equal(1.5)
 	assert_float(float(event["speed_setting"])).is_equal(1.5)
-	_assert_full_receipt(screen)
+	await _assert_full_receipt(screen)
 
 
 ## Reduced motion: no node is ever shaken off its place (the rattle target, the cards, the
@@ -179,7 +179,7 @@ func test_reduced_motion_shakes_nothing_and_keeps_the_receipt() -> void:
 	assert_float(plan.final_rattle_px).is_equal(0.0)
 	assert_bool(_last_event("count_up")["reduced_motion"]).is_true()
 	assert_bool(screen._count_up.intensity.reduced_motion).is_true()
-	_assert_full_receipt(screen)
+	await _assert_full_receipt(screen)
 
 
 ## Shakes that overlap on one node replace each other from the same rest position, so the node
@@ -229,7 +229,7 @@ func test_the_chip_comes_with_the_total_on_a_last_payout_crossing_and_never_on_a
 	assert_bool(chip_before_total).is_false()
 	assert_int(_sounds(sfx, "ding")).is_equal(0)
 	await _assert_chip(screen, true)
-	_assert_receipt_of(screen, result)
+	await _assert_receipt_of(screen, result, 110)
 
 	_play_tapped(screen, result, 111)
 	while count_up._playing:
@@ -237,7 +237,7 @@ func test_the_chip_comes_with_the_total_on_a_last_payout_crossing_and_never_on_a
 		assert_object(count_up._quota_chip).is_null()
 	assert_bool(count_up.plan.quota_reached).is_false()
 	await _assert_chip(screen, false)
-	_assert_receipt_of(screen, result)
+	await _assert_receipt_of(screen, result, 111)
 
 
 ## An armed effect that fizzles (a Coffee with no Breakfast after it) leaves its pip on the
@@ -472,8 +472,9 @@ func _check_on_screen(screen: ShiftScreen, failures: Array[String]) -> void:
 
 ## Notes never drop and step only on gain beats; armed beats replay their note quietly; a stamp
 ## plays its sample with the note under it; three ticks per payout roll at a fixed pitch, at 0,
-## 1/3 and 2/3 of the roll; the print sound at the printer speed's pitch (capped).
-func _assert_sounds(sfx: Sfx, plan: CountUpPlan) -> void:
+## 1/3 and 2/3 of the roll; the print sound at the printer speed's pitch (capped) before the
+## printer feed at `feed_ms` (the reward print-out's own print comes after it, #61).
+func _assert_sounds(sfx: Sfx, plan: CountUpPlan, feed_ms: int) -> void:
 	var notes: Array[Dictionary] = sfx.get("notes")
 	var expected_notes: int = 0
 	var armed_notes: int = 0
@@ -506,7 +507,7 @@ func _assert_sounds(sfx: Sfx, plan: CountUpPlan) -> void:
 			tick_usec.append(int(entry["usec"]))
 			assert_float(float(entry["pitch"])).is_equal(1.0)
 			assert_float(float(entry["volume_db"])).is_equal(CountUp.TICK_DB)
-		elif entry["sound"] == "print":
+		elif entry["sound"] == "print" and floori(int(entry["usec"]) / 1000.0) < feed_ms:
 			prints_heard += 1
 			assert_float(float(entry["pitch"])).is_equal_approx(print_pitch, 0.0001)
 	assert_int(prints_heard).is_greater(0)
@@ -616,7 +617,7 @@ func test_the_notice_prints_then_its_stamp_lands() -> void:
 	var pitch: float = minf(count_up.plan.printer_speed, tuning.print_pitch_max)
 	assert_float(float(feed["pitch"])).is_equal_approx(pitch, 0.0001)
 	var gap_ms: float = (int(stamp["usec"]) - int(feed["usec"])) / 1000.0
-	assert_float(gap_ms).is_between(CountUp.NOTICE_STAMP_GAP * 1000.0 - 5.0, 200.0)
+	assert_float(gap_ms).is_between(CountUpDessert.NOTICE_STAMP_GAP * 1000.0 - 5.0, 200.0)
 
 
 ## One marker per landing, all of one armed beat made in the same frame, and none left after
@@ -703,12 +704,16 @@ func _played(screen: ShiftScreen) -> void:
 func _assert_full_receipt(screen: ShiftScreen) -> void:
 	var run: RunState = screen.run
 	var notice: String = InspectionTag.next_notice(run.next_inspection)
-	_assert_receipt_of(screen, run.last_result, notice)
+	await _assert_receipt_of(screen, run.last_result, run.quota(), notice)
 
 
-## The count-up's receipt is `result`'s, line for line (with `notice` under it when there is
-## one), every line fully shown and unrotated.
-func _assert_receipt_of(screen: ShiftScreen, result: ScoreResult, notice: String = "") -> void:
+## The count-up's receipt is `result`'s, line for line, ended by the dessert against `quota`
+## (with `notice` under the tear when there is one), every line fully shown (once the last
+## fades, which overlap the printer feed, have ended) and unrotated.
+func _assert_receipt_of(
+	screen: ShiftScreen, result: ScoreResult, quota: int, notice: String = ""
+) -> void:
+	await _lines_shown(screen._receipt)
 	var run: RunState = screen.run
 	var expected: ReceiptView = auto_free(ReceiptView.new())
 	expected.show_result(
@@ -717,12 +722,23 @@ func _assert_receipt_of(screen: ShiftScreen, result: ScoreResult, notice: String
 		LoyaltyCard.names(run.upgrades),
 		InspectionTag.names(run.inspections)
 	)
-	if not notice.is_empty():
-		expected.add_notice(notice)
+	expected.show_shift_end(result.total, quota, notice)
 	assert_array(_lines(screen._receipt)).is_equal(_lines(expected))
 	for line: Node in screen._receipt._lines.get_children():
 		assert_float((line as CanvasItem).modulate.a).is_equal(1.0)
 		assert_float((line as Control).rotation).is_equal(0.0)
+
+
+## Waits until every receipt line has faded in, or half a second.
+func _lines_shown(receipt: ReceiptView) -> void:
+	var start: int = Time.get_ticks_msec()
+	while Time.get_ticks_msec() - start < 500:
+		var fading: bool = false
+		for line: Node in receipt._lines.get_children():
+			fading = fading or (line as CanvasItem).modulate.a < 1.0
+		if not fading:
+			return
+		await get_tree().process_frame
 
 
 ## A receipt's lines as text ("left | right"; "---" for the rule above the total).

@@ -194,16 +194,17 @@ func _resume_run(saved: RunSave) -> void:
 	if run.phase == RunState.Phase.PLANNING:
 		_count_up.show_pile_for_shift(run.shift_index + 1)
 		return
-	# After the checkout: the row, its receipt (with the next shift's inspection notice), totals,
-	# quota chip and paper pile as the count-up left them.
+	# After the checkout: the row, its receipt (ended as the dessert left it, with the next
+	# shift's inspection notice), totals, quota chip and paper pile as the count-up left them.
 	_show_score(run.last_result)
-	var notice: String = InspectionTag.next_notice(run.next_inspection)
-	if not notice.is_empty():
-		_receipt.add_notice(notice)
+	_receipt.show_shift_end(
+		run.last_result.total, run.quota(), InspectionTag.next_notice(run.next_inspection)
+	)
 	_show_projected(run.last_result.total)
 	_count_up.show_end_state(run.last_result, run.quota(), count_up_context())
 	if run.phase == RunState.Phase.REWARD:
-		_show_rewards(run.last_result)
+		# No dessert: the print-out is already lifted, on a new timeline.
+		_show_rewards(true)
 	else:
 		_show_upgrades()
 
@@ -438,7 +439,7 @@ func _on_checkout_pressed() -> void:
 	_log.log_event("count_up", counted)
 	_counting = false
 	if run.phase == RunState.Phase.REWARD:
-		_show_rewards(result)
+		_show_rewards()
 	else:
 		_show_results(result)
 
@@ -532,17 +533,14 @@ func _finish_impulse(card: CardDefinition, replaced: CardInstance) -> void:
 # --- Rewards and deck view -------------------------------------------------------------------
 
 
-func _show_rewards(result: ScoreResult) -> void:
+## The reward print-out (#61), beside the receipt, which stays unshaded: at the dessert's printer
+## feed (the music comes back there), its cards lifting at the player's speed setting, skipped
+## with the dessert; `resumed` shows them already lifted.
+func _show_rewards(resumed: bool = false) -> void:
 	ShiftMusic.rewards_shown(_music)
 	_deck_viewed_for_reward = false
 	_pending_reward = null
-	_reward_panel.show_offer(
-		run.offer,
-		"Shift passed!  €%d / €%d" % [result.total, run.quota()],
-		run.deck.size(),
-		run.balance.deck_limit,
-		InspectionTag.next_notice(run.next_inspection)
-	)
+	_reward_panel.print_offer(run, _receipt, _count_up, resumed)
 
 
 func _on_reward_picked(card: CardDefinition) -> void:
@@ -660,10 +658,7 @@ func _on_upgrade_picked(upgrade: UpgradeDefinition) -> void:
 
 ## One box per upgrade shift, plus one for a starting deck's upgrade (full build plan 7.3).
 func _refresh_loyalty_card() -> void:
-	var boxes: int = run.balance.upgrade_shifts.size()
-	_loyalty_card.show_upgrades(
-		boxes + (0 if run.starter.starting_upgrade == null else 1), run.upgrades
-	)
+	_loyalty_card.show_upgrades(LoyaltyCard.box_count(run), run.upgrades)
 
 
 func _on_export_pressed() -> void:
@@ -803,16 +798,20 @@ func _show_score(result: ScoreResult) -> void:
 		_row_views[slot].set_tags(result.tags[slot])
 
 
-## The win and lose screens (plan section 2), with their music cue (ShiftMusic).
+## The win and lose screens (plan section 2): the final receipt, with its music cues (the front
+## loop now, the coins' duck when they print).
 func _show_results(result: ScoreResult) -> void:
-	_results.show_results(run, result, profile.coins if _profile_saved else -1)
-	ShiftMusic.results_shown(_music, _results.coins_seconds())
+	ShiftMusic.results_shown(_music)
+	_results.show_results(run, result, profile.coins if _profile_saved else -1, _music)
 
 
 func _process(_delta: float) -> void:
 	_shade.visible = (
 		_reward_panel.visible or _upgrade_panel.visible or _deck_view.visible or _results.visible
 	)
+	# Beside the print-out alone, the receipt stays unshaded (#61).
+	var beside: bool = _reward_panel.is_printout() and not _deck_view.visible
+	_shade.offset_right = _receipt.get_global_rect().position.x - size.x if beside else 0.0
 
 
 func _build() -> void:
@@ -956,7 +955,7 @@ func _build() -> void:
 	_shade.color = Color(0, 0, 0, 0.5)
 	_shade.set_anchors_preset(Control.PRESET_FULL_RECT)
 	# Below the top bar, so Export log and Deck stay reachable on every screen.
-	_shade.offset_top = 64
+	_shade.offset_top = RewardPanel.PRINTOUT_TOP
 	_shade.mouse_filter = Control.MOUSE_FILTER_STOP
 	_shade.visible = false
 	add_child(_shade)

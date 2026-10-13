@@ -10,7 +10,7 @@ const TITLE := "EXIT KIOSK: pick your prize"
 
 ## The offer's presentation timeline (presented_ms, armed_ms, decide_ms, presentation_skipped;
 ## plan section 8), started by show_offer and kept while the panel is hidden and shown again.
-## A skippable presentation (phase 3) sets its presentation_skipped.
+## The pop-in can't be skipped, so presentation_skipped stays false until #66's kiosk ceremony.
 var timeline: OfferTimeline = OfferTimeline.new()
 var _headline: Label
 var _tickets: HBoxContainer

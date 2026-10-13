@@ -156,6 +156,8 @@ func test_checkout_plays_the_count_up_as_shift_three() -> void:
 		LoyaltyCard.names(frame._upgrades()),
 		InspectionTag.names(frame._inspections())
 	)
+	# Ended by the shift's dessert (#61): the verdict, the margin and the tear.
+	expected.show_shift_end(frame._result.total, frame._quota())
 	assert_int(frame._receipt._lines.get_child_count()).is_equal(expected._lines.get_child_count())
 	# The frame's row (€16) misses shift 3's quota (€53): no ding, no chip, the subtotal keeps
 	# its colour.

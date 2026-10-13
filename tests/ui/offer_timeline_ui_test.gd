@@ -1,15 +1,16 @@
 extends GdUnitTestSuite
 ## The offers' presentation timelines on the real shift screen (plan section 8, since v0.20): the
-## reward, upgrade and run_start events log presented_ms (the pop-in finished), armed_ms (the
-## panel accepts clicks) and presentation_skipped beside decide_ms, all from the offer's show. The
-## panels arm themselves; the choices are sent to the screen's handlers, because headless runs
-## don't deliver input events.
+## reward, upgrade and run_start events log presented_ms (the pop-in finished, or the reward
+## print-out's lift, #61), armed_ms (the panel accepts clicks) and presentation_skipped beside
+## decide_ms, all from the offer's show (the reward's printer feed). The panels arm themselves;
+## the choices are sent to the screen's handlers, because headless runs don't deliver input
+## events. tests/ui/reward_printout_test.gd covers the print-out's own times and skips.
 
 const SCREEN := "res://ui/shift_screen.tscn"
 ## Milk, Multipack, Milk x5 = 109: passes the first five quotas.
 const PASSING_ROW: Array[String] = ["milk", "multipack", "milk", "milk", "milk", "milk", "milk"]
-## The panels' arming delay (RewardPanel, UpgradePanel), in wall-clock ms.
-const ARMING_MS := 350
+## The pop-ins' arming delay (RewardPanel's impulse rack, UpgradePanel), in wall-clock ms.
+const ARMING_MS := RewardPanel.ARM_MS
 ## A tween counts game time from the frame before it started, so in wall-clock time the pop-in
 ## can finish up to a frame early.
 const FRAME_SLACK_MS := 50
@@ -32,8 +33,8 @@ func after_test() -> void:
 		DirAccess.remove_absolute(_folder)
 
 
-## A passed shift's reward: fully shown after the pop-in, armed after 350 ms, both before the
-## choice; phase 1 has no skippable presentation.
+## A passed shift's reward: fully shown once the print-out's cards have lifted, armed after
+## that, both before the choice; nothing skipped.
 func test_the_reward_event_logs_the_presentation_timeline() -> void:
 	var screen: ShiftScreen = await _screen()
 	screen._on_reward_skipped()  # Past the impulse rack.
@@ -41,7 +42,8 @@ func test_the_reward_event_logs_the_presentation_timeline() -> void:
 	await _until_armed(screen._reward_panel)
 	await _wall_ms(100)
 	screen._on_reward_skipped()
-	_assert_timeline(_last_event("reward"), "")
+	var lift_ms: int = (load(CountUp.TUNING_PATH) as CountUpTuning).printout_lift_ms
+	_assert_timeline(_last_event("reward"), "", lift_ms, lift_ms)
 
 
 ## The impulse rack's times are run_start's impulse_ fields. (A new run's rack: the first one shows
@@ -160,16 +162,21 @@ func test_reopening_the_offer_after_the_deck_view_keeps_the_first_times() -> voi
 	assert_int(int(reward["decide_ms"])).is_greater_equal(int(first["armed_ms"]) + 600)
 
 
-## presented_ms covers the pop-in, armed_ms the arming delay, both before decide_ms; nothing was
-## skipped.
-func _assert_timeline(event: Dictionary, prefix: String) -> void:
+## presented_ms covers the presentation (`presented_min_ms`, by default the pop-in), armed_ms the
+## arming delay (`armed_min_ms`, by default ARMING_MS) and comes no earlier, both before
+## decide_ms; nothing was skipped.
+func _assert_timeline(
+	event: Dictionary, prefix: String, presented_min_ms: int = -1, armed_min_ms: int = ARMING_MS
+) -> void:
 	assert_dict(event).is_not_empty()
-	var pop_in_ms: int = roundi(UiKit.POP_IN_SECONDS * 1000.0 / Engine.time_scale) - FRAME_SLACK_MS
+	if presented_min_ms < 0:
+		presented_min_ms = roundi(UiKit.POP_IN_SECONDS * 1000.0 / Engine.time_scale)
 	var presented: int = int(event[prefix + "presented_ms"])
 	var armed: int = int(event[prefix + "armed_ms"])
 	var decided: int = int(event[prefix + "decide_ms"])
-	assert_int(presented).is_greater_equal(pop_in_ms)
-	assert_int(armed).is_greater_equal(ARMING_MS)
+	assert_int(presented).is_greater_equal(presented_min_ms - FRAME_SLACK_MS)
+	assert_int(armed).is_greater_equal(armed_min_ms - FRAME_SLACK_MS)
+	assert_int(armed).is_greater_equal(presented)
 	assert_int(presented).is_less_equal(decided)
 	assert_int(armed).is_less_equal(decided)
 	assert_bool(event[prefix + "presentation_skipped"]).is_false()
