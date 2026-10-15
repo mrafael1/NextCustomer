@@ -1,15 +1,31 @@
 class_name ReceiptView
 extends PanelContainer
 ## The receipt: one line per ScoreStep, printed from the steps alone so it can never disagree
-## with the score. Used for the live preview (all lines at once) and the count-up (line by
-## line, as each step plays). After a checkout, the shift's dessert (#61) ends it: the verdict
-## "€total / €quota" on the TOTAL line, the margin line under it (with PAID on a pass), the tear,
-## then the next shift's red notice (show_shift_end prints them all at once). On the shift
-## screen it is in fit mode (#55): as tall as its lines, down to the paper pile's top. An
+## with the score. In planning the shift screen shows only its stub (#75, show_stub): the
+## header, the projected total and how many fizzles the items show (each step's line is read by
+## scanning its item). The count-up starts from the same header (begin) and prints its steps
+## under it line by line, as each one plays; a resumed checkout prints them all at once
+## (show_result). Every line another source boosts (a combo, is_combo) is marked with a faint
+## gold band, a gold bar and a diamond. After a checkout, the shift's dessert (#61) ends it: the
+## verdict "€total / €quota" on the TOTAL line, the margin line under it (with PAID on a pass),
+## the tear, then the next shift's red notice (show_shift_end prints them all at once). On the
+## shift screen it is in fit mode (#55): as tall as its lines, down to the paper pile's top. An
 ## indented step line hangs (#55): wrapped, it starts past its lead and marker on every row, and
 ## its amount (or "fizzle") sits on its last row.
 
-enum LineStyle { DETAIL, ITEM, CONTEXT, FIZZLE, TOTAL, NOTICE, MARGIN, TEAR }
+enum LineStyle {
+	DETAIL,
+	ITEM,
+	CONTEXT,
+	FIZZLE,
+	TOTAL,
+	NOTICE,
+	MARGIN,
+	TEAR,
+	PROJECTED,
+	STUB_NOTE,
+	COMBO,
+}
 
 ## Monospace for the receipt (plan section 2). JetBrains Mono, SIL Open Font License.
 const MONO_FONT := preload("res://fonts/JetBrainsMono-Regular.ttf")
@@ -24,6 +40,25 @@ const TEAR_REPEAT := 60
 ## A step line's marker after its leading spaces (hang_parts()): it is printed beside the first
 ## row, and the wrapped rows hang under the text after it.
 const HANG_MARKERS: Array[String] = ["+ ", "× "]
+## The receipt's header (#75, style frame v2): the shop and the register, then the shift and how
+## many items are on the belt (coupons count as items), ITEM_TEXT for just one.
+const HEADER_TEXT := "NEXT CUSTOMER · REG 3"
+const SHIFT_TEXT := "SHIFT %d/%d · %d ITEMS"
+const ITEM_TEXT := "SHIFT %d/%d · 1 ITEM"
+## The planning stub's total line, under a dashed rule (a dash RULE_DASH long, then a gap as
+## long), and its fizzle count, which points at the items' fizzle chips.
+const PROJECTED_TEXT := "PROJECTED"
+const RULE_DASH := 4.0
+const FIZZLES_TEXT := "%d fizzles · see the items"
+const FIZZLE_TEXT := "1 fizzle · see the item"
+## A combo line: a faint gold band behind the whole line with a gold bar on its left, and the
+## diamond after the bar; the line's text hangs past both (COMBO_INDENT takes the place of its
+## leading spaces), so nothing sits outside the receipt's scroll area.
+const COMBO_BAR := 2.0
+const COMBO_BAND_ALPHA := 0.25
+const COMBO_ICON_RECT := Rect2(4, 3, 10, 10)
+const COMBO_INDENT := 18.0
+const COMBO_DIAMOND := preload("res://art/icons/combo_diamond.png")
 
 var _lines: VBoxContainer
 var _scroll: ScrollContainer
@@ -101,16 +136,63 @@ func clear() -> void:
 		line.queue_free()
 
 
-## The whole receipt at once, for the live preview. `upgrade_names` are the run's upgrades'
-## names in pick order and `inspection_names` the shift's inspections' names, for the lines
-## they cause.
+## Starts a receipt: clears it, then prints `header` (header_lines(); none when empty). The
+## count-up starts here, so its lines print under the planning stub's header.
+func begin(header: PackedStringArray = PackedStringArray()) -> void:
+	clear()
+	for text: String in header:
+		add_line(text, "", LineStyle.DETAIL)
+
+
+## The planning stub (#75, decision 1A): `header`, a dashed rule, "PROJECTED €projected", then
+## the fizzle count (fizzle_text(); no line without fizzles) and the tear.
+func show_stub(header: PackedStringArray, projected: int, fizzles: int) -> void:
+	begin(header)
+	add_line(PROJECTED_TEXT, "€%d" % projected, LineStyle.PROJECTED)
+	if fizzles > 0:
+		add_line(fizzle_text(fizzles), "", LineStyle.STUB_NOTE)
+	add_tear()
+
+
+## The header's lines for 1-based `shift` of `shifts` with `items` on the belt (coupons
+## included): "NEXT CUSTOMER · REG 3", then "SHIFT n/m · k ITEMS" ("· 1 ITEM" for one).
+static func header_lines(shift: int, shifts: int, items: int) -> PackedStringArray:
+	var shift_text: String = (
+		ITEM_TEXT % [shift, shifts] if items == 1 else SHIFT_TEXT % [shift, shifts, items]
+	)
+	return PackedStringArray([HEADER_TEXT, shift_text])
+
+
+## How many of `result`'s steps fizzle (the stub's count): every WASTED step, the upgrades'
+## too.
+static func fizzle_count(result: ScoreResult) -> int:
+	var count: int = 0
+	for step: ScoreStep in result.steps:
+		if step.step_type == ScoreStep.StepType.WASTED:
+			count += 1
+	return count
+
+
+## The stub's fizzle line: "1 fizzle · see the item", "N fizzles · see the items", or empty for
+## none.
+static func fizzle_text(fizzles: int) -> String:
+	if fizzles <= 0:
+		return ""
+	return FIZZLE_TEXT if fizzles == 1 else FIZZLES_TEXT % fizzles
+
+
+## The whole receipt at once, under `header` (header_lines(); none when empty): a resumed
+## checkout's, as the count-up printed it, and the tests' expected receipts. `upgrade_names` are
+## the run's upgrades' names in pick order and `inspection_names` the shift's inspections'
+## names, for the lines they cause.
 func show_result(
 	result: ScoreResult,
 	names: PackedStringArray,
 	upgrade_names: PackedStringArray = PackedStringArray(),
-	inspection_names: PackedStringArray = PackedStringArray()
+	inspection_names: PackedStringArray = PackedStringArray(),
+	header: PackedStringArray = PackedStringArray()
 ) -> void:
-	clear()
+	begin(header)
 	for step: ScoreStep in result.steps:
 		add_step(step, names, upgrade_names, inspection_names)
 	add_total(result.total)
@@ -124,21 +206,33 @@ func add_step(
 	upgrade_names: PackedStringArray = PackedStringArray(),
 	inspection_names: PackedStringArray = PackedStringArray()
 ) -> Control:
+	var text: PackedStringArray = step_text(step, names, upgrade_names, inspection_names)
+	if text.is_empty():
+		return null
+	return add_line(text[0], text[1], step_style(step))
+
+
+## The receipt's words for one step: its left side (with its indent and marker) and its right
+## side (the amount, "fizzle" or nothing), or none for a step that prints no line. The receipt
+## prints them (add_step), and a belt item's scan popup lists them (#75, step_line), so the two
+## always word a step alike.
+static func step_text(
+	step: ScoreStep,
+	names: PackedStringArray,
+	upgrade_names: PackedStringArray = PackedStringArray(),
+	inspection_names: PackedStringArray = PackedStringArray()
+) -> PackedStringArray:
 	var cause: String = source_text(step, upgrade_names, inspection_names)
 	var left: String = ""
 	var right: String = ""
-	var style: LineStyle = LineStyle.DETAIL
 	match step.step_type:
 		ScoreStep.StepType.TAG_ADDED:
 			left = "%s: %s gains %s" % [step.text, names[step.slot], step.tag]
-			style = LineStyle.CONTEXT
 		ScoreStep.StepType.LINKED:
 			left = "%s links %s + %s" % [step.text, names[step.slot], names[step.linked_slot]]
-			style = LineStyle.CONTEXT
 		ScoreStep.StepType.WASTED:
 			left = "  %s: %s" % [cause, step.reason]
 			right = "fizzle"
-			style = LineStyle.FIZZLE
 		ScoreStep.StepType.BASE:
 			left = names[step.slot].to_upper()
 			right = str(step.value)
@@ -156,12 +250,58 @@ func add_step(
 			right = "= %d" % step.value
 		ScoreStep.StepType.PAYOUT:
 			right = "€%d" % step.value
-			style = LineStyle.ITEM
 		ScoreStep.StepType.EFFECT_ARMED:
 			# No line: the receipt stays a straight list of payouts and explanations. What the
 			# effect does is printed where it lands (its FLAT or MULTIPLIER line, or a fizzle).
-			return null
-	return add_line(left, right, style)
+			return PackedStringArray()
+	return PackedStringArray([left, right])
+
+
+## The style a step's line prints in: CONTEXT for a tag or a link, FIZZLE for a fizzle, ITEM for
+## a payout, COMBO for a combo (is_combo), DETAIL for the rest.
+static func step_style(step: ScoreStep) -> LineStyle:
+	match step.step_type:
+		ScoreStep.StepType.TAG_ADDED, ScoreStep.StepType.LINKED:
+			return LineStyle.CONTEXT
+		ScoreStep.StepType.WASTED:
+			return LineStyle.FIZZLE
+		ScoreStep.StepType.PAYOUT:
+			return LineStyle.ITEM
+	return LineStyle.COMBO if is_combo(step) else LineStyle.DETAIL
+
+
+## Whether a step is a combo (#75): a bonus or a multiplier that another source caused (another
+## item, an upgrade or an inspection: the steps that become an item's boost chips,
+## EffectChip.qualifies), or a copy, which always pays another item's payout.
+static func is_combo(step: ScoreStep) -> bool:
+	match step.step_type:
+		ScoreStep.StepType.FLAT, ScoreStep.StepType.MULTIPLIER:
+			return step.source_kind != ScoreStep.SourceKind.CARD or step.source_slot != step.slot
+		ScoreStep.StepType.COPY:
+			return true
+	return false
+
+
+## A step's line on one row (#75, a belt item's scan popup): the receipt's left side without its
+## indent, then its right side two spaces after it ("+ Strawberries beside Produce  +3",
+## "Coffee: no Breakfast product after it  fizzle"). Empty for a step that prints no line.
+static func step_line(
+	step: ScoreStep,
+	names: PackedStringArray,
+	upgrade_names: PackedStringArray = PackedStringArray(),
+	inspection_names: PackedStringArray = PackedStringArray()
+) -> String:
+	var text: PackedStringArray = step_text(step, names, upgrade_names, inspection_names)
+	if text.is_empty():
+		return ""
+	return joined_line(text[0], text[1])
+
+
+## A receipt line's two sides on one row: the left without its indent, then the right (if any)
+## two spaces after it.
+static func joined_line(left: String, right: String) -> String:
+	var stripped: String = left.strip_edges()
+	return stripped if right.is_empty() else "%s  %s" % [stripped, right]
 
 
 ## Who caused a step, as the receipt names it. A card's rule is named by its receipt text; an
@@ -297,6 +437,9 @@ func add_line(left: String, right: String, style: LineStyle) -> Control:
 		left_label.custom_minimum_size.x = 1.0
 	if style == LineStyle.DETAIL or style == LineStyle.FIZZLE:
 		_hang(left_label)
+	elif style == LineStyle.COMBO:
+		_hang(left_label, COMBO_INDENT)
+		_mark_combo(line, left_label)
 	line.add_child(left_label)
 	var right_label: Label = _label(right, style)
 	right_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
@@ -305,8 +448,9 @@ func add_line(left: String, right: String, style: LineStyle) -> Control:
 	right_label.vertical_alignment = VERTICAL_ALIGNMENT_BOTTOM
 	line.add_child(right_label)
 	if style == LineStyle.TOTAL:
-		var rule: HSeparator = HSeparator.new()
-		_lines.add_child(rule)
+		_lines.add_child(HSeparator.new())
+	elif style == LineStyle.PROJECTED:
+		_lines.add_child(_dashed_rule())
 	_lines.add_child(line)
 	scroll_to_end()
 	return line
@@ -328,14 +472,15 @@ static func hang_parts(text: String) -> PackedStringArray:
 
 ## Hangs an indented line's left `label`: its text starts past its lead and marker on every
 ## wrapped row (an empty "normal" style's left margin), the marker printed beside the first row
-## (a "Marker" label inside it). A line without leading spaces is left as it is.
-static func _hang(label: Label) -> void:
+## (a "Marker" label inside it). The lead is its leading spaces' width, or `lead_width` when
+## that is set (a combo line's COMBO_INDENT). A line without leading spaces is left as it is.
+static func _hang(label: Label, lead_width: float = -1.0) -> void:
 	var parts: PackedStringArray = hang_parts(label.text)
 	if parts[0].is_empty():
 		return
 	var font: Font = label.get_theme_font("font")
 	var font_size: int = label.get_theme_font_size("font_size")
-	var lead: float = _text_width(parts[0], font, font_size)
+	var lead: float = lead_width if lead_width >= 0.0 else _text_width(parts[0], font, font_size)
 	var indent: StyleBoxEmpty = StyleBoxEmpty.new()
 	indent.content_margin_left = lead + _text_width(parts[1], font, font_size)
 	label.add_theme_stylebox_override("normal", indent)
@@ -351,6 +496,46 @@ static func _hang(label: Label) -> void:
 	marker.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	marker.position = Vector2(lead, 0)
 	label.add_child(marker)
+
+
+## Marks a combo `line` (its hung `left` label): the band and bar drawn behind the whole line
+## (both sides and every wrapped row), and the diamond (a "ComboDiamond" inside `left`) beside the
+## bar, so it is marked by shape, not colour alone.
+static func _mark_combo(line: HBoxContainer, left: Label) -> void:
+	line.draw.connect(_draw_combo_band.bind(line))
+	var diamond: TextureRect = TextureRect.new()
+	diamond.name = "ComboDiamond"
+	diamond.texture = COMBO_DIAMOND
+	diamond.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	diamond.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	diamond.stretch_mode = TextureRect.STRETCH_SCALE
+	ArtStyle.use_pixel_material(diamond)
+	diamond.position = COMBO_ICON_RECT.position
+	diamond.size = COMBO_ICON_RECT.size
+	left.add_child(diamond)
+
+
+static func _draw_combo_band(line: HBoxContainer) -> void:
+	line.draw_rect(Rect2(Vector2.ZERO, line.size), Color(Palette.GOLD, COMBO_BAND_ALPHA))
+	line.draw_rect(Rect2(0, 0, COMBO_BAR, line.size.y), Palette.GOLD)
+
+
+## The stub's rule above PROJECTED: dashes in place of the TOTAL line's solid rule.
+static func _dashed_rule() -> HSeparator:
+	var rule: HSeparator = HSeparator.new()
+	rule.name = "StubRule"
+	rule.add_theme_stylebox_override("separator", StyleBoxEmpty.new())
+	rule.draw.connect(_draw_dashes.bind(rule))
+	return rule
+
+
+static func _draw_dashes(rule: HSeparator) -> void:
+	var y: float = roundf((rule.size.y - ArtStyle.ART_SCALE) / 2.0)
+	var x: float = 0.0
+	while x < rule.size.x:
+		var dash: float = minf(RULE_DASH, rule.size.x - x)
+		rule.draw_rect(Rect2(x, y, dash, ArtStyle.ART_SCALE), Palette.GREY)
+		x += 2.0 * RULE_DASH
 
 
 static func _text_width(text: String, font: Font, font_size: int) -> float:
@@ -369,8 +554,10 @@ func _label(text: String, style: LineStyle) -> Label:
 			color = Palette.TEAL
 		LineStyle.FIZZLE:
 			color = Palette.MUTED_INK
-		LineStyle.TOTAL:
+		LineStyle.TOTAL, LineStyle.PROJECTED:
 			font_size = TOTAL_FONT_SIZE
+		LineStyle.STUB_NOTE:
+			color = Palette.TOMATO_DARK
 		LineStyle.NOTICE:
 			font_size = 15
 			color = Palette.TOMATO

@@ -26,8 +26,8 @@ func after_test() -> void:
 		DirAccess.remove_absolute(_folder)
 
 
-## A short preview gives a short receipt: as tall as its lines, its end above the pile's top,
-## which stays hidden though it holds earlier shifts' paper.
+## The preview is the stub (#75): a short receipt, as tall as its lines, its end above the pile's
+## top, which stays hidden though it holds earlier shifts' paper. A longer belt's stub is as short.
 func test_a_short_preview_gives_a_short_receipt() -> void:
 	var screen: ShiftScreen = await _screen()
 	screen._count_up.show_pile_for_shift(5)
@@ -35,6 +35,10 @@ func test_a_short_preview_gives_a_short_receipt() -> void:
 	await _frames(2)
 	var receipt: ReceiptView = screen._receipt
 	assert_int(receipt._lines.get_child_count()).is_greater(0)
+	var one: float = receipt.natural_height()
+	_place(screen, ["bread", "bread", "bread", "bread"])
+	await _frames(2)
+	assert_float(receipt.natural_height()).is_equal(one)
 	assert_float(receipt.size.y).is_equal(receipt.natural_height())
 	var stage_y: float = screen._stage.get_global_rect().position.y
 	assert_float(receipt.get_global_rect().position.y).is_equal(
@@ -113,7 +117,7 @@ func test_a_resumed_end_of_shift_takes_the_same_fit() -> void:
 	_place(screen, ["bread", "milk", "eggs", "repeat", "milk"])
 	var run: RunState = screen.run
 	var result: ScoreResult = run.preview()
-	screen._show_score(result)
+	screen._show_checked_out(result)
 	screen._receipt.show_shift_end(result.total, run.quota(), "Spot check next shift")
 	await _frames(2)
 	var receipt: ReceiptView = screen._receipt

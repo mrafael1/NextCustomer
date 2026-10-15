@@ -21,3 +21,4 @@ tags = PackedStringArray("Food", "Frozen", "Produce")
 base = 3
 rules = Array[ExtResource("1_rdeag")]([SubResource("Resource_6s4mr")])
 rule_text = "+ its base value (+3) as a flat bonus if beside another Frozen product"
+sticker_text = "+{base} beside {match_value}"

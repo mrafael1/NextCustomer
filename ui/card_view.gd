@@ -11,6 +11,8 @@ enum Highlight { NONE, SELECTED, REDRAW }
 const CARD_SIZE := Vector2(120, 168)
 ## Where the value badge sits, above the card.
 const BADGE_Y := -40.0
+## How far the count-up's scan lifts the card and its badge (scan_lift).
+const SCAN_LIFT := -22.0
 
 var card: CardInstance
 ## The visible card. The count-up animates its position, scale, rotation and modulate.
@@ -64,6 +66,12 @@ func badge_rest_y() -> float:
 	return BADGE_Y
 
 
+## How far the count-up's scan lifts `body` and the badge (negative is up): a card clears the
+## belt; an item (ItemView) only rises off its mat.
+func scan_lift() -> float:
+	return SCAN_LIFT
+
+
 ## Shows the tags after the context pass (e.g. Breakfast from a sticker). Products only.
 func set_tags(tags: PackedStringArray) -> void:
 	if card.definition.is_product():
@@ -77,6 +85,11 @@ func add_tag(tag: String) -> void:
 
 func hide_badge() -> void:
 	badge.visible = false
+
+
+## Tints the card while a drag would push it right (CardDrag); Color.WHITE clears the tint.
+func set_push_tint(tint: Color) -> void:
+	body.self_modulate = tint
 
 
 func reset_motion() -> void:

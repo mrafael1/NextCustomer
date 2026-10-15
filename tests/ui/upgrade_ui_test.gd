@@ -184,7 +184,10 @@ func test_upgrade_steps_play_from_the_loyalty_card() -> void:
 	var upgrade_steps: Array[ScoreStep] = _upgrade_steps(preview)
 	var kinds: Array = upgrade_steps.map(func(step: ScoreStep) -> int: return step.step_type)
 	assert_array(kinds).contains([ScoreStep.StepType.MULTIPLIER, ScoreStep.StepType.FLAT])
-	assert_str(_receipt_text(screen)).contains("× Coupon engine").contains("+ Category engine")
+	# The planning receipt is a stub (#75): scanning the items names the upgrades.
+	assert_str(_receipt_text(screen)).not_contains("Coupon engine")
+	assert_str(_popup_text(screen, 2)).contains("× Coupon engine")
+	assert_str(_popup_text(screen, 1)).contains("+ Category engine")
 
 	await screen._on_checkout_pressed()
 	assert_str(screen._led.digits_label().text).is_equal("€%d" % preview.total)
@@ -392,6 +395,18 @@ static func _upgrade_steps(result: ScoreResult) -> Array[ScoreStep]:
 	return found
 
 
+## Scans the belt item in `slot` (the pointer on its sprite, its hover sent: headless runs never
+## move the mouse) and returns its scan popup's footer, one line each, then ends the scan.
+static func _popup_text(screen: ShiftScreen, slot: int) -> String:
+	var view: ItemView = screen._row_views[slot] as ItemView
+	var point: Vector2 = view.sprite().get_global_rect().get_center()
+	screen._scan.pointer = func() -> Vector2: return point
+	view.hovered.emit(view)
+	var text: String = "\n".join(screen._scan.popup().footer_texts())
+	screen._scan.clear()
+	return text
+
+
 ## Every line of the receipt, joined.
 static func _receipt_text(screen: ShiftScreen) -> String:
 	var texts: PackedStringArray = PackedStringArray()
@@ -455,10 +470,10 @@ static func _event_log() -> EventLogService:
 	return (Engine.get_main_loop() as SceneTree).root.get_node("/root/EventLog")
 
 
-## Big basket and Extra coupon slot make a 9-slot row: it is rebuilt with 9 slots and scaled to
-## the width the screen was laid out for, so every slot stays on the belt, apart, and clear of
-## the receipt (shift_screen_layout_test checks the rest of the stage). The usual 7-slot row is
-## never scaled.
+## Big basket and Extra coupon slot make a 9-slot row: it is rebuilt with 9 slots, closes the
+## gaps between its cells and is scaled to the width the screen was laid out for, so every slot
+## stays on the belt, never overlapping the one before it, and clear of the receipt
+## (shift_screen_layout_test checks the rest of the stage). The usual 7-slot row is never scaled.
 func test_a_nine_slot_row_fits_the_screen() -> void:
 	var runner: GdUnitSceneRunner = scene_runner(SCREEN)
 	var screen: ShiftScreen = runner.scene()
@@ -472,6 +487,9 @@ func test_a_nine_slot_row_fits_the_screen() -> void:
 		await await_idle_frame()
 	assert_int(screen._slots.size()).is_equal(9)
 	assert_float(screen._row_strip.box.scale.x).is_less(1.0)
+	assert_int(screen._row_strip.box.get_theme_constant("separation")).is_equal(
+		RowStrip.WIDE_SEPARATION
+	)
 	assert_str(screen._capacity_label.text).contains("Products 0/7").contains("Coupon slots 0/2")
 	var belt: Rect2 = (screen._row_strip.get_parent() as Control).get_global_rect()
 	var receipt: Rect2 = screen._receipt.get_global_rect()
@@ -480,6 +498,7 @@ func test_a_nine_slot_row_fits_the_screen() -> void:
 		var rect: Rect2 = screen._slots[slot].get_global_rect()
 		assert_bool(belt.encloses(rect)).override_failure_message(str(rect)).is_true()
 		assert_bool(rect.intersects(receipt)).override_failure_message(str(rect)).is_false()
+		# (Touching cells, give or take the scale's float rounding.)
 		if slot > 0:
-			assert_float(rect.position.x).is_greater_equal(previous.end.x)
+			assert_float(rect.position.x).is_greater_equal(previous.end.x - 0.01)
 		previous = rect

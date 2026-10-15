@@ -6,15 +6,37 @@ extends GdUnitTestSuite
 
 const PALETTE_FILE := "res://art/src/palette.txt"
 const PALETTE_SIZE := 40
-## Palette, then the boutique classes #55 adds to the real shift screen (BoutiqueBackdrop,
-## BeltPanel, RegisterCabinet, LedDisplay). A class is checked once its script exists, so each
-## step of the adoption is covered as it lands.
+## Palette and ArtStyle, then the boutique classes #55 adds to the real shift screen
+## (BoutiqueBackdrop, BeltPanel, RegisterCabinet, LedDisplay, PaperPile), the scan pieces #75
+## moves out of style frame v2 (PriceSticker, ScanPopup, ScanOverlay, EffectChip) and the items
+## and their cells (ItemView, PayoutPlaque, RowStrip), which take their colours from Palette:
+## style frame v2's palette check, kept for the screen that replaced it (#75, step 9). A class is
+## checked once its script exists, so each step of the adoption is covered as it lands.
 const SCRIPTS: Array[String] = [
 	"res://ui/palette.gd",
+	"res://presentation/art_style.gd",
 	"res://ui/boutique_backdrop.gd",
 	"res://ui/belt_panel.gd",
 	"res://ui/register_cabinet.gd",
 	"res://ui/led_display.gd",
+	"res://presentation/paper_pile.gd",
+	"res://ui/price_sticker.gd",
+	"res://ui/scan_popup.gd",
+	"res://ui/scan_overlay.gd",
+	"res://ui/effect_chip.gd",
+	"res://ui/item_view.gd",
+	"res://ui/payout_plaque.gd",
+	"res://ui/row_strip.gd",
+]
+## The scan pieces and the items name no colour of their own: every colour they draw is a
+## Palette constant.
+const PALETTE_ONLY: Array[String] = [
+	"res://ui/price_sticker.gd",
+	"res://ui/scan_popup.gd",
+	"res://ui/scan_overlay.gd",
+	"res://ui/effect_chip.gd",
+	"res://ui/item_view.gd",
+	"res://ui/payout_plaque.gd",
 ]
 
 var _folder: String = ""
@@ -59,6 +81,23 @@ func test_every_declared_colour_is_the_arts() -> void:
 				)
 	# Palette alone declares more than 20 colours.
 	assert_int(checked).is_greater(20)
+
+
+## The scan pieces and the items draw only Palette's colours: no Color constant, html colour or
+## Color.NAMED colour in their code.
+func test_the_scan_pieces_use_the_palette() -> void:
+	var literal: RegEx = RegEx.create_from_string('Color\\("|Color\\.[A-Z]')
+	for path: String in PALETTE_ONLY:
+		var script: Script = load(path) as Script
+		for constant: Variant in script.get_script_constant_map().values():
+			assert_bool(constant is Color).override_failure_message(path).is_false()
+		var found: RegExMatch = literal.search(script.source_code)
+		(
+			assert_object(found)
+			. override_failure_message("%s: %s" % [path, found.get_string() if found else ""])
+			. is_null()
+		)
+		assert_str(script.source_code).contains("Palette.")
 
 
 ## Palette's boutique constants are the art palette's named shades.

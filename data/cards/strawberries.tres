@@ -21,4 +21,6 @@ tags = PackedStringArray("Food", "Produce")
 base = 2
 rules = Array[ExtResource("1_rule")]([SubResource("Resource_strawberries")])
 rule_text = "+3 if beside a Produce product"
+sticker_text = "+{bonus} beside {match_value}"
 generally_useful = true
+art_ref = "res://art/items_v2/strawberries.png"

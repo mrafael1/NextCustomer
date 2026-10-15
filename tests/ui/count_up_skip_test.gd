@@ -317,10 +317,10 @@ func test_a_tap_after_the_count_up_does_nothing() -> void:
 	assert_bool(screen._count_up.dessert_skipped).is_false()
 
 
-## The count-up's receipt is the whole result's, line for line, ended by the dessert (the
-## verdict, the margin, PAID on a pass, the tear and the next shift's inspection notice when
-## there is one), every line fully shown once the last fades (which overlap the printer feed)
-## have ended.
+## The count-up's receipt is the whole result's, line for line, under the shift's header (#75,
+## the planning stub's), ended by the dessert (the verdict, the margin, PAID on a pass, the tear
+## and the next shift's inspection notice when there is one), every line fully shown once the
+## last fades (which overlap the printer feed) have ended.
 func _assert_full_receipt(screen: ShiftScreen) -> void:
 	await _lines_shown(screen._receipt)
 	var run: RunState = screen.run
@@ -329,8 +329,10 @@ func _assert_full_receipt(screen: ShiftScreen) -> void:
 		run.last_result,
 		ShiftScreen._names(run.row),
 		LoyaltyCard.names(run.upgrades),
-		InspectionTag.names(run.inspections)
+		InspectionTag.names(run.inspections),
+		screen.receipt_header()
 	)
+	assert_str(_lines(expected)[0]).is_equal(ReceiptView.HEADER_TEXT + " | ")
 	var notice: String = InspectionTag.next_notice(run.next_inspection)
 	expected.show_shift_end(run.last_result.total, run.quota(), notice)
 	assert_array(_lines(screen._receipt)).is_equal(_lines(expected))

@@ -19,3 +19,4 @@ tags = PackedStringArray("Household")
 base = 1
 rules = Array[ExtResource("1_rule")]([SubResource("Resource_birthday_candles")])
 rule_text = "+3 to the next Bakery product"
+sticker_text = "+{bonus} next {tag}"

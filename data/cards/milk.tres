@@ -19,5 +19,6 @@ tags = PackedStringArray("Food", "Breakfast", "Dairy")
 base = 4
 rules = Array[ExtResource("1_ivcki")]([SubResource("Resource_8j62u")])
 rule_text = "+1 for each earlier Breakfast product"
+sticker_text = "+{bonus_each} per earlier {tag}"
 generally_useful = true
-art_ref = "res://art/items/milk.png"
+art_ref = "res://art/items_v2/milk.png"

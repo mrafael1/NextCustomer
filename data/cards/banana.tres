@@ -20,4 +20,6 @@ tags = PackedStringArray("Food", "Produce")
 base = 2
 rules = Array[ExtResource("1_h6p8l")]([SubResource("Resource_5sgdl")])
 rule_text = "+ its base value (+2) as a flat bonus if immediately after another Banana"
+sticker_text = "+{base} after {name}"
 generally_useful = true
+art_ref = "res://art/items_v2/banana.png"

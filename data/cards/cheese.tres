@@ -21,3 +21,5 @@ tags = PackedStringArray("Food", "Dairy")
 base = 3
 rules = Array[ExtResource("1_jvkti")]([SubResource("Resource_2sfbs")])
 rule_text = "+4 if immediately after Bread"
+sticker_text = "+{bonus} after Bread"
+art_ref = "res://art/items_v2/cheese.png"

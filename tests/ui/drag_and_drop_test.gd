@@ -30,17 +30,23 @@ func test_dragging_a_hand_card_onto_a_slot_places_it() -> void:
 	var card: CardInstance = _add(screen, "bread")
 	_press_hand_card(screen, card)
 	_move(screen, _slot_center(screen, 3))
-	# The ghost follows the mouse, the slot where the card would land lights up (the row is
-	# compacted: slot 3 of an empty row means slot 0) and the card itself fades.
+	# The ghost (the item's sprite) follows the mouse, centred on it, the slot where the item
+	# would land lights up (the row is compacted: slot 3 of an empty row means slot 0) and the
+	# item's own sprite fades in the hand, its sticker still readable.
 	assert_bool(screen._drag.is_dragging()).is_true()
-	var ghost: CardView = screen._drag._ghost
+	var ghost: ItemView = screen._drag._ghost
 	assert_object(ghost).is_not_null()
-	var ghost_center: Vector2 = ghost.position + ArtCardView.SIZE / 2.0
+	assert_int(ghost.form).is_equal(ItemView.Form.GHOST)
+	var ghost_center: Vector2 = ghost.position + ItemView.SPRITE_SIZE / 2.0
 	assert_vector(ghost_center).is_equal_approx(_slot_center(screen, 3), Vector2(1, 1))
+	assert_float(ghost.body.modulate.a).is_equal_approx(0.92, 0.001)
 	assert_int(screen._drag.hovered_slot()).is_equal(0)
 	assert_bool(RowStrip.is_hovered(screen._slots[0])).is_true()
 	assert_bool(RowStrip.is_hovered(screen._slots[3])).is_false()
-	assert_float(_view_for(screen, card).body.modulate.a).is_less(0.5)
+	var source: ItemView = _view_for(screen, card) as ItemView
+	assert_object(source).is_not_null()
+	assert_float(source.body.modulate.a).is_less(0.5)
+	assert_float(source.sticker().modulate.a).is_equal(1.0)
 	_release(screen, _slot_center(screen, 3))
 	# The row is compacted: a drop past the end places the card at the end, like a click.
 	assert_array(screen.run.row).is_equal([card])
@@ -199,11 +205,14 @@ func test_the_highlight_shows_the_landing_slot() -> void:
 	_press_hand_card(screen, card)
 	_move(screen, _slot_center(screen, 1))
 	assert_int(screen._drag.hovered_slot()).is_equal(1)
-	var pushed: CardView = screen._row_views[1]
-	assert_bool(pushed.body.self_modulate == CardDrag.PUSH_TINT).is_true()
+	# The belt item's sprite takes the tint: its `body` draws nothing, so tinting that would
+	# show nothing.
+	var pushed: ItemView = screen._row_views[1] as ItemView
+	assert_object(pushed).is_not_null()
+	assert_bool(pushed.sprite().self_modulate == CardDrag.PUSH_TINT).is_true()
 	_move(screen, _slot_center(screen, 5))
 	assert_int(screen._drag.hovered_slot()).is_equal(2)
-	assert_bool(pushed.body.self_modulate == Color.WHITE).is_true()
+	assert_bool(pushed.sprite().self_modulate == Color.WHITE).is_true()
 	assert_bool(RowStrip.is_hovered(screen._slots[2])).is_true()
 	_release(screen, _slot_center(screen, 5))
 	assert_object(screen.run.row[2]).is_same(card)

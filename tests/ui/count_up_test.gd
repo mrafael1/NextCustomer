@@ -168,8 +168,8 @@ func test_reduced_motion_shakes_nothing_and_keeps_the_receipt() -> void:
 		var tokens: EffectTokens = screen._count_up._tokens
 		for marker: EffectMarker in tokens.markers.values():
 			var off: float = marker.global_position.distance_to(marker.parked_position())
-			# Following its card, at most a frame behind its lift (a flight starts a card away).
-			if not marker.following or off > absf(CountUpMotion.SCAN_LIFT) + 2.0:
+			# Following its item, at most a frame behind its lift (a flight starts an item away).
+			if not marker.following or off > ItemView.LIFT + 2.0:
 				moved.append("a marker flew (%s px off)" % off)
 	await _count_up_end(screen)
 	assert_int(frames).is_greater(30)
@@ -240,9 +240,9 @@ func test_the_chip_comes_with_the_total_on_a_last_payout_crossing_and_never_on_a
 	await _assert_receipt_of(screen, result, 111)
 
 
-## The value badge is the brass payout plaque (#55, D2a): a denied card (the Spot check's €0)
-## shows its muted face, the others their brass face, and after every scan's lift and drop each
-## badge is back at the plaque's rest y.
+## The value badge is the item's brass payout plaque (#55, D2a; #75): a denied item (the Spot
+## check's €0) shows its muted face, the others their brass face, and after every scan's lift
+## and drop each badge is back at the plaque's rest y, on its mat's top rim.
 func test_a_denied_card_shows_the_muted_plaque_and_every_badge_rests() -> void:
 	var screen: ShiftScreen = await _screen()
 	await _full_row(screen)
@@ -259,10 +259,11 @@ func test_a_denied_card_shows_the_muted_plaque_and_every_badge_rests() -> void:
 	await _played(screen)
 	await _frames(30)
 	for slot: int in range(screen._row_views.size()):
-		var view: ArtCardView = screen._row_views[slot] as ArtCardView
+		var view: ItemView = screen._row_views[slot] as ItemView
 		assert_object(view).is_not_null()
-		assert_str(view.badge.text).is_equal(ArtCardView.plaque_text(result.payouts[slot]))
-		assert_bool(view.is_badge_muted()).override_failure_message(str(slot)).is_equal(
+		var plaque: PayoutPlaque = view.badge as PayoutPlaque
+		assert_str(plaque.text).is_equal(PayoutPlaque.text_for(result.payouts[slot]))
+		assert_bool(plaque.is_muted()).override_failure_message(str(slot)).is_equal(
 			slot in denied or result.payouts[slot] == 0
 		)
 		assert_float(view.badge.position.y).override_failure_message(str(slot)).is_equal(
@@ -772,7 +773,7 @@ func _assert_chip(screen: ShiftScreen, met: bool) -> void:
 
 
 ## Plays `result` on the screen's row against `quota`, tapped twice (the count and the dessert
-## at skip speed), as a shift-1 count-up.
+## at skip speed), as a shift-1 count-up under the screen's receipt header.
 func _play_tapped(screen: ShiftScreen, result: ScoreResult, quota: int) -> void:
 	var count_up: CountUp = screen._count_up
 	count_up.play(
@@ -780,7 +781,7 @@ func _play_tapped(screen: ShiftScreen, result: ScoreResult, quota: int) -> void:
 		screen._row_views,
 		ShiftScreen._names(screen.run.row),
 		quota,
-		CountUpContext.new(1, 0),
+		CountUpContext.new(1, 0, 1.0, false, screen.receipt_header()),
 		screen._loyalty_card.stamped_boxes(),
 		LoyaltyCard.names(screen.run.upgrades),
 		screen._inspection_tag.sources(screen.run.inspections),
@@ -801,9 +802,10 @@ func _assert_full_receipt(screen: ShiftScreen) -> void:
 	await _assert_receipt_of(screen, run.last_result, run.quota(), notice)
 
 
-## The count-up's receipt is `result`'s, line for line, ended by the dessert against `quota`
-## (with `notice` under the tear when there is one), every line fully shown (once the last
-## fades, which overlap the printer feed, have ended) and unrotated.
+## The count-up's receipt is `result`'s, line for line, under the shift's header (#75, the
+## planning stub's), ended by the dessert against `quota` (with `notice` under the tear when
+## there is one), every line fully shown (once the last fades, which overlap the printer feed,
+## have ended) and unrotated.
 func _assert_receipt_of(
 	screen: ShiftScreen, result: ScoreResult, quota: int, notice: String = ""
 ) -> void:
@@ -814,8 +816,10 @@ func _assert_receipt_of(
 		result,
 		ShiftScreen._names(run.row),
 		LoyaltyCard.names(run.upgrades),
-		InspectionTag.names(run.inspections)
+		InspectionTag.names(run.inspections),
+		screen.receipt_header()
 	)
+	assert_str(_lines(expected)[0]).is_equal(ReceiptView.HEADER_TEXT + " | ")
 	expected.show_shift_end(result.total, quota, notice)
 	assert_array(_lines(screen._receipt)).is_equal(_lines(expected))
 	for line: Node in screen._receipt._lines.get_children():

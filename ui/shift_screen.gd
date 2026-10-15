@@ -22,7 +22,8 @@ extends Control
 ##
 ## Sounds (#62) play on the screen's own Sfx, warmed up when it opens: cards picked up, placed
 ## and let go, refusals, the redraw, CHECKOUT, a reward or ticket taken and the log export here;
-## buttons and panels in UiKit, drag slot ticks in CardDrag, music in ShiftMusic; none on hover.
+## buttons and panels in UiKit, drag slot ticks in CardDrag, music in ShiftMusic. The only hover
+## sound is the scanner's beep (#75, ScanController), which scans the hovered item.
 
 const STARTER_DECK := "res://data/decks/starter.tres"
 const BALANCE := "res://data/balance/balance.tres"
@@ -101,6 +102,10 @@ var _count_up: CountUp
 var _sfx: Sfx
 var _debug: ShiftDebug
 var _focus: FocusWatch
+## The hover scanner (#75): the scan popup and the posed scanner over the hovered item.
+var _scan: ScanController
+## The belt items' effect chips (#75): all of them in planning, one by one in the count-up.
+var _belt_chips: BeltChips = BeltChips.new()
 ## The EventLog autoload, typed. Fetched from the tree because standalone script checks
 ## don't know autoload names.
 @onready var _log: EventLogService = get_node("/root/EventLog")
@@ -169,6 +174,11 @@ func debug_show_shift() -> void:
 	_on_shift_started()
 
 
+## Development tools only (the screen capture's --scan): ScanController.debug_scan.
+func debug_scan(card: CardInstance) -> bool:
+	return _scan.debug_scan(card)
+
+
 ## After the impulse rack: logs run_start (with the rack's offer, pick and times, {} for none)
 ## and starts shift 1.
 func _start_first_shift(impulse_timing: Dictionary, deck_viewed: bool) -> void:
@@ -216,7 +226,7 @@ func _resume_run(saved: RunSave) -> void:
 	# After the checkout: the row, its receipt (ended as the dessert left it, with the next
 	# shift's inspection notice), the LED's TOTAL, the quota chip and the paper pile as the
 	# count-up left them (the TOTAL key up: nothing is being counted).
-	_show_score(run.last_result)
+	_show_checked_out(run.last_result)
 	_receipt.show_shift_end(
 		run.last_result.total, run.quota(), InspectionTag.next_notice(run.next_inspection)
 	)
@@ -239,6 +249,7 @@ func _save_run() -> void:
 func _close_overlays() -> void:
 	_notice_label.clear_notice()
 	_drag.cancel()
+	_scan.clear()
 	_picked = null
 	_picked_from_row = false
 	_redraw_mode = false
@@ -397,8 +408,11 @@ func _on_checkout_pressed() -> void:
 		return
 	_sfx.play("checkout")
 	_counting = true
-	# The TOTAL key stays down while the shift is counted, to the dessert's end.
+	# The TOTAL key stays down while the shift is counted, to the dessert's end, and the hand
+	# fades so the belt reads first.
 	_cabinet.set_total_down(true)
+	_stage.dim_hand(true)
+	_scan.clear()
 	_drop_pick()
 	_notice_label.clear_notice()
 	_drag.cancel()
@@ -432,6 +446,15 @@ func _on_checkout_pressed() -> void:
 		_save_run()
 	_refresh()
 	var context: CountUpContext = count_up_context()
+	# The chips leave with the click and come back as their steps land (CountUp.step_landed).
+	_belt_chips.begin_count(
+		result,
+		_row_views,
+		_names(committed),
+		LoyaltyCard.names(run.upgrades),
+		InspectionTag.names(run.inspections),
+		context.reduced_motion
+	)
 	await _count_up.play(
 		result,
 		_row_views,
@@ -460,6 +483,7 @@ func _on_checkout_pressed() -> void:
 	_log.log_event("count_up", counted)
 	_counting = false
 	_cabinet.set_total_down(false)
+	_stage.dim_hand(false)
 	if run.phase == RunState.Phase.REWARD:
 		_show_rewards()
 	else:
@@ -467,16 +491,23 @@ func _on_checkout_pressed() -> void:
 
 
 ## What the count-up knows about the run (#60, D3): the shift, the best checkout of the run's
-## earlier shifts, and the player's speed and reduced motion settings. Called after
-## RunState.checkout(), which has already added the shift being counted to the history: its
-## record (the last) is left out.
+## earlier shifts, the player's speed and reduced motion settings, and the receipt's header.
+## Called after RunState.checkout(), which has already added the shift being counted to the
+## history: its record (the last) is left out.
 func count_up_context() -> CountUpContext:
 	return CountUpContext.new(
 		run.shift_index + 1,
 		best_earlier_total(run.history),
 		profile.count_up_speed(),
-		profile.reduced_motion()
+		profile.reduced_motion(),
+		receipt_header()
 	)
+
+
+## The receipt's header for the shift on screen (#75): the shift, and the belt's items with its
+## coupons. The planning stub, the count-up and a resumed checkout all print it.
+func receipt_header() -> PackedStringArray:
+	return ReceiptView.header_lines(run.shift_index + 1, run.shift_count(), run.row.size())
 
 
 ## The best total of every shift record but the last (the shift being counted), 0 for none.
@@ -511,12 +542,7 @@ func _show_impulse_rack() -> void:
 	_count_up.show_pile_for_shift(1)
 	_deck_viewed_for_reward = false
 	_pending_reward = null
-	_reward_panel.show_offer(
-		run.impulse_offer,
-		"Impulse rack: grab one before shift 1?",
-		run.deck.size(),
-		run.balance.deck_limit
-	)
+	_reward_panel.show_rack(run)
 	_save_run()
 
 
@@ -556,7 +582,7 @@ func _finish_impulse(card: CardDefinition, replaced: CardInstance) -> void:
 
 
 ## The reward print-out (#61), beside the receipt; the register column stays unshaded. It shows
-## at the dessert's printer feed (the music comes back there), its cards lifting at the player's
+## at the dessert's printer feed (the music comes back there), its items lifting at the player's
 ## speed setting, skipped with the dessert; `resumed` shows them already lifted.
 func _show_rewards(resumed: bool = false) -> void:
 	ShiftMusic.rewards_shown(_music)
@@ -578,7 +604,7 @@ func _on_reward_picked(card: CardDefinition) -> void:
 	_deck_view.open(
 		run,
 		(
-			"Deck full (%d/%d): choose a card to remove for %s"
+			"Deck full (%d/%d): choose an item to remove for %s"
 			% [run.deck.size(), run.balance.deck_limit, card.display_name]
 		),
 		true
@@ -738,6 +764,7 @@ func _refresh() -> void:
 	_refresh_buttons()
 	if not _counting and run.phase == RunState.Phase.PLANNING:
 		_refresh_preview()
+	_scan.watch(_row_views, _hand_box.cards())
 
 
 ## " (inspection -1)" when the shift's inspection closed slots, " (closed)" when none are left.
@@ -747,7 +774,8 @@ static func _closed_text(closed: int, left: int) -> String:
 	return "  (closed)" if left == 0 else "  (inspection −%d)" % closed
 
 
-## One slot per card the shift allows (upgrades can add slots), then the row's cards.
+## One slot per card the shift allows (upgrades can add slots), then the row's cards, standing
+## on their mats as belt items (RowStrip.show_cards).
 func _refresh_row() -> void:
 	var closed: int = run.limits.closed_slots + run.limits.closed_coupon_slots
 	var reason: String = (
@@ -765,7 +793,9 @@ func _refresh_row() -> void:
 func _refresh_hand() -> void:
 	_hand_box.clear()
 	for card: CardInstance in run.hand():
-		var view: ArtCardView = ArtCardView.new(card, run.balance.aisle_of(card.definition))
+		var view: ItemView = ItemView.new(
+			card, run.balance.aisle_of(card.definition), ItemView.Form.TRAY
+		)
 		view.clicked.connect(_on_hand_card_clicked)
 		if _redraw_mode and _redraw_pick.has(card):
 			view.set_highlight(CardView.Highlight.REDRAW)
@@ -796,7 +826,7 @@ func _refresh_buttons() -> void:
 func _refresh_preview() -> void:
 	var result: ScoreResult = run.preview()
 	tracker.on_preview(run.row.size(), result.total)
-	_show_score(result)
+	_show_planning(result)
 	_show_projected(result.total)
 
 
@@ -806,14 +836,29 @@ func _show_projected(total: int) -> void:
 	_led.show_projected(total, run.quota())
 
 
-## The row's receipt and value badges for a result: the preview, or a resumed checkout's.
-func _show_score(result: ScoreResult) -> void:
-	_receipt.show_result(
-		result,
-		_names(run.row),
-		LoyaltyCard.names(run.upgrades),
-		InspectionTag.names(run.inspections)
-	)
+## The preview (#75, decision 1A): the receipt's stub (the header, PROJECTED and how many
+## fizzles the items show), and the belt's plaques, tags and chips (_show_belt).
+func _show_planning(result: ScoreResult) -> void:
+	_receipt.show_stub(receipt_header(), result.total, ReceiptView.fizzle_count(result))
+	_show_belt(result)
+
+
+## A resumed checkout's: the whole receipt as the count-up printed it, under the same header, and
+## the belt as the count-up left it.
+func _show_checked_out(result: ScoreResult) -> void:
+	var upgrade_names: PackedStringArray = LoyaltyCard.names(run.upgrades)
+	var inspection_names: PackedStringArray = InspectionTag.names(run.inspections)
+	var names: PackedStringArray = _names(run.row)
+	_receipt.show_result(result, names, upgrade_names, inspection_names, receipt_header())
+	_show_belt(result)
+
+
+## The belt's value badges, tags and effect chips for a result, and the result its scans read.
+func _show_belt(result: ScoreResult) -> void:
+	var upgrade_names: PackedStringArray = LoyaltyCard.names(run.upgrades)
+	var inspection_names: PackedStringArray = InspectionTag.names(run.inspections)
+	_scan.set_result(result, _names(run.row), upgrade_names, inspection_names)
+	_belt_chips.show_all(result, _row_views, _names(run.row), upgrade_names, inspection_names)
 	for slot: int in range(_row_views.size()):
 		_row_views[slot].show_badge(result.payouts[slot], false)
 		_row_views[slot].set_tags(result.tags[slot])
@@ -893,10 +938,18 @@ func _build() -> void:
 	add_child(_count_up)
 	_count_up.setup(_overlay, _receipt, _led, _sfx, _register, _paper_pile)
 	_count_up.music = _music
+	_count_up.scan_overlay = _stage.scan_layer
+	_count_up.step_landed.connect(_belt_chips.land)
 	_drag = CardDrag.new()
 	add_child(_drag)
 	_drag.setup(_overlay, _slots, _hand_box, _landing_slot)
 	_drag.released.connect(_on_card_released)
+	_scan = ScanController.new()
+	add_child(_scan)
+	_scan.setup(_stage)
+	_scan.blocked = _scan_blocked
+	_scan.reduced_motion = func() -> bool: return profile.reduced_motion()
+	_focus.player_left.connect(_scan.clear)
 
 	_shade = ColorRect.new()
 	_shade.color = Color(0, 0, 0, 0.5)
@@ -912,6 +965,7 @@ func _build() -> void:
 	_reward_panel.picked.connect(_on_reward_picked)
 	_reward_panel.skipped.connect(_on_reward_skipped)
 	_reward_panel.deck_requested.connect(_on_reward_deck_requested)
+	_scan.cover_offers(_reward_panel)
 	_upgrade_panel = UpgradePanel.new()
 	add_child(_upgrade_panel)
 	_upgrade_panel.picked.connect(_on_upgrade_picked)
@@ -924,6 +978,14 @@ func _build() -> void:
 	add_child(_deck_view)
 	_deck_view.card_chosen.connect(_on_deck_card_chosen)
 	_deck_view.closed.connect(_on_deck_closed)
+
+
+## Scanning the counter's items is off while the shift is counted, an item is dragged, outside
+## planning (an offer, the upgrade tickets or the results are up) and while the deck view is
+## open. The offers' items are scanned while their panel accepts clicks (RewardPanel.can_scan).
+func _scan_blocked() -> bool:
+	var planning: bool = run != null and run.phase == RunState.Phase.PLANNING
+	return _counting or _drag.is_dragging() or not planning or _deck_view.visible
 
 
 func _on_closed_slot_clicked() -> void:

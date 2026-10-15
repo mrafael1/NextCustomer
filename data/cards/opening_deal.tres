@@ -17,3 +17,4 @@ kind = 2
 tags = PackedStringArray()
 rules = Array[ExtResource("1_rule")]([SubResource("Resource_opening_deal")])
 rule_text = "If in the first slot: the next product pays ×5"
+sticker_text = "1st slot: next ×{factor}"

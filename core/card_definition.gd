@@ -19,6 +19,11 @@ enum Kind { UNSET, PRODUCT, COUPON }
 @export var rules: Array[Rule] = []
 ## Rule text shown on the placeholder card.
 @export_multiline var rule_text: String = ""
+## The price sticker's summary template (#75): at most 2 short lines, digit-free, its numbers and
+## names written as keys the card's data fills in, e.g. "+{bonus} beside {match_value}". Empty
+## for a card with no rule (the sticker shows only the price) and for a variant that keeps its
+## base card's. The keys are CardText.STICKER_KEYS; sticker_summary() formats it.
+@export var sticker_text: String = ""
 ## Reward offers include at least one card with this flag (plan section 5).
 @export var generally_useful: bool = false
 @export var art_ref: String = ""
@@ -45,6 +50,12 @@ func product_card() -> CardDefinition:
 
 func is_same_product(other: CardDefinition) -> bool:
 	return other != null and product_card().id == other.product_card().id
+
+
+## The price sticker's summary: `sticker_text` (or a variant's base card's) with its numbers
+## and names filled in from this card's data (CardText).
+func sticker_summary() -> String:
+	return CardText.sticker_summary(self)
 
 
 ## Why this card can't be a variant as data, or an empty list (checked by a data test): a

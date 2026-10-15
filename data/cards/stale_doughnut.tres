@@ -18,3 +18,4 @@ tags = PackedStringArray("Food", "Bakery", "Clearance")
 base = 1
 rules = Array[ExtResource("1_rule")]([SubResource("Resource_stale_doughnut")])
 rule_text = "+3 if in the last slot"
+sticker_text = "+{bonus} in last slot"

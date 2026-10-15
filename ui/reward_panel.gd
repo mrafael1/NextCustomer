@@ -1,26 +1,33 @@
 class_name RewardPanel
 extends PanelContainer
-## The reward choice after a passed shift (plan section 2): pick 1 of the offered cards for
+## The reward choice after a passed shift (plan section 2): pick 1 of the offered items for
 ## the deck, or skip. It only shows the offer and reports the choice; RunState applies it. When
-## the next shift is inspected, its notice shows in red above the cards (plan section 3.9), so
+## the next shift is inspected, its notice shows in red above the items (plan section 3.9), so
 ## the pick can take it into account.
 ##
-## Two ways in. The impulse rack pops in (show_offer) and arms ARM_MS after it appeared, once the
-## mouse is up. A passed shift's reward is the dessert's print-out (show_printout, #61; full
-## build plan 6.2): it appears at the printer feed beside the receipt, on the shift screen's
-## stage (#55: wherever the stage sits in the window), without the repeated headline, and its
-## cards lift out of the printer into full cards over the tuning's printout_lift_ms (under
-## reduced motion they fade in in place). It arms as soon as the lift has
-## ended and the mouse is up, so the tap that skipped the dessert never picks a card. A tap during
-## the lift (its own PressReader) skips it at CountUp.DESSERT_SKIP, like a dessert skipped
-## earlier; either sets the timeline's presentation_skipped. Shown again after the deck view or
-## the deck-full chooser, the panel never replays its presentation. On the print-out, products
-## are promo products (stocked products on special offer, full build plan 7.2): a cosmetic PROMO
-## sticker on their corner says so (#56 moves it onto ArtCardView).
+## The offer shows as items (#75, decision 4A): each card is a tray ItemView, its sprite over its
+## price sticker (with its aisle's glyph once show_rack or print_offer gave it the run), and the
+## shift screen's hover scanner reads them like the hand's (ScanController.cover_offers) once
+## the panel accepts clicks (can_scan).
+##
+## Two ways in. The impulse rack pops in (show_offer, show_rack) and arms ARM_MS after it
+## appeared, once the mouse is up. A passed shift's reward is the dessert's print-out
+## (show_printout, #61; full build plan 6.2): it appears at the printer feed beside the receipt,
+## on the shift screen's stage (#55: wherever the stage sits in the window), without the repeated
+## headline, and its items lift out of the printer over the tuning's printout_lift_ms (under
+## reduced motion they fade in in place). It arms as soon as the lift has ended and the mouse is
+## up, so the tap that skipped the dessert never picks an item. A tap during the lift (its own
+## PressReader) skips it at CountUp.DESSERT_SKIP, like a dessert skipped earlier; either sets the
+## timeline's presentation_skipped. Shown again after the deck view or the deck-full chooser, the
+## panel never replays its presentation. On the print-out, products are promo products (stocked
+## products on special offer, full build plan 7.2): a cosmetic PROMO tag on their price sticker
+## says so.
 
 signal picked(card: CardDefinition)
 signal skipped
 signal deck_requested
+## The offer's items were built (show_offer or show_printout): the scanner watches them.
+signal items_shown
 
 ## How a print-out's cards come in (show_printout): they lift at the player's speed, lift at
 ## CountUp.DESSERT_SKIP (the dessert was skipped: presentation_skipped), or show in place at
@@ -35,9 +42,19 @@ const PRINTOUT_START_SCALE := 0.6
 ## The print-out's gap to the receipt it sits beside, and the top bar it stays below.
 const PRINTOUT_GAP := 24.0
 const PRINTOUT_TOP := 64.0
-## The PROMO sticker on a print-out product's top-right corner, tilted.
+## The impulse rack's headline (show_rack).
+const RACK_HEADLINE := "Impulse rack: grab one before shift 1?"
+## The PROMO tag on a print-out product's price sticker (sticker coordinates): over the sticker's
+## glyph corner, as a redraw mark is (ItemView.REDRAW_RECT), clear of the base value and the
+## summary even tilted by PROMO_TILT_DEG.
 const PROMO_TEXT := "PROMO"
+const PROMO_RECT := Rect2(52, 4, 52, 20)
 const PROMO_TILT_DEG := 8.0
+const PROMO_SIZE := 12
+## The tag's text inside its face, in canvas pixels.
+const PROMO_PADDING := 3
+## The gap between the offered items.
+const ITEM_GAP := 22
 
 ## The offer's presentation timeline (presented_ms, armed_ms, decide_ms, presentation_skipped;
 ## plan section 8), started by show_offer (the pop-in) or show_printout (the printer feed) and
@@ -47,8 +64,9 @@ var _tuning: CountUpTuning
 var _headline: Label
 var _note: Label
 var _warning: Label
+## The offered items, in a row.
 var _cards: HBoxContainer
-## Holds the cards' place in the column while they lift (the cards are free inside it).
+## Holds the items' place in the column while they lift (the items are free inside it).
 var _cards_holder: Control
 var _deck_button: Button
 var _skip_button: Button
@@ -65,6 +83,8 @@ var _stage: Control
 ## The print-out's lift, until it has ended (null for a pop-in or once lifted).
 var _lift: Tween
 var _reader: PressReader
+## The run's balance (show_rack, print_offer): the offered products' aisles, for their glyphs.
+var _balance: BalanceDefinition
 
 
 func _init(tuning: CountUpTuning = null) -> void:
@@ -82,7 +102,7 @@ func _init(tuning: CountUpTuning = null) -> void:
 	_headline = UiKit.label("", 28, Palette.INK)
 	_headline.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	column.add_child(_headline)
-	_note = UiKit.label("Pick a card for your deck, or skip.", 16, Palette.MUTED_INK)
+	_note = UiKit.label("Pick an item for your deck, or skip.", 16, Palette.MUTED_INK)
 	_note.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	column.add_child(_note)
 	_warning = UiKit.label("", 18, Palette.TOMATO)
@@ -95,8 +115,8 @@ func _init(tuning: CountUpTuning = null) -> void:
 	column.add_child(_cards_holder)
 	_cards = HBoxContainer.new()
 	_cards.alignment = BoxContainer.ALIGNMENT_CENTER
-	_cards.add_theme_constant_override("separation", 22)
-	_cards.custom_minimum_size = Vector2(0, CardView.CARD_SIZE.y + 20)
+	_cards.add_theme_constant_override("separation", ITEM_GAP)
+	_cards.custom_minimum_size = Vector2(0, ItemView.TRAY_SIZE.y)
 	_cards_holder.add_child(_cards)
 	var buttons: HBoxContainer = HBoxContainer.new()
 	buttons.alignment = BoxContainer.ALIGNMENT_CENTER
@@ -151,9 +171,15 @@ func show_offer(
 	timeline.presented_when(UiKit.pop_in(self))
 
 
+## `run`'s impulse rack (full build plan section 3), before shift 1.
+func show_rack(run: RunState) -> void:
+	_balance = run.balance
+	show_offer(run.impulse_offer, RACK_HEADLINE, run.deck.size(), run.balance.deck_limit)
+
+
 ## A passed shift's reward, printed at the printer feed (`feed_ms`, Time.get_ticks_msec(): the
 ## timeline starts there) and centred in the room on `stage` left of `beside` (the receipt). Its
-## cards come in as `lift` says: over printout_lift_ms at `speed` (the player's speed setting),
+## items come in as `lift` says: over printout_lift_ms at `speed` (the player's speed setting),
 ## at CountUp.DESSERT_SKIP (then presentation_skipped), or in place at once; under
 ## `reduced_motion` they fade in in place.
 func show_printout(
@@ -181,9 +207,9 @@ func show_printout(
 	timeline = OfferTimeline.new(feed_ms)
 	timeline.presentation_skipped = lift == Lift.SKIPPED
 	_set_armed(false)
-	for view: Node in _cards.get_children():
-		if (view as CardView).card.definition.is_product():
-			_add_promo_sticker(view as CardView)
+	for view: ItemView in items():
+		if view.card.definition.is_product():
+			_add_promo_sticker(view)
 	_place_cards()
 	if lift == Lift.NONE:
 		timeline.mark_presented(Time.get_ticks_msec())
@@ -212,6 +238,7 @@ func print_offer(
 	var plan: CountUpPlan = count_up.plan
 	var feed_ms: int = count_up.printer_feed_ms
 	var lift: Lift = Lift.SKIPPED if count_up.dessert_skipped else Lift.NORMAL
+	_balance = run.balance
 	show_printout(
 		run.offer,
 		run.deck.size(),
@@ -238,28 +265,32 @@ static func printout_area(receipt: Rect2, stage: Rect2) -> Rect2:
 	)
 
 
-## The PROMO sticker on `view`'s top-right corner (for tests: promo_sticker()).
-static func _add_promo_sticker(view: CardView) -> void:
-	var sticker: Label = UiKit.label(PROMO_TEXT, 12, Palette.PAPER)
+## The PROMO tag on `view`'s price sticker, at PROMO_RECT (for tests: promo_sticker()).
+static func _add_promo_sticker(view: ItemView) -> void:
+	var sticker: Label = UiKit.label(PROMO_TEXT, PROMO_SIZE, Palette.PAPER)
 	sticker.name = PROMO_TEXT
+	sticker.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	sticker.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	var style: StyleBoxFlat = StyleBoxFlat.new()
 	style.bg_color = Palette.TOMATO
 	style.set_corner_radius_all(3)
-	style.set_content_margin_all(3)
+	style.set_content_margin_all(0)
+	style.content_margin_left = PROMO_PADDING
+	style.content_margin_right = PROMO_PADDING
 	sticker.add_theme_stylebox_override("normal", style)
 	view.add_child(sticker)
-	sticker.size = sticker.get_minimum_size()
-	sticker.position = Vector2(CardView.CARD_SIZE.x - sticker.size.x + 4.0, -6.0)
-	sticker.pivot_offset = sticker.size / 2.0
+	sticker.position = view.sticker().position + PROMO_RECT.position
+	sticker.size = PROMO_RECT.size
+	sticker.pivot_offset = PROMO_RECT.size / 2.0
 	sticker.rotation = deg_to_rad(PROMO_TILT_DEG)
 
 
-## A card view's PROMO sticker, or null.
+## An offered item's PROMO tag, or null.
 static func promo_sticker(view: CardView) -> Label:
 	return view.get_node_or_null(PROMO_TEXT) as Label
 
 
-## Centred in the room on the stage left of the receipt (the cards lift inside the panel, which
+## Centred in the room on the stage left of the receipt (the items lift inside the panel, which
 ## stays put).
 func _place_beside() -> void:
 	if not is_instance_valid(_beside) or not is_instance_valid(_stage):
@@ -268,7 +299,7 @@ func _place_beside() -> void:
 	global_position = (area.get_center() - size / 2.0).round()
 
 
-## The print-out's cards are still lifting.
+## The print-out's items are still lifting.
 func is_lifting() -> bool:
 	return _lift != null
 
@@ -278,7 +309,7 @@ func is_printout() -> bool:
 	return visible and _printout
 
 
-## A tap during the lift skips it: the cards finish lifting at CountUp.DESSERT_SKIP.
+## A tap during the lift skips it: the items finish lifting at CountUp.DESSERT_SKIP.
 func skip_printout() -> void:
 	if not is_lifting():
 		return
@@ -292,7 +323,7 @@ func _on_lifted() -> void:
 	_place_cards()
 
 
-## The cards fill their holder (centred in the column, as wide as they are), at rest.
+## The items fill their holder (centred in the column, as wide as they are), at rest.
 func _place_cards() -> void:
 	_cards.size = _cards.get_combined_minimum_size()
 	_cards_holder.custom_minimum_size = _cards.size
@@ -315,18 +346,34 @@ func _fill(
 	_warning.visible = not warning.is_empty()
 	var full: bool = deck_size >= deck_limit
 	_note.text = (
-		"Your deck is full: picking a card means removing one."
+		"Your deck is full: picking an item means removing one."
 		if full
-		else "Pick a card for your deck, or skip."
+		else "Pick an item for your deck, or skip."
 	)
 	_deck_button.text = "View deck (%d/%d)" % [deck_size, deck_limit]
 	for child: Node in _cards.get_children():
 		_cards.remove_child(child)
 		child.queue_free()
 	for card: CardDefinition in offer:
-		var view: CardView = CardView.new(CardInstance.new(card, 0))
+		var aisle: AisleDefinition = _balance.aisle_of(card) if _balance != null else null
+		var view: ItemView = ItemView.new(CardInstance.new(card, 0), aisle, ItemView.Form.TRAY)
 		view.clicked.connect(_on_card_clicked)
 		_cards.add_child(view)
+	items_shown.emit()
+
+
+## The offered items, in order.
+func items() -> Array[ItemView]:
+	var views: Array[ItemView] = []
+	for child: Node in _cards.get_children():
+		views.append(child as ItemView)
+	return views
+
+
+## Whether the scanner may read the offered items: the panel is shown and accepts clicks (not
+## while it pops in or its items lift).
+func can_scan() -> bool:
+	return is_visible_in_tree() and _armed and not is_lifting()
 
 
 ## Shown but not yet accepting clicks (the top bar's Deck waits for it too).

@@ -2,8 +2,9 @@ class_name CardDrag
 extends Node
 ## Drag-and-drop on top of click-to-place (full build plan section 3, phase 1). A press on a
 ## card still picks it up exactly as a click does; the shift screen then arms this node. Moving
-## past DRAG_THRESHOLD with the button held turns the pick into a drag: a ghost of the card
-## follows the mouse and the slot where it would land lights up. Releasing reports the slot under
+## past DRAG_THRESHOLD with the button held turns the pick into a drag: a ghost of the item (its
+## sprite alone, ItemView.Form.GHOST) follows the mouse, centred on it, and the slot where it
+## would land lights up. Releasing reports the slot under
 ## the mouse (or -1 for anywhere else) through `released`, and the shift screen places or lets go
 ## of the card through the same code as a click. A press and release without moving stays a
 ## click. A press on the card already picked up is armed to let go of it, but only on a release
@@ -37,8 +38,8 @@ var _card: CardInstance
 var _press_position: Vector2 = Vector2.ZERO
 var _dragging: bool = false
 var _lets_go_on_click: bool = false
-var _ghost: CardView
-var _dimmed: CardView
+var _ghost: ItemView
+var _dimmed: ItemView
 var _hovered: int = -1
 ## Time.get_ticks_msec() of the last slot_tick.
 var _slot_tick_ms: int = -SLOT_TICK_MS
@@ -125,8 +126,8 @@ func _slot_at(screen_position: Vector2) -> int:
 
 func _start(mouse_position: Vector2) -> void:
 	_dragging = true
-	var source: ArtCardView = _hand_view()
-	_ghost = ArtCardView.new(_card, source.aisle if source != null else null)
+	var source: ItemView = _hand_view()
+	_ghost = ItemView.new(_card, source.aisle if source != null else null, ItemView.Form.GHOST)
 	_ghost.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_ghost.z_index = 10
 	_overlay.add_child(_ghost)
@@ -140,31 +141,31 @@ func _start(mouse_position: Vector2) -> void:
 
 
 func _follow(mouse_position: Vector2) -> void:
-	_ghost.position = mouse_position - ArtCardView.SIZE / 2.0
+	_ghost.position = mouse_position - ItemView.SPRITE_SIZE / 2.0
 	var slot: int = _slot_at(mouse_position)
 	_set_hovered(-1 if slot < 0 else _landing_slot.call(_card, slot))
 
 
-## The carried card's own view (in the hand, where a picked card waits) fades while it is
-## carried, so the ghost reads as the card itself.
+## The carried card's own item (in the hand, where a picked card waits) fades its sprite while it
+## is carried, so the ghost reads as the item itself; its sticker stays readable.
 func _dim_source() -> void:
-	var view: ArtCardView = _hand_view()
+	var view: ItemView = _hand_view()
 	if view != null:
 		view.body.modulate = Color(1, 1, 1, 0.3)
 		_dimmed = view
 
 
-## The carried card's view in the hand, or null.
-func _hand_view() -> ArtCardView:
+## The carried card's item in the hand, or null.
+func _hand_view() -> ItemView:
 	for child: Node in _hand_box.get_children():
-		var view: ArtCardView = child as ArtCardView
+		var view: ItemView = child as ItemView
 		if view != null and view.card == _card and not view.is_queued_for_deletion():
 			return view
 	return null
 
 
 ## Lights up the landing slot: an empty slot fills, or the card there that would be pushed
-## right warms (its frame only, so its text stays readable).
+## right warms (its sprite only, so its sticker stays readable).
 func _set_hovered(slot: int) -> void:
 	if slot == _hovered:
 		return
@@ -191,7 +192,7 @@ static func _tint(panel: PanelContainer, hovered: bool) -> void:
 	for child: Node in panel.get_children():
 		var view: CardView = child as CardView
 		if view != null and not view.is_queued_for_deletion():
-			view.body.self_modulate = card_tint
+			view.set_push_tint(card_tint)
 
 
 ## The landing slot shown (for tests), or -1.

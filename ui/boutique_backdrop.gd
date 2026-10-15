@@ -22,7 +22,7 @@ const KICKPLATE_HEIGHT := 12.0
 const KICKPLATE_COLOR := Palette.VELVET_DARK
 ## The velvet valance hangs on its brass rod over the picture rail and the belt's top rail
 ## (stage coordinates).
-const VALANCE_RECT := Rect2(16, 54, 932, 34)
+const VALANCE_RECT := Rect2(16, 54, ShiftStage.BELT_RECT.size.x, 34)
 ## The ceiling spotlights: each a cone of warm light from the stage's top, SPOT_TOP half-wide,
 ## down to the counter line (SPOT_BOTTOM half-wide), in two hard bands. SPOT_XS are style frame
 ## v2's, in the gaps between the top bar's parts; spot_xs() moves a cone a part would cover.
@@ -34,9 +34,11 @@ const SPOT_ALPHAS: Array[float] = [0.10, 0.18]
 ## A moved cone stays at least this far right of the one before it, so their feet never overlap.
 const SPOT_SPACING := 2.0 * SPOT_BOTTOM
 ## Pools of light (centre, radii; stage coordinates), each in three hard bands, outermost first.
-const BELT_LIGHT := Rect2(482, 189, 458, 121)
-const REGISTER_LIGHT := Rect2(1108, 150, 180, 120)
-const TRAY_LIGHT := Rect2(470, 436, 450, 92)
+const BELT_LIGHT := Rect2(464, 195, 440, 127)
+const REGISTER_LIGHT := Rect2(1104, 150, 180, 120)
+const TRAY_LIGHT := Rect2(
+	470, ShiftStage.TRAY_RECT.position.y + ShiftStage.TRAY_RECT.size.y / 2.0, 450, 92
+)
 const PURSE_LIGHT := Rect2(808, 650, 120, 56)
 const LIGHTS: Array[Rect2] = [BELT_LIGHT, REGISTER_LIGHT, TRAY_LIGHT, PURSE_LIGHT]
 const LIGHT_BANDS: Array[float] = [1.0, 0.72, 0.44]

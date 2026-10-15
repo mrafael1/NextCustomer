@@ -19,4 +19,5 @@ tags = PackedStringArray("Food")
 base = 1
 rules = Array[ExtResource("1_rule")]([SubResource("Resource_mixed_herbs")])
 rule_text = "+3 to the next Food product"
+sticker_text = "+{bonus} next {tag}"
 generally_useful = true

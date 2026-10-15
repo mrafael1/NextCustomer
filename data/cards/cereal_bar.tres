@@ -21,3 +21,4 @@ tags = PackedStringArray("Food", "Snack", "Breakfast")
 base = 2
 rules = Array[ExtResource("1_rule")]([SubResource("Resource_cereal_bar")])
 rule_text = "+2 if beside a Snack product"
+sticker_text = "+{bonus} beside {match_value}"

@@ -2,8 +2,9 @@ extends GdUnitTestSuite
 ## Sfx (presentation/sfx.gd, #62): every sound and bonus note in audio/sfx/ loads; round-robin
 ## sounds play their takes in a fixed order; the note ladder plays one file per note (bonus_00
 ## G4 to bonus_10 G6, clamped) on one monophonic note player; every player is on the SFX bus, or
-## Master without one; warm_up plays every sound silently; a scene's controls find its Sfx; and
-## bonuses on several cards play rising notes across the row.
+## Master without one; warm_up plays every sound silently; a scene's controls find its Sfx; an
+## alias plays another sound's file under its own name; and bonuses on several cards play rising
+## notes across the row.
 
 const RecordingSfx := preload("res://tests/presentation/recording_sfx.gd")
 const SCREEN := "res://ui/shift_screen.tscn"
@@ -298,6 +299,21 @@ func test_a_series_plays_in_turn() -> void:
 	while sfx.sounds.size() < 4 and Time.get_ticks_msec() - start < 2000:
 		await get_tree().process_frame
 	assert_array(_takes(sfx, "coin")).is_equal(["coin_1", "coin_2", "coin_3", "coin_1"])
+
+
+## An alias plays another sound's file under its own name (#75: the hover scan's beep is the
+## scan sound), so it is counted apart from that sound; it has no file and adds none to SOUNDS.
+func test_an_alias_plays_its_sounds_file() -> void:
+	var sfx: RecordingSfx = await _recording()
+	assert_str(Sfx.ALIASES["scan_hover"]).is_equal("scan")
+	assert_bool(Sfx.SOUNDS.has("scan_hover")).is_false()
+	assert_str(sfx.next_take("scan_hover")).is_equal("scan")
+	sfx.play("scan_hover", 1.0, -8.0)
+	assert_object(_last_stream(sfx)).is_same(_stream("scan"))
+	assert_str(String(sfx.sounds[0]["take"])).is_equal("scan")
+	assert_int(sfx.count("scan_hover")).is_equal(1)
+	assert_int(sfx.count("scan")).is_equal(0)
+	assert_float(sfx.sound_length("scan_hover")).is_equal(sfx.sound_length("scan"))
 
 
 ## The recording double that tests use in place of Sfx records what was played (with the take

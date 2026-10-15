@@ -24,8 +24,8 @@ func after_test() -> void:
 		DirAccess.remove_absolute(_folder)
 
 
-## Before shift 1 the rack's 3 products show on the reward panel, on screen and shaded, with
-## no hand drawn and nothing logged as run_start yet.
+## Before shift 1 the rack's 3 products show on the reward panel as tray items (#75), on
+## screen and shaded, side by side, with no hand drawn and nothing logged as run_start yet.
 func test_the_rack_shows_before_shift_1_and_fits_the_screen() -> void:
 	var screen: ShiftScreen = await _screen()
 	assert_int(screen.run.phase).is_equal(RunState.Phase.IMPULSE)
@@ -37,8 +37,13 @@ func test_the_rack_shows_before_shift_1_and_fits_the_screen() -> void:
 	var views: Array[Node] = screen._reward_panel._cards.get_children()
 	assert_int(views.size()).is_equal(3)
 	for index: int in range(views.size()):
-		var view: CardView = views[index] as CardView
+		var view: ItemView = views[index] as ItemView
+		assert_object(view).is_not_null()
+		assert_int(view.form).is_equal(ItemView.Form.TRAY)
 		assert_object(view.card.definition).is_same(screen.run.impulse_offer[index])
+		if index > 0:
+			var left: Rect2 = (views[index - 1] as Control).get_global_rect()
+			assert_bool(view.get_global_rect().intersects(left)).is_false()
 	assert_dict(_last_event("run_start")).is_empty()
 	var width: int = ProjectSettings.get_setting("display/window/size/viewport_width")
 	var height: int = ProjectSettings.get_setting("display/window/size/viewport_height")
@@ -47,7 +52,9 @@ func test_the_rack_shows_before_shift_1_and_fits_the_screen() -> void:
 	assert_float(panel.size.y).is_less_equal(height)
 	assert_bool(screen.get_global_rect().encloses(panel)).is_true()
 	for view: Node in views:
-		assert_bool(panel.encloses((view as CardView).get_global_rect())).is_true()
+		for part: Control in [view as ItemView, (view as ItemView).sprite()]:
+			assert_bool(panel.encloses(part.get_global_rect())).is_true()
+		assert_bool(panel.encloses((view as ItemView).sticker().get_global_rect())).is_true()
 	assert_bool(panel.encloses(screen._reward_panel._skip_button.get_global_rect())).is_true()
 
 

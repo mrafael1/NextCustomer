@@ -18,3 +18,4 @@ tags = PackedStringArray("Food")
 base = 5
 rules = Array[ExtResource("1_ip6lg")]([SubResource("Resource_5qoac")])
 rule_text = "Pays 0 if beside a Frozen product"
+sticker_text = "Pays nothing beside {tag}"
