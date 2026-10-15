@@ -1,0 +1,17 @@
+; The register's LED panel, a 9-slice (4 art px margins): a brass bezel (lit top and left,
+; w glint in the corner) with a dark inner lip, around plain velvet-darkest glass.
+@size 12x12
+@kind frame
+@scale 2
+############
+#wLLLLLLLLl#
+#LLLLLLLLll#
+#LLkkkkkkLl#
+#LLkvvvvvLl#
+#LLkvvvvvLl#
+#LLkvvvvvLl#
+#LLkvvvvvLl#
+#LLkvvvvvLl#
+#LLLLLLLLll#
+#lllllllllk#
+############

@@ -1,0 +1,9 @@
+; The combo marker on the receipt's combo line: a small gold diamond, lit from the top left
+; (paper glint) with a brass-dark edge at the bottom right. Shown at 2x (10x10).
+@size 5x5
+@kind icon
+..w..
+.wnn.
+wnnnl
+.nnl.
+..l..

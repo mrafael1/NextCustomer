@@ -1,0 +1,14 @@
+; Cold cases' aisle glyph: a snowflake on a teal (sign colour) ice tile.
+; 9x9 with its ink outline; shown at 2x in the card's sprite box, reused on capsule
+; machines and list stickers.
+@size 9x9
+@kind icon
+..#####..
+.#54w44#.
+#5w4w4w4#
+#44www44#
+#4wwwww3#
+#44www43#
+#4w4w4w3#
+.#44w33#.
+..#####..

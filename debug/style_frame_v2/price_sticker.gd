@@ -1,0 +1,109 @@
+class_name PriceSticker
+extends Control
+## The price-gun sticker of style frame v2 (#75, spec section 4.2): one size everywhere, always
+## upright. A product's sticker is the price_sticker_v2 9-slice (paper face, tomato band) with
+## its base in the number font, its aisle glyph (products of an aisle only) and a summary of at
+## most 2 lines in bold Atkinson. A coupon's is the full-size coupon_sticker with "COUPON" in
+## Pixelify velvet and no glyph. Every number comes from the card's data.
+
+const SIZE := Vector2(108, 64)
+const BASE_RECT := Rect2(8, 6, 74, 24)
+const GLYPH_RECT := Rect2(84, 8, 18, 18)
+const SUMMARY_RECT := Rect2(6, 28, 96, 34)
+const BASE_SIZE := 22
+const COUPON_TITLE_SIZE := 13
+const SUMMARY_SIZE := 13
+## The summary's weight (a FontVariation of the body font) and line spacing. A deliberate change
+## from spec 4.2 (y+30, h 32, spacing -1): Atkinson at 13 px is 18 px tall (13 ascent + 5
+## descent), not 16, so two lines at -1 need 35 px and the second would be cut. At y+28 with -2
+## they take 34 px and end at y+62, above the sticker's bottom outline.
+const SUMMARY_WEIGHT := 700
+const SUMMARY_LINE_SPACING := -2
+const MAX_SUMMARY_LINES := 2
+## price_sticker_v2's 9-slice margins in art pixels: the band's top, then the sides and bottom.
+const FRAME_TOP_MARGIN := 4
+const FRAME_MARGIN := 3
+const COUPON_TITLE := "COUPON"
+
+const FRAME := preload("res://art/frames/price_sticker_v2.png")
+const COUPON_FRAME := preload("res://art/frames/coupon_sticker.png")
+
+static var _bold_fonts: Dictionary[int, FontVariation] = {}
+
+var _base: Label
+var _summary: Label
+var _glyph: TextureRect
+
+
+func _init(definition: CardDefinition, aisle: AisleDefinition, summary_text: String) -> void:
+	mouse_filter = Control.MOUSE_FILTER_IGNORE
+	size = SIZE
+	custom_minimum_size = SIZE
+	if definition.is_coupon():
+		var face: TextureRect = UiKit.sprite(COUPON_FRAME)
+		face.size = SIZE
+		add_child(face)
+		_base = UiKit.display_label(COUPON_TITLE, COUPON_TITLE_SIZE, false)
+		_base.add_theme_color_override("font_color", StyleFrameV2.VELVET)
+	else:
+		var panel: Panel = Panel.new()
+		panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		panel.add_theme_stylebox_override("panel", frame_style())
+		ArtStyle.use_pixel_material(panel)
+		panel.size = SIZE
+		add_child(panel)
+		_base = UiKit.number_label("€%d" % definition.base, BASE_SIZE, false)
+	_base.position = BASE_RECT.position
+	_base.size = BASE_RECT.size
+	_base.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	add_child(_base)
+	if aisle != null:
+		_glyph = UiKit.sprite(load(ArtCardView.glyph_path(aisle)) as Texture2D)
+		_glyph.position = GLYPH_RECT.position
+		_glyph.size = GLYPH_RECT.size
+		_glyph.tooltip_text = aisle.display_name
+		add_child(_glyph)
+	_summary = UiKit.body_label(summary_text, SUMMARY_SIZE, StyleFrameV2.INK)
+	_summary.add_theme_font_override("font", bold_font(SUMMARY_WEIGHT))
+	_summary.add_theme_constant_override("line_spacing", SUMMARY_LINE_SPACING)
+	_summary.autowrap_mode = TextServer.AUTOWRAP_WORD
+	_summary.vertical_alignment = VERTICAL_ALIGNMENT_TOP
+	_summary.position = SUMMARY_RECT.position
+	_summary.size = SUMMARY_RECT.size
+	add_child(_summary)
+
+
+## The base value ("€2") or COUPON label.
+func base_label() -> Label:
+	return _base
+
+
+## The summary label (at most MAX_SUMMARY_LINES lines, measured with the real font).
+func summary_label() -> Label:
+	return _summary
+
+
+## The aisle glyph, or null for a staple or a coupon.
+func glyph() -> TextureRect:
+	return _glyph
+
+
+## The product sticker's 9-slice: a tall top margin for the band, tiled sideways so the band's
+## teeth keep their 3 px rhythm, and stretched (not tiled) downwards: a vertically tiled plain
+## middle shows seam dots at 1080p.
+static func frame_style() -> StyleBoxTexture:
+	var style: StyleBoxTexture = ArtStyle.frame_style(FRAME, FRAME_MARGIN)
+	style.texture_margin_top = FRAME_TOP_MARGIN * ArtStyle.ART_SCALE
+	style.axis_stretch_horizontal = StyleBoxTexture.AXIS_STRETCH_MODE_TILE
+	return style
+
+
+## The body font (Atkinson Hyperlegible Next) at `weight`, shared by every sticker and chip.
+static func bold_font(weight: int) -> Font:
+	if not _bold_fonts.has(weight):
+		var font: FontVariation = FontVariation.new()
+		font.base_font = ArtStyle.BODY_FONT
+		var tag: int = TextServerManager.get_primary_interface().name_to_tag("wght")
+		font.variation_opentype = {tag: weight}
+		_bold_fonts[weight] = font
+	return _bold_fonts[weight]

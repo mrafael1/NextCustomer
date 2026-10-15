@@ -1,0 +1,39 @@
+; The v2 counter: cream marble: a wavy diagonal shade vein (a cream-darkest core with a broken halo along part of it, a
+; faint branch) and a dashed faint vein, both running off one edge and on at the other,
+; and a few paper specks.
+; Tiles seamlessly.
+@size 32x32
+@kind scenery
+@scale 2
+ccccccccccccbccccccccccccccccbcc
+cccccccccwcccbcccccccccccccccbcc
+ccccccccccccccbcccccccccccccccbc
+cccccccccccccccbccccccccccccccbc
+cccccccccccccccccccccccccwcccccb
+cccccccccccccccccccccccccccccccb
+bccccccccccccccccccccccccccccccc
+bccccccccccccccccccbcccccccccccc
+cbccccccccccccccccccbccccccccccc
+ccbccccccccccwcccccccccccccccccc
+ccbccccccccccccccccccbcccccccccc
+cccbbcccccccccccccccccbccccccccc
+ccccbbbccccccccccccccccbcccccccc
+ccccccbbbccccccccccccccccccccccc
+cwcccccbcbbccccccccccccccccccccc
+ccccccccbccbbccccccccccccccccccc
+cccccccccbcccccccccccccccccccccc
+ccccccccccbccbbccccwcccccccbcccc
+cccccccccccabccbbcccccccccccbccc
+ccccccccccccabcccbcccccccccccbcc
+cccccccccccccaccccccccccccccccbc
+ccccccccccccccbbcccccccccccccccb
+cccccccccccccccbbbcccccccccccccc
+cccccccccccccccccbbbbbbccccccccc
+cccccccccccccccccccccccbbccccccc
+cccbcccccccccccccccccccccbcccccc
+ccccbbwccccccccccccccccccbcccccc
+ccccccbcccccccccccccccccccbcwccc
+cccccccbcccccccccccccccccccbcccc
+cccccccccccccccccccccccccccbcccc
+ccccccccccccccccccccccccccccbccc
+cccccccccccbccccccccccccccccbccc

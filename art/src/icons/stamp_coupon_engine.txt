@@ -1,4 +1,5 @@
 ; Coupon engine's perk stamp: a worn tomato ring around a percent sign.
+; Unused since debug/style_frame was deleted (#55); it stays as the seed for #59's perk icons.
 @size 17x17
 @kind perk
 .......RRR.......

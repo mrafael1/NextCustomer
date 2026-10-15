@@ -1,0 +1,16 @@
+; The scan popup, a 9-slice (4 art px margins; the middle 2x2 stretches): paper face, ink
+; outline with rounded corners and a gold inner trim lit on the top and left, brass on the
+; right and bottom. The hard drop shadow is drawn by code.
+@size 10x10
+@kind frame
+@scale 2
+.########.
+#wwwwwwww#
+#wnnnnnLw#
+#wnwwwwLw#
+#wnwwwwLw#
+#wnwwwwLw#
+#wnwwwwLw#
+#wnLLLLLw#
+#wwwwwwww#
+.########.

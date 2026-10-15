@@ -1,16 +1,30 @@
 class_name LoyaltyCard
 extends PanelContainer
-## The loyalty card greybox (full build plan 5.2): one box per upgrade shift (plus one for a
-## starting deck's upgrade, 7.3), empty until an upgrade is taken. A taken upgrade stamps the
-## next box with its initials (a placeholder for its perk icon). Hovering a stamped box shows the
-## upgrade's name, type, effect and condition, so nothing about an upgrade is shown only inside
-## an animation.
+## The loyalty card (full build plan 5.2), in the pixel-art style (#55): the loyalty_card frame
+## with one box per upgrade shift (plus one for a starting deck's upgrade, 7.3), each an empty
+## stamp ring until an upgrade is taken. A taken upgrade stamps the next box with its initials
+## (a placeholder for its perk icon until #59). Hovering a stamped box shows the upgrade's name,
+## type, effect and condition, so nothing about an upgrade is shown only inside an animation.
 ##
 ## The count-up flies upgrade steps in from these boxes: box(i) belongs to the run's upgrade i.
 
 const BOX_SIZE := Vector2(34, 34)
 ## The resting tilt of every stamped box.
 const STAMP_TILT := -6.0
+## The card's 9-slice margin in art pixels, and its padding: left, top, right, bottom.
+const FRAME_MARGIN := 3
+const PADDING := Vector4(10, 6, 8, 4)
+const TITLE_SIZE := 11
+## The initials' size: the widest ("ExCS", Extra coupon slot) just fits inside the border.
+const INITIALS_SIZE := 12
+## A stamped box's ink ring, in canvas pixels.
+const STAMP_BORDER := 2
+## The initials' ink outline: thinner than UiKit.LIGHT_OUTLINE, which would fill the letters'
+## counters at this size.
+const INITIALS_OUTLINE := 3
+
+const CARD_FRAME := preload("res://art/frames/loyalty_card.png")
+const STAMP_EMPTY := preload("res://art/icons/stamp_empty.png")
 
 var _boxes: HBoxContainer
 var _box_count: int = 0
@@ -20,21 +34,18 @@ var _shown: Array[UpgradeDefinition] = []
 
 func _init() -> void:
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
-	var style: StyleBoxFlat = StyleBoxFlat.new()
-	style.bg_color = Palette.CREAM
-	style.border_color = Palette.INK
-	style.set_border_width_all(2)
-	style.set_corner_radius_all(6)
-	style.content_margin_left = 8
-	style.content_margin_right = 4
-	style.content_margin_top = 2
-	style.content_margin_bottom = 2
+	var style: StyleBoxTexture = ArtStyle.frame_style(CARD_FRAME, FRAME_MARGIN)
+	style.content_margin_left = PADDING.x
+	style.content_margin_top = PADDING.y
+	style.content_margin_right = PADDING.z
+	style.content_margin_bottom = PADDING.w
 	add_theme_stylebox_override("panel", style)
+	ArtStyle.use_pixel_material(self)
 	var row: HBoxContainer = HBoxContainer.new()
 	row.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	row.add_theme_constant_override("separation", 6)
 	add_child(row)
-	var title: Label = UiKit.label("LOYALTY\nCARD", 10, Palette.INK)
+	var title: Label = UiKit.display_label("LOYALTY\nCARD", TITLE_SIZE, false)
 	title.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	row.add_child(title)
 	_boxes = HBoxContainer.new()
@@ -149,24 +160,32 @@ func _tilt_stamped_boxes() -> void:
 func _make_box(upgrade: UpgradeDefinition) -> PanelContainer:
 	var panel: PanelContainer = PanelContainer.new()
 	panel.custom_minimum_size = BOX_SIZE
-	var style: StyleBoxFlat = StyleBoxFlat.new()
-	style.set_corner_radius_all(17)
-	style.set_border_width_all(2)
-	style.set_content_margin_all(0)
 	if upgrade == null:
-		style.bg_color = Color(0, 0, 0, 0)
-		style.border_color = Color(Palette.INK, 0.35)
+		# The empty stamp ring, drawn at the box's size.
+		var ring: StyleBoxTexture = StyleBoxTexture.new()
+		ring.texture = STAMP_EMPTY
+		ring.set_content_margin_all(0)
+		panel.add_theme_stylebox_override("panel", ring)
+		ArtStyle.use_pixel_material(panel)
 		panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	else:
-		style.bg_color = Palette.TOMATO
+		var style: StyleBoxFlat = StyleBoxFlat.new()
+		style.set_corner_radius_all(17)
+		style.set_border_width_all(STAMP_BORDER)
+		style.set_content_margin_all(0)
+		# The darker tomato keeps the paper initials readable (5.9:1 against 3.7:1).
+		style.bg_color = Palette.TOMATO_DARK
 		style.border_color = Palette.INK
+		panel.add_theme_stylebox_override("panel", style)
 		# PASS, not IGNORE: a tooltip needs the mouse.
 		panel.mouse_filter = Control.MOUSE_FILTER_PASS
 		panel.tooltip_text = tooltip_for(upgrade)
-	panel.add_theme_stylebox_override("panel", style)
-	var label: Label = UiKit.label(
-		initials(upgrade.display_name) if upgrade != null else "", 12, Palette.PAPER
+	# The number font (MSDF Atkinson) stays crisp at the tilt and tells l from I and C from D:
+	# paper with a thin ink outline.
+	var label: Label = UiKit.number_label(
+		initials(upgrade.display_name) if upgrade != null else "", INITIALS_SIZE, true
 	)
+	label.add_theme_constant_override("outline_size", INITIALS_OUTLINE)
 	label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	panel.add_child(label)

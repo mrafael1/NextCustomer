@@ -6,8 +6,9 @@ Python 3.11+ standard library only. Run from the repo root:
     python tools/pixel_art.py sheet    # write review previews to reports/art/
 
 Each sprite is a text file under art/src/ (ignored by Godot): directives, then one row of
-palette keys per pixel row. art/src/items/milk.txt becomes art/items/milk.png. Lines starting
-with ';' are comments, and blank lines are skipped.
+palette keys per pixel row. art/src/items/milk.txt becomes art/items/milk.png, and any folder
+works the same way (art/src/items_v2/milk.txt becomes art/items_v2/milk.png): @kind, not the
+folder, picks the lint. Lines starting with ';' are comments, and blank lines are skipped.
 
     ; Milk, a gable-top carton.
     @size 32x32
@@ -24,10 +25,12 @@ art/src/palette.txt lists the palette, one colour per line: a single-character k
 colour and a name. The key '.' is transparent. The PNGs are indexed (PLTE + tRNS) and hold the
 whole palette, so recolouring the palette and rebuilding changes every sprite at once.
 
-Lint (check): rows match @size, keys are in the palette, an item is 32x32 at @scale 1, leaves
-its top ITEM_EMPTY_TOP_ROWS rows transparent (the card crops them), uses at most
-MAX_ITEM_COLOURS colours and has an ink ('#') outline: every opaque pixel that touches a
-transparent pixel or the edge (4-neighbours) is ink. A PNG is stale when its decoded pixels or
+Lint (check): rows match @size, keys are in the palette, an item is its folder's size
+(ITEM_SIZE_BY_FOLDER: 48x48 for the style frame v2 items in art/src/items_v2/, 32x32 for the
+game's items everywhere else) at @scale 1, leaves its top
+ITEM_EMPTY_TOP_ROWS rows transparent (the card crops them), uses at most MAX_ITEM_COLOURS colours
+and has an ink ('#') outline: every opaque pixel that touches a transparent pixel or the edge
+(4-neighbours) is ink. A PNG is stale when its decoded pixels or
 palette differ from a fresh build (not its bytes, since zlib's output varies between versions);
 build rewrites only those. A PNG under art/ (outside art/src/) without a source is an orphan.
 
@@ -59,7 +62,10 @@ PALETTE_FILE = "palette.txt"
 TRANSPARENT = "."
 INK = "#"
 KINDS = frozenset({"item", "perk", "frame", "icon", "scenery"})
+# The game's items are 32x32 (ArtCardView.ART_SPRITE_SIZE); style frame v2 redraws them on a
+# 48x48 grid in art/src/items_v2/. An item's size follows its top folder.
 ITEM_SIZE = (32, 32)
+ITEM_SIZE_BY_FOLDER = {"items_v2": (48, 48)}
 # ArtCardView crops an item's top rows (it stands on the bottom row), so they stay empty.
 ITEM_EMPTY_TOP_ROWS = 2
 # Keys that can't be palette keys: they start a directive or a comment in a source.
@@ -219,8 +225,10 @@ def lint_sprite(sprite: Sprite, palette: Palette) -> list[str]:
         return errors
     if sprite.kind != "item":
         return errors
-    if (sprite.width, sprite.height) != ITEM_SIZE:
-        errors.append(f"{sprite.name}: an item is {ITEM_SIZE[0]}x{ITEM_SIZE[1]}, "
+    folder = sprite.name.split("/")[0]
+    expected = ITEM_SIZE_BY_FOLDER.get(folder, ITEM_SIZE)
+    if (sprite.width, sprite.height) != expected:
+        errors.append(f"{sprite.name}: an item is {expected[0]}x{expected[1]}, "
                       f"got {sprite.width}x{sprite.height}")
     if sprite.scale != 1:
         errors.append(f"{sprite.name}: an item is drawn at @scale 1, got {sprite.scale}")

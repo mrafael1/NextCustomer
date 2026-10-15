@@ -1,0 +1,12 @@
+; A brass rail (picture rail, counter edge, ledge lip, printer slot), a 9-slice that only
+; stretches sideways: every column is identical, rows paper glint, gold, brass, brass dark,
+; brass darkest and an ink foot.
+@size 4x6
+@kind frame
+@scale 2
+wwww
+nnnn
+LLLL
+llll
+kkkk
+####

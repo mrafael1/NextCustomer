@@ -35,3 +35,12 @@ e 4a3022 brown darkest
 f 7a5232 brown dark
 F a87a4e brown
 h d2a874 brown light
+; v2 warm boutique (style frame v2, #75): brass, gold and velvet.
+k 4a3010 brass darkest
+l 8a5d1a brass dark
+L c8932b brass
+n ffcf3f gold
+v 2a0e14 velvet darkest
+V 561327 velvet dark
+x 8a1f33 velvet
+X b23a55 velvet sheen

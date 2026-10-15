@@ -38,15 +38,16 @@ c44c
 
 
 def item_source(rows: list[str]) -> str:
-    return "@size 32x32\n@kind item\n" + "\n".join(rows) + "\n"
+    return f"@size {len(rows[0])}x{len(rows)}\n@kind item\n" + "\n".join(rows) + "\n"
 
 
-def boxed_item(fill: str = "c") -> list[str]:
-    """A 32x32 item: an ink-outlined 10x10 box at the bottom."""
-    rows = ["." * 32 for _ in range(22)]
-    rows.append("." * 11 + "#" * 10 + "." * 11)
-    rows.extend("." * 11 + "#" + fill * 8 + "#" + "." * 11 for _ in range(8))
-    rows.append("." * 11 + "#" * 10 + "." * 11)
+def boxed_item(fill: str = "c", size: int = 32) -> list[str]:
+    """A size x size item: an ink-outlined 10x10 box at the bottom, 11 pixels from the left."""
+    right = size - 21
+    rows = ["." * size for _ in range(size - 10)]
+    rows.append("." * 11 + "#" * 10 + "." * right)
+    rows.extend("." * 11 + "#" + fill * 8 + "#" + "." * right for _ in range(8))
+    rows.append("." * 11 + "#" * 10 + "." * right)
     return rows
 
 
@@ -150,7 +151,72 @@ class LintTest(TempTestCase):
     def test_item_must_be_32x32(self) -> None:
         self.ws.add("items/small", "@size 3x3\n@kind item\n###\n#c#\n###\n")
         project = self.ws.load()
-        self.assertTrue(any("an item is 32x32" in e for e in project.errors), project.errors)
+        self.assertTrue(any("an item is 32x32, got 3x3" in e for e in project.errors),
+                        project.errors)
+
+    def test_other_item_sizes_fail(self) -> None:
+        for size in (24, 40, 64):
+            with self.subTest(size):
+                self.ws.add("items/box", item_source(boxed_item(size=size)))
+                errors = self.ws.load().errors
+                self.assertTrue(any(f"got {size}x{size}" in e for e in errors), errors)
+        with self.subTest("48x32"):
+            rows = [row + "." * 16 for row in boxed_item()]
+            self.ws.add("items/box", item_source(rows))
+            errors = self.ws.load().errors
+            self.assertTrue(any("got 48x32" in e for e in errors), errors)
+
+    def test_an_items_size_follows_its_folder(self) -> None:
+        with self.subTest("48x48 in items/"):
+            self.ws.add("items/box", item_source(boxed_item(size=48)))
+            errors = self.ws.load().errors
+            self.assertTrue(any("an item is 32x32, got 48x48" in e for e in errors), errors)
+        (self.ws.src / "items" / "box.txt").unlink()
+        with self.subTest("32x32 in items_v2/"):
+            self.ws.add("items_v2/box", item_source(boxed_item()))
+            errors = self.ws.load().errors
+            self.assertTrue(any("an item is 48x48, got 32x32" in e for e in errors), errors)
+
+    def test_a_clean_48x48_item_in_items_v2_passes_and_builds(self) -> None:
+        self.ws.add("items_v2/box", item_source(boxed_item(size=48)))
+        project = self.ws.load()
+        self.assertEqual(project.errors, [])
+        (sprite,) = project.sprites
+        self.assertEqual((sprite.name, sprite.width, sprite.height), ("items_v2/box", 48, 48))
+        args = ["--src", str(self.ws.src), "--out", str(self.ws.out)]
+        with contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(io.StringIO()):
+            self.assertEqual(pa.main(["build", *args]), 0)
+            self.assertEqual(pa.main(["check", *args]), 0)
+        png = pa.decode_png((self.ws.out / "items_v2" / "box.png").read_bytes())
+        self.assertEqual((len(png[0]), len(png)), (48, 48))
+
+    def test_48x48_items_keep_the_item_rules(self) -> None:
+        top = boxed_item(size=48)
+        top[1] = "." * 20 + "#" + "." * 27
+        outline = boxed_item(size=48)
+        outline[41] = outline[41][:11] + "c" + outline[41][12:]
+        scaled = item_source(boxed_item(size=48)).replace("@kind item", "@kind item\n@scale 2")
+        cases = {
+            "top rows": (item_source(top), "row 1 must be transparent"),
+            "outline": (item_source(outline), "pixel (11, 41)"),
+            "scale": (scaled, "drawn at @scale 1"),
+        }
+        for label, (source, message) in cases.items():
+            with self.subTest(label):
+                self.ws.add("items_v2/box", source)
+                errors = self.ws.load().errors
+                self.assertTrue(any(message in e for e in errors), errors)
+        with self.subTest("colour cap"):
+            keys = "abcdefghijkl"
+            palette = ". t\n# 2b2420 ink\n" + "".join(f"{k} {i:02x}0000 c{i}\n"
+                                                      for i, k in enumerate(keys))
+            (self.ws.src / pa.PALETTE_FILE).write_text(palette, encoding="utf-8")
+            rows = boxed_item("a", size=48)
+            rows[39] = "." * 11 + "#" + keys[:8] + "#" + "." * 27
+            rows[40] = "." * 11 + "#" + keys[8:].ljust(8, "a") + "#" + "." * 27
+            self.ws.add("items_v2/box", item_source(rows))
+            errors = self.ws.load().errors
+            self.assertTrue(any("at most 12 colours, got 13" in e for e in errors), errors)
 
     def test_outline_must_be_ink(self) -> None:
         rows = boxed_item()

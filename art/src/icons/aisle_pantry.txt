@@ -1,0 +1,14 @@
+; Pantry's aisle glyph: a tin can with a mustard (sign colour) label.
+; 9x9 with its ink outline; shown at 2x in the card's sprite box, reused on capsule
+; machines and list stickers.
+@size 9x9
+@kind icon
+..#####..
+.#w:::-#.
+#-------#
+#yMMMMMm#
+#ywwwwMm#
+#yMMMMMm#
+#ymmmmmm#
+#:-----=#
+.#######.

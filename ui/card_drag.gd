@@ -21,8 +21,8 @@ signal released(card: CardInstance, slot: int, dragged: bool)
 const DRAG_THRESHOLD := 8.0
 const GHOST_SCALE := 1.08
 const GHOST_TILT := -4.0
-## The landing slot: an empty panel brightens; a card that would be pushed right warms.
-const HOVER_TINT := Color(1.7, 1.7, 1.4)
+## The landing slot: an empty slot fills (RowStrip.set_hovered); a card that would be pushed
+## right warms.
 const PUSH_TINT := Color(1.0, 0.82, 0.5)
 ## At most one slot_tick per this many ms of real time.
 const SLOT_TICK_MS := 60
@@ -125,7 +125,8 @@ func _slot_at(screen_position: Vector2) -> int:
 
 func _start(mouse_position: Vector2) -> void:
 	_dragging = true
-	_ghost = CardView.new(_card)
+	var source: ArtCardView = _hand_view()
+	_ghost = ArtCardView.new(_card, source.aisle if source != null else null)
 	_ghost.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_ghost.z_index = 10
 	_overlay.add_child(_ghost)
@@ -139,7 +140,7 @@ func _start(mouse_position: Vector2) -> void:
 
 
 func _follow(mouse_position: Vector2) -> void:
-	_ghost.position = mouse_position - CardView.CARD_SIZE / 2.0
+	_ghost.position = mouse_position - ArtCardView.SIZE / 2.0
 	var slot: int = _slot_at(mouse_position)
 	_set_hovered(-1 if slot < 0 else _landing_slot.call(_card, slot))
 
@@ -147,23 +148,31 @@ func _follow(mouse_position: Vector2) -> void:
 ## The carried card's own view (in the hand, where a picked card waits) fades while it is
 ## carried, so the ghost reads as the card itself.
 func _dim_source() -> void:
+	var view: ArtCardView = _hand_view()
+	if view != null:
+		view.body.modulate = Color(1, 1, 1, 0.3)
+		_dimmed = view
+
+
+## The carried card's view in the hand, or null.
+func _hand_view() -> ArtCardView:
 	for child: Node in _hand_box.get_children():
-		var view: CardView = child as CardView
+		var view: ArtCardView = child as ArtCardView
 		if view != null and view.card == _card and not view.is_queued_for_deletion():
-			view.body.modulate = Color(1, 1, 1, 0.3)
-			_dimmed = view
+			return view
+	return null
 
 
-## Lights up the landing slot: an empty panel, or the card there that would be pushed right
-## (its frame only, so its text stays readable).
+## Lights up the landing slot: an empty slot fills, or the card there that would be pushed
+## right warms (its frame only, so its text stays readable).
 func _set_hovered(slot: int) -> void:
 	if slot == _hovered:
 		return
 	if _hovered >= 0 and _hovered < _slots.size():
-		_tint(_slots[_hovered], Color.WHITE, Color.WHITE)
+		_tint(_slots[_hovered], false)
 	_hovered = slot
 	if _hovered >= 0 and _hovered < _slots.size():
-		_tint(_slots[_hovered], HOVER_TINT, PUSH_TINT)
+		_tint(_slots[_hovered], true)
 		_tick()
 
 
@@ -176,8 +185,9 @@ func _tick() -> void:
 	Sfx.play_at(self, "slot_tick")
 
 
-static func _tint(panel: PanelContainer, panel_tint: Color, card_tint: Color) -> void:
-	panel.self_modulate = panel_tint
+static func _tint(panel: PanelContainer, hovered: bool) -> void:
+	RowStrip.set_hovered(panel, hovered)
+	var card_tint: Color = PUSH_TINT if hovered else Color.WHITE
 	for child: Node in panel.get_children():
 		var view: CardView = child as CardView
 		if view != null and not view.is_queued_for_deletion():

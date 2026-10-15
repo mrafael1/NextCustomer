@@ -1,0 +1,15 @@
+; The payout plaque on a belt item, a 9-slice (3 art px margins; the middle 2x2 stretches):
+; brass face with a paper glint row on top, a dark brass foot, a dark brass shade down
+; the right side and an ink outline with rounded corners. "pays €N" is drawn by code;
+; the €0 plaque's dimming and dashed outline are code too.
+@size 8x8
+@kind frame
+@scale 2
+.######.
+#wwwwwL#
+#LLLLLl#
+#LLLLLl#
+#LLLLLl#
+#LLLLLl#
+#kkkkkk#
+.######.

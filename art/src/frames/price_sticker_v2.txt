@@ -1,0 +1,17 @@
+; The v2 price-gun sticker, a 9-slice (margins: 4 art px at the top, 3 at the sides and the
+; bottom; the middle 3x2 stretches): paper face, ink outline with rounded corners, a 6 px
+; tomato band on top (2 art px of R, then a row of 1 px tomato-dark teeth), and a cream shade
+; on the right and bottom. The teeth repeat every 3 px, so stretch the middle with axis_stretch
+; TILE (a plain stretch smears them). Always upright.
+@size 9x9
+@kind frame
+@scale 2
+.#######.
+#oRRRRRR#
+#RRRRRRR#
+#rwwrwwr#
+#wwwwwwc#
+#wwwwwwc#
+#wwwwwwc#
+#ccccccc#
+.#######.

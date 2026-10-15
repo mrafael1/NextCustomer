@@ -16,6 +16,10 @@ extends Control
 ## compacted, so the coupon slot is a capacity, not a position: no panel is marked as the
 ## coupon slot (a coupon can go anywhere), and the capacity label counts it instead.
 ##
+## The layout (#55; full build plan section 6.1) is ShiftStage's: a 1280x720 stage centred in the
+## window over a wall and a counter that fill it. The screen keeps its own names for the stage's
+## controls and fills them.
+##
 ## Sounds (#62) play on the screen's own Sfx, warmed up when it opens: cards picked up, placed
 ## and let go, refusals, the redraw, CHECKOUT, a reward or ticket taken and the log export here;
 ## buttons and panels in UiKit, drag slot ticks in CardDrag, music in ShiftMusic; none on hover.
@@ -27,7 +31,6 @@ const CATALOGUE := "res://data/catalogue/catalogue.tres"
 const REFUSED_DB := -6.0
 ## After a redraw's shuffle, each card dealt lands this many seconds after the last.
 const DEAL_GAP := 0.08
-
 var run: RunState
 ## Where the save errors go (push_error by default). Tests set it before the screen enters the
 ## tree, so an unreadable save they write on purpose prints nothing.
@@ -59,24 +62,25 @@ var _run_ended_ms: int = -1
 var _deck_viewed_for_reward: bool = false
 var _pending_reward: CardDefinition
 
+## The 1280x720 stage, centred in the window.
+var _stage: ShiftStage
+var _top_bar: HBoxContainer
 var _shift_label: Label
 var _quota_label: Label
 var _inspection_tag: InspectionTag
 var _loyalty_card: LoyaltyCard
-var _deck_button: Button
+var _deck_button: FramedButton
 var _seed_label: Label
 var _slots: Array[PanelContainer] = []
 var _row_views: Array[CardView] = []
-var _hand_box: HBoxContainer
-var _projected_label: Label
+var _hand_box: HandRow
 var _capacity_label: Label
 var _notice_label: NoticeLabel
 var _drag: CardDrag
-var _subtotal_label: Label
 var _receipt: ReceiptView
-var _redraw_button: Button
-var _cancel_button: Button
-var _checkout_button: Button
+var _redraw_button: FramedButton
+var _cancel_button: FramedButton
+var _checkout_button: FramedButton
 var _results: ResultsPanel
 var _reward_panel: RewardPanel
 var _upgrade_panel: UpgradePanel
@@ -84,10 +88,14 @@ var _upgrade_panel: UpgradePanel
 ## results.
 var _shade: ColorRect
 var _deck_view: DeckView
-var _row_box: HBoxContainer
 var _row_strip: RowStrip
+## The register cabinet: the count-up's rattle target, with the TOTAL key.
+var _register: Control
+var _cabinet: RegisterCabinet
+## The register's LED: the projected total in planning, the count-up's subtotal and total.
+var _led: LedDisplay
 var _overlay: Control
-## The placeholder paper pile beside the receipt (#60, D4), grown by the count-up.
+## The paper pile at the receipt's foot (#60, D4), grown by the count-up.
 var _paper_pile: PaperPile
 var _count_up: CountUp
 var _sfx: Sfx
@@ -145,12 +153,20 @@ func start_new_run(
 	_run_ended_ms = -1
 	_log.begin_run()
 	_close_overlays()
+	_cabinet.set_total_down(false)
 	if run.phase != RunState.Phase.IMPULSE:
 		_start_first_shift({}, false)
 		return
 	_show_impulse_rack()
 	if replays_rack:
 		_replay_impulse_rack(replayed_pick)
+
+
+## Development tools only (the screen capture in debug/): shows the run's current shift as the
+## caller set it up on `run` (its upgrades, inspections, hand and row), like a shift that just
+## started: logs shift_start, redraws and saves.
+func debug_show_shift() -> void:
+	_on_shift_started()
 
 
 ## After the impulse rack: logs run_start (with the rack's offer, pick and times, {} for none)
@@ -163,6 +179,7 @@ func _start_first_shift(impulse_timing: Dictionary, deck_viewed: bool) -> void:
 
 func _on_shift_started() -> void:
 	_close_overlays()
+	_cabinet.set_total_down(false)
 	tracker.begin(Time.get_ticks_msec(), _focus.is_player_present())
 	var start: Dictionary = {
 		"shift": run.shift_index + 1,
@@ -186,6 +203,8 @@ func _resume_run(saved: RunSave) -> void:
 	_log.resume_run(saved.run_id)
 	_log.log_event("run_resume", RunEvents.run_resume(run, saved.run_ms))
 	_close_overlays()
+	# A resume never plays a count-up (saves are taken at the rack, the tickets and the click).
+	_cabinet.set_total_down(false)
 	if run.phase == RunState.Phase.IMPULSE:
 		_show_impulse_rack()
 		return
@@ -195,12 +214,12 @@ func _resume_run(saved: RunSave) -> void:
 		_count_up.show_pile_for_shift(run.shift_index + 1)
 		return
 	# After the checkout: the row, its receipt (ended as the dessert left it, with the next
-	# shift's inspection notice), totals, quota chip and paper pile as the count-up left them.
+	# shift's inspection notice), the LED's TOTAL, the quota chip and the paper pile as the
+	# count-up left them (the TOTAL key up: nothing is being counted).
 	_show_score(run.last_result)
 	_receipt.show_shift_end(
 		run.last_result.total, run.quota(), InspectionTag.next_notice(run.next_inspection)
 	)
-	_show_projected(run.last_result.total)
 	_count_up.show_end_state(run.last_result, run.quota(), count_up_context())
 	if run.phase == RunState.Phase.REWARD:
 		# No dessert: the print-out is already lifted, on a new timeline.
@@ -378,6 +397,8 @@ func _on_checkout_pressed() -> void:
 		return
 	_sfx.play("checkout")
 	_counting = true
+	# The TOTAL key stays down while the shift is counted, to the dessert's end.
+	_cabinet.set_total_down(true)
 	_drop_pick()
 	_notice_label.clear_notice()
 	_drag.cancel()
@@ -438,6 +459,7 @@ func _on_checkout_pressed() -> void:
 	)
 	_log.log_event("count_up", counted)
 	_counting = false
+	_cabinet.set_total_down(false)
 	if run.phase == RunState.Phase.REWARD:
 		_show_rewards()
 	else:
@@ -483,8 +505,8 @@ func _show_impulse_rack() -> void:
 	_refresh()
 	# The last run's receipt and totals go: shift 1's preview only shows once it starts.
 	_receipt.clear()
-	_projected_label.text = ""
-	_subtotal_label.text = ""
+	_led.clear()
+	_cabinet.set_total_down(false)
 	# A new run has printed nothing yet.
 	_count_up.show_pile_for_shift(1)
 	_deck_viewed_for_reward = false
@@ -533,14 +555,14 @@ func _finish_impulse(card: CardDefinition, replaced: CardInstance) -> void:
 # --- Rewards and deck view -------------------------------------------------------------------
 
 
-## The reward print-out (#61), beside the receipt, which stays unshaded: at the dessert's printer
-## feed (the music comes back there), its cards lifting at the player's speed setting, skipped
-## with the dessert; `resumed` shows them already lifted.
+## The reward print-out (#61), beside the receipt; the register column stays unshaded. It shows
+## at the dessert's printer feed (the music comes back there), its cards lifting at the player's
+## speed setting, skipped with the dessert; `resumed` shows them already lifted.
 func _show_rewards(resumed: bool = false) -> void:
 	ShiftMusic.rewards_shown(_music)
 	_deck_viewed_for_reward = false
 	_pending_reward = null
-	_reward_panel.print_offer(run, _receipt, _count_up, resumed)
+	_reward_panel.print_offer(run, _receipt, _stage, _count_up, resumed)
 
 
 func _on_reward_picked(card: CardDefinition) -> void:
@@ -690,12 +712,15 @@ func _on_focus_entered() -> void:
 
 
 func _refresh() -> void:
-	_shift_label.text = "Shift %d / %d" % [run.shift_index + 1, run.shift_count()]
-	_quota_label.text = "Quota €%d" % run.quota()
+	_shift_label.text = "%d / %d" % [run.shift_index + 1, run.shift_count()]
+	_quota_label.text = "€%d" % run.quota()
 	_inspection_tag.show_inspections(run.inspections)
 	_refresh_loyalty_card()
-	_deck_button.text = "Deck %d/%d" % [run.deck.size(), run.balance.deck_limit]
-	_seed_label.text = "Seed %d" % run.run_seed
+	_deck_button.caption = "Deck %d/%d" % [run.deck.size(), run.balance.deck_limit]
+	_seed_label.text = (
+		"Seed %d  ·  %s"
+		% [run.run_seed, str(ProjectSettings.get_setting("next_customer/build_label", ""))]
+	)
 	_capacity_label.text = (
 		"Products %d/%d%s  ·  Coupon slot%s %d/%d%s"
 		% [
@@ -728,25 +753,25 @@ func _refresh_row() -> void:
 	var reason: String = (
 		"Closed by the inspection: %s" % ", ".join(InspectionTag.names(run.inspections))
 	)
-	_row_strip.set_slot_count(RowCapacity.card_limit(run.limits), closed, reason)
+	_row_strip.set_slot_count(
+		RowCapacity.card_limit(run.limits), closed, reason, RowStrip.closed_caption(run.inspections)
+	)
 	var placeable: bool = _picked != null and run.can_place(_picked)
 	_row_views = _row_strip.show_cards(
-		run.row, run.row.size() if placeable else -1, _on_row_card_clicked
+		run.row, run.row.size() if placeable else -1, _on_row_card_clicked, run.balance
 	)
 
 
 func _refresh_hand() -> void:
-	for child: Node in _hand_box.get_children():
-		_hand_box.remove_child(child)
-		child.queue_free()
+	_hand_box.clear()
 	for card: CardInstance in run.hand():
-		var view: CardView = CardView.new(card)
+		var view: ArtCardView = ArtCardView.new(card, run.balance.aisle_of(card.definition))
 		view.clicked.connect(_on_hand_card_clicked)
 		if _redraw_mode and _redraw_pick.has(card):
 			view.set_highlight(CardView.Highlight.REDRAW)
 		elif card == _picked:
 			view.set_highlight(CardView.Highlight.SELECTED)
-		_hand_box.add_child(view)
+		_hand_box.add_card(view)
 
 
 func _refresh_buttons() -> void:
@@ -756,16 +781,16 @@ func _refresh_buttons() -> void:
 	_redraw_button.disabled = not planning or not redraw_left
 	_cancel_button.visible = _redraw_mode
 	if _redraw_mode:
-		_redraw_button.text = (
+		_redraw_button.caption = (
 			"Confirm redraw (%d/%d)" % [_redraw_pick.size(), run.balance.redraw_limit]
 		)
 	elif redraw_left:
-		_redraw_button.text = (
+		_redraw_button.caption = (
 			"Redraw up to %d (%d left)"
 			% [run.balance.redraw_limit, run.redraws_allowed - run.redraws_used]
 		)
 	else:
-		_redraw_button.text = "Redraw used"
+		_redraw_button.caption = "Redraw used"
 
 
 func _refresh_preview() -> void:
@@ -773,16 +798,12 @@ func _refresh_preview() -> void:
 	tracker.on_preview(run.row.size(), result.total)
 	_show_score(result)
 	_show_projected(result.total)
-	# The big subtotal belongs to the count-up; while planning, the projected total is enough.
-	_subtotal_label.text = ""
 
 
-## The projected total, green when it meets the quota. The count-up leaves the last one shown.
+## The projected total on the LED, green when it meets the quota (the quota line and its bar
+## say so too). The count-up's subtotal and total take the LED from the checkout on.
 func _show_projected(total: int) -> void:
-	_projected_label.text = "Projected €%d" % total
-	_projected_label.add_theme_color_override(
-		"font_color", Palette.GOOD if total >= run.quota() else Palette.TOMATO
-	)
+	_led.show_projected(total, run.quota())
 
 
 ## The row's receipt and value badges for a result: the preview, or a resumed checkout's.
@@ -809,132 +830,58 @@ func _process(_delta: float) -> void:
 	_shade.visible = (
 		_reward_panel.visible or _upgrade_panel.visible or _deck_view.visible or _results.visible
 	)
-	# Beside the print-out alone, the receipt stays unshaded (#61).
+	# The shade starts under the top bar, wherever the stage sits in the window.
+	_shade.offset_top = _stage.position.y + RewardPanel.PRINTOUT_TOP
+	# Beside the print-out alone, the register column (the cabinet, the receipt and the paper
+	# pile) stays unshaded (#61). The shade ends at the column's place on the stage, not at a
+	# node's rect, so it holds still while the register rattles.
 	var beside: bool = _reward_panel.is_printout() and not _deck_view.visible
-	_shade.offset_right = _receipt.get_global_rect().position.x - size.x if beside else 0.0
+	var column_x: float = (_stage.get_global_transform() * ShiftStage.REGISTER_RECT).position.x
+	_shade.offset_right = column_x - size.x if beside else 0.0
 
 
 func _build() -> void:
 	set_anchors_preset(Control.PRESET_FULL_RECT)
-	var background: ColorRect = ColorRect.new()
-	background.color = Palette.BACKGROUND
-	background.set_anchors_preset(Control.PRESET_FULL_RECT)
-	background.gui_input.connect(_on_background_input)
-	add_child(background)
-	# Behind everything else, so it peeks out from behind the receipt.
-	_paper_pile = PaperPile.new()
-	# Hidden until #55's register prop draws it as paper from the printer (decided with the user):
-	# on its own it reads as noise. The count-up still grows it, so #55 only has to show it.
-	_paper_pile.visible = false
-	add_child(_paper_pile)
-
-	var margin: MarginContainer = MarginContainer.new()
-	margin.set_anchors_preset(Control.PRESET_FULL_RECT)
-	margin.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	for side: String in ["left", "right", "top", "bottom"]:
-		margin.add_theme_constant_override("margin_" + side, 20)
-	add_child(margin)
-	var page: VBoxContainer = VBoxContainer.new()
-	page.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	page.add_theme_constant_override("separation", 14)
-	margin.add_child(page)
-
-	var top: HBoxContainer = HBoxContainer.new()
-	top.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	top.add_theme_constant_override("separation", 28)
-	page.add_child(top)
-	_shift_label = _info_label(top, 22)
-	_quota_label = _info_label(top, 22)
-	_inspection_tag = InspectionTag.new()
-	_inspection_tag.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-	top.add_child(_inspection_tag)
-	_loyalty_card = LoyaltyCard.new()
-	_loyalty_card.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-	top.add_child(_loyalty_card)
-	_deck_button = UiKit.button(top, "", _on_deck_button_pressed, 16, "")  # The deck view sounds.
-	_seed_label = _info_label(top, 16)
-	var build: Label = _info_label(top, 14)
-	build.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	build.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
-	build.text = str(ProjectSettings.get_setting("next_customer/build_label", ""))
-	UiKit.button(top, "Export log", _on_export_pressed, 14, "")
-
-	var middle: HBoxContainer = HBoxContainer.new()
-	middle.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	middle.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	middle.add_theme_constant_override("separation", 24)
-	page.add_child(middle)
-	var row_column: VBoxContainer = VBoxContainer.new()
-	row_column.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	row_column.add_theme_constant_override("separation", 10)
-	middle.add_child(row_column)
-	var row_header: HBoxContainer = HBoxContainer.new()
-	row_header.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	# Room above the row for the value badges over each card.
-	row_header.custom_minimum_size = Vector2(0, 72)
-	row_column.add_child(row_header)
-	var row_title: Label = _info_label(row_header, 16)
-	row_title.text = "CHECKOUT  (scanned left to right)"
-	row_title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	row_title.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
-	_capacity_label = _info_label(row_header, 16)
-	_capacity_label.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
-	_capacity_label.modulate = Color(1, 1, 1, 0.75)
-	# 7 slots and the receipt fit the 1280 px window (plan section 3.1); a wider row scales.
-	_row_strip = RowStrip.new()
+	BoutiqueBackdrop.screen_parts(self).gui_input.connect(_on_background_input)
+	_stage = ShiftStage.new(_balance.slot_count + _balance.coupon_slot_count)
+	# Text on the stage and the overlay without its own font (the count-up's flying numbers,
+	# stamps and verdict) uses the number font. The theme stays off the screen's root, so the
+	# panels #56 restyles and ShiftDebug's panel keep the plain default font.
+	_stage.theme = UiKit.screen_theme()
+	add_child(_stage)
+	_stage.checkout_pressed.connect(_on_checkout_pressed)
+	_stage.redraw_pressed.connect(_on_redraw_pressed)
+	_stage.cancel_pressed.connect(_on_cancel_pressed)
+	_stage.deck_pressed.connect(_on_deck_button_pressed)
+	_stage.export_pressed.connect(_on_export_pressed)
+	_top_bar = _stage.top_bar
+	_shift_label = _stage.shift_label
+	_quota_label = _stage.quota_label
+	_loyalty_card = _stage.loyalty_card
+	_inspection_tag = _stage.inspection_tag
+	_deck_button = _stage.deck_button
+	_seed_label = _stage.seed_label
+	_register = _stage.register
+	_cabinet = _stage.cabinet
+	_led = _stage.led
+	_paper_pile = _stage.paper_pile
+	_receipt = _stage.receipt
+	_row_strip = _stage.row_strip
 	_row_strip.slot_input.connect(_on_slot_input)
 	_row_strip.closed_clicked.connect(_on_closed_slot_clicked)
-	row_column.add_child(_row_strip)
-	_row_box = _row_strip.box
 	# The same array as the strip's, kept in place across rebuilds, so CardDrag sees new slots.
 	_slots = _row_strip.slots
-	_row_strip.set_slot_count(_balance.slot_count + _balance.coupon_slot_count)
-	var totals: HBoxContainer = HBoxContainer.new()
-	totals.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	totals.add_theme_constant_override("separation", 30)
-	row_column.add_child(totals)
-	_projected_label = _info_label(totals, 30)
-	_subtotal_label = _info_label(totals, 44)
-	_subtotal_label.add_theme_color_override("font_color", Palette.MUSTARD)
-	_subtotal_label.add_theme_constant_override("outline_size", 8)
-	_subtotal_label.add_theme_color_override("font_outline_color", Palette.INK)
-	_notice_label = NoticeLabel.new()
-	totals.add_child(_notice_label)
-	_receipt = ReceiptView.new()
-	_receipt.custom_minimum_size = Vector2(300, 0)
-	_receipt.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	middle.add_child(_receipt)
-	_paper_pile.follow(_receipt)
-
-	var hint: Label = _info_label(page, 14)
-	hint.text = (
-		"Click a card then a slot, or drag it there  ·  click or drag a placed card to take it back"
-		+ "  ·  tap Space or the mouse to skip the count, hold to fast-forward"
-	)
-	hint.modulate = Color(1, 1, 1, 0.6)
-	var bottom: HBoxContainer = HBoxContainer.new()
-	bottom.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	bottom.add_theme_constant_override("separation", 16)
-	page.add_child(bottom)
-	_hand_box = HBoxContainer.new()
-	_hand_box.custom_minimum_size = Vector2(0, CardView.CARD_SIZE.y + 12)
-	_hand_box.alignment = BoxContainer.ALIGNMENT_BEGIN
-	_hand_box.add_theme_constant_override("separation", 8)
-	_hand_box.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	_hand_box.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	bottom.add_child(_hand_box)
-	var buttons: VBoxContainer = VBoxContainer.new()
-	buttons.custom_minimum_size = Vector2(170, 0)
-	buttons.add_theme_constant_override("separation", 10)
-	bottom.add_child(buttons)
-	_checkout_button = UiKit.button(buttons, "CHECKOUT", _on_checkout_pressed, 22, "")
-	_checkout_button.custom_minimum_size = Vector2(0, 70)
-	_redraw_button = UiKit.button(buttons, "", _on_redraw_pressed, 15, "")
-	_cancel_button = UiKit.button(buttons, "Cancel", _on_cancel_pressed, 14, "ui_back")
+	_capacity_label = _stage.capacity_label
+	_notice_label = _stage.notice_label
+	_cancel_button = _stage.cancel_button
+	_redraw_button = _stage.redraw_button
+	_checkout_button = _stage.checkout_button
+	_hand_box = _stage.hand
 
 	_overlay = Control.new()
 	_overlay.set_anchors_preset(Control.PRESET_FULL_RECT)
 	_overlay.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_overlay.theme = _stage.theme
 	add_child(_overlay)
 	_sfx = Sfx.new()
 	add_child(_sfx)
@@ -944,7 +891,7 @@ func _build() -> void:
 	_focus.player_returned.connect(_on_focus_entered)
 	_count_up = CountUp.new()
 	add_child(_count_up)
-	_count_up.setup(_overlay, _receipt, _subtotal_label, _sfx, _row_box, _paper_pile)
+	_count_up.setup(_overlay, _receipt, _led, _sfx, _register, _paper_pile)
 	_count_up.music = _music
 	_drag = CardDrag.new()
 	add_child(_drag)
@@ -954,7 +901,8 @@ func _build() -> void:
 	_shade = ColorRect.new()
 	_shade.color = Color(0, 0, 0, 0.5)
 	_shade.set_anchors_preset(Control.PRESET_FULL_RECT)
-	# Below the top bar, so Export log and Deck stay reachable on every screen.
+	# Below the top bar, so Export log and Deck stay reachable on every screen (_process keeps it
+	# there when the stage moves).
 	_shade.offset_top = RewardPanel.PRINTOUT_TOP
 	_shade.mouse_filter = Control.MOUSE_FILTER_STOP
 	_shade.visible = false
@@ -981,15 +929,6 @@ func _build() -> void:
 func _on_closed_slot_clicked() -> void:
 	_notice_label.show_notice("Closed by the inspection this shift")
 	_sfx.play("denied", 1.0, REFUSED_DB)
-
-
-func _info_label(parent: Control, font_size: int) -> Label:
-	var label: Label = Label.new()
-	label.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	label.add_theme_font_size_override("font_size", font_size)
-	label.add_theme_color_override("font_color", Palette.LIGHT_TEXT)
-	parent.add_child(label)
-	return label
 
 
 static func _names(cards: Array[CardInstance]) -> PackedStringArray:

@@ -7,9 +7,10 @@ extends PanelContainer
 ##
 ## Two ways in. The impulse rack pops in (show_offer) and arms ARM_MS after it appeared, once the
 ## mouse is up. A passed shift's reward is the dessert's print-out (show_printout, #61; full
-## build plan 6.2): it appears at the printer feed beside the receipt, without the repeated
-## headline, and its cards lift out of the printer into full cards over the tuning's
-## printout_lift_ms (under reduced motion they fade in in place). It arms as soon as the lift has
+## build plan 6.2): it appears at the printer feed beside the receipt, on the shift screen's
+## stage (#55: wherever the stage sits in the window), without the repeated headline, and its
+## cards lift out of the printer into full cards over the tuning's printout_lift_ms (under
+## reduced motion they fade in in place). It arms as soon as the lift has
 ## ended and the mouse is up, so the tap that skipped the dessert never picks a card. A tap during
 ## the lift (its own PressReader) skips it at CountUp.DESSERT_SKIP, like a dessert skipped
 ## earlier; either sets the timeline's presentation_skipped. Shown again after the deck view or
@@ -20,6 +21,11 @@ extends PanelContainer
 signal picked(card: CardDefinition)
 signal skipped
 signal deck_requested
+
+## How a print-out's cards come in (show_printout): they lift at the player's speed, lift at
+## CountUp.DESSERT_SKIP (the dessert was skipped: presentation_skipped), or show in place at
+## once (a resumed run: no dessert).
+enum Lift { NORMAL, SKIPPED, NONE }
 
 ## The pop-in arms this long after the panel appeared, once the mouse is up.
 const ARM_MS := 350
@@ -54,6 +60,8 @@ var _shown_ms: int = 0
 var _printout: bool = false
 ## The receipt the print-out sits beside (kept beside it as the screen lays out).
 var _beside: Control
+## The stage the print-out stays on (its rect is read again every frame, as the window resizes).
+var _stage: Control
 ## The print-out's lift, until it has ended (null for a pop-in or once lifted).
 var _lift: Tween
 var _reader: PressReader
@@ -144,25 +152,26 @@ func show_offer(
 
 
 ## A passed shift's reward, printed at the printer feed (`feed_ms`, Time.get_ticks_msec(): the
-## timeline starts there) and centred in the room left of `beside` (the receipt). Its cards lift
-## over printout_lift_ms at `speed` (the player's speed setting), at CountUp.DESSERT_SKIP when
-## `dessert_skipped` (then presentation_skipped), fading in place under `reduced_motion`.
-## `lifted` shows them in place at once (a resumed run: no dessert).
+## timeline starts there) and centred in the room on `stage` left of `beside` (the receipt). Its
+## cards come in as `lift` says: over printout_lift_ms at `speed` (the player's speed setting),
+## at CountUp.DESSERT_SKIP (then presentation_skipped), or in place at once; under
+## `reduced_motion` they fade in in place.
 func show_printout(
 	offer: Array[CardDefinition],
 	deck_size: int,
 	deck_limit: int,
 	warning: String,
 	beside: Control,
+	stage: Control,
 	feed_ms: int,
 	speed: float = 1.0,
-	dessert_skipped: bool = false,
-	reduced_motion: bool = false,
-	lifted: bool = false
+	lift: Lift = Lift.NORMAL,
+	reduced_motion: bool = false
 ) -> void:
 	_fill(offer, "", deck_size, deck_limit, warning)
 	_printout = true
 	_beside = beside
+	_stage = stage
 	visible = true
 	scale = Vector2.ONE
 	set_anchors_preset(Control.PRESET_TOP_LEFT)
@@ -170,18 +179,18 @@ func show_printout(
 	_place_beside()
 	_shown_ms = feed_ms
 	timeline = OfferTimeline.new(feed_ms)
-	timeline.presentation_skipped = dessert_skipped and not lifted
+	timeline.presentation_skipped = lift == Lift.SKIPPED
 	_set_armed(false)
 	for view: Node in _cards.get_children():
 		if (view as CardView).card.definition.is_product():
 			_add_promo_sticker(view as CardView)
 	_place_cards()
-	if lifted:
+	if lift == Lift.NONE:
 		timeline.mark_presented(Time.get_ticks_msec())
 		return
 	Sfx.play_at(self, "print")
 	_lift = create_tween().set_parallel().set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
-	_lift.set_speed_scale(CountUp.DESSERT_SKIP if dessert_skipped else maxf(speed, 0.01))
+	_lift.set_speed_scale(CountUp.DESSERT_SKIP if lift == Lift.SKIPPED else maxf(speed, 0.01))
 	var seconds: float = _tuning.printout_lift_ms / 1000.0
 	_cards.modulate.a = 0.0
 	_lift.tween_property(_cards, "modulate:a", 1.0, seconds)
@@ -194,31 +203,39 @@ func show_printout(
 	_reader.begin()
 
 
-## The reward of `run`'s passed shift as the dessert's print-out, beside `receipt`: from
-## `count_up`'s printer feed, at the player's speed setting and reduced motion, skipped with its
-## dessert. `resumed` (no dessert) shows it lifted at once.
-func print_offer(run: RunState, receipt: Control, count_up: CountUp, resumed: bool) -> void:
+## The reward of `run`'s passed shift as the dessert's print-out, beside `receipt` on `stage`:
+## from `count_up`'s printer feed, at the player's speed setting and reduced motion, skipped
+## with its dessert. `resumed` (no dessert) shows it lifted at once.
+func print_offer(
+	run: RunState, receipt: Control, stage: Control, count_up: CountUp, resumed: bool
+) -> void:
 	var plan: CountUpPlan = count_up.plan
 	var feed_ms: int = count_up.printer_feed_ms
+	var lift: Lift = Lift.SKIPPED if count_up.dessert_skipped else Lift.NORMAL
 	show_printout(
 		run.offer,
 		run.deck.size(),
 		run.balance.deck_limit,
 		InspectionTag.next_notice(run.next_inspection),
 		receipt,
+		stage,
 		feed_ms if feed_ms >= 0 and not resumed else Time.get_ticks_msec(),
 		plan.speed_setting if plan != null else 1.0,
-		count_up.dessert_skipped and not resumed,
-		plan != null and plan.reduced_motion,
-		resumed
+		Lift.NONE if resumed else lift,
+		plan != null and plan.reduced_motion
 	)
 
 
-## Where the print-out goes beside a receipt at `receipt` (global rect) on a screen of
-## `screen_size`: the room left of it, below the top bar.
-static func printout_area(receipt: Rect2, screen_size: Vector2) -> Rect2:
-	var right: float = maxf(receipt.position.x - PRINTOUT_GAP, 0.0)
-	return Rect2(0.0, PRINTOUT_TOP, right, maxf(screen_size.y - PRINTOUT_TOP, 0.0))
+## Where the print-out goes beside a receipt at `receipt` on a stage at `stage` (both global
+## rects): the room on the stage left of the receipt, below the top bar.
+static func printout_area(receipt: Rect2, stage: Rect2) -> Rect2:
+	var right: float = maxf(receipt.position.x - PRINTOUT_GAP, stage.position.x)
+	return Rect2(
+		stage.position.x,
+		stage.position.y + PRINTOUT_TOP,
+		right - stage.position.x,
+		maxf(stage.size.y - PRINTOUT_TOP, 0.0)
+	)
 
 
 ## The PROMO sticker on `view`'s top-right corner (for tests: promo_sticker()).
@@ -242,11 +259,12 @@ static func promo_sticker(view: CardView) -> Label:
 	return view.get_node_or_null(PROMO_TEXT) as Label
 
 
-## Centred in the room left of the receipt (the cards lift inside the panel, which stays put).
+## Centred in the room on the stage left of the receipt (the cards lift inside the panel, which
+## stays put).
 func _place_beside() -> void:
-	if _beside == null or not is_instance_valid(_beside):
+	if not is_instance_valid(_beside) or not is_instance_valid(_stage):
 		return
-	var area: Rect2 = printout_area(_beside.get_global_rect(), get_parent_area_size())
+	var area: Rect2 = printout_area(_beside.get_global_rect(), _stage.get_global_rect())
 	global_position = (area.get_center() - size / 2.0).round()
 
 

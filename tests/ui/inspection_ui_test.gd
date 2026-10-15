@@ -87,15 +87,21 @@ func test_the_notice_comes_before_the_reward_and_the_kiosk() -> void:
 	assert_bool(screen._loyalty_card.is_ancestor_of(screen._inspection_tag)).is_false()
 	assert_int(screen._loyalty_card.stamped_boxes().size()).is_equal(run.upgrades.size())
 	assert_array(_last_event("shift_start")["inspections"]).is_equal(["spot_check"])
-	# The top bar still fits the window with the tag in it.
+	# The top bar still fits the stage with the tag in it, above the shade.
 	await _frames(3)
-	var top: Control = screen._shift_label.get_parent()
-	var width: int = ProjectSettings.get_setting("display/window/size/viewport_width")
-	assert_float(top.get_combined_minimum_size().x).is_less_equal(width - 40)
-	(
-		assert_bool(screen.get_global_rect().encloses(screen._inspection_tag.get_global_rect()))
-		. is_true()
-	)
+	var top: Control = screen._top_bar
+	var stage: Rect2 = screen._stage.get_global_rect()
+	assert_float(top.get_combined_minimum_size().x).is_less_equal(stage.size.x - 40)
+	var tag: Rect2 = screen._inspection_tag.get_global_rect()
+	assert_bool(stage.encloses(tag)).override_failure_message(str(tag)).is_true()
+	assert_float(tag.end.y).is_less_equal(stage.position.y + RewardPanel.PRINTOUT_TOP)
+	assert_float(tag.position.x).is_greater_equal(screen._loyalty_card.get_global_rect().end.x)
+	# Then the FINE GROCERIES plaque, then Deck.
+	var plaque: Rect2 = screen._stage.plaque.get_global_rect()
+	assert_bool(screen._stage.plaque.visible).is_true()
+	assert_float(tag.end.x).is_less_equal(plaque.position.x)
+	assert_float(plaque.end.x).is_less_equal(screen._deck_button.get_global_rect().position.x)
+	assert_float(plaque.end.y).is_less_equal(stage.position.y + RewardPanel.PRINTOUT_TOP)
 
 
 func test_inspection_steps_print_and_play_from_the_tag() -> void:
@@ -201,7 +207,7 @@ func _events() -> Array:
 
 
 static func _view_for(screen: ShiftScreen, card: CardInstance) -> CardView:
-	var hand_box: HBoxContainer = screen._hand_box
+	var hand_box: Control = screen._hand_box
 	for child: Node in hand_box.get_children():
 		var view: CardView = child as CardView
 		if view and view.card == card and not view.is_queued_for_deletion():
@@ -243,14 +249,25 @@ func test_a_closed_slot_shows_on_the_row() -> void:
 	await _frames(3)
 	assert_int(screen._slots.size()).is_equal(6)
 	assert_int(screen._row_strip.closed.size()).is_equal(1)
-	assert_int(screen._row_box.get_child_count()).is_equal(7)
-	assert_vector(screen._row_box.scale).is_equal(Vector2.ONE)
+	assert_int(screen._row_strip.box.get_child_count()).is_equal(7)
+	assert_vector(screen._row_strip.box.scale).is_equal(Vector2.ONE)
 	var panel: PanelContainer = screen._row_strip.closed[0]
 	assert_str(panel.tooltip_text).contains("Short belt")
 	assert_str((panel.get_child(0) as Label).text).is_equal("CLOSED")
-	var window: Rect2 = screen.get_viewport_rect()
+	# The rope, its posts and the sign, with the closing inspection's name under them; the cell's
+	# parts never take the click from the panel.
+	var caption: Label = RowStrip.closed_caption_label(panel)
+	assert_str(caption.text).is_equal("Short belt")
+	assert_bool(panel.get_global_rect().encloses(caption.get_global_rect())).is_true()
+	assert_float(caption.get_minimum_size().y).is_less_equal(caption.size.y)
+	for part: Node in (panel.get_child(0) as Label).get_children():
+		assert_int((part as Control).mouse_filter).is_equal(Control.MOUSE_FILTER_IGNORE)
+		var sprite: TextureRect = part as TextureRect
+		if sprite != null:
+			assert_vector(sprite.size).is_equal(Vector2(sprite.texture.get_size()))
+	var belt: Rect2 = (screen._row_strip.get_parent() as Control).get_global_rect()
 	var closed_rect: Rect2 = panel.get_global_rect()
-	assert_bool(window.encloses(closed_rect)).is_true()
+	assert_bool(belt.encloses(closed_rect)).is_true()
 	assert_float(closed_rect.position.x).is_greater_equal(screen._slots[-1].get_global_rect().end.x)
 	assert_bool(closed_rect.intersects(screen._receipt.get_global_rect())).is_false()
 	assert_str(screen._capacity_label.text).contains("Products 0/5  (inspection −1)")
@@ -277,3 +294,7 @@ func test_a_full_row_explains_why_a_product_does_not_fit() -> void:
 	assert_bool(run.can_place(extra)).is_false()
 	screen._explain_if_refused(extra)
 	assert_str(screen._notice_label.text).contains("Row full (6/6 cards)")
+	# The closed coupon slot's panel names its inspection.
+	assert_int(screen._row_strip.closed.size()).is_equal(1)
+	var caption: Label = RowStrip.closed_caption_label(screen._row_strip.closed[0])
+	assert_str(caption.text).is_equal("Coupon slot closed")

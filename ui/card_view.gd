@@ -51,6 +51,19 @@ func show_badge(value: int, strong: bool) -> void:
 	badge.add_theme_color_override("font_color", Palette.MUSTARD if strong else Palette.CREAM)
 
 
+## Shows a value wiped by a denied beat (the count-up): the strong badge in tomato. show_badge
+## restores the normal look.
+func show_fizzle_badge(value: int) -> void:
+	show_badge(value, true)
+	badge.add_theme_color_override("font_color", Palette.TOMATO)
+
+
+## Where the badge rests above the card (its y); the count-up's scan lifts it from here and sets
+## it back.
+func badge_rest_y() -> float:
+	return BADGE_Y
+
+
 ## Shows the tags after the context pass (e.g. Breakfast from a sticker). Products only.
 func set_tags(tags: PackedStringArray) -> void:
 	if card.definition.is_product():
@@ -72,7 +85,7 @@ func reset_motion() -> void:
 	body.rotation = 0.0
 	body.modulate = Color.WHITE
 	badge.scale = Vector2.ONE
-	badge.position.y = BADGE_Y
+	badge.position.y = badge_rest_y()
 
 
 func _fit_body() -> void:

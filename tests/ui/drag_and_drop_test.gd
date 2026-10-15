@@ -35,18 +35,18 @@ func test_dragging_a_hand_card_onto_a_slot_places_it() -> void:
 	assert_bool(screen._drag.is_dragging()).is_true()
 	var ghost: CardView = screen._drag._ghost
 	assert_object(ghost).is_not_null()
-	var ghost_center: Vector2 = ghost.position + CardView.CARD_SIZE / 2.0
+	var ghost_center: Vector2 = ghost.position + ArtCardView.SIZE / 2.0
 	assert_vector(ghost_center).is_equal_approx(_slot_center(screen, 3), Vector2(1, 1))
 	assert_int(screen._drag.hovered_slot()).is_equal(0)
-	assert_bool(screen._slots[0].self_modulate == CardDrag.HOVER_TINT).is_true()
-	assert_bool(screen._slots[3].self_modulate == Color.WHITE).is_true()
+	assert_bool(RowStrip.is_hovered(screen._slots[0])).is_true()
+	assert_bool(RowStrip.is_hovered(screen._slots[3])).is_false()
 	assert_float(_view_for(screen, card).body.modulate.a).is_less(0.5)
 	_release(screen, _slot_center(screen, 3))
 	# The row is compacted: a drop past the end places the card at the end, like a click.
 	assert_array(screen.run.row).is_equal([card])
 	assert_object(screen._picked).is_null()
 	assert_bool(screen._drag.is_dragging()).is_false()
-	assert_bool(screen._slots[0].self_modulate == Color.WHITE).is_true()
+	assert_bool(RowStrip.is_hovered(screen._slots[0])).is_false()
 	await _frames(1)
 	assert_bool(is_instance_valid(ghost)).is_false()
 	assert_int(screen.tracker.placements).is_equal(1)
@@ -204,7 +204,7 @@ func test_the_highlight_shows_the_landing_slot() -> void:
 	_move(screen, _slot_center(screen, 5))
 	assert_int(screen._drag.hovered_slot()).is_equal(2)
 	assert_bool(pushed.body.self_modulate == Color.WHITE).is_true()
-	assert_bool(screen._slots[2].self_modulate == CardDrag.HOVER_TINT).is_true()
+	assert_bool(RowStrip.is_hovered(screen._slots[2])).is_true()
 	_release(screen, _slot_center(screen, 5))
 	assert_object(screen.run.row[2]).is_same(card)
 	# A 7th product fits nowhere: no slot lights up.
