@@ -113,10 +113,12 @@ func test_inspection_steps_print_and_play_from_the_tag() -> void:
 	assert_bool(screen._inspection_tag.visible).is_true()
 	assert_str(_last_event("debug")["action"]).is_equal("set_inspection")
 	_place_ids(screen, ["bread", "bread", "bread", "bread"])
-	# The live preview already pays the 3rd Bread 0 and names the inspection.
+	# The live preview already pays the 3rd Bread 0, and scanning it names the inspection (#75:
+	# the planning receipt is a stub, its lines are read on the items).
 	var preview: ScoreResult = screen.run.preview()
 	assert_array(Array(preview.payouts)).is_equal([5, 5, 0, 5])
-	assert_str(_receipt_text(screen)).contains(RECEIPT_LINE)
+	assert_str(_receipt_text(screen)).not_contains(RECEIPT_LINE)
+	assert_str(_popup_text(screen, 2)).contains(RECEIPT_LINE)
 	var steps: Array = preview.steps.filter(
 		func(step: ScoreStep) -> bool: return step.source_kind == ScoreStep.SourceKind.INSPECTION
 	)
@@ -165,6 +167,18 @@ static func _receipt_lines(screen: ShiftScreen) -> PackedStringArray:
 		if not label.is_queued_for_deletion() and not label.get_parent().is_queued_for_deletion():
 			texts.append((label as Label).text)
 	return texts
+
+
+## Scans the belt item in `slot` (the pointer on its sprite, its hover sent: headless runs never
+## move the mouse) and returns its scan popup's footer, one line each, then ends the scan.
+static func _popup_text(screen: ShiftScreen, slot: int) -> String:
+	var view: ItemView = screen._row_views[slot] as ItemView
+	var point: Vector2 = view.sprite().get_global_rect().get_center()
+	screen._scan.pointer = func() -> Vector2: return point
+	view.hovered.emit(view)
+	var text: String = "\n".join(screen._scan.popup().footer_texts())
+	screen._scan.clear()
+	return text
 
 
 static func _receipt_text(screen: ShiftScreen) -> String:
@@ -254,6 +268,11 @@ func test_a_closed_slot_shows_on_the_row() -> void:
 	var panel: PanelContainer = screen._row_strip.closed[0]
 	assert_str(panel.tooltip_text).contains("Short belt")
 	assert_str((panel.get_child(0) as Label).text).is_equal("CLOSED")
+	# Bare rubber: no mat, the open slots' cells all have one.
+	assert_object(RowStrip.mat(panel)).is_null()
+	for slot: PanelContainer in screen._slots:
+		assert_object(RowStrip.mat(slot)).is_not_null()
+	assert_vector(panel.get_global_rect().size).is_equal(ItemView.BELT_SIZE)
 	# The rope, its posts and the sign, with the closing inspection's name under them; the cell's
 	# parts never take the click from the panel.
 	var caption: Label = RowStrip.closed_caption_label(panel)
@@ -293,7 +312,7 @@ func test_a_full_row_explains_why_a_product_does_not_fit() -> void:
 	var extra: CardInstance = run.debug_add_to_hand(bread)
 	assert_bool(run.can_place(extra)).is_false()
 	screen._explain_if_refused(extra)
-	assert_str(screen._notice_label.text).contains("Row full (6/6 cards)")
+	assert_str(screen._notice_label.text).contains("Row full (6/6 items)")
 	# The closed coupon slot's panel names its inspection.
 	assert_int(screen._row_strip.closed.size()).is_equal(1)
 	var caption: Label = RowStrip.closed_caption_label(screen._row_strip.closed[0])

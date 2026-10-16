@@ -51,7 +51,7 @@ func explain_refusal(card: CardDefinition, limits: ShiftLimits, row: Array[CardI
 		if not row_full:
 			return false
 		show_notice(
-			"Row full (%d/%d cards): take a card out first" % [row.size(), limits.card_limit()]
+			"Row full (%d/%d items): take an item out first" % [row.size(), limits.card_limit()]
 		)
 		return true
 	var products: String = "%d/%d products" % [RowCapacity.product_count(row), limits.slot_count]

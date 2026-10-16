@@ -357,8 +357,8 @@ static func _stage_rect(screen: ShiftScreen) -> Rect2:
 
 
 static func _slot_hint(screen: ShiftScreen, slot: int) -> String:
-	var hint: Label = screen._slots[slot].get_child(0) as Label
-	return hint.text if hint != null else ""
+	var hint: Label = RowStrip.slot_number(screen._slots[slot])
+	return hint.text if hint != null and hint.visible else ""
 
 
 func _frames(count: int) -> void:

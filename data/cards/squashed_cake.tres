@@ -21,3 +21,4 @@ tags = PackedStringArray("Food", "Bakery", "Clearance")
 base = 2
 rules = Array[ExtResource("1_rule")]([SubResource("Resource_squashed_cake")])
 rule_text = "Double the next Clearance payout"
+sticker_text = "×{factor} next {tag}"

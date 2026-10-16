@@ -251,5 +251,5 @@ func test_aisle_of_finds_each_products_aisle() -> void:
 ## Every aisle has its glyph (art/icons/aisle_<id>.png), shown on its products' cards.
 func test_every_aisle_has_a_glyph() -> void:
 	for aisle: AisleDefinition in (load(BALANCE) as BalanceDefinition).aisles:
-		var path: String = ArtCardView.glyph_path(aisle)
+		var path: String = ArtStyle.glyph_path(aisle)
 		assert_bool(ResourceLoader.exists(path)).override_failure_message(path).is_true()

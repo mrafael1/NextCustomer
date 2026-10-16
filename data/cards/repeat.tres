@@ -16,3 +16,4 @@ kind = 2
 tags = PackedStringArray()
 rules = Array[ExtResource("1_rtnea")]([SubResource("Resource_ovbn1")])
 rule_text = "Copy the payout of the product just before it"
+sticker_text = "Copy prior payout"

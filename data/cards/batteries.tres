@@ -18,3 +18,5 @@ tags = PackedStringArray("Household")
 base = 1
 rules = Array[ExtResource("1_rule")]([SubResource("Resource_batteries")])
 rule_text = "+4 if in the last slot"
+sticker_text = "+{bonus} in last slot"
+art_ref = "res://art/items_v2/batteries.png"

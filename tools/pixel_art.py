@@ -62,11 +62,12 @@ PALETTE_FILE = "palette.txt"
 TRANSPARENT = "."
 INK = "#"
 KINDS = frozenset({"item", "perk", "frame", "icon", "scenery"})
-# The game's items are 32x32 (ArtCardView.ART_SPRITE_SIZE); style frame v2 redraws them on a
-# 48x48 grid in art/src/items_v2/. An item's size follows its top folder.
+# The first items were 32x32 (the retired card view's sprite box); every item is now drawn on a
+# 48x48 grid in art/src/items_v2/ (#75, decision 3A), until #57 retires the 32x32 Milk. An
+# item's size follows its top folder.
 ITEM_SIZE = (32, 32)
 ITEM_SIZE_BY_FOLDER = {"items_v2": (48, 48)}
-# ArtCardView crops an item's top rows (it stands on the bottom row), so they stay empty.
+# An item stands on its bottom row and its top rows stay empty (the card view cropped them).
 ITEM_EMPTY_TOP_ROWS = 2
 # Keys that can't be palette keys: they start a directive or a comment in a source.
 RESERVED_KEYS = frozenset({"@", ";"})

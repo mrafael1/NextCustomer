@@ -17,3 +17,4 @@ is_connector = true
 tags = PackedStringArray()
 rules = Array[ExtResource("1_wxh1e")]([SubResource("Resource_xf33c")])
 rule_text = "The products on either side of it count as adjacent to each other"
+sticker_text = "Joins its neighbours"

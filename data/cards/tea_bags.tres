@@ -21,3 +21,5 @@ tags = PackedStringArray("Breakfast")
 base = 1
 rules = Array[ExtResource("1_rule")]([SubResource("Resource_tea_bags")])
 rule_text = "×4 to the next Breakfast payout"
+sticker_text = "×{factor} next {tag}"
+art_ref = "res://art/items_v2/tea_bags.png"

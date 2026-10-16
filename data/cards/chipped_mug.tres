@@ -21,3 +21,4 @@ tags = PackedStringArray("Household", "Clearance")
 base = 1
 rules = Array[ExtResource("1_rule")]([SubResource("Resource_chipped_mug")])
 rule_text = "+3 if beside Coffee"
+sticker_text = "+{bonus} beside Coffee"

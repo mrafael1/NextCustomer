@@ -17,3 +17,5 @@ kind = 2
 tags = PackedStringArray()
 rules = Array[ExtResource("1_rule")]([SubResource("Resource_two_for_one")])
 rule_text = "Same product on both sides: they count as adjacent; the second pays ×2"
+sticker_text = "Same both sides: 2nd ×{factor}"
+art_ref = "res://art/icons/coupon_two_for_one_v2.png"

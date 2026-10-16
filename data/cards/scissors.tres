@@ -18,3 +18,4 @@ tags = PackedStringArray("Household")
 base = 1
 rules = Array[ExtResource("1_rule")]([SubResource("Resource_scissors")])
 rule_text = "+2 for each earlier coupon"
+sticker_text = "+{bonus_each} per earlier coupon"

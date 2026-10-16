@@ -21,3 +21,4 @@ tags = PackedStringArray("Household", "Breakfast")
 base = 1
 rules = Array[ExtResource("1_rule")]([SubResource("Resource_egg_timer")])
 rule_text = "+4 if immediately after Eggs"
+sticker_text = "+{bonus} after Eggs"

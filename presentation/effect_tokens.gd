@@ -70,11 +70,15 @@ func arm(armed: int) -> void:
 		_send(armed, target)
 
 
-## Beat `index` lands an armed effect (no-op for any other beat): its marker brightens and is
-## absorbed, and the arming card's pip clears once its last token has landed.
-func land(index: int) -> void:
+## Beat `index` lands an armed effect: its marker brightens and is absorbed, and the arming
+## card's pip clears once its last token has landed. `landed` is called once the marker is gone,
+## or at once without one (any other beat), so what shows the landing next (a belt item's chip,
+## #75) never shows beside its marker.
+func land(index: int, landed: Callable = Callable()) -> void:
 	var beat: CountUpBeat = _plan.beats[index]
 	if beat.armed_from < 0:
+		if landed.is_valid():
+			landed.call()
 		return
 	var marker: EffectMarker = markers.get(index) as EffectMarker
 	markers.erase(index)
@@ -88,6 +92,10 @@ func land(index: int) -> void:
 		absorb.tween_property(marker, "scale", Vector2(0.4, 0.4), ABSORB)
 		absorb.parallel().tween_property(marker, "modulate:a", 0.0, ABSORB)
 		absorb.tween_callback(marker.queue_free)
+		if landed.is_valid():
+			absorb.tween_callback(landed)
+	elif landed.is_valid():
+		landed.call()
 	var left: int = _unresolved.get(beat.armed_from, 0) - 1
 	_unresolved[beat.armed_from] = left
 	if left <= 0:

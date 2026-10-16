@@ -21,3 +21,4 @@ tags = PackedStringArray("Food", "Produce", "Clearance")
 base = 2
 rules = Array[ExtResource("1_rule")]([SubResource("Resource_bruised_apples")])
 rule_text = "+3 if beside a Clearance product"
+sticker_text = "+{bonus} beside {match_value}"

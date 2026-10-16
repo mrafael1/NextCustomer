@@ -19,3 +19,4 @@ tags = PackedStringArray("Food", "Clearance")
 base = 2
 rules = Array[ExtResource("1_rule")]([SubResource("Resource_dented_can")])
 rule_text = "+2 for each earlier Clearance product"
+sticker_text = "+{bonus_each} per earlier {tag}"

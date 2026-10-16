@@ -19,3 +19,4 @@ tags = PackedStringArray("Food", "Snack")
 base = 1
 rules = Array[ExtResource("1_rule")]([SubResource("Resource_pick_n_mix")])
 rule_text = "+2 for each earlier Snack product"
+sticker_text = "+{bonus_each} per earlier {tag}"

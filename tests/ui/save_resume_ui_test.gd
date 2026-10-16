@@ -112,6 +112,14 @@ func test_a_new_screen_resumes_the_hand_the_row_and_the_redraws() -> void:
 	assert_str(resumed._led.caption()).is_equal(LedDisplay.PROJECTED_TEXT)
 	assert_str(resumed._led.digits_label().text).is_equal("€%d" % first.run.preview().total)
 	assert_bool(resumed._cabinet.is_total_down()).is_false()
+	# The receipt is the planning stub (#75): the header, PROJECTED and the tear, as before.
+	var stub: PackedStringArray = _receipt_lines(resumed)
+	assert_array(stub).is_equal(_receipt_lines(first))
+	# A line's left text, then its (empty) right text.
+	var shift_line: String = ReceiptView.SHIFT_TEXT % [1, resumed.run.shift_count(), 2]
+	assert_array(Array(stub.slice(0, 4))).is_equal([ReceiptView.HEADER_TEXT, "", shift_line, ""])
+	assert_bool(stub.has(ReceiptView.PROJECTED_TEXT)).is_true()
+	assert_bool(stub.has("€%d" % first.run.preview().total)).is_true()
 	assert_str(_event_log().run_id).is_equal(run_id)
 	var resume: Dictionary = _last_event("run_resume")
 	assert_str(resume["run_id"]).is_equal(run_id)
@@ -166,7 +174,10 @@ func test_quitting_during_the_count_up_resumes_on_the_reward_panel() -> void:
 	assert_bool(panel.encloses(resumed._reward_panel._skip_button.get_global_rect())).is_true()
 
 	await _count_up_end(first)
-	# The receipt, totals, chip and paper pile behind the panel, as the count-up left them.
+	# The receipt (under the shift's header, #75), totals, chip and paper pile behind the panel,
+	# as the count-up left them.
+	assert_str(_receipt_lines(resumed)[0]).is_equal(ReceiptView.HEADER_TEXT)
+	assert_bool(_receipt_lines(resumed).has(ReceiptView.PROJECTED_TEXT)).is_false()
 	assert_array(_receipt_lines(resumed)).is_equal(_receipt_lines(first))
 	_assert_same_led(resumed, first)
 	assert_bool(first._cabinet.is_total_down()).is_false()

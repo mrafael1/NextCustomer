@@ -64,6 +64,10 @@ extends Node
 ## here. play() returns right after it.
 signal printer_feed
 signal finished
+## Step `index` has landed on its item (#75, option B: a belt item's chip pops in here): a bonus or
+## a stamp as it lands, once its marker is absorbed (so the two never show the same landing
+## together), a fizzle as it puffs, any other step at its beat's start. Nothing waits for it.
+signal step_landed(index: int)
 
 ## A hold's speed, from HOLD_THRESHOLD_MS on.
 const FAST_FORWARD := 5.0
@@ -145,6 +149,8 @@ var dessert_skipped: bool = false
 var plan: CountUpPlan
 ## The Music autoload the dessert ducks (#62), or null for none (the shift screen sets it).
 var music: MusicService
+## The stage's scan layer (#75), or null: its handheld poses on each scan, docked after the beats.
+var scan_overlay: ScanOverlay
 ## How big the ending was, for what follows the total (#61). Set when the total is shown; null
 ## before that.
 var intensity: CountUpIntensity
@@ -235,7 +241,8 @@ func setup(
 
 
 ## Plays `result` on the row's card views. `context` is the run around the row (shift, best so
-## far, speed setting, reduced motion); `quota` only places the ding and the chip.
+## far, speed setting, reduced motion, and the receipt's header, printed at once as the count-up
+## starts); `quota` only places the ding and the chip.
 func play(
 	result: ScoreResult,
 	views: Array[CardView],
@@ -277,7 +284,9 @@ func play(
 	_ducked = false
 	_presses.begin()
 	_playing = true
-	_receipt.clear()
+	# The receipt starts over under the shift's header (the planning stub's). The header is
+	# no step's line: the pile grows with the steps' lines alone.
+	_receipt.begin(context.receipt_header)
 	_set_subtotal(0.0)
 	_start_pile(plan.pile_start_px)
 	for view: CardView in _views:
@@ -288,6 +297,8 @@ func play(
 		_play_beat(index)
 		await _wait_ms(plan.beats[index].duration_ms)
 	_tokens.dissolve()
+	if scan_overlay != null:
+		scan_overlay.dock()
 	_duck_for_dessert()
 	await _pause()
 	_finish_roll()
@@ -401,6 +412,14 @@ func _play_beat(index: int) -> void:
 			_tag_added(beat, step)
 		CountUpBeat.Kind.LINK:
 			_linked(beat, step)
+	if beat.kind not in [CountUpBeat.Kind.BONUS, CountUpBeat.Kind.STAMP, CountUpBeat.Kind.FIZZLE]:
+		_landed(beat)
+
+
+## Emits step_landed for each of the beat's steps.
+func _landed(beat: CountUpBeat) -> void:
+	for index: int in beat.steps:
+		step_landed.emit(index)
 
 
 ## How long a beat's motion may take at speed 1, in seconds: its length without the shortest
@@ -482,6 +501,7 @@ func _fizzle(index: int, beat: CountUpBeat, step: ScoreStep) -> void:
 		)
 	_sfx.play("fizzle")
 	_tokens.spend(index, step)
+	_landed(beat)
 	shaken.pivot_offset = shaken.size / 2.0
 	# An upgrade's box keeps its stamp tilt: the shudder ends where it started.
 	var rest: float = shaken.rotation if upgrade_box != null else 0.0
@@ -506,6 +526,7 @@ func _base(beat: CountUpBeat, step: ScoreStep) -> void:
 	_print_step(step)
 	var view: CardView = _views[step.slot]
 	_fx.lift(view, minf(SCAN_LIFT_TIME, _motion(beat)))
+	_pose_scanner(view)
 	_sfx.play("scan")
 	view.show_badge(step.value_after, true)
 	_fx.punch(view.badge, 1.3)
@@ -523,6 +544,7 @@ func _merged(beat: CountUpBeat, base: ScoreStep, payout: ScoreStep) -> void:
 		_motion(beat) - beat.roll_ms / 1000.0, MERGED_LIFT_MIN, MERGED_LIFT_MAX
 	)
 	_fx.lift(view, lift)
+	_pose_scanner(view)
 	_sfx.play("scan")
 	if beat.note >= 0:
 		_sfx.play_note(beat.note)
@@ -530,6 +552,12 @@ func _merged(beat: CountUpBeat, base: ScoreStep, payout: ScoreStep) -> void:
 	_fx.punch(view.badge, 1.3)
 	await _wait(lift)
 	_land_payout(beat, payout, line)
+
+
+## Poses scan_overlay's handheld in gold where an item's scan lift ends; nothing waits for it.
+func _pose_scanner(view: CardView) -> void:
+	if scan_overlay != null and view is ItemView:
+		scan_overlay.pose_scan(ScanOverlay.lifted_sprite(view as ItemView))
 
 
 ## A bonus flies in from the card that caused it, or from the upgrade's loyalty-card box (or
@@ -564,7 +592,7 @@ func _bonus(index: int, beat: CountUpBeat, step: ScoreStep) -> void:
 		_sfx.play_note(beat.note)
 	target.show_badge(step.value_after, true)
 	_fx.punch(target.badge, 1.3)
-	_tokens.land(index)
+	_tokens.land(index, _landed.bind(beat))
 	_land(beat)
 
 
@@ -610,7 +638,7 @@ func _stamp(index: int, beat: CountUpBeat, step: ScoreStep) -> void:
 	_fx.shake(target.body, 7.0)
 	target.show_badge(step.value_after, true)
 	_fx.punch(target.badge, 1.4)
-	_tokens.land(index)
+	_tokens.land(index, _landed.bind(beat))
 	_land(beat)
 	var fade: Tween = _tween()
 	fade.tween_interval(0.2)
@@ -633,7 +661,7 @@ func _echo(index: int, beat: CountUpBeat, step: ScoreStep, text: String, color: 
 		_sfx.play_note(beat.note, STAMP_NOTE_DB if stamped else 0.0)
 	target.show_badge(step.value_after, true)
 	_fx.punch(target.badge, 1.25)
-	_tokens.land(index)
+	_tokens.land(index, _landed.bind(beat))
 
 
 ## Soup beside Frozen, or an inspection: a hard "denied" as its value is wiped to 0. An

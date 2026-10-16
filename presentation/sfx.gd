@@ -96,6 +96,9 @@ const ROUND_ROBIN: Dictionary[String, int] = {
 	"ui_click": 3,
 	"coin": 3,
 }
+## Sounds played under a name of their own from another sound's file: the hover scan's beep
+## (#75) is the count-up's scan, played softer by the scan controller, and counted apart from it.
+const ALIASES: Dictionary[String, String] = {"scan_hover": "scan"}
 ## The note ladder's files: NOTE_PREFIX + two digits, G4 A4 C5 D5 E5 G5 A5 C6 D6 E6 G6.
 const NOTE_PREFIX := "bonus_"
 const NOTE_COUNT := 11
@@ -144,7 +147,8 @@ func _exit_tree() -> void:
 		parent.remove_meta(META)
 
 
-## Plays `sound`: a file's name, or a round-robin sound's base name (its next take).
+## Plays `sound`: a file's name, an alias (ALIASES) or a round-robin sound's base name (its
+## next take).
 func play(sound: String, pitch: float = 1.0, volume_db: float = 0.0) -> void:
 	var take: String = next_take(sound)
 	if ROUND_ROBIN.has(sound):
@@ -162,8 +166,11 @@ func play(sound: String, pitch: float = 1.0, volume_db: float = 0.0) -> void:
 	player.play()
 
 
-## The file play(sound) plays next: the next take of a round-robin sound, else `sound` itself.
+## The file play(sound) plays next: the next take of a round-robin sound, an alias's file, else
+## `sound` itself.
 func next_take(sound: String) -> String:
+	if ALIASES.has(sound):
+		return ALIASES[sound]
 	if not ROUND_ROBIN.has(sound):
 		return sound
 	var taken: int = _takes.get(sound, 0)

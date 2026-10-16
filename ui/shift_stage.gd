@@ -1,21 +1,24 @@
 class_name ShiftStage
 extends Control
-## The shift screen's layout (#55; full build plan section 6.1): a 1280x720 stage that
+## The shift screen's layout (#55, #75; full build plan section 6.1): a 1280x720 stage that
 ## ShiftScreen centres in the window over the velvet wall and the marble counter that fill it
-## (BoutiqueBackdrop.screen_parts()). Every position is a stage constant taken from the boutique
-## layout (style frame v2 with cards); the stage never scales. On the stage, back to front: the
+## (BoutiqueBackdrop.screen_parts()). Every position is a stage constant taken from style frame
+## v2's layout; the stage never scales. On the stage, back to front: the
 ## register cabinet (RegisterCabinet, the count-up's rattle target: its plate, the LED with both
 ## totals, the key bed with the TOTAL key and the printer slot) under its pool of light, the
 ## receipt hanging from the printer slot and the paper pile it runs into on the counter, the belt
 ## (BeltPanel: on its rubber the valance, the spotlights and the belt's pool of light, then the
-## row resting on its bottom), the top bar (the velvet shift sign, the loyalty card, the
-## inspection tag, the FINE GROCERIES plaque, Deck and Export log, all above
-## RewardPanel.PRINTOUT_TOP), and on the counter the hand's velvet tray under its pool of light,
-## the status panel (a cream inset with the capacity line, the cue and the notices), Cancel and
-## Redraw (brass), CHECKOUT (velvet, gold caption) and the docked scanner, the hand in the tray,
-## the controls hint in a cream inset under it, the closed purse on its shadow and its pool of
-## light (static decor; #76 opens it) and the seed line. The lights (BoutiqueBackdrop) take no
-## clicks; the spotlights start in the top bar's gaps (_place_spots()).
+## row of items on their mats, its cells filling the rubber), the top bar (the velvet shift
+## sign, the loyalty card, the inspection tag, the FINE GROCERIES plaque, Deck and Export log,
+## all above RewardPanel.PRINTOUT_TOP), and on the counter the hand's velvet tray under its
+## pool of light, the status panel (a cream inset with the capacity line, the cue and the
+## notices), Cancel and Redraw (brass), CHECKOUT (velvet, gold caption) and the docked scanner,
+## the hand in the tray, the controls hint in a cream inset under it, the closed purse on its
+## shadow and its pool of light (static decor; #76 opens it) and the seed line. Over them all the
+## scan layer (ScanOverlay: the scan's brackets, beam and posed scanner) and the popup layer
+## (where ScanController opens the scan popup), both taking no clicks. The lights
+## (BoutiqueBackdrop) take no clicks; the spotlights start in the top bar's gaps
+## (_place_spots()).
 ##
 ## The paper pile shows only once the receipt's lines reach its top (style frame v2's rule): a
 ## short receipt hangs clear of the counter, with no lone strip of paper under it.
@@ -42,39 +45,52 @@ signal export_pressed
 const SIZE := Vector2(1280, 720)
 const MARGIN := 20.0
 ## Where the counter's top edge is; the wall is above it. The belt and the register stand on it.
-const COUNTER_TOP := 310.0
+const COUNTER_TOP := 322.0
 const TOP_BAR_POSITION := Vector2(20, 6)
 const TOP_BAR_GAP := 14
+## The top bar's foot: a belt item's scan popup flips below its item rather than reach it.
+const TOP_BAR_BOTTOM := 64.0
 const SIGN_PADDING := Vector4(14, 2, 14, 4)
 const SIGN_FONT_SIZE := 20
 const TOP_BUTTON_SIZE := Vector2(0, 44)
 ## The belt (a fixed size; BeltPanel draws its rails, rollers and rubber).
-const BELT_RECT := Rect2(16, 68, 932, 242)
-## Where the 7-slot row starts. Its cards rest on ROW_BOTTOM: a scaled 8- or 9-slot row too,
-## with the empty band above it, where the value plaques go.
-const ROW_POSITION := Vector2(32, 100)
-const ROW_BOTTOM := 300.0
+const BELT_RECT := Rect2(16, 68, 896, 254)
+## Where the 7-slot row starts: its cells (ItemView.BELT_SIZE) fill the rubber between the
+## rails and the rollers. Every row rests on ROW_BOTTOM: a scaled 8- or 9-slot row too, with
+## the empty band above it.
+const ROW_POSITION := Vector2(32, 76)
+const ROW_BOTTOM := ROW_POSITION.y + ItemView.BELT_SIZE.y
 ## The scanner, docked in its cradle right of CHECKOUT: the handheld sits behind the cradle at
 ## one art pixel in, in its side look.
-const CRADLE_RECT := Rect2(880, 318, 60, 54)
+const CRADLE_RECT := Rect2(880, 330, 60, 54)
 const DOCKED_OFFSET := Vector2(2, 0)
 const DOCKED_SIZE := Vector2(56, 32)
 ## The register cabinet (RegisterCabinet) with its name plate, its LED (LedDisplay: caption,
 ## digits and the quota line with its bar), its key bed with the TOTAL key, and its printer
-## slot, which the receipt hangs from.
-const REGISTER_RECT := Rect2(952, 68, 312, 242)
-const PLATE_RECT := Rect2(964, 76, 288, 20)
-const LED_RECT := Rect2(964, 100, 288, 96)
-const LED_CAPTION_RECT := Rect2(976, 104, 264, 14)
-const LED_DIGITS_RECT := Rect2(976, 118, 264, 52)
-const LED_QUOTA_RECT := Rect2(976, 172, 264, 22)
-const KEYS_RECT := Rect2(964, 200, 288, 56)
-const TOTAL_KEY_RECT := Rect2(1116, 204, 128, 48)
+## slot, which the receipt hangs from. The plate, the LED and the key bed are REGISTER_FACE wide,
+## centred on the cabinet; the TOTAL key stands in the key bed's TOTAL well (TOTAL_WELL in from
+## the bed's left end, in canvas pixels).
+const REGISTER_RECT := Rect2(944, 68, 320, 254)
+const REGISTER_FACE := 288.0
+const REGISTER_FACE_X := REGISTER_RECT.position.x + (REGISTER_RECT.size.x - REGISTER_FACE) / 2.0
+const PLATE_RECT := Rect2(REGISTER_FACE_X, 76, REGISTER_FACE, 20)
+const LED_RECT := Rect2(REGISTER_FACE_X, 100, REGISTER_FACE, 96)
+const LED_CAPTION_RECT := Rect2(REGISTER_FACE_X + 12, 104, 264, 14)
+const LED_DIGITS_RECT := Rect2(REGISTER_FACE_X + 12, 118, 264, 52)
+const LED_QUOTA_RECT := Rect2(REGISTER_FACE_X + 12, 172, 264, 22)
+const KEYS_RECT := Rect2(REGISTER_FACE_X, 204, REGISTER_FACE, 56)
+const TOTAL_WELL := 156.0
+const TOTAL_KEY_RECT := Rect2(KEYS_RECT.position.x + TOTAL_WELL, 208, 128, 48)
 ## The cabinet frame's width (its 9-slice margin), in canvas pixels.
 const REGISTER_FRAME := RegisterCabinet.BODY_MARGIN * ArtStyle.ART_SCALE
-## The printer slot spans the cabinet between its frame's inner edges, 4 px under the key bed.
+## The printer slot spans the cabinet between its frame's inner edges, PRINTER_SLOT_GAP under
+## the key bed.
+const PRINTER_SLOT_GAP := 4.0
 const PRINTER_SLOT_RECT := Rect2(
-	REGISTER_RECT.position.x + REGISTER_FRAME, 260, REGISTER_RECT.size.x - 2 * REGISTER_FRAME, 16
+	REGISTER_RECT.position.x + REGISTER_FRAME,
+	KEYS_RECT.position.y + KEYS_RECT.size.y + PRINTER_SLOT_GAP,
+	REGISTER_RECT.size.x - 2 * REGISTER_FRAME,
+	16
 )
 ## The receipt hangs from the printer slot's mouth, RECEIPT_MOUTH_GAP inside it at each side; its
 ## lines wrap as the plan's examples do.
@@ -92,36 +108,44 @@ const PILE_BOTTOM := 706.0
 const PILE_JOIN := 4.0
 ## The status panel on the counter (narrower in redraw mode, where Cancel takes the gap), with
 ## the capacity line, the cue under it and the notice over both.
-const STATUS_RECT := Rect2(14, 318, 410, 52)
-const STATUS_REDRAW_RECT := Rect2(14, 318, 292, 52)
-const CAPACITY_RECT := Rect2(24, 322, 390, 20)
+const STATUS_RECT := Rect2(14, 330, 410, 52)
+const STATUS_REDRAW_RECT := Rect2(14, 330, 292, 52)
+const CAPACITY_RECT := Rect2(24, 334, 390, 20)
 ## In redraw mode the capacity line wraps over both rows (at its longest it is wider than the
 ## narrowed panel) and the cue makes way.
-const CAPACITY_REDRAW_RECT := Rect2(24, 322, 272, 44)
-const CUE_RECT := Rect2(24, 346, 390, 20)
+const CAPACITY_REDRAW_RECT := Rect2(24, 334, 272, 44)
+const CUE_RECT := Rect2(24, 358, 390, 20)
 const CUE_TEXT := "Scanned left to right →"
-const NOTICE_RECT := Rect2(24, 322, 390, 44)
-const NOTICE_REDRAW_RECT := Rect2(24, 322, 272, 44)
+const NOTICE_RECT := Rect2(24, 334, 390, 44)
+const NOTICE_REDRAW_RECT := Rect2(24, 334, 272, 44)
 ## Two lines of the notice's font run 47 px with its own leading; this pulls them into 44.
 const NOTICE_LINE_SPACING := -4
 ## The buttons beside the status panel. Redraw keeps its right edge, so a longer caption never
 ## grows it into CHECKOUT.
-const CANCEL_RECT := Rect2(314, 322, 104, 44)
-const REDRAW_RECT := Rect2(432, 322, 228, 44)
-const CHECKOUT_RECT := Rect2(668, 317, 200, 54)
+const CANCEL_RECT := Rect2(314, 334, 104, 44)
+const REDRAW_RECT := Rect2(432, 334, 228, 44)
+const CHECKOUT_RECT := Rect2(668, 329, 200, 54)
 const BUTTON_FONT_SIZE := 16
 const CHECKOUT_FONT_SIZE := 26
 ## The ink outline of CHECKOUT's gold caption, in canvas pixels.
 const CHECKOUT_OUTLINE := 4
-## The hand's tray and the hand inside its rim, then the bottom band: the controls hint's inset,
-## the purse and the seed line.
-const TRAY_RECT := Rect2(12, 376, 916, 212)
-const HAND_RECT := Rect2(18, 382, 904, 200)
-const HINT_RECT := Rect2(14, 596, 412, 48)
+## The hand's tray and the hand inside its velvet rim (style frame v2), then the bottom band: the
+## controls hint's inset, the purse and the seed line. The hand's items (ItemView.TRAY_SIZE
+## cells; a full hand of 8 at HandRow's natural pitch) start inside the rim, so a selected item's
+## lifted sprite and its brackets stay on the tray, and the tray stops at the purse.
+const TRAY_RECT := Rect2(12, 410, 916, 184)
+const HAND_RECT := Rect2(22, 416, 900, 168)
+## While the shift is counted the hand and its tray fade to this alpha (style frame v2), so the
+## belt reads first.
+const COUNTING_HAND_ALPHA := 0.7
+const HINT_RECT := Rect2(14, 604, 412, 48)
 ## The hint's padding inside its inset, left and right.
 const HINT_PADDING := 8.0
 ## The controls hint, on two lines (a wrap could break "fast-forward" at its hyphen).
-const HINT_TEXT := "Click or drag a card onto a slot\ntap to skip the count, hold to fast-forward"
+const HINT_TEXT := (
+	"Hover to scan · click or drag an item onto a slot\n"
+	+ "tap to skip the count, hold to fast-forward"
+)
 ## The customer's purse (closed, static decor; #76 opens it) on a soft ink shadow.
 const PURSE_RECT := Rect2(696, 596, 224, 108)
 const PURSE_SHADOW_RECT := Rect2(720, 698, 176, 8)
@@ -153,8 +177,14 @@ var receipt: ReceiptView
 ## The belt under the row (a fixed size; the row rests on its bottom).
 var belt: BeltPanel
 var row_strip: RowStrip
-## The docked scanner: its cradle with the handheld behind it.
+## The docked scanner: its cradle with the handheld behind it (the scan layer borrows the
+## handheld for a scan and docks it again).
 var scanner: Control
+var handheld: TextureRect
+## Over everything on the stage, taking no clicks: the scan's marks and posed scanner, and the
+## layer the scan popup opens in.
+var scan_layer: ScanOverlay
+var popup_layer: Control
 ## The status panel's cream inset (narrower in redraw mode) and its texts.
 var status_panel: Panel
 var capacity_label: Label
@@ -197,6 +227,7 @@ func _init(slot_count: int) -> void:
 	_build_tray()
 	_build_status()
 	_build_counter_top()
+	_build_scan_layers()
 
 
 func _ready() -> void:
@@ -315,6 +346,14 @@ func receipt_bottom() -> float:
 ## the pile) is at or under it.
 func receipt_reaches_pile() -> bool:
 	return receipt.position.y + receipt.natural_height() >= paper_pile.top_y()
+
+
+## Fades the hand and its tray to COUNTING_HAND_ALPHA while the shift is counted (`counting`),
+## or back to full.
+func dim_hand(counting: bool) -> void:
+	var alpha: float = COUNTING_HAND_ALPHA if counting else 1.0
+	tray.modulate.a = alpha
+	hand.modulate.a = alpha
 
 
 ## Shows the paper pile only when it has paper and the receipt reaches it.
@@ -439,7 +478,7 @@ func _build_counter_top() -> void:
 	scanner.position = CRADLE_RECT.position
 	scanner.size = CRADLE_RECT.size
 	add_child(scanner)
-	var handheld: TextureRect = UiKit.sprite(SCANNER_HANDHELD)
+	handheld = UiKit.sprite(SCANNER_HANDHELD)
 	handheld.position = DOCKED_OFFSET
 	handheld.size = DOCKED_SIZE
 	scanner.add_child(handheld)
@@ -475,6 +514,29 @@ func _build_counter_top() -> void:
 	seed_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	add_child(seed_label)
 	_place_label(seed_label, SEED_RECT)
+
+
+## The scan layer (with the docked handheld) and the popup layer over the whole stage.
+func _build_scan_layers() -> void:
+	scan_layer = ScanOverlay.new()
+	scan_layer.name = "ScanLayer"
+	scan_layer.size = SIZE
+	add_child(scan_layer)
+	scan_layer.set_handheld(handheld)
+	popup_layer = Control.new()
+	popup_layer.name = "PopupLayer"
+	popup_layer.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	popup_layer.size = SIZE
+	add_child(popup_layer)
+
+
+## Where a scan popup may open, in global coordinates: the stage, the tray, the counter line and
+## the top bar's foot, wherever the stage sits in the window.
+func scan_layout() -> ScanLayout:
+	var layout: ScanLayout = ScanLayout.new(
+		Rect2(Vector2.ZERO, SIZE), TRAY_RECT, COUNTER_TOP, TOP_BAR_BOTTOM
+	)
+	return layout.transformed(get_global_transform())
 
 
 ## A plain cream inset at `rect` (the status panel and the hint's), taking no clicks.

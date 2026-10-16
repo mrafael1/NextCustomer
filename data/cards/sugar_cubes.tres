@@ -21,3 +21,4 @@ tags = PackedStringArray("Food")
 base = 2
 rules = Array[ExtResource("1_rule")]([SubResource("Resource_sugar_cubes")])
 rule_text = "+4 if immediately after Coffee"
+sticker_text = "+{bonus} after Coffee"

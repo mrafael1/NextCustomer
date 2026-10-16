@@ -29,13 +29,20 @@ const INK := Color("2b2420")
 ## Canvas pixels per art pixel (a 640x360 art grid on the 1280x720 canvas).
 const ART_SCALE := 2
 const PIXEL_SHADER := preload("res://presentation/pixel_art.gdshader")
-const ART_PENDING := preload("res://art/icons/art_pending.png")
+## Items (#75, decision 3A): every item is 48x48 art drawn at 2x. A product's `art_ref` names its
+## sprite; an undrawn product shows ITEM_PENDING, a dashed box that ItemView prints the name in.
+## Every coupon is the shared COUPON_SLIP, and a coupon's `art_ref` names the icon drawn on it.
+const ITEM_PENDING := preload("res://art/icons/art_pending_v2.png")
+const COUPON_SLIP := preload("res://art/items_v2/coupon_slip.png")
 ## Marks the nodes that draw pixel art, so a debug A/B switch can find them.
 const PIXEL_ART_META := &"pixel_art"
+## An aisle's glyph (9x9 art), by the aisle's id.
+const GLYPH_PATH := "res://art/icons/aisle_%s.png"
 
 static var _material: ShaderMaterial
 static var _number_font: FontVariation
 static var _symbol_body_font: FontVariation
+static var _bold_fonts: Dictionary[int, FontVariation] = {}
 
 
 ## Marks a node that draws pixel art (its own texture or stylebox, never text: a Label or a
@@ -86,11 +93,35 @@ static func body_font_with_symbols() -> Font:
 	return _symbol_body_font
 
 
-## The card's sprite from its `art_ref` (a `res://` path), or the art-pending box.
-static func item_texture(definition: CardDefinition) -> Texture2D:
-	if definition.art_ref != "" and ResourceLoader.exists(definition.art_ref):
-		return load(definition.art_ref) as Texture2D
-	return ART_PENDING
+## The body font (Atkinson Hyperlegible Next) at `weight`, shared by the price stickers and the
+## effect chips.
+static func bold_font(weight: int) -> Font:
+	if not _bold_fonts.has(weight):
+		var font: FontVariation = FontVariation.new()
+		font.base_font = BODY_FONT
+		var tag: int = TextServerManager.get_primary_interface().name_to_tag("wght")
+		font.variation_opentype = {tag: weight}
+		_bold_fonts[weight] = font
+	return _bold_fonts[weight]
+
+
+## The glyph texture's path for an aisle.
+static func glyph_path(aisle: AisleDefinition) -> String:
+	return GLYPH_PATH % aisle.id
+
+
+## An item's sprite (48x48 art): a product's from its `art_ref`, or ITEM_PENDING; every coupon's
+## is COUPON_SLIP.
+static func item_sprite(definition: CardDefinition) -> Texture2D:
+	if definition.is_coupon():
+		return COUPON_SLIP
+	var sprite: Texture2D = _art_ref_texture(definition)
+	return sprite if sprite != null else ITEM_PENDING
+
+
+## A coupon's icon on its slip, from its `art_ref`, or null (a product, or an undrawn icon).
+static func coupon_icon(definition: CardDefinition) -> Texture2D:
+	return _art_ref_texture(definition) if definition.is_coupon() else null
 
 
 ## A 9-slice frame drawn from a pre-scaled frame texture; `margin` is in art pixels. Its edges
@@ -102,3 +133,10 @@ static func frame_style(texture: Texture2D, margin: int) -> StyleBoxTexture:
 	style.texture = texture
 	style.set_texture_margin_all(margin * ART_SCALE)
 	return style
+
+
+## The texture `art_ref` names, or null when it names none or a missing file.
+static func _art_ref_texture(definition: CardDefinition) -> Texture2D:
+	if definition.art_ref != "" and ResourceLoader.exists(definition.art_ref):
+		return load(definition.art_ref) as Texture2D
+	return null

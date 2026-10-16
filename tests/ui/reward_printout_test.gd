@@ -125,7 +125,8 @@ func test_a_tap_during_the_lift_skips_it() -> void:
 	assert_bool(_last_event("reward")["presentation_skipped"]).is_true()
 
 
-## Promo products carry the PROMO sticker on the print-out; coupons and the impulse rack's
+## Promo products carry the PROMO tag on their price sticker on the print-out (#75: the offer
+## is tray items; offer_scan_test checks where the tag sits); coupons and the impulse rack's
 ## products don't.
 func test_promo_products_carry_a_sticker() -> void:
 	var screen: ShiftScreen = await _screen()
@@ -135,7 +136,10 @@ func test_promo_products_carry_a_sticker() -> void:
 	screen._reward_panel.show_printout(
 		offer, 13, 15, "", screen._receipt, screen._stage, Time.get_ticks_msec()
 	)
-	var views: Array[Node] = panel._cards.get_children()
+	var views: Array[ItemView] = panel.items()
+	assert_int(views.size()).is_equal(2)
+	for view: ItemView in views:
+		assert_int(view.form).is_equal(ItemView.Form.TRAY)
 	assert_object(RewardPanel.promo_sticker(views[0] as CardView)).is_not_null()
 	assert_str(RewardPanel.promo_sticker(views[0] as CardView).text).is_equal("PROMO")
 	assert_object(RewardPanel.promo_sticker(views[1] as CardView)).is_null()
@@ -227,8 +231,8 @@ func test_reduced_motion_fades_the_cards_in_place() -> void:
 
 ## The print-out fits the 1280x720 screen beside the receipt without overlapping it, with the
 ## deck-full note and the inspection warning, on every frame of its lift; its note, warning,
-## cards and buttons sit inside it, one under the other; the shade leaves the register column
-## unshaded, the pile's spilled fold too.
+## items and buttons sit inside it, one under the other, the items side by side; the shade leaves
+## the register column unshaded, the pile's spilled fold too.
 func test_the_printout_sits_beside_the_receipt() -> void:
 	var screen: ShiftScreen = await _screen()
 	await _pass_shift(screen)
@@ -261,9 +265,15 @@ func test_the_printout_sits_beside_the_receipt() -> void:
 		if above.size != Vector2.ZERO:
 			assert_float(part_rect.position.y).is_greater_equal(above.end.y)
 		above = part_rect
-	for view: Node in panel._cards.get_children():
-		assert_bool(rect.encloses((view as Control).get_global_rect())).is_true()
-		var sticker: Label = RewardPanel.promo_sticker(view as CardView)
+	var previous: Rect2 = Rect2()
+	for view: ItemView in panel.items():
+		var item: Rect2 = view.get_global_rect()
+		assert_bool(rect.encloses(item)).override_failure_message(str(item)).is_true()
+		assert_bool(item.intersects(previous)).override_failure_message(str(item)).is_false()
+		previous = item
+		for part: Control in [view.sprite(), view.sticker()]:
+			assert_bool(rect.encloses(part.get_global_rect())).is_true()
+		var sticker: Label = RewardPanel.promo_sticker(view)
 		if sticker != null:
 			assert_bool(rect.encloses(sticker.get_global_rect())).is_true()
 	await _spill_pile(screen)

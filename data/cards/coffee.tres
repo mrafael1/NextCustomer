@@ -19,3 +19,5 @@ tags = PackedStringArray("Breakfast")
 base = 2
 rules = Array[ExtResource("1_6wkug")]([SubResource("Resource_vnpwy")])
 rule_text = "+3 to the next Breakfast product"
+sticker_text = "+{bonus} next {tag}"
+art_ref = "res://art/items_v2/coffee.png"

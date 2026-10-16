@@ -8,7 +8,8 @@ extends RefCounted
 ## shake from the same rest position, so a node always ends at scale 1 and at the x it rested
 ## at. Under reduced_motion nothing shakes.
 
-const SCAN_LIFT := -22.0
+## A plain card's scan lift; every view gives its own (CardView.scan_lift).
+const SCAN_LIFT := CardView.SCAN_LIFT
 const GLOW := Color(1.3, 1.3, 1.15)
 ## A shake swings this long each way, then settles back.
 const SHAKE_SWING := 0.03
@@ -79,11 +80,13 @@ func shake(node: Control, amount: float, swings: int = 4) -> void:
 	_shakes[node] = tween
 
 
-## The card lifts off the belt with its badge, as the scanner reads it.
+## The card lifts off the belt with its badge, by the view's scan_lift(), as the scanner reads
+## it.
 func lift(view: CardView, seconds: float) -> void:
 	var tween: Tween = _tween().set_parallel().set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
-	tween.tween_property(view.body, "position:y", SCAN_LIFT, seconds)
-	tween.tween_property(view.badge, "position:y", view.badge_rest_y() + SCAN_LIFT, seconds)
+	var height: float = view.scan_lift()
+	tween.tween_property(view.body, "position:y", height, seconds)
+	tween.tween_property(view.badge, "position:y", view.badge_rest_y() + height, seconds)
 
 
 ## The card drops back onto the belt with its badge.

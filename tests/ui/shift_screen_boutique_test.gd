@@ -10,8 +10,8 @@ extends GdUnitTestSuite
 ## click on an empty slot or a hand card still reaches it, and one on the bare belt reaches the
 ## wall. The counter band: the cream status and hint insets, the velvet tray, the brass and velvet
 ## buttons and the closed purse; a notice taking the status panel, and redraw mode narrowing it
-## for Cancel. Every new art node is pixel art; no text is. The real saves and logs are never
-## touched.
+## for Cancel; the hand's items and tray fading while the shift is counted. Every new art node is
+## pixel art; no text is. The real saves and logs are never touched.
 
 const SCREEN := "res://ui/shift_screen.tscn"
 const WINDOWS: Array[Vector2] = [Vector2(1280, 720), Vector2(1920, 1080)]
@@ -103,11 +103,12 @@ func test_the_backdrop_fits_each_window() -> void:
 		assert_int(tray_light.get_index()).is_less(stage.status_panel.get_index())
 		assert_int(tray_light.get_index()).is_less(stage.hand.get_index())
 		assert_int(purse_light.get_index()).is_less(stage.purse_shadow.get_index())
-		# The valance hangs between the top bar and the belt's cards, over the belt's top rail.
+		# The valance hangs from the top bar over the belt's top rail and the cells' plaque band,
+		# ending at the mats' top.
 		var bar_bottom: float = stage_rect.position.y + RewardPanel.PRINTOUT_TOP
 		assert_float(valance.get_global_rect().position.y).is_less(bar_bottom)
 		assert_float(valance.get_global_rect().end.y).is_less_equal(
-			stage_rect.position.y + ShiftStage.ROW_POSITION.y
+			stage_rect.position.y + ShiftStage.ROW_POSITION.y + RowStrip.MAT_RECT.position.y
 		)
 
 
@@ -461,7 +462,7 @@ func test_a_notice_takes_the_status_panel() -> void:
 	assert_bool(notice.is_showing()).is_false()
 	assert_bool(stage.capacity_label.visible).is_true()
 	assert_bool(stage.cue_label.visible).is_true()
-	notice.show_notice("Row full (9/9 cards): take a card out first")
+	notice.show_notice("Row full (9/9 items): take an item out first")
 	assert_bool(notice.is_showing()).is_true()
 	assert_bool(stage.capacity_label.visible).is_false()
 	assert_bool(stage.cue_label.visible).is_false()
@@ -520,7 +521,7 @@ func test_redraw_mode_narrows_the_status_panel() -> void:
 	assert_bool(panel.encloses(capacity.get_global_rect())).is_true()
 	var notice: NoticeLabel = stage.notice_label
 	for text: String in [
-		"Row full (9/9 cards): take a card out first", "Closed by the inspection this shift"
+		"Row full (9/9 items): take an item out first", "Closed by the inspection this shift"
 	]:
 		notice.show_notice(text)
 		await _frames(1)
@@ -547,6 +548,31 @@ func test_redraw_mode_narrows_the_status_panel() -> void:
 
 
 # --- Helpers ---------------------------------------------------------------------------------
+
+
+## The hand is tray items (#75), and while the shift is counted the hand and its tray fade to
+## COUNTING_HAND_ALPHA; they come back once the count-up ends.
+func test_the_hand_is_items_that_dim_while_counting() -> void:
+	var screen: ShiftScreen = await _screen()
+	var views: Array[Control] = screen._hand_box.cards()
+	assert_int(views.size()).is_equal(screen.run.balance.hand_size)
+	for view: Control in views:
+		assert_object(view).is_instanceof(ItemView)
+		assert_int((view as ItemView).form).is_equal(ItemView.Form.TRAY)
+	var stage: ShiftStage = screen._stage
+	assert_float(stage.tray.modulate.a).is_equal(1.0)
+	assert_float(stage.hand.modulate.a).is_equal(1.0)
+	# Read on the first frame of the count-up.
+	var counting_alphas: Array[float] = []
+	var record: Callable = func() -> void:
+		counting_alphas.assign([stage.tray.modulate.a, stage.hand.modulate.a])
+	get_tree().process_frame.connect(record, CONNECT_ONE_SHOT)
+	await screen._on_checkout_pressed()
+	assert_int(counting_alphas.size()).is_equal(2)
+	for alpha: float in counting_alphas:
+		assert_float(alpha).is_equal_approx(ShiftStage.COUNTING_HAND_ALPHA, 0.001)
+	assert_float(stage.tray.modulate.a).is_equal(1.0)
+	assert_float(stage.hand.modulate.a).is_equal(1.0)
 
 
 ## Spotlights at `xs` (stage coordinates), one per SPOT_XS: each cone's foot on the stage, the
