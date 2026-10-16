@@ -14,8 +14,8 @@ extends GdUnitTestSuite
 ## ones are never touched.
 
 const CAPTURE := "res://debug/screen_capture/screen_capture.tscn"
-## The states: planning, a hand item scanned (its popup beside it over the tray) and a belt item
-## scanned (its popup flipped below its chips): the capture's --scan card ids, "" for none.
+## The states: planning, a hand item scanned and a belt item scanned (each shown on the hung
+## monitor, #80): the capture's --scan card ids, "" for none.
 const SCANS: Array[String] = ["", "batteries", "multipack"]
 
 var _folder: String = ""
@@ -178,8 +178,8 @@ func test_plaques_show_the_payouts() -> void:
 	assert_int(muted).is_equal(1)
 
 
-## Every character the screen prints, the items' stickers and chips, the CLOSED cell and the scan
-## popups' text too, is in the font that prints it.
+## Every character the screen prints, the items' stickers and chips, the CLOSED cell and the
+## monitor's scan text too, is in the font that prints it.
 func test_every_printed_character_has_its_glyph() -> void:
 	var checked: int = 0
 	var printed: PackedStringArray = PackedStringArray()
@@ -206,7 +206,7 @@ func test_every_printed_character_has_its_glyph() -> void:
 		assert_bool(printed.has(required)).override_failure_message(required).is_true()
 
 
-## No text goes through the sharp-pixel material (a scan's popup included), and the sharp-pixel
+## No text goes through the sharp-pixel material (the monitor's scan included), and the sharp-pixel
 ## switch (ArtStyle.set_sharp, the capture's S key) reaches every piece of art, items too.
 func test_text_never_carries_the_pixel_material() -> void:
 	for scan: String in SCANS:
@@ -244,7 +244,7 @@ func _captured(scan: String) -> ShiftScreen:
 		var scanned: ItemView = screen._scan.scanned()
 		assert_object(scanned).override_failure_message(scan).is_not_null()
 		assert_str(scanned.card.definition.id).is_equal(scan)
-		assert_bool(screen._scan.popup().visible).is_true()
+		assert_int(screen._monitor.mode()).is_equal(MonitorView.Mode.SCAN)
 	assert_array(_errors).is_empty()
 	return screen
 

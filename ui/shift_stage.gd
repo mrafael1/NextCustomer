@@ -6,18 +6,20 @@ extends Control
 ## layout; the stage never scales. This is B2's greybox (step 3): the regions are where B2 has
 ## them, drawn as flat palette fills, and the art lands region by region in later steps.
 ##
-## On the stage, back to front: the hung monitor (two rods, its bezel and paper screen, with the
-## LED's totals and the notices on it), the register (RegisterCabinet, the count-up's rattle
-## target: the printer box on the counter top and the register column under it, with the keypad
-## and the cash drawer), the receipt rising from the printer's slot, the belt (BeltPanel: the
-## steel guard, the rubber top face, the lip, the apron and the price rail, then the row of items
-## standing on the belt with their tickets on the rail), the top bar (the velvet shift sign, the
-## loyalty card, the inspection tag, Deck and Export log, all above RewardPanel.PRINTOUT_TOP),
-## the capacity line and the cue on the counter under the rail, the hand's baskets on the steel
-## ledge with the hand in them, the controls hint along the floor, Cancel, Redraw and CHECKOUT on
-## the register column and the seed line under Redraw. Over them all the scan layer (ScanOverlay:
-## the scan's brackets and beam) and the popup layer (where ScanController opens the scan
-## popup), both taking no clicks.
+## On the stage, back to front: the hung monitor (MonitorView: two rods, its bezel and paper
+## screen, with the LED's totals, the notices, a scanned item and the count-up on it), the register
+## (RegisterCabinet, the count-up's rattle target: the printer box on the counter top and the
+## register column under it, with the keypad and the cash drawer), the receipt rising from the
+## printer's slot, the belt (BeltPanel: the steel guard, the rubber top face, the lip, the apron
+## and the price rail, then the row of items standing on the belt with their tickets on the rail),
+## the top bar (the velvet shift sign, the loyalty card, the inspection tag, Deck and Export log,
+## all above RewardPanel.PRINTOUT_TOP), the capacity line and the cue on the counter under the rail,
+## the hand's baskets on the steel ledge with the hand in them, the controls hint along the floor,
+## Cancel, Redraw and CHECKOUT on the register column and the seed line under Redraw. Over them all
+## the scan layer (ScanOverlay: the scan's brackets and beam) and the popup layer, both taking no
+## clicks. A belt or hand item's scan shows on the monitor (#80); the popup layer only parks the
+## hidden scan popup, which opens over the offers alone, in the layer an offer's scan moves it
+## to (ScanController.cover_offers).
 ##
 ## The receipt stands on the printer's slot and grows up as its lines print, up to under the top
 ## bar; past that it scrolls to its newest line.
@@ -40,8 +42,7 @@ const SIZE := Vector2(1280, 720)
 const MARGIN := 20.0
 const TOP_BAR_POSITION := Vector2(20, 6)
 const TOP_BAR_GAP := 14
-## The top bar's band foot: the wall starts under it, and a belt item's scan popup flips below
-## its item rather than reach it.
+## The top bar's band foot: the wall starts under it, and a scan popup never reaches it.
 const TOP_BAR_BOTTOM := 56.0
 const SIGN_PADDING := Vector4(14, 2, 14, 4)
 const SIGN_FONT_SIZE := 20
@@ -61,8 +62,8 @@ const ROW_BOTTOM := ROW_POSITION.y + ItemView.BELT_SIZE.y
 ## down to the rail's foot.
 const ROW_AREA := Rect2(22, ROW_POSITION.y, 904, ItemView.BELT_SIZE.y)
 ## The monitor hung from the ceiling on two rods, its bezel and paper screen, and the shade under
-## it. The LED (LedDisplay: caption, digits and the quota line with its bar) and the notices are
-## on its screen.
+## it (MonitorView draws them). Idle, the LED (LedDisplay: caption, digits and the quota line with
+## its bar) and the notices are on its screen; MonitorView lays out its other states.
 const MONITOR_RECT := Rect2(372, 66, 424, 176)
 const MONITOR_SCREEN_RECT := Rect2(381, 75, 406, 158)
 const MONITOR_UNDER_RECT := Rect2(378, 240, 412, 8)
@@ -72,8 +73,6 @@ const LED_CAPTION_RECT := Rect2(452, 84, 264, 14)
 const LED_DIGITS_RECT := Rect2(452, 98, 264, 52)
 const LED_QUOTA_RECT := Rect2(452, 152, 264, 22)
 const NOTICE_RECT := Rect2(388, 182, 392, 44)
-## Two lines of the notice's font run 47 px with its own leading; this pulls them into 44.
-const NOTICE_LINE_SPACING := -4
 ## The register (RegisterCabinet): the printer box on the counter top with its slot, and the
 ## register column under it with the keypad and the cash drawer and its pull.
 const REGISTER_RECT := Rect2(944, 330, 336, 370)
@@ -113,9 +112,9 @@ const BASKET_RECTS: Array[Rect2] = [
 ]
 const LEDGE_RECT := Rect2(0, 664, 944, 30)
 const HAND_RECT := Rect2(16, 520, 912, 168)
-## Where the hand is: a hand item's scan popup opens beside it there, never above HAND_TOP.
+## Where the hand is: from the counter under the rail down to the stage's foot, left of the
+## register.
 const HAND_AREA := Rect2(0, 494, 944, 226)
-const HAND_TOP := 494.0
 ## While the shift is counted the hand and its baskets fade to this alpha, so the belt reads
 ## first.
 const COUNTING_HAND_ALPHA := 0.7
@@ -137,8 +136,8 @@ var loyalty_card: LoyaltyCard
 var inspection_tag: InspectionTag
 var deck_button: FramedButton
 var export_button: FramedButton
-## The hung monitor (decor: its rods, bezel and screen; the LED and the notices are on it).
-var monitor: Control
+## The hung monitor: its rods, bezel and screen, with the LED and the notices on it.
+var monitor: MonitorView
 ## The register: the count-up's rattle target (the same node as `cabinet`).
 var register: Control
 var cabinet: RegisterCabinet
@@ -238,31 +237,12 @@ func _build_top_bar() -> void:
 	export_button.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 
 
-## The hung monitor: its rods, the shade under it, its bezel and paper screen, then the LED and
-## the notices on the screen.
+## The hung monitor, with the LED and the notices on its screen.
 func _build_monitor() -> void:
-	monitor = Control.new()
-	monitor.name = "Monitor"
-	monitor.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	monitor = MonitorView.new()
 	add_child(monitor)
-	for rod: Rect2 in ROD_RECTS:
-		_rect_in(monitor, rod, Palette.RUBBER).name = "Rod"
-	_rect_in(monitor, MONITOR_UNDER_RECT, Palette.CHARCOAL).name = "Under"
-	_rect_in(monitor, MONITOR_RECT, Palette.RUBBER).name = "Bezel"
-	_rect_in(monitor, MONITOR_SCREEN_RECT, Palette.PAPER).name = "Screen"
-	led = LedDisplay.new()
-	led.position = LED_RECT.position
-	add_child(led)
-	# Plain dark tomato on the paper screen (no outline), on up to two lines.
-	notice_label = NoticeLabel.new()
-	notice_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	notice_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	notice_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	notice_label.add_theme_color_override("font_color", Palette.TOMATO_DARK)
-	notice_label.add_theme_constant_override("outline_size", 0)
-	notice_label.add_theme_constant_override("line_spacing", NOTICE_LINE_SPACING)
-	add_child(notice_label)
-	_place_label(notice_label, NOTICE_RECT)
+	led = monitor.led
+	notice_label = monitor.notice_label
 
 
 func _build_register() -> void:
@@ -388,7 +368,7 @@ func _build_keys() -> void:
 	_place_label(seed_label, SEED_RECT)
 
 
-## The scan layer and the popup layer over the whole stage.
+## The scan layer and the popup layer (where the hidden scan popup waits) over the whole stage.
 func _build_scan_layers() -> void:
 	scan_layer = ScanOverlay.new()
 	scan_layer.name = "ScanLayer"
@@ -399,15 +379,6 @@ func _build_scan_layers() -> void:
 	popup_layer.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	popup_layer.size = SIZE
 	add_child(popup_layer)
-
-
-## Where a scan popup may open, in global coordinates: the stage, the hand's area, the top of it
-## and the top bar's foot, wherever the stage sits in the window.
-func scan_layout() -> ScanLayout:
-	var layout: ScanLayout = ScanLayout.new(
-		Rect2(Vector2.ZERO, SIZE), HAND_AREA, HAND_TOP, TOP_BAR_BOTTOM
-	)
-	return layout.transformed(get_global_transform())
 
 
 ## A flat `color` rect with an ink outline at `rect` (stage coordinates) in `parent`, which

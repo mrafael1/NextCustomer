@@ -1,7 +1,8 @@
 extends GdUnitTestSuite
 ## The reward print-out on the real shift screen (#61, RewardPanel.show_printout): at the
 ## dessert's printer feed the offer appears beside the receipt, whose register column (the
-## cabinet and the receipt) stays unshaded, without the repeated headline; its
+## cabinet and the receipt) stays unshaded, as does the hung monitor with its totals (#80), without
+## the repeated headline; its
 ## cards lift into place and it arms once they have and the mouse is up.
 ## Checked: the budget from the verdict to the armed reward with no taps; the offer's timeline
 ## (it starts at the feed, presented_ms at the lift's end, armed_ms not before it,
@@ -158,8 +159,10 @@ func test_the_deck_view_never_replays_the_printout() -> void:
 	screen._on_deck_button_pressed()
 	assert_bool(screen._deck_view.visible).is_true()
 	await _frames(1)
-	# The deck view shades the whole screen, the receipt too.
+	# The deck view shades the whole screen, the receipt and the monitor too.
 	assert_float(screen._shade.offset_right).is_equal(0.0)
+	assert_bool(screen._shade.hole().has_area()).is_false()
+	assert_array(screen._shade.shaded_rects()).is_equal([screen._shade.get_global_rect()])
 	screen._on_deck_closed()
 	await _frames(2)
 	assert_bool(panel.is_lifting()).is_false()
@@ -232,7 +235,7 @@ func test_reduced_motion_fades_the_cards_in_place() -> void:
 ## The print-out fits the 1280x720 screen beside the receipt without overlapping it, with the
 ## deck-full note and the inspection warning, on every frame of its lift; its note, warning,
 ## items and buttons sit inside it, one under the other, the items side by side; the shade leaves
-## the register column unshaded.
+## the register column and the monitor unshaded.
 func test_the_printout_sits_beside_the_receipt() -> void:
 	var screen: ShiftScreen = await _screen()
 	await _pass_shift(screen)
@@ -281,8 +284,8 @@ func test_the_printout_sits_beside_the_receipt() -> void:
 
 
 ## On a wide window the stage sits centred, and the print-out stays on it, where it sits on the
-## stage of a 1280x720 window; the register column stays unshaded. The print-out follows the
-## stage as the window resizes.
+## stage of a 1280x720 window; the register column and the monitor stay unshaded. The print-out
+## follows the stage as the window resizes.
 func test_the_printout_stays_on_a_wide_stage() -> void:
 	var screen: ShiftScreen = await _screen()
 	await _pass_shift(screen)
@@ -305,7 +308,9 @@ func test_the_printout_stays_on_a_wide_stage() -> void:
 # --- Helpers ---------------------------------------------------------------------------------
 
 
-## The shade is up and misses the register column: the cabinet (at rest) and the receipt.
+## The shade is up and misses the register column (the cabinet at rest and the receipt) and the
+## hung monitor with its totals (#80; everything it draws, its LED and the quota chip), while it
+## dims the rest of the counter left of the column.
 func _assert_column_unshaded(screen: ShiftScreen) -> void:
 	assert_bool(screen._shade.visible).is_true()
 	var shade: Rect2 = screen._shade.get_global_rect()
@@ -316,6 +321,27 @@ func _assert_column_unshaded(screen: ShiftScreen) -> void:
 	for part: Rect2 in column:
 		var message: String = "shade %s over %s" % [shade, part]
 		assert_bool(shade.intersects(part)).override_failure_message(message).is_false()
+	var stage: Transform2D = screen._stage.get_global_transform()
+	var monitor: Array[Rect2] = [
+		stage * MonitorView.DRAWN_RECT,
+		screen._monitor.get_global_rect(),
+		screen._led.get_global_rect(),
+	]
+	var chip: QuotaChip = screen._count_up._quota_chip
+	if chip != null and chip.visible:
+		monitor.append(chip.get_global_rect())
+	var shaded: Array[Rect2] = screen._shade.shaded_rects()
+	assert_int(shaded.size()).is_greater(1)
+	for band: Rect2 in shaded:
+		assert_bool(shade.encloses(band)).is_true()
+		for part: Rect2 in monitor:
+			var message: String = "shade band %s over the monitor's %s" % [band, part]
+			assert_bool(band.intersects(part)).override_failure_message(message).is_false()
+	# The belt and the hand are still dimmed.
+	var belt: Vector2 = (stage * ShiftStage.BELT_RECT).get_center()
+	var dimmed: bool = shaded.any(func(band: Rect2) -> bool: return band.has_point(belt))
+	assert_bool(dimmed).is_true()
+	prints("#80 print-out", screen._reward_panel.get_global_rect(), "monitor", monitor[0])
 
 
 ## Prints the run's offer again beside the receipt, now, with `warning`, and the deck at

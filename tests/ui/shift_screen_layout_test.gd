@@ -67,9 +67,7 @@ func test_the_stage_is_laid_out_without_overlaps() -> void:
 	# The monitor hangs under the top bar, the LED and the notices on its screen.
 	var monitor: Rect2 = _on_stage(screen, ShiftStage.MONITOR_RECT)
 	var monitor_screen: Rect2 = _on_stage(screen, ShiftStage.MONITOR_SCREEN_RECT)
-	assert_that((screen._stage.monitor.get_node("Bezel") as Control).get_global_rect()).is_equal(
-		monitor
-	)
+	assert_that(screen._stage.monitor.get_global_rect()).is_equal(monitor)
 	assert_bool(monitor.encloses(monitor_screen)).is_true()
 	assert_float(monitor.position.y).is_greater_equal(bar_bottom)
 	var led: Rect2 = _on_stage(screen, ShiftStage.LED_RECT)

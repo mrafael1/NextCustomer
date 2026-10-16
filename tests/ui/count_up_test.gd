@@ -473,10 +473,12 @@ func _assert_rattle_fills_the_pause(count_up: CountUp, probe: Dictionary) -> voi
 
 ## Everything the count-up shows sits inside the 1280x720 screen: its labels, stamps, markers,
 ## pips and chip in the overlay, the receipt, the paper; the LED's digits (their measured text,
-## punched) on its glass; receipt lines unrotated.
+## punched) on the monitor's paper (#80: the count layout has no glass); receipt lines unrotated.
 func _check_on_screen(screen: ShiftScreen, failures: Array[String]) -> void:
 	var digits: Rect2 = screen._led.digits_text_rect()
-	if not screen._led.get_global_rect().encloses(digits):
+	var stage: Transform2D = screen._stage.get_global_transform()
+	var paper: Rect2 = stage * ShiftStage.MONITOR_SCREEN_RECT.grow(-MonitorView.OUTLINE)
+	if not paper.encloses(digits):
 		failures.append("LED digits %s at %s" % [screen._led.digits_label().text, digits])
 	var shown: Array[Control] = [screen._receipt]
 	for child: Node in screen._overlay.get_children():
@@ -683,7 +685,7 @@ func _assert_chip(screen: ShiftScreen, met: bool) -> void:
 	assert_str(screen._led.caption()).is_equal(LedDisplay.TOTAL_TEXT)
 	if not met:
 		assert_object(chip).is_null()
-		assert_that(color).is_equal(Palette.MUSTARD)
+		assert_that(color).is_equal(LedDisplay.COUNT_DIGITS_COLOR)
 		return
 	assert_object(chip).is_not_null()
 	assert_bool(is_instance_valid(chip)).is_true()

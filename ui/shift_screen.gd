@@ -87,13 +87,15 @@ var _reward_panel: RewardPanel
 var _upgrade_panel: UpgradePanel
 ## Dims the screen and blocks clicks behind the reward and upgrade panels, deck view and
 ## results.
-var _shade: ColorRect
+var _shade: ScreenShade
 var _deck_view: DeckView
 var _row_strip: RowStrip
 ## The register: the count-up's rattle target (the same node as `_cabinet`); its
 ## set_total_down() marks CHECKOUT held while the shift is counted.
 var _register: Control
 var _cabinet: RegisterCabinet
+## The hung monitor (#80): the LED, the notices, a scanned item and the count-up's beats.
+var _monitor: MonitorView
 ## The monitor's LED: the projected total in planning, the count-up's subtotal and total.
 var _led: LedDisplay
 var _overlay: Control
@@ -872,12 +874,14 @@ func _process(_delta: float) -> void:
 	)
 	# The shade starts under the top bar, wherever the stage sits in the window.
 	_shade.offset_top = _stage.position.y + RewardPanel.PRINTOUT_TOP
-	# Beside the print-out alone, the register column (the register and the receipt) stays
-	# unshaded (#61). The shade ends at the column's place on the stage, not at a
-	# node's rect, so it holds still while the register rattles.
+	# Beside the print-out alone, the register column (the register and the receipt) and the
+	# monitor with its totals stay unshaded (#61, #80). The shade ends at the column's place on
+	# the stage, not at a node's rect, so it holds still while the register rattles.
 	var beside: bool = _reward_panel.is_printout() and not _deck_view.visible
 	var column_x: float = (_stage.get_global_transform() * ShiftStage.REGISTER_RECT).position.x
 	_shade.offset_right = column_x - size.x if beside else 0.0
+	var monitor: Rect2 = _stage.get_global_transform() * MonitorView.DRAWN_RECT
+	_shade.set_hole(monitor if beside else Rect2())
 
 
 func _build() -> void:
@@ -903,6 +907,8 @@ func _build() -> void:
 	_seed_label = _stage.seed_label
 	_register = _stage.register
 	_cabinet = _stage.cabinet
+	_monitor = _stage.monitor
+	_monitor.reduced_motion = func() -> bool: return profile.reduced_motion()
 	_led = _stage.led
 	_receipt = _stage.receipt
 	_row_strip = _stage.row_strip
@@ -935,6 +941,7 @@ func _build() -> void:
 	_count_up.music = _music
 	_count_up.scan_overlay = _stage.scan_layer
 	_count_up.step_landed.connect(_belt_chips.land)
+	_count_up.beat_started.connect(_monitor.follow_beat)
 	_drag = CardDrag.new()
 	add_child(_drag)
 	_drag.setup(_overlay, _slots, _hand_box, _landing_slot)
@@ -946,13 +953,11 @@ func _build() -> void:
 	_scan.reduced_motion = func() -> bool: return profile.reduced_motion()
 	_focus.player_left.connect(_scan.clear)
 
-	_shade = ColorRect.new()
-	_shade.color = Color(0, 0, 0, 0.5)
+	_shade = ScreenShade.new()
 	_shade.set_anchors_preset(Control.PRESET_FULL_RECT)
 	# Below the top bar, so Export log and Deck stay reachable on every screen (_process keeps it
 	# there when the stage moves).
 	_shade.offset_top = RewardPanel.PRINTOUT_TOP
-	_shade.mouse_filter = Control.MOUSE_FILTER_STOP
 	_shade.visible = false
 	add_child(_shade)
 	_reward_panel = RewardPanel.new()

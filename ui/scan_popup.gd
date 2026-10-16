@@ -12,7 +12,9 @@ extends Control
 ## beside the item, over the tray, its tail pointing sideways at the item. The popup grows with
 ## its text up to MAX_HEIGHT; footer lines that don't fit fold into a last "+N more" line. A
 ## step line's amount (or "fizzle", after ReceiptView.joined_line's two spaces) sits at the
-## popup's right edge on the line's last row, as on the receipt.
+## popup's right edge on the line's last row, as on the receipt (ScanFooter, which the monitor
+## shares). Since #80 the shift screen opens it for the offers only (ScanController.cover_offers):
+## a belt or hand item's scan shows on the monitor (MonitorView).
 
 ## Where the popup opened: above or below a belt item, or right or left of a hand item.
 enum Placement { ABOVE, BELOW, RIGHT, LEFT }
@@ -58,20 +60,16 @@ const FOOTER_SIZE := 12
 const FOOTER_GAP := 4.0
 const COUPON_TITLE_WIDTH := 76.0
 const RULE_DASH := 4.0
-const ICON_SIZE := Vector2(14, 14)
 const STAPLE := "Staple"
 const COUPON_TITLE := "COUPON"
 const PAYS_TEXT := "Pays €%d"
 ## The footer's last line when the rest don't fit under MAX_HEIGHT: how many were folded.
-const MORE_TEXT := "+%d more"
-## What separates a footer line's text from its amount (ReceiptView.joined_line).
-const AMOUNT_SEPARATOR := "  "
+const MORE_TEXT := ScanFooter.MORE_TEXT
 const TAG_SEPARATOR := " · "
 
 const FRAME := preload("res://art/frames/popup.png")
 const TAIL := preload("res://art/frames/popup_tail.png")
 const TAIL_SIDE := preload("res://art/frames/popup_tail_side.png")
-const FIZZLE_ICON := preload("res://art/icons/fizzle.png")
 
 var placement: Placement = Placement.ABOVE
 
@@ -154,7 +152,14 @@ func show_card(
 		var row_height: float = _add_text(pays, y, -1.0) - y
 		_rule_end = WIDTH - PADDING - pays.get_minimum_size().x - FOOTER_GAP * 2.0
 		_footer_top = y + roundf((row_height - ArtStyle.ART_SCALE) / 2.0)
-		y = _add_footer(footer_lines, footer_fizzles, y + row_height, row_height)
+		# The step lines (ScanFooter) under the payout, folded to end within MAX_HEIGHT.
+		var footer: ScanFooter = ScanFooter.new(CONTENT_WIDTH, FOOTER_SIZE)
+		_content.add_child(footer)
+		footer.position = Vector2(PADDING, y + row_height)
+		footer.fill(footer_lines, footer_fizzles, MAX_HEIGHT - PADDING - footer.position.y)
+		for text: String in footer.texts():
+			_keep_footer(text)
+		y = footer.position.y + footer.size.y
 	size = Vector2(WIDTH, clampf(y + PADDING, MIN_HEIGHT, MAX_HEIGHT))
 	queue_redraw()
 
@@ -358,67 +363,6 @@ func _add_text(label: Label, top: float, height: float) -> float:
 	label.size = Vector2(CONTENT_WIDTH, maxf(height, 1.0))
 	if height < 0.0:
 		label.size.y = label.get_minimum_size().y
-	return top + label.size.y
-
-
-## Adds the footer's step lines from `top`: each one that ends within MAX_HEIGHT, keeping room
-## for a "+N more" line (`more_height`, one footer row) while more are to come; that line folds
-## the first one that doesn't fit and the rest. Returns the next line's top.
-func _add_footer(
-	lines: PackedStringArray, fizzles: Array[bool], top: float, more_height: float
-) -> float:
-	var limit: float = MAX_HEIGHT - PADDING
-	for index: int in range(lines.size()):
-		var kept: int = _content.get_child_count()
-		var next: float = _add_footer_line(lines[index], fizzles[index], top)
-		var reserve: float = more_height if index < lines.size() - 1 else 0.0
-		if next + reserve <= limit:
-			top = next
-			continue
-		# It doesn't fit: take it out again and fold it with the rest.
-		for child: Node in _content.get_children().slice(kept):
-			_content.remove_child(child)
-			child.queue_free()
-		_footer_texts.remove_at(_footer_texts.size() - 1)
-		var folded: int = lines.size() - index
-		var more: Label = UiKit.body_label(MORE_TEXT % folded, FOOTER_SIZE, Palette.INK)
-		_keep_footer(more.text)
-		return _add_text(more, top, -1.0)
-	return top
-
-
-## Adds one step line from `top`: a fizzle's icon, then its text, wrapped clear of its amount,
-## which sits right-aligned on the text's last row. Returns the next line's top.
-func _add_footer_line(text: String, fizzle: bool, top: float) -> float:
-	var colour: Color = Palette.TOMATO_DARK if fizzle else Palette.INK
-	var at: int = text.rfind(AMOUNT_SEPARATOR)
-	var left: String = text if at < 0 else text.left(at)
-	var label: Label = UiKit.body_label(left, FOOTER_SIZE, colour)
-	label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	_keep_footer(text)
-	var indent: float = 0.0
-	if fizzle:
-		var icon: TextureRect = UiKit.sprite(FIZZLE_ICON)
-		icon.position = Vector2(PADDING, top + 2.0)
-		icon.size = ICON_SIZE
-		_content.add_child(icon)
-		indent = ICON_SIZE.x + 4.0
-	var amount: Label = null
-	var amount_width: float = 0.0
-	if at >= 0:
-		amount = UiKit.body_label(text.substr(at + AMOUNT_SEPARATOR.length()), FOOTER_SIZE, colour)
-		amount.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
-		_content.add_child(amount)
-		amount_width = amount.get_minimum_size().x + FOOTER_GAP * 2.0
-	# In the tree first: out of it a label measures with the default font size.
-	_content.add_child(label)
-	label.position = Vector2(PADDING + indent, top)
-	label.size = Vector2(CONTENT_WIDTH - indent - amount_width, 1.0)
-	label.size.y = label.get_minimum_size().y
-	if amount != null:
-		var row: float = amount.get_minimum_size().y
-		amount.position = Vector2(PADDING, top + label.size.y - row)
-		amount.size = Vector2(CONTENT_WIDTH, row)
 	return top + label.size.y
 
 

@@ -2,16 +2,18 @@ extends GdUnitTestSuite
 ## The screens' colours are the art's (full build plan section 6.1, #55): every Color constant
 ## of Palette and of the boutique classes the shift screen builds is one of art/src/palette.txt's
 ## 67 colours. Out of scope (listed for #56/#75, not changed in #55): EffectMarker's
-## SPENT_BACKGROUND (c9c1ae) and the shade's black, which belong to #60's count-up look.
+## SPENT_BACKGROUND (c9c1ae) and the shade's black (ScreenShade's colour since #80), which belong
+## to #60's count-up look.
 
 const PALETTE_FILE := "res://art/src/palette.txt"
 const PALETTE_SIZE := 67
 ## Palette and ArtStyle, then the boutique classes #55 adds to the real shift screen
 ## (StoreBackdrop, BeltPanel, RegisterCabinet, LedDisplay, PaperPile), the scan pieces #75
 ## moves out of style frame v2 (PriceSticker, ScanPopup, ScanOverlay, EffectChip) and the items
-## and their cells (ItemView, PayoutPlaque, RowStrip), which take their colours from Palette:
-## style frame v2's palette check, kept for the screen that replaced it (#75, step 9). A class is
-## checked once its script exists, so each step of the adoption is covered as it lands.
+## and their cells (ItemView, PayoutPlaque, RowStrip), which take their colours from Palette,
+## and the hung monitor's pieces #80 adds (MonitorView, LedBeat, ScanFooter): style frame v2's
+## palette check, kept for the screen that replaced it (#75, step 9). A class is checked once its
+## script exists, so each step of the adoption is covered as it lands.
 const SCRIPTS: Array[String] = [
 	"res://ui/palette.gd",
 	"res://presentation/art_style.gd",
@@ -27,9 +29,12 @@ const SCRIPTS: Array[String] = [
 	"res://ui/item_view.gd",
 	"res://ui/payout_plaque.gd",
 	"res://ui/row_strip.gd",
+	"res://ui/monitor_view.gd",
+	"res://ui/led_beat.gd",
+	"res://ui/scan_footer.gd",
 ]
-## The scan pieces and the items name no colour of their own: every colour they draw is a
-## Palette constant.
+## The scan pieces (the scan's step lines in ScanFooter, #80, too) and the items name no colour of
+## their own: every colour they draw is a Palette constant.
 const PALETTE_ONLY: Array[String] = [
 	"res://ui/price_sticker.gd",
 	"res://ui/scan_popup.gd",
@@ -37,6 +42,7 @@ const PALETTE_ONLY: Array[String] = [
 	"res://ui/effect_chip.gd",
 	"res://ui/item_view.gd",
 	"res://ui/payout_plaque.gd",
+	"res://ui/scan_footer.gd",
 ]
 
 var _folder: String = ""

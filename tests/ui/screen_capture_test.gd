@@ -69,8 +69,8 @@ func test_the_capture_saves_one_png() -> void:
 	assert_int(DirAccess.get_files_at(_capture_folder).size()).is_equal(1)
 
 
-## --scan=multipack scans the belt's Multipack (the hand holds none): its item lifts, the popup
-## opens on the stage and the scanner leaves its cradle; the capture is then named for the scan.
+## --scan=multipack scans the belt's Multipack (the hand holds none): its item lifts, the hung
+## monitor shows it (#80) and the scan's marks pose over it; the capture is then named for the scan.
 ## A hand card is scanned in the hand.
 func test_the_scan_scans_a_card_on_the_counter() -> void:
 	var capture: Control = scene_runner(CAPTURE).scene()
@@ -84,10 +84,11 @@ func test_the_scan_scans_a_card_on_the_counter() -> void:
 	assert_str(scanned.card.definition.id).is_equal("multipack")
 	assert_int(scanned.form).is_equal(ItemView.Form.BELT)
 	assert_bool(scanned.lifted).is_true()
-	var popup: ScanPopup = screen._scan.popup()
-	assert_bool(popup.visible).is_true()
-	var stage: Rect2 = screen._stage.get_global_rect()
-	assert_bool(stage.encloses(popup.get_global_rect())).is_true()
+	assert_int(screen._monitor.mode()).is_equal(MonitorView.Mode.SCAN)
+	assert_str(screen._monitor.scan_name_label().text).is_equal(
+		scanned.card.definition.display_name
+	)
+	assert_bool(screen._scan.popup().visible).is_false()
 	assert_bool(screen._scan.overlay().is_posed()).is_true()
 	await capture.call("capture", _capture_folder)
 	assert_array(_errors).is_empty()

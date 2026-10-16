@@ -1,11 +1,12 @@
 class_name ScanController
 extends Node
 ## The hover scanner on the shift screen (#75), opt-in since #80: hovering an item in the hand or on
-## the belt is quiet: nothing shows, no popup, no lift, no marks, no beep. Only once the pointer has
-## stayed on that same item for the hold (ScanTuning.hold_ms, in data/balance/scan.tres) is it
-## scanned: the item's sprite lifts, tomato brackets mark it (the stage's scan layer, ScanOverlay;
-## B2 has no handheld scanner, #80), the scanner beeps and the one scan popup opens beside or above
-## it (the stage's popup layer). The pointer leaving the item cancels a pending hold, and back on
+## the belt is quiet: nothing shows, nothing on the monitor, no lift, no marks, no beep. Only once
+## the pointer has stayed on that same item for the hold (ScanTuning.hold_ms, in
+## data/balance/scan.tres) is it scanned: the item's sprite lifts, tomato brackets mark it (the
+## stage's scan layer, ScanOverlay; B2 has no handheld scanner, #80), the scanner beeps and the hung
+## monitor shows the item (MonitorView.show_scan) until the scan ends, when it goes back to its idle
+## screen. The pointer leaving the item cancels a pending hold, and back on
 ## the item the hold starts again; another item starts its own. Dragging an item ends the scan, a
 ## pending hold with it (`blocked`).
 ##
@@ -17,24 +18,25 @@ extends Node
 ## impulse rack and the reward print-out) and scans them like hand items while the panel accepts
 ## clicks (RewardPanel.can_scan: not while it pops in or its items lift out of the printer, nor
 ## while the deck view hides it). Their scan opens in a layer right above the panel, since the shade
-## and the panel cover the stage's layers: its own marks and the same popup, beside the item over
-## the panel. There the popup takes the clicks on it and does nothing with them: it covers the
-## neighbouring items (and can cover the panel's buttons), and a click while reading it must never
-## pick an item the player can't see.
+## and the panel cover the stage's layers: its own marks and the scan popup (ScanPopup), beside the
+## item over the panel. There the popup takes the clicks on it and does nothing with them: it covers
+## the neighbouring items (and can cover the panel's buttons), and a click while reading it must
+## never pick an item the player can't see.
 ##
-## The popup shows the card's rule text verbatim. A belt item's popup also shows its payout and,
-## in its footer, every step of its slot but BASE and PAYOUT, worded as the receipt words them
-## (ReceiptView.step_line, decision 1A), so every line of the planning receipt can be read by
+## The monitor (and an offer's popup) shows the card's rule text verbatim. A belt item's scan also
+## shows its payout and every step of its slot but BASE and PAYOUT, worded as the receipt words
+## them (ReceiptView.step_line, decision 1A), so every line of the planning receipt can be read by
 ## scanning its item. Its tag line shows the scored tags (granted ones too); a hand item's its
 ## card's own.
 ##
-## The scan follows the pointer. While the pointer is inside the popup, the scanned item stays,
-## so moving over the popup never switches to an item it covers. Once the pointer is over neither
-## the item nor its popup, the scan moves to the item under it, or ends: the marks clear and
-## the popup hides. It also ends when the pointer leaves the window and when the player leaves
-## (FocusWatch.player_left; ShiftScreen calls clear). A refresh that rebuilds the items keeps the
-## scan on the same card (its new view) while the pointer is on that view or the popup; a card the
-## refresh moved away from the pointer (a belt item clicked out to the hand) ends the scan.
+## The scan follows the pointer. While the pointer is inside an offer's popup, the scanned offer
+## stays, so moving over the popup never switches to an item it covers. Once the pointer is over
+## neither the item nor its popup, the scan moves to the item under it, or ends: the marks clear,
+## the popup hides and the monitor goes back to its idle screen. It also ends when the pointer
+## leaves the window and when the player leaves (FocusWatch.player_left; ShiftScreen calls clear).
+## A refresh that rebuilds the items keeps the scan on the same card (its new view) while the
+## pointer is on that view (or an offer's popup); a card the refresh moved away from the pointer (a
+## belt item clicked out to the hand) ends the scan.
 ##
 ## The beep (Sfx "scan_hover", the scan sound at HOVER_DB) plays only when a hold ends in the full
 ## scan, at most once every THROTTLE_MS. Reduced motion leaves the beam's pulse off; the hold
@@ -67,6 +69,7 @@ var tuning: ScanTuning
 
 var _stage: ShiftStage
 var _overlay: ScanOverlay
+var _monitor: MonitorView
 var _popup: ScanPopup
 ## The offers' panel (cover_offers), the layer over it that an offer's scan opens in, that
 ## layer's marks, and the offered items.
@@ -87,8 +90,8 @@ var _shown_card: CardInstance
 ## The item the pointer last entered and hasn't left: where the scan goes once it leaves the
 ## scanned item and its popup.
 var _under: ItemView
-## Whether the shown item has the full scan (the popup, the lift, the marks and the beep), not
-## only its quiet hover (nothing shown).
+## Whether the shown item has the full scan (the monitor or the popup, the lift, the marks and
+## the beep), not only its quiet hover (nothing shown).
 var _full: bool = false
 ## The clock's time (_now) the pointer came onto the shown item, while its hold is pending; -1
 ## while the pointer is off it (or the scan is full).
@@ -104,12 +107,15 @@ func _ready() -> void:
 	get_window().mouse_exited.connect(clear)
 
 
-## Takes the stage's scan layer and popup layer: the popup is built once, hidden, and reused.
+## Takes the stage's scan layer, monitor and popup layer: the popup (for the offers) is built
+## once and parked hidden in the popup layer; an offer's scan moves it to the offers' layer
+## (cover_offers) and shows it there.
 func setup(stage: ShiftStage) -> void:
 	if tuning == null:
 		tuning = load(TUNING_PATH) as ScanTuning
 	_stage = stage
 	_overlay = stage.scan_layer
+	_monitor = stage.monitor
 	_popup = ScanPopup.new()
 	_popup.name = "ScanPopup"
 	_popup.visible = false
@@ -165,7 +171,8 @@ func set_result(
 	_queue_reshow()
 
 
-## Ends the scan: the item rests, the popup hides and the marks clear.
+## Ends the scan: the item rests, the popup hides, the monitor goes back to idle and the marks
+## clear.
 func clear() -> void:
 	if _is_shown(_shown):
 		_shown.lifted = false
@@ -176,6 +183,8 @@ func clear() -> void:
 	_reshow_queued = false
 	if _popup != null:
 		_popup.visible = false
+	if _monitor != null:
+		_monitor.end_scan()
 	for marks: ScanOverlay in [_overlay, _offer_overlay]:
 		if marks != null:
 			marks.dock()
@@ -197,8 +206,14 @@ func hold_ms() -> int:
 	return tuning.hold_ms
 
 
+## The offers' scan popup.
 func popup() -> ScanPopup:
 	return _popup
+
+
+## The monitor a belt or hand item's scan shows on.
+func monitor() -> MonitorView:
+	return _monitor
 
 
 ## The stage's scan layer: the marks over the counter's items.
@@ -227,7 +242,7 @@ func debug_scan(card: CardInstance) -> bool:
 	return false
 
 
-## The steps a belt item's popup footer lists: every step of `slot` in `result` but its BASE and
+## The steps a belt item's scan lists: every step of `slot` in `result` but its BASE and
 ## PAYOUT (and the armed effects, which print no line), in step order.
 static func footer_steps(result: ScoreResult, slot: int) -> Array[ScoreStep]:
 	var steps: Array[ScoreStep] = []
@@ -358,9 +373,10 @@ func _go_full() -> void:
 	_beep()
 
 
-## With the full scan, lifts `view`, fills and places its popup and marks it; quiet, the item rests,
-## the popup hides and nothing is marked. An offer's scan opens in the layer over the offers, beside
-## the item over its panel; a counter item's on the stage.
+## With the full scan, lifts `view`, marks it and shows it: a counter item's on the monitor, an
+## offer's in the popup, filled and placed in the layer over the offers, beside the item over its
+## panel. Quiet, the item rests, the popup hides, the monitor shows its idle screen and nothing is
+## marked.
 func _show(view: ItemView) -> void:
 	if _is_shown(_shown) and _shown != view:
 		_shown.lifted = false
@@ -370,6 +386,7 @@ func _show(view: ItemView) -> void:
 	set_process(true)
 	if not _full:
 		_popup.visible = false
+		_monitor.end_scan()
 		for docked: ScanOverlay in [_overlay, _offer_overlay]:
 			if docked != null:
 				docked.dock()
@@ -386,19 +403,23 @@ func _show(view: ItemView) -> void:
 			lines.append(ReceiptView.step_line(step, _names, _upgrade_names, _inspection_names))
 			fizzles.append(step.step_type == ScoreStep.StepType.WASTED)
 	var offer: bool = _offers.has(view)
-	var layer: Control = _offer_layer if offer else _stage.popup_layer
-	if _popup.get_parent() != layer:
-		_popup.reparent(layer, false)
-	# Over the offers, a click on the popup stops there (see the class comment).
-	_popup.mouse_filter = Control.MOUSE_FILTER_STOP if offer else Control.MOUSE_FILTER_IGNORE
 	var marks: ScanOverlay = _offer_overlay if offer else _overlay
 	var other: ScanOverlay = _overlay if offer else _offer_overlay
 	if other != null:
 		other.clear()
-	_popup.visible = true
-	_popup.show_card(definition, view.aisle, view.tags(), payout, lines, fizzles)
 	var sprite: Rect2 = ScanOverlay.lifted_sprite(view)
-	_popup.place_at(sprite, view.below_rect(), _offer_layout() if offer else _stage.scan_layout())
+	if offer:
+		if _popup.get_parent() != _offer_layer:
+			_popup.reparent(_offer_layer, false)
+		# Over the offers, a click on the popup stops there (see the class comment).
+		_popup.mouse_filter = Control.MOUSE_FILTER_STOP
+		_popup.visible = true
+		_popup.show_card(definition, view.aisle, view.tags(), payout, lines, fizzles)
+		_popup.place_at(sprite, view.below_rect(), _offer_layout())
+		_monitor.end_scan()
+	else:
+		_popup.visible = false
+		_monitor.show_scan(definition, view.aisle, view.tags(), payout, lines, fizzles)
 	marks.pose_hover(sprite)
 	if _wants_reduced_motion():
 		marks.stop_beam_loop()
@@ -421,7 +442,7 @@ func _beep() -> void:
 	Sfx.play_at(self, HOVER_SOUND, HOVER_DB)
 
 
-## Whether the pointer at `point` (global) is on the popup while it shows.
+## Whether the pointer at `point` (global) is on the popup while it shows (an offer's scan).
 func _on_popup(point: Vector2) -> bool:
 	return _popup.visible and _popup.get_global_rect().has_point(point)
 

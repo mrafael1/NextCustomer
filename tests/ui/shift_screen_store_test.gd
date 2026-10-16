@@ -114,7 +114,7 @@ func test_decor_takes_no_clicks() -> void:
 		slot.get_global_rect().get_center().y
 	)
 	assert_object(_topmost_at(screen, gap)).is_same(wall)
-	var bezel: Rect2 = (stage.monitor.get_node("Bezel") as Control).get_global_rect()
+	var bezel: Rect2 = stage.monitor.get_global_rect()
 	var on_bezel: Vector2 = bezel.position + Vector2(4, 4)
 	assert_object(_topmost_at(screen, on_bezel)).is_same(wall)
 

@@ -153,15 +153,20 @@ func test_a_step_lines_amount_sits_on_its_last_row_at_the_right() -> void:
 	var labels: Dictionary[String, Label] = {}
 	for label: Label in popup.text_labels():
 		labels[label.text] = label
-	var right_edge: float = ScanPopup.PADDING + ScanPopup.CONTENT_WIDTH
+	# Global rects: the step lines sit in the popup's ScanFooter.
+	var right_edge: float = (
+		popup.get_global_rect().position.x + ScanPopup.PADDING + ScanPopup.CONTENT_WIDTH
+	)
 	for pair: Array in [[SHORT_LINE, "+8", 1], [LONG_LINE, "fizzle", 2]]:
 		var text: Label = labels[pair[0]]
 		var amount: Label = labels[pair[1]]
+		var text_rect: Rect2 = text.get_global_rect()
+		var amount_rect: Rect2 = amount.get_global_rect()
 		assert_int(text.get_line_count()).is_equal(pair[2])
-		assert_float(amount.position.x + amount.size.x).is_equal_approx(right_edge, 0.01)
-		assert_float(amount.position.y + amount.size.y).is_equal_approx(text.get_rect().end.y, 0.01)
-		var drawn: float = amount.position.x + amount.size.x - amount.get_minimum_size().x
-		assert_float(text.get_rect().end.x).is_less(drawn)
+		assert_float(amount_rect.end.x).is_equal_approx(right_edge, 0.01)
+		assert_float(amount_rect.end.y).is_equal_approx(text_rect.end.y, 0.01)
+		var drawn: float = amount_rect.end.x - amount.get_minimum_size().x
+		assert_float(text_rect.end.x).is_less(drawn)
 	_assert_holds_its_text(popup, milk, "milk")
 	await get_tree().process_frame
 

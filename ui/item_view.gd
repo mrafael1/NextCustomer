@@ -60,6 +60,8 @@ const NAME_SIZE := 12
 const NAME_WEIGHT := 700
 const NAME_LINE_SPACING := -2
 const NAME_LINES := 3
+## The printed name's node name on the art (item_art).
+const PRINTED_NAME := "PrintedName"
 ## A redraw-marked item fades to REDRAW_ALPHA; its REDRAW tag covers the sticker's glyph corner
 ## (sticker coordinates), clear of the base value (or COUPON) and the summary.
 const REDRAW_ALPHA := 0.55
@@ -301,17 +303,9 @@ func _build() -> void:
 	body.size = SPRITE_SIZE
 	body.pivot_offset = SPRITE_SIZE / 2.0
 	_stand.add_child(body)
-	_sprite = UiKit.sprite(ArtStyle.item_sprite(definition))
+	_sprite = item_art(definition)
 	body.add_child(_sprite)
-	var icon: Texture2D = ArtStyle.coupon_icon(definition)
-	if icon != null:
-		var overlay: TextureRect = UiKit.sprite(icon)
-		overlay.position = COUPON_ICON_RECT.position
-		overlay.size = COUPON_ICON_RECT.size
-		_sprite.add_child(overlay)
-	elif definition.is_coupon() or _sprite.texture == ArtStyle.ITEM_PENDING:
-		_name_label = _printed_name(definition)
-		_sprite.add_child(_name_label)
+	_name_label = _sprite.get_node_or_null(PRINTED_NAME) as Label
 	_redraw_mark = UiKit.display_label(REDRAW_TEXT, REDRAW_SIZE, false)
 	_redraw_mark.add_theme_color_override("font_color", Palette.PAPER)
 	var tag_face: StyleBoxFlat = StyleBoxFlat.new()
@@ -333,8 +327,25 @@ func _build() -> void:
 	add_child(_plaque)
 
 
+## An item's SPRITE_SIZE art, as the item shows it (and the monitor, #80): its sprite, with a
+## coupon's icon on its slip, or the item's name printed (PRINTED_NAME) on an art-pending box or
+## on a slip without an icon.
+static func item_art(definition: CardDefinition) -> TextureRect:
+	var art: TextureRect = UiKit.sprite(ArtStyle.item_sprite(definition))
+	art.size = SPRITE_SIZE
+	var icon: Texture2D = ArtStyle.coupon_icon(definition)
+	if icon != null:
+		var overlay: TextureRect = UiKit.sprite(icon)
+		overlay.position = COUPON_ICON_RECT.position
+		overlay.size = COUPON_ICON_RECT.size
+		art.add_child(overlay)
+	elif definition.is_coupon() or art.texture == ArtStyle.ITEM_PENDING:
+		art.add_child(_printed_name(definition))
+	return art
+
+
 ## The item's name printed on its art-pending box, or on a coupon's slip.
-func _printed_name(definition: CardDefinition) -> Label:
+static func _printed_name(definition: CardDefinition) -> Label:
 	var coupon: bool = definition.is_coupon()
 	var label: Label = UiKit.body_label(
 		definition.display_name, NAME_SIZE, Palette.INK if coupon else Palette.GREY_DARK
@@ -345,6 +356,7 @@ func _printed_name(definition: CardDefinition) -> Label:
 	label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	var rect: Rect2 = COUPON_NAME_RECT if coupon else PENDING_NAME_RECT
+	label.name = PRINTED_NAME
 	label.position = rect.position
 	label.size = rect.size
 	return label

@@ -18,7 +18,7 @@ extends Node
 ## faster as the run goes on, with three ticks per payout roll; a register rattle on big
 ## payouts; a PaperPile that grows with every line; the quota ding with a lasting "QUOTA" chip;
 ## then a held breath (longer and rattling for a large total) and the TOTAL line.
-## Then the dessert (#61, CountUpDessert): the slam onto the TOTAL line, the margin, PAID, the
+## Then the dessert (#61, CountUpDessert): the slam onto the monitor's total, the margin, PAID, the
 ## tear and the next shift's notice; a passed shift's ends at the printer feed (`printer_feed`),
 ## where the reward print-out takes over.
 ##
@@ -64,23 +64,23 @@ extends Node
 ## here. play() returns right after it.
 signal printer_feed
 signal finished
-## Step `index` has landed on its item (#75, option B: a belt item's chip pops in here): a bonus or
-## a stamp as it lands, once its marker is absorbed (so the two never show the same landing
-## together), a fizzle as it puffs, any other step at its beat's start. Nothing waits for it.
+## Step `index` landed on its item (#75, B: its chip pops in): a bonus or stamp once its marker is
+## absorbed (never both at once), a fizzle as it puffs, other steps at the beat's start.
 signal step_landed(index: int)
+## A beat starts on `view`, one of `items` (#80, the monitor): its first `step` and that step's
+## receipt line (ReceiptView.step_line, "" for none). Nothing waits for it: the timing never moves.
+signal beat_started(beat: CountUpBeat, step: ScoreStep, line: String, view: CardView, items: int)
 
 ## A hold's speed, from HOLD_THRESHOLD_MS on.
 const FAST_FORWARD := 5.0
-## A press released before this (in ms of Time.get_ticks_msec()) is a tap; one held this long is
-## a hold (PressReader's).
+## A press released before this (in ms) is a tap; one held this long a hold (PressReader's).
 const HOLD_THRESHOLD_MS := PressReader.HOLD_THRESHOLD_MS
 ## The speed after the first tap, up to the verdict.
 const TAP_SKIP := 12.0
 ## The speed of everything left after a tap that skips the dessert.
 const DESSERT_SKIP := 30.0
-## A double-click's second press this soon (in ms) after the count-up started is the end of the
-## checkout click's double-click, not a tap. Later ones are real taps (the second of two quick
-## taps is a double-click too, and still skips the dessert). PressReader's.
+## A second press this soon (ms) after the start ends the checkout click's double-click, not a tap.
+## Later ones are taps (the second of two quick taps still skips the dessert). PressReader's.
 const CHECKOUT_DOUBLE_CLICK_MS := PressReader.CHECKOUT_DOUBLE_CLICK_MS
 ## The count-up's tuning, unless setup() is given another.
 const TUNING_PATH := "res://data/balance/count_up.tres"
@@ -93,15 +93,13 @@ const ARMED_NOTE_DB := -10.0
 const STAMP_NOTE_DB := -6.0
 ## An echo's stamp sample, softer than a full stamp.
 const ECHO_STAMP_DB := -8.0
-## The register rattle's sound (#62): a rattle of RATTLE_MEDIUM_PX pixels or more plays
-## rattle_m, RATTLE_LARGE_PX or more rattle_l, anything less rattle_s; its volume climbs from
-## RATTLE_QUIET_DB to 0 dB at RATTLE_FULL_PX.
+## The register rattle's sound (#62): rattle_s, from RATTLE_MEDIUM_PX px rattle_m, from
+## RATTLE_LARGE_PX rattle_l; its volume climbs from RATTLE_QUIET_DB to 0 dB at RATTLE_FULL_PX.
 const RATTLE_MEDIUM_PX := 6.0
 const RATTLE_LARGE_PX := 10.0
 const RATTLE_FULL_PX := 12.0
 const RATTLE_QUIET_DB := -10.0
-## Motion lengths at speed 1, in seconds, each the longest it gets: a beat shorter than its
-## motion shortens it (see _motion).
+## Motion lengths at speed 1 (s), the longest each gets: a shorter beat shortens it (_motion).
 const SCAN_LIFT_TIME := 0.18
 const MERGED_LIFT_MIN := 0.05
 const MERGED_LIFT_MAX := 0.1
@@ -130,9 +128,8 @@ const SUBTOTAL_PUNCH_MAX := 0.5
 ## The pile's settle bounce: squashed this tall, back over PILE_SETTLE_TIME (D4: 80 ms).
 const PILE_SETTLE := 1.06
 const PILE_SETTLE_TIME := 0.08
-## The dessert ducks the music (#62, Q6, #61): this far, over DUCK_ATTACK_S, as the pause before
-## the total starts, so the slam lands in near-silence. A tap that skips the dessert brings the
-## music back over SKIP_UNDUCK_S.
+## The dessert ducks the music (#62, Q6, #61) this far over DUCK_ATTACK_S as the pause before the
+## total starts (the slam lands in near-silence); a dessert skip unducks it over SKIP_UNDUCK_S.
 const DESSERT_DUCK_DB := -24.0
 const DUCK_ATTACK_S := 0.12
 const SKIP_UNDUCK_S := 0.15
@@ -151,8 +148,7 @@ var plan: CountUpPlan
 var music: MusicService
 ## The stage's scan layer (#75), or null: it marks each scanned item, cleared after the beats.
 var scan_overlay: ScanOverlay
-## How big the ending was, for what follows the total (#61). Set when the total is shown; null
-## before that.
+## How big the ending was, for what follows the total (#61); null until the total shows.
 var intensity: CountUpIntensity
 ## The shift's margin against its quota (#61), set when the dessert starts; null before that.
 var margin: ShiftMargin
@@ -219,7 +215,7 @@ func _init() -> void:
 
 
 ## `rattle_target` is shaken by the register rattle; `pile` (optional) grows with the receipt;
-## `tuning` defaults to TUNING_PATH.
+## `tuning` defaults to TUNING_PATH. The LED's beat (its gain chip) pops on the count-up's tweens.
 func setup(
 	overlay: Control,
 	receipt: ReceiptView,
@@ -233,11 +229,12 @@ func setup(
 	_fx = CountUpMotion.new(overlay, _tween)
 	_receipt = receipt
 	_led = led
+	_led.beat().make_tween = _tween
 	_sfx = sfx
 	_rattle_target = rattle_target
 	_pile = pile
 	_tuning = tuning if tuning != null else load(TUNING_PATH) as CountUpTuning
-	_dessert = CountUpDessert.new(overlay, receipt, sfx, _fx, rattle_target, _tween)
+	_dessert = CountUpDessert.new(overlay, receipt, led, sfx, _fx, rattle_target, _tween)
 
 
 ## Plays `result` on the row's card views. `context` is the run around the row (shift, best so
@@ -391,6 +388,8 @@ func _tap(now: int) -> void:
 func _play_beat(index: int) -> void:
 	var beat: CountUpBeat = plan.beats[index]
 	var step: ScoreStep = _steps[beat.steps[0]]
+	var line: String = ReceiptView.step_line(step, _names, _upgrade_names, _inspection_names)
+	beat_started.emit(beat, step, line, _views[step.slot], _views.size())
 	match beat.kind:
 		CountUpBeat.Kind.MERGED_PLAIN:
 			_merged(beat, step, _steps[beat.steps[1]])

@@ -114,7 +114,7 @@ func test_inspection_steps_print_and_play_from_the_tag() -> void:
 	var preview: ScoreResult = screen.run.preview()
 	assert_array(Array(preview.payouts)).is_equal([5, 5, 0, 5])
 	assert_str(_receipt_text(screen)).not_contains(RECEIPT_LINE)
-	assert_str(_popup_text(screen, 2)).contains(RECEIPT_LINE)
+	assert_str(_scan_text(screen, 2)).contains(RECEIPT_LINE)
 	var steps: Array = preview.steps.filter(
 		func(step: ScoreStep) -> bool: return step.source_kind == ScoreStep.SourceKind.INSPECTION
 	)
@@ -168,13 +168,14 @@ static func _receipt_lines(screen: ShiftScreen) -> PackedStringArray:
 ## Scans the belt item in `slot` (the pointer on its sprite, its hover sent: headless runs never
 ## move the mouse; then its hold ends, #80) and returns its scan popup's footer, one line each,
 ## then ends the scan.
-static func _popup_text(screen: ShiftScreen, slot: int) -> String:
+static func _scan_text(screen: ShiftScreen, slot: int) -> String:
 	var view: ItemView = screen._row_views[slot] as ItemView
 	var point: Vector2 = view.sprite().get_global_rect().get_center()
 	screen._scan.pointer = func() -> Vector2: return point
 	view.hovered.emit(view)
 	screen._scan._go_full()
-	var text: String = "\n".join(screen._scan.popup().footer_texts())
+	# A belt item's scan shows on the hung monitor (#80).
+	var text: String = "\n".join(screen._monitor.scan_footer().texts())
 	screen._scan.clear()
 	return text
 

@@ -1,9 +1,10 @@
 extends GdUnitTestSuite
-## The scan popup on every golden row (#75, decision 1A): scored with its frozen fixture, the
-## planning receipt printed for the row and the belt popups' footers, filled as ScanController
-## fills them, hold the same step lines per slot, none folded (the receipt's BASE and PAYOUT lines
-## aside). The reference row's check on the real shift screen is in item_scan_test. The real saves
-## and logs are never touched.
+## A belt item's scan on every golden row (#75, decision 1A; on the hung monitor since #80): scored
+## with its frozen fixture, the planning receipt printed for the row and the monitor's step lines,
+## filled as ScanController fills them for each belt item, hold the same step lines per slot, none
+## folded (the receipt's BASE and PAYOUT lines aside): every receipt step line is reachable by
+## scanning its item. The reference row's check on the real shift screen is in item_scan_test.
+## The real saves and logs are never touched.
 
 const ReceiptFooters := preload("res://tests/ui/receipt_footers.gd")
 ## The golden rows (docs/PROTOTYPE_PLAN.md section 3.7, tests/core/golden_rows_test.gd), each
@@ -104,14 +105,15 @@ func after_test() -> void:
 
 
 ## The exact test on every golden row, each scored with its frozen fixture: the receipt printed
-## for the row and a popup filled as ScanController fills a belt item's popup hold the same lines
-## per slot, none folded.
-func test_the_popups_hold_every_line_of_each_golden_rows_receipt() -> void:
+## for the row and the monitor filled as ScanController fills it for a belt item hold the same
+## lines per slot, none folded.
+func test_the_scans_hold_every_line_of_each_golden_rows_receipt() -> void:
 	var receipt: ReceiptView = auto_free(ReceiptView.new())
 	receipt.size = Vector2(276, 0)
 	add_child(receipt)
-	var popup: ScanPopup = auto_free(ScanPopup.new())
-	add_child(popup)
+	var monitor: MonitorView = auto_free(MonitorView.new())
+	add_child(monitor)
+	var tiers: Dictionary[int, int] = {}
 	var rows: int = 0
 	var failures: PackedStringArray = PackedStringArray()
 	for fixture: String in GOLDEN_ROWS:
@@ -136,14 +138,17 @@ func test_the_popups_hold_every_line_of_each_golden_rows_receipt() -> void:
 					lines.append(ReceiptView.step_line(step, names))
 					fizzles.append(step.step_type == ScoreStep.StepType.WASTED)
 				var definition: CardDefinition = row[slot].definition
-				popup.show_card(
+				monitor.show_scan(
 					definition, null, result.tags[slot], result.payouts[slot], lines, fizzles
 				)
-				footers[slot] = popup.footer_texts().slice(1)
+				footers[slot] = monitor.scan_footer().texts()
+				var count: int = tiers.get(monitor.scan_tier(), 0)
+				tiers[monitor.scan_tier()] = count + 1
 			failures.append_array(ReceiptFooters.failures(expected, footers, row_ids))
 			rows += 1
-			# The lines the receipt and the popup let go of are freed at the frame's end.
+			# The lines the receipt and the monitor let go of are freed at the frame's end.
 			await get_tree().process_frame
+	prints("#80 golden rows' scans per size tier:", tiers)
 	assert_array(failures).override_failure_message("\n".join(failures)).is_empty()
 	assert_int(rows).is_equal(66)
 

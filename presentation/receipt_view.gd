@@ -357,12 +357,13 @@ func show_shift_end(total: int, quota: int, notice: String = "") -> void:
 		add_notice(notice)
 
 
-## "€total / €quota", as the dessert's slam prints it.
+## The TOTAL line's "€total / €quota" (#61; since #80 it prints plainly, and the dessert's slam
+## lands on the monitor).
 static func verdict_text(total: int, quota: int) -> String:
 	return "€%d / €%d" % [total, quota]
 
 
-## The dessert's slam lands on the TOTAL line: its right side reads "€total / €quota", green
+## Shows the verdict on the TOTAL line at once: its right side reads "€total / €quota", green
 ## on a pass and red on a miss. Returns that label (null when no TOTAL line was printed).
 func show_verdict(total: int, quota: int) -> Label:
 	var label: Label = total_label()

@@ -186,8 +186,8 @@ func test_upgrade_steps_play_from_the_loyalty_card() -> void:
 	assert_array(kinds).contains([ScoreStep.StepType.MULTIPLIER, ScoreStep.StepType.FLAT])
 	# The planning receipt is a stub (#75): scanning the items names the upgrades.
 	assert_str(_receipt_text(screen)).not_contains("Coupon engine")
-	assert_str(_popup_text(screen, 2)).contains("× Coupon engine")
-	assert_str(_popup_text(screen, 1)).contains("+ Category engine")
+	assert_str(_scan_text(screen, 2)).contains("× Coupon engine")
+	assert_str(_scan_text(screen, 1)).contains("+ Category engine")
 
 	await screen._on_checkout_pressed()
 	assert_str(screen._led.digits_label().text).is_equal("€%d" % preview.total)
@@ -398,13 +398,14 @@ static func _upgrade_steps(result: ScoreResult) -> Array[ScoreStep]:
 ## Scans the belt item in `slot` (the pointer on its sprite, its hover sent: headless runs never
 ## move the mouse; then its hold ends, #80) and returns its scan popup's footer, one line each,
 ## then ends the scan.
-static func _popup_text(screen: ShiftScreen, slot: int) -> String:
+static func _scan_text(screen: ShiftScreen, slot: int) -> String:
 	var view: ItemView = screen._row_views[slot] as ItemView
 	var point: Vector2 = view.sprite().get_global_rect().get_center()
 	screen._scan.pointer = func() -> Vector2: return point
 	view.hovered.emit(view)
 	screen._scan._go_full()
-	var text: String = "\n".join(screen._scan.popup().footer_texts())
+	# A belt item's scan shows on the hung monitor (#80).
+	var text: String = "\n".join(screen._monitor.scan_footer().texts())
 	screen._scan.clear()
 	return text
 

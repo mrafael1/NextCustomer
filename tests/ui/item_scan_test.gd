@@ -1,22 +1,21 @@
 extends GdUnitTestSuite
 ## The hover scanner on the real shift screen (#75, ScanController), opt-in since #80: hovering a
-## hand item or a belt item shows nothing (no popup, no lift, no brackets, no
-## beep); only the pointer staying on that item for the hold (ScanController.hold_ms, from
+## hand item or a belt item shows nothing (nothing on the monitor, no lift, no brackets, no beep);
+## only the pointer staying on that item for the hold (ScanController.hold_ms, from
 ## data/balance/scan.tres) scans it: its sprite lifts, tomato brackets mark it, it beeps
-## (scan_hover, the scan sound at ScanController.HOVER_DB), throttled, and the one scan popup opens
-## inside the 1280x720 stage with the card's rule text. Leaving the item before the hold cancels it;
-## another item starts its own. The layout tests use a hold of 0 (instant). A hand item's popup
-## opens beside it over the tray, never over the belt; a belt item's flips below its sticker and
-## chips and lists every step of its slot but BASE and PAYOUT, worded as the receipt words them: all
-## the belt popups together hold every step line of the planning receipt, for #60's reference row
-## (the golden rows are in scan_popup_golden_rows_test). No scan while dragging, counting or with
-## the deck view open; the pointer on the popup keeps the item; leaving the item and its popup, the
-## window or the game ends the scan and clears the marks; reduced motion runs no beam loop. The
-## count-up marks each item it lifts in gold and clears the marks as its beats end.
-## Headless runs never move the mouse, so the tests set the controller's pointer (and its clock,
-## which the hold and the throttle read) and send the items' hover signals. Every rect is checked on
-## screen (headless runs use a 1280x1280 window: the stage is centred, 280 px down). The real saves
-## and logs are never touched.
+## (scan_hover, the scan sound at ScanController.HOVER_DB), throttled, and the hung monitor shows
+## the item (MonitorView) with the card's rule text, no popup. Leaving the item before the hold
+## cancels it; another item starts its own. The layout tests use a hold of 0 (instant). A belt
+## item's scan lists every step of its slot but BASE and PAYOUT, worded as the receipt words them:
+## all the belt items' scans together hold every step line of the planning receipt, for #60's
+## reference row (the golden rows are in scan_popup_golden_rows_test). No scan while dragging,
+## counting or with the deck view open; leaving the item, the window or the game ends the scan,
+## clears the marks and brings the monitor's idle screen back; reduced motion runs no beam loop.
+## The count-up marks each item it lifts in gold and clears the marks as its beats end. Every
+## card's scan fits the monitor. Headless runs never move the mouse, so the tests set the
+## controller's pointer (and its clock, which the hold and the throttle read) and send the items'
+## hover signals. Every rect is checked on screen (headless runs use a 1280x1280 window: the stage
+## is centred, 280 px down). The real saves and logs are never touched.
 
 const SCREEN := "res://ui/shift_screen.tscn"
 const CARDS := "res://data/cards"
@@ -55,47 +54,27 @@ func after_test() -> void:
 		DirAccess.remove_absolute(_folder)
 
 
-## A hand item's popup (style frame v2's round 3) opens beside it over the tray, never over the
-## belt: every belt item's sprite and sticker stay in view while a hand item is read. It shows
-## the card's rule text verbatim and no footer, only once the hover is held: then the item
-## lifts, tomato brackets mark it, and it beeps once.
-func test_the_scan_popup_points_at_the_hovered_item() -> void:
+## A hand item's scan shows on the monitor once the hover is held, never in a popup: its name and
+## rule text verbatim, no pays and no step lines; the item lifts, tomato brackets mark it, and it
+## beeps once.
+func test_a_held_hand_item_shows_on_the_monitor() -> void:
 	var screen: ShiftScreen = await _screen()
 	var sfx: RecordingSfx = _recording_sfx(screen)
 	_place(screen, ["milk", "bread"])
 	var view: ItemView = _hand_views(screen)[1]
 	await _hover(screen, view)
-	var popup: ScanPopup = screen._scan.popup()
 	_assert_quiet(screen, view, sfx)
 	await _hold(screen)
 	assert_bool(screen._scan.is_full()).is_true()
-	assert_bool(popup.visible).is_true()
+	var monitor: MonitorView = screen._scan.monitor()
+	assert_object(monitor).is_same(screen._monitor)
+	assert_int(monitor.mode()).is_equal(MonitorView.Mode.SCAN)
+	assert_bool(screen._scan.popup().visible).is_false()
 	assert_float(view.body.position.y).is_equal(-ItemView.LIFT)
-	var rect: Rect2 = popup.get_global_rect()
-	_assert_on_stage(screen, rect, "hand popup")
-	assert_float(rect.position.y).is_greater_equal(_y(screen, ShiftStage.COUNTER_TOP))
-	assert_bool(rect.intersects(_on_stage(screen, ShiftStage.BELT_RECT))).is_false()
-	for belt_view: CardView in screen._row_views:
-		var item: ItemView = belt_view as ItemView
-		for part: Control in [item.sprite(), item.sticker()]:
-			assert_bool(rect.intersects(part.get_global_rect())).is_false()
-	# On the item's right (it fits over the tray), level with the lifted sprite, clear of the
-	# item's own sprite and sticker; the side tail points at the sprite's middle.
-	assert_int(popup.placement).is_equal(ScanPopup.Placement.RIGHT)
-	var sprite: Rect2 = view.sprite().get_global_rect()
-	var sticker: Rect2 = view.sticker().get_global_rect()
-	assert_float(rect.position.y).is_equal(sprite.position.y)
-	assert_float(rect.position.x).is_equal(maxf(sprite.end.x, sticker.end.x) + ScanPopup.SIDE_GAP)
-	for part: Rect2 in [sprite, sticker]:
-		assert_bool(rect.intersects(part)).is_false()
-		assert_bool(popup.tail().get_global_rect().intersects(part)).is_false()
-	var tip: Vector2 = popup.get_parent_control().get_global_transform() * popup.tail_tip()
-	assert_float(tip.x).is_equal(maxf(sprite.end.x, sticker.end.x))
-	assert_float(tip.y).is_equal(sprite.get_center().y)
-	assert_str(popup.rule_label().text).is_equal(view.card.definition.rule_text)
-	assert_str(popup.name_label().text).is_equal(view.card.definition.display_name)
-	assert_array(popup.footer_texts()).is_empty()
-	_assert_popup_holds_its_text(popup)
+	assert_str(monitor.scan_rule_label().text).is_equal(view.card.definition.rule_text)
+	assert_str(monitor.scan_name_label().text).is_equal(view.card.definition.display_name)
+	assert_object(monitor.scan_footer()).is_null()
+	_assert_monitor_holds_its_text(screen)
 	_assert_scanner_posed(screen, view)
 	assert_int(sfx.count(ScanController.HOVER_SOUND)).is_equal(1)
 	var beep: Dictionary = sfx.sounds[sfx.sound_names().find(ScanController.HOVER_SOUND)]
@@ -104,29 +83,19 @@ func test_the_scan_popup_points_at_the_hovered_item() -> void:
 	assert_int(sfx.count("scan")).is_equal(0)
 
 
-## A belt item's popup opens above its lifted sprite (B2's belt leaves room under the top bar),
-## its tail at the sprite's middle, and its footer lists its payout and every step of its slot
-## but BASE and PAYOUT, as the receipt words them: here Coffee's fizzle (nothing after it).
-func test_a_hovered_belt_item_opens_its_popup_and_lists_its_fizzles() -> void:
+## A belt item's scan on the monitor shows its payout and every step of its slot but BASE and
+## PAYOUT, as the receipt words them: here Coffee's fizzle (nothing after it).
+func test_a_held_belt_item_lists_its_fizzles_on_the_monitor() -> void:
 	var screen: ShiftScreen = await _screen()
 	_place(screen, ["milk", "bread", "coffee"])
 	var view: ItemView = screen._row_views[2] as ItemView
 	await _hover(screen, view)
 	await _hold(screen)
-	var popup: ScanPopup = screen._scan.popup()
-	assert_int(popup.placement).is_equal(ScanPopup.Placement.ABOVE)
-	assert_object(popup.tail().texture).is_same(ScanPopup.TAIL)
-	var rect: Rect2 = popup.get_global_rect()
-	_assert_on_stage(screen, rect, "belt popup")
-	var lifted: Rect2 = ScanOverlay.lifted_sprite(view)
-	assert_float(rect.end.y).is_equal(lifted.position.y - ScanPopup.GAP_ABOVE)
-	assert_float(rect.position.y).is_greater_equal(_y(screen, ShiftStage.TOP_BAR_BOTTOM))
-	assert_bool(rect.intersects(view.below_rect())).is_false()
-	var sprite: Rect2 = view.sprite().get_global_rect()
-	assert_bool(rect.intersects(sprite)).is_false()
-	assert_float(popup.tail().get_global_rect().get_center().x).is_equal(sprite.get_center().x)
+	var monitor: MonitorView = screen._scan.monitor()
+	assert_int(monitor.mode()).is_equal(MonitorView.Mode.SCAN)
+	assert_bool(screen._scan.popup().visible).is_false()
 	var result: ScoreResult = screen.run.preview()
-	var expected: PackedStringArray = PackedStringArray(["Pays €%d" % result.payouts[2]])
+	var expected: PackedStringArray = PackedStringArray()
 	var fizzles: int = 0
 	for step: ScoreStep in ScanController.footer_steps(result, 2):
 		expected.append(ReceiptView.step_line(step, ShiftScreen._names(screen.run.row)))
@@ -134,20 +103,22 @@ func test_a_hovered_belt_item_opens_its_popup_and_lists_its_fizzles() -> void:
 			fizzles += 1
 	assert_int(fizzles).is_equal(1)
 	assert_str(expected[expected.size() - 1]).ends_with("  fizzle")
+	var texts: PackedStringArray = monitor.scan_footer().texts()
 	(
-		assert_bool(popup.footer_texts() == expected)
-		. override_failure_message("%s != %s" % [popup.footer_texts(), expected])
+		assert_bool(texts == expected)
+		. override_failure_message("%s != %s" % [texts, expected])
 		. is_true()
 	)
-	assert_str(popup.rule_label().text).is_equal(view.card.definition.rule_text)
-	_assert_popup_holds_its_text(popup)
+	assert_bool(_monitor_texts(screen).has("€%d" % result.payouts[2])).is_true()
+	assert_str(monitor.scan_rule_label().text).is_equal(view.card.definition.rule_text)
+	_assert_monitor_holds_its_text(screen)
 	_assert_scanner_posed(screen, view)
 
 
-## The done-when of #80: a plain hover shorter than the hold shows nothing (no popup, no lift, no
-## brackets, no scan line, no beep); staying on the item for the hold plays the full
-## scan, popup included, and beeps once. Leaving the item before the hold cancels it (coming back
-## starts it again), and moving to another item starts that item's own hold.
+## The done-when of #80: a plain hover shorter than the hold shows nothing (nothing on the monitor,
+## no lift, no brackets, no scan line, no beep); staying on the item for the hold plays the full
+## scan, the monitor included, and beeps once. Leaving the item before the hold cancels it (coming
+## back starts it again), and moving to another item starts that item's own hold.
 func test_a_plain_hover_is_quiet_until_it_is_held() -> void:
 	var screen: ShiftScreen = await _screen()
 	var sfx: RecordingSfx = _recording_sfx(screen)
@@ -163,7 +134,7 @@ func test_a_plain_hover_is_quiet_until_it_is_held() -> void:
 	_clock += 1
 	await _frames(1)
 	assert_bool(screen._scan.is_full()).is_true()
-	assert_bool(screen._scan.popup().visible).is_true()
+	assert_int(screen._monitor.mode()).is_equal(MonitorView.Mode.SCAN)
 	assert_float(hand[0].body.position.y).is_equal(-ItemView.LIFT)
 	assert_bool(screen._scan.overlay().is_posed()).is_true()
 	# Still held: no second beep.
@@ -219,7 +190,7 @@ func test_one_beep_per_full_scan_and_the_throttle_holds() -> void:
 	assert_int(sfx.count(ScanController.HOVER_SOUND)).is_equal(1)
 	await _hover(screen, hand[0])
 	assert_int(sfx.count(ScanController.HOVER_SOUND)).is_equal(1)
-	# Straight on to an item clear of the first one's popup: scanned, but within the throttle.
+	# Straight on to another item: scanned, but within the throttle.
 	_leave(hand[0])
 	_point = hand[5].sprite().get_global_rect().get_center()
 	hand[5].hovered.emit(hand[5])
@@ -239,9 +210,9 @@ func test_one_beep_per_full_scan_and_the_throttle_holds() -> void:
 	assert_int(sfx.count(ScanController.HOVER_SOUND)).is_equal(3)
 
 
-## No popup and no beep while an item is dragged or the shift is counted, or with the deck view
-## open; a scan shown when the drag starts, or at the CHECKOUT click, ends at once, its scanner
-## docked and its item at rest.
+## Nothing on the monitor and no beep while an item is dragged or the shift is counted, or with
+## the deck view open; a scan shown when the drag starts, or at the CHECKOUT click, ends at once,
+## its scanner docked and its item at rest.
 func test_no_scan_while_dragging_counting_or_with_the_deck_open() -> void:
 	var screen: ShiftScreen = await _screen()
 	var sfx: RecordingSfx = _recording_sfx(screen)
@@ -285,6 +256,7 @@ func test_no_scan_while_dragging_counting_or_with_the_deck_open() -> void:
 	# The count-up's own gold pose may show by now, never a hover's.
 	assert_object(screen._scan.scanned()).is_null()
 	assert_bool(screen._scan.popup().visible).is_false()
+	assert_int(screen._monitor.mode()).is_equal(MonitorView.Mode.COUNT)
 	var overlay: ScanOverlay = screen._scan.overlay()
 	if overlay.is_posed():
 		assert_object(overlay.bracket_color()).is_equal(Palette.GOLD)
@@ -329,51 +301,38 @@ func test_the_count_up_poses_the_scanner_over_each_item_in_turn() -> void:
 	_assert_cleared(screen)
 
 
-## While the pointer is on the popup, the item stays scanned, even over a hand item the popup
-## covers, and back on the item it is still scanned, with no second beep. Off the popup and onto
-## another item, that one is hovered (quietly); off every item and the popup, the scan ends: the
-## popup hides, the item rests and the marks clear.
-func test_the_pointer_on_the_popup_keeps_the_item() -> void:
+## With no popup over the counter, the pointer leaving the scanned item moves the scan: onto
+## another item, that one is hovered (quietly, the monitor idle); back on the first one, its hold
+## starts again; off every item, the scan ends: the item rests and the marks clear.
+func test_leaving_the_item_moves_or_ends_the_scan() -> void:
 	var screen: ShiftScreen = await _screen()
 	var sfx: RecordingSfx = _recording_sfx(screen)
 	_fill_hand(screen, EIGHT)
 	var hand: Array[ItemView] = _hand_views(screen)
 	await _hover(screen, hand[0])
 	await _hold(screen)
-	var popup: Rect2 = screen._scan.popup().get_global_rect()
-	var covered: ItemView = hand[1]
-	var inside: Vector2 = covered.sprite().get_global_rect().get_center()
-	assert_bool(popup.has_point(inside)).is_true()
+	assert_int(screen._monitor.mode()).is_equal(MonitorView.Mode.SCAN)
+	# Onto its neighbour: that one is hovered, quietly.
 	_leave(hand[0])
-	_point = inside
-	covered.hovered.emit(covered)
+	_point = hand[1].sprite().get_global_rect().get_center()
+	hand[1].hovered.emit(hand[1])
 	await _frames(2)
-	assert_object(screen._scan.scanned()).is_same(hand[0])
-	assert_bool(screen._scan.is_full()).is_true()
-	# Back on the item after reading the popup: still scanned, no second beep.
-	_clock += screen._scan.hold_ms()
-	covered.unhovered.emit(covered)
+	_assert_quiet(screen, hand[1], sfx, 1)
+	assert_float(hand[0].body.position.y).is_equal(0.0)
+	# Back on the first: its hold starts again.
+	_leave(hand[1])
 	_point = hand[0].sprite().get_global_rect().get_center()
 	hand[0].hovered.emit(hand[0])
 	await _frames(2)
-	assert_object(screen._scan.scanned()).is_same(hand[0])
-	assert_bool(screen._scan.is_full()).is_true()
-	assert_int(sfx.count(ScanController.HOVER_SOUND)).is_equal(1)
-	# Off the popup onto an item it doesn't cover.
+	_assert_quiet(screen, hand[0], sfx, 1)
 	_clock += ScanController.THROTTLE_MS
-	var free: ItemView = hand[hand.size() - 1]
-	var outside: Vector2 = free.sprite().get_global_rect().get_center()
-	assert_bool(popup.has_point(outside)).is_false()
-	covered.unhovered.emit(covered)
-	_point = outside
-	free.hovered.emit(free)
-	await _frames(2)
-	_assert_quiet(screen, free, sfx, 1)
-	assert_float(hand[0].body.position.y).is_equal(0.0)
+	await _hold(screen)
+	assert_bool(screen._scan.is_full()).is_true()
+	assert_int(sfx.count(ScanController.HOVER_SOUND)).is_equal(2)
 	# Off every item: the scan ends.
-	await _leave_to(_on_stage(screen, Rect2(600, 20, 1, 1)).position, free)
+	await _leave_to(_on_stage(screen, Rect2(600, 20, 1, 1)).position, hand[0])
 	_assert_cleared(screen)
-	assert_float(free.body.position.y).is_equal(0.0)
+	assert_float(hand[0].body.position.y).is_equal(0.0)
 
 
 ## The pointer leaving the window, or the player leaving the game, ends the scan.
@@ -404,7 +363,7 @@ func test_a_refresh_keeps_the_scan_on_the_same_card() -> void:
 	assert_object(scanned).is_not_null()
 	assert_object(scanned).is_not_same(view)
 	assert_object(scanned.card).is_same(card)
-	assert_bool(screen._scan.popup().visible).is_true()
+	assert_int(screen._monitor.mode()).is_equal(MonitorView.Mode.SCAN)
 	assert_bool(screen._scan.is_full()).is_true()
 	assert_bool(scanned.lifted).is_true()
 	assert_int(sfx.count(ScanController.HOVER_SOUND)).is_equal(1)
@@ -413,8 +372,8 @@ func test_a_refresh_keeps_the_scan_on_the_same_card() -> void:
 
 ## A belt item clicked out to the hand moves away from the pointer: the scan ends with the
 ## refresh. Checked straight after the refresh's deferred calls (a call queued after the click
-## runs after them, before the next process step): the popup is hidden and the scanner docked,
-## never shown over the tray, and it stays so.
+## runs after them, before the next process step): the monitor is idle and the scanner docked,
+## and it stays so.
 func test_a_belt_item_clicked_out_ends_the_scan() -> void:
 	var screen: ShiftScreen = await _screen()
 	_place(screen, ["milk", "bread"])
@@ -427,7 +386,7 @@ func test_a_belt_item_clicked_out_ends_the_scan() -> void:
 	assert_bool(overlay.is_posed()).is_true()
 	var shown: Array[bool] = [true]
 	var look: Callable = func() -> void:
-		shown[0] = screen._scan.popup().visible or overlay.is_posed()
+		shown[0] = screen._monitor.mode() == MonitorView.Mode.SCAN or overlay.is_posed()
 	screen._on_row_card_clicked(view)
 	look.call_deferred()
 	assert_bool(screen.run.hand().has(card)).is_true()
@@ -446,7 +405,7 @@ func test_reduced_motion_runs_no_beam_loop() -> void:
 	var overlay: ScanOverlay = screen._scan.overlay()
 	screen.profile.set_reduced_motion(true)
 	await _hover(screen, _hand_views(screen)[0])
-	assert_bool(screen._scan.popup().visible).is_false()
+	assert_int(screen._monitor.mode()).is_equal(MonitorView.Mode.IDLE)
 	assert_bool(overlay.is_posed()).is_false()
 	assert_int(_looping_tweens()).is_equal(0)
 	await _hold(screen)
@@ -467,9 +426,10 @@ func test_reduced_motion_runs_no_beam_loop() -> void:
 
 
 ## The exact test (#75, decision 1A): on #60's reference row (Coupon engine, Slot engine, the Spot
-## check), all the belt popups' footers together hold every step line of the planning receipt
-## but the BASE and PAYOUT lines, each in its own item's popup, in receipt order, none folded.
-func test_the_popups_hold_every_line_of_the_planning_receipt() -> void:
+## check), all the belt items' scans on the monitor together hold every step line of the planning
+## receipt but the BASE and PAYOUT lines, each in its own item's scan, in receipt order, none
+## folded.
+func test_the_scans_hold_every_line_of_the_planning_receipt() -> void:
 	var screen: ShiftScreen = await _screen()
 	_instant(screen)
 	screen._debug.give_upgrade("coupon_engine")
@@ -497,11 +457,10 @@ func test_the_popups_hold_every_line_of_the_planning_receipt() -> void:
 	for slot: int in range(screen._row_views.size()):
 		var view: ItemView = screen._row_views[slot] as ItemView
 		await _hover(screen, view)
-		var footer: PackedStringArray = screen._scan.popup().footer_texts()
-		assert_str(footer[0]).is_equal("Pays €%d" % result.payouts[slot])
-		footers[slot] = footer.slice(1)
-		_assert_on_stage(screen, screen._scan.popup().get_global_rect(), "slot %d" % slot)
-		_assert_popup_holds_its_text(screen._scan.popup())
+		assert_int(screen._monitor.mode()).is_equal(MonitorView.Mode.SCAN)
+		assert_bool(_monitor_texts(screen).has("€%d" % result.payouts[slot])).is_true()
+		footers[slot] = screen._monitor.scan_footer().texts()
+		_assert_monitor_holds_its_text(screen)
 	for step: ScoreStep in result.steps:
 		kinds[step.step_type] = true
 	var failures: PackedStringArray = ReceiptFooters.failures(expected, footers, "reference row")
@@ -515,11 +474,10 @@ func test_the_popups_hold_every_line_of_the_planning_receipt() -> void:
 		assert_bool(kinds.has(kind)).override_failure_message(str(kind)).is_true()
 
 
-## Wherever any card in data/cards is hovered (each hand position, a full hand of 8, and each
-## belt cell, a full row of products and a coupon), its popup stays in the stage, under the top
-## bar and off the item's sprite and sticker (and chips, on the belt); a hand item's opens beside
-## it, off the belt (at or below the counter line).
-func test_the_popup_keeps_every_card_in_the_stage() -> void:
+## Wherever any card in data/cards is scanned (each hand position, a full hand of 8, and each belt
+## cell, a full row of products and a coupon), its scan's text fits the monitor's screen, its
+## rule text whole.
+func test_every_card_scan_fits_the_monitor() -> void:
 	var screen: ShiftScreen = await _screen()
 	_instant(screen)
 	var products: Array[String] = []
@@ -539,10 +497,9 @@ func test_the_popup_keeps_every_card_in_the_stage() -> void:
 	for start: int in range(0, all.size(), 8):
 		_fill_hand(screen, _ids(all, start, 8))
 		for view: ItemView in _hand_views(screen):
-			# Each scan ends first: a popup keeps its item while the pointer is on it.
 			screen._scan.clear()
 			await _hover(screen, view)
-			_assert_hand_popup(screen, view)
+			_assert_scanned_on_monitor(screen, view)
 	var coupon: int = 0
 	var per_row: int = screen.run.limits.slot_count
 	for start: int in range(0, products.size(), per_row):
@@ -553,65 +510,46 @@ func test_the_popup_keeps_every_card_in_the_stage() -> void:
 		for view: CardView in screen._row_views:
 			screen._scan.clear()
 			await _hover(screen, view as ItemView)
-			_assert_belt_popup(screen, view as ItemView)
+			_assert_scanned_on_monitor(screen, view as ItemView)
 	while coupon < coupons.size():
 		_fill_row(screen, [products[0], coupons[coupon]])
 		coupon += 1
 		await _hover(screen, screen._row_views[1] as ItemView)
-		_assert_belt_popup(screen, screen._row_views[1] as ItemView)
+		_assert_scanned_on_monitor(screen, screen._row_views[1] as ItemView)
 
 
 # --- Helpers ---------------------------------------------------------------------------------
 
 
-func _assert_hand_popup(screen: ShiftScreen, view: ItemView) -> void:
-	var rect: Rect2 = screen._scan.popup().get_global_rect()
-	var message: String = "%s in the hand: %s" % [view.card.definition.id, rect]
-	_assert_on_stage(screen, rect, message)
-	assert_float(rect.position.y).override_failure_message(message).is_greater_equal(
-		_y(screen, ShiftStage.COUNTER_TOP)
-	)
-	(
-		assert_bool(rect.intersects(_on_stage(screen, ShiftStage.BELT_RECT)))
-		. override_failure_message(message)
-		. is_false()
-	)
-	for part: Control in [view.sprite(), view.sticker()]:
+## `view` scanned in full on the monitor (its name and rule), its text inside the screen.
+func _assert_scanned_on_monitor(screen: ShiftScreen, view: ItemView) -> void:
+	var message: String = String(view.card.definition.id)
+	assert_object(screen._scan.scanned()).override_failure_message(message).is_same(view)
+	var monitor: MonitorView = screen._monitor
+	assert_int(monitor.mode()).override_failure_message(message).is_equal(MonitorView.Mode.SCAN)
+	assert_str(monitor.scan_name_label().text).is_equal(view.card.definition.display_name)
+	_assert_monitor_holds_its_text(screen)
+
+
+## Every text label the monitor's scan shows inside its screen's content, its rule text whole.
+func _assert_monitor_holds_its_text(screen: ShiftScreen) -> void:
+	var content: Rect2 = _on_stage(screen, MonitorView.CONTENT_RECT)
+	for label: Label in screen._monitor.shown_labels():
+		var rect: Rect2 = label.get_global_rect()
 		(
-			assert_bool(rect.intersects(part.get_global_rect()))
-			. override_failure_message(message)
-			. is_false()
-		)
-	_assert_popup_holds_its_text(screen._scan.popup())
-
-
-func _assert_belt_popup(screen: ShiftScreen, view: ItemView) -> void:
-	var rect: Rect2 = screen._scan.popup().get_global_rect()
-	var message: String = "%s on the belt: %s" % [view.card.definition.id, rect]
-	_assert_on_stage(screen, rect, message)
-	assert_float(rect.position.y).override_failure_message(message).is_greater_equal(
-		_y(screen, ShiftStage.TOP_BAR_BOTTOM)
-	)
-	assert_bool(rect.intersects(view.below_rect())).override_failure_message(message).is_false()
-	(
-		assert_bool(rect.intersects(view.sprite().get_global_rect()))
-		. override_failure_message(message)
-		. is_false()
-	)
-	_assert_popup_holds_its_text(screen._scan.popup())
-
-
-## Every text label inside the popup, and the popup within its height range.
-func _assert_popup_holds_its_text(popup: ScanPopup) -> void:
-	var rect: Rect2 = popup.get_global_rect()
-	for label: Label in popup.text_labels():
-		var inner: Rect2 = label.get_global_rect()
-		(
-			assert_bool(rect.encloses(inner))
-			. override_failure_message("'%s' %s outside %s" % [label.text, inner, rect])
+			assert_bool(content.encloses(rect))
+			. override_failure_message("'%s' %s outside %s" % [label.text, rect, content])
 			. is_true()
 		)
-	assert_float(popup.size.y).is_between(ScanPopup.MIN_HEIGHT, ScanPopup.MAX_HEIGHT)
+	var rule: Label = screen._monitor.scan_rule_label()
+	assert_int(rule.get_visible_line_count()).is_equal(rule.get_line_count())
+
+
+static func _monitor_texts(screen: ShiftScreen) -> PackedStringArray:
+	var texts: PackedStringArray = PackedStringArray()
+	for label: Label in screen._monitor.shown_labels():
+		texts.append(label.text)
+	return texts
 
 
 ## Tomato brackets around `view`'s lifted sprite with the scan line across it, on the stage.
@@ -639,10 +577,11 @@ func _lifted_slot(views: Array[CardView], brackets: Rect2) -> int:
 	return -1
 
 
-## No scan: no item scanned, the popup hidden and no marks.
+## No scan: no item scanned, the popup hidden, the monitor not showing a scan and no marks.
 func _assert_cleared(screen: ShiftScreen) -> void:
 	assert_object(screen._scan.scanned()).is_null()
 	assert_bool(screen._scan.popup().visible).is_false()
+	assert_bool(screen._monitor.mode() == MonitorView.Mode.SCAN).is_false()
 	var overlay: ScanOverlay = screen._scan.overlay()
 	assert_bool(overlay.is_posed()).is_false()
 	assert_that(overlay.brackets()).is_equal(Rect2())
@@ -677,12 +616,13 @@ static func _instant(screen: ShiftScreen) -> void:
 	screen._scan.tuning = ScanTuning.new()
 
 
-## `view` hovered quietly: no popup, the item at rest, the scanner docked with no marks or beam,
-## no looping tween and no beep beyond the `beeps` already heard.
+## `view` hovered quietly: nothing on the monitor and no popup, the item at rest, the scanner
+## docked with no marks or beam, no looping tween and no beep beyond the `beeps` already heard.
 func _assert_quiet(screen: ShiftScreen, view: ItemView, sfx: RecordingSfx, beeps: int = 0) -> void:
 	assert_object(screen._scan.scanned()).is_same(view)
 	assert_bool(screen._scan.is_full()).is_false()
 	assert_bool(screen._scan.popup().visible).is_false()
+	assert_int(screen._monitor.mode()).is_equal(MonitorView.Mode.IDLE)
 	assert_bool(view.lifted).is_false()
 	assert_float(view.body.position.y).is_equal(0.0)
 	var overlay: ScanOverlay = screen._scan.overlay()
@@ -790,10 +730,6 @@ static func _slot_center(screen: ShiftScreen, slot: int) -> Vector2:
 ## `rect` (stage coordinates) on screen.
 static func _on_stage(screen: ShiftScreen, rect: Rect2) -> Rect2:
 	return Rect2(screen._stage.get_global_rect().position + rect.position, rect.size)
-
-
-static func _y(screen: ShiftScreen, stage_y: float) -> float:
-	return screen._stage.get_global_rect().position.y + stage_y
 
 
 func _frames(count: int) -> void:

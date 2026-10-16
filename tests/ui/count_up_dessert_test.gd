@@ -1,6 +1,7 @@
 extends GdUnitTestSuite
-## The shift's dessert on the real shift screen (#61, CountUpDessert): after the verdict,
-## "€total / €quota" slams onto the TOTAL line with `total` or `miss`, the margin line counts
+## The shift's dessert on the real shift screen (#61, CountUpDessert): after the verdict, the
+## total slams onto the LED's digits on the hung monitor (#80) with `total` or `miss` while the
+## receipt's TOTAL line shows "€total / €quota" plainly, the margin line counts
 ## (+€N OVER QUOTA, SHORT €N, ON QUOTA) with `pass` or `fail`, a pass is stamped PAID, the
 ## receipt tears with `rip` (after `fail` has rung out on a miss), the next shift's notice prints
 ## under the tear, and a pass ends at the printer feed. Checked: the order and timing of the
@@ -351,14 +352,17 @@ func test_the_shake_steps_up_with_the_intensity() -> void:
 
 
 ## Follows the dessert frame by frame until play() returns: the slam (as drawn, scaled) stays
-## inside the screen on every frame and lands on the TOTAL line (as it is on the slam's last
-## frame: the receipt then scrolls to its new lines). Returns the failures.
+## inside the screen on every frame and lands on the monitor's digits (#80), in their colour (never
+## tomato) and drawn as them (their outline, none in the count layout, and their shadow, with no
+## shadow outline), never on the receipt. Returns the failures.
 func _watch_dessert(screen: ShiftScreen) -> Array[String]:
 	var count_up: CountUp = screen._count_up
 	var failures: Array[String] = []
 	var slam_seen: bool = false
 	var last_slam: Rect2 = Rect2()
 	var total: Rect2 = Rect2()
+	var colour: Color = Color()
+	var look: Dictionary = {}
 	while count_up._playing:
 		await get_tree().process_frame
 		var slam: Label = _slam_label(screen)
@@ -366,14 +370,39 @@ func _watch_dessert(screen: ShiftScreen) -> Array[String]:
 			continue
 		slam_seen = true
 		last_slam = _drawn_rect(slam)
-		total = screen._receipt.total_label().get_global_rect()
+		colour = slam.get_theme_color("font_color")
+		look = _look(slam)
+		total = screen._led.digits_label().get_global_rect()
 		if not SCREEN_RECT.grow(1.0).encloses(last_slam):
 			failures.append("slam outside the screen at %s" % last_slam)
 	if not slam_seen:
 		failures.append("no slam")
 	if last_slam.get_center().distance_to(total.get_center()) > 4.0:
-		failures.append("slam landed at %s, TOTAL at %s" % [last_slam, total])
+		failures.append("slam landed at %s, the digits at %s" % [last_slam, total])
+	if last_slam.intersects(screen._receipt.get_global_rect()):
+		failures.append("slam landed on the receipt at %s" % last_slam)
+	if slam_seen and colour != screen._led.digits_label().get_theme_color("font_color"):
+		failures.append("slam in %s, not the digits' colour" % colour.to_html(false))
+	if colour in [Palette.TOMATO, Palette.TOMATO_DARK, Palette.TOMATO_LIGHT]:
+		failures.append("slam in tomato")
+	var digits: Label = screen._led.digits_label()
+	if slam_seen and look != _look(digits):
+		failures.append("slam drawn as %s, the digits as %s" % [look, _look(digits)])
+	if int(_look(digits)["outline_size"]) != 0 or int(_look(digits)["shadow_outline_size"]) != 0:
+		failures.append("the TOTAL's digits drawn with an outline: %s" % _look(digits))
 	return failures
+
+
+## A label's outline and shadow as drawn: their sizes, offsets and colours.
+static func _look(label: Label) -> Dictionary:
+	var look: Dictionary = {}
+	for constant: String in [
+		"outline_size", "shadow_outline_size", "shadow_offset_x", "shadow_offset_y"
+	]:
+		look[constant] = label.get_theme_constant(constant)
+	for color: String in ["font_outline_color", "font_shadow_color"]:
+		look[color] = label.get_theme_color(color)
+	return look
 
 
 ## A control's rect as drawn: its size through its global transform (scale and pivot included).
@@ -404,11 +433,12 @@ func _assert_lines_on_screen(screen: ShiftScreen, count: int) -> void:
 		above = rect
 
 
-## The slam label flying over the overlay, or null.
+## The slam label flying over the overlay (the LED's total), or null.
 static func _slam_label(screen: ShiftScreen) -> Label:
+	var total: String = screen._led.digits_label().text
 	for child: Node in screen._overlay.get_children():
 		var label: Label = child as Label
-		if label != null and not label.is_queued_for_deletion() and label.text.contains(" / €"):
+		if label != null and not label.is_queued_for_deletion() and label.text == total:
 			return label
 	return null
 
