@@ -2,7 +2,8 @@ class_name ArtStyle
 extends RefCounted
 ## The pixel-art style (full build plan section 6.1): fonts by role, the sharp-pixel material
 ## and the art textures. Presentation loads the art from a card's `art_ref`, so `core/` stays
-## free of it. Used by the style frame; the real screens adopt it in phase 3.
+## free of it. UiKit builds the styled controls (frame panels, framed buttons, labels by font
+## role) from it.
 
 ## Titles, numbers and stamps. Pixelify Sans, SIL Open Font License (imported as MSDF, so its
 ## outline survives the count-up's large slams).
@@ -19,10 +20,11 @@ const MONO_FONT := preload("res://fonts/JetBrainsMono-Regular.ttf")
 ## € and 2 could (decided with the user on the style frame).
 const NUMBER_WEIGHT := 750
 ## Every character the game prints that a font might lack.
-const REQUIRED_GLYPHS := "€×·—…"
+## (− is U+2212, the minus sign.)
+const REQUIRED_GLYPHS := "€×·—…−"
 
-## The art's warm ink (art/src/palette.txt '#'), for text and outlines drawn in this style. The
-## prototype screens keep Palette.INK until they adopt the style in phase 3.
+## The art's warm ink (art/src/palette.txt '#'), for text and outlines drawn in this style
+## (Palette.INK is this colour).
 const INK := Color("2b2420")
 ## Canvas pixels per art pixel (a 640x360 art grid on the 1280x720 canvas).
 const ART_SCALE := 2
@@ -33,6 +35,7 @@ const PIXEL_ART_META := &"pixel_art"
 
 static var _material: ShaderMaterial
 static var _number_font: FontVariation
+static var _symbol_body_font: FontVariation
 
 
 ## Marks a node that draws pixel art (its own texture or stylebox, never text: a Label or a
@@ -40,6 +43,19 @@ static var _number_font: FontVariation
 static func use_pixel_material(item: CanvasItem) -> void:
 	item.material = pixel_material()
 	item.set_meta(PIXEL_ART_META, true)
+
+
+## A/B for review (the capture scene's S key): every node under `root` that is marked as pixel
+## art gets the sharp-pixel material (`sharp`), or plain nearest filtering without it.
+static func set_sharp(root: Node, sharp: bool) -> void:
+	var item: CanvasItem = root as CanvasItem
+	if item != null and item.has_meta(PIXEL_ART_META):
+		item.material = pixel_material() if sharp else null
+		item.texture_filter = (
+			CanvasItem.TEXTURE_FILTER_PARENT_NODE if sharp else CanvasItem.TEXTURE_FILTER_NEAREST
+		)
+	for child: Node in root.get_children():
+		set_sharp(child, sharp)
 
 
 ## The shared sharp-pixel material.
@@ -58,6 +74,16 @@ static func number_font() -> Font:
 		var weight: int = TextServerManager.get_primary_interface().name_to_tag("wght")
 		_number_font.variation_opentype = {weight: NUMBER_WEIGHT}
 	return _number_font
+
+
+## The body font with JetBrains Mono behind it for the symbols it lacks, such as the "→" of
+## the shift screen's "Scanned left to right →" cue (no system fallback on the web build).
+static func body_font_with_symbols() -> Font:
+	if _symbol_body_font == null:
+		_symbol_body_font = FontVariation.new()
+		_symbol_body_font.base_font = BODY_FONT
+		_symbol_body_font.fallbacks = [MONO_FONT]
+	return _symbol_body_font
 
 
 ## The card's sprite from its `art_ref` (a `res://` path), or the art-pending box.

@@ -1,0 +1,26 @@
+; The belt's velvet valance (style frame v2 round 3): a pleated velvet swag on a brass rod,
+; tiled along the belt's top edge so the boutique's velvet reads on the belt and not only on the
+; wall. 28x17 @2 (56x34, 16 swags across the belt): the brass rod, a velvet-dark shadow row,
+; four pleats lit from the left (sheen, velvet, velvet-dark fold), a scalloped hem dipping 8 px
+; at the swag's middle under a dark row and a gold braid, and a hanging brass fringe (threads on
+; every other column, brass-dark tips, a gold bead every 8 px) with the belt showing between.
+@size 28x17
+@kind scenery
+@scale 2
+LLLLLLLLLLLLLLLLLLLLLLLLLLLL
+llllllllllllllllllllllllllll
+VVVVVVVVVVVVVVVVVVVVVVVVVVVV
+XxxxxVVXxxxxVVXxxxxVVXxxxxVV
+XxxxxVVXxxxxVVXxxxxVVXxxxxVV
+XxxxxVVXxxxxVVXxxxxVVXxxxxVV
+XxxxxVVXxxxxVVXxxxxVVXxxxxVV
+XxxxxVVXxxxxVVXxxxxVVXxxxxVV
+VVxxxVVXxxxxVVXxxxxVVXxxxxVV
+nnVVVVVXxxxxVVXxxxxVVXxVVVnn
+.LnnnVVXxxxxVVXxxxxVVVVnnn.L
+.l.L.nnVVVxxVVXxxxVVVnnL.L.l
+.n.l.L.nnnVVVVVVVVnnnL.l.l..
+.....l.L.Lnnnnnnnn.L.l...n..
+.....n.l.l.L.L.L.L.l.n......
+.........n.l.l.l.l..........
+.............n...n..........

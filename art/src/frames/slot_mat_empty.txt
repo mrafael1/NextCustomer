@@ -1,0 +1,21 @@
+; An empty open slot on the v3 belt, a 9-slice (5 art px margins): a recessed mat in a 2 px
+; brass ring (gold top and left, brass inside it, brass dark bottom and right, brass
+; darkest at the outer bottom right) inside an ink line. The 2 px recess shades the face's
+; top and left (cream darkest) and lights its bottom and right (paper), so the mat reads
+; as sunk into the belt. An empty slot's face is a
+; step darker (cream shade, its light cream), so it reads as empty. The engraved slot number is code-drawn.
+@size 12x12
+@kind frame
+@scale 2
+.##########.
+#nnnnnnnnnL#
+#nLLLLLLLLl#
+#nLaaaaaall#
+#nLaaaaabll#
+#nLaabbbcll#
+#nLaabbbcll#
+#nLaabbbcll#
+#nLabccccll#
+#Llllllllll#
+#Lllllllllk#
+.##########.

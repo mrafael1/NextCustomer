@@ -167,9 +167,10 @@ var _upgrade_names: PackedStringArray = PackedStringArray()
 var _inspection_sources: Array[Control] = []
 var _inspection_names: PackedStringArray = PackedStringArray()
 var _receipt: ReceiptView
-var _subtotal_label: Label
-## The subtotal's own colour, back at every count-up's start.
-var _subtotal_color: Color = Palette.MUSTARD
+## The register's LED: the running subtotal, then the total.
+var _led: LedDisplay
+## The quota is met (the ding beat, or the TOTAL line): the LED's subtotal shows green.
+var _met: bool = false
 var _sfx: Sfx
 ## Shaken on big payouts and before a large total (the register rattle).
 var _rattle_target: Control
@@ -201,7 +202,7 @@ var _fx: CountUpMotion
 var _dessert: CountUpDessert
 ## The armed effects' tokens, markers and pips of the row being played, or null.
 var _tokens: EffectTokens
-## The lasting "QUOTA" chip beside the subtotal, or null.
+## The lasting "QUOTA" chip on the LED's quota line, or null.
 var _quota_chip: QuotaChip
 
 
@@ -216,7 +217,7 @@ func _init() -> void:
 func setup(
 	overlay: Control,
 	receipt: ReceiptView,
-	subtotal_label: Label,
+	led: LedDisplay,
 	sfx: Sfx,
 	rattle_target: Control,
 	pile: PaperPile = null,
@@ -225,8 +226,7 @@ func setup(
 	_overlay = overlay
 	_fx = CountUpMotion.new(overlay, _tween)
 	_receipt = receipt
-	_subtotal_label = subtotal_label
-	_subtotal_color = subtotal_label.get_theme_color("font_color")
+	_led = led
 	_sfx = sfx
 	_rattle_target = rattle_target
 	_pile = pile
@@ -263,6 +263,7 @@ func play(
 	printer_feed_ms = -1
 	_fx.reset(plan.reduced_motion)
 	_clear_row()
+	_led.start_count(quota)
 	_tokens = EffectTokens.new(_overlay, plan, _steps, _views, _names, _tween)
 	_shown_subtotal = 0
 	_roll = null
@@ -292,7 +293,8 @@ func play(
 	_finish_roll()
 	_print_line(_receipt.add_total(result.total))
 	_sfx.play("print", _print_pitch())
-	_fx.punch(_subtotal_label, TOTAL_PUNCH)
+	_led.show_total()
+	_fx.punch(_led.digits_label(), TOTAL_PUNCH)
 	if plan.chip_at_total:
 		_quota_met(false)
 	total_shown_ms = Time.get_ticks_msec()
@@ -327,7 +329,9 @@ func show_end_state(result: ScoreResult, quota: int, context: CountUpContext) ->
 	plan = CountUpPlan.build(result.steps, quota, context, _tuning)
 	intensity = CountUpIntensity.from_plan(plan)
 	_clear_row()
+	_led.start_count(quota)
 	_set_subtotal(result.total)
+	_led.show_total()
 	if plan.quota_reached:
 		_show_chip(false)
 	_start_pile(plan.pile_start_px)
@@ -650,8 +654,7 @@ func _denied(beat: CountUpBeat, step: ScoreStep) -> void:
 	await tween.finished
 	_sfx.play("denied")
 	_fx.shake(view.body, 10.0)
-	view.show_badge(step.value_after, true)
-	view.badge.add_theme_color_override("font_color", Palette.TOMATO)
+	view.show_fizzle_badge(step.value_after)
 	_land(beat)
 	var fade: Tween = _tween()
 	fade.tween_interval(0.25)
@@ -681,7 +684,7 @@ func _land_payout(beat: CountUpBeat, step: ScoreStep, line: Control) -> void:
 	if beat.payout > 0 and roll > 0.0:
 		_ticks(roll)
 		_fx.punch(
-			_subtotal_label,
+			_led.digits_label(),
 			SUBTOTAL_PUNCH + minf(beat.payout / 25.0, SUBTOTAL_PUNCH_MAX) + beat.punch_boost
 		)
 		if beat.rattle_px > 0.0:
@@ -713,20 +716,22 @@ func _armed(index: int, beat: CountUpBeat, step: ScoreStep) -> void:
 	_tokens.arm(index)
 
 
-## The quota is met (D5): the subtotal turns green and the lasting QuotaChip pops in beside
-## it. Mid-row (`with_ding`) the ding sounds; the beat's hit-stop follows.
+## The quota is met (D5): the subtotal turns green and the lasting QuotaChip pops in on the
+## LED's quota line. Mid-row (`with_ding`) the ding sounds; the beat's hit-stop follows.
 func _quota_met(with_ding: bool) -> void:
 	if with_ding:
 		_sfx.play("ding")
 	_show_chip(true)
 
 
-## The subtotal turns green and the QuotaChip appears beside it, popping in (1.4 to 1) with `pop`.
+## The subtotal turns green and the QuotaChip appears on the LED's quota line, popping in (1.4
+## to 1) with `pop`.
 func _show_chip(pop: bool) -> void:
-	_subtotal_label.add_theme_color_override("font_color", Palette.GOOD)
+	_met = true
+	_led.show_subtotal(_shown_subtotal, true)
 	_quota_chip = QuotaChip.new()
 	_overlay.add_child(_quota_chip)
-	_quota_chip.follow(_subtotal_label)
+	_quota_chip.follow_anchor(_led.quota_anchor, _led.quota_text_width)
 	if not pop:
 		return
 	_quota_chip.scale = Vector2(QUOTA_CHIP_POP, QUOTA_CHIP_POP)
@@ -742,7 +747,8 @@ func _clear_row() -> void:
 	if _quota_chip != null and is_instance_valid(_quota_chip):
 		_quota_chip.queue_free()
 	_quota_chip = null
-	_subtotal_label.add_theme_color_override("font_color", _subtotal_color)
+	_met = false
+	_led.reset_colour()
 
 
 ## The pile starts a row at `start_px`, flat, tidy and unsquashed.
@@ -923,7 +929,7 @@ func _finish_roll() -> void:
 
 func _set_subtotal(value: float) -> void:
 	_shown_subtotal = roundi(value)
-	_subtotal_label.text = "€%d" % _shown_subtotal
+	_led.show_subtotal(_shown_subtotal, _met)
 
 
 func _tween() -> Tween:

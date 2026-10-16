@@ -1,0 +1,15 @@
+; The scan popup's side tail (round 3), pointing left at a hand item from a popup opened
+; beside it (flip_h when the popup opens on the item's left). The right column is paper with
+; ink ends: it is drawn over the popup's left outline, so the tail opens into the popup. The
+; tip is the 2 px at the left middle. popup_tail turned a quarter.
+@size 5x8
+@kind frame
+@scale 2
+....#
+...#w
+.##ww
+#wwww
+#wwww
+.##ww
+...#w
+....#

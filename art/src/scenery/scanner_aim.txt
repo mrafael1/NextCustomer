@@ -1,0 +1,23 @@
+; The handheld scanner posed over an item (round 3): scanner_handheld's chunky pistol-grip
+; scanner, nose to the left, its window lit while it scans (a tomato glow down the window's
+; front). The beam leaves from the window at art (1,7). It stands overhead beside the lifted
+; sprite (flipped when it stands on the sprite's left), its grip clear of the sprite.
+@size 28x16
+@kind scenery
+@scale 2
+.#####.............#oR#.....
+#wvvvL##############Rr#####.
+#RrvvL::::::::::::::::::::#.
+#ORrvL:------------------=#.
+#oRrvL-------------------=#.
+#ORrvL-------------------=#.
+#ORrvL-------------------=#.
+#RrvvL====================#.
+#RrvvLLLLLLLLLLLLLLLLLLLLl#.
+#vvvvL########:-----=######.
+.#####....#L##:-----=#......
+...........##.#:-----=#.....
+..............#:-----=#.....
+...............#:-----=#....
+...............#LLLLLLl#....
+...............#########....

@@ -216,3 +216,40 @@ static func _tres_files(dir: String) -> Array[String]:
 		if file.ends_with(".tres"):
 			files.append(file)
 	return files
+
+
+## The cards' aisle mark (#55): every aisle product finds its own aisle; staples and coupons
+## find none.
+func test_aisle_of_finds_each_products_aisle() -> void:
+	var balance: BalanceDefinition = load(BALANCE)
+	var checked: int = 0
+	for aisle: AisleDefinition in balance.aisles:
+		for card: CardDefinition in aisle.base_cards + aisle.capsule_cards:
+			assert_object(balance.aisle_of(card)).override_failure_message(String(card.id)).is_same(
+				aisle
+			)
+			checked += 1
+	assert_int(checked).is_greater(0)
+	var staples: Array[CardDefinition] = []
+	for file: String in _tres_files(DECK_DIR):
+		staples.append_array(RunStock.staples(load("%s/%s" % [DECK_DIR, file])))
+	assert_int(staples.size()).is_greater(0)
+	for card: CardDefinition in staples:
+		assert_object(balance.aisle_of(card)).override_failure_message(String(card.id)).is_null()
+	for card: CardDefinition in balance.coupon_pool:
+		assert_object(balance.aisle_of(card)).override_failure_message(String(card.id)).is_null()
+	assert_object(balance.aisle_of(null)).is_null()
+	# A variant (made here; none is in data yet) counts as its base product.
+	var aisle: AisleDefinition = balance.aisles[0]
+	var variant: CardDefinition = CardDefinition.new()
+	variant.id = &"test_variant"
+	variant.kind = CardDefinition.Kind.PRODUCT
+	variant.variant_of = (aisle.base_cards + aisle.capsule_cards)[0]
+	assert_object(balance.aisle_of(variant)).is_same(aisle)
+
+
+## Every aisle has its glyph (art/icons/aisle_<id>.png), shown on its products' cards.
+func test_every_aisle_has_a_glyph() -> void:
+	for aisle: AisleDefinition in (load(BALANCE) as BalanceDefinition).aisles:
+		var path: String = ArtCardView.glyph_path(aisle)
+		assert_bool(ResourceLoader.exists(path)).override_failure_message(path).is_true()

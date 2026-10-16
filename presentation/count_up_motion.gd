@@ -83,7 +83,7 @@ func shake(node: Control, amount: float, swings: int = 4) -> void:
 func lift(view: CardView, seconds: float) -> void:
 	var tween: Tween = _tween().set_parallel().set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
 	tween.tween_property(view.body, "position:y", SCAN_LIFT, seconds)
-	tween.tween_property(view.badge, "position:y", CardView.BADGE_Y + SCAN_LIFT, seconds)
+	tween.tween_property(view.badge, "position:y", view.badge_rest_y() + SCAN_LIFT, seconds)
 
 
 ## The card drops back onto the belt with its badge.
@@ -92,7 +92,7 @@ func drop(view: CardView, seconds: float) -> void:
 		Tween.EASE_OUT
 	)
 	tween.tween_property(view.body, "position:y", 0.0, seconds)
-	tween.tween_property(view.badge, "position:y", CardView.BADGE_Y, seconds)
+	tween.tween_property(view.badge, "position:y", view.badge_rest_y(), seconds)
 
 
 ## A control lights up for a moment.

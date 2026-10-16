@@ -1,0 +1,14 @@
+; Snacks' aisle glyph: a crimped crisp packet, brown (sign colour), with a crisp.
+; 9x9 with its ink outline; shown at 2x in the card's sprite box, reused on capsule
+; machines and list stickers.
+@size 9x9
+@kind icon
+..#.#.#..
+.#F#F#f#.
+.#FFfff#.
+#Ffffffe#
+#FfyMffe#
+#FfMmffe#
+#Ffffffe#
+#Ffffffe#
+.#######.

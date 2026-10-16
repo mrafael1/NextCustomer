@@ -1,0 +1,22 @@
+; The v2 register cabinet, a 9-slice (margins: 4 art px at the top and sides, 6 at the
+; bottom): cream marble face between brass pilasters, a brass cornice and base trim, standing
+; on a brass-dark plinth 1 art px wider on each side.
+@size 16x16
+@kind frame
+@scale 2
+..############..
+.#wLLLLLLLLLLl#.
+.#llllllllllkk#.
+.#Lwwwwwwwwwbl#.
+.#Lwccccccccbl#.
+.#Lwccccccccbl#.
+.#Lwccccccccbl#.
+.#Lwccccccccbl#.
+.#Lwccccccccbl#.
+.#Lwccccccccbl#.
+.#Lbbbbbbbbbal#.
+.#LLLLLLLLLLLl#.
+################
+#Lllllllllllllk#
+#kkkkkkkkkkkkkk#
+################

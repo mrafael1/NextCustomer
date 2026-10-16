@@ -1,0 +1,42 @@
+; A stanchion for the CLOSED cell's velvet rope: a gold ball finial with a paper glint, a
+; collar, a brass shaft (lit left, dark right) with two turned rings, and a brass foot
+; disc, in an ink outline. The right post is the same sprite flipped.
+@size 6x36
+@kind scenery
+@scale 2
+.####.
+#wnnn#
+#nnnL#
+#nnLl#
+.#Ll#.
+#LLLl#
+.#Ll#.
+.#Ll#.
+.#Ll#.
+.#Ll#.
+.#Ll#.
+.#Ll#.
+.#lk#.
+.#Ll#.
+.#Ll#.
+.#Ll#.
+.#Ll#.
+.#Ll#.
+.#Ll#.
+.#Ll#.
+.#Ll#.
+.#Ll#.
+.#lk#.
+.#Ll#.
+.#Ll#.
+.#Ll#.
+.#Ll#.
+.#Ll#.
+.#Ll#.
+.#Ll#.
+.#Ll#.
+.#Ll#.
+#wLLl#
+#Lllk#
+#kkkk#
+.####.

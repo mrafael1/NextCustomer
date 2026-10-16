@@ -55,3 +55,16 @@ extends Resource
 @export var overtime_coin_euros: int = 0
 ## The most overtime coins one run pays.
 @export var overtime_coin_max: int = 0
+
+
+## The aisle a card is stocked from (full build plan 7.2), or null for a staple or a coupon. A
+## variant belongs to its base product's aisle ("same product", plan section 3). The cards show
+## the aisle's sign colour and glyph.
+func aisle_of(card: CardDefinition) -> AisleDefinition:
+	if card == null or not card.is_product():
+		return null
+	for aisle: AisleDefinition in aisles:
+		for stocked: CardDefinition in aisle.base_cards + aisle.capsule_cards:
+			if stocked.is_same_product(card):
+				return aisle
+	return null

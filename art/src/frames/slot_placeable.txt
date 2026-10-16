@@ -1,0 +1,19 @@
+; Where the chosen card can go, a 9-slice (4 art px margins) drawn over a slot or a card,
+; 1 art px larger than the card on every side: a solid mustard ring (bright outside, dark on
+; the card's own outline) between two ink lines, so it reads on the brass mats and on a card
+; (#55, style frame v2 adoption). Solid, so its shape differs from an empty slot's mat.
+@size 12x12
+@kind frame
+@scale 2
+..########..
+.#MMMMMMMM#.
+#MmmmmmmmmM#
+#Mm######mM#
+#Mm#....#mM#
+#Mm#....#mM#
+#Mm#....#mM#
+#Mm#....#mM#
+#Mm######mM#
+#MmmmmmmmmM#
+.#MMMMMMMM#.
+..########..

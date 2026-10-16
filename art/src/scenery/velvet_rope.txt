@@ -1,0 +1,18 @@
+; The CLOSED cell's velvet rope, hung between the two posts: a velvet body (sheen on top,
+; velvet dark underneath, a diagonal sheen twist every 4 art px) sagging 4 art px in the middle,
+; with a brass snap hook at each end that overlaps the post's ball. Ink outline.
+@size 44x12
+@kind scenery
+@scale 2
+###......................................###
+LnL##..................................##LnL
+nLLLX##..............................##XLLLn
+LlLLLXX####......................####XXLLLlL
+lkLlLXxXXXX####..............####XXXXXxLlLkl
+#kl#VxXxxXxXXXX##############XXXXXxxxxXV#lk#
+.##.#VVxxxXxxXxXXXXXXXXXXXXXXXxxxxXxxVV#.##.
+.....##VVVVxxxXxxXxxxXxxxXxxxxXxxVVVV##.....
+.......####VVVVxxxXxxxXxxxXxxVVVV####.......
+...........####VVVVVVVVVVVVVV####...........
+...............##############...............
+............................................

@@ -109,7 +109,9 @@ func test_a_new_screen_resumes_the_hand_the_row_and_the_redraws() -> void:
 	assert_int(resumed._row_views.size()).is_equal(2)
 	assert_int(_hand_views(resumed).size()).is_equal(resumed.run.hand().size())
 	assert_bool(resumed._reward_panel.visible).is_false()
-	assert_str(resumed._projected_label.text).is_equal("Projected €%d" % first.run.preview().total)
+	assert_str(resumed._led.caption()).is_equal(LedDisplay.PROJECTED_TEXT)
+	assert_str(resumed._led.digits_label().text).is_equal("€%d" % first.run.preview().total)
+	assert_bool(resumed._cabinet.is_total_down()).is_false()
 	assert_str(_event_log().run_id).is_equal(run_id)
 	var resume: Dictionary = _last_event("run_resume")
 	assert_str(resume["run_id"]).is_equal(run_id)
@@ -137,10 +139,14 @@ func test_quitting_during_the_count_up_resumes_on_the_reward_panel() -> void:
 	var resumed: ShiftScreen = await _screen()
 	assert_int(resumed.run.phase).is_equal(RunState.Phase.REWARD)
 	assert_int(resumed.run.last_result.total).is_equal(first.run.last_result.total)
-	assert_str(resumed._subtotal_label.text).is_equal("€%d" % first.run.last_result.total)
-	# A passed count-up leaves the subtotal green with its lasting QUOTA chip (#60, D5).
-	assert_that(resumed._subtotal_label.get_theme_color("font_color")).is_equal(Palette.GOOD)
+	# The LED at TOTAL, green with its lasting QUOTA chip (#60, D5), and the TOTAL key up:
+	# nothing is being counted on the resumed screen.
+	assert_str(resumed._led.caption()).is_equal(LedDisplay.TOTAL_TEXT)
+	assert_str(resumed._led.digits_label().text).is_equal("€%d" % first.run.last_result.total)
+	assert_that(resumed._led.digits_label().get_theme_color("font_color")).is_equal(Palette.GOOD)
 	assert_object(resumed._count_up._quota_chip).is_not_null()
+	assert_bool(resumed._cabinet.is_total_down()).is_false()
+	assert_bool(first._cabinet.is_total_down()).is_true()
 	assert_str(_last_event("run_resume")["phase"]).is_equal("reward")
 	assert_bool(resumed._reward_panel.visible).is_true()
 	assert_bool(resumed._shade.visible).is_true()
@@ -162,10 +168,8 @@ func test_quitting_during_the_count_up_resumes_on_the_reward_panel() -> void:
 	await _count_up_end(first)
 	# The receipt, totals, chip and paper pile behind the panel, as the count-up left them.
 	assert_array(_receipt_lines(resumed)).is_equal(_receipt_lines(first))
-	assert_str(resumed._projected_label.text).is_equal(first._projected_label.text)
-	assert_that(resumed._subtotal_label.get_theme_color("font_color")).is_equal(
-		first._subtotal_label.get_theme_color("font_color")
-	)
+	_assert_same_led(resumed, first)
+	assert_bool(first._cabinet.is_total_down()).is_false()
 	var chip: QuotaChip = resumed._count_up._quota_chip
 	assert_object(first._count_up._quota_chip).is_not_null()
 	assert_bool(chip.visible).is_true()
@@ -216,8 +220,9 @@ func test_a_new_screen_resumes_the_upgrade_tickets() -> void:
 	assert_str(notice).is_not_empty()
 	assert_bool(_receipt_lines(resumed).has(notice)).is_true()
 	assert_array(_receipt_lines(resumed)).is_equal(_receipt_lines(first))
-	assert_str(resumed._projected_label.text).is_equal(first._projected_label.text)
-	assert_str(resumed._projected_label.text).is_not_empty()
+	_assert_same_led(resumed, first)
+	assert_str(resumed._led.caption()).is_equal(LedDisplay.TOTAL_TEXT)
+	assert_bool(resumed._cabinet.is_total_down()).is_false()
 
 	var upgrade: UpgradeDefinition = first.run.upgrade_offer[0]
 	first._on_upgrade_picked(upgrade)
@@ -320,6 +325,21 @@ func _screen() -> ShiftScreen:
 
 func _record_error(message: String) -> void:
 	_errors.append(message)
+
+
+## The resumed screen's LED is the live one's after its count-up: the same caption, digits,
+## colour, lit segments and quota line.
+func _assert_same_led(resumed: ShiftScreen, live: ShiftScreen) -> void:
+	var led: LedDisplay = resumed._led
+	var other: LedDisplay = live._led
+	assert_str(led.caption()).is_equal(other.caption())
+	assert_str(led.digits_label().text).is_equal(other.digits_label().text)
+	assert_str(led.digits_label().text).is_not_empty()
+	assert_that(led.digits_label().get_theme_color("font_color")).is_equal(
+		other.digits_label().get_theme_color("font_color")
+	)
+	assert_int(led.lit()).is_equal(other.lit())
+	assert_str(led.quota_label().text).is_equal(other.quota_label().text)
 
 
 ## The panel is visible, fits the window and sits inside the screen once laid out.

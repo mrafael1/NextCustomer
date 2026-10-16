@@ -4,7 +4,10 @@ extends PanelContainer
 ## with the score. Used for the live preview (all lines at once) and the count-up (line by
 ## line, as each step plays). After a checkout, the shift's dessert (#61) ends it: the verdict
 ## "€total / €quota" on the TOTAL line, the margin line under it (with PAID on a pass), the tear,
-## then the next shift's red notice (show_shift_end prints them all at once).
+## then the next shift's red notice (show_shift_end prints them all at once). On the shift
+## screen it is in fit mode (#55): as tall as its lines, down to the paper pile's top. An
+## indented step line hangs (#55): wrapped, it starts past its lead and marker on every row, and
+## its amount (or "fizzle") sits on its last row.
 
 enum LineStyle { DETAIL, ITEM, CONTEXT, FIZZLE, TOTAL, NOTICE, MARGIN, TEAR }
 
@@ -18,11 +21,21 @@ const PAID_TILT_DEG := -8.0
 ## The torn edge: this pattern repeated, clipped to the receipt's width.
 const TEAR_PATTERN := "/\\"
 const TEAR_REPEAT := 60
+## A step line's marker after its leading spaces (hang_parts()): it is printed beside the first
+## row, and the wrapped rows hang under the text after it.
+const HANG_MARKERS: Array[String] = ["+ ", "× "]
 
 var _lines: VBoxContainer
 var _scroll: ScrollContainer
 ## The last TOTAL line printed, or null.
 var _total_line: HBoxContainer
+## In fit mode (fit_mode()): the lowest the receipt's bottom may reach, in the parent's
+## coordinates. Empty otherwise.
+var _max_bottom: Callable = Callable()
+## A fit is queued for the end of this frame's layout.
+var _fit_queued: bool = false
+## Fit mode: the next layout of the lines scrolls to their end, in the same frame.
+var _snap_to_end: bool = false
 
 
 func _init() -> void:
@@ -33,11 +46,52 @@ func _init() -> void:
 	add_theme_stylebox_override("panel", style)
 	_scroll = ScrollContainer.new()
 	_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	_scroll.sort_children.connect(_on_scroll_sorted)
 	add_child(_scroll)
 	_lines = VBoxContainer.new()
 	_lines.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_lines.add_theme_constant_override("separation", 1)
 	_scroll.add_child(_lines)
+
+
+## Fit mode (#55): the receipt is as tall as its lines, from where it stands down to at most
+## `max_bottom`'s value (a Callable returning a float, the parent's coordinates); past that it
+## ends there, scrolled to its newest line, with no scroll bar (the mouse wheel still scrolls).
+## It fits again whenever its lines change; call fit_height() when `max_bottom` moves.
+func fit_mode(max_bottom: Callable) -> void:
+	_max_bottom = max_bottom
+	_scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_SHOW_NEVER
+	if not _lines.minimum_size_changed.is_connected(_queue_fit):
+		_lines.minimum_size_changed.connect(_queue_fit)
+	fit_height()
+
+
+## Fits the receipt's height to its lines (fit mode only; see fit_mode()), then scrolls to its
+## end.
+func fit_height() -> void:
+	_fit_queued = false
+	if not _max_bottom.is_valid():
+		return
+	var frame: float = get_theme_stylebox("panel").get_minimum_size().y
+	var room: float = float(_max_bottom.call()) - position.y
+	# The newest line stays in view in the very frame the receipt grows or shrinks.
+	_snap_to_end = true
+	size.y = maxf(minf(natural_height(), room), frame)
+	# Sorted after the panel gives the scroll area its new size (the scroll area doesn't always
+	# sort itself on a resize), so _on_scroll_sorted sees it.
+	_scroll.queue_sort()
+	scroll_to_end()
+
+
+## The lines' natural height plus the paper's frame: how tall the receipt is when nothing stops
+## it. (A ScrollContainer reports no content height: the lines' own minimum is the content.)
+func natural_height() -> float:
+	return _lines.get_combined_minimum_size().y + get_theme_stylebox("panel").get_minimum_size().y
+
+
+## Shows the newest line: scrolls to the end once the new lines are laid out.
+func scroll_to_end() -> void:
+	_scroll_to_end.call_deferred()
 
 
 func clear() -> void:
@@ -241,16 +295,66 @@ func add_line(left: String, right: String, style: LineStyle) -> Control:
 		left_label.autowrap_mode = TextServer.AUTOWRAP_OFF
 		left_label.clip_text = true
 		left_label.custom_minimum_size.x = 1.0
+	if style == LineStyle.DETAIL or style == LineStyle.FIZZLE:
+		_hang(left_label)
 	line.add_child(left_label)
 	var right_label: Label = _label(right, style)
 	right_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	# The amount sits on the line's last row when the left side wraps.
+	right_label.size_flags_vertical = Control.SIZE_FILL
+	right_label.vertical_alignment = VERTICAL_ALIGNMENT_BOTTOM
 	line.add_child(right_label)
 	if style == LineStyle.TOTAL:
 		var rule: HSeparator = HSeparator.new()
 		_lines.add_child(rule)
 	_lines.add_child(line)
-	_scroll_to_end.call_deferred()
+	scroll_to_end()
 	return line
+
+
+## A step line's text split for a hanging indent: its leading spaces, its marker ("+ " or "× ",
+## only after leading spaces) and the rest.
+static func hang_parts(text: String) -> PackedStringArray:
+	var rest: String = text.lstrip(" ")
+	var lead: String = text.substr(0, text.length() - rest.length())
+	var marker: String = ""
+	for candidate: String in HANG_MARKERS:
+		if not lead.is_empty() and rest.begins_with(candidate):
+			marker = candidate
+			rest = rest.substr(candidate.length())
+			break
+	return PackedStringArray([lead, marker, rest])
+
+
+## Hangs an indented line's left `label`: its text starts past its lead and marker on every
+## wrapped row (an empty "normal" style's left margin), the marker printed beside the first row
+## (a "Marker" label inside it). A line without leading spaces is left as it is.
+static func _hang(label: Label) -> void:
+	var parts: PackedStringArray = hang_parts(label.text)
+	if parts[0].is_empty():
+		return
+	var font: Font = label.get_theme_font("font")
+	var font_size: int = label.get_theme_font_size("font_size")
+	var lead: float = _text_width(parts[0], font, font_size)
+	var indent: StyleBoxEmpty = StyleBoxEmpty.new()
+	indent.content_margin_left = lead + _text_width(parts[1], font, font_size)
+	label.add_theme_stylebox_override("normal", indent)
+	label.text = parts[2]
+	if parts[1].is_empty():
+		return
+	var marker: Label = Label.new()
+	marker.name = "Marker"
+	marker.text = parts[1].strip_edges()
+	marker.add_theme_font_override("font", font)
+	marker.add_theme_font_size_override("font_size", font_size)
+	marker.add_theme_color_override("font_color", label.get_theme_color("font_color"))
+	marker.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	marker.position = Vector2(lead, 0)
+	label.add_child(marker)
+
+
+static func _text_width(text: String, font: Font, font_size: int) -> float:
+	return font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size).x
 
 
 func _label(text: String, style: LineStyle) -> Label:
@@ -278,6 +382,29 @@ func _label(text: String, style: LineStyle) -> Label:
 	label.add_theme_font_size_override("font_size", font_size)
 	label.add_theme_color_override("font_color", color)
 	return label
+
+
+## Fits once, at the end of this frame's layout, however many lines changed.
+func _queue_fit() -> void:
+	if _fit_queued:
+		return
+	_fit_queued = true
+	fit_height.call_deferred()
+
+
+## Fit mode: once the scroll area has laid out its new size, scrolls to the end (deferred: the
+## scroll area lays its lines out again for the new scroll only after this sort has finished).
+func _on_scroll_sorted() -> void:
+	if not _snap_to_end:
+		return
+	_snap_to_end = false
+	_snap.call_deferred()
+
+
+func _snap() -> void:
+	_scroll.scroll_vertical = int(_scroll.get_v_scroll_bar().max_value)
+	# A scroll clamped during that sort (a taller receipt) moved no line yet: lay them out again.
+	_scroll.queue_sort()
 
 
 ## Waits a frame so the new line is laid out before scrolling to it.

@@ -1,0 +1,16 @@
+; A velvet sign and button face, a 9-slice (3 art px margins): velvet (sheen top and left,
+; shade bottom and right) in a brass bezel, over a 1 art px brass-darkest ledge so
+; FramedButton's sink reads. Shift sign, Deck and Export log.
+@size 10x10
+@kind frame
+@scale 2
+.########.
+#wLLLLLLl#
+#LXXXXXXl#
+#LXxxxxVl#
+#LXxxxxVl#
+#LXxxxxVl#
+#LXxxxxVl#
+#LVVVVVVl#
+#kkkkkkkk#
+.########.

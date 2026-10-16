@@ -1,0 +1,38 @@
+; The v2 register's key bed, 144x28 @2: a brass-darkest bed with a brass-dark top lip in
+; an ink outline. A 3x2 cream numeric pad (14x12 keys at art x 2, 18, 34 and y 2, 15;
+; paper glint, cream shade skirt, bold 5x7 brass-darkest digits 1-6 filling the face, round 3),
+; a velvet key with a paper cross over a green key with a paper tick (20x11, cancel and
+; enter),
+; and the TOTAL well (art 78..141), an ink-lined recess with a velvet-darkest shadow
+; on its top and left, where the separate TOTAL key stands.
+@size 144x28
+@kind scenery
+@scale 2
+################################################################################################################################################
+#llllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllll###################################################################
+#kk############kkkk############kkkk############kkkkkk##################kkkkkk#vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv##
+#k#wwwwwwwwwwwc#kk#wwwwwwwwwwwc#kk#wwwwwwwwwwwc#kkkk#XXXXXXXXXXXXXXXXXx#kkkkk#vkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk##
+#k#wcccckcccccb#kk#wccckkkccccb#kk#wcckkkkccccb#kkkk#XxxxxxxxxxxxxxxxxV#kkkkk#vkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk##
+#k#wccckkcccccb#kk#wcckccckcccb#kk#wcccccckcccb#kkkk#XxxxxxwxxxwxxxxxxV#kkkkk#vkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk##
+#k#wcccckcccccb#kk#wcccccckcccb#kk#wcccccckcccb#kkkk#XxxxxxxwxwxxxxxxxV#kkkkk#vkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk##
+#k#wcccckcccccb#kk#wccccckccccb#kk#wccckkkccccb#kkkk#XxxxxxxxwxxxxxxxxV#kkkkk#vkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk##
+#k#wcccckcccccb#kk#wcccckcccccb#kk#wcccccckcccb#kkkk#XxxxxxxwxwxxxxxxxV#kkkkk#vkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk##
+#k#wcccckcccccb#kk#wccckccccccb#kk#wcccccckcccb#kkkk#XxxxxxwxxxwxxxxxxV#kkkkk#vkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk##
+#k#wccckkkccccb#kk#wcckkkkkcccb#kk#wcckkkkccccb#kkkk#VVVVVVVVVVVVVVVVVv#kkkkk#vkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk##
+#k#bbbbbbbbbbba#kk#bbbbbbbbbbba#kk#bbbbbbbbbbba#kkkk#vvvvvvvvvvvvvvvvvv#kkkkk#vkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk##
+#k#aaaaaaaaaaaa#kk#aaaaaaaaaaaa#kk#aaaaaaaaaaaa#kkkkk##################kkkkkk#vkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk##
+#kk############kkkk############kkkk############kkkkkkkkkkkkkkkkkkkkkkkkkkkkkk#vkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk##
+#kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk#vkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk##
+#kk############kkkk############kkkk############kkkkkk##################kkkkkk#vkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk##
+#k#wwwwwwwwwwwc#kk#wwwwwwwwwwwc#kk#wwwwwwwwwwwc#kkkk#zzzzzzzzzzzzzzzzzG#kkkkk#vkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk##
+#k#wccccckccccb#kk#wcckkkkkcccb#kk#wcccckkccccb#kkkk#zGGGGGGGGGGGGGGGGg#kkkkk#vkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk##
+#k#wcccckkccccb#kk#wcckcccccccb#kk#wccckccccccb#kkkk#zGGGGGGGGGwGGGGGGg#kkkkk#vkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk##
+#k#wccckckccccb#kk#wcckkkkccccb#kk#wcckcccccccb#kkkk#zGGGGGGGGwGGGGGGGg#kkkkk#vkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk##
+#k#wcckcckccccb#kk#wcccccckcccb#kk#wcckkkkccccb#kkkk#zGGGGGwGwGGGGGGGGg#kkkkk#vkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk##
+#k#wcckkkkkcccb#kk#wcccccckcccb#kk#wcckccckcccb#kkkk#zGGGGGGwGGGGGGGGGg#kkkkk#vkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk##
+#k#wccccckccccb#kk#wcckccckcccb#kk#wcckccckcccb#kkkk#zGGGGGGGGGGGGGGGGg#kkkkk#vkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk##
+#k#wccccckccccb#kk#wccckkkccccb#kk#wccckkkccccb#kkkk#ggggggggggggggggge#kkkkk#vkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk##
+#k#bbbbbbbbbbba#kk#bbbbbbbbbbba#kk#bbbbbbbbbbba#kkkk#eeeeeeeeeeeeeeeeee#kkkkk#vkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk##
+#k#aaaaaaaaaaaa#kk#aaaaaaaaaaaa#kk#aaaaaaaaaaaa#kkkkk##################kkkkkk#vkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk##
+#kk############kkkk############kkkk############kkkkkkkkkkkkkkkkkkkkkkkkkkkkkk###################################################################
+################################################################################################################################################

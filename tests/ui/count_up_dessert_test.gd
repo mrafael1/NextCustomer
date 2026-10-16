@@ -17,8 +17,9 @@ const SCREEN_RECT := Rect2(0, 0, 1280, 720)
 ## Milk, Multipack, Milk x5 = 109.
 const PASSING_ROW: Array[String] = ["milk", "multipack", "milk", "milk", "milk", "milk", "milk"]
 const ROW_TOTAL := 109
-## A step starts no earlier than planned (less a ms of rounding), and at most this much later
-## (frame boundaries in the headless runner).
+## A step starts no earlier than planned (less the verdict frame's delta and 5 ms of rounding),
+## and at most this much later (frame boundaries in the headless runner) plus the longest frame
+## that ran since the verdict, so a stalled frame under load doesn't fail it (_assert_ms).
 const LATE_MS := 150
 ## A wait between two dessert steps can end up to a frame early in wall-clock time.
 const EARLY_MS := 20
@@ -28,6 +29,11 @@ var _folder: String = ""
 var _window_size: Vector2i
 var _bus_db: float = 0.0
 var _tuning: CountUpTuning
+## Each frame's start (Time.get_ticks_usec() at process_frame) and its process delta in ms, from
+## _play until the count-up ends: the timing bounds allow for the frames that actually ran.
+var _frame_usec: PackedInt64Array = PackedInt64Array()
+var _frame_delta_ms: PackedFloat64Array = PackedFloat64Array()
+var _timed: CountUp
 
 
 func before_test() -> void:
@@ -42,6 +48,9 @@ func before_test() -> void:
 
 
 func after_test() -> void:
+	if get_tree().process_frame.is_connected(_record_frame):
+		get_tree().process_frame.disconnect(_record_frame)
+	_timed = null
 	AudioServer.set_bus_volume_db(AudioServer.get_bus_index(MusicService.BUS), _bus_db)
 	get_tree().root.size = _window_size
 	ProjectSettings.set_setting(SaveService.FOLDER_SETTING, null)
@@ -52,7 +61,7 @@ func after_test() -> void:
 
 
 ## A pass with no notice and no taps: total and the slam at 300 ms, pass at 450, PAID at 520,
-## the tear at 560 and the printer feed at 700 (each no earlier, at most LATE_MS later); the
+## the tear at 560 and the printer feed at 700 (each within _assert_ms's bounds); the
 ## verdict and "+€75 OVER QUOTA | PAID" in green under it, then the tear; one printer_feed.
 func test_a_pass_slams_counts_stamps_tears_and_feeds() -> void:
 	var screen: ShiftScreen = await _screen()
@@ -76,7 +85,7 @@ func test_a_pass_slams_counts_stamps_tears_and_feeds() -> void:
 	_assert_at(heard[3], count_up, tear)
 	var feed_ms: int = count_up.printer_feed_ms - count_up.total_shown_ms
 	prints("#61 pass: total", _ms_of(heard[0], count_up), "feed", feed_ms)
-	assert_int(feed_ms).is_between(tear + _tuning.dessert_feed_ms - 1, 700 + LATE_MS)
+	_assert_ms(feed_ms, count_up, tear + _tuning.dessert_feed_ms, "printer feed")
 	assert_array(feeds).is_equal([count_up.printer_feed_ms])
 	assert_int(count_up.margin.kind()).is_equal(ShiftMargin.Kind.OVER)
 	var lines: Array[String] = _lines(screen._receipt)
@@ -139,7 +148,7 @@ func test_before_an_inspected_shift_the_notice_prints_under_the_tear() -> void:
 	assert_int(_ms_of(heard[4], count_up)).is_greater_equal(notice_ms)
 	var feed_ms: int = count_up.printer_feed_ms - count_up.total_shown_ms
 	assert_int(feed_ms).is_greater_equal(_ms_of(heard[5], count_up))
-	assert_int(feed_ms).is_between(700 - 1, 700 + LATE_MS)
+	_assert_ms(feed_ms, count_up, _feed_ms(), "printer feed")
 	var lines: Array[String] = _lines(screen._receipt)
 	assert_str(lines[-2]).is_equal(ReceiptView.TEAR_PATTERN.repeat(60) + " | ")
 	assert_str(lines[-1]).is_equal(NOTICE + " | ")
@@ -265,13 +274,16 @@ func test_the_dessert_runs_at_the_speed_setting_without_the_auto_speed_up() -> v
 	_play(screen, 34, "", CountUpContext.new(3, 0))
 	await _played(screen)
 	assert_float(count_up.plan.base_speed).is_equal_approx(1.25, 0.001)
-	assert_int(count_up.printer_feed_ms - count_up.total_shown_ms).is_between(699, 700 + LATE_MS)
+	_assert_ms(count_up.printer_feed_ms - count_up.total_shown_ms, count_up, _feed_ms(), "feed")
 	sfx.clear()
 	_play(screen, 34, "", CountUpContext.new(3, 0, 1.5))
 	await _played(screen)
 	assert_float(count_up.plan.speed_setting).is_equal(1.5)
-	assert_int(count_up.printer_feed_ms - count_up.total_shown_ms).is_between(
-		roundi(700 / 1.5) - 1, roundi(700 / 1.5) + LATE_MS
+	_assert_ms(
+		count_up.printer_feed_ms - count_up.total_shown_ms,
+		count_up,
+		roundi(_feed_ms() / 1.5),
+		"feed at Fast"
 	)
 
 
@@ -299,7 +311,7 @@ func test_reduced_motion_slams_at_full_size_without_a_shake() -> void:
 	var sfx: Sfx = _recording_sfx(screen)
 	await _place(screen, PASSING_ROW)
 	var count_up: CountUp = screen._count_up
-	var rest: float = screen._row_box.position.x
+	var rest: float = screen._register.position.x
 	_play(screen, 34, "", CountUpContext.new(1, 0, 1.0, true))
 	var slam_frames: int = 0
 	var moved: Array[String] = []
@@ -312,8 +324,8 @@ func test_reduced_motion_slams_at_full_size_without_a_shake() -> void:
 			slam_frames += 1
 			if slam.scale != Vector2.ONE:
 				moved.append("slam at scale %s" % slam.scale)
-		if screen._row_box.position.x != rest:
-			moved.append("row box at %s" % screen._row_box.position.x)
+		if screen._register.position.x != rest:
+			moved.append("register at %s" % screen._register.position.x)
 	assert_int(slam_frames).is_greater(2)
 	assert_array(moved).override_failure_message("\n".join(moved)).is_empty()
 	assert_array(_names_of(_dessert_sounds(sfx, count_up))).is_equal(
@@ -426,9 +438,58 @@ static func _ms_of(entry: Dictionary, count_up: CountUp) -> int:
 
 
 func _assert_at(entry: Dictionary, count_up: CountUp, planned_ms: int) -> void:
-	assert_int(_ms_of(entry, count_up)).override_failure_message(str(entry)).is_between(
-		planned_ms - 5, planned_ms + LATE_MS
+	_assert_ms(_ms_of(entry, count_up), count_up, planned_ms, str(entry))
+
+
+## A step `at_ms` after the verdict, planned `planned_ms` after it, within the frames that ran
+## (recorded since _play). The dessert's first wait is a tween stepped in the verdict's own frame
+## with that frame's delta (time that passed before the verdict), so a step can come up to that
+## delta early; each wait ends on a frame, so it can come LATE_MS late, plus the longest frame
+## between the verdict and the step (a stall under load). Normal headless frames are 7 to 16 ms.
+func _assert_ms(at_ms: int, count_up: CountUp, planned_ms: int, what: String) -> void:
+	var verdict_end: int = (count_up.total_shown_ms + 1) * 1000
+	var step_end: int = (count_up.total_shown_ms + at_ms + 1) * 1000
+	var verdict_delta: float = 0.0
+	var longest: float = 0.0
+	for index: int in range(_frame_usec.size()):
+		if _frame_usec[index] < verdict_end:
+			verdict_delta = _frame_delta_ms[index]
+		elif _frame_usec[index] < step_end:
+			longest = maxf(longest, _frame_delta_ms[index])
+	var earliest: int = planned_ms - ceili(verdict_delta) - 5
+	var latest: int = planned_ms + LATE_MS + ceili(longest)
+	(
+		assert_int(at_ms)
+		. override_failure_message(
+			(
+				"%s at %d ms, planned %d: allowed %d to %d (verdict frame %.1f ms, longest %.1f ms)"
+				% [what, at_ms, planned_ms, earliest, latest, verdict_delta, longest]
+			)
+		)
+		. is_between(earliest, latest)
 	)
+
+
+## A pass's printer feed after the verdict at speed 1: the slam, the margin, PAID, the tear and
+## the feed's wait (700 ms).
+func _feed_ms() -> int:
+	return (
+		_tuning.dessert_slam_delay_ms
+		+ _tuning.dessert_slam_ms
+		+ _tuning.dessert_margin_ms
+		+ _tuning.dessert_paid_ms
+		+ _tuning.dessert_tear_ms
+		+ _tuning.dessert_feed_ms
+	)
+
+
+## Records a frame's start and delta for _assert_ms. Connected before the count-up plays, so it
+## runs before the count-up's own process_frame awaits in each frame (the verdict's included).
+func _record_frame() -> void:
+	_frame_usec.append(Time.get_ticks_usec())
+	_frame_delta_ms.append(get_process_delta_time() * 1000.0)
+	if _timed != null and not _timed._playing:
+		get_tree().process_frame.disconnect(_record_frame)
 
 
 static func _color(label: Label) -> Color:
@@ -461,6 +522,11 @@ func _play(
 ) -> void:
 	var count_up: CountUp = screen._count_up
 	count_up.music = null
+	_timed = count_up
+	_frame_usec.clear()
+	_frame_delta_ms.clear()
+	if not get_tree().process_frame.is_connected(_record_frame):
+		get_tree().process_frame.connect(_record_frame)
 	count_up.play(
 		screen.run.preview(),
 		screen._row_views,

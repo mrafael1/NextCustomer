@@ -8,6 +8,7 @@ const SCREEN := "res://ui/shift_screen.tscn"
 const COUPON_ENGINE := "res://data/upgrades/coupon_engine.tres"
 const CATEGORY_ENGINE := "res://data/upgrades/category_engine.tres"
 const BREAD := "res://data/cards/bread.tres"
+const UPGRADES := "res://data/upgrades"
 
 var _folder: String = ""
 
@@ -186,7 +187,7 @@ func test_upgrade_steps_play_from_the_loyalty_card() -> void:
 	assert_str(_receipt_text(screen)).contains("× Coupon engine").contains("+ Category engine")
 
 	await screen._on_checkout_pressed()
-	assert_str(screen._subtotal_label.text).is_equal("€%d" % preview.total)
+	assert_str(screen._led.digits_label().text).is_equal("€%d" % preview.total)
 	assert_str(_receipt_text(screen)).contains("× Coupon engine").contains("+ Category engine")
 	for step: ScoreStep in upgrade_steps:
 		var box: Control = screen._loyalty_card.box(step.source_index)
@@ -237,6 +238,39 @@ func test_every_stamped_box_keeps_its_tilt() -> void:
 	assert_float(empty_box.rotation).is_equal(0.0)
 
 
+## Every upgrade's stamp is legible (#55 review #9): its initials are in the number font, paper
+## with an ink outline on the dark tomato face, and fit inside the box's ink ring.
+func test_every_stamp_fits_inside_its_ring() -> void:
+	var upgrades: Array[UpgradeDefinition] = []
+	for file_name: String in DirAccess.get_files_at(UPGRADES):
+		if file_name.ends_with(".tres"):
+			upgrades.append(load(UPGRADES.path_join(file_name)) as UpgradeDefinition)
+	assert_int(upgrades.size()).is_greater(0)
+	var card: LoyaltyCard = auto_free(LoyaltyCard.new())
+	get_tree().root.add_child(card)
+	card.show_upgrades(upgrades.size(), upgrades)
+	await _frames(2)
+	var inside: float = LoyaltyCard.BOX_SIZE.x - 2.0 * LoyaltyCard.STAMP_BORDER
+	for box: Control in card.stamped_boxes():
+		var face: StyleBoxFlat = box.get_theme_stylebox("panel") as StyleBoxFlat
+		assert_object(face.bg_color).is_equal(Palette.TOMATO_DARK)
+		var label: Label = box.get_child(0) as Label
+		assert_object(label.get_theme_font("font")).is_same(ArtStyle.number_font())
+		assert_object(label.get_theme_color("font_color")).is_equal(Palette.PAPER)
+		assert_object(label.get_theme_color("font_outline_color")).is_equal(Palette.INK)
+		assert_int(label.get_theme_constant("outline_size")).is_equal(LoyaltyCard.INITIALS_OUTLINE)
+		(
+			assert_float(label.get_minimum_size().x)
+			. override_failure_message(
+				(
+					"%s is %.1f px wide, the ring holds %.1f"
+					% [label.text, label.get_minimum_size().x, inside]
+				)
+			)
+			. is_less_equal(inside)
+		)
+
+
 ## A ticket already under the cursor lights up as soon as it is armed.
 func test_a_hovered_ticket_lights_up_when_armed() -> void:
 	var coupon_engine: UpgradeDefinition = load(COUPON_ENGINE)
@@ -253,18 +287,18 @@ func test_extra_redraw_gives_a_second_redraw() -> void:
 	var runner: GdUnitSceneRunner = scene_runner(SCREEN)
 	var screen: ShiftScreen = runner.scene()
 	screen._on_reward_skipped()  # Past the impulse rack.
-	assert_str(screen._redraw_button.text).contains("(1 left)")
+	assert_str(screen._redraw_button.caption).contains("(1 left)")
 	screen._debug.give_upgrade("extra_redraw")
 	assert_int(screen.run.redraws_allowed).is_equal(2)
-	assert_str(screen._redraw_button.text).contains("(2 left)")
+	assert_str(screen._redraw_button.caption).contains("(2 left)")
 	assert_str(screen._loyalty_card.box_texts()[0]).is_equal("ExR")
 	_redraw_first_card(screen)
 	assert_int(screen.run.redraws_used).is_equal(1)
-	assert_str(screen._redraw_button.text).contains("(1 left)")
+	assert_str(screen._redraw_button.caption).contains("(1 left)")
 	assert_bool(screen._redraw_button.disabled).is_false()
 	_redraw_first_card(screen)
 	assert_int(screen.run.redraws_used).is_equal(2)
-	assert_str(screen._redraw_button.text).is_equal("Redraw used")
+	assert_str(screen._redraw_button.caption).is_equal("Redraw used")
 	assert_bool(screen._redraw_button.disabled).is_true()
 
 
@@ -362,8 +396,14 @@ static func _upgrade_steps(result: ScoreResult) -> Array[ScoreStep]:
 static func _receipt_text(screen: ShiftScreen) -> String:
 	var texts: PackedStringArray = PackedStringArray()
 	for label: Node in screen._receipt.find_children("*", "Label", true, false):
-		if not label.is_queued_for_deletion() and not label.get_parent().is_queued_for_deletion():
-			texts.append((label as Label).text)
+		if label.is_queued_for_deletion() or label.get_parent().is_queued_for_deletion():
+			continue
+		if label.name == &"Marker":
+			continue
+		# A hung line prints its marker ("+", "×") in a child label beside its first row.
+		var marker: Label = label.get_node_or_null("Marker") as Label
+		var text: String = (label as Label).text
+		texts.append(text if marker == null else "%s %s" % [marker.text, text])
 	return "\n".join(texts)
 
 
@@ -396,7 +436,7 @@ func _events() -> Array:
 
 
 static func _view_for(screen: ShiftScreen, card: CardInstance) -> CardView:
-	var hand_box: HBoxContainer = screen._hand_box
+	var hand_box: Control = screen._hand_box
 	for child: Node in hand_box.get_children():
 		var view: CardView = child as CardView
 		if view and view.card == card and not view.is_queued_for_deletion():
@@ -416,28 +456,29 @@ static func _event_log() -> EventLogService:
 
 
 ## Big basket and Extra coupon slot make a 9-slot row: it is rebuilt with 9 slots and scaled to
-## the width the screen was laid out for, so every slot stays on screen, apart, and clear of the
-## receipt. The usual 7-slot row is never scaled.
+## the width the screen was laid out for, so every slot stays on the belt, apart, and clear of
+## the receipt (shift_screen_layout_test checks the rest of the stage). The usual 7-slot row is
+## never scaled.
 func test_a_nine_slot_row_fits_the_screen() -> void:
 	var runner: GdUnitSceneRunner = scene_runner(SCREEN)
 	var screen: ShiftScreen = runner.scene()
 	screen._on_reward_skipped()  # Past the impulse rack.
 	await await_idle_frame()
 	assert_int(screen._slots.size()).is_equal(7)
-	assert_vector(screen._row_box.scale).is_equal(Vector2.ONE)
+	assert_vector(screen._row_strip.box.scale).is_equal(Vector2.ONE)
 	screen._debug.give_upgrade("big_basket")
 	screen._debug.give_upgrade("extra_coupon_slot")
 	for _frame: int in range(3):
 		await await_idle_frame()
 	assert_int(screen._slots.size()).is_equal(9)
-	assert_float(screen._row_box.scale.x).is_less(1.0)
+	assert_float(screen._row_strip.box.scale.x).is_less(1.0)
 	assert_str(screen._capacity_label.text).contains("Products 0/7").contains("Coupon slots 0/2")
-	var window: Rect2 = screen.get_viewport_rect()
+	var belt: Rect2 = (screen._row_strip.get_parent() as Control).get_global_rect()
 	var receipt: Rect2 = screen._receipt.get_global_rect()
 	var previous: Rect2 = Rect2()
 	for slot: int in range(screen._slots.size()):
 		var rect: Rect2 = screen._slots[slot].get_global_rect()
-		assert_bool(window.encloses(rect)).override_failure_message(str(rect)).is_true()
+		assert_bool(belt.encloses(rect)).override_failure_message(str(rect)).is_true()
 		assert_bool(rect.intersects(receipt)).override_failure_message(str(rect)).is_false()
 		if slot > 0:
 			assert_float(rect.position.x).is_greater_equal(previous.end.x)

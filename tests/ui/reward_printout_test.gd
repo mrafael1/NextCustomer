@@ -1,16 +1,20 @@
 extends GdUnitTestSuite
 ## The reward print-out on the real shift screen (#61, RewardPanel.show_printout): at the
-## dessert's printer feed the offer appears beside the receipt, which stays unshaded, without the
-## repeated headline; its cards lift into place and it arms once they have and the mouse is up.
+## dessert's printer feed the offer appears beside the receipt, whose register column (the
+## cabinet, the receipt and the paper pile) stays unshaded, without the repeated headline; its
+## cards lift into place and it arms once they have and the mouse is up.
 ## Checked: the budget from the verdict to the armed reward with no taps; the offer's timeline
 ## (it starts at the feed, presented_ms at the lift's end, armed_ms not before it,
 ## presentation_skipped only for a skipped print-out, kept after the deck view and the deck-full
-## chooser); a dessert skipped earlier and a tap during the lift; reduced motion; and the layout
-## with the deck-full note and the inspection warning. The real saves, logs and Music bus level
+## chooser); a dessert skipped earlier and a tap during the lift; reduced motion; the layout
+## with the deck-full note and the inspection warning; and the print-out on the stage of a wide
+## window (#55). The real saves, logs and Music bus level
 ## are never touched.
 
 const SCREEN := "res://ui/shift_screen.tscn"
 const SCREEN_RECT := Rect2(0, 0, 1280, 720)
+## A 32:9 window: the stage sits centred in it, with bare wall either side.
+const WIDE_SIZE := Vector2i(2560, 720)
 ## Milk, Multipack, Milk x5 = 109: passes the first five quotas.
 const PASSING_ROW: Array[String] = ["milk", "multipack", "milk", "milk", "milk", "milk", "milk"]
 ## The agreed budget from the verdict to the armed print-out, at Normal speed with no taps, and
@@ -128,7 +132,9 @@ func test_promo_products_carry_a_sticker() -> void:
 	await _pass_shift(screen)
 	var panel: RewardPanel = screen._reward_panel
 	var offer: Array[CardDefinition] = [_card("milk"), _card("multipack")]
-	screen._reward_panel.show_printout(offer, 13, 15, "", screen._receipt, Time.get_ticks_msec())
+	screen._reward_panel.show_printout(
+		offer, 13, 15, "", screen._receipt, screen._stage, Time.get_ticks_msec()
+	)
 	var views: Array[Node] = panel._cards.get_children()
 	assert_object(RewardPanel.promo_sticker(views[0] as CardView)).is_not_null()
 	assert_str(RewardPanel.promo_sticker(views[0] as CardView).text).is_equal("PROMO")
@@ -221,7 +227,8 @@ func test_reduced_motion_fades_the_cards_in_place() -> void:
 
 ## The print-out fits the 1280x720 screen beside the receipt without overlapping it, with the
 ## deck-full note and the inspection warning, on every frame of its lift; its note, warning,
-## cards and buttons sit inside it, one under the other; the shade leaves the receipt unshaded.
+## cards and buttons sit inside it, one under the other; the shade leaves the register column
+## unshaded, the pile's spilled fold too.
 func test_the_printout_sits_beside_the_receipt() -> void:
 	var screen: ShiftScreen = await _screen()
 	await _pass_shift(screen)
@@ -259,11 +266,58 @@ func test_the_printout_sits_beside_the_receipt() -> void:
 		var sticker: Label = RewardPanel.promo_sticker(view as CardView)
 		if sticker != null:
 			assert_bool(rect.encloses(sticker.get_global_rect())).is_true()
-	assert_bool(screen._shade.visible).is_true()
-	assert_bool(screen._shade.get_global_rect().intersects(receipt)).is_false()
+	await _spill_pile(screen)
+	_assert_column_unshaded(screen)
+
+
+## On a wide window the stage sits centred, and the print-out stays on it, where it sits on the
+## stage of a 1280x720 window; the register column stays unshaded. The print-out follows the
+## stage as the window resizes.
+func test_the_printout_stays_on_a_wide_stage() -> void:
+	var screen: ShiftScreen = await _screen()
+	await _pass_shift(screen)
+	var panel: RewardPanel = screen._reward_panel
+	await _until_armed(panel)
+	await _frames(2)
+	var on_stage: Vector2 = panel.get_global_rect().position - screen._stage.global_position
+	get_tree().root.size = WIDE_SIZE
+	await _spill_pile(screen)
+	var stage: Rect2 = screen._stage.get_global_rect()
+	var rect: Rect2 = panel.get_global_rect()
+	prints("#55 wide print-out", rect, "stage", stage)
+	assert_float(stage.position.x).is_equal((WIDE_SIZE.x - SCREEN_RECT.size.x) / 2.0)
+	assert_bool(stage.encloses(rect)).override_failure_message(str(rect)).is_true()
+	assert_that(rect.position - stage.position).is_equal(on_stage)
+	assert_bool(rect.intersects(screen._receipt.get_global_rect())).is_false()
+	_assert_column_unshaded(screen)
 
 
 # --- Helpers ---------------------------------------------------------------------------------
+
+
+## The pile at its cap, curled and spilled (its spilled fold the furthest left of the receipt),
+## and the frames for the receipt and the shade to follow.
+func _spill_pile(screen: ShiftScreen) -> void:
+	var pile: PaperPile = screen._paper_pile
+	pile.set_height(pile.cap_px)
+	pile.curl(true)
+	assert_int(pile.spilled_fold()).is_greater(0)
+	await _frames(3)
+
+
+## The shade is up and misses the register column: the cabinet (at rest), the receipt and the
+## pile's paper.
+func _assert_column_unshaded(screen: ShiftScreen) -> void:
+	assert_bool(screen._shade.visible).is_true()
+	var shade: Rect2 = screen._shade.get_global_rect()
+	var column: Array[Rect2] = [
+		screen._cabinet.get_global_rect(),
+		screen._receipt.get_global_rect(),
+		screen._paper_pile.paper_rect(),
+	]
+	for part: Rect2 in column:
+		var message: String = "shade %s over %s" % [shade, part]
+		assert_bool(shade.intersects(part)).override_failure_message(message).is_false()
 
 
 ## Prints the run's offer again beside the receipt, now, with `warning`, and the deck at
@@ -275,9 +329,10 @@ func _print(screen: ShiftScreen, warning: String, reduced_motion: bool, deck_siz
 		screen.run.balance.deck_limit,
 		warning,
 		screen._receipt,
+		screen._stage,
 		Time.get_ticks_msec(),
 		1.0,
-		false,
+		RewardPanel.Lift.NORMAL,
 		reduced_motion
 	)
 

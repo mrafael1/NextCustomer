@@ -53,8 +53,9 @@ func test_a_shift_from_draw_to_next_shift() -> void:
 	var expected_total: int = run.preview().total
 
 	await screen._on_checkout_pressed()
-	var subtotal: Label = screen._subtotal_label
-	assert_str(subtotal.text).is_equal("€%d" % expected_total)
+	# The LED shows the counted total under TOTAL.
+	assert_str(screen._led.digits_label().text).is_equal("€%d" % expected_total)
+	assert_str(screen._led.caption()).is_equal(LedDisplay.TOTAL_TEXT)
 	var passed: bool = expected_total >= run.quota()
 	# A pass shows the reward choice; a fail shows the results screen.
 	assert_bool(screen._reward_panel.visible).is_equal(passed)
@@ -122,9 +123,8 @@ func test_full_row_highlights_no_slot() -> void:
 	for id: String in ["bread", "repeat"]:
 		screen._debug.add_card(id)
 		screen._on_hand_card_clicked(_view_for(screen, screen.run.hand()[-1]))
-		for panel: PanelContainer in screen._slots:
-			var style: StyleBoxFlat = panel.get_theme_stylebox("panel") as StyleBoxFlat
-			assert_bool(style.border_color == Palette.MUSTARD).is_false()
+		for slot: int in range(screen._slots.size()):
+			assert_bool(screen._row_strip.is_outlined(slot)).is_false()
 
 
 ## Plan section 3.1: 6 shared slots + 1 coupon-only slot, and the window fits all 7. The coupon
@@ -143,12 +143,11 @@ func test_the_row_shows_the_coupon_slot() -> void:
 	_place_ids(screen, ["repeat"])
 	assert_str(screen._capacity_label.text).contains("Products 1/6").contains("Coupon slot 1/1")
 	await _frames(2)
-	var margin: MarginContainer = null
-	for child: Node in screen.get_children():
-		if child is MarginContainer:
-			margin = child
-	var width: int = ProjectSettings.get_setting("display/window/size/viewport_width")
-	assert_float(margin.get_combined_minimum_size().x).is_less_equal(width)
+	var stage: Rect2 = _stage_rect(screen)
+	var receipt: Rect2 = screen._receipt.get_global_rect()
+	for panel: PanelContainer in screen._slots:
+		assert_bool(stage.encloses(panel.get_global_rect())).is_true()
+		assert_bool(panel.get_global_rect().intersects(receipt)).is_false()
 
 
 ## A product that doesn't fit says why instead of doing nothing; a coupon still fits.
@@ -352,6 +351,11 @@ func _place_ids(screen: ShiftScreen, ids: Array[String]) -> void:
 		screen._on_slot_input(_left_click(), screen.run.row.size())
 
 
+## The 1280x720 stage's global rect (headless runs use a 1280x1280 window: the stage is centred).
+static func _stage_rect(screen: ShiftScreen) -> Rect2:
+	return screen._stage.get_global_rect()
+
+
 static func _slot_hint(screen: ShiftScreen, slot: int) -> String:
 	var hint: Label = screen._slots[slot].get_child(0) as Label
 	return hint.text if hint != null else ""
@@ -390,13 +394,13 @@ func test_winning_the_last_shift_shows_the_results() -> void:
 	screen._on_reward_skipped()  # Past the impulse rack.
 	var count: int = screen.run.shift_count()
 	assert_int(int(_last_event("run_start")["shift_count"])).is_equal(count)
-	assert_str(screen._shift_label.text).is_equal("Shift 1 / %d" % count)
+	assert_str(screen._shift_label.text).is_equal("1 / %d" % count)
 	var shift_input: SpinBox = screen._debug.panel.get("_shift_input")
 	assert_int(int(shift_input.max_value)).is_equal(count)
 
 	screen._debug.skip_to_shift(count)
 	assert_bool(screen.run.is_last_shift()).is_true()
-	assert_str(screen._shift_label.text).is_equal("Shift %d / %d" % [count, count])
+	assert_str(screen._shift_label.text).is_equal("%d / %d" % [count, count])
 	assert_int(int(_last_event("shift_start")["shift"])).is_equal(count)
 	# The last quota (plan v0.28) expects upgrades: this test plays it against 48 instead.
 	screen.run.limits.quota = 48
@@ -425,7 +429,7 @@ func test_empty_checkout_loses_and_logs_run_end() -> void:
 
 
 static func _view_for(screen: ShiftScreen, card: CardInstance) -> CardView:
-	var hand_box: HBoxContainer = screen._hand_box
+	var hand_box: Control = screen._hand_box
 	for child: Node in hand_box.get_children():
 		var view: CardView = child as CardView
 		if view and view.card == card and not view.is_queued_for_deletion():

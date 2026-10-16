@@ -1,0 +1,21 @@
+; Multipack's coupon icon for the style frame v2 slip (items_v2/coupon_slip), the round-1 icon
+; redrawn at 1.4x with the same motif: three squat, light drink cans (silver lids with a pull
+; tab, paper highlights, grey shade) held by a brown cardboard band across all three, so it
+; reads as a can multipack and not as the batteries' tall dark cells. Drawn over the coupon
+; slip at art offset (14,19).
+@size 20x14
+@kind icon
+....................
+....................
+.#####.#####.#####..
+#w:-::#w:-::#w:-::#.
+#-----#-----#-----#.
+#w::::#w::::#w::::#.
+#hhhhhhhhhhhhhhhhhh#
+#FFFFFFFFFFFFFFFFFF#
+#ffffffffffffffffff#
+#w:::-#w:::-#w:::-#.
+#w::--#w::--#w::--#.
+#:::--#:::--#:::--#.
+#:--==#:--==#:--==#.
+.#####.#####.#####..

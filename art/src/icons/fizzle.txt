@@ -1,0 +1,11 @@
+; The fizzle marker on chips and in the popup footer: a tomato 4-point spark (pale core)
+; struck through by a diagonal ink line, for an effect that paid nothing. Shown at 2x (14x14).
+@size 7x7
+@kind icon
+#..r...
+.#.r...
+..#Or..
+rrO#Orr
+..rO#..
+...r.#.
+...r..#

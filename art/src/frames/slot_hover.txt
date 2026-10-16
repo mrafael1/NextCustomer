@@ -1,0 +1,16 @@
+; The empty slot under a dragged card, a 9-slice (3 art px margins) at the card's size:
+; a filled pale mustard card shape, so the landing spot reads at a glance. Drawn under
+; slot_placeable's ring.
+@size 10x10
+@kind frame
+@scale 2
+..mmmmmm..
+.mYYYYYYm.
+mYwYYYYYym
+mYYYYYYYym
+mYYYYYYYym
+mYYYYYYYym
+mYYYYYYYym
+mYYYYYYYym
+.myyyyyym.
+..mmmmmm..
