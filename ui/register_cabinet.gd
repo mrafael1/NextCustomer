@@ -1,14 +1,19 @@
 class_name RegisterCabinet
 extends Control
-## The shift screen's cash register (#80, mock-up B2; greybox, step 3): the printer box on the
-## counter top that the receipt rises from, and under it the register column's wooden front with
-## the keypad and the cash drawer. CHECKOUT and Redraw (and Cancel) are the stage's buttons, over
-## the column. Flat palette fills for now; the register art lands in a later step. It stands at
-## ShiftStage.REGISTER_RECT and is the count-up's rattle target; its parts are placed in its own
-## coordinates (the stage rects less its position). Display only: it takes no clicks.
+## The shift screen's cash register (#80, mock-up B2): the printer box on the counter top that
+## the receipt rises from (pixel art, step 5; the slot's lip over the paper is the stage's
+## ShiftStage.printer_lip, drawn above the receipt), and under it the register column's wooden
+## front with the keypad and the cash drawer. CHECKOUT and Redraw (and Cancel) are the stage's
+## buttons, over the column. The column's parts are flat palette fills for now; their art lands in
+## a later step. It stands at ShiftStage.REGISTER_RECT and is the count-up's rattle target; its
+## parts are placed in its own coordinates (the stage rects less its position). Display only: it
+## takes no clicks.
 
 ## The parts' ink outline, in canvas pixels.
 const OUTLINE := 2.0
+## The printer box (art/src/scenery/printer_box.txt), drawn 1:1 at ShiftStage.PRINTER_RECT with
+## its paper slot at ShiftStage.PRINTER_SLOT_RECT.
+const PRINTER_BOX := preload("res://art/scenery/printer_box.png")
 
 ## Whether the shift is being counted (CHECKOUT held down). Its look comes with the register
 ## art; for now it is only kept.
@@ -21,8 +26,7 @@ func _init() -> void:
 	position = ShiftStage.REGISTER_RECT.position
 	size = ShiftStage.REGISTER_RECT.size
 	_add(_panel(Palette.WOOD_DARK), local_rect(ShiftStage.COLUMN_RECT)).name = "Column"
-	_add(_panel(Palette.STEEL_PALE), local_rect(ShiftStage.PRINTER_RECT)).name = "Printer"
-	_add(_panel(Palette.CHARCOAL), local_rect(ShiftStage.PRINTER_SLOT_RECT)).name = "PrinterSlot"
+	_add(UiKit.sprite(PRINTER_BOX), local_rect(ShiftStage.PRINTER_RECT)).name = "Printer"
 	_add(_panel(Palette.STEEL), local_rect(ShiftStage.KEYPAD_RECT)).name = "Keypad"
 	_add(_panel(Palette.RUBBER), local_rect(ShiftStage.DRAWER_RECT)).name = "Drawer"
 	_add(_panel(Palette.STEEL_PALE), local_rect(ShiftStage.DRAWER_PULL_RECT)).name = "Pull"

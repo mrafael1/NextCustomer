@@ -128,6 +128,9 @@ const SEED_RECT := Rect2(1062, 586, 198, 18)
 const OUTLINE := 2
 
 const RECEIPT_PAPER := preload("res://art/frames/receipt_paper.png")
+## The printer slot's steel lip with its tear teeth (art/src/scenery/printer_lip.txt), drawn 1:1
+## at PRINTER_SLOT_RECT over the receipt's foot, so the paper seems to come out of the slot.
+const PRINTER_LIP := preload("res://art/scenery/printer_lip.png")
 
 var top_bar: HBoxContainer
 var shift_label: Label
@@ -144,6 +147,8 @@ var cabinet: RegisterCabinet
 ## The monitor's LED: the projected total, the count-up's subtotal and the total.
 var led: LedDisplay
 var receipt: ReceiptView
+## The printer slot's lip, over the receipt's foot (fixed: it never scrolls or shakes).
+var printer_lip: TextureRect
 ## The belt under the row (a fixed size; the row rests on its rail).
 var belt: BeltPanel
 var row_strip: RowStrip
@@ -252,12 +257,20 @@ func _build_register() -> void:
 	receipt = ReceiptView.new()
 	var paper: StyleBoxTexture = ArtStyle.frame_style(RECEIPT_PAPER, 2)
 	paper.set_content_margin_all(RECEIPT_PADDING)
+	# The receipt's inset holds its framed line's frame past the text (ReceiptView.FRAME_OUT).
+	paper.content_margin_left = RECEIPT_PADDING - ReceiptView.FRAME_OUT
+	paper.content_margin_right = RECEIPT_PADDING - ReceiptView.FRAME_OUT
 	receipt.add_theme_stylebox_override("panel", paper)
 	ArtStyle.use_pixel_material(receipt)
 	receipt.position = Vector2(RECEIPT_X, RECEIPT_BOTTOM)
 	receipt.size = Vector2(RECEIPT_WIDTH, 0.0)
 	add_child(receipt)
 	receipt.fit_up(RECEIPT_BOTTOM, RECEIPT_TOP)
+	printer_lip = UiKit.sprite(PRINTER_LIP)
+	printer_lip.name = "PrinterLip"
+	printer_lip.position = PRINTER_SLOT_RECT.position
+	printer_lip.size = PRINTER_SLOT_RECT.size
+	add_child(printer_lip)
 
 
 ## Fades the hand and its baskets to COUNTING_HAND_ALPHA while the shift is counted

@@ -451,7 +451,13 @@ func test_the_scans_hold_every_line_of_the_planning_receipt() -> void:
 	assert_int(ReceiptFooters.printed(receipt).size()).is_equal(
 		ReceiptFooters.printing_steps(result).size() + 1
 	)
-	var expected: Dictionary[int, PackedStringArray] = ReceiptFooters.by_slot(receipt, result)
+	var expected: Dictionary[int, PackedStringArray] = ReceiptFooters.by_slot(
+		receipt,
+		result,
+		ShiftScreen._names(screen.run.row),
+		LoyaltyCard.names(screen.run.upgrades),
+		InspectionTag.names(screen.run.inspections)
+	)
 	var footers: Dictionary[int, PackedStringArray] = {}
 	var kinds: Dictionary[int, bool] = {}
 	for slot: int in range(screen._row_views.size()):

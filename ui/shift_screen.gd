@@ -833,10 +833,10 @@ func _show_projected(total: int) -> void:
 	_led.show_projected(total, run.quota())
 
 
-## The preview (#75, decision 1A): the receipt's stub (the header, PROJECTED and how many
-## fizzles the items show), and the belt's plaques, tags and chips (_show_belt).
+## The preview: the itemised planning receipt (#80) and the belt's plaques, tags and chips.
 func _show_planning(result: ScoreResult) -> void:
-	_receipt.show_stub(receipt_header(), result.total, ReceiptView.fizzle_count(result))
+	var slots: int = RowCapacity.card_limit(run.limits)
+	_receipt.show_planning(receipt_header(), result, _names(run.row), slots)
 	_show_belt(result)
 
 

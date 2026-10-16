@@ -1,13 +1,16 @@
 extends GdUnitTestSuite
-## The receipt on the real shift screen (#75, decision 1A). In planning it is the stub: "NEXT
-## CUSTOMER · REG 3", "SHIFT n/m · k ITEMS" (coupons counted), a dashed rule, PROJECTED €N and
-## the fizzle count ("1 fizzle · see the item", "N fizzles · see the items", none without), then
-## the tear; it follows every place and remove, stands on the printer's slot inside the register
-## column and the 1280x720 screen (#80), every line on one row and in view, clear of the hand,
-## the monitor and CHECKOUT. The click starts the
-## count-up under the same header: at every frame the receipt is the header and the lines of the
-## steps played so far, as show_result prints them, each combo line marked inside the scroll
-## area. The real saves and logs are never touched: both go to a temporary folder.
+## The receipt on the real shift screen (#75, #80). In planning it is itemised: "NEXT CUSTOMER ·
+## REG 3", "SHIFT n/m · k ITEMS" (coupons counted), a dashed rule, each belt item's name and
+## payout (cents, from the preview), "n ·····" for each open empty slot, a dashed rule,
+## "PROJECTED €N.00" and the fizzle footer ("1 fizzle · rest on the item", "N fizzles · rest on an
+## item", none without); it follows every place and remove, stands on the printer's slot inside
+## the register column and the 1280x720 screen, every line on one row and in view, every mark
+## inside the paper, clear of the hand, the monitor and CHECKOUT. A belt item's scan frames its
+## line, the frame around the line inside the paper; a hand item's frames none. The click starts
+## the count-up: at every frame the receipt has the header, the footer "tap: skip · hold: fast"
+## last until the TOTAL line, and the step lines printed so far in show_result's order; the
+## counted line is framed and in view; it ends as show_result prints it, every combo marked. The
+## real saves and logs are never touched: both go to a temporary folder.
 
 const SCREEN := "res://ui/shift_screen.tscn"
 const SCREEN_RECT := Rect2(0, 0, 1280, 720)
@@ -38,20 +41,20 @@ func after_test() -> void:
 		DirAccess.remove_absolute(_folder)
 
 
-## No fizzle, then one, then several: the stub's words follow every place and remove; the item
+## No fizzle, then one, then several: the itemised lines follow every place and remove; the item
 ## count includes the coupon.
-func test_the_planning_stub_counts_the_items_and_the_fizzles() -> void:
+func test_the_planning_receipt_lists_the_items_and_the_fizzles() -> void:
 	var screen: ShiftScreen = await _screen()
 	var shifts: int = screen.run.shift_count()
 	_place(screen, ["bread", "milk"])
 	await _frames(2)
 	assert_int(ReceiptView.fizzle_count(screen.run.preview())).is_equal(0)
-	assert_array(_lines(screen)).is_equal(_stub(screen, "SHIFT 1/%d · 2 ITEMS" % shifts, ""))
+	assert_array(_lines(screen)).is_equal(_planning(screen, "SHIFT 1/%d · 2 ITEMS" % shifts, ""))
 	_place(screen, ["cheese", "coffee"])
 	await _frames(2)
 	assert_int(ReceiptView.fizzle_count(screen.run.preview())).is_equal(1)
 	assert_array(_lines(screen)).is_equal(
-		_stub(screen, "SHIFT 1/%d · 4 ITEMS" % shifts, "1 fizzle · see the item")
+		_planning(screen, "SHIFT 1/%d · 4 ITEMS" % shifts, "1 fizzle |  · rest on the item")
 	)
 	# Several fizzles, among them the Coupon engine's (the first coupon, Multipack, pays nothing)
 	# and Coffee's (no Breakfast product after it).
@@ -62,17 +65,54 @@ func test_the_planning_stub_counts_the_items_and_the_fizzles() -> void:
 	assert_int(ReceiptView.fizzle_count(screen.run.preview())).is_equal(3)
 	# Multipack is a coupon: it counts as an item.
 	assert_array(_lines(screen)).is_equal(
-		_stub(screen, "SHIFT 1/%d · 3 ITEMS" % shifts, "3 fizzles · see the items")
+		_planning(screen, "SHIFT 1/%d · 3 ITEMS" % shifts, "3 fizzles |  · rest on an item")
 	)
-	_assert_stub_on_screen(screen)
+	_assert_planning_on_screen(screen)
 
 
-## The click starts the count-up under the stub's header (the stub's PROJECTED, fizzle line and
-## tear go at once). At every frame of the count-up the receipt is the header, then the lines of
-## the steps played so far, word for word as show_result prints them; each combo line printed has
-## its diamond, and the newest line is in the scroll area once it has had a few frames to get
-## there. The receipt ends as show_result prints it, every combo line marked.
-func test_the_count_up_receipt_prints_the_steps_so_far() -> void:
+## A belt item's full scan frames its line (the frame around the line and its mark column,
+## inside the paper); the scan's end clears it; a hand item's scan frames none.
+func test_a_belt_items_scan_frames_its_line() -> void:
+	var screen: ShiftScreen = await _screen()
+	_place(screen, ["bread", "milk", "coffee"])
+	await _frames(3)
+	var receipt: ReceiptView = screen._receipt
+	assert_object(receipt._framed_line()).is_null()
+	assert_bool(screen.debug_scan(screen.run.row[1])).is_true()
+	await _frames(2)
+	var line: HBoxContainer = receipt._items[1]
+	assert_object(receipt._framed_line()).is_same(line)
+	var line_rect: Rect2 = line.get_global_rect()
+	var inset: Rect2 = receipt._inset.get_global_rect()
+	var frame: Rect2 = Rect2(
+		inset.position.x,
+		line_rect.position.y - ReceiptView.FRAME_GROW,
+		inset.size.x,
+		line_rect.size.y + 2.0 * ReceiptView.FRAME_GROW
+	)
+	assert_bool(frame.encloses(line_rect)).is_true()
+	assert_float(frame.position.x).is_less(line_rect.position.x)
+	# The frame runs past the line's mark column by B2's padding and frame.
+	assert_float(frame.end.x).is_greater_equal(line_rect.end.x + ReceiptView.FRAME_PAD)
+	var paper: Rect2 = receipt.get_global_rect()
+	assert_bool(paper.encloses(frame)).override_failure_message(str(frame)).is_true()
+	screen._scan.clear()
+	assert_object(receipt._framed_line()).is_null()
+	var hand: CardInstance = screen.run.hand()[0]
+	assert_bool(screen.debug_scan(hand)).is_true()
+	await _frames(2)
+	assert_bool(screen._scan.is_full()).is_true()
+	assert_object(receipt._framed_line()).is_null()
+	screen._scan.clear()
+
+
+## The click starts the count-up under the planning receipt's header, every item waiting. At
+## every frame of the count-up the receipt has the header, the footer last, and its step lines
+## (the lines but the items', the rules, TOTAL and the footer) in show_result's order; the framed
+## line is in the scroll area once it has had a few frames to get there, every bonus beat frames
+## its bonus line (not its item's), and every combo line printed has its diamond. The receipt
+## ends as show_result prints it, every combo line marked.
+func test_the_count_up_receipt_fills_in_as_it_counts() -> void:
 	var screen: ShiftScreen = await _screen()
 	screen._debug.give_upgrade("coupon_engine")
 	screen._debug.give_upgrade("slot_engine")
@@ -89,7 +129,7 @@ func test_the_count_up_receipt_prints_the_steps_so_far() -> void:
 		InspectionTag.names(run.inspections),
 		header
 	)
-	var full: Array[String] = _receipt_lines(expected)
+	var full: Array[String] = _step_lines(expected)
 	var combos: int = 0
 	for step: ScoreStep in run.preview().steps:
 		combos += int(ReceiptView.is_combo(step))
@@ -98,31 +138,48 @@ func test_the_count_up_receipt_prints_the_steps_so_far() -> void:
 	var count_up: CountUp = screen._count_up
 	var receipt: ReceiptView = screen._receipt
 	var most: int = 0
-	var newest: Control = null
-	var newest_frames: int = 0
+	var framed: Control = null
+	var framed_frames: int = 0
 	var failures: Array[String] = []
+	# The bonus beats started since the last frame: their lines print as they start.
+	var bonuses: Array[ScoreStep] = []
+	var bonus_beats: Array[int] = [0]
+	count_up.beat_started.connect(
+		func(beat: CountUpBeat, step: ScoreStep, _l: String, _v: CardView, _n: int) -> void:
+			if beat.kind == CountUpBeat.Kind.BONUS:
+				bonuses.append(step)
+	)
 	while screen._counting and not count_up._verdict_shown:
-		var shown: Array[String] = _receipt_lines(receipt)
+		for bonus: ScoreStep in bonuses:
+			bonus_beats[0] += 1
+			_check_bonus_frame(receipt, bonus, failures)
+		bonuses.clear()
+		var shown: Array[String] = _step_lines(receipt)
 		most = maxi(most, shown.size())
-		if shown != full.slice(0, shown.size()):
-			failures.append("%s is not a start of %s" % [shown, full])
-		if shown.size() < header.size() or shown[1] != header[1] + " | ":
-			failures.append("no header: %s" % [shown])
-		var lines: Array[Node] = receipt._lines.get_children()
-		var last: Control = lines[-1] as Control
-		newest_frames = newest_frames + 1 if last == newest else 0
-		newest = last
+		if not _is_subsequence(shown, full):
+			failures.append("%s is not in the order of %s" % [shown, full])
+		var all: Array[String] = _receipt_lines(receipt)
+		if all.size() < header.size() or all[1] != header[1] + " | ":
+			failures.append("no header: %s" % [all])
+		elif all[-1] != ReceiptView.COUNT_FOOTER_TEXT + " | ":
+			failures.append("no footer: %s" % all[-1])
+		var current: Control = receipt._framed_line()
+		framed_frames = framed_frames + 1 if current == framed else 0
+		framed = current
 		var scroll: Rect2 = receipt._scroll.get_global_rect().grow(1.0)
-		if newest_frames >= 3 and not scroll.encloses(newest.get_global_rect()):
-			failures.append("newest line %s outside %s" % [newest.get_global_rect(), scroll])
-		if newest_frames >= 3:
+		if framed != null and framed_frames >= 3 and not scroll.encloses(framed.get_global_rect()):
+			failures.append("framed line %s outside %s" % [framed.get_global_rect(), scroll])
+		if framed_frames >= 3:
 			_check_combo_marks(receipt, scroll, failures)
 		await get_tree().process_frame
 	assert_array(failures).is_empty()
-	# Steps printed one by one, past the header (the TOTAL line comes with the verdict).
-	assert_int(most).is_greater(header.size() + 3)
+	assert_int(most).is_greater(3)
+	assert_int(bonus_beats[0]).is_greater(0)
 	while screen._counting:
 		await get_tree().process_frame
+	# Up to the TOTAL line, whose amount the dessert then turns into the verdict.
+	var printed: Array[String] = _receipt_lines(expected).slice(0, -1)
+	assert_array(_receipt_lines(receipt).slice(0, printed.size())).is_equal(printed)
 	var marked: int = 0
 	for line: Node in receipt._lines.get_children():
 		if line is HBoxContainer and line.get_child(0).has_node("ComboDiamond"):
@@ -130,10 +187,10 @@ func test_the_count_up_receipt_prints_the_steps_so_far() -> void:
 	assert_int(marked).is_equal(combos)
 
 
-## The stub on screen: inside the screen and over the register column, standing on the printer's
-## slot, as tall as its lines, every line on one row and in view, clear of the hand, the monitor
-## and CHECKOUT.
-func _assert_stub_on_screen(screen: ShiftScreen) -> void:
+## The planning receipt on screen: inside the screen and over the register column, standing on
+## the printer's slot, as tall as its lines, every line on one row and in view and every mark
+## inside the paper, clear of the hand, the monitor and CHECKOUT.
+func _assert_planning_on_screen(screen: ShiftScreen) -> void:
 	var receipt: ReceiptView = screen._receipt
 	var stage: Rect2 = screen._stage.get_global_rect()
 	var rect: Rect2 = receipt.get_global_rect()
@@ -150,12 +207,42 @@ func _assert_stub_on_screen(screen: ShiftScreen) -> void:
 	]:
 		assert_bool(rect.intersects(blocker)).override_failure_message(str(blocker)).is_false()
 	var scroll: Rect2 = receipt._scroll.get_global_rect().grow(1.0)
+	var lines_end: float = receipt._lines.get_global_rect().end.x
+	var marks: int = 0
 	for line: Node in receipt._lines.get_children():
 		var line_rect: Rect2 = (line as Control).get_global_rect()
 		assert_bool(scroll.encloses(line_rect)).override_failure_message(str(line_rect)).is_true()
+		assert_float(line_rect.end.x).is_less_equal(lines_end)
 		if line is HBoxContainer:
 			var left: Label = line.get_child(0) as Label
 			assert_int(left.get_line_count()).override_failure_message(left.text).is_equal(1)
+			var mark: Control = line.get_child(1).get_node_or_null("Mark") as Control
+			if mark != null:
+				marks += 1
+				assert_bool(rect.encloses(mark.get_global_rect())).is_true()
+				# In the line's mark column, B2's gap past its amount.
+				var text_end: float = (
+					(line.get_child(1) as Control).get_global_rect().end.x - ReceiptView.MARK_COLUMN
+				)
+				assert_float(mark.get_global_rect().position.x).is_greater_equal(text_end + 5.5)
+				assert_float(mark.get_global_rect().end.x).is_less_equal(line_rect.end.x + 0.5)
+	assert_int(marks).is_greater(0)
+
+
+## A bonus beat's line is the framed one: a step line under its item (not an item's line) with
+## the bonus's amount, and a combo's band left off while it is framed.
+static func _check_bonus_frame(
+	receipt: ReceiptView, step: ScoreStep, failures: Array[String]
+) -> void:
+	var framed: Control = receipt._framed_line()
+	if framed == null or receipt._items.values().has(framed):
+		failures.append("bonus %s: framed %s, not its line" % [step.text, framed])
+		return
+	var amount: String = (framed.get_child(1) as Label).text
+	if amount != ReceiptView.money(step.value, true):
+		failures.append("bonus %s: framed line reads %s" % [step.text, amount])
+	if not framed.get_meta("framed", false):
+		failures.append("bonus %s: framed line not marked framed" % step.text)
 
 
 ## Every combo line in the receipt has its diamond, which (on a line in view) is in the scroll
@@ -177,14 +264,50 @@ static func _check_combo_marks(
 			failures.append("diamond outside its line %s" % left.text)
 
 
-## The stub's lines for `shift_line` and `fizzle_line` (none when empty) on the screen's preview.
-static func _stub(screen: ShiftScreen, shift_line: String, fizzle_line: String) -> Array[String]:
+## The planning receipt's lines for `shift_line` and `footer` (none when empty) on the screen's
+## preview: each belt item's name and payout, then the open empty slots.
+static func _planning(screen: ShiftScreen, shift_line: String, footer: String) -> Array[String]:
+	var run: RunState = screen.run
+	var result: ScoreResult = run.preview()
 	var lines: Array[String] = [ReceiptView.HEADER_TEXT + " | ", shift_line + " | ", "---"]
-	lines.append("PROJECTED | €%d" % screen.run.preview().total)
-	if not fizzle_line.is_empty():
-		lines.append(fizzle_line + " | ")
-	lines.append(ReceiptView.TEAR_PATTERN.repeat(ReceiptView.TEAR_REPEAT) + " | ")
+	for slot: int in range(run.row.size()):
+		var payout: String = ReceiptView.money(result.payouts[slot])
+		lines.append("%s | %s" % [run.row[slot].definition.display_name, payout])
+	for slot: int in range(run.row.size(), RowCapacity.card_limit(run.limits)):
+		lines.append("%d ····· | " % (slot + 1))
+	lines.append("---")
+	lines.append("PROJECTED | " + ReceiptView.money(result.total))
+	if not footer.is_empty():
+		lines.append(footer)
 	return lines
+
+
+## A receipt's step lines: every line but the header, the items', the rules, TOTAL and the
+## footer.
+static func _step_lines(receipt: ReceiptView) -> Array[String]:
+	var lines: Array[String] = []
+	var all: Array[String] = _receipt_lines(receipt)
+	var children: Array[Node] = receipt._lines.get_children()
+	var items: Array = receipt._items.values()
+	for index: int in range(2, children.size()):
+		var line: Node = children[index]
+		if line is HSeparator or items.has(line) or line == receipt._total_line:
+			continue
+		if all[index] == ReceiptView.COUNT_FOOTER_TEXT + " | ":
+			continue
+		lines.append(all[index])
+	return lines
+
+
+## Whether `part`'s lines appear in `whole` in the same order.
+static func _is_subsequence(part: Array[String], whole: Array[String]) -> bool:
+	var at: int = 0
+	for text: String in part:
+		at = whole.find(text, at)
+		if at < 0:
+			return false
+		at += 1
+	return true
 
 
 static func _lines(screen: ShiftScreen) -> Array[String]:

@@ -426,8 +426,11 @@ func _probe_count_up(screen: ShiftScreen) -> Dictionary:
 		if Engine.time_scale != 1.0:
 			failures.append("Engine.time_scale is %s" % Engine.time_scale)
 		_check_on_screen(screen, failures)
+		# The line being counted (#80: framed) is the one kept in view; the newest without one.
 		var lines: Array[Node] = screen._receipt._lines.get_children()
 		var last: Control = lines[-1] as Control if not lines.is_empty() else null
+		if screen._receipt._framed_line() != null:
+			last = screen._receipt._framed_line()
 		if last != newest:
 			newest = last
 			newest_frames = 0

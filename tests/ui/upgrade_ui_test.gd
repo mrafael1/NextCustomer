@@ -184,14 +184,14 @@ func test_upgrade_steps_play_from_the_loyalty_card() -> void:
 	var upgrade_steps: Array[ScoreStep] = _upgrade_steps(preview)
 	var kinds: Array = upgrade_steps.map(func(step: ScoreStep) -> int: return step.step_type)
 	assert_array(kinds).contains([ScoreStep.StepType.MULTIPLIER, ScoreStep.StepType.FLAT])
-	# The planning receipt is a stub (#75): scanning the items names the upgrades.
+	# The planning receipt lists only the items (#80): scanning them names the upgrades.
 	assert_str(_receipt_text(screen)).not_contains("Coupon engine")
-	assert_str(_scan_text(screen, 2)).contains("× Coupon engine")
-	assert_str(_scan_text(screen, 1)).contains("+ Category engine")
+	assert_str(_scan_text(screen, 2)).contains("Coupon engine").contains("×")
+	assert_str(_scan_text(screen, 1)).contains("Category engine").contains("+€")
 
 	await screen._on_checkout_pressed()
 	assert_str(screen._led.digits_label().text).is_equal("€%d" % preview.total)
-	assert_str(_receipt_text(screen)).contains("× Coupon engine").contains("+ Category engine")
+	assert_str(_receipt_text(screen)).contains("Coupon engine").contains("Category engine")
 	for step: ScoreStep in upgrade_steps:
 		var box: Control = screen._loyalty_card.box(step.source_index)
 		assert_object(box).is_not_null()

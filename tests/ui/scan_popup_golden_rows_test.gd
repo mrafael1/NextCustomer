@@ -128,7 +128,7 @@ func test_the_scans_hold_every_line_of_each_golden_rows_receipt() -> void:
 				. is_equal(ReceiptFooters.printing_steps(result).size() + 1)
 			)
 			var expected: Dictionary[int, PackedStringArray] = ReceiptFooters.by_slot(
-				receipt, result
+				receipt, result, names
 			)
 			var footers: Dictionary[int, PackedStringArray] = {}
 			for slot: int in range(row.size()):

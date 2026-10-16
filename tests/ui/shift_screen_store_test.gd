@@ -119,9 +119,10 @@ func test_decor_takes_no_clicks() -> void:
 	assert_object(_topmost_at(screen, on_bezel)).is_same(wall)
 
 
-## The register (RegisterCabinet) at its rect, the stage's rattle target: its column, printer and
-## slot, keypad, drawer and pull at their stage rects, every part a plain colour that takes no
-## click. set_total_down() is kept for CHECKOUT's held look.
+## The register (RegisterCabinet) at its rect, the stage's rattle target: its column, printer,
+## keypad, drawer and pull at their stage rects, none taking a click; the printer is its box's
+## art at 1:1, and the slot's lip art sits at the slot rect over the receipt, drawn after it.
+## set_total_down() is kept for CHECKOUT's held look.
 func test_the_register_cabinet() -> void:
 	var screen: ShiftScreen = await _screen()
 	var cabinet: RegisterCabinet = screen._cabinet
@@ -130,7 +131,6 @@ func test_the_register_cabinet() -> void:
 	var parts: Dictionary[String, Rect2] = {
 		"Column": ShiftStage.COLUMN_RECT,
 		"Printer": ShiftStage.PRINTER_RECT,
-		"PrinterSlot": ShiftStage.PRINTER_SLOT_RECT,
 		"Keypad": ShiftStage.KEYPAD_RECT,
 		"Drawer": ShiftStage.DRAWER_RECT,
 		"Pull": ShiftStage.DRAWER_PULL_RECT,
@@ -139,6 +139,20 @@ func test_the_register_cabinet() -> void:
 		var part: Control = cabinet.get_node(part_name) as Control
 		assert_that(part.get_global_rect()).is_equal(_on_stage(screen, parts[part_name]))
 		assert_bool(cabinet.get_global_rect().encloses(part.get_global_rect())).is_true()
+		assert_int(part.mouse_filter).is_equal(Control.MOUSE_FILTER_IGNORE)
+	assert_object(cabinet.get_node_or_null("PrinterSlot")).is_null()
+	var box: TextureRect = cabinet.get_node("Printer") as TextureRect
+	assert_object(box.texture).is_same(RegisterCabinet.PRINTER_BOX)
+	assert_that(Vector2(box.texture.get_size())).is_equal(ShiftStage.PRINTER_RECT.size)
+	var lip: TextureRect = screen._stage.printer_lip
+	assert_object(lip.texture).is_same(ShiftStage.PRINTER_LIP)
+	assert_int(lip.mouse_filter).is_equal(Control.MOUSE_FILTER_IGNORE)
+	assert_that(lip.get_global_rect()).is_equal(_on_stage(screen, ShiftStage.PRINTER_SLOT_RECT))
+	assert_that(Vector2(lip.texture.get_size())).is_equal(ShiftStage.PRINTER_SLOT_RECT.size)
+	# The lip is the stage's, after the receipt (drawn over its foot), and stays at the slot.
+	assert_object(lip.get_parent()).is_same(screen._receipt.get_parent())
+	assert_int(lip.get_index()).is_greater(screen._receipt.get_index())
+	assert_bool(lip.get_global_rect().intersects(screen._receipt.get_global_rect())).is_true()
 	assert_bool(cabinet.is_total_down()).is_false()
 	cabinet.set_total_down(true)
 	assert_bool(cabinet.is_total_down()).is_true()

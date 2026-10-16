@@ -2,8 +2,9 @@ extends GdUnitTestSuite
 ## The receipt in fit-up mode on the shift screen (#80, mock-up B2): it stands on the printer's
 ## slot (ShiftStage.RECEIPT_BOTTOM) as tall as its lines; a long receipt stops at RECEIPT_TOP and
 ## shows its newest line, with no scroll bar while the mouse wheel still scrolls; the end of a
-## shift printed at once (a resume, ReceiptView.show_shift_end) takes the same fit. The real
-## saves and logs are never touched.
+## shift printed at once (a resume, ReceiptView.show_shift_end) takes the same fit; a 9-item
+## count-up with 27 steps keeps its framed line in view at every step, then its TOTAL line. The
+## real saves and logs are never touched.
 
 const SCREEN := "res://ui/shift_screen.tscn"
 
@@ -25,8 +26,8 @@ func after_test() -> void:
 		DirAccess.remove_absolute(_folder)
 
 
-## The preview is the stub (#75): a short receipt standing on the printer's slot, as tall as its
-## lines, every line in view. A longer belt's stub is as short.
+## The preview is itemised (#80): a short receipt standing on the printer's slot, as tall as its
+## lines, every line in view. A longer belt's is as short: its items take the empty slots' lines.
 func test_a_short_preview_gives_a_short_receipt() -> void:
 	var screen: ShiftScreen = await _screen()
 	_place(screen, ["milk"])
@@ -94,6 +95,53 @@ func _screen() -> ShiftScreen:
 	screen._on_reward_skipped()
 	await _frames(3)
 	return screen
+
+
+## The longest count-up: 9 items, 3 steps each (base, a bonus, the payout), printed one by one.
+## After each, once laid out, the framed line (the one being counted) is whole inside the scroll
+## area; then the TOTAL line is, with the receipt at its cap.
+func test_a_long_count_up_keeps_its_counted_line_in_view() -> void:
+	var screen: ShiftScreen = await _screen()
+	var receipt: ReceiptView = screen._receipt
+	var names: PackedStringArray = PackedStringArray()
+	for slot: int in range(9):
+		names.append("Birthday candles" if slot % 2 == 0 else "Milk")
+	receipt.begin_count(ReceiptView.header_lines(5, 8, 9), names)
+	await _frames(3)
+	var subtotal: int = 0
+	for slot: int in range(9):
+		for type: ScoreStep.StepType in [
+			ScoreStep.StepType.BASE, ScoreStep.StepType.FLAT, ScoreStep.StepType.PAYOUT
+		]:
+			var step: ScoreStep = ScoreStep.new()
+			step.step_type = type
+			step.slot = slot
+			step.source_slot = maxi(slot - 1, 0)
+			step.value = 3 if type != ScoreStep.StepType.PAYOUT else 18
+			step.text = "Category engine beside Produce"
+			receipt.add_step(step, names)
+			await _frames(3)
+			var framed: Control = receipt._framed_line()
+			assert_object(framed).is_not_null()
+			_assert_in_view(receipt, framed, "%s at slot %d" % [type, slot])
+		subtotal += 18
+	assert_float(receipt.position.y).is_equal(ShiftStage.RECEIPT_TOP)
+	receipt.add_total(subtotal)
+	await _frames(3)
+	_assert_in_view(receipt, receipt._total_line, "TOTAL")
+	receipt.show_shift_end(subtotal, 100, "Spot check next shift")
+	await _frames(3)
+	_assert_newest_in_view(receipt)
+
+
+func _assert_in_view(receipt: ReceiptView, line: Control, what: String) -> void:
+	var rect: Rect2 = line.get_global_rect()
+	var area: Rect2 = receipt._scroll.get_global_rect().grow(1.0)
+	(
+		assert_bool(area.encloses(rect))
+		. override_failure_message("%s: %s outside %s" % [what, rect, area])
+		. is_true()
+	)
 
 
 ## Prints lines until the receipt is longer than its room, then lets it lay out.

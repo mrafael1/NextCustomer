@@ -281,9 +281,9 @@ func play(
 	_ducked = false
 	_presses.begin()
 	_playing = true
-	# The receipt starts over under the shift's header (the planning stub's). The header is
-	# no step's line: the pile grows with the steps' lines alone.
-	_receipt.begin(context.receipt_header)
+	# The receipt starts over: the shift's header and every item's line waiting (#80). They are
+	# no step's lines: the pile grows with the steps' lines alone.
+	_receipt.begin_count(context.receipt_header, _names)
 	_set_subtotal(0.0)
 	_start_pile(plan.pile_start_px)
 	for view: CardView in _views:

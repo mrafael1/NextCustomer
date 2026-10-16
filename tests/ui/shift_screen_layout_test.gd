@@ -101,6 +101,12 @@ func test_the_stage_is_laid_out_without_overlaps() -> void:
 	assert_bool(slot.has_point(Vector2(receipt.get_center().x, receipt.end.y))).is_true()
 	assert_float(slot.position.x).is_less_equal(receipt.position.x)
 	assert_float(slot.end.x).is_greater_equal(receipt.end.x)
+	# The slot's lip covers the receipt's foot: its teeth over the paper, its edge under it.
+	var lip: Rect2 = screen._stage.printer_lip.get_global_rect()
+	assert_that(lip).is_equal(slot)
+	assert_float(lip.position.y).is_less(receipt.end.y)
+	assert_float(lip.end.y).is_greater(receipt.end.y)
+	assert_int(screen._stage.printer_lip.get_index()).is_greater(screen._receipt.get_index())
 	assert_float(receipt.position.y).is_greater_equal(bar_bottom)
 	assert_bool(receipt.intersects(monitor)).is_false()
 

@@ -112,14 +112,14 @@ func test_a_new_screen_resumes_the_hand_the_row_and_the_redraws() -> void:
 	assert_str(resumed._led.caption()).is_equal(LedDisplay.PROJECTED_TEXT)
 	assert_str(resumed._led.digits_label().text).is_equal("€%d" % first.run.preview().total)
 	assert_bool(resumed._cabinet.is_total_down()).is_false()
-	# The receipt is the planning stub (#75): the header, PROJECTED and the tear, as before.
+	# The receipt is the itemised planning receipt (#80): the header, the items and PROJECTED.
 	var stub: PackedStringArray = _receipt_lines(resumed)
 	assert_array(stub).is_equal(_receipt_lines(first))
 	# A line's left text, then its (empty) right text.
 	var shift_line: String = ReceiptView.SHIFT_TEXT % [1, resumed.run.shift_count(), 2]
 	assert_array(Array(stub.slice(0, 4))).is_equal([ReceiptView.HEADER_TEXT, "", shift_line, ""])
 	assert_bool(stub.has(ReceiptView.PROJECTED_TEXT)).is_true()
-	assert_bool(stub.has("€%d" % first.run.preview().total)).is_true()
+	assert_bool(stub.has(ReceiptView.money(first.run.preview().total))).is_true()
 	assert_str(_event_log().run_id).is_equal(run_id)
 	var resume: Dictionary = _last_event("run_resume")
 	assert_str(resume["run_id"]).is_equal(run_id)

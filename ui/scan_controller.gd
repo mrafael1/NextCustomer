@@ -5,10 +5,11 @@ extends Node
 ## the pointer has stayed on that same item for the hold (ScanTuning.hold_ms, in
 ## data/balance/scan.tres) is it scanned: the item's sprite lifts, tomato brackets mark it (the
 ## stage's scan layer, ScanOverlay; B2 has no handheld scanner, #80), the scanner beeps and the hung
-## monitor shows the item (MonitorView.show_scan) until the scan ends, when it goes back to its idle
-## screen. The pointer leaving the item cancels a pending hold, and back on
-## the item the hold starts again; another item starts its own. Dragging an item ends the scan, a
-## pending hold with it (`blocked`).
+## monitor shows the item (MonitorView.show_scan) until the scan ends, when it goes back to its
+## idle screen. A belt item's full scan also frames its line on the planning receipt
+## (ReceiptView.highlight_slot) until the scan ends; a hand item's frames none. The pointer
+## leaving the item cancels a pending hold, and back on the item the hold starts again; another
+## item starts its own. Dragging an item ends the scan, a pending hold with it (`blocked`).
 ##
 ## ShiftScreen owns it, hands it the items after each refresh (watch) and the preview's
 ## ScoreResult (set_result), and says when scanning the counter is off (`blocked`: while
@@ -70,6 +71,8 @@ var tuning: ScanTuning
 var _stage: ShiftStage
 var _overlay: ScanOverlay
 var _monitor: MonitorView
+## The stage's receipt: a belt item's scan frames its line.
+var _receipt: ReceiptView
 var _popup: ScanPopup
 ## The offers' panel (cover_offers), the layer over it that an offer's scan opens in, that
 ## layer's marks, and the offered items.
@@ -116,6 +119,7 @@ func setup(stage: ShiftStage) -> void:
 	_stage = stage
 	_overlay = stage.scan_layer
 	_monitor = stage.monitor
+	_receipt = stage.receipt
 	_popup = ScanPopup.new()
 	_popup.name = "ScanPopup"
 	_popup.visible = false
@@ -185,6 +189,7 @@ func clear() -> void:
 		_popup.visible = false
 	if _monitor != null:
 		_monitor.end_scan()
+	_highlight(-1)
 	for marks: ScanOverlay in [_overlay, _offer_overlay]:
 		if marks != null:
 			marks.dock()
@@ -387,6 +392,7 @@ func _show(view: ItemView) -> void:
 	if not _full:
 		_popup.visible = false
 		_monitor.end_scan()
+		_highlight(-1)
 		for docked: ScanOverlay in [_overlay, _offer_overlay]:
 			if docked != null:
 				docked.dock()
@@ -417,9 +423,11 @@ func _show(view: ItemView) -> void:
 		_popup.show_card(definition, view.aisle, view.tags(), payout, lines, fizzles)
 		_popup.place_at(sprite, view.below_rect(), _offer_layout())
 		_monitor.end_scan()
+		_highlight(-1)
 	else:
 		_popup.visible = false
 		_monitor.show_scan(definition, view.aisle, view.tags(), payout, lines, fizzles)
+		_highlight(slot if view.form == ItemView.Form.BELT else -1)
 	marks.pose_hover(sprite)
 	if _wants_reduced_motion():
 		marks.stop_beam_loop()
@@ -432,6 +440,12 @@ func _show(view: ItemView) -> void:
 func _offer_layout() -> ScanLayout:
 	var panel: Rect2 = _offer_panel.get_global_rect()
 	return ScanLayout.new(_stage.get_global_rect(), panel, panel.position.y)
+
+
+## Frames `slot`'s line on the planning receipt, or none for -1.
+func _highlight(slot: int) -> void:
+	if _receipt != null:
+		_receipt.highlight_slot(slot)
 
 
 func _beep() -> void:
