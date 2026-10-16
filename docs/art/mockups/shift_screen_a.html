@@ -1,0 +1,240 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Shift screen v3 mock-up</title>
+<style>
+@font-face { font-family: Pixelify; src: url(../../../fonts/PixelifySans-Variable.ttf); }
+@font-face { font-family: Atkinson; src: url(../../../fonts/AtkinsonHyperlegibleNext-Variable.ttf); font-weight: 200 800; }
+@font-face { font-family: JBMono; src: url(../../../fonts/JetBrainsMono-Regular.ttf); }
+:root {
+  --ink: #2b2420; --ink-light: #4a3f38; --muted: #8a8172; --paper: #fbf7ee; --cream: #f3e9d2;
+  --cream-shade: #ddcba5; --mustard: #e2b33c; --mustard-pale: #faecbc; --tomato: #d9534f;
+  --tomato-dark: #a83a3c; --brass-darkest: #4a3010; --brass-dark: #8a5d1a; --brass: #c8932b;
+  --gold: #ffcf3f; --velvet-darkest: #2a0e14; --velvet-dark: #561327; --velvet: #8a1f33;
+  --good: #5fae5a;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { width: 1280px; height: 720px; overflow: hidden; background: var(--velvet-darkest); }
+img, .px { image-rendering: pixelated; }
+.stage { position: relative; width: 1280px; height: 720px; font-family: Atkinson, sans-serif; color: var(--ink); }
+.abs { position: absolute; }
+.frame { border-style: solid; border-color: transparent; image-rendering: pixelated; }
+
+/* ---- backdrop: one calm wall, one calm counter ---- */
+.wall { left: 0; top: 0; width: 1280px; height: 344px;
+  background: url(assets/art/scenery/wall_velvet.png) 0 0 / 64px 64px; }
+.wall::after { content: ""; position: absolute; inset: 0;
+  background: radial-gradient(ellipse 620px 260px at 470px 210px, rgba(42,14,20,.25), rgba(42,14,20,.78)); }
+.counter { left: 0; top: 344px; width: 1280px; height: 376px; background: var(--cream); }
+.counter::after { content: ""; position: absolute; inset: 0; opacity: .18;
+  background: url(assets/art/scenery/marble_tile.png) 0 0 / 128px 128px; image-rendering: pixelated; }
+.rail { left: 0; top: 336px; width: 1280px; height: 10px;
+  background: linear-gradient(var(--gold), var(--brass) 40%, var(--brass-dark) 80%, var(--brass-darkest)); }
+
+/* ---- top bar ---- */
+.topbar { left: 0; top: 0; width: 1280px; height: 60px; background: var(--velvet-darkest);
+  border-bottom: 2px solid var(--brass-dark); }
+.sign { background: var(--velvet-dark); border: 2px solid var(--brass); box-shadow: 0 0 0 2px var(--ink);
+  font-family: Pixelify; color: var(--gold); display: flex; align-items: center; }
+.shift { left: 20px; top: 9px; height: 42px; padding: 0 14px; font-size: 26px; letter-spacing: 1px; }
+.shift small { font-size: 15px; color: var(--mustard-pale); margin-right: 10px; letter-spacing: 2px; }
+.badge { top: 11px; height: 38px; display: flex; align-items: center; gap: 8px; padding: 0 12px 0 6px;
+  border-radius: 19px; background: rgba(251,247,238,.08); border: 2px solid rgba(200,147,43,.55);
+  color: var(--paper); font-size: 14px; font-weight: 600; }
+.badge .ico { width: 26px; height: 26px; border-radius: 13px; display: grid; place-items: center;
+  font-family: Pixelify; font-size: 15px; }
+.badge.insp .ico { background: var(--tomato); color: var(--paper); }
+.stamps { display: flex; gap: 4px; }
+.stamp { width: 26px; height: 26px; border-radius: 13px; background: var(--tomato-dark); color: var(--paper);
+  font-family: Atkinson; font-weight: 750; font-size: 9.5px; display: grid; place-items: center; border: 2px solid var(--tomato); }
+.stamp.empty { background: transparent; border: 2px dashed rgba(251,247,238,.35); }
+.tbtn { top: 11px; height: 38px; padding: 0 14px; display: flex; align-items: center; gap: 8px;
+  font-family: Pixelify; font-size: 17px; color: var(--paper); background: var(--velvet); border: 2px solid var(--ink);
+  box-shadow: inset 2px 2px 0 #b23a55, inset -2px -3px 0 var(--velvet-dark); }
+
+/* ---- belt and row ---- */
+.belt { left: 20px; top: 74px; width: 904px; height: 252px; background:
+  repeating-linear-gradient(0deg, #5e574d 0 6px, #564f46 6px 8px); border: 2px solid var(--ink);
+  box-shadow: inset 0 10px 0 var(--brass), inset 0 12px 0 var(--brass-darkest), inset 0 -10px 0 var(--brass), inset 0 -12px 0 var(--brass-darkest); }
+.cell { position: absolute; top: 26px; width: 120px; }
+.mat { position: relative; width: 120px; height: 118px; background: var(--cream-shade);
+  border: 2px solid var(--ink); box-shadow: inset 2px 2px 0 var(--paper), inset -3px -3px 0 #b9a47c; display: grid; place-items: center; }
+.mat.coupon { background: var(--paper); box-shadow: inset 0 0 0 3px var(--mustard), inset 2px 2px 0 5px var(--paper); }
+.mat.empty { background: rgba(43,36,32,.25); border: 2px dashed rgba(200,147,43,.7); box-shadow: none;
+  font-family: Atkinson; font-weight: 750; font-size: 40px; color: rgba(200,147,43,.75); }
+.sprite { width: 96px; height: 96px; }
+.slip { position: relative; width: 96px; height: 96px; }
+.slip .icon { position: absolute; left: 28px; top: 36px; width: 40px; height: 28px; }
+.sticker { margin-top: 8px; width: 120px; height: 70px; padding: 9px 7px 0; background: var(--paper);
+  border: 2px solid var(--ink); box-shadow: inset 0 6px 0 var(--tomato); position: relative; }
+.price { font-family: Atkinson; font-weight: 750; font-size: 22px; line-height: 22px; }
+.rule { font-size: 12.5px; font-weight: 650; line-height: 15px; color: var(--ink-light); margin-top: 2px; }
+.sticker.cp { background: var(--paper); border: 2px solid var(--brass); box-shadow: none;
+  border-top: 3px dotted var(--tomato); padding: 5px 7px; }
+.cp .kind { font-family: Pixelify; font-size: 13px; color: var(--tomato-dark); letter-spacing: 1px; }
+.aisle { position: absolute; right: 5px; top: 10px; width: 18px; height: 18px; }
+.mark { position: absolute; right: -6px; top: -6px; width: 26px; height: 26px; border-radius: 13px;
+  display: grid; place-items: center; border: 2px solid var(--paper); z-index: 2; }
+.mark.fz { background: var(--tomato); }
+.mark.fz img { width: 14px; height: 14px; filter: brightness(0) invert(1); }
+.mark.cb { background: var(--brass-dark); }
+.mark.cb img { width: 12px; height: 12px; filter: brightness(1.8); }
+.hover .mat, .hover .sticker { transform: translateY(-4px); }
+.brk { position: absolute; width: 18px; height: 18px; border: 0 solid var(--gold); z-index: 3; }
+.brk.tl { left: -8px; top: -12px; border-width: 4px 0 0 4px; }
+.brk.tr { right: -8px; top: -12px; border-width: 4px 4px 0 0; }
+.brk.bl { left: -8px; bottom: -8px; border-width: 0 0 4px 4px; }
+.brk.br { right: -8px; bottom: -8px; border-width: 0 4px 4px 0; }
+.closed { display: flex; flex-direction: column; align-items: center; }
+.closed .tag { margin-top: 26px; font-family: Pixelify; font-size: 18px; color: var(--paper);
+  background: var(--tomato-dark); border: 2px solid var(--gold); padding: 2px 10px; }
+.closed .cap { margin-top: 8px; font-size: 13px; font-weight: 650; color: var(--cream-shade); }
+
+/* ---- action row ---- */
+.btn { display: flex; align-items: center; justify-content: center; font-family: Pixelify; }
+.redraw { left: 590px; top: 356px; width: 150px; height: 46px; font-size: 18px; color: var(--ink);
+  background: var(--paper); border: 2px solid var(--ink); box-shadow: inset -3px -3px 0 var(--cream-shade), 0 4px 0 var(--ink); }
+.redraw small { font-family: Atkinson; font-weight: 650; font-size: 13px; color: var(--ink-light); margin-left: 6px; }
+.checkout { left: 752px; top: 350px; width: 172px; height: 58px; font-size: 26px; color: var(--ink); letter-spacing: 1px;
+  background: var(--gold); border: 2px solid var(--ink); box-shadow: inset 3px 3px 0 #fff0a8, inset -4px -4px 0 var(--brass), 0 6px 0 var(--brass-darkest); }
+
+
+/* ---- tray ---- */
+.tray { left: 20px; top: 430px; width: 904px; height: 244px; background: var(--paper);
+  border: 2px solid var(--ink); box-shadow: inset 0 0 0 8px var(--velvet), inset 0 0 0 10px var(--velvet-darkest), inset 0 0 0 12px var(--brass); }
+.tcell { position: absolute; top: 22px; width: 104px; }
+.tcell .sprite { display: block; margin: 0 auto; }
+.tcell .sticker { width: 104px; height: 80px; margin-top: 8px; }
+.tcell .slip { margin: 0 auto; }
+.foot { left: 24px; top: 690px; font-size: 11px; color: var(--muted); font-weight: 600; letter-spacing: .5px; }
+
+/* ---- register ---- */
+.register { left: 944px; top: 74px; width: 320px; height: 152px; background: var(--brass);
+  border: 2px solid var(--ink); box-shadow: inset 2px 2px 0 var(--gold), inset -3px -6px 0 var(--brass-dark); }
+.led { position: absolute; left: 12px; top: 12px; width: 292px; height: 120px; background: #1a0a0d;
+  border: 2px solid var(--ink); box-shadow: inset 0 0 0 3px var(--brass-darkest); padding: 10px 14px; }
+.led .lbl { font-family: Pixelify; font-size: 12px; letter-spacing: 2px; color: rgba(255,207,63,.65); }
+.led .big { font-family: Atkinson; font-weight: 750; font-size: 50px; line-height: 50px; color: var(--gold);
+  text-shadow: 0 0 10px rgba(255,207,63,.45); }
+.led .of { position: absolute; right: 14px; top: 42px; font-family: Atkinson; font-weight: 750; font-size: 20px; color: rgba(255,207,63,.6); }
+.qbar { position: absolute; left: 14px; right: 14px; bottom: 12px; height: 12px; display: flex; gap: 2px; }
+.qbar i { flex: 1; background: rgba(255,207,63,.16); }
+.qbar i.on { background: var(--gold); box-shadow: 0 0 6px rgba(255,207,63,.6); }
+.keys { display: none; }
+.scanner { left: 520px; top: 352px; width: 60px; height: 54px; }
+
+/* ---- receipt / inspector ---- */
+.receipt { left: 960px; top: 240px; width: 288px; height: 450px; background: var(--paper);
+  box-shadow: 0 0 0 2px rgba(43,36,32,.25), 4px 6px 0 rgba(43,36,32,.15);
+  font-family: JBMono; font-size: 13.5px; line-height: 19px; color: var(--ink); padding: 12px 14px; }
+.receipt .hdr { color: var(--ink-light); font-size: 12.5px; }
+.dash { border-top: 2px dashed var(--cream-shade); margin: 8px 0; }
+.ln { display: flex; justify-content: space-between; padding: 1px 4px; margin: 0 -4px; }
+.ln .n { color: var(--muted); width: 16px; }
+.ln .nm { flex: 1; }
+.ln .st { width: 22px; text-align: right; font-weight: 700; }
+.ln .st.fz { color: var(--tomato); }
+.ln .st.cb { color: var(--brass-dark); }
+.ln.sel { background: var(--mustard-pale); outline: 2px solid var(--mustard); }
+.detail { padding: 6px 2px 2px 20px; font-family: Atkinson; font-size: 13.5px; line-height: 17px; font-weight: 550; }
+.detail .why { color: var(--tomato-dark); margin-top: 6px; display: flex; gap: 6px; }
+.detail .why b { font-family: JBMono; font-weight: 700; color: var(--tomato); }
+.sum { font-size: 12.5px; color: var(--tomato-dark); }
+.tear { position: absolute; left: 0; right: 0; bottom: -8px; height: 8px;
+  background: linear-gradient(-45deg, transparent 50%, var(--paper) 50%) 0 0 / 12px 8px, linear-gradient(45deg, transparent 50%, var(--paper) 50%) 0 0 / 12px 8px; }
+.receipt-wrap { display: none; }
+.num { font-family: Atkinson; font-weight: 750; }
+.shift .num { font-size: 24px; }
+.tbtn .num { font-size: 16px; }
+.st img { width: 14px; height: 14px; vertical-align: -2px; }
+.why img { width: 14px; height: 14px; margin-top: 2px; flex: none; }
+</style>
+</head>
+<body>
+<div class="stage">
+  <div class="abs wall"></div>
+  <div class="abs counter"></div>
+  <div class="abs rail"></div>
+
+  <!-- top bar: shift, two status badges, deck and menu -->
+  <div class="abs topbar"></div>
+  <div class="abs sign shift"><small>SHIFT</small><span class="num">5 / 8</span></div>
+  <div class="abs badge insp" style="left:196px"><span class="ico">!</span>Inspection · one product slot fewer</div>
+  <div class="abs badge" style="left:500px"><span style="color:var(--mustard-pale);font-family:Pixelify;font-size:13px;letter-spacing:1px;margin-left:6px">LOYALTY</span>
+    <span class="stamps"><span class="stamp">CoE</span><span class="stamp">SlE</span><span class="stamp">CaE</span><span class="stamp empty"></span></span></div>
+  <div class="abs tbtn" style="left:1072px">Deck <span class="num">13/15</span></div>
+  <div class="abs tbtn" style="left:1212px;padding:0 10px;font-size:20px">☰</div>
+
+  <!-- belt: items, one sticker each, a single status mark -->
+  <div class="abs belt">
+    <div class="cell" style="left:6px">
+      <div class="mat"><img class="sprite" src="assets/art/items_v2/cheese.png"><span class="mark fz"><img src="assets/art/icons/fizzle.png"></span></div>
+      <div class="sticker"><div class="price">€3</div><img class="aisle px" src="assets/art/icons/aisle_cold_cases.png"><div class="rule">+4 after Bread</div></div>
+    </div>
+    <div class="cell" style="left:130px">
+      <div class="mat"><img class="sprite" src="assets/art/items_v2/strawberries.png"><span class="mark fz"><img src="assets/art/icons/fizzle.png"></span></div>
+      <div class="sticker"><div class="price">€2</div><img class="aisle px" src="assets/art/icons/aisle_fruit_and_veg.png"><div class="rule">+3 beside Produce</div></div>
+    </div>
+    <div class="cell" style="left:254px">
+      <div class="mat"><img class="sprite" src="assets/art/items_v2/croissant.png"><span class="mark cb"><img src="assets/art/icons/combo_diamond.png"></span></div>
+      <div class="sticker"><div class="price">€2</div><img class="aisle px" src="assets/art/icons/aisle_bakery.png"><div class="rule">+2 beside Bakery</div></div>
+    </div>
+    <div class="cell hover" style="left:378px">
+      <span class="brk tl"></span><span class="brk tr"></span><span class="brk bl"></span><span class="brk br"></span>
+      <div class="mat coupon"><div class="slip"><img class="sprite" src="assets/art/items_v2/coupon_slip.png"><img class="icon px" src="assets/art/icons/coupon_multipack_v2.png"></div><span class="mark fz"><img src="assets/art/icons/fizzle.png"></span></div>
+      <div class="sticker cp"><div class="kind">COUPON</div><div class="rule">×3 later with prior’s tag</div></div>
+    </div>
+    <div class="cell" style="left:502px"><div class="mat empty">5</div></div>
+    <div class="cell" style="left:626px"><div class="mat empty">6</div></div>
+    <div class="cell closed" style="left:750px">
+      <img class="px" src="assets/art/scenery/velvet_rope.png" style="width:88px;height:24px;margin-top:20px">
+      <span class="tag">CLOSED</span><span class="cap">slot closed</span>
+    </div>
+  </div>
+
+  <!-- actions: one loud button -->
+  <img class="abs scanner px" src="assets/art/scenery/scanner_cradle.png">
+  <div class="abs btn redraw">Redraw<small>1 left</small></div>
+  <div class="abs btn checkout">CHECKOUT</div>
+
+  <!-- tray -->
+  <div class="abs tray">
+    <div class="tcell" style="left:16px"><img class="sprite" src="assets/art/items_v2/eggs.png"><div class="sticker"><div class="price">€1</div><div class="rule">×2 next Food</div></div></div>
+    <div class="tcell" style="left:125px"><img class="sprite" src="assets/art/items_v2/tea_bags.png"><div class="sticker"><div class="price">€1</div><img class="aisle px" src="assets/art/icons/aisle_pantry.png"><div class="rule">×4 next Breakfast</div></div></div>
+    <div class="tcell" style="left:234px"><img class="sprite" src="assets/art/items_v2/banana.png"><div class="sticker"><div class="price">€2</div><img class="aisle px" src="assets/art/icons/aisle_fruit_and_veg.png"><div class="rule">+2 after Banana</div></div></div>
+    <div class="tcell" style="left:343px"><img class="sprite" src="assets/art/items_v2/batteries.png"><div class="sticker"><div class="price">€1</div><img class="aisle px" src="assets/art/icons/aisle_household.png"><div class="rule">+4 in last slot</div></div></div>
+    <div class="tcell" style="left:452px"><div class="slip"><img class="sprite" src="assets/art/items_v2/coupon_slip.png"><img class="icon px" src="assets/art/icons/coupon_two_for_one_v2.png"></div><div class="sticker cp"><div class="kind">COUPON</div><div class="rule">Same both sides: 2nd ×2</div></div></div>
+    <div class="tcell" style="left:561px"><img class="sprite" src="assets/art/items_v2/crisps.png"><div class="sticker"><div class="price">€2</div><img class="aisle px" src="assets/art/icons/aisle_snacks.png"><div class="rule">+3 beside Bread</div></div></div>
+    <div class="tcell" style="left:670px"><img class="sprite" src="assets/art/items_v2/coffee.png"><div class="sticker"><div class="price">€2</div><img class="aisle px" src="assets/art/icons/aisle_pantry.png"><div class="rule">+3 next Breakfast</div></div></div>
+    <div class="tcell" style="left:779px"><img class="sprite" src="assets/art/items_v2/milk.png"><div class="sticker"><div class="price">€4</div><img class="aisle px" src="assets/art/icons/aisle_cold_cases.png"><div class="rule">+1 per earlier Breakfast</div></div></div>
+  </div>
+  <div class="abs foot">Seed 20261014 · fb-p2</div>
+
+  <!-- register: the one place for money -->
+  <div class="abs register">
+    <div class="led"><div class="lbl">PROJECTED</div><div class="big">€22</div><div class="of">/ €73</div>
+      <div class="qbar"><i class="on"></i><i class="on"></i><i class="on"></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div></div>
+    <img class="keys px" src="assets/art/scenery/register_keys_v2.png">
+  </div>
+
+  <!-- receipt: per-item payouts; the hovered item expands in place -->
+  <div class="receipt-wrap"></div>
+  <div class="abs receipt">
+    <div class="hdr">NEXT CUSTOMER · REG 3<br>SHIFT 5/8 · QUOTA €73</div>
+    <div class="dash"></div>
+    <div class="ln"><span class="n">1</span><span class="nm">CHEESE</span><span>€3</span><span class="st fz"><img class="px" src="assets/art/icons/fizzle.png"></span></div>
+    <div class="ln"><span class="n">2</span><span class="nm">STRAWBERRIES</span><span>€2</span><span class="st fz"><img class="px" src="assets/art/icons/fizzle.png"></span></div>
+    <div class="ln"><span class="n">3</span><span class="nm">CROISSANT</span><span>€17</span><span class="st cb">◆</span></div>
+    <div class="ln sel"><span class="n">4</span><span class="nm">MULTIPACK</span><span>€0</span><span class="st fz"><img class="px" src="assets/art/icons/fizzle.png"></span></div>
+    <div class="detail">×3 to later products sharing a tag with the product just before it (not Food or Breakfast)
+      <div class="why"><img class="px" src="assets/art/icons/fizzle.png"><span>Coupon engine: the first coupon paid nothing</span></div>
+      <div class="why"><img class="px" src="assets/art/icons/fizzle.png"><span>Multipack ×3: no later product shared a tag</span></div>
+    </div>
+    <div class="dash"></div>
+    <div class="sum">2 fizzles · marked on the belt</div>
+    <div class="tear"></div>
+  </div>
+</div>
+</body>
+</html>

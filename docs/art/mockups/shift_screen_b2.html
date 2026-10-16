@@ -1,0 +1,337 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Shift screen mock-up B2</title>
+<style>
+@font-face { font-family: Pixelify; src: url(../../../fonts/PixelifySans-Variable.ttf); }
+@font-face { font-family: Atkinson; src: url(../../../fonts/AtkinsonHyperlegibleNext-Variable.ttf); font-weight: 200 800; }
+@font-face { font-family: JBMono; src: url(../../../fonts/JetBrainsMono-Regular.ttf); }
+:root {
+  --ink: #2b2420; --ink-light: #4a3f38; --muted: #8a8172; --paper: #fbf7ee; --cream: #f3e9d2;
+  --cream-shade: #ddcba5; --mustard: #e2b33c; --mustard-light: #f1d27a; --mustard-pale: #faecbc;
+  --tomato: #d9534f; --tomato-dark: #a83a3c; --tomato-light: #ec7d75; --teal: #4f9a94; --teal-panel: #2a4d4b; --teal-dark: #1f3b3a;
+  --good: #5fae5a; --wood: #a8703a; --wood-dark: #6e4524; --wood-darkest: #3e2614; --wood-light: #c98c4e;
+  --steel: #8d8a83; --steel-light: #c7c3b8; --steel-dark: #57534c; --rubber: #3d3a36;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { width: 1280px; height: 720px; overflow: hidden; background: var(--teal-dark); }
+img, .px { image-rendering: pixelated; }
+.stage { position: relative; width: 1280px; height: 720px; font-family: Atkinson, sans-serif; color: var(--ink); overflow: hidden; }
+.abs { position: absolute; }
+.num { font-family: Atkinson; font-weight: 750; }
+
+/* ---------- back of the store: receding, cooler, softer ---------- */
+.wall { left: 0; top: 56px; width: 1280px; height: 236px; background: #e4d6b9; overflow: hidden; }
+.shelf { position: absolute; left: 0; width: 1280px; height: 50px; display: flex; gap: 4px; padding-left: 6px;
+  align-items: flex-end; filter: saturate(.6) brightness(.9) contrast(.9); opacity: .78; }
+.shelf img { width: 48px; height: 48px; flex: none; }
+.board { position: absolute; left: 0; width: 1280px; height: 14px;
+  background: linear-gradient(var(--wood-light) 0 4px, var(--wood) 4px 10px, var(--wood-darkest) 10px); opacity: .85; }
+.wallshade { position: absolute; inset: 0;
+  background: radial-gradient(ellipse 240px 190px at 300px 0px, rgba(255,236,170,.55), transparent 72%),
+              radial-gradient(ellipse 240px 190px at 760px 0px, rgba(255,236,170,.45), transparent 72%),
+              linear-gradient(rgba(31,59,58,.05), rgba(31,59,58,.38)); }
+.queue { position: absolute; bottom: 0; background: #4e6c68; }
+.queue.head { border-radius: 50%; }
+.queue.body { border-radius: 44px 44px 0 0; }
+.lamp { position: absolute; top: 56px; width: 74px; height: 20px; background: var(--teal-dark);
+  border-radius: 0 0 37px 37px; border-bottom: 3px solid var(--mustard-light); z-index: 3; }
+.lamp::before { content: ""; position: absolute; left: 35px; top: -40px; width: 4px; height: 40px; background: var(--ink); }
+
+/* ---------- top bar (flat HUD over the world) ---------- */
+.topbar { left: 0; top: 0; width: 1280px; height: 56px; background: var(--teal-dark); border-bottom: 3px solid var(--ink); z-index: 5; }
+.chip { top: 9px; height: 38px; display: flex; align-items: center; gap: 8px; padding: 0 12px; z-index: 6;
+  background: var(--teal-panel); border: 2px solid var(--ink); border-radius: 6px; color: var(--paper); box-shadow: inset 0 -3px 0 rgba(0,0,0,.25); }
+.chip .k { font-family: Pixelify; font-size: 15px; letter-spacing: 1px; color: var(--mustard-pale); }
+.chip .v { font-family: Atkinson; font-weight: 750; font-size: 20px; }
+.bar { flex: 1; height: 14px; background: rgba(0,0,0,.35); border: 2px solid var(--ink); position: relative; }
+.bar i { position: absolute; left: 0; top: 0; bottom: 0; width: 30%; background: var(--mustard); box-shadow: inset 0 3px 0 var(--mustard-light); }
+.chip.warn { background: var(--paper); color: var(--ink); }
+.chip .ico { width: 24px; height: 24px; border-radius: 12px; display: grid; place-items: center; font-family: Pixelify; font-size: 14px; background: var(--tomato); color: var(--paper); }
+.stamp { width: 24px; height: 24px; border-radius: 12px; background: var(--tomato); color: var(--paper); font-weight: 750; font-size: 9px; display: grid; place-items: center; border: 2px solid var(--ink); }
+.stamp.empty { background: transparent; border: 2px dashed rgba(251,247,238,.4); }
+.tbtn { top: 9px; height: 38px; padding: 0 12px; display: flex; align-items: center; font-family: Pixelify; font-size: 16px; z-index: 6;
+  color: var(--paper); background: var(--teal); border: 2px solid var(--ink); border-radius: 6px; box-shadow: inset 0 -3px 0 rgba(0,0,0,.25); }
+
+/* ---------- the checkout counter, in perspective ---------- */
+.counter-top { left: 0; top: 268px; width: 1280px; height: 160px; background: linear-gradient(#cfa06a, var(--wood-light) 30%, var(--wood)); }
+.belt-wrap { left: 18px; top: 270px; width: 908px; height: 150px; perspective: 520px; perspective-origin: 470px -260px; }
+.belt-plane { position: absolute; left: 0; top: 0; width: 908px; height: 200px; transform-origin: 50% 100%;
+  transform: translateY(-50px) rotateX(60deg);
+  background:
+    radial-gradient(ellipse 200px 140px at 290px 60px, rgba(255,236,170,.22), transparent 70%),
+    radial-gradient(ellipse 200px 140px at 750px 60px, rgba(255,236,170,.18), transparent 70%),
+    repeating-linear-gradient(90deg, #3a3733 0 20px, #2f2c29 20px 22px, #45413c 22px 24px);
+  border-left: 10px solid var(--steel); border-right: 10px solid var(--steel); }
+.floor-slot { position: absolute; top: 28px; width: 112px; height: 150px; border: 4px dashed rgba(241,210,122,.55); border-radius: 6px; }
+.belt-lip { left: 12px; top: 416px; width: 920px; height: 14px; border: 2px solid var(--ink); border-radius: 3px;
+  background: linear-gradient(var(--steel-light) 0 4px, var(--steel) 4px 9px, var(--steel-dark) 9px); }
+/* counter front face: price rail with labels, like a shelf edge */
+.front { left: 0; top: 428px; width: 1280px; height: 92px;
+  background: repeating-linear-gradient(90deg, var(--wood-dark) 0 158px, #61391b 158px 160px); border-top: 3px solid var(--wood-darkest); }
+.front::after { content: ""; position: absolute; left: 0; right: 0; bottom: 0; height: 16px; background: linear-gradient(transparent, rgba(0,0,0,.35)); }
+.rail { left: 14px; top: 436px; width: 916px; height: 72px; background: linear-gradient(#b8b4aa, #8d8a83 50%, #6d6a63);
+  border: 2px solid var(--ink); border-radius: 3px; }
+
+/* ---------- items: grounded, lit, with contact shadows ---------- */
+.item { position: absolute; width: 96px; height: 96px; }
+.item img { position: absolute; left: 0; top: 0; width: 96px; height: 96px; }
+.item img.slipicon { left: 28px; top: 36px; width: 40px; height: 28px; }
+.item .lit { position: absolute; inset: 0; -webkit-mask-size: 96px 96px; mask-size: 96px 96px;
+  background: linear-gradient(130deg, rgba(255,250,220,.30) 0 30%, transparent 30% 62%, rgba(43,20,10,.30) 62%); }
+.item .ao { position: absolute; left: 0; right: 0; bottom: 0; height: 18px; -webkit-mask-size: 96px 96px; mask-size: 96px 96px;
+  -webkit-mask-position: bottom; mask-position: bottom; background: rgba(43,20,10,.35); }
+.shadow { position: absolute; height: 18px; border-radius: 50%; background: rgba(0,0,0,.42); }
+.lifted .shadow { background: rgba(0,0,0,.25); }
+
+/* labels on the price rail */
+.label { position: absolute; top: 442px; width: 116px; height: 60px; background: var(--paper); border: 2px solid var(--ink);
+  border-radius: 3px; padding: 2px 7px; box-shadow: 0 3px 0 rgba(0,0,0,.35); }
+.label::before { content: ""; position: absolute; left: 0; right: 0; top: 0; height: 5px; background: var(--tomato); }
+.label .p { font-weight: 750; font-size: 18px; line-height: 21px; margin-top: 3px; }
+.label .r { font-size: 11.5px; line-height: 13px; font-weight: 650; color: var(--ink-light); }
+.label .ai { position: absolute; right: 5px; top: 8px; width: 18px; height: 18px; }
+.label.cp { border-color: var(--brass, #c8932b); }
+.label.cp::before { background: repeating-linear-gradient(90deg, var(--tomato) 0 4px, transparent 4px 7px); }
+.label.cp .p { font-family: Pixelify; font-weight: 400; font-size: 12px; color: var(--tomato-dark); letter-spacing: 1px; margin-top: 6px; line-height: 14px; }
+.label.empty { background: rgba(251,247,238,.2); border-style: dashed; border-color: rgba(43,36,32,.6); box-shadow: none;
+  display: grid; place-items: center; font-weight: 750; font-size: 26px; color: rgba(251,247,238,.8); }
+.label.empty::before { display: none; }
+.label.sel { outline: 3px solid var(--mustard); outline-offset: 2px; }
+.mark { position: absolute; width: 26px; height: 26px; border-radius: 13px; display: grid; place-items: center; border: 2px solid var(--ink); z-index: 4; }
+.mark.fz { background: var(--tomato); }
+.mark.fz img { width: 14px; height: 14px; filter: brightness(0) invert(1); }
+.mark.ok { background: var(--good); color: var(--paper); font-weight: 800; font-size: 15px; }
+.brk { position: absolute; width: 16px; height: 16px; border: 0 solid var(--mustard); z-index: 4; }
+
+/* ---------- monitor ---------- */
+.pole { left: 702px; top: 256px; width: 16px; height: 40px; background: var(--rubber); border: 2px solid var(--ink); z-index: 1; }
+.monitor { left: 500px; top: 64px; width: 420px; height: 196px; background: var(--rubber); border: 3px solid var(--ink); z-index: 2;
+  border-radius: 8px; padding: 9px; box-shadow: inset 0 -6px 0 #2c2a27, 0 8px 0 rgba(43,36,32,.3); }
+.screen { width: 100%; height: 100%; background: var(--paper); border: 2px solid var(--ink); border-radius: 3px; display: flex; gap: 10px; padding: 8px 10px; position: relative; }
+.screen .art { width: 96px; flex: none; display: flex; flex-direction: column; align-items: center; }
+.screen .kind { font-family: Pixelify; font-size: 13px; color: var(--tomato-dark); letter-spacing: 1px; margin-top: 2px; }
+.screen .title { font-family: Pixelify; font-size: 21px; line-height: 22px; }
+.screen .rule { font-size: 13px; line-height: 16px; font-weight: 600; color: var(--ink-light); margin-top: 3px; }
+.screen .why { display: flex; gap: 5px; font-size: 12px; line-height: 14px; font-weight: 600; color: var(--tomato-dark); margin-top: 4px; }
+.screen .why img { width: 12px; height: 12px; margin-top: 1px; flex: none; }
+.screen .pays { position: absolute; right: 8px; top: 6px; font-weight: 750; font-size: 15px; color: var(--ink-light); }
+.screen .pays b { font-size: 20px; color: var(--ink); }
+.slipicon { position: absolute; left: 28px; top: 36px; width: 40px; height: 28px; }
+
+/* ---------- register side ---------- */
+.receipt { left: 976px; top: 66px; width: 262px; height: 330px; background: var(--paper); z-index: 2;
+  font-family: JBMono; font-size: 13px; line-height: 20px; padding: 12px 14px; box-shadow: 4px 6px 0 rgba(43,36,32,.22);
+  border: 2px solid rgba(43,36,32,.3); }
+.receipt .h { font-size: 12.5px; color: var(--ink-light); }
+.dash { border-top: 2px dashed var(--cream-shade); margin: 8px 0; }
+.ln { display: flex; gap: 6px; align-items: center; padding: 0 4px; margin: 0 -4px; }
+.ln .nm { flex: 1; }
+.ln img { width: 14px; height: 14px; }
+.ln .pl { width: 14px; text-align: center; }
+.ln.on { background: var(--mustard-pale); outline: 2px solid var(--mustard); }
+.ln.wait { color: var(--muted); }
+.receipt .sum { font-size: 12px; color: var(--tomato-dark); }
+/* the printer as a box: top face + front face */
+.printer-top { left: 952px; top: 392px; width: 310px; height: 26px; background: #6b675f; border: 3px solid var(--ink); border-bottom: 0;
+  border-radius: 10px 10px 0 0; z-index: 1; clip-path: polygon(4% 0, 96% 0, 100% 100%, 0 100%); }
+.printer-slot { left: 990px; top: 396px; width: 234px; height: 8px; background: var(--ink); border-radius: 4px; z-index: 3; }
+.printer-front { left: 952px; top: 416px; width: 310px; height: 50px; background: linear-gradient(#4a4741, #3d3a36); border: 3px solid var(--ink); z-index: 1;
+  border-radius: 0 0 6px 6px; }
+.printer-front::after { content: ""; position: absolute; right: 18px; top: 22px; width: 12px; height: 12px; border-radius: 6px; background: var(--good); border: 2px solid var(--ink); }
+.checkout { left: 952px; top: 534px; width: 310px; height: 70px; background: var(--tomato); border: 3px solid var(--ink); border-radius: 10px; z-index: 2;
+  box-shadow: inset 0 4px 0 var(--tomato-light), inset 0 -6px 0 var(--tomato-dark), 0 10px 0 #6e2224, 0 13px 0 var(--ink);
+  display: flex; align-items: center; justify-content: center; gap: 14px; font-family: Pixelify; font-size: 32px; color: var(--paper); letter-spacing: 2px; }
+.redraw { left: 952px; top: 630px; width: 310px; height: 44px; background: var(--paper); border: 3px solid var(--ink); border-radius: 8px; z-index: 2;
+  box-shadow: 0 6px 0 var(--cream-shade), 0 9px 0 var(--ink); display: flex; align-items: center; justify-content: center; gap: 8px; font-family: Pixelify; font-size: 18px; }
+.redraw small { font-family: Atkinson; font-weight: 650; font-size: 13px; color: var(--muted); }
+.foot { left: 954px; top: 694px; font-size: 11px; font-weight: 600; color: var(--cream-shade); opacity: .85; z-index: 2; }
+
+/* ---------- foreground: the basket the hand sits in ---------- */
+.lower { left: 0; top: 520px; width: 1280px; height: 200px; background: linear-gradient(#7a4c27, #5e3a1e); }
+.basket-back { left: 14px; top: 530px; width: 916px; height: 70px; background: var(--tomato-dark); border: 3px solid var(--ink);
+  border-radius: 10px 10px 0 0; box-shadow: inset 0 8px 0 #7e2a2c; }
+.basket-front { left: 6px; top: 618px; width: 932px; height: 130px; border: 3px solid var(--ink); border-radius: 8px 8px 0 0; z-index: 3;
+  background: radial-gradient(circle at 14px 12px, #8e2f31 5px, transparent 6px) 0 76px / 28px 24px repeat-x, var(--tomato);
+  box-shadow: inset 0 6px 0 var(--tomato-light), inset 0 -10px 0 var(--tomato-dark); }
+.handle { position: absolute; top: 516px; width: 150px; height: 30px; border: 7px solid var(--ink); border-bottom: 0; border-radius: 50px 50px 0 0; z-index: 1; }
+.handle::after { content: ""; position: absolute; inset: 0 2px; border: 3px solid var(--tomato-dark); border-bottom: 0; border-radius: 50px 50px 0 0; }
+.hlabel { position: absolute; top: 630px; width: 104px; height: 60px; z-index: 4; background: var(--paper); border: 2px solid var(--ink); border-radius: 3px; padding: 2px 6px;
+  box-shadow: 0 3px 0 rgba(0,0,0,.3); }
+.hlabel::before { content: ""; position: absolute; left: 0; right: 0; top: 0; height: 5px; background: var(--tomato-dark); }
+.hlabel .p { font-weight: 750; font-size: 17px; line-height: 20px; margin-top: 3px; }
+.hlabel .r { font-size: 11.5px; line-height: 13px; font-weight: 650; color: var(--ink-light); }
+.hlabel .ai { position: absolute; right: 5px; top: 8px; width: 18px; height: 18px; }
+.hlabel.cp::before { background: repeating-linear-gradient(90deg, var(--tomato) 0 4px, transparent 4px 7px); }
+.hlabel.cp .p { font-family: Pixelify; font-weight: 400; font-size: 12px; color: var(--tomato-dark); letter-spacing: 1px; margin-top: 6px; line-height: 14px; }
+.inbasket { z-index: 2; }
+.vignette { inset: 0; pointer-events: none; z-index: 8; box-shadow: inset 0 0 120px rgba(20,12,6,.35); }
+</style>
+</head>
+<body>
+<div class="stage" id="stage">
+  <!-- back wall -->
+  <div class="abs wall" id="wall">
+    <div class="wallshade"></div>
+  </div>
+  <div class="abs lamp" style="left:262px"></div>
+  <div class="abs lamp" style="left:722px"></div>
+
+  <!-- top bar -->
+  <div class="abs topbar"></div>
+  <div class="abs chip" style="left:16px"><span class="k">SHIFT</span><span class="v">5/8</span></div>
+  <div class="abs chip" style="left:176px;width:470px"><span class="k">QUOTA</span><span class="v">€73</span><span class="bar"><i></i></span><span class="v" style="color:var(--mustard-light)">€22</span></div>
+  <div class="abs chip warn" style="left:660px"><span class="ico">!</span><span style="font-weight:700;font-size:14px">Inspection · −1 slot</span></div>
+  <div class="abs chip" style="left:858px"><span class="k">LOYALTY</span><span class="stamp">CoE</span><span class="stamp">SlE</span><span class="stamp">CaE</span><span class="stamp empty"></span></div>
+  <div class="abs tbtn" style="left:1100px">Deck <span class="num" style="margin-left:6px">13/15</span></div>
+  <div class="abs tbtn" style="left:1222px;font-size:19px">☰</div>
+
+  <!-- monitor -->
+  <div class="abs pole"></div>
+  <div class="abs monitor"><div class="screen">
+    <div class="art"><div style="position:relative;width:96px;height:96px"><img class="px" src="assets/art/items_v2/coupon_slip.png" style="width:96px;height:96px"><img class="px slipicon" src="assets/art/icons/coupon_multipack_v2.png"></div><div class="kind">COUPON</div></div>
+    <div style="flex:1;min-width:0">
+      <div class="title">Multipack</div>
+      <div class="rule">×3 to later products sharing a tag with the product just before it (not Food or Breakfast)</div>
+      <div class="why"><img class="px" src="assets/art/icons/fizzle.png"><span>Coupon engine: the first coupon paid nothing</span></div>
+      <div class="why"><img class="px" src="assets/art/icons/fizzle.png"><span>Multipack ×3: no later product shared a tag</span></div>
+    </div>
+    <div class="pays">pays <b>€0</b></div>
+  </div></div>
+
+  <!-- counter: top surface, belt in perspective, lip, front face with price rail -->
+  <div class="abs counter-top"></div>
+  <div class="abs belt-wrap"><div class="belt-plane">
+    <div class="floor-slot" style="left:526px"></div>
+    <div class="floor-slot" style="left:654px"></div>
+  </div></div>
+  <div class="abs belt-lip"></div>
+  <div class="abs front"></div>
+  <div class="abs rail"></div>
+
+  <!-- register side -->
+  <div class="abs receipt">
+    <div class="h">NEXT CUSTOMER · REG 3</div>
+    <div class="h">SHIFT <span class="num">5/8</span> · <span class="num">4</span> ITEMS</div>
+    <div class="dash"></div>
+    <div class="ln"><span class="nm">Cheese</span><span>€3.00</span><span class="pl"><img class="px" src="assets/art/icons/fizzle.png"></span></div>
+    <div class="ln"><span class="nm">Strawberries</span><span>€2.00</span><span class="pl"><img class="px" src="assets/art/icons/fizzle.png"></span></div>
+    <div class="ln"><span class="nm">Croissant</span><span>€17.00</span><span class="pl" style="color:var(--good);font-weight:700">✓</span></div>
+    <div class="ln on"><span class="nm">Multipack</span><span>€0.00</span><span class="pl"><img class="px" src="assets/art/icons/fizzle.png"></span></div>
+    <div class="ln wait"><span class="nm">5 ·····</span></div>
+    <div class="ln wait"><span class="nm">6 ·····</span></div>
+    <div class="dash"></div>
+    <div class="ln"><span class="nm" style="font-family:Pixelify;font-size:16px">TOTAL</span><span class="num" style="font-size:18px">€22.00</span><span class="pl"></span></div>
+    <div class="sum" style="margin-top:6px">2 fizzles · hover an item</div>
+  </div>
+  <div class="abs printer-top"></div>
+  <div class="abs printer-slot"></div>
+  <div class="abs printer-front"></div>
+
+  <!-- foreground -->
+  <div class="abs lower"></div>
+  <div class="abs handle" style="left:170px"></div>
+  <div class="abs handle" style="left:630px"></div>
+  <div class="abs basket-back"></div>
+  <div class="abs basket-front"></div>
+
+  <div class="abs checkout">CHECKOUT <span style="font-size:26px">›</span></div>
+  <div class="abs redraw">Redraw <small>1 left</small></div>
+  <div class="abs foot">Seed 20261014 · fb-p2</div>
+  <div class="abs vignette"></div>
+</div>
+
+<script>
+const A = 'assets/art/';
+const stage = document.getElementById('stage');
+function el(cls, style, html) { const d = document.createElement('div'); d.className = cls; Object.assign(d.style, style); if (html) d.innerHTML = html; stage.appendChild(d); return d; }
+function item(src, x, groundY, opts = {}) {
+  const lift = opts.lift || 0;
+  const w = opts.shadowW || 76;
+  el('abs shadow', { left: (x + 48 - w / 2) + 'px', top: (groundY - 10) + 'px', width: w + 'px', zIndex: opts.z || 2,
+    transform: lift ? 'scale(.8)' : '' }).classList.toggle('lifted', !!lift);
+  const d = el('item' + (lift ? ' lifted' : ''), { left: x + 'px', top: (groundY - 96 - lift) + 'px', zIndex: opts.z || 2 });
+  const m = `url(${src})`;
+  d.innerHTML = `<img class="px" src="${src}">` + (opts.icon ? `<img class="px slipicon" src="${opts.icon}">` : '') +
+    `<i class="lit" style="-webkit-mask-image:${m};mask-image:${m}"></i><i class="ao" style="-webkit-mask-image:${m};mask-image:${m}"></i>`;
+  return d;
+}
+function label(cls, x, top, price, rule, aisle, extra) {
+  return el(cls, Object.assign({ left: x + 'px', top: top + 'px' }, extra || {}),
+    `<div class="p">${price}</div>` + (aisle ? `<img class="ai px" src="${A}icons/aisle_${aisle}.png">` : '') + (rule ? `<div class="r">${rule}</div>` : ''));
+}
+function mark(kind, x, y) {
+  el('abs mark ' + kind, { left: x + 'px', top: y + 'px' }, kind === 'fz' ? `<img class="px" src="${A}icons/fizzle.png">` : '✓');
+}
+
+// shelves: three boards, smaller and dimmer the further back
+const stock = ['milk','milk','cheese','eggs','tea_bags','coffee','coffee','crisps','crisps','batteries','croissant','croissant','banana','banana','strawberries','strawberries','milk','cheese','eggs','tea_bags','coffee','crisps','banana','batteries'];
+const wall = document.getElementById('wall');
+[[8, 0], [80, 7], [152, 3]].forEach(([top, rot]) => {
+  const s = document.createElement('div'); s.className = 'shelf'; s.style.top = top + 'px';
+  for (let i = 0; i < 26; i++) { const im = document.createElement('img'); im.className = 'px'; im.src = `${A}items_v2/${stock[(i + rot) % stock.length]}.png`; s.appendChild(im); }
+  wall.insertBefore(s, wall.firstChild);
+  const b = document.createElement('div'); b.className = 'board'; b.style.top = (top + 50) + 'px'; wall.insertBefore(b, wall.children[1]);
+});
+// the queue: the next customers, waiting behind the belt
+[[120, 112, 160, .95], [292, 90, 128, .55]].forEach(([x, w, h, o]) => {
+  const head = document.createElement('div'); head.className = 'queue head';
+  Object.assign(head.style, { left: (x + w / 2 - w * .24) + 'px', bottom: (h - 4) + 'px', width: (w * .48) + 'px', height: (w * .52) + 'px', opacity: o * .8 });
+  const body = document.createElement('div'); body.className = 'queue body';
+  Object.assign(body.style, { left: x + 'px', width: w + 'px', height: h + 'px', opacity: o * .8 });
+  wall.insertBefore(body, wall.querySelector('.wallshade')); wall.insertBefore(head, wall.querySelector('.wallshade'));
+});
+
+// belt: items stand on it; their labels hang on the rail below
+const ground = 398, X0 = 30, P = 128;
+const row = [
+  ['cheese', '€3', '+4 after Bread', 'cold_cases', 'fz'],
+  ['strawberries', '€2', '+3 beside Produce', 'fruit_and_veg', 'fz'],
+  ['croissant', '€2', '+2 beside Bakery', 'bakery', 'ok'],
+];
+row.forEach(([n, p, r, a, m], i) => {
+  const x = X0 + i * P + 10;
+  item(`${A}items_v2/${n}.png`, x, ground);
+  label('label', X0 + i * P, 442, p, r, a);
+  mark(m, x + 82, ground - 104);
+});
+// the hovered coupon: lifted off the belt, label selected
+{
+  const i = 3, x = X0 + i * P + 10;
+  item(`${A}items_v2/coupon_slip.png`, x, ground + 6, { lift: 14, icon: `${A}icons/coupon_multipack_v2.png` });
+  const l = label('label cp sel', X0 + i * P, 442, 'COUPON', '×3 later with prior’s tag');
+  mark('fz', x + 82, ground - 92);
+  [['l', 't'], ['r', 't'], ['l', 'b'], ['r', 'b']].forEach(([h, v]) => {
+    el('abs brk', { left: (h === 'l' ? x - 10 : x + 90) + 'px', top: (v === 't' ? ground - 104 : ground - 2) + 'px',
+      borderLeftWidth: h === 'l' ? '4px' : 0, borderRightWidth: h === 'r' ? '4px' : 0, borderTopWidth: v === 't' ? '4px' : 0, borderBottomWidth: v === 'b' ? '4px' : 0 });
+  });
+}
+label('label empty', X0 + 4 * P, 442, '5', '');
+label('label empty', X0 + 5 * P, 442, '6', '');
+// the closed slot: two stanchions standing on the belt
+{
+  const x = X0 + 6 * P;
+  el('abs shadow', { left: (x + 4) + 'px', top: (ground - 8) + 'px', width: 30 + 'px', zIndex: 2 });
+  el('abs shadow', { left: (x + 84) + 'px', top: (ground - 8) + 'px', width: 30 + 'px', zIndex: 2 });
+  el('abs', { left: (x + 13) + 'px', top: (ground - 72) + 'px', zIndex: 3 }, `<img class="px" src="${A}scenery/rope_post.png" style="width:12px;height:72px">`);
+  el('abs', { left: (x + 93) + 'px', top: (ground - 72) + 'px', zIndex: 3 }, `<img class="px" src="${A}scenery/rope_post.png" style="width:12px;height:72px">`);
+  el('abs', { left: (x + 15) + 'px', top: (ground - 70) + 'px', zIndex: 3 }, `<img class="px" src="${A}scenery/velvet_rope.png" style="width:88px;height:24px">`);
+  el('label', { left: x + 'px', top: '442px', background: 'var(--tomato-dark)', color: 'var(--paper)', textAlign: 'center' },
+    '<div style="font-family:Pixelify;font-size:18px;margin-top:10px">CLOSED</div><div class="r" style="color:var(--cream-shade)">inspection</div>');
+}
+
+// basket: items sit inside, their bottoms hidden by the basket's front
+const hand = [
+  ['eggs', '€1', '×2 next Food', null], ['tea_bags', '€1', '×4 next Breakfast', 'pantry'], ['banana', '€2', '+2 after Banana', 'fruit_and_veg'],
+  ['batteries', '€1', '+4 in last slot', 'household'], ['coupon_slip', 'COUPON', 'Same both sides: 2nd ×2', null, 'coupon_two_for_one_v2'],
+  ['crisps', '€2', '+3 beside Bread', 'snacks'], ['coffee', '€2', '+3 next Breakfast', 'pantry'], ['milk', '€4', '+1 per earlier Breakfast', 'cold_cases'],
+];
+hand.forEach(([n, p, r, a, icon], i) => {
+  const x = 26 + i * 112;
+  const d = item(`${A}items_v2/${n}.png`, x + 4, 630 + (i % 2) * 4, { z: 2, icon: icon ? `${A}icons/${icon}.png` : null, shadowW: 1 });
+  label('hlabel' + (icon ? ' cp' : ''), x, 630, p, r, a);
+});
+</script>
+</body>
+</html>
