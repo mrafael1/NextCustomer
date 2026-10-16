@@ -396,12 +396,14 @@ static func _upgrade_steps(result: ScoreResult) -> Array[ScoreStep]:
 
 
 ## Scans the belt item in `slot` (the pointer on its sprite, its hover sent: headless runs never
-## move the mouse) and returns its scan popup's footer, one line each, then ends the scan.
+## move the mouse; then its hold ends, #80) and returns its scan popup's footer, one line each,
+## then ends the scan.
 static func _popup_text(screen: ShiftScreen, slot: int) -> String:
 	var view: ItemView = screen._row_views[slot] as ItemView
 	var point: Vector2 = view.sprite().get_global_rect().get_center()
 	screen._scan.pointer = func() -> Vector2: return point
 	view.hovered.emit(view)
+	screen._scan._go_full()
 	var text: String = "\n".join(screen._scan.popup().footer_texts())
 	screen._scan.clear()
 	return text
@@ -491,7 +493,13 @@ func test_a_nine_slot_row_fits_the_screen() -> void:
 		RowStrip.WIDE_SEPARATION
 	)
 	assert_str(screen._capacity_label.text).contains("Products 0/7").contains("Coupon slots 0/2")
-	var belt: Rect2 = (screen._row_strip.get_parent() as Control).get_global_rect()
+	var belt: Rect2 = (
+		Rect2(
+			screen._stage.get_global_rect().position + ShiftStage.ROW_AREA.position,
+			ShiftStage.ROW_AREA.size
+		)
+		. grow(0.01)
+	)
 	var receipt: Rect2 = screen._receipt.get_global_rect()
 	var previous: Rect2 = Rect2()
 	for slot: int in range(screen._slots.size()):

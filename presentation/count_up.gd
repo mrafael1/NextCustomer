@@ -149,7 +149,7 @@ var dessert_skipped: bool = false
 var plan: CountUpPlan
 ## The Music autoload the dessert ducks (#62), or null for none (the shift screen sets it).
 var music: MusicService
-## The stage's scan layer (#75), or null: its handheld poses on each scan, docked after the beats.
+## The stage's scan layer (#75), or null: it marks each scanned item, cleared after the beats.
 var scan_overlay: ScanOverlay
 ## How big the ending was, for what follows the total (#61). Set when the total is shown; null
 ## before that.
@@ -554,7 +554,7 @@ func _merged(beat: CountUpBeat, base: ScoreStep, payout: ScoreStep) -> void:
 	_land_payout(beat, payout, line)
 
 
-## Poses scan_overlay's handheld in gold where an item's scan lift ends; nothing waits for it.
+## Marks an item in gold on scan_overlay where its scan lift ends; nothing waits for it.
 func _pose_scanner(view: CardView) -> void:
 	if scan_overlay != null and view is ItemView:
 		scan_overlay.pose_scan(ScanOverlay.lifted_sprite(view as ItemView))

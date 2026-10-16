@@ -16,7 +16,7 @@ extends Control
 ## on exit. Keys: S switches between the sharp-pixel shader and plain nearest filtering (A/B).
 ## `godot --path . [--resolution 1920x1080] res://debug/screen_capture/screen_capture.tscn --
 ## --capture=docs/art` saves shift_screen_<width>x<height>.png at the window's size, then quits.
-## With `--scan=<card id>` the hover scanner first scans that card's item (the belt's first,
+## With `--scan=<card id>` the hover scanner first fully scans that card's item (the belt's first,
 ## else the hand's), and the file is shift_screen_scan_<width>x<height>.png.
 
 const SCREEN := preload("res://ui/shift_screen.tscn")

@@ -1,24 +1,20 @@
 extends GdUnitTestSuite
-## The shift screen's layout (#55, ShiftStage) on the real screen: the 1280x720 stage centred in
-## the window (headless runs use 1280x1280, so it sits 280 px down) over a wall and a counter that
-## cover the viewport; the top bar with its longest texts above the shade; the fixed belt (its
-## rows: shift_screen_belt_test); the register with the totals on its LED
-## and the receipt hanging from its printer slot, joined to the paper pile; the docked scanner;
-## the status panel, Cancel, Redraw (every caption fits) and CHECKOUT on the counter above a hand
-## of 8 items that fits the tray without overlapping; past 8, hover bringing an item to the front
-## by child order, so it takes the click; the drag ghost (the item's sprite); the hint and the
-## seed line in the bottom band. Every rect is checked on screen against the stage and against
-## the layout's constants. Also the style checks:
-## no text carries the pixel material, numbers use the number font, every printed character has
-## its glyph, and the sharp-pixel shader switches off and on. The real saves and logs are never
-## touched.
+## The shift screen's layout (#80, mock-up B2's greybox; ShiftStage) on the real screen: the
+## 1280x720 stage centred in the window (headless runs use 1280x1280, so it sits 280 px down) over
+## the store's bands that cover the viewport; the top bar with its longest texts above the shade;
+## the hung monitor with the totals and the notices on its screen; the belt with the row's items on
+## its top face and their tickets on the rail (its rows: shift_screen_belt_test); the register
+## with the printer the receipt rises from; the capacity line and the cue under the rail; CHECKOUT,
+## Redraw and Cancel on the register column (every caption fits); a hand of 8 items that fits over
+## the baskets without overlapping; past 8, hover bringing an item to the front by child order, so
+## it takes the click; the drag ghost (the item's sprite); the hint along the floor and the seed
+## line under Redraw. Every rect is checked on screen against the stage and against the layout's
+## constants. Also the style checks: no text carries the pixel material, numbers use the number
+## font, every printed character has its glyph, and the sharp-pixel shader switches off and on.
+## The real saves and logs are never touched.
 
 const SCREEN := "res://ui/shift_screen.tscn"
 const SHORT_BELT := preload("res://data/inspections/short_belt.tres")
-## The kickplate's top (the window's bottom 12 px, at 1280x720): nothing on the stage reaches it.
-const KICKPLATE_TOP := 708.0
-## The tray's velvet rim, in canvas pixels (style frame v2): the hand's items stay inside it.
-const TRAY_RIM := 6.0
 
 var _folder: String = ""
 
@@ -45,16 +41,17 @@ func test_the_stage_is_laid_out_without_overlaps() -> void:
 	var stage: Rect2 = screen._stage.get_global_rect()
 	assert_vector(stage.size).is_equal(ShiftStage.SIZE)
 	assert_vector(stage.get_center()).is_equal_approx(window.get_center(), Vector2(1, 1))
-	# The wall fills the window behind the stage; the counter runs from its top to the bottom.
+	# The wall fills the window behind the stage; the counter runs from the belt's back down.
 	var wall: Control = screen.get_child(0) as Control
 	assert_that(wall.get_global_rect()).is_equal(window)
-	var counter: Control = screen.get_child(1) as Control
+	var counter: Control = screen.get_node("Counter") as Control
 	assert_float(counter.get_global_rect().position.y).is_equal(
 		stage.position.y + ShiftStage.COUNTER_TOP
 	)
 	assert_float(counter.get_global_rect().end.y).is_greater_equal(window.end.y)
 
-	var bar_bottom: float = stage.position.y + RewardPanel.PRINTOUT_TOP
+	var bar_bottom: float = stage.position.y + ShiftStage.TOP_BAR_BOTTOM
+	assert_float(ShiftStage.TOP_BAR_BOTTOM).is_less_equal(RewardPanel.PRINTOUT_TOP)
 	var top_parts: Array[Control] = []
 	for child: Node in screen._top_bar.get_children():
 		var part: Control = child as Control
@@ -67,146 +64,141 @@ func test_the_stage_is_laid_out_without_overlaps() -> void:
 		assert_float(rect.end.y).is_less_equal(bar_bottom)
 	_assert_apart(top_parts)
 
-	# The belt and the register stand on the counter line, side by side; the receipt hangs from
-	# the printer slot and ends at the pile's foot.
-	var belt: Rect2 = screen._stage.belt.get_global_rect()
-	var register: Rect2 = screen._register.get_global_rect()
-	var receipt: Rect2 = screen._receipt.get_global_rect()
-	assert_that(belt).is_equal(_on_stage(screen, ShiftStage.BELT_RECT))
-	assert_that(register).is_equal(_on_stage(screen, ShiftStage.REGISTER_RECT))
-	var counter_top: float = stage.position.y + ShiftStage.COUNTER_TOP
-	assert_float(belt.end.y).is_equal(counter_top)
-	assert_float(register.end.y).is_equal(counter_top)
-	assert_float(belt.position.y).is_greater_equal(bar_bottom)
-	assert_float(register.position.y).is_greater_equal(bar_bottom)
-	assert_bool(belt.intersects(register)).is_false()
-	assert_bool(stage.encloses(register)).is_true()
-	assert_bool(stage.encloses(receipt)).override_failure_message(str(receipt)).is_true()
-	# The printer slot spans the cabinet between its frame's inner edges (style frame v2's
-	# proportions); the receipt hangs from its mouth, RECEIPT_MOUTH_GAP inside it at each side.
-	var slot: Rect2 = _on_stage(screen, ShiftStage.PRINTER_SLOT_RECT)
-	assert_that(ShiftStage.PRINTER_SLOT_RECT).is_equal(Rect2(952, 264, 304, 16))
-	assert_bool(register.encloses(slot)).is_true()
-	var frame: float = RegisterCabinet.BODY_MARGIN * ArtStyle.ART_SCALE
-	assert_float(slot.position.x).is_equal(register.position.x + frame)
-	assert_float(slot.end.x).is_equal(register.end.x - frame)
-	var mouth: Rect2 = slot.grow_individual(
-		-RegisterCabinet.PRINTER_SLOT_INSET, 0, -RegisterCabinet.PRINTER_SLOT_INSET, 0
+	# The monitor hangs under the top bar, the LED and the notices on its screen.
+	var monitor: Rect2 = _on_stage(screen, ShiftStage.MONITOR_RECT)
+	var monitor_screen: Rect2 = _on_stage(screen, ShiftStage.MONITOR_SCREEN_RECT)
+	assert_that((screen._stage.monitor.get_node("Bezel") as Control).get_global_rect()).is_equal(
+		monitor
 	)
-	assert_float(receipt.position.y).is_equal(slot.end.y)
-	assert_float(receipt.position.x).is_equal(mouth.position.x + ShiftStage.RECEIPT_MOUTH_GAP)
-	assert_float(receipt.end.x).is_equal(mouth.end.x - ShiftStage.RECEIPT_MOUTH_GAP)
-	assert_float(receipt.size.x).is_equal(ShiftStage.RECEIPT_WIDTH)
-	assert_vector(ShiftStage.RECEIPT_ORIGIN).is_equal(Vector2(966, 280))
-	assert_float(ShiftStage.RECEIPT_WIDTH).is_equal(276.0)
-	assert_float(receipt.end.y).is_less_equal(stage.position.y + ShiftStage.PILE_BOTTOM)
-	assert_float(receipt.end.y).is_less_equal(stage.position.y + KICKPLATE_TOP)
-	# The LED (the totals) sits on the register, its caption, digits and quota line on it, the
-	# digits and the quota line apart; the key bed and the TOTAL key under it, above the slot.
+	assert_bool(monitor.encloses(monitor_screen)).is_true()
+	assert_float(monitor.position.y).is_greater_equal(bar_bottom)
 	var led: Rect2 = _on_stage(screen, ShiftStage.LED_RECT)
 	assert_that(screen._led.get_global_rect()).is_equal(led)
-	assert_bool(register.encloses(led)).is_true()
+	assert_bool(monitor_screen.encloses(led)).override_failure_message(str(led)).is_true()
 	for label: Control in _led_labels(screen):
 		var rect: Rect2 = label.get_global_rect()
 		assert_bool(led.encloses(rect)).override_failure_message(str(rect)).is_true()
 	_assert_digits_clear(screen)
-	var keys: Rect2 = _on_stage(screen, ShiftStage.KEYS_RECT)
-	var total_key: Rect2 = screen._cabinet.total_key().get_global_rect()
-	assert_that(total_key).is_equal(_on_stage(screen, ShiftStage.TOTAL_KEY_RECT))
-	assert_bool(register.encloses(keys)).is_true()
-	assert_bool(keys.encloses(total_key)).is_true()
-	assert_float(keys.position.y).is_greater_equal(led.end.y)
-	# A strip of cream between the key bed and the slot's lip.
-	assert_float(keys.end.y).is_less(slot.position.y)
+	var notice: Rect2 = screen._notice_label.get_global_rect()
+	assert_that(notice).is_equal(_on_stage(screen, ShiftStage.NOTICE_RECT))
+	assert_bool(monitor_screen.encloses(notice)).is_true()
+	assert_bool(notice.intersects(led)).is_false()
 
-	var scanner: Rect2 = screen._stage.scanner.get_global_rect()
-	assert_that(scanner).is_equal(_on_stage(screen, ShiftStage.CRADLE_RECT))
-	assert_bool(stage.encloses(scanner)).is_true()
-	assert_bool(scanner.intersects(register)).is_false()
-	assert_bool(scanner.intersects(screen._checkout_button.get_global_rect())).is_false()
+	# The register: the printer box on the counter top, the column under it; the receipt stands on
+	# the printer's slot.
+	var register: Rect2 = screen._register.get_global_rect()
+	assert_that(register).is_equal(_on_stage(screen, ShiftStage.REGISTER_RECT))
+	assert_bool(stage.encloses(register)).is_true()
+	var printer: Rect2 = _on_stage(screen, ShiftStage.PRINTER_RECT)
+	var slot: Rect2 = _on_stage(screen, ShiftStage.PRINTER_SLOT_RECT)
+	var column: Rect2 = _on_stage(screen, ShiftStage.COLUMN_RECT)
+	for part: Rect2 in [printer, column]:
+		assert_bool(register.encloses(part)).override_failure_message(str(part)).is_true()
+	assert_bool(printer.encloses(slot)).is_true()
+	var receipt: Rect2 = screen._receipt.get_global_rect()
+	assert_bool(stage.encloses(receipt)).override_failure_message(str(receipt)).is_true()
+	assert_float(receipt.end.y).is_equal(stage.position.y + ShiftStage.RECEIPT_BOTTOM)
+	assert_float(receipt.position.x).is_equal(stage.position.x + ShiftStage.RECEIPT_X)
+	assert_float(receipt.size.x).is_equal(ShiftStage.RECEIPT_WIDTH)
+	assert_bool(slot.has_point(Vector2(receipt.get_center().x, receipt.end.y))).is_true()
+	assert_float(slot.position.x).is_less_equal(receipt.position.x)
+	assert_float(slot.end.x).is_greater_equal(receipt.end.x)
+	assert_float(receipt.position.y).is_greater_equal(bar_bottom)
+	assert_bool(receipt.intersects(monitor)).is_false()
+
+	# The belt, left of the register, with the row's cells on it: each item on the top face, each
+	# ticket on the rail.
+	var belt: Rect2 = screen._stage.belt.get_global_rect()
+	assert_that(belt).is_equal(_on_stage(screen, ShiftStage.BELT_RECT))
+	assert_float(belt.end.x).is_less_equal(register.position.x)
+	assert_bool(belt.intersects(receipt)).is_false()
+	assert_float(belt.position.y).is_greater_equal(monitor.end.y)
+	var top_face: Rect2 = screen._stage.belt.get_global_transform() * screen._stage.belt.top_face()
+	var rail: Rect2 = screen._stage.belt.get_global_transform() * screen._stage.belt.rail()
+	_place(screen, ["bread", "milk"])
+	await _frames(2)
+	for view: CardView in screen._row_views:
+		var item: ItemView = view as ItemView
+		var foot: Vector2 = item.sprite().get_global_rect().end
+		(
+			assert_bool(top_face.has_point(foot - Vector2(1, 1)))
+			. override_failure_message(str(foot))
+			. is_true()
+		)
+		var ticket: Rect2 = item.sticker().get_global_rect()
+		assert_bool(rail.encloses(ticket)).override_failure_message(str(ticket)).is_true()
 	for panel: PanelContainer in screen._slots:
 		var rect: Rect2 = panel.get_global_rect()
 		assert_bool(stage.encloses(rect)).override_failure_message(str(rect)).is_true()
-		assert_bool(belt.encloses(rect)).override_failure_message(str(rect)).is_true()
 		assert_bool(rect.intersects(receipt)).is_false()
-		assert_bool(rect.intersects(scanner)).is_false()
-		# Under the top bar: the value plaques stand inside the cells, on the mats' top rims.
-		assert_float(rect.position.y).is_greater_equal(bar_bottom)
+		assert_bool(rect.intersects(register)).is_false()
+		# Under the monitor's shade: the value plaques stand inside the cells.
+		assert_float(rect.position.y).is_greater_equal(monitor.end.y)
 	assert_vector(screen._slots[0].get_global_rect().position).is_equal(
 		stage.position + ShiftStage.ROW_POSITION
 	)
 
-	# The status panel's lines sit on the counter, inside the panel, the capacity line and the
-	# cue apart.
+	# The capacity line and the cue on the counter under the rail, apart, above the hand's items.
 	var cue: Label = _label_with(screen._stage, ShiftStage.CUE_TEXT)
-	var status_rect: Rect2 = _on_stage(screen, ShiftStage.STATUS_RECT)
-	assert_float(status_rect.position.y).is_greater_equal(counter_top)
-	for label: Control in [screen._capacity_label, cue, screen._notice_label]:
-		var rect: Rect2 = label.get_global_rect()
-		assert_bool(status_rect.encloses(rect)).override_failure_message(str(rect)).is_true()
+	assert_that(screen._capacity_label.get_global_rect()).is_equal(
+		_on_stage(screen, ShiftStage.CAPACITY_RECT)
+	)
+	assert_that(cue.get_global_rect()).is_equal(_on_stage(screen, ShiftStage.CUE_RECT))
 	_assert_apart([screen._capacity_label, cue])
+	for label: Control in [screen._capacity_label, cue]:
+		var rect: Rect2 = label.get_global_rect()
+		assert_float(rect.position.y).is_greater_equal(rail.end.y)
+		assert_float(rect.end.x).is_less_equal(register.position.x)
 
-	# Cancel, Redraw, CHECKOUT and the scanner beside the status panel, above the hand, apart.
-	var hand: Rect2 = screen._hand_box.get_global_rect()
-	assert_that(hand).is_equal(_on_stage(screen, ShiftStage.HAND_RECT))
-	assert_bool(_on_stage(screen, ShiftStage.TRAY_RECT).encloses(hand)).is_true()
+	# CHECKOUT, Redraw and Cancel on the register column, apart.
 	var expected: Dictionary[Control, Rect2] = {
 		screen._cancel_button: ShiftStage.CANCEL_RECT,
 		screen._redraw_button: ShiftStage.REDRAW_RECT,
 		screen._checkout_button: ShiftStage.CHECKOUT_RECT,
 	}
-	var strip: Array[Control] = [screen._stage.scanner]
+	var keys: Array[Control] = []
 	for part: Control in expected:
-		assert_that(part.get_global_rect()).is_equal(_on_stage(screen, expected[part]))
-		strip.append(part)
-	_assert_apart(strip)
-	for part: Control in strip:
 		var rect: Rect2 = part.get_global_rect()
-		assert_bool(stage.encloses(rect)).override_failure_message(str(rect)).is_true()
-		assert_float(rect.position.y).is_greater_equal(counter_top)
-		# The strip ends above the tray, which holds a selected item's lift and brackets.
-		assert_float(rect.end.y).is_less_equal(_on_stage(screen, ShiftStage.TRAY_RECT).position.y)
-		assert_float(rect.end.x).is_less_equal(register.position.x)
-		if part != screen._cancel_button:
-			assert_bool(rect.intersects(status_rect)).is_false()
+		assert_that(rect).is_equal(_on_stage(screen, expected[part]))
+		assert_bool(column.encloses(rect)).override_failure_message(str(rect)).is_true()
+		assert_bool(rect.intersects(printer)).is_false()
+		keys.append(part)
+	_assert_apart(keys)
 
-	# The bottom band: the hint in its inset under the tray, then the seed line above the
-	# kickplate, clear of the hint.
+	# The hand over the baskets, left of the register; the hint along the floor under it; the
+	# seed line under Redraw, on the column.
+	var hand: Rect2 = screen._hand_box.get_global_rect()
+	assert_that(hand).is_equal(_on_stage(screen, ShiftStage.HAND_RECT))
+	assert_bool(_on_stage(screen, ShiftStage.HAND_AREA).encloses(hand)).is_true()
+	assert_float(hand.end.x).is_less_equal(register.position.x)
 	var hint: Label = screen._stage.hint_label
 	var hint_rect: Rect2 = hint.get_global_rect()
-	(
-		assert_bool(_on_stage(screen, ShiftStage.HINT_RECT).encloses(hint_rect))
-		. override_failure_message("hint at %s needs %s" % [hint_rect, hint.get_minimum_size()])
-		. is_true()
-	)
-	assert_float(hint_rect.position.y).is_greater_equal(
-		stage.position.y + ShiftStage.TRAY_RECT.end.y
-	)
+	assert_that(hint_rect).is_equal(_on_stage(screen, ShiftStage.HINT_RECT))
 	assert_float(hint.get_minimum_size().y).is_less_equal(hint.size.y)
 	assert_float(hint.get_minimum_size().x).is_less_equal(hint.size.x)
+	assert_float(hint_rect.position.y).is_greater_equal(hand.end.y)
+	assert_bool(stage.encloses(hint_rect)).is_true()
 	var seed_rect: Rect2 = screen._seed_label.get_global_rect()
 	assert_that(seed_rect).is_equal(_on_stage(screen, ShiftStage.SEED_RECT))
 	assert_float(screen._seed_label.get_minimum_size().y).is_less_equal(seed_rect.size.y)
-	assert_float(seed_rect.position.y).is_greater_equal(hand.end.y)
-	assert_float(seed_rect.end.y).is_less_equal(stage.position.y + KICKPLATE_TOP)
-	assert_bool(seed_rect.intersects(hint_rect)).is_false()
-	assert_float(seed_rect.end.x).is_less_equal(stage.position.x + ShiftStage.PURSE_RECT.position.x)
+	assert_bool(column.encloses(seed_rect)).is_true()
+	for part: Control in keys:
+		assert_bool(seed_rect.intersects(part.get_global_rect())).is_false()
+	assert_bool(seed_rect.intersects(_on_stage(screen, ShiftStage.DRAWER_RECT))).is_false()
 	assert_str(screen._seed_label.text).contains("Seed %d" % screen.run.run_seed)
-	# Shift 1's planning receipt is short and the pile empty: no pile on the counter.
-	assert_bool(screen._paper_pile.visible).is_false()
 
 
-## A full hand of 8 fits the tray at the natural pitch (style frame v2): each item in its
-## ItemView.TRAY_SIZE cell inside the tray's velvet rim, GAP apart, none overlapping, all left of
-## the receipt. Debug-added items (10) squeeze closer, still inside the rim, and an overlap never
-## covers an item's base value.
+## A full hand of 8 fits over the baskets at the natural pitch: each item in its
+## ItemView.TRAY_SIZE cell inside the hand's area, GAP apart, none overlapping, all left of the
+## register. Debug-added items (10) squeeze closer, still inside it, and an overlap never covers
+## an item's base value.
 func test_a_hand_of_eight_fits_without_overlap() -> void:
 	var screen: ShiftScreen = await _screen()
 	var stage: Rect2 = screen._stage.get_global_rect()
 	var views: Array[Control] = screen._hand_box.cards()
 	assert_int(views.size()).is_equal(8)
-	var receipt: Rect2 = screen._receipt.get_global_rect()
-	var inside_rim: Rect2 = _on_stage(screen, ShiftStage.TRAY_RECT).grow(-TRAY_RIM)
+	var register: Rect2 = screen._register.get_global_rect()
+	var area: Rect2 = _on_stage(screen, ShiftStage.HAND_AREA)
 	assert_bool(screen._hand_box.overlaps()).is_false()
 	for index: int in range(views.size()):
 		var view: ItemView = views[index] as ItemView
@@ -215,8 +207,8 @@ func test_a_hand_of_eight_fits_without_overlap() -> void:
 		var rect: Rect2 = view.get_global_rect()
 		assert_vector(rect.size).is_equal(ItemView.TRAY_SIZE)
 		assert_bool(stage.encloses(rect)).override_failure_message(str(rect)).is_true()
-		assert_bool(inside_rim.encloses(rect)).override_failure_message(str(rect)).is_true()
-		assert_float(rect.end.x).is_less_equal(receipt.position.x)
+		assert_bool(area.encloses(rect)).override_failure_message(str(rect)).is_true()
+		assert_float(rect.end.x).is_less_equal(register.position.x)
 		if index > 0:
 			var previous: Rect2 = views[index - 1].get_global_rect()
 			assert_float(rect.position.x - previous.position.x).is_equal(
@@ -236,7 +228,7 @@ func test_a_hand_of_eight_fits_without_overlap() -> void:
 	assert_bool(screen._hand_box.overlaps()).is_true()
 	for index: int in range(views.size()):
 		var view: ItemView = views[index] as ItemView
-		assert_bool(inside_rim.encloses(view.get_global_rect())).is_true()
+		assert_bool(area.encloses(view.get_global_rect())).is_true()
 		# No item drawn above covers its base value (or COUPON), at the sticker's left.
 		var base: Rect2 = view.sticker().get_global_transform() * PriceSticker.BASE_RECT
 		for other: Control in views.slice(index + 1):
@@ -250,7 +242,8 @@ func test_a_hand_of_eight_fits_without_overlap() -> void:
 
 ## Hovering an item brings it to the front by child order (clicks follow what is drawn on top)
 ## only while items overlap (more than 8); leaving it puts the hand order back. A full hand of 8
-## keeps its order. A selected item's lifted sprite and its gold brackets stay on the tray.
+## keeps its order. A selected item's lifted sprite and its gold brackets stay in the hand's
+## area, under the capacity line.
 func test_hover_brings_an_item_to_the_front() -> void:
 	var screen: ShiftScreen = await _screen()
 	var views: Array[Control] = screen._hand_box.cards()
@@ -274,8 +267,9 @@ func test_hover_brings_an_item_to_the_front() -> void:
 	assert_float(lifted.position.y).is_equal(rest_y - ItemView.LIFT)
 	var brackets: Rect2 = picked.get_global_transform() * picked.brackets()
 	assert_bool(brackets.encloses(lifted)).is_true()
-	var tray: Rect2 = _on_stage(screen, ShiftStage.TRAY_RECT)
-	assert_bool(tray.encloses(brackets)).override_failure_message(str(brackets)).is_true()
+	var area: Rect2 = _on_stage(screen, ShiftStage.HAND_AREA)
+	assert_bool(area.encloses(brackets)).override_failure_message(str(brackets)).is_true()
+	assert_bool(brackets.intersects(screen._capacity_label.get_global_rect())).is_false()
 
 
 ## The shade starts under the top bar wherever the stage sits, so Deck and Export log stay
@@ -294,10 +288,9 @@ func test_the_shade_leaves_the_top_bar_uncovered() -> void:
 
 
 ## The top bar with its longest texts: the last shift's quota, a 4-box loyalty card, each
-## inspection's tag (the longest one included), the FINE GROCERIES plaque, a full deck and a
-## 10-digit seed. Everything stays on the stage above the shade line and apart; the seed and
-## build label stay in the counter's bottom-left corner, clear of the hand, the buttons and the
-## paper pile.
+## inspection's tag (the longest one included), a full deck and a 10-digit seed. Everything
+## stays on the stage above the shade line and apart; the seed and build label stay under Redraw,
+## clear of the hand, the keys and the receipt.
 func test_the_top_bar_fits_its_longest_texts() -> void:
 	var screen: ShiftScreen = await _screen()
 	var run: RunState = screen.run
@@ -326,7 +319,6 @@ func test_the_top_bar_fits_its_longest_texts() -> void:
 			screen._top_bar.get_child(0) as Control,
 			screen._loyalty_card,
 			screen._inspection_tag,
-			screen._stage.plaque,
 			screen._deck_button,
 			screen._stage.export_button,
 		]
@@ -347,18 +339,19 @@ func test_the_top_bar_fits_its_longest_texts() -> void:
 	var build_label: String = str(ProjectSettings.get_setting("next_customer/build_label", ""))
 	assert_str(screen._seed_label.text).contains(build_label)
 	assert_bool(stage.encloses(seed_line)).override_failure_message(str(seed_line)).is_true()
-	var others: Array[Control] = [screen._receipt, screen._paper_pile, screen._checkout_button]
+	var others: Array[Control] = [
+		screen._receipt, screen._checkout_button, screen._redraw_button, screen._cancel_button
+	]
 	others.append_array(screen._hand_box.cards())
 	for other: Control in others:
 		assert_bool(seed_line.intersects(other.get_global_rect())).is_false()
 
 
 ## A full hand of 8 (with Cancel shown, in redraw mode) stays on the stage, clear of CHECKOUT,
-## Redraw, Cancel, the scanner, the hint, the receipt and the paper pile (at its cap, curled and
-## spilled), even with an item selected (its sprite lifted inside its brackets).
+## Redraw, Cancel, the hint, the capacity line, the rail and the receipt, even with an item
+## selected (its sprite lifted inside its brackets).
 func test_a_full_hand_clears_the_buttons_and_the_receipt() -> void:
 	var screen: ShiftScreen = await _screen()
-	_full_pile(screen)
 	screen._on_redraw_pressed()
 	await _frames(2)
 	assert_bool(screen._cancel_button.visible).is_true()
@@ -368,12 +361,12 @@ func test_a_full_hand_clears_the_buttons_and_the_receipt() -> void:
 		screen._cancel_button,
 		screen._redraw_button,
 		screen._checkout_button,
-		screen._stage.scanner,
 	]
 	_assert_apart(strip)
 	var blockers: Array[Control] = strip.duplicate()
 	blockers.append(screen._receipt)
-	blockers.append(screen._paper_pile)
+	blockers.append(screen._capacity_label)
+	var rail: Rect2 = screen._stage.belt.get_global_transform() * screen._stage.belt.rail()
 	var views: Array[Control] = screen._hand_box.cards()
 	assert_int(views.size()).is_equal(screen.run.balance.hand_size)
 	for view: Control in views:
@@ -385,6 +378,7 @@ func test_a_full_hand_clears_the_buttons_and_the_receipt() -> void:
 		)
 		var rect: Rect2 = view.get_global_rect().merge(lifted.grow(ScanOverlay.BRACKET_OUTSET))
 		assert_bool(stage.encloses(rect)).override_failure_message(str(rect)).is_true()
+		assert_bool(rect.intersects(rail)).is_false()
 		for blocker: Control in blockers:
 			(
 				assert_bool(rect.intersects(blocker.get_global_rect()))
@@ -395,98 +389,36 @@ func test_a_full_hand_clears_the_buttons_and_the_receipt() -> void:
 		assert_bool(stage.encloses(part.get_global_rect())).is_true()
 
 
-## The paper pile stands joined under the receipt: on the counter at PILE_BOTTOM, its top fold
-## spanning exactly the receipt and the later folds FOLD_SHIFT either side; a long receipt ends
-## PILE_JOIN under the pile's top (min(PILE_BOTTOM, top + PILE_JOIN): with the empty pile of
-## shift 1 that is the pile's foot, above the kickplate). At its cap, curled and spilled, the
-## pile stays on the stage, right of the tray, the hand, the purse and CHECKOUT. The pile shows
-## only when it has paper and the receipt's lines reach its top: a long receipt or a pile grown
-## up to a short receipt's foot.
-func test_the_pile_joins_the_receipt() -> void:
+## The receipt stands on the printer's slot and grows up as its lines print: a short receipt is
+## as tall as its lines; a long one stops at RECEIPT_TOP, under the top bar, still standing on the
+## slot, and clear of the monitor.
+func test_the_receipt_grows_up_from_the_printer() -> void:
 	var screen: ShiftScreen = await _screen()
 	var stage: Rect2 = screen._stage.get_global_rect()
-	var pile: PaperPile = screen._paper_pile
 	var receipt: ReceiptView = screen._receipt
-	assert_bool(pile.is_joined()).is_true()
-	# Shift 1: no paper yet, so no pile; the receipt may run to the pile's foot and no further.
-	assert_float(pile.height_px).is_equal(0.0)
-	assert_bool(pile.visible).is_false()
-	assert_float(screen._stage.receipt_bottom()).is_equal(ShiftStage.PILE_BOTTOM)
-	assert_float(ShiftStage.PILE_BOTTOM).is_less_equal(KICKPLATE_TOP)
-	# Later shifts' paper under the short planning receipt: still no pile (no lone strip of
-	# paper far under the receipt).
-	screen._count_up.show_pile_for_shift(6)
+	var bottom: float = stage.position.y + ShiftStage.RECEIPT_BOTTOM
+	assert_float(receipt.get_global_rect().end.y).is_equal(bottom)
+	assert_float(receipt.size.y).is_equal_approx(receipt.natural_height(), 1.0)
+	var short_top: float = receipt.get_global_rect().position.y
+	receipt.add_line("LINE", "€1", ReceiptView.LineStyle.ITEM)
 	await _frames(2)
-	assert_float(pile.height_px).is_greater(0.0)
-	assert_bool(screen._stage.receipt_reaches_pile()).is_false()
-	assert_bool(pile.visible).is_false()
-	# A receipt longer than its room reaches the pile, which shows, joined to it.
-	while receipt.natural_height() <= ShiftStage.PILE_BOTTOM - ShiftStage.RECEIPT_ORIGIN.y:
+	assert_float(receipt.get_global_rect().end.y).is_equal(bottom)
+	assert_float(receipt.get_global_rect().position.y).is_less(short_top)
+	while receipt.natural_height() <= ShiftStage.RECEIPT_BOTTOM - ShiftStage.RECEIPT_TOP:
 		receipt.add_line("LINE", "€1", ReceiptView.LineStyle.ITEM)
 		await _frames(1)
+	receipt.add_line("LINE", "€1", ReceiptView.LineStyle.ITEM)
 	await _frames(2)
-	assert_bool(screen._stage.receipt_reaches_pile()).is_true()
-	assert_bool(pile.visible).is_true()
 	var rect: Rect2 = receipt.get_global_rect()
-	var paper: Rect2 = pile.paper_rect()
-	assert_float(paper.end.y).is_equal(stage.position.y + ShiftStage.PILE_BOTTOM)
-	assert_float(rect.end.y).is_equal(paper.position.y + ShiftStage.PILE_JOIN)
-	assert_float(pile.top_y()).is_equal(paper.position.y - stage.position.y)
-	var top_fold: Rect2 = pile.get_global_transform() * pile.fold_rect(0)
-	assert_float(top_fold.position.x).is_equal(rect.position.x)
-	assert_float(top_fold.end.x).is_equal(rect.end.x)
-	assert_int(pile.fold_count()).is_greater_equal(3)
-	assert_float(paper.position.x).is_equal(rect.position.x - PaperPile.FOLD_SHIFT)
-	assert_float(paper.end.x).is_equal(rect.end.x + PaperPile.FOLD_SHIFT)
-	# Pile drawn over the receipt's foot.
-	assert_int(pile.get_index()).is_greater(receipt.get_index())
-	_full_pile(screen)
-	await _frames(2)
-	paper = pile.paper_rect()
-	assert_float(receipt.get_global_rect().end.y).is_equal(paper.position.y + ShiftStage.PILE_JOIN)
-	for part: Rect2 in [paper, pile.get_global_rect()]:
-		assert_bool(stage.encloses(part)).override_failure_message(str(part)).is_true()
-		assert_float(part.end.y).is_less_equal(stage.position.y + KICKPLATE_TOP)
-		for other: Rect2 in [
-			_on_stage(screen, ShiftStage.TRAY_RECT),
-			_on_stage(screen, ShiftStage.PURSE_RECT),
-			screen._checkout_button.get_global_rect(),
-			screen._stage.scanner.get_global_rect(),
-			screen._stage.belt.get_global_rect(),
-		]:
-			(
-				assert_bool(part.intersects(other))
-				. override_failure_message("pile %s overlaps %s" % [part, other])
-				. is_false()
-			)
-	# A short receipt hides the pile again; the pile growing up to the receipt's foot shows it.
-	screen._count_up.show_pile_for_shift(6)
-	receipt.clear()
-	await _frames(2)
-	assert_bool(pile.visible).is_false()
-	var top_at_cap: float = ShiftStage.PILE_BOTTOM - pile.cap_px
-	while receipt.position.y + receipt.natural_height() < top_at_cap:
-		receipt.add_line("LINE", "€1", ReceiptView.LineStyle.ITEM)
-		await _frames(1)
-	await _frames(2)
-	pile.set_height(ArtStyle.ART_SCALE)
-	assert_bool(screen._stage.receipt_reaches_pile()).is_false()
-	assert_bool(pile.visible).is_false()
-	pile.set_height(pile.cap_px)
-	assert_bool(screen._stage.receipt_reaches_pile()).is_true()
-	assert_bool(pile.visible).is_true()
+	assert_float(rect.end.y).is_equal(bottom)
+	assert_float(rect.position.y).is_equal(stage.position.y + ShiftStage.RECEIPT_TOP)
+	assert_float(rect.position.y).is_greater_equal(stage.position.y + ShiftStage.TOP_BAR_BOTTOM)
+	assert_bool(rect.intersects(_on_stage(screen, ShiftStage.MONITOR_RECT))).is_false()
 
 
-## The paper pile at its cap, curled and spilled (a huge total's end).
-static func _full_pile(screen: ShiftScreen) -> void:
-	var pile: PaperPile = screen._paper_pile
-	pile.set_height(pile.cap_px)
-	pile.curl(true)
-
-
-## The status panel (the capacity line at its longest, the cue, the longest notice), the totals on
-## the register's LED, the register, the scanner and the paper pile stay on the stage, clear of
-## the belt, the hand and the receipt where they must.
+## The capacity line at its longest and the cue under the rail, the longest notice and the
+## totals on the monitor, and the register stay on the stage, clear of the belt, the hand and the
+## receipt where they must.
 func test_the_status_line_and_the_register_stay_clear() -> void:
 	var screen: ShiftScreen = await _screen()
 	var run: RunState = screen.run
@@ -504,7 +436,8 @@ func test_the_status_line_and_the_register_stay_clear() -> void:
 
 ## Every Redraw caption the run can show fits REDRAW_RECT without growing it, with every upgrade
 ## that adds redraws: "Redraw up to N (M left)" for each M, "Redraw used" and, in redraw mode,
-## "Confirm redraw (K/N)" for each K. Redraw keeps its rect, clear of Cancel and CHECKOUT.
+## "Confirm redraw (K/N)" for each K. Redraw keeps its rect on the register column, clear of
+## Cancel and CHECKOUT.
 func test_every_redraw_caption_fits() -> void:
 	var screen: ShiftScreen = await _screen()
 	var run: RunState = screen.run
@@ -551,18 +484,24 @@ func _assert_redraw_in_place(screen: ShiftScreen) -> void:
 		others.append(screen._cancel_button)
 	for other: Control in others:
 		assert_bool(button.get_global_rect().intersects(other.get_global_rect())).is_false()
-	assert_float(button.get_global_rect().end.x).is_less_equal(
-		screen._checkout_button.get_global_rect().position.x - 8.0
+	(
+		assert_bool(_on_stage(screen, ShiftStage.COLUMN_RECT).encloses(button.get_global_rect()))
+		. is_true()
 	)
 
 
-## The wall and the counter cover the whole viewport, whatever its shape.
+## The wall and the counter cover the whole viewport, whatever its shape, and the top band and
+## the floor span it.
 func test_the_wall_and_counter_cover_the_viewport() -> void:
 	var screen: ShiftScreen = await _screen()
 	var window: Rect2 = screen.get_viewport_rect()
 	var wall: Rect2 = (screen.get_child(0) as Control).get_global_rect()
-	var counter: Rect2 = (screen.get_child(1) as Control).get_global_rect()
+	var counter: Rect2 = (screen.get_node("Counter") as Control).get_global_rect()
 	assert_bool(wall.encloses(window)).is_true()
+	for band_name: String in ["TopBand", "Floor"]:
+		var band: Rect2 = (screen.get_node(band_name) as Control).get_global_rect()
+		assert_float(band.position.x).is_less_equal(window.position.x)
+		assert_float(band.end.x).is_greater_equal(window.end.x)
 	assert_float(counter.position.x).is_less_equal(window.position.x)
 	assert_float(counter.end.x).is_greater_equal(window.end.x)
 	assert_float(counter.end.y).is_greater_equal(window.end.y)
@@ -794,19 +733,22 @@ func _place(screen: ShiftScreen, card_ids: Array[String]) -> void:
 
 func _assert_status_clear(screen: ShiftScreen) -> void:
 	var stage: Rect2 = screen._stage.get_global_rect()
-	var belt: Rect2 = (screen._row_strip.get_parent() as Control).get_global_rect()
+	var belt: Rect2 = screen._stage.belt.get_global_rect()
 	var hand: Rect2 = screen._hand_box.get_global_rect()
 	var receipt: Rect2 = screen._receipt.get_global_rect()
 	var cue: Label = _label_with(screen._stage, ShiftStage.CUE_TEXT)
 	assert_object(cue).is_not_null()
-	var status: Array[Control] = [screen._capacity_label, cue, screen._notice_label]
-	var totals: Array[Control] = [screen._led.digits_label(), screen._led.quota_label()]
-	var status_rect: Rect2 = _on_stage(screen, ShiftStage.STATUS_RECT)
-	var led: Rect2 = _on_stage(screen, ShiftStage.LED_RECT)
-	for part: Control in status + totals:
+	var places: Dictionary[Control, Rect2] = {
+		screen._capacity_label: ShiftStage.CAPACITY_RECT,
+		cue: ShiftStage.CUE_RECT,
+		screen._notice_label: ShiftStage.NOTICE_RECT,
+		screen._led.digits_label(): ShiftStage.LED_RECT,
+		screen._led.quota_label(): ShiftStage.LED_RECT,
+	}
+	for part: Control in places:
 		var rect: Rect2 = part.get_global_rect()
 		assert_bool(stage.encloses(rect)).override_failure_message(str(rect)).is_true()
-		var inside: Rect2 = led if totals.has(part) else status_rect
+		var inside: Rect2 = _on_stage(screen, places[part])
 		assert_bool(inside.encloses(rect)).override_failure_message(str(rect)).is_true()
 		for other: Rect2 in [belt, hand, receipt]:
 			(
@@ -821,22 +763,12 @@ func _assert_status_clear(screen: ShiftScreen) -> void:
 			. override_failure_message("%s needs %s in %s" % [part.get_path(), needed, rect.size])
 			. is_true()
 		)
-	# The capacity line and the cue stay apart, and so do the totals. (The notice covers both
-	# lines while it shows.)
 	_assert_apart([screen._capacity_label, cue])
 	_assert_digits_clear(screen)
 	var register: Rect2 = screen._register.get_global_rect()
-	var scanner: Rect2 = screen._stage.scanner.get_global_rect()
-	var pile: Rect2 = screen._paper_pile.get_global_rect()
-	for rect: Rect2 in [register, scanner, pile]:
-		assert_bool(stage.encloses(rect)).override_failure_message(str(rect)).is_true()
-	for rect: Rect2 in [register, scanner, pile]:
-		assert_bool(rect.intersects(hand)).override_failure_message(str(rect)).is_false()
+	assert_bool(stage.encloses(register)).override_failure_message(str(register)).is_true()
+	assert_bool(register.intersects(hand)).is_false()
 	assert_bool(register.intersects(belt)).is_false()
-	assert_bool(pile.intersects(belt)).is_false()
-	assert_bool(scanner.intersects(receipt)).is_false()
-	assert_bool(scanner.intersects(register)).is_false()
-	assert_bool(scanner.intersects(status_rect)).is_false()
 
 
 ## Every Label and Button under `node` (text on screen, wherever it is).

@@ -158,15 +158,12 @@ func test_chip_text_falls_back_by_measuring() -> void:
 	assert_bool(EffectChip.fits(text, font, size)).is_true()
 
 
-## Every chip lies on the stage inside its own cell, CHIP_CLEARANCE clear of the belt's bottom
+## Every chip lies on the stage inside its own cell, CHIP_CLEARANCE clear of its ticket on the
 ## rail, and covers neither its sticker, its sprite (lifted too), its plaque nor any other chip.
 func test_chips_stay_in_their_cells_clear_of_the_bottom_rail() -> void:
 	var screen: ShiftScreen = await _screen()
 	await _full_row(screen)
 	var stage: Rect2 = screen._stage.get_global_rect()
-	var belt: Rect2 = screen._stage.belt.get_global_rect()
-	var rubber: Rect2 = screen._stage.belt.interior()
-	var rail: float = belt.position.y + rubber.end.y
 	var all_chips: Array[Rect2] = []
 	for slot: int in range(screen._row_views.size()):
 		var item: ItemView = screen._row_views[slot] as ItemView
@@ -185,7 +182,7 @@ func test_chips_stay_in_their_cells_clear_of_the_bottom_rail() -> void:
 			assert_bool(stage.encloses(rect)).override_failure_message(message).is_true()
 			assert_bool(cell.encloses(rect)).override_failure_message(message).is_true()
 			assert_float(rect.end.y).override_failure_message(message).is_less_equal(
-				rail - ItemView.CHIP_CLEARANCE
+				item.sticker().get_global_rect().position.y - ItemView.CHIP_CLEARANCE
 			)
 			for other: Rect2 in covered + all_chips:
 				assert_bool(rect.intersects(other)).override_failure_message(message).is_false()

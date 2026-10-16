@@ -6,8 +6,9 @@ extends Control
 ## card's rule text verbatim and, for a belt item, a footer under a dashed brass rule with its
 ## payout and its step lines, as the caller words them. Its tail points at the item. place() is
 ## the pure placement rule. A belt item's popup (delta section 11) sits above the item with room
-## for the posed scanner, clamped to the stage, flipped below the item's sticker and chips when
-## it would reach the top bar. A hand item's popup (round 3) never covers the belt: it opens
+## for its marks, clamped to the stage, flipped below the item's sticker and chips when it would
+## reach the top bar, or held under the top bar over the sprite's top when it fits neither way
+## (B2's belt stands mid-screen). A hand item's popup (round 3) never covers the belt: it opens
 ## beside the item, over the tray, its tail pointing sideways at the item. The popup grows with
 ## its text up to MAX_HEIGHT; footer lines that don't fit fold into a last "+N more" line. A
 ## step line's amount (or "fizzle", after ReceiptView.joined_line's two spaces) sits at the
@@ -19,11 +20,11 @@ enum Placement { ABOVE, BELOW, RIGHT, LEFT }
 const WIDTH := 288.0
 const MIN_HEIGHT := 140.0
 ## The cap: the longest rule text with its header, tag line and payout row fits well within it,
-## and a belt item's popup flipped below its chips still ends inside the stage.
+## and a belt item's popup held under the top bar still ends above its chips.
 const MAX_HEIGHT := 280.0
 const PADDING := 12.0
 const CONTENT_WIDTH := 264.0
-## The popup's bottom sits this far above the lifted sprite (the posed scanner fits in the gap); a
+## The popup's bottom sits this far above the lifted sprite (the scan's marks fit in the gap); a
 ## flipped one's top this far below the item's sticker and chips.
 const GAP_ABOVE := 36.0
 const FLIP_GAP := 8.0
@@ -197,8 +198,9 @@ func place_at(item_rect: Rect2, below_rect: Rect2, layout: ScanLayout) -> void:
 ## layout's tray): place_beside(). A belt item's (delta section 11): centred on the sprite and
 ## clamped to the stage's side margins, its bottom GAP_ABOVE above the lifted sprite; when its top
 ## would come within TOP_GAP of the top bar it flips FLIP_GAP below `below_rect` (the item's
-## sticker and chips), so it never covers what its footer lists. It never runs past the stage's
-## foot. `popup_size` is the popup's size.
+## sticker and chips). When the flipped popup would run past the stage's foot too (a tall popup
+## on B2's mid-screen belt), it stays above, its top TOP_GAP under the top bar, over the sprite's
+## top: it never covers `below_rect`, what its footer lists. `popup_size` is the popup's size.
 static func place(
 	item_rect: Rect2, below_rect: Rect2, popup_size: Vector2, layout: ScanLayout
 ) -> Rect2:
@@ -208,9 +210,11 @@ static func place(
 	var x: float = item_rect.get_center().x - popup_size.x / 2.0
 	x = clampf(x, stage.position.x + SIDE_MARGIN, stage.end.x - SIDE_MARGIN - popup_size.x)
 	var top: float = item_rect.position.y - GAP_ABOVE - popup_size.y
-	if top < layout.top_bar_bottom + TOP_GAP:
-		top = below_rect.end.y + FLIP_GAP
-	top = minf(top, stage.end.y - SIDE_MARGIN - popup_size.y)
+	var highest: float = layout.top_bar_bottom + TOP_GAP
+	if top < highest:
+		var flipped: float = below_rect.end.y + FLIP_GAP
+		var fits_below: bool = flipped + popup_size.y <= stage.end.y - SIDE_MARGIN
+		top = flipped if fits_below else highest
 	return Rect2(Vector2(x, top), popup_size)
 
 
@@ -219,7 +223,7 @@ static func place(
 ## with `below_rect`, its sticker): on the right when it fits over the tray, else on the left when
 ## that fits over the tray, else on whichever side fits the stage, else clamped to the stage's side
 ## margins (no hand position needs that: the tray always has room on one side). Its top is level
-## with the lifted sprite's (the posed scanner stands above it), never above the counter line, and
+## with the lifted sprite's (the scan's marks stand above it), never above the counter line, and
 ## its bottom stays SIDE_MARGIN above the stage's foot. It may cover the neighbouring hand items.
 static func place_beside(
 	item_rect: Rect2, below_rect: Rect2, popup_size: Vector2, layout: ScanLayout

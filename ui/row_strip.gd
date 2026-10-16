@@ -3,25 +3,24 @@ extends Control
 ## The checkout row's slots (plan section 3.1), one cell per card the shift allows. Upgrades
 ## can add slots (Extra coupon slot, Big basket), so the cells are rebuilt when the shift's card
 ## limit changes. A row wider than the 7 slots the screen was laid out for first closes the gap
-## between its cells (the mats keep their own inset apart), then scales down to the 7-slot width
-## (8 slots x0.9, 9 slots x0.8). The common 7-slot row is never scaled.
+## between its cells (the tickets keep their own inset apart), then scales down to the 7-slot
+## width (8 slots about x0.95, 9 slots about x0.85). The common 7-slot row is never scaled.
 ##
-## The slots are cells on the boutique belt (#75, style frame v2): each open cell
-## (ItemView.BELT_SIZE) has a recessed brass-edged mat at MAT_RECT, and the row's items stand on
-## the mats as belt ItemViews (the sprite in the mat's recess, the payout plaque on its top rim,
-## the sticker and the chips under it). An empty mat's face is a step darker, with its slot
-## number engraved. No mat is marked as the coupon slot (a coupon slot is a capacity, not a
-## position: see ShiftScreen). The slots the picked item can go to wear a solid mustard ring
-## between ink lines around the mat (slot_placeable), so they differ from an empty slot in
-## shape, not only colour; and the empty mat under a dragged item is filled (slot_hover). The
-## ring and the fill sit on each cell's marks layer, over the mat and under the item, so the
-## item's plaque and sprite stay whole; is_outlined() and is_hovered() read them.
+## The slots are cells on the belt (#80, mock-up B2; greybox): each open cell
+## (ItemView.BELT_SIZE) stands its item on the belt's top face and clips its ticket (the item's
+## sticker) on the price rail. An empty slot shows a footprint on the belt (FOOTPRINT_RECT) and a
+## blank ticket on the rail (the "mat", at TICKET_RECT) with its slot number. No slot is marked
+## as the coupon slot (a coupon slot is a capacity, not a position: see ShiftScreen). The slots
+## the picked item can go to wear a solid mustard ring between ink lines around the ticket
+## (slot_placeable), so they differ from an empty slot in shape, not only colour; and the empty
+## ticket under a dragged item is filled (slot_hover). The ring and the fill sit on each cell's
+## marks layer, over the ticket and under the item; is_outlined() and is_hovered() read them.
 ##
 ## A slot the shift's inspection closed (Short belt, Coupon slot closed) shows as a CLOSED cell
-## after the open slots: bare rubber (no mat) behind a velvet rope on two brass posts (at their
-## art's size), the CLOSED sign (the inspection tag's frame) hanging from it, and under it the
-## names of the inspections that closed slots; its tooltip says why. It is never a drop target,
-## and the row keeps the run's usual cell count, so an inspection never rescales it.
+## after the open slots: a velvet rope on two posts on the belt (at their art's size), and on the
+## rail a dark ink plate reading CLOSED over the names of the inspections that closed slots; its
+## tooltip says why. It is never a drop target, and the row keeps the run's usual cell count, so
+## an inspection never rescales it.
 ##
 ## A plain Control holds the row: a Container would reset the row's scale. `slots` is kept as
 ## one array, changed in place, because CardDrag holds it.
@@ -32,46 +31,45 @@ signal closed_clicked
 
 ## The width of the 7 slots the screen was laid out for: wider rows are scaled to it.
 const LAID_OUT_SLOTS := 7
-## The gap between cells (style frame v2's pitch, 124), and a wider row's.
-const SEPARATION := 4
+## The gap between cells (mock-up B2's pitch, 128), and a wider row's.
+const SEPARATION := 12
 const WIDE_SEPARATION := 0
 const CELL_SIZE := ItemView.BELT_SIZE
-## Each open cell's mat (cell coordinates): inside its ink line and 2 px brass ring the item's
-## sprite stands on the recess, and the item's plaque sits on its top rim.
-const MAT_RECT := Rect2(6, 12, 108, 116)
-## The placeable ring reaches this far past the mat on every side (one art pixel).
+## An open cell's ticket on the rail (cell coordinates; the item's sticker covers it), and an
+## empty slot's footprint on the belt's top face.
+const TICKET_RECT := Rect2(ItemView.BELT_STICKER, PriceSticker.SIZE)
+const FOOTPRINT_RECT := Rect2(8, 100, 100, 32)
+const FOOTPRINT_COLOR := Palette.RUBBER_DARK
+const TICKET_EMPTY_COLOR := Palette.STEEL_LIGHT
+const OUTLINE := 2
+## The placeable ring reaches this far past the ticket on every side (one art pixel).
 const RING_GROW := 2
-## The frames' 9-slice margins, in art pixels: the ring, the hover fill, the CLOSED sign and the
-## mat (its ink line, brass ring and recess).
+## The frames' 9-slice margins, in art pixels: the ring and the hover fill.
 const RING_MARGIN := 4
 const HOVER_MARGIN := 3
-const TAG_MARGIN := 3
-const MAT_MARGIN := 5
-## The hover fill lets a little of the mat show through.
+## The hover fill lets a little of the ticket show through.
 const HOVER_ALPHA := 0.85
-## An empty mat's engraved number (cell coordinates, centred on the mat's face): brass dark in
-## the number font over a paper highlight.
-const NUMBER_RECT := Rect2(12, 18, 96, 104)
-const NUMBER_SIZE := 40
-const NUMBER_COLOR := Palette.BRASS_DARK
-const NUMBER_SHADOW := Palette.PAPER
-const ENGRAVE_OFFSET := 2
-## The CLOSED cell, in the cell: two brass posts and the velvet rope between them, at their
-## art's size; two strings from the rope to the CLOSED sign; the caption under the posts (two
-## lines when two inspections close slots).
-const POST_RECTS: Array[Rect2] = [Rect2(8, 26, 12, 72), Rect2(100, 26, 12, 72)]
-const ROPE_RECT := Rect2(16, 28, 88, 24)
-const STRING_RECTS: Array[Rect2] = [Rect2(42, 50, 2, 8), Rect2(76, 50, 2, 8)]
-const STRING_COLOR := Palette.INK
-const CLOSED_SIGN_RECT := Rect2(22, 58, 76, 28)
+## An empty slot's number, centred on its blank ticket, in the number font.
+const NUMBER_RECT := TICKET_RECT
+const NUMBER_SIZE := 32
+const NUMBER_COLOR := Palette.GREY_DARK
+## The CLOSED cell, in the cell: two posts on the belt and the velvet rope between them, at their
+## art's size; on the rail the ink plate with CLOSED on its top (the sign) and the caption under
+## it (two lines when two inspections close slots).
+const POST_RECTS: Array[Rect2] = [Rect2(11, 54, 12, 72), Rect2(93, 54, 12, 72)]
+const ROPE_RECT := Rect2(14, 56, 88, 24)
+const CLOSED_SIGN_RECT := Rect2(4, 166, 108, 26)
+const CLOSED_PLATE_RECT := TICKET_RECT
 const CLOSED_TEXT := "CLOSED"
 const CLOSED_SIZE := 16
-const CLOSED_CAPTION_RECT := Rect2(6, 98, 108, 32)
+const CLOSED_CAPTION_RECT := Rect2(6, 192, 104, 34)
 const CLOSED_CAPTION_SIZE := 12
 const CLOSED_CAPTION_WEIGHT := 700
 const CLOSED_CAPTION_OUTLINE := 4
 const GROUND_NAME := &"Ground"
 const MAT_NAME := &"Mat"
+const FOOTPRINT_NAME := &"Footprint"
+const PLATE_NAME := &"ClosedPlate"
 const NUMBER_NAME := &"SlotNumber"
 const MARKS_NAME := &"Marks"
 const RING_NAME := &"Ring"
@@ -79,12 +77,8 @@ const HOVER_NAME := &"Hover"
 const SIGN_NAME := &"ClosedSign"
 const CAPTION_NAME := &"ClosedCaption"
 
-const SLOT_MAT := preload("res://art/frames/slot_mat.png")
-## An empty mat: its face a step darker, so the slot reads as empty.
-const SLOT_MAT_EMPTY := preload("res://art/frames/slot_mat_empty.png")
 const SLOT_PLACEABLE := preload("res://art/frames/slot_placeable.png")
 const SLOT_HOVER := preload("res://art/frames/slot_hover.png")
-const TAG_FRAME := preload("res://art/frames/inspection_tag.png")
 const ROPE_POST := preload("res://art/scenery/rope_post.png")
 const VELVET_ROPE := preload("res://art/scenery/velvet_rope.png")
 
@@ -151,7 +145,7 @@ func show_cards(
 				panel.remove_child(child)
 				child.queue_free()
 		var empty: bool = slot >= row.size()
-		_show_mat(panel, empty)
+		_show_empty(panel, empty)
 		if not empty:
 			var card: CardInstance = row[slot]
 			var aisle: AisleDefinition = (
@@ -173,7 +167,7 @@ func is_outlined(slot: int) -> bool:
 	return (_marks(slots[slot]).get_node(NodePath(RING_NAME)) as CanvasItem).visible
 
 
-## Fills an empty mat as the landing spot of a dragged item, or clears it. A filled slot never
+## Fills an empty ticket as the landing spot of a dragged item, or clears it. A filled slot never
 ## shows the fill (the item that would be pushed is tinted instead, by CardDrag).
 static func set_hovered(panel: PanelContainer, hovered: bool) -> void:
 	var marks: Control = _marks(panel)
@@ -183,7 +177,7 @@ static func set_hovered(panel: PanelContainer, hovered: bool) -> void:
 	fill.visible = hovered and not _holds_card(panel)
 
 
-## Whether an empty mat shows the drag's landing fill.
+## Whether an empty ticket shows the drag's landing fill.
 static func is_hovered(panel: PanelContainer) -> bool:
 	var marks: Control = _marks(panel)
 	return marks != null and (marks.get_node(NodePath(HOVER_NAME)) as CanvasItem).visible
@@ -204,23 +198,25 @@ static func closed_caption_label(panel: PanelContainer) -> Label:
 	return panel.get_child(0).get_node(NodePath(CAPTION_NAME)) as Label
 
 
-## An open slot's mat, or null (a CLOSED cell has none).
+## An open slot's blank ticket (shown while the slot is empty), or null (a CLOSED cell).
 static func mat(panel: PanelContainer) -> Panel:
 	return panel.get_node_or_null(NodePath("%s/%s" % [GROUND_NAME, MAT_NAME])) as Panel
 
 
-## An open slot's engraved number (shown while its mat is empty), or null (a CLOSED cell).
+## An open slot's number (shown while it is empty), or null (a CLOSED cell).
 static func slot_number(panel: PanelContainer) -> Label:
 	return panel.get_node_or_null(NodePath("%s/%s" % [GROUND_NAME, NUMBER_NAME])) as Label
 
 
-## Whether a slot's mat shows its empty face (no item stands on it).
+## An open slot's footprint on the belt (shown while it is empty), or null (a CLOSED cell).
+static func footprint(panel: PanelContainer) -> Panel:
+	return panel.get_node_or_null(NodePath("%s/%s" % [GROUND_NAME, FOOTPRINT_NAME])) as Panel
+
+
+## Whether a slot shows as empty: its footprint and blank ticket (no item stands on it).
 static func shows_empty_mat(panel: PanelContainer) -> bool:
 	var slot_mat: Panel = mat(panel)
-	if slot_mat == null:
-		return false
-	var style: StyleBoxTexture = slot_mat.get_theme_stylebox("panel") as StyleBoxTexture
-	return style.texture == SLOT_MAT_EMPTY
+	return slot_mat != null and slot_mat.visible
 
 
 ## The gap between the cells of a row of `count` cells: a row wider than the laid-out one
@@ -234,7 +230,8 @@ static func row_width(count: int, separation: int = SEPARATION) -> float:
 	return count * CELL_SIZE.x + maxi(count - 1, 0) * separation
 
 
-## An open slot: its ground (the mat and the engraved number), then the marks over it. The
+## An open slot: its ground (the footprint, the blank ticket and the number), then the marks
+## over it. The
 ## PanelContainer sizes both layers to the cell; their parts are placed in the cell's
 ## coordinates.
 func _slot_panel(slot: int) -> PanelContainer:
@@ -246,25 +243,26 @@ func _slot_panel(slot: int) -> PanelContainer:
 	var ground: Control = Control.new()
 	ground.name = GROUND_NAME
 	ground.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	var slot_mat: Panel = Panel.new()
+	var print_rect: Panel = _flat(FOOTPRINT_COLOR)
+	print_rect.name = FOOTPRINT_NAME
+	_child_at(ground, print_rect, FOOTPRINT_RECT)
+	var slot_mat: Panel = _flat(TICKET_EMPTY_COLOR)
 	slot_mat.name = MAT_NAME
-	ArtStyle.use_pixel_material(slot_mat)
-	_child_at(ground, slot_mat, MAT_RECT)
-	var number: Label = _engraved_number(slot)
+	_child_at(ground, slot_mat, TICKET_RECT)
+	var number: Label = _slot_number_label(slot)
 	number.name = NUMBER_NAME
 	_child_at(ground, number, NUMBER_RECT)
 	panel.add_child(ground)
 	panel.add_child(_new_marks())
-	_show_mat(panel, true)
+	_show_empty(panel, true)
 	slots.append(panel)
 	return panel
 
 
-## A slot the inspection closed: bare rubber (no mat), with "CLOSED" on the inspection tag's
-## frame hanging from a velvet rope between two brass posts, and `caption` under them. The
-## CLOSED label is the cell's first child and spans the cell, its text centred on the sign; the
-## sign is drawn behind it, and the posts, rope, strings and caption are its children, placed in
-## the cell's coordinates.
+## A slot the inspection closed: a velvet rope between two posts on the belt, and on the rail the
+## ink plate with "CLOSED" over `caption`. The CLOSED label is the cell's first child and spans
+## the cell, its text centred on the plate's top (the sign); the plate is drawn behind it, and the
+## posts, rope and caption are its children, placed in the cell's coordinates.
 func _closed_panel(reason: String, caption: String) -> PanelContainer:
 	var panel: PanelContainer = PanelContainer.new()
 	panel.custom_minimum_size = CELL_SIZE
@@ -284,10 +282,14 @@ func _closed_panel(reason: String, caption: String) -> PanelContainer:
 	on_sign.content_margin_right = CELL_SIZE.x - CLOSED_SIGN_RECT.end.x
 	on_sign.content_margin_bottom = CELL_SIZE.y - CLOSED_SIGN_RECT.end.y
 	label.add_theme_stylebox_override("normal", on_sign)
-	var sign_frame: NinePatchRect = _nine_patch(TAG_FRAME, TAG_MARGIN)
-	sign_frame.name = SIGN_NAME
-	sign_frame.show_behind_parent = true
-	_child_at(label, sign_frame, CLOSED_SIGN_RECT)
+	label.add_theme_color_override("font_color", Palette.TOMATO_LIGHT)
+	var plate: Panel = _flat(Palette.INK)
+	plate.name = PLATE_NAME
+	plate.show_behind_parent = true
+	_child_at(label, plate, CLOSED_PLATE_RECT)
+	var sign_area: Control = Control.new()
+	sign_area.name = SIGN_NAME
+	_child_at(label, sign_area, CLOSED_SIGN_RECT)
 	for index: int in range(POST_RECTS.size()):
 		var post: TextureRect = UiKit.sprite(ROPE_POST)
 		post.name = "Post%d" % index
@@ -297,12 +299,7 @@ func _closed_panel(reason: String, caption: String) -> PanelContainer:
 	var rope: TextureRect = UiKit.sprite(VELVET_ROPE)
 	rope.name = "Rope"
 	_child_at(label, rope, ROPE_RECT)
-	for rect: Rect2 in STRING_RECTS:
-		var string: ColorRect = ColorRect.new()
-		string.name = "String"
-		string.color = STRING_COLOR
-		_child_at(label, string, rect)
-	var caption_label: Label = UiKit.body_label(caption, CLOSED_CAPTION_SIZE, Palette.PAPER)
+	var caption_label: Label = UiKit.body_label(caption, CLOSED_CAPTION_SIZE, Palette.CREAM_SHADE)
 	caption_label.name = CAPTION_NAME
 	caption_label.add_theme_font_override("font", caption_font())
 	caption_label.add_theme_constant_override("outline_size", CLOSED_CAPTION_OUTLINE)
@@ -326,8 +323,8 @@ static func caption_font() -> Font:
 	return ArtStyle.bold_font(CLOSED_CAPTION_WEIGHT)
 
 
-## The layer over a slot's mat and under its item: the drag's landing fill on the mat, under
-## the placeable ring, which reaches RING_GROW past the mat.
+## The layer over a slot's ticket and under its item: the drag's landing fill on the ticket,
+## under the placeable ring, which reaches RING_GROW past the ticket.
 static func _new_marks() -> Control:
 	var marks: Control = Control.new()
 	marks.name = MARKS_NAME
@@ -335,11 +332,11 @@ static func _new_marks() -> Control:
 	var fill: NinePatchRect = _nine_patch(SLOT_HOVER, HOVER_MARGIN)
 	fill.name = HOVER_NAME
 	fill.self_modulate = Color(1, 1, 1, HOVER_ALPHA)
-	_child_at(marks, fill, MAT_RECT)
+	_child_at(marks, fill, TICKET_RECT)
 	fill.visible = false
 	var ring: NinePatchRect = _nine_patch(SLOT_PLACEABLE, RING_MARGIN)
 	ring.name = RING_NAME
-	_child_at(marks, ring, MAT_RECT.grow(RING_GROW))
+	_child_at(marks, ring, TICKET_RECT.grow(RING_GROW))
 	ring.visible = false
 	return marks
 
@@ -368,14 +365,22 @@ static func _nine_patch(texture: Texture2D, margin: int) -> NinePatchRect:
 	return patch
 
 
-## Shows a slot's mat with its empty face and engraved number when `empty`, or its plain face
-## under the item standing on it.
-static func _show_mat(panel: PanelContainer, empty: bool) -> void:
-	var style: StyleBoxTexture = ArtStyle.frame_style(
-		SLOT_MAT_EMPTY if empty else SLOT_MAT, MAT_MARGIN
-	)
-	mat(panel).add_theme_stylebox_override("panel", style)
+## Shows a slot's footprint, blank ticket and number when `empty`; an item covers them otherwise.
+static func _show_empty(panel: PanelContainer, empty: bool) -> void:
+	footprint(panel).visible = empty
+	mat(panel).visible = empty
 	slot_number(panel).visible = empty
+
+
+## A flat `color` panel with an ink outline.
+static func _flat(color: Color) -> Panel:
+	var style: StyleBoxFlat = StyleBoxFlat.new()
+	style.bg_color = color
+	style.border_color = Palette.INK
+	style.set_border_width_all(OUTLINE)
+	var panel: Panel = Panel.new()
+	panel.add_theme_stylebox_override("panel", style)
+	return panel
 
 
 ## Adds `node` to `parent` at `rect` (the parent's coordinates), taking no clicks.
@@ -386,13 +391,10 @@ static func _child_at(parent: Control, node: Control, rect: Rect2) -> void:
 	parent.add_child(node)
 
 
-## A slot's number (1-based), engraved in its mat.
-static func _engraved_number(slot: int) -> Label:
+## A slot's number (1-based), on its blank ticket.
+static func _slot_number_label(slot: int) -> Label:
 	var number: Label = UiKit.number_label(str(slot + 1), NUMBER_SIZE, false)
 	number.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	number.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	number.add_theme_color_override("font_color", NUMBER_COLOR)
-	number.add_theme_color_override("font_shadow_color", NUMBER_SHADOW)
-	number.add_theme_constant_override("shadow_offset_x", 0)
-	number.add_theme_constant_override("shadow_offset_y", ENGRAVE_OFFSET)
 	return number

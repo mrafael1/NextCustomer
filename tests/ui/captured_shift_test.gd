@@ -3,9 +3,10 @@ extends GdUnitTestSuite
 ## Short belt, a hand of 8 items and four on the belt), in planning, with a hand item scanned and
 ## with a belt item scanned: style frame v2's layout checks (#75, step 9), ported to the screen
 ## that replaced the mock-up. Everything lies inside the 1280x720 stage; the top bar's parts stand
-## apart above the belt; the cells lie inside the belt's rubber and the hand's items inside the
-## tray's velvet rim, each belt sprite on its mat's face; no sticker covers another sticker, a
-## sprite, a chip, a plaque or the purse, and no sprite runs under its own plaque; the plaques
+## apart above the belt; the cells lie on the belt (#80, mock-up B2's greybox), each belt sprite
+## standing on its top face and each ticket on the rail, and the hand's items lie in the hand's
+## area; no sticker covers another sticker, a sprite, a chip or a plaque, and no sprite runs under
+## its own plaque; the plaques
 ## show core's payouts; every printed character has its glyph; no text carries the pixel
 ## material, and the sharp-pixel switch reaches every piece of art. Every rect is checked on
 ## screen (headless runs use a 1280x1280 window: the stage is centred, 280 px down). The capture
@@ -16,10 +17,6 @@ const CAPTURE := "res://debug/screen_capture/screen_capture.tscn"
 ## The states: planning, a hand item scanned (its popup beside it over the tray) and a belt item
 ## scanned (its popup flipped below its chips): the capture's --scan card ids, "" for none.
 const SCANS: Array[String] = ["", "batteries", "multipack"]
-## The mats' frame and the tray's velvet rim, in canvas pixels (style frame v2): a belt sprite
-## stands on its mat's face, inside the frame; the hand's items stay inside the rim.
-const MAT_RIM := 6.0
-const TRAY_RIM := 6.0
 
 var _folder: String = ""
 var _errors: PackedStringArray = PackedStringArray()
@@ -54,14 +51,9 @@ func test_everything_lies_inside_the_stage() -> void:
 				. override_failure_message("%s: %s %s" % [scan, control.get_path(), rect])
 				. is_true()
 			)
-		# The props by name: the purse, the key bed's TOTAL key, the CLOSED cell's parts and the
-		# scanner (docked or posed).
-		var named: Array[Control] = [
-			screen._stage.purse,
-			screen._stage.purse_shadow,
-			screen._cabinet.total_key(),
-			screen._stage.handheld,
-		]
+		# The props by name: the register's parts, the monitor's and the CLOSED cell's.
+		var named: Array[Control] = _controls(screen._cabinet)
+		named.append_array(_controls(screen._stage.monitor))
 		assert_int(screen._row_strip.closed.size()).is_equal(1)
 		for closed: Control in screen._row_strip.closed:
 			named.append(closed)
@@ -74,8 +66,8 @@ func test_everything_lies_inside_the_stage() -> void:
 			)
 
 
-## The shift sign, the loyalty card, the inspection tag, the boutique's plaque, Deck and Export
-## log: apart, under the stage's top edge and above the belt.
+## The shift sign, the loyalty card, the inspection tag, Deck and Export log: apart, under the
+## stage's top edge and above the belt.
 func test_the_top_bar_parts_are_apart_above_the_belt() -> void:
 	for scan: String in SCANS:
 		var screen: ShiftScreen = await _captured(scan)
@@ -84,7 +76,7 @@ func test_the_top_bar_parts_are_apart_above_the_belt() -> void:
 			var part: Control = child as Control
 			if part.visible and part.size.x > 0.0 and part.get_minimum_size().x > 0.0:
 				parts.append(part.get_global_rect())
-		assert_int(parts.size()).is_equal(6)
+		assert_int(parts.size()).is_equal(5)
 		var bottom: float = _y(screen, ShiftStage.TOP_BAR_BOTTOM)
 		for rect: Rect2 in parts:
 			assert_float(rect.end.y).override_failure_message(str(rect)).is_less_equal(bottom)
@@ -92,48 +84,52 @@ func test_the_top_bar_parts_are_apart_above_the_belt() -> void:
 		_assert_apart(parts, "top bar")
 
 
-## Every cell (the CLOSED one too) lies inside the belt's rubber, apart from the others; each
-## belt item's sprite (lifted or not) stands on its mat's face. The hand's items and their
-## stickers lie inside the tray's velvet rim, apart.
+## Every cell (the CLOSED one too) lies on the belt, apart from the others; each belt item's
+## sprite stands on the belt's top face and its ticket on the rail. The hand's items and their
+## stickers lie inside the hand's area, apart.
 func test_cells_lie_inside_the_belt_and_the_tray() -> void:
 	for scan: String in SCANS:
 		var screen: ShiftScreen = await _captured(scan)
-		var rubber: Rect2 = screen._stage.belt.interior()
-		rubber.position += screen._stage.belt.get_global_rect().position
+		var belt_panel: BeltPanel = screen._stage.belt
+		var belt_rect: Rect2 = belt_panel.get_global_rect()
+		var top_face: Rect2 = belt_panel.get_global_transform() * belt_panel.top_face()
+		var rail: Rect2 = belt_panel.get_global_transform() * belt_panel.rail()
 		var cells: Array[Rect2] = []
 		for panel: PanelContainer in screen._row_strip.slots + screen._row_strip.closed:
 			var rect: Rect2 = panel.get_global_rect()
 			cells.append(rect)
-			assert_bool(rubber.encloses(rect)).override_failure_message(str(rect)).is_true()
+			assert_float(rect.position.x).is_greater_equal(belt_rect.position.x)
+			assert_float(rect.end.x).is_less_equal(belt_rect.end.x)
+			assert_float(rect.end.y).is_less_equal(rail.end.y)
 		# Short belt: 5 product slots and the coupon slot open, one product slot CLOSED.
 		assert_int(cells.size()).is_equal(7)
 		_assert_apart(cells, "belt cells")
 		var belt: Array[ItemView] = _belt_items(screen)
 		assert_int(belt.size()).is_equal(4)
-		for slot: int in range(belt.size()):
-			var mat: Panel = RowStrip.mat(screen._row_strip.slots[slot])
-			var face: Rect2 = mat.get_global_rect().grow(-MAT_RIM)
-			var sprite: Rect2 = belt[slot].sprite().get_global_rect()
-			assert_bool(face.encloses(sprite)).override_failure_message(str(sprite)).is_true()
-		var tray: Rect2 = _on_stage(screen, ShiftStage.TRAY_RECT).grow(-TRAY_RIM)
+		for view: ItemView in belt:
+			var foot: Vector2 = view.sprite().get_global_rect().end - Vector2(1, 1)
+			assert_bool(top_face.has_point(foot)).override_failure_message(str(foot)).is_true()
+			var ticket: Rect2 = view.sticker().get_global_rect()
+			assert_bool(rail.encloses(ticket)).override_failure_message(str(ticket)).is_true()
+		var area: Rect2 = _on_stage(screen, ShiftStage.HAND_AREA)
 		var items: Array[Rect2] = []
 		for view: ItemView in _hand_items(screen):
 			var rect: Rect2 = view.get_global_rect()
 			items.append(rect)
-			assert_bool(tray.encloses(rect)).override_failure_message(str(rect)).is_true()
-			assert_bool(tray.encloses(view.sticker().get_global_rect())).is_true()
-			assert_bool(tray.encloses(view.sprite().get_global_rect())).is_true()
+			assert_bool(area.encloses(rect)).override_failure_message(str(rect)).is_true()
+			assert_bool(area.encloses(view.sticker().get_global_rect())).is_true()
+			assert_bool(area.encloses(view.sprite().get_global_rect())).is_true()
 		assert_int(items.size()).is_equal(8)
 		_assert_apart(items, "tray items")
 
 
-## No sticker covers another sticker, a sprite (lifted or not), a chip, a plaque or the purse;
+## No sticker covers another sticker, a sprite (lifted or not), a chip or a plaque;
 ## a sprite may touch its own plaque (lifted), never run under it.
 func test_stickers_never_cover_a_sticker_a_sprite_or_a_chip() -> void:
 	for scan: String in SCANS:
 		var screen: ShiftScreen = await _captured(scan)
 		var stickers: Array[Rect2] = []
-		var others: Array[Rect2] = [screen._stage.purse.get_global_rect()]
+		var others: Array[Rect2] = []
 		var chips: int = 0
 		for view: ItemView in _belt_items(screen) + _hand_items(screen):
 			stickers.append(view.sticker().get_global_rect())

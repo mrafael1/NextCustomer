@@ -44,3 +44,33 @@ v 2a0e14 velvet darkest
 V 561327 velvet dark
 x 8a1f33 velvet
 X b23a55 velvet sheen
+; B2 store (mock-up B2, #80): the belt's steel and rubber, the counter's wood, the wall's plaster,
+; the monitor's glass, the baskets' extra teals and the cashier's skin. Haze and shadows are
+; drawn in code (modulate), so no pre-hazed colours.
+A ecebe4 steel highlight
+B c7c3b8 steel light
+C a9a59b steel pale
+D 8d8a83 steel
+E 6f6b63 steel shade
+H 57534c steel dark
+I 45423d steel darkest
+J 3d3a36 rubber
+K 2c2926 rubber dark
+N 24221f charcoal
+P ddb07a wood pale
+Q c98c4e wood light
+S a8703a wood
+T 6e4524 wood dark
+U 3e2614 wood darkest
+W ece0c6 plaster light
+Z e4d6b9 plaster
+d cdbb98 plaster shade
+i b9a47c plaster dark
+j e4f6f3 glass glow
+p bfe2dd glass
+s 2c3533 slate
+t 222a29 slate dark
+7 5fb0a8 teal bright
+8 172c2b teal black
+9 e2b48c skin
+0 c38f6a skin shade

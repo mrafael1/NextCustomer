@@ -1,16 +1,17 @@
 extends GdUnitTestSuite
-## The belt on the real shift screen (#55, #75; style frame v2): the row's cells fill the belt's
-## rubber at v2's coordinates, the row's cards stand on their mats as belt items, and 7-slot,
-## CLOSED, 8-slot and 9-slot rows stay on the belt with every item's sprite, plaque, sticker and
-## chips inside its own cell and on the 1280x720 stage. Every rect is checked on screen (headless
+## The belt on the real shift screen (#80, mock-up B2's greybox): the row's cells stand in the
+## row's band over the belt at B2's coordinates, the row's cards stand on the belt as belt items
+## with their tickets on the rail, and 7-slot, CLOSED, 8-slot and 9-slot rows stay on the belt
+## with every item's sprite, plaque, sticker and chips inside its own cell and on the 1280x720
+## stage. Every rect is checked on screen (headless
 ## runs use a 1280x1280 window: the stage is centred, 280 px down). The real saves and logs are
 ## never touched.
 
 const SCREEN := "res://ui/shift_screen.tscn"
 const SHORT_BELT := preload("res://data/inspections/short_belt.tres")
-## Style frame v2's first cell and the cells' pitch, on the stage.
-const CELL_ORIGIN := Vector2(32, 76)
-const CELL_PITCH := 124.0
+## Mock-up B2's first cell and the cells' pitch, on the stage.
+const CELL_ORIGIN := Vector2(32, 258)
+const CELL_PITCH := 128.0
 ## The smallest a scaled row's sticker summary may print, in canvas pixels.
 const MIN_SUMMARY_PX := 10.0
 ## Chip texts as long as the real ones (BeltChips adds those to every item that has steps).
@@ -34,9 +35,9 @@ func after_test() -> void:
 		DirAccess.remove_absolute(_folder)
 
 
-## The 7 cells stand at style frame v2's places (pitch 124 from (32, 76)) and fill the belt's
-## rubber between its rails and rollers; the belt and the register stand on the counter line,
-## side by side, with the register from 944 to 1264.
+## The 7 cells stand at mock-up B2's places (pitch 128 from (32, 258)) in the row's band over
+## the belt; the belt's top face starts at the counter line, and the register stands right of the
+## belt, from 944 to the stage's right edge.
 func test_the_cells_fill_the_rubber_as_in_style_frame_v2() -> void:
 	var screen: ShiftScreen = await _screen()
 	var stage: Rect2 = screen._stage.get_global_rect()
@@ -45,23 +46,21 @@ func test_the_cells_fill_the_rubber_as_in_style_frame_v2() -> void:
 		var cell: Rect2 = screen._slots[slot].get_global_rect()
 		var expected: Vector2 = CELL_ORIGIN + Vector2(slot * CELL_PITCH, 0)
 		assert_that(cell).is_equal(Rect2(stage.position + expected, ItemView.BELT_SIZE))
-	var belt: Rect2 = screen._stage.belt.get_global_rect()
-	var rubber: Rect2 = screen._stage.belt.interior()
-	rubber.position += belt.position
 	var row: Rect2 = screen._slots[0].get_global_rect().merge(screen._slots[6].get_global_rect())
-	assert_that(row).is_equal(rubber)
+	assert_bool(_on_stage(screen, ShiftStage.ROW_AREA).encloses(row)).is_true()
+	var belt: BeltPanel = screen._stage.belt
+	var top_face: Rect2 = belt.get_global_transform() * belt.top_face()
+	assert_float(top_face.position.y).is_equal(stage.position.y + ShiftStage.COUNTER_TOP)
 	var register: Rect2 = screen._register.get_global_rect()
 	assert_float(register.position.x - stage.position.x).is_equal(944.0)
-	assert_float(register.end.x - stage.position.x).is_equal(1264.0)
-	assert_float(belt.end.y).is_equal(stage.position.y + ShiftStage.COUNTER_TOP)
-	assert_float(register.end.y).is_equal(belt.end.y)
-	assert_float(belt.end.x).is_less(register.position.x)
+	assert_float(register.end.x).is_equal(stage.end.x)
+	assert_float(belt.get_global_rect().end.x).is_less(register.position.x)
 
 
 ## The usual 7-slot row, a CLOSED row (Short belt) and a 9-slot row (Big basket and Extra coupon
-## slot, scaled to the 7-slot width) stay on the fixed belt's rubber, apart, clear of the receipt
-## and the scanner, resting on ROW_BOTTOM, with each value plaque under the top bar, on its mat's
-## top rim and clear of its sprite. Row items are belt items (ItemView.BELT_SIZE, the 7-slot row
+## slot, scaled to the 7-slot width) stay in the row's band over the belt, apart, clear of the
+## receipt, resting on ROW_BOTTOM, with each value plaque under the top bar, inside its cell and
+## clear of its sprite. Row items are belt items (ItemView.BELT_SIZE, the 7-slot row
 ## never scaled) whose sprite is the moving body.
 func test_the_rows_stay_on_the_belt() -> void:
 	var screen: ShiftScreen = await _screen()
@@ -100,8 +99,8 @@ func test_the_rows_stay_on_the_belt() -> void:
 
 
 ## Full 8- and 9-slot rows (a full row of products and coupons, two chips each): every item's
-## sprite stays in its mat, its plaque (a four-digit payout), sticker and chips in its own cell,
-## so nothing reaches a neighbour, all of it on the stage and on the belt's rubber; the sticker's
+## sprite stays above its ticket, its plaque (a four-digit payout), sticker and chips in its own
+## cell, so nothing reaches a neighbour, all of it on the stage and in the row's band; the sticker's
 ## summary prints at least MIN_SUMMARY_PX tall.
 func test_full_wide_rows_keep_each_item_in_its_cell() -> void:
 	var screen: ShiftScreen = await _screen()
@@ -124,9 +123,7 @@ func _assert_full_row_fits(screen: ShiftScreen, count: int) -> void:
 	await _frames(2)
 	assert_int(screen._row_views.size()).is_equal(count)
 	var stage: Rect2 = screen._stage.get_global_rect()
-	var belt: Rect2 = screen._stage.belt.get_global_rect()
-	var rubber: Rect2 = screen._stage.belt.interior()
-	rubber = Rect2(belt.position + rubber.position, rubber.size).grow(0.01)
+	var rubber: Rect2 = _on_stage(screen, ShiftStage.ROW_AREA).grow(0.01)
 	for slot: int in range(count):
 		var item: ItemView = screen._row_views[slot] as ItemView
 		item.show_badge(9999, false)
@@ -137,7 +134,7 @@ func _assert_full_row_fits(screen: ShiftScreen, count: int) -> void:
 		assert_bool(rubber.encloses(cell)).override_failure_message(message).is_true()
 		var mat: Rect2 = RowStrip.mat(screen._slots[slot]).get_global_rect()
 		var sprite: Rect2 = item.body.get_global_rect()
-		assert_bool(mat.encloses(sprite)).override_failure_message(message).is_true()
+		assert_float(sprite.end.y).override_failure_message(message).is_less_equal(mat.position.y)
 		var parts: Array[Control] = [(item.badge as PayoutPlaque).face(), item.sticker()]
 		parts.append_array(item.chips())
 		for part: Control in parts:
@@ -160,13 +157,11 @@ func _assert_row_on_belt(screen: ShiftScreen, panel_count: int) -> void:
 	var bar_bottom: float = stage.position.y + RewardPanel.PRINTOUT_TOP
 	var belt: Rect2 = (screen._row_strip.get_parent() as Control).get_global_rect()
 	var receipt: Rect2 = screen._receipt.get_global_rect()
-	var scanner: Rect2 = screen._stage.scanner.get_global_rect()
 	assert_that(belt).is_equal(_on_stage(screen, ShiftStage.BELT_RECT))
 	assert_bool(stage.encloses(belt)).is_true()
-	# On the rubber, between the belt's rails and rollers.
-	var rubber: Rect2 = screen._stage.belt.interior()
-	# (Grown by a hair: a scaled row ends on the roller's edge, give or take float rounding.)
-	var interior: Rect2 = Rect2(belt.position + rubber.position, rubber.size).grow(0.01)
+	# In the row's band over the belt.
+	# (Grown by a hair: a scaled row ends on the band's edge, give or take float rounding.)
+	var interior: Rect2 = _on_stage(screen, ShiftStage.ROW_AREA).grow(0.01)
 	var panels: Array[PanelContainer] = screen._slots + screen._row_strip.closed
 	assert_int(panels.size()).is_equal(panel_count)
 	var previous: Rect2 = Rect2()
@@ -174,7 +169,6 @@ func _assert_row_on_belt(screen: ShiftScreen, panel_count: int) -> void:
 		var rect: Rect2 = panels[index].get_global_rect()
 		assert_bool(interior.encloses(rect)).override_failure_message(str(rect)).is_true()
 		assert_bool(rect.intersects(receipt)).override_failure_message(str(rect)).is_false()
-		assert_bool(rect.intersects(scanner)).override_failure_message(str(rect)).is_false()
 		# Every row rests on the same line.
 		assert_float(rect.end.y).is_equal_approx(stage.position.y + ShiftStage.ROW_BOTTOM, 0.5)
 		# (A scaled row's cells touch, give or take float rounding.)
@@ -185,11 +179,8 @@ func _assert_row_on_belt(screen: ShiftScreen, panel_count: int) -> void:
 		assert_bool(view.badge.visible).is_true()
 		var badge: Rect2 = view.badge.get_global_rect()
 		var face: Rect2 = (view.badge as PayoutPlaque).face().get_global_rect()
-		var mat: Rect2 = RowStrip.mat(view.get_parent() as PanelContainer).get_global_rect()
 		assert_float(badge.position.y).is_greater_equal(bar_bottom)
 		assert_bool(view.get_global_rect().encloses(face)).is_true()
-		assert_float(face.position.y).is_less_equal(mat.position.y)
-		assert_float(face.end.y).is_greater(mat.position.y)
 		assert_bool(face.intersects(view.body.get_global_rect())).is_false()
 		assert_bool(badge.intersects(receipt)).is_false()
 

@@ -23,7 +23,7 @@ extends Control
 ## Sounds (#62) play on the screen's own Sfx, warmed up when it opens: cards picked up, placed
 ## and let go, refusals, the redraw, CHECKOUT, a reward or ticket taken and the log export here;
 ## buttons and panels in UiKit, drag slot ticks in CardDrag, music in ShiftMusic. The only hover
-## sound is the scanner's beep (#75, ScanController), which scans the hovered item.
+## sound is the scanner's beep (#75, ScanController), played once a hover on an item is held.
 
 const STARTER_DECK := "res://data/decks/starter.tres"
 const BALANCE := "res://data/balance/balance.tres"
@@ -90,19 +90,18 @@ var _upgrade_panel: UpgradePanel
 var _shade: ColorRect
 var _deck_view: DeckView
 var _row_strip: RowStrip
-## The register cabinet: the count-up's rattle target, with the TOTAL key.
+## The register: the count-up's rattle target (the same node as `_cabinet`); its
+## set_total_down() marks CHECKOUT held while the shift is counted.
 var _register: Control
 var _cabinet: RegisterCabinet
-## The register's LED: the projected total in planning, the count-up's subtotal and total.
+## The monitor's LED: the projected total in planning, the count-up's subtotal and total.
 var _led: LedDisplay
 var _overlay: Control
-## The paper pile at the receipt's foot (#60, D4), grown by the count-up.
-var _paper_pile: PaperPile
 var _count_up: CountUp
 var _sfx: Sfx
 var _debug: ShiftDebug
 var _focus: FocusWatch
-## The hover scanner (#75): the scan popup and the posed scanner over the hovered item.
+## The hover scanner (#75): the scan popup and the marks over the scanned item.
 var _scan: ScanController
 ## The belt items' effect chips (#75): all of them in planning, one by one in the count-up.
 var _belt_chips: BeltChips = BeltChips.new()
@@ -199,7 +198,6 @@ func _on_shift_started() -> void:
 	}
 	_log.log_event("shift_start", start)
 	_refresh()
-	_count_up.show_pile_for_shift(run.shift_index + 1)
 	_save_run()
 
 
@@ -221,11 +219,10 @@ func _resume_run(saved: RunSave) -> void:
 	tracker.begin(Time.get_ticks_msec(), _focus.is_player_present())
 	_refresh()
 	if run.phase == RunState.Phase.PLANNING:
-		_count_up.show_pile_for_shift(run.shift_index + 1)
 		return
 	# After the checkout: the row, its receipt (ended as the dessert left it, with the next
-	# shift's inspection notice), the LED's TOTAL, the quota chip and the paper pile as the
-	# count-up left them (the TOTAL key up: nothing is being counted).
+	# shift's inspection notice), the LED's TOTAL and the quota chip as the count-up left them
+	# (CHECKOUT up: nothing is being counted).
 	_show_checked_out(run.last_result)
 	_receipt.show_shift_end(
 		run.last_result.total, run.quota(), InspectionTag.next_notice(run.next_inspection)
@@ -408,7 +405,7 @@ func _on_checkout_pressed() -> void:
 		return
 	_sfx.play("checkout")
 	_counting = true
-	# The TOTAL key stays down while the shift is counted, to the dessert's end, and the hand
+	# CHECKOUT stays held while the shift is counted, to the dessert's end, and the hand
 	# fades so the belt reads first.
 	_cabinet.set_total_down(true)
 	_stage.dim_hand(true)
@@ -538,8 +535,6 @@ func _show_impulse_rack() -> void:
 	_receipt.clear()
 	_led.clear()
 	_cabinet.set_total_down(false)
-	# A new run has printed nothing yet.
-	_count_up.show_pile_for_shift(1)
 	_deck_viewed_for_reward = false
 	_pending_reward = null
 	_reward_panel.show_rack(run)
@@ -775,7 +770,7 @@ static func _closed_text(closed: int, left: int) -> String:
 
 
 ## One slot per card the shift allows (upgrades can add slots), then the row's cards, standing
-## on their mats as belt items (RowStrip.show_cards).
+## on the belt as belt items with their tickets on the rail (RowStrip.show_cards).
 func _refresh_row() -> void:
 	var closed: int = run.limits.closed_slots + run.limits.closed_coupon_slots
 	var reason: String = (
@@ -877,8 +872,8 @@ func _process(_delta: float) -> void:
 	)
 	# The shade starts under the top bar, wherever the stage sits in the window.
 	_shade.offset_top = _stage.position.y + RewardPanel.PRINTOUT_TOP
-	# Beside the print-out alone, the register column (the cabinet, the receipt and the paper
-	# pile) stays unshaded (#61). The shade ends at the column's place on the stage, not at a
+	# Beside the print-out alone, the register column (the register and the receipt) stays
+	# unshaded (#61). The shade ends at the column's place on the stage, not at a
 	# node's rect, so it holds still while the register rattles.
 	var beside: bool = _reward_panel.is_printout() and not _deck_view.visible
 	var column_x: float = (_stage.get_global_transform() * ShiftStage.REGISTER_RECT).position.x
@@ -887,7 +882,7 @@ func _process(_delta: float) -> void:
 
 func _build() -> void:
 	set_anchors_preset(Control.PRESET_FULL_RECT)
-	BoutiqueBackdrop.screen_parts(self).gui_input.connect(_on_background_input)
+	StoreBackdrop.screen_parts(self).gui_input.connect(_on_background_input)
 	_stage = ShiftStage.new(_balance.slot_count + _balance.coupon_slot_count)
 	# Text on the stage and the overlay without its own font (the count-up's flying numbers,
 	# stamps and verdict) uses the number font. The theme stays off the screen's root, so the
@@ -909,7 +904,6 @@ func _build() -> void:
 	_register = _stage.register
 	_cabinet = _stage.cabinet
 	_led = _stage.led
-	_paper_pile = _stage.paper_pile
 	_receipt = _stage.receipt
 	_row_strip = _stage.row_strip
 	_row_strip.slot_input.connect(_on_slot_input)
@@ -936,7 +930,8 @@ func _build() -> void:
 	_focus.player_returned.connect(_on_focus_entered)
 	_count_up = CountUp.new()
 	add_child(_count_up)
-	_count_up.setup(_overlay, _receipt, _led, _sfx, _register, _paper_pile)
+	# B2 has no paper pile (#80): the count-up runs without one.
+	_count_up.setup(_overlay, _receipt, _led, _sfx, _register)
 	_count_up.music = _music
 	_count_up.scan_overlay = _stage.scan_layer
 	_count_up.step_landed.connect(_belt_chips.land)

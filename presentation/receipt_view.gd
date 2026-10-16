@@ -9,9 +9,9 @@ extends PanelContainer
 ## gold band, a gold bar and a diamond. After a checkout, the shift's dessert (#61) ends it: the
 ## verdict "€total / €quota" on the TOTAL line, the margin line under it (with PAID on a pass),
 ## the tear, then the next shift's red notice (show_shift_end prints them all at once). On the
-## shift screen it is in fit mode (#55): as tall as its lines, down to the paper pile's top. An
-## indented step line hangs (#55): wrapped, it starts past its lead and marker on every row, and
-## its amount (or "fizzle") sits on its last row.
+## shift screen it stands on the printer's slot and grows up (fit_up, #80): as tall as its lines,
+## up to ShiftStage.RECEIPT_TOP. An indented step line hangs (#55): wrapped, it starts past its
+## lead and marker on every row, and its amount (or "fizzle") sits on its last row.
 
 enum LineStyle {
 	DETAIL,
@@ -64,12 +64,13 @@ var _lines: VBoxContainer
 var _scroll: ScrollContainer
 ## The last TOTAL line printed, or null.
 var _total_line: HBoxContainer
-## In fit mode (fit_mode()): the lowest the receipt's bottom may reach, in the parent's
-## coordinates. Empty otherwise.
-var _max_bottom: Callable = Callable()
+## In fit-up mode (fit_up()): the bottom the receipt stands on and the highest its top may reach,
+## in the parent's coordinates; -1 otherwise.
+var _stand_bottom: float = -1.0
+var _cap_top: float = 0.0
 ## A fit is queued for the end of this frame's layout.
 var _fit_queued: bool = false
-## Fit mode: the next layout of the lines scrolls to their end, in the same frame.
+## Fit-up mode: the next layout of the lines scrolls to their end, in the same frame.
 var _snap_to_end: bool = false
 
 
@@ -89,29 +90,30 @@ func _init() -> void:
 	_scroll.add_child(_lines)
 
 
-## Fit mode (#55): the receipt is as tall as its lines, from where it stands down to at most
-## `max_bottom`'s value (a Callable returning a float, the parent's coordinates); past that it
-## ends there, scrolled to its newest line, with no scroll bar (the mouse wheel still scrolls).
-## It fits again whenever its lines change; call fit_height() when `max_bottom` moves.
-func fit_mode(max_bottom: Callable) -> void:
-	_max_bottom = max_bottom
+## Fit-up mode (#80): the receipt stands on `bottom` (the parent's coordinates) and is as tall as
+## its lines, up to `top` at most; past that it ends there, scrolled to its newest line, with no
+## scroll bar (the mouse wheel still scrolls). It fits again whenever its lines change.
+func fit_up(bottom: float, top: float) -> void:
+	_stand_bottom = bottom
+	_cap_top = top
 	_scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_SHOW_NEVER
 	if not _lines.minimum_size_changed.is_connected(_queue_fit):
 		_lines.minimum_size_changed.connect(_queue_fit)
 	fit_height()
 
 
-## Fits the receipt's height to its lines (fit mode only; see fit_mode()), then scrolls to its
+## Fits the receipt's height to its lines (fit-up mode only; see fit_up()), then scrolls to its
 ## end.
 func fit_height() -> void:
 	_fit_queued = false
-	if not _max_bottom.is_valid():
+	if _stand_bottom < 0.0:
 		return
 	var frame: float = get_theme_stylebox("panel").get_minimum_size().y
-	var room: float = float(_max_bottom.call()) - position.y
+	var room: float = _stand_bottom - _cap_top
 	# The newest line stays in view in the very frame the receipt grows or shrinks.
 	_snap_to_end = true
 	size.y = maxf(minf(natural_height(), room), frame)
+	position.y = _stand_bottom - size.y
 	# Sorted after the panel gives the scroll area its new size (the scroll area doesn't always
 	# sort itself on a resize), so _on_scroll_sorted sees it.
 	_scroll.queue_sort()
@@ -579,7 +581,7 @@ func _queue_fit() -> void:
 	fit_height.call_deferred()
 
 
-## Fit mode: once the scroll area has laid out its new size, scrolls to the end (deferred: the
+## Fit-up mode: once the scroll area has laid out its new size, scrolls to the end (deferred: the
 ## scroll area lays its lines out again for the new scroll only after this sort has finished).
 func _on_scroll_sorted() -> void:
 	if not _snap_to_end:

@@ -220,7 +220,7 @@ func test_the_screen_shows_core_totals() -> void:
 	screen._on_reward_skipped()
 	await _frames(2)
 	var led: LedDisplay = screen._led
-	assert_object(led.get_parent()).is_same(screen._cabinet)
+	assert_object(led.get_parent()).is_same(screen._stage)
 	var run: RunState = screen.run
 	for id: String in ["milk", "bread", "milk"]:
 		var card: CardInstance = run.debug_add_to_hand(load("res://data/cards/%s.tres" % id))

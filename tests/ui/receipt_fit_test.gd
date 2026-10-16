@@ -1,10 +1,9 @@
 extends GdUnitTestSuite
-## The receipt in fit mode on the shift screen (#55, D1a): it hangs from the printer slot as tall
-## as its lines; a long receipt ends PILE_JOIN under the paper pile's top (never past the pile's
-## foot) and shows its newest line, with no scroll bar while the mouse wheel still scrolls; it fits
-## again when the pile grows, curls or starts empty; the end of a shift printed at once (a resume,
-## ReceiptView.show_shift_end) takes the same fit. The paper pile shows only while the receipt
-## reaches it. The real saves and logs are never touched.
+## The receipt in fit-up mode on the shift screen (#80, mock-up B2): it stands on the printer's
+## slot (ShiftStage.RECEIPT_BOTTOM) as tall as its lines; a long receipt stops at RECEIPT_TOP and
+## shows its newest line, with no scroll bar while the mouse wheel still scrolls; the end of a
+## shift printed at once (a resume, ReceiptView.show_shift_end) takes the same fit. The real
+## saves and logs are never touched.
 
 const SCREEN := "res://ui/shift_screen.tscn"
 
@@ -26,11 +25,10 @@ func after_test() -> void:
 		DirAccess.remove_absolute(_folder)
 
 
-## The preview is the stub (#75): a short receipt, as tall as its lines, its end above the pile's
-## top, which stays hidden though it holds earlier shifts' paper. A longer belt's stub is as short.
+## The preview is the stub (#75): a short receipt standing on the printer's slot, as tall as its
+## lines, every line in view. A longer belt's stub is as short.
 func test_a_short_preview_gives_a_short_receipt() -> void:
 	var screen: ShiftScreen = await _screen()
-	screen._count_up.show_pile_for_shift(5)
 	_place(screen, ["milk"])
 	await _frames(2)
 	var receipt: ReceiptView = screen._receipt
@@ -41,33 +39,21 @@ func test_a_short_preview_gives_a_short_receipt() -> void:
 	assert_float(receipt.natural_height()).is_equal(one)
 	assert_float(receipt.size.y).is_equal(receipt.natural_height())
 	var stage_y: float = screen._stage.get_global_rect().position.y
-	assert_float(receipt.get_global_rect().position.y).is_equal(
-		stage_y + ShiftStage.RECEIPT_ORIGIN.y
-	)
-	assert_float(receipt.position.y + receipt.size.y).is_less(screen._stage.receipt_bottom())
+	assert_float(receipt.get_global_rect().end.y).is_equal(stage_y + ShiftStage.RECEIPT_BOTTOM)
+	assert_float(receipt.position.y).is_greater(ShiftStage.RECEIPT_TOP)
 	assert_bool(receipt._scroll.get_v_scroll_bar().visible).is_false()
 	_assert_lines_in_view(receipt)
-	assert_float(screen._paper_pile.height_px).is_greater(0.0)
-	assert_bool(screen._stage.receipt_reaches_pile()).is_false()
-	assert_bool(screen._paper_pile.visible).is_false()
 
 
-## A long receipt grows down to the pile's top + PILE_JOIN, scrolls to its newest line with no
-## scroll bar, and the wheel (the scroll area) still reaches its first line.
-func test_a_long_receipt_ends_at_the_pile_and_scrolls_to_its_end() -> void:
+## A long receipt grows up to RECEIPT_TOP, still standing on the printer's slot, scrolls to its
+## newest line with no scroll bar, and the wheel (the scroll area) still reaches its first line.
+func test_a_long_receipt_stops_under_the_top_bar_and_scrolls_to_its_end() -> void:
 	var screen: ShiftScreen = await _screen()
-	var stage: ShiftStage = screen._stage
-	screen._count_up.show_pile_for_shift(5)
 	await _long_receipt(screen)
 	var receipt: ReceiptView = screen._receipt
-	var pile: PaperPile = screen._paper_pile
-	assert_float(pile.height_px).is_greater(0.0)
 	assert_float(receipt.natural_height()).is_greater(receipt.size.y)
-	assert_float(stage.receipt_bottom()).is_equal(
-		minf(ShiftStage.PILE_BOTTOM, pile.top_y() + ShiftStage.PILE_JOIN)
-	)
-	assert_float(receipt.position.y + receipt.size.y).is_equal(stage.receipt_bottom())
-	assert_bool(pile.visible).is_true()
+	assert_float(receipt.position.y).is_equal(ShiftStage.RECEIPT_TOP)
+	assert_float(receipt.position.y + receipt.size.y).is_equal(ShiftStage.RECEIPT_BOTTOM)
 	assert_bool(receipt._scroll.get_v_scroll_bar().visible).is_false()
 	_assert_newest_in_view(receipt)
 	# The wheel scrolls the area: back at the top, the first line shows and stays.
@@ -76,44 +62,17 @@ func test_a_long_receipt_ends_at_the_pile_and_scrolls_to_its_end() -> void:
 	assert_int(receipt._scroll.scroll_vertical).is_equal(0)
 	var first: Rect2 = (receipt._lines.get_child(0) as Control).get_global_rect()
 	assert_bool(receipt._scroll.get_global_rect().grow(1.0).encloses(first)).is_true()
-
-
-## The receipt fits again whenever the pile's top moves, in the same frame: the pile grows, curls
-## (its top fold rises MARGIN.y), or starts a run empty (the receipt then ends at the pile's
-## foot, PILE_BOTTOM, above the kickplate).
-func test_the_receipt_fits_again_when_the_pile_moves() -> void:
-	var screen: ShiftScreen = await _screen()
-	var stage: ShiftStage = screen._stage
-	var pile: PaperPile = screen._paper_pile
-	screen._count_up.show_pile_for_shift(3)
-	await _long_receipt(screen)
-	var receipt: ReceiptView = screen._receipt
-	var end: float = receipt.position.y + receipt.size.y
-	pile.set_height(pile.height_px + 20.0)
-	assert_float(receipt.position.y + receipt.size.y).is_equal(end - 20.0)
-	await _frames(1)
-	_assert_newest_in_view(receipt)
-	pile.curl(true)
-	assert_float(receipt.position.y + receipt.size.y).is_equal(end - 20.0 - PaperPile.MARGIN.y)
-	assert_float(stage.receipt_bottom()).is_equal(pile.top_y() + ShiftStage.PILE_JOIN)
-	await _frames(1)
-	_assert_newest_in_view(receipt)
-	# A new run: the pile is empty, so the receipt runs to the pile's foot and no further.
-	screen._count_up.show_pile_for_shift(1)
-	assert_float(pile.height_px).is_equal(0.0)
-	assert_float(stage.receipt_bottom()).is_equal(ShiftStage.PILE_BOTTOM)
-	assert_float(receipt.position.y + receipt.size.y).is_equal(ShiftStage.PILE_BOTTOM)
-	# No paper: no pile, though the receipt runs to its foot.
-	assert_bool(pile.visible).is_false()
-	await _frames(1)
-	_assert_newest_in_view(receipt)
+	# Cleared, it is short again, still on the slot.
+	receipt.clear()
+	await _frames(2)
+	assert_float(receipt.position.y + receipt.size.y).is_equal(ShiftStage.RECEIPT_BOTTOM)
+	assert_float(receipt.position.y).is_greater(ShiftStage.RECEIPT_TOP)
 
 
 ## The end of a shift printed at once, as a resume does (the row's receipt, then show_shift_end):
 ## the same fit, ending with the inspection notice in view.
 func test_a_resumed_end_of_shift_takes_the_same_fit() -> void:
 	var screen: ShiftScreen = await _screen()
-	screen._count_up.show_pile_for_shift(4)
 	_place(screen, ["bread", "milk", "eggs", "repeat", "milk"])
 	var run: RunState = screen.run
 	var result: ScoreResult = run.preview()
@@ -122,9 +81,9 @@ func test_a_resumed_end_of_shift_takes_the_same_fit() -> void:
 	await _frames(2)
 	var receipt: ReceiptView = screen._receipt
 	var natural: float = receipt.natural_height()
-	var room: float = screen._stage.receipt_bottom() - receipt.position.y
+	var room: float = ShiftStage.RECEIPT_BOTTOM - ShiftStage.RECEIPT_TOP
 	assert_float(receipt.size.y).is_equal(minf(natural, room))
-	assert_float(receipt.position.y + receipt.size.y).is_less_equal(ShiftStage.PILE_BOTTOM)
+	assert_float(receipt.position.y + receipt.size.y).is_equal(ShiftStage.RECEIPT_BOTTOM)
 	_assert_newest_in_view(receipt)
 
 
@@ -140,7 +99,7 @@ func _screen() -> ShiftScreen:
 ## Prints lines until the receipt is longer than its room, then lets it lay out.
 func _long_receipt(screen: ShiftScreen) -> void:
 	var receipt: ReceiptView = screen._receipt
-	var room: float = screen._stage.receipt_bottom() - receipt.position.y
+	var room: float = ShiftStage.RECEIPT_BOTTOM - ShiftStage.RECEIPT_TOP
 	var count: int = 0
 	while receipt.natural_height() <= room + 60.0:
 		receipt.add_line("LINE %d" % count, "€%d" % count, ReceiptView.LineStyle.ITEM)

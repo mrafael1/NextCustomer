@@ -2,9 +2,9 @@ extends GdUnitTestSuite
 ## The receipt on the real shift screen (#75, decision 1A). In planning it is the stub: "NEXT
 ## CUSTOMER · REG 3", "SHIFT n/m · k ITEMS" (coupons counted), a dashed rule, PROJECTED €N and
 ## the fizzle count ("1 fizzle · see the item", "N fizzles · see the items", none without), then
-## the tear; it follows every place and remove, hangs from the printer slot inside the register
-## column and the 1280x720 screen, every line on one row and in view, short of the paper pile
-## (which stays hidden) and clear of the tray, the cradle and CHECKOUT. The click starts the
+## the tear; it follows every place and remove, stands on the printer's slot inside the register
+## column and the 1280x720 screen (#80), every line on one row and in view, clear of the hand,
+## the monitor and CHECKOUT. The click starts the
 ## count-up under the same header: at every frame the receipt is the header and the lines of the
 ## steps played so far, as show_result prints them, each combo line marked inside the scroll
 ## area. The real saves and logs are never touched: both go to a temporary folder.
@@ -130,9 +130,9 @@ func test_the_count_up_receipt_prints_the_steps_so_far() -> void:
 	assert_int(marked).is_equal(combos)
 
 
-## The stub on screen: inside the screen and the register column, hanging from the printer slot,
-## every line on one row and in view, its end short of the pile's top (the pile hidden), clear
-## of the tray, the scanner's cradle and CHECKOUT.
+## The stub on screen: inside the screen and over the register column, standing on the printer's
+## slot, as tall as its lines, every line on one row and in view, clear of the hand, the monitor
+## and CHECKOUT.
 func _assert_stub_on_screen(screen: ShiftScreen) -> void:
 	var receipt: ReceiptView = screen._receipt
 	var stage: Rect2 = screen._stage.get_global_rect()
@@ -141,14 +141,11 @@ func _assert_stub_on_screen(screen: ShiftScreen) -> void:
 	var column: Rect2 = _on_stage(screen, ShiftStage.REGISTER_RECT)
 	assert_float(rect.position.x).is_greater_equal(column.position.x)
 	assert_float(rect.end.x).is_less_equal(column.end.x)
-	assert_float(rect.position.y).is_equal(stage.position.y + ShiftStage.RECEIPT_ORIGIN.y)
+	assert_float(rect.end.y).is_equal(stage.position.y + ShiftStage.RECEIPT_BOTTOM)
 	assert_float(receipt.size.y).is_equal(receipt.natural_height())
-	assert_float(receipt.position.y + receipt.size.y).is_less(screen._stage.receipt_bottom())
-	assert_bool(screen._stage.receipt_reaches_pile()).is_false()
-	assert_bool(screen._paper_pile.visible).is_false()
 	for blocker: Rect2 in [
-		_on_stage(screen, ShiftStage.TRAY_RECT),
-		_on_stage(screen, ShiftStage.CRADLE_RECT),
+		_on_stage(screen, ShiftStage.HAND_AREA),
+		_on_stage(screen, ShiftStage.MONITOR_RECT),
 		screen._checkout_button.get_global_rect(),
 	]:
 		assert_bool(rect.intersects(blocker)).override_failure_message(str(blocker)).is_false()

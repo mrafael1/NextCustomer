@@ -96,12 +96,8 @@ func test_the_notice_comes_before_the_reward_and_the_kiosk() -> void:
 	assert_bool(stage.encloses(tag)).override_failure_message(str(tag)).is_true()
 	assert_float(tag.end.y).is_less_equal(stage.position.y + RewardPanel.PRINTOUT_TOP)
 	assert_float(tag.position.x).is_greater_equal(screen._loyalty_card.get_global_rect().end.x)
-	# Then the FINE GROCERIES plaque, then Deck.
-	var plaque: Rect2 = screen._stage.plaque.get_global_rect()
-	assert_bool(screen._stage.plaque.visible).is_true()
-	assert_float(tag.end.x).is_less_equal(plaque.position.x)
-	assert_float(plaque.end.x).is_less_equal(screen._deck_button.get_global_rect().position.x)
-	assert_float(plaque.end.y).is_less_equal(stage.position.y + RewardPanel.PRINTOUT_TOP)
+	# Then Deck.
+	assert_float(tag.end.x).is_less_equal(screen._deck_button.get_global_rect().position.x)
 
 
 func test_inspection_steps_print_and_play_from_the_tag() -> void:
@@ -170,12 +166,14 @@ static func _receipt_lines(screen: ShiftScreen) -> PackedStringArray:
 
 
 ## Scans the belt item in `slot` (the pointer on its sprite, its hover sent: headless runs never
-## move the mouse) and returns its scan popup's footer, one line each, then ends the scan.
+## move the mouse; then its hold ends, #80) and returns its scan popup's footer, one line each,
+## then ends the scan.
 static func _popup_text(screen: ShiftScreen, slot: int) -> String:
 	var view: ItemView = screen._row_views[slot] as ItemView
 	var point: Vector2 = view.sprite().get_global_rect().get_center()
 	screen._scan.pointer = func() -> Vector2: return point
 	view.hovered.emit(view)
+	screen._scan._go_full()
 	var text: String = "\n".join(screen._scan.popup().footer_texts())
 	screen._scan.clear()
 	return text
@@ -284,7 +282,10 @@ func test_a_closed_slot_shows_on_the_row() -> void:
 		var sprite: TextureRect = part as TextureRect
 		if sprite != null:
 			assert_vector(sprite.size).is_equal(Vector2(sprite.texture.get_size()))
-	var belt: Rect2 = (screen._row_strip.get_parent() as Control).get_global_rect()
+	var belt: Rect2 = Rect2(
+		screen._stage.get_global_rect().position + ShiftStage.ROW_AREA.position,
+		ShiftStage.ROW_AREA.size
+	)
 	var closed_rect: Rect2 = panel.get_global_rect()
 	assert_bool(belt.encloses(closed_rect)).is_true()
 	assert_float(closed_rect.position.x).is_greater_equal(screen._slots[-1].get_global_rect().end.x)

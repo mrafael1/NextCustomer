@@ -5,12 +5,12 @@ extends CardView
 ## its price sticker. It keeps CardView's API (body, badge, center, highlight, tags), so the
 ## count-up plays it unchanged.
 ##
-## Three forms. On the belt (a BELT_SIZE cell) the sprite stands on its slot's mat (the row draws
-## the mat under the view), the payout plaque sits on the mat's top rim, and up to
-## EffectChip.MAX_PER_CELL effect chips hang under the sticker. In the hand's tray (a TRAY_SIZE
-## cell) the sprite stands on a soft shadow. A drag's ghost (GHOST, CardDrag) is the sprite
-## alone, in a SPRITE_SIZE view with no sticker. `body` holds only the sprite, so the count-up's
-## punches, shakes and lifts move the sprite while the sticker and chips stay still and
+## Three forms. On the belt (a BELT_SIZE cell; mock-up B2, #80) the sprite stands on the belt's top
+## face with the payout plaque over it, the sticker is its ticket on the price rail, and up to
+## EffectChip.MAX_PER_CELL effect chips sit between the sprite's foot and the ticket. In the hand's
+## tray (a TRAY_SIZE cell) the sprite stands on a soft shadow. A drag's ghost (GHOST, CardDrag) is
+## the sprite alone, in a SPRITE_SIZE view with no sticker. `body` holds only the sprite, so the
+## count-up's punches, shakes and lifts move the sprite while the sticker and chips stay still and
 ## readable; `center()` is the sprite's middle. The scan lifts the sprite and plaque by LIFT
 ## (scan_lift), which keeps the sprite clear of its plaque.
 ##
@@ -26,24 +26,24 @@ signal unhovered(view: ItemView)
 
 enum Form { TRAY, BELT, GHOST }
 
-const BELT_SIZE := Vector2(120, 238)
+const BELT_SIZE := Vector2(116, 232)
 const TRAY_SIZE := Vector2(108, 168)
 const SPRITE_SIZE := Vector2(96, 96)
-## Inside the mat's ink line and 2 px brass ring (6 px), the sprite at rest stands at 12..108 x
-## 26..122, over the ring's 4 px recess.
-const BELT_SPRITE := Vector2(12, 26)
+## On the belt the sprite stands with its foot on the top face (the cell's top is the plaque's),
+## and the sticker hangs on the price rail.
+const BELT_SPRITE := Vector2(10, 28)
 const TRAY_SPRITE := Vector2(6, 4)
-const BELT_STICKER := Vector2(6, 130)
+const BELT_STICKER := Vector2(4, 166)
 const TRAY_STICKER := Vector2(0, 104)
-## The plaque face's top: on the mat's top rim on the belt (the sprite, lifted, touches it and
-## never runs under it), above the cell in the tray (where no count-up shows it).
+## The plaque face's top: the cell's top on the belt (the sprite, lifted, touches it and never
+## runs under it), above the cell in the tray (where no count-up shows it).
 const BELT_PLAQUE_Y := 0.0
 const TRAY_PLAQUE_Y := -24.0
 ## How far a scan or a selection raises the sprite.
 const LIFT := 4.0
-## The chips under the sticker, CHIP_PITCH apart: on the belt the lower one ends CHIP_CLEARANCE
-## above the cell's foot (the belt's bottom rail). Belt items only.
-const CHIP_OFFSET := Vector2(-4, 66)
+## The chips above the sticker (from the sticker's top-left), CHIP_PITCH apart: the lower one ends
+## CHIP_CLEARANCE above the ticket. Belt items only.
+const CHIP_OFFSET := Vector2(-4, -42)
 const CHIP_PITCH := 20.0
 const CHIP_CLEARANCE := 4.0
 ## The tray's soft shadow under the sprite.
@@ -197,7 +197,7 @@ func name_label() -> Label:
 	return _name_label
 
 
-## Adds an effect chip under the sticker (a belt item's). Past EffectChip.MAX_PER_CELL chips the
+## Adds an effect chip above the sticker (a belt item's). Past EffectChip.MAX_PER_CELL chips the
 ## last shown one reads "+N more" for itself and the rest. Returns the chip that shows this one;
 ## it stays the same node, updated in place, until clear_chips.
 func add_chip(text: String, fizzle: bool) -> EffectChip:

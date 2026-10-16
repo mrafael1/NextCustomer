@@ -1,21 +1,26 @@
 class_name ScanController
 extends Node
-## The hover scanner on the shift screen (#75): hovering an item in the hand or on the belt scans
-## it. The item's sprite lifts, the handheld leaves its cradle and aims at it (the stage's scan
-## layer, ScanOverlay, with tomato brackets and its beam), the one scan popup opens beside or
-## above it (the stage's popup layer) and the scanner beeps. ShiftScreen owns it, hands it the
-## items after each refresh (watch) and the preview's ScoreResult (set_result), and says when
-## scanning the counter is off (`blocked`: while counting, dragging, or with an offer or the deck
-## view open).
+## The hover scanner on the shift screen (#75), opt-in since #80: hovering an item in the hand or on
+## the belt is quiet: nothing shows, no popup, no lift, no marks, no beep. Only once the pointer has
+## stayed on that same item for the hold (ScanTuning.hold_ms, in data/balance/scan.tres) is it
+## scanned: the item's sprite lifts, tomato brackets mark it (the stage's scan layer, ScanOverlay;
+## B2 has no handheld scanner, #80), the scanner beeps and the one scan popup opens beside or above
+## it (the stage's popup layer). The pointer leaving the item cancels a pending hold, and back on
+## the item the hold starts again; another item starts its own. Dragging an item ends the scan, a
+## pending hold with it (`blocked`).
 ##
-## The offers are items too (#75, decision 4A): cover_offers() watches the reward panel's items
-## (the impulse rack and the reward print-out) and scans them like hand items while the panel
-## accepts clicks (RewardPanel.can_scan: not while it pops in or its items lift out of the
-## printer, nor while the deck view hides it). Their scan opens in a layer right above the panel,
-## since the shade and the panel cover the stage's layers: its own marks, the same handheld out
-## of its cradle and the same popup, beside the item over the panel. There the popup takes the
-## clicks on it and does nothing with them: it covers the neighbouring items (and can cover the
-## panel's buttons), and a click while reading it must never pick an item the player can't see.
+## ShiftScreen owns it, hands it the items after each refresh (watch) and the preview's
+## ScoreResult (set_result), and says when scanning the counter is off (`blocked`: while
+## counting, dragging, or with an offer or the deck view open).
+##
+## The offers are items too (#75, decision 4A): cover_offers() watches the reward panel's items (the
+## impulse rack and the reward print-out) and scans them like hand items while the panel accepts
+## clicks (RewardPanel.can_scan: not while it pops in or its items lift out of the printer, nor
+## while the deck view hides it). Their scan opens in a layer right above the panel, since the shade
+## and the panel cover the stage's layers: its own marks and the same popup, beside the item over
+## the panel. There the popup takes the clicks on it and does nothing with them: it covers the
+## neighbouring items (and can cover the panel's buttons), and a click while reading it must never
+## pick an item the player can't see.
 ##
 ## The popup shows the card's rule text verbatim. A belt item's popup also shows its payout and,
 ## in its footer, every step of its slot but BASE and PAYOUT, worded as the receipt words them
@@ -25,15 +30,17 @@ extends Node
 ##
 ## The scan follows the pointer. While the pointer is inside the popup, the scanned item stays,
 ## so moving over the popup never switches to an item it covers. Once the pointer is over neither
-## the item nor its popup, the scan moves to the item under it, or ends: the scanner docks and
+## the item nor its popup, the scan moves to the item under it, or ends: the marks clear and
 ## the popup hides. It also ends when the pointer leaves the window and when the player leaves
 ## (FocusWatch.player_left; ShiftScreen calls clear). A refresh that rebuilds the items keeps the
 ## scan on the same card (its new view) while the pointer is on that view or the popup; a card the
 ## refresh moved away from the pointer (a belt item clicked out to the hand) ends the scan.
 ##
-## The beep (Sfx "scan_hover", the scan sound at HOVER_DB) plays only when a new item is
-## scanned, at most once every THROTTLE_MS: a sweep across the tray never chatters. Reduced
-## motion leaves the beam's pulse off; the scan still snaps into place and the beep still plays.
+## The beep (Sfx "scan_hover", the scan sound at HOVER_DB) plays only when a hold ends in the full
+## scan, at most once every THROTTLE_MS. Reduced motion leaves the beam's pulse off; the hold
+## still ends in the full scan, which snaps into place, and the beep still plays. debug_scan (the
+## screen capture's --scan) shows the full scan at once, with no hold: it captures the scan's
+## look.
 ## Nothing here is awaited and nothing moves the count-up's timing: scanning is off while the
 ## shift is counted.
 
@@ -42,6 +49,8 @@ const HOVER_SOUND := "scan_hover"
 const HOVER_DB := -8.0
 ## At most one beep per this many ms (of real time, unless now_ms says otherwise).
 const THROTTLE_MS := 120
+## The scanner's tuning (the hold), unless `tuning` is set before setup().
+const TUNING_PATH := "res://data/balance/scan.tres"
 
 ## Returns true while scanning is off. Set by the owner; none means never.
 var blocked: Callable = Callable()
@@ -50,8 +59,11 @@ var blocked: Callable = Callable()
 var pointer: Callable = Callable()
 ## Returns true when the player asked for reduced motion: no beam pulse. None means false.
 var reduced_motion: Callable = Callable()
-## Returns the clock the throttle reads, in ms. Tests set it; by default Time.get_ticks_msec.
+## Returns the clock the throttle and the hold read, in ms. Tests set it; by default
+## Time.get_ticks_msec.
 var now_ms: Callable = Callable()
+## The hold's length (ScanTuning.hold_ms). Loaded from TUNING_PATH by setup() unless set before.
+var tuning: ScanTuning
 
 var _stage: ShiftStage
 var _overlay: ScanOverlay
@@ -75,6 +87,12 @@ var _shown_card: CardInstance
 ## The item the pointer last entered and hasn't left: where the scan goes once it leaves the
 ## scanned item and its popup.
 var _under: ItemView
+## Whether the shown item has the full scan (the popup, the lift, the marks and the beep), not
+## only its quiet hover (nothing shown).
+var _full: bool = false
+## The clock's time (_now) the pointer came onto the shown item, while its hold is pending; -1
+## while the pointer is off it (or the scan is full).
+var _hold_from: int = -1
 ## The clock's time (_now) of the last beep.
 var _beep_ms: int = -THROTTLE_MS
 ## A refresh rebuilt the items: the scan is shown again once they are laid out (_reshow).
@@ -88,6 +106,8 @@ func _ready() -> void:
 
 ## Takes the stage's scan layer and popup layer: the popup is built once, hidden, and reused.
 func setup(stage: ShiftStage) -> void:
+	if tuning == null:
+		tuning = load(TUNING_PATH) as ScanTuning
 	_stage = stage
 	_overlay = stage.scan_layer
 	_popup = ScanPopup.new()
@@ -110,7 +130,6 @@ func cover_offers(panel: RewardPanel) -> void:
 	_offer_overlay.name = "OfferScanOverlay"
 	_offer_overlay.set_anchors_preset(Control.PRESET_FULL_RECT)
 	_offer_layer.add_child(_offer_overlay)
-	_offer_overlay.set_handheld(_stage.handheld)
 	panel.items_shown.connect(_on_offers_shown)
 	_on_offers_shown()
 
@@ -146,12 +165,14 @@ func set_result(
 	_queue_reshow()
 
 
-## Ends the scan: the item rests, the popup hides and the scanner docks.
+## Ends the scan: the item rests, the popup hides and the marks clear.
 func clear() -> void:
 	if _is_shown(_shown):
 		_shown.lifted = false
 	_shown = null
 	_shown_card = null
+	_full = false
+	_hold_from = -1
 	_reshow_queued = false
 	if _popup != null:
 		_popup.visible = false
@@ -161,9 +182,19 @@ func clear() -> void:
 	set_process(false)
 
 
-## The item scanned, or null.
+## The item hovered (its hold pending) or scanned (is_full), or null.
 func scanned() -> ItemView:
 	return _shown if _is_shown(_shown) else null
+
+
+## Whether the item scanned has the full scan: its hold ended (or debug_scan showed it).
+func is_full() -> bool:
+	return _full and scanned() != null
+
+
+## The hold's length in ms (ScanTuning.hold_ms).
+func hold_ms() -> int:
+	return tuning.hold_ms
 
 
 func popup() -> ScanPopup:
@@ -181,14 +212,17 @@ func offer_overlay() -> ScanOverlay:
 
 
 ## Development tools only (the screen capture's --scan): scans `card`'s item on the counter as
-## the player's hover would, with the pointer held on its sprite from then on. Returns false
-## when no item on the counter shows that card.
+## the player's hover would, with the pointer held on its sprite from then on, and shows the
+## full scan at once (no hold), as the capture is of the scan's look. Returns false when no item
+## on the counter shows that card.
 func debug_scan(card: CardInstance) -> bool:
 	for item: ItemView in _items:
 		if item.card == card and _is_shown(item):
 			var point: Vector2 = item.sprite().get_global_rect().get_center()
 			pointer = func() -> Vector2: return point
 			_on_hovered(item)
+			if scanned() == item:
+				_go_full()
 			return true
 	return false
 
@@ -215,12 +249,26 @@ func _process(_delta: float) -> void:
 		clear()
 		return
 	var point: Vector2 = _pointer()
-	if _popup.get_global_rect().has_point(point) or _hits(_shown, point):
+	var on_item: bool = _hits(_shown, point)
+	if not _full:
+		_follow_hold(on_item)
+	if on_item or _on_popup(point):
 		return
 	if _is_shown(_under) and _under != _shown and _hits(_under, point):
 		_scan(_under)
 		return
 	clear()
+
+
+## Times the quiet scan's hold while the pointer is on the item (`on_item`): off it, the hold is
+## cancelled; back on it, it starts again; once it lasts hold_ms, the full scan plays.
+func _follow_hold(on_item: bool) -> void:
+	if not on_item:
+		_hold_from = -1
+	elif _hold_from < 0:
+		_hold_from = _now()
+	elif _now() - _hold_from >= hold_ms():
+		_go_full()
 
 
 ## Shows the scan again at the end of the frame, after the containers have laid out a refresh's
@@ -244,7 +292,7 @@ func _reshow() -> void:
 		clear()
 		return
 	var point: Vector2 = _pointer()
-	var on_popup: bool = _popup.visible and _popup.get_global_rect().has_point(point)
+	var on_popup: bool = _on_popup(point)
 	for item: ItemView in _items:
 		if item.card == _shown_card and _is_shown(item):
 			if on_popup or _hits(item, point):
@@ -281,7 +329,7 @@ func _on_hovered(view: ItemView) -> void:
 	if _is_blocked_for(view) or view == _shown:
 		return
 	# Over the popup, the scanned item stays: the pointer is reading it.
-	if _is_shown(_shown) and _popup.get_global_rect().has_point(_pointer()):
+	if _is_shown(_shown) and _on_popup(_pointer()):
 		return
 	_scan(view)
 
@@ -293,25 +341,39 @@ func _on_unhovered(view: ItemView) -> void:
 	# refresh that rebuilds the item under the pointer keeps it.
 
 
-## Scans `view`: a new item beeps (throttled).
+## Hovers `view` quietly (nothing shown), its hold starting now.
 func _scan(view: ItemView) -> void:
-	var fresh: bool = view.card != _shown_card
-	if _is_shown(_shown) and _shown != view:
-		_shown.lifted = false
+	_full = false
+	_hold_from = _now()
 	_show(view)
-	if fresh:
-		_beep()
 
 
-## Lifts `view`, fills and places the popup, and poses the scanner on the side away from a hand
-## item's popup. An offer's scan opens in the layer over the offers, beside the item over its
-## panel; a counter item's on the stage.
+## The hold ended: the shown item gets the full scan, and it beeps (throttled).
+func _go_full() -> void:
+	if _full or not _is_shown(_shown):
+		return
+	_full = true
+	_hold_from = -1
+	_show(_shown)
+	_beep()
+
+
+## With the full scan, lifts `view`, fills and places its popup and marks it; quiet, the item rests,
+## the popup hides and nothing is marked. An offer's scan opens in the layer over the offers, beside
+## the item over its panel; a counter item's on the stage.
 func _show(view: ItemView) -> void:
 	if _is_shown(_shown) and _shown != view:
 		_shown.lifted = false
 	_shown = view
 	_shown_card = view.card
-	view.lifted = true
+	view.lifted = _full
+	set_process(true)
+	if not _full:
+		_popup.visible = false
+		for docked: ScanOverlay in [_overlay, _offer_overlay]:
+			if docked != null:
+				docked.dock()
+		return
 	var definition: CardDefinition = view.card.definition
 	var lines: PackedStringArray = PackedStringArray()
 	var fizzles: Array[bool] = []
@@ -335,14 +397,13 @@ func _show(view: ItemView) -> void:
 		other.clear()
 	_popup.visible = true
 	_popup.show_card(definition, view.aisle, view.tags(), payout, lines, fizzles)
-	var sprite: Rect2 = view.sprite().get_global_rect()
+	var sprite: Rect2 = ScanOverlay.lifted_sprite(view)
 	_popup.place_at(sprite, view.below_rect(), _offer_layout() if offer else _stage.scan_layout())
-	marks.pose_hover(sprite, _popup.placement == ScanPopup.Placement.RIGHT)
+	marks.pose_hover(sprite)
 	if _wants_reduced_motion():
 		marks.stop_beam_loop()
 	else:
 		marks.start_beam_loop()
-	set_process(true)
 
 
 ## Where an offer's popup may open (global): on the stage, beside the item over the offers'
@@ -358,6 +419,11 @@ func _beep() -> void:
 		return
 	_beep_ms = now
 	Sfx.play_at(self, HOVER_SOUND, HOVER_DB)
+
+
+## Whether the pointer at `point` (global) is on the popup while it shows.
+func _on_popup(point: Vector2) -> bool:
+	return _popup.visible and _popup.get_global_rect().has_point(point)
 
 
 ## Whether the pointer at `point` (global) is on `view`: its sprite (lifted or not), sticker

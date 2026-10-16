@@ -174,8 +174,8 @@ func test_quitting_during_the_count_up_resumes_on_the_reward_panel() -> void:
 	assert_bool(panel.encloses(resumed._reward_panel._skip_button.get_global_rect())).is_true()
 
 	await _count_up_end(first)
-	# The receipt (under the shift's header, #75), totals, chip and paper pile behind the panel,
-	# as the count-up left them.
+	# The receipt (under the shift's header, #75), totals and chip behind the panel, as the
+	# count-up left them.
 	assert_str(_receipt_lines(resumed)[0]).is_equal(ReceiptView.HEADER_TEXT)
 	assert_bool(_receipt_lines(resumed).has(ReceiptView.PROJECTED_TEXT)).is_false()
 	assert_array(_receipt_lines(resumed)).is_equal(_receipt_lines(first))
@@ -185,11 +185,6 @@ func test_quitting_during_the_count_up_resumes_on_the_reward_panel() -> void:
 	assert_object(first._count_up._quota_chip).is_not_null()
 	assert_bool(chip.visible).is_true()
 	assert_bool(resumed.get_global_rect().encloses(chip.get_global_rect())).is_true()
-	var pile: PaperPile = resumed._paper_pile
-	assert_float(pile.height_px).is_greater(0.0)
-	assert_float(pile.height_px).is_equal(first._paper_pile.height_px)
-	assert_bool(pile.curled).is_equal(first._paper_pile.curled)
-	assert_bool(pile.spilled).is_equal(first._paper_pile.spilled)
 	first._on_reward_skipped()
 	resumed._on_reward_skipped()
 	assert_int(resumed.run.shift_index).is_equal(1)

@@ -3,9 +3,10 @@ extends GdUnitTestSuite
 ## reward print-out show tray ItemViews (a product with its aisle's glyph, a print-out product
 ## with its PROMO tag on its price sticker), laid out inside their panel on the 1280x720 stage
 ## without overlapping, and the hover scanner reads them like hand items
-## (ScanController.cover_offers): the item lifts, the handheld leaves its cradle for the layer
-## over the offers, and the one scan popup opens there, above the panel, beside the item and
-## inside the stage, with the card's rule text and no footer; it beeps once. The offers are
+## (ScanController.cover_offers): a hover shows nothing; held (#80), the item lifts, the
+## offers' layer marks it with tomato brackets, it beeps once and the one scan popup
+## opens in that layer, above the panel, beside the item and inside the stage, with the card's
+## rule text and no footer. The offers are
 ## scanned only while their panel accepts clicks: not while the rack pops in or the print-out's
 ## items lift, nor with the deck view open; a pick ends the scan and docks the scanner. A click
 ## on an offer's popup picks nothing, not the neighbour it covers. Headless runs never move the
@@ -66,10 +67,11 @@ func test_the_rack_shows_its_offer_as_items() -> void:
 		assert_object(RewardPanel.promo_sticker(item)).is_null()
 
 
-## Hovering a rack item scans it: the item lifts, the popup opens in the layer above the panel
-## (and the shade), beside the item and inside the stage, clear of the item's sprite and
-## sticker, with its rule text and no footer; the handheld leaves its cradle for the offers'
-## layer, overhead beside the sprite; one beep. Every rack item's popup stays on the stage.
+## Hovering a rack item shows nothing: no popup, no lift, no marks, no beep. Held, the item
+## lifts, the offers' layer marks it with tomato brackets, one
+## beep, and its popup opens in the layer above the panel (and the shade), beside the item and
+## inside the stage, clear of the item's sprite and sticker, with its rule text and no footer.
+## Every rack item's popup stays on the stage.
 func test_hovering_a_rack_item_scans_it() -> void:
 	var screen: ShiftScreen = await _screen()
 	var sfx: RecordingSfx = _recording_sfx(screen)
@@ -79,6 +81,13 @@ func test_hovering_a_rack_item_scans_it() -> void:
 	await _hover(items[0])
 	var scan: ScanController = screen._scan
 	assert_object(scan.scanned()).is_same(items[0])
+	assert_bool(scan.is_full()).is_false()
+	assert_float(items[0].body.position.y).is_equal(0.0)
+	assert_bool(scan.popup().visible).is_false()
+	assert_bool(scan.offer_overlay().is_posed()).is_false()
+	assert_int(sfx.count(ScanController.HOVER_SOUND)).is_equal(0)
+	await _hold(screen)
+	assert_bool(scan.is_full()).is_true()
 	assert_float(items[0].body.position.y).is_equal(-ItemView.LIFT)
 	var popup: ScanPopup = scan.popup()
 	assert_bool(popup.visible).is_true()
@@ -100,7 +109,7 @@ func test_hovering_a_rack_item_scans_it() -> void:
 		assert_object(scan.scanned()).is_same(item)
 		_assert_offer_popup(screen, item)
 		_assert_offer_scanner(screen, item)
-	# Off every item and the popup: the scan ends and the handheld docks.
+	# Off every item and the popup: the scan ends and the marks clear.
 	_point = Vector2(-100, -100)
 	items[items.size() - 1].unhovered.emit(items[items.size() - 1])
 	await _frames(2)
@@ -108,7 +117,7 @@ func test_hovering_a_rack_item_scans_it() -> void:
 
 
 ## No offer scan while the rack pops in (before it arms) or with the deck view open; a scan
-## shown when the deck view opens ends; a pick ends the scan and docks the handheld.
+## shown when the deck view opens ends; a pick ends the scan and clears the marks.
 func test_offers_scan_only_while_their_panel_takes_clicks() -> void:
 	var screen: ShiftScreen = await _screen()
 	var panel: RewardPanel = screen._reward_panel
@@ -143,6 +152,7 @@ func test_a_click_on_an_offer_popup_picks_nothing() -> void:
 	panel.picked.connect(func(card: CardDefinition) -> void: picks.append(card))
 	var items: Array[ItemView] = panel.items()
 	await _hover(items[0])
+	await _hold(screen)
 	var popup: Rect2 = screen._scan.popup().get_global_rect()
 	var covered: Rect2 = Rect2()
 	for item: ItemView in items.slice(1):
@@ -265,34 +275,18 @@ func _assert_offer_popup(screen: ShiftScreen, item: ItemView) -> void:
 		_assert_inside(rect, label.get_global_rect(), "'%s'" % label.text)
 
 
-## The handheld out of its cradle on the offers' layer, overhead beside `item`'s lifted sprite
-## (on its left when the popup opens on its right), with tomato brackets, on the screen and clear
-## of the popup.
+## Tomato brackets around `item`'s lifted sprite on the offers' layer, on the screen.
 func _assert_offer_scanner(screen: ShiftScreen, item: ItemView) -> void:
 	var overlay: ScanOverlay = screen._scan.offer_overlay()
-	var handheld: TextureRect = overlay.handheld()
 	assert_bool(overlay.is_posed()).is_true()
-	assert_object(handheld.texture).is_same(ScanOverlay.SCANNER_AIM)
 	var sprite: Rect2 = item.sprite().get_global_rect()
-	var on_left: bool = screen._scan.popup().placement == ScanPopup.Placement.RIGHT
-	var scanner: Rect2 = handheld.get_global_rect()
-	var expected: Rect2 = ScanOverlay.scanner_rect(sprite, on_left)
-	if not SCREEN_RECT.encloses(expected):
-		expected = ScanOverlay.scanner_rect(sprite, not on_left)
-	(
-		assert_bool(scanner == expected)
-		. override_failure_message("%s vs %s" % [scanner, expected])
-		. is_true()
-	)
-	_assert_inside(SCREEN_RECT, scanner, "scanner")
-	assert_bool(scanner.intersects(screen._scan.popup().get_global_rect())).is_false()
 	var brackets: Rect2 = overlay.get_global_transform() * overlay.brackets()
 	assert_bool(brackets == sprite.grow(ScanOverlay.BRACKET_OUTSET)).is_true()
 	assert_object(overlay.bracket_color()).is_equal(Palette.TOMATO)
+	_assert_inside(SCREEN_RECT, brackets, "brackets")
 
 
-## No scan: nothing scanned, the popup hidden, no marks on either layer and the handheld docked
-## in its cradle.
+## No scan: nothing scanned, the popup hidden and no marks on either layer.
 func _assert_cleared(screen: ShiftScreen) -> void:
 	var scan: ScanController = screen._scan
 	assert_object(scan.scanned()).is_null()
@@ -300,8 +294,6 @@ func _assert_cleared(screen: ShiftScreen) -> void:
 	for overlay: ScanOverlay in [scan.overlay(), scan.offer_overlay()]:
 		assert_bool(overlay.is_posed()).is_false()
 		assert_that(overlay.brackets()).is_equal(Rect2())
-	assert_object(scan.overlay().handheld().get_parent()).is_same(screen._stage.scanner)
-	assert_object(scan.overlay().handheld().texture).is_same(ShiftStage.SCANNER_HANDHELD)
 
 
 func _assert_inside(outer: Rect2, inner: Rect2, message: String) -> void:
@@ -337,11 +329,19 @@ func _hover_now(view: ItemView) -> void:
 
 
 ## The next item scanned from the one before, past the throttle: its hover arrives while the
-## pointer is still off the popup (a popup may cover its neighbours), then the pointer moves on.
+## pointer is still off the popup (a popup may cover its neighbours), then the pointer moves on
+## and holds there for the full scan.
 func _scan_next(view: ItemView) -> void:
 	_clock += ScanController.THROTTLE_MS
 	view.hovered.emit(view)
 	_point = view.sprite().get_global_rect().get_center()
+	await _frames(1)
+	await _hold(_runner.scene() as ShiftScreen)
+
+
+## The pointer stays where it is for the hold (on the tests' clock): a scan on an item turns full.
+func _hold(screen: ShiftScreen) -> void:
+	_clock += screen._scan.hold_ms()
 	await _frames(1)
 
 

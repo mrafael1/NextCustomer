@@ -1,7 +1,7 @@
 extends GdUnitTestSuite
 ## The reward print-out on the real shift screen (#61, RewardPanel.show_printout): at the
 ## dessert's printer feed the offer appears beside the receipt, whose register column (the
-## cabinet, the receipt and the paper pile) stays unshaded, without the repeated headline; its
+## cabinet and the receipt) stays unshaded, without the repeated headline; its
 ## cards lift into place and it arms once they have and the mouse is up.
 ## Checked: the budget from the verdict to the armed reward with no taps; the offer's timeline
 ## (it starts at the feed, presented_ms at the lift's end, armed_ms not before it,
@@ -232,7 +232,7 @@ func test_reduced_motion_fades_the_cards_in_place() -> void:
 ## The print-out fits the 1280x720 screen beside the receipt without overlapping it, with the
 ## deck-full note and the inspection warning, on every frame of its lift; its note, warning,
 ## items and buttons sit inside it, one under the other, the items side by side; the shade leaves
-## the register column unshaded, the pile's spilled fold too.
+## the register column unshaded.
 func test_the_printout_sits_beside_the_receipt() -> void:
 	var screen: ShiftScreen = await _screen()
 	await _pass_shift(screen)
@@ -276,7 +276,7 @@ func test_the_printout_sits_beside_the_receipt() -> void:
 		var sticker: Label = RewardPanel.promo_sticker(view)
 		if sticker != null:
 			assert_bool(rect.encloses(sticker.get_global_rect())).is_true()
-	await _spill_pile(screen)
+	await _frames(3)
 	_assert_column_unshaded(screen)
 
 
@@ -291,7 +291,7 @@ func test_the_printout_stays_on_a_wide_stage() -> void:
 	await _frames(2)
 	var on_stage: Vector2 = panel.get_global_rect().position - screen._stage.global_position
 	get_tree().root.size = WIDE_SIZE
-	await _spill_pile(screen)
+	await _frames(3)
 	var stage: Rect2 = screen._stage.get_global_rect()
 	var rect: Rect2 = panel.get_global_rect()
 	prints("#55 wide print-out", rect, "stage", stage)
@@ -305,25 +305,13 @@ func test_the_printout_stays_on_a_wide_stage() -> void:
 # --- Helpers ---------------------------------------------------------------------------------
 
 
-## The pile at its cap, curled and spilled (its spilled fold the furthest left of the receipt),
-## and the frames for the receipt and the shade to follow.
-func _spill_pile(screen: ShiftScreen) -> void:
-	var pile: PaperPile = screen._paper_pile
-	pile.set_height(pile.cap_px)
-	pile.curl(true)
-	assert_int(pile.spilled_fold()).is_greater(0)
-	await _frames(3)
-
-
-## The shade is up and misses the register column: the cabinet (at rest), the receipt and the
-## pile's paper.
+## The shade is up and misses the register column: the cabinet (at rest) and the receipt.
 func _assert_column_unshaded(screen: ShiftScreen) -> void:
 	assert_bool(screen._shade.visible).is_true()
 	var shade: Rect2 = screen._shade.get_global_rect()
 	var column: Array[Rect2] = [
 		screen._cabinet.get_global_rect(),
 		screen._receipt.get_global_rect(),
-		screen._paper_pile.paper_rect(),
 	]
 	for part: Rect2 in column:
 		var message: String = "shade %s over %s" % [shade, part]

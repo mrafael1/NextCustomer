@@ -49,7 +49,7 @@ func test_belt_items_keep_sprite_plaque_sticker_and_chips_apart() -> void:
 			assert_bool(SCREEN.encloses(rect)).override_failure_message(message).is_true()
 			assert_float(rect.position.x).is_greater_equal(cell.position.x)
 			assert_float(rect.end.x).is_less_equal(cell.end.x)
-			assert_float(rect.end.y).is_less_equal(cell.end.y - ItemView.CHIP_CLEARANCE)
+			assert_float(rect.end.y).is_less_equal(sticker.position.y - ItemView.CHIP_CLEARANCE)
 		for value: int in [0, 7, 9999]:
 			view.show_badge(value, false)
 			_assert_sprite_clear(view, message)
@@ -262,12 +262,10 @@ func test_hover_signals_and_the_hit_area() -> void:
 	# A flipped popup opens below the sticker and both chip places.
 	var below: Rect2 = view.below_rect()
 	assert_bool(below.encloses(view.sticker().get_global_rect())).is_true()
-	assert_float(below.end.y).is_equal(
-		view.global_position.y + ItemView.BELT_SIZE.y - ItemView.CHIP_CLEARANCE
-	)
+	assert_float(below.end.y).is_equal(view.sticker().get_global_rect().end.y)
 
 
-## Chips stack under the sticker; past EffectChip.MAX_PER_CELL the last one shown reads
+## Chips stack above the sticker; past EffectChip.MAX_PER_CELL the last one shown reads
 ## "+N more" for itself and the rest, and clear_chips empties them.
 func test_chips_fold_past_two() -> void:
 	var view: ItemView = await _laid_out(
@@ -294,10 +292,11 @@ func test_chips_fold_past_two() -> void:
 	assert_object(folded).is_same(second)
 	assert_bool(second.is_fizzle()).is_false()
 	var sticker: Rect2 = Rect2(view.sticker().position, PriceSticker.SIZE)
-	var above: float = sticker.end.y
+	var above: float = sticker.position.y + ItemView.CHIP_OFFSET.y
 	for chip: EffectChip in view.chips():
 		assert_float(chip.position.y).is_greater_equal(above)
 		above = chip.position.y + EffectChip.SIZE.y
+	assert_float(above).is_less_equal(sticker.position.y - ItemView.CHIP_CLEARANCE)
 	view.clear_chips()
 	assert_int(view.chips().size()).is_equal(0)
 	await get_tree().process_frame

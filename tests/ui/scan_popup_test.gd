@@ -2,30 +2,32 @@ extends GdUnitTestSuite
 ## The scan popup (#75): every card in data/cards, with the worst footer a belt item can carry,
 ## keeps its text inside the popup, its rule text whole and its height within MAX_HEIGHT (the
 ## footer lines that don't fit fold into "+N more"), and opens inside the 1280x720 stage, off the
-## hovered item's sprite and sticker (and chips), wherever the item is: each belt cell and each
-## hand position of style frame v2's geometry, which the shift screen takes on in #75. A belt
-## item's popup flips below its chips; a hand item's opens beside it over the tray, never over the
+## hovered item's sticker and chips, wherever the item is: each belt cell and each hand position
+## of mock-up B2's geometry (#80). A belt item's popup opens above its sprite, flips below its
+## chips when the top bar is in the way, and stays above, over the sprite's top, when it fits
+## neither way, never over the chips; a hand item's opens beside it over the tray, never over the
 ## belt. It is placed from global rects, so an item in a scaled row is pointed at where it is
 ## drawn.
 
 const CARDS := "res://data/cards"
 const BALANCE := "res://data/balance/balance.tres"
 const STAGE := Rect2(0, 0, 1280, 720)
-## Style frame v2's stage (the layout the shift screen adopts in #75): the belt, its cells, the
-## counter line, the top bar's foot and the tray with its cells.
-const BELT_RECT := Rect2(16, 68, 896, 254)
-const CELL_ORIGIN := Vector2(32, 76)
-const CELL_PITCH := 124.0
+## Mock-up B2's stage (#80; ShiftStage): the belt, its cells (ROW_POSITION, the cell and
+## RowStrip.SEPARATION), the hand's top, the top bar's foot and the hand's area with its cells.
+const BELT_RECT := Rect2(14, 314, 918, 180)
+const CELL_ORIGIN := Vector2(32, 258)
+const CELL_PITCH := 128.0
 const CELL_COUNT := 7
-const COUNTER_TOP := 322.0
-const TOP_BAR_BOTTOM := 64.0
-const TRAY_RECT := Rect2(12, 410, 916, 184)
-const TRAY_CELL_ORIGIN := Vector2(22, 416)
+const COUNTER_TOP := 494.0
+const TOP_BAR_BOTTOM := 56.0
+const TRAY_RECT := Rect2(0, 494, 944, 226)
+const TRAY_CELL_ORIGIN := Vector2(16, 520)
 const TRAY_PITCH := 112.0
 const TRAY_COUNT := 8
-## In a cell: the lifted sprite, and the sticker with the chips under it.
-const BELT_SPRITE := Rect2(12, 22, 96, 96)
-const BELT_BELOW := Rect2(2, 130, 116, 108)
+## In a cell (ItemView's BELT form): the lifted sprite, and the chips' places with the sticker
+## under them.
+const BELT_SPRITE := Rect2(10, 24, 96, 96)
+const BELT_BELOW := Rect2(0, 124, 116, 106)
 const TRAY_SPRITE := Rect2(6, 0, 96, 96)
 const TRAY_BELOW := Rect2(0, 104, 108, 64)
 ## More step lines than any belt item carries, every other one a fizzle whose reason wraps.
@@ -62,6 +64,38 @@ func test_every_card_with_the_worst_footer_fits_the_stage() -> void:
 				var below: Rect2 = _below(on_belt, index)
 				popup.place_at(sprite, below, layout)
 				_assert_placed(popup, sprite, below, on_belt, "%s at %d" % [message, index])
+
+
+## Every belt popup height, up to MAX_HEIGHT, at every cell of a 7-, 8- and 9-slot row (the wide
+## ones scaled to the 7-slot width as RowStrip draws them) stays on the stage, under the top bar
+## and off the item's chips and sticker: B2's mid-screen belt leaves too little room both above
+## and below for the tallest popups, which stay above over the sprite's top.
+func test_a_belt_popup_of_any_height_never_covers_the_chips() -> void:
+	var layout: ScanLayout = _layout()
+	for count: int in [RowStrip.LAID_OUT_SLOTS, 8, 9]:
+		var separation: int = RowStrip.separation_for(count)
+		var natural: float = RowStrip.row_width(count, separation)
+		var factor: float = minf(1.0, RowStrip.row_width(RowStrip.LAID_OUT_SLOTS) / natural)
+		var pitch: float = (ItemView.BELT_SIZE.x + separation) * factor
+		for index: int in range(count):
+			var cell: Vector2 = CELL_ORIGIN + Vector2(index * pitch, 0)
+			var sprite: Rect2 = Rect2(
+				cell + BELT_SPRITE.position * factor, BELT_SPRITE.size * factor
+			)
+			var below: Rect2 = Rect2(cell + BELT_BELOW.position * factor, BELT_BELOW.size * factor)
+			var height: float = ScanPopup.MIN_HEIGHT
+			while height <= ScanPopup.MAX_HEIGHT:
+				var popup_size: Vector2 = Vector2(ScanPopup.WIDTH, height)
+				var rect: Rect2 = ScanPopup.place(sprite, below, popup_size, layout)
+				var message: String = (
+					"%d slots, cell %d, height %d: %s" % [count, index, height, rect]
+				)
+				assert_bool(STAGE.encloses(rect)).override_failure_message(message).is_true()
+				assert_float(rect.position.y).override_failure_message(message).is_greater_equal(
+					TOP_BAR_BOTTOM + ScanPopup.TOP_GAP
+				)
+				assert_bool(rect.intersects(below)).override_failure_message(message).is_false()
+				height += 10.0
 
 
 ## A footer that fits shows every line; one too long for MAX_HEIGHT folds the rest into its last
@@ -247,18 +281,13 @@ func _assert_placed(
 	message += ": %s" % rect
 	assert_bool(STAGE.encloses(rect)).override_failure_message(message).is_true()
 	assert_float(rect.position.y).override_failure_message(message).is_greater_equal(TOP_BAR_BOTTOM)
-	assert_bool(rect.intersects(sprite)).override_failure_message(message).is_false()
 	assert_bool(rect.intersects(below)).override_failure_message(message).is_false()
+	if on_belt:
+		_assert_belt_placed(popup, rect, sprite, message)
+		return
+	assert_bool(rect.intersects(sprite)).override_failure_message(message).is_false()
 	var tail: Rect2 = popup.tail().get_global_rect()
 	assert_bool(tail.intersects(sprite)).override_failure_message(message).is_false()
-	if on_belt:
-		assert_int(popup.placement).override_failure_message(message).is_equal(
-			ScanPopup.Placement.BELOW
-		)
-		assert_float(popup.tail_tip().x).override_failure_message(message).is_equal(
-			sprite.get_center().x
-		)
-		return
 	assert_bool(popup.placement in [ScanPopup.Placement.RIGHT, ScanPopup.Placement.LEFT]).is_true()
 	assert_bool(rect.intersects(BELT_RECT)).override_failure_message(message).is_false()
 	assert_float(rect.position.y).override_failure_message(message).is_greater_equal(COUNTER_TOP)
@@ -268,6 +297,18 @@ func _assert_placed(
 	assert_float(rect.end.x).override_failure_message(message).is_less_equal(TRAY_RECT.end.x)
 	assert_float(popup.tail_tip().y).override_failure_message(message).is_equal(
 		sprite.get_center().y
+	)
+
+
+## A belt item's popup: off the sprite when it opens below the chips or above with its gap; held
+## under the top bar (it fits neither way) it may cover only the sprite's top. The tail's tip is
+## at the sprite's middle.
+func _assert_belt_placed(popup: ScanPopup, rect: Rect2, sprite: Rect2, message: String) -> void:
+	var held: bool = is_equal_approx(rect.position.y, TOP_BAR_BOTTOM + ScanPopup.TOP_GAP)
+	if popup.placement == ScanPopup.Placement.BELOW or not held:
+		assert_bool(rect.intersects(sprite)).override_failure_message(message).is_false()
+	assert_float(popup.tail_tip().x).override_failure_message(message).is_equal(
+		sprite.get_center().x
 	)
 
 

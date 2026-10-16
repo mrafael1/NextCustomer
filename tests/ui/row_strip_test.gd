@@ -1,11 +1,11 @@
 extends GdUnitTestSuite
-## The checkout row's cells on the belt (#55, #75; style frame v2): every open cell has a mat
-## (its empty face a step darker, with the slot number engraved), the row's cards stand on the
-## mats as belt items, the placeable ring is a solid mustard frame between ink lines around the
-## mat and under the item, the drag's landing fill shows on empty mats only, CLOSED is bare rubber
-## behind a velvet rope between brass posts with the CLOSED sign and the closing inspections'
-## names, and wide rows close their gaps, then scale to the 7-slot width with their text still
-## legible.
+## The checkout row's cells on the belt (#80, mock-up B2's greybox): an empty open cell shows a
+## footprint on the belt and a blank ticket (the "mat") on the rail with its slot number, the
+## row's cards stand on the belt as belt items with their sticker on the ticket's place, the
+## placeable ring is a solid mustard frame between ink lines around the ticket and under the
+## item, the drag's landing fill shows on empty tickets only, CLOSED is a velvet rope between two
+## posts on the belt over an ink plate with CLOSED and the closing inspections' names, and wide
+## rows close their gaps, then scale to the 7-slot width with their text still legible.
 
 const CARDS := "res://data/cards"
 const BALANCE := "res://data/balance/balance.tres"
@@ -13,12 +13,10 @@ const INSPECTIONS := "res://data/inspections"
 ## The smallest a scaled row's sticker summary (PriceSticker.SUMMARY_SIZE) may print, in canvas
 ## pixels.
 const MIN_SUMMARY_PX := 10.0
-## The mat's ink line and brass ring, in canvas pixels: the item's sprite stands inside them.
-const MAT_RIM := 6.0
 
 
-## Each open cell is a belt cell with a mat at MAT_RECT, its empty face showing the engraved
-## slot number; the cell itself draws nothing.
+## Each open cell is a belt cell that draws nothing itself; empty, it shows its footprint on the
+## belt and its blank ticket (the "mat") at TICKET_RECT on the rail with its slot number.
 func test_every_open_cell_has_a_mat_with_its_number() -> void:
 	var strip: RowStrip = await _strip(7)
 	for slot: int in range(7):
@@ -27,24 +25,25 @@ func test_every_open_cell_has_a_mat_with_its_number() -> void:
 		assert_vector(cell.size).is_equal(ItemView.BELT_SIZE)
 		assert_bool(panel.get_theme_stylebox("panel") is StyleBoxEmpty).is_true()
 		var mat: Panel = RowStrip.mat(panel)
-		var style: StyleBoxTexture = mat.get_theme_stylebox("panel") as StyleBoxTexture
-		assert_object(style.texture).is_same(RowStrip.SLOT_MAT_EMPTY)
 		assert_bool(RowStrip.shows_empty_mat(panel)).is_true()
-		assert_that(mat.get_global_rect()).is_equal(_in_cell(cell, RowStrip.MAT_RECT))
-		assert_bool(mat.has_meta(ArtStyle.PIXEL_ART_META)).is_true()
+		assert_that(mat.get_global_rect()).is_equal(_in_cell(cell, RowStrip.TICKET_RECT))
 		assert_int(mat.mouse_filter).is_equal(Control.MOUSE_FILTER_IGNORE)
+		var footprint: Panel = RowStrip.footprint(panel)
+		assert_bool(footprint.visible).is_true()
+		assert_that(footprint.get_global_rect()).is_equal(_in_cell(cell, RowStrip.FOOTPRINT_RECT))
+		assert_float(footprint.get_global_rect().end.y).is_less_equal(
+			mat.get_global_rect().position.y
+		)
+		assert_int(footprint.mouse_filter).is_equal(Control.MOUSE_FILTER_IGNORE)
 		var number: Label = RowStrip.slot_number(panel)
 		assert_bool(number.visible).is_true()
 		assert_str(number.text).is_equal(str(slot + 1))
 		assert_that(number.get_global_rect()).is_equal(_in_cell(cell, RowStrip.NUMBER_RECT))
 		assert_bool(mat.get_global_rect().encloses(number.get_global_rect())).is_true()
 		assert_float(number.get_minimum_size().y).is_less_equal(number.size.y)
-		# Engraved: brass dark in the number font, over a paper highlight under it.
 		assert_object(number.get_theme_font("font")).is_same(ArtStyle.number_font())
 		assert_int(number.get_theme_font_size("font_size")).is_equal(RowStrip.NUMBER_SIZE)
-		assert_that(number.get_theme_color("font_color")).is_equal(Palette.BRASS_DARK)
-		assert_that(number.get_theme_color("font_shadow_color")).is_equal(Palette.PAPER)
-		assert_int(number.get_theme_constant("shadow_offset_y")).is_equal(RowStrip.ENGRAVE_OFFSET)
+		assert_that(number.get_theme_color("font_color")).is_equal(RowStrip.NUMBER_COLOR)
 		assert_bool(strip.is_outlined(slot)).is_false()
 		assert_bool(RowStrip.is_hovered(panel)).is_false()
 		if slot > 0:
@@ -52,9 +51,9 @@ func test_every_open_cell_has_a_mat_with_its_number() -> void:
 			assert_float(gap).is_equal(float(RowStrip.SEPARATION))
 
 
-## A card stands on its mat as a belt item filling the cell: the sprite in the mat's recess, the
-## payout plaque on the mat's top rim, the sticker under the mat; the mat shows its plain face
-## and no number. Emptied again, the mat shows its empty face and number.
+## A card stands on the belt as a belt item filling the cell: the sprite above the ticket's place,
+## the payout plaque over the sprite inside the cell, the sticker on the ticket's place; the
+## footprint, the blank ticket and the number hide. Emptied again, they show.
 func test_items_stand_on_their_mats() -> void:
 	var strip: RowStrip = await _strip(7)
 	var row: Array[CardInstance] = [_card("bread", 1), _card("milk", 2), _card("repeat", 3)]
@@ -65,31 +64,27 @@ func test_items_stand_on_their_mats() -> void:
 		var panel: PanelContainer = strip.slots[slot]
 		var filled: bool = slot < row.size()
 		assert_bool(RowStrip.shows_empty_mat(panel)).is_equal(not filled)
+		assert_bool(RowStrip.footprint(panel).visible).is_equal(not filled)
 		assert_bool(RowStrip.slot_number(panel).visible).is_equal(not filled)
 		if not filled:
 			continue
-		var style: StyleBoxTexture = (
-			RowStrip.mat(panel).get_theme_stylebox("panel") as StyleBoxTexture
-		)
-		assert_object(style.texture).is_same(RowStrip.SLOT_MAT)
 		var item: ItemView = views[slot] as ItemView
 		assert_object(item).is_not_null()
 		assert_int(item.form).is_equal(ItemView.Form.BELT)
 		assert_object(item.get_parent()).is_same(panel)
 		var cell: Rect2 = panel.get_global_rect()
 		assert_that(item.get_global_rect()).is_equal(cell)
-		var mat: Rect2 = RowStrip.mat(panel).get_global_rect()
-		var recess: Rect2 = mat.grow(-MAT_RIM)
+		var ticket: Rect2 = RowStrip.mat(panel).get_global_rect()
 		var sprite: Rect2 = item.body.get_global_rect()
-		assert_bool(recess.encloses(sprite)).override_failure_message(str(sprite)).is_true()
+		assert_float(sprite.end.y).override_failure_message(str(sprite)).is_less_equal(
+			ticket.position.y
+		)
 		item.show_badge(12, false)
 		var face: Rect2 = (item.badge as PayoutPlaque).face().get_global_rect()
-		assert_float(face.position.y).is_less_equal(mat.position.y)
-		assert_float(face.end.y).is_greater(mat.position.y)
 		assert_bool(cell.encloses(face)).is_true()
 		assert_bool(face.intersects(sprite)).is_false()
 		var sticker: Rect2 = item.sticker().get_global_rect()
-		assert_float(sticker.position.y).is_greater_equal(mat.end.y)
+		assert_that(sticker).is_equal(ticket)
 		assert_bool(cell.encloses(sticker)).is_true()
 	strip.show_cards([] as Array[CardInstance], -1, _ignore, load(BALANCE))
 	for slot: int in range(7):
@@ -103,7 +98,7 @@ func test_items_stand_on_their_mats() -> void:
 
 
 ## The placeable ring's art: solid mustard between an ink line outside and one inside, so it
-## reads on the brass mats.
+## reads on the steel rail.
 func test_the_placeable_ring_has_ink_lines() -> void:
 	var image: Image = RowStrip.SLOT_PLACEABLE.get_image()
 	var scale: int = ArtStyle.ART_SCALE
@@ -118,12 +113,13 @@ func test_the_placeable_ring_has_ink_lines() -> void:
 	for art_x: int in range(expected.size()):
 		var pixel: Color = image.get_pixel(art_x * scale, middle)
 		assert_str(pixel.to_html(false)).is_equal(expected[art_x])
-	# The middle stays clear, so the mat shows through.
+	# The middle stays clear, so the ticket shows through.
 	assert_float(image.get_pixel(floori(image.get_width() / 2.0), middle).a).is_equal(0.0)
 
 
-## The ring marks the slots up to placeable_until, filled or not: one art pixel around the mat,
-## inside the cell, over the mat and under the item (whose plaque and sprite stay whole).
+## The ring marks the slots up to placeable_until, filled or not: one art pixel around the
+## ticket, inside the cell, over the ticket and under the item (whose plaque and sprite stay
+## whole).
 func test_the_placeable_ring_rings_the_mat_under_the_item() -> void:
 	var strip: RowStrip = await _strip(7)
 	var row: Array[CardInstance] = [_card("bread", 1), _card("milk", 2)]
@@ -151,7 +147,7 @@ func test_the_placeable_ring_rings_the_mat_under_the_item() -> void:
 		assert_bool(strip.is_outlined(slot)).is_false()
 
 
-## The landing fill covers an empty mat only (an item there is tinted by CardDrag instead).
+## The landing fill covers an empty ticket only (an item there is tinted by CardDrag instead).
 func test_the_hover_fill_shows_on_empty_mats_only() -> void:
 	var strip: RowStrip = await _strip(7)
 	var row: Array[CardInstance] = [_card("bread", 1)]
@@ -183,9 +179,10 @@ func test_row_items_carry_their_aisle() -> void:
 	assert_object((views[2] as ItemView).aisle).is_null()
 
 
-## CLOSED: bare rubber (no mat), the word on the inspection tag's frame (drawn behind it),
-## hanging from the velvet rope between two brass posts at their art's size, the caption under
-## them, the tooltip and the click signal. Nothing in the cell takes the click from the cell.
+## CLOSED: no ticket or footprint, the velvet rope between two posts on the belt at their art's
+## size, and on the rail the ink plate (drawn behind the word) with CLOSED on its top and the
+## caption under it, the tooltip and the click signal. Nothing in the cell takes the click from
+## the cell.
 func test_a_closed_slot_shows_the_rope_and_the_sign() -> void:
 	var strip: RowStrip = await _strip(6, 1, "Closed by the inspection: Short belt", "Short belt")
 	assert_int(strip.closed.size()).is_equal(1)
@@ -200,10 +197,12 @@ func test_a_closed_slot_shows_the_rope_and_the_sign() -> void:
 	var label: Label = panel.get_child(0) as Label
 	assert_str(label.text).is_equal(RowStrip.CLOSED_TEXT)
 	assert_object(label.material).is_null()
-	var sign_frame: NinePatchRect = label.get_node(NodePath(RowStrip.SIGN_NAME)) as NinePatchRect
-	assert_object(sign_frame.texture).is_same(RowStrip.TAG_FRAME)
-	assert_bool(sign_frame.show_behind_parent).is_true()
-	assert_that(sign_frame.get_global_rect()).is_equal(_in_cell(cell, RowStrip.CLOSED_SIGN_RECT))
+	var plate: Panel = label.get_node(NodePath(RowStrip.PLATE_NAME)) as Panel
+	assert_bool(plate.show_behind_parent).is_true()
+	assert_that(plate.get_global_rect()).is_equal(_in_cell(cell, RowStrip.CLOSED_PLATE_RECT))
+	var sign_area: Control = label.get_node(NodePath(RowStrip.SIGN_NAME)) as Control
+	assert_that(sign_area.get_global_rect()).is_equal(_in_cell(cell, RowStrip.CLOSED_SIGN_RECT))
+	assert_bool(plate.get_global_rect().encloses(sign_area.get_global_rect())).is_true()
 	# The word fits the sign.
 	var font: Font = label.get_theme_font("font")
 	var word: Vector2 = font.get_string_size(
@@ -233,6 +232,7 @@ func test_a_closed_slot_shows_the_rope_and_the_sign() -> void:
 	assert_float(caption.get_global_rect().position.y).is_greater_equal(
 		parts[0].get_global_rect().end.y
 	)
+	assert_bool(plate.get_global_rect().encloses(caption.get_global_rect())).is_true()
 	for child: Node in label.get_children():
 		assert_int((child as Control).mouse_filter).is_equal(Control.MOUSE_FILTER_IGNORE)
 	assert_int(label.mouse_filter).is_equal(Control.MOUSE_FILTER_IGNORE)
@@ -285,16 +285,16 @@ func test_every_closed_caption_fits() -> void:
 		)
 
 
-## Plan 3.8: the 7 slots fill the rubber at pitch 124 unscaled; 8 or 9 slots close their gaps,
+## Plan 3.8: the 7 slots fill the belt at pitch 128 unscaled; 8 or 9 slots close their gaps,
 ## then scale to the 7-slot width, their cells touching but never overlapping, each item's
-## sprite in its mat and its plaque and chips in its cell, and the sticker's summary still at
+## sprite above its ticket and its plaque and chips in its cell, and the sticker's summary still at
 ## least MIN_SUMMARY_PX tall on screen. A closed slot never rescales the row (plan 3.9), since
 ## the row keeps its usual cell count.
 func test_wide_rows_close_their_gaps_then_scale() -> void:
 	var seven: RowStrip = await _strip(7)
 	assert_vector(seven.box.scale).is_equal(Vector2.ONE)
 	assert_float(seven.box.get_global_rect().size.x).is_equal(RowStrip.row_width(7))
-	assert_float(RowStrip.row_width(7)).is_equal(864.0)
+	assert_float(RowStrip.row_width(7)).is_equal(884.0)
 	for count: int in [8, 9]:
 		var strip: RowStrip = await _strip(count)
 		assert_int(RowStrip.separation_for(count)).is_equal(RowStrip.WIDE_SEPARATION)
@@ -322,7 +322,9 @@ func test_wide_rows_close_their_gaps_then_scale() -> void:
 			previous = cell
 			var mat: Rect2 = RowStrip.mat(strip.slots[slot]).get_global_rect()
 			var sprite: Rect2 = item.body.get_global_rect()
-			assert_bool(mat.encloses(sprite)).override_failure_message(message).is_true()
+			assert_float(sprite.end.y).override_failure_message(message).is_less_equal(
+				mat.position.y
+			)
 			var parts: Array[Control] = [(item.badge as PayoutPlaque).face(), item.sticker()]
 			parts.append_array(item.chips())
 			for part: Control in parts:
