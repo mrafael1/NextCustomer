@@ -232,10 +232,10 @@ func test_reduced_motion_fades_the_cards_in_place() -> void:
 	assert_int(presented).is_greater_equal(_tuning.printout_lift_ms - FRAME_SLACK_MS)
 
 
-## The print-out fits the 1280x720 screen beside the receipt without overlapping it, with the
-## deck-full note and the inspection warning, on every frame of its lift; its note, warning,
-## items and buttons sit inside it, one under the other, the items side by side; the shade leaves
-## the register column and the monitor unshaded.
+## The print-out fits the 1280x720 screen beside the receipt and under the hung monitor without
+## overlapping either (#80), with the deck-full note and the inspection warning, on every frame of
+## its lift; its note, warning, items and buttons sit inside it, one under the other, the items
+## side by side; the shade leaves the register column and the monitor unshaded.
 func test_the_printout_sits_beside_the_receipt() -> void:
 	var screen: ShiftScreen = await _screen()
 	await _pass_shift(screen)
@@ -245,6 +245,7 @@ func test_the_printout_sits_beside_the_receipt() -> void:
 	assert_str(panel.warning_text()).is_equal(NOTICE)
 	assert_str(panel._note.text).contains("deck is full")
 	var receipt: Rect2 = screen._receipt.get_global_rect()
+	var monitor: Rect2 = screen._stage.get_global_transform() * MonitorView.DRAWN_RECT
 	var failures: Array[String] = []
 	while panel.is_lifting():
 		await get_tree().process_frame
@@ -253,6 +254,8 @@ func test_the_printout_sits_beside_the_receipt() -> void:
 			failures.append("cards outside the screen at %s" % cards)
 		if cards.intersects(receipt):
 			failures.append("cards over the receipt at %s" % cards)
+		if cards.intersects(monitor) or panel.get_global_rect().intersects(monitor):
+			failures.append("print-out over the monitor at %s" % panel.get_global_rect())
 	assert_array(failures).override_failure_message("\n".join(failures)).is_empty()
 	await _frames(3)
 	var rect: Rect2 = panel.get_global_rect()
@@ -260,6 +263,9 @@ func test_the_printout_sits_beside_the_receipt() -> void:
 	assert_bool(SCREEN_RECT.encloses(rect)).override_failure_message(str(rect)).is_true()
 	assert_bool(rect.intersects(receipt)).override_failure_message(str(rect)).is_false()
 	assert_float(rect.position.y).is_greater_equal(RewardPanel.PRINTOUT_TOP)
+	# Under the monitor's foot (its bezel and shade), by PRINTOUT_GAP at least.
+	assert_bool(rect.intersects(monitor)).override_failure_message(str(rect)).is_false()
+	assert_float(rect.position.y).is_greater_equal(monitor.end.y + RewardPanel.PRINTOUT_GAP)
 	var above: Rect2 = Rect2()
 	for part: Control in [panel._note, panel._warning, panel._cards, panel._skip_button]:
 		var part_rect: Rect2 = part.get_global_rect()
@@ -302,6 +308,8 @@ func test_the_printout_stays_on_a_wide_stage() -> void:
 	assert_bool(stage.encloses(rect)).override_failure_message(str(rect)).is_true()
 	assert_that(rect.position - stage.position).is_equal(on_stage)
 	assert_bool(rect.intersects(screen._receipt.get_global_rect())).is_false()
+	var monitor: Rect2 = screen._stage.get_global_transform() * MonitorView.DRAWN_RECT
+	assert_bool(rect.intersects(monitor)).override_failure_message(str(rect)).is_false()
 	_assert_column_unshaded(screen)
 
 

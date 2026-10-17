@@ -6,20 +6,20 @@ extends Control
 ## layout; the stage never scales. This is B2's greybox (step 3): the regions are where B2 has
 ## them, drawn as flat palette fills, and the art lands region by region in later steps.
 ##
-## On the stage, back to front: the hung monitor (MonitorView: two rods, its bezel and paper
-## screen, with the LED's totals, the notices, a scanned item and the count-up on it), the register
+## On the stage, back to front: the hung monitor (MonitorView: two rods, its bezel and paper screen,
+## with the LED's totals, the notices, a scanned item and the count-up on it), the register
 ## (RegisterCabinet, the count-up's rattle target: the printer box on the counter top and the
-## register column under it, with the keypad and the cash drawer), the receipt rising from the
-## printer's slot, the belt (BeltPanel: the steel guard, the rubber top face, the lip, the apron
-## and the price rail, then the row of items standing on the belt with their tickets on the rail),
-## the top bar (the velvet shift sign, the loyalty card, the inspection tag, Deck and Export log,
-## all above RewardPanel.PRINTOUT_TOP), the capacity line and the cue on the counter under the rail,
-## the hand's baskets on the steel ledge (HandBaskets: their backs, the hand in them, their fronts)
-## and the shade that darkens them while counting, the controls hint along the floor, Cancel, Redraw
-## and CHECKOUT on the register column and the seed line under Redraw. Over them all the scan layer
-## (ScanOverlay: the scan's brackets and beam) and the popup layer, both taking no clicks. A belt or
-## hand item's scan shows on the monitor (#80); the popup layer only parks the hidden scan popup,
-## which opens over the offers alone, in the layer an offer's scan moves it to
+## register column under it, with the key deck and its keys, Cancel, Redraw and CHECKOUT, the
+## keypad, the seed line under Redraw and the cash drawer), the receipt rising from the printer's
+## slot, the belt (BeltPanel: the steel guard, the rubber top face, the lip, the apron and the price
+## rail, then the row of items standing on the belt with their tickets on the rail), the top bar
+## (the velvet shift sign, the loyalty card, the inspection tag, Deck and Export log, all above
+## RewardPanel.PRINTOUT_TOP), the capacity line and the cue on the counter under the rail, the
+## hand's baskets on the steel ledge (HandBaskets: their backs, the hand in them, their fronts) and
+## the shade that darkens them while counting, and the controls hint along the floor. Over them all
+## the scan layer (ScanOverlay: the scan's brackets and beam) and the popup layer, both taking no
+## clicks. A belt or hand item's scan shows on the monitor (#80); the popup layer only parks the
+## hidden scan popup, which opens over the offers alone, in the layer an offer's scan moves it to
 ## (ScanController.cover_offers).
 ##
 ## The receipt stands on the printer's slot and grows up as its lines print, up to under the top
@@ -75,14 +75,15 @@ const LED_DIGITS_RECT := Rect2(452, 98, 264, 52)
 const LED_QUOTA_RECT := Rect2(452, 152, 264, 22)
 const NOTICE_RECT := Rect2(388, 182, 392, 44)
 ## The register (RegisterCabinet): the printer box on the counter top with its slot, and the
-## register column under it with the keypad and the cash drawer and its pull.
+## register column under it: the key deck (the keys, the keypad and the seed line stand on it)
+## and the cash drawer.
 const REGISTER_RECT := Rect2(944, 330, 336, 370)
 const PRINTER_RECT := Rect2(984, 330, 264, 62)
 const PRINTER_SLOT_RECT := Rect2(994, 336, 244, 8)
 const COLUMN_RECT := Rect2(944, 400, 336, 300)
-const KEYPAD_RECT := Rect2(964, 518, 90, 54)
+const DECK_RECT := Rect2(954, 412, 314, 204)
+const KEYPAD_RECT := Rect2(966, 516, 88, 86)
 const DRAWER_RECT := Rect2(954, 624, 314, 76)
-const DRAWER_PULL_RECT := Rect2(1054, 660, 112, 10)
 ## The receipt stands on the printer's slot (RECEIPT_BOTTOM) and grows up to RECEIPT_TOP at
 ## most; its lines wrap as the plan's examples do.
 const RECEIPT_X := 998.0
@@ -94,15 +95,12 @@ const RECEIPT_PADDING := 8
 const CAPACITY_RECT := Rect2(20, 494, 600, 20)
 const CUE_RECT := Rect2(628, 494, 296, 20)
 const CUE_TEXT := "Scanned left to right →"
-## The keys on the register column. Redraw keeps its right edge, so a longer caption never grows
-## it off the column; Cancel (redraw mode only) takes the keypad's place.
+## The keys on the register's key deck (RegisterCabinet builds them). Redraw keeps its right
+## edge, so a longer caption never grows it off the column; Cancel (redraw mode only) takes the
+## keypad's place, left of the seam.
 const CHECKOUT_RECT := Rect2(964, 422, 296, 82)
 const REDRAW_RECT := Rect2(1062, 518, 198, 54)
-const CANCEL_RECT := Rect2(964, 518, 90, 54)
-const BUTTON_FONT_SIZE := 16
-const CHECKOUT_FONT_SIZE := 26
-## The ink outline of CHECKOUT's caption, in canvas pixels.
-const CHECKOUT_OUTLINE := 4
+const CANCEL_RECT := Rect2(964, 518, 84, 54)
 ## The steel ledge in front of the counter (its art, ink outline included) and the hand in its
 ## baskets on it (HandRow: ItemView.BASKET_SIZE cells, from the first basket's left edge to the
 ## last one's right edge at the natural pitch; the baskets' rims are HandBaskets').
@@ -161,9 +159,10 @@ var baskets: HandBaskets
 var basket_fronts: HandBaskets
 var hand_shade: ColorRect
 var hint_label: Label
-var cancel_button: FramedButton
-var redraw_button: FramedButton
-var checkout_button: FramedButton
+## The register's keys (the cabinet's, so they rattle with it).
+var cancel_button: RegisterKey
+var redraw_button: RegisterKey
+var checkout_button: RegisterKey
 var hand: HandRow
 var seed_label: Label
 ## Each label's layout rect, set again once the stage is in the tree: before that, a label's
@@ -332,54 +331,17 @@ func _build_counter() -> void:
 	_place_label(hint_label, HINT_RECT)
 
 
-## The keys on the register column: CHECKOUT, Redraw, Cancel (redraw mode only), and the seed
-## line under Redraw.
+## The register's keys (CHECKOUT, Redraw, Cancel in redraw mode only) and seed line, wired to the
+## stage's signals. Cancel clicks; Redraw and CHECKOUT sound themselves.
 func _build_keys() -> void:
-	cancel_button = UiKit.framed_button(
-		self,
-		"Cancel",
-		cancel_pressed.emit,
-		BUTTON_FONT_SIZE,
-		UiKit.BUTTON_BRASS_FRAME,
-		CANCEL_RECT.size,
-		"ui_back"
-	)
-	cancel_button.position = CANCEL_RECT.position
-	_ink_caption(cancel_button)
-	# Shown in redraw mode only (the screen shows it).
-	cancel_button.visible = false
-	# The redraw and CHECKOUT sound themselves.
-	redraw_button = UiKit.framed_button(
-		self,
-		"",
-		redraw_pressed.emit,
-		BUTTON_FONT_SIZE,
-		UiKit.BUTTON_BRASS_FRAME,
-		REDRAW_RECT.size,
-		""
-	)
-	redraw_button.use_number_font()
-	_ink_caption(redraw_button)
-	redraw_button.position = REDRAW_RECT.position
-	redraw_button.resized.connect(_keep_redraw_edge)
-	checkout_button = UiKit.framed_button(
-		self,
-		"CHECKOUT",
-		checkout_pressed.emit,
-		CHECKOUT_FONT_SIZE,
-		UiKit.BUTTON_VELVET_FRAME,
-		CHECKOUT_RECT.size,
-		""
-	)
-	checkout_button.position = CHECKOUT_RECT.position
-	var checkout_caption: Label = checkout_button.caption_label()
-	checkout_caption.add_theme_color_override("font_color", Palette.PAPER)
-	checkout_caption.add_theme_constant_override("outline_size", CHECKOUT_OUTLINE)
-	seed_label = UiKit.body_label("", 12, Color(Palette.CREAM_SHADE, 0.85))
-	seed_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	seed_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	add_child(seed_label)
-	_place_label(seed_label, SEED_RECT)
+	cancel_button = cabinet.cancel_key
+	cancel_button.pressed.connect(func() -> void: Sfx.play_at(cancel_button, "ui_back"))
+	cancel_button.pressed.connect(cancel_pressed.emit)
+	redraw_button = cabinet.redraw_key
+	redraw_button.pressed.connect(redraw_pressed.emit)
+	checkout_button = cabinet.checkout_key
+	checkout_button.pressed.connect(checkout_pressed.emit)
+	seed_label = cabinet.seed_label
 
 
 ## The scan layer and the popup layer (where the hidden scan popup waits) over the whole stage.
@@ -395,18 +357,7 @@ func _build_scan_layers() -> void:
 	add_child(popup_layer)
 
 
-## Plain ink caption on a brass button (Cancel, Redraw).
-static func _ink_caption(button: FramedButton) -> void:
-	button.caption_label().add_theme_color_override("font_color", Palette.INK)
-	button.caption_label().add_theme_constant_override("outline_size", 0)
-
-
 func _place_label(label: Label, rect: Rect2) -> void:
 	_label_rects[label] = rect
 	label.position = rect.position
 	label.size = rect.size
-
-
-## Redraw keeps its right edge: a caption longer than REDRAW_RECT grows it to the left.
-func _keep_redraw_edge() -> void:
-	redraw_button.position.x = REDRAW_RECT.end.x - redraw_button.size.x

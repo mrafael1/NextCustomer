@@ -335,32 +335,34 @@ func test_the_best_so_far_leaves_out_the_shift_being_counted() -> void:
 	assert_int(ShiftScreen.best_earlier_total(history)).is_equal(60)
 
 
-## The LED and the TOTAL key through a passed shift (#55): PROJECTED in planning with the key
-## up; from the click SUBTOTAL with the key down on every frame of the count-up and the
-## dessert; TOTAL, green with its chip, and the key up on the reward panel; the next shift's
-## planning shows PROJECTED and hides the chip (its anchor is empty) with the key still up.
-func test_the_led_and_the_total_key_follow_a_passed_shift() -> void:
+## The LED and CHECKOUT's key through a passed shift (#55; #80, step 9): PROJECTED in planning
+## with CHECKOUT up; from the click SUBTOTAL with CHECKOUT held down (its off look, sunk) on every
+## frame of the count-up and the dessert; TOTAL, green with its chip, and CHECKOUT up on the
+## reward panel; the next shift's planning shows PROJECTED and hides the chip (its anchor is
+## empty) with CHECKOUT up and pressable again.
+func test_the_led_and_checkout_follow_a_passed_shift() -> void:
 	var screen: ShiftScreen = await _screen()
 	var led: LedDisplay = screen._led
-	var cabinet: RegisterCabinet = screen._cabinet
+	var checkout: RegisterKey = screen._stage.checkout_button
 	await _place(screen, PASSING_ROW)
 	var total: int = screen.run.preview().total
 	assert_str(led.caption()).is_equal(LedDisplay.PROJECTED_TEXT)
 	assert_str(led.digits_label().text).is_equal("€%d" % total)
-	assert_bool(cabinet.is_total_down()).is_false()
+	assert_bool(checkout.held).is_false()
+	assert_int(checkout.look()).is_equal(RegisterKey.Look.NORMAL)
 	screen._on_checkout_pressed()
-	assert_bool(cabinet.is_total_down()).is_true()
+	assert_bool(checkout.held).is_true()
 	assert_str(led.caption()).is_equal(LedDisplay.SUBTOTAL_TEXT)
 	await _frames(2)
 	screen._count_up._tap(Time.get_ticks_msec())
 	screen._count_up._tap(Time.get_ticks_msec())
 	var key_up_frames: int = 0
 	while screen._counting:
-		if not cabinet.is_total_down():
+		if not checkout.held or checkout.look() != RegisterKey.Look.OFF or not checkout.is_sunk():
 			key_up_frames += 1
 		await get_tree().process_frame
 	assert_int(key_up_frames).is_equal(0)
-	assert_bool(cabinet.is_total_down()).is_false()
+	assert_bool(checkout.held).is_false()
 	assert_bool(screen._reward_panel.visible).is_true()
 	assert_str(led.digits_label().text).is_equal("€%d" % total)
 	await _assert_chip(screen, true)
@@ -372,7 +374,8 @@ func test_the_led_and_the_total_key_follow_a_passed_shift() -> void:
 	assert_str(led.caption()).is_equal(LedDisplay.PROJECTED_TEXT)
 	assert_bool(led.quota_anchor().has_area()).is_false()
 	assert_bool(chip.visible).is_false()
-	assert_bool(cabinet.is_total_down()).is_false()
+	assert_bool(checkout.held).is_false()
+	assert_int(checkout.look()).is_equal(RegisterKey.Look.NORMAL)
 
 
 ## TEMPORARY (#60): the debug panel's count-up toggles show the profile's settings and the

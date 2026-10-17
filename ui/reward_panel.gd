@@ -39,9 +39,12 @@ const ARM_MS := 350
 ## The print-out's cards start this far below their place, at PRINTOUT_START_SCALE, and lift.
 const PRINTOUT_DROP_PX := 120.0
 const PRINTOUT_START_SCALE := 0.6
-## The print-out's gap to the receipt it sits beside, and the top bar it stays below.
+## The print-out's gap to the receipt it sits beside, and the top bar it stays below (the shade
+## starts there too). The print-out itself stays under the hung monitor (#80): its area starts
+## PRINTOUT_GAP under the monitor's foot (MonitorView.DRAWN_RECT), on the stage.
 const PRINTOUT_GAP := 24.0
 const PRINTOUT_TOP := 64.0
+const PRINTOUT_AREA_TOP := MonitorView.DRAWN_RECT.end.y + PRINTOUT_GAP
 ## The impulse rack's headline (show_rack).
 const RACK_HEADLINE := "Impulse rack: grab one before shift 1?"
 ## The PROMO tag on a print-out product's price sticker (sticker coordinates): over the sticker's
@@ -254,14 +257,14 @@ func print_offer(
 
 
 ## Where the print-out goes beside a receipt at `receipt` on a stage at `stage` (both global
-## rects): the room on the stage left of the receipt, below the top bar.
+## rects): the room on the stage left of the receipt, under the hung monitor.
 static func printout_area(receipt: Rect2, stage: Rect2) -> Rect2:
 	var right: float = maxf(receipt.position.x - PRINTOUT_GAP, stage.position.x)
 	return Rect2(
 		stage.position.x,
-		stage.position.y + PRINTOUT_TOP,
+		stage.position.y + PRINTOUT_AREA_TOP,
 		right - stage.position.x,
-		maxf(stage.size.y - PRINTOUT_TOP, 0.0)
+		maxf(stage.size.y - PRINTOUT_AREA_TOP, 0.0)
 	)
 
 
@@ -296,7 +299,10 @@ func _place_beside() -> void:
 	if not is_instance_valid(_beside) or not is_instance_valid(_stage):
 		return
 	var area: Rect2 = printout_area(_beside.get_global_rect(), _stage.get_global_rect())
-	global_position = (area.get_center() - size / 2.0).round()
+	# Centred in its area; a print-out taller than the area starts at its top.
+	var place: Vector2 = (area.get_center() - size / 2.0).round()
+	place.y = maxf(place.y, area.position.y)
+	global_position = place
 
 
 ## The print-out's items are still lifting.
