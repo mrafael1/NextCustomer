@@ -4,13 +4,13 @@ extends GdUnitTestSuite
 ## inside the paper. A scan's text fits the screen for every card in data/cards, in the hand and on
 ## the belt (with the worst footer, folded into "+N more" on the smallest size); the count-up's
 ## content fits at the largest punch with the longest digits, gain, names, step lines and to-go
-## texts. Its states on the real screen: idle in planning, the scanned item once a hover is held
-## (never on a plain hover), idle again when the scan ends, a notice over a scan (in ink, never
-## tomato); each count-up beat's item, "n / m", gain and step line (whole), the to-go text from
-## core's ShiftMargin, then the TOTAL alone. The gain chip pops in on the count-up's tweens;
-## reduced motion leaves its pop out. ScreenShade leaves its hole unshaded. Headless
-## runs never move the mouse: the tests set the scanner's pointer and clock. The real saves and
-## logs are never touched.
+## texts. Its states on the real screen: the store channel in planning (monitor_channel_test),
+## the scanned item once a hover is held (never on a plain hover), the channel again when the scan
+## ends, a notice over a scan (in ink, never tomato); each count-up beat's item, "n / m", gain and
+## step line (whole), the to-go text from core's ShiftMargin, then the TOTAL alone. The gain chip
+## pops in on the count-up's tweens; reduced motion leaves its pop out. ScreenShade leaves its
+## hole unshaded. Headless runs never move the mouse: the tests set the scanner's pointer and
+## clock. The real saves and logs are never touched.
 
 const SCREEN := "res://ui/shift_screen.tscn"
 const CARDS := "res://data/cards"
@@ -117,9 +117,11 @@ func test_the_monitor_hangs_on_the_stage_clear_of_the_rest() -> void:
 		assert_bool(part.intersects(MonitorView.TEXT_RECT)).is_false()
 		assert_bool(part.intersects(MonitorView.LED_COUNT_RECT)).is_false()
 	assert_bool(MonitorView.CONTENT_RECT.encloses(MonitorView.TEXT_RECT)).is_true()
-	# The LED sits compact on the screen in planning, and the monitor takes no clicks.
+	# In planning the store channel has the screen (the LED hidden at its compact place, for the
+	# impulse rack), and the monitor takes no clicks.
 	assert_that(screen._led.get_global_rect()).is_equal(_on_stage(screen, ShiftStage.LED_RECT))
-	assert_int(monitor.mode()).is_equal(MonitorView.Mode.IDLE)
+	assert_bool(screen._led.visible).is_false()
+	assert_int(monitor.mode()).is_equal(MonitorView.Mode.CHANNEL)
 	assert_int(monitor.mouse_filter).is_equal(Control.MOUSE_FILTER_IGNORE)
 
 
@@ -396,22 +398,22 @@ func test_every_count_name_fits_the_art_column() -> void:
 	assert_int(at_largest).is_greater(0)
 
 
-## On the real screen: idle in planning; a plain hover on a belt item leaves it idle; the held
-## hover fills it with the item (its art, name, rule, pays and step lines worded as the receipt
-## words them, no popup); a notice takes the screen while it lasts, then the scan comes back;
-## leaving the item brings the idle screen back with the projected total. A hand item shows no
-## pays or step lines.
-func test_a_held_scan_fills_the_monitor_then_it_goes_back_to_idle() -> void:
+## On the real screen: the store channel in planning; a plain hover on a belt item leaves it on the
+## channel; the held hover fills it with the item (its art, name, rule, pays and step lines worded
+## as the receipt words them, no popup); a notice takes the screen while it lasts, then the scan
+## comes back; leaving the item brings the channel back, with no projected total on the monitor.
+## A hand item shows no pays or step lines.
+func test_a_held_scan_fills_the_monitor_then_it_goes_back_to_the_channel() -> void:
 	var screen: ShiftScreen = await _screen()
 	await _place(screen, ["milk", "bread", "coffee"])
 	var monitor: MonitorView = screen._monitor
-	assert_int(monitor.mode()).is_equal(MonitorView.Mode.IDLE)
+	assert_int(monitor.mode()).is_equal(MonitorView.Mode.CHANNEL)
 	var view: ItemView = screen._row_views[2] as ItemView
 	await _hover(screen, view)
 	_clock += screen._scan.hold_ms() - 1
 	await _frames(2)
-	assert_int(monitor.mode()).is_equal(MonitorView.Mode.IDLE)
-	assert_bool(screen._led.visible).is_true()
+	assert_int(monitor.mode()).is_equal(MonitorView.Mode.CHANNEL)
+	assert_bool(monitor.channel.visible).is_true()
 	_clock += 1
 	await _frames(2)
 	assert_bool(screen._scan.is_full()).is_true()
@@ -434,7 +436,8 @@ func test_a_held_scan_fills_the_monitor_then_it_goes_back_to_idle() -> void:
 	# CLOSED); the scan comes back.
 	screen._notice_label.show_notice("Row full (9/9 items): take an item out first")
 	assert_int(monitor.mode()).is_equal(MonitorView.Mode.IDLE)
-	assert_bool(screen._led.visible).is_true()
+	assert_bool(screen._led.visible).is_false()
+	assert_bool(monitor.channel.visible).is_false()
 	assert_bool(screen._notice_label.is_visible_in_tree()).is_true()
 	var notice_colour: Color = screen._notice_label.get_theme_color("font_color")
 	assert_that(notice_colour).is_equal(MonitorView.NOTICE_COLOR)
@@ -442,15 +445,14 @@ func test_a_held_scan_fills_the_monitor_then_it_goes_back_to_idle() -> void:
 		assert_bool(notice_colour == tomato).is_false()
 	screen._notice_label.clear_notice()
 	assert_int(monitor.mode()).is_equal(MonitorView.Mode.SCAN)
-	# Off the item: idle, with the projected total.
+	# Off the item: the store channel again, no projected total on the monitor.
 	_point = Vector2(-100, -100)
 	view.unhovered.emit(view)
 	await _frames(2)
 	assert_object(screen._scan.scanned()).is_null()
-	assert_int(monitor.mode()).is_equal(MonitorView.Mode.IDLE)
-	assert_bool(screen._led.visible).is_true()
-	assert_str(screen._led.caption()).is_equal(LedDisplay.PROJECTED_TEXT)
-	assert_that(screen._led.get_global_rect()).is_equal(_on_stage(screen, ShiftStage.LED_RECT))
+	assert_int(monitor.mode()).is_equal(MonitorView.Mode.CHANNEL)
+	assert_bool(screen._led.visible).is_false()
+	assert_bool(_shown_texts(monitor).has(LedDisplay.PROJECTED_TEXT)).is_false()
 	# A hand item: no pays and no step lines.
 	var hand_item: ItemView = screen._hand_box.cards()[0] as ItemView
 	await _hover(screen, hand_item)
@@ -460,7 +462,7 @@ func test_a_held_scan_fills_the_monitor_then_it_goes_back_to_idle() -> void:
 	assert_object(monitor.scan_footer()).is_null()
 	assert_bool(_shown_texts(monitor).has(MonitorView.PAYS_WORD)).is_false()
 	screen._scan.clear()
-	assert_int(monitor.mode()).is_equal(MonitorView.Mode.IDLE)
+	assert_int(monitor.mode()).is_equal(MonitorView.Mode.CHANNEL)
 
 
 ## On the real screen, every count-up beat shows on the monitor as it starts: its item's art,
@@ -543,10 +545,12 @@ func test_the_count_up_shows_each_beat_on_the_monitor() -> void:
 	var chip: QuotaChip = screen._count_up._quota_chip
 	assert_bool(chip.visible).is_true()
 	assert_bool(led.get_global_rect().encloses(chip.get_global_rect())).is_true()
-	# The next shift's planning: idle, compact.
+	# The next shift's planning: the store channel, the LED blank, hidden and compact.
 	screen._on_reward_skipped()
 	await _frames(2)
-	assert_int(monitor.mode()).is_equal(MonitorView.Mode.IDLE)
+	assert_int(monitor.mode()).is_equal(MonitorView.Mode.CHANNEL)
+	assert_int(led.mode()).is_equal(LedDisplay.Mode.BLANK)
+	assert_bool(led.visible).is_false()
 	assert_that(led.get_global_rect()).is_equal(_on_stage(screen, ShiftStage.LED_RECT))
 	assert_vector(led.size).is_equal(ShiftStage.LED_RECT.size)
 

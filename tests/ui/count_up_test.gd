@@ -335,19 +335,21 @@ func test_the_best_so_far_leaves_out_the_shift_being_counted() -> void:
 	assert_int(ShiftScreen.best_earlier_total(history)).is_equal(60)
 
 
-## The LED and CHECKOUT's key through a passed shift (#55; #80, step 9): PROJECTED in planning
-## with CHECKOUT up; from the click SUBTOTAL with CHECKOUT held down (its off look, sunk) on every
-## frame of the count-up and the dessert; TOTAL, green with its chip, and CHECKOUT up on the
-## reward panel; the next shift's planning shows PROJECTED and hides the chip (its anchor is
-## empty) with CHECKOUT up and pressable again.
+## The LED and CHECKOUT's key through a passed shift (#55; #80, step 9): planning shows the
+## monitor's store channel (the LED blank and hidden, the projected total on the top bar's QUOTA
+## chip) with CHECKOUT up; from the click SUBTOTAL with CHECKOUT held down (its off look, sunk) on
+## every frame of the count-up and the dessert; TOTAL, green with its chip, and CHECKOUT up on the
+## reward panel; the next shift's planning brings the channel back with its brief, blanks the LED
+## and hides the chip (its anchor is empty) with CHECKOUT up and pressable again.
 func test_the_led_and_checkout_follow_a_passed_shift() -> void:
 	var screen: ShiftScreen = await _screen()
 	var led: LedDisplay = screen._led
 	var checkout: RegisterKey = screen._stage.checkout_button
 	await _place(screen, PASSING_ROW)
 	var total: int = screen.run.preview().total
-	assert_str(led.caption()).is_equal(LedDisplay.PROJECTED_TEXT)
-	assert_str(led.digits_label().text).is_equal("€%d" % total)
+	assert_int(led.mode()).is_equal(LedDisplay.Mode.BLANK)
+	assert_int(screen._monitor.mode()).is_equal(MonitorView.Mode.CHANNEL)
+	assert_str(screen._quota_meter.amount_label.text).is_equal("€%d" % total)
 	assert_bool(checkout.held).is_false()
 	assert_int(checkout.look()).is_equal(RegisterKey.Look.NORMAL)
 	screen._on_checkout_pressed()
@@ -371,7 +373,11 @@ func test_the_led_and_checkout_follow_a_passed_shift() -> void:
 	screen._on_reward_skipped()
 	await _frames(2)
 	assert_int(screen.run.phase).is_equal(RunState.Phase.PLANNING)
-	assert_str(led.caption()).is_equal(LedDisplay.PROJECTED_TEXT)
+	assert_int(led.mode()).is_equal(LedDisplay.Mode.BLANK)
+	assert_int(screen._monitor.mode()).is_equal(MonitorView.Mode.CHANNEL)
+	assert_str(screen._monitor.channel.current_key()).is_equal(MonitorChannel.BRIEF_KEY)
+	var shift_text: String = MonitorChannel.SHIFT_TEXT % [2, screen.run.shift_count()]
+	assert_bool(screen._monitor.channel.slide_texts(0).has(shift_text)).is_true()
 	assert_bool(led.quota_anchor().has_area()).is_false()
 	assert_bool(chip.visible).is_false()
 	assert_bool(checkout.held).is_false()

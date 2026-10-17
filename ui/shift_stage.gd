@@ -56,8 +56,9 @@ const ROW_BOTTOM := ROW_POSITION.y + ItemView.BELT_SIZE.y
 ## down to the rail's foot.
 const ROW_AREA := Rect2(22, ROW_POSITION.y, 904, ItemView.BELT_SIZE.y)
 ## The monitor hung from the ceiling on two rods, its bezel and paper screen, and the shade under
-## it (MonitorView draws them). Idle, the LED (LedDisplay: caption, digits and the quota line with
-## its bar) and the notices are on its screen; MonitorView lays out its other states.
+## it (MonitorView draws them). In the impulse rack the LED (LedDisplay: caption, digits and the
+## quota line with its bar, blank there) and the notices are on its screen; MonitorView lays out
+## its other states (planning's store channel among them).
 const MONITOR_RECT := Rect2(372, 66, 424, 176)
 const MONITOR_SCREEN_RECT := Rect2(381, 75, 406, 158)
 const MONITOR_UNDER_RECT := Rect2(378, 240, 412, 8)

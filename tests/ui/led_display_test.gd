@@ -6,8 +6,8 @@ extends GdUnitTestSuite
 ## compact on the glass in planning and blank, the count-up's on the monitor's paper for SUBTOTAL
 ## and TOTAL), the quota chip's anchor (empty unless the count-up's subtotal or total shows) and
 ## the chip covering the quota text, the longest digits at the largest punch inside the glass
-## (compact) or the monitor's paper (count), and on the real screen (on the hung monitor) the
-## digits and quota line read from core's ScoreResult and RunState. The real saves and logs are
+## (compact) or the monitor's paper (count), and on the real screen (on the hung monitor) blank in
+## planning and the total read from core's ScoreResult. The real saves and logs are
 ## never touched.
 
 const SCREEN := "res://ui/shift_screen.tscn"
@@ -303,9 +303,10 @@ func test_the_chip_covers_the_quota_text() -> void:
 		assert_bool(rect.position.y <= text.position.y and text.position.y <= rect.end.y).is_true()
 
 
-## On the real screen, planning shows the preview's total (core's ScoreResult) against the run's
-## quota as cards are placed, and the compact chip, once a count-up meets the quota, fits the
-## quota line inside the glass.
+## On the real screen the LED stays blank in planning as cards are placed (the monitor's store
+## channel has the screen; the top bar's QUOTA chip carries the preview's total,
+## monitor_channel_test), and a checkout's end state shows core's total, the chip on the quota
+## line.
 func test_the_screen_shows_core_totals() -> void:
 	var runner: GdUnitSceneRunner = scene_runner(SCREEN)
 	var screen: ShiftScreen = runner.scene()
@@ -318,10 +319,8 @@ func test_the_screen_shows_core_totals() -> void:
 		var card: CardInstance = run.debug_add_to_hand(load("res://data/cards/%s.tres" % id))
 		assert_bool(run.place(card, run.row.size())).is_true()
 		screen._refresh()
-		assert_str(led.caption()).is_equal(LedDisplay.PROJECTED_TEXT)
-		assert_str(led.digits_label().text).is_equal("€%d" % run.preview().total)
-		assert_str(led.quota_label().text).is_equal("QUOTA €%d" % run.quota())
-		assert_int(led.lit()).is_equal(LedDisplay.lit_segments(run.preview().total, run.quota()))
+		assert_int(led.mode()).is_equal(LedDisplay.Mode.BLANK)
+		assert_bool(led.visible).is_false()
 	# The end state of a checkout that met the quota: TOTAL, green, the chip on the quota line.
 	var result: ScoreResult = run.preview()
 	screen._count_up.show_end_state(result, 1, screen.count_up_context())

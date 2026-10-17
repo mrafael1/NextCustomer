@@ -1,11 +1,12 @@
 extends GdUnitTestSuite
-## The top bar on its own (#80 step 10, mock-up B2; TopBar): the QUOTA chip mirrors the LED (the
-## projected total in planning, the subtotal while counting so the bar never shows the final
-## total early, the check once the count meets the quota and until the next shift, blank in the
-## impulse rack) and keeps its bar's width through a count; the menu opens under its button with
-## Export log, drawn sharp, which closes it and says so; Cart's trolley sits left of its caption
-## inside the button and the menu's bars in its middle; the chips' decor takes no clicks. Its
-## place on the screen: shift_screen_layout_test.
+## The top bar on its own (#80 step 10, mock-up B2; TopBar): the QUOTA chip shows the projected
+## total in planning (the screen's preview hands it over: the monitor shows its store channel
+## then) and mirrors the LED from the checkout (the subtotal while counting so the bar never shows
+## the final total early, the check once the count meets the quota and until the next shift, blank
+## in the impulse rack) and keeps its bar's width through a count; the menu opens under its button
+## with Export log, drawn sharp, which closes it and says so; Cart's trolley sits left of its
+## caption inside the button and the menu's bars in its middle; the chips' decor takes no clicks.
+## Its place on the screen: shift_screen_layout_test.
 
 
 func test_the_quota_chip_follows_the_led() -> void:
@@ -17,11 +18,12 @@ func test_the_quota_chip_follows_the_led() -> void:
 	led.clear()
 	assert_str(meter.amount_label.text).is_empty()
 	assert_float(meter.fill()).is_equal(0.0)
-	# Planning: the projected total, even past the quota, without the check.
-	led.show_projected(22, 73)
+	# Planning: the projected total from the screen's preview (the LED blank), even past the
+	# quota, without the check.
+	meter.show_projected(22, 73)
 	assert_str(meter.amount_label.text).is_equal("€22")
 	assert_float(meter.fill()).is_equal_approx(22.0 / 73.0, 0.0001)
-	led.show_projected(90, 73)
+	meter.show_projected(90, 73)
 	assert_float(meter.fill()).is_equal(1.0)
 	assert_bool(meter.check_shown()).is_false()
 	# The count starts from 0 and follows the subtotal; the check comes with the count's ding.
@@ -34,12 +36,15 @@ func test_the_quota_chip_follows_the_led() -> void:
 	led.show_subtotal(80, true)
 	assert_bool(meter.check_shown()).is_true()
 	assert_float(meter.fill()).is_equal(1.0)
-	# It stays through the TOTAL, then the next shift's projection frees it.
+	# It stays through the TOTAL, then the next shift's planning (the LED blanked, the projected
+	# total handed over) frees it.
 	led.show_total()
 	assert_bool(meter.check_shown()).is_true()
 	assert_str(meter.amount_label.text).is_equal("€80")
-	led.show_projected(10, 90)
+	led.clear()
+	meter.show_projected(10, 90)
 	assert_bool(meter.check_shown()).is_false()
+	assert_str(meter.amount_label.text).is_equal("€10")
 	led.clear()
 	assert_bool(meter.check_shown()).is_false()
 	assert_float(meter.fill()).is_equal(0.0)
@@ -141,7 +146,7 @@ func test_the_quota_bar_keeps_its_width_through_a_count() -> void:
 	meter.size = Vector2(400, TopBar.ROW_SIZE.y)
 	add_child(meter)
 	meter.follow(led)
-	led.show_projected(73, 900)
+	meter.show_projected(73, 900)
 	await _frames(2)
 	var width: float = meter.bar().size.x
 	assert_float(width).is_greater_equal(QuotaMeter.BAR_MIN_WIDTH)

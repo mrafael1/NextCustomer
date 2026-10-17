@@ -423,7 +423,7 @@ func test_reduced_motion_runs_no_beam_loop() -> void:
 	var overlay: ScanOverlay = screen._scan.overlay()
 	screen.profile.set_reduced_motion(true)
 	await _hover(screen, _hand_views(screen)[0])
-	assert_int(screen._monitor.mode()).is_equal(MonitorView.Mode.IDLE)
+	assert_int(screen._monitor.mode()).is_equal(MonitorView.Mode.CHANNEL)
 	assert_bool(overlay.is_posed()).is_false()
 	assert_int(_looping_tweens()).is_equal(0)
 	await _hold(screen)
@@ -648,13 +648,14 @@ static func _instant(screen: ShiftScreen) -> void:
 	screen._scan.tuning = ScanTuning.new()
 
 
-## `view` hovered quietly: nothing on the monitor and no popup, the item at rest, the scanner
-## docked with no marks or beam, no looping tween and no beep beyond the `beeps` already heard.
+## `view` hovered quietly: the monitor stays on its store channel and no popup, the item at rest,
+## the scanner docked with no marks or beam, no looping tween and no beep beyond the `beeps`
+## already heard.
 func _assert_quiet(screen: ShiftScreen, view: ItemView, sfx: RecordingSfx, beeps: int = 0) -> void:
 	assert_object(screen._scan.scanned()).is_same(view)
 	assert_bool(screen._scan.is_full()).is_false()
 	assert_bool(screen._scan.popup().visible).is_false()
-	assert_int(screen._monitor.mode()).is_equal(MonitorView.Mode.IDLE)
+	assert_int(screen._monitor.mode()).is_equal(MonitorView.Mode.CHANNEL)
 	assert_bool(view.lifted).is_false()
 	assert_float(view.body.position.y).is_equal(0.0)
 	var overlay: ScanOverlay = screen._scan.overlay()

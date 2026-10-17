@@ -76,10 +76,16 @@ func test_the_stage_is_laid_out_without_overlaps() -> void:
 		var rect: Rect2 = label.get_global_rect()
 		assert_bool(led.encloses(rect)).override_failure_message(str(rect)).is_true()
 	_assert_digits_clear(screen)
+	assert_bool(ShiftStage.NOTICE_RECT.intersects(ShiftStage.LED_RECT)).is_false()
+	# In planning the store channel has the screen (the LED hidden at its place, for the rack),
+	# and a notice takes the channel's place at the screen's middle.
+	assert_bool(screen._led.visible).is_false()
+	var channel: Rect2 = screen._monitor.channel.get_global_rect()
+	assert_that(channel).is_equal(_on_stage(screen, MonitorView.CONTENT_RECT))
+	assert_bool(monitor_screen.encloses(channel)).is_true()
 	var notice: Rect2 = screen._notice_label.get_global_rect()
-	assert_that(notice).is_equal(_on_stage(screen, ShiftStage.NOTICE_RECT))
+	assert_that(notice).is_equal(_on_stage(screen, MonitorView.NOTICE_CHANNEL_RECT))
 	assert_bool(monitor_screen.encloses(notice)).is_true()
-	assert_bool(notice.intersects(led)).is_false()
 
 	# The register: the printer box on the counter top, the column under it; the receipt stands on
 	# the printer's slot.
@@ -333,8 +339,9 @@ func test_the_receipt_grows_up_from_the_printer() -> void:
 	assert_bool(rect.intersects(_on_stage(screen, ShiftStage.MONITOR_RECT))).is_false()
 
 
-## The longest notice and the totals on the monitor, and the register, stay on the stage, clear
-## of the belt, the hand and the receipt where they must, on shifts that close slots.
+## The longest notice on the monitor (planning's, at the channel's place), the LED's parts, and the
+## register stay on the stage, clear of the belt, the hand and the receipt where they must, on
+## shifts that close slots.
 func test_the_status_line_and_the_register_stay_clear() -> void:
 	var screen: ShiftScreen = await _screen()
 	var run: RunState = screen.run
@@ -344,7 +351,7 @@ func test_the_status_line_and_the_register_stay_clear() -> void:
 		run.debug_skip_to_shift(run.shift_index)
 		screen._on_shift_started()
 		screen._notice_label.show_notice("Row full (9/9 items): take an item out first")
-		screen._show_projected(999)
+		screen._quota_meter.show_projected(999, run.quota())
 		await _frames(2)
 		assert_int(screen._row_strip.closed.size()).is_equal(1)
 		_assert_status_clear(screen)
@@ -619,7 +626,7 @@ func _assert_status_clear(screen: ShiftScreen) -> void:
 	var hand: Rect2 = screen._hand_box.get_global_rect()
 	var receipt: Rect2 = screen._receipt.get_global_rect()
 	var places: Dictionary[Control, Rect2] = {
-		screen._notice_label: ShiftStage.NOTICE_RECT,
+		screen._notice_label: MonitorView.NOTICE_CHANNEL_RECT,
 		screen._led.digits_label(): ShiftStage.LED_RECT,
 		screen._led.quota_label(): ShiftStage.LED_RECT,
 	}

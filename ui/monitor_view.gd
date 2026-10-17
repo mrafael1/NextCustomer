@@ -2,9 +2,14 @@ class_name MonitorView
 extends Control
 ## The hung monitor (#80, mock-up B2; ShiftStage.MONITOR_RECT): two rods from the ceiling, the
 ## shade under it, a rubber bezel with a little bevel and the paper screen, drawn flat in code
-## (its art lands in a later step). Its screen shows one of three things (mode()):
-## - IDLE (planning with nothing scanned, the impulse rack): the LED (LedDisplay, compact) with
-##   the projected total and the quota line, and the notices (NoticeLabel) under it;
+## (its art lands in a later step). Its screen shows one of four things (mode()):
+## - CHANNEL (planning with nothing scanned, show_channel; the user's play test of 2026-10-17):
+##   the store channel (MonitorChannel): the shift's brief, the owned upgrades and the coupons in
+##   play, a slide at a time; the LED is hidden (the projected total is on the receipt and the
+##   top bar's QUOTA chip);
+## - IDLE (the impulse rack, and a notice in planning): the LED (LedDisplay, compact, blank in the
+##   rack) and the notices (NoticeLabel) under it; in planning the notice alone, at the screen's
+##   middle (NOTICE_CHANNEL_RECT);
 ## - SCAN (a belt or hand item fully scanned: ScanController calls show_scan): the item's art
 ##   (ItemView's item_art), its kind under it (COUPON, or its base price), and beside it its
 ##   name, "pays €N" for a belt item, its tag line, its rule text and, for a belt item, its step
@@ -18,15 +23,16 @@ extends Control
 ##   row (LedBeat). A payout beat on the item of the beat before it keeps that beat's step line
 ##   (the bonus that made the payout stays on screen through it). At the TOTAL the LED's column
 ##   stands alone, near the paper's centre (LED_TOTAL_RECT).
-## A notice shows on the idle screen while it lasts, over a scan too (the scan comes back once it
-## has faded), never over the count. The monitor follows the LED's mode (mode_changed) and the
+## A notice shows on the idle screen while it lasts, over a scan and the channel too (they come
+## back once it has faded), never over the count. The channel runs only while it is shown, and
+## comes back on the slide it was on. The monitor follows the LED's mode (mode_changed) and the
 ## notice (showing_changed) itself; ScanController and the shift screen fill it. Display only:
 ## every amount and line is the caller's (or the LED's, from core's ShiftMargin).
 ##
 ## Text never carries the pixel material; the art does. Reduced motion (`reduced_motion`) leaves
 ## the gain chip's pop out (which runs on the count-up's tweens, LedBeat.make_tween).
 
-enum Mode { IDLE, SCAN, COUNT }
+enum Mode { IDLE, SCAN, COUNT, CHANNEL }
 
 ## The parts' rects, in stage coordinates (the view stands at MONITOR_RECT's position): the
 ## screen's content inside its ink border and padding, the art and the kind under it, and the
@@ -46,6 +52,8 @@ const COUNT_NAME_LINES := 2
 const LED_COUNT_RECT := Rect2(499, 85, 276, 138)
 const LED_TOTAL_RECT := Rect2(464, 85, 276, 138)
 const TOTAL_OFF_CENTRE := 18.0
+## A notice in planning, with the channel off the screen: at the content's middle.
+const NOTICE_CHANNEL_RECT := Rect2(388, 132, 392, 44)
 ## Every part the monitor draws, rods and shade included (stage coordinates).
 const DRAWN_RECT := Rect2(372, 56, 424, 192)
 const OUTLINE := 2
@@ -94,8 +102,12 @@ var reduced_motion: Callable = Callable()
 ## The LED and the notices on the screen (the stage hands them to the shift screen).
 var led: LedDisplay
 var notice_label: NoticeLabel
+## The store channel (planning's idle screen, at CONTENT_RECT).
+var channel: MonitorChannel
 
 var _notice_holder: Control
+## The channel is planning's idle screen (show_channel, until end_channel).
+var _channel_on: bool = false
 var _scan_view: Control
 var _count_view: Control
 var _scanning: bool = false
@@ -137,6 +149,11 @@ func _init() -> void:
 	led.position = local(ShiftStage.LED_RECT).position
 	add_child(led)
 	led.mode_changed.connect(_on_led_mode)
+	channel = MonitorChannel.new()
+	channel.reduced_motion = _wants_reduced_motion
+	channel.position = local(CONTENT_RECT).position
+	channel.size = CONTENT_RECT.size
+	add_child(channel)
 	_scan_view = _layer("Scan")
 	_count_view = _layer("Count")
 	_count_name = _count_label(COUNT_NAME_SIZES[0])
@@ -184,7 +201,32 @@ func _draw() -> void:
 func mode() -> Mode:
 	if _counting():
 		return Mode.COUNT
-	return Mode.SCAN if _scan_view.visible else Mode.IDLE
+	if _scan_view.visible:
+		return Mode.SCAN
+	return Mode.CHANNEL if channel.visible else Mode.IDLE
+
+
+## Planning's idle screen is the store channel, showing `run`'s shift (MonitorChannel's
+## show_state): its number, quota and inspections, the owned upgrades and the coupons in play
+## (on the belt in slot order, then in the hand). The shift screen calls it on every planning
+## refresh, with the LED blank.
+func show_channel(run: RunState) -> void:
+	var coupons: Array[CardDefinition] = []
+	for cards: Array[CardInstance] in [run.row, run.hand()]:
+		for card: CardInstance in cards:
+			if card.definition.is_coupon():
+				coupons.append(card.definition)
+	channel.show_state(
+		run.shift_index + 1, run.shift_count(), run.quota(), run.inspections, run.upgrades, coupons
+	)
+	_channel_on = true
+	_apply()
+
+
+## Planning is over (the CHECKOUT click, the impulse rack): the channel leaves the screen.
+func end_channel() -> void:
+	_channel_on = false
+	_apply()
 
 
 ## Shows a scanned item (ScanController): `definition` (its `aisle`, or null) with its `tags`
@@ -291,7 +333,7 @@ func count_art() -> TextureRect:
 ## Every text label the screen shows now (the LED's aside), for layout checks.
 func shown_labels() -> Array[Label]:
 	var labels: Array[Label] = []
-	for layer: Control in [_notice_holder, _scan_view, _count_view]:
+	for layer: Control in [_notice_holder, channel, _scan_view, _count_view]:
 		if layer.visible:
 			_collect_labels(layer, labels)
 	return labels
@@ -317,14 +359,20 @@ static func local(rect: Rect2) -> Rect2:
 func _apply() -> void:
 	var counting: bool = _counting()
 	var scanning: bool = _scanning and not counting and not notice_label.is_showing()
+	var channel_idle: bool = _channel_on and not counting
 	var led_rect: Rect2 = ShiftStage.LED_RECT
 	if counting:
 		var total: bool = led.mode() == LedDisplay.Mode.TOTAL
 		led_rect = LED_TOTAL_RECT if total else LED_COUNT_RECT
 	led.position = local(led_rect).position
-	led.visible = not scanning
+	led.visible = not scanning and not channel_idle
 	_notice_holder.visible = not counting and not scanning
+	var notice_rect: Rect2 = local(NOTICE_CHANNEL_RECT if channel_idle else ShiftStage.NOTICE_RECT)
+	_rects[notice_label] = notice_rect
+	notice_label.position = notice_rect.position
 	_scan_view.visible = scanning
+	channel.visible = channel_idle and not scanning and not notice_label.is_showing()
+	channel.set_running(channel.visible)
 	_count_view.visible = counting and _beat_shown and led.mode() == LedDisplay.Mode.SUBTOTAL
 
 
@@ -501,6 +549,8 @@ static func _clear(layer: Control) -> void:
 
 static func _collect_labels(node: Node, labels: Array[Label]) -> void:
 	for child: Node in node.get_children():
+		if child is Control and not (child as Control).visible:
+			continue
 		if child is Label:
 			labels.append(child as Label)
 		_collect_labels(child, labels)

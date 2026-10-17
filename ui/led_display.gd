@@ -1,9 +1,11 @@
 class_name LedDisplay
 extends Control
 ## The register's LED (#55, from style frame v2's LedTotal): one set of digits for both totals,
-## under a caption that says which one shows: PROJECTED in planning (the preview's total),
-## SUBTOTAL from the checkout (the count-up's running subtotal) and TOTAL once the verdict is
-## shown (also on a resumed checkout); blank in the impulse rack. With the digits, the quota line
+## under a caption that says which one shows: PROJECTED (the preview's total; the shift screen no
+## longer shows it since the user's play test of 2026-10-17: planning is blank, under the
+## monitor's store channel, MonitorChannel), SUBTOTAL from the checkout (the count-up's running
+## subtotal) and TOTAL once the verdict is shown (also on a resumed checkout); blank in planning
+## and the impulse rack. With the digits, the quota line
 ## ("QUOTA €N") and a 10-segment bar lit in proportion to the shown amount, so the quota never
 ## shows by colour alone (the fb-p2 finding that players thought a lower total wins). The
 ## subtotal turns green when the count-up says the quota is met (its ding beat); the projected

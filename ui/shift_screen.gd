@@ -94,10 +94,14 @@ var _row_strip: RowStrip
 ## set_total_down() marks CHECKOUT held while the shift is counted.
 var _register: Control
 var _cabinet: RegisterCabinet
-## The hung monitor (#80): the LED, the notices, a scanned item and the count-up's beats.
+## The hung monitor (#80): the store channel in planning, the LED, the notices, a scanned item
+## and the count-up's beats.
 var _monitor: MonitorView
-## The monitor's LED: the projected total in planning, the count-up's subtotal and total.
+## The monitor's LED: blank in planning and the rack, the count-up's subtotal and total.
 var _led: LedDisplay
+## The top bar's QUOTA chip: the projected total in planning (fed here), the LED's readings while
+## counting.
+var _quota_meter: QuotaMeter
 var _overlay: Control
 var _count_up: CountUp
 var _sfx: Sfx
@@ -417,6 +421,7 @@ func _on_checkout_pressed() -> void:
 	_drag.cancel()
 	_redraw_mode = false
 	_deck_view.visible = false
+	_monitor.end_channel()
 	_click_ms = Time.get_ticks_msec()
 	tracker.on_checkout(_click_ms)
 	var committed: Array[CardInstance] = run.row.duplicate()
@@ -529,6 +534,7 @@ func _show_impulse_rack() -> void:
 	# The last run's receipt and totals go: shift 1's preview only shows once it starts.
 	_receipt.clear()
 	_led.clear()
+	_monitor.end_channel()
 	_cabinet.set_total_down(false)
 	_deck_viewed_for_reward = false
 	_pending_reward = null
@@ -801,10 +807,15 @@ func _refresh_preview() -> void:
 	_show_projected(result.total)
 
 
-## The projected total on the LED, green when it meets the quota (the quota line and its bar
-## say so too). The count-up's subtotal and total take the LED from the checkout on.
+## Planning's monitor and QUOTA chip (the user's play test of 2026-10-17): the LED goes blank
+## (the last count-up's TOTAL leaves it) and the monitor shows the store channel; the projected
+## `total` goes to the top bar's QUOTA chip (and is on the receipt). The count-up's subtotal and
+## total take the LED from the checkout on.
 func _show_projected(total: int) -> void:
-	_led.show_projected(total, run.quota())
+	if _led.mode() != LedDisplay.Mode.BLANK:
+		_led.clear()
+	_quota_meter.show_projected(total, run.quota())
+	_monitor.show_channel(run)
 
 
 ## The preview: the itemised planning receipt (#80) and the belt's tags and marks.
@@ -884,6 +895,7 @@ func _build() -> void:
 	_monitor = _stage.monitor
 	_monitor.reduced_motion = func() -> bool: return profile.reduced_motion()
 	_led = _stage.led
+	_quota_meter = _stage.top_bar.quota_meter
 	_receipt = _stage.receipt
 	_row_strip = _stage.row_strip
 	_row_strip.slot_input.connect(_on_slot_input)

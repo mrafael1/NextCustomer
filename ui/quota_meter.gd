@@ -2,11 +2,14 @@ class_name QuotaMeter
 extends HBoxContainer
 ## The top bar's QUOTA chip contents (#80 step 10, mock-up B2): the QUOTA word, the shift's quota,
 ## a bar filled in proportion to the amount, the amount in mustard, and a check disc once the
-## count-up has met the quota, so meeting it never shows by colour alone. It mirrors the monitor's
-## LED (follow): in planning the amount is the projected total; during the count it is the
-## running subtotal, so the bar never shows the final total early; once the count meets the quota
-## the check stays until the LED moves on to another shift. Blank LED (the impulse rack): no
-## amount and an empty bar. Display only: the amounts are the LED's.
+## count-up has met the quota, so meeting it never shows by colour alone. In planning the amount is
+## the projected total, which the shift screen hands it from its preview (show_projected): the
+## monitor shows its store channel then, not the total (the user's play test of 2026-10-17).
+## During the count it mirrors the monitor's LED (follow): the running subtotal, so the bar never
+## shows the final total early; once the count meets the quota the check stays until the LED
+## leaves the count (blank for the next shift's planning, which shows the projected total again).
+## Blank LED alone (the impulse rack): no amount and an empty bar. Display only: the amounts are
+## the screen's preview and the LED's.
 
 const SEPARATION := 8
 ## The bar: at least this wide, B2's 14 px tall, with a 2 px ink border; its fill snaps to the
@@ -68,6 +71,16 @@ func follow(led: LedDisplay) -> void:
 	led.mode_changed.connect(_on_mode)
 
 
+## Planning: the preview's projected `amount` against `quota`, without the check.
+func show_projected(amount: int, quota: int) -> void:
+	_blank = false
+	_amount = amount
+	_quota = quota
+	amount_label.text = "€%d" % amount
+	_show_check(false)
+	_bar.queue_redraw()
+
+
 ## The bar's fill for `amount` against `quota`, from 0 to 1 (full for a quota of 0). Display
 ## arithmetic only, as LedDisplay.lit_segments.
 static func fill_fraction(amount: int, quota: int) -> float:
@@ -111,8 +124,7 @@ func _on_reading(amount: int, quota: int, met: bool) -> void:
 	_amount = amount
 	_quota = quota
 	amount_label.text = "€%d" % amount
-	var counting: bool = _led != null and _led.mode() != LedDisplay.Mode.PROJECTED
-	_show_check(met and counting)
+	_show_check(met and _led != null and _counting(_led.mode()))
 	_bar.queue_redraw()
 
 
@@ -120,10 +132,14 @@ func _on_mode(mode: LedDisplay.Mode) -> void:
 	if mode == LedDisplay.Mode.BLANK:
 		_blank = true
 		amount_label.text = ""
-		_show_check(false)
-	elif mode == LedDisplay.Mode.PROJECTED:
+	if not _counting(mode):
 		_show_check(false)
 	_bar.queue_redraw()
+
+
+## The LED shows the count-up's SUBTOTAL or TOTAL.
+static func _counting(mode: LedDisplay.Mode) -> bool:
+	return mode == LedDisplay.Mode.SUBTOTAL or mode == LedDisplay.Mode.TOTAL
 
 
 func _show_check(shown: bool) -> void:

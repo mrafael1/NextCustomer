@@ -112,8 +112,11 @@ func test_a_new_screen_resumes_the_hand_the_row_and_the_redraws() -> void:
 	assert_int(resumed._row_views.size()).is_equal(2)
 	assert_int(_hand_views(resumed).size()).is_equal(resumed.run.hand().size())
 	assert_bool(resumed._reward_panel.visible).is_false()
-	assert_str(resumed._led.caption()).is_equal(LedDisplay.PROJECTED_TEXT)
-	assert_str(resumed._led.digits_label().text).is_equal("€%d" % first.run.preview().total)
+	# The monitor's store channel with the shift's brief; the projected total on the QUOTA chip.
+	assert_int(resumed._monitor.mode()).is_equal(MonitorView.Mode.CHANNEL)
+	assert_str(resumed._monitor.channel.current_key()).is_equal(MonitorChannel.BRIEF_KEY)
+	var projected: String = "€%d" % first.run.preview().total
+	assert_str(resumed._quota_meter.amount_label.text).is_equal(projected)
 	assert_bool(resumed._cabinet.checkout_key.held).is_false()
 	# The receipt is the itemised planning receipt (#80): the header, the items and PROJECTED.
 	var stub: PackedStringArray = _receipt_lines(resumed)
