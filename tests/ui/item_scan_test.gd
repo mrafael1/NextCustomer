@@ -115,6 +115,24 @@ func test_a_held_belt_item_lists_its_fizzles_on_the_monitor() -> void:
 	_assert_scanner_posed(screen, view)
 
 
+## A belt item's slot takes drops over the item's art too (#80 play test, 2026-10-17), and the
+## hover scan still works there: the pointer resting on the art's top rows, inside the slot's
+## drop target, scans the item in full once the hold is up.
+func test_a_belt_item_scans_inside_its_slots_drop_target() -> void:
+	var screen: ShiftScreen = await _screen()
+	_place(screen, ["milk", "bread"])
+	var view: ItemView = screen._row_views[0] as ItemView
+	await _hover(screen, view)
+	var sprite: Rect2 = view.sprite().get_global_rect()
+	_point = Vector2(sprite.get_center().x, sprite.position.y + 2.0)
+	assert_bool(RowStrip.drop_rect(screen._slots[0]).has_point(_point)).is_true()
+	await _frames(1)
+	await _hold(screen)
+	assert_object(screen._scan.scanned()).is_same(view)
+	assert_bool(screen._scan.is_full()).is_true()
+	assert_int(screen._scan.monitor().mode()).is_equal(MonitorView.Mode.SCAN)
+
+
 ## The done-when of #80: a plain hover shorter than the hold shows nothing (nothing on the monitor,
 ## no lift, no brackets, no scan line, no beep); staying on the item for the hold plays the full
 ## scan, the monitor included, and beeps once. Leaving the item before the hold cancels it (coming

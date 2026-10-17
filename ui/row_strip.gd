@@ -10,13 +10,17 @@ extends Control
 ## its item on the belt's top face and clips its ticket (the item's sticker) on the price rail,
 ## over the ticket's shadow. An empty slot shows a dashed footprint on the belt (BeltFootprint, at
 ## FOOTPRINT_RECT) and a dashed blank ticket on the rail (the "mat", ticket_empty at TICKET_RECT)
-## with its slot number. A slot takes clicks and drops on its footprint and ticket only
-## (DROP_RECT: the plaque's band above the item is the wall's). No slot is marked as the coupon
-## slot (a coupon slot is a capacity, not a position: see ShiftScreen). The slots the picked item
-## can go to wear a solid mustard ring between ink lines around the ticket (slot_placeable), so
-## they differ from an empty slot in shape, not only colour; and the empty ticket under a dragged
-## item is filled (slot_hover). The ring and the fill sit on each cell's marks layer, over the
-## ticket and under the item; is_outlined() and is_hovered() read them.
+## with its slot number. A slot takes clicks and drops in its column (drop_target_rect), from the
+## top of where its item's art stands, lifted, down to its ticket's foot, and across half the gap
+## to each neighbour, so the pointer on an item, a footprint or the gap between two finds a slot;
+## the band above the art (where the count-up's paid chip pops) is the wall's, whose click lets go
+## of the picked item. A belt item, the cell's last child, takes its own hover over its art and
+## ticket first. No slot is marked as the coupon slot (a coupon slot is a capacity, not a
+## position: see ShiftScreen). The slots the picked item can go to wear a solid mustard ring
+## between ink lines around the ticket (slot_placeable), so they differ from an empty slot in
+## shape, not only colour; and the empty ticket under a dragged item is filled (slot_hover). The
+## ring and the fill sit on each cell's marks layer, over the ticket and under the item;
+## is_outlined() and is_hovered() read them.
 ##
 ## A slot the shift's inspection closed (Short belt, Coupon slot closed) shows as a CLOSED cell
 ## after the open slots: a velvet rope on two brass stanchions standing on the belt, each post
@@ -41,13 +45,13 @@ const WIDE_SEPARATION := 0
 const CELL_SIZE := ItemView.BELT_SIZE
 ## An open cell's ticket on the rail (cell coordinates; the item's sticker covers it) and its
 ## shadow under a filled ticket; an empty slot's footprint on the belt's top face, its front edge
-## 2 px under the item's foot (mock-up B2), and the slot's drop target, the footprint and the
-## ticket.
+## 2 px under the item's foot (mock-up B2), and the top of the slot's drop target: the top of a
+## belt item's sprite, lifted, which the tallest art reaches (ItemView.hit_rect's top).
 const TICKET_RECT := Rect2(ItemView.BELT_STICKER, PriceSticker.SIZE)
 const TICKET_SHADOW_OFFSET := Vector2(2, 2)
 const TICKET_SHADOW_ALPHA := 0.38
 const FOOTPRINT_RECT := Rect2(8, 84, 100, 42)
-const DROP_RECT := Rect2(4, 84, 108, 146)
+const DROP_TOP := ItemView.BELT_SPRITE.y - ItemView.LIFT
 ## The placeable ring reaches this far past the ticket on every side (one art pixel).
 const RING_GROW := 2
 ## The frames' 9-slice margins, in art pixels: the ring and the hover fill.
@@ -133,14 +137,14 @@ func set_slot_count(
 		panel.queue_free()
 	slots.clear()
 	closed.clear()
+	var cells: int = count + closed_count
+	var separation: int = separation_for(cells)
 	for slot: int in range(count):
-		box.add_child(_slot_panel(slot))
+		box.add_child(_slot_panel(slot, separation))
 	for _closed: int in range(closed_count):
 		var panel: PanelContainer = _closed_panel(closed_reason, caption)
 		closed.append(panel)
 		box.add_child(panel)
-	var cells: int = count + closed_count
-	var separation: int = separation_for(cells)
 	box.add_theme_constant_override("separation", separation)
 	var natural: Vector2 = Vector2(row_width(cells, separation), CELL_SIZE.y)
 	var factor: float = minf(1.0, row_width(LAID_OUT_SLOTS) / natural.x)
@@ -242,17 +246,25 @@ static func ticket_shadow(panel: PanelContainer) -> ColorRect:
 	)
 
 
-## An open slot's drop target: the control over its footprint and ticket (DROP_RECT) that takes
-## its clicks; null for a CLOSED cell.
+## An open slot's drop target: the control over its column (drop_target_rect) that takes its
+## clicks; null for a CLOSED cell.
 static func drop_target(panel: PanelContainer) -> Control:
 	return panel.get_node_or_null(NodePath("%s/%s" % [GROUND_NAME, TARGET_NAME])) as Control
 
 
-## Where a drag drops into a slot (global): its footprint and its ticket; an empty rect for a
+## Where a drag drops into a slot (global): its column, drop_target_rect; an empty rect for a
 ## CLOSED cell.
 static func drop_rect(panel: PanelContainer) -> Rect2:
 	var target: Control = drop_target(panel)
 	return target.get_global_rect() if target != null else Rect2()
+
+
+## An open slot's drop target in a row whose cells are `separation` apart (cell coordinates): from
+## DROP_TOP down to the ticket's foot, the cell's width and half the gap on each side, so two
+## neighbours' targets meet in the gap's middle and never overlap.
+static func drop_target_rect(separation: int) -> Rect2:
+	var half_gap: float = separation / 2.0
+	return Rect2(-half_gap, DROP_TOP, CELL_SIZE.x + separation, TICKET_RECT.end.y - DROP_TOP)
 
 
 ## Whether a slot shows as empty: its footprint and blank ticket (no item stands on it).
@@ -272,10 +284,11 @@ static func row_width(count: int, separation: int = SEPARATION) -> float:
 	return count * CELL_SIZE.x + maxi(count - 1, 0) * separation
 
 
-## An open slot: its ground (the drop target, the footprint, the ticket's shadow, the blank
-## ticket and the number), then the marks over it. The PanelContainer sizes both layers to the
-## cell; their parts are placed in the cell's coordinates. Only the drop target takes clicks.
-func _slot_panel(slot: int) -> PanelContainer:
+## An open slot in a row whose cells are `separation` apart: its ground (the drop target, the
+## footprint, the ticket's shadow, the blank ticket and the number), then the marks over it. The
+## PanelContainer sizes both layers to the cell; their parts are placed in the cell's coordinates
+## (the drop target reaches half the gap past the cell's sides). Only the drop target takes clicks.
+func _slot_panel(slot: int, separation: int) -> PanelContainer:
 	var panel: PanelContainer = PanelContainer.new()
 	panel.custom_minimum_size = CELL_SIZE
 	panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -285,7 +298,7 @@ func _slot_panel(slot: int) -> PanelContainer:
 	ground.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	var target: Control = Control.new()
 	target.name = TARGET_NAME
-	_child_at(ground, target, DROP_RECT)
+	_child_at(ground, target, drop_target_rect(separation))
 	target.mouse_filter = Control.MOUSE_FILTER_STOP
 	target.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
 	target.gui_input.connect(func(event: InputEvent) -> void: slot_input.emit(event, slot))

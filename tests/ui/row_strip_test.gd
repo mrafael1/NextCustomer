@@ -1,13 +1,14 @@
 extends GdUnitTestSuite
 ## The checkout row's cells on the belt (#80, mock-up B2, step 6): an empty open cell shows a
 ## dashed footprint on the belt leaning to the belt's vanishing point and a dashed blank ticket
-## (the "mat") on the rail with its slot number, and takes clicks and drops on those two only;
-## the row's cards stand on the belt as belt items with their sticker on the ticket's place over
-## the ticket's shadow, the placeable ring is a solid mustard frame between ink lines around the
-## ticket and under the item, the drag's landing fill shows on empty tickets only, CLOSED is a
-## velvet rope between two tall stanchions on the belt over the ink plate with CLOSED and the
-## closing inspections' names, and wide rows close their gaps, then scale to the 7-slot width with
-## their text still legible.
+## (the "mat") on the rail with its slot number, and takes clicks and drops in its column, from a
+## standing item's art down to its ticket and half the gap to each neighbour (a belt item over it
+## keeps its own hover); the row's cards stand on the belt as belt items with their sticker on
+## the ticket's place over the ticket's shadow, the placeable ring is a solid mustard frame
+## between ink lines around the ticket and under the item, the drag's landing fill shows on empty
+## tickets only, CLOSED is a velvet rope between two tall stanchions on the belt over the ink
+## plate with CLOSED and the closing inspections' names and takes no drop, and wide rows close
+## their gaps, then scale to the 7-slot width with their text still legible.
 
 const CARDS := "res://data/cards"
 const BALANCE := "res://data/balance/balance.tres"
@@ -162,21 +163,33 @@ func test_the_footprint_recedes_to_the_vanishing_point() -> void:
 	assert_float(rect.end.y).is_less_equal(RowStrip.TICKET_RECT.position.y)
 
 
-## An open slot takes clicks and drops only on its footprint and its ticket: its drop target
-## (DROP_RECT, the two merged) is the one control in the cell that stops the mouse, and a click on
-## it is the slot's input. The cell's band above the footprint takes no click.
-func test_the_drop_target_covers_the_footprint_and_the_ticket() -> void:
+## An open slot takes clicks and drops in its column (#80 play test, 2026-10-17): its drop target
+## reaches from the top of a belt item's sprite, lifted (DROP_TOP, the item's hit_rect top, so the
+## pointer on a standing item's art finds the slot) down to the ticket's foot, over the footprint
+## and the ticket, and across half the gap to each neighbour, so neighbours meet in the gap's
+## middle with no dead strip and no overlap. The band above it (the paid chip's) is the wall's.
+## The target is the one control in an empty cell that stops the mouse, and a click on it is the
+## slot's input.
+func test_the_drop_target_covers_the_item_footprint_ticket_and_half_gaps() -> void:
+	var half_gap: float = RowStrip.SEPARATION / 2.0
+	var expected: Rect2 = Rect2(-half_gap, 24, ItemView.BELT_SIZE.x + RowStrip.SEPARATION, 206)
+	assert_that(RowStrip.drop_target_rect(RowStrip.SEPARATION)).is_equal(expected)
+	assert_float(RowStrip.DROP_TOP).is_equal(ItemView.BELT_SPRITE.y - ItemView.LIFT)
+	assert_float(expected.end.y).is_equal(RowStrip.TICKET_RECT.end.y)
+	assert_bool(expected.encloses(RowStrip.FOOTPRINT_RECT)).is_true()
+	assert_bool(expected.encloses(RowStrip.TICKET_RECT)).is_true()
 	var strip: RowStrip = await _strip(7)
-	assert_that(RowStrip.DROP_RECT).is_equal(RowStrip.FOOTPRINT_RECT.merge(RowStrip.TICKET_RECT))
 	var inputs: Array[int] = []
 	strip.slot_input.connect(func(_event: InputEvent, slot: int) -> void: inputs.append(slot))
 	for slot: int in range(7):
 		var panel: PanelContainer = strip.slots[slot]
 		var cell: Rect2 = panel.get_global_rect()
 		var target: Control = RowStrip.drop_target(panel)
-		assert_that(target.get_global_rect()).is_equal(_in_cell(cell, RowStrip.DROP_RECT))
+		assert_that(target.get_global_rect()).is_equal(_in_cell(cell, expected))
 		assert_that(RowStrip.drop_rect(panel)).is_equal(target.get_global_rect())
-		assert_bool(cell.encloses(target.get_global_rect())).is_true()
+		if slot > 0:
+			var previous: Rect2 = RowStrip.drop_rect(strip.slots[slot - 1])
+			assert_float(target.get_global_rect().position.x).is_equal(previous.end.x)
 		assert_int(target.mouse_default_cursor_shape).is_equal(Control.CURSOR_POINTING_HAND)
 		var stops: Array[Control] = []
 		_collect_stops(panel, stops)
@@ -186,7 +199,60 @@ func test_the_drop_target_covers_the_footprint_and_the_ticket() -> void:
 		press.pressed = true
 		target.gui_input.emit(press)
 	assert_array(inputs).is_equal([0, 1, 2, 3, 4, 5, 6])
-	assert_that(RowStrip.drop_rect(strip.slots[0])).is_not_equal(Rect2())
+	# A belt item's hover area starts at the target's top: the tallest art, lifted, is covered.
+	var row: Array[CardInstance] = [_card("milk", 1)]
+	var views: Array[CardView] = strip.show_cards(row, -1, _ignore, load(BALANCE))
+	await _frames(2)
+	var item: ItemView = views[0] as ItemView
+	var hit: Rect2 = item.get_global_transform() * item.hit_rect()
+	var drop: Rect2 = RowStrip.drop_rect(strip.slots[0])
+	assert_float(drop.position.y).is_less_equal(hit.position.y)
+	assert_bool(drop.encloses(item.body.get_global_rect())).is_true()
+	# The cell's band above the target takes no click: it is the wall's.
+	assert_float(drop.position.y).is_greater(strip.slots[0].get_global_rect().position.y)
+
+
+## The pointer over a belt item's art reaches the item, not the drop target under it, so the
+## hover scan still starts there (ItemView's hovered signal is the item's own mouse enter); in the
+## gap between two cells and on an empty slot's belt it reaches the slot's target. Headless runs
+## deliver no mouse, so _pick walks the strip as Godot's GUI picks: the last child first, then
+## the control itself, the first visible one that takes the mouse and has the point.
+func test_a_belt_item_takes_its_hover_over_the_drop_target() -> void:
+	var strip: RowStrip = await _strip(7)
+	var row: Array[CardInstance] = [_card("milk", 1), _card("bread", 2)]
+	var views: Array[CardView] = strip.show_cards(row, -1, _ignore, load(BALANCE))
+	await _frames(2)
+	for slot: int in range(row.size()):
+		var item: ItemView = views[slot] as ItemView
+		var drop: Rect2 = RowStrip.drop_rect(strip.slots[slot])
+		var art: Vector2 = item.sprite().get_global_rect().get_center()
+		var ticket: Vector2 = item.sticker().get_global_rect().get_center()
+		for point: Vector2 in [art, ticket]:
+			assert_bool(drop.has_point(point)).is_true()
+			assert_object(_pick(strip, point)).is_same(item)
+	var target: Control = RowStrip.drop_target(strip.slots[0])
+	var cell: Rect2 = strip.slots[0].get_global_rect()
+	var beside: Vector2 = Vector2(cell.end.x + 2, cell.position.y + RowStrip.DROP_TOP + 4)
+	assert_object(_pick(strip, beside)).is_same(target)
+	var empty: Vector2 = strip.slots[3].get_global_rect().get_center()
+	assert_object(_pick(strip, empty)).is_same(RowStrip.drop_target(strip.slots[3]))
+	# Above the target, the cell takes nothing: the click goes on to the wall.
+	assert_object(_pick(strip, Vector2(cell.get_center().x, cell.position.y + 4))).is_null()
+
+
+## A CLOSED cell takes no drop: it has no target, and the open slot beside it reaches only half
+## the gap towards it.
+func test_a_closed_cell_takes_no_drop() -> void:
+	var strip: RowStrip = await _strip(6, 1, "Closed")
+	var closed: Rect2 = strip.closed[0].get_global_rect()
+	var last: Rect2 = RowStrip.drop_rect(strip.slots[5])
+	assert_float(last.end.x).is_equal(
+		strip.slots[5].get_global_rect().end.x + RowStrip.SEPARATION / 2.0
+	)
+	assert_bool(last.intersects(closed)).is_false()
+	for panel: PanelContainer in strip.slots:
+		for point: Vector2 in [closed.get_center(), closed.position + Vector2(1, 30)]:
+			assert_bool(RowStrip.drop_rect(panel).has_point(point)).is_false()
 
 
 ## The tickets keep tomato for CLOSED alone (mock-up B2's colour rule): the product ticket's band
@@ -481,6 +547,11 @@ func test_wide_rows_close_their_gaps_then_scale() -> void:
 			var message: String = "%d slots, cell %d" % [count, slot]
 			if slot > 0:
 				assert_float(cell.position.x).is_greater_equal(previous.end.x - 0.01)
+			# With no gap, a slot's drop target is its cell's column: it meets its neighbours'.
+			var drop: Rect2 = RowStrip.drop_rect(strip.slots[slot])
+			assert_bool(cell.grow(0.01).encloses(drop)).override_failure_message(message).is_true()
+			assert_float(drop.position.x).is_equal_approx(cell.position.x, 0.01)
+			assert_float(drop.end.x).is_equal_approx(cell.end.x, 0.01)
 			previous = cell
 			var mat: Rect2 = RowStrip.mat(strip.slots[slot]).get_global_rect()
 			var sprite: Rect2 = item.body.get_global_rect()
@@ -526,6 +597,30 @@ static func _collect_stops(node: Node, stops: Array[Control]) -> void:
 		stops.append(control)
 	for child: Node in node.get_children():
 		_collect_stops(child, stops)
+
+
+## The control under `point` (global) that Godot's GUI would pick in `node`, or null: its children
+## from the last, then itself, if it is visible, takes the mouse and has the point.
+static func _pick(node: Node, point: Vector2) -> Control:
+	var children: Array[Node] = node.get_children()
+	children.reverse()
+	for child: Node in children:
+		var picked: Control = _pick(child, point)
+		if picked != null:
+			return picked
+	var control: Control = node as Control
+	if control == null or not control.is_visible_in_tree():
+		return null
+	if control.mouse_filter == Control.MOUSE_FILTER_IGNORE:
+		return null
+	var local: Vector2 = control.get_global_transform().affine_inverse() * point
+	var item: ItemView = control as ItemView
+	var inside: bool = (
+		item._has_point(local)
+		if item != null
+		else Rect2(Vector2.ZERO, control.size).has_point(local)
+	)
+	return control if inside else null
 
 
 ## `rect` (a cell's coordinates) in the cell at `cell`.

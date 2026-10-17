@@ -272,19 +272,27 @@ func _assert_row_on_belt(screen: ShiftScreen, panel_count: int) -> void:
 	for index: int in range(panels.size()):
 		var rect: Rect2 = panels[index].get_global_rect()
 		assert_bool(interior.encloses(rect)).override_failure_message(str(rect)).is_true()
-		# An open slot's drop target: inside its cell, from the top face down to the rail's foot,
-		# apart from the previous slot's.
+		# An open slot's drop target: its cell's column and half the gap on each side (the row's
+		# band holds it), from the top of an item's art (over the top face, under the hung
+		# monitor) down to the rail's foot, meeting the previous slot's with no overlap and
+		# never reaching a CLOSED cell.
 		if index < screen._slots.size():
 			var drop: Rect2 = RowStrip.drop_rect(panels[index])
-			(
-				assert_bool(rect.grow(0.01).encloses(drop))
-				. override_failure_message(str(drop))
-				. is_true()
+			var half_gap: float = (
+				RowStrip.separation_for(panel_count) / 2.0 * screen._row_strip.box.scale.x
 			)
-			assert_float(drop.position.y).is_greater_equal(top_face.position.y)
+			var column: Rect2 = rect.grow_individual(half_gap, 0, half_gap, 0).grow(0.01)
+			assert_bool(column.encloses(drop)).override_failure_message(str(drop)).is_true()
+			assert_bool(interior.encloses(drop)).override_failure_message(str(drop)).is_true()
+			assert_float(drop.position.y).is_less(top_face.position.y)
+			assert_float(drop.position.y).is_greater_equal(
+				_on_stage(screen, ShiftStage.MONITOR_UNDER_RECT).end.y
+			)
 			assert_float(drop.end.y).is_less_equal(rail.end.y + 0.01)
 			if index > 0:
-				assert_float(drop.position.x).is_greater_equal(previous_drop.end.x - 0.01)
+				assert_float(drop.position.x).is_equal_approx(previous_drop.end.x, 0.01)
+			for closed: PanelContainer in screen._row_strip.closed:
+				assert_bool(drop.intersects(closed.get_global_rect())).is_false()
 			previous_drop = drop
 		assert_bool(rect.intersects(receipt)).override_failure_message(str(rect)).is_false()
 		# Every row rests on the same line.
