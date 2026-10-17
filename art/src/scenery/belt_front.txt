@@ -1,0 +1,54 @@
+; The belt's front (mock-up B2, #80 step 6), a 3-slice 7x45 @2 (margins 3 art px left and
+; right; the middle column stretches) drawn at ShiftStage.BELT_RECT's (14,400) to (932,490):
+; the steel lip under the top face (a lit A top, the D front, an H foot, an ink line), the
+; steel apron 2 art px in from the lip's ends (the lip's I shadow over E, ink sides), and the
+; price rail (ink outline, a lit A top row, the C face, an H foot) the tickets clip onto. The
+; apron's bolts are belt_bolt; the rail's cast shadow is drawn in code.
+@size 7x45
+@kind scenery
+@scale 2
+#AAAAA#
+#AAAAA#
+#DDDDD#
+#DDDDD#
+#DDDDD#
+#HHHHH#
+#######
+..#I#..
+..#E#..
+..#E#..
+..#E#..
+..###..
+..#A#..
+..#C#..
+..#C#..
+..#C#..
+..#C#..
+..#C#..
+..#C#..
+..#C#..
+..#C#..
+..#C#..
+..#C#..
+..#C#..
+..#C#..
+..#C#..
+..#C#..
+..#C#..
+..#C#..
+..#C#..
+..#C#..
+..#C#..
+..#C#..
+..#C#..
+..#C#..
+..#C#..
+..#C#..
+..#C#..
+..#C#..
+..#C#..
+..#C#..
+..#C#..
+..#H#..
+..#H#..
+..###..

@@ -1,0 +1,16 @@
+; The CLOSED slot's ink plate on the price rail (mock-up B2, #80 step 6), a 9-slice 9x9 @2
+; (margin 3 art px; the middle stretches): an ink face and outline with rounded corners
+; and a 2 art px tomato band on top, the one tomato the belt keeps. CLOSED and the
+; inspection's name are labels drawn by code.
+@size 9x9
+@kind frame
+@scale 2
+.#######.
+#RRRRRRR#
+#RRRRRRR#
+#########
+#########
+#########
+#########
+#########
+.#######.

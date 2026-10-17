@@ -150,6 +150,36 @@ func test_releasing_the_button_elsewhere_cancels_without_a_drop() -> void:
 	assert_int(screen._drag.hovered_slot()).is_equal(-1)
 
 
+## The drop target is the slot's footprint on the belt and its ticket on the rail (#80, mock-up
+## B2): over either the slot lights up and a drop places the card; over the plaques' band above
+## the footprint no slot lights up, and a drop there lets go of the card.
+func test_the_drop_target_is_the_footprint_and_the_ticket() -> void:
+	var screen: ShiftScreen = await _screen()
+	var panel: PanelContainer = screen._slots[0]
+	var cell: Rect2 = panel.get_global_rect()
+	var footprint: Rect2 = RowStrip.footprint(panel).get_global_rect()
+	var ticket: Rect2 = RowStrip.mat(panel).get_global_rect()
+	assert_that(RowStrip.drop_rect(panel)).is_equal(footprint.merge(ticket))
+	var card: CardInstance = _add(screen, "bread")
+	_press_hand_card(screen, card)
+	var above: Vector2 = Vector2(cell.get_center().x, footprint.position.y - 8.0)
+	assert_bool(cell.has_point(above)).is_true()
+	_move(screen, above)
+	assert_bool(screen._drag.is_dragging()).is_true()
+	assert_int(screen._drag.hovered_slot()).is_equal(-1)
+	for point: Vector2 in [footprint.get_center(), ticket.get_center()]:
+		_move(screen, point)
+		assert_int(screen._drag.hovered_slot()).is_equal(0)
+	_move(screen, above)
+	_release(screen, above)
+	assert_array(screen.run.row).is_empty()
+	assert_object(screen._picked).is_null()
+	_press_hand_card(screen, card)
+	_move(screen, ticket.get_center())
+	_release(screen, ticket.get_center())
+	assert_array(screen.run.row).is_equal([card])
+
+
 ## A card already picked up (by a click) can still be dragged; a plain click on it lets go on
 ## the release, as before.
 func test_a_picked_card_can_be_dragged_and_a_click_lets_go() -> void:

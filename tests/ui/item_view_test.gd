@@ -214,6 +214,52 @@ func test_the_selected_and_redraw_looks() -> void:
 		assert_float(view.sticker().modulate.a).is_equal(1.0)
 
 
+## A belt item stands on its contact shadow (#80, mock-up B2): its sprite drops by its art's
+## transparent rows (the coupon slip's 8), so every item's opaque foot is on the ground line, and
+## the shadow is a stepped ellipse across that line, a little right of the sprite's middle, inside
+## the cell and above the ticket; lifted (selected or scanned) it shrinks and fades, and it
+## follows the sprite back down. Tray and ghost items have none.
+func test_belt_items_stand_on_a_contact_shadow() -> void:
+	var milk: CardDefinition = load("%s/milk.tres" % CARDS)
+	var slip: CardDefinition = load("%s/repeat.tres" % CARDS)
+	var feet: Array[float] = []
+	for definition: CardDefinition in [milk, slip]:
+		var view: ItemView = await _laid_out(definition, ItemView.Form.BELT, BELT_ORIGIN)
+		var texture: Texture2D = view.sprite().texture
+		var bottom: int = ContactShadow.opaque_bottom(texture)
+		assert_int(bottom).is_equal(texture.get_image().get_used_rect().end.y)
+		var stand: Vector2 = view.sprite().get_global_rect().position - BELT_ORIGIN
+		assert_float(stand.x).is_equal(ItemView.BELT_SPRITE.x)
+		var foot: float = stand.y + bottom * ItemView.SPRITE_SIZE.y / texture.get_height()
+		assert_float(foot).is_equal_approx(ItemView.BELT_GROUND_Y, 0.01)
+		feet.append(float(bottom))
+		var shadow: Rect2 = view._belt_shadow()
+		assert_vector(shadow.size).is_equal(ItemView.BELT_SHADOW.size)
+		assert_bool(shadow.position.y < foot and shadow.end.y > foot).is_true()
+		var sprite_middle: float = ItemView.BELT_SPRITE.x + ItemView.SPRITE_SIZE.x / 2.0
+		assert_float(shadow.get_center().x).is_greater(sprite_middle)
+		assert_bool(Rect2(Vector2.ZERO, ItemView.BELT_SIZE).encloses(shadow)).is_true()
+		assert_float(shadow.end.y).is_less_equal(ItemView.BELT_STICKER.y)
+		# On the 2 px art grid.
+		for value: float in [shadow.position.x, shadow.position.y, shadow.size.x, shadow.size.y]:
+			assert_float(fmod(value, ArtStyle.ART_SCALE)).is_equal(0.0)
+		view.set_highlight(CardView.Highlight.SELECTED)
+		var lifted: Rect2 = view._belt_shadow()
+		assert_vector(lifted.size).is_equal(ItemView.BELT_LIFTED_SHADOW.size)
+		assert_float(lifted.size.x).is_less(shadow.size.x)
+		assert_bool(shadow.encloses(lifted)).is_true()
+		view.set_highlight(CardView.Highlight.NONE)
+		assert_that(view._belt_shadow()).is_equal(shadow)
+		view.lifted = true
+		assert_that(view._belt_shadow()).is_equal(lifted)
+	# The slip's art ends above its canvas's bottom, so it is the one that drops.
+	assert_float(feet[1]).is_less(feet[0])
+	assert_float(ItemView.BELT_LIFTED_SHADOW_ALPHA).is_less(ItemView.BELT_SHADOW_ALPHA)
+	for form: ItemView.Form in [ItemView.Form.TRAY, ItemView.Form.GHOST]:
+		var other: ItemView = await _laid_out(milk, form, TRAY_ORIGIN)
+		assert_that(other._belt_shadow()).is_equal(Rect2())
+
+
 ## A product keeps its tags for the scan popup (its own, then the context pass's); a coupon has
 ## none.
 func test_tags_are_kept_for_the_popup() -> void:

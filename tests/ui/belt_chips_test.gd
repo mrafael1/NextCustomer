@@ -170,6 +170,8 @@ func test_chips_stay_in_their_cells_clear_of_the_bottom_rail() -> void:
 		item.show_badge(9999, false)
 		var cell: Rect2 = screen._slots[slot].get_global_rect().grow(0.01)
 		var sprite: Rect2 = item.body.get_global_rect()
+		# A short art's sprite drops onto the belt (the coupon slip): only its drawn rows count.
+		sprite.size.y -= item._belt_drop()
 		sprite = sprite.merge(Rect2(sprite.position - Vector2(0, ItemView.LIFT), sprite.size))
 		var covered: Array[Rect2] = [
 			item.sticker().get_global_rect(),

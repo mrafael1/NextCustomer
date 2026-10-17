@@ -6,21 +6,25 @@ extends Control
 ## between its cells (the tickets keep their own inset apart), then scales down to the 7-slot
 ## width (8 slots about x0.95, 9 slots about x0.85). The common 7-slot row is never scaled.
 ##
-## The slots are cells on the belt (#80, mock-up B2; greybox): each open cell
-## (ItemView.BELT_SIZE) stands its item on the belt's top face and clips its ticket (the item's
-## sticker) on the price rail. An empty slot shows a footprint on the belt (FOOTPRINT_RECT) and a
-## blank ticket on the rail (the "mat", at TICKET_RECT) with its slot number. No slot is marked
-## as the coupon slot (a coupon slot is a capacity, not a position: see ShiftScreen). The slots
-## the picked item can go to wear a solid mustard ring between ink lines around the ticket
-## (slot_placeable), so they differ from an empty slot in shape, not only colour; and the empty
-## ticket under a dragged item is filled (slot_hover). The ring and the fill sit on each cell's
-## marks layer, over the ticket and under the item; is_outlined() and is_hovered() read them.
+## The slots are cells on the belt (#80, mock-up B2): each open cell (ItemView.BELT_SIZE) stands
+## its item on the belt's top face and clips its ticket (the item's sticker) on the price rail,
+## over the ticket's shadow. An empty slot shows a dashed footprint on the belt (BeltFootprint, at
+## FOOTPRINT_RECT) and a dashed blank ticket on the rail (the "mat", ticket_empty at TICKET_RECT)
+## with its slot number. A slot takes clicks and drops on its footprint and ticket only
+## (DROP_RECT: the plaque's band above the item is the wall's). No slot is marked as the coupon
+## slot (a coupon slot is a capacity, not a position: see ShiftScreen). The slots the picked item
+## can go to wear a solid mustard ring between ink lines around the ticket (slot_placeable), so
+## they differ from an empty slot in shape, not only colour; and the empty ticket under a dragged
+## item is filled (slot_hover). The ring and the fill sit on each cell's marks layer, over the
+## ticket and under the item; is_outlined() and is_hovered() read them.
 ##
 ## A slot the shift's inspection closed (Short belt, Coupon slot closed) shows as a CLOSED cell
-## after the open slots: a velvet rope on two posts on the belt (at their art's size), and on the
-## rail a dark ink plate reading CLOSED over the names of the inspections that closed slots; its
-## tooltip says why. It is never a drop target, and the row keeps the run's usual cell count, so
-## an inspection never rescales it.
+## after the open slots: a velvet rope on two brass stanchions standing on the belt, each post
+## two regions of its art so it stands as tall as an item (the only velvet and brass left on the
+## belt), with their contact shadows; and on the rail the ink plate (ticket_closed, its tomato
+## band the belt's one tomato) reading CLOSED over the names of the inspections that closed
+## slots; its tooltip says why. It is never a drop target, and the row keeps the run's usual
+## cell count, so an inspection never rescales it.
 ##
 ## A plain Control holds the row: a Container would reset the row's scale. `slots` is kept as
 ## one array, changed in place, because CardDrag holds it.
@@ -35,13 +39,15 @@ const LAID_OUT_SLOTS := 7
 const SEPARATION := 12
 const WIDE_SEPARATION := 0
 const CELL_SIZE := ItemView.BELT_SIZE
-## An open cell's ticket on the rail (cell coordinates; the item's sticker covers it), and an
-## empty slot's footprint on the belt's top face.
+## An open cell's ticket on the rail (cell coordinates; the item's sticker covers it) and its
+## shadow under a filled ticket; an empty slot's footprint on the belt's top face, its front edge
+## 2 px under the item's foot (mock-up B2), and the slot's drop target, the footprint and the
+## ticket.
 const TICKET_RECT := Rect2(ItemView.BELT_STICKER, PriceSticker.SIZE)
-const FOOTPRINT_RECT := Rect2(8, 100, 100, 32)
-const FOOTPRINT_COLOR := Palette.RUBBER_DARK
-const TICKET_EMPTY_COLOR := Palette.STEEL_LIGHT
-const OUTLINE := 2
+const TICKET_SHADOW_OFFSET := Vector2(2, 2)
+const TICKET_SHADOW_ALPHA := 0.38
+const FOOTPRINT_RECT := Rect2(8, 84, 100, 42)
+const DROP_RECT := Rect2(4, 84, 108, 146)
 ## The placeable ring reaches this far past the ticket on every side (one art pixel).
 const RING_GROW := 2
 ## The frames' 9-slice margins, in art pixels: the ring and the hover fill.
@@ -51,25 +57,37 @@ const HOVER_MARGIN := 3
 const HOVER_ALPHA := 0.85
 ## An empty slot's number, centred on its blank ticket, in the number font.
 const NUMBER_RECT := TICKET_RECT
-const NUMBER_SIZE := 32
+const NUMBER_SIZE := 24
 const NUMBER_COLOR := Palette.GREY_DARK
-## The CLOSED cell, in the cell: two posts on the belt and the velvet rope between them, at their
-## art's size; on the rail the ink plate with CLOSED on its top (the sign) and the caption under
-## it (two lines when two inspections close slots).
-const POST_RECTS: Array[Rect2] = [Rect2(11, 54, 12, 72), Rect2(93, 54, 12, 72)]
-const ROPE_RECT := Rect2(14, 56, 88, 24)
-const CLOSED_SIGN_RECT := Rect2(4, 166, 108, 26)
+## The CLOSED cell, in the cell: two posts standing on the belt 12 px behind the items' foot,
+## each the post art's top region over its foot region (the shaft between them is plain, so the
+## seam never shows), their contact shadows a little to the right, and the velvet rope hooked over
+## them at its art's size; on the rail the ink plate, over its shadow, with CLOSED clear of its
+## tomato band (the sign, mock-up B2's 9 px gap) and the caption hanging right under it (two lines
+## when two inspections close slots), the pair one block on the plate.
+const POST_RECTS: Array[Rect2] = [Rect2(9, 8, 12, 104), Rect2(91, 8, 12, 104)]
+const POST_TOP_REGION := Rect2(0, 0, 12, 52)
+const POST_FOOT_REGION := Rect2(0, 20, 12, 52)
+const POST_SHADOW_RECTS: Array[Rect2] = [Rect2(9, 108, 20, 6), Rect2(91, 108, 20, 6)]
+const ROPE_RECT := Rect2(12, 10, 88, 24)
+const CLOSED_SIGN_RECT := Rect2(4, 176, 108, 24)
 const CLOSED_PLATE_RECT := TICKET_RECT
+const CLOSED_PLATE_MARGIN := 3
 const CLOSED_TEXT := "CLOSED"
-const CLOSED_SIZE := 16
-const CLOSED_CAPTION_RECT := Rect2(6, 192, 104, 34)
+const CLOSED_SIZE := 18
+const CLOSED_CAPTION_RECT := Rect2(6, 200, 104, 30)
 const CLOSED_CAPTION_SIZE := 12
 const CLOSED_CAPTION_WEIGHT := 700
 const CLOSED_CAPTION_OUTLINE := 4
+## Two caption lines sit tight, as mock-up B2's 13 px line height does.
+const CLOSED_CAPTION_LINE_SPACING := -2
 const GROUND_NAME := &"Ground"
 const MAT_NAME := &"Mat"
 const FOOTPRINT_NAME := &"Footprint"
+const TICKET_SHADOW_NAME := &"TicketShadow"
+const TARGET_NAME := &"Target"
 const PLATE_NAME := &"ClosedPlate"
+const PLATE_SHADOW_NAME := &"ClosedPlateShadow"
 const NUMBER_NAME := &"SlotNumber"
 const MARKS_NAME := &"Marks"
 const RING_NAME := &"Ring"
@@ -79,6 +97,8 @@ const CAPTION_NAME := &"ClosedCaption"
 
 const SLOT_PLACEABLE := preload("res://art/frames/slot_placeable.png")
 const SLOT_HOVER := preload("res://art/frames/slot_hover.png")
+const TICKET_EMPTY := preload("res://art/frames/ticket_empty.png")
+const TICKET_CLOSED := preload("res://art/frames/ticket_closed.png")
 const ROPE_POST := preload("res://art/scenery/rope_post.png")
 const VELVET_ROPE := preload("res://art/scenery/velvet_rope.png")
 
@@ -199,8 +219,8 @@ static func closed_caption_label(panel: PanelContainer) -> Label:
 
 
 ## An open slot's blank ticket (shown while the slot is empty), or null (a CLOSED cell).
-static func mat(panel: PanelContainer) -> Panel:
-	return panel.get_node_or_null(NodePath("%s/%s" % [GROUND_NAME, MAT_NAME])) as Panel
+static func mat(panel: PanelContainer) -> TextureRect:
+	return panel.get_node_or_null(NodePath("%s/%s" % [GROUND_NAME, MAT_NAME])) as TextureRect
 
 
 ## An open slot's number (shown while it is empty), or null (a CLOSED cell).
@@ -209,13 +229,35 @@ static func slot_number(panel: PanelContainer) -> Label:
 
 
 ## An open slot's footprint on the belt (shown while it is empty), or null (a CLOSED cell).
-static func footprint(panel: PanelContainer) -> Panel:
-	return panel.get_node_or_null(NodePath("%s/%s" % [GROUND_NAME, FOOTPRINT_NAME])) as Panel
+static func footprint(panel: PanelContainer) -> BeltFootprint:
+	return (
+		panel.get_node_or_null(NodePath("%s/%s" % [GROUND_NAME, FOOTPRINT_NAME])) as BeltFootprint
+	)
+
+
+## A filled slot's ticket shadow (hidden while the slot is empty), or null (a CLOSED cell).
+static func ticket_shadow(panel: PanelContainer) -> ColorRect:
+	return (
+		panel.get_node_or_null(NodePath("%s/%s" % [GROUND_NAME, TICKET_SHADOW_NAME])) as ColorRect
+	)
+
+
+## An open slot's drop target: the control over its footprint and ticket (DROP_RECT) that takes
+## its clicks; null for a CLOSED cell.
+static func drop_target(panel: PanelContainer) -> Control:
+	return panel.get_node_or_null(NodePath("%s/%s" % [GROUND_NAME, TARGET_NAME])) as Control
+
+
+## Where a drag drops into a slot (global): its footprint and its ticket; an empty rect for a
+## CLOSED cell.
+static func drop_rect(panel: PanelContainer) -> Rect2:
+	var target: Control = drop_target(panel)
+	return target.get_global_rect() if target != null else Rect2()
 
 
 ## Whether a slot shows as empty: its footprint and blank ticket (no item stands on it).
 static func shows_empty_mat(panel: PanelContainer) -> bool:
-	var slot_mat: Panel = mat(panel)
+	var slot_mat: TextureRect = mat(panel)
 	return slot_mat != null and slot_mat.visible
 
 
@@ -230,23 +272,31 @@ static func row_width(count: int, separation: int = SEPARATION) -> float:
 	return count * CELL_SIZE.x + maxi(count - 1, 0) * separation
 
 
-## An open slot: its ground (the footprint, the blank ticket and the number), then the marks
-## over it. The
-## PanelContainer sizes both layers to the cell; their parts are placed in the cell's
-## coordinates.
+## An open slot: its ground (the drop target, the footprint, the ticket's shadow, the blank
+## ticket and the number), then the marks over it. The PanelContainer sizes both layers to the
+## cell; their parts are placed in the cell's coordinates. Only the drop target takes clicks.
 func _slot_panel(slot: int) -> PanelContainer:
 	var panel: PanelContainer = PanelContainer.new()
 	panel.custom_minimum_size = CELL_SIZE
-	panel.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
+	panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	panel.add_theme_stylebox_override("panel", StyleBoxEmpty.new())
-	panel.gui_input.connect(func(event: InputEvent) -> void: slot_input.emit(event, slot))
 	var ground: Control = Control.new()
 	ground.name = GROUND_NAME
 	ground.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	var print_rect: Panel = _flat(FOOTPRINT_COLOR)
+	var target: Control = Control.new()
+	target.name = TARGET_NAME
+	_child_at(ground, target, DROP_RECT)
+	target.mouse_filter = Control.MOUSE_FILTER_STOP
+	target.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
+	target.gui_input.connect(func(event: InputEvent) -> void: slot_input.emit(event, slot))
+	var print_rect: BeltFootprint = BeltFootprint.new()
 	print_rect.name = FOOTPRINT_NAME
 	_child_at(ground, print_rect, FOOTPRINT_RECT)
-	var slot_mat: Panel = _flat(TICKET_EMPTY_COLOR)
+	var shadow: ColorRect = ColorRect.new()
+	shadow.name = TICKET_SHADOW_NAME
+	shadow.color = Color(Palette.INK, TICKET_SHADOW_ALPHA)
+	_child_at(ground, shadow, Rect2(TICKET_RECT.position + TICKET_SHADOW_OFFSET, TICKET_RECT.size))
+	var slot_mat: TextureRect = UiKit.sprite(TICKET_EMPTY)
 	slot_mat.name = MAT_NAME
 	_child_at(ground, slot_mat, TICKET_RECT)
 	var number: Label = _slot_number_label(slot)
@@ -259,10 +309,11 @@ func _slot_panel(slot: int) -> PanelContainer:
 	return panel
 
 
-## A slot the inspection closed: a velvet rope between two posts on the belt, and on the rail the
-## ink plate with "CLOSED" over `caption`. The CLOSED label is the cell's first child and spans
-## the cell, its text centred on the plate's top (the sign); the plate is drawn behind it, and the
-## posts, rope and caption are its children, placed in the cell's coordinates.
+## A slot the inspection closed: a velvet rope between two stanchions on the belt, and on the
+## rail the ink plate with "CLOSED" over `caption`. The CLOSED label is the cell's first child and
+## spans the cell, its text centred on the sign under the plate's band; the plate and its shadow are
+## drawn behind it, and the shadows, posts, rope and caption are its children, placed in the
+## cell's coordinates.
 func _closed_panel(reason: String, caption: String) -> PanelContainer:
 	var panel: PanelContainer = PanelContainer.new()
 	panel.custom_minimum_size = CELL_SIZE
@@ -283,7 +334,17 @@ func _closed_panel(reason: String, caption: String) -> PanelContainer:
 	on_sign.content_margin_bottom = CELL_SIZE.y - CLOSED_SIGN_RECT.end.y
 	label.add_theme_stylebox_override("normal", on_sign)
 	label.add_theme_color_override("font_color", Palette.TOMATO_LIGHT)
-	var plate: Panel = _flat(Palette.INK)
+	var plate_shadow: ColorRect = ColorRect.new()
+	plate_shadow.name = PLATE_SHADOW_NAME
+	plate_shadow.color = Color(Palette.INK, TICKET_SHADOW_ALPHA)
+	plate_shadow.show_behind_parent = true
+	var shadow_at: Vector2 = CLOSED_PLATE_RECT.position + TICKET_SHADOW_OFFSET
+	_child_at(label, plate_shadow, Rect2(shadow_at, CLOSED_PLATE_RECT.size))
+	var plate: Panel = Panel.new()
+	plate.add_theme_stylebox_override(
+		"panel", ArtStyle.frame_style(TICKET_CLOSED, CLOSED_PLATE_MARGIN)
+	)
+	ArtStyle.use_pixel_material(plate)
 	plate.name = PLATE_NAME
 	plate.show_behind_parent = true
 	_child_at(label, plate, CLOSED_PLATE_RECT)
@@ -291,10 +352,11 @@ func _closed_panel(reason: String, caption: String) -> PanelContainer:
 	sign_area.name = SIGN_NAME
 	_child_at(label, sign_area, CLOSED_SIGN_RECT)
 	for index: int in range(POST_RECTS.size()):
-		var post: TextureRect = UiKit.sprite(ROPE_POST)
-		post.name = "Post%d" % index
-		post.flip_h = index == 1
-		_child_at(label, post, POST_RECTS[index])
+		var shadow: ContactShadow = ContactShadow.new()
+		shadow.name = "PostShadow%d" % index
+		_child_at(label, shadow, POST_SHADOW_RECTS[index])
+	for index: int in range(POST_RECTS.size()):
+		_child_at(label, _stanchion("Post%d" % index, index == 1), POST_RECTS[index])
 	# After the posts: the rope's brass hooks sit over the posts' caps.
 	var rope: TextureRect = UiKit.sprite(VELVET_ROPE)
 	rope.name = "Rope"
@@ -303,9 +365,10 @@ func _closed_panel(reason: String, caption: String) -> PanelContainer:
 	caption_label.name = CAPTION_NAME
 	caption_label.add_theme_font_override("font", caption_font())
 	caption_label.add_theme_constant_override("outline_size", CLOSED_CAPTION_OUTLINE)
+	caption_label.add_theme_constant_override("line_spacing", CLOSED_CAPTION_LINE_SPACING)
 	caption_label.add_theme_color_override("font_outline_color", Palette.INK)
 	caption_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	caption_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	caption_label.vertical_alignment = VERTICAL_ALIGNMENT_TOP
 	caption_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_child_at(label, caption_label, CLOSED_CAPTION_RECT)
 	panel.add_child(label)
@@ -316,6 +379,25 @@ func _closed_panel(reason: String, caption: String) -> PanelContainer:
 				closed_clicked.emit()
 	)
 	return panel
+
+
+## A stanchion as tall as POST_RECTS, named `post_name`: the post art's top region over its foot
+## region, mirrored (`flipped`) for the right-hand post.
+static func _stanchion(post_name: String, flipped: bool) -> Control:
+	var post: Control = Control.new()
+	post.name = post_name
+	var height: float = POST_RECTS[0].size.y
+	var regions: Array[Rect2] = [POST_TOP_REGION, POST_FOOT_REGION]
+	var tops: Array[float] = [0.0, height - POST_FOOT_REGION.size.y]
+	for index: int in range(regions.size()):
+		var atlas: AtlasTexture = AtlasTexture.new()
+		atlas.atlas = ROPE_POST
+		atlas.region = regions[index]
+		var part: TextureRect = UiKit.sprite(atlas)
+		part.name = "Top" if index == 0 else "Foot"
+		part.flip_h = flipped
+		_child_at(post, part, Rect2(Vector2(0, tops[index]), regions[index].size))
+	return post
 
 
 ## The CLOSED caption's font: the body font, bold.
@@ -365,22 +447,13 @@ static func _nine_patch(texture: Texture2D, margin: int) -> NinePatchRect:
 	return patch
 
 
-## Shows a slot's footprint, blank ticket and number when `empty`; an item covers them otherwise.
+## Shows a slot's footprint, blank ticket and number when `empty`; an item covers them
+## otherwise, its ticket over the ticket's shadow.
 static func _show_empty(panel: PanelContainer, empty: bool) -> void:
 	footprint(panel).visible = empty
 	mat(panel).visible = empty
 	slot_number(panel).visible = empty
-
-
-## A flat `color` panel with an ink outline.
-static func _flat(color: Color) -> Panel:
-	var style: StyleBoxFlat = StyleBoxFlat.new()
-	style.bg_color = color
-	style.border_color = Palette.INK
-	style.set_border_width_all(OUTLINE)
-	var panel: Panel = Panel.new()
-	panel.add_theme_stylebox_override("panel", style)
-	return panel
+	ticket_shadow(panel).visible = not empty
 
 
 ## Adds `node` to `parent` at `rect` (the parent's coordinates), taking no clicks.

@@ -9,10 +9,13 @@ extends CardView
 ## face with the payout plaque over it, the sticker is its ticket on the price rail, and up to
 ## EffectChip.MAX_PER_CELL effect chips sit between the sprite's foot and the ticket. In the hand's
 ## tray (a TRAY_SIZE cell) the sprite stands on a soft shadow. A drag's ghost (GHOST, CardDrag) is
-## the sprite alone, in a SPRITE_SIZE view with no sticker. `body` holds only the sprite, so the
-## count-up's punches, shakes and lifts move the sprite while the sticker and chips stay still and
-## readable; `center()` is the sprite's middle. The scan lifts the sprite and plaque by LIFT
-## (scan_lift), which keeps the sprite clear of its plaque.
+## the sprite alone, in a SPRITE_SIZE view with no sticker. A belt item stands on a contact shadow
+## (BELT_SHADOW, on the cell's ground line; smaller and fainter while the sprite is lifted): its
+## sprite drops by the art's transparent rows under its opaque foot (the coupon slip's 8), so every
+## item's visible foot stands on that line (mock-up B2's `base`).
+## `body` holds only the sprite, so the count-up's punches, shakes and lifts move the sprite while
+## the sticker and chips stay still and readable; `center()` is the sprite's middle. The scan
+## lifts the sprite and plaque by LIFT (scan_lift), which keeps the sprite clear of its plaque.
 ##
 ## An undrawn product shows the dashed art-pending box with its name printed in it, and a coupon
 ## without an icon the real slip with its name in the icon's place (#75, decision 3A). The view
@@ -29,9 +32,10 @@ enum Form { TRAY, BELT, GHOST }
 const BELT_SIZE := Vector2(116, 232)
 const TRAY_SIZE := Vector2(108, 168)
 const SPRITE_SIZE := Vector2(96, 96)
-## On the belt the sprite stands with its foot on the top face (the cell's top is the plaque's),
-## and the sticker hangs on the price rail.
+## On the belt the sprite stands with its foot on the top face (the cell's top is the plaque's;
+## BELT_GROUND_Y is the foot's line), and the sticker hangs on the price rail.
 const BELT_SPRITE := Vector2(10, 28)
+const BELT_GROUND_Y := BELT_SPRITE.y + SPRITE_SIZE.y
 const TRAY_SPRITE := Vector2(6, 4)
 const BELT_STICKER := Vector2(4, 166)
 const TRAY_STICKER := Vector2(0, 104)
@@ -50,6 +54,13 @@ const CHIP_CLEARANCE := 4.0
 const TRAY_SHADOW := Rect2(14, 94, 80, 8)
 const SHADOW_ALPHA := 0.25
 const SHADOW_POINTS := 16
+## A belt item's contact shadow (mock-up B2), from the sprite's left edge and the ground line: a
+## stepped ellipse a little right of the sprite's middle (the light is top left), and the lifted
+## sprite's, smaller and fainter. Drawn with ContactShadow.
+const BELT_SHADOW := Rect2(18, -10, 74, 14)
+const BELT_SHADOW_ALPHA := ContactShadow.ALPHA
+const BELT_LIFTED_SHADOW := Rect2(28, -8, 52, 12)
+const BELT_LIFTED_SHADOW_ALPHA := 0.25
 ## A coupon's icon sits on the slip at art offset (14, 19), in sprite coordinates.
 const COUPON_ICON_RECT := Rect2(28, 38, 40, 28)
 ## The undrawn item's name: inside the art-pending box's dashed line (canvas 10..86 x 20..96),
@@ -116,7 +127,8 @@ func set_form(item_form: Form) -> void:
 	var ghost: bool = form == Form.GHOST
 	custom_minimum_size = BELT_SIZE if belt else (SPRITE_SIZE if ghost else TRAY_SIZE)
 	size = custom_minimum_size
-	_stand.position = BELT_SPRITE if belt else (Vector2.ZERO if ghost else TRAY_SPRITE)
+	var stand: Vector2 = Vector2.ZERO if ghost else TRAY_SPRITE
+	_stand.position = BELT_SPRITE + Vector2(0, _belt_drop()) if belt else stand
 	_sticker.position = BELT_STICKER if belt else TRAY_STICKER
 	_sticker.visible = not ghost
 	_redraw_mark.position = _sticker.position + REDRAW_RECT.position
@@ -260,8 +272,29 @@ func _notification(what: int) -> void:
 		unhovered.emit(self)
 
 
-## The tray's soft shadow under the sprite, and a selected item's gold brackets.
+## How far a belt sprite drops so its art's opaque foot stands on BELT_GROUND_Y: the art's
+## transparent rows under it, in view pixels (0 for art that reaches its canvas's bottom).
+func _belt_drop() -> float:
+	var texture: Texture2D = _sprite.texture
+	var empty_rows: int = texture.get_height() - ContactShadow.opaque_bottom(texture)
+	return empty_rows * SPRITE_SIZE.y / texture.get_height()
+
+
+## A belt item's contact shadow (this view's coordinates; empty in another form): on the ground
+## line under the sprite, the lifted one while the sprite is lifted.
+func _belt_shadow() -> Rect2:
+	if form != Form.BELT:
+		return Rect2()
+	var shape: Rect2 = BELT_LIFTED_SHADOW if _is_up() else BELT_SHADOW
+	return Rect2(Vector2(BELT_SPRITE.x, BELT_GROUND_Y) + shape.position, shape.size)
+
+
+## The tray's soft shadow or a belt item's contact shadow under the sprite, and a selected item's
+## gold brackets.
 func _draw() -> void:
+	if form == Form.BELT:
+		var alpha: float = BELT_LIFTED_SHADOW_ALPHA if _is_up() else BELT_SHADOW_ALPHA
+		ContactShadow.draw_on(self, _belt_shadow(), alpha)
 	if form == Form.TRAY:
 		var shadow: PackedVector2Array = PackedVector2Array()
 		var centre: Vector2 = TRAY_SHADOW.get_center()
@@ -276,10 +309,15 @@ func _draw() -> void:
 		ScanOverlay.draw_brackets(self, marked, Palette.GOLD)
 
 
-## Lifts the sprite by LIFT while it is selected or scanned, else rests it.
+## Lifts the sprite by LIFT while it is selected or scanned, else rests it (its shadow follows).
 func _place_body() -> void:
-	var up: bool = lifted or _highlight == CardView.Highlight.SELECTED
-	body.position.y = -LIFT if up else 0.0
+	body.position.y = -LIFT if _is_up() else 0.0
+	queue_redraw()
+
+
+## Whether the sprite is lifted: scanned or selected.
+func _is_up() -> bool:
+	return lifted or _highlight == CardView.Highlight.SELECTED
 
 
 ## Snaps the sprite and the REDRAW tag back to their sizes: built outside the tree, a Label

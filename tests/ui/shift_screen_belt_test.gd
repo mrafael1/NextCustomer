@@ -1,9 +1,12 @@
 extends GdUnitTestSuite
-## The belt on the real shift screen (#80, mock-up B2's greybox): the row's cells stand in the
-## row's band over the belt at B2's coordinates, the row's cards stand on the belt as belt items
-## with their tickets on the rail, and 7-slot, CLOSED, 8-slot and 9-slot rows stay on the belt
-## with every item's sprite, plaque, sticker and chips inside its own cell and on the 1280x720
-## stage. Every rect is checked on screen (headless
+## The belt on the real shift screen (#80, mock-up B2, step 6): its art (the perspective top
+## face, the lip, apron and rail, the bolts) at its rects with the sharp-pixel material, taking no
+## click; the row's cells stand in the row's band over the belt at B2's coordinates, the row's
+## cards stand on the belt as belt items on their contact shadows with their tickets on the rail,
+## the empty slots' footprints recede to the belt's vanishing point, and 7-slot, CLOSED, 8-slot
+## and 9-slot rows stay on the belt with every item's sprite, plaque, sticker and chips inside its
+## own cell, each slot's drop target inside it, on the 1280x720 stage. Every rect is checked on
+## screen (headless
 ## runs use a 1280x1280 window: the stage is centred, 280 px down). The real saves and logs are
 ## never touched.
 
@@ -55,6 +58,101 @@ func test_the_cells_fill_the_rubber_as_in_style_frame_v2() -> void:
 	assert_float(register.position.x - stage.position.x).is_equal(944.0)
 	assert_float(register.end.x).is_equal(stage.end.x)
 	assert_float(belt.get_global_rect().end.x).is_less(register.position.x)
+
+
+## The belt's art: the top face (belt_top, baked by tools/belt_art.py) at 1:1 over the guard and
+## the top face, the front 3-slice (lip, apron, rail) under it at its art's height (only its
+## middle column stretches), and a bolt on the apron in each gap between two tickets of the 7-slot
+## row, right of the last one too; every part inside the belt, drawn with the sharp-pixel
+## material, taking no click. The rail and the top face lie on that art.
+func test_the_belt_art_lies_on_the_belt() -> void:
+	var screen: ShiftScreen = await _screen()
+	var belt: BeltPanel = screen._stage.belt
+	var stage: Rect2 = screen._stage.get_global_rect()
+	var inside: Rect2 = belt.get_global_rect()
+	var top: TextureRect = belt.get_node(NodePath(BeltPanel.TOP_NAME)) as TextureRect
+	assert_object(top.texture).is_same(BeltPanel.BELT_TOP)
+	assert_vector(top.size).is_equal(Vector2(top.texture.get_size()))
+	assert_that(top.get_global_rect()).is_equal(
+		Rect2(inside.position + BeltPanel.TOP_RECT.position, BeltPanel.TOP_RECT.size)
+	)
+	var front: NinePatchRect = belt.get_node(NodePath(BeltPanel.FRONT_NAME)) as NinePatchRect
+	assert_object(front.texture).is_same(BeltPanel.BELT_FRONT)
+	assert_float(front.size.y).is_equal(float(front.texture.get_height()))
+	var margin: int = BeltPanel.FRONT_MARGIN * ArtStyle.ART_SCALE
+	assert_int(front.patch_margin_left).is_equal(margin)
+	assert_int(front.patch_margin_right).is_equal(margin)
+	assert_int(front.patch_margin_top).is_equal(0)
+	assert_int(front.patch_margin_bottom).is_equal(0)
+	assert_float(front.get_global_rect().position.y).is_equal(top.get_global_rect().end.y)
+	var art: Array[Control] = belt.art()
+	assert_int(art.size()).is_equal(2 + BeltPanel.BOLT_COUNT)
+	for part: Control in art:
+		var rect: Rect2 = part.get_global_rect()
+		assert_bool(inside.encloses(rect)).override_failure_message(str(part.name)).is_true()
+		assert_object(part.material).is_same(ArtStyle.pixel_material())
+		assert_int(part.mouse_filter).is_equal(Control.MOUSE_FILTER_IGNORE)
+	var face: Rect2 = belt.get_global_transform() * belt.top_face()
+	var rail: Rect2 = belt.get_global_transform() * belt.rail()
+	assert_bool(top.get_global_rect().encloses(face)).is_true()
+	assert_bool(front.get_global_rect().encloses(rail)).is_true()
+	assert_float(rail.end.y - stage.position.y).is_less_equal(ShiftStage.ROW_BOTTOM)
+	# The bolts on the apron (between the lip and the rail), each in a ticket gap.
+	var apron: Rect2 = belt.get_global_transform() * BeltPanel.APRON
+	var tickets: Array[Rect2] = []
+	for panel: PanelContainer in screen._slots:
+		tickets.append(RowStrip.mat(panel).get_global_rect())
+	for index: int in range(BeltPanel.BOLT_COUNT):
+		var bolt: TextureRect = belt.get_node("Bolt%d" % index) as TextureRect
+		var rect: Rect2 = bolt.get_global_rect()
+		assert_vector(rect.size).is_equal(Vector2(bolt.texture.get_size()))
+		assert_bool(apron.encloses(rect)).override_failure_message(str(rect)).is_true()
+		assert_float(rect.position.x).is_greater_equal(tickets[index].end.x)
+		if index + 1 < tickets.size():
+			assert_float(rect.end.x).is_less_equal(tickets[index + 1].position.x)
+
+
+## Every belt item stands on its contact shadow, under its art's opaque foot and on the belt's
+## top face, a little right of the sprite's middle (the light is top left); the coupon slip drops
+## by its art's transparent rows, so its foot and shadow are on the products' line. Empty slots'
+## footprints on the real belt recede to its vanishing point.
+func test_items_cast_shadows_and_footprints_recede() -> void:
+	var screen: ShiftScreen = await _screen()
+	_place(screen, ["bread", "milk", "multipack"])
+	await _frames(2)
+	var belt: BeltPanel = screen._stage.belt
+	var face: Rect2 = belt.get_global_transform() * belt.top_face()
+	var feet: Array[float] = []
+	for view: CardView in screen._row_views:
+		var item: ItemView = view as ItemView
+		var shadow: Rect2 = item.get_global_transform() * item._belt_shadow()
+		var sprite: Rect2 = item.sprite().get_global_rect()
+		assert_bool(face.encloses(shadow)).override_failure_message(str(shadow)).is_true()
+		assert_float(shadow.get_center().x).is_greater(sprite.get_center().x)
+		var foot: float = (
+			sprite.position.y
+			+ (
+				ContactShadow.opaque_bottom(item.sprite().texture)
+				* sprite.size.y
+				/ item.sprite().texture.get_height()
+			)
+		)
+		assert_bool(shadow.position.y < foot and shadow.end.y > foot).is_true()
+		feet.append(foot)
+	# The slip's art stands on the products' line, and so does its shadow.
+	assert_float(feet[2]).is_equal_approx(feet[0], 0.01)
+	var stage: Vector2 = screen._stage.get_global_rect().position
+	var vanishing: Vector2 = stage + BeltPanel.VANISHING_POINT
+	for slot: int in range(3, screen._slots.size()):
+		var footprint: BeltFootprint = RowStrip.footprint(screen._slots[slot])
+		assert_bool(footprint.visible).is_true()
+		var corners: PackedVector2Array = footprint.get_global_transform() * footprint.outline()
+		assert_bool(face.has_point(corners[0])).is_true()
+		assert_bool(face.has_point(corners[2] - Vector2(1, 1))).is_true()
+		for pair: Vector2i in [Vector2i(0, 3), Vector2i(1, 2)]:
+			var edge: Vector2 = (corners[pair.x] - corners[pair.y]).normalized()
+			var sine: float = edge.cross((vanishing - corners[pair.y]).normalized())
+			assert_float(absf(sine)).override_failure_message(str(slot)).is_less(0.0001)
 
 
 ## The usual 7-slot row, a CLOSED row (Short belt) and a 9-slot row (Big basket and Extra coupon
@@ -165,9 +263,26 @@ func _assert_row_on_belt(screen: ShiftScreen, panel_count: int) -> void:
 	var panels: Array[PanelContainer] = screen._slots + screen._row_strip.closed
 	assert_int(panels.size()).is_equal(panel_count)
 	var previous: Rect2 = Rect2()
+	var previous_drop: Rect2 = Rect2()
+	var top_face: Rect2 = screen._stage.belt.get_global_transform() * screen._stage.belt.top_face()
+	var rail: Rect2 = screen._stage.belt.get_global_transform() * screen._stage.belt.rail()
 	for index: int in range(panels.size()):
 		var rect: Rect2 = panels[index].get_global_rect()
 		assert_bool(interior.encloses(rect)).override_failure_message(str(rect)).is_true()
+		# An open slot's drop target: inside its cell, from the top face down to the rail's foot,
+		# apart from the previous slot's.
+		if index < screen._slots.size():
+			var drop: Rect2 = RowStrip.drop_rect(panels[index])
+			(
+				assert_bool(rect.grow(0.01).encloses(drop))
+				. override_failure_message(str(drop))
+				. is_true()
+			)
+			assert_float(drop.position.y).is_greater_equal(top_face.position.y)
+			assert_float(drop.end.y).is_less_equal(rail.end.y + 0.01)
+			if index > 0:
+				assert_float(drop.position.x).is_greater_equal(previous_drop.end.x - 0.01)
+			previous_drop = drop
 		assert_bool(rect.intersects(receipt)).override_failure_message(str(rect)).is_false()
 		# Every row rests on the same line.
 		assert_float(rect.end.y).is_equal_approx(stage.position.y + ShiftStage.ROW_BOTTOM, 0.5)

@@ -8,7 +8,8 @@ extends GdUnitTestSuite
 const PALETTE_FILE := "res://art/src/palette.txt"
 const PALETTE_SIZE := 67
 ## Palette and ArtStyle, then the boutique classes #55 adds to the real shift screen
-## (StoreBackdrop, BeltPanel, RegisterCabinet, LedDisplay, PaperPile), the scan pieces #75
+## (StoreBackdrop, BeltPanel with step 6's BeltFootprint and ContactShadow, RegisterCabinet,
+## LedDisplay, PaperPile), the scan pieces #75
 ## moves out of style frame v2 (PriceSticker, ScanPopup, ScanOverlay, EffectChip) and the items
 ## and their cells (ItemView, PayoutPlaque, RowStrip), which take their colours from Palette,
 ## and the hung monitor's pieces #80 adds (MonitorView, LedBeat, ScanFooter): style frame v2's
@@ -19,6 +20,8 @@ const SCRIPTS: Array[String] = [
 	"res://presentation/art_style.gd",
 	"res://ui/store_backdrop.gd",
 	"res://ui/belt_panel.gd",
+	"res://ui/belt_footprint.gd",
+	"res://ui/contact_shadow.gd",
 	"res://ui/register_cabinet.gd",
 	"res://ui/led_display.gd",
 	"res://presentation/paper_pile.gd",
