@@ -5,17 +5,22 @@ extends CardView
 ## its price sticker. It keeps CardView's API (body, badge, center, highlight, tags), so the
 ## count-up plays it unchanged.
 ##
-## Three forms. On the belt (a BELT_SIZE cell; mock-up B2, #80) the sprite stands on the belt's top
+## Four forms. On the belt (a BELT_SIZE cell; mock-up B2, #80) the sprite stands on the belt's top
 ## face, the sticker is its ticket on the price rail, an EffectMark may sit on the art's visible
-## top-right corner and, in the count-up, the paid chip (PayoutPlaque) pops above the art. In the
-## hand's tray (a TRAY_SIZE cell) the sprite stands on a soft shadow. A drag's ghost (GHOST,
-## CardDrag) is the sprite alone, in a SPRITE_SIZE view with no sticker. A belt item stands on a
-## contact shadow (BELT_SHADOW, on the cell's ground line; smaller and fainter while the sprite is
-## lifted): its sprite drops by the art's transparent rows under its opaque foot (the coupon slip's
-## 8), so every item's visible foot stands on that line (mock-up B2's `base`).
+## top-right corner and, in the count-up, the paid chip (PayoutPlaque) pops above the art. In a
+## hand basket (BASKET, a BASKET_SIZE cell; #80, step 8) the sprite alone, with no sticker (the
+## monitor shows its price and rule), sinks a third of its art's visible height under the basket's
+## front rim (BASKET_RIM_Y); a selected one gets a mustard outline round its art, a redraw-marked
+## one dims and shows a small REDRAW flag above its art. In the offers' tray (a TRAY_SIZE cell) the
+## sprite stands on a soft shadow over its sticker. A drag's ghost (GHOST, CardDrag) is the sprite
+## alone, in a SPRITE_SIZE view with no sticker. A belt item stands on a contact shadow
+## (BELT_SHADOW, on the cell's ground line; smaller and fainter while the sprite is lifted): its
+## sprite drops by the art's transparent rows under its opaque foot (the coupon slip's 8), so every
+## item's visible foot stands on that line (mock-up B2's `base`).
 ## `body` holds only the sprite, so the count-up's punches, shakes and lifts move the sprite while
 ## the sticker and mark stay still and readable; `center()` is the sprite's middle. The scan
-## lifts the sprite and paid chip by LIFT (scan_lift); a hover or a selection lifts the mark too.
+## lifts the sprite and paid chip by LIFT (scan_lift; a basket item rises BASKET_LIFT out of its
+## basket instead, mock-up B2); a hover or a selection lifts the mark too.
 ##
 ## An undrawn product shows the dashed art-pending box with its name printed in it, and a coupon
 ## without an icon the real slip with its name in the icon's place (#75, decision 3A). The view
@@ -27,10 +32,13 @@ extends CardView
 signal hovered(view: ItemView)
 signal unhovered(view: ItemView)
 
-enum Form { TRAY, BELT, GHOST }
+enum Form { TRAY, BELT, GHOST, BASKET }
 
 const BELT_SIZE := Vector2(116, 232)
 const TRAY_SIZE := Vector2(108, 168)
+## A basket item's cell (HandRow), from under the capacity line down past every sprite's foot. A
+## short art's transparent top rows may stand above it; its hit area starts at the art.
+const BASKET_SIZE := Vector2(96, 110)
 const SPRITE_SIZE := Vector2(96, 96)
 ## On the belt the sprite stands with its foot on the top face (BELT_GROUND_Y is the foot's
 ## line), and the sticker hangs on the price rail.
@@ -39,8 +47,18 @@ const BELT_GROUND_Y := BELT_SPRITE.y + SPRITE_SIZE.y
 const TRAY_SPRITE := Vector2(6, 4)
 const BELT_STICKER := Vector2(4, 166)
 const TRAY_STICKER := Vector2(0, 104)
-## How far a scan or a selection raises the sprite.
+## In a basket the art's visible foot sinks under the front rim (BASKET_RIM_Y, the cell's
+## coordinates: HandBaskets.RIM_FRONT_Y on the stage) by 1/BASKET_SINK_PARTS of its visible height,
+## on the 2 px grid, so about two thirds of it shows above the rim (mock-up B2). A coupon's slip
+## rides BASKET_COUPON_RISE higher, leaning on its neighbour, so its icon clears the lip.
+const BASKET_RIM_Y := 78.0
+const BASKET_SINK_PARTS := 3.0
+const BASKET_COUPON_RISE := 8.0
+## How far a scan or a selection raises the sprite; a scan raises a basket item BASKET_LIFT out
+## of its basket (mock-up B2: about 16 px; 14 keeps the tallest art, outlined, under the
+## capacity line, ShiftStage.CAPACITY_RECT).
 const LIFT := 4.0
+const BASKET_LIFT := 14.0
 ## The paid chip (PayoutPlaque) over the art's visible top at rest (mock-up B2's count-up): the
 ## current one's face top PAID_CURRENT_ABOVE over it, an earlier one's PAID_SETTLED_ABOVE (its
 ## foot then clears the mark's top by 2 px; B2's 32 would sit on it), never above the MIN_Y lines,
@@ -83,9 +101,14 @@ const NAME_LINES := 3
 ## The printed name's node name on the art (item_art).
 const PRINTED_NAME := "PrintedName"
 ## A redraw-marked item fades to REDRAW_ALPHA; its REDRAW tag covers the sticker's glyph corner
-## (sticker coordinates), clear of the base value (or COUPON) and the summary.
+## (sticker coordinates), clear of the base value (or COUPON) and the summary. In a basket the tag
+## is a flag centred over the art, overlapping its top by REDRAW_FLAG_OVERLAP and never above
+## REDRAW_FLAG_MIN_Y (the cell's coordinates), which keeps it in the cell, under the capacity
+## line.
 const REDRAW_ALPHA := 0.55
 const REDRAW_RECT := Rect2(56, 6, 48, 22)
+const REDRAW_FLAG_OVERLAP := 4.0
+const REDRAW_FLAG_MIN_Y := 2.0
 const REDRAW_TEXT := "REDRAW"
 const REDRAW_SIZE := 11
 ## The tag's text inside its face, in canvas pixels.
@@ -110,6 +133,8 @@ var _highlight: CardView.Highlight = CardView.Highlight.NONE
 var _tags: PackedStringArray = PackedStringArray()
 ## The corner mark, or null (no step marks the item, or cleared).
 var _mark: EffectMark
+## A selected basket item's outline, behind its sprite, or null until one is first selected.
+var _outline: TextureRect
 
 
 func _init(
@@ -126,19 +151,35 @@ func _init(
 	set_form(item_form)
 
 
-## Lays the item out as a belt item, a tray item or a drag's ghost: its size, the sprite's,
-## sticker's, paid chip's and mark's places.
+## Lays the item out as a belt item, a basket item, a tray item or a drag's ghost: its size, the
+## sprite's, sticker's, REDRAW tag's, paid chip's and mark's places.
 func set_form(item_form: Form) -> void:
 	form = item_form
 	var belt: bool = form == Form.BELT
 	var ghost: bool = form == Form.GHOST
-	custom_minimum_size = BELT_SIZE if belt else (SPRITE_SIZE if ghost else TRAY_SIZE)
+	var basket: bool = form == Form.BASKET
+	var sizes: Dictionary[Form, Vector2] = {
+		Form.BELT: BELT_SIZE, Form.GHOST: SPRITE_SIZE, Form.BASKET: BASKET_SIZE
+	}
+	custom_minimum_size = sizes.get(form, TRAY_SIZE)
 	size = custom_minimum_size
 	var stand: Vector2 = Vector2.ZERO if ghost else TRAY_SPRITE
+	if basket:
+		stand = Vector2(0, _basket_stand_y())
 	_stand.position = BELT_SPRITE + Vector2(0, _belt_drop()) if belt else stand
 	_sticker.position = BELT_STICKER if belt else TRAY_STICKER
-	_sticker.visible = not ghost
+	_sticker.visible = not ghost and not basket
 	_redraw_mark.position = _sticker.position + REDRAW_RECT.position
+	# In a basket an undrawn item's name keeps to the box's top, above the rim.
+	if _name_label != null:
+		_name_label.vertical_alignment = (
+			VERTICAL_ALIGNMENT_TOP if basket else VERTICAL_ALIGNMENT_CENTER
+		)
+	if basket:
+		var flag_y: float = _art_top() - REDRAW_RECT.size.y + REDRAW_FLAG_OVERLAP
+		_redraw_mark.position = Vector2(
+			(SPRITE_SIZE.x - REDRAW_RECT.size.x) / 2.0, maxf(flag_y, REDRAW_FLAG_MIN_Y)
+		)
 	_place_badge(_plaque.is_current())
 	_plaque.set_current(_plaque.is_current())
 	_plaque.position.y = badge_rest_y()
@@ -146,8 +187,9 @@ func set_form(item_form: Form) -> void:
 	queue_redraw()
 
 
-## SELECTED lifts the sprite by LIFT inside gold brackets; REDRAW fades the item to REDRAW_ALPHA
-## and shows the REDRAW tag on its sticker.
+## SELECTED lifts the sprite by LIFT inside gold brackets (in a basket: with a mustard outline
+## round its art instead); REDRAW fades the item to REDRAW_ALPHA and shows the REDRAW tag on its
+## sticker (in a basket: the flag over its art).
 func set_highlight(highlight: CardView.Highlight) -> void:
 	_highlight = highlight
 	_place_body()
@@ -155,6 +197,16 @@ func set_highlight(highlight: CardView.Highlight) -> void:
 	body.modulate = Color(1, 1, 1, alpha)
 	_sticker.modulate.a = alpha
 	_redraw_mark.visible = highlight == CardView.Highlight.REDRAW
+	var outlined: bool = form == Form.BASKET and highlight == CardView.Highlight.SELECTED
+	if outlined and _outline == null:
+		_outline = UiKit.sprite(ArtOutline.texture_for(_sprite.texture))
+		_outline.name = "Outline"
+		_outline.show_behind_parent = true
+		_outline.position = -Vector2.ONE * ArtStyle.ART_SCALE
+		_outline.size = SPRITE_SIZE + Vector2.ONE * 2.0 * ArtStyle.ART_SCALE
+		_sprite.add_child(_outline)
+	if _outline != null:
+		_outline.visible = outlined
 	queue_redraw()
 
 
@@ -185,7 +237,7 @@ func badge_rest_y() -> float:
 
 
 func scan_lift() -> float:
-	return -LIFT
+	return -BASKET_LIFT if form == Form.BASKET else -LIFT
 
 
 ## The sprite's middle at rest, global: the count-up's flights, stamps and links land on it.
@@ -247,17 +299,23 @@ func clear_mark() -> void:
 		_mark = null
 
 
-## The selected item's gold brackets (this view's coordinates), or an empty rect.
+## The selected item's gold brackets (this view's coordinates), or an empty rect (and always in a
+## basket, which outlines a selected item instead).
 func brackets() -> Rect2:
-	if _highlight != CardView.Highlight.SELECTED:
+	if _highlight != CardView.Highlight.SELECTED or form == Form.BASKET:
 		return Rect2()
 	return Rect2(_stand.position + body.position, SPRITE_SIZE).grow(ScanOverlay.BRACKET_OUTSET)
 
 
 ## Where the pointer hovers and clicks the item (this view's coordinates): the sprite (lifted or
-## not) and the sticker. The mark and the paid chip are decor.
+## not) and the sticker. A basket item has no sticker, and its area starts at its art's visible
+## top (raised as high as it is now), not at the sprite's transparent rows. The mark and the
+## paid chip are decor.
 func hit_rect() -> Rect2:
 	var rect: Rect2 = Rect2(_stand.position - Vector2(0, LIFT), SPRITE_SIZE + Vector2(0, LIFT))
+	if form == Form.BASKET:
+		var top: float = _art_top() - maxf(LIFT, _lift_height())
+		return Rect2(rect.position.x, top, rect.size.x, rect.end.y - top)
 	return rect.merge(Rect2(_sticker.position, PriceSticker.SIZE))
 
 
@@ -283,6 +341,19 @@ func _belt_drop() -> float:
 	var texture: Texture2D = _sprite.texture
 	var empty_rows: int = texture.get_height() - ContactShadow.opaque_bottom(texture)
 	return empty_rows * SPRITE_SIZE.y / texture.get_height()
+
+
+## Where a basket item's sprite stands in its cell: its art's visible foot 1/BASKET_SINK_PARTS of
+## the art's visible height under BASKET_RIM_Y (on the 2 px grid), a coupon's slip
+## BASKET_COUPON_RISE higher.
+func _basket_stand_y() -> float:
+	var texture: Texture2D = _sprite.texture
+	var box: Rect2i = ContactShadow.opaque_rect(texture)
+	var texel: float = SPRITE_SIZE.y / texture.get_height()
+	var sink: float = box.size.y * texel / BASKET_SINK_PARTS
+	var foot: float = BASKET_RIM_Y + snappedf(sink, ArtStyle.ART_SCALE)
+	var rise: float = BASKET_COUPON_RISE if card.definition.is_coupon() else 0.0
+	return foot - box.end.y * texel - rise
 
 
 ## A belt item's contact shadow (this view's coordinates; empty in another form): on the ground
@@ -314,10 +385,10 @@ func _draw() -> void:
 		ScanOverlay.draw_brackets(self, marked, Palette.GOLD)
 
 
-## Lifts the sprite by LIFT while it is selected or scanned, else rests it (its shadow and mark
-## follow).
+## Lifts the sprite by _lift_height() while it is selected or scanned, else rests it (its shadow
+## and mark follow).
 func _place_body() -> void:
-	body.position.y = -LIFT if _is_up() else 0.0
+	body.position.y = -_lift_height() if _is_up() else 0.0
 	_place_mark()
 	queue_redraw()
 
@@ -338,7 +409,7 @@ func _mark_rest() -> Vector2:
 func _place_mark() -> void:
 	if _mark == null:
 		return
-	var lift: Vector2 = Vector2(MARK_LIFTED_NUDGE, -LIFT) if _is_up() else Vector2.ZERO
+	var lift: Vector2 = Vector2(MARK_LIFTED_NUDGE, -_lift_height()) if _is_up() else Vector2.ZERO
 	_mark.position = _mark_rest() + lift
 
 
@@ -360,6 +431,11 @@ func _place_badge(current: bool) -> void:
 ## Whether the sprite is lifted: scanned or selected.
 func _is_up() -> bool:
 	return lifted or _highlight == CardView.Highlight.SELECTED
+
+
+## How far the sprite rises when it is up: a scanned basket item BASKET_LIFT, else LIFT.
+func _lift_height() -> float:
+	return BASKET_LIFT if form == Form.BASKET and lifted else LIFT
 
 
 ## Snaps the sprite and the REDRAW tag back to their sizes: built outside the tree, a Label
@@ -388,9 +464,10 @@ func _build() -> void:
 	_name_label = _sprite.get_node_or_null(PRINTED_NAME) as Label
 	_redraw_mark = UiKit.display_label(REDRAW_TEXT, REDRAW_SIZE, false)
 	_redraw_mark.add_theme_color_override("font_color", Palette.PAPER)
+	# Teal panel and ink, not tomato: tomato is the fizzle's, CHECKOUT's and CLOSED's (B2).
 	var tag_face: StyleBoxFlat = StyleBoxFlat.new()
-	tag_face.bg_color = Palette.TOMATO
-	tag_face.border_color = Palette.TOMATO_DARK
+	tag_face.bg_color = Palette.PANEL
+	tag_face.border_color = Palette.INK
 	tag_face.set_border_width_all(ArtStyle.ART_SCALE)
 	tag_face.set_content_margin_all(0)
 	tag_face.content_margin_left = REDRAW_PADDING

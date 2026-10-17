@@ -70,7 +70,7 @@ func test_a_held_hand_item_shows_on_the_monitor() -> void:
 	assert_object(monitor).is_same(screen._monitor)
 	assert_int(monitor.mode()).is_equal(MonitorView.Mode.SCAN)
 	assert_bool(screen._scan.popup().visible).is_false()
-	assert_float(view.body.position.y).is_equal(-ItemView.LIFT)
+	assert_float(view.body.position.y).is_equal(-ItemView.BASKET_LIFT)
 	assert_str(monitor.scan_rule_label().text).is_equal(view.card.definition.rule_text)
 	assert_str(monitor.scan_name_label().text).is_equal(view.card.definition.display_name)
 	assert_object(monitor.scan_footer()).is_null()
@@ -135,7 +135,7 @@ func test_a_plain_hover_is_quiet_until_it_is_held() -> void:
 	await _frames(1)
 	assert_bool(screen._scan.is_full()).is_true()
 	assert_int(screen._monitor.mode()).is_equal(MonitorView.Mode.SCAN)
-	assert_float(hand[0].body.position.y).is_equal(-ItemView.LIFT)
+	assert_float(hand[0].body.position.y).is_equal(-ItemView.BASKET_LIFT)
 	assert_bool(screen._scan.overlay().is_posed()).is_true()
 	# Still held: no second beep.
 	_clock += hold
@@ -558,11 +558,19 @@ static func _monitor_texts(screen: ShiftScreen) -> PackedStringArray:
 	return texts
 
 
-## Tomato brackets around `view`'s lifted sprite with the scan line across it, on the stage.
+## Tomato brackets around `view`'s lifted sprite with the scan line across it, on the stage. A
+## basket item's sprite counts down to the basket's front rim: the lower arms lie on its lip.
 func _assert_scanner_posed(screen: ShiftScreen, view: ItemView) -> void:
 	var overlay: ScanOverlay = screen._scan.overlay()
 	assert_bool(overlay.is_posed()).is_true()
 	var sprite: Rect2 = view.sprite().get_global_rect()
+	if view.form == ItemView.Form.BASKET:
+		var rim: float = _on_stage(screen, Rect2(0, HandBaskets.RIM_FRONT_Y, 0, 0)).position.y
+		var lip: float = _on_stage(screen, Rect2(0, HandBaskets.LIP_BOTTOM_Y, 0, 0)).position.y
+		assert_float(sprite.end.y).is_greater(rim)
+		sprite.size.y = rim - sprite.position.y
+		var arms: float = (overlay.get_global_transform() * overlay.brackets()).end.y
+		assert_float(arms).is_greater(rim).is_less_equal(lip)
 	var brackets: Rect2 = overlay.get_global_transform() * overlay.brackets()
 	assert_bool(brackets == sprite.grow(ScanOverlay.BRACKET_OUTSET)).is_true()
 	assert_object(overlay.bracket_color()).is_equal(Palette.TOMATO)

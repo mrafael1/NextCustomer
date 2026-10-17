@@ -5,13 +5,12 @@ extends GdUnitTestSuite
 ## the hung monitor with the totals and the notices on its screen; the belt with the row's items on
 ## its top face and their tickets on the rail (its rows: shift_screen_belt_test); the register
 ## with the printer the receipt rises from; the capacity line and the cue under the rail; CHECKOUT,
-## Redraw and Cancel on the register column (every caption fits); a hand of 8 items that fits over
-## the baskets without overlapping; past 8, hover bringing an item to the front by child order, so
-## it takes the click; the drag ghost (the item's sprite); the hint along the floor and the seed
-## line under Redraw. Every rect is checked on screen against the stage and against the layout's
-## constants. Also the style checks: no text carries the pixel material, numbers use the number
-## font, every printed character has its glyph, and the sharp-pixel shader switches off and on.
-## The real saves and logs are never touched.
+## Redraw and Cancel on the register column (every caption fits); the hand's row over the baskets
+## (its baskets, items, hover order and drag ghost: hand_baskets_test); the hint along the floor
+## and the seed line under Redraw. Every rect is checked on screen against the stage and against
+## the layout's constants. Also the style checks: no text carries the pixel material, numbers use
+## the number font, every printed character has its glyph, and the sharp-pixel shader switches off
+## and on. The real saves and logs are never touched.
 
 const SCREEN := "res://ui/shift_screen.tscn"
 const SHORT_BELT := preload("res://data/inspections/short_belt.tres")
@@ -192,90 +191,6 @@ func test_the_stage_is_laid_out_without_overlaps() -> void:
 	assert_str(screen._seed_label.text).contains("Seed %d" % screen.run.run_seed)
 
 
-## A full hand of 8 fits over the baskets at the natural pitch: each item in its
-## ItemView.TRAY_SIZE cell inside the hand's area, GAP apart, none overlapping, all left of the
-## register. Debug-added items (10) squeeze closer, still inside it, and an overlap never covers
-## an item's base value.
-func test_a_hand_of_eight_fits_without_overlap() -> void:
-	var screen: ShiftScreen = await _screen()
-	var stage: Rect2 = screen._stage.get_global_rect()
-	var views: Array[Control] = screen._hand_box.cards()
-	assert_int(views.size()).is_equal(8)
-	var register: Rect2 = screen._register.get_global_rect()
-	var area: Rect2 = _on_stage(screen, ShiftStage.HAND_AREA)
-	assert_bool(screen._hand_box.overlaps()).is_false()
-	for index: int in range(views.size()):
-		var view: ItemView = views[index] as ItemView
-		assert_object(view).is_not_null()
-		assert_int(view.form).is_equal(ItemView.Form.TRAY)
-		var rect: Rect2 = view.get_global_rect()
-		assert_vector(rect.size).is_equal(ItemView.TRAY_SIZE)
-		assert_bool(stage.encloses(rect)).override_failure_message(str(rect)).is_true()
-		assert_bool(area.encloses(rect)).override_failure_message(str(rect)).is_true()
-		assert_float(rect.end.x).is_less_equal(register.position.x)
-		if index > 0:
-			var previous: Rect2 = views[index - 1].get_global_rect()
-			assert_float(rect.position.x - previous.position.x).is_equal(
-				ItemView.TRAY_SIZE.x + HandRow.GAP
-			)
-			assert_bool(previous.intersects(rect)).is_false()
-	assert_float(HandRow.step_for(8, ShiftStage.HAND_RECT.size.x)).is_equal(
-		ItemView.TRAY_SIZE.x + HandRow.GAP
-	)
-	assert_float(HandRow.step_for(9, ShiftStage.HAND_RECT.size.x)).is_less(ItemView.TRAY_SIZE.x)
-	# Debug-added items still fit, closer together.
-	screen._debug.add_card("bread")
-	screen._debug.add_card("bread")
-	await _frames(2)
-	views = screen._hand_box.cards()
-	assert_int(views.size()).is_equal(10)
-	assert_bool(screen._hand_box.overlaps()).is_true()
-	for index: int in range(views.size()):
-		var view: ItemView = views[index] as ItemView
-		assert_bool(area.encloses(view.get_global_rect())).is_true()
-		# No item drawn above covers its base value (or COUPON), at the sticker's left.
-		var base: Rect2 = view.sticker().get_global_transform() * PriceSticker.BASE_RECT
-		for other: Control in views.slice(index + 1):
-			var hit: Rect2 = other.get_global_transform() * (other as ItemView).hit_rect()
-			(
-				assert_bool(base.intersects(hit))
-				. override_failure_message("item %d's base value is covered" % index)
-				. is_false()
-			)
-
-
-## Hovering an item brings it to the front by child order (clicks follow what is drawn on top)
-## only while items overlap (more than 8); leaving it puts the hand order back. A full hand of 8
-## keeps its order. A selected item's lifted sprite and its gold brackets stay in the hand's
-## area, under the capacity line.
-func test_hover_brings_an_item_to_the_front() -> void:
-	var screen: ShiftScreen = await _screen()
-	var views: Array[Control] = screen._hand_box.cards()
-	views[3].mouse_entered.emit()
-	assert_int(views[3].get_index()).is_equal(3)
-	views[3].mouse_exited.emit()
-	screen._debug.add_card("bread")
-	await _frames(2)
-	views = screen._hand_box.cards()
-	var hovered: Control = views[3]
-	hovered.mouse_entered.emit()
-	assert_int(hovered.get_index()).is_equal(screen._hand_box.get_child_count() - 1)
-	hovered.mouse_exited.emit()
-	for index: int in range(views.size()):
-		assert_int(views[index].get_index()).is_equal(index)
-	screen._on_hand_card_clicked(views[0] as CardView)
-	await _frames(2)
-	var picked: ItemView = screen._hand_box.cards()[0] as ItemView
-	var rest_y: float = picked.get_global_rect().position.y + ItemView.TRAY_SPRITE.y
-	var lifted: Rect2 = picked.body.get_global_rect()
-	assert_float(lifted.position.y).is_equal(rest_y - ItemView.LIFT)
-	var brackets: Rect2 = picked.get_global_transform() * picked.brackets()
-	assert_bool(brackets.encloses(lifted)).is_true()
-	var area: Rect2 = _on_stage(screen, ShiftStage.HAND_AREA)
-	assert_bool(area.encloses(brackets)).override_failure_message(str(brackets)).is_true()
-	assert_bool(brackets.intersects(screen._capacity_label.get_global_rect())).is_false()
-
-
 ## The shade starts under the top bar wherever the stage sits, so Deck and Export log stay
 ## reachable.
 func test_the_shade_leaves_the_top_bar_uncovered() -> void:
@@ -349,48 +264,6 @@ func test_the_top_bar_fits_its_longest_texts() -> void:
 	others.append_array(screen._hand_box.cards())
 	for other: Control in others:
 		assert_bool(seed_line.intersects(other.get_global_rect())).is_false()
-
-
-## A full hand of 8 (with Cancel shown, in redraw mode) stays on the stage, clear of CHECKOUT,
-## Redraw, Cancel, the hint, the capacity line, the rail and the receipt, even with an item
-## selected (its sprite lifted inside its brackets).
-func test_a_full_hand_clears_the_buttons_and_the_receipt() -> void:
-	var screen: ShiftScreen = await _screen()
-	screen._on_redraw_pressed()
-	await _frames(2)
-	assert_bool(screen._cancel_button.visible).is_true()
-	var stage: Rect2 = screen._stage.get_global_rect()
-	var strip: Array[Control] = [
-		screen._stage.hint_label,
-		screen._cancel_button,
-		screen._redraw_button,
-		screen._checkout_button,
-	]
-	_assert_apart(strip)
-	var blockers: Array[Control] = strip.duplicate()
-	blockers.append(screen._receipt)
-	blockers.append(screen._capacity_label)
-	var rail: Rect2 = screen._stage.belt.get_global_transform() * screen._stage.belt.rail()
-	var views: Array[Control] = screen._hand_box.cards()
-	assert_int(views.size()).is_equal(screen.run.balance.hand_size)
-	for view: Control in views:
-		assert_vector(view.size).is_equal(ItemView.TRAY_SIZE)
-		# A selected item's sprite lifts by LIFT inside its brackets.
-		var lifted: Rect2 = Rect2(
-			view.global_position + ItemView.TRAY_SPRITE - Vector2(0, ItemView.LIFT),
-			ItemView.SPRITE_SIZE
-		)
-		var rect: Rect2 = view.get_global_rect().merge(lifted.grow(ScanOverlay.BRACKET_OUTSET))
-		assert_bool(stage.encloses(rect)).override_failure_message(str(rect)).is_true()
-		assert_bool(rect.intersects(rail)).is_false()
-		for blocker: Control in blockers:
-			(
-				assert_bool(rect.intersects(blocker.get_global_rect()))
-				. override_failure_message("%s overlaps %s" % [rect, blocker])
-				. is_false()
-			)
-	for part: Control in strip:
-		assert_bool(stage.encloses(part.get_global_rect())).is_true()
 
 
 ## The receipt stands on the printer's slot and grows up as its lines print: a short receipt is
@@ -512,67 +385,6 @@ func test_the_wall_and_counter_cover_the_viewport() -> void:
 	# The counter starts at the stage's counter line, wherever the stage sits.
 	var stage: Rect2 = screen._stage.get_global_rect()
 	assert_float(counter.position.y).is_equal(stage.position.y + ShiftStage.COUNTER_TOP)
-
-
-## A dragged item's ghost is its sprite alone (an ItemView in the GHOST form, SPRITE_SIZE, no
-## sticker), centred on the mouse.
-func test_the_drag_ghost_is_centred_on_the_mouse() -> void:
-	var screen: ShiftScreen = await _screen()
-	var view: CardView = screen._hand_box.cards()[2] as CardView
-	var card: CardInstance = view.card
-	var start: Vector2 = view.get_global_rect().get_center()
-	screen._on_hand_card_clicked(view)
-	assert_object(screen._picked).is_same(card)
-	var target: Vector2 = start + Vector2(37, -151)
-	screen._drag._input(_motion(target, MOUSE_BUTTON_MASK_LEFT))
-	var ghost: ItemView = screen._drag._ghost
-	assert_object(ghost).is_not_null()
-	assert_int(ghost.form).is_equal(ItemView.Form.GHOST)
-	assert_object(ghost.card).is_same(card)
-	assert_vector(ghost.size).is_equal(ItemView.SPRITE_SIZE)
-	assert_bool(ghost.sticker().visible).is_false()
-	assert_vector(ghost.get_global_rect().get_center()).is_equal_approx(target, Vector2(1, 1))
-	# The tilted, enlarged sprite turns about its centre, so it stays centred too.
-	var body_center: Vector2 = ghost.body.get_global_transform() * (ItemView.SPRITE_SIZE / 2.0)
-	assert_vector(body_center).is_equal_approx(target, Vector2(1, 1))
-	screen._drag.cancel()
-
-
-## Clearing the hand under the mouse: the hovered card's mouse_exited, sent while it leaves the
-## tree, must not reorder the hand mid-removal (Godot would print a move_child error, which
-## fails the run). Headless runs have no mouse, so the card sends it as a real mouse would.
-func test_clearing_a_hovered_hand_reorders_nothing() -> void:
-	var screen: ShiftScreen = await _screen()
-	var hovered: Control = screen._hand_box.cards()[2]
-	hovered.mouse_entered.emit()
-	hovered.tree_exiting.connect(hovered.mouse_exited.emit)
-	screen._hand_box.clear()
-	assert_int(screen._hand_box.get_child_count()).is_equal(0)
-	assert_int(screen._hand_box.cards().size()).is_equal(0)
-
-
-## In a hand of more than 8 (debug), hovering an item brings it to the front, so a click where it
-## overlaps the next item (on their stickers) goes to the hovered item, the one drawn on top.
-## Headless runs deliver no mouse input, so this follows Godot's own rule: a click goes to the
-## last child (drawn on top) whose hit area (ItemView.hit_rect) is under the mouse and stops it.
-func test_the_hovered_item_takes_the_click() -> void:
-	var screen: ShiftScreen = await _screen()
-	screen._debug.add_card("bread")
-	await _frames(2)
-	var views: Array[Control] = screen._hand_box.cards()
-	var hovered: CardView = views[3] as CardView
-	var under: Rect2 = views[4].get_global_rect()
-	var rect: Rect2 = hovered.get_global_rect()
-	assert_float(rect.end.x).is_greater(under.position.x)
-	var sticker_y: float = rect.position.y + ItemView.TRAY_STICKER.y + PriceSticker.SIZE.y / 2.0
-	var overlap: Vector2 = Vector2((under.position.x + rect.end.x) / 2.0, sticker_y)
-	# Before the hover, the next item is on top where they overlap.
-	assert_object(_card_at(screen._hand_box, overlap)).is_same(views[4])
-	hovered.mouse_entered.emit()
-	var top: CardView = _card_at(screen._hand_box, overlap) as CardView
-	assert_object(top).is_same(hovered)
-	top._gui_input(_button(overlap, true))
-	assert_object(screen._picked).is_same(hovered.card)
 
 
 ## Text never goes through the sharp-pixel shader: no Label or Button text carries its material
@@ -826,45 +638,6 @@ static func _all_inspections() -> Array[InspectionDefinition]:
 		if file_name.ends_with(".tres"):
 			result.append(load(folder.path_join(file_name)) as InspectionDefinition)
 	return result
-
-
-static func _motion(point: Vector2, mask: int = 0) -> InputEventMouseMotion:
-	var motion: InputEventMouseMotion = InputEventMouseMotion.new()
-	motion.position = point
-	motion.button_mask = mask
-	return motion
-
-
-## The control a click at `point` reaches among `parent`'s children: the last one (drawn on top)
-## under it that stops the mouse.
-static func _card_at(parent: Control, point: Vector2) -> Control:
-	for index: int in range(parent.get_child_count() - 1, -1, -1):
-		var child: Control = parent.get_child(index) as Control
-		if (
-			child != null
-			and child.visible
-			and child.mouse_filter == Control.MOUSE_FILTER_STOP
-			and _hits(child, point)
-		):
-			return child
-	return null
-
-
-## Whether `point` (global) is in `child`'s hit area: an item's hit_rect, else its rect.
-static func _hits(child: Control, point: Vector2) -> bool:
-	var item: ItemView = child as ItemView
-	if item == null:
-		return child.get_global_rect().has_point(point)
-	return item.hit_rect().has_point(item.get_global_transform().affine_inverse() * point)
-
-
-static func _button(point: Vector2, pressed: bool) -> InputEventMouseButton:
-	var press: InputEventMouseButton = InputEventMouseButton.new()
-	press.button_index = MOUSE_BUTTON_LEFT
-	press.pressed = pressed
-	press.position = point
-	press.button_mask = MOUSE_BUTTON_MASK_LEFT if pressed else 0
-	return press
 
 
 ## The screen past the impulse rack, laid out.

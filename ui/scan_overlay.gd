@@ -94,12 +94,17 @@ func is_posed() -> bool:
 ## `item`'s sprite as a global rect, lifted by its scan_lift(), wherever its lift or punch is
 ## now, and scaled as the item is drawn (a wide row is scaled down): where the count-up marks it
 ## as the scan starts lifting it, and where the full scan's popup and marks are placed, so they
-## line up with the lifted item.
+## line up with the lifted item. A basket item's ends at the basket's front rim
+## (ItemView.BASKET_RIM_Y), so the brackets' lower arms rest on the lip, not on the slotted face.
 static func lifted_sprite(item: ItemView) -> Rect2:
 	var factor: Vector2 = item.get_global_transform().get_scale()
 	var drawn: Vector2 = ItemView.SPRITE_SIZE * factor
 	var top_left: Vector2 = item.center() - drawn / 2.0
-	return Rect2(top_left + Vector2(0, item.scan_lift() * factor.y), drawn)
+	var sprite: Rect2 = Rect2(top_left + Vector2(0, item.scan_lift() * factor.y), drawn)
+	if item.form == ItemView.Form.BASKET:
+		var rim: float = (item.get_global_transform() * Vector2(0, ItemView.BASKET_RIM_Y)).y
+		sprite.size.y = minf(sprite.size.y, rim - sprite.position.y)
+	return sprite
 
 
 ## The count-up's frame for `item` (global, for pose_scan): its lifted sprite (lifted_sprite)

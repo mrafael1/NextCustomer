@@ -14,12 +14,13 @@ extends Control
 ## and the price rail, then the row of items standing on the belt with their tickets on the rail),
 ## the top bar (the velvet shift sign, the loyalty card, the inspection tag, Deck and Export log,
 ## all above RewardPanel.PRINTOUT_TOP), the capacity line and the cue on the counter under the rail,
-## the hand's baskets on the steel ledge with the hand in them, the controls hint along the floor,
-## Cancel, Redraw and CHECKOUT on the register column and the seed line under Redraw. Over them all
-## the scan layer (ScanOverlay: the scan's brackets and beam) and the popup layer, both taking no
-## clicks. A belt or hand item's scan shows on the monitor (#80); the popup layer only parks the
-## hidden scan popup, which opens over the offers alone, in the layer an offer's scan moves it
-## to (ScanController.cover_offers).
+## the hand's baskets on the steel ledge (HandBaskets: their backs, the hand in them, their fronts)
+## and the shade that darkens them while counting, the controls hint along the floor, Cancel, Redraw
+## and CHECKOUT on the register column and the seed line under Redraw. Over them all the scan layer
+## (ScanOverlay: the scan's brackets and beam) and the popup layer, both taking no clicks. A belt or
+## hand item's scan shows on the monitor (#80); the popup layer only parks the hidden scan popup,
+## which opens over the offers alone, in the layer an offer's scan moves it to
+## (ScanController.cover_offers).
 ##
 ## The receipt stands on the printer's slot and grows up as its lines print, up to under the top
 ## bar; past that it scrolls to its newest line.
@@ -102,22 +103,18 @@ const BUTTON_FONT_SIZE := 16
 const CHECKOUT_FONT_SIZE := 26
 ## The ink outline of CHECKOUT's caption, in canvas pixels.
 const CHECKOUT_OUTLINE := 4
-## The hand's baskets (four, two items each) on the steel ledge in front of the counter, and the
-## hand over them (ItemView.TRAY_SIZE cells; a full hand of 8 at HandRow's natural pitch).
-const BASKET_RECTS: Array[Rect2] = [
-	Rect2(26, 576, 208, 96),
-	Rect2(254, 576, 208, 96),
-	Rect2(482, 576, 208, 96),
-	Rect2(710, 576, 208, 96)
-]
-const LEDGE_RECT := Rect2(0, 664, 944, 30)
-const HAND_RECT := Rect2(16, 520, 912, 168)
+## The steel ledge in front of the counter (its art, ink outline included) and the hand in its
+## baskets on it (HandRow: ItemView.BASKET_SIZE cells, from the first basket's left edge to the
+## last one's right edge at the natural pitch; the baskets' rims are HandBaskets').
+const LEDGE_RECT := Rect2(10, 662, 924, 34)
+const HAND_RECT := Rect2(26, CAPACITY_RECT.end.y, 892, ItemView.BASKET_SIZE.y)
 ## Where the hand is: from the counter under the rail down to the stage's foot, left of the
 ## register.
 const HAND_AREA := Rect2(0, 494, 944, 226)
-## While the shift is counted the hand and its baskets fade to this alpha, so the belt reads
-## first.
-const COUNTING_HAND_ALPHA := 0.7
+## While the shift is counted a shade darkens the hand and its baskets (ink at this alpha, mock-up
+## B2's count-up), so the belt reads first.
+const COUNTING_SHADE_RECT := Rect2(0, 496, 944, 204)
+const COUNTING_SHADE_ALPHA := 0.4
 ## The controls hint, along the floor under the ledge.
 const HINT_RECT := Rect2(20, 698, 904, 20)
 const HINT_TEXT := (
@@ -125,7 +122,6 @@ const HINT_TEXT := (
 	+ "tap to skip the count, hold to fast-forward"
 )
 const SEED_RECT := Rect2(1062, 586, 198, 18)
-const OUTLINE := 2
 
 const RECEIPT_PAPER := preload("res://art/frames/receipt_paper.png")
 ## The printer slot's steel lip with its tear teeth (art/src/scenery/printer_lip.txt), drawn 1:1
@@ -159,8 +155,11 @@ var popup_layer: Control
 var capacity_label: Label
 var cue_label: Label
 var notice_label: NoticeLabel
-## The hand's baskets and their ledge (decor), faded with the hand while counting.
-var baskets: Control
+## The hand's baskets on their ledge (decor): their backs under the hand, their fronts over it,
+## and the shade over both while counting.
+var baskets: HandBaskets
+var basket_fronts: HandBaskets
+var hand_shade: ColorRect
 var hint_label: Label
 var cancel_button: FramedButton
 var redraw_button: FramedButton
@@ -273,12 +272,9 @@ func _build_register() -> void:
 	add_child(printer_lip)
 
 
-## Fades the hand and its baskets to COUNTING_HAND_ALPHA while the shift is counted
-## (`counting`), or back to full.
+## Darkens the hand and its baskets while the shift is counted (`counting`), or lifts the shade.
 func dim_hand(counting: bool) -> void:
-	var alpha: float = COUNTING_HAND_ALPHA if counting else 1.0
-	baskets.modulate.a = alpha
-	hand.modulate.a = alpha
+	hand_shade.visible = counting
 
 
 func _build_belt(slot_count: int) -> void:
@@ -301,7 +297,7 @@ func _place_row() -> void:
 
 
 ## On the counter: the capacity line and the cue under the rail, the ledge and the baskets with
-## the hand in them, and the hint along the floor.
+## the hand in them, the counting shade over them, and the hint along the floor.
 func _build_counter() -> void:
 	capacity_label = UiKit.body_label("", 14, Palette.CREAM)
 	capacity_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
@@ -314,17 +310,22 @@ func _build_counter() -> void:
 	cue_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	add_child(cue_label)
 	_place_label(cue_label, CUE_RECT)
-	baskets = Control.new()
-	baskets.name = "Baskets"
-	baskets.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	add_child(baskets)
-	_rect_in(baskets, LEDGE_RECT, Palette.STEEL).name = "Ledge"
-	for rect: Rect2 in BASKET_RECTS:
-		_rect_in(baskets, rect, Palette.TEAL).name = "Basket"
 	hand = HandRow.new()
 	hand.position = HAND_RECT.position
 	hand.size = HAND_RECT.size
+	baskets = HandBaskets.new(HandBaskets.Layer.BACK, hand)
+	add_child(baskets)
 	add_child(hand)
+	basket_fronts = HandBaskets.new(HandBaskets.Layer.FRONT, hand)
+	add_child(basket_fronts)
+	hand_shade = ColorRect.new()
+	hand_shade.name = "HandShade"
+	hand_shade.color = Color(Palette.INK, COUNTING_SHADE_ALPHA)
+	hand_shade.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	hand_shade.position = COUNTING_SHADE_RECT.position
+	hand_shade.size = COUNTING_SHADE_RECT.size
+	hand_shade.visible = false
+	add_child(hand_shade)
 	hint_label = UiKit.body_label(HINT_TEXT, 13, Color(Palette.CREAM, 0.8))
 	hint_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	add_child(hint_label)
@@ -392,22 +393,6 @@ func _build_scan_layers() -> void:
 	popup_layer.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	popup_layer.size = SIZE
 	add_child(popup_layer)
-
-
-## A flat `color` rect with an ink outline at `rect` (stage coordinates) in `parent`, which
-## stands at the stage's origin; it takes no clicks.
-static func _rect_in(parent: Control, rect: Rect2, color: Color) -> Panel:
-	var style: StyleBoxFlat = StyleBoxFlat.new()
-	style.bg_color = color
-	style.border_color = Palette.INK
-	style.set_border_width_all(OUTLINE)
-	var panel: Panel = Panel.new()
-	panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	panel.add_theme_stylebox_override("panel", style)
-	panel.position = rect.position
-	panel.size = rect.size
-	parent.add_child(panel)
-	return panel
 
 
 ## Plain ink caption on a brass button (Cancel, Redraw).

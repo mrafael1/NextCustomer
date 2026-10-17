@@ -1,27 +1,46 @@
 class_name HandRow
 extends Control
-## The hand in its tray (#55, decision 2; #75): the items side by side in the order they were
-## added, each in an ItemView.TRAY_SIZE cell, laid out by this plain Control with an adaptive
-## step. A full hand of 8 fits at the natural pitch (the cell and GAP) with no overlap; more
-## items (debug) squeeze closer. Each item is drawn above the one before it, so an overlap hides
-## only the right edge of the item before (its sticker's glyph corner), never the base value at
-## its sticker's left. Only while items overlap, hovering one brings it to the front by child
-## order, not only z_index, so clicks go to the item that is drawn on top; leaving it puts the
-## order back.
+## The hand in its baskets (#80, mock-up B2, step 8): the items two to a basket in the order they
+## were added, each in an ItemView.BASKET_SIZE cell at the left or right half of its basket. A
+## hand of `hand_size` items fills ceil(hand_size / 2) baskets (reset()), BASKET_PITCH apart; the
+## baskets left by the items placed on the belt stay, empty. More items than that (debug) add
+## baskets and narrow the basket step so they all still fit the row, and then items overlap: only
+## while they do, hovering one brings it to the front by child order, not only z_index, so clicks
+## go to the item that is drawn on top; leaving it puts the order back.
 ##
-## Add items with add_card() and remove them all with clear(); the items are its children, in
-## hand order whenever no item is hovered.
+## The baskets themselves are decor (HandBaskets, behind and in front of the items), drawn where
+## basket_lefts() puts them; `laid_out` says when that changed. Add items with add_card() and
+## remove them all with clear() or reset(); the items are its children, in hand order whenever no
+## item is hovered.
 
-## The gap between items when there is room for it.
-const GAP := 4.0
+## The items were laid out again (the basket count or step may have changed).
+signal laid_out
+
+## A basket's width at its rim, the distance from one basket's left edge to the next at the
+## natural pitch (20 px of counter between two), and the items' places in a basket (from its left
+## edge, two side by side).
+const BASKET_WIDTH := 208.0
+const BASKET_PITCH := 228.0
+const ITEM_OFFSETS: Array[float] = [8.0, 104.0]
+const ITEMS_PER_BASKET := 2
+## The hand size before reset() names one (the balance's 8).
+const DEFAULT_HAND_SIZE := 8
 
 ## The items in hand order (the child order changes while one is hovered).
 var _order: Array[Control] = []
+var _hand_size: int = DEFAULT_HAND_SIZE
 
 
 func _init() -> void:
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
 	resized.connect(_lay_out)
+
+
+## Removes every item and makes room for a hand of `hand_size` (the baskets it fills).
+func reset(hand_size: int) -> void:
+	clear()
+	_hand_size = hand_size
+	_lay_out()
 
 
 ## Removes and frees every item. The hand order is emptied and each item let go of first: a
@@ -52,25 +71,42 @@ func cards() -> Array[Control]:
 	return _order.duplicate()
 
 
-## The distance from one item's left edge to the next for `count` items in `width` pixels.
+## The baskets shown: enough for the hand size, or for more items (debug).
+func basket_count() -> int:
+	return ceili(maxi(_hand_size, _order.size()) / float(ITEMS_PER_BASKET))
+
+
+## Each basket's left edge at its rim, in this row's coordinates, on the 2 px art grid.
+func basket_lefts() -> Array[float]:
+	var lefts: Array[float] = []
+	var step: float = step_for(basket_count(), size.x)
+	for index: int in range(basket_count()):
+		lefts.append(snappedf(index * step, ArtStyle.ART_SCALE))
+	return lefts
+
+
+## The distance from one basket's left edge to the next for `count` baskets in `width` pixels:
+## BASKET_PITCH, or less when that many would not fit.
 static func step_for(count: int, width: float) -> float:
-	var natural: float = ItemView.TRAY_SIZE.x + GAP
 	if count <= 1:
-		return natural
-	return minf(natural, (width - ItemView.TRAY_SIZE.x) / (count - 1))
+		return BASKET_PITCH
+	return minf(BASKET_PITCH, (width - BASKET_WIDTH) / (count - 1))
 
 
-## Whether the items overlap (more than fit at the natural pitch).
+## Whether the items overlap (the basket step is too narrow for the items at its natural pitch).
 func overlaps() -> bool:
-	return step_for(_order.size(), size.x) < ItemView.TRAY_SIZE.x
+	var reach: float = ITEM_OFFSETS[-1] + ItemView.BASKET_SIZE.x - ITEM_OFFSETS[0]
+	return step_for(basket_count(), size.x) < reach
 
 
 func _lay_out() -> void:
-	var step: float = step_for(_order.size(), size.x)
+	var lefts: Array[float] = basket_lefts()
 	for index: int in range(_order.size()):
 		var view: Control = _order[index]
-		view.position = Vector2(roundf(index * step), 0.0)
-		view.size = ItemView.TRAY_SIZE
+		var left: float = lefts[floori(float(index) / ITEMS_PER_BASKET)]
+		view.position = Vector2(left + ITEM_OFFSETS[index % ITEMS_PER_BASKET], 0.0)
+		view.size = ItemView.BASKET_SIZE
+	laid_out.emit()
 
 
 func _raise(view: Control) -> void:

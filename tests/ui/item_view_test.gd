@@ -1,10 +1,11 @@
 extends GdUnitTestSuite
-## The item view (#75, step 3): every card in data/cards laid out as a belt item and as a tray
-## item, placed where the shift screen puts them, with the real fonts. The paid chip never runs
-## under the art (at rest, selected or scanned, either face) nor, settled, over the corner mark;
-## the sticker covers neither the sprite nor the mark; center() is on the sprite; the paid chip has
-## its two faces, mutes at €0 and pops with an echo; the looks (selected, redraw) show; one mark
-## per item sits on the art's corner (#80, step 7); and every undrawn item's name fits its
+## The item view (#75, step 3): every card in data/cards laid out as a belt item, a basket item
+## (#80, step 8: sunk a third under the rim, outlined when selected, flagged when redraw-marked) and
+## a tray item, placed where the shift screen puts them, with the real fonts. The paid chip never
+## runs under the art (at rest, selected or scanned, either face) nor, settled, over the corner
+## mark; the sticker covers neither the sprite nor the mark; center() is on the sprite; the paid
+## chip has its two faces, mutes at €0 and pops with an echo; the looks (selected, redraw) show; one
+## mark per item sits on the art's corner (#80, step 7); and every undrawn item's name fits its
 ## art-pending box or its slip.
 
 const CARDS := "res://data/cards"
@@ -361,6 +362,104 @@ func test_the_selected_and_redraw_looks() -> void:
 		assert_bool(tag.visible).is_false()
 		assert_float(view.body.modulate.a).is_equal(1.0)
 		assert_float(view.sticker().modulate.a).is_equal(1.0)
+
+
+## Every card as a basket item (#80, step 8): a BASKET_SIZE cell with its sprite at the cell's
+## left, no sticker and no shadow; its art's visible foot is under BASKET_RIM_Y by a third of its
+## visible height on the 2 px grid (a coupon's slip BASKET_COUPON_RISE higher). Only the sprite's
+## columns from the art's visible top (lifted) take the pointer, inside the cell. Selected, it
+## lifts with the outline (ArtOutline) one art pixel round it and no brackets; redraw-marked, it
+## dims and its REDRAW flag stands centred over the art, inside the cell, under
+## REDRAW_FLAG_MIN_Y; an undrawn item's name keeps to its box's top.
+func test_basket_items_sink_a_third_under_the_rim() -> void:
+	var cell: Rect2 = Rect2(Vector2.ZERO, ItemView.BASKET_SIZE)
+	# The rim's line in the cell is the baskets' front rim on the stage.
+	assert_float(ItemView.BASKET_RIM_Y).is_equal(
+		HandBaskets.RIM_FRONT_Y - ShiftStage.HAND_RECT.position.y
+	)
+	for definition: CardDefinition in _cards():
+		var view: ItemView = await _laid_out(definition, ItemView.Form.BASKET, TRAY_ORIGIN)
+		var message: String = definition.id
+		assert_vector(view.size).is_equal(ItemView.BASKET_SIZE)
+		assert_bool(view.sticker().visible).is_false()
+		assert_that(view._belt_shadow()).is_equal(Rect2())
+		var texture: Texture2D = view.sprite().texture
+		var box: Rect2i = ContactShadow.opaque_rect(texture)
+		var texel: float = ItemView.SPRITE_SIZE.y / texture.get_height()
+		var sprite: Rect2 = Rect2(
+			view.sprite().get_global_rect().position - TRAY_ORIGIN, Vector2.ZERO
+		)
+		sprite.size = ItemView.SPRITE_SIZE
+		assert_float(sprite.position.x).is_equal(0.0)
+		var foot: float = sprite.position.y + box.end.y * texel
+		var sink: float = snappedf(box.size.y * texel / 3.0, ArtStyle.ART_SCALE)
+		var rise: float = ItemView.BASKET_COUPON_RISE if definition.is_coupon() else 0.0
+		assert_float(foot).override_failure_message(message).is_equal(
+			ItemView.BASKET_RIM_Y + sink - rise
+		)
+		# The hit area: the sprite's columns from the art's visible top, lifted, down to its foot.
+		var art_top: float = sprite.position.y + box.position.y * texel - ItemView.LIFT
+		var hit: Rect2 = Rect2(0, art_top, sprite.size.x, sprite.end.y - art_top)
+		assert_that(view.hit_rect()).is_equal(hit)
+		assert_bool(cell.encloses(hit)).override_failure_message(message).is_true()
+		if view.name_label() != null:
+			assert_int(view.name_label().vertical_alignment).is_equal(VERTICAL_ALIGNMENT_TOP)
+		view.set_highlight(CardView.Highlight.SELECTED)
+		assert_that(view.brackets()).is_equal(Rect2())
+		var outline: TextureRect = view._outline
+		assert_bool(outline.visible).is_true()
+		assert_object(outline.texture).is_same(ArtOutline.texture_for(texture))
+		assert_that(outline.get_global_rect()).is_equal(
+			view.sprite().get_global_rect().grow(ArtStyle.ART_SCALE)
+		)
+		view.set_highlight(CardView.Highlight.REDRAW)
+		assert_bool(outline.visible).is_false()
+		assert_float(view.body.modulate.a).is_equal_approx(ItemView.REDRAW_ALPHA, 0.001)
+		var flag: Rect2 = Rect2(view._redraw_mark.position, view._redraw_mark.size)
+		assert_bool(view._redraw_mark.visible).is_true()
+		assert_vector(flag.size).is_equal(ItemView.REDRAW_RECT.size)
+		assert_float(flag.get_center().x).is_equal(ItemView.SPRITE_SIZE.x / 2.0)
+		assert_float(flag.position.y).is_greater_equal(ItemView.REDRAW_FLAG_MIN_Y)
+		assert_float(flag.position.y).override_failure_message(message).is_less(
+			sprite.position.y + box.position.y * texel
+		)
+		assert_bool(cell.encloses(flag)).override_failure_message(message).is_true()
+		view.set_highlight(CardView.Highlight.NONE)
+		assert_bool(outline.visible or view._redraw_mark.visible).is_false()
+
+
+## A selected item's outline (ArtOutline): one pixel larger than the art on each side, mustard
+## exactly on the transparent pixels that touch the art (4-neighbours), clear everywhere else.
+func test_the_outline_rings_the_art() -> void:
+	for path: String in [DRAWN_MILK, "res://art/items_v2/coupon_slip.png"]:
+		var art: Texture2D = load(path)
+		var outline: ImageTexture = ArtOutline.texture_for(art)
+		assert_object(ArtOutline.texture_for(art)).is_same(outline)
+		var source: Image = art.get_image()
+		var ring: Image = outline.get_image()
+		assert_vector(Vector2(ring.get_size())).is_equal(
+			Vector2(source.get_size() + Vector2i(2, 2))
+		)
+		var opaque: Callable = func(x: int, y: int) -> bool:
+			var inside: bool = (
+				x >= 0 and y >= 0 and x < source.get_width() and y < source.get_height()
+			)
+			return inside and source.get_pixel(x, y).a >= ArtOutline.OPAQUE_ALPHA
+		var count: int = 0
+		for y: int in range(ring.get_height()):
+			for x: int in range(ring.get_width()):
+				var touches: bool = false
+				for side: Vector2i in [Vector2i.LEFT, Vector2i.RIGHT, Vector2i.UP, Vector2i.DOWN]:
+					touches = touches or opaque.call(x - 1 + side.x, y - 1 + side.y)
+				var expected: bool = touches and not opaque.call(x - 1, y - 1)
+				var pixel: Color = ring.get_pixel(x, y)
+				assert_bool(pixel.a > 0.5).override_failure_message("%d,%d" % [x, y]).is_equal(
+					expected
+				)
+				if expected:
+					assert_that(pixel).is_equal(ArtOutline.COLOUR)
+					count += 1
+		assert_int(count).is_greater(40)
 
 
 ## A belt item stands on its contact shadow (#80, mock-up B2): its sprite drops by its art's

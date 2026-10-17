@@ -4,13 +4,13 @@ extends GdUnitTestSuite
 ## with a belt item scanned: style frame v2's layout checks (#75, step 9), ported to the screen
 ## that replaced the mock-up. Everything lies inside the 1280x720 stage; the top bar's parts stand
 ## apart above the belt; the cells lie on the belt (#80, mock-up B2's greybox), each belt sprite
-## standing on its top face and each ticket on the rail, and the hand's items lie in the hand's
-## area; no sticker covers another sticker, a sprite or a corner mark; planning shows no paid chip
-## and each belt item's mark follows core's steps (#80, step 7); every printed character has its
-## glyph; no text carries the pixel material, and the sharp-pixel switch reaches every piece of
-## art. Every rect is checked on screen (headless runs use a 1280x1280 window: the stage is
-## centred, 280 px down). The capture keeps its saves and log in a temporary folder and the test
-## redirects them too, so the real ones are never touched.
+## standing on its top face and each ticket on the rail, and the hand's basket items (no stickers,
+## #80 step 8) lie in the hand's area; no sticker covers another sticker, a sprite or a corner
+## mark; planning shows no paid chip and each belt item's mark follows core's steps (#80, step 7);
+## every printed character has its glyph; no text carries the pixel material, and the sharp-pixel
+## switch reaches every piece of art. Every rect is checked on screen (headless runs use a
+## 1280x1280 window: the stage is centred, 280 px down). The capture keeps its saves and log in a
+## temporary folder and the test redirects them too, so the real ones are never touched.
 
 const CAPTURE := "res://debug/screen_capture/screen_capture.tscn"
 ## The states: planning, a hand item scanned and a belt item scanned (each shown on the hung
@@ -84,8 +84,8 @@ func test_the_top_bar_parts_are_apart_above_the_belt() -> void:
 
 
 ## Every cell (the CLOSED one too) lies on the belt, apart from the others; each belt item's
-## sprite stands on the belt's top face and its ticket on the rail. The hand's items and their
-## stickers lie inside the hand's area, apart.
+## sprite stands on the belt's top face and its ticket on the rail. The hand's basket items lie
+## inside the hand's area, apart, with no sticker shown.
 func test_cells_lie_inside_the_belt_and_the_tray() -> void:
 	for scan: String in SCANS:
 		var screen: ShiftScreen = await _captured(scan)
@@ -116,10 +116,10 @@ func test_cells_lie_inside_the_belt_and_the_tray() -> void:
 			var rect: Rect2 = view.get_global_rect()
 			items.append(rect)
 			assert_bool(area.encloses(rect)).override_failure_message(str(rect)).is_true()
-			assert_bool(area.encloses(view.sticker().get_global_rect())).is_true()
+			assert_bool(view.sticker().visible).is_false()
 			assert_bool(area.encloses(view.sprite().get_global_rect())).is_true()
 		assert_int(items.size()).is_equal(8)
-		_assert_apart(items, "tray items")
+		_assert_apart(items, "basket items")
 
 
 ## No sticker covers another sticker, a sprite (lifted or not) or a corner mark; no mark covers
@@ -131,11 +131,12 @@ func test_stickers_never_cover_a_sticker_a_sprite_or_a_mark() -> void:
 		var others: Array[Rect2] = []
 		var marks: Array[Rect2] = []
 		for view: ItemView in _belt_items(screen) + _hand_items(screen):
-			stickers.append(view.sticker().get_global_rect())
+			if view.sticker().visible:
+				stickers.append(view.sticker().get_global_rect())
 			others.append(view.sprite().get_global_rect())
 			if view._mark != null:
 				marks.append(view._mark.get_global_rect())
-		assert_int(stickers.size()).is_equal(12)
+		assert_int(stickers.size()).is_equal(4)
 		assert_int(marks.size()).is_greater_equal(1)
 		_assert_apart(marks, "marks")
 		for view: ItemView in _belt_items(screen):
@@ -202,7 +203,8 @@ func test_every_printed_character_has_its_glyph() -> void:
 					)
 					. is_true()
 				)
-	assert_int(checked).is_greater(2000)
+	# The basket items show no stickers (#80, step 8): only the belt's tickets print item text.
+	assert_int(checked).is_greater(1500)
 	var caption: String = load("res://data/inspections/short_belt.tres").display_name
 	for required: String in [RowStrip.CLOSED_TEXT, "COUPON", caption, "5", "6", "Multipack"]:
 		assert_bool(printed.has(required)).override_failure_message(required).is_true()

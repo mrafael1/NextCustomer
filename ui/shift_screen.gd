@@ -781,10 +781,10 @@ func _refresh_row() -> void:
 
 
 func _refresh_hand() -> void:
-	_hand_box.clear()
+	_hand_box.reset(run.balance.hand_size)
 	for card: CardInstance in run.hand():
 		var view: ItemView = ItemView.new(
-			card, run.balance.aisle_of(card.definition), ItemView.Form.TRAY
+			card, run.balance.aisle_of(card.definition), ItemView.Form.BASKET
 		)
 		view.clicked.connect(_on_hand_card_clicked)
 		if _redraw_mode and _redraw_pick.has(card):

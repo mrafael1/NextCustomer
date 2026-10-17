@@ -4,7 +4,7 @@ extends GdUnitTestSuite
 ## the floor) at 1280x720 and at 1920x1080; the belt's bands; the register (RegisterCabinet) with
 ## its printer, column, keypad and drawer at their rects; decor that never takes a click (a click
 ## on an empty slot or a hand card still reaches it, and one on the bare belt or the monitor
-## reaches the wall); the hand's items and baskets fading while the shift is counted. The real
+## reaches the wall); the hand's basket items under a shade while the shift is counted. The real
 ## saves and logs are never touched.
 
 const SCREEN := "res://ui/shift_screen.tscn"
@@ -91,7 +91,15 @@ func test_decor_takes_no_clicks() -> void:
 		assert_int(part.mouse_filter).override_failure_message(str(part.name)).is_equal(
 			Control.MOUSE_FILTER_IGNORE
 		)
-	for decor: Control in [stage.belt, stage.monitor, stage.baskets, stage.cabinet]:
+	var decors: Array[Control] = [
+		stage.belt,
+		stage.monitor,
+		stage.baskets,
+		stage.basket_fronts,
+		stage.hand_shade,
+		stage.cabinet
+	]
+	for decor: Control in decors:
 		assert_int(decor.mouse_filter).override_failure_message(str(decor.name)).is_equal(
 			Control.MOUSE_FILTER_IGNORE
 		)
@@ -160,29 +168,41 @@ func test_the_register_cabinet() -> void:
 	assert_bool(cabinet.is_total_down()).is_false()
 
 
-## The hand is tray items (#75), and while the shift is counted the hand and its baskets fade
-## to COUNTING_HAND_ALPHA; they come back once the count-up ends.
-func test_the_hand_is_items_that_dim_while_counting() -> void:
+## The hand is basket items (#80, step 8), and while the shift is counted a shade (ink at
+## COUNTING_SHADE_ALPHA) covers the hand and its baskets, over the basket fronts; it lifts once the
+## count-up ends. The items and baskets keep their own alpha.
+func test_the_hand_is_basket_items_under_a_shade_while_counting() -> void:
 	var screen: ShiftScreen = await _screen()
 	var views: Array[Control] = screen._hand_box.cards()
 	assert_int(views.size()).is_equal(screen.run.balance.hand_size)
 	for view: Control in views:
 		assert_object(view).is_instanceof(ItemView)
-		assert_int((view as ItemView).form).is_equal(ItemView.Form.TRAY)
+		assert_int((view as ItemView).form).is_equal(ItemView.Form.BASKET)
 	var stage: ShiftStage = screen._stage
-	assert_float(stage.baskets.modulate.a).is_equal(1.0)
-	assert_float(stage.hand.modulate.a).is_equal(1.0)
+	var shade: ColorRect = stage.hand_shade
+	assert_bool(shade.visible).is_false()
+	assert_that(shade.get_global_rect()).is_equal(
+		Rect2(
+			stage.get_global_rect().position + ShiftStage.COUNTING_SHADE_RECT.position,
+			ShiftStage.COUNTING_SHADE_RECT.size
+		)
+	)
+	assert_that(shade.color).is_equal(Color(Palette.INK, ShiftStage.COUNTING_SHADE_ALPHA))
+	assert_int(shade.get_index()).is_greater(stage.basket_fronts.get_index())
+	assert_int(stage.basket_fronts.get_index()).is_greater(stage.hand.get_index())
+	assert_int(stage.hand.get_index()).is_greater(stage.baskets.get_index())
+	var shade_rect: Rect2 = shade.get_global_rect()
+	for part: Control in stage.baskets.parts() + stage.basket_fronts.parts() + views:
+		assert_bool(shade_rect.encloses(part.get_global_rect())).is_true()
 	# Read on the first frame of the count-up.
-	var counting_alphas: Array[float] = []
-	var record: Callable = func() -> void:
-		counting_alphas.assign([stage.baskets.modulate.a, stage.hand.modulate.a])
+	var counting: Array[bool] = []
+	var record: Callable = func() -> void: counting.append(shade.visible)
 	get_tree().process_frame.connect(record, CONNECT_ONE_SHOT)
 	await screen._on_checkout_pressed()
-	assert_int(counting_alphas.size()).is_equal(2)
-	for alpha: float in counting_alphas:
-		assert_float(alpha).is_equal_approx(ShiftStage.COUNTING_HAND_ALPHA, 0.001)
-	assert_float(stage.baskets.modulate.a).is_equal(1.0)
-	assert_float(stage.hand.modulate.a).is_equal(1.0)
+	assert_array(counting).is_equal([true])
+	assert_bool(shade.visible).is_false()
+	for part: Control in [stage.baskets, stage.hand, stage.basket_fronts]:
+		assert_float(part.modulate.a).is_equal(1.0)
 
 
 ## `window`'s band `part`: spanning the window and taking no click. Returns its rect.

@@ -46,7 +46,7 @@ func test_the_capture_sets_up_its_shift() -> void:
 	assert_int(screen._hand_box.cards().size()).is_equal(8)
 	assert_int(screen._row_views.size()).is_equal(4)
 	for view: Control in screen._hand_box.cards():
-		assert_int((view as ItemView).form).is_equal(ItemView.Form.TRAY)
+		assert_int((view as ItemView).form).is_equal(ItemView.Form.BASKET)
 	for view: CardView in screen._row_views:
 		assert_int((view as ItemView).form).is_equal(ItemView.Form.BELT)
 	var aisles: Dictionary = {}
@@ -97,7 +97,7 @@ func test_the_scan_scans_a_card_on_the_counter() -> void:
 	assert_array(DirAccess.get_files_at(_capture_folder)).contains_exactly([file_name])
 	await capture.call("scan", "eggs")
 	await get_tree().process_frame
-	assert_int(screen._scan.scanned().form).is_equal(ItemView.Form.TRAY)
+	assert_int(screen._scan.scanned().form).is_equal(ItemView.Form.BASKET)
 	assert_str(screen._scan.scanned().card.definition.id).is_equal("eggs")
 
 
