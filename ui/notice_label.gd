@@ -1,10 +1,12 @@
 class_name NoticeLabel
 extends Label
-## A short red notice beside the totals (e.g. a product that doesn't fit, plan section 3.1). It
-## stays for SHOW_SECONDS, then fades. It only displays: the rules come from RowCapacity.
+## A short red notice on the monitor's paper screen (ShiftStage.NOTICE_RECT; e.g. a product that
+## doesn't fit, plan section 3.1). It stays for SHOW_SECONDS, then fades. It only displays: the
+## rules come from RowCapacity.
 ##
-## It fades by `modulate` and clears by emptying its text, so `visible` never changes: whoever
-## makes room for it (the shift stage hides its capacity line and cue) follows showing_changed.
+## It fades by `modulate` and clears by emptying its text, so `visible` never changes. Nothing on
+## the stage hides to make room for it; showing_changed is kept for callers and tests that follow
+## whether a notice shows.
 
 ## Emitted when a notice starts showing (true) and when it has faded or been cleared (false).
 signal showing_changed(showing: bool)

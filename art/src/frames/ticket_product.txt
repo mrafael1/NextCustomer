@@ -1,0 +1,17 @@
+; A product's shelf ticket on the price rail (mock-up B2, #80 step 6), a 9-slice 9x9 @2
+; (margins: 4 art px at the top, 3 at the sides and the bottom; the middle 3x2 stretches):
+; paper face, ink outline with rounded corners, a 2 art px mustard-light band on top (the
+; shelf-ticket yellow; tomato stays the fizzle's, CHECKOUT's and CLOSED's) and a cream shade
+; on the right and bottom. Replaces price_sticker_v2 on PriceSticker.
+@size 9x9
+@kind frame
+@scale 2
+.#######.
+#yyyyyyy#
+#yyyyyyy#
+#wwwwwwc#
+#wwwwwwc#
+#wwwwwwc#
+#wwwwwwc#
+#ccccccc#
+.#######.

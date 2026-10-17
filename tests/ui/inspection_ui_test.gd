@@ -79,15 +79,18 @@ func test_the_notice_comes_before_the_reward_and_the_kiosk() -> void:
 	await _wait_wall_ms(450)
 	screen._upgrade_panel._on_ticket_clicked(screen._upgrade_panel.tickets()[0])
 
-	# Shift 3: the tag shows the inspection in the top bar, never on the loyalty card.
+	# Shift 3: the chip shows the inspection's effect in the top bar (its name and notice on
+	# hover), never on the loyalty card.
 	assert_int(run.shift_index).is_equal(2)
 	assert_bool(screen._inspection_tag.visible).is_true()
-	assert_str(screen._inspection_tag.text()).is_equal("INSPECTION  The 3rd product pays €0")
+	assert_str(screen._inspection_tag.text()).is_equal("Inspection · 3rd product pays €0")
 	assert_str(screen._inspection_tag.tooltip_text).contains("Spot check")
+	assert_str(screen._inspection_tag.tooltip_text).contains("The 3rd product pays €0")
 	assert_bool(screen._loyalty_card.is_ancestor_of(screen._inspection_tag)).is_false()
 	assert_int(screen._loyalty_card.stamped_boxes().size()).is_equal(run.upgrades.size())
 	assert_array(_last_event("shift_start")["inspections"]).is_equal(["spot_check"])
-	# The top bar still fits the stage with the tag in it, above the shade.
+	# The top bar still fits the stage with the chip in it, above the shade, between the QUOTA
+	# chip and the LOYALTY chip (B2's order).
 	await _frames(3)
 	var top: Control = screen._top_bar
 	var stage: Rect2 = screen._stage.get_global_rect()
@@ -95,13 +98,15 @@ func test_the_notice_comes_before_the_reward_and_the_kiosk() -> void:
 	var tag: Rect2 = screen._inspection_tag.get_global_rect()
 	assert_bool(stage.encloses(tag)).override_failure_message(str(tag)).is_true()
 	assert_float(tag.end.y).is_less_equal(stage.position.y + RewardPanel.PRINTOUT_TOP)
-	assert_float(tag.position.x).is_greater_equal(screen._loyalty_card.get_global_rect().end.x)
-	# Then the FINE GROCERIES plaque, then Deck.
-	var plaque: Rect2 = screen._stage.plaque.get_global_rect()
-	assert_bool(screen._stage.plaque.visible).is_true()
-	assert_float(tag.end.x).is_less_equal(plaque.position.x)
-	assert_float(plaque.end.x).is_less_equal(screen._deck_button.get_global_rect().position.x)
-	assert_float(plaque.end.y).is_less_equal(stage.position.y + RewardPanel.PRINTOUT_TOP)
+	var quota_chip: Rect2 = (screen._top_bar.get_child(1) as Control).get_global_rect()
+	assert_float(tag.position.x).is_greater_equal(quota_chip.end.x)
+	assert_float(tag.end.x).is_less_equal(screen._loyalty_card.get_global_rect().position.x)
+	# The warning sign and the name lie inside the chip, apart.
+	var icons: Array[Node] = screen._inspection_tag.find_children("*", "TextureRect", true, false)
+	var icon: Rect2 = (icons[0] as Control).get_global_rect()
+	var name_rect: Rect2 = screen._inspection_tag.label().get_global_rect()
+	assert_bool(tag.encloses(icon) and tag.encloses(name_rect)).is_true()
+	assert_bool(icon.intersects(name_rect)).is_false()
 
 
 func test_inspection_steps_print_and_play_from_the_tag() -> void:
@@ -118,7 +123,7 @@ func test_inspection_steps_print_and_play_from_the_tag() -> void:
 	var preview: ScoreResult = screen.run.preview()
 	assert_array(Array(preview.payouts)).is_equal([5, 5, 0, 5])
 	assert_str(_receipt_text(screen)).not_contains(RECEIPT_LINE)
-	assert_str(_popup_text(screen, 2)).contains(RECEIPT_LINE)
+	assert_str(_scan_text(screen, 2)).contains(RECEIPT_LINE)
 	var steps: Array = preview.steps.filter(
 		func(step: ScoreStep) -> bool: return step.source_kind == ScoreStep.SourceKind.INSPECTION
 	)
@@ -170,13 +175,16 @@ static func _receipt_lines(screen: ShiftScreen) -> PackedStringArray:
 
 
 ## Scans the belt item in `slot` (the pointer on its sprite, its hover sent: headless runs never
-## move the mouse) and returns its scan popup's footer, one line each, then ends the scan.
-static func _popup_text(screen: ShiftScreen, slot: int) -> String:
+## move the mouse; then its hold ends, #80) and returns its scan popup's footer, one line each,
+## then ends the scan.
+static func _scan_text(screen: ShiftScreen, slot: int) -> String:
 	var view: ItemView = screen._row_views[slot] as ItemView
 	var point: Vector2 = view.sprite().get_global_rect().get_center()
 	screen._scan.pointer = func() -> Vector2: return point
 	view.hovered.emit(view)
-	var text: String = "\n".join(screen._scan.popup().footer_texts())
+	screen._scan._go_full()
+	# A belt item's scan shows on the hung monitor (#80).
+	var text: String = "\n".join(screen._monitor.scan_footer().texts())
 	screen._scan.clear()
 	return text
 
@@ -250,8 +258,9 @@ static func _only_spot_check(screen: ShiftScreen) -> void:
 
 
 ## Short belt on the shift screen: 5 open slots plus a CLOSED panel after them, so the row keeps
-## its usual 7 panels and its scale; the panel names the inspection, a click on it explains, and
-## the counter says what the inspection took.
+## its usual 7 panels and its scale; the panel reads "inspection" and its hover text names the
+## inspection, a click on it explains, the run's limits lose the slot and the top bar's chip says
+## what the inspection took.
 func test_a_closed_slot_shows_on_the_row() -> void:
 	var runner: GdUnitSceneRunner = scene_runner(SCREEN)
 	var screen: ShiftScreen = runner.scene()
@@ -273,10 +282,10 @@ func test_a_closed_slot_shows_on_the_row() -> void:
 	for slot: PanelContainer in screen._slots:
 		assert_object(RowStrip.mat(slot)).is_not_null()
 	assert_vector(panel.get_global_rect().size).is_equal(ItemView.BELT_SIZE)
-	# The rope, its posts and the sign, with the closing inspection's name under them; the cell's
-	# parts never take the click from the panel.
+	# The rope, its posts and the sign, with "inspection" under them (the hover text names it);
+	# the cell's parts never take the click from the panel.
 	var caption: Label = RowStrip.closed_caption_label(panel)
-	assert_str(caption.text).is_equal("Short belt")
+	assert_str(caption.text).is_equal("inspection")
 	assert_bool(panel.get_global_rect().encloses(caption.get_global_rect())).is_true()
 	assert_float(caption.get_minimum_size().y).is_less_equal(caption.size.y)
 	for part: Node in (panel.get_child(0) as Label).get_children():
@@ -284,12 +293,17 @@ func test_a_closed_slot_shows_on_the_row() -> void:
 		var sprite: TextureRect = part as TextureRect
 		if sprite != null:
 			assert_vector(sprite.size).is_equal(Vector2(sprite.texture.get_size()))
-	var belt: Rect2 = (screen._row_strip.get_parent() as Control).get_global_rect()
+	var belt: Rect2 = Rect2(
+		screen._stage.get_global_rect().position + ShiftStage.ROW_AREA.position,
+		ShiftStage.ROW_AREA.size
+	)
 	var closed_rect: Rect2 = panel.get_global_rect()
 	assert_bool(belt.encloses(closed_rect)).is_true()
 	assert_float(closed_rect.position.x).is_greater_equal(screen._slots[-1].get_global_rect().end.x)
 	assert_bool(closed_rect.intersects(screen._receipt.get_global_rect())).is_false()
-	assert_str(screen._capacity_label.text).contains("Products 0/5  (inspection −1)")
+	assert_int(screen.run.limits.slot_count).is_equal(5)
+	assert_int(screen.run.limits.closed_slots).is_equal(1)
+	assert_str(screen._inspection_tag.text()).is_equal("Inspection · −1 slot")
 	screen._row_strip.closed_clicked.emit()
 	assert_str(screen._notice_label.text).contains("Closed by the inspection")
 
@@ -313,7 +327,9 @@ func test_a_full_row_explains_why_a_product_does_not_fit() -> void:
 	assert_bool(run.can_place(extra)).is_false()
 	screen._explain_if_refused(extra)
 	assert_str(screen._notice_label.text).contains("Row full (6/6 items)")
-	# The closed coupon slot's panel names its inspection.
+	# The closed coupon slot's panel says an inspection closed it, and its hover text which one.
 	assert_int(screen._row_strip.closed.size()).is_equal(1)
 	var caption: Label = RowStrip.closed_caption_label(screen._row_strip.closed[0])
-	assert_str(caption.text).is_equal("Coupon slot closed")
+	assert_str(caption.text).is_equal("inspection")
+	assert_str(screen._row_strip.closed[0].tooltip_text).contains("Coupon slot closed")
+	assert_str(screen._inspection_tag.text()).is_equal("Inspection · −1 coupon slot")

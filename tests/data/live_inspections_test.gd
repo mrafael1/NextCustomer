@@ -11,6 +11,7 @@ func test_the_placeholder_inspection_matches_the_plan() -> void:
 	assert_str(String(spot_check.id)).is_equal("spot_check")
 	assert_str(spot_check.display_name).is_equal("Spot check")
 	assert_str(spot_check.notice_text).is_equal("The 3rd product pays €0")
+	assert_str(spot_check.chip_text).is_equal("3rd product pays €0")
 	assert_int(spot_check.rules.size()).is_equal(1)
 	var rule: NthProductZeroPayoutRule = spot_check.rules[0]
 	assert_int(rule.product_number).is_equal(3)

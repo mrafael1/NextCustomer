@@ -1,0 +1,17 @@
+; A top-bar button (B2's .tbtn: Cart and the menu, #80 step 10): teal 4 in an ink outline,
+; B2's 6 px rounded corners as a two-texel step (as key_cream), standing on a 2-row teal shade 3
+; ledge (B2's inset shade, snapped) so FramedButton's press sinks it onto the ledge. 10x10 @2,
+; 9-slice margin 3.
+@size 10x10
+@kind frame
+@scale 2
+..######..
+.#444444#.
+#44444444#
+#44444444#
+#44444444#
+#44444444#
+#44444444#
+#33333333#
+.#333333#.
+..######..

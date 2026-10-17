@@ -116,10 +116,11 @@ func _finish(slot: int, seen: bool) -> void:
 		released.emit(card, slot if dragged else -1, dragged)
 
 
-## The row slot under a screen position, or -1.
+## The row slot whose drop target (its footprint and ticket, RowStrip.drop_rect) is under a
+## screen position, or -1.
 func _slot_at(screen_position: Vector2) -> int:
 	for slot: int in range(_slots.size()):
-		if _slots[slot].get_global_rect().has_point(screen_position):
+		if RowStrip.drop_rect(_slots[slot]).has_point(screen_position):
 			return slot
 	return -1
 

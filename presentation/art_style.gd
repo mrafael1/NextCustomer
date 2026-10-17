@@ -41,8 +41,8 @@ const GLYPH_PATH := "res://art/icons/aisle_%s.png"
 
 static var _material: ShaderMaterial
 static var _number_font: FontVariation
-static var _symbol_body_font: FontVariation
 static var _bold_fonts: Dictionary[int, FontVariation] = {}
+static var _spaced_display_fonts: Dictionary[int, FontVariation] = {}
 
 
 ## Marks a node that draws pixel art (its own texture or stylebox, never text: a Label or a
@@ -83,18 +83,8 @@ static func number_font() -> Font:
 	return _number_font
 
 
-## The body font with JetBrains Mono behind it for the symbols it lacks, such as the "→" of
-## the shift screen's "Scanned left to right →" cue (no system fallback on the web build).
-static func body_font_with_symbols() -> Font:
-	if _symbol_body_font == null:
-		_symbol_body_font = FontVariation.new()
-		_symbol_body_font.base_font = BODY_FONT
-		_symbol_body_font.fallbacks = [MONO_FONT]
-	return _symbol_body_font
-
-
-## The body font (Atkinson Hyperlegible Next) at `weight`, shared by the price stickers and the
-## effect chips.
+## The body font (Atkinson Hyperlegible Next) at `weight`, shared by the price stickers, the
+## items, the monitor's beats and the row's cells.
 static func bold_font(weight: int) -> Font:
 	if not _bold_fonts.has(weight):
 		var font: FontVariation = FontVariation.new()
@@ -103,6 +93,17 @@ static func bold_font(weight: int) -> Font:
 		font.variation_opentype = {tag: weight}
 		_bold_fonts[weight] = font
 	return _bold_fonts[weight]
+
+
+## The display font (Pixelify Sans) with its glyphs `spacing` px apart (mock-up B2's
+## letter-spaced captions, such as the count-up's item name and the quota row's QUOTA).
+static func spaced_display_font(spacing: int) -> Font:
+	if not _spaced_display_fonts.has(spacing):
+		var font: FontVariation = FontVariation.new()
+		font.base_font = DISPLAY_FONT
+		font.spacing_glyph = spacing
+		_spaced_display_fonts[spacing] = font
+	return _spaced_display_fonts[spacing]
 
 
 ## The glyph texture's path for an aisle.

@@ -412,6 +412,7 @@ static func _balance() -> BalanceDefinition:
 	balance.slot_count = 6
 	balance.coupon_slot_count = 1
 	balance.hand_size = 5
+	balance.base_redraws = 1
 	balance.redraw_limit = 2
 	balance.deck_limit = 10
 	balance.offer_size = 3

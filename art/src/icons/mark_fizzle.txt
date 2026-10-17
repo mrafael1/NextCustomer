@@ -1,0 +1,18 @@
+; A belt item's fizzle mark (#80, mock-up B2): a tomato disc in an ink ring, lit top left and
+; shaded bottom right, with the fizzle spark (icons/fizzle) in paper. Shown at 2x on the
+; sprite's top-right corner; its 1 texel hard shadow is drawn in code (EffectMark).
+@size 13x13
+@kind icon
+....#####....
+...#ooooo#...
+..#oRRRRRo#..
+.#owRRwRRRr#.
+#oRRwRwRRRRr#
+#oRRRwwwRRRr#
+#oRwwwwwwwRr#
+#oRRRwwwRRRr#
+#oRRRRwRwRRr#
+.#oRRRwRRwr#.
+..#rRRRRRr#..
+...#rrrrr#...
+....#####....

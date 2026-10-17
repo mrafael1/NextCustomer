@@ -179,6 +179,7 @@ func test_every_inspection_states_its_id_and_notice() -> void:
 		ids[inspection.id] = true
 		assert_str(inspection.display_name).override_failure_message(file).is_not_empty()
 		assert_str(inspection.notice_text).override_failure_message(file).is_not_empty()
+		assert_str(inspection.chip_text).override_failure_message(file).is_not_empty()
 	assert_int(ids.size()).is_equal(3)
 
 

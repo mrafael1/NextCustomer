@@ -18,9 +18,6 @@ extends RefCounted
 ## is no skip, plan section 3.8). SCORED: ready for the next shift. WON / LOST: the run is over.
 enum Phase { IMPULSE, PLANNING, REWARD, UPGRADE, SCORED, WON, LOST }
 
-## Redraws every shift allows before upgrades (one redraw of up to redraw_limit cards).
-const BASE_REDRAWS := 1
-
 var run_seed: int = 0
 var balance: BalanceDefinition
 ## The starting deck the run began with.
@@ -35,8 +32,8 @@ var row: Array[CardInstance] = []
 ## The current shift's limits (slots, redraws, quota), fixed when the shift starts from the
 ## balance data, the upgrades owned then and the shift's inspections (ShiftLimits).
 var limits: ShiftLimits
-## Redraws made this shift, and how many it allows (limits.redraws: BASE_REDRAWS plus each
-## owned upgrade's extra_redraws), set when the shift starts.
+## Redraws made this shift, and how many it allows (limits.redraws: the balance's base_redraws
+## plus each owned upgrade's extra_redraws), set when the shift starts.
 var redraws_used: int = 0
 var redraws_allowed: int = 0
 var last_result: ScoreResult

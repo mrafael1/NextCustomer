@@ -65,16 +65,6 @@ extends Resource
 ## From that payout on, the subtotal punches this much bigger (D3).
 @export var passes_best_punch: float = 0.0
 
-@export_group("Paper pile")
-## The pile starts at this x (shift - 1) pixels, at most pile_start_max_px (D4).
-@export var pile_start_px_per_shift: float = 0.0
-## The highest the pile starts, in pixels (D4).
-@export var pile_start_max_px: float = 0.0
-## Each receipt line printed in this row adds this much, up to pile_cap_px (D4).
-@export var pile_px_per_line: float = 0.0
-## The pile never grows past this, in pixels (D4).
-@export var pile_cap_px: float = 0.0
-
 @export_group("Pause before the total")
 ## The held breath before a normal TOTAL line (D4), never sped up or shortened.
 @export var pause_normal_ms: int = 0

@@ -14,7 +14,8 @@ extends Control
 ##
 ## The row has slot_count product slots plus coupon-only slots (plan section 3.1). The row is
 ## compacted, so the coupon slot is a capacity, not a position: no panel is marked as the
-## coupon slot (a coupon can go anywhere), and the capacity label counts it instead.
+## coupon slot (a coupon can go anywhere). The row's slots alone show the capacity, and
+## RowCapacity enforces it.
 ##
 ## The layout (#55; full build plan section 6.1) is ShiftStage's: a 1280x720 stage centred in the
 ## window over a wall and a counter that fill it. The screen keeps its own names for the stage's
@@ -23,7 +24,7 @@ extends Control
 ## Sounds (#62) play on the screen's own Sfx, warmed up when it opens: cards picked up, placed
 ## and let go, refusals, the redraw, CHECKOUT, a reward or ticket taken and the log export here;
 ## buttons and panels in UiKit, drag slot ticks in CardDrag, music in ShiftMusic. The only hover
-## sound is the scanner's beep (#75, ScanController), which scans the hovered item.
+## sound is the scanner's beep (#75, ScanController), played once a hover on an item is held.
 
 const STARTER_DECK := "res://data/decks/starter.tres"
 const BALANCE := "res://data/balance/balance.tres"
@@ -75,11 +76,10 @@ var _seed_label: Label
 var _slots: Array[PanelContainer] = []
 var _row_views: Array[CardView] = []
 var _hand_box: HandRow
-var _capacity_label: Label
 var _notice_label: NoticeLabel
 var _drag: CardDrag
 var _receipt: ReceiptView
-var _redraw_button: FramedButton
+var _redraw_button: RegisterKey
 var _cancel_button: FramedButton
 var _checkout_button: FramedButton
 var _results: ResultsPanel
@@ -87,24 +87,25 @@ var _reward_panel: RewardPanel
 var _upgrade_panel: UpgradePanel
 ## Dims the screen and blocks clicks behind the reward and upgrade panels, deck view and
 ## results.
-var _shade: ColorRect
+var _shade: ScreenShade
 var _deck_view: DeckView
 var _row_strip: RowStrip
-## The register cabinet: the count-up's rattle target, with the TOTAL key.
+## The register: the count-up's rattle target (the same node as `_cabinet`); its
+## set_total_down() marks CHECKOUT held while the shift is counted.
 var _register: Control
 var _cabinet: RegisterCabinet
-## The register's LED: the projected total in planning, the count-up's subtotal and total.
+## The hung monitor (#80): the LED, the notices, a scanned item and the count-up's beats.
+var _monitor: MonitorView
+## The monitor's LED: the projected total in planning, the count-up's subtotal and total.
 var _led: LedDisplay
 var _overlay: Control
-## The paper pile at the receipt's foot (#60, D4), grown by the count-up.
-var _paper_pile: PaperPile
 var _count_up: CountUp
 var _sfx: Sfx
 var _debug: ShiftDebug
 var _focus: FocusWatch
-## The hover scanner (#75): the scan popup and the posed scanner over the hovered item.
+## The hover scanner (#75): the scan popup and the marks over the scanned item.
 var _scan: ScanController
-## The belt items' effect chips (#75): all of them in planning, one by one in the count-up.
+## The belt items' marks and paid chips (#80): marks in planning, both in the count-up.
 var _belt_chips: BeltChips = BeltChips.new()
 ## The EventLog autoload, typed. Fetched from the tree because standalone script checks
 ## don't know autoload names.
@@ -199,7 +200,6 @@ func _on_shift_started() -> void:
 	}
 	_log.log_event("shift_start", start)
 	_refresh()
-	_count_up.show_pile_for_shift(run.shift_index + 1)
 	_save_run()
 
 
@@ -221,11 +221,10 @@ func _resume_run(saved: RunSave) -> void:
 	tracker.begin(Time.get_ticks_msec(), _focus.is_player_present())
 	_refresh()
 	if run.phase == RunState.Phase.PLANNING:
-		_count_up.show_pile_for_shift(run.shift_index + 1)
 		return
 	# After the checkout: the row, its receipt (ended as the dessert left it, with the next
-	# shift's inspection notice), the LED's TOTAL, the quota chip and the paper pile as the
-	# count-up left them (the TOTAL key up: nothing is being counted).
+	# shift's inspection notice), the LED's TOTAL and the quota chip as the count-up left them
+	# (CHECKOUT up: nothing is being counted).
 	_show_checked_out(run.last_result)
 	_receipt.show_shift_end(
 		run.last_result.total, run.quota(), InspectionTag.next_notice(run.next_inspection)
@@ -408,7 +407,7 @@ func _on_checkout_pressed() -> void:
 		return
 	_sfx.play("checkout")
 	_counting = true
-	# The TOTAL key stays down while the shift is counted, to the dessert's end, and the hand
+	# CHECKOUT stays held while the shift is counted, to the dessert's end, and the hand
 	# fades so the belt reads first.
 	_cabinet.set_total_down(true)
 	_stage.dim_hand(true)
@@ -446,15 +445,8 @@ func _on_checkout_pressed() -> void:
 		_save_run()
 	_refresh()
 	var context: CountUpContext = count_up_context()
-	# The chips leave with the click and come back as their steps land (CountUp.step_landed).
-	_belt_chips.begin_count(
-		result,
-		_row_views,
-		_names(committed),
-		LoyaltyCard.names(run.upgrades),
-		InspectionTag.names(run.inspections),
-		context.reduced_motion
-	)
+	# The marks leave with the click and come back as their steps land (CountUp.step_landed).
+	_belt_chips.begin_count(result, _row_views, context.reduced_motion)
 	await _count_up.play(
 		result,
 		_row_views,
@@ -538,8 +530,6 @@ func _show_impulse_rack() -> void:
 	_receipt.clear()
 	_led.clear()
 	_cabinet.set_total_down(false)
-	# A new run has printed nothing yet.
-	_count_up.show_pile_for_shift(1)
 	_deck_viewed_for_reward = false
 	_pending_reward = null
 	_reward_panel.show_rack(run)
@@ -604,7 +594,7 @@ func _on_reward_picked(card: CardDefinition) -> void:
 	_deck_view.open(
 		run,
 		(
-			"Deck full (%d/%d): choose an item to remove for %s"
+			"Cart full (%d/%d): choose an item to remove for %s"
 			% [run.deck.size(), run.balance.deck_limit, card.display_name]
 		),
 		true
@@ -639,11 +629,11 @@ func _on_deck_closed() -> void:
 func _on_reward_deck_requested() -> void:
 	_deck_viewed_for_reward = true
 	_reward_panel.visible = false
-	_deck_view.open(run, "Your deck (%d/%d)" % [run.deck.size(), run.balance.deck_limit], false)
+	_deck_view.open(run, "Your cart (%d/%d)" % [run.deck.size(), run.balance.deck_limit], false)
 
 
 func _on_deck_button_pressed() -> void:
-	# Like the panels' own View deck: an offer can't be hidden before it arms (plan 8's armed_ms).
+	# Like the panels' own View cart: an offer can't be hidden before it arms (plan 8's armed_ms).
 	if _counting or _reward_panel.is_arming() or _upgrade_panel.is_arming():
 		return
 	if run.phase == RunState.Phase.REWARD or run.phase == RunState.Phase.IMPULSE:
@@ -651,7 +641,7 @@ func _on_deck_button_pressed() -> void:
 		return
 	# The tickets come back when the deck view closes; there is still no way past them.
 	_upgrade_panel.visible = false
-	_deck_view.open(run, "Your deck (%d/%d)" % [run.deck.size(), run.balance.deck_limit], false)
+	_deck_view.open(run, "Your cart (%d/%d)" % [run.deck.size(), run.balance.deck_limit], false)
 
 
 ## Applies the choice (card null = skip), logs it, and starts the next shift, or shows the
@@ -738,26 +728,14 @@ func _on_focus_entered() -> void:
 
 
 func _refresh() -> void:
-	_shift_label.text = "%d / %d" % [run.shift_index + 1, run.shift_count()]
+	_shift_label.text = "%d/%d" % [run.shift_index + 1, run.shift_count()]
 	_quota_label.text = "€%d" % run.quota()
 	_inspection_tag.show_inspections(run.inspections)
 	_refresh_loyalty_card()
-	_deck_button.caption = "Deck %d/%d" % [run.deck.size(), run.balance.deck_limit]
+	_deck_button.caption = "Cart %d/%d" % [run.deck.size(), run.balance.deck_limit]
 	_seed_label.text = (
 		"Seed %d  ·  %s"
 		% [run.run_seed, str(ProjectSettings.get_setting("next_customer/build_label", ""))]
-	)
-	_capacity_label.text = (
-		"Products %d/%d%s  ·  Coupon slot%s %d/%d%s"
-		% [
-			RowCapacity.product_count(run.row),
-			run.limits.slot_count,
-			_closed_text(run.limits.closed_slots, run.limits.slot_count),
-			"s" if run.limits.coupon_slot_count > 1 else "",
-			RowCapacity.coupon_slots_used(run.limits, run.row),
-			run.limits.coupon_slot_count,
-			_closed_text(run.limits.closed_coupon_slots, run.limits.coupon_slot_count)
-		]
 	)
 	_refresh_row()
 	_refresh_hand()
@@ -767,15 +745,8 @@ func _refresh() -> void:
 	_scan.watch(_row_views, _hand_box.cards())
 
 
-## " (inspection -1)" when the shift's inspection closed slots, " (closed)" when none are left.
-static func _closed_text(closed: int, left: int) -> String:
-	if closed <= 0:
-		return ""
-	return "  (closed)" if left == 0 else "  (inspection −%d)" % closed
-
-
 ## One slot per card the shift allows (upgrades can add slots), then the row's cards, standing
-## on their mats as belt items (RowStrip.show_cards).
+## on the belt as belt items with their tickets on the rail (RowStrip.show_cards).
 func _refresh_row() -> void:
 	var closed: int = run.limits.closed_slots + run.limits.closed_coupon_slots
 	var reason: String = (
@@ -791,10 +762,10 @@ func _refresh_row() -> void:
 
 
 func _refresh_hand() -> void:
-	_hand_box.clear()
+	_hand_box.reset(run.balance.hand_size)
 	for card: CardInstance in run.hand():
 		var view: ItemView = ItemView.new(
-			card, run.balance.aisle_of(card.definition), ItemView.Form.TRAY
+			card, run.balance.aisle_of(card.definition), ItemView.Form.BASKET
 		)
 		view.clicked.connect(_on_hand_card_clicked)
 		if _redraw_mode and _redraw_pick.has(card):
@@ -810,17 +781,17 @@ func _refresh_buttons() -> void:
 	var redraw_left: bool = run.redraws_used < run.redraws_allowed
 	_redraw_button.disabled = not planning or not redraw_left
 	_cancel_button.visible = _redraw_mode
+	# Mock-up B2's "Redraw  N left": the count is a note beside the word; screen readers still
+	# hear how many items a redraw takes.
 	if _redraw_mode:
-		_redraw_button.caption = (
-			"Confirm redraw (%d/%d)" % [_redraw_pick.size(), run.balance.redraw_limit]
-		)
+		var picked: String = "%d/%d" % [_redraw_pick.size(), run.balance.redraw_limit]
+		_redraw_button.show_caption("Confirm redraw", picked, "Confirm redraw (%s)" % picked)
 	elif redraw_left:
-		_redraw_button.caption = (
-			"Redraw up to %d (%d left)"
-			% [run.balance.redraw_limit, run.redraws_allowed - run.redraws_used]
-		)
+		var left: int = run.redraws_allowed - run.redraws_used
+		var spoken: String = "Redraw up to %d items (%d left)" % [run.balance.redraw_limit, left]
+		_redraw_button.show_caption("Redraw", "%d left" % left, spoken)
 	else:
-		_redraw_button.caption = "Redraw used"
+		_redraw_button.show_caption("Redraw used")
 
 
 func _refresh_preview() -> void:
@@ -836,10 +807,10 @@ func _show_projected(total: int) -> void:
 	_led.show_projected(total, run.quota())
 
 
-## The preview (#75, decision 1A): the receipt's stub (the header, PROJECTED and how many
-## fizzles the items show), and the belt's plaques, tags and chips (_show_belt).
+## The preview: the itemised planning receipt (#80) and the belt's tags and marks.
 func _show_planning(result: ScoreResult) -> void:
-	_receipt.show_stub(receipt_header(), result.total, ReceiptView.fizzle_count(result))
+	var slots: int = RowCapacity.card_limit(run.limits)
+	_receipt.show_planning(receipt_header(), result, _names(run.row), slots)
 	_show_belt(result)
 
 
@@ -850,17 +821,17 @@ func _show_checked_out(result: ScoreResult) -> void:
 	var inspection_names: PackedStringArray = InspectionTag.names(run.inspections)
 	var names: PackedStringArray = _names(run.row)
 	_receipt.show_result(result, names, upgrade_names, inspection_names, receipt_header())
-	_show_belt(result)
+	_show_belt(result, true)
 
 
-## The belt's value badges, tags and effect chips for a result, and the result its scans read.
-func _show_belt(result: ScoreResult) -> void:
+## The belt's tags and marks for a result (and its paid chips, settled, when `paid`: a resumed
+## checkout; planning has none), and the result its scans read.
+func _show_belt(result: ScoreResult, paid: bool = false) -> void:
 	var upgrade_names: PackedStringArray = LoyaltyCard.names(run.upgrades)
 	var inspection_names: PackedStringArray = InspectionTag.names(run.inspections)
 	_scan.set_result(result, _names(run.row), upgrade_names, inspection_names)
-	_belt_chips.show_all(result, _row_views, _names(run.row), upgrade_names, inspection_names)
+	_belt_chips.show_all(result, _row_views, paid)
 	for slot: int in range(_row_views.size()):
-		_row_views[slot].show_badge(result.payouts[slot], false)
 		_row_views[slot].set_tags(result.tags[slot])
 
 
@@ -877,17 +848,19 @@ func _process(_delta: float) -> void:
 	)
 	# The shade starts under the top bar, wherever the stage sits in the window.
 	_shade.offset_top = _stage.position.y + RewardPanel.PRINTOUT_TOP
-	# Beside the print-out alone, the register column (the cabinet, the receipt and the paper
-	# pile) stays unshaded (#61). The shade ends at the column's place on the stage, not at a
-	# node's rect, so it holds still while the register rattles.
+	# Beside the print-out alone, the register column (the register and the receipt) and the
+	# monitor with its totals stay unshaded (#61, #80). The shade ends at the column's place on
+	# the stage, not at a node's rect, so it holds still while the register rattles.
 	var beside: bool = _reward_panel.is_printout() and not _deck_view.visible
 	var column_x: float = (_stage.get_global_transform() * ShiftStage.REGISTER_RECT).position.x
 	_shade.offset_right = column_x - size.x if beside else 0.0
+	var monitor: Rect2 = _stage.get_global_transform() * MonitorView.DRAWN_RECT
+	_shade.set_hole(monitor if beside else Rect2())
 
 
 func _build() -> void:
 	set_anchors_preset(Control.PRESET_FULL_RECT)
-	BoutiqueBackdrop.screen_parts(self).gui_input.connect(_on_background_input)
+	StoreBackdrop.screen_parts(self, _balance.aisles).gui_input.connect(_on_background_input)
 	_stage = ShiftStage.new(_balance.slot_count + _balance.coupon_slot_count)
 	# Text on the stage and the overlay without its own font (the count-up's flying numbers,
 	# stamps and verdict) uses the number font. The theme stays off the screen's root, so the
@@ -908,15 +881,15 @@ func _build() -> void:
 	_seed_label = _stage.seed_label
 	_register = _stage.register
 	_cabinet = _stage.cabinet
+	_monitor = _stage.monitor
+	_monitor.reduced_motion = func() -> bool: return profile.reduced_motion()
 	_led = _stage.led
-	_paper_pile = _stage.paper_pile
 	_receipt = _stage.receipt
 	_row_strip = _stage.row_strip
 	_row_strip.slot_input.connect(_on_slot_input)
 	_row_strip.closed_clicked.connect(_on_closed_slot_clicked)
 	# The same array as the strip's, kept in place across rebuilds, so CardDrag sees new slots.
 	_slots = _row_strip.slots
-	_capacity_label = _stage.capacity_label
 	_notice_label = _stage.notice_label
 	_cancel_button = _stage.cancel_button
 	_redraw_button = _stage.redraw_button
@@ -936,10 +909,11 @@ func _build() -> void:
 	_focus.player_returned.connect(_on_focus_entered)
 	_count_up = CountUp.new()
 	add_child(_count_up)
-	_count_up.setup(_overlay, _receipt, _led, _sfx, _register, _paper_pile)
+	_count_up.setup(_overlay, _receipt, _led, _sfx, _register)
 	_count_up.music = _music
 	_count_up.scan_overlay = _stage.scan_layer
-	_count_up.step_landed.connect(_belt_chips.land)
+	_belt_chips.follow(_count_up, _led)
+	_count_up.beat_started.connect(_monitor.follow_beat)
 	_drag = CardDrag.new()
 	add_child(_drag)
 	_drag.setup(_overlay, _slots, _hand_box, _landing_slot)
@@ -951,13 +925,11 @@ func _build() -> void:
 	_scan.reduced_motion = func() -> bool: return profile.reduced_motion()
 	_focus.player_left.connect(_scan.clear)
 
-	_shade = ColorRect.new()
-	_shade.color = Color(0, 0, 0, 0.5)
+	_shade = ScreenShade.new()
 	_shade.set_anchors_preset(Control.PRESET_FULL_RECT)
-	# Below the top bar, so Export log and Deck stay reachable on every screen (_process keeps it
+	# Below the top bar, so the menu and Cart stay reachable on every screen (_process keeps it
 	# there when the stage moves).
 	_shade.offset_top = RewardPanel.PRINTOUT_TOP
-	_shade.mouse_filter = Control.MOUSE_FILTER_STOP
 	_shade.visible = false
 	add_child(_shade)
 	_reward_panel = RewardPanel.new()

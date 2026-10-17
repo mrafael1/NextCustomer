@@ -1,0 +1,18 @@
+; A belt item's check mark (#80, mock-up B2): a green disc in an ink ring, lit top left and
+; shaded bottom right, with a 7x7 pixel check in paper, for a bonus or factor another source
+; gave it. Shown at 2x; its 1 texel hard shadow is drawn in code (EffectMark).
+@size 13x13
+@kind icon
+....#####....
+...#zzzzz#...
+..#zGGGGGz#..
+.#zGGGGGGGg#.
+#zGGGGGGGwGg#
+#zGGGGGGwwGg#
+#zGwGGGwwGGg#
+#zGwwGwwGGGg#
+#zGGwwwGGGGg#
+.#zGGwGGGGg#.
+..#gGGGGGg#..
+...#ggggg#...
+....#####....

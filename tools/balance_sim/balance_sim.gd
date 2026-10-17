@@ -582,13 +582,16 @@ func _report(summaries: Array[SimSummary], seconds: float) -> String:
 	var row_text: String = (
 		"%d product slots + %d coupon slot" % [_balance.slot_count, _balance.coupon_slot_count]
 	)
+	var redraw_text: String = (
+		"%d redraws of up to %d" % [_balance.base_redraws, _balance.redraw_limit]
+	)
 	report.append(
 		(
-			"Quotas %s · hand %d · redraw up to %d · %s · seed %s · %s samples per greedy pick"
+			"Quotas %s · hand %d · %s · %s · seed %s · %s samples per greedy pick"
 			% [
 				Array(_balance.quotas),
 				_balance.hand_size,
-				_balance.redraw_limit,
+				redraw_text,
 				row_text,
 				_options["seed"],
 				_options["samples"]

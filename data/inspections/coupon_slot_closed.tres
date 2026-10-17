@@ -7,4 +7,5 @@ script = ExtResource("1_inspection")
 id = &"coupon_slot_closed"
 display_name = "Coupon slot closed"
 notice_text = "One coupon slot fewer"
+chip_text = "−1 coupon slot"
 extra_coupon_slots = -1

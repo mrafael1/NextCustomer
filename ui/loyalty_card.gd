@@ -7,6 +7,11 @@ extends PanelContainer
 ## type, effect and condition, so nothing about an upgrade is shown only inside an animation.
 ##
 ## The count-up flies upgrade steps in from these boxes: box(i) belongs to the run's upgrade i.
+##
+## The top bar's face (#80 step 10, mock-up B2; `chip`): the teal LOYALTY chip with B2's 13x13
+## stamp rings at 2x, upright: a mustard ring around the teal panel for a stamp, a dashed ring
+## for an empty box. #59's 7x7 perk glyphs go in the rings; until then the initials stay, in
+## mustard pale, as large as fits inside the ring. The final receipt keeps the card face.
 
 const BOX_SIZE := Vector2(34, 34)
 ## The resting tilt of every stamped box.
@@ -23,34 +28,59 @@ const STAMP_BORDER := 2
 ## counters at this size.
 const INITIALS_OUTLINE := 3
 
+## The chip face's boxes (the 13x13 rings at 2x), their gap, and the initials' sizes: the largest
+## that fits inside both rings (CHIP_RING px: the mustard light and mustard texels at 2x, which
+## leaves the teal panel's 18 px), down to the smallest.
+const CHIP_BOX_SIZE := Vector2(26, 26)
+const CHIP_BOX_GAP := 8
+const CHIP_RING := 4
+const CHIP_INITIALS_SIZES: Array[int] = [12, 11, 10, 9, 8, 7]
+
 const CARD_FRAME := preload("res://art/frames/loyalty_card.png")
 const STAMP_EMPTY := preload("res://art/icons/stamp_empty.png")
+const RING := preload("res://art/icons/stamp_ring.png")
+const RING_EMPTY := preload("res://art/icons/stamp_ring_empty.png")
 
 var _boxes: HBoxContainer
 var _box_count: int = 0
 ## What the boxes show now, so a refresh only rebuilds them when the upgrades change.
 var _shown: Array[UpgradeDefinition] = []
+## The top bar's chip face (else the card face).
+var _chip: bool = false
+var _box_size: Vector2 = BOX_SIZE
 
 
-func _init() -> void:
+## `chip`: the top bar's face; else the card (the final receipt's).
+func _init(chip: bool = false) -> void:
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
-	var style: StyleBoxTexture = ArtStyle.frame_style(CARD_FRAME, FRAME_MARGIN)
-	style.content_margin_left = PADDING.x
-	style.content_margin_top = PADDING.y
-	style.content_margin_right = PADDING.z
-	style.content_margin_bottom = PADDING.w
+	_chip = chip
+	_box_size = CHIP_BOX_SIZE if chip else BOX_SIZE
+	var style: StyleBoxTexture = ArtStyle.frame_style(
+		TopBar.CHIP_FRAME if chip else CARD_FRAME, FRAME_MARGIN
+	)
+	style.content_margin_left = float(TopBar.CHIP_PADDING) if chip else PADDING.x
+	style.content_margin_top = 0.0 if chip else PADDING.y
+	style.content_margin_right = float(TopBar.CHIP_PADDING) if chip else PADDING.z
+	style.content_margin_bottom = 0.0 if chip else PADDING.w
 	add_theme_stylebox_override("panel", style)
 	ArtStyle.use_pixel_material(self)
+	if chip:
+		custom_minimum_size.y = TopBar.ROW_SIZE.y
 	var row: HBoxContainer = HBoxContainer.new()
 	row.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	row.add_theme_constant_override("separation", 6)
+	row.add_theme_constant_override("separation", TopBar.CHIP_SEPARATION if chip else 6)
 	add_child(row)
-	var title: Label = UiKit.display_label("LOYALTY\nCARD", TITLE_SIZE, false)
+	var title: Label = (
+		TopBar.key_label("LOYALTY")
+		if chip
+		else UiKit.display_label("LOYALTY\nCARD", TITLE_SIZE, false)
+	)
 	title.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	row.add_child(title)
 	_boxes = HBoxContainer.new()
 	_boxes.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_boxes.add_theme_constant_override("separation", 4)
+	_boxes.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	_boxes.add_theme_constant_override("separation", CHIP_BOX_GAP if chip else 4)
 	# A container resets its children's rotation whenever it sorts them, so the tilt is put
 	# back after every sort.
 	_boxes.sort_children.connect(_tilt_stamped_boxes)
@@ -114,14 +144,14 @@ func play_stamp(index: int) -> void:
 	var target: Control = box(index)
 	if target == null:
 		return
-	target.pivot_offset = BOX_SIZE / 2.0
+	target.pivot_offset = _box_size / 2.0
 	target.scale = Vector2(2.4, 2.4)
 	target.rotation = deg_to_rad(-20.0)
 	target.modulate.a = 0.0
 	var slam: Tween = target.create_tween().set_parallel()
 	slam.set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
 	slam.tween_property(target, "scale", Vector2.ONE, 0.16)
-	slam.tween_property(target, "rotation", deg_to_rad(STAMP_TILT), 0.16)
+	slam.tween_property(target, "rotation", stamp_tilt(), 0.16)
 	slam.tween_property(target, "modulate:a", 1.0, 0.1)
 	slam.chain().tween_property(target, "scale", Vector2(1.15, 1.15), 0.06)
 	slam.chain().tween_property(target, "scale", Vector2.ONE, 0.12)
@@ -149,15 +179,22 @@ static func tooltip_for(upgrade: UpgradeDefinition) -> String:
 	return "\n".join(lines)
 
 
+## A stamped box's resting tilt in radians: STAMP_TILT on the card, upright on the chip (B2).
+func stamp_tilt() -> float:
+	return 0.0 if _chip else deg_to_rad(STAMP_TILT)
+
+
 func _tilt_stamped_boxes() -> void:
 	for stamped: Control in stamped_boxes():
 		if stamped == null:
 			continue
-		stamped.pivot_offset = BOX_SIZE / 2.0
-		stamped.rotation = deg_to_rad(STAMP_TILT)
+		stamped.pivot_offset = _box_size / 2.0
+		stamped.rotation = stamp_tilt()
 
 
 func _make_box(upgrade: UpgradeDefinition) -> PanelContainer:
+	if _chip:
+		return _make_ring(upgrade)
 	var panel: PanelContainer = PanelContainer.new()
 	panel.custom_minimum_size = BOX_SIZE
 	if upgrade == null:
@@ -190,3 +227,41 @@ func _make_box(upgrade: UpgradeDefinition) -> PanelContainer:
 	label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	panel.add_child(label)
 	return panel
+
+
+## The chip face's box: B2's ring (dashed when empty) at 2x, the initials in mustard pale at the
+## largest CHIP_INITIALS_SIZES size that fits inside the rings.
+func _make_ring(upgrade: UpgradeDefinition) -> PanelContainer:
+	var panel: PanelContainer = PanelContainer.new()
+	panel.custom_minimum_size = CHIP_BOX_SIZE
+	var ring: StyleBoxTexture = StyleBoxTexture.new()
+	ring.texture = RING if upgrade != null else RING_EMPTY
+	ring.set_content_margin_all(0)
+	panel.add_theme_stylebox_override("panel", ring)
+	ArtStyle.use_pixel_material(panel)
+	panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var label: Label = UiKit.number_label("", CHIP_INITIALS_SIZES[0], false)
+	label.add_theme_color_override("font_color", Palette.MUSTARD_PALE)
+	label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	panel.add_child(label)
+	if upgrade == null:
+		return panel
+	# PASS, not IGNORE: a tooltip needs the mouse.
+	panel.mouse_filter = Control.MOUSE_FILTER_PASS
+	panel.tooltip_text = tooltip_for(upgrade)
+	label.text = initials(upgrade.display_name)
+	label.add_theme_font_size_override("font_size", chip_initials_size(label.text))
+	return panel
+
+
+## The largest CHIP_INITIALS_SIZES size at which `text` fits inside the chip's rings (else the
+## smallest). Measured with the number font itself: the new box is not in the tree yet, so its
+## label ignores theme overrides and would report the default font's width at every size.
+static func chip_initials_size(text: String) -> int:
+	var inside: float = CHIP_BOX_SIZE.x - 2.0 * CHIP_RING
+	var font: Font = ArtStyle.number_font()
+	for font_size: int in CHIP_INITIALS_SIZES:
+		if font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size).x <= inside:
+			return font_size
+	return CHIP_INITIALS_SIZES[-1]

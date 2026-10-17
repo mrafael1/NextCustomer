@@ -5,8 +5,10 @@ extends RefCounted
 ## on the count-up's tweens (`make_tween`), so taps and holds speed it up like the count and
 ## never kill it: every line, sound and shake still happens.
 ##
-## "€total / €quota" slams onto the receipt's TOTAL line (green on a pass, red on a miss) with
-## `total` or `miss` and a shake, a step bigger for a large total and another for a huge one; the
+## The total slams onto the LED's digits on the hung monitor (#80: big numbers land on the
+## monitor, the receipt prints plainly), in the digits' colour (green on a pass), with `total` or
+## `miss` and a shake, a step bigger for a large total and another for a huge one, while the
+## receipt's TOTAL line shows "€total / €quota" at once (green on a pass, red on a miss). The
 ## margin line under it counts "+€N OVER QUOTA", "SHORT €N" or a green "ON QUOTA" (ShiftMargin)
 ## while `pass` or `fail` sounds; a pass gets the PAID stamp (`stamp_paid`) once the margin has
 ## counted; the receipt tears (`rip`), on a miss after `fail` has rung out; the next shift's
@@ -15,11 +17,9 @@ extends RefCounted
 ## tear. Under reduced motion the slam fades in at full size and nothing shakes (CountUpMotion);
 ## the small punches stay.
 
-## The slam starts this big (D11) and lands at 1 on the TOTAL line.
+## The slam starts this big (D11) and lands at 1 on the LED's digits.
 const SLAM_SCALE := 3.2
-## The slam's outline, thinner than CountUpMotion's big labels: it lands at the receipt's size.
-const SLAM_OUTLINE := 4
-## The verdict on the TOTAL line punches as it lands; the PAID stamp lands from PAID_SLAM_SCALE
+## The digits punch as the slam lands; the PAID stamp lands from PAID_SLAM_SCALE
 ## over PAID_SLAM seconds.
 const VERDICT_PUNCH := 1.3
 const PAID_SLAM_SCALE := 2.0
@@ -36,6 +36,8 @@ var sfx: Sfx
 var speed_setting: float = 1.0
 var _overlay: Control
 var _receipt: ReceiptView
+## The LED whose digits the slam lands on.
+var _led: LedDisplay
 var _fx: CountUpMotion
 ## Shaken as the slam lands (the register rattle's target).
 var _rattle_target: Control
@@ -47,6 +49,7 @@ var _tuning: CountUpTuning
 func _init(
 	overlay: Control,
 	receipt: ReceiptView,
+	led: LedDisplay,
 	sounds: Sfx,
 	fx: CountUpMotion,
 	rattle_target: Control,
@@ -54,6 +57,7 @@ func _init(
 ) -> void:
 	_overlay = overlay
 	_receipt = receipt
+	_led = led
 	sfx = sounds
 	_fx = fx
 	_rattle_target = rattle_target
@@ -119,22 +123,25 @@ static func shake_px(passed: bool, intensity: CountUpIntensity, tuning: CountUpT
 	return px * (1.0 + tuning.dessert_shake_step * steps)
 
 
-## "€total / €quota" slams from SLAM_SCALE onto the TOTAL line's right side (under reduced
-## motion it fades in there at full size), which then shows it. Returns that label, or null
-## when the receipt has no TOTAL line.
+## The receipt's TOTAL line shows "€total / €quota" at once, plainly; the total slams from
+## SLAM_SCALE onto the LED's digits (under reduced motion it fades in there at full size), which
+## then show it. Returns the digits.
 func _slam(total: int, quota: int, reduced_motion: bool) -> Label:
-	var target: Label = _receipt.show_verdict(total, quota)
-	if target == null:
-		await _wait_ms(_tuning.dessert_slam_ms)
-		return null
+	_receipt.show_verdict(total, quota)
+	var target: Label = _led.digits_label()
 	target.modulate.a = 0.0
 	var slam: Label = CountUpMotion.text_label(
-		ReceiptView.verdict_text(total, quota),
-		target.get_theme_color("font_color"),
-		ReceiptView.TOTAL_FONT_SIZE
+		target.text, target.get_theme_color("font_color"), target.get_theme_font_size("font_size")
 	)
-	slam.add_theme_font_override("font", ReceiptView.MONO_FONT)
-	slam.add_theme_constant_override("outline_size", SLAM_OUTLINE)
+	slam.add_theme_font_override("font", target.get_theme_font("font"))
+	# The digits' outline (none in the count layout) and shadow (its mustard-light one, with no
+	# shadow outline) too, so the slam lands as them.
+	for color: String in ["font_outline_color", "font_shadow_color"]:
+		slam.add_theme_color_override(color, target.get_theme_color(color))
+	for constant: String in [
+		"outline_size", "shadow_outline_size", "shadow_offset_x", "shadow_offset_y"
+	]:
+		slam.add_theme_constant_override(constant, target.get_theme_constant(constant))
 	slam.modulate.a = 0.0
 	_overlay.add_child(slam)
 	# Sized in the tree, where its font override is in effect (_place_slam keeps the pivot).
@@ -144,7 +151,7 @@ func _slam(total: int, quota: int, reduced_motion: bool) -> Label:
 	_place_slam(0.0, slam, target)
 	var seconds: float = _tuning.dessert_slam_ms / 1000.0
 	var tween: Tween = _tween().set_parallel().set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
-	# The landing spot follows the TOTAL line as the receipt lays out its new text.
+	# The landing spot follows the LED's digits (they may still be settling from the TOTAL punch).
 	tween.tween_method(_place_slam.bind(slam, target), 0.0, 1.0, seconds)
 	if reduced_motion:
 		tween.tween_property(slam, "modulate:a", 1.0, seconds)
@@ -157,8 +164,8 @@ func _slam(total: int, quota: int, reduced_motion: bool) -> Label:
 	return target
 
 
-## The slam over the TOTAL line's right side, scaled around its centre and kept inside the
-## overlay while it is big: it lands on the line as it reaches full size.
+## The slam over the digits, scaled around its centre and kept inside the overlay while it is
+## big: it lands on them as it reaches full size.
 func _place_slam(_progress: float, slam: Label, target: Label) -> void:
 	slam.pivot_offset = slam.size / 2.0
 	var half: Vector2 = slam.size * slam.scale / 2.0

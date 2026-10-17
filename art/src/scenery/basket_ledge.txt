@@ -1,0 +1,24 @@
+; The steel basket ledge along the counter front (mock-up B2, #80 step 8), a 3-slice 9x17 @2
+; (margins 4 art px left and right) stretched across ShiftStage.LEDGE_RECT: its top face
+; (a steel-dark line where it meets the counter, steel pale then steel light) leaning to
+; B2's vanishing point at both ends, the lit arris, the steel front face and its dark foot.
+@size 9x17
+@kind scenery
+@scale 2
+...####..
+..#HHHH#.
+..#CCCC#.
+..#CCCC#.
+.#BBBBB#.
+.#BBBBBB#
+.#BBBBBB#
+#BBBBBBB#
+#AAAAAAA#
+#DDDDDDD#
+#DDDDDDD#
+#DDDDDDD#
+#DDDDDDD#
+#DDDDDDD#
+#HHHHHHH#
+#HHHHHHH#
+.#######.

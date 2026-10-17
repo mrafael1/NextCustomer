@@ -184,14 +184,14 @@ func test_upgrade_steps_play_from_the_loyalty_card() -> void:
 	var upgrade_steps: Array[ScoreStep] = _upgrade_steps(preview)
 	var kinds: Array = upgrade_steps.map(func(step: ScoreStep) -> int: return step.step_type)
 	assert_array(kinds).contains([ScoreStep.StepType.MULTIPLIER, ScoreStep.StepType.FLAT])
-	# The planning receipt is a stub (#75): scanning the items names the upgrades.
+	# The planning receipt lists only the items (#80): scanning them names the upgrades.
 	assert_str(_receipt_text(screen)).not_contains("Coupon engine")
-	assert_str(_popup_text(screen, 2)).contains("× Coupon engine")
-	assert_str(_popup_text(screen, 1)).contains("+ Category engine")
+	assert_str(_scan_text(screen, 2)).contains("Coupon engine").contains("×")
+	assert_str(_scan_text(screen, 1)).contains("Category engine").contains("+€")
 
 	await screen._on_checkout_pressed()
 	assert_str(screen._led.digits_label().text).is_equal("€%d" % preview.total)
-	assert_str(_receipt_text(screen)).contains("× Coupon engine").contains("+ Category engine")
+	assert_str(_receipt_text(screen)).contains("Coupon engine").contains("Category engine")
 	for step: ScoreStep in upgrade_steps:
 		var box: Control = screen._loyalty_card.box(step.source_index)
 		assert_object(box).is_not_null()
@@ -220,11 +220,12 @@ func test_an_upgrade_fizzle_plays_and_prints() -> void:
 	assert_bool(screen._counting).is_false()
 	# The shake ends where it started: the box keeps its stamp tilt.
 	assert_float(screen._loyalty_card.box(0).rotation).is_equal_approx(
-		deg_to_rad(LoyaltyCard.STAMP_TILT), 0.001
+		screen._loyalty_card.stamp_tilt(), 0.001
 	)
 
 
-## Every stamped box rests at the same tilt, also after the boxes are rebuilt for a new stamp.
+## Every stamped box rests at the same tilt (the top bar's chip: upright, as B2), also after the
+## boxes are rebuilt for a new stamp.
 func test_every_stamped_box_keeps_its_tilt() -> void:
 	var runner: GdUnitSceneRunner = scene_runner(SCREEN)
 	var screen: ShiftScreen = runner.scene()
@@ -235,8 +236,12 @@ func test_every_stamped_box_keeps_its_tilt() -> void:
 	await _frames(2)
 	var boxes: Array[Control] = screen._loyalty_card.stamped_boxes()
 	assert_int(boxes.size()).is_equal(2)
+	assert_float(screen._loyalty_card.stamp_tilt()).is_equal(0.0)
 	for box: Control in boxes:
-		assert_float(box.rotation).is_equal_approx(deg_to_rad(LoyaltyCard.STAMP_TILT), 0.001)
+		assert_float(box.rotation).is_equal_approx(screen._loyalty_card.stamp_tilt(), 0.001)
+	# The final receipt's card keeps its tilt.
+	var card: LoyaltyCard = auto_free(LoyaltyCard.new())
+	assert_float(card.stamp_tilt()).is_equal_approx(deg_to_rad(LoyaltyCard.STAMP_TILT), 0.001)
 	var empty_box: Control = screen._loyalty_card._boxes.get_child(2) as Control
 	assert_float(empty_box.rotation).is_equal(0.0)
 
@@ -274,6 +279,56 @@ func test_every_stamp_fits_inside_its_ring() -> void:
 		)
 
 
+## The top bar's stamps (#80 step 10, mock-up B2; #59's glyphs not drawn yet): every upgrade's
+## initials fall back into B2's 13x13 ring at 2x, mustard pale in the number font, at the largest
+## size that fits inside both rings (the teal panel); an empty box is the dashed ring. The rings
+## take no clicks but keep their hover text.
+func test_every_chip_stamp_fits_inside_its_ring() -> void:
+	var upgrades: Array[UpgradeDefinition] = []
+	for file_name: String in DirAccess.get_files_at(UPGRADES):
+		if file_name.ends_with(".tres"):
+			upgrades.append(load(UPGRADES.path_join(file_name)) as UpgradeDefinition)
+	var chip: LoyaltyCard = auto_free(LoyaltyCard.new(true))
+	get_tree().root.add_child(chip)
+	chip.show_upgrades(upgrades.size() + 1, upgrades)
+	await _frames(2)
+	var inside: float = LoyaltyCard.CHIP_BOX_SIZE.x - 2.0 * LoyaltyCard.CHIP_RING
+	var stamped: Array[Control] = chip.stamped_boxes()
+	assert_int(stamped.size()).is_equal(upgrades.size())
+	for index: int in range(stamped.size()):
+		var box: Control = stamped[index]
+		assert_vector(box.size).is_equal(LoyaltyCard.CHIP_BOX_SIZE)
+		var ring: StyleBoxTexture = box.get_theme_stylebox("panel") as StyleBoxTexture
+		assert_object(ring.texture).is_same(LoyaltyCard.RING)
+		var label: Label = box.get_child(0) as Label
+		assert_str(label.text).is_equal(LoyaltyCard.initials(upgrades[index].display_name))
+		assert_object(label.get_theme_font("font")).is_same(ArtStyle.number_font())
+		assert_object(label.get_theme_color("font_color")).is_equal(Palette.MUSTARD_PALE)
+		(
+			assert_float(label.get_minimum_size().x)
+			. override_failure_message("%s is too wide for the ring" % label.text)
+			. is_less_equal(inside)
+		)
+		# The largest size that fits: the next size up (if any) would not.
+		var font_size: int = label.get_theme_font_size("font_size")
+		var at: int = LoyaltyCard.CHIP_INITIALS_SIZES.find(font_size)
+		assert_int(at).is_not_equal(-1)
+		if at > 0:
+			label.add_theme_font_size_override("font_size", LoyaltyCard.CHIP_INITIALS_SIZES[at - 1])
+			(
+				assert_float(label.get_minimum_size().x)
+				. override_failure_message("%s could be larger" % label.text)
+				. is_greater(inside)
+			)
+			label.add_theme_font_size_override("font_size", font_size)
+		assert_str(box.tooltip_text).contains(upgrades[index].display_name)
+		assert_int(box.mouse_filter).is_equal(Control.MOUSE_FILTER_PASS)
+	var empty: Control = chip._boxes.get_child(chip._boxes.get_child_count() - 1) as Control
+	var empty_ring: StyleBoxTexture = empty.get_theme_stylebox("panel") as StyleBoxTexture
+	assert_object(empty_ring.texture).is_same(LoyaltyCard.RING_EMPTY)
+	assert_int(empty.mouse_filter).is_equal(Control.MOUSE_FILTER_IGNORE)
+
+
 ## A ticket already under the cursor lights up as soon as it is armed.
 func test_a_hovered_ticket_lights_up_when_armed() -> void:
 	var coupon_engine: UpgradeDefinition = load(COUPON_ENGINE)
@@ -286,22 +341,30 @@ func test_a_hovered_ticket_lights_up_when_armed() -> void:
 	assert_object(ticket._style.border_color).is_equal(Palette.INK)
 
 
-func test_extra_redraw_gives_a_second_redraw() -> void:
+## A shift starts with the balance's 2 redraws; Extra redraw adds a third.
+func test_extra_redraw_gives_a_third_redraw() -> void:
 	var runner: GdUnitSceneRunner = scene_runner(SCREEN)
 	var screen: ShiftScreen = runner.scene()
 	screen._on_reward_skipped()  # Past the impulse rack.
-	assert_str(screen._redraw_button.caption).contains("(1 left)")
+	assert_str(screen._redraw_button.caption).is_equal("Redraw")
+	assert_str(screen._redraw_button.note()).is_equal("2 left")
+	assert_str(screen._redraw_button.accessibility_name).is_equal("Redraw up to 2 items (2 left)")
 	screen._debug.give_upgrade("extra_redraw")
-	assert_int(screen.run.redraws_allowed).is_equal(2)
-	assert_str(screen._redraw_button.caption).contains("(2 left)")
+	assert_int(screen.run.redraws_allowed).is_equal(3)
+	assert_str(screen._redraw_button.note()).is_equal("3 left")
 	assert_str(screen._loyalty_card.box_texts()[0]).is_equal("ExR")
 	_redraw_first_card(screen)
 	assert_int(screen.run.redraws_used).is_equal(1)
-	assert_str(screen._redraw_button.caption).contains("(1 left)")
-	assert_bool(screen._redraw_button.disabled).is_false()
+	assert_str(screen._redraw_button.note()).is_equal("2 left")
 	_redraw_first_card(screen)
 	assert_int(screen.run.redraws_used).is_equal(2)
+	assert_str(screen._redraw_button.note()).is_equal("1 left")
+	assert_bool(screen._redraw_button.disabled).is_false()
+	_redraw_first_card(screen)
+	assert_int(screen.run.redraws_used).is_equal(3)
 	assert_str(screen._redraw_button.caption).is_equal("Redraw used")
+	assert_str(screen._redraw_button.note()).is_empty()
+	assert_str(screen._redraw_button.accessibility_name).is_equal("Redraw used")
 	assert_bool(screen._redraw_button.disabled).is_true()
 
 
@@ -396,13 +459,16 @@ static func _upgrade_steps(result: ScoreResult) -> Array[ScoreStep]:
 
 
 ## Scans the belt item in `slot` (the pointer on its sprite, its hover sent: headless runs never
-## move the mouse) and returns its scan popup's footer, one line each, then ends the scan.
-static func _popup_text(screen: ShiftScreen, slot: int) -> String:
+## move the mouse; then its hold ends, #80) and returns its scan popup's footer, one line each,
+## then ends the scan.
+static func _scan_text(screen: ShiftScreen, slot: int) -> String:
 	var view: ItemView = screen._row_views[slot] as ItemView
 	var point: Vector2 = view.sprite().get_global_rect().get_center()
 	screen._scan.pointer = func() -> Vector2: return point
 	view.hovered.emit(view)
-	var text: String = "\n".join(screen._scan.popup().footer_texts())
+	screen._scan._go_full()
+	# A belt item's scan shows on the hung monitor (#80).
+	var text: String = "\n".join(screen._monitor.scan_footer().texts())
 	screen._scan.clear()
 	return text
 
@@ -490,8 +556,15 @@ func test_a_nine_slot_row_fits_the_screen() -> void:
 	assert_int(screen._row_strip.box.get_theme_constant("separation")).is_equal(
 		RowStrip.WIDE_SEPARATION
 	)
-	assert_str(screen._capacity_label.text).contains("Products 0/7").contains("Coupon slots 0/2")
-	var belt: Rect2 = (screen._row_strip.get_parent() as Control).get_global_rect()
+	assert_int(screen.run.limits.slot_count).is_equal(7)
+	assert_int(screen.run.limits.coupon_slot_count).is_equal(2)
+	var belt: Rect2 = (
+		Rect2(
+			screen._stage.get_global_rect().position + ShiftStage.ROW_AREA.position,
+			ShiftStage.ROW_AREA.size
+		)
+		. grow(0.01)
+	)
 	var receipt: Rect2 = screen._receipt.get_global_rect()
 	var previous: Rect2 = Rect2()
 	for slot: int in range(screen._slots.size()):

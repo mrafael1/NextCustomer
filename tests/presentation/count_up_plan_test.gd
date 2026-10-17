@@ -371,7 +371,7 @@ func test_reduced_motion_removes_every_rattle_but_keeps_the_hit_stops() -> void:
 	assert_int(calm.planned_ms).is_equal(normal.planned_ms)
 
 
-func test_the_total_size_sets_the_pause_and_the_shift_the_pile() -> void:
+func test_the_total_size_sets_the_pause() -> void:
 	# best 45: large from max(50, 56.25), huge from 90.
 	assert_int(_plan(_flat_steps(1, 56)).size).is_equal(CountUpPlan.Size.NORMAL)
 	assert_int(_plan(_flat_steps(1, 56)).pause_ms).is_equal(300)
@@ -388,11 +388,6 @@ func test_the_total_size_sets_the_pause_and_the_shift_the_pile() -> void:
 	assert_int(_plan(_flat_steps(1, 124), 1, context).size).is_equal(CountUpPlan.Size.NORMAL)
 	assert_int(_plan(_flat_steps(1, 125), 1, context).size).is_equal(CountUpPlan.Size.LARGE)
 	assert_int(_plan(_flat_steps(1, 200), 1, context).size).is_equal(CountUpPlan.Size.HUGE)
-	# The paper pile starts higher each shift, up to its cap.
-	assert_float(_plan(_flat_steps(1), 1, CountUpContext.new(1)).pile_start_px).is_equal(0.0)
-	assert_float(_plan(_flat_steps(1), 1, CountUpContext.new(3)).pile_start_px).is_equal(12.0)
-	assert_float(_plan(_flat_steps(1), 1, CountUpContext.new(8)).pile_start_px).is_equal(42.0)
-	assert_float(_plan(_flat_steps(1), 1, CountUpContext.new(20)).pile_start_px).is_equal(42.0)
 
 
 func test_hit_stops_land_on_the_heavy_beats_and_merge_when_close() -> void:

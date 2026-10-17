@@ -14,4 +14,5 @@ script = ExtResource("3_inspection")
 id = &"spot_check"
 display_name = "Spot check"
 notice_text = "The 3rd product pays €0"
+chip_text = "3rd product pays €0"
 rules = Array[ExtResource("1_rule")]([SubResource("Resource_nth_product")])

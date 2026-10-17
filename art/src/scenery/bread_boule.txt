@@ -1,0 +1,25 @@
+; A round loaf on the back wall's bakery board (mock-up B2's boule, #80 step 11), 32x18 at @1: a
+; wood light Q crust in ink, a wood pale P highlight at the upper left, brown dark f shade at the
+; right and base, three mustard pale Y score marks. Two stand on the upper board
+; (StoreShelves.BOULE_POSITIONS).
+@size 32x18
+@kind scenery
+@scale 1
+...........##########...........
+........################........
+......#####QQQQQQQQQQ#####......
+....####PPPPPPQQQQQQQQQQ####....
+...###PPPPPPPPPPQQQQQQQQQQ###...
+..###PPPPPPPPPPPYYYYQQQQQQQ###..
+.###QPPPPPYYYYPPYYYYQQQQQQQQ###.
+.##QPPPPPPYYYYPPPPQQQQYYYQQQQ##.
+###QPPPPPPQQQQQQQQQQQQYYYQQQQ###
+##QQPPPPPQQQQQQQQQQQQQQQQffffQ##
+##QQQQQQQQQQQQQQQQQQQQQQQffffQ##
+##QQQQQQQQQQQQQQQQQQQQQQQffffQ##
+##QQQQQQQQQQQQQQQQQQQQQQQffffQ##
+##QQQQQQQQQQQQQQQQQQQQQQQffffQ##
+##QffffffffffffffffffffffffffQ##
+##QffffffffffffffffffffffffffQ##
+################################
+################################

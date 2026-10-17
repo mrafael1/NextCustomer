@@ -89,13 +89,15 @@ func lift(view: CardView, seconds: float) -> void:
 	tween.tween_property(view.badge, "position:y", view.badge_rest_y() + height, seconds)
 
 
-## The card drops back onto the belt with its badge.
+## The card drops back onto the belt with its badge. The badge ends at its rest y as it is
+## when the drop ends: a chip that settled meanwhile (a short beat's next item) rests lower.
 func drop(view: CardView, seconds: float) -> void:
 	var tween: Tween = _tween().set_parallel().set_trans(Tween.TRANS_BOUNCE).set_ease(
 		Tween.EASE_OUT
 	)
 	tween.tween_property(view.body, "position:y", 0.0, seconds)
 	tween.tween_property(view.badge, "position:y", view.badge_rest_y(), seconds)
+	tween.chain().tween_callback(_rest_badge.bind(view))
 
 
 ## A control lights up for a moment.
@@ -157,6 +159,14 @@ static func text_label(text: String, color: Color, font_size: int) -> Label:
 	label.add_theme_color_override("font_outline_color", Palette.INK)
 	label.size = label.get_minimum_size()
 	return label
+
+
+## Puts `view`'s badge back on its rest y, unless the view was freed meanwhile. Untyped: a freed
+## view may be passed.
+func _rest_badge(view: Variant) -> void:
+	if is_instance_valid(view):
+		var card: CardView = view as CardView
+		card.badge.position.y = card.badge_rest_y()
 
 
 func _end_shake(node: Control) -> void:

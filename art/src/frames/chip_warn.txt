@@ -1,0 +1,16 @@
+; The inspection's top-bar chip (B2's .chip.warn, #80 step 10): paper w in an ink outline,
+; B2's 6 px rounded corners as a two-texel step (as key_cream), one grey light : row for the
+; inset shade (25% black over paper, snapped). 10x10 @2, 9-slice margin 3.
+@size 10x10
+@kind frame
+@scale 2
+..######..
+.#wwwwww#.
+#wwwwwwww#
+#wwwwwwww#
+#wwwwwwww#
+#wwwwwwww#
+#wwwwwwww#
+#wwwwwwww#
+.#::::::#.
+..######..

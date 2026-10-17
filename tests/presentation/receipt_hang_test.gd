@@ -1,12 +1,13 @@
 extends GdUnitTestSuite
 ## ReceiptView's hanging indent (#55): an indented step line (a DETAIL or FIZZLE line whose text
 ## starts with spaces) wraps under the text after its lead and marker, not at the receipt's left
-## edge, its marker printed beside the first row; the amount or "fizzle" sits on the last row.
-## The receipt is laid out on its own, narrow enough for the long lines to wrap. No saves, no
+## edge, its marker printed beside the first row; the amount sits on the last row, and a fizzle's
+## line has none (its mark, on its first row, says it). The receipt is laid out on its own, as
+## wide as the shift screen's (ShiftStage.RECEIPT_WIDTH), so the long lines wrap. No saves, no
 ## event log.
 
-## Narrow enough for "Coupon engine: the first coupon paid nothing" to wrap.
-const RECEIPT_SIZE := Vector2(240, 400)
+## The shift screen's receipt width: "Coupon engine: the first coupon paid nothing" wraps.
+const RECEIPT_SIZE := Vector2(ShiftStage.RECEIPT_WIDTH, 400)
 ## How far a character may sit from where the indent puts it, in pixels.
 const TOLERANCE := 1.0
 
@@ -15,6 +16,12 @@ var _receipt: ReceiptView
 
 func before_test() -> void:
 	_receipt = auto_free(ReceiptView.new()) as ReceiptView
+	# The shift screen's paper margins (ShiftStage._build_register), so the lines are as wide.
+	var paper: StyleBoxFlat = StyleBoxFlat.new()
+	paper.set_content_margin_all(ShiftStage.RECEIPT_PADDING)
+	paper.content_margin_left = ShiftStage.RECEIPT_PADDING - ReceiptView.FRAME_OUT
+	paper.content_margin_right = ShiftStage.RECEIPT_PADDING - ReceiptView.FRAME_OUT
+	_receipt.add_theme_stylebox_override("panel", paper)
 	add_child(_receipt)
 	_receipt.size = RECEIPT_SIZE
 
@@ -32,9 +39,10 @@ func test_hang_parts_splits_the_lead_the_marker_and_the_rest() -> void:
 	assert_array(Array(ReceiptView.hang_parts("MILK"))).is_equal(["", "", "MILK"])
 
 
-## A wrapped fizzle: every row starts at the indent (the lead's width), and "fizzle" is
-## bottom-aligned on the last row.
-func test_a_wrapped_fizzle_hangs_and_its_fizzle_sits_on_the_last_row() -> void:
+## A wrapped fizzle: every row starts at the indent (the lead's width), on at most two rows: no
+## "fizzle" word takes room beside the reason, only the mark column, and the fizzle mark is
+## centred on the reason's first row, inside the line.
+func test_a_wrapped_fizzle_hangs_with_its_mark_on_the_first_row() -> void:
 	var step: ScoreStep = _step(ScoreStep.StepType.WASTED, "Coupon engine")
 	step.reason = "the first coupon paid nothing"
 	var line: Control = _receipt.add_step(step, PackedStringArray(["Milk"]))
@@ -55,14 +63,22 @@ func test_a_wrapped_fizzle_hangs_and_its_fizzle_sits_on_the_last_row() -> void:
 	assert_float(left.get_character_bounds(second_row).position.x).is_equal_approx(
 		indent, TOLERANCE
 	)
-	# "fizzle" fills the line's height and is drawn on the left side's last row.
-	assert_str(right.text).is_equal("fizzle")
-	assert_int(right.vertical_alignment).is_equal(VERTICAL_ALIGNMENT_BOTTOM)
-	assert_float(right.size.y).is_equal_approx(line.size.y, 0.01)
-	var last: Rect2 = left.get_character_bounds(left.text.length() - 1)
-	var fizzle: Rect2 = right.get_character_bounds(0)
-	assert_float(right.position.y + fizzle.get_center().y).is_equal_approx(
-		left.position.y + last.get_center().y, TOLERANCE
+	assert_int(left.get_line_count()).is_less_equal(2)
+	# No "fizzle" word: the right side is only the mark column.
+	assert_str(right.text).is_empty()
+	assert_float(right.size.x).is_less_equal(ReceiptView.FIZZLE_MARK_COLUMN + 1.0)
+	var mark: Control = right.get_node_or_null("Mark") as Control
+	assert_object(mark).is_not_null()
+	var line_rect: Rect2 = line.get_global_rect()
+	assert_bool(line_rect.grow(0.5).encloses(mark.get_global_rect())).is_true()
+	var first_row: float = left.get_global_rect().position.y + first.get_center().y
+	assert_float(mark.get_global_rect().get_center().y).is_equal_approx(first_row, 1.5)
+	# Clear of the reason's text.
+	var widest: float = 0.0
+	for index: int in range(left.text.length()):
+		widest = maxf(widest, left.get_character_bounds(index).end.x)
+	assert_float(mark.get_global_rect().position.x).is_greater(
+		left.get_global_rect().position.x + widest
 	)
 
 
@@ -100,7 +116,7 @@ func test_lines_without_a_lead_are_not_hung() -> void:
 		assert_object(left.get_node_or_null("Marker")).is_null()
 		var right: Label = line.get_child(1) as Label
 		assert_int(right.vertical_alignment).is_equal(VERTICAL_ALIGNMENT_BOTTOM)
-	assert_str((item.get_child(0) as Label).text).is_equal("MILK")
+	assert_str((item.get_child(0) as Label).text).is_equal("Milk")
 	assert_str((total.get_child(0) as Label).text).is_equal("TOTAL")
 
 
