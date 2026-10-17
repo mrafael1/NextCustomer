@@ -553,7 +553,7 @@ func test_hover_signals_and_the_hit_area() -> void:
 	view.notification(Control.NOTIFICATION_MOUSE_ENTER)
 	view.notification(Control.NOTIFICATION_MOUSE_EXIT)
 	assert_array(seen).is_equal(["in:milk", "out:milk"])
-	# A flipped popup opens below the sticker.
+	# The sticker's rect, which a side popup keeps clear of.
 	assert_that(view.below_rect()).is_equal(view.sticker().get_global_rect())
 
 

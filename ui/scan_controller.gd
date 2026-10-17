@@ -420,8 +420,10 @@ func _show(view: ItemView) -> void:
 		# Over the offers, a click on the popup stops there (see the class comment).
 		_popup.mouse_filter = Control.MOUSE_FILTER_STOP
 		_popup.visible = true
-		_popup.show_card(definition, view.aisle, view.tags(), payout, lines, fizzles)
-		_popup.place_at(sprite, view.below_rect(), _offer_layout())
+		_popup.show_card(definition, view.aisle, view.tags())
+		_popup.place_at(
+			sprite, view.below_rect(), _stage.get_global_rect(), _offer_panel.get_global_rect()
+		)
 		_monitor.end_scan()
 		_highlight(-1)
 	else:
@@ -433,13 +435,6 @@ func _show(view: ItemView) -> void:
 		marks.stop_beam_loop()
 	else:
 		marks.start_beam_loop()
-
-
-## Where an offer's popup may open (global): on the stage, beside the item over the offers'
-## panel (as a hand item's opens over the tray), never above the panel's top.
-func _offer_layout() -> ScanLayout:
-	var panel: Rect2 = _offer_panel.get_global_rect()
-	return ScanLayout.new(_stage.get_global_rect(), panel, panel.position.y)
 
 
 ## Frames `slot`'s line on the planning receipt, or none for -1.

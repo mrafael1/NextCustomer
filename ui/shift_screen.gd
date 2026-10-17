@@ -909,7 +909,6 @@ func _build() -> void:
 	_focus.player_returned.connect(_on_focus_entered)
 	_count_up = CountUp.new()
 	add_child(_count_up)
-	# B2 has no paper pile (#80): the count-up runs without one.
 	_count_up.setup(_overlay, _receipt, _led, _sfx, _register)
 	_count_up.music = _music
 	_count_up.scan_overlay = _stage.scan_layer

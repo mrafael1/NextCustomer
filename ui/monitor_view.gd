@@ -8,8 +8,8 @@ extends Control
 ## - SCAN (a belt or hand item fully scanned: ScanController calls show_scan): the item's art
 ##   (ItemView's item_art), its kind under it (COUPON, or its base price), and beside it its
 ##   name, "pays €N" for a belt item, its tag line, its rule text and, for a belt item, its step
-##   lines as the caller words them (ScanFooter, as the scan popup does), in the largest of the
-##   TIERS sizes that shows every line; on the smallest, lines that don't fit fold into "+N more";
+##   lines as the caller words them (ScanFooter), in the largest of the TIERS sizes that shows
+##   every line; on the smallest, lines that don't fit fold into "+N more";
 ## - COUNT (the count-up: the LED shows SUBTOTAL or TOTAL in its count layout, mock-up B2's
 ##   count-up screen: no glass, the big ink digits straight on the paper): the item the count-up
 ##   is on at the left (its art, name and "n / m"; show_beat, or follow_beat on CountUp's

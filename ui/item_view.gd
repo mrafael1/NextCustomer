@@ -319,7 +319,8 @@ func hit_rect() -> Rect2:
 	return rect.merge(Rect2(_sticker.position, PriceSticker.SIZE))
 
 
-## What a flipped scan popup opens below (global): the sticker.
+## The sticker's rect (global): ScanPopup.place_at merges it into the item's column so a side
+## popup clears both.
 func below_rect() -> Rect2:
 	return get_global_transform() * Rect2(_sticker.position, PriceSticker.SIZE)
 

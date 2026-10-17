@@ -1,45 +1,29 @@
 class_name ScanPopup
 extends Control
-## The scan popup (#75; style frame v2's spec section 4.5): what a hovered item does, in full. A
-## paper panel with a gold trim and a hard drop shadow: a header (aisle glyph, name and a mini
-## sticker with the base, or COUPON), the tag line (the item's tags and its aisle, or Staple), the
-## card's rule text verbatim and, for a belt item, a footer under a dashed brass rule with its
-## payout and its step lines, as the caller words them. Its tail points at the item. place() is
-## the pure placement rule. A belt item's popup (delta section 11) sits above the item with room
-## for its marks, clamped to the stage, flipped below the item's sticker when it would
-## reach the top bar, or held under the top bar over the sprite's top when it fits neither way
-## (B2's belt stands mid-screen). A hand item's popup (round 3) never covers the belt: it opens
-## beside the item, over the tray, its tail pointing sideways at the item. The popup grows with
-## its text up to MAX_HEIGHT; footer lines that don't fit fold into a last "+N more" line. A
-## step line's amount (or "fizzle", after ReceiptView.joined_line's two spaces) sits at the
-## popup's right edge on the line's last row, as on the receipt (ScanFooter, which the monitor
-## shares). Since #80 the shift screen opens it for the offers only (ScanController.cover_offers):
-## a belt or hand item's scan shows on the monitor (MonitorView).
+## The scan popup (#75; style frame v2's spec section 4.5): what a scanned offer does, in full.
+## A paper panel with a gold trim and a hard drop shadow: a header (aisle glyph, name and a mini
+## sticker with the base, or COUPON), the tag line (the item's tags and its aisle, or Staple) and
+## the card's rule text verbatim. It grows with its text up to MAX_HEIGHT. place() is the pure
+## placement rule: it opens beside the item, over the offers' panel, its tail pointing sideways at
+## the item. Since #80 the shift screen opens it for the offers only (ScanController.cover_offers):
+## a belt or hand item's scan shows on the monitor (MonitorView), with its payout and step lines.
 
-## Where the popup opened: above or below a belt item, or right or left of a hand item.
-enum Placement { ABOVE, BELOW, RIGHT, LEFT }
+## Where the popup opened: right or left of the item.
+enum Placement { RIGHT, LEFT }
 
 const WIDTH := 288.0
 const MIN_HEIGHT := 140.0
-## The cap: the longest rule text with its header, tag line and payout row fits well within it,
-## and a belt item's popup held under the top bar still ends above its sticker.
+## The cap: the longest rule text with its header and tag line fits well within it.
 const MAX_HEIGHT := 280.0
 const PADDING := 12.0
 const CONTENT_WIDTH := 264.0
-## The popup's bottom sits this far above the lifted sprite (the scan's marks fit in the gap); a
-## flipped one's top this far below the item's sticker.
-const GAP_ABOVE := 36.0
-const FLIP_GAP := 8.0
-## The stage's side margin, and the gap a belt item's popup keeps under the top bar before it
-## flips.
+## The stage's side margin.
 const SIDE_MARGIN := 16.0
-const TOP_GAP := 4.0
 const FRAME_MARGIN := 4
-const TAIL_SIZE := Vector2(16, 10)
-## A hand item's popup opens SIDE_GAP beside the item's column (its sprite and sticker), its top
-## level with the lifted sprite's and never above the counter line; the side tail spans the gap.
+## The popup opens SIDE_GAP beside the item's column (its sprite and sticker), its top level with
+## the lifted sprite's and never above the panel's top; the tail spans the gap.
 const SIDE_GAP := 8.0
-const TAIL_SIDE_SIZE := Vector2(10, 16)
+const TAIL_SIZE := Vector2(10, 16)
 ## The tail's first art row covers the popup's outline.
 const TAIL_OVERLAP := 2.0
 const SHADOW_OFFSET := Vector2(4, 4)
@@ -54,32 +38,19 @@ const TAG_HEIGHT := 16.0
 const TAG_SIZE := 12
 const RULE_SIZE := 15
 const RULE_LINE_SPACING := 2
-## Spec 4.5 says Atkinson 13; 12 fits more of a step line on a row. A line wraps when its text and
-## the amount kept at its right don't fit on one row, with the amount on its last row.
-const FOOTER_SIZE := 12
-const FOOTER_GAP := 4.0
 const COUPON_TITLE_WIDTH := 76.0
-const RULE_DASH := 4.0
 const STAPLE := "Staple"
 const COUPON_TITLE := "COUPON"
-const PAYS_TEXT := "Pays €%d"
-## The footer's last line when the rest don't fit under MAX_HEIGHT: how many were folded.
-const MORE_TEXT := ScanFooter.MORE_TEXT
 const TAG_SEPARATOR := " · "
 
 const FRAME := preload("res://art/frames/popup.png")
-const TAIL := preload("res://art/frames/popup_tail.png")
-const TAIL_SIDE := preload("res://art/frames/popup_tail_side.png")
+const TAIL := preload("res://art/frames/popup_tail_side.png")
 
-var placement: Placement = Placement.ABOVE
+var placement: Placement = Placement.RIGHT
 
 var _content: Control
 var _rule: Label
 var _name: Label
-## Each footer line's text as the caller gave it, its amount included.
-var _footer_texts: PackedStringArray = PackedStringArray()
-var _footer_top: float = -1.0
-var _rule_end: float = 0.0
 var _tail: TextureRect
 
 
@@ -98,33 +69,15 @@ func _draw() -> void:
 	var rect: Rect2 = Rect2(Vector2.ZERO, size)
 	draw_rect(Rect2(SHADOW_OFFSET, size), Color(Palette.INK, SHADOW_ALPHA))
 	draw_style_box(ArtStyle.frame_style(FRAME, FRAME_MARGIN), rect)
-	if _footer_top < 0.0:
-		return
-	var x: float = PADDING
-	while x < _rule_end:
-		draw_rect(Rect2(x, _footer_top, RULE_DASH, ArtStyle.ART_SCALE), Palette.BRASS)
-		x += 2.0 * RULE_DASH
 
 
-## Fills the popup for `definition` (its `aisle`, or null) with its `tags` (on the belt the
-## scored ones, granted tags included). A belt item passes its `payout` and footer lines (each
-## with whether it is a fizzle); a hand item passes payout -1. Call it once the popup is in the
-## tree: the text's height is measured with the real font. The popup takes its height
-## (MIN_HEIGHT to MAX_HEIGHT), folding the footer lines that don't fit into "+N more"; place it
-## with place_at().
-func show_card(
-	definition: CardDefinition,
-	aisle: AisleDefinition,
-	tags: PackedStringArray,
-	payout: int,
-	footer_lines: PackedStringArray,
-	footer_fizzles: Array[bool]
-) -> void:
+## Fills the popup for `definition` (its `aisle`, or null) with its `tags`. Call it once the popup
+## is in the tree: the text's height is measured with the real font. The popup takes its height
+## (MIN_HEIGHT to MAX_HEIGHT); place it with place_at().
+func show_card(definition: CardDefinition, aisle: AisleDefinition, tags: PackedStringArray) -> void:
 	for child: Node in _content.get_children():
 		_content.remove_child(child)
 		child.queue_free()
-	_footer_texts.clear()
-	_footer_top = -1.0
 	var y: float = PADDING
 	_build_header(definition, aisle, y)
 	y += HEADER_HEIGHT
@@ -143,122 +96,59 @@ func show_card(
 	_rule.add_theme_constant_override("line_spacing", RULE_LINE_SPACING)
 	_rule.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	y = _add_text(_rule, y, -1.0)
-	if payout >= 0:
-		# The payout sits at the end of the footer's dashed rule, on one row.
-		y += FOOTER_GAP
-		var pays: Label = UiKit.body_label(PAYS_TEXT % payout, FOOTER_SIZE, Palette.INK)
-		pays.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
-		_keep_footer(pays.text)
-		var row_height: float = _add_text(pays, y, -1.0) - y
-		_rule_end = WIDTH - PADDING - pays.get_minimum_size().x - FOOTER_GAP * 2.0
-		_footer_top = y + roundf((row_height - ArtStyle.ART_SCALE) / 2.0)
-		# The step lines (ScanFooter) under the payout, folded to end within MAX_HEIGHT.
-		var footer: ScanFooter = ScanFooter.new(CONTENT_WIDTH, FOOTER_SIZE)
-		_content.add_child(footer)
-		footer.position = Vector2(PADDING, y + row_height)
-		footer.fill(footer_lines, footer_fizzles, MAX_HEIGHT - PADDING - footer.position.y)
-		for text: String in footer.texts():
-			_keep_footer(text)
-		y = footer.position.y + footer.size.y
 	size = Vector2(WIDTH, clampf(y + PADDING, MIN_HEIGHT, MAX_HEIGHT))
 	queue_redraw()
 
 
 ## Places the popup for an item whose lifted sprite is `item_rect` and whose sticker covers
-## `below_rect`, within `layout`, all global (an item in a scaled row is placed
-## where it is drawn), with its tail at the sprite's centre: under or over it for a belt item,
-## beside it for a hand item (its sprite in the layout's tray).
-func place_at(item_rect: Rect2, below_rect: Rect2, layout: ScanLayout) -> void:
+## `below_rect`, beside it over `area` (the offers' panel) on `stage`, all global (an item in a
+## scaled panel is placed where it is drawn), with its tail at the sprite's middle.
+func place_at(item_rect: Rect2, below_rect: Rect2, stage: Rect2, area: Rect2) -> void:
 	var to_parent: Transform2D = Transform2D.IDENTITY
 	var parent: CanvasItem = get_parent() as CanvasItem
 	if parent != null:
 		to_parent = parent.get_global_transform().affine_inverse()
 	var item: Rect2 = to_parent * item_rect
-	var rect: Rect2 = place(item, to_parent * below_rect, size, layout.transformed(to_parent))
+	var rect: Rect2 = place(item, to_parent * below_rect, size, to_parent * stage, to_parent * area)
 	position = rect.position
-	placement = placement_of(rect, item)
-	var beside: bool = placement == Placement.RIGHT or placement == Placement.LEFT
-	_tail.texture = TAIL_SIDE if beside else TAIL
-	_tail.size = TAIL_SIDE_SIZE if beside else TAIL_SIZE
-	_tail.flip_v = placement == Placement.BELOW
+	placement = Placement.LEFT if rect.end.x <= item.position.x else Placement.RIGHT
 	_tail.flip_h = placement == Placement.LEFT
-	var tail_x: float = item.get_center().x - rect.position.x - TAIL_SIZE.x / 2.0
 	var tail_y: float = clampf(
-		item.get_center().y - rect.position.y - TAIL_SIDE_SIZE.y / 2.0,
+		item.get_center().y - rect.position.y - TAIL_SIZE.y / 2.0,
 		PADDING,
-		size.y - PADDING - TAIL_SIDE_SIZE.y
+		size.y - PADDING - TAIL_SIZE.y
 	)
-	match placement:
-		Placement.ABOVE:
-			_tail.position = Vector2(tail_x, size.y - TAIL_OVERLAP)
-		Placement.BELOW:
-			_tail.position = Vector2(tail_x, TAIL_OVERLAP - TAIL_SIZE.y)
-		Placement.RIGHT:
-			_tail.position = Vector2(TAIL_OVERLAP - TAIL_SIDE_SIZE.x, tail_y)
-		Placement.LEFT:
-			_tail.position = Vector2(size.x - TAIL_OVERLAP, tail_y)
+	if placement == Placement.LEFT:
+		_tail.position = Vector2(size.x - TAIL_OVERLAP, tail_y)
+	else:
+		_tail.position = Vector2(TAIL_OVERLAP - TAIL_SIZE.x, tail_y)
 
 
-## The popup's rect for an item, in `layout`'s coordinates. A hand item's (its sprite in the
-## layout's tray): place_beside(). A belt item's (delta section 11): centred on the sprite and
-## clamped to the stage's side margins, its bottom GAP_ABOVE above the lifted sprite; when its top
-## would come within TOP_GAP of the top bar it flips FLIP_GAP below `below_rect` (the item's
-## sticker). When the flipped popup would run past the stage's foot too (a tall popup
-## on B2's mid-screen belt), it stays above, its top TOP_GAP under the top bar, over the sprite's
-## top: it never covers `below_rect`, what its footer lists. `popup_size` is the popup's size.
+## The popup's rect (round 3's hand rule, kept for the offers): it opens SIDE_GAP beside the
+## item's column (`item_rect`, the lifted sprite, merged with `below_rect`, its sticker): on the
+## right when it fits over `area`, else on the left when that fits over `area`, else on whichever
+## side fits `stage`, else clamped to the stage's side margins. Its top is level with the lifted
+## sprite's (the scan's marks stand above it), never above the area's top, and its bottom stays
+## SIDE_MARGIN above the stage's foot. It may cover the neighbouring items. `popup_size` is the
+## popup's size; every rect is in one set of coordinates.
 static func place(
-	item_rect: Rect2, below_rect: Rect2, popup_size: Vector2, layout: ScanLayout
+	item_rect: Rect2, below_rect: Rect2, popup_size: Vector2, stage: Rect2, area: Rect2
 ) -> Rect2:
-	if layout.is_in_tray(item_rect):
-		return place_beside(item_rect, below_rect, popup_size, layout)
-	var stage: Rect2 = layout.stage
-	var x: float = item_rect.get_center().x - popup_size.x / 2.0
-	x = clampf(x, stage.position.x + SIDE_MARGIN, stage.end.x - SIDE_MARGIN - popup_size.x)
-	var top: float = item_rect.position.y - GAP_ABOVE - popup_size.y
-	var highest: float = layout.top_bar_bottom + TOP_GAP
-	if top < highest:
-		var flipped: float = below_rect.end.y + FLIP_GAP
-		var fits_below: bool = flipped + popup_size.y <= stage.end.y - SIDE_MARGIN
-		top = flipped if fits_below else highest
-	return Rect2(Vector2(x, top), popup_size)
-
-
-## A hand item's popup (round 3): it never covers the belt, so the row's stickers and marks stay
-## readable. It opens SIDE_GAP beside the item's column (`item_rect`, the lifted sprite, merged
-## with `below_rect`, its sticker): on the right when it fits over the tray, else on the left when
-## that fits over the tray, else on whichever side fits the stage, else clamped to the stage's side
-## margins (no hand position needs that: the tray always has room on one side). Its top is level
-## with the lifted sprite's (the scan's marks stand above it), never above the counter line, and
-## its bottom stays SIDE_MARGIN above the stage's foot. It may cover the neighbouring hand items.
-static func place_beside(
-	item_rect: Rect2, below_rect: Rect2, popup_size: Vector2, layout: ScanLayout
-) -> Rect2:
-	var stage: Rect2 = layout.stage
-	var tray: Rect2 = layout.tray
 	var column: Rect2 = item_rect.merge(below_rect)
 	var right: float = column.end.x + SIDE_GAP
 	var left: float = column.position.x - SIDE_GAP - popup_size.x
 	var x: float = left
-	if right + popup_size.x <= tray.end.x:
+	if right + popup_size.x <= area.end.x:
 		x = right
-	elif left >= tray.position.x:
+	elif left >= area.position.x:
 		x = left
 	elif right + popup_size.x <= stage.end.x - SIDE_MARGIN:
 		x = right
 	# Neither side fits: it stays on the stage, over the item if it must.
 	x = clampf(x, stage.position.x + SIDE_MARGIN, stage.end.x - SIDE_MARGIN - popup_size.x)
 	var lowest: float = stage.end.y - SIDE_MARGIN - popup_size.y
-	var top: float = minf(maxf(item_rect.position.y, layout.counter_top), lowest)
+	var top: float = minf(maxf(item_rect.position.y, area.position.y), lowest)
 	return Rect2(Vector2(x, top), popup_size)
-
-
-## Where a placed popup `rect` opened relative to its item's sprite `item_rect`.
-static func placement_of(rect: Rect2, item_rect: Rect2) -> Placement:
-	if rect.position.x >= item_rect.end.x:
-		return Placement.RIGHT
-	if rect.end.x <= item_rect.position.x:
-		return Placement.LEFT
-	return Placement.BELOW if rect.position.y > item_rect.position.y else Placement.ABOVE
 
 
 ## The tag line: the item's `tags` and, for a product, its aisle (or Staple), unless a tag
@@ -287,12 +177,6 @@ func tail() -> TextureRect:
 	return _tail
 
 
-## The footer's lines ("Pays €N", then each step line shown, then "+N more" when some were
-## folded), empty for a hand item.
-func footer_texts() -> PackedStringArray:
-	return _footer_texts.duplicate()
-
-
 ## Every text label in the popup, for layout checks.
 func text_labels() -> Array[Label]:
 	var labels: Array[Label] = []
@@ -303,14 +187,9 @@ func text_labels() -> Array[Label]:
 ## The tail's tip (the middle of its pointed end), in the popup's parent's coordinates.
 func tail_tip() -> Vector2:
 	var box: Rect2 = Rect2(_tail.position, _tail.size)
-	match placement:
-		Placement.BELOW:
-			return position + Vector2(box.get_center().x, box.position.y)
-		Placement.RIGHT:
-			return position + Vector2(box.position.x, box.get_center().y)
-		Placement.LEFT:
-			return position + Vector2(box.end.x, box.get_center().y)
-	return position + Vector2(box.get_center().x, box.end.y)
+	if placement == Placement.LEFT:
+		return position + Vector2(box.end.x, box.get_center().y)
+	return position + Vector2(box.position.x, box.get_center().y)
 
 
 func _build_header(definition: CardDefinition, aisle: AisleDefinition, top: float) -> void:
@@ -364,11 +243,6 @@ func _add_text(label: Label, top: float, height: float) -> float:
 	if height < 0.0:
 		label.size.y = label.get_minimum_size().y
 	return top + label.size.y
-
-
-## Keeps `text` as the footer's next line, read back by footer_texts().
-func _keep_footer(text: String) -> void:
-	_footer_texts.append(text)
 
 
 static func _collect_labels(node: Node, labels: Array[Label]) -> void:

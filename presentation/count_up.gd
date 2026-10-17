@@ -16,8 +16,8 @@ extends Node
 ## EffectMarkers until their landing absorbs them (the arming card keeps a pip while any token
 ## waits, greyed for good when the effect fizzles); fizzle puffs; a receipt printer that runs
 ## faster as the run goes on, with three ticks per payout roll; a register rattle on big
-## payouts; a PaperPile that grows with every line; the quota ding with a lasting "QUOTA" chip;
-## then a held breath (longer and rattling for a large total) and the TOTAL line.
+## payouts; the quota ding with a lasting "QUOTA" chip; then a held breath (longer and rattling
+## for a large total) and the TOTAL line.
 ## Then the dessert (#61, CountUpDessert): the slam onto the monitor's total, the margin, PAID, the
 ## tear and the next shift's notice; a passed shift's ends at the printer feed (`printer_feed`),
 ## where the reward print-out takes over.
@@ -51,8 +51,8 @@ extends Node
 ## frame is still a tap). The checkout click is ignored (a press still held at the start is
 ## ignored up to its release), so is the second click of a double-click on it (CHECKOUT fires on
 ## the first click's release), and a tap after the count-up does nothing. Reduced motion (the
-## context's) removes every shake and rattle and the pile's bounce, and markers fade in instead
-## of flying; the dessert's slam fades in at full size, unshaken.
+## context's) removes every shake and rattle, and markers fade in instead of flying; the
+## dessert's slam fades in at full size, unshaken.
 ##
 ## Steps caused by an upgrade (source_kind UPGRADE) come from that upgrade's loyalty-card box:
 ## bonuses and multipliers fly in from it, and its fizzles puff out of it. Steps caused by an
@@ -125,9 +125,6 @@ const TOTAL_PUNCH := 1.5
 ## A payout's subtotal punch: SUBTOTAL_PUNCH plus up to SUBTOTAL_PUNCH_MAX for bigger payouts.
 const SUBTOTAL_PUNCH := 1.1
 const SUBTOTAL_PUNCH_MAX := 0.5
-## The pile's settle bounce: squashed this tall, back over PILE_SETTLE_TIME (D4: 80 ms).
-const PILE_SETTLE := 1.06
-const PILE_SETTLE_TIME := 0.08
 ## The dessert ducks the music (#62, Q6, #61) this far over DUCK_ATTACK_S as the pause before the
 ## total starts (the slam lands in near-silence); a dessert skip unducks it over SKIP_UNDUCK_S.
 const DESSERT_DUCK_DB := -24.0
@@ -176,9 +173,6 @@ var _met: bool = false
 var _sfx: Sfx
 ## Shaken on big payouts and before a large total (the register rattle).
 var _rattle_target: Control
-## Grows with the receipt's lines, or null.
-var _pile: PaperPile
-var _lines_printed: int = 0
 var _shown_subtotal: int = 0
 ## The subtotal's running roll and where it ends.
 var _roll: Tween
@@ -214,15 +208,14 @@ func _init() -> void:
 	_presses.tapped.connect(_tap)
 
 
-## `rattle_target` is shaken by the register rattle; `pile` (optional) grows with the receipt;
-## `tuning` defaults to TUNING_PATH. The LED's beat (its gain chip) pops on the count-up's tweens.
+## `rattle_target` is shaken by the register rattle; `tuning` defaults to TUNING_PATH. The LED's
+## beat (its gain chip) pops on the count-up's tweens.
 func setup(
 	overlay: Control,
 	receipt: ReceiptView,
 	led: LedDisplay,
 	sfx: Sfx,
 	rattle_target: Control,
-	pile: PaperPile = null,
 	tuning: CountUpTuning = null
 ) -> void:
 	_overlay = overlay
@@ -232,7 +225,6 @@ func setup(
 	_led.beat().make_tween = _tween
 	_sfx = sfx
 	_rattle_target = rattle_target
-	_pile = pile
 	_tuning = tuning if tuning != null else load(TUNING_PATH) as CountUpTuning
 	_dessert = CountUpDessert.new(overlay, receipt, led, sfx, _fx, rattle_target, _tween)
 
@@ -271,7 +263,6 @@ func play(
 	_tokens = EffectTokens.new(_overlay, plan, _steps, _views, _names, _tween)
 	_shown_subtotal = 0
 	_roll = null
-	_lines_printed = 0
 	_hit_stop_left_ms = 0.0
 	fast_forward_used = false
 	first_tap_ms = -1
@@ -281,11 +272,9 @@ func play(
 	_ducked = false
 	_presses.begin()
 	_playing = true
-	# The receipt starts over: the shift's header and every item's line waiting (#80). They are
-	# no step's lines: the pile grows with the steps' lines alone.
+	# The receipt starts over: the shift's header and every item's line waiting (#80).
 	_receipt.begin_count(context.receipt_header, _names)
 	_set_subtotal(0.0)
-	_start_pile(plan.pile_start_px)
 	for view: CardView in _views:
 		view.reset_motion()
 		view.hide_badge()
@@ -299,7 +288,7 @@ func play(
 	_duck_for_dessert()
 	await _pause()
 	_finish_roll()
-	_print_line(_receipt.add_total(result.total))
+	_receipt.add_total(result.total)
 	_sfx.play("print", _print_pitch())
 	_led.show_total()
 	_fx.punch(_led.digits_label(), TOTAL_PUNCH)
@@ -323,16 +312,9 @@ func play(
 	finished.emit()
 
 
-## Shows the paper pile of 1-based `shift` before its row prints (D4: the earlier shifts' paper),
-## flat and tidy. Called when a shift or a run starts, so the checkout never shrinks the pile.
-func show_pile_for_shift(shift: int) -> void:
-	_start_pile(CountUpPlan.pile_start_for(shift, _tuning))
-
-
 ## A checkout's end state without playing it, for a run resumed after its checkout: the subtotal
-## at the total, green with the lasting QuotaChip when the quota is met (D5), and the paper pile
-## as the count-up leaves it, curled after a large total (D4). Sets `plan` and `intensity`; the
-## receipt is the caller's (ReceiptView.show_result).
+## at the total, green with the lasting QuotaChip when the quota is met (D5). Sets `plan` and
+## `intensity`; the receipt is the caller's (ReceiptView.show_result).
 func show_end_state(result: ScoreResult, quota: int, context: CountUpContext) -> void:
 	plan = CountUpPlan.build(result.steps, quota, context, _tuning)
 	intensity = CountUpIntensity.from_plan(plan)
@@ -342,12 +324,6 @@ func show_end_state(result: ScoreResult, quota: int, context: CountUpContext) ->
 	_led.show_total()
 	if plan.quota_reached:
 		_show_chip(false)
-	_start_pile(plan.pile_start_px)
-	if _pile != null:
-		var lines: int = _printed_lines(result.steps)
-		_pile.set_height(plan.pile_start_px + _tuning.pile_px_per_line * lines)
-		if plan.size != CountUpPlan.Size.NORMAL:
-			_pile.curl(plan.size == CountUpPlan.Size.HUGE)
 
 
 func _process(_delta: float) -> void:
@@ -778,18 +754,9 @@ func _clear_row() -> void:
 	_led.reset_colour()
 
 
-## The pile starts a row at `start_px`, flat, tidy and unsquashed.
-func _start_pile(start_px: float) -> void:
-	if _pile == null:
-		return
-	_pile.scale = Vector2.ONE
-	_pile.start(start_px, _tuning.pile_cap_px)
-
-
 ## The held breath before the TOTAL line (D4): pause_ms of real time, sped up only by a tap or
-## a hold. The printer is silent; a large total rattles the register and curls the pile (a huge
-## one also spills a strip and rings the register bell). The rattle and the bell sound under
-## reduced motion too: only the shake goes.
+## a hold. The printer is silent; a large total rattles the register (a huge one also rings the
+## register bell). The rattle and the bell sound under reduced motion too: only the shake goes.
 func _pause() -> void:
 	if plan.size != CountUpPlan.Size.NORMAL:
 		var huge: bool = plan.size == CountUpPlan.Size.HUGE
@@ -806,8 +773,6 @@ func _pause() -> void:
 			4, ceili((seconds - CountUpMotion.SHAKE_SETTLE) / CountUpMotion.SHAKE_SWING)
 		)
 		_fx.shake(_rattle_target, plan.final_rattle_px, swings)
-	if _pile != null and plan.size != CountUpPlan.Size.NORMAL:
-		_pile.curl(plan.size == CountUpPlan.Size.HUGE)
 	var left: float = plan.pause_ms
 	var last: int = Time.get_ticks_usec()
 	while left > 0.0:
@@ -851,20 +816,9 @@ func _print_pitch() -> float:
 	return minf(plan.printer_speed, _tuning.print_pitch_max)
 
 
-## Prints a step's receipt line (or null: add_step) and grows the pile, for every step.
+## Prints a step's receipt line (or null: add_step), for every step.
 func _print_step(step: ScoreStep) -> Control:
-	return _print_line(_receipt.add_step(step, _names, _upgrade_names, _inspection_names))
-
-
-func _print_line(line: Control) -> Control:
-	if _pile == null:
-		return line
-	_lines_printed += 1
-	_pile.set_height(plan.pile_start_px + _tuning.pile_px_per_line * _lines_printed)
-	if not plan.reduced_motion:
-		_pile.scale = Vector2(1.0, PILE_SETTLE)
-		_fx.scale_tween(_pile).tween_property(_pile, "scale", Vector2.ONE, PILE_SETTLE_TIME)
-	return line
+	return _receipt.add_step(step, _names, _upgrade_names, _inspection_names)
 
 
 ## The card that caused a step, or null when its source is not a card (an upgrade or an
@@ -903,16 +857,6 @@ func _source_control(step: ScoreStep) -> Control:
 		return upgrade_box
 	var inspection: Control = _inspection_source(step)
 	return inspection if inspection != null else _source_view(step)
-
-
-## How many receipt lines the count-up prints for `steps`: one per step but EFFECT_ARMED (which
-## prints none), and the TOTAL line.
-static func _printed_lines(steps: Array[ScoreStep]) -> int:
-	var lines: int = 1
-	for step: ScoreStep in steps:
-		if step.step_type != ScoreStep.StepType.EFFECT_ARMED:
-			lines += 1
-	return lines
 
 
 ## The part of a source that is punched: a card's body (its layout box stays still), or the

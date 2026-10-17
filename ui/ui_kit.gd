@@ -21,22 +21,6 @@ const OPEN_SOUND := "ui_open"
 const BUTTON_FRAME := preload("res://art/frames/button.png")
 ## The lighter face for secondary buttons (a shop sign).
 const SIGN_FRAME := preload("res://art/frames/sign.png")
-## The boutique look (style frame v2, #55). Signs, Deck and Export log: velvet in a brass bezel
-## (FramedButton.FRAME_MARGIN).
-const SIGN_VELVET_FRAME := preload("res://art/frames/sign_velvet.png")
-## Redraw's face: cream in a brass edge, with BUTTON_FRAME's ledge (FramedButton.LEDGE).
-const BUTTON_BRASS_FRAME := preload("res://art/frames/button_brass.png")
-## CHECKOUT's face: velvet with a brass glint, with BUTTON_FRAME's ledge (FramedButton.LEDGE).
-const BUTTON_VELVET_FRAME := preload("res://art/frames/button_velvet.png")
-## The hand's tray: a velvet rim around a cream satin bed, TRAY_MARGIN art px.
-const TRAY_FRAME := preload("res://art/frames/tray.png")
-const TRAY_MARGIN := 6
-## A card's payout plaque: brass with a dark foot, PLAQUE_MARGIN art px.
-const PLAQUE_FRAME := preload("res://art/frames/payout_plaque.png")
-const PLAQUE_MARGIN := 3
-## The cream insets behind the status line and the hint have no art: a plain cream panel with a
-## cream-shade edge INSET_EDGE canvas px wide (inset_style).
-const INSET_EDGE := 2
 ## The outline of light display and number text (on signs and the wall), in canvas pixels.
 const LIGHT_OUTLINE := 6
 ## The notices' body-font size.
@@ -141,16 +125,6 @@ static func frame_panel(
 	panel.add_theme_stylebox_override("panel", style)
 	ArtStyle.use_pixel_material(panel)
 	return panel
-
-
-## The cream insets' look (the status panel and the hint's inset): plain cream with a cream-shade
-## edge, as style frame v2 draws them.
-static func inset_style() -> StyleBoxFlat:
-	var style: StyleBoxFlat = StyleBoxFlat.new()
-	style.bg_color = Palette.CREAM
-	style.border_color = Palette.CREAM_SHADE
-	style.set_border_width_all(INSET_EDGE)
-	return style
 
 
 ## A FramedButton added to `parent` (when not null) that calls `action` when pressed, after

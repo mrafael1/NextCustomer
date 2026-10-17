@@ -9,7 +9,7 @@ const PALETTE_FILE := "res://art/src/palette.txt"
 const PALETTE_SIZE := 67
 ## Palette and ArtStyle, then the boutique classes #55 adds to the real shift screen
 ## (StoreBackdrop, BeltPanel with step 6's BeltFootprint and ContactShadow, RegisterCabinet,
-## LedDisplay, PaperPile), the scan pieces #75 moves out of style frame v2 (PriceSticker,
+## LedDisplay), the scan pieces #75 moves out of style frame v2 (PriceSticker,
 ## ScanPopup, ScanOverlay), the items, their marks and their cells (ItemView, EffectMark,
 ## PayoutPlaque, RowStrip), which take their colours from Palette, and the hung monitor's pieces
 ## #80 adds (MonitorView, LedBeat, ScanFooter) and the back of the store (StoreShelves, step 11):
@@ -24,7 +24,6 @@ const SCRIPTS: Array[String] = [
 	"res://ui/contact_shadow.gd",
 	"res://ui/register_cabinet.gd",
 	"res://ui/led_display.gd",
-	"res://presentation/paper_pile.gd",
 	"res://ui/price_sticker.gd",
 	"res://ui/scan_popup.gd",
 	"res://ui/scan_overlay.gd",

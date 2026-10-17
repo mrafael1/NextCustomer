@@ -99,7 +99,6 @@ func test_hovering_a_rack_item_scans_it() -> void:
 	assert_int(layer.get_index()).is_less(screen._deck_view.get_index())
 	assert_str(popup.rule_label().text).is_equal(items[0].card.definition.rule_text)
 	assert_str(popup.name_label().text).is_equal(items[0].card.definition.display_name)
-	assert_array(popup.footer_texts()).is_empty()
 	_assert_offer_popup(screen, items[0])
 	_assert_offer_scanner(screen, items[0])
 	assert_bool(scan.overlay().is_posed()).is_false()

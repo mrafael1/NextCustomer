@@ -3,8 +3,7 @@ extends Control
 ## The shift screen's layout (#80, mock-up B2; full build plan section 6.1): a 1280x720 stage
 ## that ShiftScreen centres in the window over the store's bands that fill it
 ## (StoreBackdrop.screen_parts()). Every position is a stage constant taken from mock-up B2's
-## layout; the stage never scales. This is B2's greybox (step 3): the regions are where B2 has
-## them, drawn as flat palette fills, and the art lands region by region in later steps.
+## layout; the stage never scales.
 ##
 ## On the stage, back to front: the hung monitor (MonitorView: two rods, its bezel and paper screen,
 ## with the LED's totals, the notices, a scanned item and the count-up on it), the register

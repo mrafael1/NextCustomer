@@ -1,11 +1,10 @@
 class_name ScanFooter
 extends Control
-## A scan's step lines (#75; the scan popup's footer, and the monitor's since #80): each line as
-## the caller words it (ReceiptView.step_line), a fizzle's in dark tomato after the fizzle icon,
-## its amount (or "fizzle", after ReceiptView.joined_line's two spaces) right-aligned on the
-## line's last row, the text wrapped clear of it, as on the receipt. Lines that don't fit the
-## height fill() is given fold into a last "+N more" line. Display only: the lines are the
-## caller's.
+## A scan's step lines (#75; the monitor's since #80, the scan popup's footer went in step 12): each
+## line as the caller words it (ReceiptView.step_line), a fizzle's in dark tomato after the fizzle
+## icon, its amount (or "fizzle", after ReceiptView.joined_line's two spaces) right-aligned on the
+## line's last row, the text wrapped clear of it, as on the receipt. Lines that don't fit the height
+## fill() is given fold into a last "+N more" line. Display only: the lines are the caller's.
 
 ## The last line when the rest don't fit: how many were folded.
 const MORE_TEXT := "+%d more"
