@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://832m0rl1hb7x"
-path="res://.godot/imported/chip_fizzle.png-443ec6970a7b78485aab9d0968d88b9a.ctex"
+uid="uid://cb3jko4m748v3"
+path="res://.godot/imported/mark_fizzle.png-e60185b5e1613a870fd7e1cf03417f5a.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://art/frames/chip_fizzle.png"
-dest_files=["res://.godot/imported/chip_fizzle.png-443ec6970a7b78485aab9d0968d88b9a.ctex"]
+source_file="res://art/icons/mark_fizzle.png"
+dest_files=["res://.godot/imported/mark_fizzle.png-e60185b5e1613a870fd7e1cf03417f5a.ctex"]
 
 [params]
 

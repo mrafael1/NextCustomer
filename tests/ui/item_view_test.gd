@@ -1,9 +1,11 @@
 extends GdUnitTestSuite
 ## The item view (#75, step 3): every card in data/cards laid out as a belt item and as a tray
-## item, placed where the shift screen puts them, with the real fonts. The sprite never runs under
-## the plaque (at rest, selected or scanned), the sticker covers neither the sprite nor the chips,
-## center() is on the sprite, the plaque mutes at €0, the looks (selected, redraw) show, chips
-## fold past two, and every undrawn item's name fits its art-pending box or its slip.
+## item, placed where the shift screen puts them, with the real fonts. The paid chip never runs
+## under the art (at rest, selected or scanned, either face) nor, settled, over the corner mark;
+## the sticker covers neither the sprite nor the mark; center() is on the sprite; the paid chip has
+## its two faces, mutes at €0 and pops with an echo; the looks (selected, redraw) show; one mark
+## per item sits on the art's corner (#80, step 7); and every undrawn item's name fits its
+## art-pending box or its slip.
 
 const CARDS := "res://data/cards"
 const BALANCE := "res://data/balance/balance.tres"
@@ -30,36 +32,47 @@ func before_test() -> void:
 	add_child(_holder)
 
 
-## Every belt item: the sprite stands inside its cell above the sticker, the plaque on the cell's
-## top rim never runs under the sprite (at rest, selected, or with both scan-lifted, a four-digit
-## payout too), the sticker covers no chip, and all of it stays on screen.
-func test_belt_items_keep_sprite_plaque_sticker_and_chips_apart() -> void:
+## Every belt item: the sprite stands inside its cell above the sticker; the mark sits inside the
+## cell on the art's visible top-right corner, clear of the sticker; the paid chip, current or
+## settled, stays in the cell's column, over the art's visible top and under the cell's top less
+## PAID_SETTLED_MIN_Y, never running under the art (at rest or with both scan-lifted, a four-digit
+## payout too; planning, where items are selected, shows no paid chip), and a settled one or a
+## current one of up to two digits never covers the mark. All of it stays on screen.
+func test_belt_items_keep_sprite_paid_chip_sticker_and_mark_apart() -> void:
 	var views: Array[ItemView] = await _all_laid_out(ItemView.Form.BELT, BELT_ORIGIN)
 	for view: ItemView in views:
 		var message: String = view.card.definition.id
-		for text: String in ["+15 · Category", "Coupon engine", "×3 · Multipack"]:
-			view.add_chip(text, false)
+		var mark: EffectMark = view.show_mark(true)
 		var cell: Rect2 = view.get_global_rect()
 		assert_vector(cell.size).is_equal(ItemView.BELT_SIZE)
 		var sticker: Rect2 = view.sticker().get_global_rect()
 		assert_bool(cell.encloses(sticker)).override_failure_message(message).is_true()
-		for chip: EffectChip in view.chips():
-			var rect: Rect2 = chip.get_global_rect()
-			assert_bool(sticker.intersects(rect)).override_failure_message(message).is_false()
-			assert_bool(SCREEN.encloses(rect)).override_failure_message(message).is_true()
-			assert_float(rect.position.x).is_greater_equal(cell.position.x)
-			assert_float(rect.end.x).is_less_equal(cell.end.x)
-			assert_float(rect.end.y).is_less_equal(sticker.position.y - ItemView.CHIP_CLEARANCE)
-		for value: int in [0, 7, 9999]:
-			view.show_badge(value, false)
-			_assert_sprite_clear(view, message)
-			view.set_highlight(CardView.Highlight.SELECTED)
-			_assert_sprite_clear(view, message)
-			view.set_highlight(CardView.Highlight.NONE)
-			view.body.position.y = view.scan_lift()
-			view.badge.position.y = view.badge_rest_y() + view.scan_lift()
-			_assert_sprite_clear(view, message)
-			view.reset_motion()
+		var mark_rect: Rect2 = mark.get_global_rect()
+		assert_bool(cell.encloses(mark_rect)).override_failure_message(message).is_true()
+		assert_bool(mark_rect.intersects(sticker)).override_failure_message(message).is_false()
+		assert_bool(SCREEN.encloses(mark_rect)).override_failure_message(message).is_true()
+		assert_vector(mark.position).is_equal(
+			EffectMark.corner(
+				view.sprite().texture, Rect2(view._stand.position, ItemView.SPRITE_SIZE)
+			)
+		)
+		for current: bool in [true, false]:
+			view.set_badge_current(current)
+			for value: int in [0, 7, 999, 9999]:
+				var label: String = "%s, %s €%d" % [message, current, value]
+				view.show_badge(value, false)
+				_assert_sprite_clear(view, label)
+				if value < 100:
+					var face: Rect2 = _face_with_shadow(view)
+					(
+						assert_bool(face.intersects(mark_rect))
+						. override_failure_message(label)
+						. is_false()
+					)
+				view.body.position.y = view.scan_lift()
+				view.badge.position.y = view.badge_rest_y() + view.scan_lift()
+				_assert_sprite_clear(view, label)
+				view.reset_motion()
 
 
 ## Every tray item: the sprite and sticker inside the cell, apart, lifted or not; the selected
@@ -128,43 +141,179 @@ func test_the_count_up_lifts_an_item_by_its_own_height() -> void:
 	assert_float(view.badge.position.y).is_equal_approx(view.badge_rest_y(), 0.01)
 
 
-## The plaque is #55's: "pays €N" in the number font on the brass face, centred on the cell's
-## top rim; €0 and a denied value show the muted face (cream shade, a solid brass-dark edge,
-## brass-dark text) and show_badge brings the brass back. Only the face is pixel art.
-func test_the_plaque_mutes_at_zero_and_when_denied() -> void:
+## A chip that settles while its item is still dropping (a short beat's next item starts) ends
+## at the settled face's rest y, not the current one's the drop set out for.
+func test_a_chip_settled_during_the_drop_rests_at_its_settled_place() -> void:
+	var croissant: CardDefinition = load("%s/croissant.tres" % CARDS)
+	var view: ItemView = await _laid_out(croissant, ItemView.Form.BELT, BELT_ORIGIN)
+	var motion: CountUpMotion = CountUpMotion.new(_holder, create_tween)
+	view.show_badge(2, true)
+	var current_y: float = view.badge_rest_y()
+	motion.lift(view, 0.01)
+	await await_millis(60)
+	motion.drop(view, 0.2)
+	await await_millis(40)
+	view.set_badge_current(false)
+	assert_float(view.badge_rest_y()).is_not_equal(current_y)
+	await await_millis(300)
+	assert_float(view.badge.position.y).is_equal(view.badge_rest_y())
+
+
+## A chip that pops again while its last echo still fades keeps the new echo for a whole
+## ECHO_TIME: the old fade is killed and cannot hide it early.
+func test_a_new_pop_keeps_its_echo() -> void:
+	var view: ItemView = await _laid_out(
+		load("%s/milk.tres" % CARDS), ItemView.Form.BELT, BELT_ORIGIN
+	)
+	var plaque: PayoutPlaque = view.badge as PayoutPlaque
+	view.set_badge_current(true, true)
+	view.show_badge(3, false)
+	assert_bool(plaque.echo_frame().visible).is_true()
+	var wait_ms: int = int(PayoutPlaque.ECHO_TIME * 1000.0 * 0.6)
+	await await_millis(wait_ms)
+	view.set_badge_current(false)
+	view.set_badge_current(true, true)
+	view.show_badge(3, false)
+	await await_millis(wait_ms)
+	assert_bool(plaque.echo_frame().visible).is_true()
+
+
+## The count-up's gold brackets (ScanOverlay.scan_frame, mock-up B2) on every belt item: the
+## lifted sprite's sides and foot, the top brought down to SCAN_ART_GAP over the art's visible top
+## and never above the sprite's own brackets. A current chip over a low item (not held by
+## PAID_CURRENT_MIN_Y) pops above them, its echo frame 8 px clear of the top arms (B2), so the chip
+## and its shadow stay off the arms (a tall item's, held under the monitor, shares their rows).
+func test_the_count_up_brackets_hug_the_art_under_the_current_chip() -> void:
+	var lows: int = 0
+	for view: ItemView in await _all_laid_out(ItemView.Form.BELT, BELT_ORIGIN):
+		var message: String = view.card.definition.id
+		var sprite: Rect2 = ScanOverlay.lifted_sprite(view)
+		var frame: Rect2 = ScanOverlay.scan_frame(view)
+		assert_float(frame.position.x).is_equal(sprite.position.x)
+		assert_float(frame.size.x).is_equal(sprite.size.x)
+		assert_float(frame.end.y).is_equal(sprite.end.y)
+		assert_float(frame.position.y).override_failure_message(message).is_greater_equal(
+			sprite.position.y
+		)
+		var art: float = view.global_position.y + view._art_top() + view.scan_lift()
+		var brackets: Rect2 = frame.grow(ScanOverlay.BRACKET_OUTSET)
+		if frame.position.y > sprite.position.y:
+			assert_float(brackets.position.y).is_equal_approx(art - ScanOverlay.SCAN_ART_GAP, 0.01)
+		view.set_badge_current(true)
+		view.show_badge(3, false)
+		var plaque: PayoutPlaque = view.badge as PayoutPlaque
+		var lifted_y: float = view.global_position.y + view.badge_rest_y() + view.scan_lift()
+		var face: Rect2 = Rect2(
+			Vector2(view.global_position.x + plaque.position.x, lifted_y),
+			plaque.size + Vector2.ONE * plaque.shadow()
+		)
+		var outside: float = PayoutPlaque.ECHO_GAP + PayoutPlaque.ECHO_WIDTH
+		var echo_foot: float = face.end.y + outside
+		if view._art_top() - ItemView.PAID_CURRENT_ABOVE < ItemView.PAID_CURRENT_MIN_Y:
+			continue
+		assert_float(echo_foot + 8.0).override_failure_message(message).is_less_equal(
+			brackets.position.y + 0.01
+		)
+		for arm: Rect2 in _top_arms(brackets):
+			var clash: String = "%s: chip %s over the arm %s" % [message, face, arm]
+			assert_bool(face.intersects(arm)).override_failure_message(clash).is_false()
+		lows += 1
+	assert_int(lows).is_greater(0)
+
+
+## The top corner brackets' arms (ScanOverlay.draw_brackets) of the brackets' outer rect.
+static func _top_arms(brackets: Rect2) -> Array[Rect2]:
+	var arm: float = ScanOverlay.BRACKET_ARM
+	var width: float = ScanOverlay.BRACKET_WIDTH
+	var right: float = brackets.end.x
+	var top: float = brackets.position.y
+	return [
+		Rect2(brackets.position.x, top, arm, width),
+		Rect2(brackets.position.x, top, width, arm),
+		Rect2(right - arm, top, arm, width),
+		Rect2(right - width, top, width, arm),
+	]
+
+
+## The paid chip (#80, step 7; mock-up B2's count-up): "€N", hidden until shown. The current face
+## is big mustard, CURRENT_HEIGHT tall; set_badge_current(false) settles it in place into the small
+## paper face, SETTLED_HEIGHT tall, at its own rest y. €0 and a denied value show the muted face
+## at either size, and show_badge brings the plain one back. A current chip asked to pop with its
+## echo shows the frame around it (shadow included) on its next show, then fades it; without the
+## echo, or settled, none shows. The face is drawn in code, behind the text, with no pixel material.
+func test_the_paid_chip_faces_mute_and_echo() -> void:
 	var view: ItemView = await _laid_out(
 		load("%s/milk.tres" % CARDS), ItemView.Form.BELT, BELT_ORIGIN
 	)
 	var plaque: PayoutPlaque = view.badge as PayoutPlaque
 	assert_object(plaque).is_not_null()
 	assert_bool(plaque.visible).is_false()
+	assert_bool(plaque.is_current()).is_true()
 	view.show_badge(5, false)
-	assert_str(plaque.text).is_equal("pays €5")
+	assert_str(plaque.text).is_equal("€5")
+	assert_str(PayoutPlaque.text_for(17)).is_equal("€17")
 	assert_bool(plaque.is_muted()).is_false()
-	assert_object(plaque.get_theme_color("font_color")).is_equal(ArtStyle.INK)
+	assert_object(plaque.get_theme_color("font_color")).is_equal(Palette.INK)
+	assert_int(plaque.get_theme_font_size("font_size")).is_equal(PayoutPlaque.CURRENT_FONT_SIZE)
+	assert_float(plaque.face().size.y).is_equal(PayoutPlaque.CURRENT_HEIGHT)
+	assert_float(plaque.get_minimum_size().y).is_less_equal(PayoutPlaque.CURRENT_HEIGHT)
+	assert_float(plaque.position.y).is_equal(view.badge_rest_y())
 	view.show_badge(0, true)
 	assert_bool(plaque.is_muted()).is_true()
-	var muted: StyleBoxFlat = plaque.face().get_theme_stylebox("panel") as StyleBoxFlat
-	assert_object(muted).is_not_null()
-	assert_object(muted.bg_color).is_equal(Palette.CREAM_SHADE)
-	assert_object(muted.border_color).is_equal(Palette.BRASS_DARK)
-	assert_int(muted.border_width_top).is_equal(ArtStyle.ART_SCALE)
-	assert_object(plaque.get_theme_color("font_color")).is_equal(Palette.BRASS_DARK)
+	assert_object(plaque.get_theme_color("font_color")).is_equal(Palette.GREY_DARK)
 	view.show_fizzle_badge(4)
 	assert_bool(plaque.is_muted()).is_true()
-	assert_str(plaque.text).is_equal("pays €4")
+	assert_str(plaque.text).is_equal("€4")
 	view.show_badge(4, true)
 	assert_bool(plaque.is_muted()).is_false()
+	# Settled in place: the small face at its own rest y.
+	var current_y: float = view.badge_rest_y()
+	view.set_badge_current(false)
+	assert_bool(plaque.is_current()).is_false()
+	assert_bool(plaque.visible).is_true()
+	assert_str(plaque.text).is_equal("€4")
+	assert_int(plaque.get_theme_font_size("font_size")).is_equal(PayoutPlaque.SETTLED_FONT_SIZE)
+	assert_float(plaque.face().size.y).is_equal(PayoutPlaque.SETTLED_HEIGHT)
+	assert_float(plaque.get_minimum_size().y).is_less_equal(PayoutPlaque.SETTLED_HEIGHT)
+	assert_float(plaque.position.y).is_equal(view.badge_rest_y())
+	assert_float(view.badge_rest_y()).is_equal(
+		maxf(view._art_top() - ItemView.PAID_SETTLED_ABOVE, ItemView.PAID_SETTLED_MIN_Y)
+	)
+	# Its foot and shadow end over the mark's top.
+	var foot: float = view.badge_rest_y() + PayoutPlaque.SETTLED_HEIGHT + plaque.shadow()
+	assert_float(foot).is_less_equal(view._mark_rest().y)
+	assert_float(current_y).is_equal(
+		maxf(view._art_top() - ItemView.PAID_CURRENT_ABOVE, ItemView.PAID_CURRENT_MIN_Y)
+	)
+	view.show_badge(0, false)
+	assert_bool(plaque.is_muted()).is_true()
+	# The echo: only on a current chip's pop that asks for it.
+	view.show_badge(3, false)
+	assert_bool(plaque.echo_frame().visible).is_false()
+	view.set_badge_current(true, true)
+	assert_bool(plaque.echo_frame().visible).is_false()
+	view.show_badge(3, false)
+	var echo: Control = plaque.echo_frame()
+	assert_bool(echo.visible).is_true()
 	await get_tree().process_frame
-	var cell: Rect2 = view.get_global_rect()
 	var face: Rect2 = plaque.face().get_global_rect()
-	assert_float(face.position.y - cell.position.y).is_equal(ItemView.BELT_PLAQUE_Y)
-	assert_float(face.size.y).is_equal(PayoutPlaque.FACE_HEIGHT)
-	assert_float(face.get_center().x).is_equal_approx(cell.get_center().x, 0.5)
-	assert_float(plaque.get_minimum_size().y).is_less_equal(PayoutPlaque.HEIGHT)
+	var outside: float = PayoutPlaque.ECHO_GAP + PayoutPlaque.ECHO_WIDTH
+	assert_that(echo.get_global_rect()).is_equal(
+		Rect2(
+			face.position - Vector2.ONE * outside,
+			face.size + Vector2.ONE * (PayoutPlaque.CURRENT_SHADOW + 2.0 * outside)
+		)
+	)
+	view.show_badge(3, false)
+	await await_millis(int(PayoutPlaque.ECHO_TIME * 1000.0) + 150)
+	assert_bool(echo.visible).is_false()
+	view.set_badge_current(true, false)
+	view.show_badge(3, false)
+	assert_bool(echo.visible).is_false()
 	assert_object(plaque.material).is_null()
-	assert_object(plaque.face().material).is_same(ArtStyle.pixel_material())
+	assert_object(plaque.face().material).is_null()
 	assert_bool(plaque.face().show_behind_parent).is_true()
+	assert_int(plaque.mouse_filter).is_equal(Control.MOUSE_FILTER_IGNORE)
 	plaque.position.y = 40.0
 	view.reset_motion()
 	assert_float(plaque.position.y).is_equal(view.badge_rest_y())
@@ -278,8 +427,9 @@ func test_tags_are_kept_for_the_popup() -> void:
 	assert_int(coupon.tags().size()).is_equal(0)
 
 
-## The item answers the pointer on its sprite (lifted or not), sticker and chips only, not on the
-## cell's empty corners, and says when the pointer enters and leaves.
+## The item answers the pointer on its sprite (lifted or not) and sticker only, not on the cell's
+## empty corners (the mark and the paid chip are decor), and says when the pointer enters and
+## leaves.
 func test_hover_signals_and_the_hit_area() -> void:
 	var view: ItemView = await _laid_out(
 		load("%s/milk.tres" % CARDS), ItemView.Form.BELT, BELT_ORIGIN
@@ -293,8 +443,7 @@ func test_hover_signals_and_the_hit_area() -> void:
 	assert_bool(view._has_point(local_sticker.get_center())).is_true()
 	assert_bool(view._has_point(Vector2(1, 1))).is_false()
 	assert_bool(view._has_point(Vector2(2, ItemView.BELT_SIZE.y - 10))).is_false()
-	var chip: EffectChip = view.add_chip("+15 · Category", false)
-	assert_bool(view._has_point(chip.position + chip.size / 2.0)).is_true()
+	assert_int(view.show_mark(false).mouse_filter).is_equal(Control.MOUSE_FILTER_IGNORE)
 	var seen: Array[String] = []
 	view.hovered.connect(
 		func(item: ItemView) -> void: seen.append("in:%s" % item.card.definition.id)
@@ -305,53 +454,68 @@ func test_hover_signals_and_the_hit_area() -> void:
 	view.notification(Control.NOTIFICATION_MOUSE_ENTER)
 	view.notification(Control.NOTIFICATION_MOUSE_EXIT)
 	assert_array(seen).is_equal(["in:milk", "out:milk"])
-	# A flipped popup opens below the sticker and both chip places.
-	var below: Rect2 = view.below_rect()
-	assert_bool(below.encloses(view.sticker().get_global_rect())).is_true()
-	assert_float(below.end.y).is_equal(view.sticker().get_global_rect().end.y)
+	# A flipped popup opens below the sticker.
+	assert_that(view.below_rect()).is_equal(view.sticker().get_global_rect())
 
 
-## Chips stack above the sticker; past EffectChip.MAX_PER_CELL the last one shown reads
-## "+N more" for itself and the rest, and clear_chips empties them.
-func test_chips_fold_past_two() -> void:
+## One mark per item (#80, step 7): show_mark again keeps the same node and changes its kind in
+## place (check, fizzle); the disc is the mark art 13x13 at 2x with its shadow texel inside SIZE;
+## the mark stands on the art's visible top-right corner (on the 2 px grid, an art's opaque box
+## from ContactShadow.opaque_rect), moves with a hovered or selected sprite (LIFT up,
+## MARK_LIFTED_NUDGE sideways) and back, and clear_mark frees it.
+func test_one_mark_per_item_on_the_arts_corner() -> void:
 	var view: ItemView = await _laid_out(
 		load("%s/milk.tres" % CARDS), ItemView.Form.BELT, BELT_ORIGIN
 	)
-	var first: EffectChip = view.add_chip("+15 · Category", false)
-	assert_int(view.chips().size()).is_equal(1)
-	assert_str(first.label().text).is_equal("+15 · Category")
-	var second: EffectChip = view.add_chip("Coupon engine", true)
-	assert_bool(second.is_fizzle()).is_true()
-	assert_int(view.chips().size()).is_equal(2)
-	var folded: EffectChip = view.add_chip("×3 · Multipack", false)
-	assert_int(view.chips().size()).is_equal(EffectChip.MAX_PER_CELL)
-	assert_str(folded.label().text).is_equal(EffectChip.MORE_TEXT % 2)
-	assert_bool(folded.is_fizzle()).is_false()
-	assert_str(view.chips()[0].label().text).is_equal("+15 · Category")
-	view.add_chip("+2 · Slot engine", false)
-	assert_str(view.chips()[1].label().text).is_equal(EffectChip.MORE_TEXT % 3)
-	# The chips returned stay the same nodes, updated in place: the fizzle became the fold.
-	assert_bool(is_instance_valid(first)).is_true()
-	assert_bool(is_instance_valid(second)).is_true()
-	assert_object(view.chips()[0]).is_same(first)
-	assert_object(view.chips()[1]).is_same(second)
-	assert_object(folded).is_same(second)
-	assert_bool(second.is_fizzle()).is_false()
-	var sticker: Rect2 = Rect2(view.sticker().position, PriceSticker.SIZE)
-	var above: float = sticker.position.y + ItemView.CHIP_OFFSET.y
-	for chip: EffectChip in view.chips():
-		assert_float(chip.position.y).is_greater_equal(above)
-		above = chip.position.y + EffectChip.SIZE.y
-	assert_float(above).is_less_equal(sticker.position.y - ItemView.CHIP_CLEARANCE)
-	view.clear_chips()
-	assert_int(view.chips().size()).is_equal(0)
+	assert_object(view._mark).is_null()
+	var mark: EffectMark = view.show_mark(false)
+	assert_bool(mark.is_fizzle()).is_false()
+	assert_object(mark.disc().texture).is_same(EffectMark.CHECK_DISC)
+	assert_object(view.show_mark(true)).is_same(mark)
+	assert_bool(mark.is_fizzle()).is_true()
+	assert_object(mark.disc().texture).is_same(EffectMark.FIZZLE_DISC)
+	assert_vector(mark.disc().texture.get_size()).is_equal(Vector2(13, 13))
+	assert_vector(mark.disc().size).is_equal(Vector2(26, 26))
+	assert_vector(mark.size).is_equal(EffectMark.SIZE)
+	assert_object(mark.disc().material).is_same(ArtStyle.pixel_material())
+	# The corner from the art's opaque box (its used rect).
+	var texture: Texture2D = view.sprite().texture
+	var box: Rect2i = ContactShadow.opaque_rect(texture)
+	assert_that(box).is_equal(texture.get_image().get_used_rect())
+	var sprite: Rect2 = view.sprite().get_global_rect()
+	var top_right: Vector2 = sprite.position + Vector2(box.end.x, box.position.y) * 2.0
+	var rest: Vector2 = mark.global_position
+	assert_vector(rest).is_equal(top_right + EffectMark.CORNER_OFFSET)
+	for value: float in [rest.x - BELT_ORIGIN.x, rest.y - BELT_ORIGIN.y]:
+		assert_float(fmod(value, ArtStyle.ART_SCALE)).is_equal(0.0)
+	view.set_highlight(CardView.Highlight.SELECTED)
+	assert_vector(mark.global_position).is_equal(
+		rest + Vector2(ItemView.MARK_LIFTED_NUDGE, -ItemView.LIFT)
+	)
+	view.set_highlight(CardView.Highlight.NONE)
+	view.lifted = true
+	assert_vector(mark.global_position).is_equal(
+		rest + Vector2(ItemView.MARK_LIFTED_NUDGE, -ItemView.LIFT)
+	)
+	view.lifted = false
+	assert_vector(mark.global_position).is_equal(rest)
+	# Drawn over the sprite and under the paid chip.
+	assert_int(mark.get_index()).is_greater(view._stand.get_index())
+	assert_int(mark.get_index()).is_less(view.badge.get_index())
+	view.clear_mark()
+	assert_object(view._mark).is_null()
 	await get_tree().process_frame
 	(
 		assert_int(
-			view.get_children().filter(func(node: Node) -> bool: return node is EffectChip).size()
+			view.get_children().filter(func(node: Node) -> bool: return node is EffectMark).size()
 		)
 		. is_equal(0)
 	)
+	# The disc's shadow: one texel down and right, never under the disc.
+	for row: int in range(EffectMark.DISC_TEXELS):
+		for column: int in range(EffectMark.DISC_TEXELS):
+			var opaque: bool = texture_alpha(EffectMark.FIZZLE_DISC, column, row) > 0.0
+			assert_bool(opaque).is_equal(EffectMark.in_disc(column, row))
 
 
 ## The sprite comes from art_ref (48x48 at 2x): a drawn product shows its sprite and no name; an
@@ -430,11 +594,15 @@ func test_every_name_fits_its_pending_box_or_slip() -> void:
 		assert_bool(names.has(long_name)).override_failure_message(long_name).is_true()
 
 
+## The paid chip's face (its shadow included) stays off the art's visible box, in the cell's
+## column and no higher than PAID_SETTLED_MIN_Y over the cell's top; the sprite stays in its cell
+## and off the sticker.
 func _assert_sprite_clear(view: ItemView, message: String) -> void:
 	var sprite: Rect2 = view.body.get_global_rect()
-	var face: Rect2 = (view.badge as PayoutPlaque).face().get_global_rect()
+	var art: Rect2 = _art_rect(view)
+	var face: Rect2 = _face_with_shadow(view)
 	var cell: Rect2 = view.get_global_rect()
-	assert_bool(sprite.intersects(face)).override_failure_message(message).is_false()
+	assert_bool(art.intersects(face)).override_failure_message(message).is_false()
 	(
 		assert_bool(sprite.intersects(view.sticker().get_global_rect()))
 		. override_failure_message(message)
@@ -443,8 +611,31 @@ func _assert_sprite_clear(view: ItemView, message: String) -> void:
 	assert_bool(cell.encloses(sprite)).override_failure_message(message).is_true()
 	assert_float(face.position.x).is_greater_equal(cell.position.x)
 	assert_float(face.end.x).is_less_equal(cell.end.x)
+	assert_float(face.position.y).override_failure_message(message).is_greater_equal(
+		cell.position.y + ItemView.PAID_SETTLED_MIN_Y - ItemView.LIFT
+	)
 	assert_bool(SCREEN.encloses(face)).override_failure_message(message).is_true()
 	assert_bool(SCREEN.encloses(sprite)).override_failure_message(message).is_true()
+
+
+## The paid chip's face and its hard shadow, global.
+static func _face_with_shadow(view: ItemView) -> Rect2:
+	var plaque: PayoutPlaque = view.badge as PayoutPlaque
+	var face: Rect2 = plaque.face().get_global_rect()
+	return Rect2(face.position, face.size + Vector2.ONE * plaque.shadow())
+
+
+## The sprite's visible (opaque) box where it is drawn now, global.
+static func _art_rect(view: ItemView) -> Rect2:
+	var box: Rect2i = ContactShadow.opaque_rect(view.sprite().texture)
+	var sprite: Rect2 = view.sprite().get_global_rect()
+	var texel: float = sprite.size.x / view.sprite().texture.get_width()
+	return Rect2(sprite.position + Vector2(box.position) * texel, Vector2(box.size) * texel)
+
+
+## The alpha of `texture`'s texel (`column`, `row`).
+static func texture_alpha(texture: Texture2D, column: int, row: int) -> float:
+	return texture.get_image().get_pixel(column, row).a
 
 
 ## Every card as an item of `form`, side by side from `origin` (wrapping inside the screen), each

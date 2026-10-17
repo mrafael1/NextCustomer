@@ -5,7 +5,7 @@ extends Control
 ## approved frames. #56 adds the other screens.
 ##
 ## The shift: shift 5 of 8 on a fixed seed, under Short belt (5 product slots and a CLOSED one),
-## with a fixed full hand of 8 items, four items on the belt with their plaques and chips, the
+## with a fixed full hand of 8 items, four items on the belt with their tags and corner marks, the
 ## receipt's planning stub, and a 4-box loyalty card (a starting upgrade and the upgrades of
 ## shifts 2 and 4 stamped, shift 6's box empty). The hand and the belt hold staples, coupons and
 ## one product from each of the 6 aisles, so every aisle glyph shows. The screen is the game's

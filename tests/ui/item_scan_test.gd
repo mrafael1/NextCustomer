@@ -571,14 +571,14 @@ func _assert_scanner_posed(screen: ShiftScreen, view: ItemView) -> void:
 	assert_bool(sprite.encloses(line)).override_failure_message(str(line)).is_true()
 
 
-## The slot of the view whose lifted sprite (ScanOverlay.lifted_sprite) has `brackets` (global)
-## round it, or -1.
+## The slot of the view whose count-up frame (ScanOverlay.scan_frame, its lifted sprite hugging
+## the art's top) has `brackets` (global) round it, or -1.
 func _lifted_slot(views: Array[CardView], brackets: Rect2) -> int:
 	for slot: int in range(views.size()):
 		if not is_instance_valid(views[slot]):
 			continue
-		var sprite: Rect2 = ScanOverlay.lifted_sprite(views[slot] as ItemView)
-		if sprite.grow(ScanOverlay.BRACKET_OUTSET).is_equal_approx(brackets):
+		var frame: Rect2 = ScanOverlay.scan_frame(views[slot] as ItemView)
+		if frame.grow(ScanOverlay.BRACKET_OUTSET).is_equal_approx(brackets):
 			return slot
 	return -1
 

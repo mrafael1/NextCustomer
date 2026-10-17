@@ -16,6 +16,9 @@ const LINE_WIDTH := 2.0
 const BRACKET_ARM := 12.0
 const BRACKET_WIDTH := 2.0
 const BRACKET_OUTSET := 4.0
+## The count-up's brackets' top edge this far over the art's visible top (mock-up B2), never above
+## the sprite's own brackets.
+const SCAN_ART_GAP := 12.0
 
 var _brackets: Rect2 = Rect2()
 var _color: Color = Palette.TOMATO
@@ -97,6 +100,20 @@ static func lifted_sprite(item: ItemView) -> Rect2:
 	var drawn: Vector2 = ItemView.SPRITE_SIZE * factor
 	var top_left: Vector2 = item.center() - drawn / 2.0
 	return Rect2(top_left + Vector2(0, item.scan_lift() * factor.y), drawn)
+
+
+## The count-up's frame for `item` (global, for pose_scan): its lifted sprite (lifted_sprite)
+## with the top brought down to SCAN_ART_GAP - BRACKET_OUTSET over the art's visible top, so the
+## brackets hug the art as B2's do and the current paid chip pops above them; a tall item's frame
+## is the sprite's.
+static func scan_frame(item: ItemView) -> Rect2:
+	var sprite: Rect2 = lifted_sprite(item)
+	var factor: float = item.get_global_transform().get_scale().y
+	var texture: Texture2D = item.sprite().texture
+	var inset: float = ContactShadow.opaque_rect(texture).position.y * sprite.size.y
+	var art: float = sprite.position.y + inset / texture.get_height()
+	var top: float = maxf(sprite.position.y, art - (SCAN_ART_GAP - BRACKET_OUTSET) * factor)
+	return Rect2(sprite.position.x, top, sprite.size.x, sprite.end.y - top)
 
 
 ## Draws corner brackets in `color` on `canvas`, their outer edges on `rect` (the sprite's rect

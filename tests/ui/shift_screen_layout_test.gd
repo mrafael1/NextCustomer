@@ -593,7 +593,7 @@ func test_no_text_carries_the_pixel_material() -> void:
 
 ## Numbers and money use the number font: text on the stage or overlay without a font of its
 ## own (the count-up's flying numbers), the shift and quota, the LED's digits and quota line
-## and the value badges.
+## and the paid chips.
 func test_numbers_use_the_number_font() -> void:
 	var screen: ShiftScreen = await _rich_screen()
 	var number_font: Font = ArtStyle.number_font()
@@ -615,8 +615,9 @@ func test_numbers_use_the_number_font() -> void:
 		screen._redraw_button.caption_label(),
 	]
 	assert_int(screen._row_views.size()).is_greater(0)
+	# The paid chips show only in the count-up (#80, step 7), in the number font all the same.
 	for view: CardView in screen._row_views:
-		assert_bool(view.badge.visible).is_true()
+		assert_bool(view.badge.visible).is_false()
 		numbers.append(view.badge)
 	for label: Label in numbers:
 		(
@@ -710,7 +711,7 @@ static func _led_labels(screen: ShiftScreen) -> Array[Control]:
 
 
 ## A shift with a bit of everything: an inspection that closes a slot (its capacity line prints
-## "−"), placed cards with their badges, 4 stamped boxes and the receipt's end-of-shift lines.
+## "−"), placed cards, 4 stamped boxes and the receipt's end-of-shift lines.
 func _rich_screen() -> ShiftScreen:
 	var screen: ShiftScreen = await _screen()
 	var run: RunState = screen.run

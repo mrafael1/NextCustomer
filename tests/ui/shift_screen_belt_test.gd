@@ -17,8 +17,6 @@ const CELL_ORIGIN := Vector2(32, 258)
 const CELL_PITCH := 128.0
 ## The smallest a scaled row's sticker summary may print, in canvas pixels.
 const MIN_SUMMARY_PX := 10.0
-## Chip texts as long as the real ones (BeltChips adds those to every item that has steps).
-const CHIP_TEXTS: Array[String] = ["+15 · Category", "×3 · Multipack", "Coupon engine"]
 
 var _folder: String = ""
 
@@ -225,16 +223,21 @@ func _assert_full_row_fits(screen: ShiftScreen, count: int) -> void:
 	for slot: int in range(count):
 		var item: ItemView = screen._row_views[slot] as ItemView
 		item.show_badge(9999, false)
-		for text: String in CHIP_TEXTS:
-			item.add_chip(text, false)
+		item.show_mark(true)
 		var message: String = "%d slots, item %d" % [count, slot]
 		var cell: Rect2 = screen._slots[slot].get_global_rect()
 		assert_bool(rubber.encloses(cell)).override_failure_message(message).is_true()
 		var mat: Rect2 = RowStrip.mat(screen._slots[slot]).get_global_rect()
 		var sprite: Rect2 = item.body.get_global_rect()
 		assert_float(sprite.end.y).override_failure_message(message).is_less_equal(mat.position.y)
-		var parts: Array[Control] = [(item.badge as PayoutPlaque).face(), item.sticker()]
-		parts.append_array(item.chips())
+		var parts: Array[Control] = [item._mark, item.sticker()]
+		var face: Rect2 = (item.badge as PayoutPlaque).face().get_global_rect()
+		# The paid chip rises over the cell's top, in its column, under the hung monitor.
+		assert_float(face.position.x).is_greater_equal(cell.position.x - 0.01)
+		assert_float(face.end.x).is_less_equal(cell.end.x + 0.01)
+		assert_float(face.position.y).is_greater_equal(
+			_on_stage(screen, ShiftStage.MONITOR_UNDER_RECT).end.y
+		)
 		for part: Control in parts:
 			var rect: Rect2 = part.get_global_rect()
 			(
@@ -290,14 +293,15 @@ func _assert_row_on_belt(screen: ShiftScreen, panel_count: int) -> void:
 		if index > 0:
 			assert_float(rect.position.x).is_greater_equal(previous.end.x - 0.01)
 		previous = rect
+	# Planning shows no paid chip (#80, step 7); a mark stays in its cell, off the receipt.
 	for view: CardView in screen._row_views:
-		assert_bool(view.badge.visible).is_true()
-		var badge: Rect2 = view.badge.get_global_rect()
-		var face: Rect2 = (view.badge as PayoutPlaque).face().get_global_rect()
-		assert_float(badge.position.y).is_greater_equal(bar_bottom)
-		assert_bool(view.get_global_rect().encloses(face)).is_true()
-		assert_bool(face.intersects(view.body.get_global_rect())).is_false()
-		assert_bool(badge.intersects(receipt)).is_false()
+		assert_bool(view.badge.visible).is_false()
+		var mark: EffectMark = (view as ItemView)._mark
+		if mark != null:
+			var rect: Rect2 = mark.get_global_rect()
+			assert_float(rect.position.y).is_greater_equal(bar_bottom)
+			assert_bool(view.get_global_rect().encloses(rect)).is_true()
+			assert_bool(rect.intersects(receipt)).is_false()
 
 
 ## Puts copies of cards into the row, in order, and refreshes the screen.

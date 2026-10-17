@@ -94,8 +94,8 @@ static func body_font_with_symbols() -> Font:
 	return _symbol_body_font
 
 
-## The body font (Atkinson Hyperlegible Next) at `weight`, shared by the price stickers and the
-## effect chips.
+## The body font (Atkinson Hyperlegible Next) at `weight`, shared by the price stickers, the
+## items, the monitor's beats and the row's cells.
 static func bold_font(weight: int) -> Font:
 	if not _bold_fonts.has(weight):
 		var font: FontVariation = FontVariation.new()

@@ -556,7 +556,7 @@ func _merged(beat: CountUpBeat, base: ScoreStep, payout: ScoreStep) -> void:
 ## Marks an item in gold on scan_overlay where its scan lift ends; nothing waits for it.
 func _pose_scanner(view: CardView) -> void:
 	if scan_overlay != null and view is ItemView:
-		scan_overlay.pose_scan(ScanOverlay.lifted_sprite(view as ItemView))
+		scan_overlay.pose_scan(ScanOverlay.scan_frame(view as ItemView))
 
 
 ## A bonus flies in from the card that caused it, or from the upgrade's loyalty-card box (or

@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://cftlq08hbqxpg"
-path="res://.godot/imported/chip_landed.png-13c963946b01ba4854512a73b66bbad8.ctex"
+uid="uid://u6bognj31t60"
+path="res://.godot/imported/mark_check.png-3e155cef5ec7980004c19ced77d23f08.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://art/frames/chip_landed.png"
-dest_files=["res://.godot/imported/chip_landed.png-13c963946b01ba4854512a73b66bbad8.ctex"]
+source_file="res://art/icons/mark_check.png"
+dest_files=["res://.godot/imported/mark_check.png-3e155cef5ec7980004c19ced77d23f08.ctex"]
 
 [params]
 

@@ -232,9 +232,10 @@ func test_the_chip_comes_with_the_total_on_a_last_payout_crossing_and_never_on_a
 	await _assert_receipt_of(screen, result, 111)
 
 
-## The value badge is the item's brass payout plaque (#55, D2a; #75): a denied item (the Spot
-## check's €0) shows its muted face, the others their brass face, and after every scan's lift
-## and drop each badge is back at the plaque's rest y, at its cell's top over the item.
+## The value badge is the item's paid chip (#80, step 7): every item's shows "€N", a denied item
+## (the Spot check's €0) on its muted face; each settles into the small face as the next item is
+## scanned, so earlier chips stay, and the last one as the total shows; and after every scan's
+## lift and drop each chip is back at its face's rest y over the item.
 func test_a_denied_card_shows_the_muted_plaque_and_every_badge_rests() -> void:
 	var screen: ShiftScreen = await _screen()
 	await _full_row(screen)
@@ -247,6 +248,8 @@ func test_a_denied_card_shows_the_muted_plaque_and_every_badge_rests() -> void:
 		if beat.kind == CountUpBeat.Kind.DENIED:
 			denied.append(result.steps[beat.steps[0]].slot)
 	assert_int(denied.size()).is_equal(1)
+	# As the CHECKOUT click does: the chips settle, then follow the beats (BeltChips).
+	screen._belt_chips.begin_count(result, screen._row_views, false)
 	_play_tapped(screen, result, 110)
 	await _played(screen)
 	await _frames(30)
@@ -254,7 +257,9 @@ func test_a_denied_card_shows_the_muted_plaque_and_every_badge_rests() -> void:
 		var view: ItemView = screen._row_views[slot] as ItemView
 		assert_object(view).is_not_null()
 		var plaque: PayoutPlaque = view.badge as PayoutPlaque
+		assert_bool(plaque.visible).override_failure_message(str(slot)).is_true()
 		assert_str(plaque.text).is_equal(PayoutPlaque.text_for(result.payouts[slot]))
+		assert_bool(plaque.is_current()).override_failure_message(str(slot)).is_false()
 		assert_bool(plaque.is_muted()).override_failure_message(str(slot)).is_equal(
 			slot in denied or result.payouts[slot] == 0
 		)

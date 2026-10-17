@@ -9,8 +9,8 @@ extends Control
 ## A shadow's ink alpha (mock-up B2's contact shadows).
 const ALPHA := 0.5
 
-## Each texture's lowest opaque row, in its own pixels (see opaque_bottom).
-static var _bottoms: Dictionary[Texture2D, int] = {}
+## Each texture's opaque box, in its own pixels (see opaque_rect).
+static var _boxes: Dictionary[Texture2D, Rect2i] = {}
 
 ## The ink alpha this node's shadow is drawn at.
 var alpha: float = ALPHA
@@ -45,10 +45,19 @@ static func draw_on(canvas: CanvasItem, rect: Rect2, shadow_alpha: float) -> voi
 
 
 ## The row under `texture`'s lowest opaque pixel, in the texture's pixels (its height when it
-## has none): where a sprite's art meets the ground. Cached per texture.
+## has none): where a sprite's art meets the ground.
 static func opaque_bottom(texture: Texture2D) -> int:
-	if not _bottoms.has(texture):
+	return opaque_rect(texture).end.y
+
+
+## `texture`'s opaque box (Image.get_used_rect), in the texture's pixels: the whole texture when
+## it has no opaque pixel or no image. Cached per texture. The belt items' marks and paid chips
+## stand on its top (#80, step 7).
+static func opaque_rect(texture: Texture2D) -> Rect2i:
+	if not _boxes.has(texture):
 		var image: Image = texture.get_image()
 		var used: Rect2i = image.get_used_rect() if image != null else Rect2i()
-		_bottoms[texture] = used.end.y if used.size.y > 0 else texture.get_height()
-	return _bottoms[texture]
+		if used.size.x <= 0 or used.size.y <= 0:
+			used = Rect2i(Vector2i.ZERO, Vector2i(texture.get_width(), texture.get_height()))
+		_boxes[texture] = used
+	return _boxes[texture]

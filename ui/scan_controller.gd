@@ -461,8 +461,8 @@ func _on_popup(point: Vector2) -> bool:
 	return _popup.visible and _popup.get_global_rect().has_point(point)
 
 
-## Whether the pointer at `point` (global) is on `view`: its sprite (lifted or not), sticker
-## and chips.
+## Whether the pointer at `point` (global) is on `view`: its sprite (lifted or not) and
+## sticker (ItemView.hit_rect; the mark and the paid chip are decor).
 static func _hits(view: ItemView, point: Vector2) -> bool:
 	return (view.get_global_transform() * view.hit_rect()).has_point(point)
 

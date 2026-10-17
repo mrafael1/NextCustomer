@@ -5,13 +5,12 @@ extends GdUnitTestSuite
 ## that replaced the mock-up. Everything lies inside the 1280x720 stage; the top bar's parts stand
 ## apart above the belt; the cells lie on the belt (#80, mock-up B2's greybox), each belt sprite
 ## standing on its top face and each ticket on the rail, and the hand's items lie in the hand's
-## area; no sticker covers another sticker, a sprite, a chip or a plaque, and no sprite runs under
-## its own plaque; the plaques
-## show core's payouts; every printed character has its glyph; no text carries the pixel
-## material, and the sharp-pixel switch reaches every piece of art. Every rect is checked on
-## screen (headless runs use a 1280x1280 window: the stage is centred, 280 px down). The capture
-## keeps its saves and log in a temporary folder and the test redirects them too, so the real
-## ones are never touched.
+## area; no sticker covers another sticker, a sprite or a corner mark; planning shows no paid chip
+## and each belt item's mark follows core's steps (#80, step 7); every printed character has its
+## glyph; no text carries the pixel material, and the sharp-pixel switch reaches every piece of
+## art. Every rect is checked on screen (headless runs use a 1280x1280 window: the stage is
+## centred, 280 px down). The capture keeps its saves and log in a temporary folder and the test
+## redirects them too, so the real ones are never touched.
 
 const CAPTURE := "res://debug/screen_capture/screen_capture.tscn"
 ## The states: planning, a hand item scanned and a belt item scanned (each shown on the hung
@@ -123,31 +122,31 @@ func test_cells_lie_inside_the_belt_and_the_tray() -> void:
 		_assert_apart(items, "tray items")
 
 
-## No sticker covers another sticker, a sprite (lifted or not), a chip or a plaque;
-## a sprite may touch its own plaque (lifted), never run under it.
-func test_stickers_never_cover_a_sticker_a_sprite_or_a_chip() -> void:
+## No sticker covers another sticker, a sprite (lifted or not) or a corner mark; no mark covers
+## another item's sprite or mark.
+func test_stickers_never_cover_a_sticker_a_sprite_or_a_mark() -> void:
 	for scan: String in SCANS:
 		var screen: ShiftScreen = await _captured(scan)
 		var stickers: Array[Rect2] = []
 		var others: Array[Rect2] = []
-		var chips: int = 0
+		var marks: Array[Rect2] = []
 		for view: ItemView in _belt_items(screen) + _hand_items(screen):
 			stickers.append(view.sticker().get_global_rect())
-			var sprite: Rect2 = view.sprite().get_global_rect()
-			others.append(sprite)
-			for chip: EffectChip in view.chips():
-				others.append(chip.get_global_rect())
-				chips += 1
-			if view.badge.visible:
-				var plaque: Rect2 = (view.badge as PayoutPlaque).face().get_global_rect()
-				others.append(plaque)
-				(
-					assert_bool(sprite.intersects(plaque))
-					. override_failure_message("%s: %s" % [view.card.definition.id, plaque])
-					. is_false()
-				)
+			others.append(view.sprite().get_global_rect())
+			if view._mark != null:
+				marks.append(view._mark.get_global_rect())
 		assert_int(stickers.size()).is_equal(12)
-		assert_int(chips).is_greater_equal(3)
+		assert_int(marks.size()).is_greater_equal(1)
+		_assert_apart(marks, "marks")
+		for view: ItemView in _belt_items(screen):
+			if view._mark == null:
+				continue
+			var mark: Rect2 = view._mark.get_global_rect()
+			for other: ItemView in _belt_items(screen):
+				if other != view:
+					var sprite: Rect2 = other.sprite().get_global_rect()
+					assert_bool(mark.intersects(sprite)).override_failure_message(scan).is_false()
+		others.append_array(marks)
 		_assert_apart(stickers, "stickers")
 		for sticker: Rect2 in stickers:
 			for other: Rect2 in others:
@@ -158,27 +157,30 @@ func test_stickers_never_cover_a_sticker_a_sprite_or_a_chip() -> void:
 				)
 
 
-## Each belt item's plaque shows core's payout for its slot: "pays €N" on an opaque face, muted
-## at €0.
-func test_plaques_show_the_payouts() -> void:
+## Planning shows no paid chip (#80, step 7: the receipt lists the payouts); each belt item
+## carries a mark exactly when core has a step that marks it, a fizzle disc when one fizzled.
+func test_planning_shows_marks_and_no_paid_chips() -> void:
 	var screen: ShiftScreen = await _captured("")
 	var result: ScoreResult = screen.run.preview()
 	var belt: Array[ItemView] = _belt_items(screen)
 	assert_int(belt.size()).is_equal(result.payouts.size())
-	var muted: int = 0
+	var fizzles: int = 0
 	for slot: int in range(belt.size()):
-		var plaque: PayoutPlaque = belt[slot].badge as PayoutPlaque
-		assert_bool(plaque.visible).is_true()
-		assert_str(plaque.text).is_equal(PayoutPlaque.text_for(result.payouts[slot]))
-		assert_bool(plaque.is_muted()).is_equal(result.payouts[slot] == 0)
-		assert_float(plaque.modulate.a).is_equal_approx(1.0, 0.001)
-		if plaque.is_muted():
-			muted += 1
-	# Multipack, the coupon, pays €0 here (Coupon engine's first coupon pays nothing).
-	assert_int(muted).is_equal(1)
+		assert_bool(belt[slot].badge.visible).is_false()
+		var indices: PackedInt32Array = EffectChip.step_indices(result, slot)
+		var mark: EffectMark = belt[slot]._mark
+		assert_bool(mark != null).override_failure_message(str(slot)).is_equal(
+			not indices.is_empty()
+		)
+		if mark != null:
+			assert_bool(mark.is_fizzle()).is_equal(EffectChip.fizzles(result, indices))
+			if mark.is_fizzle():
+				fizzles += 1
+	# Multipack, the coupon, fizzles here.
+	assert_int(fizzles).is_greater_equal(1)
 
 
-## Every character the screen prints, the items' stickers and chips, the CLOSED cell and the
+## Every character the screen prints, the items' stickers, the CLOSED cell and the
 ## monitor's scan text too, is in the font that prints it.
 func test_every_printed_character_has_its_glyph() -> void:
 	var checked: int = 0

@@ -105,7 +105,7 @@ var _debug: ShiftDebug
 var _focus: FocusWatch
 ## The hover scanner (#75): the scan popup and the marks over the scanned item.
 var _scan: ScanController
-## The belt items' effect chips (#75): all of them in planning, one by one in the count-up.
+## The belt items' marks and paid chips (#80): marks in planning, both in the count-up.
 var _belt_chips: BeltChips = BeltChips.new()
 ## The EventLog autoload, typed. Fetched from the tree because standalone script checks
 ## don't know autoload names.
@@ -445,15 +445,8 @@ func _on_checkout_pressed() -> void:
 		_save_run()
 	_refresh()
 	var context: CountUpContext = count_up_context()
-	# The chips leave with the click and come back as their steps land (CountUp.step_landed).
-	_belt_chips.begin_count(
-		result,
-		_row_views,
-		_names(committed),
-		LoyaltyCard.names(run.upgrades),
-		InspectionTag.names(run.inspections),
-		context.reduced_motion
-	)
+	# The marks leave with the click and come back as their steps land (CountUp.step_landed).
+	_belt_chips.begin_count(result, _row_views, context.reduced_motion)
 	await _count_up.play(
 		result,
 		_row_views,
@@ -833,7 +826,7 @@ func _show_projected(total: int) -> void:
 	_led.show_projected(total, run.quota())
 
 
-## The preview: the itemised planning receipt (#80) and the belt's plaques, tags and chips.
+## The preview: the itemised planning receipt (#80) and the belt's tags and marks.
 func _show_planning(result: ScoreResult) -> void:
 	var slots: int = RowCapacity.card_limit(run.limits)
 	_receipt.show_planning(receipt_header(), result, _names(run.row), slots)
@@ -847,17 +840,17 @@ func _show_checked_out(result: ScoreResult) -> void:
 	var inspection_names: PackedStringArray = InspectionTag.names(run.inspections)
 	var names: PackedStringArray = _names(run.row)
 	_receipt.show_result(result, names, upgrade_names, inspection_names, receipt_header())
-	_show_belt(result)
+	_show_belt(result, true)
 
 
-## The belt's value badges, tags and effect chips for a result, and the result its scans read.
-func _show_belt(result: ScoreResult) -> void:
+## The belt's tags and marks for a result (and its paid chips, settled, when `paid`: a resumed
+## checkout; planning has none), and the result its scans read.
+func _show_belt(result: ScoreResult, paid: bool = false) -> void:
 	var upgrade_names: PackedStringArray = LoyaltyCard.names(run.upgrades)
 	var inspection_names: PackedStringArray = InspectionTag.names(run.inspections)
 	_scan.set_result(result, _names(run.row), upgrade_names, inspection_names)
-	_belt_chips.show_all(result, _row_views, _names(run.row), upgrade_names, inspection_names)
+	_belt_chips.show_all(result, _row_views, paid)
 	for slot: int in range(_row_views.size()):
-		_row_views[slot].show_badge(result.payouts[slot], false)
 		_row_views[slot].set_tags(result.tags[slot])
 
 
@@ -940,7 +933,7 @@ func _build() -> void:
 	_count_up.setup(_overlay, _receipt, _led, _sfx, _register)
 	_count_up.music = _music
 	_count_up.scan_overlay = _stage.scan_layer
-	_count_up.step_landed.connect(_belt_chips.land)
+	_belt_chips.follow(_count_up, _led)
 	_count_up.beat_started.connect(_monitor.follow_beat)
 	_drag = CardDrag.new()
 	add_child(_drag)

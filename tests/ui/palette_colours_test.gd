@@ -9,12 +9,12 @@ const PALETTE_FILE := "res://art/src/palette.txt"
 const PALETTE_SIZE := 67
 ## Palette and ArtStyle, then the boutique classes #55 adds to the real shift screen
 ## (StoreBackdrop, BeltPanel with step 6's BeltFootprint and ContactShadow, RegisterCabinet,
-## LedDisplay, PaperPile), the scan pieces #75
-## moves out of style frame v2 (PriceSticker, ScanPopup, ScanOverlay, EffectChip) and the items
-## and their cells (ItemView, PayoutPlaque, RowStrip), which take their colours from Palette,
-## and the hung monitor's pieces #80 adds (MonitorView, LedBeat, ScanFooter): style frame v2's
-## palette check, kept for the screen that replaced it (#75, step 9). A class is checked once its
-## script exists, so each step of the adoption is covered as it lands.
+## LedDisplay, PaperPile), the scan pieces #75 moves out of style frame v2 (PriceSticker,
+## ScanPopup, ScanOverlay), the items, their marks and their cells (ItemView, EffectMark,
+## PayoutPlaque, RowStrip), which take their colours from Palette, and the hung monitor's pieces
+## #80 adds (MonitorView, LedBeat, ScanFooter): style frame v2's palette check, kept for the screen
+## that replaced it (#75, step 9). A class is checked once its script exists, so each step of the
+## adoption is covered as it lands.
 const SCRIPTS: Array[String] = [
 	"res://ui/palette.gd",
 	"res://presentation/art_style.gd",
@@ -28,7 +28,7 @@ const SCRIPTS: Array[String] = [
 	"res://ui/price_sticker.gd",
 	"res://ui/scan_popup.gd",
 	"res://ui/scan_overlay.gd",
-	"res://ui/effect_chip.gd",
+	"res://ui/effect_mark.gd",
 	"res://ui/item_view.gd",
 	"res://ui/payout_plaque.gd",
 	"res://ui/row_strip.gd",
@@ -42,7 +42,7 @@ const PALETTE_ONLY: Array[String] = [
 	"res://ui/price_sticker.gd",
 	"res://ui/scan_popup.gd",
 	"res://ui/scan_overlay.gd",
-	"res://ui/effect_chip.gd",
+	"res://ui/effect_mark.gd",
 	"res://ui/item_view.gd",
 	"res://ui/payout_plaque.gd",
 	"res://ui/scan_footer.gd",

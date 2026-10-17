@@ -87,10 +87,12 @@ func test_items_stand_on_their_mats() -> void:
 		assert_float(sprite.end.y).override_failure_message(str(sprite)).is_less_equal(
 			ticket.position.y
 		)
+		# The count-up's paid chip (#80, step 7): in the cell's column, over the art's top.
 		item.show_badge(12, false)
 		var face: Rect2 = (item.badge as PayoutPlaque).face().get_global_rect()
-		assert_bool(cell.encloses(face)).is_true()
-		assert_bool(face.intersects(sprite)).is_false()
+		assert_float(face.position.x).is_greater_equal(cell.position.x)
+		assert_float(face.end.x).is_less_equal(cell.end.x)
+		assert_float(face.end.y).is_less_equal(cell.position.y + item._art_top() + 0.01)
 		var sticker: Rect2 = item.sticker().get_global_rect()
 		assert_that(sticker).is_equal(ticket)
 		assert_bool(cell.encloses(sticker)).is_true()
@@ -472,8 +474,7 @@ func test_wide_rows_close_their_gaps_then_scale() -> void:
 		for slot: int in range(count):
 			var item: ItemView = views[slot] as ItemView
 			item.show_badge(9999, false)
-			for text: String in ["+15 · Category", "×3 · Multipack", "Coupon engine"]:
-				item.add_chip(text, false)
+			item.show_mark(true)
 			var cell: Rect2 = strip.slots[slot].get_global_rect()
 			var message: String = "%d slots, cell %d" % [count, slot]
 			if slot > 0:
@@ -484,8 +485,7 @@ func test_wide_rows_close_their_gaps_then_scale() -> void:
 			assert_float(sprite.end.y).override_failure_message(message).is_less_equal(
 				mat.position.y
 			)
-			var parts: Array[Control] = [(item.badge as PayoutPlaque).face(), item.sticker()]
-			parts.append_array(item.chips())
+			var parts: Array[Control] = [item._mark, item.sticker()]
 			for part: Control in parts:
 				var rect: Rect2 = part.get_global_rect()
 				(
@@ -493,6 +493,10 @@ func test_wide_rows_close_their_gaps_then_scale() -> void:
 					. override_failure_message("%s: %s" % [message, rect])
 					. is_true()
 				)
+			# The paid chip stays in its cell's column (it rises over the cell's top).
+			var face: Rect2 = (item.badge as PayoutPlaque).face().get_global_rect()
+			assert_float(face.position.x).is_greater_equal(cell.position.x - 0.01)
+			assert_float(face.end.x).is_less_equal(cell.end.x + 0.01)
 			var summary: Label = item.sticker().summary_label()
 			var shown: float = (
 				summary.get_theme_font_size("font_size")

@@ -6,7 +6,7 @@ extends Control
 ## card's rule text verbatim and, for a belt item, a footer under a dashed brass rule with its
 ## payout and its step lines, as the caller words them. Its tail points at the item. place() is
 ## the pure placement rule. A belt item's popup (delta section 11) sits above the item with room
-## for its marks, clamped to the stage, flipped below the item's sticker and chips when it would
+## for its marks, clamped to the stage, flipped below the item's sticker when it would
 ## reach the top bar, or held under the top bar over the sprite's top when it fits neither way
 ## (B2's belt stands mid-screen). A hand item's popup (round 3) never covers the belt: it opens
 ## beside the item, over the tray, its tail pointing sideways at the item. The popup grows with
@@ -22,12 +22,12 @@ enum Placement { ABOVE, BELOW, RIGHT, LEFT }
 const WIDTH := 288.0
 const MIN_HEIGHT := 140.0
 ## The cap: the longest rule text with its header, tag line and payout row fits well within it,
-## and a belt item's popup held under the top bar still ends above its chips.
+## and a belt item's popup held under the top bar still ends above its sticker.
 const MAX_HEIGHT := 280.0
 const PADDING := 12.0
 const CONTENT_WIDTH := 264.0
 ## The popup's bottom sits this far above the lifted sprite (the scan's marks fit in the gap); a
-## flipped one's top this far below the item's sticker and chips.
+## flipped one's top this far below the item's sticker.
 const GAP_ABOVE := 36.0
 const FLIP_GAP := 8.0
 ## The stage's side margin, and the gap a belt item's popup keeps under the top bar before it
@@ -164,8 +164,8 @@ func show_card(
 	queue_redraw()
 
 
-## Places the popup for an item whose lifted sprite is `item_rect` and whose sticker (and chips,
-## on the belt) cover `below_rect`, within `layout`, all global (an item in a scaled row is placed
+## Places the popup for an item whose lifted sprite is `item_rect` and whose sticker covers
+## `below_rect`, within `layout`, all global (an item in a scaled row is placed
 ## where it is drawn), with its tail at the sprite's centre: under or over it for a belt item,
 ## beside it for a hand item (its sprite in the layout's tray).
 func place_at(item_rect: Rect2, below_rect: Rect2, layout: ScanLayout) -> void:
@@ -203,7 +203,7 @@ func place_at(item_rect: Rect2, below_rect: Rect2, layout: ScanLayout) -> void:
 ## layout's tray): place_beside(). A belt item's (delta section 11): centred on the sprite and
 ## clamped to the stage's side margins, its bottom GAP_ABOVE above the lifted sprite; when its top
 ## would come within TOP_GAP of the top bar it flips FLIP_GAP below `below_rect` (the item's
-## sticker and chips). When the flipped popup would run past the stage's foot too (a tall popup
+## sticker). When the flipped popup would run past the stage's foot too (a tall popup
 ## on B2's mid-screen belt), it stays above, its top TOP_GAP under the top bar, over the sprite's
 ## top: it never covers `below_rect`, what its footer lists. `popup_size` is the popup's size.
 static func place(
@@ -223,7 +223,7 @@ static func place(
 	return Rect2(Vector2(x, top), popup_size)
 
 
-## A hand item's popup (round 3): it never covers the belt, so the row's stickers and chips stay
+## A hand item's popup (round 3): it never covers the belt, so the row's stickers and marks stay
 ## readable. It opens SIDE_GAP beside the item's column (`item_rect`, the lifted sprite, merged
 ## with `below_rect`, its sticker): on the right when it fits over the tray, else on the left when
 ## that fits over the tray, else on whichever side fits the stage, else clamped to the stage's side

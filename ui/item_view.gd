@@ -6,16 +6,16 @@ extends CardView
 ## count-up plays it unchanged.
 ##
 ## Three forms. On the belt (a BELT_SIZE cell; mock-up B2, #80) the sprite stands on the belt's top
-## face with the payout plaque over it, the sticker is its ticket on the price rail, and up to
-## EffectChip.MAX_PER_CELL effect chips sit between the sprite's foot and the ticket. In the hand's
-## tray (a TRAY_SIZE cell) the sprite stands on a soft shadow. A drag's ghost (GHOST, CardDrag) is
-## the sprite alone, in a SPRITE_SIZE view with no sticker. A belt item stands on a contact shadow
-## (BELT_SHADOW, on the cell's ground line; smaller and fainter while the sprite is lifted): its
-## sprite drops by the art's transparent rows under its opaque foot (the coupon slip's 8), so every
-## item's visible foot stands on that line (mock-up B2's `base`).
+## face, the sticker is its ticket on the price rail, an EffectMark may sit on the art's visible
+## top-right corner and, in the count-up, the paid chip (PayoutPlaque) pops above the art. In the
+## hand's tray (a TRAY_SIZE cell) the sprite stands on a soft shadow. A drag's ghost (GHOST,
+## CardDrag) is the sprite alone, in a SPRITE_SIZE view with no sticker. A belt item stands on a
+## contact shadow (BELT_SHADOW, on the cell's ground line; smaller and fainter while the sprite is
+## lifted): its sprite drops by the art's transparent rows under its opaque foot (the coupon slip's
+## 8), so every item's visible foot stands on that line (mock-up B2's `base`).
 ## `body` holds only the sprite, so the count-up's punches, shakes and lifts move the sprite while
-## the sticker and chips stay still and readable; `center()` is the sprite's middle. The scan
-## lifts the sprite and plaque by LIFT (scan_lift), which keeps the sprite clear of its plaque.
+## the sticker and mark stay still and readable; `center()` is the sprite's middle. The scan
+## lifts the sprite and paid chip by LIFT (scan_lift); a hover or a selection lifts the mark too.
 ##
 ## An undrawn product shows the dashed art-pending box with its name printed in it, and a coupon
 ## without an icon the real slip with its name in the icon's place (#75, decision 3A). The view
@@ -23,7 +23,7 @@ extends CardView
 ## form. Every number comes from the card's data or the caller (the ScoreResult): the view never
 ## scores.
 
-## The pointer entered or left the item: its sprite, sticker and chips (hit_rect).
+## The pointer entered or left the item: its sprite or sticker (hit_rect).
 signal hovered(view: ItemView)
 signal unhovered(view: ItemView)
 
@@ -32,24 +32,33 @@ enum Form { TRAY, BELT, GHOST }
 const BELT_SIZE := Vector2(116, 232)
 const TRAY_SIZE := Vector2(108, 168)
 const SPRITE_SIZE := Vector2(96, 96)
-## On the belt the sprite stands with its foot on the top face (the cell's top is the plaque's;
-## BELT_GROUND_Y is the foot's line), and the sticker hangs on the price rail.
+## On the belt the sprite stands with its foot on the top face (BELT_GROUND_Y is the foot's
+## line), and the sticker hangs on the price rail.
 const BELT_SPRITE := Vector2(10, 28)
 const BELT_GROUND_Y := BELT_SPRITE.y + SPRITE_SIZE.y
 const TRAY_SPRITE := Vector2(6, 4)
 const BELT_STICKER := Vector2(4, 166)
 const TRAY_STICKER := Vector2(0, 104)
-## The plaque face's top: the cell's top on the belt (the sprite, lifted, touches it and never
-## runs under it), above the cell in the tray (where no count-up shows it).
-const BELT_PLAQUE_Y := 0.0
-const TRAY_PLAQUE_Y := -24.0
 ## How far a scan or a selection raises the sprite.
 const LIFT := 4.0
-## The chips above the sticker (from the sticker's top-left), CHIP_PITCH apart: the lower one ends
-## CHIP_CLEARANCE above the ticket. Belt items only.
-const CHIP_OFFSET := Vector2(-4, -42)
-const CHIP_PITCH := 20.0
-const CHIP_CLEARANCE := 4.0
+## The paid chip (PayoutPlaque) over the art's visible top at rest (mock-up B2's count-up): the
+## current one's face top PAID_CURRENT_ABOVE over it, an earlier one's PAID_SETTLED_ABOVE (its
+## foot then clears the mark's top by 2 px; B2's 32 would sit on it), never above the MIN_Y lines,
+## which keep a tall item's chip (lifted too) under the hung monitor and its shadow off the art; the
+## pop's brief echo may reach the monitor's foot. The count-up's brackets hug the art's top
+## (ScanOverlay.scan_frame), so a low item's chip and echo end over them; a tall item's, held by
+## the MIN_Y line, share the top arms' rows (a narrow one's, kept off the mark, may cross the left
+## arm: the monitor leaves no room above). A current chip whose rows reach the mark's top
+## keeps MARK_GAP left of the mark's column (from three digits on a narrow item it may still reach
+## the mark).
+const PAID_CURRENT_ABOVE := 64.0
+const PAID_SETTLED_ABOVE := 40.0
+const PAID_CURRENT_MIN_Y := -6.0
+const PAID_SETTLED_MIN_Y := -8.0
+const MARK_GAP := 2.0
+## A hovered or selected item's mark moves this far sideways (with the sprite's LIFT up), inside
+## the scan brackets' corner (mock-up B2's hovered coupon).
+const MARK_LIFTED_NUDGE := -6.0
 ## The tray's soft shadow under the sprite.
 const TRAY_SHADOW := Rect2(14, 94, 80, 8)
 const SHADOW_ALPHA := 0.25
@@ -99,10 +108,8 @@ var _sticker: PriceSticker
 var _plaque: PayoutPlaque
 var _highlight: CardView.Highlight = CardView.Highlight.NONE
 var _tags: PackedStringArray = PackedStringArray()
-## Every chip added, in order; the shown ones fold past EffectChip.MAX_PER_CELL.
-var _chip_texts: PackedStringArray = PackedStringArray()
-var _chip_fizzles: Array[bool] = []
-var _chips: Array[EffectChip] = []
+## The corner mark, or null (no step marks the item, or cleared).
+var _mark: EffectMark
 
 
 func _init(
@@ -120,7 +127,7 @@ func _init(
 
 
 ## Lays the item out as a belt item, a tray item or a drag's ghost: its size, the sprite's,
-## sticker's, plaque's and chips' places.
+## sticker's, paid chip's and mark's places.
 func set_form(item_form: Form) -> void:
 	form = item_form
 	var belt: bool = form == Form.BELT
@@ -132,10 +139,10 @@ func set_form(item_form: Form) -> void:
 	_sticker.position = BELT_STICKER if belt else TRAY_STICKER
 	_sticker.visible = not ghost
 	_redraw_mark.position = _sticker.position + REDRAW_RECT.position
-	_plaque.centre_x = size.x / 2.0
-	_plaque.position.x = (size.x - _plaque.size.x) / 2.0
+	_place_badge(_plaque.is_current())
+	_plaque.set_current(_plaque.is_current())
 	_plaque.position.y = badge_rest_y()
-	_lay_out_chips()
+	_place_mark()
 	queue_redraw()
 
 
@@ -151,8 +158,8 @@ func set_highlight(highlight: CardView.Highlight) -> void:
 	queue_redraw()
 
 
-## Shows the payout plaque: "pays €N" on the brass face, or on the muted face at €0. `strong`
-## (the count-up's running value) looks the same: the count-up punches the plaque instead.
+## Shows the paid chip, "€N" (muted at €0). `strong` (the count-up's running value) looks the
+## same: the count-up punches the chip instead, and set_badge_current picks its face.
 func show_badge(value: int, _strong: bool) -> void:
 	_plaque.show_value(value, value == 0)
 
@@ -162,8 +169,19 @@ func show_fizzle_badge(value: int) -> void:
 	_plaque.show_value(value, true)
 
 
+## Gives the paid chip the current item's face (big mustard; `with_echo`: its next pop shows the
+## echo frame) or an earlier item's (small paper), at that face's rest place.
+func set_badge_current(current: bool, with_echo: bool = false) -> void:
+	_place_badge(current)
+	_plaque.set_current(current, with_echo)
+	_plaque.position.y = badge_rest_y()
+
+
+## The paid chip's rest y for its face: over the art's visible top, under the MIN_Y lines.
 func badge_rest_y() -> float:
-	return PayoutPlaque.rest_y(BELT_PLAQUE_Y if form == Form.BELT else TRAY_PLAQUE_Y)
+	if _plaque.is_current():
+		return maxf(_art_top() - PAID_CURRENT_ABOVE, PAID_CURRENT_MIN_Y)
+	return maxf(_art_top() - PAID_SETTLED_ABOVE, PAID_SETTLED_MIN_Y)
 
 
 func scan_lift() -> float:
@@ -211,27 +229,22 @@ func name_label() -> Label:
 	return _name_label
 
 
-## Adds an effect chip above the sticker (a belt item's). Past EffectChip.MAX_PER_CELL chips the
-## last shown one reads "+N more" for itself and the rest. Returns the chip that shows this one;
-## it stays the same node, updated in place, until clear_chips.
-func add_chip(text: String, fizzle: bool) -> EffectChip:
-	_chip_texts.append(text)
-	_chip_fizzles.append(fizzle)
-	_lay_out_chips()
-	return _chips[_chips.size() - 1]
+## Shows the corner mark, a fizzle disc or a check (one per item: a shown mark changes kind in
+## place). Returns it.
+func show_mark(fizzle: bool) -> EffectMark:
+	if _mark == null:
+		_mark = EffectMark.new(fizzle)
+		add_child(_mark)
+		move_child(_mark, _plaque.get_index())
+		_place_mark()
+	_mark.set_fizzle(fizzle)
+	return _mark
 
 
-func clear_chips() -> void:
-	_chip_texts.clear()
-	_chip_fizzles.clear()
-	for chip: EffectChip in _chips:
-		chip.free()
-	_chips.clear()
-
-
-## The chips shown (at most EffectChip.MAX_PER_CELL).
-func chips() -> Array[EffectChip]:
-	return _chips.duplicate()
+func clear_mark() -> void:
+	if _mark != null:
+		_mark.free()
+		_mark = null
 
 
 ## The selected item's gold brackets (this view's coordinates), or an empty rect.
@@ -242,23 +255,15 @@ func brackets() -> Rect2:
 
 
 ## Where the pointer hovers and clicks the item (this view's coordinates): the sprite (lifted or
-## not), the sticker and the chips shown.
+## not) and the sticker. The mark and the paid chip are decor.
 func hit_rect() -> Rect2:
 	var rect: Rect2 = Rect2(_stand.position - Vector2(0, LIFT), SPRITE_SIZE + Vector2(0, LIFT))
-	rect = rect.merge(Rect2(_sticker.position, PriceSticker.SIZE))
-	for chip: EffectChip in _chips:
-		rect = rect.merge(Rect2(chip.position, EffectChip.SIZE))
-	return rect
+	return rect.merge(Rect2(_sticker.position, PriceSticker.SIZE))
 
 
-## What a flipped scan popup opens below (global): the sticker and, on the belt, the chips'
-## places under it, shown or not.
+## What a flipped scan popup opens below (global): the sticker.
 func below_rect() -> Rect2:
-	var rect: Rect2 = Rect2(_sticker.position, PriceSticker.SIZE)
-	if form == Form.BELT:
-		for place: int in range(EffectChip.MAX_PER_CELL):
-			rect = rect.merge(Rect2(_chip_position(place), EffectChip.SIZE))
-	return get_global_transform() * rect
+	return get_global_transform() * Rect2(_sticker.position, PriceSticker.SIZE)
 
 
 func _has_point(point: Vector2) -> bool:
@@ -309,10 +314,47 @@ func _draw() -> void:
 		ScanOverlay.draw_brackets(self, marked, Palette.GOLD)
 
 
-## Lifts the sprite by LIFT while it is selected or scanned, else rests it (its shadow follows).
+## Lifts the sprite by LIFT while it is selected or scanned, else rests it (its shadow and mark
+## follow).
 func _place_body() -> void:
 	body.position.y = -LIFT if _is_up() else 0.0
+	_place_mark()
 	queue_redraw()
+
+
+## The art's visible top at rest, in this view's coordinates (ContactShadow.opaque_rect).
+func _art_top() -> float:
+	var texture: Texture2D = _sprite.texture
+	var box: Rect2i = ContactShadow.opaque_rect(texture)
+	return _stand.position.y + box.position.y * SPRITE_SIZE.y / texture.get_height()
+
+
+## The mark's place at rest (this view's coordinates): on the art's visible top-right corner.
+func _mark_rest() -> Vector2:
+	return EffectMark.corner(_sprite.texture, Rect2(_stand.position, SPRITE_SIZE))
+
+
+## Puts the mark on its corner, nudged and lifted with a hovered or selected sprite.
+func _place_mark() -> void:
+	if _mark == null:
+		return
+	var lift: Vector2 = Vector2(MARK_LIFTED_NUDGE, -LIFT) if _is_up() else Vector2.ZERO
+	_mark.position = _mark_rest() + lift
+
+
+## The paid chip's horizontal limits for the `current` face: centred on the sprite, inside the
+## cell, and a current chip whose lifted rows reach the mark's top kept MARK_GAP left of the
+## mark's column.
+func _place_badge(current: bool) -> void:
+	_plaque.centre_x = _stand.position.x + SPRITE_SIZE.x / 2.0
+	_plaque.left_limit = 0.0
+	_plaque.right_limit = size.x
+	if current:
+		var top: float = maxf(_art_top() - PAID_CURRENT_ABOVE, PAID_CURRENT_MIN_Y) - LIFT
+		var foot: float = top + PayoutPlaque.CURRENT_HEIGHT + PayoutPlaque.CURRENT_SHADOW
+		var corner: Vector2 = _mark_rest()
+		if foot + MARK_GAP > corner.y:
+			_plaque.right_limit = minf(size.x, corner.x - MARK_GAP)
 
 
 ## Whether the sprite is lifted: scanned or selected.
@@ -327,7 +369,7 @@ func _fit_body() -> void:
 	_redraw_mark.size = REDRAW_RECT.size
 
 
-## The form-neutral parts: the sprite in `body` on its stand, the REDRAW tag and the plaque.
+## The form-neutral parts: the sprite in `body` on its stand, the REDRAW tag and the paid chip.
 ## _init adds the sticker and lays them out for the form.
 func _build() -> void:
 	var definition: CardDefinition = card.definition
@@ -398,27 +440,3 @@ static func _printed_name(definition: CardDefinition) -> Label:
 	label.position = rect.position
 	label.size = rect.size
 	return label
-
-
-## Shows the chips added in place: the first MAX_PER_CELL - 1, then the last shown one, or
-## "+N more" for it and the rest. Existing chips are updated, never rebuilt, so a chip that
-## add_chip returned stays valid (and keeps any tween on it) until clear_chips.
-func _lay_out_chips() -> void:
-	var count: int = _chip_texts.size()
-	for place: int in range(mini(count, EffectChip.MAX_PER_CELL)):
-		var text: String = _chip_texts[place]
-		var fizzle: bool = _chip_fizzles[place]
-		if place == EffectChip.MAX_PER_CELL - 1 and count > EffectChip.MAX_PER_CELL:
-			text = EffectChip.MORE_TEXT % (count - place)
-			fizzle = false
-		if place == _chips.size():
-			var chip: EffectChip = EffectChip.new(text, fizzle)
-			_chips.append(chip)
-			add_child(chip)
-		elif _chips[place].label().text != text or _chips[place].is_fizzle() != fizzle:
-			_chips[place].set_content(text, fizzle)
-		_chips[place].position = _chip_position(place)
-
-
-func _chip_position(place: int) -> Vector2:
-	return _sticker.position + CHIP_OFFSET + Vector2(0, place * CHIP_PITCH)
