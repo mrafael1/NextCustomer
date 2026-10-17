@@ -36,7 +36,7 @@ enum Form { TRAY, BELT, GHOST, BASKET }
 
 const BELT_SIZE := Vector2(116, 232)
 const TRAY_SIZE := Vector2(108, 168)
-## A basket item's cell (HandRow), from under the capacity line down past every sprite's foot. A
+## A basket item's cell (HandRow), from 20 px under the rail down past every sprite's foot. A
 ## short art's transparent top rows may stand above it; its hit area starts at the art.
 const BASKET_SIZE := Vector2(96, 110)
 const SPRITE_SIZE := Vector2(96, 96)
@@ -55,8 +55,8 @@ const BASKET_RIM_Y := 78.0
 const BASKET_SINK_PARTS := 3.0
 const BASKET_COUPON_RISE := 8.0
 ## How far a scan or a selection raises the sprite; a scan raises a basket item BASKET_LIFT out
-## of its basket (mock-up B2: about 16 px; 14 keeps the tallest art, outlined, under the
-## capacity line, ShiftStage.CAPACITY_RECT).
+## of its basket (mock-up B2: about 16 px; 14 keeps the tallest art, outlined, under the hand's
+## top, ShiftStage.HAND_RECT).
 const LIFT := 4.0
 const BASKET_LIFT := 14.0
 ## The paid chip (PayoutPlaque) over the art's visible top at rest (mock-up B2's count-up): the
@@ -103,8 +103,8 @@ const PRINTED_NAME := "PrintedName"
 ## A redraw-marked item fades to REDRAW_ALPHA; its REDRAW tag covers the sticker's glyph corner
 ## (sticker coordinates), clear of the base value (or COUPON) and the summary. In a basket the tag
 ## is a flag centred over the art, overlapping its top by REDRAW_FLAG_OVERLAP and never above
-## REDRAW_FLAG_MIN_Y (the cell's coordinates), which keeps it in the cell, under the capacity
-## line.
+## REDRAW_FLAG_MIN_Y (the cell's coordinates), which keeps it in the cell, under the rail or the
+## hand's top (ShiftStage.HAND_RECT).
 const REDRAW_ALPHA := 0.55
 const REDRAW_RECT := Rect2(56, 6, 48, 22)
 const REDRAW_FLAG_OVERLAP := 4.0

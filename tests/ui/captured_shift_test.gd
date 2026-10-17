@@ -204,10 +204,12 @@ func test_every_printed_character_has_its_glyph() -> void:
 					)
 					. is_true()
 				)
-	# The basket items show no stickers (#80, step 8): only the belt's tickets print item text.
-	assert_int(checked).is_greater(1500)
-	var caption: String = load("res://data/inspections/short_belt.tres").display_name
-	for required: String in [RowStrip.CLOSED_TEXT, "COUPON", caption, "5", "6", "Multipack"]:
+	# The basket items show no stickers (#80, step 8), and the counter no hint lines (step 12):
+	# only the belt's tickets print item text.
+	assert_int(checked).is_greater(1000)
+	var chip: String = "Inspection · %s" % load("res://data/inspections/short_belt.tres").chip_text
+	var caption: String = RowStrip.CLOSED_CAPTION_TEXT
+	for required: String in [RowStrip.CLOSED_TEXT, "COUPON", caption, chip, "5", "6", "Multipack"]:
 		assert_bool(printed.has(required)).override_failure_message(required).is_true()
 
 

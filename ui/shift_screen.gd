@@ -14,7 +14,8 @@ extends Control
 ##
 ## The row has slot_count product slots plus coupon-only slots (plan section 3.1). The row is
 ## compacted, so the coupon slot is a capacity, not a position: no panel is marked as the
-## coupon slot (a coupon can go anywhere), and the capacity label counts it instead.
+## coupon slot (a coupon can go anywhere). The row's slots alone show the capacity, and
+## RowCapacity enforces it.
 ##
 ## The layout (#55; full build plan section 6.1) is ShiftStage's: a 1280x720 stage centred in the
 ## window over a wall and a counter that fill it. The screen keeps its own names for the stage's
@@ -75,11 +76,10 @@ var _seed_label: Label
 var _slots: Array[PanelContainer] = []
 var _row_views: Array[CardView] = []
 var _hand_box: HandRow
-var _capacity_label: Label
 var _notice_label: NoticeLabel
 var _drag: CardDrag
 var _receipt: ReceiptView
-var _redraw_button: FramedButton
+var _redraw_button: RegisterKey
 var _cancel_button: FramedButton
 var _checkout_button: FramedButton
 var _results: ResultsPanel
@@ -737,31 +737,12 @@ func _refresh() -> void:
 		"Seed %d  ·  %s"
 		% [run.run_seed, str(ProjectSettings.get_setting("next_customer/build_label", ""))]
 	)
-	_capacity_label.text = (
-		"Products %d/%d%s  ·  Coupon slot%s %d/%d%s"
-		% [
-			RowCapacity.product_count(run.row),
-			run.limits.slot_count,
-			_closed_text(run.limits.closed_slots, run.limits.slot_count),
-			"s" if run.limits.coupon_slot_count > 1 else "",
-			RowCapacity.coupon_slots_used(run.limits, run.row),
-			run.limits.coupon_slot_count,
-			_closed_text(run.limits.closed_coupon_slots, run.limits.coupon_slot_count)
-		]
-	)
 	_refresh_row()
 	_refresh_hand()
 	_refresh_buttons()
 	if not _counting and run.phase == RunState.Phase.PLANNING:
 		_refresh_preview()
 	_scan.watch(_row_views, _hand_box.cards())
-
-
-## " (inspection -1)" when the shift's inspection closed slots, " (closed)" when none are left.
-static func _closed_text(closed: int, left: int) -> String:
-	if closed <= 0:
-		return ""
-	return "  (closed)" if left == 0 else "  (inspection −%d)" % closed
 
 
 ## One slot per card the shift allows (upgrades can add slots), then the row's cards, standing
@@ -800,17 +781,17 @@ func _refresh_buttons() -> void:
 	var redraw_left: bool = run.redraws_used < run.redraws_allowed
 	_redraw_button.disabled = not planning or not redraw_left
 	_cancel_button.visible = _redraw_mode
+	# Mock-up B2's "Redraw  N left": the count is a note beside the word; screen readers still
+	# hear how many items a redraw takes.
 	if _redraw_mode:
-		_redraw_button.caption = (
-			"Confirm redraw (%d/%d)" % [_redraw_pick.size(), run.balance.redraw_limit]
-		)
+		var picked: String = "%d/%d" % [_redraw_pick.size(), run.balance.redraw_limit]
+		_redraw_button.show_caption("Confirm redraw", picked, "Confirm redraw (%s)" % picked)
 	elif redraw_left:
-		_redraw_button.caption = (
-			"Redraw up to %d (%d left)"
-			% [run.balance.redraw_limit, run.redraws_allowed - run.redraws_used]
-		)
+		var left: int = run.redraws_allowed - run.redraws_used
+		var spoken: String = "Redraw up to %d items (%d left)" % [run.balance.redraw_limit, left]
+		_redraw_button.show_caption("Redraw", "%d left" % left, spoken)
 	else:
-		_redraw_button.caption = "Redraw used"
+		_redraw_button.show_caption("Redraw used")
 
 
 func _refresh_preview() -> void:
@@ -909,7 +890,6 @@ func _build() -> void:
 	_row_strip.closed_clicked.connect(_on_closed_slot_clicked)
 	# The same array as the strip's, kept in place across rebuilds, so CardDrag sees new slots.
 	_slots = _row_strip.slots
-	_capacity_label = _stage.capacity_label
 	_notice_label = _stage.notice_label
 	_cancel_button = _stage.cancel_button
 	_redraw_button = _stage.redraw_button

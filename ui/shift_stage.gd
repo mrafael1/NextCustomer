@@ -14,9 +14,8 @@ extends Control
 ## slot, the belt (BeltPanel: the steel guard, the rubber top face, the lip, the apron and the price
 ## rail, then the row of items standing on the belt with their tickets on the rail), the top bar
 ## (TopBar: the SHIFT, QUOTA, inspection and LOYALTY chips, Cart and the menu with Export log,
-## all above RewardPanel.PRINTOUT_TOP), the capacity line and the cue on the counter under the
-## rail, the hand's baskets on the steel ledge (HandBaskets: their backs, the hand in them, their
-## fronts) and the shade that darkens them while counting, and the controls hint along the floor.
+## all above RewardPanel.PRINTOUT_TOP), the hand's baskets on the steel ledge (HandBaskets: their
+## backs, the hand in them, their fronts) and the shade that darkens them while counting.
 ## Over them all the scan layer (ScanOverlay: the scan's brackets and beam) and the popup layer,
 ## both taking no clicks. A belt or hand item's scan shows on the monitor (#80); the popup layer
 ## only parks the hidden scan popup, which opens over the offers alone, in the layer an offer's
@@ -86,10 +85,6 @@ const RECEIPT_WIDTH := 236.0
 const RECEIPT_BOTTOM := 340.0
 const RECEIPT_TOP := 64.0
 const RECEIPT_PADDING := 8
-## The capacity line and the cue on the counter under the rail's shadow.
-const CAPACITY_RECT := Rect2(20, 494, 600, 20)
-const CUE_RECT := Rect2(628, 494, 296, 20)
-const CUE_TEXT := "Scanned left to right →"
 ## The keys on the register's key deck (RegisterCabinet builds them). Redraw keeps its right
 ## edge, so a longer caption never grows it off the column; Cancel (redraw mode only) takes the
 ## keypad's place, left of the seam.
@@ -98,9 +93,10 @@ const REDRAW_RECT := Rect2(1062, 518, 198, 54)
 const CANCEL_RECT := Rect2(964, 518, 84, 54)
 ## The steel ledge in front of the counter (its art, ink outline included) and the hand in its
 ## baskets on it (HandRow: ItemView.BASKET_SIZE cells, from the first basket's left edge to the
-## last one's right edge at the natural pitch; the baskets' rims are HandBaskets').
+## last one's right edge at the natural pitch; the baskets' rims are HandBaskets'). The hand
+## starts 20 px under the rail's shadow: a scanned or picked basket item rises into that gap.
 const LEDGE_RECT := Rect2(10, 662, 924, 34)
-const HAND_RECT := Rect2(26, CAPACITY_RECT.end.y, 892, ItemView.BASKET_SIZE.y)
+const HAND_RECT := Rect2(26, 514, 892, ItemView.BASKET_SIZE.y)
 ## Where the hand is: from the counter under the rail down to the stage's foot, left of the
 ## register.
 const HAND_AREA := Rect2(0, 494, 944, 226)
@@ -108,12 +104,6 @@ const HAND_AREA := Rect2(0, 494, 944, 226)
 ## B2's count-up), so the belt reads first.
 const COUNTING_SHADE_RECT := Rect2(0, 496, 944, 204)
 const COUNTING_SHADE_ALPHA := 0.4
-## The controls hint, along the floor under the ledge.
-const HINT_RECT := Rect2(20, 698, 904, 20)
-const HINT_TEXT := (
-	"Rest the pointer on an item to scan · click or drag an item onto a slot · "
-	+ "tap to skip the count, hold to fast-forward"
-)
 const SEED_RECT := Rect2(1062, 586, 198, 18)
 
 const RECEIPT_PAPER := preload("res://art/frames/receipt_paper.png")
@@ -145,24 +135,18 @@ var row_strip: RowStrip
 ## popup opens in.
 var scan_layer: ScanOverlay
 var popup_layer: Control
-var capacity_label: Label
-var cue_label: Label
 var notice_label: NoticeLabel
 ## The hand's baskets on their ledge (decor): their backs under the hand, their fronts over it,
 ## and the shade over both while counting.
 var baskets: HandBaskets
 var basket_fronts: HandBaskets
 var hand_shade: ColorRect
-var hint_label: Label
 ## The register's keys (the cabinet's, so they rattle with it).
 var cancel_button: RegisterKey
 var redraw_button: RegisterKey
 var checkout_button: RegisterKey
 var hand: HandRow
 var seed_label: Label
-## Each label's layout rect, set again once the stage is in the tree: before that, a label's
-## minimum size isn't its real one, and a label never shrinks back to its rect by itself.
-var _label_rects: Dictionary[Label, Rect2] = {}
 
 
 ## A stage whose row starts with `slot_count` slots.
@@ -180,12 +164,6 @@ func _init(slot_count: int) -> void:
 	_build_counter()
 	_build_keys()
 	_build_scan_layers()
-
-
-func _ready() -> void:
-	for label: Label in _label_rects:
-		label.position = _label_rects[label].position
-		label.size = _label_rects[label].size
 
 
 func _build_top_bar() -> void:
@@ -257,20 +235,9 @@ func _place_row() -> void:
 	row_strip.position = Vector2(ROW_POSITION.x, ROW_BOTTOM - height) - BELT_RECT.position
 
 
-## On the counter: the capacity line and the cue under the rail, the ledge and the baskets with
-## the hand in them, the counting shade over them, and the hint along the floor.
+## On the counter: the ledge and the baskets with the hand in them, and the counting shade over
+## them.
 func _build_counter() -> void:
-	capacity_label = UiKit.body_label("", 14, Palette.CREAM)
-	capacity_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	add_child(capacity_label)
-	_place_label(capacity_label, CAPACITY_RECT)
-	cue_label = UiKit.body_label(CUE_TEXT, 13, Color(Palette.CREAM, 0.8))
-	# Atkinson Hyperlegible Next has no "→".
-	cue_label.add_theme_font_override("font", ArtStyle.body_font_with_symbols())
-	cue_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
-	cue_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	add_child(cue_label)
-	_place_label(cue_label, CUE_RECT)
 	hand = HandRow.new()
 	hand.position = HAND_RECT.position
 	hand.size = HAND_RECT.size
@@ -287,10 +254,6 @@ func _build_counter() -> void:
 	hand_shade.size = COUNTING_SHADE_RECT.size
 	hand_shade.visible = false
 	add_child(hand_shade)
-	hint_label = UiKit.body_label(HINT_TEXT, 13, Color(Palette.CREAM, 0.8))
-	hint_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	add_child(hint_label)
-	_place_label(hint_label, HINT_RECT)
 
 
 ## The register's keys (CHECKOUT, Redraw, Cancel in redraw mode only) and seed line, wired to the
@@ -317,9 +280,3 @@ func _build_scan_layers() -> void:
 	popup_layer.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	popup_layer.size = SIZE
 	add_child(popup_layer)
-
-
-func _place_label(label: Label, rect: Rect2) -> void:
-	_label_rects[label] = rect
-	label.position = rect.position
-	label.size = rect.size

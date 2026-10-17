@@ -41,7 +41,6 @@ const GLYPH_PATH := "res://art/icons/aisle_%s.png"
 
 static var _material: ShaderMaterial
 static var _number_font: FontVariation
-static var _symbol_body_font: FontVariation
 static var _bold_fonts: Dictionary[int, FontVariation] = {}
 static var _spaced_display_fonts: Dictionary[int, FontVariation] = {}
 
@@ -82,16 +81,6 @@ static func number_font() -> Font:
 		var weight: int = TextServerManager.get_primary_interface().name_to_tag("wght")
 		_number_font.variation_opentype = {weight: NUMBER_WEIGHT}
 	return _number_font
-
-
-## The body font with JetBrains Mono behind it for the symbols it lacks, such as the "→" of
-## the shift screen's "Scanned left to right →" cue (no system fallback on the web build).
-static func body_font_with_symbols() -> Font:
-	if _symbol_body_font == null:
-		_symbol_body_font = FontVariation.new()
-		_symbol_body_font.base_font = BODY_FONT
-		_symbol_body_font.fallbacks = [MONO_FONT]
-	return _symbol_body_font
 
 
 ## The body font (Atkinson Hyperlegible Next) at `weight`, shared by the price stickers, the

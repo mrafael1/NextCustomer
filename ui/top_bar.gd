@@ -3,7 +3,8 @@ extends HBoxContainer
 ## The shift screen's top bar (#80 step 10, mock-up B2): one row of teal chips on the dark teal
 ## band, GAP apart: SHIFT n/m, the QUOTA chip (QuotaMeter: the quota, a bar and the projected
 ## total, then the subtotal while counting; it takes the room left), the inspection chip (paper,
-## with the mustard warning sign and the inspection's name; hidden on shifts without one), the
+## with the mustard warning sign and "Inspection · <effect>", the name in its hover text; hidden
+## on shifts without one), the
 ## LOYALTY chip with its stamps, the Cart button with its trolley, and the menu button (three
 ## drawn bars) whose menu holds Export log. Cart and the menu stay clickable behind every panel:
 ## the shade starts under the band (ShiftScreen), and the menu opens in its own popup window.

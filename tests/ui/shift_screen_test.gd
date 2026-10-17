@@ -137,11 +137,15 @@ func test_the_row_shows_the_coupon_slot() -> void:
 	assert_int(screen._slots.size()).is_equal(7)
 	for slot: int in range(7):
 		assert_str(_slot_hint(screen, slot)).is_equal(str(slot + 1))
-	assert_str(screen._capacity_label.text).contains("Products 0/6").contains("Coupon slot 0/1")
+	var run: RunState = screen.run
+	assert_int(run.limits.slot_count).is_equal(6)
+	assert_int(run.limits.coupon_slot_count).is_equal(1)
 	_place_ids(screen, ["bread", "repeat"])
-	assert_str(screen._capacity_label.text).contains("Products 1/6").contains("Coupon slot 1/1")
+	assert_int(RowCapacity.product_count(run.row)).is_equal(1)
+	assert_int(RowCapacity.coupon_slots_used(run.limits, run.row)).is_equal(1)
 	_place_ids(screen, ["repeat"])
-	assert_str(screen._capacity_label.text).contains("Products 1/6").contains("Coupon slot 1/1")
+	assert_int(RowCapacity.product_count(run.row)).is_equal(1)
+	assert_int(RowCapacity.coupon_slots_used(run.limits, run.row)).is_equal(1)
 	await _frames(2)
 	var stage: Rect2 = _stage_rect(screen)
 	var receipt: Rect2 = screen._receipt.get_global_rect()

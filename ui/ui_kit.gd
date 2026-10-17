@@ -6,7 +6,7 @@ extends RefCounted
 ##
 ## The pixel-art kit (full build plan section 6.1, #55; moved here from the style frame): frame
 ## panels, sprites, framed buttons (FramedButton) and labels by font role. Signs, buttons and
-## titles use the display font (Pixelify Sans); rules, tag lines, the capacity line, notices and
+## titles use the display font (Pixelify Sans); rules, tag lines, notices, the CLOSED caption and
 ## hints the body font (Atkinson Hyperlegible Next); numbers and prices ArtStyle.number_font();
 ## the receipt the mono font (JetBrains Mono). Art gets the sharp-pixel material; text never
 ## does.
@@ -193,7 +193,7 @@ static func number_label(text: String, font_size: int, light: bool) -> Label:
 	return result
 
 
-## Body-font text: rules, tag lines, the capacity line, notices and hints.
+## Body-font text: rules, tag lines, notices and hints.
 static func body_label(text: String, font_size: int, color: Color = Palette.PAPER) -> Label:
 	var result: Label = _text_label(text, ArtStyle.BODY_FONT, font_size)
 	result.add_theme_color_override("font_color", color)

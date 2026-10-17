@@ -81,7 +81,7 @@ func caption_label() -> Label:
 	return _label
 
 
-## Prints the caption in the number font, for captions that carry counts (Cart n/m, Redraw):
+## Prints the caption in the number font, for captions that carry counts (Cart n/m):
 ## every number uses it (plan section 6.1).
 func use_number_font() -> void:
 	_label.add_theme_font_override("font", ArtStyle.number_font())

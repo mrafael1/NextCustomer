@@ -1,10 +1,11 @@
 class_name InspectionTag
 extends PanelContainer
 ## The current shift's inspection in the top bar (plan section 3.9; #80 step 10, mock-up B2): a
-## paper chip with the mustard warning sign and "Inspection · <name>" in the body font, visible
-## for the whole shift, so the restriction is never shown only inside an animation. Hovering it
-## shows each inspection's notice. Hidden on shifts without an inspection. Inspections never go on
-## the loyalty card.
+## paper chip with the mustard warning sign and "Inspection · <effect>" in the body font (each
+## inspection's chip_text, from data, e.g. "Inspection · −1 slot"), visible for the whole shift, so
+## the restriction is never shown only inside an animation. Hovering it shows each inspection's
+## name and notice. Hidden on shifts without an inspection. Inspections never go on the loyalty
+## card.
 
 ## The red notice printed under a passed shift's total when the next shift is inspected.
 const NEXT_NOTICE := "INSPECTION NEXT SHIFT: %s"
@@ -44,14 +45,14 @@ func _init() -> void:
 	visible = false
 
 
-## Shows the shift's inspections by name (empty: hidden). Hovering shows each one's name and
-## notice.
+## Shows the shift's inspections by their effects (empty: hidden). Hovering shows each one's
+## name and notice.
 func show_inspections(inspections: Array[InspectionDefinition]) -> void:
 	visible = not inspections.is_empty()
 	var tips: PackedStringArray = PackedStringArray()
 	for inspection: InspectionDefinition in inspections:
 		tips.append("INSPECTION: %s\n%s" % [inspection.display_name, inspection.notice_text])
-	_label.text = " · ".join(PackedStringArray(["Inspection"]) + names(inspections))
+	_label.text = " · ".join(PackedStringArray(["Inspection"]) + effects(inspections))
 	tooltip_text = "\n\n".join(tips)
 
 
@@ -79,6 +80,15 @@ static func names(inspections: Array[InspectionDefinition]) -> PackedStringArray
 	var result: PackedStringArray = PackedStringArray()
 	for inspection: InspectionDefinition in inspections:
 		result.append(inspection.display_name)
+	return result
+
+
+## The inspections' chip texts (the name for one without), indexed like the shift's inspections.
+static func effects(inspections: Array[InspectionDefinition]) -> PackedStringArray:
+	var result: PackedStringArray = PackedStringArray()
+	for inspection: InspectionDefinition in inspections:
+		var effect: String = inspection.chip_text
+		result.append(effect if not effect.is_empty() else inspection.display_name)
 	return result
 
 

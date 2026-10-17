@@ -63,8 +63,8 @@ const NUMBER_COLOR := Palette.GREY_DARK
 ## each the post art's top region over its foot region (the shaft between them is plain, so the
 ## seam never shows), their contact shadows a little to the right, and the velvet rope hooked over
 ## them at its art's size; on the rail the ink plate, over its shadow, with CLOSED clear of its
-## tomato band (the sign, mock-up B2's 9 px gap) and the caption hanging right under it (two lines
-## when two inspections close slots), the pair one block on the plate.
+## tomato band (the sign, mock-up B2's 9 px gap) and the caption ("inspection", B2's) hanging
+## right under it, the pair one block on the plate.
 const POST_RECTS: Array[Rect2] = [Rect2(9, 8, 12, 104), Rect2(91, 8, 12, 104)]
 const POST_TOP_REGION := Rect2(0, 0, 12, 52)
 const POST_FOOT_REGION := Rect2(0, 20, 12, 52)
@@ -75,6 +75,7 @@ const CLOSED_PLATE_RECT := TICKET_RECT
 const CLOSED_PLATE_MARGIN := 3
 const CLOSED_TEXT := "CLOSED"
 const CLOSED_SIZE := 18
+const CLOSED_CAPTION_TEXT := "inspection"
 const CLOSED_CAPTION_RECT := Rect2(6, 200, 104, 30)
 const CLOSED_CAPTION_SIZE := 12
 const CLOSED_CAPTION_WEIGHT := 700
@@ -203,14 +204,13 @@ static func is_hovered(panel: PanelContainer) -> bool:
 	return marks != null and (marks.get_node(NodePath(HOVER_NAME)) as CanvasItem).visible
 
 
-## The caption of a CLOSED cell: the names of `inspections` that close slots (product or
-## coupon slots), from data.
+## The caption of a CLOSED cell: CLOSED_CAPTION_TEXT when one of `inspections` closes slots
+## (product or coupon slots), else empty. The cell's hover text names the inspections.
 static func closed_caption(inspections: Array[InspectionDefinition]) -> String:
-	var closing: PackedStringArray = PackedStringArray()
 	for inspection: InspectionDefinition in inspections:
 		if inspection.extra_slots < 0 or inspection.extra_coupon_slots < 0:
-			closing.append(inspection.display_name)
-	return ", ".join(closing)
+			return CLOSED_CAPTION_TEXT
+	return ""
 
 
 ## A CLOSED cell's caption label.

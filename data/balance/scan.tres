@@ -4,4 +4,4 @@
 
 [resource]
 script = ExtResource("1_tuning")
-hold_ms = 1000
+hold_ms = 600

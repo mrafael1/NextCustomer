@@ -3,7 +3,7 @@ extends GdUnitTestSuite
 ## fills four baskets at HandRow.BASKET_PITCH, two items each in hand order, none overlapping;
 ## each item's art sinks about a third under its basket's front rim; the ledge, the baskets'
 ## backs and fronts and every item (lifted or not, with its REDRAW flag or selected outline) stay
-## in the ledge band (under the capacity line, down to the ledge's foot, left of the register);
+## in the ledge band (from the hand's top, down to the ledge's foot, left of the register);
 ## baskets stay when items leave for the belt; more than 8 items (debug) add baskets and narrow
 ## the basket step, and then hover brings an item to the front so it takes the click; a selected
 ## item lifts with a mustard outline, a redraw-marked one dims under its REDRAW flag; a full hand
@@ -199,12 +199,11 @@ func test_the_hovered_item_takes_the_click() -> void:
 
 ## A selected item lifts by LIFT with a mustard outline one art pixel round its sprite and no gold
 ## brackets; in redraw mode a marked item dims to REDRAW_ALPHA under its REDRAW flag, centred over
-## its sprite. The outline and the flags stay in the ledge band, under the capacity line, and the
-## flags apart.
+## its sprite. The outline and the flags stay in the ledge band, under the rail, and the flags
+## apart.
 func test_the_selected_and_redraw_looks_in_a_basket() -> void:
 	var screen: ShiftScreen = await _screen()
 	var band: Rect2 = _ledge_band(screen)
-	var capacity: Rect2 = screen._capacity_label.get_global_rect()
 	var view: ItemView = screen._hand_box.cards()[1] as ItemView
 	var rest: Rect2 = view.sprite().get_global_rect()
 	screen._on_hand_card_clicked(view)
@@ -225,7 +224,6 @@ func test_the_selected_and_redraw_looks_in_a_basket() -> void:
 	)
 	var art: Rect2 = _art(picked).grow(pixel)
 	assert_bool(band.encloses(art)).override_failure_message(str(art)).is_true()
-	assert_bool(art.intersects(capacity)).is_false()
 
 	screen._drop_pick()
 	screen._on_redraw_pressed()
@@ -245,15 +243,13 @@ func test_the_selected_and_redraw_looks_in_a_basket() -> void:
 		assert_float(rect.get_center().x).is_equal_approx(centre, 0.5)
 		assert_float(rect.position.y).is_less(_art(marked).position.y)
 		assert_bool(band.encloses(rect)).override_failure_message(str(rect)).is_true()
-		assert_bool(rect.intersects(capacity)).is_false()
 		flags.append(rect)
 	_assert_rects_apart(flags, "flags")
 	assert_bool((screen._hand_box.cards()[2] as ItemView)._redraw_mark.visible).is_false()
 
 
 ## A full hand of 8 (with Cancel shown, in redraw mode) stays on the stage, clear of CHECKOUT,
-## Redraw, Cancel, the hint, the capacity line, the rail and the receipt, even lifted with its
-## outline.
+## Redraw, Cancel, the rail and the receipt, even lifted with its outline.
 func test_a_full_hand_clears_the_buttons_and_the_receipt() -> void:
 	var screen: ShiftScreen = await _screen()
 	screen._on_redraw_pressed()
@@ -261,12 +257,10 @@ func test_a_full_hand_clears_the_buttons_and_the_receipt() -> void:
 	assert_bool(screen._cancel_button.visible).is_true()
 	var stage: Rect2 = screen._stage.get_global_rect()
 	var blockers: Array[Control] = [
-		screen._stage.hint_label,
 		screen._cancel_button,
 		screen._redraw_button,
 		screen._checkout_button,
 		screen._receipt,
-		screen._capacity_label,
 	]
 	var rail: Rect2 = screen._stage.belt.get_global_transform() * screen._stage.belt.rail()
 	var views: Array[Control] = screen._hand_box.cards()
@@ -323,10 +317,10 @@ func test_clearing_a_hovered_hand_reorders_nothing() -> void:
 	assert_int(screen._hand_box.cards().size()).is_equal(0)
 
 
-## The ledge band on screen: under the capacity line, down to the ledge's foot, left of the
-## register.
+## The ledge band on screen: from the hand's top under the rail, down to the ledge's foot, left
+## of the register.
 static func _ledge_band(screen: ShiftScreen) -> Rect2:
-	var top: float = ShiftStage.CAPACITY_RECT.end.y
+	var top: float = ShiftStage.HAND_RECT.position.y
 	var bottom: float = ShiftStage.LEDGE_RECT.end.y
 	return _on_stage(screen, Rect2(0, top, ShiftStage.REGISTER_RECT.position.x, bottom - top))
 

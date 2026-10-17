@@ -10,6 +10,9 @@ extends Resource
 ## The announcement, printed in red under the previous shift's total and shown during the
 ## inspected shift, e.g. "The 3rd product pays €0".
 @export_multiline var notice_text: String = ""
+## The effect in a few words, for the top bar's inspection chip ("Inspection · −1 slot", mock-up
+## B2); the chip's hover text gives the name and the notice.
+@export var chip_text: String = ""
 ## Scoring rules, asked about every slot by the scoring loop (never attached to a card).
 @export var rules: Array[InspectionRule] = []
 ## Shift modifiers (ShiftLimits), added to the run's: product slots and coupon-only slots, negative

@@ -308,7 +308,9 @@ func test_row_items_carry_their_aisle() -> void:
 ## with CLOSED on its top and the caption under it, the tooltip and the click signal. Nothing in
 ## the cell takes the click from the cell.
 func test_a_closed_slot_shows_the_rope_and_the_sign() -> void:
-	var strip: RowStrip = await _strip(6, 1, "Closed by the inspection: Short belt", "Short belt")
+	var strip: RowStrip = await _strip(
+		6, 1, "Closed by the inspection: Short belt", RowStrip.CLOSED_CAPTION_TEXT
+	)
 	assert_int(strip.closed.size()).is_equal(1)
 	var panel: PanelContainer = strip.closed[0]
 	assert_object(RowStrip.mat(panel)).is_null()
@@ -385,7 +387,7 @@ func test_a_closed_slot_shows_the_rope_and_the_sign() -> void:
 	for part: TextureRect in parts:
 		assert_bool(part.has_meta(ArtStyle.PIXEL_ART_META)).is_true()
 	var caption: Label = RowStrip.closed_caption_label(panel)
-	assert_str(caption.text).is_equal("Short belt")
+	assert_str(caption.text).is_equal(RowStrip.CLOSED_CAPTION_TEXT)
 	assert_that(caption.get_global_rect()).is_equal(_in_cell(cell, RowStrip.CLOSED_CAPTION_RECT))
 	assert_float(caption.get_global_rect().position.y).is_greater_equal(
 		parts[1].get_global_rect().end.y
@@ -407,8 +409,8 @@ func test_a_closed_slot_shows_the_rope_and_the_sign() -> void:
 	assert_int(clicks[0]).is_equal(1)
 
 
-## The caption names the inspections that close slots, from data; every one of them, and all of
-## them together, fit the caption's rect (two lines at most).
+## The caption says "inspection" when an inspection closes slots (from data), and fits the
+## caption's rect (two lines at most), for each one and for all of them together.
 func test_every_closed_caption_fits() -> void:
 	var closing: Array[InspectionDefinition] = []
 	for file_name: String in DirAccess.get_files_at(INSPECTIONS):
@@ -417,7 +419,7 @@ func test_every_closed_caption_fits() -> void:
 		var inspection: InspectionDefinition = load(INSPECTIONS.path_join(file_name))
 		var caption: String = RowStrip.closed_caption([inspection])
 		if inspection.extra_slots < 0 or inspection.extra_coupon_slots < 0:
-			assert_str(caption).is_equal(inspection.display_name)
+			assert_str(caption).is_equal(RowStrip.CLOSED_CAPTION_TEXT)
 			closing.append(inspection)
 		else:
 			assert_str(caption).is_empty()

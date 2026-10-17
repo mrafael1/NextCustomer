@@ -4,10 +4,10 @@ extends GdUnitTestSuite
 ## the store's bands that cover the viewport; the top bar with its longest texts above the shade;
 ## the hung monitor with the totals and the notices on its screen; the belt with the row's items on
 ## its top face and their tickets on the rail (its rows: shift_screen_belt_test); the register
-## with the printer the receipt rises from; the capacity line and the cue under the rail; CHECKOUT,
-## Redraw and Cancel on the register column (every caption fits); the hand's row over the baskets
-## (its baskets, items, hover order and drag ghost: hand_baskets_test); the hint along the floor
-## and the seed line under Redraw. Every rect is checked on screen against the stage and against
+## with the printer the receipt rises from; nothing printed between the rail and the hand;
+## CHECKOUT, Redraw and Cancel on the register column (every caption fits); the hand's row over the
+## baskets (its baskets, items, hover order and drag ghost: hand_baskets_test), with no hint under
+## it, and the seed line under Redraw. Every rect is checked on screen against the stage and against
 ## the layout's constants. Also the style checks: no text carries the pixel material, numbers use
 ## the number font, every printed character has its glyph, and the sharp-pixel shader switches off
 ## and on. The real saves and logs are never touched.
@@ -141,17 +141,26 @@ func test_the_stage_is_laid_out_without_overlaps() -> void:
 		stage.position + ShiftStage.ROW_POSITION
 	)
 
-	# The capacity line and the cue on the counter under the rail, apart, above the hand's items.
-	var cue: Label = _label_with(screen._stage, ShiftStage.CUE_TEXT)
-	assert_that(screen._capacity_label.get_global_rect()).is_equal(
-		_on_stage(screen, ShiftStage.CAPACITY_RECT)
+	# No text on the counter between the rail and the hand, and none under the hand (#80, step
+	# 12: B2 has neither the capacity line, the cue nor the controls hint).
+	var below_rail: Rect2 = Rect2(
+		stage.position.x,
+		rail.end.y,
+		register.position.x - stage.position.x,
+		stage.end.y - rail.end.y
 	)
-	assert_that(cue.get_global_rect()).is_equal(_on_stage(screen, ShiftStage.CUE_RECT))
-	_assert_apart([screen._capacity_label, cue])
-	for label: Control in [screen._capacity_label, cue]:
-		var rect: Rect2 = label.get_global_rect()
-		assert_float(rect.position.y).is_greater_equal(rail.end.y)
-		assert_float(rect.end.x).is_less_equal(register.position.x)
+	for label: Node in screen._stage.find_children("*", "Label", true, false):
+		var printed: Label = label as Label
+		if printed.text.is_empty() or not printed.is_visible_in_tree():
+			continue
+		if screen._hand_box.is_ancestor_of(printed):
+			continue
+		var rect: Rect2 = printed.get_global_rect()
+		(
+			assert_bool(below_rail.intersects(rect))
+			. override_failure_message("'%s' at %s" % [printed.text, rect])
+			. is_false()
+		)
 
 	# CHECKOUT, Redraw and Cancel on the register column, apart.
 	var expected: Dictionary[Control, Rect2] = {
@@ -168,19 +177,11 @@ func test_the_stage_is_laid_out_without_overlaps() -> void:
 		keys.append(part)
 	_assert_apart(keys)
 
-	# The hand over the baskets, left of the register; the hint along the floor under it; the
-	# seed line under Redraw, on the column.
+	# The hand over the baskets, left of the register; the seed line under Redraw, on the column.
 	var hand: Rect2 = screen._hand_box.get_global_rect()
 	assert_that(hand).is_equal(_on_stage(screen, ShiftStage.HAND_RECT))
 	assert_bool(_on_stage(screen, ShiftStage.HAND_AREA).encloses(hand)).is_true()
 	assert_float(hand.end.x).is_less_equal(register.position.x)
-	var hint: Label = screen._stage.hint_label
-	var hint_rect: Rect2 = hint.get_global_rect()
-	assert_that(hint_rect).is_equal(_on_stage(screen, ShiftStage.HINT_RECT))
-	assert_float(hint.get_minimum_size().y).is_less_equal(hint.size.y)
-	assert_float(hint.get_minimum_size().x).is_less_equal(hint.size.x)
-	assert_float(hint_rect.position.y).is_greater_equal(hand.end.y)
-	assert_bool(stage.encloses(hint_rect)).is_true()
 	var seed_rect: Rect2 = screen._seed_label.get_global_rect()
 	assert_that(seed_rect).is_equal(_on_stage(screen, ShiftStage.SEED_RECT))
 	assert_float(screen._seed_label.get_minimum_size().y).is_less_equal(seed_rect.size.y)
@@ -258,9 +259,7 @@ func test_the_top_bar_fits_its_longest_texts() -> void:
 		assert_str(top_bar.quota_meter.amount_label.text).is_equal("€9999")
 		assert_bool(top_bar.quota_meter.check_shown()).is_true()
 		assert_int(screen._loyalty_card.box_texts().size()).is_equal(4)
-		assert_str(screen._inspection_tag.text()).is_equal(
-			"Inspection · %s" % inspection.display_name
-		)
+		assert_str(screen._inspection_tag.text()).is_equal("Inspection · %s" % inspection.chip_text)
 		var parts: Array[Control] = [
 			screen._top_bar.get_child(0) as Control,
 			screen._top_bar.get_child(1) as Control,
@@ -334,9 +333,8 @@ func test_the_receipt_grows_up_from_the_printer() -> void:
 	assert_bool(rect.intersects(_on_stage(screen, ShiftStage.MONITOR_RECT))).is_false()
 
 
-## The capacity line at its longest and the cue under the rail, the longest notice and the
-## totals on the monitor, and the register stay on the stage, clear of the belt, the hand and the
-## receipt where they must.
+## The longest notice and the totals on the monitor, and the register, stay on the stage, clear
+## of the belt, the hand and the receipt where they must, on shifts that close slots.
 func test_the_status_line_and_the_register_stay_clear() -> void:
 	var screen: ShiftScreen = await _screen()
 	var run: RunState = screen.run
@@ -348,14 +346,15 @@ func test_the_status_line_and_the_register_stay_clear() -> void:
 		screen._notice_label.show_notice("Row full (9/9 items): take an item out first")
 		screen._show_projected(999)
 		await _frames(2)
-		assert_str(screen._capacity_label.text).contains("(inspection −1)")
+		assert_int(screen._row_strip.closed.size()).is_equal(1)
 		_assert_status_clear(screen)
 
 
 ## Every Redraw caption the run can show fits REDRAW_RECT without growing it, with every upgrade
-## that adds redraws: "Redraw up to N (M left)" for each M, "Redraw used" and, in redraw mode,
-## "Confirm redraw (K/N)" for each K. Redraw keeps its rect on the register column, clear of
-## Cancel and CHECKOUT.
+## that adds redraws: "Redraw" with its "M left" note for each M, "Redraw used" and, in redraw
+## mode, "Confirm redraw" with its "K/N" note for each K. The note sits beside the caption, on the
+## key's face, smaller; Redraw keeps its rect on the register column, clear of Cancel and
+## CHECKOUT.
 func test_every_redraw_caption_fits() -> void:
 	var screen: ShiftScreen = await _screen()
 	var run: RunState = screen.run
@@ -372,8 +371,9 @@ func test_every_redraw_caption_fits() -> void:
 	for used: int in range(run.redraws_allowed, -1, -1):
 		run.redraws_used = used
 		screen._refresh_buttons()
-		captions.append(screen._redraw_button.caption)
+		captions.append("%s %s" % [screen._redraw_button.caption, screen._redraw_button.note()])
 		await _assert_redraw_in_place(screen)
+	assert_str(";".join(captions)).contains("Redraw %d left" % run.redraws_allowed)
 	screen._on_redraw_pressed()
 	assert_bool(screen._cancel_button.visible).is_true()
 	var hand: Array[CardInstance] = []
@@ -382,23 +382,44 @@ func test_every_redraw_caption_fits() -> void:
 	for picked: int in range(mini(run.balance.redraw_limit, hand.size()) + 1):
 		screen._redraw_pick.assign(hand.slice(0, picked))
 		screen._refresh_buttons()
-		captions.append(screen._redraw_button.caption)
+		captions.append("%s %s" % [screen._redraw_button.caption, screen._redraw_button.note()])
 		await _assert_redraw_in_place(screen)
 	assert_str(";".join(captions)).contains("Redraw used")
-	assert_str(";".join(captions)).contains("Confirm redraw (%d/" % run.balance.redraw_limit)
+	assert_str(";".join(captions)).contains("Confirm redraw %d/" % run.balance.redraw_limit)
+	assert_str(screen._redraw_button.accessibility_name).starts_with("Confirm redraw (")
 
 
 func _assert_redraw_in_place(screen: ShiftScreen) -> void:
 	await _frames(1)
-	var button: FramedButton = screen._redraw_button
-	var needed: Vector2 = (
-		button.caption_label().get_minimum_size() + 2.0 * FramedButton.CAPTION_PADDING
-	)
+	var button: RegisterKey = screen._redraw_button
+	var needed: Vector2 = button.get_combined_minimum_size()
 	(
 		assert_bool(needed.x <= ShiftStage.REDRAW_RECT.size.x)
-		. override_failure_message("'%s' needs %s" % [button.caption, needed])
+		. override_failure_message("'%s %s' needs %s" % [button.caption, button.note(), needed])
 		. is_true()
 	)
+	var caption: Rect2 = button.caption_label().get_global_rect()
+	var caption_width: float = button.caption_label().get_minimum_size().x
+	assert_float(caption.size.x).is_greater_equal(caption_width - 0.5)
+	if not button.note().is_empty():
+		var note_label: Label = button.note_label()
+		var note: Rect2 = note_label.get_global_rect()
+		assert_bool(note_label.visible).is_true()
+		(
+			assert_bool(button.get_global_rect().encloses(note))
+			. override_failure_message(str(note))
+			. is_true()
+		)
+		assert_float(note.position.x).is_greater_equal(caption.end.x)
+		assert_float(note.size.x).is_greater_equal(note_label.get_minimum_size().x - 0.5)
+		assert_int(note_label.get_theme_font_size("font_size")).is_less(
+			button.caption_label().get_theme_font_size("font_size")
+		)
+		# The pair is centred on the face.
+		var middle: float = (caption.position.x + note.end.x) / 2.0
+		assert_float(middle).is_equal_approx(button.get_global_rect().get_center().x, 1.0)
+	elif button.note_label() != null:
+		assert_bool(button.note_label().visible).is_false()
 	assert_that(button.get_global_rect()).is_equal(_on_stage(screen, ShiftStage.REDRAW_RECT))
 	var others: Array[Control] = [screen._checkout_button]
 	if screen._cancel_button.visible:
@@ -468,7 +489,7 @@ func test_numbers_use_the_number_font() -> void:
 		screen._led.digits_label(),
 		screen._led.quota_label(),
 		screen._deck_button.caption_label(),
-		screen._redraw_button.caption_label(),
+		screen._redraw_button.note_label(),
 	]
 	assert_int(screen._row_views.size()).is_greater(0)
 	# The paid chips show only in the count-up (#80, step 7), in the number font all the same.
@@ -484,10 +505,10 @@ func test_numbers_use_the_number_font() -> void:
 
 
 ## Every character the screen prints is in the font that prints it, including "−" (U+2212) on
-## the capacity line and the receipt's end-of-shift lines.
+## the inspection chip and the receipt's end-of-shift lines.
 func test_every_printed_character_has_its_glyph() -> void:
 	var screen: ShiftScreen = await _rich_screen()
-	assert_str(screen._capacity_label.text).contains("−")
+	assert_str(screen._inspection_tag.text()).contains("−")
 	var checked: int = 0
 	for text: Control in _texts(screen):
 		var label: Label = text as Label
@@ -566,7 +587,7 @@ static func _led_labels(screen: ShiftScreen) -> Array[Control]:
 	return [led.caption_label(), led.digits_label(), led.quota_label()]
 
 
-## A shift with a bit of everything: an inspection that closes a slot (its capacity line prints
+## A shift with a bit of everything: an inspection that closes a slot (its top-bar chip prints
 ## "−"), placed cards, 4 stamped boxes and the receipt's end-of-shift lines.
 func _rich_screen() -> ShiftScreen:
 	var screen: ShiftScreen = await _screen()
@@ -597,11 +618,7 @@ func _assert_status_clear(screen: ShiftScreen) -> void:
 	var belt: Rect2 = screen._stage.belt.get_global_rect()
 	var hand: Rect2 = screen._hand_box.get_global_rect()
 	var receipt: Rect2 = screen._receipt.get_global_rect()
-	var cue: Label = _label_with(screen._stage, ShiftStage.CUE_TEXT)
-	assert_object(cue).is_not_null()
 	var places: Dictionary[Control, Rect2] = {
-		screen._capacity_label: ShiftStage.CAPACITY_RECT,
-		cue: ShiftStage.CUE_RECT,
 		screen._notice_label: ShiftStage.NOTICE_RECT,
 		screen._led.digits_label(): ShiftStage.LED_RECT,
 		screen._led.quota_label(): ShiftStage.LED_RECT,
@@ -624,7 +641,6 @@ func _assert_status_clear(screen: ShiftScreen) -> void:
 			. override_failure_message("%s needs %s in %s" % [part.get_path(), needed, rect.size])
 			. is_true()
 		)
-	_assert_apart([screen._capacity_label, cue])
 	_assert_digits_clear(screen)
 	var register: Rect2 = screen._register.get_global_rect()
 	assert_bool(stage.encloses(register)).override_failure_message(str(register)).is_true()
@@ -640,13 +656,6 @@ static func _texts(node: Node) -> Array[Control]:
 	for child: Node in node.get_children():
 		result.append_array(_texts(child))
 	return result
-
-
-static func _label_with(node: Node, text: String) -> Label:
-	for found: Node in node.find_children("*", "Label", true, false):
-		if (found as Label).text == text:
-			return found as Label
-	return null
 
 
 static func _pixel_art(node: Node) -> Array[CanvasItem]:

@@ -38,6 +38,8 @@ const CHECKOUT_ARROW_GAP := 14.0
 const CHECKOUT_NAME := "Checkout"
 const CANCEL_TEXT := "Cancel"
 const BUTTON_FONT_SIZE := 16
+## The Redraw key's caption, as B2's .redraw sets it (the display font at 18 px).
+const REDRAW_FONT_SIZE := 18
 const CHECKOUT_FONT_SIZE := 30
 ## The seed line: B2's .foot, the body font at SEED_FONT_WEIGHT.
 const SEED_FONT_SIZE := 11
@@ -97,8 +99,7 @@ func _build_keys() -> void:
 	cancel_key = _key(RegisterKey.Kind.CREAM, CANCEL_TEXT, ShiftStage.CANCEL_RECT)
 	cancel_key.visible = false
 	cancel_key.visibility_changed.connect(_on_cancel_shown)
-	redraw_key = _key(RegisterKey.Kind.CREAM, "", ShiftStage.REDRAW_RECT)
-	redraw_key.use_number_font()
+	redraw_key = _key(RegisterKey.Kind.CREAM, "", ShiftStage.REDRAW_RECT, REDRAW_FONT_SIZE)
 	redraw_key.resized.connect(_keep_redraw_edge)
 	checkout_key = _key(RegisterKey.Kind.CHECKOUT, CHECKOUT_TEXT, ShiftStage.CHECKOUT_RECT)
 	checkout_key.accessibility_name = CHECKOUT_NAME
@@ -143,9 +144,11 @@ func _set_checkout_caption(caption: Label) -> void:
 	caption.add_child(checkout_arrow)
 
 
-## A key of `kind` captioned `text` at the stage rect `rect`; a cream key's caption is plain ink.
-func _key(kind: RegisterKey.Kind, text: String, rect: Rect2) -> RegisterKey:
-	var font_size: int = BUTTON_FONT_SIZE
+## A key of `kind` captioned `text` at the stage rect `rect` in `font_size` (CHECKOUT's always in
+## CHECKOUT_FONT_SIZE); a cream key's caption is plain ink.
+func _key(
+	kind: RegisterKey.Kind, text: String, rect: Rect2, font_size: int = BUTTON_FONT_SIZE
+) -> RegisterKey:
 	if kind == RegisterKey.Kind.CHECKOUT:
 		font_size = CHECKOUT_FONT_SIZE
 	var key: RegisterKey = RegisterKey.new(kind, text, font_size, rect.size)
