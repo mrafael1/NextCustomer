@@ -67,3 +67,8 @@ const TEAL_BRIGHT := Color("5fb0a8")
 const TEAL_BLACK := Color("172c2b")
 const SKIN := Color("e2b48c")
 const SKIN_SHADE := Color("c38f6a")
+## The back of the store (#80, step 11): the cold cases' deepest glass, the fruit & veg stand's
+## green and the crates' dark slats.
+const TEAL_LIGHT := Color("86c2b6")
+const GREEN_DARK := Color("3d7a45")
+const BROWN_DARK := Color("7a5232")

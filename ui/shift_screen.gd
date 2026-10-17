@@ -879,7 +879,7 @@ func _process(_delta: float) -> void:
 
 func _build() -> void:
 	set_anchors_preset(Control.PRESET_FULL_RECT)
-	StoreBackdrop.screen_parts(self).gui_input.connect(_on_background_input)
+	StoreBackdrop.screen_parts(self, _balance.aisles).gui_input.connect(_on_background_input)
 	_stage = ShiftStage.new(_balance.slot_count + _balance.coupon_slot_count)
 	# Text on the stage and the overlay without its own font (the count-up's flying numbers,
 	# stamps and verdict) uses the number font. The theme stays off the screen's root, so the

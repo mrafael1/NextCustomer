@@ -12,9 +12,9 @@ const PALETTE_SIZE := 67
 ## LedDisplay, PaperPile), the scan pieces #75 moves out of style frame v2 (PriceSticker,
 ## ScanPopup, ScanOverlay), the items, their marks and their cells (ItemView, EffectMark,
 ## PayoutPlaque, RowStrip), which take their colours from Palette, and the hung monitor's pieces
-## #80 adds (MonitorView, LedBeat, ScanFooter): style frame v2's palette check, kept for the screen
-## that replaced it (#75, step 9). A class is checked once its script exists, so each step of the
-## adoption is covered as it lands.
+## #80 adds (MonitorView, LedBeat, ScanFooter) and the back of the store (StoreShelves, step 11):
+## style frame v2's palette check, kept for the screen that replaced it (#75, step 9). A class is
+## checked once its script exists, so each step of the adoption is covered as it lands.
 const SCRIPTS: Array[String] = [
 	"res://ui/palette.gd",
 	"res://presentation/art_style.gd",
@@ -35,6 +35,7 @@ const SCRIPTS: Array[String] = [
 	"res://ui/monitor_view.gd",
 	"res://ui/led_beat.gd",
 	"res://ui/scan_footer.gd",
+	"res://ui/store_shelves.gd",
 ]
 ## The scan pieces (the scan's step lines in ScanFooter, #80, too) and the items name no colour of
 ## their own: every colour they draw is a Palette constant.
