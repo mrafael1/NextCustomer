@@ -5,7 +5,8 @@ extends GdUnitTestSuite
 ## empty slot, a dashed rule, "PROJECTED €N.00", then the fizzle footer ("2 fizzles · rest on an
 ## item", none without fizzles); highlight_slot frames a line (planning only). The count-up
 ## (begin_count) pre-prints every item's line greyed and "TOTAL •••••" with its footer; the steps
-## fill the lines in and print under their item, the newest framed; add_total fills TOTAL in and
+## fill the lines in (the base, kept) and print under their item, the newest framed; an item whose
+## lines don't add up to its payout closes with "= €3.00"; add_total fills TOTAL in and
 ## drops the footer and the frame; show_result prints the same receipt at once. Every bonus,
 ## multiplier or copy another source caused is a combo line, marked by a gold band and a diamond
 ## in place of its marker. The receipt is laid out on its own, at the shift screen's width. No
@@ -206,8 +207,9 @@ func test_highlight_frames_a_planning_line() -> void:
 
 
 ## The count-up's receipt: pre-printed greyed lines and TOTAL with the footer; each step fills
-## its item's line in or prints under its item, framed; the payout's amount replaces the base;
-## add_total fills TOTAL in plainly and drops the footer and the frame.
+## its item's line in or prints under its item, framed; the item's line keeps its base, and a
+## payout its lines already add up to prints nothing (the item's line is framed); add_total fills
+## TOTAL in plainly and drops the footer and the frame.
 func test_the_count_up_fills_its_waiting_lines() -> void:
 	var names: PackedStringArray = PackedStringArray(NAMES)
 	_receipt.begin_count(PackedStringArray(HEADER), names)
@@ -234,9 +236,13 @@ func test_the_count_up_fills_its_waiting_lines() -> void:
 			assert_object(_receipt._framed_line()).is_same(returned[-1])
 			assert_str(_lines(_receipt)[5]).is_equal("Coffee bonus | +€2.00")
 			assert_str(_lines(_receipt)[4]).is_equal("Bread | €3.00")
-	# A BASE step returns its item's line; a PAYOUT step its amount label.
+		if step.step_type == ScoreStep.StepType.PAYOUT:
+			assert_object(_receipt._framed_line()).is_same(_receipt._items[step.slot])
+	# A BASE step returns its item's line; a PAYOUT step that adds up its amount label when
+	# nothing printed under the item (Milk), else null (Bread: nothing new to fade in).
 	assert_object(returned[0]).is_same(_receipt._items[0])
 	assert_object(returned[1]).is_same(_receipt._items[0].get_child(1))
+	assert_object(returned[4]).is_null()
 	assert_object(_receipt._framed_line()).is_same(returned[-1])
 	var total: Control = _receipt.add_total(result.total)
 	assert_object(total).is_same(_receipt._total_line)
@@ -250,7 +256,7 @@ func test_the_count_up_fills_its_waiting_lines() -> void:
 				"SHIFT 5/8 · 4 ITEMS | ",
 				"---",
 				"Milk | €2.00",
-				"Bread | €5.00",
+				"Bread | €3.00",
 				"Coffee bonus | +€2.00",
 				"Coffee | €1.00",
 				"Coffee bonus: no Breakfast product after it | ",
@@ -267,6 +273,54 @@ func test_the_count_up_fills_its_waiting_lines() -> void:
 	var mark: Control = fizzle.get_child(1).get_node_or_null("Mark") as Control
 	assert_object(mark).is_not_null()
 	assert_int(int(mark.get_meta("mark"))).is_equal(ReceiptView.Mark.FIZZLED)
+
+
+## Every item's lines add up (#80): when the base and the bonus lines don't come to the payout (a
+## multiplier), the PAYOUT step closes the item with a small "= €payout" in ink with the mark
+## column, framed, and returns its amount; a later line of the item prints above it. An
+## override's "= €0.00" is the item's amount from then on, so its payout prints nothing more
+## (null), and a fizzled item at €0 that adds up gets no closing line. show_result prints the
+## same.
+func test_an_item_that_does_not_add_up_closes_with_its_payout() -> void:
+	var names: PackedStringArray = PackedStringArray(["Multipack", "Milk", "Soup"])
+	var none: PackedStringArray = PackedStringArray()
+	var inspections: PackedStringArray = PackedStringArray(["Spot check"])
+	_receipt.begin_count(PackedStringArray(), names)
+	var result: ScoreResult = _closing_result()
+	var returned: Dictionary[int, Control] = {}
+	for index: int in range(result.steps.size()):
+		var step: ScoreStep = result.steps[index]
+		returned[index] = _receipt.add_step(step, names, none, inspections)
+		if index == 2:
+			var closing: HBoxContainer = _receipt._lines.get_child(2) as HBoxContainer
+			assert_object(returned[index]).is_same(closing.get_child(1))
+			assert_object(_receipt._framed_line()).is_same(closing)
+			assert_that(_color(closing, 1)).is_equal(Palette.INK)
+			assert_int(_size(closing, 1)).is_equal(ReceiptView.FOOTER_FONT_SIZE)
+			var column: StyleBox = (closing.get_child(1) as Label).get_theme_stylebox("normal")
+			assert_float(column.content_margin_right).is_equal(ReceiptView.MARK_COLUMN)
+	# Milk's override line closes it: its PAYOUT frames its line and returns nothing to fade in.
+	assert_object(returned[6]).is_null()
+	# The fizzled Soup adds up at €0: its PAYOUT frames its line and prints nothing.
+	assert_object(returned[9]).is_same(_receipt._items[2].get_child(1))
+	_receipt.add_total(result.total)
+	var expected: Array[String] = [
+		"Multipack | €1.00",
+		"Multipack | ×3",
+		"Multipack: nothing to multiply after it | ",
+		" | = €3.00",
+		"Milk | €2.00",
+		"Spot check: the 2nd product pays €0 | = €0.00",
+		"Soup | €0.00",
+		"Soup bonus: no Frozen product after it | ",
+		"---",
+		"TOTAL | €3.00",
+	]
+	assert_array(_lines(_receipt)).is_equal(expected)
+	var at_once: ReceiptView = auto_free(ReceiptView.new())
+	at_once.show_result(result, names, none, inspections)
+	assert_array(_lines(at_once)).is_equal(expected)
+	await _frames(1)
 
 
 ## A late-run verdict ("€1118.00 / €120.00", the simulator's largest total on shift 8's
@@ -492,6 +546,38 @@ static func _result() -> ScoreResult:
 	result.steps[7].reason = "no Breakfast product after it"
 	result.payouts = PackedInt32Array([2, 5, 1])
 	result.total = 8
+	return result
+
+
+## Multipack (base 1, ×3: 3) whose second multiplier fizzles after its payout, Milk (2) that the
+## Spot check sets to €0, and Soup (0) whose bonus fizzles; total 3.
+static func _closing_result() -> ScoreResult:
+	var result: ScoreResult = ScoreResult.new()
+	var rows: Array[Array] = [
+		[0, ScoreStep.StepType.BASE, 1, ""],
+		[0, ScoreStep.StepType.MULTIPLIER, 3, "Multipack"],
+		[0, ScoreStep.StepType.PAYOUT, 3, ""],
+		[0, ScoreStep.StepType.WASTED, 0, "Multipack"],
+		[1, ScoreStep.StepType.BASE, 2, ""],
+		[1, ScoreStep.StepType.PAYOUT_OVERRIDE, 0, "the 2nd product pays €0"],
+		[1, ScoreStep.StepType.PAYOUT, 0, ""],
+		[2, ScoreStep.StepType.BASE, 0, ""],
+		[2, ScoreStep.StepType.EFFECT_ARMED, 3, "Soup bonus"],
+		[2, ScoreStep.StepType.PAYOUT, 0, ""],
+		[2, ScoreStep.StepType.WASTED, 0, "Soup bonus"],
+	]
+	for row: Array in rows:
+		var step: ScoreStep = _step(row[1] as ScoreStep.StepType, row[3] as String)
+		step.slot = row[0] as int
+		step.source_slot = step.slot
+		step.value = row[2] as int
+		result.steps.append(step)
+	result.steps[3].reason = "nothing to multiply after it"
+	result.steps[5].source_kind = ScoreStep.SourceKind.INSPECTION
+	result.steps[5].source_index = 0
+	result.steps[10].reason = "no Frozen product after it"
+	result.payouts = PackedInt32Array([3, 0, 0])
+	result.total = 3
 	return result
 
 

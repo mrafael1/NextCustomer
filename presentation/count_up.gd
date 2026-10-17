@@ -851,13 +851,13 @@ func _print_pitch() -> float:
 	return minf(plan.printer_speed, _tuning.print_pitch_max)
 
 
-## Prints a step's receipt line (null for a step without one) and grows the pile.
+## Prints a step's receipt line (or null: add_step) and grows the pile, for every step.
 func _print_step(step: ScoreStep) -> Control:
 	return _print_line(_receipt.add_step(step, _names, _upgrade_names, _inspection_names))
 
 
 func _print_line(line: Control) -> Control:
-	if line == null or _pile == null:
+	if _pile == null:
 		return line
 	_lines_printed += 1
 	_pile.set_height(plan.pile_start_px + _tuning.pile_px_per_line * _lines_printed)

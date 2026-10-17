@@ -16,26 +16,39 @@ static func printed(receipt: ReceiptView) -> Array[String]:
 	return lines
 
 
-## The steps of `result` that print a receipt line, in order: each item's BASE (its item's line,
-## which its PAYOUT fills in too) and every other step that prints a line of its own.
+## The steps of `result` that print a receipt line, in order: each item's BASE (its item's line),
+## its PAYOUT when the item's base, bonus and copy amounts (an override's amount replacing
+## them) don't add up to it (its closing "= €3.00" line), and every other step that prints a
+## line of its own.
 static func printing_steps(result: ScoreResult) -> Array[ScoreStep]:
 	var names: PackedStringArray = PackedStringArray()
 	for slot: int in range(result.payouts.size()):
 		# Only whether a step prints a line is read, so any names do.
 		names.append("x")
 	var steps: Array[ScoreStep] = []
+	var sums: Dictionary[int, int] = {}
 	for step: ScoreStep in result.steps:
-		if step.step_type == ScoreStep.StepType.PAYOUT:
-			continue
+		var so_far: int = sums.get(step.slot, 0)
+		match step.step_type:
+			ScoreStep.StepType.BASE:
+				sums[step.slot] = step.value
+			ScoreStep.StepType.FLAT, ScoreStep.StepType.COPY:
+				sums[step.slot] = so_far + step.value
+			ScoreStep.StepType.PAYOUT_OVERRIDE:
+				sums[step.slot] = step.value
+			ScoreStep.StepType.PAYOUT:
+				if so_far != step.value:
+					steps.append(step)
+				continue
 		if not ReceiptView.step_text(step, names).is_empty():
 			steps.append(step)
 	return steps
 
 
 ## What each belt item's scan should list (#80), by slot: ReceiptView.step_line of every step
-## the receipt printed under that item (leaving out BASE and PAYOUT, which fill the item's line
-## in), in receipt order. A step whose line is not printed under its item (wrong item, wrong
-## words) is left out, so the scans' footers then hold fewer lines than the steps. The caller
+## the receipt printed under that item (leaving out BASE and PAYOUT: the item's line and its
+## closing line), in receipt order. A step whose line is not printed under its item (wrong item,
+## wrong words) is left out, so the scans' footers then hold fewer lines than the steps. The caller
 ## checks first that printed() has one line per printing step and the TOTAL.
 static func by_slot(
 	receipt: ReceiptView,

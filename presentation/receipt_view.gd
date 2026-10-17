@@ -12,10 +12,15 @@ extends PanelContainer
 ##
 ## The count-up (begin_count) pre-prints the header, every item's line greyed ("Multipack
 ## ·····"), the dashed rule, "TOTAL •••••" and the footer "tap: skip · hold: fast". Each step
-## then prints into its item's group (add_step): the BASE and PAYOUT steps fill the item's line in
-## (its amount: the base, then the payout), the other steps print an indented line under the
-## item's earlier lines, a fizzle's in dark tomato with the fizzle icon. The line just printed
-## (or filled) is framed (mustard-pale fill, mustard frame), and the receipt keeps it in view.
+## then prints into its item's group (add_step): the BASE step fills the item's line in with its
+## base amount, which it keeps; the other steps print an indented line under the item's earlier
+## lines, a fizzle's in dark tomato with the fizzle icon. Every item's lines add up: its base, its
+## bonus and copy lines ("+€15.00") and an override's "= €0.00" (which the item's amount is from
+## then on) come to its PAYOUT step's value, or (a multiplier) the PAYOUT step closes the item
+## with a small "= €3.00" line (CLOSING_TEXT, LineStyle.CLOSING), its last line; when they do, it
+## prints nothing. The line just printed (or filled; the item's line
+## when the PAYOUT step prints nothing) is framed (mustard-pale fill, mustard frame), and the
+## receipt keeps it in view.
 ## add_total fills the TOTAL line in plainly and drops the footer and the frame; the dessert (#61)
 ## then prints the verdict on it, the margin (PAID on a pass), the tear and the next shift's
 ## notice under it, scrolled to the newest line. A resumed checkout prints it all at once
@@ -42,6 +47,7 @@ enum LineStyle {
 	FOOTER,
 	COMBO,
 	WAITING,
+	CLOSING,
 }
 
 ## An item line's mark in planning: none, raised (its payout is above its base) or fizzled.
@@ -92,6 +98,9 @@ const COUNT_FOOTER_TEXT := "tap: skip · hold: fast"
 const WAITING_DOTS := "·····"
 const EMPTY_SLOT_TEXT := "%d ·····"
 const TOTAL_WAITING := "•••••"
+## The line closing an item whose lines don't add up to its payout (add_step): "= €3.00", at
+## FOOTER_FONT_SIZE in ink (LineStyle.CLOSING), with no left side.
+const CLOSING_TEXT := "= "
 ## How a multiplier's receipt text ends in its factor ("Multipack ×3", multiplier_cause).
 const FACTOR_MARK := " ×"
 ## A money amount on the receipt (money()).
@@ -130,6 +139,10 @@ var _footer: Control
 var _items: Dictionary[int, HBoxContainer] = {}
 var _last: Dictionary[int, Control] = {}
 var _item_names: Dictionary[int, String] = {}
+## Each slot's printed amount so far (its base plus its bonus and copy lines, or its override's
+## amount and the lines after it), and its closing line.
+var _sums: Dictionary[int, int] = {}
+var _closing: Dictionary[int, Control] = {}
 ## The framed line (the counted step's, or the scanned item's in planning), or null.
 var _framed: Control
 ## The receipt shows planning's lines (show_planning): highlight_slot frames them.
@@ -224,6 +237,8 @@ func clear() -> void:
 	_items.clear()
 	_last.clear()
 	_item_names.clear()
+	_sums.clear()
+	_closing.clear()
 	_inset.queue_redraw()
 	for line: Node in _lines.get_children():
 		_lines.remove_child(line)
@@ -346,10 +361,16 @@ func show_result(
 
 
 ## Prints one step and returns what the count-up animates: a BASE step fills its item's line in
-## (its amount, in ink) and returns the line; a PAYOUT step sets the line's amount to the payout
-## and returns that amount's label; any other step prints its line under its item's earlier
-## lines and returns it. The printed or filled line is framed. Returns null for a step that
-## prints no line. An item with no line yet (no begin_count) gets one, at the end.
+## (its base amount, in ink, kept for good) and returns the line; a PAYOUT step prints the
+## closing line "= €payout" when the item's printed amount (its BASE step's value plus its FLAT
+## and COPY steps', a PAYOUT_OVERRIDE step's value replacing the sum) is not its value, and
+## returns that line's amount label; else it prints nothing and returns the item line's amount
+## label when nothing printed under the item (a plain card: its amount fades in on the beat), or
+## null (its amount has shown since its BASE step: nothing new to fade in). Any other step prints
+## its line under its item's earlier lines (above its closing line, which stays last) and
+## returns it. The printed or filled line is framed (the item's line when a PAYOUT step prints
+## nothing). Returns null for a step that prints no line. An item with no line yet (no
+## begin_count) gets one, at the end.
 func add_step(
 	step: ScoreStep,
 	names: PackedStringArray,
@@ -367,17 +388,43 @@ func add_step(
 			if _item_names.has(step.slot):
 				name_text = _item_names[step.slot]
 			(item.get_child(0) as Label).text = name_text
-			amount.text = text[1]
-			_set_waiting(item, false)
-			_set_frame(item)
 			if step.step_type == ScoreStep.StepType.BASE:
+				_sums[step.slot] = step.value
+			var printed: int = _sums.get(step.slot, 0)
+			if step.step_type == ScoreStep.StepType.BASE or amount.text.is_empty():
+				amount.text = money(printed)
+			_set_waiting(item, false)
+			if step.step_type == ScoreStep.StepType.BASE:
+				_set_frame(item)
 				return item
-			return amount
-	var line: Control = add_line(text[0], text[1], step_style(step))
+			if printed == step.value:
+				_set_frame(item)
+				return amount if _last.get(step.slot) == item else null
+			var closing: Control = _add_group_line(
+				step.slot, "", CLOSING_TEXT + text[1], LineStyle.CLOSING
+			)
+			_closing[step.slot] = closing
+			return closing.get_child(1) as Label
+		ScoreStep.StepType.FLAT, ScoreStep.StepType.COPY:
+			var so_far: int = _sums.get(step.slot, 0)
+			_sums[step.slot] = so_far + step.value
+		ScoreStep.StepType.PAYOUT_OVERRIDE:
+			_sums[step.slot] = step.value
+	var line: Control = _add_group_line(step.slot, text[0], text[1], step_style(step))
 	if step.step_type == ScoreStep.StepType.WASTED:
 		ReceiptDecor.mark(line as HBoxContainer, Mark.FIZZLED)
-	_lines.move_child(line, mini(_group_index(step.slot), _lines.get_child_count() - 1))
-	_last[step.slot] = line
+	return line
+
+
+## Prints a line ("left", "right", in `style`) into `slot`'s group, after its earlier lines but
+## above its closing line, and frames it.
+func _add_group_line(
+	slot: int, left: String, right: String, style: LineStyle = LineStyle.ITEM
+) -> Control:
+	var line: Control = add_line(left, right, style)
+	_lines.move_child(line, mini(_group_index(slot), _lines.get_child_count() - 1))
+	if not _closing.has(slot):
+		_last[slot] = line
 	_set_frame(line)
 	return line
 
@@ -806,9 +853,11 @@ func _item_line(slot: int, name_text: String) -> HBoxContainer:
 	return _add_item(slot, name_text, "")
 
 
-## Where a new line of `slot`'s group goes: right after the group's last line, or (no group yet)
-## above the TOTAL line's rule.
+## Where a new line of `slot`'s group goes: above its closing line, else right after the group's
+## last line, or (no group yet) above the TOTAL line's rule.
 func _group_index(slot: int) -> int:
+	if _closing.has(slot) and is_instance_valid(_closing[slot]):
+		return _closing[slot].get_index()
 	if _last.has(slot) and is_instance_valid(_last[slot]):
 		return _last[slot].get_index() + 1
 	return _total_rule.get_index() if is_instance_valid(_total_rule) else _lines.get_child_count()
@@ -880,6 +929,8 @@ func _label(text: String, style: LineStyle) -> Label:
 			font_size = 15
 		LineStyle.TEAR, LineStyle.WAITING:
 			color = Palette.MUTED_INK
+		LineStyle.CLOSING:
+			font_size = FOOTER_FONT_SIZE
 	label.add_theme_font_override("font", MONO_FONT)
 	label.add_theme_font_size_override("font_size", font_size)
 	label.add_theme_color_override("font_color", color)
