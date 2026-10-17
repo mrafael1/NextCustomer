@@ -394,13 +394,13 @@ func test_winning_the_last_shift_shows_the_results() -> void:
 	screen._on_reward_skipped()  # Past the impulse rack.
 	var count: int = screen.run.shift_count()
 	assert_int(int(_last_event("run_start")["shift_count"])).is_equal(count)
-	assert_str(screen._shift_label.text).is_equal("1 / %d" % count)
+	assert_str(screen._shift_label.text).is_equal("1/%d" % count)
 	var shift_input: SpinBox = screen._debug.panel.get("_shift_input")
 	assert_int(int(shift_input.max_value)).is_equal(count)
 
 	screen._debug.skip_to_shift(count)
 	assert_bool(screen.run.is_last_shift()).is_true()
-	assert_str(screen._shift_label.text).is_equal("%d / %d" % [count, count])
+	assert_str(screen._shift_label.text).is_equal("%d/%d" % [count, count])
 	assert_int(int(_last_event("shift_start")["shift"])).is_equal(count)
 	# The last quota (plan v0.28) expects upgrades: this test plays it against 48 instead.
 	screen.run.limits.quota = 48

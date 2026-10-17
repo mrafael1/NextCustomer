@@ -13,14 +13,14 @@ extends Control
 ## keypad, the seed line under Redraw and the cash drawer), the receipt rising from the printer's
 ## slot, the belt (BeltPanel: the steel guard, the rubber top face, the lip, the apron and the price
 ## rail, then the row of items standing on the belt with their tickets on the rail), the top bar
-## (the velvet shift sign, the loyalty card, the inspection tag, Deck and Export log, all above
-## RewardPanel.PRINTOUT_TOP), the capacity line and the cue on the counter under the rail, the
-## hand's baskets on the steel ledge (HandBaskets: their backs, the hand in them, their fronts) and
-## the shade that darkens them while counting, and the controls hint along the floor. Over them all
-## the scan layer (ScanOverlay: the scan's brackets and beam) and the popup layer, both taking no
-## clicks. A belt or hand item's scan shows on the monitor (#80); the popup layer only parks the
-## hidden scan popup, which opens over the offers alone, in the layer an offer's scan moves it to
-## (ScanController.cover_offers).
+## (TopBar: the SHIFT, QUOTA, inspection and LOYALTY chips, Cart and the menu with Export log,
+## all above RewardPanel.PRINTOUT_TOP), the capacity line and the cue on the counter under the
+## rail, the hand's baskets on the steel ledge (HandBaskets: their backs, the hand in them, their
+## fronts) and the shade that darkens them while counting, and the controls hint along the floor.
+## Over them all the scan layer (ScanOverlay: the scan's brackets and beam) and the popup layer,
+## both taking no clicks. A belt or hand item's scan shows on the monitor (#80); the popup layer
+## only parks the hidden scan popup, which opens over the offers alone, in the layer an offer's
+## scan moves it to (ScanController.cover_offers).
 ##
 ## The receipt stands on the printer's slot and grows up as its lines print, up to under the top
 ## bar; past that it scrolls to its newest line.
@@ -40,14 +40,9 @@ signal deck_pressed
 signal export_pressed
 
 const SIZE := Vector2(1280, 720)
-const MARGIN := 20.0
-const TOP_BAR_POSITION := Vector2(20, 6)
-const TOP_BAR_GAP := 14
-## The top bar's band foot: the wall starts under it, and a scan popup never reaches it.
+## The top bar's band foot (TopBar's chips stand in it): the wall starts under it, and a scan
+## popup never reaches it.
 const TOP_BAR_BOTTOM := 56.0
-const SIGN_PADDING := Vector4(14, 2, 14, 4)
-const SIGN_FONT_SIZE := 20
-const TOP_BUTTON_SIZE := Vector2(0, 44)
 ## Where the wall meets the belt's back: the counter is below it.
 const COUNTER_TOP := 326.0
 ## The floor under the counter and the register.
@@ -126,7 +121,7 @@ const RECEIPT_PAPER := preload("res://art/frames/receipt_paper.png")
 ## at PRINTER_SLOT_RECT over the receipt's foot, so the paper seems to come out of the slot.
 const PRINTER_LIP := preload("res://art/scenery/printer_lip.png")
 
-var top_bar: HBoxContainer
+var top_bar: TopBar
 var shift_label: Label
 var quota_label: Label
 var loyalty_card: LoyaltyCard
@@ -194,50 +189,17 @@ func _ready() -> void:
 
 
 func _build_top_bar() -> void:
-	top_bar = HBoxContainer.new()
-	top_bar.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	top_bar.add_theme_constant_override("separation", TOP_BAR_GAP)
-	top_bar.position = TOP_BAR_POSITION
-	top_bar.size = Vector2(SIZE.x - 2.0 * MARGIN, 0)
+	top_bar = TopBar.new()
 	add_child(top_bar)
-	var shift_sign: PanelContainer = UiKit.frame_panel(UiKit.SIGN_VELVET_FRAME, 3, SIGN_PADDING)
-	shift_sign.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-	top_bar.add_child(shift_sign)
-	var sign_row: HBoxContainer = HBoxContainer.new()
-	sign_row.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	sign_row.add_theme_constant_override("separation", 10)
-	shift_sign.add_child(sign_row)
-	sign_row.add_child(UiKit.display_label("SHIFT", SIGN_FONT_SIZE, true))
-	shift_label = UiKit.number_label("", SIGN_FONT_SIZE, true)
-	sign_row.add_child(shift_label)
-	var quota_title: Label = UiKit.display_label("QUOTA", SIGN_FONT_SIZE, true)
-	quota_title.custom_minimum_size.x = quota_title.get_minimum_size().x + 8
-	quota_title.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
-	quota_title.add_theme_color_override("font_color", Palette.GOLD)
-	sign_row.add_child(quota_title)
-	quota_label = UiKit.number_label("", SIGN_FONT_SIZE, true)
-	quota_label.add_theme_color_override("font_color", Palette.GOLD)
-	sign_row.add_child(quota_label)
-	loyalty_card = LoyaltyCard.new()
-	loyalty_card.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-	top_bar.add_child(loyalty_card)
-	inspection_tag = InspectionTag.new()
-	inspection_tag.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-	top_bar.add_child(inspection_tag)
-	var spacer: Control = Control.new()
-	spacer.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	spacer.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	top_bar.add_child(spacer)
-	# The deck view and the export sound themselves.
-	deck_button = UiKit.framed_button(
-		top_bar, "", deck_pressed.emit, 16, UiKit.SIGN_VELVET_FRAME, TOP_BUTTON_SIZE, ""
-	)
-	deck_button.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-	deck_button.use_number_font()
-	export_button = UiKit.framed_button(
-		top_bar, "Export log", export_pressed.emit, 16, UiKit.SIGN_VELVET_FRAME, TOP_BUTTON_SIZE, ""
-	)
-	export_button.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	top_bar.deck_pressed.connect(deck_pressed.emit)
+	top_bar.export_pressed.connect(export_pressed.emit)
+	top_bar.quota_meter.follow(led)
+	shift_label = top_bar.shift_label
+	quota_label = top_bar.quota_label
+	loyalty_card = top_bar.loyalty_card
+	inspection_tag = top_bar.inspection_tag
+	deck_button = top_bar.deck_button
+	export_button = top_bar.export_button
 
 
 ## The hung monitor, with the LED and the notices on its screen.

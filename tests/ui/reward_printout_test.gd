@@ -243,7 +243,7 @@ func test_the_printout_sits_beside_the_receipt() -> void:
 	await _until_armed(panel)
 	_print(screen, NOTICE, false, screen.run.balance.deck_limit)
 	assert_str(panel.warning_text()).is_equal(NOTICE)
-	assert_str(panel._note.text).contains("deck is full")
+	assert_str(panel._note.text).contains("cart is full")
 	var receipt: Rect2 = screen._receipt.get_global_rect()
 	var monitor: Rect2 = screen._stage.get_global_transform() * MonitorView.DRAWN_RECT
 	var failures: Array[String] = []

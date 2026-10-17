@@ -105,7 +105,7 @@ func _init(tuning: CountUpTuning = null) -> void:
 	_headline = UiKit.label("", 28, Palette.INK)
 	_headline.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	column.add_child(_headline)
-	_note = UiKit.label("Pick an item for your deck, or skip.", 16, Palette.MUTED_INK)
+	_note = UiKit.label("Pick an item for your cart, or skip.", 16, Palette.MUTED_INK)
 	_note.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	column.add_child(_note)
 	_warning = UiKit.label("", 18, Palette.TOMATO)
@@ -352,11 +352,11 @@ func _fill(
 	_warning.visible = not warning.is_empty()
 	var full: bool = deck_size >= deck_limit
 	_note.text = (
-		"Your deck is full: picking an item means removing one."
+		"Your cart is full: picking an item means removing one."
 		if full
-		else "Pick an item for your deck, or skip."
+		else "Pick an item for your cart, or skip."
 	)
-	_deck_button.text = "View deck (%d/%d)" % [deck_size, deck_limit]
+	_deck_button.text = "View cart (%d/%d)" % [deck_size, deck_limit]
 	for child: Node in _cards.get_children():
 		_cards.remove_child(child)
 		child.queue_free()
@@ -382,7 +382,7 @@ func can_scan() -> bool:
 	return is_visible_in_tree() and _armed and not is_lifting()
 
 
-## Shown but not yet accepting clicks (the top bar's Deck waits for it too).
+## Shown but not yet accepting clicks (the top bar's Cart waits for it too).
 func is_arming() -> bool:
 	return visible and not _armed
 

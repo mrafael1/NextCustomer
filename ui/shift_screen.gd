@@ -594,7 +594,7 @@ func _on_reward_picked(card: CardDefinition) -> void:
 	_deck_view.open(
 		run,
 		(
-			"Deck full (%d/%d): choose an item to remove for %s"
+			"Cart full (%d/%d): choose an item to remove for %s"
 			% [run.deck.size(), run.balance.deck_limit, card.display_name]
 		),
 		true
@@ -629,11 +629,11 @@ func _on_deck_closed() -> void:
 func _on_reward_deck_requested() -> void:
 	_deck_viewed_for_reward = true
 	_reward_panel.visible = false
-	_deck_view.open(run, "Your deck (%d/%d)" % [run.deck.size(), run.balance.deck_limit], false)
+	_deck_view.open(run, "Your cart (%d/%d)" % [run.deck.size(), run.balance.deck_limit], false)
 
 
 func _on_deck_button_pressed() -> void:
-	# Like the panels' own View deck: an offer can't be hidden before it arms (plan 8's armed_ms).
+	# Like the panels' own View cart: an offer can't be hidden before it arms (plan 8's armed_ms).
 	if _counting or _reward_panel.is_arming() or _upgrade_panel.is_arming():
 		return
 	if run.phase == RunState.Phase.REWARD or run.phase == RunState.Phase.IMPULSE:
@@ -641,7 +641,7 @@ func _on_deck_button_pressed() -> void:
 		return
 	# The tickets come back when the deck view closes; there is still no way past them.
 	_upgrade_panel.visible = false
-	_deck_view.open(run, "Your deck (%d/%d)" % [run.deck.size(), run.balance.deck_limit], false)
+	_deck_view.open(run, "Your cart (%d/%d)" % [run.deck.size(), run.balance.deck_limit], false)
 
 
 ## Applies the choice (card null = skip), logs it, and starts the next shift, or shows the
@@ -728,11 +728,11 @@ func _on_focus_entered() -> void:
 
 
 func _refresh() -> void:
-	_shift_label.text = "%d / %d" % [run.shift_index + 1, run.shift_count()]
+	_shift_label.text = "%d/%d" % [run.shift_index + 1, run.shift_count()]
 	_quota_label.text = "€%d" % run.quota()
 	_inspection_tag.show_inspections(run.inspections)
 	_refresh_loyalty_card()
-	_deck_button.caption = "Deck %d/%d" % [run.deck.size(), run.balance.deck_limit]
+	_deck_button.caption = "Cart %d/%d" % [run.deck.size(), run.balance.deck_limit]
 	_seed_label.text = (
 		"Seed %d  ·  %s"
 		% [run.run_seed, str(ProjectSettings.get_setting("next_customer/build_label", ""))]
@@ -948,7 +948,7 @@ func _build() -> void:
 
 	_shade = ScreenShade.new()
 	_shade.set_anchors_preset(Control.PRESET_FULL_RECT)
-	# Below the top bar, so Export log and Deck stay reachable on every screen (_process keeps it
+	# Below the top bar, so the menu and Cart stay reachable on every screen (_process keeps it
 	# there when the stage moves).
 	_shade.offset_top = RewardPanel.PRINTOUT_TOP
 	_shade.visible = false

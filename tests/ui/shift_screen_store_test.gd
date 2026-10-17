@@ -52,6 +52,11 @@ func test_the_backdrop_fits_each_window() -> void:
 		var top_band: Rect2 = _band(window, "TopBand", bounds)
 		assert_float(top_band.position.y).is_less_equal(bounds.position.y)
 		assert_float(top_band.end.y).is_equal(stage_rect.position.y + ShiftStage.TOP_BAR_BOTTOM)
+		# B2's ink line along the band's foot, inside it.
+		var edge: Rect2 = _band(window, "TopEdge", bounds)
+		assert_float(edge.end.y).is_equal(top_band.end.y)
+		assert_float(edge.size.y).is_equal(StoreBackdrop.TOP_EDGE)
+		assert_object((window.get_node("TopEdge") as ColorRect).color).is_equal(Palette.INK)
 		var counter: Rect2 = _band(window, "Counter", bounds)
 		assert_float(counter.position.y).is_equal(stage_rect.position.y + ShiftStage.COUNTER_TOP)
 		assert_float(counter.end.y).is_greater_equal(bounds.end.y)

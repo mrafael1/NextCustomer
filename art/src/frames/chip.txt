@@ -1,0 +1,17 @@
+; A top-bar chip (mock-up B2's .chip, #80 step 10): the teal dark 2 panel in an ink outline
+; with B2's 6 px rounded corners as a two-texel step (as key_cream), and one teal darkest 1 row
+; along the bottom for B2's inset shade (25% black over the panel, snapped). 10x10 @2, 9-slice
+; margin 3, stretched to the chip.
+@size 10x10
+@kind frame
+@scale 2
+..######..
+.#222222#.
+#22222222#
+#22222222#
+#22222222#
+#22222222#
+#22222222#
+#22222222#
+.#111111#.
+..######..

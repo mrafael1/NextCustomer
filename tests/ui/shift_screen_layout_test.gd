@@ -54,9 +54,9 @@ func test_the_stage_is_laid_out_without_overlaps() -> void:
 	var top_parts: Array[Control] = []
 	for child: Node in screen._top_bar.get_children():
 		var part: Control = child as Control
-		if part.visible and (part is PanelContainer or part is Button):
+		if part != null and part.visible and (part is PanelContainer or part is Button):
 			top_parts.append(part)
-	assert_int(top_parts.size()).is_greater_equal(4)
+	assert_int(top_parts.size()).is_greater_equal(5)
 	for part: Control in top_parts:
 		var rect: Rect2 = part.get_global_rect()
 		assert_bool(stage.encloses(rect)).override_failure_message(str(rect)).is_true()
@@ -191,25 +191,44 @@ func test_the_stage_is_laid_out_without_overlaps() -> void:
 	assert_str(screen._seed_label.text).contains("Seed %d" % screen.run.run_seed)
 
 
-## The shade starts under the top bar wherever the stage sits, so Deck and Export log stay
-## reachable.
+## The shade starts under the top bar wherever the stage sits, so Cart and the menu stay
+## reachable behind the deck view: nothing over them takes their clicks.
 func test_the_shade_leaves_the_top_bar_uncovered() -> void:
 	var screen: ShiftScreen = await _screen()
 	screen._on_deck_button_pressed()
 	await _frames(2)
 	assert_bool(screen._shade.visible).is_true()
+	assert_bool(screen._deck_view.visible).is_true()
 	var shade: Rect2 = screen._shade.get_global_rect()
-	for button: Control in [screen._deck_button, screen._loyalty_card]:
+	var top_bar: TopBar = screen._stage.top_bar
+	for button: Control in [screen._deck_button, top_bar.menu_button, screen._loyalty_card]:
 		assert_bool(shade.intersects(button.get_global_rect())).is_false()
+		(
+			assert_bool(screen._deck_view.get_global_rect().intersects(button.get_global_rect()))
+			. is_false()
+		)
 	assert_float(shade.position.y).is_equal(
 		screen._stage.get_global_rect().position.y + RewardPanel.PRINTOUT_TOP
 	)
+	# Nothing over Cart or the menu button takes their clicks; the menu opens over everything
+	# (its own popup window), Export log in it.
+	for button: Control in [screen._deck_button, top_bar.menu_button]:
+		assert_array(_blockers(screen, button)).is_empty()
+	# The hand under the shade is out of reach (the check finds what covers it).
+	assert_array(_blockers(screen, screen._hand_box.cards()[0])).is_not_empty()
+	top_bar.menu_button.pressed.emit()
+	await _frames(2)
+	assert_bool(top_bar.menu.visible).is_true()
+	assert_bool(top_bar.export_button.is_visible_in_tree()).is_true()
+	top_bar.menu.hide()
 
 
-## The top bar with its longest texts: the last shift's quota, a 4-box loyalty card, each
-## inspection's tag (the longest one included), a full deck and a 10-digit seed. Everything
-## stays on the stage above the shade line and apart; the seed and build label stay under Redraw,
-## clear of the hand, the keys and the receipt.
+## The top bar with its longest texts (#80 step 10): the last shift's quota with a 4-digit
+## subtotal and the quota check, a 4-box loyalty chip, each inspection's chip (the longest name
+## included), a full cart and a 10-digit seed. The chips stay on the stage above the shade line,
+## apart and in B2's order (SHIFT, QUOTA, inspection, LOYALTY, Cart, menu), each holding its text
+## and icons; the quota bar keeps its room; the seed and build label stay under Redraw, clear of
+## the hand, the keys and the receipt.
 func test_the_top_bar_fits_its_longest_texts() -> void:
 	var screen: ShiftScreen = await _screen()
 	var run: RunState = screen.run
@@ -229,29 +248,51 @@ func test_the_top_bar_fits_its_longest_texts() -> void:
 		run.debug_skip_to_shift(last)  # The same shift: it keeps the inspection.
 		screen._on_shift_started()
 		var deck_limit: int = run.balance.deck_limit
-		screen._deck_button.caption = "Deck %d/%d" % [deck_limit, deck_limit]
+		screen._deck_button.caption = "Cart %d/%d" % [deck_limit, deck_limit]
+		# The widest QUOTA chip: a 4-digit subtotal past the quota, with its check.
+		screen._led.start_count(largest)
+		screen._led.show_subtotal(9999, true)
 		await _frames(2)
+		var top_bar: TopBar = screen._stage.top_bar
 		assert_str(screen._quota_label.text).is_equal("€%d" % largest)
+		assert_str(top_bar.quota_meter.amount_label.text).is_equal("€9999")
+		assert_bool(top_bar.quota_meter.check_shown()).is_true()
 		assert_int(screen._loyalty_card.box_texts().size()).is_equal(4)
-		assert_str(screen._inspection_tag.text()).contains(inspection.notice_text)
+		assert_str(screen._inspection_tag.text()).is_equal(
+			"Inspection · %s" % inspection.display_name
+		)
 		var parts: Array[Control] = [
 			screen._top_bar.get_child(0) as Control,
-			screen._loyalty_card,
+			screen._top_bar.get_child(1) as Control,
 			screen._inspection_tag,
+			screen._loyalty_card,
 			screen._deck_button,
-			screen._stage.export_button,
+			top_bar.menu_button,
 		]
 		for part: Control in parts:
 			var rect: Rect2 = part.get_global_rect()
 			assert_bool(part.visible).is_true()
 			assert_bool(stage.encloses(rect)).override_failure_message(str(rect)).is_true()
 			assert_float(rect.end.y).is_less_equal(bar_bottom)
+			assert_float(rect.end.y).is_less_equal(stage.position.y + ShiftStage.TOP_BAR_BOTTOM)
 			# Nothing is squeezed below what its text needs.
 			var needed: Vector2 = part.get_combined_minimum_size()
 			assert_bool(rect.size.x >= needed.x and rect.size.y >= needed.y).is_true()
+			# Every text and icon in a chip lies inside it.
+			for inner: Control in _texts(part) + _icons(part):
+				var inside: Rect2 = inner.get_global_rect()
+				(
+					assert_bool(rect.encloses(inside))
+					. override_failure_message("%s: %s" % [inner.get_path(), inside])
+					. is_true()
+				)
 		_assert_apart(parts)
-		var tag_text: Rect2 = (screen._inspection_tag.get_child(0) as Control).get_global_rect()
-		assert_bool(screen._inspection_tag.get_global_rect().encloses(tag_text)).is_true()
+		for index: int in range(1, parts.size()):
+			assert_float(parts[index].get_global_rect().position.x).is_greater(
+				parts[index - 1].get_global_rect().end.x
+			)
+		var meter_bar: Control = top_bar.quota_meter.bar()
+		assert_float(meter_bar.size.x).is_greater_equal(QuotaMeter.BAR_MIN_WIDTH)
 
 	var seed_line: Rect2 = screen._seed_label.get_global_rect()
 	assert_str(screen._seed_label.text).contains("4294967295")
@@ -664,6 +705,36 @@ func _assert_apart(controls: Array[Control]) -> void:
 				. override_failure_message("%s overlaps %s" % [a, b])
 				. is_false()
 			)
+
+
+## The TextureRects under `node` (the chips' icons, rings and checks).
+static func _icons(node: Node) -> Array[Control]:
+	var result: Array[Control] = []
+	for child: Node in node.get_children(true):
+		if child is TextureRect and (child as Control).visible:
+			result.append(child as Control)
+		result.append_array(_icons(child))
+	return result
+
+
+## The controls that would take a click at `target`'s centre before it: those after it in the
+## tree (drawn and picked over it), outside it, shown, not ignoring the mouse, under the point.
+static func _blockers(screen: ShiftScreen, target: Control) -> Array[String]:
+	var point: Vector2 = target.get_global_rect().get_center()
+	var result: Array[String] = []
+	var past_target: bool = false
+	for node: Node in screen.find_children("*", "Control", true, false):
+		var control: Control = node as Control
+		if control == target:
+			past_target = true
+			continue
+		if not past_target or target.is_ancestor_of(control) or not control.is_visible_in_tree():
+			continue
+		if control.mouse_filter == Control.MOUSE_FILTER_IGNORE:
+			continue
+		if control.get_global_rect().has_point(point):
+			result.append(str(control.get_path()))
+	return result
 
 
 func _frames(count: int) -> void:

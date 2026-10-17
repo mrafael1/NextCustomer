@@ -1,0 +1,18 @@
+; A loyalty stamp's ring in the top bar (mock-up B2's pxDisc, #80 step 10): a mustard light y
+; ring, a mustard M inner ring and the teal dark 2 panel. 13x13, shown at 2x. #59's 7x7 glyph
+; goes in its middle; until then the upgrade's initials are a label drawn over it.
+@size 13x13
+@kind icon
+....yyyyy....
+...yMMMMMy...
+..yM22222My..
+.yM2222222My.
+yM222222222My
+yM222222222My
+yM222222222My
+yM222222222My
+yM222222222My
+.yM2222222My.
+..yM22222My..
+...yMMMMMy...
+....yyyyy....

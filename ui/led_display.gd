@@ -27,6 +27,9 @@ extends Control
 ## Emitted whenever the mode is set (show_projected, start_count, show_total, clear), even to the
 ## same mode, once the layout follows it: the monitor places the LED for it.
 signal mode_changed(mode: Mode)
+## Each amount shown with its quota (start_count: 0) and whether the digits show the quota met,
+## for the top bar's QuotaMeter.
+signal reading_changed(amount: int, quota: int, met: bool)
 
 enum Mode { BLANK, PROJECTED, SUBTOTAL, TOTAL }
 enum Layout { COMPACT, COUNT }
@@ -211,6 +214,7 @@ func show_projected(amount: int, quota: int) -> void:
 	_set_mode(Mode.PROJECTED)
 	_set_colour(amount >= quota)
 	_set_amount(amount)
+	reading_changed.emit(amount, quota, _met)
 
 
 ## A count-up starts against `quota`: the SUBTOTAL caption, in the digits' own colour. The
@@ -220,6 +224,7 @@ func start_count(quota: int) -> void:
 	_set_quota(quota)
 	_set_mode(Mode.SUBTOTAL)
 	reset_colour()
+	reading_changed.emit(0, quota, false)
 
 
 ## The running subtotal (`met`: the count-up has met the quota, so it shows green). The caption
@@ -227,6 +232,7 @@ func start_count(quota: int) -> void:
 func show_subtotal(amount: int, met: bool) -> void:
 	_set_colour(met)
 	_set_amount(amount)
+	reading_changed.emit(amount, _quota, met)
 
 
 ## The verdict is shown: the caption says TOTAL over the amount already shown, and the last

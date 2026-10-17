@@ -2,9 +2,10 @@ class_name StoreBackdrop
 extends RefCounted
 ## The shift screen's store backdrop (#80, mock-up B2; greybox, step 3): flat bands that fill
 ## the window behind the centred stage, so nothing drifts when the window isn't 1280x720. From
-## the top: the top bar's dark teal band, the plaster wall behind the counter (it takes the
-## background clicks), the counter's wood from the belt's back down, and the slate floor. Decor
-## only, with no game information. The store's back wall art lands in a later step.
+## the top: the top bar's dark teal band with B2's ink line along its foot, the plaster wall
+## behind the counter (it takes the background clicks), the counter's wood from the belt's back
+## down, and the slate floor. Decor only, with no game information. The store's back wall art
+## lands in a later step.
 
 ## The window's middle is the stage's (the stage is centred), so the bands are placed from it.
 const STAGE_MIDDLE := ShiftStage.SIZE.y / 2.0
@@ -12,6 +13,8 @@ const TOP_BAND_COLOR := Palette.BACKGROUND
 const WALL_COLOR := Palette.PLASTER
 const COUNTER_COLOR := Palette.WOOD_DARK
 const FLOOR_COLOR := Palette.SLATE
+## The ink line along the top band's foot (B2's 2 px border-bottom), inside the band.
+const TOP_EDGE := 2.0
 
 
 ## Adds the window-sized bands to `parent`, behind the stage: the wall (its first child), then
@@ -23,6 +26,8 @@ static func screen_parts(parent: Control) -> ColorRect:
 	parent.add_child(
 		_band("TopBand", TOP_BAND_COLOR, 0.0, 0.5, 0.0, ShiftStage.TOP_BAR_BOTTOM - STAGE_MIDDLE)
 	)
+	var edge_bottom: float = ShiftStage.TOP_BAR_BOTTOM - STAGE_MIDDLE
+	parent.add_child(_band("TopEdge", Palette.INK, 0.5, 0.5, edge_bottom - TOP_EDGE, edge_bottom))
 	parent.add_child(
 		_band("Counter", COUNTER_COLOR, 0.5, 1.0, ShiftStage.COUNTER_TOP - STAGE_MIDDLE, 0.0)
 	)

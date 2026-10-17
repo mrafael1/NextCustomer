@@ -75,7 +75,7 @@ func show_offer(offer: Array[UpgradeDefinition]) -> void:
 	timeline.presented_when(UiKit.pop_in(self))
 
 
-## Shown but not yet accepting clicks (the top bar's Deck waits for it too).
+## Shown but not yet accepting clicks (the top bar's Cart waits for it too).
 func is_arming() -> bool:
 	return visible and not _armed
 

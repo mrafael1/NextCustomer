@@ -145,7 +145,7 @@ func test_framed_button_helper_clicks_then_acts() -> void:
 	scene.add_child(sfx)
 	var heard_first: Array[bool] = []
 	var action: Callable = func() -> void: heard_first.append(sfx.sounds.size() > 0)
-	var button: FramedButton = UiKit.framed_button(scene, "Deck", action, 16, UiKit.SIGN_FRAME)
+	var button: FramedButton = UiKit.framed_button(scene, "Cart", action, 16, UiKit.SIGN_FRAME)
 	assert_object(button.get_parent()).is_same(scene)
 	button.pressed.emit()
 	assert_array(heard_first).is_equal([true])

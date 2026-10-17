@@ -65,17 +65,18 @@ func test_everything_lies_inside_the_stage() -> void:
 			)
 
 
-## The shift sign, the loyalty card, the inspection tag, Deck and Export log: apart, under the
-## stage's top edge and above the belt.
+## The top bar's chips and buttons (SHIFT, QUOTA, the inspection when there is one, LOYALTY,
+## Cart and the menu): apart, under the stage's top edge and above the belt.
 func test_the_top_bar_parts_are_apart_above_the_belt() -> void:
 	for scan: String in SCANS:
 		var screen: ShiftScreen = await _captured(scan)
 		var parts: Array[Rect2] = []
 		for child: Node in screen._stage.top_bar.get_children():
 			var part: Control = child as Control
-			if part.visible and part.size.x > 0.0 and part.get_minimum_size().x > 0.0:
+			if part != null and part.visible and part.size.x > 0.0:
 				parts.append(part.get_global_rect())
-		assert_int(parts.size()).is_equal(5)
+		var inspected: int = 1 if screen._inspection_tag.visible else 0
+		assert_int(parts.size()).is_equal(5 + inspected)
 		var bottom: float = _y(screen, ShiftStage.TOP_BAR_BOTTOM)
 		for rect: Rect2 in parts:
 			assert_float(rect.end.y).override_failure_message(str(rect)).is_less_equal(bottom)

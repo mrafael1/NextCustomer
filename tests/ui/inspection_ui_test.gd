@@ -79,15 +79,18 @@ func test_the_notice_comes_before_the_reward_and_the_kiosk() -> void:
 	await _wait_wall_ms(450)
 	screen._upgrade_panel._on_ticket_clicked(screen._upgrade_panel.tickets()[0])
 
-	# Shift 3: the tag shows the inspection in the top bar, never on the loyalty card.
+	# Shift 3: the chip names the inspection in the top bar (its notice on hover), never on the
+	# loyalty card.
 	assert_int(run.shift_index).is_equal(2)
 	assert_bool(screen._inspection_tag.visible).is_true()
-	assert_str(screen._inspection_tag.text()).is_equal("INSPECTION  The 3rd product pays €0")
+	assert_str(screen._inspection_tag.text()).is_equal("Inspection · Spot check")
 	assert_str(screen._inspection_tag.tooltip_text).contains("Spot check")
+	assert_str(screen._inspection_tag.tooltip_text).contains("The 3rd product pays €0")
 	assert_bool(screen._loyalty_card.is_ancestor_of(screen._inspection_tag)).is_false()
 	assert_int(screen._loyalty_card.stamped_boxes().size()).is_equal(run.upgrades.size())
 	assert_array(_last_event("shift_start")["inspections"]).is_equal(["spot_check"])
-	# The top bar still fits the stage with the tag in it, above the shade.
+	# The top bar still fits the stage with the chip in it, above the shade, between the QUOTA
+	# chip and the LOYALTY chip (B2's order).
 	await _frames(3)
 	var top: Control = screen._top_bar
 	var stage: Rect2 = screen._stage.get_global_rect()
@@ -95,9 +98,15 @@ func test_the_notice_comes_before_the_reward_and_the_kiosk() -> void:
 	var tag: Rect2 = screen._inspection_tag.get_global_rect()
 	assert_bool(stage.encloses(tag)).override_failure_message(str(tag)).is_true()
 	assert_float(tag.end.y).is_less_equal(stage.position.y + RewardPanel.PRINTOUT_TOP)
-	assert_float(tag.position.x).is_greater_equal(screen._loyalty_card.get_global_rect().end.x)
-	# Then Deck.
-	assert_float(tag.end.x).is_less_equal(screen._deck_button.get_global_rect().position.x)
+	var quota_chip: Rect2 = (screen._top_bar.get_child(1) as Control).get_global_rect()
+	assert_float(tag.position.x).is_greater_equal(quota_chip.end.x)
+	assert_float(tag.end.x).is_less_equal(screen._loyalty_card.get_global_rect().position.x)
+	# The warning sign and the name lie inside the chip, apart.
+	var icons: Array[Node] = screen._inspection_tag.find_children("*", "TextureRect", true, false)
+	var icon: Rect2 = (icons[0] as Control).get_global_rect()
+	var name_rect: Rect2 = screen._inspection_tag.label().get_global_rect()
+	assert_bool(tag.encloses(icon) and tag.encloses(name_rect)).is_true()
+	assert_bool(icon.intersects(name_rect)).is_false()
 
 
 func test_inspection_steps_print_and_play_from_the_tag() -> void:

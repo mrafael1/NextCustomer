@@ -220,11 +220,12 @@ func test_an_upgrade_fizzle_plays_and_prints() -> void:
 	assert_bool(screen._counting).is_false()
 	# The shake ends where it started: the box keeps its stamp tilt.
 	assert_float(screen._loyalty_card.box(0).rotation).is_equal_approx(
-		deg_to_rad(LoyaltyCard.STAMP_TILT), 0.001
+		screen._loyalty_card.stamp_tilt(), 0.001
 	)
 
 
-## Every stamped box rests at the same tilt, also after the boxes are rebuilt for a new stamp.
+## Every stamped box rests at the same tilt (the top bar's chip: upright, as B2), also after the
+## boxes are rebuilt for a new stamp.
 func test_every_stamped_box_keeps_its_tilt() -> void:
 	var runner: GdUnitSceneRunner = scene_runner(SCREEN)
 	var screen: ShiftScreen = runner.scene()
@@ -235,8 +236,12 @@ func test_every_stamped_box_keeps_its_tilt() -> void:
 	await _frames(2)
 	var boxes: Array[Control] = screen._loyalty_card.stamped_boxes()
 	assert_int(boxes.size()).is_equal(2)
+	assert_float(screen._loyalty_card.stamp_tilt()).is_equal(0.0)
 	for box: Control in boxes:
-		assert_float(box.rotation).is_equal_approx(deg_to_rad(LoyaltyCard.STAMP_TILT), 0.001)
+		assert_float(box.rotation).is_equal_approx(screen._loyalty_card.stamp_tilt(), 0.001)
+	# The final receipt's card keeps its tilt.
+	var card: LoyaltyCard = auto_free(LoyaltyCard.new())
+	assert_float(card.stamp_tilt()).is_equal_approx(deg_to_rad(LoyaltyCard.STAMP_TILT), 0.001)
 	var empty_box: Control = screen._loyalty_card._boxes.get_child(2) as Control
 	assert_float(empty_box.rotation).is_equal(0.0)
 
@@ -272,6 +277,56 @@ func test_every_stamp_fits_inside_its_ring() -> void:
 			)
 			. is_less_equal(inside)
 		)
+
+
+## The top bar's stamps (#80 step 10, mock-up B2; #59's glyphs not drawn yet): every upgrade's
+## initials fall back into B2's 13x13 ring at 2x, mustard pale in the number font, at the largest
+## size that fits inside both rings (the teal panel); an empty box is the dashed ring. The rings
+## take no clicks but keep their hover text.
+func test_every_chip_stamp_fits_inside_its_ring() -> void:
+	var upgrades: Array[UpgradeDefinition] = []
+	for file_name: String in DirAccess.get_files_at(UPGRADES):
+		if file_name.ends_with(".tres"):
+			upgrades.append(load(UPGRADES.path_join(file_name)) as UpgradeDefinition)
+	var chip: LoyaltyCard = auto_free(LoyaltyCard.new(true))
+	get_tree().root.add_child(chip)
+	chip.show_upgrades(upgrades.size() + 1, upgrades)
+	await _frames(2)
+	var inside: float = LoyaltyCard.CHIP_BOX_SIZE.x - 2.0 * LoyaltyCard.CHIP_RING
+	var stamped: Array[Control] = chip.stamped_boxes()
+	assert_int(stamped.size()).is_equal(upgrades.size())
+	for index: int in range(stamped.size()):
+		var box: Control = stamped[index]
+		assert_vector(box.size).is_equal(LoyaltyCard.CHIP_BOX_SIZE)
+		var ring: StyleBoxTexture = box.get_theme_stylebox("panel") as StyleBoxTexture
+		assert_object(ring.texture).is_same(LoyaltyCard.RING)
+		var label: Label = box.get_child(0) as Label
+		assert_str(label.text).is_equal(LoyaltyCard.initials(upgrades[index].display_name))
+		assert_object(label.get_theme_font("font")).is_same(ArtStyle.number_font())
+		assert_object(label.get_theme_color("font_color")).is_equal(Palette.MUSTARD_PALE)
+		(
+			assert_float(label.get_minimum_size().x)
+			. override_failure_message("%s is too wide for the ring" % label.text)
+			. is_less_equal(inside)
+		)
+		# The largest size that fits: the next size up (if any) would not.
+		var font_size: int = label.get_theme_font_size("font_size")
+		var at: int = LoyaltyCard.CHIP_INITIALS_SIZES.find(font_size)
+		assert_int(at).is_not_equal(-1)
+		if at > 0:
+			label.add_theme_font_size_override("font_size", LoyaltyCard.CHIP_INITIALS_SIZES[at - 1])
+			(
+				assert_float(label.get_minimum_size().x)
+				. override_failure_message("%s could be larger" % label.text)
+				. is_greater(inside)
+			)
+			label.add_theme_font_size_override("font_size", font_size)
+		assert_str(box.tooltip_text).contains(upgrades[index].display_name)
+		assert_int(box.mouse_filter).is_equal(Control.MOUSE_FILTER_PASS)
+	var empty: Control = chip._boxes.get_child(chip._boxes.get_child_count() - 1) as Control
+	var empty_ring: StyleBoxTexture = empty.get_theme_stylebox("panel") as StyleBoxTexture
+	assert_object(empty_ring.texture).is_same(LoyaltyCard.RING_EMPTY)
+	assert_int(empty.mouse_filter).is_equal(Control.MOUSE_FILTER_IGNORE)
 
 
 ## A ticket already under the cursor lights up as soon as it is armed.
