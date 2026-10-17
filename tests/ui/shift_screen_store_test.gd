@@ -84,8 +84,9 @@ func test_the_belt_draws_its_bands() -> void:
 
 ## Decor takes no click: the window bands other than the wall, the belt, the monitor, the
 ## baskets and the register (with every part of them) are MOUSE_FILTER_IGNORE. A click on an
-## empty slot or a hand card reaches it, and one on the bare belt between two slots or on the
-## monitor reaches the wall (the background click).
+## empty slot or a hand card reaches it, one in the gap between two slots reaches the nearer
+## slot's drop target (the targets meet in the gap's middle), and one on the monitor reaches the
+## wall (the background click).
 func test_decor_takes_no_clicks() -> void:
 	var screen: ShiftScreen = await _screen()
 	var stage: ShiftStage = screen._stage
@@ -123,12 +124,13 @@ func test_decor_takes_no_clicks() -> void:
 	var card: Control = screen._hand_box.cards()[0]
 	var card_hit: Control = _topmost_at(screen, card.get_global_rect().get_center())
 	assert_bool(card_hit == card or card.is_ancestor_of(card_hit)).is_true()
-	# The gap between slots 1 and 2, on the belt's top face.
-	var gap: Vector2 = Vector2(
-		slot.get_global_rect().position.x - RowStrip.SEPARATION / 2.0,
-		slot.get_global_rect().get_center().y
-	)
-	assert_object(_topmost_at(screen, gap)).is_same(wall)
+	# The gap between slots 1 and 2, on the belt's top face: each half is its nearer slot's.
+	var gap_middle: float = slot.get_global_rect().position.x - RowStrip.SEPARATION / 2.0
+	var centre_y: float = slot.get_global_rect().get_center().y
+	var left_hit: Control = _topmost_at(screen, Vector2(gap_middle - 2.0, centre_y))
+	assert_object(left_hit).is_same(RowStrip.drop_target(screen._slots[1]))
+	var right_hit: Control = _topmost_at(screen, Vector2(gap_middle + 2.0, centre_y))
+	assert_object(right_hit).is_same(RowStrip.drop_target(slot))
 	# The register: its keys take their clicks; its keypad, drawer and bare deck don't.
 	for key: RegisterKey in [stage.checkout_button, stage.redraw_button]:
 		assert_object(_topmost_at(screen, key.get_global_rect().get_center())).is_same(key)

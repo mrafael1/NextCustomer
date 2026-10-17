@@ -39,7 +39,8 @@ const BANDS: Dictionary[String, Vector2] = {
 	"WallShade": Vector2(0, 270),
 }
 ## Points on the stage over decor only: the cold cases, the bakery, a sign, the fruit & veg stand,
-## the cashier, the lamp, the pillar and the bare wall under the monitor.
+## the cashier, the lamp, the pillar and the bare wall under the monitor (above the slots' drop
+## targets, which reach up over a standing item's art).
 const DECOR_POINTS: Array[Vector2] = [
 	Vector2(60, 200),
 	Vector2(300, 200),
@@ -48,7 +49,7 @@ const DECOR_POINTS: Array[Vector2] = [
 	Vector2(952, 250),
 	Vector2(210, 64),
 	Vector2(1262, 200),
-	Vector2(580, 290),
+	Vector2(580, 274),
 ]
 
 var _folder: String = ""
