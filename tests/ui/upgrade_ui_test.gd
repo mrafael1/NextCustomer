@@ -341,21 +341,25 @@ func test_a_hovered_ticket_lights_up_when_armed() -> void:
 	assert_object(ticket._style.border_color).is_equal(Palette.INK)
 
 
-func test_extra_redraw_gives_a_second_redraw() -> void:
+## A shift starts with the balance's 2 redraws; Extra redraw adds a third.
+func test_extra_redraw_gives_a_third_redraw() -> void:
 	var runner: GdUnitSceneRunner = scene_runner(SCREEN)
 	var screen: ShiftScreen = runner.scene()
 	screen._on_reward_skipped()  # Past the impulse rack.
-	assert_str(screen._redraw_button.caption).contains("(1 left)")
+	assert_str(screen._redraw_button.caption).is_equal("Redraw up to 2 (2 left)")
 	screen._debug.give_upgrade("extra_redraw")
-	assert_int(screen.run.redraws_allowed).is_equal(2)
-	assert_str(screen._redraw_button.caption).contains("(2 left)")
+	assert_int(screen.run.redraws_allowed).is_equal(3)
+	assert_str(screen._redraw_button.caption).contains("(3 left)")
 	assert_str(screen._loyalty_card.box_texts()[0]).is_equal("ExR")
 	_redraw_first_card(screen)
 	assert_int(screen.run.redraws_used).is_equal(1)
+	assert_str(screen._redraw_button.caption).contains("(2 left)")
+	_redraw_first_card(screen)
+	assert_int(screen.run.redraws_used).is_equal(2)
 	assert_str(screen._redraw_button.caption).contains("(1 left)")
 	assert_bool(screen._redraw_button.disabled).is_false()
 	_redraw_first_card(screen)
-	assert_int(screen.run.redraws_used).is_equal(2)
+	assert_int(screen.run.redraws_used).is_equal(3)
 	assert_str(screen._redraw_button.caption).is_equal("Redraw used")
 	assert_bool(screen._redraw_button.disabled).is_true()
 

@@ -6,8 +6,10 @@ extends Resource
 ## One quota per shift; the run has as many shifts as quotas.
 @export var quotas: PackedInt32Array = PackedInt32Array()
 @export var hand_size: int = 0
-## How many cards one redraw can replace. A shift has one redraw, plus each owned upgrade's
-## extra_redraws (plan section 3.8).
+## Redraws every shift allows before upgrades; a shift adds each owned upgrade's
+## extra_redraws (plan section 3.8, ShiftLimits).
+@export var base_redraws: int = 0
+## How many cards one redraw can replace.
 @export var redraw_limit: int = 0
 ## Product slots: the most products the row holds (plan section 3.1).
 @export var slot_count: int = 0

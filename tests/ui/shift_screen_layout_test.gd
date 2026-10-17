@@ -359,12 +359,15 @@ func test_the_status_line_and_the_register_stay_clear() -> void:
 func test_every_redraw_caption_fits() -> void:
 	var screen: ShiftScreen = await _screen()
 	var run: RunState = screen.run
+	var extra_redraws: int = 0
 	for upgrade: UpgradeDefinition in _all_upgrades():
 		if upgrade.extra_redraws > 0:
 			run.upgrades.append(upgrade)
+			extra_redraws += upgrade.extra_redraws
 	run.debug_skip_to_shift(run.shift_index)
 	screen._on_shift_started()
-	assert_int(run.redraws_allowed).is_greater(1)
+	assert_int(extra_redraws).is_greater(0)
+	assert_int(run.redraws_allowed).is_equal(run.balance.base_redraws + extra_redraws)
 	var captions: PackedStringArray = PackedStringArray()
 	for used: int in range(run.redraws_allowed, -1, -1):
 		run.redraws_used = used

@@ -27,7 +27,7 @@ static func for_shift(
 	var limits: ShiftLimits = ShiftLimits.new()
 	limits.slot_count = balance.slot_count
 	limits.coupon_slot_count = balance.coupon_slot_count
-	limits.redraws = RunState.BASE_REDRAWS
+	limits.redraws = balance.base_redraws
 	var quota_percent: int = 0
 	for upgrade: UpgradeDefinition in upgrades:
 		limits.slot_count += upgrade.extra_slots
