@@ -1,0 +1,243 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Shift screen mock-up 1+2</title>
+<style>
+@font-face { font-family: Pixelify; src: url(../../../fonts/PixelifySans-Variable.ttf); }
+@font-face { font-family: Atkinson; src: url(../../../fonts/AtkinsonHyperlegibleNext-Variable.ttf); font-weight: 200 800; }
+@font-face { font-family: JBMono; src: url(../../../fonts/JetBrainsMono-Regular.ttf); }
+:root {
+  --ink: #2b2420; --ink-light: #4a3f38; --muted: #8a8172; --paper: #fbf7ee; --cream: #f3e9d2;
+  --cream-shade: #ddcba5; --mustard: #e2b33c; --mustard-light: #f1d27a; --mustard-pale: #faecbc;
+  --tomato: #d9534f; --tomato-dark: #a83a3c; --teal: #4f9a94; --teal-panel: #2a4d4b; --teal-dark: #1f3b3a;
+  --good: #5fae5a; --wood: #a8703a; --wood-dark: #6e4524; --wood-darkest: #3e2614; --wood-light: #c98c4e;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { width: 1280px; height: 720px; overflow: hidden; background: var(--teal-dark); }
+img, .px { image-rendering: pixelated; }
+.stage { position: relative; width: 1280px; height: 720px; font-family: Atkinson, sans-serif; color: var(--ink); }
+.abs { position: absolute; }
+.num { font-family: Atkinson; font-weight: 750; }
+
+/* ---- the store behind the register (proposal 1's warmth) ---- */
+.wall { left: 0; top: 56px; width: 1280px; height: 250px; background: #e9dcc0; overflow: hidden; }
+.wall::after { content: ""; position: absolute; inset: 0;
+  background: radial-gradient(ellipse 260px 200px at 300px 30px, rgba(255,236,170,.55), transparent 70%),
+              radial-gradient(ellipse 260px 200px at 760px 30px, rgba(255,236,170,.45), transparent 70%),
+              linear-gradient(rgba(31,59,58,0) 40%, rgba(31,59,58,.28)); }
+.shelf { position: absolute; left: 0; width: 1280px; height: 58px; display: flex; gap: 6px; padding-left: 10px;
+  align-items: flex-end; filter: saturate(.75) brightness(.92); opacity: .8; }
+.shelf::after { content: ""; position: absolute; left: 0; right: 0; bottom: -10px; height: 10px;
+  background: var(--wood); border-top: 2px solid var(--wood-light); border-bottom: 2px solid var(--wood-darkest); }
+.shelf img { width: 48px; height: 48px; flex: none; }
+.lamp { position: absolute; top: 56px; width: 70px; height: 18px; background: var(--teal-dark);
+  border-radius: 0 0 35px 35px; border-bottom: 3px solid var(--mustard-light); }
+.queue { position: absolute; bottom: 0; background: #557571; opacity: .75; }
+.queue.head { border-radius: 50%; }
+.queue.body { border-radius: 40px 40px 0 0; }
+
+/* ---- top bar (proposal 2) ---- */
+.topbar { left: 0; top: 0; width: 1280px; height: 56px; background: var(--teal-dark); border-bottom: 3px solid var(--ink); }
+.chip { top: 9px; height: 38px; display: flex; align-items: center; gap: 8px; padding: 0 12px;
+  background: var(--teal-panel); border: 2px solid var(--ink); border-radius: 6px; color: var(--paper);
+  box-shadow: inset 0 -3px 0 rgba(0,0,0,.25); }
+.chip .k { font-family: Pixelify; font-size: 15px; letter-spacing: 1px; color: var(--mustard-pale); }
+.chip .v { font-family: Atkinson; font-weight: 750; font-size: 20px; }
+.quota { left: 176px; width: 470px; }
+.bar { flex: 1; height: 14px; background: rgba(0,0,0,.35); border: 2px solid var(--ink); position: relative; }
+.bar i { position: absolute; left: 0; top: 0; bottom: 0; width: 30%; background: var(--mustard);
+  box-shadow: inset 0 3px 0 var(--mustard-light); }
+.chip.warn { background: var(--paper); color: var(--ink); }
+.chip .ico { width: 24px; height: 24px; border-radius: 12px; display: grid; place-items: center; font-family: Pixelify; font-size: 14px; }
+.stamp { width: 24px; height: 24px; border-radius: 12px; background: var(--tomato); color: var(--paper);
+  font-weight: 750; font-size: 9px; display: grid; place-items: center; border: 2px solid var(--ink); }
+.stamp.empty { background: transparent; border: 2px dashed rgba(251,247,238,.4); }
+.tbtn { top: 9px; height: 38px; padding: 0 12px; display: flex; align-items: center; font-family: Pixelify; font-size: 16px;
+  color: var(--paper); background: var(--teal); border: 2px solid var(--ink); border-radius: 6px; box-shadow: inset 0 -3px 0 rgba(0,0,0,.25); }
+
+/* ---- the monitor: the hovered item, big (proposal 2) ---- */
+.pole { left: 702px; top: 258px; width: 16px; height: 30px; background: #3d3a36; border: 2px solid var(--ink); }
+.monitor { left: 500px; top: 66px; width: 420px; height: 196px; background: #3d3a36; border: 3px solid var(--ink);
+  border-radius: 8px; padding: 9px; box-shadow: 0 6px 0 rgba(43,36,32,.35); }
+.screen { width: 100%; height: 100%; background: var(--paper); border: 2px solid var(--ink); border-radius: 3px;
+  display: flex; gap: 10px; padding: 8px 10px; position: relative; }
+.screen .art { width: 96px; flex: none; display: flex; flex-direction: column; align-items: center; }
+.screen .slip { position: relative; width: 96px; height: 96px; }
+.screen .slip .icon { position: absolute; left: 28px; top: 36px; width: 40px; height: 28px; }
+.screen .kind { font-family: Pixelify; font-size: 13px; color: var(--tomato-dark); letter-spacing: 1px; margin-top: 2px; }
+.screen .title { font-family: Pixelify; font-size: 21px; line-height: 22px; }
+.screen .rule { font-size: 13px; line-height: 16px; font-weight: 600; color: var(--ink-light); margin-top: 3px; }
+.screen .why { display: flex; gap: 5px; font-size: 12px; line-height: 14px; font-weight: 600; color: var(--tomato-dark); margin-top: 4px; }
+.screen .why img { width: 12px; height: 12px; margin-top: 1px; flex: none; }
+.screen .pays { position: absolute; right: 8px; top: 6px; font-weight: 750; font-size: 15px; color: var(--ink-light); }
+.screen .pays b { font-size: 20px; color: var(--ink); }
+
+/* ---- belt (proposal 1: items stand on a real conveyor) ---- */
+.counter { left: 0; top: 306px; width: 1280px; height: 414px;
+  background: repeating-linear-gradient(90deg, var(--wood) 0 118px, #9c6834 118px 120px, var(--wood) 120px 238px, #b07a42 238px 240px);
+  border-top: 4px solid var(--wood-darkest); }
+.counter::after { content: ""; position: absolute; inset: 0; background: linear-gradient(rgba(62,38,20,.0), rgba(62,38,20,.25)); }
+.belt { left: 16px; top: 284px; width: 912px; height: 184px; background:
+  repeating-linear-gradient(90deg, #3d3a36 0 22px, #45413c 22px 24px); border: 3px solid var(--ink); border-radius: 10px;
+  box-shadow: inset 0 8px 0 #8d8a83, inset 0 10px 0 var(--ink), inset 0 -8px 0 #8d8a83, inset 0 -10px 0 var(--ink); }
+.cell { position: absolute; top: 4px; width: 120px; height: 172px; display: flex; flex-direction: column; align-items: center; }
+.cell .sprite { width: 96px; height: 96px; margin-top: 8px; filter: drop-shadow(0 5px 0 rgba(0,0,0,.35)); }
+.cell .slip { position: relative; width: 96px; height: 96px; margin-top: 8px; filter: drop-shadow(0 5px 0 rgba(0,0,0,.35)); }
+.slip .icon { position: absolute; left: 28px; top: 36px; width: 40px; height: 28px; }
+.tag { width: 112px; height: 54px; background: var(--paper); border: 2px solid var(--ink); border-radius: 4px;
+  padding: 1px 6px; position: relative; margin-top: 2px; box-shadow: 0 3px 0 rgba(0,0,0,.3); }
+.tag .p { font-weight: 750; font-size: 17px; line-height: 19px; }
+.tag .r { font-size: 11.5px; line-height: 13px; font-weight: 650; color: var(--ink-light); }
+.tag.cp { border-color: var(--mustard); border-top: 3px dotted var(--tomato); }
+.tag.cp .p { font-family: Pixelify; font-weight: 400; font-size: 12px; color: var(--tomato-dark); letter-spacing: 1px; }
+.tag .ai { position: absolute; right: 4px; top: 3px; width: 18px; height: 18px; }
+.mark { position: absolute; top: 4px; right: 4px; width: 26px; height: 26px; border-radius: 13px; display: grid; place-items: center;
+  border: 2px solid var(--ink); z-index: 2; }
+.mark.fz { background: var(--tomato); }
+.mark.fz img { width: 14px; height: 14px; filter: brightness(0) invert(1); }
+.mark.ok { background: var(--good); color: var(--paper); font-weight: 800; font-size: 15px; }
+.slot { position: absolute; top: 16px; width: 112px; height: 150px; border: 3px dashed rgba(241,210,122,.55); border-radius: 8px;
+  display: grid; place-items: center; font-weight: 750; font-size: 40px; color: rgba(241,210,122,.6); }
+.closedslot { position: absolute; top: 16px; width: 112px; height: 150px; border-radius: 8px; background: rgba(0,0,0,.25);
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; }
+.closedslot b { font-family: Pixelify; font-weight: 400; font-size: 17px; color: var(--paper); background: var(--tomato-dark);
+  border: 2px solid var(--ink); padding: 2px 10px; }
+.closedslot span { font-size: 12px; font-weight: 650; color: var(--cream-shade); }
+.sel { position: absolute; inset: -2px 2px; border: 3px solid var(--mustard); border-radius: 8px; background: rgba(241,210,122,.12); }
+.belt-cap { left: 30px; top: 462px; font-size: 13px; font-weight: 650; color: var(--paper); opacity: .85; }
+
+/* ---- receipt list (proposal 2) ---- */
+.printer { left: 950px; top: 436px; width: 310px; height: 40px; background: #3d3a36; border: 3px solid var(--ink); border-radius: 8px 8px 4px 4px;
+  box-shadow: inset 0 6px 0 #57534c; }
+.printer::after { content: ""; position: absolute; left: 22px; right: 22px; top: -3px; height: 8px; background: var(--ink); border-radius: 0 0 4px 4px; }
+.receipt { left: 972px; top: 68px; width: 266px; height: 372px; background: var(--paper); border: 2px solid rgba(43,36,32,.35);
+  font-family: JBMono; font-size: 13px; line-height: 20px; padding: 12px 14px; box-shadow: 4px 6px 0 rgba(43,36,32,.18); }
+.receipt .h { font-size: 12.5px; color: var(--ink-light); }
+.receipt .big { font-family: Pixelify; font-size: 17px; color: var(--ink); letter-spacing: 1px; }
+.dash { border-top: 2px dashed var(--cream-shade); margin: 8px 0; }
+.ln { display: flex; gap: 6px; align-items: center; padding: 0 4px; margin: 0 -4px; }
+.ln .nm { flex: 1; }
+.ln img { width: 14px; height: 14px; }
+.ln .pl { width: 14px; text-align: center; }
+.ln.on { background: var(--mustard-pale); outline: 2px solid var(--mustard); }
+.ln.wait { color: var(--muted); }
+.receipt .sum { font-size: 12px; color: var(--tomato-dark); }
+
+/* ---- actions (one big button) ---- */
+.checkout { left: 950px; top: 530px; width: 310px; height: 72px; background: var(--tomato); border: 3px solid var(--ink); border-radius: 10px;
+  box-shadow: inset 0 4px 0 #ec7d75, inset 0 -6px 0 var(--tomato-dark), 0 6px 0 var(--ink);
+  display: flex; align-items: center; justify-content: center; gap: 14px; font-family: Pixelify; font-size: 32px; color: var(--paper); letter-spacing: 2px; }
+.redraw { left: 950px; top: 620px; width: 310px; height: 44px; background: var(--paper); border: 3px solid var(--ink); border-radius: 8px;
+  box-shadow: 0 4px 0 var(--ink); display: flex; align-items: center; justify-content: center; gap: 8px; font-family: Pixelify; font-size: 18px; }
+.redraw small { font-family: Atkinson; font-weight: 650; font-size: 13px; color: var(--muted); }
+.foot { left: 952px; top: 682px; font-size: 11px; font-weight: 600; color: var(--cream-shade); opacity: .8; }
+
+/* ---- the hand: a shopping basket on the counter (proposal 1) ---- */
+.basket { left: 16px; top: 498px; width: 912px; height: 212px; background: var(--paper); border: 3px solid var(--ink); border-radius: 6px 6px 14px 14px;
+  box-shadow: inset 0 0 0 8px var(--tomato), inset 0 0 0 10px var(--tomato-dark); overflow: hidden; }
+.basket .rim { position: absolute; left: 0; right: 0; bottom: 0; height: 26px; background:
+  radial-gradient(circle at 12px 13px, var(--tomato-dark) 5px, transparent 6px) 0 0 / 24px 26px, var(--tomato); border-top: 3px solid var(--ink); }
+.handle { position: absolute; top: 486px; width: 120px; height: 22px; border: 6px solid var(--tomato-dark); border-bottom: 0; border-radius: 40px 40px 0 0; }
+.hcell { position: absolute; top: 12px; width: 106px; display: flex; flex-direction: column; align-items: center; }
+.hcell .sprite { width: 96px; height: 96px; }
+.hcell .slip { position: relative; width: 96px; height: 96px; }
+.hcell .tag { width: 104px; height: 56px; }
+.hcell .tag .r { white-space: normal; }
+</style>
+</head>
+<body>
+<div class="stage">
+  <!-- store backdrop -->
+  <div class="abs wall">
+    <div class="shelf" style="top:14px">
+      <img src="assets/art/items_v2/milk.png"><img src="assets/art/items_v2/milk.png"><img src="assets/art/items_v2/milk.png"><img src="assets/art/items_v2/cheese.png"><img src="assets/art/items_v2/cheese.png"><img src="assets/art/items_v2/eggs.png"><img src="assets/art/items_v2/eggs.png"><img src="assets/art/items_v2/tea_bags.png"><img src="assets/art/items_v2/tea_bags.png"><img src="assets/art/items_v2/coffee.png"><img src="assets/art/items_v2/coffee.png"><img src="assets/art/items_v2/coffee.png"><img src="assets/art/items_v2/crisps.png"><img src="assets/art/items_v2/crisps.png"><img src="assets/art/items_v2/crisps.png"><img src="assets/art/items_v2/batteries.png"><img src="assets/art/items_v2/batteries.png"><img src="assets/art/items_v2/croissant.png"><img src="assets/art/items_v2/croissant.png"><img src="assets/art/items_v2/banana.png"><img src="assets/art/items_v2/banana.png"><img src="assets/art/items_v2/strawberries.png"><img src="assets/art/items_v2/strawberries.png"><img src="assets/art/items_v2/milk.png">
+    </div>
+    <div class="shelf" style="top:88px">
+      <img src="assets/art/items_v2/banana.png"><img src="assets/art/items_v2/banana.png"><img src="assets/art/items_v2/strawberries.png"><img src="assets/art/items_v2/strawberries.png"><img src="assets/art/items_v2/strawberries.png"><img src="assets/art/items_v2/croissant.png"><img src="assets/art/items_v2/croissant.png"><img src="assets/art/items_v2/croissant.png"><img src="assets/art/items_v2/crisps.png"><img src="assets/art/items_v2/crisps.png"><img src="assets/art/items_v2/coffee.png"><img src="assets/art/items_v2/coffee.png"><img src="assets/art/items_v2/tea_bags.png"><img src="assets/art/items_v2/tea_bags.png"><img src="assets/art/items_v2/eggs.png"><img src="assets/art/items_v2/eggs.png"><img src="assets/art/items_v2/milk.png"><img src="assets/art/items_v2/milk.png"><img src="assets/art/items_v2/cheese.png"><img src="assets/art/items_v2/cheese.png"><img src="assets/art/items_v2/batteries.png"><img src="assets/art/items_v2/batteries.png"><img src="assets/art/items_v2/banana.png"><img src="assets/art/items_v2/crisps.png">
+    </div>
+    <div class="shelf" style="top:162px">
+      <img src="assets/art/items_v2/coffee.png"><img src="assets/art/items_v2/tea_bags.png"><img src="assets/art/items_v2/tea_bags.png"><img src="assets/art/items_v2/milk.png"><img src="assets/art/items_v2/milk.png"><img src="assets/art/items_v2/cheese.png"><img src="assets/art/items_v2/eggs.png"><img src="assets/art/items_v2/eggs.png"><img src="assets/art/items_v2/eggs.png"><img src="assets/art/items_v2/batteries.png"><img src="assets/art/items_v2/batteries.png"><img src="assets/art/items_v2/crisps.png"><img src="assets/art/items_v2/banana.png"><img src="assets/art/items_v2/banana.png"><img src="assets/art/items_v2/strawberries.png"><img src="assets/art/items_v2/croissant.png"><img src="assets/art/items_v2/croissant.png"><img src="assets/art/items_v2/coffee.png"><img src="assets/art/items_v2/coffee.png"><img src="assets/art/items_v2/milk.png"><img src="assets/art/items_v2/cheese.png"><img src="assets/art/items_v2/tea_bags.png"><img src="assets/art/items_v2/crisps.png"><img src="assets/art/items_v2/eggs.png">
+    </div>
+    <!-- the queue: next customers as silhouettes (placeholder for any customer art) -->
+    <div class="queue head" style="left:146px;bottom:150px;width:52px;height:56px"></div>
+    <div class="queue body" style="left:118px;width:108px;height:150px"></div>
+    <div class="queue head" style="left:300px;bottom:130px;width:44px;height:48px;opacity:.35"></div>
+    <div class="queue body" style="left:276px;width:92px;height:130px;opacity:.35"></div>
+  </div>
+  <div class="abs lamp" style="left:265px"></div>
+  <div class="abs lamp" style="left:725px"></div>
+
+  <!-- top bar -->
+  <div class="abs topbar"></div>
+  <div class="abs chip" style="left:16px"><span class="k">SHIFT</span><span class="v">5/8</span></div>
+  <div class="abs chip quota"><span class="k">QUOTA</span><span class="v">€73</span><span class="bar"><i></i></span><span class="v" style="color:var(--mustard-light)">€22</span></div>
+  <div class="abs chip warn" style="left:660px"><span class="ico" style="background:var(--tomato);color:var(--paper)">!</span><span style="font-weight:700;font-size:14px">Inspection · −1 slot</span></div>
+  <div class="abs chip" style="left:858px"><span class="k">LOYALTY</span><span class="stamp">CoE</span><span class="stamp">SlE</span><span class="stamp">CaE</span><span class="stamp empty"></span></div>
+  <div class="abs tbtn" style="left:1100px">Deck <span class="num" style="margin-left:6px">13/15</span></div>
+  <div class="abs tbtn" style="left:1222px;font-size:19px">☰</div>
+
+  <!-- monitor -->
+  <div class="abs pole"></div>
+  <div class="abs monitor"><div class="screen">
+    <div class="art"><div class="slip"><img class="px" src="assets/art/items_v2/coupon_slip.png" style="width:96px;height:96px"><img class="icon px" src="assets/art/icons/coupon_multipack_v2.png"></div><div class="kind">COUPON</div></div>
+    <div style="flex:1;min-width:0">
+      <div class="title">Multipack</div>
+      <div class="rule">×3 to later products sharing a tag with the product just before it (not Food or Breakfast)</div>
+      <div class="why"><img class="px" src="assets/art/icons/fizzle.png"><span>Coupon engine: the first coupon paid nothing</span></div>
+      <div class="why"><img class="px" src="assets/art/icons/fizzle.png"><span>Multipack ×3: no later product shared a tag</span></div>
+    </div>
+    <div class="pays">pays <b>€0</b></div>
+  </div></div>
+
+  <!-- counter and belt -->
+  <div class="abs counter"></div>
+  <div class="abs belt">
+    <div class="cell" style="left:6px"><span class="mark fz"><img class="px" src="assets/art/icons/fizzle.png"></span><img class="sprite px" src="assets/art/items_v2/cheese.png"><div class="tag"><div class="p">€3</div><img class="ai px" src="assets/art/icons/aisle_cold_cases.png"><div class="r">+4 after Bread</div></div></div>
+    <div class="cell" style="left:132px"><span class="mark fz"><img class="px" src="assets/art/icons/fizzle.png"></span><img class="sprite px" src="assets/art/items_v2/strawberries.png"><div class="tag"><div class="p">€2</div><img class="ai px" src="assets/art/icons/aisle_fruit_and_veg.png"><div class="r">+3 beside Produce</div></div></div>
+    <div class="cell" style="left:258px"><span class="mark ok">✓</span><img class="sprite px" src="assets/art/items_v2/croissant.png"><div class="tag"><div class="p">€2</div><img class="ai px" src="assets/art/icons/aisle_bakery.png"><div class="r">+2 beside Bakery</div></div></div>
+    <div class="cell" style="left:384px"><span class="sel"></span><span class="mark fz"><img class="px" src="assets/art/icons/fizzle.png"></span><div class="slip"><img class="px" src="assets/art/items_v2/coupon_slip.png" style="width:96px;height:96px"><img class="icon px" src="assets/art/icons/coupon_multipack_v2.png"></div><div class="tag cp"><div class="p">COUPON</div><div class="r">×3 later with prior’s tag</div></div></div>
+    <div class="slot" style="left:514px">5</div>
+    <div class="slot" style="left:640px">6</div>
+    <div class="closedslot" style="left:766px"><img class="px" src="assets/art/scenery/velvet_rope.png" style="width:88px;height:24px;filter:hue-rotate(0deg)"><b>CLOSED</b><span>inspection</span></div>
+  </div>
+
+  <!-- receipt and printer -->
+  <div class="abs receipt">
+    <div class="h">NEXT CUSTOMER · REG 3</div>
+    <div class="h">SHIFT <span class="num">5/8</span> · <span class="num">4</span> ITEMS</div>
+    <div class="dash"></div>
+    <div class="ln"><span class="nm">Cheese</span><span>€3.00</span><span class="pl"><img class="px" src="assets/art/icons/fizzle.png"></span></div>
+    <div class="ln"><span class="nm">Strawberries</span><span>€2.00</span><span class="pl"><img class="px" src="assets/art/icons/fizzle.png"></span></div>
+    <div class="ln"><span class="nm">Croissant</span><span>€17.00</span><span class="pl" style="color:var(--good);font-weight:700">✓</span></div>
+    <div class="ln on"><span class="nm">Multipack</span><span>€0.00</span><span class="pl"><img class="px" src="assets/art/icons/fizzle.png"></span></div>
+    <div class="ln wait"><span class="nm">5 ·····</span></div>
+    <div class="ln wait"><span class="nm">6 ·····</span></div>
+    <div class="dash"></div>
+    <div class="ln"><span class="nm big" style="font-size:16px">TOTAL</span><span class="num" style="font-size:18px">€22.00</span><span class="pl"></span></div>
+    <div class="sum" style="margin-top:6px">2 fizzles · hover an item</div>
+  </div>
+  <div class="abs printer"></div>
+
+  <!-- actions -->
+  <div class="abs checkout">CHECKOUT <span style="font-size:26px">›</span></div>
+  <div class="abs redraw">Redraw <small>1 left</small></div>
+  <div class="abs foot">Seed 20261014 · fb-p2</div>
+
+  <!-- hand: shopping basket -->
+  <div class="abs handle" style="left:180px"></div>
+  <div class="abs handle" style="left:640px"></div>
+  <div class="abs basket">
+    <div class="hcell" style="left:16px"><img class="sprite px" src="assets/art/items_v2/eggs.png"><div class="tag"><div class="p">€1</div><div class="r">×2 next Food</div></div></div>
+    <div class="hcell" style="left:126px"><img class="sprite px" src="assets/art/items_v2/tea_bags.png"><div class="tag"><div class="p">€1</div><img class="ai px" src="assets/art/icons/aisle_pantry.png"><div class="r">×4 next Breakfast</div></div></div>
+    <div class="hcell" style="left:236px"><img class="sprite px" src="assets/art/items_v2/banana.png"><div class="tag"><div class="p">€2</div><img class="ai px" src="assets/art/icons/aisle_fruit_and_veg.png"><div class="r">+2 after Banana</div></div></div>
+    <div class="hcell" style="left:346px"><img class="sprite px" src="assets/art/items_v2/batteries.png"><div class="tag"><div class="p">€1</div><img class="ai px" src="assets/art/icons/aisle_household.png"><div class="r">+4 in last slot</div></div></div>
+    <div class="hcell" style="left:456px"><div class="slip"><img class="px" src="assets/art/items_v2/coupon_slip.png" style="width:96px;height:96px"><img class="icon px" src="assets/art/icons/coupon_two_for_one_v2.png"></div><div class="tag cp"><div class="p">COUPON</div><div class="r">Same both sides: 2nd ×2</div></div></div>
+    <div class="hcell" style="left:566px"><img class="sprite px" src="assets/art/items_v2/crisps.png"><div class="tag"><div class="p">€2</div><img class="ai px" src="assets/art/icons/aisle_snacks.png"><div class="r">+3 beside Bread</div></div></div>
+    <div class="hcell" style="left:676px"><img class="sprite px" src="assets/art/items_v2/coffee.png"><div class="tag"><div class="p">€2</div><img class="ai px" src="assets/art/icons/aisle_pantry.png"><div class="r">+3 next Breakfast</div></div></div>
+    <div class="hcell" style="left:786px"><img class="sprite px" src="assets/art/items_v2/milk.png"><div class="tag"><div class="p">€4</div><img class="ai px" src="assets/art/icons/aisle_cold_cases.png"><div class="r">+1 per earlier Breakfast</div></div></div>
+    <div class="rim"></div>
+  </div>
+</div>
+</body>
+</html>
