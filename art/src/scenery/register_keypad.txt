@@ -1,0 +1,52 @@
+; The register's quiet keypad (mock-up B2, #80 step 9), 44x43 @2 drawn at
+; ShiftStage.KEYPAD_RECT (966,516 88x86) on the key deck: 7 8 9 / 4 5 6 / 1 2 3 / 0 00,
+; steel-dark caps in ink outlines with a steel shade top face, steel-darkest right side and
+; bottom and 3x5 steel digits, each with a 1 art px rubber-dark drop shadow on the deck;
+; then the seam (rubber, steel dark) to the function keys. Smaller and darker than the real
+; keys: it takes no click. Hidden while Cancel stands in its place (redraw mode).
+@size 44x43
+@kind scenery
+@scale 2
+###########..###########..###########.......
+#EEEEEEEEE#K.#EEEEEEEEE#K.#EEEEEEEEE#K....JH
+#HHHDDDHHI#K.#HHHDDDHHI#K.#HHHDDDHHI#K....JH
+#HHHHHDHHI#K.#HHHDHDHHI#K.#HHHDHDHHI#K....JH
+#HHHHDHHHI#K.#HHHDDDHHI#K.#HHHDDDHHI#K....JH
+#HHHHDHHHI#K.#HHHDHDHHI#K.#HHHHHDHHI#K....JH
+#HHHHDHHHI#K.#HHHDDDHHI#K.#HHHDDDHHI#K....JH
+#IIIIIIIII#K.#IIIIIIIII#K.#IIIIIIIII#K....JH
+###########K.###########K.###########K....JH
+.KKKKKKKKKKK..KKKKKKKKKKK..KKKKKKKKKKK....JH
+..........................................JH
+###########..###########..###########.....JH
+#EEEEEEEEE#K.#EEEEEEEEE#K.#EEEEEEEEE#K....JH
+#HHHDHDHHI#K.#HHHDDDHHI#K.#HHHDDDHHI#K....JH
+#HHHDHDHHI#K.#HHHDHHHHI#K.#HHHDHHHHI#K....JH
+#HHHDDDHHI#K.#HHHDDDHHI#K.#HHHDDDHHI#K....JH
+#HHHHHDHHI#K.#HHHHHDHHI#K.#HHHDHDHHI#K....JH
+#HHHHHDHHI#K.#HHHDDDHHI#K.#HHHDDDHHI#K....JH
+#IIIIIIIII#K.#IIIIIIIII#K.#IIIIIIIII#K....JH
+###########K.###########K.###########K....JH
+.KKKKKKKKKKK..KKKKKKKKKKK..KKKKKKKKKKK....JH
+..........................................JH
+###########..###########..###########.....JH
+#EEEEEEEEE#K.#EEEEEEEEE#K.#EEEEEEEEE#K....JH
+#HHHHDHHHI#K.#HHHDDDHHI#K.#HHHDDDHHI#K....JH
+#HHHDDHHHI#K.#HHHHHDHHI#K.#HHHHHDHHI#K....JH
+#HHHHDHHHI#K.#HHHDDDHHI#K.#HHHHDDHHI#K....JH
+#HHHHDHHHI#K.#HHHDHHHHI#K.#HHHHHDHHI#K....JH
+#HHHDDDHHI#K.#HHHDDDHHI#K.#HHHDDDHHI#K....JH
+#IIIIIIIII#K.#IIIIIIIII#K.#IIIIIIIII#K....JH
+###########K.###########K.###########K....JH
+.KKKKKKKKKKK..KKKKKKKKKKK..KKKKKKKKKKK....JH
+..........................................JH
+########################..###########.....JH
+#EEEEEEEEEEEEEEEEEEEEEE#K.#EEEEEEEEE#K....JH
+#HHHHHHHHHDDDHHHHHHHHHI#K.#HDDDHDDDI#K....JH
+#HHHHHHHHHDHDHHHHHHHHHI#K.#HDHDHDHDI#K....JH
+#HHHHHHHHHDHDHHHHHHHHHI#K.#HDHDHDHDI#K....JH
+#HHHHHHHHHDHDHHHHHHHHHI#K.#HDHDHDHDI#K....JH
+#HHHHHHHHHDDDHHHHHHHHHI#K.#HDDDHDDDI#K....JH
+#IIIIIIIIIIIIIIIIIIIIII#K.#IIIIIIIII#K....JH
+########################K.###########K....JH
+.KKKKKKKKKKKKKKKKKKKKKKKK..KKKKKKKKKKK....JH

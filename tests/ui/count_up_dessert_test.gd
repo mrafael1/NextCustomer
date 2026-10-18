@@ -1,7 +1,8 @@
 extends GdUnitTestSuite
-## The shift's dessert on the real shift screen (#61, CountUpDessert): after the verdict,
-## "€total / €quota" slams onto the TOTAL line with `total` or `miss`, the margin line counts
-## (+€N OVER QUOTA, SHORT €N, ON QUOTA) with `pass` or `fail`, a pass is stamped PAID, the
+## The shift's dessert on the real shift screen (#61, CountUpDessert): after the verdict, the
+## total slams onto the LED's digits on the hung monitor (#80) with `total` or `miss` while the
+## receipt's TOTAL line shows "€total / €quota" plainly, the margin line counts
+## (+€N.00 OVER QUOTA, SHORT €N.00, ON QUOTA) with `pass` or `fail`, a pass is stamped PAID, the
 ## receipt tears with `rip` (after `fail` has rung out on a miss), the next shift's notice prints
 ## under the tear, and a pass ends at the printer feed. Checked: the order and timing of the
 ## sounds for a pass, a miss (at Normal and Fast), a pass before an inspected shift, an upgrade
@@ -62,7 +63,7 @@ func after_test() -> void:
 
 ## A pass with no notice and no taps: total and the slam at 300 ms, pass at 450, PAID at 520,
 ## the tear at 560 and the printer feed at 700 (each within _assert_ms's bounds); the
-## verdict and "+€75 OVER QUOTA | PAID" in green under it, then the tear; one printer_feed.
+## verdict and "+€75.00 OVER QUOTA | PAID" in green under it, then the tear; one printer_feed.
 func test_a_pass_slams_counts_stamps_tears_and_feeds() -> void:
 	var screen: ShiftScreen = await _screen()
 	var sfx: Sfx = _recording_sfx(screen)
@@ -91,8 +92,8 @@ func test_a_pass_slams_counts_stamps_tears_and_feeds() -> void:
 	var lines: Array[String] = _lines(screen._receipt)
 	assert_array(lines.slice(-3)).is_equal(
 		[
-			"TOTAL | €109 / €34",
-			"+€75 OVER QUOTA | PAID",
+			"TOTAL | €109.00 / €34.00",
+			"+€75.00 OVER QUOTA | PAID",
 			ReceiptView.TEAR_PATTERN.repeat(60) + " | "
 		]
 	)
@@ -102,7 +103,7 @@ func test_a_pass_slams_counts_stamps_tears_and_feeds() -> void:
 
 
 ## A miss: miss, fail, then the tear once fail has rung out, and no PAID, notice or feed;
-## "SHORT €91" and the verdict in red.
+## "SHORT €91.00" and the verdict in red.
 func test_a_miss_counts_short_and_tears_after_the_fail() -> void:
 	var screen: ShiftScreen = await _screen()
 	var sfx: Sfx = _recording_sfx(screen)
@@ -122,8 +123,8 @@ func test_a_miss_counts_short_and_tears_after_the_fail() -> void:
 	assert_array(feeds).is_empty()
 	assert_int(count_up.margin.kind()).is_equal(ShiftMargin.Kind.SHORT)
 	var lines: Array[String] = _lines(screen._receipt)
-	assert_str(lines[-3]).is_equal("TOTAL | €109 / €200")
-	assert_str(lines[-2]).is_equal("SHORT €91 | ")
+	assert_str(lines[-3]).is_equal("TOTAL | €109.00 / €200.00")
+	assert_str(lines[-2]).is_equal("SHORT €91.00 | ")
 	assert_that(_color(screen._receipt.total_label())).is_equal(Palette.TOMATO)
 	assert_that(_color(_line_label(screen._receipt, -2, 0))).is_equal(Palette.TOMATO)
 	await _assert_lines_on_screen(screen, 3)
@@ -163,7 +164,7 @@ func test_exactly_on_the_quota_is_a_green_on_quota() -> void:
 	_play_skipped(screen, ROW_TOTAL)
 	await _played(screen)
 	var lines: Array[String] = _lines(screen._receipt)
-	assert_str(lines[-3]).is_equal("TOTAL | €109 / €109")
+	assert_str(lines[-3]).is_equal("TOTAL | €109.00 / €109.00")
 	assert_str(lines[-2]).is_equal("ON QUOTA | PAID")
 	assert_that(_color(_line_label(screen._receipt, -2, 0))).is_equal(Palette.GOOD)
 	assert_int(screen._count_up.margin.kind()).is_equal(ShiftMargin.Kind.ON)
@@ -196,7 +197,7 @@ func test_the_last_shift_is_stamped_and_torn_then_shows_the_results() -> void:
 	assert_array(_names_of(_dessert_sounds(sfx, count_up))).is_equal(
 		["total", "pass", "stamp_paid", "rip"]
 	)
-	assert_str(_lines(screen._receipt)[-2]).is_equal("+€75 OVER QUOTA | PAID")
+	assert_str(_lines(screen._receipt)[-2]).is_equal("+€75.00 OVER QUOTA | PAID")
 	assert_bool(_last_event("count_up").is_empty()).is_false()
 
 
@@ -351,14 +352,17 @@ func test_the_shake_steps_up_with_the_intensity() -> void:
 
 
 ## Follows the dessert frame by frame until play() returns: the slam (as drawn, scaled) stays
-## inside the screen on every frame and lands on the TOTAL line (as it is on the slam's last
-## frame: the receipt then scrolls to its new lines). Returns the failures.
+## inside the screen on every frame and lands on the monitor's digits (#80), in their colour (never
+## tomato) and drawn as them (their outline, none in the count layout, and their shadow, with no
+## shadow outline), never on the receipt. Returns the failures.
 func _watch_dessert(screen: ShiftScreen) -> Array[String]:
 	var count_up: CountUp = screen._count_up
 	var failures: Array[String] = []
 	var slam_seen: bool = false
 	var last_slam: Rect2 = Rect2()
 	var total: Rect2 = Rect2()
+	var colour: Color = Color()
+	var look: Dictionary = {}
 	while count_up._playing:
 		await get_tree().process_frame
 		var slam: Label = _slam_label(screen)
@@ -366,14 +370,39 @@ func _watch_dessert(screen: ShiftScreen) -> Array[String]:
 			continue
 		slam_seen = true
 		last_slam = _drawn_rect(slam)
-		total = screen._receipt.total_label().get_global_rect()
+		colour = slam.get_theme_color("font_color")
+		look = _look(slam)
+		total = screen._led.digits_label().get_global_rect()
 		if not SCREEN_RECT.grow(1.0).encloses(last_slam):
 			failures.append("slam outside the screen at %s" % last_slam)
 	if not slam_seen:
 		failures.append("no slam")
 	if last_slam.get_center().distance_to(total.get_center()) > 4.0:
-		failures.append("slam landed at %s, TOTAL at %s" % [last_slam, total])
+		failures.append("slam landed at %s, the digits at %s" % [last_slam, total])
+	if last_slam.intersects(screen._receipt.get_global_rect()):
+		failures.append("slam landed on the receipt at %s" % last_slam)
+	if slam_seen and colour != screen._led.digits_label().get_theme_color("font_color"):
+		failures.append("slam in %s, not the digits' colour" % colour.to_html(false))
+	if colour in [Palette.TOMATO, Palette.TOMATO_DARK, Palette.TOMATO_LIGHT]:
+		failures.append("slam in tomato")
+	var digits: Label = screen._led.digits_label()
+	if slam_seen and look != _look(digits):
+		failures.append("slam drawn as %s, the digits as %s" % [look, _look(digits)])
+	if int(_look(digits)["outline_size"]) != 0 or int(_look(digits)["shadow_outline_size"]) != 0:
+		failures.append("the TOTAL's digits drawn with an outline: %s" % _look(digits))
 	return failures
+
+
+## A label's outline and shadow as drawn: their sizes, offsets and colours.
+static func _look(label: Label) -> Dictionary:
+	var look: Dictionary = {}
+	for constant: String in [
+		"outline_size", "shadow_outline_size", "shadow_offset_x", "shadow_offset_y"
+	]:
+		look[constant] = label.get_theme_constant(constant)
+	for color: String in ["font_outline_color", "font_shadow_color"]:
+		look[color] = label.get_theme_color(color)
+	return look
 
 
 ## A control's rect as drawn: its size through its global transform (scale and pivot included).
@@ -404,11 +433,12 @@ func _assert_lines_on_screen(screen: ShiftScreen, count: int) -> void:
 		above = rect
 
 
-## The slam label flying over the overlay, or null.
+## The slam label flying over the overlay (the LED's total), or null.
 static func _slam_label(screen: ShiftScreen) -> Label:
+	var total: String = screen._led.digits_label().text
 	for child: Node in screen._overlay.get_children():
 		var label: Label = child as Label
-		if label != null and not label.is_queued_for_deletion() and label.text.contains(" / €"):
+		if label != null and not label.is_queued_for_deletion() and label.text == total:
 			return label
 	return null
 

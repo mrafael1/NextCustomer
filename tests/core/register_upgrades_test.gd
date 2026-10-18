@@ -20,9 +20,21 @@ func test_limits_default_to_the_balance_data() -> void:
 	var limits: ShiftLimits = ShiftLimits.for_shift(balance, _none(), 2)
 	assert_int(limits.slot_count).is_equal(balance.slot_count)
 	assert_int(limits.coupon_slot_count).is_equal(balance.coupon_slot_count)
-	assert_int(limits.redraws).is_equal(RunState.BASE_REDRAWS)
+	assert_int(limits.redraws).is_equal(balance.base_redraws)
 	assert_int(limits.quota).is_equal(balance.quotas[2])
 	assert_int(limits.card_limit()).is_equal(balance.slot_count + balance.coupon_slot_count)
+
+
+## Every shift allows base_redraws redraws before upgrades: 2 in the live balance data (the user's
+## request on issue #80; 1 until then), each of up to redraw_limit (2) hand cards.
+func test_a_shift_has_the_balance_data_redraws() -> void:
+	var balance: BalanceDefinition = load(BALANCE)
+	assert_int(balance.base_redraws).is_equal(2)
+	assert_int(balance.redraw_limit).is_equal(2)
+	var limits: ShiftLimits = ShiftLimits.for_shift(balance, _none(), 0)
+	assert_int(limits.redraws).is_equal(2)
+	var none: BalanceDefinition = BalanceDefinition.new()
+	assert_int(ShiftLimits.for_shift(none, _none(), 0).redraws).is_equal(0)
 
 
 func test_upgrades_add_slots_and_redraws() -> void:
@@ -33,7 +45,7 @@ func test_upgrades_add_slots_and_redraws() -> void:
 	var limits: ShiftLimits = ShiftLimits.for_shift(balance, owned, 0)
 	assert_int(limits.slot_count).is_equal(balance.slot_count + 1)
 	assert_int(limits.coupon_slot_count).is_equal(balance.coupon_slot_count + 1)
-	assert_int(limits.redraws).is_equal(RunState.BASE_REDRAWS + 1)
+	assert_int(limits.redraws).is_equal(balance.base_redraws + 1)
 	assert_int(limits.card_limit()).is_equal(9)
 
 

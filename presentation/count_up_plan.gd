@@ -69,8 +69,6 @@ var quota_reached: bool = false
 var chip_at_total: bool = false
 ## The payout beat where the subtotal first passes best (D3), or -1.
 var passes_best_beat: int = -1
-## The paper pile's height before this row prints (D4).
-var pile_start_px: float = 0.0
 var _tuning: CountUpTuning
 ## Per beat, before fitting: the length with the full gap (PAYOUT: its roll is added later).
 var _raw_ms: PackedInt32Array = PackedInt32Array()
@@ -108,7 +106,6 @@ func _init(
 			+ tuning.printer_speed_per_step * extra_steps
 		)
 	)
-	pile_start_px = pile_start_for(context.shift, tuning)
 	pre_roll_ms = tuning.pre_roll_ms
 	total = steps[steps.size() - 1].subtotal if not steps.is_empty() else 0
 	_make_beats(steps)
@@ -127,12 +124,6 @@ static func build(
 	steps: Array[ScoreStep], quota: int, context: CountUpContext, tuning: CountUpTuning
 ) -> CountUpPlan:
 	return CountUpPlan.new(steps, quota, context, tuning)
-
-
-## The paper pile's height before a row of 1-based `shift` prints (D4): the paper of the
-## earlier shifts.
-static func pile_start_for(shift: int, tuning: CountUpTuning) -> float:
-	return minf(tuning.pile_start_max_px, tuning.pile_start_px_per_shift * (shift - 1))
 
 
 ## Payout beats: PAYOUT and MERGED_PLAIN.

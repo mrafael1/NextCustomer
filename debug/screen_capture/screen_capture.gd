@@ -5,18 +5,18 @@ extends Control
 ## approved frames. #56 adds the other screens.
 ##
 ## The shift: shift 5 of 8 on a fixed seed, under Short belt (5 product slots and a CLOSED one),
-## with a fixed full hand of 8 items, four items on the belt with their plaques and chips, the
-## receipt's planning stub, and a 4-box loyalty card (a starting upgrade and the upgrades of
-## shifts 2 and 4 stamped, shift 6's box empty). The hand and the belt hold staples, coupons and
-## one product from each of the 6 aisles, so every aisle glyph shows. The screen is the game's
-## own and stays playable; it is driven through its public API (start_new_run, debug_show_shift,
-## debug_scan) and the run's.
+## with a fixed full hand of 8 items in its baskets, four items on the belt with their tickets
+## and corner marks, the itemised planning receipt, and a 4-box loyalty card (a starting upgrade
+## and the upgrades of shifts 2 and 4 stamped, shift 6's box empty). The hand and the belt hold
+## staples, coupons and one product from each of the 6 aisles, so every aisle glyph shows. The
+## screen is the game's own and stays playable; it is driven through its public API
+## (start_new_run, debug_show_shift, debug_scan) and the run's.
 ##
 ## It never touches the player's saves or playtest logs: both go to a temporary folder, deleted
 ## on exit. Keys: S switches between the sharp-pixel shader and plain nearest filtering (A/B).
 ## `godot --path . [--resolution 1920x1080] res://debug/screen_capture/screen_capture.tscn --
 ## --capture=docs/art` saves shift_screen_<width>x<height>.png at the window's size, then quits.
-## With `--scan=<card id>` the hover scanner first scans that card's item (the belt's first,
+## With `--scan=<card id>` the scanner first fully scans that card's item (the belt's first,
 ## else the hand's), and the file is shift_screen_scan_<width>x<height>.png.
 
 const SCREEN := preload("res://ui/shift_screen.tscn")

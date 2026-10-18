@@ -1,0 +1,21 @@
+; A cream key on the register column (Redraw, Cancel; mock-up B2, #80 step 9), normal:
+; a 9-slice (margins 7 top, 3 sides, 4 bottom art px) seen from slightly above: a 2 art
+; px ink outline with rounded corners round a 4-row lit top face band and its arris row,
+; over the cream front face (lit left column, shaded right column and 2 bottom rows). Its
+; hard shadow is drawn in code (RegisterKey).
+@size 8x13
+@kind frame
+@scale 2
+..####..
+.######.
+###ww###
+##wwww##
+##wwww##
+##wwww##
+##wwww##
+##wWWb##
+##wWWb##
+##bbbb##
+###bb###
+.######.
+..####..

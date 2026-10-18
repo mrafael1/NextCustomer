@@ -33,6 +33,7 @@
 script = ExtResource("1_balance")
 quotas = PackedInt32Array(34, 35, 53, 61, 73, 98, 111, 120)
 hand_size = 8
+base_redraws = 2
 redraw_limit = 2
 slot_count = 6
 coupon_slot_count = 1

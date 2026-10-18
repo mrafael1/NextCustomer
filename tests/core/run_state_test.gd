@@ -1,5 +1,5 @@
 extends GdUnitTestSuite
-## RunState: the shift flow from plan sections 2 and 3 (draw 8, redraw up to 2 once, place up
+## RunState: the shift flow from plan sections 2 and 3 (draw 8, redraw up to 2 twice, place up
 ## to 6 products and 7 cards in a compacted row, checkout always allowed, one shift per quota
 ## with rising quotas).
 
@@ -164,7 +164,7 @@ func test_cannot_place_a_card_twice_or_from_outside_the_hand() -> void:
 	assert_bool(run.place(outside, 0)).is_false()
 
 
-func test_redraw_up_to_two_hand_cards_once() -> void:
+func test_redraw_up_to_two_hand_cards_twice() -> void:
 	var run: RunState = _run(5)
 	var cards: Array[CardInstance] = run.hand()
 	assert_bool(run.can_redraw([cards[0], cards[1], cards[2]])).is_false()
@@ -177,8 +177,13 @@ func test_redraw_up_to_two_hand_cards_once() -> void:
 	assert_bool(run.hand().has(cards[0])).is_false()
 	assert_bool(run.hand().has(received[0])).is_true()
 	assert_int(run.redraws_used).is_equal(1)
-	assert_bool(run.can_redraw([cards[2]])).is_false()
-	assert_array(run.redraw([cards[2]])).is_empty()
+	# A replaced card can't be redrawn again; a second redraw is left.
+	assert_bool(run.can_redraw([cards[0]])).is_false()
+	assert_int(run.redraws_allowed).is_equal(2)
+	assert_int(run.redraw([cards[2]]).size()).is_equal(1)
+	assert_int(run.redraws_used).is_equal(2)
+	assert_bool(run.can_redraw([cards[4]])).is_false()
+	assert_array(run.redraw([cards[4]])).is_empty()
 	assert_bool(run.row.has(cards[3])).is_true()
 
 

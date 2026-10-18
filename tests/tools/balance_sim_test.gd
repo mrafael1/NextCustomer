@@ -272,6 +272,7 @@ func _player(strategy: String, inspection_shifts: Array = [], rack_size: int = 0
 		balance.inspection_pool.append(_third_product_pays_zero())
 	balance.quotas = PackedInt32Array([5, 8, 12])
 	balance.hand_size = 5
+	balance.base_redraws = 1
 	balance.redraw_limit = 2
 	balance.deck_limit = 8
 	balance.offer_size = 3

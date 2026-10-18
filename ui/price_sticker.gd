@@ -1,11 +1,12 @@
 class_name PriceSticker
 extends Control
 ## An item's price-gun sticker (#75; style frame v2's spec section 4.2): one size everywhere,
-## always upright. A product's sticker is the price_sticker_v2 9-slice (paper face, tomato band)
+## always upright. On the belt it is the item's shelf ticket on the price rail (mock-up B2, #80
+## step 6). A product's sticker is the ticket_product 9-slice (paper face, a mustard-light band)
 ## with its base in the number font, its aisle glyph (products of an aisle only) and its summary
 ## (CardDefinition.sticker_summary, formatted in core from the card's own data) in at most 2
-## lines of bold Atkinson. A coupon's is the full-size coupon_sticker with "COUPON" in Pixelify
-## velvet and no glyph. Every number comes from the card's data.
+## lines of bold Atkinson. A coupon's is the full-size ticket_coupon (a band of teal dashes) with
+## "COUPON" in Pixelify teal and no glyph. Every number comes from the card's data.
 
 const SIZE := Vector2(108, 64)
 const BASE_RECT := Rect2(8, 6, 74, 24)
@@ -21,13 +22,13 @@ const SUMMARY_SIZE := 13
 const SUMMARY_WEIGHT := 700
 const SUMMARY_LINE_SPACING := -2
 const MAX_SUMMARY_LINES := 2
-## price_sticker_v2's 9-slice margins in art pixels: the band's top, then the sides and bottom.
+## ticket_product's 9-slice margins in art pixels: the band's top, then the sides and bottom.
 const FRAME_TOP_MARGIN := 4
 const FRAME_MARGIN := 3
 const COUPON_TITLE := "COUPON"
 
-const FRAME := preload("res://art/frames/price_sticker_v2.png")
-const COUPON_FRAME := preload("res://art/frames/coupon_sticker.png")
+const FRAME := preload("res://art/frames/ticket_product.png")
+const COUPON_FRAME := preload("res://art/frames/ticket_coupon.png")
 
 var _base: Label
 var _summary: Label
@@ -44,7 +45,7 @@ func _init(definition: CardDefinition, aisle: AisleDefinition) -> void:
 		face.size = SIZE
 		add_child(face)
 		_base = UiKit.display_label(COUPON_TITLE, COUPON_TITLE_SIZE, false)
-		_base.add_theme_color_override("font_color", Palette.VELVET)
+		_base.add_theme_color_override("font_color", Palette.PANEL)
 	else:
 		var panel: Panel = Panel.new()
 		panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -87,11 +88,9 @@ func glyph() -> TextureRect:
 	return _glyph
 
 
-## The product sticker's 9-slice: a tall top margin for the band, tiled sideways so the band's
-## teeth keep their 3 px rhythm, and stretched (not tiled) downwards: a vertically tiled plain
-## middle shows seam dots at 1080p.
+## The product sticker's 9-slice: a tall top margin for the band, its plain edges and middle
+## stretched (a tiled plain middle shows seam dots at 1080p).
 static func frame_style() -> StyleBoxTexture:
 	var style: StyleBoxTexture = ArtStyle.frame_style(FRAME, FRAME_MARGIN)
 	style.texture_margin_top = FRAME_TOP_MARGIN * ArtStyle.ART_SCALE
-	style.axis_stretch_horizontal = StyleBoxTexture.AXIS_STRETCH_MODE_TILE
 	return style

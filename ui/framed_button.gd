@@ -21,6 +21,8 @@ const CAPTION_PADDING := Vector2(12, 6)
 const HOVER_FACE := Color(1.12, 1.12, 1.12)
 const PRESSED_FACE := Color(0.85, 0.85, 0.85)
 const DISABLED_MODULATE := Color(0.6, 0.6, 0.6, 0.85)
+## The space between an icon (set_icon) and the caption.
+const ICON_GAP := 6.0
 
 ## The caption's text. Use this, not Button.text (which stays empty: the button draws no text of
 ## its own). It is also the button's accessible name, so screen readers announce the caption.
@@ -31,10 +33,14 @@ var caption: String:
 		_label.text = value
 		accessibility_name = value
 		_fit_minimum_size()
+		if _icon != null:
+			_place_icon()
 
 var _face: PanelContainer
 var _label: Label
 var _requested_size: Vector2
+## An icon left of the caption (set_icon), or null.
+var _icon: TextureRect
 
 
 func _init(
@@ -75,11 +81,32 @@ func caption_label() -> Label:
 	return _label
 
 
-## Prints the caption in the number font, for captions that carry counts (Deck n/m, Redraw):
+## Prints the caption in the number font, for captions that carry counts (Cart n/m):
 ## every number uses it (plan section 6.1).
 func use_number_font() -> void:
 	_label.add_theme_font_override("font", ArtStyle.number_font())
 	_fit_minimum_size()
+
+
+## Puts `texture` at `icon_size` left of the caption, ICON_GAP from it (the pair centred on the
+## face), or alone in the middle of the face when the caption is empty (the top bar's menu).
+func set_icon(texture: Texture2D, icon_size: Vector2) -> void:
+	if _icon == null:
+		_icon = UiKit.sprite(texture)
+		add_child(_icon, false, Node.INTERNAL_MODE_FRONT)
+	_icon.texture = texture
+	_icon.size = icon_size
+	_fit_minimum_size()
+	_place_icon()
+
+
+func icon_rect() -> TextureRect:
+	return _icon
+
+
+func _notification(what: int) -> void:
+	if what == NOTIFICATION_RESIZED and _icon != null:
+		_place_icon()
 
 
 ## Applies the look of `mode` (a BaseButton.DrawMode).
@@ -89,6 +116,8 @@ func _show_state(mode: DrawMode) -> void:
 	_face.offset_top = depth
 	_label.offset_top = depth
 	_label.offset_bottom = depth - PRESS_DEPTH
+	if _icon != null:
+		_place_icon()
 	match mode:
 		DRAW_HOVER:
 			_face.modulate = HOVER_FACE
@@ -104,5 +133,21 @@ func _show_state(mode: DrawMode) -> void:
 ## The button is at least its requested size and big enough for its caption.
 func _fit_minimum_size() -> void:
 	var text_size: Vector2 = _label.get_minimum_size() + 2.0 * CAPTION_PADDING
+	if _icon != null:
+		text_size.x += _icon.size.x + (ICON_GAP if not _label.text.is_empty() else 0.0)
+		text_size.y = maxf(text_size.y, _icon.size.y + 2.0 * CAPTION_PADDING.y)
 	text_size.y += PRESS_DEPTH
 	custom_minimum_size = _requested_size.max(text_size)
+
+
+## The icon and the caption centred together on the face above the ledge, the caption right of
+## the icon; both sink with the face.
+func _place_icon() -> void:
+	var text_width: float = _label.get_minimum_size().x if not _label.text.is_empty() else 0.0
+	var gap: float = ICON_GAP if text_width > 0.0 else 0.0
+	var left: float = roundf((size.x - _icon.size.x - gap - text_width) / 2.0)
+	var face_height: float = size.y - PRESS_DEPTH
+	_icon.position = Vector2(left, roundf((face_height - _icon.size.y) / 2.0) + _face.offset_top)
+	_label.offset_left = left + _icon.size.x + gap
+	_label.offset_right = _label.offset_left + text_width - size.x
+	_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT

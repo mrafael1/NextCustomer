@@ -1,6 +1,6 @@
 class_name DeckView
 extends PanelContainer
-## The deck view (plan section 2, extended in full build phase 1). The Deck tab shows the deck
+## The deck view (plan section 2, extended in full build phase 1). The Cart tab shows the deck
 ## as products and coupons, one card per distinct card with its number of copies, and how many
 ## copies carry each printed tag. The Run info tab shows the owned upgrades, this shift's and
 ## the next shift's inspections, and the run's stock: every card a reward or the impulse rack
@@ -42,7 +42,7 @@ func _init() -> void:
 	_title = UiKit.label("", 22, Palette.LIGHT_TEXT)
 	_title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	header.add_child(_title)
-	_deck_tab = UiKit.button(header, "Deck", func() -> void: show_page(false), 16, "ui_switch")
+	_deck_tab = UiKit.button(header, "Cart", func() -> void: show_page(false), 16, "ui_switch")
 	_info_tab = UiKit.button(header, "Run info", func() -> void: show_page(true), 16, "ui_switch")
 	UiKit.button(header, "Close", func() -> void: _close(), 16, "ui_close")
 	_scroll = ScrollContainer.new()
@@ -71,7 +71,7 @@ func open(run: RunState, title: String, choosing: bool) -> void:
 	UiKit.pop_in(self)
 
 
-## Shows the Run info tab, or the Deck tab.
+## Shows the Run info tab, or the Cart tab.
 func show_page(info: bool) -> void:
 	_deck_page.visible = not info
 	_info_page.visible = info

@@ -1,0 +1,9 @@
+; A bolt head on the belt's apron (mock-up B2, #80 step 6), 3x3 @2: lit B top and left,
+; a D middle, an I shaded right and an H foot. BeltPanel puts one in each gap between
+; two of the 7-slot row's tickets.
+@size 3x3
+@kind scenery
+@scale 2
+BBI
+BDI
+HHH

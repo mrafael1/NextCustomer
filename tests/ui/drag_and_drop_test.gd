@@ -150,6 +150,56 @@ func test_releasing_the_button_elsewhere_cancels_without_a_drop() -> void:
 	assert_int(screen._drag.hovered_slot()).is_equal(-1)
 
 
+## The drop target is the slot's column (#80 play test, 2026-10-17): from the top of where its
+## item's art stands down to its ticket, over the footprint, and half the gap to each neighbour.
+## Over an empty slot's art area, a filled slot's item or either half of the gap between two cells
+## that slot lights up and a drop there places the card as a click would (on a filled slot it
+## goes in its place, pushing the others right); over the band above the art (the paid chip's,
+## the wall's) no slot lights up, and a drop there lets go of the card.
+func test_the_drop_target_is_the_slot_column() -> void:
+	var screen: ShiftScreen = await _screen()
+	var bread: CardInstance = _add(screen, "bread")
+	_drag_hand_card(screen, bread, 0)
+	var milk: CardInstance = _add(screen, "milk")
+	_drag_hand_card(screen, milk, 1)
+	assert_array(screen.run.row).is_equal([bread, milk])
+	await _frames(1)
+	var cells: Array[Rect2] = []
+	for panel: PanelContainer in screen._slots:
+		cells.append(panel.get_global_rect())
+	var drop: Rect2 = RowStrip.drop_rect(screen._slots[2])
+	var footprint: Rect2 = RowStrip.footprint(screen._slots[2]).get_global_rect()
+	var art_area: Vector2 = Vector2(cells[2].get_center().x, footprint.position.y - 30.0)
+	var item: ItemView = screen._row_views[0] as ItemView
+	var on_item: Vector2 = item.sprite().get_global_rect().get_center()
+	var gap_left: Vector2 = Vector2(cells[0].end.x + 3.0, art_area.y)
+	var gap_right: Vector2 = Vector2(cells[1].position.x - 3.0, art_area.y)
+	var above: Vector2 = Vector2(cells[2].get_center().x, drop.position.y - 2.0)
+	assert_bool(cells[2].has_point(above)).is_true()
+	var expected: Dictionary[Vector2, int] = {
+		art_area: 2, on_item: 0, gap_left: 0, gap_right: 1, above: -1
+	}
+	for point: Vector2 in expected:
+		assert_int(screen._drag._slot_at(point)).override_failure_message(str(point)).is_equal(
+			expected[point]
+		)
+	var eggs: CardInstance = _add(screen, "eggs")
+	_press_hand_card(screen, eggs)
+	_move(screen, above)
+	assert_bool(screen._drag.is_dragging()).is_true()
+	assert_int(screen._drag.hovered_slot()).is_equal(-1)
+	_release(screen, above)
+	assert_array(screen.run.row).is_equal([bread, milk])
+	assert_object(screen._picked).is_null()
+	_press_hand_card(screen, eggs)
+	_move(screen, art_area)
+	assert_int(screen._drag.hovered_slot()).is_equal(2)
+	_move(screen, on_item)
+	assert_int(screen._drag.hovered_slot()).is_equal(0)
+	_release(screen, on_item)
+	assert_array(screen.run.row).is_equal([eggs, bread, milk])
+
+
 ## A card already picked up (by a click) can still be dragged; a plain click on it lets go on
 ## the release, as before.
 func test_a_picked_card_can_be_dragged_and_a_click_lets_go() -> void:

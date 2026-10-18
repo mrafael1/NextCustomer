@@ -1,0 +1,46 @@
+; Three juice bottles on the right cold case's bottom shelf (mock-up B2, #80 step 11), 44x40 at
+; @1: mustard M bottles in ink with a mustard light y neck, a tomato R cap, a paper w label, a
+; mustard dark m shade at the right and a mustard pale Y glint.
+@size 44x40
+@kind scenery
+@scale 1
+............................................
+...########.......########.......########...
+...#RRRRRR#.......#RRRRRR#.......#RRRRRR#...
+...#RRRRRR#.......#RRRRRR#.......#RRRRRR#...
+...########.......########.......########...
+...##yyyy##.......##yyyy##.......##yyyy##...
+...##yyyy##.......##yyyy##.......##yyyy##...
+...##yyyy##.......##yyyy##.......##yyyy##...
+...##yyyy##.......##yyyy##.......##yyyy##...
+...##yyyy##.......##yyyy##.......##yyyy##...
+.####yyyy####...####yyyy####...####yyyy####.
+##############.##############.##############
+##M########M##.##M########M##.##M########M##
+##YYMMMMMMmm##.##YYMMMMMMmm##.##YYMMMMMMmm##
+##YYMMMMMMmm##.##YYMMMMMMmm##.##YYMMMMMMmm##
+##YYMMMMMMmm##.##YYMMMMMMmm##.##YYMMMMMMmm##
+##YYMMMMMMmm##.##YYMMMMMMmm##.##YYMMMMMMmm##
+##YYMMMMMMmm##.##YYMMMMMMmm##.##YYMMMMMMmm##
+##YYMMMMMMmm##.##YYMMMMMMmm##.##YYMMMMMMmm##
+##YYMMMMMMmm##.##YYMMMMMMmm##.##YYMMMMMMmm##
+##YYMMMMMMmm##.##YYMMMMMMmm##.##YYMMMMMMmm##
+##wwwwwwwwmm##.##wwwwwwwwmm##.##wwwwwwwwmm##
+##wwwwwwwwmm##.##wwwwwwwwmm##.##wwwwwwwwmm##
+##wwwwwwwwmm##.##wwwwwwwwmm##.##wwwwwwwwmm##
+##wwwwwwwwmm##.##wwwwwwwwmm##.##wwwwwwwwmm##
+##wwwwwwwwmm##.##wwwwwwwwmm##.##wwwwwwwwmm##
+##wwwwwwwwmm##.##wwwwwwwwmm##.##wwwwwwwwmm##
+##wwwwwwwwmm##.##wwwwwwwwmm##.##wwwwwwwwmm##
+##wwwwwwwwmm##.##wwwwwwwwmm##.##wwwwwwwwmm##
+##wwwwwwwwmm##.##wwwwwwwwmm##.##wwwwwwwwmm##
+##MMMMMMMMmm##.##MMMMMMMMmm##.##MMMMMMMMmm##
+##MMMMMMMMmm##.##MMMMMMMMmm##.##MMMMMMMMmm##
+##MMMMMMMMmm##.##MMMMMMMMmm##.##MMMMMMMMmm##
+##MMMMMMMMmm##.##MMMMMMMMmm##.##MMMMMMMMmm##
+##MMMMMMMMmm##.##MMMMMMMMmm##.##MMMMMMMMmm##
+##MMMMMMMMmm##.##MMMMMMMMmm##.##MMMMMMMMmm##
+##MMMMMMMMmm##.##MMMMMMMMmm##.##MMMMMMMMmm##
+##MMMMMMMMMM##.##MMMMMMMMMM##.##MMMMMMMMMM##
+##############.##############.##############
+.############...############...############.

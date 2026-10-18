@@ -61,9 +61,6 @@ func test_the_full_row_counts_up_on_screen_in_four_to_six_seconds() -> void:
 	assert_array(failures).override_failure_message("\n".join(failures)).is_empty()
 	assert_int(probe["frames"]).is_greater(30)
 	_assert_rattle_fills_the_pause(count_up, probe)
-	# The printed lines settled the pile with its bounce, shown at the receipt's foot (#55).
-	assert_bool(probe["pile_bounced"]).is_true()
-	assert_bool(screen._paper_pile.visible).is_true()
 
 	var event: Dictionary = _last_event("count_up")
 	var count_up_ms: int = int(event["count_up_ms"])
@@ -91,11 +88,8 @@ func test_the_full_row_counts_up_on_screen_in_four_to_six_seconds() -> void:
 	assert_int(int(probe["chip_subtotal"])).is_equal(plan.beats[plan.ding_beat].subtotal)
 	assert_bool(probe["chip_lost"]).is_false()
 	await _assert_chip(screen, true)
-	# The 110 is huge against the €45 floor: the pile curled and spilled.
+	# The 110 is huge against the €45 floor.
 	assert_int(plan.size).is_equal(CountUpPlan.Size.HUGE)
-	assert_bool(screen._paper_pile.curled).is_true()
-	assert_bool(screen._paper_pile.spilled).is_true()
-	assert_float(screen._paper_pile.height_px).is_greater(plan.pile_start_px)
 	assert_object(count_up.intensity).is_not_null()
 	assert_bool(count_up.intensity.is_huge).is_true()
 	assert_float(screen._register.position.x).is_equal(rest)
@@ -163,8 +157,6 @@ func test_reduced_motion_shakes_nothing_and_keeps_the_receipt() -> void:
 				or boxes[index].rotation != box_turns[index]
 			):
 				moved.append("upgrade box %d moved" % index)
-		if screen._paper_pile.scale != Vector2.ONE:
-			moved.append("the pile bounced (scale %s)" % screen._paper_pile.scale)
 		var tokens: EffectTokens = screen._count_up._tokens
 		for marker: EffectMarker in tokens.markers.values():
 			var off: float = marker.global_position.distance_to(marker.parked_position())
@@ -240,9 +232,10 @@ func test_the_chip_comes_with_the_total_on_a_last_payout_crossing_and_never_on_a
 	await _assert_receipt_of(screen, result, 111)
 
 
-## The value badge is the item's brass payout plaque (#55, D2a; #75): a denied item (the Spot
-## check's €0) shows its muted face, the others their brass face, and after every scan's lift
-## and drop each badge is back at the plaque's rest y, on its mat's top rim.
+## The value badge is the item's paid chip (#80, step 7): every item's shows "€N", a denied item
+## (the Spot check's €0) on its muted face; each settles into the small face as the next item is
+## scanned, so earlier chips stay, and the last one as the total shows; and after every scan's
+## lift and drop each chip is back at its face's rest y over the item.
 func test_a_denied_card_shows_the_muted_plaque_and_every_badge_rests() -> void:
 	var screen: ShiftScreen = await _screen()
 	await _full_row(screen)
@@ -255,6 +248,8 @@ func test_a_denied_card_shows_the_muted_plaque_and_every_badge_rests() -> void:
 		if beat.kind == CountUpBeat.Kind.DENIED:
 			denied.append(result.steps[beat.steps[0]].slot)
 	assert_int(denied.size()).is_equal(1)
+	# As the CHECKOUT click does: the chips settle, then follow the beats (BeltChips).
+	screen._belt_chips.begin_count(result, screen._row_views, false)
 	_play_tapped(screen, result, 110)
 	await _played(screen)
 	await _frames(30)
@@ -262,7 +257,9 @@ func test_a_denied_card_shows_the_muted_plaque_and_every_badge_rests() -> void:
 		var view: ItemView = screen._row_views[slot] as ItemView
 		assert_object(view).is_not_null()
 		var plaque: PayoutPlaque = view.badge as PayoutPlaque
+		assert_bool(plaque.visible).override_failure_message(str(slot)).is_true()
 		assert_str(plaque.text).is_equal(PayoutPlaque.text_for(result.payouts[slot]))
+		assert_bool(plaque.is_current()).override_failure_message(str(slot)).is_false()
 		assert_bool(plaque.is_muted()).override_failure_message(str(slot)).is_equal(
 			slot in denied or result.payouts[slot] == 0
 		)
@@ -338,75 +335,36 @@ func test_the_best_so_far_leaves_out_the_shift_being_counted() -> void:
 	assert_int(ShiftScreen.best_earlier_total(history)).is_equal(60)
 
 
-## The paper pile never shrinks on the checkout click (D4): a shift starts with the paper of
-## its earlier shifts, its count-up grows the pile from there, and a new run starts with none.
-func test_the_pile_starts_each_shift_with_its_paper_and_never_shrinks_on_checkout() -> void:
-	var screen: ShiftScreen = await _screen()
-	var tuning: CountUpTuning = load(CountUp.TUNING_PATH)
-	var pile: PaperPile = screen._paper_pile
-	assert_float(pile.height_px).is_equal(0.0)
-	await _place(screen, PASSING_ROW)
-	screen._on_checkout_pressed()
-	await _frames(2)
-	screen._count_up._tap(Time.get_ticks_msec())
-	screen._count_up._tap(Time.get_ticks_msec())
-	await _count_up_end(screen)
-	assert_float(pile.height_px).is_greater(0.0)
-	# Shift 2 starts with shift 1's paper, flat and tidy.
-	screen._on_reward_skipped()
-	await _frames(2)
-	var shift_2: float = CountUpPlan.pile_start_for(2, tuning)
-	assert_float(shift_2).is_greater(0.0)
-	assert_float(pile.height_px).is_equal(shift_2)
-	assert_bool(pile.curled).is_false()
-	await _place(screen, ["milk", "bread"])
-	screen._on_checkout_pressed()
-	var lowest: float = pile.height_px
-	await _frames(2)
-	screen._count_up._tap(Time.get_ticks_msec())
-	screen._count_up._tap(Time.get_ticks_msec())
-	while screen._counting:
-		lowest = minf(lowest, pile.height_px)
-		await get_tree().process_frame
-	assert_float(lowest).is_greater_equal(shift_2)
-	assert_float(pile.height_px).is_greater(shift_2)
-	# A new run has printed nothing yet.
-	screen.start_new_run(7)
-	assert_float(pile.height_px).is_equal(0.0)
-
-
-## The LED and the TOTAL key through a passed shift (#55): PROJECTED in planning with the key
-## up; from the click SUBTOTAL with the key down on every frame of the count-up and the
-## dessert; TOTAL, green with its chip, and the key up on the reward panel; the next shift's
-## planning shows PROJECTED and hides the chip (its anchor is empty) with the key still up.
-func test_the_led_and_the_total_key_follow_a_passed_shift() -> void:
+## The LED and CHECKOUT's key through a passed shift (#55; #80, step 9): planning shows the
+## monitor's store channel (the LED blank and hidden, the projected total on the top bar's QUOTA
+## chip) with CHECKOUT up; from the click SUBTOTAL with CHECKOUT held down (its off look, sunk) on
+## every frame of the count-up and the dessert; TOTAL, green with its chip, and CHECKOUT up on the
+## reward panel; the next shift's planning brings the channel back with its brief, blanks the LED
+## and hides the chip (its anchor is empty) with CHECKOUT up and pressable again.
+func test_the_led_and_checkout_follow_a_passed_shift() -> void:
 	var screen: ShiftScreen = await _screen()
 	var led: LedDisplay = screen._led
-	var cabinet: RegisterCabinet = screen._cabinet
+	var checkout: RegisterKey = screen._stage.checkout_button
 	await _place(screen, PASSING_ROW)
 	var total: int = screen.run.preview().total
-	assert_str(led.caption()).is_equal(LedDisplay.PROJECTED_TEXT)
-	assert_str(led.digits_label().text).is_equal("€%d" % total)
-	assert_bool(cabinet.is_total_down()).is_false()
+	assert_int(led.mode()).is_equal(LedDisplay.Mode.BLANK)
+	assert_int(screen._monitor.mode()).is_equal(MonitorView.Mode.CHANNEL)
+	assert_str(screen._quota_meter.amount_label.text).is_equal("€%d" % total)
+	assert_bool(checkout.held).is_false()
+	assert_int(checkout.look()).is_equal(RegisterKey.Look.NORMAL)
 	screen._on_checkout_pressed()
-	assert_bool(cabinet.is_total_down()).is_true()
+	assert_bool(checkout.held).is_true()
 	assert_str(led.caption()).is_equal(LedDisplay.SUBTOTAL_TEXT)
 	await _frames(2)
 	screen._count_up._tap(Time.get_ticks_msec())
 	screen._count_up._tap(Time.get_ticks_msec())
 	var key_up_frames: int = 0
-	# The purse is static decor (#76 opens it): closed on every frame of the count-up.
-	var purse: TextureRect = screen._stage.purse
-	var purse_changed: int = 0
 	while screen._counting:
-		if not cabinet.is_total_down():
+		if not checkout.held or checkout.look() != RegisterKey.Look.OFF or not checkout.is_sunk():
 			key_up_frames += 1
-		if purse.texture != ShiftStage.PURSE_CLOSED or not purse.visible:
-			purse_changed += 1
 		await get_tree().process_frame
 	assert_int(key_up_frames).is_equal(0)
-	assert_int(purse_changed).is_equal(0)
-	assert_bool(cabinet.is_total_down()).is_false()
+	assert_bool(checkout.held).is_false()
 	assert_bool(screen._reward_panel.visible).is_true()
 	assert_str(led.digits_label().text).is_equal("€%d" % total)
 	await _assert_chip(screen, true)
@@ -415,10 +373,15 @@ func test_the_led_and_the_total_key_follow_a_passed_shift() -> void:
 	screen._on_reward_skipped()
 	await _frames(2)
 	assert_int(screen.run.phase).is_equal(RunState.Phase.PLANNING)
-	assert_str(led.caption()).is_equal(LedDisplay.PROJECTED_TEXT)
+	assert_int(led.mode()).is_equal(LedDisplay.Mode.BLANK)
+	assert_int(screen._monitor.mode()).is_equal(MonitorView.Mode.CHANNEL)
+	assert_str(screen._monitor.channel.current_key()).is_equal(MonitorChannel.BRIEF_KEY)
+	var shift_text: String = MonitorChannel.SHIFT_TEXT % [2, screen.run.shift_count()]
+	assert_bool(screen._monitor.channel.slide_texts(0).has(shift_text)).is_true()
 	assert_bool(led.quota_anchor().has_area()).is_false()
 	assert_bool(chip.visible).is_false()
-	assert_bool(cabinet.is_total_down()).is_false()
+	assert_bool(checkout.held).is_false()
+	assert_int(checkout.look()).is_equal(RegisterKey.Look.NORMAL)
 
 
 ## TEMPORARY (#60): the debug panel's count-up toggles show the profile's settings and the
@@ -456,7 +419,7 @@ func test_the_debug_panel_shows_the_count_up_settings_on_screen() -> void:
 ## "marker_frames": {landing beat: first frame seen}, "chip_before_total": bool,
 ## "chip_subtotal": the shown subtotal on the chip's first frame (-1 for none), "chip_lost": the
 ## chip went away after it came, "last_rattle_ms": Time.get_ticks_msec() of the last frame the
-## rattle target was off its rest x (-1 for none), "pile_bounced": the pile's scale left 1}.
+## rattle target was off its rest x (-1 for none)}.
 func _probe_count_up(screen: ShiftScreen) -> Dictionary:
 	var count_up: CountUp = screen._count_up
 	var failures: Array[String] = []
@@ -466,7 +429,6 @@ func _probe_count_up(screen: ShiftScreen) -> Dictionary:
 	var chip_lost: bool = false
 	var rest: float = screen._register.position.x
 	var last_rattle_ms: int = -1
-	var pile_bounced: bool = false
 	var frames: int = 0
 	var newest: Control = null
 	var newest_frames: int = 0
@@ -478,8 +440,11 @@ func _probe_count_up(screen: ShiftScreen) -> Dictionary:
 		if Engine.time_scale != 1.0:
 			failures.append("Engine.time_scale is %s" % Engine.time_scale)
 		_check_on_screen(screen, failures)
+		# The line being counted (#80: framed) is the one kept in view; the newest without one.
 		var lines: Array[Node] = screen._receipt._lines.get_children()
 		var last: Control = lines[-1] as Control if not lines.is_empty() else null
+		if screen._receipt._framed_line() != null:
+			last = screen._receipt._framed_line()
 		if last != newest:
 			newest = last
 			newest_frames = 0
@@ -500,8 +465,6 @@ func _probe_count_up(screen: ShiftScreen) -> Dictionary:
 			chip_lost = true
 		if screen._register.position.x != rest:
 			last_rattle_ms = Time.get_ticks_msec()
-		if screen._paper_pile.scale != Vector2.ONE:
-			pile_bounced = true
 	await _count_up_end(screen)
 	return {
 		"failures": failures,
@@ -511,7 +474,6 @@ func _probe_count_up(screen: ShiftScreen) -> Dictionary:
 		"chip_subtotal": chip_subtotal,
 		"chip_lost": chip_lost,
 		"last_rattle_ms": last_rattle_ms,
-		"pile_bounced": pile_bounced,
 	}
 
 
@@ -528,10 +490,12 @@ func _assert_rattle_fills_the_pause(count_up: CountUp, probe: Dictionary) -> voi
 
 ## Everything the count-up shows sits inside the 1280x720 screen: its labels, stamps, markers,
 ## pips and chip in the overlay, the receipt, the paper; the LED's digits (their measured text,
-## punched) on its glass; receipt lines unrotated.
+## punched) on the monitor's paper (#80: the count layout has no glass); receipt lines unrotated.
 func _check_on_screen(screen: ShiftScreen, failures: Array[String]) -> void:
 	var digits: Rect2 = screen._led.digits_text_rect()
-	if not screen._led.get_global_rect().encloses(digits):
+	var stage: Transform2D = screen._stage.get_global_transform()
+	var paper: Rect2 = stage * ShiftStage.MONITOR_SCREEN_RECT.grow(-MonitorView.OUTLINE)
+	if not paper.encloses(digits):
 		failures.append("LED digits %s at %s" % [screen._led.digits_label().text, digits])
 	var shown: Array[Control] = [screen._receipt]
 	for child: Node in screen._overlay.get_children():
@@ -542,9 +506,6 @@ func _check_on_screen(screen: ShiftScreen, failures: Array[String]) -> void:
 		var rect: Rect2 = control.get_global_rect()
 		if not SCREEN_RECT.encloses(rect):
 			failures.append("%s %s at %s" % [control.get_class(), _text_of(control), rect])
-	var pile: PaperPile = screen._paper_pile
-	if pile.height_px > 0.0 and not SCREEN_RECT.encloses(pile.paper_rect()):
-		failures.append("paper pile at %s" % pile.paper_rect())
 	for line: Node in screen._receipt._lines.get_children():
 		var item: Control = line as Control
 		if item.get_global_transform().get_rotation() != 0.0:
@@ -741,7 +702,7 @@ func _assert_chip(screen: ShiftScreen, met: bool) -> void:
 	assert_str(screen._led.caption()).is_equal(LedDisplay.TOTAL_TEXT)
 	if not met:
 		assert_object(chip).is_null()
-		assert_that(color).is_equal(Palette.MUSTARD)
+		assert_that(color).is_equal(LedDisplay.COUNT_DIGITS_COLOR)
 		return
 	assert_object(chip).is_not_null()
 	assert_bool(is_instance_valid(chip)).is_true()

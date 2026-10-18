@@ -3,8 +3,9 @@ extends GdUnitTestSuite
 ## pressed and disabled looks (disabled shown by a sunk face, not by colour alone), its caption
 ## and enabled state, no keyboard focus (Space never presses it), the sharp-pixel material on
 ## art and never on text, the labels' fonts by role, the notice style, the screen theme and the
-## palette's ink and light text, and the boutique frames (#55: Redraw's and CHECKOUT's faces on
-## the same ledge as the tomato button) and the cream insets.
+## palette's ink and light text, and the shift screen's frames (#80, mock-up B2: the register
+## keys, the top bar's chips and buttons, the register column and the tickets) with the tomato
+## button's ledge.
 
 const RecordingSfx := preload("res://tests/presentation/recording_sfx.gd")
 
@@ -145,7 +146,7 @@ func test_framed_button_helper_clicks_then_acts() -> void:
 	scene.add_child(sfx)
 	var heard_first: Array[bool] = []
 	var action: Callable = func() -> void: heard_first.append(sfx.sounds.size() > 0)
-	var button: FramedButton = UiKit.framed_button(scene, "Deck", action, 16, UiKit.SIGN_FRAME)
+	var button: FramedButton = UiKit.framed_button(scene, "Cart", action, 16, UiKit.SIGN_FRAME)
 	assert_object(button.get_parent()).is_same(scene)
 	button.pressed.emit()
 	assert_array(heard_first).is_equal([true])
@@ -215,55 +216,52 @@ func test_palette_matches_the_art() -> void:
 	assert_object(Palette.LIGHT_TEXT).is_equal(Color("fbf7ee"))
 
 
-## The boutique frames (#55) load and are big enough for their 9-slice margins.
-func test_boutique_frames() -> void:
-	var margins: Dictionary[Texture2D, int] = {
-		UiKit.SIGN_VELVET_FRAME: FramedButton.FRAME_MARGIN,
-		UiKit.BUTTON_BRASS_FRAME: FramedButton.FRAME_MARGIN,
-		UiKit.BUTTON_VELVET_FRAME: FramedButton.FRAME_MARGIN,
-		UiKit.TRAY_FRAME: UiKit.TRAY_MARGIN,
-		UiKit.PLAQUE_FRAME: UiKit.PLAQUE_MARGIN,
+## The shift screen's frames (#80) load and are bigger than their 9-slice margins: across, both
+## side margins; down, the top and bottom margins (art px).
+func test_shift_screen_frames() -> void:
+	var square: int = FramedButton.FRAME_MARGIN
+	var margins: Dictionary[Texture2D, Vector2i] = {
+		TopBar.CHIP_FRAME: Vector2i(2 * square, 2 * square),
+		TopBar.BUTTON_FRAME: Vector2i(2 * square, 2 * square),
+		InspectionTag.CHIP_FRAME: Vector2i(2 * square, 2 * square),
+		LoyaltyCard.CARD_FRAME: Vector2i.ONE * 2 * LoyaltyCard.FRAME_MARGIN,
+		RegisterCabinet.COLUMN_FRAME: Vector2i.ONE * 2 * RegisterCabinet.COLUMN_MARGIN,
+		RegisterCabinet.DECK_FRAME: Vector2i.ONE * 2 * RegisterCabinet.DECK_MARGIN,
+		PriceSticker.FRAME:
+		Vector2i(
+			2 * PriceSticker.FRAME_MARGIN, PriceSticker.FRAME_TOP_MARGIN + PriceSticker.FRAME_MARGIN
+		),
 	}
+	for kind: RegisterKey.Kind in RegisterKey.FRAMES:
+		for frame: Texture2D in RegisterKey.FRAMES[kind]:
+			margins[frame] = Vector2i(
+				2 * RegisterKey.SIDE_MARGIN,
+				RegisterKey.TOP_MARGINS[kind] + RegisterKey.BOTTOM_MARGIN
+			)
 	for frame: Texture2D in margins:
-		var corners: int = 2 * margins[frame] * ArtStyle.ART_SCALE
+		var corners: Vector2i = margins[frame] * ArtStyle.ART_SCALE
 		assert_int(frame.get_width()).override_failure_message(frame.resource_path).is_greater(
-			corners
+			corners.x
 		)
 		assert_int(frame.get_height()).override_failure_message(frame.resource_path).is_greater(
-			corners
+			corners.y
 		)
 
 
-## Redraw's brass face and CHECKOUT's velvet face stand on the same ledge as BUTTON_FRAME, so
-## FramedButton's PRESS_DEPTH sinks them onto it: the LEDGE art rows above the bottom outline are
-## each one colour across the face, and the face row above them isn't.
-func test_brass_and_velvet_buttons_have_the_ledge() -> void:
-	for frame: Texture2D in [
-		UiKit.BUTTON_FRAME, UiKit.BUTTON_BRASS_FRAME, UiKit.BUTTON_VELVET_FRAME
-	]:
-		var image: Image = frame.get_image()
-		var rows: int = floori(image.get_height() / float(ArtStyle.ART_SCALE))
-		var bottom: int = rows - 1 - FramedButton.LEDGE
-		for row: int in range(bottom, rows - 1):
-			(
-				assert_bool(_uniform_row(image, row))
-				. override_failure_message("%s ledge row %d" % [frame.resource_path, row])
-				. is_true()
-			)
+## The tomato button's face stands on its ledge, so FramedButton's PRESS_DEPTH sinks it onto it:
+## the LEDGE art rows above the bottom outline are each one colour across the face, and the face
+## row above them isn't.
+func test_the_button_has_the_ledge() -> void:
+	var image: Image = UiKit.BUTTON_FRAME.get_image()
+	var rows: int = floori(image.get_height() / float(ArtStyle.ART_SCALE))
+	var bottom: int = rows - 1 - FramedButton.LEDGE
+	for row: int in range(bottom, rows - 1):
 		(
-			assert_bool(_uniform_row(image, bottom - 1))
-			. override_failure_message(frame.resource_path)
-			. is_false()
+			assert_bool(_uniform_row(image, row))
+			. override_failure_message("ledge row %d" % row)
+			. is_true()
 		)
-
-
-## The cream insets: cream with a cream-shade edge.
-func test_inset_style() -> void:
-	var style: StyleBoxFlat = UiKit.inset_style()
-	assert_object(style.bg_color).is_equal(Palette.CREAM)
-	assert_object(style.border_color).is_equal(Palette.CREAM_SHADE)
-	assert_int(style.border_width_top).is_equal(UiKit.INSET_EDGE)
-	assert_int(style.border_width_left).is_equal(UiKit.INSET_EDGE)
+	assert_bool(_uniform_row(image, bottom - 1)).is_false()
 
 
 func _button() -> FramedButton:

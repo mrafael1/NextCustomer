@@ -91,7 +91,7 @@ func test_conditions_read_as_text_and_report_problems() -> void:
 func test_a_starting_upgrade_is_owned_from_the_first_shift() -> void:
 	var run: RunState = _run_with_deck(56, _deck_with_upgrade(EXTRA_REDRAW))
 	assert_array(run.upgrades).is_equal([load(EXTRA_REDRAW)])
-	assert_int(run.redraws_allowed).is_equal(2)
+	assert_int(run.redraws_allowed).is_equal(3)
 	# Offers skip it, as any owned upgrade.
 	run.debug_skip_to_shift(1)
 	_pass(run, [BREAD, BREAD])

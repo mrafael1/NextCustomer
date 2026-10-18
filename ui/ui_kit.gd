@@ -6,7 +6,7 @@ extends RefCounted
 ##
 ## The pixel-art kit (full build plan section 6.1, #55; moved here from the style frame): frame
 ## panels, sprites, framed buttons (FramedButton) and labels by font role. Signs, buttons and
-## titles use the display font (Pixelify Sans); rules, tag lines, the capacity line, notices and
+## titles use the display font (Pixelify Sans); rules, tag lines, notices, the CLOSED caption and
 ## hints the body font (Atkinson Hyperlegible Next); numbers and prices ArtStyle.number_font();
 ## the receipt the mono font (JetBrains Mono). Art gets the sharp-pixel material; text never
 ## does.
@@ -21,22 +21,6 @@ const OPEN_SOUND := "ui_open"
 const BUTTON_FRAME := preload("res://art/frames/button.png")
 ## The lighter face for secondary buttons (a shop sign).
 const SIGN_FRAME := preload("res://art/frames/sign.png")
-## The boutique look (style frame v2, #55). Signs, Deck and Export log: velvet in a brass bezel
-## (FramedButton.FRAME_MARGIN).
-const SIGN_VELVET_FRAME := preload("res://art/frames/sign_velvet.png")
-## Redraw's face: cream in a brass edge, with BUTTON_FRAME's ledge (FramedButton.LEDGE).
-const BUTTON_BRASS_FRAME := preload("res://art/frames/button_brass.png")
-## CHECKOUT's face: velvet with a brass glint, with BUTTON_FRAME's ledge (FramedButton.LEDGE).
-const BUTTON_VELVET_FRAME := preload("res://art/frames/button_velvet.png")
-## The hand's tray: a velvet rim around a cream satin bed, TRAY_MARGIN art px.
-const TRAY_FRAME := preload("res://art/frames/tray.png")
-const TRAY_MARGIN := 6
-## A card's payout plaque: brass with a dark foot, PLAQUE_MARGIN art px.
-const PLAQUE_FRAME := preload("res://art/frames/payout_plaque.png")
-const PLAQUE_MARGIN := 3
-## The cream insets behind the status line and the hint have no art: a plain cream panel with a
-## cream-shade edge INSET_EDGE canvas px wide (inset_style).
-const INSET_EDGE := 2
 ## The outline of light display and number text (on signs and the wall), in canvas pixels.
 const LIGHT_OUTLINE := 6
 ## The notices' body-font size.
@@ -143,16 +127,6 @@ static func frame_panel(
 	return panel
 
 
-## The cream insets' look (the status panel and the hint's inset): plain cream with a cream-shade
-## edge, as style frame v2 draws them.
-static func inset_style() -> StyleBoxFlat:
-	var style: StyleBoxFlat = StyleBoxFlat.new()
-	style.bg_color = Palette.CREAM
-	style.border_color = Palette.CREAM_SHADE
-	style.set_border_width_all(INSET_EDGE)
-	return style
-
-
 ## A FramedButton added to `parent` (when not null) that calls `action` when pressed, after
 ## playing `sound` (CLICK_SOUND by default; a button whose action plays its own sound passes
 ## ""). `button_size` is its minimum size; it grows to fit its caption.
@@ -193,7 +167,7 @@ static func number_label(text: String, font_size: int, light: bool) -> Label:
 	return result
 
 
-## Body-font text: rules, tag lines, the capacity line, notices and hints.
+## Body-font text: rules, tag lines, notices and hints.
 static func body_label(text: String, font_size: int, color: Color = Palette.PAPER) -> Label:
 	var result: Label = _text_label(text, ArtStyle.BODY_FONT, font_size)
 	result.add_theme_color_override("font_color", color)

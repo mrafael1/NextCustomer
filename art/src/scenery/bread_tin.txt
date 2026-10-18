@@ -1,0 +1,29 @@
+; A tin loaf on the back wall's lower bakery board (mock-up B2's tinLoaf, #80 step 11), 34x22 at
+; @1: straight sides and a domed crown, wood light Q in ink, a wood pale P crown and left side,
+; brown dark f right side and the line where the crust leaves the tin, three mustard pale Y score
+; marks. Two stand under the monitor (StoreShelves.TIN_POSITIONS).
+@size 34x22
+@kind scenery
+@scale 1
+...........############...........
+.......####################.......
+.....######QQQQQQQQQQQQ######.....
+...#####QPPPPPPPPQQQQQQQQQ#####...
+..####PPPPPPPPPYYYYPQQQQQQQQ####..
+.###QPPPPYYYYPPYYYYPPYYYYQQQQQ###.
+.##QPPPPPYYYYPPPPPPPPYYYYQQQQQQ##.
+##QPPPPPQQQQQQQQQQQQPPPQQQQQQQQQ##
+##QPPPPQQQQQQQQQQQQQQPPQQQQQQQQQ##
+##QPPPQQQQQQQQQQQQQQQQPQQQQQffff##
+##PPPQQQQQQQQQQQQQQQQQQQQQQQffff##
+##PPPQQQQQQQQQQQQQQQQQQQQQQQffff##
+##PPPQQQQQQQQQQQQQQQQQQQQQQQffff##
+##PPPQQQQQQQQQQQQQQQQQQQQQQQffff##
+##ffffffffffffffffffffffffffffff##
+##PPPQQQQQQQQQQQQQQQQQQQQQQQffff##
+##PPPQQQQQQQQQQQQQQQQQQQQQQQffff##
+##PPPQQQQQQQQQQQQQQQQQQQQQQQffff##
+##PPPQQQQQQQQQQQQQQQQQQQQQQQffff##
+##PPPQQQQQQQQQQQQQQQQQQQQQQQffff##
+##################################
+##################################

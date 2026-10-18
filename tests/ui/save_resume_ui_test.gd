@@ -105,21 +105,27 @@ func test_a_new_screen_resumes_the_hand_the_row_and_the_redraws() -> void:
 	assert_array(_cards(resumed.run.row)).is_equal(_cards([hand[1], hand[0]]))
 	assert_array(_cards(resumed.run.deck.draw_pile())).is_equal(_cards(first.run.deck.draw_pile()))
 	assert_int(resumed.run.redraws_used).is_equal(1)
-	assert_bool(resumed._redraw_button.disabled).is_true()
+	assert_int(resumed.run.redraws_allowed).is_equal(2)
+	assert_bool(resumed._redraw_button.disabled).is_false()
+	assert_str(resumed._redraw_button.caption).is_equal("Redraw")
+	assert_str(resumed._redraw_button.note()).is_equal("1 left")
 	assert_int(resumed._row_views.size()).is_equal(2)
 	assert_int(_hand_views(resumed).size()).is_equal(resumed.run.hand().size())
 	assert_bool(resumed._reward_panel.visible).is_false()
-	assert_str(resumed._led.caption()).is_equal(LedDisplay.PROJECTED_TEXT)
-	assert_str(resumed._led.digits_label().text).is_equal("€%d" % first.run.preview().total)
-	assert_bool(resumed._cabinet.is_total_down()).is_false()
-	# The receipt is the planning stub (#75): the header, PROJECTED and the tear, as before.
+	# The monitor's store channel with the shift's brief; the projected total on the QUOTA chip.
+	assert_int(resumed._monitor.mode()).is_equal(MonitorView.Mode.CHANNEL)
+	assert_str(resumed._monitor.channel.current_key()).is_equal(MonitorChannel.BRIEF_KEY)
+	var projected: String = "€%d" % first.run.preview().total
+	assert_str(resumed._quota_meter.amount_label.text).is_equal(projected)
+	assert_bool(resumed._cabinet.checkout_key.held).is_false()
+	# The receipt is the itemised planning receipt (#80): the header, the items and PROJECTED.
 	var stub: PackedStringArray = _receipt_lines(resumed)
 	assert_array(stub).is_equal(_receipt_lines(first))
 	# A line's left text, then its (empty) right text.
 	var shift_line: String = ReceiptView.SHIFT_TEXT % [1, resumed.run.shift_count(), 2]
 	assert_array(Array(stub.slice(0, 4))).is_equal([ReceiptView.HEADER_TEXT, "", shift_line, ""])
 	assert_bool(stub.has(ReceiptView.PROJECTED_TEXT)).is_true()
-	assert_bool(stub.has("€%d" % first.run.preview().total)).is_true()
+	assert_bool(stub.has(ReceiptView.money(first.run.preview().total))).is_true()
 	assert_str(_event_log().run_id).is_equal(run_id)
 	var resume: Dictionary = _last_event("run_resume")
 	assert_str(resume["run_id"]).is_equal(run_id)
@@ -147,14 +153,14 @@ func test_quitting_during_the_count_up_resumes_on_the_reward_panel() -> void:
 	var resumed: ShiftScreen = await _screen()
 	assert_int(resumed.run.phase).is_equal(RunState.Phase.REWARD)
 	assert_int(resumed.run.last_result.total).is_equal(first.run.last_result.total)
-	# The LED at TOTAL, green with its lasting QUOTA chip (#60, D5), and the TOTAL key up:
+	# The LED at TOTAL, green with its lasting QUOTA chip (#60, D5), and CHECKOUT up (not held):
 	# nothing is being counted on the resumed screen.
 	assert_str(resumed._led.caption()).is_equal(LedDisplay.TOTAL_TEXT)
 	assert_str(resumed._led.digits_label().text).is_equal("€%d" % first.run.last_result.total)
 	assert_that(resumed._led.digits_label().get_theme_color("font_color")).is_equal(Palette.GOOD)
 	assert_object(resumed._count_up._quota_chip).is_not_null()
-	assert_bool(resumed._cabinet.is_total_down()).is_false()
-	assert_bool(first._cabinet.is_total_down()).is_true()
+	assert_bool(resumed._cabinet.checkout_key.held).is_false()
+	assert_bool(first._cabinet.checkout_key.held).is_true()
 	assert_str(_last_event("run_resume")["phase"]).is_equal("reward")
 	assert_bool(resumed._reward_panel.visible).is_true()
 	assert_bool(resumed._shade.visible).is_true()
@@ -174,22 +180,17 @@ func test_quitting_during_the_count_up_resumes_on_the_reward_panel() -> void:
 	assert_bool(panel.encloses(resumed._reward_panel._skip_button.get_global_rect())).is_true()
 
 	await _count_up_end(first)
-	# The receipt (under the shift's header, #75), totals, chip and paper pile behind the panel,
-	# as the count-up left them.
+	# The receipt (under the shift's header, #75), totals and chip behind the panel, as the
+	# count-up left them.
 	assert_str(_receipt_lines(resumed)[0]).is_equal(ReceiptView.HEADER_TEXT)
 	assert_bool(_receipt_lines(resumed).has(ReceiptView.PROJECTED_TEXT)).is_false()
 	assert_array(_receipt_lines(resumed)).is_equal(_receipt_lines(first))
 	_assert_same_led(resumed, first)
-	assert_bool(first._cabinet.is_total_down()).is_false()
+	assert_bool(first._cabinet.checkout_key.held).is_false()
 	var chip: QuotaChip = resumed._count_up._quota_chip
 	assert_object(first._count_up._quota_chip).is_not_null()
 	assert_bool(chip.visible).is_true()
 	assert_bool(resumed.get_global_rect().encloses(chip.get_global_rect())).is_true()
-	var pile: PaperPile = resumed._paper_pile
-	assert_float(pile.height_px).is_greater(0.0)
-	assert_float(pile.height_px).is_equal(first._paper_pile.height_px)
-	assert_bool(pile.curled).is_equal(first._paper_pile.curled)
-	assert_bool(pile.spilled).is_equal(first._paper_pile.spilled)
 	first._on_reward_skipped()
 	resumed._on_reward_skipped()
 	assert_int(resumed.run.shift_index).is_equal(1)
@@ -233,7 +234,7 @@ func test_a_new_screen_resumes_the_upgrade_tickets() -> void:
 	assert_array(_receipt_lines(resumed)).is_equal(_receipt_lines(first))
 	_assert_same_led(resumed, first)
 	assert_str(resumed._led.caption()).is_equal(LedDisplay.TOTAL_TEXT)
-	assert_bool(resumed._cabinet.is_total_down()).is_false()
+	assert_bool(resumed._cabinet.checkout_key.held).is_false()
 
 	var upgrade: UpgradeDefinition = first.run.upgrade_offer[0]
 	first._on_upgrade_picked(upgrade)

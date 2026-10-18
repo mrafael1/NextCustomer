@@ -1,0 +1,15 @@
+; The register's key deck (mock-up B2, #80 step 9), a 9-slice (margins 3 art px) stretched
+; to ShiftStage.DECK_RECT: a steel-darkest plate (the printer's body colour) in an ink
+; outline, its 2-row lit top lip and lit left edge in steel shade and steel dark, its right
+; edge and bottom lip in rubber. Its hard shadow on the column is drawn in code.
+@size 8x8
+@kind frame
+@scale 2
+########
+#EEEEEE#
+#EEEEEE#
+#HIIIJJ#
+#HIIIJJ#
+#HJJJJJ#
+#JJJJJJ#
+########

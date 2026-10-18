@@ -1,17 +1,38 @@
 class_name ReceiptView
 extends PanelContainer
-## The receipt: one line per ScoreStep, printed from the steps alone so it can never disagree
-## with the score. In planning the shift screen shows only its stub (#75, show_stub): the
-## header, the projected total and how many fizzles the items show (each step's line is read by
-## scanning its item). The count-up starts from the same header (begin) and prints its steps
-## under it line by line, as each one plays; a resumed checkout prints them all at once
-## (show_result). Every line another source boosts (a combo, is_combo) is marked with a faint
-## gold band, a gold bar and a diamond. After a checkout, the shift's dessert (#61) ends it: the
-## verdict "€total / €quota" on the TOTAL line, the margin line under it (with PAID on a pass),
-## the tear, then the next shift's red notice (show_shift_end prints them all at once). On the
-## shift screen it is in fit mode (#55): as tall as its lines, down to the paper pile's top. An
-## indented step line hangs (#55): wrapped, it starts past its lead and marker on every row, and
-## its amount (or "fizzle") sits on its last row.
+## The receipt: printed from a ScoreResult's payouts and steps alone, so it can never disagree
+## with the score. Every money amount on it prints with cents (money(): "€3.00", "+€15.00"); the
+## values stay whole euros.
+##
+## In planning (show_planning, #80) it is itemised: the header and a dashed rule, one line per
+## belt item in scan order (its name, its payout, then its mark: a green check when its payout is
+## above its base, the fizzle icon when one of its effects fizzles), a muted "5 ·····" for each
+## open empty slot, a dashed rule, "PROJECTED €22.00", and the fizzle footer ("2 fizzles · rest on
+## an item", none without fizzles). The belt item being scanned frames its line (highlight_slot).
+##
+## The count-up (begin_count) pre-prints the header, every item's line greyed ("Multipack
+## ·····"), the dashed rule, "TOTAL •••••" and the footer "tap: skip · hold: fast". Each step
+## then prints into its item's group (add_step): the BASE step fills the item's line in with its
+## base amount, which it keeps; the other steps print an indented line under the item's earlier
+## lines, a fizzle's in dark tomato with the fizzle icon. Every item's lines add up: its base, its
+## bonus and copy lines ("+€15.00") and an override's "= €0.00" (which the item's amount is from
+## then on) come to its PAYOUT step's value, or (a multiplier) the PAYOUT step closes the item
+## with a small "= €3.00" line (CLOSING_TEXT, LineStyle.CLOSING), its last line; when they do, it
+## prints nothing. The line just printed (or filled; the item's line
+## when the PAYOUT step prints nothing) is framed (mustard-pale fill, mustard frame), and the
+## receipt keeps it in view.
+## add_total fills the TOTAL line in plainly and drops the footer and the frame; the dessert (#61)
+## then prints the verdict on it, the margin (PAID on a pass), the tear and the next shift's
+## notice under it, scrolled to the newest line. A resumed checkout prints it all at once
+## (show_result), through the same lines. Every line another source boosts (a combo, is_combo) is
+## marked with a faint gold band, a gold bar and a diamond.
+##
+## On the shift screen it stands on the printer's slot and grows up (fit_up, #80): as tall as its
+## lines, up to ShiftStage.RECEIPT_TOP. An indented step line hangs (#55): wrapped, it starts past
+## its lead and marker on every row, and its amount sits on its last row (a fizzle's line has
+## none: its mark says it, on its first row). The lines
+## sit in an inset (FRAME_OUT on the left, FRAME_PAD on the right) that holds the frame, inside
+## the scroll area; most lines keep B2's mark column (MARK_COLUMN) at their right end.
 
 enum LineStyle {
 	DETAIL,
@@ -23,14 +44,27 @@ enum LineStyle {
 	MARGIN,
 	TEAR,
 	PROJECTED,
-	STUB_NOTE,
+	FOOTER,
 	COMBO,
+	WAITING,
+	CLOSING,
 }
+
+## An item line's mark in planning: none, raised (its payout is above its base) or fizzled.
+enum Mark { NONE, RAISED, FIZZLED }
 
 ## Monospace for the receipt (plan section 2). JetBrains Mono, SIL Open Font License.
 const MONO_FONT := preload("res://fonts/JetBrainsMono-Regular.ttf")
-## The TOTAL line's font size, which the dessert's slam lands at.
+## The TOTAL and PROJECTED amounts' font size; their captions print at CAPTION_FONT_SIZE.
 const TOTAL_FONT_SIZE := 22
+const CAPTION_FONT_SIZE := 15
+## The verdict "€total / €quota" on the TOTAL line, smaller than the total so it fits; a long
+## one (a four-digit total) shrinks down to VERDICT_MIN_FONT_SIZE to stay on the line.
+const VERDICT_FONT_SIZE := 15
+const VERDICT_MIN_FONT_SIZE := 10
+## The step and item lines' size, and the footer's.
+const LINE_FONT_SIZE := 13
+const FOOTER_FONT_SIZE := 12
 ## The PAID stamp on a passed shift's margin line, tilted like a clerk's stamp.
 const PAID_TEXT := "PAID"
 const PAID_TILT_DEG := -8.0
@@ -45,31 +79,81 @@ const HANG_MARKERS: Array[String] = ["+ ", "× "]
 const HEADER_TEXT := "NEXT CUSTOMER · REG 3"
 const SHIFT_TEXT := "SHIFT %d/%d · %d ITEMS"
 const ITEM_TEXT := "SHIFT %d/%d · 1 ITEM"
-## The planning stub's total line, under a dashed rule (a dash RULE_DASH long, then a gap as
-## long), and its fizzle count, which points at the items' fizzle chips.
+## The planning receipt's last line (#80: PROJECTED, never TOTAL, which only the count-up prints).
 const PROJECTED_TEXT := "PROJECTED"
+const TOTAL_TEXT := "TOTAL"
+## The dashed rules: a dash RULE_DASH long, then a gap as long.
 const RULE_DASH := 4.0
-const FIZZLES_TEXT := "%d fizzles · see the items"
-const FIZZLE_TEXT := "1 fizzle · see the item"
+## The fizzle footer: the count (in dark tomato), then where to read them (muted).
+const FIZZLES_TEXT := "%d fizzles"
+const FIZZLE_TEXT := "1 fizzle"
+## A fizzle's right side on one row (step_line); the receipt's fizzle lines show the mark instead.
+const FIZZLE_WORD := "fizzle"
+const REST_TEXT := " · rest on an item"
+const REST_ONE_TEXT := " · rest on the item"
+## The count-up's footer, from its start to the TOTAL line.
+const COUNT_FOOTER_TEXT := "tap: skip · hold: fast"
+## A line still to print: an item's name then WAITING_DOTS, an open empty slot's number then
+## them, the TOTAL line's amount.
+const WAITING_DOTS := "·····"
+const EMPTY_SLOT_TEXT := "%d ·····"
+const TOTAL_WAITING := "•••••"
+## The line closing an item whose lines don't add up to its payout (add_step): "= €3.00", at
+## FOOTER_FONT_SIZE in ink (LineStyle.CLOSING), with no left side.
+const CLOSING_TEXT := "= "
+## How a multiplier's receipt text ends in its factor ("Multipack ×3", multiplier_cause).
+const FACTOR_MARK := " ×"
+## A money amount on the receipt (money()).
+const MONEY_TEXT := "€%d.00"
+## The inset around the lines: the frame reaches FRAME_OUT past their left and FRAME_PAD past
+## their right (B2: 4 px of padding, then its 2 px frame).
+const FRAME_OUT := 4.0
+const FRAME_PAD := 6.0
+## The framed line's frame reaches this far above and below the line.
+const FRAME_GROW := 1.0
+## B2's mark column at a line's right end: a 6 px gap past the amount, then the 14 px mark
+## (ReceiptDecor.mark). Every line keeps it but the footer, the margin, the notice and the tear
+## (has_mark_column), so the dashed rules and the footer run across it. A fizzle's line has no
+## amount: its column is just the mark and a 2 px gap (FIZZLE_MARK_COLUMN), with no gap before it.
+const MARK_COLUMN := 20.0
+const FIZZLE_MARK_COLUMN := 16.0
 ## A combo line: a faint gold band behind the whole line with a gold bar on its left, and the
 ## diamond after the bar; the line's text hangs past both (COMBO_INDENT takes the place of its
-## leading spaces), so nothing sits outside the receipt's scroll area.
+## leading spaces and its marker), so nothing sits outside the receipt's scroll area.
 const COMBO_BAR := 2.0
-const COMBO_BAND_ALPHA := 0.25
 const COMBO_ICON_RECT := Rect2(4, 3, 10, 10)
 const COMBO_INDENT := 18.0
 const COMBO_DIAMOND := preload("res://art/icons/combo_diamond.png")
 
 var _lines: VBoxContainer
+## Holds the lines inside the scroll area, with room for the frame and the marks; draws the frame.
+var _inset: MarginContainer
 var _scroll: ScrollContainer
-## The last TOTAL line printed, or null.
+## The last TOTAL line printed (or pre-printed), or null.
 var _total_line: HBoxContainer
-## In fit mode (fit_mode()): the lowest the receipt's bottom may reach, in the parent's
-## coordinates. Empty otherwise.
-var _max_bottom: Callable = Callable()
+## The pre-printed TOTAL line's dashed rule (begin_count), or null: the step lines print above it.
+var _total_rule: Control
+## The footer line (fizzles in planning, the count-up's), or null.
+var _footer: Control
+## Each slot's item line, its last printed line and its item's name.
+var _items: Dictionary[int, HBoxContainer] = {}
+var _last: Dictionary[int, Control] = {}
+var _item_names: Dictionary[int, String] = {}
+## Each slot's printed amount so far (its base plus its bonus and copy lines, or its override's
+## amount and the lines after it), and its closing line.
+var _sums: Dictionary[int, int] = {}
+var _closing: Dictionary[int, Control] = {}
+## The framed line (the counted step's, or the scanned item's in planning), or null.
+var _framed: Control
+## The receipt shows planning's lines (show_planning): highlight_slot frames them.
+var _planning: bool = false
+## In fit-up mode (fit_up()): the bottom the receipt stands on and the highest its top may reach,
+## in the parent's coordinates; -1 otherwise.
+var _stand_bottom: float = -1.0
+var _cap_top: float = 0.0
 ## A fit is queued for the end of this frame's layout.
 var _fit_queued: bool = false
-## Fit mode: the next layout of the lines scrolls to their end, in the same frame.
+## Fit-up mode: the next layout of the lines scrolls to their end, in the same frame.
 var _snap_to_end: bool = false
 
 
@@ -78,40 +162,55 @@ func _init() -> void:
 	style.bg_color = Palette.PAPER
 	style.set_corner_radius_all(4)
 	style.set_content_margin_all(12)
+	style.content_margin_left = 12 - FRAME_OUT
+	style.content_margin_right = 12 - FRAME_OUT
 	add_theme_stylebox_override("panel", style)
 	_scroll = ScrollContainer.new()
 	_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
 	_scroll.sort_children.connect(_on_scroll_sorted)
 	add_child(_scroll)
+	_inset = MarginContainer.new()
+	_inset.name = "Inset"
+	_inset.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_inset.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_inset.add_theme_constant_override("margin_left", int(FRAME_OUT))
+	_inset.add_theme_constant_override("margin_right", int(FRAME_PAD))
+	_inset.add_theme_constant_override("margin_top", int(FRAME_GROW))
+	_inset.add_theme_constant_override("margin_bottom", int(FRAME_GROW))
+	_inset.draw.connect(_draw_frame)
+	_scroll.add_child(_inset)
 	_lines = VBoxContainer.new()
 	_lines.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_lines.add_theme_constant_override("separation", 1)
-	_scroll.add_child(_lines)
+	_lines.sort_children.connect(_inset.queue_redraw)
+	_inset.add_child(_lines)
 
 
-## Fit mode (#55): the receipt is as tall as its lines, from where it stands down to at most
-## `max_bottom`'s value (a Callable returning a float, the parent's coordinates); past that it
-## ends there, scrolled to its newest line, with no scroll bar (the mouse wheel still scrolls).
-## It fits again whenever its lines change; call fit_height() when `max_bottom` moves.
-func fit_mode(max_bottom: Callable) -> void:
-	_max_bottom = max_bottom
+## Fit-up mode (#80): the receipt stands on `bottom` (the parent's coordinates) and is as tall as
+## its lines, up to `top` at most; past that it ends there, scrolled to its newest line (or its
+## framed one), with no scroll bar (the mouse wheel still scrolls). It fits again whenever its
+## lines change.
+func fit_up(bottom: float, top: float) -> void:
+	_stand_bottom = bottom
+	_cap_top = top
 	_scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_SHOW_NEVER
-	if not _lines.minimum_size_changed.is_connected(_queue_fit):
-		_lines.minimum_size_changed.connect(_queue_fit)
+	if not _inset.minimum_size_changed.is_connected(_queue_fit):
+		_inset.minimum_size_changed.connect(_queue_fit)
 	fit_height()
 
 
-## Fits the receipt's height to its lines (fit mode only; see fit_mode()), then scrolls to its
-## end.
+## Fits the receipt's height to its lines (fit-up mode only; see fit_up()), then scrolls to its
+## end (or its framed line).
 func fit_height() -> void:
 	_fit_queued = false
-	if not _max_bottom.is_valid():
+	if _stand_bottom < 0.0:
 		return
 	var frame: float = get_theme_stylebox("panel").get_minimum_size().y
-	var room: float = float(_max_bottom.call()) - position.y
+	var room: float = _stand_bottom - _cap_top
 	# The newest line stays in view in the very frame the receipt grows or shrinks.
 	_snap_to_end = true
 	size.y = maxf(minf(natural_height(), room), frame)
+	position.y = _stand_bottom - size.y
 	# Sorted after the panel gives the scroll area its new size (the scroll area doesn't always
 	# sort itself on a resize), so _on_scroll_sorted sees it.
 	_scroll.queue_sort()
@@ -119,39 +218,88 @@ func fit_height() -> void:
 
 
 ## The lines' natural height plus the paper's frame: how tall the receipt is when nothing stops
-## it. (A ScrollContainer reports no content height: the lines' own minimum is the content.)
+## it. (A ScrollContainer reports no content height: the inset's own minimum is the content.)
 func natural_height() -> float:
-	return _lines.get_combined_minimum_size().y + get_theme_stylebox("panel").get_minimum_size().y
+	return _inset.get_combined_minimum_size().y + get_theme_stylebox("panel").get_minimum_size().y
 
 
-## Shows the newest line: scrolls to the end once the new lines are laid out.
+## Shows the newest line (or the framed one): scrolls once the new lines are laid out.
 func scroll_to_end() -> void:
 	_scroll_to_end.call_deferred()
 
 
 func clear() -> void:
 	_total_line = null
+	_total_rule = null
+	_footer = null
+	_framed = null
+	_planning = false
+	_items.clear()
+	_last.clear()
+	_item_names.clear()
+	_sums.clear()
+	_closing.clear()
+	_inset.queue_redraw()
 	for line: Node in _lines.get_children():
 		_lines.remove_child(line)
 		line.queue_free()
 
 
-## Starts a receipt: clears it, then prints `header` (header_lines(); none when empty). The
-## count-up starts here, so its lines print under the planning stub's header.
+## Starts a receipt: clears it, then prints `header` (header_lines(); none when empty).
 func begin(header: PackedStringArray = PackedStringArray()) -> void:
 	clear()
 	for text: String in header:
 		add_line(text, "", LineStyle.DETAIL)
 
 
-## The planning stub (#75, decision 1A): `header`, a dashed rule, "PROJECTED €projected", then
-## the fizzle count (fizzle_text(); no line without fizzles) and the tear.
-func show_stub(header: PackedStringArray, projected: int, fizzles: int) -> void:
+## Starts the count-up's receipt (and a resumed checkout's, show_result): `header` and its dashed
+## rule (none without a header), each of `names`' items waiting greyed in scan order, the dashed
+## rule and "TOTAL •••••", then (with `footer`) "tap: skip · hold: fast".
+func begin_count(header: PackedStringArray, names: PackedStringArray, footer: bool = true) -> void:
 	begin(header)
-	add_line(PROJECTED_TEXT, "€%d" % projected, LineStyle.PROJECTED)
+	if not header.is_empty():
+		_lines.add_child(ReceiptDecor.dashed_rule())
+	for slot: int in range(names.size()):
+		_item_names[slot] = names[slot]
+		var line: HBoxContainer = _add_item(slot, names[slot] + " " + WAITING_DOTS, "")
+		_set_waiting(line, true)
+	_total_rule = ReceiptDecor.dashed_rule()
+	_lines.add_child(_total_rule)
+	_total_line = add_line(TOTAL_TEXT, TOTAL_WAITING, LineStyle.TOTAL) as HBoxContainer
+	_set_waiting(_total_line, true)
+	if footer:
+		_footer = add_line(COUNT_FOOTER_TEXT, "", LineStyle.WAITING)
+		(_footer.get_child(0) as Label).add_theme_font_size_override("font_size", FOOTER_FONT_SIZE)
+
+
+## The planning receipt (#80): `header` and a dashed rule; for each belt item (`names`, in scan
+## order) its name, its payout in `result` and its mark (slot_mark()); "n ·····" for each open
+## slot past them up to `open_slots`; a dashed rule and "PROJECTED €total"; then the fizzle
+## footer (none without fizzles).
+func show_planning(
+	header: PackedStringArray, result: ScoreResult, names: PackedStringArray, open_slots: int
+) -> void:
+	begin(header)
+	_planning = true
+	_lines.add_child(ReceiptDecor.dashed_rule())
+	for slot: int in range(names.size()):
+		var payout: int = result.payouts[slot] if slot < result.payouts.size() else 0
+		var line: HBoxContainer = _add_item(slot, names[slot], money(payout))
+		ReceiptDecor.mark(line, slot_mark(result, slot))
+	for slot: int in range(names.size(), open_slots):
+		add_line(EMPTY_SLOT_TEXT % (slot + 1), "", LineStyle.WAITING)
+	add_line(PROJECTED_TEXT, money(result.total), LineStyle.PROJECTED)
+	var fizzles: int = fizzle_count(result)
 	if fizzles > 0:
-		add_line(fizzle_text(fizzles), "", LineStyle.STUB_NOTE)
-	add_tear()
+		_footer = add_line(_fizzle_count_text(fizzles), _rest_text(fizzles), LineStyle.FOOTER)
+
+
+## Planning only: frames `slot`'s item line (the belt item being scanned), or none for -1 (or a
+## slot with no line). Does nothing outside planning: the count-up frames its own lines.
+func highlight_slot(slot: int) -> void:
+	if not _planning:
+		return
+	_set_frame(_item_line_of(slot))
 
 
 ## The header's lines for 1-based `shift` of `shifts` with `items` on the belt (coupons
@@ -163,7 +311,13 @@ static func header_lines(shift: int, shifts: int, items: int) -> PackedStringArr
 	return PackedStringArray([HEADER_TEXT, shift_text])
 
 
-## How many of `result`'s steps fizzle (the stub's count): every WASTED step, the upgrades'
+## A money amount as the receipt prints it: "€3.00", or "+€15.00" when `signed`. Values are
+## whole euros: only the receipt shows cents.
+static func money(euros: int, signed: bool = false) -> String:
+	return ("+" if signed else "") + MONEY_TEXT % euros
+
+
+## How many of `result`'s steps fizzle (the footer's count): every WASTED step, the upgrades'
 ## too.
 static func fizzle_count(result: ScoreResult) -> int:
 	var count: int = 0
@@ -173,18 +327,26 @@ static func fizzle_count(result: ScoreResult) -> int:
 	return count
 
 
-## The stub's fizzle line: "1 fizzle · see the item", "N fizzles · see the items", or empty for
-## none.
-static func fizzle_text(fizzles: int) -> String:
-	if fizzles <= 0:
-		return ""
-	return FIZZLE_TEXT if fizzles == 1 else FIZZLES_TEXT % fizzles
+## `slot`'s mark in `result`, read from its recorded amounts: FIZZLED when a WASTED step is on
+## it, RAISED when its payout is above its BASE step's value, else NONE.
+static func slot_mark(result: ScoreResult, slot: int) -> Mark:
+	var base: int = -1
+	for step: ScoreStep in result.steps:
+		if step.slot != slot:
+			continue
+		if step.step_type == ScoreStep.StepType.WASTED:
+			return Mark.FIZZLED
+		if step.step_type == ScoreStep.StepType.BASE:
+			base = step.value
+	if base >= 0 and slot < result.payouts.size() and result.payouts[slot] > base:
+		return Mark.RAISED
+	return Mark.NONE
 
 
 ## The whole receipt at once, under `header` (header_lines(); none when empty): a resumed
-## checkout's, as the count-up printed it, and the tests' expected receipts. `upgrade_names` are
-## the run's upgrades' names in pick order and `inspection_names` the shift's inspections'
-## names, for the lines they cause.
+## checkout's, as the count-up printed it (begin_count without its footer, then every step and
+## the total), and the tests' expected receipts. `upgrade_names` are the run's upgrades' names in
+## pick order and `inspection_names` the shift's inspections' names, for the lines they cause.
 func show_result(
 	result: ScoreResult,
 	names: PackedStringArray,
@@ -192,14 +354,23 @@ func show_result(
 	inspection_names: PackedStringArray = PackedStringArray(),
 	header: PackedStringArray = PackedStringArray()
 ) -> void:
-	begin(header)
+	begin_count(header, names, false)
 	for step: ScoreStep in result.steps:
 		add_step(step, names, upgrade_names, inspection_names)
 	add_total(result.total)
 
 
-## Prints the line for one step and returns it, so the count-up can animate it. Returns null
-## for a step that prints no line.
+## Prints one step and returns what the count-up animates: a BASE step fills its item's line in
+## (its base amount, in ink, kept for good) and returns the line; a PAYOUT step prints the
+## closing line "= €payout" when the item's printed amount (its BASE step's value plus its FLAT
+## and COPY steps', a PAYOUT_OVERRIDE step's value replacing the sum) is not its value, and
+## returns that line's amount label; else it prints nothing and returns the item line's amount
+## label when nothing printed under the item (a plain card: its amount fades in on the beat), or
+## null (its amount has shown since its BASE step: nothing new to fade in). Any other step prints
+## its line under its item's earlier lines (above its closing line, which stays last) and
+## returns it. The printed or filled line is framed (the item's line when a PAYOUT step prints
+## nothing). Returns null for a step that prints no line. An item with no line yet (no
+## begin_count) gets one, at the end.
 func add_step(
 	step: ScoreStep,
 	names: PackedStringArray,
@@ -209,13 +380,59 @@ func add_step(
 	var text: PackedStringArray = step_text(step, names, upgrade_names, inspection_names)
 	if text.is_empty():
 		return null
-	return add_line(text[0], text[1], step_style(step))
+	match step.step_type:
+		ScoreStep.StepType.BASE, ScoreStep.StepType.PAYOUT:
+			var item: HBoxContainer = _item_line(step.slot, text[0])
+			var amount: Label = item.get_child(1) as Label
+			var name_text: String = text[0]
+			if _item_names.has(step.slot):
+				name_text = _item_names[step.slot]
+			(item.get_child(0) as Label).text = name_text
+			if step.step_type == ScoreStep.StepType.BASE:
+				_sums[step.slot] = step.value
+			var printed: int = _sums.get(step.slot, 0)
+			if step.step_type == ScoreStep.StepType.BASE or amount.text.is_empty():
+				amount.text = money(printed)
+			_set_waiting(item, false)
+			if step.step_type == ScoreStep.StepType.BASE:
+				_set_frame(item)
+				return item
+			if printed == step.value:
+				_set_frame(item)
+				return amount if _last.get(step.slot) == item else null
+			var closing: Control = _add_group_line(
+				step.slot, "", CLOSING_TEXT + text[1], LineStyle.CLOSING
+			)
+			_closing[step.slot] = closing
+			return closing.get_child(1) as Label
+		ScoreStep.StepType.FLAT, ScoreStep.StepType.COPY:
+			var so_far: int = _sums.get(step.slot, 0)
+			_sums[step.slot] = so_far + step.value
+		ScoreStep.StepType.PAYOUT_OVERRIDE:
+			_sums[step.slot] = step.value
+	var line: Control = _add_group_line(step.slot, text[0], text[1], step_style(step))
+	if step.step_type == ScoreStep.StepType.WASTED:
+		ReceiptDecor.mark(line as HBoxContainer, Mark.FIZZLED)
+	return line
+
+
+## Prints a line ("left", "right", in `style`) into `slot`'s group, after its earlier lines but
+## above its closing line, and frames it.
+func _add_group_line(
+	slot: int, left: String, right: String, style: LineStyle = LineStyle.ITEM
+) -> Control:
+	var line: Control = add_line(left, right, style)
+	_lines.move_child(line, mini(_group_index(slot), _lines.get_child_count() - 1))
+	if not _closing.has(slot):
+		_last[slot] = line
+	_set_frame(line)
+	return line
 
 
 ## The receipt's words for one step: its left side (with its indent and marker) and its right
-## side (the amount, "fizzle" or nothing), or none for a step that prints no line. The receipt
-## prints them (add_step), and a belt item's scan popup lists them (#75, step_line), so the two
-## always word a step alike.
+## side (the amount, with cents, or nothing: a fizzle's mark says "fizzle"), or none for a step
+## that prints no line. A BASE or PAYOUT step's left side is its item's name: they fill the
+## item's line in (add_step).
 static func step_text(
 	step: ScoreStep,
 	names: PackedStringArray,
@@ -223,33 +440,32 @@ static func step_text(
 	inspection_names: PackedStringArray = PackedStringArray()
 ) -> PackedStringArray:
 	var cause: String = source_text(step, upgrade_names, inspection_names)
+	if step.step_type == ScoreStep.StepType.MULTIPLIER:
+		cause = multiplier_cause(step, upgrade_names, inspection_names)
 	var left: String = ""
 	var right: String = ""
 	match step.step_type:
 		ScoreStep.StepType.TAG_ADDED:
-			left = "%s: %s gains %s" % [step.text, names[step.slot], step.tag]
+			left = "  %s: %s gains %s" % [step.text, names[step.slot], step.tag]
 		ScoreStep.StepType.LINKED:
-			left = "%s links %s + %s" % [step.text, names[step.slot], names[step.linked_slot]]
+			left = "  %s links %s + %s" % [step.text, names[step.slot], names[step.linked_slot]]
 		ScoreStep.StepType.WASTED:
 			left = "  %s: %s" % [cause, step.reason]
-			right = "fizzle"
-		ScoreStep.StepType.BASE:
-			left = names[step.slot].to_upper()
-			right = str(step.value)
+		ScoreStep.StepType.BASE, ScoreStep.StepType.PAYOUT:
+			left = names[step.slot]
+			right = money(step.value)
 		ScoreStep.StepType.FLAT:
 			left = "  + " + cause
-			right = "+%d" % step.value
+			right = money(step.value, true)
 		ScoreStep.StepType.MULTIPLIER:
 			left = "  × " + cause
 			right = "×%d" % step.value
 		ScoreStep.StepType.COPY:
 			left = "  %s: copy of %s" % [step.text, names[step.linked_slot]]
-			right = "+%d" % step.value
+			right = money(step.value, true)
 		ScoreStep.StepType.PAYOUT_OVERRIDE:
 			left = "  " + cause
-			right = "= %d" % step.value
-		ScoreStep.StepType.PAYOUT:
-			right = "€%d" % step.value
+			right = "= " + money(step.value)
 		ScoreStep.StepType.EFFECT_ARMED:
 			# No line: the receipt stays a straight list of payouts and explanations. What the
 			# effect does is printed where it lands (its FLAT or MULTIPLIER line, or a fizzle).
@@ -258,14 +474,14 @@ static func step_text(
 
 
 ## The style a step's line prints in: CONTEXT for a tag or a link, FIZZLE for a fizzle, ITEM for
-## a payout, COMBO for a combo (is_combo), DETAIL for the rest.
+## a base or a payout (its item's line), COMBO for a combo (is_combo), DETAIL for the rest.
 static func step_style(step: ScoreStep) -> LineStyle:
 	match step.step_type:
 		ScoreStep.StepType.TAG_ADDED, ScoreStep.StepType.LINKED:
 			return LineStyle.CONTEXT
 		ScoreStep.StepType.WASTED:
 			return LineStyle.FIZZLE
-		ScoreStep.StepType.PAYOUT:
+		ScoreStep.StepType.BASE, ScoreStep.StepType.PAYOUT:
 			return LineStyle.ITEM
 	return LineStyle.COMBO if is_combo(step) else LineStyle.DETAIL
 
@@ -282,15 +498,34 @@ static func is_combo(step: ScoreStep) -> bool:
 	return false
 
 
-## A step's line on one row (#75, a belt item's scan popup): the receipt's left side without its
-## indent, then its right side two spaces after it ("+ Strawberries beside Produce  +3",
-## "Coffee: no Breakfast product after it  fizzle"). Empty for a step that prints no line.
+## A step's line on one row, in whole euros (#75 and #80: the monitor's count-up line and a belt
+## item's scan footer). A bonus reads as B2 words it, its amount first ("+€15 Category engine",
+## "×2 Multipack", "+€3 Repeat: copy of Bread"); a base "MILK  2", a payout "€17", an override
+## "Spot check: the 3rd product pays €0  = 0"; the others are the receipt's left side without its
+## indent, then its right side two spaces after it ("Coffee: no Breakfast product after it
+## fizzle"). Empty for a step that prints no line.
 static func step_line(
 	step: ScoreStep,
 	names: PackedStringArray,
 	upgrade_names: PackedStringArray = PackedStringArray(),
 	inspection_names: PackedStringArray = PackedStringArray()
 ) -> String:
+	var cause: String = source_text(step, upgrade_names, inspection_names)
+	match step.step_type:
+		ScoreStep.StepType.FLAT:
+			return "+€%d %s" % [step.value, cause]
+		ScoreStep.StepType.MULTIPLIER:
+			return "×%d %s" % [step.value, multiplier_cause(step, upgrade_names, inspection_names)]
+		ScoreStep.StepType.COPY:
+			return "+€%d %s: copy of %s" % [step.value, step.text, names[step.linked_slot]]
+		ScoreStep.StepType.BASE:
+			return joined_line(names[step.slot].to_upper(), str(step.value))
+		ScoreStep.StepType.PAYOUT:
+			return "€%d" % step.value
+		ScoreStep.StepType.PAYOUT_OVERRIDE:
+			return joined_line(cause, "= %d" % step.value)
+		ScoreStep.StepType.WASTED:
+			return joined_line("%s: %s" % [cause, step.reason], FIZZLE_WORD)
 	var text: PackedStringArray = step_text(step, names, upgrade_names, inspection_names)
 	if text.is_empty():
 		return ""
@@ -313,26 +548,62 @@ static func source_text(
 	upgrade_names: PackedStringArray,
 	inspection_names: PackedStringArray = PackedStringArray()
 ) -> String:
+	return _cause(step, step.text, upgrade_names, inspection_names)
+
+
+## A multiplier's cause as source_text names it, less the factor its receipt text ends in
+## ("Multipack ×3" is "Multipack"): its line prints the factor itself ("×3 Multipack").
+static func multiplier_cause(
+	step: ScoreStep,
+	upgrade_names: PackedStringArray,
+	inspection_names: PackedStringArray = PackedStringArray()
+) -> String:
+	var text: String = step.text
+	var at: int = text.rfind(FACTOR_MARK)
+	if at > 0 and text.substr(at + FACTOR_MARK.length()).is_valid_int():
+		text = text.substr(0, at)
+	return _cause(step, text, upgrade_names, inspection_names)
+
+
+## source_text's words for `step` with `text` as its rule's receipt text.
+static func _cause(
+	step: ScoreStep,
+	text: String,
+	upgrade_names: PackedStringArray,
+	inspection_names: PackedStringArray
+) -> String:
 	match step.source_kind:
 		ScoreStep.SourceKind.UPGRADE:
 			if step.source_index < 0 or step.source_index >= upgrade_names.size():
-				return step.text
+				return text
 			var upgrade_name: String = upgrade_names[step.source_index]
-			if step.text.is_empty() or step.text == upgrade_name:
+			if text.is_empty() or text == upgrade_name:
 				return upgrade_name
-			return "%s (%s)" % [step.text, upgrade_name]
+			return "%s (%s)" % [text, upgrade_name]
 		ScoreStep.SourceKind.INSPECTION:
 			if step.source_index < 0 or step.source_index >= inspection_names.size():
-				return step.text
+				return text
 			var inspection_name: String = inspection_names[step.source_index]
-			if step.text.is_empty() or step.text == inspection_name:
+			if text.is_empty() or text == inspection_name:
 				return inspection_name
-			return "%s: %s" % [inspection_name, step.text]
-	return step.text
+			return "%s: %s" % [inspection_name, text]
+	return text
 
 
+## The TOTAL line: the pre-printed one filled in plainly ("TOTAL €22.00", begin_count), which
+## also ends the count-up's footer and frame; or a new one under a solid rule.
 func add_total(total: int) -> Control:
-	_total_line = add_line("TOTAL", "€%d" % total, LineStyle.TOTAL) as HBoxContainer
+	_set_frame(null)
+	if is_instance_valid(_footer):
+		_lines.remove_child(_footer)
+		_footer.queue_free()
+	_footer = null
+	if is_instance_valid(_total_line) and _total_line.get_parent() == _lines:
+		(_total_line.get_child(1) as Label).text = money(total)
+		_set_waiting(_total_line, false)
+		scroll_to_end()
+		return _total_line
+	_total_line = add_line(TOTAL_TEXT, money(total), LineStyle.TOTAL) as HBoxContainer
 	return _total_line
 
 
@@ -355,22 +626,45 @@ func show_shift_end(total: int, quota: int, notice: String = "") -> void:
 		add_notice(notice)
 
 
-## "€total / €quota", as the dessert's slam prints it.
+## The TOTAL line's "€total / €quota" (#61; since #80 it prints plainly, and the dessert's slam
+## lands on the monitor), with cents.
 static func verdict_text(total: int, quota: int) -> String:
-	return "€%d / €%d" % [total, quota]
+	return "%s / %s" % [money(total), money(quota)]
 
 
-## The dessert's slam lands on the TOTAL line: its right side reads "€total / €quota", green
-## on a pass and red on a miss. Returns that label (null when no TOTAL line was printed).
+## Shows the verdict on the TOTAL line at once: its right side reads "€total / €quota" at
+## VERDICT_FONT_SIZE across the mark column (smaller when it would not fit beside TOTAL,
+## verdict_font_size), green on a pass and red on a miss. Returns that label (null when no
+## TOTAL line was printed).
 func show_verdict(total: int, quota: int) -> Label:
 	var label: Label = total_label()
 	if label == null:
 		return null
 	label.text = verdict_text(total, quota)
+	# The TOTAL line has no mark: the verdict runs on across its mark column.
+	label.add_theme_stylebox_override("normal", StyleBoxEmpty.new())
+	var room: float = INF
+	if _lines.size.x > 0.0:
+		var caption: Label = _total_line.get_child(0) as Label
+		room = (
+			_lines.size.x
+			- _text_width(caption.text, MONO_FONT, CAPTION_FONT_SIZE)
+			- _total_line.get_theme_constant("separation")
+		)
+	label.add_theme_font_size_override("font_size", verdict_font_size(label.text, room))
 	label.add_theme_color_override(
 		"font_color", Palette.GOOD if ShiftMargin.of(total, quota).passed() else Palette.TOMATO
 	)
 	return label
+
+
+## The verdict's font size: VERDICT_FONT_SIZE, or the largest down to VERDICT_MIN_FONT_SIZE at
+## which `text` fits in `room` pixels.
+static func verdict_font_size(text: String, room: float) -> int:
+	var font_size: int = VERDICT_FONT_SIZE
+	while font_size > VERDICT_MIN_FONT_SIZE and _text_width(text, MONO_FONT, font_size) > room:
+		font_size -= 1
+	return font_size
 
 
 ## The TOTAL line's right-hand label (the total, then the verdict), or null before a total.
@@ -380,8 +674,8 @@ func total_label() -> Label:
 	return _total_line.get_child(1) as Label
 
 
-## The margin line under the total, showing the whole margin: "+€N OVER QUOTA", "SHORT €N" (red)
-## or "ON QUOTA" (green). The dessert counts it up with show_margin.
+## The margin line under the total, showing the whole margin: "+€N.00 OVER QUOTA", "SHORT €N.00"
+## (red) or "ON QUOTA" (green). The dessert counts it up with show_margin.
 func add_margin(margin: ShiftMargin) -> Control:
 	var line: Control = add_line(margin_text(margin.kind(), margin.amount()), "", LineStyle.MARGIN)
 	var color: Color = Palette.TOMATO if margin.kind() == ShiftMargin.Kind.SHORT else Palette.GOOD
@@ -398,9 +692,9 @@ static func show_margin(line: Control, kind: ShiftMargin.Kind, euros: int) -> vo
 static func margin_text(kind: ShiftMargin.Kind, euros: int) -> String:
 	match kind:
 		ShiftMargin.Kind.OVER:
-			return "+€%d OVER QUOTA" % euros
+			return "%s OVER QUOTA" % money(euros, true)
 		ShiftMargin.Kind.SHORT:
-			return "SHORT €%d" % euros
+			return "SHORT %s" % money(euros)
 	return "ON QUOTA"
 
 
@@ -435,25 +729,52 @@ func add_line(left: String, right: String, style: LineStyle) -> Control:
 		left_label.autowrap_mode = TextServer.AUTOWRAP_OFF
 		left_label.clip_text = true
 		left_label.custom_minimum_size.x = 1.0
-	if style == LineStyle.DETAIL or style == LineStyle.FIZZLE:
+	if style == LineStyle.DETAIL or style == LineStyle.FIZZLE or style == LineStyle.CONTEXT:
 		_hang(left_label)
 	elif style == LineStyle.COMBO:
-		_hang(left_label, COMBO_INDENT)
-		_mark_combo(line, left_label)
+		_hang(left_label, COMBO_INDENT, false)
+		ReceiptDecor.combo(line, left_label)
+	elif style == LineStyle.TOTAL or style == LineStyle.PROJECTED:
+		left_label.add_theme_font_size_override("font_size", CAPTION_FONT_SIZE)
+		# The caption never breaks inside its word: a long verdict shrinks instead.
+		left_label.autowrap_mode = TextServer.AUTOWRAP_OFF
+		left_label.size_flags_vertical = Control.SIZE_SHRINK_END
 	line.add_child(left_label)
 	var right_label: Label = _label(right, style)
 	right_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 	# The amount sits on the line's last row when the left side wraps.
 	right_label.size_flags_vertical = Control.SIZE_FILL
 	right_label.vertical_alignment = VERTICAL_ALIGNMENT_BOTTOM
+	if has_mark_column(style):
+		var column: StyleBoxEmpty = StyleBoxEmpty.new()
+		column.content_margin_right = MARK_COLUMN
+		if style == LineStyle.FIZZLE:
+			# The reason takes the rest of the line: no amount, so no gap before the mark.
+			column.content_margin_right = FIZZLE_MARK_COLUMN
+			line.add_theme_constant_override("separation", 0)
+		right_label.add_theme_stylebox_override("normal", column)
+	if style == LineStyle.FOOTER:
+		# The fizzle count, then where to read them, run on as one line.
+		left_label.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
+		left_label.autowrap_mode = TextServer.AUTOWRAP_OFF
+		right_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		right_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+		right_label.add_theme_color_override("font_color", Palette.INK_LIGHT)
+		line.add_theme_constant_override("separation", 0)
 	line.add_child(right_label)
-	if style == LineStyle.TOTAL:
+	if style == LineStyle.TOTAL and not is_instance_valid(_total_rule):
 		_lines.add_child(HSeparator.new())
 	elif style == LineStyle.PROJECTED:
-		_lines.add_child(_dashed_rule())
+		_lines.add_child(ReceiptDecor.dashed_rule())
 	_lines.add_child(line)
 	scroll_to_end()
 	return line
+
+
+## Whether a line of `style` keeps the mark column (MARK_COLUMN) at its right end: all but the
+## footer, the margin, the notice and the tear, which run across it.
+static func has_mark_column(style: LineStyle) -> bool:
+	return style not in [LineStyle.FOOTER, LineStyle.MARGIN, LineStyle.NOTICE, LineStyle.TEAR]
 
 
 ## A step line's text split for a hanging indent: its leading spaces, its marker ("+ " or "× ",
@@ -473,11 +794,14 @@ static func hang_parts(text: String) -> PackedStringArray:
 ## Hangs an indented line's left `label`: its text starts past its lead and marker on every
 ## wrapped row (an empty "normal" style's left margin), the marker printed beside the first row
 ## (a "Marker" label inside it). The lead is its leading spaces' width, or `lead_width` when
-## that is set (a combo line's COMBO_INDENT). A line without leading spaces is left as it is.
-static func _hang(label: Label, lead_width: float = -1.0) -> void:
+## that is set (a combo line's COMBO_INDENT, whose diamond takes the marker's place: without
+## `with_marker` the marker is dropped). A line without leading spaces is left as it is.
+static func _hang(label: Label, lead_width: float = -1.0, with_marker: bool = true) -> void:
 	var parts: PackedStringArray = hang_parts(label.text)
 	if parts[0].is_empty():
 		return
+	if not with_marker:
+		parts[1] = ""
 	var font: Font = label.get_theme_font("font")
 	var font_size: int = label.get_theme_font_size("font_size")
 	var lead: float = lead_width if lead_width >= 0.0 else _text_width(parts[0], font, font_size)
@@ -498,73 +822,115 @@ static func _hang(label: Label, lead_width: float = -1.0) -> void:
 	label.add_child(marker)
 
 
-## Marks a combo `line` (its hung `left` label): the band and bar drawn behind the whole line
-## (both sides and every wrapped row), and the diamond (a "ComboDiamond" inside `left`) beside the
-## bar, so it is marked by shape, not colour alone.
-static func _mark_combo(line: HBoxContainer, left: Label) -> void:
-	line.draw.connect(_draw_combo_band.bind(line))
-	var diamond: TextureRect = TextureRect.new()
-	diamond.name = "ComboDiamond"
-	diamond.texture = COMBO_DIAMOND
-	diamond.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	diamond.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
-	diamond.stretch_mode = TextureRect.STRETCH_SCALE
-	ArtStyle.use_pixel_material(diamond)
-	diamond.position = COMBO_ICON_RECT.position
-	diamond.size = COMBO_ICON_RECT.size
-	left.add_child(diamond)
-
-
-static func _draw_combo_band(line: HBoxContainer) -> void:
-	line.draw_rect(Rect2(Vector2.ZERO, line.size), Color(Palette.GOLD, COMBO_BAND_ALPHA))
-	line.draw_rect(Rect2(0, 0, COMBO_BAR, line.size.y), Palette.GOLD)
-
-
-## The stub's rule above PROJECTED: dashes in place of the TOTAL line's solid rule.
-static func _dashed_rule() -> HSeparator:
-	var rule: HSeparator = HSeparator.new()
-	rule.name = "StubRule"
-	rule.add_theme_stylebox_override("separator", StyleBoxEmpty.new())
-	rule.draw.connect(_draw_dashes.bind(rule))
-	return rule
-
-
-static func _draw_dashes(rule: HSeparator) -> void:
-	var y: float = roundf((rule.size.y - ArtStyle.ART_SCALE) / 2.0)
-	var x: float = 0.0
-	while x < rule.size.x:
-		var dash: float = minf(RULE_DASH, rule.size.x - x)
-		rule.draw_rect(Rect2(x, y, dash, ArtStyle.ART_SCALE), Palette.GREY)
-		x += 2.0 * RULE_DASH
-
-
 static func _text_width(text: String, font: Font, font_size: int) -> float:
 	return font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size).x
+
+
+static func _fizzle_count_text(fizzles: int) -> String:
+	return FIZZLE_TEXT if fizzles == 1 else FIZZLES_TEXT % fizzles
+
+
+static func _rest_text(fizzles: int) -> String:
+	return REST_ONE_TEXT if fizzles == 1 else REST_TEXT
+
+
+## A new item line for `slot` ("left", "right"), above the TOTAL line's rule.
+func _add_item(slot: int, left: String, right: String) -> HBoxContainer:
+	var line: HBoxContainer = add_line(left, right, LineStyle.ITEM) as HBoxContainer
+	_lines.move_child(line, _end_index(line))
+	_items[slot] = line
+	if not _last.has(slot):
+		_last[slot] = line
+	return line
+
+
+## `slot`'s item line, a new one named `name_text` when it has none yet.
+func _item_line(slot: int, name_text: String) -> HBoxContainer:
+	var item: HBoxContainer = _item_line_of(slot)
+	if item != null:
+		return item
+	_item_names[slot] = name_text
+	return _add_item(slot, name_text, "")
+
+
+## Where a new line of `slot`'s group goes: above its closing line, else right after the group's
+## last line, or (no group yet) above the TOTAL line's rule.
+func _group_index(slot: int) -> int:
+	if _closing.has(slot) and is_instance_valid(_closing[slot]):
+		return _closing[slot].get_index()
+	if _last.has(slot) and is_instance_valid(_last[slot]):
+		return _last[slot].get_index() + 1
+	return _total_rule.get_index() if is_instance_valid(_total_rule) else _lines.get_child_count()
+
+
+## Where `line`, just added last, goes when it ends the lines printed so far: above the TOTAL
+## line's rule when there is one, else where it is.
+func _end_index(line: Control) -> int:
+	if is_instance_valid(_total_rule) and _total_rule.get_parent() == _lines:
+		return _total_rule.get_index()
+	return line.get_index()
+
+
+## A line's look while it waits to print (muted ink) or once printed (ink; the TOTAL line's).
+static func _set_waiting(line: HBoxContainer, waiting: bool) -> void:
+	for child: Node in line.get_children():
+		(child as Label).add_theme_color_override(
+			"font_color", Palette.MUTED_INK if waiting else Palette.INK
+		)
+
+
+## The framed line, or null.
+func _framed_line() -> Control:
+	return _framed if is_instance_valid(_framed) else null
+
+
+## `slot`'s item line, or null.
+func _item_line_of(slot: int) -> HBoxContainer:
+	if _items.has(slot) and is_instance_valid(_items[slot]):
+		return _items[slot]
+	return null
+
+
+## The framed line's frame, behind the lines (ReceiptDecor.draw_frame).
+func _draw_frame() -> void:
+	ReceiptDecor.draw_frame(_inset, _lines, _framed_line())
+
+
+## Frames `line` (none for null) and keeps it in view. A framed line's "framed" meta is set: a
+## combo line drops its band and bar while framed (B2: the frame's fill and frame alone).
+func _set_frame(line: Control) -> void:
+	for old_or_new: Control in [_framed_line(), line]:
+		if old_or_new != null:
+			old_or_new.set_meta("framed", old_or_new == line)
+			old_or_new.queue_redraw()
+	_framed = line
+	_inset.queue_redraw()
+	scroll_to_end()
 
 
 func _label(text: String, style: LineStyle) -> Label:
 	var label: Label = Label.new()
 	label.text = text
-	var font_size: int = 13
+	var font_size: int = LINE_FONT_SIZE
 	var color: Color = Palette.INK
 	match style:
-		LineStyle.ITEM:
-			font_size = 15
 		LineStyle.CONTEXT:
 			color = Palette.TEAL
-		LineStyle.FIZZLE:
-			color = Palette.MUTED_INK
+		LineStyle.FIZZLE, LineStyle.FOOTER:
+			# A fizzle's reason at B2's step-line size, so a long one keeps to two rows.
+			color = Palette.TOMATO_DARK
+			font_size = FOOTER_FONT_SIZE
 		LineStyle.TOTAL, LineStyle.PROJECTED:
 			font_size = TOTAL_FONT_SIZE
-		LineStyle.STUB_NOTE:
-			color = Palette.TOMATO_DARK
 		LineStyle.NOTICE:
 			font_size = 15
 			color = Palette.TOMATO
 		LineStyle.MARGIN:
 			font_size = 15
-		LineStyle.TEAR:
+		LineStyle.TEAR, LineStyle.WAITING:
 			color = Palette.MUTED_INK
+		LineStyle.CLOSING:
+			font_size = FOOTER_FONT_SIZE
 	label.add_theme_font_override("font", MONO_FONT)
 	label.add_theme_font_size_override("font_size", font_size)
 	label.add_theme_color_override("font_color", color)
@@ -579,7 +945,7 @@ func _queue_fit() -> void:
 	fit_height.call_deferred()
 
 
-## Fit mode: once the scroll area has laid out its new size, scrolls to the end (deferred: the
+## Fit-up mode: once the scroll area has laid out its new size, scrolls to the end (deferred: the
 ## scroll area lays its lines out again for the new scroll only after this sort has finished).
 func _on_scroll_sorted() -> void:
 	if not _snap_to_end:
@@ -589,7 +955,7 @@ func _on_scroll_sorted() -> void:
 
 
 func _snap() -> void:
-	_scroll.scroll_vertical = int(_scroll.get_v_scroll_bar().max_value)
+	_scroll.scroll_vertical = _scroll_target()
 	# A scroll clamped during that sort (a taller receipt) moved no line yet: lay them out again.
 	_scroll.queue_sort()
 
@@ -600,4 +966,19 @@ func _scroll_to_end() -> void:
 		return
 	await get_tree().process_frame
 	if is_inside_tree():
-		_scroll.scroll_vertical = int(_scroll.get_v_scroll_bar().max_value)
+		_scroll.scroll_vertical = _scroll_target()
+
+
+## Where the scroll goes: the least scroll that shows the framed line whole (with its frame), or
+## the end when no line is framed.
+func _scroll_target() -> int:
+	var end: int = int(_scroll.get_v_scroll_bar().max_value)
+	var line: Control = _framed_line()
+	if line == null or line.get_parent() != _lines:
+		return end
+	# In the scroll's content: the inset's own position moves with the scroll.
+	var top: float = _lines.position.y + line.position.y - FRAME_GROW
+	var bottom: float = top + line.size.y + 2.0 * FRAME_GROW
+	var view: float = _scroll.size.y
+	var scroll: float = clampf(float(_scroll.scroll_vertical), bottom - view, top)
+	return clampi(roundi(scroll), 0, maxi(end, 0))

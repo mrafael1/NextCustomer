@@ -1,0 +1,12 @@
+; The printer slot's steel lip with its tear teeth (mock-up B2, #80 step 5), 122x4 @2 drawn at
+; ShiftStage.PRINTER_SLOT_RECT (994,336 244x8) OVER the receipt paper: rows 0..1 are a 4 art px
+; sawtooth (steel-shade E edges round a B core, transparent between teeth so the paper shows) over the paper's last 4 screen px, rows
+; 2..3 the lip itself (lit A top, steel-dark H front) just under the paper's bottom edge (y 340), so
+; the receipt seems to come out of the slot.
+@size 122x4
+@kind scenery
+@scale 2
+..E...E...E...E...E...E...E...E...E...E...E...E...E...E...E...E...E...E...E...E...E...E...E...E...E...E...E...E...E...E...
+.EBE.EBE.EBE.EBE.EBE.EBE.EBE.EBE.EBE.EBE.EBE.EBE.EBE.EBE.EBE.EBE.EBE.EBE.EBE.EBE.EBE.EBE.EBE.EBE.EBE.EBE.EBE.EBE.EBE.EBE.E
+#AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA#
+#HHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHH#

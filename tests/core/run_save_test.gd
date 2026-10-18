@@ -72,7 +72,9 @@ func test_a_shift_after_places_removes_and_redraws_round_trips() -> void:
 	var restored: RunState = _round_trip(run)
 	assert_array(_instance_ids(restored.row)).is_equal(_instance_ids(run.row))
 	assert_int(restored.redraws_used).is_equal(1)
-	assert_bool(restored.can_redraw([restored.hand()[0]])).is_false()
+	assert_int(restored.redraws_allowed).is_equal(2)
+	# The second of the shift's two redraws is left.
+	assert_bool(restored.can_redraw([restored.hand()[0]])).is_true()
 	# The redraw's set-aside cards stay out of the hand and the draw pile.
 	var restored_pile: Array = _instance_ids(restored.deck.draw_pile())
 	for card: CardInstance in set_aside:
@@ -293,6 +295,25 @@ func test_a_save_whose_row_no_longer_fits_the_balance_reads_as_null() -> void:
 		assert_object(RunSave.from_dictionary(data, _lookup)).is_not_null()
 		var stale: RunSave = RunSave.from_dictionary(data, ContentLookup.new(fewer_slots))
 		assert_object(stale).override_failure_message(RunSave.phase_name(run.phase)).is_null()
+
+
+## A save made while shifts allowed 1 redraw (before base_redraws became 2) still resumes: the
+## shift keeps the redraws it started with, and the next shift to start has the balance's 2.
+func test_a_save_from_one_redraw_per_shift_resumes_with_its_redraws() -> void:
+	var run: RunState = _planning_run(27)
+	run.redraw([run.hand()[0]])
+	var data: Dictionary = _json(_save(run))
+	data["redraws_allowed"] = 1
+	var save: RunSave = RunSave.from_dictionary(data, _lookup)
+	assert_object(save).is_not_null()
+	var restored: RunState = save.run
+	assert_int(restored.redraws_used).is_equal(1)
+	assert_int(restored.redraws_allowed).is_equal(1)
+	assert_bool(restored.can_redraw([restored.hand()[0]])).is_false()
+	restored.start_shift()
+	assert_int(restored.redraws_used).is_equal(0)
+	assert_int(restored.redraws_allowed).is_equal(_balance.base_redraws)
+	assert_int(restored.redraws_allowed).is_equal(2)
 
 
 func _play(seed_value: int, resume: bool) -> Array[String]:

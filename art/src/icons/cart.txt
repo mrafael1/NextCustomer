@@ -1,0 +1,13 @@
+; The Cart button's trolley (mock-up B2's CART, #80 step 10): paper w wire with teal dark 2
+; gaps, the same pixels as the store mark on the hand baskets. 12x9, shown at 2x.
+@size 12x9
+@kind icon
+ww..........
+.w..........
+.wwwwwwwwwww
+..w2w2w2w2w.
+..wwwwwwwww.
+...w2w2w2w..
+...wwwwwww..
+...w........
+....ww...ww.
