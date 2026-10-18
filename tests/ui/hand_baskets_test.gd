@@ -3,7 +3,7 @@ extends GdUnitTestSuite
 ## fills four baskets at HandRow.BASKET_PITCH, two items each in hand order, none overlapping;
 ## each item's art sinks about a third under its basket's front rim; the ledge, the baskets'
 ## backs and fronts and every item (lifted or not, with its REDRAW flag or selected outline) stay
-## in the ledge band (from the hand's top, down to the ledge's foot, left of the register);
+## in the ledge band (from the hand's top, down to the ledge's foot, right of the register);
 ## baskets stay when items leave for the belt; more than 8 items (debug) add baskets and narrow
 ## the basket step, and then hover brings an item to the front so it takes the click; a selected
 ## item lifts with a mustard outline, a redraw-marked one dims under its REDRAW flag; a full hand
@@ -57,11 +57,17 @@ func test_a_hand_of_eight_fills_four_baskets() -> void:
 	assert_array(backs).is_equal(
 		[
 			HandBaskets.BACK_LEFT,
-			HandBaskets.BACK_LEFT,
-			HandBaskets.BACK_LEFT,
+			HandBaskets.BACK_RIGHT,
+			HandBaskets.BACK_RIGHT,
 			HandBaskets.BACK_RIGHT
 		]
 	)
+	# The ledge's floor shadow lies under the ledge, clear of the register (#83's mirror).
+	var ledge: Rect2 = ShiftStage.LEDGE_RECT
+	assert_float(HandBaskets.LEDGE_SHADOW.position.y).is_equal(ledge.end.y)
+	assert_float(HandBaskets.LEDGE_SHADOW.position.x).is_greater_equal(ledge.position.x)
+	assert_float(HandBaskets.LEDGE_SHADOW.end.x).is_less_equal(ledge.end.x)
+	assert_bool(HandBaskets.LEDGE_SHADOW.intersects(ShiftStage.REGISTER_RECT)).is_false()
 	var band: Rect2 = _ledge_band(screen)
 	for layer: HandBaskets in [stage.baskets, stage.basket_fronts]:
 		var parts: Array[Control] = layer.parts()
@@ -322,7 +328,8 @@ func test_clearing_a_hovered_hand_reorders_nothing() -> void:
 static func _ledge_band(screen: ShiftScreen) -> Rect2:
 	var top: float = ShiftStage.HAND_RECT.position.y
 	var bottom: float = ShiftStage.LEDGE_RECT.end.y
-	return _on_stage(screen, Rect2(0, top, ShiftStage.REGISTER_RECT.position.x, bottom - top))
+	var left: float = ShiftStage.REGISTER_RECT.end.x
+	return _on_stage(screen, Rect2(left, top, ShiftStage.SIZE.x - left, bottom - top))
 
 
 ## `view`'s visible art (its sprite's opaque box), global.

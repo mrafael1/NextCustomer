@@ -318,7 +318,7 @@ func test_the_printout_stays_on_a_wide_stage() -> void:
 
 ## The shade is up and misses the register column (the cabinet at rest and the receipt) and the
 ## hung monitor with its totals (#80; everything it draws, its LED and the quota chip), while it
-## dims the rest of the counter left of the column.
+## dims the rest of the counter right of the column.
 func _assert_column_unshaded(screen: ShiftScreen) -> void:
 	assert_bool(screen._shade.visible).is_true()
 	var shade: Rect2 = screen._shade.get_global_rect()

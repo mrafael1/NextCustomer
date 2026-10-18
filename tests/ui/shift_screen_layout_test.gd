@@ -115,11 +115,11 @@ func test_the_stage_is_laid_out_without_overlaps() -> void:
 	assert_float(receipt.position.y).is_greater_equal(bar_bottom)
 	assert_bool(receipt.intersects(monitor)).is_false()
 
-	# The belt, left of the register, with the row's cells on it: each item on the top face, each
+	# The belt, right of the register, with the row's cells on it: each item on the top face, each
 	# ticket on the rail.
 	var belt: Rect2 = screen._stage.belt.get_global_rect()
 	assert_that(belt).is_equal(_on_stage(screen, ShiftStage.BELT_RECT))
-	assert_float(belt.end.x).is_less_equal(register.position.x)
+	assert_float(belt.position.x).is_greater_equal(register.end.x)
 	assert_bool(belt.intersects(receipt)).is_false()
 	assert_float(belt.position.y).is_greater_equal(monitor.end.y)
 	var top_face: Rect2 = screen._stage.belt.get_global_transform() * screen._stage.belt.top_face()
@@ -150,10 +150,7 @@ func test_the_stage_is_laid_out_without_overlaps() -> void:
 	# No text on the counter between the rail and the hand, and none under the hand (#80, step
 	# 12: B2 has neither the capacity line, the cue nor the controls hint).
 	var below_rail: Rect2 = Rect2(
-		stage.position.x,
-		rail.end.y,
-		register.position.x - stage.position.x,
-		stage.end.y - rail.end.y
+		register.end.x, rail.end.y, stage.end.x - register.end.x, stage.end.y - rail.end.y
 	)
 	for label: Node in screen._stage.find_children("*", "Label", true, false):
 		var printed: Label = label as Label
@@ -183,11 +180,11 @@ func test_the_stage_is_laid_out_without_overlaps() -> void:
 		keys.append(part)
 	_assert_apart(keys)
 
-	# The hand over the baskets, left of the register; the seed line under Redraw, on the column.
+	# The hand over the baskets, right of the register; the seed line under Redraw, on the column.
 	var hand: Rect2 = screen._hand_box.get_global_rect()
 	assert_that(hand).is_equal(_on_stage(screen, ShiftStage.HAND_RECT))
 	assert_bool(_on_stage(screen, ShiftStage.HAND_AREA).encloses(hand)).is_true()
-	assert_float(hand.end.x).is_less_equal(register.position.x)
+	assert_float(hand.position.x).is_greater_equal(register.end.x)
 	var seed_rect: Rect2 = screen._seed_label.get_global_rect()
 	assert_that(seed_rect).is_equal(_on_stage(screen, ShiftStage.SEED_RECT))
 	assert_float(screen._seed_label.get_minimum_size().y).is_less_equal(seed_rect.size.y)

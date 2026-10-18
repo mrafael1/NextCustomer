@@ -1,12 +1,14 @@
 class_name StoreShelves
 extends Control
 ## The back of the store (#80, mock-up B2, step 11): the store sections on the wall between the
-## top bar and the counter, B2's 0.5x depth layer. Left to right: the cold cases (a steel cabinet
-## with two glass doors, their cool glow spilling onto the wall, cheese, milk, eggs, yoghurt pots
-## and juice behind the glass), the bakery shelf (a wood panel with two boards, croissants in
-## wicker baskets, round and tin loaves, a bin of baguettes, the clock above it; it runs on behind
-## the monitor), the calm wall under the monitor, the fruit & veg crate stand with its sign hung
-## on two wires, and a painted pillar at the right. The aisle signs are boards in their aisle's
+## top bar and the counter, B2's 0.5x depth layer, mirrored with the stage (#83). Right to left:
+## the cold cases (a steel cabinet with two glass doors, their cool glow spilling onto the wall,
+## cheese, milk, eggs, yoghurt pots and juice behind the glass), the bakery shelf (a wood panel
+## with two boards, croissants in wicker baskets, round and tin loaves, a bin of baguettes, the
+## clock above it; it runs on behind the monitor), the calm wall under the monitor, the fruit &
+## veg crate stand with its sign hung on two wires by the cashier, and a painted pillar at the
+## left. Only the layout is mirrored: each fixture and sprite keeps its art, lit from the upper
+## left. The aisle signs are boards in their aisle's
 ## sign colour (AisleDefinition.sign_color) with its glyph on a paper tile.
 ##
 ## The fixtures are drawn at B2's 1 px texels (plan 6.1.2's changelog: the back layer reads as
@@ -17,8 +19,8 @@ extends Control
 ## the lamp over it. Decor only: no part takes a click, so a click on the wall still reaches the
 ## background.
 ##
-## Positions are B2's wall coordinates (stage y - TOP_BAR_BOTTOM), so they read against its
-## mock-up line by line.
+## Positions are the mirrored B2's wall coordinates (stage y - TOP_BAR_BOTTOM; x' = 1280 - x - w
+## of B2's), so they read against its mock-up line by line.
 
 ## The wall band on the stage: under the top bar, down to the belt's back.
 const WALL_RECT := Rect2(
@@ -30,12 +32,12 @@ const BAKERY := &"bakery"
 const FRUIT_AND_VEG := &"fruit_and_veg"
 ## The signs' boards (wall coordinates), and the x their glyph tile is centred on.
 const SIGN_RECTS: Dictionary[StringName, Rect2] = {
-	COLD_CASES: Rect2(4, 22, 232, 38),
-	BAKERY: Rect2(242, 58, 190, 36),
-	FRUIT_AND_VEG: Rect2(813, 70, 114, 36),
+	COLD_CASES: Rect2(1044, 22, 232, 38),
+	BAKERY: Rect2(848, 58, 190, 36),
+	FRUIT_AND_VEG: Rect2(353, 70, 114, 36),
 }
 const SIGN_ICON_X: Dictionary[StringName, float] = {
-	COLD_CASES: 120.0, BAKERY: 309.0, FRUIT_AND_VEG: 870.0
+	COLD_CASES: 1160.0, BAKERY: 971.0, FRUIT_AND_VEG: 410.0
 }
 ## A sign's lit top and shaded foot: paper and ink over its colour.
 const SIGN_LIT := Color(Palette.PAPER, 0.3)
@@ -53,8 +55,8 @@ const ICONS: Dictionary[StringName, Texture2D] = {
 const FALLBACK_SIGN := Palette.TEAL
 
 ## The cold cases: the cabinet, its two doors (x ranges) and their shelves (y).
-const CABINET_RECT := Rect2(4, 22, 232, 254)
-const DOORS: Array[Vector2] = [Vector2(12, 118), Vector2(122, 228)]
+const CABINET_RECT := Rect2(1044, 22, 232, 254)
+const DOORS: Array[Vector2] = [Vector2(1052, 1158), Vector2(1162, 1268)]
 const DOOR_TOP := 64.0
 const DOOR_HEIGHT := 214.0
 const SHELF_YS: Array[float] = [118.0, 178.0, 238.0]
@@ -62,8 +64,8 @@ const SHELF_YS: Array[float] = [118.0, 178.0, 238.0]
 const GLOW_COLOURS: Array[Color] = [Palette.GLASS_GLOW, Palette.GLASS, Palette.TEAL_LIGHT]
 const GLASS_TINT := Color(Palette.GLASS, 0.3)
 const GLARE := Color(Palette.PAPER, 0.16)
-## The cases' glow on the wall right of them: a stepped ellipse, two alphas.
-const SPILL_CENTRE := Vector2(236, 160)
+## The cases' glow on the wall left of them: a stepped ellipse, two alphas.
+const SPILL_CENTRE := Vector2(1044, 160)
 const SPILL_RADII := Vector2(70, 120)
 const SPILL_STEPS: Array[Vector2] = [Vector2(0.9, 0.18), Vector2(0.5, 0.4)]
 ## The warm light pool under the upper-left light, on the wall plane (wall_light, outside the
@@ -74,62 +76,62 @@ const POOL_RADII := Vector2(180, 120)
 const POOL_STEPS: Array[Vector2] = [Vector2(0.72, 0.21), Vector2(0.44, 0.42)]
 const POOL_TOP := 8.0
 ## The bakery shelf: its panel (x B0..B1), the two boards (y) and the price tickets' pitch.
-const BAKERY_LEFT := 246.0
-const BAKERY_RIGHT := 428.0
+const BAKERY_LEFT := 852.0
+const BAKERY_RIGHT := 1034.0
 const BAKERY_TOP := 74.0
 const BAKERY_HEIGHT := 200.0
 const BOARD_YS: Array[float] = [150.0, 232.0]
 const TICKET_PITCH := 28.0
 const PANEL_SEAM_PITCH := 34.0
 ## The fruit & veg stand (x S0..S1), its skirt and the one crate's front.
-const STAND_LEFT := 828.0
-const STAND_RIGHT := 912.0
-const CRATE_RECT := Rect2(834, 186, 72, 24)
+const STAND_LEFT := 368.0
+const STAND_RIGHT := 452.0
+const CRATE_RECT := Rect2(374, 186, 72, 24)
 ## The sign's two wires, from the ceiling to the sign's top.
-const WIRE_XS: Array[float] = [841.0, 899.0]
-## The painted pillar at the right edge.
-const PILLAR_RECT := Rect2(1246, 8, 34, 262)
+const WIRE_XS: Array[float] = [381.0, 439.0]
+## The painted pillar at the left edge.
+const PILLAR_RECT := Rect2(0, 8, 34, 262)
 
 ## The sprites, by name, at their wall positions (each drawn 1:1, its top-left here).
 const ITEMS := "res://art/items_v2/%s.png"
 const SCENERY := "res://art/scenery/%s.png"
 ## The stock behind the glass and on the stand and the boards, the 48 px items at 1 texel.
 const STOCK: Array[Array] = [
-	["cheese", Vector2(17, 70)],
-	["milk", Vector2(65, 70)],
-	["eggs", Vector2(17, 130)],
-	["eggs", Vector2(65, 130)],
-	["milk", Vector2(17, 190)],
-	["cheese", Vector2(65, 190)],
-	["milk", Vector2(127, 70)],
-	["cheese", Vector2(175, 70)],
-	["eggs", Vector2(127, 190)],
-	["croissant", Vector2(259, 87)],
-	["croissant", Vector2(303, 169)],
-	["banana", Vector2(832, 152)],
-	["strawberries", Vector2(860, 154)],
+	["cheese", Vector2(1215, 70)],
+	["milk", Vector2(1167, 70)],
+	["eggs", Vector2(1215, 130)],
+	["eggs", Vector2(1167, 130)],
+	["milk", Vector2(1215, 190)],
+	["cheese", Vector2(1167, 190)],
+	["milk", Vector2(1105, 70)],
+	["cheese", Vector2(1057, 70)],
+	["eggs", Vector2(1105, 190)],
+	["croissant", Vector2(973, 87)],
+	["croissant", Vector2(929, 169)],
+	["banana", Vector2(400, 152)],
+	["strawberries", Vector2(372, 154)],
 ]
 ## The drawn stock (art/src/scenery), behind the front fixtures.
 const BACK_SCENERY: Array[Array] = [
-	["bread_boule", Vector2(313, 131)],
-	["bread_boule", Vector2(347, 131)],
-	["bread_tin", Vector2(355, 209)],
-	["bread_tin", Vector2(389, 209)],
-	["yoghurt_pots", Vector2(129, 141)],
-	["juice_bottles", Vector2(178, 199)],
+	["bread_boule", Vector2(935, 131)],
+	["bread_boule", Vector2(901, 131)],
+	["bread_tin", Vector2(891, 209)],
+	["bread_tin", Vector2(857, 209)],
+	["yoghurt_pots", Vector2(1060, 141)],
+	["juice_bottles", Vector2(1058, 199)],
 ]
 ## Over the front fixtures: the baguette bin, the baskets' fronts and the clock.
 const FRONT_SCENERY: Array[Array] = [
-	["baguette_bin", Vector2(255, 169)],
-	["wicker_basket", Vector2(256, 127)],
-	["wicker_basket", Vector2(300, 209)],
-	["wall_clock", Vector2(287, 10)],
+	["baguette_bin", Vector2(985, 169)],
+	["wicker_basket", Vector2(970, 127)],
+	["wicker_basket", Vector2(926, 209)],
+	["wall_clock", Vector2(949, 10)],
 ]
 
 ## The cashier (art/src/scenery/cashier.txt) and the lamp, on the stage: StoreBackdrop puts them
 ## over the haze, the cashier by the receipt behind the counter.
 const CASHIER := preload("res://art/scenery/cashier.png")
-const CASHIER_RECT := Rect2(914, 182, 76, 144)
+const CASHIER_RECT := Rect2(290, 182, 76, 144)
 const LAMP := preload("res://art/scenery/ceiling_lamp.png")
 const LAMP_RECT := Rect2(173, 56, 74, 20)
 

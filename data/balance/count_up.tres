@@ -74,3 +74,5 @@ dessert_shake_miss_px = 4.0
 dessert_shake_step = 0.25
 printout_lift_ms = 150
 final_line_ms = 80
+belt_px_per_second = 60.0
+belt_max_px_per_second = 240.0

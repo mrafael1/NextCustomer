@@ -100,7 +100,6 @@ func _build_keys() -> void:
 	cancel_key.visible = false
 	cancel_key.visibility_changed.connect(_on_cancel_shown)
 	redraw_key = _key(RegisterKey.Kind.CREAM, "", ShiftStage.REDRAW_RECT, REDRAW_FONT_SIZE)
-	redraw_key.resized.connect(_keep_redraw_edge)
 	checkout_key = _key(RegisterKey.Kind.CHECKOUT, CHECKOUT_TEXT, ShiftStage.CHECKOUT_RECT)
 	checkout_key.accessibility_name = CHECKOUT_NAME
 	_set_checkout_caption(checkout_key.caption_label())
@@ -163,11 +162,6 @@ func _key(
 ## Cancel stands in the keypad's place: the keypad hides while Cancel shows.
 func _on_cancel_shown() -> void:
 	keypad.visible = not cancel_key.visible
-
-
-## Redraw keeps its right edge: a caption longer than REDRAW_RECT grows it to the left.
-func _keep_redraw_edge() -> void:
-	redraw_key.position.x = local_rect(ShiftStage.REDRAW_RECT).end.x - redraw_key.size.x
 
 
 func _add(node: Control, rect: Rect2) -> Control:

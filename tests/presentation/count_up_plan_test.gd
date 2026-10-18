@@ -71,6 +71,9 @@ func test_tuning_loads_with_positive_ordered_floors() -> void:
 	# D3: the print pitch follows the printer speed up to +4 semitones.
 	assert_float(count_up.print_pitch_max).is_equal_approx(1.26, 0.001)
 	assert_float(count_up.print_pitch_max).is_less_equal(count_up.printer_speed_max)
+	# #83: the belt runs at a positive speed, capped no slower than that.
+	assert_float(count_up.belt_px_per_second).is_greater(0.0)
+	assert_float(count_up.belt_max_px_per_second).is_greater_equal(count_up.belt_px_per_second)
 
 
 func test_every_step_is_in_one_beat_and_only_plain_cards_merge() -> void:

@@ -840,6 +840,86 @@ static func _sounds(sfx: Sfx, sound: String) -> int:
 	return count
 
 
+## The belt (#83): still in planning; from the CHECKOUT click its slats run left (forward, one
+## to four 2 px steps a frame), the items standing still; a hit-stop stops them; they stop as the
+## held breath starts and stay still through the TOTAL, the dessert and the next planning. The
+## count's timing is the plan's.
+func test_the_belt_runs_through_the_count_and_stops_for_the_total() -> void:
+	var screen: ShiftScreen = await _screen()
+	await _full_row(screen)
+	var count_up: CountUp = screen._count_up
+	var belt: BeltPanel = screen._stage.belt
+	assert_object(count_up.belt).is_same(belt)
+	var start: int = belt.frame()
+	await _frames(5)
+	assert_int(belt.frame()).is_equal(start)
+	var item_rests: Array[Vector2] = []
+	for view: CardView in screen._row_views:
+		item_rests.append(view.global_position)
+	screen._on_checkout_pressed()
+	var failures: Array[String] = []
+	var frames: Array[int] = [belt.frame()]
+	var forced: bool = false
+	while count_up._belt_running:
+		await get_tree().process_frame
+		var frame: int = belt.frame()
+		var step: int = posmod(frame - frames[-1], BeltPanel.TOP_FRAMES.size())
+		if step > int(BeltPanel.MAX_STEP_PX / 2.0):
+			failures.append("a step of %d frames" % step)
+		frames.append(frame)
+		if not forced and frames.size() > 20 and count_up._belt_running:
+			forced = true
+			# A hit-stop as _land sets one: the slats stand still while it lasts.
+			# Long enough that three slow frames never outlast it; ended by hand after them.
+			count_up._hit_stop_left_ms = 60000.0
+			count_up._hit_stop_us = Time.get_ticks_usec()
+			count_up._apply_speed()
+			var held: int = belt.frame()
+			await _frames(3)
+			if belt.frame() != held:
+				failures.append("the slats moved in a hit-stop")
+			count_up._hit_stop_left_ms = 0.0
+			count_up._apply_speed()
+	assert_array(failures).override_failure_message("\n".join(failures)).is_empty()
+	assert_bool(forced).is_true()
+	var distinct: Dictionary[int, bool] = {}
+	for frame: int in frames:
+		distinct[frame] = true
+	assert_int(distinct.size()).is_greater(3)
+	# The held breath has started: the belt stays still to the end and into the next planning.
+	var stopped: int = belt.frame()
+	while screen._counting:
+		await get_tree().process_frame
+		if belt.frame() != stopped:
+			failures.append("the belt moved after the beats")
+			break
+	assert_array(failures).override_failure_message("\n".join(failures)).is_empty()
+	for index: int in range(item_rests.size()):
+		assert_vector(screen._row_views[index].global_position).is_equal(item_rests[index])
+	await _frames(5)
+	assert_int(belt.frame()).is_equal(stopped)
+
+
+## Reduced motion leaves the belt running: only its frames change, no node moves.
+func test_reduced_motion_keeps_the_belt_running() -> void:
+	var screen: ShiftScreen = await _screen()
+	screen._debug.set_reduced_motion(true)
+	await _place(screen, PASSING_ROW)
+	var count_up: CountUp = screen._count_up
+	var belt: BeltPanel = screen._stage.belt
+	var top: Control = belt.get_node(NodePath(BeltPanel.TOP_NAME)) as Control
+	var rest: Vector2 = top.global_position
+	screen._on_checkout_pressed()
+	var distinct: Dictionary[int, bool] = {}
+	while count_up._belt_running:
+		await get_tree().process_frame
+		distinct[belt.frame()] = true
+		assert_vector(top.global_position).is_equal(rest)
+	assert_bool(count_up.plan.reduced_motion).is_true()
+	assert_int(distinct.size()).is_greater(3)
+	await _count_up_end(screen)
+
+
 func _screen() -> ShiftScreen:
 	_runner = scene_runner(SCREEN)
 	var screen: ShiftScreen = _runner.scene()
