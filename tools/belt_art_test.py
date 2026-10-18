@@ -51,8 +51,8 @@ class GeometryTest(unittest.TestCase):
         self.assertAlmostEqual(ba.recede(100, ba.FRONT_Y), 100)
         self.assertAlmostEqual(ba.recede(100, ba.VANISHING_POINT[1]), ba.VANISHING_POINT[0])
         # Left of the middle an edge leans right going back, right of it left.
-        self.assertGreater(ba.recede(16, 330), 16)
-        self.assertLess(ba.recede(930, 330), 930)
+        self.assertGreater(ba.recede(ba.FRAME_LEFT, 330), ba.FRAME_LEFT)
+        self.assertLess(ba.recede(ba.FRAME_RIGHT, 330), ba.FRAME_RIGHT)
         self.assertEqual(ba.snap(3.0), 4)
         self.assertEqual(ba.snap(2.9), 2)
 
@@ -76,7 +76,8 @@ class GeometryTest(unittest.TestCase):
     def test_the_slats_lean_to_the_vanishing_point(self) -> None:
         front_y = ba.FRONT_Y - ba.SCALE
         back_y = ba.HOOD_SHADOW[1]
-        for front_x in (ba.SLAT_START, ba.SLAT_START + 30 * ba.SLAT_PITCH, 898):
+        last = ba.SLAT_START + 43 * ba.SLAT_PITCH
+        for front_x in (ba.SLAT_START, ba.SLAT_START + 30 * ba.SLAT_PITCH, last):
             for y in (front_y, back_y):
                 x = ba.snap(ba.recede(front_x, y + ba.SCALE / 2))
                 row = self.rows[row_of(y)]
@@ -105,29 +106,69 @@ class GeometryTest(unittest.TestCase):
         self.assertNotIn(ba.INK, top[inked[0] + ba.CAP_WIDTH : inked[-1] - ba.CAP_WIDTH])
 
 
+class ScrollFrameTest(unittest.TestCase):
+    """The scroll frames (#83): one per 2 px step along the front edge, wrapping after a pitch."""
+
+    def test_one_frame_per_two_pixel_step(self) -> None:
+        self.assertEqual(ba.FRAMES * ba.SCALE, ba.SLAT_PITCH)
+        self.assertEqual([ba.shift_of(frame) for frame in range(3)], [0, 2, 4])
+        self.assertEqual(ba.shift_of(ba.FRAMES), 0)
+        self.assertEqual(ba.generate(ba.FRAMES), ba.generate(0))
+        self.assertEqual(ba.frame_path(ba.SOURCES, 0), ba.OUTPUT)
+        self.assertEqual(
+            ba.frame_path(ba.SOURCES, 9), ba.SOURCES / ba.SCROLL_FOLDER / "belt_top_18.txt"
+        )
+
+    def test_only_the_slats_move_left(self) -> None:
+        still = ba.generate(0)
+        slat_keys = {ba.CHARCOAL, ba.STEEL_DARKEST, ba.RUBBER, ba.RUBBER_DARK}
+        front_y = ba.FRONT_Y - ba.SCALE
+        for frame in range(1, ba.FRAMES):
+            rows = ba.generate(frame)
+            for y, (moved, base) in enumerate(zip(rows, still)):
+                for x, (key, base_key) in enumerate(zip(moved, base)):
+                    if key != base_key:
+                        # Only the rubber changes: a slat line or the rubber it left.
+                        self.assertIn(key, slat_keys, (frame, x, y))
+                        self.assertIn(base_key, slat_keys, (frame, x, y))
+            # On the front row every slat sits shift_of(frame) px left of frame 0's.
+            row = rows[row_of(front_y)]
+            for front_x in (ba.SLAT_START + 20, ba.SLAT_START + 30 * ba.SLAT_PITCH):
+                x = ba.snap(ba.recede(front_x - ba.shift_of(frame), front_y + ba.SCALE / 2))
+                self.assertEqual(row[column(x)], ba.CHARCOAL, (frame, front_x))
+                self.assertEqual(row[column(x) + 1], ba.STEEL_DARKEST, (frame, front_x))
+
+
 class CommittedSourceTest(unittest.TestCase):
-    def test_the_committed_source_is_up_to_date(self) -> None:
-        self.assertTrue(ba.OUTPUT.exists())
-        self.assertEqual(ba.OUTPUT.read_text(encoding="utf-8"), ba.source_text())
+    def test_the_committed_sources_are_up_to_date(self) -> None:
+        for frame in range(ba.FRAMES):
+            path = ba.frame_path(ba.SOURCES, frame)
+            self.assertTrue(path.exists(), path)
+            self.assertEqual(path.read_text(encoding="utf-8"), ba.source_text(frame), path)
         with contextlib.redirect_stderr(io.StringIO()):
             self.assertEqual(ba.main(["--check"]), 0)
 
-    def test_the_source_parses_and_lints(self) -> None:
+    def test_the_sources_parse_and_lint(self) -> None:
         palette = pa.parse_palette(pa.DEFAULT_SRC / pa.PALETTE_FILE)
-        sprite, errors = pa.parse_sprite(ba.OUTPUT, pa.DEFAULT_SRC)
-        self.assertEqual(errors, [])
-        assert sprite is not None
-        self.assertEqual(pa.lint_sprite(sprite, palette), [])
+        for frame in range(ba.FRAMES):
+            sprite, errors = pa.parse_sprite(ba.frame_path(ba.SOURCES, frame), pa.DEFAULT_SRC)
+            self.assertEqual(errors, [])
+            assert sprite is not None
+            self.assertEqual(pa.lint_sprite(sprite, palette), [])
 
     def test_check_fails_on_a_stale_source(self) -> None:
         with tempfile.TemporaryDirectory() as folder:
-            out = Path(folder) / "belt_top.txt"
+            root = Path(folder)
             with contextlib.redirect_stdout(io.StringIO()):
-                self.assertEqual(ba.main(["--out", str(out)]), 0)
-            self.assertEqual(out.read_text(encoding="utf-8"), ba.source_text())
-            out.write_text("stale\n", encoding="utf-8")
+                self.assertEqual(ba.main(["--root", str(root)]), 0)
+            for frame in range(ba.FRAMES):
+                path = ba.frame_path(root, frame)
+                self.assertEqual(path.read_text(encoding="utf-8"), ba.source_text(frame))
             with contextlib.redirect_stderr(io.StringIO()):
-                self.assertEqual(ba.main(["--check", "--out", str(out)]), 1)
+                self.assertEqual(ba.main(["--check", "--root", str(root)]), 0)
+            ba.frame_path(root, 4).write_text("stale\n", encoding="utf-8")
+            with contextlib.redirect_stderr(io.StringIO()):
+                self.assertEqual(ba.main(["--check", "--root", str(root)]), 1)
 
 
 if __name__ == "__main__":

@@ -37,25 +37,25 @@ enum Mode { IDLE, SCAN, COUNT, CHANNEL }
 ## The parts' rects, in stage coordinates (the view stands at MONITOR_RECT's position): the
 ## screen's content inside its ink border and padding, the art and the kind under it, and the
 ## text column beside the art.
-const CONTENT_RECT := Rect2(393, 85, 382, 138)
-const ART_RECT := Rect2(393, 85, 96, 96)
-const KIND_RECT := Rect2(393, 185, 96, 18)
-const TEXT_RECT := Rect2(499, 85, 276, 138)
+const CONTENT_RECT := Rect2(505, 85, 382, 138)
+const ART_RECT := Rect2(505, 85, 96, 96)
+const KIND_RECT := Rect2(505, 185, 96, 18)
+const TEXT_RECT := Rect2(611, 85, 276, 138)
 ## The count-up's art column: the item's name (up to COUNT_NAME_LINES lines) and "n / m" under
 ## its art, in B2's caption voice (COUNT_NAME_SIZES); the LED's count layout beside it, 10 px
 ## right of the art and level with it (B2's column), or alone at the TOTAL: as near the paper's
 ## centre (TOTAL_OFF_CENTRE px right of it) as the widest digits at the largest punch allow, as
 ## they punch about their centre at the column's left.
-const COUNT_NAME_RECT := Rect2(393, 182, 96, 26)
-const COUNT_ITEM_RECT := Rect2(393, 208, 96, 15)
+const COUNT_NAME_RECT := Rect2(505, 182, 96, 26)
+const COUNT_ITEM_RECT := Rect2(505, 208, 96, 15)
 const COUNT_NAME_LINES := 2
-const LED_COUNT_RECT := Rect2(499, 85, 276, 138)
-const LED_TOTAL_RECT := Rect2(464, 85, 276, 138)
+const LED_COUNT_RECT := Rect2(611, 85, 276, 138)
+const LED_TOTAL_RECT := Rect2(576, 85, 276, 138)
 const TOTAL_OFF_CENTRE := 18.0
 ## A notice in planning, with the channel off the screen: at the content's middle.
-const NOTICE_CHANNEL_RECT := Rect2(388, 132, 392, 44)
+const NOTICE_CHANNEL_RECT := Rect2(500, 132, 392, 44)
 ## Every part the monitor draws, rods and shade included (stage coordinates).
-const DRAWN_RECT := Rect2(372, 56, 424, 192)
+const DRAWN_RECT := Rect2(484, 56, 424, 192)
 const OUTLINE := 2
 ## The bezel's bevel: a light edge on its top and left, a dark one on its bottom and right.
 const BEVEL := 2

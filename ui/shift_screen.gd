@@ -860,11 +860,12 @@ func _process(_delta: float) -> void:
 	# The shade starts under the top bar, wherever the stage sits in the window.
 	_shade.offset_top = _stage.position.y + RewardPanel.PRINTOUT_TOP
 	# Beside the print-out alone, the register column (the register and the receipt) and the
-	# monitor with its totals stay unshaded (#61, #80). The shade ends at the column's place on
-	# the stage, not at a node's rect, so it holds still while the register rattles.
+	# monitor with its totals stay unshaded (#61, #80). The shade starts at the column's place on
+	# the stage (its right edge: the register stands at the left since #83), not at a node's
+	# rect, so it holds still while the register rattles.
 	var beside: bool = _reward_panel.is_printout() and not _deck_view.visible
-	var column_x: float = (_stage.get_global_transform() * ShiftStage.REGISTER_RECT).position.x
-	_shade.offset_right = column_x - size.x if beside else 0.0
+	var column_end: float = (_stage.get_global_transform() * ShiftStage.REGISTER_RECT).end.x
+	_shade.offset_left = column_end if beside else 0.0
 	var monitor: Rect2 = _stage.get_global_transform() * MonitorView.DRAWN_RECT
 	_shade.set_hole(monitor if beside else Rect2())
 

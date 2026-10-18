@@ -1,9 +1,10 @@
 class_name ShiftStage
 extends Control
-## The shift screen's layout (#80, mock-up B2; full build plan section 6.1): a 1280x720 stage
-## that ShiftScreen centres in the window over the store's bands that fill it
-## (StoreBackdrop.screen_parts()). Every position is a stage constant taken from mock-up B2's
-## layout; the stage never scales.
+## The shift screen's layout (#80, mock-up B2; mirrored for #83; full build plan section 6.1): a
+## 1280x720 stage that ShiftScreen centres in the window over the store's bands that fill it
+## (StoreBackdrop.screen_parts()). Every position is a stage constant taken from the mirrored B2
+## mock-up: the register, the printer with its receipt and the cashier stand at the left, so the
+## belt runs toward them and slot 1 is the slot next to the register. The stage never scales.
 ##
 ## On the stage, back to front: the hung monitor (MonitorView: two rods, its bezel and paper screen,
 ## with the LED's totals, the notices, a scanned item and the count-up on it), the register
@@ -46,65 +47,65 @@ const COUNTER_TOP := 326.0
 ## The floor under the counter and the register.
 const FLOOR_TOP := 700.0
 ## The belt, from its steel guard down to the price rail's shadow (BeltPanel draws its bands).
-const BELT_RECT := Rect2(14, 314, 918, 180)
+const BELT_RECT := Rect2(348, 314, 918, 180)
 ## Where the 7-slot row starts: each cell (ItemView.BELT_SIZE) stands its item on the belt's top
 ## face and clips its ticket on the rail. Every row rests on ROW_BOTTOM: a scaled 8- or 9-slot
 ## row too.
-const ROW_POSITION := Vector2(32, 258)
+const ROW_POSITION := Vector2(364, 258)
 const ROW_BOTTOM := ROW_POSITION.y + ItemView.BELT_SIZE.y
 ## The band the row's cells stand in: across the belt's top face, from the plaques over the items
 ## down to the rail's foot.
-const ROW_AREA := Rect2(22, ROW_POSITION.y, 904, ItemView.BELT_SIZE.y)
+const ROW_AREA := Rect2(354, ROW_POSITION.y, 904, ItemView.BELT_SIZE.y)
 ## The monitor hung from the ceiling on two rods, its bezel and paper screen, and the shade under
 ## it (MonitorView draws them). In the impulse rack the LED (LedDisplay: caption, digits and the
 ## quota line with its bar, blank there) and the notices are on its screen; MonitorView lays out
 ## its other states (planning's store channel among them).
-const MONITOR_RECT := Rect2(372, 66, 424, 176)
-const MONITOR_SCREEN_RECT := Rect2(381, 75, 406, 158)
-const MONITOR_UNDER_RECT := Rect2(378, 240, 412, 8)
-const ROD_RECTS: Array[Rect2] = [Rect2(430, 56, 8, 12), Rect2(730, 56, 8, 12)]
-const LED_RECT := Rect2(440, 80, 288, 96)
-const LED_CAPTION_RECT := Rect2(452, 84, 264, 14)
-const LED_DIGITS_RECT := Rect2(452, 98, 264, 52)
-const LED_QUOTA_RECT := Rect2(452, 152, 264, 22)
-const NOTICE_RECT := Rect2(388, 182, 392, 44)
+const MONITOR_RECT := Rect2(484, 66, 424, 176)
+const MONITOR_SCREEN_RECT := Rect2(493, 75, 406, 158)
+const MONITOR_UNDER_RECT := Rect2(490, 240, 412, 8)
+const ROD_RECTS: Array[Rect2] = [Rect2(542, 56, 8, 12), Rect2(842, 56, 8, 12)]
+const LED_RECT := Rect2(552, 80, 288, 96)
+const LED_CAPTION_RECT := Rect2(564, 84, 264, 14)
+const LED_DIGITS_RECT := Rect2(564, 98, 264, 52)
+const LED_QUOTA_RECT := Rect2(564, 152, 264, 22)
+const NOTICE_RECT := Rect2(500, 182, 392, 44)
 ## The register (RegisterCabinet): the printer box on the counter top with its slot, and the
 ## register column under it: the key deck (the keys, the keypad and the seed line stand on it)
 ## and the cash drawer.
-const REGISTER_RECT := Rect2(944, 330, 336, 370)
-const PRINTER_RECT := Rect2(984, 330, 264, 62)
-const PRINTER_SLOT_RECT := Rect2(994, 336, 244, 8)
-const COLUMN_RECT := Rect2(944, 400, 336, 300)
-const DECK_RECT := Rect2(954, 412, 314, 204)
-const KEYPAD_RECT := Rect2(966, 516, 88, 86)
-const DRAWER_RECT := Rect2(954, 624, 314, 76)
+const REGISTER_RECT := Rect2(0, 330, 336, 370)
+const PRINTER_RECT := Rect2(32, 330, 264, 62)
+const PRINTER_SLOT_RECT := Rect2(42, 336, 244, 8)
+const COLUMN_RECT := Rect2(0, 400, 336, 300)
+const DECK_RECT := Rect2(12, 412, 314, 204)
+const KEYPAD_RECT := Rect2(226, 516, 88, 86)
+const DRAWER_RECT := Rect2(12, 624, 314, 76)
 ## The receipt stands on the printer's slot (RECEIPT_BOTTOM) and grows up to RECEIPT_TOP at
 ## most; its lines wrap as the plan's examples do.
-const RECEIPT_X := 998.0
+const RECEIPT_X := 46.0
 const RECEIPT_WIDTH := 236.0
 const RECEIPT_BOTTOM := 340.0
 const RECEIPT_TOP := 64.0
 const RECEIPT_PADDING := 8
-## The keys on the register's key deck (RegisterCabinet builds them). Redraw keeps its right
-## edge, so a longer caption never grows it off the column; Cancel (redraw mode only) takes the
-## keypad's place, left of the seam.
-const CHECKOUT_RECT := Rect2(964, 422, 296, 82)
-const REDRAW_RECT := Rect2(1062, 518, 198, 54)
-const CANCEL_RECT := Rect2(964, 518, 84, 54)
+## The keys on the register's key deck (RegisterCabinet builds them). Redraw keeps its left
+## edge, so a longer caption grows it toward the keypad, never off the column; Cancel (redraw
+## mode only) takes the keypad's place, right of the seam.
+const CHECKOUT_RECT := Rect2(20, 422, 296, 82)
+const REDRAW_RECT := Rect2(20, 518, 198, 54)
+const CANCEL_RECT := Rect2(232, 518, 84, 54)
 ## The steel ledge in front of the counter (its art, ink outline included) and the hand in its
 ## baskets on it (HandRow: ItemView.BASKET_SIZE cells, from the first basket's left edge to the
 ## last one's right edge at the natural pitch; the baskets' rims are HandBaskets'). The hand
 ## starts 20 px under the rail's shadow: a scanned or picked basket item rises into that gap.
-const LEDGE_RECT := Rect2(10, 662, 924, 34)
-const HAND_RECT := Rect2(26, 514, 892, ItemView.BASKET_SIZE.y)
-## Where the hand is: from the counter under the rail down to the stage's foot, left of the
+const LEDGE_RECT := Rect2(346, 662, 924, 34)
+const HAND_RECT := Rect2(362, 514, 892, ItemView.BASKET_SIZE.y)
+## Where the hand is: from the counter under the rail down to the stage's foot, right of the
 ## register.
-const HAND_AREA := Rect2(0, 494, 944, 226)
+const HAND_AREA := Rect2(336, 494, 944, 226)
 ## While the shift is counted a shade darkens the hand and its baskets (ink at this alpha, mock-up
 ## B2's count-up), so the belt reads first.
-const COUNTING_SHADE_RECT := Rect2(0, 496, 944, 204)
+const COUNTING_SHADE_RECT := Rect2(336, 496, 944, 204)
 const COUNTING_SHADE_ALPHA := 0.4
-const SEED_RECT := Rect2(1062, 586, 198, 18)
+const SEED_RECT := Rect2(20, 586, 198, 18)
 
 const RECEIPT_PAPER := preload("res://art/frames/receipt_paper.png")
 ## The printer slot's steel lip with its tear teeth (art/src/scenery/printer_lip.txt), drawn 1:1

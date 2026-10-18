@@ -1,0 +1,9 @@
+; The belt's direction cue on its apron (the mirrored mock-up B2, #83), 10x3 @2: three B
+; light-steel chevrons pointing left, toward the register, 2 texels apart. BeltPanel centres
+; one under each ticket of the 7-slot row.
+@size 10x3
+@kind scenery
+@scale 2
+.B...B...B
+B...B...B.
+.B...B...B

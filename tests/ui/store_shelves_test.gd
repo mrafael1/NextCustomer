@@ -42,14 +42,14 @@ const BANDS: Dictionary[String, Vector2] = {
 ## the cashier, the lamp, the pillar and the bare wall under the monitor (above the slots' drop
 ## targets, which reach up over a standing item's art).
 const DECOR_POINTS: Array[Vector2] = [
-	Vector2(60, 200),
-	Vector2(300, 200),
-	Vector2(120, 94),
-	Vector2(870, 270),
-	Vector2(952, 250),
+	Vector2(1220, 200),
+	Vector2(980, 200),
+	Vector2(1160, 94),
+	Vector2(410, 270),
+	Vector2(328, 250),
 	Vector2(210, 64),
-	Vector2(1262, 200),
-	Vector2(580, 274),
+	Vector2(18, 200),
+	Vector2(700, 274),
 ]
 
 var _folder: String = ""
@@ -196,7 +196,9 @@ func test_the_parts_at_their_rects() -> void:
 		assert_bool(tile.get_rect().grow(1).encloses(glyph.get_rect())).is_true()
 		assert_bool(Rect2(Vector2.ZERO, board.size).encloses(tile.get_rect())).is_true()
 	var cashier: Rect2 = StoreShelves.CASHIER_RECT
-	assert_float(cashier.end.x).is_less_equal(ShiftStage.RECEIPT_X)
+	assert_float(cashier.position.x).is_greater_equal(
+		ShiftStage.RECEIPT_X + ShiftStage.RECEIPT_WIDTH
+	)
 	assert_bool(cashier.intersects(ShiftStage.MONITOR_RECT)).is_false()
 	assert_float(cashier.end.y).is_greater_equal(ShiftStage.BELT_RECT.position.y)
 	assert_float(StoreShelves.LAMP_RECT.position.y).is_equal(ShiftStage.TOP_BAR_BOTTOM)

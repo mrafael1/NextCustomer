@@ -13,7 +13,7 @@ extends GdUnitTestSuite
 const SCREEN := "res://ui/shift_screen.tscn"
 const SHORT_BELT := preload("res://data/inspections/short_belt.tres")
 ## Mock-up B2's first cell and the cells' pitch, on the stage.
-const CELL_ORIGIN := Vector2(32, 258)
+const CELL_ORIGIN := Vector2(364, 258)
 const CELL_PITCH := 128.0
 ## The smallest a scaled row's sticker summary may print, in canvas pixels.
 const MIN_SUMMARY_PX := 10.0
@@ -36,9 +36,9 @@ func after_test() -> void:
 		DirAccess.remove_absolute(_folder)
 
 
-## The 7 cells stand at mock-up B2's places (pitch 128 from (32, 258)) in the row's band over
-## the belt; the belt's top face starts at the counter line, and the register stands right of the
-## belt, from 944 to the stage's right edge.
+## The 7 cells stand at the mirrored mock-up B2's places (pitch 128 from (364, 258)) in the row's
+## band over the belt; the belt's top face starts at the counter line, and the register stands
+## left of the belt, from the stage's left edge to 336.
 func test_the_cells_fill_the_rubber_as_in_style_frame_v2() -> void:
 	var screen: ShiftScreen = await _screen()
 	var stage: Rect2 = screen._stage.get_global_rect()
@@ -53,15 +53,16 @@ func test_the_cells_fill_the_rubber_as_in_style_frame_v2() -> void:
 	var top_face: Rect2 = belt.get_global_transform() * belt.top_face()
 	assert_float(top_face.position.y).is_equal(stage.position.y + ShiftStage.COUNTER_TOP)
 	var register: Rect2 = screen._register.get_global_rect()
-	assert_float(register.position.x - stage.position.x).is_equal(944.0)
-	assert_float(register.end.x).is_equal(stage.end.x)
-	assert_float(belt.get_global_rect().end.x).is_less(register.position.x)
+	assert_float(register.position.x).is_equal(stage.position.x)
+	assert_float(register.end.x - stage.position.x).is_equal(336.0)
+	assert_float(belt.get_global_rect().position.x).is_greater(register.end.x)
 
 
 ## The belt's art: the top face (belt_top, baked by tools/belt_art.py) at 1:1 over the guard and
 ## the top face, the front 3-slice (lip, apron, rail) under it at its art's height (only its
-## middle column stretches), and a bolt on the apron in each gap between two tickets of the 7-slot
-## row, right of the last one too; every part inside the belt, drawn with the sharp-pixel
+## middle column stretches), and on the apron a bolt in each gap between two tickets of the
+## 7-slot row, left of the first one too, and the direction chevrons centred under each ticket;
+## every part inside the belt, drawn with the sharp-pixel
 ## material, taking no click. The rail and the top face lie on that art.
 func test_the_belt_art_lies_on_the_belt() -> void:
 	var screen: ShiftScreen = await _screen()
@@ -84,7 +85,7 @@ func test_the_belt_art_lies_on_the_belt() -> void:
 	assert_int(front.patch_margin_bottom).is_equal(0)
 	assert_float(front.get_global_rect().position.y).is_equal(top.get_global_rect().end.y)
 	var art: Array[Control] = belt.art()
-	assert_int(art.size()).is_equal(2 + BeltPanel.BOLT_COUNT)
+	assert_int(art.size()).is_equal(2 + 2 * BeltPanel.BOLT_COUNT)
 	for part: Control in art:
 		var rect: Rect2 = part.get_global_rect()
 		assert_bool(inside.encloses(rect)).override_failure_message(str(part.name)).is_true()
@@ -95,7 +96,8 @@ func test_the_belt_art_lies_on_the_belt() -> void:
 	assert_bool(top.get_global_rect().encloses(face)).is_true()
 	assert_bool(front.get_global_rect().encloses(rail)).is_true()
 	assert_float(rail.end.y - stage.position.y).is_less_equal(ShiftStage.ROW_BOTTOM)
-	# The bolts on the apron (between the lip and the rail), each in a ticket gap.
+	# The bolts on the apron (between the lip and the rail), each in the gap before its ticket,
+	# and the chevrons centred under each ticket, pointing left (toward the register).
 	var apron: Rect2 = belt.get_global_transform() * BeltPanel.APRON
 	var tickets: Array[Rect2] = []
 	for panel: PanelContainer in screen._slots:
@@ -105,9 +107,55 @@ func test_the_belt_art_lies_on_the_belt() -> void:
 		var rect: Rect2 = bolt.get_global_rect()
 		assert_vector(rect.size).is_equal(Vector2(bolt.texture.get_size()))
 		assert_bool(apron.encloses(rect)).override_failure_message(str(rect)).is_true()
-		assert_float(rect.position.x).is_greater_equal(tickets[index].end.x)
-		if index + 1 < tickets.size():
-			assert_float(rect.end.x).is_less_equal(tickets[index + 1].position.x)
+		assert_float(rect.end.x).is_less_equal(tickets[index].position.x)
+		if index > 0:
+			assert_float(rect.position.x).is_greater_equal(tickets[index - 1].end.x)
+		var chevrons: TextureRect = belt.get_node("Chevrons%d" % index) as TextureRect
+		var cue: Rect2 = chevrons.get_global_rect()
+		assert_object(chevrons.texture).is_same(BeltPanel.BELT_CHEVRONS)
+		assert_vector(cue.size).is_equal(Vector2(chevrons.texture.get_size()))
+		assert_bool(apron.encloses(cue)).override_failure_message(str(cue)).is_true()
+		assert_float(cue.get_center().x).is_equal(tickets[index].get_center().x)
+
+
+## The slats' frame (#83): one per 2 px they have run left, wrapping after the slat pitch.
+func test_slat_frame() -> void:
+	assert_int(BeltPanel.TOP_FRAMES.size()).is_equal(10)
+	assert_float(BeltPanel.SLAT_PITCH).is_equal(BeltPanel.TOP_FRAMES.size() * 2.0)
+	assert_int(BeltPanel.slat_frame(0.0)).is_equal(0)
+	assert_int(BeltPanel.slat_frame(1.9)).is_equal(0)
+	assert_int(BeltPanel.slat_frame(2.0)).is_equal(1)
+	assert_int(BeltPanel.slat_frame(19.9)).is_equal(9)
+	assert_int(BeltPanel.slat_frame(20.0)).is_equal(0)
+	assert_int(BeltPanel.slat_frame(46.0)).is_equal(3)
+
+
+## A belt starts on BELT_TOP; scroll() runs its slats left and shows the matching frame on the
+## same sprite (every frame as big as BELT_TOP, so the top face keeps its rect), at most
+## MAX_STEP_PX a call and never back, wrapping after the pitch.
+func test_scroll_shows_the_frames() -> void:
+	var belt: BeltPanel = auto_free(BeltPanel.new())
+	var top: TextureRect = belt.get_node(NodePath(BeltPanel.TOP_NAME)) as TextureRect
+	assert_int(belt.frame()).is_equal(0)
+	assert_object(top.texture).is_same(BeltPanel.BELT_TOP)
+	for texture: Texture2D in BeltPanel.TOP_FRAMES:
+		assert_vector(texture.get_size()).is_equal(BeltPanel.BELT_TOP.get_size())
+	belt.scroll(2.0)
+	assert_int(belt.frame()).is_equal(1)
+	assert_object(top.texture).is_same(BeltPanel.TOP_FRAMES[1])
+	belt.scroll(1.0)
+	belt.scroll(1.0)
+	assert_int(belt.frame()).is_equal(2)
+	belt.scroll(100.0)
+	assert_int(belt.frame()).is_equal(2 + int(BeltPanel.MAX_STEP_PX / 2.0))
+	belt.scroll(-6.0)
+	assert_int(belt.frame()).is_equal(6)
+	for step: int in range(4):
+		belt.scroll(2.0)
+	assert_int(belt.frame()).is_equal(0)
+	assert_object(top.texture).is_same(BeltPanel.BELT_TOP)
+	assert_vector(top.size).is_equal(BeltPanel.TOP_RECT.size)
+	assert_int(belt.art().size()).is_equal(2 + 2 * BeltPanel.BOLT_COUNT)
 
 
 ## Every belt item stands on its contact shadow, under its art's opaque foot and on the belt's

@@ -25,9 +25,15 @@ const TAPER := 8.0
 ## The art, from a basket's left edge at the rim: its back and its front.
 const BACK_OFFSET := Vector2(-4, 574)
 const FRONT_OFFSET := Vector2(-4, 590)
-## The ledge's 3-slice margins (art px) and its shadow on the floor under it.
+## The ledge's 3-slice margins (art px) and its shadow on the floor under it, 2 px in from each
+## end.
 const LEDGE_MARGIN := 4
-const LEDGE_SHADOW := Rect2(12, 696, 920, 4)
+const LEDGE_SHADOW := Rect2(
+	ShiftStage.LEDGE_RECT.position.x + 2,
+	ShiftStage.LEDGE_RECT.end.y,
+	ShiftStage.LEDGE_RECT.size.x - 4,
+	4
+)
 const LEDGE_SHADOW_ALPHA := 0.45
 ## A basket's shadow on the counter front: a strip SHADOW_WIDTH wide right of the basket (it
 ## stands out from the counter, the light is top left), from under the rim down to the ledge.

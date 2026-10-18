@@ -4,12 +4,19 @@ extends Control
 ## (belt_top, baked by tools/belt_art.py: the steel guard at its back with its end caps, the hood,
 ## the steel frame and the slatted rubber the items stand on), then its front (belt_front, a
 ## 3-slice: the steel lip, the apron with a bolt between each two of the 7-slot row's tickets,
-## and the price rail the tickets clip onto), with the rail's shadow on the counter drawn in code.
+## and the price rail the tickets clip onto), with the rail's shadow on the counter drawn in code,
+## and on the apron under each of the 7-slot row's tickets the chevrons that point the belt's way,
+## left toward the register (#83).
 ## Its size is fixed (ShiftStage.BELT_RECT); the row of slots stands on it as its child. Decor
 ## only: it takes no clicks.
 ##
 ## Every receding edge leans to mock-up B2's one vanishing point (VANISHING_POINT, stage pixels);
 ## vanishing_point() gives it in any node's coordinates, so the slots' footprints follow it too.
+##
+## The belt runs left, toward the register, while the shift is counted (#83): CountUp moves its
+## slats on (scroll) and the top face shows the matching baked frame (TOP_FRAMES, one per 2 px
+## step, wrapping after SLAT_PITCH); the items stand still in their slots. In planning it stands
+## on the frame it stopped on.
 
 ## The vanishing point far above the stage's centre (stage pixels).
 const VANISHING_POINT := Vector2(640, -1600)
@@ -26,24 +33,53 @@ const RAIL_SHADOW_ALPHA := 0.35
 const TOP_RECT := Rect2(0, 0, 918, 86)
 const FRONT_RECT := Rect2(0, 86, 918, 90)
 const FRONT_MARGIN := 3
-## A bolt head in each gap between two tickets of the 7-slot row (mock-up B2: 118 px past each
-## cell's left edge), on the apron.
-const BOLT_FIRST := Vector2(136, 102)
+## A bolt head in each gap between two tickets of the 7-slot row (the mirrored mock-up B2: 8 px
+## before each cell's left edge), on the apron.
+const BOLT_FIRST := Vector2(8, 102)
 const BOLT_PITCH := 128.0
 const BOLT_COUNT := 7
+## The belt's direction cue (the mirrored mock-up B2): three light-steel chevrons pointing left,
+## centred under each ticket of the 7-slot row, on the apron, at the bolts' pitch.
+const CHEVRONS_FIRST := Vector2(64, 102)
 const TOP_NAME := &"BeltTop"
 const FRONT_NAME := &"BeltFront"
 
 const BELT_TOP := preload("res://art/scenery/belt_top.png")
+## The top face's frames as its slats run left (tools/belt_art.py): frame k has them 2k px left
+## of BELT_TOP's along the front edge.
+const TOP_FRAMES: Array[Texture2D] = [
+	BELT_TOP,
+	preload("res://art/scenery/belt_top_scroll/belt_top_02.png"),
+	preload("res://art/scenery/belt_top_scroll/belt_top_04.png"),
+	preload("res://art/scenery/belt_top_scroll/belt_top_06.png"),
+	preload("res://art/scenery/belt_top_scroll/belt_top_08.png"),
+	preload("res://art/scenery/belt_top_scroll/belt_top_10.png"),
+	preload("res://art/scenery/belt_top_scroll/belt_top_12.png"),
+	preload("res://art/scenery/belt_top_scroll/belt_top_14.png"),
+	preload("res://art/scenery/belt_top_scroll/belt_top_16.png"),
+	preload("res://art/scenery/belt_top_scroll/belt_top_18.png"),
+]
+## The slats' pitch along the front edge (tools/belt_art.py's SLAT_PITCH): after it, the frames
+## wrap.
+const SLAT_PITCH := 20.0
+## The most the slats move in one call, under half the pitch, so a fast count never makes them
+## seem to run backwards.
+const MAX_STEP_PX := 8.0
 const BELT_FRONT := preload("res://art/scenery/belt_front.png")
 const BELT_BOLT := preload("res://art/scenery/belt_bolt.png")
+const BELT_CHEVRONS := preload("res://art/scenery/belt_chevrons.png")
+
+## The top face's sprite, showing TOP_FRAMES[frame()].
+var _top: TextureRect
+## How far the slats have run left since frame 0 (px along the front edge, within SLAT_PITCH).
+var _scrolled: float = 0.0
 
 
 func _init() -> void:
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
-	var top: TextureRect = UiKit.sprite(BELT_TOP)
-	top.name = TOP_NAME
-	_place(top, TOP_RECT)
+	_top = UiKit.sprite(BELT_TOP)
+	_top.name = TOP_NAME
+	_place(_top, TOP_RECT)
 	var front: NinePatchRect = NinePatchRect.new()
 	front.name = FRONT_NAME
 	front.texture = BELT_FRONT
@@ -56,10 +92,31 @@ func _init() -> void:
 		var bolt: TextureRect = UiKit.sprite(BELT_BOLT)
 		bolt.name = "Bolt%d" % index
 		_place(bolt, Rect2(BOLT_FIRST + Vector2(index * BOLT_PITCH, 0), BELT_BOLT.get_size()))
+		var chevrons: TextureRect = UiKit.sprite(BELT_CHEVRONS)
+		chevrons.name = "Chevrons%d" % index
+		var at: Vector2 = CHEVRONS_FIRST + Vector2(index * BOLT_PITCH, 0)
+		_place(chevrons, Rect2(at, BELT_CHEVRONS.get_size()))
 
 
 func _draw() -> void:
 	draw_rect(RAIL_SHADOW, Color(Palette.INK, RAIL_SHADOW_ALPHA))
+
+
+## Runs the slats `px` further left (at most MAX_STEP_PX; never back) and shows their frame.
+func scroll(px: float) -> void:
+	_scrolled = fposmod(_scrolled + clampf(px, 0.0, MAX_STEP_PX), SLAT_PITCH)
+	_top.texture = TOP_FRAMES[slat_frame(_scrolled)]
+
+
+## The top face's frame (an index into TOP_FRAMES): 0 on a belt that never ran.
+func frame() -> int:
+	return slat_frame(_scrolled)
+
+
+## The frame for slats that have run `scrolled_px` left: one per 2 px step, wrapping after
+## SLAT_PITCH.
+static func slat_frame(scrolled_px: float) -> int:
+	return posmod(floori(scrolled_px / ArtStyle.ART_SCALE), TOP_FRAMES.size())
 
 
 ## The rubber top face the items stand on, in the belt's coordinates.
@@ -72,7 +129,7 @@ func rail() -> Rect2:
 	return RAIL
 
 
-## The art's parts (the top face, the front and the bolts), in drawing order.
+## The art's parts (the top face, the front, the bolts and the chevrons), in drawing order.
 func art() -> Array[Control]:
 	var parts: Array[Control] = []
 	for child: Node in get_children():

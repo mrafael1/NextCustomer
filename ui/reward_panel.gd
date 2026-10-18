@@ -257,13 +257,13 @@ func print_offer(
 
 
 ## Where the print-out goes beside a receipt at `receipt` on a stage at `stage` (both global
-## rects): the room on the stage left of the receipt, under the hung monitor.
+## rects): the room on the stage right of the receipt, under the hung monitor.
 static func printout_area(receipt: Rect2, stage: Rect2) -> Rect2:
-	var right: float = maxf(receipt.position.x - PRINTOUT_GAP, stage.position.x)
+	var left: float = minf(receipt.end.x + PRINTOUT_GAP, stage.end.x)
 	return Rect2(
-		stage.position.x,
+		left,
 		stage.position.y + PRINTOUT_AREA_TOP,
-		right - stage.position.x,
+		stage.end.x - left,
 		maxf(stage.size.y - PRINTOUT_AREA_TOP, 0.0)
 	)
 
@@ -293,7 +293,7 @@ static func promo_sticker(view: CardView) -> Label:
 	return view.get_node_or_null(PROMO_TEXT) as Label
 
 
-## Centred in the room on the stage left of the receipt (the items lift inside the panel, which
+## Centred in the room on the stage right of the receipt (the items lift inside the panel, which
 ## stays put).
 func _place_beside() -> void:
 	if not is_instance_valid(_beside) or not is_instance_valid(_stage):
