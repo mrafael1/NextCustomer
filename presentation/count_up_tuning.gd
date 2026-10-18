@@ -179,3 +179,12 @@ extends Resource
 ## The run's final receipt (#61, ResultsPanel) prints a line this often, from the headline down;
 ## a tap prints the rest at once.
 @export var final_line_ms: int = 0
+
+@export_group("Belt")
+## The conveyor runs left, toward the register, from the CHECKOUT click to the held breath before
+## the TOTAL line (#83, BeltPanel): its slats move this many px a second along the belt's front
+## edge at speed 1. It follows the count's speed (taps and holds too) and stands still in a
+## hit-stop.
+@export var belt_px_per_second: float = 0.0
+## The fastest the slats move, in px a second, whatever the speed: a skip never blurs them.
+@export var belt_max_px_per_second: float = 0.0

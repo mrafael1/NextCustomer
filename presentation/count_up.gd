@@ -145,6 +145,11 @@ var plan: CountUpPlan
 var music: MusicService
 ## The stage's scan layer (#75), or null: it marks each scanned item, cleared after the beats.
 var scan_overlay: ScanOverlay
+## The stage's belt (#83), or null: its slats run from the CHECKOUT click to the held breath
+## before the TOTAL line, at the tuning's belt speed times _speed(), so a hit-stop stops them
+## and a tap or a hold speeds them up. Reduced motion leaves them running (nothing moves but the
+## belt's own frames). It never adds a wait: the count's timing is the plan's.
+var belt: BeltPanel
 ## How big the ending was, for what follows the total (#61); null until the total shows.
 var intensity: CountUpIntensity
 ## The shift's margin against its quota (#61), set when the dessert starts; null before that.
@@ -184,6 +189,8 @@ var _presses: PressReader
 var _tapped: bool = false
 ## The final total is shown: what follows is the dessert.
 var _verdict_shown: bool = false
+## The belt runs (see `belt`): set from the CHECKOUT click to the held breath.
+var _belt_running: bool = false
 ## This count-up ducked the music and hasn't brought it back.
 var _ducked: bool = false
 ## Running tweens: their speed follows fast-forward every frame, not only when they start.
@@ -272,6 +279,7 @@ func play(
 	_ducked = false
 	_presses.begin()
 	_playing = true
+	_belt_running = true
 	# The receipt starts over: the shift's header and every item's line waiting (#80).
 	_receipt.begin_count(context.receipt_header, _names)
 	_set_subtotal(0.0)
@@ -282,6 +290,8 @@ func play(
 	for index: int in range(plan.beats.size()):
 		_play_beat(index)
 		await _wait_ms(plan.beats[index].duration_ms)
+	# The belt stops as the held breath starts, so the TOTAL lands on a still counter.
+	_belt_running = false
 	_tokens.dissolve()
 	if scan_overlay != null:
 		scan_overlay.dock()
@@ -326,14 +336,26 @@ func show_end_state(result: ScoreResult, quota: int, context: CountUpContext) ->
 		_show_chip(false)
 
 
-func _process(_delta: float) -> void:
+func _process(delta: float) -> void:
 	if _hit_stop_left_ms > 0.0:
 		var now: int = Time.get_ticks_usec()
 		_hit_stop_left_ms -= (now - _hit_stop_us) / 1000.0 * _press_speed()
 		_hit_stop_us = now
 	_apply_speed()
+	_run_belt(delta)
 	if _playing and _presses.is_holding() and FAST_FORWARD > _skip_speed() and not _live.is_empty():
 		fast_forward_used = true
+
+
+## Moves the belt's slats on by `delta` seconds of the count (see `belt`), at most
+## belt_max_px_per_second.
+func _run_belt(delta: float) -> void:
+	if not _belt_running or belt == null:
+		return
+	var px_per_second: float = minf(
+		_tuning.belt_px_per_second * _speed(), _tuning.belt_max_px_per_second
+	)
+	belt.scroll(px_per_second * delta)
 
 
 ## Sets every running tween's speed to _speed() and forgets the finished ones.

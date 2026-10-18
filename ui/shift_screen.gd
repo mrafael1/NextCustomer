@@ -925,6 +925,7 @@ func _build() -> void:
 	_count_up.setup(_overlay, _receipt, _led, _sfx, _register)
 	_count_up.music = _music
 	_count_up.scan_overlay = _stage.scan_layer
+	_count_up.belt = _stage.belt
 	_belt_chips.follow(_count_up, _led)
 	_count_up.beat_started.connect(_monitor.follow_beat)
 	_drag = CardDrag.new()
