@@ -15,9 +15,17 @@ extends Control
 ## It never touches the player's saves or playtest logs: both go to a temporary folder, deleted
 ## on exit. Keys: S switches between the sharp-pixel shader and plain nearest filtering (A/B).
 ## `godot --path . [--resolution 1920x1080] res://debug/screen_capture/screen_capture.tscn --
-## --capture=docs/art` saves shift_screen_<width>x<height>.png at the window's size, then quits.
+## --capture=docs/art` saves shift_screen_<width>x<height>.png at the window's size, then quits;
+## the real pointer drives nothing meanwhile (hold_pointer).
 ## With `--scan=<card id>` the scanner first fully scans that card's item (the belt's first,
 ## else the hand's), and the file is shift_screen_scan_<width>x<height>.png.
+## With `--effects` the shift shows the planning effects (#71) on a richer belt: #60's reference
+## row under the Spot check (Eggs lands ×2 on Bread, the 3rd product is denied, Multipack arms ×3
+## and Coupon engine fizzles on it, Slot engine stamps the 6th product), and the file is
+## shift_screen_effects_<width>x<height>.png. `--effects=<card id>` also hovers that card's belt
+## item (the first), highlighting its causes and targets, and lets its scan finish so the monitor
+## explains it (its "gives" line, as in mock-up h1's hover); the file is
+## shift_screen_effects_focus_<width>x<height>.png.
 
 const SCREEN := preload("res://ui/shift_screen.tscn")
 const SEED := 20261014
@@ -32,11 +40,19 @@ const HAND_IDS: Array[String] = [
 ]
 ## The cards on the belt: a product from Cold cases, Fruit & veg and Bakery, and a coupon.
 const ROW_IDS: Array[String] = ["cheese", "strawberries", "croissant", "multipack"]
+## --effects' shift (#71): #60's reference row on the belt under the Spot check.
+const EFFECTS_INSPECTION := "spot_check"
+const EFFECTS_ROW_IDS: Array[String] = [
+	"eggs", "bread", "milk", "multipack", "milk", "milk", "milk"
+]
 const CAPTURE_ARGUMENT := "--capture="
 const SCAN_ARGUMENT := "--scan="
-## A capture's file name: shift_screen_[scan_]<width>x<height>.png.
+const EFFECTS_ARGUMENT := "--effects"
+## A capture's file name: shift_screen_[scan_|effects_[focus_]]<width>x<height>.png.
 const FILE_NAME := "shift_screen_%s%dx%d.png"
 const SCAN_PREFIX := "scan_"
+const EFFECTS_PREFIX := "effects_"
+const FOCUS_PREFIX := "effects_focus_"
 ## Frames for the shift's items to be laid out before one is scanned.
 const SCAN_SETTLE_FRAMES := 2
 const CAPTURE_SETTLE_FRAMES := 12
@@ -50,6 +66,11 @@ var _folder: String = ""
 var _screen: ShiftScreen
 var _sharp: bool = true
 var _scanned: bool = false
+## Since effects(): the planning effects' shift, and whether an item is hovered.
+var _effects: bool = false
+var _focused: bool = false
+## Since hold_pointer(): the real pointer drives no hover, tooltip or click.
+var _holding_pointer: bool = false
 
 
 func _ready() -> void:
@@ -59,10 +80,17 @@ func _ready() -> void:
 	DirAccess.make_dir_recursive_absolute(_folder)
 	ProjectSettings.set_setting(SaveService.FOLDER_SETTING, _folder)
 	_event_log().use_folder(_folder)
+	var capture_folder: String = _argument(CAPTURE_ARGUMENT)
+	if capture_folder != "":
+		hold_pointer()
 	_screen = SCREEN.instantiate()
 	add_child(_screen)
-	_set_up_shift()
-	var capture_folder: String = _argument(CAPTURE_ARGUMENT)
+	var effects_on: bool = OS.get_cmdline_user_args().has(EFFECTS_ARGUMENT)
+	var focus_id: String = _argument(EFFECTS_ARGUMENT + "=")
+	if effects_on or focus_id != "":
+		await effects(focus_id)
+	else:
+		_set_up_shift(INSPECTION, ROW_IDS)
 	if capture_folder != "":
 		var scan_id: String = _argument(SCAN_ARGUMENT)
 		if scan_id != "":
@@ -72,6 +100,8 @@ func _ready() -> void:
 
 
 func _exit_tree() -> void:
+	if _holding_pointer:
+		get_viewport().gui_disable_input = false
 	ProjectSettings.set_setting(SaveService.FOLDER_SETTING, null)
 	_remove_folder(_folder)
 
@@ -85,7 +115,9 @@ func _unhandled_key_input(event: InputEvent) -> void:
 	get_viewport().set_input_as_handled()
 
 
-func _set_up_shift() -> void:
+## Sets up the fixed shift under the inspection `inspection_id` with the cards `row_ids` on the
+## belt.
+func _set_up_shift(inspection_id: String, row_ids: Array[String]) -> void:
 	# Past the impulse rack, as the debug replay of a skip.
 	_screen.start_new_run(SEED, true, "")
 	var run: RunState = _screen.run
@@ -98,16 +130,26 @@ func _set_up_shift() -> void:
 	run.upgrades = upgrades
 	run.debug_skip_to_shift(SHIFT - 1)
 	# The same shift again: it keeps the inspection set here.
-	run.inspections = [load("res://data/inspections/%s.tres" % INSPECTION) as InspectionDefinition]
+	var inspection: InspectionDefinition = load("res://data/inspections/%s.tres" % inspection_id)
+	run.inspections = [inspection]
 	run.debug_skip_to_shift(SHIFT - 1)
 	# The fixed hand replaces the dealt one, which is set aside for the shift.
 	run.deck.restore(run.deck.cards, [], run.deck.draw_pile(), run.deck.next_instance_id())
-	for card_id: String in HAND_IDS + ROW_IDS:
+	for card_id: String in HAND_IDS + row_ids:
 		run.debug_add_to_hand(_card(card_id))
 	var cards: Array[CardInstance] = run.hand()
 	for card: CardInstance in cards.slice(HAND_IDS.size()):
 		run.place(card, run.row.size())
 	_screen.debug_show_shift()
+
+
+## Stops the real pointer from driving the screen until the capture leaves the tree: a capture
+## records the fixed data only, never a hover, tooltip or click from wherever the OS pointer happens
+## to rest over the window. Scans and hovers asked for (scan(), effects()) still play, being driven
+## through the screen's API. A capture run (--capture) holds it from the start.
+func hold_pointer() -> void:
+	_holding_pointer = true
+	get_viewport().gui_disable_input = true
 
 
 ## The screen being captured (for the smoke test).
@@ -128,8 +170,34 @@ func scan(card_id: String) -> void:
 	_report("No %s on the counter to scan" % card_id)
 
 
+## Sets up --effects' shift (a new run on the same fixed data: #60's reference row on the belt
+## under the Spot check) and, for a `card_id`, hovers the first belt item of that card once the
+## items are laid out and scans it, as the player's resting pointer would; capture() then names
+## its file shift_screen_effects_[focus_]<w>x<h>.png. A card that isn't on the belt goes to
+## report_error.
+func effects(card_id: String = "") -> void:
+	_set_up_shift(EFFECTS_INSPECTION, EFFECTS_ROW_IDS)
+	_effects = true
+	_focused = false
+	if card_id == "":
+		return
+	for _frame: int in range(SCAN_SETTLE_FRAMES):
+		await get_tree().process_frame
+	for found: Node in _screen.find_children("*", "ItemView", true, false):
+		var item: ItemView = found as ItemView
+		var on_belt: bool = item.form == ItemView.Form.BELT and not item.is_queued_for_deletion()
+		if on_belt and item.card.definition.id == card_id:
+			item.hovered.emit(item)
+			# The pointer rests on it past the scan's delay: the monitor explains it (mock-up h1).
+			_screen.debug_scan(item.card)
+			_focused = true
+			return
+	_report("No %s on the belt to hover" % card_id)
+
+
 ## Saves the screen into `folder` as shift_screen_<w>x<h>.png (shift_screen_scan_<w>x<h>.png
-## after scan()) once it has settled. A failed save goes to report_error.
+## after scan(), shift_screen_effects_[focus_]<w>x<h>.png after effects()) once it has settled. A
+## failed save goes to report_error.
 func capture(folder: String) -> void:
 	DirAccess.make_dir_recursive_absolute(folder)
 	for _frame: int in range(CAPTURE_SETTLE_FRAMES):
@@ -140,6 +208,8 @@ func capture(folder: String) -> void:
 			await RenderingServer.frame_post_draw
 	var window: Vector2i = get_window().size
 	var prefix: String = SCAN_PREFIX if _scanned else ""
+	if _effects:
+		prefix = FOCUS_PREFIX if _focused else EFFECTS_PREFIX
 	var path: String = folder.path_join(FILE_NAME % [prefix, window.x, window.y])
 	var image: Image = (
 		grab_image.call() as Image

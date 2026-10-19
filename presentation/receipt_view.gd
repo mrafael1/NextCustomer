@@ -6,9 +6,13 @@ extends PanelContainer
 ##
 ## In planning (show_planning, #80) it is itemised: the header and a dashed rule, one line per
 ## belt item in scan order (its name, its payout, then its mark: a green check when its payout is
-## above its base, the fizzle icon when one of its effects fizzles), a muted "5 ·····" for each
-## open empty slot, a dashed rule, "PROJECTED €22.00", and the fizzle footer ("2 fizzles · rest on
-## an item", none without fizzles). The belt item being scanned frames its line (highlight_slot).
+## above its base, the fizzle icon when one of its effects fizzles, the warning icon when an
+## inspection denies it), a muted "5 ·····" for each open empty slot, a dashed rule, "PROJECTED
+## €22.00" (against the quota: green with the met mark, or red with "short €N.00" under it), and
+## the fizzle footer ("2 fizzles · hover an item", none without fizzles). The belt
+## item being scanned frames its line (highlight_slot). A hovered belt item (#71) frames its line
+## too, marks its targets' lines with a mustard-pale fill and the token it gives them
+## (show_relations), and the footer names it (set_footer_hint: "2 fizzles · Multipack hovered").
 ##
 ## The count-up (begin_count) pre-prints the header, every item's line greyed ("Multipack
 ## ·····"), the dashed rule, "TOTAL •••••" and the footer "tap: skip · hold: fast". Each step
@@ -50,8 +54,9 @@ enum LineStyle {
 	CLOSING,
 }
 
-## An item line's mark in planning: none, raised (its payout is above its base) or fizzled.
-enum Mark { NONE, RAISED, FIZZLED }
+## An item line's mark in planning: none, raised (its payout is above its base), fizzled, or
+## denied by an inspection; and the PROJECTED line's met (the total reaches the quota).
+enum Mark { NONE, RAISED, FIZZLED, DENIED, MET }
 
 ## Monospace for the receipt (plan section 2). JetBrains Mono, SIL Open Font License.
 const MONO_FONT := preload("res://fonts/JetBrainsMono-Regular.ttf")
@@ -84,13 +89,17 @@ const PROJECTED_TEXT := "PROJECTED"
 const TOTAL_TEXT := "TOTAL"
 ## The dashed rules: a dash RULE_DASH long, then a gap as long.
 const RULE_DASH := 4.0
-## The fizzle footer: the count (in dark tomato), then where to read them (muted).
+## The fizzle footer: the count (in dark tomato), then the hint (muted): where to read them, or
+## the hovered item (set_footer_hint).
 const FIZZLES_TEXT := "%d fizzles"
 const FIZZLE_TEXT := "1 fizzle"
+const HINT_TEXT := " · %s"
+const DEFAULT_HINT := "hover an item"
+const HOVERED_HINT := "%s hovered"
+## A projected total under the quota prints its shortfall on the footer's first row (ReceiptDecor).
+const SHORT_TEXT := "short %s"
 ## A fizzle's right side on one row (step_line); the receipt's fizzle lines show the mark instead.
 const FIZZLE_WORD := "fizzle"
-const REST_TEXT := " · rest on an item"
-const REST_ONE_TEXT := " · rest on the item"
 ## The count-up's footer, from its start to the TOTAL line.
 const COUNT_FOOTER_TEXT := "tap: skip · hold: fast"
 ## A line still to print: an item's name then WAITING_DOTS, an open empty slot's number then
@@ -274,10 +283,15 @@ func begin_count(header: PackedStringArray, names: PackedStringArray, footer: bo
 
 ## The planning receipt (#80): `header` and a dashed rule; for each belt item (`names`, in scan
 ## order) its name, its payout in `result` and its mark (slot_mark()); "n ·····" for each open
-## slot past them up to `open_slots`; a dashed rule and "PROJECTED €total"; then the fizzle
-## footer (none without fizzles).
+## slot past them up to `open_slots`; a dashed rule and "PROJECTED €total", against `quota` (none
+## when negative): green with the met mark at or over it, red under it; then the footer: the
+## shortfall ("short €12.00", its own row) and the fizzles (each none without it).
 func show_planning(
-	header: PackedStringArray, result: ScoreResult, names: PackedStringArray, open_slots: int
+	header: PackedStringArray,
+	result: ScoreResult,
+	names: PackedStringArray,
+	open_slots: int,
+	quota: int = -1
 ) -> void:
 	begin(header)
 	_planning = true
@@ -288,10 +302,16 @@ func show_planning(
 		ReceiptDecor.mark(line, slot_mark(result, slot))
 	for slot: int in range(names.size(), open_slots):
 		add_line(EMPTY_SLOT_TEXT % (slot + 1), "", LineStyle.WAITING)
-	add_line(PROJECTED_TEXT, money(result.total), LineStyle.PROJECTED)
+	var projected: Control = add_line(PROJECTED_TEXT, money(result.total), LineStyle.PROJECTED)
+	if quota >= 0:
+		var short: String = ReceiptDecor.against_quota(
+			projected as HBoxContainer, result.total, quota
+		)
+		if not short.is_empty():
+			add_line(short, "", LineStyle.FOOTER)
 	var fizzles: int = fizzle_count(result)
 	if fizzles > 0:
-		_footer = add_line(_fizzle_count_text(fizzles), _rest_text(fizzles), LineStyle.FOOTER)
+		_footer = add_line(_fizzle_count_text(fizzles), HINT_TEXT % DEFAULT_HINT, LineStyle.FOOTER)
 
 
 ## Planning only: frames `slot`'s item line (the belt item being scanned), or none for -1 (or a
@@ -300,6 +320,23 @@ func highlight_slot(slot: int) -> void:
 	if not _planning:
 		return
 	_set_frame(_item_line_of(slot))
+
+
+## Planning only (#71): the hovered belt item at `focus_slot` (-1: none) frames its line, each slot
+## of `tokens` (its targets) gets a mustard-pale fill and the token it gives them before its
+## amount (ReceiptDecor.relate), and the fizzle footer's hint becomes `hint` ("Bread hovered").
+## The previous relations go. (One call, not three: gdlint allows the class 20 public methods.)
+func show_relations(
+	focus_slot: int, tokens: Dictionary[int, String] = {}, hint: String = DEFAULT_HINT
+) -> void:
+	if not _planning:
+		return
+	for slot: int in _items:
+		if _item_line_of(slot) != null:
+			ReceiptDecor.relate(_item_line_of(slot), tokens.get(slot, ""))
+	highlight_slot(focus_slot)
+	if is_instance_valid(_footer):
+		(_footer.get_child(1) as Label).text = HINT_TEXT % hint
 
 
 ## The header's lines for 1-based `shift` of `shifts` with `items` on the belt (coupons
@@ -327,17 +364,25 @@ static func fizzle_count(result: ScoreResult) -> int:
 	return count
 
 
-## `slot`'s mark in `result`, read from its recorded amounts: FIZZLED when a WASTED step is on
-## it, RAISED when its payout is above its BASE step's value, else NONE.
+## `slot`'s mark in `result`, read from its recorded amounts: DENIED when an inspection's
+## PAYOUT_OVERRIDE is on it, else FIZZLED when a WASTED step is, RAISED when its payout is above
+## its BASE step's value, else NONE.
 static func slot_mark(result: ScoreResult, slot: int) -> Mark:
 	var base: int = -1
+	var fizzled: bool = false
 	for step: ScoreStep in result.steps:
 		if step.slot != slot:
 			continue
-		if step.step_type == ScoreStep.StepType.WASTED:
-			return Mark.FIZZLED
+		if (
+			step.step_type == ScoreStep.StepType.PAYOUT_OVERRIDE
+			and step.source_kind == ScoreStep.SourceKind.INSPECTION
+		):
+			return Mark.DENIED
+		fizzled = fizzled or step.step_type == ScoreStep.StepType.WASTED
 		if step.step_type == ScoreStep.StepType.BASE:
 			base = step.value
+	if fizzled:
+		return Mark.FIZZLED
 	if base >= 0 and slot < result.payouts.size() and result.payouts[slot] > base:
 		return Mark.RAISED
 	return Mark.NONE
@@ -648,7 +693,7 @@ func show_verdict(total: int, quota: int) -> Label:
 		var caption: Label = _total_line.get_child(0) as Label
 		room = (
 			_lines.size.x
-			- _text_width(caption.text, MONO_FONT, CAPTION_FONT_SIZE)
+			- text_width(caption.text, MONO_FONT, CAPTION_FONT_SIZE)
 			- _total_line.get_theme_constant("separation")
 		)
 	label.add_theme_font_size_override("font_size", verdict_font_size(label.text, room))
@@ -662,7 +707,7 @@ func show_verdict(total: int, quota: int) -> Label:
 ## which `text` fits in `room` pixels.
 static func verdict_font_size(text: String, room: float) -> int:
 	var font_size: int = VERDICT_FONT_SIZE
-	while font_size > VERDICT_MIN_FONT_SIZE and _text_width(text, MONO_FONT, font_size) > room:
+	while font_size > VERDICT_MIN_FONT_SIZE and text_width(text, MONO_FONT, font_size) > room:
 		font_size -= 1
 	return font_size
 
@@ -730,9 +775,9 @@ func add_line(left: String, right: String, style: LineStyle) -> Control:
 		left_label.clip_text = true
 		left_label.custom_minimum_size.x = 1.0
 	if style == LineStyle.DETAIL or style == LineStyle.FIZZLE or style == LineStyle.CONTEXT:
-		_hang(left_label)
+		ReceiptDecor.hang(left_label)
 	elif style == LineStyle.COMBO:
-		_hang(left_label, COMBO_INDENT, false)
+		ReceiptDecor.hang(left_label, COMBO_INDENT, false)
 		ReceiptDecor.combo(line, left_label)
 	elif style == LineStyle.TOTAL or style == LineStyle.PROJECTED:
 		left_label.add_theme_font_size_override("font_size", CAPTION_FONT_SIZE)
@@ -760,6 +805,10 @@ func add_line(left: String, right: String, style: LineStyle) -> Control:
 		right_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		right_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
 		right_label.add_theme_color_override("font_color", Palette.INK_LIGHT)
+		# One line that never widens the stub: a long hint is cut with an ellipsis.
+		right_label.clip_text = true
+		right_label.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+		right_label.custom_minimum_size.x = 1.0
 		line.add_theme_constant_override("separation", 0)
 	line.add_child(right_label)
 	if style == LineStyle.TOTAL and not is_instance_valid(_total_rule):
@@ -791,47 +840,12 @@ static func hang_parts(text: String) -> PackedStringArray:
 	return PackedStringArray([lead, marker, rest])
 
 
-## Hangs an indented line's left `label`: its text starts past its lead and marker on every
-## wrapped row (an empty "normal" style's left margin), the marker printed beside the first row
-## (a "Marker" label inside it). The lead is its leading spaces' width, or `lead_width` when
-## that is set (a combo line's COMBO_INDENT, whose diamond takes the marker's place: without
-## `with_marker` the marker is dropped). A line without leading spaces is left as it is.
-static func _hang(label: Label, lead_width: float = -1.0, with_marker: bool = true) -> void:
-	var parts: PackedStringArray = hang_parts(label.text)
-	if parts[0].is_empty():
-		return
-	if not with_marker:
-		parts[1] = ""
-	var font: Font = label.get_theme_font("font")
-	var font_size: int = label.get_theme_font_size("font_size")
-	var lead: float = lead_width if lead_width >= 0.0 else _text_width(parts[0], font, font_size)
-	var indent: StyleBoxEmpty = StyleBoxEmpty.new()
-	indent.content_margin_left = lead + _text_width(parts[1], font, font_size)
-	label.add_theme_stylebox_override("normal", indent)
-	label.text = parts[2]
-	if parts[1].is_empty():
-		return
-	var marker: Label = Label.new()
-	marker.name = "Marker"
-	marker.text = parts[1].strip_edges()
-	marker.add_theme_font_override("font", font)
-	marker.add_theme_font_size_override("font_size", font_size)
-	marker.add_theme_color_override("font_color", label.get_theme_color("font_color"))
-	marker.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	marker.position = Vector2(lead, 0)
-	label.add_child(marker)
-
-
-static func _text_width(text: String, font: Font, font_size: int) -> float:
+static func text_width(text: String, font: Font, font_size: int) -> float:
 	return font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size).x
 
 
 static func _fizzle_count_text(fizzles: int) -> String:
 	return FIZZLE_TEXT if fizzles == 1 else FIZZLES_TEXT % fizzles
-
-
-static func _rest_text(fizzles: int) -> String:
-	return REST_ONE_TEXT if fizzles == 1 else REST_TEXT
 
 
 ## A new item line for `slot` ("left", "right"), above the TOTAL line's rule.

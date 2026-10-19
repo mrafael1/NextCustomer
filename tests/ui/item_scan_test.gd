@@ -476,6 +476,20 @@ func test_the_scans_hold_every_line_of_the_planning_receipt() -> void:
 		LoyaltyCard.names(screen.run.upgrades),
 		InspectionTag.names(screen.run.inspections)
 	)
+	# A giver's scan opens with its "gives" line (#71): Eggs' ×2 to Bread, Multipack's ×3 to the
+	# three Milks after it, each with its targets' summed gain, before its receipt lines.
+	var names: PackedStringArray = ShiftScreen._names(screen.run.row)
+	var gives: Dictionary[int, String] = {}
+	for slot: int in range(screen._row_views.size()):
+		var given: String = ScanController.gives_line(result, slot, names)
+		if not given.is_empty():
+			gives[slot] = given
+			var lines: PackedStringArray = PackedStringArray([given])
+			lines.append_array(expected.get(slot, PackedStringArray()))
+			expected[slot] = lines
+	assert_array(gives.keys()).is_equal([0, 3])
+	assert_str(gives[0]).starts_with(ScanController.GIVES_TEXT % ["×2", "Bread"])
+	assert_str(gives[3]).starts_with(ScanController.GIVES_TEXT % ["×3", "Milk, Milk, Milk"])
 	var footers: Dictionary[int, PackedStringArray] = {}
 	var kinds: Dictionary[int, bool] = {}
 	for slot: int in range(screen._row_views.size()):
@@ -484,6 +498,16 @@ func test_the_scans_hold_every_line_of_the_planning_receipt() -> void:
 		assert_int(screen._monitor.mode()).is_equal(MonitorView.Mode.SCAN)
 		assert_bool(_monitor_texts(screen).has("€%d" % result.payouts[slot])).is_true()
 		footers[slot] = screen._monitor.scan_footer().texts()
+		assert_int(screen._monitor.scan_footer().gives_lines).is_equal(1 if gives.has(slot) else 0)
+		if gives.has(slot):
+			# Its gain is the line's amount, in mustard darkest.
+			var amount: String = gives[slot].get_slice(ScanFooter.AMOUNT_SEPARATOR, 1)
+			var gain: Label = null
+			for child: Node in screen._monitor.scan_footer().get_children():
+				if child is Label and (child as Label).text == amount:
+					gain = child
+			assert_object(gain).override_failure_message(amount).is_not_null()
+			assert_object(gain.get_theme_color("font_color")).is_equal(Palette.MUSTARD_DARKEST)
 		_assert_monitor_holds_its_text(screen)
 	for step: ScoreStep in result.steps:
 		kinds[step.step_type] = true

@@ -1,0 +1,15 @@
+; A giver badge for a loyalty upgrade (#71 planning effects, mock-up h1 (docs/art/mockups/planning_effects_src/H1_BUILD_SPEC.md)): a mini stamp
+; ring, mustard light y on the top and left, mustard M on the bottom and right, around a
+; teal dark 2 panel, ink rim. The upgrade's initials (as its loyalty box) are code-drawn
+; in mustard pale over it; #59's perk glyph replaces them. 9x9, shown at 2x (18x18).
+@size 9x9
+@kind icon
+..#####..
+.#yyyyM#.
+#y22222M#
+#y22222M#
+#y22222M#
+#y22222M#
+#y22222M#
+.#MMMMM#.
+..#####..

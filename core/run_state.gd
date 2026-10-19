@@ -193,9 +193,16 @@ func remove(card: CardInstance) -> bool:
 
 
 ## The live preview: exactly what checkout would score now, with the run's upgrades and the
-## shift's inspections.
-func preview() -> ScoreResult:
-	return Scoring.score(row, upgrades, inspections)
+## shift's inspections. With `card` (#71's drag preview), what it would score with that hand card
+## placed at `slot`: place() on a copy of the row, so the run is never changed; a card that can't
+## be placed gives the plain preview. (One method rather than two keeps RunState within gdlint's
+## 20 public methods.)
+func preview(card: CardInstance = null, slot: int = 0) -> ScoreResult:
+	if card == null or not can_place(card):
+		return Scoring.score(row, upgrades, inspections)
+	var placed: Array[CardInstance] = row.duplicate()
+	placed.insert(clampi(slot, 0, placed.size()), card)
+	return Scoring.score(placed, upgrades, inspections)
 
 
 ## Scores the row with the run's upgrades and the shift's inspections. Always allowed, even for

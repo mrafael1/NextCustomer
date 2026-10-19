@@ -121,6 +121,8 @@ var _beat_fizzle: bool = false
 var _scan_name: Label
 var _scan_rule: Label
 var _scan_footer: ScanFooter
+## How many of the scan's first step lines are "gives" lines (show_scan).
+var _scan_gives: int = 0
 var _scan_tier: int = 0
 var _count_name: Label
 var _count_item: Label
@@ -223,6 +225,12 @@ func show_channel(run: RunState) -> void:
 	_apply()
 
 
+## The planning brief's sticker key (#71, H1_BUILD_SPEC.md section 7): `entries` (PlanningModel's
+## key_entries; none takes the key off), shown by the channel's brief.
+func set_planning_key(entries: Array[StickerSpec]) -> void:
+	channel.set_key(entries)
+
+
 ## Planning is over (the CHECKOUT click, the impulse rack): the channel leaves the screen.
 func end_channel() -> void:
 	_channel_on = false
@@ -231,7 +239,8 @@ func end_channel() -> void:
 
 ## Shows a scanned item (ScanController): `definition` (its `aisle`, or null) with its `tags`
 ## (on the belt the scored ones). A belt item passes its `payout` and step lines (each with
-## whether it is a fizzle); a hand item passes payout -1. Call it once the monitor is in the
+## whether it is a fizzle; the first `gives` of them are its "gives" lines, #71, their amount in
+## mustard darkest); a hand item passes payout -1. Call it once the monitor is in the
 ## tree: the text is measured with the real font. A notice showing, or the count-up, keeps the
 ## scan off the screen until it ends.
 func show_scan(
@@ -240,9 +249,11 @@ func show_scan(
 	tags: PackedStringArray,
 	payout: int,
 	lines: PackedStringArray,
-	fizzles: Array[bool]
+	fizzles: Array[bool],
+	gives: int = 0
 ) -> void:
 	_scanning = true
+	_scan_gives = gives
 	_fill_scan(definition, aisle, tags, payout, lines, fizzles)
 	_apply()
 
@@ -466,6 +477,7 @@ func _build_scan(
 	if payout < 0:
 		return y <= bottom
 	_scan_footer = ScanFooter.new(column.size.x, sizes.y)
+	_scan_footer.gives_lines = _scan_gives
 	_scan_view.add_child(_scan_footer)
 	_scan_footer.position = Vector2(column.position.x, y + FOOTER_GAP)
 	var all_shown: bool = _scan_footer.fill(lines, fizzles, bottom - _scan_footer.position.y)

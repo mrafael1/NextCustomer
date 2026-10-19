@@ -1,8 +1,9 @@
 class_name ReceiptDecor
 extends RefCounted
-## What ReceiptView draws beside its text (#75, #80): the combo band and diamond, the planning
-## receipt's item marks (the raised check, the fizzle icon), the dashed rules and the framed
-## line's mustard frame. Display only: what gets marked is the receipt's call.
+## What ReceiptView draws beside its text (#75, #80, #71): the hanging indent of a step line, the
+## combo band and diamond, the planning receipt's item marks (the raised check, the fizzle icon,
+## the inspection's warning), a hovered item's targets' fill and token chip, the dashed rules and
+## the framed line's mustard frame. Display only: what gets marked is the receipt's call.
 
 ## A combo line's band behind it, at this alpha (ReceiptView.COMBO_* place its bar and diamond).
 const COMBO_BAND_ALPHA := 0.25
@@ -22,8 +23,51 @@ const CHECK_ROWS: Array[String] = [
 ]
 ## The framed line: a mustard-pale fill and a FRAME_WIDTH mustard frame.
 const FRAME_WIDTH := 2.0
+## A hovered item's target line (relate): a mustard-pale fill and, before its amount, the token
+## it gets in a mustard chip with a CHIP_BORDER ink border, bold CHIP_SIZE text, CHIP_PADDING on
+## each side.
+const CHIP_NAME := "RelationChip"
+const CHIP_BORDER := 2
+const CHIP_SIZE := 11
+const CHIP_WEIGHT := 700
+const CHIP_PADDING := 3.0
 
 const FIZZLE_ICON := preload("res://art/icons/fizzle.png")
+const WARNING_ICON := preload("res://art/icons/warning.png")
+const CHECK_DISC := preload("res://art/icons/mark_check.png")
+
+
+## Hangs an indented line's left `label`: its text starts past its lead and marker on every
+## wrapped row (an empty "normal" style's left margin), the marker printed beside the first row
+## (a "Marker" label inside it). The lead is its leading spaces' width, or `lead_width` when
+## that is set (a combo line's COMBO_INDENT, whose diamond takes the marker's place: without
+## `with_marker` the marker is dropped). A line without leading spaces is left as it is.
+static func hang(label: Label, lead_width: float = -1.0, with_marker: bool = true) -> void:
+	var parts: PackedStringArray = ReceiptView.hang_parts(label.text)
+	if parts[0].is_empty():
+		return
+	if not with_marker:
+		parts[1] = ""
+	var font: Font = label.get_theme_font("font")
+	var font_size: int = label.get_theme_font_size("font_size")
+	var lead: float = (
+		lead_width if lead_width >= 0.0 else ReceiptView.text_width(parts[0], font, font_size)
+	)
+	var indent: StyleBoxEmpty = StyleBoxEmpty.new()
+	indent.content_margin_left = lead + ReceiptView.text_width(parts[1], font, font_size)
+	label.add_theme_stylebox_override("normal", indent)
+	label.text = parts[2]
+	if parts[1].is_empty():
+		return
+	var marker: Label = Label.new()
+	marker.name = "Marker"
+	marker.text = parts[1].strip_edges()
+	marker.add_theme_font_override("font", font)
+	marker.add_theme_font_size_override("font_size", font_size)
+	marker.add_theme_color_override("font_color", label.get_theme_color("font_color"))
+	marker.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	marker.position = Vector2(lead, 0)
+	label.add_child(marker)
 
 
 ## Marks a combo `line` (its hung `left` label): the band and bar drawn behind the whole line
@@ -40,14 +84,21 @@ static func combo(line: HBoxContainer, left: Label) -> void:
 
 ## Puts `kind` on `line`: a "Mark" inside its right label, at MARK_RECT in the line's mark
 ## column, centred on its left label's first row (a wrapped fizzle's mark sits beside the
-## reason's start): the check (RAISED, drawn) or the fizzle icon (FIZZLED); nothing for NONE.
-## Its "mark" meta holds `kind`.
+## reason's start): the check (RAISED, drawn), the fizzle icon (FIZZLED) or the warning icon
+## (DENIED, at its own aspect); the PROJECTED line's met mark (MET: the belt's mark_check disc,
+## unscaled, centred on the amount's height); nothing for NONE. Its "mark" meta holds `kind`.
 static func mark(line: HBoxContainer, kind: ReceiptView.Mark) -> void:
 	if kind == ReceiptView.Mark.NONE:
 		return
 	var icon: Control
 	if kind == ReceiptView.Mark.FIZZLED:
 		icon = _icon(FIZZLE_ICON)
+	elif kind == ReceiptView.Mark.DENIED:
+		icon = _icon(WARNING_ICON)
+		(icon as TextureRect).stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	elif kind == ReceiptView.Mark.MET:
+		icon = _icon(CHECK_DISC)
+		(icon as TextureRect).stretch_mode = TextureRect.STRETCH_KEEP_CENTERED
 	else:
 		icon = Control.new()
 		icon.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -62,7 +113,65 @@ static func mark(line: HBoxContainer, kind: ReceiptView.Mark) -> void:
 	icon.offset_right = MARK_RECT.end.x
 	icon.offset_top = middle + MARK_RECT.position.y
 	icon.offset_bottom = middle + MARK_RECT.end.y
+	if kind == ReceiptView.Mark.MET:
+		icon.anchor_top = 0.5
+		icon.anchor_bottom = 0.5
+		icon.offset_top = MARK_RECT.position.y
+		icon.offset_bottom = MARK_RECT.end.y
 	line.get_child(1).add_child(icon)
+
+
+## Colours the PROJECTED `line`'s amount by the shown `total` against `quota` (a display difference,
+## as QuotaMeter's delta): GOOD with the met mark at or over it, TOMATO under it, so it never
+## relies on colour alone. Returns the shortfall's row ("short €12.00"), empty when met.
+static func against_quota(line: HBoxContainer, total: int, quota: int) -> String:
+	var margin: ShiftMargin = ShiftMargin.of(total, quota)
+	var amount: Label = line.get_child(1) as Label
+	amount.add_theme_color_override(
+		"font_color", Palette.GOOD if margin.passed() else Palette.TOMATO
+	)
+	if margin.passed():
+		mark(line, ReceiptView.Mark.MET)
+		return ""
+	return ReceiptView.SHORT_TEXT % ReceiptView.money(margin.amount())
+
+
+## Marks `line` as a hovered item's target getting `token` (a mustard-pale fill behind it and the
+## token's chip before its amount), or unmarks it for an empty `token`.
+static func relate(line: HBoxContainer, token: String) -> void:
+	var old: Node = line.get_node_or_null(CHIP_NAME)
+	if old != null:
+		line.remove_child(old)
+		old.queue_free()
+	if not line.has_meta("relation_drawn"):
+		line.set_meta("relation_drawn", true)
+		line.draw.connect(_draw_relation.bind(line))
+	line.set_meta("related", not token.is_empty())
+	line.queue_redraw()
+	if token.is_empty():
+		return
+	var chip: Label = Label.new()
+	chip.name = CHIP_NAME
+	chip.text = token
+	chip.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	chip.size_flags_vertical = Control.SIZE_SHRINK_END
+	chip.add_theme_font_override("font", ArtStyle.bold_font(CHIP_WEIGHT))
+	chip.add_theme_font_size_override("font_size", CHIP_SIZE)
+	chip.add_theme_color_override("font_color", Palette.INK)
+	var face: StyleBoxFlat = StyleBoxFlat.new()
+	face.bg_color = Palette.MUSTARD
+	face.border_color = Palette.INK
+	face.set_border_width_all(CHIP_BORDER)
+	face.content_margin_left = CHIP_PADDING
+	face.content_margin_right = CHIP_PADDING
+	chip.add_theme_stylebox_override("normal", face)
+	line.add_child(chip)
+	line.move_child(chip, line.get_child_count() - 2)
+
+
+## The token chip on a hovered item's target `line`, or null (for tests).
+static func relation_chip(line: HBoxContainer) -> Label:
+	return line.get_node_or_null(CHIP_NAME) as Label
 
 
 ## The dashed rules (under the header, above PROJECTED and the count-up's TOTAL): B2's cream-shade
@@ -108,6 +217,12 @@ static func _draw_combo_band(line: HBoxContainer) -> void:
 		return
 	line.draw_rect(Rect2(Vector2.ZERO, line.size), Color(Palette.GOLD, COMBO_BAND_ALPHA))
 	line.draw_rect(Rect2(0, 0, ReceiptView.COMBO_BAR, line.size.y), Palette.GOLD)
+
+
+## A related line's mustard-pale fill (relate), behind its text.
+static func _draw_relation(line: HBoxContainer) -> void:
+	if line.get_meta("related", false):
+		line.draw_rect(Rect2(Vector2.ZERO, line.size), Palette.MUSTARD_PALE)
 
 
 ## The raised mark's green check, centred in `icon`.

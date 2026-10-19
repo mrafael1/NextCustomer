@@ -27,8 +27,10 @@ extends Node
 ## The monitor (and an offer's popup) shows the card's rule text verbatim. A belt item's scan also
 ## shows its payout and every step of its slot but BASE and PAYOUT, worded as the receipt words
 ## them (ReceiptView.step_line, decision 1A), so every line of the planning receipt can be read by
-## scanning its item. Its tag line shows the scored tags (granted ones too); a hand item's its
-## card's own.
+## scanning its item. A belt item that gives to others (#71) gets a "gives" line first (GIVES_TEXT:
+## its tokens, its targets and their summed gain, "×3 to Milk, Milk, Milk  +€114", from its rail
+## strip, PlanningModel.strip_of). Its tag line shows the scored tags (granted ones too); a hand
+## item's its card's own.
 ##
 ## The scan follows the pointer. While the pointer is inside an offer's popup, the scanned offer
 ## stays, so moving over the popup never switches to an item it covers. Once the pointer is over
@@ -54,6 +56,12 @@ const HOVER_DB := -8.0
 const THROTTLE_MS := 120
 ## The scanner's tuning (the hold), unless `tuning` is set before setup().
 const TUNING_PATH := "res://data/balance/scan.tres"
+## A giver's "gives" line (#71): its tokens and its targets' names (up to GIVES_NAMES of them, else
+## GIVES_MANY), then its targets' summed gain (cancelled ones left out) as the line's amount.
+const GIVES_TEXT := "%s to %s"
+const GIVES_AMOUNT := "+€%d"
+const GIVES_NAMES := 3
+const GIVES_MANY := "%d items"
 
 ## Returns true while scanning is off. Set by the owner; none means never.
 var blocked: Callable = Callable()
@@ -103,6 +111,8 @@ var _hold_from: int = -1
 var _beep_ms: int = -THROTTLE_MS
 ## A refresh rebuilt the items: the scan is shown again once they are laid out (_reshow).
 var _reshow_queued: bool = false
+## Whether the scan framed a line on the receipt (_highlight).
+var _framed: bool = false
 
 
 func _ready() -> void:
@@ -261,6 +271,28 @@ static func footer_steps(result: ScoreResult, slot: int) -> Array[ScoreStep]:
 	return steps
 
 
+## The "gives" line of the belt item at `slot` in `result` (see GIVES_TEXT; `names` are the row's
+## names), or empty when it gives nothing.
+static func gives_line(result: ScoreResult, slot: int, names: PackedStringArray) -> String:
+	var strip: RailStripSpec = PlanningModel.strip_of(result, slot, names)
+	if strip == null:
+		return ""
+	var tokens: PackedStringArray = PackedStringArray()
+	var targets: PackedStringArray = PackedStringArray()
+	var gain: int = 0
+	for index: int in range(strip.targets.size()):
+		for token: String in strip.tokens[index].split(" ", false):
+			if not tokens.has(token):
+				tokens.append(token)
+		targets.append(names[strip.targets[index]])
+		gain += maxi(strip.gains[index], 0)
+	var named: String = ", ".join(targets)
+	if targets.size() > GIVES_NAMES:
+		named = GIVES_MANY % targets.size()
+	var text: String = GIVES_TEXT % [" ".join(tokens), named]
+	return ReceiptView.joined_line(text, GIVES_AMOUNT % gain if gain > 0 else "")
+
+
 ## Follows the pointer while an item is scanned: see the class comment.
 func _process(_delta: float) -> void:
 	if _reshow_queued:
@@ -402,9 +434,15 @@ func _show(view: ItemView) -> void:
 	var fizzles: Array[bool] = []
 	var payout: int = -1
 	var slot: int = _row.find(view)
+	var gives: int = 0
 	if view.form == ItemView.Form.BELT and _result != null and slot >= 0:
 		if slot < _result.payouts.size():
 			payout = _result.payouts[slot]
+		var given: String = gives_line(_result, slot, _names)
+		if not given.is_empty():
+			lines.append(given)
+			fizzles.append(false)
+			gives = 1
 		for step: ScoreStep in footer_steps(_result, slot):
 			lines.append(ReceiptView.step_line(step, _names, _upgrade_names, _inspection_names))
 			fizzles.append(step.step_type == ScoreStep.StepType.WASTED)
@@ -428,7 +466,7 @@ func _show(view: ItemView) -> void:
 		_highlight(-1)
 	else:
 		_popup.visible = false
-		_monitor.show_scan(definition, view.aisle, view.tags(), payout, lines, fizzles)
+		_monitor.show_scan(definition, view.aisle, view.tags(), payout, lines, fizzles, gives)
 		_highlight(slot if view.form == ItemView.Form.BELT else -1)
 	marks.pose_hover(sprite)
 	if _wants_reduced_motion():
@@ -437,10 +475,13 @@ func _show(view: ItemView) -> void:
 		marks.start_beam_loop()
 
 
-## Frames `slot`'s line on the planning receipt, or none for -1.
+## Frames `slot`'s line on the planning receipt, or none for -1. Unframing only takes the scan's
+## own frame off: a hovered item's (PlanningEffects, #71) stays.
 func _highlight(slot: int) -> void:
-	if _receipt != null:
-		_receipt.highlight_slot(slot)
+	if _receipt == null or (slot < 0 and not _framed):
+		return
+	_framed = slot >= 0
+	_receipt.highlight_slot(slot)
 
 
 func _beep() -> void:

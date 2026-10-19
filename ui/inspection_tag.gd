@@ -6,6 +6,15 @@ extends PanelContainer
 ## the restriction is never shown only inside an animation. Hovering it shows each inspection's
 ## name and notice. Hidden on shifts without an inspection. Inspections never go on the loyalty
 ## card.
+##
+## Planning effects (#71): hovering it reports hovered / unhovered (its tooltip stays);
+## set_relation rings it in gold and, for an inspection that causes the hovered item's effect,
+## prints that inspection's name instead of the effects (one tag shows every inspection). The
+## items it hits show its stamp on the belt (PlanningLayer), so the chip carries no count.
+
+## The pointer entered or left the tag.
+signal hovered
+signal unhovered
 
 ## The red notice printed under a passed shift's total when the next shift is inspected.
 const NEXT_NOTICE := "INSPECTION NEXT SHIFT: %s"
@@ -13,11 +22,17 @@ const FONT_SIZE := 14
 const FONT_WEIGHT := 700
 ## The warning sign (13x11 art) at 2x.
 const ICON_SIZE := Vector2(26, 22)
+## The gold ring's line (#71).
+const RING_WIDTH := 2.0
 
 const CHIP_FRAME := preload("res://art/frames/chip_warn.png")
 const WARNING := preload("res://art/icons/warning.png")
 
 var _label: Label
+var _inspections: Array[InspectionDefinition] = []
+## The effects' text (show_inspections), printed while no cause is named.
+var _effects_text: String = ""
+var _ringed: bool = false
 
 
 func _init() -> void:
@@ -41,6 +56,8 @@ func _init() -> void:
 	_label = UiKit.body_label("", FONT_SIZE, Palette.INK)
 	_label.add_theme_font_override("font", ArtStyle.bold_font(FONT_WEIGHT))
 	_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	# A named inspection keeps the chip's width (set_relation).
+	_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	row.add_child(_label)
 	visible = false
 
@@ -49,11 +66,47 @@ func _init() -> void:
 ## name and notice.
 func show_inspections(inspections: Array[InspectionDefinition]) -> void:
 	visible = not inspections.is_empty()
+	_inspections = inspections.duplicate()
 	var tips: PackedStringArray = PackedStringArray()
 	for inspection: InspectionDefinition in inspections:
 		tips.append("INSPECTION: %s\n%s" % [inspection.display_name, inspection.notice_text])
-	_label.text = " · ".join(PackedStringArray(["Inspection"]) + effects(inspections))
+	_effects_text = " · ".join(PackedStringArray(["Inspection"]) + effects(inspections))
+	_label.text = _effects_text
+	custom_minimum_size.x = 0.0
 	tooltip_text = "\n\n".join(tips)
+
+
+## Rings the tag in gold (#71), or takes the ring off. `cause`: the shift's inspection (its
+## index) that causes the hovered item's effect: the tag prints its name until the ring comes off,
+## keeping its width meanwhile (a shorter name would shift the top bar under the pointer).
+func set_relation(related: bool, cause: int = -1) -> void:
+	_ringed = related
+	var named: bool = related and cause >= 0 and cause < _inspections.size()
+	if named and _label.text == _effects_text:
+		custom_minimum_size.x = size.x
+	elif not named:
+		custom_minimum_size.x = 0.0
+	_label.text = _inspections[cause].display_name if named else _effects_text
+	queue_redraw()
+
+
+func has_relation() -> bool:
+	return _ringed
+
+
+func _notification(what: int) -> void:
+	if what == NOTIFICATION_MOUSE_ENTER:
+		hovered.emit()
+	elif what == NOTIFICATION_MOUSE_EXIT:
+		unhovered.emit()
+
+
+## The gold ring round the chip while it is related to the hovered item (over the frame).
+func _draw() -> void:
+	if _ringed:
+		draw_rect(
+			Rect2(Vector2.ZERO, size).grow(-RING_WIDTH / 2.0), Palette.GOLD, false, RING_WIDTH
+		)
 
 
 ## The label printing the text (for layout tests).

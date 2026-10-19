@@ -5,6 +5,10 @@ extends RefCounted
 ## free of it. UiKit builds the styled controls (frame panels, framed buttons, labels by font
 ## role) from it.
 
+## The greyed sharp-pixel looks (#71, mock-up h1): a denied item's sprite, and a drained sticker
+## (stepped back while another item is hovered, or on a denied item).
+enum Grey { DENIED, DRAINED }
+
 ## Titles, numbers and stamps. Pixelify Sans, SIL Open Font License (imported as MSDF, so its
 ## outline survives the count-up's large slams).
 const DISPLAY_FONT := preload("res://fonts/PixelifySans-Variable.ttf")
@@ -29,6 +33,18 @@ const INK := Color("2b2420")
 ## Canvas pixels per art pixel (a 640x360 art grid on the 1280x720 canvas).
 const ART_SCALE := 2
 const PIXEL_SHADER := preload("res://presentation/pixel_art.gdshader")
+## The sharp-pixel material greyed (#71): grey_material's looks.
+const GREY_SHADER := preload("res://presentation/pixel_art_grey.gdshader")
+## A boosted item's stepped halo (#71): halo_material's rings.
+const HALO_SHADER := preload("res://presentation/halo_outline.gdshader")
+## Each Grey look's (brightness, contrast), the mock-up's CSS filters: a denied sprite's
+## grayscale(1) brightness(.78) contrast(.9), a drained sticker's brightness(.62) contrast(.55).
+const GREY_LOOKS: Dictionary[Grey, Vector2] = {
+	Grey.DENIED: Vector2(0.78, 0.9),
+	Grey.DRAINED: Vector2(0.62, 0.55),
+}
+## A halo has 1 to HALO_MAX_RINGS rings.
+const HALO_MAX_RINGS := 3
 ## Items (#75, decision 3A): every item is 48x48 art drawn at 2x. A product's `art_ref` names its
 ## sprite; an undrawn product shows ITEM_PENDING, a dashed box that ItemView prints the name in.
 ## Every coupon is the shared COUPON_SLIP, and a coupon's `art_ref` names the icon drawn on it.
@@ -36,10 +52,15 @@ const ITEM_PENDING := preload("res://art/icons/art_pending_v2.png")
 const COUPON_SLIP := preload("res://art/items_v2/coupon_slip.png")
 ## Marks the nodes that draw pixel art, so a debug A/B switch can find them.
 const PIXEL_ART_META := &"pixel_art"
+## A pixel-art node's own look material (a grey or a halo, set_look), which set_sharp keeps
+## instead of resetting it to the plain sharp-pixel material.
+const LOOK_META := &"pixel_art_look"
 ## An aisle's glyph (9x9 art), by the aisle's id.
 const GLYPH_PATH := "res://art/icons/aisle_%s.png"
 
 static var _material: ShaderMaterial
+static var _grey_materials: Dictionary[Grey, ShaderMaterial] = {}
+static var _halo_materials: Dictionary[int, ShaderMaterial] = {}
 static var _number_font: FontVariation
 static var _bold_fonts: Dictionary[int, FontVariation] = {}
 static var _spaced_display_fonts: Dictionary[int, FontVariation] = {}
@@ -56,7 +77,13 @@ static func use_pixel_material(item: CanvasItem) -> void:
 ## art gets the sharp-pixel material (`sharp`), or plain nearest filtering without it.
 static func set_sharp(root: Node, sharp: bool) -> void:
 	var item: CanvasItem = root as CanvasItem
-	if item != null and item.has_meta(PIXEL_ART_META):
+	if item != null and item.has_meta(LOOK_META):
+		# A grey or a halo is the node's look, not only its sampling: kept in both modes.
+		item.material = item.get_meta(LOOK_META) as ShaderMaterial
+		item.texture_filter = (
+			CanvasItem.TEXTURE_FILTER_PARENT_NODE if sharp else CanvasItem.TEXTURE_FILTER_NEAREST
+		)
+	elif item != null and item.has_meta(PIXEL_ART_META):
 		item.material = pixel_material() if sharp else null
 		item.texture_filter = (
 			CanvasItem.TEXTURE_FILTER_PARENT_NODE if sharp else CanvasItem.TEXTURE_FILTER_NEAREST
@@ -71,6 +98,61 @@ static func pixel_material() -> ShaderMaterial:
 		_material = ShaderMaterial.new()
 		_material.shader = PIXEL_SHADER
 	return _material
+
+
+## Gives a pixel-art node a look material (grey_material or halo_material), which set_sharp
+## keeps; null puts the plain sharp-pixel material back.
+static func set_look(item: CanvasItem, look: ShaderMaterial) -> void:
+	item.set_meta(PIXEL_ART_META, true)
+	if look == null:
+		item.remove_meta(LOOK_META)
+		item.material = pixel_material()
+	else:
+		item.set_meta(LOOK_META, look)
+		item.material = look
+
+
+## The shared greyed sharp-pixel material of `look` (#71): a denied item's sprite or a drained
+## sticker's frame, shadow and badge.
+static func grey_material(look: Grey) -> ShaderMaterial:
+	if not _grey_materials.has(look):
+		var material: ShaderMaterial = ShaderMaterial.new()
+		material.shader = GREY_SHADER
+		material.set_shader_parameter(&"brightness", GREY_LOOKS[look].x)
+		material.set_shader_parameter(&"contrast", GREY_LOOKS[look].y)
+		_grey_materials[look] = material
+	return _grey_materials[look]
+
+
+## The shared halo material with `rings` rings (1 to HALO_MAX_RINGS, clamped), for an ItemHalo
+## drawn over the sprite's rect grown by (rings + 1) art pixels (halo_outline.gdshader). The
+## bands, inside out: 1 ring mustard light; 2 mustard pale, mustard; 3 paper, mustard light,
+## mustard; then the ink outline.
+static func halo_material(rings: int) -> ShaderMaterial:
+	var count: int = clampi(rings, 1, HALO_MAX_RINGS)
+	if not _halo_materials.has(count):
+		var material: ShaderMaterial = ShaderMaterial.new()
+		material.shader = HALO_SHADER
+		material.set_shader_parameter(&"rings", count)
+		material.set_shader_parameter(&"bands", halo_bands(count))
+		_halo_materials[count] = material
+	return _halo_materials[count]
+
+
+## The halo's band colours for `rings` rings, inside out, then the ink (4 colours, padded with
+## ink).
+static func halo_bands(rings: int) -> PackedColorArray:
+	var bands: PackedColorArray
+	match clampi(rings, 1, HALO_MAX_RINGS):
+		1:
+			bands = PackedColorArray([Palette.MUSTARD_LIGHT])
+		2:
+			bands = PackedColorArray([Palette.MUSTARD_PALE, Palette.MUSTARD])
+		_:
+			bands = PackedColorArray([Palette.PAPER, Palette.MUSTARD_LIGHT, Palette.MUSTARD])
+	while bands.size() < HALO_MAX_RINGS + 1:
+		bands.append(INK)
+	return bands
 
 
 ## The font for numbers and money: Atkinson Hyperlegible Next at NUMBER_WEIGHT.

@@ -2,7 +2,10 @@ extends GdUnitTestSuite
 ## The price sticker (#75): every card in data/cards shows its summary from core
 ## (CardDefinition.sticker_summary) in at most 2 lines inside SUMMARY_RECT, measured with the
 ## real font (bold Atkinson 13), and its base or COUPON, and an aisle product its glyph, all inside
-## the sticker. The style frame v2 cards read as approved (spec section 4.1).
+## the sticker. The style frame v2 cards read as approved (spec section 4.1). Planning (#71,
+## mock-up h1): set_pay strikes a product's base (never a coupon's COUPON) with an ink line across
+## its text, moves the aisle glyph after the base and hides it next to a pay tag, shrinks the base
+## when the tag needs the room, and puts it all back; set_got swaps a product's face.
 
 const CARDS := "res://data/cards"
 const BALANCE := "res://data/balance/balance.tres"
@@ -83,6 +86,93 @@ func test_a_card_with_no_rule_shows_only_its_price() -> void:
 	var sticker: PriceSticker = auto_free(PriceSticker.new(bread, null))
 	assert_str(sticker.summary_label().text).is_empty()
 	assert_str(sticker.base_label().text).is_equal("€%d" % bread.base)
+
+
+## Struck, a product's base turns ink light under an ink line from STRIKE_OUT left of its text to
+## STRIKE_OUT right of it, across its middle; with a tag the glyph moves to just after the base,
+## and hides when it would touch the tag; a tag starting before the base's full-size end shrinks
+## the base; set_pay(false, no tag) puts the plain ticket back.
+func test_a_struck_base_moves_the_glyph_clear_of_the_tag() -> void:
+	var balance: BalanceDefinition = load(BALANCE) as BalanceDefinition
+	var aisle: AisleDefinition = balance.aisles[0]
+	var product: CardDefinition = aisle.base_cards[0]
+	var sticker: PriceSticker = auto_free(PriceSticker.new(product, aisle))
+	add_child(sticker)
+	await get_tree().process_frame
+	assert_object(sticker.glyph()).is_not_null()
+	var full_end: float = sticker.base_text_end(PriceSticker.BASE_SIZE)
+	# A tag clear of the base, far right: struck, glyph moved after the base and kept.
+	var far: Rect2 = Rect2(full_end + 30, -6, 60, 32)
+	sticker.set_pay(true, far)
+	assert_bool(sticker.is_struck()).is_true()
+	var text: Rect2 = sticker.base_text_rect()
+	var line: ColorRect = sticker.get_node(PriceSticker.STRIKE_NAME) as ColorRect
+	assert_bool(line.visible).is_true()
+	assert_object(line.color).is_equal(Palette.INK)
+	assert_float(line.position.x).is_equal(text.position.x - PriceSticker.STRIKE_OUT)
+	assert_float(line.size.x).is_equal(text.size.x + 2.0 * PriceSticker.STRIKE_OUT)
+	assert_float(line.size.y).is_equal(PriceSticker.STRIKE_WIDTH)
+	assert_float(absf(line.get_rect().get_center().y - text.get_center().y)).is_less_equal(1.0)
+	assert_object(sticker.base_label().get_theme_color("font_color")).is_equal(Palette.INK_LIGHT)
+	assert_float(sticker.glyph().position.x).is_equal_approx(
+		text.end.x + PriceSticker.GLYPH_GAP, 1.0
+	)
+	assert_bool(sticker.glyph().visible).is_true()
+	# A tag right after the base: the glyph would touch it, so it hides.
+	var near: Rect2 = Rect2(full_end + PriceSticker.GLYPH_GAP, -6, 60, 32)
+	sticker.set_pay(true, near)
+	assert_bool(sticker.glyph().visible).is_false()
+	assert_int(sticker.base_label().get_theme_font_size("font_size")).is_equal(
+		PriceSticker.BASE_SIZE
+	)
+	# A tag over the full-size base's end: the base shrinks.
+	sticker.set_pay(true, Rect2(full_end - 4, -6, 60, 32))
+	assert_int(sticker.base_label().get_theme_font_size("font_size")).is_equal(
+		PriceSticker.BASE_STRUCK_SIZE
+	)
+	assert_float(sticker.base_text_rect().end.x).is_less(full_end)
+	sticker.set_pay(false, Rect2())
+	assert_bool(sticker.is_struck()).is_false()
+	assert_bool(line.visible).is_false()
+	assert_vector(sticker.glyph().position).is_equal(PriceSticker.GLYPH_RECT.position)
+	assert_bool(sticker.glyph().visible).is_true()
+	assert_int(sticker.base_label().get_theme_font_size("font_size")).is_equal(
+		PriceSticker.BASE_SIZE
+	)
+	assert_object(sticker.base_label().get_theme_color("font_color")).is_equal(Palette.INK)
+
+
+## A coupon's COUPON is never struck; set_got swaps a product's face to ticket_got and back,
+## and leaves a coupon's slip.
+func test_a_coupon_is_never_struck_and_got_swaps_a_products_face() -> void:
+	var coupon: CardDefinition = load("%s/multipack.tres" % CARDS) as CardDefinition
+	var slip: PriceSticker = auto_free(PriceSticker.new(coupon, null))
+	add_child(slip)
+	slip.set_pay(true, Rect2(60, -4, 52, 26))
+	assert_bool(slip.is_struck()).is_false()
+	assert_bool((slip.get_node(PriceSticker.STRIKE_NAME) as CanvasItem).visible).is_false()
+	slip.set_got(true)
+	assert_bool(slip.is_got()).is_false()
+	var bread: CardDefinition = load("%s/bread.tres" % CARDS) as CardDefinition
+	var sticker: PriceSticker = auto_free(PriceSticker.new(bread, null))
+	add_child(sticker)
+	var face: Panel = sticker.get_child(0) as Panel
+	sticker.set_got(true)
+	assert_bool(sticker.is_got()).is_true()
+	var got: StyleBoxTexture = face.get_theme_stylebox("panel") as StyleBoxTexture
+	assert_object(got.texture).is_same(PriceSticker.GOT_FRAME)
+	assert_float(got.texture_margin_top).is_equal(
+		float(PriceSticker.FRAME_TOP_MARGIN * ArtStyle.ART_SCALE)
+	)
+	sticker.set_got(false)
+	var plain: StyleBoxTexture = face.get_theme_stylebox("panel") as StyleBoxTexture
+	assert_object(plain.texture).is_same(PriceSticker.FRAME)
+	# The text rects: the base's from BASE_RECT's left, centred on it; no summary for Bread.
+	var base: Rect2 = sticker.base_text_rect()
+	assert_float(base.position.x).is_equal(PriceSticker.BASE_RECT.position.x)
+	assert_float(base.size.x).is_greater(0.0)
+	assert_float(base.get_center().y).is_equal_approx(PriceSticker.BASE_RECT.get_center().y, 0.5)
+	assert_bool(sticker.summary_text_rect().has_area()).is_false()
 
 
 ## The base (or COUPON) and the glyph sit at their rects, apart, inside the sticker; only a

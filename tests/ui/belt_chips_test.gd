@@ -2,10 +2,12 @@ extends GdUnitTestSuite
 ## The belt items' corner marks and paid chips on the real shift screen (#80, step 7, BeltChips;
 ## mock-up B2). Marks: one EffectMark per item with a step EffectChip.qualifies (a fizzle, or a
 ## bonus or factor another source caused), a fizzle disc when one of them fizzled, else a check;
-## no count. In planning they follow every place and remove. The CHECKOUT click clears them and
+## no count. Planning shows none since #71 (mock-up h1: its stickers stack over the items, and
+## follow every place and remove); a resumed checkout shows them all (the marks' rules below are
+## checked there). The CHECKOUT click clears them and
 ## each comes back, popping, as CountUp.step_landed says one of its item's steps landed (shown at
 ## once, unpopped, under reduced motion), never beside #60's marker for the same landing, and the
-## row ends with the planning marks. Every mark sits on its art's visible top-right corner inside
+## row ends with the preview's marks. Every mark sits on its art's visible top-right corner inside
 ## its own cell, clear of its ticket, the other items and the other marks, and takes no clicks.
 ## Paid chips: none in planning; in the count-up the scanned item's pops as the current one (with
 ## its echo, none under reduced motion) and the others settle and stay; a resumed checkout shows
@@ -42,17 +44,20 @@ func after_test() -> void:
 		DirAccess.remove_absolute(_folder)
 
 
-## One mark per item that has a marking step, a fizzle disc when one fizzled; in planning none is
-## scaled, and no paid chip shows.
+## Planning shows no mark and no paid chip (#71, mock-up h1). Shown (as a resumed checkout shows
+## them): one mark per item that has a marking step, a fizzle disc when one fizzled, none scaled.
 func test_marks_follow_the_steps() -> void:
 	var screen: ShiftScreen = await _screen()
 	await _full_row(screen)
 	var result: ScoreResult = screen.run.preview()
+	for view: CardView in screen._row_views:
+		assert_bool(view.badge.visible).is_false()
+		assert_object((view as ItemView)._mark).is_null()
+	_show_marks(screen)
 	assert_array(_mark_kinds(screen)).is_equal(_expected_kinds(result))
 	var fizzles: int = 0
 	var marks: int = 0
 	for view: CardView in screen._row_views:
-		assert_bool(view.badge.visible).is_false()
 		var mark: EffectMark = (view as ItemView)._mark
 		if mark == null:
 			continue
@@ -73,6 +78,7 @@ func test_many_steps_make_one_mark() -> void:
 	screen._debug.give_upgrade("slot_engine")
 	await _place(screen, FOLDED_ROW)
 	var result: ScoreResult = screen.run.preview()
+	_show_marks(screen)
 	var last: int = FOLDED_ROW.size() - 1
 	assert_int(EffectChip.step_indices(result, last).size()).is_greater(1)
 	var item: ItemView = screen._row_views[last] as ItemView
@@ -87,12 +93,12 @@ func test_many_steps_make_one_mark() -> void:
 ## Steps may land in any order (a landing whose marker is still being absorbed can come after a
 ## later step of the same item): each marking landing returns its item's mark, in the kind of the
 ## steps landed so far, and a step landing twice, or one that marks nothing, returns null. The row
-## ends with the planning marks.
+## ends with the preview's marks.
 func test_marks_land_in_any_order() -> void:
 	var screen: ShiftScreen = await _screen()
 	await _full_row(screen)
-	var planned: Array[int] = _mark_kinds(screen)
 	var result: ScoreResult = screen.run.preview()
+	var planned: Array[int] = _expected_kinds(result)
 	var chips: BeltChips = BeltChips.new()
 	chips.begin_count(result, screen._row_views, true)
 	for kind: int in _mark_kinds(screen):
@@ -116,10 +122,11 @@ func test_marks_land_in_any_order() -> void:
 
 ## Every mark sits on its art's visible top-right corner (EffectMark.corner), on the stage inside
 ## its own cell, clear of the belt's rail and its ticket, of every other item's sprite and of every
-## other mark, and takes no clicks.
+## other mark, and takes no clicks (shown as a resumed checkout shows them).
 func test_marks_sit_on_their_art_corners_inside_their_cells() -> void:
 	var screen: ShiftScreen = await _screen()
 	await _full_row(screen)
+	_show_marks(screen)
 	var stage: Rect2 = screen._stage.get_global_rect()
 	var rail: Rect2 = screen._stage.belt.get_global_transform() * screen._stage.belt.rail()
 	var marks: Array[Rect2] = []
@@ -150,32 +157,35 @@ func test_marks_sit_on_their_art_corners_inside_their_cells() -> void:
 	assert_int(marks.size()).is_greater_equal(2)
 
 
-## Marks follow the row on every place and remove: Coffee alone fizzles (no Breakfast product
-## after it); Bread placed after it takes Coffee's +3, a check, and Coffee's fizzle goes; Bread
-## taken back out brings the fizzle back.
+## Planning's effects follow the row on every place and remove, as stickers (#71), never as marks:
+## Coffee alone fizzles (no Breakfast product after it); Bread placed after it takes Coffee's +3
+## and Coffee's fizzle goes; Bread taken back out brings the fizzle back.
 func test_marks_refresh_on_place_and_remove() -> void:
 	var screen: ShiftScreen = await _screen()
 	await _place(screen, ["coffee"])
-	assert_array(_mark_kinds(screen)).is_equal([FIZZLE])
+	assert_array(_mark_kinds(screen)).is_equal([NO_MARK])
+	assert_array(_chip_texts(screen, 0)).contains(["pfff"])
 	await _place(screen, ["bread"])
-	assert_array(_mark_kinds(screen)).is_equal([NO_MARK, CHECK])
-	assert_array(_mark_kinds(screen)).is_equal(_expected_kinds(screen.run.preview()))
+	assert_array(_mark_kinds(screen)).is_equal([NO_MARK, NO_MARK])
+	assert_array(_chip_texts(screen, 0)).not_contains(["pfff"])
+	assert_array(_chip_texts(screen, 1)).contains(["+3"])
 	# Bread taken out of the row and let go: back in the hand.
 	screen._on_row_card_clicked(screen._row_views[1])
 	screen._let_go()
 	await _frames(2)
 	assert_int(screen.run.row.size()).is_equal(1)
-	assert_array(_mark_kinds(screen)).is_equal([FIZZLE])
+	assert_array(_mark_kinds(screen)).is_equal([NO_MARK])
+	assert_array(_chip_texts(screen, 0)).contains(["pfff"])
 
 
 ## The count-up's hand-off: the CHECKOUT click clears every mark; each comes back (popping from
 ## EffectMark.POP_SCALE) as CountUp.step_landed says one of its item's steps landed, and only
-## then; the row ends with exactly the planning marks, at rest. Every step lands once, and the
+## then; the row ends with exactly the preview's marks, at rest. Every step lands once, and the
 ## plan gains no beat.
 func test_marks_clear_at_the_click_and_pop_in_as_their_steps_land() -> void:
 	var screen: ShiftScreen = await _screen()
 	await _full_row(screen)
-	var planned: Array[int] = _mark_kinds(screen)
+	var planned: Array[int] = _expected_kinds(screen.run.preview())
 	var steps: int = screen.run.preview().steps.size()
 	screen._on_checkout_pressed()
 	for kind: int in _mark_kinds(screen):
@@ -395,6 +405,20 @@ static func _expected_kinds(result: ScoreResult) -> Array[int]:
 		else:
 			kinds.append(FIZZLE if EffectChip.fizzles(result, indices) else CHECK)
 	return kinds
+
+
+## Shows the preview's marks as a resumed checkout shows them (planning shows none, #71).
+static func _show_marks(screen: ShiftScreen) -> void:
+	screen._effects.clear()  # As the CHECKOUT click does: no planning lift under the marks.
+	screen._belt_chips.show_all(screen.run.preview(), screen._row_views, true)
+
+
+## The texts of the planning stickers on the belt item in `slot` (#71, mock-up h1).
+static func _chip_texts(screen: ShiftScreen, slot: int) -> Array[String]:
+	var texts: Array[String] = []
+	for sticker: EffectSticker in screen._stage.planning_layer.stack(slot):
+		texts.append(sticker.text())
+	return texts
 
 
 ## Each belt item's mark kind as shown.

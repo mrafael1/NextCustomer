@@ -1,0 +1,10 @@
+; The notch dropping from the strip's body onto a target's ticket, calm (brass)
+; (#71 planning effects, mock-up h1 (docs/art/mockups/planning_effects_src/H1_BUILD_SPEC.md)): an ink trapezoid narrowing to one texel, with a
+; y triangle under the strip. 9x5, shown at 2x.
+@size 9x5
+@kind icon
+##yyyyy##
+.##yyy##.
+..##y##..
+...###...
+....#....

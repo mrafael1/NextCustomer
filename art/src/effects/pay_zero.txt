@@ -1,0 +1,19 @@
+; The pay tag of an item that pays nothing (#71 planning effects, mock-up h1 (docs/art/mockups/planning_effects_src/H1_BUILD_SPEC.md)): a punched
+; tomato tag, an octagon with two-texel cut corners, tomato R fill, tomato light o top row,
+; tomato dark r bottom row, ink rim. The fizzle or warning glyph and "EUR 0" (paper) are
+; code-drawn over it. 26x13, shown at 2x (52x26).
+@size 26x13
+@kind icon
+..######################..
+.#oooooooooooooooooooooo#.
+#oRRRRRRRRRRRRRRRRRRRRRRo#
+#RRRRRRRRRRRRRRRRRRRRRRRR#
+#RRRRRRRRRRRRRRRRRRRRRRRR#
+#RRRRRRRRRRRRRRRRRRRRRRRR#
+#RRRRRRRRRRRRRRRRRRRRRRRR#
+#RRRRRRRRRRRRRRRRRRRRRRRR#
+#RRRRRRRRRRRRRRRRRRRRRRRR#
+#RRRRRRRRRRRRRRRRRRRRRRRR#
+#rRRRRRRRRRRRRRRRRRRRRRRr#
+.#rrrrrrrrrrrrrrrrrrrrrr#.
+..######################..

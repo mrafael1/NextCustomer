@@ -12,6 +12,15 @@ extends PanelContainer
 ## stamp rings at 2x, upright: a mustard ring around the teal panel for a stamp, a dashed ring
 ## for an empty box. #59's 7x7 perk glyphs go in the rings; until then the initials stay, in
 ## mustard pale, as large as fits inside the ring. The final receipt keeps the card face.
+##
+## Planning effects (#71): hovering a stamped box reports box_hovered / box_unhovered (its
+## tooltip stays); set_relation rings a box in gold (the hovered item's cause, or the hovered box
+## itself). A rebuild (the upgrades changed) clears it. An upgrade's fizzles show as "pfff"
+## stickers with its badge on the belt (PlanningLayer), not on its box.
+
+## The pointer entered or left the stamped box of the run's upgrade `index`.
+signal box_hovered(index: int)
+signal box_unhovered(index: int)
 
 const BOX_SIZE := Vector2(34, 34)
 ## The resting tilt of every stamped box.
@@ -35,6 +44,10 @@ const CHIP_BOX_SIZE := Vector2(26, 26)
 const CHIP_BOX_GAP := 8
 const CHIP_RING := 4
 const CHIP_INITIALS_SIZES: Array[int] = [12, 11, 10, 9, 8, 7]
+## A related box's gold ring (#71): its line, outside the box by RING_OUTSET.
+const RING_WIDTH := 2
+const RING_OUTSET := 2
+const RING_NAME := "RelationRing"
 
 const CARD_FRAME := preload("res://art/frames/loyalty_card.png")
 const STAMP_EMPTY := preload("res://art/icons/stamp_empty.png")
@@ -99,7 +112,54 @@ func show_upgrades(boxes: int, upgrades: Array[UpgradeDefinition]) -> void:
 		child.queue_free()
 	for index: int in range(maxi(boxes, upgrades.size())):
 		var upgrade: UpgradeDefinition = upgrades[index] if index < upgrades.size() else null
-		_boxes.add_child(_make_box(upgrade))
+		var made: PanelContainer = _make_box(upgrade)
+		_boxes.add_child(made)
+		if upgrade != null:
+			_add_relation_parts(made)
+			made.mouse_entered.connect(box_hovered.emit.bind(index))
+			made.mouse_exited.connect(box_unhovered.emit.bind(index))
+
+
+## Rings the box of upgrade `index` in gold (#71), or takes the ring off.
+func set_relation(index: int, related: bool) -> void:
+	var ring: Control = _part(index, RING_NAME)
+	if ring != null:
+		ring.visible = related
+
+
+## Whether the box of upgrade `index` is ringed.
+func has_relation(index: int) -> bool:
+	var ring: Control = _part(index, RING_NAME)
+	return ring != null and ring.visible
+
+
+## Takes every ring off.
+func clear_relations() -> void:
+	for index: int in range(_shown.size()):
+		set_relation(index, false)
+
+
+## The ring (`part_name`) of upgrade `index`'s box, or null.
+func _part(index: int, part_name: String) -> Control:
+	var stamped: Control = box(index)
+	return stamped.get_node_or_null(part_name) as Control if stamped != null else null
+
+
+## A stamped box's hidden gold ring (round, just outside the box). It takes no clicks; the box's
+## first child stays its label (box_texts).
+func _add_relation_parts(stamped: PanelContainer) -> void:
+	var ring: Panel = Panel.new()
+	ring.name = RING_NAME
+	ring.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var line: StyleBoxFlat = StyleBoxFlat.new()
+	line.draw_center = false
+	line.border_color = Palette.GOLD
+	line.set_border_width_all(RING_WIDTH)
+	line.set_corner_radius_all(int(_box_size.x / 2.0) + RING_OUTSET)
+	line.set_expand_margin_all(RING_OUTSET)
+	ring.add_theme_stylebox_override("panel", line)
+	ring.visible = false
+	stamped.add_child(ring)
 
 
 ## The run's boxes: one per upgrade shift (balance data), plus one when its deck has a starting

@@ -1,0 +1,70 @@
+/* ================= #71 planning effects, hybrid h1 ================= */
+.receipt .ln { line-height: 19px; }
+.receipt { padding-top: 9px; }
+.ln .x3 { font-family: Atkinson; font-weight: 800; font-size: 11px; color: var(--ink); background: var(--mustard); border: 2px solid var(--ink); padding: 0 3px; line-height: 12px; }
+.ln.tch { background: var(--mustard-pale); }
+/* calm monitor: the shift brief and a one-line key to the stickers */
+.screen.brief { display: block; padding: 10px 16px; }
+.brief .bt { display: flex; justify-content: space-between; font-family: Pixelify; font-size: 22px; }
+.brief .bk { font-family: Pixelify; font-size: 12px; letter-spacing: 1px; color: var(--ink-light); margin-top: 10px; }
+.brief .bn { font-family: Pixelify; font-size: 19px; margin-top: 2px; }
+.brief .bd2 { font-size: 13px; font-weight: 650; color: var(--ink-light); margin-top: 2px; }
+.brief .legend { position: absolute; left: 14px; right: 14px; bottom: 8px; height: 34px; border-top: 2px dashed var(--cream-shade); display: flex; align-items: center; gap: 12px; padding-top: 4px;
+  font-size: 12px; font-weight: 700; color: var(--ink); white-space: nowrap; }
+.legend .lg { display: flex; align-items: center; gap: 4px; }
+.legend .lg .fx { position: relative; }
+.screen .gives { display: flex; gap: 5px; font-size: 12px; line-height: 14px; font-weight: 650; color: var(--ink); margin-top: 5px; }
+.screen .gives > b { flex: none; background: var(--mustard); border: 2px solid var(--ink); font-size: 12px; line-height: 12px; padding: 1px 3px; height: 18px; }
+.screen .gives .amt { color: #7a5a10; }
+
+/* items: boosted ones get a stepped pixel halo (hard 2 px dilations, no blur; in Godot an outline shader on the sprite) */
+.item.h1 > :first-child { filter: drop-shadow(2px 0 0 #f1d27a) drop-shadow(-2px 0 0 #f1d27a) drop-shadow(0 2px 0 #f1d27a) drop-shadow(0 -2px 0 #f1d27a)
+  drop-shadow(2px 0 0 #2b2420) drop-shadow(-2px 0 0 #2b2420) drop-shadow(0 2px 0 #2b2420) drop-shadow(0 -2px 0 #2b2420); }
+.item.h2 > :first-child { filter: drop-shadow(2px 0 0 #faecbc) drop-shadow(-2px 0 0 #faecbc) drop-shadow(0 2px 0 #faecbc) drop-shadow(0 -2px 0 #faecbc)
+  drop-shadow(2px 0 0 #e2b33c) drop-shadow(-2px 0 0 #e2b33c) drop-shadow(0 2px 0 #e2b33c) drop-shadow(0 -2px 0 #e2b33c)
+  drop-shadow(2px 0 0 #2b2420) drop-shadow(-2px 0 0 #2b2420) drop-shadow(0 2px 0 #2b2420) drop-shadow(0 -2px 0 #2b2420); }
+.item.h3 > :first-child { filter: drop-shadow(2px 0 0 #fbf7ee) drop-shadow(-2px 0 0 #fbf7ee) drop-shadow(0 2px 0 #fbf7ee) drop-shadow(0 -2px 0 #fbf7ee)
+  drop-shadow(2px 0 0 #f1d27a) drop-shadow(-2px 0 0 #f1d27a) drop-shadow(0 2px 0 #f1d27a) drop-shadow(0 -2px 0 #f1d27a)
+  drop-shadow(2px 0 0 #e2b33c) drop-shadow(-2px 0 0 #e2b33c) drop-shadow(0 2px 0 #e2b33c) drop-shadow(0 -2px 0 #e2b33c)
+  drop-shadow(2px 0 0 #2b2420) drop-shadow(-2px 0 0 #2b2420) drop-shadow(0 2px 0 #2b2420) drop-shadow(0 -2px 0 #2b2420); }
+.item.denied > :first-child { filter: grayscale(1) brightness(.78) contrast(.9); }
+.item.away { opacity: .4; }
+
+/* stickers and the stamp: a pixel canvas (shape, ink outline, hard 1-texel shadow) with upright type over it */
+.fx { position: absolute; z-index: 7; }
+.fx > canvas { position: absolute; left: 0; top: 0; }
+.fx .t { position: absolute; left: 0; top: 0; right: 0; bottom: 0; display: flex; align-items: center; justify-content: center; gap: 3px; white-space: nowrap; }
+.stk .t { font-family: Atkinson; font-weight: 800; font-size: 21px; color: var(--ink); letter-spacing: -.5px; }
+.stk.mul .t { font-size: 22px; }
+.stk.fzs .t { font-size: 15px; color: #4a4640; padding-left: 6px; }
+.stamp71 .t { flex-direction: column; gap: 1px; color: var(--tomato-dark); transform: rotate(-9deg); padding-top: 2px; }
+.stamp71 .t .big { font-family: Atkinson; font-weight: 800; font-size: 28px; line-height: 26px; }
+.stamp71 .t .sm { font-family: Pixelify; font-size: 11px; letter-spacing: 1px; line-height: 12px; }
+/* stepped back while another item is hovered: opaque and drained (a see-through sticker would ghost over the item's art) */
+.dim { filter: grayscale(1) brightness(.62) contrast(.55); }
+.fx.dim > canvas, .fx.dim img { filter: none; }
+
+/* tickets: the base price keeps its place, struck when the item pays something else; the real pay is the sticker on it */
+.tk .p { display: flex; align-items: center; gap: 6px; }
+.strk { position: relative; color: var(--ink-light); }
+.strk::after { content: ""; position: absolute; left: -3px; right: -3px; top: 10px; height: 2px; background: var(--ink); }
+.tk .ai2 { width: 18px; height: 18px; }
+.tk.dim { opacity: .45; }
+.label.got { background: #f6dd8f; }
+.label.got::before { background: var(--mustard); }
+.label.sel { outline: none; box-shadow: 0 0 0 2px #faecbc, 0 0 0 4px #e2b33c, 0 0 0 6px #2b2420; }
+.pb { position: absolute; z-index: 6; }
+.pb svg { position: absolute; left: 0; top: 0; overflow: visible; }
+.pb .t { position: absolute; left: 0; right: 0; text-align: center; font-family: Atkinson; font-weight: 800; color: var(--ink); }
+.pb.z .t { color: var(--paper); }
+.dimg { opacity: .45; }
+
+/* the rail strip: giver name at the start, factor badges dropping onto the target tickets, gains while hovered */
+.cname { position: absolute; z-index: 7; font-family: Pixelify; font-size: 13px; line-height: 14px; letter-spacing: .5px; white-space: nowrap; color: var(--ink); }
+.cname.hot { color: var(--ink); }
+.fb { position: absolute; z-index: 7; height: 24px; min-width: 36px; padding: 0 3px; background: var(--paper); border: 2px solid var(--ink);
+  font-family: Atkinson; font-weight: 800; font-size: 17px; line-height: 20px; text-align: center; color: var(--ink); box-shadow: 2px 2px 0 rgba(30,18,10,.45); }
+.fb.big { background: var(--mustard-light); height: 28px; font-size: 20px; line-height: 24px; }
+.fb.amt { height: 22px; min-width: 0; font-size: 14px; line-height: 18px; padding: 0 4px; background: var(--paper); color: #7a5a10; }
+.tagchip { position: absolute; z-index: 7; height: 18px; padding: 0 5px; background: var(--teal-panel); border: 2px solid var(--ink); color: var(--paper);
+  font-family: Pixelify; font-size: 11px; line-height: 14px; white-space: nowrap; }

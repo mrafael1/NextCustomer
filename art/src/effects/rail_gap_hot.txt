@@ -1,0 +1,15 @@
+; A lit gap of the price rail between two tickets the strip spans, hovered (hot)
+; (#71 planning effects, mock-up h1 (docs/art/mockups/planning_effects_src/H1_BUILD_SPEC.md)): {g_lit} lit top (2 rows), {g_fill} fill, {g_shade} shade bottom
+; (3 rows). It sits inset in the rail between the tickets' ink outlines, so it has none
+; of its own. A vertical 9-slice 6x8 @2 (margins 2 top, 3 bottom), 12x64 on screen.
+@size 6x8
+@kind frame
+@scale 2
+YYYYYY
+YYYYYY
+MMMMMM
+MMMMMM
+MMMMMM
+mmmmmm
+mmmmmm
+mmmmmm

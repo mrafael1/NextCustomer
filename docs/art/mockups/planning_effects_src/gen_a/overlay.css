@@ -1,0 +1,42 @@
+/* ---------- #71 planning effects, direction A: everything attached to the item ---------- */
+.receipt { height: 284px; line-height: 18px; }
+.ln .x3 { font-family: Atkinson; font-weight: 800; font-size: 11px; color: var(--ink); background: var(--mustard); border: 2px solid var(--ink); padding: 0 3px; line-height: 12px; }
+.ln.tch { background: var(--mustard-pale); }
+.screen .gives { display: flex; gap: 6px; align-items: center; font-size: 13px; line-height: 16px; font-weight: 650; color: var(--ink); margin-top: 6px; }
+.screen .gives .gx { font-weight: 800; font-size: 14px; background: var(--mustard); border: 2px solid var(--ink); padding: 0 4px; }
+/* boosted items: a stepped pixel halo (hard 2 px dilations, no blur) - in Godot an outline shader on the sprite */
+.item.h1 > :first-child { filter: drop-shadow(2px 0 0 #f1d27a) drop-shadow(-2px 0 0 #f1d27a) drop-shadow(0 2px 0 #f1d27a) drop-shadow(0 -2px 0 #f1d27a)
+  drop-shadow(2px 0 0 #2b2420) drop-shadow(-2px 0 0 #2b2420) drop-shadow(0 2px 0 #2b2420) drop-shadow(0 -2px 0 #2b2420); }
+.item.h2 > :first-child { filter: drop-shadow(2px 0 0 #faecbc) drop-shadow(-2px 0 0 #faecbc) drop-shadow(0 2px 0 #faecbc) drop-shadow(0 -2px 0 #faecbc)
+  drop-shadow(2px 0 0 #e2b33c) drop-shadow(-2px 0 0 #e2b33c) drop-shadow(0 2px 0 #e2b33c) drop-shadow(0 -2px 0 #e2b33c)
+  drop-shadow(2px 0 0 #2b2420) drop-shadow(-2px 0 0 #2b2420) drop-shadow(0 2px 0 #2b2420) drop-shadow(0 -2px 0 #2b2420); }
+.item.h3 > :first-child { filter: drop-shadow(2px 0 0 #fbf7ee) drop-shadow(-2px 0 0 #fbf7ee) drop-shadow(0 2px 0 #fbf7ee) drop-shadow(0 -2px 0 #fbf7ee)
+  drop-shadow(2px 0 0 #f1d27a) drop-shadow(-2px 0 0 #f1d27a) drop-shadow(0 2px 0 #f1d27a) drop-shadow(0 -2px 0 #f1d27a)
+  drop-shadow(2px 0 0 #e2b33c) drop-shadow(-2px 0 0 #e2b33c) drop-shadow(0 2px 0 #e2b33c) drop-shadow(0 -2px 0 #e2b33c)
+  drop-shadow(2px 0 0 #2b2420) drop-shadow(-2px 0 0 #2b2420) drop-shadow(0 2px 0 #2b2420) drop-shadow(0 -2px 0 #2b2420); }
+.item.denied > :first-child { filter: grayscale(1) brightness(.78) contrast(.9); }
+/* stickers, ribbons, tags: a pixel canvas (shape, ink outline, hard 1-texel shadow) with upright type over it */
+.fx { position: absolute; z-index: 7; }
+.fx > canvas { position: absolute; left: 0; top: 0; }
+.fx .t { position: absolute; left: 0; top: 0; right: 0; bottom: 0; display: flex; align-items: center; justify-content: center; gap: 3px; white-space: nowrap; }
+.stk .t { font-family: Atkinson; font-weight: 800; font-size: 21px; color: var(--ink); letter-spacing: -.5px; }
+.stk.mul .t { font-size: 22px; }
+.stk .t canvas { display: block; }
+.rib .t { font-family: Atkinson; font-weight: 750; font-size: 15px; color: var(--paper); justify-content: flex-start; padding-left: 14px; gap: 6px; }
+.rib .t b { font-weight: 800; font-size: 20px; color: var(--mustard-light); }
+.rib .t i { font-style: normal; font-weight: 800; color: var(--mustard-light); }
+.rib .t em { font-style: normal; font-weight: 800; font-size: 15px; color: var(--ink); background: var(--mustard-light); padding: 0 4px; margin-left: 2px; }
+.tag .t { font-family: Atkinson; font-weight: 800; font-size: 18px; color: var(--ink); padding-left: 10px; gap: 4px; }
+.tag .t s { font-weight: 700; font-size: 13px; color: var(--ink-light); text-decoration: none; }
+.tag .t s.x { text-decoration: line-through 2px; }
+.tag .t .ar { font-size: 14px; color: var(--ink-light); }
+.tag.den .t, .tag.den .t s, .tag.den .t .ar { color: var(--paper); }
+.tag.fz .t { color: #4a4640; font-size: 15px; }
+.stamp71 .t { flex-direction: column; gap: 1px; color: var(--tomato-dark); transform: rotate(-9deg); padding-top: 2px; }
+.stamp71 .t .big { font-family: Atkinson; font-weight: 800; font-size: 28px; line-height: 26px; }
+.stamp71 .t .sm { font-family: Pixelify; font-size: 11px; letter-spacing: 1px; line-height: 12px; }
+.string { position: absolute; width: 2px; background: var(--ink); z-index: 6; }
+.dim { opacity: .3; }
+.note71 { position: absolute; z-index: 9; font-family: Atkinson; font-weight: 650; font-size: 11px; color: var(--paper); background: rgba(31,59,58,.92); border: 2px solid var(--ink); padding: 2px 6px; }
+
+.rib .t .bd { display: inline-flex; margin-right: -2px; }

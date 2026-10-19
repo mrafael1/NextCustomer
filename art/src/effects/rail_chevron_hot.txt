@@ -1,0 +1,10 @@
+; A chevron on the rail strip pointing from the giver to its targets, hovered (hot)
+; (#71 planning effects, mock-up h1 (docs/art/mockups/planning_effects_src/H1_BUILD_SPEC.md)): a > in {chev}, a line glyph printed on the strip's
+; fill, so it has no outline of its own. 3x5, shown at 2x, every 16 px.
+@size 3x5
+@kind icon
+m..
+.m.
+..m
+.m.
+m..

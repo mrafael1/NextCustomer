@@ -12,6 +12,12 @@ extends Control
 ##    its sticker's short effect, over as many slides as they need.
 ## Upgrades and coupons are skipped when there are none; a slide alone shows no dots and never
 ## changes. The brief and an upgrade take the first of TIERS' text sizes that fits the slide.
+## In planning the brief also gets a sticker key pinned to its bottom (#71, mock-up h1,
+## H1_BUILD_SPEC.md section 7; set_key): the first real sticker of each kind on the belt, each
+## with its caption ("+3 own rule", "×3 from an item", ...), in order, skipping one that doesn't
+## fit the width left (a later, narrower one still may, as h1's "+12 loyalty"). The brief
+## first tries the tiers in the room over the key; when none fits, it is built without the key at
+## its full height.
 ##
 ## MonitorView owns it: it runs it (set_running) while the screen is the channel's, and the shift
 ## screen fills it through the monitor on every refresh (show_state). A state that keeps the slide
@@ -64,6 +70,20 @@ const COUPON_COLUMN_GAP := 8.0
 ## first that fits SLIDE_HEIGHT (the last one regardless).
 const TIERS: Array[Vector2i] = [Vector2i(13, 12), Vector2i(12, 11), Vector2i(11, 10)]
 const BRIEF_KEY := "brief"
+## The brief's sticker key: a row KEY_HEIGHT tall at the slide's bottom under a dashed rule
+## (KEY_RULE thick, in the GAP over the row, KEY_DASH dashes KEY_DASH_GAP apart, in cream shade),
+## each entry a real sticker (badge included) then its caption KEY_CAPTION_GAP after it, in the
+## bold body font; entries KEY_GAP apart.
+const KEY_HEIGHT := 34.0
+const KEY_GAP := 12.0
+const KEY_RULE := 2.0
+const KEY_DASH := 6.0
+const KEY_DASH_GAP := 4.0
+const KEY_CAPTION_GAP := 4.0
+const KEY_CAPTION_SIZE := 12
+const KEY_CAPTION_WEIGHT := 700
+const KEY_NAME := "Key"
+const KEY_TEXT := "%s %s"
 
 ## Returns true when the player asked for reduced motion (cuts, no wipe). None means false.
 var reduced_motion: Callable = Callable()
@@ -89,6 +109,10 @@ var _upgrades: Array[UpgradeDefinition] = []
 var _coupons: Array[CardDefinition] = []
 var _signature: String = ""
 var _pending: bool = false
+## The planning key's entries (set_key), their signature, and the texts the brief shows.
+var _key: Array[StickerSpec] = []
+var _key_signature: String = ""
+var _key_texts: PackedStringArray = PackedStringArray()
 
 
 func _init() -> void:
@@ -154,6 +178,38 @@ func show_state(
 		_rebuild()
 	else:
 		_pending = true
+
+
+## The brief's sticker key: `entries` (PlanningModel.key_entries; empty takes the key off).
+## Rebuilds the slides only when the key changed, staying on the slide shown.
+func set_key(entries: Array[StickerSpec]) -> void:
+	var parts: PackedStringArray = PackedStringArray()
+	for entry: StickerSpec in entries:
+		parts.append("%d|%s|%d|%s" % [entry.kind, entry.text, entry.badge, entry.badge_text])
+	var signature: String = ",".join(parts)
+	if signature == _key_signature:
+		return
+	_key_signature = signature
+	_key = entries.duplicate()
+	if _signature.is_empty():
+		return  # show_state builds the slides.
+	if is_inside_tree():
+		_rebuild()
+	else:
+		_pending = true
+
+
+## The key's entries the brief shows ("+3 own rule"), in order; empty without a key.
+func key_texts() -> PackedStringArray:
+	return _key_texts
+
+
+## The brief's key row, or null.
+func key_row() -> Control:
+	var index: int = _keys.find(BRIEF_KEY)
+	if index < 0:
+		return null
+	return _slides[index].get_node_or_null(KEY_NAME) as Control
 
 
 ## Runs the channel's clock (`running`), or stops it: back on, the slide shown gets a full period.
@@ -244,7 +300,7 @@ func _rebuild() -> void:
 		old.queue_free()
 	_slides.clear()
 	_keys = PackedStringArray()
-	_fitted(BRIEF_KEY, _build_brief)
+	_fit_brief()
 	for upgrade: UpgradeDefinition in _upgrades:
 		_fitted("upgrade:%s" % upgrade.id, _build_upgrade.bind(upgrade))
 	_build_coupons()
@@ -267,6 +323,73 @@ func _fitted(key: String, build: Callable) -> void:
 		if bottom <= SLIDE_HEIGHT or tier == TIERS.size() - 1:
 			return
 		_drop_last_slide()
+
+
+## The brief: with the key under it at the first of TIERS that fits over the key, else without
+## the key (_fitted).
+func _fit_brief() -> void:
+	_key_texts = PackedStringArray()
+	if not _key.is_empty():
+		for tier: int in range(TIERS.size()):
+			var page: Control = _new_slide(BRIEF_KEY)
+			var bottom: float = _build_brief(page, TIERS[tier])
+			if bottom <= SLIDE_HEIGHT - KEY_HEIGHT - GAP:
+				_add_key(page)
+				return
+			_drop_last_slide()
+	_fitted(BRIEF_KEY, _build_brief)
+
+
+## The key row at the bottom of `page`: the dashed rule, then each entry (its sticker and
+## caption) in order, skipping an entry that doesn't fit the width left (a later, narrower one may).
+func _add_key(page: Control) -> void:
+	var row: Control = Control.new()
+	row.name = KEY_NAME
+	row.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	page.add_child(row)
+	row.position = Vector2(0.0, SLIDE_HEIGHT - KEY_HEIGHT)
+	row.size = Vector2(page.size.x, KEY_HEIGHT)
+	row.draw.connect(_draw_key_rule.bind(row))
+	var x: float = 0.0
+	var middle: float = KEY_HEIGHT / 2.0
+	for entry: StickerSpec in _key:
+		var sticker: EffectSticker = EffectSticker.new(entry, 0.0)
+		var caption_text: String = PlanningModel.key_caption(entry)
+		var caption: Label = UiKit.label(caption_text, KEY_CAPTION_SIZE, Palette.INK)
+		caption.name = "Caption"
+		caption.add_theme_font_override("font", ArtStyle.bold_font(KEY_CAPTION_WEIGHT))
+		caption.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+		row.add_child(caption)
+		var caption_width: float = ceilf(caption.get_minimum_size().x)
+		var overhang: float = EffectSticker.badge_overhang(entry)
+		var width: float = overhang + sticker.size.x + KEY_CAPTION_GAP + caption_width
+		if x + width > row.size.x:
+			row.remove_child(caption)
+			caption.queue_free()
+			sticker.free()
+			continue
+		sticker.position = Vector2(
+			x + overhang, snappedf(middle - sticker.size.y / 2.0, ArtStyle.ART_SCALE)
+		)
+		row.add_child(sticker)
+		row.move_child(sticker, caption.get_index())
+		caption.position = Vector2(sticker.position.x + sticker.size.x + KEY_CAPTION_GAP, 0.0)
+		caption.size = Vector2(caption_width, KEY_HEIGHT)
+		_key_texts.append(KEY_TEXT % [entry.text, caption_text])
+		x += width + KEY_GAP
+	if _key_texts.is_empty():
+		page.remove_child(row)
+		row.queue_free()
+
+
+## The key row's dashed rule along its top, just over it (in the gap under the brief), so a
+## burst sticker has the row's whole height.
+func _draw_key_rule(row: Control) -> void:
+	var x: float = 0.0
+	while x < row.size.x:
+		var dash: float = minf(KEY_DASH, row.size.x - x)
+		row.draw_rect(Rect2(x, -KEY_RULE, dash, KEY_RULE), Palette.CREAM_SHADE)
+		x += KEY_DASH + KEY_DASH_GAP
 
 
 ## The brief: SHIFT and QUOTA on the top row, then the inspections (or none).

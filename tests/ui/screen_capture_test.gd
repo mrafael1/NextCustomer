@@ -6,7 +6,8 @@ extends GdUnitTestSuite
 ## the test redirects them too, so the real ones are never touched. Its capture saves one PNG
 ## (named for the scan after one), reporting a failed save or a card that isn't on the counter
 ## to its reporter (never to Godot's output); headless runs have no screen to grab, so the test
-## passes its own image.
+## passes its own image. Its effects (--effects, #71) set up the planning effects' richer belt and
+## hover a card's belt item.
 
 const CAPTURE := "res://debug/screen_capture/screen_capture.tscn"
 
@@ -101,6 +102,91 @@ func test_the_scan_scans_a_card_on_the_counter() -> void:
 	assert_str(screen._scan.scanned().card.definition.id).is_equal("eggs")
 
 
+## --effects (#71) sets up #60's reference row under the Spot check, every item wearing its
+## planning stickers (mock-up h1); --effects=multipack then hovers the belt's Multipack: it is
+## focused, the items it lands on stay related, the others dim, its scan finishes (the monitor
+## explains it), and the capture is named for the focused effects
+## (shift_screen_effects_<w>x<h>.png with no card).
+func test_the_effects_show_and_focus_the_planning_effects() -> void:
+	var capture: Control = scene_runner(CAPTURE).scene()
+	capture.set("report_error", _record)
+	capture.set("grab_image", func() -> Image: return Image.create(8, 8, false, Image.FORMAT_RGB8))
+	var screen: ShiftScreen = capture.call("screen")
+	await capture.call("effects")
+	await get_tree().process_frame
+	var run: RunState = screen.run
+	assert_int(run.phase).is_equal(RunState.Phase.PLANNING)
+	assert_str(run.inspections[0].id).is_equal("spot_check")
+	assert_int(run.row.size()).is_equal(7)
+	assert_int(run.hand().size()).is_equal(8)
+	assert_object(screen._effects.focused_card()).is_null()
+	var model: PlanningModel = screen._effects.committed_model()
+	var layer: PlanningLayer = screen._stage.planning_layer
+	assert_int(model.slots.size()).is_equal(run.row.size())
+	for slot: int in range(run.row.size()):
+		var texts: PackedStringArray = PackedStringArray()
+		for sticker: EffectSticker in layer.stack(slot):
+			texts.append(sticker.text())
+		var expected: PackedStringArray = PackedStringArray()
+		for spec: StickerSpec in model.slots[slot].stickers:
+			expected.append(spec.text)
+		assert_array(texts).override_failure_message(str(slot)).is_equal(expected)
+	# The 3rd product (the Milk in slot 2) is stamped by the Spot check.
+	assert_object(layer.stamp(2)).is_not_null()
+	await capture.call("capture", _capture_folder)
+	var window: Vector2i = capture.get_window().size
+	var plain: String = "shift_screen_effects_%dx%d.png" % [window.x, window.y]
+	assert_array(DirAccess.get_files_at(_capture_folder)).contains_exactly([plain])
+	DirAccess.remove_absolute(_capture_folder.path_join(plain))
+	await capture.call("effects", "multipack")
+	await get_tree().process_frame
+	screen = capture.call("screen")
+	var focused: CardInstance = screen._effects.focused_card()
+	assert_object(focused).is_not_null()
+	assert_str(focused.definition.id).is_equal("multipack")
+	var multipack: int = screen.run.row.find(focused)
+	assert_int((screen._row_views[multipack] as ItemView).relation).is_equal(
+		ItemView.Relation.FOCUS
+	)
+	var targets: int = 0
+	for slot: int in range(screen._row_views.size()):
+		if (screen._row_views[slot] as ItemView).relation == ItemView.Relation.RELATED:
+			targets += 1
+	assert_int(targets).is_greater_equal(1)
+	# Its scan has finished: the monitor explains it (mock-up h1's hover).
+	assert_str(screen._monitor.scan_name_label().text).is_equal(focused.definition.display_name)
+	await capture.call("capture", _capture_folder)
+	assert_array(_errors).is_empty()
+	var file_name: String = "shift_screen_effects_focus_%dx%d.png" % [window.x, window.y]
+	assert_array(DirAccess.get_files_at(_capture_folder)).contains_exactly([file_name])
+	await capture.call("effects", "soup")
+	assert_array(_errors).contains_exactly(["No soup on the belt to hover"])
+
+
+## A capture holds the real pointer (hold_pointer, from the start of a --capture run): the
+## viewport's GUI takes no pointer input, so wherever the OS pointer rests over the window it
+## hovers, tooltips and clicks nothing, and a capture records only the hover it asks for
+## (effects(), still driven through the screen's API). Leaving the tree gives the pointer back.
+## (Headless runs never move the mouse, so the test checks the viewport's switch.)
+func test_a_capture_holds_the_real_pointer() -> void:
+	var capture: Control = (load(CAPTURE) as PackedScene).instantiate() as Control
+	get_tree().root.add_child(capture)
+	var viewport: Viewport = capture.get_viewport()
+	await _frames(2)
+	assert_bool(viewport.gui_disable_input).is_false()
+	capture.call("hold_pointer")
+	assert_bool(viewport.gui_disable_input).is_true()
+	await capture.call("effects", "multipack")
+	await _frames(1)
+	var screen: ShiftScreen = capture.call("screen")
+	assert_str(screen._effects.focused_card().definition.id).is_equal("multipack")
+	await _frames(2)
+	get_tree().root.remove_child(capture)
+	assert_bool(viewport.gui_disable_input).is_false()
+	capture.queue_free()
+	await _frames(2)
+
+
 func test_a_card_not_on_the_counter_goes_to_the_reporter() -> void:
 	var capture: Control = scene_runner(CAPTURE).scene()
 	capture.set("report_error", _record)
@@ -119,6 +205,11 @@ func test_a_failed_capture_goes_to_the_reporter() -> void:
 	assert_int(_errors.size()).is_equal(1)
 	assert_bool(_errors[0].begins_with("Can't save")).is_true()
 	assert_int(DirAccess.get_files_at(_capture_folder).size()).is_equal(0)
+
+
+func _frames(count: int) -> void:
+	for _frame: int in range(count):
+		await get_tree().process_frame
 
 
 func _record(message: String) -> void:

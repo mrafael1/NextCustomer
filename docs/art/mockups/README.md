@@ -29,3 +29,27 @@ node docs/art/mockups/capture.js docs/art/mockups/shift_screen_b2.html /tmp/b2.p
 ```
 
 It needs Playwright and a Chromium (`CHROMIUM_PATH=/path/to/chromium` to pick one).
+
+## Planning effects mock-ups (#71, 2026-10-18)
+
+Static HTML mock-ups for issue #71's planning effects, made after the user's play test of the first build (a band of small chips floating above each belt item), which found it flat, with numbers floating and links hard to read. Each page is built on `shift_screen_b2_mirrored.html` (#84) and shows #60's reference row (Eggs, Bread, Milk, Multipack and three Milks) under the Spot check, with Multipack hovered on the `_hover` page. Their numbers are invented; the game shows the real steps.
+
+| Page | Hover page | Captures | Idea |
+|---|---|---|---|
+| `planning_effects_a.html` | `planning_effects_a_hover.html` | `planning_effects_a_1920x1080.png`, `planning_effects_a_hover_1920x1080.png` | **A: on the item.** Received effects are stickers slapped on the item (a cream "+N" price-gun label, a gold "×N" starburst, each with its giver's mini badge), a boosted item stands in a stepped pixel halo, a denied one is greyed under a rubber stamp, a giver wears a hanging ribbon ("×3 › 3 Milk"), and a price-gun tag under each item gives its pay. |
+| `planning_effects_b.html` | `planning_effects_b_hover.html` | `planning_effects_b_1920x1080.png`, `planning_effects_b_hover_1920x1080.png` | **B: on the ticket and the rail.** The pay sits on the ticket (the base price struck, the final pay on a gold burst or a tomato tag), and a brass rail strip along the belt lip runs from the giver's ticket to its targets, with a factor badge dropping onto each. |
+| `planning_effects_c.html` | `planning_effects_c_hover.html` | `planning_effects_c_1920x1080.png`, `planning_effects_c_hover_1920x1080.png` | **C: arcs.** Effect arcs over the belt from each giver to its targets, with tokens on the rail and result bubbles over the items. |
+| `planning_effects_h1.html` | `planning_effects_h1_hover.html` | `planning_effects_h1_1920x1080.png`, `planning_effects_h1_hover_1920x1080.png` | **h1: A's stickers, halo and stamp, B's ticket pay and B's rail strips.** Stickers stack in apply order and grow upward over the item and the back wall, never onto the ticket; the ticket carries the pay; the calm brass strip says who gives what; the monitor's brief keys the stickers. Hovering a giver turns its strip bright gold with each target's gain, keeps only its stickers lit, fades the rest, and the monitor and receipt explain. |
+| `planning_effects_h2.html` | `planning_effects_h2_hover.html` | `planning_effects_h2_1920x1080.png`, `planning_effects_h2_hover_1920x1080.png` | **h2: stickers and pipes.** A's stickers with C's links as chunky gold pixel pipes running in the gap under the monitor and dropping onto each boosted item, and B's ticket pay. |
+
+The user rejected h2's pipes, A's ribbons and the first build's floating chip band, and **approved h1 as "perfect"** (2026-10-18). The game builds h1 from `planning_effects_src/H1_BUILD_SPEC.md`, which maps every mock-up value onto the game's geometry and palette; the game's captures are `docs/art/shift_screen_effects_*.png`.
+
+### Re-generating
+
+Each page has a generator in `planning_effects_src/gen_<name>/` (`a`, `b`, `c`, `h1`, `h2`): a Python script (standard library only) that patches `shift_screen_b2_mirrored.html` with its overlay script and stylesheet, and writes both pages here. `run.sh` rebuilds them and captures them at 1920x1080 through headless Chrome (`cap.sh`; `CHROME=<path>` picks the browser, and its profile goes to a throwaway folder in `TMPDIR`):
+
+```sh
+sh docs/art/mockups/planning_effects_src/gen_h1/run.sh
+```
+
+The base page reaches this branch with `main` (#84). Until it is merged in, the generators stop with "shift_screen_b2_mirrored.html comes from main (#84): merge main first".

@@ -6,9 +6,10 @@ extends GdUnitTestSuite
 ## in (cut under reduced motion) with a page dot per slide; slide kinds with nothing to show are
 ## skipped; a state change keeps the slide shown; a scan takes the screen and the channel resumes
 ## on its slide; the count-up keeps it off the screen until the next shift's planning. Alone, every
-## slide built from the longest real texts in data fits the monitor's screen. The channel's clock
-## is the tests' (`_clock`, ticked explicitly); nothing waits in real time. The real saves and logs
-## are never touched.
+## slide built from the longest real texts in data fits the monitor's screen, and the brief's
+## sticker key (#71) shows its entries in order, fits its row and drops out when the brief needs
+## the room. The channel's clock is the tests' (`_clock`, ticked explicitly); nothing waits in
+## real time. The real saves and logs are never touched.
 
 const SCREEN := "res://ui/shift_screen.tscn"
 const CARDS := "res://data/cards"
@@ -349,6 +350,107 @@ func test_every_slide_fits_the_screen() -> void:
 		assert_bool(shown.has(coupon.display_name)).override_failure_message(coupon.id).is_true()
 
 
+## The brief's sticker key (#71, H1_BUILD_SPEC.md section 7): pinned to the slide's bottom under
+## its dashed rule, each entry a real sticker (its badge included) and its caption, in order,
+## skipping one that doesn't fit the width left, with the brief's text over it; a state change
+## keeps it; a brief too tall to leave it room drops it (and is built at full height); an empty key
+## takes it off.
+func test_the_brief_keys_the_stickers() -> void:
+	var monitor: MonitorView = await _monitor()
+	var channel: MonitorChannel = monitor.channel
+	var none: Array[InspectionDefinition] = []
+	var no_upgrades: Array[UpgradeDefinition] = []
+	var no_coupons: Array[CardDefinition] = []
+	channel.show_state(1, 8, 30, none, no_upgrades, no_coupons)
+	await _frames(1)
+	assert_object(channel.key_row()).is_null()
+	var entries: Array[StickerSpec] = [
+		_entry(StickerSpec.Kind.ADD, "+3", GiverBadge.Kind.NONE, ""),
+		_entry(StickerSpec.Kind.MULTIPLY, "×3", GiverBadge.Kind.ITEM, "Eg"),
+		_entry(StickerSpec.Kind.MULTIPLY, "×3", GiverBadge.Kind.COUPON, "Mu"),
+		_entry(StickerSpec.Kind.ADD, "+12", GiverBadge.Kind.LOYALTY, "SlE"),
+		_entry(StickerSpec.Kind.FIZZLE, "pfff", GiverBadge.Kind.NONE, ""),
+	]
+	var expected: PackedStringArray = PackedStringArray()
+	for entry: StickerSpec in entries:
+		expected.append(MonitorChannel.KEY_TEXT % [entry.text, PlanningModel.key_caption(entry)])
+	assert_str(expected[0]).is_equal("+3 own rule")
+	monitor.set_planning_key(entries)
+	await _frames(1)
+	_assert_key(channel, expected)
+	# The coupon's entry doesn't fit after the first two and is skipped; the narrower loyalty one
+	# still fits (as in h1), and the fizzle's no longer does.
+	assert_array(Array(channel.key_texts())).is_equal([expected[0], expected[1], expected[3]])
+	# A state change keeps the key.
+	channel.show_state(2, 8, 45, none, no_upgrades, no_coupons)
+	await _frames(1)
+	_assert_key(channel, expected)
+	# Every inspection on one brief leaves no room for the key: the brief is built without it.
+	var crowded: Array[InspectionDefinition] = []
+	for path: String in _files(INSPECTIONS):
+		crowded.append(load(path) as InspectionDefinition)
+	channel.show_state(2, 8, 45, crowded, no_upgrades, no_coupons)
+	await _frames(1)
+	assert_object(channel.key_row()).is_null()
+	assert_array(Array(channel.key_texts())).is_empty()
+	# Back to room, then an empty key takes it off.
+	channel.show_state(3, 8, 60, none, no_upgrades, no_coupons)
+	await _frames(1)
+	_assert_key(channel, expected)
+	var no_key: Array[StickerSpec] = []
+	monitor.set_planning_key(no_key)
+	await _frames(1)
+	assert_object(channel.key_row()).is_null()
+	assert_array(Array(channel.key_texts())).is_empty()
+
+
+## The brief shows a key whose texts are `expected` in order with some skipped (its first entry
+## always shown), inside the slide under the brief's labels, with every sticker and caption inside
+## its row.
+func _assert_key(channel: MonitorChannel, expected: PackedStringArray) -> void:
+	var texts: PackedStringArray = channel.key_texts()
+	assert_int(texts.size()).is_greater(0)
+	assert_str(texts[0]).is_equal(expected[0])
+	assert_bool(_in_order(texts, expected)).override_failure_message(str(texts)).is_true()
+	var row: Control = channel.key_row()
+	assert_object(row).is_not_null()
+	var brief: int = Array(channel.slide_keys()).find(MonitorChannel.BRIEF_KEY)
+	var area: Rect2 = Rect2(
+		channel.get_global_position(), Vector2(channel.size.x, MonitorChannel.SLIDE_HEIGHT)
+	)
+	var row_rect: Rect2 = row.get_global_rect()
+	assert_bool(area.encloses(row_rect)).override_failure_message(str(row_rect)).is_true()
+	assert_float(row_rect.size.y).is_equal(MonitorChannel.KEY_HEIGHT)
+	for label: Label in channel.slide_labels(brief):
+		assert_float(label.get_global_rect().end.y).is_less_equal(row_rect.position.y)
+	var stickers: int = 0
+	for child: Node in row.get_children():
+		var part: Control = child as Control
+		var rect: Rect2 = part.get_global_rect()
+		if part is EffectSticker:
+			stickers += 1
+			var badge: GiverBadge = (part as EffectSticker).badge()
+			if badge != null:
+				rect = rect.merge(badge.get_global_rect())
+		(
+			assert_bool(row_rect.grow(0.5).encloses(rect))
+			. override_failure_message("%s %s" % [part.name, rect])
+			. is_true()
+		)
+	assert_int(stickers).is_equal(texts.size())
+
+
+static func _entry(
+	kind: StickerSpec.Kind, text: String, badge: GiverBadge.Kind, initials: String
+) -> StickerSpec:
+	var entry: StickerSpec = StickerSpec.new()
+	entry.kind = kind
+	entry.text = text
+	entry.badge = badge
+	entry.badge_text = initials
+	return entry
+
+
 ## The screen past the impulse rack, the channel and the scanner on the tests' clock.
 func _screen() -> ShiftScreen:
 	var runner: GdUnitSceneRunner = scene_runner(SCREEN)
@@ -440,3 +542,14 @@ func _frames(count: int) -> void:
 
 static func _event_log() -> EventLogService:
 	return (Engine.get_main_loop() as SceneTree).root.get_node("/root/EventLog")
+
+
+## Whether every text of `shown` is in `all`, in the same order (a subsequence).
+static func _in_order(shown: PackedStringArray, all: PackedStringArray) -> bool:
+	var at: int = 0
+	for text: String in shown:
+		at = all.find(text, at)
+		if at < 0:
+			return false
+		at += 1
+	return true

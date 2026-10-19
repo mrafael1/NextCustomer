@@ -105,17 +105,15 @@ func land(index: int, landed: Callable = Callable()) -> void:
 ## Fizzle beat `index` (its step `step`): when it is an armed effect's (the latest ARMED beat
 ## before it on the same card with the same text), that effect's pip greys and stays grey; one
 ## whose tokens all landed gets its pip back, grey.
+## The matching is EffectLinks.armed_of_waste on the steps; `step` is the beat's own step.
 func spend(index: int, step: ScoreStep) -> void:
 	if step.source_kind != ScoreStep.SourceKind.CARD:
 		return
+	var armed_step: int = EffectLinks.armed_of_waste(_steps, _plan.beats[index].steps[0])
+	if armed_step == -1:
+		return
 	for armed: int in range(index - 1, -1, -1):
-		var beat: CountUpBeat = _plan.beats[armed]
-		var armed_step: ScoreStep = _steps[beat.steps[0]]
-		if (
-			beat.kind != CountUpBeat.Kind.ARMED
-			or armed_step.slot != step.slot
-			or armed_step.text != step.text
-		):
+		if _plan.beats[armed].steps[0] != armed_step:
 			continue
 		var pip: EffectMarker = pips.get(armed) as EffectMarker
 		if pip == null or not is_instance_valid(pip):
@@ -159,9 +157,7 @@ func clear() -> void:
 
 ## What a landing does, on its token: "×3" or "+3".
 func token_text(target: int) -> String:
-	var step: ScoreStep = _steps[_plan.beats[target].steps[0]]
-	var multiplies: bool = step.step_type == ScoreStep.StepType.MULTIPLIER
-	return ("×%d" if multiplies else "+%d") % step.value
+	return EffectLinks.token_text(_steps[_plan.beats[target].steps[0]])
 
 
 ## The token of armed beat `armed` for its landing at beat `target`: it flies from the arming

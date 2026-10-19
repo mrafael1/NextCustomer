@@ -13,10 +13,17 @@ extends Node
 ## Sounds (#62, on the scene's Sfx): a soft slot_tick each time the landing slot changes during
 ## a drag, at most one per SLOT_TICK_MS of real time; and card_pickup when a drag starts on the
 ## card already picked up (a first press already sounded its pick-up on the shift screen).
+##
+## Planning effects (#71): `landing_changed` reports each new landing slot during a drag, so the
+## shift screen can show the effects of dropping there (on the ghost too); the drag's end
+## reports a null card.
 
 ## The button was released: after a drag (`dragged`, `slot` the row slot under the mouse or
 ## -1), or without one on a card armed to let go on a click.
 signal released(card: CardInstance, slot: int, dragged: bool)
+## During a drag, the landing slot changed to `slot` (-1: none); a null `card` when the drag
+## ended (dropped, let go or cancelled), before `released`.
+signal landing_changed(card: CardInstance, slot: int)
 
 ## How far the mouse moves with the button held before a pick becomes a drag, in pixels.
 const DRAG_THRESHOLD := 8.0
@@ -68,9 +75,15 @@ func is_dragging() -> bool:
 	return _dragging
 
 
+## The dragged item's ghost, or null when nothing is dragged.
+func ghost() -> ItemView:
+	return _ghost
+
+
 ## Stops tracking without reporting anything (a new shift, the count-up), and puts the
 ## carried card's look back.
 func cancel() -> void:
+	var was_dragging: bool = _dragging
 	if is_instance_valid(_dimmed) and not _dimmed.is_queued_for_deletion():
 		# A carried card is never marked for a redraw (redraw mode doesn't pick cards up).
 		_dimmed.body.modulate = Color.WHITE
@@ -82,6 +95,8 @@ func cancel() -> void:
 	if _ghost != null:
 		_ghost.queue_free()
 		_ghost = null
+	if was_dragging:
+		landing_changed.emit(null, -1)
 
 
 func _input(event: InputEvent) -> void:
@@ -176,6 +191,8 @@ func _set_hovered(slot: int) -> void:
 	if _hovered >= 0 and _hovered < _slots.size():
 		_tint(_slots[_hovered], true)
 		_tick()
+	if _dragging:
+		landing_changed.emit(_card, _hovered)
 
 
 ## A soft tick for the new landing slot, unless one sounded less than SLOT_TICK_MS ago.

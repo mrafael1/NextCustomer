@@ -150,6 +150,50 @@ func test_releasing_the_button_elsewhere_cancels_without_a_drop() -> void:
 	assert_int(screen._drag.hovered_slot()).is_equal(-1)
 
 
+## While a card is dragged over a slot, the quota chip shows the total the drop would give and its
+## change from the projected total (#71, decision 4A), from the run's preview with the card placed
+## there, never placing it; a release with the button already up puts the projected total back.
+## The top bar never moves meanwhile: the bar and every chip keep their place at each landing.
+func test_the_quota_chip_shows_the_drops_total() -> void:
+	var screen: ShiftScreen = await _screen()
+	_drag_hand_card(screen, _add(screen, "bread"), 0)
+	await _frames(2)
+	var projected: int = screen.run.preview().total
+	assert_str(screen._quota_meter.shown_text()).is_equal("€%d" % projected)
+	var layout: Array[Rect2] = _top_bar_rects(screen)
+	var eggs: CardInstance = _add(screen, "eggs")
+	_press_hand_card(screen, eggs)
+	for slot: int in [0, 1]:
+		_move(screen, _slot_center(screen, slot))
+		await _frames(2)
+		var total: int = screen.run.preview(eggs, slot).total
+		assert_str(screen._quota_meter.shown_text()).is_equal(
+			QuotaMeter.HYPOTHETICAL_TEXT % [total, total - projected]
+		)
+		assert_array(_top_bar_rects(screen)).override_failure_message(str(slot)).is_equal(layout)
+		assert_int(screen.run.row.size()).is_equal(1)
+	# Eggs before Bread lands its ×2: the drop gains more than its own price.
+	var before_bread: int = screen.run.preview(eggs, 0).total
+	assert_int(before_bread).is_greater(screen.run.preview(eggs, 1).total)
+	var motion: InputEventMouseMotion = InputEventMouseMotion.new()
+	motion.position = _slot_center(screen, 2)
+	screen._drag._input(motion)
+	assert_bool(screen._drag.is_dragging()).is_false()
+	assert_str(screen._quota_meter.shown_text()).is_equal("€%d" % projected)
+	await _frames(2)
+	assert_array(_top_bar_rects(screen)).is_equal(layout)
+
+
+## The top bar's chips and the QUOTA bar, as they stand on screen.
+static func _top_bar_rects(screen: ShiftScreen) -> Array[Rect2]:
+	var rects: Array[Rect2] = [screen._quota_meter.bar().get_global_rect()]
+	for child: Node in screen._top_bar.get_children():
+		var control: Control = child as Control
+		if control != null and control.visible:
+			rects.append(control.get_global_rect())
+	return rects
+
+
 ## The drop target is the slot's column (#80 play test, 2026-10-17): from the top of where its
 ## item's art stands down to its ticket, over the footprint, and half the gap to each neighbour.
 ## Over an empty slot's art area, a filled slot's item or either half of the gap between two cells

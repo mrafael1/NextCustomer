@@ -164,17 +164,20 @@ func test_the_footprint_recedes_to_the_vanishing_point() -> void:
 
 
 ## An open slot takes clicks and drops in its column (#80 play test, 2026-10-17): its drop target
-## reaches from the top of a belt item's sprite, lifted (DROP_TOP, the item's hit_rect top, so the
-## pointer on a standing item's art finds the slot) down to the ticket's foot, over the footprint
+## reaches from the top of a belt item's sprite, lifted and boosted (DROP_TOP, a boosted item's
+## hit_rect top, #71, so the pointer on a standing item's art finds the slot) down to the ticket's
+## foot, over the footprint
 ## and the ticket, and across half the gap to each neighbour, so neighbours meet in the gap's
 ## middle with no dead strip and no overlap. The band above it (the paid chip's) is the wall's.
 ## The target is the one control in an empty cell that stops the mouse, and a click on it is the
 ## slot's input.
 func test_the_drop_target_covers_the_item_footprint_ticket_and_half_gaps() -> void:
 	var half_gap: float = RowStrip.SEPARATION / 2.0
-	var expected: Rect2 = Rect2(-half_gap, 24, ItemView.BELT_SIZE.x + RowStrip.SEPARATION, 206)
+	var expected: Rect2 = Rect2(-half_gap, 18, ItemView.BELT_SIZE.x + RowStrip.SEPARATION, 212)
 	assert_that(RowStrip.drop_target_rect(RowStrip.SEPARATION)).is_equal(expected)
-	assert_float(RowStrip.DROP_TOP).is_equal(ItemView.BELT_SPRITE.y - ItemView.LIFT)
+	assert_float(RowStrip.DROP_TOP).is_equal(
+		ItemView.BELT_SPRITE.y - ItemView.LIFT - ItemView.BOOST_LIFT
+	)
 	assert_float(expected.end.y).is_equal(RowStrip.TICKET_RECT.end.y)
 	assert_bool(expected.encloses(RowStrip.FOOTPRINT_RECT)).is_true()
 	assert_bool(expected.encloses(RowStrip.TICKET_RECT)).is_true()

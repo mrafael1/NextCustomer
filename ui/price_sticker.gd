@@ -7,6 +7,11 @@ extends Control
 ## (CardDefinition.sticker_summary, formatted in core from the card's own data) in at most 2
 ## lines of bold Atkinson. A coupon's is the full-size ticket_coupon (a band of teal dashes) with
 ## "COUPON" in Pixelify teal and no glyph. Every number comes from the card's data.
+##
+## Planning effects (#71, mock-up h1): set_pay strikes a product's base through when the item pays
+## something else (the real pay is PlanningLayer's PayTag on the ticket's top band) and moves the
+## aisle glyph clear of that tag; set_got gives a hovered giver's target the mustard face
+## (ticket_got). Neither changes a number.
 
 const SIZE := Vector2(108, 64)
 const BASE_RECT := Rect2(8, 6, 74, 24)
@@ -26,13 +31,28 @@ const MAX_SUMMARY_LINES := 2
 const FRAME_TOP_MARGIN := 4
 const FRAME_MARGIN := 3
 const COUPON_TITLE := "COUPON"
+## A struck base (#71): its size when a pay tag needs the room, the line across its text
+## (STRIKE_WIDTH thick, STRIKE_OUT past each end), and the glyph's gap after the base's text and
+## round the tag.
+const BASE_STRUCK_SIZE := 18
+const STRIKE_WIDTH := 2.0
+const STRIKE_OUT := 3.0
+const GLYPH_GAP := 4.0
+const TAG_CLEARANCE := 2.0
+const STRIKE_NAME := "Strike"
 
 const FRAME := preload("res://art/frames/ticket_product.png")
 const COUPON_FRAME := preload("res://art/frames/ticket_coupon.png")
+const GOT_FRAME := preload("res://art/effects/ticket_got.png")
 
 var _base: Label
 var _summary: Label
 var _glyph: TextureRect
+## A product's face (a coupon's is its slip) and the struck base's line (#71).
+var _face: Panel
+var _strike: ColorRect
+var _struck: bool = false
+var _got: bool = false
 
 
 ## The sticker of `definition`, with the glyph of its `aisle` (null for a staple or a coupon).
@@ -47,17 +67,23 @@ func _init(definition: CardDefinition, aisle: AisleDefinition) -> void:
 		_base = UiKit.display_label(COUPON_TITLE, COUPON_TITLE_SIZE, false)
 		_base.add_theme_color_override("font_color", Palette.PANEL)
 	else:
-		var panel: Panel = Panel.new()
-		panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		panel.add_theme_stylebox_override("panel", frame_style())
-		ArtStyle.use_pixel_material(panel)
-		panel.size = SIZE
-		add_child(panel)
+		_face = Panel.new()
+		_face.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		_face.add_theme_stylebox_override("panel", frame_style())
+		ArtStyle.use_pixel_material(_face)
+		_face.size = SIZE
+		add_child(_face)
 		_base = UiKit.number_label("€%d" % definition.base, BASE_SIZE, false)
 	_base.position = BASE_RECT.position
 	_base.size = BASE_RECT.size
 	_base.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	add_child(_base)
+	_strike = ColorRect.new()
+	_strike.name = STRIKE_NAME
+	_strike.color = Palette.INK
+	_strike.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_strike.visible = false
+	add_child(_strike)
 	if aisle != null:
 		_glyph = UiKit.sprite(load(ArtStyle.glyph_path(aisle)) as Texture2D)
 		_glyph.position = GLYPH_RECT.position
@@ -88,9 +114,98 @@ func glyph() -> TextureRect:
 	return _glyph
 
 
+## The planning pay on the ticket (#71): `struck` strikes a product's base through (ink light,
+## an ink line across its text; a coupon's COUPON is never struck), and the base shrinks to
+## BASE_STRUCK_SIZE when the pay tag at `tag_rect` (this sticker's coordinates; empty: no tag)
+## starts before the base's text at full size ends. With a tag, the aisle glyph moves to just
+## after the base's text and hides when it would touch the tag. Neither false nor an empty rect
+## puts the plain ticket back.
+func set_pay(struck: bool, tag_rect: Rect2) -> void:
+	var tagged: bool = tag_rect.has_area()
+	var small: bool = tagged and tag_rect.position.x < base_text_end(BASE_SIZE) + GLYPH_GAP
+	var product: bool = _face != null
+	if product:
+		_base.add_theme_font_size_override("font_size", BASE_STRUCK_SIZE if small else BASE_SIZE)
+	_struck = struck and product
+	if product:
+		_base.add_theme_color_override("font_color", Palette.INK_LIGHT if _struck else Palette.INK)
+	var text: Rect2 = base_text_rect()
+	_strike.visible = _struck
+	if _struck:
+		var y: float = snappedf(text.get_center().y - STRIKE_WIDTH / 2.0, 1.0)
+		_strike.position = Vector2(text.position.x - STRIKE_OUT, y)
+		_strike.size = Vector2(text.size.x + 2.0 * STRIKE_OUT, STRIKE_WIDTH)
+	if _glyph == null:
+		return
+	if not tagged and not _struck:
+		_glyph.position = GLYPH_RECT.position
+		_glyph.visible = true
+		return
+	_glyph.position = Vector2(snappedf(text.end.x + GLYPH_GAP, 1.0), GLYPH_RECT.position.y)
+	var glyph_rect: Rect2 = Rect2(_glyph.position, GLYPH_RECT.size)
+	var face: Rect2 = Rect2(Vector2.ZERO, SIZE)
+	_glyph.visible = (
+		face.encloses(glyph_rect)
+		and not (tagged and glyph_rect.intersects(tag_rect.grow(TAG_CLEARANCE)))
+	)
+
+
+## Whether the base is struck through (#71).
+func is_struck() -> bool:
+	return _struck
+
+
+## Gives a product's ticket the mustard face of a hovered giver's target (#71), or its own back.
+## A coupon's slip keeps its face.
+func set_got(got: bool) -> void:
+	_got = got and _face != null
+	if _face != null:
+		_face.add_theme_stylebox_override("panel", got_style() if _got else frame_style())
+
+
+func is_got() -> bool:
+	return _got
+
+
+## Where the base's (or COUPON's) text ends, in this sticker's coordinates, at `font_size` (a
+## coupon's at its own size).
+func base_text_end(font_size: int) -> float:
+	var shown: int = font_size if _face != null else COUPON_TITLE_SIZE
+	return BASE_RECT.position.x + _text_width(_base, shown)
+
+
+## Where the base's (or COUPON's) text is drawn now, in this sticker's coordinates.
+func base_text_rect() -> Rect2:
+	var font_size: int = _base.get_theme_font_size("font_size")
+	var font: Font = _base.get_theme_font("font")
+	var height: float = font.get_height(font_size)
+	var top: float = BASE_RECT.position.y + (BASE_RECT.size.y - height) / 2.0
+	return Rect2(BASE_RECT.position.x, top, _text_width(_base, font_size), height)
+
+
+## Where the summary's lines are drawn, in this sticker's coordinates (empty with no summary).
+func summary_text_rect() -> Rect2:
+	if _summary.text.is_empty():
+		return Rect2()
+	var height: float = minf(_summary.get_minimum_size().y, SUMMARY_RECT.size.y)
+	return Rect2(SUMMARY_RECT.position, Vector2(SUMMARY_RECT.size.x, height))
+
+
 ## The product sticker's 9-slice: a tall top margin for the band, its plain edges and middle
 ## stretched (a tiled plain middle shows seam dots at 1080p).
 static func frame_style() -> StyleBoxTexture:
 	var style: StyleBoxTexture = ArtStyle.frame_style(FRAME, FRAME_MARGIN)
 	style.texture_margin_top = FRAME_TOP_MARGIN * ArtStyle.ART_SCALE
 	return style
+
+
+## A hovered giver's target's face (#71): ticket_got with the product sticker's margins.
+static func got_style() -> StyleBoxTexture:
+	var style: StyleBoxTexture = ArtStyle.frame_style(GOT_FRAME, FRAME_MARGIN)
+	style.texture_margin_top = FRAME_TOP_MARGIN * ArtStyle.ART_SCALE
+	return style
+
+
+static func _text_width(label: Label, font_size: int) -> float:
+	var font: Font = label.get_theme_font("font")
+	return font.get_string_size(label.text, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size).x
