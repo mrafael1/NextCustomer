@@ -546,19 +546,30 @@ func test_the_shader_switches_off_and_on() -> void:
 	var screen: ShiftScreen = await _rich_screen()
 	var marked: Array[CanvasItem] = _pixel_art(screen)
 	assert_int(marked.size()).is_greater(10)
+	# A grey or a halo (#71) is the node's look (ArtStyle.set_look), kept in both modes.
 	for item: CanvasItem in marked:
-		assert_object(item.material).is_same(ArtStyle.pixel_material())
+		assert_object(item.material).is_same(_look(item, ArtStyle.pixel_material()))
 	ArtStyle.set_sharp(screen, false)
 	for item: CanvasItem in marked:
-		assert_object(item.material).is_null()
+		if item.has_meta(ArtStyle.LOOK_META):
+			assert_object(item.material).is_same(_look(item, null))
+		else:
+			assert_object(item.material).is_null()
 		assert_int(item.texture_filter).is_equal(CanvasItem.TEXTURE_FILTER_NEAREST)
 	ArtStyle.set_sharp(screen, true)
 	for item: CanvasItem in marked:
-		assert_object(item.material).is_same(ArtStyle.pixel_material())
+		assert_object(item.material).is_same(_look(item, ArtStyle.pixel_material()))
 		assert_int(item.texture_filter).is_equal(CanvasItem.TEXTURE_FILTER_PARENT_NODE)
 
 
 # --- Helpers ---------------------------------------------------------------------------------
+
+
+## `item`'s look material (ArtStyle.set_look), else `plain`.
+static func _look(item: CanvasItem, plain: Material) -> Material:
+	if item.has_meta(ArtStyle.LOOK_META):
+		return item.get_meta(ArtStyle.LOOK_META) as Material
+	return plain
 
 
 ## The LED's digits (their ink: the line box is taller than the ink) on the glass, clear of the

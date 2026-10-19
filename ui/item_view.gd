@@ -22,6 +22,14 @@ extends CardView
 ## lifts the sprite and paid chip by LIFT (scan_lift; a basket item rises BASKET_LIFT out of its
 ## basket instead, mock-up B2); a hover or a selection lifts the mark too.
 ##
+## Planning effects (#71, mock-up h1): a boosted belt item (boost_rings) stands BOOST_LIFT higher
+## on the lifted contact shadow inside its stepped pixel halo (ItemHalo: 1 to 3 rings, drawn by
+## halo_outline.gdshader from the sprite's own texture, behind it); a denied one's sprite greys
+## (denied, ArtStyle.Grey.DENIED). `relation` says how it relates to the hovered item: FOCUS shows
+## the gold brackets, RELATED nothing, DIM fades its sprite and its ticket. None of it writes
+## `body.modulate`, which the highlight and the count-up's glow own, and PlanningEffects clears it
+## all before the count-up.
+##
 ## An undrawn product shows the dashed art-pending box with its name printed in it, and a coupon
 ## without an icon the real slip with its name in the icon's place (#75, decision 3A). The view
 ## is built neutrally (CardView builds it before the form is known) and then laid out for its
@@ -33,6 +41,8 @@ signal hovered(view: ItemView)
 signal unhovered(view: ItemView)
 
 enum Form { TRAY, BELT, GHOST, BASKET }
+## How the item relates to the hovered item, loyalty box or inspection (#71).
+enum Relation { NONE, FOCUS, RELATED, DIM }
 
 const BELT_SIZE := Vector2(116, 232)
 const TRAY_SIZE := Vector2(108, 168)
@@ -59,6 +69,10 @@ const BASKET_COUPON_RISE := 8.0
 ## top, ShiftStage.HAND_RECT).
 const LIFT := 4.0
 const BASKET_LIFT := 14.0
+## A boosted belt item's sprite stands this much higher, in its halo (#71).
+const BOOST_LIFT := 6.0
+## The halo's node name on the sprite.
+const HALO_NAME := "ItemHalo"
 ## The paid chip (PayoutPlaque) over the art's visible top at rest (mock-up B2's count-up): the
 ## current one's face top PAID_CURRENT_ABOVE over it, an earlier one's PAID_SETTLED_ABOVE (its
 ## foot then clears the mark's top by 2 px; B2's 32 would sit on it), never above the MIN_Y lines,
@@ -123,6 +137,34 @@ var lifted: bool = false:
 	set(value):
 		lifted = value
 		_place_body()
+## How the item relates to the hovered one (#71): FOCUS shows the gold brackets, DIM fades the
+## sprite and the ticket to `dim_alphas` over `relation_fade` seconds (0: at once), RELATED and
+## NONE show it plain. Set the fade and the alphas first. (Properties, not setters: gdlint allows
+## the class 20 public methods.)
+var relation: Relation = Relation.NONE:
+	set(value):
+		relation = value
+		_show_relation()
+## How long a relation's fade takes, in seconds (0: at once, e.g. under reduced motion).
+var relation_fade: float = 0.0
+## DIM's alphas: the sprite's (x) and the ticket's (y), PlanningTuning's.
+var dim_alphas: Vector2 = Vector2.ONE
+## A boost (#71): with 1 to 3 rings the sprite shows its halo (HALO_NAME, behind it) of that many
+## rings and, on the belt, stands BOOST_LIFT higher on the lifted shadow; 0 takes both off.
+var boost_rings: int = 0:
+	set(value):
+		boost_rings = clampi(value, 0, ArtStyle.HALO_MAX_RINGS)
+		_show_boost()
+## How the halo grows when boost_rings is set (#71): the rings up to `halo_start` (at least 1) show
+## at once, then one more every `halo_step_s` seconds (0: all at once, e.g. under reduced motion).
+## Set both first.
+var halo_step_s: float = 0.0
+var halo_start: int = 0
+## Denied to €0 (#71): the sprite greys (ArtStyle.Grey.DENIED).
+var denied: bool = false:
+	set(value):
+		denied = value
+		ArtStyle.set_look(_sprite, ArtStyle.grey_material(ArtStyle.Grey.DENIED) if denied else null)
 ## Holds `body` at the sprite's rest place: the count-up moves `body` from (0, 0).
 var _stand: Control
 var _sprite: TextureRect
@@ -135,6 +177,13 @@ var _tags: PackedStringArray = PackedStringArray()
 var _mark: EffectMark
 ## A selected basket item's outline, behind its sprite, or null until one is first selected.
 var _outline: TextureRect
+## A boosted item's halo (#71), behind its sprite, or null until it is first boosted.
+var _halo: TextureRect
+## The REDRAW highlight's alpha, times DIM's on the ticket (#71).
+var _highlight_alpha: float = 1.0
+var _relation_tween: Tween
+## Steps the halo's rings out (halo_step_s), or null.
+var _halo_tween: Tween
 
 
 func _init(
@@ -195,7 +244,8 @@ func set_highlight(highlight: CardView.Highlight) -> void:
 	_place_body()
 	var alpha: float = REDRAW_ALPHA if highlight == CardView.Highlight.REDRAW else 1.0
 	body.modulate = Color(1, 1, 1, alpha)
-	_sticker.modulate.a = alpha
+	_highlight_alpha = alpha
+	_sticker.modulate.a = alpha * (dim_alphas.y if relation == Relation.DIM else 1.0)
 	_redraw_mark.visible = highlight == CardView.Highlight.REDRAW
 	var outlined: bool = form == Form.BASKET and highlight == CardView.Highlight.SELECTED
 	if outlined and _outline == null:
@@ -302,7 +352,8 @@ func clear_mark() -> void:
 ## The selected item's gold brackets (this view's coordinates), or an empty rect (and always in a
 ## basket, which outlines a selected item instead).
 func brackets() -> Rect2:
-	if _highlight != CardView.Highlight.SELECTED or form == Form.BASKET:
+	var marked: bool = _highlight == CardView.Highlight.SELECTED or relation == Relation.FOCUS
+	if not marked or form == Form.BASKET:
 		return Rect2()
 	return Rect2(_stand.position + body.position, SPRITE_SIZE).grow(ScanOverlay.BRACKET_OUTSET)
 
@@ -312,7 +363,8 @@ func brackets() -> Rect2:
 ## top (raised as high as it is now), not at the sprite's transparent rows. The mark and the
 ## paid chip are decor.
 func hit_rect() -> Rect2:
-	var rect: Rect2 = Rect2(_stand.position - Vector2(0, LIFT), SPRITE_SIZE + Vector2(0, LIFT))
+	var raise: float = LIFT + _boost_height()
+	var rect: Rect2 = Rect2(_stand.position - Vector2(0, raise), SPRITE_SIZE + Vector2(0, raise))
 	if form == Form.BASKET:
 		var top: float = _art_top() - maxf(LIFT, _lift_height())
 		return Rect2(rect.position.x, top, rect.size.x, rect.end.y - top)
@@ -362,7 +414,7 @@ func _basket_stand_y() -> float:
 func _belt_shadow() -> Rect2:
 	if form != Form.BELT:
 		return Rect2()
-	var shape: Rect2 = BELT_LIFTED_SHADOW if _is_up() else BELT_SHADOW
+	var shape: Rect2 = BELT_LIFTED_SHADOW if _is_up() or _boost_height() > 0.0 else BELT_SHADOW
 	return Rect2(Vector2(BELT_SPRITE.x, BELT_GROUND_Y) + shape.position, shape.size)
 
 
@@ -370,7 +422,8 @@ func _belt_shadow() -> Rect2:
 ## gold brackets.
 func _draw() -> void:
 	if form == Form.BELT:
-		var alpha: float = BELT_LIFTED_SHADOW_ALPHA if _is_up() else BELT_SHADOW_ALPHA
+		var raised: bool = _is_up() or _boost_height() > 0.0
+		var alpha: float = BELT_LIFTED_SHADOW_ALPHA if raised else BELT_SHADOW_ALPHA
 		ContactShadow.draw_on(self, _belt_shadow(), alpha)
 	if form == Form.TRAY:
 		var shadow: PackedVector2Array = PackedVector2Array()
@@ -389,7 +442,7 @@ func _draw() -> void:
 ## Lifts the sprite by _lift_height() while it is selected or scanned, else rests it (its shadow
 ## and mark follow).
 func _place_body() -> void:
-	body.position.y = -_lift_height() if _is_up() else 0.0
+	body.position.y = -_boost_height() - (_lift_height() if _is_up() else 0.0)
 	_place_mark()
 	queue_redraw()
 
@@ -432,6 +485,68 @@ func _place_badge(current: bool) -> void:
 ## Whether the sprite is lifted: scanned or selected.
 func _is_up() -> bool:
 	return lifted or _highlight == CardView.Highlight.SELECTED
+
+
+## How far a boost raises the sprite (#71): BOOST_LIFT for a boosted belt item, else 0.
+func _boost_height() -> float:
+	return BOOST_LIFT if boost_rings > 0 and form == Form.BELT else 0.0
+
+
+## The relation's look (#71): DIM fades the sprite and the ticket (over relation_fade); FOCUS's
+## brackets are drawn.
+func _show_relation() -> void:
+	var dim: bool = relation == Relation.DIM
+	var stand_alpha: float = dim_alphas.x if dim else 1.0
+	var sticker_alpha: float = _highlight_alpha * (dim_alphas.y if dim else 1.0)
+	if _relation_tween != null:
+		_relation_tween.kill()
+		_relation_tween = null
+	var changed: bool = (
+		not is_equal_approx(_stand.modulate.a, stand_alpha)
+		or not is_equal_approx(_sticker.modulate.a, sticker_alpha)
+	)
+	if relation_fade > 0.0 and is_inside_tree() and changed:
+		_relation_tween = create_tween().set_parallel()
+		_relation_tween.tween_property(_stand, "modulate:a", stand_alpha, relation_fade)
+		_relation_tween.tween_property(_sticker, "modulate:a", sticker_alpha, relation_fade)
+	else:
+		_stand.modulate.a = stand_alpha
+		_sticker.modulate.a = sticker_alpha
+	queue_redraw()
+
+
+## The boost's look (#71): the halo of boost_rings rings round the sprite's art (made at the
+## first boost), stepping out from halo_start every halo_step_s, and the lift.
+func _show_boost() -> void:
+	if _halo_tween != null:
+		_halo_tween.kill()
+		_halo_tween = null
+	if boost_rings > 0 and _halo == null:
+		_halo = UiKit.sprite(_sprite.texture)
+		_halo.name = HALO_NAME
+		_halo.show_behind_parent = true
+		_sprite.add_child(_halo)
+	if _halo != null:
+		_halo.visible = boost_rings > 0
+		if boost_rings > 0:
+			var stepping: bool = halo_step_s > 0.0 and is_inside_tree()
+			var start: int = clampi(halo_start, 1, boost_rings) if stepping else boost_rings
+			_set_halo(start)
+			if stepping and start < boost_rings:
+				_halo_tween = create_tween()
+				for rings: int in range(start + 1, boost_rings + 1):
+					_halo_tween.tween_interval(halo_step_s)
+					_halo_tween.tween_callback(_set_halo.bind(rings))
+	_place_body()
+
+
+## Shows `rings` rings of the halo: its rect grown (rings + 1) art pixels round the sprite, the
+## shader's grid.
+func _set_halo(rings: int) -> void:
+	var grow: float = (rings + 1) * ArtStyle.ART_SCALE
+	_halo.position = -Vector2.ONE * grow
+	_halo.size = SPRITE_SIZE + Vector2.ONE * 2.0 * grow
+	ArtStyle.set_look(_halo, ArtStyle.halo_material(rings))
 
 
 ## How far the sprite rises when it is up: a scanned basket item BASKET_LIFT, else LIFT.

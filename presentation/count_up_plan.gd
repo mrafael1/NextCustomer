@@ -195,28 +195,21 @@ static func _kind_of(step_type: ScoreStep.StepType) -> CountUpBeat.Kind:
 
 
 ## D8: an armed beat's landings are the later FLAT or MULTIPLIER steps from a card with the
-## same source_slot and text. Each landing goes to the latest such armed beat before it.
+## same source_slot and text. Each landing goes to the latest such armed beat before it. The
+## matching is EffectLinks.armed_landings on the steps: a landing or an armed step is never part
+## of a MERGED_PLAIN beat, so each is the first step of its own beat.
 func _link_armed(steps: Array[ScoreStep]) -> void:
-	var armed_by_key: Dictionary[String, int] = {}
+	var landings: PackedInt32Array = EffectLinks.armed_landings(steps)
+	var beat_of_step: Dictionary[int, int] = {}
 	for index: int in range(beats.size()):
 		var beat: CountUpBeat = beats[index]
-		var step: ScoreStep = steps[beat.steps[0]]
-		var key: String = "%d|%s" % [step.source_slot, step.text]
-		if beat.kind == CountUpBeat.Kind.ARMED:
-			armed_by_key[key] = index
+		beat_of_step[beat.steps[0]] = index
+		var armed_step: int = landings[beat.steps[0]]
+		if armed_step == -1:
 			continue
-		var lands: bool = (
-			step.source_kind == ScoreStep.SourceKind.CARD
-			and (
-				step.step_type == ScoreStep.StepType.FLAT
-				or step.step_type == ScoreStep.StepType.MULTIPLIER
-			)
-			and armed_by_key.has(key)
-		)
-		if lands:
-			var armed: CountUpBeat = beats[armed_by_key[key]]
-			beat.armed_from = armed_by_key[key]
-			armed.targets.append(index)
+		var armed_index: int = beat_of_step[armed_step]
+		beat.armed_from = armed_index
+		beats[armed_index].targets.append(index)
 
 
 ## Payouts, rolls and the payout rattle (D3).

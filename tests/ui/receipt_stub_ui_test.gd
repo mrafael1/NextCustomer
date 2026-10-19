@@ -2,8 +2,9 @@ extends GdUnitTestSuite
 ## The receipt on the real shift screen (#75, #80). In planning it is itemised: "NEXT CUSTOMER ·
 ## REG 3", "SHIFT n/m · k ITEMS" (coupons counted), a dashed rule, each belt item's name and
 ## payout (cents, from the preview), "n ·····" for each open empty slot, a dashed rule,
-## "PROJECTED €N.00" and the fizzle footer ("1 fizzle · rest on the item", "N fizzles · rest on an
-## item", none without); it follows every place and remove, stands on the printer's slot inside
+## "PROJECTED €N.00" (green with the met mark at or over the shift's quota, red with "short
+## €N.00" on its own row under it) and the fizzle footer ("1 fizzle · hover an item", none
+## without); it follows every place and remove, stands on the printer's slot inside
 ## the register column and the 1280x720 screen, every line on one row and in view, every mark
 ## inside the paper, clear of the hand, the monitor and CHECKOUT. A belt item's scan frames its
 ## line, the frame around the line inside the paper; a hand item's frames none. The click starts
@@ -49,12 +50,12 @@ func test_the_planning_receipt_lists_the_items_and_the_fizzles() -> void:
 	_place(screen, ["bread", "milk"])
 	await _frames(2)
 	assert_int(ReceiptView.fizzle_count(screen.run.preview())).is_equal(0)
-	assert_array(_lines(screen)).is_equal(_planning(screen, "SHIFT 1/%d · 2 ITEMS" % shifts, ""))
+	assert_array(_lines(screen)).is_equal(_planning(screen, "SHIFT 1/%d · 2 ITEMS" % shifts))
 	_place(screen, ["cheese", "coffee"])
 	await _frames(2)
 	assert_int(ReceiptView.fizzle_count(screen.run.preview())).is_equal(1)
 	assert_array(_lines(screen)).is_equal(
-		_planning(screen, "SHIFT 1/%d · 4 ITEMS" % shifts, "1 fizzle |  · rest on the item")
+		_planning(screen, "SHIFT 1/%d · 4 ITEMS" % shifts, "1 fizzle")
 	)
 	# Several fizzles, among them the Coupon engine's (the first coupon, Multipack, pays nothing)
 	# and Coffee's (no Breakfast product after it).
@@ -65,9 +66,52 @@ func test_the_planning_receipt_lists_the_items_and_the_fizzles() -> void:
 	assert_int(ReceiptView.fizzle_count(screen.run.preview())).is_equal(3)
 	# Multipack is a coupon: it counts as an item.
 	assert_array(_lines(screen)).is_equal(
-		_planning(screen, "SHIFT 1/%d · 3 ITEMS" % shifts, "3 fizzles |  · rest on an item")
+		_planning(screen, "SHIFT 1/%d · 3 ITEMS" % shifts, "3 fizzles")
 	)
 	_assert_planning_on_screen(screen)
+
+
+## PROJECTED against the shift's quota on the real screen at 1280x720 (#71's play test): a short
+## row's total is red with "short €N.00" on the row under it; a total exactly on the quota, and one
+## over it, is green with the met mark and no shortfall; the colours are Palette's; the footer and
+## the mark stay inside the paper, the footer on one line even with a long hover hint.
+func test_the_projected_total_is_coloured_by_the_quota() -> void:
+	var screen: ShiftScreen = await _screen()
+	_place(screen, ["bread", "milk"])
+	await _frames(2)
+	var run: RunState = screen.run
+	var result: ScoreResult = run.preview()
+	assert_int(result.total).is_less(run.quota())
+	var receipt: ReceiptView = screen._receipt
+	assert_that(_projected_color(receipt)).is_equal(Palette.TOMATO)
+	var short: String = ReceiptView.SHORT_TEXT % ReceiptView.money(run.quota() - result.total)
+	assert_str(_lines(screen)[-1]).is_equal(short + " | ")
+	screen._effects.pointer = func() -> Vector2: return Vector2(-500, -500)
+	var milk: ItemView = screen._row_views[1] as ItemView
+	milk.hovered.emit(milk)
+	await _frames(2)
+	_assert_planning_on_screen(screen, false)
+	screen._effects.unfocus()
+	# Exactly on the quota, then over it (the same preview against a lower quota).
+	var slots: int = RowCapacity.card_limit(run.limits)
+	var names: PackedStringArray = PackedStringArray()
+	for card: CardInstance in run.row:
+		names.append(card.definition.display_name)
+	for quota: int in [result.total, result.total - 1]:
+		receipt.show_planning(screen.receipt_header(), result, names, slots, quota)
+		await _frames(2)
+		assert_that(_projected_color(receipt)).is_equal(Palette.GOOD)
+		assert_str(_lines(screen)[-1]).is_equal("PROJECTED | " + ReceiptView.money(result.total))
+		_assert_planning_on_screen(screen)
+
+
+## The PROJECTED amount's colour.
+static func _projected_color(receipt: ReceiptView) -> Color:
+	for line: Node in receipt._lines.get_children():
+		if line is HBoxContainer:
+			if (line.get_child(0) as Label).text == ReceiptView.PROJECTED_TEXT:
+				return (line.get_child(1) as Label).get_theme_color("font_color")
+	return Color.TRANSPARENT
 
 
 ## A belt item's full scan frames its line (the frame around the line and its mark column,
@@ -189,8 +233,9 @@ func test_the_count_up_receipt_fills_in_as_it_counts() -> void:
 
 ## The planning receipt on screen: inside the screen and over the register column, standing on
 ## the printer's slot, as tall as its lines, every line on one row and in view and every mark
-## inside the paper, clear of the hand, the monitor and CHECKOUT.
-func _assert_planning_on_screen(screen: ShiftScreen) -> void:
+## inside the paper, clear of the hand, the monitor and CHECKOUT (with `marked`, some line has a
+## mark).
+func _assert_planning_on_screen(screen: ShiftScreen, marked: bool = true) -> void:
 	var receipt: ReceiptView = screen._receipt
 	var stage: Rect2 = screen._stage.get_global_rect()
 	var rect: Rect2 = receipt.get_global_rect()
@@ -216,6 +261,13 @@ func _assert_planning_on_screen(screen: ShiftScreen) -> void:
 		if line is HBoxContainer:
 			var left: Label = line.get_child(0) as Label
 			assert_int(left.get_line_count()).override_failure_message(left.text).is_equal(1)
+			for label: Node in line.get_children():
+				var label_rect: Rect2 = (label as Control).get_global_rect()
+				(
+					assert_bool(rect.encloses(label_rect))
+					. override_failure_message("%s %s" % [left.text, label_rect])
+					. is_true()
+				)
 			var mark: Control = line.get_child(1).get_node_or_null("Mark") as Control
 			if mark != null:
 				marks += 1
@@ -226,7 +278,8 @@ func _assert_planning_on_screen(screen: ShiftScreen) -> void:
 				)
 				assert_float(mark.get_global_rect().position.x).is_greater_equal(text_end + 5.5)
 				assert_float(mark.get_global_rect().end.x).is_less_equal(line_rect.end.x + 0.5)
-	assert_int(marks).is_greater(0)
+	if marked:
+		assert_int(marks).is_greater(0)
 
 
 ## A bonus beat's line is the framed one: a step line under its item (not an item's line) with
@@ -264,9 +317,12 @@ static func _check_combo_marks(
 			failures.append("diamond outside its line %s" % left.text)
 
 
-## The planning receipt's lines for `shift_line` and `footer` (none when empty) on the screen's
-## preview: each belt item's name and payout, then the open empty slots.
-static func _planning(screen: ShiftScreen, shift_line: String, footer: String) -> Array[String]:
+## The planning receipt's lines for `shift_line` on the screen's preview: each belt item's name and
+## payout, then the open empty slots, PROJECTED, the shortfall's row under the quota, and the
+## fizzle footer for `fizzles` (none when empty) with the hint.
+static func _planning(
+	screen: ShiftScreen, shift_line: String, fizzles: String = ""
+) -> Array[String]:
 	var run: RunState = screen.run
 	var result: ScoreResult = run.preview()
 	var lines: Array[String] = [ReceiptView.HEADER_TEXT + " | ", shift_line + " | ", "---"]
@@ -277,8 +333,11 @@ static func _planning(screen: ShiftScreen, shift_line: String, footer: String) -
 		lines.append("%d ····· | " % (slot + 1))
 	lines.append("---")
 	lines.append("PROJECTED | " + ReceiptView.money(result.total))
-	if not footer.is_empty():
-		lines.append(footer)
+	if result.total < run.quota():
+		var short: String = ReceiptView.money(run.quota() - result.total)
+		lines.append((ReceiptView.SHORT_TEXT % short) + " | ")
+	if not fizzles.is_empty():
+		lines.append(fizzles + " |  · hover an item")
 	return lines
 
 

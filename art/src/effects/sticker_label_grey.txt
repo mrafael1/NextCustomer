@@ -1,0 +1,15 @@
+; A fizzle's "pfff" sticker (#71 planning effects, mock-up h1 (docs/art/mockups/planning_effects_src/H1_BUILD_SPEC.md)): sticker_label's shape in
+; steel, steel light B face, steel highlight A lit top and left, steel pale C shade on the
+; right and bottom, ink outline. 9-slice 9x9 @2 (margin 3); also the folded "...+N" sticker.
+@size 9x9
+@kind frame
+@scale 2
+..#####..
+.#AAAAA#.
+#AABBBBC#
+#ABBBBBC#
+#ABBBBBC#
+#ABBBBBC#
+#ABBBBBC#
+.#CCCCC#.
+..#####..

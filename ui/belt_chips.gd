@@ -2,9 +2,10 @@ class_name BeltChips
 extends RefCounted
 ## The belt items' corner marks and paid chips (#80, step 7; mock-up B2; #75's effect chips
 ## before it). Marks: one EffectMark per item that has a step EffectChip.qualifies, a fizzle disc
-## when one of them fizzled (WASTED), else a check; no count. In planning (and on a run resumed
-## after its checkout) every mark shows at once, rebuilt from the ScoreResult on each refresh, so
-## they follow every place, remove and redraw. The CHECKOUT click clears them (begin_count; #60's
+## when one of them fizzled (WASTED), else a check; no count. On a run resumed after its checkout
+## every mark shows at once. Planning shows none since #71 (mock-up h1): its stickers
+## (PlanningEffects) stack over the items, and the discs come back in the count-up as their steps
+## land. The CHECKOUT click clears them (begin_count; #60's
 ## target markers fly to the same corner) and each comes back with a pop as CountUp.step_landed
 ## says one of its item's steps landed (land), still shown under reduced motion, without the pop.
 ## Nothing waits for a mark: the count-up's timing never changes.
@@ -32,8 +33,8 @@ func follow(count_up: CountUp, led: LedDisplay) -> void:
 	led.mode_changed.connect(_on_led_mode)
 
 
-## Shows every mark of `result` on the belt items `views` (planning, or a resumed checkout's),
-## and with `paid` (a resumed checkout) every item's paid chip, settled; else none.
+## With `paid` (a resumed checkout) shows every mark of `result` on the belt items `views` and
+## every item's paid chip, settled; else (planning) clears both: planning shows its stickers.
 func show_all(result: ScoreResult, views: Array[CardView], paid: bool = false) -> void:
 	_keep(result, views)
 	_counting = false
@@ -46,8 +47,10 @@ func show_all(result: ScoreResult, views: Array[CardView], paid: bool = false) -
 			item.show_badge(result.payouts[slot], false)
 		else:
 			item.hide_badge()
-		if slot < result.payouts.size():
+		if paid and slot < result.payouts.size():
 			_show_mark(item, EffectChip.step_indices(result, slot))
+		else:
+			item.clear_mark()
 
 
 ## The CHECKOUT click: clears every mark on `views` and settles every paid chip; land() and

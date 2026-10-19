@@ -111,6 +111,8 @@ var _focus: FocusWatch
 var _scan: ScanController
 ## The belt items' marks and paid chips (#80): marks in planning, both in the count-up.
 var _belt_chips: BeltChips = BeltChips.new()
+## The planning effects (#71, mock-up h1): the belt's stickers, the hover's relations, the drag's.
+var _effects: PlanningEffects
 ## The EventLog autoload, typed. Fetched from the tree because standalone script checks
 ## don't know autoload names.
 @onready var _log: EventLogService = get_node("/root/EventLog")
@@ -419,6 +421,7 @@ func _on_checkout_pressed() -> void:
 	_drop_pick()
 	_notice_label.clear_notice()
 	_drag.cancel()
+	_effects.clear()  # The count-up earns the effects back.
 	_redraw_mode = false
 	_deck_view.visible = false
 	_monitor.end_channel()
@@ -821,7 +824,7 @@ func _show_projected(total: int) -> void:
 ## The preview: the itemised planning receipt (#80) and the belt's tags and marks.
 func _show_planning(result: ScoreResult) -> void:
 	var slots: int = RowCapacity.card_limit(run.limits)
-	_receipt.show_planning(receipt_header(), result, _names(run.row), slots)
+	_receipt.show_planning(receipt_header(), result, _names(run.row), slots, run.quota())
 	_show_belt(result)
 
 
@@ -842,6 +845,8 @@ func _show_belt(result: ScoreResult, paid: bool = false) -> void:
 	var inspection_names: PackedStringArray = InspectionTag.names(run.inspections)
 	_scan.set_result(result, _names(run.row), upgrade_names, inspection_names)
 	_belt_chips.show_all(result, _row_views, paid)
+	if not paid:
+		_effects.show_all(result, _row_views, run)
 	for slot: int in range(_row_views.size()):
 		_row_views[slot].set_tags(result.tags[slot])
 
@@ -938,6 +943,12 @@ func _build() -> void:
 	_scan.blocked = _scan_blocked
 	_scan.reduced_motion = func() -> bool: return profile.reduced_motion()
 	_focus.player_left.connect(_scan.clear)
+	_effects = PlanningEffects.new()
+	add_child(_effects)
+	_effects.setup(_stage, _drag)
+	_effects.preview = func(card: CardInstance, at: int) -> ScoreResult:
+		return run.preview(card, at)
+	_effects.reduced_motion = _scan.reduced_motion
 
 	_shade = ScreenShade.new()
 	_shade.set_anchors_preset(Control.PRESET_FULL_RECT)

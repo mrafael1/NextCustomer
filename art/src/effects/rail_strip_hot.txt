@@ -1,0 +1,13 @@
+; The rail strip's body along the belt lip, hovered (hot) (#71 planning effects, mock-up h1 (docs/art/mockups/planning_effects_src/H1_BUILD_SPEC.md)):
+; rows ink, Y lit, M fill (3 rows), m shade, ink; ink ends. A horizontal
+; 9-slice 6x7 @2 (margin 2), 14 px tall, stretched from the giver to its last target.
+@size 6x7
+@kind frame
+@scale 2
+######
+#YYYY#
+#MMMM#
+#MMMM#
+#MMMM#
+#mmmm#
+######

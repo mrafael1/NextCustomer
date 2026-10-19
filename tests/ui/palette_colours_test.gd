@@ -13,8 +13,10 @@ const PALETTE_SIZE := 67
 ## ScanPopup, ScanOverlay), the items, their marks and their cells (ItemView, EffectMark,
 ## PayoutPlaque, RowStrip), which take their colours from Palette, and the hung monitor's pieces
 ## #80 adds (MonitorView, LedBeat, ScanFooter) and the back of the store (StoreShelves, step 11):
-## style frame v2's palette check, kept for the screen that replaced it (#75, step 9). A class is
-## checked once its script exists, so each step of the adoption is covered as it lands.
+## style frame v2's palette check, kept for the screen that replaced it (#75, step 9), and the
+## planning effects' pieces (#71, mock-up h1: PlanningLayer, RailStrip, EffectSticker, GiverBadge,
+## PayTag, DenyStamp). A class is checked once its script exists, so each step of the adoption is
+## covered as it lands.
 const SCRIPTS: Array[String] = [
 	"res://ui/palette.gd",
 	"res://presentation/art_style.gd",
@@ -35,9 +37,15 @@ const SCRIPTS: Array[String] = [
 	"res://ui/led_beat.gd",
 	"res://ui/scan_footer.gd",
 	"res://ui/store_shelves.gd",
+	"res://ui/planning_layer.gd",
+	"res://ui/rail_strip.gd",
+	"res://ui/effect_sticker.gd",
+	"res://ui/giver_badge.gd",
+	"res://ui/pay_tag.gd",
+	"res://ui/deny_stamp.gd",
 ]
-## The scan pieces (the scan's step lines in ScanFooter, #80, too) and the items name no colour of
-## their own: every colour they draw is a Palette constant.
+## The scan pieces (the scan's step lines in ScanFooter, #80, too), the items and the planning
+## effects' pieces (#71) name no colour of their own: every colour they draw is a Palette constant.
 const PALETTE_ONLY: Array[String] = [
 	"res://ui/price_sticker.gd",
 	"res://ui/scan_popup.gd",
@@ -46,6 +54,12 @@ const PALETTE_ONLY: Array[String] = [
 	"res://ui/item_view.gd",
 	"res://ui/payout_plaque.gd",
 	"res://ui/scan_footer.gd",
+	"res://ui/planning_layer.gd",
+	"res://ui/rail_strip.gd",
+	"res://ui/effect_sticker.gd",
+	"res://ui/giver_badge.gd",
+	"res://ui/pay_tag.gd",
+	"res://ui/deny_stamp.gd",
 ]
 
 var _folder: String = ""
@@ -120,6 +134,8 @@ func test_the_boutique_ramps() -> void:
 		Palette.TOMATO_DARK: "a83a3c",
 		Palette.MUSTARD_LIGHT: "f1d27a",
 		Palette.MUSTARD_PALE: "faecbc",
+		Palette.MUSTARD_DARK: "b38425",
+		Palette.MUSTARD_DARKEST: "7a5a1c",
 		Palette.BRASS_DARKEST: "4a3010",
 		Palette.BRASS_DARK: "8a5d1a",
 		Palette.BRASS: "c8932b",

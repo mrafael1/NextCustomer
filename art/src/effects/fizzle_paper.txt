@@ -1,0 +1,11 @@
+; The fizzle glyph on the tomato pay tag (#71 planning effects, mock-up h1 (docs/art/mockups/planning_effects_src/H1_BUILD_SPEC.md)): icons/fizzle's
+; 4-point spark in paper w, struck through by its diagonal ink line. 7x7, shown at 2x.
+@size 7x7
+@kind icon
+#..w...
+.#.w...
+..#ww..
+www#www
+..ww#..
+...w.#.
+...w..#

@@ -1,0 +1,40 @@
+/* ---------- planning effects, direction C "Arcs" ---------- */
+.screen.brief { padding: 8px 14px; }
+.screen .bt { display: flex; justify-content: space-between; font-family: Pixelify; font-size: 21px; }
+.screen .bt b { font-weight: 400; }
+.screen .legend { position: absolute; left: 0; right: 0; bottom: 2px; display: flex; gap: 14px; font-size: 12px; font-weight: 650; color: var(--ink-light);
+  border-top: 2px dashed var(--cream-shade); padding-top: 7px; }
+.screen .lg { display: flex; align-items: center; gap: 5px; }
+.screen .gives { display: flex; align-items: center; gap: 7px; margin-top: 5px; font-size: 13px; font-weight: 600; }
+.screen .gives .dim { color: var(--muted); }
+.screen .gtk { font-weight: 800; font-size: 15px; padding: 0 5px; background: var(--mustard); border: 2px solid var(--ink); box-shadow: 2px 2px 0 rgba(20,10,6,.4); }
+.screen .gain { font-size: 13px; font-weight: 600; color: var(--ink-light); margin-top: 3px; }
+.screen .gain b { color: var(--ink); font-size: 15px; }
+/* the tokens: one shape (a 2 px ink box), three fills: gold = given by another item, cream = the item's own rule,
+   teal panel with a loyalty glyph = an upgrade; tomato = fizzled */
+.tk { display: inline-flex; align-items: center; gap: 2px; font-style: normal; font-family: Atkinson; font-weight: 800; font-size: 12px; line-height: 14px;
+  padding: 0 3px; border: 2px solid var(--ink); color: var(--ink); white-space: nowrap; }
+.tk.gift { background: var(--mustard); }
+.tk.own { background: var(--cream); }
+.tk.upg { background: var(--teal-panel); color: var(--mustard-pale); }
+.tk.fz { background: var(--tomato); color: var(--paper); }
+.mst { width: 14px; height: 14px; display: block; }
+.rx3 { font-style: normal; font-family: Atkinson; font-weight: 800; font-size: 11px; background: var(--mustard); border: 2px solid var(--ink); padding: 0 2px; line-height: 12px; display: inline-block; margin-left: 0; }
+/* overlay text: everything here sits over the arcs canvas */
+.fx { position: absolute; z-index: 8; pointer-events: none; }
+.fx.tok { display: flex; align-items: center; justify-content: center; font-family: Atkinson; font-weight: 800; color: var(--ink); }
+.fx.bub { display: flex; align-items: center; gap: 3px; height: 28px; padding: 0 6px; }
+.fx.bub .eq { font-weight: 700; font-size: 13px; color: var(--ink-light); margin-left: 1px; }
+.fx.bub .res { font-family: Atkinson; font-weight: 800; font-size: 18px; color: var(--ink); }
+.fx.bub.zero .res { color: var(--paper); }
+.fx.stampd { font-family: Pixelify; letter-spacing: 1px; color: var(--paper); text-align: center; }
+.item.denied img { filter: grayscale(1) brightness(.92) contrast(.8); }
+.item.dim img { filter: saturate(.45) brightness(.72); }
+.label.dim { filter: brightness(.8) saturate(.6); }
+.fx.dim { opacity: .5; }
+.tk.hot { box-shadow: 0 0 0 2px #faecbc, 0 0 0 4px rgba(241,210,122,.5); }
+.receipt .ln { line-height: 19px; }
+.receipt .dash { margin: 5px 0; }
+.receipt .ln .pl { width: 24px; }
+.item.lit img { filter: drop-shadow(2px 0 0 #faecbc) drop-shadow(-2px 0 0 #faecbc) drop-shadow(0 2px 0 #faecbc) drop-shadow(0 -2px 0 #faecbc)
+  drop-shadow(2px 0 0 #e2b33c) drop-shadow(-2px 0 0 #e2b33c) drop-shadow(0 -2px 0 #e2b33c); }   /* a hard two-ring pixel outline, no blur */

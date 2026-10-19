@@ -12,7 +12,8 @@ extends Control
 ## register column under it, with the key deck and its keys, Cancel, Redraw and CHECKOUT, the
 ## keypad, the seed line under Redraw and the cash drawer), the receipt rising from the printer's
 ## slot, the belt (BeltPanel: the steel guard, the rubber top face, the lip, the apron and the price
-## rail, then the row of items standing on the belt with their tickets on the rail), the top bar
+## rail, then the row of items standing on the belt with their tickets on the rail), the planning
+## layer (PlanningLayer: #71's stickers, stamps and pay tags over the items), the top bar
 ## (TopBar: the SHIFT, QUOTA, inspection and LOYALTY chips, Cart and the menu with Export log,
 ## all above RewardPanel.PRINTOUT_TOP), the hand's baskets on the steel ledge (HandBaskets: their
 ## backs, the hand in them, their fronts) and the shade that darkens them while counting.
@@ -132,6 +133,9 @@ var printer_lip: TextureRect
 ## The belt under the row (a fixed size; the row rests on its rail).
 var belt: BeltPanel
 var row_strip: RowStrip
+## The planning effects over the belt (#71, PlanningLayer): the items' stickers, stamps and pay
+## tags, over the items and tickets and under the top bar.
+var planning_layer: PlanningLayer
 ## Over everything on the stage, taking no clicks: the scan's marks, and the layer the scan
 ## popup opens in.
 var scan_layer: ScanOverlay
@@ -228,6 +232,9 @@ func _build_belt(slot_count: int) -> void:
 	row_strip.set_slot_count(slot_count)
 	row_strip.minimum_size_changed.connect(_place_row)
 	_place_row()
+	# Over the items and their tickets, under the top bar, the hand and the scan layers (#71).
+	planning_layer = PlanningLayer.new()
+	add_child(planning_layer)
 
 
 ## Rests the row on ROW_BOTTOM: a scaled row is shorter, so it starts lower.

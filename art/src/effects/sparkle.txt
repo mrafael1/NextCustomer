@@ -1,0 +1,10 @@
+; A static sparkle by a 3-ring boosted item (#71 planning effects, mock-up h1 (docs/art/mockups/planning_effects_src/H1_BUILD_SPEC.md)): a cross of
+; mustard light y arms round a paper w core. Decor glinting off the halo, too small for an
+; outline (as the mock-up's). 5x5, shown at 2x; it never loops.
+@size 5x5
+@kind icon
+..y..
+..y..
+yywyy
+..y..
+..y..

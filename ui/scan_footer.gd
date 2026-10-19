@@ -4,7 +4,8 @@ extends Control
 ## line as the caller words it (ReceiptView.step_line), a fizzle's in dark tomato after the fizzle
 ## icon, its amount (or "fizzle", after ReceiptView.joined_line's two spaces) right-aligned on the
 ## line's last row, the text wrapped clear of it, as on the receipt. Lines that don't fit the height
-## fill() is given fold into a last "+N more" line. Display only: the lines are the caller's.
+## fill() is given fold into a last "+N more" line. The first `gives_lines` lines are a belt item's
+## "gives" lines (#71): their amount in mustard darkest. Display only: the lines are the caller's.
 
 ## The last line when the rest don't fit: how many were folded.
 const MORE_TEXT := "+%d more"
@@ -19,6 +20,8 @@ const ICON_GAP := 4.0
 
 const FIZZLE_ICON := preload("res://art/icons/fizzle.png")
 
+## How many of the first lines are "gives" lines (their amount in mustard darkest).
+var gives_lines: int = 0
 var _width: float = 0.0
 var _font_size: int = 12
 ## Each line shown, as the caller gave it (its amount included), then "+N more" when some were
@@ -48,7 +51,7 @@ func fill(lines: PackedStringArray, fizzles: Array[bool], max_height: float) -> 
 	var more_height: float = _row_height()
 	for index: int in range(lines.size()):
 		var kept: int = get_child_count()
-		var next: float = _add_line(lines[index], fizzles[index], top)
+		var next: float = _add_line(lines[index], fizzles[index], top, index < gives_lines)
 		var reserve: float = more_height if index < lines.size() - 1 else 0.0
 		if next + reserve <= max_height:
 			top = next
@@ -74,8 +77,9 @@ func texts() -> PackedStringArray:
 
 
 ## Adds one line from `top`: a fizzle's icon, then its text, wrapped clear of its amount, which
-## sits right-aligned on the text's last row. Returns the next line's top.
-func _add_line(text: String, fizzle: bool, top: float) -> float:
+## sits right-aligned on the text's last row (in mustard darkest on a `gives` line). Returns the
+## next line's top.
+func _add_line(text: String, fizzle: bool, top: float, gives: bool = false) -> float:
 	var colour: Color = Palette.TOMATO_DARK if fizzle else Palette.INK
 	var at: int = text.rfind(AMOUNT_SEPARATOR)
 	var left: String = text if at < 0 else text.left(at)
@@ -92,7 +96,11 @@ func _add_line(text: String, fizzle: bool, top: float) -> float:
 	var amount: Label = null
 	var amount_width: float = 0.0
 	if at >= 0:
-		amount = UiKit.body_label(text.substr(at + AMOUNT_SEPARATOR.length()), _font_size, colour)
+		amount = UiKit.body_label(
+			text.substr(at + AMOUNT_SEPARATOR.length()),
+			_font_size,
+			Palette.MUSTARD_DARKEST if gives else colour
+		)
 		amount.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 		add_child(amount)
 		amount_width = amount.get_minimum_size().x + AMOUNT_GAP * 2.0

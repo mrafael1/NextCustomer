@@ -5,8 +5,9 @@ extends GdUnitTestSuite
 ## that replaced the mock-up. Everything lies inside the 1280x720 stage; the top bar's parts stand
 ## apart above the belt; the cells lie on the belt (#80, mock-up B2's greybox), each belt sprite
 ## standing on its top face and each ticket on the rail, and the hand's basket items (no stickers,
-## #80 step 8) lie in the hand's area; no sticker covers another sticker, a sprite or a corner
-## mark; planning shows no paid chip and each belt item's mark follows core's steps (#80, step 7);
+## #80 step 8) lie in the hand's area; no ticket covers another ticket or a sprite, and no
+## planning part covers a ticket's text; planning shows no paid chip and no corner mark, and each
+## belt item wears its stickers (#71, mock-up h1);
 ## every printed character has its glyph; no text carries the pixel material, and the sharp-pixel
 ## switch reaches every piece of art. Every rect is checked on screen (headless runs use a
 ## 1280x1280 window: the stage is centred, 280 px down). The capture keeps its saves and log in a
@@ -123,32 +124,36 @@ func test_cells_lie_inside_the_belt_and_the_tray() -> void:
 		_assert_apart(items, "basket items")
 
 
-## No sticker covers another sticker, a sprite (lifted or not) or a corner mark; no mark covers
-## another item's sprite or mark.
+## No ticket covers another ticket or a sprite (lifted or not), and no planning part (#71, mock-up
+## h1: a sticker, a pay tag or a stamp; planning shows no corner mark) covers any ticket's base or
+## summary text: a pay tag may sit on a ticket's top band only.
 func test_stickers_never_cover_a_sticker_a_sprite_or_a_mark() -> void:
 	for scan: String in SCANS:
 		var screen: ShiftScreen = await _captured(scan)
 		var stickers: Array[Rect2] = []
 		var others: Array[Rect2] = []
-		var marks: Array[Rect2] = []
+		var texts: Array[Rect2] = []
 		for view: ItemView in _belt_items(screen) + _hand_items(screen):
 			if view.sticker().visible:
-				stickers.append(view.sticker().get_global_rect())
+				var ticket: PriceSticker = view.sticker()
+				stickers.append(ticket.get_global_rect())
+				var to_global: Transform2D = ticket.get_global_transform()
+				texts.append(to_global * ticket.base_text_rect())
+				if ticket.summary_text_rect().has_area():
+					texts.append(to_global * ticket.summary_text_rect())
 			others.append(view.sprite().get_global_rect())
-			if view._mark != null:
-				marks.append(view._mark.get_global_rect())
+			assert_object(view._mark).override_failure_message(scan).is_null()
 		assert_int(stickers.size()).is_equal(4)
-		assert_int(marks.size()).is_greater_equal(1)
-		_assert_apart(marks, "marks")
-		for view: ItemView in _belt_items(screen):
-			if view._mark == null:
-				continue
-			var mark: Rect2 = view._mark.get_global_rect()
-			for other: ItemView in _belt_items(screen):
-				if other != view:
-					var sprite: Rect2 = other.sprite().get_global_rect()
-					assert_bool(mark.intersects(sprite)).override_failure_message(scan).is_false()
-		others.append_array(marks)
+		var parts: Array[Control] = screen._stage.planning_layer.parts()
+		assert_int(parts.size()).override_failure_message(scan).is_greater_equal(1)
+		for part: Control in parts:
+			var rect: Rect2 = part.get_global_rect()
+			for text: Rect2 in texts:
+				(
+					assert_bool(rect.intersects(text))
+					. override_failure_message("%s: %s %s over %s" % [scan, part.name, rect, text])
+					. is_false()
+				)
 		_assert_apart(stickers, "stickers")
 		for sticker: Rect2 in stickers:
 			for other: Rect2 in others:
@@ -159,24 +164,30 @@ func test_stickers_never_cover_a_sticker_a_sprite_or_a_mark() -> void:
 				)
 
 
-## Planning shows no paid chip (#80, step 7: the receipt lists the payouts); each belt item
-## carries a mark exactly when core has a step that marks it, a fizzle disc when one fizzled.
+## Planning shows no paid chip (#80, step 7: the receipt lists the payouts) and no corner mark
+## (#71); each belt item wears one sticker per effect it receives in the preview's model (shown,
+## or folded into "…+N"), and the coupon's fizzles show as a "pfff" sticker.
 func test_planning_shows_marks_and_no_paid_chips() -> void:
 	var screen: ShiftScreen = await _captured("")
 	var result: ScoreResult = screen.run.preview()
+	var model: PlanningModel = screen._effects.committed_model()
+	var layer: PlanningLayer = screen._stage.planning_layer
 	var belt: Array[ItemView] = _belt_items(screen)
 	assert_int(belt.size()).is_equal(result.payouts.size())
+	assert_int(model.slots.size()).is_equal(belt.size())
 	var fizzles: int = 0
 	for slot: int in range(belt.size()):
 		assert_bool(belt[slot].badge.visible).is_false()
-		var indices: PackedInt32Array = EffectChip.step_indices(result, slot)
-		var mark: EffectMark = belt[slot]._mark
-		assert_bool(mark != null).override_failure_message(str(slot)).is_equal(
-			not indices.is_empty()
-		)
-		if mark != null:
-			assert_bool(mark.is_fizzle()).is_equal(EffectChip.fizzles(result, indices))
-			if mark.is_fizzle():
+		assert_object(belt[slot]._mark).is_null()
+		var shown: Array[EffectSticker] = layer.stack(slot)
+		var expected: int = model.slots[slot].stickers.size()
+		var folded: int = 0
+		if not shown.is_empty() and shown[0].spec().kind == StickerSpec.Kind.MORE:
+			folded = expected - (shown.size() - 1)
+		var counted: int = shown.size() - (1 if folded > 0 else 0) + folded
+		assert_int(counted).override_failure_message(str(slot)).is_equal(expected)
+		for sticker: EffectSticker in shown:
+			if sticker.spec().kind == StickerSpec.Kind.FIZZLE:
 				fizzles += 1
 	# Multipack, the coupon, fizzles here.
 	assert_int(fizzles).is_greater_equal(1)
@@ -228,15 +239,26 @@ func test_text_never_carries_the_pixel_material() -> void:
 			if marked.has(view.sprite()):
 				sprites += 1
 		assert_int(sprites).is_equal(12)
+		# A grey or a halo (#71) is the node's look, kept in both modes.
 		ArtStyle.set_sharp(screen, false)
 		for item: CanvasItem in marked:
-			assert_object(item.material).is_null()
+			if item.has_meta(ArtStyle.LOOK_META):
+				assert_object(item.material).is_same(_look(item, null))
+			else:
+				assert_object(item.material).is_null()
 		ArtStyle.set_sharp(screen, true)
 		for item: CanvasItem in marked:
-			assert_object(item.material).is_same(ArtStyle.pixel_material())
+			assert_object(item.material).is_same(_look(item, ArtStyle.pixel_material()))
 
 
 # --- Helpers ---------------------------------------------------------------------------------
+
+
+## `item`'s look material (ArtStyle.set_look), else `plain`.
+static func _look(item: CanvasItem, plain: Material) -> Material:
+	if item.has_meta(ArtStyle.LOOK_META):
+		return item.get_meta(ArtStyle.LOOK_META) as Material
+	return plain
 
 
 ## The capture's shift, laid out, with `scan`'s item scanned ("" for none).

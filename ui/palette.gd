@@ -27,6 +27,10 @@ const TOMATO_DARK := Color("a83a3c")
 const TOMATO_LIGHT := Color("ec8a6e")
 const MUSTARD_LIGHT := Color("f1d27a")
 const MUSTARD_PALE := Color("faecbc")
+## The mustard ramp's dark end (#71's planning effects, mock-up h1): a calm rail strip's fill,
+## a burst's shade, and the gain text on a hovered strip.
+const MUSTARD_DARK := Color("b38425")
+const MUSTARD_DARKEST := Color("7a5a1c")
 ## Brass (rails, rims and plaques), gold (lettering and the LED) and velvet (the wall, signs and
 ## CHECKOUT).
 const BRASS_DARKEST := Color("4a3010")

@@ -1,0 +1,18 @@
+; The pay tag of an item that pays less than its base (#71 planning effects, mock-up h1 (docs/art/mockups/planning_effects_src/H1_BUILD_SPEC.md)):
+; pay_zero's octagon in cream, paper w face, cream shade b on the bottom row and the right,
+; ink rim. The "EUR N" is code-drawn in ink over it. 26x13, shown at 2x (52x26).
+@size 26x13
+@kind icon
+..######################..
+.#wwwwwwwwwwwwwwwwwwwwww#.
+#wwwwwwwwwwwwwwwwwwwwwwww#
+#wwwwwwwwwwwwwwwwwwwwwwwb#
+#wwwwwwwwwwwwwwwwwwwwwwwb#
+#wwwwwwwwwwwwwwwwwwwwwwwb#
+#wwwwwwwwwwwwwwwwwwwwwwwb#
+#wwwwwwwwwwwwwwwwwwwwwwwb#
+#wwwwwwwwwwwwwwwwwwwwwwwb#
+#wwwwwwwwwwwwwwwwwwwwwwwb#
+#bwwwwwwwwwwwwwwwwwwwwwwb#
+.#bbbbbbbbbbbbbbbbbbbbbb#.
+..######################..

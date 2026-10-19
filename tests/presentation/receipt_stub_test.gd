@@ -2,8 +2,10 @@ extends GdUnitTestSuite
 ## ReceiptView's planning receipt, count-up lines, header and combo lines (#75, #80). Planning
 ## (show_planning) is itemised: the header, a dashed rule, one line per item (name, payout with
 ## cents, its mark: the check when raised, the fizzle icon when it fizzles), "n ·····" per open
-## empty slot, a dashed rule, "PROJECTED €N.00", then the fizzle footer ("2 fizzles · rest on an
-## item", none without fizzles); highlight_slot frames a line (planning only). The count-up
+## empty slot, a dashed rule, "PROJECTED €N.00" (given the quota: green with the met mark at or
+## over it, red under it, the shortfall "short €1.00" on its own row under it), then the fizzle
+## footer ("2 fizzles · hover an item", none without fizzles); highlight_slot frames a line
+## (planning only). The count-up
 ## (begin_count) pre-prints every item's line greyed and "TOTAL •••••" with its footer; the steps
 ## fill the lines in (the base, kept) and print under their item, the newest framed; an item whose
 ## lines don't add up to its payout closes with "= €3.00"; add_total fills TOTAL in and
@@ -62,9 +64,7 @@ func test_the_font_has_the_receipts_glyphs() -> void:
 
 ## The planning footer's two labels: the count, then where to read them; one fizzle and many.
 func test_the_fizzle_footer_words_one_and_many() -> void:
-	for pair: Array in [
-		[1, "1 fizzle |  · rest on the item"], [2, "2 fizzles |  · rest on an item"]
-	]:
+	for pair: Array in [[1, "1 fizzle |  · hover an item"], [2, "2 fizzles |  · hover an item"]]:
 		var result: ScoreResult = _result()
 		for _extra: int in range((pair[0] as int) - 1):
 			result.steps.append(_step(ScoreStep.StepType.WASTED, "Coffee bonus"))
@@ -115,7 +115,7 @@ func test_the_planning_receipt_is_itemised() -> void:
 				"5 ····· | ",
 				"---",
 				"PROJECTED | €8.00",
-				"1 fizzle |  · rest on the item",
+				"1 fizzle |  · hover an item",
 			]
 		)
 	)
@@ -157,6 +157,74 @@ func test_the_planning_receipt_is_itemised() -> void:
 	_receipt.show_planning(PackedStringArray(HEADER), clean, PackedStringArray(NAMES), 3)
 	assert_str(_lines(_receipt)[-1]).is_equal("PROJECTED | €8.00")
 	await _frames(1)
+
+
+## Against the quota (#71's play test): PROJECTED's amount is Palette.GOOD with the met mark (the
+## belt's mark_check disc, in the mark column, centred on the line) at the quota and over it, with
+## no footer for a clean row; under it, Palette.TOMATO with no mark and the shortfall ("short
+## €1.00", dark tomato) on the footer's first row, before the fizzle footer; without a quota it
+## stays ink. Every footer row stays one line inside the stub's width, even with a long hover hint.
+func test_the_projected_total_reads_against_the_quota() -> void:
+	var clean: ScoreResult = _result()
+	clean.steps = clean.steps.filter(
+		func(step: ScoreStep) -> bool: return step.step_type != ScoreStep.StepType.WASTED
+	)
+	var paper: Rect2 = _receipt.get_global_rect()
+	for quota: int in [8, 5, 0]:
+		_receipt.show_planning(PackedStringArray(HEADER), clean, PackedStringArray(NAMES), 3, quota)
+		await _frames(2)
+		var projected: HBoxContainer = _projected(_receipt)
+		assert_that(_color(projected, 1)).is_equal(Palette.GOOD)
+		var mark: TextureRect = projected.get_child(1).get_node_or_null("Mark") as TextureRect
+		assert_object(mark).is_not_null()
+		assert_int(mark.get_meta("mark") as int).is_equal(ReceiptView.Mark.MET)
+		assert_object(mark.texture).is_same(ReceiptDecor.CHECK_DISC)
+		var mark_rect: Rect2 = mark.get_global_rect()
+		var line_rect: Rect2 = projected.get_global_rect()
+		assert_bool(paper.encloses(mark_rect)).override_failure_message(str(mark_rect)).is_true()
+		assert_float(mark_rect.end.x).is_equal_approx(line_rect.end.x, 0.5)
+		assert_float(mark_rect.get_center().y).is_equal_approx(line_rect.get_center().y, 1.0)
+		var amount: Label = projected.get_child(1) as Label
+		var text_end: float = amount.get_global_rect().end.x - ReceiptView.MARK_COLUMN
+		assert_float(mark_rect.position.x).is_greater_equal(text_end + 6.0 - 0.5)
+		assert_str(_lines(_receipt)[-1]).is_equal("PROJECTED | €8.00")
+	var cases: Array[Array] = [
+		[_result(), 9, ["short €1.00 | ", "1 fizzle |  · hover an item"]],
+		[clean, 20, ["short €12.00 | "]],
+	]
+	for case: Array in cases:
+		var result: ScoreResult = case[0] as ScoreResult
+		var quota: int = case[1] as int
+		_receipt.show_planning(
+			PackedStringArray(HEADER), result, PackedStringArray(NAMES), 3, quota
+		)
+		await _frames(2)
+		var projected: HBoxContainer = _projected(_receipt)
+		assert_that(_color(projected, 1)).is_equal(Palette.TOMATO)
+		assert_object(projected.get_child(1).get_node_or_null("Mark")).is_null()
+		var tail: Array[String] = _lines(_receipt)
+		tail = tail.slice(tail.find("PROJECTED | €8.00") + 1)
+		assert_array(tail).is_equal(case[2] as Array)
+		# A long hint is cut, never wrapped or widening the stub.
+		_receipt.show_relations(-1, {}, ReceiptView.HOVERED_HINT % "Squashed cake")
+		await _frames(2)
+		var rows: Array[Node] = _receipt._lines.get_children()
+		rows = rows.slice(rows.find(projected) + 1)
+		assert_int(rows.size()).is_equal(tail.size())
+		for row: Node in rows:
+			var footer: HBoxContainer = row as HBoxContainer
+			assert_that(_color(footer, 0)).is_equal(Palette.TOMATO_DARK)
+			assert_int((footer.get_child(0) as Label).get_line_count()).is_equal(1)
+			assert_float(footer.get_combined_minimum_size().x).is_less_equal(_receipt._lines.size.x)
+			assert_float(footer.get_rect().end.x).is_less_equal(_receipt._lines.size.x + 0.5)
+			for label: Node in footer.get_children():
+				var rect: Rect2 = (label as Control).get_global_rect()
+				assert_bool(paper.encloses(rect)).override_failure_message(str(rect)).is_true()
+	# Without a quota: ink, no mark.
+	_receipt.show_planning(PackedStringArray(HEADER), clean, PackedStringArray(NAMES), 3)
+	await _frames(1)
+	assert_that(_color(_projected(_receipt), 1)).is_equal(Palette.INK)
+	assert_object(_projected(_receipt).get_child(1).get_node_or_null("Mark")).is_null()
 
 
 ## The planning receipt's styles: dashed rules (no solid one), PROJECTED's caption smaller than
@@ -590,6 +658,15 @@ static func _marks(receipt: ReceiptView) -> Array[ReceiptView.Mark]:
 			ReceiptView.Mark.NONE if mark == null else mark.get_meta("mark") as ReceiptView.Mark
 		)
 	return marks
+
+
+## The PROJECTED line, or null.
+static func _projected(receipt: ReceiptView) -> HBoxContainer:
+	for line: Node in receipt._lines.get_children():
+		if line is HBoxContainer and not line.is_queued_for_deletion():
+			if (line.get_child(0) as Label).text == ReceiptView.PROJECTED_TEXT:
+				return line as HBoxContainer
+	return null
 
 
 static func _size(line: HBoxContainer, index: int) -> int:

@@ -46,12 +46,13 @@ const CELL_SIZE := ItemView.BELT_SIZE
 ## An open cell's ticket on the rail (cell coordinates; the item's sticker covers it) and its
 ## shadow under a filled ticket; an empty slot's footprint on the belt's top face, its front edge
 ## 2 px under the item's foot (mock-up B2), and the top of the slot's drop target: the top of a
-## belt item's sprite, lifted, which the tallest art reaches (ItemView.hit_rect's top).
+## belt item's sprite, lifted and boosted (#71), which the tallest art reaches (a boosted
+## ItemView.hit_rect's top).
 const TICKET_RECT := Rect2(ItemView.BELT_STICKER, PriceSticker.SIZE)
 const TICKET_SHADOW_OFFSET := Vector2(2, 2)
 const TICKET_SHADOW_ALPHA := 0.38
 const FOOTPRINT_RECT := Rect2(8, 84, 100, 42)
-const DROP_TOP := ItemView.BELT_SPRITE.y - ItemView.LIFT
+const DROP_TOP := ItemView.BELT_SPRITE.y - ItemView.LIFT - ItemView.BOOST_LIFT
 ## The placeable ring reaches this far past the ticket on every side (one art pixel).
 const RING_GROW := 2
 ## The frames' 9-slice margins, in art pixels: the ring and the hover fill.

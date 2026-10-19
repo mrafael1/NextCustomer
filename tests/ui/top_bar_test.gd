@@ -166,9 +166,50 @@ func test_the_quota_bar_keeps_its_width_through_a_count() -> void:
 	# The check, shown, sits in its slot inside the meter.
 	var meter_rect: Rect2 = meter.get_global_rect()
 	assert_bool(meter_rect.encloses(meter.check().get_global_rect())).is_true()
-	assert_float(meter.check().position.x).is_greater_equal(
-		meter.amount_label.position.x + meter.amount_label.size.x
+	assert_float(meter.check().get_global_rect().position.x).is_greater_equal(
+		meter.amount_label.get_global_rect().end.x
 	)
+
+
+## A drag's would-be total and change (#71) keep the bar's width too: the amount's reserve holds
+## "› €" and four digits, the change ("(+6)" to "(-999)") takes the check's slot, so nothing in the
+## meter moves or grows as the drag crosses the slots and ends; both texts lie inside the meter.
+func test_the_quota_bar_keeps_its_width_through_a_drag() -> void:
+	var meter: QuotaMeter = auto_free(QuotaMeter.new())
+	meter.size = Vector2(400, TopBar.ROW_SIZE.y)
+	add_child(meter)
+	meter.show_projected(46, 900)
+	await _frames(2)
+	var width: float = meter.bar().size.x
+	var minimum: Vector2 = meter.get_combined_minimum_size()
+	var cases: Array = [[52, 6], [40, -6], [9999, 999], [1, -999], [152, 120]]
+	for case: Array in cases:
+		meter.show_hypothetical(case[0], case[1], 900)
+		await _frames(2)
+		var text: String = QuotaMeter.HYPOTHETICAL_TEXT % [case[0], case[1]]
+		assert_str(meter.shown_text()).is_equal(text)
+		assert_float(meter.bar().size.x).override_failure_message(text).is_equal(width)
+		assert_vector(meter.get_combined_minimum_size()).override_failure_message(text).is_equal(
+			minimum
+		)
+		var meter_rect: Rect2 = meter.get_global_rect()
+		for label: Label in [meter.amount_label, meter.delta_label]:
+			var font: Font = label.get_theme_font("font")
+			var font_size: int = label.get_theme_font_size("font_size")
+			var drawn: float = (
+				font.get_string_size(label.text, label.horizontal_alignment, -1, font_size).x
+			)
+			var at: Vector2 = label.get_global_rect().position
+			var ink: Rect2 = Rect2(at, Vector2(drawn, label.size.y))
+			assert_bool(meter_rect.encloses(ink)).override_failure_message(text).is_true()
+			assert_float(drawn).override_failure_message(text).is_less_equal(label.size.x)
+		assert_float(meter.delta_label.get_global_rect().position.x).is_greater_equal(
+			meter.amount_label.get_global_rect().end.x
+		)
+	meter.show_projected(46, 900)
+	await _frames(2)
+	assert_str(meter.shown_text()).is_equal("€46")
+	assert_float(meter.bar().size.x).is_equal(width)
 
 
 func _frames(count: int) -> void:

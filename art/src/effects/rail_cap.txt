@@ -1,0 +1,15 @@
+; The rail strip's pointed end cap, calm (brass) (#71 planning effects, mock-up h1 (docs/art/mockups/planning_effects_src/H1_BUILD_SPEC.md)): it
+; continues the strip's rows from its left column (placed over the strip's ink end) to an
+; ink point, one texel taller than the strip at the top and bottom. Flipped in code for a
+; backward strip. 5x9, shown at 2x.
+@size 5x9
+@kind icon
+#....
+##...
+MM#..
+mmm#.
+mmmm#
+mmm#.
+ll#..
+##...
+#....
