@@ -3,6 +3,7 @@ extends GdUnitTestSuite
 ## panel before shift 1, picked or skipped, logged in run_start, and replayed from the debug
 ## panel. Clicks are sent to the screen's handlers, because headless runs don't deliver input.
 
+const Rush := preload("res://tests/ui/count_up_rush.gd")
 const SCREEN := "res://ui/shift_screen.tscn"
 
 var _folder: String = ""
@@ -96,7 +97,7 @@ func test_the_rack_after_a_run_clears_the_last_receipt() -> void:
 	var screen: ShiftScreen = await _screen()
 	screen._on_reward_skipped()
 	screen.run.place(screen.run.debug_add_to_hand(load("res://data/cards/bread.tres")), 0)
-	await screen._on_checkout_pressed()
+	await Rush.checkout(screen)
 	assert_int(screen.run.phase).is_equal(RunState.Phase.LOST)
 	screen._on_new_run_pressed()
 	assert_int(screen.run.phase).is_equal(RunState.Phase.IMPULSE)
@@ -116,7 +117,7 @@ func test_the_debug_shift_jump_after_a_run_replays_its_rack_choice() -> void:
 	var seed_value: int = screen.run.run_seed
 	var card: CardDefinition = screen.run.impulse_offer[0]
 	screen._on_reward_picked(card)
-	await screen._on_checkout_pressed()
+	await Rush.checkout(screen)
 	assert_int(screen.run.phase).is_equal(RunState.Phase.LOST)
 	screen._debug.skip_to_shift(3)
 	assert_int(screen.run.phase).is_equal(RunState.Phase.PLANNING)

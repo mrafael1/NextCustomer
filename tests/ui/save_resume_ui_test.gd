@@ -5,6 +5,7 @@ extends GdUnitTestSuite
 ## saved run id; an unreadable save is reported, backed up and replaced by a new run. Clicks are
 ## sent to the screen's handlers, because headless runs don't deliver input events.
 
+const Rush := preload("res://tests/ui/count_up_rush.gd")
 const SCREEN := "res://ui/shift_screen.tscn"
 const BALANCE := "res://data/balance/balance.tres"
 ## Milk, Multipack, Milk x5 = 109: passes the first five quotas.
@@ -63,7 +64,7 @@ func test_the_screen_saves_at_every_save_point_and_deletes_the_save_at_the_end()
 	assert_str(_saved()["phase"]).is_equal("planning")
 	assert_int(int(_saved()["shift_index"])).is_equal(1)
 	_place_ids(screen, PASSING_ROW)
-	await screen._on_checkout_pressed()
+	await Rush.checkout(screen)
 	screen._on_reward_skipped()
 	assert_int(screen.run.phase).is_equal(RunState.Phase.UPGRADE)
 	assert_str(_saved()["phase"]).is_equal("upgrade")
@@ -277,7 +278,7 @@ func test_a_new_screen_resumes_the_upgrade_tickets() -> void:
 	first._on_reward_skipped()
 	for shift: int in range(2):
 		_place_ids(first, PASSING_ROW)
-		await first._on_checkout_pressed()
+		await Rush.checkout(first)
 		first._on_reward_skipped()
 	assert_int(first.run.phase).is_equal(RunState.Phase.UPGRADE)
 
@@ -348,7 +349,7 @@ func test_a_resumed_run_keeps_its_run_id_and_played_time() -> void:
 	var resume: Dictionary = _last_event("run_resume")
 	assert_str(resume["run_id"]).is_equal("feedc0de12345678")
 	assert_int(int(resume["run_ms"])).is_equal(600000)
-	await resumed._on_checkout_pressed()
+	await Rush.checkout(resumed)
 	var run_end: Dictionary = _last_event("run_end")
 	assert_str(run_end["run_id"]).is_equal("feedc0de12345678")
 	assert_int(int(run_end["run_ms"])).is_between(600000, 660000)
@@ -386,7 +387,7 @@ func test_a_run_that_doesnt_save_leaves_the_run_save_untouched() -> void:
 	screen.start_new_run(77, false, "", false)
 	screen._on_reward_skipped()
 	_place_ids(screen, PASSING_ROW)
-	await screen._on_checkout_pressed()
+	await Rush.checkout(screen)
 	screen._on_reward_skipped()
 	# An empty row loses shift 2: the run ends without deleting the save.
 	screen._on_checkout_pressed()
@@ -441,9 +442,10 @@ func _assert_on_screen(screen: ShiftScreen, panel: Control) -> void:
 	assert_bool(screen.get_global_rect().encloses(rect)).is_true()
 
 
+## Waits for the screen's checkout to end, the count rushed (one tap, Rush): call it only once
+## what needs the count still running has been checked.
 func _count_up_end(screen: ShiftScreen) -> void:
-	while screen._counting:
-		await get_tree().process_frame
+	await Rush.finish(screen)
 
 
 func _frames(count: int) -> void:

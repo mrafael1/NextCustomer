@@ -13,6 +13,7 @@ extends GdUnitTestSuite
 ## are never touched.
 
 const SCREEN := "res://ui/shift_screen.tscn"
+const Rush := preload("res://tests/ui/count_up_rush.gd")
 const SCREEN_RECT := Rect2(0, 0, 1280, 720)
 ## A 32:9 window: the stage sits centred in it, with bare wall either side.
 const WIDE_SIZE := Vector2i(2560, 720)
@@ -54,9 +55,9 @@ func after_test() -> void:
 		DirAccess.remove_absolute(_folder)
 
 
-## A pass with no taps at Normal speed: the print-out arms within the budget of the verdict. Its
-## timeline starts at the printer feed; presented_ms is the lift's end and armed_ms comes after
-## it; nothing was skipped, and the reward event logs the same.
+## A pass at Normal speed, untouched after the verdict: the print-out arms within the budget of
+## the verdict. Its timeline starts at the printer feed; presented_ms is the lift's end and
+## armed_ms comes after it; nothing was skipped, and the reward event logs the same.
 func test_a_pass_arms_the_printout_within_the_budget() -> void:
 	var screen: ShiftScreen = await _screen()
 	await _pass_shift(screen)
@@ -393,11 +394,12 @@ func _place(screen: ShiftScreen) -> void:
 		screen._on_slot_input(_left_click(), screen.run.row.size())
 
 
-## Passes shift 1 through the real checkout: returns once the print-out has appeared.
+## Passes shift 1 through the real checkout, the count rushed (one tap, Rush: the dessert and
+## the print-out play untouched): returns once the print-out has appeared.
 func _pass_shift(screen: ShiftScreen) -> void:
 	_place(screen)
 	await _frames(2)
-	await screen._on_checkout_pressed()
+	await Rush.checkout(screen)
 	assert_int(screen.run.phase).is_equal(RunState.Phase.REWARD)
 	assert_bool(screen._reward_panel.visible).is_true()
 

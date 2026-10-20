@@ -13,6 +13,7 @@ extends GdUnitTestSuite
 
 const SCREEN := "res://ui/shift_screen.tscn"
 const RECORDING_SFX := preload("res://tests/presentation/recording_sfx.gd")
+const Rush := preload("res://tests/ui/count_up_rush.gd")
 const MUSIC_SCRIPT := preload("res://presentation/music.gd")
 const SCREEN_RECT := Rect2(0, 0, 1280, 720)
 ## Milk, Multipack, Milk x5 = 109.
@@ -61,9 +62,10 @@ func after_test() -> void:
 		DirAccess.remove_absolute(_folder)
 
 
-## A pass with no notice and no taps: total and the slam at 300 ms, pass at 450, PAID at 520,
-## the tear at 560 and the printer feed at 700 (each within _assert_ms's bounds); the
-## verdict and "+€75.00 OVER QUOTA | PAID" in green under it, then the tear; one printer_feed.
+## A pass with no notice, untouched after the verdict: total and the slam at 300 ms, pass at
+## 450, PAID at 520, the tear at 560 and the printer feed at 700 (each within _assert_ms's
+## bounds); the verdict and "+€75.00 OVER QUOTA | PAID" in green under it, then the tear; one
+## printer_feed.
 func test_a_pass_slams_counts_stamps_tears_and_feeds() -> void:
 	var screen: ShiftScreen = await _screen()
 	var sfx: Sfx = _recording_sfx(screen)
@@ -189,7 +191,7 @@ func test_the_last_shift_is_stamped_and_torn_then_shows_the_results() -> void:
 	balance.quotas = PackedInt32Array([screen.run.quota()])
 	screen.run.balance = balance
 	assert_bool(screen.run.is_last_shift()).is_true()
-	await screen._on_checkout_pressed()
+	await Rush.checkout(screen)
 	assert_int(screen.run.phase).is_equal(RunState.Phase.WON)
 	assert_bool(screen._results.visible).is_true()
 	assert_bool(screen._reward_panel.visible).is_false()
@@ -210,12 +212,12 @@ func test_an_upgrade_shift_plays_the_dessert_then_the_printout() -> void:
 	var run: RunState = screen.run
 	assert_bool(run.balance.upgrade_shifts.has(2)).is_true()
 	await _place(screen, PASSING_ROW)
-	await screen._on_checkout_pressed()
+	await Rush.checkout(screen)
 	screen._on_reward_skipped()
 	assert_int(run.shift_index).is_equal(1)
 	sfx.clear()
 	await _place(screen, PASSING_ROW)
-	await screen._on_checkout_pressed()
+	await Rush.checkout(screen)
 	assert_int(run.phase).is_equal(RunState.Phase.REWARD)
 	var count_up: CountUp = screen._count_up
 	var heard: Array[String] = _names_of(_dessert_sounds(sfx, count_up))
@@ -246,7 +248,7 @@ func test_a_skipped_dessert_leaves_the_same_receipt_and_sounds() -> void:
 	var count_up: CountUp = screen._count_up
 	for quota: int in [34, 200]:
 		sfx.clear()
-		_play(screen, quota, NOTICE)
+		_start(screen, quota, NOTICE)  # No tap at all: the reference is the untouched play.
 		await _played(screen)
 		var untouched: Array[String] = _lines(screen._receipt)
 		var sounds: Array[String] = _names_of(_dessert_sounds(sfx, count_up))
@@ -553,8 +555,17 @@ static func _lines(receipt: ReceiptView) -> Array[String]:
 	return lines
 
 
-## Plays the screen's row against `quota` with `notice`, untouched and without music.
+## Plays the screen's row against `quota` with `notice`, without music, the count rushed (one
+## tap, Rush): the dessert after the verdict, which these tests time, plays untouched.
 func _play(
+	screen: ShiftScreen, quota: int, notice: String = "", context: CountUpContext = null
+) -> void:
+	_start(screen, quota, notice, context)
+	Rush.rush(screen._count_up)
+
+
+## Plays the screen's row against `quota` with `notice`, untouched and without music.
+func _start(
 	screen: ShiftScreen, quota: int, notice: String = "", context: CountUpContext = null
 ) -> void:
 	var count_up: CountUp = screen._count_up
@@ -580,7 +591,7 @@ func _play(
 
 ## As _play, tapped twice at once: the count and the dessert at skip speed.
 func _play_skipped(screen: ShiftScreen, quota: int, notice: String = "") -> void:
-	_play(screen, quota, notice)
+	_start(screen, quota, notice)
 	screen._count_up._tap(Time.get_ticks_msec())
 	screen._count_up._tap(Time.get_ticks_msec())
 

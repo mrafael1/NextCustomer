@@ -16,6 +16,7 @@ extends GdUnitTestSuite
 const SCREEN := "res://ui/shift_screen.tscn"
 const SCREEN_RECT := Rect2(0, 0, 1280, 720)
 const RecordingSfx := preload("res://tests/presentation/recording_sfx.gd")
+const Rush := preload("res://tests/ui/count_up_rush.gd")
 ## Milk, Multipack, Milk x5 = 109: passes the first five quotas (reward_printout_test).
 const PASSING_ROW: Array[String] = ["milk", "multipack", "milk", "milk", "milk", "milk", "milk"]
 ## A wall-clock limit for the panel to arm.
@@ -372,7 +373,7 @@ func _pass_shift(screen: ShiftScreen) -> void:
 		assert_bool(screen.run.place(card, screen.run.row.size())).is_true()
 	screen._refresh()
 	await _frames(2)
-	await screen._on_checkout_pressed()
+	await Rush.checkout(screen)
 	assert_int(screen.run.phase).is_equal(RunState.Phase.REWARD)
 	assert_bool(screen._reward_panel.is_printout()).is_true()
 

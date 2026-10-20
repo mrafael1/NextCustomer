@@ -7,6 +7,7 @@ extends GdUnitTestSuite
 ## events. tests/ui/reward_printout_test.gd covers the print-out's own times and skips.
 
 const SCREEN := "res://ui/shift_screen.tscn"
+const Rush := preload("res://tests/ui/count_up_rush.gd")
 ## Milk, Multipack, Milk x5 = 109: passes the first five quotas.
 const PASSING_ROW: Array[String] = ["milk", "multipack", "milk", "milk", "milk", "milk", "milk"]
 ## The pop-ins' arming delay (RewardPanel's impulse rack, UpgradePanel), in wall-clock ms.
@@ -80,8 +81,7 @@ func test_a_demo_row_logs_zero_rack_times() -> void:
 	assert_int(int(start["impulse_presented_ms"])).is_equal(0)
 	assert_int(int(start["impulse_armed_ms"])).is_equal(0)
 	assert_bool(start["impulse_presentation_skipped"]).is_false()
-	while screen._counting:
-		await get_tree().process_frame
+	await Rush.finish(screen)
 
 
 ## A replayed pick that is refused leaves the rack to the player: their choice logs the rack's real
@@ -197,7 +197,8 @@ func _pass_shift(screen: ShiftScreen) -> void:
 		screen._debug.add_card(id)
 		screen._on_hand_card_clicked(_view_for(screen, screen.run.hand()[-1]))
 		screen._on_slot_input(_left_click(), screen.run.row.size())
-	await screen._on_checkout_pressed()
+	# The count rushed (one tap, Rush): the print-out and the panels play untouched.
+	await Rush.checkout(screen)
 	assert_int(screen.run.phase).is_equal(RunState.Phase.REWARD)
 
 

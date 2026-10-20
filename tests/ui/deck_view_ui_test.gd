@@ -3,6 +3,7 @@ extends GdUnitTestSuite
 ## Deck tab (grouped copies, tag counts), the Run info tab (upgrades, inspections, stock), the
 ## choosing mode, and that it fits the window. Clicks go to the handlers (headless runs).
 
+const Rush := preload("res://tests/ui/count_up_rush.gd")
 const SCREEN := "res://ui/shift_screen.tscn"
 
 var _folder: String = ""
@@ -152,7 +153,7 @@ func test_run_info_during_the_reward_shows_the_drawn_inspection() -> void:
 	for id: String in ["milk", "multipack", "milk", "milk", "milk", "milk", "milk"]:
 		var card: CardDefinition = load("res://data/cards/%s.tres" % id)
 		screen.run.place(screen.run.debug_add_to_hand(card), screen.run.row.size())
-	await screen._on_checkout_pressed()
+	await Rush.checkout(screen)
 	assert_int(screen.run.phase).is_equal(RunState.Phase.REWARD)
 	assert_object(screen.run.next_inspection).is_not_null()
 	screen._on_reward_deck_requested()
@@ -214,7 +215,7 @@ func test_a_reward_at_the_deck_limit_removes_one_copy_of_a_grouped_card() -> voi
 	for id: String in ["milk", "multipack", "milk", "milk", "milk", "milk", "milk"]:
 		var card: CardDefinition = load("res://data/cards/%s.tres" % id)
 		run.place(run.debug_add_to_hand(card), run.row.size())
-	await screen._on_checkout_pressed()
+	await Rush.checkout(screen)
 	assert_int(run.phase).is_equal(RunState.Phase.REWARD)
 	var bananas: int = _copies(run, &"banana")
 	screen._on_reward_picked(run.offer[0])
