@@ -1,0 +1,4 @@
+b_stamp_breakfast status=0 seconds=1323 spec=[rarity;floor=2:1,4:2,6:3] balance=p77_r0 strategy=build:breakfast_special@sensible
+b_stamp_fits status=0 seconds=1324 spec=[rarity;fits;floor=2:1,4:2,6:3] balance=p77_r0 strategy=greedy@sensible
+b_stamp_items_blind status=0 seconds=1325 spec=[rarity;floor=2:1,4:2,6:3;itemup;newtiers;upblind;itemsfix] balance=p77_r0 strategy=greedy@sensible
+b_stamp_rerun status=0 seconds=1564 spec=[rarity;floor=2:1,4:2,6:3] balance=p77_r0 strategy=greedy@sensible

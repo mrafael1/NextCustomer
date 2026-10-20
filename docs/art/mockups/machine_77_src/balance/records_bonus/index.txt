@@ -1,0 +1,6 @@
+bonus_greedy status=0 seconds=1568 spec=[rarity;floor=2:1,4:2,6:3;itemup;upblind;itemsfix;prodrarity;split;bonus] strategy=greedy@sensible
+bonus_rare status=0 seconds=1571 spec=[rarity;floor=2:1,4:2,6:3;itemup;upblind;itemsfix;prodrarity;split;bonus;rarityfile=p77_rarity_b.json] strategy=greedy@sensible
+bonus_greedy_b2 status=0 seconds=612 seed=1001 spec=[rarity;floor=2:1,4:2,6:3;itemup;upblind;itemsfix;prodrarity;split;bonus] strategy=greedy@sensible
+bonus_rare_b2 status=0 seconds=611 seed=1001 spec=[rarity;floor=2:1,4:2,6:3;itemup;upblind;itemsfix;prodrarity;split;bonus;rarityfile=p77_rarity_b.json] strategy=greedy@sensible
+bonus_breakfast status=0 seconds=1928 seed=1 spec=[rarity;floor=2:1,4:2,6:3;itemup;upblind;itemsfix;prodrarity;split;bonus] strategy=build:breakfast_special@sensible
+bonus_rare_s1 status=0 seconds=1932 seed=1 spec=[rarity;floor=2:1,4:2,6:3;itemup;upblind;itemsfix;prodrarity;split;bonus;rarityfile=p77_rarity_b.json;bonusextra=1] strategy=greedy@sensible

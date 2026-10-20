@@ -1,0 +1,277 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Item upgrade looks</title>
+<!--
+  #77 PREP, ITEM UPGRADE LOOKS (2026-10-20). Built by machine_77_src/upgrades/build_pages.py from upgrades_template.html;
+  edit the template, not the built page. Sprites are data URIs of the PNGs in machine_77_src/upgrades/png/items_v2/, built by
+  tools/pixel_art.py (run on copies, --src/--out under machine_77_src/upgrades) from the sources gen_upgrades.py writes.
+  - PLAIN is the live art/items_v2 sprite. BIG is a bigger pack generated from the plain rows (would become a hand-touched
+    art/src/items_v2/<item>_big.txt). GOLDEN is the BIG rows remapped to the brass/gold ramp (k l L n Y + paper glints),
+    ink kept: in the game that is a palette map in tools/pixel_art.py, not a drawn source.
+  - Prices and rule numbers of BIG and GOLDEN are the brief's placeholders (BRIEF.md 2.5), not measured.
+  Query: ?grey=1 greyscale (proves the tier markers are not colour alone), ?still=1 freezes the sparkles.
+-->
+<style>
+@font-face { font-family: Pixelify; src: url(../../../fonts/PixelifySans-Variable.ttf); }
+@font-face { font-family: Atkinson; src: url(../../../fonts/AtkinsonHyperlegibleNext-Variable.ttf); font-weight: 200 800; }
+:root {
+  --ink: #2b2420; --ink-light: #4a3f38; --muted: #8a8172; --paper: #fbf7ee; --cream: #f3e9d2; --cream-shade: #ddcba5;
+  --mustard: #e2b33c; --mustard-light: #f1d27a; --mustard-pale: #faecbc; --gold: #ffcf3f; --brass: #c8932b;
+  --tomato: #d9534f; --teal: #4f9a94; --teal-panel: #2a4d4b; --teal-dark: #1f3b3a; --teal-light: #86c2b6;
+  --steel: #8d8a83; --steel-light: #c7c3b8; --steel-dark: #57534c; --rubber: #3d3a36; --rubber-dark: #2c2926;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { width: 1280px; height: 720px; overflow: hidden; background: var(--teal-dark); }
+body.grey { filter: grayscale(1); }
+img, .px { image-rendering: pixelated; }
+.stage { position: relative; width: 1280px; height: 720px; font-family: Atkinson, sans-serif; color: var(--ink); overflow: hidden; }
+.abs { position: absolute; }
+.head { left: 0; top: 0; width: 1280px; height: 44px; background: var(--teal-panel); border-bottom: 2px solid var(--ink);
+  display: flex; align-items: center; gap: 14px; padding: 0 16px; color: var(--paper); }
+.head h1 { font-family: Pixelify; font-weight: 400; font-size: 21px; letter-spacing: 1px; }
+.head .sub { font-size: 13px; font-weight: 650; color: var(--mustard-pale); }
+.head .tag { margin-left: auto; font-family: Pixelify; font-size: 12px; letter-spacing: 1px; color: var(--teal-light); }
+.board { background: var(--cream); border: 2px solid var(--ink); box-shadow: 4px 4px 0 rgba(0,0,0,.35); }
+.colh { position: absolute; top: 60px; height: 24px; font-family: Pixelify; font-size: 14px; letter-spacing: 1px; color: var(--ink); display: flex; align-items: center; gap: 8px; }
+.colh small { font-family: Atkinson; font-size: 12px; font-weight: 650; letter-spacing: 0; color: var(--ink-light); }
+.rowh { position: absolute; left: 22px; width: 80px; font-family: Pixelify; font-size: 16px; letter-spacing: .5px; }
+.rowh small { display: block; font-family: Atkinson; font-size: 11px; font-weight: 650; color: var(--muted); letter-spacing: 0; margin-top: 2px; }
+.sep { position: absolute; height: 2px; background: repeating-linear-gradient(90deg, var(--cream-shade) 0 6px, transparent 6px 10px); }
+.arrow { position: absolute; z-index: 2; }
+.item { position: absolute; width: 96px; height: 96px; }
+.item img { position: absolute; left: 0; top: 0; width: 96px; height: 96px; }
+.shadow { position: absolute; height: 8px; background: rgba(20,14,10,.18); border-radius: 0; }
+.label { position: absolute; width: 112px; height: 60px; background: var(--paper); border: 2px solid var(--ink);
+  border-radius: 2px; padding: 2px 7px; box-shadow: 3px 3px 0 rgba(30,18,10,.38); z-index: 4; }
+.label::before { content: ""; position: absolute; left: 0; right: 0; top: 0; height: 4px; background: var(--mustard-light); }
+.label .p { font-weight: 750; font-size: 18px; line-height: 21px; margin-top: 3px; display: flex; align-items: center; gap: 4px; }
+.label .r { font-size: 11.5px; line-height: 13px; font-weight: 650; color: var(--ink-light); }
+.label.cp::before { background: repeating-linear-gradient(90deg, var(--teal) 0 4px, transparent 4px 7px); }
+.label.empty { background: #b3afa5; border-style: dashed; border-color: var(--paper); box-shadow: none; display: grid; place-items: center;
+  font-family: Pixelify; font-size: 12px; letter-spacing: 1px; color: #625a52; }
+.label.empty::before { display: none; }
+.full { position: absolute; width: 62px; font-size: 11px; line-height: 12px; font-weight: 600; color: var(--ink-light); }
+.full b { color: var(--ink); }
+/* belt strip */
+.belt { left: 70px; top: 566px; width: 914px; height: 52px; background: var(--rubber); border-top: 2px solid var(--ink); }
+.belt::after { content: ""; position: absolute; inset: 0; background: repeating-linear-gradient(90deg, transparent 0 62px, var(--rubber-dark) 62px 64px); }
+.beltback { left: 70px; top: 548px; width: 914px; height: 18px; background: #45423d; border-top: 2px solid var(--ink); }
+.lip { left: 64px; top: 618px; width: 922px; height: 12px; background: var(--steel-light); border-top: 2px solid #ecebe4; border-bottom: 2px solid var(--ink); }
+.rail { left: 64px; top: 630px; width: 922px; height: 78px; background: var(--steel); border-bottom: 2px solid var(--ink); }
+.reg { left: 12px; top: 548px; width: 54px; height: 160px; background: var(--rubber-dark); border: 2px solid var(--ink); }
+.reg span { position: absolute; left: 4px; right: 4px; top: 8px; font-family: Pixelify; font-size: 10px; color: var(--mustard-pale); text-align: center; line-height: 12px; }
+.slotn { position: absolute; top: 678px; width: 112px; text-align: center; font-family: Pixelify; font-size: 11px; color: var(--paper); }
+.stripcap { position: absolute; left: 846px; top: 524px; width: 140px; z-index: 1; line-height: 15px; font-family: Pixelify; font-size: 14px; letter-spacing: 1px; color: var(--paper); }
+.stripcap small { font-family: Atkinson; font-size: 11.5px; font-weight: 650; letter-spacing: 0; color: var(--teal-light); }
+.stk { position: absolute; z-index: 7; height: 26px; padding: 0 6px; background: var(--paper); border: 2px solid var(--ink); border-radius: 4px;
+  font-weight: 800; font-size: 18px; line-height: 22px; box-shadow: 2px 2px 0 rgba(20,14,10,.5); transform: rotate(-4deg); }
+/* caption */
+.cap { left: 1000px; top: 56px; width: 268px; height: 656px; padding: 12px 14px; background: var(--paper); border: 2px solid var(--ink);
+  box-shadow: 4px 4px 0 rgba(0,0,0,.35); font-size: 12.5px; line-height: 15.5px; font-weight: 550; color: var(--ink-light); }
+.cap h2 { font-family: Pixelify; font-weight: 400; font-size: 14px; letter-spacing: 1px; color: var(--ink); margin: 10px 0 4px; }
+.cap h2:first-child { margin-top: 0; }
+.cap p { margin-bottom: 6px; } .cap b { color: var(--ink); }
+.cap .key { display: grid; grid-template-columns: 82px 1fr; gap: 6px 8px; align-items: center; margin: 6px 0 4px; }
+.cap .key .sw { position: relative; height: 40px; }
+.cap ol { padding-left: 18px; } .cap li { margin-bottom: 5px; }
+.cap .nm { color: var(--muted); font-size: 11.5px; }
+.label .p .priceup { margin-left: 0; vertical-align: 0; }
+
+</style>
+</head>
+<body>
+<div class="stage" id="stage">
+  <div class="abs head"><h1>ITEM UPGRADES</h1><span class="sub">one copy, two steps: plain → BIG → GOLDEN</span><span class="tag">#77 PREP · MOCK-UP, NOT IN THE GAME</span></div>
+  <div class="abs board" style="left:8px;top:52px;width:984px;height:462px"></div>
+  <div class="abs board" style="left:8px;top:518px;width:984px;height:194px;background:var(--teal-panel)"></div>
+  <div class="abs cap">
+    <h2>WHAT YOU ARE LOOKING AT</h2>
+    <p>The brief's four products in their three tiers, drawn on the game's 48×48 grid at 2× (belt size). An upgrade changes <b>one copy</b>; the others stay plain.</p>
+    <p><b>BIG</b> is a bigger pack of the same item: +2 to its price. <b>GOLDEN</b> is the BIG drawing remapped to brass and gold with glints: a stronger effect, one rule field up (a number, or Banana's BESIDE). <b>Boxed</b> = changed from plain (BIG Banana's bonus follows its base).</p>
+    <h2>THE TIER MARKERS</h2>
+    <div class="key" id="key"></div>
+    <p>Each tier differs in shape and count, not only colour (try <b>?grey=1</b>). <b>Hover an item</b>: a 6-step shine (frozen on GOLDEN Milk in the still). BESIDE pays once with Bananas on both sides (engine-checked).</p>
+    <h2>QUESTIONS THIS INFORMS</h2>
+    <ol>
+      <li><b>Decided 2026-10-20:</b> a BIG drawing per item and an automatic GOLDEN recolour.</li>
+      <li>Round 2: Banana and Eggs redrawn (plain and BIG). GOLDEN Banana now uses a darker map (brass body, gold lit side, a paper rim), so it reads as brass and gold, not yellow.</li>
+      <li>The tag hangs under the ticket's left end (the top corners are the rail strip's and the pay starburst's). OK?</li>
+    </ol>
+    <p class="nm">BIG/GOLDEN numbers: the brief's placeholders, not measured.</p>
+  </div>
+  <div class="stripcap">ON THE BELT<br><small>game scale · slot 1 by the register (mirrored B2) · which Banana is upgraded?</small></div>
+  <div class="abs reg"><span>REG<br>←</span></div>
+  <div class="abs beltback"></div>
+  <div class="abs belt"></div>
+  <div class="abs lip"></div>
+  <div class="abs rail"></div>
+</div>
+<script>
+// #77 prep: the item tier markers, shared by machine_77_upgrades.html and machine_77_upgrades_bay.html.
+// Never colour alone: plain has no tag; BIG a square cream price-gun label with one chevron; GOLDEN a gold ribbon with
+// notched (swallowtail) ends and two chevrons, a double rim on its ticket and a 2-frame sparkle. The tag hangs under the
+// ticket's left end (the top left is the rail strip's badge, the top right the pay starburst). Hovering an item steps a
+// diagonal shine across its sprite (tierGlint). Everything is drawn on the 2 px texel grid (canvas at 1 texel per pixel,
+// shown at 2x, image-rendering: pixelated).
+const T_INK = '#2b2420';
+function tCanvas(tw, th) { const c = document.createElement('canvas'); c.width = tw; c.height = th; c.className = 'px';
+  c.style.width = tw * 2 + 'px'; c.style.height = th * 2 + 'px'; return c; }
+function tGlyph(rows, cols) { const c = tCanvas(rows[0].length, rows.length), g = c.getContext('2d');
+  rows.forEach((r, j) => [...r].forEach((ch, i) => { if (cols[ch]) { g.fillStyle = cols[ch]; g.fillRect(i, j, 1, 1); } })); return c; }
+// a filled shape with an ink outline, a lit top-left inner edge, a shaded bottom-right inner edge and a 1-texel hard shadow
+function tPaint(c, inside, p, shadow = 'rgba(20,14,10,.5)') {
+  const g = c.getContext('2d'), W = c.width, H = c.height;
+  const ins = (i, j) => i >= 0 && j >= 0 && i < W && j < H && inside(i, j);
+  const edge = (i, j) => ins(i, j) && !(ins(i - 1, j) && ins(i + 1, j) && ins(i, j - 1) && ins(i, j + 1));
+  const dot = (i, j, col) => { g.fillStyle = col; g.fillRect(i, j, 1, 1); };
+  for (let j = 0; j < H; j++) for (let i = 0; i < W; i++) {
+    if (!ins(i, j)) { if (shadow && ins(i - 1, j - 1)) dot(i, j, shadow); continue; }
+    if (edge(i, j)) dot(i, j, T_INK);
+    else if (edge(i - 1, j) || edge(i, j - 1)) dot(i, j, p.lit);
+    else if (edge(i + 1, j) || edge(i, j + 1)) dot(i, j, p.shade);
+    else dot(i, j, p.fill);
+  }
+}
+const T_CHEV = ['..C..', '.CWC.', 'CW.WC', 'C...C'];
+// the tier tag (the caller places it under the ticket's left end); null for plain.
+// BIG: a cream price-gun label (rounded box) with one chevron. GOLDEN: a gold ribbon with swallowtail ends and two chevrons.
+function tierTag(tier) {
+  if (tier === 0) return null;
+  const d = document.createElement('div'), big = tier === 1;
+  d.className = 'ttag ' + (big ? 'big' : 'gold');
+  const tw = big ? 28 : 40, th = 11, c = tCanvas(tw + 1, th + 1);
+  if (big) tPaint(c, (i, j) => i < tw && j < th && !((i === 0 || i === tw - 1) && (j === 0 || j === th - 1)),
+    { fill: '#fbf7ee', lit: '#ffffff', shade: '#ddcba5' });
+  else tPaint(c, (i, j) => { if (i >= tw || j >= th) return false; const m = Math.abs(j - (th - 1) / 2), n = 3 - Math.round(m * 3 / ((th - 1) / 2));
+      return i >= n && i < tw - n; }, { fill: '#ffcf3f', lit: '#faecbc', shade: '#c8932b' });
+  d.appendChild(c);
+  const t = document.createElement('div'); t.className = 't';
+  t.appendChild(tGlyph(big ? T_CHEV : T_CHEV.map(r => r + '.' + r), { C: T_INK, W: T_INK }));
+  t.insertAdjacentHTML('beforeend', `<span>${big ? 'BIG' : 'GOLD'}</span>`); d.appendChild(t);
+  return d;
+}
+// a 2-frame sparkle (the game's art/effects/sparkle.png cross, 5x5 texels at 2x) that swaps between two spots
+function tierSparkles(parent, spots) {
+  spots.forEach(([x, y], i) => { const c = tGlyph(['..y..', '..y..', 'yywyy', '..y..', '..y..'], { y: '#f1d27a', w: '#ffffff' });
+    c.classList.add('spk', i % 2 ? 'fb' : 'fa'); Object.assign(c.style, { left: x + 'px', top: y + 'px' }); parent.appendChild(c); });
+}
+// the hover glint: a paper-white diagonal band, masked to the sprite's own pixels, stepped across it in 6 steps (about
+// 2 texels a step at belt size) once per hover. `host` is the positioned item box, `src` the sprite's URL (a data URI, so
+// the mask loads from a file:// page too).
+function tierGlint(host, src) {
+  const g = document.createElement('div'); g.className = 'glint';
+  g.style.webkitMaskImage = g.style.maskImage = `url("${src}")`;
+  host.classList.add('glinthost'); host.appendChild(g); return g;
+}
+const TIER_CSS = `
+.ttag { position: absolute; z-index: 8; }
+.ttag > canvas { position: absolute; left: 0; top: 0; }
+.ttag .t { position: absolute; left: 0; top: 0; right: 0; bottom: 0; display: flex; align-items: center; justify-content: center; gap: 4px; }
+.ttag .t span { font-family: Pixelify; color: #2b2420; letter-spacing: 1px; }
+.ttag.big { width: 58px; height: 24px; } .ttag.gold { width: 82px; height: 24px; }
+.ttag .t { padding: 0 2px 2px 0; } .ttag .t span { font-size: 14px; line-height: 16px; }
+.label.t2 { box-shadow: 0 0 0 2px #ffcf3f, 0 0 0 4px #2b2420, 5px 5px 0 2px rgba(30,18,10,.38); }
+.label.t2::before { background: repeating-linear-gradient(90deg, #ffcf3f 0 6px, #c8932b 6px 8px); }
+.priceup { font-family: Pixelify; font-size: 11px; font-weight: 400; color: #2b2420; background: #fbf7ee; border: 2px solid #2b2420; padding: 0 3px; line-height: 12px; margin-left: 4px; vertical-align: 3px; }
+.up { display: inline-block; padding: 0 3px; margin: 0 -1px; background: #ffcf3f; border: 2px solid #2b2420; line-height: 11px; color: #2b2420; }
+.spk { position: absolute; z-index: 9; animation: spkA 1.2s steps(1) infinite; }
+.spk.fb { animation-name: spkB; }
+@keyframes spkA { 0% { opacity: 1; } 50% { opacity: 0; } }
+@keyframes spkB { 0% { opacity: 0; } 50% { opacity: 1; } }
+body.still .spk { animation: none; } body.still .spk.fb { opacity: 0; }
+.glint { position: absolute; left: 0; top: 0; width: 96px; height: 96px; pointer-events: none; z-index: 2;
+  -webkit-mask-size: 96px 96px; mask-size: 96px 96px; -webkit-mask-repeat: no-repeat; mask-repeat: no-repeat;
+  background: linear-gradient(135deg, transparent 0 46%, rgba(255,255,255,.8) 46% 50%, rgba(255,255,255,.45) 50% 53%, transparent 53%);
+  background-size: 300% 300%; background-position: 100% 100%; }
+.glinthost { pointer-events: auto; }
+.glinthost:hover .glint { animation: glint .42s steps(6) 1 both; }
+@keyframes glint { from { background-position: 100% 100%; } to { background-position: 0% 0%; } }
+body.still .glint.demo { animation: none; background-position: 50% 50%; }
+`;
+
+const IMG = {"banana": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADAAAAAwCAMAAABg3Am1AAAAzFBMVEUAAAArJCBKPzheV02KgXLHvquzn3jdy6Xz6dL79+4fOzoqTUs6dnJPmpSGwrbD4NRuJjCoOjzZU0/sim71v6B6WhyzhCXiszzx0nr67Lw9ekVfrlql0X5KMCJ6UjKoek7SqHRKMBCKXRrIkyv/zz8qDhRWEyeKHzOyOlXs6+THw7ippZuNioNva2NXU0xFQj09OjYsKSYkIh/dsHrJjE6ocDpuRSQ+JhTs4Mbk1rnNu5i5pHzk9vO/4t0sNTMiKilfsKgXLCvitIzDj2o0VfsQAAAAAXRSTlMAQObYZgAAAU1JREFUeNrllVu6wyAIhDuL8FYT97/MAho1rWj8zuPhKU3nF3SQvF7/KLCrT9jUp3OHwLGrj/G9BcQYdxNsbRl/LwjAXgKcp47Qnz87oHcpaQiMwchI78OoMpA+jgDnKUK4IbQADtKPzghOiB4BQvDeRBXIhCASLM/6oQtMVISDn4w5DhWwjbjCEGe474Y+Z8J96T3l0DoJUlWFXNZzaWqvliQ5ip4B+qWZisoY0UqCCVAYClm/JJgDuXmyvlX0AxSvyvBB9eFK4AbteibyOBSPw3WuWkXc3776XJ6cnoCJ9GWzGKEDfS/5IssJ1DNCs7k6N0nQEZ3Vc+DeGXatLy6z2MJ0+qnN4gNNCYS6Y7seeuRf07ulHrUzRL9IcF3+R3ouP92sW6wvA/MmX9QDbijX1A8OiCZm7x0eHGjrD2uffXTylSY1Hn+kym3V4gNfzD92uo2JDgAAAABJRU5ErkJggg==", "banana_big": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADAAAAAwCAMAAABg3Am1AAAAzFBMVEUAAAArJCBKPzheV02KgXLHvquzn3jdy6Xz6dL79+4fOzoqTUs6dnJPmpSGwrbD4NRuJjCoOjzZU0/sim71v6B6WhyzhCXiszzx0nr67Lw9ekVfrlql0X5KMCJ6UjKoek7SqHRKMBCKXRrIkyv/zz8qDhRWEyeKHzOyOlXs6+THw7ippZuNioNva2NXU0xFQj09OjYsKSYkIh/dsHrJjE6ocDpuRSQ+JhTs4Mbk1rnNu5i5pHzk9vO/4t0sNTMiKilfsKgXLCvitIzDj2o0VfsQAAAAAXRSTlMAQObYZgAAAY5JREFUeNrVllGWwyAIRcsiDGRM3P8yBxQVFTPN53BO+pN3I7xHm34+/7fgrT7BqydASveogBseELhmPQN3gh0DV4w/sB5KdPoIxBhh7RKJfEQOcB4EmAkHgakhbZ2BgpwTsjTE82ZFIzKile9PE4tBSW5loiDMlGImhMXSalAhFJEKXDEE2Bl0hmAQFp9XFAY2BkkLQRlRc5EcED0Ae+fyzKxmedavKXeiDctqkpaYcIHDDitimUFOiz6ghPFH9RcfwcCewEHPHxSuFSiboSGgmtT0XMtqlB2AmoLKRZ8vQpxX404cdHVUE5Cm8iXATKTR0WJTAcgDUkKyMdSpaQOY3Gh2yQfMV2HQ9xEQnN3oEPtUGmsdobtNJoY29xZoUfcYWLmZuf0WHDaGrH8ChBlyMAesM5ey6jL5BsjLMeWQR6ddRzADatWDR7wdOMibtTuPcKxg9L5HJgeVN/3hmwoVMUk86dVcVidr7T40zy98PmDW4xf6DtTxj79e6MA/5b0O+OIPALyT903cvLV/Af+GXw547JsCAAAAAElFTkSuQmCC", "banana_golden": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADAAAAAwCAMAAABg3Am1AAAAzFBMVEUAAAArJCBKPzheV02KgXLHvquzn3jdy6Xz6dL79+4fOzoqTUs6dnJPmpSGwrbD4NRuJjCoOjzZU0/sim71v6B6WhyzhCXiszzx0nr67Lw9ekVfrlql0X5KMCJ6UjKoek7SqHRKMBCKXRrIkyv/zz8qDhRWEyeKHzOyOlXs6+THw7ippZuNioNva2NXU0xFQj09OjYsKSYkIh/dsHrJjE6ocDpuRSQ+JhTs4Mbk1rnNu5i5pHzk9vO/4t0sNTMiKilfsKgXLCvitIzDj2o0VfsQAAAAAXRSTlMAQObYZgAAAXdJREFUeNrVlUu2xCAIRMMwyxDc/xqbXysi5nWGz5PuSeqKVBm9rv874K0e4dUMgNhWBTR4QKBnPQMN4cRAJ9qXhEh01wgQEVwVUCNSAMq+qEYgLciXzoAXSci2IO5XFYNQxIe+Tx2LQSivlDCEGRvMtLZZ+jXICEdksLbRpp8G3VJrICzuXZmjpb335oyqRc9EmYFNKhphTC3Ty7OnPAlDTE2CMVECLTYrYulBqlENOBH8cb0ihGcCFz3/ybMBtjM8BHSThl7bgfztaNDfFFyuk8svV5DskYO+3VFPgDS2bkAmcHXUbDKAKmA2O+U2eQ1EIrtUA+FTWPSzheoICDGwT7awsaJ6N4UYRt9HYEQ9Y2DloedxFiwxqP4J0AMo5hAK7D3buIPaOj8AujlSDto6nVYEGXCrHjxaklusPXmE62hBX3sUcnD50LfaVPgiIYknvZsrfkVrz6FVfuFzgazHH/QTGO3/daGn0wbglzv/lXzuxMOt/QE+E4ZD6xZ9NQAAAABJRU5ErkJggg==", "coffee": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADAAAAAwCAMAAABg3Am1AAAAzFBMVEUAAAArJCBKPzheV02KgXLHvquzn3jdy6Xz6dL79+4fOzoqTUs6dnJPmpSGwrbD4NRuJjCoOjzZU0/sim71v6B6WhyzhCXiszzx0nr67Lw9ekVfrlql0X5KMCJ6UjKoek7SqHRKMBCKXRrIkyv/zz8qDhRWEyeKHzOyOlXs6+THw7ippZuNioNva2NXU0xFQj09OjYsKSYkIh/dsHrJjE6ocDpuRSQ+JhTs4Mbk1rnNu5i5pHzk9vO/4t0sNTMiKilfsKgXLCvitIzDj2o0VfsQAAAAAXRSTlMAQObYZgAAAKtJREFUeNrtlsESgjAMRMnNfETTpT3g/3+hDTdttsCoozi+Qy70sTtl6HSavhsh0PVVnXpPKTMzpMRwoT6+/fUJ9fwJM4EKRiCCJIrE6xXIuT3uZ5ghpsjJLPUzLuUJ2bxAP2MBirCPvyYUsiLqs04mhH18ykl26cIAsCm0rEPCWv1QQqu+nXAdEArLgA8JT32H9wgY8P/jfuhc8uOe7ZKQiwPbJXp52HPXuAGfeX/JELWGrwAAAABJRU5ErkJggg==", "coffee_big": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADAAAAAwCAMAAABg3Am1AAAAzFBMVEUAAAArJCBKPzheV02KgXLHvquzn3jdy6Xz6dL79+4fOzoqTUs6dnJPmpSGwrbD4NRuJjCoOjzZU0/sim71v6B6WhyzhCXiszzx0nr67Lw9ekVfrlql0X5KMCJ6UjKoek7SqHRKMBCKXRrIkyv/zz8qDhRWEyeKHzOyOlXs6+THw7ippZuNioNva2NXU0xFQj09OjYsKSYkIh/dsHrJjE6ocDpuRSQ+JhTs4Mbk1rnNu5i5pHzk9vO/4t0sNTMiKilfsKgXLCvitIzDj2o0VfsQAAAAAXRSTlMAQObYZgAAALpJREFUeNrtlksOwyAMRONdOYQ/gUV7/xMWsjE2rUzUjxIpbzFSIoYZOQpiWQ4LhLj1JTWKJavk1TogR3hD8bt/P6GcP2ENcQYKMQbACaBfn0SY68tBVbDLAErCSIReVQj7Ui2BqcUOqmISJMmrPqjSNuwMnGTsU1WFbSXeEsZWKu0ZDj2lW4yIvDHUrF2GrfCuhFo4TnhM0RnuU/zV8NF3+I1Bprj+uNOfS+24j6cE5uIQT8ldHqbvGk9qVa8lUPMQCAAAAABJRU5ErkJggg==", "coffee_golden": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADAAAAAwCAMAAABg3Am1AAAAzFBMVEUAAAArJCBKPzheV02KgXLHvquzn3jdy6Xz6dL79+4fOzoqTUs6dnJPmpSGwrbD4NRuJjCoOjzZU0/sim71v6B6WhyzhCXiszzx0nr67Lw9ekVfrlql0X5KMCJ6UjKoek7SqHRKMBCKXRrIkyv/zz8qDhRWEyeKHzOyOlXs6+THw7ippZuNioNva2NXU0xFQj09OjYsKSYkIh/dsHrJjE6ocDpuRSQ+JhTs4Mbk1rnNu5i5pHzk9vO/4t0sNTMiKilfsKgXLCvitIzDj2o0VfsQAAAAAXRSTlMAQObYZgAAARhJREFUeNrNVksOxCAILUuO4BLh/mccqW39gLVmpsmweInK4yFV6rb9rcHUOn8JaiIolfEOOsVMLQM4G7KxY6onSNBoTfysgFnGVxjHdxRsfFXAcyOewl18T8HEP6ZGCvfxLYGm1hHi1GBRoJEACvu+iAwWoEoDYhCmGKnHApHqpFSBo8oaLNAopJPk5UMFMJEqAgex+SS8ALlNiXcFm1UBHcPjKuFilfAHVQqnYTB2TKUj6xB0MWk5/j4h+6dsrb9LyIspYce/I8RHBmunu/1wrxNu6u9veu4/+HBjf23s0DZK28L6qaUbJ7h24wTfvXHpr7LWl/DlvoR5/LhKeI2/qJIe10GVsHRvaB4Ogyph6d7d4+HxW+MDjv/HSsSMLy0AAAAASUVORK5CYII=", "eggs": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADAAAAAwCAMAAABg3Am1AAAAzFBMVEUAAAArJCBKPzheV02KgXLHvquzn3jdy6Xz6dL79+4fOzoqTUs6dnJPmpSGwrbD4NRuJjCoOjzZU0/sim71v6B6WhyzhCXiszzx0nr67Lw9ekVfrlql0X5KMCJ6UjKoek7SqHRKMBCKXRrIkyv/zz8qDhRWEyeKHzOyOlXs6+THw7ippZuNioNva2NXU0xFQj09OjYsKSYkIh/dsHrJjE6ocDpuRSQ+JhTs4Mbk1rnNu5i5pHzk9vO/4t0sNTMiKilfsKgXLCvitIzDj2o0VfsQAAAAAXRSTlMAQObYZgAAAOVJREFUeNrtlcsOAiEMAJeU5///sLBQEumAF6Me7GmSdoClLFzXP34s3DGgPhzDoSA1et4QCiJaZ4kEPyIQ4QxaRfQeoa1Yd2UlENrHlSIjVkKh1Mi5F620E/IsW4iEnmtZIBbyLDOEQs8lIQJBcykRgRA1l4AiCD6OECLq9OFwc6fbFko7OUTO/J9jy+vsSI7GL7NZhljY95mF2SwgEsaWC5IVjm1LIPioOSQSTn0G4XzvBfjoF0Ez3BfKfXQM+a0gs+yJ4Pp2OpgES45ehw8J93KB8MWagxF9RWjZkSPavbt7GvEAP1gXYyAIvWEAAAAASUVORK5CYII=", "eggs_big": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADAAAAAwCAMAAABg3Am1AAAAzFBMVEUAAAArJCBKPzheV02KgXLHvquzn3jdy6Xz6dL79+4fOzoqTUs6dnJPmpSGwrbD4NRuJjCoOjzZU0/sim71v6B6WhyzhCXiszzx0nr67Lw9ekVfrlql0X5KMCJ6UjKoek7SqHRKMBCKXRrIkyv/zz8qDhRWEyeKHzOyOlXs6+THw7ippZuNioNva2NXU0xFQj09OjYsKSYkIh/dsHrJjE6ocDpuRSQ+JhTs4Mbk1rnNu5i5pHzk9vO/4t0sNTMiKilfsKgXLCvitIzDj2o0VfsQAAAAAXRSTlMAQObYZgAAAOlJREFUeNrtldkOhCAMRSFl/f8fHhG6aMK1ySRmHqZPJ60HlCKE8I/fiegMeT47IxqBjphZQEYg4ioiFdKKjMnMwDVM3wjjPXkt9iTC+KTeacWejNCPaG2W9nQVmhS3pMLMjBwkKzQpAjLCzFTCJAJnasUkQuFMhVRESGUFYdJOuza37fRYOBr7BVNc/+da6GPOB4o6fpcWAbKCp89WkBZBUmEtND0QC862VRFS4cwDqeDrswjecy/LR7tDZziPkXPDAEo3gaS4ITm+Iw9BGVHU2+El4XxJSObGkiEwvSiM3Mpgut67HgrhA7vJHwncTCPUAAAAAElFTkSuQmCC", "eggs_golden": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADAAAAAwCAMAAABg3Am1AAAAzFBMVEUAAAArJCBKPzheV02KgXLHvquzn3jdy6Xz6dL79+4fOzoqTUs6dnJPmpSGwrbD4NRuJjCoOjzZU0/sim71v6B6WhyzhCXiszzx0nr67Lw9ekVfrlql0X5KMCJ6UjKoek7SqHRKMBCKXRrIkyv/zz8qDhRWEyeKHzOyOlXs6+THw7ippZuNioNva2NXU0xFQj09OjYsKSYkIh/dsHrJjE6ocDpuRSQ+JhTs4Mbk1rnNu5i5pHzk9vO/4t0sNTMiKilfsKgXLCvitIzDj2o0VfsQAAAAAXRSTlMAQObYZgAAAO9JREFUeNrtlUsOwyAMBUGGRY6QrcP9z1i+thuJV0uVoi76ViO7QxKchhD++Z1EZ+T32ZloBKoZVUBGIFpdRCqkmYzJXGH1MH0jtPtce7EnEdojMdPMnozAfByjiMgK51nKaAJSoVd6DZIVijQBGaFIE5EIs3JdjOkmXDWQVEg8Q5h00q6X2056rFSDKc7/J9VB1k1os8QUdWynjAiQFTxztoJrzkYYGy0z3dESdDCYREi8Kh9IBd+cRfB+97I8tDt6hf4Z6S8MoHQTSJobks93XEtQRhT1dHhI6DcJyZxYsgSmB4VWmxVM7+euh0J4AcPHVY26VdFYAAAAAElFTkSuQmCC", "milk": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADAAAAAwCAMAAABg3Am1AAAAzFBMVEUAAAArJCBKPzheV02KgXLHvquzn3jdy6Xz6dL79+4fOzoqTUs6dnJPmpSGwrbD4NRuJjCoOjzZU0/sim71v6B6WhyzhCXiszzx0nr67Lw9ekVfrlql0X5KMCJ6UjKoek7SqHRKMBCKXRrIkyv/zz8qDhRWEyeKHzOyOlXs6+THw7ippZuNioNva2NXU0xFQj09OjYsKSYkIh/dsHrJjE6ocDpuRSQ+JhTs4Mbk1rnNu5i5pHzk9vO/4t0sNTMiKilfsKgXLCvitIzDj2o0VfsQAAAAAXRSTlMAQObYZgAAANJJREFUeNrV1ssOgjAQhWHPppdksCm+/7taplxUOmaOCQvPysX/xSCUeLv90QBweUrg8hzB5TH7geZtXoGsOSUyJY5v8AnklBix9IzovV9svVccvU+89immQ8DRdxH74OlVfAOnvonQ+wpf34Tm1Q+C5gZ4LJvfF2q1wTzYCiIHjF8JdbCguQGMi14mHBChgIgF7oMFERtM2/L+aboGtOefAnpirgT9TJarQSncNey98z4U9sZNJzB+vGUwBdZ5MMBPB4gG4ACcb9YVmP8gYOwjewJOXymAdyREqwAAAABJRU5ErkJggg==", "milk_big": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADAAAAAwCAMAAABg3Am1AAAAzFBMVEUAAAArJCBKPzheV02KgXLHvquzn3jdy6Xz6dL79+4fOzoqTUs6dnJPmpSGwrbD4NRuJjCoOjzZU0/sim71v6B6WhyzhCXiszzx0nr67Lw9ekVfrlql0X5KMCJ6UjKoek7SqHRKMBCKXRrIkyv/zz8qDhRWEyeKHzOyOlXs6+THw7ippZuNioNva2NXU0xFQj09OjYsKSYkIh/dsHrJjE6ocDpuRSQ+JhTs4Mbk1rnNu5i5pHzk9vO/4t0sNTMiKilfsKgXLCvitIzDj2o0VfsQAAAAAXRSTlMAQObYZgAAAOxJREFUeNrVlkESwiAMAJsLlJlgh/r/vwoUJYGaEG/uqYfdQRrouG3/AVBW9J0ANj14sOk+aMEeOlnPyAVk60PrtGIG5BVMBQS6Z68W3NeL0deK2ZeLO18q7v3d90nyc/jFv4o2SFjxazEHgp8Ld/kJ1vxcVD2tB67qLHhyTo5LaQxOkRZ4W8DeEiQRV3UWqJsuoC1ANAWIPHiIOMQxiDOhP94H+fxSSQ+KQqTSW1aoN0YJ2M9YCcoKb+m6k4eyhxj5AubgMASR+nFtcIc+h6+0gB5vFKkBvw9q8NMFMgdgC2Dxy9qC4R8EqHT3Bd5kOxKQxYYPAAAAAElFTkSuQmCC", "milk_golden": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADAAAAAwCAMAAABg3Am1AAAAzFBMVEUAAAArJCBKPzheV02KgXLHvquzn3jdy6Xz6dL79+4fOzoqTUs6dnJPmpSGwrbD4NRuJjCoOjzZU0/sim71v6B6WhyzhCXiszzx0nr67Lw9ekVfrlql0X5KMCJ6UjKoek7SqHRKMBCKXRrIkyv/zz8qDhRWEyeKHzOyOlXs6+THw7ippZuNioNva2NXU0xFQj09OjYsKSYkIh/dsHrJjE6ocDpuRSQ+JhTs4Mbk1rnNu5i5pHzk9vO/4t0sNTMiKilfsKgXLCvitIzDj2o0VfsQAAAAAXRSTlMAQObYZgAAAQRJREFUeNrVltEOwyAIRcujn8Cjzv//xom6FQqIPi27ybKlOacolmbX9R8Bnh0cWeAMxwpneI0qwAPHFBjQqG+QeAwNnhTuu1VQ/Mqw7r8ynnwNDH3/tWGtZ2XY6/cNZ7+3kORz6PWnG3SKqYrHyuW7MXguLPiGl8Fn2OOpQONz9gTFY0mEC+F1J7VPlinzmwl5mSnUM0F0KRb6QOlN6/32S2UMoO6Sww/BaKvHk2C1Nb1U5iWjrUUH2W9ToNJ4IhDCoLb+owp9v4EgljH6H1f4QKOfNdgDy3xl7AtzbvaFIvi9g6vxOfj54QA5j/gcIEuwR2IKcDaiYLxZFyP6+AcBYW72DUrToVtolTYFAAAAAElFTkSuQmCC"};
+const Q = new URLSearchParams(location.search);
+if (Q.get('grey') === '1') document.body.classList.add('grey');
+if (Q.get('still') === '1') document.body.classList.add('still');
+const stage = document.getElementById('stage');
+const style = document.createElement('style'); style.textContent = TIER_CSS; document.head.appendChild(style);
+function el(cls, st, html, parent) { const d = document.createElement('div'); d.className = cls; Object.assign(d.style, st); if (html) d.innerHTML = html; (parent || stage).appendChild(d); return d; }
+const UP = s => `<span class="up">${s}</span>`;
+// [id, name, tags, prices, ticket rule per tier, full rule per tier]
+const ITEMS = [
+  ['banana', 'Banana', 'Food · Produce', [2, 4, 4],
+    ['+2 after Banana', `${UP('+4')} after Banana`, `${UP('+4')} ${UP('beside')} Banana`],
+    ['Pays +2 more right after a Banana', 'Pays <b>+4</b> more right after a Banana', 'Pays +4 more <b>beside</b> a Banana (once)']],
+  ['milk', 'Milk', 'Food · Breakfast · Dairy', [4, 6, 6],
+    ['+1 per earlier Breakfast', '+1 per earlier Breakfast', `${UP('+2')} per earlier Breakfast`],
+    ['+1 for each earlier Breakfast item', '+1 for each earlier Breakfast item', '<b>+2</b> for each earlier Breakfast item']],
+  ['eggs', 'Eggs', 'Food · Breakfast', [1, 3, 3],
+    ['×2 next Food', '×2 next Food', `×2 next ${UP('2')} Food`],
+    ['Double the next Food payout', 'Double the next Food payout', 'Double the <b>next 2</b> Food payouts']],
+  ['coffee', 'Coffee', 'Breakfast', [2, 4, 4],
+    ['+3 next Breakfast', '+3 next Breakfast', `${UP('+6')} next Breakfast`],
+    ['+3 to the next Breakfast item', '+3 to the next Breakfast item', '<b>+6</b> to the next Breakfast item']],
+];
+const SUF = ['', '_big', '_golden'];
+// a ticket: price (BIG/GOLDEN: the rise over plain boxed), rule (numbers changed from plain boxed), tier tag under its left end
+function ticket(x, y, it, tier, o = {}) {
+  const [, , , prices, rules] = it;
+  const price = tier ? `€${prices[tier]}<span class="priceup">+${prices[tier] - prices[0]}</span>` : `€${prices[0]}`;
+  const t = el('label tk' + (tier === 2 ? ' t2' : ''), { left: x + 'px', top: y + 'px' }, `<div class="p">${price}</div><div class="r">${o.rule || rules[tier]}</div>`);
+  const tag = tierTag(tier);
+  if (tag) { Object.assign(tag.style, { left: (x - 6) + 'px', top: (y + 58) + 'px' }); stage.appendChild(tag); }
+  return t;
+}
+function item(x, y, src, tier, demo) {
+  const d = el('item', { left: x + 'px', top: y + 'px', zIndex: 3 }, `<img class="px" src="${src}">`);
+  const g = tierGlint(d, src); if (demo) g.classList.add('demo');   // ?still=1 freezes this one mid-shine
+  if (tier === 2) tierSparkles(stage, [[x + 8, y + 10], [x + 78, y + 40]]);
+  return d;
+}
+
+// ---------------- the grid: rows = products, columns = tiers ----------------
+const CX = i => 108 + i * 296, RY = j => 96 + j * 104;
+[['PLAIN', "today's card"], ['BIG', '+2 price, a bigger pack'], ['GOLDEN', 'a stronger effect']].forEach(([h, s], i) => {
+  const d = el('colh', { left: CX(i) + 'px' }, `<span>${h}</span><small>${s}</small>`);
+  const tg = tierTag(i); if (tg) { tg.style.position = 'relative'; d.prepend(tg); }
+  if (i) { const a = tGlyph(['C....', 'CC...', 'CCC..', 'CCCC.', 'CCCCC', 'CCCC.', 'CCC..', 'CC...', 'C....'], { C: '#a08f72' });
+    a.classList.add('arrow'); Object.assign(a.style, { left: (CX(i) - 22) + 'px', top: '63px' }); stage.appendChild(a); }
+});
+ITEMS.forEach((it, j) => {
+  const [id, name, tags] = it, y = RY(j);
+  el('rowh', { top: (y + 32) + 'px' }, `${name}<small>${tags}</small>`);
+  if (j) el('sep', { left: '20px', top: (y - 6) + 'px', width: '960px' });
+  [0, 1, 2].forEach(tier => {
+    const x = CX(tier);
+    item(x, y + 4, IMG[id + SUF[tier]], tier, id === 'milk' && tier === 2);
+    ticket(x + 104, y + 12, it, tier);
+    el('full', { left: (x + 226) + 'px', top: (y + 16) + 'px' }, it[5][tier]);
+  });
+});
+
+// ---------------- the belt strip: the brief's row, game scale ----------------
+const SL = k => 76 + (k - 1) * 128, FEET = 618, TT = 626;
+const ROW = [['banana', 0], ['banana', 2], ['banana', 0], ['milk', 1], ['eggs', 0], ['coffee', 0]];
+ROW.forEach(([id, tier], i) => {
+  const k = i + 1, it = ITEMS.find(r => r[0] === id);
+  el('shadow', { left: (SL(k) + 18) + 'px', top: (FEET - 6) + 'px', width: '80px', zIndex: 2 });
+  item(SL(k) + 8, FEET - 96, IMG[id + SUF[tier]], tier);
+  ticket(SL(k), TT, it, tier);
+});
+el('label empty', { left: SL(7) + 'px', top: TT + 'px' }, 'COUPON');
+// received effects under today's rules: the golden Banana pays +4 (a Banana is beside it), slot 3 pays +2 (right after a Banana)
+el('stk', { left: (SL(2) + 72) + 'px', top: '560px' }, '+4');
+el('stk', { left: (SL(3) + 72) + 'px', top: '560px' }, '+2');
+
+// ---------------- the caption's marker key ----------------
+const key = document.getElementById('key');
+[[0, '<b>plain</b>: no tag'], [1, '<b>BIG</b>: square cream label, 1 chevron'], [2, '<b>GOLDEN</b>: swallowtail ribbon, 2 chevrons, double rim, sparkle']].forEach(([tier, txt]) => {
+  const sw = el('sw', { height: '28px' }, '', key), tg = tierTag(tier);
+  if (tg) { tg.style.left = '0px'; tg.style.top = '2px'; sw.appendChild(tg); } else sw.innerHTML = '<span style="font-size:11px;color:#8a8172">(none)</span>';
+  el('', {}, txt, key);
+});
+</script>
+</body>
+</html>

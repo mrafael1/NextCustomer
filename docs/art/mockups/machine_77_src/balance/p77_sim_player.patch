@@ -1,0 +1,366 @@
+diff --git a/tools/balance_sim/sim_player.gd b/tools/balance_sim/sim_player.gd
+index 9d88eb5..5aa1478 100644
+--- a/tools/balance_sim/sim_player.gd
++++ b/tools/balance_sim/sim_player.gd
+@@ -64,6 +64,31 @@ var _samples: int
+ ## The strategy's own randomness (picks, sample hands), seeded from the run seed. The run's
+ ## draws and offers keep using the run's RNG, as in the game.
+ var _rng: RandomNumberGenerator = RandomNumberGenerator.new()
++# ---- p77 scratch: the #77 machine model (worktree only, never committed) ----
++var _p77_on: bool = false
++var _p77_reg: String = "none"
++var _p77_p: float = 0.0
++var _p77_sched: PackedInt32Array = PackedInt32Array()
++var _p77_replace: bool = false
++var _p77_floor: Dictionary[int, int] = {}
++var _p77_rarity: bool = false
++var _p77_itemup: bool = false
++var _p77_newtiers: bool = false
++var _p77_upblind: bool = false
++var _p77_itemsfix: bool = false
++var _p77_fits: bool = false
++var _p77_last_choice: CardDefinition = null
++var _p77_fit_swaps: int = 0
++var _p77_rng: RandomNumberGenerator = RandomNumberGenerator.new()
++var _p77_reg_level: int = 0
++var _p77_up_level: int = 0
++var _p77_items_level: int = 0
++var _p77_odds: PackedInt32Array = PackedInt32Array([75, 22, 3, 65, 28, 7, 55, 33, 12, 45, 37, 18])
++var _p77_pending: Array[UpgradeDefinition] = []
++var _p77_pending_card: CardInstance = null
++var _p77_pending_variant: CardDefinition = null
++static var _p77_variants: Dictionary[String, CardDefinition] = {}
++static var _p77_tier: Dictionary[CardDefinition, int] = {}
+ 
+ 
+ func _init(
+@@ -84,6 +109,7 @@ func _init(
+ 	_sensible = strategy.ends_with(SENSIBLE_SUFFIX)
+ 	_strategy = strategy.trim_suffix(SENSIBLE_SUFFIX)
+ 	_samples = maxi(samples, 1)
++	_p77_parse(OS.get_environment("P77"))
+ 	if _strategy.begins_with("favour:"):
+ 		for id: String in _strategy.trim_prefix("favour:").split("+", false):
+ 			_favoured.append(StringName(id))
+@@ -106,6 +132,10 @@ func play(run_seed: int) -> SimRunRecord:
+ 	)
+ 	var run: RunState = RunState.new(run_seed, _starter, _balance, _stock, stream)
+ 	_rng.seed = hash("balance_sim:%d" % run_seed)
++	_p77_rng.seed = hash("p77:%d" % run_seed)
++	_p77_reg_level = 0
++	_p77_up_level = 0
++	_p77_items_level = 0
+ 	var record: SimRunRecord = SimRunRecord.new()
+ 	record.run_seed = run_seed
+ 	# Per card definition: how many of the run's best rows used it.
+@@ -121,11 +151,16 @@ func play(run_seed: int) -> SimRunRecord:
+ 			return null
+ 		if run.phase != RunState.Phase.REWARD:
+ 			break
+-		_pick_reward(run, usage)
++		if _p77_on:
++			_p77_visit(run, usage)
++		else:
++			_pick_reward(run, usage)
++			if _search.stopped:
++				return null
++			if run.phase == RunState.Phase.UPGRADE:
++				_pick_upgrade(run)
+ 		if _search.stopped:
+ 			return null
+-		if run.phase == RunState.Phase.UPGRADE:
+-			_pick_upgrade(run)
+ 		run.next_shift()
+ 	record.won = run.phase == RunState.Phase.WON
+ 	for index: int in range(run.history.size()):
+@@ -234,6 +269,7 @@ func _pick_reward(run: RunState, usage: Dictionary[CardDefinition, int]) -> void
+ 			choice = _build_card(run, usage)
+ 		if choice == null:
+ 			choice = _greedy_card(run, usage, run.offer, true)
++	_p77_last_choice = choice
+ 	if choice == null:
+ 		run.skip_reward()
+ 		return
+@@ -484,3 +520,282 @@ static func shuffle(rng: RandomNumberGenerator, pile: Array[CardInstance]) -> vo
+ 		var swap: CardInstance = pile[index]
+ 		pile[index] = pile[other]
+ 		pile[other] = swap
++
++
++# ---- p77 scratch: the #77 machine model (worktree only, never committed) ----
++## P77 env: "reg=rand:0.3;replace;floor=2:1,4:2,6:3;rarity;itemup;newtiers"
++func _p77_parse(spec: String) -> void:
++	if spec.is_empty():
++		return
++	_p77_on = true
++	for part: String in spec.split(";", false):
++		var kv: PackedStringArray = part.split("=", true, 1)
++		match kv[0]:
++			"reg":
++				var value: PackedStringArray = kv[1].split(":", true, 1)
++				_p77_reg = value[0]
++				if _p77_reg == "rand":
++					_p77_p = float(value[1])
++				elif _p77_reg == "sched":
++					for shift: String in value[1].split(".", false):
++						_p77_sched.append(int(shift))
++			"replace":
++				_p77_replace = true
++			"floor":
++				for pair: String in kv[1].split(",", false):
++					var sc: PackedStringArray = pair.split(":")
++					_p77_floor[int(sc[0])] = int(sc[1])
++			"rarity":
++				_p77_rarity = true
++			"itemup":
++				_p77_itemup = true
++			"newtiers":
++				_p77_newtiers = true
++			"upblind":
++				_p77_upblind = true
++			"itemsfix":
++				_p77_itemsfix = true
++			"fits":
++				_p77_fits = true
++	# The machine makes every register offer itself.
++	_balance.upgrade_shifts = PackedInt32Array()
++
++
++func _p77_roll(level: int) -> int:
++	var base: int = clampi(level, 0, 3) * 3
++	var roll: int = _p77_rng.randi_range(1, 100)
++	if roll <= _p77_odds[base + 2]:
++		return 2
++	if roll <= _p77_odds[base + 2] + _p77_odds[base + 1]:
++		return 1
++	return 0
++
++
++func _p77_reg_tier(upgrade: UpgradeDefinition) -> int:
++	match String(upgrade.id):
++		"coupon_engine", "category_engine":
++			return 1
++		"slot_engine":
++			return 2
++	return 0
++
++
++## A register offer: today's UpgradeOffer (rarity off) or 3 rolled drops (rarity on).
++func _p77_register_offer(run: RunState, level: int) -> Array[UpgradeDefinition]:
++	var deck: Array[CardDefinition] = _deck_definitions(run.deck.cards)
++	if not _p77_rarity:
++		return UpgradeOffer.make(_p77_rng, _balance, run.upgrades, deck)
++	var offer: Array[UpgradeDefinition] = []
++	var guaranteed: bool = level >= 3
++	for drop: int in range(_balance.upgrade_offer_size):
++		var tier: int = _p77_roll(level)
++		if guaranteed and drop == 0 and tier == 0:
++			tier = 1
++		var order: Array[int] = [tier]
++		for down: int in range(tier - 1, -1, -1):
++			order.append(down)
++		for up: int in range(tier + 1, 3):
++			order.append(up)
++		for want: int in order:
++			var pool: Array[UpgradeDefinition] = []
++			for upgrade: UpgradeDefinition in _balance.upgrade_pool:
++				if _p77_reg_tier(upgrade) == want and not run.upgrades.has(upgrade):
++					if not offer.has(upgrade):
++						pool.append(upgrade)
++			if not pool.is_empty():
++				offer.append(pool[_p77_rng.randi_range(0, pool.size() - 1)])
++				break
++	if _p77_fits and not offer.any(func(u: UpgradeDefinition) -> bool: return u.fits(deck)):
++		# Swap one drop for a fitting register of the SAME tier, if that tier has one.
++		for index: int in range(offer.size()):
++			var tier_i: int = _p77_reg_tier(offer[index])
++			var fitting: Array[UpgradeDefinition] = []
++			for upgrade: UpgradeDefinition in _balance.upgrade_pool:
++				if _p77_reg_tier(upgrade) == tier_i and upgrade.fits(deck):
++					if not run.upgrades.has(upgrade) and not offer.has(upgrade):
++						fitting.append(upgrade)
++			if not fitting.is_empty():
++				offer[index] = fitting[_p77_rng.randi_range(0, fitting.size() - 1)]
++				_p77_fit_swaps += 1
++				break
++	return offer
++
++
++func _p77_upgradable(card: CardDefinition) -> bool:
++	return ["banana", "milk", "eggs", "coffee"].has(String(card.product_card().id))
++
++
++func _p77_tier_of(card: CardDefinition) -> int:
++	return _p77_tier.get(card, 0)
++
++
++func _p77_variant(card: CardDefinition, tier: int) -> CardDefinition:
++	var plain: CardDefinition = card.product_card()
++	if tier <= 0:
++		return plain
++	var key: String = "%s_%d" % [plain.id, tier]
++	if _p77_variants.has(key):
++		return _p77_variants[key]
++	var made: CardDefinition = CardDefinition.new()
++	made.id = StringName("%s_%s" % [plain.id, "big" if tier == 1 else "golden"])
++	made.display_name = plain.display_name
++	made.kind = plain.kind
++	made.is_connector = plain.is_connector
++	made.tags = plain.tags.duplicate()
++	made.base = plain.base + 2
++	made.generally_useful = plain.generally_useful
++	made.variant_of = plain
++	var rules: Array[Rule] = []
++	for rule: Rule in plain.rules:
++		rules.append(rule.duplicate())
++	if tier == 2 and not rules.is_empty():
++		var first: Rule = rules[0]
++		if first is AdjacentMatchBonusRule:
++			(first as AdjacentMatchBonusRule).position = AdjacentMatchBonusRule.Position.BESIDE
++		elif first is CountEarlierTagBonusRule:
++			(first as CountEarlierTagBonusRule).bonus_each = 2
++		elif first is GrantChargedMultiplierRule:
++			(first as GrantChargedMultiplierRule).charges = 2
++		elif first is GrantNextTagBonusRule:
++			(first as GrantNextTagBonusRule).bonus = 6
++	made.rules = rules
++	made.rule_text = plain.rule_text
++	made.sticker_text = plain.sticker_text
++	_p77_variants[key] = made
++	_p77_tier[made] = tier
++	return made
++
++
++## NEW ITEMS rarity: an upgradable product in the offer may arrive BIG (rare) or GOLDEN.
++func _p77_tier_offer(run: RunState) -> void:
++	for index: int in range(run.offer.size()):
++		var card: CardDefinition = run.offer[index]
++		if card.is_product() and _p77_upgradable(card):
++			var tier: int = _p77_roll(_p77_items_level)
++			if tier > 0:
++				run.offer[index] = _p77_variant(card, tier)
++
++
++## Best value of the reward choice (skip included), as greedy judges it.
++func _p77_reward_value(run: RunState, usage: Dictionary[CardDefinition, int], seed_: int) -> float:
++	var current: Array[CardDefinition] = _deck_definitions(run.deck.cards)
++	var kept: Array[CardDefinition] = _kept_deck(run, usage)
++	var redraws: int = _redraws_with(run.upgrades)
++	var best: float = _sample_value(current, run.upgrades, redraws, seed_)
++	for card: CardDefinition in run.offer:
++		var deck: Array[CardDefinition] = kept.duplicate()
++		deck.append(card)
++		best = maxf(best, _sample_value(deck, run.upgrades, redraws, seed_))
++	return best
++
++
++func _p77_register_value(run: RunState, offer: Array[UpgradeDefinition], seed_: int) -> float:
++	var deck: Array[CardDefinition] = _deck_definitions(run.deck.cards)
++	var best: float = -1.0
++	for upgrade: UpgradeDefinition in offer:
++		var upgrades: Array[UpgradeDefinition] = run.upgrades.duplicate()
++		upgrades.append(upgrade)
++		var value: float = _sample_value(deck, upgrades, _redraws_with(upgrades), seed_)
++		best = maxf(best, value * 100.0 / (100.0 + _quota_percent(upgrades)))
++	# Compare in the same unit as the reward value (raw totals at the current quota raise).
++	return best * (100.0 + _quota_percent(run.upgrades)) / 100.0
++
++
++## Best item upgrade: rolls the UPGRADES drops, sets _p77_pending_card/_variant, returns value.
++func _p77_upgrade_value(run: RunState, seed_: int) -> float:
++	_p77_pending_card = null
++	_p77_pending_variant = null
++	var top: int = 0
++	for _drop: int in range(3):
++		top = maxi(top, _p77_roll(_p77_up_level))
++	var steps: int = 1 if top == 0 else 2
++	var seen: Array[CardDefinition] = []
++	var best: float = -1.0
++	var deck: Array[CardDefinition] = _deck_definitions(run.deck.cards)
++	for index: int in range(run.deck.cards.size()):
++		var card: CardInstance = run.deck.cards[index]
++		if seen.has(card.definition) or not _p77_upgradable(card.definition):
++			continue
++		seen.append(card.definition)
++		var tier: int = _p77_tier_of(card.definition)
++		if tier >= 2:
++			continue
++		var variant: CardDefinition = _p77_variant(card.definition, mini(tier + steps, 2))
++		var changed: Array[CardDefinition] = deck.duplicate()
++		changed[index] = variant
++		var value: float = _sample_value(changed, run.upgrades, _redraws_with(run.upgrades), seed_)
++		if value > best:
++			best = value
++			_p77_pending_card = card
++			_p77_pending_variant = variant
++	return best
++
++
++func _p77_visit(run: RunState, usage: Dictionary[CardDefinition, int]) -> void:
++	var shift: int = run.shift_index + 1
++	if _p77_newtiers:
++		_p77_tier_offer(run)
++	var chute: String = "items"
++	var seed_: int = _rng.randi()
++	var reward_value: float = -1.0
++	_p77_pending = []
++	if run.upgrades.size() < 3:
++		match _p77_reg:
++			"rand":
++				if _p77_rng.randf() < _p77_p:
++					chute = "register"
++			"sched":
++				if _p77_sched.has(shift):
++					chute = "register"
++			"greedy":
++				_p77_pending = _p77_register_offer(run, _p77_reg_level)
++				if not _p77_pending.is_empty():
++					reward_value = _p77_reward_value(run, usage, seed_)
++					if _p77_register_value(run, _p77_pending, seed_) > reward_value:
++						chute = "register"
++	if chute == "items" and _p77_itemup and _p77_upblind and [3, 5, 7].has(shift):
++		# Blind: the player confirms UPGRADES from its odds whenever a copy can be upgraded,
++		# then sees the drops and picks the copy.
++		_p77_upgrade_value(run, seed_)
++		if _p77_pending_card != null:
++			chute = "upgrade"
++	elif chute == "items" and _p77_itemup and [3, 5, 7].has(shift):
++		if reward_value < 0.0:
++			reward_value = _p77_reward_value(run, usage, seed_)
++		if _p77_upgrade_value(run, seed_) > reward_value and _p77_pending_card != null:
++			chute = "upgrade"
++	match chute:
++		"register":
++			var offer: Array[UpgradeDefinition] = _p77_pending
++			if offer.is_empty():
++				offer = _p77_register_offer(run, _p77_reg_level)
++			if offer.is_empty():
++				_pick_reward(run, usage)
++			elif _p77_replace:
++				run.upgrade_offer = offer
++				run.skip_reward()
++				_pick_upgrade(run)
++			else:
++				_pick_reward(run, usage)
++				run.upgrade_offer = offer
++				run.phase = RunState.Phase.UPGRADE
++				_pick_upgrade(run)
++			_p77_reg_level += 1
++		"upgrade":
++			run.skip_reward()
++			_p77_pending_card.definition = _p77_pending_variant
++			_p77_up_level += 1
++		_:
++			_p77_last_choice = null
++			_pick_reward(run, usage)
++			if not _p77_itemsfix:
++				_p77_items_level += 1
++			elif _p77_last_choice != null and _p77_last_choice.is_product():
++				# Only a NEW ITEMS pick (a product) raises the NEW ITEMS meter.
++				_p77_items_level += 1
++	if _p77_floor.has(shift) and run.upgrades.size() < _p77_floor[shift]:
++		var stamp: Array[UpgradeDefinition] = _p77_register_offer(run, _p77_reg_level)
++		if not stamp.is_empty():
++			run.upgrade_offer = stamp
++			run.phase = RunState.Phase.UPGRADE
++			_pick_upgrade(run)

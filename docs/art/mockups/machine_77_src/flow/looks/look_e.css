@@ -1,0 +1,18 @@
+/* look E: click & collect lockers (look A's teal terminal; the tray is a bank of 3 pickup lockers) */
+.look-e .cab { background: var(--tealD); }
+.look-e .head { background: var(--mus); color: var(--ink); }
+.look-e .head .s { color: var(--musDD); }
+.look-e .slotPlate { background: var(--cream); color: var(--inkL); }
+.look-e .chute { background: var(--cream); color: var(--ink); box-shadow: inset 0 -5px 0 var(--creamS), 0 4px 0 var(--ink); }
+.look-e .chute.lit { background: var(--paper); box-shadow: inset 0 -5px 0 var(--musL), 0 4px 0 var(--ink); }
+.look-e .win { background: var(--char); border: 4px solid var(--ink); box-shadow: 0 0 0 2px var(--tealS); }
+.look-e .tray { background: var(--tealDD); }
+.look-e .back { background: none; border: 0; }
+.look-e .back img.bag { width: 108px; height: 168px; }
+.look-e .token { display: none !important; }
+.look-e .erail { position: absolute; left: 12px; top: 427px; width: 396px; height: 16px; }
+.look-e .erail .en { position: absolute; top: 1px; width: 56px; text-align: right; font: 800 9px/14px Atkinson; letter-spacing: 1px; color: var(--tealP); }
+.look-e .eled { position: absolute; top: 2px; width: 12px; height: 12px; border: 2px solid var(--ink); background: var(--greyD); }
+.look-e .eled.red { background: var(--tom); box-shadow: inset 2px 2px 0 var(--tomL); }
+.look-e .eled.amber { background: var(--gold); box-shadow: inset 2px 2px 0 var(--musP); }
+.look-e .eled.green { background: var(--good); box-shadow: inset 2px 2px 0 #a5d17e; }

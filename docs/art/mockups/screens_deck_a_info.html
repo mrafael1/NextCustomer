@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8">
+<title>Deck view A info</title>
+<!--
+  #56 DECK VIEW, OPTION A (binder / clipboard), state: Run info tab (shift 5, 3 upgrades, Short belt). Decide prep, 2026-10-19: nothing is decided.
+  Idea: the cart is a clipboard with a stock sheet: each item sits in a clear pocket with its name typed under it and the copies on a mustard tag; headings are label-maker tape; Cart and Run info are binder index tabs on the sheet's right edge; Run info shows the loyalty stamp ring (initials until #59's perk glyphs) beside each upgrade.
+  Built by screens_src/gen_deck/gen_deck.py from data/ (starter deck, real stickers, upgrades, inspections, stock).
+  Background: the real game capture docs/art/shift_screen_1280x720.png under ScreenShade (black 0.5 from y 64); top bar unshaded.
+  Cells: tray items (ItemView TRAY 108x168: 96 sprite + PriceSticker) plus a 32 px caption = 108x200 per cell (SUGGESTION: the caption
+    carries the name, the xN copies and NEW; today the deck view has a 20 px count line under 120x168 CardViews).
+  PAGE_SIZE: (8 x 108 + 7 x 8 + 16, 500) = 936 x 500. Starter page = tags 20 + heading 20 + row 200 + heading 20 + row 200 + 4 gaps of 6
+    = 484 <= 500: fits unscrolled. (A 200-high item with today's separate 20 px count line under it gives rows of 222 and 528: does not fit.)
+  Panel: 1000x592 at (136,64), exactly the 592 limit: board 1000 wide, sheet 960x574, page 936x500 at (168,142); the index tabs stick out right to x 1214. Height limit: pop_in centres it; the top bar (y 0-56, shade from 64) must stay clear, so <= 592 tall.
+  New art/src/ sources: frames/clipboard.txt (wood board 9-slice), frames/sheet.txt (paper sheet 9-slice, shared with the other paper panels), frames/pocket.txt (clear sleeve), frames/tape.txt (label tape 9-slice), frames/tab_paper.txt (active index tab; the idle tab reuses sign.png), scenery/board_clip.txt (steel clip). Stamp ring reuses icons/stamp_ring.png.
+  Timing: unchanged (pop_in 0.22 s + fan; no new animation; the deck view is not an offer, so no presented/armed change).
+  Longest-text checks: chooser title 'Cart full (15/15): choose an item to remove for Breakfast sticker' (longest name); Run info: the Slot engine line (wraps to 2 lines), 'Flickering bulb' and 'Reduced yogurt' captions (wrap to 2 lines in the 108 caption), the STOCK heading.
+
+-->
+<style>
+@font-face { font-family: Pixelify; src: url(../../../fonts/PixelifySans-Variable.ttf); }
+@font-face { font-family: Atkinson; src: url(../../../fonts/AtkinsonHyperlegibleNext-Variable.ttf); font-weight: 200 800; }
+@font-face { font-family: JBMono; src: url(../../../fonts/JetBrainsMono-Regular.ttf); }
+:root {
+  --ink:#2b2420; --ink-light:#4a3f38; --grey-dark:#5e574d; --grey:#8a8172; --grey-light:#c7beab;
+  --cream-darkest:#b39f78; --cream-shade:#ddcba5; --cream:#f3e9d2; --paper:#fbf7ee;
+  --teal-darkest:#1f3b3a; --teal-dark:#2a4d4b; --teal-shade:#3a7672; --teal:#4f9a94; --teal-light:#86c2b6; --teal-pale:#c3e0d4; --teal-black:#172c2b;
+  --mustard-darkest:#7a5a1c; --mustard-dark:#b38425; --mustard:#e2b33c; --mustard-light:#f1d27a; --mustard-pale:#faecbc;
+  --gold:#ffcf3f; --brass:#c8932b; --brass-dark:#8a5d1a;
+  --steel-hi:#ecebe4; --steel-light:#c7c3b8; --steel-pale:#a9a59b; --steel:#8d8a83; --steel-shade:#6f6b63; --steel-dark:#57534c; --steel-darkest:#45423d;
+  --wood-pale:#ddb07a; --wood-light:#c98c4e; --wood:#a8703a; --wood-dark:#6e4524; --wood-darkest:#3e2614;
+  --glass:#e4f6f3; --glass2:#bfe2dd; --good:#5fae5a;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { width: 1280px; height: 720px; overflow: hidden; background: var(--teal-darkest); }
+.stage { position: relative; width: 1280px; height: 720px; overflow: hidden; }
+.abs { position: absolute; }
+.px { image-rendering: pixelated; display: block; }
+.bg { position: absolute; left: 0; top: 0; width: 1280px; height: 720px; image-rendering: pixelated; }
+.shade { position: absolute; left: 0; top: 64px; width: 1280px; height: 656px; background: rgba(0,0,0,.5); }
+.pix { font-family: Pixelify; }
+.body { font-family: Atkinson; }
+.num { font-family: Atkinson; font-weight: 750; }
+.lt { color: var(--paper); -webkit-text-stroke: 4px var(--ink); paint-order: stroke fill; }
+/* the item: tray form (ItemView.Form.TRAY) */
+.cell { position: absolute; width: 108px; height: 200px; }
+.cell .shadow { position: absolute; left: 14px; top: 94px; width: 80px; height: 8px; background: rgba(43,36,32,.25);
+  clip-path: polygon(8px 0, 72px 0, 80px 2px, 80px 6px, 72px 8px, 8px 8px, 0 6px, 0 2px); }
+.cell .spr { position: absolute; left: 6px; top: 4px; width: 96px; height: 96px; }
+.cell .spr img { position: absolute; image-rendering: pixelated; }
+.cell .pname { position: absolute; left: 12px; top: 24px; width: 72px; height: 68px; display: flex; align-items: center; justify-content: center;
+  text-align: center; font: 700 12px/12px Atkinson; color: var(--grey-dark); }
+.cell .cname { position: absolute; left: 26px; top: 32px; width: 60px; height: 42px; display: flex; align-items: center; justify-content: center;
+  text-align: center; font: 700 12px/12px Atkinson; color: var(--ink); }
+/* PriceSticker 108x64: ticket_product.png 9-slice (top 4, sides 3 art px) or ticket_coupon.png */
+.stk { position: absolute; left: 0; top: 104px; width: 108px; height: 64px; }
+.stk .face { position: absolute; inset: 0; border-style: solid; border-width: 8px 6px 6px 6px;
+  border-image: url(screens_src/assets/ticket_product.png) 4 3 3 3 fill stretch; image-rendering: pixelated; }
+.stk .cface { position: absolute; inset: 0; image-rendering: pixelated; }
+.stk .base { position: absolute; left: 8px; top: 6px; height: 24px; font: 750 22px/24px Atkinson; color: var(--ink); }
+.stk .ctitle { position: absolute; left: 8px; top: 8px; height: 20px; font: 13px/20px Pixelify; color: var(--teal-dark); }
+.stk .glyph { position: absolute; left: 84px; top: 8px; width: 18px; height: 18px; image-rendering: pixelated; }
+.stk .sum { position: absolute; left: 6px; top: 28px; width: 96px; height: 34px; font: 700 13px/14px Atkinson; color: var(--ink);
+  display: flex; align-items: center; }
+/* FramedButton on sign.png (secondary) */
+.sign { position: absolute; height: 36px; padding: 0 12px 4px; display: flex; align-items: center; justify-content: center;
+  border-style: solid; border-width: 6px; border-image: url(screens_src/assets/sign.png) 3 fill stretch; image-rendering: pixelated;
+  font: 16px/1 Pixelify; color: var(--paper); }
+.sign span { word-spacing: 3px; -webkit-text-stroke: 4px var(--ink); paint-order: stroke fill; position: relative; top: 1px; }
+.cartfix { position: absolute; left: 1153px; top: 14px; width: 17px; height: 20px; background: var(--teal);
+  font: 750 18px/20px Atkinson; color: var(--paper); letter-spacing: 0; }
+.sign.off { transform: translateY(4px); height: 32px; padding-bottom: 0; filter: brightness(.6); opacity: .85; }
+
+/* The clipboard: a wood board (new frame art/src/frames/clipboard.txt, 9-slice), a paper sheet (new frame sheet.txt,
+   reusable by every paper panel of #56), a steel clip (new prop art/src/scenery/board_clip.txt) and binder index tabs
+   (new frames tab_paper.txt / tab_sign.txt). Shadows are stepped and hard; light from the upper left. */
+.panel { position: absolute; left: 136px; top: 64px; width: 1000px; height: 592px; }
+.board { position: absolute; inset: 0; background: var(--ink);
+  clip-path: polygon(8px 0, calc(100% - 8px) 0, 100% 8px, 100% calc(100% - 8px), calc(100% - 8px) 100%, 8px 100%, 0 calc(100% - 8px), 0 8px); }
+.board::before { content: ''; position: absolute; inset: 2px; background: var(--wood);
+  box-shadow: inset 4px 4px 0 var(--wood-light), inset -6px -6px 0 var(--wood-dark);
+  clip-path: polygon(6px 0, calc(100% - 6px) 0, 100% 6px, 100% calc(100% - 6px), calc(100% - 6px) 100%, 6px 100%, 0 calc(100% - 6px), 0 6px); }
+.hshadow { position: absolute; left: 144px; top: 72px; width: 1000px; height: 592px; background: rgba(23,44,43,.55);
+  clip-path: polygon(8px 0, calc(100% - 8px) 0, 100% 8px, 100% calc(100% - 8px), calc(100% - 8px) 100%, 8px 100%, 0 calc(100% - 8px), 0 8px); }
+.sheet2 { position: absolute; left: 26px; top: 16px; width: 956px; height: 570px; background: var(--cream-shade); border: 2px solid var(--ink); }
+.sheet { position: absolute; left: 20px; top: 10px; width: 960px; height: 574px; background: var(--paper); border: 2px solid var(--ink);
+  box-shadow: inset -2px -4px 0 var(--cream-shade);
+  background-image: repeating-linear-gradient(to bottom, transparent 0 22px, var(--cream) 22px 24px); background-position: 0 66px;
+  background-repeat: no-repeat; background-size: 100% calc(100% - 72px); }
+/* the ruled stock sheet: hard 2 px cream rules every 24 px (drawn into frames/sheet.txt; no gradient, hard stops only) */
+.sheet .rule { position: absolute; left: 12px; right: 112px; top: 62px; height: 2px; background: var(--ink-light); }
+.clip { position: absolute; left: 410px; top: 0; width: 180px; height: 40px; }
+.clip .lever { position: absolute; left: 30px; top: 0; width: 120px; height: 14px; background: var(--ink);
+  clip-path: polygon(6px 0, 114px 0, 120px 6px, 120px 14px, 0 14px, 0 6px); }
+.clip .lever::before { content:''; position:absolute; left: 2px; top: 2px; right: 2px; bottom: 0; background: var(--steel-pale);
+  box-shadow: inset 2px 2px 0 var(--steel-hi); clip-path: polygon(4px 0, 112px 0, 116px 4px, 116px 12px, 0 12px, 0 4px); }
+.clip .plate { position: absolute; left: 0; top: 12px; width: 180px; height: 28px; background: var(--ink); }
+.clip .plate::before { content:''; position:absolute; inset: 2px; background: var(--steel-light);
+  box-shadow: inset 2px 2px 0 var(--steel-hi), inset -2px -4px 0 var(--steel); }
+.clip .rivet { position: absolute; top: 22px; width: 8px; height: 8px; background: var(--steel-dark); box-shadow: 2px 2px 0 var(--steel-hi) inset; }
+.title { position: absolute; left: 36px; top: 42px; font: 22px/30px Pixelify; color: var(--ink); white-space: nowrap; }
+.title b { font: 750 22px/30px Atkinson; }
+.tape { display: inline-block; height: 20px; padding: 0 8px; background: var(--mustard-light); border: 2px solid var(--ink);
+  font: 14px/16px Pixelify; color: var(--ink); white-space: pre; box-shadow: 2px 2px 0 var(--cream-shade); }
+.tape.teal { background: var(--teal-pale); }
+.line { font: 16px/20px Atkinson; color: var(--ink-light); white-space: pre-wrap; }
+.line b { font-weight: 750; color: var(--ink); }
+.pagebox { position: absolute; left: 32px; top: 78px; width: 936px; height: 500px; overflow: hidden; }
+.pageinner { position: absolute; left: 0; top: 0; width: 920px; display: flex; flex-direction: column; gap: 6px; }
+.grid { position: relative; }
+.scroll { position: absolute; right: 0; top: 0; width: 12px; height: 500px; background: var(--cream-shade); border: 2px solid var(--ink); }
+.thumb { position: absolute; left: 0; top: 0; width: 8px; background: var(--steel); box-shadow: inset 2px 2px 0 var(--steel-light); }
+/* the pocket each item sits in: a clear sleeve stapled to the sheet (new frame pocket.txt) */
+.pocket { position: absolute; left: 0; top: 0; width: 108px; height: 120px; background: var(--glass); border: 2px solid var(--teal-shade);
+  box-shadow: inset 0 6px 0 var(--glass2); }
+.glare { position: absolute; left: 70px; top: 4px; width: 34px; height: 34px; background: var(--paper); opacity: .6; z-index: 1; clip-path: polygon(34px 0px, 34px 4px, 30px 4px, 30px 8px, 26px 8px, 26px 12px, 22px 12px, 22px 16px, 18px 16px, 18px 20px, 14px 20px, 14px 24px, 10px 24px, 10px 28px, 2px 28px, 2px 24px, 6px 24px, 6px 20px, 10px 20px, 10px 16px, 14px 16px, 14px 12px, 18px 12px, 18px 8px, 22px 8px, 22px 4px, 26px 4px, 26px 0px); }
+.newtag { position: absolute; left: 64px; top: -6px; height: 20px; padding: 0 4px; border: 2px solid var(--ink); font: 12px/16px Pixelify;
+  color: var(--ink); background: var(--paper); box-shadow: 2px 2px 0 var(--ink); z-index: 2; }
+.cap { position: absolute; left: 0; top: 170px; width: 108px; height: 28px; display: flex; align-items: center; gap: 4px; }
+.cap .nm { flex: 1; min-width: 0; font: 700 13px/13px Atkinson; color: var(--ink); overflow: hidden; }
+.cap .cnt { height: 24px; padding: 0 5px; background: var(--mustard); border: 2px solid var(--ink); font: 750 16px/20px Atkinson; color: var(--ink);
+  box-shadow: 2px 2px 0 var(--mustard-darkest); }
+.cap .new { height: 20px; padding: 0 4px; border: 2px solid var(--ink); font: 12px/16px Pixelify; color: var(--ink); background: var(--paper); }
+.tabs { position: absolute; left: 978px; top: 88px; width: 100px; }
+.tab { position: absolute; left: 0; width: 100px; height: 44px; display: flex; align-items: center; justify-content: center; font: 16px/1 Pixelify; }
+.tab.on { left: -4px; width: 106px; background: var(--paper); border: 2px solid var(--ink); border-left: none; color: var(--ink);
+  box-shadow: inset 0 -4px 0 var(--cream-shade); }
+.tab.on::after { content: ''; position: absolute; left: -2px; top: 0; width: 4px; height: 40px; background: var(--paper); }
+.tab.idle { border-style: solid; border-width: 6px; border-image: url(screens_src/assets/sign.png) 3 fill stretch; image-rendering: pixelated; color: var(--paper); }
+.tab.idle span { word-spacing: 3px; -webkit-text-stroke: 4px var(--ink); paint-order: stroke fill; }
+.stamp { position: relative; flex: none; width: 34px; height: 34px; }
+.stamp img { position: absolute; inset: 4px; width: 26px; height: 26px; image-rendering: pixelated; }
+.stamp b { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font: 10px/1 Pixelify; color: var(--paper); }
+.urow { display: flex; gap: 8px; align-items: flex-start; }
+.irow { display: flex; gap: 8px; align-items: center; }
+.hover .pocket { border-color: var(--ink); box-shadow: inset 0 6px 0 var(--glass2), 0 0 0 2px var(--gold), 0 0 0 4px var(--ink); }
+.hover { transform: translateY(-4px); }
+.rmtag { position: absolute; left: 4px; top: -18px; height: 22px; padding: 0 6px; background: var(--mustard); border: 2px solid var(--ink);
+  font: 13px/18px Pixelify; color: var(--ink); white-space: nowrap; transform: rotate(-4deg); box-shadow: 2px 2px 0 var(--ink); z-index: 3; }
+</style></head>
+<body data-scroll=""><div class="stage">
+<img class="bg" src="screens_src/assets/shift_screen_1280x720.png" alt="">
+<div class="shade"></div>
+<div class="hshadow"></div>
+<div class="panel">
+  <div class="board"></div>
+  <div class="sheet2"></div>
+  <div class="sheet"><div class="rule"></div></div>
+  <div class="tabs"><div class="tab idle" style="top:0"><span>Cart</span></div><div class="tab on" style="top:52px"><span>Run info</span></div></div>
+  <div class="clip"><div class="lever"></div><div class="plate"></div><div class="rivet" style="left:14px"></div><div class="rivet" style="left:158px"></div></div>
+  <div class="title">Your cart (13/15)</div>
+  <div class="sign" style="left:880px;top:40px;width:84px"><span>Close</span></div>
+  <div class="pagebox"><div class="pageinner">
+  <div><span class="tape">UPGRADES</span></div>
+  <div class="urow"><div class="stamp"><img src="screens_src/assets/stamp_ring.png"><b>CoE</b></div><div class="line" style="padding-top:7px"><b>Coupon engine (Coupon Engine):</b> The first coupon in the row pays ×2&nbsp; ·&nbsp; Only the first coupon, and only if it pays something</div></div><div class="urow"><div class="stamp"><img src="screens_src/assets/stamp_ring.png"><b>SlE</b></div><div class="line" style="padding-top:7px"><b>Slot engine (Slot Engine):</b> Your 6th product pays ×2&nbsp; ·&nbsp; Only the 6th product (coupons don&#x27;t count): the 7th with Big basket, the 5th on a Short belt shift; no effect with fewer</div></div><div class="urow"><div class="stamp"><img src="screens_src/assets/stamp_ring.png"><b>CaE</b></div><div class="line" style="padding-top:7px"><b>Category engine (Category Engine):</b> +3 for each different tag among your products&nbsp; ·&nbsp; Paid on the last product in the row</div></div>
+  <div><span class="tape">INSPECTIONS</span></div>
+  <div class="irow"><img class="px" src="screens_src/assets/warning.png" style="width:26px;height:22px"><div class="line">This shift: Short belt, One product slot fewer</div></div><div class="irow"><span style="display:inline-block;width:26px"></span><div class="line">Next shift: no inspection.</div></div>
+  <div><span class="tape">STOCK&nbsp; (every card a reward or the impulse rack can offer this run)</span></div>
+  <div class="irow"><div class="line">Aisles: Cold cases, Pantry, Household</div><img class="px" src="assets/art/icons/aisle_cold_cases.png" style="width:18px;height:18px"><img class="px" src="assets/art/icons/aisle_pantry.png" style="width:18px;height:18px"><img class="px" src="assets/art/icons/aisle_household.png" style="width:18px;height:18px"></div>
+  <div class="grid" style="height:824px"><div class="cell" style="left:0px;top:0px"><div class="pocket"></div><div class="shadow"></div><div class="spr"><img src="assets/art/items_v2/banana.png" style="left:0;top:0;width:96px;height:96px"></div><div class="stk"><div class="face"></div><div class="base">€2</div><div class="sum">+2 after Banana</div></div><div class="glare"></div><div class="cap"><span class="nm">Banana</span></div></div>
+<div class="cell" style="left:116px;top:0px"><div class="pocket"></div><div class="shadow"></div><div class="spr"><img src="assets/art/items_v2/batteries.png" style="left:0;top:0;width:96px;height:96px"></div><div class="stk"><div class="face"></div><div class="base">€1</div><img class="glyph" src="assets/art/icons/aisle_household.png"><div class="sum">+4 in last slot</div></div><div class="glare"></div><div class="cap"><span class="nm">Batteries</span></div></div>
+<div class="cell" style="left:232px;top:0px"><div class="pocket"></div><div class="shadow"></div><div class="spr"><img src="screens_src/assets/art_pending_v2.png" style="left:0;top:0;width:96px;height:96px"><div class="pname">Bread</div></div><div class="stk"><div class="face"></div><div class="base">€5</div></div><div class="glare"></div><div class="cap"><span class="nm">Bread</span></div></div>
+<div class="cell" style="left:348px;top:0px"><div class="pocket"></div><div class="shadow"></div><div class="spr"><img src="screens_src/assets/art_pending_v2.png" style="left:0;top:0;width:96px;height:96px"><div class="pname">Butter</div></div><div class="stk"><div class="face"></div><div class="base">€2</div><img class="glyph" src="assets/art/icons/aisle_cold_cases.png"><div class="sum">+3 beside Bakery</div></div><div class="glare"></div><div class="cap"><span class="nm">Butter</span></div></div>
+<div class="cell" style="left:464px;top:0px"><div class="pocket"></div><div class="shadow"></div><div class="spr"><img src="screens_src/assets/art_pending_v2.png" style="left:0;top:0;width:96px;height:96px"><div class="pname">Carrier bag</div></div><div class="stk"><div class="face"></div><div class="base">€1</div><img class="glyph" src="assets/art/icons/aisle_household.png"><div class="sum">+5 per earlier Food</div></div><div class="glare"></div><div class="cap"><span class="nm">Carrier bag</span></div></div>
+<div class="cell" style="left:580px;top:0px"><div class="pocket"></div><div class="shadow"></div><div class="spr"><img src="screens_src/assets/art_pending_v2.png" style="left:0;top:0;width:96px;height:96px"><div class="pname">Cereal</div></div><div class="stk"><div class="face"></div><div class="base">€2</div><img class="glyph" src="assets/art/icons/aisle_pantry.png"><div class="sum">+3 beside Milk</div></div><div class="glare"></div><div class="cap"><span class="nm">Cereal</span></div></div>
+<div class="cell" style="left:696px;top:0px"><div class="pocket"></div><div class="shadow"></div><div class="spr"><img src="assets/art/items_v2/cheese.png" style="left:0;top:0;width:96px;height:96px"></div><div class="stk"><div class="face"></div><div class="base">€3</div><img class="glyph" src="assets/art/icons/aisle_cold_cases.png"><div class="sum">+4 after Bread</div></div><div class="glare"></div><div class="cap"><span class="nm">Cheese</span></div></div>
+<div class="cell" style="left:812px;top:0px"><div class="pocket"></div><div class="shadow"></div><div class="spr"><img src="assets/art/items_v2/coffee.png" style="left:0;top:0;width:96px;height:96px"></div><div class="stk"><div class="face"></div><div class="base">€2</div><div class="sum">+3 next Breakfast</div></div><div class="glare"></div><div class="cap"><span class="nm">Coffee</span></div></div>
+<div class="cell" style="left:0px;top:208px"><div class="pocket"></div><div class="shadow"></div><div class="spr"><img src="screens_src/assets/art_pending_v2.png" style="left:0;top:0;width:96px;height:96px"><div class="pname">Crackers</div></div><div class="stk"><div class="face"></div><div class="base">€2</div><img class="glyph" src="assets/art/icons/aisle_pantry.png"><div class="sum">+3 beside Soup</div></div><div class="glare"></div><div class="cap"><span class="nm">Crackers</span></div></div>
+<div class="cell" style="left:116px;top:208px"><div class="pocket"></div><div class="shadow"></div><div class="spr"><img src="screens_src/assets/art_pending_v2.png" style="left:0;top:0;width:96px;height:96px"><div class="pname">Cream</div></div><div class="stk"><div class="face"></div><div class="base">€2</div><img class="glyph" src="assets/art/icons/aisle_cold_cases.png"><div class="sum">+2 next Dairy</div></div><div class="glare"></div><div class="newtag">NEW</div><div class="cap"><span class="nm">Cream</span></div></div>
+<div class="cell" style="left:232px;top:208px"><div class="pocket"></div><div class="shadow"></div><div class="spr"><img src="screens_src/assets/art_pending_v2.png" style="left:0;top:0;width:96px;height:96px"><div class="pname">Day-old buns</div></div><div class="stk"><div class="face"></div><div class="base">€2</div><img class="glyph" src="assets/art/icons/aisle_pantry.png"><div class="sum">+3 after Clearance</div></div><div class="glare"></div><div class="cap"><span class="nm">Day-old buns</span></div></div>
+<div class="cell" style="left:348px;top:208px"><div class="pocket"></div><div class="shadow"></div><div class="spr"><img src="screens_src/assets/art_pending_v2.png" style="left:0;top:0;width:96px;height:96px"><div class="pname">Dented can</div></div><div class="stk"><div class="face"></div><div class="base">€2</div><img class="glyph" src="assets/art/icons/aisle_pantry.png"><div class="sum">+2 per earlier Clearance</div></div><div class="glare"></div><div class="cap"><span class="nm">Dented can</span></div></div>
+<div class="cell" style="left:464px;top:208px"><div class="pocket"></div><div class="shadow"></div><div class="spr"><img src="assets/art/items_v2/eggs.png" style="left:0;top:0;width:96px;height:96px"></div><div class="stk"><div class="face"></div><div class="base">€1</div><div class="sum">×2 next Food</div></div><div class="glare"></div><div class="cap"><span class="nm">Eggs</span></div></div>
+<div class="cell" style="left:580px;top:208px"><div class="pocket"></div><div class="shadow"></div><div class="spr"><img src="screens_src/assets/art_pending_v2.png" style="left:0;top:0;width:96px;height:96px"><div class="pname">Flickering bulb</div></div><div class="stk"><div class="face"></div><div class="base">€1</div><img class="glyph" src="assets/art/icons/aisle_household.png"><div class="sum">+3 next Clearance</div></div><div class="glare"></div><div class="cap"><span class="nm">Flickering bulb</span></div></div>
+<div class="cell" style="left:696px;top:208px"><div class="pocket"></div><div class="shadow"></div><div class="spr"><img src="screens_src/assets/art_pending_v2.png" style="left:0;top:0;width:96px;height:96px"><div class="pname">Frozen peas</div></div><div class="stk"><div class="face"></div><div class="base">€3</div><img class="glyph" src="assets/art/icons/aisle_cold_cases.png"><div class="sum">+3 beside Frozen</div></div><div class="glare"></div><div class="cap"><span class="nm">Frozen peas</span></div></div>
+<div class="cell" style="left:812px;top:208px"><div class="pocket"></div><div class="shadow"></div><div class="spr"><img src="assets/art/items_v2/milk.png" style="left:0;top:0;width:96px;height:96px"></div><div class="stk"><div class="face"></div><div class="base">€4</div><div class="sum">+1 per earlier Breakfast</div></div><div class="glare"></div><div class="cap"><span class="nm">Milk</span></div></div>
+<div class="cell" style="left:0px;top:416px"><div class="pocket"></div><div class="shadow"></div><div class="spr"><img src="screens_src/assets/art_pending_v2.png" style="left:0;top:0;width:96px;height:96px"><div class="pname">Reduced yogurt</div></div><div class="stk"><div class="face"></div><div class="base">€2</div><img class="glyph" src="assets/art/icons/aisle_cold_cases.png"><div class="sum">+3 beside Clearance</div></div><div class="glare"></div><div class="cap"><span class="nm">Reduced yogurt</span></div></div>
+<div class="cell" style="left:116px;top:416px"><div class="pocket"></div><div class="shadow"></div><div class="spr"><img src="screens_src/assets/art_pending_v2.png" style="left:0;top:0;width:96px;height:96px"><div class="pname">Scissors</div></div><div class="stk"><div class="face"></div><div class="base">€1</div><img class="glyph" src="assets/art/icons/aisle_household.png"><div class="sum">+2 per earlier coupon</div></div><div class="glare"></div><div class="cap"><span class="nm">Scissors</span></div></div>
+<div class="cell" style="left:232px;top:416px"><div class="pocket"></div><div class="shadow"></div><div class="spr"><img src="screens_src/assets/art_pending_v2.png" style="left:0;top:0;width:96px;height:96px"><div class="pname">Soup</div></div><div class="stk"><div class="face"></div><div class="base">€5</div><div class="sum">Pays nothing beside Frozen</div></div><div class="glare"></div><div class="cap"><span class="nm">Soup</span></div></div>
+<div class="cell" style="left:348px;top:416px"><div class="pocket"></div><div class="shadow"></div><div class="spr"><img src="screens_src/assets/art_pending_v2.png" style="left:0;top:0;width:96px;height:96px"><div class="pname">Sugar cubes</div></div><div class="stk"><div class="face"></div><div class="base">€2</div><img class="glyph" src="assets/art/icons/aisle_pantry.png"><div class="sum">+4 after Coffee</div></div><div class="glare"></div><div class="newtag">NEW</div><div class="cap"><span class="nm">Sugar cubes</span></div></div>
+<div class="cell" style="left:464px;top:416px"><div class="pocket"></div><div class="shadow"></div><div class="spr"><img src="assets/art/items_v2/tea_bags.png" style="left:0;top:0;width:96px;height:96px"></div><div class="stk"><div class="face"></div><div class="base">€1</div><img class="glyph" src="assets/art/icons/aisle_pantry.png"><div class="sum">×4 next Breakfast</div></div><div class="glare"></div><div class="cap"><span class="nm">Tea bags</span></div></div>
+<div class="cell" style="left:580px;top:416px"><div class="pocket"></div><div class="shadow"></div><div class="spr"><img src="screens_src/assets/art_pending_v2.png" style="left:0;top:0;width:96px;height:96px"><div class="pname">Yogurt</div></div><div class="stk"><div class="face"></div><div class="base">€2</div><img class="glyph" src="assets/art/icons/aisle_cold_cases.png"><div class="sum">+3 after Banana</div></div><div class="glare"></div><div class="cap"><span class="nm">Yogurt</span></div></div>
+<div class="cell" style="left:696px;top:416px"><div class="pocket"></div><div class="shadow"></div><div class="spr"><img src="assets/art/items_v2/coupon_slip.png" style="left:0;top:0;width:96px;height:96px"><img src="assets/art/icons/coupon_two_for_one_v2.png" style="left:28px;top:38px;width:40px;height:28px"></div><div class="stk"><img class="cface" src="screens_src/assets/ticket_coupon.png" width="108" height="64"><div class="ctitle">COUPON</div><div class="sum">Same both sides: 2nd ×2</div></div><div class="glare"></div><div class="cap"><span class="nm">2 for 1</span></div></div>
+<div class="cell" style="left:812px;top:416px"><div class="pocket"></div><div class="shadow"></div><div class="spr"><img src="assets/art/items_v2/coupon_slip.png" style="left:0;top:0;width:96px;height:96px"><div class="cname">Breakfast sticker</div></div><div class="stk"><img class="cface" src="screens_src/assets/ticket_coupon.png" width="108" height="64"><div class="ctitle">COUPON</div><div class="sum">Next gains Breakfast</div></div><div class="glare"></div><div class="cap"><span class="nm">Breakfast sticker</span></div></div>
+<div class="cell" style="left:0px;top:624px"><div class="pocket"></div><div class="shadow"></div><div class="spr"><img src="assets/art/items_v2/coupon_slip.png" style="left:0;top:0;width:96px;height:96px"><div class="cname">Clearance tag</div></div><div class="stk"><img class="cface" src="screens_src/assets/ticket_coupon.png" width="108" height="64"><div class="ctitle">COUPON</div><div class="sum">Next gains Clearance</div></div><div class="glare"></div><div class="cap"><span class="nm">Clearance tag</span></div></div>
+<div class="cell" style="left:116px;top:624px"><div class="pocket"></div><div class="shadow"></div><div class="spr"><img src="assets/art/items_v2/coupon_slip.png" style="left:0;top:0;width:96px;height:96px"><div class="cname">Final markdown</div></div><div class="stk"><img class="cface" src="screens_src/assets/ticket_coupon.png" width="108" height="64"><div class="ctitle">COUPON</div><div class="sum">+4 in last slot</div></div><div class="glare"></div><div class="cap"><span class="nm">Final markdown</span></div></div>
+<div class="cell" style="left:232px;top:624px"><div class="pocket"></div><div class="shadow"></div><div class="spr"><img src="assets/art/items_v2/coupon_slip.png" style="left:0;top:0;width:96px;height:96px"><img src="assets/art/icons/coupon_multipack_v2.png" style="left:28px;top:38px;width:40px;height:28px"></div><div class="stk"><img class="cface" src="screens_src/assets/ticket_coupon.png" width="108" height="64"><div class="ctitle">COUPON</div><div class="sum">×3 later with prior&#x27;s tag</div></div><div class="glare"></div><div class="cap"><span class="nm">Multipack</span></div></div>
+<div class="cell" style="left:348px;top:624px"><div class="pocket"></div><div class="shadow"></div><div class="spr"><img src="assets/art/items_v2/coupon_slip.png" style="left:0;top:0;width:96px;height:96px"><div class="cname">Opening deal</div></div><div class="stk"><img class="cface" src="screens_src/assets/ticket_coupon.png" width="108" height="64"><div class="ctitle">COUPON</div><div class="sum">1st slot: next ×5</div></div><div class="glare"></div><div class="cap"><span class="nm">Opening deal</span></div></div>
+<div class="cell" style="left:464px;top:624px"><div class="pocket"></div><div class="shadow"></div><div class="spr"><img src="assets/art/items_v2/coupon_slip.png" style="left:0;top:0;width:96px;height:96px"><div class="cname">Repeat</div></div><div class="stk"><img class="cface" src="screens_src/assets/ticket_coupon.png" width="108" height="64"><div class="ctitle">COUPON</div><div class="sum">Copy prior payout</div></div><div class="glare"></div><div class="cap"><span class="nm">Repeat</span></div></div>
+<div class="cell" style="left:580px;top:624px"><div class="pocket"></div><div class="shadow"></div><div class="spr"><img src="assets/art/items_v2/coupon_slip.png" style="left:0;top:0;width:96px;height:96px"><div class="cname">Shelf swap</div></div><div class="stk"><img class="cface" src="screens_src/assets/ticket_coupon.png" width="108" height="64"><div class="ctitle">COUPON</div><div class="sum">Next also follows the 1st</div></div><div class="glare"></div><div class="cap"><span class="nm">Shelf swap</span></div></div></div>
+  </div><div class="scroll"><div class="thumb"></div></div></div>
+</div>
+
+</div>
+<script>
+// Fit check: the page area's content height against PAGE_SIZE.y (500); the thumb follows it.
+const pg = document.querySelector('.pagebox'), inner = document.querySelector('.pageinner');
+if (pg && inner) {
+  const h = inner.scrollHeight; document.body.dataset.content = h;
+  const th = document.querySelector('.thumb');
+  if (th) { if (h <= 500) th.parentElement.style.display = 'none';
+            else th.style.height = Math.max(24, Math.round(500 * 500 / h / 2) * 2) + 'px'; }
+  if (document.body.dataset.scroll === 'end' && h > 500) {
+    inner.style.top = (500 - h) + 'px';
+    if (th) th.style.top = (th.parentElement.clientHeight - th.offsetHeight) + 'px'; }
+}
+const p = document.querySelector('.panel'); if (p) { const r = p.getBoundingClientRect();
+  document.body.dataset.panel = [r.left, r.top, r.width, r.height].join(','); }
+</script>
+</body></html>

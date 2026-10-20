@@ -1,0 +1,381 @@
+{
+ "bonus_greedy": {
+  "runs": 262,
+  "files": [
+   "bonus_greedy_records.json",
+   "bonus_greedy_b2_records.json"
+  ],
+  "live": 0.32061068702290074,
+  "a": 0.8435114503816794,
+  "live_pass": [
+   0.989,
+   0.985,
+   0.678,
+   0.879,
+   0.921,
+   0.821,
+   0.826,
+   0.884
+  ],
+  "owned": {
+   "3": 1.0
+  },
+  "owned_by_shift6": {
+   "3": 1.0
+  },
+  "register_picks": {
+   "category_engine": 0.943,
+   "extra_redraw": 0.905,
+   "coupon_engine": 0.779,
+   "slot_engine": 0.198,
+   "extra_coupon_slot": 0.172,
+   "big_basket": 0.004
+  },
+  "mean_first_register_shift": 2.0,
+  "live_win_by_owned": {
+   "3": [
+    262,
+    0.321
+   ]
+  },
+  "upgraded_copies_per_run": 5.47,
+  "upgraded_copies": {
+   "milk_golden": 1.908,
+   "eggs_golden": 1.198,
+   "coffee_golden": 1.168,
+   "banana_big": 0.527,
+   "eggs_big": 0.225,
+   "banana_golden": 0.179,
+   "milk_big": 0.168,
+   "coffee_big": 0.095
+  },
+  "builds": {
+   "coupon_specialist": [
+    186,
+    0.301
+   ],
+   "breakfast_special": [
+    34,
+    0.441
+   ],
+   "mixed_basket": [
+    21,
+    0.333
+   ],
+   "bulk_buyer": [
+    13,
+    0.462
+   ],
+   "no build": [
+    8,
+    0.0
+   ]
+  },
+  "conditional_live": {
+   "category_engine_by_shift6": {
+    "with": [
+     247,
+     0.316
+    ],
+    "without": [
+     15,
+     0.4
+    ]
+   },
+   "slot_engine_owned": {
+    "with": [
+     52,
+     0.538
+    ],
+    "without": [
+     210,
+     0.267
+    ]
+   }
+  },
+  "median_shift8": 182
+ },
+ "bonus_rare": {
+  "runs": 275,
+  "files": [
+   "bonus_rare_records.json",
+   "bonus_rare_b2_records.json"
+  ],
+  "live": 0.3563636363636364,
+  "a": 0.850909090909091,
+  "live_pass": [
+   0.989,
+   0.985,
+   0.694,
+   0.909,
+   0.905,
+   0.856,
+   0.863,
+   0.867
+  ],
+  "owned": {
+   "3": 1.0
+  },
+  "owned_by_shift6": {
+   "3": 1.0
+  },
+  "register_picks": {
+   "category_engine": 0.949,
+   "extra_redraw": 0.905,
+   "coupon_engine": 0.742,
+   "slot_engine": 0.215,
+   "extra_coupon_slot": 0.189
+  },
+  "mean_first_register_shift": 2.0,
+  "live_win_by_owned": {
+   "3": [
+    275,
+    0.356
+   ]
+  },
+  "upgraded_copies_per_run": 5.45,
+  "upgraded_copies": {
+   "milk_golden": 1.92,
+   "eggs_golden": 1.189,
+   "coffee_golden": 1.138,
+   "banana_big": 0.549,
+   "eggs_big": 0.218,
+   "banana_golden": 0.16,
+   "milk_big": 0.145,
+   "coffee_big": 0.127
+  },
+  "builds": {
+   "coupon_specialist": [
+    193,
+    0.368
+   ],
+   "breakfast_special": [
+    34,
+    0.441
+   ],
+   "mixed_basket": [
+    23,
+    0.174
+   ],
+   "bulk_buyer": [
+    14,
+    0.357
+   ],
+   "no build": [
+    11,
+    0.273
+   ]
+  },
+  "conditional_live": {
+   "category_engine_by_shift6": {
+    "with": [
+     261,
+     0.356
+    ],
+    "without": [
+     14,
+     0.357
+    ]
+   },
+   "slot_engine_owned": {
+    "with": [
+     59,
+     0.644
+    ],
+    "without": [
+     216,
+     0.278
+    ]
+   }
+  },
+  "median_shift8": 192
+ },
+ "bonus_breakfast": {
+  "runs": 281,
+  "files": [
+   "bonus_breakfast_records.json"
+  ],
+  "live": 0.28825622775800713,
+  "a": 0.8825622775800712,
+  "live_pass": [
+   0.986,
+   0.993,
+   0.604,
+   0.916,
+   0.895,
+   0.824,
+   0.804,
+   0.9
+  ],
+  "owned": {
+   "3": 1.0
+  },
+  "owned_by_shift6": {
+   "3": 1.0
+  },
+  "register_picks": {
+   "category_engine": 0.932,
+   "extra_redraw": 0.929,
+   "coupon_engine": 0.786,
+   "slot_engine": 0.246,
+   "extra_coupon_slot": 0.107
+  },
+  "mean_first_register_shift": 2.0,
+  "live_win_by_owned": {
+   "3": [
+    281,
+    0.288
+   ]
+  },
+  "upgraded_copies_per_run": 5.56,
+  "upgraded_copies": {
+   "milk_golden": 2.125,
+   "eggs_golden": 1.402,
+   "coffee_golden": 1.185,
+   "eggs_big": 0.263,
+   "coffee_big": 0.231,
+   "milk_big": 0.157,
+   "banana_big": 0.149,
+   "banana_golden": 0.046
+  },
+  "builds": {
+   "breakfast_special": [
+    223,
+    0.296
+   ],
+   "coupon_specialist": [
+    33,
+    0.212
+   ],
+   "bulk_buyer": [
+    16,
+    0.25
+   ],
+   "mixed_basket": [
+    8,
+    0.375
+   ],
+   "no build": [
+    1,
+    1.0
+   ]
+  },
+  "conditional_live": {
+   "category_engine_by_shift6": {
+    "with": [
+     262,
+     0.29
+    ],
+    "without": [
+     19,
+     0.263
+    ]
+   },
+   "slot_engine_owned": {
+    "with": [
+     69,
+     0.536
+    ],
+    "without": [
+     212,
+     0.208
+    ]
+   }
+  },
+  "median_shift8": 168
+ },
+ "bonus_rare_s1": {
+  "runs": 203,
+  "files": [
+   "bonus_rare_s1_records.json"
+  ],
+  "live": 0.3842364532019704,
+  "a": 0.8620689655172413,
+  "live_pass": [
+   0.985,
+   0.985,
+   0.746,
+   0.857,
+   0.913,
+   0.809,
+   0.903,
+   0.929
+  ],
+  "owned": {
+   "3": 1.0
+  },
+  "owned_by_shift6": {
+   "3": 1.0
+  },
+  "register_picks": {
+   "category_engine": 0.941,
+   "extra_redraw": 0.936,
+   "coupon_engine": 0.749,
+   "slot_engine": 0.192,
+   "extra_coupon_slot": 0.182
+  },
+  "mean_first_register_shift": 2.0,
+  "live_win_by_owned": {
+   "3": [
+    203,
+    0.384
+   ]
+  },
+  "upgraded_copies_per_run": 5.46,
+  "upgraded_copies": {
+   "milk_golden": 1.921,
+   "eggs_golden": 1.197,
+   "coffee_golden": 1.123,
+   "banana_big": 0.478,
+   "eggs_big": 0.207,
+   "coffee_big": 0.182,
+   "banana_golden": 0.177,
+   "milk_big": 0.172
+  },
+  "builds": {
+   "coupon_specialist": [
+    137,
+    0.321
+   ],
+   "breakfast_special": [
+    41,
+    0.585
+   ],
+   "mixed_basket": [
+    12,
+    0.5
+   ],
+   "bulk_buyer": [
+    9,
+    0.333
+   ],
+   "no build": [
+    4,
+    0.25
+   ]
+  },
+  "conditional_live": {
+   "category_engine_by_shift6": {
+    "with": [
+     191,
+     0.387
+    ],
+    "without": [
+     12,
+     0.333
+    ]
+   },
+   "slot_engine_owned": {
+    "with": [
+     39,
+     0.564
+    ],
+    "without": [
+     164,
+     0.341
+    ]
+   }
+  },
+  "median_shift8": 203
+ }
+}

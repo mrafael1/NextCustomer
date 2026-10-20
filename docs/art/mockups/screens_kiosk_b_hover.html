@@ -1,0 +1,1143 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Exit kiosk B hover</title>
+<!--
+  #56 EXIT KIOSK, DIRECTION B: PHOTO-BOOTH PRIZE PRINTER BY THE EXIT DOORS (decide-round option, 2026-10-19; nothing decided)
+  Idea: the camera cuts from the checkout to the store exit: sliding glass doors under a green EXIT sign, the plaster wall, the
+  tiled floor, and a teal photo-booth kiosk with a velvet side curtain. Its prize tickets are printed like coupon print-outs and
+  hang clipped by brass bulldog clips on a rail across its front. The capsule machines' corner (#63) is reserved at the right
+  and only outlined: the booth is a tall closed cabinet with a curtain and a print slot, nothing like a glass-globe coin-op.
+  No buttons, no skip.
+  Ticket fields, in order: name, TYPE (teal label), effect, condition (or "No condition", italic muted), "Supports: ...".
+  The condition moves off tomato: ink-light under a dashed rule. Perk stamp: NOT shown (decision 4 "text only").
+  Hover (screens_kiosk_b_hover): the clip springs open and the ticket lifts 6 px in a mustard/gold ring; the cosmetic INSTANT
+  WINNER! is a tilted mustard rubber stamp on it; the next empty LOYALTY box lights up on the top bar.
+  Receipt in: the RECEIPT IN feed slot on the lower front, left; #66's torn receipt goes in there.
+  New art/src sources: scenery/exit_backdrop (doors, EXIT sign, wall, floor; one full-screen backdrop), scenery/kiosk_booth (cabinet,
+  sign box, print slot, clip rail, curtain, screen), frames/kiosk_ticket_print (9-slice: dashed cut line), icons/bulldog_clip,
+  effects/instant_winner_stamp.
+  Timing / behaviour change (label): the backdrop swaps from the checkout to the exit scene when the kiosk shows. As a hard cut under
+  the same 0.22 s pop-in, presented_ms / armed_ms keep their meaning; a pan or slide would need a PROTOTYPE_PLAN section 8 row. The deck
+  view (Cart) would open over the exit scene; after the pick the camera cuts back to the checkout for the next shift.
+  Fit check: the longest triple, Slot engine + Big basket + Category engine; the hover page shows a "No condition" ticket.
+  Cost: one extra full-screen backdrop; if art runs long (cut list) the booth can stand over the shaded checkout like A.
+-->
+<!--
+  MIRRORED B2 (2026-10-17, for the moving belt in #80): the same scene with the register side on the LEFT. The register
+  column (CHECKOUT, Redraw, keypad, cash drawer), the printer and its receipt and the cashier stand at the left; the belt
+  flows leftward toward them, so slot 1 is the slot next to the register and the first item to reach the cashier, and the
+  slots still read 1 -> 7 left to right. The hand keeps its order left to right too.
+  How it is built: the page draws B2 in its own coordinates, then a mirror pass at the end of the script moves every
+  element to x' = 1280 - x - width. Only pure art is flipped (the SVG counter, belt, register and wall layers, the basket
+  canvases); every text, number, icon, item sprite, mark, ticket, the receipt, the keys, the monitor and the cashier is
+  only moved, never flipped. The slot and hand order is reversed in the source so it reads left to right after the move.
+  The camera is mirrored about the screen centre, so the vanishing point stays at (640, -1600). The key light stays at the
+  upper left: the flipped art layers are pre-shaded with the light on their right (lit and shaded edges, contact and cast
+  shadows swapped), so they come out lit from the left. Pixel glyphs drawn in the art (keypad digits, the euro emboss,
+  the store mark on the baskets) are drawn reversed so they read the right way after the flip.
+  New: a belt direction cue, pairs of pixel chevrons on the steel apron under the belt, pointing left toward the register.
+  B2: gentle three-quarter view (v1's camera, with grafts from v2 and v3).
+  One camera for the whole scene: a little above counter height, centred on x=640,
+  one vanishing point far above the screen (640, -1600), so receding edges converge only slightly.
+  Every top face is foreshortened by the same rule; every front face is seen straight on.
+  One key light from the upper left: top faces and left edges are lit, right and bottom edges are shaded,
+  contact shadows fall a few pixels to the right of each object.
+  Depth layers (scale): shelves 0.5x (48 px items, cool haze), cashier 0.5x, counter and ledge 1x (96 px items).
+  Front to back: floor line (y 700) -> steel basket ledge with the hand in four hand baskets -> counter front with the slot rail
+  -> belt -> cashier -> shelves. The register column stands on the same floor line.
+-->
+<style>
+@font-face { font-family: Pixelify; src: url(../../../fonts/PixelifySans-Variable.ttf); }
+@font-face { font-family: Atkinson; src: url(../../../fonts/AtkinsonHyperlegibleNext-Variable.ttf); font-weight: 200 800; }
+@font-face { font-family: JBMono; src: url(../../../fonts/JetBrainsMono-Regular.ttf); }
+:root {
+  --ink: #2b2420; --ink-light: #4a3f38; --muted: #8a8172; --paper: #fbf7ee; --cream: #f3e9d2;
+  --cream-shade: #ddcba5; --mustard: #e2b33c; --mustard-light: #f1d27a; --mustard-pale: #faecbc;
+  --tomato: #d9534f; --tomato-dark: #a83a3c; --tomato-light: #ec7d75; --teal: #4f9a94; --teal-panel: #2a4d4b; --teal-dark: #1f3b3a;
+  --good: #5fae5a; --wood: #a8703a; --wood-dark: #6e4524; --wood-darkest: #3e2614; --wood-light: #c98c4e;
+  --steel: #8d8a83; --steel-light: #c7c3b8; --steel-dark: #57534c; --rubber: #3d3a36;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { width: 1280px; height: 720px; overflow: hidden; background: var(--teal-dark); }
+img, .px { image-rendering: pixelated; }
+.stage { position: relative; width: 1280px; height: 720px; font-family: Atkinson, sans-serif; color: var(--ink); overflow: hidden; }
+.abs { position: absolute; }
+.num { font-family: Atkinson; font-weight: 750; }
+svg.layer { position: absolute; left: 0; top: 0; width: 1280px; height: 720px; overflow: visible; }
+
+/* ---------- back of the store (0.5x depth layer) ---------- */
+.wall { left: 0; top: 56px; width: 1280px; height: 270px; background: #e4d6b9; overflow: hidden; }
+/* store sections behind the counter, all at 0.5x; .bg is pushed back by the haze and the cool wallshade */
+.bg { position: absolute; inset: 0; filter: saturate(.62) brightness(.94) contrast(.86); }
+.bg img { position: absolute; width: 48px; height: 48px; transform: scaleX(-1); }   /* mirrored B2: the wall layer is flipped, its sprites are not */
+.bg svg { position: absolute; left: 0; top: 0; width: 1280px; height: 270px; overflow: visible; }
+.haze { position: absolute; inset: 0; background: rgba(228,214,185,.2); }
+.wallshade { position: absolute; inset: 0;
+  /* one flat cool tint over the whole back layer, so no fixture is split by a band; the darker lower wall under the dado
+     rail is a step on the wall plane itself (drawn under the fixtures, like the warm light pool). In Godot: a modulate on the layer */
+  background: rgba(79,154,148,.2); }
+.lamp { position: absolute; top: 56px; width: 74px; height: 20px; background: var(--teal-dark);
+  border-radius: 0 0 37px 37px; border-bottom: 3px solid var(--mustard-light); z-index: 3; }
+
+/* ---------- top bar (flat HUD over the world) ---------- */
+.topbar { left: 0; top: 0; width: 1280px; height: 56px; background: var(--teal-dark); border-bottom: 2px solid var(--ink); z-index: 5; }
+.chip { top: 9px; height: 38px; display: flex; align-items: center; gap: 8px; padding: 0 12px; z-index: 6;
+  background: var(--teal-panel); border: 2px solid var(--ink); border-radius: 6px; color: var(--paper); box-shadow: inset 0 -3px 0 rgba(0,0,0,.25); }
+.chip .k { font-family: Pixelify; font-size: 15px; letter-spacing: 1px; color: var(--mustard-pale); }
+.chip .v { font-family: Atkinson; font-weight: 750; font-size: 20px; }
+.bar { flex: 1; height: 14px; background: rgba(0,0,0,.35); border: 2px solid var(--ink); position: relative; }
+.bar i { position: absolute; left: 0; top: 0; bottom: 0; width: 30%; background: var(--mustard); box-shadow: inset 0 3px 0 var(--mustard-light); }
+.chip.warn { background: var(--paper); color: var(--ink); }
+.chip .ico { width: 24px; height: 22px; display: block; }
+/* loyalty stamps: mustard ink-stamp rings, each with one 7x7 texel glyph for its upgrade (full name on hover; the tomato disc stays the fizzle's alone) */
+.stamp { width: 26px; height: 26px; display: block; }   /* a 13 x 13 texel pixel ring with the glyph in its middle (pxDisc) */
+.stamp canvas { width: 26px; height: 26px; display: block; }
+.tbrow { left: 16px; top: 9px; width: 1248px; height: 38px; display: flex; gap: 12px; z-index: 6; }   /* one row, one gap */
+.tbrow > .chip, .tbrow > .tbtn { position: relative; top: 0; flex: none; }
+.tbtn { top: 9px; height: 38px; padding: 0 12px; display: flex; align-items: center; font-family: Pixelify; font-size: 16px; z-index: 6;
+  color: var(--paper); background: var(--teal); border: 2px solid var(--ink); border-radius: 6px; box-shadow: inset 0 -3px 0 rgba(0,0,0,.25); }
+
+/* ---------- items: the sprites' own upper-left light, grounded by a flat contact shadow ---------- */
+.item { position: absolute; width: 96px; height: 96px; }
+.item img { position: absolute; left: 0; top: 0; width: 96px; height: 96px; }
+.item img.slipicon { left: 28px; top: 36px; width: 40px; height: 28px; }
+/* contact shadows: one stepped pixel ellipse per footprint on the 2 px texel grid, one flat colour, hard edges (pxShadow) */
+
+/* ---------- shelf-edge tickets (belt rail and baskets): front faces, tiny top thickness ---------- */
+.label { position: absolute; width: 112px; height: 60px; background: var(--paper); border: 2px solid var(--ink);
+  border-radius: 2px; padding: 2px 7px; box-shadow: 3px 3px 0 rgba(30,18,10,.38); z-index: 4; }
+.label::before { content: ""; position: absolute; left: 0; right: 0; top: 0; height: 4px; background: var(--mustard-light); }   /* product tickets: a shelf-ticket yellow band (2 texels) */
+.label .p { font-weight: 750; font-size: 18px; line-height: 21px; margin-top: 3px; }
+.label .r { font-size: 11.5px; line-height: 13px; font-weight: 650; color: var(--ink-light); }
+.label .ai { position: absolute; right: 5px; top: 8px; width: 18px; height: 18px; }
+.label.cp::before { background: repeating-linear-gradient(90deg, var(--teal) 0 4px, transparent 4px 7px); }   /* tomato stays the fizzle's, CHECKOUT's and CLOSED's */
+.label.cp .p { font-family: Pixelify; font-weight: 400; font-size: 12px; color: var(--teal-panel); letter-spacing: 1px; margin-top: 6px; line-height: 14px; }
+.label.empty { background: #b3afa5; border-style: dashed; border-color: var(--paper); box-shadow: none;
+  display: grid; place-items: center; font-weight: 750; font-size: 24px; color: #625a52; }
+.label.empty::before { display: none; }
+.label.closed::before { background: var(--tomato); }   /* the CLOSED plate keeps its tomato band */
+.label.sel { outline: 2px solid var(--mustard); outline-offset: 2px; }   /* one texel, on the grid */
+.clip { position: absolute; width: 14px; height: 7px; background: var(--steel-light); border: 2px solid var(--ink); border-radius: 2px; z-index: 5; }
+
+.mark { position: absolute; width: 28px; height: 28px; z-index: 6; }   /* a 13 x 13 texel pixel disc + its 1-texel hard shadow (pxDisc) */
+.mark canvas { position: absolute; left: 0; top: 0; width: 28px; height: 28px; display: block; }
+.brk { position: absolute; width: 16px; height: 16px; border: 0 solid var(--mustard); z-index: 6; }
+
+/* ---------- monitor, hung from the ceiling (above eye level: its underside shows) ---------- */
+.rod { top: 56px; width: 8px; height: 12px; background: var(--rubber); border: 2px solid var(--ink); border-top: 0; z-index: 4; }
+.monitor { left: 372px; top: 66px; width: 424px; height: 176px; background: var(--rubber); border: 2px solid var(--ink); z-index: 4;
+  border-radius: 6px; padding: 9px; box-shadow: inset 2px 2px 0 #55514b, inset -2px -2px 0 #2c2926; }
+.monitor-under { left: 378px; top: 240px; width: 412px; height: 8px; background: #24221f; border: 2px solid var(--ink); border-top: 0; border-radius: 0 0 5px 5px; z-index: 3; }
+.screen { width: 100%; height: 100%; background: var(--paper); border: 2px solid var(--ink); border-radius: 2px; display: flex; gap: 10px; padding: 8px 10px; position: relative;
+  box-shadow: inset 0 3px 0 rgba(43,36,32,.12); }
+.screen .art { width: 96px; flex: none; display: flex; flex-direction: column; align-items: center; }
+.screen .kind { font-family: Pixelify; font-size: 13px; color: var(--teal-panel); letter-spacing: 1px; margin-top: 2px; }
+.screen .title { font-family: Pixelify; font-size: 21px; line-height: 22px; }
+.screen .rule { font-size: 13px; line-height: 16px; font-weight: 600; color: var(--ink-light); margin-top: 3px; }
+.screen .why { display: flex; gap: 5px; font-size: 12px; line-height: 14px; font-weight: 600; color: var(--tomato-dark); margin-top: 4px; }
+.screen .why img { width: 12px; height: 12px; margin-top: 1px; flex: none; }
+.screen .pays { position: absolute; right: 8px; top: 6px; font-weight: 750; font-size: 15px; color: var(--ink-light); }
+.screen .pays b { font-size: 20px; color: var(--ink); }
+.slipicon { position: absolute; left: 28px; top: 36px; width: 40px; height: 28px; }
+
+/* ---------- register side ---------- */
+.receipt { left: 998px; top: 76px; width: 236px; height: 268px; z-index: 3; box-shadow: inset -2px 0 0 #e9e0cc, 6px 4px 0 rgba(43,36,32,.22);
+  background: var(--paper);
+  font-family: JBMono; font-size: 13px; line-height: 20px; padding: 12px 12px; border: 2px solid rgba(43,36,32,.55); border-bottom: 0; }
+.receipt::before { content: ""; position: absolute; left: -2px; right: -2px; top: -8px; height: 8px;
+  background: linear-gradient(135deg, transparent 4px, var(--paper) 4px) 0 0 / 8px 8px repeat-x, linear-gradient(225deg, transparent 4px, var(--paper) 4px) 0 0 / 8px 8px repeat-x; }
+.receipt .h { font-size: 12.5px; color: var(--ink-light); }
+.dash { border-top: 2px dashed var(--cream-shade); margin: 7px 0; }
+.ln { display: flex; gap: 6px; align-items: center; padding: 0 4px; margin: 0 -4px; }
+.ln .nm { flex: 1; }
+.ln img { width: 14px; height: 14px; }
+.ln .pl { width: 14px; text-align: center; }
+.ln.on { background: var(--mustard-pale); outline: 2px solid var(--mustard); }
+.ln.wait { color: var(--muted); }
+.receipt .sum { font-size: 12px; color: var(--tomato-dark); }
+.receipt .sum .hint { color: var(--ink-light); }
+
+/* physical keys on the register cabinet, seen from slightly above: one outline holds the lit top face (a band at the top)
+   and the front face under it; the arris between them is a 2 px highlight, the right and bottom edges are shaded.
+   Every ink line in the scene is 2 px (one texel); the two keys alone take a 4 px (two-texel) outline for weight */
+.key { position: absolute; z-index: 4; display: flex; align-items: center; justify-content: center; border: 4px solid var(--ink); border-radius: 6px; }
+.checkout { left: 964px; top: 422px; width: 296px; height: 82px; padding-top: 14px;
+  background: linear-gradient(var(--tomato-light), var(--tomato-light)) 0 0 / 100% 10px no-repeat, linear-gradient(#f5a59c, #f5a59c) 0 10px / 100% 2px no-repeat, var(--tomato);
+  box-shadow: inset 2px 0 0 rgba(245,165,156,.55), inset -2px -4px 0 var(--tomato-dark), 6px 6px 0 rgba(20,10,6,.45);
+  gap: 14px; font-family: Pixelify; font-size: 31px; color: var(--paper); letter-spacing: 2px; }
+.redraw { left: 1062px; top: 518px; width: 198px; height: 54px; padding-top: 10px; color: var(--ink);
+  background: linear-gradient(#fffdf6, #fffdf6) 0 0 / 100% 8px no-repeat, linear-gradient(#ffffff, #ffffff) 0 8px / 100% 2px no-repeat, #ebe1cb;
+  box-shadow: inset 2px 0 0 rgba(255,255,255,.6), inset -2px -4px 0 var(--cream-shade), 6px 6px 0 rgba(20,10,6,.4);
+  gap: 8px; font-family: Pixelify; font-size: 18px; }
+.redraw small { font-family: Atkinson; font-weight: 650; font-size: 13px; color: var(--ink-light); }
+.foot { left: 1062px; top: 586px; width: 198px; text-align: center; font-size: 11px; font-weight: 600; color: var(--cream-shade); opacity: .85; z-index: 4; }
+
+</style>
+
+<style>
+#ov { position: absolute; left: 0; top: 0; width: 1280px; height: 720px; z-index: 20; font-family: Atkinson, sans-serif; color: var(--ink); }
+#ov div, #ov span { box-sizing: border-box; }
+#ov .a { position: absolute; }
+.kk-shade { left: 0; top: 64px; width: 1280px; height: 656px; background: rgba(0,0,0,.5); }
+.kk-pix { image-rendering: pixelated; }
+.kk-out { text-shadow: 2px 0 0 #2b2420, -2px 0 0 #2b2420, 0 2px 0 #2b2420, 0 -2px 0 #2b2420, 2px 2px 0 #2b2420, -2px -2px 0 #2b2420,
+  2px -2px 0 #2b2420, -2px 2px 0 #2b2420, 4px 4px 0 #2b2420; }   /* the 6 px ink outline of light display text, in 2 px steps */
+/* ---- the ticket (shared fields, same order on every ticket: name, type, effect, condition, supports) ---- */
+.kk-t { position: absolute; display: flex; flex-direction: column; background: #fbf7ee; border: 2px solid #2b2420; }
+.kk-t .nm { font-family: Pixelify; font-size: 24px; line-height: 26px; color: #2b2420; }
+.kk-t .ty { font-weight: 750; font-size: 12px; letter-spacing: 1.5px; color: #3a7672; margin-top: 3px; }
+.kk-t .ef { font-weight: 750; font-size: 17px; line-height: 21px; margin-top: 10px; color: #2b2420; }
+.kk-t .co { font-size: 14px; line-height: 18px; color: #4a3f38; margin-top: 10px; padding-top: 8px; }
+.kk-t .co.none { color: #8a8172; font-style: italic; }
+.kk-t .su { margin-top: auto; font-size: 13px; line-height: 16px; color: #5e574d; }
+.kk-t .su b { font-weight: 750; color: #4a3f38; }
+/* INSTANT WINNER! gag (cosmetic only, never hides a field) */
+.kk-win { width: 112px; height: 74px; }
+.kk-win span { position: absolute; left: 0; top: 19px; width: 112px; text-align: center; font-family: Pixelify; font-size: 15px; line-height: 17px; color: #2b2420; }
+.kk-spark { width: 10px; height: 10px; }
+.kk-spark::before, .kk-spark::after { content: ''; position: absolute; background: #ffcf3f; box-shadow: 0 0 0 2px #2b2420; }
+.kk-spark::before { left: 4px; top: 0; width: 2px; height: 10px; }
+.kk-spark::after { left: 0; top: 4px; width: 10px; height: 2px; }
+</style>
+</head>
+<body>
+<div class="stage" id="stage">
+  <div class="abs wall" id="wall"><div class="wallshade"></div></div>
+
+  <!-- top bar -->
+  <div class="abs topbar"></div>
+  <div class="abs tbrow">
+  <div class="chip"><span class="k">SHIFT</span><span class="v">4/8</span></div>
+  <div class="chip" style="flex:1"><span class="k">QUOTA</span><span class="v">€61</span><span class="bar"><i style="width:100%"></i></span><span class="v" style="color:var(--mustard-light)">€88</span></div>
+  <div class="chip warn"><svg class="ico" viewBox="0 0 24 22" shape-rendering="crispEdges"><polygon points="12,1 23,20 1,20" fill="#e2b33c" stroke="#2b2420" stroke-width="2" stroke-linejoin="round"/><rect x="11" y="7" width="2" height="7" fill="#2b2420"/><rect x="11" y="16" width="2" height="2" fill="#2b2420"/></svg><span style="font-weight:700;font-size:14px">Inspection · −1 slot</span></div>
+  <div class="chip"><span class="k">LOYALTY</span><span class="stamp" title="Coupon engine"><canvas class="px" data-glyph="coupon" width="13" height="13"></canvas></span><span class="stamp" title="Slot engine"><canvas class="px" data-glyph="slot" width="13" height="13"></canvas></span><span class="stamp" title="Category engine"><canvas class="px" data-glyph="tag" width="13" height="13"></canvas></span><span class="stamp"><canvas class="px" data-glyph="empty" width="13" height="13"></canvas></span></div>
+  <div class="tbtn" style="padding:0 8px"><canvas id="cartGlyph" class="px" width="12" height="9" style="width:24px;height:18px;margin-right:4px"></canvas>Cart <span class="num" style="margin-left:6px">13/15</span></div>
+  <div class="tbtn" style="font-size:19px">☰</div>
+  </div>
+
+  <!-- monitor hung on two rods -->
+  <div class="abs rod" style="left:430px"></div>
+  <div class="abs rod" style="left:730px"></div>
+  <div class="abs monitor-under"></div>
+  <div class="abs monitor"><div class="screen">
+    <div class="art"><div style="position:relative;width:96px;height:96px"><img class="px" src="assets/art/items_v2/coupon_slip.png" style="width:96px;height:96px"><img class="px slipicon" src="assets/art/icons/coupon_multipack_v2.png"></div><div class="kind">COUPON</div></div>
+    <div style="flex:1;min-width:0">
+      <div class="title">Multipack</div>
+      <div class="rule">×3 to later products sharing a tag with the product just before it (not Food or Breakfast)</div>
+      <div class="why"><img class="px" src="assets/art/icons/fizzle.png"><span>Coupon engine: the first coupon paid nothing</span></div>
+      <div class="why"><img class="px" src="assets/art/icons/fizzle.png"><span>Multipack ×3: no later product shared a tag</span></div>
+    </div>
+    <div class="pays">pays <b>€0</b></div>
+  </div></div>
+
+  <!-- receipt rising from the printer slot -->
+  <div class="abs receipt">
+    <div class="h">NEXT CUSTOMER · REG 3</div>
+    <div class="h">SHIFT <span class="num">5/8</span> · <span class="num">4</span> ITEMS</div>
+    <div class="dash"></div>
+    <div class="ln"><span class="nm">Cheese</span><span>€3.00</span><span class="pl"></span></div>
+    <div class="ln"><span class="nm">Strawberries</span><span>€2.00</span><span class="pl"></span></div>
+    <div class="ln"><span class="nm">Croissant</span><span>€17.00</span><span class="pl" style="color:var(--good);font-weight:700">✓</span></div>
+    <div class="ln on"><span class="nm">Multipack</span><span>€0.00</span><span class="pl"><img class="px" src="assets/art/icons/fizzle.png"></span></div>
+    <div class="ln wait"><span class="nm">5 ·····</span></div>
+    <div class="ln wait"><span class="nm">6 ·····</span></div>
+    <div class="dash"></div>
+    <div class="ln"><span class="nm" style="font-family:Pixelify;font-size:16px">TOTAL</span><span class="num" style="font-size:18px">€22.00</span><span class="pl"></span></div>
+    <div class="sum" style="margin-top:5px">2 fizzles<span class="hint"> · hover an item</span></div>
+  </div>
+
+  <div class="abs key checkout">CHECKOUT <span style="font-size:26px">›</span></div>
+  <div class="abs key redraw">Redraw <small>1 left</small></div>
+  <div class="abs foot">Seed 20261014 · fb-p2</div>
+  <div id="layers"></div><!-- the SVG and canvas layers go here, ahead of the script-built items and labels -->
+</div>
+
+<script>
+const A = 'assets/art/';
+const stage = document.getElementById('stage');
+const NS = 'http://www.w3.org/2000/svg';
+// ---- one camera: vanishing point far above the screen centre ----
+const VP = { x: 640, y: -1600 };
+// x of a receding edge at height y, given where it meets the reference line yRef
+const px = (x, yRef, y) => VP.x + (x - VP.x) * (y - VP.y) / (yRef - VP.y);
+// the mirror: where a box at x, w px wide lands once the mirror pass has run (for things placed in display coordinates)
+const SX = (x, w) => 1280 - x - w;
+
+// a contact shadow: a stepped ellipse w x h px on the 2 px texel grid (left/top snapped to it), one flat colour, hard edges
+function pxShadow(left, top, w, h, z, alpha) {
+  const c = document.createElement('canvas'), tw = Math.round(w / 2), th = Math.round(h / 2); c.width = tw; c.height = th; c.className = 'px';
+  Object.assign(c.style, { position: 'absolute', left: Math.round(left / 2) * 2 + 'px', top: Math.round(top / 2) * 2 + 'px', width: tw * 2 + 'px', height: th * 2 + 'px', zIndex: z });
+  const g = c.getContext('2d'); g.fillStyle = `rgba(20,14,10,${alpha})`;
+  for (let j = 0; j < th; j++) for (let i = 0; i < tw; i++)
+    if (((i + .5 - tw / 2) / (tw / 2)) ** 2 + ((j + .5 - th / 2) / (th / 2)) ** 2 <= 1) g.fillRect(i, j, 1, 1);
+  stage.appendChild(c); return c;
+}
+// a 13 x 13 texel disc: ring, flat fill, a 1-texel stepped highlight at the upper left, a 1-texel shade at the lower right;
+// o.shadow adds a 1-texel hard drop shadow to the lower right (14 x 14 canvas); o.glyph is 7 x 7 rows, centred
+function pxDisc(c, o) {
+  const N = 13, g = c.getContext('2d'), inD = (i, j) => i >= 0 && j >= 0 && i < N && j < N && (i - 6) ** 2 + (j - 6) ** 2 <= 6.4 ** 2;
+  const edge = (i, j) => inD(i, j) && !(inD(i - 1, j) && inD(i + 1, j) && inD(i, j - 1) && inD(i, j + 1));
+  const dot = (i, j, col) => { if (col) { g.fillStyle = col; g.fillRect(i, j, 1, 1); } };
+  if (o.shadow) for (let j = 0; j <= N; j++) for (let i = 0; i <= N; i++) if (!inD(i, j) && inD(i - 1, j - 1)) dot(i, j, o.shadow);
+  for (let j = 0; j < N; j++) for (let i = 0; i < N; i++) {
+    if (!inD(i, j)) continue;
+    if (edge(i, j)) { if (!o.dash || (Math.floor(Math.atan2(j - 6, i - 6) / (Math.PI / 8)) + 8) % 2 === 0) dot(i, j, o.ring); continue; }
+    if (o.inner && (edge(i - 1, j) || edge(i + 1, j) || edge(i, j - 1) || edge(i, j + 1))) { dot(i, j, o.inner); continue; }
+    let col = o.fill;
+    if (o.lit && i + j < 12 && (edge(i - 1, j) || edge(i, j - 1))) col = o.lit;
+    if (o.shade && i + j > 12 && (edge(i + 1, j) || edge(i, j + 1))) col = o.shade;
+    dot(i, j, col);
+  }
+  if (o.glyph) o.glyph.forEach((row, j) => [...row].forEach((ch, i) => { if (ch === 'C') dot(3 + i, 3 + j, o.ink); }));
+}
+// icons/fizzle.png's 7 x 7 texels, copied here (a file:// page cannot read a canvas back), drawn in paper inside the disc
+const FIZZLE7 = ['C..C...', '.C.C...', '..CCC..', 'CCCCCCC', '..CCC..', '...C.C.', '...C..C'];
+const CHECK7 = ['.......', '......C', '.....CC', 'C...CC.', 'CC.CC..', '.CCC...', '..C....'];   // a pixel check, the fizzle's size
+function el(cls, style, html, parent) { const d = document.createElement('div'); d.className = cls; Object.assign(d.style, style); if (html) d.innerHTML = html; (parent || stage).appendChild(d); return d; }
+function svgLayer(z) { const s = document.createElementNS(NS, 'svg'); s.setAttribute('class', 'layer'); s.setAttribute('viewBox', '0 0 1280 720'); s.style.zIndex = z;
+  s.setAttribute('shape-rendering', 'crispEdges'); stage.insertBefore(s, stage.querySelector('#layers')); return s; }
+function poly(s, pts, fill, extra) { const p = document.createElementNS(NS, 'polygon'); p.setAttribute('points', pts.map(q => q.join(',')).join(' ')); p.setAttribute('fill', fill);
+  Object.entries(extra || {}).forEach(([k, v]) => p.setAttribute(k, v)); s.appendChild(p); return p; }
+function rect(s, x, y, w, h, fill, extra) { return poly(s, [[x, y], [x + w, y], [x + w, y + h], [x, y + h]], fill, extra); }
+function line(s, x1, y1, x2, y2, stroke, w, extra) { const l = document.createElementNS(NS, 'line'); Object.entries({ x1, y1, x2, y2, stroke, 'stroke-width': w }).forEach(([k, v]) => l.setAttribute(k, v));
+  Object.entries(extra || {}).forEach(([k, v]) => l.setAttribute(k, v)); s.appendChild(l); return l; }
+// a horizontal top face between yBack and yFront, front edge from x0 to x1
+function topFace(s, x0, x1, yBack, yFront, fill, extra) {
+  return poly(s, [[px(x0, yFront, yBack), yBack], [px(x1, yFront, yBack), yBack], [x1, yFront], [x0, yFront]], fill, extra);
+}
+const INK = '#2b2420';
+
+function item(src, x, groundY, opts = {}) {
+  const lift = opts.lift || 0, z = opts.z || 3;
+  const w = opts.shadowW || 74;
+  const base = opts.base || 0;   // transparent rows under the sprite (the coupon slip has 8 texels): set the visible bottom on the ground
+  if (!opts.noShadow) {
+  // contact shadow: light from the upper left, so it sits a little to the right
+  const sw = lift ? Math.round(w * .7) : w;
+  pxShadow(x + 48 - sw / 2 - 6, groundY - (lift ? 8 : 10), sw, lift ? 12 : 14, z, lift ? .25 : .5 * (opts.shadowO || 1)); }
+  const d = el('item', { left: x + 'px', top: (groundY - 96 - lift + base) + 'px', zIndex: z });
+  d.innerHTML = `<img class="px" src="${src}">` + (opts.icon ? `<img class="px slipicon" src="${opts.icon}">` : '');
+  return d;
+}
+function label(cls, x, top, price, rule, aisle, extra) {
+  return el(cls, Object.assign({ left: x + 'px', top: top + 'px' }, extra || {}),
+    `<div class="p">${price}</div>` + (aisle ? `<img class="ai px" src="${A}icons/aisle_${aisle}.png">` : '') + (rule ? `<div class="r">${rule}</div>` : ''));
+}
+// visible bounds of each 48 px sprite in texels [left, top, right, bottom) (alpha bbox), so marks can sit on the art itself
+const BOX = { cheese: [3, 11, 45, 48], strawberries: [3, 3, 46, 48], croissant: [2, 23, 46, 48], coupon_slip: [3, 12, 45, 40] };
+// one rule for every belt mark: on the sprite's visible top-right corner, 14 px over its top and 4 px past its right edge
+function markOn(kind, name, x, top, dx = 0) { const b = BOX[name]; mark(kind, SX(x, 96) + b[2] * 2 - 22 + dx, top + b[1] * 2 - 14).dataset.disp = 1; }
+function mark(kind, x, y) {
+  const d = el('abs mark ' + kind, { left: Math.round(x / 2) * 2 + 'px', top: Math.round(y / 2) * 2 + 'px' }, '<canvas class="px" width="14" height="14"></canvas>');
+  const c = d.firstChild, fz = kind === 'fz';
+  const draw = gl => pxDisc(c, { ring: INK, fill: fz ? '#d9534f' : '#5fae5a', lit: fz ? '#ec7d75' : '#8fcf88', shade: fz ? '#a83a3c' : '#3f8a3c',
+    shadow: 'rgba(20,14,10,.35)', glyph: gl, ink: '#fbf7ee' });
+  draw(fz ? FIZZLE7 : CHECK7);
+  return d;
+}
+
+// ================= back of the store: store sections at 0.5x (48 px items), wall coordinates (stage y - 56) =================
+// Eye level is at wall y ~96: everything here sits at or below it and shows top faces, never undersides.
+// Left to right: cold cases (tall, glass doors, cool glow), the bakery shelf with wicker
+// baskets (mid height, a clock above it), a calm wall under the monitor, the fruit & veg crate stand (low, its sign hung
+// from the ceiling), a calm column right of the receipt. Signs use the aisle icons and sign colours.
+const wall = document.getElementById('wall');
+const shade = wall.querySelector('.wallshade');
+const bg = document.createElement('div'); bg.className = 'bg'; wall.insertBefore(bg, shade);
+// the warm pool under the upper-left light: on the wall plane itself (under the fixtures, so it never crosses a case or a
+// sign), two flat steps on the 2 px texel grid, both ending above the dado rail. In Godot: one stepped light sprite on the wall layer.
+{ const W = 1280, H = 192, c = document.createElement('canvas'); c.width = W / 2; c.height = H / 2; c.className = 'px';
+  Object.assign(c.style, { position: 'absolute', left: 0, top: 0, width: W + 'px', height: H + 'px' });
+  const g = c.getContext('2d');
+  for (let j = 0; j < H / 2; j++) for (let i = 0; i < W / 2; i++) {
+    const d = ((i * 2 + 1 - 210) / 180) ** 2 + ((j * 2 + 1) / 120) ** 2;
+    if (d < .72 * .72) { g.fillStyle = d < .44 * .44 ? 'rgba(255,236,170,.42)' : 'rgba(255,236,170,.21)'; g.fillRect(i, j, 1, 1); }
+  }
+  wall.insertBefore(c, bg); }
+{ const hz = document.createElement('div'); hz.className = 'haze'; wall.insertBefore(hz, shade); }
+function wsvg() { const s = document.createElementNS(NS, 'svg'); s.setAttribute('viewBox', '0 0 1280 270'); s.setAttribute('shape-rendering', 'crispEdges'); bg.appendChild(s); return s; }
+function sprite(n, x, groundY) { const im = document.createElement('img'); im.className = 'px'; im.src = `${A}items_v2/${n}.png`;
+  im.style.left = x + 'px'; im.style.top = (groundY - 48) + 'px'; bg.appendChild(im); return im; }
+function svgIcon(s, name, x, y, k) { const im = document.createElementNS(NS, 'image'); im.setAttribute('href', `${A}icons/aisle_${name}.png`);
+  Object.entries({ x, y, width: 9 * k, height: 9 * k, style: 'image-rendering:pixelated', transform: `translate(${2 * x + 9 * k} 0) scale(-1 1)` }).forEach(([a, v]) => im.setAttribute(a, v)); s.appendChild(im); }
+// an aisle sign: a painted board in the sign colour, lit top, shaded bottom, the icon on a cream tile
+function sign(s, x, y, w, h, col, lit, dark, name, iconX) {
+  rect(s, x, y, w, h, col, { stroke: INK, 'stroke-width': 2 });
+  rect(s, x + 1, y + 1, w - 2, 2, lit); rect(s, x + 1, y + h - 4, w - 2, 3, dark);
+  const tx = (iconX === undefined ? x + w / 2 : iconX) - 16, ty = y + Math.round((h - 32) / 2);
+  rect(s, tx, ty, 32, 32, '#fbf7ee', { stroke: INK, 'stroke-width': 2 });
+  svgIcon(s, name, tx + 3, ty + 3, 3);
+}
+const back = wsvg();
+back.innerHTML = `<defs>
+  <linearGradient id="glow" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#e4f6f3"/><stop offset=".34" stop-color="#e4f6f3"/><stop offset=".34" stop-color="#bfe2dd"/><stop offset=".68" stop-color="#bfe2dd"/><stop offset=".68" stop-color="#9ccbc5"/></linearGradient>
+  <radialGradient id="spill" cx=".5" cy=".5" r=".5"><stop offset="0" stop-color="#bfe8e2" stop-opacity=".4"/><stop offset=".5" stop-color="#bfe8e2" stop-opacity=".4"/><stop offset=".5" stop-color="#bfe8e2" stop-opacity=".18"/><stop offset=".9" stop-color="#bfe8e2" stop-opacity=".18"/><stop offset=".9" stop-color="#bfe8e2" stop-opacity="0"/></radialGradient>
+  <pattern id="weave" width="6" height="4" patternUnits="userSpaceOnUse"><rect width="6" height="4" fill="#c98c4e"/><rect width="3" height="2" fill="#a8703a"/><rect x="3" y="2" width="3" height="2" fill="#a8703a"/></pattern>
+</defs>`;
+// wall: cornice under the ceiling, a dado rail and a slightly darker lower wall (the calm parts are just this)
+rect(back, 0, 0, 1280, 6, '#cdbb98'); rect(back, 0, 6, 1280, 2, '#b9a47c');
+rect(back, 0, 196, 1280, 74, '#d9c7a2'); rect(back, 0, 192, 1280, 4, '#c4ab80'); rect(back, 0, 192, 1280, 1, '#efe3c8');
+rect(back, 0, 192, 1280, 78, 'rgba(36,40,34,.3)');   // the cool step below the dado rail, on the wall plane only (part of the wall tile in Godot)
+// --- cold cases: x 4-236, a steel cabinet with a teal header and two glass doors; their glow spills onto the wall ---
+{ const e = document.createElementNS(NS, 'ellipse'); Object.entries({ cx: 236, cy: 160, rx: 70, ry: 120, fill: 'url(#spill)' }).forEach(([a, v]) => e.setAttribute(a, v)); back.appendChild(e); }
+rect(back, 4, 22, 232, 254, '#b4b0a6', { stroke: INK, 'stroke-width': 2 });
+const doors = [[12, 118], [122, 228]];
+doors.forEach(([x0, x1]) => {
+  rect(back, x0, 64, x1 - x0, 214, '#8d8a83', { stroke: INK, 'stroke-width': 2 });
+  rect(back, x0 + 5, 69, x1 - x0 - 10, 209, 'url(#glow)');
+  rect(back, x0 + 5, 69, x1 - x0 - 10, 4, '#f6fdfc');                  // the light strip inside the top of the case
+  [118, 178, 238].forEach(y => { rect(back, x0 + 5, y, x1 - x0 - 10, 2, '#f2faf8'); rect(back, x0 + 5, y + 2, x1 - x0 - 10, 2, '#8fbdb7'); });
+});
+sign(back, 4, 22, 232, 38, '#4f9a94', '#7fc0b9', '#3a7570', 'cold_cases', 120);
+// --- bakery: x 246-428 (it runs on behind the monitor), wood back panel, two boards, a header in the bakery colour ---
+const B0 = 246, B1 = 428;
+rect(back, B0, 74, B1 - B0, 200, '#b0804c');
+for (let x = B0 + 34; x < B1; x += 34) rect(back, x, 74, 2, 200, '#9c6d3d');
+rect(back, B0, 74, B1 - B0, 6, 'rgba(43,20,10,.25)');               // the header's shadow on the panel
+// --- fruit & veg: a crate stand, x 828-988, in the open wall between the monitor and the receipt: its edges stand
+// 32 px clear of the monitor, 8 px clear of the left stanchion's knob and 10 px clear of the receipt, so nothing is
+// clipped at the monitor's bezel and no stand edge lines up with a post ---
+// (narrowed to x 828-912 so the cashier stands on calm wall between it and the receipt)
+const S0 = 828, S1 = 912, CW = S1 - S0 - 12;   // CW: the one crate, 6 px in from each end
+rect(back, S0 + 2, 162, S1 - S0 - 4, 110, '#6e4524', { stroke: INK, 'stroke-width': 2 });
+rect(back, S0 + 4, 210, S1 - S0 - 8, 62, '#3d7a45', { stroke: INK, 'stroke-width': 2 });
+rect(back, S0 + 5, 211, S1 - S0 - 10, 2, '#5e9a64'); rect(back, S0 + 4, 210, S1 - S0 - 8, 4, 'rgba(20,10,6,.35)');
+for (let x = S0 + 26; x < S1 - 10; x += 22) rect(back, x, 216, 2, 56, '#33683b');
+// --- right column: a painted pillar, lit on its left side ---
+rect(back, 1246, 8, 34, 262, '#d8c8a8'); rect(back, 1277, 8, 3, 262, '#ece0c6'); rect(back, 1246, 8, 1, 262, '#b9a47c');
+
+// stock behind the glass, on the bakery boards and in the crates
+// (null = a shelf filled with drawn stock below: yoghurt pots or juice bottles, so no sprite repeats in a block)
+[['cheese', 'milk', 'eggs', 'eggs', 'milk', 'cheese'], ['milk', 'cheese', null, null, 'eggs', null]].forEach((st, d) => {
+  const x0 = doors[d][0] + 5;
+  [118, 178, 238].forEach((y, r) => { if (st[r * 2]) sprite(st[r * 2], x0, y); if (st[r * 2 + 1]) sprite(st[r * 2 + 1], x0 + 48, y); });
+});
+// bakery stock is mixed: croissants in two baskets, round loaves, tin loaves and a bin of demi baguettes
+// the lower basket stands left of the monitor (its croissant pile is the board's tallest stock); the low tin loaves
+// take the board's right end, under the monitor, 18 px below its underside
+const baskets = [[B0 + 12, 150], [B0 + 56, 232]];
+baskets.forEach(([bx, yb]) => sprite('croissant', bx + 1, yb - 15));
+// one tier of crates on the stand; below it a plain green skirt, so the stanchions in front cross a calm surface
+// (the crates' bottom edge sits above the posts' knobs, not on them)
+const crates = [[S0 + 6, 186, ['banana', 'strawberries']]];
+crates.forEach(([x, yf, pr]) => { sprite(pr[0], x - 2, yf + 14); sprite(pr[1], x + CW - 46, yf + 16); });
+
+// drawn stock at the same 1 px texel as the 48 px sprites: flat fills, ink outline, lit upper left, shaded lower right
+const mid = wsvg();
+const CR = { fill: '#c98c4e', lit: '#e2b07a', dark: '#8a5a2e', score: '#f0d29c' };
+function pathEl(s, d, fill, extra) { const e = document.createElementNS(NS, 'path'); e.setAttribute('d', d); e.setAttribute('fill', fill);
+  Object.entries(extra || {}).forEach(([k, v]) => e.setAttribute(k, v)); s.appendChild(e); return e; }
+// mirrored B2: wraps what was drawn into s since child n0 in a group flipped about x = cx (undoes the wall layer's flip)
+function unflip(s, n0, cx) { const g = document.createElementNS(NS, 'g'); g.setAttribute('transform', `translate(${2 * cx} 0) scale(-1 1)`);
+  [...s.childNodes].slice(n0).forEach(n => g.appendChild(n)); s.appendChild(g); }
+// a round loaf (boule), 30 x 16, standing on yG
+function boule(x, yG) { const n0 = mid.childNodes.length;
+  pathEl(mid, `M${x} ${yG} L${x} ${yG - 6} A15 10 0 0 1 ${x + 30} ${yG - 6} L${x + 30} ${yG} Z`, CR.fill, { stroke: INK, 'stroke-width': 2 });
+  pathEl(mid, `M${x + 3} ${yG - 7} A11 7 0 0 1 ${x + 17} ${yG - 14} L${x + 17} ${yG - 10} A8 4 0 0 0 ${x + 6} ${yG - 6} Z`, CR.lit);
+  rect(mid, x + 24, yG - 8, 4, 7, CR.dark); rect(mid, x + 2, yG - 3, 26, 2, CR.dark);
+  rect(mid, x + 9, yG - 11, 4, 2, CR.score); rect(mid, x + 15, yG - 12, 4, 2, CR.score); rect(mid, x + 21, yG - 10, 3, 2, CR.score);
+  unflip(mid, n0, x + 15);
+}
+// a tin loaf, 32 x 20: straight sides from the tin, a domed crown
+function tinLoaf(x, yG) { const n0 = mid.childNodes.length;
+  pathEl(mid, `M${x} ${yG} L${x} ${yG - 12} A16 8 0 0 1 ${x + 32} ${yG - 12} L${x + 32} ${yG} Z`, CR.fill, { stroke: INK, 'stroke-width': 2 });
+  pathEl(mid, `M${x + 2} ${yG - 12} A14 6 0 0 1 ${x + 22} ${yG - 18} L${x + 22} ${yG - 15} A12 4 0 0 0 ${x + 4} ${yG - 11} Z`, CR.lit);
+  rect(mid, x + 1, yG - 11, 3, 10, CR.lit); rect(mid, x + 27, yG - 12, 4, 11, CR.dark);
+  rect(mid, x + 1, yG - 7, 30, 1, CR.dark);                                // where the crust leaves the tin
+  [8, 14, 20].forEach(dx => rect(mid, x + dx, yG - 16 + (dx === 14 ? -1 : 0), 4, 2, CR.score));
+  unflip(mid, n0, x + 16);
+}
+// demi baguettes standing in a bin: rounded rods 6 wide, scored every 9 px
+function baguette(x, yTop, yG) { const n0 = mid.childNodes.length;
+  rect(mid, x, yTop, 6, yG - yTop, CR.fill, { stroke: INK, 'stroke-width': 2, rx: 3 });
+  rect(mid, x + 1, yTop + 2, 2, yG - yTop - 4, CR.lit); rect(mid, x + 4, yTop + 3, 1, yG - yTop - 5, CR.dark);
+  for (let y = yTop + 6; y < yG - 4; y += 9) rect(mid, x + 2, y, 3, 2, CR.score);
+  unflip(mid, n0, x + 3);
+}
+boule(B0 + 68, 148); boule(B0 + 102, 148);
+[[B0 + 15, 178], [B0 + 22, 172], [B0 + 29, 176], [B0 + 36, 170]].forEach(([x, t]) => baguette(x, t, 222));
+tinLoaf(B0 + 110, 230); tinLoaf(B0 + 144, 230);
+// cold cases: two tiers of yoghurt pots (foil lids in the sign colours) and a row of juice bottles
+{ const x0 = doors[1][0] + 5, lids = ['#4f9a94', '#d9534f', '#e2b33c', '#5fae5a', '#d9534f'];
+  [178, 160].forEach((yG, t) => lids.forEach((lid, k) => {
+    const x = x0 + 4 + k * 18, n0 = mid.childNodes.length;
+    poly(mid, [[x, yG - 16], [x + 14, yG - 16], [x + 12, yG], [x + 2, yG]], '#fbf7ee', { stroke: INK, 'stroke-width': 2 });
+    rect(mid, x + 2, yG - 10, 10, 4, lid); rect(mid, x + 10, yG - 15, 2, 14, '#ddcba5');
+    rect(mid, x - 1, yG - 18, 16, 3, lid, { stroke: INK, 'stroke-width': 1 });
+    unflip(mid, n0, x + 7);
+  }));
+  [0, 1, 2].forEach(k => { const x = x0 + 52 + k * 15, yG = 238, n0 = mid.childNodes.length;
+    rect(mid, x, yG - 28, 12, 28, '#e2b33c', { stroke: INK, 'stroke-width': 2, rx: 2 });
+    rect(mid, x + 3, yG - 35, 6, 8, '#f1d27a', { stroke: INK, 'stroke-width': 2 }); rect(mid, x + 2, yG - 38, 8, 4, '#d9534f', { stroke: INK, 'stroke-width': 1 });
+    rect(mid, x + 1, yG - 18, 10, 9, '#fbf7ee'); rect(mid, x + 9, yG - 26, 2, 24, '#c39228'); rect(mid, x + 1, yG - 26, 2, 8, '#f6e2a0');
+    unflip(mid, n0, x + 6);
+  }); }
+const front = wsvg();
+// glass: a cool tint over the stock, one soft glare streak per door, a handle on each door's left stile
+doors.forEach(([x0, x1], d) => {
+  rect(front, x0 + 5, 69, x1 - x0 - 10, 209, 'rgba(190,232,226,.3)');
+  poly(front, [[x0 + 26, 73], [x0 + 40, 73], [x0 + 18, 168], [x0 + 5, 168], [x0 + 5, 160]], 'rgba(255,255,255,.16)');
+  const hx = x0 + 8;   // both doors hinge on the right
+  rect(front, hx, 120, 4, 76, '#ecebe4', { stroke: INK, 'stroke-width': 2 });
+});
+// bakery uprights, header and boards (top faces lit), shelf-edge price strips, then the baskets in front of the croissants
+rect(front, B0, 74, 6, 200, '#6e4524', { stroke: INK, 'stroke-width': 2 }); rect(front, B1 - 6, 74, 6, 200, '#6e4524', { stroke: INK, 'stroke-width': 2 });
+sign(front, B0 - 4, 58, B1 - B0 + 8, 36, '#d2a874', '#e8c99a', '#a8834f', 'bakery', 309);
+[150, 232].forEach(y => {
+  rect(front, B0 + 6, y - 3, B1 - B0 - 12, 3, '#d9a46a');
+  rect(front, B0 + 6, y, B1 - B0 - 12, 10, '#a8703a', { stroke: INK, 'stroke-width': 2 });
+  rect(front, B0 + 7, y + 2, B1 - B0 - 14, 6, '#f3e9d2');                 // price strip
+  for (let x = B0 + 14; x < B1 - 14; x += 28) { rect(front, x, y + 2, 12, 6, '#fbf7ee'); rect(front, x, y + 2, 12, 1, '#d9534f'); }
+});
+// the baguette bin: a deep wicker bin on the lower board
+poly(front, [[B0 + 11, 202], [B0 + 47, 202], [B0 + 45, 229], [B0 + 13, 229]], 'url(#weave)', { stroke: INK, 'stroke-width': 2 });
+rect(front, B0 + 10, 200, 38, 4, '#ddb07a', { stroke: INK, 'stroke-width': 2 });
+baskets.forEach(([bx, yb]) => {
+  poly(front, [[bx, yb - 20], [bx + 50, yb - 20], [bx + 46, yb - 3], [bx + 4, yb - 3]], 'url(#weave)', { stroke: INK, 'stroke-width': 2 });
+  rect(front, bx - 1, yb - 22, 52, 4, '#ddb07a', { stroke: INK, 'stroke-width': 2 });
+});
+// clock above the bakery
+{ const cx = 309, cy = 32, c = (r, f, extra) => { const e = document.createElementNS(NS, 'circle'); Object.entries(Object.assign({ cx, cy, r, fill: f }, extra || {})).forEach(([a, v]) => e.setAttribute(a, v)); front.appendChild(e); };
+  c(21, '#2a4d4b', { stroke: INK, 'stroke-width': 2 }); c(16, '#fbf7ee');
+  [[0, -13], [13, 0], [0, 13], [-13, 0]].forEach(([dx, dy]) => rect(front, cx + dx - 1, cy + dy - 1, 2, 2, INK));
+  line(front, cx, cy, cx - 6, cy + 4, INK, 2); line(front, cx, cy, cx - 3, cy - 11, INK, 2); }
+// fruit & veg: the sign on two wires, crate fronts with slats and a price card each
+{ const sx = (S0 + S1) / 2 - 57;   // centred over the stand
+  line(front, sx + 28, 8, sx + 28, 70, '#57534c', 2); line(front, sx + 86, 8, sx + 86, 70, '#57534c', 2);
+  sign(front, sx, 70, 114, 36, '#3d7a45', '#5e9a64', '#2c5a33', 'fruit_and_veg'); }
+crates.forEach(([x, yf]) => {
+  rect(front, x, yf, CW, 24, '#c98c4e', { stroke: INK, 'stroke-width': 2 });
+  rect(front, x + 1, yf + 1, CW - 2, 2, '#e2b07a');
+  rect(front, x + 1, yf + 8, CW - 2, 2, '#8a5a2e'); rect(front, x + 1, yf + 16, CW - 2, 2, '#8a5a2e');
+  rect(front, x + 1, yf + 1, 5, 22, '#a8703a'); rect(front, x + CW - 6, yf + 1, 5, 22, '#a8703a');
+  const tx = x + (CW - 18) / 2;
+  rect(front, tx, yf + 7, 18, 11, '#fbf7ee', { stroke: INK, 'stroke-width': 1 }); rect(front, tx + 1, yf + 8, 16, 2, '#d9534f');
+});
+// ================= the cashier: behind the counter, beside the receipt and the register =================
+// She stands at the back layer's depth (0.5x: 1.92 px per cm, 1 px texels like the 48 px stock behind her), between the
+// closed slot's right stanchion and the receipt, a little in front of the fruit & veg stand. About 160 cm tall, so her head
+// top sits 70 cm over the counter's back edge; only her head, shoulders and upper body show above the counter top.
+// Construction: a bun and a jaw-length bob over an oval head, a slim neck, a cream polo with short sleeves under a teal
+// store apron (bib, straps over the shoulders, a waist seam and a pocket with a pen), a name badge on the lit side.
+// Each material has two flat values (lit, shade); a texel is shaded when the shape no longer covers a point a little to
+// its right and below (the light is upper left), so the shade is a crescent down her right side. 1-texel ink outline.
+// She is mixed toward the wall like the rest of the back layer, but less (she stands nearer than the shelves).
+// In Godot: one 76 x 144 sprite on the back layer.
+function hazed(hex, hzK = .2, coolK = .26) {
+  const n = parseInt(hex.slice(1), 16), c = [n >> 16, (n >> 8) & 255, n & 255], hz = [228, 214, 185], cool = [61, 116, 112];
+  return '#' + c.map((v, k) => Math.round((v * (1 - hzK) + hz[k] * hzK) * (1 - coolK) + cool[k] * coolK).toString(16).padStart(2, '0')).join('');
+}
+function cashier(cx) {
+  const T = 128, bt = T + 56, BOT = 270;                       // bun top, shoulder line, wall bottom (wall coordinates)
+  const hx = cx, hy = T + 30, rx = 16, ry = 20;                 // the head: 33 x 41 px (about 17 x 21 cm)
+  const half = 34, rcx = 13, rcy = 12;                          // shoulders 69 px (36 cm), rounded
+  const torso = Y => Y < bt + 48 ? 26 - 3 * (Y - bt) / 48 : 23 + 2 * Math.min(1, (Y - bt - 48) / 30);   // waist taper
+  const inHeadE = (X, Y) => ((X - hx) / rx) ** 2 + ((Y - hy) / ry) ** 2 <= 1;
+  const inBun = (X, Y) => ((X - (hx - 3)) / 8) ** 2 + ((Y - (T + 7)) / 6.5) ** 2 <= 1;
+  const inBob = (X, Y) => Y < hy + .5 * ry && ((X - hx) / (rx + 2)) ** 2 + ((Y - hy + 1) / (ry + 1)) ** 2 <= 1;
+  const hairline = X => hy - .32 * ry + (X < hx + 4 ? (hx + 4 - X) * .22 : 0);   // a fringe swept down to her right (viewer's left)
+  const inHair = (X, Y) => inBun(X, Y) || (inBob(X, Y) && (!inHeadE(X, Y) || Y < hairline(X) || Math.abs(X - hx) > .7 * rx));
+  const inHead = (X, Y) => inHeadE(X, Y) || inHair(X, Y);
+  const inBody = (X, Y) => {
+    if (Y < bt || Y >= BOT || Math.abs(X - cx) > half) return false;
+    const ax = Math.abs(X - cx) - (half - rcx), ay = bt + rcy - Y;
+    return !(ax > 0 && ay > 0) || (ax / rcx) ** 2 + (ay / rcy) ** 2 <= 1;
+  };
+  const inNeck = (X, Y) => Math.abs(X - cx) <= 6 && Y >= hy + ry - 6 && Y <= bt + 2;
+  const inAnyXY = (X, Y) => inHead(X, Y) || inNeck(X, Y) || inBody(X, Y);
+  const L = cx - 38, W = 76, T0 = T - 2, H = BOT - T0;
+  const cv2 = document.createElement('canvas'); cv2.width = W; cv2.height = H; cv2.className = 'px';
+  Object.assign(cv2.style, { position: 'absolute', left: L + 'px', top: T0 + 'px', width: W + 'px', height: H + 'px' });
+  const g = cv2.getContext('2d');
+  const C = {
+    skin: ['#e2b48c', '#c38f6a'], hair: ['#6e4230', '#4a2b1d'], shirt: ['#f3e9d2', '#d3c19c'],
+    apron: ['#4f9a94', '#3b7a75'], seam: ['#3b7a75', '#2e625e'], badge: ['#fbf7ee', '#e4dccb'], tab: ['#e2b33c', '#c39228'],
+    pen: ['#e2b33c', '#c39228'], mouth: ['#a65e52', '#a65e52'],
+  };
+  for (let j = 0; j < H; j++) for (let i = 0; i < W; i++) {
+    const X = L + i + .5, Y = T0 + j + .5, dx = X - cx, ax = Math.abs(dx);
+    let m = null, litTest = null;
+    if (inHead(X, Y)) {
+      litTest = inHead(X + .3 * rx, Y + .15 * ry);
+      if (inHair(X, Y)) m = inBun(X, Y) && Y >= T + 11 && Y < T + 13 ? 'apron' : 'hair';   // a teal hair tie at the bun's base
+      else if (Math.abs(ax - 6) < 1 && Y >= hy + 1 && Y < hy + 3) m = 'ink';                 // eyes, 1 x 2 texels
+      else if (ax < 2 && Y >= hy + 10 && Y < hy + 11) m = 'mouth';
+      else m = 'skin';
+    } else if (Y >= bt - 1 && Y < bt + 5 && ax < 10 - (Y - bt) * .6 && ax >= 2 + (Y - bt + 1) * .9) { m = 'shirt'; litTest = dx < 0; }   // polo collar
+    else if (inNeck(X, Y) && !inBody(X, Y + 1)) { m = 'skin'; litTest = dx < 3; }
+    else if (inBody(X, Y)) {
+      litTest = inBody(X + 12, Y + 4);
+      const tw = torso(Y);
+      if (ax >= tw) {                                                   // the arms hang at her sides
+        m = Y < bt + 24 ? 'shirt' : 'skin';
+        if (ax < tw + 1) litTest = false;                               // the crease between arm and body
+        if (Y >= bt + 22 && Y < bt + 24) { m = 'shirt'; litTest = false; }   // the sleeve's hem
+      } else {
+        const bibHalf = Y < bt + 14 ? -1 : Y < bt + 46 ? 15 + (tw - 15) * (Y - bt - 14) / 32 : tw;
+        const strapX = 14 - 5 * (bt + 14 - Y) / 14;                     // straps from the bib's corners up over the shoulders
+        if (ax < bibHalf) m = 'apron';
+        else if (Y < bt + 14 && Y >= bt && Math.abs(ax - strapX) < 1.5) m = 'apron';
+        else m = 'shirt';
+        if (m === 'apron') {
+          if (Y >= bt + 48 && Y < bt + 50) m = 'seam';                  // the waist seam
+          if (Y >= bt + 62 && Y < bt + 63 && ax < 14) m = 'seam';       // the pocket's top
+          if (Y >= bt + 63 && ax >= 13 && ax < 14) m = 'seam';          // its sides
+          if (X >= cx + 6 && X < cx + 8 && Y >= bt + 57 && Y < bt + 63) { m = 'pen'; litTest = X < cx + 7; }
+          // the name badge on her right (the lit side): ink frame, mustard tab, a line of name
+          if (X >= cx - 13 && X < cx - 3 && Y >= bt + 19 && Y < bt + 26) {
+            const e = X < cx - 12 || X >= cx - 4 || Y < bt + 20 || Y >= bt + 25;
+            m = e ? 'ink' : Y < bt + 21 ? 'tab' : (Y >= bt + 22 && Y < bt + 23 && X >= cx - 11 && X < cx - 6) ? 'ink' : 'badge';
+            litTest = true;
+          }
+        }
+      }
+    } else if (Y < 268 && (inAnyXY(X - 1, Y) || inAnyXY(X + 1, Y) || inAnyXY(X, Y - 1) || inAnyXY(X, Y + 1))) m = 'ink';
+    if (!m) continue;
+    const col = m === 'ink' ? INK : C[m][litTest ? 0 : 1];
+    g.fillStyle = hazed(col, .12, .14); g.fillRect(i, j, 1, 1);
+  }
+  cv2.id = 'cashier'; wall.appendChild(cv2);   // over the haze and the shade (its colours are pre-mixed)
+}
+cashier(952);
+
+
+// ================= the counter =================
+const yBack = 326, yFront = 400;      // belt top face: 74 px deep
+const beltL = 22, beltR = 926;        // belt front edge
+const cv = svgLayer(2);
+cv.innerHTML = `<defs>
+  <!-- every ramp is two or three flat palette bands (hard stops), so it maps onto a banded tile or 9-slice -->
+  <linearGradient id="woodTop" x1="1" y1="0" x2="0" y2="0"><stop offset="0" stop-color="#ddb07a"/><stop offset=".3" stop-color="#ddb07a"/><stop offset=".3" stop-color="#cf9c62"/><stop offset=".7" stop-color="#cf9c62"/><stop offset=".7" stop-color="#be864e"/></linearGradient>
+  <linearGradient id="woodFront" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#7a4c27"/><stop offset=".3" stop-color="#7a4c27"/><stop offset=".3" stop-color="#6e4524"/><stop offset=".7" stop-color="#6e4524"/><stop offset=".7" stop-color="#5a361a"/></linearGradient>
+  <linearGradient id="rubber" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#2c2926"/><stop offset=".5" stop-color="#2c2926"/><stop offset=".5" stop-color="#3d3a36"/></linearGradient>
+
+</defs>`;
+// whole counter top (wood), full width; back edge recedes with the camera
+topFace(cv, -40, 1320, yBack - 8, yFront + 2, 'url(#woodTop)');
+// back edge lip of the counter: a thin dark line where it meets the far side
+line(cv, 0, yBack - 8, 1280, yBack - 8, '#7a4c27', 3);
+// belt frame (steel), then the rubber inside it
+topFace(cv, beltL - 10, beltR + 10, yBack + 2, yFront, '#8d8a83');
+topFace(cv, beltL, beltR, yBack + 6, yFront, 'url(#rubber)');
+// slats across the belt, receding to the vanishing point
+const ev = v => Math.round(v / 2) * 2;
+for (let x = beltL + 12; x < beltR; x += 20) {
+  const xb = ev(px(x, yFront, yBack + 6));
+  line(cv, x + 1, yFront, xb + 1, yBack + 6, '#25221f', 2);
+  line(cv, x + 3, yFront, xb + 3, yBack + 6, '#4a4641', 2);
+}
+// the steel frame's inner side walls (left one faces the light)
+poly(cv, [[px(beltL, yFront, yBack + 6), yBack + 6], [px(beltL, yFront, yBack + 6) + 6, yBack + 6], [beltL + 6, yFront], [beltL, yFront]], '#57534c');
+poly(cv, [[px(beltR, yFront, yBack + 6) - 6, yBack + 6], [px(beltR, yFront, yBack + 6), yBack + 6], [beltR, yFront], [beltR - 6, yFront]], '#c7c3b8');
+// back roller cover: a hood across the frame's back end. Its ends sit on the frame's receding side edges (same VP, same
+// reference line as the frame), so it is exactly as wide as the frame at every depth: lit top face, then a short dark front face
+{ const fx0 = y => px(beltL - 10, yFront, y), fx1 = y => px(beltR + 10, yFront, y);
+  const band = (y0, y1, fill) => poly(cv, [[fx0(y0), y0], [fx1(y0), y0], [fx1(y1), y1], [fx0(y1), y1]], fill);
+  band(yBack + 2, yBack + 8, '#7a7770');
+  band(yBack + 2, yBack + 3, '#9a968d');      // lit back arris
+  band(yBack + 8, yBack + 12, '#45423d');     // the hood's front face, in shade
+  band(yBack + 12, yBack + 14, 'rgba(10,8,6,.45)');   // its shadow on the rubber
+  line(cv, fx0(yBack + 2), yBack + 2, fx1(yBack + 2), yBack + 2, INK, 2);
+  // the frame's receding outer edges: a 2 px ink stroke stepped on the 2 px grid, joining the top and front ink lines.
+  // Each 2 px row snaps the edge to an even x, patches the frame's own colour up to it, then lays the ink just outside it.
+  const frameCol = y => y < yBack + 4 ? '#9a968d' : y < yBack + 8 ? '#7a7770' : y < yBack + 12 ? '#45423d' : y < yBack + 14 ? '#504e4a' : '#8d8a83';
+  for (let y = yBack; y < yFront; y += 2) {
+    const l = ev(fx0(y + 1)), r = ev(fx1(y + 1));
+    if (y >= yBack + 2) { rect(cv, l, y, 2, 2, frameCol(y)); rect(cv, r - 2, y, 2, 2, frameCol(y)); }
+    rect(cv, l - 2, y, 2, 2, INK); rect(cv, r, y, 2, 2, INK);
+  } }
+// back guard: the belt is the counter's back edge, so the frame turns up into a steel upstand along its far side,
+// about 3 cm tall and 1 cm thick. Its ends follow the frame's receding outer edges (same VP); it stands on the hood's back
+// half and hides the counter strip behind it, so past its top edge there is only the store. Built in 2 px rows like the
+// frame: a 4 px lit top face, a 2 px rolled arris, the face in mid steel with a shaded foot band, a stepped ink outline with
+// one-texel rounded top corners, and a flat cast shadow on the hood. In Godot: a 3-slice strip (end, tiling middle, end).
+{ const fx0 = y => px(beltL - 10, yFront, y), fx1 = y => px(beltR + 10, yFront, y);
+  const GT = yBack - 12, GF = yBack - 8, GB = yBack + 4;    // top back edge, top front edge, foot on the hood
+  const col = y => y < GF ? '#c7c3b8' : y < GF + 2 ? '#dcd8ce' : y < GF + 4 ? '#57534c' : y < GB - 4 ? '#8d8a83' : '#6f6b63';
+  for (let y = GT; y < GB; y += 2) { const l = ev(fx0(y + 1)), r = ev(fx1(y + 1));
+    rect(cv, l, y, r - l, 2, col(y)); rect(cv, l - 2, y, 2, 2, INK); rect(cv, r, y, 2, 2, INK); }
+  { const l = ev(fx0(GT - 1)), r = ev(fx1(GT - 1)); rect(cv, l, GT - 2, r - l, 2, INK);             // top back ink edge
+    rect(cv, l - 2, GT, 2, 2, INK); rect(cv, r, GT, 2, 2, INK); }                                    // rounded corners
+  { const l = ev(fx0(GB + 1)), r = ev(fx1(GB + 1)); rect(cv, l, GB, r - l, 2, INK);                 // foot line on the hood
+    rect(cv, l, GB + 2, r - l - 2, 2, '#45423d'); }                                             // its shadow, falling front-right
+  // an end cap on each end: a dark moulded stopper 8 px wide and 2 px proud of the guard's top, so the strip ends on purpose
+  for (const side of [0, 1]) { const T = GT - 2;
+    for (let y = T; y < GB; y += 2) { const e = side ? ev(fx1(y + 1)) : ev(fx0(y + 1)), x0 = side ? e - 8 : e;
+      rect(cv, x0, y, 8, 2, y < T + 4 ? '#8d8a83' : y < T + 6 ? '#6f6b63' : '#45423d');
+      rect(cv, side ? e : e - 2, y, 2, 2, INK); rect(cv, side ? x0 - 2 : x0 + 8, y, 2, 2, INK); }
+    const e = side ? ev(fx1(T - 1)) : ev(fx0(T - 1)), x0 = side ? e - 8 : e; rect(cv, x0, T - 2, 8, 2, INK); } }
+// footprints of the empty slots: drawn on the belt plane, same camera
+const X0 = 32, P = 128, ground = 388;
+[2, 1].forEach(i => {
+  const x0 = X0 + i * P + 8, x1 = x0 + 100, yF = ground + 2, yB = ground - 40;
+  poly(cv, [[px(x0, yF, yB), yB], [px(x1, yF, yB), yB], [x1, yF], [x0, yF]], 'rgba(241,210,122,.06)',
+    { stroke: 'rgba(241,210,122,.6)', 'stroke-width': 2, 'stroke-dasharray': '8 6' });
+});
+// counter front face, under the belt (left of the register)
+rect(cv, 0, yFront + 4, 944, 296, 'url(#woodFront)');
+rect(cv, 0, yFront + 2, 944, 2, '#e3b27a');            // lit front arris of the counter top
+// panel seams fall in the 20 px gaps between the hand baskets (each one 10 px from the basket on its right), from the
+// rail's shadow down to the basket ledge
+for (const x of [244, 472, 700]) rect(cv, x, 494, 2, 170, '#5a361a');
+// front lip of the belt: a steel bar with a lit top face and a front face (drawn over the counter front)
+topFace(cv, beltL - 12, beltR + 12, yFront, yFront + 4, '#dcd8ce');
+rect(cv, beltL - 12, yFront + 4, beltR - beltL + 24, 9, '#8d8a83');
+rect(cv, beltL - 12, yFront + 10, beltR - beltL + 24, 3, '#57534c');
+line(cv, beltL - 12, yFront + 13.5, beltR + 12, yFront + 13.5, INK, 2);
+// the steel apron between the lip and the rail: one piece of the belt frame, so the conveyor runs straight into the rail.
+// As wide as the rail (the lip overhangs it 4 px at each end), a recessed vertical face in the frame's mid steel: the lip's
+// shadow as a flat dark step on top, a bolt head in each gap between two slot tickets, ink sides running on into the rail's
+const APX0 = 14, APX1 = 932, APY0 = yFront + 14, APY1 = 422;
+rect(cv, APX0, APY0, APX1 - APX0, APY1 - APY0, '#7a7770');
+rect(cv, APX0, APY0, APX1 - APX0, 2, '#45423d');
+rect(cv, APX0 - 1, APY0, 2, APY1 - APY0 + 2, INK); rect(cv, APX1 - 1, APY0, 2, APY1 - APY0 + 2, INK);   // on the rail's stroke centres
+rect(cv, APX0, APY1, APX1 - APX0, 2, INK);
+for (let i = 0; i < 7; i++) { const bx = X0 + i * P + 118;
+  rect(cv, bx + 2, APY0 + 2, 4, 4, '#c7c3b8'); rect(cv, bx + 2, APY0 + 4, 2, 2, '#8d8a83'); rect(cv, bx, APY0 + 2, 2, 4, '#45423d'); rect(cv, bx, APY0 + 6, 6, 1, '#57534c'); }
+// the belt's direction: under each ticket a pair of 2 px pixel chevrons in light steel, pointing to the register (drawn
+// pointing right here, since this layer is flipped). In Godot: a 6 x 3 texel decal on the apron tile.
+{ const CHEV = ['C...C...C.', '.C...C...C', 'C...C...C.'];   // three chevrons, a 2-texel gap between them
+  for (let i = 0; i < 7; i++) { const cx = X0 + i * P + 56 - 10;
+    CHEV.forEach((r, j) => [...r].forEach((ch, k) => { if (ch === 'C') rect(cv, cx + k * 2, APY0 + 2 + j * 2, 2, 2, '#c7c3b8'); })); } }
+// price rail on the front face: steel, lit top, dark bottom
+rect(cv, 14, 422, 918, 4, '#dcd8ce');
+rect(cv, 14, 426, 918, 62, '#9a968d');
+rect(cv, 14, 484, 918, 6, '#57534c');
+rect(cv, 14, 422, 918, 68, 'none', { stroke: INK, 'stroke-width': 2 });
+rect(cv, 12, 490, 918, 4, 'rgba(20,10,6,.35)');      // the rail's cast shadow
+
+// ================= the register cabinet (right of centre: its left side faces the camera and the light) =================
+const rg = svgLayer(2);
+// cabinet front face down to the floor, with its left side face
+rect(rg, 944, yFront + 4, 338, 296, '#6e4524');          // one flat face; its lit left edge is the line below
+rect(rg, 944, yFront + 2, 336, 2, '#e3b27a');
+line(rg, 951, yFront + 4, 951, 700, '#3e2614', 2);
+// printer: a box standing on the counter top; top face, left side face, front face
+const pL = 984, pR = 1248, pFront = 392, pTop = 352, pDepth = 22;
+const tB = pTop - pDepth;
+poly(rg, [[pR + 6, pFront + 6], [pL - 10, pFront + 6], [pL - 14, pFront + 2], [pR + 2, pFront + 2]], 'rgba(20,14,10,.4)');   // contact shadow
+poly(rg, [[px(pL, pTop, tB), tB], [px(pR, pTop, tB), tB], [pR, pTop], [pL, pTop]], '#8b877e', { stroke: INK, 'stroke-width': 2 });  // top face
+poly(rg, [[px(pL, pTop, tB), tB], [pL, pTop], [pL, pFront], [px(pL, pTop, tB), pFront - pDepth + 2]], '#3a3834', { stroke: INK, 'stroke-width': 2 });  // left side
+rect(rg, pL, pTop, pR - pL, pFront - pTop, '#4a4741', { stroke: INK, 'stroke-width': 2 });                      // front face
+rect(rg, pL + 2, pTop + 2, pR - pL - 4, 3, '#6a665e');
+rect(rg, pL + 2, pFront - 6, pR - pL - 4, 4, '#36332f');
+// the slot in the top face, where the receipt comes out
+{ const sl = svgLayer(4);   // over the receipt's bottom edge: the paper disappears into the slot
+  poly(sl, [[px(992, pTop, tB + 10), tB + 10], [px(1240, pTop, tB + 10), tB + 10], [px(1240, pTop, tB + 16), tB + 16], [px(992, pTop, tB + 16), tB + 16]], INK);
+  poly(sl, [[px(992, pTop, tB + 16), tB + 16], [px(1240, pTop, tB + 16), tB + 16], [px(1240, pTop, tB + 18), tB + 18], [px(992, pTop, tB + 18), tB + 18]], '#a9a59b');
+  // tear bar teeth along the slot's front lip (v3): 4 px sawtooth, even pixels
+  const t0 = Math.round(px(996, pTop, tB + 16)), t1 = Math.round(px(1236, pTop, tB + 16));
+  const tp = [[t0, tB + 18]];
+  for (let x = t0; x < t1; x += 6) tp.push([x + 3, tB + 14], [x + 6, tB + 18]);
+  poly(sl, tp, '#c7c3b8', { stroke: '#57534c', 'stroke-width': 1 }); }
+// LED and a paper-roll window on the front face
+rect(rg, 1222, pTop + 14, 12, 12, '#5fae5a', { stroke: INK, 'stroke-width': 2 });
+// paper feed button beside the LED (v3)
+rect(rg, 1196, pTop + 15, 18, 10, '#8d8a83', { stroke: INK, 'stroke-width': 2, rx: 2 });
+rect(rg, 1198, pTop + 17, 12, 2, '#c7c3b8');
+rect(rg, 1223, pTop + 15, 4, 4, '#a9e3a2');
+rect(rg, 1000, pTop + 12, 150, 16, '#2c2a27', { stroke: '#24221f', 'stroke-width': 2 });
+rect(rg, 1002, pTop + 14, 40, 4, '#5a5650');
+// ---- the register's key deck: one charcoal plate (the printer's body colour), so printer, keys and drawer read as one machine ----
+// 3 x 5 digit glyphs at 2 px (one texel), for the quiet keypad; a 5 x 7 euro sign embossed on the drawer
+const DIG = { 0: ['CCC', 'C.C', 'C.C', 'C.C', 'CCC'], 1: ['.C.', 'CC.', '.C.', '.C.', 'CCC'], 2: ['CCC', '..C', 'CCC', 'C..', 'CCC'],
+  3: ['CCC', '..C', '.CC', '..C', 'CCC'], 4: ['C.C', 'C.C', 'CCC', '..C', '..C'], 5: ['CCC', 'C..', 'CCC', '..C', 'CCC'],
+  6: ['CCC', 'C..', 'CCC', 'C.C', 'CCC'], 7: ['CCC', '..C', '.C.', '.C.', '.C.'], 8: ['CCC', 'C.C', 'CCC', 'C.C', 'CCC'], 9: ['CCC', 'C.C', 'CCC', '..C', 'CCC'] };
+const EURO7 = ['..CCC', '.C...', 'CCCC.', '.C...', 'CCCC.', '.C...', '..CCC'];
+function pxGlyph(s, rows, x, y, col) { rows.forEach((r, j) => [...r].reverse().forEach((ch, i) => { if (ch === 'C') rect(s, x + i * 2, y + j * 2, 2, 2, col); })); }
+// key deck plate
+rect(rg, 950, 418, 314, 202, 'rgba(20,10,6,.4)');                             // its hard shadow on the cabinet, down and right
+rect(rg, 954, 412, 314, 204, '#4a4741', { stroke: INK, 'stroke-width': 2 });
+rect(rg, 955, 413, 312, 4, '#6f6b63');                                        // lit top lip
+rect(rg, 1265, 413, 2, 202, '#5c5953');                                        // lit left edge
+rect(rg, 955, 611, 312, 4, '#36332f');                                        // shaded bottom lip
+rect(rg, 955, 417, 4, 194, '#36332f');                                       // shaded right edge
+// the quiet keypad: 7 8 9 / 4 5 6 / 1 2 3 / 0 00, low-contrast caps with steel digits; smaller and darker than the two real keys
+function padKey(x, y, w, h, label) {
+  rect(rg, x - 2, y + 2, w, h, 'rgba(20,10,6,.45)');                         // 2 px drop shadow
+  rect(rg, x, y, w, h, '#5c5953', { stroke: INK, 'stroke-width': 2 });
+  rect(rg, x + 1, y + 1, w - 2, 2, '#6f6b63');                               // top face
+  rect(rg, x + 1, y + 3, w - 2, 2, '#77736a');                               // arris
+  rect(rg, x + 1, y + 5, 2, h - 6, '#4d4a45');                           // shaded right side
+  rect(rg, x + 1, y + h - 3, w - 2, 2, '#45423d');                           // shaded bottom
+  const gw = label.length * 6 + (label.length - 1) * 2;
+  [...label].forEach((d, k) => pxGlyph(rg, DIG[d], x + Math.round((w - gw) / 4) * 2 + k * 8, y + 5, '#8d8a83'));
+}
+{ const KX = [966, 992, 1018], KY = [516, 538, 560, 582], KW = 22, KH = 18;   // last row ends at 600 (602 with its shadow): 9 px over the bottom bevel
+  [['7', '8', '9'], ['4', '5', '6'], ['1', '2', '3']].forEach((r, j) => r.forEach((d, i) => padKey(KX[2 - i], KY[j], KW, KH, d)));
+  padKey(KX[1], KY[3], KW * 2 + 4, KH, '0');
+  padKey(KX[0], KY[3], KW, KH, '00'); }
+// a seam between the keypad and the Redraw key: the right side is the function keys' side
+rect(rg, 1050, 518, 2, 84, '#5c5953');
+rect(rg, 1052, 518, 2, 84, '#36332f');
+// ---- the cash drawer: a steel box under the deck, slightly ajar so the coin tray shows; front panel, pull, lock, euro emboss ----
+const DL = 954, DR = 1268, DT = 624, DF = 636, DB = 700;
+rect(rg, DL, DT, DR - DL, DF - DT, '#1e1c1a', { stroke: INK, 'stroke-width': 2 });                // the cabinet opening, dark
+// the coin tray inside the gap: steel cup dividers and the tops of coin stacks (gold euros, silver cents) catching the light
+rect(rg, DL + 2, DF - 4, DR - DL - 4, 2, '#2e2c29');                          // the tray's back wall
+for (let x = DL + 22; x < DR - 10; x += 54) rect(rg, x, DT + 2, 2, DF - DT - 2, '#6f6b63');
+[[DL + 32, '#e2b33c'], [DL + 44, '#e2b33c'], [DL + 86, '#c7c3b8'], [DL + 140, '#e2b33c'], [DL + 196, '#c7c3b8'], [DL + 208, '#c7c3b8'], [DL + 250, '#e2b33c']]
+  .forEach(([x, c]) => { rect(rg, x, DF - 6, 10, 6, c); rect(rg, x + 2, DF - 8, 6, 2, c); rect(rg, x + 4, DF - 6, 4, 2, 'rgba(255,255,255,.55)'); rect(rg, x, DF - 4, 2, 4, 'rgba(20,10,6,.35)'); });
+rect(rg, DL - 4, DB, DR - DL, 4, 'rgba(20,10,6,.45)');                        // the drawer's shadow on the plinth
+rect(rg, DL, DF, DR - DL, DB - DF, '#3a3834', { stroke: INK, 'stroke-width': 2 });                // front panel
+rect(rg, DL + 1, DF + 1, DR - DL - 2, 4, '#7c786f');                          // lit top lip of the front
+rect(rg, DL + 1, DF + 5, DR - DL - 2, 2, '#2a2826');                          // the lip's shadow line
+rect(rg, DR - 3, DF + 7, 2, DB - DF - 12, '#4a4741');                         // lit left edge
+rect(rg, DL + 1, DB - 5, DR - DL - 2, 4, '#2a2826');                          // shaded bottom
+rect(rg, DL + 1, DF + 7, 4, DB - DF - 12, '#2a2826');                         // shaded right edge
+// the pull: a steel bar handle centred on the front, standing off the panel (its shadow falls down and right)
+rect(rg, 1050, 670, 108, 4, 'rgba(20,10,6,.5)');
+rect(rg, 1054, 660, 112, 10, '#a9a59b', { stroke: INK, 'stroke-width': 2 });
+rect(rg, 1055, 661, 110, 2, '#ecebe4');
+rect(rg, 1055, 667, 110, 2, '#6f6b63');
+// the lock: a brass cylinder with a keyhole, at the right
+poly(rg, [[1232, 658], [1240, 658], [1244, 662], [1244, 670], [1240, 674], [1232, 674], [1228, 670], [1228, 662]], '#c99a2e', { stroke: INK, 'stroke-width': 2 });
+rect(rg, 1236, 660, 6, 2, '#f1d27a'); rect(rg, 1240, 662, 2, 4, '#f1d27a');
+rect(rg, 1230, 668, 2, 4, '#8e6a1a');
+rect(rg, 1234, 661, 4, 4, INK); rect(rg, 1235, 665, 2, 6, INK);
+// the euro sign embossed at the left: lit stroke over a shaded offset
+pxGlyph(rg, EURO7, 972, 660, '#262422');
+pxGlyph(rg, EURO7, 974, 658, '#66625b');
+
+// ================= belt items =================
+const row = [
+  ['cheese', '€3', '+4 after Bread', 'cold_cases', null],          // pays its base, no fizzle (as in #79)
+  ['strawberries', '€2', '+3 beside Produce', 'fruit_and_veg', null],
+  ['croissant', '€2', '+2 beside Bakery', 'bakery', 'ok'],
+];
+row.forEach(([n, p, r, a, m], i) => {
+  i = 6 - i;   // mirrored: display slot i + 1 is source slot 6 - i
+  const x = X0 + i * P + 8;
+  item(`${A}items_v2/${n}.png`, x, ground);
+  label('label', X0 + i * P, 428, p, r, a);
+  if (m) markOn(m, n, x, ground - 96);
+});
+{ // the hovered coupon: lifted off the belt, label selected
+  const i = 3, x = X0 + i * P + 8;
+  item(`${A}items_v2/coupon_slip.png`, x, ground, { lift: 16, base: 16, icon: `${A}icons/coupon_multipack_v2.png` });
+  label('label cp sel', X0 + i * P, 428, 'COUPON', '×3 later with prior’s tag');
+  // the same corner rule as the belt's other marks (lift and base cancel out), nudged 6 px left so it clears the
+  // top-right bracket by 8 px; it lands inside the bracket frame
+  markOn('fz', 'coupon_slip', x, ground - 96, -6);
+  [['l', 't'], ['r', 't'], ['l', 'b'], ['r', 'b']].forEach(([h, v]) => {
+    el('abs brk', { left: (h === 'l' ? x - 16 : x + 96) + 'px', top: (v === 't' ? ground - 100 : ground - 4) + 'px',
+      borderLeftWidth: h === 'l' ? '4px' : 0, borderRightWidth: h === 'r' ? '4px' : 0, borderTopWidth: v === 't' ? '4px' : 0, borderBottomWidth: v === 'b' ? '4px' : 0 });
+  });
+}
+label('label empty', X0 + 2 * P, 428, '5', '');
+label('label empty', X0 + 1 * P, 428, '6', '');
+{ // the closed slot: two desk stanchions at 1x. rope_post and velvet_rope are authored with doubled pixels, so at 1x
+  // they share the items' 2 px texel. The post is sliced like a 9-slice (knob + upper shaft, then shaft + foot; the
+  // shaft is uniform, so the seam never shows) to a 104 px desk post (~27 cm); the rope is used whole, its hooks
+  // 82 px apart. Both are plain atlas regions in Godot.
+  const x = X0 + 0 * P, g = ground - 12, H = 104;
+  const c1 = x + 15, c2 = c1 + 82;
+  const post = (cx, z) => el('abs', { left: (cx - 6) + 'px', top: (g - H) + 'px', width: '12px', height: H + 'px', zIndex: z },
+    `<div style="position:absolute;left:0;top:0;width:12px;height:52px;overflow:hidden"><img class="px" src="${A}scenery/rope_post.png" style="width:12px;height:72px"></div>` +
+    `<div style="position:absolute;left:0;top:52px;width:12px;height:${H - 52}px;overflow:hidden"><img class="px" src="${A}scenery/rope_post.png" style="width:12px;height:72px;margin-top:${-(72 - (H - 52))}px"></div>`);
+  [c1, c2].forEach(cx => pxShadow(cx - 10 - 4, g - 4, 20, 6, 3, .5));   // a 10 x 3 texel stepped ellipse per post
+  post(c1, 3);
+  el('abs', { left: (c1 - 3) + 'px', top: (g - H + 2) + 'px', width: '88px', height: '24px', zIndex: 3 },
+    `<img class="px" src="${A}scenery/velvet_rope.png" style="position:absolute;left:0;top:0;width:88px;height:24px">`);
+  post(c2, 3);
+  // a dark plate with tomato type: the stanchions above carry the "closed" message, and the plate stays quieter than CHECKOUT
+  el('label closed', { left: x + 'px', top: '428px', background: 'var(--ink)', color: 'var(--tomato-light)', textAlign: 'center' },
+    '<div style="font-family:Pixelify;font-size:18px;margin-top:9px">CLOSED</div><div class="r" style="color:var(--cream-shade)">inspection</div>');
+}
+
+// ================= the hand ("Cart"): the shopping in hand baskets, on a steel basket ledge in front of the counter =================
+// Scale: the items keep the belt's 96 px sprite (48 px art at 2x, the one integer scale every item uses), so an item reads
+// the same on the belt, in a basket and on the monitor. The ledge stands out about 30 cm from the counter front, nearer the
+// camera than the belt, so the baskets are drawn at about 1.2x the belt's 3.84 px/cm: 4.6 px/cm. A real hand basket is
+// about 45 x 30 x 20 cm: 208 px wide at the rim, 16 px of foreshortened rim depth (same VP as the belt), 68 px of front
+// face under a 12 px rim lip. 45 cm holds two 25 cm items side by side, so the 8 items sit 2 + 2 + 2 + 2 in four baskets,
+// in hand order, never overlapping: each item is one clean hover target, and shows about two thirds of its art above the rim (the rim still covers its bottom, so it reads as inside).
+// No ticket under the items: their price and rule show on the monitor when one is hovered (the data below feeds it).
+// Everything is drawn on the 2 px texel grid (canvas at half size, scaled up pixelated) with ink outlines and lit
+// upper-left / shaded lower-right edges, so it maps one to one onto Godot pieces: a basket back (rim top + inside) and a
+// basket front (lip, slotted face, folded handle, store mark) as two atlas regions around the items, and the ledge as a
+// 3-band steel tile. In Godot a hovered or dragged hand item rises about 16 px out of its basket (tweened).
+const hand = [
+  ['eggs', '€1', '×2 next Food', null], ['tea_bags', '€1', '×4 next Breakfast', 'pantry'], ['banana', '€2', '+2 after Banana', 'fruit_and_veg'],
+  ['batteries', '€1', '+4 in last slot', 'household'], ['coupon_slip', 'COUPON', 'Same both sides: 2nd ×2', null, 'coupon_two_for_one_v2'],
+  ['crisps', '€2', '+3 beside Bread', 'snacks'], ['coffee', '€2', '+3 next Breakfast', 'pantry'], ['milk', '€4', '+1 per earlier Breakfast', 'cold_cases'],
+];
+const BW = 208, BX = k => 26 + k * 228;            // basket k spans BX(k)..BX(k)+BW at the rim; 20 px of counter between baskets
+const RB = 576, RF = 592, RL = 604, BFOOT = 672;   // back rim, front rim (top of the lip), lip bottom, the face's bottom edge
+const TAPER = 8;                                    // the face narrows 8 px on each side from lip to foot (stepped every 2 px)
+const LB = 664, LF = 680, LFF = 694;                // ledge: top face LB..LF (foreshortened), steel front face LF..LFF
+// each hand item sinks a third of its art (alpha bbox, in px) under the front rim, so about two thirds shows above it and the
+// rim still covers its bottom; the tallest tops stay 36 px under the slot rail's shadow, room for the 16 px hover lift
+const ATOP = { eggs: 8, tea_bags: 12, banana: 4, batteries: 6, coupon_slip: 24, crisps: 6, coffee: 6, milk: 6 };
+const FOOT = n => RF + 2 * Math.round(((ABOT[n] || 96) - ATOP[n]) / 6);   // item n's visible bottom, on the 2 px grid
+// visible bottom of each sprite in px (alpha bbox x2): the coupon slip has 8 empty texel rows under it; it also rides 8 px
+// higher than the rest, leaning on its neighbour, so its two-for-one icon clears the lip
+const ABOT = { coupon_slip: 80 }, ALIFT = { coupon_slip: 8 };
+const HXI = i => BX(i >> 1) + (i & 1 ? 104 : 8);    // item i: left or right half of basket i / 2
+const BK = { rim: '#7cc4bb', lip: '#5fb0a8', mid: '#4f9a94', dark: '#3d7f79', wall: '#2a4d4b', deep: '#1f3b3a', slot: '#172c2b' };
+const GRIP = { fill: '#3d3a36', lit: '#57534c' };                                 // the handles: dark moulded plastic
+const tp = y => Math.round(Math.min(1, Math.max(0, (y - RL) / (BFOOT - RL))) * TAPER / 2) * 2;
+
+// ---- a 2 px texel canvas: shapes are predicates on texel centres (stage px), painted with outline and edge light ----
+function texCanvas(z, X0, Y0, W, H) {
+  const c = document.createElement('canvas'); c.width = W / 2; c.height = H / 2; c.className = 'px';
+  Object.assign(c.style, { position: 'absolute', left: X0 + 'px', top: Y0 + 'px', width: W + 'px', height: H + 'px', zIndex: z });
+  c.dataset.art = 1; stage.insertBefore(c, stage.querySelector('#layers'));
+  const g = c.getContext('2d'), w = W / 2, h = H / 2;
+  const T = { g, w, h, x0: X0, y0: Y0,
+    dot(i, j, col) { if (i >= 0 && j >= 0 && i < w && j < h) { g.fillStyle = col; g.fillRect(i, j, 1, 1); } },
+    // fill a shape; o: { fill, lit, shade, ink, litW, shadeW, sideLit, pattern(i,j) -> colour }
+    paint(inside, o) {
+      const m = new Uint8Array(w * h), at = (i, j) => i >= 0 && j >= 0 && i < w && j < h && m[j * w + i];
+      for (let j = 0; j < h; j++) for (let i = 0; i < w; i++) if (inside(X0 + i * 2 + 1, Y0 + j * 2 + 1)) m[j * w + i] = 1;
+      for (let j = 0; j < h; j++) for (let i = 0; i < w; i++) {
+        if (at(i, j)) {
+          let col = o.pattern ? o.pattern(i, j) : o.fill;
+          if (o.shade && (!at(i - 1, j) || !at(i, j + 1) || (o.shadeW > 1 && !at(i - 2, j)))) col = o.shade;
+          if (o.lit && (!at(i + 1, j) || (!o.sideLit && !at(i, j - 1)) || (o.litW > 1 && !at(i + 2, j)))) col = o.lit;
+          T.dot(i, j, col);
+        } else if (o.ink && (at(i - 1, j) || at(i + 1, j) || at(i, j - 1) || at(i, j + 1))) T.dot(i, j, o.ink);
+      }
+    },
+    rect(x, y, ww, hh, col) { g.fillStyle = col; g.fillRect((x - X0) / 2, (y - Y0) / 2, ww / 2, hh / 2); },
+  };
+  return T;
+}
+// the store mark: a little shopping cart (12 x 9 texels), as on the "Cart" button
+const CART = ['CC..........', '.C..........', '.CCCCCCCCCCC', '..CsCsCsCsC.', '..CCCCCCCCC.', '...CsCsCsC..', '...CCCCCCC..', '...C........', '....CC...CC.'];
+function glyph(T, x, y, cols) { CART.forEach((row, j) => [...row].reverse().forEach((ch, i) => { if (cols[ch]) T.dot((x - T.x0) / 2 + i, (y - T.y0) / 2 + j, cols[ch]); })); }
+
+// ---- the basket ledge: a steel shelf along the counter front, standing on the floor line ----
+const wl = svgLayer(2);
+wl.innerHTML = `<defs>
+  <linearGradient id="floor" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#2c3533"/><stop offset=".5" stop-color="#2c3533"/><stop offset=".5" stop-color="#222a29"/></linearGradient>
+  <linearGradient id="ledgeTop" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#a9a59b"/><stop offset=".4" stop-color="#a9a59b"/><stop offset=".4" stop-color="#c7c3b8"/></linearGradient>
+</defs>`;
+// floor: one line for the hand and the register column
+rect(wl, 0, 710, 1280, 10, 'url(#floor)');
+rect(wl, 0, 710, 1280, 2, '#16100c');
+rect(wl, 0, 700, 944, 10, '#2a1a0e');                                    // counter plinth
+rect(wl, 944, 700, 336, 10, '#2a1a0e');                                  // register column plinth on the same floor line
+// the ledge's top face (back band in the counter's shade), lit front arris, steel front face, and its shadow under it
+topFace(wl, 12, 932, LB, LF, 'url(#ledgeTop)');
+line(wl, px(12, LF, LB), LB + 1, px(932, LF, LB), LB + 1, '#57534c', 2);   // where the shelf meets the counter front
+rect(wl, 12, LF - 2, 920, 2, '#ecebe4');
+rect(wl, 12, LF, 920, LFF - LF, '#9a968d');
+rect(wl, 12, LFF - 4, 920, 4, '#57534c');
+poly(wl, [[px(12, LF, LB), LB], [px(932, LF, LB), LB], [932, LF], [932, LFF], [12, LFF], [12, LF]], 'none', { stroke: INK, 'stroke-width': 2 });
+rect(wl, 12, LFF + 1, 920, 5, 'rgba(20,10,6,.45)');
+
+// ---- the basket backs: rim top, the inside seen past the items, cast shadow on the counter front (behind the items) ----
+const bk = texCanvas(2, 0, 490, 944, 230);
+for (let k = 0; k < 4; k++) {
+  const a = BX(k), b = a + BW;
+  const ba = px(a - 2, RF, RB), bb = px(b + 2, RF, RB);                   // the rim's back corners (same VP)
+  const L = y => ba + (a - 2 - ba) * (y - RB) / (RF - RB), R = y => bb + (b + 2 - bb) * (y - RB) / (RF - RB);
+  // the basket's shadow on the counter front, falling right (it stands 30 cm out, so it is offset 6 px)
+  bk.paint((x, y) => y >= RB + 4 && y < LB && x < (y < RL ? a - 2 : a + tp(y)) && x >= (y < RL ? a - 2 : a + tp(y)) - 6, { fill: 'rgba(20,10,6,.32)' });
+  // the rim's top face all round the opening: rounded back corners
+  const inRim = (x, y) => y >= RB && y < RF + 2 && x >= L(y) && x < R(y) && !(y < RB + 4 && (x < L(y) + 4 || x >= R(y) - 4));
+  bk.paint(inRim, { fill: BK.rim, ink: INK });
+  // the opening, 6 px in from the rim's outer edge; its back wall inside (lit by the light over the front rim), slotted
+  const O = 6, oL = y => L(y) + O, oR = y => R(y) - O;
+  bk.paint((x, y) => y >= RB + 4 && y < RF + 2 && x >= oL(y) && x < oR(y),
+    { pattern: (i, j) => { const y = 490 + j * 2; return y < RB + 12 ? BK.dark : BK.deep; } });
+  for (let x = Math.ceil((a + 14) / 2) * 2; x < b - 14; x += 14) bk.rect(x, RB + 6, 4, 4, BK.wall);
+  // only the inner side wall that faces the camera: the left one (in shade) left of x 640, the right one (lit) right of it
+  if (a + BW / 2 < 640) bk.paint((x, y) => y >= RB + 4 && y < RF + 2 && x >= oL(y) && x < oL(y) + 8 - 4 * (RF - y) / (RF - RB), { fill: BK.dark });
+  else bk.paint((x, y) => y >= RB + 4 && y < RF + 2 && x < oR(y) && x >= oR(y) - 8 + 4 * (RF - y) / (RF - RB), { fill: BK.wall });
+}
+// contact shadows on the ledge top: one stepped ellipse per basket, a little to the right
+for (let k = 0; k < 4; k++) pxShadow(BX(k) - 12, LB + 4, BW - 4, 12, 3, .5);
+
+// ---- the items, standing in the baskets ----
+hand.forEach(([n, , , , icon], i) => {
+  item(`${A}items_v2/${n}.png`, HXI(7 - i), FOOT(n) + 96 - (ABOT[n] || 96) - (ALIFT[n] || 0), { z: 3, noShadow: true, icon: icon ? `${A}icons/${icon}.png` : null });
+});
+
+// ---- the basket fronts, over the items' lower part ----
+const fr = texCanvas(4, 0, 490, 944, 230);
+for (let k = 0; k < 4; k++) {
+  const a = BX(k), b = a + BW, mid = a + BW / 2;
+  // the basket's inside darkens the items toward the rim, in two flat steps
+  fr.rect(a + 4, RF - 8, BW - 8, 4, 'rgba(23,16,10,.14)'); fr.rect(a + 4, RF - 4, BW - 8, 4, 'rgba(23,16,10,.28)');
+  // the slotted front face, narrowing to the foot
+  const inFace = (x, y) => y >= RL && y < BFOOT && x >= a + tp(y) && x < b - tp(y);
+  fr.paint(inFace, { fill: BK.mid, lit: BK.lip, shade: BK.dark, ink: INK, litW: 2, shadeW: 2, sideLit: true });
+  fr.rect(a + 2, RL, BW - 4, 2, BK.dark);                                 // the lip's shadow on the face
+  // two rows of moulded slots (6 x 16 px, 14 px pitch), leaving a plain panel in the middle for the store mark;
+  // each slot shows the dark inside, with the bar above it casting a 2 px shadow into it
+  [[616, 632], [640, 656]].forEach(([y0, y1]) => {
+    for (let x = a + 14; x + 6 <= b - 12; x += 14) {
+      if (Math.abs(x + 3 - mid) < 22) continue;
+      if (x < a + tp(y1) + 8 || x + 6 > b - tp(y1) - 8) continue;
+      fr.rect(x, y0, 6, y1 - y0, BK.deep); fr.rect(x, y0, 6, 2, BK.slot);
+    }
+  });
+  fr.rect(a + tp(662) + 4, 662, BW - 2 * tp(662) - 8, 2, BK.dark);       // a rib above the solid base band
+  glyph(fr, mid - 12, 624, { C: '#f3e9d2' });                             // the store mark, moulded in cream
+  // two moulded feet at the front corners, resting on the ledge top
+  [a + TAPER + 6, b - TAPER - 22].forEach(x => fr.paint((X, Y) => X >= x && X < x + 16 && Y >= BFOOT && Y < BFOOT + 4, { fill: BK.wall, ink: INK }));
+  // the rim lip: a thick rolled edge, 2 px proud of the face on each side, rounded ends
+  fr.paint((x, y) => y >= RF && y < RL && x >= a - 2 && x < b + 2 && !((x < a || x >= b) && (y < RF + 2 || y >= RL - 2)),
+    { pattern: (i, j) => { const y = 490 + j * 2; return y < RF + 4 ? BK.rim : y < RL - 2 ? BK.lip : BK.dark; }, ink: INK });
+  // the front handle, folded down over the face: a 4 px bar from a pivot at each end of the lip, stepping down 45 degrees
+  // to run across the face, with a thicker grip in the middle. The back handle is folded down behind the basket, hidden.
+  const p0 = a + 14, p1 = b - 14, yH = (x) => 600 + Math.min(10, Math.max(0, x - p0), Math.max(0, p1 - x));
+  fr.paint((x, y) => x >= p0 && x < p1 && Math.abs(y - yH(x)) < 2.5, { fill: GRIP.fill, lit: GRIP.lit, ink: INK });
+  fr.paint((x, y) => Math.abs(x - mid) < 28 && y >= 604 && y < 616 && !((Math.abs(x - mid) >= 26) && (y < 606 || y >= 614)),
+    { fill: GRIP.fill, lit: GRIP.lit, ink: INK });
+  for (let x = mid - 16; x < mid + 16; x += 8) fr.rect(x, 612, 4, 2, INK);   // finger ridges on the grip's underside
+  // the pivots: a steel rivet at each end of the lip
+  [p0 - 2, p1 - 4].forEach(x => fr.paint((X, Y) => X >= x && X < x + 6 && Y >= RF + 2 && Y < RF + 8, { fill: '#c7c3b8', lit: '#ecebe4', shade: '#8d8a83', ink: INK }));
+}
+// the loyalty stamps' glyphs (7 x 7 texels at 2 px): a coupon ticket, an item in its slot, a price tag
+{ const G = {
+    coupon: ['.......', 'CCCCCCC', 'C.CCCCC', '.CCCCC.', 'C.CCCCC', 'CCCCCCC', '.......'],
+    slot:   ['CCCCCCC', 'C.....C', 'C.CCC.C', 'C.CCC.C', 'C.CCC.C', 'C.....C', 'CCCCCCC'],
+    tag:    ['..CCCCC', '.CCCCCC', 'CC.CCCC', 'CCCCCCC', '.CCCCCC', '..CCCCC', '.......'] };
+  // each stamp: a mustard-light ring, a mustard inner ring, the teal panel, the glyph in pale mustard; the empty one a dashed ring
+  document.querySelectorAll('.stamp canvas').forEach(c => pxDisc(c, c.dataset.glyph === 'empty'
+    ? { ring: 'rgba(251,247,238,.4)', dash: true }
+    : { ring: '#f1d27a', inner: '#e2b33c', fill: '#2a4d4b', glyph: G[c.dataset.glyph], ink: '#faecbc' })); }
+// the trolley glyph on the "Cart" button, same pixels as the store mark on the hand baskets
+{ const c = document.getElementById('cartGlyph'), g = c.getContext('2d');
+  CART.forEach((row, j) => [...row].forEach((ch, i) => { if (ch !== '.') { g.fillStyle = ch === 'C' ? '#fbf7ee' : '#2a4d4b'; g.fillRect(i, j, 1, 1); } })); }
+
+// ================= the mirror pass: the register side moves to the left =================
+// Every element moves to x' = 1280 - x - width; pure art (SVG layers, the basket canvases, the wall's store sections) is
+// also flipped. Text, numbers, icons, sprites, marks, tickets, the receipt, the keys, the monitor and the cashier are only
+// moved. Elements already placed in display coordinates (data-disp) stay where they are.
+{ const W = 1280;
+  [...stage.children].forEach(n => {
+    if (n.id === 'wall' || n.id === 'layers' || n.classList.contains('topbar') || n.classList.contains('tbrow') || n.dataset.disp) return;
+    if (n.tagName.toLowerCase() === 'svg') { n.style.transform = 'scaleX(-1)'; return; }   // full-stage layers: flip in place
+    n.style.left = (W - n.offsetLeft - n.offsetWidth) + 'px';
+    if (n.dataset.art) n.style.transform = 'scaleX(-1)';
+    if (n.classList.contains('brk')) { const s = n.style, l = s.borderLeftWidth; s.borderLeftWidth = s.borderRightWidth; s.borderRightWidth = l; }
+  });
+  bg.style.transform = 'scaleX(-1)';                       // the store sections (their item sprites are flipped back in CSS)
+  const ca = document.getElementById('cashier'); ca.style.left = (W - ca.offsetLeft - ca.offsetWidth) + 'px'; }
+</script>
+<div id="ov">
+<div class="a" style="left:0;top:58px;width:1280px;height:470px;background:#e4d6b9"></div>
+<div class="a" style="left:0;top:58px;width:1280px;height:16px;background:#cdbb98;border-bottom:2px solid #b9a47c"></div>
+<div class="a" style="left:0;top:452px;width:1280px;height:76px;background:#2a4d4b;border-top:4px solid #3a7672;border-bottom:2px solid #2b2420;box-shadow:inset 0 4px 0 #1f3b3a"></div>
+<div class="a" style="left:0;top:528px;width:1280px;height:192px;background:#ece0c6"></div>
+<svg class="a" style="left:0;top:0" width="1280" height="720" shape-rendering="crispEdges"><line x1="0" y1="548" x2="1280" y2="548" stroke="#cdbb98" stroke-width="2"/><line x1="0" y1="574" x2="1280" y2="574" stroke="#cdbb98" stroke-width="2"/><line x1="0" y1="606" x2="1280" y2="606" stroke="#cdbb98" stroke-width="2"/><line x1="0" y1="646" x2="1280" y2="646" stroke="#cdbb98" stroke-width="2"/><line x1="0" y1="694" x2="1280" y2="694" stroke="#cdbb98" stroke-width="2"/><line x1="-640" y1="528" x2="-755" y2="720" stroke="#cdbb98" stroke-width="2"/><line x1="-544" y1="528" x2="-651" y2="720" stroke="#cdbb98" stroke-width="2"/><line x1="-448" y1="528" x2="-546" y2="720" stroke="#cdbb98" stroke-width="2"/><line x1="-352" y1="528" x2="-442" y2="720" stroke="#cdbb98" stroke-width="2"/><line x1="-256" y1="528" x2="-337" y2="720" stroke="#cdbb98" stroke-width="2"/><line x1="-160" y1="528" x2="-232" y2="720" stroke="#cdbb98" stroke-width="2"/><line x1="-64" y1="528" x2="-128" y2="720" stroke="#cdbb98" stroke-width="2"/><line x1="32" y1="528" x2="-23" y2="720" stroke="#cdbb98" stroke-width="2"/><line x1="128" y1="528" x2="82" y2="720" stroke="#cdbb98" stroke-width="2"/><line x1="224" y1="528" x2="186" y2="720" stroke="#cdbb98" stroke-width="2"/><line x1="320" y1="528" x2="291" y2="720" stroke="#cdbb98" stroke-width="2"/><line x1="416" y1="528" x2="396" y2="720" stroke="#cdbb98" stroke-width="2"/><line x1="512" y1="528" x2="500" y2="720" stroke="#cdbb98" stroke-width="2"/><line x1="608" y1="528" x2="605" y2="720" stroke="#cdbb98" stroke-width="2"/><line x1="704" y1="528" x2="710" y2="720" stroke="#cdbb98" stroke-width="2"/><line x1="800" y1="528" x2="814" y2="720" stroke="#cdbb98" stroke-width="2"/><line x1="896" y1="528" x2="919" y2="720" stroke="#cdbb98" stroke-width="2"/><line x1="992" y1="528" x2="1024" y2="720" stroke="#cdbb98" stroke-width="2"/><line x1="1088" y1="528" x2="1128" y2="720" stroke="#cdbb98" stroke-width="2"/><line x1="1184" y1="528" x2="1233" y2="720" stroke="#cdbb98" stroke-width="2"/><line x1="1280" y1="528" x2="1338" y2="720" stroke="#cdbb98" stroke-width="2"/><line x1="1376" y1="528" x2="1442" y2="720" stroke="#cdbb98" stroke-width="2"/><line x1="1472" y1="528" x2="1547" y2="720" stroke="#cdbb98" stroke-width="2"/><line x1="1568" y1="528" x2="1652" y2="720" stroke="#cdbb98" stroke-width="2"/><line x1="1664" y1="528" x2="1756" y2="720" stroke="#cdbb98" stroke-width="2"/><line x1="1760" y1="528" x2="1861" y2="720" stroke="#cdbb98" stroke-width="2"/><line x1="1856" y1="528" x2="1966" y2="720" stroke="#cdbb98" stroke-width="2"/></svg>
+<div class="a" style="left:22px;top:136px;width:178px;height:392px;background:#8d8a83;border:2px solid #2b2420;box-shadow:inset 4px 4px 0 #c7c3b8, inset -4px 0 0 #57534c"></div>
+<div class="a" style="left:32px;top:148px;width:78px;height:372px;background:#bfe2dd;border:2px solid #2b2420;overflow:hidden"><div class="a" style="left:12px;top:-20px;width:10px;height:420px;background:#e4f6f3;transform:skewX(-14deg)"></div><div class="a" style="left:30px;top:-20px;width:4px;height:420px;background:#e4f6f3;transform:skewX(-14deg)"></div><div class="a" style="left:0;top:300px;width:78px;height:72px;background:#86c2b6"></div></div>
+<div class="a" style="left:112px;top:148px;width:78px;height:372px;background:#bfe2dd;border:2px solid #2b2420;overflow:hidden"><div class="a" style="left:12px;top:-20px;width:10px;height:420px;background:#e4f6f3;transform:skewX(-14deg)"></div><div class="a" style="left:30px;top:-20px;width:4px;height:420px;background:#e4f6f3;transform:skewX(-14deg)"></div><div class="a" style="left:0;top:300px;width:78px;height:72px;background:#86c2b6"></div></div>
+<div class="a" style="left:108px;top:148px;width:6px;height:372px;background:#57534c"></div>
+<div class="a" style="left:6px;top:530px;width:212px;height:40px;background:#3d3a36;border:2px solid #2b2420;clip-path:polygon(4% 0,96% 0,100% 100%,0 100%)"></div>
+<div class="a" style="left:56px;top:92px;width:112px;height:36px;background:#3d7a45;border:2px solid #2b2420;box-shadow:inset 0 3px 0 #5fae5a, 4px 4px 0 rgba(20,10,6,.35);display:flex;align-items:center;justify-content:center;font-family:Pixelify;font-size:22px;color:#fbf7ee;letter-spacing:2px">EXIT ›</div>
+<img class="a kk-pix" src="screens_src/assets/ceiling_lamp.png" style="left:300px;top:58px;width:74px;height:20px;z-index:0">
+<div class="a" style="left:187px;top:78px;width:300px;height:642px;background:rgba(255,236,188,0.16);clip-path:polygon(90px 0,210px 0,100% 100%,0 100%);z-index:0"></div>
+<div class="a" style="left:127px;top:78px;width:420px;height:642px;background:rgba(255,236,188,0.11);clip-path:polygon(120px 0,300px 0,100% 100%,0 100%);z-index:0"></div>
+<div class="a" style="left:67px;top:78px;width:540px;height:642px;background:rgba(255,236,188,0.07);clip-path:polygon(150px 0,390px 0,100% 100%,0 100%);z-index:0"></div>
+<img class="a kk-pix" src="screens_src/assets/ceiling_lamp.png" style="left:620px;top:58px;width:74px;height:20px;z-index:0">
+<div class="a" style="left:507px;top:78px;width:300px;height:642px;background:rgba(255,236,188,0.16);clip-path:polygon(90px 0,210px 0,100% 100%,0 100%);z-index:0"></div>
+<div class="a" style="left:447px;top:78px;width:420px;height:642px;background:rgba(255,236,188,0.11);clip-path:polygon(120px 0,300px 0,100% 100%,0 100%);z-index:0"></div>
+<div class="a" style="left:387px;top:78px;width:540px;height:642px;background:rgba(255,236,188,0.07);clip-path:polygon(150px 0,390px 0,100% 100%,0 100%);z-index:0"></div>
+<img class="a kk-pix" src="screens_src/assets/ceiling_lamp.png" style="left:940px;top:58px;width:74px;height:20px;z-index:0">
+<div class="a" style="left:827px;top:78px;width:300px;height:642px;background:rgba(255,236,188,0.16);clip-path:polygon(90px 0,210px 0,100% 100%,0 100%);z-index:0"></div>
+<div class="a" style="left:767px;top:78px;width:420px;height:642px;background:rgba(255,236,188,0.11);clip-path:polygon(120px 0,300px 0,100% 100%,0 100%);z-index:0"></div>
+<div class="a" style="left:707px;top:78px;width:540px;height:642px;background:rgba(255,236,188,0.07);clip-path:polygon(150px 0,390px 0,100% 100%,0 100%);z-index:0"></div>
+<img class="a kk-pix" src="screens_src/assets/wall_clock.png" style="left:1144px;top:150px;width:88px;height:88px;z-index:2">
+<div class="a" style="left:0;top:520px;width:1280px;height:8px;background:#6e4524;border-bottom:2px solid #2b2420;box-shadow:inset 0 2px 0 #a8703a"></div>
+<div class="a" style="left:1112px;top:292px;width:152px;height:290px;border:2px dashed #8a8172;background:rgba(205,187,152,.35)"></div>
+<div class="a" style="left:1112px;top:420px;width:152px;text-align:center;font-size:13px;font-weight:650;color:#5e574d;line-height:16px">capsule machines<br>(#63)</div>
+<div class="a" style="left:236px;top:690px;width:880px;height:14px;background:rgba(20,10,6,.35)"></div>
+<div class="a" style="left:1008px;top:150px;width:96px;height:548px;background:#1f3b3a;border:2px solid #2b2420"></div>
+<div class="a" style="left:1012px;top:160px;width:88px;height:6px;background:#c8932b;border:2px solid #2b2420"></div>
+<div class="a" style="left:1016px;top:168px;width:80px;height:520px;overflow:hidden;border-left:2px solid #2b2420"><div class="a" style="left:0px;top:0;width:16px;height:100%;background:linear-gradient(90deg,#b23a55 0 4px,#8a1f33 4px 12px,#561327 12px 16px)"></div><div class="a" style="left:16px;top:0;width:16px;height:100%;background:linear-gradient(90deg,#b23a55 0 4px,#8a1f33 4px 12px,#561327 12px 16px)"></div><div class="a" style="left:32px;top:0;width:16px;height:100%;background:linear-gradient(90deg,#b23a55 0 4px,#8a1f33 4px 12px,#561327 12px 16px)"></div><div class="a" style="left:48px;top:0;width:16px;height:100%;background:linear-gradient(90deg,#b23a55 0 4px,#8a1f33 4px 12px,#561327 12px 16px)"></div><div class="a" style="left:64px;top:0;width:16px;height:100%;background:linear-gradient(90deg,#b23a55 0 4px,#8a1f33 4px 12px,#561327 12px 16px)"></div></div>
+<div class="a" style="left:222px;top:140px;width:888px;height:10px;background:#4f9a94;border:2px solid #2b2420;clip-path:polygon(1% 0,99% 0,100% 100%,0 100%)"></div>
+<div class="a" style="left:222px;top:148px;width:888px;height:14px;background:#2a4d4b;border:2px solid #2b2420;box-shadow:inset 0 2px 0 #3a7672, 0 4px 0 rgba(20,10,6,.35)"></div>
+<div class="a" style="left:248px;top:72px;width:744px;height:76px;background:#fbf7ee;border:2px solid #2b2420;box-shadow:inset 0 0 0 4px #4f9a94, inset 0 0 0 6px #2b2420, inset 0 -10px 0 #ddcba5, 4px 4px 0 rgba(20,10,6,.35)"></div>
+<div class="a" style="left:248px;top:74px;width:744px;text-align:center;font-family:Pixelify;font-size:36px;line-height:40px;color:#1f3b3a;letter-spacing:3px">EXIT KIOSK</div>
+<div class="a" style="left:248px;top:112px;width:744px;text-align:center;font-family:Pixelify;font-size:17px;color:#3a7672;letter-spacing:2px">pick your prize</div>
+<div class="a" style="left:228px;top:158px;width:784px;height:536px;background:#3a7672;border:2px solid #2b2420;box-shadow:inset 6px 0 0 #4f9a94, inset -8px 0 0 #2a4d4b, inset 0 -8px 0 #2a4d4b"></div>
+<div class="a" style="left:242px;top:162px;width:2px;height:520px;background:#2a4d4b"></div>
+<div class="a" style="left:996px;top:162px;width:2px;height:520px;background:#2a4d4b"></div>
+<div class="a" style="left:232px;top:166px;width:6px;height:6px;background:#c7c3b8;box-shadow:0 0 0 2px #2b2420, inset 2px 2px 0 #ffcf3f;z-index:5"></div><div class="a" style="left:1002px;top:166px;width:6px;height:6px;background:#c7c3b8;box-shadow:0 0 0 2px #2b2420, inset 2px 2px 0 #ffcf3f;z-index:5"></div><div class="a" style="left:232px;top:674px;width:6px;height:6px;background:#c7c3b8;box-shadow:0 0 0 2px #2b2420, inset 2px 2px 0 #ffcf3f;z-index:5"></div><div class="a" style="left:1002px;top:674px;width:6px;height:6px;background:#c7c3b8;box-shadow:0 0 0 2px #2b2420, inset 2px 2px 0 #ffcf3f;z-index:5"></div>
+<div class="a" style="left:258px;top:84px;width:52px;height:52px;z-index:3"><svg width="52" height="52" viewBox="0 0 52 52" shape-rendering="crispEdges" style="position:absolute;left:0;top:0"><polygon points="26,4 30,16 42,10 36,22 48,26 36,30 42,42 30,36 26,48 22,36 10,42 16,30 4,26 16,22 10,10 22,16" transform="translate(4,4)" fill="#2b2420"/><polygon points="26,4 30,16 42,10 36,22 48,26 36,30 42,42 30,36 26,48 22,36 10,42 16,30 4,26 16,22 10,10 22,16" fill="#ffcf3f" stroke="#2b2420" stroke-width="3"/></svg></div>
+<div class="a" style="left:930px;top:84px;width:52px;height:52px;z-index:3"><svg width="52" height="52" viewBox="0 0 52 52" shape-rendering="crispEdges" style="position:absolute;left:0;top:0"><polygon points="26,4 30,16 42,10 36,22 48,26 36,30 42,42 30,36 26,48 22,36 10,42 16,30 4,26 16,22 10,10 22,16" transform="translate(4,4)" fill="#2b2420"/><polygon points="26,4 30,16 42,10 36,22 48,26 36,30 42,42 30,36 26,48 22,36 10,42 16,30 4,26 16,22 10,10 22,16" fill="#ffcf3f" stroke="#2b2420" stroke-width="3"/></svg></div>
+<div class="a" style="left:252px;top:170px;width:736px;height:18px;background:#24221f;border:2px solid #2b2420;box-shadow:inset 0 4px 0 #8a5d1a"></div>
+<div class="a" style="left:240px;top:196px;width:760px;height:10px;background:#c8932b;border:2px solid #2b2420;box-shadow:inset 0 2px 0 #ffcf3f, inset 0 -2px 0 #8a5d1a;z-index:5"></div>
+<div class="a" style="left:244px;top:192px;width:10px;height:18px;background:#8a5d1a;border:2px solid #2b2420;z-index:5"></div>
+<div class="a" style="left:986px;top:192px;width:10px;height:18px;background:#8a5d1a;border:2px solid #2b2420;z-index:5"></div>
+<div class="a" style="left:344px;top:196px;width:40px;height:26px;z-index:7"><div class="a" style="left:0;top:8px;width:40px;height:18px;background:#c8932b;border:2px solid #2b2420;box-shadow:inset 2px 2px 0 #ffcf3f, inset -2px -2px 0 #8a5d1a"></div><div class="a" style="left:8px;top:0;width:24px;height:12px;border:2px solid #2b2420;border-bottom:none;"></div></div><div class="kk-t" style="left:244px;top:210px;width:240px;height:290px;box-shadow: 4px 4px 0 rgba(20,10,6,.45);z-index:6;
+  ">
+  <div style="position:absolute;left:6px;right:6px;top:6px;bottom:6px;border:2px dashed #b39f78"></div>
+  <div style="position:relative;flex:1;display:flex;flex-direction:column;padding:16px 14px 14px 15px">
+    <div class="nm">Extra redraw</div>
+    <div><span class="ty" style="display:inline-block;border:2px solid #4f9a94;padding:1px 6px 0 7px;margin-top:6px">ECONOMY</span></div>
+    <div class="ef">+1 redraw each shift</div>
+    <div style="border-top:2px dashed #c7beab" class="co none">No condition</div>
+    <div class="su" style="margin-top:auto;padding-top:8px"><b>Supports:</b> Any build</div>
+  </div>
+</div>
+<div class="a" style="left:600px;top:180px;width:40px;height:26px;z-index:7"><div class="a" style="left:0;top:8px;width:40px;height:18px;background:#c8932b;border:2px solid #2b2420;box-shadow:inset 2px 2px 0 #ffcf3f, inset -2px -2px 0 #8a5d1a"></div><div class="a" style="left:8px;top:0;width:24px;height:12px;border:2px solid #2b2420;border-bottom:none;transform:rotate(-24deg);transform-origin:0 100%;"></div></div><div class="kk-t" style="left:500px;top:204px;width:240px;height:290px;box-shadow: 0 0 0 4px #e2b33c, 0 0 0 6px #2b2420, 0 0 0 10px #ffcf3f, 0 0 0 12px #2b2420, 6px 14px 0 12px rgba(20,10,6,.45);z-index:6;
+  transform:rotate(-1.5deg);">
+  <div style="position:absolute;left:6px;right:6px;top:6px;bottom:6px;border:2px dashed #b39f78"></div>
+  <div style="position:relative;flex:1;display:flex;flex-direction:column;padding:16px 14px 14px 15px">
+    <div class="nm">Slot engine</div>
+    <div><span class="ty" style="display:inline-block;border:2px solid #4f9a94;padding:1px 6px 0 7px;margin-top:6px">SLOT ENGINE</span></div>
+    <div class="ef">Your 6th product pays ×2</div>
+    <div style="border-top:2px dashed #c7beab" class="co">Only the 6th product (coupons don't count): the 7th with Big basket, the 5th on a Short belt shift; no effect with fewer</div>
+    <div class="su" style="margin-top:auto;padding-top:8px"><b>Supports:</b> Breakfast special</div>
+  </div>
+</div>
+<div class="a" style="left:856px;top:196px;width:40px;height:26px;z-index:7"><div class="a" style="left:0;top:8px;width:40px;height:18px;background:#c8932b;border:2px solid #2b2420;box-shadow:inset 2px 2px 0 #ffcf3f, inset -2px -2px 0 #8a5d1a"></div><div class="a" style="left:8px;top:0;width:24px;height:12px;border:2px solid #2b2420;border-bottom:none;"></div></div><div class="kk-t" style="left:756px;top:210px;width:240px;height:290px;box-shadow: 4px 4px 0 rgba(20,10,6,.45);z-index:6;
+  ">
+  <div style="position:absolute;left:6px;right:6px;top:6px;bottom:6px;border:2px dashed #b39f78"></div>
+  <div style="position:relative;flex:1;display:flex;flex-direction:column;padding:16px 14px 14px 15px">
+    <div class="nm">Big basket</div>
+    <div><span class="ty" style="display:inline-block;border:2px solid #4f9a94;padding:1px 6px 0 7px;margin-top:6px">RISKY</span></div>
+    <div class="ef">+1 product slot</div>
+    <div style="border-top:2px dashed #c7beab" class="co">Your quota is 15% higher from the next shift (rounded up)</div>
+    <div class="su" style="margin-top:auto;padding-top:8px"><b>Supports:</b> Clearance collector, Bulk buyer</div>
+  </div>
+</div>
+<div class="a" style="left:258px;top:528px;width:724px;height:40px;background:#222a29;border:2px solid #2b2420;box-shadow:inset 0 0 0 4px #57534c, inset 0 0 0 6px #2b2420;display:flex;align-items:center;justify-content:center;font-size:16px;font-weight:650;color:#faecbc">Pick one ticket. It goes on your loyalty card for the rest of the run.</div>
+<div class="a" style="left:258px;top:590px;width:240px;height:80px;background:#ecebe4;border:2px solid #2b2420;box-shadow:inset 2px 2px 0 #fbf7ee, inset -4px -4px 0 #a9a59b"></div>
+<div class="a" style="left:274px;top:602px;width:208px;height:14px;background:#24221f;border:2px solid #2b2420;box-shadow:inset 0 4px 0 #45423d"></div>
+<div class="a" style="left:258px;top:628px;width:240px;text-align:center;font-family:Pixelify;font-size:16px;color:#2b2420;letter-spacing:2px">RECEIPT IN <span style="display:inline-block;transform:rotate(-90deg)">›</span></div>
+<div class="a" style="left:762px;top:590px;width:220px;height:80px;background:#2a4d4b;border:2px solid #2b2420;box-shadow:inset 2px 2px 0 #1f3b3a"><div class="a" style="left:12px;top:14px;width:6px;height:48px;background:#1f3b3a"></div><div class="a" style="left:26px;top:14px;width:6px;height:48px;background:#1f3b3a"></div><div class="a" style="left:40px;top:14px;width:6px;height:48px;background:#1f3b3a"></div><div class="a" style="left:54px;top:14px;width:6px;height:48px;background:#1f3b3a"></div><div class="a" style="left:68px;top:14px;width:6px;height:48px;background:#1f3b3a"></div><div class="a" style="left:82px;top:14px;width:6px;height:48px;background:#1f3b3a"></div><div class="a" style="left:96px;top:14px;width:6px;height:48px;background:#1f3b3a"></div><div class="a" style="left:110px;top:14px;width:6px;height:48px;background:#1f3b3a"></div><div class="a" style="left:124px;top:14px;width:6px;height:48px;background:#1f3b3a"></div><div class="a" style="left:138px;top:14px;width:6px;height:48px;background:#1f3b3a"></div><div class="a" style="left:152px;top:14px;width:6px;height:48px;background:#1f3b3a"></div><div class="a" style="left:166px;top:14px;width:6px;height:48px;background:#1f3b3a"></div><div class="a" style="left:180px;top:14px;width:6px;height:48px;background:#1f3b3a"></div><div class="a" style="left:194px;top:14px;width:6px;height:48px;background:#1f3b3a"></div></div>
+<div class="a" style="left:546px;top:588px;width:148px;height:88px;transform:rotate(-4deg);z-index:6"><svg width="148" height="88" viewBox="0 0 148 88" shape-rendering="crispEdges" style="position:absolute;left:0;top:0"><polygon points="74,4 88,16 108,10 110,24 134,24 124,36 144,44 124,52 134,64 110,64 108,78 88,72 74,84 60,72 40,78 38,64 14,64 24,52 4,44 24,36 14,24 38,24 38,10 60,16" transform="translate(4,4)" fill="#2b2420"/><polygon points="74,4 88,16 108,10 110,24 134,24 124,36 144,44 124,52 134,64 110,64 108,78 88,72 74,84 60,72 40,78 38,64 14,64 24,52 4,44 24,36 14,24 38,24 38,10 60,16" fill="#ffcf3f" stroke="#2b2420" stroke-width="3"/></svg><div class="a" style="left:0;top:0;width:148px;height:88px;display:flex;align-items:center;justify-content:center;text-align:center;font-family:Pixelify;font-size:20px;line-height:21px;color:#2b2420">THANK<br>YOU!</div></div>
+<div class="a" style="left:226px;top:684px;width:788px;height:20px;background:#a9a59b;border:2px solid #2b2420;box-shadow:inset 0 2px 0 #c7c3b8"><div class="a" style="left:8px;top:6px;width:8px;height:4px;background:#6f6b63"></div><div class="a" style="left:24px;top:6px;width:8px;height:4px;background:#6f6b63"></div><div class="a" style="left:40px;top:6px;width:8px;height:4px;background:#6f6b63"></div><div class="a" style="left:56px;top:6px;width:8px;height:4px;background:#6f6b63"></div><div class="a" style="left:72px;top:6px;width:8px;height:4px;background:#6f6b63"></div><div class="a" style="left:88px;top:6px;width:8px;height:4px;background:#6f6b63"></div><div class="a" style="left:104px;top:6px;width:8px;height:4px;background:#6f6b63"></div><div class="a" style="left:120px;top:6px;width:8px;height:4px;background:#6f6b63"></div><div class="a" style="left:136px;top:6px;width:8px;height:4px;background:#6f6b63"></div><div class="a" style="left:152px;top:6px;width:8px;height:4px;background:#6f6b63"></div><div class="a" style="left:168px;top:6px;width:8px;height:4px;background:#6f6b63"></div><div class="a" style="left:184px;top:6px;width:8px;height:4px;background:#6f6b63"></div><div class="a" style="left:200px;top:6px;width:8px;height:4px;background:#6f6b63"></div><div class="a" style="left:216px;top:6px;width:8px;height:4px;background:#6f6b63"></div><div class="a" style="left:232px;top:6px;width:8px;height:4px;background:#6f6b63"></div><div class="a" style="left:248px;top:6px;width:8px;height:4px;background:#6f6b63"></div><div class="a" style="left:264px;top:6px;width:8px;height:4px;background:#6f6b63"></div><div class="a" style="left:280px;top:6px;width:8px;height:4px;background:#6f6b63"></div><div class="a" style="left:296px;top:6px;width:8px;height:4px;background:#6f6b63"></div><div class="a" style="left:312px;top:6px;width:8px;height:4px;background:#6f6b63"></div><div class="a" style="left:328px;top:6px;width:8px;height:4px;background:#6f6b63"></div><div class="a" style="left:344px;top:6px;width:8px;height:4px;background:#6f6b63"></div><div class="a" style="left:360px;top:6px;width:8px;height:4px;background:#6f6b63"></div><div class="a" style="left:376px;top:6px;width:8px;height:4px;background:#6f6b63"></div><div class="a" style="left:392px;top:6px;width:8px;height:4px;background:#6f6b63"></div><div class="a" style="left:408px;top:6px;width:8px;height:4px;background:#6f6b63"></div><div class="a" style="left:424px;top:6px;width:8px;height:4px;background:#6f6b63"></div><div class="a" style="left:440px;top:6px;width:8px;height:4px;background:#6f6b63"></div><div class="a" style="left:456px;top:6px;width:8px;height:4px;background:#6f6b63"></div><div class="a" style="left:472px;top:6px;width:8px;height:4px;background:#6f6b63"></div><div class="a" style="left:488px;top:6px;width:8px;height:4px;background:#6f6b63"></div><div class="a" style="left:504px;top:6px;width:8px;height:4px;background:#6f6b63"></div><div class="a" style="left:520px;top:6px;width:8px;height:4px;background:#6f6b63"></div><div class="a" style="left:536px;top:6px;width:8px;height:4px;background:#6f6b63"></div><div class="a" style="left:552px;top:6px;width:8px;height:4px;background:#6f6b63"></div><div class="a" style="left:568px;top:6px;width:8px;height:4px;background:#6f6b63"></div><div class="a" style="left:584px;top:6px;width:8px;height:4px;background:#6f6b63"></div><div class="a" style="left:600px;top:6px;width:8px;height:4px;background:#6f6b63"></div><div class="a" style="left:616px;top:6px;width:8px;height:4px;background:#6f6b63"></div><div class="a" style="left:632px;top:6px;width:8px;height:4px;background:#6f6b63"></div><div class="a" style="left:648px;top:6px;width:8px;height:4px;background:#6f6b63"></div><div class="a" style="left:664px;top:6px;width:8px;height:4px;background:#6f6b63"></div><div class="a" style="left:680px;top:6px;width:8px;height:4px;background:#6f6b63"></div><div class="a" style="left:696px;top:6px;width:8px;height:4px;background:#6f6b63"></div><div class="a" style="left:712px;top:6px;width:8px;height:4px;background:#6f6b63"></div><div class="a" style="left:728px;top:6px;width:8px;height:4px;background:#6f6b63"></div><div class="a" style="left:744px;top:6px;width:8px;height:4px;background:#6f6b63"></div><div class="a" style="left:760px;top:6px;width:8px;height:4px;background:#6f6b63"></div><div class="a" style="left:776px;top:6px;width:8px;height:4px;background:#6f6b63"></div></div>
+<div class="a" style="left:546px;top:414px;width:170px;height:32px;transform:rotate(-7deg);z-index:9;border:4px solid #b38425;box-shadow:inset 0 0 0 2px #fbf7ee, inset 0 0 0 4px #b38425;display:flex;align-items:center;justify-content:center;font-family:Pixelify;font-size:17px;line-height:18px;color:#b38425;background:rgba(250,236,188,.55)">INSTANT WINNER!</div>
+<div class="a kk-spark" style="left:480px;top:250px;z-index:9"></div>
+<div class="a kk-spark" style="left:750px;top:300px;z-index:9"></div>
+<div class="a kk-spark" style="left:540px;top:188px;z-index:9"></div>
+</div>
+<script>
+// perk glyphs (7 x 7 texels, #59 draws the real ones): the base page's slot / tag / coupon, plus a basket and a redraw
+const PERK = {
+  slot:   ['CCCCCCC', 'C.....C', 'C.CCC.C', 'C.CCC.C', 'C.CCC.C', 'C.....C', 'CCCCCCC'],
+  tag:    ['..CCCCC', '.CCCCCC', 'CC.CCCC', 'CCCCCCC', '.CCCCCC', '..CCCCC', '.......'],
+  coupon: ['.......', 'CCCCCCC', 'C.CCCCC', '.CCCCC.', 'C.CCCCC', 'CCCCCCC', '.......'],
+  basket: ['..C.C..', '.C...C.', 'CCCCCCC', 'C.C.C.C', 'C.C.C.C', '.CCCCC.', '.......'],
+  redraw: ['..CCC.C', '.C...CC', 'C...CCC', 'C......', 'C.....C', '.C...C.', '..CCC..'] };
+// the top bar on shift 4: one upgrade owned (Coupon engine from shift 2), two empty boxes
+document.querySelectorAll('.stamp canvas').forEach((c, i) => {
+  c.getContext('2d').clearRect(0, 0, 13, 13);
+  pxDisc(c, i === 0 ? { ring: '#f1d27a', inner: '#e2b33c', fill: '#2a4d4b', glyph: PERK.coupon, ink: '#faecbc' }
+    : { ring: 'rgba(251,247,238,.4)', dash: true });
+});
+document.querySelectorAll('canvas[data-perk]').forEach(c => pxDisc(c, { ring: '#2b2420', inner: '#e2b33c', fill: '#2a4d4b',
+  glyph: PERK[c.dataset.perk], ink: '#faecbc', shadow: 'rgba(43,36,32,.35)' }));
+</script>
+<script>window.HOVER_PERK='slot';</script>
+<script>
+// hover: the next empty loyalty box lights up where the picked ticket will go (a gold ring, not colour alone: it is also filled)
+{ const c = document.querySelectorAll('.stamp canvas')[1];
+  c.getContext('2d').clearRect(0, 0, 13, 13);
+  pxDisc(c, { ring: '#ffcf3f', inner: '#faecbc', fill: '#2a4d4b', glyph: PERK[window.HOVER_PERK], ink: '#ffcf3f' });
+  c.parentElement.style.boxShadow = '0 0 0 2px #2b2420, 0 0 0 4px #ffcf3f'; c.parentElement.style.borderRadius = '50%'; }
+</script>
+
+</body>
+</html>

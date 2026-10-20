@@ -1,0 +1,1445 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Receipt rewards flow</title>
+<!--
+  #77 prep, rounds 2-3 (2026-10-20): the RECEIPT REWARDS machine, live. Built by machine_77_src/flow/gen_flow.py from
+  flow_template.html (sprites, product data, draw77.js and every looks/look_*.js|css are inlined). Nothing here is
+  built in the game.
+  After a passed shift the receipt tears off the printer and feeds into the machine; the player rests on a prize type
+  (NEW ITEMS: add to cart, COUPONS, REGISTER, UPGRADES: improve one you own), reads its odds card, confirms; the
+  machine draws; 3 prizes drop; each opens with its rarity's reveal (rarest last); the player picks 1 and it lands:
+  a NEW ITEM flies into a new slot of the cart (count +1), an UPGRADE changes the owned copy in place (count stays),
+  a coupon joins the cart, a register prize stamps the LOYALTY card. Then the chute's REGULAR punch ticket is punched.
+  Machine looks are pluggable: built-in A/B/C below, plus any looks/look_*.js (contract: looks/README.md).
+  Query: look=<registered key> (default d), shift=1..7, chute=new|coupons|register|upgrades, owned=0..3, lvl=0..3,
+  stock=fresh|pantry+bakery|cold_cases+snacks, stamp=0|1 (STAMP DAY, default 1), roll=<seed> (real rolls; default a
+  demo draw with one of each rarity), speed=0.75|1|1.25 (default 1), rm=1 (reduced motion), at=<s> (still at s seconds
+  of the 1x timeline), tl=1 (dump the timeline).
+  Round 3: look F (restock hatch) is the decided look and the default. inspection=spot_check|short_belt|coupon_slot_closed|off
+  (the user's idea, not decided: passing an inspected shift, 3, 5 or 7, gives a second machine visit, the BONUS TICKET;
+  default on at shifts 3/5/7 with that shift's inspection), chute2=same|new|coupons|register|upgrades (the bonus
+  ticket's chute, default same), scan=1 (checks: renders every 0.04 s of the timeline once and logs the first error).
+  Stage: the game's 1280 x 720 at 1x; art pixels are 2 px (canvases at half resolution shown at 2x, sprites at 2x).
+-->
+<style>
+@font-face { font-family: Pixelify; src: url(../../../fonts/PixelifySans-Variable.ttf); }
+@font-face { font-family: Atkinson; src: url(../../../fonts/AtkinsonHyperlegibleNext-Variable.ttf); font-weight: 200 800; }
+@font-face { font-family: JBMono; src: url(../../../fonts/JetBrainsMono-Regular.ttf); }
+:root { --ink: #2b2420; --inkL: #4a3f38; --paper: #fbf7ee; --cream: #f3e9d2; --creamS: #ddcba5; --creamD: #b39f78;
+  --mus: #e2b33c; --musL: #f1d27a; --musP: #faecbc; --musD: #b38425; --musDD: #7a5a1c; --gold: #ffcf3f;
+  --brass: #c8932b; --brassD: #8a5d1a; --brassDD: #4a3010; --tom: #d9534f; --tomD: #a83a3c; --tomDD: #6e2630; --tomL: #ec8a6e;
+  --teal: #4f9a94; --tealL: #86c2b6; --tealP: #c3e0d4; --tealS: #3a7672; --tealD: #2a4d4b; --tealDD: #1f3b3a; --tealB: #5fb0a8; --tealK: #172c2b;
+  --good: #5fae5a; --goodD: #3d7a45; --greyL: #c7beab; --grey: #8a8172; --greyD: #5e574d;
+  --steelH: #ecebe4; --steelL: #c7c3b8; --steelP: #a9a59b; --steel: #8d8a83; --steelS: #6f6b63; --steelD: #57534c; --steelDD: #45423d;
+  --rubber: #3d3a36; --rubberD: #2c2926; --char: #24221f; --slate: #2c3533; --slateD: #222a29; --glass: #bfe2dd;
+  --wood: #a8703a; --woodL: #c98c4e; --woodD: #6e4524; --woodDD: #3e2614; --plaster: #e4d6b9; --plasterS: #cdbb98;
+  --velvet: #561327; --velvetD: #2a0e14; --velvetM: #8a1f33; }
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { background: #17302f; }
+body { width: 1280px; font-family: Atkinson, sans-serif; color: var(--paper); }
+canvas, img { image-rendering: pixelated; display: block; }
+.abs { position: absolute; }
+#stage { position: relative; width: 1280px; height: 720px; overflow: hidden; background: var(--steelD); }
+#shakeWrap { position: absolute; inset: 0; }
+
+/* ------------------------------------------------ the store behind (shaded) */
+.wall { left: 0; top: 56px; width: 1280px; height: 258px; background: var(--plaster); }
+.wall .band { position: absolute; left: 0; right: 0; bottom: 0; height: 10px; background: var(--plasterS); border-top: 2px solid #b9a47c; }
+.case { position: absolute; top: 120px; width: 150px; height: 190px; background: var(--tealL); border: 2px solid var(--ink); }
+.case::before { content: ""; position: absolute; inset: 8px; background: var(--tealP); border: 2px solid var(--tealS); }
+.case i { position: absolute; left: 8px; right: 8px; height: 4px; background: var(--steelL); border-top: 2px solid var(--steelS); }
+.aisleSign { position: absolute; top: 76px; height: 26px; padding: 2px 10px; font: 13px/20px Pixelify; color: var(--paper); border: 2px solid var(--ink); }
+.belt { left: 348px; top: 314px; width: 918px; height: 180px; background: repeating-linear-gradient(90deg, var(--rubber) 0 22px, var(--rubberD) 22px 24px); border: 2px solid var(--ink); }
+.rail { left: 348px; top: 470px; width: 918px; height: 24px; background: var(--steelL); border: 2px solid var(--ink); border-top: 4px solid var(--steelH); }
+.under { left: 336px; top: 494px; width: 944px; height: 226px; background: var(--woodD); border-top: 2px solid var(--ink); }
+.ledge { left: 336px; top: 698px; width: 944px; height: 22px; background: var(--steelP); border-top: 2px solid var(--ink); }
+.regcol { left: 0; top: 400px; width: 336px; height: 320px; background: var(--rubber); border-right: 2px solid var(--ink); border-top: 2px solid var(--ink); }
+.keyCheckout { left: 20px; top: 422px; width: 296px; height: 82px; background: var(--tom); border: 2px solid var(--ink); border-top: 8px solid var(--tomL);
+  box-shadow: inset 0 -6px 0 var(--tomD); font: 34px/66px Pixelify; letter-spacing: 3px; text-align: center; color: var(--paper); text-shadow: 3px 3px 0 var(--tomDD); }
+.keyRedraw { left: 20px; top: 520px; width: 206px; height: 58px; background: var(--cream); border: 2px solid var(--ink); border-top: 6px solid var(--paper);
+  box-shadow: inset 0 -5px 0 var(--creamS); font: 19px/44px Pixelify; text-align: center; color: var(--ink); }
+.keyRedraw small { font: 600 13px Atkinson; }
+.counter { left: 0; top: 330px; width: 340px; height: 72px; background: var(--wood); border-top: 2px solid var(--ink); border-bottom: 2px solid var(--ink); }
+#shade { position: absolute; inset: 0; background: rgba(31, 59, 58, .6); }
+
+/* ------------------------------------------------ receipt + printer (lit) */
+#printer { left: 36px; top: 338px; }
+#rcpt { left: 46px; top: 64px; width: 236px; height: 276px; background: var(--paper); border: 2px solid var(--ink); border-top: none; padding: 8px 10px;
+  font: 12px/17px JBMono; color: var(--ink); transform-origin: 0 0; z-index: 30; }
+#rcpt .hd { color: var(--inkL); font-size: 11.5px; line-height: 15px; }
+#rcpt .rule { border-top: 2px dashed var(--creamS); margin: 5px 0; }
+#rcpt .ln { display: flex; justify-content: space-between; white-space: pre; }
+#rcpt .tot { font-size: 14px; font-weight: 700; }
+#rcpt .met { color: var(--goodD); }
+#rcpt .insp { margin-top: 4px; padding: 3px 4px; border: 2px solid var(--tom); color: var(--tomD); font-size: 11px; line-height: 14px; }
+#rcpt .paid { position: absolute; right: 14px; top: 214px; padding: 0 6px; border: 3px double var(--tomD); color: var(--tomD); font: 22px/28px Pixelify;
+  transform: rotate(-9deg); letter-spacing: 2px; }
+#rcpt .paid.low { top: 236px; right: 0; padding: 0 4px; font-size: 20px; line-height: 24px; transform: rotate(-6deg); } /* clear of INSPECTION PASSED */
+#rcpt .ipass { padding: 1px 4px 2px; font-size: 12px; letter-spacing: .5px; }
+/* round 3: an inspected shift (3, 5, 7) that you passed. The receipt is stamped, and a bonus stub follows the first pick */
+#rcpt .ipass, #stub .ipass { display: inline-block; margin-top: 6px; padding: 1px 6px 2px; border: 3px double var(--tomD); color: var(--tomD); background: var(--paper);
+  font: 13px/15px Pixelify; letter-spacing: 1px; transform: rotate(-3deg); transform-origin: 0 50%; }
+#rcpt .ipass b, #stub .ipass b { display: block; font: 800 11px/13px Atkinson; letter-spacing: 0; }
+#stub { left: 46px; top: 212px; width: 236px; height: 128px; background: var(--paper); border: 2px solid var(--ink); border-top: none; padding: 8px 10px;
+  font: 12px/17px JBMono; color: var(--ink); transform-origin: 0 0; z-index: 30; display: none; }
+#stub .hd { color: var(--inkL); font-size: 11.5px; line-height: 15px; }
+#stub .rule { border-top: 2px dashed var(--creamS); margin: 5px 0; }
+#stub .ipass { margin-top: 2px; }
+#stub .more { position: absolute; right: 10px; bottom: 8px; font: 800 12px/14px Atkinson; color: var(--goodD); text-align: right; }
+
+/* ------------------------------------------------ top bar */
+.topbar { left: 0; top: 0; width: 1280px; height: 56px; background: var(--tealDD); border-bottom: 2px solid var(--ink); z-index: 20; }
+.tchip { position: absolute; top: 8px; height: 40px; display: flex; align-items: center; gap: 8px; padding: 0 10px; background: var(--tealD);
+  border: 2px solid var(--ink); color: var(--paper); }
+.tchip .k { font: 15px Pixelify; letter-spacing: 1px; color: var(--musP); white-space: nowrap; }
+.tchip .v { font-weight: 750; font-size: 20px; }
+.tchip.paper { background: var(--paper); color: var(--ink); font-weight: 700; font-size: 14px; }
+.tchip.cart { background: var(--tealL); color: var(--ink); }
+.tchip.cart .k { color: var(--ink); font-size: 17px; }
+.qbar { width: 150px; height: 16px; background: var(--tealDD); border: 2px solid var(--ink); }
+.qbar i { display: block; height: 100%; background: var(--musL); }
+.ring { position: relative; width: 26px; height: 26px; }
+.ring img { width: 26px; height: 26px; }
+.ring b { position: absolute; inset: 0; font: 800 8px/26px Atkinson; color: var(--ink); text-align: center; letter-spacing: -.3px; }
+#chipLab { position: absolute; z-index: 26; left: 1052px; top: 58px; width: 154px; text-align: center; display: none; pointer-events: none; }
+#chipLab span { display: inline-block; padding: 1px 6px; font: 13px/16px Pixelify; letter-spacing: 1px; background: var(--musL); color: var(--ink); border: 2px solid var(--ink); box-shadow: 3px 3px 0 var(--tealK); }
+
+/* ------------------------------------------------ the machine (every look shares this layout; looks restyle it) */
+#machine { left: 760px; top: 70px; width: 420px; height: 630px; z-index: 10; }
+.cab { position: absolute; inset: 0; border: 2px solid var(--ink); box-shadow: 8px 8px 0 var(--tealK); }
+.head { position: absolute; left: -10px; right: -10px; top: -8px; height: 54px; border: 2px solid var(--ink); text-align: center; box-shadow: 0 4px 0 var(--tealK); }
+.head .t { font: 26px/30px Pixelify; letter-spacing: 2px; padding-top: 4px; }
+.head.stamped .t, .head.stamped .s { visibility: hidden; } /* the BONUS TICKET stamp covers the head: no stray title letters */
+.head .s { font: 800 10px/12px Atkinson; letter-spacing: 3px; text-transform: uppercase; }
+.head .sd { position: absolute; left: 50%; top: 4px; transform: translateX(-50%) rotate(-5deg); padding: 2px 12px; font: 26px/32px Pixelify; letter-spacing: 2px;
+  background: var(--paper); color: var(--tomD); border: 4px double var(--tomD); display: none; white-space: nowrap; }
+.head .bn { position: absolute; left: calc(50% - 16px); top: 3px; transform: translateX(-50%) rotate(-3deg); padding: 0 10px 1px; text-align: center; font: 22px/24px Pixelify; letter-spacing: 1px;
+  background: var(--paper); color: var(--tomD); border: 4px double var(--tomD); display: none; white-space: nowrap; z-index: 3; }
+.head .bn small { display: block; font: 800 10px/11px Atkinson; letter-spacing: .5px; color: var(--inkL); }
+.slotPlate { position: absolute; left: 14px; right: 14px; top: 54px; height: 42px; border: 2px solid var(--ink); }
+.slotPlate .lbl { position: absolute; left: 10px; top: 11px; font: 800 10px/14px Atkinson; letter-spacing: 2px; }
+.slotPlate .mouth { position: absolute; left: 144px; top: 18px; width: 104px; height: 10px; background: var(--char); border: 2px solid var(--ink); }
+.slotPlate .lamp { position: absolute; right: 12px; top: 11px; width: 16px; height: 16px; border: 2px solid var(--ink); background: var(--brassD); }
+.slotPlate .lamp.on { background: var(--good); box-shadow: inset 2px 2px 0 #a5d17e; }
+.slotPlate .scanbar { position: absolute; left: 144px; top: 30px; width: 104px; height: 4px; background: var(--tom); display: none; }
+.disp { position: absolute; left: 14px; right: 14px; top: 100px; height: 52px; border: 2px solid var(--ink); background: var(--char); overflow: hidden;
+  display: flex; align-items: center; justify-content: center; text-align: center; padding: 0 10px; }
+.disp .m { font: 17px/20px Pixelify; letter-spacing: 1px; color: var(--musL); white-space: nowrap; }
+.disp .m small { display: block; font: 700 11px/13px Atkinson; letter-spacing: .5px; color: var(--greyL); }
+.disp .bin { position: absolute; right: 6px; top: 12px; height: 26px; padding: 0 8px; font: 13px/22px Pixelify; background: var(--steelL); color: var(--ink);
+  border: 2px solid var(--ink); display: none; }
+.chute { position: absolute; top: 160px; width: 92px; height: 74px; border: 2px solid var(--ink); text-align: center; overflow: hidden; }
+.chute .ic { position: absolute; left: 0; right: 0; top: 4px; height: 28px; display: flex; justify-content: center; align-items: center; }
+.chute .nm { position: absolute; left: 0; right: 0; top: 33px; font: 12px/14px Pixelify; letter-spacing: .5px; white-space: nowrap; }
+.chute .sub { position: absolute; left: 2px; right: 2px; top: 48px; font: 800 8px/9px Atkinson; letter-spacing: .3px; opacity: .85; }
+.chute .lock { position: absolute; inset: 0; display: none; flex-direction: column; align-items: center; justify-content: center; gap: 3px; background: var(--rubber); }
+.chute .lock span { font: 800 9px/10px Atkinson; color: var(--greyL); letter-spacing: .5px; text-align: center; }
+.chute .full { position: absolute; inset: 0; display: none; flex-direction: column; align-items: center; justify-content: center; gap: 4px; background: var(--rubber); }
+.chute .full .st { display: flex; gap: 2px; }
+.chute .full span { font: 800 10px/11px Atkinson; color: var(--musL); letter-spacing: 1px; }
+/* REGULAR meter: the punch ticket (decided, Q4 A) */
+.reg { position: absolute; top: 240px; width: 92px; height: 30px; background: var(--paper); border: 2px solid var(--ink); box-shadow: 0 2px 0 var(--ink); overflow: visible; }
+.reg .w { position: absolute; left: 4px; top: 1px; font: 800 8px/9px Atkinson; letter-spacing: 1px; color: var(--tealS); }
+.reg .lv { position: absolute; right: 4px; top: 1px; font: 800 8px/9px Atkinson; color: var(--ink); }
+.reg .holes { position: absolute; left: 0; right: 0; top: 10px; display: flex; justify-content: center; gap: 12px; }
+.hole { display: block; position: relative; width: 14px; height: 14px; border: 2px dashed var(--grey); }
+.hole.on { border: 2px solid var(--ink); background: var(--steelD); box-shadow: inset 2px 2px 0 var(--char); }
+.hole.on::after { content: ""; position: absolute; left: 3px; top: 3px; width: 4px; height: 4px; background: var(--tealD); }
+.reg .jaw { position: absolute; width: 24px; height: 12px; background: var(--steelL); border: 2px solid var(--ink); box-shadow: inset 0 -3px 0 var(--steel); display: none; z-index: 2; }
+.reg .chad { position: absolute; width: 8px; height: 8px; background: var(--paper); border: 2px solid var(--ink); display: none; z-index: 2; }
+.plus1 { position: absolute; top: 214px; width: 92px; text-align: center; font: 13px/16px Pixelify; color: var(--ink); display: none; z-index: 3; }
+.plus1 span { background: var(--musL); border: 2px solid var(--ink); padding: 0 5px; }
+.win { position: absolute; border: 2px solid var(--ink); overflow: hidden; }
+.win canvas { position: absolute; left: 0; top: 0; }
+.exitSlot { position: absolute; left: 150px; top: 426px; width: 120px; height: 12px; background: var(--char); border: 2px solid var(--ink); }
+.tray { position: absolute; left: 10px; right: 10px; top: 444px; height: 180px; border: 2px solid var(--ink); }
+.bulb { position: absolute; width: 10px; height: 10px; border: 2px solid var(--ink); background: var(--brassD); }
+.bulb.on { background: var(--gold); box-shadow: inset 2px 2px 0 var(--musP); }
+
+/* look A: prize drum (teal loyalty terminal, cream face, mustard trim) */
+.look-a .cab { background: var(--tealD); }
+.look-a .head { background: var(--mus); color: var(--ink); }
+.look-a .head .s { color: var(--musDD); }
+.look-a .slotPlate { background: var(--cream); color: var(--inkL); }
+.look-a .chute { background: var(--cream); color: var(--ink); box-shadow: inset 0 -5px 0 var(--creamS), 0 4px 0 var(--ink); }
+.look-a .chute.lit { background: var(--paper); box-shadow: inset 0 -5px 0 var(--musL), 0 4px 0 var(--ink); }
+.look-a .win { background: var(--char); }
+.look-a .tray { background: var(--tealDD); box-shadow: inset 0 6px 0 var(--tealK); }
+.look-a .back { background: var(--cream); border: 2px solid var(--ink); box-shadow: 3px 3px 0 var(--tealK);
+  background-image: repeating-linear-gradient(45deg, var(--cream) 0 8px, var(--creamS) 8px 12px); }
+.look-a .back .logo { position: absolute; left: 22px; top: 44px; width: 64px; height: 64px; background: var(--teal); border: 2px solid var(--ink); color: var(--paper);
+  font: 34px/60px Pixelify; text-align: center; box-shadow: inset -4px -4px 0 var(--tealS); }
+.look-a .token { width: 26px; height: 34px; background: var(--cream); box-shadow: inset 0 6px 0 var(--teal); }
+/* look B: scratch & win terminal (steel, tomato header, slate screen) */
+.look-b .cab { background: var(--steelL); box-shadow: 8px 8px 0 var(--tealK), inset -10px 0 0 var(--steelP); }
+.look-b .head { background: var(--tom); color: var(--paper); text-shadow: 2px 2px 0 var(--tomDD); }
+.look-b .head .s { color: var(--musP); text-shadow: none; }
+.look-b .slotPlate { background: var(--steelDD); color: var(--steelL); }
+.look-b .disp { background: var(--slateD); }
+.look-b .disp .m { color: var(--tealB); }
+.look-b .chute { background: var(--steelDD); color: var(--steelL); box-shadow: inset 0 -5px 0 var(--rubberD), 0 4px 0 var(--ink); border-radius: 0; }
+.look-b .chute.lit { background: var(--tom); color: var(--paper); box-shadow: inset 0 5px 0 var(--tomL), inset 0 -5px 0 var(--tomD), 0 4px 0 var(--ink); }
+.look-b .win { background: var(--slateD); border: 6px solid var(--char); }
+.look-b .tray { background: var(--steelS); box-shadow: inset 0 6px 0 var(--steelDD); }
+.look-b .back { background: var(--paper); border: 2px solid var(--ink); box-shadow: 3px 3px 0 var(--tealK); }
+.look-b .back .foil { position: absolute; left: 8px; top: 22px; right: 8px; bottom: 30px; border: 2px solid var(--ink);
+  background: repeating-linear-gradient(135deg, var(--steelL) 0 6px, var(--steelP) 6px 8px); }
+.look-b .back .foil span { position: absolute; left: 0; right: 0; top: 46px; text-align: center; font: 14px/16px Pixelify; color: var(--steelDD); }
+.look-b .back .no { position: absolute; left: 0; right: 0; top: 5px; text-align: center; font: 800 8px/12px Atkinson; letter-spacing: .5px; color: var(--tomD); white-space: nowrap; }
+.look-b .back .bt { bottom: 10px; letter-spacing: 1px; font-size: 8px; white-space: nowrap; }
+.look-b .token { width: 52px; background: var(--paper); box-shadow: inset 0 -4px 0 var(--steelP); }
+/* look C: price drop (wood cabinet, velvet peg board, brass) */
+.look-c .cab { background: var(--woodD); box-shadow: 8px 8px 0 var(--tealK), inset 0 0 0 6px var(--wood); }
+.look-c .head { background: var(--brass); color: var(--brassDD); }
+.look-c .head .t { color: var(--musP); text-shadow: 2px 2px 0 var(--brassDD); }
+.look-c .head .s { color: var(--brassDD); }
+.look-c .slotPlate { background: var(--velvetD); color: var(--musL); }
+.look-c .chute { background: var(--brass); color: var(--brassDD); box-shadow: inset 0 -5px 0 var(--brassD), 0 4px 0 var(--ink); }
+.look-c .chute.lit { background: var(--gold); color: var(--ink); box-shadow: inset 0 4px 0 var(--musP), inset 0 -5px 0 var(--musD), 0 4px 0 var(--ink); }
+.look-c .win { background: var(--velvet); border: 4px solid var(--brass); }
+.look-c .tray { background: var(--velvetD); box-shadow: inset 0 6px 0 #170609; }
+.look-c .back { background: var(--woodL); border: 2px solid var(--ink); box-shadow: 3px 3px 0 var(--tealK); clip-path: polygon(20px 0, 88px 0, 108px 20px, 108px 168px, 0 168px, 0 20px); }
+.look-c .back .hole { position: absolute; left: 46px; top: 10px; width: 16px; height: 16px; background: var(--velvetD); border: 2px solid var(--ink); }
+.look-c .back .q { position: absolute; left: 0; right: 0; top: 54px; text-align: center; font: 48px/50px Pixelify; color: var(--woodDD); }
+.look-c .token { width: 26px; height: 34px; background: var(--woodL); clip-path: polygon(6px 0, 20px 0, 26px 6px, 26px 34px, 0 34px, 0 6px); }
+.chute.dim { filter: brightness(.62); }
+.chute.sunk { transform: translateY(4px); box-shadow: none !important; }
+.chute.hov { filter: brightness(1.08); transform: translateY(-2px); }
+
+/* ------------------------------------------------ tickets (the game's TRAY cell: 108 x 168) */
+.tk { position: absolute; width: 108px; height: 168px; z-index: 12; }
+.tk .fx { position: absolute; left: -46px; top: -48px; width: 200px; height: 200px; pointer-events: none; }
+.tk .card { position: absolute; inset: 0; transform-origin: 50% 50%; }
+.tk .face, .tk .back { position: absolute; inset: 0; }
+.back .bt { position: absolute; left: 0; right: 0; bottom: 14px; text-align: center; font: 800 9px/10px Atkinson; letter-spacing: 2px; color: var(--inkL); }
+.tk .spr { position: absolute; left: 6px; top: 4px; width: 96px; height: 96px; }
+.tk .spr canvas { width: 96px; height: 96px; }
+.tk .stk { position: absolute; left: 0; top: 104px; width: 108px; height: 64px; background: var(--paper); border: 2px solid var(--ink); box-shadow: 3px 3px 0 var(--tealK); }
+.tk .band { height: 18px; display: flex; justify-content: space-between; align-items: center; padding: 0 5px; border-bottom: 2px solid var(--ink);
+  font: 800 10px/14px Atkinson; letter-spacing: 1px; color: var(--ink); background: var(--musL); }
+.tk .band .pr { font: 750 14px/14px Atkinson; letter-spacing: 0; }
+.tk .band.coupon { background: var(--teal); color: var(--paper); }
+.tk .band.stamp { background: var(--mus); }
+.tk .band.upg { background: var(--gold); }
+.tk .body { padding: 2px 5px 0; color: var(--ink); }
+.tk .body .n { font: 12px/14px Pixelify; white-space: nowrap; overflow: hidden; }
+.tk .body .r { font: 700 10px/12px Atkinson; }
+.tk .body .r.sm { font: 700 9.5px/11px Atkinson; letter-spacing: -.1px; }
+.tk.r1 .stk { box-shadow: inset 0 0 0 2px var(--tealL), 3px 3px 0 var(--tealK); }
+.tk.r2 .stk { border-color: var(--ink); box-shadow: inset 0 0 0 3px var(--gold), 3px 3px 0 var(--tealK); }
+.tk .tag { position: absolute; left: 0; top: 80px; padding: 0 4px; font: 11px/14px Pixelify; background: var(--paper); color: var(--ink); border: 2px solid var(--ink); transform: rotate(-6deg); }
+.tk .tag.gold { background: var(--gold); }
+.tk .upArrow { position: absolute; right: 4px; top: 4px; }
+.tk .lab { position: absolute; left: 50%; top: -28px; white-space: nowrap; display: none; z-index: 3; }
+.lab.common { transform: translateX(-50%); font: 800 10px/14px Atkinson; letter-spacing: 2px; padding: 0 6px; background: var(--greyL); color: var(--ink); border: 2px solid var(--ink); }
+.lab.rare { transform: translateX(-50%) rotate(-4deg); font: 18px/22px Pixelify; letter-spacing: 1px; padding: 0 8px; background: var(--teal); color: var(--paper);
+  border: 2px solid var(--ink); box-shadow: 3px 3px 0 var(--ink); text-shadow: 2px 2px 0 var(--tealS); }
+.lab.legendary { transform: translateX(-50%) rotate(-8deg); font: 20px/24px Pixelify; letter-spacing: 1px; padding: 0 8px; background: var(--paper); color: var(--musDD);
+  border: 4px double var(--musDD); }
+.tk .pips { position: absolute; right: 6px; top: 6px; font: 800 9px/10px Atkinson; color: var(--ink); display: none; }
+.scrape { position: absolute; width: 24px; height: 24px; background: var(--musL); border: 2px solid var(--ink); border-radius: 50%; display: none; z-index: 4; }
+.token { position: absolute; z-index: 13; display: none; border: 2px solid var(--ink); }
+#flyer { position: absolute; z-index: 40; display: none; transform-origin: 50% 50%; }
+#flyer canvas { width: 96px; height: 96px; }
+
+/* ------------------------------------------------ the cart drawer (where NEW ITEMS land and UPGRADES happen) */
+.drawer { position: absolute; z-index: 35; top: 64px; display: none; background: var(--tealL); color: var(--ink); border: 2px solid var(--ink);
+  box-shadow: inset 0 0 0 3px var(--tealP), 6px 6px 0 var(--tealK); padding: 8px 10px 10px; }
+.drawer .dh { display: flex; align-items: center; gap: 8px; height: 24px; font: 15px/20px Pixelify; letter-spacing: 1px; white-space: nowrap; }
+.drawer .dh .cnt { margin-left: auto; font: 750 15px/20px Atkinson; letter-spacing: 0; padding: 0 6px; background: var(--paper); border: 2px solid var(--ink); }
+.drawer .dh .note { font: 700 11px/14px Atkinson; letter-spacing: 0; color: var(--tealD); }
+.drawer .slots { display: flex; gap: 8px; margin-top: 6px; }
+.drawer .slot { position: relative; width: 100px; height: 122px; background: var(--paper); border: 2px solid var(--ink); }
+.drawer .slot canvas { position: absolute; left: 0; top: 0; width: 96px; height: 96px; }
+.drawer .slot .t { position: absolute; left: 0; right: 0; bottom: 0; height: 20px; border-top: 2px solid var(--ink); font: 800 10px/18px Atkinson; letter-spacing: 1px; text-align: center; background: var(--cream); }
+.drawer .slot .t.big { background: var(--musL); }
+.drawer .slot .t.golden { background: var(--gold); }
+.drawer .slot.target { border-color: var(--musDD); box-shadow: 0 0 0 3px var(--gold); }
+.drawer .dsub { font: 700 12px/16px Atkinson; color: var(--tealD); white-space: nowrap; }
+.drawer .slot.newSlot { background: transparent; border: 2px dashed var(--tealD); }
+.drawer .slot.newSlot .ph { position: absolute; left: 0; right: 0; top: 36px; text-align: center; font: 16px/20px Pixelify; color: var(--tealD); }
+.drawer .slot .glint { position: absolute; top: 0; width: 14px; height: 96px; background: var(--paper); opacity: .85; transform: skewX(-20deg); display: none; }
+.drawer .slot .spk { position: absolute; display: none; }
+.drawer .stampLab { position: absolute; left: 50%; bottom: -22px; transform: translateX(-50%) rotate(-5deg); padding: 0 10px; font: 22px/28px Pixelify; letter-spacing: 2px;
+  white-space: nowrap; display: none; border: 4px double; background: var(--paper); }
+.drawer .stampLab.new { color: var(--tealS); border-color: var(--tealS); }
+.drawer .stampLab.up { color: var(--musDD); border-color: var(--musDD); }
+.drawer .none { font: 700 12px/16px Atkinson; color: var(--tealD); align-self: center; width: 90px; }
+
+/* ------------------------------------------------ odds card */
+.odds { left: 440px; top: 90px; width: 300px; z-index: 22; background: var(--paper); color: var(--ink); border: 2px solid var(--ink);
+  box-shadow: inset 0 0 0 3px var(--musL), 6px 6px 0 var(--tealK); display: none; transform-origin: 100% 40%; }
+.odds .tail { position: absolute; right: -16px; width: 0; height: 0; border-top: 10px solid transparent; border-bottom: 10px solid transparent; border-left: 16px solid var(--ink); }
+.odds .tail i { position: absolute; left: -19px; top: -6px; border-top: 6px solid transparent; border-bottom: 6px solid transparent; border-left: 10px solid var(--paper); }
+.odds .oh { padding: 6px 12px 6px; border-bottom: 2px dashed var(--creamS); position: relative; }
+.odds .oh .t { font: 19px/22px Pixelify; letter-spacing: 1px; }
+.odds .oh .sub { font: 800 10px/12px Atkinson; letter-spacing: 1px; color: var(--tealS); }
+.odds .oh .s { font: 700 11px/14px Atkinson; color: var(--inkL); }
+.odds .bonus { padding: 3px 12px 4px; background: var(--tomD); color: var(--paper); font: 13px/15px Pixelify; letter-spacing: 1px; border-bottom: 2px solid var(--ink); }
+.odds .bonus small { display: block; font: 700 10px/12px Atkinson; letter-spacing: 0; color: var(--musP); }
+.odds .oh .lv.up { color: var(--tomD); }
+.odds .oh .lv { position: absolute; right: 12px; top: 9px; display: flex; align-items: center; gap: 6px; font: 800 10px/12px Atkinson; letter-spacing: 1px; color: var(--inkL); }
+.odds .oh .lv .holes { display: flex; gap: 3px; }
+.odds .oh .lv .hole { width: 10px; height: 10px; }
+.odds .oh .lv .hole.on::after { display: none; }
+.odds .tier { min-height: 50px; padding: 5px 12px 5px; border-bottom: 2px dashed var(--creamS); }
+.odds .tier .r1 { display: flex; align-items: center; gap: 8px; }
+.odds .tier .r1 .nm { font: 14px/18px Pixelify; letter-spacing: 1px; flex: 1; }
+.odds .tier .r1 .pc { font: 750 20px/20px Atkinson; }
+.odds .tier .r1 .pc s { font-size: 12px; color: var(--grey); margin-right: 4px; }
+.odds .tier .ls { font: 600 11px/13px Atkinson; color: var(--inkL); margin-top: 3px; }
+.odds .tier .ls s { color: var(--grey); }
+.odds .tier .ls b { color: var(--ink); }
+.odds .pb { padding: 5px 12px 0; font: 600 11px/13px Atkinson; color: var(--inkL); }
+.odds .pb b { color: var(--ink); font-weight: 800; }
+.odds .pb .g { color: var(--tealS); font-weight: 750; }
+.odds .btns { margin: 8px 12px 10px; height: 42px; display: flex; gap: 10px; }
+.odds .ok { width: 150px; height: 42px; background: var(--tom); color: var(--paper); border: 2px solid var(--ink); border-top: 6px solid var(--tomL); box-shadow: inset 0 -5px 0 var(--tomD);
+  font: 18px/28px Pixelify; letter-spacing: 1px; text-align: center; }
+.odds .ok.sunk { transform: translateY(3px); border-top-width: 2px; }
+.odds .no { flex: 1; height: 42px; background: var(--tealL); color: var(--ink); border: 2px solid var(--ink); box-shadow: inset 0 -5px 0 var(--teal); font: 16px/36px Pixelify; text-align: center; }
+
+#cursor { position: absolute; z-index: 60; left: 0; top: 0; pointer-events: none; }
+#cursor canvas { width: 20px; height: 32px; }
+#cursor .ring { position: absolute; left: -10px; top: -10px; width: 20px; height: 20px; border: 2px solid var(--paper); display: none; }
+#flash { position: absolute; inset: 0; background: var(--gold); opacity: 0; pointer-events: none; z-index: 50; }
+#speedTag { position: absolute; right: 8px; bottom: 6px; z-index: 70; font: 800 10px/12px Atkinson; color: var(--tealP); letter-spacing: 1px; opacity: .8; }
+
+/* ------------------------------------------------ controls + caption (below the 1280 x 720 stage) */
+#panel { padding: 12px 20px 6px; background: var(--tealK); border-top: 2px solid var(--ink); }
+#panel .row { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin-bottom: 8px; }
+#panel .k { font: 13px Pixelify; letter-spacing: 1px; color: var(--musL); margin: 0 4px 0 12px; }
+#panel .k:first-child { margin-left: 0; }
+#panel .k em { font: 700 11px Atkinson; font-style: normal; color: var(--tealL); letter-spacing: 0; }
+#panel button { font: 700 13px Atkinson; padding: 4px 9px; background: var(--tealD); color: var(--paper); border: 2px solid var(--ink); cursor: pointer; }
+#panel button.on { background: var(--musL); color: var(--ink); }
+#cLook { display: inline-flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+#cLook em.lk { font: 700 11px Atkinson; font-style: normal; color: var(--tealL); margin: 0 2px 0 6px; }
+#cLook em.lk:first-child { margin-left: 0; }
+#panel button.x { background: var(--tealDD); color: var(--grey); }
+#panel #scrub { width: 820px; accent-color: #e2b33c; }
+#panel #clock { font: 700 13px Atkinson; color: var(--tealP); min-width: 220px; }
+#capt { display: grid; grid-template-columns: 1fr 1fr; gap: 28px; padding: 14px 24px 28px; font: 14px/20px Atkinson; color: var(--steelL); }
+#capt h2 { font: 18px Pixelify; color: var(--musL); margin: 4px 0 6px; letter-spacing: 1px; }
+#capt p, #capt li { margin-bottom: 7px; }
+#capt ul { padding-left: 18px; }
+#capt b { color: var(--paper); }
+#capt code { font: 12px JBMono; color: var(--tealP); }
+/* ------------------------------------------------ pluggable looks (looks/look_*.css, inlined by gen_flow.py) */
+/*@@LOOKS_CSS@@*/
+</style>
+</head>
+<body>
+<div id="stage"><div id="shakeWrap">
+  <div id="bg" class="abs" style="inset:0"></div>
+  <div id="shade"></div>
+  <img id="printer" class="abs" alt="">
+  <div id="rcpt" class="abs"></div>
+  <div id="stub" class="abs"></div>
+  <div id="topbar" class="abs topbar"></div>
+  <div id="chipLab"><span>+1 NEW IN CART</span></div>
+  <div id="machine" class="abs"></div>
+  <div id="odds" class="abs odds"></div>
+  <div id="odds2" class="abs odds"></div>
+  <div id="drawer" class="drawer"></div>
+  <div id="drawer2" class="drawer"></div>
+  <div id="flyer"></div>
+  <div id="flash"></div>
+</div>
+<div id="cursor"><div class="ring"></div></div>
+<div id="speedTag"></div>
+</div>
+
+<div id="panel">
+  <div class="row"><span class="k">MACHINE LOOK</span><span id="cLook"></span><span class="k">AFTER SHIFT</span><span id="cShift"></span><span class="k">PRIZE TYPE</span><span id="cChute"></span></div>
+  <div class="row"><span class="k">REGISTERS OWNED</span><span id="cOwned"></span><span class="k">THIS CHUTE'S REGULAR</span><span id="cLvl"></span><span class="k">STAMP DAY <em>decided: on</em></span><span id="cStamp"></span></div>
+  <div class="row"><span class="k">STOCK <em>(NEW ITEMS draws from it)</em></span><span id="cStock"></span></div>
+  <div class="row"><span class="k">INSPECTION PASSED <em>new idea: shifts 3, 5, 7 give a bonus ticket</em></span><span id="cInsp"></span><span class="k">BONUS TICKET CHUTE</span><span id="cChute2"></span></div>
+  <div class="row"><span class="k">DROPS</span><span id="cRoll"></span><span class="k">SPEED <em>decided: 1x</em></span><span id="cSpeed"></span><span id="cMisc"></span></div>
+  <div class="row"><input id="scrub" type="range" min="0" max="10" step="0.01" value="0"><span id="clock"></span></div>
+</div>
+
+<div id="capt">
+<div>
+  <h2>Round 3: look F chosen, and the bonus ticket idea</h2>
+  <p><b>F restock hatch is the decided look</b> and the page opens on it. D, E, A, B and C stay on the MACHINE LOOK row under "other looks".</p>
+  <p><b>Your idea, not decided: an inspection passed gives a second ticket.</b> Inspections fall on shifts 3, 5 and 7, the same shifts that open UPGRADES. Here, passing an inspected shift stamps INSPECTION PASSED on the receipt (naming the inspection). After your first pick lands, the head stamps <b>BONUS TICKET!</b> and a short stub with the same stamp feeds in. You choose a chute again (any chute, UPGRADES included), from the state after your first pick: the REGULAR punch you just earned already counts, the cart already holds the first prize, and a register you just stamped no longer drops. The odds card says what changed in a red band. The hatch packs 3 more boxes; you reveal, pick 1 and it lands. The chute's REGULAR meter counts the bonus visit. REGISTER's cap and STAMP DAY (shifts 2, 4, 6) are unchanged. The second visit skips what you have already seen: no receipt read, a quicker odds card, a 1.2 s pack, tighter reveals (about 13.2 s against 18.9 s for the first; the reveals themselves are unchanged). With the bonus, shift 7's first ticket punches its meter too, because the bonus visit can use it.</p>
+  <p><b>Compare:</b> INSPECTION PASSED row, "off" plays shifts 3/5/7 with one ticket, as today. BONUS TICKET CHUTE picks the second chute (default: the same one, so the +1 REGULAR shows). <b>Honest note:</b> the bonus comes after shift 3, so it cannot raise shift 3's own pass rate (60 to 66% in round 2's runs, the wall); it helps from shift 4 on. Measured in round 3 (<code>machine_77_src/BALANCE.md</code>, "Round 3"): the win rate goes from 22% to 32% (an upper bound: the simulated player's UPGRADES picks are optimistic), shifts 5 and 6 pass more often, and shift 3 stays at 68 to 69%.</p>
+  <h2>Round 2: what changed</h2>
+  <p><b>NEW ITEMS and UPGRADES are now split cleanly.</b> <b>NEW ITEMS · ADD TO CART</b> gives you one more item. It always arrives plain. Its rarity is the product's own: basic products are COMMON, stronger products RARE (Milk and Eggs among them), the strongest LEGENDARY. <b>UPGRADES · IMPROVE ONE YOU OWN</b> makes an item you already have better, and is the only way to get BIG or GOLDEN: COMMON is one step on one copy, RARE is two steps on one plain copy (straight to GOLDEN), LEGENDARY is a <b>SHELF UPGRADE</b> (every copy of one item goes one step up; only for an item with 2 or more copies that can step). Golden twin is gone. UPGRADES still opens only after shifts 3, 5 and 7.</p>
+  <p><b>The landing shows the difference.</b> Both open your cart on that item. NEW ITEMS: a new plain item flies into an empty slot, NEW IN CART, the count goes up by 1. UPGRADES: an up-arrow flies to the copy you own, it glints and changes in place, UPGRADED, the count stays the same. Try shift 3 with NEW ITEMS, then UPGRADES.</p>
+  <p><b>Decided and kept:</b> the receipt-to-machine feed, the rarity reveals (unchanged), the REGULAR <b>punch ticket</b> (the meter is punched only when a later visit can use it: not after shift 7, and not on the REGISTER pick that fills the card), <b>STAMP DAY on</b> (option B: a free register pick after shifts 2, 4, 6 when the card is behind), speed 1x, and odds cards that show the true odds.</p>
+  <p><b>Machine looks (round 2).</b> You liked A but found the drum too random, so D, E and F keep A's teal cabinet, keys, punch tickets and odds card and drop the drum. Nothing in them spins or looks random: <b>D coupon printer</b> checks your receipt as it feeds in, then prints 3 reward slips (the same lines on each: the prize is a plain roll); <b>E click &amp; collect</b> packs 3 lockers one by one and opens their doors; <b>F restock hatch</b> drops 3 boxes from stock bays onto a runway into the hatch, and a little belt brings them out. You chose F in round 3.</p>
+</div>
+<div>
+  <h2>The odds card is exact</h2>
+  <p>The card and the real roll come from one draw process (<code>flow/draw77.js</code>): the card lists every possible draw with its probability; the real roll runs the process forward. <code>flow/check_odds.js</code> compares the two over 100,000 seeded rolls per state (@@MC@@). Tier % is per drop. A prize's % is its chance to be among the 3.</p>
+  <p><b>The rules.</b> No prize twice in one draw. REGISTER never repeats a type. A rarity with nothing in it steps down a tier, then up. NEW ITEMS always holds 1 generally useful item: if none drops, the last drop whose rarity has one is swapped for one of the same rarity (skipped only if all 3 drops roll LEGENDARY and no generally useful LEGENDARY is stocked). The first COUPONS visit holds Breakfast sticker, Multipack or 2 for 1 the same way. REGULAR 3 makes drop 1 RARE or better. UPGRADES only offers an item when one of your copies can take the steps.</p>
+  <p><b>STOCK</b> changes what NEW ITEMS can draw: the fresh stock (20 products: 12 COMMON, 6 RARE, 2 LEGENDARY), or a full-collection run with two aisles listed (no new arrivals). Cold cases + Snacks has no LEGENDARY, so its LEGENDARY rolls step down to RARE, and the card says so.</p>
+  <p><b>Placeholders:</b> the product rarities (<code>product_rarity.json</code>, until the build measures them), the odds per REGULAR level, and the BIG and GOLDEN numbers. Names and rule texts are the game's own (<code>data/</code>). The run history is invented: after shift 1 NEW ITEMS (Milk), 2 COUPONS (binned), 3 UPGRADES (one Eggs to BIG), 4 REGISTER, 5 UPGRADES (one Milk to GOLDEN), 6 COUPONS (binned). Products without art show a placeholder.</p>
+  <p><b>Keys:</b> ?at=&lt;s&gt; freezes a still, ?rm=1 is reduced motion, sound starts muted until you click SOUND. Click a lit chute key on the machine to replay with it.</p>
+</div>
+</div>
+
+<script>
+/*@@ASSETS@@*/
+/*@@DATA@@*/
+/*@@DRAW@@*/
+const DR = DRAW77.create(DATA);
+// ================================================================ data (the game's own texts)
+const QUOTAS = [34, 35, 53, 61, 73, 98, 111, 120];
+const SPEND = [41, 47, 66, 77, 89, 118, 130];
+const INSPECT = { 2: ['Spot check', 'The 3rd product pays €0'], 4: ['Short belt', 'One product slot fewer'], 6: ['Coupon slot closed', 'One coupon slot fewer'] };
+// round 3 idea: passing an inspected shift (3, 5, 7: balance.tres inspection_shifts) gives a BONUS TICKET, a second visit
+const INSP = { spot_check: INSPECT[2], short_belt: INSPECT[4], coupon_slot_closed: INSPECT[6] };
+const INSP_AT = { 3: 'spot_check', 5: 'short_belt', 7: 'coupon_slot_closed' }; // the page's default: the one its shift k-1 receipt announced
+const ODDS = DR.ODDS;
+const TIER = ['COMMON', 'RARE', 'LEGENDARY'];
+const HISTORY = DR.HISTORY;
+const CHUTES = ['new', 'coupons', 'register', 'upgrades'];
+const CHUTE_NAME = { new: 'NEW ITEMS', coupons: 'COUPONS', register: 'REGISTER', upgrades: 'UPGRADES' };
+const CHUTE_SUB = { new: 'ADD TO CART', coupons: 'ADD TO CART', register: 'STAMP YOUR CARD', upgrades: 'IMPROVE ONE YOU OWN' };
+// products: base and sticker text per tier (plain, BIG, GOLDEN). Plain is data/cards; BIG/GOLDEN are the brief's placeholders (2.5).
+const PROD = {};
+Object.entries(DATA.products).forEach(([id, d]) => { PROD[id] = { n: d.n, base: [d.base], line: [d.line] }; });
+Object.assign(PROD.banana, { base: [2, 4, 4], line: [PROD.banana.line[0], '+4 after Banana', '+4 beside a Banana'] });
+Object.assign(PROD.milk, { base: [4, 6, 6], line: [PROD.milk.line[0], '+1 per earlier Breakfast', '+2 per earlier Breakfast'] });
+Object.assign(PROD.eggs, { base: [1, 3, 3], line: [PROD.eggs.line[0], '×2 next Food', '×2 next 2 Food'] });
+Object.assign(PROD.coffee, { base: [2, 4, 4], line: [PROD.coffee.line[0], '+3 next Breakfast', '+6 next Breakfast'] });
+const COUP = {
+  final_markdown: { n: 'Final markdown', line: '+4 in last slot' },
+  breakfast_sticker: { n: 'Breakfast sticker', line: 'Next gains Breakfast' },
+  clearance_tag: { n: 'Clearance tag', line: 'Next gains Clearance' },
+  shelf_swap: { n: 'Shelf swap', line: 'Next also follows the 1st' },
+  repeat: { n: 'Repeat', line: 'Copy prior payout' },
+  two_for_one: { n: '2 for 1', line: 'Same both sides: 2nd ×2', icon: 'coupon_two_for_one_v2' },
+  multipack: { n: 'Multipack', line: "×3 later with prior's tag", icon: 'coupon_multipack_v2' },
+  opening_deal: { n: 'Opening deal', line: '1st slot: next ×5' },
+};
+const REGS = {
+  extra_redraw: { n: 'Extra redraw', ini: 'ExR', line: '+1 redraw each shift' },
+  big_basket: { n: 'Big basket', ini: 'BiB', line: '+1 product slot · quota +15%' },
+  extra_coupon_slot: { n: 'Extra coupon slot', ini: 'ExCS', line: '+1 coupon-only slot' },
+  category_engine: { n: 'Category engine', ini: 'CaE', line: '+3 for each different tag among your products', tline: '+3 per different tag' },
+  coupon_engine: { n: 'Coupon engine', ini: 'CoE', line: 'The first coupon in the row pays ×2', tline: '1st coupon in row pays ×2' },
+  slot_engine: { n: 'Slot engine', ini: 'SlE', line: 'Your 6th product pays ×2' },
+};
+const OWN_ORDER = ['extra_coupon_slot', 'coupon_engine', 'big_basket']; // what the run's LOYALTY card holds, in order
+const STOCKS = [['fresh', 'fresh stock (20)'], ['pantry+bakery', 'Pantry + Bakery'], ['cold_cases+snacks', 'Cold cases + Snacks']];
+const STEP_NAME = ['plain', 'BIG', 'GOLDEN'];
+
+// ================================================================ settings
+const Q = new URLSearchParams(location.search);
+const DEFAULT_LOOK = 'f'; // decided 2026-10-20: F restock hatch; falls back to A if it is missing
+const CHOSEN_LOOKS = ['f']; // listed first in the picker, labelled "chosen"
+const OTHER_ORDER = ['d', 'e', 'a', 'b', 'c']; // then the other looks in this order (any unknown key after them)
+const qi = (k, d, a, b) => { const v = parseInt(Q.get(k), 10); return Number.isFinite(v) ? Math.max(a, Math.min(b, v)) : d; };
+const CFG = {
+  look: (Q.get('look') || DEFAULT_LOOK).toLowerCase(), // checked against the registry in start()
+  shift: qi('shift', 3, 1, 7),
+  chute: CHUTES.includes(Q.get('chute')) ? Q.get('chute') : 'coupons',
+  owned: Q.has('owned') ? qi('owned', 0, 0, 3) : null,
+  lvl: Q.has('lvl') ? qi('lvl', 0, 0, 3) : null,
+  stamp: Q.get('stamp') !== '0',
+  stock: STOCKS.some(s => s[0] === Q.get('stock')) ? Q.get('stock') : 'fresh',
+  roll: Q.has('roll') ? qi('roll', 1, 1, 99999) : null,
+  speed: [0.75, 1, 1.25].includes(parseFloat(Q.get('speed'))) ? parseFloat(Q.get('speed')) : 1,
+  rm: Q.get('rm') === '1',
+  sound: false,
+  insp: INSP[Q.get('inspection')] || Q.get('inspection') === 'off' ? Q.get('inspection') : null, // null = auto (on at 3/5/7)
+  chute2: CHUTES.includes(Q.get('chute2')) ? Q.get('chute2') : 'same',
+};
+const AT = Q.has('at') ? parseFloat(Q.get('at')) : null;
+// the inspection passed at this shift, {key, name, rule}, or null (no inspection, or the toggle is off)
+function inspNow() {
+  if (!INSP_AT[CFG.shift] || CFG.insp === 'off') return null;
+  const key = CFG.insp || INSP_AT[CFG.shift];
+  return { key, name: INSP[key][0], rule: INSP[key][1] };
+}
+
+// ================================================================ helpers
+const $ = s => document.querySelector(s);
+const el = (tag, cls, html) => { const e = document.createElement(tag); if (cls) e.className = cls; if (html != null) e.innerHTML = html; return e; };
+const cl = (v, a = 0, b = 1) => Math.max(a, Math.min(b, v));
+const seg = (t, a, b) => b <= a ? (t >= a ? 1 : 0) : cl((t - a) / (b - a));
+const sm = p => p * p * (3 - 2 * p);
+const eOut = p => 1 - (1 - p) * (1 - p);
+const eInOut3 = p => p < .5 ? 4 * p * p * p : 1 - Math.pow(-2 * p + 2, 3) / 2;
+const lerp = (a, b, p) => a + (b - a) * p;
+const fmt = v => (Math.round(v * 10) / 10).toFixed(1).replace(/\.0$/, '') + '%';
+const IMG = {};
+function gridCanvas(rows, pal, scale = 2) {
+  const h = rows.length, w = rows[0].length, c = document.createElement('canvas'); c.width = w; c.height = h;
+  const g = c.getContext('2d'); rows.forEach((r, y) => [...r].forEach((ch, x) => { if (pal[ch]) { g.fillStyle = pal[ch]; g.fillRect(x, y, 1, 1); } }));
+  c.style.width = w * scale + 'px'; c.style.height = h * scale + 'px'; return c;
+}
+function img(name, scale = 2) { const i = new Image(); i.src = ASSET[name]; const im = IMG[name]; if (im) { i.style.width = im.width * scale + 'px'; i.style.height = im.height * scale + 'px'; } return i; }
+function mulberry(seed) { return () => { seed |= 0; seed = seed + 0x6D2B79F5 | 0; let t = Math.imul(seed ^ seed >>> 15, 1 | seed); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
+
+const PAL = { X: '#2b2420', W: '#fbf7ee', C: '#f3e9d2', S: '#ddcba5', G: '#c7beab', T: '#4f9a94', t: '#86c2b6', Y: '#ffcf3f', M: '#e2b33c', m: '#b38425', K: '#24221f', B: '#8a5d1a', P: '#faecbc' };
+const GLYPH = {
+  0: ['XXXXXXX', 'XWWWWWX', 'XWCCCCX', 'XWCCCSX', 'XWCCCSX', 'XCSSSSX', 'XXXXXXX'],
+  1: ['....X....', '...XtX...', '..XtTTX..', 'XXtTTTTXX', 'XtTTTTTTX', 'XXTTTTTXX', '..XTTTX..', '...XTX...', '....X....'],
+  2: ['.....X.....', '..X..X..X..', '...XXYXX...', '..XYYYYYX..', '.XYYPYYYMX.', 'XXYYYYYYMXX', '.XYYYYYMMX.', '..XYMMMMX..', '...XXMXX...', '..X..X..X..', '.....X.....'],
+};
+const PADLOCK = ['..XXXXX..', '.XGGGGGX.', '.XG...GX.', '.XG...GX.', 'XXXXXXXXX', 'XMMMMMMMX', 'XMMMXMMMX', 'XMMMXMMMX', 'XmmmmmmmX', 'XXXXXXXXX'];
+const CURSOR = ['X.........', 'XX........', 'XWX.......', 'XWWX......', 'XWWWX.....', 'XWWWWX....', 'XWWWWWX...', 'XWWWWWWX..', 'XWWWWWWWX.', 'XWWWWWXXXX', 'XWWXWWX...',
+  'XWX.XWWX..', 'XX..XWWX..', 'X....XWWX.', '.....XWWX.', '......XX..'];
+const UPARROW = ['....X....', '...XYX...', '..XYYYX..', '.XYYYYYX.', 'XXXYYYXXX', '..XYYYX..', '..XYYYX..', '..XMMMX..', '..XXXXX..'];
+
+// ---------------------------------------------------------------- sprites: plain (game art), BIG (drawn), GOLDEN (auto recolour)
+const GOLD_RAMP = ['#4a3010', '#8a5d1a', '#c8932b', '#ffcf3f', '#f1d27a', '#faecbc'];
+const SPR = {};
+const hasArt = id => !!IMG[id];
+function baseCanvas(name) { const c = document.createElement('canvas'); c.width = 48; c.height = 48; if (IMG[name]) c.getContext('2d').drawImage(IMG[name], 0, 0); return c; }
+function bigCanvas(name) { // stand-in when no BIG drawing exists: the sprite doubled and offset on the same 48 x 48 grid
+  const c = document.createElement('canvas'); c.width = 48; c.height = 48; const g = c.getContext('2d');
+  g.drawImage(IMG[name], -6, -4); g.drawImage(IMG[name], 4, 3); return c;
+}
+function goldCanvas(src) { // luminance-ranked remap to the brass/gold ramp, ink kept
+  const c = document.createElement('canvas'); c.width = 48; c.height = 48; const g = c.getContext('2d'); g.drawImage(src, 0, 0);
+  const d = g.getImageData(0, 0, 48, 48), px = d.data, cols = new Map();
+  for (let i = 0; i < px.length; i += 4) { if (px[i + 3] < 128) continue; const k = (px[i] << 16) | (px[i + 1] << 8) | px[i + 2]; if (k === 0x2b2420) continue; cols.set(k, .3 * px[i] + .59 * px[i + 1] + .11 * px[i + 2]); }
+  const sorted = [...cols.entries()].sort((a, b) => a[1] - b[1]).map(e => e[0]), idx = new Map();
+  sorted.forEach((k, r) => idx.set(k, sorted.length < 2 ? 3 : Math.round(r * 5 / (sorted.length - 1))));
+  for (let i = 0; i < px.length; i += 4) { if (px[i + 3] < 128) continue; const k = (px[i] << 16) | (px[i + 1] << 8) | px[i + 2]; if (!idx.has(k)) continue;
+    const h = GOLD_RAMP[idx.get(k)]; px[i] = parseInt(h.slice(1, 3), 16); px[i + 1] = parseInt(h.slice(3, 5), 16); px[i + 2] = parseInt(h.slice(5, 7), 16); }
+  g.putImageData(d, 0, 0); return c;
+}
+function sprite(id, tier = 0) {
+  const key = id + ':' + tier;
+  if (!SPR[key]) {
+    if (!hasArt(id)) SPR[key] = baseCanvas('art_pending_v2');
+    else if (tier === 0) SPR[key] = baseCanvas(id);
+    else if (tier === 1) SPR[key] = IMG['big_' + id] ? baseCanvas('big_' + id) : bigCanvas(id);
+    else SPR[key] = IMG['golden_' + id] ? baseCanvas('golden_' + id) : goldCanvas(sprite(id, 1));
+  }
+  const c = document.createElement('canvas'); c.width = 48; c.height = 48; c.getContext('2d').drawImage(SPR[key], 0, 0); return c;
+}
+function couponCanvas(id) { const c = baseCanvas('coupon_slip'), g = c.getContext('2d'), cp = COUP[id]; if (cp.icon) g.drawImage(IMG[cp.icon], 14, 17); return c; }
+function stampCanvas() { const c = document.createElement('canvas'); c.width = 48; c.height = 48; const g = c.getContext('2d'); g.imageSmoothingEnabled = false; g.drawImage(IMG.stamp_ring, 4, 4, 39, 39); return c; }
+
+// ================================================================ the run state at this visit
+let S = {};
+function derive() {
+  const s = CFG.shift, st = {};
+  st.upOpen = [3, 5, 7].includes(s);
+  let owned = 0;
+  for (let k = 1; k < s; k++) { if (HISTORY[k] === 'register' && owned < 3) owned++; if (CFG.stamp && [2, 4, 6].includes(k) && owned < k / 2) owned++; }
+  st.owned = CFG.owned != null ? CFG.owned : owned;
+  st.full = st.owned >= 3;
+  st.levels = {}; CHUTES.forEach(c => { let n = 0; for (let k = 1; k < s; k++) if (HISTORY[k] === c) n++; st.levels[c] = Math.min(3, n); });
+  let chute = CFG.chute, note = '';
+  if (chute === 'upgrades' && !st.upOpen) { chute = 'coupons'; note = 'UPGRADES is locked after shift ' + s + ': showing COUPONS'; }
+  if (chute === 'register' && st.full) { chute = 'coupons'; note = 'REGISTER is CARD FULL: showing COUPONS'; }
+  st.chute = chute; st.note = note;
+  if (CFG.lvl != null) st.levels[chute] = CFG.lvl;
+  st.lvl = st.levels[chute];
+  st.ownedIds = OWN_ORDER.slice(0, st.owned);
+  st.stock = DR.stockFor(CFG.stock);
+  st.cart = DR.cartAt(s);
+  st.cartN = st.cart.length;
+  st.firstCoupons = ![...Array(s - 1).keys()].some(i => HISTORY[i + 1] === 'coupons');
+  // a REGULAR meter rises only when a later draw can use it: not after shift 7 (unless a BONUS TICKET follows), not on the
+  // REGISTER pick that fills the card
+  st.rises = st.lvl < 3 && (s < 7 || !!inspNow()) && !(chute === 'register' && st.owned >= 2);
+  return st;
+}
+function drawStats(chute, st) { return DR.stats(chute, st); }
+function demoDraw(chute, st) { // staged: one of each rarity where the pools allow it
+  if (chute === 'coupons') return [{ kind: 'coupon', id: 'final_markdown', tier: 0 }, { kind: 'coupon', id: 'two_for_one', tier: 1 }, { kind: 'coupon', id: 'opening_deal', tier: 2 }];
+  const pl = DR.pools(chute, st), out = [];
+  const prefer = { new: ['cheese', 'milk', 'tea_bags'], upgrades: ['coffee', 'milk', 'banana'], register: [] }[chute];
+  for (const want of [0, 1, 2]) {
+    const c = DR.land(chute, pl, want, out); if (!c) break;
+    out.push(c.find(p => p.id === prefer[want]) || c.find(p => p.kind !== 'product' || hasArt(p.id)) || c[0]);
+  }
+  return out;
+}
+function prizeInfo(p, st = S.st) { // st: the visit's state (the BONUS TICKET's cart already holds the first pick)
+  if (p.kind === 'product') { const d = PROD[p.id];
+    return { bandL: 'ITEM', bandR: '€' + d.base[0], bandCls: '', name: d.n, line: d.line[0], spr: () => sprite(p.id, 0), home: 'cart', drawer: 'new',
+      done: 'NEW IN CART ✓', toast: `${d.n} joins your cart, plain` }; }
+  if (p.kind === 'coupon') { const d = COUP[p.id]; return { bandL: 'COUPON', bandCls: 'coupon', name: d.n, line: d.line, spr: () => couponCanvas(p.id), home: 'cart', done: 'NEW IN CART ✓', toast: `${d.n} joins your cart` }; }
+  if (p.kind === 'register') { const d = REGS[p.id]; return { bandL: 'STAMP · ' + d.ini, bandCls: 'stamp', name: d.n, line: d.line, tline: d.tline, spr: () => stampCanvas(), ini: d.ini, home: 'loyalty', done: 'STAMPED ✓', toast: `${d.n} on your LOYALTY card` }; }
+  const d = PROD[p.id], tg = DR.upgradeTargets(p, st.cart), n = tg.length, first = tg[0] || { from: 0, to: 1 };
+  const base = { bandL: 'UPGRADE', bandCls: 'upg', home: 'cart', up: true, drawer: 'up', targets: tg, done: 'UPGRADED ✓' };
+  if (p.tier === 0) return Object.assign(base, { tagTxt: STEP_NAME[first.to], name: `${d.n} +1 step`, line: `1 copy: ${STEP_NAME[first.from]} › ${STEP_NAME[first.to]}`, spr: () => sprite(p.id, first.to),
+    toast: `one ${d.n} goes ${STEP_NAME[first.to]}` });
+  if (p.tier === 1) return Object.assign(base, { tagTxt: 'GOLDEN', name: `${d.n} › GOLDEN`, line: '1 plain copy, 2 steps', spr: () => sprite(p.id, 2), toast: `one ${d.n} goes GOLDEN` });
+  return Object.assign(base, { tagTxt: `SHELF ×${n}`, name: 'Shelf upgrade', line: `every ${d.n} +1 step (${n})`, spr: () => sprite(p.id, 1), shelf: true, toast: `all ${n} ${d.n} go up a step` });
+}
+
+// ================================================================ the look registry (contract: looks/README.md)
+const LOOKS = window.LOOKS = window.LOOKS || {};
+const CELL_X = [26, 156, 286], CELL_Y = 452, MX = 760, MY = 70;
+let LOOK = null;
+// Round 3: a shift may have 2 visits (the BONUS TICKET after a passed inspection). B holds visit 2 ({insp, st, draw,
+// pick, tk, drw, T, okC}) or null. CUR_V picks which visit the look's api shows (0 = the first, 1 = the bonus): the
+// page sets it around every look call, so a look sees visit 2 as an ordinary visit with its own api.T, prizes, tickets.
+let B = null, CUR_V = 0;
+const inBonus = t => !!(B && t >= B.T.start);
+function revealAt(t) { // the reveal playing at t: {i, tier, p (0..1 of its reveal), stampDay, bonus}
+  const T = TL, look = (list, R, sd, bn) => { for (let i = (R || []).length - 1; i >= 0; i--) { const r = R[i]; if (t >= r.t0 && t < r.t0 + r.d) return { i, tier: list[i].tier, p: (t - r.t0) / r.d, stampDay: sd, bonus: bn }; } return null; };
+  return (B && look(B.draw, B.T.rev, false, true)) || look(SD || [], T.sdRev, true, false) || look(DRAW, T.rev, false, false);
+}
+function phaseAt(t) {
+  const bn = inBonus(t), T = bn ? B.T : TL;
+  if (bn && t < T.readEnd) return 'bonus';
+  if (t < T.readEnd) return 'feed'; if (t < T.hover) return 'choose'; if (t < T.draw) return 'odds'; if (t < T.drawEnd) return 'draw';
+  const ld = T.drops[2][0] + T.drops[2][1]; if (t < Math.max(ld, T.rev[0] ? T.rev[0].t0 : ld)) return 'drop';
+  const lr = T.rev[T.rev.length - 1]; if (lr && t < lr.t0 + lr.d) return 'reveal';
+  if (t < T.fly2) return 'pick'; if (t < T.punch) return 'land'; if (t < T.punchEnd) return 'punch';
+  if (!bn && SD && t < T.sdLand + 1.8) return 'stampday'; return 'end';
+}
+const API = {
+  get T() { return CUR_V && B ? B.T : TL; }, get rm() { return CFG.rm; }, get speed() { return CFG.speed; }, get shift() { return CFG.shift; },
+  get visit() { return CUR_V && B ? 1 : 0; }, get bonus() { return B ? { name: B.insp.name, rule: B.insp.rule, key: B.insp.key } : null; },
+  get st() { return CUR_V && B ? B.st : S.st; }, get chute() { return API.st.chute; }, get lvl() { return API.st.lvl; },
+  get prizes() { return CUR_V && B ? B.draw : DRAW; }, get stampDay() { return CUR_V && B ? null : SD; },
+  get tickets() { return CUR_V && B ? B.tk : TK; }, get stampTickets() { return CUR_V && B ? [] : SDK; },
+  get receipt() { return { spend: SPEND[CFG.shift - 1], quota: QUOTAS[CFG.shift - 1], inspect: INSPECT[CFG.shift] || null, passed: B ? B.insp.name : null }; },
+  odds: () => drawStats(API.st.chute, API.st), oddsTable: ODDS, info: p => prizeInfo(p, API.st),
+  reveal: revealAt, phase: phaseAt,
+  get machine() { return M.root; }, get win() { return M.win; }, get W() { return M.W; }, get display() { return M.disp; }, get chutes() { return M.chutes; }, get tray() { return M.tray; },
+  CELL_X, CELL_Y, MX, MY, TIER,
+  u: { seg, sm, eOut, eInOut3, lerp, cl, el, img, gridCanvas, mulberry, PAL },
+  get ASSET() { return ASSET; }, get IMG() { return IMG; },
+  tone: (...a) => tone(...a), noise: (...a) => noise(...a), get NOTE() { return NOTE; },
+};
+
+// ---- built-in looks A, B, C: reference implementations of the contract
+LOOKS.a = {
+  label: 'A prize drum', sub: 'prize drum',
+  win: { x: 90, y: 272, w: 240, h: 150, border: 2, half: true },
+  drawTime: 1.8, drawMsg: 'GOOD LUCK!', opener: 'flip', tokenW: 26,
+  drops: T => [0, 1, 2].map(i => [T.drawEnd + i * .3, .5]),
+  ticketBack: () => '<div class="logo">RR</div><div class="bt">RECEIPT REWARDS</div>',
+  tokenPos(api, cell, p) { const cx = api.CELL_X[cell] + 54, cy = api.CELL_Y + 70; return { x: api.u.lerp(210, cx, p), y: api.u.lerp(428, cy, p) - Math.sin(p * Math.PI) * 40 }; },
+  build(api) { // bulbs around the drum window
+    const W = api.W, pts = []; this.bulbs = [];
+    for (let i = 0; i < 5; i++) pts.push([W.x + W.w + 8, W.y + 6 + i * 32]); for (let i = 4; i >= 0; i--) pts.push([W.x - 18, W.y + 6 + i * 32]);
+    pts.forEach(([x, y]) => { const b = api.u.el('div', 'bulb'); b.style.left = x + 'px'; b.style.top = y + 'px'; api.machine.appendChild(b); this.bulbs.push(b); });
+  },
+  frame(api, t) {
+    const T = api.T, { seg } = api.u;
+    this.bulbs.forEach((b, i) => { let on;
+      if (t >= T.draw && t < T.drawEnd) { const k = i - Math.floor(seg(t, T.draw, T.drawEnd) * 40); on = api.rm ? true : ((k % 3) + 3) % 3 === 0; }
+      else if (t >= T.drawEnd && t < T.drops[2][0] + T.drops[2][1] + .3) on = Math.floor(t * 6) % 2 === 0;
+      else on = t >= T.readEnd ? i % 2 === Math.floor(t * 1.5) % 2 : false;
+      b.classList.toggle('on', on); });
+  },
+  paint(api, g, t) { // a ticket drum seen through the window (half-res)
+    const T = api.T, W = api.win.width, H = api.win.height, { seg, eInOut3 } = api.u, px = (x, y, w, h, col) => { g.fillStyle = col; g.fillRect(Math.round(x), Math.round(y), Math.round(w), Math.round(h)); };
+    px(0, 0, W, H, '#24221f');
+    const p = seg(t, T.draw, T.drawEnd), ang = .4 + (api.rm ? p * 2 : eInOut3(p) * Math.PI * 9);
+    const N = 16, Rr = 31, cy = H / 2, cols = ['#fbf7ee', '#f3e9d2', '#86c2b6', '#fbf7ee', '#ffcf3f', '#f3e9d2', '#86c2b6', '#fbf7ee'];
+    px(10, cy - Rr - 1, W - 20, 2 * Rr + 2, '#3d3a36');
+    const sl = [];
+    for (let k = 0; k < N; k++) { const th = ang + k * Math.PI * 2 / N, s = Math.sin(th); if (s <= .05) continue; sl.push([Math.cos(th), s, k]); }
+    sl.sort((a, b) => a[1] - b[1]);
+    sl.forEach(([co, s, k]) => { const y = cy - Rr * co, h = Math.max(1, Math.round(5 * s)); const col = cols[k % cols.length];
+      px(12, y - h / 2, W - 24, h, s < .45 ? '#b39f78' : col); px(12, y - h / 2, 6, h, s < .45 ? '#8a8172' : (k % 3 === 0 ? '#d9534f' : '#4f9a94')); if (h > 2) px(12, y + h / 2 - 1, W - 24, 1, '#2b2420'); });
+    px(4, cy - Rr - 3, 8, 2 * Rr + 6, '#8a5d1a'); px(W - 12, cy - Rr - 3, 8, 2 * Rr + 6, '#8a5d1a'); px(5, cy - Rr - 2, 2, 2 * Rr + 4, '#c8932b'); px(W - 11, cy - Rr - 2, 2, 2 * Rr + 4, '#c8932b');
+    px(0, 0, W, 3, '#1f3b3a');
+  },
+  sounds(api) { const T = api.T, ev = []; for (let x = T.draw; x < T.drawEnd; x += .06 + .14 * Math.pow(api.u.seg(x, T.draw, T.drawEnd), 2)) ev.push([x, () => api.tone(1400, .015, 'square', .03)]); return ev; },
+};
+LOOKS.b = {
+  label: 'B scratch &amp; win', sub: 'scratch &amp; win',
+  win: { x: 30, y: 272, w: 360, h: 150, border: 6, half: false },
+  drawTime: 1.8, drawMsg: 'DRAWING YOUR NUMBER…', opener: 'scratch', tokenW: 52,
+  drops: T => [0, 1, 2].map(i => [T.drawEnd + i * .45, .7]),
+  ticketBack: (api, cell) => `<div class="no">DRAW No. 04${api.shift}7-${cell + 1}</div><div class="foil"><span>SCRATCH</span></div><div class="bt">RECEIPT REWARDS</div>`,
+  tokenPos(api, cell, p) { const cx = api.CELL_X[cell] + 54, cy = api.CELL_Y + 70, sx = 210, sy = 436;
+    if (p < .5) return { x: sx, y: sy - 2, h: Math.round(56 * p / .5) }; const q = (p - .5) / .5; return { x: api.u.lerp(sx, cx, q), y: api.u.lerp(sy, cy, q * q), h: 56 }; },
+  frame(api, t) { const T = api.T; api.machine.querySelector('.scanbar').style.display = t >= T.flyEnd && t < T.readEnd && Math.floor(t * 8) % 2 === 0 ? 'block' : 'none'; },
+  paint(api, g, t) { // the terminal's screen (full res): barcode read, draw number roll, printing
+    const T = api.T, W = api.win.width, H = api.win.height, px = (x, y, w, h, col) => { g.fillStyle = col; g.fillRect(Math.round(x), Math.round(y), Math.round(w), Math.round(h)); };
+    px(0, 0, W, H, '#222a29'); for (let y = 0; y < H; y += 4) px(0, y, W, 1, '#2c3533');
+    g.textAlign = 'center'; g.fillStyle = '#5fb0a8';
+    if (t < T.fly) { g.font = '20px Pixelify'; g.fillText('INSERT RECEIPT', W / 2, 64); g.font = '700 12px Atkinson'; g.fillStyle = '#3a7672'; g.fillText('scratch & win · every receipt wins', W / 2, 88); }
+    else if (t < T.readEnd) {
+      for (let i = 0; i < 46; i++) { const w = [2, 4, 2, 6, 2][(i * 7) % 5]; px(40 + i * 6, 34, w / 2 + 1, 50, '#86c2b6'); }
+      const sx = 40 + ((t - T.fly) * 260) % 280; px(sx, 26, 4, 66, '#d9534f'); g.font = '700 13px Atkinson'; g.fillStyle = '#5fb0a8'; g.fillText(t < T.feedEnd ? 'READING YOUR RECEIPT' : `SPEND €${api.receipt.spend} ✓`, W / 2, 112);
+    } else if (t < T.draw) { g.font = '18px Pixelify'; g.fillText('PICK A PRIZE TYPE', W / 2, 58); g.font = '700 12px Atkinson'; g.fillStyle = '#3a7672'; g.fillText('3 scratch tickets · you keep 1', W / 2, 84); }
+    else {
+      g.font = '700 12px Atkinson'; g.fillStyle = '#3a7672'; g.fillText('PROMO DRAW No.', W / 2, 26);
+      const digits = ['0', '4', String(api.shift), '7'], cw = 40, x0 = W / 2 - 2 * cw;
+      digits.forEach((dg, i) => { const stopT = T.draw + (api.rm ? .3 : .6 + i * .3), roll = t < stopT ? (t - T.draw) * 22 + i * 3 : 0, x = x0 + i * cw;
+        px(x + 3, 36, cw - 6, 54, '#172c2b'); g.save(); g.beginPath(); g.rect(x + 3, 36, cw - 6, 54); g.clip(); g.font = '40px Pixelify'; g.fillStyle = t < stopT ? '#3a7672' : '#c3e0d4';
+        const v = t < stopT ? Math.floor(roll) % 10 : +dg, off = t < stopT ? (roll % 1) * 50 : 0; g.fillText(String(v), x + cw / 2, 78 + off); g.fillText(String((v + 9) % 10), x + cw / 2, 28 + off); g.restore(); });
+      if (t >= T.drawEnd) { g.font = '16px Pixelify'; g.fillStyle = '#5fb0a8'; const done = api.tickets.filter((k, i) => t >= T.drops[i][0] + T.drops[i][1]).length; g.fillText(done < 3 ? 'PRINTING ' + '▼'.repeat(done + 1) : 'SCRATCH YOUR TICKETS', W / 2, 116); }
+    }
+  },
+  sounds(api) { const T = api.T, ev = []; for (let i = 0; i < 4; i++) ev.push([T.draw + (api.rm ? .3 : .6 + i * .3), () => api.tone(api.NOTE.E6, .05, 'square', .04)]); return ev; },
+};
+LOOKS.c = {
+  label: 'C price drop', sub: 'price drop',
+  win: { x: 40, y: 270, w: 340, h: 168, border: 4, half: true }, exitSlot: false,
+  drawTime: .5, drawMsg: 'PRICE DROP!', opener: 'flip', tokenW: 26,
+  drops: T => [0, 1, 2].map(i => [T.draw + .3 + i * .5, 1.4]),
+  ticketBack: () => '<div class="hole"></div><div class="q">?</div><div class="bt">PRICE DROP</div>',
+  path(cell) {
+    const tgt = CELL_X[cell] + 54, steps = cell === 0 ? [-22, -22, 22, -22, -22, -22] : cell === 2 ? [22, 22, -22, 22, 22, 22] : [22, -22, -22, 22, 22, -22];
+    const pts = [[210, 262]]; let x = 210; for (let r = 0; r < 6; r++) { x += steps[r]; pts.push([x, 284 + r * 24]); }
+    pts.push([tgt, 420]); pts.push([tgt, CELL_Y + 70]); return pts;
+  },
+  tokenPos(api, cell, p) { const path = this.path(cell), n = path.length - 1, f = p * n, j = Math.min(n - 1, Math.floor(f)), u = f - j, { lerp } = api.u;
+    return { x: lerp(path[j][0], path[j + 1][0], u), y: lerp(path[j][1], path[j + 1][1], u * u) - (j < n - 1 ? Math.sin(u * Math.PI) * 5 : 0) }; },
+  paint(api, g, t) { // the peg board (half-res); pegs flash gold as a tag passes
+    const W = api.win.width, H = api.win.height, px = (x, y, w, h, col) => { g.fillStyle = col; g.fillRect(Math.round(x), Math.round(y), Math.round(w), Math.round(h)); };
+    px(0, 0, W, H, '#561327'); for (let y = 0; y < H; y += 2) if (y % 8 === 0) px(0, y, W, 1, '#2a0e14');
+    const ox = 40 + 4, oy = 270 + 4;
+    for (let r = 0; r < 6; r++) for (let j = -4; j <= 4; j++) {
+      const mx = 210 + j * 44 + (r % 2 ? 22 : 0) - 11, my = 284 + r * 24 + 14; if (mx < ox + 6 || mx > ox + 332 - 6) continue;
+      let hot = false; api.tickets.forEach(k => { if (k.tokPos && Math.abs(k.tokPos[0] - mx) < 18 && Math.abs(k.tokPos[1] + 17 - my) < 16) hot = true; });
+      const x = (mx - ox) / 2, y = (my - oy) / 2; px(x - 2, y - 2, 4, 4, '#2b2420'); px(x - 1, y - 1, 2, 2, hot ? '#ffcf3f' : '#c8932b'); if (!hot) px(x - 1, y - 1, 1, 1, '#faecbc');
+    }
+    [0, 1, 2].forEach(i => { const x = (api.CELL_X[i] + 54 - ox) / 2; px(x - 14, H - 6, 28, 6, '#2a0e14'); px(x - 15, H - 7, 2, 7, '#c8932b'); px(x + 13, H - 7, 2, 7, '#c8932b'); });
+  },
+  sounds(api) { const ev = []; api.T.drops.forEach(([a, d]) => { for (let r = 0; r < 6; r++) ev.push([a + d * (r + 1) / 8, () => api.tone(api.NOTE.A5 + r * 40, .05, 'sine', .05)]); }); return ev; },
+};
+</script>
+<!--@@LOOKS_JS@@-->
+<script>
+// ================================================================ build the static scene
+function buildBg() {
+  const bg = $('#bg'); bg.innerHTML = '';
+  const add = (cls, css) => { const d = el('div', 'abs ' + cls); if (css) d.style.cssText += css; bg.appendChild(d); return d; };
+  const wall = add('wall'); wall.appendChild(el('div', 'band'));
+  [[400, 'Fruit &amp; veg', '#3d7a45'], [580, 'Cold cases', '#4f9a94']].forEach(([x, t, c]) => { const s = el('div', 'aisleSign', t); s.style.left = x + 'px'; s.style.background = c; bg.appendChild(s); });
+  [[560], [1200]].forEach(([x]) => { const c = el('div', 'case'); c.style.left = x + 'px'; for (let i = 0; i < 4; i++) { const r = el('i'); r.style.top = 30 + i * 40 + 'px'; c.appendChild(r); } bg.appendChild(c); });
+  const clock = img('wall_clock', 1); clock.className = 'abs'; clock.style.cssText += 'left:690px;top:110px;'; bg.appendChild(clock);
+  add('belt'); add('rail'); add('under'); add('ledge');
+  [[380, 606], [610, 606]].forEach(([x, y]) => { const b = img('basket_front', 1); b.className = 'abs'; b.style.left = x + 'px'; b.style.top = y + 'px'; bg.appendChild(b); });
+  const cashier = img('cashier', 1); cashier.className = 'abs'; cashier.style.cssText += 'left:296px;top:186px;'; bg.appendChild(cashier);
+  add('counter'); add('regcol');
+  add('keyCheckout').innerHTML = 'CHECKOUT ›';
+  add('keyRedraw').innerHTML = 'Redraw <small>2 left</small>';
+  const kp = img('register_keypad', 1); kp.className = 'abs'; kp.style.cssText += 'left:238px;top:508px;'; bg.appendChild(kp);
+  const dr = img('cash_drawer', 1); dr.className = 'abs'; dr.style.cssText += 'left:10px;top:620px;'; bg.appendChild(dr);
+  const pr = $('#printer'); pr.src = ASSET.printer_box; pr.style.width = '264px'; pr.style.height = '62px';
+}
+function buildReceipt() {
+  const s = CFG.shift, sp = SPEND[s - 1], q = QUOTAS[s - 1];
+  const names = ['Eggs', 'Coffee', 'Milk', 'Milk ×3', 'Bread', 'Banana pair'], w = [1, 10, 21, 24, 10, 8], sw = w.reduce((a, b) => a + b, 0);
+  let acc = 0; const amts = w.map((x, i) => { if (i === w.length - 1) return sp - acc; const v = Math.max(1, Math.round(x * sp / sw)); acc += v; return v; });
+  let h = `<div class="hd">NEXT CUSTOMER · REG 3<br>SHIFT ${s}/8 · ${names.length} ITEMS</div><div class="rule"></div>`;
+  names.forEach((n, i) => { h += `<div class="ln"><span>${n}</span><span>€${amts[i]}.00</span></div>`; });
+  h += `<div class="rule"></div><div class="ln tot"><span>SPEND</span><span>€${sp}.00</span></div><div class="ln met"><span>QUOTA €${q}</span><span>✓ MET</span></div>`;
+  if (INSPECT[s]) h += `<div class="insp">⚠ NEXT SHIFT INSPECTED<br>${INSPECT[s][0]}: ${INSPECT[s][1]}</div>`;
+  const ip = inspNow();
+  if (ip) h += `<div class="ipass">INSPECTION PASSED ✓<b>${ip.name}</b></div>`;
+  h += `<div class="paid${ip ? ' low' : ''}">PAID</div>`;
+  $('#rcpt').innerHTML = h;
+  // the BONUS TICKET stub: printed after the first pick lands (shown only while B exists)
+  $('#stub').innerHTML = ip ? `<div class="hd">NEXT CUSTOMER · REG 3<br>SHIFT ${s}/8 · BONUS TICKET</div><div class="rule"></div>`
+    + `<div class="ipass">INSPECTION PASSED ✓<b>${ip.name}</b></div><div class="more">1 MORE PRIZE ›</div>` : '';
+}
+function ringEl() { const d = el('div', 'ring'); d.appendChild(img('stamp_ring_empty')); d.appendChild(el('b')); return d; }
+function buildTopbar() {
+  const s = CFG.shift, tb = $('#topbar'); tb.innerHTML = '';
+  const chip = (x, w, cls, html) => { const c = el('div', 'tchip ' + (cls || ''), html); c.style.left = x + 'px'; c.style.width = w + 'px'; tb.appendChild(c); return c; };
+  chip(12, 140, '', `<span class="k">SHIFT</span><span class="v">${s}/8</span>`);
+  chip(162, 362, '', `<span class="k">QUOTA</span><span class="v">€${QUOTAS[s - 1]}</span><span class="qbar"><i style="width:100%"></i></span><span class="v" style="color:#f1d27a">€${SPEND[s - 1]}</span>`);
+  if (INSPECT[s]) { const c = chip(534, 286, 'paper', ''); c.appendChild(img('warning')); c.appendChild(el('span', '', `Next shift · ${INSPECT[s][0]}`)); }
+  const loy = chip(832, 208, '', `<span class="k">LOYALTY</span>`); loy.id = 'loyChip';
+  const rings = el('div'); rings.style.cssText = 'display:flex;gap:8px'; loy.appendChild(rings);
+  for (let i = 0; i < 3; i++) rings.appendChild(ringEl(i));
+  const cart = chip(1052, 154, 'cart', ''); cart.id = 'cartChip'; cart.appendChild(img('cart')); cart.appendChild(el('span', 'k', `Cart <span id="cartN">${S.st.cartN}</span>/15`));
+  const m = chip(1216, 52, 'cart', ''); m.style.justifyContent = 'center'; m.appendChild(img('menu'));
+}
+function setRing(i, ini, on) {
+  const r = $('#loyChip').querySelectorAll('.ring')[i]; if (!r) return;
+  r.querySelector('img').src = on ? ASSET.stamp_ring : ASSET.stamp_ring_empty; r.querySelector('b').textContent = on ? ini : '';
+}
+function ringPos(i) { return { x: 832 + 12 + 78 + i * 34 + 13, y: 28 }; }
+function punchHoles(n) { const d = el('div', 'holes'); for (let i = 0; i < 3; i++) d.appendChild(el('i', 'hole' + (i < n ? ' on' : ''))); return d; }
+
+// ---------------------------------------------------------------- the machine (shared parts; the look adds its own)
+const CH_X = [14, 114, 214, 314];
+let M = {};
+function chuteIcon(c) {
+  if (c === 'new') { const d = el('div'); d.style.cssText = 'padding:2px 6px;background:#4f9a94;border:2px solid #2b2420'; d.appendChild(img('cart', 2)); return d; }
+  if (c === 'coupons') return img('coupon_two_for_one_v2', 2);
+  if (c === 'register') { const i = img('stamp_ring', 2); i.style.width = '26px'; i.style.height = '26px'; return i; }
+  return gridCanvas(UPARROW, PAL, 3);
+}
+function buildMachine() {
+  const m = $('#machine'); m.innerHTML = ''; m.className = 'abs look-' + CFG.look; M = { root: m, chutes: {}, regs: {}, plus: {} };
+  m.appendChild(el('div', 'cab'));
+  const head = el('div', 'head', `<div class="t">RECEIPT REWARDS</div><div class="s">${LOOK.sub || ''}</div><div class="sd">STAMP DAY!</div>`
+    + (B ? `<div class="bn">BONUS TICKET!<small>Inspection passed: ${B.insp.name}</small></div>` : '')); m.appendChild(head); M.head = head;
+  const sp = el('div', 'slotPlate', `<div class="lbl">RECEIPT IN ▼</div><div class="mouth"></div><div class="scanbar"></div><div class="lamp"></div>`); m.appendChild(sp); M.slot = sp;
+  const disp = el('div', 'disp', `<div class="m"></div><div class="bin">BIN IT ✕</div>`); m.appendChild(disp); M.disp = disp;
+  CHUTES.forEach((c, i) => {
+    const b = el('div', 'chute'); b.style.left = CH_X[i] + 'px'; b.dataset.c = c;
+    const ic = el('div', 'ic'); ic.appendChild(chuteIcon(c)); b.appendChild(ic); b.appendChild(el('div', 'nm', CHUTE_NAME[c])); b.appendChild(el('div', 'sub', CHUTE_SUB[c]));
+    const lock = el('div', 'lock'); lock.appendChild(gridCanvas(PADLOCK, PAL, 2));
+    const nextUp = [3, 5, 7].find(k => k > CFG.shift); lock.appendChild(el('span', '', 'OPENS AFTER<br>SHIFT ' + (nextUp || 3)));
+    b.appendChild(lock);
+    const full = el('div', 'full'); const stt = el('div', 'st'); S.st.ownedIds.forEach(id => { const r = el('div', 'ring'); r.style.transform = 'scale(.85)'; r.appendChild(img('stamp_ring')); r.appendChild(el('b', '', REGS[id].ini)); stt.appendChild(r); });
+    full.appendChild(stt); full.appendChild(el('span', '', 'CARD FULL')); b.appendChild(full);
+    if (c === 'upgrades' && !S.st.upOpen) lock.style.display = 'flex';
+    if (c === 'register' && S.st.full) full.style.display = 'flex';
+    if (c === 'register' && B && B.st.full && !S.st.full) { // the first pick filled the card: CARD FULL for the bonus ticket
+      const f2 = el('div', 'full'); const s2 = el('div', 'st'); B.st.ownedIds.forEach(id => { const r = el('div', 'ring'); r.style.transform = 'scale(.85)'; r.appendChild(img('stamp_ring')); r.appendChild(el('b', '', REGS[id].ini)); s2.appendChild(r); });
+      f2.appendChild(s2); f2.appendChild(el('span', '', 'CARD FULL')); b.appendChild(f2); M.full2 = f2;
+    }
+    b.addEventListener('click', () => { if (b.dataset.locked) return; CFG.chute = c; restart(true); });
+    if ((c === 'upgrades' && !S.st.upOpen) || (c === 'register' && S.st.full)) b.dataset.locked = '1';
+    b.style.cursor = b.dataset.locked ? 'not-allowed' : 'pointer';
+    m.appendChild(b); M.chutes[c] = b;
+    const r = el('div', 'reg', `<div class="w">REGULAR</div><div class="lv">${S.st.levels[c]}/3</div>`); r.style.left = CH_X[i] + 'px'; r.appendChild(punchHoles(S.st.levels[c]));
+    r.appendChild(el('div', 'jaw')); r.appendChild(el('div', 'chad')); m.appendChild(r); M.regs[c] = r;
+    const p = el('div', 'plus1', '<span>REGULAR +1</span>'); p.style.left = CH_X[i] + 'px'; m.appendChild(p); M.plus[c] = p;
+  });
+  // the draw window: the look's rect; half = canvas at half resolution (2 px art pixels)
+  const W = LOOK.win, bw = W.border == null ? 2 : W.border;
+  const win = el('div', 'win'); win.style.cssText = `left:${W.x}px;top:${W.y}px;width:${W.w}px;height:${W.h}px`; m.appendChild(win);
+  const iw = W.w - 2 * bw, ih = W.h - 2 * bw, cv = document.createElement('canvas');
+  if (W.half) { cv.width = Math.round(iw / 2); cv.height = Math.round(ih / 2); } else { cv.width = iw; cv.height = ih; }
+  cv.style.width = iw + 'px'; cv.style.height = ih + 'px'; win.appendChild(cv); M.win = cv; M.W = W; M.winEl = win;
+  if (LOOK.exitSlot !== false) m.appendChild(el('div', 'exitSlot'));
+  const tray = el('div', 'tray'); m.appendChild(tray); M.tray = tray;
+  if (LOOK.build) LOOK.build(API);
+}
+
+// ---------------------------------------------------------------- tickets
+function makeTicket(p, cell, stampDay, st = S.st) {
+  const inf = prizeInfo(p, st), tk = el('div', 'tk r' + p.tier); tk.style.left = CELL_X[cell] + 'px'; tk.style.top = CELL_Y + 'px';
+  const fx = document.createElement('canvas'); fx.className = 'fx'; fx.width = 100; fx.height = 100; tk.appendChild(fx);
+  const card = el('div', 'card'); tk.appendChild(card);
+  const face = el('div', 'face'); card.appendChild(face);
+  const spr = el('div', 'spr'); const sc = inf.spr(); spr.appendChild(sc); face.appendChild(spr);
+  if (inf.tagTxt) face.appendChild(el('div', 'tag' + (inf.tagTxt !== 'BIG' ? ' gold' : ''), inf.tagTxt));
+  if (inf.up) { const a = gridCanvas(UPARROW, PAL, 2); a.className = 'upArrow'; face.appendChild(a); }
+  if (p.kind === 'register') { const ini = el('div', '', inf.ini); ini.style.cssText = 'position:absolute;left:6px;top:4px;width:96px;height:96px;font:20px/96px Pixelify;text-align:center;color:#2b2420'; face.appendChild(ini); }
+  if (p.kind === 'coupon' && !COUP[p.id].icon) { const n = el('div', '', COUP[p.id].n); n.style.cssText = 'position:absolute;left:24px;top:38px;width:60px;font:800 9px/10px Atkinson;text-align:center;color:#2b2420'; face.appendChild(n); }
+  if ((p.kind === 'product' || p.kind === 'upgrade') && !hasArt(p.id)) { const n = el('div', '', PROD[p.id].n); n.style.cssText = 'position:absolute;left:6px;top:4px;width:96px;font:800 11px/96px Atkinson;text-align:center;color:#5e574d'; face.appendChild(n); }
+  const txt = inf.tline || inf.line;
+  face.appendChild(el('div', 'stk', `<div class="band ${inf.bandCls}"><span>${inf.bandL}</span>${inf.bandR ? `<span class="pr">${inf.bandR}</span>` : ''}</div>
+    <div class="body"><div class="n">${inf.name}</div><div class="r${txt.length > 26 ? ' sm' : ''}">${txt}</div></div>`));
+  face.appendChild(el('div', 'pips', ['●', '◆◆', '★★★'][p.tier]));
+  const back = el('div', 'back'); back.innerHTML = LOOK.ticketBack ? LOOK.ticketBack(API, cell, !!stampDay) : ''; card.appendChild(back);
+  const lab = el('div', 'lab ' + ['common', 'rare', 'legendary'][p.tier], TIER[p.tier] + ['', '!', '!!'][p.tier]); tk.appendChild(lab);
+  const scr = el('div', 'scrape'); tk.appendChild(scr);
+  const tok = el('div', 'token');
+  M.root.appendChild(tok); M.root.appendChild(tk);
+  if (p.tier === 1) drawBurst(fx);
+  return { p, inf, cell, el: tk, fx, card, face, back, lab, scr, tok, sprCanvas: sc, sparks: [], tokPos: null };
+}
+function drawBurst(c) { // RARE: a stepped 16-point teal starburst, ink outline (static)
+  const g = c.getContext('2d'), N = 100, ins = (x, y) => { const dx = x - 49.5, dy = y - 49.5, r = Math.hypot(dx, dy), a = Math.atan2(dy, dx); const k = Math.abs(Math.cos(a * 8)); return r < 30 + 15 * Math.pow(k, 3); };
+  for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) { if (!ins(x, y)) continue; const edge = !ins(x - 1, y) || !ins(x + 1, y) || !ins(x, y - 1) || !ins(x, y + 1);
+    g.fillStyle = edge ? '#2b2420' : (Math.hypot(x - 49.5, y - 49.5) < 34 ? '#86c2b6' : '#4f9a94'); g.fillRect(x, y, 1, 1); }
+}
+function drawSun(c, rot, scale) { // LEGENDARY: a stepped 12-ray gold/mustard sunburst, redrawn per frame at half resolution
+  const g = c.getContext('2d'); g.clearRect(0, 0, 100, 100); if (scale <= 0) return;
+  const R = 44 * scale, d = g.createImageData(100, 100), px = d.data, cols = [[255, 207, 63], [226, 179, 60]], ink = [43, 36, 32], pale = [250, 236, 188];
+  for (let y = 0; y < 100; y++) for (let x = 0; x < 100; x++) {
+    const dx = x - 49.5, dy = y - 49.5, r = Math.hypot(dx, dy); let a = Math.atan2(dy, dx) + rot; a = ((a % (Math.PI * 2)) + Math.PI * 2) % (Math.PI * 2);
+    const ray = Math.floor(a / (Math.PI / 12)), lim = (ray % 2 ? .78 : 1) * R; if (r > lim) continue;
+    const c0 = r < R * .3 ? pale : r > lim - 2 ? ink : cols[ray % 2]; const i = (y * 100 + x) * 4; px[i] = c0[0]; px[i + 1] = c0[1]; px[i + 2] = c0[2]; px[i + 3] = 255;
+  }
+  g.putImageData(d, 0, 0);
+}
+
+// ---------------------------------------------------------------- the cart drawer
+const DRAWER_RIGHT = 748, DRAWER_TOP = 64, SLOT_W = 100, SLOT_GAP = 8;
+let DRW = null;
+function buildDrawer(k, st = S.st, sel = '#drawer') { // returns the drawer of one visit's pick, or null
+  const d = $(sel); d.innerHTML = ''; d.style.display = 'none';
+  if (!k || !k.inf.drawer) return null;
+  const p = k.p, isNew = k.inf.drawer === 'new', cart = st.cart, copies = cart.map((c, i) => ({ c, i })).filter(x => x.c.id === p.id);
+  const tg = isNew ? [] : k.inf.targets;
+  const head = el('div', 'dh'); head.appendChild(img('cart', 2)); head.appendChild(el('span', '', 'YOUR CART'));
+  const note = el('span', 'note', ''); head.appendChild(note);
+  const cnt = el('span', 'cnt', `${st.cartN}/15`); head.appendChild(cnt); d.appendChild(head);
+  const slots = el('div', 'slots'); d.appendChild(slots);
+  const out = { el: d, isNew, cnt, note, slots: [], newSlot: null, lab: null, n0: st.cartN };
+  d.insertBefore(el('div', 'dsub', copies.length ? `${PROD[p.id].n}: you own ${copies.length}` : `No ${PROD[p.id].n} in your cart yet`), slots);
+  copies.forEach(({ c, i }) => {
+    const s = el('div', 'slot'), cv0 = sprite(p.id, c.tier), t0 = tg.find(x => x.i === i);
+    s.appendChild(cv0); const tag = el('div', 't ' + ['', 'big', 'golden'][c.tier], STEP_NAME[c.tier].toUpperCase()); s.appendChild(tag);
+    const rec = { el: s, cv0, tag, from: c.tier, target: t0 || null, j: t0 ? tg.indexOf(t0) : -1 };
+    if (t0) { const cv1 = sprite(p.id, t0.to); cv1.style.display = 'none'; s.appendChild(cv1); rec.cv1 = cv1; s.classList.add('target');
+      const gl = el('div', 'glint'); s.appendChild(gl); rec.glint = gl;
+      rec.spk = [0, 1].map(j => { const sp = img('sparkle', 3); sp.className = 'spk'; sp.style.left = (j ? 70 : -8) + 'px'; sp.style.top = (j ? 60 : -6) + 'px'; s.appendChild(sp); return sp; }); }
+    slots.appendChild(s); out.slots.push(rec);
+  });
+  if (isNew) { const s = el('div', 'slot newSlot'); s.appendChild(el('div', 'ph', 'NEW')); const cv = sprite(p.id, 0); cv.style.display = 'none'; s.appendChild(cv);
+    const tag = el('div', 't', 'PLAIN'); tag.style.display = 'none'; s.appendChild(tag); slots.appendChild(s); out.newSlot = { el: s, cv, tag }; }
+  const lab = el('div', 'stampLab ' + (isNew ? 'new' : 'up'), isNew ? 'NEW IN CART' : 'UPGRADED'); d.appendChild(lab); out.lab = lab;
+  // geometry: right-aligned under the top bar (border-box: 2 px border + 10 px padding); slot centres for the flyer
+  const lead = 0, nSl = copies.length + (isNew ? 1 : 0);
+  const width = Math.max(320, lead + nSl * (SLOT_W + SLOT_GAP) - SLOT_GAP + 24);
+  out.left = DRAWER_RIGHT - width; d.style.left = out.left + 'px'; d.style.top = DRAWER_TOP + 'px'; d.style.width = width + 'px';
+  const x0 = out.left + 12 + lead, y0 = DRAWER_TOP + 2 + 8 + 24 + 16 + 6 + 2 + 48;
+  const cx = idx => x0 + idx * (SLOT_W + SLOT_GAP) + 50;
+  out.dest = isNew ? { x: cx(copies.length), y: y0 } : { x: cx(Math.max(0, out.slots.findIndex(r => r.j === 0))), y: y0 };
+  return out;
+}
+
+// ================================================================ timeline (seconds at 1x; the clock runs at CFG.speed)
+let TL = {}, DRAW = [], SD = null, TK = [], SDK = [];
+function buildTimeline() {
+  const rm = CFG.rm, T = {};
+  T.tear = .3; T.tearEnd = .9; T.fly = 1.0; T.flyEnd = rm ? 1.0 : 1.7; T.feedEnd = T.flyEnd + (rm ? .2 : .6);
+  T.readEnd = T.feedEnd + .7; T.lights = T.readEnd; T.lightsEnd = T.lights + .6;
+  T.curIn = T.lightsEnd + .3; T.hover = T.curIn + .6; T.curConfirm = T.hover + 2.2; T.press = T.curConfirm + .5; T.oddsClose = T.press + .25;
+  T.draw = T.oddsClose;
+  T.drawEnd = T.draw + (rm ? .3 : (LOOK.drawTime != null ? LOOK.drawTime : 1.8));
+  T.drops = rm ? [0, 1, 2].map(i => [T.drawEnd + i * .1, .05]) : (LOOK.drops ? LOOK.drops(T) : [0, 1, 2].map(i => [T.drawEnd + i * .3, .5]));
+  const lastDrop = Math.max(...T.drops.map(([a, d]) => a + d));
+  let t0 = lastDrop + .4;
+  T.rev = DRAW.map(p => { const d = rm ? [.25, .45, .7][p.tier] : [.5, .9, 1.6][p.tier]; const r = { t0, d }; t0 += d + .35; return r; });
+  T.curPick = t0 + .3; T.pickPress = T.curPick + .7; T.bin = T.pickPress + .2; T.fly2 = T.pickPress + .3; T.land = T.fly2 + (rm ? .05 : .8);
+  // the landing: NEW ITEMS pops a new slot; UPGRADES glints the copy, then changes it (SHELF: one copy after another)
+  const k = TK[S.pick], inf = k ? k.inf : {}, nT = inf.targets ? Math.max(1, inf.targets.length) : 1;
+  T.xf = T.land + (rm ? .15 : .5); T.xfEnd = T.xf + (nT - 1) * (rm ? 0 : .15) + (rm ? 0 : .25);
+  T.punch = inf.drawer === 'up' ? T.xfEnd + (rm ? .6 : 1.0) : inf.drawer === 'new' ? T.land + (rm ? .6 : 1.4) : T.land + (rm ? .6 : 1.2);
+  T.punchEnd = T.punch + .6;
+  T.drawerIn = T.fly2 - .3; T.drawerOut = T.punch + .2;
+  if (SD) {
+    T.sd = T.punchEnd + .5; T.sdDrops = [0, 1, 2].map(i => [T.sd + .8 + i * (rm ? .05 : .2), rm ? .05 : .4]);
+    let s0 = T.sdDrops[2][0] + T.sdDrops[2][1] + .3; T.sdRev = SD.map(p => { const d = rm ? [.2, .35, .5][p.tier] : [.4, .7, 1.2][p.tier]; const r = { t0: s0, d }; s0 += d + .2; return r; });
+    T.sdPick = s0 + .3; T.sdPress = T.sdPick + .6; T.sdBin = T.sdPress + .2; T.sdFly = T.sdPress + .3; T.sdLand = T.sdFly + (rm ? .05 : .8); T.end = T.sdLand + 1.8;
+  } else T.end = T.punchEnd + 1.8;
+  TL = T;
+  if (B) { B.T = bonusTimeline(T.punchEnd + .3); T.end = B.T.end; }
+}
+// the BONUS TICKET's visit: the same beats with the same field names, shorter where the first visit already showed
+// it: no receipt read (a stub, the head stamps BONUS TICKET while it prints), quicker keys and odds, a 1.2 s draw,
+// tighter gaps between reveals and a quicker pick. The reveals themselves are unchanged.
+function bonusTimeline(b0) {
+  const rm = CFG.rm, T = { start: b0 };
+  T.tear = b0 + (rm ? .3 : .5); T.tearEnd = T.tear; // the stub prints out of the printer (b0 .. tear), then flies
+  T.fly = T.tear + (rm ? 0 : .05); T.flyEnd = rm ? T.fly : T.fly + .55; T.feedEnd = T.flyEnd + (rm ? .9 : .35);
+  // the display holds BONUS TICKET! from b0 to feedEnd (1.45 s; 1.2 s reduced), then PICK A CHUTE AGAIN 0.9 s before the hover
+  T.readEnd = T.feedEnd + .3; T.lights = T.readEnd; T.lightsEnd = T.lights + .3;
+  T.hover = T.feedEnd + .9; T.curIn = T.hover - .5; T.curConfirm = T.hover + 1.1; T.press = T.curConfirm + .35; T.oddsClose = T.press + .2;
+  T.draw = T.oddsClose;
+  const dt = LOOK.bonusDrawTime != null ? LOOK.bonusDrawTime : Math.min(1.2, LOOK.drawTime != null ? LOOK.drawTime : 1.8);
+  T.drawEnd = T.draw + (rm ? .3 : dt);
+  T.drops = rm ? [0, 1, 2].map(i => [T.drawEnd + i * .1, .05]) : (LOOK.drops ? LOOK.drops(T) : [0, 1, 2].map(i => [T.drawEnd + i * .3, .5]));
+  let t0 = Math.max(...T.drops.map(([a, d]) => a + d)) + .2;
+  T.rev = B.draw.map(p => { const d = rm ? [.25, .45, .7][p.tier] : [.5, .9, 1.6][p.tier]; const r = { t0, d }; t0 += d + .15; return r; });
+  T.curPick = t0 + .1; T.pickPress = T.curPick + .45; T.bin = T.pickPress + .2; T.fly2 = T.pickPress + .25; T.land = T.fly2 + (rm ? .05 : .6);
+  const k = B.tk[B.pick], inf = k ? k.inf : {}, nT = inf.targets ? Math.max(1, inf.targets.length) : 1;
+  T.xf = T.land + (rm ? .15 : .4); T.xfEnd = T.xf + (nT - 1) * (rm ? 0 : .15) + (rm ? 0 : .25);
+  T.punch = inf.drawer === 'up' ? T.xfEnd + (rm ? .5 : .5) : T.land + (rm ? .5 : 1.0);
+  T.punchEnd = T.punch + .6;
+  T.drawerIn = T.fly2 - .3; T.drawerOut = T.punch + .2;
+  T.end = T.punchEnd + 1.6;
+  return T;
+}
+
+// ================================================================ setup
+function restart(jumpToHover) {
+  S = { t: 0, playing: AT == null, st: derive(), lastT: 0 };
+  const st = S.st;
+  const seed = r => mulberry(r * 7919 + CFG.shift * 31 + CHUTES.indexOf(st.chute));
+  DRAW = (CFG.roll != null ? DR.simulate(st.chute, st, seed(CFG.roll)).seq : demoDraw(st.chute, st)).sort((a, b) => a.tier - b.tier);
+  S.pick = DRAW.length - 1; // the demo cursor picks the rarest (rightmost)
+  const ownedAfter = st.owned + (st.chute === 'register' ? 1 : 0);
+  SD = null; S.sdWhy = '';
+  if ([2, 4, 6].includes(CFG.shift)) {
+    if (!CFG.stamp) S.sdWhy = 'STAMP DAY off: no free stamp';
+    else if (ownedAfter < CFG.shift / 2 && ownedAfter < 3) {
+      const st2 = Object.assign({}, st, { ownedIds: OWN_ORDER.slice(0, st.owned).concat(st.chute === 'register' ? [DRAW[S.pick].id] : []), lvl: st.levels.register });
+      SD = (CFG.roll != null ? DR.simulate('register', st2, seed(CFG.roll + 101)).seq : demoDraw('register', st2)).sort((a, b) => a.tier - b.tier);
+      S.sdPick = SD.length - 1;
+    } else S.sdWhy = 'card on schedule: no STAMP DAY';
+  }
+  // round 3: a passed inspection (shifts 3, 5, 7) gives a BONUS TICKET, a second full visit from the state after the first pick
+  B = null; S.bonusWhy = ''; CUR_V = 0;
+  const ip = inspNow();
+  if (ip && !SD) {
+    const st2 = DR.afterPick(st, DRAW[S.pick], st.rises);
+    let c2 = CFG.chute2 === 'same' ? st.chute : CFG.chute2, note2 = '';
+    if (c2 === 'register' && st2.full) { c2 = 'coupons'; note2 = 'bonus: REGISTER is CARD FULL after your first pick, showing COUPONS'; }
+    st2.chute = c2; st2.lvl = st2.levels[c2]; st2.note = note2; st2.upOpen = st.upOpen;
+    st2.rises = st2.lvl < 3 && CFG.shift < 7 && !(c2 === 'register' && st2.owned >= 2);
+    const d2 = (CFG.roll != null ? DR.simulate(c2, st2, seed(CFG.roll + 202)).seq : demoDraw(c2, st2)).sort((a, b) => a.tier - b.tier);
+    B = { insp: ip, st: st2, draw: d2, pick: d2.length - 1 };
+  } else if (INSP_AT[CFG.shift]) S.bonusWhy = 'inspection toggle off: one ticket';
+  buildBg(); buildReceipt(); buildTopbar(); buildMachine(); S.okC = buildOdds(st, '#odds');
+  TK = DRAW.map((p, i) => makeTicket(p, i, false));
+  SDK = SD ? SD.map((p, i) => makeTicket(p, i, true)) : [];
+  st.ownedIds.forEach((id, i) => setRing(i, REGS[id].ini, true));
+  DRW = buildDrawer(TK[S.pick]);
+  if (B) {
+    B.tk = B.draw.map((p, i) => makeTicket(p, i, false, B.st));
+    B.drw = buildDrawer(B.tk[B.pick], B.st, '#drawer2');
+    B.okC = buildOdds(B.st, '#odds2', st);
+  } else { buildDrawer(null, st, '#drawer2'); $('#odds2').innerHTML = ''; $('#odds2').style.display = 'none'; }
+  buildTimeline();
+  const old = $('#tl'); if (old) old.remove();
+  if (Q.has('tl')) { const d = el('pre'); d.id = 'tl'; d.textContent = JSON.stringify(B ? Object.assign({}, TL, { bonus: B.T }) : TL); document.body.appendChild(d); }
+  if (jumpToHover) { S.t = TL.curIn; S.playing = true; }
+  if (AT != null && !jumpToHover) S.t = AT;
+  $('#scrub').max = TL.end.toFixed(2);
+  syncPanel(); render();
+}
+
+// ---------------------------------------------------------------- odds card
+// one visit's odds card into `sel`; returns where the cursor presses CONFIRM. prev = the first visit's state when this
+// is the BONUS TICKET's card (its numbers are for the state after the first pick)
+function buildOdds(st, sel, prev) {
+  const c = st.chute, lvl = st.lvl, pl = DR.pools(c, st), base = ODDS[lvl], X = drawStats(c, st);
+  const o = (lvl === 3 ? X.rest : X.share).map(v => v * 100); // per-drop tier odds, exact (REGULAR 3: the 2 free drops)
+  const inD = p => X.inDraw[DR.pkey(p)] || 0;
+  const od = $(sel); od.innerHTML = '';
+  const tail = el('div', 'tail', '<i></i>'); tail.style.top = '165px'; od.appendChild(tail);
+  const nextL = Math.min(3, lvl + 1);
+  const stockTxt = c === 'new' ? ` · ${STOCKS.find(s => s[0] === CFG.stock)[1]}` : '';
+  if (prev) { // what changed since the first ticket
+    const up = (prev.levels[c] || 0) < lvl, ch = [];
+    if (up) ch.push(`REGULAR ${prev.levels[c]} › ${lvl}`);
+    if (c === 'upgrades' && prev.chute === 'upgrades') ch.push('your cart holds the first upgrade');
+    if (c === 'register' && st.ownedIds.length > prev.ownedIds.length) ch.push('your new stamp no longer drops');
+    if (c === 'coupons' && prev.firstCoupons && !st.firstCoupons) ch.push('no first-visit coupon now');
+    od.appendChild(el('div', 'bonus', `BONUS TICKET<small>Passed: ${B.insp.name} · odds after your first pick${ch.length ? ': ' + ch.join(' · ') : ''}</small>`));
+  }
+  const head = el('div', 'oh', `<div class="t">${CHUTE_NAME[c]}</div><div class="sub">${CHUTE_SUB[c]}${stockTxt}</div><div class="s">3 prizes, you keep 1${st.rises ? ` · next visit here: ${ODDS[nextL].join(' / ')}` : lvl >= 3 ? ' · REGULAR max' : ' · no later visit uses REGULAR'}</div>`);
+  const lv = el('div', 'lv' + (prev && (prev.levels[c] || 0) < lvl ? ' up' : ''), `REGULAR ${lvl}/3`); lv.appendChild(punchHoles(lvl)); head.appendChild(lv); od.appendChild(head);
+  const nameOf = p => p.kind === 'product' || p.kind === 'upgrade' ? PROD[p.id].n : p.kind === 'coupon' ? COUP[p.id].n : REGS[p.id].n;
+  const grouped = (ps, gu) => { // products with equal odds listed together
+    const groups = new Map(); ps.forEach(p => { const k = fmt(inD(p) * 100); if (!groups.has(k)) groups.set(k, []); groups.get(k).push(p); });
+    return [...groups.entries()].sort((a, b) => parseFloat(b[0]) - parseFloat(a[0])).map(([pc, g]) => g.map(p => gu && gu.has(p.id) ? `<b>${nameOf(p)}</b>` : nameOf(p)).join(', ') + ` <b>${pc}</b>${g.length > 1 ? ' each' : ''}`).join(' · ');
+  };
+  const upDesc = ['one step on one copy (you choose)', 'two steps on one plain copy: straight to GOLDEN', 'SHELF UPGRADE: every copy of one item goes one step up (needs 2 copies that can step)'];
+  const gu = DR.guarantee('new', st);
+  for (let t = 0; t < 3; t++) {
+    const row = el('div', 'tier'); const r1 = el('div', 'r1'); r1.appendChild(gridCanvas(GLYPH[t], PAL, 2));
+    r1.appendChild(el('div', 'nm', TIER[t] + ['', '!', '!!'][t]));
+    r1.appendChild(el('div', 'pc', (Math.abs(o[t] - base[t]) >= .05 ? `<s>${base[t]}%</s>` : '') + fmt(o[t]))); row.appendChild(r1);
+    let ls = '';
+    if (c === 'new') ls = pl[t].length ? `${pl[t].length} stocked, always plain: ` + grouped(pl[t], gu) : `none stocked: its rolls step ${t ? 'down' : 'up'} a tier`;
+    else if (c === 'upgrades') {
+      const all = DR.UPGRADABLE.filter(id => st.cart.some(x => x.id === id));
+      ls = upDesc[t] + ': ' + all.map(id => { const p = pl[t].find(q => q.id === id); return p ? `${PROD[id].n} <b>${fmt(inD(p) * 100)}</b>` : `<s>${PROD[id].n} (can't)</s>`; }).join(' · ');
+      if (!pl[t].length) ls += ` · none can: its rolls step ${t ? 'down' : 'up'} a tier`;
+    } else {
+      const tierOf = c === 'coupons' ? DR.COUP_TIER : DR.REG_TIER, all = Object.keys(tierOf).filter(id => tierOf[id] === t);
+      ls = all.map(id => st.ownedIds.includes(id) && c === 'register' ? `<s>${REGS[id].n} (on card)</s>` : `${(c === 'coupons' ? COUP : REGS)[id].n} <b>${fmt(inD(pl[t].find(q => q.id === id)) * 100)}</b>`).join(' · ');
+      if (!pl[t].length) ls += ` · none left: its rolls step ${t ? 'down' : 'up'} a tier`;
+      else if (pl[t].length === 1) ls += ' · at most 1 per draw';
+    }
+    row.appendChild(el('div', 'ls', ls)); od.appendChild(row);
+  }
+  const guNames = [...(gu || [])].map(id => PROD[id].n).join(', ');
+  const guar = { new: `Always 1 generally useful item (bold above). If none drops, one drop is swapped for one of the same rarity: holds in ${fmt(X.held * 100)} of draws.`,
+    coupons: st.firstCoupons ? `First COUPONS visit: one of Breakfast sticker, Multipack, 2 for 1, swapped in at the same rarity (${fmt(X.held * 100)} of draws).` : 'No coupon twice in one draw.',
+    register: '3 different types (never both Economy). Owned upgrades never drop.',
+    upgrades: 'Only items with BIG art: Banana, Milk, Eggs, Coffee. An item is left out when no copy can take the steps.' }[c];
+  const what = c === 'new' ? 'Adds a card: the cart count goes up by 1.' : c === 'upgrades' ? 'Changes a card you own: the cart count stays.' : '';
+  const how = lvl === 3 ? `REGULAR 3: drop 1 is at least RARE (RARE ${fmt(X.first[1] * 100)} · LEGENDARY ${fmt(X.first[2] * 100)}); the rows are the other 2 drops.`
+    : 'Tier % is per drop. A prize\'s % is its chance to be among the 3.';
+  const few = c === 'register' && lvl < 3 && X.pR > .9995 ? ' Too few COMMON stamps for 3 different ones, so RARE or better is certain.' : '';
+  od.appendChild(el('div', 'pb', `${what ? `<b>${what}</b> ` : ''}${how} At least one <b>RARE or better ${fmt(X.pR * 100)}</b> · a <b>LEGENDARY ${fmt(X.pL * 100)}</b>.${few}${X.short > .0005 ? ` ${fmt(X.short * 100)} of draws hold fewer than 3.` : ''}<br><span class="g">${guar}</span>`));
+  od.appendChild(el('div', 'btns', `<div class="ok">CONFIRM ›</div><div class="no">BACK</div>`));
+  // where the cursor presses CONFIRM
+  od.style.visibility = 'hidden'; od.style.display = 'block'; od.style.transform = 'none';
+  const ok = od.querySelector('.ok'), r = ok.getBoundingClientRect(), sr = $('#stage').getBoundingClientRect();
+  const okC = [r.left - sr.left + 70, r.top - sr.top + 20];
+  od.style.display = 'none'; od.style.visibility = '';
+  return okC;
+}
+
+// ================================================================ render
+function msg(t) {
+  if (inBonus(t)) return msgVisit(t, B, true);
+  return msgVisit(t, { T: TL, draw: DRAW, tk: TK, st: S.st, pick: S.pick }, false);
+}
+function msgVisit(t, V, bonus) { // the display, for one visit (bonus: the BONUS TICKET's)
+  const T = V.T, st = V.st, c = CHUTE_NAME[st.chute];
+  if (bonus) {
+    if (t < T.feedEnd) return ['BONUS TICKET!', `passed: ${B.insp.name} · 1 more prize`];
+    if (t < T.hover) return ['PICK A CHUTE AGAIN', 'meters and odds after your first pick'];
+  } else {
+    if (t < T.fly) return ['FEED ME YOUR RECEIPT ▼', ''];
+    if (t < T.feedEnd) return ['READING…', ''];
+    if (t < T.readEnd) return [`SPEND €${SPEND[CFG.shift - 1]} ✓ THANK YOU!`, `quota €${QUOTAS[CFG.shift - 1]} met` + (B ? ` · passed: ${B.insp.name}` : '')];
+    if (t < T.hover) return ['PICK A PRIZE TYPE', st.upOpen ? 'UPGRADES is open after this shift' : 'UPGRADES opens after shift ' + ([3, 5, 7].find(k => k > CFG.shift) || 3)];
+  }
+  if (t < T.press) return [`${c}: SEE THE ODDS`, bonus ? `REGULAR ${st.lvl}/3 now · confirm to draw` : 'confirm to draw'];
+  const lastDropEnd = Math.max(...T.drops.map(([a, d]) => a + d));
+  // a look whose prizes keep arriving after T.drawEnd (holdDrawMsg) keeps its draw message until the last one lands
+  if (t < (LOOK.holdDrawMsg ? Math.max(T.drawEnd, lastDropEnd) : T.drawEnd)) return [LOOK.drawMsg || 'GOOD LUCK!', bonus ? 'bonus ticket' : ''];
+  if (T.rev.length && t < T.rev[0].t0) return [`3 PRIZES FROM ${c}`, t < lastDropEnd ? '' : 'opening…'];
+  const lr = T.rev[T.rev.length - 1];
+  if (lr && t < lr.t0 + lr.d + .35) for (let i = T.rev.length - 1; i >= 0; i--) if (t >= T.rev[i].t0) { const tr = V.draw[i].tier; return [TIER[tr] + ['', '!', '!!'][tr], V.tk[i].inf.name]; }
+  if (t < T.pickPress) return ['PICK 1', ['new', 'coupons'].includes(st.chute) ? 'or bin them all' : 'you must pick one'];
+  const k = V.tk[V.pick];
+  if (t < T.land) return ['ENJOY!', ''];
+  if (k.inf.drawer === 'up' && t < T.xfEnd - (CFG.rm ? 0 : .25)) return ['UPGRADING…', k.inf.toast];
+  if (t < T.punch) { const n = st.cartN + (k.inf.home === 'cart' && !k.inf.up ? 1 : 0);
+    return [k.inf.done, k.inf.home === 'loyalty' ? k.inf.toast : k.inf.up ? `${k.inf.toast} · cart stays ${n}/15` : n > 15 ? `${k.inf.toast} · cart full: swap 1 out` : `${k.inf.toast} · cart ${n}/15`]; }
+  const why = bonus ? '' : S.sdWhy || S.bonusWhy, w = why ? ' · ' + why : '';
+  const later = bonus ? 'no later visit can use it' : B ? '' : 'no later visit can use it';
+  const regMsg = st.rises ? [`${c} REGULAR ${st.lvl + 1}/3`, 'next visit here ' + ODDS[st.lvl + 1].join(' / ') + w]
+    : [`${c} REGULAR ${st.lvl}/3`, (st.lvl >= 3 ? 'max level' : later || 'card full: no later draw') + w];
+  if (bonus) return t < T.punch + 1.4 ? regMsg : ['SEE YOU NEXT SHIFT', `2 prizes this shift · passed: ${B.insp.name}`];
+  if (B) return regMsg; // until the BONUS TICKET starts
+  if (!SD) return t < T.punch + 2.4 ? regMsg : ['SEE YOU NEXT SHIFT', S.sdWhy || S.bonusWhy];
+  if (t < T.sd) return regMsg;
+  if (t < T.sdPick) return ['STAMP DAY! A FREE STAMP', `your card is behind after shift ${CFG.shift}`];
+  if (t < T.sdLand) return ['PICK 1 STAMP', ''];
+  if (t < T.sdLand + 1.8) return [SDK[S.sdPick].inf.done, SDK[S.sdPick].inf.toast];
+  return ['SEE YOU NEXT SHIFT', ''];
+}
+
+let lastDisp = '', LOOK_ERR = {};
+function lookCall(fn, ...args) { // a look's runtime error is logged once and never stops the page
+  if (!LOOK[fn]) return undefined;
+  try { return LOOK[fn](API, ...args); } catch (e) { if (!LOOK_ERR[CFG.look + fn]) { LOOK_ERR[CFG.look + fn] = 1; console.error(`look ${CFG.look}.${fn}:`, e); } return undefined; }
+}
+// a paper (the receipt, or the BONUS TICKET's stub) along one visit's feed: printed (stub only), torn, flown to the
+// machine's slot and fed in. H = its height, y0 = its top when it rests on the printer
+function renderPaper(R, t, T, H, y0, printed) {
+  const rm = CFG.rm;
+  let rx = 46, ry = y0, rs = 1, rr = 0, clip = 'none', vis = true;
+  const slotX = MX + 14 + 144 + 52, slotY = MY + 54 + 22;
+  const fw = 236 * .36, fh = H * .36, tx = slotX - fw / 2, ty = slotY - fh;
+  if (printed) { // the stub rises out of the printer's mouth (y 340) before it is torn off
+    if (t < T.start) vis = false;
+    else if (t < T.tear && !rm) { const p = sm(seg(t, T.start + .05, T.tear - .1)); ry = 340 - H * p; clip = `inset(0 0 ${Math.round((1 - p) * 100)}% 0)`; vis = p > 0; }
+  } else if (t >= T.tear && t < T.fly && !rm) { const p = seg(t, T.tear, T.tearEnd); rx += (p < 1 ? (Math.floor(t * 30) % 2 ? 1 : -1) * (p > .2 ? 1 : 0) : 0); ry -= p >= 1 ? 6 : 0; }
+  if (vis && t >= T.tearEnd) clip = 'polygon(0 0,100% 0,100% 96%,' + [...Array(12).keys()].map(i => `${100 - (i + .5) * 100 / 12}% ${i % 2 ? 96 : 100}%`).join(',') + ',0 96%)';
+  if (vis && t >= T.fly) {
+    if (rm) vis = false;
+    else if (t < T.flyEnd) { const p = sm(seg(t, T.fly, T.flyEnd)); rx = lerp(46, tx, p); ry = lerp(y0 - 6, ty, p) - Math.sin(p * Math.PI) * 14; rs = lerp(1, .36, p); rr = Math.sin(p * Math.PI) * -8; }
+    else if (t < T.feedEnd) { const p = seg(t, T.flyEnd, T.feedEnd); rx = tx; ry = ty + fh * p + (Math.floor(t * 20) % 2); rs = .36;
+      const hide = (ry + fh - slotY) / rs; const pc = cl(1 - hide / H) * 100; clip = `polygon(0 0,100% 0,100% ${pc}%,0 ${pc}%)`; }
+    else vis = false;
+  }
+  R.style.display = vis ? 'block' : 'none'; R.style.left = rx + 'px'; R.style.top = ry + 'px'; R.style.transform = `scale(${rs}) rotate(${rr}deg)`; R.style.clipPath = clip;
+}
+function render() {
+  const t = S.t, T = TL, rm = CFG.rm, st = S.st;
+  const bn = inBonus(t), V = bn ? B : { T: TL, st: S.st, draw: DRAW }, VT = V.T, vst = V.st;
+  // ---- receipt, then the BONUS TICKET's stub: tear, fly, feed
+  renderPaper($('#rcpt'), t, T, 276, 64, false);
+  if (B) renderPaper($('#stub'), t, B.T, 128, 212, true); else $('#stub').style.display = 'none';
+  M.slot.querySelector('.lamp').classList.toggle('on', bn ? t >= VT.feedEnd : t >= T.feedEnd);
+  // ---- display
+  const [m1, m2] = msg(t), dh = m1 + (m2 ? `<small>${m2}</small>` : '');
+  if (dh !== lastDisp) { M.disp.querySelector('.m').innerHTML = dh; lastDisp = dh; }
+  const lr = VT.rev[VT.rev.length - 1];
+  M.disp.querySelector('.bin').style.display = ['new', 'coupons'].includes(vst.chute) && lr && t >= lr.t0 + lr.d && t < VT.pickPress ? 'block' : 'none';
+  // ---- chute keys (the current visit's), then each chute's REGULAR punch ticket (both visits' punches)
+  CHUTES.forEach((c, i) => {
+    const b = M.chutes[c], full2 = bn && c === 'register' && B.st.full, locked = !!b.dataset.locked || full2;
+    const sdOn = SD && c === 'register' && t >= T.sd && t < T.sdLand + .4;
+    let lit, dim;
+    if (bn && t < VT.lights) { lit = false; dim = false; } // the bonus ticket: no key looks chosen until the keys relight
+    else { const on = !locked && t >= VT.lights + i * (bn ? .08 : .14); lit = (on && (t < VT.press || c === vst.chute)) || sdOn; dim = !locked && t >= VT.press && c !== vst.chute && !sdOn; }
+    b.classList.toggle('lit', !!lit); b.classList.toggle('dim', !!dim);
+    b.classList.toggle('hov', c === vst.chute && t >= VT.hover && t < VT.press);
+    b.classList.toggle('sunk', locked || (c === vst.chute && t >= VT.press && t < VT.press + .25));
+    if (M.full2 && c === 'register') M.full2.style.display = full2 ? 'flex' : 'none';
+    const visits = [{ T: TL, st: S.st }].concat(B ? [B] : []).filter(v => v.st.chute === c && v.st.rises);
+    const r = M.regs[c], n = Math.min(3, S.st.levels[c] + visits.filter(v => t >= v.T.punch + (rm ? 0 : .18)).length);
+    if (r.dataset.n !== String(n)) { r.querySelector('.holes').replaceWith(punchHoles(n)); r.querySelector('.lv').textContent = n + '/3'; r.dataset.n = n; }
+    const v = visits.filter(x => t >= x.T.punch).pop(), jaw = r.querySelector('.jaw'), chad = r.querySelector('.chad'), pl = M.plus[c];
+    if (!v) { jaw.style.display = chad.style.display = pl.style.display = 'none'; return; }
+    const P = v.T.punch, hx = [10, 36, 62][Math.min(2, v.st.lvl)];
+    const jp = seg(t, P, P + .52), cp = seg(t, P + .2, P + .8);
+    jaw.style.display = !rm && jp > 0 && jp < 1 ? 'block' : 'none';
+    if (jaw.style.display === 'block') { const st8 = Math.floor(jp * 8) / 8, y = st8 < .35 ? lerp(-26, 2, st8 / .35) : st8 < .55 ? 2 : lerp(2, -32, (st8 - .55) / .45); jaw.style.left = hx - 6 + 'px'; jaw.style.top = Math.round(y) + 'px'; }
+    chad.style.display = !rm && cp > 0 && cp < 1 ? 'block' : 'none';
+    if (chad.style.display === 'block') { const s10 = Math.floor(cp * 10) / 10; chad.style.left = Math.round(hx + 3 + s10 * 12) + 'px'; chad.style.top = Math.round(12 + s10 * s10 * 50) + 'px'; chad.style.transform = `rotate(${Math.round(s10 * 90)}deg)`; }
+    const pp = seg(t, P, P + 1.2), cut = B && v !== B && t >= B.T.start; pl.style.display = pp > 0 && pp < 1 && !cut ? 'block' : 'none';
+    pl.style.transform = rm ? '' : `translateY(${-Math.round(eOut(cl(pp * 3)) * 10)}px)`;
+  });
+  // ---- odds cards (one per visit)
+  [['#odds', TL], ['#odds2', B && B.T]].forEach(([sel, OT]) => {
+    const od = $(sel), oon = !!OT && t >= OT.hover && t < OT.oddsClose;
+    od.style.display = oon ? 'block' : 'none';
+    if (oon) { const p = rm ? 1 : eOut(seg(t, OT.hover, OT.hover + .18)); od.style.transform = `scale(${lerp(.85, 1, p)})`; od.style.opacity = p; od.querySelector('.ok').classList.toggle('sunk', t >= OT.press); }
+  });
+  // ---- the look: window + its own parts (its api shows the current visit)
+  CUR_V = bn ? 1 : 0;
+  lookCall('paint', M.win.getContext('2d'), t);
+  lookCall('frame', t);
+  CUR_V = 0;
+  // ---- tickets (the first visit's clear when STAMP DAY or the BONUS TICKET starts)
+  TK.forEach((k, i) => renderTicket(k, t, T.drops[i], T.rev[i], i === S.pick ? { cur: T.curPick, press: T.pickPress, fly: T.fly2 } : null, T.bin, SD ? T.sd : B ? B.T.start : null));
+  SDK.forEach((k, i) => renderTicket(k, t, T.sdDrops[i], T.sdRev[i], i === S.sdPick ? { cur: T.sdPick, press: T.sdPress, fly: T.sdFly } : null, T.sdBin, null));
+  if (B) B.tk.forEach((k, i) => renderTicket(k, t, B.T.drops[i], B.T.rev[i], i === B.pick ? { cur: B.T.curPick, press: B.T.pickPress, fly: B.T.fly2 } : null, B.T.bin, null));
+  // ---- STAMP DAY header
+  const sdh = M.head.querySelector('.sd');
+  sdh.style.display = SD && t >= T.sd && t < T.sdLand + .6 && (rm || t >= T.sd + .25 || Math.floor(t * 10) % 2 === 0) ? 'block' : 'none';
+  sdh.style.transform = SD && t >= T.sd && t < T.sd + .3 && !rm ? `translateX(-50%) rotate(-5deg) scale(${lerp(2, 1, eOut(seg(t, T.sd, T.sd + .2)))})` : 'translateX(-50%) rotate(-5deg)';
+  // ---- BONUS TICKET header: stamped on the head through the bonus visit (it blinks in, like STAMP DAY's)
+  const bnh = M.head.querySelector('.bn');
+  if (bnh) { const BT = B.T; bnh.style.display = bn && t < BT.punchEnd + .6 && (rm || t >= BT.start + .25 || Math.floor(t * 10) % 2 === 0) ? 'block' : 'none';
+    M.head.classList.toggle('stamped', bn && t < BT.punchEnd + .6);
+    bnh.style.transform = bn && t < BT.start + .3 && !rm ? `translateX(-50%) rotate(-4deg) scale(${lerp(2, 1, eOut(seg(t, BT.start, BT.start + .2))).toFixed(2)})` : 'translateX(-50%) rotate(-4deg)'; }
+  // ---- landing: flyer, cart drawers, homes
+  renderFlyer(t); renderDrawer(t, DRW, TL, '#drawer'); renderDrawer(t, B && B.drw, B && B.T, '#drawer2');
+  renderCursor(t);
+  // ---- shake + flash (legendary)
+  let shake = 0, flash = 0;
+  if (!rm) [[TK, T.rev], [SDK, T.sdRev || []], [B ? B.tk : [], B ? B.T.rev : []]].forEach(([ks, rv]) => ks.forEach((k, i) => { if (k.p.tier === 2 && rv[i]) { const p = (t - rv[i].t0) / rv[i].d; if (p > .6 && p < .7) shake = 3; if (p > .35 && p < .45) flash = .28 * (1 - (p - .35) / .1); } }));
+  $('#shakeWrap').style.transform = shake ? `translate(${(Math.floor(t * 40) % 2 ? 1 : -1) * shake}px, ${(Math.floor(t * 50) % 2 ? 1 : -1) * 2}px)` : '';
+  $('#flash').style.opacity = flash;
+  $('#scrub').value = t.toFixed(2);
+  const notes = [st.note, B && B.st.note, bn ? 'bonus ticket' : ''].filter(Boolean).join(' · ');
+  $('#clock').textContent = `${t.toFixed(2)} s / ${TL.end.toFixed(1)} s at 1x` + (notes ? ' · ' + notes : '');
+}
+
+function renderTicket(k, t, drop, rev, pick, binT, clearT) {
+  const rm = CFG.rm, tk = k.el, tok = k.tok;
+  const [d0, dd] = drop, landT = d0 + dd;
+  tok.style.display = 'none'; k.tokPos = null;
+  if (!rm && LOOK.tokenPos && t >= d0 && t < landT) {
+    const pos = LOOK.tokenPos(API, k.cell, seg(t, d0, landT));
+    tok.style.display = 'block'; tok.style.left = Math.round(pos.x - (LOOK.tokenW || 26) / 2) + 'px'; tok.style.top = Math.round(pos.y) + 'px'; if (pos.h != null) tok.style.height = pos.h + 'px';
+    k.tokPos = [pos.x, pos.y];
+  }
+  const shown = t >= landT && !(clearT != null && t >= clearT);
+  tk.style.display = shown ? 'block' : 'none';
+  if (!shown) return;
+  const lb = rm ? 0 : seg(t, landT, landT + .25);
+  let ty = lb > 0 && lb < 1 ? -Math.round(Math.sin(lb * Math.PI) * 8) : 0, tx = 0, sx = 1;
+  // reveal (unchanged from round 1)
+  const rp = (t - rev.t0) / rev.d, tier = k.p.tier;
+  const openA = [0, .2, .35][tier], openB = [.6, .5, .55][tier];
+  let open = rm ? (rp >= .3 ? 1 : 0) : cl((rp - openA) / (openB - openA));
+  if (rp < 0) open = 0;
+  if (!rm && rp > 0 && rp < openA) { const a = rp / openA; tx = (Math.floor(t * 30) % 2 ? 1 : -1) * (tier === 2 ? Math.ceil(a * 3) : 1); }
+  if ((LOOK.opener || 'flip') === 'flip') {
+    if (open < .5) { sx = rm ? 1 : 1 - open * 2; k.back.style.display = 'block'; k.face.style.display = 'none'; }
+    else { sx = rm ? 1 : open * 2 - 1; k.back.style.display = 'none'; k.face.style.display = 'block'; }
+    if (open >= 1) sx = 1;
+    k.back.style.clipPath = ''; k.scr.style.display = 'none';
+  } else {
+    k.face.style.display = 'block'; k.back.style.display = open >= 1 ? 'none' : 'block';
+    k.back.style.clipPath = open > 0 ? `inset(0 0 0 ${Math.round(open * 100)}%)` : '';
+    k.scr.style.display = !rm && open > 0 && open < 1 ? 'block' : 'none';
+    k.scr.style.left = Math.round(open * 108 - 12) + 'px'; k.scr.style.top = Math.round(60 + Math.sin(t * 40) * 30) + 'px';
+  }
+  if (!rm && tier === 2 && rp > .55 && rp < .7) ty -= Math.round(Math.sin((rp - .55) / .15 * Math.PI) * 6);
+  const fx = k.fx;
+  if (tier === 1) { const bp = rm ? (rp >= .3 ? 1 : 0) : seg(rp, .45, .62); fx.style.display = bp > 0 ? 'block' : 'none'; const s = rm ? 1 : bp < 1 ? lerp(.2, 1.15, bp) : 1; fx.style.transform = `scale(${Math.round(s * 10) / 10})`; }
+  else if (tier === 2) {
+    let sc = 0; if (rm) sc = rp >= .3 ? 1 : 0; else if (rp > 0 && rp < .35) sc = .25 + .2 * rp / .35; else if (rp >= .35) sc = Math.min(1, .45 + (rp - .35) / .2 * .55);
+    fx.style.display = sc > 0 ? 'block' : 'none'; if (sc > 0) drawSun(fx, rm ? 0 : t * .9, sc);
+  } else fx.style.display = 'none';
+  const la = rm ? (rp >= .3) : rp >= [.6, .6, .62][tier];
+  k.lab.style.display = la ? 'block' : 'none';
+  if (la && !rm) { const lp = seg(rp, [.6, .6, .62][tier], [.75, .72, .76][tier]); const base = ['translateX(-50%)', 'translateX(-50%) rotate(-4deg)', 'translateX(-50%) rotate(-8deg)'][tier]; k.lab.style.transform = base + ` scale(${lerp([1, 1.8, 2.4][tier], 1, eOut(lp))})`; }
+  else k.lab.style.transform = '';
+  k.face.querySelector('.pips').style.display = open >= 1 ? 'block' : 'none';
+  if (tier === 2) {
+    if (!k.sparks.length) for (let i = 0; i < 6; i++) { const s = img('sparkle', 4); s.className = 'abs'; s.style.zIndex = 4; tk.appendChild(s); k.sparks.push(s); }
+    const SP = [[-18, 6], [100, -6], [112, 70], [-22, 92], [40, -30], [84, 120]];
+    k.sparks.forEach((s, i) => { const on = rp > .6 && (rm || Math.floor(t * 4 + i * 1.7) % 3 !== 0); s.style.display = on ? 'block' : 'none'; s.style.left = SP[i][0] + 'px'; s.style.top = SP[i][1] + 'px'; });
+  }
+  let op = 1;
+  if (pick) {
+    if (t >= pick.cur + .4 && t < pick.press) ty -= 6;
+    if (t >= pick.press && t < pick.fly) ty -= 10;
+    if (t >= pick.fly) op = 0;
+  } else if (t >= binT) { const bp = seg(t, binT, binT + .35); op = rm ? 0 : 1 - bp; ty += Math.round(bp * 24); }
+  tk.style.opacity = op;
+  tk.style.transform = `translate(${tx}px, ${ty}px)`;
+  k.card.style.transform = sx !== 1 ? `scaleX(${Math.max(.02, sx)})` : '';
+}
+
+// ---------------------------------------------------------------- the picked prize flies home
+function renderFlyer(t) {
+  const T = TL, rm = CFG.rm, f = $('#flyer');
+  f.style.display = 'none';
+  const runs = [{ k: TK[S.pick], fly: T.fly2, land: T.land, drw: DRW }]; if (SD) runs.push({ k: SDK[S.sdPick], fly: T.sdFly, land: T.sdLand, drw: null });
+  if (B) runs.push({ k: B.tk[B.pick], fly: B.T.fly2, land: B.T.land, drw: B.drw });
+  { let n = S.st.ownedIds.length; runs.forEach(r => { r.ring = n; if (r.k && r.k.inf.home === 'loyalty') n++; }); } // the LOYALTY box each stamp lands in
+  let cart = S.st.cartN, rings = S.st.ownedIds.map(id => REGS[id].ini), added = null;
+  runs.forEach(({ k, fly, land, drw, ring }) => {
+    if (!k) return;
+    const home = k.inf.home, toDrawer = k.inf.drawer && drw;
+    const dest = toDrawer ? drw.dest : home === 'loyalty' ? ringPos(Math.min(2, ring)) : { x: 1100, y: 28 };
+    if (t >= fly && t < land && !rm) {
+      const fk = k.p.kind + k.p.id + k.p.tier;
+      if (f.dataset.k !== fk) { f.innerHTML = ''; const c = k.inf.up ? gridCanvas(UPARROW, PAL, 6) : k.inf.spr(); if (k.inf.up) { c.style.width = '54px'; c.style.height = '54px'; c.style.margin = '21px'; } f.appendChild(c); f.dataset.k = fk; }
+      const p = sm(seg(t, fly, land)), sx = MX + CELL_X[k.cell] + 54, sy = MY + CELL_Y + 52 - 10;
+      const x = lerp(sx, dest.x, p), y = lerp(sy, dest.y, p) - Math.sin(p * Math.PI) * (toDrawer ? 60 : 120);
+      const s = toDrawer ? 1 : lerp(1, .3, p), rot = toDrawer || home === 'loyalty' ? 0 : Math.round(p * 360);
+      f.style.display = 'block'; f.style.left = Math.round(x - 48) + 'px'; f.style.top = Math.round(y - 48) + 'px'; f.style.transform = `scale(${s}) rotate(${rot}deg)`;
+    }
+    if (t >= land) { if (home === 'loyalty') rings.push(k.inf.ini); else if (!k.inf.up) { added = { k, land, full: cart >= 15 }; cart = Math.min(15, cart + 1); } } // at 15 the pick replaces a card (the deck-full chooser, not shown)
+  });
+  const cn = $('#cartN'); if (cn && cn.textContent !== String(cart)) cn.textContent = cart;
+  for (let i = 0; i < 3; i++) setRing(i, rings[i] || '', i < rings.length);
+  // punch the home that just received
+  const cc = $('#cartChip'), lc = $('#loyChip');
+  let cs = 1, ls = 1, ri = -1;
+  runs.forEach(({ k, land, ring }) => { if (!k || rm) return; const p = seg(t, land, land + .3); if (p > 0 && p < 1 && !k.inf.up) { const s = 1 + .25 * (1 - p); if (k.inf.home === 'loyalty') { ls = s; ri = ring; } else cs = s; } });
+  cc.style.transform = cs !== 1 ? `scale(${cs.toFixed(2)})` : '';
+  lc.querySelectorAll('.ring').forEach((r, i) => { r.style.transform = i === ri && ls !== 1 ? `scale(${(1 + (ls - 1) * 3).toFixed(2)})` : ''; });
+  // an upgrade glints the cart chip (no count change); a new card shows "+1 NEW IN CART" under it
+  const up = runs.find(({ k, land }) => k && k.inf.up && t >= land && t < land + 1.4);
+  cc.style.boxShadow = up && Math.floor(t * 8) % 2 === 0 ? 'inset 0 0 0 3px #ffcf3f' : '';
+  const cl2 = $('#chipLab'); cl2.style.display = added && !added.k.inf.drawer && t < added.land + 1.4 ? 'block' : 'none';
+  if (added) { const tx = added.full ? 'FULL: SWAP 1 OUT' : '+1 NEW IN CART', sp = cl2.firstElementChild; if (sp.textContent !== tx) sp.textContent = tx; }
+  if (added && !rm) cl2.style.transform = `translateY(${-Math.round(eOut(seg(t, added.land, added.land + .3)) * 6)}px)`;
+}
+function renderDrawer(t, DRW, T, sel) { // one visit's drawer (DRW null: that visit's pick has no drawer)
+  const rm = CFG.rm, d = $(sel);
+  if (!DRW) { d.style.display = 'none'; return; }
+  const on = t >= T.drawerIn && t < T.drawerOut + (rm ? 0 : .2);
+  d.style.display = on ? 'block' : 'none'; if (!on) return;
+  const pin = rm ? 1 : seg(t, T.drawerIn, T.drawerIn + .2), pout = rm ? 0 : seg(t, T.drawerOut, T.drawerOut + .2);
+  d.style.transform = `translateY(${Math.round(-16 * (1 - pin) - 16 * pout)}px)`; d.style.opacity = (pin * (1 - pout)).toFixed(2);
+  if (DRW.isNew) {
+    const ns = DRW.newSlot, landed = t >= T.land;
+    ns.cv.style.display = landed ? 'block' : 'none'; ns.tag.style.display = landed ? 'block' : 'none'; ns.el.querySelector('.ph').style.display = landed ? 'none' : 'block';
+    ns.el.style.borderStyle = landed ? 'solid' : 'dashed'; ns.el.style.background = landed ? '' : 'transparent';
+    const pp = rm ? 1 : seg(t, T.land, T.land + .25); ns.el.style.transform = landed && pp < 1 ? `scale(${lerp(1.3, 1, eOut(pp)).toFixed(2)})` : '';
+    DRW.cnt.textContent = `${Math.min(15, DRW.n0 + (landed ? 1 : 0))}/15`; DRW.note.textContent = landed ? (DRW.n0 >= 15 ? 'full: swap 1 out' : '+1 card') : '';
+    DRW.cnt.style.background = landed && t < T.land + .6 ? '#f1d27a' : '';
+  } else {
+    DRW.slots.forEach(r => {
+      if (!r.target) return;
+      const j = r.j, g0 = T.land + j * (rm ? 0 : .15), x0 = T.xf + j * (rm ? 0 : .15), done = t >= x0;
+      const gp = seg(t, g0, x0); r.glint.style.display = !rm && gp > 0 && gp < 1 ? 'block' : 'none'; r.glint.style.left = Math.round(Math.floor(gp * 6) / 6 * 82) + 'px';
+      r.cv0.style.display = done ? 'none' : 'block'; r.cv1.style.display = done ? 'block' : 'none';
+      r.tag.className = 't ' + ['', 'big', 'golden'][done ? r.target.to : r.from]; r.tag.textContent = STEP_NAME[done ? r.target.to : r.from].toUpperCase();
+      const pp = rm ? 1 : seg(t, x0, x0 + .2); r.el.style.transform = done && pp < 1 ? `scale(${lerp(1.25, 1, eOut(pp)).toFixed(2)})` : '';
+      r.spk.forEach((s, i) => { s.style.display = !rm && t >= x0 && t < x0 + .7 && Math.floor(t * 8 + i) % 2 === 0 ? 'block' : 'none'; });
+    });
+    DRW.cnt.textContent = `${DRW.n0}/15`; DRW.note.textContent = t >= T.land ? 'same count' : '';
+  }
+  const labT = DRW.isNew ? T.land : T.xfEnd - (rm ? 0 : .25);
+  DRW.lab.style.display = t >= labT ? 'block' : 'none';
+  if (!rm && t >= labT) DRW.lab.style.transform = `translateX(-50%) rotate(-5deg) scale(${lerp(1.8, 1, eOut(seg(t, labT, labT + .2))).toFixed(2)})`;
+  else DRW.lab.style.transform = 'translateX(-50%) rotate(-5deg)';
+}
+
+// ---------------------------------------------------------------- cursor
+const CUR = gridCanvas(CURSOR, PAL, 2);
+function renderCursor(t) {
+  const T = TL, cu = $('#cursor'); if (!cu.contains(CUR)) cu.appendChild(CUR);
+  const chuteC = (st = S.st) => { const i = CHUTES.indexOf(st.chute); return [MX + CH_X[i] + 70, MY + 160 + 50]; };
+  const OK_C = S.okC;
+  const pickC = (k) => k ? [MX + CELL_X[k.cell] + 64, MY + CELL_Y + 64] : [1300, 760];
+  const off = [1310, 620];
+  const keys = [[0, off], [T.curIn, off], [T.hover, chuteC()], [T.curConfirm, chuteC()], [T.press, OK_C], [T.press + .5, OK_C], [T.press + 1.1, off], [T.curPick, off], [T.curPick + .5, pickC(TK[S.pick])], [T.fly2 + .1, pickC(TK[S.pick])]];
+  if (SD) keys.push([T.fly2 + .6, off], [T.sdPick, off], [T.sdPick + .5, pickC(SDK[S.sdPick])], [T.sdFly + .1, pickC(SDK[S.sdPick])]);
+  if (B) { const U = B.T, ch = chuteC(B.st), k2 = pickC(B.tk[B.pick]);
+    keys.push([T.fly2 + .6, off], [U.curIn, off], [U.hover, ch], [U.curConfirm, ch], [U.press, B.okC], [U.press + .4, B.okC], [U.press + .9, off], [U.curPick, off], [U.curPick + .4, k2], [U.fly2 + .1, k2]); }
+  keys.push([keys[keys.length - 1][0] + .6, off]);
+  let pos = off;
+  for (let i = 0; i < keys.length - 1; i++) { const [a, pa] = keys[i], [b, pb] = keys[i + 1]; if (t >= a && t < b) { const p = sm(seg(t, a, b)); pos = [lerp(pa[0], pb[0], p), lerp(pa[1], pb[1], p)]; break; } if (t >= b) pos = pb; }
+  cu.style.transform = `translate(${Math.round(pos[0])}px, ${Math.round(pos[1])}px)`;
+  const pressed = [T.press, T.pickPress, SD ? T.sdPress : -9, B ? B.T.press : -9, B ? B.T.pickPress : -9].some(x => t >= x && t < x + .18);
+  cu.querySelector('.ring').style.display = pressed ? 'block' : 'none';
+  CUR.style.transform = pressed ? 'translate(1px,2px)' : '';
+}
+
+// ================================================================ sound (WebAudio placeholders for #62's CC0 sounds; muted until SOUND)
+let AC = null;
+function tone(f, d, type = 'triangle', v = .12, at = 0) { if (!AC) return; const o = AC.createOscillator(), g = AC.createGain(), t0 = AC.currentTime + at; o.type = type; o.frequency.value = f; g.gain.setValueAtTime(v, t0); g.gain.exponentialRampToValueAtTime(.001, t0 + d); o.connect(g).connect(AC.destination); o.start(t0); o.stop(t0 + d + .02); }
+function noise(d, v = .08, at = 0) { if (!AC) return; const n = AC.sampleRate * d, b = AC.createBuffer(1, n, AC.sampleRate), ch = b.getChannelData(0); for (let i = 0; i < n; i++) ch[i] = (Math.random() * 2 - 1) * (1 - i / n); const s = AC.createBufferSource(), g = AC.createGain(); s.buffer = b; g.gain.value = v; s.connect(g).connect(AC.destination); s.start(AC.currentTime + at); }
+const NOTE = { C5: 523, D5: 587, E5: 659, G5: 784, A5: 880, C6: 1047, E6: 1319 };
+let EVENTS = null;
+function events() {
+  const T = TL, ev = [];
+  ev.push([T.tear + .2, () => noise(.18, .1)], [T.flyEnd, () => { for (let i = 0; i < 5; i++) tone(1800, .02, 'square', .03, i * .09); }], [T.feedEnd, () => tone(NOTE.G5, .12, 'square', .05)]);
+  CHUTES.forEach((c, i) => { if (!M.chutes[c].dataset.locked) ev.push([T.lights + i * .14, () => tone([NOTE.C5, NOTE.D5, NOTE.E5, NOTE.G5][i], .15, 'triangle', .07)]); });
+  ev.push([T.press, () => tone(180, .12, 'square', .08)]);
+  T.drops.forEach(([a, d]) => ev.push([a + d, () => tone(120, .1, 'sine', .12)]));
+  if (LOOK.sounds) (LOOK.sounds(API) || []).forEach(e => ev.push(e));
+  const rv = (list, R) => list.forEach((p, i) => { const r = R[i]; if (!r) return; const at = r.t0 + r.d * [.6, .5, .55][p.tier];
+    if (p.tier === 0) ev.push([at, () => { tone(NOTE.C5, .25, 'triangle', .1); noise(.03, .05); }]);
+    if (p.tier === 1) ev.push([at, () => { tone(NOTE.E5, .2, 'triangle', .1); tone(NOTE.A5, .3, 'triangle', .1, .12); }]);
+    if (p.tier === 2) ev.push([at, () => { [NOTE.C5, NOTE.E5, NOTE.G5, NOTE.C6].forEach((f, j) => tone(f, .35, 'triangle', .1, j * .1)); for (let j = 0; j < 8; j++) tone(2400, .02, 'square', .025, .45 + j * .04); }]); });
+  rv(DRAW, T.rev); if (SD) rv(SD, T.sdRev);
+  ev.push([T.pickPress, () => tone(NOTE.G5, .08, 'square', .05)], [T.land, () => { tone(90, .15, 'square', .1); tone(NOTE.C6, .2, 'triangle', .06, .05); }]);
+  if (DRW && !DRW.isNew) ev.push([T.xf, () => { [NOTE.G5, NOTE.C6, NOTE.E6].forEach((f, j) => tone(f, .18, 'triangle', .07, j * .06)); }]);
+  if (S.st.rises) ev.push([T.punch + .18, () => { tone(140, .06, 'square', .08); tone(90, .08, 'triangle', .08, .03); }]);
+  if (SD) ev.push([T.sd, () => { tone(90, .2, 'square', .12); tone(NOTE.G5, .2, 'triangle', .07, .1); }], [T.sdPress, () => tone(NOTE.G5, .08, 'square', .05)], [T.sdLand, () => tone(90, .15, 'square', .1)]);
+  if (B) { // the BONUS TICKET: the head's stamp, the stub printing and feeding, then the same beats as the first visit
+    const U = B.T;
+    ev.push([U.start, () => { tone(90, .2, 'square', .12); [NOTE.C5, NOTE.E5, NOTE.G5].forEach((f, j) => tone(f, .14, 'triangle', .08, .08 + j * .08)); }]);
+    if (!CFG.rm) for (let i = 0; i < 4; i++) ev.push([U.start + .1 + i * .08, () => tone(1600, .02, 'square', .025)]);
+    ev.push([U.flyEnd, () => { for (let i = 0; i < 3; i++) tone(1800, .02, 'square', .03, i * .09); }], [U.feedEnd, () => tone(NOTE.G5, .12, 'square', .05)]);
+    CHUTES.forEach((c, i) => { if (!M.chutes[c].dataset.locked && !(c === 'register' && B.st.full)) ev.push([U.lights + i * .08, () => tone([NOTE.C5, NOTE.D5, NOTE.E5, NOTE.G5][i], .12, 'triangle', .06)]); });
+    ev.push([U.press, () => tone(180, .12, 'square', .08)]);
+    U.drops.forEach(([a, d]) => ev.push([a + d, () => tone(120, .1, 'sine', .12)]));
+    if (LOOK.sounds) { CUR_V = 1; try { (LOOK.sounds(API) || []).forEach(e => ev.push(e)); } catch (e) { console.error(`look ${CFG.look}.sounds (bonus):`, e); } CUR_V = 0; }
+    rv(B.draw, U.rev);
+    ev.push([U.pickPress, () => tone(NOTE.G5, .08, 'square', .05)], [U.land, () => { tone(90, .15, 'square', .1); tone(NOTE.C6, .2, 'triangle', .06, .05); }]);
+    if (B.drw && !B.drw.isNew) ev.push([U.xf, () => { [NOTE.G5, NOTE.C6, NOTE.E6].forEach((f, j) => tone(f, .18, 'triangle', .07, j * .06)); }]);
+    if (B.st.rises) ev.push([U.punch + .18, () => { tone(140, .06, 'square', .08); tone(90, .08, 'triangle', .08, .03); }]);
+  }
+  return ev;
+}
+function fireSounds(a, b) { if (!AC || !CFG.sound) return; if (!EVENTS || EVENTS.tl !== TL) { EVENTS = events(); EVENTS.tl = TL; } EVENTS.forEach(([x, fn]) => { if (x >= a && x < b) fn(); }); }
+
+// ================================================================ panel
+function syncPanel() {
+  const grp = (id, items, cur, fn) => { const g = $(id); g.innerHTML = ''; items.forEach(([v, label, dis]) => { const b = el('button', (String(v) === String(cur) ? 'on' : '') + (dis ? ' x' : ''), label); b.onclick = () => fn(v); g.appendChild(b); }); };
+  { // MACHINE LOOK: the chosen look (F) first, then the other looks: D, E, A, B, C (any other key after them)
+    const keys = Object.keys(LOOKS).sort(), fresh = keys.filter(k => CHOSEN_LOOKS.includes(k));
+    const rest = keys.filter(k => !CHOSEN_LOOKS.includes(k)).sort((a, b) => (OTHER_ORDER.indexOf(a) + 1 || 99) - (OTHER_ORDER.indexOf(b) + 1 || 99) || (a < b ? -1 : 1));
+    const g = $('#cLook'); g.innerHTML = '';
+    const add = (label, list) => { if (!list.length) return; g.appendChild(el('em', 'lk', label)); list.forEach(k => { const b = el('button', k === CFG.look ? 'on' : '', LOOKS[k].label || k.toUpperCase()); b.onclick = () => { CFG.look = k; LOOK = LOOKS[k]; restart(); }; g.appendChild(b); }); };
+    add('chosen', fresh); add('other looks', rest);
+  }
+  grp('#cShift', [1, 2, 3, 4, 5, 6, 7].map(n => [n, String(n)]), CFG.shift, v => { CFG.shift = v; restart(); });
+  grp('#cChute', CHUTES.map(c => [c, CHUTE_NAME[c], (c === 'upgrades' && !S.st.upOpen) || (c === 'register' && S.st.full)]), S.st.chute, v => { CFG.chute = v; restart(); });
+  grp('#cOwned', [['auto', 'auto (' + (() => { const o = CFG.owned; CFG.owned = null; const v = derive().owned; CFG.owned = o; return v; })() + ')'], [0, '0'], [1, '1'], [2, '2'], [3, '3 · card full']], CFG.owned == null ? 'auto' : CFG.owned, v => { CFG.owned = v === 'auto' ? null : v; restart(); });
+  grp('#cLvl', [['auto', 'auto'], [0, '0'], [1, '1'], [2, '2'], [3, '3']], CFG.lvl == null ? 'auto' : CFG.lvl, v => { CFG.lvl = v === 'auto' ? null : v; restart(); });
+  grp('#cStamp', [[1, 'on'], [0, 'off']], CFG.stamp ? 1 : 0, v => { CFG.stamp = !!v; restart(); });
+  grp('#cStock', STOCKS, CFG.stock, v => { CFG.stock = v; restart(); });
+  { // INSPECTION PASSED (shifts 3, 5, 7 only) and the BONUS TICKET's chute
+    const can = !!INSP_AT[CFG.shift], cur = can ? (inspNow() ? inspNow().key : 'off') : 'off';
+    grp('#cInsp', [['spot_check', 'Spot check', !can], ['short_belt', 'Short belt', !can], ['coupon_slot_closed', 'Coupon slot closed', !can], ['off', can ? 'off (one ticket, as today)' : 'no inspection on shift ' + CFG.shift]],
+      cur, v => { if (!can && v !== 'off') return; CFG.insp = v; restart(); });
+    grp('#cChute2', [['same', 'same as the first'], ...CHUTES.map(c => [c, CHUTE_NAME[c], !B])], CFG.chute2, v => { CFG.chute2 = v; restart(); });
+  }
+  grp('#cRoll', [['demo', 'demo: one of each'], ['roll', 'real roll'], ['again', 'roll again ↻']], CFG.roll == null ? 'demo' : 'roll', v => { CFG.roll = v === 'demo' ? null : v === 'roll' ? (CFG.roll || 1) : (CFG.roll || 0) + 1; restart(); });
+  grp('#cSpeed', [[.75, '0.75x'], [1, '1x'], [1.25, '1.25x']], CFG.speed, v => { CFG.speed = v; syncPanel(); });
+  const misc = $('#cMisc'); misc.innerHTML = '';
+  [['rm', 'REDUCED MOTION', CFG.rm, () => { CFG.rm = !CFG.rm; restart(); }], ['snd', 'SOUND', CFG.sound, () => { CFG.sound = !CFG.sound; if (CFG.sound && !AC) AC = new (window.AudioContext || window.webkitAudioContext)(); syncPanel(); }],
+    ['rep', 'REPLAY ↻', false, () => { S.t = 0; S.playing = true; }], ['pp', S.playing ? 'PAUSE ❚❚' : 'PLAY ▶', false, () => { S.playing = !S.playing; if (S.t >= TL.end) S.t = 0; syncPanel(); }]]
+    .forEach(([id, l, on, fn]) => { const b = el('button', on ? 'on' : '', l); b.onclick = fn; misc.appendChild(b); });
+  $('#speedTag').textContent = `${CFG.speed}x${CFG.rm ? ' · reduced motion' : ''} · look ${CFG.look.toUpperCase()}`;
+  const u = new URLSearchParams(); u.set('look', CFG.look); u.set('shift', CFG.shift); u.set('chute', CFG.chute); if (CFG.owned != null) u.set('owned', CFG.owned); if (CFG.lvl != null) u.set('lvl', CFG.lvl);
+  if (CFG.insp != null) u.set('inspection', CFG.insp); if (CFG.chute2 !== 'same') u.set('chute2', CFG.chute2);
+  if (!CFG.stamp) u.set('stamp', 0); if (CFG.stock !== 'fresh') u.set('stock', CFG.stock); if (CFG.roll != null) u.set('roll', CFG.roll); if (CFG.speed !== 1) u.set('speed', CFG.speed); if (CFG.rm) u.set('rm', 1);
+  try { history.replaceState(null, '', '?' + u.toString()); } catch (e) { /* file:// may refuse */ }
+}
+$('#scrub').addEventListener('input', e => { S.t = parseFloat(e.target.value); S.playing = false; syncPanel(); render(); });
+
+// ================================================================ loop
+let last = 0;
+function loop(now) {
+  const dt = Math.min(.05, (now - last) / 1000); last = now;
+  if (S.playing) { const a = S.t; S.t = Math.min(TL.end, S.t + dt * CFG.speed); fireSounds(a, S.t); if (S.t >= TL.end) { S.playing = false; syncPanel(); } render(); }
+  requestAnimationFrame(loop);
+}
+(async function start() {
+  await Promise.all(Object.keys(ASSET).map(k => new Promise(res => { const i = new Image(); i.onload = () => { IMG[k] = i; res(); }; i.onerror = res; i.src = ASSET[k]; })));
+  try { await document.fonts.load('20px Pixelify'); await document.fonts.load('700 12px Atkinson'); await document.fonts.load('12px JBMono'); } catch (e) { /* fonts optional */ }
+  if (!LOOKS[CFG.look]) CFG.look = LOOKS[DEFAULT_LOOK] ? DEFAULT_LOOK : 'a';
+  LOOK = LOOKS[CFG.look];
+  restart();
+  if (Q.has('scan')) { // checks: render the whole timeline every 0.04 s and report the first error (used by the prep's headless check)
+    let n = 0, bad = 0; for (let t = 0; t <= TL.end; t += .04) { S.t = t; try { render(); n++; } catch (e) { if (!bad++) console.error('scan: render failed at ' + t.toFixed(2) + ': ' + e.stack); } }
+    try { events(); } catch (e) { bad++; console.error('scan: events failed: ' + e.stack); }
+    console.log(`scan ${bad ? 'FAILED' : 'ok'}: ${n} frames, end ${TL.end.toFixed(2)} s, look ${CFG.look}, bonus ${B ? B.st.chute : 'none'}`);
+    S.t = AT != null ? AT : 0; render();
+  }
+  if (AT == null && !Q.has('scan')) { last = performance.now(); requestAnimationFrame(loop); }
+})();
+</script>
+</body>
+</html>

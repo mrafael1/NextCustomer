@@ -1,0 +1,63 @@
+/* ===== #56 rack mock-ups: shared kit pieces (display coordinates, drawn over the mirrored B2 scene) ===== */
+.ov { position: absolute; left: 0; top: 0; width: 1280px; height: 720px; z-index: 50; font-family: Atkinson, sans-serif; color: var(--ink); }
+.ov * { box-sizing: border-box; }
+.ov img { image-rendering: pixelated; }
+/* ScreenShade: black 0.5 from y 64; the top bar stays unshaded */
+.shade { position: absolute; left: 0; top: 64px; width: 1280px; height: 656px; background: rgba(0,0,0,.5); }
+
+/* ---- tray item (ItemView TRAY form, 108 x 168): sprite at 6,4 on a soft shadow, sticker at 0,104 ---- */
+.tray { position: relative; width: 108px; height: 168px; flex: none; }
+.tray .sh { position: absolute; left: 14px; top: 94px; width: 80px; height: 8px; }
+.tray .spr { position: absolute; left: 6px; top: 4px; width: 96px; height: 96px; }
+.tray .pend { position: absolute; left: 6px; top: 4px; width: 96px; height: 96px; display: grid; place-items: center; text-align: center;
+  font-weight: 750; font-size: 13px; line-height: 15px; color: var(--paper); padding: 10px; }
+.tray .pend img { position: absolute; inset: 0; width: 96px; height: 96px; }
+.tray .pend span { position: relative; text-shadow: 2px 0 0 var(--ink), -2px 0 0 var(--ink), 0 2px 0 var(--ink), 0 -2px 0 var(--ink); }
+.tray.lift .spr, .tray.lift .pend { top: 0; }   /* ItemView.LIFT: a scanned offer rises 4 px */
+/* PriceSticker 108 x 64 on the ticket_product 9-slice (the frame PNGs are authored at canvas scale, 2 px texels: 8 / 6 px margins) */
+.stk { position: absolute; left: 0; top: 104px; width: 108px; height: 64px;
+  border-style: solid; border-width: 8px 6px 6px 6px; border-image: url(screens_src/assets/ticket_product.png) 8 6 6 6 fill / 8px 6px 6px 6px;
+  image-rendering: pixelated; filter: drop-shadow(3px 3px 0 rgba(30,18,10,.38)); }
+.stk .b { position: absolute; left: 2px; top: -2px; font-weight: 750; font-size: 22px; line-height: 24px; }
+.stk .g { position: absolute; left: 78px; top: 0; width: 18px; height: 18px; }
+.stk .s { position: absolute; left: 0; top: 20px; width: 96px; font-weight: 700; font-size: 13px; line-height: 15px; }
+/* the NEW sticker (#65, suggestion only): a gold price-gun starburst slapped on the sticker's PROMO corner (52,4 52x20, 8 deg) */
+.newtag { position: absolute; left: 50px; top: 96px; width: 62px; height: 34px; transform: rotate(8deg); z-index: 3;
+  display: grid; place-items: center; font-family: Pixelify; font-size: 16px; letter-spacing: 1px; color: var(--ink); }
+.newtag img { position: absolute; inset: 0; width: 62px; height: 34px; }
+.newtag span { position: relative; margin-top: -1px; }
+/* two gold glints off the NEW sticker (art/effects/sparkle.png, 5 texels), the h1 sparkle vocabulary */
+.tray .glint { position: absolute; width: 10px; height: 10px; z-index: 4; }
+.tray .glint.g1 { left: 104px; top: 88px; } .tray .glint.g2 { left: 38px; top: 98px; }
+
+/* ---- framed buttons (FramedButton): button.png primary, sign.png secondary, 3 art px = 6 px margin ---- */
+.fb { display: inline-flex; align-items: center; justify-content: center; gap: 6px; height: 48px; padding: 0 18px 4px;
+  border-style: solid; border-width: 6px; border-image: url(screens_src/assets/sign.png) 6 fill / 6px; image-rendering: pixelated;
+  font-family: Pixelify; font-size: 19px; color: var(--paper); white-space: nowrap;
+  text-shadow: 2px 0 0 var(--ink), -2px 0 0 var(--ink), 0 2px 0 var(--ink), 0 -2px 0 var(--ink), 2px 2px 0 var(--ink), -2px 2px 0 var(--ink), 2px -2px 0 var(--ink), -2px -2px 0 var(--ink); }
+.fb.primary { border-image-source: url(screens_src/assets/button.png); }
+.fb .n { font-family: Atkinson; font-weight: 750; font-size: 18px; }
+.fb img.cart { width: 24px; height: 18px; filter: drop-shadow(2px 0 0 var(--ink)) drop-shadow(-2px 0 0 var(--ink)) drop-shadow(0 2px 0 var(--ink)) drop-shadow(0 -2px 0 var(--ink)); }
+.fb.hover { filter: brightness(1.12); }
+
+/* ---- notice style: tomato body text with the mustard warning triangle (colour never the only signal) ---- */
+.notice { display: flex; align-items: center; justify-content: center; gap: 8px; font-weight: 750; font-size: 16px; line-height: 20px; color: var(--tomato-dark); }
+.notice img { width: 26px; height: 22px; flex: none; }
+.note { font-weight: 600; font-size: 16px; line-height: 20px; color: var(--ink-light); text-align: center; }
+
+/* ---- ScanPopup: 288 wide, popup.png 9-slice (4 art px), hard shadow, tail pointing at the item ---- */
+.popup { position: absolute; width: 288px; min-height: 140px; padding: 12px; z-index: 6;
+  border-style: solid; border-width: 8px; border-image: url(screens_src/assets/popup.png) 8 fill / 8px; image-rendering: pixelated;
+  filter: drop-shadow(4px 4px 0 rgba(0,0,0,.3)); }
+.popup .hd { display: flex; align-items: center; gap: 6px; height: 28px; margin: -6px -4px 0; }
+.popup .hd img { width: 18px; height: 18px; }
+.popup .hd .nm { flex: 1; font-family: Pixelify; font-size: 20px; }
+.popup .mini { width: 56px; height: 26px; border-style: solid; border-width: 6px 4px 4px 4px; border-image: url(screens_src/assets/ticket_product.png) 8 6 6 6 fill / 6px 4px 4px 4px;
+  font-weight: 750; font-size: 18px; line-height: 14px; text-align: center; }
+.popup .tags { font-size: 12px; line-height: 16px; font-weight: 650; color: var(--teal-panel); margin: 4px -4px 0; }
+.popup .rule { font-size: 15px; line-height: 19px; font-weight: 600; margin: 4px -4px 0; }
+.popup .tail { position: absolute; top: 34px; width: 10px; height: 16px; }
+.popup .tail.r { right: -16px; transform: scaleX(-1); }
+.popup .tail.l { left: -16px; }
+/* the scan cursor bracket on the hovered offer (the hand's scanner look, mustard, 1 texel) */
+.brk2 { position: absolute; width: 16px; height: 16px; border: 0 solid var(--mustard); }

@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8">
+<title>Deck view B</title>
+<!--
+  #56 DECK VIEW, OPTION B (counter / shopping basket), state: Cart tab, starter deck. Decide prep, 2026-10-19: nothing is decided.
+  Idea: the cart is one of the counter's teal hand baskets, emptied onto steel shelves: items stand on a price rail like the belt's, copies stand stacked behind the first (darkened) with a cream price-gun label 'xN' slapped on, new arrivals wear a gold NEW starburst; the title sits on the basket rim with the tabs and Close as shop-sign buttons; Run info is text only (no perk stamps). Art-pending boxes get a cream-shade backing so their printed names read on the dark basket floor (mock-up only; it goes away as the item sprites land).
+  Built by screens_src/gen_deck/gen_deck.py from data/ (starter deck, real stickers, upgrades, inspections, stock).
+  Background: the real game capture docs/art/shift_screen_1280x720.png under ScreenShade (black 0.5 from y 64); top bar unshaded.
+  Cells: tray items (ItemView TRAY 108x168: 96 sprite + PriceSticker) plus a 32 px caption = 108x200 per cell (SUGGESTION: the caption
+    carries the name, the xN copies and NEW; today the deck view has a 20 px count line under 120x168 CardViews).
+  PAGE_SIZE: (8 x 108 + 7 x 8 + 16, 500) = 936 x 500. Starter page = tags 20 + heading 20 + row 200 + heading 20 + row 200 + 4 gaps of 6
+    = 484 <= 500: fits unscrolled. (A 200-high item with today's separate 20 px count line under it gives rows of 222 and 528: does not fit.)
+  Panel: 976x584 at (152,68): rim 50, inside 956x504, page 936x500 at (20,54) (the 16 px scrollbar gutter stays clear of column 8), slot-hole band 24. Height limit: pop_in centres it; the top bar (y 0-56, shade from 64) must stay clear, so <= 592 tall.
+  New art/src/ sources: frames/basket_panel.txt (teal basket 9-slice; rim, slot holes and cart badge at full size), scenery/shelf_rail.txt (steel rail strip). Reuses sign.png buttons, effects/sticker_label.png (xN, Remove 1) and effects/sticker_burst.png (NEW: a SUGGESTION that pre-empts #65's sticker; the brief's default keeps NEW as text).
+  Timing: unchanged (pop_in 0.22 s + fan; no new animation; the deck view is not an offer, so no presented/armed change).
+  Longest-text checks: chooser title (the rim's widest text; the tabs are hidden there), the Slot engine line (wraps to 2 lines), 'Flickering bulb' / 'Reduced yogurt' captions, the STOCK heading.
+
+-->
+<style>
+@font-face { font-family: Pixelify; src: url(../../../fonts/PixelifySans-Variable.ttf); }
+@font-face { font-family: Atkinson; src: url(../../../fonts/AtkinsonHyperlegibleNext-Variable.ttf); font-weight: 200 800; }
+@font-face { font-family: JBMono; src: url(../../../fonts/JetBrainsMono-Regular.ttf); }
+:root {
+  --ink:#2b2420; --ink-light:#4a3f38; --grey-dark:#5e574d; --grey:#8a8172; --grey-light:#c7beab;
+  --cream-darkest:#b39f78; --cream-shade:#ddcba5; --cream:#f3e9d2; --paper:#fbf7ee;
+  --teal-darkest:#1f3b3a; --teal-dark:#2a4d4b; --teal-shade:#3a7672; --teal:#4f9a94; --teal-light:#86c2b6; --teal-pale:#c3e0d4; --teal-black:#172c2b;
+  --mustard-darkest:#7a5a1c; --mustard-dark:#b38425; --mustard:#e2b33c; --mustard-light:#f1d27a; --mustard-pale:#faecbc;
+  --gold:#ffcf3f; --brass:#c8932b; --brass-dark:#8a5d1a;
+  --steel-hi:#ecebe4; --steel-light:#c7c3b8; --steel-pale:#a9a59b; --steel:#8d8a83; --steel-shade:#6f6b63; --steel-dark:#57534c; --steel-darkest:#45423d;
+  --wood-pale:#ddb07a; --wood-light:#c98c4e; --wood:#a8703a; --wood-dark:#6e4524; --wood-darkest:#3e2614;
+  --glass:#e4f6f3; --glass2:#bfe2dd; --good:#5fae5a;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { width: 1280px; height: 720px; overflow: hidden; background: var(--teal-darkest); }
+.stage { position: relative; width: 1280px; height: 720px; overflow: hidden; }
+.abs { position: absolute; }
+.px { image-rendering: pixelated; display: block; }
+.bg { position: absolute; left: 0; top: 0; width: 1280px; height: 720px; image-rendering: pixelated; }
+.shade { position: absolute; left: 0; top: 64px; width: 1280px; height: 656px; background: rgba(0,0,0,.5); }
+.pix { font-family: Pixelify; }
+.body { font-family: Atkinson; }
+.num { font-family: Atkinson; font-weight: 750; }
+.lt { color: var(--paper); -webkit-text-stroke: 4px var(--ink); paint-order: stroke fill; }
+/* the item: tray form (ItemView.Form.TRAY) */
+.cell { position: absolute; width: 108px; height: 200px; }
+.cell .shadow { position: absolute; left: 14px; top: 94px; width: 80px; height: 8px; background: rgba(43,36,32,.25);
+  clip-path: polygon(8px 0, 72px 0, 80px 2px, 80px 6px, 72px 8px, 8px 8px, 0 6px, 0 2px); }
+.cell .spr { position: absolute; left: 6px; top: 4px; width: 96px; height: 96px; }
+.cell .spr img { position: absolute; image-rendering: pixelated; }
+.cell .pname { position: absolute; left: 12px; top: 24px; width: 72px; height: 68px; display: flex; align-items: center; justify-content: center;
+  text-align: center; font: 700 12px/12px Atkinson; color: var(--grey-dark); }
+.cell .cname { position: absolute; left: 26px; top: 32px; width: 60px; height: 42px; display: flex; align-items: center; justify-content: center;
+  text-align: center; font: 700 12px/12px Atkinson; color: var(--ink); }
+/* PriceSticker 108x64: ticket_product.png 9-slice (top 4, sides 3 art px) or ticket_coupon.png */
+.stk { position: absolute; left: 0; top: 104px; width: 108px; height: 64px; }
+.stk .face { position: absolute; inset: 0; border-style: solid; border-width: 8px 6px 6px 6px;
+  border-image: url(screens_src/assets/ticket_product.png) 4 3 3 3 fill stretch; image-rendering: pixelated; }
+.stk .cface { position: absolute; inset: 0; image-rendering: pixelated; }
+.stk .base { position: absolute; left: 8px; top: 6px; height: 24px; font: 750 22px/24px Atkinson; color: var(--ink); }
+.stk .ctitle { position: absolute; left: 8px; top: 8px; height: 20px; font: 13px/20px Pixelify; color: var(--teal-dark); }
+.stk .glyph { position: absolute; left: 84px; top: 8px; width: 18px; height: 18px; image-rendering: pixelated; }
+.stk .sum { position: absolute; left: 6px; top: 28px; width: 96px; height: 34px; font: 700 13px/14px Atkinson; color: var(--ink);
+  display: flex; align-items: center; }
+/* FramedButton on sign.png (secondary) */
+.sign { position: absolute; height: 36px; padding: 0 12px 4px; display: flex; align-items: center; justify-content: center;
+  border-style: solid; border-width: 6px; border-image: url(screens_src/assets/sign.png) 3 fill stretch; image-rendering: pixelated;
+  font: 16px/1 Pixelify; color: var(--paper); }
+.sign span { word-spacing: 3px; -webkit-text-stroke: 4px var(--ink); paint-order: stroke fill; position: relative; top: 1px; }
+.cartfix { position: absolute; left: 1153px; top: 14px; width: 17px; height: 20px; background: var(--teal);
+  font: 750 18px/20px Atkinson; color: var(--paper); letter-spacing: 0; }
+.sign.off { transform: translateY(4px); height: 32px; padding-bottom: 0; filter: brightness(.6); opacity: .85; }
+
+/* The basket: the panel is one of the counter's teal hand baskets seen front-on, emptied onto two steel shelves.
+   New sources: frames/basket_panel.txt (teal plastic 9-slice with the rim, the slot holes and the cart badge drawn
+   at full size along the bottom), scenery/shelf_rail.txt (the steel price rail behind each row, tiled like the belt's
+   rail). The xN copies reuse sticker_label.png (the price-gun label from #71); NEW reuses sticker_burst.png. */
+.panel { position: absolute; left: 152px; top: 68px; width: 976px; height: 584px; }
+.hshadow { position: absolute; left: 160px; top: 76px; width: 976px; height: 584px; background: rgba(23,44,43,.6);
+  clip-path: polygon(10px 0, calc(100% - 10px) 0, 100% 10px, 100% 100%, 0 100%, 0 10px); }
+.basket { position: absolute; inset: 0; background: var(--ink);
+  clip-path: polygon(10px 0, calc(100% - 10px) 0, 100% 10px, 100% calc(100% - 14px), calc(100% - 14px) 100%, 14px 100%, 0 calc(100% - 14px), 0 10px); }
+.basket::before { content: ''; position: absolute; inset: 2px; background: var(--teal);
+  box-shadow: inset 4px 4px 0 var(--teal-light), inset -4px -6px 0 var(--teal-shade);
+  clip-path: polygon(8px 0, calc(100% - 8px) 0, 100% 8px, 100% calc(100% - 12px), calc(100% - 12px) 100%, 12px 100%, 0 calc(100% - 12px), 0 8px); }
+.rim { position: absolute; left: 0; top: 0; width: 976px; height: 50px; }
+.rim .lip { position: absolute; left: 10px; right: 10px; top: 44px; height: 6px; background: var(--teal-shade); border-top: 2px solid var(--ink); }
+.inside { position: absolute; left: 10px; top: 52px; width: 956px; height: 504px; background: var(--teal-dark);
+  border: 2px solid var(--ink); box-shadow: inset 0 8px 0 var(--teal-darkest); }
+.holes { position: absolute; left: 0; right: 0; top: 558px; height: 24px; display: flex; justify-content: center; gap: 10px; align-items: center; }
+.holes i { display: block; width: 34px; height: 10px; background: var(--teal-darkest); border-top: 2px solid var(--ink); }
+.badge { width: 44px !important; height: 22px !important; background: var(--teal-darkest) !important; border: 2px solid var(--ink) !important;
+  display: flex !important; align-items: center; justify-content: center; }
+.title { position: absolute; left: 22px; top: 8px; font: 22px/32px Pixelify; color: var(--paper); -webkit-text-stroke: 6px var(--ink);
+  paint-order: stroke fill; white-space: nowrap; word-spacing: 4px; }
+.title .cart { display: inline-block; vertical-align: -2px; width: 24px; height: 18px; margin-right: 8px; image-rendering: pixelated; }
+.line { font: 16px/20px Atkinson; color: var(--cream); white-space: pre-wrap; }
+.line b { font-weight: 750; color: var(--paper); }
+.line .ty { color: var(--teal-light); }
+.head { font: 16px/20px Pixelify; color: var(--mustard); white-space: pre; }
+.pagebox { position: absolute; left: 20px; top: 54px; width: 936px; height: 500px; overflow: hidden; }
+.pageinner { position: absolute; left: 0; top: 4px; width: 920px; display: flex; flex-direction: column; gap: 6px; }
+.grid { position: relative; }
+.rail { position: absolute; left: 0; width: 920px; height: 40px; background: var(--ink); }
+.rail::before { content: ''; position: absolute; left: 0; right: 0; top: 2px; bottom: 2px; background: var(--steel);
+  box-shadow: inset 0 4px 0 var(--steel-light), inset 0 -6px 0 var(--steel-dark); }
+.scroll { position: absolute; right: 0; top: 4px; width: 12px; height: 492px; background: var(--teal-darkest); border: 2px solid var(--ink); }
+.thumb { position: absolute; left: 0; top: 0; width: 8px; background: var(--teal-light); box-shadow: inset 2px 2px 0 var(--teal-pale); }
+.pendback { position: absolute; left: 14px; top: 10px; width: 80px; height: 84px; background: var(--cream-shade); }
+.ghost { position: absolute; left: 14px; top: -4px; width: 96px; height: 96px; filter: brightness(.62); }
+.ghost2 { left: 22px; top: -8px; filter: brightness(.45); }
+.ghost img { position: absolute; inset: 0; width: 96px; height: 96px; image-rendering: pixelated; }
+.gun { position: absolute; left: 62px; top: 0px; height: 28px; min-width: 40px; padding: 0 6px; display: flex; align-items: center; justify-content: center;
+  border-style: solid; border-width: 6px; border-image: url(screens_src/assets/sticker_label.png) 6 fill stretch; image-rendering: pixelated;
+  font: 750 16px/1 Atkinson; color: var(--ink); transform: rotate(6deg); z-index: 2; }
+.burst { position: absolute; left: 50px; top: 4px; width: 62px; height: 34px; z-index: 2; transform: rotate(-8deg); }
+.burst img { position: absolute; inset: 0; width: 62px; height: 34px; image-rendering: pixelated; }
+.burst b { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font: 13px/1 Pixelify; color: var(--ink); }
+.cap { position: absolute; left: 0; top: 172px; width: 108px; height: 28px; text-align: center; font: 700 13px/13px Atkinson; color: var(--paper); overflow-wrap: anywhere;
+  display: flex; align-items: center; justify-content: center; }
+.irow { display: flex; gap: 8px; align-items: center; }
+.hover { transform: translateY(-6px); }
+.hover .halo { position: absolute; left: -2px; top: -2px; width: 112px; height: 108px; background: var(--gold);
+  clip-path: polygon(8px 0, 104px 0, 112px 8px, 112px 100px, 104px 108px, 8px 108px, 0 100px, 0 8px); opacity: .9; }
+.hover .halo::before { content: ''; position: absolute; inset: 4px; background: var(--teal-dark);
+  clip-path: polygon(6px 0, calc(100% - 6px) 0, 100% 6px, 100% calc(100% - 6px), calc(100% - 6px) 100%, 6px 100%, 0 calc(100% - 6px), 0 6px); }
+.rmtag { position: absolute; left: 6px; top: -22px; z-index: 3; height: 26px; padding: 0 6px; display: flex; align-items: center;
+  border-style: solid; border-width: 6px; border-image: url(screens_src/assets/sticker_label.png) 6 fill stretch; image-rendering: pixelated;
+  font: 13px/1 Pixelify; color: var(--ink); white-space: nowrap; transform: rotate(-5deg); }
+</style></head>
+<body data-scroll=""><div class="stage">
+<img class="bg" src="screens_src/assets/shift_screen_1280x720.png" alt="">
+<div class="shade"></div>
+<div class="hshadow"></div>
+<div class="panel">
+  <div class="basket"></div>
+  <div class="rim"><div class="lip"></div></div>
+  <div class="title"><img class="cart" src="screens_src/assets/cart.png">Your cart (13/15)</div>
+  <div class="sign off" style="left:656px;top:6px;width:84px"><span>Cart</span></div><div class="sign" style="left:748px;top:6px;width:110px"><span>Run info</span></div><div class="sign" style="left:870px;top:6px;width:84px"><span>Close</span></div>
+  <div class="inside"></div>
+  <div class="pagebox"><div class="pageinner">
+  <div class="line">Tags: Food 10&nbsp; ·&nbsp; Breakfast 8&nbsp; ·&nbsp; Produce 3&nbsp; ·&nbsp; Bakery 2&nbsp; ·&nbsp; Dairy 2</div>
+  <div class="head">PRODUCTS&nbsp; (12)</div>
+  <div class="grid" style="height:200px"><div class="rail" style="top:116px"></div><div class="cell" style="left:0px;top:0px"><div class="ghost ghost2"><img src="assets/art/items_v2/banana.png"></div><div class="ghost"><img src="assets/art/items_v2/banana.png"></div><div class="shadow"></div><div class="spr"><img src="assets/art/items_v2/banana.png" style="left:0;top:0;width:96px;height:96px"></div><div class="stk"><div class="face"></div><div class="base">€2</div><div class="sum">+2 after Banana</div></div><div class="gun">×3</div><div class="cap"><span>Banana</span></div></div>
+<div class="cell" style="left:116px;top:0px"><div class="ghost"><img src="screens_src/assets/art_pending_v2.png"></div><div class="pendback"></div><div class="shadow"></div><div class="spr"><img src="screens_src/assets/art_pending_v2.png" style="left:0;top:0;width:96px;height:96px"><div class="pname">Bread</div></div><div class="stk"><div class="face"></div><div class="base">€5</div></div><div class="gun">×2</div><div class="cap"><span>Bread</span></div></div>
+<div class="cell" style="left:232px;top:0px"><div class="ghost"><img src="assets/art/items_v2/coffee.png"></div><div class="shadow"></div><div class="spr"><img src="assets/art/items_v2/coffee.png" style="left:0;top:0;width:96px;height:96px"></div><div class="stk"><div class="face"></div><div class="base">€2</div><div class="sum">+3 next Breakfast</div></div><div class="gun">×2</div><div class="cap"><span>Coffee</span></div></div>
+<div class="cell" style="left:348px;top:0px"><div class="ghost"><img src="assets/art/items_v2/eggs.png"></div><div class="shadow"></div><div class="spr"><img src="assets/art/items_v2/eggs.png" style="left:0;top:0;width:96px;height:96px"></div><div class="stk"><div class="face"></div><div class="base">€1</div><div class="sum">×2 next Food</div></div><div class="gun">×2</div><div class="cap"><span>Eggs</span></div></div>
+<div class="cell" style="left:464px;top:0px"><div class="ghost"><img src="assets/art/items_v2/milk.png"></div><div class="shadow"></div><div class="spr"><img src="assets/art/items_v2/milk.png" style="left:0;top:0;width:96px;height:96px"></div><div class="stk"><div class="face"></div><div class="base">€4</div><div class="sum">+1 per earlier Breakfast</div></div><div class="gun">×2</div><div class="cap"><span>Milk</span></div></div>
+<div class="cell" style="left:580px;top:0px"><div class="pendback"></div><div class="shadow"></div><div class="spr"><img src="screens_src/assets/art_pending_v2.png" style="left:0;top:0;width:96px;height:96px"><div class="pname">Soup</div></div><div class="stk"><div class="face"></div><div class="base">€5</div><div class="sum">Pays nothing beside Frozen</div></div><div class="cap"><span>Soup</span></div></div></div>
+  <div class="head">COUPONS&nbsp; (1)</div>
+  <div class="grid" style="height:200px"><div class="rail" style="top:116px"></div><div class="cell" style="left:0px;top:0px"><div class="shadow"></div><div class="spr"><img src="assets/art/items_v2/coupon_slip.png" style="left:0;top:0;width:96px;height:96px"><div class="cname">Final markdown</div></div><div class="stk"><img class="cface" src="screens_src/assets/ticket_coupon.png" width="108" height="64"><div class="ctitle">COUPON</div><div class="sum">+4 in last slot</div></div><div class="cap"><span>Final markdown</span></div></div></div>
+  </div><div class="scroll"><div class="thumb"></div></div></div>
+  <div class="holes"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i class="badge"><img class="px" src="screens_src/assets/cart.png" style="width:24px;height:18px"></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
+</div>
+
+</div>
+<script>
+// Fit check: the page area's content height against PAGE_SIZE.y (500); the thumb follows it.
+const pg = document.querySelector('.pagebox'), inner = document.querySelector('.pageinner');
+if (pg && inner) {
+  const h = inner.scrollHeight; document.body.dataset.content = h;
+  const th = document.querySelector('.thumb');
+  if (th) { if (h <= 500) th.parentElement.style.display = 'none';
+            else th.style.height = Math.max(24, Math.round(500 * 500 / h / 2) * 2) + 'px'; }
+  if (document.body.dataset.scroll === 'end' && h > 500) {
+    inner.style.top = (500 - h) + 'px';
+    if (th) th.style.top = (th.parentElement.clientHeight - th.offsetHeight) + 'px'; }
+}
+const p = document.querySelector('.panel'); if (p) { const r = p.getBoundingClientRect();
+  document.body.dataset.panel = [r.left, r.top, r.width, r.height].join(','); }
+</script>
+</body></html>

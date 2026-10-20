@@ -1,0 +1,136 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Title B (with a save)</title>
+<!--
+  #56 TITLE, OPTION B: THE GIANT RECEIPT (decide prep, 2026-10-19). Nothing is decided.
+  Idea: a plain styled backdrop, the cheap option for the cut list ("simplify the title backdrop"). The darkest teal with a
+  faint floor-tile check, and one giant till receipt hanging from a printer slot at the top edge. The logo is the receipt's
+  header, printed big; the subtitle prints in the receipt font (JetBrains Mono) at the receipt's 44-character measure; the
+  coin line is a gold price-gun starburst slapped across the header (the sticker device from #71's h1); the loyalty card
+  (art/frames/loyalty_card.png, tilted -6 degrees, 3 empty stamp boxes) is stapled to the top-right corner as on #61's final
+  receipt, so the title already shows the two objects a run ends with. Buttons sit on the paper; a barcode closes the strip.
+  The space right of the receipt is RESERVED for the capsule machines' entry (#63; the dashed box is a mock-up note).
+  New art/src/ sources: frames/receipt_tall (paper 9-slice with a torn bottom edge, or receipt_paper.png + a tear strip),
+  frames/printer_slot (one steel strip), effects/sticker_burst_big (a larger gold starburst), the logo as a sprite
+  (logo_title, the same one A would use). Reused: loyalty_card.png, stamp_ring_empty.png, button.png, sign.png, warning.png.
+  Timing: none (the title has no offer timings). Optional juice, not in the capture: the receipt prints down 0.4 s on first
+  show and the sticker slaps on; nothing waits for it (Enter or a click works at once). Reduced motion: shown in place.
+  Fit check: the subtitle at 18 px mono in 2 lines of at most 44 characters; "Continue (shift 3 / 8)" in a 400 px button;
+  the confirmation's question on one line in a 680 px slip.
+  Art-direction pass (2026-10-19): the printer is the register's charcoal box with its LED; without a save the strip is
+  shorter (no dead paper under the prompt); logo at weight 600 so the C stays open.
+  STATE: with a save.
+-->
+<style>
+
+@font-face { font-family: Pixelify; src: url(../../../fonts/PixelifySans-Variable.ttf); }
+@font-face { font-family: Atkinson; src: url(../../../fonts/AtkinsonHyperlegibleNext-Variable.ttf); font-weight: 200 800; }
+@font-face { font-family: JBMono; src: url(../../../fonts/JetBrainsMono-Regular.ttf); }
+:root {
+  --ink: #2b2420; --ink-light: #4a3f38; --muted: #8a8172; --paper: #fbf7ee; --cream: #f3e9d2; --cream-shade: #ddcba5;
+  --cream-dark: #b39f78; --mustard: #e2b33c; --mustard-light: #f1d27a; --mustard-pale: #faecbc; --gold: #ffcf3f;
+  --tomato: #d9534f; --tomato-dark: #a83a3c; --teal: #4f9a94; --teal-panel: #2a4d4b; --teal-dark: #1f3b3a; --teal-black: #172c2b;
+  --steel: #8d8a83; --steel-light: #c7c3b8; --steel-dark: #57534c;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { width: 1280px; height: 720px; overflow: hidden; background: var(--teal-black); }
+img, canvas { image-rendering: pixelated; }
+.stage { position: relative; width: 1280px; height: 720px; overflow: hidden; font-family: Atkinson, sans-serif; color: var(--ink); }
+.abs { position: absolute; }
+/* light display text: the 6 px ink outline of UiKit.display_label, as a stepped 3 px ring */
+.ol { text-shadow: 3px 0 0 var(--ink), -3px 0 0 var(--ink), 0 3px 0 var(--ink), 0 -3px 0 var(--ink),
+  2px 2px 0 var(--ink), -2px 2px 0 var(--ink), 2px -2px 0 var(--ink), -2px -2px 0 var(--ink), 3px 2px 0 var(--ink),
+  -3px 2px 0 var(--ink), 3px -2px 0 var(--ink), -3px -2px 0 var(--ink), 2px 3px 0 var(--ink), -2px 3px 0 var(--ink),
+  2px -3px 0 var(--ink), -2px -3px 0 var(--ink); }
+/* FramedButton: the real 9-slice faces (art/frames/button.png and sign.png, 3 art px margins = 6 canvas px) */
+.fbtn { position: absolute; display: flex; align-items: center; justify-content: center; padding: 0 24px 4px;
+  font-family: Pixelify; color: var(--paper); white-space: nowrap; image-rendering: pixelated; }
+.fbtn.primary { border: 6px solid transparent; border-image: url(screens_src/assets/button.png) 6 fill / 6px stretch; }
+.fbtn.secondary { border: 6px solid transparent; border-image: url(screens_src/assets/sign.png) 6 fill / 6px stretch; padding-bottom: 2px; }
+.fbtn.hover { filter: brightness(1.12); }
+/* mock-up annotation only (not game art): where #63's entry would go */
+.reserve { position: absolute; border: 2px dashed var(--mustard-pale); display: flex; align-items: flex-start; justify-content: center;
+  padding-top: 10px; font: 600 14px Atkinson; color: var(--mustard-pale); background: rgba(250,236,188,.06); }
+.reserve span { background: rgba(23,44,43,.85); padding: 2px 8px; }
+.reserve.low { align-items: flex-end; padding: 0 0 10px; }
+.coin { width: 24px; height: 24px; display: block; flex: none; }
+.build { position: absolute; right: 20px; bottom: 16px; font: 600 14px Atkinson; color: var(--cream);
+  text-shadow: 2px 0 0 var(--ink), -2px 0 0 var(--ink), 0 2px 0 var(--ink), 0 -2px 0 var(--ink); }
+/* the abandon confirmation: ScreenShade-style black 0.5 over everything, then the panel */
+.shade { position: absolute; inset: 0; background: rgba(0,0,0,.5); }
+.ask { position: absolute; display: flex; flex-direction: column; align-items: center; gap: 22px; }
+.ask .q { display: flex; align-items: center; gap: 14px; font: 750 26px Atkinson; color: var(--tomato); white-space: nowrap; }
+.ask .q img { width: 39px; height: 33px; }
+.ask .row { display: flex; gap: 16px; }
+.ask .row .fbtn { position: relative; height: 56px; font-size: 22px; }
+
+
+.bg { position: absolute; inset: 0; background-color: var(--teal-black);
+  background-image: linear-gradient(45deg, var(--teal-dark) 25%, transparent 25%, transparent 75%, var(--teal-dark) 75%),
+    linear-gradient(45deg, var(--teal-dark) 25%, transparent 25%, transparent 75%, var(--teal-dark) 75%);
+  background-size: 80px 80px; background-position: 0 0, 40px 40px; opacity: .45; }
+.slot { position: absolute; left: 352px; top: -4px; width: 576px; height: 34px; background: #3d3a36; border: 2px solid var(--ink); border-top: 0;
+  box-shadow: inset 0 -6px 0 #2c2926, inset 0 4px 0 #57534c, 8px 8px 0 rgba(0,0,0,.35); }
+.slot i { position: absolute; left: 34px; right: 34px; bottom: 6px; height: 4px; background: var(--ink); }
+.slot b { position: absolute; left: 14px; top: 10px; width: 8px; height: 6px; background: #5fae5a; box-shadow: 0 0 0 2px var(--ink); }
+.slot u { position: absolute; left: 30px; top: 10px; width: 12px; height: 6px; background: #8d8a83; box-shadow: 0 0 0 2px var(--ink); }
+.receipt { position: absolute; left: 392px; top: 14px; width: 496px; height: 690px; background: var(--paper);
+  border-left: 2px solid var(--ink); border-right: 2px solid var(--ink); box-shadow: inset -6px 0 0 var(--cream-shade);
+  clip-path: polygon(0 0, 496px 0, 496px 682px, 480px 690px, 464px 682px, 448px 690px, 432px 682px, 416px 690px, 400px 682px, 384px 690px, 368px 682px, 352px 690px, 336px 682px, 320px 690px, 304px 682px, 288px 690px, 272px 682px, 256px 690px, 240px 682px, 224px 690px, 208px 682px, 192px 690px, 176px 682px, 160px 690px, 144px 682px, 128px 690px, 112px 682px, 96px 690px, 80px 682px, 64px 690px, 48px 682px, 32px 690px, 16px 682px, 0px 690px); }
+.rshadow { position: absolute; left: 402px; top: 24px; width: 496px; height: 690px; background: rgba(0,0,0,.35); clip-path: polygon(0 0, 496px 0, 496px 682px, 480px 690px, 464px 682px, 448px 690px, 432px 682px, 416px 690px, 400px 682px, 384px 690px, 368px 682px, 352px 690px, 336px 682px, 320px 690px, 304px 682px, 288px 690px, 272px 682px, 256px 690px, 240px 682px, 224px 690px, 208px 682px, 192px 690px, 176px 682px, 160px 690px, 144px 682px, 128px 690px, 112px 682px, 96px 690px, 80px 682px, 64px 690px, 48px 682px, 32px 690px, 16px 682px, 0px 690px); }
+.rink { position: absolute; left: 390px; top: 14px; width: 500px; height: 693px; background: var(--ink); clip-path: polygon(0 0, 500px 0, 500px 685px, 484px 693px, 468px 685px, 452px 693px, 436px 685px, 420px 693px, 404px 685px, 388px 693px, 372px 685px, 356px 693px, 340px 685px, 324px 693px, 308px 685px, 292px 693px, 276px 685px, 260px 693px, 244px 685px, 228px 693px, 212px 685px, 196px 693px, 180px 685px, 164px 693px, 148px 685px, 132px 693px, 116px 685px, 100px 693px, 84px 685px, 68px 693px, 52px 685px, 36px 693px, 20px 685px, 4px 693px); }
+.rc { position: absolute; left: 392px; top: 14px; width: 496px; display: flex; flex-direction: column; align-items: center; }
+.hdr { margin-top: 40px; font: 15px JBMono; color: var(--ink-light); letter-spacing: 1px; }
+.logo { margin-top: 10px; text-align: center; font-family: Pixelify; font-weight: 600; color: var(--ink); line-height: .92; }
+.logo .l1 { font-size: 104px; letter-spacing: 6px; }
+.logo .l2 { font-size: 76px; letter-spacing: 2px; }
+.dash { width: 432px; margin-top: 18px; border-top: 2px dashed var(--cream-dark); }
+.sub { width: 432px; margin-top: 16px; font: 18px/26px JBMono; color: var(--ink); text-align: center; }
+.burst { position: absolute; left: 542px; top: 368px; width: 196px; height: 92px; transform: rotate(-9deg); }
+.burst > svg { position: absolute; inset: 0; width: 196px; height: 92px; }
+.burst span { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; gap: 8px; font: 750 26px Atkinson; color: var(--ink); padding-bottom: 4px; white-space: nowrap; }
+.card { position: absolute; left: 800px; top: 30px; width: 176px; height: 108px; transform: rotate(-6deg);
+  border: 6px solid transparent; border-image: url(screens_src/assets/loyalty_card.png) 6 fill / 6px stretch; box-shadow: 6px 6px 0 rgba(0,0,0,.3); }
+.card .band { position: absolute; left: -2px; right: -2px; top: 2px; height: 22px; background: var(--teal); border-bottom: 2px solid #3a7672; }
+.card .t { position: absolute; right: 10px; top: 3px; font: 15px Pixelify; letter-spacing: 1px; color: var(--paper); }
+.card .boxes { position: absolute; left: 12px; top: 40px; display: flex; gap: 12px; }
+.card .boxes img { width: 34px; height: 34px; opacity: .8; }
+.staple { position: absolute; left: 818px; top: 60px; width: 20px; height: 5px; background: var(--muted); border: 1px solid var(--ink); transform: rotate(-6deg); }
+.btns { position: absolute; left: 432px; width: 416px; }
+.barcode { position: absolute; left: 472px; top: 640px; width: 336px; height: 34px; display: flex; gap: 2px; justify-content: center; }
+.barcode i { display: block; background: var(--ink); height: 34px; }
+.prompt { position: absolute; left: 392px; width: 496px; top: 490px; text-align: center; font: 30px Pixelify; color: var(--ink); }
+.prompt small { display: block; margin-top: 6px; font: 15px JBMono; color: var(--muted); letter-spacing: 1px; }
+/* the confirmation: a void slip torn from the same roll */
+.ask { left: 290px; top: 250px; width: 700px; height: 220px; justify-content: center; padding: 8px 30px 12px; background: var(--paper);
+  clip-path: polygon(0px 0px, 16px 8px, 32px 0px, 48px 8px, 64px 0px, 80px 8px, 96px 0px, 112px 8px, 128px 0px, 144px 8px, 160px 0px, 176px 8px, 192px 0px, 208px 8px, 224px 0px, 240px 8px, 256px 0px, 272px 8px, 288px 0px, 304px 8px, 320px 0px, 336px 8px, 352px 0px, 368px 8px, 384px 0px, 400px 8px, 416px 0px, 432px 8px, 448px 0px, 464px 8px, 480px 0px, 496px 8px, 512px 0px, 528px 8px, 544px 0px, 560px 8px, 576px 0px, 592px 8px, 608px 0px, 624px 8px, 640px 0px, 656px 8px, 672px 0px, 688px 8px, 700px 212px, 684px 220px, 668px 212px, 652px 220px, 636px 212px, 620px 220px, 604px 212px, 588px 220px, 572px 212px, 556px 220px, 540px 212px, 524px 220px, 508px 212px, 492px 220px, 476px 212px, 460px 220px, 444px 212px, 428px 220px, 412px 212px, 396px 220px, 380px 212px, 364px 220px, 348px 212px, 332px 220px, 316px 212px, 300px 220px, 284px 212px, 268px 220px, 252px 212px, 236px 220px, 220px 212px, 204px 220px, 188px 212px, 172px 220px, 156px 212px, 140px 220px, 124px 212px, 108px 220px, 92px 212px, 76px 220px, 60px 212px, 44px 220px, 28px 212px, 12px 220px); box-shadow: inset -6px 0 0 var(--cream-shade); }
+.askink { position: absolute; left: 288px; top: 248px; width: 704px; height: 224px; background: var(--ink); clip-path: polygon(0px 0px, 16px 8px, 32px 0px, 48px 8px, 64px 0px, 80px 8px, 96px 0px, 112px 8px, 128px 0px, 144px 8px, 160px 0px, 176px 8px, 192px 0px, 208px 8px, 224px 0px, 240px 8px, 256px 0px, 272px 8px, 288px 0px, 304px 8px, 320px 0px, 336px 8px, 352px 0px, 368px 8px, 384px 0px, 400px 8px, 416px 0px, 432px 8px, 448px 0px, 464px 8px, 480px 0px, 496px 8px, 512px 0px, 528px 8px, 544px 0px, 560px 8px, 576px 0px, 592px 8px, 608px 0px, 624px 8px, 640px 0px, 656px 8px, 672px 0px, 688px 8px, 704px 0px, 704px 224px, 688px 216px, 672px 224px, 656px 216px, 640px 224px, 624px 216px, 608px 224px, 592px 216px, 576px 224px, 560px 216px, 544px 224px, 528px 216px, 512px 224px, 496px 216px, 480px 224px, 464px 216px, 448px 224px, 432px 216px, 416px 224px, 400px 216px, 384px 224px, 368px 216px, 352px 224px, 336px 216px, 320px 224px, 304px 216px, 288px 224px, 272px 216px, 256px 224px, 240px 216px, 224px 224px, 208px 216px, 192px 224px, 176px 216px, 160px 224px, 144px 216px, 128px 224px, 112px 216px, 96px 224px, 80px 216px, 64px 224px, 48px 216px, 32px 224px, 16px 216px, 0px 224px); }
+.askshadow { position: absolute; left: 300px; top: 260px; width: 700px; height: 220px; background: rgba(0,0,0,.4); clip-path: polygon(0px 0px, 16px 8px, 32px 0px, 48px 8px, 64px 0px, 80px 8px, 96px 0px, 112px 8px, 128px 0px, 144px 8px, 160px 0px, 176px 8px, 192px 0px, 208px 8px, 224px 0px, 240px 8px, 256px 0px, 272px 8px, 288px 0px, 304px 8px, 320px 0px, 336px 8px, 352px 0px, 368px 8px, 384px 0px, 400px 8px, 416px 0px, 432px 8px, 448px 0px, 464px 8px, 480px 0px, 496px 8px, 512px 0px, 528px 8px, 544px 0px, 560px 8px, 576px 0px, 592px 8px, 608px 0px, 624px 8px, 640px 0px, 656px 8px, 672px 0px, 688px 8px, 700px 212px, 684px 220px, 668px 212px, 652px 220px, 636px 212px, 620px 220px, 604px 212px, 588px 220px, 572px 212px, 556px 220px, 540px 212px, 524px 220px, 508px 212px, 492px 220px, 476px 212px, 460px 220px, 444px 212px, 428px 220px, 412px 212px, 396px 220px, 380px 212px, 364px 220px, 348px 212px, 332px 220px, 316px 212px, 300px 220px, 284px 212px, 268px 220px, 252px 212px, 236px 220px, 220px 212px, 204px 220px, 188px 212px, 172px 220px, 156px 212px, 140px 220px, 124px 212px, 108px 220px, 92px 212px, 76px 220px, 60px 212px, 44px 220px, 28px 212px, 12px 220px); }
+
+</style>
+</head>
+<body>
+<div class="stage">
+<div class="bg"></div>
+<div class="rshadow"></div>
+<div class="rink"></div>
+<div class="receipt"></div>
+<div class="slot"><i></i><b></b><u></u></div>
+<div class="rc"><div class="hdr">NEXT CUSTOMER · REG 3</div><div class="logo"><div class="l1">NEXT</div><div class="l2">CUSTOMER</div></div><div class="dash"></div><div class="sub">Scan groceries and coupons in the best order. Meet the quota on all 8 shifts.</div><div class="dash"></div></div>
+<div class="burst"><svg viewBox="0 0 98 46" shape-rendering="crispEdges"><polygon fill="#2b2420" points="49,0 57,6 69,2 72,10 86,9 84,16 97,21 88,27 95,35 81,36 78,44 64,40 49,46 36,40 21,44 17,36 3,35 10,27 1,21 13,16 12,9 26,10 30,2 41,6"/><polygon fill="#e2b33c" points="49,3 57,9 67,5 70,12 83,12 81,18 92,22 85,27 91,33 79,34 76,41 64,37 49,43 36,37 23,41 20,34 7,33 13,27 6,22 17,18 15,12 28,12 31,5 41,9"/><polygon fill="#ffcf3f" points="49,3 57,9 67,5 70,12 83,12 81,18 92,22 49,22 6,22 17,18 15,12 28,12 31,5 41,9"/></svg><span><svg class="coin" viewBox="0 0 12 12" shape-rendering="crispEdges"><path fill="#2b2420" d="M3 0h6v1h2v2h1v6h-1v2h-2v1H3v-1H1V9H0V3h1V1h2z"/><path fill="#e2b33c" d="M3 1h6v1h1v1h1v6h-1v1H9v1H3v-1H2V9H1V3h1V2h1z"/><path fill="#ffcf3f" d="M3 2h5v1H3v5H2V3h1z"/><path fill="#b38425" d="M9 4h1v5H9v1H4V9h5z"/><path fill="#7a5a1c" d="M5 4h2v4H5z"/></svg>Coins: 5</span></div>
+<div class="barcode"><i style="width:4px"></i><i style="width:2px"></i><i style="width:2px"></i><i style="width:6px"></i><i style="width:2px"></i><i style="width:4px"></i><i style="width:2px"></i><i style="width:2px"></i><i style="width:4px"></i><i style="width:6px"></i><i style="width:2px"></i><i style="width:2px"></i><i style="width:4px"></i><i style="width:2px"></i><i style="width:6px"></i><i style="width:2px"></i><i style="width:4px"></i><i style="width:2px"></i><i style="width:2px"></i><i style="width:6px"></i><i style="width:4px"></i><i style="width:2px"></i><i style="width:2px"></i><i style="width:4px"></i><i style="width:2px"></i><i style="width:6px"></i><i style="width:2px"></i><i style="width:2px"></i><i style="width:4px"></i><i style="width:2px"></i><i style="width:4px"></i><i style="width:6px"></i><i style="width:2px"></i><i style="width:2px"></i><i style="width:4px"></i><i style="width:2px"></i><i style="width:2px"></i><i style="width:6px"></i><i style="width:2px"></i><i style="width:4px"></i><i style="width:2px"></i><i style="width:4px"></i><i style="width:2px"></i><i style="width:2px"></i><i style="width:6px"></i><i style="width:2px"></i><i style="width:4px"></i><i style="width:2px"></i><i style="width:2px"></i><i style="width:4px"></i><i style="width:6px"></i><i style="width:2px"></i><i style="width:4px"></i><i style="width:2px"></i><i style="width:2px"></i></div>
+<div class="card"><div class="band"></div><div class="t ol">LOYALTY</div><div class="boxes"><img src="screens_src/assets/stamp_ring_empty.png" alt=""><img src="screens_src/assets/stamp_ring_empty.png" alt=""><img src="screens_src/assets/stamp_ring_empty.png" alt=""></div></div>
+<div class="staple"></div>
+<div class="reserve" style="left:944px;top:330px;width:300px;height:250px"><span>Room for the capsule machines (#63)</span></div>
+<div class="fbtn primary ol" style="left:432px;top:470px;width:416px;height:64px;font-size:26px;">Continue (shift 3 / 8)</div>
+<div class="fbtn primary ol" style="left:432px;top:558px;width:416px;height:64px;font-size:26px;">New run</div>
+<div class="fbtn secondary ol" style="left:20px;top:664px;width:132px;height:40px;font-size:16px;">Export log</div>
+<div class="build">fb-p2</div>
+</div>
+<script>
+
+</script>
+</body>
+</html>
