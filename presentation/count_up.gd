@@ -9,15 +9,20 @@ extends Node
 ## the beat's length (start to start), so the next beat starts on time while long fades
 ## overlap it. Inside a beat, the motion is fitted to the beat's length.
 ##
-## The beats: a plain card's scan lift, beep, note, base pop and payout drop in one short beat;
-## bonuses flying in from the card (or upgrade box) that caused them; multiplier stamps;
-## copies; Soup's and the inspections' "denied"; sticker and Bundle moments; an armed effect's
-## tokens flying from its card to every card it will land on, where they wait as dimmed
-## EffectMarkers until their landing absorbs them (the arming card keeps a pip while any token
-## waits, greyed for good when the effect fizzles); fizzle puffs; a receipt printer that runs
-## faster as the run goes on, with three ticks per payout roll; a register rattle on big
-## payouts; the quota ding with a lasting "QUOTA" chip; then a held breath (longer and rattling
-## for a large total) and the TOTAL line.
+## The beats (CountUpBeats, which plays each kind): a plain card's scan beep, note, base pop and
+## payout in one short beat; bonuses flying in from the card (or upgrade box) that caused them;
+## multiplier stamps; copies; Soup's and the inspections' "denied"; sticker and Bundle moments;
+## an armed effect's glow; fizzle puffs; a payout's "+€N" flying to its receipt line
+## (ReceiptFly); a receipt printer that runs faster as the run goes on, with three ticks per
+## payout roll; a register rattle on big payouts; the quota ding (quota_met, held by its
+## hit-stop); then a held breath (longer and rattling for a large total) and the TOTAL line.
+##
+## The scan (#86 v6): the items come to the scanner one by one. Before the first beat of each
+## item's scan group (CountUpPlan), the count emits `ride` and waits the plan's ride gap while the
+## belt ride slides the item in and hops the one before into the bag; after the last beat the last
+## item bags during the pause before the total. The count-up never moves an item itself: the belt
+## ride (connected to `ride`, `beat_started` and `step_landed`, its motion on tween_maker()) does,
+## and gives back where each item is now (`source_rect`) for flights and puffs.
 ## Then the dessert (#61, CountUpDessert): the slam onto the monitor's total, the margin, PAID, the
 ## tear and the next shift's notice; a passed shift's ends at the printer feed (`printer_feed`),
 ## where the reward print-out takes over.
@@ -34,10 +39,11 @@ extends Node
 ## crossfades to the results.
 ##
 ## Time (D6): every beat length runs at _speed(), the fastest of the taps' skip, a hold's
-## fast-forward and the plan's base_speed (the auto speed-up times the speed setting). Hit-stops
+## fast-forward and the plan's count_speed (the auto speed-up times the speed setting times the
+## tuning's count_tempo, so it may be under 1: a tap or a hold only ever speeds it up). Hit-stops
 ## freeze only the count-up's own tweens (_live) for real milliseconds, measured in _process
-## (never a tween, never Engine.time_scale); they and the pause before the total are never sped
-## up by base_speed, only by a tap or a hold. After the verdict, the dessert runs at the speed
+## (never a tween, never Engine.time_scale); they and the pause before the total never follow
+## count_speed, only a tap or a hold. After the verdict, the dessert runs at the speed
 ## setting alone (Fast's x1.5, never the auto speed-up).
 ##
 ## Respecting the player (full build plan 6.2): a press of Space or the mouse (anywhere except on
@@ -51,8 +57,8 @@ extends Node
 ## frame is still a tap). The checkout click is ignored (a press still held at the start is
 ## ignored up to its release), so is the second click of a double-click on it (CHECKOUT fires on
 ## the first click's release), and a tap after the count-up does nothing. Reduced motion (the
-## context's) removes every shake and rattle, and markers fade in instead of flying; the
-## dessert's slam fades in at full size, unshaken.
+## context's) removes every shake and rattle, and the payouts' chips: their lines show at once;
+## the dessert's slam fades in at full size, unshaken.
 ##
 ## Steps caused by an upgrade (source_kind UPGRADE) come from that upgrade's loyalty-card box:
 ## bonuses and multipliers fly in from it, and its fizzles puff out of it. Steps caused by an
@@ -64,12 +70,25 @@ extends Node
 ## here. play() returns right after it.
 signal printer_feed
 signal finished
-## Step `index` landed on its item (#75, B: its chip pops in): a bonus or stamp once its marker is
-## absorbed (never both at once), a fizzle as it puffs, other steps at the beat's start.
+## A count of `views` (the row's items, in slot order) starts (#86 round 7: the bay's queue), as
+## the LED starts its count, before the pre-roll and the first ride.
+signal count_started(views: Array[CardView])
+## Step `index` landed on its item (#75, B; #86 v6: its sticker fires): a bonus or stamp as it
+## lands, a fizzle as it puffs, other steps at the beat's start.
 signal step_landed(index: int)
 ## A beat starts on `view`, one of `items` (#80, the monitor): its first `step` and that step's
 ## receipt line (ReceiptView.step_line, "" for none). Nothing waits for it: the timing never moves.
 signal beat_started(beat: CountUpBeat, step: ScoreStep, line: String, view: CardView, items: int)
+## A ride gap starts (#86 v6): item `scan_slot` slides into the scanner over `ride_ms` (at speed
+## 1, on tween_maker()'s tweens) while item `bag_slot` (-1 for none) hops into the bag. Emitted
+## before each scan group's first beat (with 0 ms for item 0 already in the scanner's cell; the
+## count then waits ride_ms), and once after the last beat as ride(last item, -1, bag_ms), when
+## the last item bags during the pause before the total (no wait).
+signal ride(bag_slot: int, scan_slot: int, ride_ms: int)
+## The quota is met (D5, #86 v6): at the ding (`pop`), at the TOTAL line when the last payout
+## crosses it (`pop`), or at once in a resumed end state (not `pop`). The LED's reading turns
+## met at the same moment.
+signal quota_met(pop: bool)
 
 ## A hold's speed, from HOLD_THRESHOLD_MS on.
 const FAST_FORWARD := 5.0
@@ -93,33 +112,15 @@ const ARMED_NOTE_DB := -10.0
 const STAMP_NOTE_DB := -6.0
 ## An echo's stamp sample, softer than a full stamp.
 const ECHO_STAMP_DB := -8.0
-## The register rattle's sound (#62): rattle_s, from RATTLE_MEDIUM_PX px rattle_m, from
-## RATTLE_LARGE_PX rattle_l; its volume climbs from RATTLE_QUIET_DB to 0 dB at RATTLE_FULL_PX.
+## The register rattle's sound (#62, CountUpBeats.play_rattle): rattle_s, from RATTLE_MEDIUM_PX px
+## rattle_m, from RATTLE_LARGE_PX rattle_l; its volume climbs from RATTLE_QUIET_DB to 0 dB at
+## RATTLE_FULL_PX.
 const RATTLE_MEDIUM_PX := 6.0
 const RATTLE_LARGE_PX := 10.0
 const RATTLE_FULL_PX := 12.0
 const RATTLE_QUIET_DB := -10.0
-## Motion lengths at speed 1 (s), the longest each gets: a shorter beat shortens it (_motion).
-const SCAN_LIFT_TIME := 0.18
-const MERGED_LIFT_MIN := 0.05
-const MERGED_LIFT_MAX := 0.1
-const DROP_MIN := 0.08
-const DROP_MAX := 0.16
+## A line printed when a payout lands fades in over this (s; ReceiptFly, the dessert).
 const LINE_FADE := 0.15
-const BONUS_FLIGHT := 0.32
-const OWN_BONUS_RISE := 0.3
-const STAMP_SLAM := 0.16
-const UPGRADE_FLIGHT := 0.3
-const DENIED_LANDING := 0.2
-const TAG_FLIGHT := 0.35
-const LINK_SHRINK := 0.45
-const RESET_FLIGHT := 0.3
-const FIZZLE_SHUDDER := 0.2
-const FIZZLE_RECOVER := 0.15
-const ECHO_POP := 0.12
-## The quota chip pops in from this scale (D5) over QUOTA_CHIP_SETTLE.
-const QUOTA_CHIP_POP := 1.4
-const QUOTA_CHIP_SETTLE := 0.2
 ## The subtotal's punch on the TOTAL line (D11).
 const TOTAL_PUNCH := 1.5
 ## A payout's subtotal punch: SUBTOTAL_PUNCH plus up to SUBTOTAL_PUNCH_MAX for bigger payouts.
@@ -143,13 +144,10 @@ var dessert_skipped: bool = false
 var plan: CountUpPlan
 ## The Music autoload the dessert ducks (#62), or null for none (the shift screen sets it).
 var music: MusicService
-## The stage's scan layer (#75), or null: it marks each scanned item, cleared after the beats.
-var scan_overlay: ScanOverlay
-## The stage's belt (#83), or null: its slats run from the CHECKOUT click to the held breath
-## before the TOTAL line, at the tuning's belt speed times _speed(), so a hit-stop stops them
-## and a tap or a hold speeds them up. Reduced motion leaves them running (nothing moves but the
-## belt's own frames). It never adds a wait: the count's timing is the plan's.
-var belt: BeltPanel
+## Where item `slot` is now, a global Rect2 (#86 v6: the belt ride's source_rect, the scanner or
+## the bag's mouth once bagged), for the flights and puffs that start from an item; unset, they
+## start at the item view's centre.
+var source_rect: Callable
 ## How big the ending was, for what follows the total (#61); null until the total shows.
 var intensity: CountUpIntensity
 ## The shift's margin against its quota (#61), set when the dessert starts; null before that.
@@ -162,20 +160,17 @@ var _overlay: Control
 var _views: Array[CardView] = []
 var _names: PackedStringArray = PackedStringArray()
 var _steps: Array[ScoreStep] = []
-## The loyalty-card boxes and names of the run's upgrades, indexed like the run's upgrades
-## (a step's source_index). Never mixed up with _views, which is indexed by slot.
-var _upgrade_boxes: Array[Control] = []
-var _upgrade_names: PackedStringArray = PackedStringArray()
-## Where the shift's inspections are shown and their names, indexed like the shift's
-## inspections (a step's source_index).
-var _inspection_sources: Array[Control] = []
-var _inspection_names: PackedStringArray = PackedStringArray()
 var _receipt: ReceiptView
 ## The register's LED: the running subtotal, then the total.
 var _led: LedDisplay
 ## The quota is met (the ding beat, or the TOTAL line): the LED's subtotal shows green.
 var _met: bool = false
-var _sfx: Sfx
+## The sounds; the beats play the same Sfx (a test may swap it after setup()).
+var _sfx: Sfx:
+	set(value):
+		_sfx = value
+		if _beats != null:
+			_beats.sfx = value
 ## Shaken on big payouts and before a large total (the register rattle).
 var _rattle_target: Control
 var _shown_subtotal: int = 0
@@ -189,8 +184,6 @@ var _presses: PressReader
 var _tapped: bool = false
 ## The final total is shown: what follows is the dessert.
 var _verdict_shown: bool = false
-## The belt runs (see `belt`): set from the CHECKOUT click to the held breath.
-var _belt_running: bool = false
 ## This count-up ducked the music and hasn't brought it back.
 var _ducked: bool = false
 ## Running tweens: their speed follows fast-forward every frame, not only when they start.
@@ -199,14 +192,13 @@ var _live: Array[Tween] = []
 var _hit_stop_left_ms: float = 0.0
 ## Time.get_ticks_usec() of the last hit-stop count.
 var _hit_stop_us: int = 0
-## Punches, shakes, lifts and flying labels, on this count-up's tweens.
+## Punches, shakes and flying labels, on this count-up's tweens.
 var _fx: CountUpMotion
 ## What follows the verdict (#61), on this count-up's tweens.
 var _dessert: CountUpDessert
-## The armed effects' tokens, markers and pips of the row being played, or null.
-var _tokens: EffectTokens
-## The lasting "QUOTA" chip on the LED's quota line, or null.
-var _quota_chip: QuotaChip
+## Each beat's motion and sound (#86 v6: split out for the file length), on this count-up's
+## tweens.
+var _beats: CountUpBeats
 
 
 func _init() -> void:
@@ -234,11 +226,17 @@ func setup(
 	_rattle_target = rattle_target
 	_tuning = tuning if tuning != null else load(TUNING_PATH) as CountUpTuning
 	_dessert = CountUpDessert.new(overlay, receipt, led, sfx, _fx, rattle_target, _tween)
+	_beats = CountUpBeats.new(self, overlay, receipt, led, _fx, rattle_target, _tween)
+	_beats.sfx = sfx
+	_beats.landed = _landed
+	_beats.land = _land
+	_beats.roll_subtotal = _roll_subtotal
+	_beats.meet_quota = _quota_met
 
 
 ## Plays `result` on the row's card views. `context` is the run around the row (shift, best so
 ## far, speed setting, reduced motion, and the receipt's header, printed at once as the count-up
-## starts); `quota` only places the ding and the chip.
+## starts); `quota` only places the ding (quota_met).
 func play(
 	result: ScoreResult,
 	views: Array[CardView],
@@ -256,18 +254,25 @@ func play(
 	_views = views
 	_names = names
 	_steps = result.steps
-	_upgrade_boxes = upgrade_boxes
-	_upgrade_names = upgrade_names
-	_inspection_sources = inspection_sources
-	_inspection_names = inspection_names
 	plan = CountUpPlan.build(result.steps, quota, context, _tuning)
+	_beats.begin(
+		plan,
+		_tuning,
+		_steps,
+		views,
+		names,
+		upgrade_boxes,
+		upgrade_names,
+		inspection_sources,
+		inspection_names
+	)
 	intensity = null
 	margin = null
 	printer_feed_ms = -1
 	_fx.reset(plan.reduced_motion)
 	_clear_row()
 	_led.start_count(quota)
-	_tokens = EffectTokens.new(_overlay, plan, _steps, _views, _names, _tween)
+	count_started.emit(_views)
 	_shown_subtotal = 0
 	_roll = null
 	_hit_stop_left_ms = 0.0
@@ -279,7 +284,6 @@ func play(
 	_ducked = false
 	_presses.begin()
 	_playing = true
-	_belt_running = true
 	# The receipt starts over: the shift's header and every item's line waiting (#80).
 	_receipt.begin_count(context.receipt_header, _names)
 	_set_subtotal(0.0)
@@ -287,23 +291,28 @@ func play(
 		view.reset_motion()
 		view.hide_badge()
 	await _wait_ms(plan.pre_roll_ms)
+	var scanned: int = -1
 	for index: int in range(plan.beats.size()):
+		var beat: CountUpBeat = plan.beats[index]
+		if beat.opens_slot:
+			ride.emit(scanned, beat.scan_slot, beat.ride_ms)
+			scanned = beat.scan_slot
+			if beat.ride_ms > 0:
+				await _wait_ms(beat.ride_ms)
 		_play_beat(index)
-		await _wait_ms(plan.beats[index].duration_ms)
-	# The belt stops as the held breath starts, so the TOTAL lands on a still counter.
-	_belt_running = false
-	_tokens.dissolve()
-	if scan_overlay != null:
-		scan_overlay.dock()
+		await _wait_ms(beat.duration_ms)
+	# The last item bags as the held breath starts: it adds nothing.
+	if scanned >= 0:
+		ride.emit(scanned, -1, plan.bag_ms)
 	_duck_for_dessert()
 	await _pause()
 	_finish_roll()
 	_receipt.add_total(result.total)
-	_sfx.play("print", _print_pitch())
+	_sfx.play("print", _beats.print_pitch())
 	_led.show_total()
 	_fx.punch(_led.digits_label(), TOTAL_PUNCH)
 	if plan.chip_at_total:
-		_quota_met(false)
+		_meet(true)
 	total_shown_ms = Time.get_ticks_msec()
 	intensity = CountUpIntensity.from_plan(plan)
 	_verdict_shown = true
@@ -312,7 +321,7 @@ func play(
 	_dessert.sfx = _sfx
 	_dessert.speed_setting = plan.speed_setting
 	await _dessert.play(
-		result.total, quota, notice, _tuning, intensity, plan.reduced_motion, _print_pitch()
+		result.total, quota, notice, _tuning, intensity, plan.reduced_motion, _beats.print_pitch()
 	)
 	if margin.passed():
 		printer_feed_ms = Time.get_ticks_msec()
@@ -323,7 +332,7 @@ func play(
 
 
 ## A checkout's end state without playing it, for a run resumed after its checkout: the subtotal
-## at the total, green with the lasting QuotaChip when the quota is met (D5). Sets `plan` and
+## at the total, met (quota_met without a pop) when the quota is met (D5). Sets `plan` and
 ## `intensity`; the receipt is the caller's (ReceiptView.show_result).
 func show_end_state(result: ScoreResult, quota: int, context: CountUpContext) -> void:
 	plan = CountUpPlan.build(result.steps, quota, context, _tuning)
@@ -333,29 +342,23 @@ func show_end_state(result: ScoreResult, quota: int, context: CountUpContext) ->
 	_set_subtotal(result.total)
 	_led.show_total()
 	if plan.quota_reached:
-		_show_chip(false)
+		_meet(false)
 
 
-func _process(delta: float) -> void:
+## The Callable that makes this count-up's tweens (#86 v6): collaborators' motion on them follows
+## the hit-stops, taps and holds, like the count's own.
+func tween_maker() -> Callable:
+	return _tween
+
+
+func _process(_delta: float) -> void:
 	if _hit_stop_left_ms > 0.0:
 		var now: int = Time.get_ticks_usec()
 		_hit_stop_left_ms -= (now - _hit_stop_us) / 1000.0 * _press_speed()
 		_hit_stop_us = now
 	_apply_speed()
-	_run_belt(delta)
 	if _playing and _presses.is_holding() and FAST_FORWARD > _skip_speed() and not _live.is_empty():
 		fast_forward_used = true
-
-
-## Moves the belt's slats on by `delta` seconds of the count (see `belt`), at most
-## belt_max_px_per_second.
-func _run_belt(delta: float) -> void:
-	if not _belt_running or belt == null:
-		return
-	var px_per_second: float = minf(
-		_tuning.belt_px_per_second * _speed(), _tuning.belt_max_px_per_second
-	)
-	belt.scroll(px_per_second * delta)
 
 
 ## Sets every running tween's speed to _speed() and forgets the finished ones.
@@ -382,396 +385,38 @@ func _tap(now: int) -> void:
 	_tapped = true
 
 
-## Starts beat `index`'s motion and sound; play() waits its length.
+## Starts beat `index`'s motion and sound (CountUpBeats); play() waits its length.
 func _play_beat(index: int) -> void:
 	var beat: CountUpBeat = plan.beats[index]
 	var step: ScoreStep = _steps[beat.steps[0]]
-	var line: String = ReceiptView.step_line(step, _names, _upgrade_names, _inspection_names)
-	beat_started.emit(beat, step, line, _views[step.slot], _views.size())
-	match beat.kind:
-		CountUpBeat.Kind.MERGED_PLAIN:
-			_merged(beat, step, _steps[beat.steps[1]])
-		CountUpBeat.Kind.BASE:
-			_base(beat, step)
-		CountUpBeat.Kind.BONUS:
-			_bonus(index, beat, step)
-		CountUpBeat.Kind.STAMP:
-			_stamp(index, beat, step)
-		CountUpBeat.Kind.DENIED:
-			_denied(beat, step)
-		CountUpBeat.Kind.PAYOUT:
-			_payout(beat, step)
-		CountUpBeat.Kind.ARMED:
-			_armed(index, beat, step)
-		CountUpBeat.Kind.FIZZLE:
-			_fizzle(index, beat, step)
-		CountUpBeat.Kind.TAG:
-			_tag_added(beat, step)
-		CountUpBeat.Kind.LINK:
-			_linked(beat, step)
-	if beat.kind not in [CountUpBeat.Kind.BONUS, CountUpBeat.Kind.STAMP, CountUpBeat.Kind.FIZZLE]:
-		_landed(beat)
+	beat_started.emit(beat, step, _beats.line_of(step), _views[step.slot], _views.size())
+	_beats.play(index)
 
 
-## Emits step_landed for each of the beat's steps.
+## Emits step_landed for each of the beat's steps (CountUpBeats, as they land).
 func _landed(beat: CountUpBeat) -> void:
 	for index: int in beat.steps:
 		step_landed.emit(index)
 
 
-## How long a beat's motion may take at speed 1, in seconds: its length without the shortest
-## trailing gap.
-func _motion(beat: CountUpBeat) -> float:
-	return maxf(MERGED_LIFT_MIN, (beat.duration_ms - _tuning.fit_gap_ms) / 1000.0)
-
-
-func _tag_added(beat: CountUpBeat, step: ScoreStep) -> void:
-	_print_step(step)
-	var target: CardView = _views[step.slot]
-	var source: CardView = _source_view(step)
-	if source == null:
-		source = target
-	_fx.punch(source.body, 1.1)
-	var flight: float = minf(TAG_FLIGHT, _motion(beat) * 0.7)
-	await _fx.fly_text(
-		"+" + step.tag, source.center(), target.center(), Palette.LIGHT_TEXT, 24, flight
-	)
-	_sfx.play("tag")
-	target.add_tag(step.tag)
-	_fx.punch(target.body, 1.15)
-
-
-func _linked(beat: CountUpBeat, step: ScoreStep) -> void:
-	_print_step(step)
-	var left: CardView = _views[step.slot]
-	var right: CardView = _views[step.linked_slot]
-	var line: Line2D = Line2D.new()
-	line.width = 10.0
-	line.default_color = Palette.TEAL
-	line.add_point(left.center() - _overlay.global_position)
-	line.add_point(right.center() - _overlay.global_position)
-	_overlay.add_child(line)
-	_sfx.play("link")
-	var shrink: float = minf(LINK_SHRINK, _motion(beat) * 0.8)
-	# A coupon's link punches the coupon. An upgrade's (Rule bender) comes out of its
-	# loyalty-card box: its name flies to the link, so the player sees what joined the cards.
-	var source: Control = _source_control(step)
-	if source != null:
-		_fx.punch(_moving_part(source), 1.15)
-	var box: Control = _upgrade_box(step)
-	if box != null:
-		var middle: Vector2 = (left.center() + right.center()) / 2.0
-		_fx.fly_text(step.text, _center(box), middle, Palette.TEAL, 20, shrink, true)
-	_fx.punch(left.body, 1.12)
-	_fx.punch(right.body, 1.12)
-	var tween: Tween = _tween()
-	tween.tween_property(line, "width", 3.0, shrink)
-	tween.tween_property(line, "modulate:a", 0.0, 0.25)
-	tween.tween_callback(line.queue_free)
-
-
-## A fizzle: the card shudders, greys out for a moment, and lets out a little puff. An
-## upgrade's fizzle comes out of its loyalty-card box instead (the card it had nothing to work
-## on gives a small nudge). An armed effect's fizzle greys its pip for good.
-func _fizzle(index: int, beat: CountUpBeat, step: ScoreStep) -> void:
-	_print_step(step)
-	var view: CardView = _views[step.slot]
-	var shaken: Control = view.body
-	var puff_at: Vector2 = view.center() + Vector2(0, -30)
-	var puff_to: Vector2 = puff_at + Vector2(0, -50)
-	var upgrade_box: Control = _upgrade_box(step)
-	var resetter: CardView = _source_view(step)
-	var motion: float = _motion(beat)
-	if upgrade_box != null:
-		shaken = upgrade_box
-		# The box sits in the top bar: the puff drifts down from it, onto the screen.
-		puff_at = _center(upgrade_box) + Vector2(0, 26)
-		puff_to = puff_at + Vector2(0, 50)
-		_fx.punch(view.body, 1.06)
-	elif resetter != null and step.source_slot != step.slot:
-		# A reset: show the card that wiped this one's effect.
-		_fx.punch(resetter.body, 1.15)
-		var flight: float = minf(RESET_FLIGHT, motion * 0.35)
-		motion -= flight
-		await _fx.fly_text(
-			"reset", resetter.center(), view.center(), Palette.LIGHT_TEXT, 20, flight
-		)
-	_sfx.play("fizzle")
-	_tokens.spend(index, step)
-	_landed(beat)
-	shaken.pivot_offset = shaken.size / 2.0
-	# An upgrade's box keeps its stamp tilt: the shudder ends where it started.
-	var rest: float = shaken.rotation if upgrade_box != null else 0.0
-	var shudder: float = minf(FIZZLE_SHUDDER, motion * 0.4)
-	var recover: float = minf(FIZZLE_RECOVER, motion * 0.3)
-	var tween: Tween = _tween()
-	tween.tween_property(shaken, "modulate", Color(0.6, 0.6, 0.6), 0.06)
-	if plan.reduced_motion:
-		tween.tween_interval(shudder)
-	else:
-		tween.tween_property(shaken, "rotation", rest + deg_to_rad(-5.0), shudder * 0.3)
-		tween.tween_property(shaken, "rotation", rest + deg_to_rad(5.0), shudder * 0.4)
-		tween.tween_property(shaken, "rotation", rest, shudder * 0.3)
-	# The grey holds for the rest of the beat.
-	tween.tween_interval(maxf(0.0, motion - 0.06 - shudder - recover))
-	tween.tween_property(shaken, "modulate", Color.WHITE, recover)
-	_fx.fly_text("pfff…", puff_at, puff_to, Palette.LIGHT_TEXT, 20, 0.55, true)
-
-
-## The scanner on a card that is not plain: the card lifts and its base value pops up.
-func _base(beat: CountUpBeat, step: ScoreStep) -> void:
-	_print_step(step)
-	var view: CardView = _views[step.slot]
-	_fx.lift(view, minf(SCAN_LIFT_TIME, _motion(beat)))
-	_pose_scanner(view)
-	_sfx.play("scan")
-	view.show_badge(step.value_after, true)
-	_fx.punch(view.badge, 1.3)
-
-
-## A plain card in one short beat (D2): the scan lift with its beep and note, the base pop, its
-## BASE and payout lines, then the drop with the payout's roll.
-func _merged(beat: CountUpBeat, base: ScoreStep, payout: ScoreStep) -> void:
-	_print_step(base)
-	var line: Control = _print_step(payout)
-	if line != null:
-		line.modulate.a = 0.0
-	var view: CardView = _views[base.slot]
-	var lift: float = clampf(
-		_motion(beat) - beat.roll_ms / 1000.0, MERGED_LIFT_MIN, MERGED_LIFT_MAX
-	)
-	_fx.lift(view, lift)
-	_pose_scanner(view)
-	_sfx.play("scan")
-	if beat.note >= 0:
-		_sfx.play_note(beat.note)
-	view.show_badge(base.value_after, true)
-	_fx.punch(view.badge, 1.3)
-	await _wait(lift)
-	_land_payout(beat, payout, line)
-
-
-## Marks an item in gold on scan_overlay where its scan lift ends; nothing waits for it.
-func _pose_scanner(view: CardView) -> void:
-	if scan_overlay != null and view is ItemView:
-		scan_overlay.pose_scan(ScanOverlay.scan_frame(view as ItemView))
-
-
-## A bonus flies in from the card that caused it, or from the upgrade's loyalty-card box (or
-## rises from the card for its own rules). An armed effect's bonus flies from the arming card
-## and absorbs its marker.
-func _bonus(index: int, beat: CountUpBeat, step: ScoreStep) -> void:
-	_print_step(step)
-	var target: CardView = _views[step.slot]
-	var text: String = "+%d" % step.value
-	if beat.echo:
-		_echo(index, beat, step, text, Palette.MUSTARD)
-		return
-	# A copy flies in from the copied card; any other bonus from the card or upgrade that
-	# caused it, unless it is the target's own rule.
-	var source: Control = null
-	if step.step_type == ScoreStep.StepType.COPY:
-		source = _views[step.linked_slot]
-	elif step.source_kind == ScoreStep.SourceKind.UPGRADE or step.source_slot != step.slot:
-		source = _source_control(step)
-	if source != null:
-		_fx.punch(_moving_part(source), 1.1)
-		if step.step_type == ScoreStep.StepType.COPY:
-			_sfx.play("copy")
-		var flight: float = minf(BONUS_FLIGHT, _motion(beat) * 0.75)
-		await _fx.fly_text(text, _center(source), target.center(), Palette.MUSTARD, 30, flight)
-	else:
-		var above: Vector2 = target.center() + Vector2(0, -20)
-		_fx.fly_text(
-			text, above, above + Vector2(0, -40), Palette.MUSTARD, 30, OWN_BONUS_RISE, true
-		)
-	if beat.note >= 0:
-		_sfx.play_note(beat.note)
-	target.show_badge(step.value_after, true)
-	_fx.punch(target.badge, 1.3)
-	_tokens.land(index, _landed.bind(beat))
-	_land(beat)
-
-
-## A multiplier lands like a stamp: big, rotated, slammed down, with a shake. An upgrade's
-## factor first flies in from its loyalty-card box; an armed effect's stamp punches and lights
-## up the arming card and absorbs its marker.
-func _stamp(index: int, beat: CountUpBeat, step: ScoreStep) -> void:
-	_print_step(step)
-	var target: CardView = _views[step.slot]
-	var factor: String = "×%d" % step.value
-	if beat.echo:
-		_echo(index, beat, step, factor, Palette.TOMATO)
-		return
-	var motion: float = _motion(beat)
-	var slam_time: float = minf(STAMP_SLAM, motion * 0.6)
-	var upgrade_box: Control = _upgrade_box(step)
-	var source: CardView = _source_view(step)
-	if upgrade_box != null:
-		_fx.punch(upgrade_box, 1.3)
-		var flight: float = minf(UPGRADE_FLIGHT, motion * 0.45)
-		slam_time = minf(STAMP_SLAM, motion * 0.35)
-		await _fx.fly_text(
-			factor, _center(upgrade_box), target.center(), Palette.TOMATO, 26, flight
-		)
-	elif source != null and step.source_slot != step.slot:
-		_fx.punch(source.body, 1.12)
-		_fx.glow(source.body)
-	var stamp: Label = CountUpMotion.text_label(factor, Palette.TOMATO, 54)
-	_overlay.add_child(stamp)
-	stamp.global_position = target.center() - stamp.size / 2.0
-	stamp.pivot_offset = stamp.size / 2.0
-	stamp.scale = Vector2(2.6, 2.6)
-	stamp.rotation = deg_to_rad(-18.0)
-	stamp.modulate.a = 0.0
-	var slam: Tween = _tween().set_parallel().set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
-	slam.tween_property(stamp, "scale", Vector2.ONE, slam_time)
-	slam.tween_property(stamp, "rotation", deg_to_rad(-8.0), slam_time)
-	slam.tween_property(stamp, "modulate:a", 1.0, slam_time * 0.6)
-	await slam.finished
-	_sfx.play("stamp")
-	if beat.note >= 0:
-		_sfx.play_note(beat.note, STAMP_NOTE_DB)
-	_fx.shake(target.body, 7.0)
-	target.show_badge(step.value_after, true)
-	_fx.punch(target.badge, 1.4)
-	_tokens.land(index, _landed.bind(beat))
-	_land(beat)
-	var fade: Tween = _tween()
-	fade.tween_interval(0.2)
-	fade.tween_property(stamp, "modulate:a", 0.0, 0.2)
-	fade.tween_callback(stamp.queue_free)
-
-
-## A repeat landing of an armed effect, played short (D7 stage 2): the arming card punches, the
-## effect pops on the target and its marker is absorbed; no flight, no slam, no hit-stop.
-func _echo(index: int, beat: CountUpBeat, step: ScoreStep, text: String, color: Color) -> void:
-	var target: CardView = _views[step.slot]
-	var source: CardView = _source_view(step)
-	if source != null and step.source_slot != step.slot:
-		_fx.punch(source.body, 1.08)
-	_fx.pop_text(text, target.center(), color, 34, ECHO_POP)
-	var stamped: bool = step.step_type == ScoreStep.StepType.MULTIPLIER
-	if stamped:
-		_sfx.play("stamp", 1.0, ECHO_STAMP_DB)
-	if beat.note >= 0:
-		_sfx.play_note(beat.note, STAMP_NOTE_DB if stamped else 0.0)
-	target.show_badge(step.value_after, true)
-	_fx.punch(target.badge, 1.25)
-	_tokens.land(index, _landed.bind(beat))
-
-
-## Soup beside Frozen, or an inspection: a hard "denied" as its value is wiped to 0. An
-## inspection's tag is punched first, so the 0 visibly comes from it.
-func _denied(beat: CountUpBeat, step: ScoreStep) -> void:
-	_print_step(step)
-	var view: CardView = _views[step.slot]
-	var inspection: Control = _inspection_source(step)
-	if inspection != null:
-		_fx.punch(inspection, 1.25)
-	var cross: Label = CountUpMotion.text_label("0", Palette.TOMATO, 64)
-	_overlay.add_child(cross)
-	cross.global_position = view.center() - cross.size / 2.0
-	cross.pivot_offset = cross.size / 2.0
-	cross.scale = Vector2(3, 3)
-	var tween: Tween = _tween().set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
-	tween.tween_property(cross, "scale", Vector2.ONE, minf(DENIED_LANDING, _motion(beat) * 0.8))
-	await tween.finished
-	_sfx.play("denied")
-	_fx.shake(view.body, 10.0)
-	view.show_fizzle_badge(step.value_after)
-	_land(beat)
-	var fade: Tween = _tween()
-	fade.tween_interval(0.25)
-	fade.tween_property(cross, "modulate:a", 0.0, 0.2)
-	fade.tween_callback(cross.queue_free)
-
-
-## A PAYOUT beat (a card that is not plain).
-func _payout(beat: CountUpBeat, step: ScoreStep) -> void:
-	var line: Control = _print_step(step)
-	if line != null:
-		line.modulate.a = 0.0
-	_land_payout(beat, step, line)
-
-
-## The payout drops onto the receipt and the subtotal rolls up over the beat's roll with three
-## ticks, the printer sounding at its speed; a big payout rattles the register. The ding beat
-## meets the quota as its roll ends.
-func _land_payout(beat: CountUpBeat, step: ScoreStep, line: Control) -> void:
-	var view: CardView = _views[step.slot]
-	if line != null:
-		_tween().tween_property(line, "modulate:a", 1.0, LINE_FADE)
-	var roll: float = beat.roll_ms / 1000.0
-	var fall: float = clampf(roll, DROP_MIN, DROP_MAX)
-	_fx.drop(view, fall)
-	_sfx.play("print", _print_pitch())
-	if beat.payout > 0 and roll > 0.0:
-		_ticks(roll)
-		_fx.punch(
-			_led.digits_label(),
-			SUBTOTAL_PUNCH + minf(beat.payout / 25.0, SUBTOTAL_PUNCH_MAX) + beat.punch_boost
-		)
-		if beat.rattle_px > 0.0:
-			_fx.shake(_rattle_target, beat.rattle_px)
-			_play_rattle(beat.rattle_px)
-	_roll_subtotal(step.subtotal, roll)
-	if roll > 0.0:
-		await _wait(roll)
-	if beat.ding:
-		_quota_met(true)
-	_land(beat)
-
-
-## An armed effect (Eggs' charges, Coffee, Multipack): the card glows and pulses, the current
-## note replays quietly, and one token per landing flies to its target card, where it waits as
-## a dimmed marker (D8, D9); the card keeps a pip while any token waits. An effect with no
-## landing shows its name floating up. No receipt line.
-func _armed(index: int, beat: CountUpBeat, step: ScoreStep) -> void:
-	var view: CardView = _views[step.slot]
-	_fx.punch(view.body, 1.08)
-	_fx.glow(view.body)
-	_sfx.play("armed")
-	if beat.note >= 0:
-		_sfx.play_note(beat.note, ARMED_NOTE_DB)
-	if beat.targets.is_empty():
-		var start: Vector2 = view.center() + Vector2(0, -40)
-		_fx.fly_text(step.text, start, start + Vector2(0, -36), Palette.MUSTARD, 18, 0.45, true)
-		return
-	_tokens.arm(index)
-
-
-## The quota is met (D5): the subtotal turns green and the lasting QuotaChip pops in on the
-## LED's quota line. Mid-row (`with_ding`) the ding sounds; the beat's hit-stop follows.
+## The ding beat's roll has ended (D5, CountUpBeats): the ding sounds and the quota is met; the
+## beat's hit-stop (the burst's hold) follows.
 func _quota_met(with_ding: bool) -> void:
 	if with_ding:
 		_sfx.play("ding")
-	_show_chip(true)
+	_meet(true)
 
 
-## The subtotal turns green and the QuotaChip appears on the LED's quota line, popping in (1.4
-## to 1) with `pop`.
-func _show_chip(pop: bool) -> void:
+## The quota is met: the LED's reading turns met (its subtotal green; reading_changed tells the
+## top gauge) and quota_met tells the rest, with `pop` or at once.
+func _meet(pop: bool) -> void:
 	_met = true
 	_led.show_subtotal(_shown_subtotal, true)
-	_quota_chip = QuotaChip.new()
-	_overlay.add_child(_quota_chip)
-	_quota_chip.follow_anchor(_led.quota_anchor, _led.quota_text_width)
-	if not pop:
-		return
-	_quota_chip.scale = Vector2(QUOTA_CHIP_POP, QUOTA_CHIP_POP)
-	var settle: Tween = _tween().set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
-	settle.tween_property(_quota_chip, "scale", Vector2.ONE, QUOTA_CHIP_SETTLE)
+	quota_met.emit(pop)
 
 
-## Clears the last row's tokens, markers, pips and chip, and gives the subtotal its own colour.
+## Forgets the last row's met state: the subtotal gets its own colour back.
 func _clear_row() -> void:
-	if _tokens != null:
-		_tokens.clear()
-		_tokens = null
-	if _quota_chip != null and is_instance_valid(_quota_chip):
-		_quota_chip.queue_free()
-	_quota_chip = null
 	_met = false
 	_led.reset_colour()
 
@@ -784,12 +429,12 @@ func _pause() -> void:
 		var huge: bool = plan.size == CountUpPlan.Size.HUGE
 		if huge:
 			_sfx.play("register_bell")
-		_play_rattle(_tuning.final_rattle_huge_px if huge else _tuning.final_rattle_large_px)
+		_beats.play_rattle(_tuning.final_rattle_huge_px if huge else _tuning.final_rattle_large_px)
 	if plan.final_rattle_px > 0.0:
 		# The rattle fills the pause: the pause runs in real time (sped up only by a tap or a
-		# hold), the shake's tween at _speed() (base_speed included), so it gets that many more
-		# swings. A hit-stop freezes both alike.
-		var tween_speed: float = maxf(_press_speed(), plan.base_speed)
+		# hold), the shake's tween at _speed() (count_speed included), so it gets that many more
+		# swings, or fewer under 1. A hit-stop freezes both alike.
+		var tween_speed: float = _paced(plan.count_speed)
 		var seconds: float = plan.pause_ms / 1000.0 * tween_speed / _press_speed()
 		var swings: int = maxi(
 			4, ceili((seconds - CountUpMotion.SHAKE_SETTLE) / CountUpMotion.SHAKE_SWING)
@@ -805,91 +450,14 @@ func _pause() -> void:
 		last = now
 
 
-## A beat lands: its hit-stop (D6) freezes the count-up's tweens for real milliseconds.
+## A beat lands (CountUpBeats): its hit-stop (D6) freezes the count-up's tweens for real
+## milliseconds.
 func _land(beat: CountUpBeat) -> void:
 	if beat.hit_stop_ms <= 0:
 		return
 	_hit_stop_left_ms = maxf(_hit_stop_left_ms, beat.hit_stop_ms)
 	_hit_stop_us = Time.get_ticks_usec()
 	_apply_speed()
-
-
-## The register rattle's sound for a rattle of `px` pixels: rattle_s, rattle_m or rattle_l,
-## louder for a stronger rattle.
-func _play_rattle(px: float) -> void:
-	var take: String = "rattle_s"
-	if px >= RATTLE_LARGE_PX:
-		take = "rattle_l"
-	elif px >= RATTLE_MEDIUM_PX:
-		take = "rattle_m"
-	_sfx.play(take, 1.0, lerpf(RATTLE_QUIET_DB, 0.0, clampf(px / RATTLE_FULL_PX, 0.0, 1.0)))
-
-
-## The printer's three ticks, spread over the payout's roll (D1).
-func _ticks(roll: float) -> void:
-	var ticks: Tween = _tween()
-	for tick: int in range(TICKS_PER_ROLL):
-		if tick > 0:
-			ticks.tween_interval(roll / TICKS_PER_ROLL)
-		ticks.tween_callback(_sfx.play.bind("tick", 1.0, TICK_DB))
-
-
-func _print_pitch() -> float:
-	return minf(plan.printer_speed, _tuning.print_pitch_max)
-
-
-## Prints a step's receipt line (or null: add_step), for every step.
-func _print_step(step: ScoreStep) -> Control:
-	return _receipt.add_step(step, _names, _upgrade_names, _inspection_names)
-
-
-## The card that caused a step, or null when its source is not a card (an upgrade or an
-## inspection, full build): source_slot is only read for CARD sources (plan section 4).
-func _source_view(step: ScoreStep) -> CardView:
-	if step.source_kind != ScoreStep.SourceKind.CARD:
-		return null
-	return _views[step.source_slot]
-
-
-## The loyalty-card box of the upgrade that caused a step, or null when the step's source is
-## not an upgrade (or its box is missing): source_index is only read for UPGRADE sources.
-func _upgrade_box(step: ScoreStep) -> Control:
-	if step.source_kind != ScoreStep.SourceKind.UPGRADE:
-		return null
-	if step.source_index < 0 or step.source_index >= _upgrade_boxes.size():
-		return null
-	return _upgrade_boxes[step.source_index]
-
-
-## Where the inspection that caused a step is shown, or null when the step's source is not an
-## inspection (or nothing shows it): source_index is only read for INSPECTION sources.
-func _inspection_source(step: ScoreStep) -> Control:
-	if step.source_kind != ScoreStep.SourceKind.INSPECTION:
-		return null
-	if step.source_index < 0 or step.source_index >= _inspection_sources.size():
-		return null
-	return _inspection_sources[step.source_index]
-
-
-## Where a step comes from on screen: its card, its upgrade's loyalty-card box, or its
-## inspection's tag.
-func _source_control(step: ScoreStep) -> Control:
-	var upgrade_box: Control = _upgrade_box(step)
-	if upgrade_box != null:
-		return upgrade_box
-	var inspection: Control = _inspection_source(step)
-	return inspection if inspection != null else _source_view(step)
-
-
-## The part of a source that is punched: a card's body (its layout box stays still), or the
-## whole loyalty-card box.
-static func _moving_part(source: Control) -> Control:
-	var view: CardView = source as CardView
-	return view.body if view != null else source
-
-
-static func _center(control: Control) -> Vector2:
-	return control.get_global_rect().get_center()
 
 
 ## The music ducks as the pause before the total starts (#62, Q6; #61), unless a tap has
@@ -901,8 +469,8 @@ func _duck_for_dessert() -> void:
 		_ducked = true
 
 
-## Rolls the shown subtotal to `to` over `seconds` (at once for 0). A roll still running ends at
-## once first.
+## Rolls the shown subtotal to `to` over `seconds` (at once for 0; CountUpBeats on a payout). A
+## roll still running ends at once first.
 func _roll_subtotal(to: int, seconds: float) -> void:
 	_finish_roll()
 	if seconds <= 0.0:
@@ -942,15 +510,21 @@ func _wait_ms(ms: int) -> void:
 
 
 ## How fast the count-up's tweens run: 0 during a hit-stop, else the fastest of the taps' skip,
-## a hold's fast-forward and the plan's base_speed (D6) up to the verdict, its speed setting
+## a hold's fast-forward and the plan's count_speed (D6) up to the verdict, its speed setting
 ## alone after it (the dessert, #61).
 func _speed() -> float:
 	if _hit_stop_left_ms > 0.0:
 		return 0.0
 	var base: float = 1.0
 	if plan != null:
-		base = plan.speed_setting if _verdict_shown else plan.base_speed
-	return maxf(_press_speed(), base)
+		base = plan.speed_setting if _verdict_shown else plan.count_speed
+	return _paced(base)
+
+
+## `base` (a count_speed under 1 included) unless a tap or a hold runs faster.
+func _paced(base: float) -> float:
+	var press: float = _press_speed()
+	return base if press <= 1.0 else maxf(press, base)
 
 
 ## The taps' skip or a hold's fast-forward, whichever is faster (1 for neither): the only

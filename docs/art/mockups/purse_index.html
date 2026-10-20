@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>Purse decide index</title>
+<!--
+  #76 decide prep (2026-10-19): index of every purse_* mock-up, grouped by direction, with each direction's pitch and the
+  reviewer's verdict. Nothing is decided; the questions are in purse_src/DECIDE_76.md. Hand-written (no generator).
+  Authored at 1280 CSS px; palette colours only; fonts from ../../../fonts/.
+-->
+<style>
+@font-face { font-family: Pixelify; src: url(../../../fonts/PixelifySans-Variable.ttf); }
+@font-face { font-family: Atkinson; src: url(../../../fonts/AtkinsonHyperlegibleNext-Variable.ttf); font-weight: 200 800; }
+:root { --ink:#2b2420; --paper:#fbf7ee; --cream:#f3e9d2; --cream-shade:#ddcba5;
+  --teal-black:#172c2b; --teal-dark:#1f3b3a; --teal-mid:#2a4d4b; --teal-light:#c3e0d4; --slate:#222a29;
+  --mustard:#e2b33c; --gold:#ffcf3f; --brass:#8a5d1a; }
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { background: var(--teal-black); color: var(--paper); font-family: Atkinson, sans-serif; }
+body { width: 1280px; padding: 0 16px 16px; }
+header { height: 52px; display: flex; align-items: center; gap: 16px; border-bottom: 4px solid var(--teal-mid);
+  margin: 0 -16px 8px; padding: 0 16px; background: var(--teal-dark); }
+header h1 { font-family: Pixelify; font-size: 24px; color: var(--mustard); text-shadow: 2px 2px 0 var(--ink); white-space: nowrap; }
+header p { font-size: 12.5px; color: var(--teal-light); }
+section { display: flex; gap: 12px; background: var(--teal-dark); border: 2px solid var(--ink); box-shadow: 4px 4px 0 var(--slate);
+  margin-bottom: 8px; padding: 6px 8px; }
+section.on { border-color: var(--brass); background: var(--teal-mid); }
+.pitch { flex: 1; min-width: 0; }
+h2 { font-family: Pixelify; font-size: 19px; color: var(--paper); display: flex; align-items: center; gap: 8px; }
+.rec { font-family: Atkinson; font-size: 10px; font-weight: 750; background: var(--gold); color: var(--ink); padding: 0 5px;
+  border: 2px solid var(--ink); text-transform: uppercase; letter-spacing: .5px; }
+.rec.alt { background: var(--cream-shade); }
+.pitch p { font-size: 11.5px; line-height: 1.3; color: var(--cream-shade); margin-top: 3px; }
+.pitch p b { color: var(--mustard); }
+.thumbs { display: flex; gap: 8px; }
+.th { display: block; width: 192px; text-decoration: none; }
+.th img { display: block; width: 192px; height: 108px; border: 2px solid var(--ink); background: var(--teal-black); }
+.th span { display: block; font-size: 10.5px; color: var(--teal-light); }
+.th:hover img { border-color: var(--gold); }
+.none { width: 592px; height: 108px; border: 2px dashed var(--teal-light); display: flex; align-items: center; justify-content: center;
+  font-family: Pixelify; font-size: 14px; color: var(--teal-light); text-align: center; padding: 0 16px; }
+</style></head><body>
+<header><h1>#76 purse: decide index</h1><p>Every purse mock-up, grouped by direction; click a thumbnail to open its page.
+All sit at spot A (counter by the register, body 52x72, left of x 336). Shift 5/8, quota €73. Questions: purse_src/DECIDE_76.md. Nothing is decided.</p></header>
+
+<section class="on"><div class="pitch"><h2>A: fat leather frame purse<span class="rec">recommended</span></h2>
+<p>Brown leather, mustard clasp. Five steps on shown total ÷ quota (CALM, PEEK, BULGE, STRAIN, BURST at the quota), read by shape: mouth gap, card, notes, belly width. Drag: hop or slump. Verdict: empties toward the drawer (OVER), snaps shut (ON), sags (SHORT, "she wanted €21 more").</p>
+<p><b>Verdict:</b> fits B2's style best and the steps read in greyscale. It reads as "a full purse", not "she wants to spend": the words have to come from the QUOTA chip. Small (about 14 cm).</p></div>
+<div class="thumbs"><a class="th" href="purse_a.html"><img src="purse_a_1920x1080.png" alt="purse_a"><span>planning (BURST, €182)</span></a><a class="th" href="purse_a_count_up.html"><img src="purse_a_count_up_1920x1080.png" alt="purse_a_count_up"><span>count-up</span></a><a class="th" href="purse_a_states.html"><img src="purse_a_states_1920x1080.png" alt="purse_a_states"><span>all states</span></a></div></section>
+
+<section><div class="pitch"><h2>B: wallet + BUDGET tag on the chip<span class="rec alt">take the words</span></h2>
+<p>A small wallet on the counter, plus a face hang-tag that replaces the QUOTA chip's bar: "BUDGET at least €73", a stitched pocket that fills with notes, a mustard check stamp at the budget. The monitor's count row says BUDGET too.</p>
+<p><b>Verdict:</b> the chip wording says "more is better" at a glance, before the first CHECKOUT, which is the fb-p2 fix. The wallet itself is barely noticed, the face tag clutters the chip, and replacing the bar means reworking QuotaMeter.</p></div>
+<div class="thumbs"><a class="th" href="purse_b.html"><img src="purse_b_1920x1080.png" alt="purse_b"><span>planning</span></a><a class="th" href="purse_b_count_up.html"><img src="purse_b_count_up_1920x1080.png" alt="purse_b_count_up"><span>count-up</span></a><a class="th" href="purse_b_states.html"><img src="purse_b_states_1920x1080.png" alt="purse_b_states"><span>all states</span></a></div></section>
+
+<section><div class="pitch"><h2>C: the grin purse</h2>
+<p>A kiss-lock coin purse whose clasp knobs are eyes and whose mouth grins wider as the total climbs; notes and her teal card fan up. A paper tag on a string reads "SPEND €73+". Gasp at the quota ding, heart on THANK YOU, frown on SHORT.</p>
+<p><b>Verdict:</b> the most readable emotion: a face says "happier" without numbers. But it is a cartoon character in a grounded store, the tag covers the printer, and steps 1 and 2 look alike at game size.</p></div>
+<div class="thumbs"><a class="th" href="purse_c.html"><img src="purse_c_1920x1080.png" alt="purse_c"><span>planning</span></a><a class="th" href="purse_c_count_up.html"><img src="purse_c_count_up_1920x1080.png" alt="purse_c_count_up"><span>count-up</span></a><a class="th" href="purse_c_states.html"><img src="purse_c_states_1920x1080.png" alt="purse_c_states"><span>all states</span></a></div></section>
+
+<section><div class="pitch"><h2>D: keep it dropped</h2>
+<p>As plan v0.34 (#80) decided: no purse. #76 closes; the fb-p2 framing comes only from wording (the QUOTA chip as "BUDGET €73+", the verdict's "SHORT €21" as "she wanted to spend €21 more") and #67 if it survives.</p>
+<p><b>Verdict:</b> cheapest and safe for the schedule. The framing rests on a chip label alone, with no motion that ties a bigger total to a happy customer.</p></div>
+<div class="none">No page: today's screen (docs/art/shift_screen_1920x1080.png) with only the chip wording changed</div></section>
+</body></html>

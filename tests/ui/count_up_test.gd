@@ -1,12 +1,14 @@
 extends GdUnitTestSuite
 ## The count-up playing its CountUpPlan on the real shift screen (#60): the full reference row
 ## (Eggs, Bread, Milk, Multipack, Milk x3 with Coupon engine, Slot engine and a Spot check) in
-## about 4-6 s at normal speed, every frame inside the 1280x720 screen with Engine.time_scale
-## untouched; notes that never drop, quiet armed notes and three ticks per payout; markers for
-## every landing; the quota chip; the Fast setting and reduced motion; shakes that end where they
-## started; and the run context (the best so far leaves out the shift being counted) and the
-## count_up event's fields. The real saves and logs are never touched: both go to a temporary
-## folder.
+## about 4-7 s at normal speed (#86 v6: a ride gap before each item), every frame inside the
+## 1280x720 screen with Engine.time_scale untouched; notes that never drop, quiet armed notes and
+## three ticks per payout; a ride before each item's scan and the last one's bag hop; the quota
+## met (quota_met) at the ding, its reward running in real time through the hold; the payouts'
+## chips flying from where the item is (source_rect); the Fast setting and reduced motion; shakes
+## that end where they started; and the run context (the best so far leaves out the shift being
+## counted) and the count_up event's fields. The real saves and logs are never touched: both go to
+## a temporary folder.
 
 const SCREEN := "res://ui/shift_screen.tscn"
 const RECORDING_SFX := preload("res://tests/presentation/recording_sfx.gd")
@@ -21,6 +23,8 @@ const SCROLL_FRAMES := 3
 var _folder: String = ""
 var _window_size: Vector2i
 var _runner: GdUnitSceneRunner
+## count_started's emissions (#86 round 7), as [views, rides before it], from _record_rides.
+var _count_starts: Array[Array] = []
 
 
 func before_test() -> void:
@@ -42,17 +46,18 @@ func after_test() -> void:
 		DirAccess.remove_absolute(_folder)
 
 
-## The full reference row at normal speed, frame by frame: about 4-6 s from the click to the
+## The full reference row at normal speed, frame by frame: about 4-7 s from the click to the
 ## total, everything on screen, the newest line in the receipt's scroll area, lines unrotated,
-## Engine.time_scale at 1; notes climb, armed notes are quiet, three ticks per payout; one
-## marker per landing, made together at the armed beat and gone after the row; the ding and a
-## chip that stays; the rattle target back at its origin; the receipt equal to show_result's;
-## and the count_up event's new fields.
-func test_the_full_row_counts_up_on_screen_in_four_to_six_seconds() -> void:
+## Engine.time_scale at 1; notes climb, armed notes are quiet, three ticks per payout; a ride
+## before each item's first beat and the last item's bag hop; the ding and the quota met for good;
+## the rattle target back at its origin; the receipt equal to show_result's; and the count_up
+## event's new fields.
+func test_the_full_row_counts_up_on_screen_in_five_to_nine_seconds() -> void:
 	var screen: ShiftScreen = await _screen()
 	var sfx: Sfx = _recording_sfx(screen)
 	await _full_row(screen)
 	var rest: float = screen._register.position.x
+	var rides: Array[Array] = _record_rides(screen._count_up)
 	screen._on_checkout_pressed()
 	var probe: Dictionary = await _probe_count_up(screen)
 	var count_up: CountUp = screen._count_up
@@ -66,7 +71,8 @@ func test_the_full_row_counts_up_on_screen_in_four_to_six_seconds() -> void:
 	var count_up_ms: int = int(event["count_up_ms"])
 	prints("#60 full row: count_up_ms", count_up_ms, "planned_ms", plan.planned_ms)
 	assert_int(plan.step_count).is_equal(27)
-	assert_int(count_up_ms).is_between(4000, 6600)
+	# The 4-7.6 s window at the 0.8 count tempo (2026-10-20): 1.25x slower.
+	assert_int(count_up_ms).is_between(5000, 9500)
 	assert_int(count_up_ms).is_between(plan.planned_ms - 150, plan.planned_ms + 900)
 	assert_float(float(event["base_speed"])).is_equal(1.0)
 	assert_float(float(event["speed_setting"])).is_equal(1.0)
@@ -75,19 +81,20 @@ func test_the_full_row_counts_up_on_screen_in_four_to_six_seconds() -> void:
 	assert_int(int(event["planned_ms"])).is_equal(plan.planned_ms)
 
 	_assert_sounds(sfx, plan, count_up.printer_feed_ms)
-	_assert_markers(screen, probe)
-	# Shift 1's quota (34) is reached mid-row: the ding, then a chip that stays.
+	_assert_rides(rides, plan)
+	# Shift 1's quota (34) is reached mid-row: the ding, then the quota met for good.
 	assert_int(plan.ding_beat).is_greater_equal(0)
 	assert_int(_sounds(sfx, "ding")).is_equal(1)
-	assert_bool(probe["chip_before_total"]).is_true()
-	# The chip came at the ding beat, the subtotal past the quota but short of the total, and
-	# stayed on every frame after.
+	assert_bool(probe["met_before_total"]).is_true()
+	# It was met at the ding beat, the subtotal past the quota but short of the total, and stayed
+	# met on every frame after.
 	var quota: int = screen.run.quota()
 	assert_int(quota).is_equal(34)
-	assert_int(int(probe["chip_subtotal"])).is_between(quota, plan.total - 1)
-	assert_int(int(probe["chip_subtotal"])).is_equal(plan.beats[plan.ding_beat].subtotal)
-	assert_bool(probe["chip_lost"]).is_false()
-	await _assert_chip(screen, true)
+	assert_int(int(probe["met_subtotal"])).is_between(quota, plan.total - 1)
+	assert_int(int(probe["met_subtotal"])).is_equal(plan.beats[plan.ding_beat].subtotal)
+	assert_bool(probe["met_lost"]).is_false()
+	assert_array(probe["pops"]).is_equal([true])
+	_assert_met(screen, true)
 	# The 110 is huge against the €45 floor.
 	assert_int(plan.size).is_equal(CountUpPlan.Size.HUGE)
 	assert_object(count_up.intensity).is_not_null()
@@ -117,7 +124,7 @@ func test_the_fast_setting_counts_faster_with_the_same_receipt() -> void:
 	assert_int(plan.planned_ms).is_less(normal.planned_ms)
 	var event: Dictionary = _last_event("count_up")
 	prints("#60 full row on Fast: count_up_ms", event["count_up_ms"], "planned_ms", plan.planned_ms)
-	# Hit-stops and the pause before the total are not sped up by base_speed (D6): the real
+	# Hit-stops and the pause before the total are not sped up by count_speed (D6): the real
 	# count-up takes as long as planned, no shorter.
 	assert_int(int(event["count_up_ms"])).is_between(plan.planned_ms - 150, plan.planned_ms + 900)
 	_assert_rattle_fills_the_pause(screen._count_up, probe)
@@ -127,8 +134,8 @@ func test_the_fast_setting_counts_faster_with_the_same_receipt() -> void:
 
 
 ## Reduced motion: no node is ever shaken off its place (the rattle target, the cards, the
-## loyalty-card boxes), markers fade in where they wait instead of flying, no rattle before the
-## total, and the same receipt.
+## loyalty-card boxes), no payout chip flies (each line shows at once), every ride still plays,
+## no rattle before the total, and the same receipt.
 func test_reduced_motion_shakes_nothing_and_keeps_the_receipt() -> void:
 	var screen: ShiftScreen = await _screen()
 	screen._debug.set_reduced_motion(true)
@@ -140,6 +147,7 @@ func test_reduced_motion_shakes_nothing_and_keeps_the_receipt() -> void:
 	for box: Control in boxes:
 		box_rests.append(box.position)
 		box_turns.append(box.rotation)
+	var rides: Array[Array] = _record_rides(screen._count_up)
 	screen._on_checkout_pressed()
 	var moved: Array[String] = []
 	var frames: int = 0
@@ -157,17 +165,15 @@ func test_reduced_motion_shakes_nothing_and_keeps_the_receipt() -> void:
 				or boxes[index].rotation != box_turns[index]
 			):
 				moved.append("upgrade box %d moved" % index)
-		var tokens: EffectTokens = screen._count_up._tokens
-		for marker: EffectMarker in tokens.markers.values():
-			var off: float = marker.global_position.distance_to(marker.parked_position())
-			# Following its item, at most a frame behind its lift (a flight starts an item away).
-			if not marker.following or off > ItemView.LIFT + 2.0:
-				moved.append("a marker flew (%s px off)" % off)
+		for child: Node in screen._overlay.get_children():
+			if ReceiptFly.is_chip(child):
+				moved.append("a payout chip flew")
 	await _count_up_end(screen)
 	assert_int(frames).is_greater(30)
 	assert_array(moved).override_failure_message("\n".join(moved.slice(0, 10))).is_empty()
 	var plan: CountUpPlan = screen._count_up.plan
 	assert_bool(plan.reduced_motion).is_true()
+	_assert_rides(rides, plan)
 	assert_float(plan.final_rattle_px).is_equal(0.0)
 	assert_bool(_last_event("count_up")["reduced_motion"]).is_true()
 	assert_bool(screen._count_up.intensity.reduced_motion).is_true()
@@ -202,103 +208,109 @@ func test_overlapping_shakes_end_at_the_origin() -> void:
 	assert_float(node.position.x).is_equal(rest)
 
 
-## The quota met on the last payout: no ding, and the colour and chip arrive with the TOTAL line.
-## Never reached: no chip, no colour change. Tapped through, the receipt is still the whole one.
-func test_the_chip_comes_with_the_total_on_a_last_payout_crossing_and_never_on_a_fail() -> void:
+## The quota met on the last payout: no ding, and the quota is met (with its pop) with the TOTAL
+## line. Never reached: never met, no colour change. Tapped through, the receipt is still whole.
+func test_the_quota_is_met_with_the_total_on_a_last_payout_crossing_and_never_on_a_fail() -> void:
 	var screen: ShiftScreen = await _screen()
 	var sfx: Sfx = _recording_sfx(screen)
 	await _full_row(screen)
 	var result: ScoreResult = screen.run.preview()
 	assert_int(result.total).is_equal(110)
 	var count_up: CountUp = screen._count_up
-	var chip_before_total: bool = false
+	var mets: Array[bool] = []
+	var led: LedDisplay = screen._led
+	count_up.quota_met.connect(
+		func(_pop: bool) -> void: mets.append(led.caption_label().text == LedDisplay.TOTAL_TEXT)
+	)
 	_play_tapped(screen, result, 110)
-	while count_up._playing:
-		await get_tree().process_frame
-		if not count_up._verdict_shown and count_up._quota_chip != null:
-			chip_before_total = true
+	await _played(screen)
 	assert_bool(count_up.plan.chip_at_total).is_true()
-	assert_bool(chip_before_total).is_false()
+	# Once, as the total shows (never before it).
+	assert_array(mets).is_equal([true])
 	assert_int(_sounds(sfx, "ding")).is_equal(0)
-	await _assert_chip(screen, true)
+	_assert_met(screen, true)
 	await _assert_receipt_of(screen, result, 110)
 
+	mets.clear()
 	_play_tapped(screen, result, 111)
-	while count_up._playing:
-		await get_tree().process_frame
-		assert_object(count_up._quota_chip).is_null()
+	await _played(screen)
+	assert_array(mets).is_empty()
 	assert_bool(count_up.plan.quota_reached).is_false()
-	await _assert_chip(screen, false)
+	_assert_met(screen, false)
 	await _assert_receipt_of(screen, result, 111)
 
 
-## The value badge is the item's paid chip (#80, step 7): every item's shows "€N", a denied item
-## (the Spot check's €0) on its muted face; each settles into the small face as the next item is
-## scanned, so earlier chips stay, and the last one as the total shows; and after every scan's
-## lift and drop each chip is back at its face's rest y over the item.
-func test_a_denied_card_shows_the_muted_plaque_and_every_badge_rests() -> void:
+## Flights and puffs start where the item is now (#86 v6, source_rect: the belt ride gives the
+## scanner, or the bag's mouth once an item is bagged): each payout's paper chip starts at its
+## item's rect, and the lost Coffee bonus (a trailing fizzle on the long-scanned Coffee) puffs
+## from Coffee's.
+func test_flights_and_puffs_start_where_the_item_is_now() -> void:
 	var screen: ShiftScreen = await _screen()
-	await _full_row(screen)
+	await _place(screen, ["coffee", "banana", "cheese"])
+	var count_up: CountUp = screen._count_up
+	var rect_of: Callable = func(slot: int) -> Rect2:
+		return Rect2(Vector2(300.0 + 40.0 * slot, 200.0), Vector2(40, 40))
+	count_up.source_rect = rect_of
+	# Where each chip or puff stands once it is set up (deferred: after the frame's own code).
+	var starts: Array[Vector2] = []
+	var puffs: Array[Vector2] = []
+	var record: Callable = func(node: Control) -> void:
+		var centre: Vector2 = node.get_global_rect().get_center()
+		if ReceiptFly.is_chip(node):
+			starts.append(centre)
+		elif node is Label and (node as Label).text == "pfff…":
+			puffs.append(centre)
+	var on_added: Callable = func(node: Node) -> void:
+		if node is Control:
+			record.call_deferred(node)
+	screen._overlay.child_entered_tree.connect(on_added)
 	var result: ScoreResult = screen.run.preview()
-	var plan: CountUpPlan = CountUpPlan.build(
-		result.steps, 1, CountUpContext.new(), load(CountUp.TUNING_PATH)
+	count_up.play(
+		result, screen._row_views, ShiftScreen._names(screen.run.row), 1, CountUpContext.new()
 	)
-	var denied: Array[int] = []
-	for beat: CountUpBeat in plan.beats:
-		if beat.kind == CountUpBeat.Kind.DENIED:
-			denied.append(result.steps[beat.steps[0]].slot)
-	assert_int(denied.size()).is_equal(1)
-	# As the CHECKOUT click does: the chips settle, then follow the beats (BeltChips).
-	screen._belt_chips.begin_count(result, screen._row_views, false)
-	_play_tapped(screen, result, 110)
 	await _played(screen)
-	await _frames(30)
-	for slot: int in range(screen._row_views.size()):
-		var view: ItemView = screen._row_views[slot] as ItemView
-		assert_object(view).is_not_null()
-		var plaque: PayoutPlaque = view.badge as PayoutPlaque
-		assert_bool(plaque.visible).override_failure_message(str(slot)).is_true()
-		assert_str(plaque.text).is_equal(PayoutPlaque.text_for(result.payouts[slot]))
-		assert_bool(plaque.is_current()).override_failure_message(str(slot)).is_false()
-		assert_bool(plaque.is_muted()).override_failure_message(str(slot)).is_equal(
-			slot in denied or result.payouts[slot] == 0
+	screen._overlay.child_entered_tree.disconnect(on_added)
+	count_up.source_rect = Callable()
+	# Three payouts, three chips, each from its item's rect.
+	assert_int(starts.size()).is_equal(3)
+	for slot: int in range(starts.size()):
+		var item: Vector2 = (rect_of.call(slot) as Rect2).get_center()
+		assert_float(starts[slot].distance_to(item)).override_failure_message(str(starts)).is_less(
+			1.0
 		)
-		assert_float(view.badge.position.y).override_failure_message(str(slot)).is_equal(
-			view.badge_rest_y()
-		)
+	# One lost bonus, one puff, 30 px over Coffee's rect.
+	assert_int(puffs.size()).is_equal(1)
+	var coffee: Vector2 = (rect_of.call(0) as Rect2).get_center() + Vector2(0, -30)
+	assert_float(puffs[0].distance_to(coffee)).is_less(1.0)
 
 
-## An armed effect that fizzles (a Coffee with no Breakfast after it) leaves its pip on the
-## card, greyed for good.
-func test_a_fizzled_effect_leaves_a_grey_pip() -> void:
+## A payout that prints no line still flies its chip (#86 v6): Cheese after Bread pays its base
+## plus its own +4 bonus, so its item and bonus lines already add up and add_step returns null
+## for its payout; the chip flies to Cheese's last line, which stays shown.
+## Bread, plain, flies its own: two items, two chips.
+func test_a_payout_that_prints_no_line_still_flies_its_chip() -> void:
 	var screen: ShiftScreen = await _screen()
-	var placed: Array[String] = ["coffee", "banana", "cheese"]
-	await _place(screen, placed)
+	await _place(screen, ["bread", "cheese"])
+	var chips: Array[String] = []
+	var on_added: Callable = func(node: Node) -> void:
+		if ReceiptFly.is_chip(node):
+			chips.append(((node as Control).get_child(0) as Label).text)
+	screen._overlay.child_entered_tree.connect(on_added)
 	var result: ScoreResult = screen.run.preview()
-	var fizzles: Array[int] = []
-	var plan: CountUpPlan = CountUpPlan.build(
-		result.steps, 1, CountUpContext.new(), load(CountUp.TUNING_PATH)
+	var cheese: int = -1
+	for step: ScoreStep in result.steps:
+		if step.slot == 1 and step.step_type == ScoreStep.StepType.PAYOUT:
+			cheese = step.value
+	var count_up: CountUp = screen._count_up
+	count_up.play(
+		result, screen._row_views, ShiftScreen._names(screen.run.row), 1, CountUpContext.new()
 	)
-	for index: int in range(plan.beats.size()):
-		var step: ScoreStep = result.steps[plan.beats[index].steps[0]]
-		if plan.beats[index].kind == CountUpBeat.Kind.FIZZLE and step.text == "Coffee bonus":
-			fizzles.append(index)
-	assert_int(fizzles.size()).is_equal(1)
-	_play_tapped(screen, result, 1)
 	await _played(screen)
-	var tokens: EffectTokens = screen._count_up._tokens
-	assert_int(tokens.pips.size()).is_equal(1)
-	var pip: EffectMarker = tokens.pips.values()[0]
-	assert_bool(is_instance_valid(pip)).is_true()
-	assert_bool(pip.is_spent()).is_true()
-	assert_bool(pip.has_icon()).is_true()
-	assert_object(pip.target).is_same(screen._row_views[0].body)
-	assert_bool(SCREEN_RECT.encloses(pip.get_global_rect())).is_true()
-	# The next count-up starts clean.
-	_play_tapped(screen, result, 1)
-	await get_tree().process_frame
-	assert_bool(is_instance_valid(pip) and not pip.is_queued_for_deletion()).is_false()
-	await _played(screen)
+	screen._overlay.child_entered_tree.disconnect(on_added)
+	assert_array(chips).is_equal(["+€5", ReceiptFly.amount_text(cheese)])
+	var last: Control = screen._count_up._beats._last_lines.get(1) as Control
+	assert_object(last).is_not_null()
+	assert_float(last.modulate.a).is_equal(1.0)
 
 
 ## The count-up's best so far is the best total of the run's earlier shifts, never the shift
@@ -338,9 +350,9 @@ func test_the_best_so_far_leaves_out_the_shift_being_counted() -> void:
 ## The LED and CHECKOUT's key through a passed shift (#55; #80, step 9): planning shows the
 ## monitor's store channel (the LED blank and hidden, the projected total on the top bar's QUOTA
 ## chip) with CHECKOUT up; from the click SUBTOTAL with CHECKOUT held down (its off look, sunk) on
-## every frame of the count-up and the dessert; TOTAL, green with its chip, and CHECKOUT up on the
-## reward panel; the next shift's planning brings the channel back with its brief, blanks the LED
-## and hides the chip (its anchor is empty) with CHECKOUT up and pressable again.
+## every frame of the count-up and the dessert; TOTAL, green (met), and CHECKOUT up on the reward
+## panel; the next shift's planning brings the channel back with its brief, blanks the LED (its
+## digits empty, no stamp) with CHECKOUT up and pressable again.
 func test_the_led_and_checkout_follow_a_passed_shift() -> void:
 	var screen: ShiftScreen = await _screen()
 	var led: LedDisplay = screen._led
@@ -354,7 +366,7 @@ func test_the_led_and_checkout_follow_a_passed_shift() -> void:
 	assert_int(checkout.look()).is_equal(RegisterKey.Look.NORMAL)
 	screen._on_checkout_pressed()
 	assert_bool(checkout.held).is_true()
-	assert_str(led.caption()).is_equal(LedDisplay.SUBTOTAL_TEXT)
+	assert_str(led.caption_label().text).is_equal(LedDisplay.SUBTOTAL_TEXT)
 	await _frames(2)
 	screen._count_up._tap(Time.get_ticks_msec())
 	screen._count_up._tap(Time.get_ticks_msec())
@@ -366,10 +378,9 @@ func test_the_led_and_checkout_follow_a_passed_shift() -> void:
 	assert_int(key_up_frames).is_equal(0)
 	assert_bool(checkout.held).is_false()
 	assert_bool(screen._reward_panel.visible).is_true()
-	assert_str(led.digits_label().text).is_equal("€%d" % total)
-	await _assert_chip(screen, true)
-	var chip: QuotaChip = screen._count_up._quota_chip
-	# The next shift's planning: the projected total, and the chip goes with its anchor.
+	assert_str(led.digits_label().text).is_equal(str(total))
+	_assert_met(screen, true)
+	# The next shift's planning: the projected total, the LED blank.
 	screen._on_reward_skipped()
 	await _frames(2)
 	assert_int(screen.run.phase).is_equal(RunState.Phase.PLANNING)
@@ -378,8 +389,8 @@ func test_the_led_and_checkout_follow_a_passed_shift() -> void:
 	assert_str(screen._monitor.channel.current_key()).is_equal(MonitorChannel.BRIEF_KEY)
 	var shift_text: String = MonitorChannel.SHIFT_TEXT % [2, screen.run.shift_count()]
 	assert_bool(screen._monitor.channel.slide_texts(0).has(shift_text)).is_true()
-	assert_bool(led.quota_anchor().has_area()).is_false()
-	assert_bool(chip.visible).is_false()
+	assert_str(led.digits_label().text).is_empty()
+	assert_bool(led.beat().stamp().is_showing()).is_false()
 	assert_bool(checkout.held).is_false()
 	assert_int(checkout.look()).is_equal(RegisterKey.Look.NORMAL)
 
@@ -416,17 +427,18 @@ func test_the_debug_panel_shows_the_count_up_settings_on_screen() -> void:
 
 ## Plays the count-up until its end, checking every frame up to the verdict (the final total
 ## shown; the slam after it is #61's). Returns {"failures": Array[String], "frames": int,
-## "marker_frames": {landing beat: first frame seen}, "chip_before_total": bool,
-## "chip_subtotal": the shown subtotal on the chip's first frame (-1 for none), "chip_lost": the
-## chip went away after it came, "last_rattle_ms": Time.get_ticks_msec() of the last frame the
-## rattle target was off its rest x (-1 for none)}.
+## "met_before_total": bool, "met_subtotal": the shown subtotal on the first met frame (-1 for
+## none), "met_lost": the met state went away after it came, "pops": quota_met's pops,
+## "last_rattle_ms": Time.get_ticks_msec() of the last frame the rattle target was off its rest x
+## (-1 for none)}.
 func _probe_count_up(screen: ShiftScreen) -> Dictionary:
 	var count_up: CountUp = screen._count_up
 	var failures: Array[String] = []
-	var marker_frames: Dictionary[int, int] = {}
-	var chip_before_total: bool = false
-	var chip_subtotal: int = -1
-	var chip_lost: bool = false
+	var pops: Array[bool] = []
+	count_up.quota_met.connect(func(pop: bool) -> void: pops.append(pop))
+	var met_before_total: bool = false
+	var met_subtotal: int = -1
+	var met_lost: bool = false
 	var rest: float = screen._register.position.x
 	var last_rattle_ms: int = -1
 	var frames: int = 0
@@ -453,26 +465,22 @@ func _probe_count_up(screen: ShiftScreen) -> Dictionary:
 			var scroll: Rect2 = screen._receipt._scroll.get_global_rect().grow(1.0)
 			if not scroll.encloses(newest.get_global_rect()):
 				failures.append("newest line %s outside %s" % [newest.get_global_rect(), scroll])
-		if count_up._tokens != null:
-			for landing: int in count_up._tokens.markers.keys():
-				if not marker_frames.has(landing):
-					marker_frames[landing] = frames
-		if count_up._quota_chip != null:
-			if not chip_before_total:
-				chip_subtotal = count_up._shown_subtotal
-			chip_before_total = true
-		elif chip_before_total:
-			chip_lost = true
+		if count_up._met:
+			if not met_before_total:
+				met_subtotal = count_up._shown_subtotal
+			met_before_total = true
+		elif met_before_total:
+			met_lost = true
 		if screen._register.position.x != rest:
 			last_rattle_ms = Time.get_ticks_msec()
 	await _count_up_end(screen)
 	return {
 		"failures": failures,
 		"frames": frames,
-		"marker_frames": marker_frames,
-		"chip_before_total": chip_before_total,
-		"chip_subtotal": chip_subtotal,
-		"chip_lost": chip_lost,
+		"met_before_total": met_before_total,
+		"met_subtotal": met_subtotal,
+		"met_lost": met_lost,
+		"pops": pops,
 		"last_rattle_ms": last_rattle_ms,
 	}
 
@@ -488,8 +496,8 @@ func _assert_rattle_fills_the_pause(count_up: CountUp, probe: Dictionary) -> voi
 	assert_int(still_ms).is_less_equal(roundi(plan.pause_ms * 0.2))
 
 
-## Everything the count-up shows sits inside the 1280x720 screen: its labels, stamps, markers,
-## pips and chip in the overlay, the receipt, the paper; the LED's digits (their measured text,
+## Everything the count-up shows sits inside the 1280x720 screen: its labels, stamps and payout
+## chips in the overlay, the receipt, the paper; the LED's digits (their measured text,
 ## punched) on the monitor's paper (#80: the count layout has no glass); receipt lines unrotated.
 func _check_on_screen(screen: ShiftScreen, failures: Array[String]) -> void:
 	var digits: Rect2 = screen._led.digits_text_rect()
@@ -558,7 +566,7 @@ func _assert_sounds(sfx: Sfx, plan: CountUpPlan, feed_ms: int) -> void:
 	# take a frame or two (Godot carries a late frame over to the next tick).
 	var gaps: Array[String] = []
 	for roll: int in range(rolls.size()):
-		var third_ms: float = rolls[roll] / 3.0 / plan.base_speed
+		var third_ms: float = rolls[roll] / 3.0 / plan.count_speed
 		for tick: int in range(1, CountUp.TICKS_PER_ROLL):
 			var at: int = roll * CountUp.TICKS_PER_ROLL + tick
 			var gap_ms: float = (tick_usec[at] - tick_usec[at - 1]) / 1000.0
@@ -617,7 +625,7 @@ func test_a_stronger_rattle_plays_a_bigger_take_louder() -> void:
 	var screen: ShiftScreen = await _screen()
 	var sfx: Sfx = _recording_sfx(screen)
 	for px: float in [3.0, 6.0, 10.0, 12.0, 16.0]:
-		screen._count_up._play_rattle(px)
+		screen._count_up._beats.play_rattle(px)
 	var takes: Array[String] = []
 	var volumes: Array[float] = []
 	for entry: Dictionary in sfx.get("sounds"):
@@ -662,75 +670,65 @@ func test_the_notice_prints_then_its_stamp_lands() -> void:
 	assert_float(gap_ms).is_between(CountUpDessert.NOTICE_STAMP_GAP * 1000.0 - 5.0, 200.0)
 
 
-## One marker per landing, all of one armed beat made in the same frame, and none left after
-## the row (nor a pip still waiting).
-func _assert_markers(screen: ShiftScreen, probe: Dictionary) -> void:
-	var plan: CountUpPlan = screen._count_up.plan
-	var seen: Dictionary = probe["marker_frames"]
-	var landings: int = 0
-	var armed_frames: Array[int] = []
-	for beat: CountUpBeat in plan.beats:
-		if beat.kind != CountUpBeat.Kind.ARMED or beat.targets.is_empty():
-			continue
-		var frame: int = int(seen.get(beat.targets[0], -1))
-		assert_int(frame).is_greater(0)
-		# Made at its own armed beat: after the markers of every earlier armed beat.
-		if not armed_frames.is_empty():
-			assert_int(frame).is_greater(armed_frames[-1])
-		armed_frames.append(frame)
-		for target: int in beat.targets:
-			landings += 1
-			assert_int(int(seen.get(target, -1))).is_equal(frame)
-			assert_int(plan.beats[target].armed_from).is_greater_equal(0)
-	# The reference row: Eggs lands once, Multipack three times.
-	assert_int(armed_frames.size()).is_equal(2)
-	assert_int(landings).is_equal(4)
-	assert_int(seen.size()).is_equal(landings)
-	assert_int(screen._count_up._tokens.markers.size()).is_equal(0)
-	for child: Node in screen._overlay.get_children():
-		var marker: EffectMarker = child as EffectMarker
-		if marker != null and not marker.is_queued_for_deletion():
-			assert_bool(marker.has_icon() and marker.is_spent()).is_true()
-
-
-## The chip after a count-up: there (on the LED's quota line, inside the LED and the screen,
-## covering "QUOTA €N", saying QUOTA with its icon) and the LED's total green, or neither. The
-## LED says TOTAL.
-func _assert_chip(screen: ShiftScreen, met: bool) -> void:
-	var chip: QuotaChip = screen._count_up._quota_chip
-	var color: Color = screen._led.digits_label().get_theme_color("font_color")
-	assert_str(screen._led.caption()).is_equal(LedDisplay.TOTAL_TEXT)
-	if not met:
-		assert_object(chip).is_null()
-		assert_that(color).is_equal(LedDisplay.COUNT_DIGITS_COLOR)
-		return
-	assert_object(chip).is_not_null()
-	assert_bool(is_instance_valid(chip)).is_true()
-	await _frames(2)
-	assert_bool(chip.visible).is_true()
-	assert_vector(chip.scale).is_equal(Vector2.ONE)
-	assert_that(color).is_equal(Palette.GOOD)
-	var texts: Array[Node] = chip.find_children("*", "Label", true, false)
-	assert_str((texts[0] as Label).text).is_equal(QuotaChip.TEXT)
-	assert_int(chip.find_children("*", "Line2D", true, false).size()).is_equal(1)
-	var rect: Rect2 = chip.get_global_rect()
-	var anchor: Rect2 = screen._led.quota_anchor()
-	var quota_line: Rect2 = screen._led.quota_label().get_global_rect()
-	assert_bool(SCREEN_RECT.encloses(rect)).override_failure_message(str(rect)).is_true()
-	# Inside the LED and its chip room on the quota line, over "QUOTA €N".
-	var led: Rect2 = screen._led.get_global_rect()
-	assert_bool(led.encloses(rect)).override_failure_message(str(rect)).is_true()
-	assert_bool(anchor.encloses(rect)).override_failure_message(str(rect)).is_true()
-	assert_float(rect.end.x).is_equal_approx(anchor.end.x, 0.5)
-	assert_float(rect.get_center().y).is_equal_approx(quota_line.get_center().y, 1.0)
-	# It covers the right-aligned "QUOTA €N" (ending at the anchor's end, as the chip does): it
-	# starts left of the text's measured width.
-	var width: float = screen._led.quota_text_width()
-	(
-		assert_float(rect.position.x)
-		. override_failure_message("chip %s, text width %s" % [rect, width])
-		. is_less_equal(quota_line.end.x - width)
+## Records the count-up's rides as [bag_slot, scan_slot, ride_ms, Time.get_ticks_usec(), the
+## number of beats started so far], and its count_started in _count_starts.
+func _record_rides(count_up: CountUp) -> Array[Array]:
+	var rides: Array[Array] = []
+	var started: Array[int] = [0]
+	_count_starts.clear()
+	count_up.count_started.connect(
+		func(views: Array[CardView]) -> void: _count_starts.append([views.size(), rides.size()])
 	)
+	count_up.beat_started.connect(
+		func(_b: CountUpBeat, _s: ScoreStep, _l: String, _v: CardView, _i: int) -> void:
+			started[0] += 1
+	)
+	count_up.ride.connect(
+		func(bag: int, scan: int, ms: int) -> void:
+			rides.append([bag, scan, ms, Time.get_ticks_usec(), started[0]])
+	)
+	return rides
+
+
+## One ride before each scan group's first beat, the item before it bagging (#86 v6), with the
+## plan's ride gap (none for item 0 in the first cell), then the last item's bag hop after the
+## last beat; every item scanned in turn. count_started came once, before the first ride, with
+## a view for each item scanned.
+func _assert_rides(rides: Array[Array], plan: CountUpPlan) -> void:
+	var items: int = 0
+	for beat: CountUpBeat in plan.beats:
+		if beat.opens_slot:
+			items += 1
+	assert_array(_count_starts).is_equal([[items, 0]])
+	var expected: Array[Array] = []
+	var last: int = -1
+	for index: int in range(plan.beats.size()):
+		var beat: CountUpBeat = plan.beats[index]
+		if beat.opens_slot:
+			expected.append([last, beat.scan_slot, beat.ride_ms, index])
+			last = beat.scan_slot
+	expected.append([last, -1, plan.bag_ms, plan.beats.size()])
+	assert_int(rides.size()).is_equal(expected.size())
+	for index: int in range(mini(rides.size(), expected.size())):
+		# [bag, scan, ms] and the beats started before it: each ride comes before its beat.
+		var seen: Array = [rides[index][0], rides[index][1], rides[index][2], rides[index][4]]
+		assert_array(seen).override_failure_message(str(rides)).is_equal(expected[index])
+	# The reference row's seven items, in turn, the first already in the scanner's cell.
+	if plan.step_count == 27:
+		var scans: Array[int] = []
+		for ride: Array in rides:
+			scans.append(int(ride[1]))
+		assert_array(scans).is_equal([0, 1, 2, 3, 4, 5, 6, -1])
+
+
+## The met state after a count-up: the LED says TOTAL in its gold (met or not, #86 v6), and the
+## monitor's € tank is full and overflowing once met (the LED's reading said so).
+func _assert_met(screen: ShiftScreen, met: bool) -> void:
+	var color: Color = screen._led.digits_label().get_theme_color("font_color")
+	assert_str(screen._led.caption_label().text).is_equal(LedDisplay.TOTAL_TEXT)
+	assert_bool(screen._count_up._met).is_equal(met)
+	assert_that(color).is_equal(LedDisplay.COUNT_DIGITS_COLOR)
+	assert_bool(screen._monitor.tank().is_overflowing()).is_equal(met)
 
 
 ## Plays `result` on the screen's row against `quota`, tapped twice (the count and the dessert
@@ -818,9 +816,6 @@ static func _text_of(control: Control) -> String:
 	var label: Label = control as Label
 	if label != null:
 		return '"%s"' % label.text
-	var marker: EffectMarker = control as EffectMarker
-	if marker != null:
-		return '"%s"' % marker.shown_text()
 	return str(control.name)
 
 
@@ -840,84 +835,50 @@ static func _sounds(sfx: Sfx, sound: String) -> int:
 	return count
 
 
-## The belt (#83): still in planning; from the CHECKOUT click its slats run left (forward, one
-## to four 2 px steps a frame), the items standing still; a hit-stop stops them; they stop as the
-## held breath starts and stay still through the TOTAL, the dessert and the next planning. The
-## count's timing is the plan's.
-func test_the_belt_runs_through_the_count_and_stops_for_the_total() -> void:
+## #86 v6: the count-up itself moves neither the belt nor the items (the belt ride does, on its
+## rides): the slats and every item stay put through the count. A ride's gap is a count-up wait:
+## a hit-stop freezes it, so the item's beat never starts while it lasts.
+func test_the_rides_wait_on_the_count_and_move_nothing_themselves() -> void:
 	var screen: ShiftScreen = await _screen()
-	await _full_row(screen)
-	var count_up: CountUp = screen._count_up
-	var belt: BeltPanel = screen._stage.belt
-	assert_object(count_up.belt).is_same(belt)
-	var start: int = belt.frame()
-	await _frames(5)
-	assert_int(belt.frame()).is_equal(start)
-	var item_rests: Array[Vector2] = []
-	for view: CardView in screen._row_views:
-		item_rests.append(view.global_position)
-	screen._on_checkout_pressed()
-	var failures: Array[String] = []
-	var frames: Array[int] = [belt.frame()]
-	var forced: bool = false
-	while count_up._belt_running:
-		await get_tree().process_frame
-		var frame: int = belt.frame()
-		var step: int = posmod(frame - frames[-1], BeltPanel.TOP_FRAMES.size())
-		if step > int(BeltPanel.MAX_STEP_PX / 2.0):
-			failures.append("a step of %d frames" % step)
-		frames.append(frame)
-		if not forced and frames.size() > 20 and count_up._belt_running:
-			forced = true
-			# A hit-stop as _land sets one: the slats stand still while it lasts.
-			# Long enough that three slow frames never outlast it; ended by hand after them.
-			count_up._hit_stop_left_ms = 60000.0
-			count_up._hit_stop_us = Time.get_ticks_usec()
-			count_up._apply_speed()
-			var held: int = belt.frame()
-			await _frames(3)
-			if belt.frame() != held:
-				failures.append("the slats moved in a hit-stop")
-			count_up._hit_stop_left_ms = 0.0
-			count_up._apply_speed()
-	assert_array(failures).override_failure_message("\n".join(failures)).is_empty()
-	assert_bool(forced).is_true()
-	var distinct: Dictionary[int, bool] = {}
-	for frame: int in frames:
-		distinct[frame] = true
-	assert_int(distinct.size()).is_greater(3)
-	# The held breath has started: the belt stays still to the end and into the next planning.
-	var stopped: int = belt.frame()
-	while screen._counting:
-		await get_tree().process_frame
-		if belt.frame() != stopped:
-			failures.append("the belt moved after the beats")
-			break
-	assert_array(failures).override_failure_message("\n".join(failures)).is_empty()
-	for index: int in range(item_rests.size()):
-		assert_vector(screen._row_views[index].global_position).is_equal(item_rests[index])
-	await _frames(5)
-	assert_int(belt.frame()).is_equal(stopped)
-
-
-## Reduced motion leaves the belt running: only its frames change, no node moves.
-func test_reduced_motion_keeps_the_belt_running() -> void:
-	var screen: ShiftScreen = await _screen()
-	screen._debug.set_reduced_motion(true)
 	await _place(screen, PASSING_ROW)
 	var count_up: CountUp = screen._count_up
 	var belt: BeltPanel = screen._stage.belt
-	var top: Control = belt.get_node(NodePath(BeltPanel.TOP_NAME)) as Control
-	var rest: Vector2 = top.global_position
+	var start: int = belt.frame()
+	var item_rests: Array[Vector2] = []
+	for view: CardView in screen._row_views:
+		item_rests.append(view.global_position)
+	# The count-up alone: the belt ride (which plays the rides on the belt) stops following it.
+	count_up.ride.disconnect(screen._ride._on_ride)
+	var rides: Array[Array] = _record_rides(count_up)
+	var started: Array[int] = [0]
+	count_up.beat_started.connect(
+		func(_b: CountUpBeat, _s: ScoreStep, _l: String, _v: CardView, _i: int) -> void:
+			started[0] += 1
+	)
 	screen._on_checkout_pressed()
-	var distinct: Dictionary[int, bool] = {}
-	while count_up._belt_running:
+	var forced: bool = false
+	var failures: Array[String] = []
+	while screen._counting:
 		await get_tree().process_frame
-		distinct[belt.frame()] = true
-		assert_vector(top.global_position).is_equal(rest)
-	assert_bool(count_up.plan.reduced_motion).is_true()
-	assert_int(distinct.size()).is_greater(3)
-	await _count_up_end(screen)
+		if belt.frame() != start:
+			failures.append("the belt moved")
+		if not forced and rides.size() == 2:
+			forced = true
+			# A hit-stop as _land sets one, during the 2nd item's ride: its beat waits.
+			var started_then: int = started[0]
+			count_up._hit_stop_left_ms = 60000.0
+			count_up._hit_stop_us = Time.get_ticks_usec()
+			count_up._apply_speed()
+			await _frames(5)
+			if started[0] != started_then:
+				failures.append("a beat started in a hit-stop during a ride")
+			count_up._hit_stop_left_ms = 0.0
+			count_up._apply_speed()
+	assert_bool(forced).is_true()
+	assert_array(failures.slice(0, 5)).override_failure_message(str(failures)).is_empty()
+	for index: int in range(item_rests.size()):
+		assert_vector(screen._row_views[index].global_position).is_equal(item_rests[index])
+	_assert_rides(rides, count_up.plan)
 
 
 func _screen() -> ShiftScreen:
@@ -982,3 +943,55 @@ func _last_event(type: String) -> Dictionary:
 
 static func _event_log() -> EventLogService:
 	return (Engine.get_main_loop() as SceneTree).root.get_node("/root/EventLog")
+
+
+## #86 v6: the quota's reward runs in real time through the count's hold at the ding (its
+## hit-stop freezes the count's tweens): the gold flies (TankBurst), the monitor shakes, the tank
+## bursts, the bay's light turns green and the SPEND MET stamp slams on the paper while the
+## subtotal stands still; the count goes on after.
+func test_the_burst_runs_in_real_time_through_the_quota_hold() -> void:
+	var screen: ShiftScreen = await _screen()
+	await _place(screen, PASSING_ROW)
+	var count_up: CountUp = screen._count_up
+	var monitor: MonitorView = screen._monitor
+	var burst: TankBurst = screen._stage.tank_burst
+	var pops: Array[bool] = []
+	count_up.quota_met.connect(func(pop: bool) -> void: pops.append(pop))
+	count_up.play(
+		screen.run.preview(),
+		screen._row_views,
+		ShiftScreen._names(screen.run.row),
+		40,
+		CountUpContext.new(1, 0, 1.0, false, screen.receipt_header())
+	)
+	var started: int = Time.get_ticks_msec()
+	while pops.is_empty() and Time.get_ticks_msec() - started < 10000:
+		await get_tree().process_frame
+	assert_array(pops).is_equal([true])
+	await get_tree().process_frame
+	assert_float(count_up._hit_stop_left_ms).is_greater(0.0)
+	var held: int = count_up._shown_subtotal
+	var earlier: Array[Rect2] = burst.drawn_rects(TankBurst.Layer.PARTICLES)
+	assert_bool(monitor.tank().is_bursting()).is_true()
+	assert_that(monitor.bay().light_colour()).is_equal(ScannerBay.LIGHT_MET_COLOR)
+	var shaken: bool = false
+	var hold_start: int = Time.get_ticks_msec()
+	while Time.get_ticks_msec() - hold_start < 330:
+		shaken = shaken or monitor.position != ShiftStage.MONITOR_RECT.position
+		await get_tree().process_frame
+	# Still held, yet everything of the reward moved.
+	assert_float(count_up._hit_stop_left_ms).is_greater(0.0)
+	assert_int(count_up._shown_subtotal).is_equal(held)
+	assert_bool(shaken).is_true()
+	assert_array(burst.drawn_rects(TankBurst.Layer.PARTICLES)).is_not_equal(earlier)
+	var stamp: MetStamp = screen._led.beat().stamp()
+	assert_bool(stamp.is_showing()).is_true()
+	var paper: Rect2 = Rect2(
+		screen._stage.get_global_rect().position + MonitorView.PAPER_RECT.position,
+		MonitorView.PAPER_RECT.size
+	)
+	assert_bool(paper.grow(MonitorView.STAMP_SHAKE).encloses(stamp.drawn_rect())).is_true()
+	count_up._tap(Time.get_ticks_msec())
+	count_up._tap(Time.get_ticks_msec())
+	await _played(screen)
+	assert_array(pops).is_equal([true])

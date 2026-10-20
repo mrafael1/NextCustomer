@@ -190,17 +190,17 @@ func test_upgrade_steps_play_from_the_loyalty_card() -> void:
 	assert_str(_scan_text(screen, 1)).contains("Category engine").contains("+€")
 
 	await screen._on_checkout_pressed()
-	assert_str(screen._led.digits_label().text).is_equal("€%d" % preview.total)
+	assert_str(screen._led.digits_label().text).is_equal(str(preview.total))
 	assert_str(_receipt_text(screen)).contains("Coupon engine").contains("Category engine")
 	for step: ScoreStep in upgrade_steps:
 		var box: Control = screen._loyalty_card.box(step.source_index)
 		assert_object(box).is_not_null()
-		assert_object(screen._count_up._source_control(step)).is_same(box)
-		assert_object(screen._count_up._source_view(step)).is_null()
+		assert_object(screen._count_up._beats._source_control(step)).is_same(box)
+		assert_object(screen._count_up._beats._source_view(step)).is_null()
 	# Card steps still come from their cards.
 	for step: ScoreStep in screen.run.last_result.steps:
 		if step.source_kind == ScoreStep.SourceKind.CARD:
-			var source: Control = screen._count_up._source_control(step)
+			var source: Control = screen._count_up._beats._source_control(step)
 			assert_object(source).is_same(screen._row_views[step.source_slot])
 
 
@@ -216,7 +216,9 @@ func test_an_upgrade_fizzle_plays_and_prints() -> void:
 	assert_int(wasted[0].step_type).is_equal(ScoreStep.StepType.WASTED)
 	await screen._on_checkout_pressed()
 	assert_str(_receipt_text(screen)).contains("Coupon engine: the first coupon paid nothing")
-	assert_object(screen._count_up._source_control(wasted[0])).is_same(screen._loyalty_card.box(0))
+	assert_object(screen._count_up._beats._source_control(wasted[0])).is_same(
+		screen._loyalty_card.box(0)
+	)
 	assert_bool(screen._counting).is_false()
 	# The shake ends where it started: the box keeps its stamp tilt.
 	assert_float(screen._loyalty_card.box(0).rotation).is_equal_approx(

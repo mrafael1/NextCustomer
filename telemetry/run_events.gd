@@ -147,6 +147,26 @@ static func count_up(
 	}
 
 
+## The `count_up` event of `count`, the count-up just played for `shift` from the CHECKOUT click at
+## `click_ms` with `context` (count_up's fields, read from the count-up and its plan).
+static func count_up_of(
+	count: CountUp, shift: int, click_ms: int, context: CountUpContext
+) -> Dictionary:
+	return count_up(
+		shift,
+		click_ms,
+		count.total_shown_ms,
+		count.fast_forward_used,
+		count.first_tap_ms,
+		count.dessert_skipped,
+		count.plan.base_speed,
+		context.speed_setting,
+		context.reduced_motion,
+		count.plan.step_count,
+		count.plan.planned_ms
+	)
+
+
 ## The `redraw` event: the cards replaced and the cards received (ids).
 static func redraw(replaced: Array[CardInstance], received: Array[CardInstance]) -> Dictionary:
 	return {"cards_replaced": card_ids(replaced), "cards_received": card_ids(received)}

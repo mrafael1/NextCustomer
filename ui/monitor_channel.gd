@@ -1,11 +1,11 @@
 class_name MonitorChannel
 extends Control
 ## The hung monitor's store channel in planning (#80, the user's play test of 2026-10-17: the
-## monitor no longer shows PROJECTED, which the receipt and the top bar's QUOTA chip carry). While
+## monitor no longer shows PROJECTED, which the receipt and the top bar's SPEND chip carry). While
 ## nothing is scanned the monitor's screen cycles slides about the shift, each for
 ## ScanTuning.channel_slide_ms (data/balance/scan.tres), with a page dot per slide under them:
-## 1. the shift's brief: "SHIFT n/m", "QUOTA €N" and the shift's inspections, each with its name
-##    and notice, or "No inspection this shift";
+## 1. the shift's brief: "SHIFT n/m", "SPEND €N+" (#86) and the shift's inspections, each with
+##    its name and notice, or "No inspection this shift";
 ## 2. one slide per owned loyalty upgrade: its name, its effect and its condition (the ticket's
 ##    lines);
 ## 3. the coupons in play (on the belt, then in the hand; each coupon once): each one's name and
@@ -45,15 +45,15 @@ const KICKER_HEIGHT := 16.0
 const KICKER_SIZE := 12
 const KICKER_SPACING := 1
 const GAP := 4.0
-## The brief's top row: "SHIFT n/m" at the left, "QUOTA €N" at the right (each word in the display
-## font, its number in the number font, both at TITLE_SIZE in ink).
+## The brief's top row: "SHIFT n/m" at the left, "SPEND €N+" at the right (each word in the
+## display font, its number in the number font, both at TITLE_SIZE in ink).
 const TITLE_HEIGHT := 26.0
 const TITLE_SIZE := 20
 const WORD_GAP := 6.0
 const SHIFT_WORD := "SHIFT"
 const SHIFT_TEXT := "%d/%d"
-const QUOTA_WORD := "QUOTA"
-const QUOTA_TEXT := "€%d"
+const QUOTA_WORD := LedDisplay.QUOTA_WORD
+const QUOTA_TEXT := LedDisplay.QUOTA_AMOUNT
 const INSPECTION_KICKER := "INSPECTION"
 const NO_INSPECTION_TEXT := "No inspection this shift"
 const INSPECTION_NAME_SIZE := 16

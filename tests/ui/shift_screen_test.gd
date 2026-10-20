@@ -53,9 +53,9 @@ func test_a_shift_from_draw_to_next_shift() -> void:
 	var expected_total: int = run.preview().total
 
 	await screen._on_checkout_pressed()
-	# The LED shows the counted total under TOTAL.
-	assert_str(screen._led.digits_label().text).is_equal("€%d" % expected_total)
-	assert_str(screen._led.caption()).is_equal(LedDisplay.TOTAL_TEXT)
+	# The LED shows the counted total under TOTAL (the bare number: the monitor's tank is the €).
+	assert_str(screen._led.digits_label().text).is_equal(str(expected_total))
+	assert_str(screen._led.caption_label().text).is_equal(LedDisplay.TOTAL_TEXT)
 	var passed: bool = expected_total >= run.quota()
 	# A pass shows the reward choice; a fail shows the results screen.
 	assert_bool(screen._reward_panel.visible).is_equal(passed)

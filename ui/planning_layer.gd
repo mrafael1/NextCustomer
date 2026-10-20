@@ -13,7 +13,7 @@ extends Control
 ## its slot's stack, stamp and pay tag as its own children, so they follow it. Under all of that,
 ## along the belt lip, the rail strips (RailStrip, section 5) say who gives what to whom: one per
 ## giver slot, in its lane (PlanningModel.assign_lanes); an overflowing strip (lane -1) is not
-## drawn while calm. The strips hide during a drag (show_strips): the stickers and the QUOTA chip
+## drawn while calm. The strips hide during a drag (show_strips): the stickers and the SPEND chip
 ## say what the drop does.
 ##
 ## Every anchor comes from the views' rects mapped into the layer, so a scaled 8- or 9-slot row
@@ -26,6 +26,11 @@ extends Control
 ## again in lane 0's geometry on top of everything, with every target's gain, and the strips
 ## giving to it with its gain only (in lane 1 when they share a slot with it), while every other
 ## strip dims.
+##
+## The count (#86 v6, keep_stickers): only the stickers and a denied item's stamp stay on the items
+## as they ride to the scanner (their stickers fire there: BeltRide); the rail strips, halos,
+## sparkles, pay tags and ticket strikes go. A view hidden from the screen (a bagged item's cell)
+## shows none of its parts.
 ##
 ## Motion (none under `reduced_motion`, and nothing loops): the stickers new since the last
 ## slap_new slap on, a boosted item's halo steps out from the rings its card showed before, and
@@ -74,6 +79,8 @@ const RING_BAND := 2.0
 const RING_COLOURS: Array[Color] = [Palette.MUSTARD_PALE, Palette.MUSTARD, Palette.INK]
 
 const SPARKLE := preload("res://art/effects/sparkle.png")
+## A hidden view's place in the layout key (_key): never a real view's transform.
+const HIDDEN_KEY := Transform2D(0.0, Vector2(-99999, -99999))
 
 ## The fades', dims' and motion's tuning (PlanningEffects passes data/balance/planning.tres).
 var tuning: PlanningTuning
@@ -119,6 +126,8 @@ var _ring: RailStrip.Painter
 var _got: Array[PriceSticker] = []
 ## The rings each card's item showed at the last show_model (a halo steps out from there).
 var _rings_by_card: Dictionary[CardInstance, int] = {}
+## The count's look (keep_stickers): no pay tag or strike on the tickets.
+var _counting: bool = false
 
 
 func _init() -> void:
@@ -274,6 +283,34 @@ func apply_focus(
 					_got.append(item.sticker())
 
 
+## The count's look (#86 v6): keeps the stickers and stamps of the model shown, takes the rail
+## strips, halos, sparkles, pay tags, ticket strikes and the focus off, until the next show_model.
+func keep_stickers() -> void:
+	for item: ItemView in _painted:
+		if is_instance_valid(item):
+			item.boost_rings = 0
+	var boxes: Array[Control] = _strip_boxes()
+	boxes.append_array([_pay_box, _ring_box, _sparkle_box, _hot_box])
+	for box: Control in boxes:
+		for child: Node in box.get_children():
+			box.remove_child(child)
+			child.queue_free()
+	_strips.clear()
+	_hot_strips.clear()
+	_hot_lanes.clear()
+	_ring = null
+	_pays.clear()
+	_sparkles.clear()
+	_lit = Callable()
+	_related = PackedInt32Array()
+	_hot = _no_hot()
+	_focus_slot = -1
+	_counting = true
+	_paint_focus(0.0)
+	if _model != null:
+		_lay_out()
+
+
 ## Takes every part off and puts every view's look and ticket back.
 func clear() -> void:
 	_reset()
@@ -359,6 +396,12 @@ static func fit_stack(specs: Array[StickerSpec], bottom: float, ceiling: float) 
 
 
 func _process(_delta: float) -> void:
+	follow_views()
+
+
+## Lays the parts out again if a view moved, or was hidden or shown, since the last layout: every
+## frame, and at once for a mover that moves views after the layer's frame (the belt ride's slide).
+func follow_views() -> void:
 	if _model != null and _key() != _layout_key:
 		_lay_out()
 
@@ -508,6 +551,13 @@ func _motion(seconds: float) -> float:
 
 
 func _lay_out_belt(slot: int, planning: PlanningSlot, item: ItemView) -> void:
+	var shown: bool = item.is_visible_in_tree()
+	for part: Control in _parts_of(slot):
+		part.visible = shown
+	# A hidden view (a bagged item) is not laid out: fitting its stack where it no longer stands
+	# could rebuild the stack, and the rebuilt stickers would show over the belt.
+	if not shown:
+		return
 	var to_layer: Transform2D = _to_layer(item)
 	var scale_x: float = to_layer.get_scale().x
 	var sprite: Rect2 = _sprite_rect(item, to_layer)
@@ -520,7 +570,7 @@ func _lay_out_belt(slot: int, planning: PlanningSlot, item: ItemView) -> void:
 	if tag != null:
 		tag_rect = _tag_rect(tag, ticket, item.sticker(), scale_x)
 		tag.position = tag_rect.position
-	item.sticker().set_pay(planning.struck, ticket_xf.affine_inverse() * tag_rect)
+	item.sticker().set_pay(planning.struck and not _counting, ticket_xf.affine_inverse() * tag_rect)
 	var stamped: DenyStamp = _stamps.get(slot, null)
 	if stamped != null:
 		stamped.position = (sprite.position + STAMP_OFFSET * scale_x).snappedf(ArtStyle.ART_SCALE)
@@ -665,6 +715,7 @@ func _reset() -> void:
 	_related = PackedInt32Array()
 	_hot = _no_hot()
 	_focus_slot = -1
+	_counting = false
 
 
 ## A calm rail strip for every strip of the model in a lane whose giver and targets are all shown
@@ -728,13 +779,29 @@ static func _sprite_rect(item: ItemView, to_layer: Transform2D) -> Rect2:
 	return Rect2(centre - shown / 2.0, shown)
 
 
-## Every shown view's transform into the layer (freed views as the identity).
+## Every shown view's transform into the layer (freed views as the identity, hidden ones as
+## HIDDEN_KEY, so hiding a view lays the parts out again).
 func _key() -> Array[Transform2D]:
 	var key: Array[Transform2D] = []
 	for slot: int in range(_items.size()):
 		var item: ItemView = _item(slot)
-		key.append(_to_layer(item) if item != null else Transform2D.IDENTITY)
+		if item == null:
+			key.append(Transform2D.IDENTITY)
+		else:
+			key.append(_to_layer(item) if item.is_visible_in_tree() else HIDDEN_KEY)
 	return key
+
+
+## The parts on `slot`'s belt view: its stickers, pay tag, stamp and sparkles.
+func _parts_of(slot: int) -> Array[Control]:
+	var found: Array[Control] = []
+	for sticker: EffectSticker in stack(slot):
+		found.append(sticker)
+	for part: Control in [_pays.get(slot, null), _stamps.get(slot, null)]:
+		if part != null:
+			found.append(part)
+	found.append_array(sparkles(slot))
+	return found
 
 
 func _box(box_name: String) -> Control:

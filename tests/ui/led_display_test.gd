@@ -1,14 +1,14 @@
 extends GdUnitTestSuite
 ## The register's LED (#55, LedDisplay): its caption per phase (PROJECTED, SUBTOTAL, TOTAL,
 ## blank), the digits and their colours (on the glass mustard, the projected total green once it
-## reaches the quota; in the count layout B2's ink over a mustard-light shadow, green only when the
-## count-up says the quota is met), the quota line and its 10-segment bar, its two layouts (#80:
-## compact on the glass in planning and blank, the count-up's on the monitor's paper for SUBTOTAL
-## and TOTAL), the quota chip's anchor (empty unless the count-up's subtotal or total shows) and
-## the chip covering the quota text, the longest digits at the largest punch inside the glass
-## (compact) or the monitor's paper (count), and on the real screen (on the hung monitor) blank in
-## planning and the total read from core's ScoreResult. The real saves and logs are
-## never touched.
+## reaches the quota; in the count layout, #86 v6's number column, the bare number in gold with an
+## ink outline over a mustard-dark shadow, gold met or not), the quota line and its 10-segment bar
+## on the glass, its two layouts (#80: compact on the glass in planning and blank, the count-up's
+## on the monitor's paper for SUBTOTAL and TOTAL, caption and quota line hidden), the to-go line
+## under the count's digits and the SPEND MET stamp that replaces it (LedBeat, MetStamp), the
+## longest digits at the largest punch inside the glass (compact) or the monitor's paper (count),
+## and on the real screen (on the hung monitor) blank in planning and the total read from core's
+## ScoreResult. The real saves and logs are never touched.
 
 const SCREEN := "res://ui/shift_screen.tscn"
 ## The longest total the LED is expected to show, the longest realistic one (the balance
@@ -34,54 +34,53 @@ func after_test() -> void:
 		DirAccess.remove_absolute(_folder)
 
 
-## Blank, then PROJECTED (mustard short of the quota, green at it, "QUOTA €N" on one label),
-## SUBTOTAL (ink until `met`, whatever the amount; the quota row's word and amount apart), TOTAL
-## over the shown amount, and blank again (mustard), PROJECTED's quota line whole again.
+## Blank, then PROJECTED (mustard short of the quota, green at it, "SPEND €N+"), SUBTOTAL (the
+## bare number in gold, met or not; caption and quota line hidden), TOTAL over the shown amount,
+## and blank again (mustard), PROJECTED's look whole again.
 func test_the_caption_and_colour_follow_the_phase() -> void:
 	var led: LedDisplay = await _led()
 	assert_int(led.mode()).is_equal(LedDisplay.Mode.BLANK)
-	assert_str(led.caption()).is_empty()
+	assert_str(led.caption_label().text).is_empty()
 	assert_str(led.digits_label().text).is_empty()
 	led.show_projected(30, 34)
-	assert_str(led.caption()).is_equal(LedDisplay.PROJECTED_TEXT)
+	assert_str(led.caption_label().text).is_equal(LedDisplay.PROJECTED_TEXT)
 	assert_str(led.digits_label().text).is_equal("€30")
-	assert_str(led.quota_label().text).is_equal("QUOTA €34")
+	assert_str(led.quota_label().text).is_equal("SPEND €34+")
 	assert_that(_colour(led)).is_equal(Palette.MUSTARD)
 	assert_int(led.lit()).is_equal(8)
 	led.show_projected(34, 34)
 	assert_that(_colour(led)).is_equal(Palette.GOOD)
 	assert_int(led.lit()).is_equal(10)
 	led.start_count(50)
-	assert_str(led.caption()).is_equal(LedDisplay.SUBTOTAL_TEXT)
-	assert_str(led.quota_label().text).is_equal("€50")
-	assert_str(led.quota_word_label().text).is_equal(LedDisplay.QUOTA_WORD)
-	assert_bool(led.quota_word_label().visible).is_true()
+	assert_str(led.caption_label().text).is_equal(LedDisplay.SUBTOTAL_TEXT)
+	assert_str(led.quota_label().text).is_equal("SPEND €50+")
+	assert_bool(led.caption_label().visible).is_false()
+	assert_bool(led.quota_label().visible).is_false()
 	assert_that(_colour(led)).is_equal(LedDisplay.COUNT_DIGITS_COLOR)
-	assert_that(LedDisplay.COUNT_DIGITS_COLOR).is_equal(Palette.INK)
-	# Past the quota but not yet met (the ding comes at the end of its roll): still ink.
-	led.show_subtotal(60, false)
-	assert_that(_colour(led)).is_equal(Palette.INK)
-	assert_int(led.lit()).is_equal(10)
+	assert_that(LedDisplay.COUNT_DIGITS_COLOR).is_equal(Palette.GOLD)
 	led.show_subtotal(25, false)
+	assert_str(led.digits_label().text).is_equal("25")
 	assert_int(led.lit()).is_equal(5)
+	led.show_subtotal(60, false)
+	assert_that(_colour(led)).is_equal(Palette.GOLD)
 	led.show_subtotal(60, true)
-	assert_that(_colour(led)).is_equal(Palette.GOOD)
-	assert_str(led.caption()).is_equal(LedDisplay.SUBTOTAL_TEXT)
+	assert_that(_colour(led)).is_equal(Palette.GOLD)
 	led.show_total()
-	assert_str(led.caption()).is_equal(LedDisplay.TOTAL_TEXT)
-	assert_str(led.digits_label().text).is_equal("€60")
+	assert_str(led.caption_label().text).is_equal(LedDisplay.TOTAL_TEXT)
+	assert_str(led.digits_label().text).is_equal("60")
+	assert_int(led.layout()).is_equal(LedDisplay.Layout.COUNT)
 	led.reset_colour()
-	assert_that(_colour(led)).is_equal(Palette.INK)
+	assert_that(_colour(led)).is_equal(Palette.GOLD)
 	led.clear()
 	assert_that(_colour(led)).is_equal(Palette.MUSTARD)
 	assert_int(led.mode()).is_equal(LedDisplay.Mode.BLANK)
 	for label: Label in [led.caption_label(), led.digits_label(), led.quota_label()]:
 		assert_str(label.text).is_empty()
 	assert_int(led.lit()).is_equal(0)
-	assert_bool(led.quota_word_label().visible).is_false()
 	led.show_projected(30, 34)
-	assert_str(led.quota_label().text).is_equal("QUOTA €34")
-	assert_bool(led.quota_word_label().visible).is_false()
+	assert_str(led.digits_label().text).is_equal("€30")
+	assert_bool(led.caption_label().visible).is_true()
+	assert_bool(led.quota_label().visible).is_true()
 
 
 ## floor(10 x min(1, shown / quota)): 0, partial, at the quota, past it, a negative amount and a
@@ -97,121 +96,124 @@ func test_lit_segments() -> void:
 	assert_int(LedDisplay.lit_segments(0, 0)).is_equal(LedDisplay.SEGMENTS)
 
 
-## In both layouts the parts sit at their rects (the compact one at ShiftStage's LED rects): on
-## the glass the bar's segments on the quota line's left and the chip's room on its right; in the
-## count layout (no glass, nothing clipped) "QUOTA €N" and the chip's room at the quota row's
-## left, then the bar; the room always apart from the bar. The layout follows the mode: compact
-## for PROJECTED (and blank), the count-up's for SUBTOTAL and TOTAL.
-func test_the_parts_sit_on_the_glass() -> void:
+## The compact layout (planning, blank) at ShiftStage's LED rects: the caption, the digits centred
+## on their rect, the quota line with the bar's segments on it, all inside the glass, which clips.
+func test_the_compact_parts_sit_on_the_glass() -> void:
 	var led: LedDisplay = await _led()
-	assert_int(led.mode()).is_equal(LedDisplay.Mode.BLANK)
 	assert_vector(led.size).is_equal(ShiftStage.LED_RECT.size)
 	led.show_projected(20, 34)
 	await _frames(2)
 	assert_vector(led.size).is_equal(ShiftStage.LED_RECT.size)
-	_assert_parts(
-		led, LedDisplay.DIGITS_RECT, LedDisplay.QUOTA_RECT, LedDisplay.CAPTION_RECT, false
-	)
+	assert_int(led.layout()).is_equal(LedDisplay.Layout.COMPACT)
+	var origin: Vector2 = led.get_global_rect().position
+	var glass: Rect2 = led.interior()
+	var digits: Rect2 = _shifted(LedDisplay.DIGITS_RECT, origin)
+	var digits_box: Rect2 = led.digits_label().get_global_rect()
+	assert_float(digits_box.get_center().y).is_equal(digits.get_center().y)
+	assert_float(digits_box.get_center().x).is_equal(digits.get_center().x)
+	var ink: Rect2 = led.digits_text_rect()
+	assert_bool(digits.encloses(ink)).override_failure_message(str(ink)).is_true()
+	assert_bool(glass.encloses(ink)).is_true()
+	var quota_line: Rect2 = led.quota_label().get_global_rect()
+	assert_that(quota_line).is_equal(_shifted(LedDisplay.QUOTA_RECT, origin))
+	assert_bool(led.get_global_rect().encloses(quota_line)).is_true()
+	assert_bool(ink.intersects(quota_line)).is_false()
+	for index: int in range(LedDisplay.SEGMENTS):
+		var segment: Rect2 = _shifted(led.segment_rect(index), origin)
+		assert_bool(quota_line.encloses(segment)).is_true()
+		# On the 2 px art grid.
+		assert_float(fmod(segment.position.x - origin.x, 2.0)).is_equal(0.0)
+		assert_float(fmod(segment.position.y - origin.y, 2.0)).is_equal(0.0)
+	assert_float(_width(led.quota_label(), "SPEND €999+")).is_less_equal(quota_line.size.x)
+	var caption: Rect2 = LedDisplay.CAPTION_RECT
+	assert_float(led.caption_label().get_minimum_size().x).is_less_equal(caption.size.x)
+	assert_bool(led.beat().is_visible_in_tree()).is_false()
+	for label: Control in [led.caption_label(), led.digits_label(), led.quota_label()]:
+		assert_int(label.mouse_filter).is_equal(Control.MOUSE_FILTER_IGNORE)
+		assert_bool(label.has_meta(ArtStyle.PIXEL_ART_META)).is_false()
+	assert_bool(led.clip_contents).is_true()
+	assert_int(led.mouse_filter).is_equal(Control.MOUSE_FILTER_IGNORE)
+
+
+## The count layout (SUBTOTAL and TOTAL), at the monitor's LED_COUNT_RECT: the digits' label as
+## wide as their text, centred in COUNT_DIGITS_RECT (its line box centred on the rect's height),
+## their ink inside it; the to-go line at COUNT_TO_GO_RECT under it (stage TO_GO_RECT), apart
+## from the ink; caption and quota line hidden; nothing clipped. Back to compact when blank.
+func test_the_count_parts_sit_on_the_paper() -> void:
+	var led: LedDisplay = await _led()
+	led.position = MonitorView.LED_COUNT_RECT.position - ShiftStage.LED_RECT.position
 	led.start_count(34)
 	led.show_subtotal(20, false)
 	await _frames(2)
+	assert_int(led.layout()).is_equal(LedDisplay.Layout.COUNT)
 	assert_vector(led.size).is_equal(LedDisplay.COUNT_SIZE)
-	_assert_parts(
-		led,
-		LedDisplay.COUNT_DIGITS_RECT,
-		LedDisplay.COUNT_QUOTA_RECT,
-		LedDisplay.COUNT_CAPTION_RECT,
-		true
-	)
+	assert_that(led.get_global_rect()).is_equal(MonitorView.LED_COUNT_RECT)
+	assert_that(led.interior()).is_equal(led.get_global_rect())
+	var origin: Vector2 = led.get_global_rect().position
+	var digits: Rect2 = _shifted(LedDisplay.COUNT_DIGITS_RECT, origin)
+	var digits_box: Rect2 = led.digits_label().get_global_rect()
+	assert_float(digits_box.get_center().y).is_equal(digits.get_center().y)
+	assert_float(absf(digits_box.get_center().x - digits.get_center().x)).is_less_equal(0.5)
+	assert_float(digits_box.size.x).is_equal_approx(led.digits_text_rect().size.x, 0.5)
+	assert_vector(led.digits_label().pivot_offset).is_equal(led.digits_label().size / 2.0)
+	var ink: Rect2 = led.digits_text_rect()
+	assert_bool(digits.encloses(ink)).override_failure_message(str(ink)).is_true()
+	var beat: LedBeat = led.beat()
+	assert_bool(beat.is_visible_in_tree()).is_true()
+	assert_that(beat.get_global_rect()).is_equal(MonitorView.TO_GO_RECT)
+	assert_that(beat.get_global_rect()).is_equal(_shifted(LedDisplay.COUNT_TO_GO_RECT, origin))
+	assert_that(beat.to_go_label().get_global_rect()).is_equal(MonitorView.TO_GO_RECT)
+	assert_bool(beat.to_go_label().is_visible_in_tree()).is_true()
+	assert_bool(ink.intersects(beat.get_global_rect())).is_false()
+	assert_bool(MonitorView.PAPER_RECT.encloses(led.get_global_rect())).is_true()
+	assert_bool(MonitorView.PAPER_RECT.encloses(beat.get_global_rect())).is_true()
+	assert_bool(led.caption_label().visible).is_false()
+	assert_bool(led.quota_label().visible).is_false()
+	assert_bool(led.clip_contents).is_false()
 	led.show_total()
 	assert_vector(led.size).is_equal(LedDisplay.COUNT_SIZE)
 	led.clear()
 	assert_vector(led.size).is_equal(ShiftStage.LED_RECT.size)
 	assert_int(led.layout()).is_equal(LedDisplay.Layout.COMPACT)
+	assert_bool(beat.is_visible_in_tree()).is_false()
 
 
-## The parts at the layout's `digits`, `quota` and `caption` rects (LED coordinates), the bar and
-## the chip's room on the quota line (the count layout's quota row), inside the LED's glass (its
-## whole rect in the count layout); the beat's parts shown with the count layout (`count`) only.
-## The digits' line box is centred on their rect's height; on the glass it spans the rect, in the
-## count layout it is as wide as their text, at the rect's left.
-func _assert_parts(
-	led: LedDisplay, digits_rect: Rect2, quota: Rect2, caption: Rect2, count: bool
-) -> void:
-	var origin: Vector2 = led.get_global_rect().position
-	var glass: Rect2 = led.interior()
-	# The digits' line box is centred on their rect, and their ink lies inside it.
-	var digits: Rect2 = Rect2(origin + digits_rect.position, digits_rect.size)
-	var digits_box: Rect2 = led.digits_label().get_global_rect()
-	assert_float(digits_box.get_center().y).is_equal(digits.get_center().y)
-	if count:
-		assert_float(digits_box.position.x).is_equal(digits.position.x)
-		assert_float(digits_box.size.x).is_less_equal(digits.size.x)
-		assert_float(digits_box.size.x).is_equal_approx(led.digits_text_rect().size.x, 0.5)
-	else:
-		assert_float(digits_box.get_center().x).is_equal(digits.get_center().x)
-	assert_vector(led.digits_label().pivot_offset).is_equal(led.digits_label().size / 2.0)
-	var ink: Rect2 = led.digits_text_rect()
-	assert_bool(digits.encloses(ink)).override_failure_message(str(ink)).is_true()
-	assert_that(led.quota_label().get_global_rect()).is_equal(
-		Rect2(origin + quota.position, quota.size)
-	)
-	assert_bool(led.beat().is_visible_in_tree()).is_equal(count)
-	var anchor: Rect2 = led.quota_anchor() if count else _compact_anchor(led)
-	var quota_line: Rect2 = led.quota_label().get_global_rect()
-	assert_bool(quota_line.encloses(anchor)).override_failure_message(str(anchor)).is_true()
-	if count:
-		var row: Rect2 = LedDisplay.COUNT_QUOTA_ROW
-		quota_line = Rect2(origin + row.position, row.size)
-	assert_bool(led.get_global_rect().encloses(quota_line)).is_true()
-	assert_bool(glass.encloses(ink)).is_true()
-	assert_bool(ink.intersects(quota_line)).is_false()
-	for index: int in range(LedDisplay.SEGMENTS):
-		var segment: Rect2 = led.segment_rect(index)
-		segment.position += origin
-		assert_bool(quota_line.encloses(segment)).is_true()
-		assert_bool(segment.intersects(anchor)).is_false()
-		# On the 2 px art grid.
-		assert_float(fmod(segment.position.x - origin.x, 2.0)).is_equal(0.0)
-		assert_float(fmod(segment.position.y - origin.y, 2.0)).is_equal(0.0)
-	# The quota text fits its line and the chip room covers it: "QUOTA €999" on the glass; in the
-	# count layout the word in its font, the gap and "€999" in the amount's.
-	var width: float = _width(led.quota_label(), "QUOTA €999")
-	if count:
-		var word: Label = led.quota_word_label()
-		width = _width(word, LedDisplay.QUOTA_WORD) + LedDisplay.QUOTA_WORD_GAP
-		width += _width(led.quota_label(), "€999")
-		var word_rect: Rect2 = word.get_global_rect()
-		(
-			assert_bool(quota_line.encloses(word_rect))
-			. override_failure_message(str(word_rect))
-			. is_true()
-		)
-		assert_float(led.quota_text_width()).is_equal_approx(
-			(
-				_width(word, word.text)
-				+ LedDisplay.QUOTA_WORD_GAP
-				+ _width(led.quota_label(), led.quota_label().text)
-			),
-			0.01
-		)
-	assert_float(width).is_less_equal(anchor.size.x)
-	# The caption fits its row, above the digits.
-	assert_float(led.caption_label().get_minimum_size().x).is_less_equal(caption.size.x)
-	for label: Control in [led.caption_label(), led.digits_label(), led.quota_label()]:
-		assert_int(label.mouse_filter).is_equal(Control.MOUSE_FILTER_IGNORE)
-		assert_bool(label.has_meta(ArtStyle.PIXEL_ART_META)).is_false()
-	assert_bool(led.clip_contents).is_equal(not count)
-	assert_int(led.mouse_filter).is_equal(Control.MOUSE_FILTER_IGNORE)
+## The count's digits: gold, an ink outline COUNT_OUTLINE px wide, a mustard-dark shadow
+## COUNT_SHADOW px down and right that carries the outline; on the glass the mustard glow and no
+## shadow.
+func test_the_count_digits_look() -> void:
+	var led: LedDisplay = await _led()
+	var digits: Label = led.digits_label()
+	led.show_projected(20, 34)
+	assert_int(digits.get_theme_constant("outline_size")).is_equal(LedDisplay.GLOW_SIZE)
+	assert_float(digits.get_theme_color("font_shadow_color").a).is_equal(0.0)
+	led.start_count(34)
+	led.show_subtotal(20, false)
+	assert_that(digits.get_theme_color("font_color")).is_equal(Palette.GOLD)
+	assert_that(digits.get_theme_color("font_outline_color")).is_equal(Palette.INK)
+	assert_int(digits.get_theme_constant("outline_size")).is_equal(LedDisplay.COUNT_OUTLINE)
+	assert_int(LedDisplay.COUNT_OUTLINE).is_equal(2)
+	assert_that(digits.get_theme_color("font_shadow_color")).is_equal(Palette.MUSTARD_DARK)
+	assert_int(digits.get_theme_constant("shadow_offset_x")).is_equal(LedDisplay.COUNT_SHADOW)
+	assert_int(digits.get_theme_constant("shadow_offset_y")).is_equal(LedDisplay.COUNT_SHADOW)
+	assert_int(LedDisplay.COUNT_SHADOW).is_equal(5)
+	assert_int(digits.get_theme_constant("shadow_outline_size")).is_equal(LedDisplay.COUNT_OUTLINE)
+	assert_int(digits.get_theme_font_size("font_size")).is_equal(LedDisplay.COUNT_DIGITS_SIZES[0])
+	assert_int(LedDisplay.COUNT_DIGITS_SIZES[0]).is_equal(80)
+	assert_str(digits.text).is_equal("20")
+	led.clear()
+	assert_int(digits.get_theme_constant("outline_size")).is_equal(LedDisplay.GLOW_SIZE)
+	assert_float(digits.get_theme_color("font_shadow_color").a).is_equal(0.0)
 
 
 ## The longest digits at the largest punch the count-up gives (SUBTOTAL_PUNCH plus
 ## SUBTOTAL_PUNCH_MAX plus the tuning's passes_best_punch, above the TOTAL line's) stay on the
-## glass in the compact layout, and on the monitor's paper in the count layout (at its count
-## place and its TOTAL place, MonitorView's), where the longest realistic total (the simulator's
-## largest, €1118) keeps the largest digits size and a wide four-digit total (€1000) and the
-## longest digits take a smaller one: the measured text, not the label's rect.
-func test_the_longest_digits_fit_the_glass_at_the_largest_punch() -> void:
+## glass in the compact layout, and on the monitor's paper in the count layout (at
+## LED_COUNT_RECT), where totals up to 999 and the longest realistic total (the simulator's
+## largest, 1118) keep the largest digits size and a wide four-digit total (1000) and the longest
+## digits (9999) take a smaller one, every one inside COUNT_DIGITS_RECT's width at rest: the
+## measured text, not the label's rect.
+func test_the_longest_digits_fit_at_the_largest_punch() -> void:
 	var led: LedDisplay = await _led()
 	var tuning: CountUpTuning = load(CountUp.TUNING_PATH)
 	var largest: float = maxf(
@@ -227,86 +229,126 @@ func test_the_longest_digits_fit_the_glass_at_the_largest_punch() -> void:
 	prints("#55 LED digits", LONGEST_DIGITS, "at", largest, ":", text, "glass", led.interior())
 	assert_bool(led.interior().encloses(text)).override_failure_message(str(text)).is_true()
 	led.digits_label().scale = Vector2.ONE
-	# The count layout, at the monitor's places (the holder stands at the LED's compact place).
+	# The count layout, at the monitor's place (the holder stands at the LED's compact place).
 	led.start_count(34)
-	var paper: Rect2 = ShiftStage.MONITOR_SCREEN_RECT.grow(-MonitorView.OUTLINE)
-	for amount: int in [LONGEST_REALISTIC, WIDE_FOUR_DIGITS, 9999]:
+	led.position = MonitorView.LED_COUNT_RECT.position - ShiftStage.LED_RECT.position
+	var paper: Rect2 = MonitorView.PAPER_RECT
+	for amount: int in [999, LONGEST_REALISTIC, WIDE_FOUR_DIGITS, 9999]:
 		led.show_subtotal(amount, false)
 		await _frames(1)
 		var font_size: int = led.digits_label().get_theme_font_size("font_size")
-		if amount == LONGEST_REALISTIC:
+		if amount == 999 or amount == LONGEST_REALISTIC:
 			assert_int(font_size).is_equal(LedDisplay.COUNT_DIGITS_SIZES[0])
 		else:
 			assert_int(font_size).is_less(LedDisplay.COUNT_DIGITS_SIZES[0])
 		var width: float = led.digits_text_rect().size.x
 		assert_float(width).is_less_equal(LedDisplay.COUNT_DIGITS_RECT.size.x)
-		for place: Rect2 in [MonitorView.LED_COUNT_RECT, MonitorView.LED_TOTAL_RECT]:
-			led.position = place.position - ShiftStage.LED_RECT.position
-			led.digits_label().scale = Vector2(largest, largest)
-			text = led.digits_text_rect()
-			var shown: String = led.digits_label().text
-			prints(
-				"#80 LED count digits", shown, font_size, "at", largest, ":", text, "paper", paper
-			)
-			assert_bool(paper.encloses(text)).override_failure_message(shown + str(text)).is_true()
-			led.digits_label().scale = Vector2.ONE
+		led.digits_label().scale = Vector2(largest, largest)
+		text = led.digits_text_rect()
+		var shown: String = led.digits_label().text
+		prints("#86 LED count digits", shown, font_size, "at", largest, ":", text, "paper", paper)
+		assert_bool(paper.encloses(text)).override_failure_message(shown + str(text)).is_true()
+		led.digits_label().scale = Vector2.ONE
 
 
-## The chip's anchor is empty while the LED is blank or shows the projected total (planning, the
-## rack), and on the quota line while it shows the count-up's subtotal or total; empty again
-## when hidden.
-func test_the_quota_anchor_follows_the_phase() -> void:
+## The to-go line: "€N to go" in dark tomato short of the quota, in ink from NEAR_SHARE of it,
+## its text "Spot on" or "+€N" past it but hidden there; the longest fits its row. The SPEND MET
+## stamp (at stage STAMP_RECT, on the paper) replaces it while it shows, and a new count
+## (start_count) or the LED going blank takes it off.
+func test_the_to_go_line_and_the_stamp() -> void:
 	var led: LedDisplay = await _led()
-	assert_bool(led.quota_anchor().has_area()).is_false()
-	led.show_projected(40, 34)
-	assert_bool(led.quota_anchor().has_area()).is_false()
-	led.start_count(34)
-	var anchor: Rect2 = led.quota_anchor()
-	assert_bool(anchor.has_area()).is_true()
-	assert_bool(led.get_global_rect().encloses(anchor)).is_true()
-	led.show_total()
-	assert_that(led.quota_anchor()).is_equal(anchor)
-	led.visible = false
-	assert_bool(led.quota_anchor().has_area()).is_false()
-	led.visible = true
+	led.position = MonitorView.LED_COUNT_RECT.position - ShiftStage.LED_RECT.position
+	var beat: LedBeat = led.beat()
+	var line: Label = beat.to_go_label()
+	var stamp: MetStamp = beat.stamp()
+	led.start_count(100)
+	led.show_subtotal(10, false)
+	await _frames(1)
+	assert_str(line.text).is_equal("€90 to go")
+	assert_that(line.get_theme_color("font_color")).is_equal(Palette.TOMATO_DARK)
+	assert_int(line.get_theme_font_size("font_size")).is_equal(LedBeat.TO_GO_FONT_SIZE)
+	assert_bool(beat.is_near()).is_false()
+	assert_bool(line.is_visible_in_tree()).is_true()
+	assert_bool(stamp.is_visible_in_tree()).is_false()
+	led.show_subtotal(80, false)
+	assert_str(line.text).is_equal("€20 to go")
+	assert_bool(beat.is_near()).is_true()
+	assert_that(line.get_theme_color("font_color")).is_equal(Palette.INK)
+	# On or past the quota the line is hidden even before the count is met (a last payout crossing
+	# it, met with the TOTAL): the stamp's place, the "+€N" is the tank's tab.
+	led.show_subtotal(100, false)
+	assert_str(line.text).is_equal(LedBeat.ON_QUOTA_TEXT)
+	assert_bool(line.visible).is_false()
+	led.show_subtotal(117, false)
+	assert_str(line.text).is_equal("+€17")
+	assert_that(line.get_theme_color("font_color")).is_equal(Palette.INK)
+	assert_bool(line.visible).is_false()
+	led.show_subtotal(117, true)
+	assert_bool(line.visible).is_false()
+	# Back under it (a new count), it shows again.
+	led.show_subtotal(99, false)
+	assert_bool(line.visible).is_true()
+	led.show_subtotal(117, true)
+	var room: float = LedDisplay.COUNT_TO_GO_RECT.size.x
+	assert_float(_width(line, LedBeat.TO_GO_TEXT % 999)).is_less_equal(room)
+	# The stamp replaces the line.
+	stamp.show_static()
+	await _frames(1)
+	assert_bool(stamp.is_visible_in_tree()).is_true()
+	assert_bool(line.visible).is_false()
+	assert_that(stamp.get_global_rect()).is_equal(MonitorView.STAMP_RECT)
+	var drawn: Rect2 = stamp.drawn_rect()
+	var on_paper: bool = MonitorView.PAPER_RECT.encloses(drawn)
+	assert_bool(on_paper).override_failure_message(str(drawn)).is_true()
+	var text: float = _width(stamp.label(), MetStamp.TEXT) + MetStamp.CHECK_GAP
+	text += MetStamp.CHECK_SIZE.x
+	assert_float(text).is_less_equal(MetStamp.SIZE.x - 2.0 * MetStamp.BORDER)
+	led.show_subtotal(120, true)
+	assert_bool(line.visible).is_false()
+	# A new count takes it off.
+	led.start_count(90)
+	led.show_subtotal(0, false)
+	assert_bool(stamp.is_showing()).is_false()
+	assert_bool(line.visible).is_true()
+	stamp.show_static()
 	led.clear()
-	assert_bool(led.quota_anchor().has_area()).is_false()
+	assert_bool(stamp.is_showing()).is_false()
 
 
-## The compact chip covers the right-aligned "QUOTA €N" it sits over, for the widest quotas:
-## shift 8's 120 (data/balance/balance.tres) and 138 with the Big basket's 15%. It spans the
-## text's measured width at the line's centre, inside its anchor and right-aligned in it.
-func test_the_chip_covers_the_quota_text() -> void:
+## The slam drops the stamp from SLAM_FROM on its own real-time tween, puffs dust and says
+## `landed` at the impact; under reduced motion it shows at rest at once with no dust.
+func test_the_stamp_slams_in_real_time() -> void:
 	var led: LedDisplay = await _led()
-	var chip: QuotaChip = auto_free(QuotaChip.new())
-	get_tree().root.add_child(chip)
-	chip.follow_anchor(led.quota_anchor, led.quota_text_width)
-	for quota: int in [120, 138]:
-		led.start_count(quota)
-		led.show_subtotal(quota, true)
-		await _frames(2)
-		assert_bool(chip.visible).is_true()
-		var rect: Rect2 = chip.get_global_rect()
-		var text: Rect2 = _quota_text_span(led)
-		prints("#55 chip over", led.quota_label().text, ":", rect, "text", text)
-		assert_bool(led.quota_anchor().encloses(rect)).override_failure_message(str(rect)).is_true()
-		# Right-aligned with the text (both end at the anchor's end), from left of its start, and
-		# over its centre line. Not Rect2.encloses: the shared right end may differ by rounding.
-		assert_float(rect.end.x).is_equal_approx(text.end.x, 0.5)
-		(
-			assert_float(rect.position.x)
-			. override_failure_message(
-				"%s: chip %s, text %s" % [led.quota_label().text, rect, text]
-			)
-			. is_less_equal(text.position.x)
-		)
-		assert_bool(rect.position.y <= text.position.y and text.position.y <= rect.end.y).is_true()
+	led.start_count(50)
+	led.show_subtotal(60, true)
+	var stamp: MetStamp = led.beat().stamp()
+	var landings: Array[bool] = []
+	stamp.landed.connect(func() -> void: landings.append(true))
+	stamp.slam(true)
+	assert_bool(stamp.is_showing()).is_true()
+	assert_bool(stamp.is_slamming()).is_false()
+	assert_bool(stamp.has_dust()).is_false()
+	assert_array(landings).is_empty()
+	stamp.hide_stamp()
+	stamp.slam(false)
+	assert_bool(stamp.is_showing()).is_true()
+	assert_bool(stamp.is_slamming()).is_true()
+	await get_tree().create_timer(MetStamp.SLAM_IN_S + 0.05).timeout
+	# The tree runs its timers before its tweens: one more frame lets the slam's tween catch up
+	# with a long frame that fired the timer.
+	await get_tree().process_frame
+	assert_array(landings).is_equal([true])
+	assert_bool(stamp.has_dust()).is_true()
+	await get_tree().create_timer(MetStamp.SLAM_SETTLE_S + MetStamp.DUST_LIFE.y + 0.1).timeout
+	assert_bool(stamp.is_slamming()).is_false()
+	assert_bool(stamp.has_dust()).is_false()
+	assert_bool(led.beat().to_go_label().visible).is_false()
 
 
 ## On the real screen the LED stays blank in planning as cards are placed (the monitor's store
-## channel has the screen; the top bar's QUOTA chip carries the preview's total,
-## monitor_channel_test), and a checkout's end state shows core's total, the chip on the quota
-## line.
+## channel has the screen; the top bar's quota chip carries the preview's total,
+## monitor_channel_test), and a checkout's end state shows core's total, met (#86 v6: the
+## count-up's quota_met, without a pop), in the count's gold.
 func test_the_screen_shows_core_totals() -> void:
 	var runner: GdUnitSceneRunner = scene_runner(SCREEN)
 	var screen: ShiftScreen = runner.scene()
@@ -321,19 +363,16 @@ func test_the_screen_shows_core_totals() -> void:
 		screen._refresh()
 		assert_int(led.mode()).is_equal(LedDisplay.Mode.BLANK)
 		assert_bool(led.visible).is_false()
-	# The end state of a checkout that met the quota: TOTAL, green, the chip on the quota line.
+	# The end state of a checkout that met the quota: TOTAL, met at once.
 	var result: ScoreResult = run.preview()
+	var pops: Array[bool] = []
+	screen._count_up.quota_met.connect(func(pop: bool) -> void: pops.append(pop))
 	screen._count_up.show_end_state(result, 1, screen.count_up_context())
 	await _frames(2)
-	assert_str(led.caption()).is_equal(LedDisplay.TOTAL_TEXT)
-	assert_str(led.digits_label().text).is_equal("€%d" % result.total)
-	assert_that(_colour(led)).is_equal(Palette.GOOD)
-	var chip: QuotaChip = screen._count_up._quota_chip
-	assert_bool(chip.visible).is_true()
-	var rect: Rect2 = chip.get_global_rect()
-	assert_bool(led.quota_anchor().encloses(rect)).override_failure_message(str(rect)).is_true()
-	assert_bool(led.get_global_rect().encloses(rect)).is_true()
-	prints("#55 compact chip", rect.size)
+	assert_str(led.caption_label().text).is_equal(LedDisplay.TOTAL_TEXT)
+	assert_str(led.digits_label().text).is_equal("%d" % result.total)
+	assert_that(_colour(led)).is_equal(LedDisplay.COUNT_DIGITS_COLOR)
+	assert_array(pops).is_equal([false])
 
 
 func _led() -> LedDisplay:
@@ -346,20 +385,8 @@ func _led() -> LedDisplay:
 	return led
 
 
-## The compact layout's chip room (global): quota_anchor() is empty outside the count-up, so the
-## room is read from CHIP_RECT.
-static func _compact_anchor(led: LedDisplay) -> Rect2:
-	return Rect2(
-		led.get_global_transform() * LedDisplay.CHIP_RECT.position, LedDisplay.CHIP_RECT.size
-	)
-
-
-## The quota text's measured span (global): from the quota line's right end back by the text's
-## width, at the line's centre height.
-static func _quota_text_span(led: LedDisplay) -> Rect2:
-	var line: Rect2 = led.quota_label().get_global_rect()
-	var width: float = led.quota_text_width()
-	return Rect2(line.end.x - width, line.get_center().y, width, 0.0)
+static func _shifted(rect: Rect2, origin: Vector2) -> Rect2:
+	return Rect2(origin + rect.position, rect.size)
 
 
 ## `text`'s width in `label`'s font and size.

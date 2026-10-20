@@ -247,7 +247,7 @@ func test_the_channel_stays_out_of_the_count_up() -> void:
 		await get_tree().process_frame
 	assert_bool(screen._reward_panel.visible).is_true()
 	assert_int(monitor.mode()).is_equal(MonitorView.Mode.COUNT)
-	assert_str(screen._led.caption()).is_equal(LedDisplay.TOTAL_TEXT)
+	assert_str(screen._led.caption_label().text).is_equal(LedDisplay.TOTAL_TEXT)
 	assert_bool(channel.visible).is_false()
 	screen._on_reward_skipped()
 	await _frames(2)
@@ -263,11 +263,13 @@ func test_the_channel_stays_out_of_the_count_up() -> void:
 	)
 	var projected: String = "€%d" % screen.run.preview().total
 	assert_str(screen._quota_meter.amount_label.text).is_equal(projected)
-	assert_bool(screen._quota_meter.check_shown()).is_false()
+	var met: bool = screen.run.preview().total >= screen.run.quota()
+	assert_bool(screen._quota_meter.flag_shown()).is_equal(met)
 
 
-## As items are placed the QUOTA chip follows the preview's projected total (core's ScoreResult)
-## against the quota, with no check, while the monitor stays on its channel.
+## As items are placed the quota chip follows the preview's projected total (core's ScoreResult)
+## against the quota, its flag planted once the total reaches the quota (#86), while the monitor
+## stays on its channel.
 func test_the_quota_meter_shows_the_projected_total() -> void:
 	var screen: ShiftScreen = await _screen()
 	var run: RunState = screen.run
@@ -281,7 +283,7 @@ func test_the_quota_meter_shows_the_projected_total() -> void:
 		assert_float(meter.fill()).is_equal_approx(
 			QuotaMeter.fill_fraction(total, run.quota()), 0.0001
 		)
-		assert_bool(meter.check_shown()).is_false()
+		assert_bool(meter.flag_shown()).is_equal(total >= run.quota())
 		assert_int(screen._monitor.mode()).is_equal(MonitorView.Mode.CHANNEL)
 
 

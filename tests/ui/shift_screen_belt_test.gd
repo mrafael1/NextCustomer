@@ -5,7 +5,8 @@ extends GdUnitTestSuite
 ## cards stand on the belt as belt items on their contact shadows with their tickets on the rail,
 ## the empty slots' footprints recede to the belt's vanishing point, and 7-slot, CLOSED, 8-slot
 ## and 9-slot rows stay on the belt with every item's sprite, plaque, sticker and chips inside its
-## own cell, each slot's drop target inside it, on the 1280x720 stage. Every rect is checked on
+## own cell, each slot's drop target inside it, on the 1280x720 stage, and the scanner's glass
+## plate (#86 v6) lies on the top face under each row's first cell. Every rect is checked on
 ## screen (headless
 ## runs use a 1280x1280 window: the stage is centred, 280 px down). The real saves and logs are
 ## never touched.
@@ -61,8 +62,8 @@ func test_the_cells_fill_the_rubber_as_in_style_frame_v2() -> void:
 ## The belt's art: the top face (belt_top, baked by tools/belt_art.py) at 1:1 over the guard and
 ## the top face, the front 3-slice (lip, apron, rail) under it at its art's height (only its
 ## middle column stretches), and on the apron a bolt in each gap between two tickets of the
-## 7-slot row, left of the first one too, and the direction chevrons centred under each ticket;
-## every part inside the belt, drawn with the sharp-pixel
+## 7-slot row, left of the first one too, and the direction chevrons centred under each ticket,
+## then the scanner's plate (#86 v6); every part inside the belt, drawn with the sharp-pixel
 ## material, taking no click. The rail and the top face lie on that art.
 func test_the_belt_art_lies_on_the_belt() -> void:
 	var screen: ShiftScreen = await _screen()
@@ -85,7 +86,9 @@ func test_the_belt_art_lies_on_the_belt() -> void:
 	assert_int(front.patch_margin_bottom).is_equal(0)
 	assert_float(front.get_global_rect().position.y).is_equal(top.get_global_rect().end.y)
 	var art: Array[Control] = belt.art()
-	assert_int(art.size()).is_equal(2 + 2 * BeltPanel.BOLT_COUNT)
+	# The top face, the front, the bolts and chevrons, and the scanner's plate (#86 v6).
+	assert_int(art.size()).is_equal(3 + 2 * BeltPanel.BOLT_COUNT)
+	assert_object(art[art.size() - 1]).is_same(belt.get_node(NodePath(BeltPanel.SCANNER_NAME)))
 	for part: Control in art:
 		var rect: Rect2 = part.get_global_rect()
 		assert_bool(inside.encloses(rect)).override_failure_message(str(part.name)).is_true()
@@ -155,7 +158,8 @@ func test_scroll_shows_the_frames() -> void:
 	assert_int(belt.frame()).is_equal(0)
 	assert_object(top.texture).is_same(BeltPanel.BELT_TOP)
 	assert_vector(top.size).is_equal(BeltPanel.TOP_RECT.size)
-	assert_int(belt.art().size()).is_equal(2 + 2 * BeltPanel.BOLT_COUNT)
+	# The top face, the front, the bolts and chevrons, and the scanner's plate (#86 v6).
+	assert_int(belt.art().size()).is_equal(3 + 2 * BeltPanel.BOLT_COUNT)
 
 
 ## Every belt item stands on its contact shadow, under its art's opaque foot and on the belt's
@@ -299,6 +303,7 @@ func _assert_full_row_fits(screen: ShiftScreen, count: int) -> void:
 			summary.get_theme_font_size("font_size") * summary.get_global_transform().get_scale().y
 		)
 		assert_float(shown).override_failure_message(message).is_greater_equal(MIN_SUMMARY_PX)
+	_assert_scanner_under_first_cell(screen)
 
 
 func _assert_row_on_belt(screen: ShiftScreen, panel_count: int) -> void:
@@ -358,6 +363,37 @@ func _assert_row_on_belt(screen: ShiftScreen, panel_count: int) -> void:
 			assert_float(rect.position.y).is_greater_equal(bar_bottom)
 			assert_bool(view.get_global_rect().encloses(rect)).is_true()
 			assert_bool(rect.intersects(receipt)).is_false()
+	_assert_scanner_under_first_cell(screen)
+
+
+## The scanner's glass plate (#86 v6) lies on the belt's top face under the row's first cell (the
+## scanner): its art at its size with the sharp-pixel material, its middle within an art pixel of
+## the cell's on the art grid, behind the row, clear of the receipt, taking no click.
+func _assert_scanner_under_first_cell(screen: ShiftScreen) -> void:
+	var belt: BeltPanel = screen._stage.belt
+	var plate: TextureRect = belt.get_node(NodePath(BeltPanel.SCANNER_NAME)) as TextureRect
+	var rect: Rect2 = plate.get_global_rect()
+	var message: String = "%d slots: %s" % [screen._slots.size(), rect]
+	assert_that(rect).is_equal(belt.get_global_transform() * belt.scanner_rect())
+	assert_bool(plate.is_visible_in_tree()).is_true()
+	assert_object(plate.texture).is_same(BeltPanel.SCANNER_PLATE)
+	assert_vector(rect.size).is_equal(Vector2(BeltPanel.SCANNER_PLATE.get_size()))
+	assert_bool(plate.has_meta(ArtStyle.PIXEL_ART_META)).is_true()
+	assert_int(plate.mouse_filter).is_equal(Control.MOUSE_FILTER_IGNORE)
+	assert_bool(belt.get_global_rect().encloses(rect)).override_failure_message(message).is_true()
+	var top_face: Rect2 = belt.get_global_transform() * belt.top_face()
+	assert_float(rect.position.y).is_greater_equal(top_face.position.y)
+	assert_float(rect.end.y).is_less_equal(top_face.end.y)
+	var cell: Rect2 = screen._slots[0].get_global_rect()
+	(
+		assert_float(rect.position.x + BeltPanel.SCANNER_CENTER_X)
+		. override_failure_message(message)
+		. is_equal_approx(cell.get_center().x, ArtStyle.ART_SCALE)
+	)
+	var stage: Rect2 = screen._stage.get_global_rect()
+	assert_float(fmod(rect.position.x - stage.position.x, ArtStyle.ART_SCALE)).is_equal(0.0)
+	assert_int(plate.get_index()).is_less(screen._row_strip.get_index())
+	assert_bool(rect.intersects(screen._receipt.get_global_rect())).is_false()
 
 
 ## Puts copies of cards into the row, in order, and refreshes the screen.

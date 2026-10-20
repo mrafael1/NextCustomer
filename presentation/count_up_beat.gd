@@ -37,8 +37,8 @@ var note: int = -1
 var note_quiet: bool = false
 ## Start to start at speed 1, after fitting, trailing gap included.
 var duration_ms: int = 0
-## Planned start at speed 1 from the start of the count-up, pre-roll included and hit-stops
-## not (the timeline hit-stops merge on).
+## Planned start at speed 1 from the start of the count-up, pre-roll and ride gaps included and
+## hit-stops not (the timeline hit-stops merge on).
 var start_ms: int = 0
 ## Real-time freeze when the beat lands (D6), after merging; 0 for none.
 var hit_stop_ms: int = 0
@@ -63,3 +63,14 @@ var ding: bool = false
 ## The first multiplier from a card on this beat's card: it gets the card hit-stop and is never
 ## shortened by the fly-in or uniform fit stages (D6, D7).
 var first_stamp_on_card: bool = false
+## The item at the scanner during this beat (#86 v6): the slot of its scan group's BASE or
+## MERGED_PLAIN beat, or -1 for a context-pass beat before the first scan. A scan group runs
+## from that beat to the beat before the next one; the last group takes the trailing beats.
+var scan_slot: int = -1
+## The first beat of a scan group: its item slides into the scanner before it.
+var opens_slot: bool = false
+## The last beat of a scan group: its item hops into the bag after it.
+var closes_slot: bool = false
+## An opening beat's ride gap, played before it at speed 1 (the tuning's ride_ms), or 0: none
+## for item 0 already in the scanner's cell.
+var ride_ms: int = 0

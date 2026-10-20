@@ -1,7 +1,8 @@
 extends GdUnitTestSuite
 ## CountUpPlan (#60, D1 to D9): beats, notes, armed targets, intensity, the quota ding,
-## hit-stops and the long-row fit, on rows scored with the real Scoring.score() and on
-## hand-built steps for the edge cases. The plan is pure data: no saves, no event log, no Node.
+## hit-stops and the long-row fit, and (#86 v6) the scan groups and their ride gaps, on rows
+## scored with the real Scoring.score() and on hand-built steps for the edge cases. The plan is
+## pure data: no saves, no event log, no Node.
 
 const TUNING := "res://data/balance/count_up.tres"
 const CARDS := "res://data/cards"
@@ -71,9 +72,14 @@ func test_tuning_loads_with_positive_ordered_floors() -> void:
 	# D3: the print pitch follows the printer speed up to +4 semitones.
 	assert_float(count_up.print_pitch_max).is_equal_approx(1.26, 0.001)
 	assert_float(count_up.print_pitch_max).is_less_equal(count_up.printer_speed_max)
-	# #83: the belt runs at a positive speed, capped no slower than that.
-	assert_float(count_up.belt_px_per_second).is_greater(0.0)
-	assert_float(count_up.belt_max_px_per_second).is_greater_equal(count_up.belt_px_per_second)
+	# #86 v6 (the user's decisions): a 0.2 s ride per item, the last item's 0.3 s hop into the bag,
+	# a 0.5 s hold at the quota and a 4-7 s budget; then (2026-10-20) the whole count 1.25x
+	# slower: tempo 0.8, a 5-8.75 s budget and its fit target scaled with it.
+	assert_int(count_up.ride_ms).is_equal(200)
+	assert_int(count_up.bag_ms).is_equal(300)
+	assert_int(count_up.hit_stop_ding_ms).is_equal(500)
+	assert_float(count_up.count_tempo).is_equal_approx(0.8, 0.0001)
+	assert_int(count_up.fit_target_ms).is_equal(8125)
 
 
 func test_every_step_is_in_one_beat_and_only_plain_cards_merge() -> void:
@@ -250,7 +256,7 @@ func test_the_quota_dings_on_the_first_crossing_unless_it_is_the_last() -> void:
 	assert_bool(plan.quota_reached).is_true()
 	assert_bool(plan.chip_at_total).is_false()
 	assert_int(_ding_count(plan)).is_equal(1)
-	assert_int(_hit_stop_at(plan, 19)).is_equal(100)
+	assert_int(_hit_stop_at(plan, 19)).is_equal((load(TUNING) as CountUpTuning).hit_stop_ding_ms)
 	# Reached exactly, on the first payout.
 	var first: CountUpPlan = _plan(_full_steps(), 1)
 	assert_int(first.ding_beat).is_equal(0)
@@ -305,7 +311,9 @@ func test_another_quota_never_changes_the_intensity() -> void:
 			assert_int(plan_low.beats[index].hit_stop_ms).is_equal(
 				plan_high.beats[index].hit_stop_ms
 			)
-	assert_int(plan_low.planned_ms - plan_high.planned_ms).is_equal(100)
+	assert_int(plan_low.planned_ms - plan_high.planned_ms).is_equal(
+		(load(TUNING) as CountUpTuning).hit_stop_ding_ms
+	)
 
 
 func test_speeds_follow_the_shift_the_setting_and_the_steps() -> void:
@@ -330,8 +338,11 @@ func test_speeds_follow_the_shift_the_setting_and_the_steps() -> void:
 
 
 func test_payout_rolls_and_rattles_follow_the_best_so_far() -> void:
-	# Shift 1, best 45 (the floor): printer speed 1.13.
-	var plan: CountUpPlan = _plan(_full_steps(), 40, CountUpContext.new(1, 0))
+	# Shift 1, best 45 (the floor): printer speed 1.13. Unfitted, so no roll is cut.
+	var unfitted: CountUpTuning = (load(TUNING) as CountUpTuning).duplicate()
+	unfitted.fit_target_ms = 100000
+	var plan: CountUpPlan = CountUpPlan.build(_full_steps(), 40, CountUpContext.new(1, 0), unfitted)
+	assert_int(plan.fit_stage).is_equal(0)
 	assert_int(plan.best).is_equal(45)
 	var bread: CountUpBeat = plan.beats[4]
 	assert_int(bread.payout).is_equal(10)
@@ -480,7 +491,9 @@ func test_hit_stops_land_on_the_heavy_beats_and_merge_when_close() -> void:
 	var lengths: int = short.pre_roll_ms
 	for beat: CountUpBeat in short.beats:
 		lengths += beat.duration_ms
-	assert_int(short.planned_ms).is_equal(lengths + 140 + short.pause_ms)
+	assert_int(short.planned_ms).is_equal(
+		roundi(lengths / short.count_speed) + 140 + short.pause_ms
+	)
 
 
 ## D5 and D6: a ding close after another hit-stop merges with it, but the merged hit-stop plays
@@ -513,7 +526,9 @@ func test_a_merged_hit_stop_plays_on_the_ding_beat() -> void:
 			)
 
 
-func test_the_full_row_plans_four_to_six_seconds_from_its_parts() -> void:
+## #86 v6: the budget was 4-7 s (fit_target_ms 6500), ride gaps included; at the 0.8 tempo
+## (2026-10-20) it is 5-8.75 s (fit_target_ms 8125).
+func test_the_full_row_plans_five_to_nine_seconds_from_its_parts() -> void:
 	for context: CountUpContext in [
 		CountUpContext.new(1, 0),
 		CountUpContext.new(1, 0, 1.5),
@@ -535,14 +550,15 @@ func test_the_full_row_plans_four_to_six_seconds_from_its_parts() -> void:
 				]
 			)
 			if context.speed_setting == 1.0:
-				assert_int(plan.planned_ms).override_failure_message(where).is_between(4000, 6000)
+				assert_int(plan.planned_ms).override_failure_message(where).is_between(5000, 8750)
 			else:
-				assert_int(plan.planned_ms).override_failure_message(where).is_less_equal(6000)
-	# Shift 1, best 45: the total (110) is huge, the row is fitted.
+				assert_int(plan.planned_ms).override_failure_message(where).is_less_equal(8750)
+	# Shift 1, best 45: the total (110) is huge, the row is fitted down to stage 4, which may
+	# leave it a little over fit_target_ms: its six rides and the ding's hold are never shortened.
 	var first: CountUpPlan = _plan(_full_steps(), 40, CountUpContext.new(1, 0))
 	assert_int(first.size).is_equal(CountUpPlan.Size.HUGE)
-	assert_int(first.fit_stage).is_greater(0)
-	assert_int(first.planned_ms).is_less_equal(5500)
+	assert_int(first.fit_stage).is_equal(4)
+	assert_int(first.planned_ms).is_less_equal(8750)
 	# planned_ms adds up its parts.
 	for parts_context: CountUpContext in [
 		CountUpContext.new(1, 0),
@@ -554,15 +570,18 @@ func test_the_full_row_plans_four_to_six_seconds_from_its_parts() -> void:
 		var stops: int = 0
 		var start: int = parts.pre_roll_ms
 		for beat: CountUpBeat in parts.beats:
+			# A ride gap comes before its beat's start.
+			start += beat.ride_ms
 			assert_int(beat.start_ms).is_equal(start)
 			start += beat.duration_ms
-			lengths += beat.duration_ms
+			lengths += beat.ride_ms + beat.duration_ms
 			stops += beat.hit_stop_ms
-		var expected: int = roundi(lengths / parts.base_speed) + stops + parts.pause_ms
+		var expected: int = roundi(lengths / parts.count_speed) + stops + parts.pause_ms
 		assert_int(parts.planned_ms).is_equal(expected)
 
 
-func test_no_shorter_row_plans_over_six_seconds() -> void:
+func test_no_shorter_row_plans_over_eight_and_three_quarter_seconds() -> void:
+	var tuning: CountUpTuning = load(TUNING)
 	var rows: Array[Array] = []
 	for row: String in GOLDEN_ROWS:
 		rows.append(_golden_steps(row))
@@ -576,15 +595,21 @@ func test_no_shorter_row_plans_over_six_seconds() -> void:
 		for quota: int in [1, 1000]:
 			for shift: int in [1, 8]:
 				var plan: CountUpPlan = _plan(typed, quota, CountUpContext.new(shift, 0))
-				assert_int(plan.planned_ms).is_less_equal(6000)
+				assert_int(plan.planned_ms).is_less_equal(8750)
 				if plan.fit_stage == 0:
-					assert_int(plan.planned_ms).is_less_equal(5500)
+					assert_int(plan.planned_ms).is_less_equal(tuning.fit_target_ms)
 
 
+## The stages on #60's tuning (no rides, a 100 ms ding, a 5500 ms target, tempo 1), where the
+## shift 1 row stops at stage 2; the live tuning takes it to stage 4 (above).
 func test_the_fit_runs_its_stages_in_order_and_spares_the_climax() -> void:
-	var tuning: CountUpTuning = load(TUNING)
+	var tuning: CountUpTuning = (load(TUNING) as CountUpTuning).duplicate()
+	tuning.count_tempo = 1.0
+	tuning.ride_ms = 0
+	tuning.hit_stop_ding_ms = 100
+	tuning.fit_target_ms = 5500
 	# Shift 1, best 45: 6,000-odd ms planned before the fit.
-	var plan: CountUpPlan = _plan(_full_steps(), 40, CountUpContext.new(1, 0))
+	var plan: CountUpPlan = CountUpPlan.build(_full_steps(), 40, CountUpContext.new(1, 0), tuning)
 	assert_int(plan.fit_stage).is_equal(2)
 	# Stage 1: every gap is 40 ms.
 	assert_int(plan.beats[2].duration_ms).is_equal(tuning.base_ms - 20)
@@ -666,7 +691,9 @@ func test_an_empty_row_plans_only_the_pre_roll_and_the_pause() -> void:
 	assert_int(plan.beats.size()).is_equal(0)
 	assert_int(plan.total).is_equal(0)
 	assert_bool(plan.quota_reached).is_false()
-	assert_int(plan.planned_ms).is_equal(120 + 300)
+	# At the 0.8 tempo, the pre-roll's 120 ms run 1.25x slower; the pause stays real time.
+	assert_int(plan.planned_ms).is_equal(150 + 300)
+	assert_int(plan.bag_ms).is_equal(300)
 
 
 ## Two plans of one row for different quotas: the same intensity, fit stage, lengths and rolls

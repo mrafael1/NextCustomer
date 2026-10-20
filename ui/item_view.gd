@@ -165,6 +165,9 @@ var denied: bool = false:
 	set(value):
 		denied = value
 		ArtStyle.set_look(_sprite, ArtStyle.grey_material(ArtStyle.Grey.DENIED) if denied else null)
+## Whether the paid chip may show (show_badge): the count's belt shows none (#86 v6: the stickers
+## fire and the receipt and the monitor show the pay; the belt ride turns it off).
+var shows_paid_chip: bool = true
 ## Holds `body` at the sprite's rest place: the count-up moves `body` from (0, 0).
 var _stand: Control
 var _sprite: TextureRect
@@ -260,15 +263,18 @@ func set_highlight(highlight: CardView.Highlight) -> void:
 	queue_redraw()
 
 
-## Shows the paid chip, "€N" (muted at €0). `strong` (the count-up's running value) looks the
-## same: the count-up punches the chip instead, and set_badge_current picks its face.
+## Shows the paid chip, "€N" (muted at €0), unless shows_paid_chip is off. `strong` (the count-up's
+## running value) looks the same: the count-up punches the chip instead, and set_badge_current
+## picks its face.
 func show_badge(value: int, _strong: bool) -> void:
-	_plaque.show_value(value, value == 0)
+	if shows_paid_chip:
+		_plaque.show_value(value, value == 0)
 
 
 ## A value wiped by a denied beat: the muted face.
 func show_fizzle_badge(value: int) -> void:
-	_plaque.show_value(value, true)
+	if shows_paid_chip:
+		_plaque.show_value(value, true)
 
 
 ## Gives the paid chip the current item's face (big mustard; `with_echo`: its next pop shows the

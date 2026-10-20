@@ -6,6 +6,10 @@ extends Control
 ## and the hand. The sprite rects it takes are global, so a scaled row (RowStrip's 8 and 9 slots)
 ## is marked where it is drawn. The marks snap into place; only a hover's scan line may pulse
 ## (start_beam_loop), which reduced motion leaves off.
+##
+## The count-up's scanner (#86 v6, the belt ride) marks the item at the scanner (pose_scanner):
+## gold brackets and the scan line resting across its middle, which sweep() runs from the item's
+## foot to its top once as it is scanned, a faint beam under it, then rests again.
 
 ## The scan line, and its pulse (start_beam_loop): it fades to BEAM_PULSE_LOW of its alpha and
 ## back, once every BEAM_PULSE_S seconds.
@@ -19,10 +23,16 @@ const BRACKET_OUTSET := 4.0
 ## The count-up's brackets' top edge this far over the art's visible top (mock-up B2), never above
 ## the sprite's own brackets.
 const SCAN_ART_GAP := 12.0
+## The sweep's beam: the line's colour at this alpha from the line down to the sprite's foot.
+const SWEEP_BEAM_ALPHA := 0.28
 
 var _brackets: Rect2 = Rect2()
 var _color: Color = Palette.TOMATO
 var _line: Rect2 = Rect2()
+var _line_color: Color = Palette.TOMATO
+## The marked sprite (this overlay's coordinates), which the sweep runs up.
+var _sprite: Rect2 = Rect2()
+var _sweep: Tween
 ## The scan line's share of LINE_ALPHA, which its pulse moves.
 var _beam_strength: float = 1.0
 var _beam_loop: Tween
@@ -34,7 +44,11 @@ func _init() -> void:
 
 func _draw() -> void:
 	if _line.size != Vector2.ZERO:
-		draw_rect(_line, Color(Palette.TOMATO, LINE_ALPHA * _beam_strength))
+		if is_sweeping():
+			var beam: Rect2 = Rect2(_line.position.x, _line.end.y, _line.size.x, 0.0)
+			beam.size.y = maxf(_sprite.end.y - beam.position.y, 0.0)
+			draw_rect(beam, Color(_line_color, SWEEP_BEAM_ALPHA))
+		draw_rect(_line, Color(_line_color, LINE_ALPHA * _beam_strength))
 	if _brackets.size != Vector2.ZERO:
 		draw_brackets(self, _brackets, _color)
 
@@ -50,6 +64,42 @@ func pose_scan(sprite: Rect2) -> void:
 	_pose(_to_local(sprite), Palette.GOLD, false)
 
 
+## Marks the item at the count-up's scanner (`sprite`, a global rect): gold brackets and the scan
+## line across its middle, in `color` (tomato; the count may pass another, e.g. green once the
+## quota is met). sweep() runs the line up the sprite.
+func pose_scanner(sprite: Rect2, color: Color = Palette.TOMATO) -> void:
+	stop_beam_loop()
+	_pose(_to_local(sprite), Palette.GOLD, true)
+	_line_color = color
+
+
+## Runs the scanner's line (pose_scanner's) once from the sprite's foot up to its top over
+## `seconds`, with a faint beam under it, then rests it across the middle again; never loops.
+## The tween comes from `make_tween` when it is given (the count-up's, so its hit-stops and skips
+## hold and speed it), else from the overlay. Under `reduced` motion, or with no line, it does
+## nothing: the line stays still across the middle.
+func sweep(seconds: float, reduced: bool = false, make_tween: Callable = Callable()) -> void:
+	_stop_sweep()
+	if reduced or seconds <= 0.0 or _line.size == Vector2.ZERO:
+		return
+	if not make_tween.is_valid() and not is_inside_tree():
+		return
+	_set_line_y(_sprite.end.y - LINE_WIDTH)
+	_sweep = make_tween.call() as Tween if make_tween.is_valid() else create_tween()
+	_sweep.tween_method(_sweep_to, _sprite.end.y - LINE_WIDTH, _sprite.position.y, seconds)
+	_sweep.tween_callback(_end_sweep)
+
+
+## Whether the scanner's line is sweeping up its sprite.
+func is_sweeping() -> bool:
+	return _sweep != null and _sweep.is_valid()
+
+
+## The scan line's colour: tomato, or the colour pose_scanner was given.
+func line_color() -> Color:
+	return _line_color
+
+
 ## Clears the marks (as clear()): the count-up's and the scan's word for ending a scan.
 func dock() -> void:
 	clear()
@@ -58,8 +108,10 @@ func dock() -> void:
 ## Clears the brackets and the scan line (stopping its pulse).
 func clear() -> void:
 	stop_beam_loop()
+	_stop_sweep()
 	_brackets = Rect2()
 	_line = Rect2()
+	_sprite = Rect2()
 	queue_redraw()
 
 
@@ -153,7 +205,7 @@ func bracket_color() -> Color:
 
 
 ## The scan line across the marked sprite in this overlay's coordinates (empty when nothing is
-## marked or the count-up marks it).
+## marked or pose_scan marks it).
 func scan_line() -> Rect2:
 	return _line
 
@@ -161,13 +213,44 @@ func scan_line() -> Rect2:
 ## Marks `sprite` (this overlay's coordinates): brackets in `color`, with the scan line across
 ## its middle when `line`.
 func _pose(sprite: Rect2, color: Color, line: bool) -> void:
+	_stop_sweep()
 	_brackets = sprite.grow(BRACKET_OUTSET)
 	_color = color
-	var middle: float = sprite.get_center().y
+	_line_color = Palette.TOMATO
+	_sprite = sprite
 	_line = Rect2()
 	if line:
-		_line = Rect2(sprite.position.x, middle - LINE_WIDTH / 2.0, sprite.size.x, LINE_WIDTH)
+		_line = Rect2(sprite.position.x, 0.0, sprite.size.x, LINE_WIDTH)
+		_rest_line()
 	queue_redraw()
+
+
+## Puts the scan line's top edge at `y` (this overlay's coordinates).
+func _set_line_y(y: float) -> void:
+	_line.position.y = y
+	queue_redraw()
+
+
+## The sweeping line's step: at `y`, on the art grid so it moves in whole art pixels.
+func _sweep_to(y: float) -> void:
+	_set_line_y(snappedf(y, ArtStyle.ART_SCALE))
+
+
+## Rests the scan line across the marked sprite's middle.
+func _rest_line() -> void:
+	_set_line_y(_sprite.get_center().y - LINE_WIDTH / 2.0)
+
+
+## The sweep's end: the line back across the middle, the beam gone.
+func _end_sweep() -> void:
+	_sweep = null
+	_rest_line()
+
+
+func _stop_sweep() -> void:
+	if _sweep != null:
+		_sweep.kill()
+		_sweep = null
 
 
 func _set_beam_strength(strength: float) -> void:

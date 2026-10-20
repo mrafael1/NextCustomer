@@ -75,4 +75,14 @@ const SKIN_SHADE := Color("c38f6a")
 ## green and the crates' dark slats.
 const TEAL_LIGHT := Color("86c2b6")
 const GREEN_DARK := Color("3d7a45")
+## The top bar's money-green gauge (#86, the user's play test of 2026-10-19): art/src/palette.txt's
+## green light.
+const GREEN_LIGHT := Color("a5d17e")
+## The monitor's scanner bay (#86 v6 scan count-up): its scan light off (art/src/palette.txt's
+## tomato darkest) and the soft light on its scan bed (teal pale).
+const TOMATO_DARKEST := Color("6e2630")
+const TEAL_PALE := Color("c3e0d4")
 const BROWN_DARK := Color("7a5232")
+## The scanner bay's queue (#86 round 7, mock-up count_up_86_v7_bay.html): a pip still to come
+## (art/src/palette.txt's teal shade).
+const TEAL_SHADE := Color("3a7672")

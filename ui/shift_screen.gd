@@ -99,7 +99,7 @@ var _cabinet: RegisterCabinet
 var _monitor: MonitorView
 ## The monitor's LED: blank in planning and the rack, the count-up's subtotal and total.
 var _led: LedDisplay
-## The top bar's QUOTA chip: the projected total in planning (fed here), the LED's readings while
+## The top bar's SPEND chip: the projected total in planning (fed here), the LED's readings while
 ## counting.
 var _quota_meter: QuotaMeter
 var _overlay: Control
@@ -109,8 +109,10 @@ var _debug: ShiftDebug
 var _focus: FocusWatch
 ## The hover scanner (#75): the scan popup and the marks over the scanned item.
 var _scan: ScanController
-## The belt items' marks and paid chips (#80): marks in planning, both in the count-up.
+## Takes the belt items' marks and paid chips off (#80; #86 v6: the stickers and the bag say it).
 var _belt_chips: BeltChips = BeltChips.new()
+## The belt in the count (#86 v6): the items ride to the scanner and into the bag.
+var _ride: BeltRide
 ## The planning effects (#71, mock-up h1): the belt's stickers, the hover's relations, the drag's.
 var _effects: PlanningEffects
 ## The EventLog autoload, typed. Fetched from the tree because standalone script checks
@@ -229,13 +231,15 @@ func _resume_run(saved: RunSave) -> void:
 	if run.phase == RunState.Phase.PLANNING:
 		return
 	# After the checkout: the row, its receipt (ended as the dessert left it, with the next
-	# shift's inspection notice), the LED's TOTAL and the quota chip as the count-up left them
+	# shift's inspection notice) and the LED's TOTAL, met or not, as the count-up left them
 	# (CHECKOUT up: nothing is being counted).
 	_show_checked_out(run.last_result)
+	_ride.show_end_state(_row_views)
 	_receipt.show_shift_end(
 		run.last_result.total, run.quota(), InspectionTag.next_notice(run.next_inspection)
 	)
 	_count_up.show_end_state(run.last_result, run.quota(), count_up_context())
+	_monitor.show_end_state(_count_up.plan, _row_views)
 	if run.phase == RunState.Phase.REWARD:
 		# No dessert: the print-out is already lifted, on a new timeline.
 		_show_rewards(true)
@@ -264,6 +268,7 @@ func _close_overlays() -> void:
 	_upgrade_panel.visible = false
 	_deck_view.visible = false
 	_pending_reward = null
+	_ride.reset()
 
 
 # --- Input -------------------------------------------------------------------------------
@@ -421,7 +426,6 @@ func _on_checkout_pressed() -> void:
 	_drop_pick()
 	_notice_label.clear_notice()
 	_drag.cancel()
-	_effects.clear()  # The count-up earns the effects back.
 	_redraw_mode = false
 	_deck_view.visible = false
 	_monitor.end_channel()
@@ -452,9 +456,9 @@ func _on_checkout_pressed() -> void:
 		# The reward waits: quitting during the count-up resumes on it.
 		_save_run()
 	_refresh()
+	_effects.show_count(result, _row_views, run)  # Only the stickers stay, to fire.
 	var context: CountUpContext = count_up_context()
-	# The marks leave with the click and come back as their steps land (CountUp.step_landed).
-	_belt_chips.begin_count(result, _row_views, context.reduced_motion)
+	_ride.begin(result, _row_views, context.reduced_motion)
 	await _count_up.play(
 		result,
 		_row_views,
@@ -467,20 +471,8 @@ func _on_checkout_pressed() -> void:
 		InspectionTag.names(run.inspections),
 		InspectionTag.next_notice(run.next_inspection)
 	)
-	var counted: Dictionary = RunEvents.count_up(
-		run.shift_index + 1,
-		_click_ms,
-		_count_up.total_shown_ms,
-		_count_up.fast_forward_used,
-		_count_up.first_tap_ms,
-		_count_up.dessert_skipped,
-		_count_up.plan.base_speed,
-		context.speed_setting,
-		context.reduced_motion,
-		_count_up.plan.step_count,
-		_count_up.plan.planned_ms
-	)
-	_log.log_event("count_up", counted)
+	var shift: int = run.shift_index + 1
+	_log.log_event("count_up", RunEvents.count_up_of(_count_up, shift, _click_ms, context))
 	_counting = false
 	_cabinet.set_total_down(false)
 	_stage.dim_hand(false)
@@ -738,7 +730,7 @@ func _on_focus_entered() -> void:
 
 func _refresh() -> void:
 	_shift_label.text = "%d/%d" % [run.shift_index + 1, run.shift_count()]
-	_quota_label.text = "€%d" % run.quota()
+	_quota_label.text = QuotaMeter.QUOTA_AMOUNT % run.quota()
 	_inspection_tag.show_inspections(run.inspections)
 	_refresh_loyalty_card()
 	_deck_button.caption = "Cart %d/%d" % [run.deck.size(), run.balance.deck_limit]
@@ -810,9 +802,9 @@ func _refresh_preview() -> void:
 	_show_projected(result.total)
 
 
-## Planning's monitor and QUOTA chip (the user's play test of 2026-10-17): the LED goes blank
+## Planning's monitor and SPEND chip (the user's play test of 2026-10-17): the LED goes blank
 ## (the last count-up's TOTAL leaves it) and the monitor shows the store channel; the projected
-## `total` goes to the top bar's QUOTA chip (and is on the receipt). The count-up's subtotal and
+## `total` goes to the top bar's SPEND chip (and is on the receipt). The count-up's subtotal and
 ## total take the LED from the checkout on.
 func _show_projected(total: int) -> void:
 	if _led.mode() != LedDisplay.Mode.BLANK:
@@ -829,7 +821,7 @@ func _show_planning(result: ScoreResult) -> void:
 
 
 ## A resumed checkout's: the whole receipt as the count-up printed it, under the same header, and
-## the belt as the count-up left it.
+## the belt's tags (BeltRide.show_end_state empties it, as the count-up left it).
 func _show_checked_out(result: ScoreResult) -> void:
 	var upgrade_names: PackedStringArray = LoyaltyCard.names(run.upgrades)
 	var inspection_names: PackedStringArray = InspectionTag.names(run.inspections)
@@ -838,13 +830,13 @@ func _show_checked_out(result: ScoreResult) -> void:
 	_show_belt(result, true)
 
 
-## The belt's tags and marks for a result (and its paid chips, settled, when `paid`: a resumed
-## checkout; planning has none), and the result its scans read.
+## The belt's tags for a result, with planning's effects unless `paid` (a resumed checkout), no
+## marks or paid chips, and the result its scans read.
 func _show_belt(result: ScoreResult, paid: bool = false) -> void:
 	var upgrade_names: PackedStringArray = LoyaltyCard.names(run.upgrades)
 	var inspection_names: PackedStringArray = InspectionTag.names(run.inspections)
 	_scan.set_result(result, _names(run.row), upgrade_names, inspection_names)
-	_belt_chips.show_all(result, _row_views, paid)
+	_belt_chips.show_all(_row_views)
 	if not paid:
 		_effects.show_all(result, _row_views, run)
 	for slot: int in range(_row_views.size()):
@@ -902,6 +894,7 @@ func _build() -> void:
 	_monitor.reduced_motion = func() -> bool: return profile.reduced_motion()
 	_led = _stage.led
 	_quota_meter = _stage.top_bar.quota_meter
+	_quota_meter.reduced_motion = _monitor.reduced_motion
 	_receipt = _stage.receipt
 	_row_strip = _stage.row_strip
 	_row_strip.slot_input.connect(_on_slot_input)
@@ -929,10 +922,10 @@ func _build() -> void:
 	add_child(_count_up)
 	_count_up.setup(_overlay, _receipt, _led, _sfx, _register)
 	_count_up.music = _music
-	_count_up.scan_overlay = _stage.scan_layer
-	_count_up.belt = _stage.belt
-	_belt_chips.follow(_count_up, _led)
-	_count_up.beat_started.connect(_monitor.follow_beat)
+	_ride = BeltRide.new()
+	add_child(_ride)
+	_ride.setup(_count_up, _stage)
+	_monitor.follow(_count_up)
 	_drag = CardDrag.new()
 	add_child(_drag)
 	_drag.setup(_overlay, _slots, _hand_box, _landing_slot)

@@ -122,42 +122,20 @@ func test_center_is_on_the_sprite() -> void:
 	assert_vector(scaled.center()).is_equal_approx(drawn.get_center(), Vector2(0.01, 0.01))
 
 
-## An item's scan lifts its sprite and plaque by LIFT; a plain card keeps its lift. The count-up's
-## motion lifts each view by its own scan_lift() and drops it back to rest.
-func test_the_count_up_lifts_an_item_by_its_own_height() -> void:
+## An item's scan lift is LIFT; a plain card keeps its own (CardView.SCAN_LIFT). Lifted by it,
+## reset_motion puts the sprite and plaque back at rest.
+func test_an_item_lifts_by_its_own_height_and_resets_to_rest() -> void:
 	var milk: CardDefinition = load("%s/milk.tres" % CARDS)
 	var view: ItemView = await _laid_out(milk, ItemView.Form.BELT, BELT_ORIGIN)
 	assert_float(view.scan_lift()).is_equal(-ItemView.LIFT)
 	var card: CardView = auto_free(CardView.new(CardInstance.new(milk, 1)))
-	assert_float(card.scan_lift()).is_equal(CountUpMotion.SCAN_LIFT)
-	var motion: CountUpMotion = CountUpMotion.new(_holder, create_tween)
+	assert_float(card.scan_lift()).is_equal(CardView.SCAN_LIFT)
 	view.show_badge(3, true)
-	motion.lift(view, 0.01)
-	await await_millis(80)
-	assert_float(view.body.position.y).is_equal_approx(-ItemView.LIFT, 0.01)
-	assert_float(view.badge.position.y).is_equal_approx(view.badge_rest_y() - ItemView.LIFT, 0.01)
-	motion.drop(view, 0.01)
-	await await_millis(80)
+	view.body.position.y = view.scan_lift()
+	view.badge.position.y = view.badge_rest_y() + view.scan_lift()
+	view.reset_motion()
 	assert_float(view.body.position.y).is_equal_approx(0.0, 0.01)
 	assert_float(view.badge.position.y).is_equal_approx(view.badge_rest_y(), 0.01)
-
-
-## A chip that settles while its item is still dropping (a short beat's next item starts) ends
-## at the settled face's rest y, not the current one's the drop set out for.
-func test_a_chip_settled_during_the_drop_rests_at_its_settled_place() -> void:
-	var croissant: CardDefinition = load("%s/croissant.tres" % CARDS)
-	var view: ItemView = await _laid_out(croissant, ItemView.Form.BELT, BELT_ORIGIN)
-	var motion: CountUpMotion = CountUpMotion.new(_holder, create_tween)
-	view.show_badge(2, true)
-	var current_y: float = view.badge_rest_y()
-	motion.lift(view, 0.01)
-	await await_millis(60)
-	motion.drop(view, 0.2)
-	await await_millis(40)
-	view.set_badge_current(false)
-	assert_float(view.badge_rest_y()).is_not_equal(current_y)
-	await await_millis(300)
-	assert_float(view.badge.position.y).is_equal(view.badge_rest_y())
 
 
 ## A chip that pops again while its last echo still fades keeps the new echo for a whole

@@ -26,6 +26,8 @@ extends Control
 ## item (the first), highlighting its causes and targets, and lets its scan finish so the monitor
 ## explains it (its "gives" line, as in mock-up h1's hover); the file is
 ## shift_screen_effects_focus_<width>x<height>.png.
+## With `--checkout=<seconds>` CHECKOUT is pressed and the capture waits that many seconds of the
+## count-up (#86), and the file is shift_screen_[effects_]checkout_<tenths>_<width>x<height>.png.
 
 const SCREEN := preload("res://ui/shift_screen.tscn")
 const SEED := 20261014
@@ -48,11 +50,13 @@ const EFFECTS_ROW_IDS: Array[String] = [
 const CAPTURE_ARGUMENT := "--capture="
 const SCAN_ARGUMENT := "--scan="
 const EFFECTS_ARGUMENT := "--effects"
+const CHECKOUT_ARGUMENT := "--checkout="
 ## A capture's file name: shift_screen_[scan_|effects_[focus_]]<width>x<height>.png.
 const FILE_NAME := "shift_screen_%s%dx%d.png"
 const SCAN_PREFIX := "scan_"
 const EFFECTS_PREFIX := "effects_"
 const FOCUS_PREFIX := "effects_focus_"
+const CHECKOUT_PREFIX := "checkout_%d_"
 ## Frames for the shift's items to be laid out before one is scanned.
 const SCAN_SETTLE_FRAMES := 2
 const CAPTURE_SETTLE_FRAMES := 12
@@ -69,6 +73,8 @@ var _scanned: bool = false
 ## Since effects(): the planning effects' shift, and whether an item is hovered.
 var _effects: bool = false
 var _focused: bool = false
+## Since checkout(): the count-up's seconds waited, -1 before.
+var _checkout_s: float = -1.0
 ## Since hold_pointer(): the real pointer drives no hover, tooltip or click.
 var _holding_pointer: bool = false
 
@@ -95,6 +101,9 @@ func _ready() -> void:
 		var scan_id: String = _argument(SCAN_ARGUMENT)
 		if scan_id != "":
 			await scan(scan_id)
+		var checkout_s: String = _argument(CHECKOUT_ARGUMENT)
+		if checkout_s != "":
+			await checkout(checkout_s.to_float())
 		await capture(capture_folder)
 		get_tree().quit()
 
@@ -195,6 +204,17 @@ func effects(card_id: String = "") -> void:
 	_report("No %s on the belt to hover" % card_id)
 
 
+## Presses CHECKOUT once the items are laid out and waits `seconds` of the count-up; capture()
+## then names its file shift_screen_[effects_]checkout_<tenths>_<w>x<h>.png.
+func checkout(seconds: float) -> void:
+	for _frame: int in range(SCAN_SETTLE_FRAMES):
+		await get_tree().process_frame
+	# As the debug panel's checkout (ShiftDebug): the player's press.
+	_screen._on_checkout_pressed()
+	_checkout_s = seconds
+	await get_tree().create_timer(seconds).timeout
+
+
 ## Saves the screen into `folder` as shift_screen_<w>x<h>.png (shift_screen_scan_<w>x<h>.png
 ## after scan(), shift_screen_effects_[focus_]<w>x<h>.png after effects()) once it has settled. A
 ## failed save goes to report_error.
@@ -210,6 +230,8 @@ func capture(folder: String) -> void:
 	var prefix: String = SCAN_PREFIX if _scanned else ""
 	if _effects:
 		prefix = FOCUS_PREFIX if _focused else EFFECTS_PREFIX
+	if _checkout_s >= 0.0:
+		prefix += CHECKOUT_PREFIX % roundi(_checkout_s * 10.0)
 	var path: String = folder.path_join(FILE_NAME % [prefix, window.x, window.y])
 	var image: Image = (
 		grab_image.call() as Image

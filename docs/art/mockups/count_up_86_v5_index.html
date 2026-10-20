@@ -1,0 +1,88 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Count-up round 5</title>
+<!--
+  #86 round 5 index (2026-10-19): three live mock-ups of the count-up monitor, decluttered and with a real payoff
+  at the quota, after the user's play test of build pass 1. Brief: count_up_86_v5_src/BRIEF.md. Hand-written page.
+  Note: the pages' top-bar gauges are money green throughout; the game now colours that gauge by status
+  (red short, orange from 80 %, green met, gold past the flag), which the pages predate.
+-->
+<style>
+@font-face { font-family: Pixelify; src: url(../../../fonts/PixelifySans-Variable.ttf); }
+@font-face { font-family: Atkinson; src: url(../../../fonts/AtkinsonHyperlegibleNext-Variable.ttf); font-weight: 200 800; }
+:root { --bg: #17302f; --paper: #fbf7ee; --muted: #c7c3b8; --gold: #f1d27a; --ink: #2b2420; }
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { background: var(--bg); color: var(--paper); font-family: Atkinson, sans-serif; padding: 20px 24px 32px; max-width: 1320px; }
+h1 { font-family: Pixelify; font-size: 26px; color: var(--gold); }
+p.lead { color: var(--muted); font-size: 14px; line-height: 20px; margin: 6px 0 18px; max-width: 980px; }
+.opt { display: grid; grid-template-columns: 560px 1fr; gap: 20px; margin-bottom: 26px; align-items: start; }
+.opt img { width: 560px; display: block; border: 2px solid var(--ink); image-rendering: auto; }
+.opt h2 { font-family: Pixelify; font-size: 20px; color: var(--gold); margin-bottom: 6px; }
+.opt h2 a { color: inherit; }
+.opt p { font-size: 14px; line-height: 20px; color: var(--paper); margin-bottom: 8px; }
+.opt p.dim { color: var(--muted); }
+.thumbs { display: flex; gap: 6px; margin-top: 8px; }
+.thumbs a img { width: 180px; border-width: 1px; }
+a { color: var(--gold); }
+@media (max-width: 900px) { .opt { grid-template-columns: 1fr; } .opt img { width: 100%; } }
+</style>
+</head>
+<body>
+<h1>#86 round 5: the count-up monitor</h1>
+<p class="lead"><b>Round 6, your mix:</b> <a href="count_up_86_v6_scan.html">count_up_86_v6_scan.html</a>. A's big € tank, C's number (digits only) with the scanned item, and the conveyor scan: each item rides to the scanner, pays, and drops into the bag.</p>
+<p class="lead">Your play test of build pass 1: "too much infos, hard to follow", "multiple UI elements not fitting together",
+and the € filling "does not reward anything visually". Each page is live (one loop: €0 → €77, SPEND €73+ met on beat 6 →
+€117), with the stickers firing on the belt and the green top-bar gauge. Every option cuts the monitor from nine things to
+three or four and drops the step line, the SPEND row, the MET chip and SUBTOTAL; the receipt and the top bar carry them.
+Add <code>?rm=1</code> to a page's URL for reduced motion, <code>?at=6.5</code> to hold a frame.</p>
+
+<div class="opt">
+  <a href="count_up_86_v5_a.html"><img src="count_up_86_v5_a_at6.5.png" alt="Option A at the quota"></a>
+  <div>
+    <h2><a href="count_up_86_v5_a.html">A · Hero tank</a></h2>
+    <p>Two things on the monitor: a big number with one line under it ("€62 to go", then "+€44 over") and a big € tank
+    beside it. Each beat's sticker slaps on the number's corner and pours into the tank, then the number and the tank
+    move together. The item art leaves the monitor; the belt item lifts and glows under it instead.</p>
+    <p><b>At the quota:</b> a short hold, a flash, the tank bursts in a gold jet past the top bar with coins raining onto
+    the belt, the sunburst turns gold, the number turns money green and punches, and SPEND MET ✓ slams onto the full tank.
+    Each extra gain gives a smaller spurt.</p>
+    <p class="dim">Weak spots: the beat after the quota overlaps the falling coins for a moment; the stamp hides part of the
+    full tank.</p>
+    <div class="thumbs"><a href="count_up_86_v5_a.html?at=3.0"><img src="count_up_86_v5_a_at3.0.png" alt="A mid-count"></a><a href="count_up_86_v5_a.html?at=8.5"><img src="count_up_86_v5_a_at8.5.png" alt="A overflow"></a></div>
+  </div>
+</div>
+
+<div class="opt">
+  <a href="count_up_86_v5_b.html"><img src="count_up_86_v5_b_at6.5.png" alt="Option B at the quota"></a>
+  <div>
+    <h2><a href="count_up_86_v5_b.html">B · The screen is the tank</a></h2>
+    <p>The whole screen fills: gold rises behind the number and brims exactly at SPEND €73+. Read left to right: the
+    number, the beat's sticker on its shoulder, and a big € stencil in the liquid. The to-go hangs on the brim.</p>
+    <p><b>At the quota:</b> a flash and a shake, the screen brims over the bezel and a gold sheet pours down both sides onto
+    the belt, coins spurt out, SPEND MET slams down and the number lights up. Past it, each gain sends a short pour and a
+    few coins.</p>
+    <p class="dim">Weak spots: once the screen is all gold the € stencil fades to a pale shape; the last beat lands on top
+    of the jackpot's coins for about a second.</p>
+    <div class="thumbs"><a href="count_up_86_v5_b.html?at=3.0"><img src="count_up_86_v5_b_at3.0.png" alt="B mid-count"></a><a href="count_up_86_v5_b.html?at=8.5"><img src="count_up_86_v5_b_at8.5.png" alt="B overflow"></a></div>
+  </div>
+</div>
+
+<div class="opt">
+  <a href="count_up_86_v5_c.html"><img src="count_up_86_v5_c_at6.5.png" alt="Option C at the quota"></a>
+  <div>
+    <h2><a href="count_up_86_v5_c.html">C · Jackpot register</a></h2>
+    <p>The item that pays sits on the left with its sticker slapped on it; gold pours from the sticker into the number's
+    own €, which is the tank. One status line under the number. Bulb sockets line the bezel and blink from 80 %.</p>
+    <p><b>At the quota:</b> a jackpot: the bulbs chase, the screen strobes gold and spins a fast sunburst, coins and green
+    notes fountain out and rain onto the counter, the number goes gold and its € overflows, then SPEND MET ✓ slams into the
+    status line. After that a gold "+€44" tab counts what's over and each gain runs one lap of the bulbs.</p>
+    <p class="dim">Weak spots: the coin and note shower crosses the receipt for about half a second; the longest hold (1.6 s)
+    of the three.</p>
+    <div class="thumbs"><a href="count_up_86_v5_c.html?at=3.0"><img src="count_up_86_v5_c_at3.0.png" alt="C mid-count"></a><a href="count_up_86_v5_c.html?at=8.5"><img src="count_up_86_v5_c_at8.5.png" alt="C overflow"></a></div>
+  </div>
+</div>
+</body>
+</html>

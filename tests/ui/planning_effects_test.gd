@@ -7,7 +7,8 @@ extends GdUnitTestSuite
 ## and dims the rest, kept across a refresh and dropped the tuning's unfocus delay after the pointer
 ## leaves; a drag shows the model of each landing slot (the ghost carrying the dropped card's
 ## stickers and pay) and the quota chip's would-be total, never changing the run; the CHECKOUT
-## click clears it all. The real saves and logs are never touched.
+## click keeps only the stickers (and the denied item's stamp) for the count (#86 v6), each hidden
+## once its item is bagged. The real saves and logs are never touched.
 
 const SCREEN := "res://ui/shift_screen.tscn"
 ## #60's reference row (count_up_test), with Coupon engine and Slot engine given and the Spot
@@ -412,10 +413,12 @@ func test_a_drag_previews_each_landing() -> void:
 	assert_str(screen._quota_meter.amount_label.text).is_equal("€%d" % landed.total)
 
 
-## The CHECKOUT click clears every sticker, pay tag, stamp, halo, lift, grey, strike, relation and
-## ring, so planning's looks and the count-up's never show together; nothing loops, with or
-## without reduced motion.
-func test_the_click_clears_everything() -> void:
+## The CHECKOUT click (#86 v6, show_count) keeps only the stickers, unslapped, and the denied
+## item's stamp and grey, for the count: the rail strips, pay tags, sparkles, halos, lifts,
+## strikes, relations, rings, the key and the focus go; nothing loops, with or without reduced
+## motion. Through the count only stickers and stamps show, each on a view still on the belt (a
+## bagged item's parts hide with its cell), and by the end every one has gone with its item.
+func test_the_click_keeps_only_the_stickers() -> void:
 	for reduced: bool in [false, true]:
 		var screen: ShiftScreen = await _screen()
 		screen._debug.set_reduced_motion(reduced)
@@ -424,30 +427,54 @@ func test_the_click_clears_everything() -> void:
 		milk.hovered.emit(milk)
 		await _frames(2)
 		assert_int(_looping_tweens()).is_equal(0)
-		assert_array(_layer(screen).parts()).is_not_empty()
 		assert_array(_layer(screen).strips()).is_not_empty()
 		assert_array(Array(screen._monitor.channel.key_texts())).is_not_empty()
+		var model: PlanningModel = screen._effects.committed_model()
 		screen._on_checkout_pressed()
 		await _frames(2)
-		assert_array(_layer(screen).parts()).is_empty()
 		assert_array(_layer(screen).strips()).is_empty()
 		assert_array(Array(screen._monitor.channel.key_texts())).is_empty()
 		assert_object(screen._monitor.channel.key_row()).is_null()
-		for view: CardView in screen._row_views:
-			var item: ItemView = view as ItemView
+		var stickers: int = 0
+		for slot: int in range(screen._row_views.size()):
+			var item: ItemView = _item(screen, slot)
+			var planned: PlanningSlot = model.slots[slot]
+			var planned_texts: PackedStringArray = PackedStringArray()
+			for spec: StickerSpec in planned.stickers:
+				planned_texts.append(spec.text)
+			var shown: PackedStringArray = _texts(_layer(screen).stack(slot))
+			if shown.is_empty() or not shown[0].begins_with("…"):
+				assert_array(Array(shown)).is_equal(Array(planned_texts))
+			stickers += shown.size()
+			assert_bool(shown.is_empty()).is_equal(planned.stickers.is_empty())
+			for sticker: EffectSticker in _layer(screen).stack(slot):
+				assert_bool(sticker.is_slapping()).is_false()
+			assert_object(_layer(screen).pay_tag(slot)).is_null()
+			assert_array(_layer(screen).sparkles(slot)).is_empty()
+			assert_bool(_layer(screen).stamp(slot) != null).is_equal(planned.has_stamp())
 			assert_int(item.relation).is_equal(ItemView.Relation.NONE)
 			assert_int(item.boost_rings).is_equal(0)
-			assert_bool(item.denied).is_false()
-			assert_object(item.sprite().material).is_same(ArtStyle.pixel_material())
+			assert_bool(item.denied).is_equal(planned.denied)
 			assert_bool(item.sticker().is_struck()).is_false()
 			assert_float(item._stand.modulate.a).is_equal(1.0)
+		assert_int(stickers).is_greater(3)
 		for index: int in range(screen.run.upgrades.size()):
 			assert_bool(screen._loyalty_card.has_relation(index)).is_false()
 		assert_bool(screen._inspection_tag.has_relation()).is_false()
 		assert_object(screen._effects.focused_card()).is_null()
+		var failures: Array[String] = []
 		while screen._counting:
 			await get_tree().process_frame
-			assert_array(_layer(screen).parts()).is_empty()
+			for part: Control in _layer(screen).parts():
+				if not (part is EffectSticker or part is DenyStamp):
+					failures.append("%s shows in the count" % part.name)
+			for slot: int in range(screen._row_views.size()):
+				var shown: bool = _item(screen, slot).is_visible_in_tree()
+				for sticker: EffectSticker in _layer(screen).stack(slot):
+					if sticker.visible != shown:
+						failures.append("slot %d: a sticker shown %s" % [slot, sticker.visible])
+		assert_array(failures.slice(0, 5)).override_failure_message(str(failures)).is_empty()
+		assert_array(_layer(screen).parts()).is_empty()
 
 
 ## Places Eggs, Bread and Milk, then another Milk (`reduced`: under reduced motion): Bread's
