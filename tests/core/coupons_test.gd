@@ -16,7 +16,10 @@ func test_fizzles(
 		["bread,clearance_tag", [[1, "Clearance tag", "no product in the next slot"]]],
 		[
 			"clearance_tag,day_old_buns,day_old_buns",
-			[[0, "Clearance tag", "already Clearance"]],
+			[
+				[0, "Clearance tag", "already Clearance"],
+				[1, "Day-old buns after Clearance", "no Clearance product just before it"],
+			],
 		],
 		[
 			"clearance_tag,repeat,bread",
@@ -26,7 +29,7 @@ func test_fizzles(
 			]
 		],
 		["opening_deal,soup,bread", []],
-		["opening_deal,breakfast_sticker,banana", []],
+		["opening_deal,breakfast_sticker,banana", [[2, "Banana pair", "no Banana just before it"]]],
 		["bread,opening_deal,soup", [[1, "Opening deal ×3", "not in the first slot"]]],
 		[
 			"opening_deal,repeat",
@@ -89,7 +92,10 @@ func test_opening_deal_on_a_zeroed_soup_is_spent() -> void:
 	var result: ScoreResult = Scoring.score(_row("opening_deal,soup,frozen_peas"))
 	assert_array(Array(result.payouts)).is_equal([0, 0, 3])
 	assert_int(_of_type(result.steps, ScoreStep.StepType.MULTIPLIER).size()).is_equal(1)
-	assert_int(_of_type(result.steps, ScoreStep.StepType.WASTED).size()).is_equal(0)
+	# The ×3 is spent, not wasted: the only fizzle is Frozen peas' own (no Frozen beside, #45).
+	var fizzles: Array = _of_type(result.steps, ScoreStep.StepType.WASTED)
+	assert_int(fizzles.size()).is_equal(1)
+	assert_str((fizzles[0] as ScoreStep).text).is_equal("Frozen pair")
 
 
 ## A working Opening deal is the row's first coupon and pays 0, so Coupon engine fizzles on it

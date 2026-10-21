@@ -2,7 +2,7 @@ class_name EffectSticker
 extends Control
 ## One planning sticker on a belt item (#71, mock-up h1, H1_BUILD_SPEC.md section 4.1): an effect
 ## the item receives, slapped on it. ADD is a cream price-gun label ("+3"), MULTIPLY a gold
-## starburst ("×3"), COPY a teal label ("=€6"), FIZZLE a grey "pfff" label and MORE the grey
+## starburst ("×3"), COPY a teal label ("=€6"), FIZZLE a grey "WASTED" label and MORE the grey
 ## "…+N" label the earliest stickers of a too-tall stack fold into. The frame (and its shadow,
 ## ink at SHADOW_ALPHA at SHADOW_OFFSET) turns by `tilt_deg` about its centre on the texel grid
 ## (the sharp-pixel material keeps the texels hard); the text stays upright and centred. The
@@ -19,6 +19,8 @@ const LABEL_HEIGHT := 28.0
 ## text's width plus LABEL_PADDING (on the 2 px grid).
 const LABEL_WIDTHS: Array[float] = [46.0, 54.0]
 const LABEL_PADDING := 16.0
+## FIZZLE is FIZZLE_SIZE, or wider for a longer text (its width plus FIZZLE_PADDING and
+## LABEL_PADDING, on the 2 px grid): "WASTED" (#45).
 const FIZZLE_SIZE := Vector2(60, 28)
 const BURST_SIZE := Vector2(62, 34)
 ## The label 9-slices' margin, in art pixels.
@@ -151,21 +153,23 @@ static func size_for(sticker_spec: StickerSpec) -> Vector2:
 		StickerSpec.Kind.MULTIPLY:
 			return BURST_SIZE
 		StickerSpec.Kind.FIZZLE:
-			return FIZZLE_SIZE
+			var grey: float = _text_width(sticker_spec) + FIZZLE_PADDING + LABEL_PADDING
+			var width: float = maxf(FIZZLE_SIZE.x, snappedf(grey, ArtStyle.ART_SCALE))
+			return Vector2(width, FIZZLE_SIZE.y)
 	var characters: int = sticker_spec.text.length()
 	if characters <= 2:
 		return Vector2(LABEL_WIDTHS[0], LABEL_HEIGHT)
 	if characters == 3:
 		return Vector2(LABEL_WIDTHS[1], LABEL_HEIGHT)
+	var padded: float = _text_width(sticker_spec) + LABEL_PADDING
+	return Vector2(snappedf(padded, ArtStyle.ART_SCALE), LABEL_HEIGHT)
+
+
+## The sticker's text width at its text size, in the number font.
+static func _text_width(sticker_spec: StickerSpec) -> float:
 	var font: Font = ArtStyle.number_font()
-	var text_width: float = (
-		font
-		. get_string_size(
-			sticker_spec.text, HORIZONTAL_ALIGNMENT_LEFT, -1, _text_size(sticker_spec)
-		)
-		. x
-	)
-	return Vector2(snappedf(text_width + LABEL_PADDING, ArtStyle.ART_SCALE), LABEL_HEIGHT)
+	var text_size: int = _text_size(sticker_spec)
+	return font.get_string_size(sticker_spec.text, HORIZONTAL_ALIGNMENT_LEFT, -1, text_size).x
 
 
 ## How far the badge reaches left of the sticker's left edge (0 without a badge).

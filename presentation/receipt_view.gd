@@ -9,10 +9,10 @@ extends PanelContainer
 ## above its base, the fizzle icon when one of its effects fizzles, the warning icon when an
 ## inspection denies it), a muted "5 ·····" for each open empty slot, a dashed rule, "PROJECTED
 ## €22.00" (against the quota: green with the met mark, or red with "short €N.00" under it), and
-## the fizzle footer ("2 fizzles · hover an item", none without fizzles). The belt
+## the fizzle footer ("2 WASTED · hover an item", none without fizzles). The belt
 ## item being scanned frames its line (highlight_slot). A hovered belt item (#71) frames its line
 ## too, marks its targets' lines with a mustard-pale fill and the token it gives them
-## (show_relations), and the footer names it (set_footer_hint: "2 fizzles · Multipack hovered").
+## (show_relations), and the footer names it (set_footer_hint: "2 WASTED · Multipack hovered").
 ##
 ## The count-up (begin_count) pre-prints the header, every item's line greyed ("Multipack
 ## ·····"), the dashed rule, "TOTAL •••••" and the footer "tap: skip · hold: fast". Each step
@@ -90,15 +90,13 @@ const TOTAL_TEXT := "TOTAL"
 const RULE_DASH := 4.0
 ## The fizzle footer: the count (in dark tomato), then the hint (muted): where to read them, or
 ## the hovered item (set_footer_hint).
-const FIZZLES_TEXT := "%d fizzles"
-const FIZZLE_TEXT := "1 fizzle"
+## The count reads EffectLink.WASTED_WORD, one or many ("1 WASTED", "2 WASTED", #45).
+const FIZZLES_TEXT := "%d " + EffectLink.WASTED_WORD
 const HINT_TEXT := " · %s"
 const DEFAULT_HINT := "hover an item"
 const HOVERED_HINT := "%s hovered"
 ## A projected total under the quota prints its shortfall on the footer's first row (ReceiptDecor).
 const SHORT_TEXT := "short %s"
-## A fizzle's right side on one row (step_line); the receipt's fizzle lines show the mark instead.
-const FIZZLE_WORD := "fizzle"
 ## The count-up's footer, from its start to the TOTAL line.
 const COUNT_FOOTER_TEXT := "tap: skip · hold: fast"
 ## A line still to print: an item's name then WAITING_DOTS, an open empty slot's number then
@@ -364,8 +362,11 @@ static func fizzle_count(result: ScoreResult) -> int:
 
 
 ## `slot`'s mark in `result`, read from its recorded amounts: DENIED when an inspection's
-## PAYOUT_OVERRIDE is on it, else FIZZLED when a WASTED step is, RAISED when its payout is above
-## its BASE step's value, else NONE.
+## PAYOUT_OVERRIDE is on it, else RAISED when its payout is above its BASE step's value (even with
+## a fizzle of its own, as its belt ticket shows BOOSTED: since #45 an unpaired Banana or Cheese
+## that another card boosts fizzles too), else FIZZLED when a WASTED step of its own is on it
+## (an upgrade's row-wide fizzle on the last slot is not the item's: ScoreStep.row_wide), else
+## NONE.
 static func slot_mark(result: ScoreResult, slot: int) -> Mark:
 	var base: int = -1
 	var fizzled: bool = false
@@ -377,13 +378,13 @@ static func slot_mark(result: ScoreResult, slot: int) -> Mark:
 			and step.source_kind == ScoreStep.SourceKind.INSPECTION
 		):
 			return Mark.DENIED
-		fizzled = fizzled or step.step_type == ScoreStep.StepType.WASTED
+		fizzled = fizzled or (step.step_type == ScoreStep.StepType.WASTED and not step.row_wide)
 		if step.step_type == ScoreStep.StepType.BASE:
 			base = step.value
-	if fizzled:
-		return Mark.FIZZLED
 	if base >= 0 and slot < result.payouts.size() and result.payouts[slot] > base:
 		return Mark.RAISED
+	if fizzled:
+		return Mark.FIZZLED
 	return Mark.NONE
 
 
@@ -474,7 +475,7 @@ func _add_group_line(
 
 
 ## The receipt's words for one step: its left side (with its indent and marker) and its right
-## side (the amount, with cents, or nothing: a fizzle's mark says "fizzle"), or none for a step
+## side (the amount, with cents, or nothing: a fizzle's mark says "WASTED"), or none for a step
 ## that prints no line. A BASE or PAYOUT step's left side is its item's name: they fill the
 ## item's line in (add_step).
 static func step_text(
@@ -547,7 +548,7 @@ static func is_combo(step: ScoreStep) -> bool:
 ## "×2 Multipack", "+€3 Repeat: copy of Bread"); a base "MILK  2", a payout "€17", an override
 ## "Spot check: the 3rd product pays €0  = 0"; the others are the receipt's left side without its
 ## indent, then its right side two spaces after it ("Coffee: no Breakfast product after it
-## fizzle"). Empty for a step that prints no line.
+## WASTED"). Empty for a step that prints no line.
 static func step_line(
 	step: ScoreStep,
 	names: PackedStringArray,
@@ -569,7 +570,7 @@ static func step_line(
 		ScoreStep.StepType.PAYOUT_OVERRIDE:
 			return joined_line(cause, "= %d" % step.value)
 		ScoreStep.StepType.WASTED:
-			return joined_line("%s: %s" % [cause, step.reason], FIZZLE_WORD)
+			return joined_line("%s: %s" % [cause, step.reason], EffectLink.WASTED_WORD)
 	var text: PackedStringArray = step_text(step, names, upgrade_names, inspection_names)
 	if text.is_empty():
 		return ""
@@ -830,7 +831,7 @@ static func text_width(text: String, font: Font, font_size: int) -> float:
 
 
 static func _fizzle_count_text(fizzles: int) -> String:
-	return FIZZLE_TEXT if fizzles == 1 else FIZZLES_TEXT % fizzles
+	return FIZZLES_TEXT % fizzles
 
 
 ## A new item line for `slot` ("left", "right"), above the TOTAL line's rule.

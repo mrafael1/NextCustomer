@@ -42,6 +42,8 @@ extends Control
 const STACK_BOTTOM_Y := 374.0
 const STACK_LEFT := 72.0
 const STACK_NUDGE := 4.0
+## The least room a belt stack keeps from the screen's right edge: it moves left to keep it.
+const STACK_EDGE_GAP := 4.0
 ## Each sticker overlaps the one above it by STACK_OVERLAP, squeezed in STACK_SQUEEZE steps up to
 ## STACK_OVERLAP_MAX when the stack is too tall for its ceiling.
 const STACK_OVERLAP := 6.0
@@ -561,7 +563,7 @@ func _lay_out_belt(slot: int, planning: PlanningSlot, item: ItemView) -> void:
 	var to_layer: Transform2D = _to_layer(item)
 	var scale_x: float = to_layer.get_scale().x
 	var sprite: Rect2 = _sprite_rect(item, to_layer)
-	var left: float = (to_layer * Vector2(STACK_LEFT, 0)).x
+	var left: float = _on_screen((to_layer * Vector2(STACK_LEFT, 0)).x, planning)
 	_lay_out_stack(slot, planning, Vector2(left, STACK_BOTTOM_Y), Vector2.ZERO, _stack_box)
 	var ticket_xf: Transform2D = to_layer * Transform2D(0.0, item.sticker().position)
 	var ticket: Rect2 = ticket_xf * Rect2(Vector2.ZERO, PriceSticker.SIZE)
@@ -586,14 +588,26 @@ func _lay_out_belt(slot: int, planning: PlanningSlot, item: ItemView) -> void:
 func _lay_out_ghost(slot: int, planning: PlanningSlot, ghost: ItemView) -> void:
 	var origin: Vector2 = _to_layer(ghost).origin
 	var sprite: Rect2 = _sprite_rect(ghost, Transform2D.IDENTITY)
-	var anchor: Vector2 = Vector2(GHOST_STACK_LEFT, sprite.end.y - GHOST_STACK_GAP)
-	_lay_out_stack(slot, planning, origin + anchor, origin, _ghost_box)
+	var anchor: Vector2 = origin + Vector2(GHOST_STACK_LEFT, sprite.end.y - GHOST_STACK_GAP)
+	anchor.x = _on_screen(anchor.x, planning)
+	_lay_out_stack(slot, planning, anchor, origin, _ghost_box)
 	var tag: PayTag = _pays.get(slot, null)
 	if tag != null:
 		tag.position = GHOST_PAY_AT
 	var stamped: DenyStamp = _stamps.get(slot, null)
 	if stamped != null:
 		stamped.position = sprite.position + STAMP_OFFSET
+
+
+## A stack's left edge `left` (layer coordinates), moved left in art pixels when `planning`'s
+## stack would pass the screen's right edge less STACK_EDGE_GAP (a wide WASTED sticker on the
+## last item or on a ghost dragged there, #45).
+func _on_screen(left: float, planning: PlanningSlot) -> float:
+	var right_limit: float = get_viewport_rect().size.x - STACK_EDGE_GAP
+	var overflow: float = _span(planning.stickers, left).end.x - right_limit
+	if overflow > 0.0:
+		left -= ceilf(overflow / ArtStyle.ART_SCALE) * ArtStyle.ART_SCALE
+	return left
 
 
 ## `slot`'s stack with its bottom-left at `anchor` (layer coordinates), as children of `parent`

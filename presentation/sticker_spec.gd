@@ -2,7 +2,7 @@ class_name StickerSpec
 extends RefCounted
 ## One sticker on a planning item (#71, mock-up h1, H1_BUILD_SPEC.md section 2.1): an effect the
 ## item receives, read from one EffectLink. ADD is the cream "+N" price-gun label, MULTIPLY the
-## gold "×N" starburst, COPY the teal "=€N" label, FIZZLE the grey "pfff" label and MORE the
+## gold "×N" starburst, COPY the teal "=€N" label, FIZZLE the grey "WASTED" label and MORE the
 ## grey "…+N" sticker the earliest stickers fold into when a stack is too tall (PlanningLayer
 ## makes it). Pure data: it never scores.
 
@@ -12,7 +12,7 @@ enum Kind { ADD, MULTIPLY, COPY, FIZZLE, MORE }
 const MORE_TEXT := "…+%d"
 
 var kind: Kind = Kind.ADD
-## The sticker's text: the link's token ("+3", "×3", "=€6", "pfff") or MORE_TEXT.
+## The sticker's text: the link's token ("+3", "×3", "=€6", "WASTED") or MORE_TEXT.
 var text: String = ""
 ## The giver's badge: NONE for the item's own rule.
 var badge: GiverBadge.Kind = GiverBadge.Kind.NONE

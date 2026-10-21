@@ -2,7 +2,8 @@ class_name NthProductMultiplierRule
 extends UpgradeRule
 ## Upgrade (Slot engine): the product_number-th product in the row (counting products only,
 ## coupons skipped, like Spot check) pays x factor, after its own rules, its effects and a
-## copy, so a later Repeat copies the multiplied payout. With fewer products it does nothing;
+## copy, so a later Repeat copies the multiplied payout. With fewer products it fizzles (#45),
+## once, on the row's last slot;
 ## a product there that pays 0 has nothing to multiply, so the upgrade fizzles. 0 means no
 ## product. With follows_slot_changes, the number moves with the shift's product slots
 ## (ScoreState.product_slot_change), so it stays the last regular product slot: the 5th on a
@@ -20,6 +21,15 @@ func multiplier(state: ScoreState, slot: int) -> int:
 
 func wasted_reason(state: ScoreState, _slot: int) -> String:
 	return "product %d paid nothing" % _target_number(state)
+
+
+func row_wasted_reason(state: ScoreState) -> String:
+	var target: int = _target_number(state)
+	if factor == 1 or target <= 0:
+		return ""
+	var last: int = state.last_product
+	var products: int = state.product_numbers[last] if last >= 0 else 0
+	return "fewer than %d products" % target if products < target else ""
 
 
 func _target_number(state: ScoreState) -> int:

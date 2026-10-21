@@ -36,10 +36,10 @@ func test_planning_shows_stickers_never_marks_or_paid_chips() -> void:
 	var screen: ShiftScreen = await _screen()
 	await _place(screen, ["coffee"])
 	_assert_no_marks_or_chips(screen, "coffee")
-	assert_array(_chip_texts(screen, 0)).contains(["pfff"])
+	assert_array(_chip_texts(screen, 0)).contains(["WASTED"])
 	await _place(screen, ["bread"])
 	_assert_no_marks_or_chips(screen, "bread")
-	assert_array(_chip_texts(screen, 0)).not_contains(["pfff"])
+	assert_array(_chip_texts(screen, 0)).not_contains(["WASTED"])
 	assert_array(_chip_texts(screen, 1)).contains(["+3"])
 	# Bread taken out of the row and let go: back in the hand.
 	screen._on_row_card_clicked(screen._row_views[1])
@@ -47,7 +47,7 @@ func test_planning_shows_stickers_never_marks_or_paid_chips() -> void:
 	await _frames(2)
 	assert_int(screen.run.row.size()).is_equal(1)
 	_assert_no_marks_or_chips(screen, "out")
-	assert_array(_chip_texts(screen, 0)).contains(["pfff"])
+	assert_array(_chip_texts(screen, 0)).contains(["WASTED"])
 
 
 ## The count shows no mark and no paid chip on any frame, with or without reduced motion, though
