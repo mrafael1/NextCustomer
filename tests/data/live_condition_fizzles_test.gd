@@ -42,6 +42,68 @@ func test_no_fizzle_once_the_condition_is_met() -> void:
 		assert_int(own_bonus).override_failure_message(card.id).is_greater(0)
 
 
+## A pair rule (an adjacency rule matching its own product: the Banana) fizzles only when it is
+## lone: in a pair neither card shows WASTED, the first one included, and a lone one says "no
+## <product> beside it" (#45). The total is unchanged.
+func test_only_a_lone_pair_card_fizzles() -> void:
+	var pair_cards: Array[StringName] = []
+	for card: CardDefinition in _conditional_cards():
+		var rule: AdjacentMatchBonusRule = card.rules[0] as AdjacentMatchBonusRule
+		if rule == null or rule.match_by != AdjacentMatchBonusRule.Match.SAME_CARD:
+			continue
+		var lone: Array[ScoreStep] = _wasted(Scoring.score(_row([card])))
+		var product_name: String = card.product_card().display_name
+		assert_str(lone[0].reason).override_failure_message(card.id).is_equal(
+			"no %s beside it" % product_name
+		)
+		var pair: ScoreResult = Scoring.score(_row([card, card]))
+		assert_array(_wasted(pair)).override_failure_message(card.id).is_empty()
+		# The bonus still needs the Banana just before it: only the second one pays it.
+		assert_int(pair.payouts[0]).override_failure_message(card.id).is_equal(card.base)
+		assert_int(pair.payouts[1]).override_failure_message(card.id).is_greater(card.base)
+		pair_cards.append(card.id)
+	# The Banana is a pair card (with its tiers, where the data has them).
+	assert_array(pair_cards).contains([&"banana"])
+
+
+## The BIG and GOLDEN Bananas (#77) count as Banana: a mixed pair shows no WASTED either way
+## round, and the GOLDEN one after a Banana still pays its doubled bonus.
+func test_a_mixed_tier_banana_pair_never_fizzles() -> void:
+	var banana: CardDefinition = load("%s/banana.tres" % CARDS_DIR)
+	for tier_id: String in ["banana_big", "banana_golden"]:
+		var tier: CardDefinition = load("%s/%s.tres" % [CARDS_DIR, tier_id])
+		var tier_after: Array[CardDefinition] = [banana, tier]
+		var tier_first: Array[CardDefinition] = [tier, banana]
+		for row: Array[CardDefinition] in [tier_after, tier_first]:
+			var result: ScoreResult = Scoring.score(_row(row))
+			assert_array(_wasted(result)).override_failure_message(tier_id).is_empty()
+	var golden: CardDefinition = load("%s/banana_golden.tres" % CARDS_DIR)
+	var paid: ScoreResult = Scoring.score(_row([banana, golden]))
+	assert_int(paid.payouts[1]).is_equal(golden.base * 3)
+
+
+## Every other "just before" adjacency card still fizzles with its partner right after it: only
+## the pair rule looks on both sides for its fizzle.
+func test_other_after_cards_fizzle_with_the_partner_after() -> void:
+	var cards: Array[CardDefinition] = _all_cards()
+	var checked: int = 0
+	for card: CardDefinition in _conditional_cards():
+		var rule: AdjacentMatchBonusRule = card.rules[0] as AdjacentMatchBonusRule
+		if rule == null or rule.match_by == AdjacentMatchBonusRule.Match.SAME_CARD:
+			continue
+		if rule.position != AdjacentMatchBonusRule.Position.IMMEDIATELY_AFTER:
+			continue
+		var partner: CardDefinition = _partner(card, cards)
+		var own: Array[ScoreStep] = []
+		for step: ScoreStep in _wasted(Scoring.score(_row([card, partner]))):
+			if step.slot == 0:
+				own.append(step)
+		assert_int(own.size()).override_failure_message(card.id).is_equal(1)
+		assert_str(own[0].reason).override_failure_message(card.id).ends_with("just before it")
+		checked += 1
+	assert_int(checked).is_greater(0)
+
+
 ## A card-id match names the card in its reason by capitalizing the id ("bread" -> "Bread"), so
 ## every id a rule names must capitalize to that card's display name.
 func test_card_id_matches_name_their_card() -> void:
