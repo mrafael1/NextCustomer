@@ -310,7 +310,7 @@ func play(
 	_receipt.add_total(result.total)
 	_sfx.play("print", _beats.print_pitch())
 	_led.show_total()
-	_fx.punch(_led.digits_label(), TOTAL_PUNCH)
+	_fx.punch(_led.digits_label(), TOTAL_PUNCH, true, _led.punch_room())
 	if plan.chip_at_total:
 		_meet(true)
 	total_shown_ms = Time.get_ticks_msec()

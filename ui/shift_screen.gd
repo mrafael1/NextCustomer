@@ -627,14 +627,17 @@ func _refresh_preview() -> void:
 
 
 ## Planning's monitor and SPEND chip (the user's play test of 2026-10-17): the LED goes blank
-## (the last count-up's TOTAL leaves it) and the monitor shows the store channel; the projected
-## `total` goes to the top bar's SPEND chip (and is on the receipt). The count-up's subtotal and
-## total take the LED from the checkout on.
+## (the last count-up's TOTAL leaves it) and the monitor shows the store channel, its scanner bay
+## belt slot 1's item (the monitor bay follow-up of #86); the projected `total` goes to the top
+## bar's SPEND chip (and is on the receipt). The count-up's subtotal and total take the LED from
+## the checkout on.
 func _show_projected(total: int) -> void:
 	if _led.mode() != LedDisplay.Mode.BLANK:
 		_led.clear()
 	_quota_meter.show_projected(total, run.quota())
 	_monitor.show_channel(run)
+	var first: CardDefinition = run.row[0].definition if not run.row.is_empty() else null
+	_monitor.show_next(first, RowCapacity.card_limit(run.limits), run.row.size())
 
 
 ## The preview: the itemised planning receipt (#80) and the belt's tags and marks.

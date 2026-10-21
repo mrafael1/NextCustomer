@@ -4,12 +4,12 @@ extends Control
 ## LedDisplay.Layout.COUNT, on the monitor's paper at LedDisplay.COUNT_TO_GO_RECT): how far the
 ## quota is, "€N to go" in dark tomato, in ink once the amount is near the quota
 ## (QuotaMeter.NEAR_SHARE). Its text follows to_go_text (core's ShiftMargin of the shown amount:
-## "Spot on" or "+€N" past it), but it shows only while the amount is short of the quota, as in
-## the mock-up: past it the line is the SPEND MET stamp's place (stamp(), MetStamp), and the "+€N"
-## is the tank's tab (OverTab). So a last payout crossing the quota (met with the TOTAL, D5)
-## leaves the line empty through the held breath instead of saying "+€N" before the stamp. It
-## also hides once the count is met (set_met), before the stamp lands. The LED owns it and shows
-## it in its count layout only. Display only: the margin is the LED's.
+## "Spot on" or "+€N" past it), but it shows only while the amount is short of the quota, as in the
+## mock-up: past it the line is the SPEND MET stamp's place (stamp(), MetStamp), and the "+€N" is
+## the tab beside the stamp (OverTab). So a last payout crossing the quota (met with the TOTAL, D5)
+## leaves the line empty through the held breath instead of saying "+€N" before the stamp. It also
+## hides once the count is met (set_met), before the stamp lands. The LED owns it and shows it in
+## its count layout only. Display only: the margin is the LED's.
 
 ## The line's text, centred on its row: TO_GO_FONT_SIZE px at TO_GO_WEIGHT.
 const TO_GO_FONT_SIZE := 18
@@ -22,8 +22,10 @@ const OVER_TEXT := "+€%d"
 ## #86's "€N to go"; the top bar's tag shares it), ink from NEAR_SHARE of it on.
 const FIZZLE_COLOR := Palette.TOMATO_DARK
 const NEAR_COLOR := Palette.INK
-## The stamp's top left in the line's coordinates (stage (615,183) over the line at (613,185)).
-const STAMP_POSITION := Vector2(2, -2)
+## The stamp's top left in the line's coordinates (stage (640,184) over the line at (615,183): 36 px
+## left of the line's centre, so the stamp and the "+€N" tab beside it sit centred under the number
+## and its €; monitor bay follow-up, mock-up monitor_bay_v1.html).
+const STAMP_POSITION := Vector2(25, 1)
 
 ## Returns a new tween on the count-up's clock: CountUp sets its own (tween_maker()), so motion on
 ## it follows the count's speed (taps, holds) and freezes in its hit-stops. The monitor's scanner
