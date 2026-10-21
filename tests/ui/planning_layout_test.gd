@@ -539,7 +539,6 @@ static func _layer(screen: ShiftScreen) -> PlanningLayer:
 func _shift(upgrades: Array[String], inspection: String, ids: Array[String]) -> ShiftScreen:
 	var runner: GdUnitSceneRunner = scene_runner(SCREEN)
 	var screen: ShiftScreen = runner.scene()
-	screen._on_reward_skipped()  # Past the impulse rack.
 	await _frames(2)
 	for upgrade: String in upgrades:
 		screen._debug.give_upgrade(upgrade)

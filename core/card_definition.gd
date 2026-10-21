@@ -8,6 +8,9 @@ extends Resource
 ## must state its kind, and a test rejects UNSET.
 
 enum Kind { UNSET, PRODUCT, COUPON }
+## An item tier (#77): an upgraded copy of a product is a variant of its plain card (BIG, then
+## GOLDEN), so it counts as that card everywhere ("same product"). PLAIN is every other card.
+enum Tier { PLAIN, BIG, GOLDEN }
 
 @export var id: StringName = &""
 @export var display_name: String = ""
@@ -32,6 +35,10 @@ enum Kind { UNSET, PRODUCT, COUPON }
 @export var variant_of: CardDefinition
 ## What unlocks this variant; none means it is available from the start.
 @export var unlock_condition: UnlockCondition
+## The item tier (#77). A BIG or GOLDEN card is a variant of its plain card, listed in an
+## ItemUpgradeDefinition chain; tiers are run upgrades from the machine, never stocked or
+## unlocked.
+@export var tier: Tier = Tier.PLAIN
 
 
 func is_product() -> bool:

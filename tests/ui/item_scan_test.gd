@@ -542,7 +542,7 @@ func test_every_card_scan_fits_the_monitor() -> void:
 			coupons.append(String(definition.id))
 		else:
 			products.append(String(definition.id))
-	assert_int(products.size() + coupons.size()).is_equal(59)
+	assert_int(products.size() + coupons.size()).is_equal(67)
 	var all: Array[String] = []
 	all.append_array(products)
 	all.append_array(coupons)
@@ -706,11 +706,10 @@ func _leave_to(point: Vector2, view: ItemView) -> void:
 	await _frames(2)
 
 
-## The screen past the impulse rack, its scanner following _point.
+## The screen on shift 1, its scanner following _point.
 func _screen() -> ShiftScreen:
 	var runner: GdUnitSceneRunner = scene_runner(SCREEN)
 	var screen: ShiftScreen = runner.scene()
-	screen._on_reward_skipped()
 	screen._scan.pointer = func() -> Vector2: return _point
 	screen._scan.now_ms = func() -> int: return _clock
 	await _frames(3)

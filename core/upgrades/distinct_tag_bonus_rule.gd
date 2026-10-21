@@ -8,7 +8,7 @@ extends UpgradeRule
 
 
 func flat_bonus(state: ScoreState, slot: int) -> int:
-	if bonus_per_tag == 0 or not _is_last_product(state, slot):
+	if bonus_per_tag == 0 or slot < 0 or state.last_product != slot:
 		return 0
 	var seen: Dictionary = {}
 	for product: int in range(state.size()):
@@ -16,12 +16,3 @@ func flat_bonus(state: ScoreState, slot: int) -> int:
 			for tag: String in state.tags[product]:
 				seen[tag] = true
 	return seen.size() * bonus_per_tag
-
-
-static func _is_last_product(state: ScoreState, slot: int) -> bool:
-	if not state.is_product(slot):
-		return false
-	for later: int in range(slot + 1, state.size()):
-		if state.is_product(later):
-			return false
-	return true

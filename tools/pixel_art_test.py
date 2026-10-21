@@ -428,6 +428,177 @@ class BuildCheckTest(TempTestCase):
             self.assertEqual(pa.main(["check", *args]), 2)
 
 
+GOLDEN_DATA = Path(__file__).resolve().parent / "testdata" / "pixel_art" / "golden"
+# The reference GOLDEN PNGs (the approved #77 prep's, copied from docs/art/mockups/machine_77_src/
+# upgrades/png/items_v2/) and the map each item's derived source uses.
+GOLDEN_REFERENCES = {"banana": "yellow", "eggs": "egg", "milk": "rank", "coffee": "rank"}
+
+# A palette with the gold ramp the maps write to (brass darkest k to mustard pale Y, paper w).
+GOLD_PALETTE = PALETTE + """w fbf7ee paper
+b ddcba5 cream shade
+a b39f78 cream darkest
+: c7beab grey light
+k 4a3010 brass darkest
+l 8a5d1a brass dark
+L c8932b brass
+n ffcf3f gold
+Y faecbc mustard pale
+y f1d27a mustard light
+M e2b33c mustard
+m b38425 mustard dark
+"""
+
+
+def derived_source(base: str, golden: str) -> str:
+    return f"; a derived source\n@derive {base} golden={golden}\n"
+
+
+class DeriveTest(TempTestCase):
+    def setUp(self) -> None:
+        super().setUp()
+        (self.ws.src / pa.PALETTE_FILE).write_text(GOLD_PALETTE, encoding="utf-8")
+
+    def test_a_derived_source_builds_through_its_map_and_checks_clean(self) -> None:
+        self.ws.add("items_v2/box", item_source(boxed_item("c", 48)))
+        self.ws.add("items_v2/box_gold", derived_source("box", "rank"))
+        project = self.ws.load()
+        self.assertEqual(project.errors, [])
+        derived = next(s for s in project.sprites if s.name == "items_v2/box_gold")
+        self.assertEqual((derived.width, derived.height, derived.kind, derived.scale),
+                         (48, 48, "item", 1))
+        # One colour (cream) ranks as the darkest step; ink and transparency are kept.
+        self.assertEqual({key for row in derived.rows for key in row}, {".", "#", "k"})
+        written = pa.build(project)
+        self.assertIn(self.ws.out / "items_v2" / "box_gold.png", written)
+        self.assertEqual(pa.check(self.ws.load()), [])
+
+    def test_a_changed_source_makes_its_derived_png_stale(self) -> None:
+        self.ws.add("items_v2/box", item_source(boxed_item("c", 48)))
+        self.ws.add("items_v2/box_gold", derived_source("box", "egg"))
+        pa.build(self.ws.load())
+        self.ws.add("items_v2/box", item_source(boxed_item("b", 48)))
+        problems = pa.check(self.ws.load())
+        self.assertTrue(any("items_v2/box_gold.png is stale" in p for p in problems), problems)
+        (self.ws.out / "items_v2" / "box_gold.png").unlink()
+        problems = pa.check(self.ws.load())
+        self.assertTrue(any("items_v2/box_gold.png is missing" in p for p in problems), problems)
+
+    def test_the_rank_map_spreads_shades_dark_to_light_and_glints(self) -> None:
+        palette = pa.parse_palette(self.ws.src / pa.PALETTE_FILE)
+        # Five shades, dark to light: brass dark, mustard dark, mustard, mustard light, paper.
+        rows = [list("..........") for _ in range(2)] + [list("#lmMyw####")]
+        out = pa.golden_rank(rows, palette)
+        self.assertEqual(out[0], list(".........."))
+        self.assertEqual("".join(out[2]), "##########")  # a single row is all outline: re-inked
+        grid = [list("." * 21) for _ in range(2)] + [list("#" * 21)]
+        grid += [list("#" + "lmMyw" * 3 + "....#") for _ in range(3)] + [list("#" * 21)]
+        out = pa.golden_rank(grid, palette)
+        self.assertEqual("".join(out[4][1:6]), "klLnY")
+        # The glint: a lit gold pixel on the 19th diagonal becomes paper.
+        self.assertEqual(out[5][14], "w")  # gold n at x + y = 19
+        self.assertEqual(out[5][13], "L")
+
+    def test_the_yellow_map_adds_a_rim_under_the_outline(self) -> None:
+        palette = pa.parse_palette(self.ws.src / pa.PALETTE_FILE)
+        grid = [list("......") for _ in range(2)] + [list("######"), list("#YYyM#"),
+                                                    list("#YYYY#"), list("######")]
+        out = pa.golden_yellow(grid, palette)
+        self.assertEqual("".join(out[3]), "#wwLl#")
+        self.assertEqual("".join(out[4]), "#nnnn#")
+
+    def test_the_egg_map_rims_eggs_and_lights_one_highlight_each(self) -> None:
+        palette = pa.parse_palette(self.ws.src / pa.PALETTE_FILE)
+        grid = [list("." * 8) for _ in range(2)] + [list("#" * 8)]
+        grid += [list("#:wwww:#"), list("#:wwww:#"), list("#:wwww:#"), list("#:cccb:#"),
+                 list("#" * 8)]
+        out = pa.golden_egg(grid, palette)
+        self.assertEqual("".join(out[3]), "#:llll:#")  # the top edge meets the outline
+        self.assertEqual("".join(out[4]), "#:lwwl:#")  # the inner patch's top-left pair
+        self.assertEqual("".join(out[5]), "#:lYYl:#")
+        self.assertEqual(out[6][2:6], ["l", "n", "n", "l"])  # brass dark against the carton
+
+    def test_derive_errors(self) -> None:
+        self.ws.add("items_v2/box", item_source(boxed_item("c", 48)))
+        cases = {
+            "unknown map": (derived_source("box", "silver"), "takes <source> golden=<map>"),
+            "no map": ("@derive box\n", "takes <source> golden=<map>"),
+            "twice": (derived_source("box", "rank") + "@derive box golden=egg\n", "given twice"),
+            "grid": (derived_source("box", "rank") + "#c\n", "holds no grid"),
+            "size": ("@size 48x48\n" + derived_source("box", "rank"), "no other directive"),
+            "missing source": (derived_source("bag", "rank"), "items_v2/bag: that source doesn't"),
+        }
+        for label, (text, message) in cases.items():
+            with self.subTest(label):
+                self.ws.add("items_v2/gold", text)
+                project = self.ws.load()
+                self.assertNotIn("items_v2/gold", [s.name for s in project.sprites])
+                self.assertTrue(any(message in e for e in project.errors), project.errors)
+
+    def test_derive_from_a_derived_or_broken_source_fails(self) -> None:
+        self.ws.add("items_v2/box", item_source(boxed_item("c", 48)))
+        self.ws.add("items_v2/gold", derived_source("box", "rank"))
+        self.ws.add("items_v2/gold2", derived_source("gold", "rank"))
+        self.ws.add("items_v2/bad", "@size 48x48\n@kind item\n#c\n")
+        self.ws.add("items_v2/gold3", derived_source("bad", "rank"))
+        project = self.ws.load()
+        names = [s.name for s in project.sprites]
+        self.assertIn("items_v2/gold", names)
+        self.assertNotIn("items_v2/gold2", names)
+        self.assertNotIn("items_v2/gold3", names)
+        self.assertTrue(any("is itself derived" in e for e in project.errors), project.errors)
+        self.assertTrue(any("can't derive from items_v2/bad: that source has errors" in e
+                            for e in project.errors), project.errors)
+        # A derived source with errors is not an orphan either.
+        pa.build(project)
+        self.assertFalse(any("has no source" in p for p in pa.check(project)))
+
+    def test_parse_sprite_rejects_a_derived_source(self) -> None:
+        path = self.ws.add("items_v2/gold", derived_source("box", "rank"))
+        sprite, errors = pa.parse_sprite(path, self.ws.src)
+        self.assertIsNone(sprite)
+        self.assertTrue(any("derived source" in e for e in errors), errors)
+
+    def test_sheet_previews_a_derived_source(self) -> None:
+        self.ws.add("items_v2/box", item_source(boxed_item("c", 48)))
+        self.ws.add("items_v2/box_gold", derived_source("box", "rank"))
+        reports = self.root / "reports"
+        written = pa.write_sheets(self.ws.load(), reports)
+        self.assertIn(reports / "preview" / "items_v2__box_gold.png", written)
+
+
+class GoldenReferenceTest(unittest.TestCase):
+    """The four GOLDEN sprites built by @derive equal the approved #77 prep PNGs pixel for pixel."""
+
+    def test_derived_golden_items_match_the_reference_pngs(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            ws_root = Path(tmp)
+            src = ws_root / "art" / "src"
+            (src / "items_v2").mkdir(parents=True)
+            (src / pa.PALETTE_FILE).write_text(
+                (GOLDEN_DATA / pa.PALETTE_FILE).read_text(encoding="utf-8"), encoding="utf-8")
+            for item, golden in GOLDEN_REFERENCES.items():
+                big = (GOLDEN_DATA / f"{item}_big.txt").read_text(encoding="utf-8")
+                (src / "items_v2" / f"{item}_big.txt").write_text(big, encoding="utf-8")
+                (src / "items_v2" / f"{item}_golden.txt").write_text(
+                    derived_source(f"{item}_big", golden), encoding="utf-8")
+            project = pa.load_project(src, ws_root / "art")
+            self.assertEqual(project.errors, [])
+            pa.build(project)
+            for item in GOLDEN_REFERENCES:
+                with self.subTest(item):
+                    built = pa.decode_png((ws_root / "art" / "items_v2" / f"{item}_golden.png")
+                                          .read_bytes())
+                    reference = pa.decode_png((GOLDEN_DATA / f"{item}_golden.png").read_bytes())
+                    self.assertEqual(pa.normalised(built), pa.normalised(reference))
+
+    def test_the_repo_golden_sources_use_the_reference_maps(self) -> None:
+        for item, golden in GOLDEN_REFERENCES.items():
+            with self.subTest(item):
+                text = (pa.DEFAULT_SRC / "items_v2" / f"{item}_golden.txt").read_text(
+                    encoding="utf-8")
+                self.assertIn(f"@derive {item}_big golden={golden}", text)
+
+
 class CommittedArtTest(unittest.TestCase):
     def test_the_repo_art_is_clean_and_up_to_date(self) -> None:
         project = pa.load_project(pa.DEFAULT_SRC, pa.DEFAULT_OUT)

@@ -12,13 +12,24 @@ extends PanelContainer
 signal new_run_requested
 signal export_requested
 
-## New run arms this long after the panel appears, once the mouse is up, like the reward panel:
+## New run arms this long after the panel appears, once the mouse is up, like the machine's picks:
 ## the click that ended the run never starts a new one.
 const ARM_MS := 350
 const HEADLINE_SIZE := 44
 const LINE_SIZE := 16
-## The upgrade and inspection under a shift's line are smaller and dim.
+## The machine visits and the inspection under a shift's line are smaller and dim.
 const DETAIL_SIZE := 13
+## The column's spacing between the headline, the lines and the buttons.
+const COLUMN_SEPARATION := 10
+## A long run's receipt (#77: a dim line per machine visit) steps down through these until it
+## fits the screen with the top bar's height free above and below it: the shift and coin lines'
+## font size, the dim lines' and the column's spacing, roomiest first.
+const FITS: Array[Vector3i] = [
+	Vector3i(LINE_SIZE, DETAIL_SIZE, COLUMN_SEPARATION),
+	Vector3i(15, 12, 6),
+	Vector3i(14, 11, 4),
+	Vector3i(13, 10, 2),
+]
 ## The staple across the loyalty card's top edge.
 const STAPLE_SIZE := Vector2(20, 5)
 
@@ -42,6 +53,9 @@ var _coin_sounds: int = 0
 var _coins_s: float = 0.0
 var _reader: PressReader
 var _new_run_button: Button
+var _column: VBoxContainer
+## The FITS entry the receipt is laid out with.
+var _fit: Vector3i = FITS[0]
 var _armed_ms: int = 0
 
 
@@ -55,8 +69,9 @@ func _init(tuning: CountUpTuning = null) -> void:
 	style.set_content_margin_all(20)
 	add_theme_stylebox_override("panel", style)
 	var column: VBoxContainer = VBoxContainer.new()
-	column.add_theme_constant_override("separation", 10)
+	column.add_theme_constant_override("separation", COLUMN_SEPARATION)
 	add_child(column)
+	_column = column
 	var top: HBoxContainer = HBoxContainer.new()
 	top.add_theme_constant_override("separation", 24)
 	column.add_child(top)
@@ -108,7 +123,7 @@ func show_results(
 	var won: bool = run.phase == RunState.Phase.WON
 	_headline.add_theme_color_override("font_color", Palette.GOOD if won else Palette.TOMATO)
 	_loyalty_card.show_upgrades(LoyaltyCard.box_count(run), run.upgrades)
-	_build_lines(FinalReceipt.lines(run, result, coins_total))
+	_lay_out(FinalReceipt.lines(run, result, coins_total))
 	_coin_sounds = FinalReceipt.coin_sounds(CoinPayout.for_run(run).total())
 	_coins_s = 0.0
 	coins_started_ms = -1
@@ -156,6 +171,22 @@ func printed_count() -> int:
 ## The index of the first coin line among texts() (for tests).
 func coin_line_index() -> int:
 	return _coin_from
+
+
+## Builds the lines with the roomiest FITS entry that fits the room (_room).
+func _lay_out(lines: Array[FinalReceipt.Line]) -> void:
+	for fit: Vector3i in FITS:
+		_fit = fit
+		_column.add_theme_constant_override("separation", fit.z)
+		_build_lines(lines)
+		if get_combined_minimum_size().y <= _room():
+			return
+
+
+## The height the receipt may take: its parent's, less the top bar's height above and below.
+func _room() -> float:
+	var height: float = get_parent_area_size().y
+	return height - 2.0 * ShiftStage.PANEL_TOP
 
 
 func _build_lines(lines: Array[FinalReceipt.Line]) -> void:
@@ -218,8 +249,8 @@ func _draw_staple() -> void:
 	_loyalty_card.draw_rect(Rect2(at, STAPLE_SIZE), Palette.MUTED_INK)
 
 
-static func _size(line: FinalReceipt.Line) -> int:
-	return DETAIL_SIZE if line.tone == FinalReceipt.Tone.DETAIL else LINE_SIZE
+func _size(line: FinalReceipt.Line) -> int:
+	return _fit.y if line.tone == FinalReceipt.Tone.DETAIL else _fit.x
 
 
 static func _color(line: FinalReceipt.Line) -> Color:

@@ -1,10 +1,7 @@
 extends GdUnitTestSuite
-## Plan section 8 (since v0.20): an offer's presentation timeline (OfferTimeline) and the reward,
-## upgrade, run_start and count_up fields built from it and from the count-up, with their types.
-
-const BREAD := "res://data/cards/bread.tres"
-const MILK := "res://data/cards/milk.tres"
-const SOUP := "res://data/cards/soup.tres"
+## Plan section 8 (since v0.20): an offer's presentation timeline (OfferTimeline, a machine
+## visit's since #77: telemetry_test checks the machine_visit event) and the count_up fields,
+## with their types.
 
 
 ## Every time is measured from the show; decide_ms is the choice.
@@ -12,13 +9,54 @@ func test_times_count_from_the_show() -> void:
 	var timeline: OfferTimeline = OfferTimeline.new(1000)
 	timeline.mark_presented(1220)
 	timeline.mark_armed(1350)
-	assert_dict(timeline.fields(4000)).is_equal(
-		{"decide_ms": 3000, "presented_ms": 220, "armed_ms": 350, "presentation_skipped": false}
+	(
+		assert_dict(timeline.fields(4000))
+		. is_equal(
+			{
+				"decide_ms": 3000,
+				"presented_ms": 220,
+				"armed_ms": 350,
+				"presentation_skipped": false,
+				"chute_wait_ms": 0,
+			}
+		)
 	)
 	# Logged in this order.
 	assert_array(timeline.fields(4000).keys()).is_equal(
-		["decide_ms", "presented_ms", "armed_ms", "presentation_skipped"]
+		["decide_ms", "presented_ms", "armed_ms", "presentation_skipped", "chute_wait_ms"]
 	)
+
+
+## The chute wait (the keys armed to the CONFIRM) is interactive: presented_ms and armed_ms leave
+## it out, decide_ms keeps it, chute_wait_ms logs it. A player reading odds cards for 25 s on a
+## machine with no animation logs a short armed_ms.
+func test_the_chute_wait_is_left_out_of_the_presentation_times() -> void:
+	var timeline: OfferTimeline = OfferTimeline.new(1000)
+	timeline.start_wait(1400)
+	timeline.start_wait(2000)  # Only the first start counts.
+	timeline.end_wait(26400)
+	timeline.end_wait(27000)  # Not waiting: nothing.
+	timeline.mark_presented(26500)
+	timeline.mark_armed(26700)
+	var fields: Dictionary = timeline.fields(30000)
+	assert_int(fields["decide_ms"]).is_equal(29000)
+	assert_int(fields["chute_wait_ms"]).is_equal(25000)
+	assert_int(fields["presented_ms"]).is_equal(500)
+	assert_int(fields["armed_ms"]).is_equal(700)
+
+
+## A visit without a chute wait (STAMP DAY, a resumed pick) has none; a wait never started after
+## the prizes showed.
+func test_no_wait_without_the_keys() -> void:
+	var timeline: OfferTimeline = OfferTimeline.new(1000)
+	timeline.end_wait(1500)
+	timeline.mark_presented(1200)
+	timeline.start_wait(1300)
+	timeline.end_wait(1900)
+	timeline.mark_armed(1350)
+	var fields: Dictionary = timeline.fields(2000)
+	assert_int(fields["chute_wait_ms"]).is_equal(0)
+	assert_int(fields["armed_ms"]).is_equal(350)
 
 
 ## Only the first presented and armed moments count (the deck view hides and shows the panel).
@@ -46,13 +84,22 @@ func test_a_moment_not_reached_by_the_choice_is_minus_one() -> void:
 	assert_int(timeline.fields(1300)["armed_ms"]).is_equal(-1)
 
 
-## An offer never shown (no rack, the debug replay) logs 0 for every time, and ignores marks.
+## An offer never shown (a debug replay) logs 0 for every time, and ignores marks.
 func test_an_offer_never_shown_logs_zeros() -> void:
 	var timeline: OfferTimeline = OfferTimeline.new()
 	timeline.mark_presented(1220)
 	timeline.mark_armed(1350)
-	assert_dict(timeline.fields(5000)).is_equal(
-		{"decide_ms": 0, "presented_ms": 0, "armed_ms": 0, "presentation_skipped": false}
+	(
+		assert_dict(timeline.fields(5000))
+		. is_equal(
+			{
+				"decide_ms": 0,
+				"presented_ms": 0,
+				"armed_ms": 0,
+				"presentation_skipped": false,
+				"chute_wait_ms": 0,
+			}
+		)
 	)
 
 
@@ -61,54 +108,6 @@ func test_a_skipped_presentation_is_logged() -> void:
 	var timeline: OfferTimeline = OfferTimeline.new(0)
 	timeline.presentation_skipped = true
 	assert_bool(timeline.fields(10)["presentation_skipped"]).is_true()
-
-
-## The reward event's fields, in order, with their types; plain strings in JSON.
-func test_reward_event_fields() -> void:
-	var bread: CardDefinition = load(BREAD)
-	var milk: CardDefinition = load(MILK)
-	var soup: CardDefinition = load(SOUP)
-	var offered: Array[CardDefinition] = [bread, milk, soup]
-	var timeline: OfferTimeline = OfferTimeline.new(500)
-	timeline.mark_presented(730)
-	timeline.mark_armed(860)
-	var replaced: CardInstance = CardInstance.new(soup, 7)
-	var event: Dictionary = RunEvents.reward(
-		3, offered, milk, replaced, timeline.fields(2500), true
-	)
-	(
-		assert_array(event.keys())
-		. is_equal(
-			[
-				"shift",
-				"offered",
-				"picked",
-				"skipped",
-				"replaced",
-				"decide_ms",
-				"presented_ms",
-				"armed_ms",
-				"presentation_skipped",
-				"deck_view_opened",
-			]
-		)
-	)
-	assert_int(event["shift"]).is_equal(3)
-	assert_array(event["offered"]).is_equal(["bread", "milk", "soup"])
-	assert_str(event["picked"]).is_equal("milk")
-	assert_bool(event["skipped"]).is_false()
-	assert_str(event["replaced"]).is_equal("soup")
-	assert_int(event["decide_ms"]).is_equal(2000)
-	assert_int(event["presented_ms"]).is_equal(230)
-	assert_int(event["armed_ms"]).is_equal(360)
-	assert_bool(event["presentation_skipped"]).is_false()
-	assert_bool(event["deck_view_opened"]).is_true()
-	assert_str(JSON.stringify(event)).contains('"picked":"milk"')
-	var skip: Dictionary = RunEvents.reward(1, offered, null, null, timeline.fields(900), false)
-	assert_str(skip["picked"]).is_empty()
-	assert_bool(skip["skipped"]).is_true()
-	assert_str(skip["replaced"]).is_empty()
-	assert_int(skip["armed_ms"]).is_equal(360)
 
 
 ## The count_up event: count-up time, the hold's fast-forward, and the taps (skip_at_ms from the

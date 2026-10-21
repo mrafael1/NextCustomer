@@ -17,8 +17,10 @@ const PALETTE_SIZE := 67
 ## PayTag, DenyStamp), the count-up's receipt chip (#86 v6, ReceiptFly) and its paper bag
 ## (PaperBag, which declares no colour: its art is drawn from the palette), the belt ride and the
 ## giver sparks (BeltRide, GiverSparks), and the monitor's count view (ScannerBay, EuroTank,
-## MetStamp, Sunburst, OverTab) with the burst outside it (TankBurst). A class is checked
-## once its script exists, so each step of the adoption is covered as it lands.
+## MetStamp, Sunburst, OverTab) with the burst outside it (TankBurst), and the RECEIPT REWARDS
+## machine's parts (#77, build spec 4.2: ui/machine/, and the receipt's stamps, ReceiptStamps),
+## listed ahead of their builds. A class is checked once its script exists, so each step of the
+## adoption is covered as it lands.
 const SCRIPTS: Array[String] = [
 	"res://ui/palette.gd",
 	"res://presentation/art_style.gd",
@@ -59,6 +61,25 @@ const SCRIPTS: Array[String] = [
 	"res://ui/bay_tag.gd",
 	"res://ui/bay_queue.gd",
 	"res://ui/tally_chips.gd",
+	"res://ui/machine/reward_machine_view.gd",
+	"res://ui/machine/machine_head.gd",
+	"res://ui/machine/slot_plate.gd",
+	"res://ui/machine/machine_display.gd",
+	"res://ui/machine/chute_key.gd",
+	"res://ui/machine/punch_meter.gd",
+	"res://ui/machine/stockroom_window.gd",
+	"res://ui/machine/order_slip.gd",
+	"res://ui/machine/order_plate.gd",
+	"res://ui/machine/machine_belt.gd",
+	"res://ui/machine/box_lane.gd",
+	"res://ui/machine/restock_hood.gd",
+	"res://ui/machine/prize_ticket.gd",
+	"res://ui/machine/rarity_tab.gd",
+	"res://ui/machine/odds_card.gd",
+	"res://ui/machine/cart_drawer.gd",
+	"res://ui/machine/machine_flyer.gd",
+	"res://ui/machine/receipt_feed.gd",
+	"res://presentation/receipt_stamps.gd",
 ]
 ## The scan pieces (the scan's step lines in ScanFooter, #80, too), the items and the planning
 ## effects' pieces (#71), the receipt chip and the giver sparks (#86 v6) name no colour of their
@@ -80,6 +101,11 @@ const PALETTE_ONLY: Array[String] = [
 	"res://presentation/receipt_fly.gd",
 	"res://ui/giver_sparks.gd",
 ]
+## The machine's parts (test_the_machine_parts_use_the_palette) and the colour literals they may
+## not write.
+const MACHINE_FOLDER := "res://ui/machine"
+const RECEIPT_STAMPS := "res://presentation/receipt_stamps.gd"
+const MACHINE_LITERAL := 'Color8?\\(\\s*["0-9.]|Color\\.(from_[a-z]+|html)\\(|Color\\.[A-Z]'
 
 var _folder: String = ""
 
@@ -140,6 +166,36 @@ func test_the_scan_pieces_use_the_palette() -> void:
 			. is_null()
 		)
 		assert_str(script.source_code).contains("Palette.")
+
+
+## The RECEIPT REWARDS machine's parts (#77, build spec 4.2: every ui/machine/ script, and the
+## receipt's stamps once ReceiptStamps exists) take every colour from Palette: no Color constant,
+## and no colour written in their code (an html or number Color(), Color8(), Color.from_*(),
+## Color.html() or a Color.NAMED colour). Placeholder parts with no colour yet pass.
+func test_the_machine_parts_use_the_palette() -> void:
+	var literal: RegEx = RegEx.create_from_string(MACHINE_LITERAL)
+	var paths: Array[String] = []
+	for file_name: String in DirAccess.get_files_at(MACHINE_FOLDER):
+		if file_name.get_extension() == "gd":
+			paths.append(MACHINE_FOLDER.path_join(file_name))
+	if ResourceLoader.exists(RECEIPT_STAMPS):
+		paths.append(RECEIPT_STAMPS)
+	assert_bool(paths.has(MACHINE_FOLDER.path_join("reward_machine_view.gd"))).is_true()
+	for path: String in paths:
+		var script: Script = load(path) as Script
+		for constant: String in script.get_script_constant_map():
+			var value: Variant = script.get_script_constant_map()[constant]
+			(
+				assert_bool(value is Color)
+				. override_failure_message("%s declares the colour %s" % [path, constant])
+				. is_false()
+			)
+		var found: RegExMatch = literal.search(script.source_code)
+		(
+			assert_object(found)
+			. override_failure_message("%s: %s" % [path, found.get_string() if found else ""])
+			. is_null()
+		)
 
 
 ## Palette's boutique constants are the art palette's named shades.

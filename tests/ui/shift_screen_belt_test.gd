@@ -308,7 +308,7 @@ func _assert_full_row_fits(screen: ShiftScreen, count: int) -> void:
 
 func _assert_row_on_belt(screen: ShiftScreen, panel_count: int) -> void:
 	var stage: Rect2 = screen._stage.get_global_rect()
-	var bar_bottom: float = stage.position.y + RewardPanel.PRINTOUT_TOP
+	var bar_bottom: float = stage.position.y + ShiftStage.PANEL_TOP
 	var belt: Rect2 = (screen._row_strip.get_parent() as Control).get_global_rect()
 	var receipt: Rect2 = screen._receipt.get_global_rect()
 	assert_that(belt).is_equal(_on_stage(screen, ShiftStage.BELT_RECT))
@@ -405,11 +405,10 @@ func _place(screen: ShiftScreen, card_ids: Array[String]) -> void:
 	screen._refresh()
 
 
-## The screen past the impulse rack, laid out.
+## The screen on shift 1, laid out.
 func _screen() -> ShiftScreen:
 	var runner: GdUnitSceneRunner = scene_runner(SCREEN)
 	var screen: ShiftScreen = runner.scene()
-	screen._on_reward_skipped()
 	await _frames(3)
 	return screen
 

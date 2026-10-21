@@ -33,18 +33,11 @@ extends Resource
 @export var end_cap_max: int = 0
 ## New arrivals are capsule items that came out in this many previous runs.
 @export var end_cap_window_runs: int = 0
-## The run's first offer always includes one of these (the combination coupons), when stocked.
+## The run's first COUPONS draw from the RECEIPT REWARDS machine holds one of these (the
+## combination coupons), when stocked.
 @export var first_offer_pool: Array[CardDefinition] = []
-@export var offer_size: int = 0
-## Stocked products the impulse rack offers before shift 1 (full build plan 7.2). 0: no rack.
-@export var impulse_rack_size: int = 0
-## 1-based shift numbers after which an upgrade is offered, once the reward is picked or
-## skipped (plan section 3.8). Each is a shift of the run and never the last one.
-@export var upgrade_shifts: PackedInt32Array = PackedInt32Array()
-## Upgrades that upgrade offers draw from.
+## Upgrades the machine's REGISTER chute draws from (#77).
 @export var upgrade_pool: Array[UpgradeDefinition] = []
-## The most upgrades one offer shows.
-@export var upgrade_offer_size: int = 0
 ## 1-based shift numbers played under an inspection (plan section 3.9). Each is announced on
 ## the previous shift's receipt, so each is a shift of the run and never shift 1.
 @export var inspection_shifts: PackedInt32Array = PackedInt32Array()
@@ -57,6 +50,9 @@ extends Resource
 @export var overtime_coin_euros: int = 0
 ## The most overtime coins one run pays.
 @export var overtime_coin_max: int = 0
+## The RECEIPT REWARDS machine's rules (#77, data/balance/machine.tres), so a balance copy can
+## point at a different machine file.
+@export var machine: MachineDefinition
 
 
 ## The aisle a card is stocked from (full build plan 7.2), or null for a staple or a coupon. A

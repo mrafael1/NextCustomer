@@ -10,6 +10,7 @@ const MULTIPACK := "res://data/cards/multipack.tres"
 const REPEAT := "res://data/cards/repeat.tres"
 const FINAL_MARKDOWN := "res://data/cards/final_markdown.tres"
 const BANANA := "res://data/cards/banana.tres"
+const GOLDEN_BANANA := "res://data/cards/banana_golden.tres"
 const COUPON_ENGINE := "res://data/upgrades/coupon_engine.tres"
 const EXTRA_REDRAW := "res://data/upgrades/extra_redraw.tres"
 
@@ -31,11 +32,30 @@ func test_win_with_card_needs_a_win_and_the_card_in_the_final_deck() -> void:
 	assert_bool(UnlockCheck.is_met(with_markdown, lost)).is_false()
 
 
+## "Win with X" counts an item tier of X (#77): a deck whose Bananas are all Golden still wins
+## with Banana. A tier names only itself, and no other variant counts through it.
+func test_win_with_card_counts_an_item_tier() -> void:
+	var with_banana: UnlockCondition = _condition(UnlockCondition.Kind.WIN_WITH_CARD, BANANA, 0)
+	var with_golden: UnlockCondition = _condition(
+		UnlockCondition.Kind.WIN_WITH_CARD, GOLDEN_BANANA, 0
+	)
+	var with_organic: UnlockCondition = _condition(UnlockCondition.Kind.WIN_WITH_CARD, "", 0)
+	with_organic.card = _variant_of(load(BANANA))
+	var won: RunState = _won_run(55)
+	assert_bool(UnlockCheck.is_met(with_golden, won)).is_false()
+	var golden: CardDefinition = load(GOLDEN_BANANA)
+	for card: CardInstance in won.deck.cards.duplicate():
+		if card.definition.id == &"banana":
+			won.deck.upgrade(card, golden)
+	assert_bool(UnlockCheck.is_met(with_banana, won)).is_true()
+	assert_bool(UnlockCheck.is_met(with_golden, won)).is_true()
+	assert_bool(UnlockCheck.is_met(with_organic, won)).is_false()
+
+
 func test_score_in_one_checkout_looks_at_every_shift() -> void:
 	var run: RunState = _run(53)
 	_pass(run, [BREAD, BREAD, BREAD])
-	run.skip_reward()
-	run.next_shift()
+	MachineSteps.next_shift(run)
 	run.checkout()
 	assert_int(run.phase).is_equal(RunState.Phase.LOST)
 	# Three Breads (5 each) made the best checkout: 15.
@@ -48,8 +68,7 @@ func test_score_in_one_checkout_looks_at_every_shift() -> void:
 func test_use_coupon_counts_every_checked_out_copy_across_runs() -> void:
 	var run: RunState = _run(54)
 	_pass(run, [BREAD, REPEAT, BREAD, REPEAT])
-	run.skip_reward()
-	run.next_shift()
+	MachineSteps.next_shift(run)
 	_pass(run, [BREAD, BREAD, REPEAT])
 	var uses: Dictionary[StringName, int] = UnlockCheck.coupon_uses(run.history)
 	assert_dict(uses).is_equal({&"repeat": 3})
@@ -92,11 +111,15 @@ func test_a_starting_upgrade_is_owned_from_the_first_shift() -> void:
 	var run: RunState = _run_with_deck(56, _deck_with_upgrade(EXTRA_REDRAW))
 	assert_array(run.upgrades).is_equal([load(EXTRA_REDRAW)])
 	assert_int(run.redraws_allowed).is_equal(3)
-	# Offers skip it, as any owned upgrade.
+	# The REGISTER chute never drops it, as any owned upgrade.
 	run.debug_skip_to_shift(1)
 	_pass(run, [BREAD, BREAD])
-	assert_bool(run.upgrade_offer.has(load(EXTRA_REDRAW))).is_false()
-	assert_int(run.upgrade_offer.size()).is_equal(3)
+	assert_bool(MachineSteps.choose(run, RewardMachine.Chute.REGISTER)).is_true()
+	var drawn: Array = run.machine.prizes().map(
+		func(prize: MachinePrize) -> UpgradeDefinition: return prize.upgrade
+	)
+	assert_bool(drawn.has(load(EXTRA_REDRAW))).is_false()
+	assert_int(drawn.size()).is_equal(3)
 
 
 func test_a_starting_upgrade_scores_from_the_first_shift() -> void:

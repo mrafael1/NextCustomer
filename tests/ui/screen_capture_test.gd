@@ -7,7 +7,8 @@ extends GdUnitTestSuite
 ## (named for the scan after one), reporting a failed save or a card that isn't on the counter
 ## to its reporter (never to Godot's output); headless runs have no screen to grab, so the test
 ## passes its own image. Its effects (--effects, #71) set up the planning effects' richer belt and
-## hover a card's belt item.
+## hover a card's belt item. Its machine (--machine, #77) opens the RECEIPT REWARDS machine on a
+## checked-out shift and plays the visit asked for.
 
 const CAPTURE := "res://debug/screen_capture/screen_capture.tscn"
 
@@ -161,6 +162,58 @@ func test_the_effects_show_and_focus_the_planning_effects() -> void:
 	assert_array(DirAccess.get_files_at(_capture_folder)).contains_exactly([file_name])
 	await capture.call("effects", "soup")
 	assert_array(_errors).contains_exactly(["No soup on the belt to hover"])
+
+
+## --machine (#77): shift 1's passing row checked out, the machine opens on the screen beside
+## the receipt and replays its visit from the printer feed; new_items chooses that chute (the draw
+## shows its prizes) and draw=crl relabels them COMMON, RARE, LEGENDARY (rarest last); the capture
+## is named for the options and the wait. The bonus ticket's visit (its shift passed a Spot check)
+## and STAMP DAY's (pick=0 stamps the loyalty card) show too; a resumed visit holds at its wait
+## point; odds shows a chute's odds card; a full cart is at the deck limit.
+func test_the_machine_shows_its_visits() -> void:
+	var capture: Control = scene_runner(CAPTURE).scene()
+	capture.set("report_error", _record)
+	capture.set("grab_image", func() -> Image: return Image.create(8, 8, false, Image.FORMAT_RGB8))
+	await capture.call("machine", "0.1,new_items,draw=crl")
+	var screen: ShiftScreen = capture.call("screen")
+	var run: RunState = screen.run
+	var view: RewardMachineView = screen._machine.view
+	assert_bool(screen._machine.is_open()).is_true()
+	assert_int(run.phase).is_equal(RunState.Phase.MACHINE_PICK)
+	assert_int(run.machine.current_visit().chute).is_equal(RewardMachine.Chute.NEW_ITEMS)
+	assert_bool(view.plan.resumed).is_false()
+	(
+		assert_array(view.tickets.map(func(ticket: PrizeTicket) -> int: return ticket.prize.rarity))
+		. is_equal(
+			[MachinePrize.Rarity.COMMON, MachinePrize.Rarity.RARE, MachinePrize.Rarity.LEGENDARY]
+		)
+	)
+	await capture.call("capture", _capture_folder)
+	var window: Vector2i = capture.get_window().size
+	var file_name: String = (
+		"shift_screen_machine_new_items_drawcrl_1_%dx%d.png" % [window.x, window.y]
+	)
+	assert_array(DirAccess.get_files_at(_capture_folder)).contains_exactly([file_name])
+	await capture.call("machine", "0,bonus,resume")
+	run = screen.run
+	assert_int(run.phase).is_equal(RunState.Phase.MACHINE_CHOOSE)
+	assert_int(run.machine.current_visit().kind).is_equal(MachineVisit.Kind.BONUS)
+	assert_bool(view.plan.resumed).is_true()
+	assert_str(view.head.stamp_texts()[0]).is_equal("BONUS TICKET!")
+	await capture.call("machine", "0,stampday,pick=0")
+	run = screen.run
+	assert_int(run.upgrades.size()).is_equal(1)
+	assert_int(view.plan.kind).is_equal(MachineVisit.Kind.STAMP_DAY)
+	assert_bool(view.plan.has_landing).is_true()
+	await capture.call("machine", "0,coupons,odds,cartfull")
+	run = screen.run
+	assert_int(run.phase).is_equal(RunState.Phase.MACHINE_CHOOSE)
+	assert_bool(run.deck_is_full()).is_true()
+	assert_bool(view.odds_card.visible).is_true()
+	assert_int(view.odds_card.chute).is_equal(RewardMachine.Chute.COUPONS)
+	assert_array(_errors).is_empty()
+	await capture.call("machine", "0,upgrades")
+	assert_array(_errors).contains_exactly(["The machine can't choose upgrades"])
 
 
 ## A capture holds the real pointer (hold_pointer, from the start of a --capture run): the

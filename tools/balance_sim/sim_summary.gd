@@ -2,8 +2,9 @@ class_name SimSummary
 extends RefCounted
 ## The simulated runs of one strategy, added up for the report (plan section 8): win rate,
 ## per-shift pass rates and best-score percentiles, how often each card is in the best row and
-## needed there, the impulse-rack, reward and upgrade picks, the runs by main build (SimBuilds)
-## and the coins per run (CoinPayout).
+## needed there, the RECEIPT REWARDS machine's visits (#77: the chutes chosen, the items and
+## coupons taken, the bins, the registers taken), the runs by main build (SimBuilds) and the
+## coins per run (CoinPayout).
 
 ## Percentiles reported per shift.
 const PERCENTILES: Array[int] = [10, 25, 50, 75, 90]
@@ -39,13 +40,22 @@ var best_shares: Array[PackedInt32Array] = []
 var drawn: Dictionary[String, int] = {}
 var in_best: Dictionary[String, int] = {}
 var needed: Dictionary[String, int] = {}
-## Reward cards taken (by id), and skipped rewards.
+## Machine visits by chute (MachineVisit.CHUTE_NAMES), the items and coupons taken from them (by
+## id), and binned visits.
+var chutes: Dictionary[String, int] = {}
 var picks: Dictionary[String, int] = {}
 var skips: int = 0
-## Impulse-rack products taken (by id), and skipped racks.
-var impulse_picks: Dictionary[String, int] = {}
-var impulse_skips: int = 0
-## Upgrades taken, and how many of those runs were won.
+## Machine visits by kind (MachineVisit.KIND_NAMES: ticket, bonus, stamp_day), and the NEW
+## ITEMS and COUPONS visits (the ones that can be binned).
+var visit_kinds: Dictionary[String, int] = {}
+var binnable_visits: int = 0
+## Per chute name, runs by the Regular level the chute ended on (index = level).
+var levels_reached: Dictionary[String, PackedInt32Array] = {}
+## Runs by the registers picked from the machine (index = count).
+var registers_owned: PackedInt32Array = PackedInt32Array()
+## BIG and GOLDEN copies in the final decks, by card id (all runs together).
+var tier_copies: Dictionary[String, int] = {}
+## Registers taken (REGISTER and STAMP DAY picks), and how many of those runs were won.
 var upgrades_taken: Dictionary[String, int] = {}
 var upgrade_wins: Dictionary[String, int] = {}
 ## Runs and won runs by main build, and runs whose final deck fits each build.
@@ -78,10 +88,6 @@ func add(record: SimRunRecord) -> void:
 	if record.won:
 		wins += 1
 	redraws += record.redraws
-	if not record.impulse_pick.is_empty():
-		impulse_picks[record.impulse_pick] = impulse_picks.get(record.impulse_pick, 0) + 1
-	elif record.impulse_offered:
-		impulse_skips += 1
 	for entry: Dictionary in record.shifts:
 		var index: int = entry["shift"] - 1
 		reached[index] += 1
@@ -93,16 +99,8 @@ func add(record: SimRunRecord) -> void:
 			passed[index] += 1
 		if int(entry["quota"]) > quotas[index]:
 			raised[index] += 1
-		var card: String = entry["card_picked"]
-		if not card.is_empty():
-			picks[card] = picks.get(card, 0) + 1
-		if entry["reward_skipped"]:
-			skips += 1
-		var upgrade: String = entry["upgrade_taken"]
-		if not upgrade.is_empty():
-			upgrades_taken[upgrade] = upgrades_taken.get(upgrade, 0) + 1
-			if record.won:
-				upgrade_wins[upgrade] = upgrade_wins.get(upgrade, 0) + 1
+		for visit: Dictionary in entry.get("visits", []):
+			_add_visit(visit, record.won)
 	for id: String in record.drawn:
 		drawn[id] = drawn.get(id, 0) + record.drawn[id]
 	for id: String in record.in_best:
@@ -115,10 +113,93 @@ func add(record: SimRunRecord) -> void:
 	for build: String in record.fitted_builds:
 		build_fits[build] = build_fits.get(build, 0) + 1
 	coins.append(record.coins)
+	_add_machine(record)
 	if not record.won and record.shifts.size() == 2:
 		lost_on_shift_2 += 1
 		if record.overtime_coins > 0:
 			lost_on_shift_2_overtime += 1
+
+
+## The machine at a run's end: its Regular levels, registers and BIG / GOLDEN copies.
+func _add_machine(record: SimRunRecord) -> void:
+	for index: int in range(record.levels.size()):
+		var chute: String = MachineVisit.CHUTE_NAMES[index]
+		var counts: PackedInt32Array = levels_reached.get(chute, PackedInt32Array())
+		if counts.size() <= record.levels[index]:
+			counts.resize(record.levels[index] + 1)
+		counts[record.levels[index]] += 1
+		levels_reached[chute] = counts
+	if registers_owned.size() <= record.registers:
+		registers_owned.resize(record.registers + 1)
+	registers_owned[record.registers] += 1
+	for id: String in record.tier_copies:
+		tier_copies[id] = tier_copies.get(id, 0) + record.tier_copies[id]
+
+
+## One machine visit (MachineVisit.to_dictionary): its kind and chute, its pick or bin.
+func _add_visit(visit: Dictionary, won: bool) -> void:
+	var chute: String = visit["chute"]
+	chutes[chute] = chutes.get(chute, 0) + 1
+	var kind: String = visit.get("kind", "ticket")
+	visit_kinds[kind] = visit_kinds.get(kind, 0) + 1
+	if kind != "stamp_day" and (chute == "new_items" or chute == "coupons"):
+		binnable_visits += 1
+	if visit["binned"]:
+		skips += 1
+	var index: int = int(visit["picked"])
+	if index < 0:
+		return
+	var prize: Dictionary = visit["prizes"][index]
+	var id: String = prize["id"]
+	match String(prize["kind"]):
+		"product", "coupon":
+			picks[id] = picks.get(id, 0) + 1
+		"register":
+			upgrades_taken[id] = upgrades_taken.get(id, 0) + 1
+			if won:
+				upgrade_wins[id] = upgrade_wins.get(id, 0) + 1
+
+
+## The machine lines of the report (#77): visits by kind, the bin rate, Regular levels,
+## registers owned, and the final decks' BIG and GOLDEN copies per run.
+func _machine_lines() -> PackedStringArray:
+	var lines: PackedStringArray = PackedStringArray()
+	var per_run: float = maxf(runs, 1)
+	(
+		lines
+		. append(
+			(
+				"Machine visits per run: ticket %.2f, BONUS %.2f, STAMP DAY %.2f"
+				% [
+					visit_kinds.get("ticket", 0) / per_run,
+					visit_kinds.get("bonus", 0) / per_run,
+					visit_kinds.get("stamp_day", 0) / per_run,
+				]
+			)
+		)
+	)
+	lines.append("Binned: %s of NEW ITEMS / COUPONS visits" % percent_text(skips, binnable_visits))
+	var level_texts: PackedStringArray = PackedStringArray()
+	for chute: String in MachineVisit.CHUTE_NAMES:
+		var counts: PackedInt32Array = levels_reached.get(chute, PackedInt32Array())
+		var parts: PackedStringArray = PackedStringArray()
+		for level: int in range(counts.size()):
+			parts.append("%d: %s" % [level, percent_text(counts[level], runs)])
+		level_texts.append("%s %s" % [chute, " ".join(parts) if not parts.is_empty() else "-"])
+	lines.append("Regular levels at the end (runs): " + " · ".join(level_texts))
+	var owned_texts: PackedStringArray = PackedStringArray()
+	for count: int in range(registers_owned.size()):
+		owned_texts.append("%d: %s" % [count, percent_text(registers_owned[count], runs)])
+	lines.append(
+		"Registers owned (runs): " + (", ".join(owned_texts) if not owned_texts.is_empty() else "-")
+	)
+	var tier_texts: PackedStringArray = PackedStringArray()
+	for id: String in _sorted_by_count(tier_copies):
+		tier_texts.append("%s %.2f" % [id, tier_copies[id] / per_run])
+	var tiers: String = ", ".join(tier_texts) if not tier_texts.is_empty() else "none"
+	lines.append("BIG / GOLDEN copies per run: " + tiers)
+	lines.append("GOLDEN Milk per run: %.2f" % (tier_copies.get("milk_golden", 0) / per_run))
+	return lines
 
 
 ## Whether `strategy_name` is held to the 40% bar: greedy, with the best rows or (since #42, as
@@ -260,16 +341,20 @@ func format() -> String:
 		)
 	)
 	lines.append("")
-	var impulse_texts: PackedStringArray = PackedStringArray()
-	for id: String in _sorted_by_count(impulse_picks):
-		impulse_texts.append("%s %d" % [id, impulse_picks[id]])
-	impulse_texts.append("skipped %d" % impulse_skips)
-	lines.append("Impulse rack picks: " + ", ".join(impulse_texts))
+	var chute_texts: PackedStringArray = PackedStringArray()
+	var chosen: int = 0
+	for chute: String in chutes:
+		chosen += chutes[chute]
+	for chute: String in _sorted_by_count(chutes):
+		var share: String = percent_text(chutes[chute], chosen)
+		chute_texts.append("%s %d (%s)" % [chute, chutes[chute], share])
+	lines.append("Machine chutes: " + (", ".join(chute_texts) if chutes.size() > 0 else "none"))
+	lines.append_array(_machine_lines())
 	var pick_texts: PackedStringArray = PackedStringArray()
 	for id: String in _sorted_by_count(picks):
 		pick_texts.append("%s %d" % [id, picks[id]])
-	pick_texts.append("skipped %d" % skips)
-	lines.append("Reward picks: " + ", ".join(pick_texts))
+	pick_texts.append("binned %d" % skips)
+	lines.append("Machine items and coupons: " + ", ".join(pick_texts))
 	var upgrade_texts: PackedStringArray = PackedStringArray()
 	for id: String in _sorted_by_count(upgrades_taken):
 		upgrade_texts.append(
@@ -444,10 +529,15 @@ func to_dictionary() -> Dictionary:
 		"shifts": shifts,
 		"cards": cards,
 		"dominated": dominated(),
-		"impulse_picks": impulse_picks,
-		"impulse_skips": impulse_skips,
-		"reward_picks": picks,
-		"reward_skips": skips,
+		"machine_chutes": chutes,
+		"machine_picks": picks,
+		"machine_bins": skips,
+		"machine_binnable_visits": binnable_visits,
+		"machine_visit_kinds": visit_kinds,
+		"machine_levels_reached": _levels_dictionary(),
+		"registers_owned": Array(registers_owned),
+		"tier_copies": tier_copies,
+		"golden_milk_per_run": tier_copies.get("milk_golden", 0) / maxf(runs, 1),
 		"upgrades_taken": upgrades_taken,
 		"upgrade_wins": upgrade_wins,
 		"main_builds": build_runs,
@@ -465,6 +555,13 @@ func to_dictionary() -> Dictionary:
 			"lost_on_shift_2_overtime_coin": lost_on_shift_2_overtime,
 		},
 	}
+
+
+func _levels_dictionary() -> Dictionary:
+	var found: Dictionary = {}
+	for chute: String in levels_reached:
+		found[chute] = Array(levels_reached[chute])
+	return found
 
 
 func _card_ids() -> Array[String]:

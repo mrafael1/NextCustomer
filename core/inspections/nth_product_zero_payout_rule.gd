@@ -9,10 +9,6 @@ extends InspectionRule
 
 
 func final_payout(state: ScoreState, slot: int, payout: int) -> int:
-	if product_number <= 0 or not state.is_product(slot):
+	if product_number <= 0 or state.product_numbers[slot] != product_number:
 		return payout
-	var products: int = 0
-	for earlier: int in range(slot + 1):
-		if state.is_product(earlier):
-			products += 1
-	return 0 if products == product_number else payout
+	return 0

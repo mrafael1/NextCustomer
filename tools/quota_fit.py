@@ -73,12 +73,13 @@ TARGET_RUNS_MIDDLE = 32.5
 @dataclass
 class Run:
     """One recorded run: per played shift its total, the inspection it was played under, the
-    upgrade taken after it and the quota percent that upgrade adds (Big basket)."""
+    registers taken after it (the machine's REGISTER and STAMP DAY picks, #77; older records'
+    `upgrade_taken`) and the quota percent they add (Big basket)."""
 
     seed: int
     totals: list[int]
     inspections: list[str]
-    upgrades_taken: list[str]
+    upgrades_taken: list[list[str]]
     percents_taken: list[int]
     # The card ids of each shift's hand at checkout (empty lists in older records).
     hands: list[list[str]] = field(default_factory=list)
@@ -125,6 +126,21 @@ def raised_quota(base: int, percent: int) -> int:
     return math.ceil(base * (100 + percent) / 100.0) if percent > 0 else base
 
 
+def shift_registers(shift: dict[str, Any]) -> list[str]:
+    """The registers taken after a recorded shift: the picked REGISTER prizes of its machine
+    `visits` (#77), else an older record's `upgrade_taken`."""
+    if "visits" in shift:
+        taken = []
+        for visit in shift["visits"]:
+            index = int(visit.get("picked", -1))
+            prizes = visit.get("prizes", [])
+            if 0 <= index < len(prizes) and prizes[index].get("kind") == "register":
+                taken.append(str(prizes[index]["id"]))
+        return taken
+    upgrade = str(shift.get("upgrade_taken", ""))
+    return [upgrade] if upgrade else []
+
+
 def load_records(path: Path) -> Records:
     data = json.loads(path.read_text(encoding="utf-8"))
     percents: dict[str, int] = {k: int(v) for k, v in data["upgrade_quota_percent"].items()}
@@ -133,13 +149,13 @@ def load_records(path: Path) -> Records:
         runs = []
         for entry in entries:
             shifts = entry["shifts"]
-            upgrades = [str(s.get("upgrade_taken", "")) for s in shifts]
+            upgrades = [shift_registers(s) for s in shifts]
             runs.append(Run(
                 seed=int(entry["run_seed"]),
                 totals=[int(s["total"]) for s in shifts],
                 inspections=[str(s.get("inspection", "")) for s in shifts],
                 upgrades_taken=upgrades,
-                percents_taken=[percents.get(u, 0) for u in upgrades],
+                percents_taken=[sum(percents.get(u, 0) for u in taken) for taken in upgrades],
                 hands=[[str(card) for card in s.get("hand", [])] for s in shifts],
             ))
         scenarios[key] = runs
@@ -386,9 +402,10 @@ def upgrade_stats(
     for run, outcome in zip(runs, outcomes):
         played = len(outcome.quotas)
         owned_from: dict[str, int] = {}
-        for index, upgrade in enumerate(run.upgrades_taken[: max(played - 1, 0)]):
-            if upgrade and upgrade not in owned_from:
-                owned_from[upgrade] = index + 1
+        for index, taken in enumerate(run.upgrades_taken[: max(played - 1, 0)]):
+            for upgrade in taken:
+                if upgrade not in owned_from:
+                    owned_from[upgrade] = index + 1
         for upgrade, first in owned_from.items():
             entry = counts[upgrade]
             entry["runs"] += 1

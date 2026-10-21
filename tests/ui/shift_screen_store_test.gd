@@ -8,6 +8,7 @@ extends GdUnitTestSuite
 ## the hand's basket items under a shade while the shift is counted. The real saves and logs are
 ## never touched.
 
+const Rush := preload("res://tests/ui/count_up_rush.gd")
 const SCREEN := "res://ui/shift_screen.tscn"
 const WINDOWS: Array[Vector2] = [Vector2(1280, 720), Vector2(1920, 1080)]
 
@@ -373,7 +374,7 @@ func test_the_hand_is_basket_items_under_a_shade_while_counting() -> void:
 	var counting: Array[bool] = []
 	var record: Callable = func() -> void: counting.append(shade.visible)
 	get_tree().process_frame.connect(record, CONNECT_ONE_SHOT)
-	await screen._on_checkout_pressed()
+	await Rush.checkout(screen)
 	assert_array(counting).is_equal([true])
 	assert_bool(shade.visible).is_false()
 	for part: Control in [stage.baskets, stage.hand, stage.basket_fronts]:
@@ -390,11 +391,10 @@ func _band(window: Control, part: String, bounds: Rect2) -> Rect2:
 	return shown
 
 
-## The screen past the impulse rack, laid out.
+## The screen on shift 1, laid out.
 func _screen() -> ShiftScreen:
 	var runner: GdUnitSceneRunner = scene_runner(SCREEN)
 	var screen: ShiftScreen = runner.scene()
-	screen._on_reward_skipped()
 	await _frames(3)
 	return screen
 

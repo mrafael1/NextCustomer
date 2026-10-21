@@ -1,0 +1,25 @@
+[gd_resource type="Resource" script_class="CardDefinition" format=3]
+
+[ext_resource type="Script" path="res://core/rule.gd" id="1_6wkug"]
+[ext_resource type="Script" path="res://core/rules/grant_next_tag_bonus_rule.gd" id="2_arqf4"]
+[ext_resource type="Script" path="res://core/card_definition.gd" id="3_4oddt"]
+[ext_resource type="Resource" path="res://data/cards/coffee.tres" id="4_coffee"]
+
+[sub_resource type="Resource" id="Resource_vnpwy"]
+script = ExtResource("2_arqf4")
+tag = "Breakfast"
+bonus = 3
+receipt_text = "Coffee bonus"
+
+[resource]
+script = ExtResource("3_4oddt")
+id = &"coffee_big"
+display_name = "Big Coffee"
+kind = 1
+tags = PackedStringArray("Breakfast")
+base = 4
+rules = Array[ExtResource("1_6wkug")]([SubResource("Resource_vnpwy")])
+rule_text = "+3 to the next Breakfast product"
+art_ref = "res://art/items_v2/coffee_big.png"
+variant_of = ExtResource("4_coffee")
+tier = 1

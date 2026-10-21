@@ -194,8 +194,8 @@ func test_checkout_plays_its_key() -> void:
 
 
 ## The deck view fans out as it pops in, its tabs switch with ui_switch and Close plays ui_close;
-## the reward panel's Skip backs out.
-func test_the_deck_view_and_reward_panel_sounds() -> void:
+## the RECEIPT REWARDS machine (#77) refuses a padlocked chute with denied and prints its draw.
+func test_the_deck_view_and_machine_sounds() -> void:
 	var screen: ShiftScreen = await _screen()
 	var sfx: RecordingSfx = _recording_sfx(screen)
 	screen._deck_button.pressed.emit()
@@ -208,11 +208,20 @@ func test_the_deck_view_and_reward_panel_sounds() -> void:
 	assert_array(sfx.sound_names()).is_equal(
 		["fan", "ui_open", "ui_switch", "ui_switch", "ui_close"]
 	)
+	for id: String in ["milk", "multipack", "milk", "milk", "milk", "milk", "milk"]:
+		screen._on_hand_card_clicked(_view_for(screen, _add(screen, id)))
+		screen._on_slot_input(_left_click(), screen.run.row.size())
+	await screen._on_checkout_pressed()
+	assert_bool(screen._machine.is_open()).is_true()
+	var view: RewardMachineView = screen._machine.view
+	var start: int = Time.get_ticks_msec()
+	while not view.is_armed() and Time.get_ticks_msec() - start < 3000:
+		await get_tree().process_frame
 	sfx.clear()
-	screen._reward_panel.show_offer(screen.run.offer, "Test", 1, 30)
-	screen._reward_panel._set_armed(true)
-	screen._reward_panel._skip_button.pressed.emit()
-	assert_array(sfx.sound_names()).is_equal(["ui_open", "ui_back"])
+	# UPGRADES is padlocked after shift 1.
+	view.open_odds(RewardMachine.Chute.UPGRADES)
+	assert_bool(screen._machine._choose(RewardMachine.Chute.NEW_ITEMS)).is_true()
+	assert_array(sfx.sound_names()).is_equal(["denied", "print"])
 
 
 ## The final receipt clinks one coin sound per coin, MAX_COIN_SOUNDS at most, and none for no
@@ -251,7 +260,6 @@ func test_the_title_has_its_own_sfx() -> void:
 func _screen() -> ShiftScreen:
 	var runner: GdUnitSceneRunner = scene_runner(SCREEN)
 	var screen: ShiftScreen = runner.scene()
-	screen._on_reward_skipped()  # Past the impulse rack.
 	await _frames(2)
 	return screen
 

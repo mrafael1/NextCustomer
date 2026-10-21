@@ -1,7 +1,7 @@
 extends GdUnitTestSuite
 ## Inspections in a run (plan section 3.9): the shifts in inspection_shifts are played under an
 ## inspection drawn from inspection_pool with the run's RNG at the previous passed checkout
-## (after the reward and upgrade offers), announced through the REWARD and UPGRADE phases, and
+## (before the RECEIPT REWARDS machine's visits draw, #77), announced through the visits, and
 ## applied to the preview and checkout of that shift only.
 
 const STARTER := "res://data/decks/starter.tres"
@@ -26,17 +26,16 @@ func test_the_inspection_is_announced_at_the_previous_checkout() -> void:
 	_pass(run)
 	# Shift 2 is not inspected: nothing is announced after shift 1.
 	assert_object(run.next_inspection).is_null()
-	run.skip_reward()
-	run.next_shift()
+	MachineSteps.next_shift(run)
 	assert_array(run.inspections).is_empty()
 	_pass(run)
-	# Shift 3 is: announced at shift 2's checkout, kept through the reward and the kiosk.
+	# Shift 3 is: announced at shift 2's checkout, kept through the machine's visits.
 	assert_object(run.next_inspection).is_same(load(SPOT_CHECK))
 	assert_array(run.inspections).is_empty()
-	run.skip_reward()
-	assert_int(run.phase).is_equal(RunState.Phase.UPGRADE)
+	assert_int(run.phase).is_equal(RunState.Phase.MACHINE_CHOOSE)
+	MachineSteps.choose(run, RewardMachine.Chute.REGISTER)
 	assert_object(run.next_inspection).is_same(load(SPOT_CHECK))
-	run.pick_upgrade(run.upgrade_offer[0])
+	MachineSteps.pass_visits(run)
 	assert_object(run.next_inspection).is_same(load(SPOT_CHECK))
 	run.next_shift()
 	assert_array(run.inspections).is_equal([load(SPOT_CHECK)])
@@ -44,8 +43,7 @@ func test_the_inspection_is_announced_at_the_previous_checkout() -> void:
 	# Shift 4 is not inspected.
 	_pass(run)
 	assert_object(run.next_inspection).is_null()
-	run.skip_reward()
-	run.next_shift()
+	MachineSteps.next_shift(run)
 	assert_array(run.inspections).is_empty()
 
 
@@ -90,22 +88,28 @@ func test_the_last_shift_announces_nothing() -> void:
 	assert_object(run.next_inspection).is_null()
 
 
-## Plan section 3.9: the draw comes after the reward and upgrade offers. With two inspections
-## in the pool every draw uses the RNG, so drawing earlier would change shift 2's offers.
-func test_the_inspection_is_drawn_after_the_offers() -> void:
+## #77: the draw is the checkout's, before the machine's visits draw their prizes: the run's
+## RNG makes the inspection draw first, and the machine waiting for its chute has drawn nothing.
+## With two inspections in the pool every draw uses the RNG.
+func test_the_inspection_is_drawn_at_checkout_before_the_machine() -> void:
 	var plain: RunState = _two_inspection_run(48, PackedInt32Array())
 	var inspected: RunState = _two_inspection_run(48, PackedInt32Array([3]))
+	var states: Array[int] = []
 	for run: RunState in [plain, inspected]:
 		_pass(run)
-		run.skip_reward()
-		run.next_shift()
+		MachineSteps.next_shift(run)
+		states.append(run.rng_state)
 		_pass(run)
-	assert_array(_definition_ids(inspected.offer)).is_equal(_definition_ids(plain.offer))
-	assert_array(_definition_ids(inspected.upgrade_offer)).is_equal(
-		_definition_ids(plain.upgrade_offer)
-	)
+	assert_int(states[1]).is_equal(states[0])
 	assert_object(plain.next_inspection).is_null()
-	assert_bool(inspected.balance.inspection_pool.has(inspected.next_inspection)).is_true()
+	assert_int(plain.rng_state).is_equal(states[0])
+	var rng: RandomNumberGenerator = RandomNumberGenerator.new()
+	rng.state = states[1]
+	assert_object(InspectionSchedule.draw(rng, inspected.balance)).is_same(
+		inspected.next_inspection
+	)
+	assert_int(inspected.rng_state).is_equal(rng.state)
+	assert_int(inspected.phase).is_equal(RunState.Phase.MACHINE_CHOOSE)
 
 
 func test_the_same_seed_gives_the_same_run() -> void:
@@ -127,9 +131,7 @@ func test_an_empty_pool_draws_nothing_and_uses_no_rng() -> void:
 	run.debug_skip_to_shift(1)
 	_pass(run)
 	assert_object(run.next_inspection).is_null()
-	run.skip_reward()
-	run.pick_upgrade(run.upgrade_offer[0])
-	run.next_shift()
+	MachineSteps.next_shift(run)
 	assert_array(run.inspections).is_empty()
 
 
@@ -150,10 +152,7 @@ static func _hands_through_shift_three(seed_value: int) -> Array:
 	for _shift: int in range(3):
 		hands.append(_ids(run.hand()))
 		_pass(run)
-		run.skip_reward()
-		if run.phase == RunState.Phase.UPGRADE:
-			run.pick_upgrade(run.upgrade_offer[0])
-		run.next_shift()
+		MachineSteps.next_shift(run)
 	hands.append(RunEvents.inspection_ids(run.inspections))
 	return hands
 
@@ -172,17 +171,12 @@ static func _two_inspection_run(seed_value: int, inspection_shifts: PackedInt32A
 	return run
 
 
-static func _definition_ids(definitions: Array) -> Array:
-	return definitions.map(
-		func(definition: Resource) -> String: return String(definition.get("id"))
-	)
-
-
 ## Quotas all 5, and a pool holding only Spot check: these tests follow Spot check through the
 ## run. The other inspections are tested in inspections_test.
 static func _low_quotas() -> BalanceDefinition:
 	var balance: BalanceDefinition = (load(BALANCE) as BalanceDefinition).duplicate()
 	balance.quotas = PackedInt32Array([5, 5, 5, 5, 5, 5, 5, 5])
+	MachineSteps.without_stamp_day(balance)
 	var pool: Array[InspectionDefinition] = [load("res://data/inspections/spot_check.tres")]
 	balance.inspection_pool = pool
 	return balance

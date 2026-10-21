@@ -47,12 +47,20 @@ func test_every_scene_and_resource_loads() -> void:
 			assert_object(resource).override_failure_message(path).is_instanceof(
 				CatalogueDefinition
 			)
+		elif path.contains("/item_upgrades/"):
+			assert_object(resource).override_failure_message(path).is_instanceof(
+				ItemUpgradeDefinition
+			)
 		elif path.contains("/aisles/"):
 			assert_object(resource).override_failure_message(path).is_instanceof(AisleDefinition)
 		elif path.ends_with("/balance/count_up.tres"):
 			assert_object(resource).override_failure_message(path).is_instanceof(CountUpTuning)
 		elif path.ends_with("/balance/scan.tres"):
 			assert_object(resource).override_failure_message(path).is_instanceof(ScanTuning)
+		elif path.ends_with("/balance/machine_tempo.tres"):
+			assert_object(resource).override_failure_message(path).is_instanceof(MachineTuning)
+		elif path.ends_with("/balance/machine.tres"):
+			assert_object(resource).override_failure_message(path).is_instanceof(MachineDefinition)
 		elif path.ends_with("/balance/planning.tres"):
 			assert_object(resource).override_failure_message(path).is_instanceof(PlanningTuning)
 		elif path.contains("/balance/"):
@@ -75,7 +83,15 @@ func test_every_data_folder_is_loaded() -> void:
 	var files: Array[String] = []
 	_collect("res://data", files)
 	for folder: String in [
-		"cards", "decks", "balance", "upgrades", "inspections", "aisles", "catalogue", "builds"
+		"cards",
+		"decks",
+		"balance",
+		"upgrades",
+		"inspections",
+		"aisles",
+		"catalogue",
+		"builds",
+		"item_upgrades",
 	]:
 		var prefix: String = "res://data/%s/" % folder
 		var found: bool = files.any(func(path: String) -> bool: return path.begins_with(prefix))

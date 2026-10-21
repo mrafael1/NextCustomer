@@ -29,8 +29,8 @@ static func new_run(music: MusicService) -> void:
 		music.unduck(UNDUCK_S)
 
 
-## The reward print-out after a won shift (#61): the music comes back over UNDUCK_S at the
-## dessert's printer feed, as the print-out appears.
+## The RECEIPT REWARDS machine after a passed shift (#61, #77): the music comes back over
+## UNDUCK_S at the dessert's printer feed, as the machine opens.
 static func rewards_shown(music: MusicService) -> void:
 	music.unduck(UNDUCK_S)
 

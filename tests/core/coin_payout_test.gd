@@ -11,7 +11,7 @@ const BREAD := "res://data/cards/bread.tres"
 func test_a_run_that_has_not_ended_pays_nothing() -> void:
 	var run: RunState = _run(_balance([0, 1, 2], 10, 1), 1)
 	_check_out(run, [BREAD, BREAD])
-	assert_int(run.phase).is_equal(RunState.Phase.REWARD)
+	assert_int(run.phase).is_equal(RunState.Phase.MACHINE_CHOOSE)
 	var payout: CoinPayout = CoinPayout.for_run(run)
 	assert_int(payout.total()).is_equal(0)
 	assert_int(payout.shifts_passed).is_equal(0)
@@ -104,8 +104,8 @@ static func _balance(table: Array, euros: int, cap: int) -> BalanceDefinition:
 	balance.coins_by_shifts_passed = PackedInt32Array(table)
 	balance.overtime_coin_euros = euros
 	balance.overtime_coin_max = cap
-	# No upgrade step, so a passed shift goes straight on after the reward.
-	balance.upgrade_shifts = PackedInt32Array()
+	# No STAMP DAY, so a passed shift goes straight on after the machine's ticket (binned).
+	MachineSteps.without_stamp_day(balance)
 	balance.inspection_shifts = PackedInt32Array()
 	return balance
 
@@ -125,8 +125,7 @@ static func _check_out(run: RunState, paths: Array) -> void:
 
 static func _pass_and_continue(run: RunState, paths: Array) -> void:
 	_check_out(run, paths)
-	run.skip_reward()
-	run.next_shift()
+	MachineSteps.next_shift(run)
 
 
 ## All 8 shifts passed with two Breads each (overtime 8 x 5 = 40).

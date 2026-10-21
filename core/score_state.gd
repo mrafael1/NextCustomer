@@ -15,6 +15,16 @@ var subtotal: int = 0
 ## Product slots the shift has more (+) or fewer (-) than the balance data's, from the run's
 ## upgrades and the shift's inspections (Big basket +1, Short belt -1). Set by Scoring.score().
 var product_slot_change: int = 0
+## Read-only, set when the state is made (a row's kinds never change while it is scored): each
+## slot's number among the row's products (coupons skipped; 1 for the first product, 0 for a
+## coupon), the row's last product and its first coupon (-1 for none).
+var product_numbers: PackedInt32Array = PackedInt32Array()
+var last_product: int = -1
+var first_coupon: int = -1
+## False for a total-only score (Scoring.total): no steps are kept (add_step hands back a
+## scratch step that nothing reads), and `row` and each slot's tags are the caller's and the
+## definitions' own arrays until add_tag copies them. Totals never depend on the steps.
+var explain: bool = true
 ## Which slots have been scanned (their payout is final).
 var _scanned: PackedByteArray = PackedByteArray()
 ## For each slot, the products counted as just before / just after it (plan section 3.4). A
@@ -22,22 +32,47 @@ var _scanned: PackedByteArray = PackedByteArray()
 ## link works both ways, so one side can hold several products.
 var _before: Array[PackedInt32Array] = []
 var _after: Array[PackedInt32Array] = []
+## The step add_step hands back when `explain` is false.
+var _scratch: ScoreStep
+## 1 for each slot holding a product (coupon), read by is_product (is_coupon).
+var _products: PackedByteArray = PackedByteArray()
+var _coupons: PackedByteArray = PackedByteArray()
+## Each slot's card definition (definition() reads it).
+var _definitions: Array[CardDefinition] = []
 
 
-func _init(row_cards: Array[CardInstance]) -> void:
-	row = row_cards.duplicate()
+func _init(row_cards: Array[CardInstance], explained: bool = true) -> void:
+	explain = explained
+	row = row_cards.duplicate() if explained else row_cards
 	var count: int = row.size()
 	payouts.resize(count)
 	_scanned.resize(count)
+	_products.resize(count)
+	_coupons.resize(count)
+	_definitions.resize(count)
+	product_numbers.resize(count)
+	tags.resize(count)
+	_before.resize(count)
+	_after.resize(count)
+	var products: int = 0
 	for slot: int in range(count):
-		tags.append(definition(slot).tags.duplicate())
-		_before.append(PackedInt32Array())
-		_after.append(PackedInt32Array())
-	# Neighbouring products are adjacent. A coupon between them breaks adjacency unless a
-	# connector's rule bridges it in the context pass.
-	for slot: int in range(1, count):
-		if is_product(slot - 1) and is_product(slot):
-			_link(slot - 1, slot)
+		var card: CardDefinition = row[slot].definition
+		_definitions[slot] = card
+		if card.kind == CardDefinition.Kind.PRODUCT:
+			_products[slot] = 1
+			products += 1
+			product_numbers[slot] = products
+			last_product = slot
+			# Neighbouring products are adjacent. A coupon between them breaks adjacency
+			# unless a connector's rule bridges it in the context pass.
+			if products > 1 and _products[slot - 1] == 1:
+				_after[slot - 1] = PackedInt32Array([slot])
+				_before[slot] = PackedInt32Array([slot - 1])
+		elif card.kind == CardDefinition.Kind.COUPON:
+			_coupons[slot] = 1
+			if first_coupon < 0:
+				first_coupon = slot
+		tags[slot] = card.tags.duplicate() if explained else card.tags
 
 
 func size() -> int:
@@ -45,7 +80,7 @@ func size() -> int:
 
 
 func definition(slot: int) -> CardDefinition:
-	return row[slot].definition
+	return _definitions[slot]
 
 
 func is_in_row(slot: int) -> bool:
@@ -53,11 +88,11 @@ func is_in_row(slot: int) -> bool:
 
 
 func is_product(slot: int) -> bool:
-	return is_in_row(slot) and definition(slot).is_product()
+	return slot >= 0 and slot < _products.size() and _products[slot] == 1
 
 
 func is_coupon(slot: int) -> bool:
-	return is_in_row(slot) and definition(slot).is_coupon()
+	return slot >= 0 and slot < _coupons.size() and _coupons[slot] == 1
 
 
 ## The products counted as just before this slot: its real neighbour and any linked to it.
@@ -72,10 +107,7 @@ func products_beside(slot: int) -> PackedInt32Array:
 
 ## The row's first product (coupons skipped), or -1 when the row holds none.
 func first_product() -> int:
-	for slot: int in range(row.size()):
-		if is_product(slot):
-			return slot
-	return -1
+	return _products.find(1)
 
 
 func is_connector(slot: int) -> bool:
@@ -88,12 +120,12 @@ func is_last_slot(slot: int) -> bool:
 
 
 func has_tag(slot: int, tag: String) -> bool:
-	return is_in_row(slot) and tags[slot].has(tag)
+	return slot >= 0 and slot < tags.size() and tags[slot].has(tag)
 
 
 ## Context pass: give a slot a tag, with a receipt step.
 func add_tag(slot: int, tag: String, source_slot: int, text: String) -> void:
-	var slot_tags: PackedStringArray = tags[slot]
+	var slot_tags: PackedStringArray = tags[slot].duplicate()
 	slot_tags.append(tag)
 	tags[slot] = slot_tags
 	var step: ScoreStep = add_step(ScoreStep.StepType.TAG_ADDED, slot, source_slot, 0, 0, text)
@@ -110,6 +142,8 @@ func link_products(left: int, right: int, source_slot: int, text: String) -> voi
 ## Records that a card's effect did nothing (a fizzle), with a 0-value receipt step.
 ## `source_slot` is the card that caused the waste when it isn't the card itself (a reset).
 func add_waste(slot: int, text: String, reason: String, source_slot: int = -1) -> void:
+	if not explain:
+		return
 	var running: int = payouts[slot] if _scanned[slot] else 0
 	var source: int = slot if source_slot < 0 else source_slot
 	var step: ScoreStep = add_step(ScoreStep.StepType.WASTED, slot, source, 0, running, text)
@@ -121,16 +155,22 @@ func add_waste(slot: int, text: String, reason: String, source_slot: int = -1) -
 ## new effect's EFFECT_ARMED step (an Egg reset wipes the earlier Egg's unused charges).
 func add_effect(effect: ScoreEffect) -> void:
 	var source: int = effect.source_slot
-	var running: int = payouts[source] if _scanned[source] else 0
-	add_step(
-		ScoreStep.StepType.EFFECT_ARMED, source, source, effect.armed_value(), running, effect.text
-	)
+	if explain:
+		var running: int = payouts[source] if _scanned[source] else 0
+		add_step(
+			ScoreStep.StepType.EFFECT_ARMED,
+			source,
+			source,
+			effect.armed_value(),
+			running,
+			effect.text
+		)
 	if effect.group != &"":
 		var kept: Array[ScoreEffect] = []
 		for existing: ScoreEffect in effects:
 			if existing.group != effect.group:
 				kept.append(existing)
-			else:
+			elif explain:
 				var reset_reason: String = existing.reset_reason()
 				if not reset_reason.is_empty():
 					add_waste(existing.source_slot, existing.text, reset_reason, effect.source_slot)
@@ -140,6 +180,8 @@ func add_effect(effect: ScoreEffect) -> void:
 
 ## End of the value pass: effects that still have something left are wasted.
 func report_unused_effects() -> void:
+	if not explain:
+		return
 	for effect: ScoreEffect in effects:
 		_report_waste(effect)
 
@@ -151,6 +193,13 @@ func _report_waste(effect: ScoreEffect) -> void:
 
 
 func drop_spent_effects() -> void:
+	var spent: bool = false
+	for effect: ScoreEffect in effects:
+		if effect.is_spent():
+			spent = true
+			break
+	if not spent:
+		return
 	var kept: Array[ScoreEffect] = []
 	for effect: ScoreEffect in effects:
 		if not effect.is_spent():
@@ -166,6 +215,10 @@ func add_step(
 	value_after: int,
 	text: String
 ) -> ScoreStep:
+	if not explain:
+		if _scratch == null:
+			_scratch = ScoreStep.new()
+		return _scratch
 	var step: ScoreStep = ScoreStep.new()
 	step.step_type = step_type
 	step.slot = slot
@@ -182,7 +235,10 @@ func record_payout(slot: int, payout: int) -> void:
 	payouts[slot] = payout
 	_scanned[slot] = 1
 	subtotal += payout
-	add_step(ScoreStep.StepType.PAYOUT, slot, slot, payout, payout, definition(slot).display_name)
+	if explain:
+		add_step(
+			ScoreStep.StepType.PAYOUT, slot, slot, payout, payout, definition(slot).display_name
+		)
 
 
 func to_result() -> ScoreResult:

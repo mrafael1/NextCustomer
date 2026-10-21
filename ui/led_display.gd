@@ -4,8 +4,8 @@ extends Control
 ## under a caption that says which one shows: PROJECTED (the preview's total; the shift screen no
 ## longer shows it since the user's play test of 2026-10-17: planning is blank, under the
 ## monitor's store channel, MonitorChannel), SUBTOTAL from the checkout (the count-up's running
-## subtotal) and TOTAL once the verdict is shown (also on a resumed checkout); blank in planning
-## and the impulse rack. On the glass, with the digits, the quota line ("SPEND €N+", #86: players
+## subtotal) and TOTAL once the verdict is shown (also on a resumed checkout); blank in
+## planning. On the glass, with the digits, the quota line ("SPEND €N+", #86: players
 ## read the quota as an amount to spend) and a 10-segment bar of the shown amount, so the quota
 ## never shows by colour alone (the fb-p2 finding that players thought a lower total wins); the
 ## projected total is green once it reaches the quota. Display only: the amounts are the caller's
@@ -13,7 +13,7 @@ extends Control
 ##
 ## It sits on the hung monitor (#80, MonitorView), which places it, in one of two layouts that
 ## follow its mode. The compact one (Layout.COMPACT: CAPTION_RECT, DIGITS_RECT and QUOTA_RECT) is
-## planning's and the impulse rack's: a brass-bezelled panel of dark glass that clips its
+## planning's: a brass-bezelled panel of dark glass that clips its
 ## contents, with the caption, mustard digits and the quota line. The count-up's (Layout.COUNT,
 ## for SUBTOTAL and TOTAL; the COUNT_ constants) is the number column of #86 v6's scan count-up
 ## (mock-up count_up_86_v6_scan.html), straight on the monitor's paper between the scanner bay and
@@ -207,7 +207,7 @@ func reset_colour() -> void:
 	_set_colour(false)
 
 
-## Blank: no caption, digits, quota line or lit segments (the impulse rack).
+## Blank: no caption, digits, quota line or lit segments (planning).
 func clear() -> void:
 	_caption.text = ""
 	_digits.text = ""

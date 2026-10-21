@@ -346,7 +346,6 @@ func test_recording_sfx_records_sounds_and_notes() -> void:
 func test_notes_rise_across_the_row() -> void:
 	var runner: GdUnitSceneRunner = scene_runner(SCREEN)
 	var screen: ShiftScreen = runner.scene()
-	screen._on_reward_skipped()  # Past the impulse rack.
 	await _frames(2)
 	var sfx: RecordingSfx = RecordingSfx.new()
 	screen.add_child(sfx)

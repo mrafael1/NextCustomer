@@ -474,14 +474,14 @@ func _place_mark() -> void:
 
 
 ## The paid chip's horizontal limits for the `current` face: centred on the sprite, inside the
-## cell, and a current chip whose lifted rows reach the mark's top kept MARK_GAP left of the
-## mark's column.
+## cell, and a current chip whose rows at rest reach the mark's top kept MARK_GAP left of the
+## mark's column (at rest the chip's foot is lowest against the mark; lifted, both rise).
 func _place_badge(current: bool) -> void:
 	_plaque.centre_x = _stand.position.x + SPRITE_SIZE.x / 2.0
 	_plaque.left_limit = 0.0
 	_plaque.right_limit = size.x
 	if current:
-		var top: float = maxf(_art_top() - PAID_CURRENT_ABOVE, PAID_CURRENT_MIN_Y) - LIFT
+		var top: float = maxf(_art_top() - PAID_CURRENT_ABOVE, PAID_CURRENT_MIN_Y)
 		var foot: float = top + PayoutPlaque.CURRENT_HEIGHT + PayoutPlaque.CURRENT_SHADOW
 		var corner: Vector2 = _mark_rest()
 		if foot + MARK_GAP > corner.y:

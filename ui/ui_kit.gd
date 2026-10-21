@@ -175,7 +175,7 @@ static func body_label(text: String, font_size: int, color: Color = Palette.PAPE
 
 
 ## Receipt text in the mono font. Kept for the kit's font roles (plan 6.1 item 5): ReceiptView
-## still builds its own lines, and #56's print-outs and results are its first callers.
+## still builds its own lines, and #56's results are its first callers.
 static func receipt_label(text: String, font_size: int, color: Color = Palette.INK) -> Label:
 	var result: Label = _text_label(text, ArtStyle.MONO_FONT, font_size)
 	result.add_theme_color_override("font_color", color)

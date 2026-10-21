@@ -73,7 +73,6 @@ dessert_miss_end_ms = 500
 dessert_shake_pass_px = 10.0
 dessert_shake_miss_px = 4.0
 dessert_shake_step = 0.25
-printout_lift_ms = 150
 final_line_ms = 80
 ride_ms = 200
 bag_ms = 300
