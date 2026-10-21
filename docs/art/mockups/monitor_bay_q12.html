@@ -61,7 +61,7 @@ h1 small { font-family: Atkinson; font-size: 13px; color: var(--steel-light); ma
 .cellwrap { position: relative; }
 .cell { position: relative; overflow: hidden; border: 2px solid #0f2120; background: var(--wall); }
 .cell .st { position: absolute; transform-origin: 0 0; }
-.readout { font: 600 13px/18px Atkinson; color: var(--steel-light); margin-top: 3px; }
+.readout { width: 0; min-width: 100%; font: 600 13px/18px Atkinson; color: var(--steel-light); margin-top: 3px; }
 .readout b { color: var(--mustard-light); }
 .readout .over { color: #f0a59e; font-weight: 700; }
 .notes { font-size: 13px; line-height: 18px; color: var(--steel-light); margin-top: 10px; max-width: 1080px; }
@@ -73,7 +73,7 @@ h1 small { font-family: Atkinson; font-size: 13px; color: var(--steel-light); ma
 .wallbg { left: 0; top: 0; width: 1280px; height: 300px; background: linear-gradient(#e9dcc1, var(--wall) 60%, #d8c7a5); }
 .topbar { left: 0; top: 0; width: 1280px; height: 56px; background: var(--teal-dark); border-bottom: 2px solid var(--ink); }
 .rod { width: 4px; height: 12px; top: 56px; background: var(--steel-dark); border-left: 1px solid var(--ink); border-right: 1px solid var(--ink); }
-.mon { left: 486px; top: 66px; width: 424px; height: 176px; background: var(--rubber); border: 2px solid var(--ink); border-radius: 6px; padding: 7px;
+.mon { left: 484px; top: 66px; width: 424px; height: 176px; background: var(--rubber); border: 2px solid var(--ink); border-radius: 6px; padding: 7px;
   box-shadow: 4px 4px 0 rgba(43,36,32,.35); }
 .scr { position: relative; width: 100%; height: 100%; background: var(--paper); border: 2px solid var(--ink); overflow: hidden; }
 .scr > * { position: absolute; }
@@ -139,6 +139,7 @@ h1 small { font-family: Atkinson; font-size: 13px; color: var(--steel-light); ma
 .cut .lbl { white-space: nowrap; font: 700 12px Atkinson; color: #f0a59e; }
 .cut .inner { position: relative; height: 34px; background: var(--paper); }
 .stack { display: flex; flex-direction: column; gap: 8px; }
+@media (max-width: 560px) { .grid, .grid.one { grid-template-columns: minmax(0, 1fr); } .cellwrap, .stack { max-width: 100%; overflow-x: auto; } .opt { grid-template-columns: minmax(0, 1fr); } .bar .clock { min-width: 0; } }
 .stack .cap { font: 12px Pixelify; letter-spacing: 1px; color: var(--steel-light); }
 </style>
 </head>
@@ -176,10 +177,10 @@ h1 small { font-family: Atkinson; font-size: 13px; color: var(--steel-light); ma
   </div>
   <div class="grid" id="g1">
     <div><div class="colhd">NOW · capped</div><div class="say">What you see: the number pops, and a long number pops less, so it never leaves the paper or covers the bay.</div></div>
-    <div><div class="colhd b">BEFORE THE CAP · ×1.5 total, ×1.7 payout</div><div class="say">What you'd see: every number pops just as much, so a long one covers the bay and spills past the screen's edge for a moment.</div></div>
+    <div><div class="colhd b">BEFORE THE CAP · ×1.5 total, up to ×1.7 payout</div><div class="say">What you'd see: every number pops just as much, so a long one covers the bay and spills past the screen's edge for a moment.</div></div>
   </div>
   <div class="notes">
-    <p><b>The numbers:</b> the TOTAL pops to ×1.5 and the biggest payout to ×1.7; the pop's ease overshoots by a tenth, so they peak at ×1.55 and ×1.77. The cap is the room right of the bay (the green dashed box, 274 px wide, centred on the number), so a capped pop peaks exactly at that room: about ×1.6 for 56, ×1.34 for 182, ×1.2 for 400 or 1118. One digit is never capped.</p>
+    <p><b>The numbers:</b> the TOTAL pops to ×1.5. A payout pops to 1.2 + payout ÷ 25, up to ×1.7 for a payout of €12.5 or more (the 9€ case's €4 payout pops to ×1.36). The pop's ease overshoots by a tenth, so they peak at ×1.55 and at most ×1.77. The cap is the room right of the bay (the green dashed box, 274 px wide, centred on the number), so a capped pop peaks exactly at that room: about ×1.6 for 56, ×1.34 for 182, ×1.2 for 400 or 1118. One digit is never capped.</p>
     <p><b>Where the room numbers come from:</b> 56 (×1.59) and 1118 (×1.21) were measured in the game. 9 and 182 are worked out the same way in this page, from the width of the number and its € (<span id="calib"></span>).</p>
   </div>
 </div>
@@ -191,7 +192,7 @@ h1 small { font-family: Atkinson; font-size: 13px; color: var(--steel-light); ma
   <div class="notes">
     <p><b>Why a smaller font in one row isn't an option:</b> the three stickers alone take <span id="stw"></span> px with their badges, plus 24 px of gaps and 12 px between sticker and caption; even with 10 px captions the row needs <span id="minrow"></span> px, and the channel is 272. Captions cut to one word ("own", "item", "loyalty") still need <span id="shortrow"></span> px.</p>
     <p><b>Why B shrinks the inspection:</b> the slide is 124 px tall. One key row takes 34 px plus a 4 px gap, which leaves 86 px for the brief: SHIFT row 26, gap 8, INSPECTION 16, its name 20, its notice 16 = 86. Two rows leave 52, which is the SHIFT row and one more line. The inspection is still on the top bar's chip.</p>
-    <p><b>C</b> needs nothing new to be drawn: the channel already cycles slides (brief, loyalty upgrades, coupons) about every 4 s, with a page dot each. The key slide would come right after the brief, and it holds up to 5 kinds in 3 rows.</p>
+    <p><b>C</b> needs nothing new to be drawn: the channel already cycles slides (brief, loyalty upgrades, coupons) about every 4 s, with a page dot each. The key slide would come right after the brief, and with today's captions it holds up to 5 kinds in 3 rows. A fourth row doesn't fit the 124 px slide, so longer captions or wider stickers ("+120") would need a rule for the overflow: skip what doesn't fit, as now, or a second key slide.</p>
   </div>
 </div>
 
@@ -205,7 +206,9 @@ const el = (tag, cls, style, parent, html) => { const d = document.createElement
 // ====================================================================== measurement (the game's LedDisplay)
 const mc = document.createElement('canvas').getContext('2d');
 const QUOTA = 73, EURO_GAP = 6, ROOM_W = 278 - 2 * 2, DRAWN_PAD = 2 * (2 + 5), OVERSHOOT = 1.1;
-const TOTAL_PUNCH = 1.5, SUB_PUNCH = 1.1 + 0.5 + 0.1;
+const TOTAL_PUNCH = 1.5;
+// count_up_beats.gd _land_payout: SUBTOTAL_PUNCH 1.1 + min(payout / 25, SUBTOTAL_PUNCH_MAX 0.5) + punch_boost 0.1
+const subPunch = payout => 1.1 + Math.min(payout / 25, 0.5) + 0.1;
 let EUR_PX = 80;
 function digitsW(text) { mc.font = '800 80px Atkinson'; mc.letterSpacing = '-2px'; return mc.measureText(text).width; }
 function euroW() { mc.font = `800 ${EUR_PX}px Atkinson`; mc.letterSpacing = '0px'; return mc.measureText('€').width; }
@@ -244,7 +247,7 @@ function rays(parent, met) {
 function drawRays(r, a) {
   const g = r.c.getContext('2d'), W = 201, H = 77, img = g.createImageData(W, H), d8 = img.data;
   const c1 = r.met ? [241, 210, 122] : [243, 233, 210], c2 = r.met ? [250, 236, 188] : [251, 247, 238];
-  const cx = (754 - 497) / 2, cy = (137 - 77) / 2, R = r.met ? 84 : 72;
+  const cx = (754 - 495) / 2, cy = (137 - 77) / 2, R = r.met ? 84 : 72;
   for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
     const k = (y * W + x) * 4, dx = x - cx, dy = (y - cy) * 1.15, dd = Math.hypot(dx, dy);
     if (dd > R) { d8[k + 3] = 0; continue; }
@@ -287,13 +290,14 @@ function buildCell(c, capped) {
   const beat = el('div', 'abs beat', null, st, '');
   const ro = el('div', 'readout', null, wrap);
   const rm = room(c.v);
+  const SUB_PUNCH = subPunch(c.v - c.from);
   const sSub = capped ? cappedPunch(SUB_PUNCH, rm) : SUB_PUNCH, sTot = capped ? cappedPunch(TOTAL_PUNCH, rm) : TOTAL_PUNCH;
   const pSub = peakOf(sSub), pTot = peakOf(sTot);
   const w = groupW(c.v);
-  const spill = p => { const half = w * p / 2 + 7 * p; return 754 - half < 615 || 754 + half > 895; };
+  const spill = p => { const half = w * p / 2 + 7 * p; return 754 - half < 615 || 754 + half > 893; };
   ro.innerHTML = capped
-    ? `${c.v}€ · room ×${rm.toFixed(2)}${MEASURED[c.v] ? ' (measured in the game)' : ' (worked out here)'} · payout peaks <b>×${pSub.toFixed(2)}</b>${sSub < SUB_PUNCH ? ' (capped)' : ''} · total peaks <b>×${pTot.toFixed(2)}</b>${sTot < TOTAL_PUNCH ? ' (capped)' : ''}`
-    : `${c.v}€ · payout peaks <b>×${pSub.toFixed(2)}</b> · total peaks <b>×${pTot.toFixed(2)}</b>${spill(pTot) ? ' · <span class="over">both spill over the bay and the edge</span>' : spill(pSub) ? ' · <span class="over">the payout pop spills over the bay and the edge</span>' : ' · fits anyway'}`;
+    ? `${c.v}€ (a €${c.v - c.from} payout) · room ×${rm.toFixed(2)}${MEASURED[c.v] ? ' (measured in the game)' : ' (worked out here)'} · payout peaks <b>×${pSub.toFixed(2)}</b>${sSub < SUB_PUNCH ? ' (capped)' : ''} · total peaks <b>×${pTot.toFixed(2)}</b>${sTot < TOTAL_PUNCH ? ' (capped)' : ''}`
+    : `${c.v}€ (a €${c.v - c.from} payout) · payout peaks <b>×${pSub.toFixed(2)}</b> · total peaks <b>×${pTot.toFixed(2)}</b>${spill(pTot) ? ' · <span class="over">both spill over the bay and the edge</span>' : spill(pSub) ? ' · <span class="over">the payout pop spills over the bay and the edge</span>' : ' · fits anyway'}`;
   cells.push({ c, capped, cell, st, grp, by, togo, roomBox, beat, sSub, sTot, last: '' });
   return wrap;
 }
@@ -443,7 +447,7 @@ function buildQ2() {
   });
   c1.cap = 'SLIDE 1 · the brief, as before the key (full height)'; c2.cap = 'SLIDE 2 · about 4 s later, wiped in from the left';
   option('C · the key gets its own slide', true, [
-    'The brief goes back to how it looks without a key (the inspection with its heading, name and notice). Right after it, a STICKER KEY slide lists every kind on the belt, in rows: up to 5 kinds in 3 rows.',
+    'The brief goes back to how it looks without a key (the inspection with its heading, name and notice). Right after it, a STICKER KEY slide lists every kind on the belt, in rows: up to 5 kinds in 3 rows with the current captions (an overflow rule is still needed for the build).',
     'Nothing is ever left out and the brief stays readable. The cost: the key is on screen one slide out of the cycle, not under the brief all the time.',
     'Same rule for which stickers appear (the first of each kind on the belt), and no key slide when the belt has no stickers.'], [c1, c2]);
   // the numbers under the notes
