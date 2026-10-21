@@ -3,8 +3,9 @@ extends Control
 ## The scanner bay's scan bed (#86 round 7, mock-up count_up_86_v7_bay.html's ALIVE; ScannerBay's
 ## BED_RECT): a dark bed with a faint GRID px grid and a soft light under the item, the item's art
 ## at 2x (96x96, PaperBag.art_of) clipped to the bed's inside, in gold corners
-## (ScanOverlay.draw_brackets), "NEXT ITEM" before the first item and "ALL PAID" once all are
-## bagged.
+## (ScanOverlay.draw_brackets), empty (IDLE_TEXT) with no item and "ALL PAID" once all are bagged.
+## It shows planning's items too (ScannerBay.show_planning: belt slot 1's, or the held one's), on
+## its own clock there.
 ##
 ## The item is alive: it drops in from above and lands with a squash and one bounce (drop_in),
 ## squashes and wobbles as each sticker slaps on (wobble), bobs while it waits and slides out
@@ -23,7 +24,9 @@ const SIZE := Vector2(100, 100)
 const BORDER := 2
 ## The bed's inside (the art's rect), in the bed's coordinates.
 const INSIDE := Rect2(2, 2, 96, 96)
-const IDLE_TEXT := "NEXT\nITEM"
+## Nothing on an empty bed (the monitor bay follow-up: the count starts with slot 1's item
+## already in the bay, and planning shows an empty slot 1 as the bare bed).
+const IDLE_TEXT := ""
 const END_TEXT := "ALL\nPAID"
 const IDLE_FONT_SIZE := 11
 const IDLE_SPACING := 1
@@ -138,6 +141,8 @@ var _marks: Control
 var _idle: Label
 var _beep: Label
 var _art: TextureRect
+## The item shown (null when the bed is empty).
+var _definition: CardDefinition
 var _met: bool = false
 var _brackets_lit: bool = false
 ## The drop's time (s; negative: at rest), its fall's length, the wobble's time (negative: none),
@@ -225,6 +230,7 @@ func drop_in(definition: CardDefinition, fall_s: float) -> void:
 	_kill_motion()
 	_free_art()
 	_art = PaperBag.art_of(definition)
+	_definition = definition
 	_art.position = Vector2.ZERO
 	_art.pivot_offset = ART_PIVOT
 	_art_layer.add_child(_art)
@@ -312,6 +318,20 @@ func reset() -> void:
 ## The item's art shown (null when the bed is empty), the idle text, the BEEP's label.
 func art() -> TextureRect:
 	return _art
+
+
+## The item shown (null when the bed is empty).
+func shown_definition() -> CardDefinition:
+	return _definition if _art != null else null
+
+
+## The item stops where it is and rests (its drop, wobble or slide-out cut short; still there).
+func settle() -> void:
+	_kill_motion()
+	_drop_t = -1.0
+	_wobble_t = -1.0
+	_out_p = -1.0
+	_apply_pose()
 
 
 func idle_label() -> Label:
@@ -564,6 +584,7 @@ func _free_art() -> void:
 	if _art != null:
 		_art.queue_free()
 		_art = null
+	_definition = null
 	_drop_t = -1.0
 	_wobble_t = -1.0
 	_out_p = -1.0

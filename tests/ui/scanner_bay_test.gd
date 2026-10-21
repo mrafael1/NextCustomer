@@ -115,7 +115,8 @@ func test_the_bay_sits_on_the_paper() -> void:
 	var monitor: MonitorView = await _monitor()
 	var bay: ScannerBay = monitor.bay()
 	monitor.reduced_motion = func() -> bool: return true
-	assert_bool(bay.is_visible_in_tree()).is_false()
+	# On the screen in every mode (the monitor bay follow-up of #86).
+	assert_bool(bay.is_visible_in_tree()).is_true()
 	monitor.led.start_count(34)
 	await _frames(1)
 	assert_bool(bay.is_visible_in_tree()).is_true()
@@ -150,9 +151,9 @@ func test_the_bay_sits_on_the_paper() -> void:
 	assert_bool(header.encloses(light)).is_true()
 	assert_bool(header.intersects(bed)).is_false()
 	assert_bool(bed.intersects(label)).is_false()
-	# The bay apart from the LED's digits and the tank.
+	# The bay apart from the LED's number and € and the right part (channel, scan text).
 	assert_bool(rect.intersects(MonitorView.LED_COUNT_RECT)).is_false()
-	assert_bool(rect.intersects(MonitorView.TANK_RECT)).is_false()
+	assert_bool(rect.intersects(MonitorView.RIGHT_RECT)).is_false()
 	# A landing sticker at the corner, on the paper.
 	var milk: CardDefinition = _card("milk")
 	bay.follow_beat(_beat(CountUpBeat.Kind.MERGED_PLAIN, 0, 0, true), _step(3), milk)
@@ -170,10 +171,11 @@ func test_the_bay_sits_on_the_paper() -> void:
 	assert_bool(paper.encloses(placed)).override_failure_message(str(placed)).is_true()
 	assert_vector(bay.landing_point()).is_equal(placed.get_center())
 	assert_bool(sticker.is_visible_in_tree()).is_true()
-	# Outside the count the layer hides with it.
+	# Outside the count the sticker goes; the bay stays, planning's again.
 	monitor.led.clear()
 	await _frames(1)
-	assert_bool(bay.is_visible_in_tree()).is_false()
+	assert_bool(bay.is_visible_in_tree()).is_true()
+	assert_bool(bay.is_planning()).is_true()
 	assert_object(bay.landing_sticker()).is_null()
 
 

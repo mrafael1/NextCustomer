@@ -9,6 +9,9 @@ extends RefCounted
 ## at. Under reduced_motion nothing shakes.
 
 const GLOW := Color(1.3, 1.3, 1.15)
+## A punch's ease (TRANS_BACK, EASE_OUT) passes its target by this share of the way at its peak
+## (Penner's back ease, s = 1.70158: a tenth).
+const PUNCH_OVERSHOOT := 1.1
 ## A shake swings this long each way, then settles back.
 const SHAKE_SWING := 0.03
 const SHAKE_SETTLE := 0.04
@@ -38,11 +41,32 @@ func reset(reduce_motion: bool) -> void:
 	_scales.clear()
 
 
-func punch(node: Control, strength: float) -> void:
-	node.pivot_offset = node.size / 2.0
+## Punches `node` to `strength` and back, about its centre (or, with `keep_pivot`, about its own
+## pivot_offset: the count's digits punch about the middle of their number and € group). With a
+## `peak_limit` (the count's digits: LedDisplay.punch_room()), the strength is capped so the
+## overshooting peak stays within it (capped_punch).
+func punch(
+	node: Control, strength: float, keep_pivot: bool = false, peak_limit: float = INF
+) -> void:
+	strength = capped_punch(strength, peak_limit)
+	if not keep_pivot:
+		node.pivot_offset = node.size / 2.0
 	var tween: Tween = scale_tween(node).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
 	tween.tween_property(node, "scale", Vector2(strength, strength), 0.07)
 	tween.tween_property(node, "scale", Vector2.ONE, 0.18)
+
+
+## `strength` capped so a punch's peak (peak_of, with the ease's overshoot) stays within
+## `peak_limit`, never below 1 (no punch); INF leaves it as it is.
+static func capped_punch(strength: float, peak_limit: float) -> float:
+	if is_inf(peak_limit):
+		return strength
+	return maxf(1.0, minf(strength, 1.0 + (peak_limit - 1.0) / PUNCH_OVERSHOOT))
+
+
+## The largest scale a punch to `strength` reaches, with the ease's overshoot.
+static func peak_of(strength: float) -> float:
+	return 1.0 + (strength - 1.0) * PUNCH_OVERSHOOT
 
 
 ## A new scale tween for `node`, replacing the one running on it.

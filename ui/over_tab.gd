@@ -1,18 +1,20 @@
 class_name OverTab
 extends Control
-## The "+€N" tab on the € tank (#86 v6 scan count-up, mock-up count_up_86_v6_scan.html; stage
-## POSITION, over the tank's lower left): how far past the quota the shown amount is, "+€N" (core's
-## ShiftMargin, LedBeat.to_go_text), in ink on gold inside a BORDER-wide ink border with a SHADOW px
-## mustard-dark shadow, turned TILT_DEG about its centre. It shows only once the quota is met and
-## only while the amount is over it. arm() with a pop brings it in DELAY_S after the burst, popping
-## from POP_FROM to its size over POP_S; arm() without one (reduced motion, a resumed checkout)
-## shows it at once. punch() (each later payout) swells it to PUNCH and back over PUNCH_S. Its
-## motion is real time (_process), so the count-up's hit-stops never freeze it; reduced motion
-## (`reduced_motion`) keeps the states and drops the pop and the punches. Display only: the amount
-## and the quota are the LED's (MonitorView hands on its reading); it takes no clicks.
+## The "+€N" tab (#86 v6 scan count-up, mock-up count_up_86_v6_scan.html; since the monitor bay
+## follow-up, mock-up monitor_bay_v1.html, at stage POSITION: beside the SPEND MET stamp, one row
+## under the number and its €, the two centred together under them): how far past the quota the
+## shown amount is, "+€N" (core's ShiftMargin, LedBeat.to_go_text), in ink on gold inside a
+## BORDER-wide ink border with a SHADOW px mustard-dark shadow, turned TILT_DEG about its centre. It
+## shows only once the quota is met and only while the amount is over it. arm() with a pop brings it
+## in DELAY_S after the burst, popping from POP_FROM to its size over POP_S; arm() without one
+## (reduced motion, a resumed checkout) shows it at once. punch() (each later payout) swells it to
+## PUNCH and back over PUNCH_S. Its motion is real time (_process), so the count-up's hit-stops
+## never freeze it; reduced motion (`reduced_motion`) keeps the states and drops the pop and the
+## punches. Display only: the amount and the quota are the LED's (MonitorView hands on its reading);
+## it takes no clicks.
 
-## Its top left on the stage (on the monitor's paper, over the tank).
-const POSITION := Vector2(795, 187)
+## Its top left on the stage (on the monitor's paper, 8 px right of MonitorView.STAMP_RECT).
+const POSITION := Vector2(804, 187)
 const HEIGHT := 28.0
 const PAD_X := 6.0
 const BORDER := 2.0

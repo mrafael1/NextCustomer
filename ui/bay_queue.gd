@@ -6,8 +6,11 @@ extends Control
 ## right-aligned: gold once bagged, tomato light from the drop-in until it is bagged (green light
 ## once the quota is met), teal shade still to come. The pips shrink to fit beside the widest of
 ## the texts (pip_layout): PIP px in one row, else SMALL_PIP px in one row, else in two. With no
-## count (start(0)) it reads "SCANNER" with no pips. The text is the header's bold Atkinson
-## (ScannerBay.header_font). Display only: the count and the order are the count-up's.
+## count (start(0)) it reads "SCANNER" with no pips. In planning (show_slots, the monitor bay
+## follow-up, mock-up monitor_bay_v1.html) it reads NEXT_TEXT or SCAN_TEXT, with one pip per belt
+## slot: gold for slot 1 holding an item, teal light for the other filled slots, teal shade for the
+## empty ones. The text is the header's bold Atkinson (ScannerBay.header_font). Display only: the
+## count and the order are the count-up's, the slots the belt's.
 
 ## The header's rect (bay coordinates), the text's left and lift, the pips' right edge and their
 ## gap to the widest text.
@@ -28,11 +31,18 @@ const IDLE_TEXT := "SCANNER"
 const LEFT_TEXT := "%d LEFT"
 const LAST_TEXT := "LAST"
 const DONE_TEXT := "DONE"
+## Planning's header: belt slot 1's item (NEXT_TEXT), or the item held in a scan (SCAN_TEXT).
+const NEXT_TEXT := "NEXT"
+const SCAN_TEXT := "SCAN"
 const TEXT_COLOR := Palette.MUSTARD_PALE
 const BAGGED_COLOR := Palette.GOLD
 const IN_COLOR := Palette.TOMATO_LIGHT
 const IN_MET_COLOR := Palette.GREEN_LIGHT
 const TO_COME_COLOR := Palette.TEAL_SHADE
+## Planning's pips: slot 1 filled, another slot filled, an empty slot.
+const FIRST_SLOT_COLOR := Palette.GOLD
+const FILLED_SLOT_COLOR := Palette.TEAL_LIGHT
+const EMPTY_SLOT_COLOR := Palette.TEAL_SHADE
 
 var _label: Label
 var _items: int = 0
@@ -41,6 +51,9 @@ var _last_in: int = -1
 var _bagged: Array[bool] = []
 var _met: bool = false
 var _rects: Array[Rect2] = []
+## Planning's belt (show_slots): the filled slots (the first ones: the belt is compacted), or -1
+## in the count.
+var _filled: int = -1
 
 
 func _init() -> void:
@@ -71,6 +84,7 @@ func _draw() -> void:
 ## A count of `items` starts: none in yet, "n LEFT" (n = items), every pip to come; 0 reads
 ## "SCANNER" with no pips.
 func start(items: int) -> void:
+	_filled = -1
 	_items = maxi(0, items)
 	_last_in = -1
 	_bagged.clear()
@@ -112,6 +126,26 @@ func restart() -> void:
 	start(_items)
 
 
+## Planning (see the class comment): `header` (NEXT_TEXT or SCAN_TEXT) over a pip per belt slot
+## (`slots`), the first `filled` of them holding items.
+func show_slots(slots: int, filled: int, header: String) -> void:
+	_items = maxi(0, slots)
+	_filled = clampi(filled, 0, _items)
+	_last_in = -1
+	_bagged.clear()
+	_bagged.resize(_items)
+	_bagged.fill(false)
+	_met = false
+	_rects = pip_layout(_items)
+	_label.text = header
+	queue_redraw()
+
+
+## Whether the header shows planning's belt (show_slots) rather than a count.
+func is_planning() -> bool:
+	return _filled >= 0
+
+
 ## The header's text, the pips' rects (bay coordinates) and their colours now.
 func text() -> String:
 	return _label.text
@@ -124,7 +158,12 @@ func pip_rects() -> Array[Rect2]:
 func pip_colours() -> Array[Color]:
 	var colours: Array[Color] = []
 	for index: int in range(_rects.size()):
-		if _bagged[index]:
+		if _filled >= 0:
+			if index >= _filled:
+				colours.append(EMPTY_SLOT_COLOR)
+			else:
+				colours.append(FIRST_SLOT_COLOR if index == 0 else FILLED_SLOT_COLOR)
+		elif _bagged[index]:
 			colours.append(BAGGED_COLOR)
 		elif index <= _last_in:
 			colours.append(IN_MET_COLOR if _met else IN_COLOR)
@@ -184,6 +223,8 @@ static func _add_row(rects: Array[Rect2], count: int, pip: float, top: float) ->
 
 
 func _refresh() -> void:
+	if _filled >= 0:
+		return
 	var done: bool = _items > 0 and not _bagged.has(false)
 	_label.text = text_for(_items, _last_in, done)
 	queue_redraw()
