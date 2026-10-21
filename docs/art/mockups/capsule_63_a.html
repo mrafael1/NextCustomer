@@ -131,7 +131,7 @@ const look = {
   coinEl: () => coinChipEl,
   update(v) {
     const S = v.S;
-    let owned = 0; for (const a of AISLES) owned += a.items.length - v.left[a.id];
+    const owned = v.owned;
     figChip.innerHTML = `<span class="lab">FIGURINES</span><span>${owned} / ${TOTAL}</span>`;
     const allDone = AISLES.every(a => v.left[a.id] === 0);
     for (const o of M) {
@@ -161,7 +161,7 @@ const look = {
       banner.innerHTML = 'COLLECTION COMPLETE · every figurine is on your shelf'; banner.style.color = '#7a5a1c';
       hint.style.display = 'block'; hint.style.color = '#4a3f38'; hint.textContent = 'Your coins keep adding up on the final receipt.';
     } else if (S.coins <= 0 && v.drawing === null) {
-      notice.style.display = 'flex'; notice.innerHTML = `<img src="capsule_63_src/assets/warning.png">No coins left. Every run's final receipt pays some.`;
+      notice.style.display = 'flex'; notice.innerHTML = `<img src="capsule_63_src/assets/warning.png">No coins left. Runs that pass shift 4 pay coins on the final receipt.`;
     } else if (v.drawing === null) { hint.style.display = 'block'; hint.style.color = '#4a3f38'; hint.textContent = 'Pick a machine: 1 coin a capsule.'; }
     for (const e of [hint, notice]) e.style.left = 640 - e.offsetWidth / 2 + 'px';
     notice.style.top = '588px';

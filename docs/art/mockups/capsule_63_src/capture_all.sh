@@ -10,7 +10,7 @@ done
 for t in 0.3 0.75 1.2 1.6 2.15 3; do c capsule_63_a.html "draw=5&t=$t" capsule_63_a_draw_at$t.png; done
 c capsule_63_a.html "draw=5&t=1&rm=1" capsule_63_a_draw_rm.png
 c capsule_63_a.html "words=capsule" capsule_63_a_capsule_wording_1920x1080.png
-for t in 0.75 1.6 3; do c capsule_63_b.html "draw=3&t=$t" capsule_63_b_draw_at$t.png; done
+for t in 0.6 1.6 3; do c capsule_63_b.html "draw=3&t=$t" capsule_63_b_draw_at$t.png; done
 c capsule_63_b.html "draw=3&t=1&rm=1" capsule_63_b_draw_rm.png
 for t in 0.75 1.6 3; do c capsule_63_c.html "draw=5&t=$t" capsule_63_c_draw_at$t.png; done
 c capsule_63_c.html "draw=5&t=3&land=0.25" capsule_63_c_land_mid.png

@@ -81,8 +81,9 @@ can't be saved, reduced motion, and a frozen draw at any time `t`.
   "All 8 collected".
 - Coins chip and a FIGURINES n / 30 chip.
 - States: empty machine (empty globe, gold ALL COLLECTED rosette, not clickable, no price); 0 coins (machines dimmed,
-  tomato notice "No coins left. Every run's final receipt pays some."); profile can't be saved (OUT OF ORDER paper taped
-  on each machine, "Coins ?", notice "Your collection can't be saved right now, so the toy machines are switched off.").
+  tomato notice "No coins left. Runs that pass shift 4 pay coins on the final receipt."); profile can't be saved (OUT OF ORDER paper taped
+  on each machine, "Coins ?", notice "Your collection can't be saved right now, so the toy machines are switched off.", the same string
+  on every page; only coins show "?", following section 7.1's "you have ?").
 - The draw: the coin and the item are spent and recorded at the click (before any animation). The preview: coin flies
   into the slot (0.42 s), crank turns (0.58 s), capsule drops into the chute, hops forward, shakes and pops (1.26 s), the
   figurine rises on a gold medallion (0.36 s). A tap during it jumps to the reveal.

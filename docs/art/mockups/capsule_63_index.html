@@ -11,7 +11,7 @@
 * { box-sizing: border-box; margin: 0; padding: 0; }
 body { width: 1280px; min-height: 720px; background: var(--teal-black); color: var(--cream); font: 500 13px/1.35 Atkinson; }
 a { color: var(--gold); }
-.wrap { padding: 14px 18px; display: grid; grid-template-columns: 430px 1fr; gap: 18px; }
+.wrap { padding: 12px 18px; display: grid; grid-template-columns: 450px 1fr; gap: 18px; }
 h1 { font: 400 30px Pixelify; color: var(--paper); letter-spacing: 1px; }
 h1 small { font: 600 13px Atkinson; color: var(--muted); letter-spacing: 0; margin-left: 8px; }
 h2 { font: 400 17px Pixelify; color: var(--mustard); margin: 10px 0 4px; letter-spacing: 1px; }
@@ -36,20 +36,20 @@ li { margin: 2px 0; }
 <body>
 <div class="wrap">
   <div>
-    <h1>Toy machines <small>#63 decide prep · 2026-10-21 · nothing decided</small></h1>
-    <p>Six coin-op machines, one per aisle, 1 coin a capsule, key item first, no duplicates. The pages are live: click a machine. Defaults and reasons are in <a href="capsule_63_src/DECIDE_63.md">DECIDE_63.md</a>, the inputs in <a href="capsule_63_src/BRIEF.md">BRIEF.md</a>.</p>
+    <h1>Toy machines <small>#63 prep · nothing decided</small></h1>
+    <p>One machine per aisle, 1 coin a capsule, key item first. Live pages: click a machine. Reasons in <a href="capsule_63_src/DECIDE_63.md">DECIDE_63.md</a>, inputs in <a href="capsule_63_src/BRIEF.md">BRIEF.md</a>.</p>
     <h2>The 4 questions</h2>
-    <div class="q"><b>Q1 Look:</b> A exit vestibule · B machine bank pop-in · C collector wall. <span class="rec">Rec: C</span> (the case under each machine is its shelf and its "left" count; the figurine lands in its cubby). A is the fallback.</div>
-    <div class="q"><b>Q2 Where:</b> results only, or results + title? Keep coins? <span class="rec">Rec: both, coins can be kept</span>; a title draw takes run index run_count − 1, like a results draw.</div>
+    <div class="q"><b>Q1 Look, two parts:</b> staging (A exit cut · B pop-in · C wall + cases) and body (globe, shared by A and C · window, B); bodies swap between stagings. <span class="rec">Rec: C's wall + globe</span>; A's staging is the fallback.</div>
+    <div class="q"><b>Q2 Where:</b> results only, or results + title? Keep coins? <span class="rec">Rec: both, coins kept</span>; a title draw while a run is saved takes run index run_count ("In stock after your saved run").</div>
     <div class="q"><b>Q3 Shelf:</b> locked as spaces or hidden; capsule items or base products too; names; order. <span class="rec">Rec: "?" spaces, the 30 capsule items, names on hover, data order.</span></div>
-    <div class="q"><b>Q4 Wording:</b> "Toy machines" or "Capsule machines"; "3 of 8 left"; "In stock from your next run". <span class="rec">Rec: TOY MACHINES + those lines</span>, never "gacha".</div>
+    <div class="q"><b>Q4 Wording:</b> "Toy" or "Capsule machines"; "3 of 8 left"; "In stock from your next run". <span class="rec">Rec: TOY MACHINES + those lines</span>.</div>
     <h2>Stated defaults</h2>
     <ul>
-      <li>RNG: seed + draw count in ProfileState (FORMAT_VERSION 2), a derived stream per draw.</li>
-      <li>Full collection: ALL COLLECTED rosettes, COLLECTION COMPLETE, coins keep adding up.</li>
-      <li>Can't save: OUT OF ORDER on each machine, "Coins ?", notice; a failed save rolls the draw back.</li>
-      <li>Until #65: start_new_run uses the pre-fill; surprise_list built and tested.</li>
-      <li>Log a <code>capsule</code> event · debug Profile tools (coins, real draw, unlock all, reset).</li>
+      <li>RNG: seed (made outside core/, a decimal string) + draw count in ProfileState v2.</li>
+      <li>Full: ALL COLLECTED, COLLECTION COMPLETE, coins add up.</li>
+      <li>Can't save: OUT OF ORDER, "Coins ?"; a failed save rolls back the draw.</li>
+      <li>Until #65: surprise_list (the pre-fill would lock the first list in).</li>
+      <li><code>capsule</code> event · debug Profile tools.</li>
     </ul>
   </div>
   <div>
@@ -59,7 +59,7 @@ li { margin: 2px 0; }
         <div class="links"><a href="capsule_63_a.html">live</a> · <a href="capsule_63_a_draw_at0.75.png">crank</a> · <a href="capsule_63_a_draw_at1.6.png">hop</a> · <a href="capsule_63_a_draw_at2.15.png">pop</a> · <a href="capsule_63_a_draw_at3.png">reveal</a> · <a href="capsule_63_a_draw_rm.png">reduced</a> · <a href="capsule_63_a_full_1920x1080.png">full</a> · <a href="capsule_63_a_nosave_1920x1080.png">can't save</a> · <a href="capsule_63_a_nocoins_1920x1080.png">0 coins</a> · <a href="capsule_63_a_capsule_wording_1920x1080.png">capsule wording</a></div></div>
       <div class="card"><a href="capsule_63_b.html"><img src="capsule_63_b_choose_1920x1080.png" alt=""></a>
         <h3>B · machine bank</h3><p>Pop-in steel cabinet over the results; boxy window machines; cheapest.</p>
-        <div class="links"><a href="capsule_63_b.html">live</a> · <a href="capsule_63_b_draw_at0.75.png">dial</a> · <a href="capsule_63_b_draw_at1.6.png">hop</a> · <a href="capsule_63_b_draw_at3.png">reveal (art pending)</a> · <a href="capsule_63_b_draw_rm.png">reduced</a> · <a href="capsule_63_b_full_1920x1080.png">full</a> · <a href="capsule_63_b_nosave_1920x1080.png">can't save</a> · <a href="capsule_63_b_nocoins_1920x1080.png">0 coins</a></div></div>
+        <div class="links"><a href="capsule_63_b.html">live</a> · <a href="capsule_63_b_draw_at0.6.png">dial</a> · <a href="capsule_63_b_draw_at1.6.png">hop</a> · <a href="capsule_63_b_draw_at3.png">reveal (art pending)</a> · <a href="capsule_63_b_draw_rm.png">reduced</a> · <a href="capsule_63_b_full_1920x1080.png">full</a> · <a href="capsule_63_b_nosave_1920x1080.png">can't save</a> · <a href="capsule_63_b_nocoins_1920x1080.png">0 coins</a></div></div>
       <div class="card"><a href="capsule_63_c.html"><img src="capsule_63_c_choose_1920x1080.png" alt=""></a>
         <h3>C · collector wall <span class="rec">REC</span></h3><p>Wall machines over wooden cases; the figurine flies into its cubby.</p>
         <div class="links"><a href="capsule_63_c.html">live</a> · <a href="capsule_63_c_draw_at0.75.png">crank</a> · <a href="capsule_63_c_draw_at3.png">reveal</a> · <a href="capsule_63_c_land_mid.png">landing</a> · <a href="capsule_63_c_land_done.png">landed</a> · <a href="capsule_63_c_draw_rm.png">reduced</a> · <a href="capsule_63_c_full_1920x1080.png">full</a> · <a href="capsule_63_c_nosave_1920x1080.png">can't save</a> · <a href="capsule_63_c_nocoins_1920x1080.png">0 coins</a> · <a href="capsule_63_c_hidden_1920x1080.png">locked hidden</a></div></div>
@@ -70,7 +70,7 @@ li { margin: 2px 0; }
       <div class="card"><a href="capsule_63_shelf.html?state=full"><img src="capsule_63_shelf_full_1920x1080.png" alt=""></a><h3>Shelf · full 30</h3><div class="links"><a href="capsule_63_shelf_full_labels_1920x1080.png">with names printed</a></div></div>
       <div class="card"><a href="capsule_63_shelf.html?state=fresh"><img src="capsule_63_shelf_fresh_1920x1080.png" alt=""></a><h3>Shelf · new profile</h3><div class="links">0 of 30</div></div>
     </div>
-    <p class="foot">Stills: 1280x720 at 1.5x, rebuilt by capsule_63_src/capture_all.sh. Only Strawberries, Croissant and Crisps have sprites. The other 27 capsule items show the art-pending box until #57/#58. Look B's backdrop is the shift-5 scene standing in for the results.</p>
+    <p class="foot">Stills: 1280x720 at 1.5x, rebuilt by capsule_63_src/capture_all.sh. Only Strawberries, Croissant and Crisps have sprites. The other 27 capsule items show the art-pending box until #57/#58, so the shelf stills can't fully settle Q3 (locked slots are dark recesses, collected ones the art box). Look B's backdrop is the shift-5 scene standing in for the results.</p>
   </div>
 </div>
 </body>

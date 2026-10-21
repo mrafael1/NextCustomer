@@ -109,7 +109,7 @@ const look = {
   coinEl: () => coinChipEl,
   update(v) {
     const S = v.S;
-    let owned = 0; for (const a of AISLES) owned += a.items.length - v.left[a.id];
+    const owned = v.owned;
     figChip.innerHTML = `<span class="lab">FIGURINES</span><span>${owned}/${TOTAL}</span>`;
     const allDone = AISLES.every(a => v.left[a.id] === 0);
     for (const o of M) {
@@ -135,11 +135,11 @@ const look = {
     stamp.style.display = allDone ? 'block' : 'none';
     notice.style.display = 'none'; sub.textContent = '';
     if (S.nosave) {
-      notice.style.display = 'flex'; notice.innerHTML = `<img src="capsule_63_src/assets/warning.png">Your collection can't be saved right now, so the machines are switched off.`;
+      notice.style.display = 'flex'; notice.innerHTML = `<img src="capsule_63_src/assets/warning.png">Your collection can't be saved right now, so the ${WORDS.one}s are switched off.`;
     } else if (allDone) {
       sub.textContent = 'Every figurine is on your shelf. Your coins keep adding up.';
     } else if (S.coins <= 0 && v.drawing === null) {
-      notice.style.display = 'flex'; notice.innerHTML = `<img src="capsule_63_src/assets/warning.png">No coins left. Every run's final receipt pays some.`;
+      notice.style.display = 'flex'; notice.innerHTML = `<img src="capsule_63_src/assets/warning.png">No coins left. Runs that pass shift 4 pay coins on the final receipt.`;
     } else sub.textContent = 'Pick a machine: 1 coin a capsule.';
   },
 };

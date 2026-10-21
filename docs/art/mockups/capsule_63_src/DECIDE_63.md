@@ -7,7 +7,14 @@ states). The shared brief is `capsule_63_src/BRIEF.md`.
 Four real questions (Q1 to Q4), each with a recommendation. Everything after them is a stated default from the issue's
 "decide with the user" list: say so if you want one changed.
 
-## Q1. The machines' look
+## Q1. The machines' look: staging and machine body
+
+Q1 is really two choices. The three pages differ mostly in **staging** (where the machines stand and where the shelf
+is). There are only two **machine bodies**: the round **globe** (A and C draw the same globe machine, C's at about 0.7x:
+60x100 art px against A's 72x140) and the boxy **window** machine (B). B shares the globe's coin slot and dial block.
+Any body can stand in any staging, so you can pick, for example, C's wall and cases with B's window machines.
+
+**Staging:**
 
 | Option | Page | What it is |
 |---|---|---|
@@ -15,7 +22,11 @@ Four real questions (Q1 to Q4), each with a recommendation. Everything after the
 | **B: machine bank pop-in** | `capsule_63_b.html` | No camera cut: a steel vending cabinet pops in over the shaded results, the size of the other centred panels. Six boxy window machines on a shelf whose price rail carries "3 of 8 left". Separate shelf screen. The cheapest: one machine sprite and one frame. |
 | **C: collector wall** | `capsule_63_c.html` | Machines and shelf are one wall at the exit. Each aisle is a column: a small wall-hung globe machine, its label, and under it a wooden case with one cubby per item, a "?" in each locked one. After OK the figurine flies into its cubby. No separate shelf screen. |
 
-**Recommendation: C.** Reasons:
+**Machine body:** the **globe** (A, C) or the **window** (B). The static art is one body either way (for C's wall
+`scenery/wall_machine`, for A or B a floor machine), so the art list below holds for whichever body you pick; only its
+size changes with the staging.
+
+**Recommendation: C's staging with the globe body.** Reasons:
 
 - One place per fact (your note on the shift screen): the case under each machine *is* that machine's "what's left",
   so the shelf, the catalogue and the items-left count are the same object, and every new figurine visibly lands in
@@ -24,12 +35,14 @@ Four real questions (Q1 to Q4), each with a recommendation. Everything after the
   1280x720 (the tallest case ends at y 592).
 - It is a physical store fixture (wall, brackets, wooden cases), which you have preferred over flat panels, and it
   looks nothing like #77's restock hatch.
+- The globe is the classic toy-machine silhouette and reads as "capsules inside" at a glance; the window body reads
+  more like a vending machine. This reason holds for A's staging too, since A and C share the globe.
 
 Costs and risks: the machines are smaller (120x200 against A's 144x280), so #64's crank and coin read smaller (the
 capsule still hops to the centre for the reveal); the base aisles' cases are short (2, 2 and 3 items), which leaves
 wall space on the left, and the Household case has one blank cubby; the fly-to-cubby adds 0.5 s after OK (#64,
-skippable; reduced motion lands at once). If C feels too busy, **A** is the fallback: the most iconic machines, at the
-price of a camera cut and a second screen for the shelf. B is the cut-list look.
+skippable; reduced motion lands at once). If C feels too busy, **A's staging** is the fallback: the same globe body
+drawn bigger, at the price of a camera cut and a second screen for the shelf. B's staging is the cut-list look.
 
 ## Q2. Where the machines are reached, keeping coins, and a title-screen draw's run index
 
@@ -41,9 +54,18 @@ price of a camera cut and a second screen for the shelf. B is the cut-list look.
   Done brings you back to the title.
 - **Coins can be kept.** Spending is never required, and nothing nags. Saving coins for a machine you want is a fine
   choice, since the player picks the machine and never the item.
-- **A title-screen draw's run index is `run_count - 1`,** the same as right after the last run (the issue's rule).
-  The item is in the next run's stock whether or not a run is in progress. With a saved run in progress, its stock is
-  already fixed, so the new arrival rides 2 runs instead of 3. That is simpler than a second rule.
+- **A title-screen draw's run index** (a sub-choice). The issue's rule, `run_count - 1`, is for a draw right after
+  a run, and it is also right for a title draw when no run is saved: the next run started has index `run_count`, so
+  the item rides runs `run_count` to `run_count + 2` (section 7.2). But with a saved run in progress, the run you
+  Continue *is* the next run, and its stock was fixed when it started. So `run_count - 1` would give the item only 2
+  of its 3 runs, and the reveal's "In stock from your next run" would be false (and so would section 7.2's "a capsule
+  is always playable in the next run"). The options for that case:
+  - **(a) Recommended:** a title draw while a run is saved gets run index `run_count` (the saved run's own index), so
+    the item rides the 3 runs after the saved one. The reveal line then says "**In stock after your saved run**".
+  - (b) The title machines are switched off while a run is saved (a "Finish your run first" label on the machine
+    prop; the shelf stays open).
+  - (c) Keep `run_count - 1` (the item rides 2 runs) and change the reveal line in that case, for example "In stock
+    after this run".
 
 The alternative is results only, which is simpler but means a player who quit before spending has to finish another
 run to reach the machines.
@@ -63,6 +85,11 @@ order** (the key item first, so each figurine has a fixed spot).
   (`capsule_63_shelf.html?labels=1` shows them). Until #57 and #58 draw the sprites, the art-pending boxes print
   their names anyway.
 - Data order is needed for fixed spots. Draw order would reshuffle as you collect.
+- **What the stills can't settle:** 27 of the 30 collected figurines are still art-pending boxes (#57, #58). The
+  locked spaces are now dark recessed slots with a "?" and no dashed border, so they read differently from a
+  collected art-pending box, but how the full shelf feels depends on sprites that don't exist yet. In C, the
+  `locked=hidden` view also makes locked cubbies look exactly like the spare blank cubbies (Household, Snacks), which
+  is one more reason for spaces there.
 
 ## Q4. Wording
 
@@ -84,8 +111,14 @@ tab already calls the run's pool STOCK.
   `FORMAT_VERSION` to 2.
   - Each draw uses `EventLog.derived_stream(capsule_seed, "capsule_%d" % capsule_draws)` and passes it into
     `core/capsule_draw.gd` (no global random).
-  - A v1 profile gets its seed when it is loaded. The seed is made outside `core/` by `SaveService` and logged; the
-    count starts at the number of unlocked items.
+  - The seed is made outside `core/`: the screen that loads the profile (title or results) calls
+    `EventLog.new_run_seed()` when the profile has no seed yet (a v1 profile, or a new one), passes it into
+    `ProfileState` and logs it. `core/` (and so `SaveService`, which lives in `core/`) never makes a seed. The count
+    starts at the number of unlocked items.
+  - `capsule_seed` is saved as a decimal string, like `RunSave`'s `run_seed` (JSON numbers are doubles, and
+    `ProfileState._read_int` rejects negative values); `capsule_draws` is a plain non-negative int.
+  - A v2 profile opened by an older build fails the version check, so that build backs it up as `.bad` and replaces it
+    with a fresh profile (`SaveService`'s usual treatment of a newer format), as with any format bump.
   - Why: the run save is gone by the time you draw, and a title-screen draw has no run seed. The derived stream from
     the ended run's seed would still need the seed kept in the profile. A fresh unseeded RNG can't be replayed in tests
     or from a log.
@@ -97,19 +130,34 @@ tab already calls the run's pool STOCK.
   - The panel shows COLLECTION COMPLETE and "Your coins keep adding up".
   - Coins keep printing on the final receipt and the title. Nothing else spends them (no shop, no second use).
   - The entry button stays, so the shelf can still be visited.
+- **At 0 coins:** the machines dim and the tomato notice reads "No coins left. Runs that pass shift 4 pay coins on the
+  final receipt." (section 7.1's table pays no coins for a run lost on shifts 1 to 4, and the overtime coin comes in
+  about 1 run in 10).
 - **When the profile can't be saved:**
   - Every machine wears an OUT OF ORDER paper and can't be picked. The coins chip shows "?", and the tomato notice
-    (with the warning triangle) explains why. The shelf still shows whatever the profile could read.
+    (with the warning triangle) reads "Your collection can't be saved right now, so the toy machines are switched
+    off." (one string on every page). The shelf still shows whatever the profile could read.
+  - Only coins show "?": that follows section 7.1's "you have ?" for a coin total that wasn't saved (the run's coins
+    were added in memory but never written). The collection and the "n of m left" counts haven't changed since the
+    profile was read, so they are shown as read.
   - A save that fails *at* a draw: the code saves before it reveals. If `SaveService.save_profile` fails, the draw is
     rolled back in memory (the coin and the item come back), the failure goes through the injected reporter, and the
     machines switch off with the same notice. So nothing is shown that wasn't saved.
-- **The list `start_new_run` uses until #65:** the **pre-fill** (section 7.2: the last list, otherwise the newly
-  listable aisle, otherwise the two base aisles with the most unlocked items, ties by data order). It writes
-  `last_list`. It is what #65's note will show by default, so nothing changes for players when the note lands.
-  `RunStock.surprise_list` (the seeded pair on a derived stream next to `IMPULSE_RACK_STREAM`) is built and tested now,
-  and it stays the cut-list fallback.
+- **The list `start_new_run` uses until #65:** **`RunStock.surprise_list`** (the seeded pair on a derived stream next to
+  `IMPULSE_RACK_STREAM`), the plan's cut-list fallback, which has to exist anyway. It is built and tested now and
+  writes nothing to `last_list`.
+  - Why not the pre-fill (section 7.2: the last list, otherwise the newly listable aisle, otherwise the two base aisles
+    with the most unlocked items)? Without #65's note the player can't see or change it, so the first list is written
+    to `last_list` and **locks in**: it repeats every run, one base aisle disappears for good, and a machine-opened
+    aisle that later becomes listable (Fruit & veg and the others) is never listed. A list is needed after as few as 3
+    base-machine draws, and #65 is cuttable, so the lock-in could ship.
+  - #65 then switches `start_new_run` to the note's list, pre-filled as section 7.2 says. If you'd rather keep the
+    pre-fill until #65 and accept the lock-in, say so.
 - **Telemetry:** log a `capsule` event with `machine` (aisle id), `item`, `run_index`, `coins_left` and `draw`. Add a
   `docs/PROTOTYPE_PLAN.md` section 8 row, and have the log summary count draws per machine.
+  - Draws can happen outside a run. A draw from the results carries the ended run's `run_id` (still `EventLog.run_id`);
+    a title draw carries an empty `run_id`. `run_index` identifies the run either way, and the log summary counts
+    draws per machine from both kinds.
 - **The debug tool:** a Profile section in the debug panel with three actions, all through `ProfileState` and
   `SaveService` (tests redirect the folder):
   - "Give coins" (+1 and +5).
@@ -125,10 +173,13 @@ tab already calls the run's pool STOCK.
   pops in (`UiKit.pop_in`); the coin, crank, capsule and pop beats in these pages preview #64.
 - **Hover and press:** an enabled machine lifts 4 px and brightens with the hand cursor. Disabled machines keep the
   arrow cursor, and each disabled state carries a label or a paper, never colour alone. The coins chip pops as it
-  drops by 1.
+  drops by 1. In the preview the counters change on their beats: coins as the coin goes in, "left" as the capsule
+  drops, FIGURINES n / 30 at the pop (a #64 beat; the plain #63 panel updates them all with the reveal).
 - **Static art for #63** (reviewed by you, logged in `production_log.tsv`). One machine body (look C:
-  `scenery/wall_machine`, 60x100 art px) is recoloured per aisle by a palette map from `sign_color`, the way GOLDEN's
-  `@derive` maps palettes. Also `frames/display_case` and its cubby, and `scenery/exit_wall`. #64 adds the coin,
+  `scenery/wall_machine`, 60x100 art px) is recoloured per aisle by a palette map from `sign_color`. That needs a new `@derive` mode in
+  `tools/pixel_art.py` (today it only takes `golden=<rank|yellow|egg>`), for example `@derive <source> aisle=<id>`
+  mapping the body's ramp to the aisle's sign ramp, with its tests in `pixel_art_test.py`: part of #63's art cost.
+  The alternative is 6 hand-made recolour sources. Also `frames/display_case` and its cubby, and `scenery/exit_wall`. #64 adds the coin,
   crank (4 frames), flap and capsule halves.
 - **Changelog:** none for this prep (docs only). The build adds rows to both plans, as the issue says.
 

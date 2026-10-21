@@ -229,12 +229,14 @@ const CAP = (() => {
     function view() {
       const v = { S, coins: S.coins, left: {}, crank: {}, jig: {}, flap: {}, drawing: D ? D.i : null, item: D ? D.item : null, rm: P.rm };
       for (const a of AISLES) v.left[a.id] = a.items.length - S.drawn[a.id].length;
+      v.owned = AISLES.reduce((n, a) => n + S.drawn[a.id].length, 0);
       if (!D) return v;
       const a = AISLES[D.i];
       const t = tNow();
       if (!P.rm) {
         if (t < T.coin[1]) v.coins += 1;
         if (t < T.drop[0]) v.left[a.id] += 1;
+        if (t < T.pop[0]) v.owned -= 1; // FIGURINES n / 30 counts at the pop (a #64 beat)
         const kc = seg(t, T.crank);
         v.crank[D.i] = kc > 0 && kc < 1 ? Math.floor(kc * 8) % 4 : 0;
         v.jig[D.i] = kc > 0 && kc < 1 ? (Math.floor(kc * 12) % 2 ? 1 : 0) : 0;
