@@ -4,13 +4,18 @@
 <meta charset="utf-8">
 <title>Figurine shelf</title>
 <!--
-  #63 FIGURINE SHELF (decide prep, 2026-10-21), the separate shelf screen for looks A and B (look C is its own shelf).
-  Nothing is decided. A wooden display cabinet at the store exit, one shelf per aisle (data order, read left to right
-  then down), each with its aisle sign (sign_color + glyph + name) and a count. Figurines are the items' plain sprites
-  at 1x (48x48), never rules, standing on the plank in data order (key item first). Variants (URL):
+  #63 FIGURINE SHELF, the separate shelf screen of look A (chosen with the user on 2026-10-21; look C, not chosen,
+  was its own shelf). A wooden display cabinet at the store exit, one shelf per aisle (data order, read left to right
+  then down), each with its aisle sign (sign_color + glyph + name) and a count "n / m". Figurines are the items' plain
+  sprites at 1x (48x48), never rules.
+  DECIDED: locked items are HIDDEN (no "?" spaces). The collected figurines of an aisle stand packed from the left of
+  its plank in data order (key item first), so the plank never shows a gap where a locked item would be. All six
+  aisle shelves are always there, so the cabinet keeps its size from 0 to 30 figurines: an aisle with nothing yet shows
+  a muted "None yet" on its plank, a new profile adds one line under the title, and the aisle's "n / m" and the
+  FIGURINES n / 30 chip tell how many exist (the machine's "3 of 8 left" says the same). Names on hover. Variants (URL):
     state=partial|full|fresh       collection
-    locked=spaces|hidden           a locked item as an empty dashed space with "?", or not shown at all
-    labels=1                       names printed under the figurines (default: names on hover only)
+    locked=spaces                  NOT CHOSEN: the old option, a locked item as a dark recess with "?" (history only)
+    labels=1                       names printed under the figurines (not chosen; default: names on hover only)
     hover=<item name>              force the hover tag (captures)
   The shelf doubles as the catalogue (section 7.1): capsule items only (30), the 14 base-aisle products are not on it.
   New art/src/ sources: frames/display_cabinet (9-slice wood frame + cream back), scenery/shelf_plank (one plank piece).
@@ -27,6 +32,7 @@
 .slot.on:hover { transform: translateY(-4px); }
 .nm { position: absolute; width: 66px; text-align: center; font: 700 11px/1.1 Atkinson; color: var(--ink-light); }
 .cnt { position: absolute; font: 750 16px Atkinson; color: var(--ink-light); }
+.none { position: absolute; font: italic 600 14px Atkinson; color: #8a8172; }
 .done { position: absolute; font: 800 12px Atkinson; color: #7a5a1c; padding: 2px 8px 3px; background: var(--mustard-light); border: 2px solid #7a5a1c; transform: rotate(-4deg); }
 </style>
 </head>
@@ -40,6 +46,7 @@
 const { P, AISLES, TOTAL, R, box, el, glyph, figure, tooltip, initialState } = CAP;
 const stage = document.getElementById('stage');
 const S = initialState();
+const SPACES = new URLSearchParams(location.search).get('locked') === 'spaces'; // not chosen; hidden is decided
 const SEC = (i) => ({ x: 56 + (i % 2) * 592, y: 96 + Math.floor(i / 2) * 176 });
 const W = 576;
 
@@ -78,7 +85,7 @@ AISLES.forEach((a, i) => {
   let k = 0;
   a.items.forEach((name) => {
     const on = drawn.includes(name);
-    if (!on && P.locked === 'hidden') return;
+    if (!on && !SPACES) return;
     const x = s.x + 16 + k * 70, y = s.y + 52; k++;
     const sl = el('div', 'slot' + (on ? ' on' : ''), stage);
     sl.style.left = x + 'px'; sl.style.top = y + 'px';
@@ -91,11 +98,17 @@ AISLES.forEach((a, i) => {
     }
   });
 });
+const fresh = owned === 0;
+if (!SPACES) AISLES.forEach((a, i) => {
+  if (S.drawn[a.id].length) return;
+  const s = SEC(i); const n = el('div', 'none', stage, 'None yet'); Object.assign(n.style, { left: s.x + 16 + 'px', top: s.y + 66 + 'px' });
+});
+if (fresh) { const f = el('div', 'hint', stage, 'Every capsule you open puts its figurine here.'); Object.assign(f.style, { left: '640px', top: '30px' }); }
 const chip = el('div', 'coins', stage, `<span class="lab">FIGURINES</span><span>${owned} / ${TOTAL}</span>`); Object.assign(chip.style, { left: '360px', top: '18px' });
-const hint = el('div', 'hint', stage, P.labels ? '' : 'Hover a figurine for its name.'); Object.assign(hint.style, { left: '56px', top: '664px' });
+const hint = el('div', 'hint', stage, P.labels || fresh ? '' : 'Hover a figurine for its name.'); Object.assign(hint.style, { left: '56px', top: '664px' });
 const back = el('div', 'fbtn secondary', stage, 'Back'); Object.assign(back.style, { left: '1090px', top: '650px', height: '52px', fontSize: '22px', width: '150px' });
 back.onclick = () => history.back();
-CAP.note('Shelf · <a href="?state=partial">partial</a> · <a href="?state=full">full</a> · <a href="?locked=hidden">locked hidden</a> · <a href="?labels=1">names shown</a>');
+CAP.note('Shelf (look A, locked hidden: decided) · <a href="?state=fresh">fresh</a> · <a href="?state=partial">partial</a> · <a href="?state=full">full</a> · not chosen: <a href="?locked=spaces">"?" spaces</a> · <a href="?labels=1">names printed</a>');
 </script>
 </body>
 </html>

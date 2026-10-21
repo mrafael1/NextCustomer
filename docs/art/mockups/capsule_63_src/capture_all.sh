@@ -18,7 +18,7 @@ c capsule_63_c.html "draw=5&t=3&land=1" capsule_63_c_land_done.png
 c capsule_63_c.html "draw=5&t=1&rm=1" capsule_63_c_draw_rm.png
 c capsule_63_c.html "locked=hidden" capsule_63_c_hidden_1920x1080.png
 c capsule_63_shelf.html "state=partial&hover=Strawberries" capsule_63_shelf_partial_1920x1080.png
-c capsule_63_shelf.html "state=partial&locked=hidden" capsule_63_shelf_partial_hidden_1920x1080.png
+c capsule_63_shelf.html "state=partial&locked=spaces" capsule_63_shelf_partial_spaces_1920x1080.png
 c capsule_63_shelf.html "state=full" capsule_63_shelf_full_1920x1080.png
 c capsule_63_shelf.html "state=full&labels=1" capsule_63_shelf_full_labels_1920x1080.png
 c capsule_63_shelf.html "state=fresh" capsule_63_shelf_fresh_1920x1080.png

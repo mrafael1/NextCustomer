@@ -1,8 +1,68 @@
 # #63 decide list: capsule machines, the draw, the shelf and the list logic
 
-Decide prep, 2026-10-21. Nothing is decided. Open `docs/art/mockups/capsule_63_index.html` first: it links every page
-and still. The three looks are live: click a machine and the draw plays (the note in the bottom-right corner switches
-states). The shared brief is `capsule_63_src/BRIEF.md`.
+## Decided with the user (2026-10-21)
+
+The user answered the four questions on 2026-10-21. These answers are binding for the #63 build; the original decide
+list below is kept as history (its recommendations for C and for "?" spaces were not taken).
+
+- **Q1 look: A.** "I think A is the better one? C has too much info going." The camera cuts to the store exit
+  (`capsule_63_a.html`): six big round-globe toy machines on the tiled floor by the sliding doors, with A's globe body
+  (72x140 art px, 144x280 on screen). The figurine shelf is its own screen (`capsule_63_shelf.html`). C's collector wall
+  and B's pop-in cabinet are not chosen.
+  - For the build: the static art is A's: `scenery/toy_machine` (one body, recoloured per aisle by the new
+    `@derive <source> aisle=<id>` palette map from `sign_color`, or 6 hand recolours), `scenery/exit_vestibule`,
+    `frames/aisle_sign`, and for the shelf `frames/display_cabinet` and `scenery/shelf_plank`. C's
+    `scenery/wall_machine`, `frames/display_case` and `scenery/exit_wall` are dropped, and so is C's fly-to-cubby beat:
+    #64's draw ends on the reveal, OK goes back to the machines.
+  - The machines screen carries a "Figurine shelf" button (as on A's page); the shelf's Back returns to the machines.
+- **Q2 where: from the results and from the title, and coins can be kept.** "result + title and keep coins". A
+  secondary "Toy machines ›" button beside New run on the results (Done returns to the results), and the machine prop
+  plus the same button in the space on the right of title B (#56; Done returns to the title). Spending is never
+  required and nothing nags.
+  - **Default, not user-chosen:** the sub-choice for a title draw while a run is saved was not answered, so the
+    recommended (a) stands: that draw gets run index `run_count` (the saved run's own index), the item rides the 3 runs
+    after the saved one, and the reveal says "**In stock after your saved run**". A title draw with no saved run and a
+    results draw keep the issue's `run_count - 1` and "In stock from your next run". Say so to change it to (b) or (c)
+    below.
+- **Q3 shelf: locked items are hidden.** "shelf is looking good. items not unlocked shouldn't be shown." No "?"
+  spaces: a locked figurine has no space, no silhouette and no name anywhere on the shelf. The other Q3 parts stay as
+  recommended, since the user said the shelf looks good: **the 30 capsule items only**, **names on hover**, **data
+  order** (key item first). How a hidden-locked shelf still reads well (decided here, A's shelf look kept):
+  - **The cabinet keeps its size.** All six aisle shelves are always there, in `balance.aisles` order, each with its
+    sign (sign colour, glyph, name) and its count "**n / m**" (for example "3 / 8"). The cabinet does not grow or
+    shrink with the collection, so 0, 3, 9 and 30 figurines are one layout (no reflow to test, and the 30-figurine fit
+    check from the prep still holds).
+  - **Figurines stand packed from the left of their plank, in data order** (key item first), at the same 70 px pitch,
+    so there is never a gap that hints at a locked item. Hidden items need no fixed spot: when an earlier item in data
+    order arrives later, the ones after it move one place right. That is fine, since there is no gap to fill.
+  - **An aisle with nothing yet** shows a muted italic "**None yet**" on its plank, so an empty shelf reads as
+    "nothing collected", not as missing content.
+  - **A new profile (0 / 30)** shows "None yet" on all six shelves and one line beside the chip: "Every capsule you
+    open puts its figurine here." (the "Hover a figurine for its name." hint is left out while there is nothing to
+    hover).
+  - **How many exist** is still told by the numbers, never by empty spaces: each aisle's "n / m", the FIGURINES
+    n / 30 chip, and the machine's own "3 of 8 left". These are counts, not items, so they don't show what is locked.
+    A full aisle keeps the ALL COLLECTED tag.
+  - Stills: `capsule_63_shelf_partial_1920x1080.png` (9 / 30, with the hover tag), `capsule_63_shelf_fresh_1920x1080.png`
+    (0 / 30), `capsule_63_shelf_full_1920x1080.png` (30 / 30). The old option stays reachable only as a not-chosen
+    view (`capsule_63_shelf.html?locked=spaces`, still `capsule_63_shelf_partial_spaces_1920x1080.png`).
+- **Q4 wording: TOY MACHINES.** The sign and title say TOY MACHINES; inside is a **capsule**, you get a **figurine**;
+  "3 of 8 left" / "All 8 collected"; "1 coin"; "NEW!", the name, its aisle, "In stock from your next run" (or the
+  saved-run line above); hint "Pick a machine: 1 coin a capsule." Never "gacha". "Capsule machines" is not chosen.
+
+**Defaults still standing** (stated below under "Stated defaults", not changed by the answers; say so to change one):
+the RNG source (`capsule_seed` + `capsule_draws` in `ProfileState`, `FORMAT_VERSION` 2, the seed made outside
+`core/`); full collection (ALL COLLECTED, COLLECTION COMPLETE, coins keep adding up); 0 coins (dimmed machines, the
+tomato notice); can't save (OUT OF ORDER, "Coins ?", a failed save rolls the draw back); **`RunStock.surprise_list` as
+the list `start_new_run` uses until #65** (the pre-fill would lock the first list in); the `capsule` telemetry event;
+the debug panel's Profile tools; the machine row in `balance.aisles` order; the plain reveal (`UiKit.pop_in`) that #64
+must end on; hover and press; no changelog for the prep. The static-art default is updated for look A (above).
+
+## Original decide list (history)
+
+Decide prep, 2026-10-21, written before the answers above. Open `docs/art/mockups/capsule_63_index.html` first: it
+links every page and still. The three looks are live: click a machine and the draw plays (the note in the bottom-right
+corner switches states). The shared brief is `capsule_63_src/BRIEF.md`.
 
 Four real questions (Q1 to Q4), each with a recommendation. Everything after them is a stated default from the issue's
 "decide with the user" list: say so if you want one changed.
@@ -26,7 +86,8 @@ Any body can stand in any staging, so you can pick, for example, C's wall and ca
 `scenery/wall_machine`, for A or B a floor machine), so the art list below holds for whichever body you pick; only its
 size changes with the staging.
 
-**Recommendation: C's staging with the globe body.** Reasons:
+**Recommendation (not taken: the user chose A's staging with its globe body): C's staging with the globe body.**
+Reasons:
 
 - One place per fact (your note on the shift screen): the case under each machine *is* that machine's "what's left",
   so the shelf, the catalogue and the items-left count are the same object, and every new figurine visibly lands in
@@ -46,7 +107,7 @@ drawn bigger, at the price of a camera cut and a second screen for the shelf. B'
 
 ## Q2. Where the machines are reached, keeping coins, and a title-screen draw's run index
 
-**Recommendation:** from both places, and coins can be kept.
+**Recommendation (taken):** from both places, and coins can be kept.
 
 - **After a run:** a secondary button "Toy machines ›" beside New run on the results (results look A, the till
   report). Done brings you back to the results.
@@ -60,7 +121,7 @@ drawn bigger, at the price of a camera cut and a second screen for the shelf. B'
   Continue *is* the next run, and its stock was fixed when it started. So `run_count - 1` would give the item only 2
   of its 3 runs, and the reveal's "In stock from your next run" would be false (and so would section 7.2's "a capsule
   is always playable in the next run"). The options for that case:
-  - **(a) Recommended:** a title draw while a run is saved gets run index `run_count` (the saved run's own index), so
+  - **(a) Recommended, and the standing default (not answered by the user):** a title draw while a run is saved gets run index `run_count` (the saved run's own index), so
     the item rides the 3 runs after the saved one. The reveal line then says "**In stock after your saved run**".
   - (b) The title machines are switched off while a run is saved (a "Finish your run first" label on the machine
     prop; the shelf stays open).
@@ -72,11 +133,12 @@ run to reach the machines.
 
 ## Q3. The shelf: locked items, which items, names and order
 
-**Recommendation:** locked items are **empty spaces** (a dashed box with "?"); the shelf holds **capsule items only**
+**Recommendation (partly taken: the user chose locked items HIDDEN, not spaces; the rest was taken):** locked items
+are **empty spaces** (a dashed box with "?"); the shelf holds **capsule items only**
 (30); names show **on hover** (a tag with the name, aisle glyph and aisle); the order within an aisle is **data
 order** (the key item first, so each figurine has a fixed spot).
 
-- Empty spaces show the progress the machine already states ("3 of 8 left"), and fixed spots make the shelf fill in
+- (Not taken.) Empty spaces show the progress the machine already states ("3 of 8 left"), and fixed spots make the shelf fill in
   like an album. Hidden locked items (see `locked=hidden` on the shelf and on C) hide nothing the machine doesn't
   already show, and make the shelf look emptier.
 - Capsule items only: the shelf is the record of what came out of capsules. The 14 base-aisle products were never
@@ -93,7 +155,7 @@ order** (the key item first, so each figurine has a fixed spot).
 
 ## Q4. Wording
 
-**Recommendation:**
+**Recommendation (taken: TOY MACHINES):**
 
 - The sign and the title say **TOY MACHINES**. The thing inside is a **capsule**, and what you get is a **figurine**.
 - Each machine's label reads "**3 of 8 left**", or "**All 8 collected**" when it is empty.
@@ -105,7 +167,7 @@ order** (the key item first, so each figurine has a fixed spot).
 is the plan's word and is also allowed. Neither ever says "gacha". The figurine line says "stock" because the Run info
 tab already calls the run's pool STOCK.
 
-## Stated defaults (the rest of the issue's list)
+## Stated defaults (the rest of the issue's list; still standing after the answers)
 
 - **The draw's RNG source:** a seed and a draw count in `ProfileState` (`capsule_seed`, `capsule_draws`), which raises
   `FORMAT_VERSION` to 2.
@@ -175,11 +237,14 @@ tab already calls the run's pool STOCK.
   arrow cursor, and each disabled state carries a label or a paper, never colour alone. The coins chip pops as it
   drops by 1. In the preview the counters change on their beats: coins as the coin goes in, "left" as the capsule
   drops, FIGURINES n / 30 at the pop (a #64 beat; the plain #63 panel updates them all with the reveal).
-- **Static art for #63** (reviewed by you, logged in `production_log.tsv`). One machine body (look C:
-  `scenery/wall_machine`, 60x100 art px) is recoloured per aisle by a palette map from `sign_color`. That needs a new `@derive` mode in
+- **Static art for #63** (reviewed by you, logged in `production_log.tsv`). Updated for look A (decided): one
+  machine body (`scenery/toy_machine`, 72x140 art px; the prep's text for C named `scenery/wall_machine`, 60x100) is
+  recoloured per aisle by a palette map from `sign_color`. That needs a new `@derive` mode in
   `tools/pixel_art.py` (today it only takes `golden=<rank|yellow|egg>`), for example `@derive <source> aisle=<id>`
   mapping the body's ramp to the aisle's sign ramp, with its tests in `pixel_art_test.py`: part of #63's art cost.
-  The alternative is 6 hand-made recolour sources. Also `frames/display_case` and its cubby, and `scenery/exit_wall`. #64 adds the coin,
+  The alternative is 6 hand-made recolour sources. Also `scenery/exit_vestibule`, `frames/aisle_sign`,
+  `frames/display_cabinet` and `scenery/shelf_plank` (C's `frames/display_case`, its cubby and `scenery/exit_wall` are
+  dropped). #64 adds the coin,
   crank (4 frames), flap and capsule halves.
 - **Changelog:** none for this prep (docs only). The build adds rows to both plans, as the issue says.
 

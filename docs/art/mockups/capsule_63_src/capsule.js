@@ -7,7 +7,9 @@
 //   nosave=1                   the profile can't be saved: machines switched off, "Coins ?"
 //   draw=I&t=S                 freeze a draw from machine I (0-5, data order) at S seconds (stills)
 //   rm=1                       reduced motion (the reveal fades in place)
-//   words=capsule              "CAPSULE MACHINES" instead of "TOY MACHINES" (Q4)
+//   words=capsule              "CAPSULE MACHINES" instead of "TOY MACHINES" (Q4; not chosen, TOY MACHINES decided)
+//   locked=spaces|hidden       locked items as "?" recesses or not shown. Look C (not chosen) defaults to spaces; the
+//                              shelf page defaults to hidden (decided 2026-10-21) and keeps spaces as a not-chosen view
 //   cap=1                      hide the mock-up note (captures)
 'use strict';
 const CAP = (() => {

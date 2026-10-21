@@ -1,7 +1,11 @@
 # #63 mock-up brief: capsule machines, the draw and the figurine shelf
 
 Brief for the decide-round mock-ups of issue #63 ("Capsule machines: plain panel, draw, figurine shelf and list
-logic"). Nothing is decided: the pages are options to choose from. Written 2026-10-21 from the code at 481cfbe (PR #88's
+logic"). **Decided with the user on 2026-10-21** (details in `DECIDE_63.md`): look **A** (camera cut to the exit, A's
+globe machines, separate shelf screen); reached from the **results and the title**, coins can be kept; on the shelf
+**locked items are hidden** (figurines packed left in data order, "None yet" on an empty aisle, counts tell how many
+exist), the 30 capsule items only, names on hover; wording **TOY MACHINES**. B and C are not chosen and stay as
+history. The rest of this brief is the prep as written, when the pages were options to choose from. Written 2026-10-21 from the code at 481cfbe (PR #88's
 #86 work plus the UI test speed-up), `docs/FULL_BUILD_PLAN.md` sections 1, 4, 6.1, 6.2, 7.1, 7.2, 10 and 11, issues #63
 and #64, `data/aisles/*.tres`, and the earlier decide preps (`screens_src/BRIEF.md`, `DECIDE_56.md`, `purse_src/DECIDE_76.md`,
 `machine_77_src/DECIDE_77.md` in the main tree).
@@ -66,10 +70,10 @@ and #64, `data/aisles/*.tres`, and the earlier decide preps (`screens_src/BRIEF.
 | Page | What it shows |
 |---|---|
 | `capsule_63_index.html` | links and a one-screen summary |
-| `capsule_63_a.html` | Look A, the exit vestibule: six round-globe machines on the tiled floor by the sliding doors (camera cut to the exit) |
-| `capsule_63_b.html` | Look B, the machine bank pop-in: six boxy window machines in a steel cabinet over the shaded results |
-| `capsule_63_c.html` | Look C, the collector wall: a small wall machine above each aisle's wooden display case; the figurine flies into its cubby |
-| `capsule_63_shelf.html` | the separate figurine shelf for A and B: full and partial, locked as spaces or hidden, names on hover or printed |
+| `capsule_63_a.html` | **Chosen.** Look A, the exit vestibule: six round-globe machines on the tiled floor by the sliding doors (camera cut to the exit) |
+| `capsule_63_b.html` | Not chosen. Look B, the machine bank pop-in: six boxy window machines in a steel cabinet over the shaded results |
+| `capsule_63_c.html` | Not chosen. Look C, the collector wall: a small wall machine above each aisle's wooden display case; the figurine flies into its cubby |
+| `capsule_63_shelf.html` | the separate figurine shelf of look A: fresh, partial and full, locked items hidden (decided; `?locked=spaces` is the not-chosen "?" view), names on hover (`?labels=1` prints them, not chosen) |
 
 States on every look page: partial collection (9 of 30, 2 coins), fresh, full collection (3 coins), 0 coins, profile
 can't be saved, reduced motion, and a frozen draw at any time `t`.
