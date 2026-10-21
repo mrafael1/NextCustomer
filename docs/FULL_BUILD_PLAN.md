@@ -93,7 +93,8 @@ See `docs/PROTOTYPE_PLAN.md`. It closed at proto-r1 after the developer's own ru
 
 ### After launch
 - Basket Rush shopping screen (section 7.3)
-- Unlockable starting decks and card variants (section 7.3)
+- Unlockable starting decks and card variants (section 7.3), among them starting decks themed on a completed capsule family (#90)
+- Deactivating a few items from the run stock, a cap growing from 1 to 5 (#91, section 7.2)
 - More coupons, upgrades and inspections
 
 ## 4. Technical architecture
@@ -382,7 +383,7 @@ Rewards draw from the stock through the RECEIPT REWARDS machine (section 5.4, #7
 
 Until #77 the reward printed from the receipt as the reward print-out: coupons plus promo products (stocked products on special offer). Since #77 the receipt feeds the machine instead.
 
-**The shopping list:** a note at the register before shift 1 (before the impulse rack until #77). It is pre-filled with the last list (the first time, with the newly listable aisle if there is one, otherwise the two base aisles with the most unlocked items, ties by data order), and one click clocks in. "Surprise me" picks a pair from a derived stream (section 4). The list stores a preference, never power. No per-item toggles, ban lists or figurines turned to the wall: players would prune to the strongest cards. Also rejected: ticketed offers (a rule change with a new hook on every rule), a seeded-only flyer as the default (kept only as the fallback if the note is cut), and a stock-size valve (the 9-item aisle cap replaces it).
+**The shopping list:** a note at the register before shift 1 (before the impulse rack until #77). It is pre-filled with the last list (the first time, with the newly listable aisle if there is one, otherwise the two base aisles with the most unlocked items, ties by data order), and one click clocks in. "Surprise me" picks a pair from a derived stream (section 4). The list stores a preference, never power. No per-item toggles, ban lists or figurines turned to the wall: players would prune to the strongest cards. After launch this gives way to a small capped ban list (decided with the user on 2026-10-21, #91): with progress the player may deactivate 1 item, then up to 5, and the simulator checks that the strongest ban list at each cap keeps the win rate in the list gate's band and no build over the 40% bar. Also rejected: ticketed offers (a rule change with a new hook on every rule), a seeded-only flyer as the default (kept only as the fallback if the note is cut), and a stock-size valve (the 9-item aisle cap replaces it).
 
 **Content shape (1.0, decided; built in phase 2, v0.25, issue #35: Cold cases, Pantry and Household grow to 7 items each, and Fruit & veg, Bakery and Snacks open through their machines; `docs/PROTOTYPE_PLAN.md` section 5 lists every item; easy to change later, because the stock rule works with any number of aisles):** 6 staples · 3 base aisles open from the start (5/5/4), whose machines add 2–3 each, to about 7 · 3 aisles opened by their machines (8/8/7) · 30 capsules, about 50 products · at full collection, 15 possible lists of 20–22 products (plus up to 3 new arrivals).
 
@@ -405,6 +406,7 @@ The prototype already has `DeckDefinition` (id, name, cards) and data-driven car
 - **Starting upgrade (decided with the user):** a run started with a deck that has one owns it from the first shift. Upgrade offers skip it like any owned upgrade, it counts for redraws and scoring, and the loyalty card gives it a pre-stamped box of its own before the upgrade-shift boxes. The starter deck has none.
 
 Possible ideas: Breakfast deck (start with Coffee and Milk), Coupon deck (fewer products, 2 starting coupons), Frozen deck (Frozen peas, Soup risk).
+Family decks (after launch, the user's idea of 2026-10-21, #90): completing a capsule family (every capsule item of one aisle, e.g. Fruit & veg) unlocks a starting deck themed on it that holds some of its items, through a new `UnlockCondition` kind.
 Card changes: unlock variants that replace a starting card (e.g. swap 1 Banana for an Organic Banana in the run start screen).
 
 **Basket Rush (after launch):** a shopping screen that builds the starting deck. One limit: item prices in data plus a fixed basket size (a size limit alone allows 6 Eggs + 6 Milk). Dexterity never changes what ends up in the deck. It remembers the last basket, is skipped on the first run and in the web demo, and has a static mode for reduced motion. Its strength spread is checked with the simulator's run win rates.
