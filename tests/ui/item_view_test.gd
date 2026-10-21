@@ -107,10 +107,12 @@ func test_tray_items_keep_the_sticker_off_the_sprite() -> void:
 				assert_bool(SCREEN.encloses(brackets)).is_true()
 
 
-## Every sprite keeps its price sticker clear (#57, the user's answer): the art's opaque pixels
-## (their box, at 2x where the view draws them) stay inside the item's cell and never reach its
-## sticker, on the belt and in the tray, at rest and lifted. Every card is checked, the 20
-## products a new profile stocks among them.
+## The ticket stays clear of the art for every card (#57, the user's answer). The sticker sits
+## below the sprite box, so no drawing can reach it whatever its pixels; this pins that layout
+## per card: each card's opaque art box (at 2x where the view draws it) misses its sticker and
+## stays inside its cell and the screen, on the belt and in the tray, at rest and lifted, and
+## the 20 products a new profile stocks show their own sprite. The pixels only matter here if
+## the sticker ever moves under the sprite box.
 func test_no_sprite_reaches_its_price_sticker() -> void:
 	var stocked: Array[CardDefinition] = LIVE_CARDS.stocked_products()
 	var origins: Dictionary[ItemView.Form, Vector2] = {
