@@ -21,3 +21,4 @@ rules = Array[ExtResource("1_rule")]([SubResource("Resource_carrier_bag")])
 rule_text = "+5 for each earlier Food product"
 sticker_text = "+{bonus_each} per earlier {tag}"
 generally_useful = true
+art_ref = "res://art/items_v2/carrier_bag.png"

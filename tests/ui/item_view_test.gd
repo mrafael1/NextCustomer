@@ -5,8 +5,8 @@ extends GdUnitTestSuite
 ## runs under the art (at rest, selected or scanned, either face) nor, settled, over the corner
 ## mark; the sticker covers neither the sprite nor the mark; center() is on the sprite; the paid
 ## chip has its two faces, mutes at €0 and pops with an echo; the looks (selected, redraw) show; one
-## mark per item sits on the art's corner (#80, step 7); and every undrawn item's name fits its
-## art-pending box or its slip.
+## mark per item sits on the art's corner (#80, step 7); every sprite's opaque pixels keep clear of
+## its sticker (#57); and every undrawn item's name fits its art-pending box or its slip.
 
 const CARDS := "res://data/cards"
 const BALANCE := "res://data/balance/balance.tres"
@@ -19,7 +19,10 @@ const PENDING_BOX := Rect2(10, 20, 76, 76)
 const SLIP_PAPER := Rect2(26, 30, 60, 48)
 const DRAWN_MILK := "res://art/items_v2/milk.png"
 const COUPON_ICON := "res://art/icons/coupon_multipack_v2.png"
-## The longest names of the cards with no art yet (#75, decision 3A).
+## The live data's tests, for the products a new profile stocks (#57).
+const LIVE_CARDS := preload("res://tests/data/live_cards_test.gd")
+## The longest names (#75, decision 3A), each checked as if undrawn (Flickering bulb is drawn
+## since #57).
 const LONG_NAMES: Array[String] = [
 	"Birthday candles", "Flickering bulb", "Breakfast sticker", "Final markdown"
 ]
@@ -102,6 +105,35 @@ func test_tray_items_keep_the_sticker_off_the_sprite() -> void:
 					. is_false()
 				)
 				assert_bool(SCREEN.encloses(brackets)).is_true()
+
+
+## Every sprite keeps its price sticker clear (#57, the user's answer): the art's opaque pixels
+## (their box, at 2x where the view draws them) stay inside the item's cell and never reach its
+## sticker, on the belt and in the tray, at rest and lifted. Every card is checked, the 20
+## products a new profile stocks among them.
+func test_no_sprite_reaches_its_price_sticker() -> void:
+	var stocked: Array[CardDefinition] = LIVE_CARDS.stocked_products()
+	var origins: Dictionary[ItemView.Form, Vector2] = {
+		ItemView.Form.BELT: BELT_ORIGIN, ItemView.Form.TRAY: TRAY_ORIGIN
+	}
+	for form: ItemView.Form in origins:
+		var checked: int = 0
+		for view: ItemView in await _all_laid_out(form, origins[form]):
+			var definition: CardDefinition = view.card.definition
+			if stocked.has(definition):
+				checked += 1
+				assert_object(view.sprite().texture).is_not_same(ArtStyle.ITEM_PENDING)
+			for lifted: bool in [false, true]:
+				view.lifted = lifted
+				var message: String = "%s, form %d, lifted %s" % [definition.id, form, lifted]
+				var art: Rect2 = _art_rect(view)
+				var sticker: Rect2 = view.sticker().get_global_rect()
+				assert_bool(art.intersects(sticker)).override_failure_message(message).is_false()
+				var cell: Rect2 = view.get_global_rect()
+				assert_bool(cell.encloses(art)).override_failure_message(message).is_true()
+				assert_bool(SCREEN.encloses(art)).override_failure_message(message).is_true()
+			view.lifted = false
+		assert_int(checked).is_equal(stocked.size())
 
 
 ## center() is the sprite's middle at rest, in both forms and in a scaled row (RowStrip's 8 and
@@ -607,9 +639,10 @@ func test_sprites_come_from_art_ref() -> void:
 	assert_vector(drawn.sprite().texture.get_size() * ArtStyle.ART_SCALE).is_equal(
 		ItemView.SPRITE_SIZE
 	)
-	var bread: ItemView = await _laid_out(
-		load("%s/bread.tres" % CARDS), ItemView.Form.TRAY, TRAY_ORIGIN
-	)
+	# An undrawn product: Bread with no art_ref (every stocked product is drawn since #57).
+	var undrawn: CardDefinition = (load("%s/bread.tres" % CARDS) as CardDefinition).duplicate()
+	undrawn.art_ref = ""
+	var bread: ItemView = await _laid_out(undrawn, ItemView.Form.TRAY, TRAY_ORIGIN)
 	assert_object(bread.sprite().texture).is_same(ArtStyle.ITEM_PENDING)
 	assert_vector(ArtStyle.ITEM_PENDING.get_size() * ArtStyle.ART_SCALE).is_equal(
 		ItemView.SPRITE_SIZE

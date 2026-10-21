@@ -223,11 +223,14 @@ func test_the_paper_bag_stands_between_the_receipt_and_the_belt() -> void:
 	assert_int(index).is_greater(screen._stage.planning_layer.get_index())
 	assert_int(index).is_less(screen._top_bar.get_index())
 	var products: Array[CardDefinition] = []
-	# Bread's art is pending and Bundle is a slip with no icon: their names are not printed here.
+	# An undrawn product (Bread with no art_ref; every stocked product is drawn since #57) and
+	# Bundle, a slip with no icon: their names are not printed here.
 	var bagged: Array[String] = ["milk", "eggs", "coffee", "cheese", "banana", "croissant"]
 	bagged.append_array(["crisps", "bread", "bundle"])
 	for card_id: String in bagged:
 		products.append(load("res://data/cards/%s.tres" % card_id) as CardDefinition)
+	products[-2] = products[-2].duplicate()
+	products[-2].art_ref = ""
 	# Their belt art prints their names: the bag's must not.
 	for definition: CardDefinition in products.slice(-2):
 		var belt_art: TextureRect = ItemView.item_art(definition)
