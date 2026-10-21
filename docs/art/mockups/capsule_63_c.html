@@ -1,0 +1,190 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Capsule machines C</title>
+<!--
+  #63 CAPSULE MACHINES, LOOK C: THE COLLECTOR WALL (decide prep, 2026-10-21). Nothing is decided.
+  Idea: the machines and the figurine shelf are one wall at the store exit. Each aisle has a column: a small wall-hung
+  globe machine on a wooden bracket, its "3 of 8 left" label, and under it a wooden display case with one cubby per
+  item of that machine (2, 2, 3, 8, 8, 7), filled in data order. A locked item is an empty cubby with a "?", so the
+  case itself shows what is left. The draw is the same as A's, but after OK the figurine flies from the reveal into its
+  cubby at 1x (a sparkle lands it). Hovering a figurine shows its name and aisle. No separate shelf screen is needed.
+  New art/src/ sources: scenery/wall_machine (one body, palette-mapped per aisle), frames/display_case (9-slice wood
+  case + cubby), scenery/exit_wall. #64's moving parts as in A, plus the fly-to-cubby (0.5 s).
+  Timing: about 2.6 s to the reveal, then 0.5 s to land after OK (#64); reduced motion lands at once.
+  Fit check: 6 columns of 196 px in 1280; 4 rows of cubbies (Fruit & veg, Bakery 8) end at y 592; "Birthday candles"
+  in the tooltip; the full collection shows all 30 at 1x.
+-->
+<link rel="stylesheet" href="capsule_63_src/capsule.css">
+<style>
+#bg { position: absolute; left: 0; top: 0; }
+.topbar { position: absolute; left: 0; top: 0; width: 1280px; height: 56px; background: var(--teal-panel); border-bottom: 4px solid var(--ink); }
+.ttl { position: absolute; left: 20px; top: 8px; font: 400 32px Pixelify; color: var(--paper); letter-spacing: 2px; }
+.cubby { position: absolute; width: 48px; height: 48px; }
+.cubby .q { width: 48px; height: 48px; border: 2px dashed #b9a47c; display: flex; align-items: center; justify-content: center; font: 400 22px Pixelify; color: #b9a47c; }
+.cubby img { width: 48px; height: 48px; display: block; }
+.spark { position: absolute; width: 10px; height: 10px; background: url(capsule_63_src/assets/sparkle.png) center / 100% 100%; image-rendering: pixelated; }
+.landfig { position: absolute; width: 96px; height: 96px; transform-origin: 0 0; }
+.landfig img, .landfig .pend { width: 96px; height: 96px; display: flex; }
+</style>
+</head>
+<body>
+<div class="stage" id="stage">
+  <canvas id="bg"></canvas>
+  <div class="topbar"></div>
+  <div class="ttl ol" id="ttl"></div>
+</div>
+<script src="capsule_63_src/capsule.js"></script>
+<script>
+const { P, AISLES, TOTAL, canvas, R, disc, box, handle, pile, el, glyph, figure, coinChip, engine, WORDS, COIN_SVG, tooltip } = CAP;
+const stage = document.getElementById('stage');
+document.getElementById('ttl').textContent = WORDS.title;
+const COLX = i => 24 + i * 206;
+const CASE_TOP = 292, CUB_W = 84, CUB_H = 72;
+
+// ---- backdrop: the exit wall with six wooden cases (art 640x360) ----
+(function backdrop() {
+  const c = document.getElementById('bg'); c.width = 640; c.height = 360; c.style.width = '1280px'; c.style.height = '720px';
+  const g = c.getContext('2d'); const ink = '#2b2420';
+  R(g, 0, 0, 640, 360, '#ece0c6');
+  for (let x = 0; x < 640; x += 24) R(g, x, 30, 1, 270, '#e4d6b9');
+  R(g, 0, 296, 640, 1, ink); R(g, 0, 297, 640, 3, '#a8703a'); R(g, 0, 300, 640, 60, '#6e4524'); R(g, 0, 300, 640, 1, ink);
+  for (let x = 0; x < 640; x += 40) R(g, x, 301, 1, 59, '#4a3022');
+  AISLES.forEach((a, i) => {
+    const x = COLX(i) / 2, rows = Math.ceil(a.items.length / 2);
+    const cx = x + 7, cy = CASE_TOP / 2, w = 84, h = rows * CUB_H / 2 + 6;
+    g.fillStyle = 'rgba(43,36,32,.18)'; g.fillRect(cx + 3, cy + 3, w, h);
+    box(g, cx, cy, w, h, '#a8703a'); R(g, cx + 1, cy + 1, w - 2, 1, '#d2a874'); R(g, cx + 1, cy + h - 2, w - 2, 1, '#6e4524');
+    for (let r = 0; r < rows; r++) for (let k = 0; k < 2; k++) {
+      const bx = cx + 3 + k * 40, by = cy + 3 + r * 36;
+      box(g, bx, by, 38, 34, '#e4d6b9'); R(g, bx + 1, by + 1, 36, 3, '#cdbb98'); R(g, bx + 1, by + 29, 36, 4, '#c98c4e'); R(g, bx + 1, by + 29, 36, 1, '#ddb07a');
+    }
+  });
+})();
+
+// ---- the wall machine (art 60x100) ----
+const SLOTS = [[22, 47], [30, 48], [38, 47], [18, 38], [26, 38], [34, 38], [42, 38], [30, 29]];
+function paint(c, a, o) {
+  const g = c.getContext('2d'); g.clearRect(0, 0, 60, 100);
+  const [d, b, l] = a.ramp; const ink = '#2b2420';
+  box(g, 0, 0, 60, 16, b); R(g, 1, 1, 58, 2, l); R(g, 1, 13, 58, 2, d);
+  disc(g, 30, 36, 19, ink); disc(g, 30, 36, 18, '#bfe2dd'); disc(g, 29, 35, 16, '#e4f6f3');
+  pile(g, SLOTS, o.left, a.ramp, 5, o.jig);
+  R(g, 16, 28, 2, 6, '#fbf7ee'); R(g, 18, 24, 2, 4, '#fbf7ee'); R(g, 21, 21, 3, 2, '#fbf7ee');
+  box(g, 22, 15, 16, 5, b);
+  box(g, 10, 53, 40, 7, '#c7c3b8'); R(g, 11, 54, 38, 1, '#ecebe4');
+  box(g, 8, 59, 44, 31, b); R(g, 9, 60, 2, 29, l); R(g, 48, 60, 3, 29, d);
+  box(g, 12, 62, 36, 17, '#ecebe4');
+  box(g, 14, 64, 8, 13, '#c8932b'); R(g, 15, 65, 6, 1, '#ffcf3f'); R(g, 17, 66, 2, 9, o.slotLit ? '#ffcf3f' : ink);
+  disc(g, 35, 70, 7, ink); disc(g, 35, 70, 6, '#c7c3b8'); disc(g, 34, 69, 4, '#ecebe4');
+  handle(g, 35, 70, 6, o.crank, '#57534c', '#e2b33c'); R(g, 34, 69, 3, 3, ink);
+  box(g, 20, 80, 20, 9, '#24221f');
+  if (!o.flap) { R(g, 21, 81, 18, 5, '#a9a59b'); R(g, 21, 81, 18, 1, '#c7c3b8'); } else R(g, 21, 81, 18, 2, '#6f6b63');
+  box(g, 2, 90, 56, 6, '#a8703a'); R(g, 3, 91, 54, 1, '#d2a874');
+  for (const x of [8, 46]) { box(g, x, 95, 6, 5, '#6e4524'); }
+}
+
+const tip = tooltip(stage);
+const COL = AISLES.map((a, i) => {
+  const x = COLX(i);
+  const m = el('div', 'machine', stage); Object.assign(m.style, { left: x + 38 + 'px', top: '66px', width: '120px', height: '200px' });
+  const c = canvas(60, 100, 'body'); m.appendChild(c);
+  const st = el('div', 'signtxt ol2', m, `${glyph(a)}<span>${a.name}</span>`); Object.assign(st.style, { left: '-10px', top: '3px', width: '140px', height: '26px', fontSize: '14px' });
+  const price = el('div', 'label', m, `${COIN_SVG}1 coin`); Object.assign(price.style, { left: '70px', top: '30px', height: '26px', fontSize: '12px', transform: 'rotate(9deg)' });
+  const lab = el('div', 'label', stage); lab.style.top = '258px'; lab.style.height = '28px';
+  m.addEventListener('mouseenter', () => m.dataset.h = 1); m.addEventListener('mouseleave', () => delete m.dataset.h);
+  m.addEventListener('click', e => { e.stopPropagation(); if (!E.isBusy()) E.start(i); });
+  const cubs = a.items.map((name, k) => {
+    const cb = el('div', 'cubby', stage);
+    const cx = x + 14 + 6 + (k % 2) * 80 + 14, cy = CASE_TOP + 16 + Math.floor(k / 2) * CUB_H;
+    cb.style.left = cx + 'px'; cb.style.top = cy + 'px';
+    cb.addEventListener('mouseenter', () => { if (cb.dataset.on) tip.show(name, a, cx + 54, cy - 6); });
+    cb.addEventListener('mouseleave', () => tip.hide());
+    return { cb, name, cx, cy, state: '' };
+  });
+  return { m, c, lab, price, key: '', i, a, extra: null, cubs };
+});
+const coinChipEl = coinChip(stage, 860, 6, 0, P.nosave);
+const figChip = el('div', 'coins', stage); Object.assign(figChip.style, { left: '1032px', top: '6px', padding: '0 12px 2px' });
+const hint = el('div', 'hint', stage); hint.style.top = '660px';
+const notice = el('div', 'notice paper', stage); notice.style.display = 'none'; notice.style.top = '640px';
+const done = el('div', 'fbtn primary', stage, 'Done ›'); Object.assign(done.style, { left: '1090px', top: '640px', height: '56px', fontSize: '24px', width: '160px' });
+let landed = null;
+
+const look = {
+  stage,
+  slot: i => ({ x: COLX(i) + 38 + 36, y: 66 + 140 }),
+  chute: i => ({ x: COLX(i) + 38 + 60, y: 66 + 172 }),
+  center: { x: 640, y: 380 },
+  coinEl: () => coinChipEl,
+  update(v) {
+    const S = v.S;
+    let owned = 0; for (const a of AISLES) owned += a.items.length - v.left[a.id];
+    figChip.innerHTML = `<span class="lab">FIGURINES</span><span>${owned}/${TOTAL}</span>`;
+    const allDone = AISLES.every(a => v.left[a.id] === 0);
+    for (const o of COL) {
+      const left = v.left[o.a.id]; const total = o.a.items.length;
+      const mode = S.nosave ? 'off' : left === 0 ? 'empty' : S.coins <= 0 && v.drawing === null ? 'broke' : 'ok';
+      const slotLit = v.drawing === o.i && v.t !== undefined && v.t >= CAP.T.coin[1] - 0.05 && v.t < CAP.T.crank[1];
+      const key = [left, v.crank[o.i] || 0, v.jig[o.i] || 0, !!v.flap[o.i], slotLit].join();
+      if (key !== o.key) { paint(o.c, o.a, { left, crank: v.crank[o.i] || 0, jig: v.jig[o.i] || 0, flap: !!v.flap[o.i], slotLit }); o.key = key; }
+      o.lab.innerHTML = left === 0 ? `<b>All ${total} collected</b>` : `${left} of ${total} left`;
+      o.lab.style.left = COLX(o.i) + 98 - o.lab.offsetWidth / 2 + 'px';
+      o.m.classList.toggle('off', mode !== 'ok');
+      o.m.classList.toggle('hov', mode === 'ok' && !!o.m.dataset.h && v.drawing === null);
+      o.c.style.filter = mode === 'broke' ? 'saturate(.55) brightness(.82)' : mode === 'off' ? 'saturate(.4) brightness(.75)' : '';
+      o.price.style.display = mode === 'empty' || mode === 'off' ? 'none' : 'flex';
+      const want = mode === 'empty' ? 'empty' : mode === 'off' ? 'off' : '';
+      if ((o.extra && o.extra.dataset.kind) !== want) {
+        if (o.extra) o.extra.remove(); o.extra = null;
+        if (want === 'empty') { o.extra = el('div', 'rosette', o.m, 'ALL<br>COLLECTED'); Object.assign(o.extra.style, { left: '4px', top: '42px', width: '104px', height: '54px', fontSize: '12px' }); }
+        if (want === 'off') { o.extra = el('div', 'ooo', o.m, 'OUT OF<br>ORDER'); Object.assign(o.extra.style, { left: '20px', top: '44px', width: '80px', fontSize: '13px' }); }
+        if (o.extra) o.extra.dataset.kind = want;
+      }
+      const drawn = S.drawn[o.a.id];
+      for (const cu of o.cubs) {
+        const flying = v.item === cu.name && landed !== cu.name;
+        const on = drawn.includes(cu.name) && !flying;
+        const st = on ? 'on' : P.locked === 'hidden' ? 'hidden' : 'q';
+        if (st !== cu.state) {
+          cu.state = st;
+          cu.cb.innerHTML = st === 'on' ? CAP.figure(cu.name, true).replace('class="pend', 'style="width:48px;height:48px" class="pend') : st === 'q' ? '<div class="q">?</div>' : '';
+          if (st === 'on') cu.cb.dataset.on = 1; else delete cu.cb.dataset.on;
+        }
+      }
+    }
+    notice.style.display = 'none'; hint.style.display = 'none';
+    if (S.nosave) {
+      notice.style.display = 'flex'; notice.innerHTML = `<img src="capsule_63_src/assets/warning.png">Your collection can't be saved right now, so the machines are switched off.`;
+    } else if (allDone) {
+      hint.style.display = 'block'; hint.style.color = '#faecbc'; hint.innerHTML = '<b>COLLECTION COMPLETE</b> · every figurine is on the wall. Your coins keep adding up.';
+    } else if (S.coins <= 0 && v.drawing === null) {
+      notice.style.display = 'flex'; notice.innerHTML = `<img src="capsule_63_src/assets/warning.png">No coins left. Every run's final receipt pays some.`;
+    } else if (v.drawing === null) { hint.style.display = 'block'; hint.style.color = '#faecbc'; hint.textContent = 'Pick a machine: 1 coin a capsule. Hover a figurine for its name.'; }
+    for (const e of [hint, notice]) e.style.left = 560 - e.offsetWidth / 2 + 'px';
+  },
+  // after OK: the figurine flies from the reveal into its cubby (k 0..1); returns true once landed
+  afterOk(i, item, k, RV, shade) {
+    const cu = COL[i].cubs.find(c => c.name === item);
+    for (const e of [RV.name, RV.aisle, RV.stock, RV.newb, RV.ok, RV.tip, RV.rays, RV.med]) e.style.opacity = Math.max(0, 1 - k * 3);
+    shade.style.opacity = 0.68 * (1 - k);
+    const sx = 640 - 48, sy = 380 - 70 - 48;
+    const e = k < 1 ? 1 - Math.pow(1 - k, 2) : 1;
+    const x = sx + (cu.cx - sx) * e, y = sy + (cu.cy - sy) * e - Math.sin(e * Math.PI) * 80, s = 1 - 0.5 * e;
+    RV.fig.style.left = CAP.snap(x) + 'px'; RV.fig.style.top = CAP.snap(y) + 'px'; RV.fig.style.transformOrigin = '0 0'; RV.fig.style.transform = `scale(${s})`;
+    if (k >= 1) {
+      landed = item;
+      RV.fig.style.opacity = 0;
+      for (let n = 0; n < 4; n++) { const sp = el('div', 'spark', stage); sp.style.left = cu.cx + [-8, 50, -6, 48][n] + 'px'; sp.style.top = cu.cy + [-8, -6, 44, 46][n] + 'px'; if (!P.cap || P.land === null) setTimeout(() => sp.remove(), 600); }
+      return true;
+    }
+    return false;
+  },
+};
+const E = engine(look);
+if (P.land !== null && P.land >= 1) look.update(E.view());
+CAP.note('Look C · click a machine, then OK · <a href="?state=fresh">fresh</a> · <a href="?">partial</a> · <a href="?state=full">full</a> · <a href="?coins=0">0 coins</a> · <a href="?nosave=1">can\'t save</a> · <a href="?locked=hidden">locked hidden</a> · <a href="?rm=1">reduced motion</a>');
+</script>
+</body>
+</html>
