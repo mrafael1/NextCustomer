@@ -11,18 +11,39 @@ func test_fizzles(
 	row: String,
 	expected: Array,
 	_test_parameters := [
-		["banana,two_for_one,banana", []],
-		["bread,two_for_one,cheese", [[1, "2 for 1 ×2", "not the same product on both sides"]]],
-		["two_for_one,banana", [[0, "2 for 1 ×2", "no product on both sides"]]],
-		["banana,two_for_one", [[1, "2 for 1 ×2", "no product on both sides"]]],
+		# Since #45 a Banana with no Banana just before it fizzles too (a condition fizzle).
+		["banana,two_for_one,banana", [[0, "Banana pair", "no Banana just before it"]]],
+		[
+			"bread,two_for_one,cheese",
+			[
+				[1, "2 for 1 ×2", "not the same product on both sides"],
+				[2, "Cheese after Bread", "no Bread just before it"],
+			]
+		],
+		[
+			"two_for_one,banana",
+			[
+				[0, "2 for 1 ×2", "no product on both sides"],
+				[1, "Banana pair", "no Banana just before it"],
+			]
+		],
+		[
+			"banana,two_for_one",
+			[
+				[0, "Banana pair", "no Banana just before it"],
+				[1, "2 for 1 ×2", "no product on both sides"],
+			]
+		],
 		[
 			"banana,two_for_one,two_for_one,banana",
 			[
+				[0, "Banana pair", "no Banana just before it"],
 				[1, "2 for 1 ×2", "no product on both sides"],
 				[2, "2 for 1 ×2", "no product on both sides"],
+				[3, "Banana pair", "no Banana just before it"],
 			]
 		],
-		["bread,banana,shelf_swap,cheese", []],
+		["bread,banana,shelf_swap,cheese", [[1, "Banana pair", "no Banana just before it"]]],
 		["bread,shelf_swap", [[1, "Shelf swap", "no product in the next slot"]]],
 		[
 			"bread,shelf_swap,repeat",

@@ -62,11 +62,15 @@ func test_an_inspection_without_a_receipt_text_is_named() -> void:
 
 
 func test_a_bonus_aimed_at_it_is_spent() -> void:
-	# Coffee's +3 lands on Bread, the 3rd product, and is lost with its payout: no fizzle.
+	# Coffee's +3 lands on Bread, the 3rd product, and is lost with its payout: no fizzle (the
+	# lone Banana's own condition fizzle aside, #45).
 	var result: ScoreResult = _score(["banana", "coffee", "bread"], [_third()])
 	assert_array(Array(result.payouts)).is_equal([2, 2, 0])
 	assert_array(_types_at(result, 2)).contains(["FLAT/CARD", "PAYOUT_OVERRIDE/INSPECTION"])
-	assert_array(_wasted(result)).is_empty()
+	var wasted: Array = _wasted(result)
+	assert_int(wasted.size()).is_equal(1)
+	assert_int((wasted[0] as ScoreStep).slot).is_equal(0)
+	assert_str((wasted[0] as ScoreStep).text).is_equal("Banana pair")
 
 
 func test_it_still_uses_an_egg_charge() -> void:

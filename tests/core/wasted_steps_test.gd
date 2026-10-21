@@ -10,7 +10,12 @@ func test_fizzles(
 	row: String,
 	expected: Array,
 	_test_parameters := [
-		["eggs,bread,cheese,banana,banana,repeat", []],
+		# Since #45 a conditional card whose condition fails fizzles too: the first Banana of a
+		# pair has no Banana just before it.
+		[
+			"eggs,bread,cheese,banana,banana,repeat",
+			[[3, 3, "Banana pair", "no Banana just before it"]]
+		],
 		["bread,coffee", [[1, 1, "Coffee bonus", "no Breakfast product after it"]]],
 		["eggs,bread", [[0, 0, "Eggs ×2", "1 charge unused"]]],
 		["eggs", [[0, 0, "Eggs ×2", "2 charges unused"]]],
@@ -26,6 +31,7 @@ func test_fizzles(
 			[
 				[0, 0, "Breakfast sticker", "no product in the next slot"],
 				[1, 1, "Repeat", "no product just before it to copy"],
+				[2, 2, "Banana pair", "no Banana just before it"],
 			]
 		],
 		["breakfast_sticker", [[0, 0, "Breakfast sticker", "no product in the next slot"]]],
@@ -35,6 +41,7 @@ func test_fizzles(
 			[
 				[0, 0, "Bundle", "no product on both sides"],
 				[3, 3, "Bundle", "no product on both sides"],
+				[1, 1, "Banana pair", "no Banana just before it"],
 			]
 		],
 		[
@@ -42,13 +49,15 @@ func test_fizzles(
 			[
 				[1, 1, "Bundle", "no product on both sides"],
 				[2, 2, "Bundle", "no product on both sides"],
+				[0, 0, "Banana pair", "no Banana just before it"],
 			]
 		],
-		["banana,bundle,banana", []],
+		["banana,bundle,banana", [[0, 0, "Banana pair", "no Banana just before it"]]],
 		["multipack,bread", [[0, 0, "Multipack ×2", "no product just before it"]]],
 		[
 			"coffee,multipack,banana",
 			[
+				[2, 2, "Banana pair", "no Banana just before it"],
 				[0, 0, "Coffee bonus", "no Breakfast product after it"],
 				[1, 1, "Multipack ×2", "no later product shared a tag"],
 			]
@@ -57,7 +66,7 @@ func test_fizzles(
 		["final_markdown,bread", [[0, 0, "Final markdown", "not in the last slot"]]],
 		["bread,final_markdown", []],
 		["repeat", [[0, 0, "Repeat", "no product just before it to copy"]]],
-		["frozen_peas,soup,repeat", []],
+		["frozen_peas,soup,repeat", [[0, 0, "Frozen pair", "no Frozen product beside it"]]],
 	]
 ) -> void:
 	var result: ScoreResult = Scoring.score(_row(row))
@@ -105,6 +114,7 @@ func test_fizzle_order(
 				"WASTED 1",
 				"BASE 2",
 				"PAYOUT 2",
+				"WASTED 2",
 			]
 		],
 		[
@@ -123,6 +133,7 @@ func test_fizzle_order(
 				"EFFECT_ARMED 1",
 				"BASE 2",
 				"PAYOUT 2",
+				"WASTED 2",
 				"WASTED 0",
 				"WASTED 1",
 			]

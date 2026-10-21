@@ -244,11 +244,11 @@ func test_the_quota_is_met_with_the_total_on_a_last_payout_crossing_and_never_on
 
 ## Flights and puffs start where the item is now (#86 v6, source_rect: the belt ride gives the
 ## scanner, or the bag's mouth once an item is bagged): each payout's paper chip starts at its
-## item's rect, and the lost Coffee bonus (a trailing fizzle on the long-scanned Coffee) puffs
-## from Coffee's.
+## item's rect, and the lost Coffee bonus (a trailing fizzle on the long-scanned Coffee; Potatoes
+## and Soup have no condition to fizzle, #45) puffs from Coffee's.
 func test_flights_and_puffs_start_where_the_item_is_now() -> void:
 	var screen: ShiftScreen = await _screen()
-	await _place(screen, ["coffee", "banana", "cheese"])
+	await _place(screen, ["coffee", "potatoes", "soup"])
 	var count_up: CountUp = screen._count_up
 	var rect_of: Callable = func(slot: int) -> Rect2:
 		return Rect2(Vector2(300.0 + 40.0 * slot, 200.0), Vector2(40, 40))

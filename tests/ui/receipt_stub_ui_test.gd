@@ -51,22 +51,23 @@ func test_the_planning_receipt_lists_the_items_and_the_fizzles() -> void:
 	await _frames(2)
 	assert_int(ReceiptView.fizzle_count(screen.run.preview())).is_equal(0)
 	assert_array(_lines(screen)).is_equal(_planning(screen, "SHIFT 1/%d · 2 ITEMS" % shifts))
+	# Coffee's (no Breakfast product after it) and Cheese's (no Bread just before it, #45).
 	_place(screen, ["cheese", "coffee"])
 	await _frames(2)
-	assert_int(ReceiptView.fizzle_count(screen.run.preview())).is_equal(1)
+	assert_int(ReceiptView.fizzle_count(screen.run.preview())).is_equal(2)
 	assert_array(_lines(screen)).is_equal(
-		_planning(screen, "SHIFT 1/%d · 4 ITEMS" % shifts, "1 fizzle")
+		_planning(screen, "SHIFT 1/%d · 4 ITEMS" % shifts, "2 fizzles")
 	)
-	# Several fizzles, among them the Coupon engine's (the first coupon, Multipack, pays nothing)
-	# and Coffee's (no Breakfast product after it).
+	# Several fizzles, among them the Coupon engine's (the first coupon, Multipack, pays nothing),
+	# Coffee's (no Breakfast product after it) and Cheese's (no Bread just before it, #45).
 	_clear_row(screen)
 	screen._debug.give_upgrade("coupon_engine")
 	_place(screen, ["multipack", "cheese", "coffee"])
 	await _frames(2)
-	assert_int(ReceiptView.fizzle_count(screen.run.preview())).is_equal(3)
+	assert_int(ReceiptView.fizzle_count(screen.run.preview())).is_equal(4)
 	# Multipack is a coupon: it counts as an item.
 	assert_array(_lines(screen)).is_equal(
-		_planning(screen, "SHIFT 1/%d · 3 ITEMS" % shifts, "3 fizzles")
+		_planning(screen, "SHIFT 1/%d · 3 ITEMS" % shifts, "4 fizzles")
 	)
 	_assert_planning_on_screen(screen)
 

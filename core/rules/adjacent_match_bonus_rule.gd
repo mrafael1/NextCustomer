@@ -2,7 +2,8 @@ class_name AdjacentMatchBonusRule
 extends Rule
 ## A flat bonus when a matching product is adjacent, after the context pass.
 ## Banana: + its base if immediately after another Banana. Cheese: +4 if immediately after
-## Bread. Frozen peas: + its base if beside another Frozen product.
+## Bread. Frozen peas: + its base if beside another Frozen product. With no match it fizzles
+## (#45): a WASTED step that names what was missing, the total unchanged.
 
 enum Match { NONE, SAME_CARD, CARD_ID, TAG }
 enum Position { NONE, IMMEDIATELY_AFTER, BESIDE }
@@ -20,6 +21,28 @@ func flat_bonus(state: ScoreState, slot: int) -> int:
 	if not _has_adjacent_match(state, slot):
 		return 0
 	return state.definition(slot).base if bonus_is_base else bonus
+
+
+func wasted_reason(state: ScoreState, slot: int) -> String:
+	if position == Position.NONE or match_by == Match.NONE:
+		return ""
+	if not bonus_is_base and bonus == 0:
+		return ""
+	if _has_adjacent_match(state, slot):
+		return ""
+	var where: String = "just before it" if position == Position.IMMEDIATELY_AFTER else "beside it"
+	return "no %s %s" % [_match_name(state, slot), where]
+
+
+## What a match is, for the fizzle's reason: "Banana" (the same product), "Bread" (a card id,
+## capitalized: a data test checks it is that card's display name) or "Bakery product" (a tag).
+func _match_name(state: ScoreState, slot: int) -> String:
+	match match_by:
+		Match.SAME_CARD:
+			return state.definition(slot).product_card().display_name
+		Match.CARD_ID:
+			return match_value.capitalize()
+	return "%s product" % match_value
 
 
 func _has_adjacent_match(state: ScoreState, slot: int) -> bool:
