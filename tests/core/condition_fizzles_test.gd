@@ -15,14 +15,14 @@ func test_condition_fizzles(
 	expected: Array,
 	total: int,
 	_test_parameters := [
-		[V0_4, "banana", [[0, "Banana pair", "no Banana just before it"]], 2],
-		[V0_4, "banana,banana", [[0, "Banana pair", "no Banana just before it"]], 6],
+		[V0_4, "banana", [[0, "Banana pair", "no Banana beside it"]], 2],
+		[V0_4, "banana,banana", [], 6],
 		[
 			V0_4,
 			"banana,repeat,banana",
 			[
-				[0, "Banana pair", "no Banana just before it"],
-				[2, "Banana pair", "no Banana just before it"],
+				[0, "Banana pair", "no Banana beside it"],
+				[2, "Banana pair", "no Banana beside it"],
 			],
 			6
 		],

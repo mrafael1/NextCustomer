@@ -29,7 +29,7 @@ func test_fizzles(
 			]
 		],
 		["opening_deal,soup,bread", []],
-		["opening_deal,breakfast_sticker,banana", [[2, "Banana pair", "no Banana just before it"]]],
+		["opening_deal,breakfast_sticker,banana", [[2, "Banana pair", "no Banana beside it"]]],
 		["bread,opening_deal,soup", [[1, "Opening deal ×3", "not in the first slot"]]],
 		[
 			"opening_deal,repeat",
