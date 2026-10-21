@@ -260,7 +260,7 @@ func test_flights_and_puffs_start_where_the_item_is_now() -> void:
 		var centre: Vector2 = node.get_global_rect().get_center()
 		if ReceiptFly.is_chip(node):
 			starts.append(centre)
-		elif node is Label and (node as Label).text == "pfff…":
+		elif node is Label and (node as Label).text == "WASTED":
 			puffs.append(centre)
 	var on_added: Callable = func(node: Node) -> void:
 		if node is Control:

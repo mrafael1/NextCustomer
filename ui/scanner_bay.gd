@@ -405,7 +405,7 @@ func light_colour() -> Color:
 
 
 ## A beat's landing sticker (see the class comment), or null for none: the base price ("€N") for a
-## plain or base beat, "+N" for a bonus, "×N" for a stamp, the denied payout ("€N") or "pfff" in
+## plain or base beat, "+N" for a bonus, "×N" for a stamp, the denied payout ("€N") or WASTED in
 ## grey. Pure: the numbers are the step's.
 static func landing_spec(beat: CountUpBeat, step: ScoreStep) -> StickerSpec:
 	var spec: StickerSpec = StickerSpec.new()
@@ -422,7 +422,7 @@ static func landing_spec(beat: CountUpBeat, step: ScoreStep) -> StickerSpec:
 			spec.text = "€%d" % step.value
 		CountUpBeat.Kind.FIZZLE:
 			spec.kind = StickerSpec.Kind.FIZZLE
-			spec.text = "pfff"
+			spec.text = EffectLink.WASTED_WORD
 		_:
 			return null
 	spec.step_index = beat.steps[0]

@@ -3,7 +3,7 @@ extends GdUnitTestSuite
 ## REG 3", "SHIFT n/m · k ITEMS" (coupons counted), a dashed rule, each belt item's name and
 ## payout (cents, from the preview), "n ·····" for each open empty slot, a dashed rule,
 ## "PROJECTED €N.00" (green with the met mark at or over the shift's quota, red with "short
-## €N.00" on its own row under it) and the fizzle footer ("1 fizzle · hover an item", none
+## €N.00" on its own row under it) and the fizzle footer ("1 WASTED · hover an item", none
 ## without); it follows every place and remove, stands on the printer's slot inside
 ## the register column and the 1280x720 screen, every line on one row and in view, every mark
 ## inside the paper, clear of the hand, the monitor and CHECKOUT. A belt item's scan frames its
@@ -56,7 +56,7 @@ func test_the_planning_receipt_lists_the_items_and_the_fizzles() -> void:
 	await _frames(2)
 	assert_int(ReceiptView.fizzle_count(screen.run.preview())).is_equal(2)
 	assert_array(_lines(screen)).is_equal(
-		_planning(screen, "SHIFT 1/%d · 4 ITEMS" % shifts, "2 fizzles")
+		_planning(screen, "SHIFT 1/%d · 4 ITEMS" % shifts, "2 WASTED")
 	)
 	# Several fizzles, among them the Coupon engine's (the first coupon, Multipack, pays nothing),
 	# Coffee's (no Breakfast product after it) and Cheese's (no Bread just before it, #45).
@@ -67,7 +67,7 @@ func test_the_planning_receipt_lists_the_items_and_the_fizzles() -> void:
 	assert_int(ReceiptView.fizzle_count(screen.run.preview())).is_equal(4)
 	# Multipack is a coupon: it counts as an item.
 	assert_array(_lines(screen)).is_equal(
-		_planning(screen, "SHIFT 1/%d · 3 ITEMS" % shifts, "4 fizzles")
+		_planning(screen, "SHIFT 1/%d · 3 ITEMS" % shifts, "4 WASTED")
 	)
 	_assert_planning_on_screen(screen)
 

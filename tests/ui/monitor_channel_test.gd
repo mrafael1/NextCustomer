@@ -371,7 +371,7 @@ func test_the_brief_keys_the_stickers() -> void:
 		_entry(StickerSpec.Kind.MULTIPLY, "×3", GiverBadge.Kind.ITEM, "Eg"),
 		_entry(StickerSpec.Kind.MULTIPLY, "×3", GiverBadge.Kind.COUPON, "Mu"),
 		_entry(StickerSpec.Kind.ADD, "+12", GiverBadge.Kind.LOYALTY, "SlE"),
-		_entry(StickerSpec.Kind.FIZZLE, "pfff", GiverBadge.Kind.NONE, ""),
+		_entry(StickerSpec.Kind.FIZZLE, "WASTED", GiverBadge.Kind.NONE, ""),
 	]
 	var expected: PackedStringArray = PackedStringArray()
 	for entry: StickerSpec in entries:

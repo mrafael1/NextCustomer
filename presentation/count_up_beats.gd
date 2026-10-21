@@ -222,9 +222,9 @@ func _linked(beat: CountUpBeat, step: ScoreStep) -> void:
 	tween.tween_callback(line.queue_free)
 
 
-## A fizzle: the card shudders, greys out for a moment, and lets out a little puff where it is
-## now (the bag's mouth for a bagged item). An upgrade's fizzle comes out of its loyalty-card box
-## instead (the card it had nothing to work on gives a small nudge).
+## A fizzle: the card shudders, greys out for a moment, and lets out a little WASTED puff where
+## it is now (the bag's mouth for a bagged item). An upgrade's fizzle comes out of its
+## loyalty-card box instead (the card it had nothing to work on gives a small nudge).
 func _fizzle(beat: CountUpBeat, step: ScoreStep) -> void:
 	_print_step(step)
 	var view: CardView = _views[step.slot]
@@ -266,7 +266,7 @@ func _fizzle(beat: CountUpBeat, step: ScoreStep) -> void:
 	# The grey holds for the rest of the beat.
 	tween.tween_interval(maxf(0.0, motion - 0.06 - shudder - recover))
 	tween.tween_property(shaken, "modulate", Color.WHITE, recover)
-	_fx.fly_text("pfff…", puff_at, puff_to, Palette.LIGHT_TEXT, 20, 0.55, true)
+	_fx.fly_text(EffectLink.WASTED_WORD, puff_at, puff_to, Palette.LIGHT_TEXT, 20, 0.55, true)
 
 
 ## The scanner reads a card that is not plain: its beep, and its base value pops up.

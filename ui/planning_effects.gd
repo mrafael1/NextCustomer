@@ -6,7 +6,7 @@ extends Node
 ##
 ## Look (sections 2 and 4): a PlanningModel of the preview (stickers, pay, halo, stamp per slot),
 ## shown by the stage's PlanningLayer: each item wears its stickers in apply order ("+3", "×3",
-## "=€6", "pfff", each with its giver's badge unless it is its own rule), a boosted one stands
+## "=€6", "WASTED", each with its giver's badge unless it is its own rule), a boosted one stands
 ## raised in its halo with its pay in a gold burst on its ticket, a denied one greys under a rubber
 ## stamp with a tomato "€0" tag, and so on. Every number comes from the score's steps and payouts:
 ## nothing here scores.

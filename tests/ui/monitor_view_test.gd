@@ -32,7 +32,7 @@ const LARGEST_TOTAL := 1118
 const WIDE_FOUR_DIGITS := 1000
 ## More step lines than any belt item carries, every other one a fizzle whose reason wraps.
 const WORST_LINES := 12
-const LONG_LINE := "Coupon engine: needs a coupon two slots earlier and finds none there  fizzle"
+const LONG_LINE := "Coupon engine: needs a coupon two slots earlier and finds none there  WASTED"
 const SHORT_LINE := "× Multipack  ×3"
 
 var _folder: String = ""

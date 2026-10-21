@@ -1,6 +1,6 @@
 extends GdUnitTestSuite
 ## Condition fizzles on the real shift screen (#45): a conditional card whose condition fails
-## plays the same fizzle as an effect's in the count-up (a FIZZLE beat, a "pfff…" puff over its
+## plays the same fizzle as an effect's in the count-up (a FIZZLE beat, a "WASTED" puff over its
 ## item) and prints its reason as a fizzle line on the receipt, on screen. The real saves and logs
 ## are never touched: both go to a temporary folder.
 
@@ -32,7 +32,7 @@ func after_test() -> void:
 
 
 ## A conditional card whose condition fails fizzles like an effect (#45): Cheese with no Bread
-## just before it gets a FIZZLE beat, puffs "pfff…" over its own item and prints its reason as a
+## just before it gets a FIZZLE beat, puffs "WASTED" over its own item and prints its reason as a
 ## fizzle line on the receipt, on screen inside the receipt; the total is its plain payouts.
 func test_a_failed_condition_fizzles_in_the_count_up_and_on_the_receipt() -> void:
 	var screen: ShiftScreen = await _screen()
@@ -43,7 +43,7 @@ func test_a_failed_condition_fizzles_in_the_count_up_and_on_the_receipt() -> voi
 	count_up.source_rect = rect_of
 	var puffs: Array[Vector2] = []
 	var record: Callable = func(node: Control) -> void:
-		if node is Label and (node as Label).text == "pfff…":
+		if node is Label and (node as Label).text == "WASTED":
 			puffs.append(node.get_global_rect().get_center())
 	var on_added: Callable = func(node: Node) -> void:
 		if node is Control:
@@ -82,12 +82,12 @@ func test_a_failed_condition_fizzles_in_the_count_up_and_on_the_receipt() -> voi
 	assert_bool(screen.get_viewport_rect().encloses(found.get_global_rect())).is_true()
 
 
-## In planning a failed condition wears the effects' grey "pfff" sticker on its own item, on
+## In planning a failed condition wears the effects' grey "WASTED" sticker on its own item, on
 ## screen; once the condition is met (Bread just before Cheese) the fizzle goes and the bonus shows.
-func test_a_failed_condition_shows_a_pfff_sticker_in_planning() -> void:
+func test_a_failed_condition_shows_a_wasted_sticker_in_planning() -> void:
 	var screen: ShiftScreen = await _screen()
 	await _place(screen, ["cheese"])
-	var fizzle: EffectSticker = _sticker(screen, 0, "pfff")
+	var fizzle: EffectSticker = _sticker(screen, 0, "WASTED")
 	assert_object(fizzle).is_not_null()
 	if fizzle == null:
 		return
@@ -97,12 +97,12 @@ func test_a_failed_condition_shows_a_pfff_sticker_in_planning() -> void:
 	screen._let_go()
 	await _frames(2)
 	await _place(screen, ["bread", "cheese"])
-	assert_object(_sticker(screen, 1, "pfff")).is_null()
+	assert_object(_sticker(screen, 1, "WASTED")).is_null()
 	assert_object(_sticker(screen, 1, "+4")).is_not_null()
 
 
 ## A conditional card that another card boosts while its own condition fails (Eggs, Cheese: the
-## Egg doubles Cheese, which has no Bread just before it) keeps its "pfff" sticker, but its belt
+## Egg doubles Cheese, which has no Bread just before it) keeps its "WASTED" sticker, but its belt
 ## ticket is BOOSTED and its planning receipt line shows the raised check, not the fizzle icon,
 ## on screen inside the receipt.
 func test_a_boosted_card_with_a_failed_condition_keeps_the_raised_mark() -> void:
@@ -111,7 +111,7 @@ func test_a_boosted_card_with_a_failed_condition_keeps_the_raised_mark() -> void
 	var result: ScoreResult = screen.run.preview()
 	var cheese: CardDefinition = screen.run.row[1].definition
 	assert_int(result.payouts[1]).is_greater(cheese.base)
-	assert_object(_sticker(screen, 1, "pfff")).is_not_null()
+	assert_object(_sticker(screen, 1, "WASTED")).is_not_null()
 	var model: PlanningModel = screen._stage.planning_layer.model()
 	assert_int(model.slots[1].pay).is_equal(PlanningModel.Pay.BOOSTED)
 	var line: HBoxContainer = screen._receipt._items.get(1) as HBoxContainer
@@ -126,6 +126,74 @@ func test_a_boosted_card_with_a_failed_condition_keeps_the_raised_mark() -> void
 	var receipt_rect: Rect2 = screen._receipt.get_global_rect()
 	assert_bool(receipt_rect.grow(1.0).encloses(mark.get_global_rect())).is_true()
 	assert_bool(SCREEN_RECT.encloses(mark.get_global_rect())).is_true()
+
+
+## An upgrade whose condition the row never meets fizzles the same way (#45): with the Coupon
+## engine and no coupon on the belt, the last item wears the grey "WASTED" sticker with the
+## loyalty badge in planning; in the count-up a FIZZLE beat on that item puffs "WASTED" out of
+## the upgrade's loyalty-card box and the receipt prints "Coupon engine: no coupon in the row",
+## all on screen; the total is the row's without the upgrade.
+func test_an_upgrade_condition_fizzles_in_planning_the_count_up_and_the_receipt() -> void:
+	var screen: ShiftScreen = await _screen()
+	screen.run.upgrades.append(load("res://data/upgrades/coupon_engine.tres") as UpgradeDefinition)
+	screen._refresh_loyalty_card()
+	await _place(screen, ["bread", "milk"])
+	var result: ScoreResult = screen.run.preview()
+	assert_int(result.total).is_equal(Scoring.score(screen.run.row).total)
+	var waste: ScoreStep = result.steps[-1]
+	assert_int(waste.step_type).is_equal(ScoreStep.StepType.WASTED)
+	assert_int(waste.source_kind).is_equal(ScoreStep.SourceKind.UPGRADE)
+	assert_int(waste.slot).is_equal(1)
+	assert_bool(waste.row_wide).is_true()
+	# Milk did nothing wrong: its receipt mark and belt disc are not a fizzle's.
+	assert_int(ReceiptView.slot_mark(result, 1)).is_not_equal(ReceiptView.Mark.FIZZLED)
+	assert_bool(EffectChip.fizzles(result, EffectChip.step_indices(result, 1))).is_false()
+	# Planning: the last item's WASTED sticker, from the loyalty card, on screen.
+	var sticker: EffectSticker = _sticker(screen, 1, EffectLink.WASTED_WORD)
+	assert_object(sticker).is_not_null()
+	if sticker == null:
+		return
+	assert_bool(SCREEN_RECT.encloses(sticker.get_global_rect())).is_true()
+	assert_int(sticker._spec.badge).is_equal(GiverBadge.Kind.LOYALTY)
+	assert_object(_sticker(screen, 0, EffectLink.WASTED_WORD)).is_null()
+	# The count-up: one FIZZLE beat on the last item, its puff out of the upgrade's box.
+	var count_up: CountUp = screen._count_up
+	var box: Control = screen._loyalty_card.stamped_boxes()[0]
+	var puff_from: Vector2 = box.get_global_rect().get_center() + Vector2(0, 26)
+	var puffs: Array[Vector2] = []
+	var record: Callable = func(node: Control) -> void:
+		if node is Label and (node as Label).text == EffectLink.WASTED_WORD:
+			puffs.append(node.get_global_rect().get_center())
+	var on_added: Callable = func(node: Node) -> void:
+		if node is Control:
+			record.call_deferred(node)
+	screen._overlay.child_entered_tree.connect(on_added)
+	_play_tapped(screen, result, 500)
+	await _played(screen)
+	screen._overlay.child_entered_tree.disconnect(on_added)
+	var fizzle_beats: Array[int] = []
+	for beat: CountUpBeat in count_up.plan.beats:
+		if beat.kind == CountUpBeat.Kind.FIZZLE:
+			fizzle_beats.append(beat.slot)
+	assert_array(fizzle_beats).is_equal([1])
+	assert_int(puffs.size()).is_equal(1)
+	if puffs.size() == 1:
+		assert_float(puffs[0].distance_to(puff_from)).is_less(1.5)
+		assert_bool(SCREEN_RECT.has_point(puffs[0])).is_true()
+	await _assert_receipt_of(screen, result, 500)
+	var found: Control = null
+	for line: Node in screen._receipt._lines.get_children():
+		if line is HSeparator:
+			continue
+		var label: Label = line.get_child(0) as Label
+		if label != null and label.text.strip_edges() == "Coupon engine: no coupon in the row":
+			found = line as Control
+	assert_object(found).override_failure_message(str(_lines(screen._receipt))).is_not_null()
+	if found == null:
+		return
+	var receipt_rect: Rect2 = screen._receipt.get_global_rect()
+	assert_bool(receipt_rect.grow(1.0).encloses(found.get_global_rect())).is_true()
+	assert_bool(SCREEN_RECT.encloses(found.get_global_rect())).is_true()
 
 
 ## Plays `result` on the screen's row against `quota`, tapped twice (the count and the dessert

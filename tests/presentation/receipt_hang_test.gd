@@ -40,7 +40,7 @@ func test_hang_parts_splits_the_lead_the_marker_and_the_rest() -> void:
 
 
 ## A wrapped fizzle: every row starts at the indent (the lead's width), on at most two rows: no
-## "fizzle" word takes room beside the reason, only the mark column, and the fizzle mark is
+## "WASTED" word takes room beside the reason, only the mark column, and the fizzle mark is
 ## centred on the reason's first row, inside the line.
 func test_a_wrapped_fizzle_hangs_with_its_mark_on_the_first_row() -> void:
 	var step: ScoreStep = _step(ScoreStep.StepType.WASTED, "Coupon engine")
@@ -64,7 +64,7 @@ func test_a_wrapped_fizzle_hangs_with_its_mark_on_the_first_row() -> void:
 		indent, TOLERANCE
 	)
 	assert_int(left.get_line_count()).is_less_equal(2)
-	# No "fizzle" word: the right side is only the mark column.
+	# No "WASTED" word: the right side is only the mark column.
 	assert_str(right.text).is_empty()
 	assert_float(right.size.x).is_less_equal(ReceiptView.FIZZLE_MARK_COLUMN + 1.0)
 	var mark: Control = right.get_node_or_null("Mark") as Control
