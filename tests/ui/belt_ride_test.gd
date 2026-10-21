@@ -101,11 +101,20 @@ func test_a_ride_slides_the_next_item_into_the_scanner_and_bags_the_last() -> vo
 	assert_int(ride.scanning()).is_equal(1)
 
 
-## The hop and the bag carry no text: an art-pending item (Bread) and an icon-less coupon (Bundle),
-## whose belt art prints their names, hop in and peek out as their art alone.
+## The hop and the bag carry no text: an art-pending item (Bread with no art_ref; every stocked
+## product is drawn since #57) and an icon-less coupon (Bundle), whose belt art prints their names,
+## hop in and peek out as their art alone.
 func test_a_bagged_item_shows_no_printed_name() -> void:
 	var screen: ShiftScreen = await _screen()
-	await _place(screen, ["bread", "bundle", "milk"])
+	var undrawn: CardDefinition = (
+		(load("res://data/cards/bread.tres") as CardDefinition).duplicate()
+	)
+	undrawn.art_ref = ""
+	screen.run.debug_add_to_hand(undrawn)
+	screen._refresh()
+	screen._on_hand_card_clicked(_view_for(screen, screen.run.hand()[-1]))
+	screen._on_slot_input(_left_click(), screen.run.row.size())
+	await _place(screen, ["bundle", "milk"])
 	var bag: PaperBag = screen._stage.bag
 	for slot: int in range(2):
 		var item: ItemView = screen._row_views[slot] as ItemView

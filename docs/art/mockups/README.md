@@ -52,3 +52,7 @@ sh docs/art/mockups/planning_effects_src/gen_h1/run.sh
 ```
 
 The base page reaches this branch with `main` (#84). Until it is merged in, the generators stop with "shift_screen_b2_mirrored.html comes from main (#84): merge main first".
+
+## Product sprites review (#57, 2026-10-21)
+
+`products_57_review.html` shows the 13 product sprites #57 draws (the stocked products that had none: Bread, Soup, Frozen peas, Butter, Yogurt, Reduced yogurt, Cereal, Crackers, Dented can, Day-old buns, Carrier bag, Scissors and Flickering bulb), each at 1x, at 2x and cropped from a game capture (`products_57_src/`), with its rule. `products_57_contact.png` is the contact sheet of all 20 stocked products (1x, 2x, on cream and teal, greyscale) with the look-alike pairs side by side, and `products_57_game.png` the shift screen (`debug/screen_capture`) with the new sprites in the baskets and on the belt. The page loads the real sprites from `art/items_v2/`, so it shows the current art.

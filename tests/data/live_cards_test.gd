@@ -3,6 +3,7 @@ extends GdUnitTestSuite
 ## when card values are tuned between playtest rounds (plan section 3.7).
 
 const CARDS_DIR := "res://data/cards"
+const STARTER := "res://data/decks/starter.tres"
 const PLACEHOLDER := "\\{([a-z_]+)\\}"
 const ORDINAL := "\\d+(st|nd|rd|th)"
 ## A number that isn't an ordinal ("2nd" stays): the data's numbers, which balance passes change.
@@ -16,7 +17,7 @@ func test_live_cards_score_the_design_examples() -> void:
 
 
 func test_starter_deck_matches_the_plan() -> void:
-	var deck: DeckDefinition = load("res://data/decks/starter.tres")
+	var deck: DeckDefinition = load(STARTER)
 	var counts: Dictionary = {}
 	for card: CardDefinition in deck.cards:
 		counts[card.id] = int(counts.get(card.id, 0)) + 1
@@ -261,8 +262,41 @@ func test_every_art_ref_is_item_art() -> void:
 			Vector2(expected)
 		)
 		drawn += 1
-	# The 10 products and 2 coupon icons drawn for style frame v2, and the 8 item tiers (#77).
-	assert_int(drawn).is_equal(20)
+	# The 10 products and 2 coupon icons drawn for style frame v2, the 8 item tiers (#77) and
+	# #57's 13 products.
+	assert_int(drawn).is_equal(33)
+
+
+## The 20 products a new profile stocks (#57), read from data/: the starter deck's products and
+## every base aisle's base_cards. Each has its own 48x48 sprite (art_ref), never the art-pending
+## box, and no two share one.
+func test_every_stocked_product_has_its_sprite() -> void:
+	var products: Array[CardDefinition] = stocked_products()
+	assert_int(products.size()).is_equal(20)
+	var paths: Dictionary[String, StringName] = {}
+	for card: CardDefinition in products:
+		var message: String = "%s: %s" % [card.id, card.art_ref]
+		assert_str(card.art_ref).override_failure_message(message).is_not_empty()
+		var texture: Texture2D = ArtStyle.item_sprite(card)
+		assert_object(texture).override_failure_message(message).is_not_same(ArtStyle.ITEM_PENDING)
+		assert_that(texture.get_size()).override_failure_message(message).is_equal(Vector2(48, 48))
+		assert_bool(paths.has(card.art_ref)).override_failure_message(message).is_false()
+		paths[card.art_ref] = card.id
+
+
+## The products a new profile stocks (full build plan 7.2): the starter deck's products, then
+## every base aisle's base_cards (a machine-opened aisle has none), each once, in data order.
+static func stocked_products() -> Array[CardDefinition]:
+	var products: Array[CardDefinition] = []
+	var deck: DeckDefinition = load(STARTER)
+	var balance: BalanceDefinition = load("res://data/balance/balance.tres")
+	var cards: Array[CardDefinition] = deck.cards.duplicate()
+	for aisle: AisleDefinition in balance.aisles:
+		cards.append_array(aisle.base_cards)
+	for card: CardDefinition in cards:
+		if card.is_product() and not products.has(card):
+			products.append(card)
+	return products
 
 
 static func _all_cards() -> Array[CardDefinition]:
