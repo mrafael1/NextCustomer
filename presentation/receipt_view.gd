@@ -365,8 +365,9 @@ static func fizzle_count(result: ScoreResult) -> int:
 
 
 ## `slot`'s mark in `result`, read from its recorded amounts: DENIED when an inspection's
-## PAYOUT_OVERRIDE is on it, else FIZZLED when a WASTED step is, RAISED when its payout is above
-## its BASE step's value, else NONE.
+## PAYOUT_OVERRIDE is on it, else RAISED when its payout is above its BASE step's value (even with
+## a fizzle of its own, as its belt ticket shows BOOSTED: since #45 an unpaired Banana or Cheese
+## that another card boosts fizzles too), else FIZZLED when a WASTED step is on it, else NONE.
 static func slot_mark(result: ScoreResult, slot: int) -> Mark:
 	var base: int = -1
 	var fizzled: bool = false
@@ -381,10 +382,10 @@ static func slot_mark(result: ScoreResult, slot: int) -> Mark:
 		fizzled = fizzled or step.step_type == ScoreStep.StepType.WASTED
 		if step.step_type == ScoreStep.StepType.BASE:
 			base = step.value
-	if fizzled:
-		return Mark.FIZZLED
 	if base >= 0 and slot < result.payouts.size() and result.payouts[slot] > base:
 		return Mark.RAISED
+	if fizzled:
+		return Mark.FIZZLED
 	return Mark.NONE
 
 

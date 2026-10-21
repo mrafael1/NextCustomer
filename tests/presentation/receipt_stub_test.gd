@@ -85,14 +85,20 @@ func test_fizzle_count_counts_every_wasted_step() -> void:
 	assert_int(ReceiptView.fizzle_count(result)).is_equal(2)
 
 
-## An item's mark comes from its recorded amounts: raised when its payout is above its base,
-## fizzled when a WASTED step is on it (that wins), none otherwise.
+## An item's mark comes from its recorded amounts: raised when its payout is above its base (that
+## wins, as on its belt ticket), fizzled when a WASTED step is on it, none otherwise.
 func test_slot_marks_read_the_recorded_amounts() -> void:
 	var result: ScoreResult = _result()
 	assert_int(ReceiptView.slot_mark(result, 0)).is_equal(ReceiptView.Mark.NONE)
 	assert_int(ReceiptView.slot_mark(result, 1)).is_equal(ReceiptView.Mark.RAISED)
 	assert_int(ReceiptView.slot_mark(result, 2)).is_equal(ReceiptView.Mark.FIZZLED)
 	assert_int(ReceiptView.slot_mark(result, 5)).is_equal(ReceiptView.Mark.NONE)
+	# Slot 1 also fizzles a condition of its own (#45): it was still raised, so it keeps the check.
+	var waste: ScoreStep = _step(ScoreStep.StepType.WASTED, "Cheese after Bread")
+	waste.slot = 1
+	waste.source_slot = 1
+	result.steps.append(waste)
+	assert_int(ReceiptView.slot_mark(result, 1)).is_equal(ReceiptView.Mark.RAISED)
 
 
 ## The itemised planning receipt: header, dashed rule, the items with their payouts and marks,

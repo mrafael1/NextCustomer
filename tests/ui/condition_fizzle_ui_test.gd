@@ -101,6 +101,33 @@ func test_a_failed_condition_shows_a_pfff_sticker_in_planning() -> void:
 	assert_object(_sticker(screen, 1, "+4")).is_not_null()
 
 
+## A conditional card that another card boosts while its own condition fails (Eggs, Cheese: the
+## Egg doubles Cheese, which has no Bread just before it) keeps its "pfff" sticker, but its belt
+## ticket is BOOSTED and its planning receipt line shows the raised check, not the fizzle icon,
+## on screen inside the receipt.
+func test_a_boosted_card_with_a_failed_condition_keeps_the_raised_mark() -> void:
+	var screen: ShiftScreen = await _screen()
+	await _place(screen, ["eggs", "cheese"])
+	var result: ScoreResult = screen.run.preview()
+	var cheese: CardDefinition = screen.run.row[1].definition
+	assert_int(result.payouts[1]).is_greater(cheese.base)
+	assert_object(_sticker(screen, 1, "pfff")).is_not_null()
+	var model: PlanningModel = screen._stage.planning_layer.model()
+	assert_int(model.slots[1].pay).is_equal(PlanningModel.Pay.BOOSTED)
+	var line: HBoxContainer = screen._receipt._items.get(1) as HBoxContainer
+	assert_object(line).is_not_null()
+	if line == null:
+		return
+	var mark: Control = line.get_child(1).get_node_or_null("Mark") as Control
+	assert_object(mark).is_not_null()
+	if mark == null:
+		return
+	assert_int(int(mark.get_meta("mark"))).is_equal(ReceiptView.Mark.RAISED)
+	var receipt_rect: Rect2 = screen._receipt.get_global_rect()
+	assert_bool(receipt_rect.grow(1.0).encloses(mark.get_global_rect())).is_true()
+	assert_bool(SCREEN_RECT.encloses(mark.get_global_rect())).is_true()
+
+
 ## Plays `result` on the screen's row against `quota`, tapped twice (the count and the dessert
 ## at skip speed), as a shift-1 count-up under the screen's receipt header.
 func _play_tapped(screen: ShiftScreen, result: ScoreResult, quota: int) -> void:
