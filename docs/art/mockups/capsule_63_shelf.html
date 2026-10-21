@@ -13,9 +13,9 @@
   aisle shelves are always there, so the cabinet keeps its size from 0 to 30 figurines: an aisle with nothing yet shows
   a muted "None yet" on its plank, a new profile adds one line under the title, and the aisle's "n / m" and the
   FIGURINES n / 30 chip tell how many exist (the machine's "3 of 8 left" says the same). Names on hover. Variants (URL):
-    state=partial|full|fresh       collection
+    state=partial|full|fresh|early collection (early: 3 / 30)
     locked=spaces                  NOT CHOSEN: the old option, a locked item as a dark recess with "?" (history only)
-    labels=1                       names printed under the figurines (not chosen; default: names on hover only)
+    labels=1                       names printed under the figurines (not the default: names on hover only, kept from the recommendation)
     hover=<item name>              force the hover tag (captures)
   The shelf doubles as the catalogue (section 7.1): capsule items only (30), the 14 base-aisle products are not on it.
   New art/src/ sources: frames/display_cabinet (9-slice wood frame + cream back), scenery/shelf_plank (one plank piece).
@@ -75,6 +75,13 @@ const W = 576;
 })();
 
 const tip = tooltip(stage);
+// The name tag sits level with the figurine, to its right (to its left near the cabinet's right edge), so it never
+// covers the aisle sign above the plank.
+function showTip(name, a, x, y) {
+  tip.show(name, a, x + 62, y + 2);
+  const t = stage.querySelector('.tooltip');
+  if (x + 62 + t.offsetWidth > 1236) t.style.left = x - 6 - t.offsetWidth + 'px';
+}
 let owned = 0;
 AISLES.forEach((a, i) => {
   const s = SEC(i);
@@ -91,9 +98,9 @@ AISLES.forEach((a, i) => {
     sl.style.left = x + 'px'; sl.style.top = y + 'px';
     sl.innerHTML = on ? figure(name, true).replace('class="pend', 'style="width:48px;height:48px" class="pend') : '<div class="q">?</div>';
     if (on) {
-      sl.addEventListener('mouseenter', () => tip.show(name, a, x + 40, y - 54));
+      sl.addEventListener('mouseenter', () => showTip(name, a, x, y));
       sl.addEventListener('mouseleave', () => tip.hide());
-      if (P.hover === name) tip.show(name, a, x + 40, y - 54);
+      if (P.hover === name) showTip(name, a, x, y);
       if (P.labels) { const nm = el('div', 'nm', stage, name); nm.style.left = x - 9 + 'px'; nm.style.top = y + 66 + 'px'; }
     }
   });
@@ -108,7 +115,7 @@ const chip = el('div', 'coins', stage, `<span class="lab">FIGURINES</span><span>
 const hint = el('div', 'hint', stage, P.labels || fresh ? '' : 'Hover a figurine for its name.'); Object.assign(hint.style, { left: '56px', top: '664px' });
 const back = el('div', 'fbtn secondary', stage, 'Back'); Object.assign(back.style, { left: '1090px', top: '650px', height: '52px', fontSize: '22px', width: '150px' });
 back.onclick = () => history.back();
-CAP.note('Shelf (look A, locked hidden: decided) · <a href="?state=fresh">fresh</a> · <a href="?state=partial">partial</a> · <a href="?state=full">full</a> · not chosen: <a href="?locked=spaces">"?" spaces</a> · <a href="?labels=1">names printed</a>');
+CAP.note('Shelf (look A, locked hidden: decided) · <a href="?state=fresh">fresh</a> · <a href="?state=early">early</a> · <a href="?state=partial">partial</a> · <a href="?state=full">full</a> · not chosen: <a href="?locked=spaces">"?" spaces</a> · not the default: <a href="?labels=1">names printed</a>');
 </script>
 </body>
 </html>

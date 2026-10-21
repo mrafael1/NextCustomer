@@ -73,7 +73,7 @@ and #64, `data/aisles/*.tres`, and the earlier decide preps (`screens_src/BRIEF.
 | `capsule_63_a.html` | **Chosen.** Look A, the exit vestibule: six round-globe machines on the tiled floor by the sliding doors (camera cut to the exit) |
 | `capsule_63_b.html` | Not chosen. Look B, the machine bank pop-in: six boxy window machines in a steel cabinet over the shaded results |
 | `capsule_63_c.html` | Not chosen. Look C, the collector wall: a small wall machine above each aisle's wooden display case; the figurine flies into its cubby |
-| `capsule_63_shelf.html` | the separate figurine shelf of look A: fresh, partial and full, locked items hidden (decided; `?locked=spaces` is the not-chosen "?" view), names on hover (`?labels=1` prints them, not chosen) |
+| `capsule_63_shelf.html` | the separate figurine shelf of look A: fresh, early (3 / 30), partial and full, locked items hidden (decided; `?locked=spaces` is the not-chosen "?" view), names on hover (`?labels=1` prints them, not the default) |
 
 States on every look page: partial collection (9 of 30, 2 coins), fresh, full collection (3 coins), 0 coins, profile
 can't be saved, reduced motion, and a frozen draw at any time `t`.

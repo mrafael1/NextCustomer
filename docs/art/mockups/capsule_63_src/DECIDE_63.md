@@ -5,7 +5,7 @@
 The user answered the four questions on 2026-10-21. These answers are binding for the #63 build; the original decide
 list below is kept as history (its recommendations for C and for "?" spaces were not taken).
 
-- **Q1 look: A.** "I think A is the better one? C has too much info going." The camera cuts to the store exit
+- **Q1 look: A.** "I think A is the better one ? C has too much infos going ?" The camera cuts to the store exit
   (`capsule_63_a.html`): six big round-globe toy machines on the tiled floor by the sliding doors, with A's globe body
   (72x140 art px, 144x280 on screen). The figurine shelf is its own screen (`capsule_63_shelf.html`). C's collector wall
   and B's pop-in cabinet are not chosen.
@@ -24,7 +24,7 @@ list below is kept as history (its recommendations for C and for "?" spaces were
     after the saved one, and the reveal says "**In stock after your saved run**". A title draw with no saved run and a
     results draw keep the issue's `run_count - 1` and "In stock from your next run". Say so to change it to (b) or (c)
     below.
-- **Q3 shelf: locked items are hidden.** "shelf is looking good. items not unlocked shouldn't be shown." No "?"
+- **Q3 shelf: locked items are hidden.** "shelf is lookin good. items not unlocked shouldn't be shown imo" No "?"
   spaces: a locked figurine has no space, no silhouette and no name anywhere on the shelf. The other Q3 parts stay as
   recommended, since the user said the shelf looks good: **the 30 capsule items only**, **names on hover**, **data
   order** (key item first). How a hidden-locked shelf still reads well (decided here, A's shelf look kept):
@@ -44,7 +44,9 @@ list below is kept as history (its recommendations for C and for "?" spaces were
     n / 30 chip, and the machine's own "3 of 8 left". These are counts, not items, so they don't show what is locked.
     A full aisle keeps the ALL COLLECTED tag.
   - Stills: `capsule_63_shelf_partial_1920x1080.png` (9 / 30, with the hover tag), `capsule_63_shelf_fresh_1920x1080.png`
-    (0 / 30), `capsule_63_shelf_full_1920x1080.png` (30 / 30). The old option stays reachable only as a not-chosen
+    (0 / 30), `capsule_63_shelf_early_1920x1080.png` (3 / 30: one key item in each of 3 aisles, three "None yet" shelves),
+    `capsule_63_shelf_full_1920x1080.png` (30 / 30), all one layout. The hover tag stands level with the figurine, to its
+    right (to its left near the cabinet's right edge), so it never covers the aisle sign. The old option stays reachable only as a not-chosen
     view (`capsule_63_shelf.html?locked=spaces`, still `capsule_63_shelf_partial_spaces_1920x1080.png`).
 - **Q4 wording: TOY MACHINES.** The sign and title say TOY MACHINES; inside is a **capsule**, you get a **figurine**;
   "3 of 8 left" / "All 8 collected"; "1 coin"; "NEW!", the name, its aisle, "In stock from your next run" (or the

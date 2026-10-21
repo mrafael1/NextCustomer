@@ -22,4 +22,5 @@ c capsule_63_shelf.html "state=partial&locked=spaces" capsule_63_shelf_partial_s
 c capsule_63_shelf.html "state=full" capsule_63_shelf_full_1920x1080.png
 c capsule_63_shelf.html "state=full&labels=1" capsule_63_shelf_full_labels_1920x1080.png
 c capsule_63_shelf.html "state=fresh" capsule_63_shelf_fresh_1920x1080.png
+c capsule_63_shelf.html "state=early" capsule_63_shelf_early_1920x1080.png
 c capsule_63_index.html "" capsule_63_index_1920x1080.png

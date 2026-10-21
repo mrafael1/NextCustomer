@@ -2,7 +2,7 @@
 // Mock-up only. Nothing here is game code; the draw rule mimics #63's core rule (key item first, then random among
 // those left, no duplicates) with a fixed choice so stills are repeatable.
 // URL parameters (all optional):
-//   state=fresh|partial|full   collection (default partial: 9 of 30)
+//   state=fresh|early|partial|full   collection (default partial: 9 of 30; early: 3 of 30, one key item in 3 aisles)
 //   coins=N                    coins owned (defaults: fresh 1, partial 2, full 3)
 //   nosave=1                   the profile can't be saved: machines switched off, "Coins ?"
 //   draw=I&t=S                 freeze a draw from machine I (0-5, data order) at S seconds (stills)
@@ -45,6 +45,8 @@ const CAP = (() => {
   const TOTAL = AISLES.reduce((n, a) => n + a.items.length, 0);
   const PARTIAL = { cold_cases: ['Cream'], pantry: ['Sugar cubes', 'Mixed herbs'], household: ['Egg timer'],
     fruit_and_veg: ['Fruit salad', 'Strawberries', 'Lemon'], bakery: ['Baguette', 'Croissant'], snacks: [] };
+  // early: each aisle's key item (first in data order) in 3 aisles
+  const EARLY = { cold_cases: 1, fruit_and_veg: 1, snacks: 1 };
   const COIN_SVG = '<svg viewBox="0 0 12 12" shape-rendering="crispEdges"><path fill="#2b2420" d="M3 0h6v1h2v2h1v6h-1v2h-2v1H3v-1H1V9H0V3h1V1h2z"/><path fill="#e2b33c" d="M3 1h6v1h1v1h1v6h-1v1H9v1H3v-1H2V9H1V3h1V2h1z"/><path fill="#ffcf3f" d="M3 2h5v1H3v5H2V3h1z"/><path fill="#b38425" d="M9 4h1v5H9v1H4V9h5z"/><path fill="#7a5a1c" d="M5 4h2v4H5z"/></svg>';
   const WORDS = P.words === 'capsule'
     ? { title: 'CAPSULE MACHINES', one: 'capsule machine' } : { title: 'TOY MACHINES', one: 'toy machine' };
@@ -52,9 +54,9 @@ const CAP = (() => {
   function initialState() {
     const drawn = {};
     for (const a of AISLES) {
-      drawn[a.id] = P.state === 'full' ? a.items.slice() : P.state === 'fresh' ? [] : (PARTIAL[a.id] || []).slice();
+      drawn[a.id] = P.state === 'full' ? a.items.slice() : P.state === 'fresh' ? [] : P.state === 'early' ? a.items.slice(0, EARLY[a.id] || 0) : (PARTIAL[a.id] || []).slice();
     }
-    const coins = P.coins !== null ? P.coins : P.state === 'fresh' ? 1 : P.state === 'full' ? 3 : 2;
+    const coins = P.coins !== null ? P.coins : P.state === 'fresh' || P.state === 'early' ? 1 : P.state === 'full' ? 3 : 2;
     return { drawn, coins, nosave: P.nosave };
   }
 
