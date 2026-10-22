@@ -64,8 +64,9 @@ NON_INTERACTIVE_TARGET_MS = 15000
 SECOND_RUN_SKIP_TARGET = 0.70
 
 SESSION_FILE = re.compile(r"^\d{8}T\d{6}_[0-9a-f]+\.jsonl$")
-# The rack, the reward print-out and the upgrade tickets are the logs before #77 (v0.37 and
-# older, kept readable); "machine" is the RECEIPT REWARDS machine's machine_visit events.
+# The rack, the reward print-out and the upgrade tickets are the logs before #77
+# (`docs/FULL_BUILD_PLAN.md` v0.40 and older, kept readable); "machine" is the RECEIPT
+# REWARDS machine's machine_visit events.
 OFFER_KINDS = ("rack", "reward", "upgrade", "machine")
 MACHINE_CHUTES = ("new_items", "coupons", "register", "upgrades")
 MACHINE_VISIT_KINDS = ("ticket", "bonus", "stamp_day")

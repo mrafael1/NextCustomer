@@ -11,7 +11,7 @@ extends RefCounted
 ## for a moment the choice came before); presented_ms and armed_ms leave out the chute wait (the
 ## player at the chute keys, from their arming to the CONFIRM), so they are non-interactive time.
 ##
-## Since v0.38 (#77) the `reward` and `upgrade` events and run_start's impulse_* fields are no
+## Since v0.41 (#77) the `reward` and `upgrade` events and run_start's impulse_* fields are no
 ## longer logged (the impulse rack, the print-out and the exit kiosk are gone): machine_visit
 ## replaces them. tools/log_summary.py still reads older logs.
 
