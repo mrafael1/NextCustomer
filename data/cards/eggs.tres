@@ -24,3 +24,5 @@ rule_text = "Double the next Food payout (resets, does not stack)"
 sticker_text = "×{factor} next {tag}"
 generally_useful = true
 art_ref = "res://art/items_v2/eggs.png"
+mini_art_ref = "res://art/minis/eggs.png"
+mini_golden_art_ref = "res://art/minis/eggs_golden.png"

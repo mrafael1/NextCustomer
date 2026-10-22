@@ -15,6 +15,12 @@ const SCREEN := "res://ui/shift_screen.tscn"
 ## check set: Eggs lands ×2 on Bread, the 3rd product (Milk) is denied, Multipack arms ×3 and
 ## Coupon engine fizzles on it, Slot engine stamps the 6th product.
 const FULL_ROW: Array[String] = ["eggs", "bread", "milk", "multipack", "milk", "milk", "milk"]
+## Sticker minis' row: Eggs gives Bread ×2 (its mini), Mixed herbs (no sprite yet) gives Golden
+## Eggs +3 (its initials), Golden Eggs gives the next 2 Food ×2 (the gold-outlined mini) and
+## Multipack gives the Milk ×3 for the Cheese's Dairy (the coupon token).
+const MINI_ROW: Array[String] = [
+	"eggs", "bread", "mixed_herbs", "eggs_golden", "cheese", "multipack", "milk"
+]
 const OFF_SCREEN := Vector2(-500, -500)
 const SCREEN_RECT := Rect2(0, 0, 1280, 720)
 ## The motion tests' slap frame and halo step: long enough that no frame outlasts one.
@@ -64,12 +70,14 @@ func test_every_item_shows_its_model() -> void:
 	for slot: int in range(screen._row_views.size()):
 		assert_object(_item(screen, slot)._mark).override_failure_message(str(slot)).is_null()
 	var layer: PlanningLayer = _layer(screen)
-	# Bread takes Eggs' ×2 with the item badge "Eg"; Multipack's ×3 lands with the coupon badge
-	# "Mu"; the Milk in slot 2 is stamped by the Spot check and greys; a boosted Milk is raised.
+	# Bread takes Eggs' ×2 with the item badge, Eggs' mini (sticker minis); Multipack's ×3 lands
+	# with the coupon badge "Mu"; the Milk in slot 2 is stamped by the Spot check and greys; a
+	# boosted Milk is raised.
 	var bread: EffectSticker = _sticker_with(layer.stack(1), "×2")
 	assert_object(bread).is_not_null()
 	assert_int(bread.badge().kind).is_equal(GiverBadge.Kind.ITEM)
-	assert_str(bread.badge().initials()).is_equal("Eg")
+	assert_bool(bread.badge().shows_mini()).is_true()
+	assert_str(bread.badge().texture().resource_path).is_equal("res://art/minis/eggs.png")
 	var stamped: EffectSticker = _sticker_with(layer.stack(4), "×3")
 	assert_object(stamped).is_not_null()
 	assert_int(stamped.badge().kind).is_equal(GiverBadge.Kind.COUPON)
@@ -114,6 +122,108 @@ func test_every_item_shows_its_model() -> void:
 	assert_object(screen._monitor.channel.key_row()).is_not_null()
 	assert_int(screen.run.preview().total).is_equal(result.total)
 	assert_array(screen.run.preview().payouts).is_equal(result.payouts)
+
+
+## Sticker minis on the real screen: each item badge shows its giver's mini (Golden Eggs' with the
+## gold outline, plain Eggs' with ink) or, for a product with no sprite (Mixed herbs), its
+## initials token; the coupon badge keeps its token. Every badge stays 18x18, hangs off its
+## sticker's left edge inside its stack's span (PlanningLayer._span) and lies on the screen with
+## its mini inside it; drained (another item hovered) a mini greys.
+func test_item_badges_show_the_givers_mini() -> void:
+	var screen: ShiftScreen = await _screen()
+	await _place(screen, MINI_ROW)
+	# The slaps settle first: the geometry is the resting one.
+	await _settled(1.0)
+	var layer: PlanningLayer = _layer(screen)
+	var shown: Dictionary[String, bool] = {}
+	var minis: Array[GiverBadge] = []
+	for slot: int in range(screen._row_views.size()):
+		var stickers: Array[EffectSticker] = layer.stack(slot)
+		var specs: Array[StickerSpec] = []
+		var left: float = INF
+		for sticker: EffectSticker in stickers:
+			specs.append(sticker.spec())
+			left = minf(left, sticker.get_global_rect().position.x)
+		var span: Rect2 = PlanningLayer._span(specs, left)
+		for sticker: EffectSticker in stickers:
+			var badge: GiverBadge = sticker.badge()
+			if badge == null:
+				continue
+			var spec: StickerSpec = sticker.spec()
+			var message: String = "slot %d %s %s" % [slot, spec.text, spec.badge_text]
+			var rect: Rect2 = badge.get_global_rect()
+			assert_bool(SCREEN_RECT.encloses(rect)).override_failure_message(message).is_true()
+			(
+				assert_bool(rect.position.x >= span.position.x - 0.01)
+				. override_failure_message(message)
+				. is_true()
+			)
+			assert_bool(rect.end.x <= span.end.x + 0.01).override_failure_message(message).is_true()
+			var sticker_rect: Rect2 = sticker.get_global_rect()
+			assert_bool(rect.get_center().y >= sticker_rect.position.y).is_true()
+			assert_bool(rect.get_center().y <= sticker_rect.end.y).is_true()
+			if badge.kind == GiverBadge.Kind.INSPECTION:
+				continue
+			assert_that(rect.size).override_failure_message(message).is_equal(GiverBadge.SIZE)
+			var art: Rect2 = badge.art_rect()
+			art.position += rect.position
+			assert_bool(rect.encloses(art)).override_failure_message(message).is_true()
+			if badge.kind != GiverBadge.Kind.ITEM:
+				assert_bool(badge.shows_mini()).override_failure_message(message).is_false()
+				shown[GiverBadge.Kind.keys()[badge.kind]] = true
+				continue
+			var giver: CardDefinition = screen.run.row[spec.cause_slot].definition
+			shown[String(giver.id)] = true
+			assert_bool(badge.shows_mini()).override_failure_message(message).is_equal(
+				not giver.badge_mini_ref().is_empty()
+			)
+			if badge.shows_mini():
+				assert_str(badge.texture().resource_path).is_equal(giver.badge_mini_ref())
+				assert_str(badge.initials()).is_empty()
+				minis.append(badge)
+			else:
+				assert_str(badge.initials()).is_equal(spec.badge_text)
+	assert_bool(shown.has("eggs")).override_failure_message(str(shown)).is_true()
+	assert_bool(shown.has("eggs_golden")).override_failure_message(str(shown)).is_true()
+	assert_bool(shown.has("mixed_herbs")).override_failure_message(str(shown)).is_true()
+	assert_bool(shown.has("COUPON")).override_failure_message(str(shown)).is_true()
+	# Golden Eggs' mini is the gold-outlined one.
+	var golden: Array[GiverBadge] = minis.filter(
+		func(badge: GiverBadge) -> bool:
+			return badge.texture().resource_path.ends_with("_golden.png")
+	)
+	assert_int(golden.size()).is_greater(0)
+	# The monitor key's "from an item" entry shows the same badge: the first item sticker's giver
+	# (Eggs, on Bread) with its mini, inside the channel.
+	var channel: MonitorChannel = screen._monitor.channel
+	var key_row: Control = channel.key_row()
+	assert_object(key_row).is_not_null()
+	var item_keys: Array[EffectSticker] = []
+	for child: Node in key_row.get_children():
+		var key_sticker: EffectSticker = child as EffectSticker
+		if key_sticker != null and key_sticker.spec().badge == GiverBadge.Kind.ITEM:
+			item_keys.append(key_sticker)
+	assert_int(item_keys.size()).is_equal(1)
+	var key_badge: GiverBadge = item_keys[0].badge()
+	assert_object(key_badge).is_not_null()
+	assert_bool(key_badge.shows_mini()).is_true()
+	var eggs_mini: String = screen.run.row[MINI_ROW.find("eggs")].definition.badge_mini_ref()
+	assert_str(key_badge.texture().resource_path).is_equal(eggs_mini)
+	var key_rect: Rect2 = key_badge.get_global_rect()
+	(
+		assert_bool(channel.get_global_rect().encloses(key_rect))
+		. override_failure_message("%s in %s" % [key_rect, channel.get_global_rect()])
+		. is_true()
+	)
+	# Hovering the coupon drains every sticker it doesn't cause: the minis grey.
+	var coupon: ItemView = _item(screen, MINI_ROW.find("multipack"))
+	coupon.hovered.emit(coupon)
+	await _frames(1)
+	for badge: GiverBadge in minis:
+		assert_bool(badge.is_drained()).is_true()
+		assert_object((badge.get_child(0) as CanvasItem).material).is_same(
+			ArtStyle.grey_material(ArtStyle.Grey.DRAINED)
+		)
 
 
 ## Moving Eggs after Bread changes the stickers (Eggs' ×2 has nothing after it, so Eggs' own

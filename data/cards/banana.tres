@@ -23,3 +23,5 @@ rule_text = "+ its base value (+2) as a flat bonus if immediately after another 
 sticker_text = "+{base} after {name}"
 generally_useful = true
 art_ref = "res://art/items_v2/banana.png"
+mini_art_ref = "res://art/minis/banana.png"
+mini_golden_art_ref = "res://art/minis/banana_golden.png"

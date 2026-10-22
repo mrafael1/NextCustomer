@@ -30,6 +30,12 @@ enum Tier { PLAIN, BIG, GOLDEN }
 ## Reward offers include at least one card with this flag (plan section 5).
 @export var generally_useful: bool = false
 @export var art_ref: String = ""
+## The giver-badge mini (sticker minis, art/minis/): the hand-drawn 7x7 product a planning sticker's
+## badge shows for this product, and its GOLDEN copy with the gold outline. Set on the plain card
+## only; a BIG or GOLDEN tier leaves them empty and uses its plain card's (badge_mini_ref).
+## Empty for a product with no sprite yet (its badge keeps the initials) and for a coupon.
+@export var mini_art_ref: String = ""
+@export var mini_golden_art_ref: String = ""
 ## A card variant (full build plan section 7.3): the card it is a variant of, e.g. Organic
 ## Banana of Banana. None for a card that is not a variant.
 @export var variant_of: CardDefinition
@@ -53,6 +59,15 @@ func is_coupon() -> bool:
 ## its base card, everywhere (2 for 1, duplicates, and rules that name a card).
 func product_card() -> CardDefinition:
 	return variant_of if variant_of != null else self
+
+
+## The giver-badge mini this card shows: its plain card's mini_golden_art_ref for a GOLDEN card,
+## else its plain card's mini_art_ref (a BIG card looks like the plain one). Empty when none.
+func badge_mini_ref() -> String:
+	var plain: CardDefinition = product_card()
+	if tier == Tier.GOLDEN:
+		return plain.mini_golden_art_ref
+	return plain.mini_art_ref
 
 
 func is_same_product(other: CardDefinition) -> bool:

@@ -22,3 +22,5 @@ rule_text = "+3 to the next Clearance product"
 sticker_text = "+{bonus} next {tag}"
 generally_useful = true
 art_ref = "res://art/items_v2/flickering_bulb.png"
+mini_art_ref = "res://art/minis/flickering_bulb.png"
+mini_golden_art_ref = "res://art/minis/flickering_bulb_golden.png"

@@ -1,0 +1,12 @@
+; A giver-badge mini (sticker minis, mock-up docs/art/mockups/sticker_minis_v1.html): Strawberries, one strawberry: a green leafy top, the tomato body with two mustard seeds, pointed at the bottom.
+; Drawn in the approved minis' style. 7x7, ink outline, light from the top left; shown die-cut (alone) at 2x on a planning sticker's
+; giver badge. Its GOLDEN copy (strawberries_golden) is derived (@derive ... golden=outline).
+@size 7x7
+@kind icon
+..###..
+.#GzG#.
+#RRRRr#
+#RyRyr#
+.#RRr#.
+..#r#..
+...#...

@@ -22,3 +22,5 @@ rule_text = "+5 for each earlier Food product"
 sticker_text = "+{bonus_each} per earlier {tag}"
 generally_useful = true
 art_ref = "res://art/items_v2/carrier_bag.png"
+mini_art_ref = "res://art/minis/carrier_bag.png"
+mini_golden_art_ref = "res://art/minis/carrier_bag_golden.png"

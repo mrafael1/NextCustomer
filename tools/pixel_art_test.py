@@ -517,6 +517,30 @@ class DeriveTest(TempTestCase):
         self.assertEqual("".join(out[5]), "#:lYYl:#")
         self.assertEqual(out[6][2:6], ["l", "n", "n", "l"])  # brass dark against the carton
 
+    def test_the_outline_map_golds_only_the_ink_lit_then_shaded(self) -> None:
+        palette = pa.parse_palette(self.ws.src / pa.PALETTE_FILE)
+        # 7x7: the mid diagonal x + y = 6 is lit; nothing is cleared or re-inked.
+        grid = [list("..###.."), list(".#wwc#."), list("#wcccb#"), list("#ccccb#"),
+                list("#cccbb#"), list(".#bbb#."), list("..###..")]
+        out = pa.golden_outline(grid, palette)
+        self.assertEqual("".join(out[0]), "..nnn..")
+        self.assertEqual("".join(out[1]), ".nwwcn.")
+        self.assertEqual("".join(out[2]), "nwcccbL")
+        self.assertEqual("".join(out[6]), "..LLL..")
+        self.assertFalse(any(key == pa.INK for row in out for key in row))
+
+    def test_the_outline_map_keeps_interior_ink(self) -> None:
+        palette = pa.parse_palette(self.ws.src / pa.PALETTE_FILE)
+        # (2, 2) and (3, 3) are ink lines inside the fill: they stay ink.
+        grid = [list("#######"), list("#ccccc#"), list("#c#ccc#"), list("#cc#cc#"),
+                list("#ccccc#"), list("#ccccc#"), list("#######")]
+        out = pa.golden_outline(grid, palette)
+        self.assertEqual(out[2][2], pa.INK)
+        self.assertEqual(out[3][3], pa.INK)
+        self.assertEqual("".join(out[0]), "nnnnnnn")
+        self.assertEqual("".join(out[6]), "nLLLLLL")
+        self.assertEqual(sum(key == pa.INK for row in out for key in row), 2)
+
     def test_derive_errors(self) -> None:
         self.ws.add("items_v2/box", item_source(boxed_item("c", 48)))
         cases = {

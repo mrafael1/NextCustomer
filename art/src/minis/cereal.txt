@@ -1,0 +1,12 @@
+; A giver-badge mini (sticker minis, mock-up docs/art/mockups/sticker_minis_v1.html): Cereal, a square tomato box (square corners, the soup tin's are round) with a mustard banner and a teal bowl of mustard flakes.
+; Drawn in the approved minis' style. 7x7, ink outline, light from the top left; shown die-cut (alone) at 2x on a planning sticker's
+; giver badge. Its GOLDEN copy (cereal_golden) is derived (@derive ... golden=outline).
+@size 7x7
+@kind icon
+#######
+#yyyyM#
+#RRRRr#
+#RMMMr#
+#R454r#
+#RRrrr#
+#######

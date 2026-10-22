@@ -36,8 +36,13 @@ approved prep script docs/art/mockups/machine_77_src/upgrades/gen_upgrades.py:
             on the lit top edge (a mustard pale pixel right under the outline)
     egg     GOLDEN_EGG_MAP for the eggs (the carton keeps its greys), a brass dark rim where
             an egg meets the carton, and one paper highlight per egg
-Each map then re-inks: rows 0-1 cleared and every opaque pixel on the outline made ink. A
-derived source is linted, built, checked (missing or stale) and previewed like any other.
+    outline a giver-badge mini's GOLDEN copy (art/src/minis/, sticker minis): only the ink
+            outline changes (an ink pixel next to a transparent cell or the grid's edge), to
+            lit gold (GOLDEN_OUTLINE_LIT) on the top-left half and the mid diagonal and brass
+            (GOLDEN_OUTLINE_SHADE) on the bottom-right half; interior ink lines and the fill
+            are kept
+Each map but outline then re-inks: rows 0-1 cleared and every opaque pixel on the outline made
+ink. A derived source is linted, built, checked (missing or stale) and previewed like any other.
 
 art/src/palette.txt lists the palette, one colour per line: a single-character key, a hex
 colour and a name. The key '.' is transparent. The PNGs are indexed (PLTE + tRNS) and hold the
@@ -114,6 +119,10 @@ GOLDEN_EGG_MAP = {"b": "L", "c": "n", "w": "Y", "a": "l"}
 GOLDEN_EGG_KEYS = ("w", "c", "b")
 GOLDEN_EGG_SHADE = "a"
 GOLDEN_EGG_RIM = "l"
+# The outline map (giver-badge minis): the ink outline's lit and shaded gold, the two tones of
+# the sticker-minis mock-up's gold ring (gold, brass).
+GOLDEN_OUTLINE_LIT = "n"
+GOLDEN_OUTLINE_SHADE = "L"
 DERIVE_DIRECTIVE = "@derive"
 GOLDEN_PREFIX = "golden="
 
@@ -451,7 +460,28 @@ def golden_egg(rows: Grid, _palette: Palette) -> Grid:
     return reink(out)
 
 
-GOLDEN_MAPS = {"rank": golden_rank, "yellow": golden_yellow, "egg": golden_egg}
+def golden_outline(rows: Grid, _palette: Palette) -> Grid:
+    """Every outline ink pixel (one with a transparent 4-neighbour or on the grid's edge) becomes
+    GOLDEN_OUTLINE_LIT on the top-left half and the mid diagonal (x + y <= mid) and
+    GOLDEN_OUTLINE_SHADE below it; interior ink and the fill are kept (no re-ink)."""
+    height = len(rows)
+    width = len(rows[0]) if rows else 0
+    mid = (width + height) // 2 - 1
+
+    def on_outline(x: int, y: int) -> bool:
+        for nx, ny in ((x - 1, y), (x + 1, y), (x, y - 1), (x, y + 1)):
+            if not (0 <= nx < width and 0 <= ny < height) or rows[ny][nx] == TRANSPARENT:
+                return True
+        return False
+
+    return [[(GOLDEN_OUTLINE_LIT if x + y <= mid else GOLDEN_OUTLINE_SHADE)
+             if key == INK and on_outline(x, y) else key
+             for x, key in enumerate(row)] for y, row in enumerate(rows)]
+
+
+GOLDEN_MAPS = {
+    "rank": golden_rank, "yellow": golden_yellow, "egg": golden_egg, "outline": golden_outline,
+}
 
 
 def derive_sprite(derivation: Derivation, base: Sprite, palette: Palette) -> Sprite:
