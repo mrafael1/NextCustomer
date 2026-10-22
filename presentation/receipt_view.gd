@@ -22,14 +22,13 @@ extends PanelContainer
 ## bonus and copy lines ("+€15.00") and an override's "= €0.00" (which the item's amount is from
 ## then on) come to its PAYOUT step's value, or (a multiplier) the PAYOUT step closes the item
 ## with a small "= €3.00" line (CLOSING_TEXT, LineStyle.CLOSING), its last line; when they do, it
-## prints nothing. The line just printed (or filled; the item's line
-## when the PAYOUT step prints nothing) is framed (mustard-pale fill, mustard frame), and the
-## receipt keeps it in view.
+## prints nothing. The line just printed (or filled; the item's line when the PAYOUT step prints
+## nothing) is framed (mustard-pale fill, mustard frame), and the receipt keeps it in view.
 ## add_total fills the TOTAL line in plainly and drops the footer and the frame; the dessert (#61)
-## then prints the verdict on it, the margin (PAID on a pass), the tear and the next shift's
-## notice under it, scrolled to the newest line. A resumed checkout prints it all at once
-## (show_result), through the same lines. Every line another source boosts (a combo, is_combo) is
-## marked with a faint gold band, a gold bar and a diamond.
+## then prints the verdict on it, the margin (PAID on a pass), the BONUS stub (#77 machine v2,
+## `stub`), the tear and the next shift's notice under it, scrolled to the newest line. A resumed
+## checkout prints it all at once (show_result), through the same lines. Every line another
+## source boosts (a combo, is_combo) is marked with a faint gold band, a gold bar and a diamond.
 ##
 ## On the shift screen it stands on the printer's slot and grows up (fit_up, #80): as tall as its
 ## lines, up to ShiftStage.RECEIPT_TOP. An indented step line hangs (#55): wrapped, it starts past
@@ -131,6 +130,14 @@ const COMBO_ICON_RECT := Rect2(4, 3, 10, 10)
 const COMBO_INDENT := 18.0
 const COMBO_DIAMOND := preload("res://art/icons/combo_diamond.png")
 
+## The gold BONUS stub line (#77 machine v2, ReceiptStamps.add_bonus_stub), or null: set, it
+## prints at the receipt's foot.
+var stub: ReceiptStub:
+	set(value):
+		stub = value
+		if value != null:
+			_lines.add_child(value)
+			scroll_to_end()
 var _lines: VBoxContainer
 ## Holds the lines inside the scroll area, with room for the frame and the marks; draws the frame.
 var _inset: MarginContainer
@@ -215,8 +222,10 @@ func fit_height() -> void:
 	var room: float = _stand_bottom - _cap_top
 	# The newest line stays in view in the very frame the receipt grows or shrinks.
 	_snap_to_end = true
-	size.y = maxf(minf(natural_height(), room), frame)
-	position.y = _stand_bottom - size.y
+	# A stub snapping off shrinks the receipt from its foot, its body kept where it was.
+	var lost: float = stub.lost() if is_instance_valid(stub) else 0.0
+	size.y = maxf(minf(natural_height() + lost, room) - lost, frame)
+	position.y = _stand_bottom - size.y - lost
 	# Sorted after the panel gives the scroll area its new size (the scroll area doesn't always
 	# sort itself on a resize), so _on_scroll_sorted sees it.
 	_scroll.queue_sort()
@@ -235,6 +244,7 @@ func scroll_to_end() -> void:
 
 
 func clear() -> void:
+	stub = null
 	_total_line = null
 	_total_rule = null
 	_footer = null
@@ -657,10 +667,12 @@ func add_notice(text: String) -> Control:
 	return add_line(text, "", LineStyle.NOTICE)
 
 
-## The shift's end at once, as the dessert leaves it (#61): the verdict on the TOTAL line, the
-## margin line (PAID on a pass), INSPECTION PASSED naming `inspection` on a passed inspected
-## shift (#77; none when empty), the tear and `notice` (none when empty).
-func show_shift_end(total: int, quota: int, notice: String = "", inspection: String = "") -> void:
+## The shift's end at once, as the dessert leaves it (#61): the verdict, the margin (PAID on a
+## pass), INSPECTION PASSED naming `inspection` (#77; none when empty), the BONUS stub with its
+## small line `sub` (#77 machine v2; none when empty), the tear and `notice` (none when empty).
+func show_shift_end(
+	total: int, quota: int, notice: String = "", inspection: String = "", sub: String = ""
+) -> void:
 	var margin: ShiftMargin = ShiftMargin.of(total, quota)
 	show_verdict(total, quota)
 	var line: Control = add_margin(margin)
@@ -668,6 +680,8 @@ func show_shift_end(total: int, quota: int, notice: String = "", inspection: Str
 		ReceiptStamps.stamp_paid(line)
 		if not inspection.is_empty():
 			ReceiptStamps.stamp_inspection(self, inspection)
+		if not sub.is_empty():
+			ReceiptStamps.add_bonus_stub(self, sub).grow(BonusTicket.SIZE.y)
 	add_tear()
 	if not notice.is_empty():
 		add_notice(notice)

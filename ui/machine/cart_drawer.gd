@@ -1,7 +1,8 @@
 class_name CartDrawer
 extends Control
 ## The CART drawer a NEW ITEMS, COUPONS or UPGRADES pick lands in (#77, look F; build spec 4.2),
-## on the machine's stage layer, right edge ShiftStage.CART_DRAWER_RIGHT, top CART_DRAWER_TOP: a
+## on the machine's stage layer, right edge ShiftStage.CART_DRAWER_RIGHT (#77 machine v2: left of
+## the machine at 2x; a drawer too wide for that keeps CART_DRAWER_LEFT), top CART_DRAWER_TOP: a
 ## teal light drawer with "YOUR CART", a note ("+1 card", "full: swap 1 out", "same count") and
 ## the count chip "n/<deck_limit>" (balance.deck_limit, never a hard-coded 15), a line saying how
 ## many of the landing product the cart holds, one 100x122 slot per copy of it (its sprite and its
@@ -136,7 +137,7 @@ func frame(t: float) -> void:
 	var slide_in: float = 1.0 if rm else _seg(t, plan.drawer_in, plan.drawer_in + SLIDE)
 	var slide_out: float = 0.0 if rm else _seg(t, plan.drawer_out, plan.drawer_out + SLIDE)
 	position = Vector2(
-		ShiftStage.CART_DRAWER_RIGHT - _width,
+		_left(),
 		ShiftStage.CART_DRAWER_TOP - roundf(SLIDE_PX * (1.0 - slide_in) + SLIDE_PX * slide_out)
 	)
 	modulate.a = slide_in * (1.0 - slide_out)
@@ -162,15 +163,18 @@ func dest() -> Vector2:
 			index = slot_index
 			break
 	var centre: Vector2 = _slot_position(index) + SLOT_SIZE / 2.0
-	return Vector2(ShiftStage.CART_DRAWER_RIGHT - _width, ShiftStage.CART_DRAWER_TOP) + centre
+	return Vector2(_left(), ShiftStage.CART_DRAWER_TOP) + centre
+
+
+## The drawer's left edge (stage x): its right edge at CART_DRAWER_RIGHT, never left of
+## CART_DRAWER_LEFT.
+func _left() -> float:
+	return maxf(ShiftStage.CART_DRAWER_LEFT, ShiftStage.CART_DRAWER_RIGHT - _width)
 
 
 ## The drawer's rect in stage coordinates where it rests (no slide).
 func rest_rect() -> Rect2:
-	return Rect2(
-		Vector2(ShiftStage.CART_DRAWER_RIGHT - _width, ShiftStage.CART_DRAWER_TOP),
-		Vector2(_width, _height)
-	)
+	return Rect2(Vector2(_left(), ShiftStage.CART_DRAWER_TOP), Vector2(_width, _height))
 
 
 func _build(shown: MachineLanding) -> void:

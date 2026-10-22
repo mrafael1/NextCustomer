@@ -17,6 +17,9 @@ var reduced_motion: bool = false
 ## starts (ReceiptView.begin), so its lines print under the planning stub's header. None by
 ## default.
 var receipt_header: PackedStringArray = PackedStringArray()
+## A BONUS visit follows this shift's TICKET visit (#77 machine v2, Q2 = 2: the dessert prints
+## the gold stub that becomes the bonus ticket). The shift screen sets it after the checkout.
+var bonus_ticket: bool = false
 
 
 func _init(

@@ -6,8 +6,11 @@ extends GdUnitTestSuite
 ## end (BONUS: the end of "PICK A CHUTE AGAIN", the page's hover), its PICK wait the page's curPick,
 ## and the page's cursor time from there to its press is left out. At 1x and under reduced
 ## motion; TICKET, BONUS with and without an inspection, STAMP DAY; NEW ITEMS, REGISTER and
-## UPGRADES shelf landings; 1, 2 and 3 prizes; resume_at for each wait point. Pure data: no saves,
-## no event log, no Node.
+## UPGRADES shelf landings; 1, 2 and 3 prizes; resume_at for each wait point. Machine v2 (#77,
+## Q1 = A, Q2 = 2) rebuilt the intros (the receipt's travel with the camera's glide, the stub's
+## snap, the bonus ticket's feed): those follow MachineTuning, and the page's times from the
+## CHOOSE wait on are checked from the plan's own choose_at. Pure data: no saves, no event log, no
+## Node.
 
 const TUNING := "res://data/balance/machine_tempo.tres"
 const FIXTURE := "res://tests/fixtures/machine_plan/page_timelines.json"
@@ -26,7 +29,21 @@ func before() -> void:
 func test_the_tempo_loads_with_every_time_set() -> void:
 	var tuning: MachineTuning = load(TUNING) as MachineTuning
 	assert_object(tuning).is_not_null()
-	assert_int(tuning.flight_ms).is_greater(0)
+	for ms: int in [
+		tuning.travel_ms,
+		tuning.glide_ms,
+		tuning.feed_ms,
+		tuning.snap_ms,
+		tuning.dock_flight_ms,
+		tuning.return_glide_ms,
+		tuning.bonus_to_slot_ms,
+		tuning.bonus_feed_ms,
+		tuning.rm_cut_ms,
+		tuning.rm_fade_ms,
+	]:
+		assert_int(ms).is_greater(0)
+	assert_float(tuning.feed_fit).is_greater(0.0)
+	assert_float(tuning.rm_fade_alpha).is_equal_approx(0.85, 0.0001)
 	assert_int(tuning.lands_ms.size()).is_equal(MachinePlan.MAX_PRIZES)
 	for list: PackedInt32Array in [tuning.reveal_ms, tuning.reveal_rm_ms, tuning.end_hold_ms]:
 		assert_int(list.size()).is_equal(3)
@@ -58,7 +75,73 @@ func test_a_ticket_without_waits_is_the_pages_less_its_cursor() -> void:
 		+ float(page["pickPress"])
 		- float(page["curPick"])
 	)
-	_near(plan.end_at, float(page["end"]) - cursor, "end")
+	_near(plan.end_at, float(page["end"]) - cursor + _choose_shift(plan, page), "end")
+
+
+## The TICKET intro (machine v2): the receipt travels over travel_ms and is fed over feed_ms
+## (feed_rm_ms under reduced motion); the camera glides from glide_lead_ms over glide_ms (a cut
+## behind the fade under reduced motion) and the machine lights over its last lit_ramp_ms; with a
+## bonus ticket to come the stub snaps snap_lead_ms before the feed, then flies to the dock.
+func test_a_ticket_intro_follows_the_tuning() -> void:
+	var tuning: MachineTuning = _tuning()
+	for rm: bool in [false, true]:
+		for stub: bool in [false, true]:
+			var tag: String = "rm %s stub %s" % [rm, stub]
+			var plan: MachinePlan = MachinePlan.new(tuning, TICKET, rm, true, stub)
+			var travel: float = MachineTuning.sec(tuning.travel_ms)
+			var feed: float = MachineTuning.sec(tuning.feed_rm_ms if rm else tuning.feed_ms)
+			_near(plan.fly, 0.0, tag + " fly")
+			_near(plan.fly_end, travel, tag + " fly end")
+			_near(plan.feed_end, travel + feed, tag + " feed end")
+			_near(plan.read_end, plan.feed_end + MachineTuning.sec(tuning.read_ms), tag + " read")
+			_near(plan.glide, MachineTuning.sec(tuning.glide_lead_ms), tag + " glide")
+			_near(plan.glide_end, plan.glide + MachineTuning.sec(tuning.glide_ms), tag + " glided")
+			assert_float(plan.beat_time(&"glide")).is_equal(plan.glide)
+			assert_float(plan.camera_at(0.0)).is_equal(0.0)
+			assert_float(plan.camera_at(plan.choose_at)).is_equal(1.0)
+			assert_float(plan.lit_at(0.0)).is_equal(0.0)
+			assert_float(plan.lit_at(plan.glide_end)).is_equal(1.0)
+			if stub:
+				_near(plan.snap, travel - MachineTuning.sec(tuning.snap_lead_ms), tag + " snap")
+				assert_float(plan.beat_time(&"snap")).is_equal(plan.snap)
+				assert_float(plan.stub_left(plan.snap - 0.01)).is_equal(1.0)
+				assert_float(plan.dock_flight(plan.snap - 0.01)).is_equal(MachinePlan.NOT_SET)
+				var docked: float = plan.snap + MachineTuning.sec(tuning.dock_flight_ms)
+				assert_float(plan.dock_flight(docked)).is_equal(1.0)
+				assert_float(plan.stub_left(docked)).is_equal(0.0)
+			else:
+				assert_float(plan.snap).is_equal(MachinePlan.NOT_SET)
+				assert_float(plan.beat_time(&"snap")).is_equal(MachinePlan.NOT_SET)
+			if rm:
+				var cut: float = plan.glide + MachineTuning.sec(tuning.rm_cut_ms)
+				assert_float(plan.camera_at(cut - 0.001)).is_equal(0.0)
+				assert_float(plan.camera_at(cut)).is_equal(1.0)
+				var peak: float = plan.glide + MachineTuning.sec(tuning.rm_fade_ms) / 2.0
+				_near(plan.fade_at(peak), tuning.rm_fade_alpha, tag + " fade peak")
+			else:
+				assert_float(plan.fade_at(plan.glide + 0.3)).is_equal(0.0)
+				var mid: float = (plan.glide + plan.glide_end) / 2.0
+				_near(plan.camera_at(mid), 0.5, tag + " mid glide")
+
+
+## The glide back after the shift's last visit: the camera from 1 to 0 over return_glide_ms (a
+## cut at rm_cut_ms behind the fade under reduced motion), the machine dimming after it.
+func test_the_return_glide_follows_the_tuning() -> void:
+	var tuning: MachineTuning = _tuning()
+	var glide: float = MachineTuning.sec(tuning.return_glide_ms)
+	assert_float(MachinePlan.return_camera(tuning, 0.0, false)).is_equal(1.0)
+	_near(MachinePlan.return_camera(tuning, glide / 2.0, false), 0.5, "mid")
+	assert_float(MachinePlan.return_camera(tuning, glide, false)).is_equal(0.0)
+	var cut: float = MachineTuning.sec(tuning.rm_cut_ms)
+	assert_float(MachinePlan.return_camera(tuning, cut - 0.001, true)).is_equal(1.0)
+	assert_float(MachinePlan.return_camera(tuning, cut, true)).is_equal(0.0)
+	var peak: float = MachineTuning.sec(tuning.rm_fade_ms) / 2.0
+	_near(MachinePlan.return_fade(tuning, peak, true), tuning.rm_fade_alpha, "fade peak")
+	assert_float(MachinePlan.return_fade(tuning, 0.5, false)).is_equal(0.0)
+	assert_float(MachinePlan.return_lit(tuning, 0.0)).is_equal(1.0)
+	var length: float = MachinePlan.return_length(tuning, false)
+	assert_float(MachinePlan.return_lit(tuning, length)).is_equal(0.0)
+	assert_float(length).is_greater_equal(glide)
 
 
 ## The first visit ends where the next one starts: the BONUS TICKET 0.3 s after the punch, STAMP
@@ -66,10 +149,12 @@ func test_a_ticket_without_waits_is_the_pages_less_its_cursor() -> void:
 func test_the_first_visit_hands_over_to_the_next() -> void:
 	var bonus_page: Dictionary = _page("bonus_new")
 	var plan: MachinePlan = _ticket("bonus_new", BONUS)
-	_near(plan.end_at, float(bonus_page["bonus"]["T"]["start"]) - _land_offset(bonus_page), "b0")
+	var b0: float = float(bonus_page["bonus"]["T"]["start"]) - _land_offset(bonus_page)
+	_near(plan.end_at, b0 + _choose_shift(plan, bonus_page), "b0")
 	var stamp_page: Dictionary = _page("stamp_day")
 	plan = _ticket("stamp_day", STAMP_DAY)
-	_near(plan.end_at, float(stamp_page["sd"]) - _land_offset(stamp_page), "sd")
+	var sd: float = float(stamp_page["sd"]) - _land_offset(stamp_page)
+	_near(plan.end_at, sd + _choose_shift(plan, stamp_page), "sd")
 
 
 func test_a_bonus_visit_follows_the_page() -> void:
@@ -80,7 +165,7 @@ func test_a_bonus_visit_follows_the_page() -> void:
 		var page: Dictionary = entry["T"].duplicate()
 		page["plan"] = entry["plan"]
 		var plan: MachinePlan = _plan(BONUS, page_name, entry, MachinePlan.NO_VISIT, true)
-		_assert_bonus_intro(page_name, plan, page)
+		_assert_bonus_intro(page_name, plan)
 		_assert_visit(page_name, plan, page, true)
 
 
@@ -173,7 +258,8 @@ func test_short_draws_follow_their_last_real_box() -> void:
 		if count == 2:
 			var two_page: Array = page["drops"]
 			for index: int in range(count):
-				_near(plan.drop_at[index], float(two_page[index][0]) - _draw_offset(page), "drop")
+				var drawn: float = _draw_offset(page) - _choose_shift(plan, page)
+				_near(plan.drop_at[index], float(two_page[index][0]) - drawn, "drop")
 
 
 ## resume_at(point) keeps every time and starts the clock at the wait point, resumed.
@@ -197,7 +283,7 @@ func test_resume_at_starts_at_each_wait_point() -> void:
 ## beat is there only when the meter rises.
 func test_beats_are_ordered_and_grow_with_the_visit() -> void:
 	var plan: MachinePlan = MachinePlan.new(_tuning(), TICKET, false)
-	assert_array(plan.beat_names()).is_equal([&"feed", &"read", &"lights"])
+	assert_array(plan.beat_names()).is_equal([&"feed", &"glide", &"read", &"lights"])
 	var choose: float = plan.choose_at
 	plan.set_draw([0, 0, 1] as Array[int])
 	_near(plan.choose_at, choose, "choose kept")
@@ -291,28 +377,35 @@ func _land_offset(page: Dictionary) -> float:
 	return _draw_offset(page) + float(page["pickPress"]) - float(page["curPick"])
 
 
-## The BONUS intro: t = 0 is the page's b0; its CHOOSE wait is the page's hover.
-func _assert_bonus_intro(tag: String, plan: MachinePlan, page: Dictionary) -> void:
-	var start: float = float(page["start"])
-	_near(plan.stub_end, float(page["tear"]) - start, tag + " stub")
-	_near(plan.fly, float(page["fly"]) - start, tag + " fly")
-	_near(plan.fly_end, float(page["flyEnd"]) - start, tag + " fly end")
-	_near(plan.feed_end, float(page["feedEnd"]) - start, tag + " feed end")
-	_near(plan.read_end, float(page["readEnd"]) - start, tag + " read end")
-	_near(plan.lights_end, float(page["lightsEnd"]) - start, tag + " lights end")
-	_near(plan.choose_at, float(page["hover"]) - start, tag + " choose")
+## The plan's CHOOSE wait less the page's (lights end, from its fly): how much later the page's
+## times from the wait on fall in a machine v2 TICKET plan.
+func _choose_shift(plan: MachinePlan, page: Dictionary) -> float:
+	return plan.choose_at - (float(page["lightsEnd"]) - float(page["fly"]))
+
+
+## The BONUS intro (machine v2): the ticket goes from the dock to over the slot in
+## bonus_to_slot_ms, is fed in over bonus_feed_ms, then read, relit and chosen again; the camera
+## is at the machine and the machine lit throughout.
+func _assert_bonus_intro(tag: String, plan: MachinePlan) -> void:
+	var tuning: MachineTuning = plan.tuning
+	var fed: float = plan.fly_end + MachineTuning.sec(tuning.bonus_feed_ms)
+	var read: float = plan.feed_end + MachineTuning.sec(tuning.bonus_read_ms)
+	_near(plan.fly, 0.0, tag + " fly")
+	_near(plan.fly_end, MachineTuning.sec(tuning.bonus_to_slot_ms), tag + " fly end")
+	_near(plan.feed_end, fed, tag + " feed end")
+	_near(plan.read_end, read, tag + " read end")
+	_near(plan.lights_end, plan.lights + MachineTuning.sec(tuning.bonus_lights_ms), tag + " lit")
+	var again: float = plan.feed_end + MachineTuning.sec(tuning.again_ms)
+	_near(plan.choose_at, maxf(plan.lights_end, again), tag + " choose")
+	assert_float(plan.camera_at(0.0)).is_equal(1.0)
+	assert_float(plan.lit_at(0.0)).is_equal(1.0)
+	assert_float(plan.snap).is_equal(MachinePlan.NOT_SET)
 
 
 ## The draw and the landing of `plan` against `page` (a TICKET's T, or a BONUS's).
 func _assert_visit(tag: String, plan: MachinePlan, page: Dictionary, bonus: bool) -> void:
-	var intro: float = float(page["start"]) if bonus else float(page["fly"])
-	var wait: float = float(page["hover"]) if bonus else float(page["lightsEnd"])
-	if not bonus:
-		_near(plan.fly_end, float(page["flyEnd"]) - intro, tag + " fly end")
-		_near(plan.feed_end, float(page["feedEnd"]) - intro, tag + " feed end")
-		_near(plan.read_end, float(page["readEnd"]) - intro, tag + " read end")
-		_near(plan.choose_at, wait - intro, tag + " choose")
-	var drawn: float = intro + float(page["press"]) - wait
+	# The page's press is the plan's CHOOSE release (machine v2 rebuilt the intros before it).
+	var drawn: float = float(page["press"]) - plan.choose_at
 	_near(plan.odds_close, float(page["oddsClose"]) - drawn, tag + " odds close")
 	_near(plan.draw_end, float(page["drawEnd"]) - drawn, tag + " draw end")
 	var looks: Dictionary = page["plan"]

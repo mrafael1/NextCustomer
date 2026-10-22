@@ -40,7 +40,8 @@ func after_test() -> void:
 
 
 ## The ticket's visit: a TICKET plan from 0 that holds at the chute keys, arms only there, and
-## fires feed, read and lights once each, in order, before it.
+## fires feed, glide (the camera to the machine, #77 machine v2), read and lights once each, in
+## order, before it.
 func test_the_intro_runs_to_the_chute_wait_and_arms_there() -> void:
 	var screen: ShiftScreen = await _passed_screen()
 	var view: RewardMachineView = screen._machine.view
@@ -48,10 +49,10 @@ func test_the_intro_runs_to_the_chute_wait_and_arms_there() -> void:
 	assert_int(view.plan.kind).is_equal(MachineVisit.Kind.TICKET)
 	assert_bool(view.plan.resumed).is_false()
 	assert_bool(view.is_armed()).is_false()
-	await _until(func() -> bool: return view.is_armed(), 5000)
+	await _until(func() -> bool: return view.is_armed(), 8000)
 	assert_bool(view.is_armed()).is_true()
 	assert_float(view.clock).is_equal(view.plan.choose_at)
-	assert_array(_names()).is_equal([&"feed", &"read", &"lights", &"armed"])
+	assert_array(_names()).is_equal([&"feed", &"glide", &"read", &"lights", &"armed"])
 	for seen: Array in _beats:
 		assert_bool(seen[2]).is_false()
 	# Held: the clock stays at the wait point.
@@ -141,7 +142,11 @@ func test_reduced_motion_reaches_the_plan() -> void:
 	await _pass(screen)
 	var view: RewardMachineView = screen._machine.view
 	assert_bool(view.plan.reduced_motion).is_true()
-	assert_float(view.plan.fly_end).is_equal(view.plan.fly)
+	# The camera cuts to the machine behind the charcoal fade (#77 machine v2), no glide.
+	var cut: float = view.plan.glide + MachineTuning.sec(view.tuning.rm_cut_ms)
+	assert_float(view.plan.camera_at(cut - 0.01)).is_equal(0.0)
+	assert_float(view.plan.camera_at(cut)).is_equal(1.0)
+	assert_float(view.plan.fade_at(cut)).is_greater(0.0)
 	screen.profile.set_reduced_motion(false)
 
 
@@ -254,9 +259,18 @@ func test_every_part_is_hooked_and_show_at_fires_nothing() -> void:
 		parts.append(meter)
 	for part: Control in parts:
 		assert_object(part.get(&"view")).override_failure_message(part.name).is_same(view)
-	for part: Control in [view.receipt_feed, view.cart_drawer, view.flyer]:
-		assert_object(part.get_parent()).is_same(view.stage_layer)
+	# The feed and the drawer on the hud under the top bar; the flight over everything; the odds
+	# card over that.
+	for part: Control in [view.receipt_feed, view.cart_drawer]:
+		assert_object(part.get_parent()).is_same(view.feed_layer)
+	assert_object(view.feed_layer.get_parent()).is_same(screen._stage)
+	assert_bool(view.feed_layer.top_level).is_false()
+	assert_int(view.feed_layer.get_index()).is_less(screen._stage.top_bar.get_index())
+	assert_object(view.flyer.get_parent()).is_same(view.stage_layer)
 	assert_bool(view.stage_layer.top_level).is_true()
+	assert_object(view.odds_card.get_parent()).is_same(view.card_layer)
+	assert_bool(view.card_layer.top_level).is_true()
+	assert_int(view.card_layer.get_index()).is_greater(view.stage_layer.get_index())
 	assert_object(view.loyalty_card).is_same(screen._loyalty_card)
 	assert_object(view.receipt).is_same(screen._receipt)
 	var seen: int = _beats.size()
@@ -339,6 +353,7 @@ func _end_visit(screen: ShiftScreen) -> void:
 	else:
 		screen._machine._take(0, run.deck.cards[0] if run.deck_is_full() else null)
 	screen._machine.view.fast_forward()
+	screen._machine._end_return()  # The glide back after the shift's last visit (#77 v2).
 
 
 ## Passes the shift (`rushed`: the count-up tapped once, Rush.checkout).
