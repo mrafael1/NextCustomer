@@ -1,0 +1,176 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Capsule machines A</title>
+<!--
+  #63 CAPSULE MACHINES, LOOK A: THE EXIT VESTIBULE (decide prep, 2026-10-21). CHOSEN with the user on
+  2026-10-21 (Q1: A's staging and its globe machine; see capsule_63_src/DECIDE_63.md). Its shelf is capsule_63_shelf.html,
+  with locked items hidden.
+  Idea: a camera cut to the store exit. Six classic round-globe toy machines stand in a row on the tiled floor between
+  the plaster wall and the sliding doors (EXIT sign, the street at night through the glass). Each wears its aisle sign
+  (sign_color + glyph + name), a glass globe holding one capsule per item left, a cream "1 coin" price-gun label slapped
+  on the globe, a coin slot, a crank and a chute. A floor label says "3 of 8 left". Click a machine: coin flies in,
+  crank turns, the capsule drops in the chute, hops forward, shakes and pops; the figurine rises at 2x with its name
+  label, its aisle and "In stock from your next run". A tap during the animation jumps to the reveal (a #64 question).
+  New art/src/ sources (#63's static art): scenery/toy_machine (one body, recoloured per aisle by a palette map from
+  sign_color, like GOLDEN's @derive), scenery/exit_vestibule (wall, floor, doors, EXIT box), frames/aisle_sign (a 9-slice
+  plate in the sign colour). #64 adds the moving parts: coin, crank (4 frames), flap, capsule halves.
+  Timing: about 2.6 s from click to readable reveal (#64 owns it); reduced motion fades the reveal in place in 0.3 s.
+  Fit check: "Fruit & veg" on a 144 px sign, "Birthday candles" on the reveal label.
+-->
+<link rel="stylesheet" href="capsule_63_src/capsule.css">
+<style>
+#bg { position: absolute; left: 0; top: 0; }
+.hang { position: absolute; left: 330px; top: 70px; width: 360px; height: 64px; display: flex; align-items: center; justify-content: center;
+  border: 6px solid transparent; border-image: url(capsule_63_src/assets/sign.png) 6 fill / 6px stretch; font: 400 34px Pixelify; color: var(--paper); letter-spacing: 2px; }
+.chain { position: absolute; width: 4px; background: repeating-linear-gradient(var(--steel-dark) 0 4px, var(--steel-light) 4px 8px); }
+.exit { position: absolute; left: 1090px; top: 24px; width: 100px; height: 28px; display: flex; align-items: center; justify-content: center; font: 400 20px Pixelify; color: var(--paper); }
+.fig30 { position: absolute; left: 196px; top: 16px; }
+.banner { position: absolute; left: 210px; top: 150px; width: 600px; text-align: center; font: 700 16px Atkinson; color: var(--teal-dark); }
+</style>
+</head>
+<body>
+<div class="stage" id="stage">
+  <canvas id="bg"></canvas>
+  <div class="chain" style="left:372px;top:12px;height:64px"></div><div class="chain" style="left:644px;top:12px;height:64px"></div>
+  <div class="hang ol" id="hang"></div>
+  <div class="exit ol2">EXIT ›</div>
+</div>
+<script src="capsule_63_src/capsule.js"></script>
+<script>
+const { P, AISLES, TOTAL, canvas, R, disc, box, handle, pile, el, glyph, coinChip, engine, WORDS, COIN_SVG } = CAP;
+const stage = document.getElementById('stage');
+document.getElementById('hang').textContent = WORDS.title;
+
+// ---- backdrop: the store exit (art 640x360 at 2x) ----
+(function backdrop() {
+  const c = document.getElementById('bg'); c.width = 640; c.height = 360; c.style.width = '1280px'; c.style.height = '720px';
+  const g = c.getContext('2d'); const ink = '#2b2420';
+  R(g, 0, 0, 640, 252, '#ece0c6');
+  R(g, 0, 0, 640, 6, '#1f3b3a'); R(g, 0, 6, 640, 4, '#2a4d4b'); R(g, 0, 10, 640, 1, ink);
+  R(g, 0, 150, 640, 102, '#e4d6b9');
+  for (let x = 20; x < 500; x += 40) { R(g, x, 156, 1, 88, '#cdbb98'); R(g, x + 1, 156, 1, 88, '#ece0c6'); }
+  R(g, 0, 146, 640, 1, ink); R(g, 0, 147, 640, 3, '#a8703a'); R(g, 0, 149, 640, 1, '#6e4524'); R(g, 0, 150, 640, 1, ink);
+  R(g, 0, 243, 640, 1, ink); R(g, 0, 244, 640, 2, '#a8703a'); R(g, 0, 246, 640, 6, '#6e4524'); R(g, 0, 251, 640, 1, ink);
+  // floor tiles, rows growing toward the camera
+  const rows = [[252, 10], [262, 12], [274, 14], [288, 16], [304, 18], [322, 19], [341, 19]];
+  rows.forEach(([y, h], r) => {
+    const w = 28 + r * 4; const off = (r % 2) * (w / 2);
+    for (let x = -w; x < 640; x += w) {
+      const odd = Math.floor((x + off) / w + r) % 2 === 0;
+      R(g, x + off, y, w, h, odd ? '#f3e9d2' : '#ddcba5');
+    }
+    R(g, 0, y, 640, 1, '#cdbb98');
+  });
+  // sliding doors
+  box(g, 503, 30, 134, 222, '#a9a59b'); R(g, 504, 31, 132, 2, '#ecebe4');
+  for (const x0 of [509, 572]) {
+    box(g, x0, 36, 59, 214, '#1f3b3a');
+    R(g, x0 + 1, 37, 57, 60, '#172c2b');
+    for (let k = 0; k < 5; k++) { R(g, x0 + 2 + k * 11, 200 - k * 30, 3, 40, '#2a4d4b'); }
+    R(g, x0 + 8, 60, 2, 2, '#f1d27a'); R(g, x0 + 40, 48, 2, 2, '#f1d27a'); R(g, x0 + 24, 70, 1, 1, '#faecbc');
+    R(g, x0 + 2, 150, 55, 2, '#c7c3b8'); R(g, x0 + 2, 152, 55, 1, '#8d8a83');
+  }
+  R(g, 568, 36, 4, 214, '#6f6b63');
+  R(g, 490, 252, 150, 18, '#3d3a36'); R(g, 490, 252, 150, 1, ink); for (let x = 494; x < 640; x += 6) R(g, x, 256, 2, 12, '#2c2926');
+  // EXIT box
+  box(g, 543, 10, 54, 18, '#3d7a45'); R(g, 544, 11, 52, 1, '#5fae5a');
+  // machine shadows on the floor (light from the upper left: hard, stepped, to the right)
+  g.fillStyle = 'rgba(43,36,32,.18)';
+  for (let i = 0; i < 6; i++) { const x = 20 + i * 80; g.fillRect(x + 14, 262, 52, 4); g.fillRect(x + 22, 266, 44, 3); }
+})();
+
+// ---- the machine (art 72x140) ----
+const SLOTS = [[24, 69], [36, 70], [48, 69], [30, 59], [42, 59], [19, 60], [53, 60], [36, 49]];
+function paint(c, a, o) {
+  const g = c.getContext('2d'); g.clearRect(0, 0, 72, 140);
+  const [d, b, l] = a.ramp; const ink = '#2b2420';
+  box(g, 1, 0, 70, 19, b); R(g, 2, 1, 68, 2, l); R(g, 2, 16, 68, 2, d);
+  for (const x of [18, 51]) { R(g, x, 19, 3, 9, ink); R(g, x + 1, 19, 1, 9, '#c7c3b8'); }
+  disc(g, 36, 52, 26, ink); disc(g, 36, 52, 25, '#bfe2dd'); disc(g, 34, 50, 22, '#e4f6f3');
+  pile(g, SLOTS, o.left, a.ramp, 6, o.jig);
+  R(g, 16, 40, 2, 8, '#fbf7ee'); R(g, 18, 35, 2, 5, '#fbf7ee'); R(g, 21, 31, 3, 3, '#fbf7ee'); R(g, 24, 29, 3, 2, '#fbf7ee');
+  box(g, 26, 22, 20, 7, b); R(g, 27, 23, 18, 1, l);
+  box(g, 10, 76, 52, 9, '#c7c3b8'); R(g, 11, 77, 50, 1, '#ecebe4'); R(g, 11, 83, 50, 1, '#8d8a83');
+  box(g, 8, 84, 56, 44, b); R(g, 9, 85, 3, 42, l); R(g, 59, 85, 4, 42, d);
+  box(g, 14, 88, 44, 26, '#ecebe4'); R(g, 15, 112, 42, 1, '#c7c3b8');
+  box(g, 17, 91, 11, 15, '#c8932b'); R(g, 18, 92, 9, 1, '#ffcf3f'); R(g, 21, 94, 3, 9, o.slotLit ? '#ffcf3f' : ink);
+  disc(g, 42, 101, 10, ink); disc(g, 42, 101, 9, '#c7c3b8'); disc(g, 41, 100, 7, '#ecebe4');
+  handle(g, 42, 101, 8, o.crank, '#57534c', '#e2b33c'); R(g, 41, 100, 3, 3, ink);
+  box(g, 24, 115, 24, 11, '#24221f');
+  if (!o.flap) { R(g, 25, 116, 22, 6, '#a9a59b'); R(g, 25, 116, 22, 1, '#c7c3b8'); R(g, 25, 121, 22, 1, ink); }
+  else { R(g, 25, 116, 22, 2, '#6f6b63'); }
+  box(g, 28, 127, 16, 7, '#8d8a83'); box(g, 14, 133, 44, 7, '#6f6b63'); R(g, 15, 134, 42, 1, '#a9a59b');
+}
+
+// ---- layout ----
+const X0 = 40, PITCH = 160, TOP = 250;
+const M = AISLES.map((a, i) => {
+  const m = el('div', 'machine', stage); m.style.left = X0 + i * PITCH + 'px'; m.style.top = TOP + 'px'; m.style.width = '144px'; m.style.height = '280px';
+  const c = canvas(72, 140, 'body'); m.appendChild(c);
+  const st = el('div', 'signtxt ol2', m, `${glyph(a)}<span>${a.name}</span>`); st.style.left = '0'; st.style.top = '6px'; st.style.width = '144px'; st.style.height = '26px';
+  const price = el('div', 'label', m, `${COIN_SVG}1 coin`); price.style.left = '64px'; price.style.top = '50px'; price.style.transform = 'rotate(9deg)'; price.style.height = '28px'; price.style.fontSize = '13px';
+  const lab = el('div', 'label', stage); lab.style.top = TOP + 288 + 'px';
+  m.addEventListener('mouseenter', () => m.dataset.h = 1); m.addEventListener('mouseleave', () => delete m.dataset.h);
+  m.addEventListener('click', e => { e.stopPropagation(); if (!E.isBusy()) E.start(i); });
+  return { m, c, lab, price, key: '', i, a, extra: null };
+});
+const coinChipEl = coinChip(stage, 20, 14, 0, P.nosave);
+const figChip = el('div', 'coins fig30', stage); figChip.style.left = '206px'; figChip.style.top = '14px';
+const banner = el('div', 'banner', stage);
+const hint = el('div', 'hint', stage); hint.style.top = '596px';
+const notice = el('div', 'notice paper', stage); notice.style.display = 'none';
+const shelfBtn = el('div', 'fbtn secondary', stage, 'Figurine shelf'); Object.assign(shelfBtn.style, { left: '40px', top: '640px', height: '56px', fontSize: '22px', width: '230px' });
+shelfBtn.onclick = () => location.href = 'capsule_63_shelf.html?' + new URLSearchParams({ state: P.state === 'fresh' ? 'fresh' : P.state });
+const done = el('div', 'fbtn primary', stage, 'Done ›'); Object.assign(done.style, { left: '1080px', top: '640px', height: '56px', fontSize: '24px', width: '160px' });
+
+const look = {
+  stage,
+  slot: i => ({ x: X0 + i * PITCH + 44, y: TOP + 196 }),
+  chute: i => ({ x: X0 + i * PITCH + 72, y: TOP + 238 }),
+  center: { x: 640, y: 380 },
+  coinEl: () => coinChipEl,
+  update(v) {
+    const S = v.S;
+    const owned = v.owned;
+    figChip.innerHTML = `<span class="lab">FIGURINES</span><span>${owned} / ${TOTAL}</span>`;
+    const allDone = AISLES.every(a => v.left[a.id] === 0);
+    for (const o of M) {
+      const left = v.left[o.a.id]; const total = o.a.items.length;
+      const mode = S.nosave ? 'off' : left === 0 ? 'empty' : S.coins <= 0 && v.drawing === null ? 'broke' : 'ok';
+      const slotLit = v.drawing === o.i && v.t !== undefined && v.t >= CAP.T.coin[1] - 0.05 && v.t < CAP.T.crank[1];
+      const key = [left, v.crank[o.i] || 0, v.jig[o.i] || 0, !!v.flap[o.i], slotLit].join();
+      if (key !== o.key) { paint(o.c, o.a, { left, crank: v.crank[o.i] || 0, jig: v.jig[o.i] || 0, flap: !!v.flap[o.i], slotLit }); o.key = key; }
+      o.lab.innerHTML = left === 0 ? `<b>All ${total} collected</b>` : `${left} of ${total} left`;
+      o.lab.style.left = X0 + o.i * PITCH + 72 - o.lab.offsetWidth / 2 + 'px';
+      o.m.classList.toggle('off', mode !== 'ok');
+      o.m.classList.toggle('hov', mode === 'ok' && !!o.m.dataset.h && v.drawing === null);
+      o.c.style.filter = mode === 'broke' ? 'saturate(.55) brightness(.82)' : mode === 'off' ? 'saturate(.4) brightness(.75)' : '';
+      o.price.style.display = mode === 'empty' || mode === 'off' ? 'none' : 'flex';
+      const want = mode === 'empty' ? 'empty' : mode === 'off' ? 'off' : '';
+      if ((o.extra && o.extra.dataset.kind) !== want) {
+        if (o.extra) o.extra.remove(); o.extra = null;
+        if (want === 'empty') { o.extra = el('div', 'rosette', o.m, `ALL<br>COLLECTED`); Object.assign(o.extra.style, { left: '16px', top: '74px' }); }
+        if (want === 'off') { o.extra = el('div', 'ooo', o.m, 'OUT OF<br>ORDER'); Object.assign(o.extra.style, { left: '30px', top: '78px', width: '84px' }); }
+        if (o.extra) o.extra.dataset.kind = want;
+      }
+    }
+    notice.style.display = 'none'; hint.style.display = 'none'; banner.textContent = '';
+    if (S.nosave) {
+      notice.style.display = 'flex'; notice.innerHTML = `<img src="capsule_63_src/assets/warning.png">Your collection can't be saved right now, so the ${WORDS.one}s are switched off.`;
+    } else if (allDone) {
+      banner.innerHTML = 'COLLECTION COMPLETE · every figurine is on your shelf'; banner.style.color = '#7a5a1c';
+      hint.style.display = 'block'; hint.style.color = '#4a3f38'; hint.textContent = 'Your coins keep adding up on the final receipt.';
+    } else if (S.coins <= 0 && v.drawing === null) {
+      notice.style.display = 'flex'; notice.innerHTML = `<img src="capsule_63_src/assets/warning.png">No coins left. Runs that pass shift 4 pay coins on the final receipt.`;
+    } else if (v.drawing === null) { hint.style.display = 'block'; hint.style.color = '#4a3f38'; hint.textContent = 'Pick a machine: 1 coin a capsule.'; }
+    for (const e of [hint, notice]) e.style.left = 640 - e.offsetWidth / 2 + 'px';
+    notice.style.top = '588px';
+  },
+};
+const E = engine(look);
+CAP.note('Look A (chosen) · click a machine · <a href="?state=fresh">fresh</a> · <a href="?">partial</a> · <a href="?state=full">full</a> · <a href="?coins=0">0 coins</a> · <a href="?nosave=1">can\'t save</a> · <a href="?rm=1">reduced motion</a> · <a href="?words=capsule">capsule wording (not chosen)</a>');
+</script>
+</body>
+</html>
