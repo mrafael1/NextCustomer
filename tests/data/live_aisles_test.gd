@@ -30,13 +30,12 @@ func test_aisles_hold_products_only() -> void:
 			assert_bool(card.is_product()).override_failure_message(String(card.id)).is_true()
 
 
-## Every product is a staple of some deck or in exactly one aisle, never both. Item tiers (#77)
-## are run upgrades from the machine, never stocked: they are in no aisle and skipped here.
+## Every product is a staple (the balance's list, v0.49) or in exactly one aisle, never both.
+## Item tiers (#77) are run upgrades from the machine, never stocked: they are in no aisle and
+## skipped here.
 func test_every_product_is_a_staple_or_in_exactly_one_aisle() -> void:
 	var balance: BalanceDefinition = load(BALANCE)
-	var staples: Array[CardDefinition] = []
-	for file: String in _tres_files(DECK_DIR):
-		staples.append_array(RunStock.staples(load("%s/%s" % [DECK_DIR, file])))
+	var staples: Array[CardDefinition] = RunStock.staples(balance)
 	for file: String in _tres_files(CARD_DIR):
 		var card: CardDefinition = load("%s/%s" % [CARD_DIR, file])
 		if not card.is_product() or card.tier != CardDefinition.Tier.PLAIN:
@@ -60,13 +59,27 @@ func test_aisles_hold_at_most_two_generally_useful_products() -> void:
 
 
 ## So the reward guarantee always has a candidate.
-func test_every_deck_has_at_least_two_generally_useful_staples() -> void:
+func test_the_staples_hold_at_least_two_generally_useful_products() -> void:
+	var useful: int = 0
+	for card: CardDefinition in RunStock.staples(load(BALANCE)):
+		if card.generally_useful:
+			useful += 1
+	assert_int(useful).is_greater_equal(2)
+
+
+## Every deck's products (a fixed deck's cards, a recipe's core cards) are staples, so a run
+## stocks every product it starts with (v0.49: the staples are their own list).
+func test_every_deck_starts_with_staples_only() -> void:
+	var staples: Array[CardDefinition] = RunStock.staples(load(BALANCE))
 	for file: String in _tres_files(DECK_DIR):
-		var useful: int = 0
-		for card: CardDefinition in RunStock.staples(load("%s/%s" % [DECK_DIR, file])):
-			if card.generally_useful:
-				useful += 1
-		assert_int(useful).override_failure_message(file).is_greater_equal(2)
+		var deck: DeckDefinition = load("%s/%s" % [DECK_DIR, file])
+		for card: CardDefinition in deck.cards + deck.core_cards:
+			if card.is_product():
+				(
+					assert_bool(staples.has(card))
+					. override_failure_message("%s: %s" % [file, card.id])
+					. is_true()
+				)
 
 
 ## Every run stocks all of coupon_pool, so the first offer's combination coupons are in it.
@@ -174,9 +187,7 @@ func test_complete_aisles_hold_six_to_nine_items() -> void:
 ## staple and no card of a base aisle names one of their cards, or a tag only they print.
 func test_machine_opened_aisles_can_be_cut_whole() -> void:
 	var balance: BalanceDefinition = load(BALANCE)
-	var kept: Array[CardDefinition] = []
-	for file: String in _tres_files(DECK_DIR):
-		kept.append_array(RunStock.staples(load("%s/%s" % [DECK_DIR, file])))
+	var kept: Array[CardDefinition] = RunStock.staples(balance)
 	var cuttable: Array[CardDefinition] = []
 	for aisle: AisleDefinition in balance.aisles:
 		if aisle.base_cards.is_empty():
@@ -231,9 +242,7 @@ func test_aisle_of_finds_each_products_aisle() -> void:
 			)
 			checked += 1
 	assert_int(checked).is_greater(0)
-	var staples: Array[CardDefinition] = []
-	for file: String in _tres_files(DECK_DIR):
-		staples.append_array(RunStock.staples(load("%s/%s" % [DECK_DIR, file])))
+	var staples: Array[CardDefinition] = RunStock.staples(balance)
 	assert_int(staples.size()).is_greater(0)
 	for card: CardDefinition in staples:
 		assert_object(balance.aisle_of(card)).override_failure_message(String(card.id)).is_null()

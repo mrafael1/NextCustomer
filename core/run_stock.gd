@@ -9,9 +9,9 @@ extends RefCounted
 ## surprise_list's aisles. prefill_list is the list's default (the balance simulator's chained
 ## player keeps it), ready for #65.
 ##
-## The stock holds, in this order and each in data order: the staples (the starting deck's own
-## products), the listed aisles' products (aisle data order), the new arrivals, then all of
-## coupon_pool. A card is stocked once.
+## The stock holds, in this order and each in data order: the staples (the balance data's own
+## list since v0.49, no longer the starting deck's products), the listed aisles' products (aisle
+## data order), the new arrivals, then all of coupon_pool. A card is stocked once.
 ##
 ## `run_index` is the 0-based index of the run being built: the number of runs played before
 ## it. `unlocked` maps each unlocked capsule item id to the run_index of the run whose exit it
@@ -33,14 +33,13 @@ var new_arrivals: Array[CardDefinition] = []
 ## Builds the stock. `listed` (aisle ids) is used only when the list isn't skipped; ids of
 ## aisles that are unknown or not listable are ignored.
 static func build(
-	deck: DeckDefinition,
 	balance: BalanceDefinition,
 	listed: Array[StringName],
 	unlocked: Dictionary[StringName, int],
 	run_index: int
 ) -> RunStock:
 	var stock: RunStock = RunStock.new()
-	stock._add_all(staples(deck))
+	stock._add_all(staples(balance))
 	var listable: Array[AisleDefinition] = listable_aisles(balance, unlocked)
 	stock.list_skipped = not needs_list(balance, unlocked)
 	var stocked_aisles: Array[AisleDefinition] = []
@@ -60,9 +59,9 @@ static func build(
 
 ## The stock of a new profile: no unlocks, no list, run index 0. The game builds each run's
 ## stock from its ProfileState; tests and the balance simulator use this one.
-static func starting(deck: DeckDefinition, balance: BalanceDefinition) -> RunStock:
+static func starting(balance: BalanceDefinition) -> RunStock:
 	var unlocked: Dictionary[StringName, int] = {}
-	return build(deck, balance, [], unlocked, 0)
+	return build(balance, [], unlocked, 0)
 
 
 ## A stock restored from a run save (RunSave), so a resumed run never depends on a profile
@@ -81,10 +80,10 @@ static func from_saved(
 	return stock
 
 
-## The starting deck's own products, each once, in deck order.
-static func staples(deck: DeckDefinition) -> Array[CardDefinition]:
+## The staples (BalanceDefinition.staples): its products, each once, in data order.
+static func staples(balance: BalanceDefinition) -> Array[CardDefinition]:
 	var found: Array[CardDefinition] = []
-	for card: CardDefinition in deck.cards:
+	for card: CardDefinition in balance.staples:
 		if card.is_product() and not found.has(card):
 			found.append(card)
 	return found

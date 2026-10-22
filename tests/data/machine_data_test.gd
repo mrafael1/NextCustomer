@@ -51,7 +51,7 @@ func test_the_odds_levels_are_the_approved_ones() -> void:
 ## coupon is in the coupon pool, every listed upgrade in the upgrade pool, and nothing is in two
 ## lists.
 func test_the_rarity_lists_hold_the_right_kinds() -> void:
-	var stockable: Array[CardDefinition] = RunStock.staples(load(STARTER))
+	var stockable: Array[CardDefinition] = RunStock.staples(_balance)
 	for aisle: AisleDefinition in _balance.aisles:
 		stockable.append_array(aisle.base_cards + aisle.capsule_cards)
 	for card: CardDefinition in _machine.rare_products + _machine.legendary_products:
@@ -102,7 +102,7 @@ func test_the_rarities_follow_the_approved_table_with_r3b() -> void:
 		["coupon_engine", "category_engine"]
 	)
 	assert_array(_ids(_machine.legendary_upgrades)).is_equal(["slot_engine"])
-	var fresh: RunStock = RunStock.starting(load(STARTER), _balance)
+	var fresh: RunStock = RunStock.starting(_balance)
 	for card: CardDefinition in fresh.cards:
 		if card.is_product():
 			assert_int(_machine.product_rarity(card)).is_less(MachinePrize.Rarity.LEGENDARY)

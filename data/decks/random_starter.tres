@@ -1,0 +1,17 @@
+[gd_resource type="Resource" script_class="DeckDefinition" format=3]
+
+[ext_resource type="Script" path="res://core/card_definition.gd" id="1_card"]
+[ext_resource type="Resource" path="res://data/cards/banana.tres" id="2_banana"]
+[ext_resource type="Resource" path="res://data/cards/milk.tres" id="3_milk"]
+[ext_resource type="Resource" path="res://data/cards/eggs.tres" id="4_eggs"]
+[ext_resource type="Resource" path="res://data/cards/final_markdown.tres" id="5_final_markdown"]
+[ext_resource type="Script" path="res://core/deck_definition.gd" id="6_deck"]
+
+[resource]
+script = ExtResource("6_deck")
+id = &"random_starter"
+display_name = "Starter deck"
+description = "A Banana pair, Milk, Eggs and a Final markdown coupon, plus 8 products from today's stock."
+core_cards = Array[ExtResource("1_card")]([ExtResource("2_banana"), ExtResource("2_banana"), ExtResource("3_milk"), ExtResource("4_eggs"), ExtResource("5_final_markdown")])
+random_count = 8
+copy_max = 2

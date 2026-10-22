@@ -37,7 +37,8 @@ extends Control
 ## buttons and panels in UiKit, drag slot ticks in CardDrag, music in ShiftMusic. The only hover
 ## sound is the scanner's beep (#75, ScanController), played once a hover on an item is held.
 
-const STARTER_DECK := "res://data/decks/starter.tres"
+## The game's starting deck: a recipe (v0.49) dealt from each run's stock (StartingDeck).
+const STARTER_DECK := "res://data/decks/random_starter.tres"
 const BALANCE := "res://data/balance/balance.tres"
 const CATALOGUE := "res://data/catalogue/catalogue.tres"
 ## A refused card or a closed slot plays `denied` this much softer than the count-up does.
@@ -164,7 +165,6 @@ func _ready() -> void:
 func start_new_run(seed_value: int, saves_run: bool = true) -> void:
 	_saves_run = saves_run
 	ShiftMusic.new_run(_music)
-	var deck: DeckDefinition = load(STARTER_DECK)
 	# Until #65's shopping list, a run that needs a list stocks a random one from the run seed's
 	# own stream (#63), so the same seed and profile give the same list; last_list is untouched.
 	var listed: Array[StringName] = []
@@ -174,8 +174,12 @@ func start_new_run(seed_value: int, saves_run: bool = true) -> void:
 		)
 		listed = RunStock.surprise_list(_balance, profile.unlocked_items, stream)
 	var stock: RunStock = RunStock.build(
-		deck, _balance, listed, profile.unlocked_items, profile.run_count
+		_balance, listed, profile.unlocked_items, profile.run_count
 	)
+	var deal_rng: RandomNumberGenerator = EventLogService.derived_stream(
+		seed_value, EventLogService.STARTING_DECK_STREAM
+	)
+	var deck: DeckDefinition = StartingDeck.deal(load(STARTER_DECK), stock, _balance, deal_rng)
 	run = RunState.new(seed_value, deck, _balance, stock)
 	_run_started_ms = Time.get_ticks_msec()
 	_run_ended_ms = -1

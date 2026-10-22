@@ -19,13 +19,11 @@ var _balance: BalanceDefinition
 var _seed: int = 0
 
 
-func _init(
-	deck: DeckDefinition, balance: BalanceDefinition, per_item: int, orphan_seed: int
-) -> void:
+func _init(balance: BalanceDefinition, per_item: int, orphan_seed: int) -> void:
 	_balance = balance
 	_seed = orphan_seed
 	samples_per_item = per_item
-	var staples: Array[CardDefinition] = RunStock.staples(deck)
+	var staples: Array[CardDefinition] = RunStock.staples(balance)
 	for aisle: AisleDefinition in balance.aisles:
 		var aisle_items: Array[CardDefinition] = aisle.base_cards + aisle.capsule_cards
 		for card: CardDefinition in aisle.capsule_cards:

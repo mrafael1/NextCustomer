@@ -24,7 +24,7 @@ func test_full_collection_stocks_the_listed_aisles_without_arrivals() -> void:
 	assert_str(state.label).is_equal("full collection: dairy+deli")
 	assert_int(state.unlocked.size()).is_equal(8)
 	assert_str(state.problem(balance)).is_empty()
-	var stock: RunStock = state.stock(_deck(), balance)
+	var stock: RunStock = state.stock(balance)
 	assert_array(stock.aisle_ids).is_equal([&"dairy", &"deli"])
 	assert_array(stock.new_arrivals).is_empty()
 	assert_array(_ids(stock.cards)).is_equal(
@@ -54,11 +54,11 @@ func test_a_profile_builds_the_games_next_stock() -> void:
 	profile.unlocked_items = {&"milk": 0, &"d1": 1}
 	var state: SimCollection = SimCollection.from_profile(profile, balance, [])
 	assert_str(state.label).is_equal("profile (run 2) (list skipped)")
-	var stock: RunStock = state.stock(_deck(), balance)
+	var stock: RunStock = state.stock(balance)
 	assert_bool(stock.list_skipped).is_true()
 	assert_array(_ids(stock.new_arrivals)).is_equal(["d1"])
 	assert_bool(_ids(stock.cards).has("milk")).is_true()
-	var expected: RunStock = RunStock.build(_deck(), balance, [], profile.unlocked_items, 2)
+	var expected: RunStock = RunStock.build(balance, [], profile.unlocked_items, 2)
 	assert_array(_ids(stock.cards)).is_equal(_ids(expected.cards))
 
 
@@ -123,7 +123,7 @@ func test_gate_states() -> void:
 	assert_array(states[4].unlocked.keys()).is_equal([&"d1", &"d2"])
 	for state: SimCollection in states:
 		assert_str(state.problem(balance)).override_failure_message(state.label).is_empty()
-		assert_array(state.stock(_deck(), balance).new_arrivals).is_empty()
+		assert_array(state.stock(balance).new_arrivals).is_empty()
 
 
 ## Within the budget a gate state is one state, its list skipped.
@@ -159,7 +159,7 @@ func test_key_cards_count_towards_the_measure_alone() -> void:
 func test_key_offer_chance() -> void:
 	var balance: BalanceDefinition = _balance()
 	var builds: SimBuilds = _builds()
-	var stock: RunStock = SimCollection.fresh().stock(_deck(), balance)
+	var stock: RunStock = SimCollection.fresh().stock(balance)
 	var chances: Dictionary[String, float] = builds.key_offer_chance(balance, stock, 200, 7)
 	assert_float(chances["coupons"]).is_equal(1.0)
 	assert_float(chances["copies"]).is_equal(1.0)
@@ -167,7 +167,7 @@ func test_key_offer_chance() -> void:
 	assert_dict(builds.key_offer_chance(balance, stock, 200, 7)).is_equal(chances)
 	var bare: BalanceDefinition = _balance()
 	bare.aisles.clear()
-	var no_dairy: RunStock = SimCollection.fresh().stock(_deck(), bare)
+	var no_dairy: RunStock = SimCollection.fresh().stock(bare)
 	assert_float(builds.key_offer_chance(bare, no_dairy, 200, 7)["dairy"]).is_equal(0.0)
 
 
@@ -393,10 +393,9 @@ func test_orphan_check() -> void:
 	deli.capsule_cards.append(_card("cheese"))
 	deli.capsule_cards.append(_product(&"dud", 0, []))
 	balance.aisles.append(deli)
-	var deck: DeckDefinition = DeckDefinition.new()
 	for id: String in ["bread", "banana", "repeat"]:
-		deck.cards.append(_card(id))
-	var orphans: SimOrphans = SimOrphans.new(deck, balance, 5, 1)
+		balance.staples.append(_card(id))
+	var orphans: SimOrphans = SimOrphans.new(balance, 5, 1)
 	assert_array(_ids(orphans.items)).is_equal(["cheese", "dud"])
 	assert_int(orphans.sample_total()).is_equal(10)
 	var search: SimRowSearch = SimRowSearch.new(balance)
@@ -405,14 +404,14 @@ func test_orphan_check() -> void:
 	assert_array(Array(orphans.counts(0))).is_equal([5, 5, 5])
 	assert_array(Array(orphans.counts(1))).is_equal([5, 0, 0])
 	assert_array(orphans.orphans()).is_equal(["dud"])
-	var copy: SimOrphans = SimOrphans.new(deck, balance, 5, 1)
+	var copy: SimOrphans = SimOrphans.new(balance, 5, 1)
 	copy.add_samples(JSON.parse_string(JSON.stringify(orphans.samples_to_array())))
 	assert_array(copy.orphans()).is_equal(["dud"])
 	assert_str(orphans.format()).contains("Orphans: dud")
 	assert_array(orphans.unsampled()).is_empty()
 	# Samples take the items in turn: cut short after two samples, only item 0 has been played
 	# twice and item 1 never, which the report says instead of calling it no orphan.
-	var partial: SimOrphans = SimOrphans.new(deck, balance, 5, 1)
+	var partial: SimOrphans = SimOrphans.new(balance, 5, 1)
 	for index: int in [0, 2]:
 		partial.run_sample(search, index)
 	assert_array(Array(partial.counts(0))).is_equal([2, 2, 2])
@@ -438,6 +437,9 @@ static func _balance() -> BalanceDefinition:
 	balance.overtime_coin_max = 1
 	balance.aisle_stock_budget = 3
 	balance.run_aisle_picks = 2
+	# The staples: _deck()'s products (v0.49: the balance's own list).
+	for id: String in ["banana", "bread", "eggs"]:
+		balance.staples.append(_card(id))
 	balance.aisle_listable_min = 2
 	balance.end_cap_max = 3
 	balance.end_cap_window_runs = 3
@@ -533,7 +535,7 @@ static func _build_player(balance: BalanceDefinition, strategy: String) -> SimPl
 		SimRowSearch.new(balance),
 		strategy,
 		2,
-		SimCollection.full(balance, [&"dairy", &"pantry"]).stock(_deck(), balance),
+		SimCollection.full(balance, [&"dairy", &"pantry"]).stock(balance),
 		_builds()
 	)
 

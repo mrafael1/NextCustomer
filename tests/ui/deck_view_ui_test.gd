@@ -5,6 +5,7 @@ extends GdUnitTestSuite
 
 const Rush := preload("res://tests/ui/count_up_rush.gd")
 const SCREEN := "res://ui/shift_screen.tscn"
+const STARTER := "res://data/decks/starter.tres"
 
 var _folder: String = ""
 
@@ -28,6 +29,11 @@ func after_test() -> void:
 ## printed-tag counts.
 func test_the_deck_tab_groups_copies_and_counts_tags() -> void:
 	var screen: ShiftScreen = await _screen()
+	# The fixed starter deck (the game deals a recipe since v0.49; see the test below).
+	var balance: BalanceDefinition = screen.run.balance
+	screen.run = RunState.new(61, load(STARTER), balance, RunStock.starting(balance))
+	screen.run.start_shift()
+	screen._on_shift_started()
 	screen._on_deck_button_pressed()
 	var view: DeckView = screen._deck_view
 	assert_bool(view.visible).is_true()
@@ -57,10 +63,57 @@ func test_the_deck_tab_groups_copies_and_counts_tags() -> void:
 	assert_bool(view._info_tab.visible).is_true()
 
 
-## The starting deck's page shows whole, unscrolled: every card and its count line sit inside
-## the scroll area, and the view sits inside the window below the top bar.
+## v0.49: a new run starts from the recipe deck, dealt from its stock on the run seed's own
+## stream: the 5 core cards, then 8 stocked products with a tier chain, and the Deck tab shows it.
+func test_the_game_deals_the_recipe_deck() -> void:
+	var screen: ShiftScreen = await _screen()
+	var run: RunState = screen.run
+	assert_str(String(run.starter.id)).is_equal("random_starter")
+	assert_int(run.starter.cards.size()).is_equal(13)
+	assert_int(run.deck.size()).is_equal(13)
+	var recipe: DeckDefinition = load(ShiftScreen.STARTER_DECK)
+	assert_array(run.starter.cards.slice(0, 5)).is_equal(recipe.core_cards)
+	var expected: DeckDefinition = StartingDeck.deal(
+		recipe,
+		run.stock,
+		run.balance,
+		EventLogService.derived_stream(run.run_seed, EventLogService.STARTING_DECK_STREAM)
+	)
+	assert_array(run.starter.cards).is_equal(expected.cards)
+	screen._on_deck_button_pressed()
+	var view: DeckView = screen._deck_view
+	var total: int = 0
+	for card: CardDefinition in run.starter.cards:
+		total += 1 if card.is_product() else 0
+	assert_array(Array(view.texts())).contains(["PRODUCTS  (%d)" % total])
+	# One card per distinct card; the view stays inside the window below the top bar, and a page
+	# taller than the scroll area scrolls (two rows of products) instead of growing.
+	var distinct: Array[CardDefinition] = []
+	for card: CardDefinition in run.starter.cards:
+		if not distinct.has(card):
+			distinct.append(card)
+	assert_int(view.card_views().size()).is_equal(distinct.size())
+	await get_tree().create_timer(0.4).timeout
+	var rect: Rect2 = view.get_global_rect()
+	assert_bool(screen.get_global_rect().encloses(rect)).is_true()
+	assert_float(rect.position.y).is_greater_equal(screen._shade.offset_top)
+	assert_float(view._scroll.size.y).is_equal(DeckView.PAGE_SIZE.y)
+	var area: Rect2 = view._scroll.get_global_rect()
+	for card_view: CardView in view.card_views():
+		var cell: Rect2 = card_view.get_parent().get_global_rect()
+		assert_float(cell.position.x).is_greater_equal(area.position.x)
+		assert_float(cell.end.x).is_less_equal(area.end.x)
+
+
+## The fixed starter deck's page shows whole, unscrolled: every card and its count line sit
+## inside the scroll area, and the view sits inside the window below the top bar. (A dealt deck,
+## v0.49, can hold more than one row of distinct products: its page scrolls, see below.)
 func test_the_starting_deck_fits_without_scrolling() -> void:
 	var screen: ShiftScreen = await _screen()
+	var balance: BalanceDefinition = screen.run.balance
+	screen.run = RunState.new(61, load(STARTER), balance, RunStock.starting(balance))
+	screen.run.start_shift()
+	screen._on_shift_started()
 	screen._on_deck_button_pressed()
 	var view: DeckView = screen._deck_view
 	await get_tree().create_timer(0.4).timeout

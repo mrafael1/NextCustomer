@@ -590,12 +590,12 @@ func _upgrades(ids: Array[String]) -> Array[UpgradeDefinition]:
 
 
 func _fresh_run() -> RunState:
-	return RunState.new(5, _starter, _balance, RunStock.starting(_starter, _balance))
+	return RunState.new(5, _starter, _balance, RunStock.starting(_balance))
 
 
 ## A stock of the staples and every product of the listed aisles (all capsules unlocked).
 func _stock_with_aisles(aisle_ids: Array[StringName]) -> RunStock:
-	var cards: Array[CardDefinition] = RunStock.staples(_starter)
+	var cards: Array[CardDefinition] = RunStock.staples(_balance)
 	for aisle: AisleDefinition in _balance.aisles:
 		if aisle_ids.has(aisle.id):
 			for card: CardDefinition in aisle.base_cards + aisle.capsule_cards:

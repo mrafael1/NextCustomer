@@ -109,7 +109,7 @@ func _init(
 ) -> void:
 	_starter = starter
 	_balance = balance
-	_stock = stock if stock != null else RunStock.starting(starter, balance)
+	_stock = stock if stock != null else RunStock.starting(balance)
 	var no_builds: Array[BuildDefinition] = []
 	_builds = builds if builds != null else SimBuilds.new(no_builds)
 	_search = search
@@ -133,7 +133,15 @@ static func is_known_strategy(strategy: String) -> bool:
 
 ## Plays the run of `run_seed`, or returns null if the search's time limit stopped it partway.
 func play(run_seed: int) -> SimRunRecord:
-	var run: RunState = RunState.new(run_seed, _starter, _balance, _stock)
+	# A recipe deck (--random-start) is dealt from the run's stock and seed, as the game deals
+	# it (v0.49): its own derived stream, so the run's RNG draws as before.
+	var deck: DeckDefinition = StartingDeck.deal(
+		_starter,
+		_stock,
+		_balance,
+		EventLogService.derived_stream(run_seed, EventLogService.STARTING_DECK_STREAM)
+	)
+	var run: RunState = RunState.new(run_seed, deck, _balance, _stock)
 	_rng.seed = hash("balance_sim:%d" % run_seed)
 	var record: SimRunRecord = SimRunRecord.new()
 	record.run_seed = run_seed

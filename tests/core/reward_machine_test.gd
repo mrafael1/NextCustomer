@@ -808,7 +808,7 @@ func _pass(
 
 
 func _run(seed_value: int = 1) -> RunState:
-	return RunState.new(seed_value, _starter, _balance, RunStock.starting(_starter, _balance))
+	return RunState.new(seed_value, _starter, _balance, RunStock.starting(_balance))
 
 
 func _machine(seed_value: int = 7, definition: MachineDefinition = null) -> RewardMachine:

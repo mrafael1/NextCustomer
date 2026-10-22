@@ -142,7 +142,7 @@ func test_the_first_coupons_draw_holds_a_combination_coupon() -> void:
 func test_the_run_draws_from_its_own_stock() -> void:
 	var balance: BalanceDefinition = load(BALANCE)
 	var deck: DeckDefinition = load(STARTER)
-	var stock: RunStock = RunStock.starting(deck, balance)
+	var stock: RunStock = RunStock.starting(balance)
 	stock.cards.erase(load(CHEESE))
 	for seed_value: int in range(1, 40):
 		var run: RunState = RunState.new(seed_value, deck, balance, stock)
@@ -218,7 +218,7 @@ func test_the_last_shift_wins_without_a_visit() -> void:
 	quotas.fill(1)
 	balance.quotas = quotas
 	var deck: DeckDefinition = load(STARTER)
-	var run: RunState = RunState.new(10, deck, balance, RunStock.starting(deck, balance))
+	var run: RunState = RunState.new(10, deck, balance, RunStock.starting(balance))
 	run.start_shift()
 	run.debug_skip_to_shift(run.shift_count() - 1)
 	assert_bool(run.is_last_shift()).is_true()
@@ -235,7 +235,7 @@ func test_the_last_shift_wins_without_a_visit() -> void:
 static func _passed_run(seed_value: int) -> RunState:
 	var balance: BalanceDefinition = load(BALANCE)
 	var deck: DeckDefinition = load(STARTER)
-	var run: RunState = RunState.new(seed_value, deck, balance, RunStock.starting(deck, balance))
+	var run: RunState = RunState.new(seed_value, deck, balance, RunStock.starting(balance))
 	run.start_shift()
 	_fill_and_pass(run)
 	return run
@@ -249,7 +249,7 @@ static func _fill_and_pass(run: RunState) -> void:
 
 
 static func _stock() -> Array[CardDefinition]:
-	return RunStock.starting(load(STARTER), load(BALANCE)).cards
+	return RunStock.starting(load(BALANCE)).cards
 
 
 static func _prize_ids(run: RunState) -> Array:

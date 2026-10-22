@@ -486,7 +486,7 @@ func _tickets(view: RewardMachineView, rarities: Array[int]) -> Array[PrizeTicke
 func _ticket(
 	view: RewardMachineView, index: int, prize: MachinePrize, preview: MachinePreview, count: int
 ) -> PrizeTicket:
-	var run: RunState = RunState.new(1, _starter, _balance, RunStock.starting(_starter, _balance))
+	var run: RunState = RunState.new(1, _starter, _balance, RunStock.starting(_balance))
 	var ticket: PrizeTicket = PrizeTicket.new(index, prize, preview, run)
 	ticket.position = Vector2(RewardMachineView.cell_x(index, count), RewardMachineView.CELL_Y)
 	ticket.setup(view)

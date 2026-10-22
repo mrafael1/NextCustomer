@@ -10,6 +10,9 @@ const LOG_FOLDER := "user://playtest_logs"
 ## The derived stream of the run seed that picks a run's list until #65's shopping list
 ## (RunStock.surprise_list, #63).
 const SURPRISE_LIST_STREAM := "surprise_list"
+## The derived stream of the run seed that deals a recipe deck's random cards (StartingDeck,
+## v0.49), so the run's own RNG draws exactly as before.
+const STARTING_DECK_STREAM := "starting_deck"
 ## The derived stream of the profile's capsule seed for one TOY MACHINES draw, by the draw's
 ## index (ProfileState.capsule_draws, #63).
 const CAPSULE_STREAM := "capsule_%d"

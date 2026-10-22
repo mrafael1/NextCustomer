@@ -376,7 +376,9 @@ func _player(strategy: String, inspection_shifts: Array = []) -> SimPlayer:
 	balance.base_redraws = 1
 	balance.basket_size = 2
 	balance.deck_limit = 8
-	# The stock: the deck's products, then this aisle, then the coupons.
+	# The stock: the staples (the deck's products), then this aisle, then the coupons.
+	for id: String in ["banana", "bread", "eggs", "milk"]:
+		balance.staples.append(_card(id))
 	var aisle: AisleDefinition = AisleDefinition.new()
 	aisle.id = &"test"
 	aisle.base_cards.append(_card("cheese"))

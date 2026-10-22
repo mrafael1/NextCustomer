@@ -151,11 +151,30 @@ func test_export_joins_every_session_and_includes_its_own_event() -> void:
 	DirAccess.remove_absolute(folder)
 
 
+## v0.49: a run dealt from the recipe deck logs the cards it was dealt as its starting_deck.
+func test_run_start_logs_the_dealt_starting_deck() -> void:
+	var balance: BalanceDefinition = load(BALANCE)
+	var stock: RunStock = RunStock.starting(balance)
+	var deck: DeckDefinition = StartingDeck.deal(
+		load("res://data/decks/random_starter.tres"),
+		stock,
+		balance,
+		EventLogService.derived_stream(77, EventLogService.STARTING_DECK_STREAM)
+	)
+	var run: RunState = RunState.new(77, deck, balance, stock)
+	var start: Dictionary = RunEvents.run_start(run)
+	var expected: Array = deck.cards.map(
+		func(card: CardDefinition) -> String: return String(card.id)
+	)
+	assert_int(expected.size()).is_equal(13)
+	assert_array(start["starting_deck"]).is_equal(expected)
+
+
 ## Plan section 8: run_start's and run_end's fields, JSON-friendly.
 func test_run_start_and_run_end_fields() -> void:
 	var deck: DeckDefinition = load(STARTER)
 	var balance: BalanceDefinition = load(BALANCE)
-	var run: RunState = RunState.new(77, deck, balance, RunStock.starting(deck, balance))
+	var run: RunState = RunState.new(77, deck, balance, RunStock.starting(balance))
 	run.start_shift()
 	var start: Dictionary = RunEvents.run_start(run)
 	(
@@ -190,7 +209,7 @@ func test_run_start_and_run_end_fields() -> void:
 func test_redraw_event_fields() -> void:
 	var deck: DeckDefinition = load(STARTER)
 	var balance: BalanceDefinition = load(BALANCE)
-	var run: RunState = RunState.new(5, deck, balance, RunStock.starting(deck, balance))
+	var run: RunState = RunState.new(5, deck, balance, RunStock.starting(balance))
 	run.start_shift()
 	var hand_before: Array[CardInstance] = run.hand_places()
 	var places: Array[int] = run.redraw_basket(1)
@@ -369,7 +388,7 @@ static func _passed_run(seed_value: int, boosted: Array[int] = []) -> RunState:
 	if not boosted.is_empty():
 		MachineSteps.boosted_on(balance, boosted)
 	var deck: DeckDefinition = load(STARTER)
-	var run: RunState = RunState.new(seed_value, deck, balance, RunStock.starting(deck, balance))
+	var run: RunState = RunState.new(seed_value, deck, balance, RunStock.starting(balance))
 	run.start_shift()
 	_pass(run)
 	return run

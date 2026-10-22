@@ -329,7 +329,7 @@ func _assert_resume_frame(run: RunState, kind: int, picking: bool) -> void:
 func _core_passed_run() -> RunState:
 	var deck: DeckDefinition = load(STARTER)
 	var balance: BalanceDefinition = load(BALANCE)
-	var run: RunState = RunState.new(7, deck, balance, RunStock.starting(deck, balance))
+	var run: RunState = RunState.new(7, deck, balance, RunStock.starting(balance))
 	run.start_shift()
 	_core_pass(run)
 	return run

@@ -22,7 +22,7 @@ func test_the_machine_phases_follow_the_visits() -> void:
 	var bare: BalanceDefinition = (load(BALANCE) as BalanceDefinition).duplicate()
 	bare.machine = null
 	var deck: DeckDefinition = load(STARTER)
-	var plain: RunState = RunState.new(13, deck, bare, RunStock.starting(deck, bare))
+	var plain: RunState = RunState.new(13, deck, bare, RunStock.starting(bare))
 	plain.start_shift()
 	_pass_with_milks(plain)
 	assert_int(plain.phase).is_equal(RunState.Phase.SCORED)
@@ -73,7 +73,7 @@ func test_a_visit_with_nothing_to_draw_is_skipped() -> void:
 static func _run(seed_value: int) -> RunState:
 	var balance: BalanceDefinition = load(BALANCE)
 	var deck: DeckDefinition = load(STARTER)
-	var run: RunState = RunState.new(seed_value, deck, balance, RunStock.starting(deck, balance))
+	var run: RunState = RunState.new(seed_value, deck, balance, RunStock.starting(balance))
 	run.start_shift()
 	return run
 

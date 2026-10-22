@@ -15,7 +15,8 @@ signal card_chosen(card: CardInstance)
 const COLUMNS := 8
 const GAP := 8
 ## The pages scroll inside this area, so the view fits the window at any deck or stock size.
-## It holds a starting deck's page (tags, two headings, a product row, a coupon row) unscrolled.
+## It holds one product row and a coupon row unscrolled (the fixed starter deck's page); a dealt
+## starting deck (v0.49) with more than COLUMNS distinct products scrolls.
 const PAGE_SIZE := Vector2(COLUMNS * CardView.CARD_SIZE.x + (COLUMNS - 1) * GAP + 16, 500)
 
 var _title: Label

@@ -22,9 +22,9 @@ extends RefCounted
 
 ## The run save's format version. Raise it when the saved form changes. Only this version is
 ## read: an older save (version 1, from before the machine; version 2, with the machine's
-## Regular levels, before v0.47's two machine states) is refused, so SaveService keeps it as a
-## .bad backup and a new run starts.
-const FORMAT_VERSION := 3
+## Regular levels, before v0.47's two machine states; version 3, before v0.49's dealt starting
+## deck) is refused, so SaveService keeps it as a .bad backup and a new run starts.
+const FORMAT_VERSION := 4
 ## The save points, and their names in the saved form (the run_resume event uses them too).
 const SAVE_POINTS: Array[RunState.Phase] = [
 	RunState.Phase.PLANNING,
@@ -65,6 +65,8 @@ static func to_dictionary(saved_run: RunState, saved_run_id: String, played_ms: 
 		"seed": str(saved_run.run_seed),
 		"rng_state": str(saved_run.rng_state),
 		"starter": String(saved_run.starter.id),
+		# The cards the run started with (v0.49): a recipe deck's dealt cards, restored with it.
+		"starting_deck": _ids(saved_run.starter.cards),
 		"phase": phase_name(saved_run.phase),
 		"shift_index": saved_run.shift_index,
 		"debug_jumped": saved_run.debug_jumped,
@@ -101,6 +103,9 @@ static func from_dictionary(data: Dictionary, lookup: ContentLookup) -> RunSave:
 		return null
 	var reader: SaveReader = SaveReader.new(data, lookup)
 	var starter: DeckDefinition = reader.deck("starter")
+	var starting_cards: Array[CardDefinition] = reader.cards("starting_deck")
+	if starter != null and starter.is_recipe():
+		starter = StartingDeck.with_cards(starter, starting_cards)
 	var stock: RunStock = RunStock.from_saved(
 		reader.cards("stock"),
 		reader.aisles("listed_aisles"),

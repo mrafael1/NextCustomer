@@ -37,7 +37,7 @@ func test_tag_counts_count_copies_most_common_first() -> void:
 
 
 func test_view_order_puts_products_first_then_names() -> void:
-	var stock: RunStock = RunStock.starting(load(STARTER), load(BALANCE))
+	var stock: RunStock = RunStock.starting(load(BALANCE))
 	var ids: Array = DeckSummary.in_view_order(stock.cards).map(
 		func(card: CardDefinition) -> String: return String(card.id)
 	)

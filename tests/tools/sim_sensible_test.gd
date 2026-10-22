@@ -319,6 +319,9 @@ func _player(strategy: String) -> SimPlayer:
 	balance.basket_size = 2
 	balance.deck_limit = 8
 	balance.machine = (load("res://data/balance/balance.tres") as BalanceDefinition).machine
+	# The staples (the deck's products; v0.49: the balance's own list).
+	for id: String in ["banana", "bread", "eggs", "milk"]:
+		balance.staples.append(_card(id))
 	var aisle: AisleDefinition = AisleDefinition.new()
 	aisle.id = &"test"
 	aisle.base_cards.append(_card("cheese"))

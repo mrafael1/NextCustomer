@@ -279,7 +279,7 @@ static func _run(seed_value: int) -> RunState:
 	# Registers are taken after shift 2 (v0.47: only a BOOSTED visit lights REGISTER).
 	MachineSteps.boosted_on(balance, [2])
 	var deck: DeckDefinition = load(STARTER)
-	var run: RunState = RunState.new(seed_value, deck, balance, RunStock.starting(deck, balance))
+	var run: RunState = RunState.new(seed_value, deck, balance, RunStock.starting(balance))
 	run.start_shift()
 	return run
 

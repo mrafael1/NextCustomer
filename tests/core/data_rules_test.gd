@@ -217,7 +217,12 @@ func test_decks_and_variants_are_well_formed() -> void:
 		assert_str(String(deck.id)).override_failure_message(file).is_equal(file.get_basename())
 		assert_str(deck.display_name).override_failure_message(file).is_not_empty()
 		assert_str(deck.description).override_failure_message(file).is_not_empty()
-		assert_array(deck.cards).override_failure_message(file).is_not_empty()
+		# A fixed deck lists its cards; a recipe (v0.49) its core cards, and no dealt cards.
+		var cards: Array[CardDefinition] = deck.core_cards if deck.is_recipe() else deck.cards
+		assert_array(cards).override_failure_message(file).is_not_empty()
+		if deck.is_recipe():
+			assert_array(deck.cards).override_failure_message(file).is_empty()
+			assert_int(deck.copy_max).override_failure_message(file).is_greater(0)
 		if deck.unlock_condition != null:
 			assert_array(deck.unlock_condition.problems()).override_failure_message(file).is_empty()
 	for dir: String in CARD_DIRS:

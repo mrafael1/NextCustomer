@@ -132,7 +132,7 @@ func test_without_coupon_slots_the_row_holds_slot_count_cards() -> void:
 	var balance: BalanceDefinition = load(BALANCE).duplicate()
 	balance.coupon_slot_count = 0
 	var deck: DeckDefinition = load(STARTER)
-	var run: RunState = RunState.new(18, deck, balance, RunStock.starting(deck, balance))
+	var run: RunState = RunState.new(18, deck, balance, RunStock.starting(balance))
 	run.start_shift()
 	for index: int in range(6):
 		run.place(_add(run, REPEAT if index == 2 else BREAD), index)
@@ -214,7 +214,7 @@ func test_win_on_the_last_shift() -> void:
 	var balance: BalanceDefinition = load(BALANCE).duplicate()
 	balance.quotas = PackedInt32Array([5, 5])
 	var deck: DeckDefinition = load(STARTER)
-	var run: RunState = RunState.new(11, deck, balance, RunStock.starting(deck, balance))
+	var run: RunState = RunState.new(11, deck, balance, RunStock.starting(balance))
 	run.start_shift()
 	var bread: CardDefinition = load("res://data/cards/bread.tres")
 	run.place(run.debug_add_to_hand(bread), 0)
@@ -241,7 +241,7 @@ func test_debug_add_to_hand_does_not_grow_the_deck() -> void:
 static func _run(seed_value: int) -> RunState:
 	var balance: BalanceDefinition = load(BALANCE)
 	var deck: DeckDefinition = load(STARTER)
-	var run: RunState = RunState.new(seed_value, deck, balance, RunStock.starting(deck, balance))
+	var run: RunState = RunState.new(seed_value, deck, balance, RunStock.starting(balance))
 	run.start_shift()
 	return run
 

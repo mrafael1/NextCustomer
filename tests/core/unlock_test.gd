@@ -202,7 +202,7 @@ static func _run_with_deck(
 	var balance: BalanceDefinition = _low_quotas()
 	if not boosted.is_empty():
 		MachineSteps.boosted_on(balance, boosted)
-	var run: RunState = RunState.new(seed_value, deck, balance, RunStock.starting(deck, balance))
+	var run: RunState = RunState.new(seed_value, deck, balance, RunStock.starting(balance))
 	run.start_shift()
 	return run
 

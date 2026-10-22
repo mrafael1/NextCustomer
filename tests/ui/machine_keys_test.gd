@@ -842,7 +842,7 @@ func _assert_fits(label: Label) -> void:
 static func _passed_run(seed_value: int, prepare: Callable = Callable()) -> RunState:
 	var balance: BalanceDefinition = load(BALANCE)
 	var deck: DeckDefinition = load(STARTER)
-	var run: RunState = RunState.new(seed_value, deck, balance, RunStock.starting(deck, balance))
+	var run: RunState = RunState.new(seed_value, deck, balance, RunStock.starting(balance))
 	if prepare.is_valid():
 		prepare.call(run)
 	run.start_shift()

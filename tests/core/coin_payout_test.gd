@@ -112,7 +112,7 @@ static func _balance(table: Array, euros: int, cap: int) -> BalanceDefinition:
 
 static func _run(balance: BalanceDefinition, seed_value: int) -> RunState:
 	var deck: DeckDefinition = load(STARTER)
-	var run: RunState = RunState.new(seed_value, deck, balance, RunStock.starting(deck, balance))
+	var run: RunState = RunState.new(seed_value, deck, balance, RunStock.starting(balance))
 	run.start_shift()
 	return run
 

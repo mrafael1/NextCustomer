@@ -19,8 +19,11 @@ extends Resource
 ## coupon_slot_count cards, and only coupons can use the extra room.
 @export var coupon_slot_count: int = 0
 @export var deck_limit: int = 0
+## The staples (full build plan 7.2): products every run stocks, in stock order, outside any
+## aisle. Since v0.49 they are a list of their own, no longer the starting deck's products.
+@export var staples: Array[CardDefinition] = []
 ## The store's aisles in data order (full build plan 7.2). The run's stock (RunStock) holds
-## the starting deck's products, the listed aisles, the new arrivals and coupon_pool.
+## the staples, the listed aisles, the new arrivals and coupon_pool.
 @export var aisles: Array[AisleDefinition] = []
 ## Coupons every run stocks. Coupons are never in aisles or capsules.
 @export var coupon_pool: Array[CardDefinition] = []

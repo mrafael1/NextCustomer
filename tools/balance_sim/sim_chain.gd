@@ -52,7 +52,7 @@ func _init(
 func play(first_seed: int, max_runs: int) -> void:
 	var capsules: int = capsule_count(_balance)
 	for run_index: int in range(max_runs):
-		var stock: RunStock = RunStock.build(_starter, _balance, _list(), _unlocked, run_index)
+		var stock: RunStock = RunStock.build(_balance, _list(), _unlocked, run_index)
 		var player: SimPlayer = _make_player.call(stock)
 		var record: SimRunRecord = player.play(first_seed + run_index)
 		if record == null:

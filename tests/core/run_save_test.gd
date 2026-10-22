@@ -244,7 +244,7 @@ func test_the_run_id_and_played_time_are_kept() -> void:
 	assert_str(save.run_id).is_equal("abc123")
 	assert_int(save.run_ms).is_equal(98765)
 	assert_int(int(data["format_version"])).is_equal(RunSave.FORMAT_VERSION)
-	assert_int(RunSave.FORMAT_VERSION).is_equal(3)
+	assert_int(RunSave.FORMAT_VERSION).is_equal(4)
 	# v0.47: the machine saves no Regular levels.
 	assert_bool((data["machine"] as Dictionary).has("levels")).is_false()
 
@@ -293,8 +293,11 @@ func test_a_save_that_cant_be_resumed_reads_as_null() -> void:
 		"version 1": [planning, func(d: Dictionary) -> void: d["format_version"] = 1],
 		"version 2 (Regular levels)":
 		[planning, func(d: Dictionary) -> void: d["format_version"] = 2],
-		"newer format": [planning, func(d: Dictionary) -> void: d["format_version"] = 4],
-		"format as text": [planning, func(d: Dictionary) -> void: d["format_version"] = "3"],
+		"version 3, before the dealt starting deck":
+		[planning, func(d: Dictionary) -> void: d["format_version"] = 3],
+		"newer format": [planning, func(d: Dictionary) -> void: d["format_version"] = 5],
+		"format as text": [planning, func(d: Dictionary) -> void: d["format_version"] = "4"],
+		"starting deck missing": [planning, func(d: Dictionary) -> void: d.erase("starting_deck")],
 		"seed as a number": [planning, func(d: Dictionary) -> void: d["seed"] = 12],
 		"seed not a number": [planning, func(d: Dictionary) -> void: d["seed"] = "12a"],
 		"seed too big": [planning, func(d: Dictionary) -> void: d["seed"] = "9223372036854775808"],
@@ -532,7 +535,7 @@ func _observe(run: RunState) -> String:
 
 func _new_run(seed_value: int) -> RunState:
 	var deck: DeckDefinition = load(STARTER)
-	return RunState.new(seed_value, deck, _balance, RunStock.starting(deck, _balance))
+	return RunState.new(seed_value, deck, _balance, RunStock.starting(_balance))
 
 
 ## Shift 1, planning.
