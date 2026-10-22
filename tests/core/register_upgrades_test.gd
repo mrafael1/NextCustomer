@@ -156,7 +156,7 @@ func test_rule_bender_rows(
 
 
 ## Slot engine: the 6th product (coupons skipped) pays x2, and a later Repeat copies the doubled
-## payout. With fewer than 6 products it does nothing.
+## payout. With fewer than 6 products it fizzles instead (#45; upgrade_condition_fizzles_test).
 func test_slot_engine_rows(
 	row: String,
 	total: int,

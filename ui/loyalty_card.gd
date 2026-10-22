@@ -15,7 +15,7 @@ extends PanelContainer
 ##
 ## Planning effects (#71): hovering a stamped box reports box_hovered / box_unhovered (its
 ## tooltip stays); set_relation rings a box in gold (the hovered item's cause, or the hovered box
-## itself). A rebuild (the upgrades changed) clears it. An upgrade's fizzles show as "pfff"
+## itself). A rebuild (the upgrades changed) clears it. An upgrade's fizzles show as "WASTED"
 ## stickers with its badge on the belt (PlanningLayer), not on its box.
 
 ## The pointer entered or left the stamped box of the run's upgrade `index`.

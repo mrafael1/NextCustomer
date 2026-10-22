@@ -16,7 +16,8 @@ const OWN_CAPTION := "own rule"
 const ITEM_CAPTION := "from an item"
 const COUPON_CAPTION := "from a coupon"
 const LOYALTY_CAPTION := "loyalty"
-const FIZZLE_CAPTION := "fizzled"
+## The fizzle's caption: EffectLink.WASTED_WORD in the key's lower case (#45).
+const FIZZLE_CAPTION := "wasted"
 ## The links that make rail strips.
 const STRIP_KINDS: Array[EffectLink.Kind] = [
 	EffectLink.Kind.BONUS,
@@ -134,8 +135,8 @@ static func hot_lanes(
 
 
 ## The monitor key's entries (section 7): the first real sticker of each kind on the belt, in
-## the order own rule, from an item, from a coupon, loyalty, fizzled. A fizzle is always
-## "fizzled", whoever caused it.
+## the order own rule, from an item, from a coupon, loyalty, wasted. A fizzle is always
+## "wasted", whoever caused it.
 func key_entries() -> Array[StickerSpec]:
 	var firsts: Dictionary[String, StickerSpec] = {}
 	for slot: PlanningSlot in slots:
