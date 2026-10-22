@@ -5,12 +5,19 @@ extends RefCounted
 ## restarted before its end records nothing (decided with the user, phase 1). Other fields
 ## (first-seen flags, settings, the list) change when their own feature does.
 ##
+## The TOY MACHINES (#63, full build plan 7.1) spend coins here: draw_capsule takes the price,
+## records the item with its run index (capsule_run_index) and counts the draw. Each draw uses
+## its own derived stream of capsule_seed (EventLogService.capsule_stream(capsule_seed,
+## capsule_draws)); the seed is made outside core/ and set once with set_capsule_seed, and the
+## caller saves the profile right after each draw, so quitting can't reroll a capsule.
+##
 ## to_dictionary and from_dictionary give the saved form: JSON types only, with
 ## FORMAT_VERSION. Pure: no file access here.
 
 ## The profile save's format version, written from the first save. Raise it when the saved
-## form changes, and read the older versions in from_dictionary.
-const FORMAT_VERSION := 1
+## form changes, and read the older versions in from_dictionary. 2 since #63 (capsule_seed and
+## capsule_draws); version 1 saves still read, with no seed and 0 draws.
+const FORMAT_VERSION := 2
 ## The settings key of the count-up's speed (full build plan 6.2): COUNT_UP_NORMAL or
 ## COUNT_UP_FAST, read with count_up_speed().
 const COUNT_UP_SPEED_KEY := "count_up_speed"
@@ -43,6 +50,13 @@ var seen: Array[StringName] = []
 var achievements: Array[StringName] = []
 ## Lifetime numbers by name; their content comes later.
 var stats: Dictionary[StringName, int] = {}
+## The seed of the capsule draws' streams (#63), made outside core/ and set once
+## (set_capsule_seed); saved as a decimal string, "" while there is none (has_capsule_seed).
+var capsule_seed: int = 0
+var has_capsule_seed: bool = false
+## Capsule draws made with capsule_seed: the next draw's stream index. Set to the unlocked
+## item count when the seed is set, so an older profile's draws never repeat a stream.
+var capsule_draws: int = 0
 ## Player settings by name, JSON values only. Read and change the known ones with their
 ## accessors (count_up_speed, reduced_motion), which tolerate a missing or wrong-typed value.
 var settings: Dictionary = {}
@@ -111,6 +125,82 @@ func record_run(run: RunState, catalogue: CatalogueDefinition) -> Array[StringNa
 	return unlocked_now
 
 
+## Sets the capsule seed if the profile has none yet, and the draw count to the unlocked item
+## count. Returns false (and changes nothing) when a seed is already set: it is never replaced.
+func set_capsule_seed(seed_value: int) -> bool:
+	if has_capsule_seed:
+		return false
+	capsule_seed = seed_value
+	has_capsule_seed = true
+	capsule_draws = unlocked_items.size()
+	return true
+
+
+## The run index a capsule drawn now comes out at (RunStock's `unlocked`, full build plan 7.1):
+## the run that just ended (run_count - 1) on the results or on the title with no saved run, or
+## the saved run's own index (run_count) on the title while a run is saved (#63 default (a): the
+## item rides the runs after the saved one). -1 before any run has ended (debug coins only).
+func capsule_run_index(has_saved_run: bool) -> int:
+	return run_count if has_saved_run else run_count - 1
+
+
+## Whether a capsule can be drawn from the aisle's machine: enough coins and items left.
+func can_draw(aisle: AisleDefinition, price: int) -> bool:
+	return coins >= price and not CapsuleDraw.is_empty(aisle, unlocked_items)
+
+
+## Draws one capsule from the aisle's machine (CapsuleDraw) with `rng`, the caller's stream for
+## this draw (capsule_draws' stream): spends `price` coins, records the item at `run_index`
+## (appended, so draw order is kept) and counts the draw. Null, with nothing changed, when
+## can_draw is false.
+func draw_capsule(
+	aisle: AisleDefinition, price: int, run_index: int, rng: RandomNumberGenerator
+) -> CardDefinition:
+	if not can_draw(aisle, price):
+		return null
+	var card: CardDefinition = CapsuleDraw.draw(aisle, unlocked_items, rng)
+	coins -= price
+	unlocked_items[card.id] = run_index
+	capsule_draws += 1
+	return card
+
+
+## Takes back a draw whose save failed: the item locked again, and the coins and the draw count
+## as they were before it (`previous_draws`).
+func undo_capsule(card: CardDefinition, price: int, previous_draws: int) -> void:
+	if unlocked_items.erase(card.id):
+		coins += price
+	capsule_draws = previous_draws
+
+
+## The unlocked items that are capsule items of the balance's aisles (the FIGURINES count).
+func owned_capsules(balance: BalanceDefinition) -> int:
+	var owned: int = 0
+	for aisle: AisleDefinition in balance.aisles:
+		for card: CardDefinition in aisle.capsule_cards:
+			if unlocked_items.has(card.id):
+				owned += 1
+	return owned
+
+
+## Debug only: unlocks every capsule item still locked at `run_index`, in data order, counting
+## a draw for each (so later draws' streams stay new).
+func unlock_all_capsules(balance: BalanceDefinition, run_index: int) -> void:
+	for aisle: AisleDefinition in balance.aisles:
+		for card: CardDefinition in aisle.capsule_cards:
+			if not unlocked_items.has(card.id):
+				unlocked_items[card.id] = run_index
+				capsule_draws += 1
+
+
+## Debug only: locks every item again and clears the list. The seed is kept and the draw count
+## restarts at 0, so the same draws come out again.
+func reset_collection() -> void:
+	unlocked_items.clear()
+	capsule_draws = 0
+	last_list.clear()
+
+
 ## The saved form. Unlocked items are [id, run index] pairs, so their draw order survives any
 ## JSON writer that sorts keys.
 func to_dictionary() -> Dictionary:
@@ -130,12 +220,15 @@ func to_dictionary() -> Dictionary:
 		"achievements": _strings(achievements),
 		"stats": _string_keys(stats),
 		"settings": settings.duplicate(true),
+		"capsule_seed": str(capsule_seed) if has_capsule_seed else "",
+		"capsule_draws": capsule_draws,
 	}
 
 
 ## Reads the saved form (as parsed from JSON: numbers may be floats). Returns null when it
 ## isn't a profile this version can read: a missing or newer format version, or a field of
-## the wrong type. Unknown fields are ignored; missing fields keep their defaults.
+## the wrong type (a capsule seed that isn't "" or a decimal of 0 or more). Version 1 reads
+## with no capsule seed and 0 draws. Unknown fields are ignored; missing fields keep their defaults.
 static func from_dictionary(data: Dictionary) -> ProfileState:
 	var version: Variant = data.get("format_version")
 	if not _is_whole(version) or int(version) < 1 or int(version) > FORMAT_VERSION:
@@ -152,6 +245,8 @@ static func from_dictionary(data: Dictionary) -> ProfileState:
 	ok = ok and _read_names(data.get("seen", []), profile.seen)
 	ok = ok and _read_names(data.get("achievements", []), profile.achievements)
 	ok = ok and _read_counts(data.get("stats", {}), profile.stats)
+	ok = ok and _read_int(data, "capsule_draws", profile, "capsule_draws")
+	ok = ok and _read_seed(data.get("capsule_seed", ""), profile)
 	var settings_value: Variant = data.get("settings", {})
 	if not settings_value is Dictionary:
 		return null
@@ -167,6 +262,21 @@ static func _read_int(data: Dictionary, key: String, profile: ProfileState, fiel
 	return true
 
 
+## The capsule seed's saved form: "" (none yet) or a decimal of 0 or more.
+static func _read_seed(value: Variant, profile: ProfileState) -> bool:
+	if not value is String:
+		return false
+	var text: String = value
+	if text.is_empty():
+		return true
+	if not text.is_valid_int() or text.to_int() < 0:
+		return false
+	profile.capsule_seed = text.to_int()
+	profile.has_capsule_seed = true
+	return true
+
+
+## A run index of -1 is a capsule drawn before any run ended (capsule_run_index).
 static func _read_items(value: Variant, into: Dictionary[StringName, int]) -> bool:
 	if not value is Array:
 		return false
@@ -175,7 +285,7 @@ static func _read_items(value: Variant, into: Dictionary[StringName, int]) -> bo
 			return false
 		var id: Variant = pair[0]
 		var run_index: Variant = pair[1]
-		if not id is String or not _is_whole(run_index) or int(run_index) < 0:
+		if not id is String or not _is_whole(run_index) or int(run_index) < -1:
 			return false
 		into[StringName(id)] = int(run_index)
 	return true

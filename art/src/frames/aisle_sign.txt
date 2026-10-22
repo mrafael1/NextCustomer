@@ -1,0 +1,15 @@
+; An aisle's sign plate on the FIGURINE SHELF (#63), a 9-slice (3 art px margins) like
+; frames/sign.txt, in the teal ramp 2 3 4 5 that the aisle_sign_<aisle> derives recolour.
+@size 10x10
+@kind frame
+@scale 2
+##########
+#55555555#
+#54444443#
+#54444443#
+#54444443#
+#54444443#
+#54444443#
+#54444443#
+#22222222#
+##########

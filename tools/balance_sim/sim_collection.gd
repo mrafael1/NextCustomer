@@ -41,14 +41,22 @@ static func full(balance: BalanceDefinition, list: Array[StringName]) -> SimColl
 	return state
 
 
-## The collection of a profile save, with its last list unless `list` is given.
+## The collection of a profile save, with `list` when it is given, else the list's default
+## (RunStock.prefill_list from the profile's last list; a #63 profile has none, so its first
+## list's pre-fill).
 static func from_profile(
 	profile: ProfileState, balance: BalanceDefinition, list: Array[StringName]
 ) -> SimCollection:
 	var state: SimCollection = SimCollection.new()
 	state.unlocked = profile.unlocked_items.duplicate()
 	state.run_index = profile.run_count
-	state.listed = list.duplicate() if not list.is_empty() else profile.last_list.duplicate()
+	if not list.is_empty():
+		state.listed = list.duplicate()
+	else:
+		var newly: Array[StringName] = []
+		if profile.last_list.is_empty():
+			newly = RunStock.machine_opened_listable(balance, state.unlocked)
+		state.listed = RunStock.prefill_list(balance, state.unlocked, profile.last_list, newly)
 	state.label = "profile (run %d)%s" % [state.run_index, _list_text(state, balance)]
 	return state
 

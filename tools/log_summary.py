@@ -49,10 +49,11 @@ KIND_COUPON = 2
 KNOWN_TYPES = frozenset({
     "run_start", "shift_start", "redraw", "checkout", "count_up", "reward", "upgrade",
     "machine_visit", "machine_landing_skipped", "run_end", "run_resume", "run_abandon", "restart",
-    "log_export", "debug",
+    "log_export", "debug", "capsule",
 })
-# Events that make a run_id a run; the others (restart, log_export, debug) only attach to one.
-RUN_TYPES = KNOWN_TYPES - {"restart", "log_export", "debug"}
+# Events that make a run_id a run; the others (restart, log_export, debug, and the TOY
+# MACHINES' capsule draws, #63) only attach to one. A capsule drawn on the title has no run_id.
+RUN_TYPES = KNOWN_TYPES - {"restart", "log_export", "debug", "capsule"}
 
 # Section 8, "How to read the numbers": checkouts of 3+ cards are High when their
 # rearrangements are at least twice the cards committed.
@@ -368,6 +369,9 @@ class Player:
     runs: list[Run] = field(default_factory=list)
     debug_runs: int = 0
     restarts: list[dict] = field(default_factory=list)
+    # The TOY MACHINES' capsule events (#63) of the kept runs (drawn on the results) and the
+    # kept loose ones (drawn on the title, no run_id).
+    capsules: list[dict] = field(default_factory=list)
     other_build_runs: int = 0
     other_build_events: int = 0
     kept_loose: int = 0
@@ -508,6 +512,7 @@ def build_player(
             continue
         player.runs.append(run)
         player.restarts.extend(run.of_type("restart"))
+        player.capsules.extend(run.of_type("capsule"))
     for event in loose:
         if builds and build_label(event) not in builds:
             player.other_build_events += 1
@@ -515,6 +520,8 @@ def build_player(
         player.kept_loose += 1
         if event["type"] == "restart":
             player.restarts.append(event)
+        elif event["type"] == "capsule":
+            player.capsules.append(event)
     return player
 
 
@@ -1198,6 +1205,20 @@ def skip_rates(runs: list[Run]) -> dict:
     }
 
 
+def toy_machine_summary(players: list[Player]) -> dict:
+    """The TOY MACHINES' draws (#63, capsule events): per machine (aisle id), and from the
+    results (the event carries the ended run's run_id) vs the title (empty run_id)."""
+    draws = [event for player in players for event in player.capsules]
+    machines = Counter(text(event, "machine") or "?" for event in draws)
+    from_results = sum(1 for event in draws if text(event, "run_id"))
+    return {
+        "draws": len(draws),
+        "machines": dict(sorted(machines.items())),
+        "from_results": from_results,
+        "from_title": len(draws) - from_results,
+    }
+
+
 def second_run_summary(players: list[Player]) -> dict:
     """Each player's second run (their runs in order of first event)."""
     return {
@@ -1246,6 +1267,7 @@ def summarise(players: list[Player], inputs: Inputs, catalogue: Catalogue,
         "products_picked": product_picks(runs, catalogue),
         "builds": build_summary(runs, catalogue),
         "machine": machine_summary(runs),
+        "toy_machines": toy_machine_summary(players),
         "shifts": shift_summary(runs),
         "lists": list_summary(runs, catalogue),
         "offer_times": offer_time_summary(runs),
@@ -1508,6 +1530,23 @@ def render_machine(s: dict) -> list[str]:
     return lines
 
 
+def render_toy_machines(s: dict) -> list[str]:
+    """Only when the logs hold capsule draws, so older logs report as before."""
+    t = s.get("toy_machines")
+    if not t or not t["draws"]:
+        return []
+    lines = heading(
+        "Toy machines",
+        "From capsule events (#63): the capsules drawn per machine (aisle), and whether they "
+        "were drawn on the results (the ended run's run_id) or on the title (no run_id).",
+    ) + [
+        f"  draws: {t['draws']} ({t['from_results']} from the results, "
+        f"{t['from_title']} from the title)",
+    ]
+    rows = [[machine, str(count)] for machine, count in t["machines"].items()]
+    return lines + table(["machine", "draws"], rows)
+
+
 def render_offer_times(s: dict) -> list[str]:
     lines = heading(
         "Offer presentation times (ms)",
@@ -1603,8 +1642,8 @@ def render_files(s: dict) -> list[str]:
 
 def render(summary: dict) -> str:
     sections = [render_inputs, render_players, render_runs, render_checkouts, render_rewards,
-                render_builds, render_machine, render_shifts, render_lists, render_offer_times, render_count_up,
-                render_second_run, render_files]
+                render_builds, render_machine, render_toy_machines, render_shifts, render_lists,
+                render_offer_times, render_count_up, render_second_run, render_files]
     lines: list[str] = []
     for section in sections:
         lines += section(summary)

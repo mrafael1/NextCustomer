@@ -1,0 +1,12 @@
+; A FIGURINE SHELF plank (#63): wood pale lip, wood light face, wood dark underside, ink
+; outline. A 9-slice (3 art px margins, plain middle) stretched along the shelf by code.
+@size 10x7
+@kind frame
+@scale 2
+##########
+#PPPPPPPP#
+#QQQQQQQQ#
+#QQQQQQQQ#
+#QQQQQQQQ#
+#TTTTTTTT#
+##########

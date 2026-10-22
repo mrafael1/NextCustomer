@@ -36,8 +36,19 @@ approved prep script docs/art/mockups/machine_77_src/upgrades/gen_upgrades.py:
             on the lit top edge (a mustard pale pixel right under the outline)
     egg     GOLDEN_EGG_MAP for the eggs (the carton keeps its greys), a brass dark rim where
             an egg meets the carton, and one paper highlight per egg
-Each map then re-inks: rows 0-1 cleared and every opaque pixel on the outline made ink. A
-derived source is linted, built, checked (missing or stale) and previewed like any other.
+Each map then re-inks: rows 0-1 cleared and every opaque pixel on the outline made ink.
+
+A derived source can instead hold
+
+    @derive <source> aisle=<id>
+
+which recolours another source for one aisle (#63's TOY MACHINES: art/src/scenery/
+toy_machine_pantry.txt holds "@derive toy_machine aisle=pantry"). The base source draws its
+body and sign in the teal ramp AISLE_BODY_RAMP (keys 2 3 4 5: dark, shade, base, light) and
+uses those keys for nothing else; AISLE_MAPS[id] gives the aisle's four keys for them, its base
+key being the aisle's sign_color (data/aisles/<id>.tres). Every other key passes through, and
+nothing is re-inked. A derived source is linted, built, checked (missing or stale) and
+previewed like any other.
 
 art/src/palette.txt lists the palette, one colour per line: a single-character key, a hex
 colour and a name. The key '.' is transparent. The PNGs are indexed (PLTE + tRNS) and hold the
@@ -116,6 +127,21 @@ GOLDEN_EGG_SHADE = "a"
 GOLDEN_EGG_RIM = "l"
 DERIVE_DIRECTIVE = "@derive"
 GOLDEN_PREFIX = "golden="
+# Aisle recolours (#63's TOY MACHINES; art data, not game balance): the teal ramp a base source
+# draws its body and sign in (dark, shade, base, light), and each aisle's keys for those four,
+# from mock-up capsule_63_a.html's ramps (the shade steps to the dark key where the aisle's ramp
+# has no fourth step). The base key (index 2) is the aisle's sign_color.
+AISLE_PREFIX = "aisle="
+AISLE_BODY_RAMP = ("2", "3", "4", "5")
+AISLE_MAPS = {
+    "cold_cases": ("2", "3", "4", "5"),
+    "pantry": ("m", "m", "M", "y"),
+    "household": ("=", "=", "-", ":"),
+    "fruit_and_veg": ("1", "g", "g", "G"),
+    "bakery": ("F", "F", "h", "b"),
+    "snacks": ("e", "e", "f", "F"),
+}
+AISLE_BASE_INDEX = 2
 
 RGBA = tuple[int, int, int, int]
 Grid = list[list[str]]
@@ -151,11 +177,13 @@ class Sprite:
 
 @dataclass
 class Derivation:
-    """A derived source: another source's pixels through a GOLDEN map (no grid of its own)."""
+    """A derived source: another source's pixels through a GOLDEN map or an aisle's recolour
+    (no grid of its own). Exactly one of golden and aisle is set."""
     source: Path
     name: str
     base: str
     golden: str
+    aisle: str = ""
 
     def base_name(self) -> str:
         """The base source's name, relative to the derived source's folder."""
@@ -230,7 +258,7 @@ def parse_source(path: Path, src_root: Path) -> tuple[Sprite | Derivation | None
     kind = ""
     scale = 1
     rows: list[str] = []
-    derive: tuple[str, str] | None = None
+    derive: tuple[str, str, str] | None = None
     derived = False
     other_directives = False
     for number, line in enumerate(lines, 1):
@@ -250,11 +278,15 @@ def parse_source(path: Path, src_root: Path) -> tuple[Sprite | Derivation | None
                     errors.append(f"{name}:{number}: {DERIVE_DIRECTIVE} is given twice")
                 elif (len(args) == 2 and args[1].startswith(GOLDEN_PREFIX)
                         and args[1].removeprefix(GOLDEN_PREFIX) in GOLDEN_MAPS):
-                    derive = (args[0], args[1].removeprefix(GOLDEN_PREFIX))
+                    derive = (args[0], args[1].removeprefix(GOLDEN_PREFIX), "")
+                elif (len(args) == 2 and args[1].startswith(AISLE_PREFIX)
+                        and args[1].removeprefix(AISLE_PREFIX) in AISLE_MAPS):
+                    derive = (args[0], "", args[1].removeprefix(AISLE_PREFIX))
                 else:
                     errors.append(f"{name}:{number}: {DERIVE_DIRECTIVE} takes <source> "
-                                  f"golden=<map> (maps: {', '.join(sorted(GOLDEN_MAPS))}), "
-                                  f"got {stripped!r}")
+                                  f"golden=<map> (maps: {', '.join(sorted(GOLDEN_MAPS))}) or "
+                                  f"<source> aisle=<id> (aisles: "
+                                  f"{', '.join(sorted(AISLE_MAPS))}), got {stripped!r}")
                 derived = True
             elif directive == "@size" and len(args) == 1:
                 size = parse_size(args[0])
@@ -281,7 +313,7 @@ def parse_source(path: Path, src_root: Path) -> tuple[Sprite | Derivation | None
                           "and scale are its source's)")
         if errors or derive is None:
             return None, errors
-        return Derivation(path, name, derive[0], derive[1]), []
+        return Derivation(path, name, derive[0], derive[1], derive[2]), []
     if size is None:
         errors.append(f"{name}: missing @size")
     if not kind:
@@ -454,8 +486,17 @@ def golden_egg(rows: Grid, _palette: Palette) -> Grid:
 GOLDEN_MAPS = {"rank": golden_rank, "yellow": golden_yellow, "egg": golden_egg}
 
 
+def aisle_recolour(rows: Grid, aisle: str) -> Grid:
+    """The teal body ramp (AISLE_BODY_RAMP) swapped for the aisle's keys; nothing re-inked."""
+    mapping = dict(zip(AISLE_BODY_RAMP, AISLE_MAPS[aisle]))
+    return [[mapping.get(key, key) for key in row] for row in rows]
+
+
 def derive_sprite(derivation: Derivation, base: Sprite, palette: Palette) -> Sprite:
-    rows = GOLDEN_MAPS[derivation.golden]([list(row) for row in base.rows], palette)
+    if derivation.aisle:
+        rows = aisle_recolour([list(row) for row in base.rows], derivation.aisle)
+    else:
+        rows = GOLDEN_MAPS[derivation.golden]([list(row) for row in base.rows], palette)
     return Sprite(derivation.source, derivation.name, base.width, base.height, base.kind,
                   base.scale, ["".join(row) for row in rows])
 

@@ -1,0 +1,16 @@
+; A coin (#63's TOY MACHINES: the COINS chip and the "1 coin" price labels), from the
+; mock-up's COIN_SVG: mustard with a gold glint, mustard dark shade and a mustard darkest mark.
+@size 12x12
+@kind icon
+...######...
+.##MMMMMM##.
+.#MnnnnnMM#.
+#MnMMMMMMMM#
+#MnMMuuMMmM#
+#MnMMuuMMmM#
+#MnMMuuMMmM#
+#MnMMuuMMmM#
+#MMMMMMMMmM#
+.#MMmmmmmM#.
+.##MMMMMM##.
+...######...
