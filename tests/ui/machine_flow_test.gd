@@ -33,28 +33,25 @@ func after_test() -> void:
 		DirAccess.remove_absolute(_folder)
 
 
-## The machine sits at the stage's MACHINE_RECT, inside the stage, above the shade; the shade
-## starts at the register column's right edge, so the receipt stays unshaded; the keys sit in the
-## machine, NEW ITEMS, COUPONS and REGISTER lit and UPGRADES padlocked after shift 1.
+## The machine stands in the store (#77 machine v2): once the camera has glided to it, it shows at
+## the stage's MACHINE_RECT, inside the stage, with no shade over the store (the receipt has been
+## fed: the stage's own is torn off); the keys sit in the machine, NEW ITEMS, COUPONS and REGISTER
+## lit and UPGRADES padlocked after shift 1.
 func test_a_pass_opens_the_machine_inside_the_stage_beside_the_receipt() -> void:
 	var screen: ShiftScreen = await _passed_screen()
 	var view: RewardMachineView = screen._machine.view
 	assert_bool(screen._machine.is_open()).is_true()
 	assert_int(screen.run.phase).is_equal(RunState.Phase.MACHINE_CHOOSE)
+	view.fast_forward()
 	await _frames(3)
+	assert_float(screen._camera.progress()).is_equal(1.0)
 	var stage: Rect2 = screen._stage.get_global_rect()
 	var machine: Rect2 = view.get_global_rect()
 	assert_vector(machine.position).is_equal(stage.position + ShiftStage.MACHINE_RECT.position)
+	assert_vector(machine.size).is_equal(ShiftStage.MACHINE_RECT.size)
 	assert_bool(stage.encloses(machine)).override_failure_message(str(machine)).is_true()
-	assert_int(view.get_index()).is_greater(screen._shade.get_index())
-	assert_bool(screen._shade.visible).is_true()
-	var column_end: float = stage.position.x + ShiftStage.REGISTER_RECT.end.x
-	assert_float(screen._shade.get_global_rect().position.x).is_equal_approx(column_end, 0.5)
-	var receipt: Rect2 = screen._receipt.get_global_rect()
-	assert_float(receipt.end.x).is_less_equal(column_end + 0.5)
-	assert_float(screen._shade.get_global_rect().position.y).is_equal_approx(
-		stage.position.y + ShiftStage.PANEL_TOP, 0.5
-	)
+	assert_bool(screen._shade.visible).is_false()
+	assert_bool(screen._receipt.visible).is_false()
 	assert_int(view.keys.size()).is_equal(RewardMachine.CHUTES.size())
 	for key: ChuteKey in view.keys:
 		assert_bool(machine.encloses(key.get_global_rect())).is_true()
@@ -73,9 +70,14 @@ func test_choose_scan_and_pick_a_prize() -> void:
 	var screen: ShiftScreen = await _passed_screen()
 	var view: RewardMachineView = screen._machine.view
 	await _until_armed(screen)
-	view.open_odds(RewardMachine.Chute.NEW_ITEMS)
+	view.hover_key(RewardMachine.Chute.NEW_ITEMS)
 	assert_bool(view.odds_card.visible).is_true()
-	view._on_confirmed(RewardMachine.Chute.NEW_ITEMS)
+	# Machine v2: the key is pressed, then CONFIRM › on the display confirms it.
+	view.press_key(RewardMachine.Chute.NEW_ITEMS)
+	assert_int(screen.run.phase).is_equal(RunState.Phase.MACHINE_CHOOSE)
+	view.display.press_confirm()
+	view.display._confirm_at_ms -= view.tuning.confirm_down_ms + 1
+	view.display.frame(view.clock)
 	assert_int(screen.run.phase).is_equal(RunState.Phase.MACHINE_PICK)
 	assert_str(_saved_phase()).is_equal("machine_pick")
 	var prizes: Array[MachinePrize] = screen.run.machine.prizes()
@@ -248,11 +250,21 @@ func _assert_resume_frame(run: RunState, kind: int, picking: bool) -> void:
 	assert_bool(view.plan.resumed).override_failure_message(where).is_true()
 	assert_float(view.clock).is_equal(view.plan.pick_at if picking else view.plan.choose_at)
 	assert_bool(view.is_armed()).override_failure_message(where).is_true()
-	# The receipt: already fed, the stage's own in place; no copy (nor stub) in the slot.
+	# The receipt: already fed (#77 machine v2: the stage's own is torn off until the next shift),
+	# no copy; a bonus ticket to come waits in the dock.
 	assert_object(view.receipt_feed.paper).is_null()
-	assert_object(view.receipt_feed.stub).is_null()
-	assert_bool(view.receipt_feed.visible).is_false()
-	assert_bool(screen._receipt.is_visible_in_tree()).is_true()
+	assert_bool(screen._receipt.visible).is_false()
+	var bonus: BonusTicket = view.receipt_feed.ticket
+	if kind == MachineVisit.Kind.TICKET and view.plan.stub:
+		assert_object(bonus).override_failure_message(where).is_not_null()
+		assert_bool(bonus.is_visible_in_tree()).is_true()
+		var dock: Rect2 = view.slot_plate.dock_global_rect()
+		var shown: Rect2 = bonus.get_global_rect()
+		assert_vector(shown.get_center()).is_equal_approx(dock.get_center(), Vector2.ONE)
+	else:
+		assert_bool(bonus != null and bonus.visible).override_failure_message(where).is_false()
+	# At the machine at once: no glide on a resume.
+	assert_float(screen._camera.progress()).override_failure_message(where).is_equal(1.0)
 	# The head stamp, at rest.
 	var stamps: Array[String] = ["", "BONUS TICKET!", "STAMP DAY!"]
 	assert_str(view.head.stamp_texts()[0]).override_failure_message(where).is_equal(stamps[kind])
@@ -265,7 +277,8 @@ func _assert_resume_frame(run: RunState, kind: int, picking: bool) -> void:
 	if picking:
 		assert_str(lines[0]).is_equal(RewardMachineView.pick_prompt(prizes.size(), resumed))
 	elif kind == MachineVisit.Kind.BONUS:
-		assert_array(Array(lines)).is_equal([RewardMachineView.AGAIN, RewardMachineView.AGAIN_SUB])
+		var bonus_sub: String = RewardMachineView.BONUS_SUB % view.display.why_words()
+		assert_array(Array(lines)).is_equal([RewardMachineView.BONUS_TITLE, bonus_sub])
 	else:
 		var spend: String = RewardMachineView.SPEND_LINE % resumed.history[-1].total
 		assert_array(Array(lines)).is_equal([spend, RewardMachineView.CHOOSE_SUB])
@@ -297,6 +310,12 @@ func _assert_resume_frame(run: RunState, kind: int, picking: bool) -> void:
 		)
 		assert_bool(key.has_tab()).override_failure_message(which).is_equal(tab)
 	assert_bool(view.odds_card.visible).is_false()
+	# No key is pressed on a resume at the chutes (at a pick, the chosen chute's stays down): the
+	# display shows the wait's lines, no CONFIRM ›.
+	var pressed: int = visit.chute if picking and kind != MachineVisit.Kind.STAMP_DAY else -1
+	assert_int(view.pressed_chute()).override_failure_message(where).is_equal(pressed)
+	assert_bool(view.display.in_title_mode()).is_false()
+	assert_bool(view.display.confirm_key().visible).is_false()
 	# The belt: empty, or the prizes open in their cells.
 	assert_array(view.box_lane.riding(view.clock)).is_empty()
 	assert_int(view.tickets.size()).is_equal(prizes.size() if picking else 0)

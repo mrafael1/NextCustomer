@@ -433,7 +433,8 @@ GOLDEN_DATA = Path(__file__).resolve().parent / "testdata" / "pixel_art" / "gold
 # upgrades/png/items_v2/) and the map each item's derived source uses.
 GOLDEN_REFERENCES = {"banana": "yellow", "eggs": "egg", "milk": "rank", "coffee": "rank"}
 
-# A palette with the gold ramp the maps write to (brass darkest k to mustard pale Y, paper w).
+# A palette with the gold ramp the maps write to (brass darkest k to mustard pale Y, paper w)
+# and the brown ramp the bake map reads.
 GOLD_PALETTE = PALETTE + """w fbf7ee paper
 b ddcba5 cream shade
 a b39f78 cream darkest
@@ -446,6 +447,10 @@ Y faecbc mustard pale
 y f1d27a mustard light
 M e2b33c mustard
 m b38425 mustard dark
+e 4a3022 brown darkest
+f 7a5232 brown dark
+F a87a4e brown
+h d2a874 brown light
 """
 
 
@@ -517,6 +522,48 @@ class DeriveTest(TempTestCase):
         self.assertEqual("".join(out[5]), "#:lYYl:#")
         self.assertEqual(out[6][2:6], ["l", "n", "n", "l"])  # brass dark against the carton
 
+    def test_the_bake_map_gilds_only_the_brown_ramp_and_glints(self) -> None:
+        palette = pa.parse_palette(self.ws.src / pa.PALETTE_FILE)
+        grid = [list("." * 21) for _ in range(2)] + [list("#" * 21)]
+        grid += [list("#" + "efFh:" * 3 + "hhhh#") for _ in range(3)] + [list("#" * 21)]
+        out = pa.golden_bake(grid, palette)
+        self.assertEqual(out[0], list("." * 21))
+        self.assertEqual("".join(out[4][1:6]), "klLn:")  # the bag's grey light is kept
+        # The glint: a gilded gold pixel on the 19th diagonal becomes paper; a kept one doesn't.
+        self.assertEqual(out[5][14], "w")  # gold n (from h) at x + y = 19
+        self.assertEqual(out[4][15], ":")  # grey light at x + y = 19 stays
+        self.assertEqual(out[3][16], "w")  # gold n (from h) at x + y = 19
+
+    def test_the_keys_map_recolours_its_pairs_and_keeps_the_rest(self) -> None:
+        grid = [list("." * 21) for _ in range(2)] + [list("#" * 21)]
+        grid += [list("#" + "c" * 19 + "#") for _ in range(2)]
+        grid += [list("#" + "c" * 12 + "R" + "c" * 6 + "#")]
+        grid += [list("#" + "c" * 14 + "4" + "c" * 4 + "#")] + [list("#" * 21)]
+        out = pa.golden_keys(grid, {"c": "n", "R": "w"}, frozenset({"glint"}))
+        self.assertEqual(out[0], list("." * 21))
+        self.assertEqual(out[5][13], "w")  # recoloured to paper (a sign)
+        self.assertEqual(out[6][15], "4")  # a key with no pair is kept
+        self.assertEqual(out[4][1], "n")
+        # The glint, on the 19th diagonal: on clear gold, but never next to a kept key or paper.
+        self.assertEqual(out[3][16], "w")
+        self.assertEqual(out[4][15], "w")
+        self.assertEqual(out[5][14], "n")  # next to the paper sign and the kept teal
+        self.assertEqual(out[6][13], "n")  # under the paper sign
+        plain = pa.golden_keys(grid, {"c": "n", "R": "w"}, frozenset())
+        self.assertEqual(plain[3][16], "n")  # no glint without the flag
+        self.assertEqual("".join(plain[3]), "#" + "n" * 19 + "#")
+        rim = pa.golden_keys(grid, {"c": "n", "R": "w"}, frozenset({"rim"}))
+        self.assertEqual("".join(rim[3]), "#" + "w" * 19 + "#")  # gold right under the outline
+        self.assertEqual(rim[4][1], "n")
+
+    def test_a_keys_derivation_builds(self) -> None:
+        self.ws.add("items_v2/box", item_source(boxed_item("c", 48)))
+        self.ws.add("items_v2/box_gold", "@derive box golden=keys c=n glint rim\n")
+        project = self.ws.load()
+        self.assertEqual(project.errors, [])
+        derived = next(s for s in project.sprites if s.name == "items_v2/box_gold")
+        self.assertEqual({key for row in derived.rows for key in row} - {"w"}, {".", "#", "n"})
+
     def test_the_outline_map_golds_only_the_ink_lit_then_shaded(self) -> None:
         palette = pa.parse_palette(self.ws.src / pa.PALETTE_FILE)
         # 7x7: the mid diagonal x + y = 6 is lit; nothing is cleared or re-inked.
@@ -550,6 +597,11 @@ class DeriveTest(TempTestCase):
             "grid": (derived_source("box", "rank") + "#c\n", "holds no grid"),
             "size": ("@size 48x48\n" + derived_source("box", "rank"), "no other directive"),
             "missing source": (derived_source("bag", "rank"), "items_v2/bag: that source doesn't"),
+            "pairs on a fixed map": ("@derive box golden=rank c=n\n", "takes nothing more"),
+            "keys without pairs": ("@derive box golden=keys glint\n", "at least one"),
+            "bad pair": ("@derive box golden=keys cn\n", "takes <from>=<to> pairs"),
+            "ink pair": ("@derive box golden=keys #=n\n", "takes <from>=<to> pairs"),
+            "pair twice": ("@derive box golden=keys c=n c=L\n", "recolours 'c' twice"),
         }
         for label, (text, message) in cases.items():
             with self.subTest(label):
@@ -621,6 +673,92 @@ class GoldenReferenceTest(unittest.TestCase):
                 text = (pa.DEFAULT_SRC / "items_v2" / f"{item}_golden.txt").read_text(
                     encoding="utf-8")
                 self.assertIn(f"@derive {item}_big golden={golden}", text)
+
+
+AISLES_DATA = Path(__file__).resolve().parent.parent / "data" / "aisles"
+# A 6x4 scenery source: the teal body ramp (2 3 4 5) beside glass (p) and ink.
+TEAL_SCENERY = """@size 6x4
+@kind scenery
+@scale 2
+######
+#5544#
+#3322#
+#pp..#
+"""
+
+
+def aisle_source(base: str, aisle: str) -> str:
+    return f"; an aisle recolour\n@derive {base} aisle={aisle}\n"
+
+
+class AisleDeriveTest(TempTestCase):
+    """#63's @derive <source> aisle=<id>: the teal body ramp swapped for an aisle's keys."""
+
+    def setUp(self) -> None:
+        super().setUp()
+        palette = pa.DEFAULT_SRC / pa.PALETTE_FILE
+        (self.ws.src / pa.PALETTE_FILE).write_text(palette.read_text(encoding="utf-8"),
+                                                   encoding="utf-8")
+
+    def test_an_aisle_derive_builds_recoloured_and_checks_clean(self) -> None:
+        self.ws.add("scenery/machine", TEAL_SCENERY)
+        self.ws.add("scenery/machine_pantry", aisle_source("machine", "pantry"))
+        project = self.ws.load()
+        self.assertEqual(project.errors, [])
+        derived = next(s for s in project.sprites if s.name == "scenery/machine_pantry")
+        self.assertEqual((derived.width, derived.height, derived.kind, derived.scale),
+                         (6, 4, "scenery", 2))
+        # 5 4 3 2 become y M m m; ink, glass and transparency pass through (no re-ink).
+        self.assertEqual(derived.rows, ["######", "#yyMM#", "#mmmm#", "#pp..#"])
+        written = pa.build(project)
+        self.assertIn(self.ws.out / "scenery" / "machine_pantry.png", written)
+        self.assertEqual(pa.check(self.ws.load()), [])
+
+    def test_cold_cases_keeps_the_teal_ramp(self) -> None:
+        self.ws.add("scenery/machine", TEAL_SCENERY)
+        self.ws.add("scenery/machine_cold_cases", aisle_source("machine", "cold_cases"))
+        project = self.ws.load()
+        derived = next(s for s in project.sprites if s.name == "scenery/machine_cold_cases")
+        base = next(s for s in project.sprites if s.name == "scenery/machine")
+        self.assertEqual(derived.rows, base.rows)
+
+    def test_a_changed_source_makes_its_aisle_png_stale(self) -> None:
+        self.ws.add("scenery/machine", TEAL_SCENERY)
+        self.ws.add("scenery/machine_snacks", aisle_source("machine", "snacks"))
+        pa.build(self.ws.load())
+        self.ws.add("scenery/machine", TEAL_SCENERY.replace("#5544#", "#5555#"))
+        problems = pa.check(self.ws.load())
+        self.assertTrue(any("scenery/machine_snacks.png is stale" in p for p in problems),
+                        problems)
+
+    def test_an_unknown_aisle_is_an_error(self) -> None:
+        self.ws.add("scenery/machine", TEAL_SCENERY)
+        self.ws.add("scenery/machine_moon", aisle_source("machine", "moon"))
+        project = self.ws.load()
+        self.assertNotIn("scenery/machine_moon", [s.name for s in project.sprites])
+        self.assertTrue(any("aisle=<id>" in e and "moon" in e for e in project.errors),
+                        project.errors)
+
+    def test_every_aisle_has_a_map_whose_base_is_its_sign_colour(self) -> None:
+        palette = pa.parse_palette(pa.DEFAULT_SRC / pa.PALETTE_FILE)
+        files = sorted(AISLES_DATA.glob("*.tres"))
+        self.assertTrue(files)
+        ids = []
+        for path in files:
+            text = path.read_text(encoding="utf-8")
+            aisle = text.split('id = &"', 1)[1].split('"', 1)[0]
+            ids.append(aisle)
+            with self.subTest(aisle):
+                self.assertIn(aisle, pa.AISLE_MAPS)
+                values = text.split("sign_color = Color(", 1)[1].split(")", 1)[0].split(",")
+                sign = tuple(round(float(v) * 255) for v in values[:3])
+                keys = pa.AISLE_MAPS[aisle]
+                self.assertEqual(len(keys), len(pa.AISLE_BODY_RAMP))
+                base = palette.colours[keys[pa.AISLE_BASE_INDEX]][:3]
+                self.assertEqual(base, sign)
+                for key in keys:
+                    self.assertIn(key, palette.colours)
+        self.assertEqual(sorted(ids), sorted(pa.AISLE_MAPS))
 
 
 class CommittedArtTest(unittest.TestCase):

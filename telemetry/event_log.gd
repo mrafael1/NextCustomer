@@ -7,6 +7,12 @@ extends Node
 ## created on the first event, so test runs that log nothing create no file.
 
 const LOG_FOLDER := "user://playtest_logs"
+## The derived stream of the run seed that picks a run's list until #65's shopping list
+## (RunStock.surprise_list, #63).
+const SURPRISE_LIST_STREAM := "surprise_list"
+## The derived stream of the profile's capsule seed for one TOY MACHINES draw, by the draw's
+## index (ProfileState.capsule_draws, #63).
+const CAPSULE_STREAM := "capsule_%d"
 
 var session_id: String = ""
 var run_id: String = ""
@@ -45,6 +51,13 @@ static func derived_stream(run_seed: int, stream_name: String) -> RandomNumberGe
 	var stream: RandomNumberGenerator = RandomNumberGenerator.new()
 	stream.seed = hash([run_seed, stream_name])
 	return stream
+
+
+## The stream of one capsule draw (#63): the capsule seed's derived stream "capsule_<draw>",
+## `draw` being the profile's capsule_draws before the draw. Each draw has its own stream and
+## the profile is saved right after it, so quitting can't reroll a capsule.
+static func capsule_stream(capsule_seed: int, draw: int) -> RandomNumberGenerator:
+	return derived_stream(capsule_seed, CAPSULE_STREAM % draw)
 
 
 ## Starts a new run id; call before logging run_start.

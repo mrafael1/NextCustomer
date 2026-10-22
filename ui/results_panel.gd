@@ -6,15 +6,19 @@ extends PanelContainer
 ## loyalty card is stapled to the receipt's top-right corner, beside the headline, so it covers
 ## no line. When the coin lines start printing, the coins clink (#62) and the music ducks for
 ## them (ShiftMusic.coins_printing), so both follow the print, a skipped one too. It only shows
-## the run; New run and Export log are reported to the shift screen. New run can be clicked
-## mid-print, once armed.
+## the run; New run, Toy machines and Export log are reported to the shift screen. New run and
+## Toy machines (#63: the TOY MACHINES, where coins buy capsules) can be clicked mid-print, once
+## armed; Toy machines first prints the rest at once (a skip), so nothing keeps printing, nor
+## reading presses, behind the full-screen machines.
 
 signal new_run_requested
 signal export_requested
+signal toy_machines_requested
 
-## New run arms this long after the panel appears, once the mouse is up, like the machine's picks:
-## the click that ended the run never starts a new one.
+## New run (and Toy machines) arm this long after the panel appears, once the mouse is up, like
+## the machine's picks: the click that ended the run never starts a new one.
 const ARM_MS := 350
+const TOY_MACHINES_TEXT := "Toy machines ›"
 const HEADLINE_SIZE := 44
 const LINE_SIZE := 16
 ## The machine visits and the inspection under a shift's line are smaller and dim.
@@ -53,6 +57,7 @@ var _coin_sounds: int = 0
 var _coins_s: float = 0.0
 var _reader: PressReader
 var _new_run_button: Button
+var _toy_machines_button: Button
 var _column: VBoxContainer
 ## The FITS entry the receipt is laid out with.
 var _fit: Vector3i = FITS[0]
@@ -91,6 +96,7 @@ func _init(tuning: CountUpTuning = null) -> void:
 	buttons.add_theme_constant_override("separation", 16)
 	column.add_child(buttons)
 	_new_run_button = UiKit.button(buttons, "New run", func() -> void: new_run_requested.emit(), 22)
+	_toy_machines_button = UiKit.button(buttons, TOY_MACHINES_TEXT, _on_toy_machines_pressed, 20)
 	# The export confirms itself once done (ShiftScreen).
 	UiKit.button(buttons, "Export log", func() -> void: export_requested.emit(), 18, "")
 	_reader = PressReader.new()
@@ -112,6 +118,7 @@ func _process(_delta: float) -> void:
 		return
 	if not Input.is_mouse_button_pressed(MOUSE_BUTTON_LEFT):
 		_new_run_button.disabled = false
+		_toy_machines_button.disabled = false
 
 
 ## Shows a won or lost run: `result` is its last checkout, `coins_total` the profile's coins
@@ -129,6 +136,7 @@ func show_results(
 	coins_started_ms = -1
 	print_skipped = false
 	_new_run_button.disabled = true
+	_toy_machines_button.disabled = true
 	_armed_ms = Time.get_ticks_msec() + ARM_MS
 	UiKit.pop_in(self)
 	_print_started_ms = Time.get_ticks_msec()
@@ -155,6 +163,15 @@ func coins_seconds() -> float:
 	return _coins_s
 
 
+## New run and Toy machines (for tests and layout checks).
+func new_run_button() -> Button:
+	return _new_run_button
+
+
+func toy_machines_button() -> Button:
+	return _toy_machines_button
+
+
 ## Every line's text in print order, the headline first (for tests).
 func texts() -> PackedStringArray:
 	var found: PackedStringArray = PackedStringArray()
@@ -174,6 +191,11 @@ func coin_line_index() -> int:
 
 
 ## Builds the lines with the roomiest FITS entry that fits the room (_room).
+func _on_toy_machines_pressed() -> void:
+	skip_printing()
+	toy_machines_requested.emit()
+
+
 func _lay_out(lines: Array[FinalReceipt.Line]) -> void:
 	for fit: Vector3i in FITS:
 		_fit = fit

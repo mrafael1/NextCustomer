@@ -1,0 +1,3 @@
+; Soup GOLDEN (#89 item tier): soup_big through the rank map (its shades, dark to light, over brass to gold, with a paper glint).
+; A derived source: no grid, tools/pixel_art.py builds it from the BIG source.
+@derive soup_big golden=rank

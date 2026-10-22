@@ -382,6 +382,8 @@ static func _receipt_lines(receipt: ReceiptView) -> Array[String]:
 		if line is HSeparator:
 			lines.append("---")
 			continue
+		if line is ReceiptStub:
+			continue  # The BONUS stub (#77 machine v2), checked on its own.
 		var left: Label = line.get_child(0) as Label
 		var marker: Label = left.get_node_or_null("Marker") as Label
 		var text: String = left.text if marker == null else "%s %s" % [marker.text, left.text]

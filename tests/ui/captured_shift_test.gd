@@ -42,7 +42,9 @@ func test_everything_lies_inside_the_stage() -> void:
 	for scan: String in SCANS:
 		var screen: ShiftScreen = await _captured(scan)
 		var stage: Rect2 = screen._stage.get_global_rect()
+		# The stage's hud and its world (in the store's camera since #77 machine v2, at 1x here).
 		var controls: Array[Control] = _controls(screen._stage)
+		controls.append_array(_controls(screen._stage.world))
 		assert_int(controls.size()).is_greater(150)
 		for control: Control in controls:
 			var rect: Rect2 = control.get_global_rect()

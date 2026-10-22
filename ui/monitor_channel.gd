@@ -5,7 +5,10 @@ extends Control
 ## nothing is scanned the monitor's screen cycles slides about the shift, each for
 ## ScanTuning.channel_slide_ms (data/balance/scan.tres), with a page dot per slide under them:
 ## 1. the shift's brief: "SHIFT n/m", "SPEND €N+" (#86) and the shift's inspections, each with
-##    its name and notice, or "No inspection this shift";
+##    its name and notice, or "No inspection this shift"; when passing the shift earns the bonus
+##    ticket (#77 machine v2), a gold plate under them with the ticket icon and "PASS IT › +1
+##    BONUS TICKET" (pass_line); then, the shift after an UPGRADES pick, one line per upgraded item
+##    ("Banana is GOLDEN now", bold mustard darkest);
 ## 2. one slide per owned loyalty upgrade: its name, its effect and its condition (the ticket's
 ##    lines);
 ## 3. the coupons in play (on the belt, then in the hand; each coupon once): each one's name and
@@ -16,8 +19,10 @@ extends Control
 ## H1_BUILD_SPEC.md section 7; set_key): the first real sticker of each kind on the belt, each
 ## with its caption ("+3 own rule", "×3 from an item", ...), in order, skipping one that doesn't
 ## fit the width left (a later, narrower one still may, as h1's "+12 loyalty"). The brief
-## first tries the tiers in the room over the key; when none fits, it is built without the key at
-## its full height.
+## first tries the tiers in the room over the key; when none fits and the shift earns the bonus
+## ticket, its compact form (the inspections named in the kicker, "INSPECTION · SHORT BELT", over
+## the PASS IT plate; their notices stay on the top bar's chip and its tooltip); when that doesn't
+## fit either, it is built without the key at its full height.
 ##
 ## MonitorView owns it: it runs it (set_running) while the screen is the channel's, and the shift
 ## screen fills it through the monitor on every refresh (show_state). A state that keeps the slide
@@ -84,6 +89,19 @@ const KEY_CAPTION_SIZE := 12
 const KEY_CAPTION_WEIGHT := 700
 const KEY_NAME := "Key"
 const KEY_TEXT := "%s %s"
+## The bonus ticket's gold plate on the brief: mustard with a 2 px ink border, the ticket icon at
+## 2x and PASS_TEXT in bold Atkinson PASS_SIZE.
+const PASS_NAME := "PassLine"
+## The compact brief's kicker, naming the inspections (_build_brief).
+const COMPACT_NAME := "CompactKicker"
+const PASS_TEXT := "PASS IT › +1 BONUS TICKET"
+const PASS_SIZE := 13
+const PASS_WEIGHT := 800
+const PASS_PAD := Vector2(6, 2)
+const PASS_ICON := preload("res://art/icons/bonus_ticket.png")
+const PASS_ICON_GAP := 6
+## An upgraded item's line on the brief.
+const NEWS_WEIGHT := 800
 
 ## Returns true when the player asked for reduced motion (cuts, no wipe). None means false.
 var reduced_motion: Callable = Callable()
@@ -107,6 +125,8 @@ var _quota: int = 0
 var _inspections: Array[InspectionDefinition] = []
 var _upgrades: Array[UpgradeDefinition] = []
 var _coupons: Array[CardDefinition] = []
+var _bonus: bool = false
+var _news: PackedStringArray = PackedStringArray()
 var _signature: String = ""
 var _pending: bool = false
 ## The planning key's entries (set_key), their signature, and the texts the brief shows.
@@ -142,24 +162,36 @@ func _draw() -> void:
 
 
 ## The shift's state to show: shift `shift` of `shift_count` against `quota`, its `inspections`,
-## the owned `upgrades` and the `coupons` in play (belt first, then hand; repeats are shown once).
-## Rebuilds the slides only when something shown changed. Measured with the real fonts, so the
-## slides are built once the channel is in the tree.
+## the owned `upgrades` and the `coupons` in play (belt first, then hand; repeats are shown once),
+## whether passing the shift earns the bonus ticket (`bonus`) and the brief's `news` lines (the
+## items upgraded since the last shift). Rebuilds the slides only when something shown changed.
+## Measured with the real fonts, so the slides are built once the channel is in the tree.
 func show_state(
 	shift: int,
 	shift_count: int,
 	quota: int,
 	inspections: Array[InspectionDefinition],
 	upgrades: Array[UpgradeDefinition],
-	coupons: Array[CardDefinition]
+	coupons: Array[CardDefinition],
+	bonus: bool = false,
+	news: PackedStringArray = PackedStringArray()
 ) -> void:
 	var unique: Array[CardDefinition] = []
 	for coupon: CardDefinition in coupons:
 		if not unique.has(coupon):
 			unique.append(coupon)
 	var signature: String = (
-		"%d/%d/%d|%s|%s|%s"
-		% [shift, shift_count, quota, _ids(inspections), _ids(upgrades), _ids(unique)]
+		"%d/%d/%d|%s|%s|%s|%s|%s"
+		% [
+			shift,
+			shift_count,
+			quota,
+			_ids(inspections),
+			_ids(upgrades),
+			_ids(unique),
+			bonus,
+			"/".join(news),
+		]
 	)
 	if signature == _signature and not _slides.is_empty():
 		return
@@ -174,6 +206,8 @@ func show_state(
 	_inspections = inspections.duplicate()
 	_upgrades = upgrades.duplicate()
 	_coupons = unique
+	_bonus = bonus and not inspections.is_empty()
+	_news = news.duplicate()
 	if is_inside_tree():
 		_rebuild()
 	else:
@@ -202,6 +236,14 @@ func set_key(entries: Array[StickerSpec]) -> void:
 		_rebuild()
 	else:
 		_pending = true
+
+
+## The brief's gold PASS IT plate (null when the shift earns no bonus ticket).
+func pass_line() -> Control:
+	var index: int = _keys.find(BRIEF_KEY)
+	if index < 0:
+		return null
+	return _slides[index].get_node_or_null(PASS_NAME) as Control
 
 
 ## The key's entries the brief shows ("+3 own rule"), in order; empty without a key.
@@ -330,19 +372,31 @@ func _fitted(key: String, build: Callable) -> void:
 		_drop_last_slide()
 
 
-## The brief: with the key under it at the first of TIERS that fits over the key, else without
-## the key (_fitted).
+## The brief: with the key under it at the first of TIERS that fits over the key; when the shift
+## earns the bonus ticket and none fits, its compact form (the inspections named in the kicker,
+## their notices left to the top bar's chip and its tooltip) so the PASS IT plate and the key
+## both stay; else without the key (_fitted).
 func _fit_brief() -> void:
 	_key_texts = PackedStringArray()
 	if not _key.is_empty():
-		for tier: int in range(TIERS.size()):
-			var page: Control = _new_slide(BRIEF_KEY)
-			var bottom: float = _build_brief(page, TIERS[tier])
-			if bottom <= SLIDE_HEIGHT - KEY_HEIGHT - GAP:
-				_add_key(page)
-				return
-			_drop_last_slide()
+		var forms: Array[bool] = [false]
+		if _bonus:
+			forms.append(true)
+		for compact: bool in forms:
+			for tier: int in range(TIERS.size()):
+				var page: Control = _new_slide(BRIEF_KEY)
+				var bottom: float = _build_brief(page, TIERS[tier], compact)
+				if bottom <= SLIDE_HEIGHT - KEY_HEIGHT - GAP:
+					_add_key(page)
+					return
+				_drop_last_slide()
 	_fitted(BRIEF_KEY, _build_brief)
+
+
+## Whether the brief shown is the compact one (the inspections in the kicker, no notices).
+func is_brief_compact() -> bool:
+	var index: int = _keys.find(BRIEF_KEY)
+	return index >= 0 and _slides[index].get_node_or_null(COMPACT_NAME) != null
 
 
 ## The key row at the bottom of `page`: the dashed rule, then each entry (its sticker and
@@ -397,8 +451,9 @@ func _draw_key_rule(row: Control) -> void:
 		x += KEY_DASH + KEY_DASH_GAP
 
 
-## The brief: SHIFT and QUOTA on the top row, then the inspections (or none).
-func _build_brief(page: Control, sizes: Vector2i) -> float:
+## The brief: SHIFT and QUOTA on the top row, then the inspections (or none); `compact`: the
+## inspections' names in the kicker ("INSPECTION · SHORT BELT") and no notices.
+func _build_brief(page: Control, sizes: Vector2i, compact: bool = false) -> float:
 	var shift_word: Label = UiKit.display_label(SHIFT_WORD, TITLE_SIZE, false)
 	var shift_x: float = _add_inline(page, shift_word, 0.0, TITLE_HEIGHT)
 	var shift: Label = UiKit.number_label(SHIFT_TEXT % [_shift, _shift_count], TITLE_SIZE, false)
@@ -410,16 +465,73 @@ func _build_brief(page: Control, sizes: Vector2i) -> float:
 	var word_width: float = _width(page, quota_word)
 	_add_inline(page, quota_word, quota.position.x - WORD_GAP - word_width, TITLE_HEIGHT)
 	var y: float = TITLE_HEIGHT + 2.0 * GAP
+	if compact and not _inspections.is_empty():
+		var parts: PackedStringArray = PackedStringArray([INSPECTION_KICKER])
+		for inspection: InspectionDefinition in _inspections:
+			parts.append(inspection.display_name.to_upper())
+		var kicker: Label = _kicker_label(" · ".join(parts), KICKER_SIZE)
+		kicker.name = COMPACT_NAME
+		if _width(page, kicker) > page.size.x:
+			return SLIDE_HEIGHT + 1.0  # Too long for one row: no compact brief.
+		kicker.position = Vector2(0.0, y)
+		kicker.size = Vector2(page.size.x, KICKER_HEIGHT)
+		y = _add_pass_line(page, y + KICKER_HEIGHT) + GAP
+		return _add_news(page, sizes, y) - GAP
 	y = _add_kicker(page, INSPECTION_KICKER, y)
 	if _inspections.is_empty():
 		var none: Label = UiKit.body_label(NO_INSPECTION_TEXT, sizes.x, Palette.GREY_DARK)
-		return _add_wrapped(page, none, 0.0, y, page.size.x)
+		y = _add_wrapped(page, none, 0.0, y, page.size.x) + GAP
 	for inspection: InspectionDefinition in _inspections:
 		var title: Label = UiKit.display_label(inspection.display_name, INSPECTION_NAME_SIZE, false)
 		y = _add_wrapped(page, title, 0.0, y, page.size.x)
 		var notice: Label = UiKit.body_label(inspection.notice_text, sizes.x, Palette.INK)
 		y = _add_wrapped(page, notice, 0.0, y, page.size.x) + GAP
-	return y - GAP
+	if _bonus:
+		y = _add_pass_line(page, y) + GAP
+	return _add_news(page, sizes, y) - GAP
+
+
+## The news lines from `y` ("Banana is GOLDEN now"); returns where the brief goes on under them.
+func _add_news(page: Control, sizes: Vector2i, y: float) -> float:
+	for line: String in _news:
+		var news: Label = UiKit.body_label(line, sizes.x, Palette.MUSTARD_DARKEST)
+		news.add_theme_font_override("font", ArtStyle.bold_font(NEWS_WEIGHT))
+		y = _add_wrapped(page, news, 0.0, y, page.size.x) + GAP
+	return y
+
+
+## The gold PASS IT plate at `y` (as wide as its icon and text). Returns its bottom.
+func _add_pass_line(page: Control, y: float) -> float:
+	var plate: PanelContainer = PanelContainer.new()
+	plate.name = PASS_NAME
+	plate.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var style: StyleBoxFlat = StyleBoxFlat.new()
+	style.bg_color = Palette.MUSTARD
+	style.border_color = Palette.INK
+	style.set_border_width_all(2)
+	style.content_margin_left = PASS_PAD.x
+	style.content_margin_right = PASS_PAD.x
+	style.content_margin_top = PASS_PAD.y
+	style.content_margin_bottom = PASS_PAD.y
+	plate.add_theme_stylebox_override("panel", style)
+	var row: HBoxContainer = HBoxContainer.new()
+	row.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	row.add_theme_constant_override("separation", PASS_ICON_GAP)
+	plate.add_child(row)
+	var icon: TextureRect = UiKit.sprite(PASS_ICON)
+	icon.custom_minimum_size = PASS_ICON.get_size() * 2.0
+	icon.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	row.add_child(icon)
+	var text: Label = UiKit.body_label(PASS_TEXT, PASS_SIZE, Palette.INK)
+	text.name = "PassText"
+	text.add_theme_font_override("font", ArtStyle.bold_font(PASS_WEIGHT))
+	text.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	row.add_child(text)
+	page.add_child(plate)
+	plate.position = Vector2(0.0, y)
+	plate.size = plate.get_combined_minimum_size()
+	plate.pivot_offset = Vector2(0.0, plate.size.y / 2.0)
+	return y + plate.size.y
 
 
 ## An upgrade: its name, its effect and, when it has one, its condition (the ticket's lines).

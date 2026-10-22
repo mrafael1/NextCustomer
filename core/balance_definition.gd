@@ -50,6 +50,8 @@ extends Resource
 @export var overtime_coin_euros: int = 0
 ## The most overtime coins one run pays.
 @export var overtime_coin_max: int = 0
+## Coins one capsule costs at the TOY MACHINES (full build plan 7.1, #63).
+@export var capsule_price: int = 0
 ## The RECEIPT REWARDS machine's rules (#77, data/balance/machine.tres), so a balance copy can
 ## point at a different machine file.
 @export var machine: MachineDefinition

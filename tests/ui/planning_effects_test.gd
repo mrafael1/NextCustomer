@@ -112,14 +112,23 @@ func test_every_item_shows_its_model() -> void:
 	for entry: StickerSpec in model.key_entries():
 		key.append(MonitorChannel.KEY_TEXT % [entry.text, PlanningModel.key_caption(entry)])
 	# The entries that fit the brief's width, in order (at least the first; a wide one is skipped
-	# for a later, narrower one). Since v0.39 the channel sits right of the scanner bay, 110 px
+	# for a later, narrower one). Since v0.40 the channel sits right of the scanner bay, 110 px
 	# narrower, so two of h1's three entries fit here.
 	var shown_key: PackedStringArray = screen._monitor.channel.key_texts()
 	assert_int(shown_key.size()).is_greater(0)
 	assert_str(shown_key[0]).is_equal(key[0])
 	assert_bool(_in_order(shown_key, key)).override_failure_message(str(shown_key)).is_true()
 	assert_int(shown_key.size()).is_equal(2)
-	assert_object(screen._monitor.channel.key_row()).is_not_null()
+	var channel: MonitorChannel = screen._monitor.channel
+	assert_object(channel.key_row()).is_not_null()
+	# Spot check's pass earns the bonus ticket: the key stays, the PASS IT plate above it.
+	var plate: Control = channel.pass_line()
+	assert_object(plate).is_not_null()
+	var row: Control = channel.key_row()
+	assert_float(plate.position.y + plate.size.y).is_less_equal(
+		row.position.y - MonitorChannel.KEY_RULE
+	)
+	assert_float(plate.size.x).is_less_equal(row.size.x)
 	assert_int(screen.run.preview().total).is_equal(result.total)
 	assert_array(screen.run.preview().payouts).is_equal(result.payouts)
 

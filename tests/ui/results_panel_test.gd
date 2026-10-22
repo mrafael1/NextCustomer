@@ -264,6 +264,60 @@ func test_a_full_receipt_fits_the_screen_with_the_card_and_the_coins() -> void:
 	assert_str(results.texts()[-1]).starts_with("COINS +")
 
 
+## #63: "Toy machines ›" sits beside New run inside the receipt and arms with it.
+func test_toy_machines_sits_beside_new_run_and_arms_with_it() -> void:
+	var screen: ShiftScreen = await _screen()
+	_full_run(screen)
+	var results: ResultsPanel = screen._results
+	screen._show_results(_last_result(screen))
+	results.skip_printing()
+	await _frames(3)
+	var toys: Button = results.toy_machines_button()
+	var new_run: Button = results.new_run_button()
+	assert_str(toys.text).is_equal("Toy machines ›")
+	assert_bool(toys.disabled).is_true()
+	assert_bool(new_run.disabled).is_true()
+	await await_millis(ResultsPanel.ARM_MS + 100)
+	await _frames(3)
+	assert_bool(new_run.disabled).is_false()
+	assert_bool(toys.disabled).is_false()
+	var paper: Rect2 = results.get_global_rect()
+	assert_bool(paper.encloses(toys.get_global_rect())).is_true()
+	assert_float(toys.get_global_rect().position.x).is_greater_equal(
+		new_run.get_global_rect().end.x
+	)
+	(
+		assert_float(
+			absf(toys.get_global_rect().get_center().y - new_run.get_global_rect().get_center().y)
+		)
+		. is_less(1.0)
+	)
+
+
+## Toy machines clicked mid-print prints the rest first (a skip), so the receipt stops printing
+## and its PressReader stops reading presses behind the full-screen machines.
+func test_toy_machines_mid_print_finishes_the_print() -> void:
+	var screen: ShiftScreen = await _screen()
+	_full_run(screen)
+	var results: ResultsPanel = screen._results
+	screen._show_results(_last_result(screen))
+	var shown: int = Time.get_ticks_msec()
+	while results.toy_machines_button().disabled and Time.get_ticks_msec() - shown < 3000:
+		await get_tree().process_frame
+	(
+		assert_bool(results.toy_machines_button().disabled)
+		. override_failure_message(
+			"not armed; mouse held: %s" % Input.is_mouse_button_pressed(MOUSE_BUTTON_LEFT)
+		)
+		. is_false()
+	)
+	assert_bool(results.is_printing()).is_true()
+	results.toy_machines_button().pressed.emit()
+	assert_bool(results.is_printing()).is_false()
+	assert_int(results.printed_count()).is_equal(results.texts().size())
+	assert_bool(results._reader.is_reading()).is_false()
+
+
 ## The won run of the layout test: 8 passed shifts with totals of four digits, a ticket visit
 ## after each of the first 7 (NEW ITEMS with the longest card name), and on the inspected shifts
 ## (the balance's, with the longest inspection name) a bonus visit (REGISTER with the longest

@@ -6,6 +6,7 @@ extends GdUnitTestSuite
 ## to the screen's handlers, because headless runs don't deliver input events.
 
 const SCREEN := "res://ui/shift_screen.tscn"
+const SPOT_CHECK := "res://data/inspections/spot_check.tres"
 ## Checkouts rush their count (one tap): the suite tests what follows it.
 const Rush := preload("res://tests/ui/count_up_rush.gd")
 const NOTICE := "INSPECTION NEXT SHIFT: The 3rd product pays €0"
@@ -81,7 +82,8 @@ func test_the_notice_comes_before_the_machine() -> void:
 	# hover), never on the loyalty card.
 	assert_int(run.shift_index).is_equal(2)
 	assert_bool(screen._inspection_tag.visible).is_true()
-	assert_str(screen._inspection_tag.text()).is_equal("Inspection · 3rd product pays €0")
+	# The bonus pill's chip may drop "Inspection · " to fit the bar (#77 machine v2).
+	assert_str(screen._inspection_tag.text()).ends_with("3rd product pays €0")
 	assert_str(screen._inspection_tag.tooltip_text).contains("Spot check")
 	assert_str(screen._inspection_tag.tooltip_text).contains("The 3rd product pays €0")
 	assert_bool(screen._loyalty_card.is_ancestor_of(screen._inspection_tag)).is_false()
@@ -144,6 +146,97 @@ func test_the_debug_panel_clears_the_inspection() -> void:
 	# An unknown id changes nothing.
 	screen._debug.set_inspection("no_such_inspection")
 	assert_str(_last_event("debug")["inspection"]).is_empty()
+
+
+## The planning notice (#77 machine v2's B1): an inspected shift whose pass earns the bonus ticket
+## (RewardMachine.bonus_if_passed) shows the mustard "PASS › +1 BONUS TICKET" pill in the chip,
+## inside the chip and the top bar, right of the text, and the gold "PASS IT › +1 BONUS TICKET"
+## plate on the monitor's brief; the chip pulses, then the plate (PlanningTuning's Bonus notice
+## times), back at 1 after, none under reduced motion. After the pass the monitor's count shows
+## INSPECTION PASSED ✓ inside the screen and the chip turns EARNED: "<name> passed" with the
+## check mark, teal pale, the pill without "PASS ›".
+func test_the_planning_notice_promises_and_earns_the_bonus_ticket() -> void:
+	var runner: GdUnitSceneRunner = scene_runner(SCREEN)
+	var screen: ShiftScreen = runner.scene()
+	_only_spot_check(screen)
+	screen._debug.set_inspection("spot_check")
+	var run: RunState = screen.run
+	assert_bool(run.machine.bonus_if_passed(run)).is_true()
+	var tag: InspectionTag = screen._inspection_tag
+	assert_int(tag.bonus_state()).is_equal(InspectionTag.Bonus.PROMISED)
+	# The whole promise is in the tooltip; a tight top bar shortens the pill to its ticket and "+1".
+	assert_str(tag.tooltip_text).contains("PASS › +1 BONUS TICKET")
+	assert_str(tag.full_text()).contains("+1")
+	await _frames(3)
+	# The effect is never cut: something else gives way first (InspectionTag.fit_width).
+	var effect: String = (load(SPOT_CHECK) as InspectionDefinition).chip_text
+	assert_bool(tag.is_trimmed()).is_false()
+	assert_str(tag.label().text).contains(effect)
+	assert_str(tag.tooltip_text).contains(InspectionTag.PILL_TIP)
+	var chip: Rect2 = tag.get_global_rect()
+	var pill: Rect2 = tag.pill().get_global_rect()
+	assert_bool(tag.pill().visible).is_true()
+	assert_bool(chip.encloses(pill)).override_failure_message("%s in %s" % [pill, chip]).is_true()
+	assert_float(pill.position.x).is_greater_equal(tag.label().get_global_rect().end.x)
+	var stage: Rect2 = screen._stage.get_global_rect()
+	assert_bool(stage.encloses(chip)).is_true()
+	assert_float(chip.end.y).is_less_equal(stage.position.y + ShiftStage.PANEL_TOP)
+	assert_float(chip.end.x).is_less_equal(screen._loyalty_card.get_global_rect().position.x)
+	for label: Label in tag.pill().find_children("*", "Label", true, false):
+		var font: Font = label.get_theme_font("font")
+		var font_size: int = label.get_theme_font_size("font_size")
+		var width: float = (
+			font.get_string_size(label.text, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size).x
+		)
+		assert_float(width).is_less_equal(label.size.x + 0.5)
+	# The monitor brief's gold plate.
+	var plate: Control = screen._monitor.channel.pass_line()
+	assert_object(plate).is_not_null()
+	var plate_text: Label = plate.find_child("PassText", true, false) as Label
+	assert_str(plate_text.text).is_equal(MonitorChannel.PASS_TEXT)
+	var page: Control = plate.get_parent() as Control
+	(
+		assert_bool(Rect2(Vector2.ZERO, page.size).encloses(Rect2(plate.position, plate.size)))
+		. is_true()
+	)
+	# The pulse: the chip, then the plate.
+	var notice: BonusNotice = screen._machine.notice
+	assert_bool(notice.is_playing()).is_true()
+	var tuning: PlanningTuning = notice.tuning
+	assert_int(tuning.notice_pulse_ms).is_greater(0)
+	var peak: float = PI / 2.0 / tuning.notice_pulse_rate
+	notice.show_at(peak)
+	assert_float(tag.scale.x).is_equal_approx(1.0 + tuning.notice_pulse_scale, 0.001)
+	assert_vector(tag.pivot_offset).is_equal(tag.size / 2.0)
+	assert_float(plate.scale.x).is_equal(1.0)
+	notice.show_at(tuning.notice_pulse_ms / 1000.0 + peak)
+	assert_float(tag.scale.x).is_equal(1.0)
+	var plate_now: Control = screen._monitor.channel.pass_line()
+	assert_float(plate_now.scale.x).is_equal_approx(1.0 + tuning.notice_pulse_scale, 0.001)
+	notice.show_at(notice.length())
+	assert_bool(notice.is_playing()).is_false()
+	assert_float(plate_now.scale.x).is_equal(1.0)
+	notice.play(tag, func() -> Control: return plate_now, true)  # Reduced motion: none.
+	assert_bool(notice.is_playing()).is_false()
+	assert_float(tag.scale.x).is_equal(1.0)
+	# The pass: INSPECTION PASSED ✓ on the monitor, the chip EARNED.
+	await _pass_shift(screen)
+	var passed: Label = screen._monitor.inspection_passed_label()
+	assert_bool(passed.is_visible_in_tree()).is_true()
+	assert_str(passed.text).is_equal("INSPECTION PASSED ✓")
+	await _frames(2)
+	assert_bool(screen._monitor.get_global_rect().encloses(passed.get_global_rect())).is_true()
+	assert_bool(run.machine.bonus_earned(run)).is_true()
+	assert_int(tag.bonus_state()).is_equal(InspectionTag.Bonus.EARNED)
+	assert_str(tag.label().text).is_equal("Spot check passed")
+	assert_str(tag.full_text()).starts_with("Spot check passed +1")
+	assert_bool(tag.self_modulate == Color.WHITE).is_false()
+	screen._machine.debug_skip()  # The ticket's visit and the bonus ticket's.
+	# Shift 2 is not inspected: no pill.
+	assert_int(run.phase).is_equal(RunState.Phase.PLANNING)
+	assert_int(run.history[-1].shift).is_equal(1)
+	assert_bool(tag.visible).is_false()
+	assert_int(tag.bonus_state()).is_equal(InspectionTag.Bonus.NONE)
 
 
 ## Places a row that passes the first five quotas: Milk, Multipack, Milk x5 = 109.
@@ -240,7 +333,7 @@ static func _event_log() -> EventLogService:
 ## (a copy of the balance data, so the shared resource is untouched).
 static func _only_spot_check(screen: ShiftScreen) -> void:
 	var balance: BalanceDefinition = screen.run.balance.duplicate()
-	var pool: Array[InspectionDefinition] = [load("res://data/inspections/spot_check.tres")]
+	var pool: Array[InspectionDefinition] = [load(SPOT_CHECK)]
 	balance.inspection_pool = pool
 	screen.run.balance = balance
 
