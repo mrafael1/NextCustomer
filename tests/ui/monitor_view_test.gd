@@ -1,35 +1,25 @@
 extends GdUnitTestSuite
 ## The hung monitor (#80, step 4; MonitorView). Its geometry on the real screen: hung under the top
 ## bar, on the stage, clear of the belt, the receipt and the register, every part of its screen
-## inside the paper. A scan's text fits the screen for every card in data/cards, in the hand and on
-## the belt (with the worst footer, folded into "+N more" on the smallest size). The count view
-## (#86 v6 scan count-up): the scanner bay, the LED's number column with its to-go line and the
-## SPEND MET stamp over it, and the € tank, on the paper and apart, over the sunburst; the digits
-## fit at the largest punch with the longest totals, the widest to-go texts fit their line. Its
-## states on the real screen: the store channel in planning (monitor_channel_test), the scanned
-## item once a hover is held (never on a plain hover), the channel again when the scan ends, a
-## notice over a scan (in ink, never tomato); during the count-up the bay shows each beat's item
-## and landing sticker, the line under the digits the to-go text from core's ShiftMargin, the
-## digits in gold; the TOTAL keeps the layout. The bay's motion runs on the count-up's tweens and
-## reduced motion leaves it out; the sunburst turns in real time, gold once met. ScreenShade leaves
-## its hole unshaded. Headless runs never move the mouse: the tests set the scanner's pointer and
-## clock. The real saves and logs are never touched.
+## inside the paper: the scanner bay at the left in every mode, the channel, the scan's text and
+## the notice right of it. A scan's text fits the screen for every card in data/cards, in the hand
+## and on the belt (with the worst footer, folded into "+N more" on the smallest size), its art and
+## kind in the bay. Its states on the real screen: the store channel in planning
+## (monitor_channel_test), the scanned item once a hover is held (never on a plain hover), the
+## channel again when the scan ends, a notice over a scan (in ink, never tomato); during the
+## count-up the bay shows each beat's item and landing sticker, the line under the digits the to-go
+## text from core's ShiftMargin, the digits in gold; the TOTAL keeps the layout, the stamp and the
+## "+€N" tab side by side. The bay's motion runs on the count-up's tweens and reduced motion leaves
+## it out; the sunburst turns in real time, gold once met. ScreenShade leaves its hole unshaded.
+## The count's number and € and planning's bay are in monitor_bay_test. Headless runs never move
+## the mouse: the tests set the scanner's pointer and clock. The real saves and logs are never
+## touched.
 
 const SCREEN := "res://ui/shift_screen.tscn"
 const CARDS := "res://data/cards"
 const BALANCE := "res://data/balance/balance.tres"
 ## Milk, Multipack, Milk x5 = 109: passes the first five quotas.
 const PASSING_ROW: Array[String] = ["milk", "multipack", "milk", "milk", "milk", "milk", "milk"]
-## The longest amounts the count layout is expected to show: the digits, and a quota (shift 8's
-## 120 with the Big basket's 15%) for the widest to-go texts.
-const LONGEST_DIGITS := "9999"
-const WIDEST_QUOTA := 138
-## The widest three-digit total in the count's digits font, and the simulator's largest total
-## (reports/balance_sim, shift 8's max: 1118): both show at the largest digits size. A wide
-## four-digit total takes a smaller one.
-const WIDEST_TOTAL := 400
-const LARGEST_TOTAL := 1118
-const WIDE_FOUR_DIGITS := 1000
 ## More step lines than any belt item carries, every other one a fizzle whose reason wraps.
 const WORST_LINES := 12
 const LONG_LINE := "Coupon engine: needs a coupon two slots earlier and finds none there  WASTED"
@@ -94,25 +84,23 @@ func test_the_monitor_hangs_on_the_stage_clear_of_the_rest() -> void:
 	# The screen's parts, on its paper (inside its ink border).
 	var paper: Rect2 = _on_stage(screen, ShiftStage.MONITOR_SCREEN_RECT).grow(-MonitorView.OUTLINE)
 	assert_that(paper).is_equal(_on_stage(screen, MonitorView.PAPER_RECT))
-	var content: Rect2 = _on_stage(screen, MonitorView.CONTENT_RECT)
-	assert_bool(paper.encloses(content)).is_true()
 	for part: Rect2 in [ShiftStage.LED_RECT, ShiftStage.NOTICE_RECT]:
 		var rect: Rect2 = _on_stage(screen, part)
 		assert_bool(paper.encloses(rect)).override_failure_message(str(rect)).is_true()
-	for part: Rect2 in [MonitorView.ART_RECT, MonitorView.KIND_RECT]:
-		(
-			assert_bool(MonitorView.CONTENT_RECT.encloses(part))
-			. override_failure_message(str(part))
-			. is_true()
-		)
-		assert_bool(part.intersects(MonitorView.TEXT_RECT)).is_false()
-	assert_bool(MonitorView.CONTENT_RECT.encloses(MonitorView.TEXT_RECT)).is_true()
+	# The bay at the paper's left (every mode), the right part beside it (x 615 to 893, centre
+	# 754) holding the store channel, the scan's text and the notice, clear of the bay.
+	var right: Rect2 = MonitorView.RIGHT_RECT
+	assert_bool(MonitorView.PAPER_RECT.encloses(MonitorView.BAY_RECT)).is_true()
+	assert_bool(MonitorView.PAPER_RECT.encloses(right)).is_true()
+	assert_float(right.position.x).is_greater_equal(MonitorView.BAY_RECT.end.x)
+	assert_float(right.get_center().x).is_equal(754.0)
+	for part: Rect2 in [MonitorView.CHANNEL_RECT, MonitorView.TEXT_RECT, MonitorView.NOTICE_RECT]:
+		assert_bool(right.encloses(part)).override_failure_message(str(part)).is_true()
 	# The count view's parts: on the paper, and apart but for the stamp over the to-go line.
 	var count_parts: Array[Rect2] = [
 		MonitorView.BAY_RECT,
 		MonitorView.LED_COUNT_RECT,
 		MonitorView.TO_GO_RECT,
-		MonitorView.TANK_RECT,
 	]
 	for index: int in range(count_parts.size()):
 		var part: Rect2 = count_parts[index]
@@ -132,20 +120,31 @@ func test_the_monitor_hangs_on_the_stage_clear_of_the_rest() -> void:
 	assert_bool(MonitorView.STAMP_RECT.intersects(MonitorView.TO_GO_RECT)).is_true()
 	assert_bool(MonitorView.PAPER_RECT.has_point(MonitorView.SUNBURST_CENTRE)).is_true()
 	assert_bool(MonitorView.LED_COUNT_RECT.has_point(MonitorView.SUNBURST_CENTRE)).is_true()
-	# In planning the store channel has the screen (the LED hidden at its compact place, for the
-	# impulse rack), and the monitor takes no clicks.
+	assert_float(MonitorView.SUNBURST_CENTRE.x).is_equal(right.get_center().x)
+	for part: Rect2 in [MonitorView.LED_COUNT_RECT, MonitorView.TO_GO_RECT, MonitorView.STAMP_RECT]:
+		assert_bool(right.encloses(part)).override_failure_message(str(part)).is_true()
+	# In planning the store channel has the right part (the LED hidden at its compact place) and
+	# the bay its place at the left, showing belt slot 1's item; the monitor takes no clicks.
 	assert_that(screen._led.get_global_rect()).is_equal(_on_stage(screen, ShiftStage.LED_RECT))
 	assert_bool(screen._led.visible).is_false()
 	assert_int(monitor.mode()).is_equal(MonitorView.Mode.CHANNEL)
+	assert_that(monitor.channel.get_global_rect()).is_equal(
+		_on_stage(screen, MonitorView.CHANNEL_RECT)
+	)
+	assert_bool(monitor.bay().is_visible_in_tree()).is_true()
+	assert_that(monitor.bay().get_global_rect()).is_equal(_on_stage(screen, MonitorView.BAY_RECT))
+	assert_bool(monitor.bay().is_planning()).is_true()
 	assert_int(monitor.mouse_filter).is_equal(Control.MOUSE_FILTER_IGNORE)
 
 
 ## Every card in data/cards, scanned in the hand and on the belt (with a short footer, then the
-## worst one): its art at ART_RECT, its kind, name, pays, tag line, rule text and step lines inside
-## the screen's content, none overlapping, the name and the rule whole; a short footer shows at
-## the largest size, the worst one folds into "+N more" on the smallest.
+## worst one): its art in the bay's bed, its kind on the bay's label (fitted), its name, pays, tag
+## line, rule text and step lines inside TEXT_RECT right of the bay, none overlapping, the name and
+## the rule whole; a short footer shows at the largest size, the worst one folds into "+N more" on
+## the smallest.
 func test_every_card_scan_fits_the_screen() -> void:
 	var monitor: MonitorView = await _monitor()
+	monitor.reduced_motion = func() -> bool: return true
 	var balance: BalanceDefinition = load(BALANCE) as BalanceDefinition
 	var worst: PackedStringArray = PackedStringArray()
 	var worst_fizzles: Array[bool] = []
@@ -184,136 +183,6 @@ func test_every_card_scan_fits_the_screen() -> void:
 	assert_int(2 * at_largest).is_greater(cards.size())
 
 
-## The count view at its fullest (mock-up count_up_86_v6_scan.html, on the paper): the bay, the
-## LED's digits, the to-go line and the tank at their rects over the sunburst on the whole paper;
-## every realistic total up to 999 (the widest three-digit one) and the simulator's largest, 1118,
-## shows at the largest digits size, a wide four-digit total (1000) and the longest digits take a
-## smaller one inside the digits' room; unpunched, the digits' ink with its outline and shadow
-## stays clear of the bay, the to-go line and the stamp (and of the tank for every three-digit
-## total), and at the count-up's largest punch inside the paper. The widest to-go texts fit their
-## line. The digits are gold with an ink outline, met or not. At the TOTAL nothing moves.
-func test_the_count_content_fits_at_the_largest_punch() -> void:
-	var monitor: MonitorView = await _monitor()
-	monitor.reduced_motion = func() -> bool: return true
-	var led: LedDisplay = monitor.led
-	led.start_count(WIDEST_QUOTA)
-	led.show_subtotal(9999, false)
-	await _frames(2)
-	assert_int(monitor.mode()).is_equal(MonitorView.Mode.COUNT)
-	assert_that(led.get_global_rect()).is_equal(MonitorView.LED_COUNT_RECT)
-	assert_vector(led.size).is_equal(LedDisplay.COUNT_SIZE)
-	assert_int(led.layout()).is_equal(LedDisplay.Layout.COUNT)
-	assert_bool(led.clip_contents).is_false()
-	var paper: Rect2 = MonitorView.PAPER_RECT
-	var bay: Rect2 = monitor.bay().get_global_rect()
-	var tank: Rect2 = monitor.tank().get_global_rect()
-	var to_go: Label = led.beat().to_go_label()
-	var stamp: MetStamp = led.beat().stamp()
-	assert_that(bay).is_equal(MonitorView.BAY_RECT)
-	assert_that(tank).is_equal(MonitorView.TANK_RECT)
-	assert_that(to_go.get_global_rect()).is_equal(MonitorView.TO_GO_RECT)
-	assert_that(stamp.get_global_rect()).is_equal(MonitorView.STAMP_RECT)
-	assert_that(monitor.sunburst().get_global_rect()).is_equal(paper)
-	for part: Control in [monitor.bay(), monitor.tank(), monitor.sunburst()]:
-		assert_bool(part.is_visible_in_tree()).override_failure_message(part.name).is_true()
-	# The to-go line shows while short of the quota only (past it, the stamp's place).
-	assert_bool(to_go.is_visible_in_tree()).is_false()
-	led.show_subtotal(1, false)
-	assert_bool(to_go.is_visible_in_tree()).is_true()
-	led.show_subtotal(9999, false)
-	# The z-order: the sunburst behind the bay and the tank, the LED over them; over the LED the
-	# stickers, then the chips, then the bay's tag (#86 round 7).
-	assert_int(monitor.sunburst().get_index()).is_less(monitor.bay().get_parent().get_index())
-	assert_int(monitor.bay().get_parent().get_index()).is_less(led.get_index())
-	var tag: BayTag = monitor.bay().tag()
-	var top: Control = tag.get_parent() as Control
-	assert_object(monitor.chips().get_parent()).is_same(top)
-	assert_int(top.get_index()).is_greater(led.get_index())
-	var stickers: Control = monitor.bay().sticker_parent
-	assert_int(stickers.get_index()).is_less(monitor.chips().get_index())
-	assert_int(monitor.chips().get_index()).is_less(tag.get_index())
-	# The widest plausible tag and a chip mid-flight stay on the paper.
-	tag.show_value(999, true)
-	var tag_rect: Rect2 = tag.get_global_rect().merge(
-		Rect2(tag.get_global_rect().position + BayTag.STRING_RECT.position, BayTag.STRING_RECT.size)
-	)
-	assert_bool(paper.encloses(tag_rect)).override_failure_message(str(tag_rect)).is_true()
-	monitor.chips().make_tween = func() -> Tween:
-		var paused: Tween = monitor.create_tween()
-		paused.pause()
-		return paused
-	monitor.chips().fly(999, tag.send_point(), MonitorView.NUMBER_POINT, 0.2)
-	for progress: float in [0.0, 0.5, 1.0]:
-		monitor.chips()._chips[0].progress = progress
-		for chip: Rect2 in monitor.chips().chip_rects():
-			assert_bool(paper.encloses(chip)).override_failure_message(str(chip)).is_true()
-	monitor.chips().clear()
-	tag.hide_tag()
-	stamp.show_static()
-	var stamped: Rect2 = stamp.drawn_rect()
-	assert_bool(paper.encloses(stamped)).override_failure_message(str(stamped)).is_true()
-	stamp.hide_stamp()
-	# The longest digits shrink into the room; every realistic total keeps the largest size.
-	var digits: Label = led.digits_label()
-	assert_str(digits.text).is_equal(LONGEST_DIGITS)
-	assert_int(digits.get_theme_font_size("font_size")).is_less(LedDisplay.COUNT_DIGITS_SIZES[0])
-	var tuning: CountUpTuning = load(CountUp.TUNING_PATH)
-	var largest: float = maxf(
-		CountUp.SUBTOTAL_PUNCH + CountUp.SUBTOTAL_PUNCH_MAX + tuning.passes_best_punch,
-		CountUp.TOTAL_PUNCH
-	)
-	for amount: int in [WIDEST_TOTAL, LARGEST_TOTAL, WIDE_FOUR_DIGITS, 9999]:
-		led.show_subtotal(amount, false)
-		await _frames(1)
-		var text: String = digits.text
-		var font_size: int = digits.get_theme_font_size("font_size")
-		var at_largest: bool = amount == WIDEST_TOTAL or amount == LARGEST_TOTAL
-		var size_message: String = "%s at %d" % [text, font_size]
-		(
-			assert_bool(font_size == LedDisplay.COUNT_DIGITS_SIZES[0])
-			. override_failure_message(size_message)
-			. is_equal(at_largest)
-		)
-		var ink: Rect2 = led.digits_text_rect()
-		assert_float(ink.size.x).is_less_equal(LedDisplay.COUNT_DIGITS_RECT.size.x)
-		var outlined: Rect2 = ink.grow(LedDisplay.COUNT_OUTLINE)
-		var shadowed: Rect2 = outlined.merge(
-			Rect2(outlined.position + Vector2.ONE * LedDisplay.COUNT_SHADOW, outlined.size)
-		)
-		prints("#86 count digits", text, font_size, ":", ink, "with shadow", shadowed)
-		assert_bool(paper.encloses(shadowed)).override_failure_message(text + str(ink)).is_true()
-		var clear_of: Array[Rect2] = [bay, MonitorView.TO_GO_RECT, stamped]
-		if amount < 1000:
-			clear_of.append(monitor.tank().sign_rect())
-		for rect: Rect2 in clear_of:
-			var message: String = "%s %s over %s" % [text, shadowed, rect]
-			assert_bool(shadowed.intersects(rect)).override_failure_message(message).is_false()
-		digits.scale = Vector2(largest, largest)
-		var punched: Rect2 = led.digits_text_rect()
-		prints("#86 count digits", text, font_size, "at", largest, ":", punched, "paper", paper)
-		var punched_message: String = "%s %s" % [text, punched]
-		assert_bool(paper.encloses(punched)).override_failure_message(punched_message).is_true()
-		digits.scale = Vector2.ONE
-	# The widest to-go texts fit their line: short of the quota, on it and past it.
-	for amount: int in [WIDEST_QUOTA - 1, WIDEST_QUOTA, 9999]:
-		led.show_subtotal(amount if amount != WIDEST_QUOTA - 1 else 1, amount >= WIDEST_QUOTA)
-		var message: String = to_go.text
-		assert_float(_text_width(to_go)).override_failure_message(message).is_less_equal(
-			MonitorView.TO_GO_RECT.size.x
-		)
-	# Gold with an ink outline, met or not; no green.
-	led.show_subtotal(WIDEST_QUOTA, true)
-	assert_that(digits.get_theme_color("font_color")).is_equal(Palette.GOLD)
-	assert_that(digits.get_theme_color("font_outline_color")).is_equal(Palette.INK)
-	# The TOTAL keeps the layout; met, the to-go line is off (the stamp replaces it).
-	led.show_total()
-	await _frames(1)
-	assert_that(led.get_global_rect()).is_equal(MonitorView.LED_COUNT_RECT)
-	for part: Control in [monitor.bay(), monitor.tank(), monitor.sunburst()]:
-		assert_bool(part.is_visible_in_tree()).override_failure_message(part.name).is_true()
-	assert_bool(to_go.visible).is_false()
-
-
 ## On the real screen: the store channel in planning; a plain hover on a belt item leaves it on the
 ## channel; the held hover fills it with the item (its art, name, rule, pays and step lines worded
 ## as the receipt words them, no popup); a notice takes the screen while it lasts, then the scan
@@ -323,6 +192,8 @@ func test_a_held_scan_fills_the_monitor_then_it_goes_back_to_the_channel() -> vo
 	var screen: ShiftScreen = await _screen()
 	await _place(screen, ["milk", "bread", "coffee"])
 	var monitor: MonitorView = screen._monitor
+	# The held item in the bay at once (monitor_bay_test covers the swaps' motion).
+	monitor.reduced_motion = func() -> bool: return true
 	assert_int(monitor.mode()).is_equal(MonitorView.Mode.CHANNEL)
 	var view: ItemView = screen._row_views[2] as ItemView
 	await _hover(screen, view)
@@ -464,7 +335,7 @@ func test_the_count_up_shows_each_beat_on_the_monitor() -> void:
 	assert_array(pops).is_equal([true])
 	assert_that(led.digits_label().get_theme_color("font_color")).is_equal(Palette.GOLD)
 	# Met (#86 v6): the light green, the sunburst gold; once the tab is in, the stamp over the
-	# line and the "+€N" tab on the tank, both on the paper, and the monitor back at rest.
+	# line and the "+€N" tab beside it, both on the paper, and the monitor back at rest.
 	await get_tree().create_timer(OverTab.DELAY_S + OverTab.POP_S + 0.6).timeout
 	var paper: Rect2 = _on_stage(screen, MonitorView.PAPER_RECT)
 	assert_that(monitor.bay().light_colour()).is_equal(ScannerBay.LIGHT_MET_COLOR)
@@ -476,7 +347,7 @@ func test_the_count_up_shows_each_beat_on_the_monitor() -> void:
 	assert_bool(tab.is_visible_in_tree()).is_true()
 	assert_str(tab.label().text).is_equal(LedBeat.OVER_TEXT % (total - quota))
 	assert_bool(paper.encloses(tab.get_global_rect())).is_true()
-	assert_bool(monitor.tank().get_global_rect().intersects(tab.get_global_rect())).is_true()
+	_assert_tab_beside_stamp(tab, led.beat().stamp())
 	assert_vector(monitor.position).is_equal(ShiftStage.MONITOR_RECT.position)
 	# The next shift's planning: the store channel, the LED blank, hidden and compact.
 	screen._on_reward_skipped()
@@ -496,7 +367,7 @@ func test_the_count_up_shows_each_beat_on_the_monitor() -> void:
 ## A last payout crossing the quota (met with the TOTAL, D5): through the held breath the number is
 ## past the quota yet the to-go line stays hidden (never "+€N" under the number before the stamp)
 ## and the stamp is not in yet. At the TOTAL the SPEND MET stamp lands at STAMP_RECT on the paper
-## in place of the line, the "+€N" tab sits on the tank, and both stay through the dessert.
+## in place of the line, the "+€N" tab sits beside it, and both stay through the dessert.
 func test_a_total_met_on_the_last_payout_shows_the_stamp_and_the_tab_not_the_line() -> void:
 	var screen: ShiftScreen = await _screen()
 	await _place(screen, PASSING_ROW)
@@ -545,7 +416,7 @@ func test_a_total_met_on_the_last_payout_shows_the_stamp_and_the_tab_not_the_lin
 
 
 ## The met TOTAL on screen: the stamp at STAMP_RECT on the paper, the to-go line hidden, the tab
-## saying `over` on the tank, on the paper.
+## saying `over` beside the stamp, on the paper.
 func _assert_stamp_and_tab(screen: ShiftScreen, over: int) -> void:
 	var origin: Vector2 = screen._stage.get_global_rect().position
 	var paper: Rect2 = Rect2(origin + MonitorView.PAPER_RECT.position, MonitorView.PAPER_RECT.size)
@@ -562,16 +433,44 @@ func _assert_stamp_and_tab(screen: ShiftScreen, over: int) -> void:
 	assert_bool(tab.is_visible_in_tree()).is_true()
 	assert_str(tab.label().text).is_equal(LedBeat.OVER_TEXT % over)
 	assert_bool(paper.encloses(tab.get_global_rect())).is_true()
-	var tank: Rect2 = screen._monitor.tank().get_global_rect()
-	assert_bool(tank.intersects(tab.get_global_rect())).is_true()
+	_assert_tab_beside_stamp(tab, stamp)
+
+
+## The "+€N" tab beside the stamp, one row under the number: its drawn rect (tilted) right of the
+## stamp's, not over it, both on the paper, the two centred together under the group (on x 754,
+## within 20 px: the tab's width follows its amount).
+func _assert_tab_beside_stamp(tab: OverTab, stamp: MetStamp) -> void:
+	var stamp_rect: Rect2 = stamp.drawn_rect()
+	var tab_rect: Rect2 = _tilted_rect(tab)
+	var message: String = "tab %s, stamp %s" % [tab_rect, stamp_rect]
+	assert_bool(tab_rect.intersects(stamp_rect)).override_failure_message(message).is_false()
+	assert_float(tab_rect.position.x).override_failure_message(message).is_greater(
+		stamp_rect.end.x - 1.0
+	)
+	var origin: Vector2 = tab.get_global_rect().position - OverTab.POSITION
+	var paper: Rect2 = Rect2(origin + MonitorView.PAPER_RECT.position, MonitorView.PAPER_RECT.size)
+	assert_bool(paper.encloses(tab_rect)).override_failure_message(message).is_true()
+	var row_centre: float = stamp_rect.merge(tab_rect).get_center().x - origin.x
+	assert_float(row_centre).override_failure_message(message).is_equal_approx(754.0, 20.0)
+
+
+## A control's rect as drawn (global), with its rotation about its pivot.
+static func _tilted_rect(control: Control) -> Rect2:
+	var transform: Transform2D = control.get_global_transform()
+	var rect: Rect2 = Rect2(transform.origin, Vector2.ZERO)
+	var size: Vector2 = control.size
+	for corner: Vector2 in [Vector2.ZERO, Vector2(size.x, 0), size, Vector2(0, size.y)]:
+		rect = rect.expand(transform * corner)
+	return rect
 
 
 ## The quota met on the monitor (show_met, CountUp's quota_met; #86 v6), with its pop: the bay's
-## light green and its sticker knocked off, the sunburst gold and boosted, the tank bursting and
-## the stage's TankBurst out (the monitor shaking), all in real time; the stamp slams after
-## STAMP_DELAY_S (another shake as it lands), the "+€N" tab comes in after OverTab.DELAY_S on the
-## tank, on the paper, turned. A payout pours (on the LED's first rise after its beat) from the
-## landing sticker, and once met spurts and punches the tab. A new count takes it all off.
+## light green and its sticker knocked off, the sunburst gold and boosted, the stage's TankBurst
+## out of the € (the monitor shaking), all in real time; the stamp slams after STAMP_DELAY_S
+## (another shake as it lands), the "+€N" tab comes in after OverTab.DELAY_S beside the stamp, on
+## the paper, turned. A payout's chip flies into the digits (on the LED's first rise after its
+## beat) and, as it lands, the gold pours from the gap before the € into the €; once met it spurts
+## and punches the tab. A new count takes it all off.
 func test_the_quota_met_bursts_on_the_monitor() -> void:
 	var stage: ShiftStage = await _stage()
 	var monitor: MonitorView = stage.monitor
@@ -601,7 +500,7 @@ func test_the_quota_met_bursts_on_the_monitor() -> void:
 	assert_object(bay.landing_sticker()).is_null()
 	assert_bool(monitor.sunburst().is_met()).is_true()
 	assert_float(monitor.sunburst().turn_speed()).is_greater(Sunburst.TURN)
-	assert_bool(monitor.tank().is_bursting()).is_true()
+	assert_float(monitor.sunburst().radius()).is_equal(Sunburst.MET_RADIUS)
 	assert_bool(burst.is_active()).is_true()
 	var stamp: MetStamp = monitor.led.beat().stamp()
 	assert_bool(stamp.is_showing()).is_false()
@@ -630,7 +529,7 @@ func test_the_quota_met_bursts_on_the_monitor() -> void:
 	assert_float(tab.size.y).is_equal(OverTab.HEIGHT)
 	assert_float(tab.size.x).is_greater(OverTab.PAD_X * 2.0 + 20.0)
 	assert_bool(paper.encloses(tab.get_global_rect())).is_true()
-	assert_bool(monitor.tank().get_global_rect().intersects(tab.get_global_rect())).is_true()
+	_assert_tab_beside_stamp(tab, stamp)
 	assert_bool(paper.encloses(stamp.drawn_rect())).is_true()
 	# A later payout: a chip, then a pour, a spurt (a jet) and the tab punched.
 	burst.clear()
@@ -641,7 +540,7 @@ func test_the_quota_met_bursts_on_the_monitor() -> void:
 	burst.advance(0.001)
 	assert_array(burst.drawn_rects(TankBurst.Layer.POUR)).is_not_empty()
 	assert_bool(burst._jets.is_empty()).is_false()
-	assert_float(await _largest_scale(tab, EuroTank.LAG_S + 0.3)).is_greater(1.0)
+	assert_float(await _largest_scale(tab, TankBurst.POUR_S + 0.3)).is_greater(1.0)
 	# A new count: everything off.
 	monitor.led.start_count(40)
 	assert_bool(tab.is_showing()).is_false()
@@ -664,11 +563,9 @@ func test_reduced_motion_meets_the_quota_at_once() -> void:
 	var count_up: CountUp = _follow(monitor)
 	count_up.beat_started.emit(_payout_beat(45), _payout_step(45), "", null, 1)
 	monitor.led.show_subtotal(45, false)
-	# No chip, no pour, no lag: the tank on the reading at once.
+	# No chip, no pour.
 	assert_array(monitor.chips().chip_rects()).is_empty()
 	assert_array(burst.drawn_rects(TankBurst.Layer.POUR)).is_empty()
-	assert_int(monitor.tank().pending()).is_equal(0)
-	assert_float(monitor.tank().level()).is_equal(1.0)
 	monitor.led.show_subtotal(45, true)
 	count_up.quota_met.emit(true)
 	var stamp: MetStamp = monitor.led.beat().stamp()
@@ -677,7 +574,6 @@ func test_reduced_motion_meets_the_quota_at_once() -> void:
 	assert_bool(stamp.is_slamming()).is_false()
 	assert_bool(tab.is_showing()).is_true()
 	assert_vector(tab.scale).is_equal(Vector2.ONE)
-	assert_bool(monitor.tank().is_bursting()).is_false()
 	assert_array(burst.drawn_rects(TankBurst.Layer.PARTICLES)).is_empty()
 	assert_int(burst._splashes.size()).is_equal(TankBurst.STILL_SPLASHES.size())
 	# The still splashes stay drawn but take no frames: the layer's clock stands still.
@@ -700,7 +596,6 @@ func test_reduced_motion_meets_the_quota_at_once() -> void:
 	assert_bool(stamp.is_showing()).is_true()
 	assert_bool(stamp.is_slamming()).is_false()
 	assert_bool(tab.is_showing()).is_true()
-	assert_bool(monitor.tank().is_bursting()).is_false()
 	assert_bool(burst.is_active()).is_false()
 
 
@@ -754,7 +649,7 @@ func test_the_bay_takes_the_monitors_motion_and_tweens() -> void:
 	bay.land(ScannerBay.landing_spec(beat, base))
 	assert_int(made.size()).is_equal(made_before + 4)
 	assert_float(bay.landing_sticker().scale.x).is_greater(1.0)
-	monitor.chips().fly(3, bay.tag().send_point(), MonitorView.NUMBER_POINT, 0.2)
+	monitor.chips().fly(3, bay.tag().send_point(), monitor.led.digits_text_rect().get_center(), 0.2)
 	assert_int(made.size()).is_equal(made_before + 5)
 	# On the real screen the LED's beat takes the count-up's.
 	var screen: ShiftScreen = await _screen()
@@ -829,26 +724,38 @@ func test_the_shade_leaves_its_hole_unshaded() -> void:
 # --- Helpers ---------------------------------------------------------------------------------
 
 
-## The scan inside the screen's content: every text label shown and the art, the scan's own
-## parts (its art, kind, name, pays, tag line and rule) apart, the name on one row and the rule
-## whole.
+## The scan on the screen: the art in the bay's bed (at rest: the monitor here has reduced
+## motion), its kind on the bay's label, whole; every other text label shown inside TEXT_RECT, the
+## bay's inside BAY_RECT; the scan's own labels (name, pays, tag line and rule) apart, the name on
+## one row and the rule whole.
 func _assert_scan_fits(monitor: MonitorView, definition: CardDefinition, message: String) -> void:
 	assert_int(monitor.mode()).override_failure_message(message).is_equal(MonitorView.Mode.SCAN)
-	var content: Rect2 = MonitorView.CONTENT_RECT
+	var bay: ScannerBay = monitor.bay()
 	var art: TextureRect = monitor.scan_art()
+	assert_object(art).override_failure_message(message).is_not_null()
 	assert_that(art.get_global_rect()).override_failure_message(message).is_equal(
-		MonitorView.ART_RECT
+		Rect2(
+			MonitorView.BAY_RECT.position + ScannerBay.ART_RECT.position, ScannerBay.ART_RECT.size
+		)
 	)
 	assert_object(art.texture).is_same(ArtStyle.item_sprite(definition))
+	assert_bool(bay.shows_scan()).override_failure_message(message).is_true()
+	assert_str(bay.queue().text()).is_equal(BayQueue.SCAN_TEXT)
+	var kind: Label = bay.name_label()
+	assert_str(kind.text).is_equal(ScannerBay.kind_text(definition))
+	assert_float(_text_width(kind)).override_failure_message(message).is_less_equal(kind.size.x)
 	for label: Label in monitor.shown_labels():
 		var rect: Rect2 = label.get_global_rect()
+		var room: Rect2 = (
+			MonitorView.BAY_RECT if bay.is_ancestor_of(label) else MonitorView.TEXT_RECT
+		)
 		(
-			assert_bool(content.encloses(rect))
+			assert_bool(room.encloses(rect))
 			. override_failure_message("%s: '%s' %s" % [message, label.text, rect])
 			. is_true()
 		)
-	var own: Array[Control] = [art]
-	for child: Node in art.get_parent().get_children():
+	var own: Array[Control] = [bay]
+	for child: Node in monitor._scan_view.get_children():
 		if child is Label:
 			own.append(child as Control)
 	for index: int in range(own.size()):

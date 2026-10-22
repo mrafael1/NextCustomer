@@ -730,7 +730,7 @@ func _assert_met(screen: ShiftScreen, met: bool) -> void:
 	assert_str(screen._led.caption_label().text).is_equal(LedDisplay.TOTAL_TEXT)
 	assert_bool(screen._count_up._met).is_equal(met)
 	assert_that(color).is_equal(LedDisplay.COUNT_DIGITS_COLOR)
-	assert_bool(screen._monitor.tank().is_overflowing()).is_equal(met)
+	assert_bool(screen._monitor.sunburst().is_met()).is_equal(met)
 
 
 ## Plays `result` on the screen's row against `quota`, tapped twice (the count and the dessert
@@ -974,7 +974,7 @@ func test_the_burst_runs_in_real_time_through_the_quota_hold() -> void:
 	assert_float(count_up._hit_stop_left_ms).is_greater(0.0)
 	var held: int = count_up._shown_subtotal
 	var earlier: Array[Rect2] = burst.drawn_rects(TankBurst.Layer.PARTICLES)
-	assert_bool(monitor.tank().is_bursting()).is_true()
+	assert_bool(burst.is_active()).is_true()
 	assert_that(monitor.bay().light_colour()).is_equal(ScannerBay.LIGHT_MET_COLOR)
 	var shaken: bool = false
 	var hold_start: int = Time.get_ticks_msec()

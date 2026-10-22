@@ -77,15 +77,19 @@ func test_the_stage_is_laid_out_without_overlaps() -> void:
 		assert_bool(led.encloses(rect)).override_failure_message(str(rect)).is_true()
 	_assert_digits_clear(screen)
 	assert_bool(ShiftStage.NOTICE_RECT.intersects(ShiftStage.LED_RECT)).is_false()
-	# In planning the store channel has the screen (the LED hidden at its place, for the rack),
-	# and a notice takes the channel's place at the screen's middle.
+	# In planning the store channel has the screen right of the scanner bay (the LED hidden at its
+	# place), and a notice takes the channel's place in the right part's middle.
 	assert_bool(screen._led.visible).is_false()
+	var bay: Rect2 = screen._monitor.bay().get_global_rect()
+	assert_that(bay).is_equal(_on_stage(screen, MonitorView.BAY_RECT))
 	var channel: Rect2 = screen._monitor.channel.get_global_rect()
-	assert_that(channel).is_equal(_on_stage(screen, MonitorView.CONTENT_RECT))
+	assert_that(channel).is_equal(_on_stage(screen, MonitorView.CHANNEL_RECT))
 	assert_bool(monitor_screen.encloses(channel)).is_true()
+	assert_bool(channel.intersects(bay)).is_false()
 	var notice: Rect2 = screen._notice_label.get_global_rect()
-	assert_that(notice).is_equal(_on_stage(screen, MonitorView.NOTICE_CHANNEL_RECT))
+	assert_that(notice).is_equal(_on_stage(screen, MonitorView.NOTICE_RECT))
 	assert_bool(monitor_screen.encloses(notice)).is_true()
+	assert_bool(notice.intersects(bay)).is_false()
 
 	# The register: the printer box on the counter top, the column under it; the receipt stands on
 	# the printer's slot.
@@ -694,7 +698,7 @@ func _assert_status_clear(screen: ShiftScreen) -> void:
 	var hand: Rect2 = screen._hand_box.get_global_rect()
 	var receipt: Rect2 = screen._receipt.get_global_rect()
 	var places: Dictionary[Control, Rect2] = {
-		screen._notice_label: MonitorView.NOTICE_CHANNEL_RECT,
+		screen._notice_label: MonitorView.NOTICE_RECT,
 		screen._led.digits_label(): ShiftStage.LED_RECT,
 		screen._led.quota_label(): ShiftStage.LED_RECT,
 	}

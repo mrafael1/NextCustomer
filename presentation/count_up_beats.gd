@@ -455,7 +455,9 @@ func _land_payout(beat: CountUpBeat, step: ScoreStep, line: Control) -> void:
 				CountUp.SUBTOTAL_PUNCH
 				+ minf(beat.payout / 25.0, CountUp.SUBTOTAL_PUNCH_MAX)
 				+ beat.punch_boost
-			)
+			),
+			true,
+			_led.punch_room(step.subtotal)
 		)
 		if beat.rattle_px > 0.0:
 			_fx.shake(_rattle_target, beat.rattle_px)

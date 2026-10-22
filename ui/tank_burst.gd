@@ -1,21 +1,27 @@
 class_name TankBurst
 extends Control
-## The € tank's gold outside the monitor (#86 v6 scan count-up, mock-up
-## count_up_86_v6_scan.html's particles, coins, splashes, pour and spurts): a layer over the whole
-## stage (ShiftStage, just under the scan layer, so above the top bar), taking no clicks. It draws
-## on the art grid (ArtStyle.ART_SCALE px per art pixel) in Palette's gold, ink and paper:
-## - burst() (the quota met, with its pop): two gold jets out of the tank's top that rise past the
-##   top bar (cut at the stage's top), geyser drops, coins that arc out of the tank and rain from
-##   the monitor's foot onto the belt's top face (COIN_REST: they bounce, rest flat, blink and go),
-##   sparks round the monitor, gold splashes on its bezel that drip and blink out, and a shake of
-##   the monitor (BURST_SHAKE);
-## - pour() (each payout as its chip lands in the number, #86 round 7): POUR_MIN to POUR_MAX gold
-##   drops arc from the number into the tank's surface over POUR_S;
-## - spurt() (each payout once the quota is met, as its gold reaches the tank): a smaller jet,
-##   drops, coins and splashes;
-## - shake(): the monitor alone (the tank with it) shakes, never the stage.
-## Nothing it draws covers the monitor's paper (PAPER_RECT, following the shake) but the pour,
-## which crosses it on purpose; splashes stay on the bezel (MONITOR_RECT); everything stays on the
+## The count's gold outside the monitor (#86 v6 scan count-up, mock-up count_up_86_v6_scan.html's
+## particles, coins, splashes, pour and spurts; since the monitor bay follow-up, mock-up
+## monitor_bay_v1.html, they leave from the plain € after the number, LedDisplay.euro_label, which
+## replaced the € tank): a layer over the whole stage (ShiftStage, just under the scan layer, so
+## above the top bar), taking no clicks. It draws on the art grid (ArtStyle.ART_SCALE px per art
+## pixel) in Palette's gold, ink and paper:
+## - burst() (the quota met, with its pop): two gold jets out of the €'s top that rise past the top
+##   bar (cut at the stage's top), geyser drops flying up and to both sides, coins that arc out of
+##   the € (the monitor's right edge turns them back while they are beside it, COIN_EDGE) and rain
+##   from the monitor's foot
+##   onto the belt's top face (COIN_REST: they bounce, rest flat, blink and go), sparks round the
+##   monitor, gold splashes on its bezel that drip and blink out, and a shake of the monitor
+##   (BURST_SHAKE);
+## - pour() (each payout as its chip lands in the number, #86 round 7): POUR_MIN to POUR_MAX small
+##   gold drops hop from the gap before the € (pour_point) into the € over POUR_S;
+## - spurt() (each payout once the quota is met, as its gold reaches the €): a smaller jet, drops,
+##   coins and splashes;
+## - shake(): the monitor alone (the number and the € with it) shakes, never the stage.
+## The €'s own gold crosses the monitor's paper as it leaves the € (as in the mock-up): the pour,
+## the jets, the geyser drops and the arcing coins (a falling drop goes on reaching the paper: it
+## lands on the screen). The splashes stay on the bezel (MONITOR_RECT), cut round the paper
+## (PAPER_RECT, following the shake), and the sparks are spawned off it; everything stays on the
 ## stage. It all runs in real time (_process, advance()), so the count-up's hit-stops (the quota's
 ## hold) never freeze it. Reduced motion (`reduced_motion`) leaves out the jets, drops, coins,
 ## pour, spurts and shakes: the burst leaves STILL_SPLASHES on the bezel instead. Decor only.
@@ -88,13 +94,26 @@ const JET_SPURT_S := 0.4
 const SPURT_SPARKS := 6.0
 const SPURT_SPARK_S := 0.05
 ## The pour: POUR_MIN drops plus one per POUR_PER_EURO, up to POUR_MAX, POUR_STAGGER apart, each
-## over POUR_S on an arc of POUR_ARC art px.
+## over POUR_S on an arc of POUR_ARC art px, leaving up to POUR_FROM_SPREAD art px either side of
+## the pour point and landing up to POUR_TO_SPREAD either side of the €'s middle. A payout past the
+## quota spurts (and punches the "+€N" tab) as its pour lands, POUR_S after its chip.
 const POUR_MIN := 5
-const POUR_MAX := 14
+const POUR_MAX := 8
 const POUR_PER_EURO := 3.0
 const POUR_STAGGER := 0.012
-const POUR_S := EuroTank.LAG_S
-const POUR_ARC := Vector2(16, 22)
+const POUR_S := 0.2
+const POUR_ARC := Vector2(7, 10)
+const POUR_FROM_SPREAD := 0.5
+const POUR_TO_SPREAD := 1.5
+## A flying coin past COIN_EDGE art px inside the bezel's right edge, while within the bezel's
+## height, turns back, keeping COIN_EDGE_BOUNCE of its speed (the € sits near the paper's right
+## edge); above or below the monitor there is nothing to turn it.
+const COIN_EDGE := 8.0
+const COIN_EDGE_BOUNCE := 0.6
+## The pour leaves POUR_LIFT px over the digits' ink, in the gap before the € (pour_point); it
+## lands EURO_SURFACE px (scaled with a punch) under the €'s top (euro_surface).
+const POUR_LIFT := 4.0
+const EURO_SURFACE := 12.0
 const SPARK_LIFE := Vector2(0.5, 0.9)
 const SPARK_BLINK_HZ := 20.0
 ## The burst's shake of the monitor (px, seconds), and the shake's swing rates.
@@ -137,7 +156,8 @@ static var _textures: Dictionary[String, Texture2D] = {}
 ## Returns whether to reduce motion (the profile's setting); an empty Callable means no.
 var reduced_motion: Callable = Callable()
 
-var _tank: EuroTank
+## The LED whose € the gold leaves from (euro_top, euro_surface).
+var _euro: LedDisplay
 var _shake_target: Control
 ## The shake target's position at rest, and the shake's offset now (stage px).
 var _rest: Vector2 = Vector2.ZERO
@@ -234,10 +254,29 @@ func _init() -> void:
 	_random.seed = RANDOM_SEED
 
 
-## The tank the gold comes out of, and the control the shakes move (the monitor).
-func bind(tank: EuroTank, shake_target: Control) -> void:
-	_tank = tank
+## The LED whose € the gold comes out of, and the control the shakes move (the monitor).
+func bind(led: LedDisplay, shake_target: Control) -> void:
+	_euro = led
 	_shake_target = shake_target
+
+
+## Where `led`'s pour leaves (global): in the gap before its €, POUR_LIFT px over its digits' ink.
+static func pour_point(led: LedDisplay) -> Vector2:
+	var digits: Rect2 = led.digits_text_rect()
+	var euro: Rect2 = led.euro_text_rect()
+	return Vector2((digits.end.x + euro.position.x) / 2.0, digits.position.y - POUR_LIFT)
+
+
+## The top centre of `led`'s € (global), where the burst's jets, drops and coins leave.
+static func euro_top(led: LedDisplay) -> Vector2:
+	var euro: Rect2 = led.euro_text_rect()
+	return Vector2(euro.get_center().x, euro.position.y)
+
+
+## Where the pour lands (global): EURO_SURFACE px (scaled with a punch) under `led`'s €'s top.
+static func euro_surface(led: LedDisplay) -> Vector2:
+	var scale_y: float = led.euro_label().get_global_transform().get_scale().y
+	return euro_top(led) + Vector2(0.0, EURO_SURFACE * scale_y)
 
 
 ## The quota met with its pop (see the class comment); under reduced motion STILL_SPLASHES alone.
@@ -279,19 +318,19 @@ func spurt(amount: int, delay: float = 0.0) -> void:
 	queue_redraw()
 
 
-## A payout of `amount` euros pours from `from` (global: the number, MonitorView.POUR_POINT)
-## into the tank's surface, the drops landing where it is as they arrive.
+## A payout of `amount` euros pours from `from` (global: the gap before the €,
+## pour_point) into the €, the drops landing where it is as they arrive.
 func pour(from: Vector2, amount: int) -> void:
-	if _reduced() or _tank == null:
+	if _reduced() or _euro == null:
 		return
 	var start: Vector2 = _art_point(from)
 	var drops: int = mini(POUR_MAX, POUR_MIN + roundi(amount / POUR_PER_EURO))
 	for index: int in range(drops):
 		var drop: Pour = Pour.new()
 		drop.start = _time + index * POUR_STAGGER
-		drop.from = start + Vector2(_random.randf_range(-3.0, 3.0), 0.0)
+		drop.from = start + Vector2(_random.randf_range(-POUR_FROM_SPREAD, POUR_FROM_SPREAD), 0.0)
 		drop.arc = _random.randf_range(POUR_ARC.x, POUR_ARC.y)
-		drop.spread = _random.randf_range(-3.0, 3.0)
+		drop.spread = _random.randf_range(-POUR_TO_SPREAD, POUR_TO_SPREAD)
 		_pours.append(drop)
 	queue_redraw()
 
@@ -464,10 +503,10 @@ func _paint_splash(splash: Splash) -> void:
 	_blit(blob, splash.at.round() - Vector2(radius, radius), Layer.SPLASHES)
 
 
-## A jet out of the tank's top: it rises fast, holds, then sinks; ink-edged gold rows with a
-## light stripe and paper glints, a crown of blobs on top.
+## A jet out of the €'s top: it rises fast, holds, then sinks; ink-edged gold rows with a light
+## stripe and paper glints, a crown of blobs on top.
 func _paint_jet(jet: Jet) -> void:
-	if _tank == null:
+	if _euro == null:
 		return
 	var progress: float = (_time - jet.start) / jet.seconds
 	if progress < 0.0:
@@ -475,7 +514,7 @@ func _paint_jet(jet: Jet) -> void:
 	var rise: float = sin(minf(1.0, progress * 2.6) * PI / 2.0)
 	var sink: float = 1.0 if progress < 0.55 else 1.0 - (progress - 0.55) / 0.45
 	var tall: float = jet.height * rise * sink
-	var top: Vector2 = _art_point(_tank.top_point())
+	var top: Vector2 = _art_point(euro_top(_euro))
 	var quarter: float = maxf(1.0, jet.height / 4.0)
 	for row: int in range(ceili(tall)):
 		var y: float = top.y + 3.0 - row
@@ -498,13 +537,13 @@ func _paint_jet(jet: Jet) -> void:
 		_blit(_texture("blob%d" % radius), at - Vector2(radius, radius), Layer.PARTICLES)
 
 
-## A pour drop on its arc from the number to the tank's surface (where it is now).
+## A pour drop on its arc from the gap before the € into the € (where it is now).
 func _paint_pour(drop: Pour) -> void:
 	var along: float = (_time - drop.start) / POUR_S
-	if along < 0.0 or _tank == null:
+	if along < 0.0 or _euro == null:
 		return
-	var top: Vector2 = _art_point(_tank.top_point())
-	var to: Vector2 = Vector2(top.x + drop.spread, _art_point(_tank.surface_point()).y)
+	var top: Vector2 = _art_point(euro_top(_euro))
+	var to: Vector2 = Vector2(top.x + drop.spread, _art_point(euro_surface(_euro)).y)
 	var at: Vector2 = drop.from.lerp(to, along) - Vector2(0.0, sin(along * PI) * drop.arc)
 	at = at.round()
 	_fill(at + Vector2(-2, -1), Vector2(4, 4), INK, Layer.POUR)
@@ -557,8 +596,8 @@ func _blit(texture: Texture2D, at: Vector2, layer: Layer) -> void:
 			draw_texture_rect_region(texture, piece, source)
 
 
-## `rect` cut to `layer`'s bounds (the stage; the bezel for splashes), less the paper (but for the
-## pour): up to four pieces round it.
+## `rect` cut to `layer`'s bounds (the stage; the bezel for splashes, less the paper: up to four
+## pieces round it). The particles and the pour cross the paper.
 func _pieces(rect: Rect2, layer: Layer) -> Array[Rect2]:
 	var bound: Rect2 = STAGE_RECT
 	if layer == Layer.SPLASHES:
@@ -568,7 +607,7 @@ func _pieces(rect: Rect2, layer: Layer) -> Array[Rect2]:
 	if cut.size.x <= 0.0 or cut.size.y <= 0.0:
 		return pieces
 	var hole: Rect2 = Rect2(PAPER_RECT.position + _offset, PAPER_RECT.size)
-	if layer == Layer.POUR or not hole.intersects(cut):
+	if layer != Layer.SPLASHES or not hole.intersects(cut):
 		pieces.append(cut)
 		return pieces
 	if cut.position.y < hole.position.y:
@@ -622,15 +661,16 @@ func _run_emitters(delta: float) -> void:
 
 
 func _spawn(kind: int, power: float) -> void:
-	var top: Vector2 = _art_point(_tank.top_point()) if _tank != null else _bezel().get_center()
+	var top: Vector2 = _art_point(euro_top(_euro)) if _euro != null else _bezel().get_center()
 	match kind:
 		Kind.GEYSER:
 			var drop: Drop = Drop.new()
 			drop.at = top + Vector2(_random.randf_range(-5.0, 5.0), 2.0)
+			# Up and to both sides (the € sits near the monitor's right edge).
 			var sideways: float = (
-				(_random.randf() - 0.3) * 40.0
+				(_random.randf() - 0.55) * 40.0
 				if power < 0.9
-				else (_random.randf() - 0.7) * 90.0 * power
+				else (_random.randf() - 0.6) * 90.0 * power
 			)
 			drop.velocity = Vector2(sideways, -(95.0 + _random.randf() * 110.0) * power)
 			drop.life = 3.0
@@ -642,13 +682,8 @@ func _spawn(kind: int, power: float) -> void:
 			_spawn_splash(power)
 		Kind.COIN_ARC:
 			var arc: Coin = _new_coin(top + Vector2(_random.randf_range(-4.0, 4.0), 0.0))
-			var side: float = 1.0 if _random.randf() < 0.7 else -1.0
 			arc.velocity = Vector2(
-				(
-					25.0 + _random.randf() * 45.0
-					if power < 0.9
-					else side * (40.0 + _random.randf() * 80.0)
-				),
+				(_random.randf() - 0.6) * 60.0 if power < 0.9 else (_random.randf() - 0.58) * 150.0,
 				-(110.0 + _random.randf() * 80.0) * power
 			)
 		Kind.COIN_RAIN:
@@ -657,7 +692,7 @@ func _spawn(kind: int, power: float) -> void:
 				bezel.position.x + 10.0 + _random.randf() * (bezel.size.x - 20.0), bezel.end.y - 2.0
 			)
 			var rain: Coin = _new_coin(from)
-			rain.velocity = Vector2(_random.randf_range(-15.0, 15.0), 10.0 + _random.randf() * 50.0)
+			rain.velocity = Vector2(_random.randf_range(-18.0, 12.0), 10.0 + _random.randf() * 50.0)
 		Kind.SPARK:
 			_spawn_spark()
 
@@ -751,14 +786,20 @@ func _move_drops(delta: float) -> void:
 	_drops = kept
 
 
-## Coins fly, bounce on the belt's face and rest there, going REST_S after.
+## Coins fly (the monitor's right edge turning them back beside it), bounce on the belt's face
+## and rest there, going REST_S after.
 func _move_coins(delta: float) -> void:
+	var bezel: Rect2 = _bezel()
+	var edge: float = bezel.end.x - COIN_EDGE
 	var kept: Array[Coin] = []
 	for coin: Coin in _coins:
 		if coin.rest_at < 0.0:
 			coin.at += coin.velocity * delta
 			coin.velocity.y += GRAVITY * delta
 			coin.phase += delta * COIN_SPIN
+			var beside: bool = coin.at.y >= bezel.position.y and coin.at.y <= bezel.end.y
+			if beside and coin.at.x > edge and coin.velocity.x > 0.0:
+				coin.velocity.x = -coin.velocity.x * COIN_EDGE_BOUNCE
 			if coin.at.y >= coin.rest and coin.velocity.y > 0.0:
 				coin.bounces += 1
 				coin.velocity = Vector2(

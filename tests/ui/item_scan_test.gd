@@ -583,10 +583,15 @@ func _assert_scanned_on_monitor(screen: ShiftScreen, view: ItemView) -> void:
 	_assert_monitor_holds_its_text(screen)
 
 
-## Every text label the monitor's scan shows inside its screen's content, its rule text whole.
+## Every text label the monitor's scan shows inside its room: the bay's in the bay (BAY_RECT),
+## the others in the text column beside it (TEXT_RECT); its rule text whole.
 func _assert_monitor_holds_its_text(screen: ShiftScreen) -> void:
-	var content: Rect2 = _on_stage(screen, MonitorView.CONTENT_RECT)
+	var bay: ScannerBay = screen._monitor.bay()
 	for label: Label in screen._monitor.shown_labels():
+		var room: Rect2 = (
+			MonitorView.BAY_RECT if bay.is_ancestor_of(label) else MonitorView.TEXT_RECT
+		)
+		var content: Rect2 = _on_stage(screen, room)
 		var rect: Rect2 = label.get_global_rect()
 		(
 			assert_bool(content.encloses(rect))

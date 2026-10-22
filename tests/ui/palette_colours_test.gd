@@ -16,9 +16,9 @@ const PALETTE_SIZE := 67
 ## planning effects' pieces (#71, mock-up h1: PlanningLayer, RailStrip, EffectSticker, GiverBadge,
 ## PayTag, DenyStamp), the count-up's receipt chip (#86 v6, ReceiptFly) and its paper bag
 ## (PaperBag, which declares no colour: its art is drawn from the palette), the belt ride and the
-## giver sparks (BeltRide, GiverSparks), and the monitor's count view (ScannerBay, EuroTank,
-## MetStamp, Sunburst, OverTab) with the burst outside it (TankBurst). A class is checked
-## once its script exists, so each step of the adoption is covered as it lands.
+## giver sparks (BeltRide, GiverSparks), and the monitor's count view (ScannerBay, MetStamp,
+## Sunburst, OverTab) with the burst outside it (TankBurst). A class is checked once its script
+## exists, so each step of the adoption is covered as it lands.
 const SCRIPTS: Array[String] = [
 	"res://ui/palette.gd",
 	"res://presentation/art_style.gd",
@@ -50,7 +50,6 @@ const SCRIPTS: Array[String] = [
 	"res://ui/belt_ride.gd",
 	"res://ui/giver_sparks.gd",
 	"res://ui/scanner_bay.gd",
-	"res://ui/euro_tank.gd",
 	"res://ui/met_stamp.gd",
 	"res://ui/sunburst.gd",
 	"res://ui/over_tab.gd",

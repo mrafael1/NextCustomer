@@ -129,7 +129,8 @@ static func shake_px(passed: bool, intensity: CountUpIntensity, tuning: CountUpT
 func _slam(total: int, quota: int, reduced_motion: bool) -> Label:
 	_receipt.show_verdict(total, quota)
 	var target: Label = _led.digits_label()
-	target.modulate.a = 0.0
+	# The digits alone hide under the slam (self_modulate): the € after them stays.
+	target.self_modulate.a = 0.0
 	var slam: Label = CountUpMotion.text_label(
 		target.text, target.get_theme_color("font_color"), target.get_theme_font_size("font_size")
 	)
@@ -160,7 +161,7 @@ func _slam(total: int, quota: int, reduced_motion: bool) -> Label:
 		tween.tween_property(slam, "modulate:a", 1.0, seconds * 0.6)
 	await tween.finished
 	slam.queue_free()
-	target.modulate.a = 1.0
+	target.self_modulate.a = 1.0
 	return target
 
 

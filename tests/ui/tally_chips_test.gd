@@ -5,6 +5,9 @@ extends GdUnitTestSuite
 ## and dust run in real time and go; clear() drops a chip in flight without landing it.
 
 const STEP := 0.01
+## A chip's target: the count's digits' middle on the stage (about where the monitor's chips
+## land for a two-digit total, the monitor bay follow-up).
+const NUMBER := Vector2(730, 137)
 
 var _made: Array[Tween] = []
 
@@ -15,7 +18,7 @@ func before_test() -> void:
 
 func test_the_path_runs_from_the_tag_into_the_number() -> void:
 	var from: Vector2 = Vector2(600, 111)
-	var to: Vector2 = MonitorView.NUMBER_POINT
+	var to: Vector2 = NUMBER
 	var width: float = TallyChips.chip_width("+€10")
 	var start: Vector2 = from + Vector2(TallyChips.START_RIGHT - width / 2.0, 0.0)
 	assert_vector(TallyChips.chip_centre(start, to, 0.0)).is_equal(start)
@@ -33,7 +36,7 @@ func test_a_chip_lands_once_then_dusts() -> void:
 	var landings: Array[Array] = []
 	chips.landed.connect(func(amount: int, chip: int) -> void: landings.append([amount, chip]))
 	var from: Vector2 = Vector2(600, 111)
-	var to: Vector2 = MonitorView.NUMBER_POINT
+	var to: Vector2 = NUMBER
 	var id: int = chips.fly(10, from, to, 0.2)
 	var rects: Array[Rect2] = chips.chip_rects()
 	assert_int(rects.size()).is_equal(1)
@@ -59,7 +62,7 @@ func test_clear_drops_the_chips_without_landing() -> void:
 	var chips: TallyChips = _chips()
 	var landings: Array[int] = []
 	chips.landed.connect(func(amount: int, _chip: int) -> void: landings.append(amount))
-	chips.fly(5, Vector2(600, 111), MonitorView.NUMBER_POINT, 0.2)
+	chips.fly(5, Vector2(600, 111), NUMBER, 0.2)
 	_advance(0.1)
 	chips.clear()
 	_advance(0.3)

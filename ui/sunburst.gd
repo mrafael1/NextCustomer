@@ -1,20 +1,22 @@
 class_name Sunburst
 extends ColorRect
-## The sunburst behind the count view (#86 v6 scan count-up, mock-up count_up_86_v6_scan.html):
-## over the monitor's whole paper (MonitorView.PAPER_RECT), behind the scanner bay, the digits and
-## the € tank, cream and paper rays fan out from the digits' centre (MonitorView.SUNBURST_CENTRE)
-## and turn slowly; once the quota is met (set_met) they turn mustard light and pale and reach a
-## little further. boost() (the quota met, with its pop) spins them BOOST times faster, easing back
-## over BOOST_SECONDS. Drawn by a canvas shader (presentation/sunburst.gdshader) on the art's 2 px
-## grid. It turns in real time, so the count-up's hit-stops never freeze it; under reduced motion
-## (`reduced_motion`) it stands still. Decor only: it takes no clicks.
+## The sunburst behind the count view (#86 v6 scan count-up, mock-up count_up_86_v6_scan.html): over
+## the monitor's whole paper (MonitorView.PAPER_RECT), behind the scanner bay and the number and its
+## € (the monitor bay follow-up, mock-up monitor_bay_v1.html: bigger, centred on that group in the
+## paper right of the bay, the bay covering its left end), cream and paper rays fan out from
+## MonitorView.SUNBURST_CENTRE and turn slowly; once the quota is met (set_met) they turn mustard
+## light and pale and reach a little further. boost() (the quota met, with its pop) spins them BOOST
+## times faster, easing back over BOOST_SECONDS. Drawn by a canvas shader
+## (presentation/sunburst.gdshader) on the art's 2 px grid. It turns in real time, so the count-up's
+## hit-stops never freeze it; under reduced motion (`reduced_motion`) it stands still. Decor only:
+## it takes no clicks.
 
 const SHADER := preload("res://presentation/sunburst.gdshader")
 ## Half the number of rays (RAYS rays and RAYS gaps), the radius (MET_RADIUS once met), the
 ## ellipse's vertical squash and the sampling grid (px).
 const RAYS := 10
-const RADIUS := 120.0
-const MET_RADIUS := 136.0
+const RADIUS := 144.0
+const MET_RADIUS := 168.0
 const SQUASH := 1.15
 const PIXEL := 2.0
 ## Radians per second, and the boost: BOOST times as fast, easing back over BOOST_SECONDS.
