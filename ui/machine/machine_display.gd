@@ -12,7 +12,8 @@ extends Panel
 ## READING…, then SPEND €N ✓ THANK YOU! with the quota met (a BONUS visit: BONUS TICKET! until
 ## its stub is fed), PACKING YOUR ORDER… while the boxes come out, "3 PRIZES FROM <chute>", each
 ## reveal's rarity and prize, STAMP DAY's free stamp, and on the landing ENJOY!, UPGRADING…, the
-## landing's word with the cart count, the chute's REGULAR level and SEE YOU NEXT SHIFT.
+## landing's word with the cart count and SEE YOU NEXT SHIFT. A BOOSTED visit's receipt read says
+## so (BOOSTED_READ).
 ##
 ## Machine v2 (#77): at the chute wait a pressed key puts the display in its title mode
 ## (show_title): the chute's name in Pixelify 24 (paper, a 2 px teal-shade shadow, left), its sub
@@ -57,6 +58,8 @@ const RARITY_WORDS: Array[String] = ["COMMON", "RARE!", "LEGENDARY!!"]
 const READING := "READING…"
 const PACKING := "PACKING YOUR ORDER…"
 const SEE_YOU := "SEE YOU NEXT SHIFT"
+## A BOOSTED visit's receipt read sub line, after the quota (v0.47).
+const BOOSTED_READ := " · BOOSTED VISIT"
 ## A refused key's message (show_denied) shows this long, then the wait point's comes back.
 const DENIED_MS := 1200
 
@@ -316,13 +319,17 @@ func _intro_text(plan: MachinePlan, t: float) -> PackedStringArray:
 	return _read_text() if t < plan.read_end else PackedStringArray()
 
 
-## The receipt read: the spend thanked, the quota met (and the inspection passed).
+## The receipt read: the spend thanked, the quota met and the inspection passed; a BOOSTED visit
+## says BOOSTED VISIT in the inspection's place, so the line fits (the BONUS visit that follows
+## names the inspection).
 func _read_text() -> PackedStringArray:
 	var record: ShiftRecord = _record()
 	if record == null:
 		return PackedStringArray()
 	var met: String = "quota €%d met" % record.quota
-	if record.inspection != null:
+	if view.run.machine.is_boosted():
+		met += BOOSTED_READ
+	elif record.inspection != null:
 		met += " · %s passed" % record.inspection.display_name
 	return PackedStringArray([RewardMachineView.SPEND_LINE % record.total, met])
 
@@ -355,24 +362,13 @@ func _draw_text(plan: MachinePlan, t: float) -> PackedStringArray:
 
 
 ## The landing: ENJOY! while the prize flies, UPGRADING… while it glints, then the landing's word
-## and what it did (a bin: BINNED), then the chute's REGULAR level; the shift's last visit ends
-## on SEE YOU NEXT SHIFT.
+## and what it did (a bin: BINNED); the shift's last visit ends on SEE YOU NEXT SHIFT.
 func _landing_text(plan: MachinePlan, t: float) -> PackedStringArray:
-	var before: PackedStringArray = _before_punch(plan, t)
-	if not before.is_empty():
-		return before
+	if plan.kind == MachineVisit.Kind.STAMP_DAY:
+		return PackedStringArray(["ENJOY!", ""] if t < plan.land else [_rest[0], _toast()])
 	var split: float = plan.punch_end + (plan.end_at - plan.punch_end) / 2.0
 	if plan.next_visit == MachinePlan.NO_VISIT and t >= split:
 		return PackedStringArray([SEE_YOU, _end_sub(plan)])
-	return _regular_text()
-
-
-## The landing's lines before the punch (none after it).
-func _before_punch(plan: MachinePlan, t: float) -> PackedStringArray:
-	if plan.kind == MachineVisit.Kind.STAMP_DAY:
-		return PackedStringArray(["ENJOY!", ""] if t < plan.land else [_rest[0], _toast()])
-	if t >= plan.punch:
-		return PackedStringArray()
 	if plan.landing == MachinePlan.Landing.BIN:
 		return PackedStringArray(["BINNED ✕", "no prize this time"])
 	if t < plan.land:
@@ -397,25 +393,6 @@ func _toast() -> String:
 	if landing.replaced != null:
 		return "1 swapped out · cart %d/%d" % [landing.cart_after, limit]
 	return "cart %d/%d" % [landing.cart_after, limit]
-
-
-## The landed chute's REGULAR level and what it does next.
-func _regular_text() -> PackedStringArray:
-	var visit: MachineVisit = _landed_visit()
-	if visit == null or visit.chute < 0:
-		return PackedStringArray([_rest[0], ""])
-	var level: int = view.run.machine.level(visit.chute)
-	var top: int = view.run.machine.machine.max_level()
-	var line: String = "%s REGULAR %d/%d" % [ChuteKey.NAMES[visit.chute], level, top]
-	var sub: String = "no later visit uses it"
-	if visit.meter_rose:
-		var shares: String = view.odds_card.next_share_text(visit.chute)
-		sub = "next visit here draws better"
-		if not shares.is_empty():
-			sub = "next visit here: %s" % shares
-	elif level >= top:
-		sub = "max level"
-	return PackedStringArray([line, sub])
 
 
 func _end_sub(plan: MachinePlan) -> String:
@@ -447,13 +424,6 @@ func _record() -> ShiftRecord:
 	if view == null or view.run == null or view.run.history.is_empty():
 		return null
 	return view.run.history[-1]
-
-
-func _landed_visit() -> MachineVisit:
-	var record: ShiftRecord = _record()
-	if record == null or record.visits.is_empty():
-		return null
-	return record.visits[-1]
 
 
 func _chute_name() -> String:

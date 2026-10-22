@@ -390,7 +390,7 @@ func test_a_resume_at_the_pick_shows_the_draw_at_rest() -> void:
 			assert_bool(view.box_lane.gate_up(cell, t)).is_true()
 		if kind == MachineVisit.Kind.STAMP_DAY:
 			continue  # A stamp can't be binned.
-		plan.set_landing(MachinePlan.Landing.BIN, 1, false, MachinePlan.NO_VISIT)
+		plan.set_landing(MachinePlan.Landing.BIN, 1, MachinePlan.NO_VISIT)
 		var dropped: float = plan.press + PrizeTicket.BIN_S + 0.01
 		for ticket: PrizeTicket in tickets:
 			ticket.frame(dropped)

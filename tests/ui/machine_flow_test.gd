@@ -35,8 +35,8 @@ func after_test() -> void:
 
 ## The machine stands in the store (#77 machine v2): once the camera has glided to it, it shows at
 ## the stage's MACHINE_RECT, inside the stage, with no shade over the store (the receipt has been
-## fed: the stage's own is torn off); the keys sit in the machine, NEW ITEMS, COUPONS and REGISTER
-## lit and UPGRADES padlocked after shift 1.
+## fed: the stage's own is torn off); the keys sit in the machine, NEW ITEMS and COUPONS lit and
+## REGISTER and UPGRADES padlocked after shift 1 (v0.47: a Normal visit).
 func test_a_pass_opens_the_machine_inside_the_stage_beside_the_receipt() -> void:
 	var screen: ShiftScreen = await _passed_screen()
 	var view: RewardMachineView = screen._machine.view
@@ -59,7 +59,8 @@ func test_a_pass_opens_the_machine_inside_the_stage_beside_the_receipt() -> void
 		func(chute: int) -> int: return screen.run.machine.chute_info(screen.run, chute).state
 	)
 	var open: int = RewardMachine.ChuteState.OPEN
-	assert_array(states).is_equal([open, open, open, RewardMachine.ChuteState.LOCKED_SHIFT])
+	var unlit: int = RewardMachine.ChuteState.UNLIT
+	assert_array(states).is_equal([open, open, unlit, unlit])  # v0.47: a Normal visit.
 	assert_array(view.tickets).is_empty()
 
 
@@ -202,7 +203,7 @@ func test_a_pick_before_another_visit_keeps_the_belt_and_counts_the_cart() -> vo
 ## Every resume frame of build spec 4.3, each on a new screen over a run saved at that point:
 ## TICKET, BONUS and STAMP DAY at their wait points (the receipt already fed, no copy in the slot;
 ## the head stamp at rest or none; the display's wait lines; the slip's "?" lines, or the chute's
-## ticked and PACKED; the saved meter levels, not punching; the keys from chute_info, only the
+## ticked and PACKED; the keys from chute_info, only the
 ## chosen one lit once picking, REGISTER's SEE ODDS tab on STAMP DAY; the odds card closed; an
 ## empty belt, or the prizes open in their cells with their tabs), armed at once; a run saved at
 ## SCORED starts the next shift with the machine closed.
@@ -292,12 +293,9 @@ func _assert_resume_frame(run: RunState, kind: int, picking: bool) -> void:
 		assert_bool(view.slip.is_ticked(index - 2)).is_equal(picking)
 	if picking and kind != MachineVisit.Kind.STAMP_DAY:
 		assert_bool(view.slip.is_packed()).override_failure_message(where).is_true()
-	# The meters at their saved levels, still; the keys from chute_info.
+	# The keys from chute_info.
 	var visit: MachineVisit = resumed.machine.current_visit()
 	for chute: int in RewardMachine.CHUTES:
-		var meter: PunchMeter = view.meters[chute]
-		assert_int(meter.shown_level()).is_equal(resumed.machine.level(chute))
-		assert_bool(meter.is_punching()).is_false()
 		var info: MachineChuteInfo = resumed.machine.chute_info(resumed, chute)
 		var key: ChuteKey = view.keys[chute]
 		assert_int(key.state).is_equal(info.state)

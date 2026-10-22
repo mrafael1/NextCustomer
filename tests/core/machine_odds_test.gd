@@ -85,12 +85,12 @@ func test_odds_add_up_and_use_no_rng() -> void:
 	var rng: RandomNumberGenerator = RandomNumberGenerator.new()
 	rng.seed = 67
 	var state_before: int = rng.state
-	run.history.append(ShiftRecord.new(1, 10, 20))
-	for level: int in range(machine.max_level() + 1):
+	for shift_number: int in range(1, run.shift_count()):
+		run.history = [ShiftRecord.new(shift_number, 10, 20)]
 		var reward_machine: RewardMachine = RewardMachine.new(machine, rng)
-		reward_machine.levels.fill(level)
 		for chute: int in RewardMachine.CHUTES:
-			assert_object(reward_machine.chute_info(run, chute).odds).is_not_null()
+			var odds: MachineOddsCard = reward_machine.chute_info(run, chute).odds
+			assert_int(odds.level).is_equal(machine.odds_level_after(shift_number))
 	assert_int(rng.state).is_equal(state_before)
 
 

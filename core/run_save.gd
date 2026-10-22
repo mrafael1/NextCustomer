@@ -21,9 +21,10 @@ extends RefCounted
 ## deck, so it means nothing after the checkout).
 
 ## The run save's format version. Raise it when the saved form changes. Only this version is
-## read: an older save (version 1, from before the machine) is refused, so SaveService keeps it
-## as a .bad backup and a new run starts.
-const FORMAT_VERSION := 2
+## read: an older save (version 1, from before the machine; version 2, with the machine's
+## Regular levels, before v0.47's two machine states) is refused, so SaveService keeps it as a
+## .bad backup and a new run starts.
+const FORMAT_VERSION := 3
 ## The save points, and their names in the saved form (the run_resume event uses them too).
 const SAVE_POINTS: Array[RunState.Phase] = [
 	RunState.Phase.PLANNING,
@@ -272,13 +273,12 @@ static func _phase_fits(restored: RunState) -> bool:
 		ok = ok and (inspected or extra) and not record.visits.is_empty()
 	elif visit.kind == MachineVisit.Kind.TICKET:
 		ok = ok and record.visits.is_empty()
+	# A BOOSTED visit is a boosted shift's ticket (MachineVisit checked the kind).
+	ok = ok and (not visit.boosted or machine.machine.is_boosted_shift(record.shift))
 	if restored.phase == RunState.Phase.MACHINE_CHOOSE:
 		return ok
-	match visit.chute:
-		RewardMachine.Chute.UPGRADES:
-			ok = ok and machine.machine.upgrades_open_shifts.has(record.shift)
-		RewardMachine.Chute.REGISTER:
-			ok = ok and picked < machine.machine.register_cap
+	if visit.chute == RewardMachine.Chute.REGISTER:
+		ok = ok and picked < machine.machine.register_cap
 	return ok
 
 

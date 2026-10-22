@@ -18,8 +18,8 @@ var kind: Kind = Kind.TICKET
 var chute: int = NO_CHUTE
 ## BONUS: the inspection id it was earned by, or "" for a bonus extra shift.
 var why: String = ""
-## The chute's Regular level the prizes were drawn at.
-var level_before: int = 0
+## TICKET only: a BOOSTED visit (REGISTER and UPGRADES lit; v0.47), decided when it starts.
+var boosted: bool = false
 ## The prizes in reveal order (rarity ascending, drop order within a rarity).
 var prizes: Array[MachinePrize] = []
 ## The reveal index of each drop, in drop order.
@@ -31,7 +31,6 @@ var binned: bool = false
 var replaced: CardDefinition
 ## UPGRADES: [instance_id, from card id, to card id] per upgraded copy.
 var upgraded: Array = []
-var meter_rose: bool = false
 ## The draw held its chute's guarantee.
 var guarantee_held: bool = false
 ## STAMP DAY only: the REGISTER odds card the draw was made from (for the event log; not saved).
@@ -81,14 +80,13 @@ func to_dictionary() -> Dictionary:
 		"kind": KIND_NAMES[kind],
 		"chute": CHUTE_NAMES[chute] if chute >= 0 and chute < CHUTE_NAMES.size() else "",
 		"why": why,
-		"level_before": level_before,
+		"boosted": boosted,
 		"prizes": prizes.map(func(prize: MachinePrize) -> Dictionary: return prize.to_dictionary()),
 		"drop_order": Array(drop_order),
 		"picked": picked,
 		"binned": binned,
 		"replaced": String(replaced.id) if replaced != null else "",
 		"upgraded": upgraded.duplicate(true),
-		"meter_rose": meter_rose,
 		"guarantee_held": guarantee_held,
 	}
 
@@ -101,7 +99,7 @@ static func from_dictionary(data: Dictionary, lookup: ContentLookup) -> MachineV
 	var visit: MachineVisit = MachineVisit.new(maxi(kind_index, 0) as Kind, reader.text("why"))
 	var chute_text: String = reader.text("chute")
 	visit.chute = CHUTE_NAMES.find(chute_text)
-	visit.level_before = reader.whole("level_before")
+	visit.boosted = reader.flag("boosted")
 	for prize_data: Dictionary in reader.dictionaries("prizes"):
 		var prize: MachinePrize = MachinePrize.from_dictionary(prize_data, lookup)
 		if prize == null:
@@ -111,7 +109,6 @@ static func from_dictionary(data: Dictionary, lookup: ContentLookup) -> MachineV
 	visit.picked = reader.whole("picked", -1)
 	visit.binned = reader.flag("binned")
 	visit.replaced = reader.card("replaced")
-	visit.meter_rose = reader.flag("meter_rose")
 	visit.guarantee_held = reader.flag("guarantee_held")
 	var upgraded_copies: Variant = _upgraded(data.get("upgraded"))
 	var bad_chute: bool = visit.chute == NO_CHUTE and not chute_text.is_empty()
@@ -140,6 +137,8 @@ func _is_consistent() -> bool:
 	if drop_order.size() != prizes.size() or picked >= prizes.size():
 		return false
 	if binned and picked >= 0:
+		return false
+	if boosted and kind != Kind.TICKET:
 		return false
 	var seen: Dictionary = {}
 	for reveal: int in drop_order:

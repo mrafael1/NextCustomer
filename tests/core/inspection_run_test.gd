@@ -33,7 +33,7 @@ func test_the_inspection_is_announced_at_the_previous_checkout() -> void:
 	assert_object(run.next_inspection).is_same(load(SPOT_CHECK))
 	assert_array(run.inspections).is_empty()
 	assert_int(run.phase).is_equal(RunState.Phase.MACHINE_CHOOSE)
-	MachineSteps.choose(run, RewardMachine.Chute.REGISTER)
+	MachineSteps.choose(run, RewardMachine.Chute.COUPONS)
 	assert_object(run.next_inspection).is_same(load(SPOT_CHECK))
 	MachineSteps.pass_visits(run)
 	assert_object(run.next_inspection).is_same(load(SPOT_CHECK))

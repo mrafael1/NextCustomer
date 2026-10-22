@@ -748,7 +748,7 @@ func _key_offer_text(chances: Array[Dictionary]) -> String:
 			line += " %18.1f%%" % (100.0 * chances[index]["chances"][id])
 		lines.append(line)
 	lines.append(
-		"Exact odds: a later NEW ITEMS or COUPONS draw at REGULAR 0, the higher of the two"
+		"Exact odds: a later NEW ITEMS or COUPONS draw at odds level 0, the higher of the two"
 	)
 	return "\n".join(lines)
 

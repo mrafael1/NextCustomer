@@ -270,7 +270,7 @@ func test_an_upgrade_glints_its_copies_and_changes_them_in_place() -> void:
 	view.run = run
 	view.plan = MachinePlan.new(view.tuning, MachineVisit.Kind.TICKET, false)
 	view.plan.set_draw([MachinePrize.Rarity.RARE])
-	view.plan.set_landing(MachinePlan.Landing.UPGRADE, 2, false, MachinePlan.NO_VISIT)
+	view.plan.set_landing(MachinePlan.Landing.UPGRADE, 2, MachinePlan.NO_VISIT)
 	view.landing = landing
 	var plan: MachinePlan = view.plan
 	var drawer: CartDrawer = view.cart_drawer
@@ -324,7 +324,7 @@ func test_a_wide_upgrade_keeps_its_first_copy_and_clears_the_receipt() -> void:
 	view.run = run
 	view.plan = MachinePlan.new(view.tuning, MachineVisit.Kind.TICKET, false)
 	view.plan.set_draw([MachinePrize.Rarity.RARE])
-	view.plan.set_landing(MachinePlan.Landing.UPGRADE, copies.size(), false, MachinePlan.NO_VISIT)
+	view.plan.set_landing(MachinePlan.Landing.UPGRADE, copies.size(), MachinePlan.NO_VISIT)
 	view.landing = landing
 	var drawer: CartDrawer = view.cart_drawer
 	drawer.frame(view.plan.land)
@@ -351,7 +351,9 @@ func test_a_wide_upgrade_keeps_its_first_copy_and_clears_the_receipt() -> void:
 ## A REGISTER pick flies to its LOYALTY card box, shrinking, and the box's stamp slams down at the
 ## landing with one `stamp_loyalty` (the plain landing is off: no second sound); no drawer.
 func test_a_register_flies_to_its_loyalty_box_and_is_stamped() -> void:
-	var screen: ShiftScreen = await _passed_screen()
+	var screen: ShiftScreen = await _screen()
+	MachineSteps.boost_run(screen.run, [1])  # v0.47: only a BOOSTED visit lights REGISTER.
+	await _pass(screen, true)
 	var view: RewardMachineView = screen._machine.view
 	assert_bool(view.plain_landing).is_false()
 	var sfx: Sfx = RECORDING_SFX.new()
@@ -480,7 +482,7 @@ func test_a_new_visits_first_sounds_play_and_a_resume_keeps_the_players_press() 
 	view.plan = ticket.resume_at(MachinePlan.WaitPoint.PICK)
 	sounds.frame(view.plan.start)
 	assert_array(sfx.get("sounds")).is_empty()
-	view.plan.set_landing(MachinePlan.Landing.NEW_CARD, 0, false, MachinePlan.NO_VISIT)
+	view.plan.set_landing(MachinePlan.Landing.NEW_CARD, 0, MachinePlan.NO_VISIT)
 	sounds.frame(view.plan.start)
 	names = sfx.call("sound_names")
 	assert_array(names).is_equal(["ui_click"])
@@ -613,7 +615,7 @@ func _assert_odds_card_over_the_ticket(
 ) -> void:
 	view._armed = true  # Headless: no mouse release arms it.
 	var shown: int = 0
-	for chute: int in [RewardMachine.Chute.UPGRADES, RewardMachine.Chute.REGISTER]:
+	for chute: int in RewardMachine.CHUTES:
 		var info: MachineChuteInfo = screen.run.machine.chute_info(screen.run, chute)
 		if info.state != RewardMachine.ChuteState.OPEN:
 			continue

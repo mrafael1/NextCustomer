@@ -68,6 +68,7 @@ func test_the_screen_saves_at_every_save_point_and_deletes_the_save_at_the_end()
 	assert_str(_saved()["phase"]).is_equal("planning")
 	assert_int(int(_saved()["shift_index"])).is_equal(1)
 	_place_ids(screen, PASSING_ROW)
+	MachineSteps.boost_run(screen.run, [2])  # v0.47: only a BOOSTED visit lights REGISTER.
 	await Rush.checkout(screen)
 	assert_int(screen.run.phase).is_equal(RunState.Phase.MACHINE_CHOOSE)
 	assert_str(_saved()["phase"]).is_equal("machine")
@@ -382,8 +383,13 @@ func test_a_new_screen_resumes_a_bonus_visit() -> void:
 	for _shift: int in range(first.run.shift_count() - 1):
 		_place_ids(first, PASSING_ROW)
 		await first._on_checkout_pressed()
-		assert_bool(first._machine._choose(RewardMachine.Chute.NEW_ITEMS)).is_true()
-		first._machine._on_binned()
+		# A BOOSTED ticket visit (v0.47) lights only REGISTER and UPGRADES, which can't be binned.
+		var ticket_chute: int = MachineSteps.first_lit(first.run, RewardMachine.Chute.NEW_ITEMS)
+		assert_bool(first._machine._choose(ticket_chute)).is_true()
+		if first.run.machine.can_bin():
+			first._machine._on_binned()
+		else:
+			first._machine._on_prize_picked(0)
 		first._machine.view.fast_forward()  # The landing plays to its end.
 		first._machine._end_return()  # No glide back (#77 machine v2).
 		var run: RunState = first.run

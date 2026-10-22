@@ -2,15 +2,20 @@ class_name MachineDefinition
 extends Resource
 ## The RECEIPT REWARDS machine's rules data (#77, build spec 1.2): one file,
 ## data/balance/machine.tres, referenced from BalanceDefinition.machine. Every number the machine
-## uses lives here: the odds per Regular level, the rarity lists, the register cap, the shifts
-## that open UPGRADES, STAMP DAY and the bonus ticket, and the item upgrade chains.
+## uses lives here: the odds levels and the level each shift's visits draw at, the rarity lists,
+## the register cap, the BOOSTED shifts, STAMP DAY and the bonus ticket, and the item upgrade
+## chains.
+##
+## Two machine states (v0.47): a Normal visit lights NEW ITEMS and COUPONS, a BOOSTED visit (the
+## ticket's visit after a boosted shift) REGISTER and UPGRADES. Rarity rises with the run's
+## progress: the visits after a shift draw at that shift's odds level (shift_odds_levels).
 ##
 ## A prize's rarity comes from these lists: a card or upgrade in a rare list is RARE, in a
 ## legendary list LEGENDARY, any other is COMMON.
 
 ## Prizes one visit draws (fewer when the pools run out: a short draw).
 @export var prizes_per_visit: int = 0
-## One entry per Regular level, from 0; the highest level is size - 1.
+## One entry per odds level, from 0; the highest level is size - 1.
 @export var odds_levels: Array[MachineOddsLevel] = []
 @export var rare_products: Array[CardDefinition] = []
 @export var legendary_products: Array[CardDefinition] = []
@@ -21,8 +26,12 @@ extends Resource
 ## REGISTER shows CARD FULL once the run picked this many registers from the machine (a starting
 ## deck's starting_upgrade doesn't count).
 @export var register_cap: int = 0
-## 1-based shifts after which the UPGRADES chute is lit.
-@export var upgrades_open_shifts: PackedInt32Array = PackedInt32Array()
+## 1-based shifts whose ticket visit is BOOSTED (REGISTER and UPGRADES lit, NEW ITEMS and
+## COUPONS not). The bonus ticket's visit is always Normal.
+@export var boosted_shifts: PackedInt32Array = PackedInt32Array()
+## The odds level (an index of odds_levels) the visits after each 1-based shift draw at: entry
+## i is shift i + 1's; a shift past the end uses the last entry (none: level 0).
+@export var shift_odds_levels: PackedInt32Array = PackedInt32Array()
 ## 1-based shifts after which a STAMP DAY visit follows when the run picked fewer registers than
 ## the same index of stamp_day_floor.
 @export var stamp_day_shifts: PackedInt32Array = PackedInt32Array()
@@ -39,12 +48,27 @@ extends Resource
 @export var item_upgrades: Array[ItemUpgradeDefinition] = []
 
 
-## The highest Regular level (0 with no odds levels).
+## The highest odds level (0 with no odds levels).
 func max_level() -> int:
 	return maxi(odds_levels.size() - 1, 0)
 
 
-## The odds of a Regular level, clamped to the levels there are; null with none.
+## The odds level the visits after a 1-based shift draw at (shift_odds_levels), clamped to the
+## levels there are.
+func odds_level_after(shift_number: int) -> int:
+	if shift_odds_levels.is_empty():
+		return 0
+	var index: int = clampi(shift_number - 1, 0, shift_odds_levels.size() - 1)
+	return clampi(shift_odds_levels[index], 0, max_level())
+
+
+## Whether the ticket's visit after a 1-based shift is BOOSTED (before the fallback to Normal
+## when neither REGISTER nor UPGRADES has anything to draw).
+func is_boosted_shift(shift_number: int) -> bool:
+	return boosted_shifts.has(shift_number)
+
+
+## The odds of an odds level, clamped to the levels there are; null with none.
 func odds_level(level: int) -> MachineOddsLevel:
 	if odds_levels.is_empty():
 		return null

@@ -152,12 +152,15 @@ class Session:
 
     def visit(self, run_id: str, shift: int, chute: str, offered: tuple, picked: int = 0,
               kind: str = "ticket", replaced: str = "", upgraded: tuple = (),
-              levels: tuple = (0, 0, 0, 0), times: tuple = (300, 900, 2500),
-              skipped: bool = False) -> None:
-        """A machine_visit event (#77); `offered` holds (kind, id) pairs, `picked` -1 bins."""
+              state: str | None = None, times: tuple = (300, 900, 2500),
+              skipped: bool = False, legacy: bool = False) -> None:
+        """A machine_visit event (#77); `offered` holds (kind, id) pairs, `picked` -1 bins.
+        `state` defaults to the kind's (stamp_day, else normal); `legacy` logs a visit as before
+        v0.47 (no state, the Regular levels)."""
+        fields = {"level_before": 0, "levels": [1, 0, 0, 0], "meter_rose": True} if legacy else {
+            "state": state or ("stamp_day" if kind == "stamp_day" else "normal")}
         self.log("machine_visit", run_id, shift=shift, visit_index=0, kind=kind,
-                 inspection="", chute=chute, level_before=0, levels=list(levels),
-                 meter_rose=True, offered=[{"kind": k, "id": i, "rarity": 0} for k, i in offered],
+                 inspection="", chute=chute, **fields, offered=[{"kind": k, "id": i, "rarity": 0} for k, i in offered],
                  picked=picked, binned=picked < 0, replaced=replaced,
                  upgraded=[list(entry) for entry in upgraded], cart_size=3,
                  cart_full_at_pick=False, registers_owned=0, resumed=False,
@@ -578,19 +581,15 @@ class MachineTest(LogTestCase):
         s = Session("new", build="fb-p3")
         s.machine_start("m1")
         s.shift("m1", 1)
-        s.visit("m1", 1, "new_items", (("product", "eggs"), ("product", "bread")), picked=1,
-                levels=(1, 0, 0, 0))
-        s.visit("m1", 1, "coupons", (("coupon", "multipack"),), picked=-1, kind="bonus",
-                levels=(1, 1, 0, 0))
+        s.visit("m1", 1, "new_items", (("product", "eggs"), ("product", "bread")), picked=1)
+        s.visit("m1", 1, "coupons", (("coupon", "multipack"),), picked=-1, kind="bonus")
         s.shift("m1", 2)
-        s.visit("m1", 2, "register", (("register", "coupon_engine"),), levels=(1, 1, 1, 0))
-        s.visit("m1", 2, "register", (("register", "extra_redraw"),), kind="stamp_day",
-                levels=(1, 1, 1, 0))
+        s.visit("m1", 2, "register", (("register", "coupon_engine"),), legacy=True)
+        s.visit("m1", 2, "register", (("register", "extra_redraw"),), kind="stamp_day")
         s.shift("m1", 3)
         s.visit("m1", 3, "upgrades", (("upgrade", "milk"),),
-                upgraded=((4, "milk", "milk_big"),), levels=(1, 1, 1, 1))
-        s.visit("m1", 3, "new_items", (("product", "eggs"),), replaced="banana",
-                levels=(2, 1, 1, 1))
+                upgraded=((4, "milk", "milk_big"),), state="boosted")
+        s.visit("m1", 3, "new_items", (("product", "eggs"),), replaced="banana", kind="bonus")
         s.log("run_end", "m1", result="loss", shift_reached=4)
         path = self.write("p.jsonl", s)
         run = self.players(path)[0].runs[0]
@@ -600,18 +599,20 @@ class MachineTest(LogTestCase):
         summary = self.summary(path)
         machine = summary["machine"]
         self.assertEqual(machine["visits"], 6)
-        self.assertEqual(machine["visit_kinds"], {"ticket": 4, "bonus": 1, "stamp_day": 1})
+        self.assertEqual(machine["visit_kinds"], {"ticket": 3, "bonus": 2, "stamp_day": 1})
+        # The legacy (pre-v0.47) visit has no state and counts under none.
+        self.assertEqual(machine["visit_states"], {"normal": 3, "boosted": 1, "stamp_day": 1})
         self.assertEqual(machine["chutes"]["register"], ls.rate(2, 6))
         self.assertEqual(machine["bin_rate"]["count"], 1)
         self.assertEqual(machine["bins"]["coupons"], 1)
-        self.assertEqual(machine["levels_reached"]["new_items"]["max"], 2)
         self.assertEqual(machine["tier_copies"], {"milk_big": 1})
         self.assertEqual(summary["offer_times"]["machine"]["offers"], 6)
         self.assertEqual(summary["builds"]["builds"][0]["upgrades"],
                          "Coupon engine, Extra redraw")
         report = ls.render(summary)
         self.assertIn("RECEIPT REWARDS machine", report)
-        self.assertIn("  visits: 6 (4 ticket, 1 bonus, 1 stamp_day)", report)
+        self.assertIn("  visits: 6 (3 ticket, 2 bonus, 1 stamp_day)", report)
+        self.assertIn("  machine states: 3 normal, 1 boosted, 1 stamp_day", report)
         self.assertIn("BIG and GOLDEN copies over 1 ended runs: milk_big 1", report)
         self.assertIn("  machine: 6 offers", report)
 

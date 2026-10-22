@@ -6,7 +6,8 @@ extends RefCounted
 ## resume, show_at): a jump plays nothing, as `skipping` beats do.
 ##
 ## - the receipt's (or the BONUS stub's) flight lands: `tick` x5 (x3), then `slot_tick` as it is
-##   fed; the keys light: one ladder note each (C5 D5 E5 G5), staggered as the keys;
+##   fed; the keys light: one ladder note each (C5 D5 E5 G5), staggered as the keys (a BOOSTED
+##   visit's stamp lands with them: `stamp_notice`);
 ## - the chute confirmed: `ui_confirm` (CONFIRM › plays it as it is pressed, #77 machine v2);
 ##   each bay pick: a ladder note (C5 E5 G5) and `card_place`;
 ##   the belt: `rattle_s` as it starts, a `tick` every BELT_TICK while it moves; a box through the
@@ -15,8 +16,8 @@ extends RefCounted
 ##   LEGENDARY four (C5 E5 G5 C6) and `rattle_l`; every rarity keeps its sound under reduced
 ##   motion;
 ## - the pick: `ui_click` (a bin: `ui_back`); the landing: a new card `card_place`, a register
-##   (or STAMP DAY's) `stamp_loyalty`, an upgrade's glint `ding` and G5 C6 E6; the punch:
-##   `stamp_2`; the restock: a soft `card_place` per bay;
+##   (or STAMP DAY's) `stamp_loyalty`, an upgrade's glint `ding` and G5 C6 E6; the restock: a
+##   soft `card_place` per bay;
 ## - the BONUS TICKET's stamp: `stamp_notice` and the stub's `print`; STAMP DAY's: `stamp_paid`.
 ## The padlocked key's `denied` is the machine's own (RewardMachineView.press_key).
 ##
@@ -162,6 +163,8 @@ func _add_intro(plan: MachinePlan) -> void:
 	var stagger: int = view.tuning.key_stagger_ms
 	if plan.kind == MachineVisit.Kind.BONUS:
 		stagger = view.tuning.relight_stagger_ms
+	elif view.run != null and view.run.machine.is_boosted():
+		_cue(plan.lights, SOUND, "stamp_notice")
 	for chute: int in RewardMachine.CHUTES:
 		if _lit(chute):
 			_cue(plan.lights + MachineTuning.sec(stagger * chute), NOTE, KEY_NOTES[chute])
@@ -207,8 +210,6 @@ func _add_landing(plan: MachinePlan) -> void:
 			_cue(plan.glint, SOUND, "ding")
 			for index: int in range(GLINT_NOTES.size()):
 				_cue(plan.glint + GLINT_GAP * index, NOTE, GLINT_NOTES[index])
-	if plan.rises and plan.kind != MachineVisit.Kind.STAMP_DAY:
-		_cue(plan.punch, SOUND, "stamp_2")
 	for at: float in plan.restock:
 		_cue(at, SOUND, "card_place", QUIET_DB)
 

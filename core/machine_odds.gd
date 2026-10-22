@@ -14,7 +14,7 @@ extends RefCounted
 const NO_CLASS := -1
 
 
-## The odds card of the chute's next draw from this context at a Regular level.
+## The odds card of the chute's next draw from this context at an odds level.
 static func card(chute: int, context: MachineContext, level: int) -> MachineOddsCard:
 	var tree: Enumeration = Enumeration.new(chute, context, level)
 	tree.run()

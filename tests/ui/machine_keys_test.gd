@@ -1,12 +1,12 @@
 extends GdUnitTestSuite
 ## The RECEIPT REWARDS machine's cabinet half (#77, look F; build spec 4.2-4.3, U1): the head's
-## stamps, the receipt slot, the display, the chute keys, the REGULAR punch meters and the odds
-## card, each shown from the visit's plan at a time `t` (frame(t), view.show_at). The head's BONUS
-## and STAMP DAY stamps blink in and land, then lift after the landing; the slot's scan bar blinks
-## while it reads and its lamp lights at the feed's end; the keys light in turn (a BONUS visit's
-## relight faster) and say why a chute is shut in words; the display plays the visit's lines
-## between the wait points' messages; a rising meter keeps its old level until its punch opens
-## the hole, with the jaw, the chad and the +1 tab; the odds card pops in on a hovered lit key,
+## stamps, the receipt slot, the display, the chute keys and the odds card, each shown from the
+## visit's plan at a time `t` (frame(t), view.show_at). The head's BONUS, STAMP DAY and BOOSTED
+## stamps blink in and land, then lift after the landing; the slot's scan bar blinks while it
+## reads and its lamp lights at the feed's end; the keys light in turn (a BONUS visit's relight
+## faster) and say why a chute is shut in words (v0.47: a BOOSTED visit lights REGISTER and
+## UPGRADES, a Normal one NEW ITEMS and COUPONS); the display plays the visit's lines between the
+## wait points' messages; the odds card pops in on a hovered lit key,
 ## three rows above it, its tail at the key (#77 machine v2); a pressed key drops with its LED lit
 ## and the display's CONFIRM ›; a BONUS visit says INSPECTION PASSED. Reduced motion keeps every
 ## state without the motion. Layout asserts on-screen geometry on a 1280x720 stage (memory: UI
@@ -38,7 +38,7 @@ func after_test() -> void:
 
 ## BONUS TICKET! blinks in once the ticket reaches the slot (machine v2), landing from 2.2x on a
 ## back ease, and covers the title (between the blinks too); at rest it carries the inspection
-## passed; it lifts 0.6 s after the punch's end, STAMP DAY's 0.6 s
+## passed; it lifts 0.6 s after the landing's settle (`punch_end`), STAMP DAY's 0.6 s
 ## after its landing. Reduced motion: at rest at once.
 func test_the_head_stamps_land_and_lift() -> void:
 	var view: RewardMachineView = auto_free(RewardMachineView.new())
@@ -63,7 +63,7 @@ func test_the_head_stamps_land_and_lift() -> void:
 		assert_bool(label.visible).is_false()
 	assert_array(Array(head.stamp_texts())).is_equal(["BONUS TICKET!", "Spot check passed"])
 	view.plan.set_draw([0, 0, 1] as Array[int])
-	view.plan.set_landing(MachinePlan.Landing.NEW_CARD, 1, true, MachinePlan.NO_VISIT)
+	view.plan.set_landing(MachinePlan.Landing.NEW_CARD, 1, MachinePlan.NO_VISIT)
 	assert_int(view.tuning.head_stamp_lift_ms).is_equal(600)
 	var lift: float = MachineTuning.sec(view.tuning.head_stamp_lift_ms)
 	assert_float(MachineHead.lift_time(view.plan)).is_equal_approx(
@@ -77,7 +77,7 @@ func test_the_head_stamps_land_and_lift() -> void:
 	# STAMP DAY's lifts after its landing.
 	view.plan = MachinePlan.new(view.tuning, MachineVisit.Kind.STAMP_DAY, false)
 	view.plan.set_draw([0, 1, 2] as Array[int])
-	view.plan.set_landing(MachinePlan.Landing.REGISTER, 1, false, MachinePlan.NO_VISIT)
+	view.plan.set_landing(MachinePlan.Landing.REGISTER, 1, MachinePlan.NO_VISIT)
 	head.set_stamp("STAMP DAY!", "")
 	head.frame(view.plan.land + lift - 0.1)
 	assert_bool(head.stamp_shown()).is_true()
@@ -135,10 +135,16 @@ func test_keys_light_in_turn_and_relight_on_a_bonus() -> void:
 	var keys: Array[ChuteKey] = view.keys
 	for chute: int in range(3):
 		keys[chute].show_state(RewardMachine.ChuteState.OPEN, 0, true)
-	keys[3].show_state(RewardMachine.ChuteState.LOCKED_SHIFT, 3, true)
+	keys[3].show_state(RewardMachine.ChuteState.UNLIT, 3, true)
 	assert_bool(keys[3].has_padlock()).is_true()
-	assert_str(keys[3].sub_text()).is_equal("OPENS AFTER SHIFT 3")
-	assert_str(keys[3].shown_labels()[1].text).is_equal("OPENS AFTER\nSHIFT 3")
+	assert_str(keys[3].sub_text()).is_equal("BOOSTED AFTER SHIFT 3")
+	assert_str(keys[3].shown_labels()[1].text).is_equal("BOOSTED\nAFTER SHIFT 3")
+	assert_str(ChuteKey.unlit_text(RewardMachine.Chute.REGISTER, 0, false)).is_equal(
+		"BOOSTED VISITS ONLY"
+	)
+	assert_str(ChuteKey.unlit_text(RewardMachine.Chute.COUPONS, 5, true)).is_equal(
+		"NORMAL\nVISITS ONLY"
+	)
 	var kinds: Dictionary[int, int] = {
 		MachineVisit.Kind.TICKET: view.tuning.key_stagger_ms,
 		MachineVisit.Kind.BONUS: view.tuning.relight_stagger_ms,
@@ -209,7 +215,7 @@ func test_shut_keys_say_why_and_their_lines_fit() -> void:
 	assert_str(register.tab().text).is_equal("SEE ODDS")
 	for state: int in [
 		RewardMachine.ChuteState.OPEN,
-		RewardMachine.ChuteState.LOCKED_SHIFT,
+		RewardMachine.ChuteState.UNLIT,
 		RewardMachine.ChuteState.CARD_FULL,
 		RewardMachine.ChuteState.EMPTY,
 	]:
@@ -224,8 +230,8 @@ func test_shut_keys_say_why_and_their_lines_fit() -> void:
 ## The display's lines over a NEW ITEMS visit: READING…, the read (spend, quota), the spend and
 ## "pick a chute" at the wait; PACKING YOUR ORDER…, the prizes out (in Pixelify), each reveal's
 ## rarity and prize, the pick prompt with BIN IT (shown from the last reveal's end, as look F);
-## ENJOY!, the landing's word with the cart count, the REGULAR level and SEE YOU NEXT SHIFT; BIN
-## IT hides once the pick is made.
+## ENJOY!, the landing's word with the cart count (kept after the settle: no Regular level since
+## v0.47) and SEE YOU NEXT SHIFT; BIN IT hides once the pick is made.
 func test_the_display_follows_the_visit() -> void:
 	var run: RunState = _passed_run(22)
 	var view: RewardMachineView = auto_free(RewardMachineView.new())
@@ -274,15 +280,14 @@ func test_the_display_follows_the_visit() -> void:
 		["NEW IN CART ✓", "cart %d/%d" % [run.deck.size(), run.balance.deck_limit]]
 	)
 	view.show_at(plan.punch + EPSILON)
-	assert_str(display.texts()[0]).is_equal(
-		"NEW ITEMS REGULAR 1/%d" % run.machine.machine.max_level()
+	assert_array(Array(display.texts())).is_equal(
+		["NEW IN CART ✓", "cart %d/%d" % [run.deck.size(), run.balance.deck_limit]]
 	)
-	assert_str(display.texts()[1]).starts_with("next visit here")
 	view.show_at(plan.end_at - EPSILON)
 	assert_str(display.texts()[0]).is_equal("SEE YOU NEXT SHIFT")
 
 
-## A bin: BINNED ✕ until its punch, then the REGULAR level (bins raise it too).
+## A bin: BINNED ✕ through the landing (no Regular level since v0.47).
 func test_the_display_shows_a_bin() -> void:
 	var run: RunState = _passed_run(23)
 	var view: RewardMachineView = auto_free(RewardMachineView.new())
@@ -296,7 +301,7 @@ func test_the_display_shows_a_bin() -> void:
 	assert_str(view.display.texts()[0]).is_equal("BINNED ✕")
 	assert_bool(view.display.bin_button().visible).is_false()
 	view.show_at(plan.punch + EPSILON)
-	assert_str(view.display.texts()[0]).is_equal("COUPONS REGULAR 1/3")
+	assert_str(view.display.texts()[0]).is_equal("BINNED ✕")
 
 
 ## A real BONUS visit (inspected, and a bonus extra shift; #77 machine v2's B4): the head's
@@ -400,7 +405,7 @@ func test_a_refused_key_says_why_for_a_moment() -> void:
 	var rest: Array = Array(view.display.texts())
 	view.press_key(RewardMachine.Chute.UPGRADES)
 	assert_int(view.pressed_chute()).is_equal(-1)
-	assert_array(Array(view.display.texts())).is_equal(["UPGRADES", "OPENS AFTER SHIFT 3"])
+	assert_array(Array(view.display.texts())).is_equal(["UPGRADES", "BOOSTED AFTER SHIFT 3"])
 	assert_array(Array(view.display.rest_texts())).is_equal(rest)
 	view.show_at(view.clock)
 	assert_str(view.display.texts()[0]).is_equal("UPGRADES")
@@ -432,11 +437,10 @@ func test_the_odds_card_shows_three_rows_above_its_key() -> void:
 		var machine: Rect2 = view.get_global_rect()
 		var card: OddsCard = view.odds_card
 		assert_int(card.z_index).is_equal(OddsCard.Z)
-		view.hover_key(RewardMachine.Chute.UPGRADES)  # Shut until shift 3.
-		assert_bool(card.visible).is_false()
-		for chute: int in [
-			RewardMachine.Chute.NEW_ITEMS, RewardMachine.Chute.COUPONS, RewardMachine.Chute.REGISTER
-		]:
+		for shut: int in RewardMachine.BOOSTED_CHUTES:  # Unlit until shift 3's boosted visit.
+			view.hover_key(shut)
+			assert_bool(card.visible).is_false()
+		for chute: int in RewardMachine.NORMAL_CHUTES:
 			view.hover_key(chute)
 			assert_bool(card.visible).is_true()
 			assert_float(card.scale.x).is_equal_approx(1.0 if rm else OddsCard.POP_FROM, EPSILON)
@@ -554,7 +558,7 @@ func test_a_pressed_key_drops_and_confirm_confirms() -> void:
 
 ## A full cart's pick says so in the pick's sub line.
 func test_a_full_cart_pick_says_swap_one_out() -> void:
-	var run: RunState = _passed_run(29, _at_level_three_with_a_full_cart)
+	var run: RunState = _passed_run(29, _with_a_full_cart)
 	var view: RewardMachineView = auto_free(RewardMachineView.new())
 	view.open_visit(run, null, null, false)
 	assert_bool(run.machine.choose(run, RewardMachine.Chute.NEW_ITEMS)).is_true()
@@ -582,6 +586,8 @@ func test_machine_lines_use_glyphs_their_fonts_have() -> void:
 		["UPGRADED ✓", "cart stays 15/15"],
 		["STAMPED ✓", "Slot engine on your card"],
 		["READING…", "quota €99 met · Spot check passed"],
+		["SPEND €114 ✓ THANK YOU!", RewardMachineView.BOOSTED_SUB],
+		["SPEND €114 ✓ THANK YOU!", "quota €99 met" + MachineDisplay.BOOSTED_READ],
 		[RewardMachineView.BONUS_TITLE, RewardMachineView.BONUS_SUB % "inspection passed"],
 		["BANANA › GOLDEN ✓", "cart stays 15/15"],
 	]:
@@ -615,7 +621,8 @@ func test_long_display_lines_fit() -> void:
 		["PICK 1 · ONLY 2 IN STOCK", OddsCard.CART_FULL_TEXT],
 		["PACKING YOUR ORDER…", "bonus ticket"],
 		["SPEND €999 ✓ THANK YOU!", "quota €999 met · Coupon slot closed passed"],
-		["UPGRADES REGULAR 3/3", "next visit here: 100% / 100% / 100%"],
+		["SPEND €999 ✓ THANK YOU!", RewardMachineView.BOOSTED_SUB],
+		["SPEND €999 ✓ THANK YOU!", "quota €999 met" + MachineDisplay.BOOSTED_READ],
 	]:
 		display.show_message(line[0], line[1])
 		for label: Label in display.labels():
@@ -627,42 +634,114 @@ func test_long_display_lines_fit() -> void:
 	assert_bool(display.message_in_display_font()).is_true()
 
 
-## A rising meter keeps its level until its punch opens the hole: the jaw and the chad around the
-## punch, the +1 tab above; the other meters stay. Reduced motion: the hole opens at the punch.
-func test_the_meter_punches_when_its_meter_rises() -> void:
+## A BOOSTED visit (v0.47): the head's BOOSTED! stamp over "REGISTER · UPGRADES" lands as the
+## keys light (none before), inside the head plate and on the stage; the read and the chute wait
+## say BOOSTED; REGISTER and UPGRADES light, NEW ITEMS and COUPONS sit sunk with a padlock and
+## "NORMAL VISITS ONLY", their lines fitting; a pressed key's title says "boosted". A Normal visit
+## has no stamp and says when REGISTER and UPGRADES light next. Nothing is left under the keys
+## where the Regular meters were.
+func test_a_boosted_visit_shows_its_marker_and_lights_its_chutes() -> void:
 	for rm: bool in [false, true]:
-		var run: RunState = _passed_run(25)
+		var run: RunState = _passed_run(25, _boosted_after_shift_one)
+		assert_bool(run.machine.is_boosted()).is_true()
+		var stage: Control = auto_free(Control.new())
+		stage.size = ShiftStage.SIZE
+		add_child(stage)
 		var view: RewardMachineView = auto_free(RewardMachineView.new())
 		view.reduced_motion = func() -> bool: return rm
-		view.open_visit(run, null, null, false)
-		assert_bool(run.machine.choose(run, RewardMachine.Chute.NEW_ITEMS)).is_true()
-		view.show_draw(run)
-		view.land(MachineSteps.take(run, 0))
+		add_child(view)
+		view.position = ShiftStage.MACHINE_RECT.position
+		# The receipt the feed prints as the clock runs (MachineFlow sets the same).
+		view.receipt_names = ShiftScreen._names(run.row)
+		view.open_visit(run, stage, stage, false)
+		await _frames(2)
 		var plan: MachinePlan = view.plan
-		assert_bool(plan.rises).is_true()
-		var meter: PunchMeter = view.meters[RewardMachine.Chute.NEW_ITEMS]
-		view.show_at(plan.punch - EPSILON)
-		assert_int(meter.shown_level()).is_equal(0)
-		assert_bool(meter.is_punching()).is_false()
-		if not rm:
-			var length: float = MachineTuning.sec(view.tuning.punch_length_ms)
-			view.show_at(plan.punch + 0.45 * PunchMeter.JAW_SPAN * length)
-			assert_float(meter._jaw_at.y).is_equal(PunchMeter.BORDER + PunchMeter.JAW_DOWN)
-		view.show_at(plan.punch + 0.05)
-		assert_bool(meter.is_punching()).is_equal(not rm)
-		assert_bool(meter.plus_shown()).is_equal(not rm)
-		assert_int(meter.shown_level()).is_equal(1 if rm else 0)
-		view.show_at(plan.punch_end)
-		assert_int(meter.shown_level()).is_equal(1)
-		assert_str(meter.text()).is_equal("REGULAR 1/3")
-		view.show_at(plan.end_at - EPSILON)
-		assert_bool(meter.is_punching()).is_false()
-		assert_bool(meter.plus_shown()).is_false()
-		for chute: int in [RewardMachine.Chute.COUPONS, RewardMachine.Chute.REGISTER]:
-			assert_int(view.meters[chute].shown_level()).is_equal(0)
+		var head: MachineHead = view.head
+		assert_array(Array(head.stamp_texts())).is_equal(
+			[MachineHead.BOOSTED_TEXT, RewardMachineView.BOOSTED_UNDER]
+		)
+		view.show_at(plan.lights - EPSILON)
+		assert_bool(head.stamp_shown()).is_false()
+		view.show_at(plan.read_end - EPSILON)
+		assert_str(view.display.texts()[1]).ends_with(MachineDisplay.BOOSTED_READ)
+		view.show_at(plan.choose_at)
+		var landed: float = plan.lights + MachineTuning.sec(view.tuning.head_stamp_land_ms)
+		var blink: float = plan.lights + MachineTuning.sec(view.tuning.head_stamp_blink_ms)
+		view.show_at(maxf(landed, blink) + EPSILON)
+		assert_bool(head.stamp_shown()).is_true()
+		assert_float(head.stamp_scale()).is_equal(1.0)
+		var stamp: Rect2 = head.get_node("HeadStamp").get_global_rect()
+		var plate: Rect2 = head.get_global_rect()
+		assert_bool(plate.grow(MachineHead.STAMP_RIM).encloses(stamp)).is_true()
+		assert_bool(Rect2(Vector2.ZERO, ShiftStage.SIZE).encloses(stamp)).is_true()
+		for label: Label in [
+			head.get_node("HeadStamp/StampText"), head.get_node("HeadStamp/StampUnder")
+		]:
+			_assert_fits(label)
+		assert_array(Array(view.display.texts())).is_equal(
+			["SPEND €%d ✓ THANK YOU!" % run.history[-1].total, RewardMachineView.BOOSTED_SUB]
+		)
+		for label: Label in view.display.labels():
+			_assert_fits(label)
+		var machine: Rect2 = view.get_global_rect()
+		# The stamp lands while the keys still light in turn: the keys at the chute wait.
+		view.show_at(plan.choose_at)
+		assert_array(_lit(view.keys)).is_equal([false, false, true, true])
+		for chute: int in RewardMachine.NORMAL_CHUTES:
+			var key: ChuteKey = view.keys[chute]
+			assert_bool(key.has_padlock()).is_true()
+			assert_float(key.face_offset()).is_equal(ChuteKey.SINK)
+			assert_str(key.sub_text()).is_equal("NORMAL VISITS ONLY")
+			assert_str(key.shown_labels()[1].text).is_equal("NORMAL\nVISITS ONLY")
+			for label: Label in key.shown_labels():
+				_assert_fits(label)
+		for key: ChuteKey in view.keys:
+			assert_bool(machine.encloses(key.get_global_rect())).is_true()
+		# Under the keys, down to the stockroom window: no part (the meters are gone).
+		var gap: Rect2 = Rect2(
+			(
+				machine.position
+				+ Vector2(0, RewardMachineView.KEY_Y + ChuteKey.SIZE.y + ChuteKey.SHADOW)
+			),
+			Vector2(machine.size.x, 1)
+		)
+		gap.end.y = machine.position.y + RewardMachineView.SIGN_POSITION.y
+		for child: Node in view.get_children():
+			var part: Control = child as Control
+			if part == null or not part.visible or part is MachineDim or part.top_level:
+				continue
+			(
+				assert_bool(part.get_global_rect().intersects(gap))
+				. override_failure_message(str(part.name))
+				. is_false()
+			)
+		view._armed = true  # Headless: no mouse release arms it.
+		view.press_key(RewardMachine.Chute.REGISTER)
+		assert_array(Array(view.display.texts())).is_equal(
+			["REGISTER", "stamp your card · boosted · 3 prizes, keep 1"]
+		)
+		for label: Label in view.display.labels():
+			_assert_fits(label)
+		view.press_key(RewardMachine.Chute.NEW_ITEMS)  # Shut: refused.
+		assert_array(Array(view.display.texts())).is_equal(["NEW ITEMS", "NORMAL VISITS ONLY"])
+		view.close()
+		remove_child(view)
+		remove_child(stage)
+	# A Normal visit: no stamp; REGISTER and UPGRADES say when they light next.
+	var normal: RunState = _passed_run(25)
+	var normal_view: RewardMachineView = auto_free(RewardMachineView.new())
+	normal_view.open_visit(normal, null, null, false)
+	assert_array(Array(normal_view.head.stamp_texts())).is_equal(["", ""])
+	normal_view.show_at(normal_view.plan.choose_at)
+	assert_array(_lit(normal_view.keys)).is_equal([true, true, false, false])
+	for chute: int in RewardMachine.BOOSTED_CHUTES:
+		var key: ChuteKey = normal_view.keys[chute]
+		assert_bool(key.has_padlock()).is_true()
+		assert_str(key.sub_text()).is_equal("BOOSTED AFTER SHIFT 3")
+	await _frames(2)  # Let the parts' queued frees run (no orphans).
 
 
-## On the stage: the head, slot, display, keys (with the STAMP DAY tab) and meters sit in the
+## On the stage: the head, slot, display and keys (with the STAMP DAY tab) sit in the
 ## cabinet without overlapping (the odds card: test_the_odds_card_shows_three_rows_above_its_key).
 func test_the_cabinet_on_the_stage() -> void:
 	for rm: bool in [false, true]:
@@ -688,7 +767,6 @@ func test_the_cabinet_on_the_stage() -> void:
 		var display: Rect2 = view.display.get_global_rect()
 		var parts: Array[Control] = [view.slot_plate, view.display]
 		parts.append_array(view.keys)
-		parts.append_array(view.meters)
 		for part: Control in parts:
 			(
 				assert_bool(machine.encloses(part.get_global_rect()))
@@ -700,7 +778,6 @@ func test_the_cabinet_on_the_stage() -> void:
 			var key: Rect2 = view.keys[index].get_global_rect()
 			var with_shadow: Rect2 = key.grow_side(SIDE_BOTTOM, ChuteKey.SHADOW)
 			assert_bool(with_shadow.intersects(display)).is_false()
-			assert_bool(with_shadow.intersects(view.meters[index].get_global_rect())).is_false()
 			if index > 0:
 				assert_bool(key.intersects(view.keys[index - 1].get_global_rect())).is_false()
 		var register: ChuteKey = view.keys[RewardMachine.Chute.REGISTER]
@@ -710,7 +787,7 @@ func test_the_cabinet_on_the_stage() -> void:
 		assert_bool(machine.encloses(tab)).is_true()
 		var upgrades: ChuteKey = view.keys[RewardMachine.Chute.UPGRADES]
 		assert_bool(upgrades.has_padlock()).is_true()
-		assert_str(upgrades.sub_text()).is_equal("OPENS AFTER SHIFT 3")
+		assert_str(upgrades.sub_text()).is_equal("BOOSTED AFTER SHIFT 3")
 		var mouth: Rect2 = view.slot_plate.mouth_global_rect()
 		assert_bool(machine.encloses(mouth)).is_true()
 		assert_bool(machine.encloses(view.slot_plate.dock_global_rect())).is_true()
@@ -785,9 +862,14 @@ static func _with_stamp_day(run: RunState) -> void:
 	run.machine.machine.stamp_day_floor = PackedInt32Array([1])
 
 
-## NEW ITEMS at REGULAR 3 and the cart at the deck limit.
-static func _at_level_three_with_a_full_cart(run: RunState) -> void:
-	run.machine.levels[RewardMachine.Chute.NEW_ITEMS] = 3
+## The run's machine makes shift 1's ticket visit BOOSTED (v0.47; the data's are 3, 5 and 7).
+static func _boosted_after_shift_one(run: RunState) -> void:
+	run.machine.machine = run.machine.machine.duplicate() as MachineDefinition
+	run.machine.machine.boosted_shifts = PackedInt32Array([1])
+
+
+## The cart at the deck limit.
+static func _with_a_full_cart(run: RunState) -> void:
 	var milk: CardDefinition = load("res://data/cards/milk.tres")
 	while run.deck.size() < run.balance.deck_limit:
 		run.deck.add_card(milk)

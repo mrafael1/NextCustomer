@@ -67,7 +67,7 @@ var rng_state: int:
 		return _rng.state
 	set(value):
 		_rng.state = value
-## The RECEIPT REWARDS machine (#77): its Regular meters and visits, for this run. It shares the
+## The RECEIPT REWARDS machine (#77): its visits, for this run. It shares the
 ## run's RNG.
 var machine: RewardMachine
 var _rng: RandomNumberGenerator
@@ -272,7 +272,7 @@ func debug_add_to_hand(card_definition: CardDefinition) -> CardInstance:
 
 ## Debug panel only: jumps to a shift and starts it. Jumping to another shift draws that
 ## shift's inspection if it is inspected; restarting the current shift keeps its inspections.
-## The machine's waiting visits are dropped (its levels stay). Not once the run is over.
+## The machine's waiting visits are dropped. Not once the run is over.
 func debug_skip_to_shift(index: int) -> void:
 	if phase == Phase.WON or phase == Phase.LOST:
 		return

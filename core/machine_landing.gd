@@ -14,6 +14,5 @@ var register: UpgradeDefinition
 var box_index: int = -1
 var cart_before: int = 0
 var cart_after: int = 0
-var meter_rose: bool = false
 ## No other visit follows this shift.
 var last_of_shift: bool = false

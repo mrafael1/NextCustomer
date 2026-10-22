@@ -4,9 +4,10 @@ extends RefCounted
 ## core tests can get past a passed shift without the screen.
 
 
-## Plays every waiting visit: chooses NEW ITEMS (else the first lit chute) and bins it; a visit
-## that can't be binned (STAMP DAY, REGISTER, UPGRADES) takes its first prize, at the deck limit
-## swapping the deck's first card out. True when the run ended its visits (SCORED, or no visit).
+## Plays every waiting visit: chooses NEW ITEMS (else the first lit chute: a BOOSTED visit's
+## REGISTER or UPGRADES) and bins it; a visit that can't be binned (STAMP DAY, REGISTER, UPGRADES)
+## takes its first prize, at the deck limit swapping the deck's first card out. True when the
+## run ended its visits (SCORED, or no visit).
 static func pass_visits(run: RunState) -> bool:
 	while RunState.MACHINE_PHASES.has(run.phase):
 		if run.phase == RunState.Phase.MACHINE_CHOOSE:
@@ -65,6 +66,21 @@ static func first_lit(run: RunState, preferred: int) -> int:
 
 static func _lit(run: RunState, chute: int) -> bool:
 	return run.machine.chute_info(run, chute).state == RewardMachine.ChuteState.OPEN
+
+
+## `balance` with its own machine copy whose ticket visit is BOOSTED (v0.47: REGISTER and
+## UPGRADES lit) after exactly the 1-based `shifts`, so a test can take a register after them.
+static func boosted_on(balance: BalanceDefinition, shifts: Array[int]) -> BalanceDefinition:
+	balance.machine = balance.machine.duplicate() as MachineDefinition
+	balance.machine.boosted_shifts = PackedInt32Array(shifts)
+	return balance
+
+
+## `run`'s machine on its own definition copy whose ticket visit is BOOSTED after exactly the
+## 1-based `shifts` (v0.47), for a screen test that takes a register or upgrade early.
+static func boost_run(run: RunState, shifts: Array[int]) -> void:
+	run.machine.machine = run.machine.machine.duplicate() as MachineDefinition
+	run.machine.machine.boosted_shifts = PackedInt32Array(shifts)
 
 
 ## `balance` with its own machine copy that holds no STAMP DAY, so a low-quota test run never
