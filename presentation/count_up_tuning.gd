@@ -28,6 +28,11 @@ extends Resource
 @export var auto_speed: float = 0.0
 ## The first 1-based shift that plays at auto_speed.
 @export var auto_speed_from_shift: int = 0
+## The count's tempo (2026-10-20, the user: the count ran a bit too fast): multiplies the auto
+## speed-up and the speed setting into the speed every beat, ride, roll and bag hop runs at, so
+## 0.8 plays the whole count 1.25x slower, evenly. Hit-stops, the pause before the total and the
+## dessert don't follow it. 0 (the neutral default) counts as 1.
+@export var count_tempo: float = 0.0
 ## Printer speed (D3) = min(printer_speed_max, 1 + printer_speed_per_shift x (shift - 1)
 ## + printer_speed_per_step x max(0, steps - printer_free_steps)).
 @export var printer_speed_max: float = 0.0
@@ -85,7 +90,7 @@ extends Resource
 @export var hit_stop_upgrade_stamp_ms: int = 0
 ## A payout override (the red 0).
 @export var hit_stop_denied_ms: int = 0
-## The quota ding.
+## The quota ding: the count holds as the quota bursts (#86 v6).
 @export var hit_stop_ding_ms: int = 0
 ## Hit-stops whose beats start within this many ms (planned timeline at speed 1) merge into
 ## the first, keeping the longest.
@@ -180,11 +185,12 @@ extends Resource
 ## a tap prints the rest at once.
 @export var final_line_ms: int = 0
 
-@export_group("Belt")
-## The conveyor runs left, toward the register, from the CHECKOUT click to the held breath before
-## the TOTAL line (#83, BeltPanel): its slats move this many px a second along the belt's front
-## edge at speed 1. It follows the count's speed (taps and holds too) and stands still in a
-## hit-stop.
-@export var belt_px_per_second: float = 0.0
-## The fastest the slats move, in px a second, whatever the speed: a skip never blurs them.
-@export var belt_max_px_per_second: float = 0.0
+@export_group("Scan")
+## The ride before each item's first beat (#86 v6): the item slides into the scanner (the row's
+## first cell) while the one before it hops into the bag. It counts in the plan's length, is never
+## shortened by the fit and runs at the count's speed like a beat. None for item 0 when it already
+## stands in the scanner's cell.
+@export var ride_ms: int = 0
+## The last item's hop into the bag after the last beat: it overlaps the pause before the TOTAL
+## line and adds nothing to the count.
+@export var bag_ms: int = 0

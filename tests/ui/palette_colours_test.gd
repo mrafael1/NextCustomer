@@ -1,9 +1,8 @@
 extends GdUnitTestSuite
 ## The screens' colours are the art's (full build plan section 6.1, #55): every Color constant
 ## of Palette and of the boutique classes the shift screen builds is one of art/src/palette.txt's
-## 67 colours. Out of scope (listed for #56/#75, not changed in #55): EffectMarker's
-## SPENT_BACKGROUND (c9c1ae) and the shade's black (ScreenShade's colour since #80), which belong
-## to #60's count-up look.
+## 67 colours. Out of scope (listed for #56/#75, not changed in #55): the shade's black
+## (ScreenShade's colour since #80), which belongs to #60's count-up look.
 
 const PALETTE_FILE := "res://art/src/palette.txt"
 const PALETTE_SIZE := 67
@@ -15,8 +14,11 @@ const PALETTE_SIZE := 67
 ## #80 adds (MonitorView, LedBeat, ScanFooter) and the back of the store (StoreShelves, step 11):
 ## style frame v2's palette check, kept for the screen that replaced it (#75, step 9), and the
 ## planning effects' pieces (#71, mock-up h1: PlanningLayer, RailStrip, EffectSticker, GiverBadge,
-## PayTag, DenyStamp). A class is checked once its script exists, so each step of the adoption is
-## covered as it lands.
+## PayTag, DenyStamp), the count-up's receipt chip (#86 v6, ReceiptFly) and its paper bag
+## (PaperBag, which declares no colour: its art is drawn from the palette), the belt ride and the
+## giver sparks (BeltRide, GiverSparks), and the monitor's count view (ScannerBay, EuroTank,
+## MetStamp, Sunburst, OverTab) with the burst outside it (TankBurst). A class is checked
+## once its script exists, so each step of the adoption is covered as it lands.
 const SCRIPTS: Array[String] = [
 	"res://ui/palette.gd",
 	"res://presentation/art_style.gd",
@@ -43,9 +45,24 @@ const SCRIPTS: Array[String] = [
 	"res://ui/giver_badge.gd",
 	"res://ui/pay_tag.gd",
 	"res://ui/deny_stamp.gd",
+	"res://presentation/receipt_fly.gd",
+	"res://ui/paper_bag.gd",
+	"res://ui/belt_ride.gd",
+	"res://ui/giver_sparks.gd",
+	"res://ui/scanner_bay.gd",
+	"res://ui/euro_tank.gd",
+	"res://ui/met_stamp.gd",
+	"res://ui/sunburst.gd",
+	"res://ui/over_tab.gd",
+	"res://ui/tank_burst.gd",
+	"res://ui/bay_bed.gd",
+	"res://ui/bay_tag.gd",
+	"res://ui/bay_queue.gd",
+	"res://ui/tally_chips.gd",
 ]
 ## The scan pieces (the scan's step lines in ScanFooter, #80, too), the items and the planning
-## effects' pieces (#71) name no colour of their own: every colour they draw is a Palette constant.
+## effects' pieces (#71), the receipt chip and the giver sparks (#86 v6) name no colour of their
+## own: every colour they draw is a Palette constant.
 const PALETTE_ONLY: Array[String] = [
 	"res://ui/price_sticker.gd",
 	"res://ui/scan_popup.gd",
@@ -60,6 +77,8 @@ const PALETTE_ONLY: Array[String] = [
 	"res://ui/giver_badge.gd",
 	"res://ui/pay_tag.gd",
 	"res://ui/deny_stamp.gd",
+	"res://presentation/receipt_fly.gd",
+	"res://ui/giver_sparks.gd",
 ]
 
 var _folder: String = ""

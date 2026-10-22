@@ -39,7 +39,9 @@ extends Node
 ## Motion (none under reduced motion, and nothing loops): stickers new since the last refresh slap
 ## on, a halo steps out ring by ring, the strips' chevrons step once (PlanningLayer).
 ##
-## The CHECKOUT click clears everything (clear): the count-up earns the effects back.
+## The CHECKOUT click (show_count, #86 v6) keeps only the stickers (and a denied item's stamp) on
+## the items for the count, where they fire as their steps land (BeltRide); the rail strips,
+## halos, pay tags, the hover's highlight and the key go, until the next planning refresh.
 
 enum Focus { NONE, CARD, UPGRADE, INSPECTION }
 
@@ -207,6 +209,17 @@ func clear() -> void:
 			_relate(item, ItemView.Relation.NONE, 0.0, Vector2.ONE)
 	_loyalty.clear_relations()
 	_tag.set_relation(false)
+
+
+## The CHECKOUT click (#86 v6), after the refresh that rebuilt the belt items `views`: everything
+## goes (clear), then `result`'s stickers (and stamps) come back on the items for the count,
+## without a slap (PlanningLayer.keep_stickers). Hovers stay off until the next show_all.
+func show_count(result: ScoreResult, views: Array[CardView], run: RunState) -> void:
+	clear()
+	_views = views
+	_layer.reduced_motion = _reduced()
+	_layer.show_model(model_of(result, run.row, run, tuning), _items_in(views, -1, null))
+	_layer.keep_stickers()
 
 
 ## The committed preview's model (for tests).

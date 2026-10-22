@@ -1,0 +1,600 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Screen is the tank</title>
+<!--
+  #86 round 5, letter b (2026-10-19): "The screen is the tank". Hand-written live page (no generator).
+  The count-up monitor stops being a screen with widgets on it: the whole paper of the screen is the € tank. Gold rises from
+  the bottom behind the ink number (full exactly at SPEND €73+, the screen brimming), with the wave, bubbles and shine of
+  round 4's V1 tank; the € is a big stencil that the rising gold reveals. On top sit only the item's art (small), the number
+  and the landing sticker. The to-go is a waterline tag on the brim (the fill line), with measuring-cup ticks on the edge.
+  At the quota the screen brims and overflows OUT of the monitor: gold crests over the bezel, runs down its sides, drips off
+  the lip onto the belt; flash, shake, gold sunburst inside the gold, SPEND MET stamp on the glass, the number turns gold.
+  Past it every gain pours over the lip again and "+€N" counts what is over.
+  Timeline = v4's (QUOTA 73; €77 crosses on beat 6; €117 at the end). ?at=<s> fast-forwards and holds that frame (add
+  &go=1 to keep playing), ?rm=1 is reduced motion. All motion is driven from the page clock (no CSS keyframes in the
+  count-up), so a held frame is the real frame. Canvases draw at half resolution, CSS 2x, hard pixels.
+-->
+<style>
+@font-face { font-family: Pixelify; src: url(../../../fonts/PixelifySans-Variable.ttf); }
+@font-face { font-family: Atkinson; src: url(../../../fonts/AtkinsonHyperlegibleNext-Variable.ttf); font-weight: 200 800; }
+@font-face { font-family: JBMono; src: url(../../../fonts/JetBrainsMono-Regular.ttf); }
+:root { --ink: #2b2420; --ink-light: #4a3f38; --paper: #fbf7ee; --cream: #f3e9d2; --cream-shade: #ddcba5; --mustard: #e2b33c;
+  --mustard-light: #f1d27a; --mustard-pale: #faecbc; --mustard-dark: #b38425; --tomato-dark: #a83a3c; --teal: #4f9a94;
+  --teal-panel: #2a4d4b; --teal-dark: #1f3b3a; --good: #5fae5a; --good-light: #a5d17e; --good-dark: #3d7a45; --rubber: #3d3a36;
+  --steel: #8d8a83; --steel-light: #c7c3b8; --steel-dark: #57534c; }
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { background: #17302f; }
+body { width: 1280px; font-family: Atkinson, sans-serif; color: var(--paper); }
+h1 { font-family: Pixelify; font-size: 22px; color: var(--mustard-light); padding: 8px 24px 6px; height: 40px; white-space: nowrap; }
+h1 small { font-family: Atkinson; font-size: 13px; color: var(--steel-light); margin-left: 10px; font-weight: 500; }
+canvas, img { image-rendering: pixelated; display: block; }
+.scene { position: relative; width: 1280px; height: 500px; overflow: hidden; background: #e4d6b9; }
+.abs { position: absolute; }
+
+/* wall */
+.wall { left: 0; top: 56px; width: 1280px; height: 444px; background: #e4d6b9; }
+.wall::before { content: ""; position: absolute; left: 0; right: 0; top: 0; height: 8px; background: #cdbd9c; border-bottom: 2px solid #b9a888; }
+.wall::after { content: ""; position: absolute; left: 0; right: 0; top: 196px; bottom: 0; background: rgba(36,40,34,.22); border-top: 2px solid rgba(43,36,32,.25); }
+.cool { left: 0; top: 56px; width: 1280px; height: 444px; background: rgba(79,154,148,.14); }
+
+/* top bar */
+.topbar { left: 0; top: 0; width: 1280px; height: 56px; background: var(--teal-dark); border-bottom: 2px solid var(--ink); z-index: 10; }
+.tbrow { left: 16px; top: 9px; width: 1248px; height: 38px; display: flex; gap: 12px; z-index: 11; }
+.chip { position: relative; height: 38px; display: flex; align-items: center; gap: 9px; padding: 0 12px; background: var(--teal-panel);
+  border: 2px solid var(--ink); border-radius: 6px; color: var(--paper); box-shadow: inset 0 -3px 0 rgba(0,0,0,.25); flex: none; }
+.chip .k { font-family: Pixelify; font-size: 15px; letter-spacing: 1px; color: var(--mustard-pale); white-space: nowrap; }
+.chip .v { font-weight: 750; font-size: 20px; }
+.chip .v.cash { color: var(--mustard-light); min-width: 58px; display: inline-block; transform-origin: 30% 60%; }
+.chip .tag { font-weight: 750; font-size: 12.5px; padding: 0 5px; background: var(--paper); color: var(--tomato-dark); border: 2px solid var(--ink);
+  white-space: nowrap; min-width: 76px; text-align: center; }
+.chip .tag.over { background: var(--good); color: var(--ink); }
+.chip.dim { opacity: .55; }
+.chip .slot { position: relative; flex: none; }
+.flag { position: absolute; top: 0; width: 0; height: 0; z-index: 5; display: none; }
+.flag.on { display: block; }
+.flag .pole { position: absolute; left: -2px; width: 4px; background: var(--paper); border: 1px solid var(--ink); }
+.flag .cloth { position: absolute; top: 0; left: 2px; padding: 0 4px; font: 800 10px/12px Atkinson; color: var(--paper); background: var(--good);
+  border: 2px solid var(--ink); white-space: nowrap; }
+.flag.plant .pole, .flag.plant .cloth { animation: plant .55s ease-out both; }
+@keyframes plant { 0% { transform: translateY(-30px) rotate(-18deg); opacity: 0; } 55% { transform: translateY(2px) rotate(3deg); opacity: 1; } 100% { transform: none; } }
+.rm .flag.plant .pole, .rm .flag.plant .cloth { animation: none; }
+
+/* receipt + printer (left, as in the mirrored game screen) */
+.rcpt { left: 44px; top: 64px; width: 252px; height: 252px; background: var(--paper); border: 2px solid var(--ink); border-top: 0; z-index: 3;
+  font-family: JBMono; font-size: 13px; line-height: 19px; color: var(--ink); padding: 8px 12px; display: flex; flex-direction: column; overflow: hidden; }
+.rcpt .rh { color: var(--ink-light); font-size: 12px; line-height: 17px; border-bottom: 2px dashed var(--cream-shade); padding-bottom: 6px; margin-bottom: 4px; }
+.rcpt .rl { flex: 1; display: flex; flex-direction: column; justify-content: flex-end; overflow: hidden; }
+.rcpt .ln { display: flex; justify-content: space-between; white-space: pre; padding: 0 3px; }
+.rcpt .ln.sub { color: var(--ink-light); }
+.rcpt .ln.met { color: var(--good-dark); font-weight: 700; }
+.printer { left: 32px; top: 312px; width: 276px; height: 46px; background: var(--rubber); border: 2px solid var(--ink); border-radius: 4px; z-index: 4;
+  box-shadow: inset 0 3px 0 #57534c; }
+.printer::before { content: ""; position: absolute; left: 10px; right: 10px; top: 4px; height: 4px; background: #24221f; }
+.counter { left: 0; top: 356px; width: 330px; height: 144px; background: #a8703a; border-top: 2px solid var(--ink); z-index: 2; box-shadow: inset 0 4px 0 #c98c4e; }
+
+/* monitor */
+.rod { top: 56px; width: 6px; height: 12px; background: var(--rubber); border: 2px solid var(--ink); border-top: 0; z-index: 2; }
+.mon { left: 484px; top: 66px; width: 424px; height: 176px; background: var(--rubber); border: 2px solid var(--ink); border-radius: 4px; padding: 6px; z-index: 3;
+  box-shadow: inset 0 2px 0 #57534c, 0 6px 0 rgba(43,36,32,.25); }
+.scr { position: relative; width: 408px; height: 160px; border: 2px solid var(--ink); overflow: hidden; background: var(--paper); }
+#scv { position: absolute; left: 0; top: 0; width: 404px; height: 156px; }
+.num { position: absolute; left: 22px; top: 34px; width: 236px; text-align: center; font-family: Atkinson; font-weight: 800; font-size: 74px; line-height: 76px;
+  letter-spacing: -2px; color: var(--ink); text-shadow: 4px 4px 0 var(--mustard-light); z-index: 3; transform-origin: 50% 60%; white-space: nowrap; }
+.num.gold { color: var(--paper);
+  text-shadow: -2px 0 0 var(--ink), 2px 0 0 var(--ink), 0 -2px 0 var(--ink), 0 2px 0 var(--ink), -2px -2px 0 var(--ink), 2px 2px 0 var(--ink),
+    -2px 2px 0 var(--ink), 2px -2px 0 var(--ink), 4px 4px 0 var(--ink), 6px 6px 0 #7a5a1c; }
+.ma { position: absolute; z-index: 4; transform-origin: 50% 50%; }
+.ma canvas, .stk canvas { position: absolute; left: 0; top: 0; }
+.ma .t, .stk .t { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-family: Atkinson; font-weight: 800;
+  color: var(--ink); letter-spacing: -.5px; white-space: nowrap; }
+.wl { position: absolute; left: 10px; top: 0; z-index: 5; height: 22px; padding: 0 6px; font-weight: 750; font-size: 13px; line-height: 18px;
+  background: var(--paper); color: var(--tomato-dark); border: 2px solid var(--ink); border-top: 0; white-space: nowrap; transform-origin: 0 0; }
+.wl.near { color: var(--ink); background: var(--mustard-pale); }
+.wl.over { background: var(--ink); color: var(--mustard-light); border-color: var(--ink); font-size: 15px; }
+.stamp { position: absolute; left: 50px; top: 116px; z-index: 6; font-family: Pixelify; font-size: 19px; letter-spacing: 1px; color: var(--good-dark);
+  border: 3px solid var(--good-dark); outline: 2px solid var(--good-dark); outline-offset: 2px; background: rgba(251,247,238,.93); padding: 0 9px;
+  line-height: 24px; display: none; white-space: nowrap; }
+.flash { position: absolute; inset: 0; background: var(--paper); opacity: 0; z-index: 8; pointer-events: none; }
+
+/* belt */
+#belt { left: 320px; top: 294px; width: 740px; height: 206px; z-index: 1; }
+#spill { left: 0; top: 0; width: 1280px; height: 500px; z-index: 4; pointer-events: none; }
+.item { position: absolute; width: 96px; height: 96px; z-index: 5; }
+.item img { width: 96px; height: 96px; }
+.tk { position: absolute; width: 112px; height: 60px; background: var(--paper); border: 2px solid var(--ink); z-index: 5; color: var(--ink); padding: 3px 7px;
+  box-shadow: inset 0 3px 0 var(--cream-shade); }
+.tk.got { background: #f6dd8f; box-shadow: inset 0 3px 0 var(--mustard); }
+.tk .p { font-weight: 750; font-size: 21px; line-height: 23px; }
+.tk .r { font-weight: 600; font-size: 11.5px; line-height: 13px; }
+.stk { position: absolute; z-index: 7; transform-origin: 50% 50%; }
+.stk .t { font-size: 21px; }
+.stk img.bdg { position: absolute; width: 18px; height: 18px; z-index: 2; }
+.ok { position: absolute; width: 18px; height: 18px; z-index: 3; }
+.fb { position: absolute; z-index: 7; height: 22px; min-width: 34px; padding: 0 3px; background: var(--paper); border: 2px solid var(--ink);
+  font-weight: 800; font-size: 15px; line-height: 18px; text-align: center; color: var(--ink); box-shadow: 2px 2px 0 rgba(30,18,10,.45); }
+.fb.hot { background: var(--mustard-light); }
+.rail { left: 0; top: 0; z-index: 6; }
+.rail canvas { position: absolute; left: 0; top: 0; }
+.rail .hotwrap { position: absolute; left: 0; top: 0; height: 14px; overflow: hidden; width: 0; }
+.cname { position: absolute; z-index: 7; font-family: Pixelify; font-size: 11px; line-height: 14px; color: var(--paper); letter-spacing: .5px; }
+.fly { position: absolute; z-index: 20; pointer-events: none; transform-origin: 50% 50%; }
+.chipv { font-weight: 800; font-size: 14px; line-height: 16px; padding: 0 4px; background: var(--paper); border: 2px solid var(--ink); color: var(--ink); white-space: nowrap; }
+
+.cap { padding: 10px 24px 14px; font-size: 13px; line-height: 18px; color: var(--steel-light); }
+.cap b { color: var(--mustard-light); font-weight: 700; }
+.cap div { margin-bottom: 2px; }
+</style>
+</head>
+<body>
+<h1>#86 round 5 b: The screen is the tank<small>live · €0 → €77 (SPEND €73+ met on beat 6) → €117 · ?at=6.0 holds a frame · ?rm=1 reduced motion</small></h1>
+<div class="scene" id="scene">
+  <div class="abs wall"></div><div class="abs cool"></div>
+  <div class="abs topbar"></div>
+  <div class="abs tbrow">
+    <div class="chip"><span class="k">SHIFT</span><span class="v">5/8</span></div>
+    <div class="chip" id="spend" style="width:400px"><span class="k">SPEND €73+</span><span class="slot"><canvas id="tbg"></canvas>
+      <div class="flag" id="tflag"><div class="pole"></div><div class="cloth">✓</div></div></span><span class="v cash" id="tbv">€0</span><span class="tag" id="tbt">€73 to go</span></div>
+    <div class="chip dim" style="background:var(--paper);color:var(--ink)"><span style="font-weight:700;font-size:14px">⚠ Inspection · 3rd product pays €0</span></div>
+    <div class="chip dim"><span class="k">LOYALTY</span><span class="v" style="font-size:15px">●●●○</span></div>
+    <div class="chip dim" style="background:var(--teal)"><span class="k" style="color:var(--paper)">Cart 13/15</span></div>
+  </div>
+
+  <div class="abs counter"></div>
+  <div class="abs rcpt" id="rcpt"><div class="rh">NEXT CUSTOMER · REG 3<br>SHIFT 5/8 · 5 ITEMS</div><div class="rl" id="rl"></div></div>
+  <div class="abs printer"></div>
+
+  <div class="abs rod" style="left:556px"></div><div class="abs rod" style="left:832px"></div>
+  <div class="abs mon" id="mon"><div class="scr" id="scr">
+    <canvas id="scv"></canvas>
+    <div class="num" id="num">€0</div>
+    <div class="ma" id="ma"></div>
+    <div class="wl" id="wl">€73 to go</div>
+    <div class="stamp" id="stamp">SPEND MET ✓</div>
+    <div class="flash" id="flash"></div>
+  </div></div>
+
+  <canvas class="abs" id="belt"></canvas>
+  <canvas class="abs" id="spill"></canvas>
+  <div class="abs rail" id="rail"></div>
+</div>
+<div class="cap">
+  <div><b>b · The screen is the tank.</b> The paper is the € tank: gold rises behind the number, brims exactly at SPEND €73+ and fills the € stencil. Game size: 424 × 176 at 1280 × 720, shown 1:1.</div>
+  <div><b>Shows 3 things, left to right:</b> the number, the beat's sticker slapped on its shoulder, the € tank; the to-go hangs on the brim. Beat: belt sticker fires → hops up → punch + slosh → value to receipt, ✓.</div>
+  <div><b>Dropped:</b> item art, name, 7 / 7 (the belt item fires), SUBTOTAL, the step line (receipt), SPEND €73+ and +€N chip (top bar, flying value), the separate € tank, ✓ MET (the stamp).</div>
+  <div><b>Reward at €73:</b> flash, shake, a ring off the bezel; the screen brims over, a gold sheet pours down both sides to the belt, coins spurt out; gold sunburst, SPEND MET ✓ slams, the number lights up.</div>
+  <div><b>Past it:</b> gold beads on the bezel and drips; each gain sends a short pour and a few coins, the brim tag counts +€N over. Every pour falls away: no gold frame, no puddles.</div>
+  <div><b>Reduced motion (?rm=1):</b> states stay (level, gold screen, crest and drips, lit number, stamp, +€N, stickers, ✓); motion goes (slosh, rays, slaps, punches, flash, shake, pours, coins, flyers).</div>
+</div>
+
+<script>
+// ---------------------------------------------------------------- setup
+const P = new URLSearchParams(location.search);
+const RM = P.get('rm') === '1', AT = parseFloat(P.get('at') || '0'), GO = P.has('go');
+if (RM) document.body.classList.add('rm');
+const QUOTA = 73;
+const BEATS = [[1, '+1', 'add'], [10, '+10', 'add'], [21, '×3', 'mul'], [24, '×3', 'mul'], [9, '+9', 'add'], [12, '+12', 'add'], [40, '×2', 'mul']];
+const BEAT_ITEM = [0, 1, 2, 3, 4, 4, 4];
+const BEAT_BADGE = [null, null, 'item', 'item', null, 'stamp', 'stamp'];
+const RCPT = [['Eggs', '€1.00'], ['Croissant', '€10.00'], ['Milk  ×3 Eggs', '€21.00'], ['Milk  ×3 Eggs', '€24.00'], ['Milk', '€9.00'],
+  [' + Slot engine', '+€12.00'], [' × Slot engine', '+€40.00']];
+const ITEMS = [
+  { spr: 'eggs', p: '€1', r: '×3 next 2 Milk' }, { spr: 'croissant', p: '€5', r: '×2 Bakery · Food' },
+  { spr: 'milk', p: '€4', r: '+1 per earlier Breakfast' }, { spr: 'milk', p: '€4', r: '+1 per earlier Breakfast' },
+  { spr: 'milk', p: '€4', r: '+1 per earlier Breakfast' }];
+const SLOT = k => 376 + 128 * k;
+const BEAT0 = 0.8, PITCH = 0.95, HOLD = 3.2, HOP = 0.18, RFLY = 0.36, PRINT = 0.74;
+const LOOP = BEAT0 + PITCH * (BEATS.length - 1) + HOLD;
+
+const H = { ink: '#2b2420', inkL: '#4a3f38', paper: '#fbf7ee', cream: '#f3e9d2', shade: '#ddcba5', mus: '#e2b33c', musL: '#f1d27a', musP: '#faecbc',
+  musD: '#b38425', musDD: '#7a5a1c', musR: '#ecc65a', tomD: '#a83a3c', g: '#5fae5a', gL: '#a5d17e', gD: '#3d7a45', dark: '#24221f' };
+const S = { t: 0, T: 0, target: 0, shown: 0, met: false, metAt: -99, step: 0, item: -1, landAt: -99, landBeat: -1, gainAt: -99 };
+const $ = id => document.getElementById(id);
+const scene = $('scene');
+function el(tag, cls, style, parent, html) { const e = document.createElement(tag); if (cls) e.className = cls; if (style) Object.assign(e.style, style);
+  if (html !== undefined) e.innerHTML = html; (parent || scene).appendChild(e); return e; }
+function rect(g, x, y, w, h, c) { g.fillStyle = c; g.fillRect(Math.round(x), Math.round(y), Math.round(w), Math.round(h)); }
+function clamp01(v) { return Math.max(0, Math.min(1, v)); }
+function easeOut(v) { v = clamp01(v); return 1 - (1 - v) * (1 - v); }
+let seed = 7; function rnd() { seed = (seed * 16807) % 2147483647; return (seed - 1) / 2147483646; }   // deterministic, so held frames repeat
+
+// ---------------------------------------------------------------- pixel stickers (the h1 shapes: price-gun label, gold starburst)
+const PALS = { gold: { fill: H.mus, lit: H.musL, shade: H.musD }, cream: { fill: H.paper, lit: '#ffffff', shade: H.shade } };
+function pxPaint(c, inside, p, shadow = 'rgba(20,14,10,.5)') {
+  const g = c.getContext('2d'), W = c.width, Hh = c.height;
+  const ins = (i, j) => i >= 0 && j >= 0 && i < W && j < Hh && inside(i, j);
+  const edge = (i, j) => ins(i, j) && !(ins(i - 1, j) && ins(i + 1, j) && ins(i, j - 1) && ins(i, j + 1));
+  for (let j = 0; j < Hh; j++) for (let i = 0; i < W; i++) {
+    let col = null;
+    if (!ins(i, j)) { if (shadow && ins(i - 1, j - 1)) col = shadow; }
+    else if (edge(i, j)) col = H.ink;
+    else if (edge(i - 1, j) || edge(i, j - 1)) col = p.lit;
+    else if (edge(i + 1, j) || edge(i, j + 1)) col = p.shade;
+    else col = p.fill;
+    if (col) { g.fillStyle = col; g.fillRect(i, j, 1, 1); }
+  }
+}
+function stickerCanvas(kind, tw, th, tilt) {
+  const c = document.createElement('canvas'); c.width = tw; c.height = th; c.style.width = tw * 2 + 'px'; c.style.height = th * 2 + 'px';
+  const mul = kind === 'mul', a = (tw - 1) / 2, b = (th - 1) / 2, r = (tilt || 0) * Math.PI / 180, co = Math.cos(r), si = Math.sin(r);
+  pxPaint(c, (i, j) => {
+    const u0 = i + .5 - a, v0 = j + .5 - b, u = u0 * co + v0 * si, v = -u0 * si + v0 * co;
+    if (mul) { const nu = u / a, nv = v / b, k = (Math.atan2(nv, nu) / (2 * Math.PI) * 18 + 18) % 1; return Math.hypot(nu, nv) <= .84 + .16 * Math.abs(k - .5) * 2; }
+    return (Math.abs(u) / (a * .96)) ** 5 + (Math.abs(v) / (b * .9)) ** 5 <= 1;
+  }, mul ? PALS.gold : PALS.cream);
+  return c;
+}
+function okBadge() { // a small green ✓ disc, 9 x 9 texels
+  const c = document.createElement('canvas'); c.width = 9; c.height = 9; c.className = 'ok';
+  pxPaint(c, (i, j) => Math.hypot(i - 4, j - 4) <= 4.3, { fill: H.g, lit: H.gL, shade: H.gD }, null);
+  const g = c.getContext('2d'); g.fillStyle = H.paper; [[2, 4], [3, 5], [4, 6], [5, 5], [6, 4], [6, 3]].forEach(([x, y]) => g.fillRect(x, y - 1, 1, 1));
+  return c;
+}
+
+// ---------------------------------------------------------------- belt art (static, half resolution)
+(function drawBelt() {
+  const c = $('belt'); c.width = 370; c.height = 103; const g = c.getContext('2d');
+  // belt frame spans scene x 340..1040 -> canvas 10..360; y origin scene 294
+  const X0 = 10, X1 = 360;
+  rect(g, X0, 3, X1 - X0, 4, H.ink); rect(g, X0 + 1, 4, X1 - X0 - 2, 2, '#c7c3b8');               // back lip
+  rect(g, X0, 7, X1 - X0, 44, H.ink); rect(g, X0 + 1, 7, X1 - X0 - 2, 43, '#3d3a36');                                     // rubber
+  for (let x = X0 + 4; x < X1 - 2; x += 9) rect(g, x, 8, 1, 42, '#4a4640');
+  rect(g, X0 + 1, 7, X1 - X0 - 2, 2, '#24221f');
+  rect(g, X0 - 2, 50, X1 - X0 + 4, 5, H.ink); rect(g, X0 - 1, 51, X1 - X0 + 2, 3, '#c7c3b8'); rect(g, X0 - 1, 51, X1 - X0 + 2, 1, '#ece8de'); // front lip
+  rect(g, X0 - 2, 55, X1 - X0 + 4, 10, '#57534c'); rect(g, X0 - 2, 55, X1 - X0 + 4, 2, '#3a3733');                       // rail band
+  rect(g, X0 - 2, 65, X1 - X0 + 4, 38, H.ink); rect(g, X0 - 1, 65, X1 - X0 + 2, 36, '#8d8a83'); rect(g, X0 - 1, 65, X1 - X0 + 2, 1, '#c7c3b8'); // ticket rail
+  // contact shadows under the items
+  for (let k = 0; k < 5; k++) { const cx = (SLOT(k) + 56 - 320) / 2; rect(g, cx - 20, 44, 40, 2, 'rgba(10,8,6,.55)'); rect(g, cx - 16, 46, 32, 1, 'rgba(10,8,6,.4)'); }
+})();
+
+// ---------------------------------------------------------------- items, stickers, tickets, rail
+const itemEls = [], stickers = [];
+ITEMS.forEach((it, k) => {
+  const d = el('div', 'item', { left: SLOT(k) + 8 + 'px', top: '288px' }); el('img', '', null, d).src = `assets/art/items_v2/${it.spr}.png`;
+  const tk = el('div', 'tk', { left: SLOT(k) + 'px', top: '428px' }, scene, `<div class="p">${it.p}</div><div class="r">${it.r}</div>`);
+  itemEls.push({ d, tk, beats: [] });
+});
+BEATS.forEach((b, i) => itemEls[BEAT_ITEM[i]].beats.push(i));
+const TILTS = [-4, 3, -3, 4, -2];
+itemEls.forEach((it, k) => {
+  let y = 384; const list = it.beats;
+  [...list].reverse().forEach((bi, n) => {
+    const idx = list.length - 1 - n, kind = BEATS[bi][2], text = BEATS[bi][1], mul = kind === 'mul';
+    const tw = mul ? 31 : (text.length > 2 ? 27 : 23), th = mul ? 17 : 14, hgt = mul ? 34 : 28;
+    y -= hgt;
+    const x = SLOT(k) + 8 + 58 + (idx % 2 ? 4 : 0);
+    const d = el('div', 'stk', { left: x + 'px', top: y + 'px', width: tw * 2 + 'px', height: th * 2 + 'px', zIndex: 7 + idx });
+    d.appendChild(stickerCanvas(kind, tw, th, TILTS[bi % 5]));
+    el('div', 't', null, d, `<span>${text}</span>`);
+    if (BEAT_BADGE[bi]) { const im = el('img', 'bdg', { left: (mul ? -8 : -14) + 'px', top: Math.round((th * 2 - 18) / 4) * 2 + 'px' }, d);
+      im.src = `../../../art/effects/badge_${BEAT_BADGE[bi]}.png`; }
+    const ok = okBadge(); Object.assign(ok.style, { left: tw * 2 - 6 + 'px', top: Math.round((th * 2 - 18) / 4) * 2 + 'px', display: 'none' }); d.appendChild(ok);
+    stickers[bi] = { d, ok, x, y, w: tw * 2, h: th * 2, kind, text, tw, th, firedAt: -99 };
+    y += 6;
+  });
+});
+// rail strip: Eggs gives ×3 to the next two Milk; lights gold from the giver to each target as it pays
+const RAIL = { x0: SLOT(0) + 6, x1: SLOT(3) + 66, y: 403, hot: 0, want: 0, badges: [] };
+(function drawRail() {
+  const w = (RAIL.x1 - RAIL.x0) / 2, r = $('rail'); Object.assign(r.style, { left: RAIL.x0 + 'px', top: RAIL.y + 'px' });
+  const mk = (hot) => { const c = document.createElement('canvas'); c.width = w; c.height = 7; c.style.width = w * 2 + 'px'; c.style.height = '14px';
+    const g = c.getContext('2d'); rect(g, 0, 0, w, 7, H.ink);
+    rect(g, 1, 1, w - 2, 5, hot ? H.musL : '#c49a3e'); rect(g, 1, 1, w - 2, 1, hot ? H.musP : '#ddb85e'); rect(g, 1, 5, w - 2, 1, hot ? H.mus : '#9a7426');
+    rect(g, 1, 1, 22, 5, hot ? H.ink : '#2a4d4b');
+    for (let x = 30; x < w - 4; x += 7) { const cc = hot ? H.musD : '#8a6820'; rect(g, x, 2, 1, 1, cc); rect(g, x + 1, 3, 1, 1, cc); rect(g, x, 4, 1, 1, cc); }
+    return c; };
+  r.appendChild(mk(false)); const hw = el('div', 'hotwrap', null, r); hw.appendChild(mk(true)); RAIL.hw = hw;
+  el('div', 'cname', { left: '7px', top: '0px' }, r, 'EGGS');
+  [2, 3].forEach(k => RAIL.badges.push(el('div', 'fb', { left: SLOT(k) + 64 + 'px', top: '418px' }, scene, '×3')));
+})();
+
+// ---------------------------------------------------------------- top-bar gauge: TA liquid in money green, with the anchoring flag
+const TB = { w: 64, h: 8, amp: 0, drops: [], bubbles: [], flash: 0, front: 2 };
+(function () { const c = $('tbg'); c.width = TB.w; c.height = TB.h; c.style.width = TB.w * 2 + 'px'; c.style.height = TB.h * 2 + 'px';
+  for (let i = 0; i < 6; i++) TB.bubbles.push({ x: rnd() * TB.w, y: 2 + rnd() * 4, v: 5 + rnd() * 8 }); })();
+function tbGain(n) { TB.amp = Math.min(4, TB.amp + 1.2 + n / 12); if (!RM) for (let i = 0; i < 4 + n / 6; i++)
+  TB.drops.push({ x: TB.front, y: 2 + rnd() * 4, vx: 8 + rnd() * 20, vy: -14 - rnd() * 18, life: .7 }); }
+function tbDraw(dt) {
+  const g = $('tbg').getContext('2d'), w = TB.w, h = TB.h;
+  TB.amp *= Math.exp(-dt * 3.5); TB.flash = Math.max(0, TB.flash - dt * 2);
+  const sc = S.met ? Math.max(QUOTA, S.shown) : QUOTA, inner = w - 4, fill = Math.min(S.shown, sc) / sc;
+  const flagX = S.met ? 2 + inner * QUOTA / sc : null; TB.front = 2 + inner * fill;
+  g.clearRect(0, 0, w, h); rect(g, 0, 0, w, h, H.ink); rect(g, 2, 2, inner, h - 4, H.dark);
+  for (let y = 2; y < h - 2; y++) {
+    const wob = RM ? 0 : TB.amp * Math.sin(y * .9 + S.t * 14) + .5 * Math.sin(y * .5 - S.t * 6);
+    const end = Math.max(2, Math.min(w - 2, TB.front + wob)), top = y < 3, bot = y >= h - 3;
+    const a = flagX === null ? end : Math.min(end, flagX);
+    if (a > 2) rect(g, 2, y, a - 2, 1, top ? H.gL : bot ? H.gD : H.g);
+    if (flagX !== null && end > flagX) rect(g, flagX, y, end - flagX, 1, top ? H.paper : bot ? H.g : H.gL);
+  }
+  if (!RM) { const sx = ((S.t * 50) % (w + 30)) - 15; for (let y = 2; y < h - 2; y++) { const x = sx + (h - y) * .6; if (x < TB.front - 2 && x > 2) rect(g, x, y, 1, 1, H.paper); }
+    TB.bubbles.forEach(b => { b.x += b.v * dt; if (b.x > TB.front - 3) b.x = 3 + rnd() * Math.max(1, TB.front - 8); if (b.x < TB.front - 3) rect(g, b.x, b.y, 1, 1, H.gL); }); }
+  TB.drops = TB.drops.filter(d => (d.life -= dt) > 0);
+  TB.drops.forEach(d => { d.x += d.vx * dt; d.y += d.vy * dt; d.vy += 70 * dt; if (d.y < h - 1 && d.y > 0) rect(g, d.x, d.y, 1, 1, H.gL); });
+  if (TB.flash > 0 && !RM) { g.globalAlpha = TB.flash * .8; rect(g, 2, 2, inner, h - 4, H.paper); g.globalAlpha = 1; }
+  const v = Math.round(S.shown); $('tbv').textContent = '€' + v;
+  const tag = $('tbt'); if (S.met) { tag.textContent = `+€${v - QUOTA}`; tag.className = 'tag over'; } else { tag.textContent = `€${QUOTA - v} to go`; tag.className = 'tag'; }
+  const f = $('tflag'); if (flagX !== null) { f.style.left = flagX * 2 + 'px'; f.style.top = '-12px'; f.querySelector('.pole').style.height = '30px'; }
+  const pt = clamp01(1 - (S.t - S.landAt) / .28); $('tbv').style.transform = RM ? '' : `scale(${1 + .2 * pt})`;
+}
+
+// ---------------------------------------------------------------- the screen: the paper is the tank (202 x 78 texels)
+const SW = 202, SH = 78, BRIM = 2, RCX = 70, RCY = 35, RR = 52, EX = 170, EY = 45, EH = 54;
+const MAX = 246, MAY = 38;    // the landing sticker's centre (CSS px in the screen): slapped on the number's shoulder, between it and the € stencil
+const scv = $('scv'); scv.width = SW; scv.height = SH; const sctx = scv.getContext('2d');
+const simg = sctx.createImageData(SW, SH), sbuf = new Uint32Array(simg.data.buffer);
+const U = {}; for (const k in H) { const h = H[k].slice(1); U[k] = (255 << 24) | (parseInt(h.slice(4, 6), 16) << 16) | (parseInt(h.slice(2, 4), 16) << 8) | parseInt(h.slice(0, 2), 16); }
+const mask = new Uint8Array(SW * SH), medge = new Uint8Array(SW * SH);
+function buildMask() {
+  const c = document.createElement('canvas'); c.width = SW; c.height = SH; const g = c.getContext('2d');
+  g.font = '800 100px Atkinson'; const m = g.measureText('€'), asc = m.actualBoundingBoxAscent, desc = m.actualBoundingBoxDescent;
+  const size = Math.round(100 * EH / (asc + desc)); g.font = `800 ${size}px Atkinson`;
+  const m2 = g.measureText('€'); g.textAlign = 'center'; g.fillStyle = '#000';
+  g.fillText('€', EX, Math.round(EY + (m2.actualBoundingBoxAscent - m2.actualBoundingBoxDescent) / 2));
+  const d = g.getImageData(0, 0, SW, SH).data; for (let i = 0; i < SW * SH; i++) mask[i] = d[i * 4 + 3] > 120 ? 1 : 0;
+  for (let y = 0; y < SH; y++) for (let x = 0; x < SW; x++) { const i = y * SW + x; if (!mask[i]) continue;
+    if (x === 0 || y === 0 || x === SW - 1 || y === SH - 1 || !mask[i - 1] || !mask[i + 1] || !mask[i - SW] || !mask[i + SW]) medge[i] = 1; }
+}
+const L = { amp: 0, bubbles: [], drops: [], col: new Int16Array(SW) };
+for (let i = 0; i < 14; i++) L.bubbles.push({ x: rnd() * SW, y: SH - rnd() * 20, v: 5 + rnd() * 9 });
+function levelY() { if (S.met) return -3; return SH - (SH - BRIM) * Math.min(1, S.shown / QUOTA); }
+function screenDraw(dt) {
+  L.amp *= Math.exp(-dt * 2.6);
+  const y0 = levelY(), t = S.t, rot = RM ? 0 : t * Math.PI * 2 / 26, met = S.met;
+  const base = RM ? 0 : .8, amp = RM ? 0 : L.amp + (met ? 1.2 : 0);
+  for (let x = 0; x < SW; x++) L.col[x] = Math.round(y0 + amp * Math.sin(x * .2 + t * 7.5) + base * Math.sin(x * .55 - t * 4.2));
+  const sx = ((t * 34) % (SW + 70)) - 35;
+  for (let y = 0; y < SH; y++) for (let x = 0; x < SW; x++) {
+    const i = y * SW + x, top = L.col[x]; let c;
+    const dx = x - RCX, dy = y - RCY, inR = dx * dx + dy * dy < RR * RR;
+    const odd = inR && ((Math.floor(((Math.atan2(dy, dx) + rot) / (Math.PI * 2)) * 24 + 240)) & 1);
+    if (y < top) { // air: the paper with its slow sunburst, the empty € stencil, the dashed brim line
+      c = odd ? U.cream : U.paper;
+      if (medge[i]) c = U.shade;
+      if (y === BRIM && (x % 6) < 3) c = U.tomD;
+    } else { // gold
+      const d = y - top;
+      c = d === 0 ? U.musP : d === 1 ? U.musL : U.mus;
+      if (d > 1) {
+        if (met && odd) c = U.musR;
+        if (mask[i]) c = met ? U.musP : U.musL;
+        if (medge[i]) c = met ? U.musL : U.musD;
+        if (y >= SH - 2) c = U.musD;
+        if (!RM) { const s = x - sx - (SH - y) * .5; if (s >= 0 && s < 2) c = U.musL; }
+      }
+    }
+    sbuf[i] = c;
+  }
+  // measuring-cup ticks on the right edge (quarter marks of the quota)
+  [.25, .5, .75].forEach(f => { const ty = Math.round(SH - (SH - BRIM) * f); for (let x = SW - 6; x < SW; x++) sbuf[ty * SW + x] = ty < L.col[x] ? U.inkL : U.musD; });
+  if (!RM) {
+    L.bubbles.forEach(b => { b.y -= b.v * dt; b.x += Math.sin(t * 3 + b.v) * .15;
+      const xi = Math.max(0, Math.min(SW - 1, Math.round(b.x))); if (b.y < L.col[xi] + 2) { b.y = SH - 1 - rnd() * 4; b.x = rnd() * SW; }
+      const yi = Math.round(b.y); if (yi > L.col[xi] + 1 && yi < SH) sbuf[yi * SW + xi] = U.musP; });
+    L.drops = L.drops.filter(d => (d.life -= dt) > 0);
+    L.drops.forEach(d => { d.x += d.vx * dt; d.y += d.vy * dt; d.vy += 120 * dt; const xi = Math.round(d.x), yi = Math.round(d.y);
+      if (xi >= 0 && xi < SW && yi >= 0 && yi < SH && yi < L.col[xi]) { sbuf[yi * SW + xi] = U.mus; if (yi > 0) sbuf[(yi - 1) * SW + xi] = U.musL; } });
+  }
+  sctx.putImageData(simg, 0, 0);
+}
+function screenSplash(n) { L.amp = Math.min(6, L.amp + 1.4 + n / 9); if (RM) return; const y0 = levelY();
+  for (let i = 0; i < 6 + n / 5; i++) L.drops.push({ x: 40 + rnd() * 130, y: y0 - 1, vx: (rnd() - .5) * 40, vy: -25 - rnd() * 35, life: .9 }); }
+
+// ---------------------------------------------------------------- the overflow: gold out of the monitor, down onto the belt (the whole scene, 640 x 250 texels)
+// Rest state past the quota: the gold brims over the top of the bezel and beads along its lip with slow drips. A surge (the jackpot, then each
+// extra gain) is a POUR: gold sheets down both sides of the bezel and off the bottom corners onto the belt, then the sheet detaches and falls away,
+// so the sides never read as a fixed gold frame. No puddles: drops and pours end in a splash on the belt.
+const SPW = 640, SPH = 250, MOX = 242, MOY = 33, MW = 212, MH = 88;
+const spc = $('spill'); spc.width = SPW; spc.height = SPH; const sg = spc.getContext('2d');
+const SP = { I: 0, drops: [], sparks: [], hang: [], coins: [], pours: [] };
+[6, 31, 69, 93, 134, 155, 198].forEach((x, i) => SP.hang.push({ x, len: 0, rate: .7 + ((i * 37) % 10) / 15 }));
+function spillReset() { SP.I = 0; SP.drops = []; SP.sparks = []; SP.coins = []; SP.pours = []; SP.hang.forEach(h => h.len = 0); }
+function landY(x) { x = Math.round(x); return x >= 172 && x <= 518 ? 154 + ((x * 7) % 5) : x < 165 && x > 14 ? 178 + (x % 3) : 999; }   // belt, counter, else off the scene
+function dropFrom(x, y) { SP.drops.push({ x, y, vy: 10 + rnd() * 20 }); }
+function pour(dur, w) { if (!RM) SP.pours.push({ t0: S.t, dur, w }); }
+function splash(x, y, n) { for (let i = 0; i < n; i++) SP.sparks.push({ x, y, vx: (rnd() - .5) * 60, vy: -25 - rnd() * 35, life: .35, drop: true }); }
+function coinBurst(n, strong) { // coins tossed out of both sides of the brimming screen, spinning, bouncing on the belt
+  for (let i = 0; i < n; i++) { const side = i % 2 ? 1 : -1;
+    SP.coins.push({ wait: (i >> 1) * (strong ? .035 : .03), x: side < 0 ? MOX + 3 : MOX + MW - 3, y: MOY + 2 + rnd() * 6, vx: side * ((strong ? 30 : 22) + rnd() * (strong ? 80 : 40)),
+      vy: -30 - rnd() * (strong ? 60 : 35), ph: rnd() * 4, bounce: 0, life: 2.6 }); }
+}
+function sparkBurst(n, big) {
+  for (let i = 0; i < n; i++) { // from the screen's rim outward
+    const side = rnd() * 3 | 0, u = rnd(); let x, y;
+    if (side === 0) { x = MOX + u * MW; y = MOY; } else if (side === 1) { x = MOX + MW; y = MOY + u * MH * .7; } else { x = MOX; y = MOY + u * MH * .7; }
+    const cx = MOX + MW / 2, cy = MOY + MH / 2, a = Math.atan2(y - cy, x - cx) + (rnd() - .5) * .6, sp = (big ? 70 : 40) + rnd() * (big ? 90 : 50);
+    SP.sparks.push({ x, y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp - 30, life: .6 + rnd() * .6, big: big && rnd() < .4 });
+  }
+}
+function spillDraw(dt, ox, oy) {
+  sg.clearRect(0, 0, SPW, SPH);
+  const t = S.t, I = SP.I;
+  if (S.met) {
+    if (!RM) SP.I += (0.2 - SP.I) * Math.min(1, dt * 1.4);
+    const age = t - S.metAt, X = MOX + ox, Y = MOY + oy;
+    // the jackpot ring: three stepped outlines burst out from the bezel across the wall (payoff only)
+    if (!RM) [0, .1, .2].forEach(lag => { const a = age - lag; if (a < 0 || a > .38) return; const d = Math.round(4 + a * 220), th = a < .25 ? 2 : 1;
+      const c = a < .2 ? H.paper : H.musL; const x0 = X - d, y0 = Y - d, x1 = X + MW + d, y1 = Y + MH + d;
+      rect(sg, x0 + 3, y0, x1 - x0 - 6, th, c); rect(sg, x0 + 3, y1 - th, x1 - x0 - 6, th, c);
+      rect(sg, x0, y0 + 3, th, y1 - y0 - 6, c); rect(sg, x1 - th, y0 + 3, th, y1 - y0 - 6, c);
+      rect(sg, x0 + 1, y0 + 1, 2, 2, c); rect(sg, x1 - 3, y0 + 1, 2, 2, c); rect(sg, x0 + 1, y1 - 3, 2, 2, c); rect(sg, x1 - 3, y1 - 3, 2, 2, c); });
+    // the crest: gold brimming over the top of the bezel, bulging higher while it surges
+    for (let x = X + 1; x < X + MW - 1; x++) {
+      const b = RM ? 3 : Math.max(1, 1.5 + I * 3.6 + 1.2 * Math.sin(x * .27 + t * 8) + .7 * Math.sin(x * .11 - t * 3));
+      const top = Y - Math.round(b);
+      rect(sg, x, top, 1, Y + 5 - top, H.mus); rect(sg, x, top, 1, 1, H.ink); rect(sg, x, top + 1, 1, 1, H.musL);
+    }
+    // pours: a sheet runs down both sides of the bezel, off the bottom corners to the belt, then detaches and falls away
+    SP.pours = SP.pours.filter(p => { const pa = t - p.t0, sp = 300, head = pa * sp, tail = Math.max(0, (pa - p.dur) * sp);
+      [-1, 1].forEach(dir => {
+        const bx = dir < 0 ? X - 1 : X + MW, floor = landY(bx) - Y, end = Math.min(head, floor);
+        for (let yy = Math.max(-1, Math.round(tail)); yy < end; yy++) { const y = Y + yy;
+          if (yy < MH) {
+            const w = Math.round(p.w + 2 * Math.max(0, Math.sin(yy * .17 - t * 8.5))) + (yy > head - 5 ? 2 : 0);
+            const x0 = dir < 0 ? X - w + 2 : X + MW - 2;
+            rect(sg, x0, y, w, 1, H.mus); rect(sg, x0, y, 1, 1, H.ink); rect(sg, x0 + w - 1, y, 1, 1, H.ink); rect(sg, x0 + 1, y, 1, 1, H.musL);
+            if (w > 4) rect(sg, x0 + w - 2, y, 1, 1, H.musD);
+            if (((yy - t * 70) % 11 + 11) % 11 < 3) rect(sg, x0 + 2, y, 1, 1, H.musP);
+          } else { const o = Math.round(Math.sin(y * .5 - t * 20) * .6);
+            rect(sg, bx - 1 + o, y, 4, 1, H.ink); rect(sg, bx + o, y, 2, 1, H.mus); if (((y - t * 90) % 9 + 9) % 9 < 2) rect(sg, bx + o, y, 1, 1, H.musP); }
+        }
+        if (head >= floor && tail < floor && rnd() < dt * 30) splash(bx, Y + floor - 1, 2);
+      });
+      return tail < 200; });
+    // the bottom lip: a gold bead with hanging drips
+    if (RM || age > .2) {
+      const lipY = Y + MH; rect(sg, X, lipY - 1, MW, 2, H.mus); rect(sg, X, lipY, MW, 1, H.ink); rect(sg, X, lipY - 1, MW, 1, H.musL);
+      SP.hang.forEach(hd => {
+        if (RM) hd.len = 3 + (hd.x % 3); else { hd.len += dt * (3 + 14 * I) * hd.rate; if (hd.len > 6 + hd.rate * 3) { dropFrom(X + hd.x, lipY + hd.len); hd.len = 0; } }
+        const l = Math.round(hd.len), x = X + hd.x;
+        if (l > 0) { rect(sg, x - 1, lipY, 4, l, H.ink); rect(sg, x, lipY, 2, l, H.mus); }
+        rect(sg, x - 2, lipY + l - 1, 6, 4, H.ink); rect(sg, x - 1, lipY + l - 1, 4, 3, H.mus); rect(sg, x - 1, lipY + l - 1, 1, 2, H.musL);
+      });
+    }
+    // twinkles on the crest
+    if (!RM) for (let i = 0; i < 4; i++) { const ph = (t * 1.3 + i * .27) % 1, k = Math.floor(t * 1.3 + i * .27);
+      const px = MOX + 10 + ((k * 53 + i * 71) % (MW - 20)), py = MOY - 4 + ((k * 31 + i * 17) % 5);
+      if (ph < .5) { const s = ph < .25 ? 1 : 2; rect(sg, px - s, py, s * 2 + 1, 1, H.paper); rect(sg, px, py - s, 1, s * 2 + 1, H.paper); } }
+  }
+  // falling drops
+  SP.drops = SP.drops.filter(d => { d.vy += 300 * dt; d.y += d.vy * dt; const land = landY(d.x);
+    if (d.y >= land) { splash(d.x, land - 1, 3); return false; } if (d.y > SPH + 4) return false;
+    const x = Math.round(d.x), y = Math.round(d.y); rect(sg, x - 1, y - 2, 4, 6, H.ink); rect(sg, x, y - 1, 2, 4, H.mus); rect(sg, x, y - 1, 1, 2, H.musL); return true; });
+  // coins: 7 x 9 texels, spinning (wide, narrow, edge, narrow), two bounces then gone
+  SP.coins = SP.coins.filter(c => { if (c.wait > 0) { c.wait -= dt; return true; } c.life -= dt; c.vy += 320 * dt; c.x += c.vx * dt; c.y += c.vy * dt; const land = landY(c.x);
+    if (c.y >= land && c.vy > 0) { if (c.bounce++ >= 2) return false; c.y = land; c.vy *= -.42; c.vx *= .55; splash(c.x, land - 1, 1); }
+    if (c.life <= 0 || c.y > SPH + 8) return false;
+    const hw = [3, 2, 0, 2][Math.floor(S.t * 12 + c.ph) % 4], x = Math.round(c.x), y = Math.round(c.y);
+    rect(sg, x - hw, y - 5, 2 * hw + 1, 11, H.ink); rect(sg, x - hw - 1, y - 4, 2 * hw + 3, 9, H.ink);
+    rect(sg, x - hw, y - 4, 2 * hw + 1, 9, hw === 0 ? H.musD : H.mus);
+    if (hw > 0) rect(sg, x - hw, y - 3, 1, 5, H.musL); if (hw >= 2) rect(sg, x + hw, y - 2, 1, 5, H.musD); if (hw === 3) rect(sg, x, y - 2, 1, 5, H.musD);
+    return true; });
+  // sparks
+  SP.sparks = SP.sparks.filter(s => (s.life -= dt) > 0);
+  SP.sparks.forEach(s => { s.x += s.vx * dt; s.y += s.vy * dt; s.vy += (s.drop ? 200 : 110) * dt; s.vx *= Math.exp(-dt * 1.5);
+    const c = s.drop ? H.mus : s.life > .5 ? H.paper : s.life > .25 ? H.musL : H.mus;
+    if (s.big && s.life > .3) { rect(sg, s.x - 1, s.y, 3, 1, c); rect(sg, s.x, s.y - 1, 1, 3, c); } else rect(sg, s.x, s.y, 1, 1, c); });
+}
+
+// ---------------------------------------------------------------- monitor overlay: number, landing sticker, waterline tag, stamp, flash, shake
+let maEl = null, maSt = null;
+function landSticker(bi) {
+  const [, text, kind] = BEATS[bi], mul = kind === 'mul';
+  const tw = mul ? 44 : (text.length > 2 ? 38 : 32), th = mul ? 26 : 21;
+  const ma = $('ma'); ma.innerHTML = ''; Object.assign(ma.style, { width: tw * 2 + 'px', height: th * 2 + 'px', left: (MAX - tw) + 'px', top: (MAY - th) + 'px' });
+  ma.appendChild(stickerCanvas(kind, tw, th, [-6, 5, -4, 6, -5, 4, -7][bi]));
+  el('div', 't', { fontSize: mul ? '32px' : '29px' }, ma, `<span>${text}</span>`);
+  maSt = S.t;
+}
+function overlayDraw() {
+  const t = S.t, v = Math.round(S.shown), num = $('num');
+  num.textContent = '€' + v; num.classList.toggle('gold', S.met);
+  const pl = clamp01(1 - (t - S.landAt) / .3), pm = S.met ? clamp01(1 - (t - S.metAt) / .5) : 0;
+  num.style.transform = RM ? '' : `scale(${1 + .22 * pl * pl + .45 * pm * pm})`;
+  const ma = $('ma');
+  if (maSt === null) ma.style.display = 'none';
+  else { ma.style.display = 'block'; const s = t - maSt;
+    if (RM) ma.style.transform = ''; else { const k = s < .1 ? 1.8 - 8.8 * s : s < .2 ? .92 + (s - .1) * .8 : 1; ma.style.transform = `scale(${k})`; ma.style.opacity = s < .05 ? s / .05 : 1; } }
+  const wl = $('wl'), left = QUOTA - v;
+  if (S.met) { wl.className = 'wl over'; wl.textContent = `+€${v - QUOTA}`; const pg = clamp01(1 - (t - S.landAt) / .3);
+    wl.style.transform = RM ? '' : `scale(${1 + .25 * pg + .3 * pm})`; }
+  else { wl.className = 'wl' + (left <= QUOTA * .2 ? ' near' : ''); wl.textContent = `€${left} to go`;
+    wl.style.transform = (!RM && left <= QUOTA * .2) ? `translateY(${Math.round(Math.sin(t * 12) * 1.5) * 2}px)` : ''; }
+  const st = $('stamp');
+  if (!S.met) st.style.display = 'none';
+  else { st.style.display = 'block'; const s = t - S.metAt - .06;
+    if (RM) { st.style.transform = 'rotate(-8deg)'; st.style.opacity = 1; }
+    else { const k = s < 0 ? 2.6 : s < .18 ? 2.6 - (2.6 - .9) * (s / .18) : s < .3 ? .9 + (s - .18) / .12 * .1 : 1; st.style.opacity = s < 0 ? 0 : 1;
+      st.style.transform = `rotate(-8deg) scale(${k})`; } }
+  $('flash').style.opacity = (S.met && !RM) ? Math.max(0, .92 - (t - S.metAt) * 3.2) : 0;
+  // shake (monitor only), on the 2 px grid
+  let ox = 0, oy = 0; const ss = S.met ? t - S.metAt : 9;
+  if (!RM && ss < .5) { const a = 3 * (1 - ss / .5); ox = Math.round(Math.sin(ss * 70) * a); oy = Math.round(Math.cos(ss * 55) * a * .6); }
+  const gs = t - S.gainAt; if (!RM && S.met && gs < .25 && gs > 0) { ox = Math.round(Math.sin(gs * 80) * 1.5 * (1 - gs / .25)); }
+  $('mon').style.transform = `translate(${ox * 2}px, ${oy * 2}px)`;
+  return [ox, oy];
+}
+
+// ---------------------------------------------------------------- belt: stickers fire, hop to the monitor, the value flies to the receipt
+const flyers = [];
+function fireItem(bi) {
+  const st = stickers[bi]; st.firedAt = S.t; S.item = BEAT_ITEM[bi];
+  if (RM) return;
+  // a copy of the sticker hops up onto the screen
+  const g = el('div', 'fly', { left: st.x + 'px', top: st.y + 'px', width: st.w + 'px', height: st.h + 'px' });
+  g.appendChild(stickerCanvas(st.kind, st.tw, st.th, TILTS[bi % 5])); el('div', 't', { position: 'absolute', inset: 0, display: 'flex', alignItems: 'center',
+    justifyContent: 'center', font: '800 21px Atkinson', color: H.ink }, g, st.text);
+  flyers.push({ e: g, t0: S.t, dur: HOP, x0: st.x, y0: st.y, x1: 484 + 10 + MAX - st.w / 2, y1: 66 + 10 + MAY - st.h / 2, s1: 1.6, arc: 30 });
+}
+function valueToReceipt(bi) {
+  if (RM) return; const st = stickers[bi];
+  const g = el('div', 'fly chipv', { left: st.x + 'px', top: st.y - 4 + 'px' }, scene, '+€' + BEATS[bi][0]);
+  flyers.push({ e: g, t0: S.t, dur: PRINT - RFLY - .02, x0: st.x, y0: st.y - 4, x1: 226, y1: 290, s1: .9, arc: 60 });
+}
+function flyersDraw() {
+  for (let i = flyers.length - 1; i >= 0; i--) { const f = flyers[i], u = (S.t - f.t0) / f.dur;
+    if (u >= 1) { f.e.remove(); flyers.splice(i, 1); continue; }
+    const e = easeOut(u), x = f.x0 + (f.x1 - f.x0) * e, y = f.y0 + (f.y1 - f.y0) * e - Math.sin(u * Math.PI) * f.arc, s = 1 + (f.s1 - 1) * u;
+    f.e.style.left = Math.round(x / 2) * 2 + 'px'; f.e.style.top = Math.round(y / 2) * 2 + 'px'; f.e.style.transform = `scale(${s})`; }
+}
+function beltDraw() {
+  stickers.forEach((st, bi) => { const s = S.t - st.firedAt, fired = st.firedAt > -50;
+    if (!fired) { st.d.style.transform = ''; st.d.style.filter = ''; st.ok.style.display = 'none'; return; }
+    if (RM) { st.d.style.transform = ''; st.d.style.filter = ''; }
+    else { const p = clamp01(1 - s / .22); st.d.style.transform = `scale(${1 + .4 * p * p})`; st.d.style.filter = s < .12 ? 'brightness(1.7)' : ''; }
+    const okS = s - .45; st.ok.style.display = (RM || okS > 0) ? 'block' : 'none'; st.ok.style.transform = RM ? '' : `scale(${okS < .12 ? 1.6 - okS * 5 : 1})`; });
+  itemEls.forEach((it, k) => { const last = it.beats[it.beats.length - 1], st = stickers[last];
+    it.tk.classList.toggle('got', st.firedAt > -50 && S.t - st.firedAt > .45);
+    let hop = 0; it.beats.forEach(bi => { const s = S.t - stickers[bi].firedAt; if (!RM && s >= 0 && s < .24) hop = Math.max(hop, Math.sin(s / .24 * Math.PI)); });
+    it.d.style.transform = `translateY(${-Math.round(hop * 3) * 2}px)`; });
+  RAIL.hot += (RAIL.want - RAIL.hot) * (RM ? 1 : .2);
+  RAIL.hw.style.width = Math.round(RAIL.hot / 2) * 2 + 'px';
+  RAIL.badges.forEach((b, i) => b.classList.toggle('hot', stickers[2 + i].firedAt > -50));
+}
+
+// ---------------------------------------------------------------- receipt
+function printLine(bi) {
+  const rl = $('rl'), d = el('div', 'ln', null, rl, `<span>${RCPT[bi][0]}</span><span>${RCPT[bi][1]}</span>`);
+  if (bi === BEATS.length - 1) el('div', 'ln met', { borderTop: '2px dashed #ddcba5', marginTop: '3px' }, rl, `<span>SUBTOTAL</span><span>€${S.target}</span>`);
+  while (rl.children.length > 11) rl.firstChild.remove();
+}
+
+// ---------------------------------------------------------------- the loop
+const queue = [];
+function schedule() { queue.length = 0;
+  BEATS.forEach((b, i) => { const t0 = BEAT0 + PITCH * i;
+    queue.push([t0, () => { fireItem(i); if (i === 2) RAIL.want = SLOT(2) + 66 - RAIL.x0; if (i === 3) RAIL.want = RAIL.x1 - RAIL.x0; }]);
+    queue.push([t0 + RFLY, () => valueToReceipt(i)]);
+    queue.push([t0 + HOP, () => { S.target += b[0]; S.step = i + 1; S.landAt = S.t; landSticker(i); screenSplash(b[0]); tbGain(b[0]);
+      if (S.met) { S.gainAt = S.t; SP.I = Math.min(1.25, SP.I + .55); pour(.3, 4); sparkBurst(16, false); coinBurst(6, false); for (let k = 0; k < 3; k++) dropFrom(MOX + SP.hang[(i * 3 + k * 2) % 7].x, MOY + MH + 2); } }]);
+    queue.push([t0 + PRINT, () => printLine(i)]);
+  });
+  queue.sort((a, b) => a[0] - b[0]);
+}
+function reset() {
+  S.T = 0; S.target = 0; S.shown = 0; S.met = false; S.metAt = -99; S.step = 0; S.item = -1; S.landAt = -99; S.gainAt = -99; maSt = null;
+  stickers.forEach(s => s.firedAt = -99); RAIL.want = 0; RAIL.hot = 0; $('rl').innerHTML = ''; spillReset();
+  $('tflag').classList.remove('on', 'plant'); flyers.forEach(f => f.e.remove()); flyers.length = 0; schedule(); qi = 0;
+}
+let qi = 0, last = performance.now();
+function step(dt) {
+  S.t += dt; S.T += dt;
+  while (qi < queue.length && queue[qi][0] <= S.T) { queue[qi][1](); qi++; }
+  if (S.T >= LOOP) reset();
+  const k = RM ? 12 : 7; S.shown += (S.target - S.shown) * Math.min(1, dt * k); if (Math.abs(S.target - S.shown) < .3) S.shown = S.target;
+  if (!S.met && S.shown >= QUOTA) { // the payoff
+    S.met = true; S.metAt = S.t; SP.I = 1.25; SP.hang.forEach(h => h.len = rnd() * 6); TB.flash = 1; L.amp = 6; $('tflag').classList.add('on', 'plant');
+    if (!RM) { pour(1.0, 5); sparkBurst(90, true); coinBurst(24, true); for (let i = 0; i < 7; i++) dropFrom(MOX + SP.hang[i].x, MOY + MH + 2 + i % 3); }
+  }
+  tbDraw(dt); screenDraw(dt); const [ox, oy] = overlayDraw(); spillDraw(dt, ox, oy); beltDraw(); flyersDraw();
+}
+function frame(now) { const dt = Math.max(0, Math.min(.05, (now - last) / 1000)); last = now; step(dt); requestAnimationFrame(frame); }
+Promise.all([document.fonts.load('800 100px Atkinson'), document.fonts.load('16px Pixelify'), document.fonts.load('13px JBMono')]).catch(() => {}).then(() => document.fonts.ready).then(() => {
+  buildMask(); reset();
+  if (AT > 0) { for (let t = 0; t < AT; t += 1 / 60) step(1 / 60); if (!GO) return; }
+  last = performance.now(); requestAnimationFrame(frame);
+});
+</script>
+</body>
+</html>

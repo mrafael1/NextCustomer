@@ -13,12 +13,14 @@ extends Control
 ## keypad, the seed line under Redraw and the cash drawer), the receipt rising from the printer's
 ## slot, the belt (BeltPanel: the steel guard, the rubber top face, the lip, the apron and the price
 ## rail, then the row of items standing on the belt with their tickets on the rail), the planning
-## layer (PlanningLayer: #71's stickers, stamps and pay tags over the items), the top bar
-## (TopBar: the SHIFT, QUOTA, inspection and LOYALTY chips, Cart and the menu with Export log,
-## all above RewardPanel.PRINTOUT_TOP), the hand's baskets on the steel ledge (HandBaskets: their
-## backs, the hand in them, their fronts) and the shade that darkens them while counting.
-## Over them all the scan layer (ScanOverlay: the scan's brackets and beam) and the popup layer,
-## both taking no clicks. A belt or hand item's scan shows on the monitor (#80); the popup layer
+## layer (PlanningLayer: #71's stickers, stamps and pay tags over the items), the paper bag on
+## the counter between the receipt and the belt (PaperBag, #86 v6: the counted items go in), the
+## top bar (TopBar: the SHIFT, QUOTA, inspection and LOYALTY chips, Cart and the menu with Export
+## log, all above RewardPanel.PRINTOUT_TOP), the hand's baskets on the steel ledge (HandBaskets:
+## their backs, the hand in them, their fronts) and the shade that darkens them while counting.
+## Over them all the tank's burst (TankBurst, #86 v6: the gold jets, coins, splashes and pour, over
+## the top bar), the scan layer (ScanOverlay: the scan's brackets and beam) and the popup layer,
+## all taking no clicks. A belt or hand item's scan shows on the monitor (#80); the popup layer
 ## only parks the hidden scan popup, which opens over the offers alone, in the layer an offer's
 ## scan moves it to (ScanController.cover_offers).
 ##
@@ -57,6 +59,9 @@ const ROW_BOTTOM := ROW_POSITION.y + ItemView.BELT_SIZE.y
 ## The band the row's cells stand in: across the belt's top face, from the plaques over the items
 ## down to the rail's foot.
 const ROW_AREA := Rect2(354, ROW_POSITION.y, 904, ItemView.BELT_SIZE.y)
+## The paper bag (#86 v6) standing on the counter (its foot at y 330): right of the receipt,
+## left of the belt, in front of the cashier's lower half.
+const BAG_RECT := Rect2(284, 246, 64, 84)
 ## The monitor hung from the ceiling on two rods, its bezel and paper screen, and the shade under
 ## it (MonitorView draws them). In the impulse rack the LED (LedDisplay: caption, digits and the
 ## quota line with its bar, blank there) and the notices are on its screen; MonitorView lays out
@@ -136,8 +141,12 @@ var row_strip: RowStrip
 ## The planning effects over the belt (#71, PlanningLayer): the items' stickers, stamps and pay
 ## tags, over the items and tickets and under the top bar.
 var planning_layer: PlanningLayer
+## The paper bag the counted items go into (#86 v6), over the planning layer, under the top bar.
+var bag: PaperBag
 ## Over everything on the stage, taking no clicks: the scan's marks, and the layer the scan
 ## popup opens in.
+## The € tank's gold outside the monitor (#86 v6), over the top bar and under the scan layer.
+var tank_burst: TankBurst
 var scan_layer: ScanOverlay
 var popup_layer: Control
 var notice_label: NoticeLabel
@@ -235,12 +244,18 @@ func _build_belt(slot_count: int) -> void:
 	# Over the items and their tickets, under the top bar, the hand and the scan layers (#71).
 	planning_layer = PlanningLayer.new()
 	add_child(planning_layer)
+	bag = PaperBag.new()
+	bag.position = BAG_RECT.position
+	add_child(bag)
 
 
-## Rests the row on ROW_BOTTOM: a scaled row is shorter, so it starts lower.
+## Rests the row on ROW_BOTTOM: a scaled row is shorter, so it starts lower. The scanner's plate
+## goes under its first cell.
 func _place_row() -> void:
 	var height: float = row_strip.get_combined_minimum_size().y
 	row_strip.position = Vector2(ROW_POSITION.x, ROW_BOTTOM - height) - BELT_RECT.position
+	var half_cell: float = RowStrip.CELL_SIZE.x * row_strip.box.scale.x / 2.0
+	belt.place_scanner(row_strip.position.x + half_cell)
 
 
 ## On the counter: the ledge and the baskets with the hand in them, and the counting shade over
@@ -279,6 +294,9 @@ func _build_keys() -> void:
 
 ## The scan layer and the popup layer (where the hidden scan popup waits) over the whole stage.
 func _build_scan_layers() -> void:
+	tank_burst = TankBurst.new()
+	add_child(tank_burst)
+	monitor.tank_burst = tank_burst
 	scan_layer = ScanOverlay.new()
 	scan_layer.name = "ScanLayer"
 	scan_layer.size = SIZE

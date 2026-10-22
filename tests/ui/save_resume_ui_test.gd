@@ -153,12 +153,15 @@ func test_quitting_during_the_count_up_resumes_on_the_reward_panel() -> void:
 	var resumed: ShiftScreen = await _screen()
 	assert_int(resumed.run.phase).is_equal(RunState.Phase.REWARD)
 	assert_int(resumed.run.last_result.total).is_equal(first.run.last_result.total)
-	# The LED at TOTAL, green with its lasting QUOTA chip (#60, D5), and CHECKOUT up (not held):
-	# nothing is being counted on the resumed screen.
-	assert_str(resumed._led.caption()).is_equal(LedDisplay.TOTAL_TEXT)
-	assert_str(resumed._led.digits_label().text).is_equal("€%d" % first.run.last_result.total)
-	assert_that(resumed._led.digits_label().get_theme_color("font_color")).is_equal(Palette.GOOD)
-	assert_object(resumed._count_up._quota_chip).is_not_null()
+	# The LED at TOTAL, gold and met (#60, D5; #86 v6: the bare number, the tank full and
+	# overflowing), and CHECKOUT up (not held): nothing is being counted on the resumed screen.
+	assert_str(resumed._led.caption_label().text).is_equal(LedDisplay.TOTAL_TEXT)
+	assert_str(resumed._led.digits_label().text).is_equal(str(first.run.last_result.total))
+	var digits_colour: Color = resumed._led.digits_label().get_theme_color("font_color")
+	assert_that(digits_colour).is_equal(LedDisplay.COUNT_DIGITS_COLOR)
+	assert_bool(resumed._monitor.tank().is_overflowing()).is_true()
+	assert_bool(resumed._count_up._met).is_true()
+	await _assert_monitor_end_state(resumed)
 	assert_bool(resumed._cabinet.checkout_key.held).is_false()
 	assert_bool(first._cabinet.checkout_key.held).is_true()
 	assert_str(_last_event("run_resume")["phase"]).is_equal("reward")
@@ -180,22 +183,92 @@ func test_quitting_during_the_count_up_resumes_on_the_reward_panel() -> void:
 	assert_bool(panel.encloses(resumed._reward_panel._skip_button.get_global_rect())).is_true()
 
 	await _count_up_end(first)
-	# The receipt (under the shift's header, #75), totals and chip behind the panel, as the
+	# The receipt (under the shift's header, #75), totals and met state behind the panel, as the
 	# count-up left them.
 	assert_str(_receipt_lines(resumed)[0]).is_equal(ReceiptView.HEADER_TEXT)
 	assert_bool(_receipt_lines(resumed).has(ReceiptView.PROJECTED_TEXT)).is_false()
 	assert_array(_receipt_lines(resumed)).is_equal(_receipt_lines(first))
 	_assert_same_led(resumed, first)
 	assert_bool(first._cabinet.checkout_key.held).is_false()
-	var chip: QuotaChip = resumed._count_up._quota_chip
-	assert_object(first._count_up._quota_chip).is_not_null()
-	assert_bool(chip.visible).is_true()
-	assert_bool(resumed.get_global_rect().encloses(chip.get_global_rect())).is_true()
+	assert_bool(first._count_up._met).is_true()
+	assert_bool(resumed._count_up._met).is_true()
+	# The belt as the count left it (#86 v6): empty, every item in the bag, in both.
+	for screen: ShiftScreen in [first, resumed]:
+		_assert_belt_counted(screen, PASSING_ROW.size())
 	first._on_reward_skipped()
 	resumed._on_reward_skipped()
 	assert_int(resumed.run.shift_index).is_equal(1)
 	assert_array(_cards(resumed.run.hand())).is_equal(_cards(first.run.hand()))
+	# The next shift's planning brings the row back and empties the bag.
+	for screen: ShiftScreen in [first, resumed]:
+		for cell: PanelContainer in screen._row_strip.slots + screen._row_strip.closed:
+			assert_bool(cell.visible).is_true()
+		assert_vector(screen._row_strip.box.position).is_equal(Vector2.ZERO)
+		assert_array(screen._stage.bag.items()).is_empty()
+		# The monitor's met state goes too.
+		var monitor: MonitorView = screen._monitor
+		assert_bool(monitor.over_tab().is_showing()).is_false()
+		assert_bool(screen._led.beat().stamp().is_showing()).is_false()
+		assert_bool(monitor.sunburst().is_met()).is_false()
+		assert_bool(monitor.bay().is_met()).is_false()
+		assert_object(monitor.bay().bed().art()).is_null()
+		assert_bool(screen._stage.tank_burst.is_active()).is_false()
 	assert_array(_errors).is_empty()
+
+
+## A resumed checkout's monitor (#86 v6): its end state at once, with no particles: the SPEND MET
+## stamp still on the paper, the "+€N" tab on the tank, the sunburst gold, the bay's light green
+## and its end state (ALL PAID, THANK YOU, DONE), the tank full, the monitor at rest; it stays
+## that way.
+func _assert_monitor_end_state(resumed: ShiftScreen) -> void:
+	var monitor: MonitorView = resumed._monitor
+	var stamp: MetStamp = resumed._led.beat().stamp()
+	var paper: Rect2 = Rect2(
+		resumed._stage.get_global_rect().position + MonitorView.PAPER_RECT.position,
+		MonitorView.PAPER_RECT.size
+	)
+	for frame: int in range(2):
+		assert_bool(stamp.is_showing()).is_true()
+		assert_bool(stamp.is_slamming()).is_false()
+		assert_bool(paper.encloses(stamp.drawn_rect())).is_true()
+		var tab: OverTab = monitor.over_tab()
+		# The passing row is over the shift's quota.
+		var over: int = resumed.run.last_result.total - resumed.run.quota()
+		assert_int(over).is_greater(0)
+		assert_bool(tab.is_visible_in_tree()).is_true()
+		assert_str(tab.label().text).is_equal(LedBeat.OVER_TEXT % over)
+		assert_vector(tab.scale).is_equal(Vector2.ONE)
+		assert_bool(paper.encloses(tab.get_global_rect())).is_true()
+		assert_bool(monitor.tank().get_global_rect().intersects(tab.get_global_rect())).is_true()
+		assert_bool(monitor.sunburst().is_met()).is_true()
+		assert_that(monitor.bay().light_colour()).is_equal(ScannerBay.LIGHT_MET_COLOR)
+		# The bay's end state (#86 round 7): the bed empty and idle on ALL PAID, THANK YOU, DONE.
+		var bay: ScannerBay = monitor.bay()
+		assert_object(bay.bed().art()).is_null()
+		assert_bool(bay.bed().idle_label().visible).is_true()
+		assert_str(bay.bed().idle_label().text).is_equal(BayBed.END_TEXT)
+		assert_str(bay.name_label().text).is_equal(ScannerBay.END_NAME)
+		assert_str(bay.queue().text()).is_equal(BayQueue.DONE_TEXT)
+		assert_bool(bay.tag().visible).is_false()
+		assert_object(monitor.bay().landing_sticker()).is_null()
+		assert_float(monitor.tank().level()).is_equal(1.0)
+		assert_bool(monitor.tank().is_bursting()).is_false()
+		assert_bool(resumed._stage.tank_burst.is_active()).is_false()
+		assert_vector(monitor.position).is_equal(ShiftStage.MONITOR_RECT.position)
+		await _frames(5)
+
+
+## `screen`'s belt as the count leaves it (#86 v6): every cell hidden, the row at rest, the
+## scanner clear and `items` items in the bag, its peeking art inside the stage.
+func _assert_belt_counted(screen: ShiftScreen, items: int) -> void:
+	for cell: PanelContainer in screen._row_strip.slots + screen._row_strip.closed:
+		assert_bool(cell.visible).is_false()
+	assert_vector(screen._row_strip.box.position).is_equal(Vector2.ZERO)
+	assert_bool(screen._stage.scan_layer.is_posed()).is_false()
+	var bagged: Array[Control] = screen._stage.bag.items()
+	assert_int(bagged.size()).is_equal(items)
+	for art: Control in bagged:
+		assert_bool(screen._stage.get_global_rect().encloses(art.get_global_rect())).is_true()
 
 
 ## The exit kiosk resumes with its tickets on screen and the next shift's inspection kept.
@@ -233,7 +306,7 @@ func test_a_new_screen_resumes_the_upgrade_tickets() -> void:
 	assert_bool(_receipt_lines(resumed).has(notice)).is_true()
 	assert_array(_receipt_lines(resumed)).is_equal(_receipt_lines(first))
 	_assert_same_led(resumed, first)
-	assert_str(resumed._led.caption()).is_equal(LedDisplay.TOTAL_TEXT)
+	assert_str(resumed._led.caption_label().text).is_equal(LedDisplay.TOTAL_TEXT)
 	assert_bool(resumed._cabinet.checkout_key.held).is_false()
 
 	var upgrade: UpgradeDefinition = first.run.upgrade_offer[0]
@@ -344,7 +417,7 @@ func _record_error(message: String) -> void:
 func _assert_same_led(resumed: ShiftScreen, live: ShiftScreen) -> void:
 	var led: LedDisplay = resumed._led
 	var other: LedDisplay = live._led
-	assert_str(led.caption()).is_equal(other.caption())
+	assert_str(led.caption_label().text).is_equal(other.caption_label().text)
 	assert_str(led.digits_label().text).is_equal(other.digits_label().text)
 	assert_str(led.digits_label().text).is_not_empty()
 	assert_that(led.digits_label().get_theme_color("font_color")).is_equal(

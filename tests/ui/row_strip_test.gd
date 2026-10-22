@@ -8,7 +8,11 @@ extends GdUnitTestSuite
 ## between ink lines around the ticket and under the item, the drag's landing fill shows on empty
 ## tickets only, CLOSED is a velvet rope between two tall stanchions on the belt over the ink
 ## plate with CLOSED and the closing inspections' names and takes no drop, and wide rows close
-## their gaps, then scale to the 7-slot width with their text still legible.
+## their gaps, then scale to the 7-slot width with their text still legible. While the shift is
+## counted (#86 v6, the belt ride) the cells up to one ride out: hidden, the cells after them
+## pack left a pitch each while the box moves right by the same width, so nothing jumps until the
+## ride slides it back; the next show_cards brings every cell back. The real saves and logs are
+## never touched.
 
 const CARDS := "res://data/cards"
 const BALANCE := "res://data/balance/balance.tres"
@@ -16,6 +20,22 @@ const INSPECTIONS := "res://data/inspections"
 ## The smallest a scaled row's sticker summary (PriceSticker.SUMMARY_SIZE) may print, in canvas
 ## pixels.
 const MIN_SUMMARY_PX := 10.0
+
+var _folder: String = ""
+
+
+func before_test() -> void:
+	_folder = "user://test_row_strip_%d" % Time.get_ticks_usec()
+	_event_log().use_folder(_folder)
+	ProjectSettings.set_setting(SaveService.FOLDER_SETTING, _folder)
+
+
+func after_test() -> void:
+	ProjectSettings.set_setting(SaveService.FOLDER_SETTING, null)
+	if DirAccess.dir_exists_absolute(_folder):
+		for file_name: String in DirAccess.get_files_at(_folder):
+			DirAccess.remove_absolute(_folder.path_join(file_name))
+		DirAccess.remove_absolute(_folder)
 
 
 ## Each open cell is a belt cell that draws nothing itself; empty, it shows its footprint on the
@@ -583,6 +603,88 @@ func test_wide_rows_close_their_gaps_then_scale() -> void:
 	assert_vector(closed.box.scale).is_equal(Vector2.ONE)
 
 
+## pitch() is the distance between two cells' left edges as drawn: 128 on the 7-slot row, the
+## scaled cell on 8 and 9 slots (their gaps closed).
+func test_the_pitch_is_the_drawn_cell_distance() -> void:
+	for count: int in [7, 8, 9]:
+		var strip: RowStrip = await _strip(count)
+		var first: Rect2 = strip.slots[0].get_global_rect()
+		var second: Rect2 = strip.slots[1].get_global_rect()
+		assert_float(strip.pitch()).is_equal_approx(second.position.x - first.position.x, 0.01)
+	var seven: RowStrip = await _strip(7)
+	assert_float(seven.pitch()).is_equal(128.0)
+
+
+## Riding out hides the cells up to one (open slots, then CLOSED cells) at once: the cells after
+## them pack left a pitch each, and the box moves right by that width, so every cell still showing
+## stays where it was drawn; with the box slid back, the next cell stands at the first cell's
+## place. Cells already hidden count no more; the returned width says how far to slide.
+func test_riding_out_packs_the_row_without_a_jump() -> void:
+	for count: int in [7, 9]:
+		var strip: RowStrip = await _strip(count - 1, 1, "Closed")
+		var row: Array[CardInstance] = []
+		for slot: int in range(3):
+			row.append(_card("milk", slot + 1))
+		var views: Array[CardView] = strip.show_cards(row, -1, _ignore, load(BALANCE))
+		await _frames(2)
+		var cells: Array[PanelContainer] = strip.slots + strip.closed
+		var drawn: Array[Rect2] = []
+		for panel: PanelContainer in cells:
+			drawn.append(panel.get_global_rect())
+		var pitch: float = strip.pitch()
+		var message: String = "%d cells" % count
+		assert_float(strip.ride_out(0)).override_failure_message(message).is_equal(pitch)
+		assert_bool(cells[0].visible).is_false()
+		assert_float(strip.box.position.x).is_equal_approx(pitch, 0.01)
+		for index: int in range(1, cells.size()):
+			(
+				assert_bool(cells[index].get_global_rect().is_equal_approx(drawn[index]))
+				. override_failure_message("%s, cell %d" % [message, index])
+				. is_true()
+			)
+		# The ride slides the box back: the next item stands at the first cell's place.
+		strip.box.position.x = 0.0
+		assert_bool(cells[1].get_global_rect().is_equal_approx(drawn[0])).is_true()
+		assert_bool(views[1].get_global_rect().is_equal_approx(drawn[0])).is_true()
+		# Again for the same cell: nothing left to hide.
+		assert_float(strip.ride_out(0)).is_equal(0.0)
+		assert_float(strip.box.position.x).is_equal(0.0)
+		# Two more cells at once.
+		assert_float(strip.ride_out(2)).is_equal_approx(2.0 * pitch, 0.01)
+		assert_bool(cells[1].visible or cells[2].visible).is_false()
+		# Cell 3 stays where it stood (the box was at rest with cell 0 gone: at cell 2's place).
+		assert_bool(cells[3].get_global_rect().is_equal_approx(drawn[2])).is_true()
+		# Every cell, the CLOSED one too: the belt is empty.
+		strip.box.position.x = 0.0
+		assert_float(strip.ride_out(cells.size() + 3)).is_equal_approx(
+			(cells.size() - 3) * pitch, 0.01
+		)
+		for panel: PanelContainer in cells:
+			assert_bool(panel.visible).is_false()
+
+
+## The next show_cards brings back every cell a ride hid, the box at rest, each cell at its own
+## place.
+func test_show_cards_brings_the_ridden_cells_back() -> void:
+	var strip: RowStrip = await _strip(6, 1, "Closed")
+	var row: Array[CardInstance] = [_card("milk", 1), _card("eggs", 2)]
+	strip.show_cards(row, -1, _ignore, load(BALANCE))
+	await _frames(2)
+	var cells: Array[PanelContainer] = strip.slots + strip.closed
+	var drawn: Array[Rect2] = []
+	for panel: PanelContainer in cells:
+		drawn.append(panel.get_global_rect())
+	strip.ride_out(1)
+	strip.box.position.x = 30.0
+	strip.ride_out(cells.size() - 1)
+	strip.show_cards(row, -1, _ignore, load(BALANCE))
+	await _frames(2)
+	assert_vector(strip.box.position).is_equal(Vector2.ZERO)
+	for index: int in range(cells.size()):
+		assert_bool(cells[index].visible).is_true()
+		assert_that(cells[index].get_global_rect()).is_equal(drawn[index])
+
+
 func _strip(
 	count: int, closed_count: int = 0, reason: String = "", caption: String = ""
 ) -> RowStrip:
@@ -642,3 +744,7 @@ func _ignore(_view: CardView) -> void:
 func _frames(count: int) -> void:
 	for _frame: int in range(count):
 		await get_tree().process_frame
+
+
+static func _event_log() -> EventLogService:
+	return (Engine.get_main_loop() as SceneTree).root.get_node("/root/EventLog")

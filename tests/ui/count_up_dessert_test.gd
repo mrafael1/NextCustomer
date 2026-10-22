@@ -353,8 +353,8 @@ func test_the_shake_steps_up_with_the_intensity() -> void:
 
 ## Follows the dessert frame by frame until play() returns: the slam (as drawn, scaled) stays
 ## inside the screen on every frame and lands on the monitor's digits (#80), in their colour (never
-## tomato) and drawn as them (their outline, none in the count layout, and their shadow, with no
-## shadow outline), never on the receipt. Returns the failures.
+## tomato) and drawn as them (#86 v6: their ink outline and their shadow, which carries the outline
+## too), never on the receipt. Returns the failures.
 func _watch_dessert(screen: ShiftScreen) -> Array[String]:
 	var count_up: CountUp = screen._count_up
 	var failures: Array[String] = []
@@ -388,8 +388,15 @@ func _watch_dessert(screen: ShiftScreen) -> Array[String]:
 	var digits: Label = screen._led.digits_label()
 	if slam_seen and look != _look(digits):
 		failures.append("slam drawn as %s, the digits as %s" % [look, _look(digits)])
-	if int(_look(digits)["outline_size"]) != 0 or int(_look(digits)["shadow_outline_size"]) != 0:
-		failures.append("the TOTAL's digits drawn with an outline: %s" % _look(digits))
+	# #86 v6: the TOTAL's digits carry an ink outline over a shadow that covers it.
+	var digits_look: Dictionary = _look(digits)
+	var outlined: bool = (
+		int(digits_look["outline_size"]) == LedDisplay.COUNT_OUTLINE
+		and int(digits_look["shadow_outline_size"]) == LedDisplay.COUNT_OUTLINE
+		and int(digits_look["shadow_offset_y"]) == LedDisplay.COUNT_SHADOW
+	)
+	if not outlined:
+		failures.append("the TOTAL's digits drawn without their outline: %s" % digits_look)
 	return failures
 
 

@@ -102,7 +102,7 @@ func test_the_rack_after_a_run_clears_the_last_receipt() -> void:
 	assert_int(screen.run.phase).is_equal(RunState.Phase.IMPULSE)
 	# The LED is blank in the rack, and CHECKOUT is up.
 	assert_int(screen._led.mode()).is_equal(LedDisplay.Mode.BLANK)
-	assert_str(screen._led.caption()).is_empty()
+	assert_str(screen._led.caption_label().text).is_empty()
 	assert_str(screen._led.digits_label().text).is_empty()
 	assert_str(screen._led.quota_label().text).is_empty()
 	assert_bool(screen._cabinet.checkout_key.held).is_false()

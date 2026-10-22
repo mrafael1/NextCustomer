@@ -6,17 +6,18 @@ extends Control
 ## 3-slice: the steel lip, the apron with a bolt between each two of the 7-slot row's tickets,
 ## and the price rail the tickets clip onto), with the rail's shadow on the counter drawn in code,
 ## and on the apron under each of the 7-slot row's tickets the chevrons that point the belt's way,
-## left toward the register (#83).
+## left toward the register (#83), and on the top face under the row's first cell the scanner's
+## glass plate (#86 v6, scanner_plate): the scanner is that cell, so it shows in planning too.
 ## Its size is fixed (ShiftStage.BELT_RECT); the row of slots stands on it as its child. Decor
 ## only: it takes no clicks.
 ##
 ## Every receding edge leans to mock-up B2's one vanishing point (VANISHING_POINT, stage pixels);
 ## vanishing_point() gives it in any node's coordinates, so the slots' footprints follow it too.
 ##
-## The belt runs left, toward the register, while the shift is counted (#83): CountUp moves its
-## slats on (scroll) and the top face shows the matching baked frame (TOP_FRAMES, one per 2 px
-## step, wrapping after SLAT_PITCH); the items stand still in their slots. In planning it stands
-## on the frame it stopped on.
+## The belt runs left, toward the register, while the shift is counted (#83, #86 v6): the belt
+## ride moves its slats on (scroll) as the row slides one cell toward the scanner, and the top
+## face shows the matching baked frame (TOP_FRAMES, one per 2 px step, wrapping after
+## SLAT_PITCH). In planning it stands on the frame it stopped on.
 
 ## The vanishing point far above the stage's centre (stage pixels).
 const VANISHING_POINT := Vector2(640, -1600)
@@ -41,6 +42,13 @@ const BOLT_COUNT := 7
 ## The belt's direction cue (the mirrored mock-up B2): three light-steel chevrons pointing left,
 ## centred under each ticket of the 7-slot row, on the apron, at the bolts' pitch.
 const CHEVRONS_FIRST := Vector2(64, 102)
+## The scanner's glass plate on the top face under the 7-slot row's first cell (scanner_plate's
+## art at its size): its front edge (stage x 356..484 at y 398) and its sides lean to the
+## vanishing point; SCANNER_CENTER_X is the cell's middle from the plate's left edge, so a scaled
+## row's plate (place_scanner) sits under its own first cell, snapped to the art grid.
+const SCANNER_RECT := Rect2(8, 16, 134, 68)
+const SCANNER_CENTER_X := 66.0
+const SCANNER_NAME := &"ScannerPlate"
 const TOP_NAME := &"BeltTop"
 const FRONT_NAME := &"BeltFront"
 
@@ -68,11 +76,13 @@ const MAX_STEP_PX := 8.0
 const BELT_FRONT := preload("res://art/scenery/belt_front.png")
 const BELT_BOLT := preload("res://art/scenery/belt_bolt.png")
 const BELT_CHEVRONS := preload("res://art/scenery/belt_chevrons.png")
+const SCANNER_PLATE := preload("res://art/scenery/scanner_plate.png")
 
 ## The top face's sprite, showing TOP_FRAMES[frame()].
 var _top: TextureRect
 ## How far the slats have run left since frame 0 (px along the front edge, within SLAT_PITCH).
 var _scrolled: float = 0.0
+var _scanner: TextureRect
 
 
 func _init() -> void:
@@ -96,6 +106,9 @@ func _init() -> void:
 		chevrons.name = "Chevrons%d" % index
 		var at: Vector2 = CHEVRONS_FIRST + Vector2(index * BOLT_PITCH, 0)
 		_place(chevrons, Rect2(at, BELT_CHEVRONS.get_size()))
+	_scanner = UiKit.sprite(SCANNER_PLATE)
+	_scanner.name = SCANNER_NAME
+	_place(_scanner, SCANNER_RECT)
 
 
 func _draw() -> void:
@@ -129,7 +142,20 @@ func rail() -> Rect2:
 	return RAIL
 
 
-## The art's parts (the top face, the front, the bolts and the chevrons), in drawing order.
+## Puts the scanner's plate under the row's first cell, whose middle is at `cell_center_x` (the
+## belt's coordinates, the row at rest): snapped to the art grid, never past the belt's left end.
+func place_scanner(cell_center_x: float) -> void:
+	var left: float = snappedf(cell_center_x - SCANNER_CENTER_X, ArtStyle.ART_SCALE)
+	_scanner.position.x = maxf(left, 0.0)
+
+
+## The scanner's plate in the belt's coordinates.
+func scanner_rect() -> Rect2:
+	return Rect2(_scanner.position, _scanner.size)
+
+
+## The art's parts (the top face, the front, the bolts and the chevrons, then the scanner's
+## plate), in drawing order.
 func art() -> Array[Control]:
 	var parts: Array[Control] = []
 	for child: Node in get_children():

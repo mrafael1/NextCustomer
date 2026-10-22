@@ -1,0 +1,110 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Purse A states</title>
+<!--
+  PURSE A, REACTION STEPS (#76 decide prep, 2026-10-19; nothing decided). Built by purse_src/gen_a/gen_a.py from states.html + purse.js.
+  Direction A: a fat brown-leather frame purse on the counter by the register. It reacts to the shown amount (the planning
+  projection, then the count-up's running subtotal) against the quota in five steps; the quota chip's bar and the monitor's LED
+  bar stay as they are. Each step differs in silhouette and props (mouth gap, contents, belly, frame bow, ticks, coins), never in
+  colour alone: the bottom row is the same strip in greyscale. Thresholds are display ratios (tuning data in data/balance/,
+  like QuotaMeter.fill_fraction), never a score.
+-->
+<style>
+@font-face { font-family: Pixelify; src: url(../../../fonts/PixelifySans-Variable.ttf); }
+@font-face { font-family: Atkinson; src: url(../../../fonts/AtkinsonHyperlegibleNext-Variable.ttf); font-weight: 200 800; }
+@font-face { font-family: JBMono; src: url(../../../fonts/JetBrainsMono-Regular.ttf); }
+:root { --ink: #2b2420; --ink-light: #4a3f38; --paper: #fbf7ee; --cream: #f3e9d2; --cream-shade: #ddcba5; --mustard: #e2b33c;
+  --mustard-light: #f1d27a; --mustard-pale: #faecbc; --teal-dark: #1f3b3a; --teal-panel: #2a4d4b; --good: #5fae5a;
+  --wood: #a8703a; --wood-light: #c98c4e; --wood-dark: #6e4524; --wood-pale: #ddb07a; --plaster: #e4d6b9; }
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { width: 1280px; height: 720px; overflow: hidden; background: var(--teal-dark); }
+.px, canvas { image-rendering: pixelated; }
+.stage { position: relative; width: 1280px; height: 720px; font-family: Atkinson, sans-serif; color: var(--ink); padding: 10px 16px; }
+h1 { font-family: Pixelify; font-weight: 400; font-size: 22px; color: var(--mustard-pale); letter-spacing: 1px; display: flex; align-items: baseline; gap: 14px; height: 28px; }
+h1 small { font-family: Atkinson; font-size: 13px; font-weight: 650; color: var(--cream-shade); letter-spacing: 0; }
+.row { display: flex; gap: 10px; margin-top: 8px; }
+.card { position: relative; background: var(--plaster); border: 2px solid var(--ink); border-radius: 4px; overflow: hidden; box-shadow: 3px 3px 0 rgba(0,0,0,.35); }
+.card .ctr { position: absolute; left: 0; right: 0; background: var(--wood); border-top: 2px solid var(--ink);
+  box-shadow: inset 0 2px 0 var(--wood-light), inset 0 6px 0 var(--wood-pale); }
+.card canvas { position: absolute; }
+.card .tag { position: absolute; left: 8px; top: 6px; font-family: Pixelify; font-size: 15px; letter-spacing: 1px; }
+.card .num { position: absolute; right: 8px; top: 5px; font-family: Pixelify; font-size: 15px; width: 24px; height: 22px; text-align: center;
+  background: var(--ink); color: var(--mustard-light); border-radius: 3px; line-height: 22px; }
+.card .lab { position: absolute; left: 0; right: 0; bottom: 0; padding: 5px 8px; background: var(--paper); border-top: 2px solid var(--ink);
+  font-size: 11.5px; line-height: 14px; font-weight: 600; color: var(--ink-light); }
+.lab b { color: var(--ink); font-weight: 800; }
+.lab .trig { display: block; font-size: 12.5px; color: var(--ink); font-weight: 750; margin-bottom: 2px; }
+.lab .snd { display: block; margin-top: 2px; font-family: JBMono; font-size: 10.5px; color: var(--teal-panel); }
+.big { width: 241px; height: 300px; }
+.mid { width: 196px; height: 180px; }
+.mid .lab { font-size: 11px; line-height: 13px; }
+.sm { width: 160px; height: 140px; }
+.grey { filter: grayscale(1); }
+.side { width: 425px; height: 140px; background: var(--paper); border: 2px solid var(--ink); border-radius: 4px; padding: 8px 10px; font-size: 12px; line-height: 15px; font-weight: 600; color: var(--ink-light); box-shadow: 3px 3px 0 rgba(0,0,0,.35); }
+.side h2 { font-family: Pixelify; font-weight: 400; font-size: 15px; color: var(--ink); letter-spacing: 1px; margin-bottom: 4px; }
+.side b { color: var(--ink); }
+.vtag { position: absolute; font-family: Pixelify; font-size: 12px; letter-spacing: 1px; padding: 1px 6px; border: 2px solid var(--ink); white-space: nowrap; box-shadow: 2px 2px 0 rgba(30,18,10,.4); }
+.chipmini { position: absolute; left: 8px; top: 30px; height: 22px; display: flex; align-items: center; gap: 5px; padding: 0 6px; background: var(--teal-panel); border: 2px solid var(--ink); border-radius: 4px; color: var(--paper); font-weight: 750; font-size: 12px; }
+.chipmini .k { font-family: Pixelify; font-weight: 400; font-size: 11px; color: var(--mustard-pale); }
+.chipmini .d { color: var(--mustard-light); }
+</style>
+</head>
+<body>
+<div class="stage" id="stage">
+  <h1>PURSE A · fat leather purse, cash-and-card bulging <small>steps follow shown amount ÷ quota · shift 5/8, quota €73</small></h1>
+  <div class="row" id="steps"></div>
+  <div class="row" id="extra"></div>
+  <div class="row" id="greys"></div>
+</div>
+<script>
+/*PURSE_JS*/
+const steps = [
+  ['CALM', 'under 40% · under €30', 'Closed and slim. Clasp kissed shut, handle up.', 'none (start of every shift)'],
+  ['PEEK', '40% to 70% · €30–€51', 'Clasp ajar, a teal card peeks out. Belly rounds a little.', 'clasp click (new CC0 sample)'],
+  ['BULGE', '70% to 90% · €52–€65', 'Mouth open, two notes stand up beside the card; the handle flops forward so the cash never hides it.', 'clasp click, lower'],
+  ['STRAIN', '90% to under 100% · €66–€72', 'Stuffed: notes spill sideways, belly at full width, frame bows, strain ticks, sweat drop.', 'leather creak (new) · no tick loop'],
+  ['BURST', 'quota met · €73 and up', 'At the quota ding the frame springs wide: notes and coins fly; coins stay on the counter.', 'register_bell (on the ding only)'],
+];
+function put(card, c, scale, bottomPad, dx = 0) {
+  c.style.width = 48 * scale + 'px'; c.style.height = 60 * scale + 'px';
+  c.style.left = Math.round((card.clientWidth - 48 * scale) / 2 + dx) + 'px';
+  c.style.bottom = bottomPad - (60 - PURSE_GB - 1) * scale + 'px';
+  card.appendChild(c);
+}
+function mk(parent, cls, html) { const d = document.createElement('div'); d.className = cls; d.innerHTML = html || ''; parent.appendChild(d); return d; }
+const S = document.getElementById('steps');
+steps.forEach(([name, trig, vis, snd], i) => {
+  const card = mk(S, 'card big', `<div class="tag">${name}</div><div class="num">${i}</div>`);
+  const ctr = mk(card, 'ctr'); ctr.style.top = '198px'; ctr.style.height = '30px';
+  put(card, purseCanvas(i), 3, 300 - 202);
+  mk(card, 'lab', `<span class="trig">${trig}</span>${vis}<span class="snd">♪ ${snd}</span>`);
+});
+const E = document.getElementById('extra');
+function midCard(title, opts, label, tagHtml, tagStyle) {
+  const card = mk(E, 'card mid', `<div class="tag">${title}</div>`);
+  const ctr = mk(card, 'ctr'); ctr.style.top = '102px'; ctr.style.height = '40px';
+  put(card, purseCanvas(opts.step ?? 4, opts), 2, 180 - 106, opts.dx || 0);
+  mk(card, 'lab', label);
+  if (tagHtml) { const t = mk(card, 'vtag', tagHtml); Object.assign(t.style, tagStyle); }
+  return card;
+}
+midCard('REDUCED MOTION', { step: 4, still: true }, '<b>Burst, still.</b> Loops off (fly, sparkle, sweat, tremble); poses swap instantly, coins rest on the counter.');
+midCard('DRAG +€6', { step: 2, drag: '+', dx: 52 }, '<b>€52 › €58 (+6):</b> one 2-texel hop, same step. The delta stays on the QUOTA chip.',
+  '<span style="font-family:Atkinson;font-weight:800">› €58 (+6)</span>', { left: '8px', top: '30px', background: '#faecbc', fontSize: '12px' });
+midCard('DRAG −€9', { step: 2, drag: '-', dx: 52 }, '<b>€52 › €43 (−9):</b> a squashed slump while held; it drops a step only if the drop lands.',
+  '<span style="font-family:Atkinson;font-weight:800">› €43 (−9)</span>', { left: '8px', top: '30px', background: '#fbf7ee', fontSize: '12px' });
+midCard('OVER', { verdict: 'over', dx: -24 }, '<b>+€109 OVER QUOTA:</b> it empties happily toward the cash drawer.', 'THANK YOU', { right: '8px', top: '30px', background: '#e2b33c' });
+midCard('ON QUOTA', { verdict: 'on' }, '<b>€73 / €73:</b> a satisfied snap shut (a pass, PAID stamp as usual).', 'SNAP', { right: '8px', top: '30px', background: '#faecbc' });
+midCard('SHORT', { verdict: 'short' }, '<b>€52 / €73, SHORT €21:</b> half full, sagging, card drooping.', 'she wanted €21 more', { right: '6px', top: '30px', background: '#fbf7ee', fontFamily: 'Atkinson', fontWeight: '750', letterSpacing: '0' });
+const R = document.getElementById('greys');
+const side = mk(R, 'side', `<h2>GREYSCALE CHECK →</h2>The five steps read by <b>shape</b>: mouth gap (0 · 2 · 3 · 3 · 6 texels), contents (none · card · 2 notes · banded wad with notes squeezed out sideways · fountain), belly width (20 → 26 texels), frame bow and strain ticks, coins.<br>Colours: palette brown leather, mustard clasp (no velvet, no brass, no tomato), green cash, teal card.`);
+steps.forEach(([name], i) => {
+  const card = mk(R, 'card sm grey', `<div class="tag" style="font-size:12px">${i} ${name}</div>`);
+  const ctr = mk(card, 'ctr'); ctr.style.top = '116px'; ctr.style.height = '24px';
+  put(card, purseCanvas(i), 2, 140 - 120);
+});
+</script>
+</body>
+</html>

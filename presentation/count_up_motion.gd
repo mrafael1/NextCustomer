@@ -1,15 +1,13 @@
 class_name CountUpMotion
 extends RefCounted
-## The count-up's small motions on any control: punches, sideways shakes, the scan lift, a
-## glow, and labels that fly or pop over the overlay. Every tween comes from the count-up
-## (`make_tween`), so it follows the count-up's speed and hit-stops.
+## The count-up's small motions on any control: punches, sideways shakes, a glow, and labels
+## that fly or pop over the overlay. Every tween comes from the count-up (`make_tween`), so it
+## follows the count-up's speed and hit-stops.
 ##
 ## A new punch on a node replaces the one running on it, and a new shake replaces a running
 ## shake from the same rest position, so a node always ends at scale 1 and at the x it rested
 ## at. Under reduced_motion nothing shakes.
 
-## A plain card's scan lift; every view gives its own (CardView.scan_lift).
-const SCAN_LIFT := CardView.SCAN_LIFT
 const GLOW := Color(1.3, 1.3, 1.15)
 ## A shake swings this long each way, then settles back.
 const SHAKE_SWING := 0.03
@@ -80,26 +78,6 @@ func shake(node: Control, amount: float, swings: int = 4) -> void:
 	_shakes[node] = tween
 
 
-## The card lifts off the belt with its badge, by the view's scan_lift(), as the scanner reads
-## it.
-func lift(view: CardView, seconds: float) -> void:
-	var tween: Tween = _tween().set_parallel().set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
-	var height: float = view.scan_lift()
-	tween.tween_property(view.body, "position:y", height, seconds)
-	tween.tween_property(view.badge, "position:y", view.badge_rest_y() + height, seconds)
-
-
-## The card drops back onto the belt with its badge. The badge ends at its rest y as it is
-## when the drop ends: a chip that settled meanwhile (a short beat's next item) rests lower.
-func drop(view: CardView, seconds: float) -> void:
-	var tween: Tween = _tween().set_parallel().set_trans(Tween.TRANS_BOUNCE).set_ease(
-		Tween.EASE_OUT
-	)
-	tween.tween_property(view.body, "position:y", 0.0, seconds)
-	tween.tween_property(view.badge, "position:y", view.badge_rest_y(), seconds)
-	tween.chain().tween_callback(_rest_badge.bind(view))
-
-
 ## A control lights up for a moment.
 func glow(node: Control) -> void:
 	var tween: Tween = _tween()
@@ -159,14 +137,6 @@ static func text_label(text: String, color: Color, font_size: int) -> Label:
 	label.add_theme_color_override("font_outline_color", Palette.INK)
 	label.size = label.get_minimum_size()
 	return label
-
-
-## Puts `view`'s badge back on its rest y, unless the view was freed meanwhile. Untyped: a freed
-## view may be passed.
-func _rest_badge(view: Variant) -> void:
-	if is_instance_valid(view):
-		var card: CardView = view as CardView
-		card.badge.position.y = card.badge_rest_y()
 
 
 func _end_shake(node: Control) -> void:

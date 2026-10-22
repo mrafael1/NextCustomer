@@ -25,15 +25,23 @@ extends RefCounted
 ## hit-stop (hit_stop_ding_ms) on top of the other hit-stops, ding or not, and no beat is
 ## spared for the ding while it is decided. The ding beat is spared afterwards, so every other
 ## beat is the same for any quota.
+##
+## Scan groups (#86 v6): a group starts at each BASE or MERGED_PLAIN beat (its item comes to the
+## scanner) and runs to the beat before the next one; the last group takes the trailing beats
+## (lost effects). Each group's opening beat has a ride gap before it (ride_ms) while its item
+## slides in and the one before hops into the bag; item 0 in the first cell needs none. Ride gaps
+## count in planned_ms and in every start_ms, and no fit stage ever shortens them.
 
 enum Size { NORMAL, LARGE, HUGE }
 
 const LAST_STAGE := 5
 
 var beats: Array[CountUpBeat] = []
-## The auto speed-up times the speed setting (D6); divides every beat length, never hit-stops
-## or the pause.
+## The auto speed-up times the speed setting (D6), as logged (RunEvents.count_up).
 var base_speed: float = 1.0
+## The speed the count runs at: base_speed times the tuning's count_tempo. It divides every beat
+## length, ride gap and roll (CountUp's tweens run at it), never hit-stops or the pause.
+var count_speed: float = 1.0
 ## The player's speed setting alone: the dessert after the verdict runs at it (#61), without the
 ## auto speed-up.
 var speed_setting: float = 1.0
@@ -50,8 +58,11 @@ var pause_ms: int = 0
 var final_rattle_px: float = 0.0
 ## Before the first beat, at speed 1.
 var pre_roll_ms: int = 0
-## Click to TOTAL shown without taps: (pre_roll_ms + every duration_ms) / base_speed + every
-## hit_stop_ms + pause_ms.
+## The last item's hop into the bag after the last beat (#86 v6): it overlaps the pause before
+## the TOTAL line and is never counted in planned_ms.
+var bag_ms: int = 0
+## Click to TOTAL shown without taps: (pre_roll_ms + every ride_ms + every duration_ms) /
+## count_speed + every hit_stop_ms + pause_ms.
 var planned_ms: int = 0
 ## The number of ScoreSteps.
 var step_count: int = 0
@@ -64,8 +75,8 @@ var fit_stage: int = 0
 var ding_beat: int = -1
 ## Some payout reaches the quota.
 var quota_reached: bool = false
-## The quota is first reached on the last payout: the colour and chip come with the TOTAL line,
-## with no ding (D5).
+## The quota is first reached on the last payout: it is met (CountUp.quota_met) with the TOTAL
+## line, with no ding and no hold (D5).
 var chip_at_total: bool = false
 ## The payout beat where the subtotal first passes best (D3), or -1.
 var passes_best_beat: int = -1
@@ -96,6 +107,7 @@ func _init(
 	best = maxi(tuning.first_best_floor, context.best_so_far)
 	var auto: float = tuning.auto_speed if context.shift >= tuning.auto_speed_from_shift else 1.0
 	base_speed = auto * context.speed_setting
+	count_speed = base_speed * (tuning.count_tempo if tuning.count_tempo > 0.0 else 1.0)
 	speed_setting = context.speed_setting
 	var extra_steps: int = maxi(0, step_count - tuning.printer_free_steps)
 	printer_speed = minf(
@@ -107,8 +119,10 @@ func _init(
 		)
 	)
 	pre_roll_ms = tuning.pre_roll_ms
+	bag_ms = tuning.bag_ms
 	total = steps[steps.size() - 1].subtotal if not steps.is_empty() else 0
 	_make_beats(steps)
+	_set_scan_groups()
 	_link_armed(steps)
 	_set_payouts(steps)
 	_set_notes()
@@ -158,6 +172,25 @@ func _make_beats(steps: Array[ScoreStep]) -> void:
 			beat.kind = _kind_of(step.step_type)
 		beats.append(beat)
 		index += 1
+
+
+## #86 v6: each beat's item at the scanner, the groups' first and last beats and the ride gaps
+## before the first ones. A ride plays when an item bags as this one slides in, or when the
+## first item scanned stands past the first cell (the cells before it are empty or closed).
+func _set_scan_groups() -> void:
+	var opening: CountUpBeat = null
+	for index: int in range(beats.size()):
+		var beat: CountUpBeat = beats[index]
+		if beat.kind == CountUpBeat.Kind.BASE or beat.kind == CountUpBeat.Kind.MERGED_PLAIN:
+			if opening != null:
+				beats[index - 1].closes_slot = true
+			beat.opens_slot = true
+			beat.ride_ms = _tuning.ride_ms if opening != null or beat.slot > 0 else 0
+			opening = beat
+		if opening != null:
+			beat.scan_slot = opening.slot
+	if opening != null:
+		beats[beats.size() - 1].closes_slot = true
 
 
 ## D2: a BASE followed at once by the PAYOUT of the same slot.
@@ -374,7 +407,7 @@ func _fit_ms(stage: int, factor: float) -> int:
 	var length_sum: int = _apply(stage, factor, false)
 	var stops: int = _set_hit_stops(false)
 	return (
-		roundi((pre_roll_ms + length_sum) / base_speed)
+		roundi((pre_roll_ms + length_sum) / count_speed)
 		+ stops
 		+ _tuning.hit_stop_ding_ms
 		+ pause_ms
@@ -382,7 +415,8 @@ func _fit_ms(stage: int, factor: float) -> int:
 
 
 ## Sets every beat's length, roll, echo and start for fit `stage` (all earlier stages
-## included) and uniform `factor` (stage 5 only), and returns the lengths' sum. With
+## included) and uniform `factor` (stage 5 only), and returns the sum of the lengths and the
+## ride gaps (never shortened). With
 ## `spares_ding`, the ding beat keeps its length and roll from before stage 3 and the
 ## hit-stops and planned_ms are set too: the final pass.
 func _apply(stage: int, factor: float, spares_ding: bool) -> int:
@@ -416,11 +450,12 @@ func _apply(stage: int, factor: float, spares_ding: bool) -> int:
 				scaled = maxi(scaled, mini(length, _tuning.fizzle_hold_min_ms))
 			length = scaled
 		beat.duration_ms = length
+		length_sum += beat.ride_ms
 		beat.start_ms = pre_roll_ms + length_sum
 		length_sum += length
 	if spares_ding:
 		var stops: int = _set_hit_stops(true)
-		planned_ms = roundi((pre_roll_ms + length_sum) / base_speed) + stops + pause_ms
+		planned_ms = roundi((pre_roll_ms + length_sum) / count_speed) + stops + pause_ms
 	return length_sum
 
 

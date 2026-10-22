@@ -11,7 +11,7 @@ extends GdUnitTestSuite
 ## reference row (the golden rows are in scan_popup_golden_rows_test). No scan while dragging,
 ## counting or with the deck view open; leaving the item, the window or the game ends the scan,
 ## clears the marks and brings the monitor's idle screen back; reduced motion runs no beam loop.
-## The count-up marks each item it lifts in gold and clears the marks as its beats end. Every
+## The belt ride poses the scanner (#86 v6): each item in turn, at the scanner cell. Every
 ## card's scan fits the monitor. Headless runs never move the mouse, so the tests set the
 ## controller's pointer (and its clock, which the hold and the throttle read) and send the items'
 ## hover signals. Every rect is checked on screen (headless runs use a 1280x1280 window: the stage
@@ -283,15 +283,16 @@ func test_no_scan_while_dragging_counting_or_with_the_deck_open() -> void:
 		await get_tree().process_frame
 
 
-## The count-up scans the belt (#75, the 2026-10-15 decision): as each item's scan lifts it, the
-## overlay marks it with gold brackets around its lifted sprite, no scan line and no pulse, on
-## the stage, every item in turn; the marks clear as the beats end, before the dessert. No hover
-## scan shows meanwhile.
-func test_the_count_up_poses_the_scanner_over_each_item_in_turn() -> void:
+## The belt ride poses the scanner (#86 v6): each item in turn reaches the scanner (the row's
+## first cell, where item 0 stood) and is marked there with gold brackets round its frame
+## (ScanOverlay.scan_frame), its tomato scan line across it, no pulse, on the stage; the last
+## one bagged, the marks clear before the total shows. No hover scan shows meanwhile.
+func test_the_belt_ride_poses_the_scanner_on_each_item_in_turn() -> void:
 	var screen: ShiftScreen = await _screen()
 	_place(screen, ["milk", "bread", "eggs", "milk"])
 	await _frames(1)
 	var overlay: ScanOverlay = screen._scan.overlay()
+	var scanner: Rect2 = screen._row_strip.slots[0].get_global_rect()
 	var posed: Array[int] = []
 	var failures: Array[String] = []
 	screen._on_checkout_pressed()
@@ -300,21 +301,24 @@ func test_the_count_up_poses_the_scanner_over_each_item_in_turn() -> void:
 		if not overlay.is_posed():
 			continue
 		if overlay.bracket_color() != Palette.GOLD or overlay.has_beam_loop():
-			failures.append("a pose that is not the count-up's")
+			failures.append("a pose that is not the scanner's")
 		var brackets: Rect2 = overlay.get_global_transform() * overlay.brackets()
-		var slot: int = _lifted_slot(screen._row_views, brackets)
+		var slot: int = _scanned_slot(screen._row_views, brackets)
 		if slot < 0:
-			failures.append("brackets %s on no lifted item" % brackets)
+			failures.append("brackets %s on no item" % brackets)
 			continue
-		if overlay.scan_line().has_area():
-			failures.append("slot %d: a scan line on the count-up's marks" % slot)
+		var sprite: Rect2 = BeltRide.sprite_rect(screen._row_views[slot] as ItemView)
+		if not scanner.has_point(sprite.get_center()):
+			failures.append("slot %d: %s not at the scanner %s" % [slot, sprite, scanner])
+		if not overlay.scan_line().has_area():
+			failures.append("slot %d: no scan line" % slot)
 		if not screen._stage.get_global_rect().encloses(brackets):
 			failures.append("slot %d: brackets %s off the stage" % [slot, brackets])
 		if posed.is_empty() or posed[-1] != slot:
 			posed.append(slot)
 		if screen._count_up.intensity != null:
 			failures.append("still posed once the total shows")
-	assert_array(failures).override_failure_message("\n".join(failures)).is_empty()
+	assert_array(failures.slice(0, 5)).override_failure_message(str(failures)).is_empty()
 	assert_array(posed).is_equal([0, 1, 2, 3])
 	_assert_cleared(screen)
 
@@ -621,13 +625,14 @@ func _assert_scanner_posed(screen: ShiftScreen, view: ItemView) -> void:
 	assert_bool(sprite.encloses(line)).override_failure_message(str(line)).is_true()
 
 
-## The slot of the view whose count-up frame (ScanOverlay.scan_frame, its lifted sprite hugging
-## the art's top) has `brackets` (global) round it, or -1.
-func _lifted_slot(views: Array[CardView], brackets: Rect2) -> int:
+## The slot of the shown view whose scanner frame (ScanOverlay.scan_frame, grown by the
+## brackets' outset) is `brackets` (global), or -1.
+func _scanned_slot(views: Array[CardView], brackets: Rect2) -> int:
 	for slot: int in range(views.size()):
-		if not is_instance_valid(views[slot]):
+		var item: ItemView = views[slot] as ItemView
+		if item == null or not item.is_visible_in_tree():
 			continue
-		var frame: Rect2 = ScanOverlay.scan_frame(views[slot] as ItemView)
+		var frame: Rect2 = ScanOverlay.scan_frame(item)
 		if frame.grow(ScanOverlay.BRACKET_OUTSET).is_equal_approx(brackets):
 			return slot
 	return -1

@@ -195,6 +195,63 @@ func test_the_stage_is_laid_out_without_overlaps() -> void:
 	assert_str(screen._seed_label.text).contains("Seed %d" % screen.run.run_seed)
 
 
+## The paper bag (#86 v6) stands on the counter between the receipt and the belt at BAG_RECT,
+## its foot on the counter line, under the top bar and clear of the monitor and the register's
+## keys; on the stage it is drawn over the belt and the planning layer and under the top bar. It
+## prints no text (not even an art-pending item's or an icon-less coupon's name) and takes no
+## click, and a full bag's items peek out inside its width, on the stage, clear of the receipt and
+## the belt.
+func test_the_paper_bag_stands_between_the_receipt_and_the_belt() -> void:
+	var screen: ShiftScreen = await _screen()
+	var stage: Rect2 = screen._stage.get_global_rect()
+	var bag: PaperBag = screen._stage.bag
+	var rect: Rect2 = bag.get_global_rect()
+	assert_bool(bag.is_visible_in_tree()).is_true()
+	assert_that(rect).is_equal(_on_stage(screen, ShiftStage.BAG_RECT))
+	assert_bool(stage.encloses(rect)).is_true()
+	var receipt: Rect2 = screen._receipt.get_global_rect()
+	var belt: Rect2 = screen._stage.belt.get_global_rect()
+	assert_float(rect.position.x).is_greater_equal(receipt.end.x)
+	assert_float(rect.end.x).is_less_equal(belt.position.x)
+	assert_float(rect.end.y).is_equal(stage.position.y + ShiftStage.PRINTER_RECT.position.y)
+	assert_float(rect.position.y).is_greater_equal(stage.position.y + ShiftStage.TOP_BAR_BOTTOM)
+	assert_bool(rect.intersects(_on_stage(screen, ShiftStage.MONITOR_RECT))).is_false()
+	assert_bool(rect.intersects(_on_stage(screen, ShiftStage.COLUMN_RECT))).is_false()
+	var index: int = bag.get_index()
+	assert_object(bag.get_parent()).is_same(screen._stage)
+	assert_int(index).is_greater(screen._stage.belt.get_index())
+	assert_int(index).is_greater(screen._stage.planning_layer.get_index())
+	assert_int(index).is_less(screen._top_bar.get_index())
+	var products: Array[CardDefinition] = []
+	# Bread's art is pending and Bundle is a slip with no icon: their names are not printed here.
+	var bagged: Array[String] = ["milk", "eggs", "coffee", "cheese", "banana", "croissant"]
+	bagged.append_array(["crisps", "bread", "bundle"])
+	for card_id: String in bagged:
+		products.append(load("res://data/cards/%s.tres" % card_id) as CardDefinition)
+	# Their belt art prints their names: the bag's must not.
+	for definition: CardDefinition in products.slice(-2):
+		var belt_art: TextureRect = ItemView.item_art(definition)
+		assert_object(belt_art.get_node_or_null(ItemView.PRINTED_NAME)).is_not_null()
+		belt_art.free()
+	products.append_array(products.slice(0, 2))
+	bag.show_items(products)
+	await _frames(2)
+	assert_array(bag.find_children("*", "Label", true, false)).is_empty()
+	for node: Node in bag.find_children("*", "Control", true, false):
+		assert_int((node as Control).mouse_filter).is_equal(Control.MOUSE_FILTER_IGNORE)
+	for item: Control in bag.items():
+		var peek: Rect2 = item.get_global_rect()
+		assert_bool(stage.encloses(peek)).override_failure_message(str(peek)).is_true()
+		assert_float(peek.position.x).is_greater_equal(rect.position.x)
+		assert_float(peek.end.x).is_less_equal(rect.end.x)
+		assert_float(peek.position.y).is_greater_equal(stage.position.y + ShiftStage.TOP_BAR_BOTTOM)
+		assert_bool(peek.intersects(receipt)).is_false()
+		assert_bool(peek.intersects(belt)).is_false()
+	var mouth: Rect2 = bag.mouth_rect()
+	assert_bool(rect.encloses(mouth)).is_true()
+	bag.clear()
+
+
 ## The shade starts under the top bar wherever the stage sits, so Cart and the menu stay
 ## reachable behind the deck view: nothing over them takes their clicks.
 func test_the_shade_leaves_the_top_bar_uncovered() -> void:
@@ -253,14 +310,14 @@ func test_the_top_bar_fits_its_longest_texts() -> void:
 		screen._on_shift_started()
 		var deck_limit: int = run.balance.deck_limit
 		screen._deck_button.caption = "Cart %d/%d" % [deck_limit, deck_limit]
-		# The widest QUOTA chip: a 4-digit subtotal past the quota, with its check.
+		# The widest quota chip: a 4-digit subtotal past the quota, with its flag.
 		screen._led.start_count(largest)
 		screen._led.show_subtotal(9999, true)
 		await _frames(2)
 		var top_bar: TopBar = screen._stage.top_bar
-		assert_str(screen._quota_label.text).is_equal("€%d" % largest)
+		assert_str(screen._quota_label.text).is_equal(QuotaMeter.QUOTA_AMOUNT % largest)
 		assert_str(top_bar.quota_meter.amount_label.text).is_equal("€9999")
-		assert_bool(top_bar.quota_meter.check_shown()).is_true()
+		assert_bool(top_bar.quota_meter.flag_shown()).is_true()
 		assert_int(screen._loyalty_card.box_texts().size()).is_equal(4)
 		assert_str(screen._inspection_tag.text()).is_equal("Inspection · %s" % inspection.chip_text)
 		var parts: Array[Control] = [
@@ -582,7 +639,7 @@ func _assert_digits_clear(screen: ShiftScreen) -> void:
 	var caption: Label = led.caption_label()
 	var font: Font = caption.get_theme_font("font")
 	var caption_ink: Vector2 = LedDisplay.ink_span(
-		led.caption(), font, caption.get_theme_font_size("font_size")
+		led.caption_label().text, font, caption.get_theme_font_size("font_size")
 	)
 	var caption_line: float = (
 		(caption.size.y - font.get_height(caption.get_theme_font_size("font_size"))) / 2.0

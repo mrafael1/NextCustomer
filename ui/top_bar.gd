@@ -1,7 +1,7 @@
 class_name TopBar
 extends HBoxContainer
 ## The shift screen's top bar (#80 step 10, mock-up B2): one row of teal chips on the dark teal
-## band, GAP apart: SHIFT n/m, the QUOTA chip (QuotaMeter: the quota, a bar and the projected
+## band, GAP apart: SHIFT n/m, the SPEND chip (QuotaMeter: the quota, a bar and the projected
 ## total, then the subtotal while counting; it takes the room left), the inspection chip (paper,
 ## with the mustard warning sign and "Inspection · <effect>", the name in its hover text; hidden
 ## on shifts without one), the

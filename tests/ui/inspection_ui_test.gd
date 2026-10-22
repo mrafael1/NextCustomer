@@ -129,7 +129,7 @@ func test_inspection_steps_print_and_play_from_the_tag() -> void:
 	)
 	assert_int(steps.size()).is_equal(1)
 	await screen._on_checkout_pressed()
-	assert_object(screen._count_up._source_control(steps[0])).is_same(screen._inspection_tag)
+	assert_object(screen._count_up._beats._source_control(steps[0])).is_same(screen._inspection_tag)
 	assert_str(_receipt_text(screen)).contains(RECEIPT_LINE)
 	assert_object(screen.run.history[0].inspection).is_not_null()
 

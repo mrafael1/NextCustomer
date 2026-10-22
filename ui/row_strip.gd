@@ -32,6 +32,11 @@ extends Control
 ##
 ## A plain Control holds the row: a Container would reset the row's scale. `slots` is kept as
 ## one array, changed in place, because CardDrag holds it.
+##
+## While the shift is counted the row rides toward the scanner, its first cell (#86 v6, the belt
+## ride): ride_out hides the cells up to one, so the cells after it pack left a pitch() each, and
+## moves the box right by the width they left, for the ride to slide back. show_cards brings
+## every cell back.
 
 signal slot_input(event: InputEvent, slot: int)
 ## A click on a closed slot, so the screen can say why it is closed.
@@ -156,7 +161,8 @@ func set_slot_count(
 
 ## Fills the slots: a belt item for each row card (clicks go to `on_clicked`; `balance` gives
 ## each item its aisle), and the slot number on each empty mat. Slots up to `placeable_until`
-## are ringed for the picked card. Returns the row's item views, in slot order.
+## are ringed for the picked card. Every cell a ride hid shows again, the box back at rest.
+## Returns the row's item views, in slot order.
 func show_cards(
 	row: Array[CardInstance],
 	placeable_until: int,
@@ -164,6 +170,9 @@ func show_cards(
 	balance: BalanceDefinition = null
 ) -> Array[CardView]:
 	var views: Array[CardView] = []
+	for panel: PanelContainer in slots + closed:
+		panel.visible = true
+	box.position = Vector2.ZERO
 	for slot: int in range(slots.size()):
 		var panel: PanelContainer = slots[slot]
 		for child: Node in panel.get_children():
@@ -186,6 +195,32 @@ func show_cards(
 		ring.visible = slot <= placeable_until
 		set_hovered(panel, false)
 	return views
+
+
+## The distance from one cell's left edge to the next one's as drawn (the cell and its gap,
+## scaled with a wide row): how far the cells ride left for each cell that rides out.
+func pitch() -> float:
+	return (CELL_SIZE.x + box.get_theme_constant("separation")) * box.scale.x
+
+
+## Hides every cell up to `cell` (in the row's order: the open slots, then the CLOSED cells) that
+## still shows, so the cells after it pack left at once, and moves the box right by the width the
+## hidden cells left (a pitch() each), so nothing jumps: the caller slides box.position.x back to
+## 0. Returns that width (0 when every one of those cells was hidden already).
+func ride_out(cell: int) -> float:
+	var cells: Array[PanelContainer] = slots + closed
+	var gone: int = 0
+	for index: int in range(mini(cell + 1, cells.size())):
+		if cells[index].visible:
+			cells[index].visible = false
+			gone += 1
+	if gone == 0:
+		return 0.0
+	# Packs the cells now, not at the frame's end, so their rects are right for the caller.
+	box.notification(Container.NOTIFICATION_SORT_CHILDREN)
+	var width: float = gone * pitch()
+	box.position.x += width
+	return width
 
 
 ## Whether a slot wears the placeable ring (the picked card can go there).

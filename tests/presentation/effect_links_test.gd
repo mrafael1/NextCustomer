@@ -167,8 +167,8 @@ static func _old_link_armed(plan: CountUpPlan, steps: Array[ScoreStep]) -> Dicti
 	return {"from": from, "targets": targets}
 
 
-## EffectTokens.spend's walk as it was before #71: the ARMED beat fizzle beat `index` greys, or
-## -1.
+## The walk of #60's EffectTokens.spend (removed in #86) as it was before #71: the ARMED beat
+## fizzle beat `index` greys, or -1.
 static func _old_spend(plan: CountUpPlan, steps: Array[ScoreStep], index: int) -> int:
 	var step: ScoreStep = steps[plan.beats[index].steps[0]]
 	if step.source_kind != ScoreStep.SourceKind.CARD:

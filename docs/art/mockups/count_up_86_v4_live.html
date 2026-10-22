@@ -1,0 +1,344 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Count-up gauges live</title>
+<!--
+  #86 decide mock-up, round 4 (2026-10-19). Round 3's coins were rejected ("coins gauge isn't working"); the user asked for a
+  lively gauge, maybe a money ("dollar") gauge, and a much more alive top-bar gauge; the anchoring flag is approved.
+  This page is LIVE: one loop plays a count-up (€0 -> €77, the quota ding at €73 -> €117) and every gauge reacts to the same
+  gain beats. Gauges are drawn on canvases at half resolution and scaled up with hard pixels, as pixel art would be in Godot.
+  Monitors: V1 the € tank (the euro sign fills with sloshing gold), V2 the cash pile (banknotes fly in and fan out), V3 the
+  liquid bar (a gold fill with a wobbling front, bubbles and spray). Top bar: TA liquid, TB cash. Every gauge is full exactly at
+  the quota while short; at the quota a flag is planted there and the gauge re-scales to the total, so the flag slides back.
+  Hand-written page (no generator).
+-->
+<style>
+@font-face { font-family: Pixelify; src: url(../../../fonts/PixelifySans-Variable.ttf); }
+@font-face { font-family: Atkinson; src: url(../../../fonts/AtkinsonHyperlegibleNext-Variable.ttf); font-weight: 200 800; }
+:root { --ink: #2b2420; --ink-light: #4a3f38; --paper: #fbf7ee; --cream: #f3e9d2; --cream-shade: #ddcba5; --mustard: #e2b33c;
+  --mustard-light: #f1d27a; --mustard-pale: #faecbc; --mustard-dark: #b38425; --tomato: #d9534f; --tomato-dark: #a83a3c;
+  --teal: #4f9a94; --teal-panel: #2a4d4b; --teal-dark: #1f3b3a; --good: #5fae5a; --good-dark: #3f7d3b; --rubber: #3d3a36; --steel-light: #c7c3b8; }
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { background: #17302f; }
+body { width: 1280px; font-family: Atkinson, sans-serif; color: var(--paper); padding: 16px 24px 24px; }
+h1 { font-family: Pixelify; font-size: 24px; color: var(--mustard-light); }
+h1 small { font-family: Atkinson; font-size: 13px; color: var(--steel-light); margin-left: 10px; font-weight: 500; }
+h2 { font-family: Pixelify; font-size: 18px; margin: 14px 0 6px; }
+.note { font-size: 13px; color: var(--steel-light); line-height: 17px; }
+.cap { font-size: 13px; color: var(--steel-light); margin-top: 4px; max-width: 424px; line-height: 16px; }
+.cap b { color: var(--mustard-light); }
+.row { display: flex; gap: 14px; align-items: flex-start; }
+#mons > div { zoom: .92; }
+canvas { image-rendering: pixelated; display: block; }
+#clock { font-family: Pixelify; font-size: 14px; color: var(--mustard-light); margin-top: 6px; }
+
+/* monitor */
+.mon { position: relative; width: 424px; height: 176px; background: var(--rubber); border: 2px solid var(--ink); border-radius: 6px; padding: 6px; }
+.scr { position: relative; width: 100%; height: 100%; background: var(--paper); border: 2px solid var(--ink); overflow: hidden; transition: background .3s; }
+.scr.met { background: var(--mustard-pale); }
+.rays { position: absolute; left: 110px; top: -62px; width: 210px; height: 210px; border-radius: 50%;
+  background: repeating-conic-gradient(var(--c1) 0 10deg, var(--c2) 10deg 20deg); animation: spin 24s linear infinite; --c1: #f3e9d2; --c2: #fbf7ee; }
+.scr.met .rays { --c1: #f1d27a; --c2: #faecbc; }
+@keyframes spin { to { transform: rotate(360deg); } }
+.lbl { position: absolute; left: 106px; top: 4px; font-family: Pixelify; font-size: 13px; letter-spacing: 2px; color: var(--ink-light); z-index: 2; }
+.art { position: absolute; left: 6px; top: 10px; width: 92px; text-align: center; font-family: Pixelify; font-size: 12px; color: var(--teal-panel); }
+.art img { width: 88px; height: 88px; image-rendering: pixelated; }
+.num { position: absolute; left: 102px; top: 18px; font-family: Atkinson; font-weight: 800; font-size: 68px; line-height: 68px; letter-spacing: -1px;
+  color: var(--ink); text-shadow: 4px 4px 0 var(--mustard-light); transform-origin: 30% 60%; z-index: 2; }
+.num.punch { animation: punch .28s ease-out; }
+@keyframes punch { 0% { transform: scale(1.22); } 100% { transform: scale(1); } }
+.stk { position: absolute; z-index: 3; display: grid; place-items: center; font-family: Atkinson; font-weight: 800; color: var(--ink);
+  background: var(--paper); border: 2px solid var(--ink); box-shadow: 3px 3px 0 rgba(43,36,32,.35), inset 0 -3px 0 var(--cream-shade); padding: 0 8px; height: 38px; font-size: 24px; }
+.stk.mul { background: var(--mustard); box-shadow: 3px 3px 0 rgba(43,36,32,.35), inset 0 3px 0 var(--mustard-light); border-radius: 50%; width: 62px; height: 62px; padding: 0; }
+.stk.slap { animation: slap .32s ease-out; }
+@keyframes slap { 0% { transform: rotate(var(--r)) scale(1.7); opacity: 0; } 60% { transform: rotate(var(--r)) scale(.92); opacity: 1; } 100% { transform: rotate(var(--r)) scale(1); } }
+.stamp { position: absolute; z-index: 6; font-family: Pixelify; letter-spacing: 1px; color: var(--good-dark); border: 3px solid var(--good-dark);
+  outline: 2px solid var(--good-dark); outline-offset: 2px; background: rgba(251,247,238,.9); padding: 1px 8px; font-size: 16px; display: none; }
+.stamp.on { display: block; animation: stamp .5s ease-out both; }
+@keyframes stamp { 0% { transform: rotate(-8deg) scale(2.4); opacity: 0; } 40% { transform: rotate(-8deg) scale(.92); opacity: 1; } 60%, 100% { transform: rotate(-8deg) scale(1); } }
+.gauge { position: absolute; z-index: 2; }
+.flag { position: absolute; top: 0; width: 0; height: 0; z-index: 5; display: none; }
+.flag.on { display: block; }
+.flag .pole { position: absolute; left: -2px; width: 4px; background: var(--paper); border: 1px solid var(--ink); }
+.flag .cloth { position: absolute; top: 0; padding: 0 5px; font: 800 11px/14px Atkinson; color: var(--paper); background: var(--good); border: 2px solid var(--ink);
+  white-space: nowrap; animation: flap .9s infinite; }
+.flag.plant .pole, .flag.plant .cloth { animation: plant .55s ease-out both, flap .9s .55s infinite; }
+@keyframes plant { 0% { transform: translateY(-34px) rotate(-18deg); opacity: 0; } 55% { transform: translateY(2px) rotate(3deg); opacity: 1; } 100% { transform: none; } }
+@keyframes flap { 0%, 100% { transform: skewY(0); } 50% { transform: skewY(-5deg); } }
+.togo { position: absolute; z-index: 4; font-weight: 750; font-size: 12.5px; padding: 0 5px; background: var(--paper); color: var(--tomato-dark); border: 2px solid var(--ink); white-space: nowrap; }
+.togo.near { color: var(--ink); animation: bob .5s infinite; }
+@keyframes bob { 50% { transform: translateY(-3px); } }
+
+/* top bar */
+.bar { position: relative; width: 560px; height: 60px; background: var(--teal-dark); border: 2px solid var(--ink); display: flex; align-items: center; padding: 0 10px; }
+.chip { position: relative; height: 42px; width: 100%; display: flex; align-items: center; gap: 8px; padding: 0 10px; background: var(--teal-panel);
+  border: 2px solid var(--ink); border-radius: 4px; color: var(--paper); transition: box-shadow .2s; }
+.chip.near { animation: glow .7s infinite; }
+@keyframes glow { 50% { box-shadow: 0 0 0 3px var(--mustard-light); } }
+.chip .k { font-family: Pixelify; font-size: 15px; letter-spacing: 1px; color: var(--mustard-pale); white-space: nowrap; }
+.chip .v { font-weight: 750; font-size: 19px; min-width: 56px; color: var(--mustard-light); }
+.chip .v.punch { animation: punch .28s ease-out; }
+.chip .tag { font-weight: 750; font-size: 12.5px; padding: 0 5px; background: var(--paper); color: var(--tomato-dark); border: 2px solid var(--ink); white-space: nowrap; min-width: 74px; text-align: center; }
+.chip .tag.over { background: var(--mustard); color: var(--ink); }
+.chip .slot { position: relative; flex: none; }
+</style>
+</head>
+<body>
+<h1>#86 round 4: live gauges<small>2026-10-19 · one count-up loops: €0 → €77 (quota ding at €73) → €117 · every gain sloshes, splashes or flies in</small></h1>
+<div class="note">The flag rule from round 3 stays: full at the quota while short; at the quota a flag is planted there and the gauge
+re-scales to the total, so the flag slides back and the stretch past it is bright. The stickers and SPEND MET stamp are the
+approved ones. Canvases draw at half resolution with hard pixels, like the game's pixel art.</div>
+<div id="clock">beat 0</div>
+
+<h2>Count-up monitor</h2>
+<div class="row" id="mons"></div>
+<h2>Top-bar gauge</h2>
+<div class="row" id="bars" style="flex-direction:column;gap:10px"></div>
+
+<script>
+const QUOTA = 73;
+const BEATS = [ // [gain, sticker text, kind]
+  [1, '+1', 'add'], [10, '+10', 'add'], [21, '×3', 'mul'], [24, '×3', 'mul'], [9, '+9', 'add'], [12, '+12', 'add'], [40, '×2', 'mul']];
+const C = { ink: '#2b2420', paper: '#fbf7ee', cream: '#f3e9d2', shade: '#ddcba5', mus: '#e2b33c', musL: '#f1d27a', musP: '#faecbc',
+  musD: '#b38425', musDD: '#7a5a1c', good: '#5fae5a', goodD: '#3f7d3b', teal: '#4f9a94', tealP: '#2a4d4b', tealD: '#1f3b3a', dark: '#24221f' };
+const S = { target: 0, shown: 0, beat: -1, met: false, t: 0 };
+const gauges = [];
+
+function px(ctx, x, y, w, h, c) { ctx.fillStyle = c; ctx.fillRect(Math.round(x), Math.round(y), Math.round(w), Math.round(h)); }
+function scaleOf() { return S.met ? Math.max(QUOTA, S.shown) : QUOTA; }
+
+// ---------------------------------------------------------------- liquid bar (V3 monitor, TA top bar)
+function LiquidBar(w, h) { // w, h in canvas pixels (CSS doubles them)
+  const g = { w, h, amp: 0, drops: [], bubbles: [], flash: 0 };
+  for (let i = 0; i < 9; i++) g.bubbles.push({ x: Math.random() * w, y: 2 + Math.random() * (h - 4), v: 6 + Math.random() * 10 });
+  g.gain = (n) => { g.amp = Math.min(5, g.amp + 1.5 + n / 10);
+    for (let i = 0; i < 6 + n / 4; i++) g.drops.push({ x: g.front, y: h / 2 + (Math.random() - .5) * h * .6, vx: 10 + Math.random() * 30, vy: -20 - Math.random() * 30, life: .8 }); };
+  g.ding = () => { g.flash = 1; };
+  g.draw = (ctx, dt) => {
+    g.amp *= Math.exp(-dt * 3.5); g.flash = Math.max(0, g.flash - dt * 2);
+    const sc = scaleOf(), fill = Math.min(S.shown, sc) / sc, inner = w - 4;
+    const flagX = S.met ? 2 + inner * QUOTA / sc : null;
+    g.front = 2 + inner * fill;
+    ctx.clearRect(0, 0, w, h);
+    px(ctx, 0, 0, w, h, C.ink); px(ctx, 2, 2, inner, h - 4, C.dark);
+    for (let y = 2; y < h - 2; y++) {
+      const wob = g.amp * Math.sin(y * .9 + S.t * 14) + .6 * Math.sin(y * .5 - S.t * 6);
+      const end = Math.max(2, Math.min(w - 2, g.front + wob));
+      const top = y < 4, bot = y >= h - 4;
+      if (flagX === null) px(ctx, 2, y, end - 2, 1, top ? C.musL : bot ? C.musD : C.mus);
+      else { px(ctx, 2, y, Math.min(end, flagX) - 2, 1, top ? C.musL : bot ? C.musD : C.mus);
+        if (end > flagX) px(ctx, flagX, y, end - flagX, 1, top ? C.paper : bot ? C.mus : C.musL); }
+    }
+    // shine sweep
+    const sx = ((S.t * 70) % (w + 40)) - 20;
+    for (let y = 2; y < h - 2; y++) { const x = sx + (h - y) * .6; if (x < g.front - 2 && x > 2) px(ctx, x, y, 2, 1, C.paper); }
+    // bubbles drift right and up inside the fill
+    g.bubbles.forEach(b => { b.x += b.v * dt; b.y -= dt * 3; if (b.x > g.front - 3 || b.y < 3) { b.x = 3 + Math.random() * Math.max(1, g.front - 8); b.y = h - 4; }
+      if (b.x < g.front - 3) px(ctx, b.x, b.y, 1, 1, C.musP); });
+    // spray off the front
+    g.drops = g.drops.filter(d => (d.life -= dt) > 0);
+    g.drops.forEach(d => { d.x += d.vx * dt; d.y += d.vy * dt; d.vy += 90 * dt; if (d.y < h - 1) px(ctx, d.x, Math.max(0, d.y), 1, 1, d.life > .4 ? C.musL : C.mus); });
+    if (g.flash > 0) { ctx.globalAlpha = g.flash * .8; px(ctx, 2, 2, inner, h - 4, C.paper); ctx.globalAlpha = 1; }
+    return { flagX, front: g.front };
+  };
+  return g;
+}
+
+// ---------------------------------------------------------------- cash pile (V2 monitor, TB top bar): banknotes fly in and fan out
+function CashBar(w, h, noteW, noteH, slots) {
+  const g = { w, h, notes: [], flying: [], wob: 0 };
+  g.gain = (n) => { const want = Math.round(S.target / unitOf()); const k = Math.max(1, want - g.notes.length - g.flying.length);
+    for (let i = 0; i < k; i++) g.flying.push({ t: -i * .07, sx: w * .5 + (Math.random() - .5) * w * .4, sy: -20 - Math.random() * 10, rot: (Math.random() - .5) * 1.4 }); };
+  g.ding = () => { g.wob = 1; };
+  function unitOf() { return QUOTA / slots; }
+  function drawNote(ctx, x, y, rot, bright) {
+    ctx.save(); ctx.translate(Math.round(x), Math.round(y)); ctx.rotate(rot);
+    const hw = noteW / 2, hh = noteH / 2;
+    px(ctx, -hw - 1, -hh - 1, noteW + 2, noteH + 2, C.ink);
+    px(ctx, -hw, -hh, noteW, noteH, bright ? C.musL : C.teal);
+    px(ctx, -hw, -hh, noteW, 1, bright ? C.paper : '#7fbdb5');
+    px(ctx, -hw + 1, -hh + 1, noteW - 2, noteH - 2, bright ? C.musL : C.teal);
+    px(ctx, -hw + 2, -hh + 2, 1, noteH - 4, bright ? C.mus : C.tealP); px(ctx, hw - 3, -hh + 2, 1, noteH - 4, bright ? C.mus : C.tealP);
+    px(ctx, -1, -1, 3, 3, bright ? C.musD : C.paper); // the € seal
+    ctx.restore();
+  }
+  g.draw = (ctx, dt) => {
+    g.wob = Math.max(0, g.wob - dt);
+    ctx.clearRect(0, 0, w, h);
+    px(ctx, 0, h - 4, w, 4, C.ink); px(ctx, 1, h - 3, w - 2, 2, '#8d8a83');
+    const count = g.notes.length;
+    const n = Math.max(slots, count);
+    const pitch = (w - noteW - 4) / n;
+    const sc = scaleOf();
+    const flagX = S.met ? 2 + noteW / 2 + pitch * slots - pitch / 2 : null;
+    g.notes.forEach((nt, i) => {
+      const x = 2 + noteW / 2 + pitch * i, base = h - 5 - noteH / 2;
+      const fl = Math.sin(S.t * 9 + i) * (g.wob * .25 + .03);
+      nt.x += (x - nt.x) * Math.min(1, dt * 10);
+      drawNote(ctx, nt.x, base - (i % 2) * 2 - Math.abs(Math.sin(S.t * 3 + i)) * g.wob * 4, nt.rot + fl, S.met && i >= slots);
+    });
+    g.flying = g.flying.filter(f => {
+      f.t += dt * 2.2; if (f.t < 0) return true;
+      const i = g.notes.length, tx = 2 + noteW / 2 + pitch * i, ty = h - 5 - noteH / 2;
+      if (f.t >= 1) { g.notes.push({ x: tx, rot: (Math.random() - .5) * .35 }); return false; }
+      const e = f.t, x = f.sx + (tx - f.sx) * e, y = f.sy + (ty - f.sy) * e - Math.sin(e * Math.PI) * 14;
+      drawNote(ctx, x, y, f.rot * (1 - e) + Math.sin(S.t * 20) * .2, S.met && i >= slots);
+      return true;
+    });
+    return { flagX, front: 2 + noteW + pitch * count };
+  };
+  g.reset = () => { g.notes = []; g.flying = []; };
+  return g;
+}
+
+// ---------------------------------------------------------------- € tank (V1 monitor): the euro sign fills with sloshing gold
+function EuroTank(w, h) {
+  const g = { w, h, amp: 0, drops: [], bubbles: [], flash: 0, spill: [] };
+  const mask = document.createElement('canvas'); mask.width = w; mask.height = h;
+  const layer = document.createElement('canvas'); layer.width = w; layer.height = h;
+  let maskReady = false;
+  function makeMask() { const m = mask.getContext('2d'); m.clearRect(0, 0, w, h); m.fillStyle = '#000';
+    m.font = `800 ${Math.round(h * .86)}px Atkinson`; m.textAlign = 'center'; m.textBaseline = 'alphabetic'; m.fillText('€', w / 2 + 1, h * .86); maskReady = true; }
+  document.fonts.ready.then(makeMask);
+  for (let i = 0; i < 8; i++) g.bubbles.push({ x: Math.random() * w, y: h, v: 6 + Math.random() * 10 });
+  g.gain = (n) => { g.amp = Math.min(5, g.amp + 1.6 + n / 9); };
+  g.ding = () => { g.flash = 1; };
+  g.draw = (ctx, dt) => {
+    if (!maskReady) makeMask();
+    g.amp *= Math.exp(-dt * 3); g.flash = Math.max(0, g.flash - dt * 1.5);
+    const level = Math.min(1, S.shown / QUOTA); // the tank holds the quota; past it, it overflows
+    const top = h * .12, bot = h * .9, surf = bot - (bot - top) * level;
+    const l = layer.getContext('2d'); l.clearRect(0, 0, w, h);
+    px(l, 0, 0, w, h, C.shade);
+    for (let x = 0; x < w; x++) {
+      const y = surf + g.amp * Math.sin(x * .45 + S.t * 9) + .8 * Math.sin(x * 1.1 - S.t * 5);
+      px(l, x, y, 1, h - y, C.mus); px(l, x, y, 1, 2, C.musL);
+    }
+    const sx = ((S.t * 40) % (w + 30)) - 15;
+    for (let y = 0; y < h; y++) { const x = sx + y * .5; if (y > surf + 3) px(l, x, y, 2, 1, C.musL); }
+    g.bubbles.forEach(b => { b.y -= b.v * dt; b.x += Math.sin(S.t * 4 + b.v) * .3; if (b.y < surf + 2) { b.y = bot; b.x = Math.random() * w; } px(l, b.x, b.y, 1, 1, C.musP); });
+    if (S.met) { // overflowing: bright gold, spills over the top
+      px(l, 0, 0, w, top + 4, C.musL);
+      if (Math.random() < dt * 30) g.spill.push({ x: w * (.2 + Math.random() * .6), y: top, vx: (Math.random() - .5) * 40, vy: -10 - Math.random() * 20, life: 1.2 });
+    }
+    l.globalCompositeOperation = 'destination-in'; l.drawImage(mask, 0, 0); l.globalCompositeOperation = 'source-over';
+    ctx.clearRect(0, 0, w, h);
+    // ink outline: the mask stamped one pixel around
+    const o = document.createElement('canvas'); o.width = w; o.height = h; const oc = o.getContext('2d');
+    oc.drawImage(mask, 0, 0); oc.globalCompositeOperation = 'source-in'; px(oc, 0, 0, w, h, g.flash > 0 ? C.musL : C.ink);
+    for (const [dx, dy] of [[-1, 0], [1, 0], [0, -1], [0, 1], [-1, -1], [1, 1], [1, -1], [-1, 1]]) ctx.drawImage(o, dx, dy);
+    ctx.drawImage(layer, 0, 0);
+    g.spill = g.spill.filter(d => (d.life -= dt) > 0);
+    g.spill.forEach(d => { d.x += d.vx * dt; d.y += d.vy * dt; d.vy += 80 * dt; px(ctx, d.x, d.y, 1, 2, d.life > .6 ? C.musL : C.mus); });
+    if (g.flash > 0) { ctx.globalAlpha = g.flash; for (let i = 0; i < 6; i++) px(ctx, w / 2 + Math.cos(i + S.t) * w * .45, h / 2 + Math.sin(i * 2 + S.t) * h * .45, 2, 2, C.paper); ctx.globalAlpha = 1; }
+    return { flagX: null, surfY: surf, top };
+  };
+  g.reset = () => { g.spill = []; };
+  return g;
+}
+
+// ---------------------------------------------------------------- monitors
+function monitor(kind, title, desc) {
+  const wrap = document.createElement('div');
+  wrap.innerHTML = `<div class="mon"><div class="scr"><div class="rays"></div><div class="lbl">SUBTOTAL</div>
+    <div class="art"><img src="assets/art/items_v2/milk.png"><div class="beatk">MILK</div></div>
+    <div class="num">€0</div><div class="stk" style="display:none"></div><div class="stamp">SPEND MET ✓</div>
+    <canvas class="gauge"></canvas><div class="flag"><div class="pole"></div><div class="cloth">✓ €73</div></div><div class="togo">€73 to go</div></div></div>
+    <div class="cap"><b>${title}</b> · ${desc}</div>`;
+  document.getElementById('mons').appendChild(wrap);
+  const q = s => wrap.querySelector(s);
+  const cv = q('canvas'), ctx = cv.getContext('2d');
+  let g, css;
+  if (kind === 'tank') { g = EuroTank(48, 66); css = { left: 308, top: 10, w: 96, h: 132 }; }
+  if (kind === 'cash') { g = CashBar(140, 30, 14, 8, 10); css = { left: 106, top: 104, w: 280, h: 60 }; }
+  if (kind === 'liquid') { g = LiquidBar(140, 13); css = { left: 106, top: 130, w: 280, h: 26 }; }
+  cv.width = g.w; cv.height = g.h; Object.assign(cv.style, { left: css.left + 'px', top: css.top + 'px', width: css.w + 'px', height: css.h + 'px' });
+  const m = { g, ctx, q, css, kind };
+  m.onBeat = (b) => {
+    const st = q('.stk'); st.textContent = b[1]; st.className = 'stk' + (b[2] === 'mul' ? ' mul' : '');
+    st.style.display = 'grid'; const r = (Math.random() * 14 - 7).toFixed(0) + 'deg'; st.style.setProperty('--r', r); st.style.transform = `rotate(${r})`;
+    if (kind === 'tank') Object.assign(st.style, { left: '250px', top: '86px' }); else Object.assign(st.style, { left: '258px', top: '18px' });
+    void st.offsetWidth; st.classList.add('slap');
+    const n = q('.num'); n.classList.remove('punch'); void n.offsetWidth; n.classList.add('punch');
+    g.gain(b[0]);
+  };
+  m.onDing = () => { q('.scr').classList.add('met'); const s = q('.stamp'); s.classList.add('on');
+    Object.assign(s.style, kind === 'tank' ? { left: '130px', top: '108px' } : { left: '140px', top: '86px' });
+    if (kind !== 'tank') { const f = q('.flag'); f.classList.add('on', 'plant'); } g.ding(); };
+  m.onReset = () => { q('.scr').classList.remove('met'); q('.stamp').classList.remove('on'); q('.flag').classList.remove('on', 'plant');
+    q('.stk').style.display = 'none'; g.reset && g.reset(); };
+  m.frame = (dt) => {
+    const r = g.draw(ctx, dt);
+    q('.num').textContent = '€' + Math.round(S.shown);
+    q('.beatk').textContent = S.beat >= 0 ? `MILK ${Math.min(7, S.beat + 1)} / 7` : 'MILK';
+    const tg = q('.togo'), left = QUOTA - Math.round(S.shown);
+    if (S.met) { tg.style.display = kind === 'tank' ? 'block' : 'none'; tg.textContent = '+€' + (Math.round(S.shown) - QUOTA); tg.style.color = 'var(--ink)'; tg.style.background = 'var(--mustard)';
+      Object.assign(tg.style, { left: '250px', top: '138px' }); }
+    else { tg.style.display = 'block'; tg.textContent = `€${left} to go`; tg.className = 'togo' + (left <= QUOTA * .2 ? ' near' : ''); tg.style.background = ''; tg.style.color = '';
+      Object.assign(tg.style, kind === 'tank' ? { left: '226px', top: '138px' } : { left: (css.left + css.w - 76) + 'px', top: (kind === 'cash' ? 92 : 108) + 'px' }); }
+    if (r.flagX !== null && kind !== 'tank') {
+      const f = q('.flag'), x = css.left + r.flagX * (css.w / g.w), top = css.top - 22, h = css.h + 22;
+      Object.assign(f.style, { left: x + 'px', top: top + 'px' }); q('.flag .pole').style.height = h + 'px';
+      const c = q('.flag .cloth'); c.textContent = `✓ €73 · +€${Math.round(S.shown) - QUOTA}`;
+      if (x > css.left + css.w * .55) { c.style.left = 'auto'; c.style.right = '2px'; } else { c.style.left = '2px'; c.style.right = 'auto'; }
+    }
+  };
+  gauges.push(m);
+}
+
+// ---------------------------------------------------------------- top-bar chips
+function topbar(kind, title, desc) {
+  const wrap = document.createElement('div');
+  wrap.innerHTML = `<div class="bar"><div class="chip"><span class="k">SPEND €73+</span><span class="slot"><canvas></canvas>
+    <div class="flag"><div class="pole"></div><div class="cloth">✓</div></div></span><span class="v">€0</span><span class="tag">€73 to go</span></div></div>
+    <div class="cap" style="max-width:560px"><b>${title}</b> · ${desc}</div>`;
+  document.getElementById('bars').appendChild(wrap);
+  const q = s => wrap.querySelector(s);
+  const cv = q('canvas'), ctx = cv.getContext('2d');
+  const g = kind === 'liquid' ? LiquidBar(130, 9) : CashBar(130, 17, 10, 6, 10);
+  const css = kind === 'liquid' ? { w: 260, h: 18 } : { w: 260, h: 34 };
+  cv.width = g.w; cv.height = g.h; Object.assign(cv.style, { width: css.w + 'px', height: css.h + 'px' });
+  const m = {};
+  m.onBeat = (b) => { g.gain(b[0]); const v = q('.v'); v.classList.remove('punch'); void v.offsetWidth; v.classList.add('punch'); };
+  m.onDing = () => { q('.flag').classList.add('on', 'plant'); g.ding(); };
+  m.onReset = () => { q('.flag').classList.remove('on', 'plant'); g.reset && g.reset(); };
+  m.frame = (dt) => {
+    const r = g.draw(ctx, dt), v = Math.round(S.shown);
+    q('.v').textContent = '€' + v;
+    const tag = q('.tag');
+    if (S.met) { tag.textContent = `+€${v - QUOTA}`; tag.className = 'tag over'; } else { tag.textContent = `€${QUOTA - v} to go`; tag.className = 'tag'; }
+    q('.chip').classList.toggle('near', !S.met && v >= QUOTA * .8);
+    if (r.flagX !== null) { const f = q('.flag'); f.style.left = (r.flagX * css.w / g.w) + 'px'; f.style.top = '-14px'; q('.flag .pole').style.height = (css.h + 16) + 'px'; }
+  };
+  gauges.push(m);
+}
+
+monitor('tank', 'V1 € tank', 'the euro sign is the gauge: it fills with sloshing gold (waves on every gain, bubbles, a shine). Full at the quota; then it overflows, gold spilling over its top, and "+€N" counts what’s over.');
+monitor('cash', 'V2 Cash pile', 'banknotes fly in on each gain and fan out along the counter rail, fluttering as they land. At the quota the flag is planted; past it the notes are gold and the pile squeezes up as it grows.');
+monitor('liquid', 'V3 Liquid bar', 'a gold fill with a wobbling front that sloshes on each gain, sprays droplets, bubbles and a sweeping shine. Flag planted at the quota, slides back as the bright fill carries on.');
+topbar('liquid', 'TA Liquid', 'V3 in the top bar: the front sloshes and sprays on every gain, the chip glows from 80 %, the value punches. Flag planted at the quota and slides back; "+€N" once over.');
+topbar('cash', 'TB Cash', 'V2 in the top bar: notes fly in and fan out on a little rail; gold past the planted flag.');
+
+// ---------------------------------------------------------------- the loop
+let last = performance.now(), next = 0.8, step = 0;
+function reset() { S.target = 0; S.shown = 0; S.beat = -1; S.met = false; step = 0; next = 0.8; gauges.forEach(g => g.onReset()); }
+function tick(now, manual) {
+  const dt = Math.max(0, Math.min(.05, (now - last) / 1000)); last = now; S.t += dt; next -= dt;
+  if (next <= 0) {
+    if (step < BEATS.length) { const b = BEATS[step]; S.beat = step; S.target += b[0]; gauges.forEach(g => g.onBeat(b)); step++; next = step === BEATS.length ? 3.2 : 0.95; }
+    else reset();
+    document.getElementById('clock').textContent = `beat ${step} / ${BEATS.length} · total €${S.target}`;
+  }
+  S.shown += (S.target - S.shown) * Math.min(1, dt * 7);
+  if (Math.abs(S.target - S.shown) < .3) S.shown = S.target;
+  if (!S.met && S.shown >= QUOTA) { S.met = true; gauges.forEach(g => g.onDing()); }
+  gauges.forEach(g => g.frame(dt));
+  if (!manual) requestAnimationFrame(tick);
+}
+const at = parseFloat(new URLSearchParams(location.search).get('at') || '0');
+if (at > 0) { document.fonts.ready.then(() => { let sim = last; for (let t = 0; t < at; t += 1 / 60) { sim += 1000 / 60; tick(sim, true); } last = performance.now(); requestAnimationFrame(tick); }); }
+else requestAnimationFrame(tick);
+</script>
+</body>
+</html>

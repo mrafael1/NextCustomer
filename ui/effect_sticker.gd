@@ -9,7 +9,9 @@ extends Control
 ## giver's badge (GiverBadge) hangs off its left edge. Drained (another item hovered, or on a
 ## denied item) the frame, shadow and badge grey (ArtStyle.Grey.DRAINED) and the text steps back,
 ## all opaque: a see-through sticker would ghost over the art. A new sticker is slapped on (slap):
-## it squashes and springs back about its bottom centre, its own rect unchanged. Decor only: it
+## it squashes and springs back about its bottom centre, its own rect unchanged. In the count
+## (#86 v6) it fires as its step lands (fire: a punch, a flash, then a small green check settles on
+## its top right corner) and a giver's sparks charge it (charge: a lighter punch). Decor only: it
 ## takes no clicks, and every number on it is a step's (StickerSpec).
 
 const LABEL_HEIGHT := 28.0
@@ -36,6 +38,40 @@ const SHADOW_OFFSET := Vector2(2, 2)
 const SHADOW_ALPHA := 0.42
 ## The slap's frames (scales), each held for the frame time slap() is given; it ends at 1.
 const SLAP_SCALES: Array[Vector2] = [Vector2(1.2, 0.8), Vector2(0.92, 1.08)]
+## The count's fire (#86 v6, mock-up count_up_86_v6_scan): a punch to 1 + FIRE_PUNCH easing back
+## over FIRE_S, turned FIRE_TURN_DEG and back, brightened by FLASH for FLASH_S, then the check
+## settles on the corner (from CHECK_POP over CHECK_SETTLE_S) at CHECK_AT. A giver's sparks
+## charge it (charge): a lighter punch, CHARGE_PUNCH over FIRE_S, with the flash.
+const FIRE_PUNCH := 0.55
+const FIRE_S := 0.3
+const FIRE_TURN_DEG := -6.0
+const FLASH := 1.6
+const FLASH_S := 0.12
+const CHECK_AT := 0.34
+const CHECK_POP := 1.6
+const CHECK_SETTLE_S := 0.1
+const CHARGE_PUNCH := 0.35
+## The check's cells (art pixels, its top left at the origin), drawn in Palette.GOOD over a
+## one-pixel ink outline, its top right on the sticker's top right corner, CHECK_OVERHANG out.
+const CHECK_CELLS: Array[Vector2i] = [
+	Vector2i(1, 3),
+	Vector2i(1, 4),
+	Vector2i(2, 4),
+	Vector2i(2, 5),
+	Vector2i(3, 5),
+	Vector2i(3, 6),
+	Vector2i(4, 4),
+	Vector2i(4, 5),
+	Vector2i(5, 3),
+	Vector2i(5, 4),
+	Vector2i(6, 2),
+	Vector2i(6, 3),
+	Vector2i(7, 1),
+	Vector2i(7, 2),
+]
+const CHECK_SIZE := Vector2(18, 16)
+const CHECK_OVERHANG := Vector2(6, 6)
+const CHECK_NAME := &"Check"
 
 const LABEL_FRAME := preload("res://art/effects/sticker_label.png")
 const GREY_FRAME := preload("res://art/effects/sticker_label_grey.png")
@@ -51,6 +87,10 @@ var _label: Label
 var _badge: GiverBadge
 var _drained: bool = false
 var _slap_tween: Tween
+## The count's check (fire), hidden until the sticker fires.
+var _check: Control
+var _fired: bool = false
+var _fire_tween: Tween
 
 
 ## The sticker of `sticker_spec`, its frame turned `tilt_deg` degrees.
@@ -93,6 +133,15 @@ func _init(sticker_spec: StickerSpec, tilt_deg: float = 0.0) -> void:
 		var badge_y: float = snappedf((size.y - _badge.size.y) / 2.0, ArtStyle.ART_SCALE)
 		_badge.position = Vector2(badge_x, badge_y)
 		_inner.add_child(_badge)
+	_check = Control.new()
+	_check.name = CHECK_NAME
+	_check.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_check.size = CHECK_SIZE
+	_check.pivot_offset = CHECK_SIZE / 2.0
+	_check.position = Vector2(size.x - CHECK_SIZE.x + CHECK_OVERHANG.x, -CHECK_OVERHANG.y)
+	_check.visible = false
+	_check.draw.connect(_draw_check)
+	_inner.add_child(_check)
 	_colour_text()
 
 
@@ -176,6 +225,52 @@ func is_slapping() -> bool:
 	return _slap_tween != null and _slap_tween.is_running()
 
 
+## Its step landed in the count (#86 v6): the sticker punches, flashes and turns back, then the
+## green check settles on its corner, on `make_tween`'s tweens when given (the count-up's, so its
+## hit-stops and skips hold and speed it). Under `reduced_motion` (or out of the tree) the check
+## shows at once, with no punch or flash. A second fire punches again; the check stays.
+func fire(reduced_motion: bool, make_tween: Callable = Callable()) -> void:
+	_fired = true
+	var tween: Tween = _start_motion(reduced_motion, make_tween)
+	if tween == null:
+		_check.visible = true
+		return
+	tween.tween_method(_punch.bind(FIRE_PUNCH, true), 0.0, 1.0, FIRE_S)
+	if _check.visible:
+		return
+	tween.tween_interval(maxf(CHECK_AT - FIRE_S, 0.0))
+	tween.tween_callback(_check.set_visible.bind(true))
+	tween.tween_method(_settle_check, CHECK_POP, 1.0, CHECK_SETTLE_S)
+
+
+## A giver's sparks reached it (#86 v6): a light punch with the flash, on `make_tween`'s tweens
+## when given; nothing under `reduced_motion`.
+func charge(reduced_motion: bool, make_tween: Callable = Callable()) -> void:
+	var tween: Tween = _start_motion(reduced_motion, make_tween)
+	if tween != null:
+		tween.tween_method(_punch.bind(CHARGE_PUNCH, false), 0.0, 1.0, FIRE_S)
+
+
+## Whether its step has landed in the count (fire).
+func is_fired() -> bool:
+	return _fired
+
+
+## The check (shown once fired) in the sticker's coordinates.
+func check_rect() -> Rect2:
+	return Rect2(_check.position, _check.size)
+
+
+## Whether the check shows.
+func has_check() -> bool:
+	return _check.visible
+
+
+## Whether a fire or a charge is moving it (for tests).
+func is_firing() -> bool:
+	return _fire_tween != null and _fire_tween.is_valid() and _fire_tween.is_running()
+
+
 ## Where the text's glyphs are drawn, in the sticker's coordinates.
 func text_rect() -> Rect2:
 	var font: Font = _label.get_theme_font("font")
@@ -205,6 +300,46 @@ func _make_frame() -> Control:
 		part = panel
 	part.size = size
 	return part
+
+
+## Stops the slap and any fire or charge, the sticker at rest, and returns the next motion's
+## tween (`make_tween`'s when given), or null for none: under `reduced_motion` or out of the tree.
+func _start_motion(reduced_motion: bool, make_tween: Callable) -> Tween:
+	if _slap_tween != null:
+		_slap_tween.kill()
+		_slap_tween = null
+	if _fire_tween != null:
+		_fire_tween.kill()
+		_fire_tween = null
+	_punch(1.0, 0.0, false)
+	if reduced_motion or not is_inside_tree():
+		return null
+	_fire_tween = make_tween.call() as Tween if make_tween.is_valid() else create_tween()
+	return _fire_tween
+
+
+## The punch at `progress` (0 to 1): scaled 1 + `amount` easing back to 1, turned (`turn`) from
+## FIRE_TURN_DEG back to 0, and flashed for the first FLASH_S.
+func _punch(progress: float, amount: float, turn: bool) -> void:
+	var left: float = 1.0 - progress
+	_inner.scale = Vector2.ONE * (1.0 + amount * left * left)
+	_inner.rotation_degrees = FIRE_TURN_DEG * left if turn else 0.0
+	var flash: float = FLASH if amount > 0.0 and progress * FIRE_S < FLASH_S else 1.0
+	_inner.modulate = Color(flash, flash, flash)
+
+
+func _settle_check(check_scale: float) -> void:
+	_check.scale = Vector2.ONE * check_scale
+
+
+## The check: its cells in Palette.GOOD over their one-pixel ink outline.
+func _draw_check() -> void:
+	var cell: float = ArtStyle.ART_SCALE
+	for colour: Color in [Palette.INK, Palette.GOOD]:
+		var grow: float = cell if colour == Palette.INK else 0.0
+		for at: Vector2i in CHECK_CELLS:
+			var rect: Rect2 = Rect2(Vector2(at) * cell, Vector2(cell, cell))
+			_check.draw_rect(rect.grow(grow), colour)
 
 
 func _grey() -> bool:

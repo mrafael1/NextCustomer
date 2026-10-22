@@ -1,0 +1,693 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Hero tank count-up</title>
+<!--
+  #86 round 5, letter a: "Hero tank" (2026-10-19). Live, self-running mock-up of the count-up monitor after the user's play
+  test of build pass 1 ("too much infos, hard to follow"; the tank "does not reward anything visually").
+  The monitor keeps two blocks: the number with one line under it (EUR N to go / +EUR N over), and a big EUR tank. Each beat's
+  sticker slaps on the number's corner, pours into the tank, then the number and the tank move together.
+  At the quota the count holds 0.7 s for the payoff: flash, the tank bursts (gold jet past the top bar, coins rain onto the belt),
+  the sunburst goes gold, the number goes money-green and punches, the SPEND MET stamp slams onto the full tank, the scene shakes.
+  Past it each gain makes the tank spurt and the over line punch; splashes dry up and vanish.
+  Scene drawn at the game's 1280 x 720 scale (1x): the monitor is the game's 424 x 176 (screen 406 x 158).
+  Canvases draw at half resolution and are scaled 2x with hard pixels. ?at=<s> renders a still at that time (add &play=1 to
+  keep playing), ?rm=1 reduced motion. Same timeline as v4: QUOTA 73, beats +1 +10 x3 x3 +9 +12 x2 (EUR 77 crosses 73, EUR 117).
+  Hand-written page (no generator).
+-->
+<style>
+@font-face { font-family: Pixelify; src: url(../../../fonts/PixelifySans-Variable.ttf); }
+@font-face { font-family: Atkinson; src: url(../../../fonts/AtkinsonHyperlegibleNext-Variable.ttf); font-weight: 200 800; }
+@font-face { font-family: JBMono; src: url(../../../fonts/JetBrainsMono-Regular.ttf); }
+:root { --ink: #2b2420; --ink-light: #4a3f38; --paper: #fbf7ee; --cream: #f3e9d2; --cream-shade: #ddcba5; --mustard: #e2b33c;
+  --mustard-light: #f1d27a; --mustard-pale: #faecbc; --mustard-dark: #b38425; --mustard-darkest: #7a5a1c; --tomato: #d9534f; --tomato-dark: #a83a3c;
+  --teal: #4f9a94; --teal-panel: #2a4d4b; --teal-dark: #1f3b3a; --good: #5fae5a; --good-dark: #3d7a45; --good-light: #a5d17e;
+  --rubber: #3d3a36; --rubber-dark: #2c2926; --steel: #8d8a83; --steel-light: #c7c3b8; --steel-dark: #57534c; --wall: #e4d6b9; }
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { background: #17302f; }
+body { width: 1280px; font-family: Atkinson, sans-serif; color: var(--paper); }
+h1 { font-family: Pixelify; font-size: 22px; color: var(--mustard-light); padding: 10px 24px 8px; height: 42px; }
+h1 small { font-family: Atkinson; font-size: 13px; color: var(--steel-light); margin-left: 10px; font-weight: 500; }
+canvas, img { image-rendering: pixelated; display: block; }
+.abs { position: absolute; }
+
+/* ---------------------------------------------------------------- scene (game 1x) */
+#scene { position: relative; width: 1280px; height: 500px; overflow: hidden; background: var(--steel-dark); }
+#shake { position: absolute; inset: 0; }
+.wall { left: 0; top: 56px; width: 1280px; height: 240px; background: linear-gradient(#e9dcc1, var(--wall) 60%, #d8c7a5); }
+.wall::after { content: ""; position: absolute; left: 0; right: 0; bottom: 0; height: 8px; background: #cbb791; border-top: 2px solid #bba57c; }
+.rod { width: 4px; height: 12px; top: 56px; background: var(--steel-dark); border-left: 1px solid var(--ink); border-right: 1px solid var(--ink); }
+
+/* top bar */
+.topbar { left: 0; top: 0; width: 1280px; height: 56px; background: var(--teal-dark); border-bottom: 2px solid var(--ink); }
+.tchip { position: absolute; top: 8px; height: 40px; display: flex; align-items: center; gap: 8px; padding: 0 10px; background: var(--teal-panel);
+  border: 2px solid var(--ink); border-radius: 4px; color: var(--paper); }
+.tchip .k { font-family: Pixelify; font-size: 15px; letter-spacing: 1px; color: var(--mustard-pale); white-space: nowrap; }
+.tchip .v { font-weight: 750; font-size: 20px; color: var(--paper); }
+.tchip.paper { background: var(--paper); color: var(--ink); }
+#tSpend .v { min-width: 58px; color: var(--good-light); display: inline-block; transform-origin: 30% 60%; }
+#tSpend .tag { font-weight: 750; font-size: 13px; padding: 0 5px; background: var(--paper); color: var(--tomato-dark); border: 2px solid var(--ink); white-space: nowrap; min-width: 78px; text-align: center; }
+#tSpend .tag.over { background: var(--good-light); color: var(--ink); }
+#tSpend .slot { position: relative; flex: none; width: 120px; height: 18px; }
+.flag { position: absolute; top: 0; width: 0; height: 0; z-index: 5; display: none; }
+.flag .pole { position: absolute; left: -2px; width: 4px; background: var(--paper); border: 1px solid var(--ink); }
+.flag .cloth { position: absolute; top: 0; left: 2px; padding: 0 4px; font: 800 10px/12px Atkinson; color: var(--paper); background: var(--good-dark); border: 2px solid var(--ink); white-space: nowrap; transform-origin: 0 50%; }
+
+/* receipt and register (left) */
+.receipt { left: 46px; top: 64px; width: 236px; height: 268px; background: var(--paper); border: 2px solid var(--ink); border-top: none; padding: 8px 10px; overflow: hidden;
+  font-family: JBMono; font-size: 12px; line-height: 19px; color: var(--ink); }
+.receipt .hd { color: var(--ink-light); font-size: 11.5px; line-height: 16px; border-bottom: 2px dashed var(--cream-shade); padding-bottom: 5px; margin-bottom: 4px; }
+.receipt .ln { display: flex; justify-content: space-between; white-space: pre; margin: 0 -4px; padding: 0 4px; }
+.receipt .ln.met { color: var(--good-dark); font-weight: 700; justify-content: center; letter-spacing: 1px; }
+.receipt .ln.tot { border-top: 2px dashed var(--cream-shade); margin-top: 3px; padding-top: 2px; font-weight: 700; }
+.receipt .ln.ovr { color: var(--good-dark); }
+.printer { left: 32px; top: 328px; width: 264px; height: 58px; background: var(--rubber); border: 2px solid var(--ink); border-radius: 4px; }
+.printer::before { content: ""; position: absolute; left: 12px; right: 12px; top: 6px; height: 6px; background: var(--rubber-dark); border: 1px solid var(--ink); }
+.register { left: 14px; top: 404px; width: 292px; height: 110px; background: var(--rubber); border: 2px solid var(--ink); border-radius: 4px; }
+.checkout { left: 30px; top: 418px; width: 260px; height: 62px; background: var(--tomato-dark); border: 2px solid var(--ink); border-radius: 3px; opacity: .55;
+  font-family: Pixelify; font-size: 28px; letter-spacing: 3px; color: #e8b5ad; display: grid; place-items: center; box-shadow: inset 0 4px 0 var(--tomato); }
+
+/* belt */
+.belt { left: 340px; top: 290px; width: 940px; height: 110px; background: var(--rubber); border-top: 6px solid var(--steel-light); border-bottom: 10px solid var(--steel);
+  box-shadow: inset 0 3px 0 var(--rubber-dark); }
+.belt::before { content: ""; position: absolute; inset: 0; background: repeating-linear-gradient(90deg, transparent 0 30px, rgba(0,0,0,.18) 30px 32px); }
+.belt::after { content: ""; position: absolute; left: 0; right: 0; bottom: -10px; height: 2px; background: var(--ink); }
+.counter { left: 300px; top: 400px; width: 980px; height: 100px; background: var(--steel-dark); border-top: 2px solid var(--ink); }
+.item { position: absolute; width: 96px; height: 96px; top: 286px; z-index: 3; }
+.item img { width: 96px; height: 96px; }
+.item.hot img { filter: drop-shadow(2px 0 0 #faecbc) drop-shadow(-2px 0 0 #faecbc) drop-shadow(0 2px 0 #faecbc) drop-shadow(0 -2px 0 #faecbc)
+  drop-shadow(2px 0 0 #e2b33c) drop-shadow(-2px 0 0 #e2b33c) drop-shadow(0 2px 0 #e2b33c) drop-shadow(0 -2px 0 #e2b33c)
+  drop-shadow(2px 0 0 #2b2420) drop-shadow(-2px 0 0 #2b2420) drop-shadow(0 2px 0 #2b2420) drop-shadow(0 -2px 0 #2b2420); }
+.fx { position: absolute; z-index: 6; }
+.fx > canvas { position: absolute; left: 0; top: 0; }
+.fx .t { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; white-space: nowrap; font-family: Atkinson; font-weight: 800; color: var(--ink); letter-spacing: -.5px; }
+.fx .ok { position: absolute; right: -8px; top: -8px; width: 18px; height: 18px; display: none; }
+.ticket { position: absolute; top: 420px; width: 112px; height: 62px; background: var(--paper); border: 2px solid var(--ink); padding: 3px 7px; color: var(--ink); }
+.ticket b { font-weight: 800; font-size: 22px; line-height: 26px; }
+.ticket i { display: block; font-style: normal; font-weight: 650; font-size: 11.5px; line-height: 13px; color: var(--ink-light); }
+.rail { position: absolute; top: 402px; height: 14px; z-index: 4; border-top: 2px solid var(--ink); border-bottom: 2px solid var(--ink); background: var(--rubber-dark);
+  box-shadow: inset 0 2px 0 var(--steel-dark); }
+.rail.hotfill { background: var(--mustard); box-shadow: inset 0 2px 0 var(--mustard-pale), inset 0 -2px 0 var(--mustard-dark); border-color: var(--ink); }
+.rname { position: absolute; top: 400px; z-index: 5; height: 18px; padding: 0 6px; background: var(--rubber); border: 2px solid var(--ink); font-family: Pixelify; font-size: 12px; line-height: 14px; color: var(--mustard-pale); }
+.fly { position: absolute; z-index: 20; height: 22px; padding: 0 5px; background: var(--paper); border: 2px solid var(--ink); font: 800 14px/18px Atkinson; color: var(--mustard-darkest);
+  box-shadow: 2px 2px 0 rgba(43,36,32,.4); display: none; white-space: nowrap; }
+
+/* ---------------------------------------------------------------- the monitor */
+.mon { left: 486px; top: 66px; width: 424px; height: 176px; background: var(--rubber); border: 2px solid var(--ink); border-radius: 6px; padding: 7px; z-index: 8;
+  box-shadow: 4px 4px 0 rgba(43,36,32,.35); }
+.scr { position: relative; width: 100%; height: 100%; background: var(--paper); border: 2px solid var(--ink); overflow: hidden; }
+.scr > * { position: absolute; }
+#rays { left: 0; top: 0; width: 402px; height: 154px; }
+#paintIn { left: -11px; top: -11px; width: 424px; height: 176px; }
+#paintOut { position: absolute; left: -2px; top: -2px; width: 424px; height: 176px; z-index: 9; pointer-events: none; }
+#flash { inset: 0; background: #fff3cc; opacity: 0; z-index: 9; }
+/* left block: the number and one line under it; right: the tank. Nothing else stays on the screen. */
+.numw { left: 0; top: 20px; width: 272px; height: 84px; display: flex; justify-content: center; z-index: 4; }
+#num { position: relative; font-family: Atkinson; font-weight: 800; font-size: 82px; line-height: 84px; letter-spacing: -1px; white-space: nowrap;
+  color: var(--ink); text-shadow: 4px 4px 0 var(--mustard-light); transform-origin: 50% 60%; }
+#num.met { color: var(--good); -webkit-text-stroke: 6px var(--ink); paint-order: stroke fill; text-shadow: 4px 4px 0 var(--ink); }
+#sub { left: 0; top: 110px; width: 272px; text-align: center; z-index: 4; font: 800 18px/24px Atkinson; color: var(--ink-light); white-space: nowrap; transform-origin: 50% 50%; }
+#sub b { color: var(--tomato-dark); font-weight: 800; }
+#sub.over { color: var(--good-dark); }
+#sub.over b { color: var(--paper); background: var(--good-dark); border: 2px solid var(--ink); padding: 0 6px; margin-right: 4px; }
+#tank { left: 278px; top: 2px; width: 120px; height: 150px; z-index: 3; transform-origin: 50% 100%; }
+#mstk { z-index: 6; display: none; }
+#stamp { left: 290px; top: 84px; width: 96px; z-index: 8; font-family: Pixelify; font-size: 19px; letter-spacing: 1px; line-height: 19px; text-align: center; color: var(--good-dark);
+  border: 3px solid var(--good-dark); outline: 2px solid var(--good-dark); outline-offset: 2px; background: rgba(251,247,238,.94); padding: 4px 0 3px; display: none; white-space: nowrap; }
+
+#coinc { position: absolute; left: 0; top: 0; width: 1280px; height: 500px; z-index: 2; pointer-events: none; }
+#fxc { position: absolute; left: 0; top: 0; width: 1280px; height: 500px; z-index: 30; pointer-events: none; }
+
+/* ---------------------------------------------------------------- caption */
+.capt { padding: 10px 24px 16px; display: grid; grid-template-columns: 1fr 150px; gap: 16px; }
+.capt p { font-size: 13px; line-height: 17px; color: var(--steel-light); margin-bottom: 3px; }
+.capt b { color: var(--mustard-light); font-weight: 700; }
+#clock { font-family: Pixelify; font-size: 13px; color: var(--mustard-light); text-align: right; line-height: 18px; }
+</style>
+</head>
+<body>
+<h1>#86 round 5 a: Hero tank<small>2026-10-19 · one count-up loops: €0 → €77 (SPEND €73+ met) → €117 · scene at the game's 1280 × 720 scale</small></h1>
+
+<div id="scene"><div id="shake">
+  <div class="abs wall"></div>
+  <div class="abs rod" style="left:546px"></div><div class="abs rod" style="left:846px"></div>
+
+  <!-- top bar -->
+  <div class="abs topbar">
+    <div class="tchip" style="left:16px;width:110px"><span class="k">SHIFT</span><span class="v">5/8</span></div>
+    <div class="tchip" id="tSpend" style="left:140px;width:404px"><span class="k">SPEND €73+</span>
+      <span class="slot"><canvas id="tGauge" width="60" height="9" style="width:120px;height:18px"></canvas>
+        <div class="flag" id="tFlag"><div class="pole"></div><div class="cloth">✓</div></div></span>
+      <span class="v" id="tVal">€0</span><span class="tag" id="tTag">€73 to go</span></div>
+    <div class="tchip paper" style="left:560px;width:276px"><span style="font-weight:700;font-size:14px">⚠ Inspection · 3rd product pays €0</span></div>
+    <div class="tchip" style="left:850px;width:220px"><span class="k">LOYALTY</span><span style="color:var(--mustard)">● ● ● ○</span></div>
+    <div class="tchip" style="left:1084px;width:128px;background:var(--teal)"><span class="v" style="font-size:17px">Cart 13/15</span></div>
+    <div class="tchip" style="left:1226px;width:40px;background:var(--teal);justify-content:center"><span class="v">☰</span></div>
+  </div>
+
+  <!-- receipt (prints every step line) -->
+  <div class="abs receipt" id="receipt"><div class="hd">NEXT CUSTOMER · REG 3<br>SHIFT 5/8 · 5 ITEMS</div><div id="lines"></div></div>
+  <div class="abs printer"></div>
+  <div class="abs register"></div><div class="abs checkout">CHECKOUT ›</div>
+
+  <!-- belt -->
+  <div class="abs counter"></div>
+  <div class="abs belt"></div>
+  <canvas id="coinc" width="640" height="250"></canvas>
+  <div id="belt"></div>
+
+  <!-- the monitor -->
+  <div class="abs mon" id="mon">
+    <div class="scr" id="scr">
+      <canvas id="rays" width="201" height="77"></canvas>
+      <canvas id="paintIn" width="212" height="88"></canvas>
+      <div class="numw"><div id="num">€0</div></div>
+      <div id="sub"><b>€73</b> to go</div>
+      <canvas id="tank" width="60" height="75"></canvas>
+      <div class="fx" id="mstk"><canvas></canvas><div class="t"></div></div>
+      <div id="stamp">SPEND<br>MET ✓</div>
+      <div id="flash"></div>
+    </div>
+    <canvas id="paintOut" width="212" height="88"></canvas>
+  </div>
+
+  <canvas id="fxc" width="640" height="250"></canvas>
+</div></div>
+
+<div class="capt"><div>
+  <p><b>Hero tank.</b> The monitor holds two things: the number with one line under it (to go, then over) on the left, and a big € tank (120 × 150) on the right. Monitor 424 × 176, screen 406 × 158, shown at the game's 1280 × 720 scale (1x).</p>
+  <p><b>A beat, one focus at a time:</b> the item's sticker fires on the belt (the Coffee ×3 rail lights), the same sticker slaps on the number's corner, pours into the tank, then the number punches and the tank sloshes up together.</p>
+  <p><b>Dropped:</b> the item art and name (the item lifts and fires right under the monitor), the step line (the receipt prints it), SPEND €73+ and the MET chip (top bar and stamp), the +€8 gain chip (the sticker says it), SUBTOTAL, "7 / 7" and the swinging to-go tag.</p>
+  <p><b>Reward:</b> at €73 the count holds 0.7 s: the screen flashes, the tank bursts (a gold jet past the top bar, coins raining onto the belt), the sunburst turns gold, the number turns money-green and punches, SPEND MET ✓ slams onto the full tank. Past it each gain is a smaller spurt and the "+€N over" line punches; splashes dry up so the end stays clean.</p>
+  <p><b>Reduced motion</b> (?rm=1): the states stay (tank level, gold sunburst, green number, stamp, a few still splashes on the bezel, the sticker on the corner); the motion goes (slosh, pour, jet, coins, shake, punches, turning sunburst). ?at=6.5 shows a still at 6.5 s.</p>
+</div><div id="clock">beat 0 / 7</div></div>
+
+<script>
+// ================================================================ data (v4 timeline)
+const QUOTA = 73;
+const BEATS = [[1, '+1', 'add'], [10, '+10', 'add'], [21, '×3', 'mul'], [24, '×3', 'mul'], [9, '+9', 'add'], [12, '+12', 'add'], [40, '×2', 'mul']];
+const SLOTS = [ // the belt: item, ticket, the beats its stickers fire on
+  { img: 'eggs', nm: 'EGGS', price: '€1', rule: '', beats: [0] },
+  { img: 'coffee', nm: 'COFFEE', price: '€10', rule: '×3 next 2 Dairy', beats: [1] },
+  { img: 'milk', nm: 'MILK', price: '€7', rule: '', beats: [2] },
+  { img: 'milk', nm: 'MILK', price: '€8', rule: '+9 with Breakfast', beats: [3, 4] },
+  { img: 'croissant', nm: 'CROISSANT', price: '€12', rule: '×2 in the last slot', beats: [5, 6] }];
+const BEAT_SLOT = [0, 1, 2, 3, 3, 4, 4];
+const GIVER = { 2: 1, 3: 1 }; // beat -> giver slot (rail strip lights from giver to target)
+const RLINES = [['Eggs', '€1.00'], ['Coffee', '€10.00'], ['Milk ×3', '€21.00'], ['Milk ×3', '€24.00'], ['  + Breakfast', '+€9.00'],
+  ['Croissant', '€12.00'], ['  ×2 last slot', '+€40.00']];
+const SLOT_X = [442, 570, 698, 826, 954]; // slot centres (scene px)
+const C = { ink: '#2b2420', paper: '#fbf7ee', cream: '#f3e9d2', shade: '#ddcba5', mus: '#e2b33c', musL: '#f1d27a', musP: '#faecbc', musD: '#b38425',
+  musDD: '#7a5a1c', good: '#5fae5a', goodL: '#a5d17e', goodD: '#3d7a45', dark: '#24221f', grey: '#c7beab', greyD: '#8a8172', teal6: '#c3e0d4', teal5: '#86c2b6', white: '#fffdf6' };
+const Q = new URLSearchParams(location.search);
+const RM = Q.get('rm') === '1';
+const JACKPOT_HOLD = 0.7;
+const POUR_AT = .32, POUR_DUR = .14, GAIN_AT = .44; // a beat: the sticker slaps (0-.3 s), pours into the tank, then the number and the tank move together
+const NUM_CX = 136; // the number's centre on the screen (px)
+const MEASURE = document.createElement('canvas').getContext('2d');
+
+// ================================================================ helpers
+let seed = 7;
+function rng() { seed |= 0; seed = seed + 0x6D2B79F5 | 0; let t = Math.imul(seed ^ seed >>> 15, 1 | seed); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }
+function px(ctx, x, y, w, h, c) { ctx.fillStyle = c; ctx.fillRect(Math.round(x), Math.round(y), Math.round(w), Math.round(h)); }
+const $ = s => document.querySelector(s);
+const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+function since(t0) { return S.t - t0; }
+function decay(t0, dur) { const p = since(t0) / dur; return p < 0 || p > 1 ? 0 : (1 - p) * (1 - p); }
+function rgb(h) { return [parseInt(h.slice(1, 3), 16), parseInt(h.slice(3, 5), 16), parseInt(h.slice(5, 7), 16)]; }
+function ease(p) { p = clamp(p, 0, 1); return p * p * (3 - 2 * p); }
+
+// ---------------------------------------------------------------- pixel sticker shapes (same shapes as on the items)
+function stickerCanvas(kind, w, h) {
+  const cv = document.createElement('canvas'); cv.width = w + 1; cv.height = h + 1; const x2 = cv.getContext('2d');
+  const grid = [];
+  if (kind === 'mul') { // gold starburst: a spiky oval, light top-left, dark bottom-right
+    const cx = (w - 1) / 2, cy = (h - 1) / 2;
+    for (let y = 0; y < h; y++) { grid.push([]); for (let x = 0; x < w; x++) {
+      const dx = (x - cx) / (w / 2), dy = (y - cy) / (h / 2), a = Math.atan2(dy, dx), d = Math.hypot(dx, dy);
+      const sp = Math.abs(((a / Math.PI * 7 + 20) % 2) - 1); grid[y].push(d < .78 + .2 * (1 - sp) ? 1 : 0); } }
+  } else { // price-gun label: corners cut two pixels
+    for (let y = 0; y < h; y++) { grid.push([]); for (let x = 0; x < w; x++) { const dx = Math.min(x, w - 1 - x), dy = Math.min(y, h - 1 - y); grid[y].push(dx + dy < 2 ? 0 : 1); } }
+  }
+  const at = (x, y) => (x >= 0 && y >= 0 && x < w && y < h) ? grid[y][x] : 0;
+  const pal = kind === 'mul' ? [C.mus, C.musL, C.musD] : kind === 'set' ? [C.teal6, C.white, C.teal5] : kind === 'fiz' ? [C.grey, '#ddd5c4', C.greyD] : [C.paper, C.white, C.shade];
+  for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) { // hard 1-px shadow
+    if (!at(x, y) && at(x - 1, y - 1)) { x2.fillStyle = 'rgba(43,36,32,.38)'; x2.fillRect(x, y, 1, 1); } }
+  for (let y = 0; y < h + 1; y++) for (let x = 0; x < w + 1; x++) if (x === w || y === h) { if (at(x - 1, y - 1)) { x2.fillStyle = 'rgba(43,36,32,.38)'; x2.fillRect(x, y, 1, 1); } }
+  for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+    if (!at(x, y)) continue;
+    const edge = !at(x - 1, y) || !at(x + 1, y) || !at(x, y - 1) || !at(x, y + 1);
+    let c = pal[0];
+    if (edge) c = C.ink;
+    else if (!at(x - 2, y) || !at(x, y - 2)) c = pal[1];
+    else if (!at(x + 2, y) || !at(x, y + 2)) c = pal[2];
+    px(x2, x, y, 1, 1, c);
+  }
+  return cv;
+}
+function setSticker(el, kind, text, w, h, fs) { // el: .fx with a canvas and a .t
+  const cv = stickerCanvas(kind, w, h), old = el.querySelector('canvas'); old.replaceWith(cv);
+  Object.assign(cv.style, { width: (w + 1) * 2 + 'px', height: (h + 1) * 2 + 'px' });
+  Object.assign(el.style, { width: w * 2 + 'px', height: h * 2 + 'px' });
+  const t = el.querySelector('.t'); t.textContent = text; t.style.fontSize = fs + 'px'; t.style.color = kind === 'fiz' ? '#4a4640' : C.ink;
+}
+function glyph(rows, pal) { const cv = document.createElement('canvas'); cv.width = rows[0].length; cv.height = rows.length; const x = cv.getContext('2d');
+  rows.forEach((r, j) => [...r].forEach((ch, i) => { if (pal[ch]) px(x, i, j, 1, 1, pal[ch]); })); return cv; }
+const CHECK = ['..#####..', '.#GGGGG#.', '#GGGGGwG#', '#GGGGwGG#', '#GwGwGGG#', '#GGwGGGG#', '#GGGGGGg#', '.#ggggg#.', '..#####..'];
+const SPARK = ['..y..', '..y..', 'yywyy', '..y..', '..y..'];
+
+// ================================================================ state
+const S = { t: 0, target: 0, shown: 0, beat: -1, met: false, metAt: -99, beatAt: -99, step: 0, next: 0.8, pend: [], ended: false,
+  numPunch: { at: -99, amp: 0, dur: .3 }, stk: { at: -99, rot: 0, x: 0, y: 0 }, shake: [], stampAt: -99, flashAt: -99, tankKick: { at: -99, amp: 0 },
+  subPunchAt: -99, jets: [], metLine: false, rays: 0, rayBoostAt: -99, flagAt: -99, totAt: -99, rail: null };
+let parts = [], coins = [], splats = [], emitters = [], flies = [], lines = [];
+
+// ================================================================ the belt strip (items, planning stickers, tickets, rail)
+const beltEl = $('#belt'), itemEls = [], stEls = [];
+SLOTS.forEach((s, i) => {
+  const it = document.createElement('div'); it.className = 'item'; it.style.left = (SLOT_X[i] - 48) + 'px';
+  it.innerHTML = `<img src="assets/art/items_v2/${s.img}.png">`; beltEl.appendChild(it); itemEls.push(it);
+  const tk = document.createElement('div'); tk.className = 'ticket'; tk.style.left = (SLOT_X[i] - 56) + 'px';
+  tk.innerHTML = `<b>${s.price}</b><i>${s.rule || s.nm.charAt(0) + s.nm.slice(1).toLowerCase()}</i>`; beltEl.appendChild(tk);
+  s.beats.forEach((b, k) => { // stickers stack upward over the item's right side, apply order bottom to top
+    const el = document.createElement('div'); el.className = 'fx'; el.innerHTML = '<canvas></canvas><div class="t"></div><canvas class="ok"></canvas>';
+    const kind = BEATS[b][2], w = kind === 'mul' ? 27 : 22, h = kind === 'mul' ? 16 : 13;
+    setSticker(el, kind, BEATS[b][1], w, h, 17);
+    el.style.left = (SLOT_X[i] + 4) + 'px'; el.style.top = (322 - k * 30) + 'px';
+    const ok = glyph(CHECK, { '#': C.ink, G: C.good, g: C.goodD, w: C.paper }); ok.className = 'ok'; el.querySelector('.ok').replaceWith(ok);
+    beltEl.appendChild(el); stEls[b] = el;
+  });
+});
+// rail strip: Coffee gives ×3 to the next two milks
+const railBase = document.createElement('div'); railBase.className = 'rail'; Object.assign(railBase.style, { left: SLOT_X[1] + 'px', width: (SLOT_X[3] - SLOT_X[1]) + 'px' }); beltEl.appendChild(railBase);
+const railHot = document.createElement('div'); railHot.className = 'rail hotfill'; Object.assign(railHot.style, { left: SLOT_X[1] + 'px', width: '0px' }); beltEl.appendChild(railHot);
+const rname = document.createElement('div'); rname.className = 'rname'; rname.textContent = 'COFFEE ×3'; rname.style.left = (SLOT_X[1] - 40) + 'px'; beltEl.appendChild(rname);
+const fly = document.createElement('div'); fly.className = 'fly'; $('#shake').appendChild(fly);
+
+// ================================================================ top-bar liquid gauge (TA, money green)
+function LiquidBar(w, h) {
+  const g = { w, h, amp: 0, drops: [], bubbles: [], flash: 0, front: 2 };
+  for (let i = 0; i < 6; i++) g.bubbles.push({ x: rng() * w, y: 2 + rng() * (h - 4), v: 6 + rng() * 10 });
+  g.gain = (n) => { if (RM) return; g.amp = Math.min(4, g.amp + 1.4 + n / 12);
+    for (let i = 0; i < 4 + n / 6; i++) g.drops.push({ x: g.front, y: h / 2 + (rng() - .5) * h * .6, vx: 10 + rng() * 25, vy: -14 - rng() * 22, life: .7 }); };
+  g.ding = () => { g.flash = RM ? 0 : 1; };
+  g.reset = () => { g.drops = []; g.flash = 0; g.amp = 0; };
+  g.draw = (ctx, dt) => {
+    g.amp *= Math.exp(-dt * 3.5); g.flash = Math.max(0, g.flash - dt * 2);
+    const sc = S.met ? Math.max(QUOTA, S.shown) : QUOTA, fill = Math.min(S.shown, sc) / sc, inner = w - 4;
+    const flagX = S.met ? 2 + inner * QUOTA / sc : null;
+    g.front = 2 + inner * fill;
+    ctx.clearRect(0, 0, w, h); px(ctx, 0, 0, w, h, C.ink); px(ctx, 2, 2, inner, h - 4, C.dark);
+    for (let y = 2; y < h - 2; y++) {
+      const wob = RM ? 0 : g.amp * Math.sin(y * .9 + S.t * 14) + .5 * Math.sin(y * .5 - S.t * 6);
+      const end = clamp(g.front + wob, 2, w - 2), top = y < 4, bot = y >= h - 3;
+      const a = top ? C.goodL : bot ? C.goodD : C.good, b = top ? C.paper : bot ? C.good : C.goodL;
+      if (flagX === null) px(ctx, 2, y, end - 2, 1, a);
+      else { px(ctx, 2, y, Math.min(end, flagX) - 2, 1, a); if (end > flagX) px(ctx, flagX, y, end - flagX, 1, b); }
+    }
+    if (!RM) { const sx = ((S.t * 60) % (w + 30)) - 15; for (let y = 2; y < h - 2; y++) { const x = sx + (h - y) * .6; if (x < g.front - 2 && x > 2) px(ctx, x, y, 1, 1, C.paper); }
+      g.bubbles.forEach(b => { b.x += b.v * dt; b.y -= dt * 3; if (b.x > g.front - 3 || b.y < 3) { b.x = 3 + rng() * Math.max(1, g.front - 8); b.y = h - 4; } if (b.x < g.front - 3) px(ctx, b.x, b.y, 1, 1, C.goodL); }); }
+    g.drops = g.drops.filter(d => (d.life -= dt) > 0);
+    g.drops.forEach(d => { d.x += d.vx * dt; d.y += d.vy * dt; d.vy += 90 * dt; if (d.y < h - 1) px(ctx, d.x, Math.max(0, d.y), 1, 1, C.goodL); });
+    if (g.flash > 0) { ctx.globalAlpha = g.flash * .8; px(ctx, 2, 2, inner, h - 4, C.paper); ctx.globalAlpha = 1; }
+    return flagX;
+  };
+  return g;
+}
+const tBar = LiquidBar(60, 9), tCtx = $('#tGauge').getContext('2d');
+
+// ================================================================ the hero € tank
+const Tank = (() => {
+  const cv = $('#tank'), ctx = cv.getContext('2d'), w = cv.width, h = cv.height;
+  const mask = document.createElement('canvas'); mask.width = w; mask.height = h;
+  const layer = document.createElement('canvas'); layer.width = w; layer.height = h;
+  const outl = document.createElement('canvas'); outl.width = w; outl.height = h;
+  let top = 2, bot = h - 2, ready = false, rows = [];
+  const g = { amp: 0, bubbles: [] };
+  function makeMask() {
+    const m = mask.getContext('2d'); m.clearRect(0, 0, w, h); m.font = '800 100px Atkinson';
+    const mt = m.measureText('€'), gw = mt.actualBoundingBoxLeft + mt.actualBoundingBoxRight, gh = mt.actualBoundingBoxAscent + mt.actualBoundingBoxDescent;
+    const s = Math.min((w - 4) / gw, (h - 4) / gh); m.font = `800 ${100 * s}px Atkinson`; m.fillStyle = '#000';
+    m.fillText('€', (w - gw * s) / 2 + mt.actualBoundingBoxLeft * s, (h - gh * s) / 2 + mt.actualBoundingBoxAscent * s);
+    const id = m.getImageData(0, 0, w, h); top = h; bot = 0; rows = [];
+    for (let y = 0; y < h; y++) { rows.push([w, 0]); for (let x = 0; x < w; x++) { const k = (y * w + x) * 4 + 3; id.data[k] = id.data[k] > 120 ? 255 : 0;
+      if (id.data[k]) { top = Math.min(top, y); bot = Math.max(bot, y); rows[y][0] = Math.min(rows[y][0], x); rows[y][1] = Math.max(rows[y][1], x); } } }
+    m.putImageData(id, 0, 0); ready = true;
+  }
+  for (let i = 0; i < 9; i++) g.bubbles.push({ x: rng() * w, y: h, v: 6 + rng() * 10 });
+  g.gain = (n) => { if (!RM) g.amp = Math.min(5, g.amp + 1.6 + n / 9); };
+  g.surfY = () => { const level = Math.min(1, S.shown / QUOTA); return bot - (bot - top) * level; };
+  g.rowSpan = (y) => rows[Math.round(clamp(y, 0, h - 1))] || [0, w];
+  g.dims = () => ({ w, h, top, bot });
+  g.draw = (dt) => {
+    if (!ready) makeMask();
+    g.amp *= Math.exp(-dt * 3);
+    const surf = g.surfY(), met = S.met, burst = decay(S.metAt, .6);
+    const l = layer.getContext('2d'); l.clearRect(0, 0, w, h);
+    px(l, 0, 0, w, h, C.shade);
+    // glass shading on the empty part
+    for (let y = 0; y < h; y++) px(l, 0, y, 2, 1, C.cream);
+    const body = C.mus, lip = met ? C.paper : C.musL, deep = C.musD;
+    for (let x = 0; x < w; x++) {
+      const y = met ? top + (RM ? 0 : Math.sin(x * .5 + S.t * 10) * (1 + burst * 2)) : surf + (RM ? 0 : g.amp * Math.sin(x * .45 + S.t * 9) + .8 * Math.sin(x * 1.1 - S.t * 5));
+      px(l, x, y, 1, h - y, body); px(l, x, y, 1, 2, lip); px(l, x, h - 6, 1, 6, deep);
+    }
+    if (!RM) {
+      const sx = ((S.t * 40) % (w + 30)) - 15; for (let y = 0; y < h; y++) { const x = sx + y * .5; if (y > surf + 3) px(l, x, y, 2, 1, met ? C.paper : C.musL); }
+      g.bubbles.forEach(b => { b.y -= b.v * dt * (met ? 2 : 1); b.x += Math.sin(S.t * 4 + b.v) * .3; if (b.y < surf + 2) { b.y = bot; b.x = rng() * w; } px(l, b.x, b.y, 1, 1, C.musP); });
+    }
+    l.globalCompositeOperation = 'destination-in'; l.drawImage(mask, 0, 0); l.globalCompositeOperation = 'source-over';
+    ctx.clearRect(0, 0, w, h);
+    const oc = outl.getContext('2d'); oc.clearRect(0, 0, w, h); oc.drawImage(mask, 0, 0); oc.globalCompositeOperation = 'source-in';
+    px(oc, 0, 0, w, h, 'rgba(43,36,32,.35)'); oc.globalCompositeOperation = 'source-over';
+    ctx.drawImage(outl, 2, 2); // hard shadow
+    if (burst > 0 && !RM && Math.floor(S.t * 16) % 2) { oc.clearRect(0, 0, w, h); oc.drawImage(mask, 0, 0); oc.globalCompositeOperation = 'source-in'; px(oc, 0, 0, w, h, C.paper); oc.globalCompositeOperation = 'source-over';
+      for (const [dx, dy] of [[-2, 0], [2, 0], [0, -2], [0, 2], [-1, -1], [1, 1], [1, -1], [-1, 1]]) ctx.drawImage(outl, dx, dy); }
+    oc.clearRect(0, 0, w, h); oc.drawImage(mask, 0, 0); oc.globalCompositeOperation = 'source-in'; px(oc, 0, 0, w, h, C.ink); oc.globalCompositeOperation = 'source-over';
+    for (const [dx, dy] of [[-1, 0], [1, 0], [0, -1], [0, 1]]) ctx.drawImage(outl, dx, dy);
+    ctx.drawImage(layer, 0, 0);
+    // squash and stretch on the kick
+    const k = decay(S.tankKick.at, .5) * S.tankKick.amp, wob = Math.sin(since(S.tankKick.at) * 28) * k;
+    cv.style.transform = RM ? 'none' : `scale(${1 - wob * .08}, ${1 + wob * .12})`;
+  };
+  return g;
+})();
+
+// ================================================================ sunburst (behind the number)
+const raysCv = $('#rays'), raysCtx = raysCv.getContext('2d'), RW = raysCv.width, RH = raysCv.height, RIMG = raysCtx.createImageData(RW, RH);
+function drawRays(dt) {
+  const boost = decay(S.metAt, 1.2);
+  if (!RM) S.rays += dt * (.22 + 4 * boost);
+  const c1 = rgb(S.met ? C.musL : C.cream), c2 = rgb(S.met ? C.musP : C.paper), cx = 68, cy = 32, R = 66 + (S.met ? 6 : 0);
+  const d8 = RIMG.data;
+  for (let y = 0; y < RH; y++) for (let x = 0; x < RW; x++) {
+    const k = (y * RW + x) * 4, dx = x - cx, dy = (y - cy) * 1.15, d = Math.hypot(dx, dy);
+    if (d > R) { d8[k + 3] = 0; continue; }
+    const a = Math.atan2(dy, dx) + S.rays, sec = Math.floor((a / Math.PI) * 10 + 100) % 2;
+    const c = sec ? c1 : c2; d8[k] = c[0]; d8[k + 1] = c[1]; d8[k + 2] = c[2]; d8[k + 3] = 255;
+  }
+  raysCtx.putImageData(RIMG, 0, 0);
+}
+
+// ================================================================ particles, coins, splashes (scene canvas, half resolution)
+const fxCv = $('#fxc'), fx = fxCv.getContext('2d'), coinCtx = $('#coinc').getContext('2d');
+const BELT_Y = 141; // texels: below this a coin is on the belt, behind the items
+const MON = { x: 243, y: 33, w: 212, h: 88 }; // monitor in scene texels
+const SCR = { x: 5.5, y: 5.5, w: 201, h: 77 }; // screen in monitor texels
+const TANK_X = 139; // tank canvas left in screen texels
+function tankTop() { const d = Tank.dims(); return { x: MON.x + 5.5 + TANK_X + d.w / 2, y: MON.y + 5.5 + 1 + d.top }; }
+const SPLAT_RM = [[178, 3, 4, 0], [150, 2, 3, 6], [209, 30, 3, 18], [120, 4, 2, 0], [196, 2, 3, 0], [60, 2, 2, 5], [209, 62, 2, 10], [30, 85, 2, 3]]; // bezel only
+function addSplat(x, y, r, dripMax) {
+  if (splats.length > 46) return;
+  splats.push({ x, y, r, born: S.t, die: S.t + 1.1 + rng() * .9, drip: dripMax, dripX: x + Math.round((rng() - .5) * r), sp: 6 + rng() * 10 });
+}
+function emit(kind, dur, rate, power) { emitters.push({ kind, from: S.t, to: S.t + dur, rate, power, acc: 0 }); }
+function spawn(kind, power) {
+  const tt = tankTop();
+  if (kind === 'geyser') {
+    parts.push({ t: 'drop', x: tt.x + (rng() - .5) * 10, y: tt.y + 2, vx: power < .9 ? (rng() - .3) * 40 : (rng() - .7) * 90 * power, vy: -(95 + rng() * 110) * power, life: 3, c: rng() < .3 ? C.paper : rng() < .6 ? C.musL : C.mus, s: rng() < .4 ? 2 : 1 });
+  } else if (kind === 'splat') { // the burst lands on the frame and the paper (mostly near the tank and along the top)
+    const r = rng(); let x, y;
+    if (r < .5) { x = 90 + rng() * 122; y = rng() * 9; }
+    else if (r < .75) { x = 203 + rng() * 9; y = rng() * 80; }
+    else if (power >= 1) { x = 40 + rng() * 165; y = 8 + rng() * 66; } // only the quota burst splashes the screen itself
+    else { x = 203 + rng() * 9; y = rng() * 80; }
+    addSplat(x, y, 1 + Math.round(rng() * 3), rng() < .55 ? 6 + rng() * 26 : 0);
+  } else if (kind === 'dribble') {
+    const d = Tank.dims(); const sx = MON.x + 5.5 + TANK_X, side = rng() < .5;
+    const sp = Tank.rowSpan(d.top + 3 + rng() * 6);
+    parts.push({ t: 'drop', x: sx + (side ? sp[0] - 1 : sp[1] + 1), y: MON.y + 6 + d.top + 4, vx: (side ? -1 : 1) * (4 + rng() * 6), vy: -6, life: 2, c: C.musL, s: 1, noLand: true });
+  } else if (kind === 'coinArc') {
+    coins.push({ x: tt.x + (rng() - .5) * 8, y: tt.y, vx: power < .9 ? 25 + rng() * 45 : (rng() < .7 ? 1 : -1) * (40 + rng() * 80), vy: -(110 + rng() * 80) * power, ph: rng() * 4, rest: 192 + rng() * 4, b: 0, restAt: -1 });
+  } else if (kind === 'coinRain') {
+    coins.push({ x: MON.x + 10 + rng() * (MON.w - 20), y: MON.y + MON.h - 2, vx: (rng() - .5) * 30, vy: 10 + rng() * 50, ph: rng() * 4, rest: 192 + rng() * 4, b: 0, restAt: -1 });
+  } else if (kind === 'spark') {
+    parts.push({ t: 'spark', x: MON.x + 20 + rng() * (MON.w - 40), y: MON.y - 6 + rng() * (MON.h + 10), life: .5 + rng() * .4, max: .9 });
+  }
+}
+const sparkCv = glyph(SPARK, { y: C.musL, w: '#ffffff' });
+function updFx(dt) {
+  emitters = emitters.filter(e => { if (S.t > e.to) return false; if (S.t < e.from) return true; e.acc += e.rate * dt; while (e.acc >= 1) { e.acc--; spawn(e.kind, e.power); } return true; });
+  if (S.met && !RM && rng() < dt * 3) spawn('dribble', 1);
+  const G = 320;
+  parts = parts.filter(p => {
+    p.life -= dt; if (p.life <= 0) return false;
+    if (p.t === 'spark') return true;
+    if (p.t === 'dust') { p.x += p.vx * dt; p.y += p.vy * dt; p.vx *= .9; p.vy *= .9; return true; }
+    p.x += p.vx * dt; p.y += p.vy * dt; p.vy += G * dt;
+    const inMon = p.x > MON.x && p.x < MON.x + MON.w && p.y > MON.y && p.y < MON.y + MON.h;
+    const onScreen = p.x > MON.x + SCR.x && p.x < MON.x + SCR.x + SCR.w && p.y > MON.y + SCR.y && p.y < MON.y + SCR.y + SCR.h;
+    if (p.vy > 0 && inMon && !p.noLand && !(onScreen && since(S.metAt) > 1.2) && rng() < 1 - Math.exp(-dt * 4.5)) { addSplat(p.x - MON.x, p.y - MON.y, p.s > 1 ? 2 + Math.round(rng() * 2) : 1 + Math.round(rng()), rng() < .5 ? 4 + rng() * 14 : 0); return false; }
+    if (p.y > 150 + rng() * 40) { return false; }
+    return true;
+  });
+  coins.forEach(c => {
+    if (c.restAt >= 0) return;
+    c.x += c.vx * dt; c.y += c.vy * dt; c.vy += G * dt; c.ph += dt * 14;
+    if (c.y >= c.rest && c.vy > 0) { c.b++; c.vy = -c.vy * .38; c.vx *= .55; if (c.b >= 3 || Math.abs(c.vy) < 20) { c.restAt = S.t; c.y = c.rest; } }
+  });
+  coins = coins.filter(c => c.restAt < 0 || S.t - c.restAt < .9);
+}
+const COIN = [ // 8 x 8 coin and its spin frames (ink rim, gold, light top-left, dark bottom-right, a stamped bar)
+  ['..####..', '.#yyyy#.', '#yyMMMM#', '#yM##Mm#', '#yMMMMm#', '#yMMMmm#', '.#mmmm#.', '..####..'],
+  ['..###..', '.#yyM#.', '#yMMMm#', '#yM#Mm#', '#yMMMm#', '#yMMmm#', '.#mmm#.', '..###..'],
+  ['.###.', '#yMm#', '#yMm#', '#y#m#', '#yMm#', '#yMm#', '#yMm#', '.###.'],
+  ['.#.', '#y#', '#M#', '#M#', '#M#', '#m#', '#m#', '.#.']];
+const COIN_CV = COIN.map(r => glyph(r, { '#': C.ink, y: C.musP, M: C.mus, m: C.musD }));
+const COIN_FLAT = glyph(['.######.', '#yyyyyy#', '#MMMMMm#', '.######.'], { '#': C.ink, y: C.musL, M: C.mus, m: C.musD });
+function drawCoin(ctx, c) {
+  if (c.restAt >= 0) {
+    const ra = S.t - c.restAt; if (ra > .45 && Math.floor(ra * 14) % 2) return; // blink out
+    if (ra < .2) { ctx.drawImage(sparkCv, Math.round(c.x - 2), Math.round(c.y - 8)); }
+    px(ctx, Math.round(c.x - 3), Math.round(c.y) + 1, 8, 2, 'rgba(36,34,31,.45)'); ctx.drawImage(COIN_FLAT, Math.round(c.x - 4), Math.round(c.y - 2)); return; }
+  const f = [0, 1, 2, 3, 2, 1][Math.floor(c.ph) % 6], cv = COIN_CV[f]; ctx.drawImage(cv, Math.round(c.x - cv.width / 2), Math.round(c.y - 4));
+}
+function drawJets() { // the geyser column: a gold jet out of the tank's top that rises past the bezel and collapses
+  const tt = tankTop();
+  S.jets = S.jets.filter(j => since(j.at) < j.dur);
+  S.jets.forEach(j => { const p = since(j.at) / j.dur; if (p < 0) return;
+    const hh = j.h * Math.sin(Math.min(1, p * 2.6) * Math.PI / 2) * (p < .55 ? 1 : 1 - (p - .55) / .45);
+    for (let k = 0; k < hh; k++) { const y = tt.y + 3 - k, wob = Math.round(Math.sin(k * .35 - S.t * 30) * 1.2), wd = 10 - Math.min(5, Math.floor(k / (j.h / 4)) * 2);
+      const x = Math.round(tt.x - wd / 2) + wob; px(fx, x - 1, y, wd + 2, 1, C.ink); px(fx, x, y, wd, 1, C.mus); px(fx, x + 1, y, Math.max(1, wd - 4), 1, C.musL); px(fx, x + wd - 2, y, 1, 1, C.musD); if ((k + Math.floor(S.t * 40)) % 6 === 0) px(fx, x + 2, y, 1, 2, C.paper); }
+    const top = tt.y + 3 - hh; for (let i = 0; i < 7; i++) blob(fx, Math.round(tt.x + Math.sin(i * 2.3 + S.t * 20) * 6), Math.round(top + Math.cos(i * 1.7 + S.t * 17) * 3), i < 3 ? 3 : 2); });
+}
+function drawFx() {
+  fx.clearRect(0, 0, fxCv.width, fxCv.height);
+  parts.forEach(p => {
+    if (p.t === 'spark') { const a = p.life / p.max; if (a > .25 || Math.floor(S.t * 20) % 2) fx.drawImage(sparkCv, Math.round(p.x - 2), Math.round(p.y - 2)); return; }
+    if (p.t === 'dust') { px(fx, p.x, p.y, 1, 1, p.c); return; }
+    px(fx, p.x, p.y, p.s, p.s + (p.vy > 60 ? 1 : 0), p.c);
+  });
+  drawJets();
+  coinCtx.clearRect(0, 0, 640, 250);
+  coins.forEach(c => drawCoin(c.y > BELT_Y ? coinCtx : fx, c));
+}
+// splashes on the monitor: one canvas under the screen's content (the paper), one over the bezel
+const pIn = $('#paintIn').getContext('2d'), pOut = $('#paintOut').getContext('2d');
+function blob(ctx, x, y, r) {
+  for (let j = -r; j <= r; j++) for (let i = -r; i <= r; i++) { const d = Math.hypot(i, j); if (d > r + .3) continue;
+    const edge = d > r - .9, c = edge ? (i + j > 0 ? C.musD : C.mus) : (i + j < -r * .6 ? C.musP : C.musL); px(ctx, x + i, y + j, 1, 1, c); }
+}
+function drawSplats() { // splashes dry up and blink out after a second or two, so the overflow state stays clean
+  [pIn, pOut].forEach(c => c.clearRect(0, 0, 212, 88));
+  if (!RM) splats = splats.filter(s => S.t < s.die);
+  splats.forEach(s => {
+    if (!RM && s.die - S.t < .25 && Math.floor(S.t * 16) % 2) return;
+    const g = RM ? 1 : clamp(since(s.born) / .08, 0, 1), r = Math.max(1, Math.round(s.r * g));
+    const len = RM ? s.drip : Math.min(s.drip, Math.max(0, since(s.born) - .15) * s.sp);
+    [pIn, pOut].forEach(c => {
+      if (len > 0) { px(c, s.dripX, s.y, 1, len, C.mus); px(c, s.dripX + 1, s.y, 1, len - 1, C.musD); px(c, s.dripX, s.y + len - 1, 2, 2, C.mus); px(c, s.dripX, s.y + len - 1, 1, 1, C.musL); }
+      blob(c, Math.round(s.x), Math.round(s.y), r);
+    });
+  });
+  pOut.clearRect(SCR.x, SCR.y, SCR.w, SCR.h); // the bezel canvas never covers the screen
+}
+
+// ================================================================ receipt
+function printLine(text, amt, cls) {
+  const d = document.createElement('div'); d.className = 'ln' + (cls ? ' ' + cls : '');
+  d.innerHTML = amt === null ? text : `<span>${text}</span><span>${amt}</span>`;
+  $('#lines').appendChild(d); lines.push({ el: d, at: S.t });
+}
+function lineY() { return 64 + 8 + 38 + lines.length * 19 + 9; }
+
+// ================================================================ events
+function fireBeat(i) {
+  const b = BEATS[i], slot = BEAT_SLOT[i];
+  S.beat = i; S.beatAt = S.t;
+  // the sticker on the item fires
+  stEls[i]._fireAt = S.t;
+  itemEls.forEach((el, k) => el.classList.toggle('hot', k === slot));
+  // the landing sticker slaps on the number's shoulder (where the number will end), then pours into the tank
+  const kind = b[2], st = $('#mstk');
+  if (kind === 'mul') setSticker(st, 'mul', b[1], 38, 23, 27); else setSticker(st, kind === 'add' ? 'add' : kind, b[1], 33, 19, 26);
+  MEASURE.font = '800 82px Atkinson'; const nw = MEASURE.measureText('€' + (S.target + b[0])).width, sw = kind === 'mul' ? 76 : 66;
+  const sx = Math.min(300 - sw, NUM_CX + nw / 2 - 14), sy = kind === 'mul' ? -4 : -2; // corner only, never over the digits
+  Object.assign(st.style, { display: 'block', left: sx + 'px', top: sy + 'px' });
+  S.stk = { at: S.t + .04, rot: Math.round(rng() * 12 - 8), x: sx + sw / 2, y: sy + 22 };
+  // rail strip from the giver
+  if (GIVER[i] !== undefined) S.rail = { at: S.t, from: SLOT_X[GIVER[i]], to: SLOT_X[slot] };
+  // the value flies to the receipt; the line prints when it lands
+  const fe = stEls[i], fr = { x: parseFloat(fe.style.left) + 10, y: parseFloat(fe.style.top) };
+  flies.push({ at: S.t, from: fr, to: { x: 200, y: lineY() - 11 }, text: '+€' + b[0], line: i });
+  if (RM) { printLine(...RLINES[i]); flies.pop(); }
+  // the number and the tank move once the sticker has poured in
+  S.pend.push({ at: S.t + (RM ? .14 : GAIN_AT), gain: b[0] });
+}
+function applyGain(n) {
+  S.target += n; Tank.gain(n); tBar.gain(n);
+  S.numPunch = { at: S.t, amp: S.met ? .3 : .2, dur: .3 };
+  S.tankKick = { at: S.t, amp: S.met ? 1 : .45 };
+  if (!RM && !S.met) plop(n);
+  if (S.met) spurt(n);
+}
+function plop(n) { // the sticker lands in the tank: a few drops jump off the surface
+  const d = Tank.dims(), x = MON.x + 5.5 + TANK_X + d.w / 2, y = MON.y + 5.5 + 1 + Tank.surfY();
+  for (let i = 0; i < 5 + n / 4; i++) parts.push({ t: 'drop', x: x + (rng() - .5) * 18, y, vx: (rng() - .5) * 40, vy: -(30 + rng() * 40), life: .5, c: rng() < .4 ? C.musP : C.musL, s: 1, noLand: true });
+}
+function spurt(n) { // past the quota: each gain makes the tank spurt again
+  S.subPunchAt = S.t;
+  if (RM) return;
+  S.jets.push({ at: S.t, dur: .4, h: 24 + n / 4 });
+  emit('geyser', .25, 90, .7); emit('coinArc', .2, 20, .75); emitAt(.1, 'splat', .2, 25, 1); for (let i = 0; i < 6; i++) spawn('spark');
+}
+function ding() {
+  S.met = true; S.metAt = S.t; S.flagAt = S.t; S.stampAt = S.t + .2; S.flashAt = S.t; S.rayBoostAt = S.t;
+  S.next = Math.max(S.next, JACKPOT_HOLD + .3); // the count holds for the payoff
+  $('#num').classList.add('met'); tBar.ding();
+  S.numPunch = { at: S.t, amp: .6, dur: .6 };
+  S.tankKick = { at: S.t, amp: 2.2 };
+  S.subPunchAt = S.t;
+  // the receipt marks it
+  if (flies.length) S.metLine = true; else printLine('SPEND MET ✓', null, 'met');
+  if (RM) { SPLAT_RM.forEach(([x, y, r, d]) => splats.push({ x, y, r, born: S.t, drip: d, dripX: x, sp: 0 })); return; }
+  S.shake.push({ at: S.t, amp: 6, dur: .5 });
+  S.jets.push({ at: S.t, dur: .7, h: 78 }, { at: S.t + .5, dur: .55, h: 52 });
+  emit('geyser', .55, 300, 1.05); emitAt(.5, 'geyser', .45, 220, .85);
+  emitAt(.1, 'splat', .5, 56, 1);
+  emit('coinArc', .35, 50, 1); emitAt(.15, 'coinRain', .9, 30, 1);
+  for (let i = 0; i < 14; i++) spawn('spark');
+}
+function emitAt(d, kind, dur, rate, power) { emitters.push({ kind, from: S.t + d, to: S.t + d + dur, rate, power, acc: 0 }); }
+function stampDust() { if (RM) return; // dust puffs out of the stamp's edges
+  const cx = MON.x + 5.5 + 169, cy = MON.y + 5.5 + 53;
+  for (let i = 0; i < 18; i++) { const a = rng() * Math.PI * 2; parts.push({ t: 'dust', x: cx + Math.cos(a) * 27, y: cy + Math.sin(a) * 15, vx: Math.cos(a) * 40, vy: Math.sin(a) * 18, life: .3 + rng() * .2, c: rng() < .5 ? C.paper : C.goodL, s: 1 }); } }
+function reset() {
+  Object.assign(S, { t: 0, target: 0, shown: 0, beat: -1, met: false, metAt: -99, beatAt: -99, step: 0, next: 0.8, pend: [], ended: false, stampAt: -99, flashAt: -99,
+    numPunch: { at: -99, amp: 0, dur: .3 }, stk: { at: -99, rot: 0, x: 0, y: 0 }, shake: [], tankKick: { at: -99, amp: 0 }, subPunchAt: -99, flagAt: -99, totAt: -99, rail: null, jets: [], metLine: false });
+  seed = 7; parts = []; coins = []; splats = []; emitters = []; flies = []; lines = [];
+  $('#lines').innerHTML = ''; $('#num').classList.remove('met'); $('#mstk').style.display = 'none';
+  itemEls.forEach(e => e.classList.remove('hot')); stEls.forEach(e => { e._fireAt = undefined; });
+  tBar.reset();
+}
+
+// ================================================================ the frame
+function render(dt) {
+  const v = Math.round(S.shown);
+  // number
+  const num = $('#num'); num.textContent = '€' + v;
+  const np = since(S.numPunch.at) / S.numPunch.dur, ns = RM || np < 0 || np > 1 ? 1 : 1 + S.numPunch.amp * (1 - np) * (1 - np);
+  num.style.transform = `scale(${ns.toFixed(3)})`;
+  // monitor sticker: slaps big on the number's shoulder, then pours into the tank and is gone (one thing in focus at a time)
+  const st = $('#mstk'), sp = since(S.stk.at) / .3;
+  if (S.beat >= 0) {
+    let sc = 1, op = 1, tx = 0, ty = 0, rot = S.stk.rot;
+    if (!RM) {
+      if (sp < 0) op = 0; else if (sp < .6) { sc = 1.8 - (1.8 - .9) * (sp / .6); } else if (sp < 1) sc = .9 + .1 * ((sp - .6) / .4);
+      const pp = (since(S.stk.at) - POUR_AT) / POUR_DUR;
+      if (pp > 1) op = 0;
+      else if (pp > 0) { const e = pp * pp; tx = (338 - S.stk.x) * e; ty = (2 + Tank.surfY() * 2 - S.stk.y) * e - Math.sin(pp * Math.PI) * 18; sc = 1 - .75 * pp; rot += 40 * pp; }
+    }
+    st.style.opacity = op; st.style.transform = `translate(${tx.toFixed(1)}px, ${ty.toFixed(1)}px) rotate(${rot.toFixed(1)}deg) scale(${sc.toFixed(3)})`;
+  }
+  // tank, rays, tag
+  Tank.draw(dt); drawRays(dt);
+  // the one line under the number: what is left to go, then what is over
+  const sub = $('#sub'), left = QUOTA - v, tp = since(S.subPunchAt) / .35, ts = RM || tp < 0 || tp > 1 ? 1 : 1 + .35 * (1 - tp) * (1 - tp);
+  if (S.met) { sub.innerHTML = `<b>+€${v - QUOTA}</b>over`; sub.className = 'over'; }
+  else { sub.innerHTML = `<b>€${Math.max(1, left)}</b> to go`; sub.className = ''; }
+  sub.style.transform = `scale(${ts.toFixed(3)})`;
+  // stamp: slams big across the screen, holds, then settles in its place
+  const sm = $('#stamp'), sa = since(S.stampAt);
+  if (S.met && sa >= 0) {
+    sm.style.display = 'block';
+    if (RM) sm.style.transform = 'rotate(-8deg)';
+    else {
+      let s, o = 1, r = -8;
+      if (sa < .1) { s = 3 - 2.08 * (sa / .1); o = sa / .1; r = -14 + 6 * (sa / .1); }
+      else if (sa < .22) s = .92 + .08 * ((sa - .1) / .12);
+      else s = 1;
+      sm.style.opacity = o; sm.style.transform = `rotate(${r}deg) scale(${s.toFixed(3)})`;
+      if (sa >= .1 && !S._stampHit) { S._stampHit = true; S.shake.push({ at: S.t, amp: 4, dur: .25 }); stampDust(); }
+    }
+  } else { sm.style.display = 'none'; S._stampHit = false; }
+  // flash
+  $('#flash').style.opacity = RM ? 0 : (decay(S.flashAt, .4) * .9).toFixed(3);
+  // shake
+  let sx = 0, sy = 0; S.shake = S.shake.filter(k => since(k.at) < k.dur);
+  S.shake.forEach(k => { const a = k.amp * (1 - since(k.at) / k.dur); sx += Math.sin(S.t * 91 + k.at) * a; sy += Math.cos(S.t * 77 + k.at * 3) * a * .7; });
+  $('#shake').style.transform = `translate(${Math.round(sx)}px, ${Math.round(sy)}px)`;
+  // belt stickers fire: punch, flash, then a small ✓ settles
+  stEls.forEach((el, i) => {
+    const f = el._fireAt, ok = el.querySelector('.ok');
+    if (f === undefined) { el.style.transform = 'none'; el.style.filter = 'none'; ok.style.display = 'none'; return; }
+    const p = since(f) / .3; el.style.transform = RM || p > 1 ? 'none' : `scale(${1 + .55 * (1 - p) * (1 - p)}) rotate(${(1 - p) * -6}deg)`;
+    el.style.filter = !RM && since(f) < .12 ? 'brightness(1.6)' : 'none';
+    ok.style.display = since(f) > .38 || RM ? 'block' : 'none';
+    ok.style.width = ok.style.height = '18px';
+  });
+  itemEls.forEach((el, k) => { el.style.transform = el.classList.contains('hot') ? 'translateY(-6px)' : 'none'; });
+  // rail strip
+  if (S.rail) { const rp = RM ? 1 : clamp(since(S.rail.at) / .25, 0, 1), fade = since(S.rail.at) > .85 ? 0 : 1;
+    railHot.style.width = ((S.rail.to - S.rail.from) * rp * fade) + 'px'; } else railHot.style.width = '0px';
+  // flying values to the receipt
+  flies = flies.filter(f => {
+    const p = since(f.at) / .42;
+    if (p >= 1) { printLine(...RLINES[f.line]); if (S.metLine) { S.metLine = false; printLine('SPEND MET ✓', null, 'met'); } fly.style.display = 'none'; return false; }
+    if (p < 0) return true;
+    const x = f.from.x + (f.to.x - f.from.x) * p, y = f.from.y + (f.to.y - f.from.y) * p - Math.sin(p * Math.PI) * 60;
+    Object.assign(fly.style, { display: 'block', left: x + 'px', top: y + 'px' }); fly.textContent = f.text; return true;
+  });
+  lines.forEach(l => { const a = RM ? 0 : decay(l.at, .8); l.el.style.background = a > 0 ? `rgba(241,210,122,${(a * .9).toFixed(2)})` : ''; });
+  // top bar
+  const flagX = tBar.draw(tCtx, dt), tv = $('#tVal'), tt = $('#tTag');
+  tv.textContent = '€' + v; tv.style.transform = `scale(${ns > 1 ? (1 + (ns - 1) * .4).toFixed(3) : 1})`;
+  if (S.met) { tt.textContent = `+€${v - QUOTA}`; tt.className = 'tag over'; } else { tt.textContent = `€${left} to go`; tt.className = 'tag'; }
+  const fl = $('#tFlag');
+  if (flagX !== null) { fl.style.display = 'block'; fl.style.left = (flagX * 2) + 'px'; fl.style.top = '-12px'; fl.querySelector('.pole').style.height = '32px';
+    const pp = since(S.flagAt) / .45; fl.style.transform = RM || pp > 1 ? 'none' : `translateY(${-24 * (1 - ease(pp))}px)`; }
+  else fl.style.display = 'none';
+  // fx
+  drawSplats(); drawFx();
+  $('#clock').innerHTML = `t ${S.t.toFixed(1)} s<br>beat ${Math.max(0, S.beat + 1)} / ${BEATS.length}<br>€${S.target}${S.met ? ' · met' : ''}${RM ? '<br>reduced motion' : ''}`;
+}
+function tick(dt) {
+  S.t += dt; S.next -= dt;
+  if (S.next <= 0) {
+    if (S.step < BEATS.length) { fireBeat(S.step); S.step++; S.next = S.step === BEATS.length ? 3.2 : 0.95; }
+    else { reset(); render(0); return; }
+  }
+  S.pend = S.pend.filter(p => { if (S.t >= p.at) { applyGain(p.gain); return false; } return true; });
+  S.shown += (S.target - S.shown) * Math.min(1, dt * 7);
+  if (Math.abs(S.target - S.shown) < .3) S.shown = S.target;
+  if (!S.met && S.shown >= QUOTA) ding();
+  if (S.step === BEATS.length && !S.ended && S.shown === S.target && S.t - S.beatAt > .9) {
+    S.ended = true; printLine('TOTAL', `€${S.target}.00`, 'tot'); printLine(`+€${S.target - QUOTA}.00 OVER`, '/ €73.00', 'ovr');
+  }
+  updFx(dt);
+  render(dt);
+}
+
+// ================================================================ run
+const at = parseFloat(Q.get('at') || '0'), play = Q.get('play') === '1';
+document.fonts.ready.then(() => {
+  reset();
+  if (at > 0) { for (let t = 0; t < at - 1e-6; t += 1 / 60) tick(1 / 60); if (!play) return; }
+  let last = performance.now();
+  function loop(now) { const dt = Math.min(.05, (now - last) / 1000); last = now; tick(dt); requestAnimationFrame(loop); }
+  requestAnimationFrame(loop);
+});
+</script>
+</body>
+</html>
