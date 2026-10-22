@@ -602,6 +602,7 @@ class MachineTest(LogTestCase):
         self.assertEqual(machine["visit_kinds"], {"ticket": 3, "bonus": 2, "stamp_day": 1})
         # The legacy (pre-v0.47) visit has no state and counts under none.
         self.assertEqual(machine["visit_states"], {"normal": 3, "boosted": 1, "stamp_day": 1})
+        self.assertEqual(machine["stateless"], 1)
         self.assertEqual(machine["chutes"]["register"], ls.rate(2, 6))
         self.assertEqual(machine["bin_rate"]["count"], 1)
         self.assertEqual(machine["bins"]["coupons"], 1)
@@ -612,9 +613,23 @@ class MachineTest(LogTestCase):
         report = ls.render(summary)
         self.assertIn("RECEIPT REWARDS machine", report)
         self.assertIn("  visits: 6 (3 ticket, 2 bonus, 1 stamp_day)", report)
-        self.assertIn("  machine states: 3 normal, 1 boosted, 1 stamp_day", report)
+        self.assertIn("  machine states: 3 normal, 1 boosted, 1 stamp_day (1 logged before the "
+                      "states)", report)
         self.assertIn("BIG and GOLDEN copies over 1 ended runs: milk_big 1", report)
         self.assertIn("  machine: 6 offers", report)
+
+    def test_a_machine_log_from_before_the_states(self) -> None:
+        s = Session("old", build="fb-p2")
+        s.machine_start("m1")
+        s.shift("m1", 1)
+        s.visit("m1", 1, "new_items", (("product", "eggs"),), legacy=True)
+        s.visit("m1", 1, "coupons", (("coupon", "multipack"),), kind="bonus", legacy=True)
+        summary = self.summary(self.write("p.jsonl", s))
+        machine = summary["machine"]
+        self.assertEqual(machine["visit_states"], {"normal": 0, "boosted": 0, "stamp_day": 0})
+        self.assertEqual(machine["stateless"], 2)
+        self.assertIn("  machine states: 0 normal, 0 boosted, 0 stamp_day (2 logged before the "
+                      "states)", ls.render(summary))
 
     def test_resume_and_abandon_at_the_machine(self) -> None:
         a = Session("a", "2026-10-20T10:00:00", build="fb-p3")

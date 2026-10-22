@@ -64,7 +64,8 @@ func _init(machine_definition: MachineDefinition, rng: RandomNumberGenerator) ->
 
 ## RunState.checkout on a passed shift that isn't the last: queues the ticket's visit (BOOSTED
 ## after a boosted shift when REGISTER or UPGRADES can draw, else Normal), the bonus ticket's when
-## due and STAMP DAY when due, and waits for the ticket's chute.
+## due and STAMP DAY when due, and waits for the ticket's chute. A visit none of whose lit chutes
+## can draw is skipped (no lit key to wait on): the next queued one starts, else the machine idles.
 func begin_after_checkout(run: RunState) -> void:
 	clear_visits()
 	if run.history.is_empty():
@@ -80,6 +81,9 @@ func begin_after_checkout(run: RunState) -> void:
 	if _stamp_day_due(run):
 		_queue.append(MachineVisit.Kind.STAMP_DAY)
 	stage = Stage.CHOOSE
+	if not _can_draw_lit(run):
+		_visit = null
+		_next_visit(run)
 
 
 ## One chute's state for the UI: lit or why not, and its exact odds card.
@@ -267,9 +271,15 @@ func is_boosted() -> bool:
 
 ## A visit's machine state, as logged (STATE_NORMAL, STATE_BOOSTED, STATE_STAMP_DAY).
 static func state_of(visit: MachineVisit) -> String:
-	if visit.kind == MachineVisit.Kind.STAMP_DAY:
+	return state_for(visit.kind, visit.boosted)
+
+
+## The machine state of a visit of `kind` (MachineVisit.Kind) that is `boosted` or not; also for
+## a saved visit's fields (the simulator's records).
+static func state_for(kind: int, boosted: bool) -> String:
+	if kind == MachineVisit.Kind.STAMP_DAY:
 		return STATE_STAMP_DAY
-	return STATE_BOOSTED if visit.boosted else STATE_NORMAL
+	return STATE_BOOSTED if boosted else STATE_NORMAL
 
 
 ## The chutes a visit lights by its state: BOOSTED_CHUTES on a BOOSTED visit, REGISTER alone on
@@ -399,6 +409,12 @@ func _end_visit(run: RunState) -> void:
 	_visit = null
 	_first_draw = false
 	_clear_cache()
+	_next_visit(run)
+
+
+## Starts the next queued visit that has something to draw (a BONUS visit none of whose lit
+## chutes can draw is skipped), else idles.
+func _next_visit(run: RunState) -> void:
 	if not _stamp_day_due(run):
 		_queue.erase(MachineVisit.Kind.STAMP_DAY)
 	while not _queue.is_empty():
@@ -408,7 +424,10 @@ func _end_visit(run: RunState) -> void:
 			var why: String = String(record.inspection.id) if record.inspection != null else ""
 			_visit = MachineVisit.new(MachineVisit.Kind.BONUS, why)
 			stage = Stage.CHOOSE
-			return
+			if _can_draw_lit(run):
+				return
+			_visit = null
+			continue
 		if _start_stamp_day(run):
 			return
 	stage = Stage.IDLE
@@ -477,13 +496,25 @@ func _stamp_day_due(run: RunState) -> bool:
 
 
 ## CARD_FULL (REGISTER at the cap) first, then UNLIT (not a chute of the visit's state), then
-## EMPTY (nothing to draw).
+## EMPTY (nothing to draw). On a boosted shift's ticket visit that fell back to Normal, REGISTER
+## and UPGRADES show their real reason (CARD_FULL, EMPTY) instead of UNLIT, which would promise
+## a boost the visit has just skipped.
 func _chute_state(run: RunState, chute: int) -> ChuteState:
 	if chute == Chute.REGISTER and registers_picked(run) >= machine.register_cap:
 		return ChuteState.CARD_FULL
 	if not lit_chutes(_visit).has(chute):
+		if BOOSTED_CHUTES.has(chute) and _boost_fell_back(run) and not _can_draw(run, chute):
+			return ChuteState.EMPTY
 		return ChuteState.UNLIT
 	return ChuteState.OPEN if _can_draw(run, chute) else ChuteState.EMPTY
+
+
+## Whether the waiting visit is a boosted shift's ticket visit that fell back to Normal (neither
+## REGISTER nor UPGRADES could draw).
+func _boost_fell_back(run: RunState) -> bool:
+	if _visit == null or _visit.kind != MachineVisit.Kind.TICKET or _visit.boosted:
+		return false
+	return machine.is_boosted_shift(_shift(run))
 
 
 ## Whether `chute` has something to draw (REGISTER: below the cap too).
@@ -492,6 +523,11 @@ func _can_draw(run: RunState, chute: int) -> bool:
 		return false
 	var chute_pools: Array = _snapshot(run).pools(chute)
 	return not chute_pools.all(func(pool: Array) -> bool: return pool.is_empty())
+
+
+## Whether one of the waiting visit's lit chutes can draw.
+func _can_draw_lit(run: RunState) -> bool:
+	return lit_chutes(_visit).any(func(chute: int) -> bool: return _can_draw(run, chute))
 
 
 ## The ticket's visit after the last played shift is BOOSTED: a boosted shift, and REGISTER or

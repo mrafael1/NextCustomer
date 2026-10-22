@@ -120,12 +120,20 @@ func test_a_boosted_shift_with_nothing_to_draw_falls_back() -> void:
 	assert_str(RewardMachine.state_of(neither_machine.current_visit())).is_equal(
 		RewardMachine.STATE_NORMAL
 	)
-	for chute: int in RewardMachine.NORMAL_CHUTES:
-		var info: MachineChuteInfo = neither_machine.chute_info(neither, chute)
-		assert_int(info.state).is_equal(RewardMachine.ChuteState.OPEN)
-	assert_int(neither_machine.chute_info(neither, RewardMachine.Chute.REGISTER).state).is_equal(
-		RewardMachine.ChuteState.CARD_FULL
+	# REGISTER and UPGRADES say why the boost was skipped (CARD FULL, NOTHING TO IMPROVE), not
+	# when the next boost comes.
+	_assert_states(
+		neither,
+		neither_machine,
+		[
+			RewardMachine.ChuteState.OPEN,
+			RewardMachine.ChuteState.OPEN,
+			RewardMachine.ChuteState.CARD_FULL,
+			RewardMachine.ChuteState.EMPTY,
+		]
 	)
+	for chute: int in RewardMachine.BOOSTED_CHUTES:
+		assert_int(neither_machine.chute_info(neither, chute).opens_after_shift).is_equal(0)
 	# Only REGISTER: BOOSTED, UPGRADES shows NOTHING TO IMPROVE.
 	var register_only: RunState = _golden_run()
 	var register_machine: RewardMachine = _machine()

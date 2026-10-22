@@ -237,7 +237,7 @@ func checkout() -> ScoreResult:
 		phase = Phase.SCORED
 		if balance.machine != null:
 			machine.begin_after_checkout(self)
-			phase = Phase.MACHINE_CHOOSE
+			phase = _machine_phase()
 	return last_result
 
 

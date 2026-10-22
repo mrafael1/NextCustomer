@@ -135,11 +135,9 @@ func _add_visit(visit: Dictionary, won: bool) -> void:
 	chutes[chute] = chutes.get(chute, 0) + 1
 	var kind: String = visit.get("kind", "ticket")
 	visit_kinds[kind] = visit_kinds.get(kind, 0) + 1
-	var state: String = RewardMachine.STATE_NORMAL
-	if kind == "stamp_day":
-		state = RewardMachine.STATE_STAMP_DAY
-	elif visit.get("boosted", false):
-		state = RewardMachine.STATE_BOOSTED
+	var state: String = RewardMachine.state_for(
+		MachineVisit.KIND_NAMES.find(kind), bool(visit.get("boosted", false))
+	)
 	visit_states[state] = visit_states.get(state, 0) + 1
 	if kind != "stamp_day" and (chute == "new_items" or chute == "coupons"):
 		binnable_visits += 1

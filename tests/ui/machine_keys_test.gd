@@ -219,10 +219,12 @@ func test_shut_keys_say_why_and_their_lines_fit() -> void:
 		RewardMachine.ChuteState.CARD_FULL,
 		RewardMachine.ChuteState.EMPTY,
 	]:
-		for key: ChuteKey in view.keys:
-			key.show_state(state, 7, true)
-			for label: Label in key.shown_labels():
-				_assert_fits(label)
+		# An UNLIT REGISTER or UPGRADES key: "BOOSTED AFTER SHIFT n" and "BOOSTED VISITS ONLY".
+		for opens_after: int in [7, 0]:
+			for key: ChuteKey in view.keys:
+				key.show_state(state, opens_after, true)
+				for label: Label in key.shown_labels():
+					_assert_fits(label)
 	_assert_fits(register.tab())
 	await _frames(2)  # Let the parts' queued frees run (no orphans).
 
@@ -406,6 +408,8 @@ func test_a_refused_key_says_why_for_a_moment() -> void:
 	view.press_key(RewardMachine.Chute.UPGRADES)
 	assert_int(view.pressed_chute()).is_equal(-1)
 	assert_array(Array(view.display.texts())).is_equal(["UPGRADES", "BOOSTED AFTER SHIFT 3"])
+	for label: Label in view.display.labels():
+		_assert_fits(label)
 	assert_array(Array(view.display.rest_texts())).is_equal(rest)
 	view.show_at(view.clock)
 	assert_str(view.display.texts()[0]).is_equal("UPGRADES")
@@ -724,6 +728,14 @@ func test_a_boosted_visit_shows_its_marker_and_lights_its_chutes() -> void:
 			_assert_fits(label)
 		view.press_key(RewardMachine.Chute.NEW_ITEMS)  # Shut: refused.
 		assert_array(Array(view.display.texts())).is_equal(["NEW ITEMS", "NORMAL VISITS ONLY"])
+		for label: Label in view.display.labels():
+			_assert_fits(label)
+		# Every chute's BOOSTED title sub fits the display.
+		for chute: int in RewardMachine.CHUTES:
+			assert_str(view.title_sub(chute)).contains(RewardMachineView.TITLE_BOOSTED)
+			view.display.show_title(ChuteKey.NAMES[chute], view.title_sub(chute), true)
+			for label: Label in view.display.labels():
+				_assert_fits(label)
 		view.close()
 		remove_child(view)
 		remove_child(stage)

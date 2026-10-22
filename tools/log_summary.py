@@ -968,7 +968,7 @@ def run_upgrades(run: Run) -> list[str]:
 def machine_summary(runs: list[Run]) -> dict:
     """The RECEIPT REWARDS machine's visits (#77, machine_visit events): visits by kind and by
     machine state (v0.47: normal, boosted, stamp_day; a visit logged before the states counts
-    under neither), chute shares and pick or bin per chute, the bin rate, and per ended run the
+    under none of them, as `stateless`), chute shares and pick or bin per chute, the bin rate, and per ended run the
     BIG and GOLDEN copies in its final deck (by product). The Regular levels older logs carry
     (`level_before`, `levels`) are ignored: the meter is gone."""
     visits = [event for run in runs for event in run.of_type("machine_visit")]
@@ -991,6 +991,7 @@ def machine_summary(runs: list[Run]) -> dict:
         "visits": len(visits),
         "visit_kinds": {kind: by_kind[kind] for kind in MACHINE_VISIT_KINDS},
         "visit_states": {state: by_state[state] for state in MACHINE_VISIT_STATES},
+        "stateless": by_state["?"],
         "chutes": {chute: rate(chosen[chute], len(visits)) for chute in MACHINE_CHUTES},
         "bins": {chute: bins[chute] for chute in MACHINE_CHUTES},
         "bin_rate": rate(binned, len(visits)),
@@ -1509,6 +1510,8 @@ def render_machine(s: dict) -> list[str]:
         return []
     kinds = ", ".join(f"{count} {kind}" for kind, count in m["visit_kinds"].items())
     states = ", ".join(f"{count} {state}" for state, count in m["visit_states"].items())
+    if m["stateless"]:
+        states += f" ({m['stateless']} logged before the states)"
     lines = heading(
         "RECEIPT REWARDS machine",
         "From machine_visit events (#77): visits by kind and by machine state (v0.47; visits "
