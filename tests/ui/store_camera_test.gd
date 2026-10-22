@@ -8,7 +8,8 @@ extends GdUnitTestSuite
 ## the viewport at 2x (1280x720 and 1920x1080); the fore (belt, baskets, hand, receipt) drops out
 ## of frame while the monitor stays. Mid-glide the zoom and the receipt's copy are on their way.
 ## After the shift's last visit the camera glides back while planning waits (a hand click is
-## ignored), then the machine is dim on the wall again. Reduced motion cuts behind a charcoal fade
+## ignored), then the machine is dim on the wall again; the basket redraw waits for the whole
+## settle, then works with its tags on the baskets. Reduced motion cuts behind a charcoal fade
 ## (rm_fade_alpha at its peak) and the fore never moves. A visit resumed at its wait point opens
 ## at the machine, with no glide. Clicks are sent to the handlers (to the control a
 ## hit test finds); the real saves and logs are never touched.
@@ -217,6 +218,68 @@ func test_the_return_glide_restores_planning() -> void:
 	await _frames(2)
 	screen._on_hand_card_clicked(_view_for(screen, screen.run.hand()[0]))
 	assert_object(screen._picked).is_not_null()
+
+
+## The basket redraw after the shift's last visit (#77 machine v2 with plan section 3.8): while the
+## machine settles (the glide back, then the upgrade swap's wait) the Redraw key is ignored; once
+## settled the fore is back at rest, Redraw arms, each tag sits inside its basket's front, the pop
+## layer is at the stage's origin, and a basket click redraws it. The tags and the pop layer ride
+## the fore; the redraw layer, whose flights go into the Cart, does not.
+func test_the_redraw_waits_for_the_machine_to_settle() -> void:
+	var screen: ShiftScreen = await _passed_screen()
+	var flow: MachineFlow = screen._machine
+	for _visit: int in range(MAX_VISITS):
+		if not RunState.MACHINE_PHASES.has(screen.run.phase):
+			break
+		_end_visit(screen)
+	var run: RunState = screen.run
+	assert_int(run.phase).is_equal(RunState.Phase.PLANNING)
+	assert_bool(flow.is_settling()).is_true()
+	screen._on_redraw_pressed()
+	assert_bool(screen._redraw_mode).is_false()
+	assert_bool(screen._basket_tags.is_shown()).is_false()
+	for _step: int in range(100):
+		if not flow.is_settling():
+			break
+		flow._process(0.05)
+	assert_bool(flow.is_settling()).is_false()
+	await _frames(2)
+	var stage: ShiftStage = screen._stage
+	assert_float(stage.fore.position.y).is_equal(0.0)
+	assert_int(run.redraws_used).is_less(run.redraws_allowed)
+	screen._on_redraw_pressed()
+	await _frames(2)
+	assert_bool(screen._redraw_mode).is_true()
+	var tags: BasketTags = screen._basket_tags
+	assert_bool(tags.is_shown()).is_true()
+	var xform: Transform2D = stage.get_global_transform()
+	var picked: int = -1
+	for basket: int in range(stage.baskets.basket_lefts().size()):
+		if not run.can_redraw_basket(basket):
+			continue
+		if picked < 0:
+			picked = basket
+		var rect: Rect2 = tags.tag(basket).get_global_rect()
+		var front: Rect2 = xform * stage.baskets.basket_rect(basket)
+		assert_bool(tags.tag(basket).visible).override_failure_message(str(basket)).is_true()
+		assert_bool(front.encloses(rect)).override_failure_message(str(rect)).is_true()
+	assert_int(picked).is_greater_equal(0)
+	_assert_rect(
+		stage.pop_layer.get_global_rect(),
+		xform * Rect2(Vector2.ZERO, stage.pop_layer.size),
+		"pop layer at the stage's origin"
+	)
+	assert_bool(stage.fore.is_ancestor_of(tags)).is_true()
+	assert_bool(stage.fore.is_ancestor_of(stage.pop_layer)).is_true()
+	assert_bool(stage.fore.is_ancestor_of(stage.redraw_layer)).is_false()
+	var used: int = run.redraws_used
+	screen._on_basket_clicked(picked)
+	assert_int(run.redraws_used).is_equal(used + 1)
+	assert_bool(screen._redraw_busy).is_true()
+	var start: int = Time.get_ticks_msec()
+	while screen._redraw_busy and Time.get_ticks_msec() - start < 3000:
+		await get_tree().process_frame
+	assert_bool(screen._redraw_busy).is_false()
 
 
 ## Reduced motion: the camera cuts at glide + rm_cut_ms behind the charcoal fade, which peaks at
