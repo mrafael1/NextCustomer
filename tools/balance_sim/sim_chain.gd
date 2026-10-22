@@ -8,9 +8,10 @@ extends RefCounted
 ## The profile is kept as the game keeps it: the unlocked items with the run index each came out
 ## at (so the end-cap's new arrivals ride the next runs, RunStock), the run count and the last
 ## list. The simulated player:
-## - spends every coin at the end of each run, one capsule per coin. It picks a machine with
-##   items left at random (players choose; a random pick stands for a mix of them), and the
-##   draw inside is random without duplicates, the aisle's key item first (plan 7.1);
+## - spends every coin at the end of each run, one capsule per capsule_price coins. It picks a
+##   machine with items left at random (players choose; a random pick stands for a mix of
+##   them), and the draw inside is the game's (CapsuleDraw: random without duplicates, the
+##   aisle's key item first, plan 7.1);
 ## - keeps its last list when the stock needs one. An aisle that just became listable joins the
 ##   list, in place of the listed aisle with the fewest items, and a list short of
 ##   run_aisle_picks aisles takes the listable aisles with the most items (ties by data order).
@@ -59,7 +60,8 @@ func play(first_seed: int, max_runs: int) -> void:
 			return
 		coins.append(record.coins)
 		won.append(record.won)
-		for _coin: int in range(record.coins):
+		var capsules_bought: int = floori(float(record.coins) / maxi(_balance.capsule_price, 1))
+		for _capsule: int in range(capsules_bought):
 			_draw_capsule(run_index)
 		unlocked_after.append(_unlocked.size())
 		if _unlocked.size() >= capsules:
@@ -68,10 +70,7 @@ func play(first_seed: int, max_runs: int) -> void:
 
 
 static func capsule_count(balance: BalanceDefinition) -> int:
-	var count: int = 0
-	for aisle: AisleDefinition in balance.aisles:
-		count += aisle.capsule_cards.size()
-	return count
+	return CapsuleDraw.capsule_count(balance)
 
 
 func to_dictionary() -> Dictionary:
@@ -104,67 +103,26 @@ func _list() -> Array[StringName]:
 	_listable_before.assign(
 		listable.map(func(aisle: AisleDefinition) -> StringName: return aisle.id)
 	)
-	if not RunStock.needs_list(_balance, _unlocked):
-		return []
-	var picks: int = _balance.run_aisle_picks
-	var list: Array[AisleDefinition] = listable.filter(
-		func(aisle: AisleDefinition) -> bool: return _last_list.has(aisle.id)
-	)
-	if _last_list.is_empty():
-		# The plan's first pre-fill: base aisles only fill in after a newly listable one.
-		newly = newly.filter(
-			func(aisle: AisleDefinition) -> bool: return aisle.base_cards.is_empty()
-		)
+	var newly_ids: Array[StringName] = []
 	for aisle: AisleDefinition in newly:
-		if list.has(aisle):
-			continue
-		if list.size() >= picks:
-			list.erase(_fewest_items(list))
-		list.append(aisle)
-	while list.size() < picks:
-		var best: AisleDefinition = null
-		for aisle: AisleDefinition in listable:
-			if not list.has(aisle) and (best == null or _held(aisle) > _held(best)):
-				best = aisle
-		if best == null:
-			break
-		list.append(best)
-	# In data order, as the stock lists aisles.
-	_last_list.clear()
-	for aisle: AisleDefinition in listable:
-		if list.has(aisle):
-			_last_list.append(aisle.id)
+		newly_ids.append(aisle.id)
+	# The game's list default (RunStock.prefill_list, #63), with this chain's tracking.
+	var list: Array[StringName] = RunStock.prefill_list(_balance, _unlocked, _last_list, newly_ids)
+	if list.is_empty():
+		return []
+	_last_list = list
 	return _last_list.duplicate()
 
 
-## The listed aisle with the fewest items; ties go to the later one in data order.
-func _fewest_items(list: Array[AisleDefinition]) -> AisleDefinition:
-	var fewest: AisleDefinition = null
-	for aisle: AisleDefinition in _balance.aisles:
-		if list.has(aisle) and (fewest == null or _held(aisle) <= _held(fewest)):
-			fewest = aisle
-	return fewest
-
-
-func _held(aisle: AisleDefinition) -> int:
-	return RunStock.items(aisle, _unlocked).size()
-
-
-## One capsule from a machine with items left: the key item first, then at random.
+## One capsule from a machine with items left, picked at random; the draw inside is the game's
+## (CapsuleDraw: the key item first, then at random), on this chain's stream.
 func _draw_capsule(run_index: int) -> void:
 	var machines: Array[AisleDefinition] = []
 	for aisle: AisleDefinition in _balance.aisles:
-		if aisle.capsule_cards.any(
-			func(item: CardDefinition) -> bool: return not _unlocked.has(item.id)
-		):
+		if not CapsuleDraw.is_empty(aisle, _unlocked):
 			machines.append(aisle)
 	if machines.is_empty():
 		return
 	var machine: AisleDefinition = machines[_rng.randi_range(0, machines.size() - 1)]
-	var left: Array[CardDefinition] = machine.capsule_cards.filter(
-		func(item: CardDefinition) -> bool: return not _unlocked.has(item.id)
-	)
-	var card: CardDefinition = left[0]
-	if left.size() < machine.capsule_cards.size():
-		card = left[_rng.randi_range(0, left.size() - 1)]
+	var card: CardDefinition = CapsuleDraw.draw(machine, _unlocked, _rng)
 	_unlocked[card.id] = run_index

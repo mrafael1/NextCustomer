@@ -2,8 +2,12 @@ class_name RunStock
 extends RefCounted
 ## The run's stock (full build plan 7.2): every card the RECEIPT REWARDS machine's NEW ITEMS
 ## and COUPONS chutes can draw from (#77). Built before RunState and passed in. Building it is
-## pure and uses no RNG (only "Surprise me" will, to pick the list: a derived stream passed in by
-## the caller, phase 3), so the same input gives the same stock.
+## pure and uses no RNG, so the same input gives the same stock. It uses no RNG anywhere except
+## surprise_list's passed-in stream (a derived stream the caller makes outside core/, #63).
+##
+## The list (full build plan 7.2): until #65's shopping list, a run that needs one stocks
+## surprise_list's aisles. prefill_list is the list's default (the balance simulator's chained
+## player keeps it), ready for #65.
 ##
 ## The stock holds, in this order and each in data order: the staples (the starting deck's own
 ## products), the listed aisles' products (aisle data order), the new arrivals, then all of
@@ -127,6 +131,89 @@ static func needs_list(balance: BalanceDefinition, unlocked: Dictionary[StringNa
 	return held > balance.aisle_stock_budget
 
 
+## A random list (#63, until #65's shopping list): run_aisle_picks distinct listable aisles drawn
+## with `rng` (a partial Fisher-Yates, one randi_range per pick), in data order. All the
+## listable aisles when there are no more than run_aisle_picks; [] when no list is needed.
+static func surprise_list(
+	balance: BalanceDefinition, unlocked: Dictionary[StringName, int], rng: RandomNumberGenerator
+) -> Array[StringName]:
+	var listed: Array[StringName] = []
+	if not needs_list(balance, unlocked):
+		return listed
+	var listable: Array[AisleDefinition] = listable_aisles(balance, unlocked)
+	var pool: Array[AisleDefinition] = listable.duplicate()
+	var picks: int = mini(balance.run_aisle_picks, pool.size())
+	for index: int in range(picks):
+		var other: int = rng.randi_range(index, pool.size() - 1)
+		var held: AisleDefinition = pool[index]
+		pool[index] = pool[other]
+		pool[other] = held
+	var chosen: Array[AisleDefinition] = pool.slice(0, picks)
+	for aisle: AisleDefinition in listable:
+		if chosen.has(aisle):
+			listed.append(aisle.id)
+	return listed
+
+
+## The list's default (full build plan 7.2), as the balance simulator's chained player keeps
+## it: the listable aisles of `last_list`; each newly listable aisle (`newly_listable`, ids)
+## joins, in place of the listed aisle with the fewest items (ties: the later in data order);
+## then, while the list is short of run_aisle_picks, the listable aisle with the most items
+## (ties: data order). With no last list only machine-opened aisles join as newly listable (the
+## first list's pre-fill). In data order; [] when no list is needed. A caller that doesn't track
+## which aisles just became listable passes machine_opened_listable.
+static func prefill_list(
+	balance: BalanceDefinition,
+	unlocked: Dictionary[StringName, int],
+	last_list: Array[StringName],
+	newly_listable: Array[StringName]
+) -> Array[StringName]:
+	var listed: Array[StringName] = []
+	if not needs_list(balance, unlocked):
+		return listed
+	var listable: Array[AisleDefinition] = listable_aisles(balance, unlocked)
+	var list: Array[AisleDefinition] = []
+	var newly: Array[AisleDefinition] = []
+	for aisle: AisleDefinition in listable:
+		if last_list.has(aisle.id):
+			list.append(aisle)
+		# The first list's pre-fill: base aisles only fill in after a newly listable one.
+		var base_on_first: bool = last_list.is_empty() and not aisle.base_cards.is_empty()
+		if newly_listable.has(aisle.id) and not base_on_first:
+			newly.append(aisle)
+	for aisle: AisleDefinition in newly:
+		if list.has(aisle):
+			continue
+		if list.size() >= balance.run_aisle_picks:
+			list.erase(_fewest_items(balance, list, unlocked))
+		list.append(aisle)
+	while list.size() < balance.run_aisle_picks:
+		var best: AisleDefinition = null
+		for aisle: AisleDefinition in listable:
+			var more: bool = best == null or _held(aisle, unlocked) > _held(best, unlocked)
+			if not list.has(aisle) and more:
+				best = aisle
+		if best == null:
+			break
+		list.append(best)
+	for aisle: AisleDefinition in listable:
+		if list.has(aisle):
+			listed.append(aisle.id)
+	return listed
+
+
+## The listable machine-opened aisles (no base cards), ids in data order: prefill_list's newly
+## listable aisles for a caller that doesn't track them.
+static func machine_opened_listable(
+	balance: BalanceDefinition, unlocked: Dictionary[StringName, int]
+) -> Array[StringName]:
+	var found: Array[StringName] = []
+	for aisle: AisleDefinition in listable_aisles(balance, unlocked):
+		if aisle.base_cards.is_empty():
+			found.append(aisle.id)
+	return found
+
+
 ## Card ids in stock order, for the event log and the run save.
 func card_ids() -> Array[String]:
 	var ids: Array[String] = []
@@ -167,6 +254,22 @@ static func _new_arrivals(
 			if unlocked[id] == newest_run and by_id.has(id) and not recent.has(by_id[id]):
 				recent.append(by_id[id])
 	return recent.slice(0, balance.end_cap_max)
+
+
+## The listed aisle with the fewest items; ties go to the later one in data order.
+static func _fewest_items(
+	balance: BalanceDefinition, list: Array[AisleDefinition], unlocked: Dictionary[StringName, int]
+) -> AisleDefinition:
+	var fewest: AisleDefinition = null
+	for aisle: AisleDefinition in balance.aisles:
+		var fewer: bool = fewest == null or _held(aisle, unlocked) <= _held(fewest, unlocked)
+		if list.has(aisle) and fewer:
+			fewest = aisle
+	return fewest
+
+
+static func _held(aisle: AisleDefinition, unlocked: Dictionary[StringName, int]) -> int:
+	return items(aisle, unlocked).size()
 
 
 func _add_all(more: Array[CardDefinition]) -> void:

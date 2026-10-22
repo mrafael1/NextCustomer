@@ -1,7 +1,9 @@
 extends PanelContainer
 ## Debug panel (development builds only; plan section 2): set the seed, add any card to the hand,
-## give an upgrade, set the shift's inspection, skip to a shift, and (temporarily) the count-up's
-## speed and reduced motion settings. F1 shows or hides it. Playtest exports leave out debug/, and
+## give an upgrade, set the shift's inspection, skip to a shift, (temporarily) the count-up's
+## speed and reduced motion settings, and the Profile tools (#63: give coins, draw from a TOY
+## MACHINE, unlock or reset the collection). F1 shows or hides it. Its column scrolls when it is
+## taller than the window allows. Playtest exports leave out debug/, and
 ## other scripts never name this class: the shift screen loads the scene by path and connects to
 ## these signals by name.
 
@@ -16,8 +18,20 @@ signal shift_requested(shift_number: int)
 signal count_up_speed_requested(fast: bool)
 ## TEMPORARY (#60): the reduced motion setting. Phase 4's settings screen replaces it.
 signal reduced_motion_requested(on: bool)
+## Profile tools (#63): coins given to the profile.
+signal coins_requested(amount: int)
+## Profile tools (#63): a capsule from this aisle's TOY MACHINE (the real draw, no coin spent).
+signal capsule_requested(aisle_id: String)
+## Profile tools (#63): every capsule item unlocked.
+signal unlock_all_requested
+## Profile tools (#63): every capsule item locked again.
+signal reset_collection_requested
 
 const CARDS_FOLDER := "res://data/cards"
+const AISLES_FOLDER := "res://data/aisles"
+## The column's most height before it scrolls: the panel (60 px from the top, 12 px margins)
+## stays inside a 720 px window.
+const MAX_COLUMN_HEIGHT := 620.0
 const UPGRADES_FOLDER := "res://data/upgrades"
 const INSPECTIONS_FOLDER := "res://data/inspections"
 const NO_INSPECTION := "(no inspection)"
@@ -29,6 +43,9 @@ var _inspection_choice: OptionButton
 var _shift_input: SpinBox
 var _fast_count_up: CheckBox
 var _reduced_motion: CheckBox
+var _aisle_choice: OptionButton
+var _scroll: ScrollContainer
+var _column: VBoxContainer
 
 
 func _ready() -> void:
@@ -45,8 +62,13 @@ func _ready() -> void:
 	style.set_content_margin_all(12)
 	style.set_corner_radius_all(6)
 	add_theme_stylebox_override("panel", style)
+	_scroll = ScrollContainer.new()
+	_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	add_child(_scroll)
 	var column: VBoxContainer = VBoxContainer.new()
-	add_child(column)
+	_column = column
+	_scroll.add_child(column)
+	column.minimum_size_changed.connect(_fit_scroll)
 	var title: Label = Label.new()
 	title.text = "DEBUG (F1)"
 	column.add_child(title)
@@ -72,6 +94,18 @@ func _ready() -> void:
 	# TEMPORARY (#60): the count-up settings until phase 4's settings screen replaces them.
 	_fast_count_up = _check(column, "Count-up speed: Fast", count_up_speed_requested.emit)
 	_reduced_motion = _check(column, "Reduced motion", reduced_motion_requested.emit)
+
+	# Profile tools (#63): they change the saved profile, so the stock changes from the next run.
+	var profile_title: Label = Label.new()
+	profile_title.text = "Profile (stock changes next run)"
+	column.add_child(profile_title)
+	_button(column, "Give 1 coin", coins_requested.emit.bind(1))
+	_button(column, "Give 5 coins", coins_requested.emit.bind(5))
+	_aisle_choice = _file_choice(column, AISLES_FOLDER)
+	_button(column, "Draw from machine", _on_capsule_pressed)
+	_button(column, "Unlock all capsules", unlock_all_requested.emit)
+	_button(column, "Reset collection", reset_collection_requested.emit)
+	_fit_scroll()
 	visible = false
 
 
@@ -117,6 +151,17 @@ func _on_inspection_pressed() -> void:
 
 func _on_shift_pressed() -> void:
 	shift_requested.emit(int(_shift_input.value))
+
+
+func _on_capsule_pressed() -> void:
+	if _aisle_choice.selected >= 0:
+		capsule_requested.emit(_aisle_choice.get_item_text(_aisle_choice.selected))
+
+
+## The scroll area is as tall as the column, up to MAX_COLUMN_HEIGHT.
+func _fit_scroll() -> void:
+	var height: float = minf(_column.get_combined_minimum_size().y, MAX_COLUMN_HEIGHT)
+	_scroll.custom_minimum_size = Vector2(0, height)
 
 
 ## A list of the resource files in a data folder, by file name (the id).

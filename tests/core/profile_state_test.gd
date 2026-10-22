@@ -107,7 +107,7 @@ func test_the_saved_form_round_trips_through_json() -> void:
 func test_the_saved_form_states_its_format_version() -> void:
 	var data: Dictionary = ProfileState.new().to_dictionary()
 	assert_int(data["format_version"]).is_equal(ProfileState.FORMAT_VERSION)
-	assert_int(ProfileState.FORMAT_VERSION).is_equal(1)
+	assert_int(ProfileState.FORMAT_VERSION).is_equal(2)
 
 
 func test_missing_fields_keep_defaults_and_unknown_ones_are_ignored() -> void:
@@ -207,6 +207,12 @@ func test_unreadable_forms_are_rejected() -> void:
 		{"format_version": 1, "coupon_uses": {"repeat": "2"}},
 		{"format_version": 1, "stats": []},
 		{"format_version": 1, "settings": []},
+		{"format_version": 2, "capsule_seed": 12},
+		{"format_version": 2, "capsule_seed": "12x"},
+		{"format_version": 2, "capsule_seed": "-3"},
+		{"format_version": 2, "capsule_draws": -1},
+		{"format_version": 2, "unlocked_items": [["apple", -2]]},
+		{"format_version": 3},
 	]
 	for data: Dictionary in bad:
 		(
@@ -214,6 +220,157 @@ func test_unreadable_forms_are_rejected() -> void:
 			. override_failure_message(str(data))
 			. is_null()
 		)
+
+
+## Version 1 saves (before #63) read with no capsule seed and 0 draws.
+func test_a_version_1_profile_reads_without_a_capsule_seed() -> void:
+	var read: ProfileState = ProfileState.from_dictionary(
+		{"format_version": 1.0, "coins": 3.0, "unlocked_items": [["cream", 0.0]]}
+	)
+	assert_object(read).is_not_null()
+	assert_bool(read.has_capsule_seed).is_false()
+	assert_int(read.capsule_draws).is_equal(0)
+	assert_int(read.coins).is_equal(3)
+	assert_str(read.to_dictionary()["capsule_seed"]).is_equal("")
+	assert_int(read.to_dictionary()["format_version"]).is_equal(2)
+
+
+## The seed is a decimal string, so one past 2^31 (and any 64-bit one) survives JSON.
+func test_the_capsule_seed_round_trips_as_a_decimal_string() -> void:
+	var profile: ProfileState = ProfileState.new()
+	assert_bool(profile.set_capsule_seed(4294967295)).is_true()
+	var data: Dictionary = profile.to_dictionary()
+	assert_str(data["capsule_seed"]).is_equal("4294967295")
+	var read: ProfileState = ProfileState.from_dictionary(JSON.parse_string(JSON.stringify(data)))
+	assert_bool(read.has_capsule_seed).is_true()
+	assert_int(read.capsule_seed).is_equal(4294967295)
+	var big: ProfileState = ProfileState.from_dictionary(
+		{"format_version": 2, "capsule_seed": "9007199254740993", "capsule_draws": 4.0}
+	)
+	assert_int(big.capsule_seed).is_equal(9007199254740993)
+	assert_int(big.capsule_draws).is_equal(4)
+
+
+## set_capsule_seed counts the items already unlocked as draws and never replaces a seed.
+func test_the_capsule_seed_is_set_once() -> void:
+	var profile: ProfileState = ProfileState.new()
+	profile.unlocked_items = {&"cream": 0, &"baguette": 1}
+	assert_bool(profile.set_capsule_seed(77)).is_true()
+	assert_int(profile.capsule_draws).is_equal(2)
+	profile.capsule_draws = 5
+	assert_bool(profile.set_capsule_seed(99)).is_false()
+	assert_int(profile.capsule_seed).is_equal(77)
+	assert_int(profile.capsule_draws).is_equal(5)
+
+
+## A draw spends the price, records the item at the run index (in draw order) and counts it.
+func test_a_capsule_spends_the_price_and_records_its_run_index() -> void:
+	var balance: BalanceDefinition = load(BALANCE)
+	var profile: ProfileState = ProfileState.new()
+	profile.coins = 3
+	profile.run_count = 4
+	profile.set_capsule_seed(1)
+	var bakery: AisleDefinition = _aisle(balance, &"bakery")
+	var index: int = profile.capsule_run_index(false)
+	var card: CardDefinition = profile.draw_capsule(
+		bakery, balance.capsule_price, index, _stream(1, 0)
+	)
+	assert_str(String(card.id)).is_equal("baguette")
+	assert_int(profile.coins).is_equal(3 - balance.capsule_price)
+	assert_int(profile.unlocked_items[&"baguette"]).is_equal(3)
+	assert_int(profile.capsule_draws).is_equal(1)
+	var second: CardDefinition = profile.draw_capsule(
+		_aisle(balance, &"pantry"),
+		balance.capsule_price,
+		profile.capsule_run_index(true),
+		_stream(1, 1)
+	)
+	assert_str(String(second.id)).is_equal("sugar_cubes")
+	assert_int(profile.unlocked_items[&"sugar_cubes"]).is_equal(4)
+	assert_array(profile.unlocked_items.keys()).is_equal([&"baguette", &"sugar_cubes"])
+	assert_int(profile.owned_capsules(balance)).is_equal(2)
+
+
+## Results or title with no saved run: the ended run's index; title while a run is saved: the
+## saved run's. Before any run ended (debug coins) that is -1, which saves and reads back.
+func test_the_run_index_rule_and_a_draw_before_any_run() -> void:
+	var balance: BalanceDefinition = load(BALANCE)
+	var profile: ProfileState = ProfileState.new()
+	profile.run_count = 6
+	assert_int(profile.capsule_run_index(false)).is_equal(5)
+	assert_int(profile.capsule_run_index(true)).is_equal(6)
+	var fresh: ProfileState = ProfileState.new()
+	fresh.coins = 1
+	assert_int(fresh.capsule_run_index(false)).is_equal(-1)
+	fresh.draw_capsule(_aisle(balance, &"snacks"), 1, -1, _stream(2, 0))
+	assert_int(fresh.unlocked_items[&"crisps"]).is_equal(-1)
+	var read: ProfileState = ProfileState.from_dictionary(
+		JSON.parse_string(JSON.stringify(fresh.to_dictionary()))
+	)
+	assert_object(read).is_not_null()
+	assert_int(read.unlocked_items[&"crisps"]).is_equal(-1)
+
+
+func test_no_coins_or_an_empty_machine_draws_nothing_and_changes_nothing() -> void:
+	var balance: BalanceDefinition = load(BALANCE)
+	var profile: ProfileState = ProfileState.new()
+	var cold: AisleDefinition = _aisle(balance, &"cold_cases")
+	var saved_form: Dictionary = profile.to_dictionary()
+	assert_bool(profile.can_draw(cold, 1)).is_false()
+	assert_object(profile.draw_capsule(cold, 1, 0, _stream(3, 0))).is_null()
+	assert_dict(profile.to_dictionary()).is_equal(saved_form)
+	profile.coins = 5
+	profile.unlocked_items = {&"cream": 0, &"ham_ends": 0}
+	saved_form = profile.to_dictionary()
+	assert_bool(profile.can_draw(cold, 1)).is_false()
+	assert_object(profile.draw_capsule(cold, 1, 0, _stream(3, 0))).is_null()
+	assert_dict(profile.to_dictionary()).is_equal(saved_form)
+
+
+## The rollback of a failed save gives back exactly the profile before the draw.
+func test_undo_capsule_restores_the_profile() -> void:
+	var balance: BalanceDefinition = load(BALANCE)
+	var profile: ProfileState = _full_profile()
+	profile.set_capsule_seed(42)
+	var saved_form: Dictionary = profile.to_dictionary()
+	var draws: int = profile.capsule_draws
+	var card: CardDefinition = profile.draw_capsule(
+		_aisle(balance, &"bakery"), 1, 8, _stream(42, draws)
+	)
+	assert_dict(profile.to_dictionary()).is_not_equal(saved_form)
+	profile.undo_capsule(card, 1, draws)
+	assert_dict(profile.to_dictionary()).is_equal(saved_form)
+
+
+## Debug tools: unlock everything (a draw counted per item), then reset (the seed kept).
+func test_unlock_all_and_reset_the_collection() -> void:
+	var balance: BalanceDefinition = load(BALANCE)
+	var profile: ProfileState = ProfileState.new()
+	profile.set_capsule_seed(9)
+	profile.unlocked_items[&"cream"] = 0
+	profile.capsule_draws = 1
+	profile.unlock_all_capsules(balance, 2)
+	assert_int(profile.owned_capsules(balance)).is_equal(30)
+	assert_int(profile.capsule_draws).is_equal(30)
+	assert_int(profile.unlocked_items[&"cream"]).is_equal(0)
+	assert_int(profile.unlocked_items[&"crisps"]).is_equal(2)
+	profile.last_list.assign([&"bakery", &"snacks"])
+	profile.reset_collection()
+	assert_dict(profile.unlocked_items).is_empty()
+	assert_int(profile.capsule_draws).is_equal(0)
+	assert_array(profile.last_list).is_empty()
+	assert_int(profile.capsule_seed).is_equal(9)
+
+
+static func _aisle(balance: BalanceDefinition, id: StringName) -> AisleDefinition:
+	for aisle: AisleDefinition in balance.aisles:
+		if aisle.id == id:
+			return aisle
+	return null
+
+
+static func _stream(seed_value: int, draw: int) -> RandomNumberGenerator:
+	return EventLogService.capsule_stream(seed_value, draw)
 
 
 static func _full_profile() -> ProfileState:

@@ -651,6 +651,92 @@ class GoldenReferenceTest(unittest.TestCase):
                 self.assertIn(f"@derive {item}_big golden={golden}", text)
 
 
+AISLES_DATA = Path(__file__).resolve().parent.parent / "data" / "aisles"
+# A 6x4 scenery source: the teal body ramp (2 3 4 5) beside glass (p) and ink.
+TEAL_SCENERY = """@size 6x4
+@kind scenery
+@scale 2
+######
+#5544#
+#3322#
+#pp..#
+"""
+
+
+def aisle_source(base: str, aisle: str) -> str:
+    return f"; an aisle recolour\n@derive {base} aisle={aisle}\n"
+
+
+class AisleDeriveTest(TempTestCase):
+    """#63's @derive <source> aisle=<id>: the teal body ramp swapped for an aisle's keys."""
+
+    def setUp(self) -> None:
+        super().setUp()
+        palette = pa.DEFAULT_SRC / pa.PALETTE_FILE
+        (self.ws.src / pa.PALETTE_FILE).write_text(palette.read_text(encoding="utf-8"),
+                                                   encoding="utf-8")
+
+    def test_an_aisle_derive_builds_recoloured_and_checks_clean(self) -> None:
+        self.ws.add("scenery/machine", TEAL_SCENERY)
+        self.ws.add("scenery/machine_pantry", aisle_source("machine", "pantry"))
+        project = self.ws.load()
+        self.assertEqual(project.errors, [])
+        derived = next(s for s in project.sprites if s.name == "scenery/machine_pantry")
+        self.assertEqual((derived.width, derived.height, derived.kind, derived.scale),
+                         (6, 4, "scenery", 2))
+        # 5 4 3 2 become y M m m; ink, glass and transparency pass through (no re-ink).
+        self.assertEqual(derived.rows, ["######", "#yyMM#", "#mmmm#", "#pp..#"])
+        written = pa.build(project)
+        self.assertIn(self.ws.out / "scenery" / "machine_pantry.png", written)
+        self.assertEqual(pa.check(self.ws.load()), [])
+
+    def test_cold_cases_keeps_the_teal_ramp(self) -> None:
+        self.ws.add("scenery/machine", TEAL_SCENERY)
+        self.ws.add("scenery/machine_cold_cases", aisle_source("machine", "cold_cases"))
+        project = self.ws.load()
+        derived = next(s for s in project.sprites if s.name == "scenery/machine_cold_cases")
+        base = next(s for s in project.sprites if s.name == "scenery/machine")
+        self.assertEqual(derived.rows, base.rows)
+
+    def test_a_changed_source_makes_its_aisle_png_stale(self) -> None:
+        self.ws.add("scenery/machine", TEAL_SCENERY)
+        self.ws.add("scenery/machine_snacks", aisle_source("machine", "snacks"))
+        pa.build(self.ws.load())
+        self.ws.add("scenery/machine", TEAL_SCENERY.replace("#5544#", "#5555#"))
+        problems = pa.check(self.ws.load())
+        self.assertTrue(any("scenery/machine_snacks.png is stale" in p for p in problems),
+                        problems)
+
+    def test_an_unknown_aisle_is_an_error(self) -> None:
+        self.ws.add("scenery/machine", TEAL_SCENERY)
+        self.ws.add("scenery/machine_moon", aisle_source("machine", "moon"))
+        project = self.ws.load()
+        self.assertNotIn("scenery/machine_moon", [s.name for s in project.sprites])
+        self.assertTrue(any("aisle=<id>" in e and "moon" in e for e in project.errors),
+                        project.errors)
+
+    def test_every_aisle_has_a_map_whose_base_is_its_sign_colour(self) -> None:
+        palette = pa.parse_palette(pa.DEFAULT_SRC / pa.PALETTE_FILE)
+        files = sorted(AISLES_DATA.glob("*.tres"))
+        self.assertTrue(files)
+        ids = []
+        for path in files:
+            text = path.read_text(encoding="utf-8")
+            aisle = text.split('id = &"', 1)[1].split('"', 1)[0]
+            ids.append(aisle)
+            with self.subTest(aisle):
+                self.assertIn(aisle, pa.AISLE_MAPS)
+                values = text.split("sign_color = Color(", 1)[1].split(")", 1)[0].split(",")
+                sign = tuple(round(float(v) * 255) for v in values[:3])
+                keys = pa.AISLE_MAPS[aisle]
+                self.assertEqual(len(keys), len(pa.AISLE_BODY_RAMP))
+                base = palette.colours[keys[pa.AISLE_BASE_INDEX]][:3]
+                self.assertEqual(base, sign)
+                for key in keys:
+                    self.assertIn(key, palette.colours)
+        self.assertEqual(sorted(ids), sorted(pa.AISLE_MAPS))
+
+
 class CommittedArtTest(unittest.TestCase):
     def test_the_repo_art_is_clean_and_up_to_date(self) -> None:
         project = pa.load_project(pa.DEFAULT_SRC, pa.DEFAULT_OUT)

@@ -1,0 +1,3 @@
+; A capsule for the fruit and veg aisle (#63): the base source's teal
+; body ramp swapped for the aisle's (tools/pixel_art.py AISLE_MAPS).
+@derive toy_capsule aisle=fruit_and_veg

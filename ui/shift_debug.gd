@@ -2,10 +2,11 @@ class_name ShiftDebug
 extends RefCounted
 ## The shift screen's development tools (plan section 2): the debug panel (a new run with a
 ## seed; add a card to the hand; give an upgrade; set the shift's inspection; skip to a shift,
-## dropping the machine's waiting visits; for now, the count-up settings) and the --demo-row
-## command-line option. Split out of
-## ShiftScreen to keep that file short; it is a part of the screen and works on its run and
-## display through the screen's own methods.
+## dropping the machine's waiting visits; for now, the count-up settings; the Profile tools of
+## #63: give coins, draw from a TOY MACHINE, unlock or reset the collection, each saved in the
+## profile at once and stocked from the next run) and the --demo-row command-line option.
+## Split out of ShiftScreen to keep that file short; it is a part of the screen and works on its
+## run and display through the screen's own methods.
 ##
 ## The panel is excluded from playtest exports, so it is only loaded by path here and never
 ## named by class outside debug/.
@@ -14,6 +15,7 @@ const DEBUG_PANEL := "res://debug/debug_panel.tscn"
 const CARDS_FOLDER := "res://data/cards"
 const UPGRADES_FOLDER := "res://data/upgrades"
 const INSPECTIONS_FOLDER := "res://data/inspections"
+const AISLES_FOLDER := "res://data/aisles"
 
 ## The debug panel on the screen, or null in playtest builds.
 var panel: Control
@@ -48,6 +50,10 @@ func add_panel(shift_count: int) -> void:
 	)
 	panel.connect(&"count_up_speed_requested", set_fast_count_up)
 	panel.connect(&"reduced_motion_requested", set_reduced_motion)
+	panel.connect(&"coins_requested", give_coins)
+	panel.connect(&"capsule_requested", draw_capsule)
+	panel.connect(&"unlock_all_requested", unlock_all_capsules)
+	panel.connect(&"reset_collection_requested", reset_collection)
 
 
 ## Whether the game was started with --demo-row (development builds only).
@@ -102,6 +108,50 @@ func set_fast_count_up(fast: bool) -> void:
 func set_reduced_motion(on: bool) -> void:
 	_screen.profile.set_reduced_motion(on)
 	_screen._saves.save_profile(_screen.profile)
+
+
+## Profile tools (#63): gives the profile coins and saves it.
+func give_coins(amount: int) -> void:
+	_log.log_event("debug", {"action": "coins", "amount": amount})
+	_screen.profile.coins += amount
+	_screen.save_profile()
+
+
+## Profile tools (#63): a capsule from the aisle's TOY MACHINE, the real draw (CapsuleCounter)
+## with no coin spent, at the index the game would use: while a run is in progress, its own
+## (run_count), so it rides the runs after it; once the run has ended (record_run has counted
+## it), the ended run's (run_count - 1), so it rides the next run, as on the results. The
+## counter logs the capsule and debug events and saves. Returns the item, or null (unknown
+## aisle, an empty machine, or a profile that can't be saved).
+func draw_capsule(aisle_id: String) -> CardDefinition:
+	var path: String = "%s/%s.tres" % [AISLES_FOLDER, aisle_id]
+	if not ResourceLoader.exists(path):
+		return null
+	var counter: CapsuleCounter = CapsuleCounter.new(
+		_screen.profile,
+		_screen._saves,
+		_screen._balance,
+		_log,
+		_run_in_progress(),
+		_screen._saves.can_save_profile()
+	)
+	return counter.draw(load(path), false)
+
+
+## Profile tools (#63): unlocks every capsule item at the index a draw would get now (see
+## draw_capsule) and saves.
+func unlock_all_capsules() -> void:
+	_log.log_event("debug", {"action": "unlock_all"})
+	var profile: ProfileState = _screen.profile
+	profile.unlock_all_capsules(_screen._balance, profile.capsule_run_index(_run_in_progress()))
+	_screen.save_profile()
+
+
+## Profile tools (#63): locks every capsule item again (the seed kept) and saves.
+func reset_collection() -> void:
+	_log.log_event("debug", {"action": "reset_collection"})
+	_screen.profile.reset_collection()
+	_screen.save_profile()
 
 
 ## Puts a copy of a card into the hand (not the deck). The run save keeps it in the hand.
@@ -175,3 +225,9 @@ func _demo_row_argument() -> String:
 		if argument.begins_with("--demo-row="):
 			return argument
 	return ""
+
+
+## Whether the run is still going: an ended run (WON or LOST) is already counted in run_count.
+func _run_in_progress() -> bool:
+	var phase: RunState.Phase = _screen.run.phase
+	return phase != RunState.Phase.WON and phase != RunState.Phase.LOST

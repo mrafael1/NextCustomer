@@ -82,6 +82,12 @@ func save_profile(profile: ProfileState) -> bool:
 	return _write(PROFILE_FILE, _PROFILE_LABEL, JSON.stringify(profile.to_dictionary(), "\t"))
 
 
+## Whether save_profile may write: false once the saved profile couldn't be opened or backed up
+## (load_profile), so it is kept. The TOY MACHINES are switched off then (#63).
+func can_save_profile() -> bool:
+	return not _protected.get(PROFILE_FILE, false)
+
+
 ## The saved run, or null when there is none (not an error) or it can't be read (reported and
 ## backed up, see the class doc). Ids resolve through `lookup`. Like the profile, a complete
 ## temporary file left by an interrupted save is read.
