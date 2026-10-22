@@ -1,0 +1,3 @@
+; Day-old buns GOLDEN (#89 item tier): day_old_buns_big through the bake map (only the brown ramp goes gold: gold buns, the clear bag and the red tie kept).
+; A derived source: no grid, tools/pixel_art.py builds it from the BIG source.
+@derive day_old_buns_big golden=bake

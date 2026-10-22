@@ -24,6 +24,7 @@ Directives:
 A derived source holds no grid and no other directive, only (after its comments)
 
     @derive <source> golden=<map>
+    @derive <source> golden=keys <from>=<to> ... [glint] [rim]
 
 which renders another source's pixels through a GOLDEN palette map (#77's item tiers:
 art/src/items_v2/milk_golden.txt holds "@derive milk_big golden=rank"). <source> is named
@@ -36,6 +37,15 @@ approved prep script docs/art/mockups/machine_77_src/upgrades/gen_upgrades.py:
             on the lit top edge (a mustard pale pixel right under the outline)
     egg     GOLDEN_EGG_MAP for the eggs (the carton keeps its greys), a brass dark rim where
             an egg meets the carton, and one paper highlight per egg
+    bake    GOLDEN_BAKE_MAP for baked goods (#89): only the brown ramp goes gold, so the bag,
+            its tie and a loaf's cut crumb keep their colours; the rank map's paper glint on
+            the gilded pixels
+    keys    an item's own map (#89), for an item the fixed maps make muddy or unreadable: each
+            <from>=<to> pair recolours one source key, and every other key is kept. Optional
+            flags: glint puts the rank map's paper glint on the recoloured lit gold, but never
+            on or next to a kept key or a pixel recoloured to paper (so a sign or a label
+            detail stays clear), and rim makes paper every recoloured gold or mustard pale
+            pixel right under the outline
 Each map then re-inks: rows 0-1 cleared and every opaque pixel on the outline made ink. A
 derived source is linted, built, checked (missing or stale) and previewed like any other.
 
@@ -68,7 +78,7 @@ import argparse
 import struct
 import sys
 import zlib
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parent.parent
@@ -114,6 +124,13 @@ GOLDEN_EGG_MAP = {"b": "L", "c": "n", "w": "Y", "a": "l"}
 GOLDEN_EGG_KEYS = ("w", "c", "b")
 GOLDEN_EGG_SHADE = "a"
 GOLDEN_EGG_RIM = "l"
+# Baked goods (#89): only the brown ramp goes gold, step for step (darkest to brass darkest,
+# dark to brass dark, brown to brass, light to gold); film, tie and crumb are kept.
+GOLDEN_BAKE_MAP = {"e": "k", "f": "l", "F": "L", "h": "n"}
+# An item's own map (golden=keys, #89): its <from>=<to> pairs, and its flags.
+GOLDEN_KEYS_MAP = "keys"
+GOLDEN_KEYS_FLAGS = frozenset({"glint", "rim"})
+GOLDEN_KEYS_RIM_KEYS = frozenset({"n", "Y"})
 DERIVE_DIRECTIVE = "@derive"
 GOLDEN_PREFIX = "golden="
 
@@ -156,6 +173,8 @@ class Derivation:
     name: str
     base: str
     golden: str
+    keys: dict[str, str] = field(default_factory=dict)
+    flags: frozenset[str] = frozenset()
 
     def base_name(self) -> str:
         """The base source's name, relative to the derived source's folder."""
@@ -230,7 +249,7 @@ def parse_source(path: Path, src_root: Path) -> tuple[Sprite | Derivation | None
     kind = ""
     scale = 1
     rows: list[str] = []
-    derive: tuple[str, str] | None = None
+    derive: tuple[str, str, dict[str, str], frozenset[str]] | None = None
     derived = False
     other_directives = False
     for number, line in enumerate(lines, 1):
@@ -248,12 +267,17 @@ def parse_source(path: Path, src_root: Path) -> tuple[Sprite | Derivation | None
             if directive == DERIVE_DIRECTIVE:
                 if derived:
                     errors.append(f"{name}:{number}: {DERIVE_DIRECTIVE} is given twice")
-                elif (len(args) == 2 and args[1].startswith(GOLDEN_PREFIX)
-                        and args[1].removeprefix(GOLDEN_PREFIX) in GOLDEN_MAPS):
-                    derive = (args[0], args[1].removeprefix(GOLDEN_PREFIX))
+                elif (len(args) >= 2 and args[1].startswith(GOLDEN_PREFIX)
+                        and args[1].removeprefix(GOLDEN_PREFIX) in derive_map_names()):
+                    golden = args[1].removeprefix(GOLDEN_PREFIX)
+                    keys, flags, problem = parse_golden_keys(golden, args[2:])
+                    if problem:
+                        errors.append(f"{name}:{number}: {problem}")
+                    else:
+                        derive = (args[0], golden, keys, flags)
                 else:
                     errors.append(f"{name}:{number}: {DERIVE_DIRECTIVE} takes <source> "
-                                  f"golden=<map> (maps: {', '.join(sorted(GOLDEN_MAPS))}), "
+                                  f"golden=<map> (maps: {', '.join(derive_map_names())}), "
                                   f"got {stripped!r}")
                 derived = True
             elif directive == "@size" and len(args) == 1:
@@ -281,7 +305,7 @@ def parse_source(path: Path, src_root: Path) -> tuple[Sprite | Derivation | None
                           "and scale are its source's)")
         if errors or derive is None:
             return None, errors
-        return Derivation(path, name, derive[0], derive[1]), []
+        return Derivation(path, name, derive[0], derive[1], derive[2], derive[3]), []
     if size is None:
         errors.append(f"{name}: missing @size")
     if not kind:
@@ -297,6 +321,32 @@ def parse_source(path: Path, src_root: Path) -> tuple[Sprite | Derivation | None
     if errors:
         return None, errors
     return Sprite(path, name, width, height, kind, scale, rows), []
+
+
+def parse_golden_keys(golden: str, args: list[str]) -> tuple[dict[str, str], frozenset[str], str]:
+    """The <from>=<to> pairs and flags after golden=keys: (keys, flags, problem or '')."""
+    if golden != GOLDEN_KEYS_MAP:
+        if args:
+            return {}, frozenset(), f"golden={golden} takes nothing more, got {' '.join(args)!r}"
+        return {}, frozenset(), ""
+    keys: dict[str, str] = {}
+    flags: set[str] = set()
+    for arg in args:
+        if arg in GOLDEN_KEYS_FLAGS:
+            flags.add(arg)
+            continue
+        # Three characters: the source key, '=', the target key (so '=' itself can be a key).
+        source, sep, target = (arg[0], arg[1], arg[2]) if len(arg) == 3 else ("", "", "")
+        if sep != "=" or source in (TRANSPARENT, INK):
+            return {}, frozenset(), (f"golden=keys takes <from>=<to> pairs of one-character keys "
+                                     f"(not '{TRANSPARENT}' or '{INK}') and the flags "
+                                     f"{', '.join(sorted(GOLDEN_KEYS_FLAGS))}, got {arg!r}")
+        if source in keys:
+            return {}, frozenset(), f"golden=keys recolours {source!r} twice"
+        keys[source] = target
+    if not keys:
+        return {}, frozenset(), "golden=keys needs at least one <from>=<to> pair"
+    return keys, frozenset(flags), ""
 
 
 def parse_size(text: str) -> tuple[int, int] | None:
@@ -451,11 +501,64 @@ def golden_egg(rows: Grid, _palette: Palette) -> Grid:
     return reink(out)
 
 
-GOLDEN_MAPS = {"rank": golden_rank, "yellow": golden_yellow, "egg": golden_egg}
+def golden_bake(rows: Grid, _palette: Palette) -> Grid:
+    """GOLDEN_BAKE_MAP on the brown ramp only, then the rank map's paper glint on the gilded
+    pixels (lit gold or brass on every GOLDEN_RANK_GLINT_PERIOD-th diagonal)."""
+    out = [[GOLDEN_BAKE_MAP.get(key, key) for key in row] for row in rows]
+    for y, row in enumerate(out):
+        for x, key in enumerate(row):
+            if (rows[y][x] in GOLDEN_BAKE_MAP and key in GOLDEN_RANK_GLINT_KEYS
+                    and (x + y) % GOLDEN_RANK_GLINT_PERIOD == 0):
+                row[x] = GOLDEN_PAPER
+    return reink(out)
+
+
+def golden_keys(rows: Grid, keys: dict[str, str], flags: frozenset[str]) -> Grid:
+    """An item's own map: each source key in keys recoloured, the rest kept. With 'glint', the
+    rank map's paper glint on recoloured lit gold that has no kept key and no paper next to it
+    (8-neighbours); with 'rim', paper on recoloured gold or mustard pale right under ink."""
+    height = len(rows)
+    width = len(rows[0]) if rows else 0
+    out = [[keys.get(key, key) for key in row] for row in rows]
+
+    def detail(x: int, y: int) -> bool:
+        if not (0 <= x < width and 0 <= y < height):
+            return False
+        key = rows[y][x]
+        kept = key not in keys and key not in (TRANSPARENT, INK)
+        return kept or keys.get(key) == GOLDEN_PAPER
+
+    for y in range(height):
+        for x in range(width):
+            if rows[y][x] not in keys:
+                continue
+            key = out[y][x]
+            if ("rim" in flags and key in GOLDEN_KEYS_RIM_KEYS and y > 0
+                    and rows[y - 1][x] == INK):
+                out[y][x] = GOLDEN_PAPER
+            elif ("glint" in flags and key in GOLDEN_RANK_GLINT_KEYS
+                    and (x + y) % GOLDEN_RANK_GLINT_PERIOD == 0
+                    and not any(detail(x + dx, y + dy)
+                                for dx in (-1, 0, 1) for dy in (-1, 0, 1))):
+                out[y][x] = GOLDEN_PAPER
+    return reink(out)
+
+
+GOLDEN_MAPS = {"rank": golden_rank, "yellow": golden_yellow, "egg": golden_egg,
+               "bake": golden_bake}
+
+
+def derive_map_names() -> list[str]:
+    """The maps @derive takes: the fixed GOLDEN_MAPS and an item's own (golden=keys)."""
+    return sorted([*GOLDEN_MAPS, GOLDEN_KEYS_MAP])
 
 
 def derive_sprite(derivation: Derivation, base: Sprite, palette: Palette) -> Sprite:
-    rows = GOLDEN_MAPS[derivation.golden]([list(row) for row in base.rows], palette)
+    grid = [list(row) for row in base.rows]
+    if derivation.golden == GOLDEN_KEYS_MAP:
+        rows = golden_keys(grid, derivation.keys, derivation.flags)
+    else:
+        rows = GOLDEN_MAPS[derivation.golden](grid, palette)
     return Sprite(derivation.source, derivation.name, base.width, base.height, base.kind,
                   base.scale, ["".join(row) for row in rows])
 
