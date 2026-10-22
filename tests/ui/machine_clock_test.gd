@@ -92,7 +92,7 @@ func test_a_visit_fires_every_beat_once_and_finishes_once() -> void:
 	expected.insert(expected.find(&"draw"), &"armed")
 	expected.insert(expected.find(&"pick"), &"armed")
 	assert_array(_names()).is_equal(expected)
-	assert_bool(expected.has(&"punch")).is_true()  # NEW ITEMS rose to REGULAR 1.
+	assert_bool(expected.has(&"punch")).is_false()  # v0.47: no Regular meter to punch.
 	var times: Array = _beats.filter(func(seen: Array) -> bool: return seen[0] != &"armed")
 	for index: int in range(1, times.size()):
 		assert_float(times[index][1]).is_greater_equal(times[index - 1][1])
@@ -112,7 +112,7 @@ func test_the_clock_plays_a_visit_to_its_end() -> void:
 	assert_int(screen.run.shift_index).is_equal(1)
 	assert_bool(_beats.any(func(seen: Array) -> bool: return seen[2])).is_false()
 	assert_bool(_names().has(&"land")).is_false()  # A bin has no landing.
-	assert_bool(_names().has(&"punch")).is_true()
+	assert_bool(_names().has(&"restock")).is_true()
 	assert_bool(_last_event("machine_visit")["presentation_skipped"]).is_false()
 
 
@@ -255,8 +255,6 @@ func test_every_part_is_hooked_and_show_at_fires_nothing() -> void:
 	]
 	for key: ChuteKey in view.keys:
 		parts.append(key)
-	for meter: PunchMeter in view.meters:
-		parts.append(meter)
 	for part: Control in parts:
 		assert_object(part.get(&"view")).override_failure_message(part.name).is_same(view)
 	# The feed and the drawer on the hud under the top bar; the flight over everything; the odds

@@ -66,7 +66,6 @@ const SCRIPTS: Array[String] = [
 	"res://ui/machine/slot_plate.gd",
 	"res://ui/machine/machine_display.gd",
 	"res://ui/machine/chute_key.gd",
-	"res://ui/machine/punch_meter.gd",
 	"res://ui/machine/stockroom_window.gd",
 	"res://ui/machine/order_slip.gd",
 	"res://ui/machine/order_plate.gd",

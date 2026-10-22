@@ -71,6 +71,8 @@ SESSION_FILE = re.compile(r"^\d{8}T\d{6}_[0-9a-f]+\.jsonl$")
 OFFER_KINDS = ("rack", "reward", "upgrade", "machine")
 MACHINE_CHUTES = ("new_items", "coupons", "register", "upgrades")
 MACHINE_VISIT_KINDS = ("ticket", "bonus", "stamp_day")
+# machine_visit's `state` (v0.47's two machine states); older machine logs have none.
+MACHINE_VISIT_STATES = ("normal", "boosted", "stamp_day")
 # Item tier card ids end in these (data/cards/<product>_big.tres, <product>_golden.tres).
 TIER_SUFFIXES = ("_big", "_golden")
 OFFER_TIMES = ("presented_ms", "armed_ms", "decide_ms")
@@ -964,29 +966,22 @@ def run_upgrades(run: Run) -> list[str]:
 
 
 def machine_summary(runs: list[Run]) -> dict:
-    """The RECEIPT REWARDS machine's visits (#77, machine_visit events): visits by kind, chute
-    shares and pick or bin per chute, the bin rate, the chutes' highest REGULAR levels reached
-    per run, and per ended run the BIG and GOLDEN copies in its final deck (by product)."""
+    """The RECEIPT REWARDS machine's visits (#77, machine_visit events): visits by kind and by
+    machine state (v0.47: normal, boosted, stamp_day; a visit logged before the states counts
+    under none of them, as `stateless`), chute shares and pick or bin per chute, the bin rate, and per ended run the
+    BIG and GOLDEN copies in its final deck (by product). The Regular levels older logs carry
+    (`level_before`, `levels`) are ignored: the meter is gone."""
     visits = [event for run in runs for event in run.of_type("machine_visit")]
     by_kind = Counter(text(event, "kind") or "?" for event in visits)
+    by_state = Counter(text(event, "state") or "?" for event in visits)
     chosen = Counter(text(event, "chute") or "?" for event in visits)
     binned = sum(1 for event in visits if flag(event, "binned"))
     bins = Counter(text(event, "chute") or "?" for event in visits if flag(event, "binned"))
-    levels: dict[str, list[float]] = {chute: [] for chute in MACHINE_CHUTES}
     tiers: Counter = Counter()
     ended = 0
     for run in runs:
-        run_visits = run.of_type("machine_visit")
-        if not run_visits:
+        if not run.of_type("machine_visit"):
             continue
-        top = [0] * len(MACHINE_CHUTES)
-        for event in run_visits:
-            reached = event.get("levels")
-            if isinstance(reached, list) and len(reached) == len(MACHINE_CHUTES):
-                top = [max(a, int(b)) if isinstance(b, (int, float)) and not isinstance(b, bool)
-                       else a for a, b in zip(top, reached)]
-        for chute, level in zip(MACHINE_CHUTES, top):
-            levels[chute].append(level)
         deck = final_deck(run)
         if run.outcome in ("won", "lost") and deck is not None:
             ended += 1
@@ -995,10 +990,11 @@ def machine_summary(runs: list[Run]) -> dict:
     return {
         "visits": len(visits),
         "visit_kinds": {kind: by_kind[kind] for kind in MACHINE_VISIT_KINDS},
+        "visit_states": {state: by_state[state] for state in MACHINE_VISIT_STATES},
+        "stateless": by_state["?"],
         "chutes": {chute: rate(chosen[chute], len(visits)) for chute in MACHINE_CHUTES},
         "bins": {chute: bins[chute] for chute in MACHINE_CHUTES},
         "bin_rate": rate(binned, len(visits)),
-        "levels_reached": {chute: dist(levels[chute]) for chute in MACHINE_CHUTES},
         "ended_runs": ended,
         "tier_copies": dict(sorted(tiers.items())),
     }
@@ -1513,19 +1509,22 @@ def render_machine(s: dict) -> list[str]:
     if not m or not m["visits"]:
         return []
     kinds = ", ".join(f"{count} {kind}" for kind, count in m["visit_kinds"].items())
+    states = ", ".join(f"{count} {state}" for state, count in m["visit_states"].items())
+    if m["stateless"]:
+        states += f" ({m['stateless']} logged before the states)"
     lines = heading(
         "RECEIPT REWARDS machine",
-        "From machine_visit events (#77): the chute chosen per visit, binned visits, the "
-        "highest REGULAR level each chute reached per run, and the BIG and GOLDEN copies in "
-        "the final decks of won and lost runs.",
+        "From machine_visit events (#77): visits by kind and by machine state (v0.47; visits "
+        "logged before it have no state), the chute chosen per visit, binned visits, and the "
+        "BIG and GOLDEN copies in the final decks of won and lost runs.",
     ) + [
         f"  visits: {m['visits']} ({kinds})",
+        f"  machine states: {states}",
         f"  bin rate: {fmt_rate(m['bin_rate'])}",
     ]
     rows = [[chute, fmt_rate(m["chutes"][chute]), str(m["bins"][chute])]
-            + dist_row("", m["levels_reached"][chute])[1:]
             for chute in MACHINE_CHUTES]
-    lines += table(["chute", "chosen", "binned"] + [f"level {h}" for h in DIST_HEADERS[1:]], rows)
+    lines += table(["chute", "chosen", "binned"], rows)
     copies = ", ".join(f"{card_id} {n}" for card_id, n in m["tier_copies"].items()) or "none"
     lines.append(f"  BIG and GOLDEN copies over {m['ended_runs']} ended runs: {copies}")
     return lines

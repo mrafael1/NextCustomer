@@ -4,7 +4,7 @@ extends RefCounted
 ## draw77.js. Pure and static: the forward draw (draw, with the run's RNG) and the exact odds
 ## (MachineOdds, which never touches an RNG) share these steps.
 ##
-## Per visit: each drop rolls a rarity from the Regular level's weights (drop 1 may have a floor)
+## Per visit: each drop rolls a rarity from the odds level's weights (drop 1 may have a floor)
 ## and takes a prize of that rarity, uniform among the candidates: never a prize twice, and
 ## REGISTER never repeats a type. A rarity with no candidate steps down a tier, then up (the
 ## empty-tier fallback); none at all ends the draw short. Then the guarantee swap: if no drop is
@@ -71,7 +71,7 @@ static func guarantee(chute: int, context: MachineContext) -> Dictionary:
 	return found
 
 
-## The rarity weights drop `drop_index` rolls with at a Regular level.
+## The rarity weights drop `drop_index` rolls with at an odds level.
 static func weights(machine: MachineDefinition, level: int, drop_index: int) -> PackedInt32Array:
 	var odds: MachineOddsLevel = machine.odds_level(level)
 	if odds == null:

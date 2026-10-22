@@ -276,6 +276,8 @@ static func _run(seed_value: int) -> RunState:
 	balance.inspection_shifts = PackedInt32Array()
 	# No STAMP DAY: its forced register would add slots or redraws of its own.
 	MachineSteps.without_stamp_day(balance)
+	# Registers are taken after shift 2 (v0.47: only a BOOSTED visit lights REGISTER).
+	MachineSteps.boosted_on(balance, [2])
 	var deck: DeckDefinition = load(STARTER)
 	var run: RunState = RunState.new(seed_value, deck, balance, RunStock.starting(deck, balance))
 	run.start_shift()

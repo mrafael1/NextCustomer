@@ -3,11 +3,12 @@ extends Control
 ## The RECEIPT REWARDS machine's head plate (#77, look F; build spec 4.2): the mustard plate with
 ## "RECEIPT REWARDS" (Pixelify 24) and the look's sub line (bold Atkinson 10 caps), over a 4 px
 ## shadow, and the visit's head stamp: BONUS TICKET! (-4°, with the inspection passed, or
-## "shift n" for a bonus extra shift, under it) or STAMP DAY! (-5°), paper with a tomato-dark
-## double border. A stamp covers the title (no stray title letters around it). It blinks in and
-## lands from twice its size at the visit's start (reduced motion: at rest), and lifts once the
-## visit's landing is over (look F's head: the BONUS stamp until the punch's end + 0.6 s, the
-## STAMP DAY stamp until its landing + 0.6 s).
+## "shift n" for a bonus extra shift, under it), STAMP DAY! (-5°) or BOOSTED! (-5°, "REGISTER ·
+## UPGRADES" under it, landing as the keys light; v0.47), paper with a tomato-dark double border.
+## A stamp covers the title (no stray title letters around it). It blinks in and lands from
+## twice its size at the visit's start (reduced motion: at rest), and lifts once the visit's
+## landing is over (look F's head: the BONUS stamp until the punch's end + 0.6 s, the STAMP DAY
+## stamp until its landing + 0.6 s).
 
 const SIZE := Vector2(440, 54)
 const TITLE := "RECEIPT REWARDS"
@@ -31,6 +32,7 @@ const STAMP_TOP := 2.0
 const BONUS_TILT := -4.0
 const STAMP_DAY_TILT := -5.0
 const BONUS_TEXT := "BONUS TICKET!"
+const BOOSTED_TEXT := "BOOSTED!"
 ## Look F's stamp motion: it lands from STAMP_FROM x its size in MachineTuning.head_stamp_land_ms,
 ## blinks (on every other tenth of a second) for head_stamp_blink_ms, and lifts
 ## head_stamp_lift_ms after the punch's end (STAMP DAY: its landing).
@@ -78,7 +80,8 @@ func _init() -> void:
 	set_stamp("", "")
 
 
-## The head stamp ("BONUS TICKET!", "STAMP DAY!", or "" for none) and the line under it.
+## The head stamp ("BONUS TICKET!", "STAMP DAY!", "BOOSTED!", or "" for none) and the line under
+## it.
 func set_stamp(text: String, under: String) -> void:
 	_stamp_text = text
 	_under_text = under
@@ -159,7 +162,13 @@ func frame(t: float) -> void:
 	var landing: float = 1.0
 	var land_time: float = MachineTuning.sec(plan.tuning.head_stamp_land_ms)
 	var since: float = t
-	if plan.kind == MachineVisit.Kind.BONUS:
+	if _stamp_text == BOOSTED_TEXT:
+		# A BOOSTED visit's stamp lands as its keys light (the chutes it lights).
+		since = t - plan.lights
+		if since < 0.0:
+			_show_stamp(false, 1.0)
+			return
+	elif plan.kind == MachineVisit.Kind.BONUS:
 		# Machine v2: the BONUS stamp lands once the ticket is over the slot, from 2.2x, backed.
 		since = t - plan.fly_end
 		if since < 0.0:

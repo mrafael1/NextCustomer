@@ -38,6 +38,7 @@ func test_a_register_from_the_machine_stamps_the_loyalty_card() -> void:
 	var runner: GdUnitSceneRunner = scene_runner(SCREEN)
 	var screen: ShiftScreen = runner.scene()
 	var run: RunState = screen.run
+	MachineSteps.boost_run(run, [1])  # v0.47: only a BOOSTED visit lights REGISTER.
 	await _pass_shift(screen)
 	assert_bool(screen._machine.is_open()).is_true()
 	await _frames(2)

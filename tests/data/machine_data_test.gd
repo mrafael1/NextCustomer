@@ -109,15 +109,26 @@ func test_the_rarities_follow_the_approved_table_with_r3b() -> void:
 
 
 ## The shift lists fit the run: each is a shift with a visit after it (1 to shift count - 1), the
-## STAMP DAY floors match its shifts, and no shift has both a bonus visit and a STAMP DAY.
+## STAMP DAY floors match its shifts, and no shift has both a bonus visit and a STAMP DAY. The
+## BOOSTED shifts are 3, 5 and 7 (v0.47), and each shift's odds level is the approved one (1-2
+## level 0, 3-4 1, 5-6 2, 7 3), never falling and always a level there is.
 func test_the_shift_lists_fit_the_run() -> void:
 	var last: int = _balance.quotas.size() - 1
 	for shifts: PackedInt32Array in [
-		_machine.upgrades_open_shifts, _machine.stamp_day_shifts, _machine.bonus_extra_shifts
+		_machine.boosted_shifts, _machine.stamp_day_shifts, _machine.bonus_extra_shifts
 	]:
 		for shift_number: int in shifts:
 			assert_int(shift_number).is_between(1, last)
-	assert_array(Array(_machine.upgrades_open_shifts)).is_equal([3, 5, 7])
+	assert_array(Array(_machine.boosted_shifts)).is_equal([3, 5, 7])
+	var levels: Array[int] = []
+	for shift_number: int in range(1, last + 1):
+		levels.append(_machine.odds_level_after(shift_number))
+	assert_array(levels).is_equal([0, 0, 1, 1, 2, 2, 3])
+	for index: int in _machine.shift_odds_levels.size():
+		var level: int = _machine.shift_odds_levels[index]
+		assert_int(level).is_between(0, _machine.max_level())
+		if index > 0:
+			assert_int(level).is_greater_equal(_machine.shift_odds_levels[index - 1])
 	assert_array(Array(_machine.stamp_day_shifts)).is_equal([2, 4, 6])
 	assert_array(Array(_machine.stamp_day_floor)).is_equal([1, 2, 3])
 	assert_int(_machine.stamp_day_floor.size()).is_equal(_machine.stamp_day_shifts.size())

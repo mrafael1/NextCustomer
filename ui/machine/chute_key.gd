@@ -4,8 +4,10 @@ extends Control
 ## ink shadow with the chute's icon (28 px: the cart, a coupon slip, a stamp ring, an up arrow),
 ## its name (Pixelify 12) and what it does (bold Atkinson 8). Lit, it is paper with a mustard lip;
 ## idle, cream. A shut key is sunk, with a rubber face that says why in words, never by colour
-## alone: LOCKED_SHIFT a padlock and "OPENS AFTER SHIFT n", EMPTY a padlock and "NOTHING TO
-## IMPROVE", CARD_FULL the card's stamps and "CARD FULL". Hovering it asks for its odds card (no
+## alone: UNLIT a padlock and its visit state (REGISTER and UPGRADES on a Normal visit: "BOOSTED
+## AFTER SHIFT n", or "BOOSTED VISITS ONLY" with none left; NEW ITEMS and COUPONS on a BOOSTED
+## visit: "NORMAL VISITS ONLY"), EMPTY a padlock and "NOTHING TO IMPROVE", CARD_FULL the card's
+## stamps and "CARD FULL". Hovering it asks for its odds card (no
 ## hover sound, #62) and lifts it 2 px. During a STAMP DAY pick the REGISTER key carries a "SEE
 ## ODDS" tab. It only shows the RewardMachine.ChuteState it is given.
 ##
@@ -139,7 +141,8 @@ func _init(key_chute: int) -> void:
 	show_state(RewardMachine.ChuteState.OPEN, 0, true)
 
 
-## Shows the chute's state: `opens_after` is LOCKED_SHIFT's shift (0: no later shift); `is_lit`
+## Shows the chute's state: `opens_after` is an UNLIT REGISTER or UPGRADES key's next boosted
+## shift (0: none left); `is_lit`
 ## lights an open key (an unchosen key is idle once a chute is chosen, and on a bonus visit before
 ## the keys relight).
 func show_state(key_state: int, opens_after: int, is_lit: bool) -> void:
@@ -148,8 +151,7 @@ func show_state(key_state: int, opens_after: int, is_lit: bool) -> void:
 	var shut: bool = key_state != RewardMachine.ChuteState.OPEN
 	_shut.visible = shut
 	_padlock.visible = (
-		key_state == RewardMachine.ChuteState.LOCKED_SHIFT
-		or key_state == RewardMachine.ChuteState.EMPTY
+		key_state == RewardMachine.ChuteState.UNLIT or key_state == RewardMachine.ChuteState.EMPTY
 	)
 	_icon.visible = not shut
 	_stamps.visible = key_state == RewardMachine.ChuteState.CARD_FULL
@@ -157,9 +159,9 @@ func show_state(key_state: int, opens_after: int, is_lit: bool) -> void:
 	_reason.visible = shut
 	_name.add_theme_color_override("font_color", Palette.PAPER if shut else Palette.INK)
 	match key_state:
-		RewardMachine.ChuteState.LOCKED_SHIFT:
-			_sub.text = "OPENS AFTER SHIFT %d" % opens_after if opens_after > 0 else "CLOSED"
-			_reason.text = "OPENS AFTER\nSHIFT %d" % opens_after if opens_after > 0 else "CLOSED"
+		RewardMachine.ChuteState.UNLIT:
+			_sub.text = unlit_text(chute, opens_after, false)
+			_reason.text = unlit_text(chute, opens_after, true)
 		RewardMachine.ChuteState.CARD_FULL:
 			_sub.text = "CARD FULL"
 			_reason.text = "CARD FULL"
@@ -177,12 +179,23 @@ func show_state(key_state: int, opens_after: int, is_lit: bool) -> void:
 	_apply(is_lit, SINK if shut else 0.0)
 
 
+## Why an UNLIT key is shut, by its chute (`opens_after`: the next boosted shift, 0 for none),
+## on one line or (`wrapped`) on the rubber face's two.
+static func unlit_text(key_chute: int, opens_after: int, wrapped: bool) -> String:
+	var gap: String = "\n" if wrapped else " "
+	if not RewardMachine.BOOSTED_CHUTES.has(key_chute):
+		return "NORMAL%sVISITS ONLY" % gap
+	if opens_after > 0:
+		return "BOOSTED%sAFTER SHIFT %d" % [gap, opens_after]
+	return "BOOSTED%sVISITS ONLY" % gap
+
+
 ## Shows or hides the STAMP DAY "SEE ODDS" tab.
 func set_tab(shown: bool) -> void:
 	_tab.visible = shown
 
 
-## The key's sub line ("ADD TO CART", "OPENS AFTER SHIFT 3", ...), for tests.
+## The key's sub line ("ADD TO CART", "BOOSTED AFTER SHIFT 3", ...), for tests.
 func sub_text() -> String:
 	return _sub.text
 

@@ -204,7 +204,7 @@ func set_inspection(inspection_id: String) -> void:
 	_screen._on_shift_started()
 
 
-## Jumps to a shift (1-based) and starts it; a machine visit on screen closes, its levels kept
+## Jumps to a shift (1-based) and starts it; a machine visit on screen closes
 ## (RunState.debug_skip_to_shift).
 func skip_to_shift(shift_number: int) -> void:
 	if _screen._busy():

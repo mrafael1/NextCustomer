@@ -108,7 +108,7 @@ func test_conditions_read_as_text_and_report_problems() -> void:
 
 
 func test_a_starting_upgrade_is_owned_from_the_first_shift() -> void:
-	var run: RunState = _run_with_deck(56, _deck_with_upgrade(EXTRA_REDRAW))
+	var run: RunState = _run_with_deck(56, _deck_with_upgrade(EXTRA_REDRAW), [2])
 	assert_array(run.upgrades).is_equal([load(EXTRA_REDRAW)])
 	assert_int(run.redraws_allowed).is_equal(3)
 	# The REGISTER chute never drops it, as any owned upgrade.
@@ -195,8 +195,13 @@ static func _run(seed_value: int) -> RunState:
 	return _run_with_deck(seed_value, load(STARTER))
 
 
-static func _run_with_deck(seed_value: int, deck: DeckDefinition) -> RunState:
+## `boosted`: the shifts whose ticket visit is BOOSTED instead of the data's (v0.47), or none.
+static func _run_with_deck(
+	seed_value: int, deck: DeckDefinition, boosted: Array[int] = []
+) -> RunState:
 	var balance: BalanceDefinition = _low_quotas()
+	if not boosted.is_empty():
+		MachineSteps.boosted_on(balance, boosted)
 	var run: RunState = RunState.new(seed_value, deck, balance, RunStock.starting(deck, balance))
 	run.start_shift()
 	return run

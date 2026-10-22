@@ -107,7 +107,6 @@ var pick_at: float = NOT_SET
 var has_landing: bool = false
 var landing: int = Landing.NEW_CARD
 var copies: int = 1
-var rises: bool = false
 var next_visit: int = NO_VISIT
 var press: float = NOT_SET
 var fly_out: float = NOT_SET
@@ -148,15 +147,11 @@ func set_draw(prize_rarities: Array[int]) -> void:
 	_build()
 
 
-## The pick (or the bin) is made: what landed, how many copies an UPGRADES pick changed, whether
-## the chute's Regular meter rose (the punch plays only then; the times stay the same), and the
+## The pick (or the bin) is made: what landed, how many copies an UPGRADES pick changed, and the
 ## next visit's MachineVisit.Kind (NO_VISIT: the shift's last visit).
-func set_landing(
-	landing_kind: int, upgraded_copies: int, meter_rises: bool, next_kind: int
-) -> void:
+func set_landing(landing_kind: int, upgraded_copies: int, next_kind: int) -> void:
 	landing = landing_kind
 	copies = maxi(1, upgraded_copies)
-	rises = meter_rises
 	next_visit = next_kind
 	has_landing = true
 	_build()
@@ -178,7 +173,7 @@ func resume_at(point: int) -> MachinePlan:
 	if has_draw:
 		copy.set_draw(rarities)
 	if has_landing:
-		copy.set_landing(landing, copies, rises, next_visit)
+		copy.set_landing(landing, copies, next_visit)
 	copy.resumed = true
 	copy.start = maxf(0.0, copy.wait_time(point))
 	return copy
@@ -581,12 +576,11 @@ func _build_landing() -> void:
 	else:
 		end_at = punch_end + MachineTuning.seconds(tuning.end_hold_ms, kind)
 	_beat(&"pick", press)
-	if rises and not stamp_day:
-		_beat(&"punch", punch)
 	_beat(&"restock", restock[0])
 
 
-## The punch: after the landing (a new card, a register stamp) or the glint's end (UPGRADES);
+## The settle after the landing (`punch`, where the Regular meter's punch played until v0.47; its
+## times stay): after the landing (a new card, a register stamp) or the glint's end (UPGRADES);
 ## STAMP DAY has none (its time is the landing's).
 func _punch_time() -> float:
 	if kind == MachineVisit.Kind.STAMP_DAY:

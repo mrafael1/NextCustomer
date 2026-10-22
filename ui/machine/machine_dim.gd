@@ -45,18 +45,13 @@ static func idle_mouse(machine: Control, idle: bool) -> void:
 
 
 ## The machine's parts at rest: its head plain, its keys cream and unlit with nothing pressed,
-## its meters at `run_state`'s levels (none: as they are), its display blank, its slip put away.
-static func rest_parts(view: RewardMachineView, run_state: RunState) -> void:
+## its display blank, its slip put away (`_run_state`: the run it showed, or null).
+static func rest_parts(view: RewardMachineView, _run_state: RunState) -> void:
 	view.head.set_stamp("", "")
 	for key: ChuteKey in view.keys:
 		key.show_state(RewardMachine.ChuteState.OPEN, 0, false)
 		key.set_tab(false)
 		key.set_pressed(false)
-	if run_state != null:
-		for chute: int in RewardMachine.CHUTES:
-			view.meters[chute].show_level(
-				run_state.machine.level(chute), run_state.machine.machine.max_level()
-			)
 	view.display.set_bin(false, false)
 	view.display.show_message("", "")
 	view.slip.rest()

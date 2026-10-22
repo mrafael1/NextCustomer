@@ -3,7 +3,7 @@ extends GdUnitTestSuite
 ## memory: UI tests check layout, on-screen geometry): on the real shift screen, with the camera at
 ## the machine (#77 machine v2), the machine and its RESTOCK hood sit at MACHINE_RECT and
 ## MACHINE_HOOD_RECT inside the stage, right of the register column; the head sits over the
-## cabinet and every other part (slot, display, keys, meters, stockroom window, order slip, YOUR
+## cabinet and every other part (slot, display, keys, stockroom window, order slip, YOUR
 ## ORDER plate, belt, box lane) inside it. The prize tickets sit in the tray cells (a short draw
 ## uses the centre cell for one prize, the left and centre cells for two), their rarity tabs above
 ## them inside the tray's x range, clear of the hood. Each chute's odds card (and the bonus
@@ -83,7 +83,6 @@ func test_the_machine_sits_beside_the_register_inside_the_stage() -> void:
 		view.box_lane
 	]
 	parts.append_array(view.keys)
-	parts.append_array(view.meters)
 	for part: Control in parts:
 		(
 			assert_bool(machine.encloses(part.get_global_rect()))
@@ -190,17 +189,17 @@ func test_the_order_plate_stays_under_the_tabs_through_the_landing() -> void:
 	var common: int = MachinePrize.Rarity.COMMON
 	var plan: MachinePlan = MachinePlan.new(tuning, MachineVisit.Kind.TICKET, false)
 	plan.set_draw([common, MachinePrize.Rarity.RARE, MachinePrize.Rarity.LEGENDARY])
-	plan.set_landing(MachinePlan.Landing.NEW_CARD, 0, true, MachinePlan.NO_VISIT)
+	plan.set_landing(MachinePlan.Landing.NEW_CARD, 0, MachinePlan.NO_VISIT)
 	for t: float in [plan.press, plan.land, plan.punch, plan.end_at]:
 		assert_bool(OrderPlate.hidden_at(plan, t)).override_failure_message(str(t)).is_true()
 	var lone: MachinePlan = MachinePlan.new(tuning, MachineVisit.Kind.TICKET, false)
 	lone.set_draw([common])
-	lone.set_landing(MachinePlan.Landing.NEW_CARD, 0, true, MachinePlan.NO_VISIT)
+	lone.set_landing(MachinePlan.Landing.NEW_CARD, 0, MachinePlan.NO_VISIT)
 	assert_bool(OrderPlate.hidden_at(lone, lone.press)).is_true()
 	assert_bool(OrderPlate.hidden_at(lone, lone.fly_out + OrderPlate.HIDE_TAIL_S + 0.01)).is_false()
 	var binned: MachinePlan = MachinePlan.new(tuning, MachineVisit.Kind.TICKET, false)
 	binned.set_draw([common, common, common])
-	binned.set_landing(MachinePlan.Landing.BIN, 1, false, MachinePlan.NO_VISIT)
+	binned.set_landing(MachinePlan.Landing.BIN, 1, MachinePlan.NO_VISIT)
 	(
 		assert_bool(OrderPlate.hidden_at(binned, binned.press + OrderPlate.HIDE_TAIL_S + 0.01))
 		. is_false()

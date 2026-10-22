@@ -48,9 +48,6 @@ var _names: Array[Label] = []
 var _percents: Array[Label] = []
 var _tail_x: float = WIDTH / 2.0
 var _opened_at: float = 0.0
-## The next visit's per-drop shares as last seen per chute ("40% / 45% / 15%"), for the display's
-## REGULAR line after the pick.
-var _next_shares: Dictionary[int, String] = {}
 
 
 func _init() -> void:
@@ -116,7 +113,6 @@ func show_card(card_chute: int, info: MachineChuteInfo, key_rect: Rect2) -> void
 		var share: float = shares[rarity] if rarity < shares.size() else 0.0
 		_percents[rarity].text = whole_pct(share)
 		_rows[rarity].modulate.a = ZERO_ALPHA if share == 0.0 else 1.0
-	remember(card_chute, info)
 	var parent_width: float = RewardMachineView.SIZE.x
 	position = place_for(key_rect, parent_width)
 	_tail_x = clampf(
@@ -127,17 +123,6 @@ func show_card(card_chute: int, info: MachineChuteInfo, key_rect: Rect2) -> void
 	_opened_at = view.idle_time if view != null else 0.0
 	_pop(1.0 if _instant() else 0.0)
 	queue_redraw()
-
-
-## Keeps `info`'s next-visit shares for `card_chute` (the display's line after the pick).
-func remember(card_chute: int, info: MachineChuteInfo) -> void:
-	if info.odds.meter_rises:
-		_next_shares[card_chute] = _shares_text(info.odds.next_rarity_share)
-
-
-## The next visit's per-drop shares last seen for `card_chute` ("40% / 45% / 15%"), or "".
-func next_share_text(card_chute: int) -> String:
-	return _next_shares.get(card_chute, "")
 
 
 ## The rows' texts, top to bottom: [name, percent] each, for tests.
@@ -202,13 +187,6 @@ func _pop(p: float) -> void:
 	var eased: float = 1.0 - (1.0 - p) * (1.0 - p)
 	scale = Vector2.ONE * lerpf(POP_FROM, 1.0, eased)
 	modulate.a = eased
-
-
-static func _shares_text(shares: PackedFloat64Array) -> String:
-	var parts: PackedStringArray = PackedStringArray()
-	for share: float in shares:
-		parts.append(whole_pct(share))
-	return " / ".join(parts)
 
 
 static func _row_label(text: String, font_size: int, rarity: int) -> Label:

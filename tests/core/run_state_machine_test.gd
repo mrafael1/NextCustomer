@@ -1,6 +1,7 @@
 extends GdUnitTestSuite
 ## RunState's phases around the RECEIPT REWARDS machine (#77): MACHINE_CHOOSE and MACHINE_PICK
-## follow the machine's stage, SCORED ends the shift's visits, and a debug jump clears them.
+## follow the machine's stage, SCORED ends the shift's visits, a visit with nothing to draw is
+## skipped, and a debug jump clears them.
 
 const STARTER := "res://data/decks/starter.tres"
 const BALANCE := "res://data/balance/balance.tres"
@@ -37,6 +38,36 @@ func test_the_machine_phases_follow_the_visits() -> void:
 		assert_int(jumped.machine.stage).is_equal(RewardMachine.Stage.IDLE)
 		assert_object(jumped.machine.current_visit()).is_null()
 		assert_int(jumped.shift_index).is_equal(3)
+
+
+## A visit none of whose lit chutes can draw is skipped, as there is no lit key to wait on (live
+## data never gives one): a Normal ticket visit with no products and no coupons ends the shift's
+## visits at once (SCORED); with a BONUS visit and STAMP DAY queued, the BONUS visit (Normal too)
+## is skipped and STAMP DAY's pick waits (MACHINE_PICK).
+func test_a_visit_with_nothing_to_draw_is_skipped() -> void:
+	var none: Array[CardDefinition] = []
+	var bare: BalanceDefinition = (load(BALANCE) as BalanceDefinition).duplicate()
+	bare.coupon_pool = none
+	var queued: MachineDefinition = bare.machine.duplicate() as MachineDefinition
+	queued.bonus_extra_shifts = PackedInt32Array([1])
+	queued.stamp_day_shifts = PackedInt32Array([1])
+	queued.stamp_day_floor = PackedInt32Array([1])
+	for with_queue: bool in [false, true]:
+		var run: RunState = _run(15)
+		run.balance = bare
+		run.stock.cards = none
+		if with_queue:
+			run.machine.machine = queued
+		_pass_with_milks(run)
+		assert_array(run.machine.pending_kinds()).is_empty()
+		if not with_queue:
+			assert_int(run.phase).is_equal(RunState.Phase.SCORED)
+			assert_int(run.machine.stage).is_equal(RewardMachine.Stage.IDLE)
+			assert_object(run.machine.current_visit()).is_null()
+			assert_bool(run.next_shift()).is_true()
+			continue
+		assert_int(run.phase).is_equal(RunState.Phase.MACHINE_PICK)
+		assert_int(run.machine.current_visit().kind).is_equal(MachineVisit.Kind.STAMP_DAY)
 
 
 static func _run(seed_value: int) -> RunState:

@@ -144,8 +144,8 @@ func test_the_return_glide_follows_the_tuning() -> void:
 	assert_float(length).is_greater_equal(glide)
 
 
-## The first visit ends where the next one starts: the BONUS TICKET 0.3 s after the punch, STAMP
-## DAY 0.5 s after it (the page's b0 and T.sd).
+## The first visit ends where the next one starts: the BONUS TICKET 0.3 s after the landing's
+## settle (`punch`), STAMP DAY 0.5 s after it (the page's b0 and T.sd).
 func test_the_first_visit_hands_over_to_the_next() -> void:
 	var bonus_page: Dictionary = _page("bonus_new")
 	var plan: MachinePlan = _ticket("bonus_new", BONUS)
@@ -279,8 +279,8 @@ func test_resume_at_starts_at_each_wait_point() -> void:
 	_near(choosing.resume_at(MachinePlan.WaitPoint.CHOOSE).start, choosing.choose_at, "choose")
 
 
-## The beats come in time order; a planned time never moves when the plan grows; the punch
-## beat is there only when the meter rises.
+## The beats come in time order; a planned time never moves when the plan grows; there is no
+## punch beat (v0.47: the Regular meter is gone, its settle time stays).
 func test_beats_are_ordered_and_grow_with_the_visit() -> void:
 	var plan: MachinePlan = MachinePlan.new(_tuning(), TICKET, false)
 	assert_array(plan.beat_names()).is_equal([&"feed", &"glide", &"read", &"lights"])
@@ -290,14 +290,12 @@ func test_beats_are_ordered_and_grow_with_the_visit() -> void:
 	assert_array(plan.beats_between(choose, plan.pick_at)).is_equal(
 		[&"draw", &"packed", &"reveal_0", &"reveal_1", &"reveal_2"]
 	)
-	plan.set_landing(MachinePlan.Landing.NEW_CARD, 1, false, MachinePlan.NO_VISIT)
+	plan.set_landing(MachinePlan.Landing.NEW_CARD, 1, MachinePlan.NO_VISIT)
 	assert_array(plan.beats_between(plan.pick_at - 0.001, plan.end_at)).is_equal(
 		[&"pick", &"land", &"restock"]
 	)
-	plan.set_landing(MachinePlan.Landing.NEW_CARD, 1, true, MachinePlan.NO_VISIT)
-	assert_array(plan.beats_between(plan.pick_at - 0.001, plan.end_at)).is_equal(
-		[&"pick", &"land", &"punch", &"restock"]
-	)
+	assert_float(plan.beat_time(&"punch")).is_equal(MachinePlan.NOT_SET)
+	assert_float(plan.punch).is_greater(plan.land)
 	var times: Array[float] = []
 	for beat_name: StringName in plan.beat_names():
 		times.append(plan.beat_time(beat_name))
@@ -306,14 +304,14 @@ func test_beats_are_ordered_and_grow_with_the_visit() -> void:
 	assert_array(times).is_equal(sorted)
 
 
-## A binned draw has no flight and no landing beat: its punch follows the bin press.
-func test_a_bin_punches_after_the_press() -> void:
+## A binned draw has no flight and no landing beat: its settle (`punch`) follows the bin press.
+func test_a_bin_settles_after_the_press() -> void:
 	var plan: MachinePlan = MachinePlan.new(_tuning(), TICKET, false)
 	plan.set_draw([0, 1, 2] as Array[int])
-	plan.set_landing(MachinePlan.Landing.BIN, 1, true, MachinePlan.NO_VISIT)
+	plan.set_landing(MachinePlan.Landing.BIN, 1, MachinePlan.NO_VISIT)
 	_near(plan.punch, plan.pick_at + MachineTuning.sec(plan.tuning.punch_bin_ms), "punch")
 	assert_float(plan.beat_time(&"land")).is_equal(MachinePlan.NOT_SET)
-	assert_float(plan.beat_time(&"punch")).is_greater(plan.pick_at)
+	assert_float(plan.beat_time(&"punch")).is_equal(MachinePlan.NOT_SET)
 	# Nothing lands in the cart drawer or glints on a bin.
 	assert_float(plan.drawer_in).is_equal(MachinePlan.NOT_SET)
 	assert_float(plan.drawer_out).is_equal(MachinePlan.NOT_SET)
@@ -356,7 +354,7 @@ func _plan(
 		landing = MachinePlan.Landing.NEW_CARD
 	elif entry["drawer"] == "up":
 		landing = MachinePlan.Landing.UPGRADE
-	plan.set_landing(landing, int(entry["copies"]), true, next_kind)
+	plan.set_landing(landing, int(entry["copies"]), next_kind)
 	return plan
 
 

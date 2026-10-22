@@ -165,7 +165,6 @@ func play(run_seed: int) -> SimRunRecord:
 		if card.definition.tier != CardDefinition.Tier.PLAIN:
 			record.tier_copies[id] = record.tier_copies.get(id, 0) + 1
 	record.registers = run.machine.registers_picked(run)
-	record.levels = run.machine.levels.duplicate()
 	var final_cards: Array[CardDefinition] = _deck_definitions(run.deck.cards)
 	record.main_build = _builds.main_build(final_cards)
 	record.fitted_builds = _builds.fitted(final_cards)
