@@ -18,9 +18,11 @@ func test_every_conditional_card_fizzles_alone() -> void:
 		assert_int(fizzles[0].value).is_equal(0)
 		assert_int(result.total).override_failure_message(card.id).is_equal(card.base)
 		checked += 1
-	# Every card on those two rules today: the 26 adjacency and 10 earlier-tag cards, the
-	# item tiers among them (#77: Banana and Milk BIG and GOLDEN fizzle like their base).
-	assert_int(checked).is_equal(36)
+	# Every card on those two rules today: the 42 adjacency and 14 earlier-tag cards, the
+	# item tiers among them (#77: Banana and Milk; v0.48: Cheese, Frozen peas, Butter, Yogurt,
+	# Reduced yogurt, Cereal, Crackers, Day-old buns, Dented can and Carrier bag, BIG and
+	# GOLDEN fizzle like their base).
+	assert_int(checked).is_equal(56)
 
 
 func test_no_fizzle_once_the_condition_is_met() -> void:

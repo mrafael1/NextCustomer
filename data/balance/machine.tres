@@ -36,6 +36,22 @@
 [ext_resource type="Resource" path="res://data/item_upgrades/milk.tres" id="i_milk"]
 [ext_resource type="Resource" path="res://data/item_upgrades/eggs.tres" id="i_eggs"]
 [ext_resource type="Resource" path="res://data/item_upgrades/coffee.tres" id="i_coffee"]
+[ext_resource type="Resource" path="res://data/item_upgrades/bread.tres" id="i_bread"]
+[ext_resource type="Resource" path="res://data/item_upgrades/soup.tres" id="i_soup"]
+[ext_resource type="Resource" path="res://data/item_upgrades/cheese.tres" id="i_cheese"]
+[ext_resource type="Resource" path="res://data/item_upgrades/frozen_peas.tres" id="i_frozen_peas"]
+[ext_resource type="Resource" path="res://data/item_upgrades/butter.tres" id="i_butter"]
+[ext_resource type="Resource" path="res://data/item_upgrades/yogurt.tres" id="i_yogurt"]
+[ext_resource type="Resource" path="res://data/item_upgrades/reduced_yogurt.tres" id="i_reduced_yogurt"]
+[ext_resource type="Resource" path="res://data/item_upgrades/cereal.tres" id="i_cereal"]
+[ext_resource type="Resource" path="res://data/item_upgrades/tea_bags.tres" id="i_tea_bags"]
+[ext_resource type="Resource" path="res://data/item_upgrades/crackers.tres" id="i_crackers"]
+[ext_resource type="Resource" path="res://data/item_upgrades/dented_can.tres" id="i_dented_can"]
+[ext_resource type="Resource" path="res://data/item_upgrades/day_old_buns.tres" id="i_day_old_buns"]
+[ext_resource type="Resource" path="res://data/item_upgrades/carrier_bag.tres" id="i_carrier_bag"]
+[ext_resource type="Resource" path="res://data/item_upgrades/scissors.tres" id="i_scissors"]
+[ext_resource type="Resource" path="res://data/item_upgrades/batteries.tres" id="i_batteries"]
+[ext_resource type="Resource" path="res://data/item_upgrades/flickering_bulb.tres" id="i_flickering_bulb"]
 
 [sub_resource type="Resource" id="level_0"]
 script = ExtResource("2_odds_level")
@@ -79,4 +95,4 @@ stamp_day_floor = PackedInt32Array(1, 2, 3)
 bonus_after_inspection = true
 new_arrival_first_visit = true
 shelf_min_copies = 2
-item_upgrades = Array[ExtResource("5_item_upgrade")]([ExtResource("i_banana"), ExtResource("i_milk"), ExtResource("i_eggs"), ExtResource("i_coffee")])
+item_upgrades = Array[ExtResource("5_item_upgrade")]([ExtResource("i_banana"), ExtResource("i_milk"), ExtResource("i_eggs"), ExtResource("i_coffee"), ExtResource("i_bread"), ExtResource("i_soup"), ExtResource("i_cheese"), ExtResource("i_frozen_peas"), ExtResource("i_butter"), ExtResource("i_yogurt"), ExtResource("i_reduced_yogurt"), ExtResource("i_cereal"), ExtResource("i_tea_bags"), ExtResource("i_crackers"), ExtResource("i_dented_can"), ExtResource("i_day_old_buns"), ExtResource("i_carrier_bag"), ExtResource("i_scissors"), ExtResource("i_batteries"), ExtResource("i_flickering_bulb")])

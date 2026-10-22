@@ -122,8 +122,9 @@ func test_base_products_fizzle(
 	assert_array(fizzles).is_equal(expected)
 
 
-## 59 cards, plus the 8 item tiers (#77: BIG and GOLDEN Banana, Milk, Eggs and Coffee).
-func test_all_sixty_seven_cards_exist() -> void:
+## 59 cards, plus the 40 item tiers: BIG and GOLDEN Banana, Milk, Eggs and Coffee (#77), and
+## Bread, Soup and the 14 base aisle items (v0.48).
+func test_all_ninety_nine_cards_exist() -> void:
 	var ids: Array = []
 	var tiers: int = 0
 	for file: String in DirAccess.get_files_at(CARDS_DIR):
@@ -132,8 +133,8 @@ func test_all_sixty_seven_cards_exist() -> void:
 			ids.append(card.id)
 			if card.tier != CardDefinition.Tier.PLAIN:
 				tiers += 1
-	assert_int(ids.size()).is_equal(67)
-	assert_int(tiers).is_equal(8)
+	assert_int(ids.size()).is_equal(99)
+	assert_int(tiers).is_equal(40)
 
 
 ## Every card has a price-sticker template (#75); only a card with no rule has an empty one (its
@@ -143,7 +144,7 @@ func test_every_card_has_a_digit_free_sticker_template() -> void:
 	var ordinal: RegEx = RegEx.create_from_string(ORDINAL)
 	var digit: RegEx = RegEx.create_from_string("\\d")
 	var cards: Array[CardDefinition] = _all_cards()
-	assert_int(cards.size()).is_equal(67)
+	assert_int(cards.size()).is_equal(99)
 	for card: CardDefinition in cards:
 		var template: String = CardText.sticker_template(card)
 		var message: String = '%s: "%s"' % [card.id, template]
@@ -218,12 +219,13 @@ func test_stickers_show_every_rule_value() -> void:
 				elif _is_set(key, rule.get(key)):
 					assert_bool(shows).override_failure_message(message + " " + key).is_true()
 	# Cheese, Crisps, Breadsticks, Cereal, Chipped mug, Crackers, Egg timer, Soft tomatoes, Sugar
-	# cubes and Yogurt.
-	assert_int(named_products).is_equal(10)
+	# cubes and Yogurt, plus the BIG and GOLDEN Cheese, Cereal, Crackers and Yogurt (v0.48).
+	assert_int(named_products).is_equal(18)
 
 
 ## A charged multiplier's sticker says "next": with one charge that is the next product, so the
-## sticker names no count; one with more charges (Golden Eggs, #77) names `{charges}`.
+## sticker names no count; one with more charges (Golden Eggs, #77; Golden Tea bags, v0.48) names
+## `{charges}`.
 func test_charged_multipliers_with_more_charges_name_them() -> void:
 	var several: int = 0
 	for card: CardDefinition in _all_cards():
@@ -237,7 +239,7 @@ func test_charged_multipliers_with_more_charges_name_them() -> void:
 			if charged.charges > 1:
 				assert_str(template).override_failure_message(message).contains("{charges}")
 				several += 1
-	assert_int(several).is_equal(1)
+	assert_int(several).is_equal(2)
 
 
 ## Every art_ref names art drawn for an item (#75, decision 3A: 48x48 at 2x everywhere): a
@@ -262,9 +264,9 @@ func test_every_art_ref_is_item_art() -> void:
 			Vector2(expected)
 		)
 		drawn += 1
-	# The 10 products and 2 coupon icons drawn for style frame v2, the 8 item tiers (#77) and
-	# #57's 13 products.
-	assert_int(drawn).is_equal(33)
+	# The 10 products and 2 coupon icons drawn for style frame v2, the 8 item tiers (#77),
+	# #57's 13 products and the 32 tiers of Bread, Soup and the 14 base aisle items (#99, v0.48).
+	assert_int(drawn).is_equal(65)
 
 
 ## The 20 products a new profile stocks (#57), read from data/: the starter deck's products and

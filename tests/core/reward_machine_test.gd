@@ -421,7 +421,7 @@ func test_upgrades_is_locked_off_shift_and_empty_with_nothing_to_improve() -> vo
 	var golden: RunState = _run()
 	golden.deck = Deck.new(RandomNumberGenerator.new())
 	golden.deck.add_card(load("%s/eggs_golden.tres" % CARDS_DIR))
-	golden.deck.add_card(load("%s/bread.tres" % CARDS_DIR))
+	golden.deck.add_card(load("%s/croissant.tres" % CARDS_DIR))
 	var golden_machine: RewardMachine = _machine()
 	_pass(golden, golden_machine, 3)
 	assert_int(golden_machine.chute_info(golden, upgrades).state).is_equal(

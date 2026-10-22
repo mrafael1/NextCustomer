@@ -128,12 +128,39 @@ func test_the_shift_lists_fit_the_run() -> void:
 	assert_int(_machine.stamp_floor(3)).is_equal(0)
 
 
-## The UPGRADES chute upgrades the four live chains.
+## The UPGRADES chute upgrades the live chains: the starter's 4 (#77), then Bread, Soup and the
+## 14 base aisle items (v0.48).
 func test_the_machine_upgrades_the_live_chains() -> void:
 	var products: Array[String] = []
 	for chain: ItemUpgradeDefinition in _machine.item_upgrades:
 		products.append(String(chain.product.id))
-	assert_array(products).is_equal(["banana", "milk", "eggs", "coffee"])
+	(
+		assert_array(products)
+		. is_equal(
+			[
+				"banana",
+				"milk",
+				"eggs",
+				"coffee",
+				"bread",
+				"soup",
+				"cheese",
+				"frozen_peas",
+				"butter",
+				"yogurt",
+				"reduced_yogurt",
+				"cereal",
+				"tea_bags",
+				"crackers",
+				"dented_can",
+				"day_old_buns",
+				"carrier_bag",
+				"scissors",
+				"batteries",
+				"flickering_bulb",
+			]
+		)
+	)
 
 
 ## The machine v2 tempo (#77, Q1 = A, Q2 = 2): data/balance/machine_tempo.tres sets the camera
