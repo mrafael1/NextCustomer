@@ -10,6 +10,8 @@ func test_fizzles(
 	row: String,
 	expected: Array,
 	_test_parameters := [
+		# Since #45 a conditional card whose condition fails fizzles too, but a Banana pair's
+		# first Banana does not: only a lone Banana (no Banana beside it) is WASTED.
 		["eggs,bread,cheese,banana,banana,repeat", []],
 		["bread,coffee", [[1, 1, "Coffee bonus", "no Breakfast product after it"]]],
 		["eggs,bread", [[0, 0, "Eggs ×2", "1 charge unused"]]],
@@ -26,6 +28,7 @@ func test_fizzles(
 			[
 				[0, 0, "Breakfast sticker", "no product in the next slot"],
 				[1, 1, "Repeat", "no product just before it to copy"],
+				[2, 2, "Banana pair", "no Banana beside it"],
 			]
 		],
 		["breakfast_sticker", [[0, 0, "Breakfast sticker", "no product in the next slot"]]],
@@ -42,6 +45,7 @@ func test_fizzles(
 			[
 				[1, 1, "Bundle", "no product on both sides"],
 				[2, 2, "Bundle", "no product on both sides"],
+				[0, 0, "Banana pair", "no Banana beside it"],
 			]
 		],
 		["banana,bundle,banana", []],
@@ -49,6 +53,7 @@ func test_fizzles(
 		[
 			"coffee,multipack,banana",
 			[
+				[2, 2, "Banana pair", "no Banana beside it"],
 				[0, 0, "Coffee bonus", "no Breakfast product after it"],
 				[1, 1, "Multipack ×2", "no later product shared a tag"],
 			]
@@ -57,7 +62,7 @@ func test_fizzles(
 		["final_markdown,bread", [[0, 0, "Final markdown", "not in the last slot"]]],
 		["bread,final_markdown", []],
 		["repeat", [[0, 0, "Repeat", "no product just before it to copy"]]],
-		["frozen_peas,soup,repeat", []],
+		["frozen_peas,soup,repeat", [[0, 0, "Frozen pair", "no Frozen product beside it"]]],
 	]
 ) -> void:
 	var result: ScoreResult = Scoring.score(_row(row))
@@ -105,6 +110,7 @@ func test_fizzle_order(
 				"WASTED 1",
 				"BASE 2",
 				"PAYOUT 2",
+				"WASTED 2",
 			]
 		],
 		[
@@ -123,6 +129,7 @@ func test_fizzle_order(
 				"EFFECT_ARMED 1",
 				"BASE 2",
 				"PAYOUT 2",
+				"WASTED 2",
 				"WASTED 0",
 				"WASTED 1",
 			]

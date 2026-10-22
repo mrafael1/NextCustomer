@@ -97,14 +97,12 @@ func test_coupon_engine_fizzles_on_a_first_coupon_that_pays_nothing(
 	assert_object(block[-1]).override_failure_message(row).is_same(fizzle)
 
 
-## With no coupon in the row there is nothing to fizzle on: no step, the same result.
-func test_coupon_engine_without_a_coupon_has_no_step() -> void:
+## With no coupon in the row its condition is never met: since #45 it fizzles once, on the row's
+## last slot, after every other step; everything else is the result without it.
+func test_coupon_engine_without_a_coupon_fizzles_once() -> void:
 	for ids: String in ["bread,cheese", "eggs,bread,milk", "soup,frozen_peas"]:
 		var result: ScoreResult = _score(ids, [_coupon_engine()])
-		assert_array(_upgrade_steps(result)).override_failure_message(ids).is_empty()
-		assert_array(_as_data(result)).override_failure_message(ids).is_equal(
-			_as_data(_score(ids, []))
-		)
+		_assert_one_row_fizzle(result, _score(ids, []), ids, "no coupon in the row")
 
 
 ## Only the first coupon pays x2; a later Final markdown keeps its +6.
@@ -166,13 +164,12 @@ func test_category_engine_bonus_on_soup_is_spent() -> void:
 	assert_int(steps[0].value).is_equal(9)
 
 
-func test_category_engine_without_products_has_no_step() -> void:
+## With no product in the row it has nothing to pay on: since #45 it fizzles once, on the row's
+## last slot, after every other step; everything else is the result without it.
+func test_category_engine_without_products_fizzles_once() -> void:
 	for ids: String in ["repeat,final_markdown", "breakfast_sticker", "multipack,repeat"]:
 		var result: ScoreResult = _score(ids, [_category_engine()])
-		assert_array(_upgrade_steps(result)).override_failure_message(ids).is_empty()
-		assert_array(_as_data(result)).override_failure_message(ids).is_equal(
-			_as_data(_score(ids, []))
-		)
+		_assert_one_row_fizzle(result, _score(ids, []), ids, "no product in the row")
 
 
 # --- Stacking and sources ------------------------------------------------------------------
@@ -412,6 +409,29 @@ static func _effect_steps(result: ScoreResult) -> Array:
 		if armed or card_waste:
 			data.append([step.step_type, step.slot, step.source_slot, step.value, step.reason])
 	return data
+
+
+## `result` is `plain` (the same row without the upgrade) plus one last step: the upgrade's
+## WASTED step on the row's last slot, worth 0, carrying that slot's payout, with `reason`.
+func _assert_one_row_fizzle(
+	result: ScoreResult, plain: ScoreResult, ids: String, reason: String
+) -> void:
+	var steps: Array[ScoreStep] = _upgrade_steps(result)
+	assert_array(steps).override_failure_message(ids).has_size(1)
+	if steps.size() != 1:
+		return
+	var fizzle: ScoreStep = steps[0]
+	var last: int = result.payouts.size() - 1
+	assert_object(result.steps[-1]).override_failure_message(ids).is_same(fizzle)
+	assert_int(fizzle.step_type).is_equal(ScoreStep.StepType.WASTED)
+	assert_int(fizzle.slot).override_failure_message(ids).is_equal(last)
+	assert_int(fizzle.source_index).is_equal(0)
+	assert_int(fizzle.value).is_equal(0)
+	assert_int(fizzle.value_after).is_equal(result.payouts[last])
+	assert_str(fizzle.reason).override_failure_message(ids).is_equal(reason)
+	var without: Array = _as_data(result)
+	without.remove_at(without.size() - 2)
+	assert_array(without).override_failure_message(ids).is_equal(_as_data(plain))
 
 
 static func _as_data(result: ScoreResult) -> Array:

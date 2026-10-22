@@ -11,6 +11,11 @@ extends RefCounted
 
 enum Kind { BONUS, STAMP, COPY, DENIED, FIZZLE, ARMED }
 
+## The one word every WASTED step shows (#45, decided with the user): a FIZZLE's sticker on the
+## belt and in the scanner bay, the count-up's puff, the receipt's and monitor's fizzle lines and
+## the receipt's count ("2 WASTED"). A failed condition and a wasted effect read the same.
+const WASTED_WORD := "WASTED"
+
 var kind: Kind = Kind.BONUS
 ## The slot the effect shows on: the step's `slot` (ARMED: the arming card).
 var target_slot: int = -1
@@ -28,7 +33,7 @@ var step_index: int = -1
 var armed_step: int = -1
 ## The step's value: the amount, the factor, the copied or overridden payout, the armed value.
 var value: int = 0
-## Short wording: "+3", "×3", "=€6", "€0", "pfff"; ARMED: its first landing's "×3" or "+3", or
+## Short wording: "+3", "×3", "=€6", "€0", WASTED_WORD; ARMED: its first landing's "×3" or "+3", or
 ## the effect's receipt text without a landing (as the count-up's pip).
 var token: String = ""
 ## The step's receipt text.

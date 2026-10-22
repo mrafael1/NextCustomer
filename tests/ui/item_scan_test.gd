@@ -102,7 +102,7 @@ func test_a_held_belt_item_lists_its_fizzles_on_the_monitor() -> void:
 		if step.step_type == ScoreStep.StepType.WASTED:
 			fizzles += 1
 	assert_int(fizzles).is_equal(1)
-	assert_str(expected[expected.size() - 1]).ends_with("  fizzle")
+	assert_str(expected[expected.size() - 1]).ends_with("  WASTED")
 	var texts: PackedStringArray = monitor.scan_footer().texts()
 	(
 		assert_bool(texts == expected)

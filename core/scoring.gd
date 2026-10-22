@@ -32,6 +32,8 @@ static func score(
 		_scan(state, slot, upgrades, inspections)
 	# Effects that never found a target fizzle at the end (a lost Coffee bonus, unused charges).
 	state.report_unused_effects()
+	# Upgrades whose condition the row never met fizzle last, on its last slot (#45).
+	_upgrade_row_fizzles(state, upgrades)
 	return state.to_result()
 
 
@@ -214,6 +216,31 @@ static func _upgrade_multipliers(
 				rule.text_for(upgrade)
 			)
 	return value
+
+
+## One WASTED step for each upgrade rule whose condition the whole row never met
+## (UpgradeRule.row_wasted_reason), on the row's last slot, carrying that slot's payout.
+static func _upgrade_row_fizzles(state: ScoreState, upgrades: Array[UpgradeDefinition]) -> void:
+	var last: int = state.size() - 1
+	if last < 0:
+		return
+	for index: int in range(upgrades.size()):
+		var upgrade: UpgradeDefinition = upgrades[index]
+		for rule: UpgradeRule in upgrade.rules:
+			var reason: String = rule.row_wasted_reason(state)
+			if reason.is_empty():
+				continue
+			var waste: ScoreStep = _add_upgrade_step(
+				state,
+				ScoreStep.StepType.WASTED,
+				last,
+				index,
+				0,
+				state.payouts[last],
+				rule.text_for(upgrade)
+			)
+			waste.reason = reason
+			waste.row_wide = true
 
 
 ## Applies the inspections' final payout overrides, each with a PAYOUT_OVERRIDE step when it

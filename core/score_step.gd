@@ -12,7 +12,9 @@ extends RefCounted
 ## section 3.8). An effect that replaces an earlier one (an
 ## Egg reset) is armed first, then the replaced effect's WASTED step follows at once. WASTED
 ## steps for effects that never found a target (a lost Coffee bonus, unused Egg charges) come
-## last. An armed effect that later fizzles keeps its EFFECT_ARMED step.
+## next, then one WASTED step for each upgrade whose condition the row never met (#45: no coupon
+## for the Coupon engine, too few products for the Slot engine), on the row's last slot, last.
+## An armed effect that later fizzles keeps its EFFECT_ARMED step.
 ##
 ## Every step has a source: a card (SourceKind.CARD, the card in source_slot), a register
 ## upgrade (SourceKind.UPGRADE, entry source_index of the run's upgrades) or an inspection
@@ -75,6 +77,10 @@ var tag: String = ""
 var linked_slot: int = -1
 ## WASTED: why the effect did nothing, e.g. "no Breakfast product after it". Otherwise empty.
 var reason: String = ""
+## WASTED: true for an upgrade whose condition the row never met (#45), which sits on the row's
+## last slot without being that item's own fizzle: the item marks (the receipt's slot mark, the
+## belt's corner disc) skip it. False for every other step.
+var row_wide: bool = false
 
 
 func to_dictionary() -> Dictionary:

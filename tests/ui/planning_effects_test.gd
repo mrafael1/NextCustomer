@@ -104,7 +104,7 @@ func test_every_item_shows_its_model() -> void:
 	for entry: StickerSpec in model.key_entries():
 		key.append(MonitorChannel.KEY_TEXT % [entry.text, PlanningModel.key_caption(entry)])
 	# The entries that fit the brief's width, in order (at least the first; a wide one is skipped
-	# for a later, narrower one). Since v0.39 the channel sits right of the scanner bay, 110 px
+	# for a later, narrower one). Since v0.40 the channel sits right of the scanner bay, 110 px
 	# narrower, so two of h1's three entries fit here.
 	var shown_key: PackedStringArray = screen._monitor.channel.key_texts()
 	assert_int(shown_key.size()).is_greater(0)
@@ -128,7 +128,7 @@ func test_the_stickers_follow_the_row() -> void:
 	await _frames(3)
 	assert_object(screen.run.row[1]).is_same(eggs)
 	assert_bool(_texts(_layer(screen).stack(0)).has("×2")).is_false()
-	assert_bool(_texts(_layer(screen).stack(1)).has("pfff")).is_true()
+	assert_bool(_texts(_layer(screen).stack(1)).has("WASTED")).is_true()
 	var model: PlanningModel = screen._effects.committed_model()
 	_assert_model_shown(screen, model, _views(screen))
 	for _card: int in range(2):
@@ -397,9 +397,9 @@ func test_a_drag_previews_each_landing() -> void:
 				. is_true()
 			)
 		assert_array(screen.run.row).is_equal(committed)
-	# At the end Eggs' charges have nothing after them: the ghost wears its own "pfff".
+	# At the end Eggs' charges have nothing after them: the ghost wears its own "WASTED".
 	var carried: ItemView = screen._drag.ghost()
-	assert_bool(_texts(_layer(screen).stack(3)).has("pfff")).is_true()
+	assert_bool(_texts(_layer(screen).stack(3)).has("WASTED")).is_true()
 	# Off the row: the committed model and total, and the ghost plain again.
 	_move(screen, OFF_SCREEN + Vector2(600, 0))
 	await _frames(2)

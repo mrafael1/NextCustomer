@@ -28,9 +28,10 @@ static func step_indices(result: ScoreResult, slot: int) -> PackedInt32Array:
 
 
 ## Whether the steps at `indices` of `result` show a fizzle mark (one of them fizzled) rather
-## than a check.
+## than a check. An upgrade's row-wide fizzle (ScoreStep.row_wide) is not the item's own.
 static func fizzles(result: ScoreResult, indices: PackedInt32Array) -> bool:
 	for index: int in indices:
-		if result.steps[index].step_type == ScoreStep.StepType.WASTED:
+		var step: ScoreStep = result.steps[index]
+		if step.step_type == ScoreStep.StepType.WASTED and not step.row_wide:
 			return true
 	return false

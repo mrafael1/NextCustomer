@@ -22,7 +22,7 @@ const BALANCE := "res://data/balance/balance.tres"
 const PASSING_ROW: Array[String] = ["milk", "multipack", "milk", "milk", "milk", "milk", "milk"]
 ## More step lines than any belt item carries, every other one a fizzle whose reason wraps.
 const WORST_LINES := 12
-const LONG_LINE := "Coupon engine: needs a coupon two slots earlier and finds none there  fizzle"
+const LONG_LINE := "Coupon engine: needs a coupon two slots earlier and finds none there  WASTED"
 const SHORT_LINE := "× Multipack  ×3"
 
 var _folder: String = ""
