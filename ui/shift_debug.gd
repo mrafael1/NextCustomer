@@ -1,8 +1,8 @@
 class_name ShiftDebug
 extends RefCounted
 ## The shift screen's development tools (plan section 2): the debug panel (a new run with a
-## seed, replaying the impulse rack's logged pick; add a card to the hand; give an upgrade; set
-## the shift's inspection; skip to a shift; for now, the count-up settings) and the --demo-row
+## seed; add a card to the hand; give an upgrade; set the shift's inspection; skip to a shift,
+## dropping the machine's waiting visits; for now, the count-up settings) and the --demo-row
 ## command-line option. Split out of
 ## ShiftScreen to keep that file short; it is a part of the screen and works on its run and
 ## display through the screen's own methods.
@@ -56,7 +56,7 @@ func wants_demo_row() -> bool:
 
 
 ## Development builds only: `godot --path . -- --demo-row=eggs,coffee,banana` starts a new run,
-## skips the impulse rack, fills the row with those cards and checks out, to watch (or record)
+## fills the row with those cards and checks out, to watch (or record)
 ## the count-up for a chosen row. A demo row always plays a new run and leaves the run save
 ## untouched: the demo run never writes or deletes it, and a saved run isn't resumed.
 func play_demo_row() -> void:
@@ -66,12 +66,10 @@ func play_demo_row() -> void:
 	await play_row(argument.trim_prefix("--demo-row=").split(",", false))
 
 
-## The demo row's run for these card ids (see play_demo_row). The rack is skipped like the debug
-## replay's "" skip, so run_start logs its times as 0: the player never saw it.
+## The demo row's run for these card ids (see play_demo_row).
 func play_row(card_ids: PackedStringArray) -> void:
-	_screen.start_new_run(_log.new_run_seed(), false, "", false)
+	_screen.start_new_run(_log.new_run_seed(), false)
 	_log.log_event("debug", {"action": "demo_row", "cards": Array(card_ids)})
-	_screen._replay_impulse_rack("")
 	for card_id: String in card_ids:
 		var path: String = "%s/%s.tres" % [CARDS_FOLDER, card_id]
 		if ResourceLoader.exists(path):
@@ -82,16 +80,12 @@ func play_row(card_ids: PackedStringArray) -> void:
 	_screen._on_checkout_pressed()
 
 
-## A new run with this seed. With `replays_rack`, the impulse rack takes `impulse_pick` (a card
-## id, or "" for a skip, as run_start logs it) instead of showing.
-func replay_seed(seed_value: int, replays_rack: bool, impulse_pick: String) -> void:
+## A new run with this seed.
+func replay_seed(seed_value: int) -> void:
 	if _screen._counting:
 		return
-	var data: Dictionary = {"action": "set_seed", "seed": seed_value}
-	if replays_rack:
-		data["impulse_pick"] = impulse_pick
-	_log.log_event("debug", data)
-	_screen.start_new_run(seed_value, replays_rack, impulse_pick)
+	_log.log_event("debug", {"action": "set_seed", "seed": seed_value})
+	_screen.start_new_run(seed_value)
 
 
 ## TEMPORARY (#60): the count-up speed setting, Fast or Normal, saved in the profile at once.
@@ -159,17 +153,16 @@ func set_inspection(inspection_id: String) -> void:
 	_screen._on_shift_started()
 
 
+## Jumps to a shift (1-based) and starts it; a machine visit on screen closes, its levels kept
+## (RunState.debug_skip_to_shift).
 func skip_to_shift(shift_number: int) -> void:
-	if _screen._counting or _screen.run.phase == RunState.Phase.IMPULSE:
+	if _screen._counting:
 		return
 	_log.log_event("debug", {"action": "skip_to_shift", "shift": shift_number})
 	var run: RunState = _screen.run
 	if run.phase == RunState.Phase.WON or run.phase == RunState.Phase.LOST:
-		# An ended run stays ended: replay its seed, and its impulse-rack choice, as a new run.
-		var pick: String = String(run.impulse_pick.id) if run.impulse_pick != null else ""
-		_screen.start_new_run(run.run_seed, true, pick)
-		if _screen.run.phase != RunState.Phase.PLANNING:
-			return  # The replayed pick waits for a deck card to remove.
+		# An ended run stays ended: replay its seed as a new run.
+		_screen.start_new_run(run.run_seed)
 	_screen.run.debug_skip_to_shift(shift_number - 1)
 	_screen._on_shift_started()
 

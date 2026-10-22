@@ -145,6 +145,25 @@ class Session:
                  presented_ms=times[0], armed_ms=times[1], decide_ms=times[2],
                  presentation_skipped=skipped)
 
+    def machine_start(self, run_id: str, deck: tuple = ("banana", "milk", "repeat")) -> dict:
+        """run_start since #77: no impulse rack fields."""
+        return self.log("run_start", run_id, seed=next(SEEDS), starting_deck=list(deck),
+                        shift_count=8, stock=[], listed_aisles=["placeholder"])
+
+    def visit(self, run_id: str, shift: int, chute: str, offered: tuple, picked: int = 0,
+              kind: str = "ticket", replaced: str = "", upgraded: tuple = (),
+              levels: tuple = (0, 0, 0, 0), times: tuple = (300, 900, 2500),
+              skipped: bool = False) -> None:
+        """A machine_visit event (#77); `offered` holds (kind, id) pairs, `picked` -1 bins."""
+        self.log("machine_visit", run_id, shift=shift, visit_index=0, kind=kind,
+                 inspection="", chute=chute, level_before=0, levels=list(levels),
+                 meter_rose=True, offered=[{"kind": k, "id": i, "rarity": 0} for k, i in offered],
+                 picked=picked, binned=picked < 0, replaced=replaced,
+                 upgraded=[list(entry) for entry in upgraded], cart_size=3,
+                 cart_full_at_pick=False, registers_owned=0, resumed=False,
+                 presented_ms=times[0], armed_ms=times[1], decide_ms=times[2],
+                 presentation_skipped=skipped)
+
     def run_end(self, run_id: str, won: bool, shift_reached: int,
                 upgrades: tuple = ()) -> None:
         self.log("run_end", run_id, result="win" if won else "loss",
@@ -497,6 +516,101 @@ class BuildTest(LogTestCase):
         s.log("run_end", "r1", result="loss", shift_reached=3)
         self.assertEqual(ls.run_upgrades(self.players(self.write("p.jsonl", s))[0].runs[0]),
                          ["coupon_engine"])
+
+
+class MachineTest(LogTestCase):
+    """The RECEIPT REWARDS machine's logs (#77), and the logs before it still read."""
+
+    def fb_p2_session(self) -> Session:
+        """A v0.37 (fb-p2) run: the impulse rack, rewards and an upgrade."""
+        s = Session("old", build="fb-p2")
+        s.run_start("old", deck=("banana", "bread", "repeat"), pick="milk", replaced="bread")
+        s.shift("old", 1)
+        s.reward("old", 1, ("multipack", "banana", "milk"), picked="multipack")
+        s.shift("old", 2)
+        s.reward("old", 2, ("multipack", "banana", "milk"))
+        s.upgrade("old", 2, "extra_redraw")
+        s.run_end("old", False, 3)
+        return s
+
+    def test_an_fb_p2_log_summarises_as_before(self) -> None:
+        path = self.write("p.jsonl", self.fb_p2_session())
+        summary = self.summary(path)
+        self.assertEqual(summary["inputs"]["unknown_event_types"], {})
+        run = self.players(path)[0].runs[0]
+        self.assertEqual(ls.final_deck(run), {"banana": 1, "repeat": 1, "milk": 1,
+                                              "multipack": 1})
+        self.assertEqual(ls.run_upgrades(run), [])
+        self.assertEqual([o.kind for o in run.offers()], ["rack", "reward", "reward", "upgrade"])
+        self.assertEqual(summary["rewards"]["rewards"], {"first": 1, "later": 1})
+        self.assertEqual(summary["machine"]["visits"], 0)
+        self.assertEqual(summary["offer_times"]["machine"]["offers"], 0)
+        report = ls.render(summary)
+        self.assertNotIn("RECEIPT REWARDS machine", report)
+        self.assertNotIn("  machine:", report)
+        self.assertIn("  rack: 1 offers", report)
+
+    def test_a_machine_log(self) -> None:
+        s = Session("new", build="fb-p3")
+        s.machine_start("m1")
+        s.shift("m1", 1)
+        s.visit("m1", 1, "new_items", (("product", "eggs"), ("product", "bread")), picked=1,
+                levels=(1, 0, 0, 0))
+        s.visit("m1", 1, "coupons", (("coupon", "multipack"),), picked=-1, kind="bonus",
+                levels=(1, 1, 0, 0))
+        s.shift("m1", 2)
+        s.visit("m1", 2, "register", (("register", "coupon_engine"),), levels=(1, 1, 1, 0))
+        s.visit("m1", 2, "register", (("register", "extra_redraw"),), kind="stamp_day",
+                levels=(1, 1, 1, 0))
+        s.shift("m1", 3)
+        s.visit("m1", 3, "upgrades", (("upgrade", "milk"),),
+                upgraded=((4, "milk", "milk_big"),), levels=(1, 1, 1, 1))
+        s.visit("m1", 3, "new_items", (("product", "eggs"),), replaced="banana",
+                levels=(2, 1, 1, 1))
+        s.log("run_end", "m1", result="loss", shift_reached=4)
+        path = self.write("p.jsonl", s)
+        run = self.players(path)[0].runs[0]
+        self.assertEqual(ls.final_deck(run), {"milk_big": 1, "repeat": 1, "bread": 1, "eggs": 1})
+        self.assertEqual(ls.run_upgrades(run), ["coupon_engine", "extra_redraw"])
+        self.assertEqual([o.kind for o in run.offers()], ["machine"] * 6)
+        summary = self.summary(path)
+        machine = summary["machine"]
+        self.assertEqual(machine["visits"], 6)
+        self.assertEqual(machine["visit_kinds"], {"ticket": 4, "bonus": 1, "stamp_day": 1})
+        self.assertEqual(machine["chutes"]["register"], ls.rate(2, 6))
+        self.assertEqual(machine["bin_rate"]["count"], 1)
+        self.assertEqual(machine["bins"]["coupons"], 1)
+        self.assertEqual(machine["levels_reached"]["new_items"]["max"], 2)
+        self.assertEqual(machine["tier_copies"], {"milk_big": 1})
+        self.assertEqual(summary["offer_times"]["machine"]["offers"], 6)
+        self.assertEqual(summary["builds"]["builds"][0]["upgrades"],
+                         "Coupon engine, Extra redraw")
+        report = ls.render(summary)
+        self.assertIn("RECEIPT REWARDS machine", report)
+        self.assertIn("  visits: 6 (4 ticket, 1 bonus, 1 stamp_day)", report)
+        self.assertIn("BIG and GOLDEN copies over 1 ended runs: milk_big 1", report)
+        self.assertIn("  machine: 6 offers", report)
+
+    def test_resume_and_abandon_at_the_machine(self) -> None:
+        a = Session("a", "2026-10-20T10:00:00", build="fb-p3")
+        a.machine_start("resumed")
+        a.shift("resumed", 1)
+        b = Session("b", "2026-10-20T11:00:00", build="fb-p3")
+        b.log("run_resume", "resumed", shift=1, phase="machine", run_ms=9000)
+        b.visit("resumed", 1, "new_items", (("product", "eggs"),))
+        b.shift("resumed", 2, passed=False)
+        b.run_end("resumed", False, 2)
+        b.machine_start("abandoned")
+        b.shift("abandoned", 1)
+        c = Session("c", "2026-10-20T12:00:00", build="fb-p3")
+        c.log("run_resume", "abandoned", shift=1, phase="machine_pick", run_ms=100)
+        c.log("run_abandon", "abandoned", shift=1, phase="machine_pick", run_ms=200)
+        summary = self.summary(self.write("p.jsonl", a, b, c))
+        runs = summary["runs"]
+        self.assertEqual((runs["runs"], runs["lost"], runs["abandoned"]), (2, 1, 1))
+        self.assertEqual((runs["resumed_runs"], runs["resumes"]), (2, 2))
+        self.assertEqual(summary["players"][0]["debug_runs_excluded"], 0)
+        self.assertEqual(summary["machine"]["visits"], 1)
 
 
 class ShiftAndListTest(LogTestCase):

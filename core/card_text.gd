@@ -8,14 +8,16 @@ extends RefCounted
 ## The keys a template may name:
 ## - `base`: the card's base value;
 ## - `name`: its product's display name (a variant names its base card, the same product);
-## - `bonus`, `bonus_each`, `factor`, `tag` and `match_value`: the fields of the card's first rule
-##   that has them. `bonus` is the card's base when that rule's bonus is its base (Banana).
-## Any other `{key}` (e.g. `{charges}` or `{match_by}`) is left unformatted, braces and all, so
-## the live-data test rejects it.
+## - `bonus`, `bonus_each`, `factor`, `charges`, `tag` and `match_value`: the fields of the
+##   card's first rule that has them. A match bonus's `bonus` is what it pays on a match: the
+##   card's base when that rule's bonus is its base (Banana), counted `bonus_factor` times
+##   (Golden Banana, #77). `charges` names a charged multiplier's charges (Golden Eggs, #77).
+## Any other `{key}` (e.g. `{match_by}`) is left unformatted, braces and all, so the live-data
+## test rejects it.
 const STICKER_KEYS: Array[String] = [
-	"base", "name", "bonus", "bonus_each", "factor", "tag", "match_value"
+	"base", "name", "bonus", "bonus_each", "factor", "charges", "tag", "match_value"
 ]
-const RULE_KEYS: Array[String] = ["bonus", "bonus_each", "factor", "tag", "match_value"]
+const RULE_KEYS: Array[String] = ["bonus", "bonus_each", "factor", "charges", "tag", "match_value"]
 
 
 ## The card's sticker summary, or "" when its template is empty (a card with no rule shows only
@@ -44,6 +46,21 @@ static func sticker_values(definition: CardDefinition) -> Dictionary:
 			if is_field and RULE_KEYS.has(key) and not values.has(key):
 				values[key] = rule.get(key)
 		var adjacent: AdjacentMatchBonusRule = rule as AdjacentMatchBonusRule
-		if adjacent != null and adjacent.bonus_is_base:
-			values["bonus"] = definition.base
+		if adjacent != null and (adjacent.bonus_is_base or adjacent.bonus_factor != 1):
+			values["bonus"] = adjacent.bonus_for(definition.base)
 	return values
+
+
+## The sticker values (`base`, then RULE_KEYS) that differ between two cards, e.g. an item tier
+## (#77) and the card one tier below it: Golden Eggs against Big Eggs gives ["charges"], Big
+## Milk against Milk ["base"]. The hover card highlights these; it never compares rules itself.
+static func changed_fields(before: CardDefinition, after: CardDefinition) -> PackedStringArray:
+	var old_values: Dictionary = sticker_values(before)
+	var new_values: Dictionary = sticker_values(after)
+	var found: PackedStringArray = PackedStringArray()
+	for key: String in ["base"] + RULE_KEYS:
+		var was: Variant = old_values.get(key)
+		var now: Variant = new_values.get(key)
+		if typeof(was) != typeof(now) or was != now:
+			found.append(key)
+	return found

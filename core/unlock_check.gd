@@ -38,10 +38,16 @@ static func coupon_uses(history: Array[ShiftRecord]) -> Dictionary[StringName, i
 	return uses
 
 
+## Whether the final deck holds the card or an item tier of it (#77: "win with Banana" counts
+## a Golden Banana). Any other variant names only itself: a plain Banana never counts for
+## an Organic Banana.
 static func _deck_has(run: RunState, card: CardDefinition) -> bool:
 	if card == null:
 		return false
 	for instance: CardInstance in run.deck.cards:
-		if instance.definition == card:
+		var held: CardDefinition = instance.definition
+		if held == card:
+			return true
+		if held.tier != CardDefinition.Tier.PLAIN and held.variant_of == card:
 			return true
 	return false

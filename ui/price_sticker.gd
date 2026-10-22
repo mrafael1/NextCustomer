@@ -12,6 +12,9 @@ extends Control
 ## something else (the real pay is PlanningLayer's PayTag on the ticket's top band) and moves the
 ## aisle glyph clear of that tag; set_got gives a hovered giver's target the mustard face
 ## (ticket_got). Neither changes a number.
+##
+## An item tier (#77): a BIG or GOLDEN copy's sticker carries its tier tag (tier_text) under its
+## left end: a cream "BIG" price-gun label, or a gold "GOLDEN" one. It only reads the card's tier.
 
 const SIZE := Vector2(108, 64)
 const BASE_RECT := Rect2(8, 6, 74, 24)
@@ -40,6 +43,11 @@ const STRIKE_OUT := 3.0
 const GLYPH_GAP := 4.0
 const TAG_CLEARANCE := 2.0
 const STRIKE_NAME := "Strike"
+## The tier tag (#77): under the ticket's left end, bold Atkinson.
+const TIER_TAG_NAME := "TierTag"
+const TIER_TAG_RECT := Rect2(4, 62, 60, 16)
+const TIER_TAG_SIZE := 11
+const TIER_TEXTS: Array[String] = ["", "BIG", "GOLDEN"]
 
 const FRAME := preload("res://art/frames/ticket_product.png")
 const COUPON_FRAME := preload("res://art/frames/ticket_coupon.png")
@@ -97,6 +105,8 @@ func _init(definition: CardDefinition, aisle: AisleDefinition) -> void:
 	_summary.position = SUMMARY_RECT.position
 	_summary.size = SUMMARY_RECT.size
 	add_child(_summary)
+	if not tier_text(definition).is_empty():
+		_add_tier_tag(definition)
 
 
 ## The base value ("€2") or COUPON label.
@@ -189,6 +199,33 @@ func summary_text_rect() -> Rect2:
 		return Rect2()
 	var height: float = minf(_summary.get_minimum_size().y, SUMMARY_RECT.size.y)
 	return Rect2(SUMMARY_RECT.position, Vector2(SUMMARY_RECT.size.x, height))
+
+
+## A card's tier tag ("BIG", "GOLDEN"), or "" for a plain card.
+static func tier_text(definition: CardDefinition) -> String:
+	return TIER_TEXTS[definition.tier] if definition != null else ""
+
+
+## The tier tag, or null for a plain card.
+func tier_tag() -> Label:
+	return get_node_or_null(TIER_TAG_NAME) as Label
+
+
+func _add_tier_tag(definition: CardDefinition) -> void:
+	var golden: bool = definition.tier == CardDefinition.Tier.GOLDEN
+	var tag: Label = UiKit.body_label(tier_text(definition), TIER_TAG_SIZE, Palette.INK)
+	tag.name = TIER_TAG_NAME
+	tag.add_theme_font_override("font", ArtStyle.bold_font(SUMMARY_WEIGHT))
+	tag.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	tag.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	var style: StyleBoxFlat = StyleBoxFlat.new()
+	style.bg_color = Palette.GOLD if golden else Palette.CREAM
+	style.border_color = Palette.INK
+	style.set_border_width_all(2)
+	tag.add_theme_stylebox_override("normal", style)
+	tag.position = TIER_TAG_RECT.position
+	tag.size = TIER_TAG_RECT.size
+	add_child(tag)
 
 
 ## The product sticker's 9-slice: a tall top margin for the band, its plain edges and middle

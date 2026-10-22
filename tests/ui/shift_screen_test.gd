@@ -4,6 +4,8 @@ extends GdUnitTestSuite
 ## runs don't deliver input events.
 
 const SCREEN := "res://ui/shift_screen.tscn"
+## Checkouts rush their count (one tap): the suite tests what follows it.
+const Rush := preload("res://tests/ui/count_up_rush.gd")
 const BREAD := "res://data/cards/bread.tres"
 
 var _folder: String = ""
@@ -27,7 +29,6 @@ func after_test() -> void:
 func test_a_shift_from_draw_to_next_shift() -> void:
 	var runner: GdUnitSceneRunner = scene_runner(SCREEN)
 	var screen: ShiftScreen = runner.scene()
-	screen._on_reward_skipped()  # Past the impulse rack.
 	var run: RunState = screen.run
 	assert_int(run.hand().size()).is_equal(8)
 
@@ -52,13 +53,13 @@ func test_a_shift_from_draw_to_next_shift() -> void:
 	assert_object(run.row[0]).is_same(hand[2])
 	var expected_total: int = run.preview().total
 
-	await screen._on_checkout_pressed()
+	await Rush.checkout(screen)
 	# The LED shows the counted total under TOTAL (the bare number: the monitor's tank is the €).
 	assert_str(screen._led.digits_label().text).is_equal(str(expected_total))
 	assert_str(screen._led.caption_label().text).is_equal(LedDisplay.TOTAL_TEXT)
 	var passed: bool = expected_total >= run.quota()
-	# A pass shows the reward choice; a fail shows the results screen.
-	assert_bool(screen._reward_panel.visible).is_equal(passed)
+	# A pass opens the RECEIPT REWARDS machine (#77); a fail shows the results screen.
+	assert_bool(screen._machine.is_open()).is_equal(passed)
 	assert_bool(screen._results.visible).is_equal(not passed)
 
 	var events: Array = _events()
@@ -80,14 +81,13 @@ func test_a_shift_from_draw_to_next_shift() -> void:
 	assert_bool(checkout["passed"]).is_equal(passed)
 
 	if passed:
-		screen._on_reward_skipped()
+		screen._machine.debug_skip()
 		types = _events().map(func(event: Dictionary) -> String: return event["type"])
 		assert_int(screen.run.shift_index).is_equal(1)
-		assert_array(types.slice(-2)).is_equal(["reward", "shift_start"])
-		assert_bool(_events()[-2]["skipped"]).is_true()
+		assert_array(types.slice(-2)).is_equal(["machine_visit", "shift_start"])
+		assert_bool(_events()[-2]["binned"]).is_true()
 	else:
 		screen._on_new_run_pressed()
-		screen._on_reward_skipped()
 		types = _events().map(func(event: Dictionary) -> String: return event["type"])
 		assert_int(screen.run.shift_index).is_equal(0)
 		assert_array(types.slice(-3)).is_equal(["restart", "run_start", "shift_start"])
@@ -97,7 +97,6 @@ func test_a_shift_from_draw_to_next_shift() -> void:
 func test_dropping_a_picked_row_card_counts_as_a_removal() -> void:
 	var runner: GdUnitSceneRunner = scene_runner(SCREEN)
 	var screen: ShiftScreen = runner.scene()
-	screen._on_reward_skipped()  # Past the impulse rack.
 	var hand: Array[CardInstance] = screen.run.hand()
 	for index: int in range(2):
 		screen._on_hand_card_clicked(_view_for(screen, hand[index]))
@@ -117,7 +116,6 @@ func test_dropping_a_picked_row_card_counts_as_a_removal() -> void:
 func test_full_row_highlights_no_slot() -> void:
 	var runner: GdUnitSceneRunner = scene_runner(SCREEN)
 	var screen: ShiftScreen = runner.scene()
-	screen._on_reward_skipped()  # Past the impulse rack.
 	_place_ids(screen, ["bread", "bread", "repeat", "bread", "bread", "bread", "bread"])
 	assert_int(screen.run.row.size()).is_equal(7)
 	for id: String in ["bread", "repeat"]:
@@ -133,7 +131,6 @@ func test_full_row_highlights_no_slot() -> void:
 func test_the_row_shows_the_coupon_slot() -> void:
 	var runner: GdUnitSceneRunner = scene_runner(SCREEN)
 	var screen: ShiftScreen = runner.scene()
-	screen._on_reward_skipped()  # Past the impulse rack.
 	assert_int(screen._slots.size()).is_equal(7)
 	for slot: int in range(7):
 		assert_str(_slot_hint(screen, slot)).is_equal(str(slot + 1))
@@ -158,7 +155,6 @@ func test_the_row_shows_the_coupon_slot() -> void:
 func test_a_seventh_product_is_refused_with_a_notice() -> void:
 	var runner: GdUnitSceneRunner = scene_runner(SCREEN)
 	var screen: ShiftScreen = runner.scene()
-	screen._on_reward_skipped()  # Past the impulse rack.
 	_place_ids(screen, ["bread", "bread", "bread", "bread", "bread", "bread"])
 	assert_str(screen._notice_label.text).is_empty()
 	screen._debug.add_card("bread")
@@ -183,7 +179,6 @@ func test_a_seventh_product_is_refused_with_a_notice() -> void:
 func test_a_refused_pick_lets_a_row_card_be_taken_out() -> void:
 	var runner: GdUnitSceneRunner = scene_runner(SCREEN)
 	var screen: ShiftScreen = runner.scene()
-	screen._on_reward_skipped()  # Past the impulse rack.
 	_place_ids(screen, ["bread", "bread", "bread", "bread", "bread", "bread", "repeat"])
 	screen._debug.add_card("bread")
 	var product: CardInstance = screen.run.hand()[-1]
@@ -201,7 +196,6 @@ func test_a_refused_pick_lets_a_row_card_be_taken_out() -> void:
 func test_the_seventh_panel_takes_a_product_while_room_is_left() -> void:
 	var runner: GdUnitSceneRunner = scene_runner(SCREEN)
 	var screen: ShiftScreen = runner.scene()
-	screen._on_reward_skipped()  # Past the impulse rack.
 	screen._debug.add_card("bread")
 	var product: CardInstance = screen.run.hand()[-1]
 	screen._on_hand_card_clicked(_view_for(screen, product))
@@ -210,53 +204,72 @@ func test_the_seventh_panel_takes_a_product_while_room_is_left() -> void:
 	assert_str(screen._notice_label.text).is_empty()
 
 
-func test_picking_a_reward_adds_it_to_the_deck_and_logs_it() -> void:
+## The machine's real flow (#77): the Cart opens the deck view once the machine has armed and
+## gives the machine back on close; a confirmed chute draws its prizes; a picked NEW ITEMS
+## prize joins the deck, the visit is logged as machine_visit and the next shift starts.
+func test_picking_a_prize_adds_it_to_the_deck_and_logs_it() -> void:
 	var runner: GdUnitSceneRunner = scene_runner(SCREEN)
 	var screen: ShiftScreen = runner.scene()
-	screen._on_reward_skipped()  # Past the impulse rack.
 	await _pass_first_shift(screen)
-	var offered: CardDefinition = screen.run.offer[0]
-	screen._on_reward_deck_requested()
+	await _until_armed(screen)
+	screen._on_deck_button_pressed()
 	assert_bool(screen._deck_view.visible).is_true()
+	assert_bool(screen._machine.view.visible).is_false()
 	screen._deck_view._close()
-	assert_bool(screen._reward_panel.visible).is_true()
-	screen._on_reward_picked(offered)
+	assert_bool(screen._machine.is_open()).is_true()
+	screen._machine.view._on_confirmed(RewardMachine.Chute.NEW_ITEMS)
+	assert_int(screen.run.phase).is_equal(RunState.Phase.MACHINE_PICK)
+	var offered: CardDefinition = screen.run.machine.prizes()[0].card
+	await _until_armed(screen)
+	screen._machine.view.pick(0)
+	screen._machine.view.fast_forward()  # The landing plays to its end.
 	assert_int(screen.run.deck.size()).is_equal(14)
 	assert_int(screen.run.shift_index).is_equal(1)
-	var reward: Dictionary = _last_event("reward")
-	assert_str(reward["picked"]).is_equal(String(offered.id))
-	assert_bool(reward["deck_view_opened"]).is_true()
-	assert_int((reward["offered"] as Array).size()).is_equal(3)
-	assert_int(int(reward["shift"])).is_equal(1)
+	# The top bar's Cart counts the deck against its limit.
+	assert_str(screen._deck_button.caption).is_equal("Cart 14/%d" % screen.run.balance.deck_limit)
+	var visit: Dictionary = _last_event("machine_visit")
+	assert_str(visit["chute"]).is_equal("new_items")
+	assert_int(int(visit["picked"])).is_equal(0)
+	assert_str(visit["offered"][0]["id"]).is_equal(String(offered.id))
+	assert_int((visit["offered"] as Array).size()).is_equal(3)
+	assert_int(int(visit["shift"])).is_equal(1)
+	assert_bool(visit["resumed"]).is_false()
 
 
+## At the deck limit a picked prize opens the chooser; its cancel goes back to the prizes with
+## nothing taken; a chosen card is swapped out and logged as replaced.
 func test_a_full_deck_asks_which_card_to_remove() -> void:
 	var runner: GdUnitSceneRunner = scene_runner(SCREEN)
 	var screen: ShiftScreen = runner.scene()
-	screen._on_reward_skipped()  # Past the impulse rack.
 	var bread: CardDefinition = load(BREAD)
 	while not screen.run.deck_is_full():
 		screen.run.deck.add_card(bread)
 	await _pass_first_shift(screen)
-	var offered: CardDefinition = screen.run.offer[1]
-	screen._on_reward_picked(offered)
+	assert_bool(screen._machine._choose(RewardMachine.Chute.NEW_ITEMS)).is_true()
+	await _until_armed(screen)
+	screen._machine.view.pick(1)
+	screen._machine.view.fast_forward()  # The landing plays to its end.
 	assert_bool(screen._deck_view.visible).is_true()
-	assert_int(screen.run.phase).is_equal(RunState.Phase.REWARD)
-	# Closing the deck view goes back to the offer without taking anything.
+	assert_int(screen.run.phase).is_equal(RunState.Phase.MACHINE_PICK)
+	# Closing the deck view goes back to the prizes without taking anything.
 	screen._deck_view._close()
-	assert_bool(screen._reward_panel.visible).is_true()
-	screen._on_reward_picked(offered)
+	assert_bool(screen._machine.is_open()).is_true()
+	assert_int(screen.run.phase).is_equal(RunState.Phase.MACHINE_PICK)
+	screen._machine.view.pick(1)
+	screen._machine.view.fast_forward()  # The landing plays to its end.
 	var removed: CardInstance = screen.run.deck.cards[0]
 	screen._on_deck_card_chosen(removed)
 	assert_int(screen.run.deck.size()).is_equal(screen.run.balance.deck_limit)
 	assert_bool(screen.run.deck.cards.has(removed)).is_false()
-	assert_str(_last_event("reward")["replaced"]).is_equal(String(removed.definition.id))
+	var limit: int = screen.run.balance.deck_limit
+	assert_str(screen._deck_button.caption).is_equal("Cart %d/%d" % [limit, limit])
+	assert_str(_last_event("machine_visit")["replaced"]).is_equal(String(removed.definition.id))
+	assert_bool(_last_event("machine_visit")["cart_full_at_pick"]).is_true()
 
 
 func test_export_from_the_shift_screen_logs_the_screen() -> void:
 	var runner: GdUnitSceneRunner = scene_runner(SCREEN)
 	var screen: ShiftScreen = runner.scene()
-	screen._on_reward_skipped()  # Past the impulse rack.
 	_event_log().use_folder(_folder.path_join("logs"))
 	var joined: String = _event_log().export_logs("shift", false)
 	assert_str(joined).contains("log_export")
@@ -278,20 +291,18 @@ func test_title_screen_starts_the_game() -> void:
 func test_buttons_never_take_keyboard_focus() -> void:
 	var runner: GdUnitSceneRunner = scene_runner(SCREEN)
 	var screen: ShiftScreen = runner.scene()
-	screen._on_reward_skipped()  # Past the impulse rack.
 	for button: Button in [
 		screen._checkout_button, screen._redraw_button, screen._cancel_button, screen._deck_button
 	]:
 		assert_int(button.focus_mode).is_equal(Control.FOCUS_NONE)
 
 
-## The review's repro: after a reward, Space (the fast-forward key) must not check out.
-func test_space_after_a_reward_does_not_check_out() -> void:
+## The review's repro: after the machine, Space (the fast-forward key) must not check out.
+func test_space_after_the_machine_does_not_check_out() -> void:
 	var runner: GdUnitSceneRunner = scene_runner(SCREEN)
 	var screen: ShiftScreen = runner.scene()
-	screen._on_reward_skipped()  # Past the impulse rack.
 	await _pass_first_shift(screen)
-	screen._on_reward_skipped()
+	screen._machine.debug_skip()
 	assert_int(screen.run.phase).is_equal(RunState.Phase.PLANNING)
 	runner.simulate_key_pressed(KEY_SPACE)
 	await _frames(5)
@@ -302,37 +313,46 @@ func test_space_after_a_reward_does_not_check_out() -> void:
 func test_checkout_closes_the_deck_view_and_overlays_are_shaded() -> void:
 	var runner: GdUnitSceneRunner = scene_runner(SCREEN)
 	var screen: ShiftScreen = runner.scene()
-	screen._on_reward_skipped()  # Past the impulse rack.
 	screen._on_deck_button_pressed()
 	await _frames(2)
 	assert_bool(screen._shade.visible).is_true()
 	await _pass_first_shift(screen)
 	assert_bool(screen._deck_view.visible).is_false()
 	await _frames(2)
-	assert_bool(screen._reward_panel.visible).is_true()
+	assert_bool(screen._machine.is_open()).is_true()
 	assert_bool(screen._shade.visible).is_true()
 
 
-## Clicks meant to speed up the count-up must not pick a reward the player hasn't seen.
-func test_reward_cards_ignore_clicks_until_armed() -> void:
-	var panel: RewardPanel = auto_free(RewardPanel.new())
-	add_child(panel)
-	var offer: Array[CardDefinition] = [load(BREAD)]
-	panel.show_offer(offer, "test", 13, 15)
-	var picks: Array = []
-	panel.picked.connect(func(card: CardDefinition) -> void: picks.append(card))
-	var view: CardView = panel._cards.get_child(0)
-	panel._on_card_clicked(view)
-	assert_array(picks).is_empty()
-	assert_bool(panel._skip_button.disabled).is_true()
-	# Wait on wall-clock time: the suite speeds up game time.
+## Clicks meant to speed up the count-up must not choose a chute or pick a prize the player
+## hasn't seen: the machine arms on the first frame the mouse is up after it shows.
+func test_the_machine_ignores_clicks_until_armed() -> void:
+	var runner: GdUnitSceneRunner = scene_runner(SCREEN)
+	var screen: ShiftScreen = runner.scene()
+	await _pass_first_shift(screen)
+	var view: RewardMachineView = screen._machine.view
+	view._armed = false
+	view.open_odds(RewardMachine.Chute.NEW_ITEMS)
+	assert_bool(view.odds_card.visible).is_false()
+	await _until_armed(screen)
+	assert_bool(screen._machine._choose(RewardMachine.Chute.NEW_ITEMS)).is_true()
+	assert_bool(view.is_armed()).is_false()
+	view.pick(0)
+	view.fast_forward()  # The landing plays to its end.
+	assert_int(screen.run.phase).is_equal(RunState.Phase.MACHINE_PICK)
+	await _until_armed(screen)
+	view.pick(0)
+	view.fast_forward()  # The landing plays to its end.
+	assert_int(screen.run.shift_index).is_equal(1)
+
+
+## Fast-forwards the machine to its wait point (as a tap would, unlogged), then waits (at most
+## 3 s) for it to arm: the mouse is up, so it arms on its next frame.
+func _until_armed(screen: ShiftScreen) -> void:
+	screen._machine.view.fast_forward()
 	var start: int = Time.get_ticks_msec()
-	while Time.get_ticks_msec() - start < 450:
+	while not screen._machine.view.is_armed() and Time.get_ticks_msec() - start < 3000:
 		await get_tree().process_frame
-	await get_tree().process_frame
-	panel._on_card_clicked(view)
-	assert_int(picks.size()).is_equal(1)
-	assert_bool(panel._skip_button.disabled).is_false()
+	assert_bool(screen._machine.view.is_armed()).is_true()
 
 
 ## Places a row that passes the first five quotas: Milk, Multipack, Milk x5 = 109.
@@ -343,8 +363,8 @@ func _pass_first_shift(screen: ShiftScreen) -> void:
 	for card: CardInstance in added:
 		screen._on_hand_card_clicked(_view_for(screen, card))
 		screen._on_slot_input(_left_click(), screen.run.row.size())
-	await screen._on_checkout_pressed()
-	assert_int(screen.run.phase).is_equal(RunState.Phase.REWARD)
+	await Rush.checkout(screen)
+	assert_int(screen.run.phase).is_equal(RunState.Phase.MACHINE_CHOOSE)
 
 
 ## Adds the cards to the hand through the debug panel and places them at the end of the row.
@@ -383,7 +403,6 @@ func _last_event(type: String) -> Dictionary:
 func test_run_start_logs_the_stock() -> void:
 	var runner: GdUnitSceneRunner = scene_runner(SCREEN)
 	var screen: ShiftScreen = runner.scene()
-	screen._on_reward_skipped()  # Past the impulse rack.
 	var start: Dictionary = _last_event("run_start")
 	assert_array(start["listed_aisles"]).is_equal(["cold_cases", "pantry", "household"])
 	assert_array(start["stock"]).is_equal(screen.run.stock.card_ids())
@@ -395,7 +414,6 @@ func test_run_start_logs_the_stock() -> void:
 func test_winning_the_last_shift_shows_the_results() -> void:
 	var runner: GdUnitSceneRunner = scene_runner(SCREEN)
 	var screen: ShiftScreen = runner.scene()
-	screen._on_reward_skipped()  # Past the impulse rack.
 	var count: int = screen.run.shift_count()
 	assert_int(int(_last_event("run_start")["shift_count"])).is_equal(count)
 	assert_str(screen._shift_label.text).is_equal("1/%d" % count)
@@ -410,10 +428,10 @@ func test_winning_the_last_shift_shows_the_results() -> void:
 	screen.run.limits.quota = 48
 	# Milk, Multipack, then four Milks at x3 (they share Dairy): 82, above that quota.
 	_place_ids(screen, ["milk", "multipack", "milk", "milk", "milk", "milk"])
-	await screen._on_checkout_pressed()
+	await Rush.checkout(screen)
 	assert_int(screen.run.phase).is_equal(RunState.Phase.WON)
 	assert_bool(screen._results.visible).is_true()
-	assert_bool(screen._reward_panel.visible).is_false()
+	assert_bool(screen._machine.is_open()).is_false()
 	assert_str(screen._results.texts()[0]).is_equal("RUN WON!")
 	var run_end: Dictionary = _last_event("run_end")
 	assert_str(run_end["result"]).is_equal("win")
@@ -423,8 +441,7 @@ func test_winning_the_last_shift_shows_the_results() -> void:
 func test_empty_checkout_loses_and_logs_run_end() -> void:
 	var runner: GdUnitSceneRunner = scene_runner(SCREEN)
 	var screen: ShiftScreen = runner.scene()
-	screen._on_reward_skipped()  # Past the impulse rack.
-	await screen._on_checkout_pressed()
+	await Rush.checkout(screen)
 	var events: Array = _events()
 	assert_str(events[-1]["type"]).is_equal("count_up")
 	assert_str(events[-2]["type"]).is_equal("run_end")

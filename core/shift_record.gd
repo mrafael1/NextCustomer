@@ -1,25 +1,22 @@
 class_name ShiftRecord
 extends RefCounted
-## One entry of the run history (plan section 3.8): a played shift, its result, the reward card
-## picked (or skipped), the upgrade taken and the inspection it was played under (section 3.9).
-## Created at checkout and completed by the choices that follow it. to_dictionary is the form
-## the event log and the run save (RunSave) use; from_dictionary reads it back.
+## One entry of the run history (plan section 3.8): a played shift, its result, the inspection
+## it was played under (section 3.9) and the RECEIPT REWARDS machine's visits after it (#77).
+## Created at checkout and completed by the visits that follow it. to_dictionary is the form the
+## event log and the run save (RunSave) use; from_dictionary reads it back.
 
 ## 1-based shift number.
 var shift: int = 0
 var quota: int = 0
 var total: int = 0
 var passed: bool = false
-## The reward card taken, or null (skipped, or no reward after a lost or last shift).
-var card_picked: CardDefinition
-## True when a reward was offered and skipped.
-var reward_skipped: bool = false
-## The upgrade taken after this shift, or null.
-var upgrade_taken: UpgradeDefinition
 ## The inspection this shift was played under, or null.
 var inspection: InspectionDefinition
 ## The cards checked out, in row order (coupon uses for unlocks, full build plan 7.3).
 var played: Array[CardDefinition] = []
+## The RECEIPT REWARDS machine's visits after this shift (#77), in order: the ticket, the bonus
+## ticket, STAMP DAY. Empty after a lost or the last shift.
+var visits: Array[MachineVisit] = []
 
 
 func _init(shift_number: int, shift_quota: int, shift_total: int) -> void:
@@ -29,18 +26,38 @@ func _init(shift_number: int, shift_quota: int, shift_total: int) -> void:
 	passed = shift_total >= shift_quota
 
 
+## Every register taken from the machine after this shift (REGISTER and STAMP DAY picks), in
+## order.
+func registers_taken() -> Array[UpgradeDefinition]:
+	var found: Array[UpgradeDefinition] = []
+	for visit: MachineVisit in visits:
+		var prize: MachinePrize = visit.picked_prize()
+		if prize != null and prize.kind == MachinePrize.Kind.REGISTER:
+			found.append(prize.upgrade)
+	return found
+
+
+## Every card the machine added to the cart after this shift (products and coupons), in order.
+func cards_added() -> Array[CardDefinition]:
+	var found: Array[CardDefinition] = []
+	for visit: MachineVisit in visits:
+		var prize: MachinePrize = visit.picked_prize()
+		if prize != null and prize.adds_card():
+			found.append(prize.card)
+	return found
+
+
 func to_dictionary() -> Dictionary:
-	return {
+	var data: Dictionary = {
 		"shift": shift,
 		"quota": quota,
 		"total": total,
 		"passed": passed,
-		"card_picked": String(card_picked.id) if card_picked != null else "",
-		"reward_skipped": reward_skipped,
-		"upgrade_taken": String(upgrade_taken.id) if upgrade_taken != null else "",
 		"inspection": String(inspection.id) if inspection != null else "",
 		"played": played.map(func(card: CardDefinition) -> String: return String(card.id)),
+		"visits": visits.map(func(visit: MachineVisit) -> Dictionary: return visit.to_dictionary()),
 	}
+	return data
 
 
 ## Reads to_dictionary's form (as parsed from JSON), resolving ids through `lookup`. Returns
@@ -54,11 +71,13 @@ static func from_dictionary(data: Dictionary, lookup: ContentLookup) -> ShiftRec
 		reader.whole("total", -SaveReader.MAX_EXACT)
 	)
 	var saved_passed: bool = reader.flag("passed")
-	record.card_picked = reader.card("card_picked")
-	record.reward_skipped = reader.flag("reward_skipped")
-	record.upgrade_taken = reader.upgrade("upgrade_taken")
 	record.inspection = reader.inspection("inspection")
 	record.played = reader.cards("played")
+	for visit_data: Dictionary in reader.dictionaries("visits"):
+		var visit: MachineVisit = MachineVisit.from_dictionary(visit_data, lookup)
+		if visit == null:
+			return null
+		record.visits.append(visit)
 	if not reader.ok or saved_passed != record.passed:
 		return null
 	return record

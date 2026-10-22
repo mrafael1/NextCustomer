@@ -9,6 +9,12 @@ extends GdUnitTestSuite
 
 const SCREEN := "res://ui/shift_screen.tscn"
 const RecordingSfx := preload("res://tests/presentation/recording_sfx.gd")
+const Rush := preload("res://tests/ui/count_up_rush.gd")
+## Game time runs this much faster (Rush.speed_up): the tweens' beats and waits shrink, while the
+## press windows (CountUp.HOLD_THRESHOLD_MS, CHECKOUT_DOUBLE_CLICK_MS), the hit-stops and the
+## pause stay real, so a 7-item count still lasts a few seconds: long enough for every press to
+## land mid-count. A tapped count shrinks by the same factor, so "clearly faster" keeps its margin.
+const TIME_FACTOR := 4.0
 ## Milk, Multipack, Milk x5 = 109: passes the first five quotas.
 const PASSING_ROW: Array[String] = ["milk", "multipack", "milk", "milk", "milk", "milk", "milk"]
 ## The count-up's reference row (with Coupon engine, Slot engine and a Spot check): scans, notes,
@@ -29,6 +35,7 @@ func before_test() -> void:
 
 
 func after_test() -> void:
+	Rush.restore()
 	ProjectSettings.set_setting(SaveService.FOLDER_SETTING, null)
 	if DirAccess.dir_exists_absolute(_folder):
 		for file_name: String in DirAccess.get_files_at(_folder):
@@ -56,7 +63,7 @@ func test_a_tap_speeds_the_count_to_the_verdict() -> void:
 	_place_row(screen)
 	await screen._on_checkout_pressed()
 	var untouched: int = int(_last_event("count_up")["count_up_ms"])
-	screen._on_reward_skipped()
+	screen._machine.debug_skip()
 	_place_row(screen)
 	screen._on_checkout_pressed()
 	await _frames(3)
@@ -120,7 +127,7 @@ func test_the_checkout_click_is_neither_a_tap_nor_a_hold() -> void:
 	assert_bool(quick["skip_used"]).is_false()
 	assert_bool(quick["fast_forward_used"]).is_false()
 
-	screen._on_reward_skipped()
+	screen._machine.debug_skip()
 	_place_row(screen)
 	_runner.simulate_mouse_button_press(MOUSE_BUTTON_LEFT)
 	screen._on_checkout_pressed()
@@ -181,7 +188,7 @@ func test_a_press_on_a_disabled_button_counts() -> void:
 	assert_bool(tapped["skip_used"]).is_true()
 	assert_bool(tapped["fast_forward_used"]).is_false()
 
-	screen._on_reward_skipped()
+	screen._machine.debug_skip()
 	_place_row(screen)
 	screen._on_checkout_pressed()
 	await _frames(2)
@@ -254,7 +261,7 @@ func test_a_press_and_release_in_one_frame_is_a_tap() -> void:
 	assert_bool(key["fast_forward_used"]).is_false()
 	await _assert_full_receipt(screen)
 
-	screen._on_reward_skipped()
+	screen._machine.debug_skip()
 	_runner.set_mouse_position(screen._receipt.get_global_rect().get_center())
 	_place_row(screen)
 	screen._on_checkout_pressed()
@@ -402,8 +409,8 @@ static func _heard(sfx: RecordingSfx) -> Dictionary:
 
 func _screen() -> ShiftScreen:
 	_runner = scene_runner(SCREEN)
+	Rush.speed_up(_runner, TIME_FACTOR)
 	var screen: ShiftScreen = _runner.scene()
-	screen._on_reward_skipped()  # Past the impulse rack.
 	await _frames(2)
 	return screen
 

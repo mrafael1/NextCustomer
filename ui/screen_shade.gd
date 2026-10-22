@@ -1,10 +1,9 @@
 class_name ScreenShade
 extends Control
-## The shift screen's shade (#61, #80): it dims the screen behind the reward and upgrade panels,
-## the deck view and the results, and takes every click on its rect, so nothing behind it can be
-## picked. It may leave one hole unshaded (set_hole): beside the reward print-out the shift screen
-## leaves the hung monitor unshaded there, so its totals stay readable. The hole still takes the
-## clicks: only its dimming is left out.
+## The shift screen's shade (#61, #80, #77): it dims the screen behind the RECEIPT REWARDS
+## machine, the deck view and the results, and takes every click on its rect, so nothing behind
+## it can be picked. It may leave one hole unshaded (set_hole; the machine leaves none). The hole
+## still takes the clicks: only its dimming is left out.
 
 ## The shade's colour.
 var color: Color = Color(0, 0, 0, 0.5)

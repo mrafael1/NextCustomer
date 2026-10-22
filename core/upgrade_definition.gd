@@ -38,7 +38,7 @@ func build_names() -> String:
 	return ", ".join(builds.map(func(build: BuildDefinition) -> String: return build.display_name))
 
 
-## Whether this upgrade fits a deck (an upgrade offer guarantees one that does): one of its
+## Whether this upgrade fits a deck (a REGISTER draw guarantees one that does): one of its
 ## builds fits. An Economy upgrade helps any deck, so it never counts as fitting one.
 func fits(deck: Array[CardDefinition]) -> bool:
 	if type == Type.ECONOMY:

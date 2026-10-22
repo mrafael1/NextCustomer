@@ -30,7 +30,8 @@ func test_aisles_hold_products_only() -> void:
 			assert_bool(card.is_product()).override_failure_message(String(card.id)).is_true()
 
 
-## Every product is a staple of some deck or in exactly one aisle, never both.
+## Every product is a staple of some deck or in exactly one aisle, never both. Item tiers (#77)
+## are run upgrades from the machine, never stocked: they are in no aisle and skipped here.
 func test_every_product_is_a_staple_or_in_exactly_one_aisle() -> void:
 	var balance: BalanceDefinition = load(BALANCE)
 	var staples: Array[CardDefinition] = []
@@ -38,7 +39,7 @@ func test_every_product_is_a_staple_or_in_exactly_one_aisle() -> void:
 		staples.append_array(RunStock.staples(load("%s/%s" % [DECK_DIR, file])))
 	for file: String in _tres_files(CARD_DIR):
 		var card: CardDefinition = load("%s/%s" % [CARD_DIR, file])
-		if not card.is_product():
+		if not card.is_product() or card.tier != CardDefinition.Tier.PLAIN:
 			continue
 		var homes: int = 0
 		for aisle: AisleDefinition in balance.aisles:

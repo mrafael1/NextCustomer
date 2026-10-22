@@ -1,0 +1,36 @@
+; A stock box in a stockroom bay (teal tape, the RR logo): 22x30, the belt box made small.
+; Converted once from look_f.js (docs/art/mockups/machine_77_src/flow/looks/), look F RESTOCK HATCH (#77).
+; The cell's number (look_f.js DIGIT, at 15,6 in brown dark f) is drawn in code.
+@size 22x30
+@kind scenery
+@scale 2
+######################
+#PPPPPPPP5443PPPPPPPP#
+#PPPPPPPP5443PPPPPPPP#
+#PPPPPPPP5443PPPPPPPP#
+#PPPPPPPP5443PPPPPPPP#
+#ffffffff5443ffffffff#
+#Phhhhhhh5443hhhhhFFF#
+#Phhhhhhh5443hhhhhFFF#
+#Phhhhhhh5443hhhhhFFF#
+#Phhhhhhh5443hhhhhFFF#
+#PhhhhhhhhhhhhhhhhFFF#
+#PhhhhhhhhhhhhhhhhFFF#
+#Phh##############FFF#
+#Phh#wwwwwwwwwwww#FFF#
+#Phh#www444443www#FFF#
+#Phh#www444443www#FFF#
+#Phh#www444443www#FFF#
+#Phh#www444443www#FFF#
+#Phh#www444443www#FFF#
+#Phh#wwwwwwwwwwww#FFF#
+#Phh#wbbbbbbbbbbw#FFF#
+#Phh##############FFF#
+#PhhhhhhhhhhhhhhhhFFF#
+#PhhhhhhhhhhhhhhhhFFF#
+#PhhhhhheeeeeehhhhFFF#
+#PhhhhhheeeeeehhhhFFF#
+#FFFFFFFFFFFFFFFFFFFF#
+#FFFFFFFFFFFFFFFFFFFF#
+#FFFFFFFFFFFFFFFFFFFF#
+######################

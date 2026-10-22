@@ -5,9 +5,9 @@ extends RefCounted
 
 var run_seed: int = 0
 var won: bool = false
-## One ShiftRecord.to_dictionary() per played shift, in order, plus "best": the shift's exact
-## best total (the played total, unless the strategy plays sensible rows), and "hand": the card
-## ids of its hand at checkout.
+## One ShiftRecord.to_dictionary() per played shift (its machine visits too), in order, plus
+## "best": the shift's exact best total (the played total, unless the strategy plays sensible
+## rows), and "hand": the card ids of its hand at checkout.
 var shifts: Array[Dictionary] = []
 ## The exact best total and the hand's card ids at checkout of each shift played so far
 ## (SimPlayer fills them in, then the shifts' "best" and "hand").
@@ -22,15 +22,17 @@ var in_best: Dictionary[String, int] = {}
 var needed: Dictionary[String, int] = {}
 ## Redraws made over the run.
 var redraws: int = 0
-## Whether the run had an impulse rack, and the product picked there ("" for a skip).
-var impulse_offered: bool = false
-var impulse_pick: String = ""
 ## The final deck's main build (SimBuilds), every build it fits, and the coins the run paid
 ## (CoinPayout): in all, and its overtime coins.
 var main_build: String = ""
 var fitted_builds: PackedStringArray = PackedStringArray()
 var coins: int = 0
 var overtime_coins: int = 0
+## The machine at the end of the run (#77): the registers picked from it, each chute's Regular
+## level (RewardMachine.Chute order), and the final deck's BIG and GOLDEN copies by card id.
+var registers: int = 0
+var levels: PackedInt32Array = PackedInt32Array()
+var tier_copies: Dictionary[String, int] = {}
 
 
 static func from_dictionary(data: Dictionary) -> SimRunRecord:
@@ -41,6 +43,7 @@ static func from_dictionary(data: Dictionary) -> SimRunRecord:
 		var entry: Dictionary = shift.duplicate()
 		for key: String in ["shift", "quota", "total", "best"]:
 			entry[key] = int(entry.get(key, entry["total"]))
+		entry["visits"] = _visits(entry.get("visits", []))
 		record.shifts.append(entry)
 	record.final_deck = PackedStringArray(data["final_deck"])
 	for id: String in data["drawn"]:
@@ -50,13 +53,36 @@ static func from_dictionary(data: Dictionary) -> SimRunRecord:
 	for id: String in data["needed"]:
 		record.needed[id] = int(data["needed"][id])
 	record.redraws = int(data["redraws"])
-	record.impulse_offered = bool(data["impulse_offered"])
-	record.impulse_pick = String(data["impulse_pick"])
 	record.main_build = String(data["main_build"])
 	record.fitted_builds = PackedStringArray(data.get("fitted_builds", []))
 	record.coins = int(data["coins"])
 	record.overtime_coins = int(data["overtime_coins"])
+	record.registers = int(data.get("registers", 0))
+	for level: Variant in data.get("levels", []):
+		record.levels.append(int(level))
+	var copies: Dictionary = data.get("tier_copies", {})
+	for id: String in copies:
+		record.tier_copies[id] = int(copies[id])
 	return record
+
+
+## A shift's visits (MachineVisit.to_dictionary) with their numbers whole again after JSON.
+static func _visits(visits: Array) -> Array:
+	var found: Array = []
+	for visit: Dictionary in visits:
+		var entry: Dictionary = visit.duplicate(true)
+		entry["level_before"] = int(entry.get("level_before", 0))
+		entry["picked"] = int(entry.get("picked", -1))
+		entry["drop_order"] = (entry.get("drop_order", []) as Array).map(
+			func(value: Variant) -> int: return int(value)
+		)
+		for prize: Dictionary in entry.get("prizes", []):
+			prize["rarity"] = int(prize.get("rarity", 0))
+		for copy: Array in entry.get("upgraded", []):
+			if not copy.is_empty():
+				copy[0] = int(copy[0])
+		found.append(entry)
+	return found
 
 
 func to_dictionary() -> Dictionary:
@@ -69,12 +95,13 @@ func to_dictionary() -> Dictionary:
 		"in_best": in_best,
 		"needed": needed,
 		"redraws": redraws,
-		"impulse_offered": impulse_offered,
-		"impulse_pick": impulse_pick,
 		"main_build": main_build,
 		"fitted_builds": fitted_builds,
 		"coins": coins,
 		"overtime_coins": overtime_coins,
+		"registers": registers,
+		"levels": levels,
+		"tier_copies": tier_copies,
 	}
 
 

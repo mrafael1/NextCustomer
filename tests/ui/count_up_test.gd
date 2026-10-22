@@ -12,6 +12,7 @@ extends GdUnitTestSuite
 
 const SCREEN := "res://ui/shift_screen.tscn"
 const RECORDING_SFX := preload("res://tests/presentation/recording_sfx.gd")
+const Rush := preload("res://tests/ui/count_up_rush.gd")
 const SCREEN_RECT := Rect2(0, 0, 1280, 720)
 const FULL_ROW: Array[String] = ["eggs", "bread", "milk", "multipack", "milk", "milk", "milk"]
 ## Milk, Multipack, Milk x5 = 109: passes the first five quotas.
@@ -38,6 +39,7 @@ func before_test() -> void:
 
 
 func after_test() -> void:
+	Rush.restore()
 	get_tree().root.size = _window_size
 	ProjectSettings.set_setting(SaveService.FOLDER_SETTING, null)
 	if DirAccess.dir_exists_absolute(_folder):
@@ -327,7 +329,7 @@ func test_the_best_so_far_leaves_out_the_shift_being_counted() -> void:
 	assert_int(screen.run.history.size()).is_equal(1)
 	assert_int(screen.run.history[0].total).is_equal(109)
 	assert_int(screen._count_up.plan.best).is_equal(45)
-	screen._on_reward_skipped()
+	screen._machine.debug_skip()
 	await _place(screen, ["milk", "bread"])
 	screen._on_checkout_pressed()
 	await _frames(2)
@@ -377,11 +379,11 @@ func test_the_led_and_checkout_follow_a_passed_shift() -> void:
 		await get_tree().process_frame
 	assert_int(key_up_frames).is_equal(0)
 	assert_bool(checkout.held).is_false()
-	assert_bool(screen._reward_panel.visible).is_true()
+	assert_bool(screen._machine.is_open()).is_true()
 	assert_str(led.digits_label().text).is_equal(str(total))
 	_assert_met(screen, true)
 	# The next shift's planning: the projected total, the LED blank.
-	screen._on_reward_skipped()
+	screen._machine.debug_skip()
 	await _frames(2)
 	assert_int(screen.run.phase).is_equal(RunState.Phase.PLANNING)
 	assert_int(led.mode()).is_equal(LedDisplay.Mode.BLANK)
@@ -751,8 +753,7 @@ func _play_tapped(screen: ShiftScreen, result: ScoreResult, quota: int) -> void:
 
 
 func _played(screen: ShiftScreen) -> void:
-	while screen._count_up._playing:
-		await get_tree().process_frame
+	await Rush.played(screen._count_up)  # One tap (none if tapped): no caller times the count.
 
 
 func _assert_full_receipt(screen: ShiftScreen) -> void:
@@ -779,7 +780,9 @@ func _assert_receipt_of(
 		screen.receipt_header()
 	)
 	assert_str(_lines(expected)[0]).is_equal(ReceiptView.HEADER_TEXT + " | ")
-	expected.show_shift_end(result.total, quota, notice)
+	expected.show_shift_end(
+		result.total, quota, notice, ", ".join(InspectionTag.names(run.inspections))
+	)
 	assert_array(_lines(screen._receipt)).is_equal(_lines(expected))
 	for line: Node in screen._receipt._lines.get_children():
 		assert_float((line as CanvasItem).modulate.a).is_equal(1.0)
@@ -855,6 +858,7 @@ func test_the_rides_wait_on_the_count_and_move_nothing_themselves() -> void:
 		func(_b: CountUpBeat, _s: ScoreStep, _l: String, _v: CardView, _i: int) -> void:
 			started[0] += 1
 	)
+	Rush.speed_up(_runner, 2.0)  # Untimed; a ride's gap still lasts many frames for the stop.
 	screen._on_checkout_pressed()
 	var forced: bool = false
 	var failures: Array[String] = []
@@ -884,7 +888,6 @@ func test_the_rides_wait_on_the_count_and_move_nothing_themselves() -> void:
 func _screen() -> ShiftScreen:
 	_runner = scene_runner(SCREEN)
 	var screen: ShiftScreen = _runner.scene()
-	screen._on_reward_skipped()  # Past the impulse rack.
 	await _frames(2)
 	return screen
 

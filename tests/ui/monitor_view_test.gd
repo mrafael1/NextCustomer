@@ -132,8 +132,8 @@ func test_the_monitor_hangs_on_the_stage_clear_of_the_rest() -> void:
 	assert_bool(MonitorView.STAMP_RECT.intersects(MonitorView.TO_GO_RECT)).is_true()
 	assert_bool(MonitorView.PAPER_RECT.has_point(MonitorView.SUNBURST_CENTRE)).is_true()
 	assert_bool(MonitorView.LED_COUNT_RECT.has_point(MonitorView.SUNBURST_CENTRE)).is_true()
-	# In planning the store channel has the screen (the LED hidden at its compact place, for the
-	# impulse rack), and the monitor takes no clicks.
+	# In planning the store channel has the screen (the LED hidden at its compact place), and the
+	# monitor takes no clicks.
 	assert_that(screen._led.get_global_rect()).is_equal(_on_stage(screen, ShiftStage.LED_RECT))
 	assert_bool(screen._led.visible).is_false()
 	assert_int(monitor.mode()).is_equal(MonitorView.Mode.CHANNEL)
@@ -155,7 +155,7 @@ func test_every_card_scan_fits_the_screen() -> void:
 	var short: PackedStringArray = PackedStringArray([SHORT_LINE, LONG_LINE])
 	var short_fizzles: Array[bool] = [false, true]
 	var cards: Array[CardDefinition] = _cards()
-	assert_int(cards.size()).is_equal(59)
+	assert_int(cards.size()).is_equal(67)
 	var tiers: Dictionary[int, int] = {}
 	for definition: CardDefinition in cards:
 		var aisle: AisleDefinition = balance.aisle_of(definition)
@@ -479,7 +479,7 @@ func test_the_count_up_shows_each_beat_on_the_monitor() -> void:
 	assert_bool(monitor.tank().get_global_rect().intersects(tab.get_global_rect())).is_true()
 	assert_vector(monitor.position).is_equal(ShiftStage.MONITOR_RECT.position)
 	# The next shift's planning: the store channel, the LED blank, hidden and compact.
-	screen._on_reward_skipped()
+	screen._machine.debug_skip()
 	await _frames(2)
 	assert_int(monitor.mode()).is_equal(MonitorView.Mode.CHANNEL)
 	assert_int(led.mode()).is_equal(LedDisplay.Mode.BLANK)
@@ -949,11 +949,10 @@ static func _shown_texts(monitor: MonitorView) -> PackedStringArray:
 	return texts
 
 
-## The screen past the impulse rack, its scanner following _point on the tests' clock.
+## The screen on shift 1, its scanner following _point on the tests' clock.
 func _screen() -> ShiftScreen:
 	var runner: GdUnitSceneRunner = scene_runner(SCREEN)
 	var screen: ShiftScreen = runner.scene()
-	screen._on_reward_skipped()
 	screen._scan.pointer = func() -> Vector2: return _point
 	screen._scan.now_ms = func() -> int: return _clock
 	await _frames(3)

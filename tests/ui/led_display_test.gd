@@ -352,7 +352,6 @@ func test_the_stamp_slams_in_real_time() -> void:
 func test_the_screen_shows_core_totals() -> void:
 	var runner: GdUnitSceneRunner = scene_runner(SCREEN)
 	var screen: ShiftScreen = runner.scene()
-	screen._on_reward_skipped()
 	await _frames(2)
 	var led: LedDisplay = screen._led
 	assert_object(led.get_parent()).is_same(screen._stage.monitor)

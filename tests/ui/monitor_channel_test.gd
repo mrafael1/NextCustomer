@@ -221,7 +221,7 @@ func test_a_scan_takes_the_screen_and_the_channel_resumes() -> void:
 
 
 ## The CHECKOUT click takes the channel off the screen: the count-up has the monitor (SUBTOTAL,
-## then TOTAL on the reward print-out) and the channel neither shows nor runs. The next shift's
+## then TOTAL beside the machine) and the channel neither shows nor runs. The next shift's
 ## planning blanks the LED and brings the channel back on the new shift's brief, even when CHECKOUT
 ## was clicked on an upgrade's slide (the upgrade still owned), the QUOTA chip on its projected
 ## total.
@@ -245,11 +245,11 @@ func test_the_channel_stays_out_of_the_count_up() -> void:
 	while screen._counting:
 		assert_bool(channel.visible).is_false()
 		await get_tree().process_frame
-	assert_bool(screen._reward_panel.visible).is_true()
+	assert_bool(screen._machine.is_open()).is_true()
 	assert_int(monitor.mode()).is_equal(MonitorView.Mode.COUNT)
 	assert_str(screen._led.caption_label().text).is_equal(LedDisplay.TOTAL_TEXT)
 	assert_bool(channel.visible).is_false()
-	screen._on_reward_skipped()
+	screen._machine.debug_skip()
 	await _frames(2)
 	assert_int(screen.run.shift_index).is_equal(1)
 	assert_int(monitor.mode()).is_equal(MonitorView.Mode.CHANNEL)
@@ -453,11 +453,10 @@ static func _entry(
 	return entry
 
 
-## The screen past the impulse rack, the channel and the scanner on the tests' clock.
+## The screen on shift 1, the channel and the scanner on the tests' clock.
 func _screen() -> ShiftScreen:
 	var runner: GdUnitSceneRunner = scene_runner(SCREEN)
 	var screen: ShiftScreen = runner.scene()
-	screen._on_reward_skipped()
 	screen._scan.pointer = func() -> Vector2: return _point
 	screen._scan.now_ms = func() -> int: return _clock
 	var channel: MonitorChannel = screen._monitor.channel

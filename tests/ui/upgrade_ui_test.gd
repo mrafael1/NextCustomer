@@ -1,10 +1,13 @@
 extends GdUnitTestSuite
-## The upgrade step on the real shift screen (plan section 3.8): the ticket panel after the
-## reward on upgrade shifts, the loyalty card, upgrade steps in the count-up and the receipt,
-## the extra redraw, the run history on the results screen and the upgrade log events. Clicks
-## are sent to the screen's handlers, because headless runs don't deliver input events.
+## Registers on the real shift screen (plan section 3.8; #77): a register picked from the RECEIPT
+## REWARDS machine's REGISTER chute and stamped on the loyalty card, upgrade steps in the count-up
+## and the receipt, the extra redraw, the run history on the results screen and the upgrade log
+## events. Clicks are sent to the screen's handlers, because headless runs don't deliver input
+## events.
 
 const SCREEN := "res://ui/shift_screen.tscn"
+## Checkouts rush their count (one tap): the suite tests what follows it.
+const Rush := preload("res://tests/ui/count_up_rush.gd")
 const COUPON_ENGINE := "res://data/upgrades/coupon_engine.tres"
 const CATEGORY_ENGINE := "res://data/upgrades/category_engine.tres"
 const BREAD := "res://data/cards/bread.tres"
@@ -28,73 +31,55 @@ func after_test() -> void:
 		DirAccess.remove_absolute(_folder)
 
 
-func test_tickets_follow_the_reward_only_on_upgrade_shifts() -> void:
+## The machine's REGISTER chute (#77): its prizes are registers; the Cart shows the deck and
+## gives the machine back; the pick stamps the loyalty card's first box (its hover tells what the
+## register does), applies from the next shift and is logged as machine_visit.
+func test_a_register_from_the_machine_stamps_the_loyalty_card() -> void:
 	var runner: GdUnitSceneRunner = scene_runner(SCREEN)
 	var screen: ShiftScreen = runner.scene()
-	screen._on_reward_skipped()  # Past the impulse rack.
 	var run: RunState = screen.run
-	assert_bool(run.balance.upgrade_shifts.has(1)).is_false()
-	assert_bool(run.balance.upgrade_shifts.has(2)).is_true()
-
-	# Shift 1 is not an upgrade shift: the reward leads straight to shift 2.
 	await _pass_shift(screen)
-	assert_bool(screen._upgrade_panel.visible).is_false()
-	screen._on_reward_skipped()
-	assert_int(run.shift_index).is_equal(1)
-	assert_int(run.phase).is_equal(RunState.Phase.PLANNING)
-	assert_bool(screen._upgrade_panel.visible).is_false()
-
-	# Shift 2 is: the tickets come after the reward, never with it.
-	await _pass_shift(screen)
-	assert_bool(screen._reward_panel.visible).is_true()
-	assert_bool(screen._upgrade_panel.visible).is_false()
-	screen._on_reward_skipped()
-	assert_int(run.phase).is_equal(RunState.Phase.UPGRADE)
-	assert_bool(screen._reward_panel.visible).is_false()
-	assert_bool(screen._upgrade_panel.visible).is_true()
+	assert_bool(screen._machine.is_open()).is_true()
 	await _frames(2)
 	assert_bool(screen._shade.visible).is_true()
-	# The panel fits its tickets once their wrapped lines are measured: it once stayed sized
-	# to the unmeasured text (over 3,000 px tall) with the tickets off screen.
+	assert_bool(screen._machine._choose(RewardMachine.Chute.REGISTER)).is_true()
+	var prizes: Array[MachinePrize] = run.machine.prizes()
+	assert_int(prizes.size()).is_between(1, 3)
+	for prize: MachinePrize in prizes:
+		assert_int(prize.kind).is_equal(MachinePrize.Kind.REGISTER)
+	# The machine and its prize tickets fit the screen.
 	await _frames(3)
-	var panel_rect: Rect2 = screen._upgrade_panel.get_global_rect()
-	assert_float(panel_rect.size.y).is_less_equal(
-		screen._upgrade_panel.get_combined_minimum_size().y
-	)
-	assert_bool(screen.get_global_rect().encloses(panel_rect)).is_true()
-	var tickets: Array[UpgradeTicket] = screen._upgrade_panel.tickets()
-	assert_int(tickets.size()).is_equal(run.upgrade_offer.size())
-	assert_int(tickets.size()).is_between(1, 3)
-	# There is no skip: the panel has no button at all.
-	assert_array(screen._upgrade_panel.find_children("*", "BaseButton", true, false)).is_empty()
+	var machine: Rect2 = screen._machine.view.get_global_rect()
+	assert_bool(screen.get_global_rect().encloses(machine)).is_true()
+	for ticket: PrizeTicket in screen._machine.view.tickets:
+		assert_bool(machine.encloses(ticket.get_global_rect())).is_true()
+	# A click before the machine is armed does nothing.
+	screen._machine.view._armed = false
+	screen._machine.view.pick(0)
+	screen._machine.view.fast_forward()  # The landing plays to its end.
+	assert_int(run.phase).is_equal(RunState.Phase.MACHINE_PICK)
+	await _until_armed(screen)
 
-	# A click before the panel is armed does nothing, and the top bar's Deck waits too.
-	var ticket: UpgradeTicket = tickets[0]
-	screen._upgrade_panel._on_ticket_clicked(ticket)
-	assert_int(run.phase).is_equal(RunState.Phase.UPGRADE)
-	screen._on_deck_button_pressed()
-	assert_bool(screen._deck_view.visible).is_false()
-	await _wait_wall_ms(450)
-
-	# The deck view (top bar) goes back to the tickets, never past them.
+	# The deck view (top bar) goes back to the prizes, never past them.
 	screen._on_deck_button_pressed()
 	assert_bool(screen._deck_view.visible).is_true()
-	assert_bool(screen._upgrade_panel.visible).is_false()
+	assert_bool(screen._machine.view.visible).is_false()
 	screen._deck_view._close()
-	assert_bool(screen._upgrade_panel.visible).is_true()
-	assert_int(run.phase).is_equal(RunState.Phase.UPGRADE)
-	screen._upgrade_panel._on_ticket_clicked(ticket)
+	assert_bool(screen._machine.view.visible).is_true()
+	assert_int(run.phase).is_equal(RunState.Phase.MACHINE_PICK)
+	var picked: UpgradeDefinition = prizes[0].upgrade
+	screen._machine.view.pick(0)
+	screen._machine.view.fast_forward()  # The landing plays to its end.
 
-	var picked: UpgradeDefinition = ticket.upgrade
 	assert_array(run.upgrades).contains_exactly([picked])
-	assert_int(run.shift_index).is_equal(2)
+	assert_int(run.shift_index).is_equal(1)
 	assert_int(run.phase).is_equal(RunState.Phase.PLANNING)
-	assert_bool(screen._upgrade_panel.visible).is_false()
-	assert_object(run.history[1].upgrade_taken).is_same(picked)
+	assert_bool(screen._machine.is_open()).is_false()
+	assert_array(run.history[0].registers_taken()).is_equal([picked])
 
-	# The loyalty card's first box is stamped; hovering it tells what the upgrade does.
+	# The loyalty card's first box is stamped; hovering it tells what the register does.
 	var texts: PackedStringArray = screen._loyalty_card.box_texts()
-	assert_int(texts.size()).is_equal(run.balance.upgrade_shifts.size())
+	assert_int(texts.size()).is_equal(run.balance.machine.register_cap)
 	assert_str(texts[0]).is_equal(LoyaltyCard.initials(picked.display_name))
 	assert_str(texts[1]).is_empty()
 	var tooltip: String = screen._loyalty_card.box(0).tooltip_text
@@ -103,22 +88,22 @@ func test_tickets_follow_the_reward_only_on_upgrade_shifts() -> void:
 		assert_str(tooltip).contains(picked.condition_text)
 
 	var types: Array = _events().map(func(event: Dictionary) -> String: return event["type"])
-	assert_array(types.slice(-3)).is_equal(["reward", "upgrade", "shift_start"])
-	var upgrade: Dictionary = _last_event("upgrade")
-	assert_int(int(upgrade["shift"])).is_equal(2)
-	assert_str(upgrade["picked"]).is_equal(String(picked.id))
-	var offered: Array = upgrade["offered"]
-	assert_int(offered.size()).is_equal(tickets.size())
-	assert_str(offered[0]).is_equal(String(picked.id))
-	assert_int(int(upgrade["decide_ms"])).is_greater_equal(450)
+	assert_array(types.slice(-2)).is_equal(["machine_visit", "shift_start"])
+	var visit: Dictionary = _last_event("machine_visit")
+	assert_int(int(visit["shift"])).is_equal(1)
+	assert_str(visit["chute"]).is_equal("register")
+	assert_int(int(visit["picked"])).is_equal(0)
+	assert_str(visit["offered"][0]["id"]).is_equal(String(picked.id))
+	assert_int((visit["offered"] as Array).size()).is_equal(prizes.size())
+	assert_int(int(visit["registers_owned"])).is_equal(1)
+	assert_int(int(visit["decide_ms"])).is_greater_equal(0)
 
 
 ## Full build plan 7.3: a deck's starting upgrade takes a pre-stamped box of its own, before the
-## upgrade-shift boxes.
+## machine's register boxes.
 func test_a_starting_upgrade_has_its_own_stamped_box() -> void:
 	var runner: GdUnitSceneRunner = scene_runner(SCREEN)
 	var screen: ShiftScreen = runner.scene()
-	screen._on_reward_skipped()  # Past the impulse rack.
 	var deck: DeckDefinition = (load("res://data/decks/starter.tres") as DeckDefinition).duplicate()
 	deck.starting_upgrade = load(COUPON_ENGINE)
 	screen.run = RunState.new(
@@ -127,7 +112,7 @@ func test_a_starting_upgrade_has_its_own_stamped_box() -> void:
 	screen.run.start_shift()
 	screen._on_shift_started()
 	var texts: PackedStringArray = screen._loyalty_card.box_texts()
-	assert_int(texts.size()).is_equal(screen.run.balance.upgrade_shifts.size() + 1)
+	assert_int(texts.size()).is_equal(screen.run.balance.machine.register_cap + 1)
 	assert_str(texts[0]).is_equal("CoE")
 	assert_str(texts[1]).is_empty()
 	assert_int(screen._loyalty_card.stamped_boxes().size()).is_equal(1)
@@ -156,12 +141,12 @@ func test_a_ticket_shows_its_fields_in_order() -> void:
 	assert_str(plain_ticket.field_texts()[3]).is_equal("No condition")
 
 
-func test_the_loyalty_card_has_one_empty_box_per_upgrade_shift() -> void:
+## One empty box per register the machine can stamp (its register cap, #77).
+func test_the_loyalty_card_has_one_empty_box_per_register() -> void:
 	var runner: GdUnitSceneRunner = scene_runner(SCREEN)
 	var screen: ShiftScreen = runner.scene()
-	screen._on_reward_skipped()  # Past the impulse rack.
 	var texts: PackedStringArray = screen._loyalty_card.box_texts()
-	assert_int(texts.size()).is_equal(screen.run.balance.upgrade_shifts.size())
+	assert_int(texts.size()).is_equal(screen.run.balance.machine.register_cap)
 	for text: String in texts:
 		assert_str(text).is_empty()
 	assert_array(screen._loyalty_card.stamped_boxes()).is_empty()
@@ -175,7 +160,6 @@ func test_the_loyalty_card_has_one_empty_box_per_upgrade_shift() -> void:
 func test_upgrade_steps_play_from_the_loyalty_card() -> void:
 	var runner: GdUnitSceneRunner = scene_runner(SCREEN)
 	var screen: ShiftScreen = runner.scene()
-	screen._on_reward_skipped()  # Past the impulse rack.
 	screen._debug.give_upgrade("coupon_engine")
 	screen._debug.give_upgrade("category_engine")
 	assert_int(screen.run.upgrades.size()).is_equal(2)
@@ -189,7 +173,7 @@ func test_upgrade_steps_play_from_the_loyalty_card() -> void:
 	assert_str(_scan_text(screen, 2)).contains("Coupon engine").contains("×")
 	assert_str(_scan_text(screen, 1)).contains("Category engine").contains("+€")
 
-	await screen._on_checkout_pressed()
+	await Rush.checkout(screen)
 	assert_str(screen._led.digits_label().text).is_equal(str(preview.total))
 	assert_str(_receipt_text(screen)).contains("Coupon engine").contains("Category engine")
 	for step: ScoreStep in upgrade_steps:
@@ -208,13 +192,12 @@ func test_upgrade_steps_play_from_the_loyalty_card() -> void:
 func test_an_upgrade_fizzle_plays_and_prints() -> void:
 	var runner: GdUnitSceneRunner = scene_runner(SCREEN)
 	var screen: ShiftScreen = runner.scene()
-	screen._on_reward_skipped()  # Past the impulse rack.
 	screen._debug.give_upgrade("coupon_engine")
 	_place_ids(screen, ["bread", "multipack", "bread"])
 	var wasted: Array[ScoreStep] = _upgrade_steps(screen.run.preview())
 	assert_int(wasted.size()).is_equal(1)
 	assert_int(wasted[0].step_type).is_equal(ScoreStep.StepType.WASTED)
-	await screen._on_checkout_pressed()
+	await Rush.checkout(screen)
 	assert_str(_receipt_text(screen)).contains("Coupon engine: the first coupon paid nothing")
 	assert_object(screen._count_up._beats._source_control(wasted[0])).is_same(
 		screen._loyalty_card.box(0)
@@ -231,7 +214,6 @@ func test_an_upgrade_fizzle_plays_and_prints() -> void:
 func test_every_stamped_box_keeps_its_tilt() -> void:
 	var runner: GdUnitSceneRunner = scene_runner(SCREEN)
 	var screen: ShiftScreen = runner.scene()
-	screen._on_reward_skipped()  # Past the impulse rack.
 	screen._debug.give_upgrade("coupon_engine")
 	await _frames(2)
 	screen._debug.give_upgrade("category_engine")
@@ -347,7 +329,6 @@ func test_a_hovered_ticket_lights_up_when_armed() -> void:
 func test_extra_redraw_gives_a_third_redraw() -> void:
 	var runner: GdUnitSceneRunner = scene_runner(SCREEN)
 	var screen: ShiftScreen = runner.scene()
-	screen._on_reward_skipped()  # Past the impulse rack.
 	assert_str(screen._redraw_button.caption).is_equal("Redraw")
 	assert_str(screen._redraw_button.note()).is_equal("2 left")
 	assert_str(screen._redraw_button.accessibility_name).is_equal("Redraw up to 2 items (2 left)")
@@ -373,45 +354,63 @@ func test_extra_redraw_gives_a_third_redraw() -> void:
 func test_the_results_screen_lists_the_run_history() -> void:
 	var runner: GdUnitSceneRunner = scene_runner(SCREEN)
 	var screen: ShiftScreen = runner.scene()
-	screen._on_reward_skipped()  # Past the impulse rack.
 	await _pass_shift(screen)
-	screen._on_reward_skipped()
-	await screen._on_checkout_pressed()
+	screen._machine.debug_skip()
+	await Rush.checkout(screen)
 	assert_bool(screen._results.visible).is_true()
 	var texts: PackedStringArray = screen._results.texts()
-	assert_str(texts[2]).is_equal("  1  €109 / €34     pass  skipped")
-	assert_str(texts[3]).is_equal("  2  €0 / €35       fail  —")
+	assert_str(texts[2]).is_equal("  1  €109 / €34     pass")
+	assert_str(texts[3]).is_equal("     binned NEW ITEMS")
+	assert_str(texts[4]).is_equal("  2  €0 / €35       fail")
 	# The full 8-shift receipt's layout: tests/ui/results_panel_test.gd.
 
 
-func test_history_rows_name_the_card_upgrade_and_inspection() -> void:
+## A shift's dim lines: one per machine visit (#77), then the inspection.
+func test_history_rows_name_the_visits_and_the_inspection() -> void:
 	var record: ShiftRecord = ShiftRecord.new(4, 22, 30)
-	record.card_picked = load(BREAD)
-	record.upgrade_taken = load(CATEGORY_ENGINE)
+	record.passed = true
+	var ticket: MachineVisit = MachineVisit.new()
+	ticket.chute = RewardMachine.Chute.NEW_ITEMS
+	var bread: Array[MachinePrize] = [
+		MachinePrize.new(MachinePrize.Kind.PRODUCT, MachinePrize.Rarity.COMMON, load(BREAD))
+	]
+	ticket.set_drawn(bread)
+	ticket.picked = 0
+	var bonus: MachineVisit = MachineVisit.new(MachineVisit.Kind.BONUS, "spot_check")
+	bonus.chute = RewardMachine.Chute.REGISTER
+	var engine: Array[MachinePrize] = [
+		MachinePrize.new(
+			MachinePrize.Kind.REGISTER, MachinePrize.Rarity.COMMON, null, load(CATEGORY_ENGINE)
+		)
+	]
+	bonus.set_drawn(engine)
+	bonus.picked = 0
+	record.visits.assign([ticket, bonus])
 	record.inspection = load("res://data/inspections/spot_check.tres")
 	(
 		assert_array(Array(FinalReceipt.shift_texts(record)))
 		. is_equal(
 			[
-				"  4  €30 / €22      pass  Bread",
-				"     upgrade Category engine · inspection Spot check",
+				"  4  €30 / €22      pass",
+				"     NEW ITEMS: Bread",
+				"     BONUS · REGISTER: Category engine",
+				"     inspection Spot check",
 			]
 		)
 	)
-	# Without an upgrade or an inspection, there is no second line.
-	assert_str(FinalReceipt.shift_texts(ShiftRecord.new(1, 10, 12))[1]).is_empty()
+	# Without a visit or an inspection, there is no dim line.
+	assert_int(FinalReceipt.shift_texts(ShiftRecord.new(1, 10, 12)).size()).is_equal(1)
 
 
 func test_run_end_lists_the_upgrades() -> void:
 	var runner: GdUnitSceneRunner = scene_runner(SCREEN)
 	var screen: ShiftScreen = runner.scene()
-	screen._on_reward_skipped()  # Past the impulse rack.
 	screen._debug.give_upgrade("coupon_engine")
 	screen._debug.give_upgrade("category_engine")
 	# An owned upgrade isn't given twice.
 	screen._debug.give_upgrade("coupon_engine")
 	assert_int(screen.run.upgrades.size()).is_equal(2)
-	await screen._on_checkout_pressed()
+	await Rush.checkout(screen)
 	var run_end: Dictionary = _last_event("run_end")
 	assert_array(run_end["upgrades"]).is_equal(["coupon_engine", "category_engine"])
 	assert_str(_last_event("debug")["action"]).is_equal("give_upgrade")
@@ -434,8 +433,8 @@ func test_the_receipt_names_the_upgrade() -> void:
 ## Places a row that passes the first five quotas: Milk, Multipack, Milk x5 = 109.
 func _pass_shift(screen: ShiftScreen) -> void:
 	_place_ids(screen, ["milk", "multipack", "milk", "milk", "milk", "milk", "milk"])
-	await screen._on_checkout_pressed()
-	assert_int(screen.run.phase).is_equal(RunState.Phase.REWARD)
+	await Rush.checkout(screen)
+	assert_int(screen.run.phase).is_equal(RunState.Phase.MACHINE_CHOOSE)
 
 
 ## Adds the cards to the hand through the debug panel and places them at the end of the row.
@@ -495,14 +494,6 @@ func _frames(count: int) -> void:
 		await get_tree().process_frame
 
 
-## Waits on wall-clock time: the suite speeds up game time.
-func _wait_wall_ms(ms: int) -> void:
-	var start: int = Time.get_ticks_msec()
-	while Time.get_ticks_msec() - start < ms:
-		await get_tree().process_frame
-	await get_tree().process_frame
-
-
 func _last_event(type: String) -> Dictionary:
 	var events: Array = _events()
 	for index: int in range(events.size() - 1, -1, -1):
@@ -545,7 +536,6 @@ static func _event_log() -> EventLogService:
 func test_a_nine_slot_row_fits_the_screen() -> void:
 	var runner: GdUnitSceneRunner = scene_runner(SCREEN)
 	var screen: ShiftScreen = runner.scene()
-	screen._on_reward_skipped()  # Past the impulse rack.
 	await await_idle_frame()
 	assert_int(screen._slots.size()).is_equal(7)
 	assert_vector(screen._row_strip.box.scale).is_equal(Vector2.ONE)
@@ -577,3 +567,13 @@ func test_a_nine_slot_row_fits_the_screen() -> void:
 		if slot > 0:
 			assert_float(rect.position.x).is_greater_equal(previous.end.x - 0.01)
 		previous = rect
+
+
+## Fast-forwards the machine to its wait point (as a tap would, unlogged), then waits (at most
+## 3 s) for it to arm: the mouse is up, so it arms on its next frame.
+func _until_armed(screen: ShiftScreen) -> void:
+	screen._machine.view.fast_forward()
+	var start: int = Time.get_ticks_msec()
+	while not screen._machine.view.is_armed() and Time.get_ticks_msec() - start < 3000:
+		await get_tree().process_frame
+	assert_bool(screen._machine.view.is_armed()).is_true()

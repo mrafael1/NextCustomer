@@ -21,6 +21,24 @@ Directives:
     @kind K     item, perk, frame, icon or scenery (required); items get the strictest lint
     @scale N    write the PNG N times larger (default 1), for frames a StyleBoxTexture stretches
 
+A derived source holds no grid and no other directive, only (after its comments)
+
+    @derive <source> golden=<map>
+
+which renders another source's pixels through a GOLDEN palette map (#77's item tiers:
+art/src/items_v2/milk_golden.txt holds "@derive milk_big golden=rank"). <source> is named
+relative to the derived source's folder and must be a drawn source (not a derived one); the
+derived sprite takes its size, kind and scale. The maps (GOLDEN_MAPS) are ported from the
+approved prep script docs/art/mockups/machine_77_src/upgrades/gen_upgrades.py:
+    rank    the source's colours sorted by luminance, spread over GOLDEN_RANK_STEPS (brass
+            darkest to gold), then a 1 px paper glint on every 19th diagonal of the lit gold
+    yellow  GOLDEN_YELLOW_MAP for a yellow item (one step darker and shiny), plus a paper rim
+            on the lit top edge (a mustard pale pixel right under the outline)
+    egg     GOLDEN_EGG_MAP for the eggs (the carton keeps its greys), a brass dark rim where
+            an egg meets the carton, and one paper highlight per egg
+Each map then re-inks: rows 0-1 cleared and every opaque pixel on the outline made ink. A
+derived source is linted, built, checked (missing or stale) and previewed like any other.
+
 art/src/palette.txt lists the palette, one colour per line: a single-character key, a hex
 colour and a name. The key '.' is transparent. The PNGs are indexed (PLTE + tRNS) and hold the
 whole palette, so recolouring the palette and rebuilding changes every sprite at once.
@@ -78,7 +96,29 @@ PREVIEW_GAP = 8
 
 PNG_SIGNATURE = b"\x89PNG\r\n\x1a\n"
 
+# GOLDEN palette maps (#77 item tiers; art data, not game balance), ported exactly from
+# docs/art/mockups/machine_77_src/upgrades/gen_upgrades.py. The rank map's steps, dark to light:
+# brass darkest, brass dark, brass, gold, mustard pale.
+GOLDEN_RANK_STEPS = ("k", "l", "L", "n", "Y")
+GOLDEN_RANK_GLINT_KEYS = frozenset({"n", "Y", "L"})
+GOLDEN_RANK_GLINT_PERIOD = 19
+# A yellow item goes one step darker and shiny: body brass, lit side gold, shade brass dark,
+# seams and tips brass darkest, the green crown and brown stem brass too.
+GOLDEN_YELLOW_MAP = {"Y": "n", "y": "L", "M": "l", "m": "k", "u": "k", "e": "k", "f": "l",
+                     "z": "n", "G": "L", "g": "l"}
+GOLDEN_YELLOW_RIM_FROM = "Y"
+# Paper: the rank map's glint, the yellow map's rim and the egg map's highlights.
+GOLDEN_PAPER = "w"
+# Only the eggs go gold (light side mustard pale, body gold, shade brass, dark brass dark).
+GOLDEN_EGG_MAP = {"b": "L", "c": "n", "w": "Y", "a": "l"}
+GOLDEN_EGG_KEYS = ("w", "c", "b")
+GOLDEN_EGG_SHADE = "a"
+GOLDEN_EGG_RIM = "l"
+DERIVE_DIRECTIVE = "@derive"
+GOLDEN_PREFIX = "golden="
+
 RGBA = tuple[int, int, int, int]
+Grid = list[list[str]]
 
 
 class ArtError(Exception):
@@ -107,6 +147,20 @@ class Sprite:
     def pixels(self, palette: Palette) -> list[list[RGBA]]:
         grid = [[palette.colours[key] for key in row] for row in self.rows]
         return scale_grid(grid, self.scale)
+
+
+@dataclass
+class Derivation:
+    """A derived source: another source's pixels through a GOLDEN map (no grid of its own)."""
+    source: Path
+    name: str
+    base: str
+    golden: str
+
+    def base_name(self) -> str:
+        """The base source's name, relative to the derived source's folder."""
+        folder = self.name.rpartition("/")[0]
+        return f"{folder}/{self.base}" if folder else self.base
 
 
 def parse_palette(path: Path) -> Palette:
@@ -156,7 +210,16 @@ def parse_hex(text: str, where: str) -> RGBA:
 
 
 def parse_sprite(path: Path, src_root: Path) -> tuple[Sprite | None, list[str]]:
-    """Reads a source. Returns the sprite (None if it can't be built) and its format errors."""
+    """Reads a drawn source. Returns the sprite (None if it can't be built) and its format errors;
+    a derived source is reported as an error here (load_project resolves those)."""
+    parsed, errors = parse_source(path, src_root)
+    if isinstance(parsed, Derivation):
+        return None, [f"{parsed.name}: a derived source has no grid of its own"]
+    return parsed, errors
+
+
+def parse_source(path: Path, src_root: Path) -> tuple[Sprite | Derivation | None, list[str]]:
+    """Reads a source: a drawn sprite, or a derivation (@derive). None if it can't be used."""
     errors: list[str] = []
     name = path.relative_to(src_root).with_suffix("").as_posix()
     try:
@@ -167,6 +230,9 @@ def parse_sprite(path: Path, src_root: Path) -> tuple[Sprite | None, list[str]]:
     kind = ""
     scale = 1
     rows: list[str] = []
+    derive: tuple[str, str] | None = None
+    derived = False
+    other_directives = False
     for number, line in enumerate(lines, 1):
         stripped = line.strip()
         if not stripped or stripped.startswith(";"):
@@ -177,7 +243,20 @@ def parse_sprite(path: Path, src_root: Path) -> tuple[Sprite | None, list[str]]:
                 continue
             parts = stripped.split()
             directive, args = parts[0], parts[1:]
-            if directive == "@size" and len(args) == 1:
+            if directive != DERIVE_DIRECTIVE:
+                other_directives = True
+            if directive == DERIVE_DIRECTIVE:
+                if derived:
+                    errors.append(f"{name}:{number}: {DERIVE_DIRECTIVE} is given twice")
+                elif (len(args) == 2 and args[1].startswith(GOLDEN_PREFIX)
+                        and args[1].removeprefix(GOLDEN_PREFIX) in GOLDEN_MAPS):
+                    derive = (args[0], args[1].removeprefix(GOLDEN_PREFIX))
+                else:
+                    errors.append(f"{name}:{number}: {DERIVE_DIRECTIVE} takes <source> "
+                                  f"golden=<map> (maps: {', '.join(sorted(GOLDEN_MAPS))}), "
+                                  f"got {stripped!r}")
+                derived = True
+            elif directive == "@size" and len(args) == 1:
                 size = parse_size(args[0])
                 if size is None:
                     errors.append(f"{name}:{number}: @size takes WxH, got {args[0]!r}")
@@ -194,6 +273,15 @@ def parse_sprite(path: Path, src_root: Path) -> tuple[Sprite | None, list[str]]:
                 errors.append(f"{name}:{number}: unknown directive {stripped!r}")
             continue
         rows.append(stripped)
+    if derived:
+        if rows:
+            errors.append(f"{name}: a derived source holds no grid")
+        if other_directives:
+            errors.append(f"{name}: a derived source takes no other directive (its size, kind "
+                          "and scale are its source's)")
+        if errors or derive is None:
+            return None, errors
+        return Derivation(path, name, derive[0], derive[1]), []
     if size is None:
         errors.append(f"{name}: missing @size")
     if not kind:
@@ -262,6 +350,114 @@ def touches_outside(rows: list[str], x: int, y: int) -> bool:
         if rows[ny][nx] == TRANSPARENT:
             return True
     return False
+
+
+# --- GOLDEN maps (@derive) -------------------------------------------------------------------
+
+
+def reink(grid: Grid) -> Grid:
+    """Rows 0-1 cleared; every opaque pixel on the outline (4-neighbours) becomes ink."""
+    height = len(grid)
+    width = len(grid[0]) if grid else 0
+    for y in range(min(ITEM_EMPTY_TOP_ROWS, height)):
+        grid[y] = [TRANSPARENT] * width
+    out = [row[:] for row in grid]
+    for y in range(height):
+        for x in range(width):
+            if grid[y][x] in (TRANSPARENT, INK):
+                continue
+            for dx, dy in ((1, 0), (-1, 0), (0, 1), (0, -1)):
+                nx, ny = x + dx, y + dy
+                if not (0 <= nx < width and 0 <= ny < height) or grid[ny][nx] == TRANSPARENT:
+                    out[y][x] = INK
+                    break
+    return out
+
+
+def _luma(palette: Palette, key: str) -> float:
+    r, g, b, _ = palette.colours[key]
+    return (0.299 * r + 0.587 * g + 0.114 * b) / 255
+
+
+def golden_rank(rows: Grid, palette: Palette) -> Grid:
+    """The source's colours, dark to light, spread over GOLDEN_RANK_STEPS; ink kept; a 1 px paper
+    glint on every GOLDEN_RANK_GLINT_PERIOD-th diagonal of the lit gold."""
+    used = sorted({key for row in rows for key in row} - {TRANSPARENT, INK},
+                  key=lambda key: (_luma(palette, key), key))
+    steps = len(GOLDEN_RANK_STEPS)
+    mapping = {key: GOLDEN_RANK_STEPS[min(steps - 1, i * steps // len(used))]
+               for i, key in enumerate(used)}
+    out = [[mapping.get(key, key) for key in row] for row in rows]
+    for y, row in enumerate(out):
+        for x, key in enumerate(row):
+            if key in GOLDEN_RANK_GLINT_KEYS and (x + y) % GOLDEN_RANK_GLINT_PERIOD == 0:
+                row[x] = GOLDEN_PAPER
+    return reink(out)
+
+
+def golden_yellow(rows: Grid, _palette: Palette) -> Grid:
+    """GOLDEN_YELLOW_MAP, plus a paper rim where the lightest yellow sits right under the
+    outline."""
+    out = [[GOLDEN_YELLOW_MAP.get(key, key) for key in row] for row in rows]
+    for y in range(1, len(rows)):
+        for x, key in enumerate(rows[y]):
+            if key == GOLDEN_YELLOW_RIM_FROM and rows[y - 1][x] == INK:
+                out[y][x] = GOLDEN_PAPER
+    return reink(out)
+
+
+def golden_egg(rows: Grid, _palette: Palette) -> Grid:
+    """GOLDEN_EGG_MAP; a brass dark rim where an egg meets anything but egg (left, up, right);
+    one highlight per egg: the top-left inner pixel of its light patch, and the next one right."""
+    height = len(rows)
+    width = len(rows[0]) if rows else 0
+    egg = GOLDEN_EGG_KEYS
+    out = [[GOLDEN_EGG_MAP.get(key, key) for key in row] for row in rows]
+    for y in range(1, height - 1):
+        for x in range(1, width - 1):
+            if rows[y][x] in egg and any(rows[y + dy][x + dx] not in egg + (GOLDEN_EGG_SHADE,)
+                                         for dx, dy in ((-1, 0), (0, -1), (1, 0))):
+                out[y][x] = GOLDEN_EGG_RIM
+    light = egg[0]
+
+    def inside_egg(x: int, y: int) -> bool:
+        return 0 <= x < width and 0 <= y < height and rows[y][x] in egg
+
+    seen: set[tuple[int, int]] = set()
+    for y in range(height):
+        for x in range(width):
+            if rows[y][x] != light or (x, y) in seen:
+                continue
+            patch: list[tuple[int, int]] = []
+            todo = [(x, y)]
+            seen.add((x, y))
+            while todo:
+                cx, cy = todo.pop()
+                patch.append((cx, cy))
+                for nx, ny in ((cx + 1, cy), (cx - 1, cy), (cx, cy + 1), (cx, cy - 1)):
+                    if (0 <= nx < width and 0 <= ny < height and rows[ny][nx] == light
+                            and (nx, ny) not in seen):
+                        seen.add((nx, ny))
+                        todo.append((nx, ny))
+            inner = [(cx, cy) for cx, cy in patch
+                     if all(inside_egg(cx + dx, cy + dy)
+                            for dx, dy in ((-1, 0), (0, -1), (1, 0), (0, 1)))]
+            if not inner:
+                continue
+            hx, hy = min(inner, key=lambda p: (p[0] + p[1], p[1]))
+            out[hy][hx] = GOLDEN_PAPER
+            if (hx + 1, hy) in inner:
+                out[hy][hx + 1] = GOLDEN_PAPER
+    return reink(out)
+
+
+GOLDEN_MAPS = {"rank": golden_rank, "yellow": golden_yellow, "egg": golden_egg}
+
+
+def derive_sprite(derivation: Derivation, base: Sprite, palette: Palette) -> Sprite:
+    rows = GOLDEN_MAPS[derivation.golden]([list(row) for row in base.rows], palette)
+    return Sprite(derivation.source, derivation.name, base.width, base.height, base.kind,
+                  base.scale, ["".join(row) for row in rows])
 
 
 def scale_grid(grid: list[list[RGBA]], factor: int) -> list[list[RGBA]]:
@@ -438,19 +634,43 @@ def load_project(src: Path, out: Path) -> Project:
     sprites: list[Sprite] = []
     errors: list[str] = []
     names: set[str] = set()
+    derivations: list[Derivation] = []
+    drawn: dict[str, Sprite] = {}
     for path in sorted(src.rglob("*.txt")):
         if path.name == PALETTE_FILE and path.parent == src:
             continue
         names.add(path.relative_to(src).with_suffix("").as_posix())
-        sprite, format_errors = parse_sprite(path, src)
+        parsed, format_errors = parse_source(path, src)
         errors.extend(format_errors)
-        if sprite is None:
+        if isinstance(parsed, Derivation):
+            derivations.append(parsed)
             continue
-        lint = lint_sprite(sprite, palette)
-        errors.extend(lint)
-        if not any(e.startswith(f"{sprite.name}: keys not in the palette") for e in lint):
-            sprites.append(sprite)
+        if parsed is None:
+            continue
+        drawn[parsed.name] = parsed
+        _add_linted(parsed, palette, sprites, errors)
+    derived_names = {d.name for d in derivations}
+    for derivation in derivations:
+        base_name = derivation.base_name()
+        base = drawn.get(base_name)
+        if base is None:
+            if base_name in derived_names:
+                why = "is itself derived; derive from a drawn source"
+            elif base_name in names:
+                why = "has errors"
+            else:
+                why = "doesn't exist"
+            errors.append(f"{derivation.name}: can't derive from {base_name}: that source {why}")
+            continue
+        _add_linted(derive_sprite(derivation, base, palette), palette, sprites, errors)
     return Project(src, out, palette, sprites, errors, names)
+
+
+def _add_linted(sprite: Sprite, palette: Palette, sprites: list[Sprite], errors: list[str]) -> None:
+    lint = lint_sprite(sprite, palette)
+    errors.extend(lint)
+    if not any(e.startswith(f"{sprite.name}: keys not in the palette") for e in lint):
+        sprites.append(sprite)
 
 
 def output_pngs(project: Project) -> list[Path]:

@@ -9,9 +9,10 @@ extends RefCounted
 ##
 ## A checkout counts when a player placed its cards (`placements` > 0; debug rows place none)
 ## and its hand can be rebuilt: the shift's `shift_start` cards, then each `redraw`, must hold
-## every card of `final_order`. The upgrades are the run's `upgrade` picks before the shift, the
-## inspections the shift's `inspections`. Events are grouped by run and read in time order, so
-## a run resumed in a later session still counts.
+## every card of `final_order`. The upgrades are the run's register picks before the shift (the
+## `upgrade` events of older logs, the REGISTER and STAMP DAY picks of `machine_visit` events,
+## #77), the inspections the shift's `inspections`. Events are grouped by run and read in time
+## order, so a run resumed in a later session still counts.
 
 ## The climb variants compared, as [label, max_changes]; the simulator's sensible player is
 ## SimHillClimb.SENSIBLE_CHANGES.
@@ -189,11 +190,28 @@ func _read_run(events: Array, lookup: ContentLookup) -> void:
 			"redraw":
 				_redraw(hand, event, lookup)
 			"upgrade":
+				# Logs before #77: the upgrade tickets' pick.
 				var upgrade: UpgradeDefinition = lookup.upgrade(String(event.get("picked", "")))
 				if upgrade != null:
 					upgrades.append(upgrade)
+			"machine_visit":
+				var register: UpgradeDefinition = _register_picked(event, lookup)
+				if register != null:
+					upgrades.append(register)
 			"checkout":
 				_read_checkout(event, hand, upgrades, inspections, shift, lookup)
+
+
+## The register a machine_visit event took (a REGISTER or STAMP DAY pick), or null.
+static func _register_picked(event: Dictionary, lookup: ContentLookup) -> UpgradeDefinition:
+	var index: int = int(event.get("picked", -1))
+	var offered: Array = event.get("offered", [])
+	if index < 0 or index >= offered.size() or not offered[index] is Dictionary:
+		return null
+	var prize: Dictionary = offered[index]
+	if String(prize.get("kind", "")) != "register":
+		return null
+	return lookup.upgrade(String(prize.get("id", "")))
 
 
 func _read_checkout(

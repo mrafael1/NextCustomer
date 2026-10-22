@@ -16,7 +16,7 @@ extends Control
 ## layer (PlanningLayer: #71's stickers, stamps and pay tags over the items), the paper bag on
 ## the counter between the receipt and the belt (PaperBag, #86 v6: the counted items go in), the
 ## top bar (TopBar: the SHIFT, QUOTA, inspection and LOYALTY chips, Cart and the menu with Export
-## log, all above RewardPanel.PRINTOUT_TOP), the hand's baskets on the steel ledge (HandBaskets:
+## log, all above PANEL_TOP), the hand's baskets on the steel ledge (HandBaskets:
 ## their backs, the hand in them, their fronts) and the shade that darkens them while counting.
 ## Over them all the tank's burst (TankBurst, #86 v6: the gold jets, coins, splashes and pour, over
 ## the top bar), the scan layer (ScanOverlay: the scan's brackets and beam) and the popup layer,
@@ -63,9 +63,9 @@ const ROW_AREA := Rect2(354, ROW_POSITION.y, 904, ItemView.BELT_SIZE.y)
 ## left of the belt, in front of the cashier's lower half.
 const BAG_RECT := Rect2(284, 246, 64, 84)
 ## The monitor hung from the ceiling on two rods, its bezel and paper screen, and the shade under
-## it (MonitorView draws them). In the impulse rack the LED (LedDisplay: caption, digits and the
-## quota line with its bar, blank there) and the notices are on its screen; MonitorView lays out
-## its other states (planning's store channel among them).
+## it (MonitorView draws them). The LED (LedDisplay: caption, digits and the quota line with its
+## bar) and the notices are on its screen; MonitorView lays out its states (planning's store
+## channel among them).
 const MONITOR_RECT := Rect2(484, 66, 424, 176)
 const MONITOR_SCREEN_RECT := Rect2(493, 75, 406, 158)
 const MONITOR_UNDER_RECT := Rect2(490, 240, 412, 8)
@@ -112,6 +112,26 @@ const HAND_AREA := Rect2(336, 494, 944, 226)
 const COUNTING_SHADE_RECT := Rect2(336, 496, 944, 204)
 const COUNTING_SHADE_ALPHA := 0.4
 const SEED_RECT := Rect2(20, 586, 198, 18)
+## Screen panels (the RECEIPT REWARDS machine, the deck view, the results) and their shade stay
+## below this line, under the top bar, so Cart and the menu stay reachable.
+const PANEL_TOP := 64.0
+## The RECEIPT REWARDS machine (#77, look F; build spec 4.1), a screen child placed over the
+## stage: the cabinet, and its RESTOCK hood sticking out at the bottom right (still on the stage).
+const MACHINE_RECT := Rect2(760, 70, 420, 630)
+const MACHINE_HOOD_RECT := Rect2(1156, 506, 48, 194)
+## Where the receipt flies to: the middle of the slot plate's mouth.
+const MACHINE_SLOT_POINT := Vector2(970, 146)
+## The prize cells' left edges (cell i holds reveal i) and their top, on the stage.
+const MACHINE_CELL_X: Array[float] = [786.0, 916.0, 1046.0]
+const MACHINE_CELL_Y := 522.0
+## The bonus ticket's stub prints out of the printer's mouth here (its top-left as it starts).
+const MACHINE_STUB_MOUTH := Vector2(RECEIPT_X, RECEIPT_BOTTOM)
+## The odds card left of the machine: its width and top (its height comes from its content and
+## ends above FLOOR_TOP).
+const ODDS_CARD_RECT := Rect2(440, 90, 300, 0)
+## The cart drawer's right edge and top (left of the machine, under the top bar).
+const CART_DRAWER_RIGHT := 748.0
+const CART_DRAWER_TOP := 64.0
 
 const RECEIPT_PAPER := preload("res://art/frames/receipt_paper.png")
 ## The printer slot's steel lip with its tear teeth (art/src/scenery/printer_lip.txt), drawn 1:1

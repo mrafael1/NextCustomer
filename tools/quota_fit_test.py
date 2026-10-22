@@ -71,6 +71,25 @@ class ReplayTest(unittest.TestCase):
         self.assertEqual(outcome.quotas, [10, 20])
         self.assertEqual(outcome.shifts_passed, 1)
 
+    def test_two_registers_in_one_shift_both_raise_the_quota(self) -> None:
+        # #77: the machine's visits (a REGISTER pick and STAMP DAY's) record every register.
+        entry = make_run([10, 30, 30])
+        register = {"kind": "register", "id": "big_basket", "rarity": 0}
+        coupon = {"kind": "coupon", "id": "repeat", "rarity": 0}
+        entry["shifts"][0]["visits"] = [
+            {"kind": "ticket", "chute": "register", "picked": 0, "prizes": [register, coupon]},
+            {"kind": "stamp_day", "chute": "register", "picked": 1, "prizes": [coupon, register]},
+            {"kind": "bonus", "chute": "coupons", "picked": 0, "prizes": [coupon]},
+        ]
+        entry["shifts"][1]["visits"] = [
+            {"kind": "ticket", "chute": "new_items", "picked": -1, "prizes": [coupon]},
+        ]
+        run = to_runs([entry])[0]
+        self.assertEqual(run.upgrades_taken, [["big_basket", "big_basket"], [], []])
+        self.assertEqual(run.percents_taken, [30, 0, 0])
+        # 20 * 1.30 = 26.
+        self.assertEqual(qf.replay(run, [10, 20, 20]).quotas, [10, 26, 26])
+
     def test_a_run_cut_short_by_its_recorded_quotas_is_incomplete(self) -> None:
         run = to_runs([make_run([10, 20])])[0]
         self.assertFalse(qf.replay(run, [5, 5, 5]).complete)

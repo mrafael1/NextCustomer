@@ -127,7 +127,6 @@ func test_the_wall_covers_the_window_at_every_size() -> void:
 func test_decor_takes_no_clicks_and_sits_behind_the_stage() -> void:
 	var runner: GdUnitSceneRunner = scene_runner(SCREEN)
 	var screen: ShiftScreen = runner.scene()
-	screen._on_reward_skipped()
 	await _frames(3)
 	var stage: ShiftStage = screen._stage
 	var wall: Control = screen.get_child(0) as Control

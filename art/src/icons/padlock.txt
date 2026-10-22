@@ -1,0 +1,14 @@
+; The machine's padlock (#77): a grey light : shackle on a mustard M body with a keyhole,
+; mustard dark m base. 9x10, shown at 2x. From the approved page machine_77_flow.html (PADLOCK).
+@size 9x10
+@kind icon
+..#####..
+.#:::::#.
+.#:...:#.
+.#:...:#.
+#########
+#MMMMMMM#
+#MMM#MMM#
+#MMM#MMM#
+#mmmmmmm#
+#########

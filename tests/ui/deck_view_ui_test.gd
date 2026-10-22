@@ -3,6 +3,7 @@ extends GdUnitTestSuite
 ## Deck tab (grouped copies, tag counts), the Run info tab (upgrades, inspections, stock), the
 ## choosing mode, and that it fits the window. Clicks go to the handlers (headless runs).
 
+const Rush := preload("res://tests/ui/count_up_rush.gd")
 const SCREEN := "res://ui/shift_screen.tscn"
 
 var _folder: String = ""
@@ -144,19 +145,22 @@ func test_run_info_announces_a_scheduled_inspection() -> void:
 	assert_array(Array(texts)).contains(["This shift: no inspection."])
 
 
-## During the reward the drawn inspection shows for the next shift, and the shift just played
-## is no longer called "This shift".
-func test_run_info_during_the_reward_shows_the_drawn_inspection() -> void:
+## During the machine's visit (#77) the drawn inspection shows for the next shift, and the shift
+## just played is no longer called "This shift".
+func test_run_info_during_the_machine_shows_the_drawn_inspection() -> void:
 	var screen: ShiftScreen = await _screen()
 	screen._debug.skip_to_shift(2)
 	for id: String in ["milk", "multipack", "milk", "milk", "milk", "milk", "milk"]:
 		var card: CardDefinition = load("res://data/cards/%s.tres" % id)
 		screen.run.place(screen.run.debug_add_to_hand(card), screen.run.row.size())
-	await screen._on_checkout_pressed()
-	assert_int(screen.run.phase).is_equal(RunState.Phase.REWARD)
+	await Rush.checkout(screen)
+	assert_int(screen.run.phase).is_equal(RunState.Phase.MACHINE_CHOOSE)
 	assert_object(screen.run.next_inspection).is_not_null()
-	screen._on_reward_deck_requested()
+	await _until_machine_armed(screen)
+	screen._on_deck_button_pressed()
 	var view: DeckView = screen._deck_view
+	assert_bool(view.visible).is_true()
+	assert_bool(screen._machine.view.visible).is_false()
 	view.show_page(true)
 	var texts: PackedStringArray = view.texts()
 	var drawn: InspectionDefinition = screen.run.next_inspection
@@ -204,9 +208,9 @@ func test_the_chooser_shows_only_the_deck_and_picks_a_copy() -> void:
 	assert_bool(view.visible).is_false()
 
 
-## The real flow: a reward picked at the deck limit opens the chooser, and clicking the grouped
-## Banana removes one Banana copy.
-func test_a_reward_at_the_deck_limit_removes_one_copy_of_a_grouped_card() -> void:
+## The real flow: a NEW ITEMS prize picked at the deck limit opens the chooser, and clicking the
+## grouped Banana removes one Banana copy.
+func test_a_prize_at_the_deck_limit_removes_one_copy_of_a_grouped_card() -> void:
 	var screen: ShiftScreen = await _screen()
 	var run: RunState = screen.run
 	while not run.deck_is_full():
@@ -214,17 +218,21 @@ func test_a_reward_at_the_deck_limit_removes_one_copy_of_a_grouped_card() -> voi
 	for id: String in ["milk", "multipack", "milk", "milk", "milk", "milk", "milk"]:
 		var card: CardDefinition = load("res://data/cards/%s.tres" % id)
 		run.place(run.debug_add_to_hand(card), run.row.size())
-	await screen._on_checkout_pressed()
-	assert_int(run.phase).is_equal(RunState.Phase.REWARD)
+	await Rush.checkout(screen)
+	assert_int(run.phase).is_equal(RunState.Phase.MACHINE_CHOOSE)
 	var bananas: int = _copies(run, &"banana")
-	screen._on_reward_picked(run.offer[0])
+	assert_bool(screen._machine._choose(RewardMachine.Chute.NEW_ITEMS)).is_true()
+	await _until_machine_armed(screen)
+	screen._machine.view.pick(0)
+	screen._machine.view.fast_forward()  # The landing plays to its end.
 	var view: DeckView = screen._deck_view
 	assert_bool(view.visible).is_true()
 	assert_bool(view._info_tab.visible).is_false()
 	view._on_card_clicked(view.card_views()[0])
-	assert_int(run.phase).is_not_equal(RunState.Phase.REWARD)
+	screen._machine.view.fast_forward()  # The landing plays to its end.
+	assert_int(run.phase).is_not_equal(RunState.Phase.MACHINE_PICK)
 	assert_int(run.deck.size()).is_equal(run.balance.deck_limit)
-	var picked_banana: int = 1 if run.history[0].card_picked.id == &"banana" else 0
+	var picked_banana: int = 1 if run.history[0].cards_added()[0].id == &"banana" else 0
 	assert_int(_copies(run, &"banana")).is_equal(bananas - 1 + picked_banana)
 
 
@@ -268,7 +276,6 @@ func test_a_big_stock_and_deck_fit_the_screen() -> void:
 func _screen() -> ShiftScreen:
 	var runner: GdUnitSceneRunner = scene_runner(SCREEN)
 	var screen: ShiftScreen = runner.scene()
-	screen._on_reward_skipped()  # Past the impulse rack.
 	for frame: int in range(2):
 		await get_tree().process_frame
 	return screen
@@ -293,3 +300,13 @@ static func _product(id: String) -> CardDefinition:
 
 static func _event_log() -> EventLogService:
 	return Engine.get_main_loop().root.get_node("/root/EventLog")
+
+
+## Fast-forwards the machine to its wait point (as a tap would, unlogged), then waits (at most
+## 3 s) for it to arm: the mouse is up, so it arms on its next frame.
+func _until_machine_armed(screen: ShiftScreen) -> void:
+	screen._machine.view.fast_forward()
+	var start: int = Time.get_ticks_msec()
+	while not screen._machine.view.is_armed() and Time.get_ticks_msec() - start < 3000:
+		await get_tree().process_frame
+	assert_bool(screen._machine.view.is_armed()).is_true()

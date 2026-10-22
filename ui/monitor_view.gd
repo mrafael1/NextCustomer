@@ -7,8 +7,8 @@ extends Control
 ##   the store channel (MonitorChannel): the shift's brief, the owned upgrades and the coupons in
 ##   play, a slide at a time; the LED is hidden (the projected total is on the receipt and the
 ##   top bar's SPEND chip);
-## - IDLE (the impulse rack, and a notice in planning): the LED (LedDisplay, compact, blank in the
-##   rack) and the notices (NoticeLabel) under it; in planning the notice alone, at the screen's
+## - IDLE (a notice in planning): the LED (LedDisplay, compact, blank) and the notices
+##   (NoticeLabel) under it; in planning the notice alone, at the screen's
 ##   middle (NOTICE_CHANNEL_RECT);
 ## - SCAN (a belt or hand item fully scanned: ScanController calls show_scan): the item's art
 ##   (ItemView's item_art), its kind under it (COUPON, or its base price), and beside it its
@@ -286,7 +286,7 @@ func set_planning_key(entries: Array[StickerSpec]) -> void:
 	channel.set_key(entries)
 
 
-## Planning is over (the CHECKOUT click, the impulse rack): the channel leaves the screen.
+## Planning is over (the CHECKOUT click): the channel leaves the screen.
 func end_channel() -> void:
 	_channel_on = false
 	_apply()

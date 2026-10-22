@@ -8,7 +8,7 @@ extends GdUnitTestSuite
 const CARDS := "res://data/cards"
 const BALANCE := "res://data/balance/balance.tres"
 const STAGE := Rect2(0, 0, 1280, 720)
-## An offers' panel holding a row of tray cells (ItemView's TRAY form at RewardPanel's pitch).
+## A panel holding a row of tray cells (ItemView's TRAY form, the old offer panel's pitch).
 const PANEL_RECT := Rect2(0, 494, 944, 226)
 const PANEL_CELL_ORIGIN := Vector2(16, 520)
 const PANEL_PITCH := 112.0
@@ -22,7 +22,7 @@ func test_every_card_fits_and_opens_beside_its_item() -> void:
 	var popup: ScanPopup = _popup()
 	var balance: BalanceDefinition = load(BALANCE) as BalanceDefinition
 	var cards: Array[CardDefinition] = _cards()
-	assert_int(cards.size()).is_equal(59)
+	assert_int(cards.size()).is_equal(67)
 	for definition: CardDefinition in cards:
 		popup.show_card(definition, balance.aisle_of(definition), definition.tags)
 		await get_tree().process_frame

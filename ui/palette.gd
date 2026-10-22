@@ -86,3 +86,7 @@ const BROWN_DARK := Color("7a5232")
 ## The scanner bay's queue (#86 round 7, mock-up count_up_86_v7_bay.html): a pip still to come
 ## (art/src/palette.txt's teal shade).
 const TEAL_SHADE := Color("3a7672")
+## The RECEIPT REWARDS machine's stockroom (#77, look F): the pin board's brown and its lit edge
+## (art/src/palette.txt's brown and brown light).
+const BROWN := Color("a87a4e")
+const BROWN_LIGHT := Color("d2a874")

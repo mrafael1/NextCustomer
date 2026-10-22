@@ -32,7 +32,7 @@ const READINGS: Dictionary[String, String] = {
 
 func test_every_summary_fits_two_lines() -> void:
 	var cards: Array[CardDefinition] = _cards()
-	assert_int(cards.size()).is_equal(59)
+	assert_int(cards.size()).is_equal(67)
 	var balance: BalanceDefinition = load(BALANCE) as BalanceDefinition
 	var stickers: Array[PriceSticker] = []
 	for definition: CardDefinition in cards:

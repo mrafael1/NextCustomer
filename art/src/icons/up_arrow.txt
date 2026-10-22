@@ -1,0 +1,13 @@
+; The UPGRADES up-arrow (#77): gold n, its foot mustard M. 9x9, shown at 2x, 3x or 6x.
+; From the approved page machine_77_flow.html (UPARROW).
+@size 9x9
+@kind icon
+....#....
+...#n#...
+..#nnn#..
+.#nnnnn#.
+###nnn###
+..#nnn#..
+..#nnn#..
+..#MMM#..
+..#####..

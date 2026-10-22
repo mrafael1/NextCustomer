@@ -20,10 +20,13 @@ func _init(build_list: Array[BuildDefinition]) -> void:
 	builds = build_list.duplicate()
 
 
-## Every build file in `folder`, in file name order.
+## Every build file in `folder`, in file name order. In an exported pack (the simulator's
+## release runner) a folder lists its text resources as "<name>.tres.remap".
 static func load_folder(folder: String) -> Array[BuildDefinition]:
 	var found: Array[BuildDefinition] = []
-	var files: PackedStringArray = DirAccess.get_files_at(folder)
+	var files: PackedStringArray = PackedStringArray()
+	for file: String in DirAccess.get_files_at(folder):
+		files.append(file.trim_suffix(".remap"))
 	files.sort()
 	for file: String in files:
 		if file.ends_with(".tres"):
@@ -76,23 +79,41 @@ static func is_key_card(build: BuildDefinition, card: CardDefinition) -> bool:
 	return build.count(alone) > 0
 
 
-## Per build id: the share of later reward offers (not a run's first) from this stock that
-## show at least one of the build's key cards, over `samples` offers made with their own seeded
-## RNGs (RewardOffer.make, as the game makes them).
+## Per build id: the chance that a later NEW ITEMS or COUPONS draw (not a run's first) from this
+## stock at REGULAR 0 shows at least one of the build's key cards, the higher of the two chutes
+## (#77). Read from the machine's exact odds card (MachineOdds.card's in_draw, each prize's chance
+## to be in the draw): the key cards' chances summed, capped at 1 (the expected count of key cards
+## shown, an upper bound of the chance when several key cards are stocked). `_samples` and
+## `_offer_seed` are kept for the --offer-samples option until S1 (nothing is sampled now).
 func key_offer_chance(
-	balance: BalanceDefinition, stock: RunStock, samples: int, offer_seed: int
+	balance: BalanceDefinition, stock: RunStock, _samples: int, _offer_seed: int
 ) -> Dictionary[String, float]:
-	var seen: Dictionary[String, int] = {}
-	for build: BuildDefinition in builds:
-		seen[String(build.id)] = 0
-	for index: int in range(samples):
-		var rng: RandomNumberGenerator = RandomNumberGenerator.new()
-		rng.seed = hash("key_offers:%d:%d" % [offer_seed, index])
-		var offer: Array[CardDefinition] = RewardOffer.make(rng, balance, stock.cards, false)
-		for build: BuildDefinition in builds:
-			if offer.any(func(card: CardDefinition) -> bool: return is_key_card(build, card)):
-				seen[String(build.id)] += 1
+	var context: MachineContext = MachineContext.new()
+	context.machine = balance.machine
+	context.balance = balance
+	for card: CardDefinition in stock.cards:
+		if card.is_product() and card.tier == CardDefinition.Tier.PLAIN:
+			context.products.append(card)
+	context.coupons = balance.coupon_pool.duplicate()
+	context.upgrade_pool = balance.upgrade_pool.duplicate()
+	context.first_offer_pool = balance.first_offer_pool.duplicate()
+	context.deck = Deck.new(null)
+	var by_id: Dictionary[String, CardDefinition] = {}
+	for card: CardDefinition in context.products + context.coupons:
+		by_id[String(card.id)] = card
 	var chances: Dictionary[String, float] = {}
-	for id: String in seen:
-		chances[id] = float(seen[id]) / maxf(samples, 1)
+	for build: BuildDefinition in builds:
+		chances[String(build.id)] = 0.0
+	if balance.machine == null:
+		return chances
+	for chute: int in [RewardMachine.Chute.NEW_ITEMS, RewardMachine.Chute.COUPONS]:
+		var odds: MachineOddsCard = MachineOdds.card(chute, context, 0)
+		for build: BuildDefinition in builds:
+			var shown: float = 0.0
+			for key: String in odds.in_draw:
+				var card: CardDefinition = by_id.get(key.get_slice(":", 1))
+				if card != null and is_key_card(build, card):
+					shown += float(odds.in_draw[key])
+			var id: String = String(build.id)
+			chances[id] = maxf(chances[id], minf(shown, 1.0))
 	return chances

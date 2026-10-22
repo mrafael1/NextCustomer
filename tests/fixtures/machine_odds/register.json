@@ -1,0 +1,1160 @@
+{
+ "about": "REGISTER, owned removed and 3 different types",
+ "generated_by": "tests/fixtures/machine_odds/make_fixtures.js",
+ "odds": [
+  [
+   75,
+   22,
+   3
+  ],
+  [
+   65,
+   28,
+   7
+  ],
+  [
+   55,
+   33,
+   12
+  ],
+  [
+   45,
+   37,
+   18
+  ]
+ ],
+ "states": [
+  {
+   "name": "REGISTER none owned · REGULAR 0",
+   "chute": "register",
+   "level": 0,
+   "input": {
+    "upgrades": [
+     {
+      "id": "extra_redraw",
+      "rarity": 0,
+      "type": "Economy"
+     },
+     {
+      "id": "big_basket",
+      "rarity": 0,
+      "type": "Risky"
+     },
+     {
+      "id": "extra_coupon_slot",
+      "rarity": 0,
+      "type": "Economy"
+     },
+     {
+      "id": "category_engine",
+      "rarity": 1,
+      "type": "Category engine"
+     },
+     {
+      "id": "coupon_engine",
+      "rarity": 1,
+      "type": "Coupon engine"
+     },
+     {
+      "id": "slot_engine",
+      "rarity": 2,
+      "type": "Slot engine"
+     }
+    ],
+    "owned": []
+   },
+   "expected": {
+    "share": [
+     0.6129243333333327,
+     0.35796666666666727,
+     0.029108999999999927
+    ],
+    "first": [
+     0.7499999999999999,
+     0.22000000000000006,
+     0.030000000000000006
+    ],
+    "rest": [
+     0.5443865000000006,
+     0.4269499999999995,
+     0.028663500000000005
+    ],
+    "p_rare_plus": 0.9999999999999982,
+    "p_legendary": 0.08732700000000009,
+    "p_short": 0,
+    "p_held": 0,
+    "guarded": false,
+    "in_draw": {
+     "register:extra_redraw:0": 0.47229933333333346,
+     "register:big_basket:0": 0.8941743333333328,
+     "register:category_engine:1": 0.5369499999999996,
+     "register:coupon_engine:1": 0.5369499999999994,
+     "register:slot_engine:2": 0.08732700000000009,
+     "register:extra_coupon_slot:0": 0.4722993333333336
+    }
+   }
+  },
+  {
+   "name": "REGISTER none owned · REGULAR 1",
+   "chute": "register",
+   "level": 1,
+   "input": {
+    "upgrades": [
+     {
+      "id": "extra_redraw",
+      "rarity": 0,
+      "type": "Economy"
+     },
+     {
+      "id": "big_basket",
+      "rarity": 0,
+      "type": "Risky"
+     },
+     {
+      "id": "extra_coupon_slot",
+      "rarity": 0,
+      "type": "Economy"
+     },
+     {
+      "id": "category_engine",
+      "rarity": 1,
+      "type": "Category engine"
+     },
+     {
+      "id": "coupon_engine",
+      "rarity": 1,
+      "type": "Coupon engine"
+     },
+     {
+      "id": "slot_engine",
+      "rarity": 2,
+      "type": "Slot engine"
+     }
+    ],
+    "owned": []
+   },
+   "expected": {
+    "share": [
+     0.5657756666666667,
+     0.36900999999999984,
+     0.0652143333333335
+    ],
+    "first": [
+     0.6500000000000002,
+     0.27999999999999986,
+     0.06999999999999998
+    ],
+    "rest": [
+     0.5236634999999998,
+     0.4135150000000002,
+     0.06282149999999997
+    ],
+    "p_rare_plus": 1.0000000000000016,
+    "p_legendary": 0.19564300000000018,
+    "p_short": 0,
+    "p_held": 0,
+    "guarded": false,
+    "in_draw": {
+     "register:extra_redraw:0": 0.4460673333333332,
+     "register:big_basket:0": 0.8051923333333338,
+     "register:category_engine:1": 0.5535150000000002,
+     "register:coupon_engine:1": 0.5535150000000004,
+     "register:slot_engine:2": 0.19564300000000018,
+     "register:extra_coupon_slot:0": 0.4460673333333331
+    }
+   }
+  },
+  {
+   "name": "REGISTER none owned · REGULAR 2",
+   "chute": "register",
+   "level": 2,
+   "input": {
+    "upgrades": [
+     {
+      "id": "extra_redraw",
+      "rarity": 0,
+      "type": "Economy"
+     },
+     {
+      "id": "big_basket",
+      "rarity": 0,
+      "type": "Risky"
+     },
+     {
+      "id": "extra_coupon_slot",
+      "rarity": 0,
+      "type": "Economy"
+     },
+     {
+      "id": "category_engine",
+      "rarity": 1,
+      "type": "Category engine"
+     },
+     {
+      "id": "coupon_engine",
+      "rarity": 1,
+      "type": "Coupon engine"
+     },
+     {
+      "id": "slot_engine",
+      "rarity": 2,
+      "type": "Slot engine"
+     }
+    ],
+    "owned": []
+   },
+   "expected": {
+    "share": [
+     0.5065206666666667,
+     0.38730333333333333,
+     0.10617599999999999
+    ],
+    "first": [
+     0.55,
+     0.32999999999999996,
+     0.11999999999999998
+    ],
+    "rest": [
+     0.4847809999999999,
+     0.4159550000000002,
+     0.09926399999999991
+    ],
+    "p_rare_plus": 1.000000000000001,
+    "p_legendary": 0.31852799999999987,
+    "p_short": 0,
+    "p_held": 0,
+    "guarded": false,
+    "in_draw": {
+     "register:extra_redraw:0": 0.41072900000000007,
+     "register:big_basket:0": 0.6981040000000004,
+     "register:category_engine:1": 0.5809550000000004,
+     "register:coupon_engine:1": 0.5809550000000004,
+     "register:slot_engine:2": 0.31852799999999987,
+     "register:extra_coupon_slot:0": 0.4107290000000001
+    }
+   }
+  },
+  {
+   "name": "REGISTER none owned · REGULAR 3",
+   "chute": "register",
+   "level": 3,
+   "input": {
+    "upgrades": [
+     {
+      "id": "extra_redraw",
+      "rarity": 0,
+      "type": "Economy"
+     },
+     {
+      "id": "big_basket",
+      "rarity": 0,
+      "type": "Risky"
+     },
+     {
+      "id": "extra_coupon_slot",
+      "rarity": 0,
+      "type": "Economy"
+     },
+     {
+      "id": "category_engine",
+      "rarity": 1,
+      "type": "Category engine"
+     },
+     {
+      "id": "coupon_engine",
+      "rarity": 1,
+      "type": "Coupon engine"
+     },
+     {
+      "id": "slot_engine",
+      "rarity": 2,
+      "type": "Slot engine"
+     }
+    ],
+    "owned": []
+   },
+   "expected": {
+    "share": [
+     0.3306987878787879,
+     0.4867484848484848,
+     0.18255272727272728
+    ],
+    "first": [
+     0,
+     0.6727272727272728,
+     0.32727272727272727
+    ],
+    "rest": [
+     0.49604818181818183,
+     0.39375909090909084,
+     0.11019272727272732
+    ],
+    "p_rare_plus": 0.9999999999999997,
+    "p_legendary": 0.5476581818181817,
+    "p_short": 0,
+    "p_held": 0,
+    "guarded": false,
+    "in_draw": {
+     "register:category_engine:1": 0.7301227272727269,
+     "register:extra_redraw:0": 0.2969487878787879,
+     "register:big_basket:0": 0.39819878787878793,
+     "register:coupon_engine:1": 0.730122727272727,
+     "register:slot_engine:2": 0.5476581818181817,
+     "register:extra_coupon_slot:0": 0.2969487878787879
+    }
+   }
+  },
+  {
+   "name": "REGISTER Extra coupon slot owned · REGULAR 0",
+   "chute": "register",
+   "level": 0,
+   "input": {
+    "upgrades": [
+     {
+      "id": "extra_redraw",
+      "rarity": 0,
+      "type": "Economy"
+     },
+     {
+      "id": "big_basket",
+      "rarity": 0,
+      "type": "Risky"
+     },
+     {
+      "id": "extra_coupon_slot",
+      "rarity": 0,
+      "type": "Economy"
+     },
+     {
+      "id": "category_engine",
+      "rarity": 1,
+      "type": "Category engine"
+     },
+     {
+      "id": "coupon_engine",
+      "rarity": 1,
+      "type": "Coupon engine"
+     },
+     {
+      "id": "slot_engine",
+      "rarity": 2,
+      "type": "Slot engine"
+     }
+    ],
+    "owned": [
+     "extra_coupon_slot"
+    ]
+   },
+   "expected": {
+    "share": [
+     0.6129243333333334,
+     0.3579666666666665,
+     0.029108999999999968
+    ],
+    "first": [
+     0.75,
+     0.22000000000000003,
+     0.02999999999999998
+    ],
+    "rest": [
+     0.5443864999999999,
+     0.42695000000000016,
+     0.028663499999999998
+    ],
+    "p_rare_plus": 1.0000000000000004,
+    "p_legendary": 0.08732700000000003,
+    "p_short": 0,
+    "p_held": 0,
+    "guarded": false,
+    "in_draw": {
+     "register:extra_redraw:0": 0.9193865,
+     "register:big_basket:0": 0.9193865000000002,
+     "register:category_engine:1": 0.5369500000000001,
+     "register:coupon_engine:1": 0.5369500000000001,
+     "register:slot_engine:2": 0.08732700000000003
+    }
+   }
+  },
+  {
+   "name": "REGISTER Extra coupon slot owned · REGULAR 1",
+   "chute": "register",
+   "level": 1,
+   "input": {
+    "upgrades": [
+     {
+      "id": "extra_redraw",
+      "rarity": 0,
+      "type": "Economy"
+     },
+     {
+      "id": "big_basket",
+      "rarity": 0,
+      "type": "Risky"
+     },
+     {
+      "id": "extra_coupon_slot",
+      "rarity": 0,
+      "type": "Economy"
+     },
+     {
+      "id": "category_engine",
+      "rarity": 1,
+      "type": "Category engine"
+     },
+     {
+      "id": "coupon_engine",
+      "rarity": 1,
+      "type": "Coupon engine"
+     },
+     {
+      "id": "slot_engine",
+      "rarity": 2,
+      "type": "Slot engine"
+     }
+    ],
+    "owned": [
+     "extra_coupon_slot"
+    ]
+   },
+   "expected": {
+    "share": [
+     0.5657756666666665,
+     0.3690100000000004,
+     0.06521433333333335
+    ],
+    "first": [
+     0.6499999999999999,
+     0.28,
+     0.07000000000000003
+    ],
+    "rest": [
+     0.5236635000000003,
+     0.41351499999999985,
+     0.06282150000000003
+    ],
+    "p_rare_plus": 0.9999999999999998,
+    "p_legendary": 0.19564299999999993,
+    "p_short": 0,
+    "p_held": 0,
+    "guarded": false,
+    "in_draw": {
+     "register:extra_redraw:0": 0.8486635,
+     "register:big_basket:0": 0.8486635000000001,
+     "register:category_engine:1": 0.5535150000000002,
+     "register:coupon_engine:1": 0.5535150000000002,
+     "register:slot_engine:2": 0.19564299999999993
+    }
+   }
+  },
+  {
+   "name": "REGISTER Extra coupon slot owned · REGULAR 2",
+   "chute": "register",
+   "level": 2,
+   "input": {
+    "upgrades": [
+     {
+      "id": "extra_redraw",
+      "rarity": 0,
+      "type": "Economy"
+     },
+     {
+      "id": "big_basket",
+      "rarity": 0,
+      "type": "Risky"
+     },
+     {
+      "id": "extra_coupon_slot",
+      "rarity": 0,
+      "type": "Economy"
+     },
+     {
+      "id": "category_engine",
+      "rarity": 1,
+      "type": "Category engine"
+     },
+     {
+      "id": "coupon_engine",
+      "rarity": 1,
+      "type": "Coupon engine"
+     },
+     {
+      "id": "slot_engine",
+      "rarity": 2,
+      "type": "Slot engine"
+     }
+    ],
+    "owned": [
+     "extra_coupon_slot"
+    ]
+   },
+   "expected": {
+    "share": [
+     0.5065206666666665,
+     0.3873033333333337,
+     0.10617599999999987
+    ],
+    "first": [
+     0.5499999999999999,
+     0.33,
+     0.11999999999999998
+    ],
+    "rest": [
+     0.4847809999999999,
+     0.41595500000000013,
+     0.09926399999999996
+    ],
+    "p_rare_plus": 1.000000000000001,
+    "p_legendary": 0.31852799999999976,
+    "p_short": 0,
+    "p_held": 0,
+    "guarded": false,
+    "in_draw": {
+     "register:extra_redraw:0": 0.7597810000000004,
+     "register:big_basket:0": 0.7597810000000003,
+     "register:category_engine:1": 0.5809550000000004,
+     "register:coupon_engine:1": 0.5809550000000006,
+     "register:slot_engine:2": 0.31852799999999976
+    }
+   }
+  },
+  {
+   "name": "REGISTER Extra coupon slot owned · REGULAR 3",
+   "chute": "register",
+   "level": 3,
+   "input": {
+    "upgrades": [
+     {
+      "id": "extra_redraw",
+      "rarity": 0,
+      "type": "Economy"
+     },
+     {
+      "id": "big_basket",
+      "rarity": 0,
+      "type": "Risky"
+     },
+     {
+      "id": "extra_coupon_slot",
+      "rarity": 0,
+      "type": "Economy"
+     },
+     {
+      "id": "category_engine",
+      "rarity": 1,
+      "type": "Category engine"
+     },
+     {
+      "id": "coupon_engine",
+      "rarity": 1,
+      "type": "Coupon engine"
+     },
+     {
+      "id": "slot_engine",
+      "rarity": 2,
+      "type": "Slot engine"
+     }
+    ],
+    "owned": [
+     "extra_coupon_slot"
+    ]
+   },
+   "expected": {
+    "share": [
+     0.33069878787878776,
+     0.4867484848484849,
+     0.1825527272727273
+    ],
+    "first": [
+     0,
+     0.6727272727272727,
+     0.3272727272727272
+    ],
+    "rest": [
+     0.4960481818181818,
+     0.3937590909090909,
+     0.11019272727272728
+    ],
+    "p_rare_plus": 0.9999999999999999,
+    "p_legendary": 0.5476581818181817,
+    "p_short": 0,
+    "p_held": 0,
+    "guarded": false,
+    "in_draw": {
+     "register:category_engine:1": 0.7301227272727273,
+     "register:extra_redraw:0": 0.4960481818181818,
+     "register:big_basket:0": 0.49604818181818183,
+     "register:coupon_engine:1": 0.7301227272727272,
+     "register:slot_engine:2": 0.5476581818181817
+    }
+   }
+  },
+  {
+   "name": "REGISTER two owned · REGULAR 0",
+   "chute": "register",
+   "level": 0,
+   "input": {
+    "upgrades": [
+     {
+      "id": "extra_redraw",
+      "rarity": 0,
+      "type": "Economy"
+     },
+     {
+      "id": "big_basket",
+      "rarity": 0,
+      "type": "Risky"
+     },
+     {
+      "id": "extra_coupon_slot",
+      "rarity": 0,
+      "type": "Economy"
+     },
+     {
+      "id": "category_engine",
+      "rarity": 1,
+      "type": "Category engine"
+     },
+     {
+      "id": "coupon_engine",
+      "rarity": 1,
+      "type": "Coupon engine"
+     },
+     {
+      "id": "slot_engine",
+      "rarity": 2,
+      "type": "Slot engine"
+     }
+    ],
+    "owned": [
+     "extra_coupon_slot",
+     "coupon_engine"
+    ]
+   },
+   "expected": {
+    "share": [
+     0.6544326666666661,
+     0.31645833333333384,
+     0.029109000000000003
+    ],
+    "first": [
+     0.75,
+     0.22,
+     0.03
+    ],
+    "rest": [
+     0.6066490000000004,
+     0.3646874999999996,
+     0.028663499999999967
+    ],
+    "p_rare_plus": 0.9999999999999998,
+    "p_legendary": 0.08732700000000003,
+    "p_short": 0,
+    "p_held": 0,
+    "guarded": false,
+    "in_draw": {
+     "register:extra_redraw:0": 0.9816489999999999,
+     "register:big_basket:0": 0.9816489999999999,
+     "register:category_engine:1": 0.9493749999999999,
+     "register:slot_engine:2": 0.08732700000000003
+    }
+   }
+  },
+  {
+   "name": "REGISTER two owned · REGULAR 1",
+   "chute": "register",
+   "level": 1,
+   "input": {
+    "upgrades": [
+     {
+      "id": "extra_redraw",
+      "rarity": 0,
+      "type": "Economy"
+     },
+     {
+      "id": "big_basket",
+      "rarity": 0,
+      "type": "Risky"
+     },
+     {
+      "id": "extra_coupon_slot",
+      "rarity": 0,
+      "type": "Economy"
+     },
+     {
+      "id": "category_engine",
+      "rarity": 1,
+      "type": "Category engine"
+     },
+     {
+      "id": "coupon_engine",
+      "rarity": 1,
+      "type": "Coupon engine"
+     },
+     {
+      "id": "slot_engine",
+      "rarity": 2,
+      "type": "Slot engine"
+     }
+    ],
+    "owned": [
+     "extra_coupon_slot",
+     "coupon_engine"
+    ]
+   },
+   "expected": {
+    "share": [
+     0.6310273333333336,
+     0.30375833333333313,
+     0.06521433333333333
+    ],
+    "first": [
+     0.6499999999999999,
+     0.28000000000000014,
+     0.07000000000000003
+    ],
+    "rest": [
+     0.6215410000000003,
+     0.3156374999999996,
+     0.06282149999999996
+    ],
+    "p_rare_plus": 0.9999999999999996,
+    "p_legendary": 0.19564299999999998,
+    "p_short": 0,
+    "p_held": 0,
+    "guarded": false,
+    "in_draw": {
+     "register:extra_redraw:0": 0.9465409999999999,
+     "register:big_basket:0": 0.9465409999999999,
+     "register:category_engine:1": 0.9112749999999996,
+     "register:slot_engine:2": 0.19564299999999998
+    }
+   }
+  },
+  {
+   "name": "REGISTER two owned · REGULAR 2",
+   "chute": "register",
+   "level": 2,
+   "input": {
+    "upgrades": [
+     {
+      "id": "extra_redraw",
+      "rarity": 0,
+      "type": "Economy"
+     },
+     {
+      "id": "big_basket",
+      "rarity": 0,
+      "type": "Risky"
+     },
+     {
+      "id": "extra_coupon_slot",
+      "rarity": 0,
+      "type": "Economy"
+     },
+     {
+      "id": "category_engine",
+      "rarity": 1,
+      "type": "Category engine"
+     },
+     {
+      "id": "coupon_engine",
+      "rarity": 1,
+      "type": "Coupon engine"
+     },
+     {
+      "id": "slot_engine",
+      "rarity": 2,
+      "type": "Slot engine"
+     }
+    ],
+    "owned": [
+     "extra_coupon_slot",
+     "coupon_engine"
+    ]
+   },
+   "expected": {
+    "share": [
+     0.5967906666666666,
+     0.29703333333333337,
+     0.10617599999999992
+    ],
+    "first": [
+     0.5499999999999999,
+     0.32999999999999996,
+     0.12
+    ],
+    "rest": [
+     0.620186,
+     0.2805499999999999,
+     0.09926399999999996
+    ],
+    "p_rare_plus": 1.0000000000000002,
+    "p_legendary": 0.31852800000000003,
+    "p_short": 0,
+    "p_held": 0,
+    "guarded": false,
+    "in_draw": {
+     "register:extra_redraw:0": 0.8951860000000004,
+     "register:big_basket:0": 0.8951860000000003,
+     "register:category_engine:1": 0.8911000000000003,
+     "register:slot_engine:2": 0.31852800000000003
+    }
+   }
+  },
+  {
+   "name": "REGISTER two owned · REGULAR 3",
+   "chute": "register",
+   "level": 3,
+   "input": {
+    "upgrades": [
+     {
+      "id": "extra_redraw",
+      "rarity": 0,
+      "type": "Economy"
+     },
+     {
+      "id": "big_basket",
+      "rarity": 0,
+      "type": "Risky"
+     },
+     {
+      "id": "extra_coupon_slot",
+      "rarity": 0,
+      "type": "Economy"
+     },
+     {
+      "id": "category_engine",
+      "rarity": 1,
+      "type": "Category engine"
+     },
+     {
+      "id": "coupon_engine",
+      "rarity": 1,
+      "type": "Coupon engine"
+     },
+     {
+      "id": "slot_engine",
+      "rarity": 2,
+      "type": "Slot engine"
+     }
+    ],
+    "owned": [
+     "extra_coupon_slot",
+     "coupon_engine"
+    ]
+   },
+   "expected": {
+    "share": [
+     0.5062048484848484,
+     0.3112424242424243,
+     0.18255272727272726
+    ],
+    "first": [
+     0,
+     0.6727272727272728,
+     0.32727272727272727
+    ],
+    "rest": [
+     0.7593072727272728,
+     0.13049999999999995,
+     0.1101927272727272
+    ],
+    "p_rare_plus": 1,
+    "p_legendary": 0.5476581818181817,
+    "p_short": 0,
+    "p_held": 0,
+    "guarded": false,
+    "in_draw": {
+     "register:category_engine:1": 0.9337272727272727,
+     "register:extra_redraw:0": 0.7593072727272727,
+     "register:big_basket:0": 0.7593072727272727,
+     "register:slot_engine:2": 0.5476581818181817
+    }
+   }
+  },
+  {
+   "name": "REGISTER two types left · REGULAR 0",
+   "chute": "register",
+   "level": 0,
+   "input": {
+    "upgrades": [
+     {
+      "id": "extra_redraw",
+      "rarity": 0,
+      "type": "Economy"
+     },
+     {
+      "id": "big_basket",
+      "rarity": 0,
+      "type": "Risky"
+     },
+     {
+      "id": "extra_coupon_slot",
+      "rarity": 0,
+      "type": "Economy"
+     },
+     {
+      "id": "category_engine",
+      "rarity": 1,
+      "type": "Category engine"
+     },
+     {
+      "id": "coupon_engine",
+      "rarity": 1,
+      "type": "Coupon engine"
+     },
+     {
+      "id": "slot_engine",
+      "rarity": 2,
+      "type": "Slot engine"
+     }
+    ],
+    "owned": [
+     "coupon_engine",
+     "category_engine",
+     "extra_redraw",
+     "extra_coupon_slot"
+    ]
+   },
+   "expected": {
+    "share": [
+     0.5,
+     0,
+     0.5
+    ],
+    "first": [
+     0.9700000000000001,
+     0,
+     0.029999999999999995
+    ],
+    "rest": [
+     0.029999999999999995,
+     0,
+     0.9700000000000001
+    ],
+    "p_rare_plus": 1.0000000000000002,
+    "p_legendary": 1.0000000000000002,
+    "p_short": 1.0000000000000002,
+    "p_held": 0,
+    "guarded": false,
+    "in_draw": {
+     "register:big_basket:0": 1.0000000000000002,
+     "register:slot_engine:2": 1.0000000000000002
+    }
+   }
+  },
+  {
+   "name": "REGISTER two types left · REGULAR 1",
+   "chute": "register",
+   "level": 1,
+   "input": {
+    "upgrades": [
+     {
+      "id": "extra_redraw",
+      "rarity": 0,
+      "type": "Economy"
+     },
+     {
+      "id": "big_basket",
+      "rarity": 0,
+      "type": "Risky"
+     },
+     {
+      "id": "extra_coupon_slot",
+      "rarity": 0,
+      "type": "Economy"
+     },
+     {
+      "id": "category_engine",
+      "rarity": 1,
+      "type": "Category engine"
+     },
+     {
+      "id": "coupon_engine",
+      "rarity": 1,
+      "type": "Coupon engine"
+     },
+     {
+      "id": "slot_engine",
+      "rarity": 2,
+      "type": "Slot engine"
+     }
+    ],
+    "owned": [
+     "coupon_engine",
+     "category_engine",
+     "extra_redraw",
+     "extra_coupon_slot"
+    ]
+   },
+   "expected": {
+    "share": [
+     0.5,
+     0,
+     0.5
+    ],
+    "first": [
+     0.93,
+     0,
+     0.07
+    ],
+    "rest": [
+     0.07,
+     0,
+     0.93
+    ],
+    "p_rare_plus": 1.0000000000000002,
+    "p_legendary": 1.0000000000000002,
+    "p_short": 1.0000000000000002,
+    "p_held": 0,
+    "guarded": false,
+    "in_draw": {
+     "register:big_basket:0": 1.0000000000000002,
+     "register:slot_engine:2": 1.0000000000000002
+    }
+   }
+  },
+  {
+   "name": "REGISTER two types left · REGULAR 2",
+   "chute": "register",
+   "level": 2,
+   "input": {
+    "upgrades": [
+     {
+      "id": "extra_redraw",
+      "rarity": 0,
+      "type": "Economy"
+     },
+     {
+      "id": "big_basket",
+      "rarity": 0,
+      "type": "Risky"
+     },
+     {
+      "id": "extra_coupon_slot",
+      "rarity": 0,
+      "type": "Economy"
+     },
+     {
+      "id": "category_engine",
+      "rarity": 1,
+      "type": "Category engine"
+     },
+     {
+      "id": "coupon_engine",
+      "rarity": 1,
+      "type": "Coupon engine"
+     },
+     {
+      "id": "slot_engine",
+      "rarity": 2,
+      "type": "Slot engine"
+     }
+    ],
+    "owned": [
+     "coupon_engine",
+     "category_engine",
+     "extra_redraw",
+     "extra_coupon_slot"
+    ]
+   },
+   "expected": {
+    "share": [
+     0.5,
+     0,
+     0.5
+    ],
+    "first": [
+     0.88,
+     0,
+     0.11999999999999997
+    ],
+    "rest": [
+     0.11999999999999997,
+     0,
+     0.88
+    ],
+    "p_rare_plus": 1.0000000000000002,
+    "p_legendary": 1.0000000000000002,
+    "p_short": 1.0000000000000002,
+    "p_held": 0,
+    "guarded": false,
+    "in_draw": {
+     "register:big_basket:0": 1.0000000000000002,
+     "register:slot_engine:2": 1.0000000000000002
+    }
+   }
+  },
+  {
+   "name": "REGISTER two types left · REGULAR 3",
+   "chute": "register",
+   "level": 3,
+   "input": {
+    "upgrades": [
+     {
+      "id": "extra_redraw",
+      "rarity": 0,
+      "type": "Economy"
+     },
+     {
+      "id": "big_basket",
+      "rarity": 0,
+      "type": "Risky"
+     },
+     {
+      "id": "extra_coupon_slot",
+      "rarity": 0,
+      "type": "Economy"
+     },
+     {
+      "id": "category_engine",
+      "rarity": 1,
+      "type": "Category engine"
+     },
+     {
+      "id": "coupon_engine",
+      "rarity": 1,
+      "type": "Coupon engine"
+     },
+     {
+      "id": "slot_engine",
+      "rarity": 2,
+      "type": "Slot engine"
+     }
+    ],
+    "owned": [
+     "coupon_engine",
+     "category_engine",
+     "extra_redraw",
+     "extra_coupon_slot"
+    ]
+   },
+   "expected": {
+    "share": [
+     0.5,
+     0,
+     0.5
+    ],
+    "first": [
+     0.6727272727272727,
+     0,
+     0.3272727272727273
+    ],
+    "rest": [
+     0.3272727272727273,
+     0,
+     0.6727272727272727
+    ],
+    "p_rare_plus": 0.9999999999999999,
+    "p_legendary": 0.9999999999999999,
+    "p_short": 0.9999999999999999,
+    "p_held": 0,
+    "guarded": false,
+    "in_draw": {
+     "register:big_basket:0": 0.9999999999999999,
+     "register:slot_engine:2": 0.9999999999999999
+    }
+   }
+  }
+ ]
+}

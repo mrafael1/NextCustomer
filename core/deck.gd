@@ -36,6 +36,20 @@ func remove_card(card: CardInstance) -> void:
 	cards.erase(card)
 
 
+## Upgrades one copy to another card (an item tier, #77): the deck's copy is replaced by a new
+## instance of `to` with the same instance id, in the same place. The old instance and the
+## shared definitions are never changed, so a checked-out row or a hand holding the old instance
+## keeps it; the next shift draws the new one. Returns the new instance, or null (leaving the
+## deck unchanged) when `card` is not in the deck or `to` is null or another product.
+func upgrade(card: CardInstance, to: CardDefinition) -> CardInstance:
+	var index: int = cards.find(card)
+	if index == -1 or to == null or not to.is_same_product(card.definition):
+		return null
+	var upgraded: CardInstance = CardInstance.new(to, card.instance_id)
+	cards[index] = upgraded
+	return upgraded
+
+
 func size() -> int:
 	return cards.size()
 
@@ -79,7 +93,8 @@ func next_instance_id() -> int:
 
 ## The run save only (RunSave): puts back the saved cards, hand, draw pile and next instance id.
 ## The hand and the draw pile hold the deck's own instances; a hand card that isn't a deck card
-## (a debug copy, or a card a reward replaced after the checkout) is an instance of its own.
+## (a debug copy, a card the machine replaced after the checkout, or the checked-out copy of a
+## card the machine upgraded since) is an instance of its own.
 func restore(
 	deck_cards: Array[CardInstance],
 	hand_cards: Array[CardInstance],
