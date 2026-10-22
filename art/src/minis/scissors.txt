@@ -1,0 +1,14 @@
+; A giver-badge mini (sticker minis, mock-up docs/art/mockups/sticker_minis_v1.html): Scissors, steel blades crossing at a brass pivot over two tomato finger rings.
+; Drawn in the approved minis' style. 7x7, ink outline, light from the top left; shown die-cut (alone) at 2x on a planning sticker's
+; giver badge. Its GOLDEN copy (scissors_golden) is derived (@derive ... golden=outline).
+; The blade tips are left open (bare steel, no ink cap) on purpose: at 7x7 an ink cap turns them into blunt blobs, and the steel
+; keeps them readable on the dark belt where ink fades. So the GOLDEN copy leaves the tips steel too.
+@size 7x7
+@kind icon
+B.....D
+#B...D#
+.#BMD#.
+..#.#..
+.#R#R#.
+#R.#.R#
+.#R#R#.

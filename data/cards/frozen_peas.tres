@@ -23,3 +23,5 @@ rules = Array[ExtResource("1_rdeag")]([SubResource("Resource_6s4mr")])
 rule_text = "+ its base value (+3) as a flat bonus if beside another Frozen product"
 sticker_text = "+{base} beside {match_value}"
 art_ref = "res://art/items_v2/frozen_peas.png"
+mini_art_ref = "res://art/minis/frozen_peas.png"
+mini_golden_art_ref = "res://art/minis/frozen_peas_golden.png"

@@ -21,3 +21,5 @@ rules = Array[ExtResource("1_6wkug")]([SubResource("Resource_vnpwy")])
 rule_text = "+3 to the next Breakfast product"
 sticker_text = "+{bonus} next {tag}"
 art_ref = "res://art/items_v2/coffee.png"
+mini_art_ref = "res://art/minis/coffee.png"
+mini_golden_art_ref = "res://art/minis/coffee_golden.png"

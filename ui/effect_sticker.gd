@@ -128,7 +128,7 @@ func _init(sticker_spec: StickerSpec, tilt_deg: float = 0.0) -> void:
 	_label.size = Vector2(size.x - left, size.y)
 	_inner.add_child(_label)
 	if _spec.badge != GiverBadge.Kind.NONE:
-		_badge = GiverBadge.new(_spec.badge, _spec.badge_text)
+		_badge = GiverBadge.new(_spec.badge, _spec.badge_text, _spec.badge_mini)
 		var badge_x: float = (
 			BURST_BADGE_X if _spec.kind == StickerSpec.Kind.MULTIPLY else LABEL_BADGE_X
 		)

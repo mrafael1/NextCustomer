@@ -219,7 +219,12 @@ func show_state(
 func set_key(entries: Array[StickerSpec]) -> void:
 	var parts: PackedStringArray = PackedStringArray()
 	for entry: StickerSpec in entries:
-		parts.append("%d|%s|%d|%s" % [entry.kind, entry.text, entry.badge, entry.badge_text])
+		parts.append(
+			(
+				"%d|%s|%d|%s|%s"
+				% [entry.kind, entry.text, entry.badge, entry.badge_text, entry.badge_mini]
+			)
+		)
 	var signature: String = ",".join(parts)
 	if signature == _key_signature:
 		return

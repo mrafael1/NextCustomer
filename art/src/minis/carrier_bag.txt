@@ -1,0 +1,13 @@
+; A giver-badge mini (sticker minis, mock-up docs/art/mockups/sticker_minis_v1.html): Carrier bag, a tall cream bag with a die-cut handle tab (cream, its hole the
+; one ink pixel inside) and a small teal logo, no lid band, so it doesn't read as Reduced yogurt's squat tub even where the ink outline fades on dark.
+; Drawn in the approved minis' style. 7x7, ink outline, light from the top left; shown die-cut (alone) at 2x on a planning sticker's
+; giver badge. Its GOLDEN copy (carrier_bag_golden) is derived (@derive ... golden=outline).
+@size 7x7
+@kind icon
+..###..
+.#c#b#.
+#wwccb#
+#wc4cb#
+#w443b#
+#ccbbb#
+#######

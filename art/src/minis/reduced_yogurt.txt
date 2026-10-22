@@ -1,0 +1,12 @@
+; A giver-badge mini (sticker minis, mock-up docs/art/mockups/sticker_minis_v1.html): Reduced yogurt, a wide squat tub, only five rows tall, with the deep teal lid.
+; Approved drawing, ported 1:1 from the prep's minis.py. 7x7, ink outline, light from the top left; shown die-cut (alone) at 2x on a planning sticker's
+; giver badge. Its GOLDEN copy (reduced_yogurt_golden) is derived (@derive ... golden=outline).
+@size 7x7
+@kind icon
+.......
+.......
+.#####.
+#55443#
+#33332#
+#wccbb#
+.#####.
