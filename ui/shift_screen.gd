@@ -115,6 +115,8 @@ var _belt_chips: BeltChips = BeltChips.new()
 var _ride: BeltRide
 ## The planning effects (#71, mock-up h1): the belt's stickers, the hover's relations, the drag's.
 var _effects: PlanningEffects
+## The TOY MACHINES over the results (#63), made the first time they open.
+var _toys: ToyMachinesScreen
 ## The EventLog autoload, typed. Fetched from the tree because standalone script checks
 ## don't know autoload names.
 @onready var _log: EventLogService = get_node("/root/EventLog")
@@ -150,9 +152,16 @@ func start_new_run(seed_value: int, saves_run: bool = true) -> void:
 	_saves_run = saves_run
 	ShiftMusic.new_run(_music)
 	var deck: DeckDefinition = load(STARTER_DECK)
-	# Phase 3's shopping list will set the list; until then the profile's last one is kept.
+	# Until #65's shopping list, a run that needs a list stocks a random one from the run seed's
+	# own stream (#63), so the same seed and profile give the same list; last_list is untouched.
+	var listed: Array[StringName] = []
+	if RunStock.needs_list(_balance, profile.unlocked_items):
+		var stream: RandomNumberGenerator = EventLogService.derived_stream(
+			seed_value, EventLogService.SURPRISE_LIST_STREAM
+		)
+		listed = RunStock.surprise_list(_balance, profile.unlocked_items, stream)
 	var stock: RunStock = RunStock.build(
-		deck, _balance, profile.last_list, profile.unlocked_items, profile.run_count
+		deck, _balance, listed, profile.unlocked_items, profile.run_count
 	)
 	run = RunState.new(seed_value, deck, _balance, stock)
 	_run_started_ms = Time.get_ticks_msec()
@@ -232,6 +241,11 @@ func _resume_run(saved: RunSave) -> void:
 	var record: ShiftRecord = run.history[-1]
 	_monitor.show_end_state(_count_up.plan, _row_views, record.passed and record.inspection != null)
 	_machine.open(true)  # No dessert: the visit shows as it waits, on a new timeline.
+
+
+## Saves the profile now (the debug panel's Profile tools); false (reported) when it can't be.
+func save_profile() -> bool:
+	return _saves.save_profile(profile)
 
 
 ## Writes the run save at a save point (full build plan section 4): the shift started, every
@@ -514,6 +528,20 @@ func _on_new_run_pressed() -> void:
 		"restart", {"since_run_end_ms": Time.get_ticks_msec() - _run_ended_ms, "screen": "results"}
 	)
 	start_new_run(_log.new_run_seed())
+
+
+## Results: the TOY MACHINES (#63) open over the results, below the debug panel. A draw here is
+## a results draw (its item rides the next 3 runs); the machines are off when the run's profile
+## save failed or the profile can't be saved. Done leaves the results as they were (the receipt's
+## coin total is the run's record and isn't reprinted).
+func _open_toy_machines() -> void:
+	if _toys == null:
+		_toys = ToyMachinesScreen.new()
+		add_child(_toys)
+		if _debug.panel != null:
+			move_child(_toys, _debug.panel.get_index())
+	var can_save: bool = _profile_saved and _saves.can_save_profile()
+	_toys.open(CapsuleCounter.new(profile, _saves, _balance, _log, false, can_save), _balance)
 
 
 # --- Deck view and the loyalty card --------------------------------------------------------
@@ -840,6 +868,7 @@ func _build() -> void:
 	add_child(_results)
 	_results.new_run_requested.connect(_on_new_run_pressed)
 	_results.export_requested.connect(_on_export_pressed)
+	_results.toy_machines_requested.connect(_open_toy_machines)
 	# Added last, so the deck view sits above the machine and the results.
 	_deck_view = DeckView.new()
 	add_child(_deck_view)

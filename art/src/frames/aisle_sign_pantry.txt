@@ -1,0 +1,3 @@
+; The shelf's sign plate for the pantry aisle (#63): the base source's teal
+; body ramp swapped for the aisle's (tools/pixel_art.py AISLE_MAPS).
+@derive aisle_sign aisle=pantry
