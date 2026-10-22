@@ -112,7 +112,7 @@ func test_every_item_shows_its_model() -> void:
 	for entry: StickerSpec in model.key_entries():
 		key.append(MonitorChannel.KEY_TEXT % [entry.text, PlanningModel.key_caption(entry)])
 	# The entries that fit the brief's width, in order (at least the first; a wide one is skipped
-	# for a later, narrower one). Since v0.39 the channel sits right of the scanner bay, 110 px
+	# for a later, narrower one). Since v0.40 the channel sits right of the scanner bay, 110 px
 	# narrower, so two of h1's three entries fit here.
 	var shown_key: PackedStringArray = screen._monitor.channel.key_texts()
 	assert_int(shown_key.size()).is_greater(0)
