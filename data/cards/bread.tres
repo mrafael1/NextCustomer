@@ -13,3 +13,5 @@ base = 5
 rule_text = "No rule"
 generally_useful = true
 art_ref = "res://art/items_v2/bread.png"
+mini_art_ref = "res://art/minis/bread.png"
+mini_golden_art_ref = "res://art/minis/bread_golden.png"

@@ -1,0 +1,12 @@
+; A giver-badge mini (sticker minis, mock-up docs/art/mockups/sticker_minis_v1.html): Crisps, a tomato pouch, crimped across the top, bulging, with a mustard crisp on the front.
+; Drawn in the approved minis' style. 7x7, ink outline, light from the top left; shown die-cut (alone) at 2x on a planning sticker's
+; giver badge. Its GOLDEN copy (crisps_golden) is derived (@derive ... golden=outline).
+@size 7x7
+@kind icon
+.#####.
+#rRrRr#
+#RRRRr#
+#RyMRr#
+#RMmRr#
+.#RRr#.
+..###..

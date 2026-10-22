@@ -23,3 +23,5 @@ rules = Array[ExtResource("1_jvkti")]([SubResource("Resource_2sfbs")])
 rule_text = "+4 if immediately after Bread"
 sticker_text = "+{bonus} after Bread"
 art_ref = "res://art/items_v2/cheese.png"
+mini_art_ref = "res://art/minis/cheese.png"
+mini_golden_art_ref = "res://art/minis/cheese_golden.png"

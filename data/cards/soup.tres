@@ -20,3 +20,5 @@ rules = Array[ExtResource("1_ip6lg")]([SubResource("Resource_5qoac")])
 rule_text = "Pays 0 if beside a Frozen product"
 sticker_text = "Pays nothing beside {tag}"
 art_ref = "res://art/items_v2/soup.png"
+mini_art_ref = "res://art/minis/soup.png"
+mini_golden_art_ref = "res://art/minis/soup_golden.png"

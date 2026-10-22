@@ -13,6 +13,9 @@ const UPGRADES: Array[String] = [
 	"res://data/upgrades/slot_engine.tres",
 ]
 const INSPECTION := "res://data/inspections/spot_check.tres"
+## Sticker minis' row: Golden Eggs, Mixed herbs (no sprite yet) and Eggs give to the Food after
+## them, Multipack stamps the Milk.
+const MINI_ROW := "eggs_golden,bread,mixed_herbs,cheese,multipack,milk,eggs,yogurt"
 
 
 func test_the_reference_row_shows_its_stickers_in_step_order() -> void:
@@ -399,6 +402,45 @@ func test_the_tuning_defaults_are_neutral_and_the_file_holds_the_values() -> voi
 	assert_float(tuning.dim_strip_alpha).is_equal_approx(0.3, 0.0001)
 	assert_float(tuning.slap_frame_s).is_equal_approx(0.04, 0.0001)
 	assert_float(tuning.halo_step_s).is_equal_approx(0.08, 0.0001)
+
+
+## Sticker minis: an ITEM badge carries its giver's mini (CardDefinition.badge_mini_ref: Golden
+## Eggs' gold-outlined one, plain Eggs' ink one), none for a product with no sprite (Mixed herbs
+## keeps "Mi") nor for a coupon's or a loyalty badge; the initials are kept for every badge.
+func test_item_badges_carry_the_givers_mini() -> void:
+	var row: Array[CardDefinition] = []
+	for card_id: String in MINI_ROW.split(","):
+		row.append(load("%s/%s.tres" % [PlanTest.CARDS, card_id]) as CardDefinition)
+	var result: ScoreResult = Scoring.score(PlanTest._row(MINI_ROW, PlanTest.CARDS), _upgrades())
+	var model: PlanningModel = PlanningModel.build(result, row, _upgrades(), [], load(TUNING))
+	var seen: Dictionary[String, bool] = {}
+	for slot: PlanningSlot in model.slots:
+		for sticker: StickerSpec in slot.stickers:
+			var message: String = "%s %s" % [sticker.text, sticker.badge_text]
+			if sticker.badge != GiverBadge.Kind.ITEM:
+				assert_str(sticker.badge_mini).override_failure_message(message).is_empty()
+				if sticker.badge == GiverBadge.Kind.COUPON:
+					seen["coupon"] = true
+				continue
+			var giver: CardDefinition = row[sticker.cause_slot]
+			assert_str(sticker.badge_mini).override_failure_message(message).is_equal(
+				giver.badge_mini_ref()
+			)
+			assert_str(sticker.badge_text).is_equal(
+				GiverBadge.initials_for(GiverBadge.Kind.ITEM, giver.display_name)
+			)
+			seen[String(giver.id)] = true
+			match giver.id:
+				&"eggs_golden":
+					assert_str(sticker.badge_mini).is_equal("res://art/minis/eggs_golden.png")
+				&"eggs":
+					assert_str(sticker.badge_mini).is_equal("res://art/minis/eggs.png")
+				&"mixed_herbs":
+					assert_str(sticker.badge_mini).is_empty()
+					assert_str(sticker.badge_text).is_equal("Mi")
+	assert_array(seen.keys()).contains_exactly_in_any_order(
+		["eggs_golden", "eggs", "mixed_herbs", "coupon"]
+	)
 
 
 func test_badge_initials() -> void:
