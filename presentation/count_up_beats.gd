@@ -40,17 +40,18 @@ var sfx: Sfx
 ## The plan being played, set by begin().
 var plan: CountUpPlan
 ## CountUp's hooks for what the count owns (CountUp.setup sets them): step_landed for a beat's
-## steps (beat), the beat's hit-stop (beat), the subtotal's roll (to, seconds) and the quota met
-## (with_ding).
+## steps (beat), the beat's hit-stop (beat), the subtotal's roll (to, seconds), a payout's landing
+## (payout, subtotal) and the quota met (with_ding).
 var landed: Callable
 var land: Callable
 var roll_subtotal: Callable
+var payout_landed: Callable
 var meet_quota: Callable
 var _count: CountUp
 var _tuning: CountUpTuning
 var _overlay: Control
 var _receipt: ReceiptView
-## The register's LED: its digits punch on each payout.
+## The register's LED: its digits punch as each payout lands (its GoldTank).
 var _led: LedDisplay
 var _fx: CountUpMotion
 ## Shaken on big payouts (the register rattle).
@@ -438,8 +439,10 @@ func _payout(beat: CountUpBeat, step: ScoreStep) -> void:
 ## The payout lands: its "+€N" flies from the item to its receipt line over the roll (the line
 ## fades in as it lands; a payout that prints no line, its lines already adding up, flies to its
 ## item's last line, left as it is), and the subtotal rolls up over the beat's roll with three
-## ticks, the printer sounding at its speed; a big payout rattles the register. The ding beat
-## meets the quota as its roll ends.
+## ticks, the printer sounding at its speed; a big payout rattles the register. As the roll ends
+## the payout lands (the monitor juice, mock-up monitor_juice_v2.html): the LED's digits punch
+## (GoldTank.punch, the € still; none under reduced motion), payout_landed tells the monitor, and
+## the ding beat meets the quota in that same frame.
 func _land_payout(beat: CountUpBeat, step: ScoreStep, line: Control) -> void:
 	var roll: float = beat.roll_ms / 1000.0
 	var flight: float = clampf(roll, ReceiptFly.FLIGHT_MIN, ReceiptFly.FLIGHT_MAX)
@@ -447,24 +450,24 @@ func _land_payout(beat: CountUpBeat, step: ScoreStep, line: Control) -> void:
 	var text: String = ReceiptFly.amount_text(beat.payout)
 	_fly.fly(text, _rect_of(step.slot), target, flight, line != null)
 	sfx.play("print", print_pitch())
-	if beat.payout > 0 and roll > 0.0:
+	var punched: bool = beat.payout > 0 and roll > 0.0
+	if punched:
 		_ticks(roll)
-		_fx.punch(
-			_led.digits_label(),
-			(
-				CountUp.SUBTOTAL_PUNCH
-				+ minf(beat.payout / 25.0, CountUp.SUBTOTAL_PUNCH_MAX)
-				+ beat.punch_boost
-			),
-			true,
-			_led.punch_room(step.subtotal)
-		)
 		if beat.rattle_px > 0.0:
 			_fx.shake(_rattle_target, beat.rattle_px)
 			play_rattle(beat.rattle_px)
 	roll_subtotal.call(step.subtotal, roll)
 	if roll > 0.0:
 		await _wait(roll)
+	if punched and not plan.reduced_motion:
+		var strength: float = (
+			CountUp.SUBTOTAL_PUNCH
+			+ minf(beat.payout / 25.0, CountUp.SUBTOTAL_PUNCH_MAX)
+			+ beat.punch_boost
+		)
+		_led.gold_tank.punch(strength, step.subtotal)
+	if beat.payout > 0 and payout_landed.is_valid():
+		payout_landed.call(beat.payout, step.subtotal)
 	if beat.ding:
 		meet_quota.call(true)
 	land.call(beat)

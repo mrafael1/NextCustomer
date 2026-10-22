@@ -5,18 +5,22 @@ extends ColorRect
 ## € (the monitor bay follow-up, mock-up monitor_bay_v1.html: bigger, centred on that group in the
 ## paper right of the bay, the bay covering its left end), cream and paper rays fan out from
 ## MonitorView.SUNBURST_CENTRE and turn slowly; once the quota is met (set_met) they turn mustard
-## light and pale and reach a little further. boost() (the quota met, with its pop) spins them BOOST
-## times faster, easing back over BOOST_SECONDS. Drawn by a canvas shader
+## light and pale and reach further (met_radius: MET_RADIUS unless set; the monitor sets the
+## monitor juice's, CountUpTuning.sunburst_met_radius, WIN B of mock-up monitor_juice_v2.html).
+## boost() (the quota met, with its pop) spins them BOOST times faster, easing back over
+## BOOST_SECONDS, and grows them out to met_radius over grow_seconds (a back-out ease, as the
+## mock-up's; at once when 0). Drawn by a canvas shader
 ## (presentation/sunburst.gdshader) on the art's 2 px grid. It turns in real time, so the count-up's
 ## hit-stops never freeze it; under reduced motion (`reduced_motion`) it stands still. Decor only:
 ## it takes no clicks.
 
 const SHADER := preload("res://presentation/sunburst.gdshader")
-## Half the number of rays (RAYS rays and RAYS gaps), the radius (MET_RADIUS once met), the
-## ellipse's vertical squash and the sampling grid (px).
+## Half the number of rays (RAYS rays and RAYS gaps), the radius (MET_RADIUS once met, unless
+## met_radius is set), the ellipse's vertical squash and the sampling grid (px).
 const RAYS := 10
 const RADIUS := 144.0
 const MET_RADIUS := 168.0
+const GROW_BACK := 1.70158
 const SQUASH := 1.15
 const PIXEL := 2.0
 ## Radians per second, and the boost: BOOST times as fast, easing back over BOOST_SECONDS.
@@ -30,10 +34,18 @@ const MET_GAP_COLOR := Palette.MUSTARD_PALE
 
 ## Returns whether to reduce motion (the profile's setting); an empty Callable means no.
 var reduced_motion: Callable = Callable()
+## The radius once met, and how long a boost grows the rays out to it (0: at once).
+var met_radius: float = MET_RADIUS:
+	set(value):
+		met_radius = value
+		if _shader != null:
+			_apply()
+var grow_seconds: float = 0.0
 
 var _met: bool = false
 var _angle: float = 0.0
 var _boost_left: float = 0.0
+var _grow_left: float = 0.0
 var _shader: ShaderMaterial
 
 
@@ -59,6 +71,7 @@ func set_met(met: bool) -> void:
 	_met = met
 	if not met:
 		_boost_left = 0.0
+		_grow_left = 0.0
 	_apply()
 
 
@@ -67,6 +80,8 @@ func set_met(met: bool) -> void:
 func boost() -> void:
 	if not _reduced():
 		_boost_left = BOOST_SECONDS
+		_grow_left = grow_seconds
+		_apply()
 
 
 func is_met() -> bool:
@@ -94,8 +109,15 @@ func ray_colours() -> Array[Color]:
 	return [ray, gap]
 
 
+## The radius now: RADIUS, met_radius once met (growing out to it just after a boost).
 func radius() -> float:
-	return MET_RADIUS if _met else RADIUS
+	if not _met:
+		return RADIUS
+	if _grow_left <= 0.0 or grow_seconds <= 0.0:
+		return met_radius
+	var p: float = 1.0 - _grow_left / grow_seconds - 1.0
+	var eased: float = p * p * ((GROW_BACK + 1.0) * p + GROW_BACK) + 1.0
+	return RADIUS + (met_radius - RADIUS) * eased
 
 
 func _process(delta: float) -> void:
@@ -103,6 +125,9 @@ func _process(delta: float) -> void:
 		return
 	_angle = fmod(_angle + turn_speed() * delta, TAU)
 	_boost_left = maxf(0.0, _boost_left - delta)
+	if _grow_left > 0.0:
+		_grow_left = maxf(0.0, _grow_left - delta)
+		_shader.set_shader_parameter(&"radius", radius())
 	_shader.set_shader_parameter(&"angle", _angle)
 
 

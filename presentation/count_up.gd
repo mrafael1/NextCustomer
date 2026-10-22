@@ -92,6 +92,11 @@ signal quota_met(pop: bool)
 ## The dessert stamped INSPECTION PASSED on the receipt (#77 machine v2: the monitor's DONE state
 ## says it too).
 signal inspection_passed
+## A payout of `payout` euros lands as its roll ends, the subtotal at `subtotal` (the monitor
+## juice: the gold sloshes and shines; emitted before quota_met when this landing meets the quota).
+signal payout_landed(payout: int, subtotal: int)
+## The TOTAL line shows (the verdict; not in a resumed end state): the gold shines twice.
+signal total_landed
 
 ## A hold's speed, from HOLD_THRESHOLD_MS on.
 const FAST_FORWARD := 5.0
@@ -235,6 +240,7 @@ func setup(
 	_beats.landed = _landed
 	_beats.land = _land
 	_beats.roll_subtotal = _roll_subtotal
+	_beats.payout_landed = payout_landed.emit
 	_beats.meet_quota = _quota_met
 
 
@@ -275,7 +281,7 @@ func play(
 	printer_feed_ms = -1
 	_fx.reset(plan.reduced_motion)
 	_clear_row()
-	_led.start_count(quota)
+	_led.start_count(quota, result.total)
 	count_started.emit(_views)
 	_shown_subtotal = 0
 	_roll = null
@@ -314,9 +320,11 @@ func play(
 	_receipt.add_total(result.total)
 	_sfx.play("print", _beats.print_pitch())
 	_led.show_total()
-	_fx.punch(_led.digits_label(), TOTAL_PUNCH, true, _led.punch_room())
+	if not plan.reduced_motion:
+		_led.gold_tank.punch(TOTAL_PUNCH)
 	if plan.chip_at_total:
 		_meet(true)
+	total_landed.emit()
 	total_shown_ms = Time.get_ticks_msec()
 	intensity = CountUpIntensity.from_plan(plan)
 	_verdict_shown = true
@@ -349,7 +357,7 @@ func show_end_state(result: ScoreResult, quota: int, context: CountUpContext) ->
 	plan = CountUpPlan.build(result.steps, quota, context, _tuning)
 	intensity = CountUpIntensity.from_plan(plan)
 	_clear_row()
-	_led.start_count(quota)
+	_led.start_count(quota, result.total)
 	_set_subtotal(result.total)
 	_led.show_total()
 	if plan.quota_reached:
