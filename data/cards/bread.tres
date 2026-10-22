@@ -12,3 +12,4 @@ tags = PackedStringArray("Food", "Breakfast", "Bakery")
 base = 5
 rule_text = "No rule"
 generally_useful = true
+art_ref = "res://art/items_v2/bread.png"
