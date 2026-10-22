@@ -41,6 +41,9 @@ const BAND_HEIGHT := 18.0
 const NAME_HEIGHT := 13.0
 const TAG_SIZE := 12
 const NOTE_SIZE := 10
+## The note's sizes, largest first: its name line takes the first that fits one line, else folds
+## to two lines at the smallest; the text below takes the first whose wrapped lines all show.
+const NOTE_SIZES: Array[int] = [10, 9, 8]
 const BOLD_WEIGHT := 800
 ## The upgrade's tier tag (look F: Pixelify, tilted, at the sprite's foot) and up arrow.
 const TIER_TAG_AT := Vector2(0, 80)
@@ -664,20 +667,65 @@ func _add_note(band: String, text: String, colour: Color, name_line: String = ""
 	var style: StyleBoxFlat = RewardMachineView.plate_style(colour)
 	head.add_theme_stylebox_override("normal", style)
 	var top: float = BAND_HEIGHT
+	var width: float = NOTE_RECT.size.x - 8
 	if not name_line.is_empty():
-		var name_rect: Rect2 = Rect2(
-			NOTE_RECT.position + Vector2(4, BAND_HEIGHT), Vector2(NOTE_RECT.size.x - 8, NAME_HEIGHT)
-		)
-		_note_name = _label(name_line, name_rect, NOTE_SIZE, Palette.INK)
+		_note_name = _label(name_line, Rect2(), NOTE_SIZE, Palette.INK)
 		_note_name.name = "NoteName"
-		top += NAME_HEIGHT
+		var name_size: int = NOTE_SIZES[-1]
+		var lines: int = 2
+		for font_size: int in NOTE_SIZES:
+			if line_width(_note_name, name_line, font_size) <= width:
+				name_size = font_size
+				lines = 1
+				break
+		_note_name.add_theme_font_size_override("font_size", name_size)
+		var name_height: float = NAME_HEIGHT
+		if lines > 1:
+			_note_name.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+			name_height = text_height(_note_name, name_line, name_size, width)
+		var name_rect: Rect2 = Rect2(
+			NOTE_RECT.position + Vector2(4, BAND_HEIGHT), Vector2(width, name_height)
+		)
+		RewardMachineView.fit(_note_name, name_rect)
+		top += name_height
 	var below: Rect2 = Rect2(
 		NOTE_RECT.position + Vector2(4, top), NOTE_RECT.size - Vector2(8, top + 2)
 	)
 	_note = _label(text, below, NOTE_SIZE, Palette.INK)
 	_note.name = "Note"
 	_note.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	for font_size: int in NOTE_SIZES:
+		_note.add_theme_font_size_override("font_size", font_size)
+		if text_height(_note, text, font_size, width) <= below.size.y:
+			break
 	_note.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+
+
+## `text`'s width on one line in `label`'s font at `font_size`. Pure.
+static func line_width(label: Label, text: String, font_size: int) -> float:
+	var font: Font = label.get_theme_font("font")
+	return font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size).x
+
+
+## How many lines `text` takes in `label`'s font at `font_size`, wrapped at `width`. Pure.
+static func text_lines(label: Label, text: String, font_size: int, width: float) -> int:
+	var font: Font = label.get_theme_font("font")
+	var lines: TextParagraph = TextParagraph.new()
+	lines.add_string(text, font, font_size)
+	lines.width = width
+	lines.break_flags = (
+		TextServer.BREAK_MANDATORY | TextServer.BREAK_WORD_BOUND | TextServer.BREAK_ADAPTIVE
+	)
+	return lines.get_line_count()
+
+
+## The height `text` takes in `label` (its font and line spacing) at `font_size`, wrapped at
+## `width`. Pure.
+static func text_height(label: Label, text: String, font_size: int, width: float) -> float:
+	var font: Font = label.get_theme_font("font")
+	var lines: int = text_lines(label, text, font_size, width)
+	var spacing: float = label.get_theme_constant("line_spacing")
+	return lines * font.get_height(font_size) + (lines - 1) * spacing
 
 
 func _label(text: String, rect: Rect2, font_size: int, colour: Color) -> Label:

@@ -17,6 +17,7 @@ extends GdUnitTestSuite
 ## hover signals. Every rect is checked on screen (headless runs use a 1280x1280 window: the stage
 ## is centred, 280 px down). The real saves and logs are never touched.
 
+const LiveCardCount := preload("res://tests/data/live_card_count.gd")
 const SCREEN := "res://ui/shift_screen.tscn"
 const CARDS := "res://data/cards"
 const RecordingSfx := preload("res://tests/presentation/recording_sfx.gd")
@@ -542,7 +543,7 @@ func test_every_card_scan_fits_the_monitor() -> void:
 			coupons.append(String(definition.id))
 		else:
 			products.append(String(definition.id))
-	assert_int(products.size() + coupons.size()).is_equal(67)
+	assert_int(products.size() + coupons.size()).is_equal(LiveCardCount.CARDS)
 	var all: Array[String] = []
 	all.append_array(products)
 	all.append_array(coupons)

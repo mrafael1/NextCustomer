@@ -14,6 +14,7 @@ const STARTER := "res://data/decks/starter.tres"
 const MILK := "res://data/cards/milk.tres"
 const MILK_BIG := "res://data/cards/milk_big.tres"
 const MILK_GOLDEN := "res://data/cards/milk_golden.tres"
+const MACHINE := "res://data/balance/machine.tres"
 const RARITIES: Array[int] = [
 	MachinePrize.Rarity.COMMON, MachinePrize.Rarity.RARE, MachinePrize.Rarity.LEGENDARY
 ]
@@ -397,6 +398,65 @@ func test_a_resume_at_the_pick_shows_the_draw_at_rest() -> void:
 			assert_float(ticket.modulate.a).is_equal(0.0)
 		view.order_plate.frame(plan.press + OrderPlate.HIDE_TAIL_S + 0.01)
 		assert_bool(view.order_plate.visible).is_true()
+
+
+## Every UPGRADES ticket's note fits its sticker for every chained product (v0.48's long names
+## among them): the name line on one line at one of NOTE_SIZES, else folded to two lines, and the
+## text below with every wrapped line shown, both inside NOTE_RECT.
+func test_every_upgrade_note_fits_the_ticket() -> void:
+	var view: RewardMachineView = _view(MachineVisit.Kind.TICKET, true, [0])
+	var machine: MachineDefinition = load(MACHINE)
+	assert_array(machine.item_upgrades).is_not_empty()
+	var folded: int = 0
+	for chain: ItemUpgradeDefinition in machine.item_upgrades:
+		for rarity: int in RARITIES:
+			var preview: MachinePreview = MachinePreview.new()
+			var copies: int = 3 if rarity == MachinePrize.Rarity.LEGENDARY else 1
+			var to_card: CardDefinition = chain.big
+			if rarity == MachinePrize.Rarity.RARE:
+				to_card = chain.golden
+			for copy: int in range(copies):
+				preview.targets.append(CardInstance.new(chain.product, copy + 1))
+				preview.to_cards.append(to_card)
+			preview.copies = copies
+			var prize: MachinePrize = MachinePrize.new(
+				MachinePrize.Kind.UPGRADE, rarity, chain.product
+			)
+			var ticket: PrizeTicket = _ticket(view, 0, prize, preview, 1)
+			var what: String = "%s %d" % [chain.product.id, rarity]
+			var name_label: Label = ticket.get_node("Card/Face/NoteName")
+			var note: Label = ticket.get_node("Card/Face/Note")
+			assert_str(name_label.text).is_equal(PrizeTicket.upgrade_name(prize))
+			var name_size: int = name_label.get_theme_font_size("font_size")
+			var folded_before: int = folded
+			if name_label.autowrap_mode == TextServer.AUTOWRAP_OFF:
+				var width: float = PrizeTicket.line_width(name_label, name_label.text, name_size)
+				assert_float(width).override_failure_message(what).is_less_equal(name_label.size.x)
+			else:
+				folded += 1
+			var name_height: float = PrizeTicket.text_height(
+				name_label, name_label.text, name_size, name_label.size.x
+			)
+			assert_float(name_height).override_failure_message(what).is_less_equal(
+				name_label.size.y + 0.01
+			)
+			var note_size: int = note.get_theme_font_size("font_size")
+			var note_height: float = PrizeTicket.text_height(
+				note, note.text, note_size, note.size.x
+			)
+			assert_float(note_height).override_failure_message(what).is_less_equal(note.size.y)
+			# The name's row (NAME_HEIGHT, or its folded lines), not its label, which is at least
+			# its font's line tall.
+			var name_row: float = (
+				PrizeTicket.NAME_HEIGHT if folded_before == folded else name_height
+			)
+			assert_float(note.position.y).is_greater_equal(name_label.position.y + name_row)
+			assert_float(note.position.y + note.size.y).is_less_equal(PrizeTicket.NOTE_RECT.end.y)
+			assert_float(name_label.position.x + name_label.size.x).is_less_equal(
+				PrizeTicket.NOTE_RECT.end.x
+			)
+			ticket.free()
+	prints("v0.48 upgrade name lines folded to two lines:", folded)
 
 
 ## A machine view (not shown: its own clock stays still) with a plan of `kind` and, unless empty,

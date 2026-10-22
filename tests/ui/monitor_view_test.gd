@@ -15,6 +15,7 @@ extends GdUnitTestSuite
 ## the mouse: the tests set the scanner's pointer and clock. The real saves and logs are never
 ## touched.
 
+const LiveCardCount := preload("res://tests/data/live_card_count.gd")
 const SCREEN := "res://ui/shift_screen.tscn"
 const CARDS := "res://data/cards"
 const BALANCE := "res://data/balance/balance.tres"
@@ -154,7 +155,7 @@ func test_every_card_scan_fits_the_screen() -> void:
 	var short: PackedStringArray = PackedStringArray([SHORT_LINE, LONG_LINE])
 	var short_fizzles: Array[bool] = [false, true]
 	var cards: Array[CardDefinition] = _cards()
-	assert_int(cards.size()).is_equal(67)
+	assert_int(cards.size()).is_equal(LiveCardCount.CARDS)
 	var tiers: Dictionary[int, int] = {}
 	for definition: CardDefinition in cards:
 		var aisle: AisleDefinition = balance.aisle_of(definition)

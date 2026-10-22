@@ -2,6 +2,7 @@ extends GdUnitTestSuite
 ## Tests on the live data/ files. Unlike the golden rows, these expected values are updated
 ## when card values are tuned between playtest rounds (plan section 3.7).
 
+const LiveCardCount := preload("res://tests/data/live_card_count.gd")
 const CARDS_DIR := "res://data/cards"
 const STARTER := "res://data/decks/starter.tres"
 const PLACEHOLDER := "\\{([a-z_]+)\\}"
@@ -133,7 +134,7 @@ func test_all_ninety_nine_cards_exist() -> void:
 			ids.append(card.id)
 			if card.tier != CardDefinition.Tier.PLAIN:
 				tiers += 1
-	assert_int(ids.size()).is_equal(99)
+	assert_int(ids.size()).is_equal(LiveCardCount.CARDS)
 	assert_int(tiers).is_equal(40)
 
 
@@ -144,7 +145,7 @@ func test_every_card_has_a_digit_free_sticker_template() -> void:
 	var ordinal: RegEx = RegEx.create_from_string(ORDINAL)
 	var digit: RegEx = RegEx.create_from_string("\\d")
 	var cards: Array[CardDefinition] = _all_cards()
-	assert_int(cards.size()).is_equal(99)
+	assert_int(cards.size()).is_equal(LiveCardCount.CARDS)
 	for card: CardDefinition in cards:
 		var template: String = CardText.sticker_template(card)
 		var message: String = '%s: "%s"' % [card.id, template]

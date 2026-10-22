@@ -643,8 +643,9 @@ func test_the_end_state_reads_all_paid() -> void:
 
 
 ## Every product's name (uppercase) fits the name label's inside on one line at one of
-## NAME_SIZES, most at the largest; so do THANK YOU and the dash between items, which Pixelify
-## has a glyph for.
+## NAME_SIZES, most plain names at the largest; a BIG or GOLDEN name too long for it shows its
+## plain product's name (v0.48), which fits; so do THANK YOU and the dash between items, which
+## Pixelify has a glyph for.
 func test_every_name_fits_the_label() -> void:
 	var monitor: MonitorView = await _monitor()
 	monitor.reduced_motion = func() -> bool: return true
@@ -654,29 +655,46 @@ func test_every_name_fits_the_label() -> void:
 	var room: float = ScannerBay.NAME_RECT.size.x - 2.0 * ScannerBay.NAME_BORDER
 	var at_largest: int = 0
 	var products: int = 0
+	var shortened: int = 0
 	var slot: int = 0
 	for definition: CardDefinition in _cards():
 		if definition.is_coupon():
 			continue
-		products += 1
 		var opening: CountUpBeat = _beat(CountUpBeat.Kind.BASE, slot, slot, true)
 		bay.follow_beat(opening, _step(1, ScoreStep.StepType.BASE, slot), definition)
 		slot += 1
-		assert_str(label.text).is_equal(definition.display_name.to_upper())
+		var own: String = definition.display_name.to_upper()
+		if definition.tier != CardDefinition.Tier.PLAIN:
+			if label.text != own:
+				shortened += 1
+				assert_bool(ScannerBay.name_fits(own)).override_failure_message(own).is_false()
+				assert_str(label.text).is_equal(definition.product_card().display_name.to_upper())
+			_assert_label_fits(label, room)
+			continue
+		products += 1
+		assert_str(label.text).is_equal(own)
 		var font_size: int = label.get_theme_font_size("font_size")
 		if font_size == ScannerBay.NAME_SIZES[0]:
 			at_largest += 1
-		(
-			assert_float(_label_width(label))
-			. override_failure_message("%s at %d" % [label.text, font_size])
-			. is_less_equal(room)
-		)
+		_assert_label_fits(label, room)
 	prints("#86 bay names at the largest size:", at_largest, "of", products)
+	prints("v0.48 tier names shown as their plain product's:", shortened)
+	assert_int(shortened).is_greater(0)
 	assert_int(2 * at_largest).is_greater(products)
 	bay.ride(slot - 1, -1, null, 0.0)
 	assert_str(label.text).is_equal(ScannerBay.END_NAME)
 	assert_float(_label_width(label)).is_less_equal(room)
 	assert_bool(ArtStyle.DISPLAY_FONT.has_char(ScannerBay.GONE_NAME.unicode_at(0))).is_true()
+
+
+## `label`'s text fits `room` on one line at its font size.
+func _assert_label_fits(label: Label, room: float) -> void:
+	var font_size: int = label.get_theme_font_size("font_size")
+	(
+		assert_float(_label_width(label))
+		. override_failure_message("%s at %d" % [label.text, font_size])
+		. is_less_equal(room)
+	)
 
 
 ## A beat of `kind` on step `step_index`, slot `slot`, the scan on `slot` (opening it when

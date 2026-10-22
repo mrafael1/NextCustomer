@@ -5,6 +5,7 @@ extends GdUnitTestSuite
 ## its tail at the sprite's middle, wherever the item stands in the panel. It is placed from
 ## global rects, so an item in a scaled panel is pointed at where it is drawn.
 
+const LiveCardCount := preload("res://tests/data/live_card_count.gd")
 const CARDS := "res://data/cards"
 const BALANCE := "res://data/balance/balance.tres"
 const STAGE := Rect2(0, 0, 1280, 720)
@@ -22,7 +23,7 @@ func test_every_card_fits_and_opens_beside_its_item() -> void:
 	var popup: ScanPopup = _popup()
 	var balance: BalanceDefinition = load(BALANCE) as BalanceDefinition
 	var cards: Array[CardDefinition] = _cards()
-	assert_int(cards.size()).is_equal(67)
+	assert_int(cards.size()).is_equal(LiveCardCount.CARDS)
 	for definition: CardDefinition in cards:
 		popup.show_card(definition, balance.aisle_of(definition), definition.tags)
 		await get_tree().process_frame
