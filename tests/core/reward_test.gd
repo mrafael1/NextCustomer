@@ -1,6 +1,8 @@
 extends GdUnitTestSuite
-## Reward offers from the run's stock and taking rewards (plan sections 2 and 5, full build
-## plan 7.2).
+## The reward data (generally useful cards, coupon pools, the starting stock) and taking a
+## reward from the run's stock through the RECEIPT REWARDS machine (#77; plan sections 2 and 5,
+## full build plan 7.2). The machine's draw and odds are tested in machine_draw_test and
+## machine_odds_test.
 
 const STARTER := "res://data/decks/starter.tres"
 const BALANCE := "res://data/balance/balance.tres"
@@ -52,7 +54,8 @@ func test_generally_useful_cards_are_the_decided_ones() -> void:
 	for file: String in DirAccess.get_files_at("res://data/cards"):
 		if file.ends_with(".tres"):
 			var card: CardDefinition = load("res://data/cards/" + file)
-			if card.generally_useful:
+			# Item tiers (#77) copy their plain card's flag but are never offered or stocked.
+			if card.generally_useful and card.tier == CardDefinition.Tier.PLAIN:
 				useful.append(String(card.id))
 	useful.sort()
 	(
@@ -97,7 +100,7 @@ func test_coupon_pool_and_first_pool_hold_the_agreed_coupons() -> void:
 			]
 		)
 	)
-	assert_int(balance.offer_size).is_equal(3)
+	assert_int(balance.machine.prizes_per_visit).is_equal(3)
 	var first: Array = balance.first_offer_pool.map(
 		func(card: CardDefinition) -> StringName: return card.id
 	)
@@ -122,79 +125,21 @@ func test_no_offer_pool_contains_bundle() -> void:
 		assert_str(String(card.id)).is_not_equal("bundle")
 
 
-func test_first_offer_always_has_a_combination_coupon() -> void:
-	var balance: BalanceDefinition = load(BALANCE)
-	for seed_value: int in range(1, 300):
-		var offer: Array[CardDefinition] = RewardOffer.make(
-			_rng(seed_value), balance, _stock(), true
-		)
-		_assert_well_formed(offer)
-		var has_combination: bool = offer.any(
-			func(card: CardDefinition) -> bool: return COMBINATION_COUPONS.has(card.id)
+## The machine's first COUPONS draw always holds a combination coupon (first_offer_pool).
+func test_the_first_coupons_draw_holds_a_combination_coupon() -> void:
+	for seed_value: int in range(1, 60):
+		var run: RunState = _passed_run(seed_value)
+		assert_bool(MachineSteps.choose(run, RewardMachine.Chute.COUPONS)).is_true()
+		var ids: Array = _prize_ids(run)
+		assert_int(ids.size()).is_equal(3)
+		var has_combination: bool = ids.any(
+			func(id: StringName) -> bool: return COMBINATION_COUPONS.has(id)
 		)
 		assert_bool(has_combination).override_failure_message("seed %d" % seed_value).is_true()
 
 
-func test_later_offers_have_a_coupon_and_a_generally_useful_card() -> void:
-	var balance: BalanceDefinition = load(BALANCE)
-	for seed_value: int in range(1, 300):
-		var offer: Array[CardDefinition] = RewardOffer.make(
-			_rng(seed_value), balance, _stock(), false
-		)
-		_assert_well_formed(offer)
-		var where: String = "seed %d" % seed_value
-		var has_coupon: bool = offer.any(
-			func(card: CardDefinition) -> bool: return card.is_coupon()
-		)
-		var has_useful: bool = offer.any(
-			func(card: CardDefinition) -> bool: return card.generally_useful
-		)
-		assert_bool(has_coupon).override_failure_message(where).is_true()
-		assert_bool(has_useful).override_failure_message(where).is_true()
-
-
-func test_offers_reach_every_card_and_every_position() -> void:
-	var balance: BalanceDefinition = load(BALANCE)
-	var seen: Dictionary = {}
-	var guaranteed_positions: Dictionary = {}
-	for seed_value: int in range(1, 400):
-		var offer: Array[CardDefinition] = RewardOffer.make(
-			_rng(seed_value), balance, _stock(), false
-		)
-		for position: int in range(offer.size()):
-			seen[offer[position].id] = true
-			if offer[position].is_coupon():
-				guaranteed_positions[position] = true
-	assert_int(seen.size()).is_equal(STARTING_STOCK.size())
-	assert_int(guaranteed_positions.size()).is_equal(3)
-
-
-## Offers draw only from the stock: a card outside it is never offered, and the first offer's
-## combination coupon is a stocked one.
-func test_offers_draw_only_from_the_stock() -> void:
-	var balance: BalanceDefinition = load(BALANCE)
-	var stock: Array[CardDefinition] = _stock()
-	var cheese: CardDefinition = load(CHEESE)
-	var sticker: CardDefinition = load("res://data/cards/breakfast_sticker.tres")
-	var two_for_one: CardDefinition = load("res://data/cards/two_for_one.tres")
-	stock.erase(cheese)
-	stock.erase(sticker)
-	# Multipack is then the only stocked combination coupon.
-	stock.erase(two_for_one)
-	for seed_value: int in range(1, 300):
-		var where: String = "seed %d" % seed_value
-		var first: Array[CardDefinition] = RewardOffer.make(_rng(seed_value), balance, stock, true)
-		var later: Array[CardDefinition] = RewardOffer.make(_rng(seed_value), balance, stock, false)
-		(
-			assert_bool(first.has(load("res://data/cards/multipack.tres")))
-			. override_failure_message(where)
-			. is_true()
-		)
-		for card: CardDefinition in first + later:
-			assert_bool(stock.has(card)).override_failure_message(where).is_true()
-
-
-func test_the_run_offers_from_its_own_stock() -> void:
+## The machine draws only from the run's stock: a product outside it is never a prize.
+func test_the_run_draws_from_its_own_stock() -> void:
 	var balance: BalanceDefinition = load(BALANCE)
 	var deck: DeckDefinition = load(STARTER)
 	var stock: RunStock = RunStock.starting(deck, balance)
@@ -203,41 +148,32 @@ func test_the_run_offers_from_its_own_stock() -> void:
 		var run: RunState = RunState.new(seed_value, deck, balance, stock)
 		run.start_shift()
 		_fill_and_pass(run)
-		assert_array(run.offer).has_size(3)
-		for card: CardDefinition in run.offer:
-			assert_str(String(card.id)).is_not_equal("cheese")
-			assert_bool(stock.cards.has(card)).is_true()
+		assert_bool(MachineSteps.choose(run, RewardMachine.Chute.NEW_ITEMS)).is_true()
+		assert_array(run.machine.prizes()).has_size(3)
+		for prize: MachinePrize in run.machine.prizes():
+			assert_str(String(prize.card.id)).is_not_equal("cheese")
+			assert_bool(stock.cards.has(prize.card)).is_true()
 
 
-func test_same_seed_gives_same_offer() -> void:
-	var balance: BalanceDefinition = load(BALANCE)
-	var first: Array[CardDefinition] = RewardOffer.make(_rng(99), balance, _stock(), false)
-	var second: Array[CardDefinition] = RewardOffer.make(_rng(99), balance, _stock(), false)
-	assert_array(first).is_equal(second)
+func test_same_seed_gives_same_prizes() -> void:
+	var first: RunState = _passed_run(99)
+	var second: RunState = _passed_run(99)
+	for run: RunState in [first, second]:
+		MachineSteps.choose(run, RewardMachine.Chute.NEW_ITEMS)
+	assert_array(_prize_ids(first)).is_equal(_prize_ids(second))
 
 
-func test_a_passed_shift_offers_rewards_and_taking_one_grows_the_deck() -> void:
+func test_a_passed_shift_opens_the_machine_and_a_pick_grows_the_deck() -> void:
 	var run: RunState = _passed_run(5)
-	assert_int(run.phase).is_equal(RunState.Phase.REWARD)
-	assert_int(run.offer.size()).is_equal(3)
+	assert_int(run.phase).is_equal(RunState.Phase.MACHINE_CHOOSE)
 	assert_bool(run.next_shift()).is_false()
-	var card: CardDefinition = run.offer[0]
-	assert_bool(run.take_reward(card)).is_true()
+	assert_bool(MachineSteps.choose(run, RewardMachine.Chute.NEW_ITEMS)).is_true()
+	assert_int(run.machine.prizes().size()).is_equal(3)
+	assert_object(MachineSteps.take(run, 0)).is_not_null()
 	assert_int(run.deck.size()).is_equal(14)
 	assert_int(run.phase).is_equal(RunState.Phase.SCORED)
-	assert_array(run.offer).is_empty()
-	assert_bool(run.take_reward(card)).is_false()
-
-
-func test_cannot_take_a_card_that_was_not_offered() -> void:
-	var run: RunState = _passed_run(6)
-	var cheese: CardDefinition = load(CHEESE)
-	if run.offer.has(cheese):
-		cheese = load("res://data/cards/soup.tres")
-	if run.offer.has(cheese):
-		return
-	assert_bool(run.take_reward(cheese)).is_false()
-	assert_int(run.phase).is_equal(RunState.Phase.REWARD)
+	assert_array(run.machine.prizes()).is_empty()
+	assert_object(MachineSteps.take(run, 0)).is_null()
 
 
 func test_at_the_deck_limit_a_card_must_be_replaced() -> void:
@@ -246,31 +182,35 @@ func test_at_the_deck_limit_a_card_must_be_replaced() -> void:
 	while run.deck.size() < run.balance.deck_limit:
 		run.deck.add_card(bread)
 	assert_bool(run.deck_is_full()).is_true()
-	var card: CardDefinition = run.offer[1]
-	assert_bool(run.take_reward(card)).is_false()
+	MachineSteps.choose(run, RewardMachine.Chute.NEW_ITEMS)
+	assert_bool(run.machine.needs_replace(run, 1)).is_true()
+	assert_object(run.machine.pick(run, 1)).is_null()
 	var replaced: CardInstance = run.deck.cards[0]
-	assert_bool(run.take_reward(card, replaced)).is_true()
+	assert_object(run.machine.pick(run, 1, replaced)).is_not_null()
 	assert_int(run.deck.size()).is_equal(run.balance.deck_limit)
 	assert_bool(run.deck.cards.has(replaced)).is_false()
 
 
-func test_skip_keeps_the_deck() -> void:
+func test_a_bin_keeps_the_deck() -> void:
 	var run: RunState = _passed_run(8)
-	assert_bool(run.skip_reward()).is_true()
+	MachineSteps.choose(run, RewardMachine.Chute.NEW_ITEMS)
+	assert_bool(run.machine.bin(run)).is_true()
 	assert_int(run.deck.size()).is_equal(13)
-	assert_bool(run.skip_reward()).is_false()
+	assert_bool(run.machine.bin(run)).is_false()
 
 
-func test_only_the_first_offer_of_a_run_is_the_combination_offer() -> void:
+## Only the run's first COUPONS draw is the combination draw: the flag is spent at the draw.
+func test_only_the_first_coupons_draw_is_the_combination_draw() -> void:
 	var run: RunState = _passed_run(9)
-	assert_int(run.offers_made).is_equal(1)
-	run.skip_reward()
-	run.next_shift()
+	assert_bool(run.machine.coupons_first_done).is_false()
+	MachineSteps.choose(run, RewardMachine.Chute.COUPONS)
+	assert_bool(run.machine.coupons_first_done).is_true()
+	MachineSteps.next_shift(run)
 	_fill_and_pass(run)
-	assert_int(run.offers_made).is_equal(2)
+	assert_bool(run.machine.coupons_first_done).is_true()
 
 
-func test_the_last_shift_wins_without_an_offer() -> void:
+func test_the_last_shift_wins_without_a_visit() -> void:
 	# Late quotas expect upgrades (plan v0.28): a copy whose every quota the row below passes.
 	var balance: BalanceDefinition = (load(BALANCE) as BalanceDefinition).duplicate()
 	var quotas: PackedInt32Array = PackedInt32Array()
@@ -288,7 +228,7 @@ func test_the_last_shift_wins_without_an_offer() -> void:
 	var result: ScoreResult = run.checkout()
 	assert_int(result.total).is_equal(82)
 	assert_int(result.total).is_greater_equal(run.quota())
-	assert_array(run.offer).is_empty()
+	assert_object(run.machine.current_visit()).is_null()
 	assert_int(run.phase).is_equal(RunState.Phase.WON)
 
 
@@ -312,16 +252,5 @@ static func _stock() -> Array[CardDefinition]:
 	return RunStock.starting(load(STARTER), load(BALANCE)).cards
 
 
-static func _rng(seed_value: int) -> RandomNumberGenerator:
-	var rng: RandomNumberGenerator = RandomNumberGenerator.new()
-	rng.seed = seed_value
-	return rng
-
-
-func _assert_well_formed(offer: Array[CardDefinition]) -> void:
-	assert_int(offer.size()).is_equal(3)
-	var unique: Dictionary = {}
-	for card: CardDefinition in offer:
-		unique[card] = true
-		assert_bool(_stock().has(card)).is_true()
-	assert_int(unique.size()).is_equal(3)
+static func _prize_ids(run: RunState) -> Array:
+	return run.machine.prizes().map(func(prize: MachinePrize) -> StringName: return prize.id())

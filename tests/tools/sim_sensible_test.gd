@@ -70,6 +70,39 @@ func test_a_climb_can_start_from_a_kept_row() -> void:
 	assert_int(row.score).is_equal(10)
 
 
+## #77 S1: a climber remembers its rows' totals and its climbs, and a remembered climb is exactly
+## the climb a fresh climber makes (same total, same cards in the same order), for another hand
+## of the same cards in the same order too, without scoring a row again.
+func test_a_remembered_climb_is_the_same_climb() -> void:
+	var climber: SimHillClimb = SimHillClimb.new()
+	var fresh: SimHillClimb = SimHillClimb.new()
+	var limits: ShiftLimits = _limits(6, 1)
+	for ids: String in ["banana,cheese,bread,banana", "eggs,bread,repeat,banana,cheese"]:
+		var hand: Array[CardInstance] = _cards(ids)
+		var first: SimHandBest = climber.climb(hand, limits, _no_upgrades(), _no_inspections())
+		var scored: int = climber.rows_scored
+		var again_hand: Array[CardInstance] = _cards(ids)
+		var again: SimHandBest = climber.climb(
+			again_hand, limits, _no_upgrades(), _no_inspections()
+		)
+		var expected: SimHandBest = fresh.climb(
+			again_hand, limits, _no_upgrades(), _no_inspections()
+		)
+		assert_int(climber.rows_scored).is_equal(scored)
+		assert_int(again.score).is_equal(expected.score)
+		assert_int(first.score).is_equal(expected.score)
+		assert_array(again.row).is_equal(expected.row)
+		for card: CardInstance in again.row:
+			assert_bool(again_hand.has(card)).is_true()
+		var kept: Array[CardInstance] = [again_hand[1], again_hand[0]]
+		(
+			assert_array(
+				climber.climb(again_hand, limits, _no_upgrades(), _no_inspections(), kept).row
+			)
+			. is_equal(fresh.climb(again_hand, limits, _no_upgrades(), _no_inspections(), kept).row)
+		)
+
+
 func test_sensible_strategy_names() -> void:
 	assert_bool(SimPlayer.is_known_strategy("greedy@sensible")).is_true()
 	assert_bool(SimPlayer.is_known_strategy("random@sensible")).is_true()
@@ -118,9 +151,7 @@ func test_summary_shows_the_exact_best_for_sensible_rows() -> void:
 					"total": totals[0],
 					"best": totals[1],
 					"passed": totals[0] >= 10,
-					"card_picked": "",
-					"reward_skipped": false,
-					"upgrade_taken": "",
+					"visits": [],
 				}
 			)
 		)
@@ -235,7 +266,7 @@ func _player(strategy: String) -> SimPlayer:
 	balance.base_redraws = 1
 	balance.redraw_limit = 2
 	balance.deck_limit = 8
-	balance.offer_size = 3
+	balance.machine = (load("res://data/balance/balance.tres") as BalanceDefinition).machine
 	var aisle: AisleDefinition = AisleDefinition.new()
 	aisle.id = &"test"
 	aisle.base_cards.append(_card("cheese"))

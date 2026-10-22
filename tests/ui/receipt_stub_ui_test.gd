@@ -389,11 +389,10 @@ static func _receipt_lines(receipt: ReceiptView) -> Array[String]:
 	return lines
 
 
-## The screen past the impulse rack.
+## The screen on shift 1.
 func _screen() -> ShiftScreen:
 	var runner: GdUnitSceneRunner = scene_runner(SCREEN)
 	var screen: ShiftScreen = runner.scene()
-	screen._on_reward_skipped()
 	await _frames(3)
 	return screen
 

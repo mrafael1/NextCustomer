@@ -184,7 +184,8 @@ func test_every_inspection_states_its_id_and_notice() -> void:
 
 
 ## Full build plan 7.3: the catalogue lists every deck file and every card variant, each once,
-## so the end-of-run unlock check sees them all.
+## so the end-of-run unlock check sees them all. Item tiers (#77) are variants too, but they are
+## run upgrades, not unlocks: the catalogue never lists them.
 func test_the_catalogue_lists_every_deck_and_variant() -> void:
 	var catalogue: CatalogueDefinition = load("res://data/catalogue/catalogue.tres")
 	var decks: Array[DeckDefinition] = []
@@ -198,7 +199,7 @@ func test_the_catalogue_lists_every_deck_and_variant() -> void:
 		var card: CardDefinition = (
 			load("res://data/cards/" + file) if file.ends_with(".tres") else null
 		)
-		if card != null and card.variant_of != null:
+		if card != null and card.variant_of != null and card.tier == CardDefinition.Tier.PLAIN:
 			variants.append(card)
 	assert_int(catalogue.variants.size()).is_equal(variants.size())
 	assert_array(catalogue.variants).contains_exactly_in_any_order(variants)

@@ -15,7 +15,8 @@ extends UpgradeRule
 
 
 func multiplier(state: ScoreState, slot: int) -> int:
-	return factor if _is_target(state, slot) else 1
+	var target: int = _target_number(state)
+	return factor if target > 0 and state.product_numbers[slot] == target else 1
 
 
 func wasted_reason(state: ScoreState, _slot: int) -> String:
@@ -26,10 +27,8 @@ func row_wasted_reason(state: ScoreState) -> String:
 	var target: int = _target_number(state)
 	if factor == 1 or target <= 0:
 		return ""
-	var products: int = 0
-	for slot: int in range(state.size()):
-		if state.is_product(slot):
-			products += 1
+	var last: int = state.last_product
+	var products: int = state.product_numbers[last] if last >= 0 else 0
 	return "fewer than %d products" % target if products < target else ""
 
 
@@ -37,14 +36,3 @@ func _target_number(state: ScoreState) -> int:
 	if product_number <= 0:
 		return 0
 	return product_number + (state.product_slot_change if follows_slot_changes else 0)
-
-
-func _is_target(state: ScoreState, slot: int) -> bool:
-	var target: int = _target_number(state)
-	if target <= 0 or not state.is_product(slot):
-		return false
-	var products: int = 0
-	for earlier: int in range(slot + 1):
-		if state.is_product(earlier):
-			products += 1
-	return products == target

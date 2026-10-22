@@ -1,0 +1,884 @@
+{
+ "about": "UPGRADES on carts of the live chains, SHELF UPGRADE needs 2 copies",
+ "generated_by": "tests/fixtures/machine_odds/make_fixtures.js",
+ "odds": [
+  [
+   75,
+   22,
+   3
+  ],
+  [
+   65,
+   28,
+   7
+  ],
+  [
+   55,
+   33,
+   12
+  ],
+  [
+   45,
+   37,
+   18
+  ]
+ ],
+ "states": [
+  {
+   "name": "UPGRADES starter cart · REGULAR 0",
+   "chute": "upgrades",
+   "level": 0,
+   "input": {
+    "cart": [
+     {
+      "id": "banana",
+      "tier": 0
+     },
+     {
+      "id": "banana",
+      "tier": 0
+     },
+     {
+      "id": "banana",
+      "tier": 0
+     },
+     {
+      "id": "bread",
+      "tier": 0
+     },
+     {
+      "id": "bread",
+      "tier": 0
+     },
+     {
+      "id": "milk",
+      "tier": 0
+     },
+     {
+      "id": "milk",
+      "tier": 0
+     },
+     {
+      "id": "eggs",
+      "tier": 0
+     },
+     {
+      "id": "eggs",
+      "tier": 0
+     },
+     {
+      "id": "coffee",
+      "tier": 0
+     },
+     {
+      "id": "coffee",
+      "tier": 0
+     },
+     {
+      "id": "soup",
+      "tier": 0
+     },
+     {
+      "id": "final_markdown",
+      "tier": 0
+     }
+    ]
+   },
+   "expected": {
+    "share": [
+     0.7500000000000029,
+     0.2199999999999968,
+     0.03000000000000031
+    ],
+    "first": [
+     0.7500000000000007,
+     0.2199999999999993,
+     0.029999999999999905
+    ],
+    "rest": [
+     0.7499999999999943,
+     0.2200000000000051,
+     0.030000000000000436
+    ],
+    "p_rare_plus": 0.5781250000000128,
+    "p_legendary": 0.08732699999999916,
+    "p_short": 0,
+    "p_held": 0,
+    "guarded": false,
+    "in_draw": {
+     "upgrade:banana:0": 0.5625000000000014,
+     "upgrade:milk:0": 0.5625000000000026,
+     "upgrade:eggs:0": 0.5625000000000027,
+     "upgrade:coffee:0": 0.5625000000000027,
+     "upgrade:banana:1": 0.16500000000000042,
+     "upgrade:milk:1": 0.16500000000000015,
+     "upgrade:eggs:1": 0.1649999999999998,
+     "upgrade:coffee:1": 0.16499999999999948,
+     "upgrade:banana:2": 0.02250000000000001,
+     "upgrade:milk:2": 0.022500000000000017,
+     "upgrade:eggs:2": 0.022500000000000023,
+     "upgrade:coffee:2": 0.02250000000000003
+    }
+   }
+  },
+  {
+   "name": "UPGRADES starter cart · REGULAR 1",
+   "chute": "upgrades",
+   "level": 1,
+   "input": {
+    "cart": [
+     {
+      "id": "banana",
+      "tier": 0
+     },
+     {
+      "id": "banana",
+      "tier": 0
+     },
+     {
+      "id": "banana",
+      "tier": 0
+     },
+     {
+      "id": "bread",
+      "tier": 0
+     },
+     {
+      "id": "bread",
+      "tier": 0
+     },
+     {
+      "id": "milk",
+      "tier": 0
+     },
+     {
+      "id": "milk",
+      "tier": 0
+     },
+     {
+      "id": "eggs",
+      "tier": 0
+     },
+     {
+      "id": "eggs",
+      "tier": 0
+     },
+     {
+      "id": "coffee",
+      "tier": 0
+     },
+     {
+      "id": "coffee",
+      "tier": 0
+     },
+     {
+      "id": "soup",
+      "tier": 0
+     },
+     {
+      "id": "final_markdown",
+      "tier": 0
+     }
+    ]
+   },
+   "expected": {
+    "share": [
+     0.6499999999999979,
+     0.2800000000000021,
+     0.07000000000000013
+    ],
+    "first": [
+     0.650000000000001,
+     0.2799999999999995,
+     0.06999999999999951
+    ],
+    "rest": [
+     0.6499999999999961,
+     0.2800000000000034,
+     0.07000000000000037
+    ],
+    "p_rare_plus": 0.7253750000000037,
+    "p_legendary": 0.19564300000000084,
+    "p_short": 0,
+    "p_held": 0,
+    "guarded": false,
+    "in_draw": {
+     "upgrade:banana:0": 0.48750000000000226,
+     "upgrade:milk:0": 0.4875000000000022,
+     "upgrade:eggs:0": 0.48750000000000265,
+     "upgrade:coffee:0": 0.48750000000000265,
+     "upgrade:banana:1": 0.21000000000000002,
+     "upgrade:milk:1": 0.21000000000000008,
+     "upgrade:eggs:1": 0.21000000000000008,
+     "upgrade:coffee:1": 0.2100000000000001,
+     "upgrade:banana:2": 0.052499999999999755,
+     "upgrade:milk:2": 0.052499999999999755,
+     "upgrade:eggs:2": 0.052499999999999755,
+     "upgrade:coffee:2": 0.05249999999999975
+    }
+   }
+  },
+  {
+   "name": "UPGRADES starter cart · REGULAR 2",
+   "chute": "upgrades",
+   "level": 2,
+   "input": {
+    "cart": [
+     {
+      "id": "banana",
+      "tier": 0
+     },
+     {
+      "id": "banana",
+      "tier": 0
+     },
+     {
+      "id": "banana",
+      "tier": 0
+     },
+     {
+      "id": "bread",
+      "tier": 0
+     },
+     {
+      "id": "bread",
+      "tier": 0
+     },
+     {
+      "id": "milk",
+      "tier": 0
+     },
+     {
+      "id": "milk",
+      "tier": 0
+     },
+     {
+      "id": "eggs",
+      "tier": 0
+     },
+     {
+      "id": "eggs",
+      "tier": 0
+     },
+     {
+      "id": "coffee",
+      "tier": 0
+     },
+     {
+      "id": "coffee",
+      "tier": 0
+     },
+     {
+      "id": "soup",
+      "tier": 0
+     },
+     {
+      "id": "final_markdown",
+      "tier": 0
+     }
+    ]
+   },
+   "expected": {
+    "share": [
+     0.5500000000000077,
+     0.3299999999999922,
+     0.11999999999999998
+    ],
+    "first": [
+     0.5500000000000005,
+     0.32999999999999957,
+     0.12000000000000004
+    ],
+    "rest": [
+     0.5500000000000042,
+     0.3299999999999969,
+     0.11999999999999891
+    ],
+    "p_rare_plus": 0.8336249999999839,
+    "p_legendary": 0.31852800000000037,
+    "p_short": 0,
+    "p_held": 0,
+    "guarded": false,
+    "in_draw": {
+     "upgrade:banana:0": 0.41250000000000053,
+     "upgrade:milk:0": 0.41250000000000053,
+     "upgrade:eggs:0": 0.41250000000000053,
+     "upgrade:coffee:0": 0.4125000000000011,
+     "upgrade:banana:1": 0.24749999999999928,
+     "upgrade:milk:1": 0.2474999999999993,
+     "upgrade:eggs:1": 0.2474999999999994,
+     "upgrade:coffee:1": 0.2474999999999994,
+     "upgrade:banana:2": 0.09000000000000011,
+     "upgrade:milk:2": 0.0900000000000001,
+     "upgrade:eggs:2": 0.09000000000000008,
+     "upgrade:coffee:2": 0.09000000000000005
+    }
+   }
+  },
+  {
+   "name": "UPGRADES starter cart · REGULAR 3",
+   "chute": "upgrades",
+   "level": 3,
+   "input": {
+    "cart": [
+     {
+      "id": "banana",
+      "tier": 0
+     },
+     {
+      "id": "banana",
+      "tier": 0
+     },
+     {
+      "id": "banana",
+      "tier": 0
+     },
+     {
+      "id": "bread",
+      "tier": 0
+     },
+     {
+      "id": "bread",
+      "tier": 0
+     },
+     {
+      "id": "milk",
+      "tier": 0
+     },
+     {
+      "id": "milk",
+      "tier": 0
+     },
+     {
+      "id": "eggs",
+      "tier": 0
+     },
+     {
+      "id": "eggs",
+      "tier": 0
+     },
+     {
+      "id": "coffee",
+      "tier": 0
+     },
+     {
+      "id": "coffee",
+      "tier": 0
+     },
+     {
+      "id": "soup",
+      "tier": 0
+     },
+     {
+      "id": "final_markdown",
+      "tier": 0
+     }
+    ]
+   },
+   "expected": {
+    "share": [
+     0.2999999999999984,
+     0.4709090909090917,
+     0.22909090909090982
+    ],
+    "first": [
+     0,
+     0.6727272727272736,
+     0.32727272727272644
+    ],
+    "rest": [
+     0.4500000000000021,
+     0.36999999999999905,
+     0.17999999999999883
+    ],
+    "p_rare_plus": 1.0000000000000033,
+    "p_legendary": 0.5476581818181798,
+    "p_short": 0,
+    "p_held": 0,
+    "guarded": false,
+    "in_draw": {
+     "upgrade:banana:1": 0.3531818181818187,
+     "upgrade:banana:0": 0.22499999999999998,
+     "upgrade:milk:0": 0.22499999999999998,
+     "upgrade:eggs:0": 0.22499999999999998,
+     "upgrade:coffee:0": 0.22499999999999998,
+     "upgrade:milk:1": 0.3531818181818186,
+     "upgrade:eggs:1": 0.3531818181818186,
+     "upgrade:coffee:1": 0.35318181818181915,
+     "upgrade:banana:2": 0.17181818181818168,
+     "upgrade:milk:2": 0.17181818181818154,
+     "upgrade:eggs:2": 0.17181818181818137,
+     "upgrade:coffee:2": 0.17181818181818126
+    }
+   }
+  },
+  {
+   "name": "UPGRADES Milk BIG + plain, Eggs GOLDEN + BIG, one Coffee · REGULAR 0",
+   "chute": "upgrades",
+   "level": 0,
+   "input": {
+    "cart": [
+     {
+      "id": "milk",
+      "tier": 1
+     },
+     {
+      "id": "milk",
+      "tier": 0
+     },
+     {
+      "id": "eggs",
+      "tier": 2
+     },
+     {
+      "id": "eggs",
+      "tier": 1
+     },
+     {
+      "id": "coffee",
+      "tier": 0
+     },
+     {
+      "id": "bread",
+      "tier": 0
+     }
+    ]
+   },
+   "expected": {
+    "share": [
+     0.7535493333333336,
+     0.21734166666666646,
+     0.029108999999999975
+    ],
+    "first": [
+     0.7499999999999998,
+     0.22000000000000014,
+     0.030000000000000016
+    ],
+    "rest": [
+     0.7553239999999999,
+     0.2160125000000001,
+     0.02866349999999997
+    ],
+    "p_rare_plus": 0.578124999999999,
+    "p_legendary": 0.08732700000000009,
+    "p_short": 0,
+    "p_held": 0,
+    "guarded": false,
+    "in_draw": {
+     "upgrade:milk:0": 0.7535493333333323,
+     "upgrade:eggs:0": 0.7535493333333324,
+     "upgrade:coffee:0": 0.753549333333332,
+     "upgrade:milk:1": 0.32601250000000026,
+     "upgrade:coffee:1": 0.32601250000000037,
+     "upgrade:milk:2": 0.08732700000000009
+    }
+   }
+  },
+  {
+   "name": "UPGRADES Milk BIG + plain, Eggs GOLDEN + BIG, one Coffee · REGULAR 1",
+   "chute": "upgrades",
+   "level": 1,
+   "input": {
+    "cart": [
+     {
+      "id": "milk",
+      "tier": 1
+     },
+     {
+      "id": "milk",
+      "tier": 0
+     },
+     {
+      "id": "eggs",
+      "tier": 2
+     },
+     {
+      "id": "eggs",
+      "tier": 1
+     },
+     {
+      "id": "coffee",
+      "tier": 0
+     },
+     {
+      "id": "bread",
+      "tier": 0
+     }
+    ]
+   },
+   "expected": {
+    "share": [
+     0.6573173333333332,
+     0.2774683333333333,
+     0.06521433333333349
+    ],
+    "first": [
+     0.6500000000000001,
+     0.2799999999999999,
+     0.06999999999999999
+    ],
+    "rest": [
+     0.6609759999999992,
+     0.2762025000000007,
+     0.0628215000000001
+    ],
+    "p_rare_plus": 0.7253750000000009,
+    "p_legendary": 0.1956430000000002,
+    "p_short": 0,
+    "p_held": 0,
+    "guarded": false,
+    "in_draw": {
+     "upgrade:milk:0": 0.6573173333333338,
+     "upgrade:eggs:0": 0.6573173333333336,
+     "upgrade:coffee:0": 0.6573173333333336,
+     "upgrade:milk:1": 0.4162025,
+     "upgrade:coffee:1": 0.4162025,
+     "upgrade:milk:2": 0.1956430000000002
+    }
+   }
+  },
+  {
+   "name": "UPGRADES Milk BIG + plain, Eggs GOLDEN + BIG, one Coffee · REGULAR 2",
+   "chute": "upgrades",
+   "level": 2,
+   "input": {
+    "cart": [
+     {
+      "id": "milk",
+      "tier": 1
+     },
+     {
+      "id": "milk",
+      "tier": 0
+     },
+     {
+      "id": "eggs",
+      "tier": 2
+     },
+     {
+      "id": "eggs",
+      "tier": 1
+     },
+     {
+      "id": "coffee",
+      "tier": 0
+     },
+     {
+      "id": "bread",
+      "tier": 0
+     }
+    ]
+   },
+   "expected": {
+    "share": [
+     0.5619790000000001,
+     0.33184499999999995,
+     0.10617599999999988
+    ],
+    "first": [
+     0.5499999999999999,
+     0.32999999999999996,
+     0.11999999999999998
+    ],
+    "rest": [
+     0.5679685000000004,
+     0.33276749999999966,
+     0.0992639999999998
+    ],
+    "p_rare_plus": 0.8336250000000008,
+    "p_legendary": 0.31852799999999987,
+    "p_short": 0,
+    "p_held": 0,
+    "guarded": false,
+    "in_draw": {
+     "upgrade:milk:0": 0.5619789999999999,
+     "upgrade:eggs:0": 0.5619790000000001,
+     "upgrade:coffee:0": 0.5619790000000001,
+     "upgrade:milk:1": 0.49776749999999986,
+     "upgrade:coffee:1": 0.49776749999999986,
+     "upgrade:milk:2": 0.31852799999999987
+    }
+   }
+  },
+  {
+   "name": "UPGRADES Milk BIG + plain, Eggs GOLDEN + BIG, one Coffee · REGULAR 3",
+   "chute": "upgrades",
+   "level": 3,
+   "input": {
+    "cart": [
+     {
+      "id": "milk",
+      "tier": 1
+     },
+     {
+      "id": "milk",
+      "tier": 0
+     },
+     {
+      "id": "eggs",
+      "tier": 2
+     },
+     {
+      "id": "eggs",
+      "tier": 1
+     },
+     {
+      "id": "coffee",
+      "tier": 0
+     },
+     {
+      "id": "bread",
+      "tier": 0
+     }
+    ]
+   },
+   "expected": {
+    "share": [
+     0.33069878787878787,
+     0.4867484848484849,
+     0.18255272727272734
+    ],
+    "first": [
+     0,
+     0.6727272727272728,
+     0.32727272727272727
+    ],
+    "rest": [
+     0.49604818181818194,
+     0.3937590909090908,
+     0.1101927272727273
+    ],
+    "p_rare_plus": 0.9999999999999999,
+    "p_legendary": 0.5476581818181817,
+    "p_short": 0,
+    "p_held": 0,
+    "guarded": false,
+    "in_draw": {
+     "upgrade:milk:1": 0.7301227272727269,
+     "upgrade:milk:0": 0.3306987878787879,
+     "upgrade:eggs:0": 0.3306987878787879,
+     "upgrade:coffee:0": 0.3306987878787879,
+     "upgrade:coffee:1": 0.730122727272727,
+     "upgrade:milk:2": 0.5476581818181817
+    }
+   }
+  },
+  {
+   "name": "UPGRADES only Milk can step, no shelf · REGULAR 0",
+   "chute": "upgrades",
+   "level": 0,
+   "input": {
+    "cart": [
+     {
+      "id": "milk",
+      "tier": 1
+     },
+     {
+      "id": "milk",
+      "tier": 2
+     },
+     {
+      "id": "banana",
+      "tier": 2
+     },
+     {
+      "id": "coffee",
+      "tier": 2
+     },
+     {
+      "id": "bread",
+      "tier": 0
+     }
+    ]
+   },
+   "expected": {
+    "share": [
+     1,
+     0,
+     0
+    ],
+    "first": [
+     1,
+     0,
+     0
+    ],
+    "rest": [
+     0,
+     0,
+     0
+    ],
+    "p_rare_plus": 0,
+    "p_legendary": 0,
+    "p_short": 1,
+    "p_held": 0,
+    "guarded": false,
+    "in_draw": {
+     "upgrade:milk:0": 1
+    }
+   }
+  },
+  {
+   "name": "UPGRADES only Milk can step, no shelf · REGULAR 1",
+   "chute": "upgrades",
+   "level": 1,
+   "input": {
+    "cart": [
+     {
+      "id": "milk",
+      "tier": 1
+     },
+     {
+      "id": "milk",
+      "tier": 2
+     },
+     {
+      "id": "banana",
+      "tier": 2
+     },
+     {
+      "id": "coffee",
+      "tier": 2
+     },
+     {
+      "id": "bread",
+      "tier": 0
+     }
+    ]
+   },
+   "expected": {
+    "share": [
+     1,
+     0,
+     0
+    ],
+    "first": [
+     1,
+     0,
+     0
+    ],
+    "rest": [
+     0,
+     0,
+     0
+    ],
+    "p_rare_plus": 0,
+    "p_legendary": 0,
+    "p_short": 1,
+    "p_held": 0,
+    "guarded": false,
+    "in_draw": {
+     "upgrade:milk:0": 1
+    }
+   }
+  },
+  {
+   "name": "UPGRADES only Milk can step, no shelf · REGULAR 2",
+   "chute": "upgrades",
+   "level": 2,
+   "input": {
+    "cart": [
+     {
+      "id": "milk",
+      "tier": 1
+     },
+     {
+      "id": "milk",
+      "tier": 2
+     },
+     {
+      "id": "banana",
+      "tier": 2
+     },
+     {
+      "id": "coffee",
+      "tier": 2
+     },
+     {
+      "id": "bread",
+      "tier": 0
+     }
+    ]
+   },
+   "expected": {
+    "share": [
+     1,
+     0,
+     0
+    ],
+    "first": [
+     1,
+     0,
+     0
+    ],
+    "rest": [
+     0,
+     0,
+     0
+    ],
+    "p_rare_plus": 0,
+    "p_legendary": 0,
+    "p_short": 0.9999999999999999,
+    "p_held": 0,
+    "guarded": false,
+    "in_draw": {
+     "upgrade:milk:0": 0.9999999999999999
+    }
+   }
+  },
+  {
+   "name": "UPGRADES only Milk can step, no shelf · REGULAR 3",
+   "chute": "upgrades",
+   "level": 3,
+   "input": {
+    "cart": [
+     {
+      "id": "milk",
+      "tier": 1
+     },
+     {
+      "id": "milk",
+      "tier": 2
+     },
+     {
+      "id": "banana",
+      "tier": 2
+     },
+     {
+      "id": "coffee",
+      "tier": 2
+     },
+     {
+      "id": "bread",
+      "tier": 0
+     }
+    ]
+   },
+   "expected": {
+    "share": [
+     1,
+     0,
+     0
+    ],
+    "first": [
+     1,
+     0,
+     0
+    ],
+    "rest": [
+     0,
+     0,
+     0
+    ],
+    "p_rare_plus": 0,
+    "p_legendary": 0,
+    "p_short": 1,
+    "p_held": 0,
+    "guarded": false,
+    "in_draw": {
+     "upgrade:milk:0": 1
+    }
+   }
+  }
+ ]
+}

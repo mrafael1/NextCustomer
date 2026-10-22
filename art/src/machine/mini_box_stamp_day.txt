@@ -1,0 +1,36 @@
+; A stock box in a stockroom bay (STAMP DAY: tomato tape, the mustard logo with the stamp mark): 22x30, the belt box made small.
+; Converted once from look_f.js (docs/art/mockups/machine_77_src/flow/looks/), look F RESTOCK HATCH (#77).
+; The cell's number (look_f.js DIGIT, at 15,6 in brown dark f) is drawn in code.
+@size 22x30
+@kind scenery
+@scale 2
+######################
+#PPPPPPPPoRRrPPPPPPPP#
+#PPPPPPPPoRRrPPPPPPPP#
+#PPPPPPPPoRRrPPPPPPPP#
+#PPPPPPPPoRRrPPPPPPPP#
+#ffffffffoRRrffffffff#
+#PhhhhhhhoRRrhhhhhFFF#
+#PhhhhhhhoRRrhhhhhFFF#
+#PhhhhhhhoRRrhhhhhFFF#
+#PhhhhhhhoRRrhhhhhFFF#
+#PhhhhhhhhhhhhhhhhFFF#
+#PhhhhhhhhhhhhhhhhFFF#
+#Phh##############FFF#
+#Phh#wwwwwwwwwwww#FFF#
+#Phh#wwwMMMMMmwww#FFF#
+#Phh#wwwMMMMMmwww#FFF#
+#Phh#wwwMMMMMmwww#FFF#
+#Phh#wwwMMMMMmwww#FFF#
+#Phh#wwwMMMMMmwww#FFF#
+#Phh#wwwwwwwwwwww#FFF#
+#Phh#wbbbbbbbbbbw#FFF#
+#Phh##############FFF#
+#PhhhhhhhhhhhhhhhhFFF#
+#PhhhhhhhhhhhhhhhhFFF#
+#PhhhhhheeeeeehhhhFFF#
+#PhhhhhheeeeeehhhhFFF#
+#FFFFFFFFFFFFFFFFFFFF#
+#FFFFFFFFFFFFFFFFFFFF#
+#FFFFFFFFFFFFFFFFFFFF#
+######################

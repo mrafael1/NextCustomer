@@ -1,0 +1,82 @@
+[gd_resource type="Resource" script_class="MachineDefinition" format=3]
+
+[ext_resource type="Script" path="res://core/machine_definition.gd" id="1_machine"]
+[ext_resource type="Script" path="res://core/machine_odds_level.gd" id="2_odds_level"]
+[ext_resource type="Script" path="res://core/card_definition.gd" id="3_card"]
+[ext_resource type="Script" path="res://core/upgrade_definition.gd" id="4_upgrade"]
+[ext_resource type="Script" path="res://core/item_upgrade_definition.gd" id="5_item_upgrade"]
+[ext_resource type="Resource" path="res://data/cards/milk.tres" id="p_milk"]
+[ext_resource type="Resource" path="res://data/cards/eggs.tres" id="p_eggs"]
+[ext_resource type="Resource" path="res://data/cards/flickering_bulb.tres" id="p_flickering_bulb"]
+[ext_resource type="Resource" path="res://data/cards/reduced_yogurt.tres" id="p_reduced_yogurt"]
+[ext_resource type="Resource" path="res://data/cards/cereal.tres" id="p_cereal"]
+[ext_resource type="Resource" path="res://data/cards/butter.tres" id="p_butter"]
+[ext_resource type="Resource" path="res://data/cards/ham_ends.tres" id="p_ham_ends"]
+[ext_resource type="Resource" path="res://data/cards/mixed_herbs.tres" id="p_mixed_herbs"]
+[ext_resource type="Resource" path="res://data/cards/grapefruit.tres" id="p_grapefruit"]
+[ext_resource type="Resource" path="res://data/cards/fruit_salad.tres" id="p_fruit_salad"]
+[ext_resource type="Resource" path="res://data/cards/wonky_carrot.tres" id="p_wonky_carrot"]
+[ext_resource type="Resource" path="res://data/cards/baguette.tres" id="p_baguette"]
+[ext_resource type="Resource" path="res://data/cards/broken_biscuit.tres" id="p_broken_biscuit"]
+[ext_resource type="Resource" path="res://data/cards/pick_n_mix.tres" id="p_pick_n_mix"]
+[ext_resource type="Resource" path="res://data/cards/bent_lolly.tres" id="p_bent_lolly"]
+[ext_resource type="Resource" path="res://data/cards/tea_bags.tres" id="p_tea_bags"]
+[ext_resource type="Resource" path="res://data/cards/carrier_bag.tres" id="p_carrier_bag"]
+[ext_resource type="Resource" path="res://data/cards/lemon.tres" id="p_lemon"]
+[ext_resource type="Resource" path="res://data/cards/iced_bun.tres" id="p_iced_bun"]
+[ext_resource type="Resource" path="res://data/cards/squashed_cake.tres" id="p_squashed_cake"]
+[ext_resource type="Resource" path="res://data/cards/repeat.tres" id="c_repeat"]
+[ext_resource type="Resource" path="res://data/cards/two_for_one.tres" id="c_two_for_one"]
+[ext_resource type="Resource" path="res://data/cards/multipack.tres" id="c_multipack"]
+[ext_resource type="Resource" path="res://data/cards/opening_deal.tres" id="c_opening_deal"]
+[ext_resource type="Resource" path="res://data/upgrades/coupon_engine.tres" id="u_coupon_engine"]
+[ext_resource type="Resource" path="res://data/upgrades/category_engine.tres" id="u_category_engine"]
+[ext_resource type="Resource" path="res://data/upgrades/slot_engine.tres" id="u_slot_engine"]
+[ext_resource type="Resource" path="res://data/item_upgrades/banana.tres" id="i_banana"]
+[ext_resource type="Resource" path="res://data/item_upgrades/milk.tres" id="i_milk"]
+[ext_resource type="Resource" path="res://data/item_upgrades/eggs.tres" id="i_eggs"]
+[ext_resource type="Resource" path="res://data/item_upgrades/coffee.tres" id="i_coffee"]
+
+[sub_resource type="Resource" id="level_0"]
+script = ExtResource("2_odds_level")
+common_weight = 75
+rare_weight = 22
+legendary_weight = 3
+
+[sub_resource type="Resource" id="level_1"]
+script = ExtResource("2_odds_level")
+common_weight = 65
+rare_weight = 28
+legendary_weight = 7
+
+[sub_resource type="Resource" id="level_2"]
+script = ExtResource("2_odds_level")
+common_weight = 55
+rare_weight = 33
+legendary_weight = 12
+
+[sub_resource type="Resource" id="level_3"]
+script = ExtResource("2_odds_level")
+common_weight = 45
+rare_weight = 37
+legendary_weight = 18
+first_drop_min_rarity = 1
+
+[resource]
+script = ExtResource("1_machine")
+prizes_per_visit = 3
+odds_levels = Array[ExtResource("2_odds_level")]([SubResource("level_0"), SubResource("level_1"), SubResource("level_2"), SubResource("level_3")])
+rare_products = Array[ExtResource("3_card")]([ExtResource("p_milk"), ExtResource("p_eggs"), ExtResource("p_flickering_bulb"), ExtResource("p_reduced_yogurt"), ExtResource("p_cereal"), ExtResource("p_butter"), ExtResource("p_ham_ends"), ExtResource("p_mixed_herbs"), ExtResource("p_grapefruit"), ExtResource("p_fruit_salad"), ExtResource("p_wonky_carrot"), ExtResource("p_baguette"), ExtResource("p_broken_biscuit"), ExtResource("p_pick_n_mix"), ExtResource("p_bent_lolly"), ExtResource("p_tea_bags"), ExtResource("p_carrier_bag")])
+legendary_products = Array[ExtResource("3_card")]([ExtResource("p_lemon"), ExtResource("p_iced_bun"), ExtResource("p_squashed_cake")])
+rare_coupons = Array[ExtResource("3_card")]([ExtResource("c_repeat"), ExtResource("c_two_for_one"), ExtResource("c_multipack")])
+legendary_coupons = Array[ExtResource("3_card")]([ExtResource("c_opening_deal")])
+rare_upgrades = Array[ExtResource("4_upgrade")]([ExtResource("u_coupon_engine"), ExtResource("u_category_engine")])
+legendary_upgrades = Array[ExtResource("4_upgrade")]([ExtResource("u_slot_engine")])
+register_cap = 3
+upgrades_open_shifts = PackedInt32Array(3, 5, 7)
+stamp_day_shifts = PackedInt32Array(2, 4, 6)
+stamp_day_floor = PackedInt32Array(1, 2, 3)
+bonus_after_inspection = true
+new_arrival_first_visit = true
+shelf_min_copies = 2
+item_upgrades = Array[ExtResource("5_item_upgrade")]([ExtResource("i_banana"), ExtResource("i_milk"), ExtResource("i_eggs"), ExtResource("i_coffee")])

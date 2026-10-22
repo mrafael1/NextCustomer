@@ -2,7 +2,7 @@ extends GdUnitTestSuite
 ## The music on the real screens (#62, Q2, Q6): the title starts the front loop on its first
 ## click or key press, never before; on the shift screen the count-up ducks the Music bus 24 dB
 ## down as the pause before the total starts, so the dessert's slam lands in near-silence (#61),
-## and it comes back when the reward panel appears (a pass), stays ducked through the fail
+## and it comes back when the machine appears (a pass), stays ducked through the fail
 ## sound then crossfades to the front loop and, once the final receipt prints its coin lines,
 ## ducks 18 dB down until the last coin (a fail), or comes back fast when a tap skips the
 ## dessert. The bus volume is read frame by frame (headless runs on the dummy audio driver).
@@ -144,8 +144,8 @@ func test_the_shift_screen_plays_the_shift_loop() -> void:
 ## A pass, the count tapped once (the dessert plays at normal speed): the bus stays at its level
 ## through the count, ducks 24 dB over about 120 ms as the pause before the total starts (before
 ## the verdict, #61), is there when the slam lands at least 250 ms later and through the pass
-## sound, and comes back over 600 ms once the reward panel appears.
-func test_a_pass_ducks_the_dessert_and_comes_back_with_the_reward() -> void:
+## sound, and comes back over 600 ms once the RECEIPT REWARDS machine (#77) appears.
+func test_a_pass_ducks_the_dessert_and_comes_back_with_the_machine() -> void:
 	var screen: ShiftScreen = await _screen()
 	var music: MusicService = _inject_music(screen)
 	var sfx: Sfx = _recording_sfx(screen)
@@ -154,8 +154,8 @@ func test_a_pass_ducks_the_dessert_and_comes_back_with_the_reward() -> void:
 	screen._on_checkout_pressed()
 	await _frames(2)
 	screen._count_up._tap(Time.get_ticks_msec())
-	var frames: Array[Dictionary] = await _record(screen, sfx, "_reward_panel", 0.6 + SLACK_S)
-	assert_bool(screen._reward_panel.visible).is_true()
+	var frames: Array[Dictionary] = await _record(screen, sfx, "_machine", 0.6 + SLACK_S)
+	assert_bool(screen._machine.is_open()).is_true()
 	assert_bool(screen._count_up.dessert_skipped).is_false()
 	for frame: Dictionary in frames:
 		if not frame["ducked"]:
@@ -292,8 +292,8 @@ func test_the_coin_duck_holds_until_the_last_coin() -> void:
 	)
 
 
-## A second tap during the dessert brings the music back within about 150 ms, before the reward
-## panel; two taps before the verdict skip the dessert and never duck at all.
+## A second tap during the dessert brings the music back within about 150 ms, before the
+## machine; two taps before the verdict skip the dessert and never duck at all.
 func test_a_skipped_dessert_brings_the_music_back_fast() -> void:
 	var screen: ShiftScreen = await _screen()
 	var music: MusicService = _inject_music(screen)
@@ -322,7 +322,7 @@ func test_a_skipped_dessert_brings_the_music_back_fast() -> void:
 	assert_float(_bus_now()).is_equal_approx(base, 0.01)
 
 	# The next shift, both taps before the verdict: no duck at all.
-	screen._on_reward_skipped()
+	screen._machine.debug_skip()
 	await _place(screen, ["milk", "milk", "milk", "milk"])
 	screen._on_checkout_pressed()
 	await _frames(2)
@@ -345,7 +345,10 @@ func _record(screen: ShiftScreen, sfx: Sfx, panel: String, seconds: float) -> Ar
 	var shown_ms: int = -1
 	while elapsed < 15.0:
 		var now: int = roundi(elapsed * 1000.0)
-		var visible: bool = (screen.get(panel) as Control).visible
+		var shown: Object = screen.get(panel)
+		var visible: bool = (
+			(shown as MachineFlow).is_open() if shown is MachineFlow else (shown as Control).visible
+		)
 		if visible and shown_ms < 0:
 			shown_ms = now
 		if shown_ms >= 0 and now - shown_ms > seconds * 1000.0:
@@ -432,7 +435,6 @@ func _recording_sfx(screen: ShiftScreen) -> Sfx:
 func _screen() -> ShiftScreen:
 	var runner: GdUnitSceneRunner = scene_runner(SCREEN)
 	var screen: ShiftScreen = runner.scene()
-	screen._on_reward_skipped()  # Past the impulse rack.
 	await _frames(2)
 	return screen
 

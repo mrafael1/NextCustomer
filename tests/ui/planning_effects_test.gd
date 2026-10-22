@@ -638,10 +638,13 @@ static func _item(screen: ShiftScreen, slot: int) -> ItemView:
 	return screen._row_views[slot] as ItemView
 
 
+## A new run's screen: an earlier screen's run save in the test folder is removed first, so the
+## screen never resumes it (since #77 a new run saves at once, with no impulse rack before it).
 func _screen() -> ShiftScreen:
+	if FileAccess.file_exists(_folder.path_join(SaveService.RUN_FILE)):
+		DirAccess.remove_absolute(_folder.path_join(SaveService.RUN_FILE))
 	_runner = scene_runner(SCREEN)
 	var screen: ShiftScreen = _runner.scene()
-	screen._on_reward_skipped()  # Past the impulse rack.
 	await _frames(2)
 	return screen
 

@@ -9,7 +9,7 @@ extends UpgradeRule
 
 
 func multiplier(state: ScoreState, slot: int) -> int:
-	return factor if _is_first_coupon(state, slot) else 1
+	return factor if slot >= 0 and state.first_coupon == slot else 1
 
 
 func wasted_reason(_state: ScoreState, _slot: int) -> String:
@@ -17,18 +17,6 @@ func wasted_reason(_state: ScoreState, _slot: int) -> String:
 
 
 func row_wasted_reason(state: ScoreState) -> String:
-	if factor == 1:
+	if factor == 1 or state.first_coupon >= 0:
 		return ""
-	for slot: int in range(state.size()):
-		if state.is_coupon(slot):
-			return ""
 	return "no coupon in the row"
-
-
-static func _is_first_coupon(state: ScoreState, slot: int) -> bool:
-	if not state.is_coupon(slot):
-		return false
-	for earlier: int in range(slot):
-		if state.is_coupon(earlier):
-			return false
-	return true

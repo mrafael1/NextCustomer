@@ -1,0 +1,46 @@
+/* look D: coupon printer (look A's teal terminal, cream face, mustard trim; a printer instead of the drum) */
+.look-d .cab { background: var(--tealD); }
+.look-d .head { background: var(--mus); color: var(--ink); }
+.look-d .head .s { color: var(--musDD); }
+.look-d .slotPlate { background: var(--cream); color: var(--inkL); }
+.look-d .chute { background: var(--cream); color: var(--ink); box-shadow: inset 0 -5px 0 var(--creamS), 0 4px 0 var(--ink); }
+.look-d .chute.lit { background: var(--paper); box-shadow: inset 0 -5px 0 var(--musL), 0 4px 0 var(--ink); }
+.look-d .win { background: var(--char); box-shadow: 0 4px 0 var(--tealK); }
+.look-d .tray { background: var(--tealDD); box-shadow: inset 0 6px 0 var(--tealK); }
+.look-d .token { display: none !important; }
+
+/* the slip: the tray ticket's back and the paper hanging out of the printer share it */
+.look-d .back { background: var(--paper); border: 2px solid var(--ink); border-top: 2px dashed var(--ink); box-shadow: 3px 3px 0 var(--tealK); color: var(--ink); }
+.look-d .back .sl { position: absolute; left: 0; top: 0; width: 104px; height: 164px; }
+.look-d .back .h { position: absolute; left: 0; right: 0; top: 3px; text-align: center; font: 11px/14px Pixelify; letter-spacing: .5px; color: var(--ink); white-space: nowrap; }
+.look-d .back .r1 { position: absolute; left: 0; right: 0; top: 19px; text-align: center; font: 800 8px/10px Atkinson; letter-spacing: 1px; color: var(--tealS); white-space: nowrap; }
+.look-d .back .ru { position: absolute; left: 6px; right: 6px; height: 0; border-top: 2px dashed var(--creamD); }
+.look-d .back .r3 { position: absolute; left: 0; right: 0; top: 38px; text-align: center; font: 800 8px/10px Atkinson; letter-spacing: .5px; color: var(--inkL); white-space: nowrap; }
+.look-d .back .ln { position: absolute; left: 6px; right: 6px; display: flex; justify-content: space-between; font: 10px/12px JBMono; color: var(--ink); white-space: nowrap; }
+.look-d .back .bc { position: absolute; left: 14px; right: 14px; top: 85px; height: 22px;
+  background: repeating-linear-gradient(90deg, var(--ink) 0 2px, var(--paper) 2px 4px, var(--ink) 4px 8px, var(--paper) 8px 10px, var(--ink) 10px 12px, var(--paper) 12px 16px, var(--ink) 16px 18px, var(--paper) 18px 22px); }
+.look-d .back .no { position: absolute; left: 0; right: 0; top: 109px; text-align: center; font: 9px/11px JBMono; color: var(--inkL); }
+.look-d .back .pzb { position: absolute; left: 6px; right: 6px; top: 130px; height: 28px; border: 2px dashed var(--ink); display: flex; align-items: center; justify-content: space-between; padding: 0 5px; }
+.look-d .back .pl { font: 800 9px/10px Atkinson; letter-spacing: 1px; color: var(--ink); }
+.look-d .back .pz { font: 14px/16px Atkinson; color: var(--grey); letter-spacing: 1px; }
+.look-d .back .pz.t0 { color: var(--inkL); }
+.look-d .back .pz.t1 { color: var(--tealS); }
+.look-d .back .pz.t2 { color: var(--musD); }
+.dSlip { position: absolute; width: 108px; overflow: hidden; z-index: 11; border-top: 2px solid var(--ink) !important; }
+.dSlip.torn { border-top: 2px dashed var(--ink) !important; }
+
+/* the printer head: slot, tear bar, LED */
+.dHead { position: absolute; left: 142px; top: 272px; width: 136px; height: 18px; background: var(--cream); border: 2px solid var(--ink); z-index: 13;
+  box-shadow: inset 0 4px 0 var(--musL), inset 0 -3px 0 var(--creamS), 0 3px 0 var(--tealK); }
+.dHead .slot { position: absolute; left: 10px; top: 4px; width: 112px; height: 6px; background: var(--char); border: 2px solid var(--ink); }
+.dHead .slot.on { background: var(--brassDD); }
+.dHead .tear { position: absolute; left: 10px; top: 10px; width: 112px; height: 4px; background: repeating-linear-gradient(90deg, var(--steelL) 0 4px, var(--steelS) 4px 6px); }
+.dHead .led { position: absolute; right: 2px; top: 2px; width: 6px; height: 6px; background: var(--goodD); border: 0; }
+.dHead .led.on { background: #a5d17e; }
+.dHead .nm { position: absolute; left: 6px; top: 0; font: 800 7px/9px Atkinson; letter-spacing: 2px; color: var(--musDD); display: none; }
+.dBayLab { position: absolute; left: 142px; top: 344px; width: 136px; text-align: center; font: 800 9px/12px Atkinson; letter-spacing: 1.5px; color: var(--tealB); }
+
+/* the roll window, right of the printer */
+.dPan { position: absolute; left: 286px; top: 274px; width: 118px; height: 150px; background: var(--char); border: 2px solid var(--ink); box-shadow: 0 4px 0 var(--tealK); }
+.dPan .lab { position: absolute; left: 0; right: 0; top: 0; height: 18px; background: var(--tealD); border-bottom: 2px solid var(--tealDD); text-align: center; font: 12px/16px Pixelify; color: var(--musL); }
+.dPan .cv { position: absolute; left: 0; top: 18px; width: 114px; height: 128px; }

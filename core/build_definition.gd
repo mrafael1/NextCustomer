@@ -2,8 +2,8 @@ class_name BuildDefinition
 extends Resource
 ## One build a deck can lean towards (full build plan sections 3 and 5.2), measured from the
 ## deck's cards, so a new card counts without authoring anything on it. Upgrades list the
-## builds they push towards; an upgrade offer guarantees one option that fits the deck
-## (UpgradeOffer). Definitions are shared by reference and never changed at runtime.
+## builds they push towards; the machine's REGISTER chute guarantees one prize that fits the deck
+## (MachineDraw). Definitions are shared by reference and never changed at runtime.
 ##
 ## Every exported value defaults to a neutral value, because Godot doesn't write a value that
 ## equals the default into a .tres file. That is why `measure` starts at UNSET: every build file

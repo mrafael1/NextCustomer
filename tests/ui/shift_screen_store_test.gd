@@ -391,11 +391,10 @@ func _band(window: Control, part: String, bounds: Rect2) -> Rect2:
 	return shown
 
 
-## The screen past the impulse rack, laid out.
+## The screen on shift 1, laid out.
 func _screen() -> ShiftScreen:
 	var runner: GdUnitSceneRunner = scene_runner(SCREEN)
 	var screen: ShiftScreen = runner.scene()
-	screen._on_reward_skipped()
 	await _frames(3)
 	return screen
 

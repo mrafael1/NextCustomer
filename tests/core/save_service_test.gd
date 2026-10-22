@@ -133,8 +133,6 @@ func test_a_saved_run_loads_back_and_a_second_save_replaces_it() -> void:
 	var service: SaveService = _service()
 	var run: RunState = _run(3)
 	assert_bool(service.save_run(run, "first", 100)).is_true()
-	run.skip_reward()
-	run.start_shift()
 	run.place(run.hand()[0], 0)
 	assert_bool(service.save_run(run, "first", 250)).is_true()
 	var save: RunSave = service.load_run(_lookup())
@@ -178,10 +176,11 @@ func test_deleting_the_run_save_also_removes_a_leftover_temporary_file() -> void
 
 func test_a_run_that_isnt_at_a_save_point_is_not_saved() -> void:
 	var run: RunState = _run(6)
-	for phase: RunState.Phase in [RunState.Phase.SCORED, RunState.Phase.WON, RunState.Phase.LOST]:
+	# SCORED is a save point since #77 (the shift's last visit done).
+	for phase: RunState.Phase in [RunState.Phase.WON, RunState.Phase.LOST]:
 		run.phase = phase
 		assert_bool(_service().save_run(run, "id", 0)).is_false()
-	assert_int(_errors.size()).is_equal(3)
+	assert_int(_errors.size()).is_equal(2)
 	assert_bool(FileAccess.file_exists(_service().run_path())).is_false()
 
 
@@ -251,14 +250,13 @@ func _write_file(path: String, text: String) -> void:
 	file.close()
 
 
-## A run on its impulse rack.
+## A run planning its first shift.
 static func _run(seed_value: int) -> RunState:
 	var deck: DeckDefinition = load(STARTER)
 	var balance: BalanceDefinition = load(BALANCE)
-	var stream: RandomNumberGenerator = EventLogService.derived_stream(
-		seed_value, EventLogService.IMPULSE_RACK_STREAM
-	)
-	return RunState.new(seed_value, deck, balance, RunStock.starting(deck, balance), stream)
+	var run: RunState = RunState.new(seed_value, deck, balance, RunStock.starting(deck, balance))
+	run.start_shift()
+	return run
 
 
 static func _lookup() -> ContentLookup:

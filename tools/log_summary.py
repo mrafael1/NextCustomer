@@ -48,7 +48,8 @@ KIND_COUPON = 2
 
 KNOWN_TYPES = frozenset({
     "run_start", "shift_start", "redraw", "checkout", "count_up", "reward", "upgrade",
-    "run_end", "run_resume", "run_abandon", "restart", "log_export", "debug",
+    "machine_visit", "machine_landing_skipped", "run_end", "run_resume", "run_abandon", "restart",
+    "log_export", "debug",
 })
 # Events that make a run_id a run; the others (restart, log_export, debug) only attach to one.
 RUN_TYPES = KNOWN_TYPES - {"restart", "log_export", "debug"}
@@ -63,7 +64,14 @@ NON_INTERACTIVE_TARGET_MS = 15000
 SECOND_RUN_SKIP_TARGET = 0.70
 
 SESSION_FILE = re.compile(r"^\d{8}T\d{6}_[0-9a-f]+\.jsonl$")
-OFFER_KINDS = ("rack", "reward", "upgrade")
+# The rack, the reward print-out and the upgrade tickets are the logs before #77
+# (`docs/FULL_BUILD_PLAN.md` v0.40 and older, kept readable); "machine" is the RECEIPT
+# REWARDS machine's machine_visit events.
+OFFER_KINDS = ("rack", "reward", "upgrade", "machine")
+MACHINE_CHUTES = ("new_items", "coupons", "register", "upgrades")
+MACHINE_VISIT_KINDS = ("ticket", "bonus", "stamp_day")
+# Item tier card ids end in these (data/cards/<product>_big.tres, <product>_golden.tres).
+TIER_SUFFIXES = ("_big", "_golden")
 OFFER_TIMES = ("presented_ms", "armed_ms", "decide_ms")
 REPORT_WIDTH = 96
 # Numbers beyond this (or NaN and infinities, which Python's json accepts) count as missing:
@@ -339,13 +347,15 @@ class Run:
         )
 
     def offers(self) -> list[Offer]:
-        """The impulse rack (when run_start offers one), then the rewards and upgrades."""
+        """The impulse rack (when run_start offers one), then the rewards and upgrades (older
+        logs) and the machine's visits."""
         rack = self.rack()
         offers: list[Offer] = [rack] if rack is not None else []
         for event in self.events:
-            if event["type"] in ("reward", "upgrade"):
+            if event["type"] in ("reward", "upgrade", "machine_visit"):
+                kind = "machine" if event["type"] == "machine_visit" else event["type"]
                 offers.append(Offer(
-                    event["type"], num(event, "decide_ms"), num(event, "presented_ms"),
+                    kind, num(event, "decide_ms"), num(event, "presented_ms"),
                     num(event, "armed_ms"), flag(event, "presentation_skipped"),
                 ))
         return offers
@@ -869,15 +879,48 @@ def product_picks(runs: list[Run], catalogue: Catalogue) -> list[dict]:
     return sorted(rows, key=lambda row: (-row["total"], row["name"]))
 
 
+def visit_prize(event: dict) -> dict | None:
+    """The prize a machine_visit event picked ({"kind", "id", "rarity"}), or None (binned, or
+    a malformed field)."""
+    index = num(event, "picked")
+    offered = event.get("offered")
+    if index is None or index != int(index) or not isinstance(offered, list):
+        return None
+    if not 0 <= int(index) < len(offered) or not isinstance(offered[int(index)], dict):
+        return None
+    prize = offered[int(index)]
+    return prize if isinstance(prize.get("id"), str) else None
+
+
+def visit_upgraded(event: dict) -> list[tuple[str, str]]:
+    """A machine_visit's item upgrades as (from id, to id), one per copy upgraded."""
+    upgraded = event.get("upgraded")
+    swaps = []
+    for entry in upgraded if isinstance(upgraded, list) else []:
+        if isinstance(entry, list) and len(entry) == 3 and all(
+                isinstance(part, str) for part in entry[1:]):
+            swaps.append((entry[1], entry[2]))
+    return swaps
+
+
 def final_deck(run: Run) -> Counter | None:
     """The run's final deck: run_start's starting_deck, its impulse pick (removing
-    impulse_replaced), then every reward's pick (removing its replaced card)."""
+    impulse_replaced), then every reward's pick (removing its replaced card), in older logs;
+    every machine visit's product or coupon pick (removing its replaced card) and item
+    upgrades (each upgraded copy swapped for its new tier)."""
     deck_ids = id_list(run.start, "starting_deck")
     if deck_ids is None:
         return None
     deck = Counter(deck_ids)
     changes = [(text(run.start, "impulse_pick"), text(run.start, "impulse_replaced"))]
-    changes += [(text(e, "picked"), text(e, "replaced")) for e in run.of_type("reward")]
+    for event in run.events:
+        if event["type"] == "reward":
+            changes.append((text(event, "picked"), text(event, "replaced")))
+        elif event["type"] == "machine_visit":
+            prize = visit_prize(event)
+            if prize is not None and prize.get("kind") in ("product", "coupon"):
+                changes.append((prize["id"], text(event, "replaced")))
+            changes += [(to_id, from_id) for from_id, to_id in visit_upgraded(event)]
     for pick, replaced in changes:
         if replaced and deck[replaced] > 0:
             deck[replaced] -= 1
@@ -897,11 +940,61 @@ def coupon_label(deck: Counter, catalogue: Catalogue) -> str:
 
 
 def run_upgrades(run: Run) -> list[str]:
-    """run_end's upgrades when logged, else the upgrade events' picks."""
+    """run_end's upgrades when logged, else the upgrade events' picks and the machine's
+    register picks."""
     logged = id_list(run.end, "upgrades")
     if logged is not None:
         return logged
-    return [pick for e in run.of_type("upgrade") if (pick := text(e, "picked"))]
+    picks = []
+    for event in run.events:
+        if event["type"] == "upgrade" and (pick := text(event, "picked")):
+            picks.append(pick)
+        elif event["type"] == "machine_visit":
+            prize = visit_prize(event)
+            if prize is not None and prize.get("kind") == "register":
+                picks.append(prize["id"])
+    return picks
+
+
+def machine_summary(runs: list[Run]) -> dict:
+    """The RECEIPT REWARDS machine's visits (#77, machine_visit events): visits by kind, chute
+    shares and pick or bin per chute, the bin rate, the chutes' highest REGULAR levels reached
+    per run, and per ended run the BIG and GOLDEN copies in its final deck (by product)."""
+    visits = [event for run in runs for event in run.of_type("machine_visit")]
+    by_kind = Counter(text(event, "kind") or "?" for event in visits)
+    chosen = Counter(text(event, "chute") or "?" for event in visits)
+    binned = sum(1 for event in visits if flag(event, "binned"))
+    bins = Counter(text(event, "chute") or "?" for event in visits if flag(event, "binned"))
+    levels: dict[str, list[float]] = {chute: [] for chute in MACHINE_CHUTES}
+    tiers: Counter = Counter()
+    ended = 0
+    for run in runs:
+        run_visits = run.of_type("machine_visit")
+        if not run_visits:
+            continue
+        top = [0] * len(MACHINE_CHUTES)
+        for event in run_visits:
+            reached = event.get("levels")
+            if isinstance(reached, list) and len(reached) == len(MACHINE_CHUTES):
+                top = [max(a, int(b)) if isinstance(b, (int, float)) and not isinstance(b, bool)
+                       else a for a, b in zip(top, reached)]
+        for chute, level in zip(MACHINE_CHUTES, top):
+            levels[chute].append(level)
+        deck = final_deck(run)
+        if run.outcome in ("won", "lost") and deck is not None:
+            ended += 1
+            tiers.update({card_id: n for card_id, n in deck.items()
+                          if card_id.endswith(TIER_SUFFIXES)})
+    return {
+        "visits": len(visits),
+        "visit_kinds": {kind: by_kind[kind] for kind in MACHINE_VISIT_KINDS},
+        "chutes": {chute: rate(chosen[chute], len(visits)) for chute in MACHINE_CHUTES},
+        "bins": {chute: bins[chute] for chute in MACHINE_CHUTES},
+        "bin_rate": rate(binned, len(visits)),
+        "levels_reached": {chute: dist(levels[chute]) for chute in MACHINE_CHUTES},
+        "ended_runs": ended,
+        "tier_copies": dict(sorted(tiers.items())),
+    }
 
 
 def upgrade_label(upgrade_ids: list[str], catalogue: Catalogue) -> str:
@@ -1153,6 +1246,7 @@ def summarise(players: list[Player], inputs: Inputs, catalogue: Catalogue,
         "impulse_rack": rack_summary(runs, catalogue),
         "products_picked": product_picks(runs, catalogue),
         "builds": build_summary(runs, catalogue),
+        "machine": machine_summary(runs),
         "shifts": shift_summary(runs),
         "lists": list_summary(runs, catalogue),
         "offer_times": offer_time_summary(runs),
@@ -1391,6 +1485,30 @@ def render_lists(s: dict) -> list[str]:
     ) + table(["listed aisles", "runs", "won", "lost", "not ended", "win rate"], rows)
 
 
+def render_machine(s: dict) -> list[str]:
+    """Only when the logs hold machine visits, so older logs report as before."""
+    m = s.get("machine")
+    if not m or not m["visits"]:
+        return []
+    kinds = ", ".join(f"{count} {kind}" for kind, count in m["visit_kinds"].items())
+    lines = heading(
+        "RECEIPT REWARDS machine",
+        "From machine_visit events (#77): the chute chosen per visit, binned visits, the "
+        "highest REGULAR level each chute reached per run, and the BIG and GOLDEN copies in "
+        "the final decks of won and lost runs.",
+    ) + [
+        f"  visits: {m['visits']} ({kinds})",
+        f"  bin rate: {fmt_rate(m['bin_rate'])}",
+    ]
+    rows = [[chute, fmt_rate(m["chutes"][chute]), str(m["bins"][chute])]
+            + dist_row("", m["levels_reached"][chute])[1:]
+            for chute in MACHINE_CHUTES]
+    lines += table(["chute", "chosen", "binned"] + [f"level {h}" for h in DIST_HEADERS[1:]], rows)
+    copies = ", ".join(f"{card_id} {n}" for card_id, n in m["tier_copies"].items()) or "none"
+    lines.append(f"  BIG and GOLDEN copies over {m['ended_runs']} ended runs: {copies}")
+    return lines
+
+
 def render_offer_times(s: dict) -> list[str]:
     lines = heading(
         "Offer presentation times (ms)",
@@ -1400,6 +1518,8 @@ def render_offer_times(s: dict) -> list[str]:
     )
     for kind in OFFER_KINDS:
         o = s["offer_times"][kind]
+        if kind == "machine" and not o["offers"]:
+            continue  # Logs before #77 report as before.
         lines.append(f"  {kind}: {o['offers']} offers, {o['replays_excluded']} never-shown "
                      "excluded")
         rows = []
@@ -1484,7 +1604,7 @@ def render_files(s: dict) -> list[str]:
 
 def render(summary: dict) -> str:
     sections = [render_inputs, render_players, render_runs, render_checkouts, render_rewards,
-                render_builds, render_shifts, render_lists, render_offer_times, render_count_up,
+                render_builds, render_machine, render_shifts, render_lists, render_offer_times, render_count_up,
                 render_second_run, render_files]
     lines: list[str] = []
     for section in sections:

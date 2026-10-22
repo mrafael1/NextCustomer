@@ -28,7 +28,7 @@ extends Control
 ##
 ## In planning (show_planning) the header reads NEXT over belt slot 1's item (its name on the
 ## label; an empty bed and GONE_NAME when slot 1 is empty) with a pip per belt slot (BayQueue
-## show_slots; SCANNER with no belt, the impulse rack's), or SCAN while a hover-hold scan holds an
+## show_slots; SCANNER with no belt slots), or SCAN while a hover-hold scan holds an
 ## item (belt or hand): that item, its kind on a cream label (KIND_COUPON_TEXT, KIND_BASE_TEXT), the
 ## fan and BEEP, the light on in HELD_COLOR.
 ## When the item to show changes, the one in the bay slides out over PLAN_OUT_S and the new one
@@ -633,7 +633,7 @@ func _show_planning_label() -> void:
 
 
 ## The header's text in planning: SCAN while the label shows a scan (or a held item drops in),
-## else NEXT over the belt (SCANNER with no belt: the impulse rack).
+## else NEXT over the belt (SCANNER with no belt slots).
 func _header_text() -> String:
 	if _label_scan:
 		return BayQueue.SCAN_TEXT

@@ -150,11 +150,7 @@ func test_a_run_never_repeats_an_inspection_back_to_back() -> void:
 			_pass(run)
 			if run.next_inspection != null:
 				drawn.append(run.next_inspection)
-			if run.phase == RunState.Phase.REWARD:
-				run.skip_reward()
-			if run.phase == RunState.Phase.UPGRADE:
-				run.pick_upgrade(run.upgrade_offer[0])
-			run.next_shift()
+			MachineSteps.next_shift(run)
 		assert_int(drawn.size()).override_failure_message("seed %d" % seed_value).is_equal(3)
 		assert_object(drawn[1]).is_not_same(drawn[0])
 		assert_object(drawn[2]).is_not_same(drawn[1])

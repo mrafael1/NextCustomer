@@ -1,11 +1,13 @@
 class_name DeckView
 extends PanelContainer
-## The deck view (plan section 2, extended in full build phase 1). The Cart tab shows the deck
-## as products and coupons, one card per distinct card with its number of copies, and how many
-## copies carry each printed tag. The Run info tab shows the owned upgrades, this shift's and
-## the next shift's inspections, and the run's stock: every card a reward or the impulse rack
-## can offer. In choosing mode it shows only the deck, and clicking a card chooses one of its
-## copies (to remove it from the deck). It only displays RunState and DeckSummary.
+## The deck view (plan section 2, extended in full build phase 1). The Cart tab shows the deck as
+## products and coupons, one card per distinct card with its number of copies, and how many copies
+## carry each printed tag. The Run info tab shows the owned upgrades, this shift's and the next
+## shift's inspections, and the run's stock: every card the RECEIPT REWARDS machine can offer. In
+## choosing mode (the machine's deck-full chooser, #77) it shows only the deck, and clicking a card
+## chooses one of its copies (to remove it from the deck). A BIG or GOLDEN copy carries its tier tag
+## under it (PriceSticker.tier_text), so a player never swaps one out unknowingly. It only displays
+## RunState and DeckSummary.
 
 signal closed
 signal card_chosen(card: CardInstance)
@@ -128,8 +130,12 @@ func _add_section(heading: String, groups: Array[DeckSummary.Group]) -> void:
 	_deck_page.add_child(_line("%s  (%d)" % [heading, copies], 16, Palette.MUSTARD))
 	var grid: GridContainer = _grid(_deck_page)
 	for group: DeckSummary.Group in groups:
-		var count: String = "×%d" % group.copies.size() if group.copies.size() > 1 else ""
-		grid.add_child(_cell(group.copies[0], count))
+		var notes: PackedStringArray = PackedStringArray()
+		if group.copies.size() > 1:
+			notes.append("×%d" % group.copies.size())
+		if not PriceSticker.tier_text(group.card).is_empty():
+			notes.append(PriceSticker.tier_text(group.card))
+		grid.add_child(_cell(group.copies[0], " ".join(notes)))
 
 
 func _fill_info_page(run: RunState) -> void:
@@ -147,7 +153,7 @@ func _fill_info_page(run: RunState) -> void:
 	_info_page.add_child(_line("INSPECTIONS", 16, Palette.MUSTARD))
 	for line: String in _inspection_lines(run):
 		_info_page.add_child(_line(line, 16, Palette.CREAM))
-	var heading: String = "STOCK  (every card a reward or the impulse rack can offer this run)"
+	var heading: String = "STOCK  (every card the RECEIPT REWARDS machine can offer this run)"
 	_info_page.add_child(_line(heading, 16, Palette.MUSTARD))
 	var aisles: PackedStringArray = PackedStringArray()
 	for aisle: AisleDefinition in run.balance.aisles:
@@ -161,14 +167,13 @@ func _fill_info_page(run: RunState) -> void:
 		grid.add_child(_cell(CardInstance.new(card, 0), note))
 
 
-## While planning (or at the impulse rack): this shift's inspections. After a checkout,
+## While planning: this shift's inspections. After a checkout,
 ## run.inspections still holds the shift just played, so only the next shift shows. The next
 ## shift's inspection is drawn at the previous passed checkout: before that, a scheduled one is
 ## announced as coming. The last shift has no next shift.
 static func _inspection_lines(run: RunState) -> PackedStringArray:
 	var lines: PackedStringArray = PackedStringArray()
-	var planning: bool = run.phase == RunState.Phase.PLANNING or run.phase == RunState.Phase.IMPULSE
-	if planning:
+	if run.phase == RunState.Phase.PLANNING:
 		lines.append(_inspection_line("This shift", run.inspections))
 	var next_shift: int = run.shift_index + 2
 	if run.next_inspection != null:
@@ -189,7 +194,7 @@ static func _inspection_line(when: String, inspections: Array[InspectionDefiniti
 	return "%s: %s" % [when, "  ·  ".join(notices)]
 
 
-## A card with a short line under it (a count of copies, or NEW).
+## A card with a short line under it (a count of copies and a tier tag, or NEW).
 func _cell(card: CardInstance, note: String) -> VBoxContainer:
 	var cell: VBoxContainer = VBoxContainer.new()
 	cell.add_theme_constant_override("separation", 2)

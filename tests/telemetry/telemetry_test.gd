@@ -167,28 +167,13 @@ func test_run_start_and_run_end_fields() -> void:
 				"shift_count",
 				"listed_aisles",
 				"stock",
-				"impulse_offer",
-				"impulse_pick",
-				"impulse_replaced",
-				"impulse_decide_ms",
-				"impulse_presented_ms",
-				"impulse_armed_ms",
-				"impulse_presentation_skipped",
-				"impulse_deck_view_opened",
 			]
 		)
 	)
 	assert_int(start["seed"]).is_equal(77)
 	assert_int((start["starting_deck"] as Array).size()).is_equal(13)
-	# Without a rack: no offer, no pick.
-	assert_array(start["impulse_offer"]).is_empty()
-	assert_str(start["impulse_pick"]).is_empty()
-	assert_str(start["impulse_replaced"]).is_empty()
-	assert_int(start["impulse_decide_ms"]).is_equal(0)
-	assert_int(start["impulse_presented_ms"]).is_equal(0)
-	assert_int(start["impulse_armed_ms"]).is_equal(0)
-	assert_bool(start["impulse_presentation_skipped"]).is_false()
-	assert_bool(start["impulse_deck_view_opened"]).is_false()
+	# The impulse rack's fields are gone with the rack (#77).
+	assert_bool(start.has("impulse_offer")).is_false()
 	assert_str(JSON.stringify(start)).contains(
 		'"listed_aisles":["cold_cases","pantry","household"]'
 	)
@@ -200,70 +185,112 @@ func test_run_start_and_run_end_fields() -> void:
 	)
 
 
-## Full build plan section 4: run_start is logged after the impulse rack, with its offer (ids in
-## offer order), the pick and the replaced card; starting_deck is the deck before the rack.
-func test_run_start_logs_the_impulse_rack() -> void:
-	var deck: DeckDefinition = load(STARTER)
-	var balance: BalanceDefinition = load(BALANCE)
-	var stream: RandomNumberGenerator = EventLogService.derived_stream(
-		78, EventLogService.IMPULSE_RACK_STREAM
+## #77: the machine_visit event's fields, in order, from the visit just recorded (a REGISTER
+## pick after shift 1), JSON-friendly; a bin (shift 2), and the BONUS visit of the inspected
+## shift 3 naming its inspection.
+func test_machine_visit_event_fields() -> void:
+	var run: RunState = _passed_run(81)
+	run.machine.choose(run, RewardMachine.Chute.REGISTER)
+	var odds: MachineOddsCard = run.machine.chute_info(run, RewardMachine.Chute.REGISTER).odds
+	var timeline: OfferTimeline = OfferTimeline.new(100)
+	timeline.mark_presented(330)
+	timeline.mark_armed(460)
+	var prizes: Array[MachinePrize] = run.machine.prizes()
+	assert_object(run.machine.pick(run, 1)).is_not_null()
+	var viewed: Array[int] = [RewardMachine.Chute.COUPONS, RewardMachine.Chute.REGISTER]
+	var event: Dictionary = RunEvents.machine_visit(
+		run, run.history[-1].visits[-1], odds, viewed, false, true, timeline.fields(1334)
 	)
-	var run: RunState = RunState.new(78, deck, balance, RunStock.starting(deck, balance), stream)
-	var offered: Array = run.impulse_offer.map(
-		func(card: CardDefinition) -> String: return String(card.id)
+	(
+		assert_array(event.keys())
+		. is_equal(
+			[
+				"shift",
+				"visit_index",
+				"kind",
+				"inspection",
+				"chute",
+				"level_before",
+				"levels",
+				"meter_rose",
+				"odds_shown",
+				"guarantee_held",
+				"fallback",
+				"chutes_viewed",
+				"offered",
+				"picked",
+				"binned",
+				"replaced",
+				"upgraded",
+				"cart_size",
+				"cart_full_at_pick",
+				"registers_owned",
+				"resumed",
+				"decide_ms",
+				"presented_ms",
+				"armed_ms",
+				"presentation_skipped",
+				"chute_wait_ms",
+			]
+		)
 	)
-	while not run.deck_is_full():
-		run.deck.add_card(load("res://data/cards/soup.tres"))
-	var replaced: CardInstance = run.deck.cards[0]
-	assert_bool(run.take_reward(run.impulse_offer[2], replaced)).is_true()
-	var rack: OfferTimeline = OfferTimeline.new(1000)
-	rack.mark_presented(1230)
-	rack.mark_armed(1360)
-	var start: Dictionary = RunEvents.run_start(run, rack.fields(3500), true)
-	assert_array(start["impulse_offer"]).is_equal(offered)
-	assert_int(start["impulse_decide_ms"]).is_equal(2500)
-	assert_int(start["impulse_presented_ms"]).is_equal(230)
-	assert_int(start["impulse_armed_ms"]).is_equal(360)
-	assert_bool(start["impulse_presentation_skipped"]).is_false()
-	assert_bool(start["impulse_deck_view_opened"]).is_true()
-	assert_int(offered.size()).is_equal(3)
-	assert_str(start["impulse_pick"]).is_equal(offered[2])
-	assert_str(start["impulse_replaced"]).is_equal(String(replaced.definition.id))
-	assert_int((start["starting_deck"] as Array).size()).is_equal(13)
-	assert_str(JSON.stringify(start)).contains('"impulse_pick":"%s"' % offered[2])
-
-
-## Plan section 8: the upgrade event's fields, and upgrade ids in pick order (run_end).
-func test_upgrade_event_fields() -> void:
-	var coupon_engine: UpgradeDefinition = load("res://data/upgrades/coupon_engine.tres")
-	var category_engine: UpgradeDefinition = load("res://data/upgrades/category_engine.tres")
-	var offered: Array[UpgradeDefinition] = [category_engine, coupon_engine]
-	var tickets: OfferTimeline = OfferTimeline.new(100)
-	tickets.mark_presented(330)
-	tickets.mark_armed(460)
-	tickets.presentation_skipped = true
-	var event: Dictionary = RunEvents.upgrade_pick(4, offered, coupon_engine, tickets.fields(1334))
-	assert_array(event.keys()).is_equal(
-		[
-			"shift",
-			"offered",
-			"picked",
-			"decide_ms",
-			"presented_ms",
-			"armed_ms",
-			"presentation_skipped"
-		]
-	)
-	assert_int(event["shift"]).is_equal(4)
-	assert_array(event["offered"]).is_equal(["category_engine", "coupon_engine"])
-	assert_str(event["picked"]).is_equal("coupon_engine")
+	assert_int(event["shift"]).is_equal(1)
+	assert_int(event["visit_index"]).is_equal(0)
+	assert_str(event["kind"]).is_equal("ticket")
+	assert_str(event["inspection"]).is_empty()
+	assert_str(event["chute"]).is_equal("register")
+	assert_int(event["level_before"]).is_equal(0)
+	assert_array(event["levels"]).is_equal([0, 0, 1, 0])
+	assert_bool(event["meter_rose"]).is_true()
+	assert_array(event["chutes_viewed"]).is_equal(["coupons", "register"])
+	assert_int((event["offered"] as Array).size()).is_equal(prizes.size())
+	assert_str(event["offered"][1]["id"]).is_equal(String(prizes[1].id()))
+	assert_str(event["offered"][1]["kind"]).is_equal("register")
+	assert_int(event["picked"]).is_equal(1)
+	assert_bool(event["binned"]).is_false()
+	assert_int(event["registers_owned"]).is_equal(1)
+	assert_bool(event["resumed"]).is_true()
+	assert_bool(event["cart_full_at_pick"]).is_false()
+	assert_int(event["cart_size"]).is_equal(13)
 	assert_int(event["decide_ms"]).is_equal(1234)
 	assert_int(event["presented_ms"]).is_equal(230)
 	assert_int(event["armed_ms"]).is_equal(360)
-	assert_bool(event["presentation_skipped"]).is_true()
-	# JSON-friendly: plain strings, not StringNames.
-	assert_str(JSON.stringify(event)).contains('"picked":"coupon_engine"')
-	assert_array(RunEvents.upgrade_ids([])).is_empty()
+	var shown: Dictionary = event["odds_shown"]
+	assert_array(shown.keys()).is_equal(["rarity_pct", "p_rare_plus", "p_legendary"])
+	var total: float = 0.0
+	for pct: float in shown["rarity_pct"]:
+		total += pct
+	assert_float(total).is_equal_approx(100.0, 0.2)
+	assert_str(JSON.stringify(event)).contains('"chute":"register"')
+	assert_bool(RunEvents.odds_fields(null).is_empty()).is_true()
+	# Shift 2: no STAMP DAY (a register is held), shift 3's inspection announced.
+	MachineSteps.next_shift(run)
+	_pass(run)
+	MachineSteps.choose(run, RewardMachine.Chute.NEW_ITEMS)
+	run.machine.bin(run)
+	assert_int(run.phase).is_equal(RunState.Phase.SCORED)
+	var bin: Dictionary = RunEvents.machine_visit(
+		run, run.history[-1].visits[-1], null, [], false, false, timeline.fields(900)
+	)
+	assert_int(bin["picked"]).is_equal(-1)
+	assert_bool(bin["binned"]).is_true()
+	assert_dict(bin["odds_shown"]).is_empty()
+	assert_array(bin["fallback"]).is_empty()
+	# Shift 3 is inspected: its BONUS visit names the inspection.
+	run.next_shift()
+	assert_array(run.inspections).is_not_empty()
+	_pass(run)
+	MachineSteps.choose(run, RewardMachine.Chute.NEW_ITEMS)
+	run.machine.bin(run)
+	assert_int(run.phase).is_equal(RunState.Phase.MACHINE_CHOOSE)
+	MachineSteps.choose(run, RewardMachine.Chute.NEW_ITEMS)
+	run.machine.bin(run)
+	var bonus: Dictionary = RunEvents.machine_visit(
+		run, run.history[-1].visits[-1], null, [], false, false, timeline.fields(900)
+	)
+	assert_str(bonus["kind"]).is_equal("bonus")
+	assert_int(bonus["visit_index"]).is_equal(1)
+	assert_str(bonus["inspection"]).is_equal(String(run.history[-1].inspection.id))
 
 
 ## Plan sections 3.9 and 8: inspection ids as logged (shift_start, checkout), plain strings.
@@ -281,20 +308,18 @@ func test_inspection_fields() -> void:
 ## Full build plan section 4: run_resume and run_abandon name the shift (1-based) and the save
 ## point by its run save name, and add the played time so far.
 func test_run_resume_and_run_abandon_fields() -> void:
-	var deck: DeckDefinition = load(STARTER)
-	var balance: BalanceDefinition = load(BALANCE)
-	var stream: RandomNumberGenerator = EventLogService.derived_stream(
-		79, EventLogService.IMPULSE_RACK_STREAM
-	)
-	var run: RunState = RunState.new(79, deck, balance, RunStock.starting(deck, balance), stream)
+	var run: RunState = _passed_run(79)
 	assert_dict(RunEvents.run_resume(run, 1500)).is_equal(
-		{"shift": 1, "phase": "impulse_rack", "run_ms": 1500}
+		{"shift": 1, "phase": "machine", "run_ms": 1500}
 	)
-	assert_dict(RunEvents.run_abandon(run, 1500)).is_equal(
-		{"shift": 1, "phase": "impulse_rack", "run_ms": 1500}
+	run.machine.choose(run, RewardMachine.Chute.NEW_ITEMS)
+	assert_dict(RunEvents.run_abandon(run, 1600)).is_equal(
+		{"shift": 1, "phase": "machine_pick", "run_ms": 1600}
 	)
-	run.skip_reward()
-	run.start_shift()
+	run.machine.bin(run)
+	assert_dict(RunEvents.run_resume(run, 1700)).is_equal(
+		{"shift": 1, "phase": "scored", "run_ms": 1700}
+	)
 	run.debug_skip_to_shift(2)
 	assert_dict(RunEvents.run_resume(run, 90000)).is_equal(
 		{"shift": 3, "phase": "planning", "run_ms": 90000}
@@ -313,3 +338,20 @@ func test_resume_run_sets_the_run_id() -> void:
 	assert_str(event_log.run_id).is_not_equal("0123456789abcdef")
 	assert_int(event_log.run_id.length()).is_equal(16)
 	event_log.free()
+
+
+## A run with every quota at 1 that passed shift 1 (two Breads): the machine waits for its chute.
+static func _passed_run(seed_value: int) -> RunState:
+	var balance: BalanceDefinition = (load(BALANCE) as BalanceDefinition).duplicate()
+	balance.quotas = PackedInt32Array([1, 1, 1, 1, 1, 1, 1, 1])
+	var deck: DeckDefinition = load(STARTER)
+	var run: RunState = RunState.new(seed_value, deck, balance, RunStock.starting(deck, balance))
+	run.start_shift()
+	_pass(run)
+	return run
+
+
+static func _pass(run: RunState) -> void:
+	for _index: int in range(2):
+		run.place(run.debug_add_to_hand(load("res://data/cards/bread.tres")), run.row.size())
+	run.checkout()

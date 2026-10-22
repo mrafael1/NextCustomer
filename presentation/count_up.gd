@@ -25,7 +25,7 @@ extends Node
 ## and gives back where each item is now (`source_rect`) for flights and puffs.
 ## Then the dessert (#61, CountUpDessert): the slam onto the monitor's total, the margin, PAID, the
 ## tear and the next shift's notice; a passed shift's ends at the printer feed (`printer_feed`),
-## where the reward print-out takes over.
+## where the RECEIPT REWARDS machine takes over (#77).
 ##
 ## Sound (D1, #62): gain beats climb the plan's note ladder (Sfx.play_note), an armed beat
 ## replays the current note quietly over its shimmer (`armed`) and a stamp plays its sample (3
@@ -66,8 +66,8 @@ extends Node
 ## punched as its "0" lands. On a passed shift followed by an inspected one, the notice prints in
 ## red under the dessert's tear.
 
-## The dessert of a passed shift reached the printer feed (#61): the reward print-out starts
-## here. play() returns right after it.
+## The dessert of a passed shift reached the printer feed (#61): the RECEIPT REWARDS machine
+## opens here (#77). play() returns right after it.
 signal printer_feed
 signal finished
 ## A count of `views` (the row's items, in slot order) starts (#86 round 7: the bay's queue), as
@@ -320,6 +320,7 @@ func play(
 	# The dessert plays the count-up's own Sfx (a test may swap it after setup()).
 	_dessert.sfx = _sfx
 	_dessert.speed_setting = plan.speed_setting
+	_dessert.inspection = ", ".join(inspection_names)
 	await _dessert.play(
 		result.total, quota, notice, _tuning, intensity, plan.reduced_motion, _beats.print_pitch()
 	)

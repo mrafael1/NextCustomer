@@ -66,7 +66,9 @@ func search(
 		limits.append(groups[id].size())
 		for _copy: int in range(groups[id].size()):
 			everything.append(id)
-	var upgrade_key: String = _upgrade_key(upgrades) + _inspection_key(inspections)
+	var upgrade_key: String = (
+		_upgrade_key(upgrades) + _inspection_key(inspections) + _slot_key(upgrades, inspections)
+	)
 	# A hand's best also depends on the row limits, which upgrades can raise (ShiftLimits; the
 	# quota doesn't matter here).
 	var row_limits: ShiftLimits = ShiftLimits.for_shift(_balance, upgrades, 0, inspections)
@@ -221,11 +223,21 @@ func _best_order(
 		if distinct.is_empty() or distinct[-1] != id:
 			distinct.append(id)
 		order.append(distinct.size() - 1)
+	var pools: Array[Array] = _pools(distinct, order)
+	var used: PackedInt32Array = PackedInt32Array()
+	used.resize(distinct.size())
+	var row: Array[CardInstance] = []
+	row.resize(order.size())
 	var best_total: int = 0
 	var best: PackedInt32Array = PackedInt32Array()
 	var first: bool = true
 	while true:
-		var total: int = Scoring.score(_row_of(order, distinct), upgrades, inspections).total
+		used.fill(0)
+		for slot: int in range(order.size()):
+			var rank: int = order[slot]
+			row[slot] = pools[rank][used[rank]]
+			used[rank] += 1
+		var total: int = Scoring.total(row, upgrades, inspections)
 		rows_scored += 1
 		if rows_scored % STOP_CHECK_ROWS == 0 and _past_stop():
 			return [0, PackedStringArray()]
@@ -256,21 +268,24 @@ func _store(key: String, entry: Array) -> void:
 		_fresh[key] = entry
 
 
-func _row_of(order: PackedInt32Array, distinct: PackedStringArray) -> Array[CardInstance]:
-	var row: Array[CardInstance] = []
-	var copies: Dictionary[int, int] = {}
+## Per rank (distinct id), the card instances its copies in `order` score with: copy k of a
+## card is always the same instance.
+func _pools(distinct: PackedStringArray, order: PackedInt32Array) -> Array[Array]:
+	var copies: PackedInt32Array = PackedInt32Array()
+	copies.resize(distinct.size())
 	for rank: int in order:
-		var copy: int = copies.get(rank, 0)
-		copies[rank] = copy + 1
+		copies[rank] += 1
+	var pools: Array[Array] = []
+	for rank: int in range(distinct.size()):
 		var id: String = distinct[rank]
 		if not _instances.has(id):
 			_instances[id] = []
 		var instances: Array = _instances[id]
-		while instances.size() <= copy:
+		while instances.size() < copies[rank]:
 			instances.append(CardInstance.new(_definitions[id], _next_instance_id))
 			_next_instance_id += 1
-		row.append(instances[copy])
-	return row
+		pools.append(instances)
+	return pools
 
 
 ## The upgrades that can change a score, in pick order (scoring steps name them by index).
@@ -281,6 +296,21 @@ static func _upgrade_key(upgrades: Array[UpgradeDefinition]) -> String:
 		if not upgrade.rules.is_empty():
 			key += String(upgrade.id) + ","
 	return key
+
+
+## The product slots the upgrades and inspections add or close (ScoreState.product_slot_change):
+## a rule can read it (Slot engine's last regular slot follows it), so a multiset's best order is
+## never reused under another slot change, even when no upgrade or inspection with rules differs
+## (Big basket, Short belt).
+static func _slot_key(
+	upgrades: Array[UpgradeDefinition], inspections: Array[InspectionDefinition]
+) -> String:
+	var change: int = 0
+	for upgrade: UpgradeDefinition in upgrades:
+		change += upgrade.extra_slots
+	for inspection: InspectionDefinition in inspections:
+		change += inspection.extra_slots
+	return "s%d" % change
 
 
 ## The inspections that can change a score, in order (scoring steps name them by index), so a

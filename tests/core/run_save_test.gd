@@ -1,8 +1,9 @@
 extends GdUnitTestSuite
-## The run save (full build plan section 4): RunSave's saved form at every save point, read
-## back through JSON text, gives the same run, and a run saved and restored after every action
-## plays exactly like one that never stopped. A save that can't be resumed reads as null and
-## prints nothing.
+## The run save (full build plan section 4; format 2 since #77): RunSave's saved form at every
+## save point (PLANNING, the machine's MACHINE_CHOOSE and MACHINE_PICK, SCORED), read back
+## through JSON text, gives the same run, and a run saved and restored after every action plays
+## exactly like one that never stopped. A save that can't be resumed (a version 1 save from
+## before the machine among them) reads as null and prints nothing.
 
 const STARTER := "res://data/decks/starter.tres"
 const BALANCE := "res://data/balance/balance.tres"
@@ -23,7 +24,7 @@ func before_test() -> void:
 func test_only_the_four_stable_phases_are_saved() -> void:
 	var saved: Array[String] = []
 	for phase: RunState.Phase in RunState.Phase.values():
-		var run: RunState = _new_run(1)
+		var run: RunState = _planning_run(1)
 		run.phase = phase
 		if RunSave.is_save_point(phase):
 			assert_bool(RunSave.to_dictionary(run, "id", 0).is_empty()).is_false()
@@ -31,28 +32,13 @@ func test_only_the_four_stable_phases_are_saved() -> void:
 		else:
 			assert_dict(RunSave.to_dictionary(run, "id", 0)).is_empty()
 			assert_str(RunSave.phase_name(phase)).is_empty()
-	assert_array(saved).is_equal(["impulse_rack", "planning", "reward", "upgrade"])
-
-
-func test_the_impulse_rack_round_trips() -> void:
-	var run: RunState = _new_run(11)
-	assert_int(run.phase).is_equal(RunState.Phase.IMPULSE)
-	var restored: RunState = _round_trip(run)
-	assert_array(restored.offer).is_equal(run.impulse_offer)
-	assert_array(restored.impulse_offer).is_equal(run.impulse_offer)
-	# The restored rack is picked like the original one.
-	assert_bool(restored.take_reward(restored.offer[1])).is_true()
-	assert_bool(run.take_reward(run.offer[1])).is_true()
-	restored.start_shift()
-	run.start_shift()
-	assert_str(_observe(restored)).is_equal(_observe(run))
+	assert_array(saved).is_equal(["planning", "machine", "machine_pick", "scored"])
 
 
 func test_a_fresh_shift_round_trips() -> void:
 	var run: RunState = _planning_run(12)
 	var restored: RunState = _round_trip(run)
 	assert_int(restored.hand().size()).is_equal(8)
-	assert_object(restored.impulse_pick).is_same(run.impulse_pick)
 	# Hand cards are the deck's own instances.
 	for card: CardInstance in restored.hand():
 		assert_bool(restored.deck.cards.has(card)).is_true()
@@ -86,49 +72,119 @@ func test_a_shift_after_places_removes_and_redraws_round_trips() -> void:
 	assert_int(restored.preview().total).is_equal(run.preview().total)
 
 
-func test_a_reward_round_trips() -> void:
+## The checkout click saves at MACHINE_CHOOSE: the restored machine draws the same prizes.
+func test_a_visit_waiting_for_its_chute_round_trips() -> void:
 	var run: RunState = _planning_run(14)
 	_fill(run)
 	run.checkout()
-	assert_int(run.phase).is_equal(RunState.Phase.REWARD)
+	assert_int(run.phase).is_equal(RunState.Phase.MACHINE_CHOOSE)
 	var restored: RunState = _round_trip(run)
 	assert_int(restored.last_result.total).is_equal(run.last_result.total)
 	assert_bool(restored.passed()).is_true()
-	assert_array(restored.offer).is_equal(run.offer)
+	assert_bool(MachineSteps.choose(restored, RewardMachine.Chute.NEW_ITEMS)).is_true()
+	assert_bool(MachineSteps.choose(run, RewardMachine.Chute.NEW_ITEMS)).is_true()
+	assert_str(_observe(restored)).is_equal(_observe(run))
 
 
-## Shift 2 is an upgrade shift and shift 3 is inspected: its checkout builds an upgrade offer
-## and draws the next inspection, kept through the reward and the upgrade.
-func test_a_reward_on_an_upgrade_shift_round_trips_with_the_next_inspection() -> void:
-	var run: RunState = _run_at_shift_two_checkout(15)
-	assert_array(run.upgrade_offer).is_not_empty()
-	assert_object(run.next_inspection).is_not_null()
+## The draw saves at MACHINE_PICK: the prizes come back as drawn, the first COUPONS flag stays
+## spent, and the pick does the same.
+func test_drawn_prizes_round_trip() -> void:
+	var run: RunState = _planning_run(15)
+	_fill(run)
+	run.checkout()
+	assert_bool(MachineSteps.choose(run, RewardMachine.Chute.COUPONS)).is_true()
+	assert_int(run.phase).is_equal(RunState.Phase.MACHINE_PICK)
 	var restored: RunState = _round_trip(run)
-	assert_array(restored.upgrade_offer).is_equal(run.upgrade_offer)
-	assert_object(restored.next_inspection).is_same(run.next_inspection)
-	assert_bool(restored.deck_is_full()).is_true()
+	assert_bool(restored.machine.coupons_first_done).is_true()
+	assert_object(MachineSteps.take(restored, 0)).is_not_null()
+	assert_object(MachineSteps.take(run, 0)).is_not_null()
+	assert_str(_observe(restored)).is_equal(_observe(run))
 
 
-func test_an_upgrade_after_a_deck_full_replacement_round_trips() -> void:
+## Shift 2 is a STAMP DAY shift (no register yet) and shift 3 is inspected: the ticket's visit,
+## then STAMP DAY's drawn prizes, round trip with the next inspection; a Big basket taken there
+## changes only the next shift's quota.
+func test_stamp_day_round_trips_with_the_next_inspection() -> void:
 	var run: RunState = _run_at_shift_two_checkout(16)
-	var replaced: CardInstance = run.row[0]
-	assert_bool(run.take_reward(run.offer[0], replaced)).is_true()
-	assert_int(run.phase).is_equal(RunState.Phase.UPGRADE)
+	assert_object(run.next_inspection).is_not_null()
+	assert_array(run.machine.pending_kinds()).is_equal([MachineVisit.Kind.STAMP_DAY])
+	_round_trip(run)
+	MachineSteps.choose(run, RewardMachine.Chute.NEW_ITEMS)
+	run.machine.bin(run)
+	assert_int(run.phase).is_equal(RunState.Phase.MACHINE_PICK)
+	assert_int(run.machine.current_visit().kind).is_equal(MachineVisit.Kind.STAMP_DAY)
 	var restored: RunState = _round_trip(run)
-	# The replaced card left the deck but stays in the row the receipt scored.
-	assert_int(restored.row[0].instance_id).is_equal(replaced.instance_id)
-	assert_bool(_instance_ids(restored.deck.cards).has(replaced.instance_id)).is_false()
-	assert_int(restored.last_result.total).is_equal(run.last_result.total)
-	assert_bool(restored.pick_upgrade(restored.upgrade_offer[0])).is_true()
-	assert_bool(run.pick_upgrade(run.upgrade_offer[0])).is_true()
+	assert_object(restored.next_inspection).is_same(run.next_inspection)
+	assert_bool(restored.machine.can_bin()).is_false()
+	assert_object(MachineSteps.take(restored, 0)).is_not_null()
+	assert_object(MachineSteps.take(run, 0)).is_not_null()
+	assert_int(restored.phase).is_equal(RunState.Phase.SCORED)
+	assert_int(restored.limits.quota).is_equal(run.limits.quota)
+	_round_trip(run)
 	assert_bool(restored.next_shift()).is_true()
 	assert_bool(run.next_shift()).is_true()
 	assert_str(_observe(restored)).is_equal(_observe(run))
 	assert_array(restored.inspections).is_not_empty()
 
 
-func test_a_debug_jump_round_trips() -> void:
+## The bonus ticket's visit (an inspected shift passed, the ticket's pick done) round-trips at
+## MACHINE_CHOOSE and, once its chute is chosen, at MACHINE_PICK; the pick then plays the same.
+func test_a_bonus_visit_round_trips_at_both_save_points() -> void:
+	var run: RunState = _run_at_bonus_visit(5)
+	var restored: RunState = _round_trip(run)
+	assert_int(restored.machine.current_visit().kind).is_equal(MachineVisit.Kind.BONUS)
+	var chute: int = MachineSteps.first_lit(run, RewardMachine.Chute.COUPONS)
+	assert_bool(MachineSteps.choose(restored, chute)).is_true()
+	assert_bool(MachineSteps.choose(run, chute)).is_true()
+	assert_str(_observe(restored)).is_equal(_observe(run))
+	assert_int(run.phase).is_equal(RunState.Phase.MACHINE_PICK)
+	restored = _round_trip(run)
+	assert_int(restored.machine.current_visit().kind).is_equal(MachineVisit.Kind.BONUS)
+	assert_object(MachineSteps.take(restored, 0)).is_not_null()
+	assert_object(MachineSteps.take(run, 0)).is_not_null()
+	assert_str(_observe(restored)).is_equal(_observe(run))
+	assert_int(run.history[-1].visits.size()).is_equal(2)
+
+
+## Quitting during the last landing resumes at SCORED: into the next shift, and the visit
+## already picked can't be picked again.
+func test_scored_round_trips_into_the_next_shift() -> void:
 	var run: RunState = _planning_run(17)
+	_fill(run)
+	run.checkout()
+	MachineSteps.choose(run, RewardMachine.Chute.NEW_ITEMS)
+	assert_object(MachineSteps.take(run, 0)).is_not_null()
+	assert_int(run.phase).is_equal(RunState.Phase.SCORED)
+	var restored: RunState = _round_trip(run)
+	assert_array(restored.machine.prizes()).is_empty()
+	assert_object(MachineSteps.take(restored, 0)).is_null()
+	assert_int(restored.history[-1].visits.size()).is_equal(1)
+	assert_bool(restored.next_shift()).is_true()
+	assert_bool(run.next_shift()).is_true()
+	assert_str(_observe(restored)).is_equal(_observe(run))
+
+
+## An UPGRADES pick upgrades a deck copy that the scored row may hold: the hand keeps the saved
+## (scored) instance, so the restored receipt scores the same total.
+func test_an_upgrades_pick_round_trips_with_the_scored_row() -> void:
+	var run: RunState = _run_at_shift_three(18)
+	_fill(run)
+	run.checkout()
+	assert_bool(MachineSteps.choose(run, RewardMachine.Chute.UPGRADES)).is_true()
+	var landing: MachineLanding = MachineSteps.take(run, 0)
+	assert_object(landing).is_not_null()
+	assert_array(landing.upgraded).is_not_empty()
+	var restored: RunState = _round_trip(run)
+	assert_int(restored.last_result.total).is_equal(run.last_result.total)
+	MachineSteps.pass_visits(restored)
+	MachineSteps.pass_visits(run)
+	assert_bool(restored.next_shift()).is_true()
+	assert_bool(run.next_shift()).is_true()
+	assert_str(_observe(restored)).is_equal(_observe(run))
+
+
+func test_a_debug_jump_round_trips() -> void:
+	var run: RunState = _planning_run(19)
 	run.debug_skip_to_shift(4)
 	assert_bool(run.debug_jumped).is_true()
 	var restored: RunState = _round_trip(run)
@@ -136,13 +192,13 @@ func test_a_debug_jump_round_trips() -> void:
 	assert_array(restored.history).is_empty()
 
 
-## The debug shift jump to the shift on its own reward screen restarts it but keeps its record,
+## The debug shift jump to the shift on its own machine visit restarts it but keeps its record,
 ## so it counts as a jump too and its save still resumes.
 func test_a_debug_restart_after_a_checkout_round_trips() -> void:
-	var run: RunState = _planning_run(18)
+	var run: RunState = _planning_run(20)
 	_fill(run)
 	run.checkout()
-	assert_int(run.phase).is_equal(RunState.Phase.REWARD)
+	assert_int(run.phase).is_equal(RunState.Phase.MACHINE_CHOOSE)
 	run.debug_skip_to_shift(run.shift_index)
 	assert_int(run.phase).is_equal(RunState.Phase.PLANNING)
 	assert_bool(run.debug_jumped).is_true()
@@ -155,7 +211,7 @@ func test_a_debug_restart_after_a_checkout_round_trips() -> void:
 
 
 ## A resumed run continues exactly as if it had never stopped: the same scripted run, saved and
-## restored through JSON text after every action, gives every same hand, offer, upgrade offer,
+## restored through JSON text after every action, gives every same hand, prize, visit,
 ## inspection and total.
 func test_a_run_restored_after_every_action_plays_like_one_that_never_stopped() -> void:
 	for seed_value: int in [5, 99, 4242]:
@@ -169,34 +225,36 @@ func test_a_run_restored_after_every_action_plays_like_one_that_never_stopped() 
 func test_large_seeds_and_rng_states_survive_json() -> void:
 	var int64_min: int = -9223372036854775807 - 1
 	for value: int in [int64_min, -7046029254386353131, 9007199254740993, 9223372036854775807]:
-		var run: RunState = _new_run(value)
+		var run: RunState = _planning_run(value)
 		run.rng_state = value
 		var restored: RunState = _round_trip(run)
 		assert_int(restored.run_seed).is_equal(value)
 		assert_int(restored.rng_state).is_equal(value)
 		# The same state draws the same numbers.
-		restored.skip_reward()
-		run.skip_reward()
-		restored.start_shift()
-		run.start_shift()
+		restored.debug_skip_to_shift(1)
+		run.debug_skip_to_shift(1)
 		assert_array(_instance_ids(restored.hand())).is_equal(_instance_ids(run.hand()))
 
 
 func test_the_run_id_and_played_time_are_kept() -> void:
-	var data: Dictionary = _json(RunSave.to_dictionary(_new_run(3), "abc123", 98765))
+	var data: Dictionary = _json(RunSave.to_dictionary(_planning_run(3), "abc123", 98765))
 	var save: RunSave = RunSave.from_dictionary(data, _lookup)
 	assert_str(save.run_id).is_equal("abc123")
 	assert_int(save.run_ms).is_equal(98765)
 	assert_int(int(data["format_version"])).is_equal(RunSave.FORMAT_VERSION)
+	assert_int(RunSave.FORMAT_VERSION).is_equal(2)
 
 
 func test_a_save_that_cant_be_resumed_reads_as_null() -> void:
 	var planning: Dictionary = _json(_save(_planning_run(21)))
-	var reward: Dictionary = _json(_save(_run_at_shift_two_checkout(22)))
-	var rack: Dictionary = _json(_save(_new_run(23)))
-	var upgrade_run: RunState = _run_at_shift_two_checkout(24)
-	upgrade_run.skip_reward()
-	var upgrade: Dictionary = _json(_save(upgrade_run))
+	var choose_run: RunState = _planning_run(22)
+	_fill(choose_run)
+	choose_run.checkout()
+	var choose: Dictionary = _json(_save(choose_run))
+	MachineSteps.choose(choose_run, RewardMachine.Chute.NEW_ITEMS)
+	var pick: Dictionary = _json(_save(choose_run))
+	choose_run.machine.bin(choose_run)
+	var scored: Dictionary = _json(_save(choose_run))
 	# A card that resolves but isn't in the stock.
 	var unstocked: CardDefinition = CardDefinition.new()
 	unstocked.id = UNSTOCKED
@@ -204,14 +262,16 @@ func test_a_save_that_cant_be_resumed_reads_as_null() -> void:
 	_lookup.add(unstocked)
 	var cases: Dictionary[String, Array] = {
 		"no format version": [planning, func(d: Dictionary) -> void: d.erase("format_version")],
-		"newer format": [planning, func(d: Dictionary) -> void: d["format_version"] = 2],
-		"format as text": [planning, func(d: Dictionary) -> void: d["format_version"] = "1"],
+		"version 1": [planning, func(d: Dictionary) -> void: d["format_version"] = 1],
+		"newer format": [planning, func(d: Dictionary) -> void: d["format_version"] = 3],
+		"format as text": [planning, func(d: Dictionary) -> void: d["format_version"] = "2"],
 		"seed as a number": [planning, func(d: Dictionary) -> void: d["seed"] = 12],
 		"seed not a number": [planning, func(d: Dictionary) -> void: d["seed"] = "12a"],
 		"seed too big": [planning, func(d: Dictionary) -> void: d["seed"] = "9223372036854775808"],
 		"no rng state": [planning, func(d: Dictionary) -> void: d.erase("rng_state")],
 		"phase scored": [planning, func(d: Dictionary) -> void: d["phase"] = "scored"],
 		"phase won": [planning, func(d: Dictionary) -> void: d["phase"] = "won"],
+		"old phase reward": [choose, func(d: Dictionary) -> void: d["phase"] = "reward"],
 		"shift past quotas": [planning, func(d: Dictionary) -> void: d["shift_index"] = 8],
 		"negative shift": [planning, func(d: Dictionary) -> void: d["shift_index"] = -1],
 		"fractional shift": [planning, func(d: Dictionary) -> void: d["shift_index"] = 0.5],
@@ -231,20 +291,32 @@ func test_a_save_that_cant_be_resumed_reads_as_null() -> void:
 		"negative run time": [planning, func(d: Dictionary) -> void: d["run_ms"] = -1],
 		"flag as text": [planning, func(d: Dictionary) -> void: d["list_skipped"] = "true"],
 		"history too long": [planning, func(d: Dictionary) -> void: d["history"].append(_record())],
-		"history too short": [reward, func(d: Dictionary) -> void: d["history"].pop_back()],
-		"record shift wrong": [reward, func(d: Dictionary) -> void: d["history"][0]["shift"] = 2],
+		"no machine": [planning, func(d: Dictionary) -> void: d.erase("machine")],
+		"planning with a visit":
+		[planning, func(d: Dictionary) -> void: d["machine"] = choose["machine"]],
+		"history too short": [choose, func(d: Dictionary) -> void: d["history"].pop_back()],
+		"record shift wrong": [choose, func(d: Dictionary) -> void: d["history"][0]["shift"] = 2],
 		"record passed wrong":
-		[reward, func(d: Dictionary) -> void: d["history"][0]["passed"] = false],
+		[choose, func(d: Dictionary) -> void: d["history"][0]["passed"] = false],
 		"record without total":
-		[reward, func(d: Dictionary) -> void: d["history"][0].erase("total")],
+		[choose, func(d: Dictionary) -> void: d["history"][0].erase("total")],
+		"record without visits":
+		[choose, func(d: Dictionary) -> void: d["history"][0].erase("visits")],
 		"total not the row's":
-		[reward, func(d: Dictionary) -> void: d["history"][-1]["total"] += 1],
-		"reward without offer": [reward, func(d: Dictionary) -> void: d["offer"] = []],
-		"reward already picked":
-		[reward, func(d: Dictionary) -> void: d["history"][-1]["reward_skipped"] = true],
-		"upgrade without offer": [upgrade, func(d: Dictionary) -> void: d["upgrade_offer"] = []],
-		"row card not in hand": [reward, func(d: Dictionary) -> void: d["row"].append(999)],
-		"row card twice": [reward, func(d: Dictionary) -> void: d["row"].append(d["row"][0])],
+		[choose, func(d: Dictionary) -> void: d["history"][-1]["total"] += 1],
+		"machine stage idle": [choose, func(d: Dictionary) -> void: d["machine"]["stage"] = "idle"],
+		"machine without its visit":
+		[choose, func(d: Dictionary) -> void: d["machine"]["visit"] = {}],
+		"pick with the choose stage": [pick, func(d: Dictionary) -> void: d["phase"] = "machine"],
+		"pick without prizes":
+		[pick, func(d: Dictionary) -> void: d["machine"]["visit"]["prizes"] = []],
+		"level over the top": [pick, func(d: Dictionary) -> void: d["machine"]["levels"][0] = 99],
+		"scored with a visit":
+		[scored, func(d: Dictionary) -> void: d["machine"] = pick["machine"]],
+		"ticket visit already recorded":
+		[scored, func(d: Dictionary) -> void: d["machine"] = choose["machine"]],
+		"row card not in hand": [choose, func(d: Dictionary) -> void: d["row"].append(999)],
+		"row card twice": [choose, func(d: Dictionary) -> void: d["row"].append(d["row"][0])],
 		"pile card not in deck":
 		[planning, func(d: Dictionary) -> void: d["draw_pile"].append(999)],
 		"pile card in hand":
@@ -256,12 +328,6 @@ func test_a_save_that_cant_be_resumed_reads_as_null() -> void:
 		[planning, func(d: Dictionary) -> void: d["hand"][0][1] = _other_card(d["hand"][0][1])],
 		"next id too low": [planning, func(d: Dictionary) -> void: d["next_instance_id"] = 2],
 		"redraws over the limit": [planning, func(d: Dictionary) -> void: d["redraws_used"] = 5],
-		"planning with an offer": [planning, func(d: Dictionary) -> void: d["offer"] = ["bread"]],
-		"rack with a hand": [rack, func(d: Dictionary) -> void: d["hand"] = [[1, "banana"]]],
-		"rack offer differs": [rack, func(d: Dictionary) -> void: d["offer"].pop_back()],
-		"rack after shift 1": [rack, func(d: Dictionary) -> void: d["shift_index"] = 1],
-		"pick not offered":
-		[planning, func(d: Dictionary) -> void: d["impulse_pick"] = _not_in(d["impulse_offer"])],
 		"row over the card limit":
 		[planning, func(d: Dictionary) -> void: d["row"] = d["hand"].map(_first)],
 		"row over the product limit": [planning, _over_products],
@@ -272,24 +338,19 @@ func test_a_save_that_cant_be_resumed_reads_as_null() -> void:
 		var save: RunSave = RunSave.from_dictionary(data, _lookup)
 		assert_object(save).override_failure_message(case_name).is_null()
 	# Every base save is itself readable.
-	for data: Dictionary in [planning, reward, rack, upgrade]:
+	for data: Dictionary in [planning, choose, pick, scored]:
 		assert_object(RunSave.from_dictionary(data, _lookup)).is_not_null()
 
 
-## Plays a scripted run: the rack's first card, then each shift a redraw of two cards, every
-## card that fits placed at the end, the first row card removed and placed back, the checkout,
-## the reward's first card (replacing a deck card when the deck is full) and the first upgrade.
-## Each step's observed state is logged; with `resume`, the run is saved and restored through
-## JSON text at every save point.
 ## A save made with a full row, read with a balance that has fewer product slots (tuned between
 ## sessions), can't be resumed: the row would no longer fit.
 func test_a_save_whose_row_no_longer_fits_the_balance_reads_as_null() -> void:
 	var planning: RunState = _planning_run(25)
 	_fill(planning)
-	var reward: RunState = _run_at_shift_two_checkout(26)
+	var visit: RunState = _run_at_shift_two_checkout(26)
 	var fewer_slots: BalanceDefinition = _balance.duplicate()
 	fewer_slots.slot_count -= 1
-	for run: RunState in [planning, reward]:
+	for run: RunState in [planning, visit]:
 		assert_int(RowCapacity.product_count(run.row)).is_equal(_balance.slot_count)
 		var data: Dictionary = _json(_save(run))
 		assert_object(RunSave.from_dictionary(data, _lookup)).is_not_null()
@@ -316,12 +377,14 @@ func test_a_save_from_one_redraw_per_shift_resumes_with_its_redraws() -> void:
 	assert_int(restored.redraws_allowed).is_equal(2)
 
 
+## Plays a scripted run: each shift a redraw of two cards, every card that fits placed at the
+## end, the first row card removed and placed back, the checkout, then every machine visit: a
+## chute that rotates with the shift (the first lit one from there), its first prize taken (at
+## the deck limit swapping a deck card out), or binned on even shifts. Each step's observed state
+## is logged; with `resume`, the run is saved and restored through JSON text at every save point.
 func _play(seed_value: int, resume: bool) -> Array[String]:
 	var steps: Array[String] = []
-	var run: RunState = _checkpoint(_new_run(seed_value), resume, steps)
-	run.take_reward(run.offer[0])
-	run.start_shift()
-	run = _checkpoint(run, resume, steps)
+	var run: RunState = _checkpoint(_planning_run(seed_value), resume, steps)
 	while run.phase == RunState.Phase.PLANNING:
 		var hand: Array[CardInstance] = run.hand()
 		run.redraw([hand[0], hand[1]])
@@ -341,15 +404,23 @@ func _play(seed_value: int, resume: bool) -> Array[String]:
 		run = _checkpoint(run, resume, steps)
 		run.checkout()
 		run = _checkpoint(run, resume, steps)
-		if run.phase != RunState.Phase.REWARD:
-			break
-		var replaced: CardInstance = null
-		if run.deck_is_full():
-			replaced = run.deck.cards[run.shift_index % run.deck.size()]
-		run.take_reward(run.offer[0], replaced)
-		run = _checkpoint(run, resume, steps)
-		if run.phase == RunState.Phase.UPGRADE:
-			run.pick_upgrade(run.upgrade_offer[0])
+		while RunState.MACHINE_PHASES.has(run.phase):
+			if run.phase == RunState.Phase.MACHINE_CHOOSE:
+				var preferred: int = RewardMachine.CHUTES[
+					run.shift_index % RewardMachine.CHUTES.size()
+				]
+				(
+					assert_bool(MachineSteps.choose(run, MachineSteps.first_lit(run, preferred)))
+					. is_true()
+				)
+			elif run.machine.can_bin() and run.shift_index % 2 == 1:
+				run.machine.bin(run)
+			else:
+				var replaced: CardInstance = null
+				if run.machine.needs_replace(run, 0):
+					replaced = run.deck.cards[run.shift_index % run.deck.size()]
+				assert_object(run.machine.pick(run, 0, replaced)).is_not_null()
+			run = _checkpoint(run, resume, steps)
 		run.next_shift()
 		run = _checkpoint(run, resume, steps)
 	return steps
@@ -394,14 +465,12 @@ func _observe(run: RunState) -> String:
 		"deck_is_full": run.deck_is_full(),
 		"can_redraw": not hand.is_empty() and run.can_redraw([hand[0]]),
 		"redraws": [run.redraws_used, run.redraws_allowed],
-		"offer": _ids(run.offer),
-		"offers_made": run.offers_made,
-		"upgrade_offer": _ids(run.upgrade_offer),
+		"machine": run.machine.to_dictionary(),
+		"prizes": run.machine.prizes().map(func(prize: MachinePrize) -> String: return prize.key()),
+		"can_bin": run.machine.can_bin(),
 		"upgrades": _ids(run.upgrades),
 		"inspections": _ids(run.inspections),
 		"next_inspection": _ids([run.next_inspection] if run.next_inspection != null else []),
-		"impulse":
-		[_ids(run.impulse_offer), _ids([run.impulse_pick] if run.impulse_pick != null else [])],
 		"history":
 		run.history.map(func(record: ShiftRecord) -> Dictionary: return record.to_dictionary()),
 		"last_total": run.last_result.total if run.last_result != null else -1,
@@ -412,30 +481,63 @@ func _observe(run: RunState) -> String:
 
 func _new_run(seed_value: int) -> RunState:
 	var deck: DeckDefinition = load(STARTER)
-	var stream: RandomNumberGenerator = EventLogService.derived_stream(
-		seed_value, EventLogService.IMPULSE_RACK_STREAM
-	)
-	return RunState.new(seed_value, deck, _balance, RunStock.starting(deck, _balance), stream)
+	return RunState.new(seed_value, deck, _balance, RunStock.starting(deck, _balance))
 
 
-## Shift 1 after the rack's first card.
+## Shift 1, planning.
 func _planning_run(seed_value: int) -> RunState:
 	var run: RunState = _new_run(seed_value)
-	run.take_reward(run.offer[0])
 	run.start_shift()
 	return run
 
 
-## Shift 2's checkout, after the rack's card and shift 1's reward: the deck is full (15).
+## Shift 2's checkout, after shift 1's NEW ITEMS pick (the deck holds 14 of 15): shift 3 is
+## inspected and STAMP DAY waits after the ticket (no register yet).
 func _run_at_shift_two_checkout(seed_value: int) -> RunState:
 	var run: RunState = _planning_run(seed_value)
 	_fill(run)
 	run.checkout()
-	run.take_reward(run.offer[0])
+	MachineSteps.choose(run, RewardMachine.Chute.NEW_ITEMS)
+	MachineSteps.take(run, 0)
 	run.next_shift()
 	_fill(run)
 	run.checkout()
-	assert_int(run.phase).is_equal(RunState.Phase.REWARD)
+	assert_int(run.phase).is_equal(RunState.Phase.MACHINE_CHOOSE)
+	return run
+
+
+## The first passed inspected shift's bonus visit, waiting for its chute (MACHINE_CHOOSE): each
+## shift checks out Milk, Multipack and Milk x5 (what the row takes of it), the ticket chooses
+## NEW ITEMS and bins it; the other visits pass (MachineSteps).
+func _run_at_bonus_visit(seed_value: int) -> RunState:
+	var run: RunState = _planning_run(seed_value)
+	for _shift: int in range(run.shift_count() - 1):
+		for id: String in ["milk", "multipack", "milk", "milk", "milk", "milk", "milk"]:
+			var card: CardInstance = run.debug_add_to_hand(load("res://data/cards/%s.tres" % id))
+			run.place(card, run.row.size())
+		run.checkout()
+		assert_bool(RunState.MACHINE_PHASES.has(run.phase)).is_true()
+		MachineSteps.choose(run, RewardMachine.Chute.NEW_ITEMS)
+		run.machine.bin(run)
+		if (
+			run.phase == RunState.Phase.MACHINE_CHOOSE
+			and run.machine.current_visit().kind == MachineVisit.Kind.BONUS
+		):
+			assert_str(run.machine.current_visit().why).is_not_empty()
+			return run
+		MachineSteps.next_shift(run)
+	assert_bool(false).override_failure_message("no bonus visit").is_true()
+	return run
+
+
+## Shift 3 planning, every visit before it passed (MachineSteps).
+func _run_at_shift_three(seed_value: int) -> RunState:
+	var run: RunState = _planning_run(seed_value)
+	for _shift: int in range(2):
+		_fill(run)
+		run.checkout()
+		MachineSteps.next_shift(run)
+	assert_int(run.shift_index).is_equal(2)
 	return run
 
 
@@ -483,14 +585,6 @@ static func _record() -> Dictionary:
 ## A card id other than `id`.
 static func _other_card(id: String) -> String:
 	return "bread" if id != "bread" else "banana"
-
-
-## A stocked product that isn't in the offer.
-static func _not_in(offer: Array) -> String:
-	for id: String in ["banana", "bread", "milk", "eggs", "cheese"]:
-		if not offer.has(id):
-			return id
-	return ""
 
 
 static func _by_instance_id(cards: Array[CardInstance], id: int) -> CardInstance:

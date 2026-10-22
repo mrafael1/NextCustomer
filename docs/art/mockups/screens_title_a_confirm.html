@@ -1,0 +1,253 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Title A (abandon confirmation)</title>
+<!--
+  #56 TITLE, OPTION A: THE STORE FRONT AT NIGHT (decide prep, 2026-10-19). Nothing is decided.
+  Idea: the title is a full scene of its own. The supermarket's front at night, seen straight on from the pavement with the
+  shift screen's camera rule (one vanishing point at (640, -1600): only the paving joints recede). The logo is a lit rooftop
+  sign (brass frame, gold marquee bulbs); under the teal-and-cream awning the windows glow warm with the store's 0.5x shelf
+  sprites, and through the open sliding doors the cashier waits at her register: the next customer is you. Light spills
+  onto the pavement in hard stepped bands. A lit spot in front of the right-hand window, by the exit, is RESERVED for the
+  capsule machines' entry (#63 decides it; the dashed box is a mock-up note, not art).
+  UI: the subtitle and the coin line are a paper notice taped inside the left window; Continue / New run (or the pulsing
+  "Click anywhere to start") stand on the pavement in front of the doors; Export log and the build label in the corners.
+  New art/src/ sources: scenery/store_front (facade, cornice, windows, doors, awning, pavement as one backdrop or a few
+  tiles), scenery/rooftop_sign (9-slice brass frame + bulb strip; the logo itself as a sprite: logo_title), frames/notice
+  (taped paper, a 9-slice), frames/paper_panel (the confirmation panel; shared with #56's other panels). Reused: cashier,
+  ceiling_lamp, yoghurt_pots, juice_bottles, bread_tin, wicker_basket, baguette_bin, button.png, sign.png, warning.png.
+  Timing: none of #56's offer timings are touched (the title has none). Optional juice, not in the capture: the bulbs chase
+  and the doors breathe. Reduced motion: still.
+  Fit check: the longest strings here are "Continue (shift 3 / 8)" (26 px), the subtitle (20 px, 3 lines in the notice), and
+  "Abandon the run in progress? It won't count." (26 px) beside the warning triangle.
+  Art-direction pass (2026-10-19): shelves stocked with the real items_v2 sprites; the cashier at the game's 2x behind a
+  full-height counter (window stock stays a 0.5x interior layer: in art/src it becomes one store_front_interior sprite at
+  that scale); warm stepped light on the pavement; sign glow and chasing bulbs; logo at weight 600 so the C stays open;
+  the #63 reserve moved below the stock with its label at the bottom; the confirmation taped like the notice.
+  STATE: abandon confirmation.
+-->
+<style>
+
+@font-face { font-family: Pixelify; src: url(../../../fonts/PixelifySans-Variable.ttf); }
+@font-face { font-family: Atkinson; src: url(../../../fonts/AtkinsonHyperlegibleNext-Variable.ttf); font-weight: 200 800; }
+@font-face { font-family: JBMono; src: url(../../../fonts/JetBrainsMono-Regular.ttf); }
+:root {
+  --ink: #2b2420; --ink-light: #4a3f38; --muted: #8a8172; --paper: #fbf7ee; --cream: #f3e9d2; --cream-shade: #ddcba5;
+  --cream-dark: #b39f78; --mustard: #e2b33c; --mustard-light: #f1d27a; --mustard-pale: #faecbc; --gold: #ffcf3f;
+  --tomato: #d9534f; --tomato-dark: #a83a3c; --teal: #4f9a94; --teal-panel: #2a4d4b; --teal-dark: #1f3b3a; --teal-black: #172c2b;
+  --steel: #8d8a83; --steel-light: #c7c3b8; --steel-dark: #57534c;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { width: 1280px; height: 720px; overflow: hidden; background: var(--teal-black); }
+img, canvas { image-rendering: pixelated; }
+.stage { position: relative; width: 1280px; height: 720px; overflow: hidden; font-family: Atkinson, sans-serif; color: var(--ink); }
+.abs { position: absolute; }
+/* light display text: the 6 px ink outline of UiKit.display_label, as a stepped 3 px ring */
+.ol { text-shadow: 3px 0 0 var(--ink), -3px 0 0 var(--ink), 0 3px 0 var(--ink), 0 -3px 0 var(--ink),
+  2px 2px 0 var(--ink), -2px 2px 0 var(--ink), 2px -2px 0 var(--ink), -2px -2px 0 var(--ink), 3px 2px 0 var(--ink),
+  -3px 2px 0 var(--ink), 3px -2px 0 var(--ink), -3px -2px 0 var(--ink), 2px 3px 0 var(--ink), -2px 3px 0 var(--ink),
+  2px -3px 0 var(--ink), -2px -3px 0 var(--ink); }
+/* FramedButton: the real 9-slice faces (art/frames/button.png and sign.png, 3 art px margins = 6 canvas px) */
+.fbtn { position: absolute; display: flex; align-items: center; justify-content: center; padding: 0 24px 4px;
+  font-family: Pixelify; color: var(--paper); white-space: nowrap; image-rendering: pixelated; }
+.fbtn.primary { border: 6px solid transparent; border-image: url(screens_src/assets/button.png) 6 fill / 6px stretch; }
+.fbtn.secondary { border: 6px solid transparent; border-image: url(screens_src/assets/sign.png) 6 fill / 6px stretch; padding-bottom: 2px; }
+.fbtn.hover { filter: brightness(1.12); }
+/* mock-up annotation only (not game art): where #63's entry would go */
+.reserve { position: absolute; border: 2px dashed var(--mustard-pale); display: flex; align-items: flex-start; justify-content: center;
+  padding-top: 10px; font: 600 14px Atkinson; color: var(--mustard-pale); background: rgba(250,236,188,.06); }
+.reserve span { background: rgba(23,44,43,.85); padding: 2px 8px; }
+.reserve.low { align-items: flex-end; padding: 0 0 10px; }
+.coin { width: 24px; height: 24px; display: block; flex: none; }
+.build { position: absolute; right: 20px; bottom: 16px; font: 600 14px Atkinson; color: var(--cream);
+  text-shadow: 2px 0 0 var(--ink), -2px 0 0 var(--ink), 0 2px 0 var(--ink), 0 -2px 0 var(--ink); }
+/* the abandon confirmation: ScreenShade-style black 0.5 over everything, then the panel */
+.shade { position: absolute; inset: 0; background: rgba(0,0,0,.5); }
+.ask { position: absolute; display: flex; flex-direction: column; align-items: center; gap: 22px; }
+.ask .q { display: flex; align-items: center; gap: 14px; font: 750 26px Atkinson; color: var(--tomato); white-space: nowrap; }
+.ask .q img { width: 39px; height: 33px; }
+.ask .row { display: flex; gap: 16px; }
+.ask .row .fbtn { position: relative; height: 56px; font-size: 22px; }
+
+
+#scene { position: absolute; left: 0; top: 0; width: 1280px; height: 720px; }
+.logo { position: absolute; left: 300px; top: 18px; width: 680px; height: 104px; display: flex; align-items: center; justify-content: center;
+  font-family: Pixelify; font-weight: 600; font-size: 74px; letter-spacing: 4px; }
+.logo .ink { position: absolute; color: var(--ink);
+  text-shadow: 4px 0 0 var(--ink), -4px 0 0 var(--ink), 0 4px 0 var(--ink), 0 -4px 0 var(--ink), 4px 4px 0 var(--ink), -4px 4px 0 var(--ink),
+  4px -4px 0 var(--ink), -4px -4px 0 var(--ink), 0 8px 0 #4a3010, 4px 8px 0 #4a3010, -4px 8px 0 #4a3010; }
+/* two flat bands, not a gradient: gold top, mustard bottom (a sprite in the game: logo_title) */
+.logo .face { position: relative; color: transparent; background: linear-gradient(var(--gold) 0 54%, var(--mustard) 54% 100%);
+  -webkit-background-clip: text; background-clip: text; }
+.notice { position: absolute; left: 84px; top: 302px; width: 344px; padding: 16px 20px 14px; background: var(--paper);
+  border: 2px solid var(--ink); box-shadow: inset -4px -4px 0 var(--cream-shade), 6px 6px 0 rgba(23,44,43,.55); transform: rotate(-1.5deg); }
+.notice p { font: 600 20px/27px Atkinson; color: var(--ink); }
+.notice .rule { border-top: 2px dashed var(--cream-dark); margin: 10px 0 8px; }
+.notice .coins { display: flex; align-items: center; gap: 10px; font: 750 22px Atkinson; color: var(--ink); }
+.tape { position: absolute; width: 44px; height: 16px; background: rgba(250,236,188,.85); border: 2px solid rgba(43,36,32,.25); }
+.prompt { position: absolute; left: 0; width: 1280px; top: 606px; text-align: center; font: 30px Pixelify; color: var(--cream); }
+.ask { left: 290px; top: 262px; width: 700px; padding: 30px 32px 30px; background: var(--paper); border: 2px solid var(--ink);
+  box-shadow: inset -4px -4px 0 var(--cream-shade), 8px 8px 0 rgba(0,0,0,.45); }
+
+</style>
+</head>
+<body>
+<div class="stage">
+<canvas id="scene" width="1280" height="720"></canvas>
+<div class="logo"><span class="ink">NEXT CUSTOMER</span><span class="face">NEXT CUSTOMER</span></div>
+<div class="notice"><div class="tape" style="left:-14px;top:-8px;transform:rotate(-20deg)"></div><div class="tape" style="right:-14px;top:-8px;transform:rotate(18deg)"></div><p>Scan groceries and coupons in the best order. Meet the quota on all 8 shifts.</p><div class="rule"></div><div class="coins"><svg class="coin" viewBox="0 0 12 12" shape-rendering="crispEdges"><path fill="#2b2420" d="M3 0h6v1h2v2h1v6h-1v2h-2v1H3v-1H1V9H0V3h1V1h2z"/><path fill="#e2b33c" d="M3 1h6v1h1v1h1v6h-1v1H9v1H3v-1H2V9H1V3h1V2h1z"/><path fill="#ffcf3f" d="M3 2h5v1H3v5H2V3h1z"/><path fill="#b38425" d="M9 4h1v5H9v1H4V9h5z"/><path fill="#7a5a1c" d="M5 4h2v4H5z"/></svg>Coins: 5</div></div>
+<div class="reserve low" style="left:956px;top:470px;width:288px;height:196px"><span>Room for the capsule machines (#63)</span></div>
+<div class="fbtn primary ol" style="left:340px;top:596px;width:360px;height:68px;font-size:26px;">Continue (shift 3 / 8)</div>
+<div class="fbtn primary ol" style="left:724px;top:596px;width:216px;height:68px;font-size:26px;">New run</div>
+<div class="fbtn secondary ol" style="left:20px;top:664px;width:132px;height:40px;font-size:16px;">Export log</div>
+<div class="build">fb-p2</div>
+<div class="shade"></div>
+<div class="ask"><div class="tape" style="left:-16px;top:-8px;transform:rotate(-20deg)"></div><div class="tape" style="right:-16px;top:-8px;transform:rotate(18deg)"></div><div class="q"><img src="screens_src/assets/warning.png" alt="">Abandon the run in progress? It won't count.</div><div class="row"><div class="fbtn primary ol" style="width:290px">Yes, start a new run</div><div class="fbtn secondary ol" style="width:200px">No, keep it</div></div></div>
+</div>
+<script>
+
+// The backdrop, drawn on the 2 px art grid (1 art px = 2 canvas px); sprites from the game at their own size (0.5x layer).
+const cv = document.getElementById('scene'), g = cv.getContext('2d');
+g.imageSmoothingEnabled = false;
+const r = (x, y, w, h, c) => { g.fillStyle = c; g.fillRect(x * 2, y * 2, w * 2, h * 2); };
+let seed = 7; const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
+const P = { ink: '#2b2420', tealBlack: '#172c2b', tealDark: '#1f3b3a', tealPanel: '#2a4d4b', teal3: '#3a7672', teal: '#4f9a94',
+  tealLight: '#86c2b6', glass: '#e4f6f3', glass2: '#bfe2dd', slate: '#2c3533', slate2: '#222a29', s1: '#ecebe4', s2: '#c7c3b8',
+  s3: '#a9a59b', s4: '#8d8a83', s5: '#6f6b63', s6: '#57534c', s7: '#45423d', rub: '#3d3a36', rub2: '#2c2926', char: '#24221f',
+  cream: '#f3e9d2', creamShade: '#ddcba5', paper: '#fbf7ee', pl1: '#ece0c6', pl2: '#e4d6b9', pl3: '#cdbb98', pl4: '#b9a47c',
+  w1: '#ddb07a', w2: '#c98c4e', w3: '#a8703a', w4: '#6e4524', w5: '#3e2614', b1: '#4a3010', b2: '#8a5d1a', b3: '#c8932b',
+  gold: '#ffcf3f', mPale: '#faecbc', mLight: '#f1d27a', must: '#e2b33c', br1: '#4a3022', br2: '#7a5232' };
+
+// sky with two flat bands and stars
+r(0, 0, 640, 360, P.tealBlack); r(0, 44, 640, 30, P.slate2);
+for (let i = 0; i < 70; i++) { const x = Math.floor(rnd() * 640), y = Math.floor(rnd() * 66); r(x, y, 1, 1, rnd() < .3 ? P.glass : P.tealLight); }
+// moon, upper right: a stepped disc with a bite
+for (let y = -7; y <= 7; y++) for (let x = -7; x <= 7; x++) if (x * x + y * y <= 49 && (x + 4) * (x + 4) + (y - 2) * (y - 2) > 30) r(588 + x, 22 + y, 1, 1, P.cream);
+// neighbouring buildings, dark silhouettes left and right
+r(0, 52, 26, 230, P.slate2); r(614, 40, 26, 242, P.slate2);
+for (let y = 60; y < 260; y += 18) { r(6, y, 8, 10, P.tealDark); r(624, y - 4, 8, 10, P.tealDark); }
+
+// facade: slate bricks
+const FX = 20, FW = 600, FT = 72, FB = 272;
+r(FX, FT, FW, FB - FT, P.slate);
+for (let y = FT + 8, row = 0; y < FB; y += 6, row++) { r(FX, y, FW, 1, P.slate2); for (let x = FX + (row % 2) * 7; x < FX + FW; x += 14) r(x, y - 5, 1, 5, P.slate2); }
+// cornice: steel ledge, lit top, ink under
+r(FX - 4, FT - 6, FW + 8, 6, P.s5); r(FX - 4, FT - 6, FW + 8, 1, P.s3); r(FX - 4, FT - 7, FW + 8, 1, P.ink); r(FX - 4, FT, FW + 8, 1, P.ink); r(FX - 2, FT + 1, FW + 4, 2, P.slate2);
+
+// rooftop sign: struts, then a brass-framed box with gold bulbs
+for (const sx of [190, 300, 340, 450]) { r(sx, 58, 4, 10, P.s7); r(sx, 58, 1, 10, P.s5); }
+const SX = 146, SY = 4, SW = 348, SH = 58;
+r(SX - 12, 0, SW + 24, FT - 7, P.tealDark); r(SX - 6, 0, SW + 12, SH + 5, P.tealPanel);   // stepped glow on the sky, stops at the cornice
+r(SX - 1, SY - 1, SW + 2, SH + 2, P.ink); r(SX, SY, SW, SH, P.b2); r(SX, SY, SW, 2, P.b3); r(SX, SY, 2, SH, P.b3); r(SX, SY + SH - 2, SW, 2, P.b1); r(SX + SW - 2, SY, 2, SH, P.b1);
+r(SX + 6, SY + 6, SW - 12, SH - 12, P.ink); r(SX + 7, SY + 7, SW - 14, SH - 14, P.tealDark); r(SX + 7, SY + 7, SW - 14, 2, P.tealPanel);
+let bulb = 0;   // chase: every third bulb is between flashes (b3), the lit ones get a 1 art px mustard halo
+const lamp = (x, y) => { if (bulb++ % 3 === 2) { r(x, y, 2, 2, P.b3); return; } r(x - 1, y, 4, 2, P.must); r(x, y - 1, 2, 4, P.must); r(x, y, 2, 2, P.gold); r(x, y, 1, 1, P.mPale); };
+for (let x = SX + 6; x < SX + SW - 4; x += 10) for (const y of [SY + 2, SY + SH - 4]) lamp(x, y);
+for (let y = SY + 12; y < SY + SH - 8; y += 10) for (const x of [SX + 2, SX + SW - 4]) lamp(x, y);
+// glow of the sign on the cornice: one flat lighter band
+r(SX + 10, FT - 6, SW - 20, 1, P.mPale); r(SX + 30, FT - 5, SW - 60, 1, P.s2);
+
+// awning: teal and cream stripes, a lit top band, scalloped edge
+const AY = 80, AH = 16;
+r(FX + 2, AY - 1, FW - 4, AH + 2, P.ink);
+for (let x = FX + 3, i = 0; x < FX + FW - 3; x += 15, i++) {
+  const w = Math.min(15, FX + FW - 3 - x), c = i % 2 ? P.cream : P.teal, d = i % 2 ? P.creamShade : P.teal3;
+  r(x, AY, w, AH, c); r(x, AY, w, 3, i % 2 ? P.paper : P.tealLight); r(x, AY + AH - 3, w, 3, d);
+  // scallop: a stepped half-disc under each stripe
+  r(x + 1, AY + AH, w - 2, 2, c); r(x + 3, AY + AH + 2, w - 6, 2, d); r(x + 1, AY + AH + 2, 2, 1, P.ink); r(x + w - 3, AY + AH + 2, 2, 1, P.ink);
+  r(x + 3, AY + AH + 4, w - 6, 1, P.ink);
+}
+r(FX + 4, AY + AH + 5, FW - 8, 3, P.slate2);   // awning shadow on the wall
+
+// windows (warm interior with 0.5x shelves) and the door opening
+const WY = 108, WB = 250;
+function interior(x, w) {
+  r(x, WY, w, WB - WY, P.pl1); r(x, WY + 86, w, WB - WY - 86, P.pl2); r(x, WY + 85, w, 1, P.pl3);
+  for (const sy of [148, 186, 224]) { r(x, sy, w, 3, P.w2); r(x, sy, w, 1, P.w1); r(x, sy + 3, w, 2, P.w4); }
+}
+interior(24, 208); interior(408, 208); interior(250, 140);
+// door interior: a checker floor receding, the register counter, the cashier behind it
+for (let y = 226, k = 0; y < 272; y += 6, k++) for (let x = 250, j = 0; x < 390; x += 10, j++) r(x, y, 10, 6, (j + k) % 2 ? P.pl2 : P.pl4);
+r(250, 108, 140, 4, P.pl3);
+const shelvesImg = [];
+function sprite(src, x, y, w, h, flip) { shelvesImg.push({ src, x, y, w, h, flip }); }
+// glass and frames are drawn after the sprites load (see below)
+function glassAndFrames() {
+  // haze over everything behind glass (a modulate in Godot)
+  g.fillStyle = 'rgba(79,154,148,.14)'; g.fillRect(24 * 2, WY * 2, 208 * 2, (WB - WY) * 2); g.fillRect(408 * 2, WY * 2, 208 * 2, (WB - WY) * 2);
+  // reflections: stepped diagonal bands of glass
+  g.fillStyle = 'rgba(228,246,243,.16)';
+  for (const [x0, w0] of [[40, 14], [70, 6], [430, 14], [460, 6], [520, 10]]) for (let y = WY; y < WB; y += 2) g.fillRect((x0 + (WB - y) * .5) * 2, y * 2, w0 * 2, 4);
+  // window frames: steel, lit top-left, shaded bottom-right, ink outline; a mullion each
+  for (const x of [24, 408]) {
+    r(x - 5, WY - 5, 218, 4, P.ink); r(x - 5, WB + 1, 218, 8, P.ink);
+    r(x - 4, WY - 4, 216, 4, P.s3); r(x - 4, WY - 4, 4, WB - WY + 8, P.s3); r(x + 208, WY - 4, 4, WB - WY + 8, P.s6); r(x - 4, WB, 216, 4, P.s6);
+    r(x - 5, WY - 5, 1, WB - WY + 14, P.ink); r(x + 212, WY - 5, 1, WB - WY + 14, P.ink);
+    r(x + 102, WY, 4, WB - WY, P.s4); r(x + 102, WY, 1, WB - WY, P.s2); r(x + 105, WY, 1, WB - WY, P.s6);
+    r(x - 6, WB + 4, 220, 4, P.s4); r(x - 6, WB + 4, 220, 1, P.s2); r(x - 6, WB + 8, 220, 1, P.ink);   // sill
+  }
+  // kick plate under the windows
+  r(20, 258, 214, 14, P.char); r(406, 258, 214, 14, P.char);
+  // door surround and two sliding glass leaves, parted
+  r(244, WY - 6, 152, 6, P.ink); r(245, WY - 5, 150, 4, P.s3);
+  r(244, WY - 6, 5, 166, P.ink); r(245, WY - 5, 3, 165, P.s3); r(391, WY - 6, 5, 166, P.ink); r(392, WY - 5, 3, 165, P.s6);
+  for (const [lx, hx] of [[250, 300], [346, 350]]) {
+    g.fillStyle = 'rgba(191,226,221,.22)'; g.fillRect(lx * 2, WY * 2, 44 * 2, 164 * 2);
+    r(lx, WY, 44, 2, P.s4); r(lx, WY + 162, 44, 2, P.s5); r(lx, WY, 2, 164, P.s4); r(lx + 42, WY, 2, 164, P.s5);
+    r(hx === 300 ? lx + 36 : lx + 4, WY + 64, 2, 40, P.s2);   // handles
+  }
+  // the lit cart sign over the door
+  r(298, 98, 44, 11, P.ink); r(299, 99, 42, 9, P.teal); r(299, 99, 42, 2, P.tealLight); r(299, 106, 42, 2, P.teal3);
+}
+
+// pavement: rubber slabs, joints receding to (320, -800) art px, light spill as flat stepped bands, a curb, the road
+r(0, 272, 640, 88, P.s7);
+r(0, 272, 640, 1, P.ink);
+const spill = [[24, 208], [250, 140], [408, 208]];
+const steps = [[0, 6, '#8a8172'], [6, 12, P.s5], [18, 18, P.s6]];
+for (const [x, w] of spill) for (const [dy, h, c] of steps) r(x - 4 - dy, 273 + dy, w + 8 + dy * 2, h, c);
+r(246, 273, 148, 4, P.pl4); r(250, 277, 140, 4, '#8a8172');   // the open doors throw the brightest light
+r(262, 273, 116, 7, P.br1); r(262, 273, 116, 1, P.br2); r(262, 279, 116, 1, P.ink);   // doormat
+for (let y = 290; y < 344; y += 18) r(0, y, 640, 1, P.rub);
+for (let xt = -40; xt <= 680; xt += 48) { for (let y = 273; y < 344; y++) { const k = (y + 800) / (273 + 800); r(Math.round(320 + (xt - 320) * k), y, 1, 1, P.rub); } }
+r(0, 344, 640, 6, P.s4); r(0, 344, 640, 1, P.s3); r(0, 350, 640, 1, P.ink); r(0, 351, 640, 9, P.char);
+// reserved exit spot: a wall sconce and its light pool (the machines would stand here)
+r(488, 302, 132, 4, '#8a8172'); r(484, 306, 140, 10, P.s5); r(480, 316, 148, 14, P.s6);   // its light pool, kept free
+
+const I = 'IT:';   // items_v2 sprites (48x48), the rest are scenery props
+const imgs = [
+  ['ceiling_lamp', 64, 216], ['ceiling_lamp', 314, 216], ['ceiling_lamp', 832, 216], ['ceiling_lamp', 1058, 216],
+  // left window, top shelf (the notice covers the rest)
+  ['yoghurt_pots', 54, 258], [I + 'milk', 148, 250], [I + 'cheese', 216, 250], [I + 'eggs', 262, 252], ['yoghurt_pots', 312, 258], [I + 'milk', 410, 250],
+  ['juice_bottles', 160, 336], ['juice_bottles', 420, 334], ['bread_tin', 430, 426],
+  // right window: bakery and fruit up top, pantry and household in the middle, dairy below
+  ['wicker_basket', 828, 276], ['bread_boule', 839, 262], [I + 'strawberries', 888, 250], [I + 'banana', 942, 250],
+  [I + 'crisps', 1032, 250], [I + 'crisps', 1076, 250], [I + 'tea_bags', 1128, 250], [I + 'coffee', 1176, 250],
+  ['bread_tin', 828, 350], [I + 'croissant', 866, 326], [I + 'croissant', 910, 326], ['baguette_bin', 966, 310],
+  [I + 'batteries', 1032, 326], [I + 'batteries', 1074, 326], ['juice_bottles', 1126, 332], ['juice_bottles', 1176, 332],
+  ['yoghurt_pots', 826, 410], [I + 'milk', 924, 400], [I + 'eggs', 968, 402], [I + 'cheese', 1034, 400], ['yoghurt_pots', 1088, 410], [I + 'milk', 1182, 400],
+  ['wall_clock', 724, 230],
+];
+let left = imgs.length + 1;
+const loaded = {};
+function done() {
+  if (--left) return;
+  for (const [n, x, y] of imgs) g.drawImage(loaded[n + x + y], x, y);
+  // cashier behind the counter, seen through the doors
+  g.drawImage(loaded.cashier, 0, 0, 76, 124, 566, 284, 152, 248);   // cropped at the counter front
+  // checkout counter just inside the doors: steel top, teal front down to the floor line, kick strip
+  r(256, 216, 128, 4, P.s3); r(256, 216, 128, 1, P.s1); r(256, 220, 128, 50, P.tealPanel); r(256, 220, 128, 2, P.teal3);
+  r(256, 262, 128, 8, P.tealDark); for (let x = 266; x < 380; x += 24) r(x, 228, 1, 30, P.teal3);
+  r(255, 215, 130, 1, P.ink); r(255, 220, 130, 1, P.ink);
+  r(258, 200, 24, 16, P.ink); r(259, 201, 22, 14, P.char); r(259, 201, 22, 2, P.rub); r(261, 204, 18, 6, P.tealBlack); r(262, 205, 8, 1, P.gold);   // till with a lit display
+  r(360, 208, 18, 8, P.ink); r(361, 209, 16, 6, P.s4); r(361, 209, 16, 1, P.s2);   // scanner plate
+  glassAndFrames();
+  const ic = new Image(); ic.onload = () => { g.drawImage(ic, 620 - 12, 202, 24, 18); }; ic.src = 'screens_src/assets/cart.png';
+}
+for (const [n, x, y] of imgs) { const im = new Image(); im.onload = done; im.src = n.startsWith(I) ? 'assets/art/items_v2/' + n.slice(3) + '.png' : 'screens_src/assets/' + n + '.png'; loaded[n + x + y] = im; }
+const cash = new Image(); cash.onload = done; cash.src = 'screens_src/assets/cashier.png'; loaded.cashier = cash;
+
+</script>
+</body>
+</html>

@@ -8,7 +8,7 @@ extends HBoxContainer
 ## screen hands it from its preview (show_projected): the monitor shows its store channel then,
 ## not the total (the user's play test of 2026-10-17). During the count it mirrors the monitor's
 ## LED (follow): the running subtotal, so the gauge never shows the final total early. Blank LED
-## alone (the impulse rack): no amount, no tag and an empty gauge.
+## alone: no amount, no tag and an empty gauge.
 ##
 ## The gauge (#86, TA) is a liquid coloured by status (red, orange, green, gold: SHORT_RAMP). While
 ## short of the quota it is full exactly at the quota. Once the amount meets it (the count-up's

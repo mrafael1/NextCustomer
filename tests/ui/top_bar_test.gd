@@ -3,7 +3,7 @@ extends GdUnitTestSuite
 ## total in planning (the screen's preview hands it over: the monitor shows its store channel
 ## then; #86's flag once it reaches the quota) and mirrors the LED from the checkout (the subtotal
 ## while counting so the gauge never shows the final total early, the flag once the count meets
-## the quota and until the next shift, blank in the impulse rack) and keeps its gauge's width
+## the quota and until the next shift) and keeps its gauge's width
 ## through a count (#86's gauge itself: quota_meter_test); the menu opens under its button
 ## with Export log, drawn sharp, which closes it and says so; Cart's trolley sits left of its
 ## caption inside the button and the menu's bars in its middle; the chips' decor takes no clicks.

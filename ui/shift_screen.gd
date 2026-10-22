@@ -1,12 +1,12 @@
 class_name ShiftScreen
 extends Control
-## The shift screen (plan section 2): the impulse rack before shift 1 (full build plan
-## section 3), draw, redraw, click-to-place into the row, the live projected total and receipt,
-## checkout with the count-up, the reward choice, the upgrade choice and loyalty card on upgrade
-## shifts (plan section 3.8), the shift's inspection and the next one's notice (plan section
-## 3.9), the deck view, and the run's results with its history. It only displays RunState and
-## ScoreResult; every rule lives in core/. The run is saved at every stable point and resumed
-## when the screen opens (full build plan section 4); the debug tools live in ShiftDebug.
+## The shift screen (plan section 2): draw, redraw, click-to-place into the row, the live
+## projected total and receipt, checkout with the count-up, the RECEIPT REWARDS machine's visits
+## after a passed shift (#77, MachineFlow) and the loyalty card (plan section 3.8), the shift's
+## inspection and the next one's notice (plan section 3.9), the deck view, and the run's results
+## with its history. It only displays RunState and ScoreResult; every rule lives in core/. The
+## run is saved at every stable point and resumed when the screen opens (full build plan section
+## 4); the debug tools live in ShiftDebug.
 ##
 ## Click-to-place: click a hand card to pick it up, then click a slot to put it there (a
 ## filled slot pushes the cards from there to the right). Click a row card to pick it back up.
@@ -22,7 +22,7 @@ extends Control
 ## controls and fills them.
 ##
 ## Sounds (#62) play on the screen's own Sfx, warmed up when it opens: cards picked up, placed
-## and let go, refusals, the redraw, CHECKOUT, a reward or ticket taken and the log export here;
+## and let go, refusals, the redraw, CHECKOUT and the log export here, a prize in MachineFlow;
 ## buttons and panels in UiKit, drag slot ticks in CardDrag, music in ShiftMusic. The only hover
 ## sound is the scanner's beep (#75, ScanController), played once a hover on an item is held.
 
@@ -58,11 +58,6 @@ var _redraw_pick: Array[CardInstance] = []
 var _counting: bool = false
 var _run_started_ms: int = 0
 var _run_ended_ms: int = -1
-## The offer on screen (a reward or the impulse rack): whether the deck view was opened, and a
-## picked card waiting for the player to choose which deck card it replaces. Its times are the
-## panel's timeline (OfferTimeline), like the upgrade tickets'.
-var _deck_viewed_for_reward: bool = false
-var _pending_reward: CardDefinition
 
 ## The 1280x720 stage, centred in the window.
 var _stage: ShiftStage
@@ -83,10 +78,9 @@ var _redraw_button: RegisterKey
 var _cancel_button: FramedButton
 var _checkout_button: FramedButton
 var _results: ResultsPanel
-var _reward_panel: RewardPanel
-var _upgrade_panel: UpgradePanel
-## Dims the screen and blocks clicks behind the reward and upgrade panels, deck view and
-## results.
+## The RECEIPT REWARDS machine's visits (#77) and the machine on screen.
+var _machine: MachineFlow
+## Dims the screen and blocks clicks behind the machine, the deck view and the results.
 var _shade: ScreenShade
 var _deck_view: DeckView
 var _row_strip: RowStrip
@@ -97,7 +91,7 @@ var _cabinet: RegisterCabinet
 ## The hung monitor (#80): the store channel in planning, the LED, the notices, a scanned item
 ## and the count-up's beats.
 var _monitor: MonitorView
-## The monitor's LED: blank in planning and the rack, the count-up's subtotal and total.
+## The monitor's LED: blank in planning, the count-up's subtotal and total.
 var _led: LedDisplay
 ## The top bar's SPEND chip: the projected total in planning (fed here), the LED's readings while
 ## counting.
@@ -144,13 +138,9 @@ func _ready() -> void:
 		start_new_run(_log.new_run_seed())
 
 
-## Starts a run with a seed (a new random one, or one set from the debug panel) and opens the
-## impulse rack. The debug replay passes `replays_rack` with the logged pick (a card id, or ""
-## for a skip) to apply at once; a pick that isn't in the offer is refused and the rack stays.
-## Without `saves_run` (the --demo-row run) the run never writes or deletes the run save.
-func start_new_run(
-	seed_value: int, replays_rack: bool = false, replayed_pick: String = "", saves_run: bool = true
-) -> void:
+## Starts a run with a seed (a new random one, or one set from the debug panel) and its first
+## shift. Without `saves_run` (the --demo-row run) the run never writes or deletes the run save.
+func start_new_run(seed_value: int, saves_run: bool = true) -> void:
 	_saves_run = saves_run
 	ShiftMusic.new_run(_music)
 	var deck: DeckDefinition = load(STARTER_DECK)
@@ -158,22 +148,15 @@ func start_new_run(
 	var stock: RunStock = RunStock.build(
 		deck, _balance, profile.last_list, profile.unlocked_items, profile.run_count
 	)
-	var stream: RandomNumberGenerator = EventLogService.derived_stream(
-		seed_value, EventLogService.IMPULSE_RACK_STREAM
-	)
-	run = RunState.new(seed_value, deck, _balance, stock, stream)
-	# run_end's run_ms counts from here, so the run's length includes the impulse rack.
+	run = RunState.new(seed_value, deck, _balance, stock)
 	_run_started_ms = Time.get_ticks_msec()
 	_run_ended_ms = -1
 	_log.begin_run()
 	_close_overlays()
 	_cabinet.set_total_down(false)
-	if run.phase != RunState.Phase.IMPULSE:
-		_start_first_shift({}, false)
-		return
-	_show_impulse_rack()
-	if replays_rack:
-		_replay_impulse_rack(replayed_pick)
+	_log.log_event("run_start", RunEvents.run_start(run))
+	run.start_shift()
+	_on_shift_started()
 
 
 ## Development tools only (the screen capture in debug/): shows the run's current shift as the
@@ -186,14 +169,6 @@ func debug_show_shift() -> void:
 ## Development tools only (the screen capture's --scan): ScanController.debug_scan.
 func debug_scan(card: CardInstance) -> bool:
 	return _scan.debug_scan(card)
-
-
-## After the impulse rack: logs run_start (with the rack's offer, pick and times, {} for none)
-## and starts shift 1.
-func _start_first_shift(impulse_timing: Dictionary, deck_viewed: bool) -> void:
-	_log.log_event("run_start", RunEvents.run_start(run, impulse_timing, deck_viewed))
-	run.start_shift()
-	_on_shift_started()
 
 
 func _on_shift_started() -> void:
@@ -221,10 +196,12 @@ func _resume_run(saved: RunSave) -> void:
 	_log.resume_run(saved.run_id)
 	_log.log_event("run_resume", RunEvents.run_resume(run, saved.run_ms))
 	_close_overlays()
-	# A resume never plays a count-up (saves are taken at the rack, the tickets and the click).
+	# A resume never plays a count-up (saves are taken at the click and the machine's visits).
 	_cabinet.set_total_down(false)
-	if run.phase == RunState.Phase.IMPULSE:
-		_show_impulse_rack()
+	if run.phase == RunState.Phase.SCORED:
+		# The shift's last visit was done: the next shift starts.
+		run.next_shift()
+		_on_shift_started()
 		return
 	tracker.begin(Time.get_ticks_msec(), _focus.is_player_present())
 	_refresh()
@@ -236,19 +213,18 @@ func _resume_run(saved: RunSave) -> void:
 	_show_checked_out(run.last_result)
 	_ride.show_end_state(_row_views)
 	_receipt.show_shift_end(
-		run.last_result.total, run.quota(), InspectionTag.next_notice(run.next_inspection)
+		run.last_result.total,
+		run.quota(),
+		InspectionTag.next_notice(run.next_inspection),
+		", ".join(InspectionTag.names(run.inspections))
 	)
 	_count_up.show_end_state(run.last_result, run.quota(), count_up_context())
 	_monitor.show_end_state(_count_up.plan, _row_views)
-	if run.phase == RunState.Phase.REWARD:
-		# No dessert: the print-out is already lifted, on a new timeline.
-		_show_rewards(true)
-	else:
-		_show_upgrades()
+	_machine.open(true)  # No dessert: the visit shows as it waits, on a new timeline.
 
 
-## Writes the run save at a save point (full build plan section 4): the rack shown, the shift
-## started, every place, remove and redraw, the checkout click and the upgrade tickets shown.
+## Writes the run save at a save point (full build plan section 4): the shift started, every
+## place, remove and redraw, the checkout click, and the machine's draws and visits.
 func _save_run() -> void:
 	if _saves_run:
 		_saves.save_run(run, _log.run_id, Time.get_ticks_msec() - _run_started_ms)
@@ -264,10 +240,8 @@ func _close_overlays() -> void:
 	_redraw_mode = false
 	_redraw_pick = []
 	_results.visible = false
-	_reward_panel.visible = false
-	_upgrade_panel.visible = false
+	_machine.close()
 	_deck_view.visible = false
-	_pending_reward = null
 	_ride.reset()
 
 
@@ -453,7 +427,7 @@ func _on_checkout_pressed() -> void:
 		if _saves_run:
 			_saves.delete_run()
 	else:
-		# The reward waits: quitting during the count-up resumes on it.
+		# The machine waits: quitting during the count-up resumes on it.
 		_save_run()
 	_refresh()
 	_effects.show_count(result, _row_views, run)  # Only the stickers stay, to fire.
@@ -476,8 +450,11 @@ func _on_checkout_pressed() -> void:
 	_counting = false
 	_cabinet.set_total_down(false)
 	_stage.dim_hand(false)
-	if run.phase == RunState.Phase.REWARD:
-		_show_rewards()
+	if run.phase == RunState.Phase.MACHINE_CHOOSE:
+		_machine.open(false)
+	elif run.phase == RunState.Phase.SCORED:
+		run.next_shift()  # A balance without a machine.
+		_on_shift_started()
 	else:
 		_show_results(result)
 
@@ -518,185 +495,29 @@ func _on_new_run_pressed() -> void:
 	start_new_run(_log.new_run_seed())
 
 
-# --- Impulse rack ----------------------------------------------------------------------------
-
-
-## Full build plan section 3: before shift 1, pick 1 of the rack's stocked products or skip.
-## The reward panel shows it; its pick, skip and deck view go through the reward handlers, and
-## RunState takes it like a reward.
-func _show_impulse_rack() -> void:
-	_refresh()
-	# The last run's receipt and totals go: shift 1's preview only shows once it starts.
-	_receipt.clear()
-	_led.clear()
-	_monitor.end_channel()
-	_monitor.show_next(null, 0, 0)
-	_cabinet.set_total_down(false)
-	_deck_viewed_for_reward = false
-	_pending_reward = null
-	_reward_panel.show_rack(run)
-	_save_run()
-
-
-## The debug replay, on the rack shown: applies a logged pick ("" for a skip). A card that isn't
-## in the offer is refused and the rack stays. At the deck limit the deck view asks which card
-## leaves. A replay applied at once logs 0 times (the player never saw the rack); a refused one,
-## or one left to the deck-full chooser, keeps the rack's real timeline for the player's choice.
-func _replay_impulse_rack(card_id: String) -> void:
-	if card_id.is_empty():
-		_reward_panel.timeline = OfferTimeline.new()
-		_finish_impulse(null, null)
-		return
-	for card: CardDefinition in run.impulse_offer:
-		if String(card.id) == card_id:
-			if not run.deck_is_full():
-				_reward_panel.timeline = OfferTimeline.new()
-			_on_reward_picked(card)
-			return
-	_log.log_event("debug", {"action": "impulse_pick_refused", "card": card_id})
-
-
-## Applies the rack choice (card null = skip), then logs run_start and starts shift 1.
-func _finish_impulse(card: CardDefinition, replaced: CardInstance) -> void:
-	if run.phase != RunState.Phase.IMPULSE:
-		return
-	var taken: bool = run.take_reward(card, replaced) if card != null else run.skip_reward()
-	if not taken:
-		return
-	if card != null:
-		_sfx.play("card_place")
-	_start_first_shift(
-		_reward_panel.timeline.fields(Time.get_ticks_msec()), _deck_viewed_for_reward
-	)
-
-
-# --- Rewards and deck view -------------------------------------------------------------------
-
-
-## The reward print-out (#61), beside the receipt; the register column stays unshaded. It shows
-## at the dessert's printer feed (the music comes back there), its items lifting at the player's
-## speed setting, skipped with the dessert; `resumed` shows them already lifted.
-func _show_rewards(resumed: bool = false) -> void:
-	ShiftMusic.rewards_shown(_music)
-	_deck_viewed_for_reward = false
-	_pending_reward = null
-	_reward_panel.print_offer(run, _receipt, _stage, _count_up, resumed)
-
-
-func _on_reward_picked(card: CardDefinition) -> void:
-	if run.phase != RunState.Phase.REWARD and run.phase != RunState.Phase.IMPULSE:
-		return
-	if not run.deck_is_full():
-		_finish_offer(card, null)
-		return
-	# Plan section 2: at the deck limit, taking a card means choosing one to remove.
-	# The forced chooser is not the player choosing to look at their deck.
-	_pending_reward = card
-	_reward_panel.visible = false
-	_deck_view.open(
-		run,
-		(
-			"Cart full (%d/%d): choose an item to remove for %s"
-			% [run.deck.size(), run.balance.deck_limit, card.display_name]
-		),
-		true
-	)
-
-
-func _on_reward_skipped() -> void:
-	_finish_offer(null, null)
+# --- Deck view and the loyalty card --------------------------------------------------------
 
 
 func _on_deck_card_chosen(card: CardInstance) -> void:
-	if _pending_reward != null:
-		_finish_offer(_pending_reward, card)
-
-
-## The panel's choice (card null = skip) for the offer on screen: the impulse rack or a reward.
-func _finish_offer(card: CardDefinition, replaced: CardInstance) -> void:
-	if run.phase == RunState.Phase.IMPULSE:
-		_finish_impulse(card, replaced)
-	elif run.phase == RunState.Phase.REWARD:
-		_finish_reward(card, replaced)
+	_machine.on_deck_card_chosen(card)
 
 
 func _on_deck_closed() -> void:
-	if run.phase == RunState.Phase.REWARD or run.phase == RunState.Phase.IMPULSE:
-		_pending_reward = null
-		_reward_panel.visible = true
-	elif run.phase == RunState.Phase.UPGRADE:
-		_upgrade_panel.visible = true
-
-
-func _on_reward_deck_requested() -> void:
-	_deck_viewed_for_reward = true
-	_reward_panel.visible = false
-	_deck_view.open(run, "Your cart (%d/%d)" % [run.deck.size(), run.balance.deck_limit], false)
+	_machine.on_deck_closed()
 
 
 func _on_deck_button_pressed() -> void:
-	# Like the panels' own View cart: an offer can't be hidden before it arms (plan 8's armed_ms).
-	if _counting or _reward_panel.is_arming() or _upgrade_panel.is_arming():
+	if _counting:
 		return
-	if run.phase == RunState.Phase.REWARD or run.phase == RunState.Phase.IMPULSE:
-		_on_reward_deck_requested()
+	# During a visit, once the machine has armed (plan 8's armed_ms); it comes back on close.
+	if _machine.is_open():
+		_machine.show_deck()
 		return
-	# The tickets come back when the deck view closes; there is still no way past them.
-	_upgrade_panel.visible = false
 	_deck_view.open(run, "Your cart (%d/%d)" % [run.deck.size(), run.balance.deck_limit], false)
 
 
-## Applies the choice (card null = skip), logs it, and starts the next shift, or shows the
-## upgrade tickets on an upgrade shift.
-func _finish_reward(card: CardDefinition, replaced: CardInstance) -> void:
-	var offered: Array[CardDefinition] = run.offer.duplicate()
-	var timing: Dictionary = _reward_panel.timeline.fields(Time.get_ticks_msec())
-	var taken: bool = run.take_reward(card, replaced) if card != null else run.skip_reward()
-	if not taken:
-		return
-	var shift: int = run.shift_index + 1
-	_log.log_event(
-		"reward", RunEvents.reward(shift, offered, card, replaced, timing, _deck_viewed_for_reward)
-	)
-	_pending_reward = null
-	_reward_panel.visible = false
-	_deck_view.visible = false
-	if card != null:  # A skip sounded on its button.
-		_sfx.play("card_place")
-	if run.phase == RunState.Phase.UPGRADE:
-		_show_upgrades()
-		return
-	run.next_shift()
-	_on_shift_started()
-
-
-# --- Upgrades and the loyalty card ---------------------------------------------------------
-
-
-## Plan section 3.8: after the reward on an upgrade shift, the player must pick a ticket.
-func _show_upgrades() -> void:
-	_upgrade_panel.show_offer(run.upgrade_offer)
-	_save_run()
-
-
-func _on_upgrade_picked(upgrade: UpgradeDefinition) -> void:
-	if run.phase != RunState.Phase.UPGRADE:
-		return
-	var offered: Array[UpgradeDefinition] = run.upgrade_offer.duplicate()
-	if not run.pick_upgrade(upgrade):
-		return
-	var timing: Dictionary = _upgrade_panel.timeline.fields(Time.get_ticks_msec())
-	_log.log_event("upgrade", RunEvents.upgrade_pick(run.shift_index + 1, offered, upgrade, timing))
-	_upgrade_panel.visible = false
-	_deck_view.visible = false
-	_refresh_loyalty_card()
-	_loyalty_card.play_stamp(run.upgrades.size() - 1)
-	_sfx.play("stamp_loyalty")
-	run.next_shift()
-	_on_shift_started()
-
-
-## One box per upgrade shift, plus one for a starting deck's upgrade (full build plan 7.3).
+## One box per register the machine can stamp, plus one for a starting deck's upgrade (full
+## build plan 7.3).
 func _refresh_loyalty_card() -> void:
 	_loyalty_card.show_upgrades(LoyaltyCard.box_count(run), run.upgrades)
 
@@ -707,12 +528,8 @@ func _on_export_pressed() -> void:
 		screen = "count_up"
 	elif _results.visible:
 		screen = "results"
-	elif run.phase == RunState.Phase.IMPULSE:
-		screen = "impulse_rack"
-	elif run.phase == RunState.Phase.REWARD:
-		screen = "reward"
-	elif run.phase == RunState.Phase.UPGRADE:
-		screen = "upgrade"
+	elif RunState.MACHINE_PHASES.has(run.phase):
+		screen = RunSave.phase_name(run.phase)
 	_log.export_logs(screen)
 	_sfx.play("ui_confirm")
 
@@ -730,11 +547,7 @@ func _on_focus_entered() -> void:
 
 
 func _refresh() -> void:
-	_shift_label.text = "%d/%d" % [run.shift_index + 1, run.shift_count()]
-	_quota_label.text = QuotaMeter.QUOTA_AMOUNT % run.quota()
-	_inspection_tag.show_inspections(run.inspections)
-	_refresh_loyalty_card()
-	_deck_button.caption = "Cart %d/%d" % [run.deck.size(), run.balance.deck_limit]
+	_refresh_bar()
 	_seed_label.text = (
 		"Seed %d  ·  %s"
 		% [run.run_seed, str(ProjectSettings.get_setting("next_customer/build_label", ""))]
@@ -745,6 +558,16 @@ func _refresh() -> void:
 	if not _counting and run.phase == RunState.Phase.PLANNING:
 		_refresh_preview()
 	_scan.watch(_row_views, _hand_box.cards())
+
+
+## The top bar: the shift, the quota, the inspection, the loyalty card and the Cart's count
+## (n/deck_limit), which a machine pick changes.
+func _refresh_bar() -> void:
+	_shift_label.text = "%d/%d" % [run.shift_index + 1, run.shift_count()]
+	_quota_label.text = QuotaMeter.QUOTA_AMOUNT % run.quota()
+	_inspection_tag.show_inspections(run.inspections)
+	_refresh_loyalty_card()
+	_deck_button.caption = "Cart %d/%d" % [run.deck.size(), run.balance.deck_limit]
 
 
 ## One slot per card the shift allows (upgrades can add slots), then the row's cards, standing
@@ -855,20 +678,15 @@ func _show_results(result: ScoreResult) -> void:
 
 
 func _process(_delta: float) -> void:
-	_shade.visible = (
-		_reward_panel.visible or _upgrade_panel.visible or _deck_view.visible or _results.visible
-	)
+	_shade.visible = _machine.is_open() or _deck_view.visible or _results.visible
 	# The shade starts under the top bar, wherever the stage sits in the window.
-	_shade.offset_top = _stage.position.y + RewardPanel.PRINTOUT_TOP
-	# Beside the print-out alone, the register column (the register and the receipt) and the
-	# monitor with its totals stay unshaded (#61, #80). The shade starts at the column's place on
-	# the stage (its right edge: the register stands at the left since #83), not at a node's
-	# rect, so it holds still while the register rattles.
-	var beside: bool = _reward_panel.is_printout() and not _deck_view.visible
+	_shade.offset_top = _stage.position.y + ShiftStage.PANEL_TOP
+	# Beside the machine alone, the register column (the register and the receipt) stays
+	# unshaded (#77; no monitor hole). The shade starts at the column's place on the stage (its
+	# right edge), not at a node's rect, so it holds still while the register rattles.
+	var beside: bool = _machine.is_open() and not _deck_view.visible
 	var column_end: float = (_stage.get_global_transform() * ShiftStage.REGISTER_RECT).end.x
 	_shade.offset_left = column_end if beside else 0.0
-	var monitor: Rect2 = _stage.get_global_transform() * MonitorView.DRAWN_RECT
-	_shade.set_hole(monitor if beside else Rect2())
 
 
 func _build() -> void:
@@ -951,23 +769,18 @@ func _build() -> void:
 	_shade.set_anchors_preset(Control.PRESET_FULL_RECT)
 	# Below the top bar, so the menu and Cart stay reachable on every screen (_process keeps it
 	# there when the stage moves).
-	_shade.offset_top = RewardPanel.PRINTOUT_TOP
+	_shade.offset_top = ShiftStage.PANEL_TOP
 	_shade.visible = false
 	add_child(_shade)
-	_reward_panel = RewardPanel.new()
-	add_child(_reward_panel)
-	_reward_panel.picked.connect(_on_reward_picked)
-	_reward_panel.skipped.connect(_on_reward_skipped)
-	_reward_panel.deck_requested.connect(_on_reward_deck_requested)
-	_scan.cover_offers(_reward_panel)
-	_upgrade_panel = UpgradePanel.new()
-	add_child(_upgrade_panel)
-	_upgrade_panel.picked.connect(_on_upgrade_picked)
+	_machine = MachineFlow.new()
+	add_child(_machine)
+	add_child(_machine.setup(self, _log))
+	_scan.cover_offers(_machine.view)
 	_results = ResultsPanel.new()
 	add_child(_results)
 	_results.new_run_requested.connect(_on_new_run_pressed)
 	_results.export_requested.connect(_on_export_pressed)
-	# Added last, so the deck view sits above the reward panel and the results.
+	# Added last, so the deck view sits above the machine and the results.
 	_deck_view = DeckView.new()
 	add_child(_deck_view)
 	_deck_view.card_chosen.connect(_on_deck_card_chosen)
@@ -975,8 +788,8 @@ func _build() -> void:
 
 
 ## Scanning the counter's items is off while the shift is counted, an item is dragged, outside
-## planning (an offer, the upgrade tickets or the results are up) and while the deck view is
-## open. The offers' items are scanned while their panel accepts clicks (RewardPanel.can_scan).
+## planning (the machine or the results are up) and while the deck view is open. The machine's
+## prize items are scanned while it accepts clicks (RewardMachineView.can_scan).
 func _scan_blocked() -> bool:
 	var planning: bool = run != null and run.phase == RunState.Phase.PLANNING
 	return _counting or _drag.is_dragging() or not planning or _deck_view.visible

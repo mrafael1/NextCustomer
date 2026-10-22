@@ -122,12 +122,18 @@ func test_base_products_fizzle(
 	assert_array(fizzles).is_equal(expected)
 
 
-func test_all_fifty_nine_cards_exist() -> void:
+## 59 cards, plus the 8 item tiers (#77: BIG and GOLDEN Banana, Milk, Eggs and Coffee).
+func test_all_sixty_seven_cards_exist() -> void:
 	var ids: Array = []
+	var tiers: int = 0
 	for file: String in DirAccess.get_files_at(CARDS_DIR):
 		if file.ends_with(".tres"):
-			ids.append((load("%s/%s" % [CARDS_DIR, file]) as CardDefinition).id)
-	assert_int(ids.size()).is_equal(59)
+			var card: CardDefinition = load("%s/%s" % [CARDS_DIR, file])
+			ids.append(card.id)
+			if card.tier != CardDefinition.Tier.PLAIN:
+				tiers += 1
+	assert_int(ids.size()).is_equal(67)
+	assert_int(tiers).is_equal(8)
 
 
 ## Every card has a price-sticker template (#75); only a card with no rule has an empty one (its
@@ -137,7 +143,7 @@ func test_every_card_has_a_digit_free_sticker_template() -> void:
 	var ordinal: RegEx = RegEx.create_from_string(ORDINAL)
 	var digit: RegEx = RegEx.create_from_string("\\d")
 	var cards: Array[CardDefinition] = _all_cards()
-	assert_int(cards.size()).is_equal(59)
+	assert_int(cards.size()).is_equal(67)
 	for card: CardDefinition in cards:
 		var template: String = CardText.sticker_template(card)
 		var message: String = '%s: "%s"' % [card.id, template]
@@ -216,17 +222,22 @@ func test_stickers_show_every_rule_value() -> void:
 	assert_int(named_products).is_equal(10)
 
 
-## A charged multiplier's sticker says "next": it holds while each one has a single charge.
-## More charges need new sticker wording (charges isn't a sticker key).
-func test_charged_multipliers_have_one_charge() -> void:
-	var checked: int = 0
+## A charged multiplier's sticker says "next": with one charge that is the next product, so the
+## sticker names no count; one with more charges (Golden Eggs, #77) names `{charges}`.
+func test_charged_multipliers_with_more_charges_name_them() -> void:
+	var several: int = 0
 	for card: CardDefinition in _all_cards():
 		for rule: Rule in card.rules:
 			var charged: GrantChargedMultiplierRule = rule as GrantChargedMultiplierRule
-			if charged != null:
-				assert_int(charged.charges).override_failure_message(str(card.id)).is_equal(1)
-				checked += 1
-	assert_int(checked).is_equal(5)
+			if charged == null:
+				continue
+			var template: String = CardText.sticker_template(card)
+			var message: String = '%s: "%s"' % [card.id, template]
+			assert_int(charged.charges).override_failure_message(message).is_greater(0)
+			if charged.charges > 1:
+				assert_str(template).override_failure_message(message).contains("{charges}")
+				several += 1
+	assert_int(several).is_equal(1)
 
 
 ## Every art_ref names art drawn for an item (#75, decision 3A: 48x48 at 2x everywhere): a
@@ -251,8 +262,9 @@ func test_every_art_ref_is_item_art() -> void:
 			Vector2(expected)
 		)
 		drawn += 1
-	# The 10 products and 2 coupon icons drawn for style frame v2, and #57's 13 products.
-	assert_int(drawn).is_equal(25)
+	# The 10 products and 2 coupon icons drawn for style frame v2, the 8 item tiers (#77) and
+	# #57's 13 products.
+	assert_int(drawn).is_equal(33)
 
 
 ## The 20 products a new profile stocks (#57), read from data/: the starter deck's products and
@@ -296,7 +308,8 @@ static func _all_cards() -> Array[CardDefinition]:
 
 
 ## A sticker key's value read straight from the data (not through CardText): the card's base,
-## its product's name, or the first rule's field, the base when that rule's bonus is the base.
+## its product's name, or the first rule's field; a match bonus is the one the rule pays for this
+## base (the base or its flat bonus, times its factor), as CardText shows it.
 static func _data_value(card: CardDefinition, key: String) -> Variant:
 	if key == "base":
 		return card.base
@@ -304,17 +317,18 @@ static func _data_value(card: CardDefinition, key: String) -> Variant:
 		return card.product_card().display_name
 	for rule: Rule in card.rules:
 		var adjacent: AdjacentMatchBonusRule = rule as AdjacentMatchBonusRule
-		if key == "bonus" and adjacent != null and adjacent.bonus_is_base:
-			return card.base
+		if key == "bonus" and adjacent != null:
+			return adjacent.bonus_for(card.base)
 		if key in rule:
 			return rule.get(key)
 	return null
 
 
 ## Whether a rule field holds a value that changes what the rule does (not its neutral default).
+## One charge is the plain "next" the sticker already says, like a factor of 1.
 static func _is_set(key: String, value: Variant) -> bool:
 	if value is int:
-		return value != (1 if key.ends_with("factor") else 0)
+		return value != (1 if key.ends_with("factor") or key == "charges" else 0)
 	if value is String:
 		return not (value as String).is_empty()
 	return false

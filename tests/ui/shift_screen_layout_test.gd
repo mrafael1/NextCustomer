@@ -50,7 +50,7 @@ func test_the_stage_is_laid_out_without_overlaps() -> void:
 	assert_float(counter.get_global_rect().end.y).is_greater_equal(window.end.y)
 
 	var bar_bottom: float = stage.position.y + ShiftStage.TOP_BAR_BOTTOM
-	assert_float(ShiftStage.TOP_BAR_BOTTOM).is_less_equal(RewardPanel.PRINTOUT_TOP)
+	assert_float(ShiftStage.TOP_BAR_BOTTOM).is_less_equal(ShiftStage.PANEL_TOP)
 	var top_parts: Array[Control] = []
 	for child: Node in screen._top_bar.get_children():
 		var part: Control = child as Control
@@ -276,7 +276,7 @@ func test_the_shade_leaves_the_top_bar_uncovered() -> void:
 			. is_false()
 		)
 	assert_float(shade.position.y).is_equal(
-		screen._stage.get_global_rect().position.y + RewardPanel.PRINTOUT_TOP
+		screen._stage.get_global_rect().position.y + ShiftStage.PANEL_TOP
 	)
 	# Nothing over Cart or the menu button takes their clicks; the menu opens over everything
 	# (its own popup window), Export log in it.
@@ -301,7 +301,7 @@ func test_the_top_bar_fits_its_longest_texts() -> void:
 	var screen: ShiftScreen = await _screen()
 	var run: RunState = screen.run
 	var stage: Rect2 = screen._stage.get_global_rect()
-	var bar_bottom: float = stage.position.y + RewardPanel.PRINTOUT_TOP
+	var bar_bottom: float = stage.position.y + ShiftStage.PANEL_TOP
 	run.upgrades = _upgrades(["coupon_engine", "slot_engine", "category_engine", "rule_bender"])
 	run.run_seed = 4294967295
 	var last: int = run.shift_count() - 1
@@ -772,11 +772,10 @@ static func _all_inspections() -> Array[InspectionDefinition]:
 	return result
 
 
-## The screen past the impulse rack, laid out.
+## The screen on shift 1, laid out.
 func _screen() -> ShiftScreen:
 	var runner: GdUnitSceneRunner = scene_runner(SCREEN)
 	var screen: ShiftScreen = runner.scene()
-	screen._on_reward_skipped()
 	await _frames(3)
 	return screen
 

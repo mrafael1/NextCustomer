@@ -1,0 +1,880 @@
+{
+ "about": "NEW ITEMS on small stocks, guarantee swap on",
+ "generated_by": "tests/fixtures/machine_odds/make_fixtures.js",
+ "odds": [
+  [
+   75,
+   22,
+   3
+  ],
+  [
+   65,
+   28,
+   7
+  ],
+  [
+   55,
+   33,
+   12
+  ],
+  [
+   45,
+   37,
+   18
+  ]
+ ],
+ "states": [
+  {
+   "name": "GU in every tier · REGULAR 0",
+   "chute": "new_items",
+   "level": 0,
+   "input": {
+    "stock": [
+     {
+      "id": "banana",
+      "rarity": 0,
+      "gu": true
+     },
+     {
+      "id": "bread",
+      "rarity": 0,
+      "gu": true
+     },
+     {
+      "id": "coffee",
+      "rarity": 0,
+      "gu": false
+     },
+     {
+      "id": "soup",
+      "rarity": 0,
+      "gu": false
+     },
+     {
+      "id": "milk",
+      "rarity": 1,
+      "gu": true
+     },
+     {
+      "id": "tea_bags",
+      "rarity": 1,
+      "gu": false
+     },
+     {
+      "id": "lemon",
+      "rarity": 2,
+      "gu": false
+     }
+    ]
+   },
+   "expected": {
+    "share": [
+     0.7535493333333334,
+     0.2173416666666666,
+     0.029109000000000034
+    ],
+    "first": [
+     0.7499999999999999,
+     0.22000000000000003,
+     0.03000000000000002
+    ],
+    "rest": [
+     0.7553239999999997,
+     0.2160125000000004,
+     0.028663500000000012
+    ],
+    "p_rare_plus": 0.5781249999999993,
+    "p_legendary": 0.08732699999999997,
+    "p_short": 0,
+    "p_held": 0.9999999999999984,
+    "guarded": true,
+    "in_draw": {
+     "product:banana:0": 0.5816338749999994,
+     "product:bread:0": 0.5816338749999994,
+     "product:coffee:0": 0.5486901249999998,
+     "product:soup:0": 0.5486901249999998,
+     "product:milk:1": 0.3403750000000006,
+     "product:tea_bags:1": 0.31165000000000026,
+     "product:lemon:2": 0.08732699999999997
+    }
+   }
+  },
+  {
+   "name": "GU in every tier · REGULAR 1",
+   "chute": "new_items",
+   "level": 1,
+   "input": {
+    "stock": [
+     {
+      "id": "banana",
+      "rarity": 0,
+      "gu": true
+     },
+     {
+      "id": "bread",
+      "rarity": 0,
+      "gu": true
+     },
+     {
+      "id": "coffee",
+      "rarity": 0,
+      "gu": false
+     },
+     {
+      "id": "soup",
+      "rarity": 0,
+      "gu": false
+     },
+     {
+      "id": "milk",
+      "rarity": 1,
+      "gu": true
+     },
+     {
+      "id": "tea_bags",
+      "rarity": 1,
+      "gu": false
+     },
+     {
+      "id": "lemon",
+      "rarity": 2,
+      "gu": false
+     }
+    ]
+   },
+   "expected": {
+    "share": [
+     0.6573173333333335,
+     0.27746833333333326,
+     0.0652143333333333
+    ],
+    "first": [
+     0.6499999999999998,
+     0.28000000000000025,
+     0.07000000000000005
+    ],
+    "rest": [
+     0.6609760000000011,
+     0.2762024999999991,
+     0.06282149999999975
+    ],
+    "p_rare_plus": 0.7253749999999999,
+    "p_legendary": 0.19564299999999976,
+    "p_short": 0,
+    "p_held": 0.9999999999999997,
+    "guarded": true,
+    "in_draw": {
+     "product:banana:0": 0.5154157083333332,
+     "product:bread:0": 0.5154157083333333,
+     "product:coffee:0": 0.4705602916666664,
+     "product:soup:0": 0.47056029166666635,
+     "product:milk:1": 0.4372083333333338,
+     "product:tea_bags:1": 0.3951966666666669,
+     "product:lemon:2": 0.19564299999999976
+    }
+   }
+  },
+  {
+   "name": "GU in every tier · REGULAR 2",
+   "chute": "new_items",
+   "level": 2,
+   "input": {
+    "stock": [
+     {
+      "id": "banana",
+      "rarity": 0,
+      "gu": true
+     },
+     {
+      "id": "bread",
+      "rarity": 0,
+      "gu": true
+     },
+     {
+      "id": "coffee",
+      "rarity": 0,
+      "gu": false
+     },
+     {
+      "id": "soup",
+      "rarity": 0,
+      "gu": false
+     },
+     {
+      "id": "milk",
+      "rarity": 1,
+      "gu": true
+     },
+     {
+      "id": "tea_bags",
+      "rarity": 1,
+      "gu": false
+     },
+     {
+      "id": "lemon",
+      "rarity": 2,
+      "gu": false
+     }
+    ]
+   },
+   "expected": {
+    "share": [
+     0.5619790000000006,
+     0.3318449999999997,
+     0.10617599999999965
+    ],
+    "first": [
+     0.5500000000000002,
+     0.3299999999999998,
+     0.11999999999999997
+    ],
+    "rest": [
+     0.5679684999999994,
+     0.33276750000000055,
+     0.09926400000000005
+    ],
+    "p_rare_plus": 0.8336250000000007,
+    "p_legendary": 0.3185279999999999,
+    "p_short": 0,
+    "p_held": 0.9999999999999999,
+    "guarded": true,
+    "in_draw": {
+     "product:banana:0": 0.4480355000000004,
+     "product:bread:0": 0.44803550000000036,
+     "product:coffee:0": 0.39493300000000037,
+     "product:soup:0": 0.3949330000000004,
+     "product:milk:1": 0.5263812500000007,
+     "product:tea_bags:1": 0.46915375000000015,
+     "product:lemon:2": 0.3185279999999999
+    }
+   }
+  },
+  {
+   "name": "GU in every tier · REGULAR 3",
+   "chute": "new_items",
+   "level": 3,
+   "input": {
+    "stock": [
+     {
+      "id": "banana",
+      "rarity": 0,
+      "gu": true
+     },
+     {
+      "id": "bread",
+      "rarity": 0,
+      "gu": true
+     },
+     {
+      "id": "coffee",
+      "rarity": 0,
+      "gu": false
+     },
+     {
+      "id": "soup",
+      "rarity": 0,
+      "gu": false
+     },
+     {
+      "id": "milk",
+      "rarity": 1,
+      "gu": true
+     },
+     {
+      "id": "tea_bags",
+      "rarity": 1,
+      "gu": false
+     },
+     {
+      "id": "lemon",
+      "rarity": 2,
+      "gu": false
+     }
+    ]
+   },
+   "expected": {
+    "share": [
+     0.3306987878787883,
+     0.4867484848484845,
+     0.18255272727272717
+    ],
+    "first": [
+     0,
+     0.6727272727272726,
+     0.32727272727272744
+    ],
+    "rest": [
+     0.49604818181818155,
+     0.393759090909091,
+     0.11019272727272743
+    ],
+    "p_rare_plus": 0.9999999999999984,
+    "p_legendary": 0.5476581818181818,
+    "p_short": 0,
+    "p_held": 0.9999999999999984,
+    "guarded": true,
+    "in_draw": {
+     "product:milk:1": 0.7503727272727266,
+     "product:banana:0": 0.28297068181818175,
+     "product:bread:0": 0.28297068181818175,
+     "product:coffee:0": 0.2130775,
+     "product:soup:0": 0.2130775,
+     "product:tea_bags:1": 0.7098727272727265,
+     "product:lemon:2": 0.5476581818181818
+    }
+   }
+  },
+  {
+   "name": "GU only Rare and Legendary · REGULAR 0",
+   "chute": "new_items",
+   "level": 0,
+   "input": {
+    "stock": [
+     {
+      "id": "coffee",
+      "rarity": 0,
+      "gu": false
+     },
+     {
+      "id": "soup",
+      "rarity": 0,
+      "gu": false
+     },
+     {
+      "id": "cheese",
+      "rarity": 0,
+      "gu": false
+     },
+     {
+      "id": "milk",
+      "rarity": 1,
+      "gu": true
+     },
+     {
+      "id": "tea_bags",
+      "rarity": 1,
+      "gu": false
+     },
+     {
+      "id": "lemon",
+      "rarity": 2,
+      "gu": false
+     },
+     {
+      "id": "carrier_bag",
+      "rarity": 2,
+      "gu": true
+     }
+    ]
+   },
+   "expected": {
+    "share": [
+     0.7535493333333328,
+     0.2164596666666672,
+     0.029990999999999834
+    ],
+    "first": [
+     0.7499999999999999,
+     0.22000000000000003,
+     0.029999999999999992
+    ],
+    "rest": [
+     0.7553239999999999,
+     0.2146895,
+     0.02998650000000012
+    ],
+    "p_rare_plus": 0.5781250000000016,
+    "p_legendary": 0.08732699999999999,
+    "p_short": 0,
+    "p_held": 0.5781250000000016,
+    "guarded": true,
+    "in_draw": {
+     "product:coffee:0": 0.7535493333333338,
+     "product:soup:0": 0.7535493333333337,
+     "product:cheese:0": 0.7535493333333341,
+     "product:milk:1": 0.5140270000000007,
+     "product:carrier_bag:2": 0.07401150000000002,
+     "product:tea_bags:1": 0.13535200000000017,
+     "product:lemon:2": 0.01596149999999999
+    }
+   }
+  },
+  {
+   "name": "GU only Rare and Legendary · REGULAR 1",
+   "chute": "new_items",
+   "level": 1,
+   "input": {
+    "stock": [
+     {
+      "id": "coffee",
+      "rarity": 0,
+      "gu": false
+     },
+     {
+      "id": "soup",
+      "rarity": 0,
+      "gu": false
+     },
+     {
+      "id": "cheese",
+      "rarity": 0,
+      "gu": false
+     },
+     {
+      "id": "milk",
+      "rarity": 1,
+      "gu": true
+     },
+     {
+      "id": "tea_bags",
+      "rarity": 1,
+      "gu": false
+     },
+     {
+      "id": "lemon",
+      "rarity": 2,
+      "gu": false
+     },
+     {
+      "id": "carrier_bag",
+      "rarity": 2,
+      "gu": true
+     }
+    ]
+   },
+   "expected": {
+    "share": [
+     0.6573173333333335,
+     0.2727969999999997,
+     0.06988566666666676
+    ],
+    "first": [
+     0.65,
+     0.27999999999999997,
+     0.07000000000000003
+    ],
+    "rest": [
+     0.6609760000000007,
+     0.26919549999999925,
+     0.0698285
+    ],
+    "p_rare_plus": 0.7253749999999994,
+    "p_legendary": 0.19564299999999996,
+    "p_short": 0,
+    "p_held": 0.7253749999999994,
+    "guarded": true,
+    "in_draw": {
+     "product:coffee:0": 0.6573173333333326,
+     "product:soup:0": 0.657317333333333,
+     "product:cheese:0": 0.657317333333333,
+     "product:milk:1": 0.5962005000000002,
+     "product:carrier_bag:2": 0.15874599999999994,
+     "product:tea_bags:1": 0.22219049999999999,
+     "product:lemon:2": 0.05091100000000006
+    }
+   }
+  },
+  {
+   "name": "GU only Rare and Legendary · REGULAR 2",
+   "chute": "new_items",
+   "level": 2,
+   "input": {
+    "stock": [
+     {
+      "id": "coffee",
+      "rarity": 0,
+      "gu": false
+     },
+     {
+      "id": "soup",
+      "rarity": 0,
+      "gu": false
+     },
+     {
+      "id": "cheese",
+      "rarity": 0,
+      "gu": false
+     },
+     {
+      "id": "milk",
+      "rarity": 1,
+      "gu": true
+     },
+     {
+      "id": "tea_bags",
+      "rarity": 1,
+      "gu": false
+     },
+     {
+      "id": "lemon",
+      "rarity": 2,
+      "gu": false
+     },
+     {
+      "id": "carrier_bag",
+      "rarity": 2,
+      "gu": true
+     }
+    ]
+   },
+   "expected": {
+    "share": [
+     0.5619790000000001,
+     0.31859700000000035,
+     0.11942399999999949
+    ],
+    "first": [
+     0.5500000000000002,
+     0.33,
+     0.11999999999999993
+    ],
+    "rest": [
+     0.5679685,
+     0.3128955000000001,
+     0.11913599999999992
+    ],
+    "p_rare_plus": 0.833625000000001,
+    "p_legendary": 0.3185280000000004,
+    "p_short": 0,
+    "p_held": 0.833625000000001,
+    "guarded": true,
+    "in_draw": {
+     "product:coffee:0": 0.5619790000000005,
+     "product:soup:0": 0.5619790000000006,
+     "product:cheese:0": 0.5619790000000006,
+     "product:milk:1": 0.6439680000000004,
+     "product:carrier_bag:2": 0.24992099999999995,
+     "product:tea_bags:1": 0.3118230000000005,
+     "product:lemon:2": 0.10835099999999996
+    }
+   }
+  },
+  {
+   "name": "GU only Rare and Legendary · REGULAR 3",
+   "chute": "new_items",
+   "level": 3,
+   "input": {
+    "stock": [
+     {
+      "id": "coffee",
+      "rarity": 0,
+      "gu": false
+     },
+     {
+      "id": "soup",
+      "rarity": 0,
+      "gu": false
+     },
+     {
+      "id": "cheese",
+      "rarity": 0,
+      "gu": false
+     },
+     {
+      "id": "milk",
+      "rarity": 1,
+      "gu": true
+     },
+     {
+      "id": "tea_bags",
+      "rarity": 1,
+      "gu": false
+     },
+     {
+      "id": "lemon",
+      "rarity": 2,
+      "gu": false
+     },
+     {
+      "id": "carrier_bag",
+      "rarity": 2,
+      "gu": true
+     }
+    ]
+   },
+   "expected": {
+    "share": [
+     0.3306987878787883,
+     0.44374484848484835,
+     0.22555636363636322
+    ],
+    "first": [
+     0,
+     0.6727272727272727,
+     0.3272727272727271
+    ],
+    "rest": [
+     0.4960481818181818,
+     0.3292536363636364,
+     0.1746981818181818
+    ],
+    "p_rare_plus": 1.0000000000000002,
+    "p_legendary": 0.547658181818182,
+    "p_short": 0,
+    "p_held": 1.0000000000000002,
+    "guarded": true,
+    "in_draw": {
+     "product:milk:1": 0.7609763636363639,
+     "product:coffee:0": 0.33069878787878804,
+     "product:soup:0": 0.33069878787878804,
+     "product:cheese:0": 0.33069878787878804,
+     "product:tea_bags:1": 0.5702581818181819,
+     "product:lemon:2": 0.2779527272727273,
+     "product:carrier_bag:2": 0.3987163636363637
+    }
+   }
+  },
+  {
+   "name": "no Legendary, two Rare · REGULAR 0",
+   "chute": "new_items",
+   "level": 0,
+   "input": {
+    "stock": [
+     {
+      "id": "banana",
+      "rarity": 0,
+      "gu": true
+     },
+     {
+      "id": "coffee",
+      "rarity": 0,
+      "gu": false
+     },
+     {
+      "id": "soup",
+      "rarity": 0,
+      "gu": false
+     },
+     {
+      "id": "eggs",
+      "rarity": 1,
+      "gu": false
+     },
+     {
+      "id": "milk",
+      "rarity": 1,
+      "gu": true
+     }
+    ]
+   },
+   "expected": {
+    "share": [
+     0.755208333333333,
+     0.24479166666666688,
+     0
+    ],
+    "first": [
+     0.7500000000000002,
+     0.24999999999999983,
+     0
+    ],
+    "rest": [
+     0.7578124999999998,
+     0.2421875000000003,
+     0
+    ],
+    "p_rare_plus": 0.5781249999999986,
+    "p_legendary": 0,
+    "p_short": 0,
+    "p_held": 0.9999999999999969,
+    "guarded": true,
+    "in_draw": {
+     "product:banana:0": 0.8020833333333324,
+     "product:coffee:0": 0.7317708333333325,
+     "product:soup:0": 0.7317708333333321,
+     "product:eggs:1": 0.343750000000001,
+     "product:milk:1": 0.39062500000000094
+    }
+   }
+  },
+  {
+   "name": "no Legendary, two Rare · REGULAR 1",
+   "chute": "new_items",
+   "level": 1,
+   "input": {
+    "stock": [
+     {
+      "id": "banana",
+      "rarity": 0,
+      "gu": true
+     },
+     {
+      "id": "coffee",
+      "rarity": 0,
+      "gu": false
+     },
+     {
+      "id": "soup",
+      "rarity": 0,
+      "gu": false
+     },
+     {
+      "id": "eggs",
+      "rarity": 1,
+      "gu": false
+     },
+     {
+      "id": "milk",
+      "rarity": 1,
+      "gu": true
+     }
+    ]
+   },
+   "expected": {
+    "share": [
+     0.6642916666666677,
+     0.3357083333333323,
+     0
+    ],
+    "first": [
+     0.6500000000000006,
+     0.3499999999999995,
+     0
+    ],
+    "rest": [
+     0.6714374999999997,
+     0.32856250000000026,
+     0
+    ],
+    "p_rare_plus": 0.7253750000000001,
+    "p_legendary": 0,
+    "p_short": 0,
+    "p_held": 1.0000000000000002,
+    "guarded": true,
+    "in_draw": {
+     "product:banana:0": 0.7135833333333331,
+     "product:coffee:0": 0.6396458333333334,
+     "product:soup:0": 0.6396458333333334,
+     "product:eggs:1": 0.47891666666666594,
+     "product:milk:1": 0.5282083333333331
+    }
+   }
+  },
+  {
+   "name": "no Legendary, two Rare · REGULAR 2",
+   "chute": "new_items",
+   "level": 2,
+   "input": {
+    "stock": [
+     {
+      "id": "banana",
+      "rarity": 0,
+      "gu": true
+     },
+     {
+      "id": "coffee",
+      "rarity": 0,
+      "gu": false
+     },
+     {
+      "id": "soup",
+      "rarity": 0,
+      "gu": false
+     },
+     {
+      "id": "eggs",
+      "rarity": 1,
+      "gu": false
+     },
+     {
+      "id": "milk",
+      "rarity": 1,
+      "gu": true
+     }
+    ]
+   },
+   "expected": {
+    "share": [
+     0.5803750000000018,
+     0.41962499999999825,
+     0
+    ],
+    "first": [
+     0.5499999999999998,
+     0.4500000000000003,
+     0
+    ],
+    "rest": [
+     0.5955625000000002,
+     0.4044374999999996,
+     0
+    ],
+    "p_rare_plus": 0.8336250000000014,
+    "p_legendary": 0,
+    "p_short": 0,
+    "p_held": 1.000000000000002,
+    "guarded": true,
+    "in_draw": {
+     "product:banana:0": 0.6257500000000007,
+     "product:coffee:0": 0.5576875000000006,
+     "product:soup:0": 0.5576875000000006,
+     "product:eggs:1": 0.6067500000000007,
+     "product:milk:1": 0.6521250000000008
+    }
+   }
+  },
+  {
+   "name": "no Legendary, two Rare · REGULAR 3",
+   "chute": "new_items",
+   "level": 3,
+   "input": {
+    "stock": [
+     {
+      "id": "banana",
+      "rarity": 0,
+      "gu": true
+     },
+     {
+      "id": "coffee",
+      "rarity": 0,
+      "gu": false
+     },
+     {
+      "id": "soup",
+      "rarity": 0,
+      "gu": false
+     },
+     {
+      "id": "eggs",
+      "rarity": 1,
+      "gu": false
+     },
+     {
+      "id": "milk",
+      "rarity": 1,
+      "gu": true
+     }
+    ]
+   },
+   "expected": {
+    "share": [
+     0.4008333333333339,
+     0.5991666666666661,
+     0
+    ],
+    "first": [
+     0,
+     1,
+     0
+    ],
+    "rest": [
+     0.6012499999999998,
+     0.39875000000000016,
+     0
+    ],
+    "p_rare_plus": 0.9999999999999997,
+    "p_legendary": 0,
+    "p_short": 0,
+    "p_held": 0.9999999999999997,
+    "guarded": true,
+    "in_draw": {
+     "product:eggs:1": 0.8987499999999994,
+     "product:banana:0": 0.4345833333333336,
+     "product:coffee:0": 0.38395833333333357,
+     "product:soup:0": 0.38395833333333357,
+     "product:milk:1": 0.8987499999999996
+    }
+   }
+  }
+ ]
+}

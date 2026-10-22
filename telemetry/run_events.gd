@@ -1,41 +1,28 @@
 class_name RunEvents
 extends RefCounted
-## Builds the data of the run_start, run_end, run_resume, run_abandon, reward, upgrade, count_up
-## and redraw events, the card id lists (starting_deck, impulse_offer, cards_drawn, final_order)
-## and the upgrade- and inspection-related log fields (plan section 8), so they are defined and
-## tested in one place. The shift screen logs them (the title screen logs run_abandon).
+## Builds the data of the run_start, run_end, run_resume, run_abandon, machine_visit, count_up
+## and redraw events, the card id lists (starting_deck, cards_drawn, final_order) and the
+## upgrade- and inspection-related log fields (plan section 8), so they are defined and tested
+## in one place. The shift screen logs them (the title screen logs run_abandon).
 ##
-## An offer's times (`timing`) are OfferTimeline.fields(): decide_ms, presented_ms, armed_ms and
-## presentation_skipped, each in ms from the offer starting to present (a reward's printer feed,
-## #61; -1 for a moment the choice came before).
+## A machine visit's times (`timing`) are OfferTimeline.fields(): decide_ms, presented_ms,
+## armed_ms, presentation_skipped and chute_wait_ms, each in ms from the visit starting to
+## present (#77: the receipt's flight to the slot, or the bonus ticket's or STAMP DAY's start; -1
+## for a moment the choice came before); presented_ms and armed_ms leave out the chute wait (the
+## player at the chute keys, from their arming to the CONFIRM), so they are non-interactive time.
+##
+## Since v0.41 (#77) the `reward` and `upgrade` events and run_start's impulse_* fields are no
+## longer logged (the impulse rack, the print-out and the exit kiosk are gone): machine_visit
+## replaces them. tools/log_summary.py still reads older logs.
 
 
-## The `run_start` event, logged once the impulse rack is picked or skipped: the seed, the
-## starting deck (card ids, before the rack), the number of shifts, the run's stock
-## (listed_aisles, stock) and the impulse rack (full build plan section 4): the products offered
-## in offer order (empty without a rack), the one picked ("" for a skip or no rack) and the deck
-## card it replaced at the deck limit ("" for none), plus, like the reward event, the rack's times
-## (`impulse_timing`, logged as impulse_decide_ms, impulse_presented_ms, impulse_armed_ms and
-## impulse_presentation_skipped; all 0 and false when left out: no rack, or a debug replay) and
-## whether the deck view was opened (`impulse_deck_view_opened`).
-static func run_start(
-	run: RunState, impulse_timing: Dictionary = {}, impulse_deck_view_opened: bool = false
-) -> Dictionary:
-	var timing: Dictionary = impulse_timing
-	if timing.is_empty():
-		timing = OfferTimeline.new().fields(0)
+## The `run_start` event, logged when shift 1 starts: the seed, the starting deck (card ids),
+## the number of shifts and the run's stock (listed_aisles, stock).
+static func run_start(run: RunState) -> Dictionary:
 	var data: Dictionary = {
 		"seed": run.run_seed,
 		"starting_deck": definition_ids(run.starter.cards),
 		"shift_count": run.shift_count(),
-		"impulse_offer": definition_ids(run.impulse_offer),
-		"impulse_pick": _id_or_empty(run.impulse_pick),
-		"impulse_replaced": _id_or_empty(run.impulse_replaced),
-		"impulse_decide_ms": timing["decide_ms"],
-		"impulse_presented_ms": timing["presented_ms"],
-		"impulse_armed_ms": timing["armed_ms"],
-		"impulse_presentation_skipped": timing["presentation_skipped"],
-		"impulse_deck_view_opened": impulse_deck_view_opened,
 	}
 	return data.merged(run.stock.to_dictionary())
 
@@ -54,7 +41,7 @@ static func run_end(run: RunState, run_ms: int) -> Dictionary:
 
 ## The `run_resume` event, logged under the saved run's id when a saved run continues (full
 ## build plan section 4): the shift (1-based), the save point it continues from (RunSave's
-## phase names: impulse_rack, planning, reward, upgrade) and the played time so far.
+## phase names: planning, machine, machine_pick, scored) and the played time so far.
 static func run_resume(run: RunState, run_ms: int) -> Dictionary:
 	return {"shift": run.shift_index + 1, "phase": RunSave.phase_name(run.phase), "run_ms": run_ms}
 
@@ -66,44 +53,75 @@ static func run_abandon(run: RunState, run_ms: int) -> Dictionary:
 	return {"shift": run.shift_index + 1, "phase": RunSave.phase_name(run.phase), "run_ms": run_ms}
 
 
-## The `reward` event: the shift (1-based), the cards offered (ids, in offer order), the one
-## picked ("" for a skip), whether it was skipped, the deck card it replaced at the deck limit (""
-## for none), the offer's times (`timing`) and whether the player chose to open the deck view.
-static func reward(
-	shift: int,
-	offered: Array[CardDefinition],
-	picked: CardDefinition,
-	replaced: CardInstance,
-	timing: Dictionary,
-	deck_view_opened: bool
+## The `machine_visit` event (#77), logged at each pick or bin of a RECEIPT REWARDS visit,
+## once RewardMachine.pick or bin has recorded `visit` (the run's last record holds it): the
+## shift (1-based), the visit's index in the shift (0: the ticket), its kind (ticket, bonus,
+## stamp_day), the inspection that earned a bonus ticket ("" otherwise), the chute, its Regular
+## level before and every chute's level after (new_items, coupons, register, upgrades), whether
+## the meter rose, the odds shown (`odds`: the chosen chute's card, or STAMP DAY's REGISTER card:
+## each rarity's % per drop, P(at least one RARE or better) and P(a LEGENDARY), in %), whether the
+## draw held its guarantee, the card's fallback notes, the chutes whose odds card was opened, in
+## order, the prizes offered ({kind, id, rarity}, reveal order), the reveal index picked (-1 for
+## a bin), whether it was binned, the cart card it replaced, the upgraded copies
+## ([instance id, from, to]), the cart size after it, whether the cart was full at the pick, the
+## registers owned, whether the visit was resumed from a save, and the visit's times (`timing`).
+static func machine_visit(
+	run: RunState,
+	visit: MachineVisit,
+	odds: MachineOddsCard,
+	chutes_viewed: Array[int],
+	cart_full_at_pick: bool,
+	resumed: bool,
+	timing: Dictionary
 ) -> Dictionary:
+	var record: ShiftRecord = run.history[-1]
+	var data: Dictionary = visit.to_dictionary()
 	return {
-		"shift": shift,
-		"offered": definition_ids(offered),
-		"picked": _id_or_empty(picked),
-		"skipped": picked == null,
-		"replaced": String(replaced.definition.id) if replaced != null else "",
+		"shift": record.shift,
+		"visit_index": record.visits.find(visit),
+		"kind": data["kind"],
+		"inspection": visit.why if visit.kind == MachineVisit.Kind.BONUS else "",
+		"chute": data["chute"],
+		"level_before": visit.level_before,
+		"levels": Array(run.machine.levels),
+		"meter_rose": visit.meter_rose,
+		"odds_shown": odds_fields(odds),
+		"guarantee_held": visit.guarantee_held,
+		"fallback":
+		(
+			Array(odds.notes).map(func(note: StringName) -> String: return String(note))
+			if odds != null
+			else []
+		),
+		"chutes_viewed":
+		chutes_viewed.map(func(chute: int) -> String: return MachineVisit.CHUTE_NAMES[chute]),
+		"offered": data["prizes"],
+		"picked": visit.picked,
+		"binned": visit.binned,
+		"replaced": data["replaced"],
+		"upgraded": data["upgraded"],
+		"cart_size": run.deck.size(),
+		"cart_full_at_pick": cart_full_at_pick,
+		"registers_owned": run.upgrades.size(),
+		"resumed": resumed,
 		"decide_ms": timing["decide_ms"],
 		"presented_ms": timing["presented_ms"],
 		"armed_ms": timing["armed_ms"],
 		"presentation_skipped": timing["presentation_skipped"],
-		"deck_view_opened": deck_view_opened,
+		"chute_wait_ms": timing["chute_wait_ms"],
 	}
 
 
-## The `upgrade` event: the shift (1-based), the upgrades offered (ids, in offer order), the
-## one picked, and the tickets' times (`timing`, like the reward event's).
-static func upgrade_pick(
-	shift: int, offered: Array[UpgradeDefinition], picked: UpgradeDefinition, timing: Dictionary
-) -> Dictionary:
+## An odds card as logged (`odds_shown`): each rarity's % per drop as printed (COMMON, RARE,
+## LEGENDARY), P(at least one RARE or better) and P(a LEGENDARY), in %, rounded to 0.1. Empty for
+## none.
+static func odds_fields(odds: MachineOddsCard) -> Dictionary:
+	if odds == null:
+		return {}
 	return {
-		"shift": shift,
-		"offered": upgrade_ids(offered),
-		"picked": String(picked.id),
-		"decide_ms": timing["decide_ms"],
-		"presented_ms": timing["presented_ms"],
-		"armed_ms": timing["armed_ms"],
-		"presentation_skipped": timing["presentation_skipped"],
+		"rarity_pct": Array(odds.rarity_share).map(func(share: float) -> float: return _pct(share)),
+		"p_rare_plus": _pct(odds.p_rare_plus),
+		"p_legendary": _pct(odds.p_legendary),
 	}
 
 
@@ -180,7 +198,7 @@ static func card_ids(cards: Array[CardInstance]) -> Array:
 	return ids
 
 
-## Card definition ids in order (`starting_deck`, `impulse_offer`).
+## Card definition ids in order (`starting_deck`).
 static func definition_ids(cards: Array[CardDefinition]) -> Array:
 	var ids: Array = []
 	for card: CardDefinition in cards:
@@ -188,11 +206,11 @@ static func definition_ids(cards: Array[CardDefinition]) -> Array:
 	return ids
 
 
-static func _id_or_empty(card: CardDefinition) -> String:
-	return String(card.id) if card != null else ""
+static func _pct(share: float) -> float:
+	return snappedf(share * 100.0, 0.1)
 
 
-## Upgrade ids in order, as logged (`offered` in `upgrade`, `upgrades` in `run_end`).
+## Upgrade ids in order, as logged (`upgrades` in `run_end`).
 static func upgrade_ids(upgrades: Array[UpgradeDefinition]) -> Array:
 	var ids: Array = []
 	for upgrade: UpgradeDefinition in upgrades:

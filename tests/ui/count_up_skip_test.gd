@@ -63,7 +63,7 @@ func test_a_tap_speeds_the_count_to_the_verdict() -> void:
 	_place_row(screen)
 	await screen._on_checkout_pressed()
 	var untouched: int = int(_last_event("count_up")["count_up_ms"])
-	screen._on_reward_skipped()
+	screen._machine.debug_skip()
 	_place_row(screen)
 	screen._on_checkout_pressed()
 	await _frames(3)
@@ -127,7 +127,7 @@ func test_the_checkout_click_is_neither_a_tap_nor_a_hold() -> void:
 	assert_bool(quick["skip_used"]).is_false()
 	assert_bool(quick["fast_forward_used"]).is_false()
 
-	screen._on_reward_skipped()
+	screen._machine.debug_skip()
 	_place_row(screen)
 	_runner.simulate_mouse_button_press(MOUSE_BUTTON_LEFT)
 	screen._on_checkout_pressed()
@@ -188,7 +188,7 @@ func test_a_press_on_a_disabled_button_counts() -> void:
 	assert_bool(tapped["skip_used"]).is_true()
 	assert_bool(tapped["fast_forward_used"]).is_false()
 
-	screen._on_reward_skipped()
+	screen._machine.debug_skip()
 	_place_row(screen)
 	screen._on_checkout_pressed()
 	await _frames(2)
@@ -261,7 +261,7 @@ func test_a_press_and_release_in_one_frame_is_a_tap() -> void:
 	assert_bool(key["fast_forward_used"]).is_false()
 	await _assert_full_receipt(screen)
 
-	screen._on_reward_skipped()
+	screen._machine.debug_skip()
 	_runner.set_mouse_position(screen._receipt.get_global_rect().get_center())
 	_place_row(screen)
 	screen._on_checkout_pressed()
@@ -411,7 +411,6 @@ func _screen() -> ShiftScreen:
 	_runner = scene_runner(SCREEN)
 	Rush.speed_up(_runner, TIME_FACTOR)
 	var screen: ShiftScreen = _runner.scene()
-	screen._on_reward_skipped()  # Past the impulse rack.
 	await _frames(2)
 	return screen
 

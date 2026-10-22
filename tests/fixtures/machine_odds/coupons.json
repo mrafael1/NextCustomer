@@ -1,0 +1,684 @@
+{
+ "about": "COUPONS, the first draw with the first_offer_pool guarantee and a later draw",
+ "generated_by": "tests/fixtures/machine_odds/make_fixtures.js",
+ "odds": [
+  [
+   75,
+   22,
+   3
+  ],
+  [
+   65,
+   28,
+   7
+  ],
+  [
+   55,
+   33,
+   12
+  ],
+  [
+   45,
+   37,
+   18
+  ]
+ ],
+ "states": [
+  {
+   "name": "COUPONS first draw · REGULAR 0",
+   "chute": "coupons",
+   "level": 0,
+   "input": {
+    "coupons": [
+     {
+      "id": "final_markdown",
+      "rarity": 0,
+      "first_offer": false
+     },
+     {
+      "id": "breakfast_sticker",
+      "rarity": 0,
+      "first_offer": true
+     },
+     {
+      "id": "clearance_tag",
+      "rarity": 0,
+      "first_offer": false
+     },
+     {
+      "id": "shelf_swap",
+      "rarity": 0,
+      "first_offer": false
+     },
+     {
+      "id": "repeat",
+      "rarity": 1,
+      "first_offer": false
+     },
+     {
+      "id": "two_for_one",
+      "rarity": 1,
+      "first_offer": true
+     },
+     {
+      "id": "multipack",
+      "rarity": 1,
+      "first_offer": true
+     },
+     {
+      "id": "opening_deal",
+      "rarity": 2,
+      "first_offer": false
+     }
+    ],
+    "first": true
+   },
+   "expected": {
+    "share": [
+     0.7499999999999972,
+     0.22089100000000253,
+     0.02910900000000008
+    ],
+    "first": [
+     0.7499999999999999,
+     0.22000000000000014,
+     0.029999999999999992
+    ],
+    "rest": [
+     0.7499999999999996,
+     0.22133650000000038,
+     0.028663500000000012
+    ],
+    "p_rare_plus": 0.578125,
+    "p_legendary": 0.08732699999999999,
+    "p_short": 0,
+    "p_held": 1.000000000000001,
+    "guarded": true,
+    "in_draw": {
+     "coupon:final_markdown:0": 0.5038624999999998,
+     "coupon:breakfast_sticker:0": 0.7384125000000008,
+     "coupon:clearance_tag:0": 0.5038624999999997,
+     "coupon:shelf_swap:0": 0.5038624999999997,
+     "coupon:repeat:1": 0.1962160000000001,
+     "coupon:two_for_one:1": 0.23322850000000026,
+     "coupon:multipack:1": 0.23322850000000026,
+     "coupon:opening_deal:2": 0.08732699999999999
+    }
+   }
+  },
+  {
+   "name": "COUPONS first draw · REGULAR 1",
+   "chute": "coupons",
+   "level": 1,
+   "input": {
+    "coupons": [
+     {
+      "id": "final_markdown",
+      "rarity": 0,
+      "first_offer": false
+     },
+     {
+      "id": "breakfast_sticker",
+      "rarity": 0,
+      "first_offer": true
+     },
+     {
+      "id": "clearance_tag",
+      "rarity": 0,
+      "first_offer": false
+     },
+     {
+      "id": "shelf_swap",
+      "rarity": 0,
+      "first_offer": false
+     },
+     {
+      "id": "repeat",
+      "rarity": 1,
+      "first_offer": false
+     },
+     {
+      "id": "two_for_one",
+      "rarity": 1,
+      "first_offer": true
+     },
+     {
+      "id": "multipack",
+      "rarity": 1,
+      "first_offer": true
+     },
+     {
+      "id": "opening_deal",
+      "rarity": 2,
+      "first_offer": false
+     }
+    ],
+    "first": true
+   },
+   "expected": {
+    "share": [
+     0.6499999999999989,
+     0.28478566666666744,
+     0.06521433333333373
+    ],
+    "first": [
+     0.6499999999999999,
+     0.27999999999999997,
+     0.07000000000000012
+    ],
+    "rest": [
+     0.6500000000000015,
+     0.28717849999999856,
+     0.0628215
+    ],
+    "p_rare_plus": 0.725374999999998,
+    "p_legendary": 0.19564299999999946,
+    "p_short": 0,
+    "p_held": 0.9999999999999987,
+    "guarded": true,
+    "in_draw": {
+     "coupon:final_markdown:0": 0.4332322222222217,
+     "coupon:breakfast_sticker:0": 0.6503033333333323,
+     "coupon:clearance_tag:0": 0.4332322222222217,
+     "coupon:shelf_swap:0": 0.4332322222222216,
+     "coupon:repeat:1": 0.2539215000000001,
+     "coupon:two_for_one:1": 0.30021775,
+     "coupon:multipack:1": 0.30021775000000006,
+     "coupon:opening_deal:2": 0.19564299999999946
+    }
+   }
+  },
+  {
+   "name": "COUPONS first draw · REGULAR 2",
+   "chute": "coupons",
+   "level": 2,
+   "input": {
+    "coupons": [
+     {
+      "id": "final_markdown",
+      "rarity": 0,
+      "first_offer": false
+     },
+     {
+      "id": "breakfast_sticker",
+      "rarity": 0,
+      "first_offer": true
+     },
+     {
+      "id": "clearance_tag",
+      "rarity": 0,
+      "first_offer": false
+     },
+     {
+      "id": "shelf_swap",
+      "rarity": 0,
+      "first_offer": false
+     },
+     {
+      "id": "repeat",
+      "rarity": 1,
+      "first_offer": false
+     },
+     {
+      "id": "two_for_one",
+      "rarity": 1,
+      "first_offer": true
+     },
+     {
+      "id": "multipack",
+      "rarity": 1,
+      "first_offer": true
+     },
+     {
+      "id": "opening_deal",
+      "rarity": 2,
+      "first_offer": false
+     }
+    ],
+    "first": true
+   },
+   "expected": {
+    "share": [
+     0.5500000000000007,
+     0.3438239999999997,
+     0.10617599999999966
+    ],
+    "first": [
+     0.55,
+     0.3300000000000001,
+     0.11999999999999969
+    ],
+    "rest": [
+     0.5500000000000004,
+     0.35073599999999966,
+     0.09926399999999992
+    ],
+    "p_rare_plus": 0.8336250000000025,
+    "p_legendary": 0.31852800000000075,
+    "p_short": 0,
+    "p_held": 1.0000000000000027,
+    "guarded": true,
+    "in_draw": {
+     "coupon:final_markdown:0": 0.3632887500000006,
+     "coupon:breakfast_sticker:0": 0.5601337500000015,
+     "coupon:clearance_tag:0": 0.36328875000000066,
+     "coupon:shelf_swap:0": 0.36328875000000066,
+     "coupon:repeat:1": 0.3068915000000005,
+     "coupon:two_for_one:1": 0.36229025000000065,
+     "coupon:multipack:1": 0.3622902500000007,
+     "coupon:opening_deal:2": 0.31852800000000075
+    }
+   }
+  },
+  {
+   "name": "COUPONS first draw · REGULAR 3",
+   "chute": "coupons",
+   "level": 3,
+   "input": {
+    "coupons": [
+     {
+      "id": "final_markdown",
+      "rarity": 0,
+      "first_offer": false
+     },
+     {
+      "id": "breakfast_sticker",
+      "rarity": 0,
+      "first_offer": true
+     },
+     {
+      "id": "clearance_tag",
+      "rarity": 0,
+      "first_offer": false
+     },
+     {
+      "id": "shelf_swap",
+      "rarity": 0,
+      "first_offer": false
+     },
+     {
+      "id": "repeat",
+      "rarity": 1,
+      "first_offer": false
+     },
+     {
+      "id": "two_for_one",
+      "rarity": 1,
+      "first_offer": true
+     },
+     {
+      "id": "multipack",
+      "rarity": 1,
+      "first_offer": true
+     },
+     {
+      "id": "opening_deal",
+      "rarity": 2,
+      "first_offer": false
+     }
+    ],
+    "first": true
+   },
+   "expected": {
+    "share": [
+     0.3000000000000003,
+     0.5174472727272725,
+     0.18255272727272706
+    ],
+    "first": [
+     0,
+     0.6727272727272728,
+     0.32727272727272716
+    ],
+    "rest": [
+     0.4500000000000004,
+     0.4398072727272723,
+     0.11019272727272728
+    ],
+    "p_rare_plus": 1.0000000000000002,
+    "p_legendary": 0.5476581818181818,
+    "p_short": 0,
+    "p_held": 1.0000000000000002,
+    "guarded": true,
+    "in_draw": {
+     "coupon:repeat:1": 0.4971972727272726,
+     "coupon:final_markdown:0": 0.1905545454545454,
+     "coupon:breakfast_sticker:0": 0.32833636363636354,
+     "coupon:two_for_one:1": 0.5275722727272726,
+     "coupon:multipack:1": 0.5275722727272726,
+     "coupon:opening_deal:2": 0.5476581818181818,
+     "coupon:clearance_tag:0": 0.19055454545454542,
+     "coupon:shelf_swap:0": 0.19055454545454542
+    }
+   }
+  },
+  {
+   "name": "COUPONS later draw · REGULAR 0",
+   "chute": "coupons",
+   "level": 0,
+   "input": {
+    "coupons": [
+     {
+      "id": "final_markdown",
+      "rarity": 0,
+      "first_offer": false
+     },
+     {
+      "id": "breakfast_sticker",
+      "rarity": 0,
+      "first_offer": true
+     },
+     {
+      "id": "clearance_tag",
+      "rarity": 0,
+      "first_offer": false
+     },
+     {
+      "id": "shelf_swap",
+      "rarity": 0,
+      "first_offer": false
+     },
+     {
+      "id": "repeat",
+      "rarity": 1,
+      "first_offer": false
+     },
+     {
+      "id": "two_for_one",
+      "rarity": 1,
+      "first_offer": true
+     },
+     {
+      "id": "multipack",
+      "rarity": 1,
+      "first_offer": true
+     },
+     {
+      "id": "opening_deal",
+      "rarity": 2,
+      "first_offer": false
+     }
+    ],
+    "first": false
+   },
+   "expected": {
+    "share": [
+     0.7499999999999976,
+     0.22089100000000236,
+     0.029109000000000086
+    ],
+    "first": [
+     0.75,
+     0.22000000000000006,
+     0.02999999999999997
+    ],
+    "rest": [
+     0.7499999999999998,
+     0.22133650000000035,
+     0.028663500000000036
+    ],
+    "p_rare_plus": 0.5781249999999999,
+    "p_legendary": 0.08732699999999996,
+    "p_short": 0,
+    "p_held": 0,
+    "guarded": false,
+    "in_draw": {
+     "coupon:final_markdown:0": 0.5625000000000004,
+     "coupon:breakfast_sticker:0": 0.5625000000000002,
+     "coupon:clearance_tag:0": 0.5625000000000001,
+     "coupon:shelf_swap:0": 0.5624999999999999,
+     "coupon:repeat:1": 0.22089100000000023,
+     "coupon:two_for_one:1": 0.22089100000000028,
+     "coupon:multipack:1": 0.22089100000000025,
+     "coupon:opening_deal:2": 0.08732699999999996
+    }
+   }
+  },
+  {
+   "name": "COUPONS later draw · REGULAR 1",
+   "chute": "coupons",
+   "level": 1,
+   "input": {
+    "coupons": [
+     {
+      "id": "final_markdown",
+      "rarity": 0,
+      "first_offer": false
+     },
+     {
+      "id": "breakfast_sticker",
+      "rarity": 0,
+      "first_offer": true
+     },
+     {
+      "id": "clearance_tag",
+      "rarity": 0,
+      "first_offer": false
+     },
+     {
+      "id": "shelf_swap",
+      "rarity": 0,
+      "first_offer": false
+     },
+     {
+      "id": "repeat",
+      "rarity": 1,
+      "first_offer": false
+     },
+     {
+      "id": "two_for_one",
+      "rarity": 1,
+      "first_offer": true
+     },
+     {
+      "id": "multipack",
+      "rarity": 1,
+      "first_offer": true
+     },
+     {
+      "id": "opening_deal",
+      "rarity": 2,
+      "first_offer": false
+     }
+    ],
+    "first": false
+   },
+   "expected": {
+    "share": [
+     0.6499999999999987,
+     0.2847856666666676,
+     0.06521433333333373
+    ],
+    "first": [
+     0.6499999999999999,
+     0.27999999999999997,
+     0.0700000000000001
+    ],
+    "rest": [
+     0.6500000000000015,
+     0.2871784999999985,
+     0.06282150000000003
+    ],
+    "p_rare_plus": 0.7253749999999979,
+    "p_legendary": 0.19564299999999935,
+    "p_short": 0,
+    "p_held": 0,
+    "guarded": false,
+    "in_draw": {
+     "coupon:final_markdown:0": 0.48749999999999943,
+     "coupon:breakfast_sticker:0": 0.4874999999999994,
+     "coupon:clearance_tag:0": 0.4874999999999995,
+     "coupon:shelf_swap:0": 0.48749999999999943,
+     "coupon:repeat:1": 0.28478566666666677,
+     "coupon:two_for_one:1": 0.28478566666666677,
+     "coupon:multipack:1": 0.28478566666666694,
+     "coupon:opening_deal:2": 0.19564299999999935
+    }
+   }
+  },
+  {
+   "name": "COUPONS later draw · REGULAR 2",
+   "chute": "coupons",
+   "level": 2,
+   "input": {
+    "coupons": [
+     {
+      "id": "final_markdown",
+      "rarity": 0,
+      "first_offer": false
+     },
+     {
+      "id": "breakfast_sticker",
+      "rarity": 0,
+      "first_offer": true
+     },
+     {
+      "id": "clearance_tag",
+      "rarity": 0,
+      "first_offer": false
+     },
+     {
+      "id": "shelf_swap",
+      "rarity": 0,
+      "first_offer": false
+     },
+     {
+      "id": "repeat",
+      "rarity": 1,
+      "first_offer": false
+     },
+     {
+      "id": "two_for_one",
+      "rarity": 1,
+      "first_offer": true
+     },
+     {
+      "id": "multipack",
+      "rarity": 1,
+      "first_offer": true
+     },
+     {
+      "id": "opening_deal",
+      "rarity": 2,
+      "first_offer": false
+     }
+    ],
+    "first": false
+   },
+   "expected": {
+    "share": [
+     0.5500000000000005,
+     0.34382399999999985,
+     0.10617599999999967
+    ],
+    "first": [
+     0.55,
+     0.3300000000000001,
+     0.11999999999999969
+    ],
+    "rest": [
+     0.5500000000000005,
+     0.3507359999999997,
+     0.09926399999999991
+    ],
+    "p_rare_plus": 0.8336250000000025,
+    "p_legendary": 0.3185280000000007,
+    "p_short": 0,
+    "p_held": 0,
+    "guarded": false,
+    "in_draw": {
+     "coupon:final_markdown:0": 0.41250000000000064,
+     "coupon:breakfast_sticker:0": 0.41250000000000075,
+     "coupon:clearance_tag:0": 0.41250000000000075,
+     "coupon:shelf_swap:0": 0.4125000000000008,
+     "coupon:repeat:1": 0.3438240000000006,
+     "coupon:two_for_one:1": 0.3438240000000007,
+     "coupon:multipack:1": 0.34382400000000063,
+     "coupon:opening_deal:2": 0.3185280000000007
+    }
+   }
+  },
+  {
+   "name": "COUPONS later draw · REGULAR 3",
+   "chute": "coupons",
+   "level": 3,
+   "input": {
+    "coupons": [
+     {
+      "id": "final_markdown",
+      "rarity": 0,
+      "first_offer": false
+     },
+     {
+      "id": "breakfast_sticker",
+      "rarity": 0,
+      "first_offer": true
+     },
+     {
+      "id": "clearance_tag",
+      "rarity": 0,
+      "first_offer": false
+     },
+     {
+      "id": "shelf_swap",
+      "rarity": 0,
+      "first_offer": false
+     },
+     {
+      "id": "repeat",
+      "rarity": 1,
+      "first_offer": false
+     },
+     {
+      "id": "two_for_one",
+      "rarity": 1,
+      "first_offer": true
+     },
+     {
+      "id": "multipack",
+      "rarity": 1,
+      "first_offer": true
+     },
+     {
+      "id": "opening_deal",
+      "rarity": 2,
+      "first_offer": false
+     }
+    ],
+    "first": false
+   },
+   "expected": {
+    "share": [
+     0.3000000000000002,
+     0.5174472727272726,
+     0.182552727272727
+    ],
+    "first": [
+     0,
+     0.6727272727272728,
+     0.32727272727272716
+    ],
+    "rest": [
+     0.45000000000000046,
+     0.4398072727272724,
+     0.1101927272727272
+    ],
+    "p_rare_plus": 1.0000000000000009,
+    "p_legendary": 0.5476581818181817,
+    "p_short": 0,
+    "p_held": 0,
+    "guarded": false,
+    "in_draw": {
+     "coupon:repeat:1": 0.5174472727272724,
+     "coupon:final_markdown:0": 0.22499999999999995,
+     "coupon:breakfast_sticker:0": 0.22499999999999995,
+     "coupon:clearance_tag:0": 0.22499999999999995,
+     "coupon:shelf_swap:0": 0.22499999999999998,
+     "coupon:two_for_one:1": 0.5174472727272724,
+     "coupon:multipack:1": 0.5174472727272726,
+     "coupon:opening_deal:2": 0.5476581818181817
+    }
+   }
+  }
+ ]
+}

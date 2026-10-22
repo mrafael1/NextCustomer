@@ -111,6 +111,31 @@ func test_search_respects_inspections_and_keeps_their_cache_apart() -> void:
 	assert_int(again.score).is_equal(12)
 
 
+## A best order is never reused under another product slot change (#77 S1 fix): Slot engine's
+## product moves with Big basket's extra slot, though Big basket has no rules of its own.
+func test_cache_keeps_slot_changes_apart() -> void:
+	var rule: NthProductMultiplierRule = NthProductMultiplierRule.new()
+	rule.product_number = 6
+	rule.factor = 2
+	rule.follows_slot_changes = true
+	var engine: UpgradeDefinition = UpgradeDefinition.new()
+	engine.id = &"test_slot_engine"
+	var rules: Array[UpgradeRule] = [rule]
+	engine.rules = rules
+	var basket: UpgradeDefinition = UpgradeDefinition.new()
+	basket.id = &"test_big_basket"
+	basket.extra_slots = 1
+	var with_engine: Array[UpgradeDefinition] = [engine]
+	var with_both: Array[UpgradeDefinition] = [engine, basket]
+	var hand_ids: String = "banana,bread,milk,eggs,cheese,soup"
+	var search: SimRowSearch = SimRowSearch.new(_balance(6, 1))
+	var engine_best: int = search.search(_cards(hand_ids), with_engine).score
+	var both_best: int = search.search(_cards(hand_ids), with_both).score
+	var fresh: SimRowSearch = SimRowSearch.new(_balance(6, 1))
+	assert_int(both_best).is_equal(fresh.search(_cards(hand_ids), with_both).score)
+	assert_int(both_best).is_less(engine_best)
+
+
 ## The player plays inspected shifts under their inspection: its own check (the checkout total
 ## equals the searched best) would print an error otherwise, and tools/test.sh fails on it.
 func test_the_player_plays_inspected_shifts() -> void:
@@ -135,66 +160,126 @@ func test_skip_strategy_keeps_the_starting_deck() -> void:
 	deck.sort()
 	assert_array(deck).is_equal(["banana", "banana", "bread", "eggs", "milk", "repeat"])
 	for shift: Dictionary in record.shifts:
-		assert_str(shift["card_picked"]).is_empty()
+		for visit: Dictionary in shift["visits"]:
+			if visit["chute"] == "new_items" or visit["chute"] == "coupons":
+				assert_bool(visit["binned"]).is_true()
 
 
 func test_favour_strategy_takes_a_favoured_card_when_offered() -> void:
 	var record: SimRunRecord = _player("favour:multipack").play(9)
-	# The first offer always holds the first-offer pool's only card, Multipack.
-	assert_str(record.shifts[0]["card_picked"]).is_equal("multipack")
+	# The first COUPONS draw always holds the first-offer pool's only card, Multipack: the
+	# favouring player chooses that chute from its odds card and takes it.
+	var visit: Dictionary = record.shifts[0]["visits"][0]
+	assert_str(visit["chute"]).is_equal("coupons")
+	assert_str(visit["prizes"][int(visit["picked"])]["id"]).is_equal("multipack")
 
 
-## The simulator meets the impulse rack as the game does and picks it like a reward: skip
-## skips it, random always takes a product, and the record keeps the pick.
-func test_the_player_picks_the_impulse_rack_like_a_reward() -> void:
-	var skip: SimRunRecord = _player("skip", [], 3).play(3)
-	assert_bool(skip.impulse_offered).is_true()
-	assert_str(skip.impulse_pick).is_empty()
-	for seed_value: int in range(1, 6):
-		var picked: SimRunRecord = _player("random", [], 3).play(seed_value)
-		assert_bool(picked.impulse_offered).is_true()
-		(
-			assert_bool(["banana", "bread", "eggs", "milk", "cheese"].has(picked.impulse_pick))
-			. is_true()
-		)
-		var copy: SimRunRecord = SimRunRecord.from_dictionary(
-			JSON.parse_string(JSON.stringify(picked.to_dictionary()))
-		)
-		assert_str(copy.impulse_pick).is_equal(picked.impulse_pick)
-	# A skipped rack survives the JSON merge too.
-	var skip_copy: SimRunRecord = SimRunRecord.from_dictionary(
-		JSON.parse_string(JSON.stringify(skip.to_dictionary()))
-	)
-	assert_bool(skip_copy.impulse_offered).is_true()
-	assert_str(skip_copy.impulse_pick).is_empty()
-	# favour takes its card whenever the rack shows it.
-	var cheese_seen: bool = false
-	for seed_value: int in range(1, 30):
-		var player: SimPlayer = _player("favour:cheese", [], 3)
-		var record: SimRunRecord = player.play(seed_value)
-		var offered: bool = _rack_offer(seed_value, 3).has(&"cheese")
-		cheese_seen = cheese_seen or offered
-		if offered:
-			assert_str(record.impulse_pick).is_equal("cheese")
-	assert_bool(cheese_seen).is_true()
-	# greedy meets the rack too: a stocked product or a skip.
-	var greedy: SimRunRecord = _player("greedy", [], 3).play(6)
-	assert_bool(greedy.impulse_offered).is_true()
-	(
-		assert_bool(["", "banana", "bread", "eggs", "milk", "cheese"].has(greedy.impulse_pick))
-		. is_true()
-	)
-	var random: SimRunRecord = _player("random", [], 3).play(1)
+## #77: the simulator plays every machine visit the run gets, the ticket's, the inspected
+## shift's BONUS and STAMP DAY's, through the real machine: each visit is picked or binned, the
+## register cap holds, and the record lists every visit (surviving the JSON merge).
+func test_the_player_plays_every_visit() -> void:
+	var kinds: Dictionary = {}
+	for strategy: String in ["greedy", "random", "skip"]:
+		for seed_value: int in range(1, 6):
+			var record: SimRunRecord = _player(strategy, [2]).play(seed_value)
+			var registers: int = 0
+			for index: int in range(record.shifts.size()):
+				var shift: Dictionary = record.shifts[index]
+				var visits: Array = shift["visits"]
+				var last: bool = index == record.shifts.size() - 1
+				if shift["passed"] and not last:
+					assert_int(visits.size()).is_greater(0)
+				for visit: Dictionary in visits:
+					kinds[visit["kind"]] = true
+					assert_bool(int(visit["picked"]) >= 0 or visit["binned"]).is_true()
+					var picked: int = int(visit["picked"])
+					if picked >= 0 and visit["prizes"][picked]["kind"] == "register":
+						registers += 1
+			assert_int(registers).is_less_equal(3)
+			var copy: SimRunRecord = SimRunRecord.from_dictionary(
+				JSON.parse_string(JSON.stringify(record.to_dictionary()))
+			)
+			assert_array(copy.shifts).is_equal(record.shifts)
+	assert_bool(kinds.has("ticket")).is_true()
+	assert_bool(kinds.has("bonus")).is_true()
+	assert_bool(kinds.has("stamp_day")).is_true()
 	var summary: SimSummary = SimSummary.new("test", PackedInt32Array([5, 8, 12]))
-	summary.add(skip)
-	summary.add(random)
-	assert_int(summary.impulse_skips).is_equal(1)
-	assert_dict(summary.impulse_picks).is_equal({random.impulse_pick: 1})
-	assert_str(summary.format()).contains(
-		"Impulse rack picks: %s 1, skipped 1" % random.impulse_pick
+	summary.add(_player("skip").play(3))
+	assert_int(summary.skips).is_greater(0)
+	assert_str(summary.format()).contains("Machine chutes: new_items")
+
+
+## The chute is chosen from the odds cards alone: the same run state chooses the same chute
+## whatever the machine would drop (the drop depends on the run's RNG, the odds don't). Greedy
+## chooses the lit chute whose draw is worth most (S1).
+func test_the_chute_choice_never_reads_the_drops() -> void:
+	var player: SimPlayer = _player("greedy")
+	var run: RunState = RunState.new(4, player._starter, player._balance, player._stock)
+	run.start_shift()
+	for card: CardInstance in run.hand():
+		run.place(card, run.row.size())
+	run.checkout()
+	assert_int(run.phase).is_equal(RunState.Phase.MACHINE_CHOOSE)
+	var usage: Dictionary[CardDefinition, int] = {}
+	var chosen: int = player._choose_chute(run, usage)
+	player._values.clear()
+	run.rng_state = 12345
+	assert_int(player._choose_chute(run, usage)).is_equal(chosen)
+	var best: int = -1
+	var best_value: float = -INF
+	for chute: int in RewardMachine.CHUTES:
+		var info: MachineChuteInfo = run.machine.chute_info(run, chute)
+		if info.state != RewardMachine.ChuteState.OPEN:
+			continue
+		var value: float = player._chute_value(run, usage, chute, info.odds)
+		if value > best_value:
+			best_value = value
+			best = chute
+	assert_int(chosen).is_equal(best)
+	assert_float(best_value).is_greater_equal(0.0)
+
+
+## The expected best of a draw: the best prize drawn counts, each weighted by its chance and the
+## chance that no better one is drawn.
+func test_expected_best_weights_the_best_drawn_prize() -> void:
+	var gains: Array[float] = [0.0, 10.0, 5.0]
+	var chances: Array[float] = [1.0, 0.5, 0.5]
+	# 10 half the time, else 5 half the time, else 0: 5 + 1.25.
+	assert_float(SimPlayer.expected_best(gains, chances)).is_equal_approx(6.25, 0.0001)
+	var none: Array[float] = []
+	assert_float(SimPlayer.expected_best(none, none)).is_equal(0.0)
+	var one: Array[float] = [4.0]
+	var half: Array[float] = [0.5]
+	assert_float(SimPlayer.expected_best(one, half)).is_equal_approx(4.0, 0.0001)
+
+
+## The record and the summary report the machine (S1): registers, Regular levels, BIG / GOLDEN
+## copies, visits by kind and the bin rate.
+func test_records_and_summary_report_the_machine() -> void:
+	var record: SimRunRecord = _player("greedy", [2]).play(2)
+	assert_int(record.levels.size()).is_equal(RewardMachine.CHUTES.size())
+	var registers: int = 0
+	for shift: Dictionary in record.shifts:
+		for visit: Dictionary in shift["visits"]:
+			var picked: int = int(visit["picked"])
+			if picked >= 0 and visit["prizes"][picked]["kind"] == "register":
+				registers += 1
+	assert_int(record.registers).is_equal(registers)
+	var copy: SimRunRecord = SimRunRecord.from_dictionary(
+		JSON.parse_string(JSON.stringify(record.to_dictionary()))
 	)
-	# Without a rack (impulse_rack_size 0) nothing is offered.
-	assert_bool(_player("random").play(1).impulse_offered).is_false()
+	assert_dict(copy.to_dictionary()).is_equal(record.to_dictionary())
+	record.tier_copies = {"milk_golden": 2, "banana_big": 1}
+	var summary: SimSummary = SimSummary.new("test", PackedInt32Array([5, 8, 12]))
+	summary.add(record)
+	var text: String = summary.format()
+	assert_str(text).contains("GOLDEN Milk per run: 2.00")
+	assert_str(text).contains("BIG / GOLDEN copies per run: milk_golden 2.00, banana_big 1.00")
+	assert_str(text).contains("Registers owned (runs): ")
+	assert_str(text).contains("Regular levels at the end (runs): new_items ")
+	assert_str(text).contains("Machine visits per run: ticket ")
+	assert_str(text).contains("Binned: ")
+	assert_int(summary.to_dictionary()["registers_owned"][record.registers]).is_equal(1)
 
 
 func test_strategy_names() -> void:
@@ -224,9 +309,7 @@ func test_summary_percentiles_and_dominated_cards() -> void:
 					"quota": 10,
 					"total": total,
 					"passed": false,
-					"card_picked": "",
-					"reward_skipped": false,
-					"upgrade_taken": "",
+					"visits": [],
 				}
 			)
 		)
@@ -264,9 +347,13 @@ func _brute_force(
 			_brute_force(balance, hand, row + [card], result)
 
 
-func _player(strategy: String, inspection_shifts: Array = [], rack_size: int = 0) -> SimPlayer:
+## A 3-shift test balance with the live machine (#77; STAMP DAY after shift 2) and the live
+## register pool; `inspection_shifts` are inspected (a BONUS visit follows each).
+func _player(strategy: String, inspection_shifts: Array = []) -> SimPlayer:
 	var balance: BalanceDefinition = _balance(6, 1)
-	balance.impulse_rack_size = rack_size
+	var live: BalanceDefinition = load("res://data/balance/balance.tres")
+	balance.machine = live.machine
+	balance.upgrade_pool = live.upgrade_pool.duplicate()
 	balance.inspection_shifts = PackedInt32Array(inspection_shifts)
 	if not inspection_shifts.is_empty():
 		balance.inspection_pool.append(_third_product_pays_zero())
@@ -275,7 +362,6 @@ func _player(strategy: String, inspection_shifts: Array = [], rack_size: int = 0
 	balance.base_redraws = 1
 	balance.redraw_limit = 2
 	balance.deck_limit = 8
-	balance.offer_size = 3
 	# The stock: the deck's products, then this aisle, then the coupons.
 	var aisle: AisleDefinition = AisleDefinition.new()
 	aisle.id = &"test"
@@ -290,19 +376,6 @@ func _player(strategy: String, inspection_shifts: Array = [], rack_size: int = 0
 	for id: String in ["banana", "banana", "bread", "eggs", "milk", "repeat"]:
 		deck.cards.append(_card(id))
 	return SimPlayer.new(deck, balance, SimRowSearch.new(balance), strategy, 2)
-
-
-## The impulse rack the test player's run with this seed is offered (product ids).
-func _rack_offer(seed_value: int, rack_size: int) -> Array:
-	var player: SimPlayer = _player("skip", [], rack_size)
-	var run: RunState = RunState.new(
-		seed_value,
-		player._starter,
-		player._balance,
-		player._stock,
-		EventLogService.derived_stream(seed_value, EventLogService.IMPULSE_RACK_STREAM)
-	)
-	return run.impulse_offer.map(func(card: CardDefinition) -> StringName: return card.id)
 
 
 static func _third_product_pays_zero() -> InspectionDefinition:

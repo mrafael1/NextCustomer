@@ -1,0 +1,278 @@
+{
+ "split_blind": {
+  "runs": 316,
+  "files": [
+   "split_blind_records.json"
+  ],
+  "live": 0.22151898734177214,
+  "a": 0.8037974683544303,
+  "live_pass": [
+   0.991,
+   0.984,
+   0.662,
+   0.838,
+   0.778,
+   0.707,
+   0.915,
+   0.814
+  ],
+  "owned": {
+   "3": 1.0
+  },
+  "owned_by_shift6": {
+   "3": 1.0
+  },
+  "register_picks": {
+   "category_engine": 0.946,
+   "extra_redraw": 0.937,
+   "coupon_engine": 0.756,
+   "slot_engine": 0.193,
+   "extra_coupon_slot": 0.165,
+   "big_basket": 0.003
+  },
+  "mean_first_register_shift": 2.0,
+  "live_win_by_owned": {
+   "3": [
+    316,
+    0.222
+   ]
+  },
+  "upgraded_copies_per_run": 2.82,
+  "upgraded_copies": {
+   "milk_golden": 1.158,
+   "milk_big": 0.418,
+   "coffee_golden": 0.399,
+   "eggs_golden": 0.348,
+   "banana_big": 0.212,
+   "eggs_big": 0.139,
+   "coffee_big": 0.092,
+   "banana_golden": 0.057
+  },
+  "builds": {
+   "coupon_specialist": [
+    225,
+    0.209
+   ],
+   "breakfast_special": [
+    49,
+    0.367
+   ],
+   "mixed_basket": [
+    24,
+    0.042
+   ],
+   "bulk_buyer": [
+    10,
+    0.4
+   ],
+   "no build": [
+    8,
+    0.0
+   ]
+  },
+  "conditional_live": {
+   "category_engine_by_shift6": {
+    "with": [
+     299,
+     0.224
+    ],
+    "without": [
+     17,
+     0.176
+    ]
+   },
+   "slot_engine_owned": {
+    "with": [
+     61,
+     0.393
+    ],
+    "without": [
+     255,
+     0.18
+    ]
+   }
+  },
+  "median_shift8": 166
+ },
+ "split_breakfast": {
+  "runs": 387,
+  "files": [
+   "split_breakfast_records.json"
+  ],
+  "live": 0.18863049095607234,
+  "a": 0.8320413436692506,
+  "live_pass": [
+   0.99,
+   0.99,
+   0.604,
+   0.886,
+   0.764,
+   0.697,
+   0.778,
+   0.869
+  ],
+  "owned": {
+   "3": 1.0
+  },
+  "owned_by_shift6": {
+   "3": 1.0
+  },
+  "register_picks": {
+   "category_engine": 0.948,
+   "extra_redraw": 0.941,
+   "coupon_engine": 0.762,
+   "slot_engine": 0.23,
+   "extra_coupon_slot": 0.114,
+   "big_basket": 0.005
+  },
+  "mean_first_register_shift": 2.0,
+  "live_win_by_owned": {
+   "3": [
+    387,
+    0.189
+   ]
+  },
+  "upgraded_copies_per_run": 2.86,
+  "upgraded_copies": {
+   "milk_golden": 1.395,
+   "eggs_golden": 0.47,
+   "milk_big": 0.429,
+   "coffee_golden": 0.3,
+   "eggs_big": 0.15,
+   "coffee_big": 0.088,
+   "banana_big": 0.028,
+   "banana_golden": 0.003
+  },
+  "builds": {
+   "breakfast_special": [
+    309,
+    0.204
+   ],
+   "coupon_specialist": [
+    42,
+    0.119
+   ],
+   "bulk_buyer": [
+    26,
+    0.115
+   ],
+   "mixed_basket": [
+    9,
+    0.222
+   ],
+   "no build": [
+    1,
+    0.0
+   ]
+  },
+  "conditional_live": {
+   "category_engine_by_shift6": {
+    "with": [
+     367,
+     0.196
+    ],
+    "without": [
+     20,
+     0.05
+    ]
+   },
+   "slot_engine_owned": {
+    "with": [
+     89,
+     0.348
+    ],
+    "without": [
+     298,
+     0.141
+    ]
+   }
+  },
+  "median_shift8": 139
+ },
+ "prodrarity_only": {
+  "runs": 319,
+  "files": [
+   "prodrarity_only_records.json"
+  ],
+  "live": 0.25391849529780564,
+  "a": 0.780564263322884,
+  "live_pass": [
+   0.991,
+   0.984,
+   0.659,
+   0.839,
+   0.826,
+   0.761,
+   0.833,
+   0.9
+  ],
+  "owned": {
+   "3": 1.0
+  },
+  "owned_by_shift6": {
+   "3": 1.0
+  },
+  "register_picks": {
+   "category_engine": 0.956,
+   "extra_redraw": 0.897,
+   "coupon_engine": 0.73,
+   "slot_engine": 0.235,
+   "extra_coupon_slot": 0.176,
+   "big_basket": 0.006
+  },
+  "mean_first_register_shift": 2.0,
+  "live_win_by_owned": {
+   "3": [
+    319,
+    0.254
+   ]
+  },
+  "upgraded_copies_per_run": 0.0,
+  "upgraded_copies": {},
+  "builds": {
+   "coupon_specialist": [
+    194,
+    0.222
+   ],
+   "breakfast_special": [
+    75,
+    0.307
+   ],
+   "mixed_basket": [
+    29,
+    0.31
+   ],
+   "bulk_buyer": [
+    19,
+    0.263
+   ],
+   "clearance_collector": [
+    2,
+    0.5
+   ]
+  },
+  "conditional_live": {
+   "category_engine_by_shift6": {
+    "with": [
+     305,
+     0.266
+    ],
+    "without": [
+     14,
+     0.0
+    ]
+   },
+   "slot_engine_owned": {
+    "with": [
+     75,
+     0.347
+    ],
+    "without": [
+     244,
+     0.225
+    ]
+   }
+  },
+  "median_shift8": 164
+ }
+}

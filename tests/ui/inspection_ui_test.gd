@@ -1,6 +1,6 @@
 extends GdUnitTestSuite
 ## Inspections on the real shift screen (plan section 3.9): the next shift's notice printed in
-## red under a passed total and shown on the reward panel, before the exit kiosk; the red tag in
+## red under a passed total, before the RECEIPT REWARDS machine (#77) opens; the red tag in
 ## the top bar during the inspected shift (never on the loyalty card); inspection steps in the
 ## receipt and the count-up; the log fields; and the debug panel's inspection. Clicks are sent
 ## to the screen's handlers, because headless runs don't deliver input events.
@@ -29,24 +29,22 @@ func after_test() -> void:
 		DirAccess.remove_absolute(_folder)
 
 
-func test_the_notice_comes_before_the_reward_and_the_kiosk() -> void:
+func test_the_notice_comes_before_the_machine() -> void:
 	var runner: GdUnitSceneRunner = scene_runner(SCREEN)
 	var screen: ShiftScreen = runner.scene()
 	_only_spot_check(screen)
-	screen._on_reward_skipped()  # Past the impulse rack.
 	var run: RunState = screen.run
 	assert_bool(screen._inspection_tag.visible).is_false()
 
 	# Shift 2 is not inspected: no notice after shift 1.
 	await _pass_shift(screen)
 	assert_str(_receipt_text(screen)).not_contains("INSPECTION")
-	assert_str(screen._reward_panel.warning_text()).is_empty()
 	assert_str(_last_event("checkout")["next_inspection"]).is_empty()
-	screen._on_reward_skipped()
+	screen._machine.debug_skip()
 	assert_bool(screen._inspection_tag.visible).is_false()
 
-	# Shift 3 is: the notice prints in red under shift 2's dessert (after the tear, #61), and the
-	# reward panel shows it too, so the pick can take it into account. The kiosk comes after.
+	# Shift 3 is: the notice prints in red under shift 2's dessert (after the tear, #61), on the
+	# receipt beside the machine, so the pick can take it into account.
 	await _pass_shift(screen)
 	# Each line is a left and a right label: TOTAL and its verdict, the margin and PAID, the
 	# tear, then the notice; the last two with an empty right side.
@@ -69,17 +67,15 @@ func test_the_notice_comes_before_the_reward_and_the_kiosk() -> void:
 	)
 	var notice: Label = _receipt_label(screen, NOTICE)
 	assert_bool(notice.get_theme_color("font_color") == Palette.TOMATO).is_true()
-	assert_str(screen._reward_panel.warning_text()).is_equal(NOTICE)
-	assert_bool(screen._reward_panel.visible).is_true()
-	assert_bool(screen._upgrade_panel.visible).is_false()
+	assert_bool(screen._machine.is_open()).is_true()
 	await _frames(3)
-	var warning_rect: Rect2 = screen._reward_panel._warning.get_global_rect()
-	assert_bool(screen.get_global_rect().encloses(warning_rect)).is_true()
+	var notice_rect: Rect2 = notice.get_global_rect()
+	assert_bool(screen.get_global_rect().encloses(notice_rect)).is_true()
+	# The notice is not under the machine.
+	var machine_rect: Rect2 = screen._machine.view.get_global_rect()
+	assert_bool(machine_rect.intersects(notice_rect)).is_false()
 	assert_str(_last_event("checkout")["next_inspection"]).is_equal("spot_check")
-	screen._on_reward_skipped()
-	assert_bool(screen._upgrade_panel.visible).is_true()
-	await _wait_wall_ms(450)
-	screen._upgrade_panel._on_ticket_clicked(screen._upgrade_panel.tickets()[0])
+	screen._machine.debug_skip()
 
 	# Shift 3: the chip shows the inspection's effect in the top bar (its name and notice on
 	# hover), never on the loyalty card.
@@ -99,7 +95,7 @@ func test_the_notice_comes_before_the_reward_and_the_kiosk() -> void:
 	assert_float(top.get_combined_minimum_size().x).is_less_equal(stage.size.x - 40)
 	var tag: Rect2 = screen._inspection_tag.get_global_rect()
 	assert_bool(stage.encloses(tag)).override_failure_message(str(tag)).is_true()
-	assert_float(tag.end.y).is_less_equal(stage.position.y + RewardPanel.PRINTOUT_TOP)
+	assert_float(tag.end.y).is_less_equal(stage.position.y + ShiftStage.PANEL_TOP)
 	var quota_chip: Rect2 = (screen._top_bar.get_child(1) as Control).get_global_rect()
 	assert_float(tag.position.x).is_greater_equal(quota_chip.end.x)
 	assert_float(tag.end.x).is_less_equal(screen._loyalty_card.get_global_rect().position.x)
@@ -115,7 +111,6 @@ func test_inspection_steps_print_and_play_from_the_tag() -> void:
 	var runner: GdUnitSceneRunner = scene_runner(SCREEN)
 	var screen: ShiftScreen = runner.scene()
 	_only_spot_check(screen)
-	screen._on_reward_skipped()  # Past the impulse rack.
 	screen._debug.set_inspection("spot_check")
 	assert_bool(screen._inspection_tag.visible).is_true()
 	assert_str(_last_event("debug")["action"]).is_equal("set_inspection")
@@ -140,7 +135,6 @@ func test_the_debug_panel_clears_the_inspection() -> void:
 	var runner: GdUnitSceneRunner = scene_runner(SCREEN)
 	var screen: ShiftScreen = runner.scene()
 	_only_spot_check(screen)
-	screen._on_reward_skipped()  # Past the impulse rack.
 	screen._debug.set_inspection("spot_check")
 	assert_array(_last_event("shift_start")["inspections"]).is_equal(["spot_check"])
 	screen._debug.set_inspection("")
@@ -156,7 +150,7 @@ func test_the_debug_panel_clears_the_inspection() -> void:
 func _pass_shift(screen: ShiftScreen) -> void:
 	_place_ids(screen, ["milk", "multipack", "milk", "milk", "milk", "milk", "milk"])
 	await Rush.checkout(screen)
-	assert_int(screen.run.phase).is_equal(RunState.Phase.REWARD)
+	assert_int(screen.run.phase).is_equal(RunState.Phase.MACHINE_CHOOSE)
 
 
 ## Adds the cards to the hand through the debug panel and places them at the end of the row.
@@ -205,14 +199,6 @@ static func _receipt_label(screen: ShiftScreen, text: String) -> Label:
 func _frames(count: int) -> void:
 	for i: int in range(count):
 		await get_tree().process_frame
-
-
-## Waits on wall-clock time: the suite speeds up game time.
-func _wait_wall_ms(ms: int) -> void:
-	var start: int = Time.get_ticks_msec()
-	while Time.get_ticks_msec() - start < ms:
-		await get_tree().process_frame
-	await get_tree().process_frame
 
 
 func _last_event(type: String) -> Dictionary:
@@ -266,7 +252,6 @@ static func _only_spot_check(screen: ShiftScreen) -> void:
 func test_a_closed_slot_shows_on_the_row() -> void:
 	var runner: GdUnitSceneRunner = scene_runner(SCREEN)
 	var screen: ShiftScreen = runner.scene()
-	screen._on_reward_skipped()  # Past the impulse rack.
 	var run: RunState = screen.run
 	run.inspections = [load("res://data/inspections/short_belt.tres")]
 	run.debug_skip_to_shift(run.shift_index)
@@ -315,7 +300,6 @@ func test_a_closed_slot_shows_on_the_row() -> void:
 func test_a_full_row_explains_why_a_product_does_not_fit() -> void:
 	var runner: GdUnitSceneRunner = scene_runner(SCREEN)
 	var screen: ShiftScreen = runner.scene()
-	screen._on_reward_skipped()  # Past the impulse rack.
 	var run: RunState = screen.run
 	run.inspections = [load("res://data/inspections/coupon_slot_closed.tres")]
 	run.debug_skip_to_shift(run.shift_index)

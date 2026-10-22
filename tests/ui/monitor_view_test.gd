@@ -154,7 +154,7 @@ func test_every_card_scan_fits_the_screen() -> void:
 	var short: PackedStringArray = PackedStringArray([SHORT_LINE, LONG_LINE])
 	var short_fizzles: Array[bool] = [false, true]
 	var cards: Array[CardDefinition] = _cards()
-	assert_int(cards.size()).is_equal(59)
+	assert_int(cards.size()).is_equal(67)
 	var tiers: Dictionary[int, int] = {}
 	for definition: CardDefinition in cards:
 		var aisle: AisleDefinition = balance.aisle_of(definition)
@@ -350,7 +350,7 @@ func test_the_count_up_shows_each_beat_on_the_monitor() -> void:
 	_assert_tab_beside_stamp(tab, led.beat().stamp())
 	assert_vector(monitor.position).is_equal(ShiftStage.MONITOR_RECT.position)
 	# The next shift's planning: the store channel, the LED blank, hidden and compact.
-	screen._on_reward_skipped()
+	screen._machine.debug_skip()
 	await _frames(2)
 	assert_int(monitor.mode()).is_equal(MonitorView.Mode.CHANNEL)
 	assert_int(led.mode()).is_equal(LedDisplay.Mode.BLANK)
@@ -856,11 +856,10 @@ static func _shown_texts(monitor: MonitorView) -> PackedStringArray:
 	return texts
 
 
-## The screen past the impulse rack, its scanner following _point on the tests' clock.
+## The screen on shift 1, its scanner following _point on the tests' clock.
 func _screen() -> ShiftScreen:
 	var runner: GdUnitSceneRunner = scene_runner(SCREEN)
 	var screen: ShiftScreen = runner.scene()
-	screen._on_reward_skipped()
 	screen._scan.pointer = func() -> Vector2: return _point
 	screen._scan.now_ms = func() -> int: return _clock
 	await _frames(3)

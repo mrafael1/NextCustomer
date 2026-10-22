@@ -18,8 +18,9 @@ func test_every_conditional_card_fizzles_alone() -> void:
 		assert_int(fizzles[0].value).is_equal(0)
 		assert_int(result.total).override_failure_message(card.id).is_equal(card.base)
 		checked += 1
-	# Every card on those two rules today: the 24 adjacency and 8 earlier-tag cards.
-	assert_int(checked).is_equal(32)
+	# Every card on those two rules today: the 26 adjacency and 10 earlier-tag cards, the
+	# item tiers among them (#77: Banana and Milk BIG and GOLDEN fizzle like their base).
+	assert_int(checked).is_equal(36)
 
 
 func test_no_fizzle_once_the_condition_is_met() -> void:
@@ -63,6 +64,22 @@ func test_only_a_lone_pair_card_fizzles() -> void:
 		pair_cards.append(card.id)
 	# The Banana is a pair card (with its tiers, where the data has them).
 	assert_array(pair_cards).contains([&"banana"])
+
+
+## The BIG and GOLDEN Bananas (#77) count as Banana: a mixed pair shows no WASTED either way
+## round, and the GOLDEN one after a Banana still pays its doubled bonus.
+func test_a_mixed_tier_banana_pair_never_fizzles() -> void:
+	var banana: CardDefinition = load("%s/banana.tres" % CARDS_DIR)
+	for tier_id: String in ["banana_big", "banana_golden"]:
+		var tier: CardDefinition = load("%s/%s.tres" % [CARDS_DIR, tier_id])
+		var tier_after: Array[CardDefinition] = [banana, tier]
+		var tier_first: Array[CardDefinition] = [tier, banana]
+		for row: Array[CardDefinition] in [tier_after, tier_first]:
+			var result: ScoreResult = Scoring.score(_row(row))
+			assert_array(_wasted(result)).override_failure_message(tier_id).is_empty()
+	var golden: CardDefinition = load("%s/banana_golden.tres" % CARDS_DIR)
+	var paid: ScoreResult = Scoring.score(_row([banana, golden]))
+	assert_int(paid.payouts[1]).is_equal(golden.base * 3)
 
 
 ## Every other "just before" adjacency card still fizzles with its partner right after it: only

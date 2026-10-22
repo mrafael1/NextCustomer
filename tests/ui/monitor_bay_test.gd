@@ -4,7 +4,7 @@ extends GdUnitTestSuite
 ## plain gold € centred on x 754 for one- to four-digit totals, the € as tall as the digits, on
 ## the paper at the largest punch, clear of the bay, the to-go line and the stamp. Planning's bay:
 ## at BAY_RECT in every mode, belt slot 1's item under NEXT with a pip per belt slot, the held
-## item under SCAN with its kind, the bare bed for an empty slot 1, SCANNER in the impulse rack;
+## item under SCAN with its kind, the bare bed for an empty slot 1, SCANNER with no belt slots;
 ## swaps slide out then drop in on the bay's own tweens (cut under reduced motion); on the real
 ## screen slot 1 follows every refresh, a held scan replaces it, and the count starts with it in
 ## the bay. Split from monitor_view_test for the file's line limit. The real saves and logs are
@@ -228,8 +228,8 @@ func test_the_count_content_fits_at_the_largest_punch() -> void:
 ## name, a pip per belt slot (slot 1's gold, the other filled ones teal light, the empty ones teal
 ## shade); a new slot 1 replaces it; a held scan shows the held item under SCAN with its kind on the
 ## label ("BASE €N", COUPON) and the light on, then slot 1's item comes back; a hold on the item
-## already in the bay scans it there (no new art); an empty slot 1 shows the bare bed and "–"; the
-## impulse rack's (no belt) reads SCANNER with no pips.
+## already in the bay scans it there (no new art); an empty slot 1 shows the bare bed and "–"; with
+## no belt slots it reads SCANNER with no pips.
 func test_planning_bay_shows_slot_one_and_the_held_item() -> void:
 	var monitor: MonitorView = await _monitor()
 	monitor.reduced_motion = func() -> bool: return true
@@ -303,7 +303,7 @@ func test_planning_bay_shows_slot_one_and_the_held_item() -> void:
 	assert_object(bay.bed().shown_definition()).is_same(milk)
 	monitor.end_scan()
 	assert_object(bay.bed().shown_definition()).is_null()
-	# The impulse rack: no belt.
+	# No belt slots.
 	monitor.show_next(null, 0, 0)
 	assert_str(queue.text()).is_equal(BayQueue.IDLE_TEXT)
 	assert_array(queue.pip_rects()).is_empty()
@@ -398,7 +398,7 @@ func test_the_shift_screen_keeps_slot_one_in_the_bay() -> void:
 	while screen._counting:
 		await get_tree().process_frame
 	# Out of the count the bay is planning's again, showing the next belt's slot 1 (or nothing).
-	screen._on_reward_skipped()
+	screen._machine.debug_skip()
 	await _frames(2)
 	assert_bool(bay.is_planning()).is_true()
 	var next: CardDefinition = null if run.row.is_empty() else run.row[0].definition
@@ -444,11 +444,10 @@ static func _text_width(label: Label) -> float:
 	return font.get_string_size(label.text, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size).x
 
 
-## The screen past the impulse rack, its scanner following _point on the tests' clock.
+## The screen on shift 1, its scanner following _point on the tests' clock.
 func _screen() -> ShiftScreen:
 	var runner: GdUnitSceneRunner = scene_runner(SCREEN)
 	var screen: ShiftScreen = runner.scene()
-	screen._on_reward_skipped()
 	screen._scan.pointer = func() -> Vector2: return _point
 	screen._scan.now_ms = func() -> int: return _clock
 	await _frames(3)

@@ -88,11 +88,10 @@ func test_a_resumed_end_of_shift_takes_the_same_fit() -> void:
 	_assert_newest_in_view(receipt)
 
 
-## The screen past the impulse rack, laid out.
+## The screen on shift 1, laid out.
 func _screen() -> ShiftScreen:
 	var runner: GdUnitSceneRunner = scene_runner(SCREEN)
 	var screen: ShiftScreen = runner.scene()
-	screen._on_reward_skipped()
 	await _frames(3)
 	return screen
 

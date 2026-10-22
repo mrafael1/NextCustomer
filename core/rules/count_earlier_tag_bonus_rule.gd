@@ -21,8 +21,10 @@ func wasted_reason(state: ScoreState, slot: int) -> String:
 func _earlier_count(state: ScoreState, slot: int) -> int:
 	if tag.is_empty():
 		return 0
+	var numbers: PackedInt32Array = state.product_numbers
+	var tags: Array[PackedStringArray] = state.tags
 	var count: int = 0
-	for earlier: int in range(slot):
-		if state.is_product(earlier) and state.has_tag(earlier, tag):
+	for earlier: int in range(mini(slot, numbers.size())):
+		if numbers[earlier] > 0 and tags[earlier].has(tag):
 			count += 1
 	return count

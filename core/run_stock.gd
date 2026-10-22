@@ -1,9 +1,9 @@
 class_name RunStock
 extends RefCounted
-## The run's stock (full build plan 7.2): every card reward offers and the impulse rack can
-## draw from. Built before RunState and passed in. Building it is pure and uses no RNG (only
-## "Surprise me" will, to pick the list: a derived stream passed in by the caller, phase 3), so
-## the same input gives the same stock.
+## The run's stock (full build plan 7.2): every card the RECEIPT REWARDS machine's NEW ITEMS
+## and COUPONS chutes can draw from (#77). Built before RunState and passed in. Building it is
+## pure and uses no RNG (only "Surprise me" will, to pick the list: a derived stream passed in by
+## the caller, phase 3), so the same input gives the same stock.
 ##
 ## The stock holds, in this order and each in data order: the staples (the starting deck's own
 ## products), the listed aisles' products (aisle data order), the new arrivals, then all of
@@ -21,7 +21,8 @@ var cards: Array[CardDefinition] = []
 var aisle_ids: Array[StringName] = []
 ## True when every listable aisle together fits aisle_stock_budget, so the list is skipped.
 var list_skipped: bool = false
-## The new arrivals in the stock, newest first (the newest takes an impulse-rack slot).
+## The new arrivals in the stock, newest first (the run's first NEW ITEMS draw holds the newest,
+## MachineDraw).
 var new_arrivals: Array[CardDefinition] = []
 
 

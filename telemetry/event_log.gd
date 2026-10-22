@@ -7,8 +7,6 @@ extends Node
 ## created on the first event, so test runs that log nothing create no file.
 
 const LOG_FOLDER := "user://playtest_logs"
-## The impulse rack's derived stream (full build plan section 4).
-const IMPULSE_RACK_STREAM := "impulse_rack"
 
 var session_id: String = ""
 var run_id: String = ""
@@ -40,8 +38,8 @@ func new_run_seed() -> int:
 
 
 ## A derived stream (full build plan section 4): its own RandomNumberGenerator, seeded from the
-## run seed and the stream's name, for a choice that must not use the run's RNG (the impulse
-## rack). Made here, outside core/, and passed in, so core/ never makes a seed. The same seed
+## run seed and the stream's name, for a choice that must not use the run's RNG ("Surprise
+## me" later). Made here, outside core/, and passed in, so core/ never makes a seed. The same seed
 ## and name always give the same stream.
 static func derived_stream(run_seed: int, stream_name: String) -> RandomNumberGenerator:
 	var stream: RandomNumberGenerator = RandomNumberGenerator.new()

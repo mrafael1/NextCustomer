@@ -267,7 +267,6 @@ static func _lines(receipt: ReceiptView) -> Array[String]:
 func _screen() -> ShiftScreen:
 	_runner = scene_runner(SCREEN)
 	var screen: ShiftScreen = _runner.scene()
-	screen._on_reward_skipped()  # Past the impulse rack.
 	await _frames(2)
 	return screen
 

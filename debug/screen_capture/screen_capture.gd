@@ -29,6 +29,12 @@ extends Control
 ## shift_screen_effects_focus_<width>x<height>.png.
 ## With `--checkout=<seconds>` CHECKOUT is pressed and the capture waits that many seconds of the
 ## count-up (#86), and the file is shift_screen_[effects_]checkout_<tenths>_<width>x<height>.png.
+## With `--machine=<seconds>[,<option>...]` (#77) shift 1's passing row is checked out and the
+## RECEIPT REWARDS machine opens beside the receipt, its visit played from the printer feed (see
+## machine() for the options: a chute to choose or whose odds card to show, the bonus ticket's or
+## STAMP DAY's visit, a full cart, a draw's rarities, a pick, reduced motion, a resumed visit);
+## the capture waits `seconds` after the last step, and the file is
+## shift_screen_machine_<options>_<tenths>_<width>x<height>.png.
 
 const SCREEN := preload("res://ui/shift_screen.tscn")
 const SEED := 20261014
@@ -52,6 +58,19 @@ const CAPTURE_ARGUMENT := "--capture="
 const SCAN_ARGUMENT := "--scan="
 const EFFECTS_ARGUMENT := "--effects"
 const CHECKOUT_ARGUMENT := "--checkout="
+const MACHINE_ARGUMENT := "--machine="
+## --machine's shift (#77): shift 1's passing row (Milk, Multipack, Milk x5 = 109), and the
+## inspection a bonus ticket's shift passes.
+const MACHINE_ROW_IDS: Array[String] = ["milk", "multipack", "milk", "milk", "milk", "milk", "milk"]
+const BONUS_INSPECTION := "spot_check"
+## A full cart is filled up with this card.
+const FILLER_ID := "milk"
+## A --machine capture's file name part: machine_<options>_<tenths>_.
+const MACHINE_PREFIX := "machine_%s%d_"
+## The rarities --machine's draw=<letters> sets (c, r, l).
+const RARITY_LETTERS := "crl"
+## How long --machine waits (real time, at most) for the machine to arm at a wait point.
+const ARM_LIMIT_MS := 3000
 ## A capture's file name: shift_screen_[scan_|effects_[focus_]]<width>x<height>.png.
 const FILE_NAME := "shift_screen_%s%dx%d.png"
 const SCAN_PREFIX := "scan_"
@@ -79,6 +98,8 @@ var _effects: bool = false
 var _focused: bool = false
 ## Since checkout(): the count-up's seconds waited, -1 before.
 var _checkout_s: float = -1.0
+## Since machine(): the file name part naming its options and wait ("" before).
+var _machine_part: String = ""
 ## Since hold_pointer(): the real pointer drives no hover, tooltip or click.
 var _holding_pointer: bool = false
 
@@ -108,6 +129,9 @@ func _ready() -> void:
 		var checkout_s: String = _argument(CHECKOUT_ARGUMENT)
 		if checkout_s != "":
 			await checkout(checkout_s.to_float())
+		var machine_spec: String = _argument(MACHINE_ARGUMENT)
+		if machine_spec != "":
+			await machine(machine_spec)
 		await capture(capture_folder)
 		get_tree().quit()
 
@@ -131,8 +155,7 @@ func _unhandled_key_input(event: InputEvent) -> void:
 ## Sets up the fixed shift under the inspection `inspection_id` with the cards `row_ids` on the
 ## belt.
 func _set_up_shift(inspection_id: String, row_ids: Array[String]) -> void:
-	# Past the impulse rack, as the debug replay of a skip.
-	_screen.start_new_run(SEED, true, "")
+	_screen.start_new_run(SEED)
 	var run: RunState = _screen.run
 	var starter: DeckDefinition = run.starter.duplicate()
 	starter.starting_upgrade = _upgrade(UPGRADE_IDS[0])
@@ -237,6 +260,7 @@ func capture(folder: String) -> void:
 		prefix = FOCUS_PREFIX if _focused else EFFECTS_PREFIX
 	if _checkout_s >= 0.0:
 		prefix += CHECKOUT_PREFIX % roundi(_checkout_s * 10.0)
+	prefix += _machine_part
 	var path: String = folder.path_join(FILE_NAME % [prefix, window.x, window.y])
 	var image: Image = (
 		grab_image.call() as Image
@@ -246,6 +270,146 @@ func capture(folder: String) -> void:
 	var error: Error = ERR_UNAVAILABLE if image == null else image.save_png(path)
 	if error != OK:
 		_report("Can't save %s (error %d)" % [path, error])
+
+
+## Opens the RECEIPT REWARDS machine (#77) on a new run (the same seed) whose shift 1 checked out
+## its passing row, as the dessert's printer feed would, then waits `spec`'s seconds; capture()
+## then names its file shift_screen_machine_<options>_<tenths>_<w>x<h>.png. `spec` is
+## "<seconds>[,<option>...]", the options (in any order):
+## - new_items, coupons, register or upgrades: that chute is chosen at the keys (its draw plays);
+## - odds: that chute's odds card is shown at the keys instead (pinned, CONFIRM ›);
+## - bonus: the shift passed a Spot check; its ticket picks a NEW ITEMS prize, and the bonus
+##   ticket's visit is shown; stampday: the shift is a STAMP DAY's; its ticket bins a NEW ITEMS
+##   draw, and STAMP DAY's draw is shown (pick=<i> picks a stamp);
+## - cartfull: the cart is at the deck limit before the checkout;
+## - draw=<letters>: the draw's rarities, c, r or l per prize (a debug draw: the prizes drawn,
+##   relabelled), shown rarest last;
+## - pick=<i>: once the prizes are armed, prize i is picked (its landing plays);
+## - rm: reduced motion; resume: the visit as a resumed run shows it (at its wait point, no
+##   replay; with a chute, the run was saved after that chute's draw: resumed at the pick).
+## The seconds count from the last step: the machine's open, the choice, or the pick. A spec
+## that can't be played goes to report_error.
+func machine(spec: String) -> void:
+	var options: PackedStringArray = spec.split(",", false)
+	var seconds: float = options[0].to_float() if not options.is_empty() else 0.0
+	options = options.slice(1)
+	_screen.profile.set_reduced_motion(options.has("rm"))
+	_screen.start_new_run(SEED)
+	var run: RunState = _screen.run
+	if not _check_out_machine_shift(run, options):
+		return
+	var chute: int = _machine_chute(options)
+	var resumed_pick: bool = options.has("resume") and chute >= 0 and not options.has("odds")
+	if resumed_pick and run.phase == RunState.Phase.MACHINE_CHOOSE:
+		run.machine.choose(run, chute)  # Saved after the draw: resumed at the pick.
+	var saved: RunSave = RunSave.new()
+	saved.run = run
+	saved.run_id = "capture"
+	_screen._resume_run(saved)
+	var flow: MachineFlow = _screen._machine
+	if not options.has("resume"):
+		flow.open(false)  # Replays the visit from the printer feed.
+	if chute >= 0 and run.phase == RunState.Phase.MACHINE_CHOOSE:
+		await _machine_armed(flow.view)
+		if options.has("odds"):
+			flow.view.open_odds(chute)
+		elif not flow._choose(chute):
+			_report("The machine can't choose %s" % MachineVisit.CHUTE_NAMES[chute])
+			return
+	var rarities: String = _option_value(options, "draw=")
+	if rarities != "" and run.phase == RunState.Phase.MACHINE_PICK:
+		_rig_draw(run, rarities)
+		flow.view.show_draw(run)
+	var pick: String = _option_value(options, "pick=")
+	if pick != "":
+		await _machine_armed(flow.view)
+		flow.view.pick(pick.to_int())
+	var named: String = "_".join(options).replace("=", "")
+	_machine_part = MACHINE_PREFIX % [named + "_" if named != "" else "", roundi(seconds * 10.0)]
+	await get_tree().create_timer(seconds).timeout
+	await _machine_settled(flow.view)
+
+
+## Checks out --machine's shift on `run` (shift 1's passing row; `options`: a bonus ticket's
+## Spot check, a STAMP DAY, a full cart) and plays its ticket to the visit asked for. False (with
+## a report) when the run doesn't get there.
+func _check_out_machine_shift(run: RunState, options: PackedStringArray) -> bool:
+	if options.has("stampday"):
+		run.machine.machine = run.machine.machine.duplicate() as MachineDefinition
+		run.machine.machine.stamp_day_shifts = PackedInt32Array([run.shift_index + 1])
+		run.machine.machine.stamp_day_floor = PackedInt32Array([1])
+	if options.has("cartfull"):
+		while run.deck.size() < run.balance.deck_limit:
+			run.deck.add_card(_card(FILLER_ID))
+	for card_id: String in MACHINE_ROW_IDS:
+		run.place(run.debug_add_to_hand(_card(card_id)), run.row.size())
+	run.checkout()
+	if options.has("bonus"):
+		run.history[-1].inspection = load("res://data/inspections/%s.tres" % BONUS_INSPECTION)
+		run.machine.begin_after_checkout(run)
+	if run.phase != RunState.Phase.MACHINE_CHOOSE:
+		_report("The machine's shift didn't pass")
+		return false
+	if options.has("bonus") or options.has("stampday"):
+		run.machine.choose(run, RewardMachine.Chute.NEW_ITEMS)
+		if options.has("bonus"):
+			var replaced: CardInstance = run.deck.cards[0] if run.deck_is_full() else null
+			run.machine.pick(run, 0, replaced)
+		else:
+			run.machine.bin(run)
+	var wanted: int = MachineVisit.Kind.TICKET
+	if options.has("bonus"):
+		wanted = MachineVisit.Kind.BONUS
+	elif options.has("stampday"):
+		wanted = MachineVisit.Kind.STAMP_DAY
+	var visit: MachineVisit = run.machine.current_visit()
+	if visit == null or visit.kind != wanted:
+		_report("No %s visit to show" % MachineVisit.KIND_NAMES[wanted])
+		return false
+	return true
+
+
+## Waits (at most ARM_LIMIT_MS, real time) for the machine to reach its wait point and arm.
+func _machine_armed(view: RewardMachineView) -> void:
+	view.fast_forward()
+	var start: int = Time.get_ticks_msec()
+	while not view.is_armed() and Time.get_ticks_msec() - start < ARM_LIMIT_MS:
+		await get_tree().process_frame
+
+
+## At a wait point, waits (at most ARM_LIMIT_MS, real time) for the machine to arm, so a capture
+## there shows the armed state (BIN IT enabled) as a player sees it; mid-animation, no wait.
+func _machine_settled(view: RewardMachineView) -> void:
+	var start: int = Time.get_ticks_msec()
+	while (
+		view.is_waiting() and not view.is_armed() and Time.get_ticks_msec() - start < ARM_LIMIT_MS
+	):
+		await get_tree().process_frame
+
+
+## The waiting draw's prizes relabelled with `letters`' rarities (c, r, l), in reveal order.
+static func _rig_draw(run: RunState, letters: String) -> void:
+	var visit: MachineVisit = run.machine.current_visit()
+	var drawn: Array[MachinePrize] = visit.prizes.duplicate()
+	for index: int in range(mini(drawn.size(), letters.length())):
+		drawn[index].rarity = maxi(0, RARITY_LETTERS.find(letters[index].to_lower()))
+	visit.set_drawn(drawn)
+
+
+## The chute named in `options`, or -1.
+static func _machine_chute(options: PackedStringArray) -> int:
+	for chute: int in RewardMachine.CHUTES:
+		if options.has(MachineVisit.CHUTE_NAMES[chute]):
+			return chute
+	return -1
+
+
+## The value of the option `prefix` (e.g. "pick=") in `options`, or "".
+static func _option_value(options: PackedStringArray, prefix: String) -> String:
+	for option: String in options:
+		if option.begins_with(prefix):
+			return option.trim_prefix(prefix)
+	return ""
 
 
 func _report(message: String) -> void:

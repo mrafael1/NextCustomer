@@ -152,7 +152,7 @@ extends Resource
 ## The shift's dessert after the verdict (#61), in ms at speed 1 (the speed setting applies, the
 ## auto speed-up doesn't). A pass with no notice: the slam starts at 100 and lands at 300, the
 ## margin counts 300 to 500 with `pass` at 450, PAID at 520, the tear at 560 and the printer feed
-## at 700; the print-out's lift ends at 850.
+## at 700, where the RECEIPT REWARDS machine opens (#77).
 ## From the verdict (the TOTAL line) to the slam's start.
 @export var dessert_slam_delay_ms: int = 0
 ## The slam, from its start to its landing on the TOTAL line (`total` or `miss`, the shake).
@@ -176,9 +176,6 @@ extends Resource
 @export var dessert_shake_miss_px: float = 0.0
 ## A large total shakes this share more, a huge one twice that (none under reduced motion).
 @export var dessert_shake_step: float = 0.0
-## The reward print-out (RewardPanel) lifts into full cards over this, from the printer feed;
-## it arms once the lift has ended and the mouse is up.
-@export var printout_lift_ms: int = 0
 
 @export_group("Final receipt")
 ## The run's final receipt (#61, ResultsPanel) prints a line this often, from the headline down;

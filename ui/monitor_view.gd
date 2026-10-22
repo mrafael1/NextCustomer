@@ -13,7 +13,7 @@ extends Control
 ##   the store channel (MonitorChannel, CHANNEL_RECT): the shift's brief, the owned upgrades and the
 ##   coupons in play, a slide at a time; the LED is hidden (the projected total is on the receipt
 ##   and the top bar's SPEND chip);
-## - IDLE (the impulse rack, and a notice in planning): the notices (NoticeLabel) at NOTICE_RECT;
+## - IDLE (a notice in planning): the notices (NoticeLabel) at NOTICE_RECT;
 ##   the LED's compact layout only when it shows a projected total (no longer in the game: a blank
 ##   LED is hidden);
 ## - SCAN (a belt or hand item fully scanned: ScanController calls show_scan): the bay shows the
@@ -76,8 +76,7 @@ const SUNBURST_CENTRE := Vector2(754, 137)
 const STAMP_DELAY_S := 0.25
 const STAMP_SHAKE := 4.0
 const STAMP_SHAKE_S := 0.25
-## A notice (planning's, with the channel off the screen, and the impulse rack's): in the right
-## part's middle.
+## A notice (planning's, with the channel off the screen): in the right part's middle.
 const NOTICE_RECT := Rect2(617, 132, 272, 44)
 ## Every part the monitor draws, rods and shade included (stage coordinates).
 const DRAWN_RECT := Rect2(484, 56, 424, 192)
@@ -289,8 +288,8 @@ func set_planning_key(entries: Array[StickerSpec]) -> void:
 	channel.set_key(entries)
 
 
-## Planning is over (the CHECKOUT click, the impulse rack): the channel leaves the screen. The
-## bay keeps its item (the count starts with it).
+## Planning is over (the CHECKOUT click): the channel leaves the screen. The bay keeps its item
+## (the count starts with it).
 func end_channel() -> void:
 	_channel_on = false
 	_apply()
@@ -298,8 +297,8 @@ func end_channel() -> void:
 
 ## Planning's bay (the shift screen, on every refresh): belt slot 1's item (`definition`, null for
 ## an empty slot 1) under NEXT, with a pip per belt slot (`slots`, the first `filled` of them
-## holding items). A held scan's item shows instead while it lasts (show_scan). The impulse rack
-## passes null and 0 (an empty bed). Nothing changes in the count.
+## holding items). A held scan's item shows instead while it lasts (show_scan); null and 0 show an
+## empty bed. Nothing changes in the count.
 func show_next(definition: CardDefinition, slots: int, filled: int) -> void:
 	_next = definition
 	_slots = slots
@@ -422,7 +421,7 @@ func _apply() -> void:
 	var channel_idle: bool = _channel_on and not counting
 	var led_rect: Rect2 = LED_COUNT_RECT if counting else ShiftStage.LED_RECT
 	led.position = local(led_rect).position
-	# A blank LED stays off the screen (the impulse rack): the bay has its place.
+	# A blank LED stays off the screen: the bay has its place.
 	var projected: bool = led.mode() == LedDisplay.Mode.PROJECTED
 	led.visible = counting or (projected and not scanning and not channel_idle)
 	_notice_holder.visible = not counting and not scanning

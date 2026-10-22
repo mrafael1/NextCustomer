@@ -1,3 +1,4 @@
+class_name BalanceSim
 extends SceneTree
 ## The balance simulator's command line (plan section 8). Run it with tools/balance_sim.sh,
 ## which splits the work over several processes and passes the other arguments on:
@@ -27,8 +28,8 @@ extends SceneTree
 ##                     chance; not with --profile, --collection or --list, and it needs the
 ##                     greedy or greedy@sensible strategy (the 40% bar, a warning since #42,
 ##                     is a share of its won runs)
-##   --offer-samples=N later reward offers made per stock for the key-card offer chance
-##                     (default 1000)
+##   --offer-samples=N unused since #77 (the key-card offer chance is read from the machine's
+##                     exact odds); kept so older command lines still run (default 1000)
 ##   --orphan-samples=N hands per capsule item for the orphan check (full build plan 7.2), 0 to
 ##                     leave it out (default 30)
 ##   --duel-samples=N  hands for the coupon-slot comparison, 0 to leave it out (default 200)
@@ -64,6 +65,14 @@ extends SceneTree
 ##                           PATH.cache) instead of a report
 ##   --merge=PATH,PATH       read shard files, add their cache entries to the cache and print
 ##                           the report
+##   --cache-name            print the cache file this simulation reads ("cache-file=" and its
+##                           absolute path, or nothing after "=" with --cache=none) and quit
+##   --cache-file=PATH       read the cache from PATH instead of fingerprinting the source (the
+##                           wrapper's template runners: an exported pack holds no source text)
+## The wrapper runs the shards on one of Godot's export templates with an exported pack
+## (BalanceSim is the pack's main loop): the debug template by default, the release template
+## with --runner=release (faster, but with no GDScript runtime errors), or the editor binary
+## with --runner=editor. All give the same records.
 ## With neither, one process plays everything and prints the report.
 
 ## The options that define the simulation; every shard of one report must agree on them.
@@ -94,6 +103,8 @@ const PROCESS_DEFAULTS: Dictionary[String, String] = {
 	"merge": "",
 	"cache": "res://reports/balance_sim_cache",
 	"max-minutes": "15",
+	"cache-file": "",
+	"cache-name": "false",
 }
 const NUMBER_OPTIONS: Array[String] = [
 	"runs",
@@ -109,7 +120,7 @@ const NUMBER_OPTIONS: Array[String] = [
 ## Chain i's run j uses seed + CHAIN_SEED_STEP * (i + 1) + j, apart from the single runs' seeds.
 const CHAIN_SEED_STEP := 100000
 ## Options given without a value (--list-gate): they read "true".
-const FLAG_OPTIONS: Array[String] = ["list-gate"]
+const FLAG_OPTIONS: Array[String] = ["list-gate", "cache-name"]
 
 var _options: Dictionary[String, String] = {}
 var _starter: DeckDefinition
@@ -140,7 +151,15 @@ class Scenario:
 
 
 func _initialize() -> void:
-	quit(_run())
+	quit(_print_cache_name() if OS.get_cmdline_user_args().has("--cache-name") else _run())
+
+
+## --cache-name: prints the cache file (absolute) the options give, for the wrapper.
+func _print_cache_name() -> int:
+	if not _parse_options():
+		return 1
+	print("cache-file=" + ProjectSettings.globalize_path(_cache_file()))
+	return 0
 
 
 func _run() -> int:
@@ -504,11 +523,14 @@ func _merge(paths: PackedStringArray, search: SimRowSearch) -> bool:
 ## The cache file for this simulation, or "" with --cache=none. Its name is a fingerprint of
 ## everything a cached best row depends on: core's scripts, the search script, the files of the
 ## deck, the cards (every card a stock or the orphan check can hold: the deck's, every aisle's
-## base and capsule cards and the coupon pools), upgrades (the deck's starting upgrade too) and
-## inspections in play and the row limits.
+## base and capsule cards, the coupon pools and the machine's item upgrade chains with their BIG
+## and GOLDEN cards), upgrades (the deck's starting upgrade too) and inspections in play and the
+## row limits.
 func _cache_file() -> String:
 	if _options["cache"] == "none":
 		return ""
+	if not _options["cache-file"].is_empty():
+		return _options["cache-file"]
 	var context: Dictionary = {}
 	context["core"] = _files_text("res://core")
 	context["search"] = FileAccess.get_file_as_string("res://tools/balance_sim/sim_row_search.gd")
@@ -518,6 +540,12 @@ func _cache_file() -> String:
 		cards.append_array(aisle.base_cards + aisle.capsule_cards)
 	cards.append_array(_balance.coupon_pool)
 	cards.append_array(_balance.first_offer_pool)
+	# The machine's item upgrades (#77): their BIG and GOLDEN cards can be in a hand. The rest of
+	# machine.tres (odds, rarity lists, shifts) never changes a best row, so it isn't hashed.
+	if _balance.machine != null:
+		for chain: ItemUpgradeDefinition in _balance.machine.item_upgrades:
+			context[chain.resource_path] = FileAccess.get_file_as_string(chain.resource_path)
+			cards.append_array(chain.tiers())
 	for card: CardDefinition in cards:
 		context[card.resource_path] = FileAccess.get_file_as_string(card.resource_path)
 	context["deck"] = FileAccess.get_file_as_string(_starter.resource_path)
@@ -703,7 +731,7 @@ func _key_offer_chances() -> Array[Dictionary]:
 
 func _key_offer_text(chances: Array[Dictionary]) -> String:
 	var lines: PackedStringArray = PackedStringArray()
-	lines.append("== Key-card offer chance (later offers showing a build's key card) ==")
+	lines.append("== Key-card offer chance (later machine draws showing a build's key card) ==")
 	if _builds.builds.is_empty():
 		lines.append("No builds.")
 		return "\n".join(lines)
@@ -719,7 +747,9 @@ func _key_offer_text(chances: Array[Dictionary]) -> String:
 		for id: String in _builds.ids():
 			line += " %18.1f%%" % (100.0 * chances[index]["chances"][id])
 		lines.append(line)
-	lines.append("%s later offers per stock" % _options["offer-samples"])
+	lines.append(
+		"Exact odds: a later NEW ITEMS or COUPONS draw at REGULAR 0, the higher of the two"
+	)
 	return "\n".join(lines)
 
 

@@ -1,0 +1,276 @@
+{
+ "subtitle": "greedy@sensible \u00b7 * sees the prizes first (upper bound)",
+ "skip": "<b>skip@sensible</b> (skips every reward; live / A quotas): today 24% / 94%, no registers 0% / 0% (600 runs each)",
+ "scenarios": [
+  {
+   "key": "today",
+   "group": "NOW",
+   "label": "Today (kiosk 2/4/6, free)",
+   "sub": "kiosk after 2/4/6, free",
+   "note": "3 registers on top of 7 rewards; every offer guarantees one that fits",
+   "live": 0.6083,
+   "a": 0.9076,
+   "n": 314,
+   "hidden": false
+  },
+  {
+   "key": "r0",
+   "group": "FLOOR",
+   "label": "R0: no register power",
+   "sub": "R0",
+   "note": "the floor option A is built on",
+   "live": 0.008,
+   "a": 0.3652,
+   "n": 627,
+   "hidden": false
+  },
+  {
+   "key": "r1",
+   "group": "",
+   "label": "R1: 1 free (after 4)",
+   "sub": "R1: after shift 4",
+   "note": "B-pity's floor, free",
+   "live": 0.0954,
+   "a": 0.6254,
+   "n": 283,
+   "hidden": true
+  },
+  {
+   "key": "r2",
+   "group": "",
+   "label": "R2: 2 free (after 2, 4)",
+   "sub": "R2: after 2 and 4",
+   "note": "free",
+   "live": 0.5165,
+   "a": 0.8884,
+   "n": 242,
+   "hidden": true
+  },
+  {
+   "key": "a_rand",
+   "group": "OPTION A",
+   "label": "REGISTER blind, 30% visits",
+   "sub": "30% of visits, costs the item",
+   "note": "no floor; picks blind, as a player who sees only the odds",
+   "live": 0.1434,
+   "a": 0.6237,
+   "n": 279,
+   "hidden": false
+  },
+  {
+   "key": "a_greedy",
+   "group": "",
+   "label": "REGISTER when best*",
+   "sub": "greedy, costs the item",
+   "note": "no floor; this player sees the 3 prizes before choosing (optimistic)",
+   "live": 0.5159,
+   "a": 0.9364,
+   "n": 283,
+   "hidden": false
+  },
+  {
+   "key": "b_stamp_only",
+   "group": "OPTION B",
+   "label": "STAMP DAY only",
+   "sub": "never picks REGISTER",
+   "note": "free stamps after 2/4/6 at machine rarity odds; no fits/types guarantee",
+   "live": 0.3155,
+   "a": 0.801,
+   "n": 206,
+   "hidden": false
+  },
+  {
+   "key": "b_stamp_fits",
+   "group": "",
+   "label": "STAMP DAY only + fits",
+   "sub": "never picks REGISTER",
+   "note": "as above, plus the 'one fits your cart' guarantee, swapped within the rolled tier (fix pass)",
+   "live": 0.2385,
+   "a": 0.7706,
+   "n": 109,
+   "hidden": false
+  },
+  {
+   "key": "b_rand_floor",
+   "group": "",
+   "label": "STAMP DAY + blind 30%",
+   "sub": "30% of visits",
+   "note": "blind REGISTER picks, STAMP DAY tops up",
+   "live": 0.3308,
+   "a": 0.8271,
+   "n": 266,
+   "hidden": false
+  },
+  {
+   "key": "b_floor",
+   "group": "",
+   "label": "STAMP DAY + greedy*",
+   "sub": "REGISTER when best",
+   "note": "optimistic: sees the prizes before choosing",
+   "live": 0.5304,
+   "a": 0.9449,
+   "n": 345,
+   "hidden": false
+  },
+  {
+   "key": "b_pity",
+   "group": "",
+   "label": "B-pity: >=1 by shift 4*",
+   "sub": ">=1 by shift 4 + greedy",
+   "note": "optimistic, like the row above",
+   "live": 0.456,
+   "a": 0.9176,
+   "n": 182,
+   "hidden": true
+  },
+  {
+   "key": "today_items",
+   "group": "",
+   "label": "Today + item upgr.*",
+   "sub": "UPGRADES after 3/5/7",
+   "note": "optimistic: compares the rolled UPGRADES drops with the reward before choosing; NEW ITEMS meter shared with COUPONS (BIG/GOLDEN arrivals overstated)",
+   "live": 0.6893,
+   "a": 0.9126,
+   "n": 103,
+   "hidden": true
+  },
+  {
+   "key": "b_stamp_items_blind",
+   "group": "+ ITEM UPGRADES",
+   "label": "STAMP DAY + upgr. (blind)",
+   "sub": "never picks REGISTER",
+   "note": "UPGRADES taken whenever open, before seeing the drops; NEW ITEMS meter rises only on product picks (fix pass)",
+   "live": 0.3529,
+   "a": 0.8353,
+   "n": 85,
+   "hidden": false
+  },
+  {
+   "key": "b_stamp_items",
+   "group": "",
+   "label": "STAMP DAY + item upgr.*",
+   "sub": "never picks REGISTER",
+   "note": "optimistic: sees the UPGRADES drops first; NEW ITEMS meter shared with COUPONS (overstated)",
+   "live": 0.4016,
+   "a": 0.8607,
+   "n": 122,
+   "hidden": false
+  },
+  {
+   "key": "b_items",
+   "group": "",
+   "label": "STAMP DAY + greedy* + upgr.",
+   "sub": "REGISTER when best",
+   "note": "optimistic",
+   "live": 0.5654,
+   "a": 0.9578,
+   "n": 237,
+   "hidden": true
+  },
+  {
+   "key": "split_blind",
+   "group": "ROUND 2: CLEAN SPLIT",
+   "label": "STAMP DAY + split (blind)",
+   "sub": "never picks REGISTER",
+   "note": "NEW ITEMS: plain products by product rarity; UPGRADES after 3/5/7 taken whenever open (one step / two steps / shelf upgrade)",
+   "live": 0.2215,
+   "a": 0.8038,
+   "n": 316,
+   "hidden": false
+  },
+  {
+   "key": "split_breakfast",
+   "group": "",
+   "label": "Same, Breakfast build",
+   "sub": "build:breakfast_special",
+   "note": "the #42 viability check: needs 2/3 of greedy",
+   "live": 0.1886,
+   "a": 0.832,
+   "n": 387,
+   "hidden": false
+  },
+  {
+   "key": "prodrarity_only",
+   "group": "",
+   "label": "STAMP DAY + product rarity",
+   "sub": "no UPGRADES",
+   "note": "NEW ITEMS by product rarity, no item upgrades: the product-rarity effect alone",
+   "live": 0.2539,
+   "a": 0.7806,
+   "n": 319,
+   "hidden": false
+  },
+  {
+   "key": "bonus_greedy",
+   "group": "ROUND 3: INSPECTION BONUS TICKET",
+   "label": "R3a: split + bonus ticket",
+   "sub": "never picks REGISTER",
+   "note": "as round 2's split row, plus a second machine visit after each passed inspected shift (3/5/7): UPGRADES again if a copy can step, else NEW ITEMS/COUPONS",
+   "live": 0.3206,
+   "a": 0.8435,
+   "n": 262,
+   "hidden": false
+  },
+  {
+   "key": "bonus_rare",
+   "group": "",
+   "label": "R3b: + Carrier bag, Tea bags Rare",
+   "sub": "never picks REGISTER",
+   "note": "R3a with Carrier bag and Tea bags moved from Legendary to Rare in the product rarity table",
+   "live": 0.3564,
+   "a": 0.8509,
+   "n": 275,
+   "hidden": false
+  },
+  {
+   "key": "bonus_breakfast",
+   "group": "",
+   "label": "R3c: R3a, Breakfast build",
+   "sub": "build:breakfast_special",
+   "note": "the #42 viability check on R3a: needs 2/3 of R3a's greedy rate",
+   "live": 0.2883,
+   "a": 0.8826,
+   "n": 281,
+   "hidden": false
+  },
+  {
+   "key": "bonus_rare_s1",
+   "group": "",
+   "label": "R3e: R3b + bonus after shift 1",
+   "sub": "never picks REGISTER",
+   "note": "R3b plus a free second visit after shift 1 (NEW ITEMS/COUPONS; UPGRADES is not open yet)",
+   "live": 0.3842,
+   "a": 0.8621,
+   "n": 203,
+   "hidden": false
+  }
+ ],
+ "curves": {
+  "live": [
+   34,
+   35,
+   53,
+   61,
+   73,
+   98,
+   111,
+   120
+  ],
+  "a": [
+   37,
+   38,
+   40,
+   46,
+   47,
+   53,
+   54,
+   63
+  ]
+ },
+ "verdicts": [
+  "<b>Registers are most of a run's power.</b> With none, the sensible player wins 1% on today's quotas (median shift-8 total \u20ac80, against \u20ac274 today).",
+  "<b>Option A (no guarantee)</b> needs quotas cut about in half from shift 3 on (120 \u2192 63). Then any run with 3 registers wins 80\u201396%, and the total barely grows over a run, which works against #77's goal.",
+  "<b>Option B (STAMP DAY floor), recommended,</b> keeps today's quotas. Never choosing REGISTER wins 32% (rerun 30%), or 35% \u00b1 10 taking UPGRADES blind; the 40% row* saw the drops first (today: 61%).",
+  "<b>Watch:</b> GOLDEN Milk, 1.0\u20131.5 copies per run. 'One fits your cart' inside the tier did not help (24% \u00b1 8): the drop from 61% is the tiers. Breakfast special narrowly fails the #42 check under B."
+ ]
+}

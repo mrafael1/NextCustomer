@@ -1,7 +1,8 @@
 extends GdUnitTestSuite
 ## The register upgrades of issue #38 (plan section 3.8, v0.24): the shift limits they change
 ## (ShiftLimits: slots, redraws, Big basket's raised quota), Rule bender's links, Slot engine's
-## 6th product, the builds an upgrade supports and the offer's "fits the deck" guarantee.
+## 6th product and the builds an upgrade supports (the REGISTER chute's "fits your cart"
+## guarantee is tested in machine_draw_test, #77).
 ## Scoring rows use the frozen fixtures, upgrades built here from their rule scripts.
 
 const STARTER := "res://data/decks/starter.tres"
@@ -62,16 +63,22 @@ func test_big_basket_raises_every_quota_rounded_up() -> void:
 	assert_int(ShiftLimits.raised_quota(17, 0)).is_equal(17)
 
 
-## The quota is fixed when the shift starts: Big basket picked after shift 2 leaves shift 2's
-## record, pass and quota alone and raises shift 3's.
+## The quota is fixed when the shift starts: Big basket picked from the machine after shift 2
+## leaves shift 2's record, pass and quota alone and raises shift 3's.
 func test_the_quota_is_fixed_for_the_shift() -> void:
-	var run: RunState = _run(41)
-	run.debug_skip_to_shift(1)
-	_pass(run)
-	run.skip_reward()
 	var basket: UpgradeDefinition = _upgrade("big_basket")
-	run.upgrade_offer = [basket]
-	assert_bool(run.pick_upgrade(basket)).is_true()
+	var run: RunState = null
+	for seed_value: int in range(41, 141):
+		run = _run(seed_value)
+		run.debug_skip_to_shift(1)
+		_pass(run)
+		MachineSteps.choose(run, RewardMachine.Chute.REGISTER)
+		if run.machine.prizes().any(
+			func(prize: MachinePrize) -> bool: return prize.upgrade == basket
+		):
+			break
+	assert_object(MachineSteps.take_register(run, basket)).is_same(basket)
+	assert_int(run.phase).is_equal(RunState.Phase.SCORED)
 	assert_int(run.quota()).is_equal(run.balance.quotas[1])
 	assert_int(run.history[-1].quota).is_equal(run.balance.quotas[1])
 	assert_bool(run.passed()).is_true()
@@ -220,32 +227,6 @@ func test_builds_measure_the_deck() -> void:
 	assert_str(_upgrade("big_basket").build_names()).is_equal("Clearance collector, Bulk buyer")
 
 
-## The offer guarantees an upgrade that fits the deck when one is unowned, keeps 3 options of
-## different types, and is the same for the same seed.
-func test_offers_include_a_fitting_upgrade() -> void:
-	var balance: BalanceDefinition = load(BALANCE)
-	# A coupon-heavy deck: only Coupon engine fits (Extra coupon slot is Economy).
-	var starter: Array[CardDefinition] = _starter_cards()
-	starter.append(load(FINAL_MARKDOWN))
-	var owned: Array[UpgradeDefinition] = []
-	for seed_value: int in range(300):
-		var where: String = "seed %d" % seed_value
-		var offer: Array[UpgradeDefinition] = UpgradeOffer.make(
-			_rng(seed_value), balance, owned, starter
-		)
-		assert_int(offer.size()).override_failure_message(where).is_equal(3)
-		assert_bool(offer.has(_upgrade("coupon_engine"))).override_failure_message(where).is_true()
-		var types: Dictionary = {}
-		for upgrade: UpgradeDefinition in offer:
-			types[upgrade.type] = true
-		assert_int(types.size()).override_failure_message(where).is_equal(3)
-	var again: Array[UpgradeDefinition] = UpgradeOffer.make(_rng(7), balance, owned, starter)
-	assert_array(UpgradeOffer.make(_rng(7), balance, owned, starter)).is_equal(again)
-	# Nothing fits an empty deck: still a full offer.
-	var nothing: Array[CardDefinition] = []
-	assert_int(UpgradeOffer.make(_rng(3), balance, owned, nothing).size()).is_equal(3)
-
-
 ## The steps of one type from one kind of source, in order.
 static func _steps(
 	result: ScoreResult, step_type: ScoreStep.StepType, source_kind: ScoreStep.SourceKind
@@ -293,6 +274,8 @@ static func _run(seed_value: int) -> RunState:
 	balance.quotas = PackedInt32Array([1, 1, 1, 1, 1, 1, 1, 1])
 	# No inspected shifts: an inspection's slot changes would hide the upgrades' here.
 	balance.inspection_shifts = PackedInt32Array()
+	# No STAMP DAY: its forced register would add slots or redraws of its own.
+	MachineSteps.without_stamp_day(balance)
 	var deck: DeckDefinition = load(STARTER)
 	var run: RunState = RunState.new(seed_value, deck, balance, RunStock.starting(deck, balance))
 	run.start_shift()
@@ -303,9 +286,3 @@ static func _pass(run: RunState) -> void:
 	for _index: int in range(2):
 		run.place(run.debug_add_to_hand(load(BREAD)), run.row.size())
 	run.checkout()
-
-
-static func _rng(seed_value: int) -> RandomNumberGenerator:
-	var rng: RandomNumberGenerator = RandomNumberGenerator.new()
-	rng.seed = seed_value
-	return rng

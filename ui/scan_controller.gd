@@ -15,14 +15,14 @@ extends Node
 ## ScoreResult (set_result), and says when scanning the counter is off (`blocked`: while
 ## counting, dragging, or with an offer or the deck view open).
 ##
-## The offers are items too (#75, decision 4A): cover_offers() watches the reward panel's items (the
-## impulse rack and the reward print-out) and scans them like hand items while the panel accepts
-## clicks (RewardPanel.can_scan: not while it pops in or its items lift out of the printer, nor
-## while the deck view hides it). Their scan opens in a layer right above the panel, since the shade
-## and the panel cover the stage's layers: its own marks and the scan popup (ScanPopup), beside the
-## item over the panel. There the popup takes the clicks on it and does nothing with them: it covers
-## the neighbouring items (and can cover the panel's buttons), and a click while reading it must
-## never pick an item the player can't see.
+## The offers are items too (#75, decision 4A): cover_offers() watches the RECEIPT REWARDS
+## machine's prize items (#77) and scans them like hand items while the machine accepts clicks
+## (RewardMachineView.can_scan: once it has armed, not while the deck view hides it). Their scan
+## opens in a layer right above the machine, since the shade and the machine cover the stage's
+## layers: its own marks and the scan popup (ScanPopup), beside the item over the machine. There
+## the popup takes the clicks on it and does nothing with them: it covers the neighbouring items
+## (and can cover the machine's buttons), and a click while reading it must never pick an item the
+## player can't see.
 ##
 ## The monitor (and an offer's popup) shows the card's rule text verbatim. A belt item's scan also
 ## shows its payout and every step of its slot but BASE and PAYOUT, worded as the receipt words
@@ -84,7 +84,7 @@ var _receipt: ReceiptView
 var _popup: ScanPopup
 ## The offers' panel (cover_offers), the layer over it that an offer's scan opens in, that
 ## layer's marks, and the offered items.
-var _offer_panel: RewardPanel
+var _offer_panel: RewardMachineView
 var _offer_layer: Control
 var _offer_overlay: ScanOverlay
 var _offers: Array[ItemView] = []
@@ -138,7 +138,7 @@ func setup(stage: ShiftStage) -> void:
 
 ## Scans `panel`'s offered items too (see the class comment). The layer for their scan goes in
 ## right above the panel, as its next sibling, with the stage's theme.
-func cover_offers(panel: RewardPanel) -> void:
+func cover_offers(panel: RewardMachineView) -> void:
 	_offer_panel = panel
 	_offer_layer = Control.new()
 	_offer_layer.name = "OfferScanLayer"

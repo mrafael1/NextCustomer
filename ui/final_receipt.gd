@@ -2,11 +2,12 @@ class_name FinalReceipt
 extends RefCounted
 ## The run's final receipt (#61; full build plan 6.2 and 7.1): its lines, top to bottom, that
 ## the results screen prints one by one. The headline ("RUN WON!" or "RUN OVER"), a rule, one
-## line per played shift (its number, total against quota, pass or fail and the card picked)
-## with the upgrade taken and the inspection played under on a dim second line, the shortfall on
-## a lost run, a rule, then the coins: the shifts passed, the overtime, the run's coins and the
-## profile's total ("you have ?" when the profile couldn't be saved). It only lays out text;
-## core computes the payout and the margin.
+## line per played shift (its number, total against quota, pass or fail) with a dim line per
+## RECEIPT REWARDS visit after it (#77: "NEW ITEMS: Milk", "BONUS · UPGRADES: Eggs › GOLDEN",
+## "STAMP DAY: Category engine", "binned COUPONS") and one for the inspection it was played
+## under, the shortfall on a lost run, a rule, then the coins: the shifts passed, the overtime,
+## the run's coins and the profile's total ("you have ?" when the profile couldn't be saved). It
+## only lays out text; core computes the payout and the margin.
 
 enum Tone { HEADLINE, RULE, SHIFT, DETAIL, SHORTFALL, COINS, COINS_TOTAL }
 
@@ -16,6 +17,10 @@ const WIDTH := 44
 ## MAX_COIN_SOUNDS of them (#62).
 const COIN_GAP := 0.07
 const MAX_COIN_SOUNDS := 15
+## The machine's chutes as the receipt names them (RewardMachine.Chute order).
+const CHUTE_WORDS: Array[String] = ["NEW ITEMS", "COUPONS", "REGISTER", "UPGRADES"]
+## A shift's dim lines start this far in.
+const DETAIL_INDENT := "     "
 
 
 ## One printed line: its text, how it is shown, and whether its shift failed (red).
@@ -40,8 +45,8 @@ static func lines(run: RunState, result: ScoreResult, coins_owned: int) -> Array
 	for record: ShiftRecord in run.history:
 		var texts: PackedStringArray = shift_texts(record)
 		printed.append(Line.new(texts[0], Tone.SHIFT, not record.passed))
-		if not texts[1].is_empty():
-			printed.append(Line.new(texts[1], Tone.DETAIL, not record.passed))
+		for detail: String in texts.slice(1):
+			printed.append(Line.new(detail, Tone.DETAIL, not record.passed))
 	if not won:
 		var margin: ShiftMargin = ShiftMargin.of(result.total, run.quota())
 		var shortfall: String = (
@@ -57,25 +62,40 @@ static func lines(run: RunState, result: ScoreResult, coins_owned: int) -> Array
 	return printed
 
 
-## A shift's line ("  4  €30 / €22        pass  Bread") and its dim second line (the upgrade
-## taken and the inspection, or "" without either).
+## A shift's line ("  4  €30 / €22        pass") and its dim lines: one per machine visit
+## after it (visit_text), then the inspection it was played under.
 static func shift_texts(record: ShiftRecord) -> PackedStringArray:
-	var card: String = "—"
-	if record.card_picked != null:
-		card = record.card_picked.display_name
-	elif record.reward_skipped:
-		card = "skipped"
 	var main: String = (
-		"%3d  %-13s  %-4s  %s"
-		% [record.shift, "€%d / €%d" % [record.total, record.quota], _result(record), card]
+		"%3d  %-13s  %s"
+		% [record.shift, "€%d / €%d" % [record.total, record.quota], _result(record)]
 	)
-	var details: PackedStringArray = PackedStringArray()
-	if record.upgrade_taken != null:
-		details.append("upgrade " + record.upgrade_taken.display_name)
+	var texts: PackedStringArray = PackedStringArray([main])
+	for visit: MachineVisit in record.visits:
+		texts.append(DETAIL_INDENT + visit_text(visit))
 	if record.inspection != null:
-		details.append("inspection " + record.inspection.display_name)
-	var detail: String = "" if details.is_empty() else " ".repeat(5) + " · ".join(details)
-	return PackedStringArray([main, detail])
+		texts.append(DETAIL_INDENT + "inspection " + record.inspection.display_name)
+	return texts
+
+
+## One machine visit, as the final receipt words it: the kind ("BONUS · ", "STAMP DAY: "), the
+## chute and what it gave ("NEW ITEMS: Milk", "UPGRADES: Eggs › GOLDEN", "UPGRADES: SHELF Milk
+## ×3"), or "binned COUPONS".
+static func visit_text(visit: MachineVisit) -> String:
+	var chute: String = CHUTE_WORDS[visit.chute] if visit.chute >= 0 else "?"
+	var prefix: String = "BONUS · " if visit.kind == MachineVisit.Kind.BONUS else ""
+	if visit.binned:
+		return prefix + "binned " + chute
+	var prize: MachinePrize = visit.picked_prize()
+	var given: String = "—"
+	if prize != null and prize.kind == MachinePrize.Kind.REGISTER:
+		given = prize.upgrade.display_name
+	elif prize != null and prize.kind == MachinePrize.Kind.UPGRADE:
+		given = _upgrade_text(prize, visit.upgraded.size())
+	elif prize != null:
+		given = prize.card.display_name
+	if visit.kind == MachineVisit.Kind.STAMP_DAY:
+		return "STAMP DAY: " + given
+	return "%s%s: %s" % [prefix, chute, given]
 
 
 ## The coins at the bottom: one line per payout part, then the total, WIDTH characters each.
@@ -92,6 +112,16 @@ static func coin_lines(payout: CoinPayout, coins_owned: int) -> PackedStringArra
 ## How many coin sounds a payout of `coins` plays.
 static func coin_sounds(coins: int) -> int:
 	return clampi(coins, 0, MAX_COIN_SOUNDS)
+
+
+## An UPGRADES prize's line: one step, straight to GOLDEN, or every copy (SHELF).
+static func _upgrade_text(prize: MachinePrize, copies: int) -> String:
+	match prize.rarity:
+		MachinePrize.Rarity.RARE:
+			return "%s › GOLDEN" % prize.card.display_name
+		MachinePrize.Rarity.LEGENDARY:
+			return "SHELF %s ×%d" % [prize.card.display_name, copies]
+	return "%s +1 step" % prize.card.display_name
 
 
 ## A dashed rule across the receipt.

@@ -139,7 +139,8 @@ func test_key_cards_count_towards_the_measure_alone() -> void:
 	assert_bool(SimBuilds.is_key_card(builds.find("copies"), _card("repeat"))).is_false()
 
 
-## Every later offer shows a coupon; a build whose key cards aren't stocked never shows one.
+## Read from the machine's exact odds (#77): a later COUPONS draw always shows a coupon and a NEW
+## ITEMS draw always shows products; a build whose key cards aren't stocked never shows one.
 func test_key_offer_chance() -> void:
 	var balance: BalanceDefinition = _balance()
 	var builds: SimBuilds = _builds()
@@ -415,7 +416,7 @@ static func _balance() -> BalanceDefinition:
 	balance.base_redraws = 1
 	balance.redraw_limit = 2
 	balance.deck_limit = 10
-	balance.offer_size = 3
+	balance.machine = (load("res://data/balance/balance.tres") as BalanceDefinition).machine
 	balance.quotas = PackedInt32Array([5, 8, 12])
 	balance.coins_by_shifts_passed = PackedInt32Array([0, 1, 2, 3])
 	balance.overtime_coin_euros = 60
@@ -493,9 +494,7 @@ static func _record(
 					"quota": 10,
 					"total": 10,
 					"passed": won or shift < shifts,
-					"card_picked": "",
-					"reward_skipped": false,
-					"upgrade_taken": "",
+					"visits": [],
 				}
 			)
 		)

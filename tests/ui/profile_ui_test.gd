@@ -34,11 +34,9 @@ func test_an_ended_run_is_saved_to_the_profile_and_a_restart_is_not() -> void:
 	saves.save_profile(saved)
 	var runner: GdUnitSceneRunner = scene_runner(SCREEN)
 	var screen: ShiftScreen = runner.scene()
-	screen._on_reward_skipped()  # Past the impulse rack.
 	assert_int(screen.profile.run_count).is_equal(3)
 	# A new run before this one ends (the debug seed) records nothing.
 	screen.start_new_run(5)
-	screen._on_reward_skipped()
 	assert_int(saves.load_profile().run_count).is_equal(3)
 	# A Repeat alone pays 0: the run is lost, recorded and saved at the click.
 	screen.run.place(screen.run.debug_add_to_hand(load(REPEAT)), 0)
@@ -63,7 +61,6 @@ func test_the_results_print_the_coins_and_fit_the_screen() -> void:
 	saves.save_profile(saved)
 	var runner: GdUnitSceneRunner = scene_runner(SCREEN)
 	var screen: ShiftScreen = runner.scene()
-	screen._on_reward_skipped()  # Past the impulse rack.
 	var count: int = screen.run.shift_count()
 	screen._debug.skip_to_shift(count)
 	# The debug jump writes no history: the 7 earlier shifts are passed records, each €2 over.
@@ -146,7 +143,6 @@ func test_the_title_shows_the_shift_count_and_the_coins() -> void:
 func test_without_a_save_the_screen_starts_a_fresh_profile() -> void:
 	var runner: GdUnitSceneRunner = scene_runner(SCREEN)
 	var screen: ShiftScreen = runner.scene()
-	screen._on_reward_skipped()  # Past the impulse rack.
 	assert_int(screen.profile.run_count).is_equal(0)
 	assert_bool(FileAccess.file_exists(_folder.path_join(SaveService.PROFILE_FILE))).is_false()
 

@@ -5,17 +5,17 @@ extends RefCounted
 ## on the count-up's tweens (`make_tween`), so taps and holds speed it up like the count and
 ## never kill it: every line, sound and shake still happens.
 ##
-## The total slams onto the LED's digits on the hung monitor (#80: big numbers land on the
-## monitor, the receipt prints plainly), in the digits' colour (green on a pass), with `total` or
-## `miss` and a shake, a step bigger for a large total and another for a huge one, while the
-## receipt's TOTAL line shows "€total / €quota" at once (green on a pass, red on a miss). The
-## margin line under it counts "+€N OVER QUOTA", "SHORT €N" or a green "ON QUOTA" (ShiftMargin)
-## while `pass` or `fail` sounds; a pass gets the PAID stamp (`stamp_paid`) once the margin has
-## counted; the receipt tears (`rip`), on a miss after `fail` has rung out; the next shift's
-## notice prints in red with the printer's feed, then the clerk's stamp (`stamp_notice`). A pass
-## ends at the printer feed, where the reward print-out takes over; a miss a little after the
-## tear. Under reduced motion the slam fades in at full size and nothing shakes (CountUpMotion);
-## the small punches stay.
+## The total slams onto the LED's digits on the hung monitor (#80: big numbers land on the monitor,
+## the receipt prints plainly), in the digits' colour (green on a pass), with `total` or `miss` and
+## a shake, a step bigger for a large total and another for a huge one, while the receipt's TOTAL
+## line shows "€total / €quota" at once (green on a pass, red on a miss). The margin line under it
+## counts "+€N OVER QUOTA", "SHORT €N" or a green "ON QUOTA" (ShiftMargin) while `pass` or `fail`
+## sounds; a pass gets the PAID stamp (`stamp_paid`) once the margin has counted, and an inspected
+## pass then INSPECTION PASSED under it (`stamp_notice`, #77); the receipt tears
+## (`rip`), on a miss after `fail` has rung out; the next shift's notice prints in red with the
+## printer's feed, then the clerk's stamp (`stamp_notice`). A pass ends at the printer feed, where
+## the RECEIPT REWARDS machine takes over (#77); a miss a little after the tear. Under reduced
+## motion the slam fades in at full size and nothing shakes (CountUpMotion); the small punches stay.
 
 ## The slam starts this big (D11) and lands at 1 on the LED's digits.
 const SLAM_SCALE := 3.2
@@ -31,6 +31,9 @@ const NOTICE_STAMP_GAP := 0.08
 var margin: ShiftMargin
 ## The sounds: the count-up's own Sfx (CountUp sets it before each dessert).
 var sfx: Sfx
+## The shift's inspections' names (#77): a pass stamps INSPECTION PASSED naming them under PAID
+## (none when empty: the shift was not inspected). CountUp sets it before each dessert.
+var inspection: String = ""
 ## The player's speed setting, the speed the dessert's waits run at without taps or holds
 ## (CountUp sets it before each dessert).
 var speed_setting: float = 1.0
@@ -94,6 +97,9 @@ func play(
 	if passed:
 		await _wait_ms(_tuning.dessert_paid_ms)
 		_stamp_paid(line)
+		if not inspection.is_empty():
+			await _wait_ms(_tuning.dessert_paid_ms)
+			_stamp_inspection()
 	else:
 		# The music stays ducked through the whole fail sound (#62, Q6), then the receipt tears.
 		# The sound plays in real time but the waits run at the speed setting, so its length is
@@ -196,8 +202,20 @@ func _show_margin(euros: float, line: Control) -> void:
 
 ## PAID lands on the margin line with its stamp.
 func _stamp_paid(line: Control) -> void:
-	var stamp: Label = ReceiptView.stamp_paid(line)
+	var stamp: Label = ReceiptStamps.stamp_paid(line)
 	sfx.play("stamp_paid")
+	stamp.scale = Vector2(PAID_SLAM_SCALE, PAID_SLAM_SCALE)
+	var slam: Tween = _fx.scale_tween(stamp).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	slam.tween_property(stamp, "scale", Vector2.ONE, PAID_SLAM)
+
+
+## INSPECTION PASSED lands under PAID with the clerk's stamp (#77: the shift earned the BONUS
+## TICKET).
+func _stamp_inspection() -> void:
+	var line: Control = ReceiptStamps.stamp_inspection(_receipt, inspection)
+	sfx.play("stamp_notice")
+	_fade_in(line)
+	var stamp: Control = ReceiptStamps.inspection_of(line)
 	stamp.scale = Vector2(PAID_SLAM_SCALE, PAID_SLAM_SCALE)
 	var slam: Tween = _fx.scale_tween(stamp).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
 	slam.tween_property(stamp, "scale", Vector2.ONE, PAID_SLAM)

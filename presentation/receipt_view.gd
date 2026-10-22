@@ -70,9 +70,8 @@ const VERDICT_MIN_FONT_SIZE := 10
 ## The step and item lines' size, and the footer's.
 const LINE_FONT_SIZE := 13
 const FOOTER_FONT_SIZE := 12
-## The PAID stamp on a passed shift's margin line, tilted like a clerk's stamp.
-const PAID_TEXT := "PAID"
-const PAID_TILT_DEG := -8.0
+## The PAID stamp on a passed shift's margin line (ReceiptStamps, with INSPECTION PASSED).
+const PAID_TEXT := ReceiptStamps.PAID_TEXT
 ## The torn edge: this pattern repeated, clipped to the receipt's width.
 const TEAR_PATTERN := "/\\"
 const TEAR_REPEAT := 60
@@ -659,14 +658,16 @@ func add_notice(text: String) -> Control:
 
 
 ## The shift's end at once, as the dessert leaves it (#61): the verdict on the TOTAL line, the
-## margin line (PAID on a pass), the tear and `notice` (none when empty). The receipt ends with
-## the TOTAL line.
-func show_shift_end(total: int, quota: int, notice: String = "") -> void:
+## margin line (PAID on a pass), INSPECTION PASSED naming `inspection` on a passed inspected
+## shift (#77; none when empty), the tear and `notice` (none when empty).
+func show_shift_end(total: int, quota: int, notice: String = "", inspection: String = "") -> void:
 	var margin: ShiftMargin = ShiftMargin.of(total, quota)
 	show_verdict(total, quota)
 	var line: Control = add_margin(margin)
 	if margin.passed():
-		stamp_paid(line)
+		ReceiptStamps.stamp_paid(line)
+		if not inspection.is_empty():
+			ReceiptStamps.stamp_inspection(self, inspection)
 	add_tear()
 	if not notice.is_empty():
 		add_notice(notice)
@@ -742,22 +743,6 @@ static func margin_text(kind: ShiftMargin.Kind, euros: int) -> String:
 		ShiftMargin.Kind.SHORT:
 			return "SHORT %s" % money(euros)
 	return "ON QUOTA"
-
-
-## PAID is stamped on a passed shift's margin `line`, tilted. Returns the stamp's label.
-static func stamp_paid(line: Control) -> Label:
-	var stamp: Label = line.get_child(1) as Label
-	stamp.text = PAID_TEXT
-	stamp.add_theme_color_override("font_color", Palette.TOMATO)
-	_tilt(stamp)
-	# A container sets its children's rotation back to 0 whenever it sorts them.
-	(line as Container).sort_children.connect(_tilt.bind(stamp))
-	return stamp
-
-
-static func _tilt(stamp: Label) -> void:
-	stamp.pivot_offset = stamp.size / 2.0
-	stamp.rotation = deg_to_rad(PAID_TILT_DEG)
 
 
 ## The receipt tears off under the shift's lines: a torn edge, clipped to the receipt's width.

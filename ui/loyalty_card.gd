@@ -1,10 +1,11 @@
 class_name LoyaltyCard
 extends PanelContainer
-## The loyalty card (full build plan 5.2), in the pixel-art style (#55): the loyalty_card frame
-## with one box per upgrade shift (plus one for a starting deck's upgrade, 7.3), each an empty
-## stamp ring until an upgrade is taken. A taken upgrade stamps the next box with its initials
-## (a placeholder for its perk icon until #59). Hovering a stamped box shows the upgrade's name,
-## type, effect and condition, so nothing about an upgrade is shown only inside an animation.
+## The loyalty card (full build plan 5.2), in the pixel-art style (#55): the loyalty_card frame with
+## one box per register the RECEIPT REWARDS machine can stamp (its register cap, #77; plus one for a
+## starting deck's upgrade, 7.3), each an empty stamp ring until an upgrade is taken. A taken
+## upgrade stamps the next box with its initials (a placeholder for its perk icon until #59).
+## Hovering a stamped box shows the upgrade's name, type, effect and condition, so nothing about an
+## upgrade is shown only inside an animation.
 ##
 ## The count-up flies upgrade steps in from these boxes: box(i) belongs to the run's upgrade i.
 ##
@@ -162,15 +163,24 @@ func _add_relation_parts(stamped: PanelContainer) -> void:
 	stamped.add_child(ring)
 
 
-## The run's boxes: one per upgrade shift (balance data), plus one when its deck has a starting
-## upgrade (full build plan 7.3).
+## The run's boxes: one per register the machine can stamp (its register cap, #77), plus one when
+## its deck has a starting upgrade (full build plan 7.3).
 static func box_count(run: RunState) -> int:
-	return run.balance.upgrade_shifts.size() + (0 if run.starter.starting_upgrade == null else 1)
+	var cap: int = run.balance.machine.register_cap if run.balance.machine != null else 0
+	return cap + (0 if run.starter.starting_upgrade == null else 1)
 
 
 ## The box of the run's upgrade `index` (pick order), or null.
 func box(index: int) -> Control:
 	if index < 0 or index >= _shown.size() or index >= _boxes.get_child_count():
+		return null
+	return _boxes.get_child(index) as Control
+
+
+## The box `index` whether stamped or still empty (the machine's register flies to the next empty
+## one before the card shows its stamp), or null past the card's boxes.
+func any_box(index: int) -> Control:
+	if index < 0 or index >= _boxes.get_child_count():
 		return null
 	return _boxes.get_child(index) as Control
 

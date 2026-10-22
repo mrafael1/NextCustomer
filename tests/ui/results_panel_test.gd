@@ -1,9 +1,11 @@
 extends GdUnitTestSuite
 ## The run's final receipt (#61, ResultsPanel and FinalReceipt) on the real shift screen: its
-## lines and their order (the headline, one line per played shift with the upgrade and the
-## inspection on a dim second line, the shortfall on a loss, the coins at the bottom), the print
+## lines and their order (the headline, one line per played shift with a dim line per RECEIPT
+## REWARDS visit (#77) and the inspection under it, the shortfall on a loss, the coins at the
+## bottom), the print
 ## one line every final_line_ms, a tap printing the rest at once, New run armed mid-print, the
-## coins clinking and the music ducking when the coin lines print, and the layout: 8 shifts, the
+## coins clinking and the music ducking when the coin lines print, and the layout: 8 shifts with
+## their visits, the
 ## stapled loyalty card with a starting-upgrade box and the coins fit 1280x720 unclipped. The
 ## real saves, logs and Music bus level are never touched.
 
@@ -58,14 +60,17 @@ func after_test() -> void:
 		DirAccess.remove_absolute(_folder)
 
 
-## A run lost on shift 2: the headline, a rule, shift 1 (passed, reward skipped, its inspection
-## on a dim second line), shift 2 (failed), the shortfall, a rule and the coins, "you have ?"
+## A run lost on shift 2: the headline, a rule, shift 1 (passed, its visit binned and its
+## inspection on dim lines), shift 2 (failed), the shortfall, a rule and the coins, "you have ?"
 ## when the profile wasn't saved. Shift and coin lines are FinalReceipt.WIDTH wide or less.
 func test_a_lost_run_lists_its_shifts_then_the_shortfall_and_the_coins() -> void:
 	var screen: ShiftScreen = await _screen()
 	var run: RunState = screen.run
 	var first: ShiftRecord = ShiftRecord.new(1, 34, 109)
-	first.reward_skipped = true
+	var binned: MachineVisit = MachineVisit.new()
+	binned.chute = RewardMachine.Chute.NEW_ITEMS
+	binned.binned = true
+	first.visits.append(binned)
 	first.inspection = load(SPOT_CHECK)
 	var second: ShiftRecord = ShiftRecord.new(2, 35, 20)
 	second.passed = false
@@ -85,9 +90,10 @@ func test_a_lost_run_lists_its_shifts_then_the_shortfall_and_the_coins() -> void
 		expected
 		. append_array(
 			[
-				"  1  €109 / €34     pass  skipped",
+				"  1  €109 / €34     pass",
+				"     binned NEW ITEMS",
 				"     inspection Spot check",
-				"  2  €20 / €35      fail  —",
+				"  2  €20 / €35      fail",
 				shortfall,
 				rule,
 			]
@@ -96,8 +102,8 @@ func test_a_lost_run_lists_its_shifts_then_the_shortfall_and_the_coins() -> void
 	expected.append_array(Array(FinalReceipt.coin_lines(payout, -1)))
 	assert_array(Array(texts)).is_equal(expected)
 	assert_str(texts[-1]).ends_with("you have ?")
-	assert_int(screen._results.coin_line_index()).is_equal(7)
-	for index: int in [2, 4, 7, 8, 9]:
+	assert_int(screen._results.coin_line_index()).is_equal(8)
+	for index: int in [2, 3, 5, 8, 9, 10]:
 		assert_int(texts[index].length()).is_less_equal(FinalReceipt.WIDTH)
 
 
@@ -227,7 +233,8 @@ func test_a_full_receipt_fits_the_screen_with_the_card_and_the_coins() -> void:
 	screen._show_results(_last_result(screen))
 	results.skip_printing()
 	await _frames(15)
-	assert_int(results.texts().size()).is_equal(2 + 8 * 2 + 1 + 3)
+	# 8 shift lines, 7 ticket visits, 3 bonus visits and 3 inspections.
+	assert_int(results.texts().size()).is_equal(2 + 8 + 7 + 3 + 3 + 1 + 3)
 	var paper: Rect2 = results.get_global_rect()
 	prints("#61 final receipt:", paper)
 	assert_bool(SCREEN_RECT.encloses(paper)).is_true()
@@ -238,7 +245,7 @@ func test_a_full_receipt_fits_the_screen_with_the_card_and_the_coins() -> void:
 	assert_float(card.end.x).is_greater(paper.end.x - 40.0)
 	assert_float(card.position.y).is_less(paper.position.y + 40.0)
 	assert_int(results._loyalty_card.box_texts().size()).is_equal(
-		screen.run.balance.upgrade_shifts.size() + 1
+		screen.run.balance.machine.register_cap + 1
 	)
 	assert_str(results._loyalty_card.box_texts()[0]).is_equal("BiB")
 	var previous: Rect2 = Rect2()
@@ -257,8 +264,10 @@ func test_a_full_receipt_fits_the_screen_with_the_card_and_the_coins() -> void:
 	assert_str(results.texts()[-1]).starts_with("COINS +")
 
 
-## The won run of the layout test: 8 passed shifts with the longest card, upgrade and
-## inspection names, totals of four digits, and a starting upgrade on the loyalty card.
+## The won run of the layout test: 8 passed shifts with totals of four digits, a ticket visit
+## after each of the first 7 (NEW ITEMS with the longest card name), and on the inspected shifts
+## (the balance's, with the longest inspection name) a bonus visit (REGISTER with the longest
+## upgrade name); a starting upgrade on the loyalty card.
 func _full_run(screen: ShiftScreen) -> void:
 	var run: RunState = screen.run
 	var starter: DeckDefinition = run.starter.duplicate() as DeckDefinition
@@ -272,9 +281,29 @@ func _full_run(screen: ShiftScreen) -> void:
 	for shift: int in range(1, run.shift_count() + 1):
 		var record: ShiftRecord = ShiftRecord.new(shift, 923, 1234)
 		record.passed = true
-		record.card_picked = load(LONG_CARD)
-		record.upgrade_taken = load(LONG_UPGRADE)
-		record.inspection = load(LONG_INSPECTION)
+		if shift < run.shift_count():
+			var ticket: MachineVisit = MachineVisit.new()
+			ticket.chute = RewardMachine.Chute.NEW_ITEMS
+			var card: MachinePrize = MachinePrize.new(
+				MachinePrize.Kind.PRODUCT, MachinePrize.Rarity.COMMON, load(LONG_CARD)
+			)
+			var cards: Array[MachinePrize] = [card]
+			ticket.set_drawn(cards)
+			ticket.picked = 0
+			record.visits.append(ticket)
+		if run.balance.inspection_shifts.has(shift):
+			record.inspection = load(LONG_INSPECTION)
+			var bonus: MachineVisit = MachineVisit.new(
+				MachineVisit.Kind.BONUS, "coupon_slot_closed"
+			)
+			bonus.chute = RewardMachine.Chute.REGISTER
+			var register: MachinePrize = MachinePrize.new(
+				MachinePrize.Kind.REGISTER, MachinePrize.Rarity.COMMON, null, load(LONG_UPGRADE)
+			)
+			var registers: Array[MachinePrize] = [register]
+			bonus.set_drawn(registers)
+			bonus.picked = 0
+			record.visits.append(bonus)
 		history.append(record)
 	run.history = history
 	run.shift_index = run.shift_count() - 1
@@ -290,7 +319,6 @@ func _last_result(screen: ShiftScreen) -> ScoreResult:
 func _screen() -> ShiftScreen:
 	var runner: GdUnitSceneRunner = scene_runner(SCREEN)
 	var screen: ShiftScreen = runner.scene()
-	screen._on_reward_skipped()  # Past the impulse rack.
 	# A fresh MusicService (streaming off) in place of the autoload, on the shift loop.
 	var music: MusicService = MUSIC_SCRIPT.new()
 	music.streaming = false
