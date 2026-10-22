@@ -469,13 +469,16 @@ static func _tilted_rect(control: Control) -> Rect2:
 	return rect
 
 
-## The quota met on the monitor (show_met, CountUp's quota_met; #86 v6), with its pop: the bay's
-## light green and its sticker knocked off, the sunburst gold and boosted, the stage's TankBurst
-## out of the € (the monitor shaking), all in real time; the stamp slams after STAMP_DELAY_S
-## (another shake as it lands), the "+€N" tab comes in after OverTab.DELAY_S beside the stamp, on
-## the paper, turned. A payout's chip flies into the digits (on the LED's first rise after its
-## beat) and, as it lands, the gold pours from the gap before the € into the €; once met it spurts
-## and punches the tab. A new count takes it all off.
+## The quota met on the monitor (show_met, CountUp's quota_met; #86 v6; WIN B of the monitor
+## juice), with its pop: the bay's light green and its sticker knocked off, the sunburst gold,
+## boosted and growing out to the tuning's sunburst_met_radius, the gold over the brim, the digits
+## punched to their cap (win_punch), the paper's flash, the stage's TankBurst fountain out of the
+## number and € (the monitor shaking), all in real time; the stamp
+## slams after STAMP_DELAY_S (another shake as it lands), the "+€N" tab comes in after
+## OverTab.DELAY_S beside the stamp, on the paper, turned. A payout's chip flies into the digits
+## (on the LED's first rise after its beat); its landing sloshes the gold, nothing pours into the
+## €; once met a landing sprays a small fountain and punches the tab. A new count takes it all
+## off.
 func test_the_quota_met_bursts_on_the_monitor() -> void:
 	var stage: ShiftStage = await _stage()
 	var monitor: MonitorView = stage.monitor
@@ -486,26 +489,31 @@ func test_the_quota_met_bursts_on_the_monitor() -> void:
 	var bay: ScannerBay = monitor.bay()
 	bay.land(StickerSpec.new())
 	count_up.beat_started.emit(_payout_beat(30), _payout_step(30), "", null, 1)
-	assert_array(burst.drawn_rects(TankBurst.Layer.POUR)).is_empty()
 	monitor.led.show_subtotal(30, false)
-	# The chip flies first; the pour follows as it lands in the number.
+	# The chip flies; the payout's landing sloshes the gold (droplets, no coins).
 	assert_int(monitor.chips().chip_rects().size()).is_equal(1)
 	await get_tree().create_timer(ReceiptFly.FLIGHT_MAX + 0.05).timeout
-	burst.advance(0.001)
-	assert_array(burst.drawn_rects(TankBurst.Layer.POUR)).is_not_empty()
-	# One pour per payout: the roll's next readings pour nothing more.
-	var pours: int = burst._pours.size()
 	monitor.led.show_subtotal(31, false)
 	assert_array(monitor.chips().chip_rects()).is_empty()
-	assert_int(burst._pours.size()).is_equal(pours)
+	count_up.payout_landed.emit(30, 31)
+	burst.advance(0.001)
+	assert_array(burst.drawn_rects(TankBurst.Layer.PARTICLES)).is_not_empty()
+	assert_int(burst.coin_count()).is_equal(0)
 	monitor.led.show_subtotal(52, true)
 	count_up.quota_met.emit(true)
+	var tuning: CountUpTuning = monitor.led.gold_tank.tuning()
+	assert_float(monitor.led.gold_tank.target()).is_equal(tuning.tank_overfill)
+	monitor.led.gold_tank.advance(0.05)
+	var punched: float = monitor.led.digits_label().scale.x
+	assert_float(punched).is_greater(tuning.digits_punch(tuning.win_punch) - 0.05)
+	assert_float(punched).is_less_equal(tuning.digits_punch_max + 0.001)
+	assert_float(monitor.flash.color.a).is_equal_approx(tuning.win_flash, 0.001)
 	assert_bool(bay.is_met()).is_true()
 	assert_that(bay.light_colour()).is_equal(ScannerBay.LIGHT_MET_COLOR)
 	assert_object(bay.landing_sticker()).is_null()
 	assert_bool(monitor.sunburst().is_met()).is_true()
 	assert_float(monitor.sunburst().turn_speed()).is_greater(Sunburst.TURN)
-	assert_float(monitor.sunburst().radius()).is_equal(Sunburst.MET_RADIUS)
+	assert_float(monitor.sunburst().radius()).is_less(tuning.sunburst_met_radius)
 	assert_bool(burst.is_active()).is_true()
 	var stamp: MetStamp = monitor.led.beat().stamp()
 	assert_bool(stamp.is_showing()).is_false()
@@ -520,6 +528,8 @@ func test_the_quota_met_bursts_on_the_monitor() -> void:
 		await get_tree().process_frame
 	assert_bool(shaken).is_true()
 	assert_bool(stamp.is_showing()).is_true()
+	assert_float(monitor.sunburst().radius()).is_equal(tuning.sunburst_met_radius)
+	assert_float(monitor.flash.color.a).is_equal(0.0)
 	await get_tree().create_timer(OverTab.DELAY_S).timeout
 	assert_bool(tab.is_visible_in_tree()).is_true()
 	assert_str(tab.label().text).is_equal("+€12")
@@ -536,16 +546,15 @@ func test_the_quota_met_bursts_on_the_monitor() -> void:
 	assert_bool(paper.encloses(tab.get_global_rect())).is_true()
 	_assert_tab_beside_stamp(tab, stamp)
 	assert_bool(paper.encloses(stamp.drawn_rect())).is_true()
-	# A later payout: a chip, then a pour, a spurt (a jet) and the tab punched.
+	# A later payout: a chip, then as it lands a small fountain and the tab punched.
 	burst.clear()
 	count_up.beat_started.emit(_payout_beat(5), _payout_step(5), "", null, 1)
 	monitor.led.show_subtotal(57, true)
 	assert_str(tab.label().text).is_equal("+€17")
-	await get_tree().create_timer(ReceiptFly.FLIGHT_MAX + 0.05).timeout
-	burst.advance(0.001)
-	assert_array(burst.drawn_rects(TankBurst.Layer.POUR)).is_not_empty()
-	assert_bool(burst._jets.is_empty()).is_false()
-	assert_float(await _largest_scale(tab, TankBurst.POUR_S + 0.3)).is_greater(1.0)
+	count_up.payout_landed.emit(5, 57)
+	burst.advance(0.1)
+	assert_int(burst.coin_count()).is_greater(0)
+	assert_float(await _largest_scale(tab, 0.3)).is_greater(1.0)
 	# A new count: everything off.
 	monitor.led.start_count(40)
 	assert_bool(tab.is_showing()).is_false()
@@ -557,8 +566,9 @@ func test_the_quota_met_bursts_on_the_monitor() -> void:
 
 
 ## Reduced motion keeps the met states and drops the motion: the stamp and the tab at once and
-## still, no pour, no particles but the bezel's still splashes, no shake, no punch; without a pop
-## (a resumed checkout) the stamp and the tab show at once and nothing bursts at all.
+## still, the gold at its level at once, no flash, no particles but the bezel's still splashes, no
+## shake, no punch; without a pop (a resumed checkout) the stamp and the tab show at once and
+## nothing bursts at all.
 func test_reduced_motion_meets_the_quota_at_once() -> void:
 	var stage: ShiftStage = await _stage()
 	var monitor: MonitorView = stage.monitor
@@ -568,11 +578,18 @@ func test_reduced_motion_meets_the_quota_at_once() -> void:
 	var count_up: CountUp = _follow(monitor)
 	count_up.beat_started.emit(_payout_beat(45), _payout_step(45), "", null, 1)
 	monitor.led.show_subtotal(45, false)
-	# No chip, no pour.
+	# No chip; the gold at its hold at once.
 	assert_array(monitor.chips().chip_rects()).is_empty()
-	assert_array(burst.drawn_rects(TankBurst.Layer.POUR)).is_empty()
+	var tank: GoldTank = monitor.led.gold_tank
+	assert_float(tank.level()).is_equal(tank.tuning().tank_hold)
+	count_up.payout_landed.emit(45, 45)
+	burst.advance(0.05)
+	assert_array(burst.drawn_rects(TankBurst.Layer.PARTICLES)).is_empty()
+	assert_int(tank.shine_tops().size()).is_equal(0)
 	monitor.led.show_subtotal(45, true)
 	count_up.quota_met.emit(true)
+	assert_float(tank.level()).is_equal(tank.tuning().tank_overfill)
+	assert_float(monitor.flash.color.a).is_equal(0.0)
 	var stamp: MetStamp = monitor.led.beat().stamp()
 	var tab: OverTab = monitor.over_tab()
 	assert_bool(stamp.is_showing()).is_true()

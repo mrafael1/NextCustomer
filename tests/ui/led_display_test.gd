@@ -137,8 +137,9 @@ func test_the_compact_parts_sit_on_the_glass() -> void:
 
 ## The count layout (SUBTOTAL and TOTAL), at the monitor's LED_COUNT_RECT: the digits' label as wide
 ## as their text, the group of the digits, EURO_GAP and the € (the monitor bay follow-up) centred in
-## COUNT_DIGITS_RECT (the line box centred on the rect's height, the punch pivot at the group's
-## middle), their ink inside it; the to-go line at COUNT_TO_GO_RECT under it (stage TO_GO_RECT),
+## COUNT_DIGITS_RECT (the line box centred on the rect's height; the punch pivot at the digits'
+## bottom right corner, on their baseline: the monitor juice's punch keeps the € still), their ink
+## inside it; the to-go line at COUNT_TO_GO_RECT under it (stage TO_GO_RECT),
 ## apart from the ink; caption and quota line hidden; nothing clipped. Back to compact when blank.
 func test_the_count_parts_sit_on_the_paper() -> void:
 	var led: LedDisplay = await _led()
@@ -157,11 +158,13 @@ func test_the_count_parts_sit_on_the_paper() -> void:
 	assert_float(digits_box.size.x).is_equal_approx(led.digits_text_rect().size.x, 0.5)
 	var euro: Rect2 = led.euro_label().get_global_rect()
 	var group: Rect2 = digits_box.merge(euro)
-	assert_float(euro.position.x - digits_box.end.x).is_equal(LedDisplay.EURO_GAP)
+	assert_float(euro.position.x - digits_box.end.x).is_equal_approx(LedDisplay.EURO_GAP, 0.001)
 	assert_float(absf(group.get_center().x - digits.get_center().x)).is_less_equal(1.0)
 	var pivot: Vector2 = led.digits_label().pivot_offset
-	assert_float(pivot.x).is_equal_approx(group.size.x / 2.0, 0.01)
-	assert_float(pivot.y).is_equal(led.digits_label().size.y / 2.0)
+	assert_float(pivot.x).is_equal_approx(led.digits_label().size.x, 0.01)
+	assert_float(led.digits_label().global_position.y + pivot.y).is_equal_approx(
+		led.digits_text_rect().end.y, 1.0
+	)
 	var ink: Rect2 = led.digits_text_rect().merge(led.euro_text_rect())
 	assert_bool(digits.encloses(ink)).override_failure_message(str(ink)).is_true()
 	var beat: LedBeat = led.beat()
@@ -215,10 +218,10 @@ func test_the_count_digits_look() -> void:
 ## The longest digits at the largest punch the count-up gives (SUBTOTAL_PUNCH plus
 ## SUBTOTAL_PUNCH_MAX plus the tuning's passes_best_punch, above the TOTAL line's) stay on the
 ## glass in the compact layout, and on the monitor's paper in the count layout (at
-## LED_COUNT_RECT), where every total up to the longest digits (9999) keeps the largest digits
-## size with its € beside it (the room is the paper right of the bay since the monitor bay
-## follow-up), inside COUNT_DIGITS_RECT's width at rest: the measured text, not the label's
-## rect.
+## LED_COUNT_RECT; there the gold tank punches the digits at most to digits_punch_max, within
+## punch_room), where every total up to the longest digits (9999) keeps the largest digits size
+## with its € beside it (the room is the paper right of the bay since the monitor bay follow-up),
+## inside COUNT_DIGITS_RECT's width at rest: the measured text, not the label's rect.
 func test_the_longest_digits_fit_at_the_largest_punch() -> void:
 	var led: LedDisplay = await _led()
 	var tuning: CountUpTuning = load(CountUp.TUNING_PATH)
@@ -246,10 +249,11 @@ func test_the_longest_digits_fit_at_the_largest_punch() -> void:
 		assert_int(font_size).is_equal(LedDisplay.COUNT_DIGITS_SIZES[0])
 		var width: float = led.digits_text_rect().merge(led.euro_text_rect()).size.x
 		assert_float(width).is_less_equal(LedDisplay.COUNT_DIGITS_RECT.size.x)
-		led.digits_label().scale = Vector2(largest, largest)
+		var peak: float = minf(tuning.digits_punch_max, led.punch_room())
+		led.digits_label().scale = Vector2(peak, peak)
 		text = led.digits_text_rect()
 		var shown: String = led.digits_label().text
-		prints("#86 LED count digits", shown, font_size, "at", largest, ":", text, "paper", paper)
+		prints("#86 LED count digits", shown, font_size, "at", peak, ":", text, "paper", paper)
 		assert_bool(paper.encloses(text)).override_failure_message(shown + str(text)).is_true()
 		led.digits_label().scale = Vector2.ONE
 

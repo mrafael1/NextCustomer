@@ -26,22 +26,32 @@ extends Control
 ## - COUNT (the count-up: the LED shows SUBTOTAL or TOTAL in its count layout; #86 v6's scan
 ##   count-up, mock-up count_up_86_v6_scan.html): the bay follows the beats (follow_beat on
 ##   CountUp's beat_started: the item, its name and each beat's landing sticker), the LED's number
-##   and plain gold € as one group centred in LED_COUNT_RECT (the € as tall as the digits, 6 px
-##   after them, LedDisplay.euro_label), the to-go line under them (TO_GO_RECT) that the SPEND MET
-##   stamp (STAMP_RECT) replaces at the quota, the "+€N" tab beside the stamp (OverTab), over a
-##   sunburst on the whole paper centred on the group (Sunburst, SUNBURST_CENTRE, behind them all).
-##   The count starts with slot 1's item already in the bay (no first drop-in). The TOTAL keeps that
-##   layout. The monitor follows the count-up (follow): its rides and beats move the bay's items,
-##   tag and queue (round 7, count_up_86_v7_bay.html). As each payout's roll starts (on the LED's
-##   first higher reading) the tag turns gold and one gold "+€N" chip (TallyChips) flies from it
-##   into the digits' middle; as it lands a few gold drops hop from the gap before the € into the €
-##   (TankBurst.pour, the stage's layer over the top bar). At the quota (CountUp's quota_met) the
-##   bay's light, fan and pips turn green and its sticker is knocked off, the sunburst turns gold,
-##   grows and spins, the gold bursts from the € (TankBurst's jets, coins and splashes, with a shake
-##   of the monitor), the SPEND MET stamp slams STAMP_DELAY_S later (shaking the monitor STAMP_SHAKE
-##   px as it lands) and the "+€N" tab comes in; each later payout spurts and punches the tab as its
-##   pour lands (TankBurst.POUR_S after its chip). A resumed checkout shows the end state at once
-##   (quota_met without a pop, show_end_state): no particles.
+##   and its € as one group in LED_COUNT_RECT (the € as tall as the digits, 6 px after them,
+##   LedDisplay.euro_label; sized for the count's final total, the € standing still while the
+##   digits grow left), the to-go line under them (TO_GO_RECT) that the SPEND MET stamp
+##   (STAMP_RECT) replaces at the quota, the "+€N" tab beside the stamp (OverTab), over a sunburst
+##   on the whole paper centred on the group (Sunburst, SUNBURST_CENTRE, behind them all). The count
+##   starts with slot 1's item already in the bay (no first drop-in). The TOTAL keeps that layout.
+##   The monitor juice (mock-up monitor_juice_v2.html, K1 one tank with FILL A, WIN B and FONT C,
+##   the user's picks of 2026-10-22): the number and the € are one tank of liquid gold
+##   (LedDisplay.gold_tank, GoldTank) at the shown total / the quota, held just under the brim until
+##   the payout that meets the quota lands. The monitor follows the count-up (follow): its rides
+##   and beats move the bay's items, tag and queue (round 7, count_up_86_v7_bay.html). As each
+##   payout's roll starts (on the LED's first higher reading) the tag turns gold and one gold "+€N"
+##   chip (TallyChips) flies from it into the digits' middle. As the payout lands (CountUp's
+##   payout_landed) a chip still in flight goes, the gold sloshes with a ripple, droplets jump off
+##   it (TankBurst.surface_drops, the stage's layer over the top bar), a spark and dust pop on the
+##   digits (TankBurst.sparkle) and the shine rises up the number and the €; the TOTAL line
+##   (total_landed) shines twice. The landing that meets the quota (CountUp's quota_met, in that
+##   same frame) fills the gold over the brim, punches the digits to their cap
+##   (CountUpTuning.win_punch), turns the bay's light, fan and pips green and knocks its sticker
+##   off, turns the sunburst gold (it grows out to CountUpTuning.sunburst_met_radius and spins),
+##   sprays the coin fountain out of the number and € (TankBurst.burst,
+##   with a small shake of the monitor), flashes the paper (`flash`, CountUpTuning.win_flash), slams
+##   the SPEND MET stamp STAMP_DELAY_S later (shaking the monitor STAMP_SHAKE px as it lands) and
+##   brings the "+€N" tab in; each later landing sprays a small fountain (TankBurst.spurt) and
+##   punches the tab. A resumed checkout shows the end state at once (quota_met without a pop,
+##   show_end_state): the gold settled, no particles.
 ## A notice shows on the idle screen while it lasts, over a scan, the channel and the redraw panel
 ## too (they come back once it has faded), never over the count. The channel runs only while it is
 ## shown, and comes back on the slide it was on. The monitor follows the LED's mode (mode_changed)
@@ -50,9 +60,10 @@ extends Control
 ##
 ## Text never carries the pixel material; the art does. Reduced motion (`reduced_motion`) leaves
 ## out the bay's motion (its drop, wobble, slide-out, flash, slap and knock-off; planning's swaps
-## cut), the chips, the sunburst's turn, the pour, the burst's particles (a few still splashes on
-## the bezel instead), the shakes, the stamp's slam and the tab's pop and punches; the states all
-## stay.
+## cut), the chips, the sunburst's turn, the gold's slosh, ripples, bubbles, shine and punches (its
+## level follows the total at once), the burst's particles (a few still splashes on the bezel
+## instead), the paper's flash, the shakes, the stamp's slam and the tab's pop and punches; the
+## states all stay.
 
 enum Mode { IDLE, SCAN, COUNT, CHANNEL, REDRAW }
 
@@ -79,6 +90,9 @@ const INSPECTION_RECT := Rect2(615, 213, 278, 16)
 const INSPECTION_TEXT := "INSPECTION PASSED ✓"
 const INSPECTION_SIZE := 12
 const INSPECTION_WEIGHT := 800
+## The paper's flash as the quota is met (WIN B; the mock-up's #fff3cc, the palette's mustard
+## pale), at CountUpTuning.win_flash, fading over win_flash_s.
+const FLASH_COLOR := Palette.MUSTARD_PALE
 ## The SPEND MET stamp slams this long after the burst (real time), shaking the monitor
 ## STAMP_SHAKE px over STAMP_SHAKE_S as it lands.
 const STAMP_DELAY_S := 0.25
@@ -137,6 +151,10 @@ var tank_burst: TankBurst:
 var inspection_passed_label: Label:
 	get:
 		return _inspection_passed
+## The paper's flash as the quota is met (WIN B), over the whole screen, for checks (read only).
+var flash: ColorRect:
+	get:
+		return _flash
 
 var _notice_holder: Control
 ## The redraw panel over the whole paper (show_redraw), and whether it is on.
@@ -156,16 +174,16 @@ var _tab: OverTab
 var _chips: TallyChips
 ## The count-up's item views (count_started), whose definitions the rides bring in.
 var _views: Array[CardView] = []
-## The count met the quota (quota_met); a payout waiting to rise (the beat's, sent on the
-## reading's first rise) with its chip's flight and whether it spurts (a payout after the quota),
-## each chip in flight's spurt, and the last reading's amount; the stamp's delayed slam.
+## The count met the quota (quota_met); a payout waiting to rise (the beat's, its chip sent on
+## the reading's first rise) with its chip's flight, and the last reading's amount; the stamp's
+## delayed slam and the paper's flash.
 var _met: bool = false
-var _pour_due: int = 0
+var _chip_due: int = 0
 var _chip_s: float = 0.0
-var _spurt_due: bool = false
-var _spurts: Dictionary[int, bool] = {}
 var _last_amount: int = 0
 var _met_motion: Tween
+var _flash: ColorRect
+var _flash_motion: Tween
 var _scanning: bool = false
 ## Planning's bay (show_next, show_scan): belt slot 1's item (null when empty), the belt's slots
 ## and filled ones, and the held item (null with no scan).
@@ -228,7 +246,10 @@ func _init() -> void:
 	_place(_inspection_passed, INSPECTION_RECT)
 	led = LedDisplay.new()
 	led.position = local(ShiftStage.LED_RECT).position
+	led.gold_tank.reduced_motion = _wants_reduced_motion
 	add_child(led)
+	_sunburst.met_radius = led.gold_tank.tuning().sunburst_met_radius
+	_sunburst.grow_seconds = led.gold_tank.tuning().sunburst_grow_s
 	led.mode_changed.connect(_on_led_mode)
 	led.reading_changed.connect(_on_reading)
 	led.beat().stamp().landed.connect(_on_stamp_landed)
@@ -244,7 +265,6 @@ func _init() -> void:
 	_chips = TallyChips.new()
 	_chips.size = size
 	_chips.make_tween = _count_tween
-	_chips.landed.connect(_on_chip_landed)
 	_count_top.add_child(_chips)
 	_bay.tag_holder = _count_top
 	_bay.tag().place(local(Rect2(BayTag.POSITION, Vector2.ZERO)).position)
@@ -257,6 +277,13 @@ func _init() -> void:
 	_redraw_panel = RedrawPanel.new()
 	_redraw_panel.position = local(PAPER_RECT).position
 	add_child(_redraw_panel)
+	_flash = ColorRect.new()
+	_flash.name = "Flash"
+	_flash.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_flash.color = Color(FLASH_COLOR, 0.0)
+	_flash.position = local(PAPER_RECT).position
+	_flash.size = PAPER_RECT.size
+	add_child(_flash)
 	_apply()
 
 
@@ -387,11 +414,14 @@ func end_scan() -> void:
 
 
 ## Follows `count_up`: its count's start (the bay's queue), its rides and beats (the bay's items,
-## tag and stickers, the payouts' chips) and the quota met (see the class comment).
+## tag and stickers, the payouts' chips), the payouts' and the total's landings (the gold) and the
+## quota met (see the class comment).
 func follow(count_up: CountUp) -> void:
 	count_up.count_started.connect(_on_count_started)
 	count_up.ride.connect(_on_ride)
 	count_up.beat_started.connect(_on_beat_started)
+	count_up.payout_landed.connect(_on_payout_landed)
+	count_up.total_landed.connect(_on_total_landed)
 	count_up.quota_met.connect(_on_quota_met)
 	count_up.inspection_passed.connect(_show_inspection_passed)
 
@@ -402,15 +432,17 @@ func _show_inspection_passed() -> void:
 
 
 ## A resumed checkout's end state (after CountUp's show_end_state, which met the quota or not):
-## the bay with all of `views`' items paid and bagged (ALL PAID, DONE), no chips or particles.
-## `_plan` is the count-up's; an inspected pass shows INSPECTION PASSED ✓ (`inspection_passed`).
+## the bay with all of `views`' items paid and bagged (ALL PAID, DONE), the gold settled at its
+## level, no chips or particles. `_plan` is the count-up's; an inspected pass shows INSPECTION
+## PASSED ✓ (`inspection_passed`).
 func show_end_state(
 	_plan: CountUpPlan, views: Array[CardView], inspection_passed: bool = false
 ) -> void:
 	_bay.show_end_state(views.size(), _met)
 	_inspection_passed.visible = inspection_passed
 	_chips.clear()
-	_pour_due = 0
+	_chip_due = 0
+	led.gold_tank.settle()
 	if tank_burst != null:
 		tank_burst.clear()
 
@@ -531,12 +563,12 @@ func _on_led_mode(led_mode: LedDisplay.Mode) -> void:
 	if led_mode != LedDisplay.Mode.TOTAL:
 		_sunburst.set_met(false)
 		_met = false
-		_pour_due = 0
-		_spurts.clear()
+		_chip_due = 0
 		_last_amount = 0
 		_chips.clear()
 		_tab.reset()
 		_stop_met_motion()
+		_set_flash(0.0)
 		if tank_burst != null:
 			tank_burst.clear()
 	_apply()
@@ -547,32 +579,43 @@ func _on_led_mode(led_mode: LedDisplay.Mode) -> void:
 ## gold and sends its chip into the digits (none under reduced motion).
 func _on_reading(amount: int, quota: int, met: bool) -> void:
 	_tab.set_reading(amount, quota, met)
-	if amount > _last_amount and _pour_due > 0 and _counting():
+	if amount > _last_amount and _chip_due > 0 and _counting():
 		_bay.pay()
 		if not _wants_reduced_motion():
 			var tag: BayTag = _bay.tag()
 			var from: Vector2 = tag.send_point() if tag.visible else _bay.landing_point()
-			var chip: int = _chips.fly(
-				_pour_due, from, led.digits_text_rect().get_center(), _chip_s
-			)
-			_spurts[chip] = _spurt_due
-		_pour_due = 0
+			_chips.fly(_chip_due, from, led.digits_text_rect().get_center(), _chip_s)
+		_chip_due = 0
 	_last_amount = amount
 
 
-## A chip lands in the digits: the gold hops from the gap before the € into it; a payout after
-## the quota spurts and punches the tab as its pour lands (TankBurst.POUR_S later, real time).
-func _on_chip_landed(amount: int, chip: int) -> void:
-	var spurt: bool = _spurts.get(chip, false)
-	_spurts.erase(chip)
+## CountUp.payout_landed: any chip still in flight goes, the gold sloshes (a ripple from the
+## group's middle), droplets jump off it, the digits sparkle and the shine rises up the number and
+## the €; a payout after the quota sprays a small fountain and punches the tab. The landing that
+## meets the quota comes before its quota_met, so it is not one of those.
+func _on_payout_landed(_payout: int, _subtotal: int) -> void:
+	# The chip still flying (its flight on the count's tweens may outlast the roll) goes as the
+	# payout lands, as the mock-up's: nothing covers the number at the win.
+	_chips.drop()
 	if not _counting():
 		return
+	var tank: GoldTank = led.gold_tank
+	tank.land()
+	tank.shine()
 	if tank_burst != null:
-		tank_burst.pour(TankBurst.pour_point(led), amount)
-		if spurt:
-			tank_burst.spurt(amount, TankBurst.POUR_S)
-	if spurt and is_inside_tree():
-		create_tween().tween_callback(_punch_tab).set_delay(TankBurst.POUR_S)
+		var drops: int = tank.tuning().tank_drops_met if _met else tank.tuning().tank_drops
+		tank_burst.surface_drops(tank.surface_points(drops))
+		tank_burst.sparkle(led.digits_text_rect().get_center())
+		if _met:
+			tank_burst.spurt()
+	if _met:
+		_punch_tab()
+
+
+## CountUp.total_landed: the TOTAL line's shine, twice.
+func _on_total_landed() -> void:
+	if _counting():
+		led.gold_tank.shine(true)
 
 
 ## CountUp.count_started: a count of `views` starts (the bay's queue; it keeps the first item when
@@ -602,9 +645,8 @@ func _on_beat_started(
 	var definition: CardDefinition = view.card.definition if view != null else null
 	_bay.follow_beat(beat, step, definition)
 	if beat.payout > 0:
-		_pour_due = beat.payout
+		_chip_due = beat.payout
 		_chip_s = clampf(beat.roll_ms / 1000.0, ReceiptFly.FLIGHT_MIN, ReceiptFly.FLIGHT_MAX)
-		_spurt_due = _met
 
 
 ## CountUp.quota_met: the quota is met (see the class comment), with `pop` (the burst, the slam,
@@ -622,11 +664,17 @@ func _on_quota_met(pop: bool) -> void:
 		return
 	_bay.knock_off()
 	_sunburst.boost()
+	# WIN B's own punch (the mock-up's ding): the digits to the cap, from the landing's punch.
+	led.gold_tank.punch(led.gold_tank.tuning().win_punch)
 	if tank_burst != null:
 		tank_burst.burst()
 	if _wants_reduced_motion() or not is_inside_tree():
 		stamp.slam(true)
 		return
+	var tuning: CountUpTuning = led.gold_tank.tuning()
+	_set_flash(tuning.win_flash)
+	_flash_motion = create_tween()
+	_flash_motion.tween_method(_set_flash, tuning.win_flash, 0.0, tuning.win_flash_s)
 	_met_motion = create_tween()
 	_met_motion.tween_callback(stamp.slam.bind(false)).set_delay(STAMP_DELAY_S)
 
@@ -646,6 +694,14 @@ func _stop_met_motion() -> void:
 	if _met_motion != null:
 		_met_motion.kill()
 		_met_motion = null
+	if _flash_motion != null:
+		_flash_motion.kill()
+		_flash_motion = null
+
+
+## The paper's flash at `alpha`.
+func _set_flash(alpha: float) -> void:
+	_flash.color = Color(FLASH_COLOR, alpha)
 
 
 func _on_notice_showing(_showing: bool) -> void:

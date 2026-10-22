@@ -18,18 +18,22 @@ extends Control
 ## COUNT_ constants) is the number column of #86 v6's scan count-up (mock-up
 ## count_up_86_v6_scan.html), straight on the monitor's paper right of the scanner bay: the number
 ## and a plain € after it as one group ("83€", the monitor bay follow-up of #86, mock-up
-## monitor_bay_v1.html), big and gold with an ink outline over a mustard-dark shadow, the same gold
-## met or not (the stamp and the sunburst say met), and under them the line saying how far the quota
-## is (beat(), LedBeat: "€N to go" from core's ShiftMargin of the shown amount), which the SPEND MET
-## stamp replaces at the quota. The € (euro_label()) is the digits' font sized so its ink is as tall
-## as theirs (_euro_size_for), on their baseline, EURO_GAP px after them; it is a child of the
-## digits' label, so their punches carry it. The caption and the quota line keep their text there
-## but are hidden. The digits take the first of COUNT_DIGITS_SIZES that keeps the group inside
-## COUNT_DIGITS_RECT's width; their label is as wide as their text and the group is centred in the
-## rect (on the 2 px grid); the digits' pivot is the group's middle, so the count-up's punches
-## (CountUpMotion.punch keeping the pivot) grow the number and its € evenly about it. Nothing clips
-## there: the count-up caps its punches on the digits at punch_room(), so a longer total punches
-## less and the punched group stays in the room (right of the bay, on the paper).
+## monitor_bay_v1.html), big with an ink outline over a mustard-dark shadow, and under them the
+## line saying how far the quota is (beat(), LedBeat: "€N to go" from core's ShiftMargin of the
+## shown amount), which the SPEND MET stamp replaces at the quota. The number and the € are one
+## gold tank (the monitor juice, mock-up monitor_juice_v2.html, K1: gold_tank, GoldTank): their fill
+## is one liquid gold level at the shown total / the quota, grey-beige glass above it, its shader
+## repainting the labels' fill pass (drawn in COUNT_DIGITS_COLOR). The € (euro_label()) is the
+## digits' font sized so its ink is as tall as theirs (_euro_size_for), on their baseline, EURO_GAP
+## px after them; it is the digits' sibling and never moves or scales. The caption and the quota
+## line keep their text there but are hidden. The group is sized for the count's final total
+## (start_count's `final_total`, the ScoreResult's; the shown amount when it is longer or none is
+## given): the digits take the first of COUNT_DIGITS_SIZES that keeps that group inside
+## COUNT_DIGITS_RECT's width, the € stands where that group, centred in the rect, puts it (on the
+## 2 px grid) for the whole count, and the digits' label, as wide as their text, ends EURO_GAP
+## before it, so the digits grow to the left. Their pivot is their bottom right corner (on the
+## baseline): GoldTank's punches grow them up and left, keeping the €'s baseline, never past
+## punch_room() (right of the bay, on the paper). Nothing clips there.
 
 ## Emitted whenever the mode is set (show_projected, start_count, show_total, clear), even to the
 ## same mode, once the layout follows it: the monitor places the LED for it.
@@ -74,10 +78,13 @@ const COUNT_SIZE := Vector2(278, 86)
 const COUNT_DIGITS_RECT := Rect2(0, 0, 278, 86)
 const COUNT_TO_GO_RECT := Rect2(0, 88, 278, 24)
 ## The € after the count's digits: as tall as their ink, EURO_GAP px after their label, the group
-## (digits, gap, €) centred on COUNT_DIGITS_RECT, its left on a GROUP_GRID px grid.
+## (digits, gap, €) for the final total centred on COUNT_DIGITS_RECT, the € on a GROUP_GRID px
+## grid. The paper reaches COUNT_HEADROOM px over the count's box (MonitorView: the box's top at
+## stage 95, the paper's at 77, less its outline): a punch may grow the digits into it.
 const EURO_TEXT := "€"
 const EURO_GAP := 6.0
 const GROUP_GRID := 2.0
+const COUNT_HEADROOM := 16.0
 const CAPTION_FONT_SIZE := 12
 const DIGITS_FONT_SIZE := 48
 ## The count's digits, largest first (the mock-up's 80 px): the first whose group (the digits, the
@@ -111,6 +118,13 @@ const COUNT_SHADOW_COLOR := Palette.MUSTARD_DARK
 
 const FRAME := preload("res://art/frames/led_panel.png")
 
+## The count layout's gold tank (GoldTank: the number and the € as one liquid gold level, its
+## shine, its punches of the digits); a property, so the class stays within gdlint's 20 public
+## methods.
+var gold_tank: GoldTank:
+	get:
+		return _tank
+
 var _mode: Mode = Mode.BLANK
 var _layout: Layout = Layout.COMPACT
 var _quota: int = 0
@@ -124,8 +138,13 @@ var _quota_label: Label
 var _count_font: FontVariation
 ## The count layout's to-go line and SPEND MET stamp (hidden in the compact one).
 var _beat: LedBeat
-## The count layout's € after the digits (a child of the digits' label; hidden in the compact one).
+## The count layout's € after the digits (their sibling; hidden in the compact one), at _euro_x.
 var _euro: Label
+var _euro_x: float = 0.0
+## The count's final total (start_count), the group's sizing; -1 for none (the shown amount).
+var _final_total: int = -1
+## The count layout's gold tank (over the labels).
+var _tank: GoldTank
 ## The €'s font size for each digits size (_euro_size_for).
 var _euro_sizes: Dictionary[int, int] = {}
 ## Each label's rect, set again once in the tree (a label never shrinks back by itself).
@@ -155,7 +174,7 @@ func _init() -> void:
 	_euro.name = "Euro"
 	_euro.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	_euro.visible = false
-	_digits.add_child(_euro)
+	add_child(_euro)
 	_quota_label = UiKit.number_label("", QUOTA_FONT_SIZE, false)
 	_quota_label.add_theme_color_override("font_color", QUOTA_COLOR)
 	_quota_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
@@ -168,6 +187,10 @@ func _init() -> void:
 	_beat.size = COUNT_TO_GO_RECT.size
 	_beat.visible = false
 	add_child(_beat)
+	_tank = GoldTank.new(self, _digits, _euro)
+	_tank.size = COUNT_SIZE
+	_tank.visible = false
+	add_child(_tank)
 	reset_colour()
 
 
@@ -196,13 +219,17 @@ func show_projected(amount: int, quota: int) -> void:
 
 
 ## A count-up starts against `quota`: the SUBTOTAL caption (hidden in the count layout), the
-## stamp off. The amounts follow through show_subtotal().
-func start_count(quota: int) -> void:
+## stamp off, the gold tank empty. The group is sized for `final_total` (the ScoreResult's total;
+## -1: the amount shown). The amounts follow through show_subtotal().
+func start_count(quota: int, final_total: int = -1) -> void:
 	_caption.text = SUBTOTAL_TEXT
+	_final_total = final_total
 	_set_quota(quota)
 	_set_mode(Mode.SUBTOTAL)
 	reset_colour()
 	_beat.clear_beat()
+	_tank.reset()
+	_tank.set_reading(0, quota, false)
 	reading_changed.emit(0, quota, false)
 
 
@@ -211,6 +238,7 @@ func start_count(quota: int) -> void:
 func show_subtotal(amount: int, met: bool) -> void:
 	_set_colour(met)
 	_set_amount(amount)
+	_tank.set_reading(amount, _quota, met)
 	reading_changed.emit(amount, _quota, met)
 
 
@@ -267,7 +295,7 @@ func beat() -> LedBeat:
 	return _beat
 
 
-## The count layout's € after the digits (a child of the digits' label).
+## The count layout's € after the digits (their sibling: it never moves or scales).
 func euro_label() -> Label:
 	return _euro
 
@@ -277,26 +305,28 @@ func euro_text_rect() -> Rect2:
 	return _ink_rect(_euro, 0.0)
 
 
-## The largest scale the digits may reach in a punch: in the count layout, the scale at which
-## the group (digits, gap and €, about its middle) with its outline and shadow (scaled with it,
-## the shadow's offset counted on both sides) still fits COUNT_DIGITS_RECT's width less a
-## GROUP_GRID each side (its centre snaps to that grid), so a punched group stays right of the
-## bay and on the paper; never below 1. With an `amount` (a subtotal about to roll in under the
-## punch), the wider of the shown group and that amount's at the current size. On the glass
-## (which clips) there is no limit (INF).
+## The largest scale the digits may reach in a punch: in the count layout, about their bottom
+## right corner (EURO_GAP before the €), the scale at which their left with its outline still
+## stays in COUNT_DIGITS_RECT (right of the bay) and their ink's top with its outline under the
+## paper's top (COUNT_HEADROOM over the rect); never below 1. With an `amount` (a subtotal about to
+## roll in under the punch), the wider of the shown digits and that amount's at the current size.
+## On the glass (which clips) there is no limit (INF).
 func punch_room(amount: int = -1) -> float:
 	if _layout != Layout.COUNT or _group_width <= 0.0:
 		return INF
-	var group: float = _group_width
+	var width: float = _text_width(_digits)
 	if amount >= 0:
-		var font: Font = _digits.get_theme_font("font")
-		var font_size: int = _digits.get_theme_font_size("font_size")
-		var digits: float = (
-			font.get_string_size("%d" % amount, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size).x
-		)
-		group = maxf(group, digits + EURO_GAP + _text_width(_euro))
-	var drawn: float = group + 2.0 * (COUNT_OUTLINE + COUNT_SHADOW)
-	return maxf(1.0, (COUNT_DIGITS_RECT.size.x - 2.0 * GROUP_GRID) / drawn)
+		width = maxf(width, _string_width(_digits, "%d" % amount))
+	var right: float = _euro_x - EURO_GAP
+	var across: float = (right - COUNT_DIGITS_RECT.position.x - COUNT_OUTLINE) / maxf(1.0, width)
+	var font: Font = _digits.get_theme_font("font")
+	var font_size: int = _digits.get_theme_font_size("font_size")
+	var ink: Vector2 = ink_span("0", font, font_size)
+	var base: float = _digits.position.y + _baseline(_digits)
+	var up: float = (
+		(base + COUNT_HEADROOM - COUNT_DIGITS_RECT.position.y - COUNT_OUTLINE) / maxf(1.0, -ink.x)
+	)
+	return maxf(1.0, minf(across, up))
 
 
 ## Segments lit now.
@@ -424,6 +454,10 @@ func _use_layout(layout_set: Layout) -> void:
 	_euro.add_theme_constant_override("shadow_offset_x", COUNT_SHADOW)
 	_euro.add_theme_constant_override("shadow_offset_y", COUNT_SHADOW)
 	_euro.visible = count
+	# The gold tank's shader repaints the number's and the €'s fill in the count layout only.
+	_tank.visible = count
+	_digits.material = _tank.fill_material if count else null
+	_euro.material = _tank.euro_material
 	_set_colour(_met)
 	_beat.visible = count
 	_lay_out()
@@ -439,45 +473,84 @@ func _lay_out() -> void:
 
 
 ## The digits' line box is taller than their rect: it stays centred on the rect's height (the ink
-## is far shorter than the line), and punches scale it about its centre. In the count layout the
-## digits take the first of COUNT_DIGITS_SIZES whose group (the digits, EURO_GAP and the € at
-## _euro_size_for) fits the rect's width, their label is as wide as their text and the group is
-## centred in the rect, its left on the GROUP_GRID; the € sits on the digits' baseline. On the
-## glass the digits span the rect, text centred.
+## is far shorter than the line). In the count layout the digits take the first of
+## COUNT_DIGITS_SIZES whose group for the final total (_sizing_text: the digits, EURO_GAP and the €
+## at _euro_size_for) fits the rect's width; the € stands where that group, centred in the rect,
+## puts it (on the GROUP_GRID), whatever the amount shown, and the digits' label, as wide as their
+## text, ends EURO_GAP before it; the € sits on the digits' baseline, and the digits' pivot is their
+## bottom right corner (GoldTank's punches). On the glass the digits span the rect, text centred,
+## their pivot in the middle.
 func _fit_digits() -> void:
 	var room: Rect2 = _rects[_digits]
 	var width: float = room.size.x
 	var left: float = room.position.x
 	var group: float = width
 	if _layout == Layout.COUNT:
+		var sizing: String = _sizing_text()
 		for font_size: int in COUNT_DIGITS_SIZES:
 			_digits.add_theme_font_size_override("font_size", font_size)
 			_euro.add_theme_font_size_override("font_size", _euro_size_for(font_size))
-			group = _text_width(_digits) + EURO_GAP + _text_width(_euro)
+			group = _string_width(_digits, sizing) + EURO_GAP + _text_width(_euro)
 			if group <= room.size.x:
 				break
 		width = _text_width(_digits)
 		_group_width = group
-		left = snappedf(room.get_center().x - group / 2.0, GROUP_GRID)
+		var group_left: float = room.get_center().x - group / 2.0
+		_euro_x = snappedf(group_left + _string_width(_digits, sizing) + EURO_GAP, GROUP_GRID)
+		left = _euro_x - EURO_GAP - width
 	_digits.position = Vector2(left, room.position.y)
 	# A label never shrinks back by itself: set the size, then let its line box's height through.
 	_digits.size = Vector2(width, room.size.y)
 	_digits.size = Vector2(width, maxf(room.size.y, _digits.get_minimum_size().y))
 	_digits.position.y = room.get_center().y - _digits.size.y / 2.0
-	# Punches (CountUpMotion.punch with keep_pivot) scale about the group's middle, so the number
-	# and its € grow evenly about x 754.
-	_digits.pivot_offset = Vector2(group / 2.0, _digits.size.y / 2.0)
 	if _layout == Layout.COUNT:
+		_digits.pivot_offset = Vector2(width, _baseline(_digits))
 		_place_euro()
+		_lay_out_tank()
+	else:
+		_digits.pivot_offset = _digits.size / 2.0
 
 
-## The € EURO_GAP px after the digits' label, its line box as tall as its font, its baseline on
-## the digits'.
+## The text the count's group is sized for: the final total's, or the shown amount's when it is
+## longer or there is none.
+func _sizing_text() -> String:
+	if _final_total < 0:
+		return _digits.text
+	var final_text: String = "%d" % _final_total
+	return final_text if final_text.length() >= _digits.text.length() else _digits.text
+
+
+## The € at _euro_x, its line box as tall as its font, its baseline on the digits'.
 func _place_euro() -> void:
 	var font: Font = _euro.get_theme_font("font")
 	var font_size: int = _euro.get_theme_font_size("font_size")
 	_euro.size = Vector2(_text_width(_euro), font.get_height(font_size))
-	_euro.position = Vector2(_digits.size.x + EURO_GAP, _baseline(_digits) - _baseline(_euro))
+	_euro.position = Vector2(_euro_x, _digits.position.y + _baseline(_digits) - _baseline(_euro))
+
+
+## Hands the gold tank the group at rest (the LED's px): the digits' ink top and baseline, the
+## group's ink top and bottom, its ends and each glyph's left.
+func _lay_out_tank() -> void:
+	var digits_font: Font = _digits.get_theme_font("font")
+	var digits_size: int = _digits.get_theme_font_size("font_size")
+	var digit: Vector2 = ink_span("0", digits_font, digits_size)
+	var base: float = _digits.position.y + _baseline(_digits)
+	var euro_font: Font = _euro.get_theme_font("font")
+	var euro: Vector2 = ink_span(EURO_TEXT, euro_font, _euro.get_theme_font_size("font_size"))
+	var euro_base: float = _euro.position.y + _baseline(_euro)
+	var glares: PackedFloat32Array = PackedFloat32Array()
+	for index: int in range(_digits.text.length()):
+		glares.append(_digits.position.x + _string_width(_digits, _digits.text.left(index)))
+	glares.append(_euro_x)
+	_tank.set_group(
+		base + digit.x,
+		base,
+		minf(base + digit.x, euro_base + euro.x),
+		maxf(base, euro_base + euro.y),
+		_digits.position.x,
+		_euro_x + _text_width(_euro),
+		glares
+	)
 
 
 ## The €'s font size in the count's digits font for digits at `digits_size`: its ink as tall as a
@@ -521,6 +594,11 @@ func _place(label: Label, rect: Rect2) -> void:
 
 ## A label's text width, in its own font and size.
 static func _text_width(label: Label) -> float:
+	return _string_width(label, label.text)
+
+
+## `text`'s width in `label`'s font and size.
+static func _string_width(label: Label, text: String) -> float:
 	var font: Font = label.get_theme_font("font")
 	var font_size: int = label.get_theme_font_size("font_size")
-	return font.get_string_size(label.text, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size).x
+	return font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size).x

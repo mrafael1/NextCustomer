@@ -47,16 +47,17 @@ func after_test() -> void:
 
 ## The count view at its fullest (mock-ups count_up_86_v6_scan.html and monitor_bay_v1.html, on the
 ## paper): the bay at BAY_RECT, the LED's room right of it, the to-go line and the stamp at their
-## rects over the sunburst on the whole paper. The number and its plain gold € are one group centred
-## on x 754 (the right part's centre) for one- to four-digit totals, inside the room, the € as tall
-## as the digits (within 2 px), on their baseline, EURO_GAP px after them; every realistic total up
-## to the simulator's largest (1118) shows at the largest digits size. Unpunched, the group's ink
-## with its outline and shadow stays on the paper and clear of the bay, the to-go line and the
-## stamp; the count-up's punches scale the group about its middle (the € carried with the digits),
-## so at the largest punch (capped at the LED's punch_room, with the ease's overshoot: a one-digit
-## total keeps it whole) the group stays centred on 754, drawn on the paper and clear
-## of the bay. The widest to-go texts fit their line. The digits and
-## the € are gold with an ink outline, met or not. At the TOTAL nothing moves.
+## rects over the sunburst on the whole paper. The number and its € are one group, sized for the
+## count's final total and centred on x 754 (the right part's centre) at that total, for one- to
+## four-digit totals, inside the room, the € as tall as the digits (within 2 px), on their
+## baseline, EURO_GAP px after them; every realistic total up to the simulator's largest (1118)
+## shows at the largest digits size. Unpunched, the group's ink with its outline and shadow stays on
+## the paper and clear of the bay, the to-go line and the stamp. The digits alone punch (the
+## monitor juice: GoldTank.punch about their bottom right corner, the € still), at most
+## digits_punch_max with the ease's overshoot (a one-digit total reaches it) and within the LED's
+## punch_room: through the whole punch the drawn group stays on the paper and clear of the bay, and
+## the € never moves. The widest to-go texts fit their line. The digits and the € are gold (the
+## gold tank's fill colour) with an ink outline, met or not. At the TOTAL nothing moves.
 func test_the_count_content_fits_at_the_largest_punch() -> void:
 	var monitor: MonitorView = await _monitor()
 	monitor.reduced_motion = func() -> bool: return true
@@ -128,7 +129,9 @@ func test_the_count_content_fits_at_the_largest_punch() -> void:
 		CountUp.TOTAL_PUNCH
 	)
 	var centre: float = MonitorView.RIGHT_RECT.get_center().x
+	var tank: GoldTank = led.gold_tank
 	for amount: int in [7, 56, WIDEST_TOTAL, LARGEST_TOTAL, WIDE_FOUR_DIGITS, 9999]:
+		led.start_count(WIDEST_QUOTA, amount)
 		led.show_subtotal(amount, false)
 		await _frames(1)
 		var text: String = digits.text
@@ -166,42 +169,44 @@ func test_the_count_content_fits_at_the_largest_punch() -> void:
 		for rect: Rect2 in [bay, MonitorView.TO_GO_RECT, stamped]:
 			var clear: String = "%s %s over %s" % [text, shadowed, rect]
 			assert_bool(shadowed.intersects(rect)).override_failure_message(clear).is_false()
-		# The punch is capped at the room (with the ease's overshoot): a one-digit total keeps the
-		# full punch, a longer one punches less and still fits.
-		var peak: float = CountUpMotion.peak_of(
-			CountUpMotion.capped_punch(largest, led.punch_room())
-		)
+		# The digits' punch, stepped through: capped at digits_punch_max (with the ease's
+		# overshoot; a one-digit total reaches it) and at the room; the € stays put.
+		monitor.reduced_motion = func() -> bool: return false
+		tank.punch(largest)
+		var peak: float = 1.0
+		var punch_s: float = tuning.digits_punch_up_s + tuning.digits_punch_down_s
+		for _step: int in range(ceili(punch_s / 0.005) + 2):
+			tank.advance(0.005)
+			peak = maxf(peak, digits.scale.x)
+			var punched: Rect2 = led.digits_text_rect().merge(led.euro_text_rect())
+			var scale: float = digits.scale.x
+			var punched_outlined: Rect2 = punched.grow(LedDisplay.COUNT_OUTLINE * scale)
+			var punched_drawn: Rect2 = punched_outlined.merge(
+				Rect2(
+					punched_outlined.position + Vector2.ONE * LedDisplay.COUNT_SHADOW * scale,
+					punched_outlined.size
+				)
+			)
+			var punched_message: String = "%s at %.3f %s" % [text, scale, punched_drawn]
+			(
+				assert_bool(paper.encloses(punched_drawn))
+				. override_failure_message(punched_message)
+				. is_true()
+			)
+			(
+				assert_bool(punched_drawn.intersects(bay))
+				. override_failure_message(punched_message)
+				. is_false()
+			)
+			assert_that(led.euro_text_rect()).is_equal(euro_ink)
+		prints("monitor bay: count group", text, font_size, "punched to", peak)
+		assert_float(peak).is_less_equal(tuning.digits_punch_max + 0.001)
 		if amount < 10:
-			assert_float(peak).is_equal_approx(CountUpMotion.peak_of(largest), 0.001)
+			assert_float(peak).is_equal_approx(tuning.digits_punch_max, 0.01)
 		else:
 			assert_float(peak).is_greater(1.0)
-		digits.scale = Vector2(peak, peak)
-		var punched: Rect2 = led.digits_text_rect().merge(led.euro_text_rect())
-		var punched_outlined: Rect2 = punched.grow(LedDisplay.COUNT_OUTLINE * peak)
-		var punched_drawn: Rect2 = punched_outlined.merge(
-			Rect2(
-				punched_outlined.position + Vector2.ONE * LedDisplay.COUNT_SHADOW * peak,
-				punched_outlined.size
-			)
-		)
-		prints("monitor bay: count group", text, font_size, "at", peak, ":", punched_drawn)
-		var punched_message: String = "%s at %.3f %s" % [text, peak, punched_drawn]
-		(
-			assert_float(punched.get_center().x)
-			. override_failure_message(punched_message)
-			. is_equal_approx(centre, 1.5)
-		)
-		(
-			assert_bool(paper.encloses(punched_drawn))
-			. override_failure_message(punched_message)
-			. is_true()
-		)
-		(
-			assert_bool(punched_drawn.intersects(bay))
-			. override_failure_message(punched_message)
-			. is_false()
-		)
-		digits.scale = Vector2.ONE
+		assert_vector(digits.scale).is_equal(Vector2.ONE)
+		monitor.reduced_motion = func() -> bool: return true
 	# The widest to-go texts fit their line: short of the quota, on it and past it.
 	for amount: int in [WIDEST_QUOTA - 1, WIDEST_QUOTA, 9999]:
 		led.show_subtotal(amount if amount != WIDEST_QUOTA - 1 else 1, amount >= WIDEST_QUOTA)

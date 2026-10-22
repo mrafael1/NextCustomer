@@ -1,9 +1,9 @@
 extends GdUnitTestSuite
 ## The tag's payouts on the monitor (#86 round 7, TALLY): as a payout's roll first rises the tag
-## turns gold and one chip flies from its send point into the digits; as the chip lands the gold
-## hops from the gap before the € into the € (the monitor bay follow-up, mock-up
-## monitor_bay_v1.html: no drop crosses a digit); once met, a payout's spurt and tab punch wait for
-## its pour to land (TankBurst.POUR_S). Split from monitor_view_test for the file's line limit.
+## turns gold and one chip flies from its send point into the digits; as the payout lands the gold
+## sloshes and shines (the monitor juice, mock-up monitor_juice_v2.html: nothing travels into the
+## €); once met, each landing sprays a small fountain and punches the tab at once. Split from
+## monitor_view_test for the file's line limit.
 
 
 ## A payout (#86 round 7): as its roll's first reading rises the tag turns gold and one chip flies
@@ -61,96 +61,101 @@ func test_a_payout_sends_one_chip_from_the_tag_into_the_number() -> void:
 	assert_bool(tag.is_paid()).is_true()
 
 
-## The pour (the monitor bay follow-up, mock-up monitor_bay_v1.html) leaves the gap just above
-## the digits, before the € (TankBurst.pour_point), as the chip lands, and hops into the €: no drop
-## crosses a digit (every drop right of the digits' ink, within 2 art px), each lands in the €'s
-## ink, all within POUR_S.
-func test_the_pour_hops_from_the_digits_into_the_euro() -> void:
-	var stage: ShiftStage = await _stage()
-	var monitor: MonitorView = stage.monitor
-	var burst: TankBurst = stage.tank_burst
-	var origin: Vector2 = stage.get_global_rect().position
-	var led: LedDisplay = monitor.led
-	led.start_count(140)
-	led.show_subtotal(56, false)
-	await _frames(1)
-	var digits: Rect2 = led.digits_text_rect()
-	var euro: Rect2 = led.euro_text_rect()
-	var from: Vector2 = TankBurst.pour_point(led)
-	assert_float(from.x).is_greater(digits.end.x)
-	assert_float(from.x).is_less(euro.position.x)
-	assert_float(from.y).is_less(digits.position.y)
-	monitor.chips().landed.emit(12, 0)
-	burst.advance(0.001)
-	var rects: Array[Rect2] = burst.drawn_rects(TankBurst.Layer.POUR)
-	assert_array(rects).is_not_empty()
-	var start: Rect2 = rects[0]
-	for rect: Rect2 in rects:
-		start = start.merge(rect)
-	(
-		assert_bool(start.grow(4.0).has_point(from - origin))
-		. override_failure_message("%s from %s" % [start, from - origin])
-		. is_true()
-	)
-	var steps: int = 0
-	while not burst.drawn_rects(TankBurst.Layer.POUR).is_empty():
-		for rect: Rect2 in burst.drawn_rects(TankBurst.Layer.POUR):
-			var message: String = "%s over the digits %s" % [rect, digits]
-			assert_float(rect.end.x + origin.x).override_failure_message(message).is_greater(
-				digits.end.x - 2.0 * ArtStyle.ART_SCALE
-			)
-		burst.advance(0.02)
-		steps += 1
-		var last_lands: float = TankBurst.POUR_S + TankBurst.POUR_MAX * TankBurst.POUR_STAGGER
-		assert_int(steps).is_less(ceili(last_lands / 0.02) + 3)
-	# Outside the count nothing pours.
-	burst.clear()
-	monitor.led.clear()
-	monitor.chips().landed.emit(12, 0)
-	burst.advance(0.001)
-	assert_array(burst.drawn_rects(TankBurst.Layer.POUR)).is_empty()
-
-
-## A payout after the quota spurts and punches the tab only as its pour lands in the €
-## (TankBurst.POUR_S after its chip lands); the ding's own payout (its beat before the quota) does
-## not spurt.
-func test_spurt_and_tab_punch_wait_for_the_pour() -> void:
+## A payout's landing (CountUp.payout_landed; the monitor juice, mock-up monitor_juice_v2.html):
+## the gold sloshes (a ripple from the group's middle), the shine rises up the number and the €,
+## droplets jump off the surface and a spark and dust pop on the digits (TankBurst's particles, on
+## the paper), with no coin and no tab punch before the quota; nothing travels from the number
+## into the € (no pour). Outside the count a landing does nothing.
+func test_a_landing_sloshes_and_shines_the_gold() -> void:
 	var stage: ShiftStage = await _stage()
 	var monitor: MonitorView = stage.monitor
 	var burst: TankBurst = stage.tank_burst
 	var count_up: CountUp = _follow(monitor)
-	var made: Array[Tween] = []
+	var led: LedDisplay = monitor.led
+	var tank: GoldTank = led.gold_tank
+	led.start_count(140, 140)
+	led.show_subtotal(56, false)
+	await _frames(1)
+	burst.clear()
+	var calm: float = absf(tank.waterline_at(0.0) - tank.waterline_at(40.0))
+	count_up.payout_landed.emit(12, 56)
+	tank.advance(0.05)
+	assert_int(tank.shine_tops().size()).is_equal(1)
+	assert_int(tank.twinkle_count()).is_equal(tank.tuning().twinkles)
+	# The kick: the waves are bigger than at rest.
+	var kicked: float = 0.0
+	for x: int in range(0, 200, 4):
+		kicked = maxf(kicked, absf(tank.waterline_at(x) - tank.waterline_at(x + 2)))
+	assert_float(kicked).is_greater(calm)
+	burst.advance(0.02)
+	var particles: Array[Rect2] = burst.drawn_rects(TankBurst.Layer.PARTICLES)
+	assert_array(particles).is_not_empty()
+	var origin: Vector2 = stage.get_global_rect().position
+	var group: Rect2 = tank.group_rect()
+	group.position -= origin
+	for rect: Rect2 in particles:
+		(
+			assert_bool(group.grow(60.0).intersects(rect))
+			. override_failure_message("%s far from the number %s" % [rect, group])
+			. is_true()
+		)
+	assert_array(burst.drawn_rects(TankBurst.Layer.COINS)).is_empty()
+	assert_vector(monitor.over_tab().scale).is_equal(Vector2.ONE)
+	# The shine is gone after shine_s.
+	tank.advance(tank.tuning().shine_s)
+	assert_int(tank.shine_tops().size()).is_equal(0)
+	# Outside the count nothing happens.
+	burst.clear()
+	led.clear()
+	count_up.payout_landed.emit(12, 68)
+	burst.advance(0.02)
+	assert_bool(burst.is_active()).is_false()
+
+
+## Once the quota is met each later landing sprays a small fountain (coins) and punches the tab at
+## once; the landing that meets the quota (its payout_landed before quota_met) does not spray its
+## own small fountain: the win's burst is its fountain. A chip still in flight as its payout lands
+## (its flight on the count's tweens, frozen here as by the quota's hit-stop) goes at once, so no
+## chip covers the number at the win or after it.
+func test_after_the_quota_a_landing_sprays_and_punches_the_tab() -> void:
+	var stage: ShiftStage = await _stage()
+	var monitor: MonitorView = stage.monitor
+	var burst: TankBurst = stage.tank_burst
+	var count_up: CountUp = _follow(monitor)
 	monitor.led.beat().make_tween = func() -> Tween:
-		var tween: Tween = monitor.create_tween()
-		tween.pause()
-		made.append(tween)
-		return tween
-	monitor.led.start_count(40)
-	# The ding payout: its beat before the quota.
-	count_up.beat_started.emit(_payout_beat(45), _payout_step(45), "", null, 1)
+		var frozen: Tween = monitor.create_tween()
+		frozen.pause()
+		return frozen
+	monitor.led.start_count(40, 50)
+	var beat: CountUpBeat = _payout_beat(45)
+	beat.roll_ms = 150
+	count_up.beat_started.emit(beat, _payout_step(45), "", null, 1)
+	monitor.led.show_subtotal(20, false)
+	assert_int(monitor.chips().chip_rects().size()).is_equal(1)
+	# The landing that meets the quota: no spurt yet, the chip gone.
 	monitor.led.show_subtotal(45, false)
+	count_up.payout_landed.emit(45, 45)
+	assert_array(monitor.chips().chip_rects()).is_empty()
+	burst.advance(0.1)
+	assert_int(burst.coin_count()).is_equal(0)
 	monitor.led.show_subtotal(45, true)
 	count_up.quota_met.emit(true)
+	var number: Rect2 = monitor.led.digits_text_rect()
+	for rect: Rect2 in monitor.chips().chip_rects():
+		assert_bool(rect.intersects(number)).override_failure_message(str(rect)).is_false()
+	assert_float(monitor.led.gold_tank.target()).is_equal(
+		monitor.led.gold_tank.tuning().tank_overfill
+	)
 	burst.clear()
-	_step_all(made, 0.3)
-	burst.advance(TankBurst.POUR_S + 0.05)
-	assert_bool(burst._jets.is_empty()).is_true()
-	# A later payout.
 	await get_tree().create_timer(OverTab.DELAY_S + OverTab.POP_S + 0.1).timeout
 	var tab: OverTab = monitor.over_tab()
 	assert_vector(tab.scale).is_equal(Vector2.ONE)
 	burst.clear()
-	count_up.beat_started.emit(_payout_beat(5), _payout_step(5), "", null, 1)
 	monitor.led.show_subtotal(50, true)
-	_step_all(made, 0.3)
-	burst.advance(0.001)
-	assert_array(burst.drawn_rects(TankBurst.Layer.PARTICLES)).is_empty()
-	assert_vector(tab.scale).is_equal(Vector2.ONE)
-	burst.advance(TankBurst.POUR_S)
-	assert_array(burst.drawn_rects(TankBurst.Layer.PARTICLES)).is_not_empty()
-	# The tab: still until the pour lands, then punched.
-	assert_float(await _largest_scale(tab, TankBurst.POUR_S - 0.05)).is_equal(1.0)
-	assert_float(await _largest_scale(tab, 0.3)).is_greater(1.0)
+	count_up.payout_landed.emit(5, 50)
+	burst.advance(0.1)
+	assert_int(burst.coin_count()).is_greater(0)
+	assert_float(await _largest_scale(tab, 0.2)).is_greater(1.0)
 
 
 ## Steps every tween in `made` by `seconds`, 10 ms at a time.

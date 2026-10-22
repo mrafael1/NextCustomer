@@ -56,6 +56,7 @@ const SCRIPTS: Array[String] = [
 	"res://ui/sunburst.gd",
 	"res://ui/over_tab.gd",
 	"res://ui/tank_burst.gd",
+	"res://ui/gold_tank.gd",
 	"res://ui/bay_bed.gd",
 	"res://ui/bay_tag.gd",
 	"res://ui/bay_queue.gd",

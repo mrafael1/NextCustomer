@@ -148,6 +148,16 @@ func clear() -> void:
 	queue_redraw()
 
 
+## The chips in flight go at once, with no landing (their payout has landed: the monitor's spark
+## and dust take over); the landings' dust and sparks still running stay.
+func drop() -> void:
+	for chip: Chip in _chips:
+		if chip.tween != null:
+			chip.tween.kill()
+	_chips.clear()
+	queue_redraw()
+
+
 ## The chips in flight: each one's box (global, its turn aside) at its scale now.
 func chip_rects() -> Array[Rect2]:
 	var rects: Array[Rect2] = []

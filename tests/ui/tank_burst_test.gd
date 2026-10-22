@@ -1,13 +1,14 @@
 extends GdUnitTestSuite
-## The count's gold outside the monitor (#86 v6 scan count-up, TankBurst; it leaves from the plain
-## € after the number since the monitor bay follow-up). On the real stage: the burst's jets rise
-## from the € (crossing the monitor's paper, as the pour does) past the top bar but never off the
-## stage, the splashes stay on the bezel off the paper, the coins come to rest on the belt's top
-## face (COIN_REST) and go (the monitor's right edge turns a coin back only beside it), the
-## monitor shakes and comes back to rest, all stepped in real time (advance; the count-up's
-## hit-stops never reach it). The pour hops from where it is given into the €, on the paper.
-## Reduced motion leaves only STILL_SPLASHES on the bezel: no coins, jets, pour, spurt or shake.
-## The real saves and logs are never touched.
+## The count's gold outside the monitor's glass (TankBurst; the monitor juice, mock-up
+## monitor_juice_v2.html, K1 with WIN B, the coin fountain). On the real stage: the win's fountain
+## sprays coins out of the number and € (GoldTank.group_rect) for win_fountain_s, low and mostly
+## to the right; coins falling back onto the screen go behind the glass (GLASS_RECT), so once the
+## fountain is over no coin covers the number, the scanner bay or the inspection line; the rest
+## come to rest on the belt's top face (COIN_REST) and go. The splashes stay on the bezel off the
+## paper, the monitor shakes and comes back to rest, all stepped in real time (advance; the
+## count-up's hit-stops never reach it). A landing's droplets and sparkle, and the small fountain
+## after the quota. Reduced motion leaves only STILL_SPLASHES on the bezel: no coins, drops,
+## sparks or shake. The real saves and logs are never touched.
 
 const STEP := 1.0 / 60.0
 
@@ -29,7 +30,7 @@ func after_test() -> void:
 
 
 ## The layer covers the stage over the top bar and under the scan layer, taking no clicks; the
-## monitor hands it its LED (the €) and itself.
+## monitor hands it its LED (the number and €) and itself.
 func test_the_layer_sits_over_the_top_bar() -> void:
 	var stage: ShiftStage = await _stage()
 	var burst: TankBurst = stage.tank_burst
@@ -41,25 +42,36 @@ func test_the_layer_sits_over_the_top_bar() -> void:
 	assert_bool(burst.is_active()).is_false()
 
 
-## The burst, stepped over five seconds: every piece on the stage, the €'s gold seen on the
-## (shaking) paper as it leaves the €, the splashes on the bezel and off the paper, the jet up past
-## the top bar, coins resting on the belt's top face, the monitor shaken then back at rest, and
-## nothing left at the end.
-func test_the_burst_stays_on_the_stage_and_leaves_the_euro() -> void:
+## The burst, stepped over five seconds: every piece on the stage, the splashes on the bezel and
+## off the paper (within the shake), coins spraying for win_fountain_s only, mostly to the right,
+## coins resting on the belt's top face, the monitor shaken then back at rest, and nothing left
+## at the end.
+func test_the_burst_stays_on_the_stage() -> void:
 	var stage: ShiftStage = await _stage()
 	var burst: TankBurst = stage.tank_burst
 	var monitor: MonitorView = stage.monitor
 	await _counting(monitor)
+	var tune: CountUpTuning = burst.tuning()
 	burst.burst()
 	assert_bool(burst.is_active()).is_true()
-	var highest: float = INF
 	var shook: bool = false
 	var splashed: bool = false
 	var rested: Array[Vector2] = []
-	var on_paper: bool = false
 	var failures: Array[String] = []
+	var right: int = 0
+	var left: int = 0
+	var seen: Array[TankBurst.Coin] = []
+	var last_new: float = 0.0
 	for frame: int in range(roundi(5.0 / STEP)):
 		burst.advance(STEP)
+		for coin: TankBurst.Coin in burst._coins:
+			if not seen.has(coin):
+				seen.append(coin)
+				last_new = (frame + 1) * STEP
+				if coin.velocity.x > 0.0:
+					right += 1
+				else:
+					left += 1
 		var offset: Vector2 = burst.shake_offset()
 		shook = shook or offset != Vector2.ZERO
 		assert_vector(monitor.position).is_equal(ShiftStage.MONITOR_RECT.position + offset)
@@ -69,18 +81,16 @@ func test_the_burst_stays_on_the_stage_and_leaves_the_euro() -> void:
 		var bezel: Rect2 = Rect2(
 			ShiftStage.MONITOR_RECT.position + offset, ShiftStage.MONITOR_RECT.size
 		)
-		for rect: Rect2 in burst.drawn_rects(TankBurst.Layer.PARTICLES):
-			highest = minf(highest, rect.position.y)
-			on_paper = on_paper or paper.intersects(rect)
-			if not TankBurst.STAGE_RECT.encloses(rect):
-				failures.append("particle %s at frame %d" % [rect, frame])
+		for layer: TankBurst.Layer in [TankBurst.Layer.PARTICLES, TankBurst.Layer.COINS]:
+			for rect: Rect2 in burst.drawn_rects(layer):
+				if not TankBurst.STAGE_RECT.encloses(rect):
+					failures.append("piece %s at frame %d" % [rect, frame])
 		for rect: Rect2 in burst.drawn_rects(TankBurst.Layer.SPLASHES):
 			splashed = true
 			if not bezel.encloses(rect) or paper.intersects(rect):
 				failures.append("splash %s at frame %d" % [rect, frame])
-			if not MonitorView.DRAWN_RECT.grow(TankBurst.BURST_SHAKE).encloses(rect):
+			if not MonitorView.DRAWN_RECT.grow(tune.win_shake_px).encloses(rect):
 				failures.append("splash %s off the monitor at frame %d" % [rect, frame])
-		assert_array(burst.drawn_rects(TankBurst.Layer.POUR)).is_empty()
 		for spot: Vector2 in burst.resting_coins():
 			if not rested.has(spot):
 				rested.append(spot)
@@ -91,11 +101,12 @@ func test_the_burst_stays_on_the_stage_and_leaves_the_euro() -> void:
 	)
 	assert_bool(shook).is_true()
 	assert_bool(splashed).is_true()
-	assert_bool(on_paper).is_true()
-	# The jet rises past the top bar (its foot is the stage's top: the jet is cut there).
-	assert_float(highest).is_less(stage.top_bar.get_global_rect().end.y)
-	assert_float(highest).is_greater_equal(0.0)
-	assert_int(rested.size()).is_greater(10)
+	# The fountain: win_fountain_s long, mostly to the right.
+	assert_float(last_new).is_less_equal(tune.win_fountain_s + 2.0 * STEP)
+	assert_int(right + left).is_greater(20)
+	assert_int(right).is_greater(left)
+	assert_int(left).is_greater(0)
+	assert_int(rested.size()).is_greater(5)
 	for spot: Vector2 in rested:
 		assert_float(spot.y).is_between(
 			TankBurst.COIN_REST.x * TankBurst.CELL, TankBurst.COIN_REST.y * TankBurst.CELL
@@ -107,131 +118,129 @@ func test_the_burst_stays_on_the_stage_and_leaves_the_euro() -> void:
 	assert_vector(monitor.position).is_equal(ShiftStage.MONITOR_RECT.position)
 
 
-## A coin flying right past the monitor's right edge (less COIN_EDGE) turns back while beside the
-## bezel, and carries on below it (nothing to turn it there).
-func test_the_monitor_edge_turns_coins_back_only_beside_it() -> void:
+## Once the fountain is over (win_fountain_s plus a coin's rise), no coin covers the number and €,
+## the scanner bay or the inspection line (PASSED): those falling back onto the screen are gone
+## behind the glass; some coins did fly over the screen.
+func test_coins_clear_the_number_after_the_win() -> void:
 	var stage: ShiftStage = await _stage()
 	var burst: TankBurst = stage.tank_burst
-	var bezel: Rect2 = Rect2(
-		ShiftStage.MONITOR_RECT.position / TankBurst.CELL,
-		ShiftStage.MONITOR_RECT.size / TankBurst.CELL
+	var monitor: MonitorView = stage.monitor
+	await _counting(monitor)
+	var origin: Vector2 = stage.get_global_rect().position
+	var covered: Dictionary[String, Rect2] = {
+		"number": monitor.led.gold_tank.group_rect(),
+		"bay": monitor.bay().get_global_rect(),
+		"inspection": monitor.inspection_passed_label.get_global_rect(),
+	}
+	for key: String in covered:
+		covered[key] = Rect2(covered[key].position - origin, covered[key].size)
+	var glass: Rect2 = Rect2(
+		ShiftStage.MONITOR_RECT.position + TankBurst.GLASS_RECT.position * TankBurst.CELL,
+		TankBurst.GLASS_RECT.size * TankBurst.CELL
 	)
-	var edge: float = bezel.end.x - TankBurst.COIN_EDGE
-	var beside: TankBurst.Coin = burst._new_coin(Vector2(edge + 1.0, bezel.get_center().y))
-	beside.velocity = Vector2(40.0, 0.0)
-	var below: TankBurst.Coin = burst._new_coin(Vector2(edge + 1.0, bezel.end.y + 4.0))
-	below.velocity = Vector2(40.0, 0.0)
-	burst.advance(STEP)
-	assert_float(beside.velocity.x).is_less(0.0)
-	assert_float(below.velocity.x).is_greater(0.0)
+	var tune: CountUpTuning = burst.tuning()
+	var rise: float = (tune.fountain_up.x + tune.fountain_up.y) / TankBurst.GRAVITY
+	var settled_at: float = tune.win_fountain_s + rise + 0.05
+	burst.burst()
+	var over_glass: bool = false
+	var failures: Array[String] = []
+	for frame: int in range(roundi(3.0 / STEP)):
+		burst.advance(STEP)
+		var time: float = (frame + 1) * STEP
+		for rect: Rect2 in burst.drawn_rects(TankBurst.Layer.COINS):
+			over_glass = over_glass or glass.intersects(rect)
+			if time < settled_at:
+				continue
+			for key: String in covered:
+				if covered[key].intersects(rect):
+					failures.append("%s covers the %s at %.2f s" % [rect, key, time])
+	assert_bool(over_glass).is_true()
+	(
+		assert_array(failures.slice(0, 5))
+		. override_failure_message(str(failures.slice(0, 5)))
+		. is_empty()
+	)
 
 
 ## The burst runs on its own (real) time: frames move it with no count-up running.
 func test_the_burst_moves_in_real_time() -> void:
 	var stage: ShiftStage = await _stage()
 	var burst: TankBurst = stage.tank_burst
+	await _counting(stage.monitor)
 	burst.burst()
-	var earlier: Array[Rect2] = burst.drawn_rects(TankBurst.Layer.PARTICLES)
+	burst.advance(STEP)
+	var earlier: Array[Rect2] = burst.drawn_rects(TankBurst.Layer.COINS)
 	await get_tree().create_timer(0.2).timeout
-	assert_array(burst.drawn_rects(TankBurst.Layer.PARTICLES)).is_not_equal(earlier)
+	assert_array(burst.drawn_rects(TankBurst.Layer.COINS)).is_not_equal(earlier)
 	assert_bool(burst.coin_count() > 0 or not burst.resting_coins().is_empty()).is_true()
 	burst.clear()
 	assert_bool(burst.is_active()).is_false()
 	assert_vector(stage.monitor.position).is_equal(ShiftStage.MONITOR_RECT.position)
 
 
-## A payout's pour: POUR_MIN plus one per POUR_PER_EURO drops, at most POUR_MAX (here 8), from
-## the gap before the € (TankBurst.pour_point, the monitor bay follow-up) on a low arc (at most
-## POUR_ARC.y art px up) into the €, all on the paper, gone after POUR_S.
-func test_the_pour_hops_from_the_number_into_the_euro() -> void:
+## A landing's droplets jump off the gold's surface and sink back (gone within DROP_LIFE), and its
+## sparkle (a spark and a ring of dust) pops round the given point; no coins, no shake.
+func test_a_landing_jumps_droplets_and_sparkles() -> void:
 	var stage: ShiftStage = await _stage()
 	var burst: TankBurst = stage.tank_burst
 	var monitor: MonitorView = stage.monitor
-	monitor.led.start_count(140)
-	monitor.led.show_subtotal(56, false)
-	await get_tree().process_frame
-	# The layer's (stage) coordinates of the given (global) point.
+	await _counting(monitor)
 	var origin: Vector2 = stage.get_global_rect().position
-	var from: Vector2 = TankBurst.pour_point(monitor.led)
-	burst.pour(from, 12)
-	burst.advance(0.001)
-	var first: Array[Rect2] = burst.drawn_rects(TankBurst.Layer.POUR)
-	assert_array(first).is_not_empty()
-	var start: Rect2 = first[0]
-	for rect: Rect2 in first:
-		start = start.merge(rect)
-	assert_bool(start.grow(8.0).has_point(from - origin)).is_true()
-	var drops: int = 0
-	var lowest_end: Vector2 = Vector2.ZERO
-	var highest: float = INF
-	for frame: int in range(roundi(0.6 / STEP)):
-		burst.advance(STEP)
-		var rects: Array[Rect2] = burst.drawn_rects(TankBurst.Layer.POUR)
-		# Five rects per drop.
-		drops = maxi(drops, floori(rects.size() / 5.0))
-		for rect: Rect2 in rects:
-			(
-				assert_bool(MonitorView.PAPER_RECT.encloses(rect))
-				. override_failure_message(str(rect))
-				. is_true()
-			)
-			if rect.position.x > lowest_end.x:
-				lowest_end = rect.get_center()
-			highest = minf(highest, rect.position.y)
-		assert_array(burst.drawn_rects(TankBurst.Layer.PARTICLES)).is_empty()
-	assert_int(drops).is_equal(mini(TankBurst.POUR_MAX, TankBurst.POUR_MIN + 4))
-	# A low arc: never more than POUR_ARC.y art px (plus the drop's own height) over the number.
-	var ceiling: float = (from - origin).y - (TankBurst.POUR_ARC.y + 3.0) * ArtStyle.ART_SCALE
-	assert_float(highest).is_greater_equal(ceiling)
-	# They end in the €, under its top.
-	var euro: Rect2 = monitor.led.euro_text_rect()
-	euro.position -= origin
-	assert_float(lowest_end.x).is_between(euro.position.x, euro.end.x)
-	assert_float(lowest_end.y).is_greater(euro.position.y)
-	assert_array(burst.drawn_rects(TankBurst.Layer.POUR)).is_empty()
-	assert_bool(burst.is_active()).is_false()
-	# A big payout pours at most POUR_MAX.
-	burst.pour(from, 500)
-	assert_int(burst._pours.size()).is_equal(TankBurst.POUR_MAX)
+	var tank: GoldTank = monitor.led.gold_tank
+	burst.surface_drops(tank.surface_points(6))
+	burst.advance(STEP)
+	var drops: Array[Rect2] = burst.drawn_rects(TankBurst.Layer.PARTICLES)
+	assert_int(drops.size()).is_equal(6)
+	var group: Rect2 = tank.group_rect()
+	group.position -= origin
+	for rect: Rect2 in drops:
+		assert_bool(group.grow(16.0).intersects(rect)).override_failure_message(str(rect)).is_true()
+	burst.advance(TankBurst.DROP_LIFE)
+	assert_array(burst.drawn_rects(TankBurst.Layer.PARTICLES)).is_empty()
+	var middle: Vector2 = group.get_center()
+	burst.sparkle(middle + origin)
+	burst.advance(STEP)
+	var sparkle: Array[Rect2] = burst.drawn_rects(TankBurst.Layer.PARTICLES)
+	assert_int(sparkle.size()).is_greater_equal(TankBurst.DUST_COUNT)
+	for rect: Rect2 in sparkle:
+		assert_bool(Rect2(middle, Vector2.ZERO).grow(40.0).intersects(rect)).is_true()
+	burst.advance(TankBurst.SPARKLE_S)
+	assert_array(burst.drawn_rects(TankBurst.Layer.PARTICLES)).is_empty()
+	assert_int(burst.coin_count()).is_equal(0)
+	assert_vector(burst.shake_offset()).is_equal(Vector2.ZERO)
 
 
-## A spurt past the quota: a smaller jet and some coins, on the stage; the jet is seen on the paper
-## as it leaves the €.
-func test_a_spurt_is_a_small_burst() -> void:
+## A landing past the quota: a short, lower fountain (after_fountain_s) and a few sparks, on the
+## stage, with no shake and no splashes.
+func test_a_spurt_is_a_small_fountain() -> void:
 	var stage: ShiftStage = await _stage()
 	var burst: TankBurst = stage.tank_burst
 	await _counting(stage.monitor)
-	burst.spurt(20)
+	var tune: CountUpTuning = burst.tuning()
+	burst.spurt()
 	var coins: int = 0
-	var spurt_on_paper: bool = false
-	for frame: int in range(roundi(0.5 / STEP)):
+	for frame: int in range(roundi(0.6 / STEP)):
 		burst.advance(STEP)
 		coins = maxi(coins, burst.coin_count())
-		for rect: Rect2 in burst.drawn_rects(TankBurst.Layer.PARTICLES):
+		for rect: Rect2 in burst.drawn_rects(TankBurst.Layer.COINS):
 			assert_bool(TankBurst.STAGE_RECT.encloses(rect)).is_true()
-			spurt_on_paper = spurt_on_paper or MonitorView.PAPER_RECT.intersects(rect)
-	assert_bool(spurt_on_paper).is_true()
-	assert_int(coins).is_between(1, 8)
+	var most: int = ceili(tune.after_fountain_s * tune.after_fountain_rate) + 1
+	assert_int(coins).is_between(1, most)
 	assert_vector(burst.shake_offset()).is_equal(Vector2.ZERO)
-	# A delayed spurt (#86 round 7: as the pour lands in the €) starts after its delay.
-	burst.clear()
-	burst.spurt(20, TankBurst.POUR_S)
-	burst.advance(TankBurst.POUR_S - STEP)
-	assert_array(burst.drawn_rects(TankBurst.Layer.PARTICLES)).is_empty()
-	burst.advance(2.0 * STEP)
-	burst.advance(0.1)
-	assert_array(burst.drawn_rects(TankBurst.Layer.PARTICLES)).is_not_empty()
+	assert_array(burst.drawn_rects(TankBurst.Layer.SPLASHES)).is_empty()
 
 
 ## Reduced motion: the burst leaves STILL_SPLASHES on the bezel (off the paper) and nothing else;
-## they stay. The pour, the spurt and the shakes do nothing.
+## they stay. The spurt, the droplets, the sparkle and the shakes do nothing.
 func test_reduced_motion_leaves_still_splashes() -> void:
 	var stage: ShiftStage = await _stage()
 	var burst: TankBurst = stage.tank_burst
 	stage.monitor.reduced_motion = func() -> bool: return true
+	await _counting(stage.monitor)
 	burst.burst()
-	burst.spurt(30)
-	burst.pour(stage.monitor.bay().landing_point(), 30)
+	burst.spurt()
+	burst.surface_drops(stage.monitor.led.gold_tank.surface_points(6))
+	burst.sparkle(stage.monitor.bay().landing_point())
 	burst.shake(6.0, 0.5)
 	var splashes: Array[Rect2] = burst.drawn_rects(TankBurst.Layer.SPLASHES)
 	assert_array(splashes).is_not_empty()
@@ -245,7 +254,7 @@ func test_reduced_motion_leaves_still_splashes() -> void:
 	for frame: int in range(roundi(3.0 / STEP)):
 		burst.advance(STEP)
 		assert_array(burst.drawn_rects(TankBurst.Layer.PARTICLES)).is_empty()
-		assert_array(burst.drawn_rects(TankBurst.Layer.POUR)).is_empty()
+		assert_array(burst.drawn_rects(TankBurst.Layer.COINS)).is_empty()
 		assert_vector(stage.monitor.position).is_equal(ShiftStage.MONITOR_RECT.position)
 	assert_array(burst.drawn_rects(TankBurst.Layer.SPLASHES)).is_equal(splashes)
 	assert_int(burst.coin_count()).is_equal(0)
@@ -264,14 +273,15 @@ func test_reduced_motion_leaves_still_splashes() -> void:
 	assert_bool(burst.is_active()).is_false()
 
 
-## A stage in the window (the layer draws in its coordinates).
-## The monitor's LED in the count layout, its € on the paper (where the gold leaves from).
+## The monitor's LED in the count layout, its number and € on the paper (where the gold leaves
+## from).
 func _counting(monitor: MonitorView) -> void:
-	monitor.led.start_count(140)
+	monitor.led.start_count(140, 140)
 	monitor.led.show_subtotal(56, false)
 	await get_tree().process_frame
 
 
+## A stage in the window (the layer draws in its coordinates).
 func _stage() -> ShiftStage:
 	var stage: ShiftStage = auto_free(ShiftStage.new(7))
 	get_tree().root.add_child(stage)

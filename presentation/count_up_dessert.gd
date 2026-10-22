@@ -25,8 +25,8 @@ signal inspection_stamped
 
 ## The slam starts this big (D11) and lands at 1 on the LED's digits.
 const SLAM_SCALE := 3.2
-## The digits punch as the slam lands; the PAID stamp lands from PAID_SLAM_SCALE
-## over PAID_SLAM seconds.
+## The digits punch as the slam lands (a count punch strength: GoldTank.punch caps it in the count
+## layout); the PAID stamp lands from PAID_SLAM_SCALE over PAID_SLAM seconds.
 const VERDICT_PUNCH := 1.3
 const PAID_SLAM_SCALE := 2.0
 const PAID_SLAM := 0.1
@@ -107,7 +107,12 @@ func play(
 	var verdict: Label = await _slam(total, quota, reduced_motion)
 	sfx.play("total" if passed else "miss")
 	_fx.shake(_rattle_target, shake_px(passed, intensity, _tuning))
-	if verdict != null:
+	if verdict != null and _led.layout() == LedDisplay.Layout.COUNT:
+		# The monitor juice: the digits alone punch, about their bottom right, within the gold
+		# tank's cap (digits_punch_max); the € stays put.
+		if not reduced_motion:
+			_led.gold_tank.punch(VERDICT_PUNCH)
+	elif verdict != null:
 		_fx.punch(verdict, VERDICT_PUNCH)
 	var line: Control = _count_margin()
 	var sound_ms: int = mini(_tuning.dessert_verdict_sound_ms, _tuning.dessert_margin_ms)
@@ -164,6 +169,8 @@ func _slam(total: int, quota: int, reduced_motion: bool) -> Label:
 		target.text, target.get_theme_color("font_color"), target.get_theme_font_size("font_size")
 	)
 	slam.add_theme_font_override("font", target.get_theme_font("font"))
+	slam.horizontal_alignment = target.horizontal_alignment
+	slam.vertical_alignment = target.vertical_alignment
 	# The digits' outline (none in the count layout) and shadow (its mustard-light one, with no
 	# shadow outline) too, so the slam lands as them.
 	for color: String in ["font_outline_color", "font_shadow_color"]:
@@ -174,8 +181,13 @@ func _slam(total: int, quota: int, reduced_motion: bool) -> Label:
 		slam.add_theme_constant_override(constant, target.get_theme_constant(constant))
 	slam.modulate.a = 0.0
 	_overlay.add_child(slam)
-	# Sized in the tree, where its font override is in effect (_place_slam keeps the pivot).
-	slam.size = slam.get_minimum_size()
+	# Sized in the tree, where its font override is in effect (_place_slam keeps the pivot): as
+	# the digits' box, so its glyphs sit in it as theirs do.
+	slam.size = slam.get_minimum_size().max(target.size)
+	# The gold tank's fill (the monitor juice) in the count layout: a still copy mapped to the
+	# slam's own glyphs, so it lands as the digits' gold whatever its scale and place.
+	if target.material != null:
+		slam.material = _led.gold_tank.slam_material(slam)
 	if not reduced_motion:
 		slam.scale = Vector2(SLAM_SCALE, SLAM_SCALE)
 	_place_slam(0.0, slam, target)
