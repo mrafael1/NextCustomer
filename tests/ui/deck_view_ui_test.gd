@@ -29,7 +29,8 @@ func after_test() -> void:
 ## printed-tag counts.
 func test_the_deck_tab_groups_copies_and_counts_tags() -> void:
 	var screen: ShiftScreen = await _screen()
-	# The fixed starter deck (the game deals a recipe since v0.49; see the test below).
+	# The fixed starter deck (the game deals a recipe since v0.49, see
+	# test_the_game_deals_the_recipe_deck).
 	var balance: BalanceDefinition = screen.run.balance
 	screen.run = RunState.new(61, load(STARTER), balance, RunStock.starting(balance))
 	screen.run.start_shift()
@@ -86,28 +87,86 @@ func test_the_game_deals_the_recipe_deck() -> void:
 	for card: CardDefinition in run.starter.cards:
 		total += 1 if card.is_product() else 0
 	assert_array(Array(view.texts())).contains(["PRODUCTS  (%d)" % total])
-	# One card per distinct card; the view stays inside the window below the top bar, and a page
-	# taller than the scroll area scrolls (two rows of products) instead of growing.
-	var distinct: Array[CardDefinition] = []
-	for card: CardDefinition in run.starter.cards:
-		if not distinct.has(card):
-			distinct.append(card)
-	assert_int(view.card_views().size()).is_equal(distinct.size())
-	await get_tree().create_timer(0.4).timeout
-	var rect: Rect2 = view.get_global_rect()
-	assert_bool(screen.get_global_rect().encloses(rect)).is_true()
-	assert_float(rect.position.y).is_greater_equal(screen._shade.offset_top)
-	assert_float(view._scroll.size.y).is_equal(DeckView.PAGE_SIZE.y)
-	var area: Rect2 = view._scroll.get_global_rect()
-	for card_view: CardView in view.card_views():
-		var cell: Rect2 = card_view.get_parent().get_global_rect()
-		assert_float(cell.position.x).is_greater_equal(area.position.x)
-		assert_float(cell.end.x).is_less_equal(area.end.x)
+	# One card per distinct card.
+	assert_int(view.card_views().size()).is_equal(_distinct(run.starter.cards))
+
+
+## v0.49: a dealt deck with more distinct products than one row holds (COLUMNS) scrolls inside
+## the fixed area: on a seed that deals the most distinct cards the page is taller than the
+## area, and every card with its count line, the coupon row included, is inside the area at the
+## top or at the end of the scroll. A seed that deals one row of products fits unscrolled. The
+## seeds are the first ones in 0 to 199 that deal each case on a new profile's stock.
+func test_a_dealt_deck_with_two_product_rows_scrolls_inside_its_area() -> void:
+	var balance: BalanceDefinition = load("res://data/balance/balance.tres")
+	var recipe: DeckDefinition = load(ShiftScreen.STARTER_DECK)
+	var stock: RunStock = RunStock.starting(balance)
+	var widest: int = -1
+	var widest_size: int = 0
+	var narrow: int = -1
+	for seed_value: int in 200:
+		var stream: RandomNumberGenerator = EventLogService.derived_stream(
+			seed_value, EventLogService.STARTING_DECK_STREAM
+		)
+		var size: int = _distinct(StartingDeck.deal(recipe, stock, balance, stream).cards)
+		if size > widest_size:
+			widest = seed_value
+			widest_size = size
+		if narrow == -1 and size - 1 <= DeckView.COLUMNS:
+			narrow = seed_value
+	# The most distinct: up to 12 (11 products and the coupon), well past one row.
+	assert_int(widest_size - 1).is_greater(DeckView.COLUMNS)
+	assert_int(narrow).is_not_equal(-1)
+	var screen: ShiftScreen = await _screen()
+	for case: int in [widest, narrow]:
+		screen.start_new_run(case, false)
+		if case == widest:
+			assert_int(_distinct(screen.run.starter.cards)).is_equal(widest_size)
+		screen._on_deck_button_pressed()
+		var view: DeckView = screen._deck_view
+		# Past the pop-in tween, whose overshoot scales the panel for a moment.
+		await get_tree().create_timer(0.4).timeout
+		var where: String = "seed %d" % case
+		var rect: Rect2 = view.get_global_rect()
+		(
+			assert_bool(screen.get_global_rect().encloses(rect))
+			. override_failure_message(where)
+			. is_true()
+		)
+		assert_float(rect.position.y).is_greater_equal(screen._shade.offset_top)
+		assert_float(view._scroll.size.y).is_equal(DeckView.PAGE_SIZE.y)
+		var content: Control = view._scroll.get_child(0)
+		var area: Rect2 = view._scroll.get_global_rect()
+		var seen_at_top: Array[bool] = _cells_inside(view, area)
+		if case == narrow:
+			assert_float(content.size.y).override_failure_message(where).is_less_equal(
+				view._scroll.size.y
+			)
+			assert_array(seen_at_top).not_contains([false])
+		else:
+			assert_float(content.size.y).override_failure_message(where).is_greater(
+				view._scroll.size.y
+			)
+			assert_array(seen_at_top).contains([false])
+			view._scroll.scroll_vertical = int(content.size.y)
+			await get_tree().process_frame
+			assert_int(view._scroll.scroll_vertical).is_greater(0)
+			var seen_at_end: Array[bool] = _cells_inside(view, area)
+			for index: int in seen_at_top.size():
+				(
+					assert_bool(seen_at_top[index] or seen_at_end[index])
+					. override_failure_message("%s: card %d" % [where, index])
+					. is_true()
+				)
+			# The last card (the coupon row) is reachable.
+			assert_bool(seen_at_end[seen_at_end.size() - 1]).is_true()
+		view._close()
+		await get_tree().process_frame
 
 
 ## The fixed starter deck's page shows whole, unscrolled: every card and its count line sit
 ## inside the scroll area, and the view sits inside the window below the top bar. (A dealt deck,
-## v0.49, can hold more than one row of distinct products: its page scrolls, see below.)
+## v0.49, can hold more than one row of distinct products: its page scrolls, see
+## test_a_dealt_deck_with_two_product_rows_scrolls_inside_its_area.)
 func test_the_starting_deck_fits_without_scrolling() -> void:
 	var screen: ShiftScreen = await _screen()
 	var balance: BalanceDefinition = screen.run.balance
@@ -332,6 +391,23 @@ func _screen() -> ShiftScreen:
 	for frame: int in range(2):
 		await get_tree().process_frame
 	return screen
+
+
+## Whether each card view's cell and its count line sit inside `area` (for each card, in order).
+static func _cells_inside(view: DeckView, area: Rect2) -> Array[bool]:
+	var inside: Array[bool] = []
+	for card_view: CardView in view.card_views():
+		var cell: Control = card_view.get_parent()
+		inside.append(area.encloses(cell.get_global_rect()))
+	return inside
+
+
+static func _distinct(cards: Array[CardDefinition]) -> int:
+	var found: Array[CardDefinition] = []
+	for card: CardDefinition in cards:
+		if not found.has(card):
+			found.append(card)
+	return found.size()
 
 
 static func _copies(run: RunState, id: StringName) -> int:

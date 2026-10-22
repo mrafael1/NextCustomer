@@ -35,5 +35,24 @@ func test_the_random_start_option_is_known() -> void:
 	assert_bool((load(BalanceSim.RANDOM_START_DECK) as DeckDefinition).is_recipe()).is_true()
 
 
+## The option's refusals (no error reaches Godot's output: the check returns the problem that
+## _load_data reports): --random-start with a value, and --random-start with a --deck.
+func test_the_random_start_option_refuses_a_value_and_a_deck() -> void:
+	var options: Dictionary[String, String] = BalanceSim.SIMULATION_DEFAULTS.duplicate()
+	assert_str(BalanceSim.random_start_problem(options)).is_empty()
+	options["random-start"] = "true"
+	assert_str(BalanceSim.random_start_problem(options)).is_empty()
+	options["deck"] = "res://data/decks/random_starter.tres"
+	assert_str(BalanceSim.random_start_problem(options)).is_equal(
+		"--random-start plays the game's recipe deck: no --deck"
+	)
+	# A --deck alone is fine.
+	options["random-start"] = "false"
+	assert_str(BalanceSim.random_start_problem(options)).is_empty()
+	options = BalanceSim.SIMULATION_DEFAULTS.duplicate()
+	options["random-start"] = "x"
+	assert_str(BalanceSim.random_start_problem(options)).is_equal("--random-start takes no value")
+
+
 static func _ids(cards: Array[CardDefinition]) -> Array:
 	return cards.map(func(card: CardDefinition) -> String: return String(card.id))

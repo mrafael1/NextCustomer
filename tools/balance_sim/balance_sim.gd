@@ -319,12 +319,8 @@ func _make_states() -> bool:
 ## Loads the starting deck (--deck, or the game's recipe deck with --random-start) and the
 ## balance data; false, with an error, when an option is wrong or a file doesn't load.
 func _load_data() -> bool:
-	var problem: String = ""
-	if not _options["random-start"] in ["true", "false"]:
-		problem = "--random-start takes no value"
-	elif _options["random-start"] == "true" and _options["deck"] != SIMULATION_DEFAULTS["deck"]:
-		problem = "--random-start plays the game's recipe deck: no --deck"
-	else:
+	var problem: String = random_start_problem(_options)
+	if problem.is_empty():
 		var random_start: bool = _options["random-start"] == "true"
 		_starter = load(RANDOM_START_DECK if random_start else _options["deck"]) as DeckDefinition
 		_balance = load(_options["balance"]) as BalanceDefinition
@@ -334,6 +330,16 @@ func _load_data() -> bool:
 		push_error("balance_sim: " + problem)
 		return false
 	return true
+
+
+## What is wrong with --random-start in `options` (the parsed options), or "": it takes no
+## value, and it plays the game's recipe deck, so it refuses a --deck.
+static func random_start_problem(options: Dictionary[String, String]) -> String:
+	if not options["random-start"] in ["true", "false"]:
+		return "--random-start takes no value"
+	if options["random-start"] == "true" and options["deck"] != SIMULATION_DEFAULTS["deck"]:
+		return "--random-start plays the game's recipe deck: no --deck"
+	return ""
 
 
 ## What is wrong with the collection options, or "".
@@ -472,7 +478,7 @@ func _play_chains(
 			limit.hit()
 			break
 		var chain_seed: int = int(_options["seed"]) + CHAIN_SEED_STEP * (index + 1)
-		var chain: SimChain = SimChain.new(_starter, _balance, make_player, chain_seed)
+		var chain: SimChain = SimChain.new(_balance, make_player, chain_seed)
 		chain.play(chain_seed, int(_options["chain-runs"]))
 		if chain.stopped:
 			limit.hit()

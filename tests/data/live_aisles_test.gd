@@ -69,7 +69,7 @@ func test_the_staples_hold_at_least_two_generally_useful_products() -> void:
 
 ## Every deck's products (a fixed deck's cards, a recipe's core cards) are staples, so a run
 ## stocks every product it starts with (v0.49: the staples are their own list).
-func test_every_deck_starts_with_staples_only() -> void:
+func test_every_decks_fixed_and_core_cards_are_staples() -> void:
 	var staples: Array[CardDefinition] = RunStock.staples(load(BALANCE))
 	for file: String in _tres_files(DECK_DIR):
 		var deck: DeckDefinition = load("%s/%s" % [DECK_DIR, file])

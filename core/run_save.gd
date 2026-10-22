@@ -105,6 +105,9 @@ static func from_dictionary(data: Dictionary, lookup: ContentLookup) -> RunSave:
 	var starter: DeckDefinition = reader.deck("starter")
 	var starting_cards: Array[CardDefinition] = reader.cards("starting_deck")
 	if starter != null and starter.is_recipe():
+		# A deal the recipe can't give (a damaged or edited save) is refused.
+		if not StartingDeck.could_deal(starter, starting_cards):
+			return null
 		starter = StartingDeck.with_cards(starter, starting_cards)
 	var stock: RunStock = RunStock.from_saved(
 		reader.cards("stock"),

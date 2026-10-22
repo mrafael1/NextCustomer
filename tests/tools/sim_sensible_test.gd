@@ -266,8 +266,7 @@ func test_calibration_puts_a_basket_redraw_at_its_places() -> void:
 ## an aisle once it is listable, and its summary counts unfinished profiles past the limit.
 func test_chained_profiles_buy_capsules_and_list_new_aisles() -> void:
 	var balance: BalanceDefinition = load(BALANCE)
-	var starter: DeckDefinition = load("res://data/decks/starter.tres")
-	var chain: SimChain = SimChain.new(starter, balance, Callable(), 7)
+	var chain: SimChain = SimChain.new(balance, Callable(), 7)
 	for coin: int in range(SimChain.capsule_count(balance) + 3):
 		chain._draw_capsule(coin)
 	assert_int(chain._unlocked.size()).is_equal(SimChain.capsule_count(balance))
@@ -276,7 +275,7 @@ func test_chained_profiles_buy_capsules_and_list_new_aisles() -> void:
 		for card: CardDefinition in aisle.capsule_cards:
 			assert_int(chain._unlocked[key]).is_less_equal(chain._unlocked[card.id])
 	# A fresh profile needs no list; a machine-opened aisle at aisle_listable_min joins it.
-	var fresh: SimChain = SimChain.new(starter, balance, Callable(), 7)
+	var fresh: SimChain = SimChain.new(balance, Callable(), 7)
 	assert_array(fresh._list()).is_empty()
 	var opened: AisleDefinition = balance.aisles[balance.aisles.size() - 1]
 	assert_bool(opened.base_cards.is_empty()).is_true()

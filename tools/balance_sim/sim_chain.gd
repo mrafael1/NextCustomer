@@ -29,7 +29,6 @@ var runs_to_all: int = -1
 ## True when the time limit stopped a run partway (the chain is then dropped).
 var stopped: bool = false
 
-var _starter: DeckDefinition
 var _balance: BalanceDefinition
 var _make_player: Callable
 var _rng: RandomNumberGenerator = RandomNumberGenerator.new()
@@ -39,10 +38,7 @@ var _listable_before: Array[StringName] = []
 
 
 ## `make_player` makes the run's SimPlayer from its RunStock: func(stock: RunStock) -> SimPlayer.
-func _init(
-	starter: DeckDefinition, balance: BalanceDefinition, make_player: Callable, chain_seed: int
-) -> void:
-	_starter = starter
+func _init(balance: BalanceDefinition, make_player: Callable, chain_seed: int) -> void:
 	_balance = balance
 	_make_player = make_player
 	_rng.seed = hash("balance_sim_chain:%d" % chain_seed)
@@ -83,7 +79,7 @@ func to_dictionary() -> Dictionary:
 
 
 static func from_dictionary(data: Dictionary) -> SimChain:
-	var chain: SimChain = SimChain.new(null, null, Callable(), 0)
+	var chain: SimChain = SimChain.new(null, Callable(), 0)
 	for amount: Variant in data["coins"]:
 		chain.coins.append(int(amount))
 	for result: Variant in data["won"]:

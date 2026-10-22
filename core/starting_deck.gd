@@ -59,6 +59,25 @@ static func drawable(
 	return found
 
 
+## Whether `recipe` could have dealt `cards` (a run save's starting deck): its core cards first,
+## then no more than random_count products, no card past copy_max copies. It doesn't check the
+## stock: a resumed run keeps its deal even if the data's chains change.
+static func could_deal(recipe: DeckDefinition, cards: Array[CardDefinition]) -> bool:
+	var core_size: int = recipe.core_cards.size()
+	if cards.size() < core_size or cards.size() > core_size + recipe.random_count:
+		return false
+	if cards.slice(0, core_size) != recipe.core_cards:
+		return false
+	var copies: Dictionary[CardDefinition, int] = {}
+	for index: int in cards.size():
+		var card: CardDefinition = cards[index]
+		copies[card] = int(copies.get(card, 0)) + 1
+		var drawn_non_product: bool = index >= core_size and not card.is_product()
+		if drawn_non_product or copies[card] > recipe.copy_max:
+			return false
+	return true
+
+
 ## A dealt copy of `recipe` holding `cards` (a run save restores a dealt deck with it). The
 ## recipe itself is never changed.
 static func with_cards(recipe: DeckDefinition, cards: Array[CardDefinition]) -> DeckDefinition:

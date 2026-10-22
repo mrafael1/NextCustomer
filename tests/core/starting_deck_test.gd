@@ -8,6 +8,8 @@ const RECIPE := "res://data/decks/random_starter.tres"
 const STARTER := "res://data/decks/starter.tres"
 const BALANCE := "res://data/balance/balance.tres"
 const SEEDS := 40
+## The seeds the build-fit rates are measured on.
+const FIT_SEEDS := 200
 
 var _balance: BalanceDefinition
 var _recipe: DeckDefinition
@@ -181,6 +183,118 @@ func test_a_random_start_round_trips() -> void:
 	# A dealt deck's save that lost its dealt cards is refused.
 	data.erase("starting_deck")
 	assert_object(RunSave.from_dictionary(_json(data), lookup)).is_null()
+
+
+## A save whose starting deck the recipe couldn't deal (lost, cut short of the core, past the
+## copy limit, too long, or a drawn coupon) is refused.
+func test_a_save_with_a_deal_the_recipe_cant_give_is_refused() -> void:
+	var stock: RunStock = RunStock.starting(_balance)
+	var deck: DeckDefinition = StartingDeck.deal(_recipe, stock, _balance, _stream(5))
+	var run: RunState = RunState.new(5, deck, _balance, stock)
+	run.start_shift()
+	var data: Dictionary = RunSave.to_dictionary(run, "run-1", 0)
+	var lookup: ContentLookup = ContentLookup.new(_balance)
+	assert_object(RunSave.from_dictionary(_json(data), lookup)).is_not_null()
+	var dealt: Array = _ids(deck.cards)
+	var bad_deals: Array[Array] = [
+		[],
+		dealt.slice(1),
+		dealt + ["banana"],
+		dealt + ["soup"],
+		dealt.slice(0, 5) + ["final_markdown"],
+	]
+	for bad: Array in bad_deals:
+		data["starting_deck"] = bad
+		(
+			assert_object(RunSave.from_dictionary(_json(data), lookup))
+			. override_failure_message(",".join(bad))
+			. is_null()
+		)
+	# A deal ended short (a small pool) is one the recipe can give.
+	data["starting_deck"] = dealt.slice(0, 8)
+	assert_object(RunSave.from_dictionary(_json(data), lookup)).is_not_null()
+
+
+## Every list a later profile can make (every pair of aisles, all capsule items unlocked) deals
+## the full 13 cards. A list of two machine-opened aisles (no chained products) leaves only the
+## staples, whose room under copy_max is exactly random_count, so that deal is forced: every seed
+## gets the same deck (plan 7.2). This pins it, so a change to the staples, copy_max or the
+## chains shows here.
+func test_every_two_aisle_list_deals_thirteen_cards() -> void:
+	var unlocked: Dictionary[StringName, int] = {}
+	for aisle: AisleDefinition in _balance.aisles:
+		for card: CardDefinition in aisle.capsule_cards:
+			unlocked[card.id] = 0
+	var aisles: Array[AisleDefinition] = RunStock.listable_aisles(_balance, unlocked)
+	assert_int(aisles.size()).is_equal(_balance.aisles.size())
+	for first: int in aisles.size():
+		for second: int in range(first + 1, aisles.size()):
+			var listed: Array[StringName] = [aisles[first].id, aisles[second].id]
+			var stock: RunStock = RunStock.build(_balance, listed, unlocked, 1)
+			assert_array(stock.aisle_ids).is_equal(listed)
+			var where: String = "%s+%s" % listed
+			var decks: Dictionary[String, bool] = {}
+			for seed_value: int in 10:
+				var dealt: DeckDefinition = StartingDeck.deal(
+					_recipe, stock, _balance, _stream(seed_value)
+				)
+				assert_int(dealt.cards.size()).override_failure_message(where).is_equal(13)
+				decks[",".join(_ids(dealt.cards))] = true
+			var capsule_only: bool = (
+				aisles[first].base_cards.is_empty() and aisles[second].base_cards.is_empty()
+			)
+			if capsule_only:
+				assert_int(decks.size()).override_failure_message(where).is_equal(1)
+			else:
+				assert_int(decks.size()).override_failure_message(where).is_greater(1)
+
+
+## Data: the staples alone fill the deal (their room under copy_max, the core copies counted, is
+## at least random_count), so a stock with no other chained product still deals 13 cards.
+func test_the_staples_alone_fill_the_deal() -> void:
+	var room: int = 0
+	for staple: CardDefinition in RunStock.staples(_balance):
+		var chained: bool = _balance.machine.item_upgrades.any(
+			func(chain: ItemUpgradeDefinition) -> bool: return chain.product == staple
+		)
+		assert_bool(chained).override_failure_message(String(staple.id)).is_true()
+		room += maxi(0, _recipe.copy_max - _recipe.core_cards.count(staple))
+	assert_int(room).is_greater_equal(_recipe.random_count)
+
+
+## How often a dealt deck already fits each build at the start of a run (fresh profile, seeds
+## 0 to 199), pinned in bands so a threshold or recipe change shows here. The fixed starter
+## fits none, but most dealt decks fit Mixed basket (6 different tags) and about half fit
+## Clearance collector, so REGISTER's "one fits your cart" is usually met from the first visit
+## (PROTOTYPE_PLAN 3.8; TODO(S2): the user decides on the thresholds in the balance pass).
+func test_how_often_a_dealt_deck_fits_each_build_at_the_start() -> void:
+	var builds: Dictionary[StringName, BuildDefinition] = {}
+	for file: String in DirAccess.get_files_at("res://data/builds"):
+		if file.ends_with(".tres"):
+			var build: BuildDefinition = load("res://data/builds/" + file)
+			builds[build.id] = build
+	var starter: DeckDefinition = load(STARTER)
+	for build: BuildDefinition in builds.values():
+		assert_bool(build.fits(starter.cards)).override_failure_message(String(build.id)).is_false()
+	var fits: Dictionary[StringName, int] = {}
+	for seed_value: int in FIT_SEEDS:
+		var cards: Array[CardDefinition] = _deal(seed_value).cards
+		for build: BuildDefinition in builds.values():
+			if build.fits(cards):
+				fits[build.id] = int(fits.get(build.id, 0)) + 1
+	var rates: String = str(fits)
+	var bands: Dictionary[StringName, Vector2i] = {
+		&"mixed_basket": Vector2i(180, 200),
+		&"clearance_collector": Vector2i(80, 140),
+		&"breakfast_special": Vector2i(0, 200),
+		&"bulk_buyer": Vector2i(0, 0),
+		&"coupon_specialist": Vector2i(0, 0),
+	}
+	assert_array(builds.keys()).contains_exactly_in_any_order(bands.keys())
+	for id: StringName in bands:
+		var count: int = int(fits.get(id, 0))
+		var where: String = "%s: %d of %d (%s)" % [id, count, FIT_SEEDS, rates]
+		assert_int(count).override_failure_message(where).is_between(bands[id].x, bands[id].y)
 
 
 static func _json(data: Dictionary) -> Dictionary:
