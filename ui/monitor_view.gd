@@ -132,6 +132,11 @@ var tank_burst: TankBurst:
 		if value != null:
 			value.reduced_motion = _wants_reduced_motion
 			value.bind(led, self)
+## The DONE state's "INSPECTION PASSED ✓" label, for checks (read only; a property, so the class
+## stays within gdlint's 20 public methods).
+var inspection_passed_label: Label:
+	get:
+		return _inspection_passed
 
 var _notice_holder: Control
 ## The redraw panel over the whole paper (show_redraw), and whether it is on.
@@ -394,10 +399,6 @@ func follow(count_up: CountUp) -> void:
 ## The DONE state's "INSPECTION PASSED ✓" (the dessert stamped it; hidden at the next count).
 func _show_inspection_passed() -> void:
 	_inspection_passed.visible = true
-
-
-func inspection_passed_label() -> Label:
-	return _inspection_passed
 
 
 ## A resumed checkout's end state (after CountUp's show_end_state, which met the quota or not):

@@ -221,7 +221,7 @@ func test_the_planning_notice_promises_and_earns_the_bonus_ticket() -> void:
 	assert_float(tag.scale.x).is_equal(1.0)
 	# The pass: INSPECTION PASSED ✓ on the monitor, the chip EARNED.
 	await _pass_shift(screen)
-	var passed: Label = screen._monitor.inspection_passed_label()
+	var passed: Label = screen._monitor.inspection_passed_label
 	assert_bool(passed.is_visible_in_tree()).is_true()
 	assert_str(passed.text).is_equal("INSPECTION PASSED ✓")
 	await _frames(2)
