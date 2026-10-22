@@ -2,11 +2,12 @@ class_name OrderSlip
 extends Control
 ## The stockroom's order slip (#77, look F; build spec 4.2): the receipt fed in, pinned up in the
 ## stockroom window. A paper slip (zig-zag bottom, tomato pin) headed "ORDER #<shift><chute>7" (a
-## bonus ticket's "BONUS #<shift><chute>8", STAMP DAY's "STAMP DAY"; the chute's digit reads "?"
-## until a chute is confirmed), the receipt's check line ("SPEND €N ✓", or "INSPECTED ✓"), a dashed
-## rule and one line per prize ("n · NEW ITEM", "n · COUPON", "n · STAMP", "n · UPGRADE"; "n · ?"
-## until a chute is confirmed). Each line's box ticks at its bay pick (a check mark, not only a
-## colour), and the tilted PACKED stamp lands once the last box is picked.
+## bonus ticket's "BONUS #<shift>b", STAMP DAY's "STAMP DAY"; the chute's digit reads "?" until a
+## chute is confirmed), the receipt's check line ("SPEND €N ✓"; a bonus ticket's red "INSPECTION
+## PASSED ✓", on two lines when it doesn't fit, with the inspection's name under it, #77 machine
+## v2), a dashed rule and one line per prize ("n · NEW ITEM", "n · COUPON", "n · STAMP",
+## "n · UPGRADE"; "n · ?" until a chute is confirmed). Each line's box ticks at its bay pick (a
+## check mark, not only a colour), and the tilted PACKED stamp lands once the last box is picked.
 ##
 ## The root gives the visit's static data (show_order); frame(t) reads only view.plan and t: the
 ## slip slides down out of the slot as the receipt is fed (a bonus ticket's stub likewise; STAMP
@@ -47,6 +48,8 @@ var _paper: Control
 var _title: Label
 var _number: Label
 var _check: Label
+## The line under the check line (a bonus ticket's inspection), hidden when empty.
+var _why: Label
 var _lines: Array[Label] = []
 var _ticked: Array[bool] = []
 var _packed: Label
@@ -84,6 +87,10 @@ func _init() -> void:
 		Rect2(PADDING + Vector2(0, 14), Vector2(PAPER_RECT.size.x - PADDING.x * 2.0, CHECK_HEIGHT))
 	)
 	_paper.add_child(_check)
+	_why = _label("", CHECK_SIZE, Palette.GREEN_DARK)
+	_why.name = "Why"
+	_why.visible = false
+	_paper.add_child(_why)
 	_packed = UiKit.display_label(PACKED_TEXT, PACKED_SIZE, false)
 	_packed.name = "Packed"
 	_packed.add_theme_color_override("font_color", Palette.TOMATO_DARK)
@@ -103,13 +110,22 @@ func setup(machine: RewardMachineView) -> void:
 ## The slip of a visit: `title` ("ORDER #…", "BONUS #…", "STAMP DAY"; rebuilt from the run with
 ## "?" for the chute's digit until one is chosen), the receipt's `check` line, `count` prize lines
 ## of MachinePrize.Kind `kind` (-1: "?" until a chute is chosen), and whether the visit gets packed
-## (its PACKED stamp then lands at the plan's packed time).
-func show_order(title: String, check: String, count: int, kind: int, packed: bool) -> void:
+## (its PACKED stamp then lands at the plan's packed time); `why` is the line under the check line
+## (a bonus ticket's inspection; "" for none), `check_colour` the check line's colour.
+func show_order(
+	title: String,
+	check: String,
+	count: int,
+	kind: int,
+	packed: bool,
+	why: String = "",
+	check_colour: Color = Palette.GREEN_DARK
+) -> void:
 	var parts: PackedStringArray = _title_parts(title, kind)
 	_title.text = parts[0]
 	_number.text = parts[1]
 	_number.position = PADDING + Vector2(_title.get_minimum_size().x + 4.0, 0)
-	_check.text = check
+	_show_check(check, why, check_colour)
 	for line: Label in _lines:
 		_paper.remove_child(line)
 		line.queue_free()
@@ -135,6 +151,16 @@ func show_order(title: String, check: String, count: int, kind: int, packed: boo
 	_packed.visible = false
 	_packed_shown = false
 	_paper.queue_redraw()
+
+
+## The line under the check line ("" when none), for tests.
+func why_text() -> String:
+	return _why.text if _why.visible else ""
+
+
+## The check line and the line under it (their labels), for layout tests.
+func check_labels() -> Array[Label]:
+	return [_check, _why]
 
 
 ## The slip's texts: title, check line, then the prize lines, for tests.
@@ -163,6 +189,13 @@ func slide_offset() -> float:
 ## The font of the check line (bold Atkinson with JetBrains Mono behind it for the ✓), for tests.
 func check_font() -> Font:
 	return _check.get_theme_font("font")
+
+
+## The idle machine's slip (#77 machine v2): up in its slot, out of sight.
+func rest() -> void:
+	_paper.visible = false
+	_packed.visible = false
+	_packed_shown = false
 
 
 ## Shows the slip at time `t` (seconds) of view.plan.
@@ -221,7 +254,7 @@ func _title_parts(title: String, kind: int) -> PackedStringArray:
 		MachineVisit.Kind.STAMP_DAY:
 			return PackedStringArray(["STAMP DAY", ""])
 		MachineVisit.Kind.BONUS:
-			return PackedStringArray(["BONUS", _number_text(run, visit, kind, 8)])
+			return PackedStringArray(["BONUS", "#%db" % run.history[-1].shift])
 	return PackedStringArray(["ORDER", _number_text(run, visit, kind, 7)])
 
 
@@ -235,7 +268,31 @@ func _title_text() -> String:
 
 
 func _rule_y() -> float:
-	return _check.position.y + 11.0 + RULE_GAP.x
+	var bottom: Control = _why if _why.visible else _check
+	return bottom.position.y + bottom.size.y - 1.0 + RULE_GAP.x
+
+
+## The check line (on two lines when it is wider than the paper's text width) and `why` under it.
+func _show_check(check: String, why: String, colour: Color) -> void:
+	var width: float = PAPER_RECT.size.x - PADDING.x * 2.0
+	var font: Font = _check.get_theme_font("font")
+	var wide: bool = (
+		font.get_string_size(check, HORIZONTAL_ALIGNMENT_LEFT, -1, CHECK_SIZE).x > width
+	)
+	_check.text = check
+	_check.add_theme_color_override("font_color", colour)
+	_check.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART if wide else TextServer.AUTOWRAP_OFF
+	_check.clip_text = not wide
+	var lines: float = 2.0 if wide else 1.0
+	RewardMachineView.fit(
+		_check, Rect2(PADDING + Vector2(0, 14), Vector2(width, CHECK_HEIGHT * lines))
+	)
+	_why.text = why
+	_why.visible = not why.is_empty()
+	RewardMachineView.fit(
+		_why,
+		Rect2(Vector2(PADDING.x, _check.position.y + _check.size.y), Vector2(width, CHECK_HEIGHT))
+	)
 
 
 func _label(text: String, font_size: int, colour: Color) -> Label:

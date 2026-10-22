@@ -417,8 +417,35 @@ func _start_stamp_day(run: RunState) -> bool:
 
 func _bonus_due(run: RunState) -> bool:
 	var record: ShiftRecord = run.history[-1]
-	var inspected: bool = machine.bonus_after_inspection and record.inspection != null
-	return inspected or machine.bonus_extra_shifts.has(record.shift)
+	return _bonus_for(machine, record.shift, record.inspection != null)
+
+
+## Read-only, for the planning notice (#77 machine v2): whether passing the current shift would
+## queue the bonus ticket's visit, as _bonus_due decides it at that checkout. False on the last
+## shift (no machine follows it).
+func bonus_if_passed(run: RunState) -> bool:
+	if run.is_last_shift():
+		return false
+	return _bonus_for(machine, run.shift_index + 1, not run.inspections.is_empty())
+
+
+## Read-only, for the inspection chip (#77 machine v2): whether the shift just checked out was an
+## inspected one, passed, and its pass earned the bonus ticket (the chip's EARNED state). False
+## before any checkout and after a failed or last shift.
+func bonus_earned(run: RunState) -> bool:
+	if run.history.is_empty():
+		return false
+	var record: ShiftRecord = run.history[-1]
+	if not record.passed or record.inspection == null or record.shift >= run.shift_count():
+		return false
+	return _bonus_due(run)
+
+
+## Whether a passed `shift` (1-based), `inspected` or not, earns the bonus ticket on `definition`.
+static func _bonus_for(definition: MachineDefinition, shift: int, inspected: bool) -> bool:
+	if definition.bonus_after_inspection and inspected:
+		return true
+	return definition.bonus_extra_shifts.has(shift)
 
 
 ## STAMP DAY follows a listed shift when the run picked fewer registers than its floor and the

@@ -19,6 +19,8 @@ signal export_pressed
 const POSITION := Vector2(16, 9)
 const ROW_SIZE := Vector2(1248, 38)
 const GAP := 12
+## The room fit_inspection keeps free at the row's end.
+const FIT_MARGIN := 8.0
 ## A chip's padding left and right (B2's 0 12px); the container centres its contents vertically.
 const CHIP_PADDING := 12
 const CHIP_SEPARATION := 8
@@ -91,6 +93,21 @@ func _init() -> void:
 	# B2's button captions are plain paper on the teal, without the sign's ink outline.
 	for button: FramedButton in [deck_button, export_button]:
 		button.caption_label().add_theme_constant_override("outline_size", 0)
+
+
+## Keeps the row inside ROW_SIZE.x less FIT_MARGIN: the inspection chip's text is trimmed when the
+## other chips and the bonus pill (#77 machine v2) leave it too little room.
+func fit_inspection() -> void:
+	var used: float = 0.0
+	var shown: int = 0
+	for child: Node in get_children():
+		var control: Control = child as Control
+		if control == null or not control.visible or control == inspection_tag:
+			continue
+		used += control.get_combined_minimum_size().x
+		shown += 1
+	used += GAP * shown
+	inspection_tag.fit_width(ROW_SIZE.x - FIT_MARGIN - used)
 
 
 ## A teal chip (or the inspection's paper one): the frame, B2's padding, the row's height.

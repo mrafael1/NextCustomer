@@ -13,9 +13,31 @@ extends Resource
 ## MachinePrize.Rarity order: [COMMON, RARE, LEGENDARY]. A missing entry reads 0.
 
 @export_group("Ticket intro")
-## The receipt's flight from the receipt column to the slot, from the dessert's printer feed.
-@export var flight_ms: int = 0
-@export var flight_rm_ms: int = 0
+## The torn receipt's travel from the printer to over the machine's slot, from the dessert's
+## printer feed (machine v2, Q1 = A: the camera glides to the machine meanwhile). As it is torn it
+## lifts tear_lift_px and tilts tear_tilt_deg (both eased out early in the travel); it ends
+## feed_fit of the slot mouth's width wide. Under reduced motion it cross-fades instead.
+@export var travel_ms: int = 0
+@export var tear_lift_px: float = 0.0
+@export var tear_tilt_deg: float = 0.0
+@export var feed_fit: float = 0.0
+## The camera's glide to the machine at 2x: it starts glide_lead_ms after the printer feed and
+## lasts glide_ms; the belt, the register and the baskets drop fore_drop_px out of frame meanwhile;
+## the machine lights up over the glide's last lit_ramp_ms.
+@export var glide_lead_ms: int = 0
+@export var glide_ms: int = 0
+@export var fore_drop_px: float = 0.0
+@export var lit_ramp_ms: int = 0
+## The BONUS stub (Q2 = 2) snaps off the receipt snap_lead_ms before the travel's end: after
+## snap_delay_ms its height shrinks to 0 over snap_ms, while the ticket flies to the slot plate's
+## dock over dock_flight_ms (with `rip`, snap_db softer). The dock's caption hides dock_label_ms
+## after the travel's end.
+@export var snap_lead_ms: int = 0
+@export var snap_delay_ms: int = 0
+@export var snap_ms: int = 0
+@export var dock_flight_ms: int = 0
+@export var dock_label_ms: int = 0
+@export var snap_db: float = 0.0
 ## The receipt fed under the slot's clip.
 @export var feed_ms: int = 0
 @export var feed_rm_ms: int = 0
@@ -25,28 +47,38 @@ extends Resource
 @export var lights_ms: int = 0
 @export var key_stagger_ms: int = 0
 
+@export_group("Return glide")
+## After the shift's last visit the camera glides back to the next shift's planning over
+## return_glide_ms while the machine dims over dim_ms; an upgrade swaps in place upgrade_after_ms
+## after the glide's end.
+@export var return_glide_ms: int = 0
+@export var dim_ms: int = 0
+@export var upgrade_after_ms: int = 0
+
+@export_group("Reduced motion cut")
+## Under reduced motion the camera cuts rm_cut_ms after the glide's start, behind a charcoal fade
+## that rises to rm_fade_alpha and falls again over rm_fade_ms (the return glide cuts the same way).
+@export var rm_cut_ms: int = 0
+@export var rm_fade_ms: int = 0
+@export var rm_fade_alpha: float = 0.0
+
 @export_group("Bonus intro")
-## The BONUS TICKET! head stamp and the stub printing out of the printer mouth.
-@export var stub_ms: int = 0
-@export var stub_rm_ms: int = 0
-## From the stub printed to its flight's start (none under reduced motion).
-@export var stub_lead_ms: int = 0
-## The stub's flight to the slot (a jump under reduced motion).
-@export var stub_flight_ms: int = 0
-## The stub fed under the clip (slower under reduced motion: the stub shows while it reads).
-@export var stub_feed_ms: int = 0
-@export var stub_feed_rm_ms: int = 0
+## The bonus ticket moves from the slot plate's dock to over the slot, then is fed under the clip.
+@export var bonus_to_slot_ms: int = 0
+@export var bonus_feed_ms: int = 0
 ## The read line after the feed, then the keys going unlit and relit by relight_stagger_ms.
 @export var bonus_read_ms: int = 0
 @export var bonus_lights_ms: int = 0
 @export var relight_stagger_ms: int = 0
-## "PICK A CHUTE AGAIN" from the feed's end to the chute wait.
+## The BONUS TICKET line from the feed's end to the chute wait.
 @export var again_ms: int = 0
 
 @export_group("Odds card")
 ## The odds card popping open (ease) and closing after CONFIRM, per kind.
 @export var odds_open_ms: int = 0
 @export var odds_close_ms: PackedInt32Array = PackedInt32Array()
+## CONFIRM › on the display stays down this long before the chute is confirmed (#77 machine v2).
+@export var confirm_down_ms: int = 0
 
 @export_group("Draw")
 ## "PACKING YOUR ORDER…": from the odds card closed to the draw's end, per kind (STAMP DAY: 0,
@@ -145,6 +177,8 @@ extends Resource
 @export var head_stamp_land_ms: int = 0
 @export var head_stamp_blink_ms: int = 0
 @export var head_stamp_lift_ms: int = 0
+## A BONUS visit's stamp lands (back ease, from 2.2x) over this, once its ticket is over the slot.
+@export var bonus_stamp_land_ms: int = 0
 
 
 ## `list`[index] in seconds, 0 when the list is shorter.

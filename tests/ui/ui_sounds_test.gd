@@ -215,11 +215,11 @@ func test_the_deck_view_and_machine_sounds() -> void:
 	assert_bool(screen._machine.is_open()).is_true()
 	var view: RewardMachineView = screen._machine.view
 	var start: int = Time.get_ticks_msec()
-	while not view.is_armed() and Time.get_ticks_msec() - start < 3000:
+	while not view.is_armed() and Time.get_ticks_msec() - start < 8000:
 		await get_tree().process_frame
 	sfx.clear()
 	# UPGRADES is padlocked after shift 1.
-	view.open_odds(RewardMachine.Chute.UPGRADES)
+	view.press_key(RewardMachine.Chute.UPGRADES)
 	assert_bool(screen._machine._choose(RewardMachine.Chute.NEW_ITEMS)).is_true()
 	assert_array(sfx.sound_names()).is_equal(["denied", "print"])
 

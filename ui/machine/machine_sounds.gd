@@ -7,7 +7,8 @@ extends RefCounted
 ##
 ## - the receipt's (or the BONUS stub's) flight lands: `tick` x5 (x3), then `slot_tick` as it is
 ##   fed; the keys light: one ladder note each (C5 D5 E5 G5), staggered as the keys;
-## - the chute confirmed: `ui_confirm`; each bay pick: a ladder note (C5 E5 G5) and `card_place`;
+## - the chute confirmed: `ui_confirm` (CONFIRM › plays it as it is pressed, #77 machine v2);
+##   each bay pick: a ladder note (C5 E5 G5) and `card_place`;
 ##   the belt: `rattle_s` as it starts, a `tick` every BELT_TICK while it moves; a box through the
 ##   RESTOCK curtain: `ui_switch`; PACKED: `stamp_1`; each box's lid tape: `rip`;
 ## - the reveals (reveal_sounds): COMMON one note and `tick`, RARE two rising notes (E5 A5),
@@ -17,7 +18,7 @@ extends RefCounted
 ##   (or STAMP DAY's) `stamp_loyalty`, an upgrade's glint `ding` and G5 C6 E6; the punch:
 ##   `stamp_2`; the restock: a soft `card_place` per bay;
 ## - the BONUS TICKET's stamp: `stamp_notice` and the stub's `print`; STAMP DAY's: `stamp_paid`.
-## The padlocked key's `denied` is the machine's own (RewardMachineView.open_odds).
+## The padlocked key's `denied` is the machine's own (RewardMachineView.press_key).
 ##
 ## Built by MachineFlyer (the landing's part), framed with it.
 
@@ -131,7 +132,7 @@ func _grow(plan: MachinePlan, acted: bool) -> void:
 	var live: bool = acted and not _jumped and not view.skipping
 	if plan.has_draw and not _has_draw:
 		_has_draw = true
-		if live and plan.kind != MachineVisit.Kind.STAMP_DAY:
+		if live and plan.kind != MachineVisit.Kind.STAMP_DAY and not view.confirm_played:
 			_play([0.0, SOUND, "ui_confirm", 0.0])
 		_add_draw(plan)
 	if plan.has_landing and not _has_landing:
@@ -146,11 +147,14 @@ func _grow(plan: MachinePlan, acted: bool) -> void:
 func _add_intro(plan: MachinePlan) -> void:
 	match plan.kind:
 		MachineVisit.Kind.BONUS:
-			_cue(0.0, SOUND, "stamp_notice")
-			_cue(0.0, SOUND, "print")
+			# The head's stamp lands as the bonus ticket reaches the slot (#77 machine v2).
+			_cue(plan.fly_end, SOUND, "stamp_notice")
 		MachineVisit.Kind.STAMP_DAY:
 			_cue(0.0, SOUND, "stamp_paid")
 			return
+	if plan.snap >= 0.0:
+		# The bonus stub snaps off the receipt, quietly (#77 machine v2).
+		_cue(plan.snap, SOUND, "rip", view.tuning.snap_db)
 	var ticks: int = FEED_TICKS[plan.kind]
 	if not plan.reduced_motion:
 		cues.append([plan.fly_end, SERIES, "tick", ticks])

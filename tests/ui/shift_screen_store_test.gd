@@ -40,6 +40,7 @@ func test_the_backdrop_fits_each_window() -> void:
 		window.size = window_size
 		add_child(window)
 		var wall: ColorRect = StoreBackdrop.screen_parts(window)
+		StoreBackdrop.top_parts(window)
 		var stage: ShiftStage = ShiftStage.new(7)
 		window.add_child(stage)
 		await _frames(2)
@@ -48,7 +49,11 @@ func test_the_backdrop_fits_each_window() -> void:
 		assert_vector(stage_rect.size).is_equal(ShiftStage.SIZE)
 		assert_vector(stage_rect.get_center()).is_equal_approx(bounds.get_center(), Vector2.ONE)
 		assert_object(window.get_child(0)).is_same(wall)
-		assert_that(wall.get_global_rect()).is_equal(bounds)
+		# The wall runs past the window's right edge, for the camera at the machine (#77 v2).
+		var wall_rect: Rect2 = wall.get_global_rect()
+		assert_vector(wall_rect.position).is_equal(bounds.position)
+		assert_float(wall_rect.end.y).is_equal(bounds.end.y)
+		assert_float(wall_rect.end.x).is_equal(bounds.end.x + StoreBackdrop.WORLD_EXTRA)
 		assert_int(wall.mouse_filter).is_equal(Control.MOUSE_FILTER_STOP)
 		var top_band: Rect2 = _band(window, "TopBand", bounds)
 		assert_float(top_band.position.y).is_less_equal(bounds.position.y)
@@ -87,15 +92,22 @@ func test_the_belt_draws_its_bands() -> void:
 ## baskets and the register (with every part of them) are MOUSE_FILTER_IGNORE. A click on an
 ## empty slot or a hand card reaches it, one in the gap between two slots reaches the nearer
 ## slot's drop target (the targets meet in the gap's middle), and one on the monitor reaches the
-## wall (the background click).
+## wall (the background click), as does one on the idle machine on the back wall (#77 machine v2).
 func test_decor_takes_no_clicks() -> void:
 	var screen: ShiftScreen = await _screen()
 	var stage: ShiftStage = screen._stage
-	var wall: Control = screen.get_child(0) as Control
+	var wall: Control = screen._wall
 	assert_int(wall.mouse_filter).is_equal(Control.MOUSE_FILTER_STOP)
 	assert_bool(wall.gui_input.is_connected(screen._on_background_input)).is_true()
+	# The camera's parts (the backdrop in it, the stage's world aside) and the top band.
+	var parts: Array[Node] = screen._camera.content.get_children()
+	parts.append(screen._camera)
 	for index: int in range(1, stage.get_index()):
-		var part: Control = screen.get_child(index) as Control
+		parts.append(screen.get_child(index))
+	for node: Node in parts:
+		var part: Control = node as Control
+		if part == wall or part == stage.world:
+			continue
 		assert_int(part.mouse_filter).override_failure_message(str(part.name)).is_equal(
 			Control.MOUSE_FILTER_IGNORE
 		)
@@ -144,6 +156,8 @@ func test_decor_takes_no_clicks() -> void:
 	var bezel: Rect2 = stage.monitor.get_global_rect()
 	var on_bezel: Vector2 = bezel.position + Vector2(4, 4)
 	assert_object(_topmost_at(screen, on_bezel)).is_same(wall)
+	var machine: Rect2 = screen._machine.view.get_global_rect()
+	assert_object(_topmost_at(screen, machine.get_center())).is_same(wall)
 
 
 ## CHECKOUT's caption as B2 sets it: the word letter-spaced, then the smaller "›" a gap after it,
@@ -412,6 +426,12 @@ static func _topmost_at(node: Node, point: Vector2) -> Control:
 		var child: Node = node.get_child(index)
 		var item: CanvasItem = child as CanvasItem
 		if item != null and not item.visible:
+			continue
+		var disabled: Control = child as Control
+		if (
+			disabled != null
+			and disabled.mouse_behavior_recursive == Control.MOUSE_BEHAVIOR_DISABLED
+		):
 			continue
 		var found: Control = _topmost_at(child, point)
 		if found != null:
