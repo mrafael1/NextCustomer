@@ -38,5 +38,13 @@ func wasted_reason(_state: ScoreState, _slot: int) -> String:
 	return ""
 
 
+## After the whole row's value pass: why this rule's condition was never met anywhere in the row
+## (#45: no coupon for the Coupon engine, too few products for the Slot engine), or "" when it
+## was, or when the rule has no condition. A non-empty reason becomes one WASTED step, the
+## upgrade's, on the row's last slot. A rule with neutral numbers never fizzles.
+func row_wasted_reason(_state: ScoreState) -> String:
+	return ""
+
+
 func text_for(upgrade: UpgradeDefinition) -> String:
 	return receipt_text if not receipt_text.is_empty() else upgrade.display_name

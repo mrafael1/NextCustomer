@@ -1,8 +1,10 @@
 class_name ScannerBay
 extends Control
-## The scanner bay on the monitor's count view (#86 v6 scan count-up, mock-up
-## count_up_86_v6_scan.html; round 7's TALLY, ALIVE and QUEUE, count_up_86_v7_bay.html;
-## MonitorView.BAY_RECT): the item at the belt's scanner, shown big. A teal panel with an ink
+## The scanner bay on the monitor (#86 v6 scan count-up, mock-up count_up_86_v6_scan.html; round
+## 7's TALLY, ALIVE and QUEUE, count_up_86_v7_bay.html; MonitorView.BAY_RECT, on the screen in every
+## mode since the monitor bay follow-up, mock-up monitor_bay_v1.html): in the count the item at the
+## belt's scanner, in planning belt slot 1's item or the held one (show_planning, below), shown
+## big. A teal panel with an ink
 ## header (the queue, BayQueue: "4 LEFT", LAST, DONE and a pip per item, beside the scan light),
 ## the scan bed (BayBed: the item's art at 2x, alive, in gold corners), the item's name on a paper
 ## label under it ("–" between items, "THANK YOU" at the end) and its price tag (BayTag) hung off
@@ -23,6 +25,18 @@ extends Control
 ## quota knock_off() sends the sticker flying off, left and up, spinning, on the bay's own
 ## real-time tween. Reduced motion (`reduced_motion`) keeps every state (the item shows at its
 ## opening beat and goes at once) and drops the motion.
+##
+## In planning (show_planning) the header reads NEXT over belt slot 1's item (its name on the
+## label; an empty bed and GONE_NAME when slot 1 is empty) with a pip per belt slot (BayQueue
+## show_slots; SCANNER with no belt slots), or SCAN while a hover-hold scan holds an
+## item (belt or hand): that item, its kind on a cream label (KIND_COUPON_TEXT, KIND_BASE_TEXT), the
+## fan and BEEP, the light on in HELD_COLOR.
+## When the item to show changes, the one in the bay slides out over PLAN_OUT_S and the new one
+## drops in (BayBed.FALL_S); the label keeps the old item's text until it has slid out, is blank
+## while the new one falls and shows its text once it has landed (the header follows the label). A
+## hold on the item already in the bay just scans it (fan, BEEP, wobble), with no drop. Planning's
+## motion runs on the bay's own tweens. start() (the count) keeps the item in the bay when it is the
+## count's first one, so the first scan needs no drop-in. Reduced motion swaps at once.
 ##
 ## The landing sticker is drawn on `sticker_parent` when set (the monitor's layer over the digits),
 ## else on the bay; the tag on `tag_holder` (the monitor's top layer), else on the bay at TAG_AT.
@@ -67,6 +81,15 @@ const END_NAME := "THANK YOU"
 ## The item in the bay slides out over this share of a ride (at most BayBed.OUT_S; all of the
 ## last ride's), and the next one falls over the rest (at most BayBed.FALL_S).
 const OUT_SHARE := 0.5
+## Planning's swap: the item in the bay slides out over PLAN_OUT_S, then the next one drops in.
+const PLAN_OUT_S := 0.12
+## A held item's kind on the label (as the scan's art used to say it), on cream in dark tomato.
+const KIND_COUPON_TEXT := "COUPON"
+const KIND_BASE_TEXT := "BASE €%d"
+const KIND_FACE_COLOR := Palette.CREAM
+const KIND_INK_COLOR := Palette.TOMATO_DARK
+## The scan light while an item is held in planning (after its blink).
+const HELD_COLOR := Palette.TOMATO
 ## An opening beat: the light blinks (on and off LIGHT_BLINK_HZ times a second) for LIGHT_S.
 const LIGHT_S := 0.35
 const LIGHT_BLINK_HZ := 10.0
@@ -141,6 +164,22 @@ var _motion: Tween
 var _ride: Tween
 var _slap: Tween
 var _knock: Tween
+## The name label's faces: the name's (paper) and a held item's kind (cream).
+var _name_face: StyleBoxFlat
+var _kind_face: StyleBoxFlat
+## Planning (show_planning): on, the item wanted in the bay and whether it is held (a scan), the
+## item in the bed scanned (its kind on the label), a swap's slide-out running, the drop's landing
+## pending, and whether the label (so the header) shows a scan.
+var _planning: bool = false
+var _want: CardDefinition
+var _want_scan: bool = false
+var _scanned: bool = false
+var _swapping: bool = false
+var _land: Tween
+var _label_scan: bool = false
+## Planning's belt: its slots and how many hold items (the header's pips).
+var _slots: int = 0
+var _filled: int = 0
 
 
 func _init() -> void:
@@ -160,11 +199,9 @@ func _init() -> void:
 	_name.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	_name.clip_text = true
 	_name.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
-	var face: StyleBoxFlat = StyleBoxFlat.new()
-	face.bg_color = NAME_FACE_COLOR
-	face.border_color = NAME_INK_COLOR
-	face.set_border_width_all(NAME_BORDER)
-	_name.add_theme_stylebox_override("normal", face)
+	_name_face = _face(NAME_FACE_COLOR)
+	_kind_face = _face(KIND_FACE_COLOR)
+	_name.add_theme_stylebox_override("normal", _name_face)
 	_name.position = NAME_RECT.position
 	_name.size = NAME_RECT.size
 	add_child(_name)
@@ -211,6 +248,9 @@ func _draw() -> void:
 ## motion the item in the bay goes at once and the next shows at its opening beat.
 func ride(bag_slot: int, scan_slot: int, definition: CardDefinition, seconds: float) -> void:
 	_stop_ride()
+	# The item already in the bay (the count's first, kept from planning) stays: no drop-in.
+	if scan_slot >= 0 and scan_slot == _bed_slot and _bed.has_item():
+		definition = null
 	var out_s: float = 0.0
 	if bag_slot >= 0 and bag_slot == _bed_slot and _bed.has_item():
 		out_s = minf(BayBed.OUT_S, seconds if scan_slot < 0 else seconds * OUT_SHARE)
@@ -241,10 +281,19 @@ func ride(bag_slot: int, scan_slot: int, definition: CardDefinition, seconds: fl
 	_ride.tween_callback(arrive)
 
 
-## A count of `items` starts: the queue reads "n LEFT", the bed "NEXT ITEM", the name blank.
-func start(items: int) -> void:
-	reset()
+## A count of `items` starts: the queue reads "n LEFT". When the bay holds `first` (the count's
+## first item, from planning, at rest or still landing) it stays there at rest with its name, as
+## slot 0's: its first scan needs no drop-in. Else the bed is empty, the name blank.
+func start(items: int, first: CardDefinition = null) -> void:
+	var keep: bool = (
+		first != null and not _swapping and _bed.has_item() and _bed.shown_definition() == first
+	)
+	reset(keep)
 	_queue.start(items)
+	if keep:
+		_bed_slot = 0
+		_coupon = first.is_coupon()
+		_set_name(first.display_name.to_upper())
 
 
 ## Slaps `spec`'s landing sticker over the bay's bottom-right corner (the last one goes); none for
@@ -283,6 +332,7 @@ func follow_beat(beat: CountUpBeat, step: ScoreStep, definition: CardDefinition)
 	if beat.opens_slot:
 		if (_bed_slot != beat.scan_slot or not _bed.has_item()) and definition != null:
 			_enter(beat.scan_slot, definition, 0.0)
+		_queue.enter(beat.scan_slot)
 		_bed.scan(_met)
 		_scan_light()
 		if own:
@@ -355,22 +405,60 @@ func show_end_state(items: int, met: bool) -> void:
 	set_met(met)
 
 
-## A new count: idle ("NEXT ITEM"), no tag or sticker, light off, not met, the queue's count kept
-## with none in yet.
-func reset() -> void:
+## A new count: the bed empty (or, with `keep_item`, its item kept, at rest), no tag or sticker,
+## light off, not met, the queue's count kept with none in yet, out of planning, on the count's
+## clock.
+func reset(keep_item: bool = false) -> void:
 	_stop_ride()
 	_stop_light()
+	_stop_land()
 	_drop_sticker()
 	_drop_knocked()
 	_slaps = 0
 	_met = false
 	_bed_slot = -1
 	_coupon = false
-	_bed.reset()
+	_planning = false
+	_want = null
+	_want_scan = false
+	_scanned = false
+	_swapping = false
+	_label_scan = false
+	_bed.make_tween = make_tween
+	if keep_item:
+		_bed.settle()
+		_bed.set_met(false)
+	else:
+		_bed.reset()
 	_tag.hide_tag()
 	_queue.restart()
-	_name.text = ""
+	_set_name("")
 	queue_redraw()
+
+
+## Planning (see the class comment): the bay shows `definition` (belt slot 1's item, or the held
+## one when `held`; null for an empty slot 1) under NEXT or SCAN, with a pip per belt slot
+## (`slots`, the first `filled` of them holding items).
+func show_planning(definition: CardDefinition, held: bool, slots: int, filled: int) -> void:
+	if not _planning:
+		_enter_planning()
+	_want = definition
+	_want_scan = held and definition != null
+	_slots = slots
+	_filled = filled
+	_queue_text()
+	_sync_planning()
+	queue_redraw()
+
+
+## Whether the bay shows planning's items (show_planning) rather than a count's.
+func is_planning() -> bool:
+	return _planning
+
+
+## Whether the label shows a held item's kind (the header SCAN), not a name.
+func shows_scan() -> bool:
+	return _label_scan
 
 
 ## The bay's parts: the scan bed, the price tag and the header's queue.
@@ -405,7 +493,7 @@ func light_colour() -> Color:
 
 
 ## A beat's landing sticker (see the class comment), or null for none: the base price ("€N") for a
-## plain or base beat, "+N" for a bonus, "×N" for a stamp, the denied payout ("€N") or "pfff" in
+## plain or base beat, "+N" for a bonus, "×N" for a stamp, the denied payout ("€N") or WASTED in
 ## grey. Pure: the numbers are the step's.
 static func landing_spec(beat: CountUpBeat, step: ScoreStep) -> StickerSpec:
 	var spec: StickerSpec = StickerSpec.new()
@@ -422,7 +510,7 @@ static func landing_spec(beat: CountUpBeat, step: ScoreStep) -> StickerSpec:
 			spec.text = "€%d" % step.value
 		CountUpBeat.Kind.FIZZLE:
 			spec.kind = StickerSpec.Kind.FIZZLE
-			spec.text = "pfff"
+			spec.text = EffectLink.WASTED_WORD
 		_:
 			return null
 	spec.step_index = beat.steps[0]
@@ -445,10 +533,147 @@ func _enter(slot: int, definition: CardDefinition, fall_s: float) -> void:
 	_bed_slot = slot
 	_coupon = definition.is_coupon()
 	_queue.enter(slot)
-	_name.text = definition.display_name.to_upper()
-	_fit_name()
+	_set_name(definition.display_name.to_upper())
 	_tag.hide_tag()
 	_bed.drop_in(definition, fall_s)
+
+
+## Planning starts: the count's tag, sticker, light and queue go; the bed keeps its item, on the
+## bay's own clock.
+func _enter_planning() -> void:
+	_stop_ride()
+	_stop_light()
+	_drop_sticker()
+	_drop_knocked()
+	_tag.hide_tag()
+	_met = false
+	_bed.set_met(false)
+	_bed_slot = -1
+	_bed.make_tween = Callable()
+	_planning = true
+	_scanned = false
+	_label_scan = false
+	if not _bed.has_item():
+		_bed.show_idle(BayBed.IDLE_TEXT)
+		_set_name(GONE_NAME)
+
+
+## Brings the bed to what planning wants (see the class comment): a different item slides out
+## first (then _on_emptied comes back here), an empty bed takes the wanted one, the same item is
+## scanned when held.
+func _sync_planning() -> void:
+	if _swapping:
+		return
+	var shown: CardDefinition = _bed.shown_definition()
+	if shown != null and shown != _want:
+		_stop_land()
+		_swapping = true
+		_bed.slide_out(PLAN_OUT_S)
+		return
+	if shown == null:
+		if _want == null:
+			_label_scan = false
+			_set_name(GONE_NAME)
+			_queue_text()
+			return
+		_drop_planning()
+		return
+	if _land != null:
+		return
+	if _want_scan and not _scanned:
+		_scan_planning()
+	elif not _want_scan and _scanned:
+		_scanned = false
+		_show_planning_label()
+
+
+## The wanted item drops in: a blank label (the header saying what it is for) until it lands.
+func _drop_planning() -> void:
+	_scanned = false
+	_label_scan = _want_scan
+	_set_name("")
+	_queue_text()
+	_bed.drop_in(_want, BayBed.FALL_S)
+	if _reduced() or not is_inside_tree():
+		_on_planning_landed()
+		return
+	_land = create_tween()
+	_land.tween_callback(_on_planning_landed).set_delay(BayBed.FALL_S)
+
+
+## The dropped item landed: its label, and its scan when it is held.
+func _on_planning_landed() -> void:
+	_land = null
+	if _want_scan:
+		_scan_planning()
+	else:
+		_show_planning_label()
+
+
+## A held item's scan in the bay: the fan, BEEP and wobble, the light's blink, its kind.
+func _scan_planning() -> void:
+	_scanned = true
+	_bed.scan(false)
+	_bed.wobble()
+	_scan_light()
+	_show_planning_label()
+
+
+## The label for the item in the bed: its kind when scanned, else its name.
+func _show_planning_label() -> void:
+	var shown: CardDefinition = _bed.shown_definition()
+	_label_scan = _scanned and shown != null
+	if shown == null:
+		_set_name(GONE_NAME)
+	elif _scanned:
+		_set_name(kind_text(shown), true)
+	else:
+		_set_name(shown.display_name.to_upper())
+	_queue_text()
+
+
+## The header's text in planning: SCAN while the label shows a scan (or a held item drops in),
+## else NEXT over the belt (SCANNER with no belt slots).
+func _header_text() -> String:
+	if _label_scan:
+		return BayQueue.SCAN_TEXT
+	return BayQueue.NEXT_TEXT if _slots > 0 else BayQueue.IDLE_TEXT
+
+
+## The header in planning: its text over the belt's pips.
+func _queue_text() -> void:
+	if _planning:
+		_queue.show_slots(_slots, _filled, _header_text())
+
+
+func _stop_land() -> void:
+	if _land != null:
+		_land.kill()
+		_land = null
+
+
+## A held item's kind for the label: "COUPON" or "BASE €N". Pure.
+static func kind_text(definition: CardDefinition) -> String:
+	if definition.is_coupon():
+		return KIND_COUPON_TEXT
+	return KIND_BASE_TEXT % definition.base
+
+
+## The name label's text (a held item's kind on the cream face when `kind`), fitted.
+func _set_name(text: String, kind: bool = false) -> void:
+	_name.text = text
+	_name.add_theme_stylebox_override("normal", _kind_face if kind else _name_face)
+	_name.add_theme_color_override("font_color", KIND_INK_COLOR if kind else NAME_INK_COLOR)
+	_fit_name()
+
+
+## A label face: `colour` in a NAME_BORDER ink border.
+static func _face(colour: Color) -> StyleBoxFlat:
+	var face: StyleBoxFlat = StyleBoxFlat.new()
+	face.bg_color = colour
+	face.border_color = NAME_INK_COLOR
+	face.set_border_width_all(NAME_BORDER)
+	return face
 
 
 ## A ride's end: item `bag_slot` is in the bag; after the last (`scan_slot` -1), all are.
@@ -467,8 +692,7 @@ func _finish() -> void:
 	_bed.show_idle(BayBed.END_TEXT)
 	_tag.hide_tag()
 	_drop_sticker()
-	_name.text = END_NAME
-	_fit_name()
+	_set_name(END_NAME)
 
 
 ## The opening beat's tag: the item's worth on paper, popping; none for a coupon at €0.
@@ -488,13 +712,18 @@ func _count_tag(worth: int, paid: bool, delay: float) -> void:
 	_tag.count_to(worth, paid, delay)
 
 
-## The item left the bed: its tag and sticker go, the name reads GONE_NAME.
+## The item left the bed: its tag and sticker go, the name reads GONE_NAME; in planning the wanted
+## item comes in next.
 func _on_emptied() -> void:
 	_bed_slot = -1
 	_tag.hide_tag()
 	_drop_sticker()
-	_name.text = GONE_NAME
-	_fit_name()
+	if _planning:
+		_swapping = false
+		_scanned = false
+		_sync_planning()
+		return
+	_set_name(GONE_NAME)
 
 
 ## The opening beat's light: on (blinking, without reduced motion) for LIGHT_S.
@@ -522,7 +751,9 @@ func _fit_name() -> void:
 func _light_colour() -> Color:
 	if _met:
 		return LIGHT_MET_COLOR
-	return LIGHT_ON_COLOR if _light_on else LIGHT_OFF_COLOR
+	if _light_on:
+		return LIGHT_ON_COLOR
+	return HELD_COLOR if _planning and _want_scan else LIGHT_OFF_COLOR
 
 
 func _blink(seconds: float) -> void:
@@ -582,8 +813,11 @@ func _drop_knocked() -> void:
 	_knocked = null
 
 
+## A tween on the count-up's clock (make_tween) in the count, the bay's own in planning.
 func _new_tween() -> Tween:
-	return make_tween.call() as Tween if make_tween.is_valid() else create_tween()
+	if make_tween.is_valid() and not _planning:
+		return make_tween.call() as Tween
+	return create_tween()
 
 
 func _reduced() -> bool:

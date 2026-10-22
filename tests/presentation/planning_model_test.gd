@@ -32,7 +32,7 @@ func test_the_reference_row_shows_its_stickers_in_step_order() -> void:
 	assert_str(milk.badge_text).is_empty()
 	# Multipack: Coupon engine's fizzle, with the loyalty badge (its box's initials).
 	_assert_stickers(
-		model.slots[3], [[StickerSpec.Kind.FIZZLE, "pfff", GiverBadge.Kind.LOYALTY, "CoE"]]
+		model.slots[3], [[StickerSpec.Kind.FIZZLE, "WASTED", GiverBadge.Kind.LOYALTY, "CoE"]]
 	)
 	# Milks 5 to 7: their own bonus, then Multipack's ×3 (coupon badge); the 6th product also
 	# gets Slot engine's ×2 last.
@@ -273,7 +273,7 @@ func test_key_entries_take_the_first_sticker_of_each_kind_in_order() -> void:
 		captions.append(PlanningModel.key_caption(entry))
 	# Bread's item stamp comes first on the belt, but the key's order is fixed.
 	assert_array(captions).is_equal(
-		["own rule", "from an item", "from a coupon", "loyalty", "fizzled"]
+		["own rule", "from an item", "from a coupon", "loyalty", "wasted"]
 	)
 	assert_bool(entries[0] == model.slots[2].stickers[0]).is_true()
 	assert_bool(entries[1] == model.slots[1].stickers[0]).is_true()

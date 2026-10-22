@@ -1,0 +1,97 @@
+/* #63 capsule machine decide prep (2026-10-21): shared look for every capsule_63_* page. Mock-up only, not game code.
+   Palette from art/src/palette.txt, fonts by role as UiKit sets them (section 2.2 of screens_src/BRIEF.md in the main tree). */
+@font-face { font-family: Pixelify; src: url(../../../../fonts/PixelifySans-Variable.ttf); }
+@font-face { font-family: Atkinson; src: url(../../../../fonts/AtkinsonHyperlegibleNext-Variable.ttf); font-weight: 200 800; }
+@font-face { font-family: JBMono; src: url(../../../../fonts/JetBrainsMono-Regular.ttf); }
+:root {
+  --ink: #2b2420; --ink-light: #4a3f38; --muted: #8a8172; --paper: #fbf7ee; --cream: #f3e9d2; --cream-shade: #ddcba5;
+  --cream-dark: #b39f78; --mustard: #e2b33c; --mustard-light: #f1d27a; --mustard-pale: #faecbc; --gold: #ffcf3f;
+  --tomato: #d9534f; --tomato-dark: #a83a3c; --teal: #4f9a94; --teal-light: #86c2b6; --teal-mid: #3a7672;
+  --teal-panel: #2a4d4b; --teal-dark: #1f3b3a; --teal-black: #172c2b;
+  --steel: #8d8a83; --steel-light: #c7c3b8; --steel-dark: #57534c; --good: #5fae5a;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { width: 1280px; height: 720px; overflow: hidden; background: var(--teal-black); }
+img, canvas { image-rendering: pixelated; }
+.stage { position: relative; width: 1280px; height: 720px; overflow: hidden; font-family: Atkinson, sans-serif; color: var(--ink); user-select: none; }
+.abs { position: absolute; }
+.ol { text-shadow: 3px 0 0 var(--ink), -3px 0 0 var(--ink), 0 3px 0 var(--ink), 0 -3px 0 var(--ink),
+  2px 2px 0 var(--ink), -2px 2px 0 var(--ink), 2px -2px 0 var(--ink), -2px -2px 0 var(--ink); }
+.ol2 { text-shadow: 2px 0 0 var(--ink), -2px 0 0 var(--ink), 0 2px 0 var(--ink), 0 -2px 0 var(--ink),
+  1px 1px 0 var(--ink), -1px 1px 0 var(--ink), 1px -1px 0 var(--ink), -1px -1px 0 var(--ink); }
+/* FramedButton faces: art/frames/button.png (primary) and sign.png (secondary), 3 art px margins */
+.fbtn { position: absolute; display: flex; align-items: center; justify-content: center; padding: 0 24px 4px;
+  font-family: Pixelify; color: var(--paper); white-space: nowrap; image-rendering: pixelated; cursor: pointer; }
+.fbtn.primary { border: 6px solid transparent; border-image: url(assets/button.png) 6 fill / 6px stretch; }
+.fbtn.secondary { border: 6px solid transparent; border-image: url(assets/sign.png) 6 fill / 6px stretch; padding-bottom: 2px; }
+.fbtn:hover { filter: brightness(1.12); }
+/* coin counter chip (top_button.png face, like the top bar's chips) */
+.coins { position: absolute; display: flex; align-items: center; gap: 10px; height: 44px; padding: 0 16px 2px 12px;
+  border: 6px solid transparent; border-image: url(assets/top_button.png) 6 fill / 6px stretch; color: var(--paper);
+  font: 750 22px Atkinson; white-space: nowrap; }
+.coins .lab { font: 400 17px Pixelify; letter-spacing: 1px; color: var(--cream); }
+.coins svg { width: 24px; height: 24px; display: block; }
+.coins.pop { animation: coinpop .25s steps(5); }
+@keyframes coinpop { 0% { transform: scale(1.25); } 100% { transform: scale(1); } }
+/* notice style: tomato Atkinson 16 px + the warning triangle (colour is never the only signal) */
+.notice { position: absolute; display: flex; align-items: center; gap: 10px; font: 700 16px Atkinson; color: var(--tomato); }
+.notice img { width: 26px; height: 22px; }
+.notice.paper { background: var(--paper); border: 4px solid var(--ink); padding: 8px 14px; color: var(--tomato-dark); box-shadow: 4px 4px 0 rgba(0,0,0,.35); }
+.hint { position: absolute; font: 600 15px Atkinson; color: var(--cream); }
+/* cream price-gun label (sticker_label.png 9-slice), the loved sticker device */
+.label { position: absolute; display: flex; align-items: center; justify-content: center; gap: 6px; height: 30px; padding: 0 10px 2px;
+  border: 6px solid transparent; border-image: url(assets/sticker_label.png) 6 fill / 6px stretch; font: 750 15px Atkinson;
+  color: var(--ink); white-space: nowrap; }
+.label svg { width: 16px; height: 16px; }
+.label.done { background: none; }
+.rosette { position: absolute; display: flex; align-items: center; justify-content: center; text-align: center; width: 112px; height: 60px;
+  background: url(assets/sticker_burst.png) center / 100% 100% no-repeat; image-rendering: pixelated;
+  font: 800 13px/1.05 Atkinson; color: var(--ink); transform: rotate(-8deg); }
+/* the out-of-order paper taped over a machine (profile can't be saved) */
+.ooo { position: absolute; background: var(--paper); border: 3px solid var(--ink); padding: 4px 6px 5px; text-align: center;
+  font: 400 14px/1.05 Pixelify; color: var(--tomato-dark); transform: rotate(-5deg); box-shadow: 3px 3px 0 rgba(0,0,0,.3); }
+.ooo::before, .ooo::after { content: ""; position: absolute; top: -8px; width: 22px; height: 10px; background: rgba(250,236,188,.85); border: 1px solid var(--cream-dark); }
+.ooo::before { left: -8px; transform: rotate(-30deg); } .ooo::after { right: -8px; transform: rotate(30deg); }
+/* aisle sign overlay (name + glyph drawn by code on the painted sign) */
+.signtxt { position: absolute; display: flex; align-items: center; justify-content: center; gap: 6px; font: 400 15px Pixelify;
+  color: var(--paper); white-space: nowrap; pointer-events: none; }
+.signtxt img { width: 18px; height: 18px; }
+.machine { position: absolute; cursor: pointer; }
+.machine canvas { position: absolute; left: 0; top: 0; }
+.machine.off { cursor: default; }
+.machine.hov canvas.body { filter: brightness(1.08); }
+.machine.hov { transform: translateY(-4px); }
+/* fx layer: shade, flying coin, capsule, reveal */
+.fx { position: absolute; inset: 0; pointer-events: none; }
+.fx > * { position: absolute; }
+.shade { inset: 0; background: #000; opacity: 0; }
+.flycoin { width: 28px; height: 28px; }
+.cap { width: 32px; height: 32px; transform-origin: 50% 50%; }
+.flash { width: 120px; height: 120px; border: 6px solid var(--gold); border-radius: 50%; opacity: 0; }
+.reveal { left: 0; top: 0; width: 1280px; height: 720px; opacity: 0; }
+.reveal .rays { position: absolute; width: 360px; height: 360px; border-radius: 50%;
+  background: repeating-conic-gradient(rgba(255,207,63,.2) 0deg 12deg, rgba(255,207,63,0) 12deg 30deg); }
+.reveal .fig { position: absolute; width: 96px; height: 96px; }
+.fig img, .fig .pend { width: 96px; height: 96px; display: block; }
+.fig .pend { display: flex; }
+.pend { position: relative; background: url(assets/art_pending_v2.png) center / 100% 100% no-repeat; image-rendering: pixelated;
+  display: flex; align-items: center; justify-content: center; text-align: center; font: 700 13px/1.1 Atkinson; color: var(--ink-light); padding: 10px; }
+.pend.s { font-size: 8.5px; padding: 5px; line-height: 1.05; }
+.reveal .name { position: absolute; height: 52px; padding: 0 22px 3px; display: flex; align-items: center; font: 400 32px Pixelify; color: var(--ink);
+  border: 6px solid transparent; border-image: url(assets/sticker_label.png) 6 fill / 6px stretch; image-rendering: pixelated; white-space: nowrap; }
+.reveal .aisle { position: absolute; display: flex; align-items: center; gap: 8px; font: 700 18px Atkinson; color: var(--paper); white-space: nowrap; }
+.reveal .aisle img { width: 18px; height: 18px; }
+.reveal .stock { position: absolute; padding: 6px 12px 7px; background: var(--teal-panel); border: 3px solid var(--ink); color: var(--paper);
+  font: 700 16px Atkinson; white-space: nowrap; box-shadow: 3px 3px 0 rgba(0,0,0,.35); }
+.reveal .newb { position: absolute; width: 96px; height: 54px; display: flex; align-items: center; justify-content: center;
+  background: url(assets/sticker_burst.png) center / 100% 100% no-repeat; image-rendering: pixelated; font: 800 18px Atkinson; color: var(--ink); }
+.reveal .ok { pointer-events: auto; height: 52px; min-width: 150px; font-size: 22px; }
+.reveal .tip { position: absolute; font: 600 13px Atkinson; color: var(--cream-shade); white-space: nowrap; }
+/* mock-up notes (not game art) */
+.mk { position: fixed; right: 6px; bottom: 6px; z-index: 50; font: 600 11px Atkinson; color: var(--mustard-pale); background: rgba(23,44,43,.85);
+  padding: 3px 7px; border: 1px dashed var(--mustard-pale); pointer-events: auto; }
+.mk a { color: var(--gold); }
+.tooltip { position: absolute; z-index: 30; pointer-events: none; padding: 6px 10px 8px; border: 6px solid transparent;
+  border-image: url(assets/popup.png) 6 fill / 6px stretch; image-rendering: pixelated; font: 400 18px Pixelify; color: var(--ink); white-space: nowrap; }
+.tooltip small { display: flex; align-items: center; gap: 6px; font: 700 13px Atkinson; color: var(--ink-light); }
+.tooltip small img { width: 18px; height: 18px; }

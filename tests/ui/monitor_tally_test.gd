@@ -1,15 +1,15 @@
 extends GdUnitTestSuite
 ## The tag's payouts on the monitor (#86 round 7, TALLY): as a payout's roll first rises the tag
-## turns gold and one chip flies from its send point into the number; the pour leaves the number
-## (POUR_POINT) as the chip lands; once met, a payout's spurt and tab punch wait for its gold to
-## reach the tank (EuroTank.LAG_S), and the tank's level waits for the chip to land. Split from
-## monitor_view_test for the file's line limit.
+## turns gold and one chip flies from its send point into the digits; as the chip lands the gold
+## hops from the gap before the € into the € (the monitor bay follow-up, mock-up
+## monitor_bay_v1.html: no drop crosses a digit); once met, a payout's spurt and tab punch wait for
+## its pour to land (TankBurst.POUR_S). Split from monitor_view_test for the file's line limit.
 
 
 ## A payout (#86 round 7): as its roll's first reading rises the tag turns gold and one chip flies
-## from the tag's send point into the number (NUMBER_POINT) over the receipt chip's flight; the
-## roll's next readings send none; a payout of 0 sends none; under reduced motion none flies and
-## the tag still turns gold.
+## from the tag's send point into the digits' middle (the middle of LedDisplay.digits_text_rect)
+## over the receipt chip's flight; the roll's next readings send none; a payout of 0 sends none;
+## under reduced motion none flies and the tag still turns gold.
 func test_a_payout_sends_one_chip_from_the_tag_into_the_number() -> void:
 	var monitor: MonitorView = await _monitor()
 	var made: Array[Tween] = []
@@ -37,7 +37,9 @@ func test_a_payout_sends_one_chip_from_the_tag_into_the_number() -> void:
 		tag.send_point().x + TallyChips.START_RIGHT - width / 2.0, 0.001
 	)
 	assert_float(rects[0].get_center().y).is_equal_approx(tag.send_point().y, 0.001)
-	assert_vector(chip.to).is_equal(MonitorView.NUMBER_POINT - ShiftStage.MONITOR_RECT.position)
+	var number: Vector2 = monitor.led.digits_text_rect().get_center()
+	assert_vector(chip.to).is_equal(number - ShiftStage.MONITOR_RECT.position)
+	assert_bool(monitor.led.digits_text_rect().has_point(number)).is_true()
 	monitor.led.show_subtotal(8, false)
 	monitor.led.show_subtotal(12, false)
 	assert_int(monitor.chips().chip_rects().size()).is_equal(1)
@@ -59,54 +61,25 @@ func test_a_payout_sends_one_chip_from_the_tag_into_the_number() -> void:
 	assert_bool(tag.is_paid()).is_true()
 
 
-## The tank's level waits for the chip (#86 round 7, TALLY): while a payout's chip flies into the
-## number the tank holds its gains, however long; once it lands they reach the level LAG_S later,
-## as the pour arrives; under reduced motion (no chip) the level follows at once.
-func test_the_tank_rises_after_the_chip_lands() -> void:
-	var monitor: MonitorView = await _monitor()
-	var made: Array[Tween] = []
-	monitor.led.beat().make_tween = func() -> Tween:
-		var tween: Tween = monitor.create_tween()
-		tween.pause()
-		made.append(tween)
-		return tween
-	var count_up: CountUp = _follow(monitor)
-	var tank: EuroTank = monitor.tank()
-	tank.set_process(false)
-	monitor.led.start_count(40)
-	var beat: CountUpBeat = _payout_beat(12)
-	beat.roll_ms = 150
-	count_up.beat_started.emit(beat, _payout_step(12), "", null, 1)
-	monitor.led.show_subtotal(6, false)
-	monitor.led.show_subtotal(12, false)
-	assert_int(monitor.chips().chip_rects().size()).is_equal(1)
-	assert_int(tank.pending()).is_equal(2)
-	# The chip still in flight: nothing reaches the level, however long.
-	tank._process(EuroTank.LAG_S + 0.1)
-	assert_int(tank.pending()).is_equal(2)
-	assert_float(tank.level()).is_equal(0.0)
-	_step_all(made, 0.16)
-	assert_int(monitor.chips().chip_rects().size()).is_equal(0)
-	tank._process(EuroTank.LAG_S - 0.05)
-	assert_int(tank.pending()).is_equal(2)
-	tank._process(0.1)
-	assert_int(tank.pending()).is_equal(0)
-	# Reduced motion: no chip, no wait.
-	monitor.reduced_motion = func() -> bool: return true
-	tank.reduced_motion = monitor.reduced_motion
-	count_up.beat_started.emit(_payout_beat(4), _payout_step(4), "", null, 1)
-	monitor.led.show_subtotal(16, false)
-	assert_int(tank.pending()).is_equal(0)
-	assert_float(tank.level()).is_equal_approx(16.0 / 40.0, 0.0001)
-
-
-## The pour (#86 round 7) leaves the number (POUR_POINT) as the chip lands, into the tank.
-func test_the_pour_leaves_the_number_when_the_chip_lands() -> void:
+## The pour (the monitor bay follow-up, mock-up monitor_bay_v1.html) leaves the gap just above
+## the digits, before the € (TankBurst.pour_point), as the chip lands, and hops into the €: no drop
+## crosses a digit (every drop right of the digits' ink, within 2 art px), each lands in the €'s
+## ink, all within POUR_S.
+func test_the_pour_hops_from_the_digits_into_the_euro() -> void:
 	var stage: ShiftStage = await _stage()
 	var monitor: MonitorView = stage.monitor
 	var burst: TankBurst = stage.tank_burst
 	var origin: Vector2 = stage.get_global_rect().position
-	monitor.led.start_count(40)
+	var led: LedDisplay = monitor.led
+	led.start_count(140)
+	led.show_subtotal(56, false)
+	await _frames(1)
+	var digits: Rect2 = led.digits_text_rect()
+	var euro: Rect2 = led.euro_text_rect()
+	var from: Vector2 = TankBurst.pour_point(led)
+	assert_float(from.x).is_greater(digits.end.x)
+	assert_float(from.x).is_less(euro.position.x)
+	assert_float(from.y).is_less(digits.position.y)
 	monitor.chips().landed.emit(12, 0)
 	burst.advance(0.001)
 	var rects: Array[Rect2] = burst.drawn_rects(TankBurst.Layer.POUR)
@@ -114,12 +87,22 @@ func test_the_pour_leaves_the_number_when_the_chip_lands() -> void:
 	var start: Rect2 = rects[0]
 	for rect: Rect2 in rects:
 		start = start.merge(rect)
-	var from: Vector2 = origin + MonitorView.POUR_POINT
 	(
-		assert_bool(start.grow(8.0).has_point(from - origin))
-		. override_failure_message(str(start))
+		assert_bool(start.grow(4.0).has_point(from - origin))
+		. override_failure_message("%s from %s" % [start, from - origin])
 		. is_true()
 	)
+	var steps: int = 0
+	while not burst.drawn_rects(TankBurst.Layer.POUR).is_empty():
+		for rect: Rect2 in burst.drawn_rects(TankBurst.Layer.POUR):
+			var message: String = "%s over the digits %s" % [rect, digits]
+			assert_float(rect.end.x + origin.x).override_failure_message(message).is_greater(
+				digits.end.x - 2.0 * ArtStyle.ART_SCALE
+			)
+		burst.advance(0.02)
+		steps += 1
+		var last_lands: float = TankBurst.POUR_S + TankBurst.POUR_MAX * TankBurst.POUR_STAGGER
+		assert_int(steps).is_less(ceili(last_lands / 0.02) + 3)
 	# Outside the count nothing pours.
 	burst.clear()
 	monitor.led.clear()
@@ -128,10 +111,10 @@ func test_the_pour_leaves_the_number_when_the_chip_lands() -> void:
 	assert_array(burst.drawn_rects(TankBurst.Layer.POUR)).is_empty()
 
 
-## A payout after the quota spurts and punches the tab only as its gold reaches the tank
-## (EuroTank.LAG_S after its chip lands); the ding's own payout (its beat before the quota) does
+## A payout after the quota spurts and punches the tab only as its pour lands in the €
+## (TankBurst.POUR_S after its chip lands); the ding's own payout (its beat before the quota) does
 ## not spurt.
-func test_spurt_and_tab_punch_wait_for_the_tank() -> void:
+func test_spurt_and_tab_punch_wait_for_the_pour() -> void:
 	var stage: ShiftStage = await _stage()
 	var monitor: MonitorView = stage.monitor
 	var burst: TankBurst = stage.tank_burst
@@ -150,7 +133,7 @@ func test_spurt_and_tab_punch_wait_for_the_tank() -> void:
 	count_up.quota_met.emit(true)
 	burst.clear()
 	_step_all(made, 0.3)
-	burst.advance(EuroTank.LAG_S + 0.05)
+	burst.advance(TankBurst.POUR_S + 0.05)
 	assert_bool(burst._jets.is_empty()).is_true()
 	# A later payout.
 	await get_tree().create_timer(OverTab.DELAY_S + OverTab.POP_S + 0.1).timeout
@@ -163,10 +146,10 @@ func test_spurt_and_tab_punch_wait_for_the_tank() -> void:
 	burst.advance(0.001)
 	assert_array(burst.drawn_rects(TankBurst.Layer.PARTICLES)).is_empty()
 	assert_vector(tab.scale).is_equal(Vector2.ONE)
-	burst.advance(EuroTank.LAG_S)
+	burst.advance(TankBurst.POUR_S)
 	assert_array(burst.drawn_rects(TankBurst.Layer.PARTICLES)).is_not_empty()
-	# The tab: still until the gold reaches the tank, then punched.
-	assert_float(await _largest_scale(tab, EuroTank.LAG_S - 0.05)).is_equal(1.0)
+	# The tab: still until the pour lands, then punched.
+	assert_float(await _largest_scale(tab, TankBurst.POUR_S - 0.05)).is_equal(1.0)
 	assert_float(await _largest_scale(tab, 0.3)).is_greater(1.0)
 
 

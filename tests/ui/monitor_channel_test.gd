@@ -371,7 +371,7 @@ func test_the_brief_keys_the_stickers() -> void:
 		_entry(StickerSpec.Kind.MULTIPLY, "×3", GiverBadge.Kind.ITEM, "Eg"),
 		_entry(StickerSpec.Kind.MULTIPLY, "×3", GiverBadge.Kind.COUPON, "Mu"),
 		_entry(StickerSpec.Kind.ADD, "+12", GiverBadge.Kind.LOYALTY, "SlE"),
-		_entry(StickerSpec.Kind.FIZZLE, "pfff", GiverBadge.Kind.NONE, ""),
+		_entry(StickerSpec.Kind.FIZZLE, "WASTED", GiverBadge.Kind.NONE, ""),
 	]
 	var expected: PackedStringArray = PackedStringArray()
 	for entry: StickerSpec in entries:
@@ -380,9 +380,9 @@ func test_the_brief_keys_the_stickers() -> void:
 	monitor.set_planning_key(entries)
 	await _frames(1)
 	_assert_key(channel, expected)
-	# The coupon's entry doesn't fit after the first two and is skipped; the narrower loyalty one
-	# still fits (as in h1), and the fizzle's no longer does.
-	assert_array(Array(channel.key_texts())).is_equal([expected[0], expected[1], expected[3]])
+	# On the channel beside the scanner bay (272 px wide since the monitor bay follow-up) the first
+	# two fit and the rest are skipped (in h1's wider channel the loyalty entry fitted too).
+	assert_array(Array(channel.key_texts())).is_equal([expected[0], expected[1]])
 	# A state change keeps the key.
 	channel.show_state(2, 8, 45, none, no_upgrades, no_coupons)
 	await _frames(1)

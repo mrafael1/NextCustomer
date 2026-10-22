@@ -22,3 +22,4 @@ base = 2
 rules = Array[ExtResource("1_rule")]([SubResource("Resource_crackers")])
 rule_text = "+3 if beside Soup"
 sticker_text = "+{bonus} beside Soup"
+art_ref = "res://art/items_v2/crackers.png"

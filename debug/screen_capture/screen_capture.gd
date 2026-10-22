@@ -18,7 +18,8 @@ extends Control
 ## --capture=docs/art` saves shift_screen_<width>x<height>.png at the window's size, then quits;
 ## the real pointer drives nothing meanwhile (hold_pointer).
 ## With `--scan=<card id>` the scanner first fully scans that card's item (the belt's first,
-## else the hand's), and the file is shift_screen_scan_<width>x<height>.png.
+## else the hand's), waits for it to land in the monitor's scanner bay, and the file is
+## shift_screen_scan_<width>x<height>.png.
 ## With `--effects` the shift shows the planning effects (#71) on a richer belt: #60's reference
 ## row under the Spot check (Eggs lands ×2 on Bread, the 3rd product is denied, Multipack arms ×3
 ## and Coupon engine fizzles on it, Slot engine stamps the 6th product), and the file is
@@ -79,6 +80,9 @@ const CHECKOUT_PREFIX := "checkout_%d_"
 ## Frames for the shift's items to be laid out before one is scanned.
 const SCAN_SETTLE_FRAMES := 2
 const CAPTURE_SETTLE_FRAMES := 12
+## After a scan, the monitor's scanner bay swaps to the scanned item (the old one slides out, the
+## new one drops in): the capture waits for it to land (real time).
+const BAY_SETTLE_S := ScannerBay.PLAN_OUT_S + BayBed.FALL_S + 0.1
 
 ## Where capture() reports a failed save (push_error by default), so tests never print errors.
 var report_error: Callable = Callable()
@@ -198,6 +202,7 @@ func scan(card_id: String) -> void:
 	for card: CardInstance in _screen.run.row + _screen.run.hand():
 		if card.definition.id == card_id and _screen.debug_scan(card):
 			_scanned = true
+			await get_tree().create_timer(BAY_SETTLE_S).timeout
 			return
 	_report("No %s on the counter to scan" % card_id)
 

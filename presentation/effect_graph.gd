@@ -176,7 +176,7 @@ static func _link(steps: Array[ScoreStep], index: int, landings: PackedInt32Arra
 			link.token = "€%d" % step.value
 		ScoreStep.StepType.WASTED:
 			link.kind = EffectLink.Kind.FIZZLE
-			link.token = "pfff"
+			link.token = EffectLink.WASTED_WORD
 			link.reason = step.reason
 			link.armed_step = EffectLinks.armed_of_waste(steps, index)
 		ScoreStep.StepType.EFFECT_ARMED:

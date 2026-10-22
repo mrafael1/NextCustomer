@@ -4,7 +4,7 @@ extends GdUnitTestSuite
 ## cents, its mark: the check when raised, the fizzle icon when it fizzles), "n ·····" per open
 ## empty slot, a dashed rule, "PROJECTED €N.00" (given the quota: green with the met mark at or
 ## over it, red under it, the shortfall "short €1.00" on its own row under it), then the fizzle
-## footer ("2 fizzles · hover an item", none without fizzles); highlight_slot frames a line
+## footer ("2 WASTED · hover an item", none without fizzles); highlight_slot frames a line
 ## (planning only). The count-up
 ## (begin_count) pre-prints every item's line greyed and "TOTAL •••••" with its footer; the steps
 ## fill the lines in (the base, kept) and print under their item, the newest framed; an item whose
@@ -64,7 +64,7 @@ func test_the_font_has_the_receipts_glyphs() -> void:
 
 ## The planning footer's two labels: the count, then where to read them; one fizzle and many.
 func test_the_fizzle_footer_words_one_and_many() -> void:
-	for pair: Array in [[1, "1 fizzle |  · hover an item"], [2, "2 fizzles |  · hover an item"]]:
+	for pair: Array in [[1, "1 WASTED |  · hover an item"], [2, "2 WASTED |  · hover an item"]]:
 		var result: ScoreResult = _result()
 		for _extra: int in range((pair[0] as int) - 1):
 			result.steps.append(_step(ScoreStep.StepType.WASTED, "Coffee bonus"))
@@ -85,14 +85,33 @@ func test_fizzle_count_counts_every_wasted_step() -> void:
 	assert_int(ReceiptView.fizzle_count(result)).is_equal(2)
 
 
-## An item's mark comes from its recorded amounts: raised when its payout is above its base,
-## fizzled when a WASTED step is on it (that wins), none otherwise.
+## An item's mark comes from its recorded amounts: raised when its payout is above its base (that
+## wins, as on its belt ticket), fizzled when a WASTED step of its own is on it, none otherwise.
 func test_slot_marks_read_the_recorded_amounts() -> void:
 	var result: ScoreResult = _result()
 	assert_int(ReceiptView.slot_mark(result, 0)).is_equal(ReceiptView.Mark.NONE)
 	assert_int(ReceiptView.slot_mark(result, 1)).is_equal(ReceiptView.Mark.RAISED)
 	assert_int(ReceiptView.slot_mark(result, 2)).is_equal(ReceiptView.Mark.FIZZLED)
 	assert_int(ReceiptView.slot_mark(result, 5)).is_equal(ReceiptView.Mark.NONE)
+	# Slot 1 also fizzles a condition of its own (#45): it was still raised, so it keeps the check.
+	var waste: ScoreStep = _step(ScoreStep.StepType.WASTED, "Cheese after Bread")
+	waste.slot = 1
+	waste.source_slot = 1
+	result.steps.append(waste)
+	assert_int(ReceiptView.slot_mark(result, 1)).is_equal(ReceiptView.Mark.RAISED)
+	# An upgrade's row-wide fizzle (#45: the Slot engine with too few products) on a slot is not
+	# that item's: Milk keeps no mark. An upgrade's fizzle on its own target (the first coupon
+	# paid nothing) still marks it.
+	var row_waste: ScoreStep = _step(ScoreStep.StepType.WASTED, "Slot engine")
+	row_waste.source_kind = ScoreStep.SourceKind.UPGRADE
+	row_waste.row_wide = true
+	result.steps.append(row_waste)
+	assert_int(ReceiptView.slot_mark(result, 0)).is_equal(ReceiptView.Mark.NONE)
+	assert_int(ReceiptView.fizzle_count(result)).is_equal(3)
+	var own_waste: ScoreStep = _step(ScoreStep.StepType.WASTED, "Coupon engine")
+	own_waste.source_kind = ScoreStep.SourceKind.UPGRADE
+	result.steps.append(own_waste)
+	assert_int(ReceiptView.slot_mark(result, 0)).is_equal(ReceiptView.Mark.FIZZLED)
 
 
 ## The itemised planning receipt: header, dashed rule, the items with their payouts and marks,
@@ -115,7 +134,7 @@ func test_the_planning_receipt_is_itemised() -> void:
 				"5 ····· | ",
 				"---",
 				"PROJECTED | €8.00",
-				"1 fizzle |  · hover an item",
+				"1 WASTED |  · hover an item",
 			]
 		)
 	)
@@ -189,7 +208,7 @@ func test_the_projected_total_reads_against_the_quota() -> void:
 		assert_float(mark_rect.position.x).is_greater_equal(text_end + 6.0 - 0.5)
 		assert_str(_lines(_receipt)[-1]).is_equal("PROJECTED | €8.00")
 	var cases: Array[Array] = [
-		[_result(), 9, ["short €1.00 | ", "1 fizzle |  · hover an item"]],
+		[_result(), 9, ["short €1.00 | ", "1 WASTED |  · hover an item"]],
 		[clean, 20, ["short €12.00 | "]],
 	]
 	for case: Array in cases:
@@ -459,7 +478,7 @@ func test_step_lines_word_bonuses_amount_first() -> void:
 	var wasted: ScoreStep = _step(ScoreStep.StepType.WASTED, "Coffee bonus")
 	wasted.reason = "no Breakfast product after it"
 	assert_str(ReceiptView.step_line(wasted, names)).is_equal(
-		"Coffee bonus: no Breakfast product after it  fizzle"
+		"Coffee bonus: no Breakfast product after it  WASTED"
 	)
 	assert_str(ReceiptView.step_line(_step(ScoreStep.StepType.BASE, ""), names)).is_equal("MILK  2")
 	assert_str(ReceiptView.step_line(_step(ScoreStep.StepType.PAYOUT, ""), names)).is_equal("€2")

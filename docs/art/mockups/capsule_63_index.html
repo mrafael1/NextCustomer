@@ -1,0 +1,80 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Capsule machines #63</title>
+<!-- #63 decide prep index (2026-10-21): links to every page and still, and a one-screen summary. Decided with the user on 2026-10-21: look A, locked items hidden, results + title with coins kept, TOY MACHINES. -->
+<style>
+@font-face { font-family: Pixelify; src: url(../../../fonts/PixelifySans-Variable.ttf); }
+@font-face { font-family: Atkinson; src: url(../../../fonts/AtkinsonHyperlegibleNext-Variable.ttf); font-weight: 200 800; }
+:root { --ink: #2b2420; --paper: #fbf7ee; --cream: #f3e9d2; --mustard: #e2b33c; --gold: #ffcf3f; --teal-dark: #1f3b3a; --teal-panel: #2a4d4b; --teal-black: #172c2b; --muted: #c7beab; }
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { width: 1280px; min-height: 720px; background: var(--teal-black); color: var(--cream); font: 500 13px/1.35 Atkinson; }
+a { color: var(--gold); }
+.wrap { padding: 12px 18px; display: grid; grid-template-columns: 450px 1fr; gap: 18px; }
+h1 { font: 400 30px Pixelify; color: var(--paper); letter-spacing: 1px; }
+h1 small { font: 600 13px Atkinson; color: var(--muted); letter-spacing: 0; margin-left: 8px; }
+h2 { font: 400 17px Pixelify; color: var(--mustard); margin: 10px 0 4px; letter-spacing: 1px; }
+p, li { color: var(--cream); }
+ul { padding-left: 16px; }
+li { margin: 2px 0; }
+.q { background: var(--teal-panel); border: 3px solid var(--ink); padding: 6px 9px; margin: 6px 0; }
+.q b { color: var(--paper); }
+.q .rec { color: var(--gold); font-weight: 700; }
+.looks { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+.card { background: var(--teal-panel); border: 3px solid var(--ink); padding: 6px; }
+.card img { width: 100%; display: block; border: 2px solid var(--ink); image-rendering: auto; }
+.card h3 { font: 400 17px Pixelify; color: var(--paper); margin: 4px 0 2px; }
+.card .no { color: var(--muted); background: var(--teal-black); font: 800 11px Atkinson; padding: 1px 6px; margin-left: 6px; vertical-align: 2px; }
+.card.off { opacity: .62; }
+.q .def { color: var(--muted); }
+.card .rec { color: var(--ink); background: var(--gold); font: 800 11px Atkinson; padding: 1px 6px; margin-left: 6px; vertical-align: 2px; }
+.card p { font-size: 12px; }
+.card .links { font-size: 11.5px; margin-top: 3px; }
+.row2 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-top: 10px; }
+.row2 .card img { height: 96px; object-fit: cover; object-position: top; }
+.foot { font-size: 11.5px; color: var(--muted); margin-top: 8px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div>
+    <h1>Toy machines <small>#63 · decided 2026-10-21</small></h1>
+    <p>One machine per aisle, 1 coin a capsule, key item first. Live pages: click a machine. Reasons in <a href="capsule_63_src/DECIDE_63.md">DECIDE_63.md</a>, inputs in <a href="capsule_63_src/BRIEF.md">BRIEF.md</a>.</p>
+    <h2>Decided with the user</h2>
+    <div class="q"><b>Q1 Look:</b> <span class="rec">A: the camera cut to the exit, with A's big globe machines</span> and the separate shelf screen. C's wall (too much going on) and B's pop-in are not chosen.</div>
+    <div class="q"><b>Q2 Where:</b> <span class="rec">from the results and from the title; coins can be kept.</span> <span class="def">Default, not user-chosen: a title draw while a run is saved takes run index run_count ("In stock after your saved run").</span></div>
+    <div class="q"><b>Q3 Shelf:</b> <span class="rec">locked items hidden</span> (no "?" spaces): figurines packed from the left in data order, all six aisle shelves always shown ("None yet" when empty), "n / m" and FIGURINES n / 30 count. <span class="def">Kept from the recommendation, not picked one by one (user: the shelf looks good): the 30 capsule items only, names on hover, data order.</span></div>
+    <div class="q"><b>Q4 Wording:</b> <span class="rec">TOY MACHINES</span>, "3 of 8 left", "1 coin", "In stock from your next run".</div>
+    <h2>Defaults still standing</h2>
+    <ul>
+      <li>RNG: seed (made outside core/, a decimal string) + draw count in ProfileState v2.</li>
+      <li>Full: ALL COLLECTED, COLLECTION COMPLETE, coins add up.</li>
+      <li>Can't save: OUT OF ORDER, "Coins ?"; a failed save rolls back the draw.</li>
+      <li>Until #65: surprise_list (the pre-fill would lock the first list in).</li>
+      <li><code>capsule</code> event · debug Profile tools.</li>
+    </ul>
+  </div>
+  <div>
+    <div class="looks">
+      <div class="card"><a href="capsule_63_a.html"><img src="capsule_63_a_choose_1920x1080.png" alt=""></a>
+        <h3>A · exit vestibule <span class="rec">CHOSEN</span></h3><p>Camera cut to the exit; big round-globe machines; separate shelf screen.</p>
+        <div class="links"><a href="capsule_63_a.html">live</a> · <a href="capsule_63_a_draw_at0.75.png">crank</a> · <a href="capsule_63_a_draw_at1.6.png">hop</a> · <a href="capsule_63_a_draw_at2.15.png">pop</a> · <a href="capsule_63_a_draw_at3.png">reveal</a> · <a href="capsule_63_a_draw_rm.png">reduced</a> · <a href="capsule_63_a_full_1920x1080.png">full</a> · <a href="capsule_63_a_nosave_1920x1080.png">can't save</a> · <a href="capsule_63_a_nocoins_1920x1080.png">0 coins</a> · <a href="capsule_63_a_capsule_wording_1920x1080.png">capsule wording (not chosen)</a></div></div>
+      <div class="card off"><a href="capsule_63_b.html"><img src="capsule_63_b_choose_1920x1080.png" alt=""></a>
+        <h3>B · machine bank <span class="no">not chosen</span></h3><p>Pop-in steel cabinet over the results; boxy window machines; cheapest.</p>
+        <div class="links"><a href="capsule_63_b.html">live</a> · <a href="capsule_63_b_draw_at0.6.png">dial</a> · <a href="capsule_63_b_draw_at1.6.png">hop</a> · <a href="capsule_63_b_draw_at3.png">reveal (art pending)</a> · <a href="capsule_63_b_draw_rm.png">reduced</a> · <a href="capsule_63_b_full_1920x1080.png">full</a> · <a href="capsule_63_b_nosave_1920x1080.png">can't save</a> · <a href="capsule_63_b_nocoins_1920x1080.png">0 coins</a></div></div>
+      <div class="card off"><a href="capsule_63_c.html"><img src="capsule_63_c_choose_1920x1080.png" alt=""></a>
+        <h3>C · collector wall <span class="no">not chosen</span></h3><p>Wall machines over wooden cases; the figurine flies into its cubby.</p>
+        <div class="links"><a href="capsule_63_c.html">live</a> · <a href="capsule_63_c_draw_at0.75.png">crank</a> · <a href="capsule_63_c_draw_at3.png">reveal</a> · <a href="capsule_63_c_land_mid.png">landing</a> · <a href="capsule_63_c_land_done.png">landed</a> · <a href="capsule_63_c_draw_rm.png">reduced</a> · <a href="capsule_63_c_full_1920x1080.png">full</a> · <a href="capsule_63_c_nosave_1920x1080.png">can't save</a> · <a href="capsule_63_c_nocoins_1920x1080.png">0 coins</a> · <a href="capsule_63_c_hidden_1920x1080.png">locked hidden</a></div></div>
+    </div>
+    <div class="row2">
+      <div class="card"><a href="capsule_63_shelf.html?hover=Strawberries"><img src="capsule_63_shelf_partial_1920x1080.png" alt=""></a><h3>Shelf · 9 / 30</h3><div class="links"><a href="capsule_63_shelf.html">live</a> · locked hidden (chosen)</div></div>
+      <div class="card off"><a href="capsule_63_shelf.html?locked=spaces"><img src="capsule_63_shelf_partial_spaces_1920x1080.png" alt=""></a><h3>Shelf · "?" spaces</h3><div class="links">not chosen (history)</div></div>
+      <div class="card"><a href="capsule_63_shelf.html?state=full"><img src="capsule_63_shelf_full_1920x1080.png" alt=""></a><h3>Shelf · full 30</h3><div class="links"><a href="capsule_63_shelf_full_labels_1920x1080.png">names printed (not the default)</a></div></div>
+      <div class="card"><a href="capsule_63_shelf.html?state=fresh"><img src="capsule_63_shelf_fresh_1920x1080.png" alt=""></a><h3>Shelf · new profile</h3><div class="links">0 of 30: "None yet" · <a href="capsule_63_shelf_early_1920x1080.png">3 of 30</a> (same layout)</div></div>
+    </div>
+    <p class="foot">Stills: 1280x720 at 1.5x, rebuilt by capsule_63_src/capture_all.sh. Only Strawberries, Croissant and Crisps have sprites. The other 27 capsule items show the art-pending box until #57/#58, so the full shelf's final feel waits on those sprites. Look B's backdrop is the shift-5 scene standing in for the results.</p>
+  </div>
+</div>
+</body>
+</html>
