@@ -9,8 +9,10 @@ extends Resource
 ## Redraws every shift allows before upgrades; a shift adds each owned upgrade's
 ## extra_redraws (plan section 3.8, ShiftLimits).
 @export var base_redraws: int = 0
-## How many cards one redraw can replace.
-@export var redraw_limit: int = 0
+## Hand cards per basket: hand place p is in basket p / basket_size, and a redraw replaces one
+## basket's hand cards (plan section 3.8). The shift screen draws two items to a basket
+## (HandRow.ITEMS_PER_BASKET), so only 2 is supported; a test pins the two equal.
+@export var basket_size: int = 0
 ## Product slots: the most products the row holds (plan section 3.1).
 @export var slot_count: int = 0
 ## Coupon-only slots on top of the product slots: the row holds at most slot_count +

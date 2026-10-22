@@ -11,6 +11,10 @@ extends Control
 ## It stands at the stage's origin and draws a basket wherever the hand puts one
 ## (HandRow.basket_lefts), again each time the hand is laid out. Decor only: it takes no clicks.
 ## The shadows are drawn in code (ink at an alpha, as mock-up B2 has them).
+##
+## Each basket's art (its back, or its front with the inside's darkening) sits in a holder of its
+## own, so the basket redraw (plan section 3.8, BasketRedraw) can lift, squash and tip one basket
+## (set_pose); its shadow on the counter front and its contact shadow fade as it tips.
 
 enum Layer { BACK, FRONT }
 
@@ -48,6 +52,8 @@ const INSIDE_ALPHAS: Array[float] = [0.14, 0.28]
 const BACK_NAME := &"BasketBack"
 const FRONT_NAME := &"BasketFront"
 const LEDGE_NAME := &"Ledge"
+const HOLDER_NAME := &"Pose"
+const INSIDE_NAME := &"Inside"
 
 const BACK_LEFT := preload("res://art/scenery/basket_back_left.png")
 const BACK_RIGHT := preload("res://art/scenery/basket_back_right.png")
@@ -58,6 +64,11 @@ var layer: Layer
 var _hand: HandRow
 ## Each basket's left edge at its rim (stage x), as last drawn.
 var _lefts: Array[float] = []
+## Each basket's holder (its art, posed by set_pose), its contact shadow (BACK) and how much of
+## its shadows shows (1 at rest, 0 tipped).
+var _holders: Array[Control] = []
+var _contacts: Array[Control] = []
+var _fades: Array[float] = []
 
 
 func _init(basket_layer: Layer, hand: HandRow) -> void:
@@ -84,9 +95,36 @@ func basket_rect(index: int) -> Rect2:
 func parts() -> Array[Control]:
 	var found: Array[Control] = []
 	for child: Node in get_children():
-		if not child.is_queued_for_deletion():
+		if child.is_queued_for_deletion():
+			continue
+		if not String(child.name).begins_with(HOLDER_NAME):
 			found.append(child as Control)
+			continue
+		for art: Node in child.get_children():
+			if not String(art.name).begins_with(INSIDE_NAME):
+				found.append(art as Control)
 	return found
+
+
+## Basket `index`'s holder: its art, posed by set_pose (null outside the baskets).
+func holder(index: int) -> Control:
+	return _holders[index] if index >= 0 and index < _holders.size() else null
+
+
+## Poses basket `index` (BasketRedraw): `pose` is its transform on the stage (identity at rest);
+## `shadow` (0 to 1) is how much of its shadows show.
+func set_pose(index: int, pose: Transform2D, shadow: float = 1.0) -> void:
+	if index < 0 or index >= _holders.size():
+		return
+	var part: Control = _holders[index]
+	part.position = pose.origin
+	part.rotation = pose.get_rotation()
+	part.scale = pose.get_scale()
+	if index < _contacts.size():
+		_contacts[index].modulate.a = shadow
+	if not is_equal_approx(_fades[index], shadow):
+		_fades[index] = shadow
+		queue_redraw()
 
 
 func _rebuild() -> void:
@@ -96,6 +134,9 @@ func _rebuild() -> void:
 	for child: Node in get_children():
 		remove_child(child)
 		child.queue_free()
+	_holders = []
+	_contacts = []
+	_fades = []
 	if layer == Layer.BACK:
 		var ledge: NinePatchRect = NinePatchRect.new()
 		ledge.name = LEDGE_NAME
@@ -110,15 +151,36 @@ func _rebuild() -> void:
 			contact.name = "ContactShadow%d" % index
 			var at: Vector2 = CONTACT_SHADOW.position + Vector2(_lefts[index], 0)
 			_place(contact, Rect2(at, CONTACT_SHADOW.size))
+			_contacts.append(contact)
 	for index: int in range(_lefts.size()):
-		var left: float = _lefts[index]
-		var front: bool = layer == Layer.FRONT
-		var texture: Texture2D = FRONT if front else _back_for(left)
-		var art: TextureRect = UiKit.sprite(texture)
-		art.name = "%s%d" % [FRONT_NAME if front else BACK_NAME, index]
-		var offset: Vector2 = FRONT_OFFSET if front else BACK_OFFSET
-		_place(art, Rect2(Vector2(left, 0) + offset, texture.get_size()))
+		_holders.append(_basket_holder(index, _lefts[index]))
+		_fades.append(1.0)
 	queue_redraw()
+
+
+## Basket `index`'s holder at `left`: its back, or the inside's darkening and its front.
+func _basket_holder(index: int, left: float) -> Control:
+	var front: bool = layer == Layer.FRONT
+	var basket: Control = Control.new()
+	basket.name = "%s%d" % [HOLDER_NAME, index]
+	basket.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	add_child(basket)
+	if front:
+		for step: int in range(INSIDE_STEPS.size()):
+			var inside: ColorRect = ColorRect.new()
+			inside.name = "%s%d" % [INSIDE_NAME, step]
+			inside.color = Color(Palette.INK, INSIDE_ALPHAS[step])
+			inside.mouse_filter = Control.MOUSE_FILTER_IGNORE
+			inside.position = INSIDE_STEPS[step].position + Vector2(left, 0)
+			inside.size = INSIDE_STEPS[step].size
+			basket.add_child(inside)
+	var texture: Texture2D = FRONT if front else _back_for(left)
+	var art: TextureRect = UiKit.sprite(texture)
+	art.name = "%s%d" % [FRONT_NAME if front else BACK_NAME, index]
+	art.position = Vector2(left, 0) + (FRONT_OFFSET if front else BACK_OFFSET)
+	art.size = texture.get_size()
+	basket.add_child(art)
+	return basket
 
 
 ## The back for a basket at `left`: its left inner wall left of the stage's centre, else its right.
@@ -133,22 +195,18 @@ static func taper_at(y: float) -> float:
 	return roundf(depth * TAPER / ArtStyle.ART_SCALE) * ArtStyle.ART_SCALE
 
 
-## BACK: the ledge's floor shadow and each basket's shadow on the counter front, under the art.
-## FRONT: the inside's darkening over the items, under the fronts.
+## BACK: the ledge's floor shadow and each basket's shadow on the counter front, under the art
+## (fading as the basket tips). FRONT: nothing (the inside's darkening is in each basket's holder,
+## so it tips with the basket).
 func _draw() -> void:
 	if layer == Layer.FRONT:
-		for left: float in _lefts:
-			for index: int in range(INSIDE_STEPS.size()):
-				var step: Rect2 = INSIDE_STEPS[index]
-				draw_rect(
-					Rect2(step.position + Vector2(left, 0), step.size),
-					Color(Palette.INK, INSIDE_ALPHAS[index])
-				)
 		return
 	draw_rect(LEDGE_SHADOW, Color(Palette.INK, LEDGE_SHADOW_ALPHA))
-	var shade: Color = Color(Palette.INK, SHADOW_ALPHA)
 	var pixel: float = ArtStyle.ART_SCALE
-	for left: float in _lefts:
+	for index: int in range(_lefts.size()):
+		var left: float = _lefts[index]
+		var fade: float = _fades[index] if index < _fades.size() else 1.0
+		var shade: Color = Color(Palette.INK, SHADOW_ALPHA * fade)
 		var right: float = left + HandRow.BASKET_WIDTH
 		var y: float = SHADOW_TOP_Y
 		while y < ShiftStage.LEDGE_RECT.position.y + pixel:

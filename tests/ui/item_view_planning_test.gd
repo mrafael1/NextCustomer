@@ -105,8 +105,8 @@ func test_a_denied_sprite_greys_and_comes_back() -> void:
 	assert_object(item.sprite().material).is_same(ArtStyle.pixel_material())
 
 
-## DIM fades the sprite (its stand) and the ticket to the tuning's alphas; a REDRAW highlight's
-## fade multiplies the ticket's; FOCUS shows the gold brackets; NONE puts it back.
+## DIM fades the sprite (its stand) and the ticket to the tuning's alphas, through a highlight
+## change too; FOCUS shows the gold brackets; NONE puts it back.
 func test_relations_dim_and_frame_the_item() -> void:
 	var tuning: PlanningTuning = load(TUNING) as PlanningTuning
 	var item: ItemView = await _belt_item()
@@ -114,10 +114,8 @@ func test_relations_dim_and_frame_the_item() -> void:
 	item.relation = ItemView.Relation.DIM
 	assert_float(item._stand.modulate.a).is_equal_approx(tuning.dim_item_alpha, 0.001)
 	assert_float(item.sticker().modulate.a).is_equal_approx(tuning.dim_ticket_alpha, 0.001)
-	item.set_highlight(CardView.Highlight.REDRAW)
-	assert_float(item.sticker().modulate.a).is_equal_approx(
-		tuning.dim_ticket_alpha * ItemView.REDRAW_ALPHA, 0.001
-	)
+	item.set_highlight(CardView.Highlight.SELECTED)
+	assert_float(item.sticker().modulate.a).is_equal_approx(tuning.dim_ticket_alpha, 0.001)
 	item.set_highlight(CardView.Highlight.NONE)
 	assert_vector(item.brackets().size).is_equal(Vector2.ZERO)
 	item.relation = ItemView.Relation.FOCUS

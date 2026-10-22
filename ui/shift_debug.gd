@@ -157,7 +157,7 @@ func reset_collection() -> void:
 ## Puts a copy of a card into the hand (not the deck). The run save keeps it in the hand.
 func add_card(card_id: String) -> void:
 	var run: RunState = _screen.run
-	if _screen._busy() or run.phase != RunState.Phase.PLANNING:
+	if _screen._busy() or _screen._redraw_busy or run.phase != RunState.Phase.PLANNING:
 		return
 	var path: String = "%s/%s.tres" % [CARDS_FOLDER, card_id]
 	if not ResourceLoader.exists(path):
@@ -172,7 +172,7 @@ func add_card(card_id: String) -> void:
 ## redraws are counted again with the new upgrade. An owned upgrade isn't given twice.
 func give_upgrade(upgrade_id: String) -> void:
 	var run: RunState = _screen.run
-	if _screen._busy() or run.phase != RunState.Phase.PLANNING:
+	if _screen._busy() or _screen._redraw_busy or run.phase != RunState.Phase.PLANNING:
 		return
 	var path: String = "%s/%s.tres" % [UPGRADES_FOLDER, upgrade_id]
 	if not ResourceLoader.exists(path):
@@ -193,7 +193,8 @@ func set_inspection(inspection_id: String) -> void:
 	var run: RunState = _screen.run
 	var path: String = "%s/%s.tres" % [INSPECTIONS_FOLDER, inspection_id]
 	var known: bool = inspection_id.is_empty() or ResourceLoader.exists(path)
-	if _screen._busy() or run.phase != RunState.Phase.PLANNING or not known:
+	var busy: bool = _screen._busy() or _screen._redraw_busy
+	if busy or run.phase != RunState.Phase.PLANNING or not known:
 		return
 	_log.log_event("debug", {"action": "set_inspection", "inspection": inspection_id})
 	run.inspections = []

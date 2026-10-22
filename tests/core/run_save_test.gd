@@ -51,8 +51,8 @@ func test_a_shift_after_places_removes_and_redraws_round_trips() -> void:
 	assert_bool(run.place(hand[1], 0)).is_true()
 	assert_bool(run.place(hand[2], 1)).is_true()
 	assert_bool(run.remove(hand[1])).is_true()
-	var set_aside: Array[CardInstance] = [hand[3], hand[4]]
-	assert_int(run.redraw(set_aside).size()).is_equal(2)
+	var set_aside: Array[CardInstance] = [hand[4], hand[5]]
+	assert_array(run.redraw_basket(2)).is_equal([4, 5])
 	var debug_card: CardInstance = run.debug_add_to_hand(load(BREAD))
 	assert_bool(run.place(debug_card, 0)).is_true()
 	var restored: RunState = _round_trip(run)
@@ -60,7 +60,9 @@ func test_a_shift_after_places_removes_and_redraws_round_trips() -> void:
 	assert_int(restored.redraws_used).is_equal(1)
 	assert_int(restored.redraws_allowed).is_equal(2)
 	# The second of the shift's two redraws is left.
-	assert_bool(restored.can_redraw([restored.hand()[0]])).is_true()
+	assert_bool(restored.can_redraw_basket(3)).is_true()
+	# Every card is back at its hand place, with the row cards' places empty.
+	assert_array(_place_ids(restored)).is_equal(_place_ids(run))
 	# The redraw's set-aside cards stay out of the hand and the draw pile.
 	var restored_pile: Array = _instance_ids(restored.deck.draw_pile())
 	for card: CardInstance in set_aside:
@@ -358,11 +360,31 @@ func test_a_save_whose_row_no_longer_fits_the_balance_reads_as_null() -> void:
 		assert_object(stale).override_failure_message(RunSave.phase_name(run.phase)).is_null()
 
 
+## Plan section 3.8: places are saved, a redraw mode never is. A card from basket 1 on the belt,
+## basket 2 redrawn, then the card taken back: every card resumes at its own place, the empty
+## spot included while the card is on the belt.
+func test_hand_places_round_trip_through_a_basket_redraw() -> void:
+	var run: RunState = _planning_run(19)
+	var hand: Array[CardInstance] = run.hand()
+	assert_bool(run.place(hand[1], 0)).is_true()
+	assert_array(run.redraw_basket(1)).is_equal([2, 3])
+	var on_belt: RunState = _round_trip(run)
+	assert_array(_place_ids(on_belt)).is_equal(_place_ids(run))
+	assert_object(on_belt.hand_places()[1]).is_null()
+	assert_bool(on_belt.remove(on_belt.row[0])).is_true()
+	assert_int(on_belt.hand_places()[1].instance_id).is_equal(hand[1].instance_id)
+	assert_bool(run.remove(hand[1])).is_true()
+	var taken_back: RunState = _round_trip(run)
+	assert_array(_place_ids(taken_back)).is_equal(_place_ids(run))
+	assert_array(_place_ids(taken_back)).is_equal(_place_ids(on_belt))
+	assert_array(taken_back.basket_places(0)).is_equal([0, 1])
+
+
 ## A save made while shifts allowed 1 redraw (before base_redraws became 2) still resumes: the
 ## shift keeps the redraws it started with, and the next shift to start has the balance's 2.
 func test_a_save_from_one_redraw_per_shift_resumes_with_its_redraws() -> void:
 	var run: RunState = _planning_run(27)
-	run.redraw([run.hand()[0]])
+	run.redraw_basket(0)
 	var data: Dictionary = _json(_save(run))
 	data["redraws_allowed"] = 1
 	var save: RunSave = RunSave.from_dictionary(data, _lookup)
@@ -370,14 +392,14 @@ func test_a_save_from_one_redraw_per_shift_resumes_with_its_redraws() -> void:
 	var restored: RunState = save.run
 	assert_int(restored.redraws_used).is_equal(1)
 	assert_int(restored.redraws_allowed).is_equal(1)
-	assert_bool(restored.can_redraw([restored.hand()[0]])).is_false()
+	assert_bool(restored.can_redraw_basket(1)).is_false()
 	restored.start_shift()
 	assert_int(restored.redraws_used).is_equal(0)
 	assert_int(restored.redraws_allowed).is_equal(_balance.base_redraws)
 	assert_int(restored.redraws_allowed).is_equal(2)
 
 
-## Plays a scripted run: each shift a redraw of two cards, every card that fits placed at the
+## Plays a scripted run: each shift a redraw of the first basket, every card that fits placed at the
 ## end, the first row card removed and placed back, the checkout, then every machine visit: a
 ## chute that rotates with the shift (the first lit one from there), its first prize taken (at
 ## the deck limit swapping a deck card out), or binned on even shifts. Each step's observed state
@@ -386,8 +408,7 @@ func _play(seed_value: int, resume: bool) -> Array[String]:
 	var steps: Array[String] = []
 	var run: RunState = _checkpoint(_planning_run(seed_value), resume, steps)
 	while run.phase == RunState.Phase.PLANNING:
-		var hand: Array[CardInstance] = run.hand()
-		run.redraw([hand[0], hand[1]])
+		run.redraw_basket(0)
 		run = _checkpoint(run, resume, steps)
 		var placed: bool = true
 		while placed:
@@ -463,7 +484,8 @@ func _observe(run: RunState) -> String:
 		"deck": _pairs(run.deck.cards),
 		"deck_size": run.deck.size(),
 		"deck_is_full": run.deck_is_full(),
-		"can_redraw": not hand.is_empty() and run.can_redraw([hand[0]]),
+		"places": _place_ids(run),
+		"can_redraw": run.can_redraw_basket(0),
 		"redraws": [run.redraws_used, run.redraws_allowed],
 		"machine": run.machine.to_dictionary(),
 		"prizes": run.machine.prizes().map(func(prize: MachinePrize) -> String: return prize.key()),
@@ -619,3 +641,10 @@ static func _ids(resources: Array) -> Array:
 func _no_upgrade_limits() -> ShiftLimits:
 	var none: Array[UpgradeDefinition] = []
 	return ShiftLimits.for_shift(_balance, none, 0)
+
+
+## Each hand place's instance id, -1 where the card is in the row.
+static func _place_ids(run: RunState) -> Array:
+	return run.hand_places().map(
+		func(card: CardInstance) -> int: return -1 if card == null else card.instance_id
+	)

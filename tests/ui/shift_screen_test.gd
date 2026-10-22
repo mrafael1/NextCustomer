@@ -32,14 +32,14 @@ func test_a_shift_from_draw_to_next_shift() -> void:
 	var run: RunState = screen.run
 	assert_int(run.hand().size()).is_equal(8)
 
-	# Redraw two cards through the redraw mode.
+	# Redraw the last basket (plan section 3.8): its two items, in their places.
 	var hand: Array[CardInstance] = run.hand()
 	screen._on_redraw_pressed()
-	screen._on_hand_card_clicked(_view_for(screen, hand[6]))
-	screen._on_hand_card_clicked(_view_for(screen, hand[7]))
-	screen._on_redraw_pressed()
+	screen._on_basket_clicked(3)
+	screen._basket_redraw.stop()
 	assert_int(run.redraws_used).is_equal(1)
-	assert_bool(run.hand().has(hand[6])).is_false()
+	assert_bool(run.hand().has(hand[6]) or run.hand().has(hand[7])).is_false()
+	assert_bool(screen._redraw_mode).is_false()
 
 	# Place three cards with clicks: pick up a hand card, then click a slot.
 	hand = run.hand()

@@ -2,11 +2,11 @@ extends GdUnitTestSuite
 ## The hand in its baskets (#80, mock-up B2, step 8) on the real screen: a hand of hand_size 8
 ## fills four baskets at HandRow.BASKET_PITCH, two items each in hand order, none overlapping;
 ## each item's art sinks about a third under its basket's front rim; the ledge, the baskets'
-## backs and fronts and every item (lifted or not, with its REDRAW flag or selected outline) stay
-## in the ledge band (from the hand's top, down to the ledge's foot, right of the register);
-## baskets stay when items leave for the belt; more than 8 items (debug) add baskets and narrow
-## the basket step, and then hover brings an item to the front so it takes the click; a selected
-## item lifts with a mustard outline, a redraw-marked one dims under its REDRAW flag; a full hand
+## backs and fronts and every item (lifted or not, with its selected outline) stay in the ledge
+## band (from the hand's top, down to the ledge's foot, right of the register); items keep their
+## places and baskets stay when items leave for the belt (plan section 3.8); more than 8 items
+## (debug) add baskets and narrow the basket step, and then hover brings an item to the front so
+## it takes the click; a selected item lifts with a mustard outline; a full hand
 ## clears the keys, the hint and the receipt; the drag ghost is centred on the mouse; clearing a
 ## hovered hand reorders nothing. The real saves and logs are never touched.
 
@@ -110,25 +110,42 @@ func test_a_hand_of_eight_fills_four_baskets() -> void:
 	_assert_rects_apart(hits, "hand items")
 
 
-## Items placed on the belt leave their baskets empty, never fewer baskets: the hand that is left
-## fills the baskets from the first, in hand order.
+## Items keep their places (plan section 3.8): those placed on the belt leave their places
+## empty (the items beside them never pack left), the baskets stay, and an item taken back from
+## the belt returns to its own place.
 func test_the_baskets_stay_when_items_leave() -> void:
 	var screen: ShiftScreen = await _screen()
 	var run: RunState = screen.run
-	for slot: int in range(3):
-		assert_bool(run.place(run.hand()[0], slot)).is_true()
+	var drawn: Array[CardInstance] = run.hand()
+	for place: int in [0, 3, 4]:
+		assert_bool(run.place(drawn[place], run.row.size())).is_true()
 	screen._refresh()
 	await _frames(2)
 	var views: Array[Control] = screen._hand_box.cards()
 	assert_int(views.size()).is_equal(5)
+	assert_array(screen._hand_box.places()).is_equal([1, 2, 5, 6, 7])
 	assert_int(screen._hand_box.basket_count()).is_equal(4)
 	assert_int(screen._stage.baskets.basket_lefts().size()).is_equal(4)
-	for index: int in range(views.size()):
-		assert_object((views[index] as ItemView).card).is_same(run.hand()[index])
-		var basket: Rect2 = screen._stage.baskets.basket_rect(floori(index / 2.0))
-		assert_float(views[index].position.x + ShiftStage.HAND_RECT.position.x).is_equal(
-			basket.position.x + HandRow.ITEM_OFFSETS[index % 2]
-		)
+	for view: Control in views:
+		var place: int = drawn.find((view as ItemView).card)
+		assert_object(screen._hand_box.view_at(place)).is_same(view)
+		_assert_at_place(screen, view, place)
+	assert_object(screen._hand_box.view_at(0)).is_null()
+	# Taken back, Bread (place 3) returns to its place, beside the empty place 0's basket.
+	screen._on_row_card_clicked(screen._row_views[1])
+	screen._on_background_input(_button(Vector2(1, 1), true))
+	await _frames(2)
+	var back: Control = screen._hand_box.view_at(3)
+	assert_object((back as ItemView).card).is_same(drawn[3])
+	_assert_at_place(screen, back, 3)
+	assert_object(screen._hand_box.view_at(4)).is_null()
+
+
+## `view` stands at hand place `place`: the left or right half of basket place / 2.
+func _assert_at_place(screen: ShiftScreen, view: Control, place: int) -> void:
+	var basket: Rect2 = screen._stage.baskets.basket_rect(floori(place / 2.0))
+	var at: float = view.get_global_rect().position.x - screen._stage.get_global_rect().position.x
+	assert_float(at).is_equal(basket.position.x + HandRow.ITEM_OFFSETS[place % 2])
 
 
 ## More items than hand_size fills (debug) add a basket per two items and narrow the basket step
@@ -204,10 +221,9 @@ func test_the_hovered_item_takes_the_click() -> void:
 
 
 ## A selected item lifts by LIFT with a mustard outline one art pixel round its sprite and no gold
-## brackets; in redraw mode a marked item dims to REDRAW_ALPHA under its REDRAW flag, centred over
-## its sprite. The outline and the flags stay in the ledge band, under the rail, and the flags
-## apart.
-func test_the_selected_and_redraw_looks_in_a_basket() -> void:
+## brackets; the outline stays in the ledge band, under the rail. (Redraw mode marks baskets, not
+## items: basket_redraw_ui_test.)
+func test_the_selected_look_in_a_basket() -> void:
 	var screen: ShiftScreen = await _screen()
 	var band: Rect2 = _ledge_band(screen)
 	var view: ItemView = screen._hand_box.cards()[1] as ItemView
@@ -230,28 +246,6 @@ func test_the_selected_and_redraw_looks_in_a_basket() -> void:
 	)
 	var art: Rect2 = _art(picked).grow(pixel)
 	assert_bool(band.encloses(art)).override_failure_message(str(art)).is_true()
-
-	screen._drop_pick()
-	screen._on_redraw_pressed()
-	screen._on_hand_card_clicked(screen._hand_box.cards()[0] as CardView)
-	screen._on_hand_card_clicked(screen._hand_box.cards()[1] as CardView)
-	await _frames(2)
-	var flags: Array[Rect2] = []
-	for index: int in [0, 1]:
-		var marked: ItemView = screen._hand_box.cards()[index] as ItemView
-		assert_float(marked.body.modulate.a).is_equal_approx(ItemView.REDRAW_ALPHA, 0.001)
-		var flag: Label = marked._redraw_mark
-		assert_bool(flag.visible).is_true()
-		var rect: Rect2 = flag.get_global_rect()
-		assert_vector(rect.size).is_equal(ItemView.REDRAW_RECT.size)
-		assert_float(flag.get_minimum_size().x).is_less_equal(rect.size.x)
-		var centre: float = marked.sprite().get_global_rect().get_center().x
-		assert_float(rect.get_center().x).is_equal_approx(centre, 0.5)
-		assert_float(rect.position.y).is_less(_art(marked).position.y)
-		assert_bool(band.encloses(rect)).override_failure_message(str(rect)).is_true()
-		flags.append(rect)
-	_assert_rects_apart(flags, "flags")
-	assert_bool((screen._hand_box.cards()[2] as ItemView)._redraw_mark.visible).is_false()
 
 
 ## A full hand of 8 (with Cancel shown, in redraw mode) stays on the stage, clear of CHECKOUT,

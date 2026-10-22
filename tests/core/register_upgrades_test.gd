@@ -27,11 +27,11 @@ func test_limits_default_to_the_balance_data() -> void:
 
 
 ## Every shift allows base_redraws redraws before upgrades: 2 in the live balance data (the user's
-## request on issue #80; 1 until then), each of up to redraw_limit (2) hand cards.
+## request on issue #80; 1 until then), each of one basket (basket_size: 2 hand cards).
 func test_a_shift_has_the_balance_data_redraws() -> void:
 	var balance: BalanceDefinition = load(BALANCE)
 	assert_int(balance.base_redraws).is_equal(2)
-	assert_int(balance.redraw_limit).is_equal(2)
+	assert_int(balance.basket_size).is_equal(2)
 	var limits: ShiftLimits = ShiftLimits.for_shift(balance, _none(), 0)
 	assert_int(limits.redraws).is_equal(2)
 	var none: BalanceDefinition = BalanceDefinition.new()

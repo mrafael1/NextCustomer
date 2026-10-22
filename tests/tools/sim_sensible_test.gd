@@ -210,6 +210,58 @@ func test_calibration_rebuilds_logged_checkouts() -> void:
 	assert_str(calibration.report(results)).contains("Row calibration: 1 logged checkouts")
 
 
+## The simulator redraws a basket (plan section 3.8) with its row on the belt: of the baskets
+## still holding a card, the one with the most cards, then the lowest total base value, then the
+## leftmost; a one-item basket counts, an empty one never does. Row cards are never swapped.
+func test_basket_pick_takes_the_most_cards_then_the_lowest_base() -> void:
+	var player: SimPlayer = _player("greedy@sensible")
+	var cards: Array[CardInstance] = _cards("bread,milk,banana,cheese,eggs,eggs,bread")
+	var places: Array[CardInstance] = cards.duplicate()
+	places[4] = null
+	# Baskets: 0 is Bread 3 + Milk 3, 1 is Banana 2 + Cheese 3, 2 is one Eggs (1), 3 one Bread.
+	assert_int(player._basket_pick(places)).is_equal(1)
+	# The row on the belt (Banana, Cheese): basket 1 holds no card.
+	var row: Array[CardInstance] = [cards[2], cards[3]]
+	var off_row: Array[CardInstance] = SimPlayer._off_row(places, row)
+	assert_that(off_row[2]).is_null()
+	assert_that(off_row[0]).is_same(cards[0])
+	assert_int(player._basket_pick(off_row)).is_equal(0)
+	# Only one-item baskets left: the lower base, Eggs.
+	row = [cards[0], cards[1], cards[2], cards[3]]
+	assert_int(player._basket_pick(SimPlayer._off_row(places, row))).is_equal(2)
+	row = [cards[0], cards[1], cards[2], cards[3], cards[5], cards[6]]
+	assert_int(player._basket_pick(SimPlayer._off_row(places, row))).is_equal(-1)
+	var empty: Array[CardInstance] = [null, null]
+	assert_int(player._basket_pick(empty)).is_equal(-1)
+
+
+## A basket redraw's event names the places swapped, so copies land exactly: the second
+## basket's two Bread copies are replaced and the first basket's Bread stays.
+func test_calibration_puts_a_basket_redraw_at_its_places() -> void:
+	var lines: PackedStringArray = PackedStringArray()
+	for event: Dictionary in [
+		_event(1, "shift_start", {"shift": 1, "cards_drawn": ["bread", "milk", "bread", "bread"]}),
+		_event(
+			2,
+			"redraw",
+			{
+				"basket": 2,
+				"places": [2, 3],
+				"cards_replaced": ["bread", "bread"],
+				"cards_received": ["banana", "eggs"],
+			}
+		),
+		_event(3, "checkout", {"shift": 1, "placements": 1, "final_order": ["eggs"], "score": 1}),
+	]:
+		lines.append(JSON.stringify(event))
+	var calibration: SimCalibration = SimCalibration.new()
+	calibration.read(lines, ContentLookup.new(load(BALANCE)))
+	assert_int(calibration.checkouts.size()).is_equal(1)
+	assert_array(calibration.checkouts[0].hand.map(_id)).is_equal(
+		["bread", "milk", "banana", "eggs"]
+	)
+
+
 ## A chained profile spends each run's coins on capsules (key item first, never twice), lists
 ## an aisle once it is listable, and its summary counts unfinished profiles past the limit.
 func test_chained_profiles_buy_capsules_and_list_new_aisles() -> void:
@@ -264,7 +316,7 @@ func _player(strategy: String) -> SimPlayer:
 	balance.quotas = PackedInt32Array([5, 8, 12])
 	balance.hand_size = 5
 	balance.base_redraws = 1
-	balance.redraw_limit = 2
+	balance.basket_size = 2
 	balance.deck_limit = 8
 	balance.machine = (load("res://data/balance/balance.tres") as BalanceDefinition).machine
 	var aisle: AisleDefinition = AisleDefinition.new()
