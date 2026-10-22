@@ -1,0 +1,121 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Figurine shelf</title>
+<!--
+  #63 FIGURINE SHELF, the separate shelf screen of look A (chosen with the user on 2026-10-21; look C, not chosen,
+  was its own shelf). A wooden display cabinet at the store exit, one shelf per aisle (data order, read left to right
+  then down), each with its aisle sign (sign_color + glyph + name) and a count "n / m". Figurines are the items' plain
+  sprites at 1x (48x48), never rules.
+  DECIDED: locked items are HIDDEN (no "?" spaces). The collected figurines of an aisle stand packed from the left of
+  its plank in data order (key item first), so the plank never shows a gap where a locked item would be. All six
+  aisle shelves are always there, so the cabinet keeps its size from 0 to 30 figurines: an aisle with nothing yet shows
+  a muted "None yet" on its plank, a new profile adds one line under the title, and the aisle's "n / m" and the
+  FIGURINES n / 30 chip tell how many exist (the machine's "3 of 8 left" says the same). Names on hover. Variants (URL):
+    state=partial|full|fresh|early collection (early: 3 / 30)
+    locked=spaces                  NOT CHOSEN: the old option, a locked item as a dark recess with "?" (history only)
+    labels=1                       names printed under the figurines (not the default: names on hover only, kept from the recommendation)
+    hover=<item name>              force the hover tag (captures)
+  The shelf doubles as the catalogue (section 7.1): capsule items only (30), the 14 base-aisle products are not on it.
+  New art/src/ sources: frames/display_cabinet (9-slice wood frame + cream back), scenery/shelf_plank (one plank piece).
+  Fit check: 2 columns x 3 rows of 8 slots at 66 px pitch fit 1280x720 with the full collection (30) and with labels.
+-->
+<link rel="stylesheet" href="capsule_63_src/capsule.css">
+<style>
+#bg { position: absolute; left: 0; top: 0; }
+.ttl { position: absolute; left: 24px; top: 12px; height: 56px; padding: 0 26px 3px; display: flex; align-items: center;
+  border: 6px solid transparent; border-image: url(capsule_63_src/assets/sign.png) 6 fill / 6px stretch; font: 400 30px Pixelify; color: var(--paper); letter-spacing: 2px; }
+.slot { position: absolute; width: 48px; height: 48px; }
+.slot img { width: 48px; height: 48px; display: block; }
+.slot .q { width: 48px; height: 48px; background: #2b2420; box-shadow: inset 3px 3px 0 #120e0c, inset -2px -2px 0 #4a3f38; display: flex; align-items: center; justify-content: center; font: 400 22px Pixelify; color: #8a8172; }
+.slot.on:hover { transform: translateY(-4px); }
+.nm { position: absolute; width: 66px; text-align: center; font: 700 11px/1.1 Atkinson; color: var(--ink-light); }
+.cnt { position: absolute; font: 750 16px Atkinson; color: var(--ink-light); }
+.none { position: absolute; font: italic 600 14px Atkinson; color: #8a8172; }
+.done { position: absolute; font: 800 12px Atkinson; color: #7a5a1c; padding: 2px 8px 3px; background: var(--mustard-light); border: 2px solid #7a5a1c; transform: rotate(-4deg); }
+</style>
+</head>
+<body>
+<div class="stage" id="stage">
+  <canvas id="bg"></canvas>
+  <div class="ttl ol">FIGURINE SHELF</div>
+</div>
+<script src="capsule_63_src/capsule.js"></script>
+<script>
+const { P, AISLES, TOTAL, R, box, el, glyph, figure, tooltip, initialState } = CAP;
+const stage = document.getElementById('stage');
+const S = initialState();
+const SPACES = new URLSearchParams(location.search).get('locked') === 'spaces'; // not chosen; hidden is decided
+const SEC = (i) => ({ x: 56 + (i % 2) * 592, y: 96 + Math.floor(i / 2) * 176 });
+const W = 576;
+
+(function backdrop() {
+  const c = document.getElementById('bg'); c.width = 640; c.height = 360; c.style.width = '1280px'; c.style.height = '720px';
+  const g = c.getContext('2d'); const ink = '#2b2420';
+  R(g, 0, 0, 640, 360, '#1f3b3a');
+  for (let y = 4; y < 360; y += 8) for (let x = 4; x < 640; x += 8) R(g, x, y, 1, 1, '#172c2b');
+  // cabinet
+  box(g, 16, 40, 608, 278, '#a8703a'); R(g, 17, 41, 606, 2, '#d2a874'); R(g, 17, 314, 606, 3, '#6e4524');
+  box(g, 22, 44, 596, 268, '#ece0c6');
+  for (let x = 24; x < 616; x += 12) R(g, x, 46, 1, 264, '#e4d6b9');
+  R(g, 319, 44, 2, 268, '#a8703a');
+  g.fillStyle = 'rgba(43,36,32,.22)'; g.fillRect(624, 46, 4, 274); g.fillRect(20, 318, 608, 4);
+  AISLES.forEach((a, i) => {
+    const s = SEC(i); const px = s.x / 2, py = s.y / 2;
+    // plank under the figurines
+    box(g, px, py + 50, W / 2, 7, '#c98c4e'); R(g, px + 1, py + 51, W / 2 - 2, 1, '#ddb07a'); R(g, px + 1, py + 55, W / 2 - 2, 1, '#6e4524');
+    g.fillStyle = 'rgba(43,36,32,.18)'; g.fillRect(px + 2, py + 57, W / 2, 3);
+    // aisle sign plate
+    const [d, b, l] = a.ramp;
+    box(g, px, py, 80, 15, b); R(g, px + 1, py + 1, 78, 1, l); R(g, px + 1, py + 13, 78, 1, d);
+  });
+  // glass doors' glare
+  for (const x0 of [40, 360]) for (let k = 0; k < 14; k++) R(g, x0 + k * 2, 300 - k * 18, 2, 6, 'rgba(255,255,255,.18)');
+})();
+
+const tip = tooltip(stage);
+// The name tag sits level with the figurine, to its right (to its left near the cabinet's right edge), so it never
+// covers the aisle sign above the plank.
+function showTip(name, a, x, y) {
+  tip.show(name, a, x + 62, y + 2);
+  const t = stage.querySelector('.tooltip');
+  if (x + 62 + t.offsetWidth > 1236) t.style.left = x - 6 - t.offsetWidth + 'px';
+}
+let owned = 0;
+AISLES.forEach((a, i) => {
+  const s = SEC(i);
+  const st = el('div', 'signtxt ol2', stage, `${glyph(a)}<span>${a.name}</span>`); Object.assign(st.style, { left: s.x + 'px', top: s.y + 2 + 'px', width: '160px', height: '26px' });
+  const drawn = S.drawn[a.id]; owned += drawn.length;
+  const cnt = el('div', 'cnt', stage, `${drawn.length} / ${a.items.length}`); Object.assign(cnt.style, { left: s.x + 172 + 'px', top: s.y + 6 + 'px' });
+  if (drawn.length === a.items.length) { const d = el('div', 'done', stage, 'ALL COLLECTED'); Object.assign(d.style, { left: s.x + 230 + 'px', top: s.y + 6 + 'px' }); }
+  let k = 0;
+  a.items.forEach((name) => {
+    const on = drawn.includes(name);
+    if (!on && !SPACES) return;
+    const x = s.x + 16 + k * 70, y = s.y + 52; k++;
+    const sl = el('div', 'slot' + (on ? ' on' : ''), stage);
+    sl.style.left = x + 'px'; sl.style.top = y + 'px';
+    sl.innerHTML = on ? figure(name, true).replace('class="pend', 'style="width:48px;height:48px" class="pend') : '<div class="q">?</div>';
+    if (on) {
+      sl.addEventListener('mouseenter', () => showTip(name, a, x, y));
+      sl.addEventListener('mouseleave', () => tip.hide());
+      if (P.hover === name) showTip(name, a, x, y);
+      if (P.labels) { const nm = el('div', 'nm', stage, name); nm.style.left = x - 9 + 'px'; nm.style.top = y + 66 + 'px'; }
+    }
+  });
+});
+const fresh = owned === 0;
+if (!SPACES) AISLES.forEach((a, i) => {
+  if (S.drawn[a.id].length) return;
+  const s = SEC(i); const n = el('div', 'none', stage, 'None yet'); Object.assign(n.style, { left: s.x + 16 + 'px', top: s.y + 66 + 'px' });
+});
+if (fresh) { const f = el('div', 'hint', stage, 'Every capsule you open puts its figurine here.'); Object.assign(f.style, { left: '640px', top: '30px' }); }
+const chip = el('div', 'coins', stage, `<span class="lab">FIGURINES</span><span>${owned} / ${TOTAL}</span>`); Object.assign(chip.style, { left: '360px', top: '18px' });
+const hint = el('div', 'hint', stage, P.labels || fresh ? '' : 'Hover a figurine for its name.'); Object.assign(hint.style, { left: '56px', top: '664px' });
+const back = el('div', 'fbtn secondary', stage, 'Back'); Object.assign(back.style, { left: '1090px', top: '650px', height: '52px', fontSize: '22px', width: '150px' });
+back.onclick = () => history.back();
+CAP.note('Shelf (look A, locked hidden: decided) · <a href="?state=fresh">fresh</a> · <a href="?state=early">early</a> · <a href="?state=partial">partial</a> · <a href="?state=full">full</a> · not chosen: <a href="?locked=spaces">"?" spaces</a> · not the default: <a href="?labels=1">names printed</a>');
+</script>
+</body>
+</html>

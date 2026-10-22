@@ -20,3 +20,4 @@ base = 2
 rules = Array[ExtResource("1_rule")]([SubResource("Resource_dented_can")])
 rule_text = "+2 for each earlier Clearance product"
 sticker_text = "+{bonus_each} per earlier {tag}"
+art_ref = "res://art/items_v2/dented_can.png"
