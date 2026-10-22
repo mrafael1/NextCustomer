@@ -89,6 +89,9 @@ signal ride(bag_slot: int, scan_slot: int, ride_ms: int)
 ## crosses it (`pop`), or at once in a resumed end state (not `pop`). The LED's reading turns
 ## met at the same moment.
 signal quota_met(pop: bool)
+## The dessert stamped INSPECTION PASSED on the receipt (#77 machine v2: the monitor's DONE state
+## says it too).
+signal inspection_passed
 
 ## A hold's speed, from HOLD_THRESHOLD_MS on.
 const FAST_FORWARD := 5.0
@@ -226,6 +229,7 @@ func setup(
 	_rattle_target = rattle_target
 	_tuning = tuning if tuning != null else load(TUNING_PATH) as CountUpTuning
 	_dessert = CountUpDessert.new(overlay, receipt, led, sfx, _fx, rattle_target, _tween)
+	_dessert.inspection_stamped.connect(inspection_passed.emit)
 	_beats = CountUpBeats.new(self, overlay, receipt, led, _fx, rattle_target, _tween)
 	_beats.sfx = sfx
 	_beats.landed = _landed
@@ -321,6 +325,12 @@ func play(
 	_dessert.sfx = _sfx
 	_dessert.speed_setting = plan.speed_setting
 	_dessert.inspection = ", ".join(inspection_names)
+	# A bonus ticket follows (#77 machine v2, Q2 = 2): the dessert prints its gold stub.
+	_dessert.bonus_stub = (
+		BonusTicket.sub_line(not inspection_names.is_empty(), context.shift)
+		if context.bonus_ticket
+		else ""
+	)
 	await _dessert.play(
 		result.total, quota, notice, _tuning, intensity, plan.reduced_motion, _beats.print_pitch()
 	)

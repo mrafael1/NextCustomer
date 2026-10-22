@@ -1,0 +1,16 @@
+; The bonus ticket's icon (#77 machine v2, Q2 = 2): a gold n ticket in ink with a notch at each
+; side, a mustard dark m perforation and a tomato R diamond. 16x11, shown at 2x. Copied from the
+; approved page machine_77_v2.html (ticketIcon), keys mapped to the palette.
+@size 16x11
+@kind icon
+################
+#nnnnmnnnnnnnnn#
+#nnnnnnnnnnnnnn#
+##nnnmnnnnRnnn##
+.#nnnnnnnRRRnn#.
+.#nnnmnnRRRRRn#.
+.#nnnnnnnRRRnn#.
+##nnnmnnnnRnnn##
+#nnnnnnnnnnnnnn#
+#nnnnmnnnnnnnnn#
+################

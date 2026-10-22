@@ -56,6 +56,14 @@ static func stamp_inspection(receipt: ReceiptView, inspection_name: String) -> C
 	return line
 
 
+## The gold BONUS stub (#77 machine v2, `sub` its small line) at `receipt`'s foot, 0 high
+## (ReceiptStub.grow prints it).
+static func add_bonus_stub(receipt: ReceiptView, sub: String) -> ReceiptStub:
+	var made: ReceiptStub = ReceiptStub.new(sub)
+	receipt.stub = made
+	return made
+
+
 ## The INSPECTION PASSED stamp alone (the BONUS TICKET's stub carries one too), tilted.
 static func inspection_stamp(inspection_name: String) -> PanelContainer:
 	var stamp: PanelContainer = PanelContainer.new()

@@ -337,17 +337,20 @@ func test_the_count_up_shows_each_beat_on_the_monitor() -> void:
 	# Met (#86 v6): the light green, the sunburst gold; once the tab is in, the stamp over the
 	# line and the "+€N" tab beside it, both on the paper, and the monitor back at rest.
 	await get_tree().create_timer(OverTab.DELAY_S + OverTab.POP_S + 0.6).timeout
-	var paper: Rect2 = _on_stage(screen, MonitorView.PAPER_RECT)
+	# By now the visit may have begun gliding the camera to the machine (#77 machine v2), so the
+	# rects are read back in the world's frame (the stage's at 1x).
+	var to_world: Transform2D = screen._stage.world.get_global_transform().affine_inverse()
+	var paper: Rect2 = MonitorView.PAPER_RECT
 	assert_that(monitor.bay().light_colour()).is_equal(ScannerBay.LIGHT_MET_COLOR)
 	assert_bool(monitor.sunburst().is_met()).is_true()
 	assert_bool(led.beat().stamp().is_showing()).is_true()
 	assert_bool(led.beat().to_go_label().visible).is_false()
-	assert_bool(paper.encloses(led.beat().stamp().drawn_rect())).is_true()
+	assert_bool(paper.encloses(to_world * led.beat().stamp().drawn_rect())).is_true()
 	var tab: OverTab = monitor.over_tab()
 	assert_bool(tab.is_visible_in_tree()).is_true()
 	assert_str(tab.label().text).is_equal(LedBeat.OVER_TEXT % (total - quota))
-	assert_bool(paper.encloses(tab.get_global_rect())).is_true()
-	_assert_tab_beside_stamp(tab, led.beat().stamp())
+	assert_bool(paper.encloses(to_world * _tilted_rect(tab))).is_true()
+	_assert_tab_beside_stamp(tab, led.beat().stamp(), to_world)
 	assert_vector(monitor.position).is_equal(ShiftStage.MONITOR_RECT.position)
 	# The next shift's planning: the store channel, the LED blank, hidden and compact.
 	screen._machine.debug_skip()
@@ -439,15 +442,17 @@ func _assert_stamp_and_tab(screen: ShiftScreen, over: int) -> void:
 ## The "+€N" tab beside the stamp, one row under the number: its drawn rect (tilted) right of the
 ## stamp's, not over it, both on the paper, the two centred together under the group (on x 754,
 ## within 20 px: the tab's width follows its amount).
-func _assert_tab_beside_stamp(tab: OverTab, stamp: MetStamp) -> void:
-	var stamp_rect: Rect2 = stamp.drawn_rect()
-	var tab_rect: Rect2 = _tilted_rect(tab)
+func _assert_tab_beside_stamp(
+	tab: OverTab, stamp: MetStamp, to_world: Transform2D = Transform2D.IDENTITY
+) -> void:
+	var stamp_rect: Rect2 = to_world * stamp.drawn_rect()
+	var tab_rect: Rect2 = to_world * _tilted_rect(tab)
 	var message: String = "tab %s, stamp %s" % [tab_rect, stamp_rect]
 	assert_bool(tab_rect.intersects(stamp_rect)).override_failure_message(message).is_false()
 	assert_float(tab_rect.position.x).override_failure_message(message).is_greater(
 		stamp_rect.end.x - 1.0
 	)
-	var origin: Vector2 = tab.get_global_rect().position - OverTab.POSITION
+	var origin: Vector2 = to_world * tab.get_global_rect().position - OverTab.POSITION
 	var paper: Rect2 = Rect2(origin + MonitorView.PAPER_RECT.position, MonitorView.PAPER_RECT.size)
 	assert_bool(paper.encloses(tab_rect)).override_failure_message(message).is_true()
 	var row_centre: float = stamp_rect.merge(tab_rect).get_center().x - origin.x

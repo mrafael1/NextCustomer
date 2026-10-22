@@ -17,6 +17,14 @@ extends RefCounted
 ## machine node's frame(t) reads only the plan and t, a test seam like the page's `?at=`.
 ## TICKET t = 0 is the dessert's printer feed (page T.fly); BONUS t = 0 is the page's b0 (the
 ## first visit's punch end + 0.3); STAMP DAY t = 0 is the page's T.sd.
+##
+## Machine v2 (Q1 = A, docs/art/mockups/machine_77_v2.html): the machine stands on the back wall
+## and a TICKET visit's intro glides the camera to it (glide .. glide_end, camera_at) while the
+## torn receipt travels to the slot (fly .. fly_end) and is fed (.. feed_end); with a BONUS
+## pending (Q2 = 2, `stub`) the receipt's gold stub snaps off at `snap` and flies to the slot
+## plate's dock. A BONUS visit's ticket goes from the dock to over the slot (fly .. fly_end) and is
+## fed (.. feed_end). The return glide after the shift's last visit has its own static times
+## (return_camera, return_fade, return_lit, return_length).
 
 enum WaitPoint { CHOOSE, PICK, END }
 ## What the pick did: a card added (NEW ITEMS, COUPONS), copies upgraded, a register stamped, or
@@ -45,13 +53,19 @@ var kind: int = MachineVisit.Kind.TICKET
 var reduced_motion: bool = false
 ## BONUS: an inspection was passed (false: a bonus extra shift). Texts only; same times.
 var inspected: bool = true
+## TICKET: a BONUS visit follows, so the receipt carries the gold stub that snaps off (Q2 = 2).
+var stub: bool = false
 ## Positioned at a wait point by resume_at(): the clock starts at `start` and nothing before it
 ## replays (every node shows the resume frame of build spec 4.3).
 var resumed: bool = false
 var start: float = 0.0
 
-# INTRO. BONUS: the stub prints from 0 to stub_end, then flies.
-var stub_end: float = 0.0
+# INTRO. TICKET: the receipt travels (fly .. fly_end) while the camera glides (glide ..
+# glide_end) and its stub snaps at `snap` (NOT_SET without one); BONUS: the ticket goes from the
+# dock to the slot (fly .. fly_end). Both are then fed (.. feed_end).
+var glide: float = 0.0
+var glide_end: float = 0.0
+var snap: float = NOT_SET
 var fly: float = 0.0
 var fly_end: float = 0.0
 var feed_end: float = 0.0
@@ -113,12 +127,17 @@ var _beat_times: Array[float] = []
 
 
 func _init(
-	machine_tuning: MachineTuning, visit_kind: int, rm: bool, has_inspection: bool = true
+	machine_tuning: MachineTuning,
+	visit_kind: int,
+	rm: bool,
+	has_inspection: bool = true,
+	has_stub: bool = false
 ) -> void:
 	tuning = machine_tuning
 	kind = visit_kind
 	reduced_motion = rm
 	inspected = has_inspection
+	stub = has_stub and visit_kind == MachineVisit.Kind.TICKET
 	_build()
 
 
@@ -155,7 +174,7 @@ func wait_time(point: int) -> float:
 
 ## A copy positioned at `point` for a resume: resumed, starting at that wait point.
 func resume_at(point: int) -> MachinePlan:
-	var copy: MachinePlan = MachinePlan.new(tuning, kind, reduced_motion, inspected)
+	var copy: MachinePlan = MachinePlan.new(tuning, kind, reduced_motion, inspected, stub)
 	if has_draw:
 		copy.set_draw(rarities)
 	if has_landing:
@@ -223,6 +242,103 @@ func belt_moving(t: float) -> bool:
 	return t >= belt_from - ramp_up and t < belt_to + ramp_down
 
 
+## The camera's progress to the machine at `t` (0: the store at 1x, 1: the machine at 2x, not
+## eased): a TICKET visit glides it in from glide to glide_end (reduced motion: a cut at glide +
+## rm_cut_ms); every other visit is at the machine.
+func camera_at(t: float) -> float:
+	if kind != MachineVisit.Kind.TICKET:
+		return 1.0
+	if reduced_motion:
+		return 1.0 if t >= cut_at() else 0.0
+	return _seg(t, glide, glide_end)
+
+
+## When the reduced-motion cut puts the camera at the machine (camera_at's switch).
+func cut_at() -> float:
+	return glide + MachineTuning.sec(tuning.rm_cut_ms)
+
+
+## How lit the machine is at `t` (0: dimmed on the wall, 1: lit): a TICKET visit lights it over
+## the glide's last lit_ramp_ms.
+func lit_at(t: float) -> float:
+	if kind != MachineVisit.Kind.TICKET:
+		return 1.0
+	return _seg(t, glide_end - MachineTuning.sec(tuning.lit_ramp_ms), glide_end)
+
+
+## The reduced-motion cut's charcoal fade at `t` (0 but under reduced motion, during a TICKET
+## visit's cut): up to rm_fade_alpha and down again over rm_fade_ms from the glide's start.
+func fade_at(t: float) -> float:
+	if kind != MachineVisit.Kind.TICKET or not reduced_motion:
+		return 0.0
+	return triangle(t - glide, MachineTuning.sec(tuning.rm_fade_ms)) * tuning.rm_fade_alpha
+
+
+## The stub's height share at `t` (1 whole .. 0 snapped off): it shrinks from snap +
+## snap_delay_ms over snap_ms (reduced motion: gone at the snap). 1 without a stub.
+func stub_left(t: float) -> float:
+	if snap < 0.0 or t < snap:
+		return 1.0
+	if reduced_motion:
+		return 0.0
+	var from: float = snap + MachineTuning.sec(tuning.snap_delay_ms)
+	return 1.0 - _seg(t, from, from + MachineTuning.sec(tuning.snap_ms))
+
+
+## The bonus ticket's flight from the stub to the dock at `t` (0 at the snap .. 1 docked;
+## reduced motion: docked at the snap), or NOT_SET before the snap or without a stub.
+func dock_flight(t: float) -> float:
+	if snap < 0.0 or t < snap:
+		return NOT_SET
+	if reduced_motion:
+		return 1.0
+	return _seg(t, snap, snap + MachineTuning.sec(tuning.dock_flight_ms))
+
+
+## The return glide's camera progress `t` seconds after it starts (1 at the machine .. 0 back in
+## the store; reduced motion: the cut at rm_cut_ms).
+static func return_camera(machine_tuning: MachineTuning, t: float, rm: bool) -> float:
+	if rm:
+		return 0.0 if t >= MachineTuning.sec(machine_tuning.rm_cut_ms) else 1.0
+	return 1.0 - _seg(t, 0.0, MachineTuning.sec(machine_tuning.return_glide_ms))
+
+
+## How lit the machine is `t` seconds into the return glide: it dims over dim_ms.
+static func return_lit(machine_tuning: MachineTuning, t: float) -> float:
+	return 1.0 - _seg(t, 0.0, MachineTuning.sec(machine_tuning.dim_ms))
+
+
+## The return glide's charcoal fade `t` seconds into it (reduced motion only, as the cut in).
+static func return_fade(machine_tuning: MachineTuning, t: float, rm: bool) -> float:
+	if not rm:
+		return 0.0
+	var length: float = MachineTuning.sec(machine_tuning.rm_fade_ms)
+	return triangle(t, length) * machine_tuning.rm_fade_alpha
+
+
+## How long the return glide lasts: the glide and the dimming (reduced motion: the cut and its
+## fade, and the dimming).
+static func return_length(machine_tuning: MachineTuning, rm: bool) -> float:
+	var dim: float = MachineTuning.sec(machine_tuning.dim_ms)
+	if rm:
+		var cut: float = MachineTuning.sec(machine_tuning.rm_cut_ms)
+		return maxf(maxf(MachineTuning.sec(machine_tuning.rm_fade_ms), cut), dim)
+	return maxf(MachineTuning.sec(machine_tuning.return_glide_ms), dim)
+
+
+## A triangle over `length` seconds: 0 at 0, 1 halfway, 0 at `length` and after (0 before 0).
+static func triangle(t: float, length: float) -> float:
+	if length <= 0.0 or t <= 0.0 or t >= length:
+		return 0.0
+	return 1.0 - absf(t / length * 2.0 - 1.0)
+
+
+static func _seg(t: float, from: float, to: float) -> float:
+	if to <= from:
+		return 1.0 if t >= from else 0.0
+	return clampf((t - from) / (to - from), 0.0, 1.0)
+
+
 ## Box `index`'s left edge on the belt at `t` (machine px), riding from ENTRY to its cell, or
 ## NOT_SET when it is not riding (not out yet, at its gate, or reduced motion).
 func box_x(index: int, t: float) -> float:
@@ -255,14 +371,14 @@ func _build() -> void:
 
 func _build_intro() -> void:
 	var rm: bool = reduced_motion
+	snap = NOT_SET
+	glide = 0.0
+	glide_end = 0.0
 	match kind:
 		MachineVisit.Kind.BONUS:
-			stub_end = MachineTuning.sec(tuning.stub_rm_ms if rm else tuning.stub_ms)
-			fly = stub_end + (0.0 if rm else MachineTuning.sec(tuning.stub_lead_ms))
-			fly_end = fly + (0.0 if rm else MachineTuning.sec(tuning.stub_flight_ms))
-			feed_end = (
-				fly_end + MachineTuning.sec(tuning.stub_feed_rm_ms if rm else tuning.stub_feed_ms)
-			)
+			fly = 0.0
+			fly_end = fly + MachineTuning.sec(tuning.bonus_to_slot_ms)
+			feed_end = fly_end + MachineTuning.sec(tuning.bonus_feed_ms)
 			read_end = feed_end + MachineTuning.sec(tuning.bonus_read_ms)
 			lights = read_end
 			lights_end = lights + MachineTuning.sec(tuning.bonus_lights_ms)
@@ -273,12 +389,18 @@ func _build_intro() -> void:
 			return
 		_:
 			fly = 0.0
-			fly_end = fly + MachineTuning.sec(tuning.flight_rm_ms if rm else tuning.flight_ms)
+			fly_end = fly + MachineTuning.sec(tuning.travel_ms)
 			feed_end = fly_end + MachineTuning.sec(tuning.feed_rm_ms if rm else tuning.feed_ms)
 			read_end = feed_end + MachineTuning.sec(tuning.read_ms)
 			lights = read_end
 			lights_end = lights + MachineTuning.sec(tuning.lights_ms)
 			choose_at = lights_end
+			glide = MachineTuning.sec(tuning.glide_lead_ms)
+			glide_end = glide + MachineTuning.sec(tuning.glide_ms)
+			_beat(&"glide", glide)
+			if stub:
+				snap = maxf(fly, fly_end - MachineTuning.sec(tuning.snap_lead_ms))
+				_beat(&"snap", snap)
 	_beat(&"feed", fly)
 	_beat(&"read", feed_end)
 	_beat(&"lights", lights)

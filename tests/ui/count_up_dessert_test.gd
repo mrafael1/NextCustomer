@@ -6,9 +6,10 @@ extends GdUnitTestSuite
 ## (after `fail` has rung out on a miss), the next shift's notice prints under the tear, and a pass
 ## ends at the printer feed. Checked: the order and timing of the sounds for a pass, a miss (at
 ## Normal and Fast), a pass before an inspected shift, a passed shift opening the RECEIPT REWARDS
-## machine (#77) and the last shift; the right N; the speed setting without the auto speed-up;
-## reduced motion; the slam and the new lines on screen; and a skipped dessert leaving the same
-## receipt and sounds. The real saves, logs and Music bus level are never touched.
+## machine (#77), a pass with a bonus ticket's stub (#77 machine v2) and the last shift; the
+## right N; the speed setting without the auto speed-up; reduced motion; the slam and the new
+## lines on screen; and a skipped dessert leaving the same receipt and sounds. The real saves,
+## logs and Music bus level are never touched.
 
 const SCREEN := "res://ui/shift_screen.tscn"
 const RECORDING_SFX := preload("res://tests/presentation/recording_sfx.gd")
@@ -229,7 +230,7 @@ func test_a_passed_shift_plays_the_dessert_then_opens_the_machine() -> void:
 	assert_bool(screen._machine.is_open()).is_true()
 	assert_int(screen._machine._timeline._shown_at).is_equal(count_up.printer_feed_ms)
 	var start: int = Time.get_ticks_msec()
-	while not screen._machine.view.is_armed() and Time.get_ticks_msec() - start < 3000:
+	while not screen._machine.view.is_armed() and Time.get_ticks_msec() - start < 8000:
 		await get_tree().process_frame
 	assert_bool(screen._machine.view.is_armed()).is_true()
 	screen._machine.debug_skip()
@@ -346,6 +347,54 @@ func test_the_shake_steps_up_with_the_intensity() -> void:
 	intensity.is_huge = true
 	assert_float(CountUpDessert.shake_px(true, intensity, _tuning)).is_equal(15.0)
 	assert_float(CountUpDessert.shake_px(false, intensity, _tuning)).is_equal(6.0)
+
+
+## A pass with a bonus ticket to come (#77 machine v2, Q2 = 2): PAID, then the gold stub prints
+## at the receipt's foot (`print`), growing to the ticket's height over dessert_stub_ms, then the
+## tear under it; "+1 BONUS TICKET" shows beside the receipt (right of it, on screen) and fades
+## out once the stub has printed.
+func test_a_bonus_ticket_prints_its_stub_before_the_tear() -> void:
+	var screen: ShiftScreen = await _screen()
+	var sfx: Sfx = _recording_sfx(screen)
+	await _place(screen, PASSING_ROW)
+	var count_up: CountUp = screen._count_up
+	var context: CountUpContext = CountUpContext.new(1, 0)
+	context.bonus_ticket = true
+	_play(screen, 34, "", context)
+	var dessert: CountUpDessert = count_up._dessert
+	var brightest: float = 0.0
+	var receipt_end: float = 0.0
+	var banner_x: float = 0.0
+	while count_up._playing:
+		await get_tree().process_frame
+		if dessert.banner != null:
+			brightest = maxf(brightest, dessert.banner.modulate.a)
+			receipt_end = screen._receipt.get_global_rect().end.x
+			banner_x = dessert.banner.get_global_rect().position.x
+			assert_bool(SCREEN_RECT.encloses(dessert.banner.get_global_rect())).is_true()
+	var heard: Array[Dictionary] = _dessert_sounds(sfx, count_up)
+	assert_array(_names_of(heard)).is_equal(["total", "pass", "stamp_paid", "print", "rip"])
+	var printed: int = _ms_of(heard[3], count_up)
+	var tear: int = _ms_of(heard[4], count_up)
+	var stub_ms: int = _tuning.dessert_stub_ms + _tuning.dessert_tear_ms
+	assert_int(tear - printed).is_greater_equal(stub_ms - EARLY_MS)
+	var stub: ReceiptStub = screen._receipt.stub
+	assert_object(stub).is_not_null()
+	assert_float(stub.shown_height()).is_equal(BonusTicket.SIZE.y)
+	assert_str(stub.ticket.texts()[1]).is_equal(BonusTicket.sub_line(false, 1))
+	var lines: Array[Node] = screen._receipt._lines.get_children()
+	var at: int = lines.find(stub)
+	var tear_line: Label = lines[at + 1].get_child(0) as Label
+	assert_bool(tear_line.text.begins_with(ReceiptView.TEAR_PATTERN)).is_true()
+	assert_float(brightest).is_equal_approx(1.0, 0.05)
+	assert_float(banner_x).is_greater_equal(receipt_end)
+	# It fades out, then goes (none left behind on the overlay).
+	var shown: Label = dessert.banner
+	var start: int = Time.get_ticks_msec()
+	while is_instance_valid(shown) and Time.get_ticks_msec() - start < 2000:
+		await get_tree().process_frame
+	assert_bool(is_instance_valid(shown)).is_false()
+	assert_object(dessert.banner).is_null()
 
 
 # --- Helpers ---------------------------------------------------------------------------------
