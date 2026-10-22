@@ -80,6 +80,13 @@ func is_playing() -> bool:
 	return _playing
 
 
+## A display-only copy of `card`'s basket item (its aisle from `balance`), for the motion.
+static func ghost(card: CardInstance, balance: BalanceDefinition) -> Control:
+	var view: ItemView = ItemView.new(card, balance.aisle_of(card.definition), ItemView.Form.BASKET)
+	view.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	return view
+
+
 ## The hovered basket in redraw mode (-1: none).
 func hover(basket: int) -> void:
 	for index: int in range(_hover_on.size(), maxi(basket + 1, _hover_on.size())):

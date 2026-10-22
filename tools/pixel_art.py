@@ -24,6 +24,7 @@ Directives:
 A derived source holds no grid and no other directive, only (after its comments)
 
     @derive <source> golden=<map>
+    @derive <source> golden=keys <from>=<to> ... [glint] [rim]
 
 which renders another source's pixels through a GOLDEN palette map (#77's item tiers:
 art/src/items_v2/milk_golden.txt holds "@derive milk_big golden=rank"). <source> is named
@@ -36,8 +37,34 @@ approved prep script docs/art/mockups/machine_77_src/upgrades/gen_upgrades.py:
             on the lit top edge (a mustard pale pixel right under the outline)
     egg     GOLDEN_EGG_MAP for the eggs (the carton keeps its greys), a brass dark rim where
             an egg meets the carton, and one paper highlight per egg
-Each map then re-inks: rows 0-1 cleared and every opaque pixel on the outline made ink. A
-derived source is linted, built, checked (missing or stale) and previewed like any other.
+    bake    GOLDEN_BAKE_MAP for baked goods (#89): only the brown ramp goes gold, so the bag,
+            its tie and a loaf's cut crumb keep their colours; the rank map's paper glint on
+            the gilded pixels
+    keys    an item's own map (#89), for an item the fixed maps make muddy or unreadable: each
+            <from>=<to> pair recolours one source key, and every other key is kept. Optional
+            flags: glint puts the rank map's paper glint on the recoloured lit gold, but never
+            on or next to a kept key or a pixel recoloured to paper (so a sign or a label
+            detail stays clear), and rim makes paper every recoloured gold or mustard pale
+            pixel right under the outline
+    outline a giver-badge mini's GOLDEN copy (art/src/minis/, sticker minis): only the ink
+            outline changes (an ink pixel next to a transparent cell or the grid's edge), to
+            lit gold (GOLDEN_OUTLINE_LIT) on the top-left half and the mid diagonal and brass
+            (GOLDEN_OUTLINE_SHADE) on the bottom-right half; interior ink lines and the fill
+            are kept
+Each map but outline then re-inks: rows 0-1 cleared and every opaque pixel on the outline made
+ink.
+
+A derived source can instead hold
+
+    @derive <source> aisle=<id>
+
+which recolours another source for one aisle (#63's TOY MACHINES: art/src/scenery/
+toy_machine_pantry.txt holds "@derive toy_machine aisle=pantry"). The base source draws its
+body and sign in the teal ramp AISLE_BODY_RAMP (keys 2 3 4 5: dark, shade, base, light) and
+uses those keys for nothing else; AISLE_MAPS[id] gives the aisle's four keys for them, its base
+key being the aisle's sign_color (data/aisles/<id>.tres). Every other key passes through, and
+nothing is re-inked. A derived source is linted, built, checked (missing or stale) and
+previewed like any other.
 
 art/src/palette.txt lists the palette, one colour per line: a single-character key, a hex
 colour and a name. The key '.' is transparent. The PNGs are indexed (PLTE + tRNS) and hold the
@@ -68,7 +95,7 @@ import argparse
 import struct
 import sys
 import zlib
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parent.parent
@@ -114,8 +141,34 @@ GOLDEN_EGG_MAP = {"b": "L", "c": "n", "w": "Y", "a": "l"}
 GOLDEN_EGG_KEYS = ("w", "c", "b")
 GOLDEN_EGG_SHADE = "a"
 GOLDEN_EGG_RIM = "l"
+# Baked goods (#89): only the brown ramp goes gold, step for step (darkest to brass darkest,
+# dark to brass dark, brown to brass, light to gold); film, tie and crumb are kept.
+GOLDEN_BAKE_MAP = {"e": "k", "f": "l", "F": "L", "h": "n"}
+# An item's own map (golden=keys, #89): its <from>=<to> pairs, and its flags.
+GOLDEN_KEYS_MAP = "keys"
+GOLDEN_KEYS_FLAGS = frozenset({"glint", "rim"})
+GOLDEN_KEYS_RIM_KEYS = frozenset({"n", "Y"})
+# The outline map (giver-badge minis): the ink outline's lit and shaded gold, the two tones of
+# the sticker-minis mock-up's gold ring (gold, brass).
+GOLDEN_OUTLINE_LIT = "n"
+GOLDEN_OUTLINE_SHADE = "L"
 DERIVE_DIRECTIVE = "@derive"
 GOLDEN_PREFIX = "golden="
+# Aisle recolours (#63's TOY MACHINES; art data, not game balance): the teal ramp a base source
+# draws its body and sign in (dark, shade, base, light), and each aisle's keys for those four,
+# from mock-up capsule_63_a.html's ramps (the shade steps to the dark key where the aisle's ramp
+# has no fourth step). The base key (index 2) is the aisle's sign_color.
+AISLE_PREFIX = "aisle="
+AISLE_BODY_RAMP = ("2", "3", "4", "5")
+AISLE_MAPS = {
+    "cold_cases": ("2", "3", "4", "5"),
+    "pantry": ("m", "m", "M", "y"),
+    "household": ("=", "=", "-", ":"),
+    "fruit_and_veg": ("1", "g", "g", "G"),
+    "bakery": ("F", "F", "h", "b"),
+    "snacks": ("e", "e", "f", "F"),
+}
+AISLE_BASE_INDEX = 2
 
 RGBA = tuple[int, int, int, int]
 Grid = list[list[str]]
@@ -151,11 +204,15 @@ class Sprite:
 
 @dataclass
 class Derivation:
-    """A derived source: another source's pixels through a GOLDEN map (no grid of its own)."""
+    """A derived source: another source's pixels through a GOLDEN map or an aisle's recolour
+    (no grid of its own). Exactly one of golden and aisle is set."""
     source: Path
     name: str
     base: str
     golden: str
+    keys: dict[str, str] = field(default_factory=dict)
+    flags: frozenset[str] = frozenset()
+    aisle: str = ""
 
     def base_name(self) -> str:
         """The base source's name, relative to the derived source's folder."""
@@ -230,7 +287,7 @@ def parse_source(path: Path, src_root: Path) -> tuple[Sprite | Derivation | None
     kind = ""
     scale = 1
     rows: list[str] = []
-    derive: tuple[str, str] | None = None
+    derive: tuple[str, str, dict[str, str], frozenset[str], str] | None = None
     derived = False
     other_directives = False
     for number, line in enumerate(lines, 1):
@@ -248,13 +305,22 @@ def parse_source(path: Path, src_root: Path) -> tuple[Sprite | Derivation | None
             if directive == DERIVE_DIRECTIVE:
                 if derived:
                     errors.append(f"{name}:{number}: {DERIVE_DIRECTIVE} is given twice")
-                elif (len(args) == 2 and args[1].startswith(GOLDEN_PREFIX)
-                        and args[1].removeprefix(GOLDEN_PREFIX) in GOLDEN_MAPS):
-                    derive = (args[0], args[1].removeprefix(GOLDEN_PREFIX))
+                elif (len(args) >= 2 and args[1].startswith(GOLDEN_PREFIX)
+                        and args[1].removeprefix(GOLDEN_PREFIX) in derive_map_names()):
+                    golden = args[1].removeprefix(GOLDEN_PREFIX)
+                    keys, flags, problem = parse_golden_keys(golden, args[2:])
+                    if problem:
+                        errors.append(f"{name}:{number}: {problem}")
+                    else:
+                        derive = (args[0], golden, keys, flags, "")
+                elif (len(args) == 2 and args[1].startswith(AISLE_PREFIX)
+                        and args[1].removeprefix(AISLE_PREFIX) in AISLE_MAPS):
+                    derive = (args[0], "", {}, frozenset(), args[1].removeprefix(AISLE_PREFIX))
                 else:
                     errors.append(f"{name}:{number}: {DERIVE_DIRECTIVE} takes <source> "
-                                  f"golden=<map> (maps: {', '.join(sorted(GOLDEN_MAPS))}), "
-                                  f"got {stripped!r}")
+                                  f"golden=<map> (maps: {', '.join(derive_map_names())}) or "
+                                  f"<source> aisle=<id> (aisles: "
+                                  f"{', '.join(sorted(AISLE_MAPS))}), got {stripped!r}")
                 derived = True
             elif directive == "@size" and len(args) == 1:
                 size = parse_size(args[0])
@@ -281,7 +347,8 @@ def parse_source(path: Path, src_root: Path) -> tuple[Sprite | Derivation | None
                           "and scale are its source's)")
         if errors or derive is None:
             return None, errors
-        return Derivation(path, name, derive[0], derive[1]), []
+        return Derivation(path, name, derive[0], derive[1], derive[2], derive[3],
+                          derive[4]), []
     if size is None:
         errors.append(f"{name}: missing @size")
     if not kind:
@@ -297,6 +364,32 @@ def parse_source(path: Path, src_root: Path) -> tuple[Sprite | Derivation | None
     if errors:
         return None, errors
     return Sprite(path, name, width, height, kind, scale, rows), []
+
+
+def parse_golden_keys(golden: str, args: list[str]) -> tuple[dict[str, str], frozenset[str], str]:
+    """The <from>=<to> pairs and flags after golden=keys: (keys, flags, problem or '')."""
+    if golden != GOLDEN_KEYS_MAP:
+        if args:
+            return {}, frozenset(), f"golden={golden} takes nothing more, got {' '.join(args)!r}"
+        return {}, frozenset(), ""
+    keys: dict[str, str] = {}
+    flags: set[str] = set()
+    for arg in args:
+        if arg in GOLDEN_KEYS_FLAGS:
+            flags.add(arg)
+            continue
+        # Three characters: the source key, '=', the target key (so '=' itself can be a key).
+        source, sep, target = (arg[0], arg[1], arg[2]) if len(arg) == 3 else ("", "", "")
+        if sep != "=" or source in (TRANSPARENT, INK):
+            return {}, frozenset(), (f"golden=keys takes <from>=<to> pairs of one-character keys "
+                                     f"(not '{TRANSPARENT}' or '{INK}') and the flags "
+                                     f"{', '.join(sorted(GOLDEN_KEYS_FLAGS))}, got {arg!r}")
+        if source in keys:
+            return {}, frozenset(), f"golden=keys recolours {source!r} twice"
+        keys[source] = target
+    if not keys:
+        return {}, frozenset(), "golden=keys needs at least one <from>=<to> pair"
+    return keys, frozenset(flags), ""
 
 
 def parse_size(text: str) -> tuple[int, int] | None:
@@ -451,11 +544,93 @@ def golden_egg(rows: Grid, _palette: Palette) -> Grid:
     return reink(out)
 
 
-GOLDEN_MAPS = {"rank": golden_rank, "yellow": golden_yellow, "egg": golden_egg}
+def golden_bake(rows: Grid, _palette: Palette) -> Grid:
+    """GOLDEN_BAKE_MAP on the brown ramp only, then the rank map's paper glint on the gilded
+    pixels (lit gold or brass on every GOLDEN_RANK_GLINT_PERIOD-th diagonal)."""
+    out = [[GOLDEN_BAKE_MAP.get(key, key) for key in row] for row in rows]
+    for y, row in enumerate(out):
+        for x, key in enumerate(row):
+            if (rows[y][x] in GOLDEN_BAKE_MAP and key in GOLDEN_RANK_GLINT_KEYS
+                    and (x + y) % GOLDEN_RANK_GLINT_PERIOD == 0):
+                row[x] = GOLDEN_PAPER
+    return reink(out)
+
+
+def golden_keys(rows: Grid, keys: dict[str, str], flags: frozenset[str]) -> Grid:
+    """An item's own map: each source key in keys recoloured, the rest kept. With 'glint', the
+    rank map's paper glint on recoloured lit gold that has no kept key and no paper next to it
+    (8-neighbours); with 'rim', paper on recoloured gold or mustard pale right under ink."""
+    height = len(rows)
+    width = len(rows[0]) if rows else 0
+    out = [[keys.get(key, key) for key in row] for row in rows]
+
+    def detail(x: int, y: int) -> bool:
+        if not (0 <= x < width and 0 <= y < height):
+            return False
+        key = rows[y][x]
+        kept = key not in keys and key not in (TRANSPARENT, INK)
+        return kept or keys.get(key) == GOLDEN_PAPER
+
+    for y in range(height):
+        for x in range(width):
+            if rows[y][x] not in keys:
+                continue
+            key = out[y][x]
+            if ("rim" in flags and key in GOLDEN_KEYS_RIM_KEYS and y > 0
+                    and rows[y - 1][x] == INK):
+                out[y][x] = GOLDEN_PAPER
+            elif ("glint" in flags and key in GOLDEN_RANK_GLINT_KEYS
+                    and (x + y) % GOLDEN_RANK_GLINT_PERIOD == 0
+                    and not any(detail(x + dx, y + dy)
+                                for dx in (-1, 0, 1) for dy in (-1, 0, 1))):
+                out[y][x] = GOLDEN_PAPER
+    return reink(out)
+
+
+def golden_outline(rows: Grid, _palette: Palette) -> Grid:
+    """Every outline ink pixel (one with a transparent 4-neighbour or on the grid's edge) becomes
+    GOLDEN_OUTLINE_LIT on the top-left half and the mid diagonal (x + y <= mid) and
+    GOLDEN_OUTLINE_SHADE below it; interior ink and the fill are kept (no re-ink)."""
+    height = len(rows)
+    width = len(rows[0]) if rows else 0
+    mid = (width + height) // 2 - 1
+
+    def on_outline(x: int, y: int) -> bool:
+        for nx, ny in ((x - 1, y), (x + 1, y), (x, y - 1), (x, y + 1)):
+            if not (0 <= nx < width and 0 <= ny < height) or rows[ny][nx] == TRANSPARENT:
+                return True
+        return False
+
+    return [[(GOLDEN_OUTLINE_LIT if x + y <= mid else GOLDEN_OUTLINE_SHADE)
+             if key == INK and on_outline(x, y) else key
+             for x, key in enumerate(row)] for y, row in enumerate(rows)]
+
+
+GOLDEN_MAPS = {
+    "rank": golden_rank, "yellow": golden_yellow, "egg": golden_egg, "bake": golden_bake,
+    "outline": golden_outline,
+}
+
+
+def derive_map_names() -> list[str]:
+    """The maps @derive takes: the fixed GOLDEN_MAPS and an item's own (golden=keys)."""
+    return sorted([*GOLDEN_MAPS, GOLDEN_KEYS_MAP])
+
+
+def aisle_recolour(rows: Grid, aisle: str) -> Grid:
+    """The teal body ramp (AISLE_BODY_RAMP) swapped for the aisle's keys; nothing re-inked."""
+    mapping = dict(zip(AISLE_BODY_RAMP, AISLE_MAPS[aisle]))
+    return [[mapping.get(key, key) for key in row] for row in rows]
 
 
 def derive_sprite(derivation: Derivation, base: Sprite, palette: Palette) -> Sprite:
-    rows = GOLDEN_MAPS[derivation.golden]([list(row) for row in base.rows], palette)
+    grid = [list(row) for row in base.rows]
+    if derivation.aisle:
+        rows = aisle_recolour(grid, derivation.aisle)
+    elif derivation.golden == GOLDEN_KEYS_MAP:
+        rows = golden_keys(grid, derivation.keys, derivation.flags)
+    else:
+        rows = GOLDEN_MAPS[derivation.golden](grid, palette)
     return Sprite(derivation.source, derivation.name, base.width, base.height, base.kind,
                   base.scale, ["".join(row) for row in rows])
 

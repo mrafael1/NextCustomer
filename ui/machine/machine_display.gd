@@ -13,8 +13,17 @@ extends Panel
 ## its stub is fed), PACKING YOUR ORDER… while the boxes come out, "3 PRIZES FROM <chute>", each
 ## reveal's rarity and prize, STAMP DAY's free stamp, and on the landing ENJOY!, UPGRADING…, the
 ## landing's word with the cart count, the chute's REGULAR level and SEE YOU NEXT SHIFT.
+##
+## Machine v2 (#77): at the chute wait a pressed key puts the display in its title mode
+## (show_title): the chute's name in Pixelify 24 (paper, a 2 px teal-shade shadow, left), its sub
+## line (bold Atkinson 11, mustard light; 9 when it doesn't fit) and the red CONFIRM › key at the
+## right (CONFIRM_RECT, a RegisterKey like the register's CHECKOUT). CONFIRM sinks for
+## MachineTuning.confirm_down_ms with `ui_confirm`, then sends confirm_pressed. A BONUS visit's
+## feed reads the ticket icon and "BONUS TICKET" / "inspection passed · feeding in".
 
 signal bin_pressed
+## CONFIRM › was pressed (after its down state): the pressed key's chute is confirmed.
+signal confirm_pressed
 
 const SIZE := Vector2(392, 52)
 const MESSAGE_SIZE := 24
@@ -30,6 +39,19 @@ const BIN_RECT := Rect2(296, 13, 88, 26)
 const BIN_GAP := 6.0
 const BIN_TEXT := "BIN IT ✕"
 const BIN_SIZE := 12
+## The title mode: the sub line's smaller size when 11 doesn't fit, the title's shadow, CONFIRM ›.
+const TITLE_SUB_FALLBACK := 9
+const TITLE_SHADOW := 2
+## Wide enough for Pixelify 24's "CONFIRM ›" (116 px) with room each side; the title keeps 232 px.
+const CONFIRM_RECT := Rect2(250, 6, 134, 40)
+const CONFIRM_TEXT := "CONFIRM ›"
+const CONFIRM_SIZE := 24
+const CONFIRM_GAP := 8.0
+## A BONUS visit's feed: the ticket icon (2x) left of BONUS TICKET.
+const BONUS_TICKET := "BONUS TICKET"
+const TICKET_ICON := preload("res://art/icons/bonus_ticket.png")
+const ICON_SCALE := 2.0
+const ICON_GAP := 6.0
 const BOLD_WEIGHT := 700
 const RARITY_WORDS: Array[String] = ["COMMON", "RARE!", "LEGENDARY!!"]
 const READING := "READING…"
@@ -47,6 +69,13 @@ var _message: Label
 var _sub: Label
 var _bin: Button
 var _bin_shown: bool = false
+var _confirm: RegisterKey
+var _icon: TextureRect
+## The title mode's lines (show_title; empty: off) and whether it offers CONFIRM ›.
+var _title: PackedStringArray = PackedStringArray()
+var _confirm_offered: bool = false
+## CONFIRM's down state: when it was pressed (Time ticks, ms; -1: not down).
+var _confirm_at_ms: int = -1
 ## The wait point's message and sub line (show_message), shown when the plan has no line of its
 ## own at the time.
 var _rest: PackedStringArray = PackedStringArray(["", ""])
@@ -86,6 +115,23 @@ func _init() -> void:
 	_style_bin()
 	RewardMachineView.fit(_bin, BIN_RECT)
 	_bin.visible = false
+	_confirm = RegisterKey.new(
+		RegisterKey.Kind.CHECKOUT, CONFIRM_TEXT, CONFIRM_SIZE, CONFIRM_RECT.size
+	)
+	_confirm.name = "ConfirmKey"
+	_confirm.caption_label().add_theme_font_override("font", marked_font(0))
+	_confirm.caption_under_band = false
+	_confirm.focus_mode = Control.FOCUS_NONE
+	_confirm.position = CONFIRM_RECT.position
+	_confirm.size = CONFIRM_RECT.size
+	_confirm.visible = false
+	_confirm.pressed.connect(_on_confirm)
+	add_child(_confirm)
+	_icon = UiKit.sprite(TICKET_ICON)
+	_icon.name = "TicketIcon"
+	_icon.size = TICKET_ICON.get_size() * ICON_SCALE
+	_icon.visible = false
+	add_child(_icon)
 	_show("", "")
 
 
@@ -94,6 +140,47 @@ func _init() -> void:
 func show_message(message: String, sub: String = "") -> void:
 	_rest = PackedStringArray([message, sub])
 	_show(message, sub)
+
+
+## The title mode at the chute wait (a pressed key): `title` (the chute) over `sub`, with CONFIRM ›
+## when `confirm`. clear_title() leaves it.
+func show_title(title: String, sub: String, confirm: bool) -> void:
+	_title = PackedStringArray([title, sub])
+	_confirm_offered = confirm
+	_confirm_at_ms = -1
+	_confirm.down = false
+	_show(title, sub)
+
+
+## Leaves the title mode: the wait point's lines come back.
+func clear_title() -> void:
+	if _title.is_empty():
+		return
+	_title = PackedStringArray()
+	_confirm_offered = false
+	_confirm_at_ms = -1
+	_confirm.down = false
+	_show(_rest[0], _rest[1])
+
+
+## Whether the display is in its title mode.
+func in_title_mode() -> bool:
+	return not _title.is_empty()
+
+
+func confirm_key() -> RegisterKey:
+	return _confirm
+
+
+## Whether CONFIRM › is in its down state (pressed, before confirm_pressed).
+func confirm_down() -> bool:
+	return _confirm_at_ms >= 0
+
+
+## Presses CONFIRM › (a click on it, or a test): down for confirm_down_ms with `ui_confirm`, then
+## confirm_pressed.
+func press_confirm() -> void:
+	_on_confirm()
 
 
 ## A refused key's lines for DENIED_MS, then the wait point's again (show_message's stay).
@@ -133,6 +220,11 @@ func message_in_display_font() -> bool:
 	return _message.get_theme_font("font") == marked_font(0)
 
 
+## The ticket icon left of a BONUS TICKET line, for tests.
+func ticket_icon() -> TextureRect:
+	return _icon
+
+
 ## The message and sub labels, for layout tests.
 func labels() -> Array[Label]:
 	return [_message, _sub]
@@ -170,14 +262,18 @@ func frame(t: float) -> void:
 	var bin_now: bool = _bin_at(t)
 	var moved: bool = bin_now != _bin.visible
 	_bin.visible = bin_now
+	_end_confirm_down()
 	var timed: PackedStringArray = _timed(plan, t)
 	var shown: PackedStringArray = timed if not timed.is_empty() else _rest
+	if timed.is_empty() and not _title.is_empty():
+		shown = _title
 	if not _denied.is_empty():
 		if Time.get_ticks_msec() - _denied_at_ms < DENIED_MS:
 			shown = _denied
 		else:
 			_denied = PackedStringArray()
-	if moved or shown[0] != _message.text or shown[1] != _sub.text:
+	var titled: bool = not _title.is_empty() and shown == _title and _confirm_offered
+	if moved or titled != _confirm.visible or shown[0] != _message.text or shown[1] != _sub.text:
 		_show(shown[0], shown[1])
 
 
@@ -213,7 +309,7 @@ func _timed(plan: MachinePlan, t: float) -> PackedStringArray:
 func _intro_text(plan: MachinePlan, t: float) -> PackedStringArray:
 	if plan.kind == MachineVisit.Kind.BONUS:
 		if t < plan.feed_end:
-			return PackedStringArray(["BONUS TICKET!", "%s · 1 more prize" % _why()])
+			return PackedStringArray([BONUS_TICKET, "%s · feeding in" % why_words()])
 		return PackedStringArray()
 	if t < plan.feed_end:
 		return PackedStringArray([READING, ""])
@@ -328,6 +424,15 @@ func _end_sub(plan: MachinePlan) -> String:
 	return "2 prizes this shift · %s" % _why()
 
 
+## Why a bonus ticket was given, as the BONUS visit's lines say it (#77 machine v2): "inspection
+## passed", or "shift n" for a bonus extra shift.
+func why_words() -> String:
+	var record: ShiftRecord = _record()
+	if record == null or record.inspection != null:
+		return "inspection passed"
+	return "shift %d" % record.shift
+
+
 ## Why a bonus ticket was given: "<inspection> passed", or "shift n" for a bonus extra shift.
 func _why() -> String:
 	var record: ShiftRecord = _record()
@@ -368,24 +473,91 @@ func _prize_name(index: int) -> String:
 
 
 ## Shows the two lines: the message in Pixelify 24 if it fits the room left of BIN IT (else bold
-## Atkinson 17), both centred in that room; a lone message centred in the display.
+## Atkinson 17), both centred in that room; a lone message centred in the display. The title
+## mode's lines sit left, beside CONFIRM ›; BONUS TICKET gets the ticket icon before it.
 func _show(message: String, sub: String) -> void:
+	var titled: bool = not _title.is_empty() and message == _title[0] and sub == _title[1]
 	_message.text = message
 	_sub.text = sub
+	var left: float = PAD
 	var room: float = SIZE.x - 2.0 * PAD
 	if _bin.visible:
 		room = BIN_RECT.position.x - BIN_GAP - PAD
+	_confirm.visible = titled and _confirm_offered
+	if _confirm.visible:
+		room = CONFIRM_RECT.position.x - CONFIRM_GAP - PAD
 	var font: Font = marked_font(0)
 	var width: float = font.get_string_size(message, HORIZONTAL_ALIGNMENT_LEFT, -1, MESSAGE_SIZE).x
+	_icon.visible = message == BONUS_TICKET and not titled
+	if _icon.visible:
+		# The icon and the line centred together.
+		var pair: float = _icon.size.x + ICON_GAP + width
+		var start: float = roundf((SIZE.x - pair) / 2.0)
+		_icon.position = Vector2(start, MESSAGE_TOP + roundf((MESSAGE_HEIGHT - _icon.size.y) / 2.0))
+		left = start + _icon.size.x + ICON_GAP
+		room = width
 	var fits: bool = width <= room
 	_message.add_theme_font_override("font", font if fits else marked_font(BOLD_WEIGHT))
 	_message.add_theme_font_size_override("font_size", MESSAGE_SIZE if fits else FALLBACK_SIZE)
+	var align: HorizontalAlignment = (
+		HORIZONTAL_ALIGNMENT_LEFT if titled else HORIZONTAL_ALIGNMENT_CENTER
+	)
+	_message.horizontal_alignment = align
+	_style_title(titled)
+	var sub_size: int = SUB_SIZE
+	var sub_room: float = room if not _icon.visible else SIZE.x - 2.0 * PAD
+	if titled:
+		var sub_font: Font = _sub.get_theme_font("font")
+		if sub_font.get_string_size(sub, HORIZONTAL_ALIGNMENT_LEFT, -1, SUB_SIZE).x > sub_room:
+			sub_size = TITLE_SUB_FALLBACK
+	_sub.add_theme_font_size_override("font_size", sub_size)
+	_sub.horizontal_alignment = align
 	var top: float = MESSAGE_TOP if not sub.is_empty() else (SIZE.y - MESSAGE_HEIGHT) / 2.0
-	_message.position = Vector2(PAD, top)
+	_message.position = Vector2(left, top)
 	_message.size = Vector2(room, MESSAGE_HEIGHT)
-	_sub.position = Vector2(PAD, SUB_TOP)
-	_sub.size = Vector2(room, SUB_HEIGHT)
+	var sub_left: float = left if not _icon.visible else PAD
+	_sub.position = Vector2(sub_left, SUB_TOP)
+	_sub.size = Vector2(sub_room, SUB_HEIGHT)
 	_sub.visible = not sub.is_empty()
+
+
+## The title mode's colours: the name in paper with a teal-shade shadow, the sub in mustard light;
+## else the display's mustard light message over a grey light sub.
+func _style_title(titled: bool) -> void:
+	_message.add_theme_color_override(
+		"font_color", Palette.PAPER if titled else Palette.MUSTARD_LIGHT
+	)
+	_message.add_theme_color_override(
+		"font_shadow_color", Palette.TEAL_SHADE if titled else Color(Palette.TEAL_SHADE, 0.0)
+	)
+	_message.add_theme_constant_override("shadow_offset_x", TITLE_SHADOW if titled else 0)
+	_message.add_theme_constant_override("shadow_offset_y", TITLE_SHADOW if titled else 0)
+	_message.add_theme_constant_override("shadow_outline_size", 0)
+	_sub.add_theme_color_override(
+		"font_color", Palette.MUSTARD_LIGHT if titled else Palette.GREY_LIGHT
+	)
+
+
+func _on_confirm() -> void:
+	if not _confirm.visible or _confirm_at_ms >= 0:
+		return
+	_confirm_at_ms = Time.get_ticks_msec()
+	_confirm.down = true
+	Sfx.play_at(self, "ui_confirm")
+	_end_confirm_down()
+
+
+## CONFIRM's down state ends after confirm_down_ms: confirm_pressed.
+func _end_confirm_down() -> void:
+	if _confirm_at_ms < 0 or Time.get_ticks_msec() - _confirm_at_ms < _down_ms():
+		return
+	_confirm_at_ms = -1
+	_confirm.down = false
+	confirm_pressed.emit()
+
+
+func _down_ms() -> int:
+	return view.tuning.confirm_down_ms if view != null and view.tuning != null else 0
 
 
 func _style_bin() -> void:

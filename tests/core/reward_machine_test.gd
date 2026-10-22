@@ -332,6 +332,44 @@ func test_the_bonus_visit_follows_an_inspected_pass() -> void:
 	var off_machine: RewardMachine = _machine(7, off)
 	_pass(off_run, off_machine, 3, true)
 	assert_array(off_machine.pending_kinds()).is_empty()
+	_assert_bonus_if_passed_matches_the_checkout()
+
+
+## The planning notice's query (#77 machine v2): bonus_if_passed, asked during the shift, agrees
+## with pending_kinds() after that shift's passed checkout: inspected, uninspected, a bonus extra
+## shift, the data's switch off, and the last shift (no machine: false); bonus_earned after it
+## (the chip's EARNED) only for an inspected pass that queued it.
+func _assert_bonus_if_passed_matches_the_checkout() -> void:
+	assert_bool(_machine().bonus_earned(_run())).is_false()
+	var extra: MachineDefinition = _balance.machine.duplicate() as MachineDefinition
+	extra.bonus_extra_shifts = PackedInt32Array([2])
+	var off: MachineDefinition = _balance.machine.duplicate() as MachineDefinition
+	off.bonus_after_inspection = false
+	var last: int = _balance.quotas.size()
+	var cases: Array[Array] = [
+		[_balance.machine, 3, true, true],
+		[_balance.machine, 3, false, false],
+		[extra, 2, false, true],
+		[off, 3, true, false],
+		[_balance.machine, last, true, false],
+	]
+	for case: Array in cases:
+		var run: RunState = _run()
+		var machine: RewardMachine = _machine(7, case[0] as MachineDefinition)
+		var shift_number: int = case[1]
+		var inspected: bool = case[2]
+		run.shift_index = shift_number - 1
+		run.inspections = []
+		if inspected:
+			run.inspections.append(_balance.inspection_pool[0])
+		var promised: bool = machine.bonus_if_passed(run)
+		var failure: String = "shift %d inspected %s" % [shift_number, inspected]
+		assert_bool(promised).override_failure_message(failure).is_equal(bool(case[3]))
+		_pass(run, machine, shift_number, inspected)
+		var queued: bool = machine.pending_kinds().has(MachineVisit.Kind.BONUS)
+		assert_bool(queued).override_failure_message(failure).is_equal(promised)
+		var earned: bool = machine.bonus_earned(run)
+		assert_bool(earned).override_failure_message(failure).is_equal(promised and inspected)
 
 
 ## Big basket picked on the bonus visit changes only the next shift's quota: the scored shift's

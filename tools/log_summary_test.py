@@ -637,6 +637,54 @@ class MachineTest(LogTestCase):
         self.assertEqual(summary["machine"]["visits"], 1)
 
 
+class ToyMachinesTest(LogTestCase):
+    """The TOY MACHINES' capsule events (#63): known, never a run of their own, counted per
+    machine and by where they were drawn (results: the ended run's run_id; title: none)."""
+
+    @staticmethod
+    def capsule(s: Session, run_id: str, machine: str, item: str, draw: int) -> None:
+        s.log("capsule", run_id, machine=machine, item=item, run_index=0, coins_left=0,
+              draw=draw, capsule_seed="4294967296")
+
+    def test_draws_per_machine_from_the_results_and_the_title(self) -> None:
+        s = Session("toys", build="fb-p3")
+        s.machine_start("r1")
+        s.shift("r1", 1)
+        s.run_end("r1", False, 1)
+        self.capsule(s, "r1", "cold_cases", "cream", 0)
+        self.capsule(s, "r1", "bakery", "baguette", 1)
+        self.capsule(s, "", "bakery", "croissant", 2)
+        path = self.write("p.jsonl", s)
+        summary = self.summary(path)
+        self.assertEqual(summary["inputs"]["unknown_event_types"], {})
+        self.assertEqual(summary["players"][0]["runs"], 1)
+        toys = summary["toy_machines"]
+        self.assertEqual(toys["draws"], 3)
+        self.assertEqual(toys["machines"], {"bakery": 2, "cold_cases": 1})
+        self.assertEqual(toys["from_results"], 2)
+        self.assertEqual(toys["from_title"], 1)
+        report = ls.render(summary)
+        self.assertIn("Toy machines", report)
+        self.assertIn("  draws: 3 (2 from the results, 1 from the title)", report)
+
+    def test_title_draws_alone_make_no_run(self) -> None:
+        s = Session("title", build="fb-p3")
+        self.capsule(s, "", "pantry", "sugar_cubes", 0)
+        path = self.write("p.jsonl", s)
+        summary = self.summary(path)
+        self.assertEqual(summary["players"][0]["runs"], 0)
+        self.assertEqual(summary["toy_machines"]["draws"], 1)
+        self.assertEqual(summary["toy_machines"]["from_title"], 1)
+
+    def test_logs_without_draws_leave_the_block_out(self) -> None:
+        s = Session("plain", build="fb-p3")
+        s.machine_start("r1")
+        s.run_end("r1", True, 8)
+        summary = self.summary(self.write("p.jsonl", s))
+        self.assertEqual(summary["toy_machines"]["draws"], 0)
+        self.assertNotIn("Toy machines", ls.render(summary))
+
+
 class ShiftAndListTest(LogTestCase):
     def test_win_rate_per_shift_and_per_list(self) -> None:
         s = Session("s")

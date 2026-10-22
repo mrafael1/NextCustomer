@@ -1,0 +1,23 @@
+; The FIGURINE SHELF's display cabinet (#63, mock-up capsule_63_shelf.html), a 9-slice (6 art
+; px margins): ink outline, wood lit from the top left (wood pale, brown light), wood dark on
+; the right and bottom, an inner ink line and a plain plaster back. The back's grain and the
+; centre divider are code-drawn, so the 9-slice stays plain.
+@size 16x16
+@kind frame
+@scale 2
+################
+#Phhhhhhhhhhhhh#
+#PSSSSSSSSSSSST#
+#PSSSSSSSSSSSTT#
+#PSSSSSSSSSSSTT#
+#PSSS######SSTT#
+#PSSS#WWWW#SSTT#
+#PSSS#WWWW#SSTT#
+#PSSS#WWWW#SSTT#
+#PSSS#WWWW#SSTT#
+#PSSS######SSTT#
+#PSSSSSSSSSSSTT#
+#PSSSSSSSSSSSTT#
+#PSTTTTTTTTTTTT#
+#PTTTTTTTTTTTTT#
+################

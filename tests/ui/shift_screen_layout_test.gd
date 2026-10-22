@@ -41,9 +41,12 @@ func test_the_stage_is_laid_out_without_overlaps() -> void:
 	assert_vector(stage.size).is_equal(ShiftStage.SIZE)
 	assert_vector(stage.get_center()).is_equal_approx(window.get_center(), Vector2(1, 1))
 	# The wall fills the window behind the stage; the counter runs from the belt's back down.
-	var wall: Control = screen.get_child(0) as Control
-	assert_that(wall.get_global_rect()).is_equal(window)
-	var counter: Control = screen.get_node("Counter") as Control
+	# (#77 machine v2: in the store's camera, running past the window's right edge.)
+	var wall: Control = screen._wall
+	assert_vector(wall.get_global_rect().position).is_equal(window.position)
+	assert_float(wall.get_global_rect().end.y).is_equal(window.end.y)
+	assert_float(wall.get_global_rect().end.x).is_greater_equal(window.end.x)
+	var counter: Control = screen._camera.content.get_node("Counter") as Control
 	assert_float(counter.get_global_rect().position.y).is_equal(
 		stage.position.y + ShiftStage.COUNTER_TOP
 	)
@@ -221,11 +224,14 @@ func test_the_paper_bag_stands_between_the_receipt_and_the_belt() -> void:
 	assert_float(rect.position.y).is_greater_equal(stage.position.y + ShiftStage.TOP_BAR_BOTTOM)
 	assert_bool(rect.intersects(_on_stage(screen, ShiftStage.MONITOR_RECT))).is_false()
 	assert_bool(rect.intersects(_on_stage(screen, ShiftStage.COLUMN_RECT))).is_false()
+	# In the stage's fore (#77 machine v2: it drops out of frame at the machine), over the belt
+	# and the planning layer; the top bar is on the hud, over the whole world.
 	var index: int = bag.get_index()
-	assert_object(bag.get_parent()).is_same(screen._stage)
+	assert_object(bag.get_parent()).is_same(screen._stage.fore)
 	assert_int(index).is_greater(screen._stage.belt.get_index())
 	assert_int(index).is_greater(screen._stage.planning_layer.get_index())
-	assert_int(index).is_less(screen._top_bar.get_index())
+	assert_object(screen._top_bar.get_parent()).is_same(screen._stage)
+	assert_int(screen._camera.get_index()).is_less(screen._stage.get_index())
 	var products: Array[CardDefinition] = []
 	# An undrawn product (Bread with no art_ref; every stocked product is drawn since #57) and
 	# Bundle, a slip with no icon: their names are not printed here.
@@ -514,11 +520,13 @@ func _assert_redraw_in_place(screen: ShiftScreen) -> void:
 func test_the_wall_and_counter_cover_the_viewport() -> void:
 	var screen: ShiftScreen = await _screen()
 	var window: Rect2 = screen.get_viewport_rect()
-	var wall: Rect2 = (screen.get_child(0) as Control).get_global_rect()
-	var counter: Rect2 = (screen.get_node("Counter") as Control).get_global_rect()
+	var content: Control = screen._camera.content
+	var wall: Rect2 = screen._wall.get_global_rect()
+	var counter: Rect2 = (content.get_node("Counter") as Control).get_global_rect()
 	assert_bool(wall.encloses(window)).is_true()
-	for band_name: String in ["TopBand", "Floor"]:
-		var band: Rect2 = (screen.get_node(band_name) as Control).get_global_rect()
+	var bands: Array[Control] = [screen.get_node("TopBand"), content.get_node("Floor")]
+	for band_control: Control in bands:
+		var band: Rect2 = band_control.get_global_rect()
 		assert_float(band.position.x).is_less_equal(window.position.x)
 		assert_float(band.end.x).is_greater_equal(window.end.x)
 	assert_float(counter.position.x).is_less_equal(window.position.x)

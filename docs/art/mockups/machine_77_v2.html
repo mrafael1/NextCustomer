@@ -1,0 +1,983 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Receipt rewards v2</title>
+<!--
+  #77 machine v2 (2026-10-21), after the user's play test of chore/integration-77 (915dba4). Built by
+  machine_77_v2_src/build.py from this template (sprites from art/ are inlined as data URIs). Nothing here is built in
+  the game. Query: opt=A|B (machine in the background / on its own screen), tk=1|2 (bonus ticket beside the receipt /
+  stub on the receipt), at=<s> (still at s seconds), rm=1 (reduced motion), try=1|2 (play the ticket / bonus visit
+  yourself), hover=new|coupons|register|upgrades and press=<same> (with at=, force the machine state for a still).
+  Odds are the integration build's per-drop tier shares (MachineOdds rarity_share, data/balance/machine.tres) for shift 3
+  on the fresh stock: Regular 0 = 75/22/3, Regular 1 = 65/28/7, NEW ITEMS has no LEGENDARY in stock so it falls to RARE.
+-->
+<style>
+@font-face { font-family: Pixelify; src: url(../../../fonts/PixelifySans-Variable.ttf); }
+@font-face { font-family: Atkinson; src: url(../../../fonts/AtkinsonHyperlegibleNext-Variable.ttf); font-weight: 200 800; }
+@font-face { font-family: JBMono; src: url(../../../fonts/JetBrainsMono-Regular.ttf); }
+:root { --ink: #2b2420; --inkL: #4a3f38; --paper: #fbf7ee; --cream: #f3e9d2; --creamS: #ddcba5; --creamD: #b39f78;
+  --mus: #e2b33c; --musL: #f1d27a; --musP: #faecbc; --musD: #b38425; --musDD: #7a5a1c; --gold: #ffcf3f;
+  --tom: #d9534f; --tomD: #a83a3c; --tomDD: #6e2630; --tomL: #ec8a6e;
+  --teal: #4f9a94; --tealL: #86c2b6; --tealP: #c3e0d4; --tealS: #3a7672; --tealD: #2a4d4b; --tealDD: #1f3b3a; --tealK: #172c2b;
+  --good: #5fae5a; --goodD: #3d7a45; --greyL: #c7beab; --grey: #8a8172; --greyD: #5e574d;
+  --steelH: #ecebe4; --steelL: #c7c3b8; --steelP: #a9a59b; --steel: #8d8a83; --steelS: #6f6b63; --steelD: #57534c; --steelDD: #45423d;
+  --rubber: #3d3a36; --rubberD: #2c2926; --char: #24221f; --plaster: #e4d6b9; --plasterS: #cdbb98;
+  --wood: #a8703a; --woodL: #c98c4e; --woodD: #6e4524; --woodDD: #3e2614; --brick: #6b4a3a; --brickD: #4f362b; --conc: #5a5f5c; --concD: #474b49; }
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { background: #17302f; }
+body { font-family: Atkinson, sans-serif; color: var(--paper); padding: 16px; }
+img, canvas { image-rendering: pixelated; display: block; }
+.abs { position: absolute; }
+.px { font-family: Pixelify; }
+
+/* ---------------------------------------------------------------- page chrome */
+#page { max-width: 1280px; margin: 0 auto; }
+#summary { background: var(--paper); color: var(--ink); border: 3px solid var(--ink); box-shadow: 0 6px 0 var(--tealK); padding: 18px 22px 16px; margin-bottom: 14px; }
+#summary h1 { font: 30px/1.1 Pixelify; letter-spacing: 1px; }
+#summary h1 small { font: 600 14px Atkinson; color: var(--tealS); letter-spacing: 0; margin-left: 10px; }
+#summary .cols { display: grid; grid-template-columns: 1.05fr 1fr; gap: 22px; margin-top: 12px; }
+#summary h2 { font: 17px Pixelify; color: var(--tealS); margin: 0 0 6px; letter-spacing: 1px; }
+#summary ul { list-style: none; }
+#summary li { font: 14.5px/1.38 Atkinson; margin: 0 0 6px; padding-left: 16px; position: relative; }
+#summary li::before { content: ""; position: absolute; left: 2px; top: 7px; width: 7px; height: 7px; background: var(--mus); border: 1px solid var(--ink); }
+#summary .q { border: 2px solid var(--ink); background: var(--cream); padding: 9px 12px 8px; margin-bottom: 10px; }
+#summary .q b.qh { font: 16px Pixelify; display: block; margin-bottom: 4px; }
+#summary .q p { font: 14px/1.38 Atkinson; margin: 2px 0; }
+#summary .rec { display: inline-block; background: var(--good); color: var(--paper); font: 700 11px Atkinson; padding: 1px 6px; margin-left: 4px; border: 1px solid var(--goodD); vertical-align: 1px; letter-spacing: .5px; }
+#summary .why { color: var(--inkL); font-size: 13.5px !important; }
+#summary .defaults { font: 13px/1.4 Atkinson; color: var(--inkL); margin-top: 4px; }
+#controls { display: flex; flex-wrap: wrap; gap: 8px 14px; align-items: center; margin: 0 0 10px; }
+.grp { display: flex; gap: 0; align-items: center; }
+.grp > span { font: 13px Pixelify; color: var(--tealL); margin-right: 8px; letter-spacing: 1px; }
+button.t, button.b { font: 600 13px Atkinson; color: var(--ink); background: var(--cream); border: 2px solid var(--ink); padding: 5px 10px; cursor: pointer; box-shadow: inset 0 -3px 0 var(--creamS); }
+button.t + button.t { border-left: 0; }
+button.t.on { background: var(--mus); box-shadow: inset 0 -3px 0 var(--musD); }
+button.b { margin-right: 4px; }
+button.b.try { background: var(--tealL); box-shadow: inset 0 -3px 0 var(--teal); }
+button:active { transform: translateY(1px); box-shadow: none !important; }
+label.rm { font: 600 13px Atkinson; color: var(--paper); display: flex; gap: 6px; align-items: center; cursor: pointer; }
+#scrub { flex: 1 1 220px; accent-color: var(--mus); }
+#tlabel { font: 12px JBMono; color: var(--tealL); min-width: 52px; }
+#stageWrap { position: relative; width: 100%; overflow: hidden; border: 3px solid var(--ink); }
+#stage { position: absolute; left: 0; top: 0; width: 1280px; height: 720px; overflow: hidden; background: var(--steelDD); transform-origin: 0 0; }
+#caption { margin-top: 10px; min-height: 48px; background: var(--tealK); border: 2px solid var(--tealD); padding: 8px 12px; font: 15px/1.35 Atkinson; color: var(--paper); }
+#caption b { font: 15px Pixelify; color: var(--gold); margin-right: 8px; letter-spacing: 1px; }
+body.still { padding: 0; }
+body.still #summary, body.still #controls, body.still #beats, body.still #caption { display: none; }
+body.still #stageWrap { border: 0; }
+#beats { display: flex; flex-wrap: wrap; gap: 6px; margin: 10px 0 0; }
+@media (max-width: 720px) { #summary .cols { grid-template-columns: 1fr; } #summary { padding: 14px; } #summary h1 { font-size: 24px; } }
+
+/* ---------------------------------------------------------------- HUD */
+#hud { left: 0; top: 0; width: 1280px; height: 56px; background: var(--tealD); border-bottom: 3px solid var(--ink); z-index: 50; }
+.hb { position: absolute; top: 9px; height: 38px; background: var(--tealDD); border: 2px solid var(--ink); box-shadow: inset 0 2px 0 var(--tealS); font: 19px/34px Pixelify; color: var(--paper); padding: 0 12px; letter-spacing: 1px; white-space: nowrap; }
+#hShift { left: 16px; width: 108px; }
+#hSpend { left: 140px; width: 420px; }
+#hSpend .bar { position: absolute; left: 132px; top: 10px; width: 190px; height: 16px; background: var(--rubberD); border: 2px solid var(--ink); }
+#hSpend .bar i { position: absolute; left: 0; top: 0; bottom: 0; background: var(--good); }
+#hSpend .bar em { position: absolute; top: 0; bottom: 0; background: var(--mus); }
+#hSpend .val { position: absolute; left: 336px; color: var(--gold); font-size: 23px; }
+#hChip { left: 572px; width: 440px; background: var(--paper); color: var(--ink); font: 700 14px/34px Atkinson; padding: 0 8px; box-shadow: inset 0 -3px 0 var(--creamS); overflow: hidden; }
+#hChip img { display: inline-block; vertical-align: -3px; }
+#hChip .pass { display: inline-block; background: var(--mus); border: 2px solid var(--ink); padding: 0 6px; line-height: 22px; margin-left: 6px; font: 700 12.5px/22px Atkinson; }
+#hChip .pass img { vertical-align: -5px; margin-right: 3px; }
+#hChip.done { background: var(--tealP); }
+#hLoyal { left: 1024px; width: 100px; font-size: 16px; }
+#hCart { left: 1136px; width: 128px; background: var(--teal); font-size: 16px; padding: 0 8px; }
+
+/* ---------------------------------------------------------------- the store (world) */
+#world { left: 0; top: 0; width: 1700px; height: 720px; transform-origin: 0 0; }
+#back, #fore, #mid { left: 0; top: 0; width: 1700px; height: 720px; }
+.wall { left: 0; top: 56px; width: 1700px; height: 272px; background: var(--plaster); }
+.wall::after { content: ""; position: absolute; left: 0; right: 0; bottom: 0; height: 10px; background: var(--plasterS); border-top: 2px solid #b9a47c; }
+.floorBack { left: 0; top: 328px; width: 1700px; height: 392px; background: var(--woodD); }
+.sign { height: 34px; background: var(--goodD); border: 2px solid var(--ink); font: 14px/30px Pixelify; color: var(--paper); text-align: center; }
+.shelf { background: var(--woodL); border: 2px solid var(--ink); }
+.shelf i { position: absolute; left: 6px; right: 6px; height: 6px; background: var(--wood); border-top: 2px solid var(--woodD); }
+.fridge { background: var(--tealL); border: 2px solid var(--ink); }
+.fridge::before { content: ""; position: absolute; inset: 8px; background: var(--tealP); border: 2px solid var(--tealS); }
+.fridge i { position: absolute; left: 8px; right: 8px; height: 4px; background: var(--steelL); border-top: 2px solid var(--steelS); z-index: 1; }
+.fridge img { position: absolute; z-index: 2; }
+#monitor { left: 486px; top: 66px; width: 420px; height: 178px; background: var(--rubberD); border: 3px solid var(--ink); box-shadow: 0 4px 0 var(--char); }
+#monitor .scr { position: absolute; left: 10px; top: 10px; right: 10px; bottom: 10px; background: var(--paper); color: var(--ink); overflow: hidden; }
+#monitor .nx { position: absolute; left: 0; top: 0; width: 106px; bottom: 0; background: var(--tealDD); border-right: 2px solid var(--ink); }
+#monitor .nx b { position: absolute; left: 8px; top: 4px; font: 11px Pixelify; color: var(--tealL); letter-spacing: 2px; }
+#monitor .nx img { position: absolute; left: 5px; top: 30px; }
+#monitor .txt { position: absolute; left: 118px; top: 6px; right: 8px; }
+#monitor .t1 { font: 20px/24px Pixelify; display: flex; justify-content: space-between; }
+#monitor .t2 { font: 700 10.5px Atkinson; color: var(--tealS); letter-spacing: 1px; margin-top: 6px; }
+#monitor .t3 { font: 17px Pixelify; }
+#monitor .t4 { font: 12px Atkinson; color: var(--inkL); }
+#monitor .t5 { margin-top: 7px; display: inline-flex; align-items: center; gap: 6px; background: var(--mus); border: 2px solid var(--ink); padding: 2px 8px 2px 5px; font: 700 13px Atkinson; box-shadow: inset 0 -3px 0 var(--musD); }
+#monitor .met { position: absolute; left: 118px; top: 8px; right: 8px; }
+#monitor .met .big { font: 54px/58px Pixelify; color: var(--musD); }
+#monitor .met .ok { display: inline-block; font: 16px Pixelify; color: var(--goodD); border: 2px solid var(--goodD); padding: 0 6px; margin-top: 2px; }
+#monitor .met .insp { display: inline-block; font: 14px Pixelify; color: var(--tealS); border: 2px solid var(--tealS); padding: 0 6px; margin: 4px 0 0 4px; }
+.pole { width: 8px; height: 10px; top: 56px; background: var(--steelS); }
+#cashier { left: 290px; top: 182px; }
+#thank { left: 286px; top: 254px; width: 62px; height: 72px; background: #c8a26b; border: 2px solid var(--ink); font: 11px/13px Pixelify; color: #7a5a35; text-align: center; padding-top: 18px; }
+#printerBox { left: 34px; top: 330px; }
+#printerLip { left: 44px; top: 328px; }
+.belt { left: 348px; top: 316px; width: 920px; height: 104px; background: repeating-linear-gradient(90deg, var(--rubber) 0 22px, var(--rubberD) 22px 24px); border: 2px solid var(--ink); border-top: 6px solid var(--steelP); }
+.beltFront { left: 352px; top: 420px; width: 912px; height: 64px; background: var(--steelL); border: 2px solid var(--ink); border-top: 4px solid var(--steelH); }
+.beltFront::after { content: ""; position: absolute; left: 0; right: 0; bottom: 0; height: 10px; background: var(--steelP); }
+.under { left: 336px; top: 484px; width: 1364px; height: 236px; background: var(--woodD); border-top: 2px solid var(--ink); }
+.ledge { left: 336px; top: 692px; width: 1364px; height: 28px; background: var(--steelP); border-top: 2px solid var(--ink); }
+.basket { width: 216px; height: 150px; }
+.basket .bf { position: absolute; left: 0; bottom: 0; }
+.basket .it { position: absolute; bottom: 52px; }
+.regcol { left: 0; top: 400px; width: 336px; height: 320px; background: var(--rubber); border-right: 2px solid var(--ink); border-top: 2px solid var(--ink); }
+.keyCheckout { left: 20px; top: 422px; width: 296px; height: 82px; background: var(--tom); border: 2px solid var(--ink); border-top: 8px solid var(--tomL); box-shadow: inset 0 -6px 0 var(--tomD); font: 34px/66px Pixelify; letter-spacing: 3px; text-align: center; color: var(--paper); text-shadow: 3px 3px 0 var(--tomDD); }
+.keyRedraw { left: 20px; top: 520px; width: 206px; height: 58px; background: var(--cream); border: 2px solid var(--ink); border-top: 6px solid var(--paper); box-shadow: inset 0 -5px 0 var(--creamS); font: 19px/44px Pixelify; text-align: center; color: var(--ink); }
+.keyRedraw small { font: 600 13px Atkinson; }
+#keypad { left: 236px; top: 516px; }
+#drawer { left: 12px; top: 622px; }
+.beltItem { position: absolute; top: 318px; }
+
+/* the receipt (overlay, follows the printer, then travels) */
+#receipt { width: 236px; transform-origin: 50% 100%; z-index: 30; }
+#receipt .paper { position: relative; background: var(--paper); color: var(--ink); border: 2px solid var(--ink); border-bottom: 0; padding: 10px 8px 6px; font: 13px/19px JBMono; overflow: hidden; }
+#receipt .row { display: flex; justify-content: space-between; white-space: nowrap; }
+#receipt .sub { color: var(--inkL); padding-left: 12px; }
+#receipt .tot { font: 16px/22px JBMono; color: var(--goodD); border-top: 2px dashed var(--creamD); margin-top: 4px; padding-top: 4px; }
+#receipt .over { color: var(--goodD); }
+#receipt .paid { color: var(--tom); font: 15px Pixelify; letter-spacing: 1px; }
+#receipt .proj { font: 15px/22px JBMono; border-top: 2px dashed var(--creamD); margin-top: 4px; padding-top: 4px; }
+#receipt .zig { height: 8px; background: linear-gradient(135deg, var(--paper) 50%, transparent 50%) 0 0/10px 8px repeat-x, linear-gradient(225deg, var(--paper) 50%, transparent 50%) 0 0/10px 8px repeat-x; }
+#receipt .zigline { height: 8px; background: var(--paper); border-left: 2px solid var(--ink); border-right: 2px solid var(--ink); }
+#receipt .stubWrap { display: none; overflow: hidden; }
+#receipt .stub { position: relative; height: 62px; background: var(--gold); border: 2px solid var(--ink); border-top: 3px dashed var(--ink); color: var(--ink); padding: 10px 8px 0 54px; }
+#receipt .stub svg { position: absolute; left: 10px; top: 18px; }
+#receipt .stub b { display: block; font: 18px/20px Pixelify; letter-spacing: 1px; }
+#receipt .stub small { font: 700 11px Atkinson; }
+#stamp { left: 18px; top: 40px; width: 200px; padding: 6px 4px 5px; border: 4px solid var(--teal); color: var(--teal); text-align: center; font: 21px/22px Pixelify; letter-spacing: 1px; transform: rotate(-8deg); background: rgba(251,247,238,.6); z-index: 3; }
+#stamp small { display: block; font: 700 11px Atkinson; letter-spacing: 2px; }
+
+/* the bonus ticket */
+#ticket { width: 196px; height: 68px; z-index: 31; transform-origin: 50% 50%; }
+#ticket .tk { position: absolute; inset: 0; background: var(--gold); border: 3px solid var(--ink); box-shadow: 0 4px 0 var(--musDD); color: var(--ink); padding: 9px 6px 0 52px;
+  -webkit-mask: radial-gradient(circle 7px at 0 50%, transparent 98%, #000) left/51% 100% no-repeat, radial-gradient(circle 7px at 100% 50%, transparent 98%, #000) right/51% 100% no-repeat;
+          mask: radial-gradient(circle 7px at 0 50%, transparent 98%, #000) left/51% 100% no-repeat, radial-gradient(circle 7px at 100% 50%, transparent 98%, #000) right/51% 100% no-repeat; }
+#ticket .tk::after { content: ""; position: absolute; left: 44px; top: 4px; bottom: 4px; border-left: 2px dashed var(--musDD); }
+#ticket .tk svg { position: absolute; left: 7px; top: 20px; }
+#ticket b { display: block; font: 19px/22px Pixelify; letter-spacing: 1px; white-space: nowrap; }
+#ticket small { display: block; font: 700 10.5px/13px Atkinson; }
+#ticketShine { inset: -40px; z-index: -1; background: repeating-conic-gradient(rgba(255,207,63,.55) 0 10deg, transparent 10deg 20deg); border-radius: 50%; -webkit-mask: radial-gradient(circle, #000 30%, transparent 70%); mask: radial-gradient(circle, #000 30%, transparent 70%); }
+#ticketBanner { z-index: 32; font: 26px Pixelify; color: var(--gold); text-shadow: 3px 3px 0 var(--ink), -2px -2px 0 var(--ink), 2px -2px 0 var(--ink), -2px 2px 0 var(--ink); white-space: nowrap; letter-spacing: 1px; }
+#clip { left: 238px; top: 336px; width: 16px; height: 22px; background: var(--steelL); border: 2px solid var(--ink); z-index: 29; }
+
+/* ---------------------------------------------------------------- the machine (600 x 640, look F) */
+#machine { width: 600px; height: 640px; transform-origin: 0 0; }
+#mBody { position: absolute; inset: 0; background: var(--tealD); border: 3px solid var(--ink); box-shadow: 0 6px 0 var(--char); }
+#mHead { left: 0; top: 0; width: 594px; height: 60px; background: var(--mus); border-bottom: 3px solid var(--ink); text-align: center; color: var(--ink); }
+#mHead b { display: block; font: 30px/38px Pixelify; letter-spacing: 2px; padding-top: 4px; }
+#mHead small { display: block; font: 700 10px Atkinson; letter-spacing: 3px; color: var(--musDD); }
+#mBonusStamp { right: 14px; top: 6px; padding: 2px 10px; border: 3px solid var(--tom); color: var(--tom); background: var(--paper); font: 22px/24px Pixelify; transform: rotate(-6deg); letter-spacing: 1px; z-index: 5; }
+#mBonusStamp small { display: block; font: 700 9.5px Atkinson; color: var(--tomD); letter-spacing: 1px; }
+#mSlotRow { left: 14px; top: 70px; width: 566px; height: 46px; background: var(--cream); border: 2px solid var(--ink); }
+#mSlotRow > span { position: absolute; left: 10px; top: 13px; font: 700 12px Atkinson; color: var(--ink); letter-spacing: 1px; }
+#mSlot { left: 170px; top: 17px; width: 190px; height: 10px; background: var(--char); }
+#mSlotLed { left: 372px; top: 12px; width: 18px; height: 18px; background: var(--goodD); border: 2px solid var(--ink); }
+#mDock { left: 416px; top: 2px; width: 140px; height: 38px; border: 2px dashed var(--creamD); font: 700 10px/34px Atkinson; color: var(--creamD); text-align: center; letter-spacing: 1px; }
+#mDisp { left: 14px; top: 124px; width: 566px; height: 92px; background: var(--tealK); border: 2px solid var(--ink); text-align: center; overflow: hidden; }
+#mDisp .l1 { font: 26px/34px Pixelify; color: var(--gold); letter-spacing: 1px; margin-top: 14px; white-space: nowrap; }
+#mDisp .l2 { font: 700 13px Atkinson; color: var(--tealP); }
+#mDisp .l1 img { display: inline-block; vertical-align: -4px; margin-right: 6px; }
+#mDisp.title { text-align: left; }
+#mDisp.title .l1 { font-size: 46px; line-height: 50px; margin: 12px 0 0 18px; color: var(--paper); text-shadow: 3px 3px 0 var(--tealD); }
+#mDisp.title .l2 { margin-left: 20px; color: var(--musL); }
+#mConfirm { right: 12px; top: 14px; width: 170px; height: 62px; background: var(--tom); border: 2px solid var(--ink); border-top: 7px solid var(--tomL); box-shadow: inset 0 -6px 0 var(--tomD); font: 26px/48px Pixelify; color: var(--paper); text-align: center; letter-spacing: 2px; text-shadow: 2px 2px 0 var(--tomDD); cursor: pointer; display: none; }
+#mConfirm.down { border-top-width: 2px; box-shadow: inset 0 -2px 0 var(--tomD); transform: translateY(5px); background: var(--tomL); }
+.mKey { position: absolute; top: 228px; width: 132px; height: 100px; background: var(--paper); border: 2px solid var(--ink); border-top: 8px solid var(--steelH); box-shadow: inset 0 -7px 0 var(--creamS), 0 5px 0 var(--char); color: var(--ink); text-align: center; cursor: default; }
+.mKey .ic { position: absolute; left: 50%; top: 8px; transform: translateX(-50%); }
+.mKey b { position: absolute; left: 0; right: 0; top: 44px; font: 16px Pixelify; letter-spacing: 1px; }
+.mKey small { position: absolute; left: 0; right: 0; top: 64px; font: 700 9.5px Atkinson; color: var(--inkL); letter-spacing: .5px; }
+.mKey .led { position: absolute; right: 6px; top: 4px; width: 10px; height: 10px; background: var(--steelS); border: 2px solid var(--ink); }
+.mKey .newtag { position: absolute; left: -6px; top: -14px; background: var(--gold); border: 2px solid var(--ink); font: 11px/14px Pixelify; padding: 0 4px; transform: rotate(-8deg); }
+.mKey.hover { background: var(--musP); }
+.mKey.down { transform: translateY(6px); border-top-width: 2px; box-shadow: inset 0 -2px 0 var(--musD), 0 0 0 var(--char), 0 0 0 4px var(--gold); background: var(--musL); }
+.mKey.down .led { background: var(--good); box-shadow: 0 0 8px 3px rgba(95,174,90,.9); }
+.mKey.off { background: var(--steelP); color: var(--steelDD); }
+.mPunch { position: absolute; top: 340px; width: 132px; height: 26px; background: var(--cream); border: 2px solid var(--ink); font: 700 9px/22px Atkinson; color: var(--ink); padding-left: 6px; letter-spacing: .5px; }
+.mPunch i { position: absolute; top: 6px; width: 11px; height: 11px; border: 2px solid var(--ink); background: var(--paper); }
+.mPunch i.on { background: var(--ink); }
+.mPunch em { position: absolute; right: 8px; font-style: normal; font-size: 11px; }
+#mRoom { left: 14px; top: 378px; width: 566px; height: 244px; background: var(--tealK); border: 2px solid var(--ink); overflow: hidden; }
+#mRoom .lbl { position: absolute; left: 50%; top: -1px; transform: translateX(-50%); background: var(--tealD); border: 2px solid var(--ink); border-top: 0; font: 700 9px Atkinson; letter-spacing: 3px; padding: 1px 10px; color: var(--tealL); }
+#mOrder { left: 14px; top: 26px; width: 140px; height: 196px; background: var(--paper); border: 2px solid var(--ink); color: var(--ink); padding: 8px; }
+#mOrder b { display: block; font: 16px Pixelify; }
+#mOrder .ok { font: 700 10px Atkinson; color: var(--goodD); }
+#mOrder .bonus { color: var(--tom); }
+#mOrder .ln { font: 700 11px/20px Atkinson; color: var(--inkL); }
+.mBox { position: absolute; top: 46px; }
+.prize { position: absolute; top: 14px; width: 170px; height: 220px; background: var(--paper); border: 3px solid var(--ink); color: var(--ink); text-align: center; box-shadow: 0 4px 0 var(--char); }
+.prize .band { height: 30px; font: 16px/26px Pixelify; letter-spacing: 1px; border-bottom: 3px solid var(--ink); }
+.prize .band i { font-style: normal; font-size: 12px; margin-right: 5px; letter-spacing: 2px; }
+.prize.r0 .band { background: var(--greyL); color: var(--ink); }
+.prize.r1 .band { background: var(--teal); color: var(--paper); }
+.prize.r2 .band { background: var(--gold); color: var(--ink); }
+.prize.r1 { border-color: var(--tealS); }
+.prize .sp { display: flex; justify-content: center; align-items: flex-end; gap: 4px; margin-top: 16px; height: 100px; }
+.prize .sp .arr { font: 22px Pixelify; color: var(--inkL); margin-bottom: 30px; }
+.prize .nm { font: 17px Pixelify; margin-top: 10px; }
+.prize .ds { font: 700 11px Atkinson; color: var(--inkL); }
+.prize.pick { box-shadow: 0 0 0 5px var(--gold), 0 4px 0 var(--char); }
+
+/* the odds card: only three coloured rows */
+#odds { width: 236px; z-index: 40; transform-origin: 0 0; padding: 6px; background: var(--paper); border: 3px solid var(--ink); box-shadow: 0 5px 0 var(--char); }
+#odds::after { content: ""; position: absolute; left: var(--tail, 50%); bottom: -13px; margin-left: -10px; border: 10px solid transparent; border-top-color: var(--ink); border-bottom: 0; }
+.orow { display: flex; align-items: center; height: 34px; padding: 0 10px 0 8px; margin: 0 0 4px; border: 2px solid var(--ink); font: 17px Pixelify; letter-spacing: 1px; }
+.orow:last-child { margin-bottom: 0; }
+.orow .nm { flex: 1; }
+.orow .pc { font: 22px Pixelify; }
+.orow.r0 { background: var(--greyL); color: var(--ink); }
+.orow.r1 { background: var(--teal); color: var(--paper); }
+.orow.r2 { background: var(--gold); color: var(--ink); }
+.orow.zero { opacity: .45; }
+
+/* click ring */
+.ring { position: absolute; border: 4px solid var(--gold); border-radius: 50%; z-index: 60; pointer-events: none; }
+#cursor { z-index: 70; pointer-events: none; }
+
+/* ---------------------------------------------------------------- option B: the stockroom screen */
+#room { left: 0; top: 0; width: 1280px; height: 720px; background: var(--conc); overflow: hidden; }
+#room .brick { position: absolute; left: 0; top: 56px; width: 1280px; height: 470px; background:
+  linear-gradient(var(--brickD) 2px, transparent 2px) 0 0/48px 22px,
+  linear-gradient(90deg, var(--brickD) 2px, transparent 2px) 0 0/48px 44px,
+  linear-gradient(90deg, var(--brickD) 2px, transparent 2px) 24px 22px/48px 44px, var(--brick); }
+#room .floor { position: absolute; left: 0; top: 526px; width: 1280px; height: 194px; background: var(--concD); border-top: 4px solid var(--ink); }
+#room .floor::after { content: ""; position: absolute; left: 0; right: 0; top: 70px; height: 10px; background: repeating-linear-gradient(90deg, var(--mus) 0 40px, var(--ink) 40px 80px); opacity: .8; }
+.rack { position: absolute; top: 120px; width: 230px; height: 410px; border-left: 8px solid var(--steelS); border-right: 8px solid var(--steelS); }
+.rack i { position: absolute; left: 0; right: 0; height: 10px; background: var(--steelL); border: 2px solid var(--ink); }
+.rack img { position: absolute; }
+#roomSign { left: 960px; top: 72px; width: 200px; height: 40px; background: var(--paper); border: 3px solid var(--ink); color: var(--ink); font: 18px/34px Pixelify; text-align: center; letter-spacing: 2px; }
+#roomSign small { font: 700 9px Atkinson; letter-spacing: 2px; color: var(--tom); }
+#flaps { top: 56px; width: 70px; height: 664px; background: repeating-linear-gradient(90deg, rgba(195,224,212,.55) 0 16px, rgba(58,118,114,.6) 16px 18px); border-left: 4px solid var(--ink); border-right: 4px solid var(--ink); z-index: 40; }
+/* the upgraded item, swapped in place in the basket */
+#upShine { width: 150px; height: 150px; z-index: 0; background: repeating-conic-gradient(rgba(255,207,63,.7) 0 10deg, transparent 10deg 20deg); border-radius: 50%; -webkit-mask: radial-gradient(circle, #000 25%, transparent 70%); mask: radial-gradient(circle, #000 25%, transparent 70%); pointer-events: none; }
+#upFlash { z-index: 2; background: #fffbe8; pointer-events: none; }
+#upTag { z-index: 3; background: var(--gold); border: 2px solid var(--ink); color: var(--ink); font: 15px/20px Pixelify; padding: 1px 8px; letter-spacing: 1px; white-space: nowrap; box-shadow: 0 3px 0 var(--musDD); }
+#fade { left: 0; top: 0; width: 1280px; height: 720px; background: var(--char); z-index: 45; pointer-events: none; }
+</style>
+</head>
+<body>
+<div id="page">
+  <section id="summary">
+    <h1>RECEIPT REWARDS v2 <small>#77 · after your play test · nothing here is in the game yet · balance untouched</small></h1>
+    <div class="cols">
+      <div>
+        <h2>WHAT CHANGED (IN BOTH OPTIONS)</h2>
+        <ul>
+          <li><b>Inspection → bonus ticket, said out loud.</b> While you plan, the inspection chip and the monitor read <b>PASS → +1 BONUS TICKET</b>. When the shift passes, an <b>INSPECTION PASSED</b> stamp lands on the receipt and a gold <b>BONUS TICKET</b> appears and is kept next to it. At the machine the second visit says <b>BONUS TICKET · inspection passed</b>.</li>
+          <li><b>No pop-up over a shade.</b> The receipt is still torn off first, then the machine comes in smoothly (A or B below).</li>
+          <li><b>Odds: colour and % only, and only on hover.</b> Rest the mouse on a chute key: three rows, <b>COMMON</b> grey, <b>RARE!</b> teal, <b>LEGENDARY!!</b> gold, each with its %. Only the rarity name, its colour and the %: no item names, no notes, no extra symbols.</li>
+          <li><b>You see the upgrade.</b> When you pick an UPGRADES prize (here Banana → GOLDEN), the machine says so, and back in the store your Banana in the basket turns GOLDEN with a flash.</li>
+          <li><b>Keys feel pressed.</b> A pressed key goes down, lights and clicks; the machine then shows the chute's name big with a <b>CONFIRM</b> button. Press another key to change your mind.</li>
+          <li>Shown on one shift 3 with an inspection: the ticket visit (UPGRADES just opened) and the bonus visit. Odds are today's weights, worked out by hand (not from a game run).</li>
+        </ul>
+      </div>
+      <div>
+        <div class="q"><b class="qh">Q1 · Where does the machine live?</b>
+          <p><b>A · In the background.</b> It stands on the store's back wall all shift, dim. After the tear the camera glides to it (exactly 2× zoom), and glides back for the next shift. <span class="rec">MY PICK</span></p>
+          <p><b>B · Its own screen.</b> After the tear the store slides away and a stockroom with the machine slides in, the receipt carried across; then it slides back.</p>
+          <p class="why">Why A: one place, no screen change; the receipt really walks over to the machine; you see the machine (and UPGRADES opening) while you play. Its art is crisp at both sizes because the zoom is exactly 2×. B is tidier but feels like a menu and needs a new backdrop.</p>
+        </div>
+        <div class="q"><b class="qh">Q2 · How does the bonus ticket appear?</b>
+          <p><b>1 · Its own ticket.</b> It pops out of the stamp and clips next to the receipt, then rides along and waits on the machine. <span class="rec">MY PICK</span></p>
+          <p><b>2 · A stub on the receipt.</b> A gold stub prints at the bottom of the receipt; at the machine it snaps off and waits.</p>
+          <p class="why">Why 1: it's a separate thing you earned, visible from the stamp to the second visit.</p>
+        </div>
+        <div class="q"><b class="qh">Q3 · "For items, I don't see their upgraded version": which did you mean?</b>
+          <p><b>a · Most products have no upgrade yet.</b> In the build you played, only <b>Milk, Banana, Eggs and Coffee</b> have BIG and GOLDEN versions. BIG and GOLDEN art for the other products is issue #89, being drawn now.</p>
+          <p><b>b · You picked an upgrade but never saw it.</b> This page now shows it: the machine says <b>BANANA → GOLDEN ✓</b> and, back in the store, the Banana in your basket turns GOLDEN with a flash (beat 7).</p>
+          <p class="why">No pick from me: tell me a, b or both.</p>
+        </div>
+        <p class="defaults">Defaults, say if you want them changed: % rounded to whole numbers; no pips (■ ■■ ★★★) on the odds card, the rarity names carry it for colour-blind players; a 0% row stays but faded; the odds card sits above the key; real clicks make a click sound. Press <b>Try it yourself</b> to use the keys with the mouse.</p>
+      </div>
+    </div>
+  </section>
+
+  <div id="controls">
+    <div class="grp"><span>Q1</span><button class="t" data-opt="A">A · In the background</button><button class="t" data-opt="B">B · Its own screen</button></div>
+    <div class="grp"><span>Q2</span><button class="t" data-tk="1">1 · Own ticket</button><button class="t" data-tk="2">2 · Stub on receipt</button></div>
+    <label class="rm"><input type="checkbox" id="rmBox"> Reduced motion</label>
+    <button class="b" id="playBtn">Pause</button>
+    <input type="range" id="scrub" min="0" max="37.4" step="0.05" value="0">
+    <span id="tlabel">0.0 s</span>
+  </div>
+
+  <div id="stageWrap"><div id="stage"></div></div>
+  <div id="caption"></div>
+  <div id="beats"></div>
+</div>
+
+<script>
+'use strict';
+window.addEventListener('error', e => { document.body.dataset.err = (document.body.dataset.err || '') + e.message + ' @' + e.lineno + '; '; });
+const IMG = {"icons/aisle_fruit_and_veg.png": {"src": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAkAAAAJCAMAAADXT/YiAAAAzFBMVEUAAAArJCBKPzheV02KgXLHvquzn3jdy6Xz6dL79+4fOzoqTUs6dnJPmpSGwrbD4NRuJjCoOjzZU0/sim71v6B6WhyzhCXiszzx0nr67Lw9ekVfrlql0X5KMCJ6UjKoek7SqHRKMBCKXRrIkyv/zz8qDhRWEyeKHzOyOlXs6+THw7ippZuNioNva2NXU0xFQj09OjYsKSYkIh/dsHrJjE6ocDpuRSQ+JhTs4Mbk1rnNu5i5pHzk9vO/4t0sNTMiKilfsKgXLCvitIzDj2o0VfsQAAAAAXRSTlMAQObYZgAAADJJREFUeNo1jMENADAIhGSNs3H/MXtqy0eC0QgDxEAp2VLbOEl2swx8k21Fve6pdzv/LpD1A7ImE0D3AAAAAElFTkSuQmCC", "w": 9, "h": 9}, "icons/cart.png": {"src": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAwAAAAJCAMAAAAxZj1mAAAAzFBMVEUAAAArJCBKPzheV02KgXLHvquzn3jdy6Xz6dL79+4fOzoqTUs6dnJPmpSGwrbD4NRuJjCoOjzZU0/sim71v6B6WhyzhCXiszzx0nr67Lw9ekVfrlql0X5KMCJ6UjKoek7SqHRKMBCKXRrIkyv/zz8qDhRWEyeKHzOyOlXs6+THw7ippZuNioNva2NXU0xFQj09OjYsKSYkIh/dsHrJjE6ocDpuRSQ+JhTs4Mbk1rnNu5i5pHzk9vO/4t0sNTMiKilfsKgXLCvitIzDj2o0VfsQAAAAAXRSTlMAQObYZgAAACRJREFUeNpj4ORkQAKoHAQA8bihEEUKohAhAZfCYh4DxBxOBgBtKgHaNolQCQAAAABJRU5ErkJggg==", "w": 12, "h": 9}, "icons/coupon_multipack_v2.png": {"src": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABQAAAAOCAMAAAAYGszCAAAAzFBMVEUAAAArJCBKPzheV02KgXLHvquzn3jdy6Xz6dL79+4fOzoqTUs6dnJPmpSGwrbD4NRuJjCoOjzZU0/sim71v6B6WhyzhCXiszzx0nr67Lw9ekVfrlql0X5KMCJ6UjKoek7SqHRKMBCKXRrIkyv/zz8qDhRWEyeKHzOyOlXs6+THw7ippZuNioNva2NXU0xFQj09OjYsKSYkIh/dsHrJjE6ocDpuRSQ+JhTs4Mbk1rnNu5i5pHzk9vO/4t0sNTMiKilfsKgXLCvitIzDj2o0VfsQAAAAAXRSTlMAQObYZgAAAE1JREFUeNqNjzEOwCAMA0HYQz/R8v9X1glDsdKBG07oFAWltXN6YFa7CNKsiMCck8yZz4qzoN1PQfEu9LUT5vURYFZkPnZHBMYw/5/5AqEICNU+ipr7AAAAAElFTkSuQmCC", "w": 20, "h": 14}, "icons/coupon_two_for_one_v2.png": {"src": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABQAAAAOCAMAAAAYGszCAAAAzFBMVEUAAAArJCBKPzheV02KgXLHvquzn3jdy6Xz6dL79+4fOzoqTUs6dnJPmpSGwrbD4NRuJjCoOjzZU0/sim71v6B6WhyzhCXiszzx0nr67Lw9ekVfrlql0X5KMCJ6UjKoek7SqHRKMBCKXRrIkyv/zz8qDhRWEyeKHzOyOlXs6+THw7ippZuNioNva2NXU0xFQj09OjYsKSYkIh/dsHrJjE6ocDpuRSQ+JhTs4Mbk1rnNu5i5pHzk9vO/4t0sNTMiKilfsKgXLCvitIzDj2o0VfsQAAAAAXRSTlMAQObYZgAAAFRJREFUeNp1j0sOwCAIBX0r01353P+sRbCCjX0LyEyAhNZOgedDUFVJGQQR4ZRBEOYqnWCVsI5Nuiw5GTRa32T/W4/2Ti5JmySXRHeRTrBaZNDp9wcxBwXlpWZpdQAAAABJRU5ErkJggg==", "w": 20, "h": 14}, "icons/mark_check.png": {"src": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAA0AAAANCAMAAABFNRROAAAAzFBMVEUAAAArJCBKPzheV02KgXLHvquzn3jdy6Xz6dL79+4fOzoqTUs6dnJPmpSGwrbD4NRuJjCoOjzZU0/sim71v6B6WhyzhCXiszzx0nr67Lw9ekVfrlql0X5KMCJ6UjKoek7SqHRKMBCKXRrIkyv/zz8qDhRWEyeKHzOyOlXs6+THw7ippZuNioNva2NXU0xFQj09OjYsKSYkIh/dsHrJjE6ocDpuRSQ+JhTs4Mbk1rnNu5i5pHzk9vO/4t0sNTMiKilfsKgXLCvitIzDj2o0VfsQAAAAAXRSTlMAQObYZgAAAD5JREFUeNpNzsENACAIQ1E4dgXr/nNqlaL/9hJCGrFLFVVOlQbVZYEc+QGiBQsXFg58iYN+09gcfBDVm+adC2JiCWBCGdj2AAAAAElFTkSuQmCC", "w": 13, "h": 13}, "icons/stamp_ring.png": {"src": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAA0AAAANCAMAAABFNRROAAAAzFBMVEUAAAArJCBKPzheV02KgXLHvquzn3jdy6Xz6dL79+4fOzoqTUs6dnJPmpSGwrbD4NRuJjCoOjzZU0/sim71v6B6WhyzhCXiszzx0nr67Lw9ekVfrlql0X5KMCJ6UjKoek7SqHRKMBCKXRrIkyv/zz8qDhRWEyeKHzOyOlXs6+THw7ippZuNioNva2NXU0xFQj09OjYsKSYkIh/dsHrJjE6ocDpuRSQ+JhTs4Mbk1rnNu5i5pHzk9vO/4t0sNTMiKilfsKgXLCvitIzDj2o0VfsQAAAAAXRSTlMAQObYZgAAAC1JREFUeNpjYAACCRBggAIJcRCQgHG4QQDChXIgXDgHzCWXh2ommn1obkFyJwAEnAh8Bk9jOgAAAABJRU5ErkJggg==", "w": 13, "h": 13}, "icons/up_arrow.png": {"src": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAkAAAAJCAMAAADXT/YiAAAAzFBMVEUAAAArJCBKPzheV02KgXLHvquzn3jdy6Xz6dL79+4fOzoqTUs6dnJPmpSGwrbD4NRuJjCoOjzZU0/sim71v6B6WhyzhCXiszzx0nr67Lw9ekVfrlql0X5KMCJ6UjKoek7SqHRKMBCKXRrIkyv/zz8qDhRWEyeKHzOyOlXs6+THw7ippZuNioNva2NXU0xFQj09OjYsKSYkIh/dsHrJjE6ocDpuRSQ+JhTs4Mbk1rnNu5i5pHzk9vO/4t0sNTMiKilfsKgXLCvitIzDj2o0VfsQAAAAAXRSTlMAQObYZgAAACtJREFUeNpjYAACRgYoYFRhhDFUIEwQA8xkZASLMTIiyyKzxMXFoSxGsCoAgO0C5oc/CfEAAAAASUVORK5CYII=", "w": 9, "h": 9}, "icons/warning.png": {"src": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAA0AAAALCAMAAACTbPdTAAAAzFBMVEUAAAArJCBKPzheV02KgXLHvquzn3jdy6Xz6dL79+4fOzoqTUs6dnJPmpSGwrbD4NRuJjCoOjzZU0/sim71v6B6WhyzhCXiszzx0nr67Lw9ekVfrlql0X5KMCJ6UjKoek7SqHRKMBCKXRrIkyv/zz8qDhRWEyeKHzOyOlXs6+THw7ippZuNioNva2NXU0xFQj09OjYsKSYkIh/dsHrJjE6ocDpuRSQ+JhTs4Mbk1rnNu5i5pHzk9vO/4t0sNTMiKilfsKgXLCvitIzDj2o0VfsQAAAAAXRSTlMAQObYZgAAADFJREFUeNp1ycENADAIw0A8Rdh/0hZEJPqofydHdMQK8RO5+YgUMi9Kw5KsBqZXi90ByqIDxQUUkxwAAAAASUVORK5CYII=", "w": 13, "h": 11}, "items_v2/banana.png": {"src": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADAAAAAwCAMAAABg3Am1AAAAzFBMVEUAAAArJCBKPzheV02KgXLHvquzn3jdy6Xz6dL79+4fOzoqTUs6dnJPmpSGwrbD4NRuJjCoOjzZU0/sim71v6B6WhyzhCXiszzx0nr67Lw9ekVfrlql0X5KMCJ6UjKoek7SqHRKMBCKXRrIkyv/zz8qDhRWEyeKHzOyOlXs6+THw7ippZuNioNva2NXU0xFQj09OjYsKSYkIh/dsHrJjE6ocDpuRSQ+JhTs4Mbk1rnNu5i5pHzk9vO/4t0sNTMiKilfsKgXLCvitIzDj2o0VfsQAAAAAXRSTlMAQObYZgAAAU1JREFUeNrllVu6wyAIhDuL8FYT97/MAho1rWj8zuPhKU3nF3SQvF7/KLCrT9jUp3OHwLGrj/G9BcQYdxNsbRl/LwjAXgKcp47Qnz87oHcpaQiMwchI78OoMpA+jgDnKUK4IbQADtKPzghOiB4BQvDeRBXIhCASLM/6oQtMVISDn4w5DhWwjbjCEGe474Y+Z8J96T3l0DoJUlWFXNZzaWqvliQ5ip4B+qWZisoY0UqCCVAYClm/JJgDuXmyvlX0AxSvyvBB9eFK4AbteibyOBSPw3WuWkXc3776XJ6cnoCJ9GWzGKEDfS/5IssJ1DNCs7k6N0nQEZ3Vc+DeGXatLy6z2MJ0+qnN4gNNCYS6Y7seeuRf07ulHrUzRL9IcF3+R3ouP92sW6wvA/MmX9QDbijX1A8OiCZm7x0eHGjrD2uffXTylSY1Hn+kym3V4gNfzD92uo2JDgAAAABJRU5ErkJggg==", "w": 48, "h": 48}, "items_v2/banana_golden.png": {"src": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADAAAAAwCAMAAABg3Am1AAAAzFBMVEUAAAArJCBKPzheV02KgXLHvquzn3jdy6Xz6dL79+4fOzoqTUs6dnJPmpSGwrbD4NRuJjCoOjzZU0/sim71v6B6WhyzhCXiszzx0nr67Lw9ekVfrlql0X5KMCJ6UjKoek7SqHRKMBCKXRrIkyv/zz8qDhRWEyeKHzOyOlXs6+THw7ippZuNioNva2NXU0xFQj09OjYsKSYkIh/dsHrJjE6ocDpuRSQ+JhTs4Mbk1rnNu5i5pHzk9vO/4t0sNTMiKilfsKgXLCvitIzDj2o0VfsQAAAAAXRSTlMAQObYZgAAAXdJREFUeNrVlUu2xCAIRMMwyxDc/xqbXysi5nWGz5PuSeqKVBm9rv874K0e4dUMgNhWBTR4QKBnPQMN4cRAJ9qXhEh01wgQEVwVUCNSAMq+qEYgLciXzoAXSci2IO5XFYNQxIe+Tx2LQSivlDCEGRvMtLZZ+jXICEdksLbRpp8G3VJrICzuXZmjpb335oyqRc9EmYFNKhphTC3Ty7OnPAlDTE2CMVECLTYrYulBqlENOBH8cb0ihGcCFz3/ybMBtjM8BHSThl7bgfztaNDfFFyuk8svV5DskYO+3VFPgDS2bkAmcHXUbDKAKmA2O+U2eQ1EIrtUA+FTWPSzheoICDGwT7awsaJ6N4UYRt9HYEQ9Y2DloedxFiwxqP4J0AMo5hAK7D3buIPaOj8AujlSDto6nVYEGXCrHjxaklusPXmE62hBX3sUcnD50LfaVPgiIYknvZsrfkVrz6FVfuFzgazHH/QTGO3/daGn0wbglzv/lXzuxMOt/QE+E4ZD6xZ9NQAAAABJRU5ErkJggg==", "w": 48, "h": 48}, "items_v2/cheese.png": {"src": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADAAAAAwCAMAAABg3Am1AAAAzFBMVEUAAAArJCBKPzheV02KgXLHvquzn3jdy6Xz6dL79+4fOzoqTUs6dnJPmpSGwrbD4NRuJjCoOjzZU0/sim71v6B6WhyzhCXiszzx0nr67Lw9ekVfrlql0X5KMCJ6UjKoek7SqHRKMBCKXRrIkyv/zz8qDhRWEyeKHzOyOlXs6+THw7ippZuNioNva2NXU0xFQj09OjYsKSYkIh/dsHrJjE6ocDpuRSQ+JhTs4Mbk1rnNu5i5pHzk9vO/4t0sNTMiKilfsKgXLCvitIzDj2o0VfsQAAAAAXRSTlMAQObYZgAAANBJREFUeNrtklsSgCAIRWMRgu1/o+ngKwHF6bf700yeg0Bd158/HwIlbjxw4Az3CYzHFJfQcZ8w4B4hl88kInqEikckor3Q8J6VoODxXggQS+tY4RxTAGitU4VTyBAKPpbOdIoqjPgIWwJYsC7U8oIOQRMYf8EMUkjrEkLGRdMMEvFjFABurevCyxlAgWUmYTraCPMJ4rubtcD8iYCHAum8FPqo6QM6hg7BqmsJRuPtrWhJvwBtQU8v4xR2a1V/ioWgb2p1g81/mwE9GQV3EvwAYS5hqQ3DNk8AAAAASUVORK5CYII=", "w": 48, "h": 48}, "items_v2/coffee.png": {"src": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADAAAAAwCAMAAABg3Am1AAAAzFBMVEUAAAArJCBKPzheV02KgXLHvquzn3jdy6Xz6dL79+4fOzoqTUs6dnJPmpSGwrbD4NRuJjCoOjzZU0/sim71v6B6WhyzhCXiszzx0nr67Lw9ekVfrlql0X5KMCJ6UjKoek7SqHRKMBCKXRrIkyv/zz8qDhRWEyeKHzOyOlXs6+THw7ippZuNioNva2NXU0xFQj09OjYsKSYkIh/dsHrJjE6ocDpuRSQ+JhTs4Mbk1rnNu5i5pHzk9vO/4t0sNTMiKilfsKgXLCvitIzDj2o0VfsQAAAAAXRSTlMAQObYZgAAAKtJREFUeNrtlsESgjAMRMnNfETTpT3g/3+hDTdttsCoozi+Qy70sTtl6HSavhsh0PVVnXpPKTMzpMRwoT6+/fUJ9fwJM4EKRiCCJIrE6xXIuT3uZ5ghpsjJLPUzLuUJ2bxAP2MBirCPvyYUsiLqs04mhH18ykl26cIAsCm0rEPCWv1QQqu+nXAdEArLgA8JT32H9wgY8P/jfuhc8uOe7ZKQiwPbJXp52HPXuAGfeX/JELWGrwAAAABJRU5ErkJggg==", "w": 48, "h": 48}, "items_v2/coffee_big.png": {"src": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADAAAAAwCAMAAABg3Am1AAAAzFBMVEUAAAArJCBKPzheV02KgXLHvquzn3jdy6Xz6dL79+4fOzoqTUs6dnJPmpSGwrbD4NRuJjCoOjzZU0/sim71v6B6WhyzhCXiszzx0nr67Lw9ekVfrlql0X5KMCJ6UjKoek7SqHRKMBCKXRrIkyv/zz8qDhRWEyeKHzOyOlXs6+THw7ippZuNioNva2NXU0xFQj09OjYsKSYkIh/dsHrJjE6ocDpuRSQ+JhTs4Mbk1rnNu5i5pHzk9vO/4t0sNTMiKilfsKgXLCvitIzDj2o0VfsQAAAAAXRSTlMAQObYZgAAALpJREFUeNrtlksOwyAMRONdOYQ/gUV7/xMWsjE2rUzUjxIpbzFSIoYZOQpiWQ4LhLj1JTWKJavk1TogR3hD8bt/P6GcP2ENcQYKMQbACaBfn0SY68tBVbDLAErCSIReVQj7Ui2BqcUOqmISJMmrPqjSNuwMnGTsU1WFbSXeEsZWKu0ZDj2lW4yIvDHUrF2GrfCuhFo4TnhM0RnuU/zV8NF3+I1Bprj+uNOfS+24j6cE5uIQT8ldHqbvGk9qVa8lUPMQCAAAAABJRU5ErkJggg==", "w": 48, "h": 48}, "items_v2/coupon_slip.png": {"src": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADAAAAAwCAMAAABg3Am1AAAAzFBMVEUAAAArJCBKPzheV02KgXLHvquzn3jdy6Xz6dL79+4fOzoqTUs6dnJPmpSGwrbD4NRuJjCoOjzZU0/sim71v6B6WhyzhCXiszzx0nr67Lw9ekVfrlql0X5KMCJ6UjKoek7SqHRKMBCKXRrIkyv/zz8qDhRWEyeKHzOyOlXs6+THw7ippZuNioNva2NXU0xFQj09OjYsKSYkIh/dsHrJjE6ocDpuRSQ+JhTs4Mbk1rnNu5i5pHzk9vO/4t0sNTMiKilfsKgXLCvitIzDj2o0VfsQAAAAAXRSTlMAQObYZgAAAG9JREFUeNrtlEEOgCAMBOkJ+g4ayv9fKCFGDQRo1UQPnftku3uoc4bxHiDmMEKFxgDnzNwInuKYYpzCHhAo4hhgTn0CTo3UdZgKCKk5aZFQDGUCkq7DRRCt9ChB3UG6EtlKttIPVvIVWgG3X6XxORv3mzVEFH5hiQAAAABJRU5ErkJggg==", "w": 48, "h": 48}, "items_v2/croissant.png": {"src": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADAAAAAwCAMAAABg3Am1AAAAzFBMVEUAAAArJCBKPzheV02KgXLHvquzn3jdy6Xz6dL79+4fOzoqTUs6dnJPmpSGwrbD4NRuJjCoOjzZU0/sim71v6B6WhyzhCXiszzx0nr67Lw9ekVfrlql0X5KMCJ6UjKoek7SqHRKMBCKXRrIkyv/zz8qDhRWEyeKHzOyOlXs6+THw7ippZuNioNva2NXU0xFQj09OjYsKSYkIh/dsHrJjE6ocDpuRSQ+JhTs4Mbk1rnNu5i5pHzk9vO/4t0sNTMiKilfsKgXLCvitIzDj2o0VfsQAAAAAXRSTlMAQObYZgAAAP1JREFUeNrtlEsWwyAIRX3L6ADJ/ldZQRTiJ82oI9+gp433KqhpSicnJyd/D3pe4p+SS/NGUbwJRflVS8LltAr7ygABnGWJPlgrFaUbXkK7ymxqA/jOL4zGK8G5JgijAetUkcYXg2L7C4ELS15PsXUZngTYzsvco5DZFMwL1LrJYJH10xRMLbP12XkR3MC0SW1mirx+HXmAwt73ebMXJwv7ecv01BUB6+WmHM6DQtuoJ0ZdsAH086D7BUFtuChaa1gaqLiMuoC6o1o9jRezFGZ74EYQ8upW2pAcXhTk4ebeqxIEMeQ3b19HMUQKTfMTb8YoPL7uyHGF9OI/qCNfFSBHHVi049MAAAAASUVORK5CYII=", "w": 48, "h": 48}, "items_v2/eggs.png": {"src": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADAAAAAwCAMAAABg3Am1AAAAzFBMVEUAAAArJCBKPzheV02KgXLHvquzn3jdy6Xz6dL79+4fOzoqTUs6dnJPmpSGwrbD4NRuJjCoOjzZU0/sim71v6B6WhyzhCXiszzx0nr67Lw9ekVfrlql0X5KMCJ6UjKoek7SqHRKMBCKXRrIkyv/zz8qDhRWEyeKHzOyOlXs6+THw7ippZuNioNva2NXU0xFQj09OjYsKSYkIh/dsHrJjE6ocDpuRSQ+JhTs4Mbk1rnNu5i5pHzk9vO/4t0sNTMiKilfsKgXLCvitIzDj2o0VfsQAAAAAXRSTlMAQObYZgAAAOVJREFUeNrtlcsOAiEMAJeU5///sLBQEumAF6Me7GmSdoClLFzXP34s3DGgPhzDoSA1et4QCiJaZ4kEPyIQ4QxaRfQeoa1Yd2UlENrHlSIjVkKh1Mi5F620E/IsW4iEnmtZIBbyLDOEQs8lIQJBcykRgRA1l4AiCD6OECLq9OFwc6fbFko7OUTO/J9jy+vsSI7GL7NZhljY95mF2SwgEsaWC5IVjm1LIPioOSQSTn0G4XzvBfjoF0Ez3BfKfXQM+a0gs+yJ4Pp2OpgES45ehw8J93KB8MWagxF9RWjZkSPavbt7GvEAP1gXYyAIvWEAAAAASUVORK5CYII=", "w": 48, "h": 48}, "items_v2/milk.png": {"src": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADAAAAAwCAMAAABg3Am1AAAAzFBMVEUAAAArJCBKPzheV02KgXLHvquzn3jdy6Xz6dL79+4fOzoqTUs6dnJPmpSGwrbD4NRuJjCoOjzZU0/sim71v6B6WhyzhCXiszzx0nr67Lw9ekVfrlql0X5KMCJ6UjKoek7SqHRKMBCKXRrIkyv/zz8qDhRWEyeKHzOyOlXs6+THw7ippZuNioNva2NXU0xFQj09OjYsKSYkIh/dsHrJjE6ocDpuRSQ+JhTs4Mbk1rnNu5i5pHzk9vO/4t0sNTMiKilfsKgXLCvitIzDj2o0VfsQAAAAAXRSTlMAQObYZgAAANJJREFUeNrV1ssOgjAQhWHPppdksCm+/7taplxUOmaOCQvPysX/xSCUeLv90QBweUrg8hzB5TH7geZtXoGsOSUyJY5v8AnklBix9IzovV9svVccvU+89immQ8DRdxH74OlVfAOnvonQ+wpf34Tm1Q+C5gZ4LJvfF2q1wTzYCiIHjF8JdbCguQGMi14mHBChgIgF7oMFERtM2/L+aboGtOefAnpirgT9TJarQSncNey98z4U9sZNJzB+vGUwBdZ5MMBPB4gG4ACcb9YVmP8gYOwjewJOXymAdyREqwAAAABJRU5ErkJggg==", "w": 48, "h": 48}, "items_v2/milk_big.png": {"src": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADAAAAAwCAMAAABg3Am1AAAAzFBMVEUAAAArJCBKPzheV02KgXLHvquzn3jdy6Xz6dL79+4fOzoqTUs6dnJPmpSGwrbD4NRuJjCoOjzZU0/sim71v6B6WhyzhCXiszzx0nr67Lw9ekVfrlql0X5KMCJ6UjKoek7SqHRKMBCKXRrIkyv/zz8qDhRWEyeKHzOyOlXs6+THw7ippZuNioNva2NXU0xFQj09OjYsKSYkIh/dsHrJjE6ocDpuRSQ+JhTs4Mbk1rnNu5i5pHzk9vO/4t0sNTMiKilfsKgXLCvitIzDj2o0VfsQAAAAAXRSTlMAQObYZgAAAOxJREFUeNrVlkESwiAMAJsLlJlgh/r/vwoUJYGaEG/uqYfdQRrouG3/AVBW9J0ANj14sOk+aMEeOlnPyAVk60PrtGIG5BVMBQS6Z68W3NeL0deK2ZeLO18q7v3d90nyc/jFv4o2SFjxazEHgp8Ld/kJ1vxcVD2tB67qLHhyTo5LaQxOkRZ4W8DeEiQRV3UWqJsuoC1ANAWIPHiIOMQxiDOhP94H+fxSSQ+KQqTSW1aoN0YJ2M9YCcoKb+m6k4eyhxj5AubgMASR+nFtcIc+h6+0gB5vFKkBvw9q8NMFMgdgC2Dxy9qC4R8EqHT3Bd5kOxKQxYYPAAAAAElFTkSuQmCC", "w": 48, "h": 48}, "items_v2/strawberries.png": {"src": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADAAAAAwCAMAAABg3Am1AAAAzFBMVEUAAAArJCBKPzheV02KgXLHvquzn3jdy6Xz6dL79+4fOzoqTUs6dnJPmpSGwrbD4NRuJjCoOjzZU0/sim71v6B6WhyzhCXiszzx0nr67Lw9ekVfrlql0X5KMCJ6UjKoek7SqHRKMBCKXRrIkyv/zz8qDhRWEyeKHzOyOlXs6+THw7ippZuNioNva2NXU0xFQj09OjYsKSYkIh/dsHrJjE6ocDpuRSQ+JhTs4Mbk1rnNu5i5pHzk9vO/4t0sNTMiKilfsKgXLCvitIzDj2o0VfsQAAAAAXRSTlMAQObYZgAAAU5JREFUeNrVlGuOhTAIhT07GNrEGOr+1zn0DbdVe/0xyaAxoTkfUGjdtv9n+FICfiS0BBsC7pNoCXDiDOdtEi0RfQjyhnBJGAmcQ+D4MC4AI4Hz3kuq+Mj6BdAlGfAuG10DVbICQAEkWTpAUyAWUiUgaa7HId4h+n0CpP67ImnNLfFpHIWW6OYi1UPDvJXE6ebG4mgybygJUpLa/7ibybyhJPKqfkZfBdP9bwOwAJlgz4DsQOMYgRjRH+JJ/91BFqAOVMlOOgNZoA8crWJZa07W62ADkBRIxWQB7TDBVFvLmVEZiOjTNYOoa1xOUAby9FowCxSFEL0gZsYkQSJyDC6SRP80gAYALX7SkHIxFJRvT9eLphWUvM/4WLZ2GxbtPcCL1oDwZBMAibr+GiAStwBnQJ2MF8A3W3gDrOyYzZ9sBTCH9RWwvoW/ALb1y/AL0+BtmnHxcWcAAAAASUVORK5CYII=", "w": 48, "h": 48}, "items_v2/tea_bags.png": {"src": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADAAAAAwCAMAAABg3Am1AAAAzFBMVEUAAAArJCBKPzheV02KgXLHvquzn3jdy6Xz6dL79+4fOzoqTUs6dnJPmpSGwrbD4NRuJjCoOjzZU0/sim71v6B6WhyzhCXiszzx0nr67Lw9ekVfrlql0X5KMCJ6UjKoek7SqHRKMBCKXRrIkyv/zz8qDhRWEyeKHzOyOlXs6+THw7ippZuNioNva2NXU0xFQj09OjYsKSYkIh/dsHrJjE6ocDpuRSQ+JhTs4Mbk1rnNu5i5pHzk9vO/4t0sNTMiKilfsKgXLCvitIzDj2o0VfsQAAAAAXRSTlMAQObYZgAAAPVJREFUeNrt1U0SgyAMBWCzAm/QCazK/e9YAqj8vKh0OtNF+zadar4hOhGW5Z83QykT9au1lpb7ikwM7YvdXuFocBKcLpP6XgUYaqOUe0kG/ghzfAWoPt1rUy5BQB6GFUDkYFgF/sNgEF8GZhKYORBHN47WMCDESmTW7ZpD/YiOMSYD+wjBGh1IMy0I4akB5+VxuAPpDwS5vNRfA5deFm8dVcB5BPr6A8iVEbjSzl6/A8YtCWBX1V89g2/aqUH+7UHXTgXQaAjgtnoDabzR7sVwNMr3AADDWWIN8FngrnTxif4cwHu9DuBpogPt9NEAnR7mIF3dCyTGVdNP4FvuAAAAAElFTkSuQmCC", "w": 48, "h": 48}, "machine/mini_box.png": {"src": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACwAAAA8CAMAAAAqjKioAAAAzFBMVEUAAAArJCBKPzheV02KgXLHvquzn3jdy6Xz6dL79+4fOzoqTUs6dnJPmpSGwrbD4NRuJjCoOjzZU0/sim71v6B6WhyzhCXiszzx0nr67Lw9ekVfrlql0X5KMCJ6UjKoek7SqHRKMBCKXRrIkyv/zz8qDhRWEyeKHzOyOlXs6+THw7ippZuNioNva2NXU0xFQj09OjYsKSYkIh/dsHrJjE6ocDpuRSQ+JhTs4Mbk1rnNu5i5pHzk9vO/4t0sNTMiKilfsKgXLCvitIzDj2o0VfsQAAAAAXRSTlMAQObYZgAAAG5JREFUeNpjYCQBMJCo2BgN8PHxAgEPD7r4qGLKFMuhAZhidHHSFRsbK6AAmGKEiDwYjCqmrmJMMFgV4ysCKFXMiQNQSzEvHPDwjCoeioppkzbYsQBqKKZVThmK5QYMyCKBwatYnkgwMhTTqMUIANmM7o0P22E5AAAAAElFTkSuQmCC", "w": 44, "h": 60}, "scenery/baguette_bin.png": {"src": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACgAAAA+CAMAAABur6nZAAAAzFBMVEUAAAArJCBKPzheV02KgXLHvquzn3jdy6Xz6dL79+4fOzoqTUs6dnJPmpSGwrbD4NRuJjCoOjzZU0/sim71v6B6WhyzhCXiszzx0nr67Lw9ekVfrlql0X5KMCJ6UjKoek7SqHRKMBCKXRrIkyv/zz8qDhRWEyeKHzOyOlXs6+THw7ippZuNioNva2NXU0xFQj09OjYsKSYkIh/dsHrJjE6ocDpuRSQ+JhTs4Mbk1rnNu5i5pHzk9vO/4t0sNTMiKilfsKgXLCvitIzDj2o0VfsQAAAAAXRSTlMAQObYZgAAALdJREFUeNrtlEEKwCAMBM0zvPQTxv9/rUYsRBtjIqX00D0UwWF3TdEQFEFRMAhgTvKdskSckJ0HQEpEyhzzqOAxAbnHCqStWsAAXkoxxhHsPFpVCew9WlUhevC4jCWw81iAxw7IG+yCwikc4G2Os8MooGWOPvAf+GcGDkZ5wGSQD3y6YyFzzoiofeuM6DXBBesFjdGV1MH2GylbN/WD5ui/46sdKVuNZlfbDOrRO+DzHdeX2geadALRs+bAUSf1qwAAAABJRU5ErkJggg==", "w": 40, "h": 62}, "scenery/basket_front.png": {"src": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAANgAAABYCAMAAACgTskHAAAAzFBMVEUAAAArJCBKPzheV02KgXLHvquzn3jdy6Xz6dL79+4fOzoqTUs6dnJPmpSGwrbD4NRuJjCoOjzZU0/sim71v6B6WhyzhCXiszzx0nr67Lw9ekVfrlql0X5KMCJ6UjKoek7SqHRKMBCKXRrIkyv/zz8qDhRWEyeKHzOyOlXs6+THw7ippZuNioNva2NXU0xFQj09OjYsKSYkIh/dsHrJjE6ocDpuRSQ+JhTs4Mbk1rnNu5i5pHzk9vO/4t0sNTMiKilfsKgXLCvitIzDj2o0VfsQAAAAAXRSTlMAQObYZgAAAZhJREFUeNrt3G1qwzAMBmD73+i63mMlmBxhu/+lFscN9YcSFtkBy3pfKCVug/SAmqaB1JgldrCYLYPCrH1ECS89BKXs+EUbFJYvfa+RQ6M7XmgDw36i+Lc9n9OUrvYcumNdsGmSBis71gPzSyFyYFS/I8P8N9k9irXOzbNz6eqZcE6C+LV8t/OcG15nHsPC8mw0Xhwj/FqBRZ4GDwzzH7evKDW0UOpsampZG/eejKIa2Jt2fqR4MN/e+WolSy9so3Ha48J4e+V9a4Dt02oPHn776DltkZNDljoYL9wRblNdJ+x3DX+LM1I19QC7rand+n9a1gMMMMAA6x32sQQwWaMImDwYFcBqYCmt/eHeM/LHFbCCpQTWPkeD2DKAtaTtDSJgvcKuH0TAWo/i9dEKq738tj+M9A+ZdvW0wuReGgAMsH5hMU0qjGQBBhhggAEGGGCdw6QGMMAAA6w97C48mmDSh3GXBRhggAFWBStvRezzsE71qA223dT4maXHvyKhezRGGyzgyp1MZ2H1OCysvH3YdBhWj2PA/gB+CNYN2C6qxgAAAABJRU5ErkJggg==", "w": 216, "h": 88}, "scenery/bread_boule.png": {"src": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAASCAMAAAANFixgAAAAzFBMVEUAAAArJCBKPzheV02KgXLHvquzn3jdy6Xz6dL79+4fOzoqTUs6dnJPmpSGwrbD4NRuJjCoOjzZU0/sim71v6B6WhyzhCXiszzx0nr67Lw9ekVfrlql0X5KMCJ6UjKoek7SqHRKMBCKXRrIkyv/zz8qDhRWEyeKHzOyOlXs6+THw7ippZuNioNva2NXU0xFQj09OjYsKSYkIh/dsHrJjE6ocDpuRSQ+JhTs4Mbk1rnNu5i5pHzk9vO/4t0sNTMiKilfsKgXLCvitIzDj2o0VfsQAAAAAXRSTlMAQObYZgAAAFtJREFUeNq9zcERgDAIRFEow0uagP5rM6uIkBD15L9l9k0gumOPiniomtUbCZ5ylE3YxUuk2GXrZYHjPiVg4toNnEdMAfgH4XoAjA902lHrqYGyf0Fb9hE89wp2Zdk8/Aozd3UAAAAASUVORK5CYII=", "w": 32, "h": 18}, "scenery/bread_tin.png": {"src": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACIAAAAWCAMAAACScr5LAAAAzFBMVEUAAAArJCBKPzheV02KgXLHvquzn3jdy6Xz6dL79+4fOzoqTUs6dnJPmpSGwrbD4NRuJjCoOjzZU0/sim71v6B6WhyzhCXiszzx0nr67Lw9ekVfrlql0X5KMCJ6UjKoek7SqHRKMBCKXRrIkyv/zz8qDhRWEyeKHzOyOlXs6+THw7ippZuNioNva2NXU0xFQj09OjYsKSYkIh/dsHrJjE6ocDpuRSQ+JhTs4Mbk1rnNu5i5pHzk9vO/4t0sNTMiKilfsKgXLCvitIzDj2o0VfsQAAAAAXRSTlMAQObYZgAAAGFJREFUeNrNzrERwCAIhWEcI41LwP6zxVMID+WMVS5/YSGfHkRegWitJCVAoAmNOWtRubA5Xy1GpEKeIZyGOhF/D3/ZRy5w17iREZFoViJT46K2OkmE9j2p23637gF564DcSBdcod1epSoAAAAASUVORK5CYII=", "w": 34, "h": 22}, "scenery/cash_drawer.png": {"src": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAToAAABMCAMAAADKkIsGAAAAzFBMVEUAAAArJCBKPzheV02KgXLHvquzn3jdy6Xz6dL79+4fOzoqTUs6dnJPmpSGwrbD4NRuJjCoOjzZU0/sim71v6B6WhyzhCXiszzx0nr67Lw9ekVfrlql0X5KMCJ6UjKoek7SqHRKMBCKXRrIkyv/zz8qDhRWEyeKHzOyOlXs6+THw7ippZuNioNva2NXU0xFQj09OjYsKSYkIh/dsHrJjE6ocDpuRSQ+JhTs4Mbk1rnNu5i5pHzk9vO/4t0sNTMiKilfsKgXLCvitIzDj2o0VfsQAAAAAXRSTlMAQObYZgAAAZlJREFUeNrt3EGugjAUhWHZRHHuSJ5EcP+Le0Ct0lhL6S3XEP4zMJ3UI5+pCI2eKpKZEwQCukcgbfvIyJFmQbctXT3lcxyf1UxZ+8Liz//9cOZtsWZ/VmobdNp0dX0eYivm4/isprkOScMLd605nHlbvNl/m1LboCtP1wfStm5UP2OMP47Pap653frFhLvSZ/lt8eb5rPS2+SwX6GR0S4vIFfjjpQXrDmDdgo0/f/yUZNvizZ+npJS27M866L7SEa5h9elakhHooINub3Q9yQh0Mrr7vSOrAh100EEHHYEOOuiggw466KCDDrr3BsZxkextTei06KrqPOUyRIqnvc1XDq7r7IY1dBp0Fu7yiuzlVNVVMaXo3AbOytMEdCK6EWxMCbo/xZRcsKHlCt12dBbM0hkjpdPdXP7xgoVORDfijY9yur1+OclesNAJ6YyR0rk6vfzwQgw60TWsxSsDt1e6zGtY6DLpuOnErU5usEMHHXTQQQcddNAR6KCDDjrooIMOOuigI9BtQ8eP0fntP3TQHYGO8E9iyvkHPMJS/tS7qYcAAAAASUVORK5CYII=", "w": 314, "h": 76}, "scenery/cashier.png": {"src": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAEwAAACQCAMAAACVtX1NAAAAzFBMVEUAAAArJCBKPzheV02KgXLHvquzn3jdy6Xz6dL79+4fOzoqTUs6dnJPmpSGwrbD4NRuJjCoOjzZU0/sim71v6B6WhyzhCXiszzx0nr67Lw9ekVfrlql0X5KMCJ6UjKoek7SqHRKMBCKXRrIkyv/zz8qDhRWEyeKHzOyOlXs6+THw7ippZuNioNva2NXU0xFQj09OjYsKSYkIh/dsHrJjE6ocDpuRSQ+JhTs4Mbk1rnNu5i5pHzk9vO/4t0sNTMiKilfsKgXLCvitIzDj2o0VfsQAAAAAXRSTlMAQObYZgAAAdxJREFUeNrt18uWgyAMBmBZ2Z4x27rSeRd5/3caL1QJEmpIasce/k0V7VduUqyqq8a4qFD9kk7OPakR6zqjZU2YUNPEPGvGRJqPiXsNY9OIKmK9UdUks22H9YJ+Mz14kWlzxRCVr+0bma8RVtZ8o6wsTROjLb6WstgryHkYs51pi1m1f4tFrGELcw03lCPDhkgysWEoWA5mzMYsx7pYp9lMHvbUUhj72Yxj3Scxp8Uoa7u8lTZqfRir/Ok1DL9jntYU9s7KxOs1WxmbDUVrj1kBFmoiC2tWaI2aDSkr2HAbG0T2yoM46XuiUWpjMAgFOwEzODeX6bh2CW5JUDcUQGcOA3xOcOOP3wIsonllNc2NtdpjOw0VrS2PWCEWWtO3UWFNaHNvvcSCwjquLT3PxeKaG8X6tUVVzdPegSGNsNCFGLbOVQG2am/HSMu/9BVYIh/EAI5oV8em+7d1ntQYWOuigt1dmNha4veYuc9tJDDgYqma0dj2r83F9tstAkuO5mEMDqVgHgZwVCuYw+BwCuYwYOREbNRYmL0qxrGgKZg61nDycyZWRvN7MJ4FTSPA2kfBTsNiD3b7WD75WGJGFKxgEswCF2sKVrCCYWwt8TdyiT2ed/xerNLAKm3sD06L+u0LLbKKAAAAAElFTkSuQmCC", "w": 76, "h": 144}, "scenery/ceiling_lamp.png": {"src": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAEoAAAAUCAMAAAAdilvEAAAAzFBMVEUAAAArJCBKPzheV02KgXLHvquzn3jdy6Xz6dL79+4fOzoqTUs6dnJPmpSGwrbD4NRuJjCoOjzZU0/sim71v6B6WhyzhCXiszzx0nr67Lw9ekVfrlql0X5KMCJ6UjKoek7SqHRKMBCKXRrIkyv/zz8qDhRWEyeKHzOyOlXs6+THw7ippZuNioNva2NXU0xFQj09OjYsKSYkIh/dsHrJjE6ocDpuRSQ+JhTs4Mbk1rnNu5i5pHzk9vO/4t0sNTMiKilfsKgXLCvitIzDj2o0VfsQAAAAAXRSTlMAQObYZgAAAFxJREFUeNrN0DEOwCAMBMGr84L7/0sTBMiRRQPegu1vZFkPlkxJvpQS9ipRZxmmEMuNQqwukRRgTaluhfRRrklBNcsF6CdVrCx1y2dQkia2w42BFvkorcOgXS4vX1TAP2UzOGteAAAAAElFTkSuQmCC", "w": 74, "h": 20}, "scenery/juice_bottles.png": {"src": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACwAAAAoCAMAAACyy+glAAAAzFBMVEUAAAArJCBKPzheV02KgXLHvquzn3jdy6Xz6dL79+4fOzoqTUs6dnJPmpSGwrbD4NRuJjCoOjzZU0/sim71v6B6WhyzhCXiszzx0nr67Lw9ekVfrlql0X5KMCJ6UjKoek7SqHRKMBCKXRrIkyv/zz8qDhRWEyeKHzOyOlXs6+THw7ippZuNioNva2NXU0xFQj09OjYsKSYkIh/dsHrJjE6ocDpuRSQ+JhTs4Mbk1rnNu5i5pHzk9vO/4t0sNTMiKilfsKgXLCvitIzDj2o0VfsQAAAAAXRSTlMAQObYZgAAAFVJREFUeNrt1LEOwCAIRVEYXR18+v8/qqV2YFEYTEzDnThOEhOJnPHMxiydoOsaXEe/5bPpSzlYklVb4pthYGuQSgmeZJoFLyKg3ijoJ2Cg4/sirSU7pYJDjWmrmToAAAAASUVORK5CYII=", "w": 44, "h": 40}, "scenery/printer_box.png": {"src": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAQgAAAA+CAMAAADgfHXJAAAAzFBMVEUAAAArJCBKPzheV02KgXLHvquzn3jdy6Xz6dL79+4fOzoqTUs6dnJPmpSGwrbD4NRuJjCoOjzZU0/sim71v6B6WhyzhCXiszzx0nr67Lw9ekVfrlql0X5KMCJ6UjKoek7SqHRKMBCKXRrIkyv/zz8qDhRWEyeKHzOyOlXs6+THw7ippZuNioNva2NXU0xFQj09OjYsKSYkIh/dsHrJjE6ocDpuRSQ+JhTs4Mbk1rnNu5i5pHzk9vO/4t0sNTMiKilfsKgXLCvitIzDj2o0VfsQAAAAAXRSTlMAQObYZgAAAOpJREFUeNrt20EOgjAQQNHONcQTwIjU+x9O2oSWIpoag6nO/ztgxUtI2gGcc0LiQjBECJGe+pkCiAQxDBqz+EioLvcOxBZC5GawhQIIIIAAAggggPgEQvVisN2VJRCDmg8IIIB4BUFArCEojm8hSBAjjUCUEFfzAQEEEEAAAQQQLUK0OrYFogai3IbsnVtfqYWoX+j6rwVELcR5rotliPIjmzDWAsI2xOOg8z0I32BA1EJ0KSCACIenVIbYvjgFwhLEEQsqIH4X4phNFxBAMI8AglHdP0FMNAEBBBDPITx5IDIEv0Tzb3gBcQfM9v3ktMddCQAAAABJRU5ErkJggg==", "w": 264, "h": 62}, "scenery/printer_lip.png": {"src": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAPQAAAAICAMAAAD5oSKuAAAAzFBMVEUAAAArJCBKPzheV02KgXLHvquzn3jdy6Xz6dL79+4fOzoqTUs6dnJPmpSGwrbD4NRuJjCoOjzZU0/sim71v6B6WhyzhCXiszzx0nr67Lw9ekVfrlql0X5KMCJ6UjKoek7SqHRKMBCKXRrIkyv/zz8qDhRWEyeKHzOyOlXs6+THw7ippZuNioNva2NXU0xFQj09OjYsKSYkIh/dsHrJjE6ocDpuRSQ+JhTs4Mbk1rnNu5i5pHzk9vO/4t0sNTMiKilfsKgXLCvitIzDj2o0VfsQAAAAAXRSTlMAQObYZgAAADFJREFUeNpjYAACXV0GhpFEM4xQT+vqammBuCOHHpmeZmTUHGGAkXGkelpvhIER6mkAVCD23cypqRgAAAAASUVORK5CYII=", "w": 244, "h": 8}, "scenery/register_keypad.png": {"src": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAFgAAABWCAMAAAB8QaF2AAAAzFBMVEUAAAArJCBKPzheV02KgXLHvquzn3jdy6Xz6dL79+4fOzoqTUs6dnJPmpSGwrbD4NRuJjCoOjzZU0/sim71v6B6WhyzhCXiszzx0nr67Lw9ekVfrlql0X5KMCJ6UjKoek7SqHRKMBCKXRrIkyv/zz8qDhRWEyeKHzOyOlXs6+THw7ippZuNioNva2NXU0xFQj09OjYsKSYkIh/dsHrJjE6ocDpuRSQ+JhTs4Mbk1rnNu5i5pHzk9vO/4t0sNTMiKilfsKgXLCvitIzDj2o0VfsQAAAAAXRSTlMAQObYZgAAAP5JREFUeNrtlw0KwyAMRvU+q9b7X26sInVoaGN+att8UDqIPkoYvuhcFd/NaEUKvK4h7OClifcpDVWUwGHLZ8vvV4xlO7qiCs4L+9tPV5TBeYlAKy4AQ61o2jcNeLYexyZlO7qiBO4lb0dXVMDOpW6GKkpgxqiABWVqlm5kCguIaOkLwOVgPawog58zCSFGmUnAgkOhWdosbZY2S4tb+n73vLIEc9Cfuo6JgUdasX/ObGBoYGG4SxPAd5qEzNJm6adaGg7R0izgBRGipZnAocl+uPynPoTKmvw+uIMogOvjHQLXj4HfAJ77fxwRIVqaCYwL0dIMYEiMcIiWHgF/AQXwHsLB4isQAAAAAElFTkSuQmCC", "w": 88, "h": 86}, "scenery/wall_clock.png": {"src": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACwAAAAsCAMAAAApWqozAAAAzFBMVEUAAAArJCBKPzheV02KgXLHvquzn3jdy6Xz6dL79+4fOzoqTUs6dnJPmpSGwrbD4NRuJjCoOjzZU0/sim71v6B6WhyzhCXiszzx0nr67Lw9ekVfrlql0X5KMCJ6UjKoek7SqHRKMBCKXRrIkyv/zz8qDhRWEyeKHzOyOlXs6+THw7ippZuNioNva2NXU0xFQj09OjYsKSYkIh/dsHrJjE6ocDpuRSQ+JhTs4Mbk1rnNu5i5pHzk9vO/4t0sNTMiKilfsKgXLCvitIzDj2o0VfsQAAAAAXRSTlMAQObYZgAAAOJJREFUeNqt1csOhDAIBVBZkUb//3vHSGmB8miTuTvjkWBnhOuygZGrCJiU9O5JuYTygcASeHoGD8s+Kn5xSVsP17bFyUpJcTVbRgCaS2ytwIv+mrAtDG8a8azthHFvokVYaSocW9KEy8KytFtY45Zj8DHULTfk09vpgvUfsLELVvftRYHFpYOXo4PtFzS8wkpPHOn5GuNHiUuvLXd8H+A3lZV/6AQjmi8l07h+hKHWdozE1IIaMlLPE8ZgJAnN2LNzNr8c5ylgNkYp2CPHf70jkk0R6HipbC+gs9V2uDSrdfwD8aQvM7dPDQwAAAAASUVORK5CYII=", "w": 44, "h": 44}, "scenery/wicker_basket.png": {"src": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADYAAAAVCAMAAAA6o+13AAAAzFBMVEUAAAArJCBKPzheV02KgXLHvquzn3jdy6Xz6dL79+4fOzoqTUs6dnJPmpSGwrbD4NRuJjCoOjzZU0/sim71v6B6WhyzhCXiszzx0nr67Lw9ekVfrlql0X5KMCJ6UjKoek7SqHRKMBCKXRrIkyv/zz8qDhRWEyeKHzOyOlXs6+THw7ippZuNioNva2NXU0xFQj09OjYsKSYkIh/dsHrJjE6ocDpuRSQ+JhTs4Mbk1rnNu5i5pHzk9vO/4t0sNTMiKilfsKgXLCvitIzDj2o0VfsQAAAAAXRSTlMAQObYZgAAAFRJREFUeNq90kEKACAIRFE7U3r/q6VC1NIZIxfuHv1AGdQIzSY8Hfbzb+LQVNWsuhMFA4zvHgsHRG7FMySyz6jIdFV2VFZWH3zBqEjgUG4l4PHTbAGKo4ltsI0Q8AAAAABJRU5ErkJggg==", "w": 54, "h": 21}, "scenery/yoghurt_pots.png": {"src": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAFsAAAAmCAMAAACcVBe0AAAAzFBMVEUAAAArJCBKPzheV02KgXLHvquzn3jdy6Xz6dL79+4fOzoqTUs6dnJPmpSGwrbD4NRuJjCoOjzZU0/sim71v6B6WhyzhCXiszzx0nr67Lw9ekVfrlql0X5KMCJ6UjKoek7SqHRKMBCKXRrIkyv/zz8qDhRWEyeKHzOyOlXs6+THw7ippZuNioNva2NXU0xFQj09OjYsKSYkIh/dsHrJjE6ocDpuRSQ+JhTs4Mbk1rnNu5i5pHzk9vO/4t0sNTMiKilfsKgXLCvitIzDj2o0VfsQAAAAAXRSTlMAQObYZgAAAHxJREFUeNrtlTEOwCAMA2GKGLp06cD//1miKkqD6NR4QLLHU2IYrLgUpOqkPDLYEaRTZ5CSK0hJD1pugf9dm0mkPVM5ZF/vFxSZn/tH0N6WP5+yJDmx/Dmx/H1v0XvtvWdOHA6WS3b2jpcRQ9g77B32DnuHvcPeQfcOzvsGwftMhVUZRtQAAAAASUVORK5CYII=", "w": 91, "h": 38}};
+
+// ------------------------------------------------------------------ helpers
+const clamp = (v, a = 0, b = 1) => Math.max(a, Math.min(b, v));
+const seg = (t, a, b) => clamp((t - a) / (b - a));
+const lerp = (a, b, p) => a + (b - a) * p;
+const ease = p => p < .5 ? 2 * p * p : 1 - Math.pow(-2 * p + 2, 2) / 2;
+const easeOut = p => 1 - Math.pow(1 - p, 3);
+const backE = p => { const c = 1.7; return 1 + (c + 1) * Math.pow(p - 1, 3) + c * Math.pow(p - 1, 2); };
+const $ = s => document.querySelector(s);
+function el(tag, cls, parent, html) { const e = document.createElement(tag); if (cls) e.className = cls; if (html != null) e.innerHTML = html; if (parent) parent.appendChild(e); return e; }
+function img(name, scale, cls) { const i = new Image(); i.src = IMG[name].src; i.width = IMG[name].w * scale; i.height = IMG[name].h * scale; if (cls) i.className = cls; i.draggable = false; return i; }
+function imgHtml(name, scale, style = '') { return `<img src="${IMG[name].src}" width="${IMG[name].w * scale}" height="${IMG[name].h * scale}" style="${style}">`; }
+function ticketIcon(w) { const h = Math.round(w * 11 / 16); return `<svg width="${w}" height="${h}" viewBox="0 0 16 11" shape-rendering="crispEdges" style="display:inline-block;vertical-align:middle"><path d="M0 0h16v4h-1v3h1v4h-16v-4h1v-3h-1z" fill="#2b2420"/><path d="M1 1h14v2h-1v5h1v2h-14v-2h1v-5h-1z" fill="#ffcf3f"/><path d="M5 1h1v1h-1zM5 3h1v1h-1zM5 5h1v1h-1zM5 7h1v1h-1zM5 9h1v1h-1z" fill="#b38425"/><path d="M10 3h1v1h1v1h1v1h-1v1h-1v1h-1v-1h-1v-1h-1v-1h1v-1h1z" fill="#d9534f"/></svg>`; }
+function place(e, x, y) { e.style.left = x + 'px'; e.style.top = y + 'px'; }
+
+// ------------------------------------------------------------------ data (integration build, shift 3)
+const CHUTES = [
+  { id: 'new', name: 'NEW ITEMS', sub: 'ADD TO CART', icon: 'icons/cart.png', s: 4 },
+  { id: 'coupons', name: 'COUPONS', sub: 'ADD TO CART', icon: 'icons/coupon_two_for_one_v2.png', s: 3 },
+  { id: 'register', name: 'REGISTER', sub: 'STAMP YOUR CARD', icon: 'icons/stamp_ring.png', s: 3 },
+  { id: 'upgrades', name: 'UPGRADES', sub: 'IMPROVE ONE YOU OWN', icon: 'icons/up_arrow.png', s: 4 },
+];
+// Per-drop tier shares (MachineOdds rarity_share) by Regular level. NEW ITEMS: no LEGENDARY product in the
+// fresh stock, so its LEGENDARY rolls fall to RARE.
+const ODDS = {
+  new: [[75, 25, 0], [65, 35, 0]],
+  coupons: [[75, 22, 3], [65, 28, 7]],
+  register: [[75, 22, 3], [65, 28, 7]],
+  upgrades: [[75, 22, 3], [65, 28, 7]],
+};
+const RAR = [['COMMON', '■'], ['RARE!', '■■'], ['LEGENDARY!!', '★★★']];
+const PRIZES = {
+  new: [{ r: 0, a: 'items_v2/cheese.png', nm: 'Cheese', ds: 'add to cart' }, { r: 1, a: 'items_v2/eggs.png', nm: 'Eggs', ds: 'add to cart' }, { r: 0, a: 'items_v2/strawberries.png', nm: 'Strawberries', ds: 'add to cart' }],
+  coupons: [{ r: 0, a: 'items_v2/coupon_slip.png', nm: 'Clearance tag', ds: 'add to cart' }, { r: 1, a: 'icons/coupon_two_for_one_v2.png', s: 4, nm: '2 for 1', ds: 'add to cart' }, { r: 1, a: 'icons/coupon_multipack_v2.png', s: 4, nm: 'Multipack', ds: 'add to cart' }],
+  register: [{ r: 0, a: 'icons/stamp_ring.png', s: 6, nm: 'Extra redraw', ds: 'stamp your card' }, { r: 1, a: 'icons/stamp_ring.png', s: 6, nm: 'Coupon engine', ds: 'stamp your card' }, { r: 0, a: 'icons/stamp_ring.png', s: 6, nm: 'Big basket', ds: 'stamp your card' }],
+  upgrades: [{ r: 0, a: 'items_v2/milk.png', b: 'items_v2/milk_big.png', nm: 'Milk → BIG', ds: 'your Milk, in place' }, { r: 1, a: 'items_v2/banana.png', b: 'items_v2/banana_golden.png', nm: 'Banana → GOLDEN', ds: 'your Banana, in place' }, { r: 0, a: 'items_v2/coffee.png', b: 'items_v2/coffee_big.png', nm: 'Coffee → BIG', ds: 'your Coffee, in place' }],
+};
+const PICK_INDEX = { new: 1, coupons: 1, register: 1, upgrades: 1 };
+const chuteName = id => CHUTES.find(c => c.id === id).name;
+// visit 2 first presses the chute whose odds just rose, then changes its mind to S.chosen[2]
+const firstPress2 = () => S.chosen[1] !== S.chosen[2] ? S.chosen[1] : (S.chosen[2] === 'upgrades' ? 'new' : 'upgrades');
+const upgradedPick = () => S.chosen[1] === 'upgrades' || S.chosen[2] === 'upgrades';
+const UP_AT = 34.9;   // the upgraded item swaps in place once the store is back
+
+// ------------------------------------------------------------------ the timeline (seconds at 1x)
+const T_END = 37.4;
+const TL = {
+  plan: [0, 4.2], shiftEnd: 4.2, stamp: 5.0, earn: [5.7, 7.3], tear: [7.9, 8.7], trans: [8.8, 11.0], feed: [11.0, 11.8],
+  v1hover1: [12.4, 13.8], v1hover2: [14.2, 15.8], v1press: 15.8, v1confirm: 17.4, v1draw: [17.6, 20.2], v1pick: 20.6, v1fly: [20.8, 21.6], v1punch: 21.8,
+  bonusFeed: [22.4, 23.4], v2hover1: [24.2, 25.6], v2press: 25.6, v2hover2: [26.2, 26.7], v2press2: 26.7, v2confirm: 27.8, v2draw: [28.0, 30.4], v2pick: 30.8, v2fly: [31.0, 31.8], v2punch: 32.0,
+  ret: [32.6, 34.8],
+};
+const BEATS = [
+  ['1 · Planning: the notice', 0], ['2 · Shift passed: stamp + ticket', 4.2], ['3 · Tear → machine', 7.6], ['4 · Ticket visit', 11.0], ['5 · Bonus visit', 22.2], ['6 · Back to the store', 32.4], ['7 · Your upgrade, in the basket', 34.6],
+];
+const CAPTIONS = [
+  [0, 4.2, 'SHIFT 3 · PLANNING', 'The inspection chip and the monitor both say what passing earns: <b style="font:inherit;color:inherit">PASS → +1 BONUS TICKET</b>.'],
+  [4.2, 5.0, 'SHIFT 3 · PAID', 'Count-up done (skipped here): spend met, the receipt says PAID.'],
+  [5.0, 7.9, 'INSPECTION PASSED', 'The stamp lands on the receipt and the BONUS TICKET appears next to it. Q2 switches how.'],
+  [7.9, 8.8, 'TEAR', 'The receipt is torn off the printer, as today.'],
+  [8.8, 11.0, 'TO THE MACHINE', 'Q1 · A: the camera glides to the machine on the back wall · B: the store slides away to the stockroom screen.'],
+  [11.0, 12.4, 'TICKET VISIT', 'The receipt feeds in. Four chute keys; UPGRADES just opened after shift 3.'],
+  [12.4, 15.8, 'ODDS ON HOVER', 'Only while the mouse rests on a key: COMMON / RARE! / LEGENDARY!! with their %, nothing else.'],
+  [15.8, 17.6, 'PRESS + CONFIRM', 'The key goes down and lights; the machine shows UPGRADES big with CONFIRM.'],
+  [17.6, 22.2, 'DRAW · PICK 1', 'Three prizes, keep one (short version of today\'s reveal). UPGRADES punch card: REGULAR 1/3.'],
+  [22.2, 24.2, 'BONUS VISIT', 'The bonus ticket feeds in: BONUS TICKET · inspection passed.'],
+  [24.2, 27.8, 'CHANGE YOUR MIND', () => { const f = firstPress2(), n = chuteName(f), c2 = chuteName(S.chosen[2]); return (f === S.chosen[1] ? n + ' odds rose (REGULAR 1). ' : '') + 'Pressed ' + n + ', then pressed ' + c2 + ' instead: the title follows the key.'; }],
+  [27.8, 32.4, 'DRAW · PICK 1', 'Confirm, draw, pick.'],
+  [32.4, 34.9, 'SHIFT 4', 'Back to the store for the next shift. A: camera glides back, the machine dims · B: slides back.'],
+  [34.9, 99, 'YOUR UPGRADE', () => upgradedPick() ? 'The Banana you upgraded turns GOLDEN right in your basket, with a flash: same card, better tier, in place.' : 'No UPGRADES prize this time, so nothing in the basket changes.'],
+];
+
+// ------------------------------------------------------------------ state
+const Q = new URLSearchParams(location.search);
+if (Q.get('still') === '1') document.body.classList.add('still');
+const S = {
+  opt: Q.get('opt') === 'B' ? 'B' : 'A', tk: Q.get('tk') === '2' ? 2 : 1, rm: Q.get('rm') === '1',
+  t: Q.has('at') ? parseFloat(Q.get('at')) : 0, playing: !Q.has('at') && !Q.has('try'), last: 0,
+  tryVisit: 0, user: { hover: null, pressed: null }, chosen: { 1: 'upgrades', 2: 'new' },
+  forceHover: Q.get('hover'), forcePress: Q.get('press'),
+};
+
+// ------------------------------------------------------------------ build the stage
+const stage = $('#stage');
+const world = el('div', 'abs', stage); world.id = 'world';
+const back = el('div', 'abs', world); back.id = 'back';
+el('div', 'abs wall', back); el('div', 'abs floorBack', back);
+const sgn = el('div', 'abs sign', back, imgHtml('icons/aisle_fruit_and_veg.png', 2, 'display:inline-block;vertical-align:-6px;margin-right:6px') + 'FRUIT &amp; VEG'); place(sgn, 352, 126); sgn.style.width = '150px';
+const clock = img('scenery/wall_clock.png', 1); clock.className = 'abs'; place(clock, 912, 72); back.appendChild(clock);
+const shelf = el('div', 'abs shelf', back); place(shelf, 856, 120); shelf.style.width = '170px'; shelf.style.height = '200px';
+[40, 100, 160].forEach(y => { const i = el('i', '', shelf); i.style.top = y + 'px'; });
+[[10, 6, 'scenery/bread_tin.png', 2], [86, 8, 'scenery/bread_boule.png', 2], [14, 70, 'scenery/wicker_basket.png', 2], [10, 130, 'scenery/baguette_bin.png', 1]].forEach(([x, y, n, s]) => { const i = img(n, s); i.className = 'abs'; place(i, x, y); shelf.appendChild(i); });
+function fridge(x, w) {
+  const f = el('div', 'abs fridge', back); place(f, x, 92); f.style.width = w + 'px'; f.style.height = '230px';
+  [70, 140, 200].forEach(y => { const i = el('i', '', f); i.style.top = y + 'px'; });
+  const a = img('scenery/juice_bottles.png', 1); place(a, 16, 26); f.appendChild(a);
+  const b = img('scenery/yoghurt_pots.png', 1); place(b, 14, 100); f.appendChild(b);
+  const c = img('items_v2/milk.png', 1); place(c, 20, 152); f.appendChild(c);
+  const d = img('items_v2/cheese.png', 1); place(d, 70, 152); f.appendChild(d);
+  return f;
+}
+const fridgesStore = [fridge(1044, 106), fridge(1156, 106)];   // option B: the store as today
+const fridgesA = [fridge(1290, 120), fridge(1420, 120)];       // option A: beyond the machine
+const machineSpotA = { x: 962, y: 70 };                        // option A: machine on the back wall at 0.5
+// the crate under the sign
+const crate = el('div', 'abs', back); place(crate, 368, 216); crate.style.cssText += 'width:110px;height:104px;background:var(--goodD);border:2px solid var(--ink)';
+const straw = img('items_v2/strawberries.png', 1); straw.className = 'abs'; place(straw, 378, 196); back.appendChild(straw);
+const ban0 = img('items_v2/banana.png', 1); ban0.className = 'abs'; place(ban0, 418, 194); back.appendChild(ban0);
+
+const mid = el('div', 'abs', world); mid.id = 'mid';
+el('div', 'abs pole', mid).style.left = '560px'; el('div', 'abs pole', mid).style.left = '830px';
+const monitor = el('div', 'abs', mid); monitor.id = 'monitor';
+const scr = el('div', 'scr', monitor);
+const cashier = img('scenery/cashier.png', 1); cashier.id = 'cashier'; cashier.className = 'abs'; mid.appendChild(cashier);
+el('div', 'abs', mid, 'THANK<br>YOU').id = 'thank';
+const pBox = img('scenery/printer_box.png', 1); pBox.id = 'printerBox'; pBox.className = 'abs'; mid.appendChild(pBox);
+const pLip = img('scenery/printer_lip.png', 1); pLip.id = 'printerLip'; pLip.className = 'abs'; mid.appendChild(pLip);
+const clip = el('div', 'abs', mid); clip.id = 'clip';
+
+// the machine
+const machine = el('div', 'abs'); machine.id = 'machine';
+el('div', '', machine).id = 'mBody';
+const mHead = el('div', 'abs', machine, '<b>RECEIPT REWARDS</b><small>RESTOCK HATCH</small>'); mHead.id = 'mHead';
+const mBonusStamp = el('div', 'abs', machine, 'BONUS TICKET!<small>INSPECTION PASSED</small>'); mBonusStamp.id = 'mBonusStamp';
+const mSlotRow = el('div', 'abs', machine, '<span>INSERT RECEIPT</span>'); mSlotRow.id = 'mSlotRow';
+const mSlot = el('div', 'abs', mSlotRow); mSlot.id = 'mSlot';
+const mSlotLed = el('div', 'abs', mSlotRow); mSlotLed.id = 'mSlotLed';
+const mDock = el('div', 'abs', mSlotRow, 'BONUS TICKET HERE'); mDock.id = 'mDock';
+const mDisp = el('div', 'abs', machine); mDisp.id = 'mDisp';
+const dl1 = el('div', 'l1', mDisp), dl2 = el('div', 'l2', mDisp);
+const mConfirm = el('div', 'abs', mDisp, 'CONFIRM ›'); mConfirm.id = 'mConfirm';
+const keys = {}, punches = {};
+CHUTES.forEach((c, i) => {
+  const k = el('div', 'mKey', machine); k.style.left = (14 + i * 146) + 'px'; k.dataset.chute = c.id;
+  const ic = img(c.icon, c.s, 'ic'); k.appendChild(ic);
+  el('b', '', k, c.name); el('small', '', k, c.sub); el('span', 'led', k);
+  if (c.id === 'upgrades') el('span', 'newtag', k, 'NEW!');
+  keys[c.id] = k;
+  const p = el('div', 'mPunch', machine, 'REGULAR'); p.style.left = (14 + i * 146) + 'px';
+  for (let j = 0; j < 3; j++) { const sq = el('i', '', p); sq.style.left = (56 + j * 15) + 'px'; }
+  el('em', '', p, '0/3'); punches[c.id] = p;
+});
+const mRoom = el('div', 'abs', machine, '<span class="lbl">STOCKROOM</span>'); mRoom.id = 'mRoom';
+const mOrder = el('div', 'abs', mRoom); mOrder.id = 'mOrder';
+const boxes = [0, 1, 2].map(i => { const b = img('machine/mini_box.png', 3, 'mBox'); b.style.left = (196 + i * 124) + 'px'; mRoom.appendChild(b); return b; });
+const prizeEls = [0, 1, 2].map(i => { const p = el('div', 'prize', mRoom); p.style.left = (14 + i * 184) + 'px'; return p; });
+const odds = el('div', 'abs', stage); odds.id = 'odds';   // a stage overlay, so the docked bonus ticket never covers it
+const oddsRows = [0, 1, 2].map(r => el('div', 'orow r' + r, odds, `<span class="nm">${RAR[r][0]}</span><span class="pc"></span>`));
+
+// option B stockroom
+const room = el('div', 'abs', stage); room.id = 'room';
+el('div', 'brick', room); el('div', 'floor', room);
+function rack(x) {
+  const r = el('div', 'rack', room); r.style.left = x + 'px';
+  [120, 260, 396].forEach((y, j) => { const i = el('i', '', r); i.style.top = y + 'px';
+    for (let k = 0; k < 3; k++) { const b = img('machine/mini_box.png', 1.5); place(b, 12 + k * 70, y - 90); r.appendChild(b); } });
+  return r;
+}
+rack(50); rack(1000);
+const lamp = img('scenery/ceiling_lamp.png', 2); lamp.className = 'abs'; place(lamp, 566, 56); room.appendChild(lamp);
+const roomSign = el('div', 'abs', room, 'STOCKROOM <small>STAFF ONLY</small>'); roomSign.id = 'roomSign'; place(roomSign, 70, 72);
+const flaps = el('div', 'abs', stage); flaps.id = 'flaps';
+
+const fore = el('div', 'abs', world); fore.id = 'fore';
+el('div', 'abs belt', fore); el('div', 'abs beltFront', fore); el('div', 'abs under', fore); el('div', 'abs ledge', fore);
+const beltItems = [['items_v2/cheese.png', 400], ['items_v2/strawberries.png', 520], ['items_v2/croissant.png', 640], ['items_v2/eggs.png', 760]].map(([n, x]) => { const i = img(n, 2, 'beltItem'); i.style.left = x + 'px'; fore.appendChild(i); return i; });
+const basketItems = [];
+[[360, ['items_v2/banana.png', 'items_v2/milk.png']], [588, ['items_v2/tea_bags.png', 'items_v2/coffee.png']], [816, ['items_v2/banana.png', 'items_v2/cheese.png']], [1044, ['items_v2/milk.png', 'items_v2/eggs.png']], [1272, ['items_v2/coffee.png', 'items_v2/tea_bags.png']]].forEach(([x, its]) => {
+  const b = el('div', 'abs basket', fore); place(b, x, 534);
+  its.forEach((n, j) => { const i = img(n, 2, 'it'); i.style.left = (14 + j * 92) + 'px'; b.appendChild(i); basketItems.push(i); });
+  const bf = img('scenery/basket_front.png', 1, 'bf'); b.appendChild(bf);
+});
+// the upgraded Banana (first basket, first item): flash, sunburst and a tag when it swaps in place
+const upItem = basketItems[0];
+const upShine = el('div', 'abs'); upShine.id = 'upShine'; fore.insertBefore(upShine, upItem.parentNode);   // behind the basket
+const upFlash = el('div', 'abs', fore); upFlash.id = 'upFlash';
+const upTag = el('div', 'abs', fore, 'BANANA → GOLDEN'); upTag.id = 'upTag';
+el('div', 'abs regcol', fore); el('div', 'abs keyCheckout', fore, 'CHECKOUT ›'); el('div', 'abs keyRedraw', fore, 'Redraw <small>2 left</small>');
+const kp = img('scenery/register_keypad.png', 1); kp.id = 'keypad'; kp.className = 'abs'; fore.appendChild(kp);
+const dr = img('scenery/cash_drawer.png', 1); dr.id = 'drawer'; dr.className = 'abs'; fore.appendChild(dr);
+
+// the HUD
+const hud = el('div', 'abs', stage); hud.id = 'hud';
+const hShift = el('div', 'hb', hud); hShift.id = 'hShift';
+const hSpend = el('div', 'hb', hud, 'SPEND <span class="q">€58+</span><div class="bar"><i></i><em></em></div><span class="val">€0</span>'); hSpend.id = 'hSpend';
+const hChip = el('div', 'hb', hud); hChip.id = 'hChip';
+el('div', 'hb', hud, 'LOYALTY').id = 'hLoyal';
+const hCart = el('div', 'hb', hud); hCart.id = 'hCart';
+
+// receipt + ticket overlay
+const receipt = el('div', 'abs', stage); receipt.id = 'receipt';
+const rPaper = el('div', 'paper', receipt);
+const rStamp = el('div', 'abs', rPaper, 'INSPECTION PASSED ✓<small>SHORT BELT</small>'); rStamp.id = 'stamp';
+const rBody = el('div', '', rPaper);
+const rStubWrap = el('div', 'stubWrap', receipt);   // its height animates; the stub inside keeps its full size
+const rStub = el('div', 'stub', rStubWrap, ticketIcon(34) + '<b>BONUS TICKET</b><small>inspection passed · keep me</small>');
+const rZig = el('div', 'zigline', receipt);
+const ticket = el('div', 'abs', stage); ticket.id = 'ticket';
+const tShine = el('div', 'abs', ticket); tShine.id = 'ticketShine';
+el('div', 'tk', ticket, ticketIcon(34) + '<b>BONUS TICKET</b><small>inspection passed</small>');
+const tBanner = el('div', 'abs', stage, '+1 BONUS TICKET'); tBanner.id = 'ticketBanner';
+const flyer = el('div', 'abs', stage); flyer.style.zIndex = 33;
+const fade = el('div', 'abs', stage); fade.id = 'fade';
+const ring = el('div', 'ring', stage);
+const cursor = el('div', 'abs', stage, '<svg width="26" height="34" viewBox="0 0 13 17" shape-rendering="crispEdges"><path d="M0 0h1v1h1v1h1v1h1v1h1v1h1v1h1v1h1v1h1v1h1v1h1v1h-4v1h1v1h1v2h-2v-1h-1v-2h-1v1h-1v1h-1v1h-2z" fill="#2b2420"/><path d="M1 2h1v1h1v1h1v1h1v1h1v1h1v1h1v1h1v1h1v1h-4v1h1v1h1v1h-1v-1h-1v-2h-2v1h-1v1h-1z" fill="#fbf7ee"/></svg>'); cursor.id = 'cursor';
+
+const RECEIPT_PLAN = `<div class="row"><span>NEXT CUSTOMER · REG 3</span></div><div class="row"><span>SHIFT 3/8 · 5 ITEMS</span></div>
+<div style="border-top:2px dashed var(--creamD);margin:4px 0"></div>
+<div class="row"><span>Cheese</span><span>€3.00</span></div><div class="row"><span>Strawberries</span><span>€2.00</span></div>
+<div class="row"><span>Croissant</span><span>€17.00</span></div><div class="row"><span>Eggs</span><span>€6.00</span></div><div class="row"><span>5 ·····</span></div>
+<div class="row proj"><span>PROJECTED</span><span style="color:var(--tom);font-size:20px">€28.00</span></div><div class="row" style="color:var(--tom);font-size:12px"><span>short €30.00 · hover an item</span></div>`;
+const RECEIPT_PAID = `<div class="row"><span>Cheese</span><span>€3.00</span></div><div class="row sub"><span>+ beside Produce</span><span>+€3</span></div>
+<div class="row"><span>Strawberries</span><span>€2.00</span></div><div class="row"><span>Croissant</span><span>€17.00</span></div><div class="row sub"><span>+ beside Bakery</span><span>+€2</span></div>
+<div class="row"><span>Eggs</span><span>€6.00</span></div><div class="row"><span>Milk ×3</span><span>€63.00</span></div>
+<div class="row tot"><span>TOTAL</span><span>€96.00 / €58.00</span></div><div class="row over"><span>+€38.00 OVER QUOTA</span><span class="paid">PAID</span></div>`;
+const RECEIPT_NEXT = `<div class="row"><span>NEXT CUSTOMER · REG 3</span></div><div class="row"><span>SHIFT 4/8 · 0 ITEMS</span></div>
+<div style="border-top:2px dashed var(--creamD);margin:4px 0"></div><div class="row"><span>1 ·····</span></div><div class="row"><span>2 ·····</span></div><div class="row"><span>3 ·····</span></div>
+<div class="row proj"><span>PROJECTED</span><span>€0.00</span></div>`;
+const receipt2 = el('div', 'abs', mid); receipt2.id = 'receipt2'; receipt2.style.cssText = 'width:236px;z-index:29';
+receipt2.innerHTML = `<div class="paper" style="background:var(--paper);color:var(--ink);border:2px solid var(--ink);border-bottom:0;padding:10px 8px 6px;font:13px/19px JBMono">${RECEIPT_NEXT.replace(/class="row"/g, 'style="display:flex;justify-content:space-between"').replace(/class="row proj"/g, 'style="display:flex;justify-content:space-between;border-top:2px dashed var(--creamD);margin-top:4px;padding-top:4px;font:15px JBMono"')}</div>`;
+
+// ------------------------------------------------------------------ audio (real clicks only)
+let ac = null;
+function clickSound(hi) {
+  try { ac = ac || new (window.AudioContext || window.webkitAudioContext)();
+    const o = ac.createOscillator(), g = ac.createGain(); o.type = 'square'; o.frequency.value = hi ? 1400 : 900;
+    g.gain.setValueAtTime(.08, ac.currentTime); g.gain.exponentialRampToValueAtTime(.0005, ac.currentTime + .07);
+    o.connect(g); g.connect(ac.destination); o.start(); o.stop(ac.currentTime + .08); } catch (e) { /* no audio */ }
+}
+
+// ------------------------------------------------------------------ layout helpers
+let stageScale = 1;
+function fit() { const w = $('#stageWrap').clientWidth; stageScale = w / 1280; stage.style.transform = `scale(${stageScale})`; $('#stageWrap').style.height = (720 * stageScale) + 'px'; }
+function rectOf(e) { const r = e.getBoundingClientRect(), s = stage.getBoundingClientRect(); return { x: (r.left - s.left) / stageScale, y: (r.top - s.top) / stageScale, w: r.width / stageScale, h: r.height / stageScale }; }
+function centerOf(e) { const r = rectOf(e); return { x: r.x + r.w / 2, y: r.y + r.h / 2 }; }
+
+// ------------------------------------------------------------------ the machine's state at time t
+function machineState(t) {
+  const st = { lit: false, visit: 0, disp: ['', ''], title: null, hover: null, pressed: null, confirmDown: false, draw: -1, pick: -1, chute: null, levels: { new: 0, coupons: 0, register: 0, upgrades: 0 }, bonus: false, order: null };
+  const c1 = S.chosen[1], c2 = S.chosen[2];
+  if (t >= TL.v1punch) st.levels[c1] = 1;
+  if (t >= TL.v2punch) st.levels[c2] += 1;
+  if (t < TL.trans[0] + 1.2) return st;
+  st.lit = t < TL.ret[0] + .6;
+  if (t < TL.bonusFeed[0]) {
+    st.visit = 1; st.order = 'ticket';
+    st.disp = t < TL.feed[1] ? ['INSERT RECEIPT', 'shift 3 receipt'] : ['SPEND €96 ✓ THANK YOU!', 'pick a chute'];
+    if (t >= TL.v1hover1[0] && t < TL.v1hover1[1]) st.hover = 'coupons';
+    if (t >= TL.v1hover2[0] && t < TL.v1press) st.hover = 'upgrades';
+    if (t >= TL.v1press && t < TL.v1draw[0]) { st.pressed = c1; st.hover = t < TL.v1press + .9 ? null : null; }
+    if (t >= TL.v1press && t < TL.v1draw[1]) { st.title = c1; }
+    if (t >= TL.v1confirm && t < TL.v1confirm + .25) st.confirmDown = true;
+    if (t >= TL.v1draw[0]) { st.draw = seg(t, TL.v1draw[0], TL.v1draw[1]); st.chute = c1; st.pressed = c1; }
+    if (t >= TL.v1pick) st.pick = PICK_INDEX[c1];
+    if (t >= TL.v1fly[1]) { st.draw = -1; st.title = null; st.pressed = null; st.disp = c1 === 'upgrades' ? ['BANANA → GOLDEN ✓', 'upgraded in place · UPGRADES REGULAR punched'] : [chuteName(c1) + ' ✓', 'REGULAR punched']; }
+  } else {
+    st.visit = 2; st.bonus = t >= TL.bonusFeed[0] + .5; st.order = 'bonus';
+    st.disp = t < TL.bonusFeed[1] ? ['BONUS TICKET', 'inspection passed · feeding in'] : ['BONUS TICKET', 'inspection passed · 1 more prize · pick a chute'];
+    const f2 = firstPress2();
+    if (t >= TL.v2hover1[0] && t < TL.v2press) st.hover = f2;
+    if (t >= TL.v2press && t < TL.v2press2) { st.pressed = f2; st.title = f2; }
+    if (t >= TL.v2hover2[0] && t < TL.v2press2) st.hover = c2;
+    if (t >= TL.v2press2) { st.pressed = c2; st.title = c2; }
+    if (t >= TL.v2confirm && t < TL.v2confirm + .25) st.confirmDown = true;
+    if (t >= TL.v2draw[0]) { st.draw = seg(t, TL.v2draw[0], TL.v2draw[1]); st.chute = c2; }
+    if (t >= TL.v2pick) st.pick = PICK_INDEX[c2];
+    if (t >= TL.v2fly[1]) { st.draw = -1; st.title = null; st.pressed = null; st.disp = c2 === 'upgrades' ? ['BANANA → GOLDEN ✓', 'upgraded in place · see you next shift'] : ['SEE YOU NEXT SHIFT', 'shift 4 · new receipt']; }
+    if (t >= TL.ret[0]) st.disp = ['', ''];
+    if (t >= TL.ret[0] + .6) { st.bonus = false; st.order = null; }
+  }
+  return st;
+}
+
+// ------------------------------------------------------------------ the camera / screens per option
+function cameraA(t) {
+  // world -> stage: scale z, offset so the machine (at 0.5 on the back wall) fills the stage at z = 2
+  const pin = seg(t, TL.trans[0], TL.trans[1]), pout = seg(t, TL.ret[0], TL.ret[1]);
+  let p = pin - pout; if (S.rm) p = (t >= TL.trans[0] + .5 && t < TL.ret[0] + .5) ? 1 : 0;
+  const e = ease(clamp(p));
+  const z = lerp(1, 2, e);
+  const tx = lerp(0, -(machineSpotA.x * 2 - (1280 - 600) / 2 + 0), e);
+  const ty = lerp(0, -(machineSpotA.y * 2 - 66), e);
+  return { z, tx, ty, e };
+}
+
+function render() {
+  const t = S.t, A = S.opt === 'A', rm = S.rm;
+  // tryVisit freezes the timeline and hands the machine state to the mouse
+  const ms = machineState(t);
+  if (S.tryVisit) { ms.hover = S.user.hover; ms.pressed = S.user.pressed; ms.title = S.user.pressed; ms.confirmDown = false; ms.draw = -1; ms.pick = -1; }
+  if (S.forceHover) ms.hover = S.forceHover;
+  if (S.forcePress) { ms.pressed = S.forcePress; ms.title = S.forcePress; }
+
+  // --- scene layers
+  fridgesStore.forEach(f => f.style.display = A ? 'none' : '');
+  fridgesA.forEach(f => f.style.display = A ? '' : 'none');
+  shelf.style.display = A ? 'none' : ''; clock.style.left = A ? '912px' : '948px';
+  let camE = 0;
+  if (A) {
+    if (machine.parentNode !== back) back.appendChild(machine);
+    const c = cameraA(t); camE = c.e;
+    world.style.transform = `translate(${c.tx}px, ${c.ty}px) scale(${c.z})`;
+    machine.style.transform = 'scale(.5)'; place(machine, machineSpotA.x, machineSpotA.y);
+    fore.style.transform = `translateY(${c.e * (rm ? 0 : 330)}px)`; fore.style.opacity = rm ? 1 - c.e : 1 - c.e * .9;
+    mid.style.opacity = 1;
+    room.style.display = 'none'; flaps.style.display = 'none'; world.style.display = '';
+    const f1 = 1 - Math.abs(seg(t, TL.trans[0], TL.trans[0] + 1) * 2 - 1), f2 = 1 - Math.abs(seg(t, TL.ret[0], TL.ret[0] + 1) * 2 - 1);
+    fade.style.opacity = rm ? Math.max(f1 > 0 && f1 < 1 ? f1 : 0, f2 > 0 && f2 < 1 ? f2 : 0) * .85 : 0;
+  } else {
+    if (machine.parentNode !== room) room.appendChild(machine);
+    machine.style.transform = 'none'; place(machine, 340, 70);
+    room.style.display = ''; world.style.transform = 'none'; fore.style.transform = 'none'; fore.style.opacity = 1;
+    const pin = seg(t, TL.trans[0], TL.trans[0] + 1.5), pout = seg(t, TL.ret[0], TL.ret[0] + 1.5);
+    const p = ease(pin) - ease(pout);
+    if (rm) {
+      const on = t >= TL.trans[0] + .5 && t < TL.ret[0] + .5;
+      world.style.display = on ? 'none' : ''; room.style.transform = 'none'; room.style.display = on ? '' : 'none';
+      const f1 = 1 - Math.abs(seg(t, TL.trans[0], TL.trans[0] + 1) * 2 - 1), f2 = 1 - Math.abs(seg(t, TL.ret[0], TL.ret[0] + 1) * 2 - 1);
+      fade.style.opacity = Math.max(f1 > 0 && f1 < 1 ? f1 : 0, f2 > 0 && f2 < 1 ? f2 : 0) * .85; flaps.style.display = 'none';
+    } else {
+      world.style.display = ''; fade.style.opacity = 0;
+      world.style.transform = `translateX(${-1280 * p}px)`; room.style.transform = `translateX(${1280 * (1 - p)}px)`;
+      flaps.style.display = p > 0 && p < 1 ? '' : 'none'; flaps.style.left = (1280 * (1 - p) - 70) + 'px';
+    }
+    camE = p;
+  }
+
+  // --- the machine: lit or dim
+  const dim = A ? (ms.lit ? 0 : 1) : 0;
+  const litP = A ? clamp(Math.max(seg(t, TL.trans[1] - .6, TL.trans[1]) - seg(t, TL.ret[0], TL.ret[0] + .8), 0)) : 1;
+  machine.style.filter = A ? `brightness(${lerp(.62, 1, litP)}) saturate(${lerp(.55, 1, litP)})` : 'none';
+  mHead.querySelector('b').style.color = litP > .5 ? 'var(--ink)' : 'var(--musDD)';
+
+  // display
+  mDisp.className = ms.title ? 'abs title' : 'abs';
+  if (ms.title) {
+    const c = CHUTES.find(c => c.id === ms.title);
+    dl1.textContent = c.name; dl2.textContent = c.sub.toLowerCase() + (ms.visit === 2 || S.tryVisit === 2 ? ' · bonus ticket' : '') + ' · 3 prizes, keep 1';
+    mConfirm.style.display = ms.draw >= 0 ? 'none' : 'block';
+    mConfirm.classList.toggle('down', ms.confirmDown);
+    if (ms.draw >= 0) { dl1.textContent = c.name; dl2.textContent = ms.pick >= 0 ? 'picked · it goes to your cart' : 'pick 1'; }
+  } else {
+    mConfirm.style.display = 'none';
+    const showLines = A ? litP > .3 : true;
+    dl1.innerHTML = showLines ? (ms.disp[0].startsWith('BONUS') ? ticketIcon(34) : '') + ms.disp[0] : '';
+    dl2.textContent = showLines ? ms.disp[1] : '';
+    if (!ms.lit && t < TL.trans[0]) { dl1.textContent = ''; dl2.textContent = ''; }
+  }
+  mBonusStamp.style.display = ms.bonus ? '' : 'none';
+  if (ms.bonus) { const p = rm ? 1 : seg(t, TL.bonusFeed[0] + .5, TL.bonusFeed[0] + .8); mBonusStamp.style.transform = `rotate(-6deg) scale(${lerp(2.2, 1, backE(p))})`; mBonusStamp.style.opacity = p; }
+  if (S.tryVisit === 2) { mBonusStamp.style.display = ''; mBonusStamp.style.transform = 'rotate(-6deg)'; mBonusStamp.style.opacity = 1; }
+
+  // keys
+  CHUTES.forEach(c => {
+    const k = keys[c.id];
+    k.classList.toggle('hover', ms.hover === c.id && ms.pressed !== c.id);
+    k.classList.toggle('down', ms.pressed === c.id);
+    k.style.cursor = S.tryVisit ? 'pointer' : 'default';
+    const lv = ms.levels[c.id];
+    const sq = punches[c.id].querySelectorAll('i');
+    sq.forEach((q, j) => q.classList.toggle('on', j < lv));
+    punches[c.id].querySelector('em').textContent = lv + '/3';
+  });
+
+  // odds card: only on hover
+  if (ms.hover && ms.draw < 0) {
+    const lv = ms.levels[ms.hover], o = ODDS[ms.hover][Math.min(lv, 1)];
+    odds.style.display = '';
+    oddsRows.forEach((r, i) => { r.querySelector('.pc').textContent = o[i] + '%'; r.classList.toggle('zero', o[i] === 0); });
+    const i = CHUTES.findIndex(c => c.id === ms.hover), kx = 14 + i * 146 + 66;
+    const left = clamp(kx - 121, 8, 600 - 250), m = rectOf(machine), mk = m.w / 600;
+    place(odds, m.x + left * mk, m.y + (228 - 14 - 124) * mk); odds.style.transform = `scale(${mk})`;
+    odds.style.setProperty('--tail', (kx - left) + 'px');
+  } else odds.style.display = 'none';
+
+  // order slip + boxes + prizes
+  mOrder.innerHTML = ms.order === 'bonus' || S.tryVisit === 2
+    ? `<b>BONUS #3b</b><div class="ok bonus">INSPECTION PASSED ✓</div><div class="ok">Short belt</div><div class="ln">☐ 1 · ?</div><div class="ln">☐ 2 · ?</div><div class="ln">☐ 3 · ?</div>`
+    : ms.order === 'ticket' || S.tryVisit === 1 ? `<b>ORDER #3</b><div class="ok">SPEND €96 ✓</div><div class="ok">&nbsp;</div><div class="ln">☐ 1 · ?</div><div class="ln">☐ 2 · ?</div><div class="ln">☐ 3 · ?</div>` : `<b style="color:var(--creamD)">ORDER</b>`;
+  const drawing = ms.draw >= 0 && !S.tryVisit;
+  const slipOut = drawing ? (rm ? 1 : easeOut(seg(ms.draw, 0, .12))) : 0;
+  mOrder.style.transform = `translateX(${-180 * slipOut}px)`; mOrder.style.opacity = 1 - slipOut;
+  boxes.forEach((b, i) => { b.style.opacity = drawing ? 1 - seg(ms.draw, .05 + i * .08, .2 + i * .08) : 1; b.style.transform = drawing ? `translateY(${-30 * seg(ms.draw, .05 + i * .08, .2 + i * .08)}px)` : 'none'; });
+  prizeEls.forEach((p, i) => {
+    if (!drawing) { p.style.display = 'none'; return; }
+    const pr = PRIZES[ms.chute][i]; p.style.display = '';
+    const order = [1, 0, 2].indexOf(i) >= 0 ? [0, 2, 1][i] : i; // reveal the rare one last
+    const pp = rm ? (ms.draw > .2 + order * .2 ? 1 : 0) : seg(ms.draw, .2 + order * .2, .38 + order * .2);
+    p.className = 'prize r' + pr.r + (ms.pick === i ? ' pick' : '');
+    const s = pr.s || 2;
+    p.innerHTML = `<div class="band"><i>${RAR[pr.r][1]}</i>${RAR[pr.r][0]}</div><div class="sp">${pr.b ? imgHtml(pr.a, 1) + '<span class="arr">›</span>' + imgHtml(pr.b, 2) : imgHtml(pr.a, s)}</div><div class="nm">${pr.nm}</div><div class="ds">${pr.ds}</div>`;
+    let y = lerp(260, 0, easeOut(pp)), o = pp;
+    if (ms.pick >= 0 && ms.pick !== i) o *= .35;
+    const flyT = ms.visit === 1 ? TL.v1fly : TL.v2fly;
+    if (ms.pick === i) { const f = seg(t, flyT[0], flyT[1]); y -= (rm ? 0 : 60) * easeOut(f); o *= 1 - f; }
+    p.style.transform = `translateY(${y}px)`; p.style.opacity = o;
+  });
+
+  // --- monitor, HUD
+  const shift4 = t >= TL.ret[0] + (A ? 1.0 : .8);
+  const ended = t >= TL.shiftEnd;
+  const chipAt = seg(t, .6, 1.0), monAt = seg(t, 1.6, 2.0);
+  const pulse = (a, b) => (t >= a && t < b && !rm) ? 1 + .06 * Math.sin((t - a) * 12) : 1;
+  hShift.textContent = shift4 ? 'SHIFT 4/8' : 'SHIFT 3/8';
+  hSpend.querySelector('.q').textContent = shift4 ? '€71+' : '€58+';
+  const spendP = shift4 ? 0 : ended ? 1 : .48;
+  hSpend.querySelector('.bar i').style.width = (Math.min(spendP, 58 / 96) * 100) + '%';
+  hSpend.querySelector('.bar em').style.left = (58 / 96 * 100) + '%'; hSpend.querySelector('.bar em').style.width = (ended && !shift4 ? (1 - 58 / 96) * 100 : 0) + '%';
+  hSpend.querySelector('.val').textContent = shift4 ? '€0' : ended ? '€96' : '€28';
+  hCart.innerHTML = imgHtml('icons/cart.png', 2, 'display:inline-block;vertical-align:-2px;margin-right:6px') + 'Cart ' + (t >= TL.v2fly[1] && S.chosen[2] !== 'upgrades' && S.chosen[2] !== 'register' ? 14 : 13) + '/15';
+  if (shift4) { hChip.style.visibility = 'hidden'; }
+  else {
+    hChip.style.visibility = '';
+    hChip.className = 'hb' + (ended ? ' done' : '');
+    hChip.innerHTML = ended
+      ? imgHtml('icons/mark_check.png', 2, 'margin-right:6px') + 'Short belt passed <span class="pass">' + ticketIcon(26) + '+1 BONUS TICKET</span>'
+      : imgHtml('icons/warning.png', 2, 'margin-right:6px') + 'Inspection · −1 slot <span class="pass">PASS → ' + ticketIcon(26) + '+1 BONUS TICKET</span>';
+    hChip.style.transform = `scale(${pulse(.6, 1.6)})`;
+  }
+  if (shift4) scr.innerHTML = `<div class="nx"><b>NEXT</b>${imgHtml('items_v2/tea_bags.png', 2)}</div><div class="txt"><div class="t1"><span>SHIFT 4/8</span><span>SPEND €71+</span></div><div class="t2">NO INSPECTION</div><div class="t4">Receipt rewards: ${chuteName(S.chosen[1])} REGULAR ${ms.levels[S.chosen[1]]}/3</div>${upgradedPick() ? '<div class="t4" style="color:var(--musDD);font-weight:700">Banana is GOLDEN now</div>' : ''}</div>`;
+  else if (!ended) scr.innerHTML = `<div class="nx"><b>NEXT</b>${imgHtml('items_v2/cheese.png', 2)}</div><div class="txt"><div class="t1"><span>SHIFT 3/8</span><span>SPEND €58+</span></div><div class="t2">INSPECTION</div><div class="t3">Short belt</div><div class="t4">One product slot fewer</div><div class="t5" style="transform:scale(${pulse(1.6, 3.4)});transform-origin:0 50%">${ticketIcon(26)}PASS IT → +1 BONUS TICKET</div></div>`;
+  else scr.innerHTML = `<div class="nx"><b>DONE</b></div><div class="met"><div class="big">€96</div><span class="ok">SPEND MET ✓</span><span class="insp" style="opacity:${seg(t, TL.stamp, TL.stamp + .2)}">INSPECTION PASSED ✓</span></div>`;
+  beltItems.forEach(b => b.style.display = ended && !shift4 || shift4 ? 'none' : '');
+
+  // --- the receipt
+  const tearP = seg(t, TL.tear[0], TL.tear[1]);
+  rBody.innerHTML = ended ? RECEIPT_PAID : RECEIPT_PLAN;
+  rStamp.style.display = t >= TL.stamp ? '' : 'none';
+  if (t >= TL.stamp) { const p = rm ? 1 : seg(t, TL.stamp, TL.stamp + .22); rStamp.style.transform = `rotate(-8deg) scale(${lerp(2.4, 1, p)})`; rStamp.style.opacity = clamp(p * 2); }
+  // Q2 = 2: the stub prints, then snaps off near the slot. Its height shrinks to 0 while the ticket leaves from the
+  // stub's exact rect, and the receipt stays top-anchored, so the paper never jumps.
+  const stubOn = S.tk === 2 && t >= TL.earn[0];
+  const stubP = seg(t, TL.earn[0], TL.earn[0] + .9);   // printing, also with reduced motion (a slow grow, no jump)
+  const snapA = TL.feed[0] - .6, snapP = rm ? (t >= snapA ? 1 : 0) : seg(t, snapA + .05, snapA + .4);
+  const stubFull = stubOn ? 62 * stubP : 0, stubH = stubOn && t >= snapA ? stubFull * (1 - snapP) : stubFull;
+  rStubWrap.style.display = stubOn && stubH > 0 ? 'block' : 'none';
+  rStubWrap.style.height = stubH + 'px';
+  rStub.style.visibility = stubOn && t >= snapA ? 'hidden' : '';
+  rZig.className = t >= TL.tear[0] ? 'zig' : 'zigline';
+  // position: at the printer, then torn and travelling to the slot, then fed in
+  receipt.style.display = '';                          // measure with the receipt shown (replays start from a hidden one)
+  const rH = receipt.offsetHeight, rH0 = rH + (stubFull - stubH), paperH = rPaper.offsetHeight;
+  const homeX = 46, homeBottom = 330;
+  let rx = homeX, ry = homeBottom - rH, rs = 1, rr = 0, ro = 1, clipB = 0;
+  if (t >= TL.tear[0]) {
+    const lift = rm ? 0 : -14 * easeOut(tearP);   // ends where the travel starts
+    ry += lift; rr = rm ? 0 : -4 * tearP;
+  }
+  const slot = rectOf(mSlot);
+  const travel = seg(t, TL.tear[1], TL.feed[0]);
+  if (t >= TL.tear[1]) {
+    // target: above the machine slot, at the machine's current scale (top-anchored on the full height)
+    const sc = slot.w / 190 * .9, slotLine = slot.y + 6 * sc;
+    const tx = slot.x + slot.w / 2 - 118 * sc, tyy = slotLine - rH0 * sc;
+    const startX = homeX, startY = homeBottom - rH0;
+    const e = rm ? (travel > .5 ? 1 : 0) : ease(travel);
+    rx = lerp(startX, tx, e); ry = lerp(startY - (rm ? 0 : 14) * (1 - e), tyy, e); rs = lerp(1, sc, e); rr = lerp(rm ? 0 : -4, 0, e);
+    if (rm) ro = travel < .5 ? 1 - travel * 2 : (travel - .5) * 2;
+    if (t >= TL.feed[0]) {
+      // slides down into the slot; everything below the slot line is hidden
+      const f = seg(t, TL.feed[0], TL.feed[1]); ry = tyy + rH0 * sc * f; ro = 1;
+      clipB = Math.max(0, (ry + rH * sc - slotLine) / sc);
+    }
+  }
+  receipt.style.clipPath = clipB > 0 ? `inset(0 0 ${clipB}px 0)` : 'none';
+  const gone = t >= TL.feed[1];
+  receipt.style.display = gone ? 'none' : '';
+  receipt.style.transformOrigin = '0 0';
+  receipt.style.transform = `translate(${rx}px, ${ry}px) rotate(${rr}deg) scale(${rs})`; receipt.style.left = '0'; receipt.style.top = '0';
+  receipt.style.opacity = ro;
+  // option A: the receipt is in front of the store but follows the camera before the tear
+  if (A && t < TL.tear[1]) { const c = cameraA(t); receipt.style.transform = `translate(${c.tx + rx * c.z}px, ${c.ty + ry * c.z}px) rotate(${rr}deg) scale(${c.z})`; }
+  // where the stub is (stage px), for the hand-off to the ticket
+  const stubRect = { x: rx, y: ry + paperH * rs, w: 236 * rs, h: 62 * rs };
+  // the next shift's receipt
+  receipt2.style.display = shift4 ? '' : 'none';
+  if (shift4) { receipt2.style.left = homeX + 'px'; receipt2.style.top = (homeBottom - receipt2.offsetHeight) + 'px'; }
+
+  // --- the bonus ticket
+  renderTicket(t, A, rm, stubRect);
+
+  // --- the upgraded item: swaps in place once the store is back
+  renderUpgrade(t, rm);
+
+  // --- cursor + click ring
+  renderCursor(t, ms);
+
+  // caption
+  const cap = CAPTIONS.find(c => t >= c[0] && t < c[1]) || CAPTIONS[CAPTIONS.length - 1];
+  $('#caption').innerHTML = S.tryVisit
+    ? `<b>TRY IT YOURSELF</b>Rest the mouse on a chute key to see its odds. Click a key: it goes down, the title shows with CONFIRM. Click another key to change your mind, then CONFIRM.`
+    : `<b>${cap[2]}</b>${typeof cap[3] === 'function' ? cap[3]() : cap[3]}`;
+  $('#scrub').value = t; $('#tlabel').textContent = t.toFixed(1) + ' s';
+}
+
+function renderTicket(t, A, rm, stubRect) {
+  const clipX = 150, clipY = 344;   // beside the receipt, on the printer
+  const dock = rectOf(mDock);
+  let show = false, x = 0, y = 0, s = 1, sy = null, r = 0, o = 1, shine = 0, banner = 0;
+  if (S.tk === 1) {
+    if (t >= TL.earn[0] && t < TL.bonusFeed[1]) {
+      show = true;
+      const pop = seg(t, TL.earn[0], TL.earn[0] + .45), fly = seg(t, TL.earn[0] + .9, TL.earn[1]);
+      const px = 292, py = 100;                          // pops from the stamp's right edge, beside the receipt, so the stamp stays readable
+      x = lerp(px, clipX, ease(fly)); y = lerp(py, clipY, ease(fly)); r = lerp(0, 8, fly);
+      s = rm ? 1 : (fly > 0 ? 1 : lerp(.2, 1, backE(pop))); o = rm ? pop : 1;
+      shine = rm ? 0 : (1 - fly) * pop; banner = (1 - fly) * pop;
+      if (A && t < TL.tear[1]) { const c = cameraA(t); x = c.tx + x * c.z; y = c.ty + y * c.z; s *= c.z; }
+    }
+  } else if (t >= TL.feed[0] - .6 && t < TL.bonusFeed[1]) {
+    show = true;                                          // the stub snaps off: the ticket leaves from the stub's exact rect
+    const g = rm ? 1 : seg(t, TL.feed[0] - .6, TL.feed[0] + .4), e = ease(g), ds = dock.w / 196;
+    x = lerp(stubRect.x, dock.x, e); y = lerp(stubRect.y, dock.y, e);
+    s = lerp(stubRect.w / 196, ds, e); sy = lerp(stubRect.h / 68, ds, e); r = rm ? 0 : -6 * Math.sin(g * Math.PI);
+    banner = 0;
+  }
+  if (S.tk === 2 && t >= TL.earn[0] && t < TL.earn[1] + .6) banner = Math.min(1, seg(t, TL.earn[0], TL.earn[0] + .3)) * (1 - seg(t, TL.earn[1], TL.earn[1] + .6));
+  if (show && S.tk === 1 && t >= TL.tear[1]) {
+    // carried along with the receipt, then waits in the machine's dock
+    const sc = dock.w / 196;
+    const go = seg(t, TL.tear[1] + .2, TL.feed[0] + .4);
+    const e = rm ? (go > .5 ? 1 : 0) : ease(go);
+    x = lerp(clipX, dock.x, e); y = lerp(clipY, dock.y, e); s = lerp(1, sc, e); r = lerp(8, 0, e);
+    if (rm) o = go < .5 ? 1 - go * 2 : (go - .5) * 2;
+  }
+  if (show && t >= TL.bonusFeed[0]) {
+    // feed into the slot for the bonus visit
+    const sl = rectOf(mSlot); const sc = dock.w / 196;
+    const f = seg(t, TL.bonusFeed[0], TL.bonusFeed[0] + .5), g = seg(t, TL.bonusFeed[0] + .5, TL.bonusFeed[1]);
+    const e = rm ? (f > .5 ? 1 : 0) : ease(f);
+    x = lerp(dock.x, sl.x + sl.w / 2 - 98 * sc, e); y = lerp(dock.y, sl.y - 68 * sc + 8 * sc, e) + g * 68 * sc; s = sc;
+    ticket.style.clipPath = `inset(0 0 ${g * 100}% 0)`;
+    if (rm) o = f < .5 ? 1 - f * 2 : 1;   // reduced motion: the cut to the slot happens at opacity 0
+    shine = rm ? 0 : Math.sin(f * Math.PI) * .8;
+  } else ticket.style.clipPath = 'none';
+  ticket.style.display = show ? '' : 'none';
+  ticket.style.left = '0'; ticket.style.top = '0'; ticket.style.transformOrigin = '0 0';
+  ticket.style.transform = `translate(${x}px, ${y}px) rotate(${r}deg) scale(${s}, ${sy == null ? s : sy})`; ticket.style.opacity = o;
+  tShine.style.opacity = shine; if (!rm) tShine.style.transform = `rotate(${t * 40}deg)`;
+  tBanner.style.display = banner > 0 ? '' : 'none'; tBanner.style.opacity = banner;
+  if (S.tk === 1) place(tBanner, 296, 62 + (1 - banner) * 10); else place(tBanner, 300, 250 + (1 - banner) * 10);
+  clip.style.display = S.tk === 1 && t >= TL.earn[0] + .9 && t < TL.tear[1] + .2 ? '' : 'none';
+  if (A) { const c = cameraA(t); clip.style.opacity = 1 - c.e; }
+  mDock.style.borderColor = show && t >= TL.feed[0] ? 'var(--musD)' : 'var(--creamD)';
+  mDock.style.visibility = (show && t >= TL.feed[0] + .3) ? 'hidden' : '';
+}
+
+// cursor waypoints: [time, target element getter | null (hidden)]
+const confirmTarget = () => mConfirm;
+function waypoints() {
+  const k = id => () => keys[id];
+  const pk = i => () => prizeEls[i];
+  const c1 = S.chosen[1], c2 = S.chosen[2];
+  return [
+    [11.8, null], [12.0, k('new'), 'offscreen'], [12.4, k('coupons')], [13.8, k('coupons')], [14.2, k('upgrades')], [15.8, k(c1)], [16.6, k(c1)], [17.3, confirmTarget], [17.6, confirmTarget],
+    [19.6, confirmTarget], [20.4, pk(PICK_INDEX[c1])], [20.8, pk(PICK_INDEX[c1])], [21.6, null],
+    [23.6, null], [23.8, k('register'), 'offscreen'], [24.2, k(firstPress2())], [25.6, k(firstPress2())], [26.2, k(c2)], [26.7, k(c2)], [27.6, confirmTarget], [27.9, confirmTarget],
+    [30.0, confirmTarget], [30.6, pk(PICK_INDEX[c2])], [31.0, pk(PICK_INDEX[c2])], [31.8, null],
+  ];
+}
+const CLICKS = () => [TL.v1press, TL.v1confirm, TL.v1pick, TL.v2press, TL.v2press2, TL.v2confirm, TL.v2pick];
+function renderCursor(t, ms) {
+  if (S.tryVisit || Q.has('hover') || Q.has('press')) { cursor.style.display = 'none'; ring.style.display = 'none'; return; }
+  const wp = waypoints();
+  let i = wp.findIndex(w => w[0] > t);
+  if (i <= 0 || !wp[i - 1][1]) { cursor.style.display = 'none'; }
+  else {
+    const a = wp[i - 1], b = wp[i];
+    const pa = targetPoint(a[1]()), pb = b[1] ? targetPoint(b[1]()) : pa;
+    let p = seg(t, a[0], b[0]); if (S.rm) p = p < 1 ? 0 : 1;
+    const e = ease(p);
+    let x = lerp(pa.x, pb.x, e), y = lerp(pa.y, pb.y, e);
+    if (a[2] === 'offscreen') { x = lerp(pb.x + 260, pb.x, e); y = lerp(pb.y + 220, pb.y, e); }
+    const down = CLICKS().some(c => t >= c && t < c + .14);
+    cursor.style.display = ''; place(cursor, x - 3, y - 2 + (down ? 2 : 0));
+  }
+  const c = CLICKS().find(c => t >= c && t < c + .35);
+  if (c != null && !S.rm) {
+    const p = seg(t, c, c + .35), pt = { x: parseFloat(cursor.style.left) + 3, y: parseFloat(cursor.style.top) + 2 };
+    const r = lerp(6, 40, easeOut(p)); ring.style.display = ''; ring.style.width = ring.style.height = 2 * r + 'px';
+    place(ring, pt.x - r, pt.y - r); ring.style.opacity = 1 - p;
+  } else ring.style.display = 'none';
+}
+function targetPoint(e) {
+  if (e.getBoundingClientRect().width === 0) {
+    // CONFIRM hides when the draw starts: keep pointing where it was instead of jumping to the display
+    const d = rectOf(mDisp), k = d.w / 566;
+    if (e === mConfirm) return { x: d.x + (566 - 12 - 85) * k + 10, y: d.y + (14 + 31) * k + 8 };
+    e = mDisp;
+  }
+  const c = centerOf(e); return { x: c.x + 10, y: c.y + 8 };
+}
+
+function renderUpgrade(t, rm) {
+  const on = upgradedPick() && t >= UP_AT;
+  const name = on ? 'items_v2/banana_golden.png' : 'items_v2/banana.png';
+  if (upItem.dataset.n !== name) { upItem.src = IMG[name].src; upItem.width = IMG[name].w * 2; upItem.height = IMG[name].h * 2; upItem.dataset.n = name; }
+  const p = on ? seg(t, UP_AT, UP_AT + 1.6) : 0;
+  const bx = 360 + 14, by = 534 + 150 - 52 - upItem.height, cx = bx + upItem.width / 2, cy = by + upItem.height / 2;
+  // white flash on the item, a sunburst behind it, a pop, and a tag that says what changed
+  const flash = rm ? 0 : 1 - seg(t, UP_AT, UP_AT + .25);
+  upFlash.style.display = on && flash > 0 ? '' : 'none'; upFlash.style.opacity = flash * .9;
+  upFlash.style.left = bx + 'px'; upFlash.style.top = by + 'px'; upFlash.style.width = upItem.width + 'px'; upFlash.style.height = upItem.height + 'px';
+  upFlash.style.webkitMask = upFlash.style.mask = `url(${IMG[name].src}) 0 0/100% 100%`;
+  upShine.style.display = on && !rm ? '' : 'none';
+  if (on && !rm) { place(upShine, cx - 75, cy - 75); upShine.style.opacity = Math.sin(clamp(p * 1.3) * Math.PI) * .9; upShine.style.transform = `rotate(${t * 50}deg) scale(${lerp(.4, 1.2, easeOut(clamp(p * 2)))})`; }
+  upItem.style.transform = on && !rm ? `scale(${1 + .25 * Math.sin(seg(t, UP_AT, UP_AT + .45) * Math.PI)})` : 'none';
+  upItem.style.transformOrigin = upFlash.style.transformOrigin = '50% 100%'; upFlash.style.transform = upItem.style.transform;
+  const tagO = on ? (rm ? 1 : seg(t, UP_AT + .1, UP_AT + .35)) : 0;
+  upTag.style.display = tagO > 0 ? '' : 'none'; upTag.style.opacity = tagO;
+  place(upTag, bx - 16, by - 30 - (rm ? 0 : 8 * (1 - easeOut(seg(t, UP_AT + .1, UP_AT + .5)))));
+}
+
+// ------------------------------------------------------------------ try it yourself
+function startTry(v) {
+  S.tryVisit = v; S.playing = false; S.user = { hover: null, pressed: null };
+  S.t = v === 1 ? TL.v1hover1[0] - .2 : TL.v2hover1[0] - .2;
+  $('#playBtn').textContent = 'Play';
+  render();
+}
+CHUTES.forEach(c => {
+  const k = keys[c.id];
+  k.addEventListener('mouseenter', () => { if (S.tryVisit) { S.user.hover = c.id; render(); } });
+  k.addEventListener('mouseleave', () => { if (S.tryVisit) { S.user.hover = null; render(); } });
+  k.addEventListener('mousedown', () => { if (S.tryVisit) { S.user.pressed = c.id; S.user.hover = null; clickSound(false); render(); } });
+});
+mConfirm.addEventListener('mousedown', () => { if (!S.tryVisit) return; mConfirm.classList.add('down'); clickSound(true); });
+mConfirm.addEventListener('mouseup', () => {
+  if (!S.tryVisit || !S.user.pressed) return;
+  const v = S.tryVisit; S.chosen[v] = S.user.pressed; S.tryVisit = 0;
+  S.t = v === 1 ? TL.v1draw[0] : TL.v2draw[0]; S.playing = true; S.last = performance.now(); $('#playBtn').textContent = 'Pause';
+});
+
+// ------------------------------------------------------------------ controls
+function syncButtons() {
+  document.querySelectorAll('[data-opt]').forEach(b => b.classList.toggle('on', b.dataset.opt === S.opt));
+  document.querySelectorAll('[data-tk]').forEach(b => b.classList.toggle('on', +b.dataset.tk === S.tk));
+  $('#rmBox').checked = S.rm;
+}
+document.querySelectorAll('[data-opt]').forEach(b => b.onclick = () => { S.opt = b.dataset.opt; syncButtons(); render(); });
+document.querySelectorAll('[data-tk]').forEach(b => b.onclick = () => { S.tk = +b.dataset.tk; syncButtons(); render(); });
+$('#rmBox').onchange = e => { S.rm = e.target.checked; render(); };
+$('#playBtn').onclick = () => { S.tryVisit = 0; S.playing = !S.playing; if (S.t >= T_END) S.t = 0; S.last = performance.now(); $('#playBtn').textContent = S.playing ? 'Pause' : 'Play'; render(); };
+$('#scrub').oninput = e => { S.tryVisit = 0; S.t = parseFloat(e.target.value); S.playing = false; $('#playBtn').textContent = 'Play'; render(); };
+const beats = $('#beats');
+el('button', 'b', beats, '↺ Replay all').onclick = () => replay(0);
+BEATS.forEach(([n, at]) => el('button', 'b', beats, '↺ ' + n).onclick = () => replay(at));
+el('button', 'b try', beats, 'Try it yourself: ticket visit').onclick = () => startTry(1);
+el('button', 'b try', beats, 'Try it yourself: bonus visit').onclick = () => startTry(2);
+function replay(at) { S.tryVisit = 0; S.chosen = { 1: 'upgrades', 2: 'new' }; S.t = at; S.playing = true; S.last = performance.now(); $('#playBtn').textContent = 'Pause'; render(); }
+
+function frame(now) {
+  if (S.playing) { S.t += (now - S.last) / 1000; if (S.t >= T_END) { S.t = T_END; S.playing = false; $('#playBtn').textContent = 'Replay'; } render(); }
+  S.last = now; requestAnimationFrame(frame);
+}
+window.addEventListener('resize', () => { fit(); render(); });
+syncButtons(); fit();
+if (Q.has('try')) startTry(+Q.get('try') === 2 ? 2 : 1);
+document.fonts.ready.then(() => { render(); document.body.dataset.ready = '1'; });
+render();
+S.last = performance.now(); requestAnimationFrame(frame);
+</script>
+</body>
+</html>

@@ -235,6 +235,37 @@ func test_a_run_save_that_cant_be_backed_up_is_never_saved_over() -> void:
 	assert_int(_errors.size()).is_equal(2)
 
 
+## A profile that can't be backed up is kept: can_save_profile is false (the TOY MACHINES are
+## switched off, #63), and true for a readable one.
+func test_can_save_profile_is_false_while_the_profile_is_kept() -> void:
+	assert_bool(_service().can_save_profile()).is_true()
+	_write("{not json")
+	var service: SaveService = SaveService.new(
+		_folder,
+		func(message: String) -> void: _errors.append(message),
+		func(_from: String, _to: String) -> Error: return ERR_CANT_CREATE
+	)
+	service.load_profile()
+	assert_bool(service.can_save_profile()).is_false()
+	assert_bool(service.save_profile(ProfileState.new())).is_false()
+	assert_int(_errors.size()).is_equal(2)
+	assert_str(FileAccess.get_file_as_string(service.profile_path())).is_equal("{not json")
+
+
+## A version 2 profile (#63: the capsule seed and draws) saves and loads back.
+func test_a_version_2_profile_saves_and_loads() -> void:
+	var profile: ProfileState = ProfileState.new()
+	profile.coins = 2
+	profile.unlocked_items[&"cream"] = -1
+	profile.set_capsule_seed(3000000000)
+	profile.capsule_draws = 4
+	assert_bool(_service().save_profile(profile)).is_true()
+	var read: ProfileState = _service().load_profile()
+	assert_dict(read.to_dictionary()).is_equal(profile.to_dictionary())
+	assert_int(read.capsule_seed).is_equal(3000000000)
+	assert_array(_errors).is_empty()
+
+
 func _service() -> SaveService:
 	return SaveService.new(_folder, func(message: String) -> void: _errors.append(message))
 

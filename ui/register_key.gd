@@ -56,6 +56,13 @@ var held: bool = false:
 	set(value):
 		held = value
 		queue_redraw()
+## Shown pressed (the LIT look, sunk) whatever the mouse does: the machine's CONFIRM › during its
+## down state (#77 machine v2).
+var down: bool = false:
+	set(value):
+		down = value
+		_show_state(get_draw_mode())
+		queue_redraw()
 ## Held lit (Redraw while redraw mode is armed, plan section 3.8): the LIT look, whatever the
 ## mouse does (unless held or disabled).
 var lit: bool = false:
@@ -63,6 +70,12 @@ var lit: bool = false:
 		lit = value
 		_show_state(get_draw_mode())
 
+## Whether the caption is centred on the front face under the top band (the register's keys) or
+## on the whole face (a key too short for its caption under the band: the machine's CONFIRM ›).
+var caption_under_band: bool = true:
+	set(value):
+		caption_under_band = value
+		_show_state(get_draw_mode())
 var _kind: Kind = Kind.CREAM
 var _styles: Array[StyleBoxTexture] = []
 ## The note beside the caption (show_caption), or null before the first one.
@@ -124,14 +137,14 @@ func look() -> Look:
 	if lit:
 		return Look.LIT
 	var mode: DrawMode = get_draw_mode()
-	if mode == DRAW_HOVER or mode == DRAW_PRESSED or mode == DRAW_HOVER_PRESSED:
+	if down or mode == DRAW_HOVER or mode == DRAW_PRESSED or mode == DRAW_HOVER_PRESSED:
 		return Look.LIT
 	return Look.NORMAL
 
 
 ## The face sits lower (pressed, disabled or held).
 func is_sunk() -> bool:
-	if held or disabled:
+	if held or disabled or down:
 		return true
 	var mode: DrawMode = get_draw_mode()
 	return mode == DRAW_PRESSED or mode == DRAW_HOVER_PRESSED
@@ -164,8 +177,9 @@ func _show_state(_mode: DrawMode) -> void:
 	face().offset_bottom = depth
 	face().modulate = Color.WHITE
 	var label: Label = caption_label()
-	label.offset_top = depth + band_height()
-	label.offset_bottom = depth - BOTTOM_MARGIN * ArtStyle.ART_SCALE
+	var bottom: float = BOTTOM_MARGIN * ArtStyle.ART_SCALE
+	label.offset_top = depth + (band_height() if caption_under_band else 0.0)
+	label.offset_bottom = depth - (bottom if caption_under_band else 0.0)
 	label.modulate.a = OFF_CAPTION_ALPHA if current == Look.OFF else 1.0
 	_place_note()
 	modulate = Color.WHITE

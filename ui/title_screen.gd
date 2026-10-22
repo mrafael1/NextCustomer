@@ -16,11 +16,28 @@ extends Control
 ## start click too, the New run confirmation opens and closes (ui_open, ui_close) and the log
 ## export confirms. The Sfx outlives the title for a moment when the shift screen replaces it,
 ## so the start click is heard in full.
+##
+## The TOY MACHINES (#63): a toy machine prop and a "Toy machines ›" button stand in the free
+## space on the right, anchored centre-right (title B of #56, whose right-hand space they were
+## decided for, isn't built yet). The button opens the machines over the title on the peeked
+## profile (an unreadable one opens them switched off, left for the shift screen to report and
+## back up). A draw while a run is saved gets that run's index (its item rides the runs after it,
+## "In stock after your saved run"). While they are open, nothing on the title starts a run; Done
+## closes them and refreshes the coin line.
 
 const SHIFT_SCREEN := "res://ui/shift_screen.tscn"
 const BALANCE := "res://data/balance/balance.tres"
 const ABANDON_QUESTION := "Abandon the run in progress? It won't count."
 const MUSIC := &"front"
+## The subtitle wraps at this width, so the centred column stays clear of the toy machines.
+const SUBTITLE_WIDTH := 720.0
+## The toy machines' group: the prop (the first aisle's machine at 2x) over the button, this far
+## from the window's right edge, vertically centred.
+const TOYS_PROP_PATH := "res://art/scenery/toy_machine_%s.png"
+const TOYS_PROP_SIZE := Vector2(144, 280)
+const TOYS_BUTTON_SIZE := Vector2(200, 56)
+const TOYS_RIGHT := 40.0
+const TOYS_GAP := 12
 
 ## Tests turn this off so starting doesn't replace the test runner's scene.
 var changes_scene: bool = true
@@ -40,6 +57,12 @@ var _keep_button: Button
 var _sfx: Sfx
 ## The first click or key press started the music.
 var _music_started: bool = false
+var _balance: BalanceDefinition
+var _toys_group: VBoxContainer
+var _toys_button: Button
+var _toys_prop: TextureRect
+## The TOY MACHINES over the title, made the first time they open.
+var _toys: ToyMachinesScreen
 @onready var _log: EventLogService = get_node("/root/EventLog")
 @onready var _music: MusicService = get_node("/root/Music")
 
@@ -67,6 +90,7 @@ func _ready() -> void:
 	title.add_theme_color_override("font_outline_color", Palette.INK)
 	column.add_child(title)
 	var balance: BalanceDefinition = load(BALANCE)
+	_balance = balance
 	_subtitle = UiKit.label(
 		(
 			"Scan groceries and coupons in the best order. Meet the quota on all %d shifts."
@@ -76,6 +100,9 @@ func _ready() -> void:
 		Palette.LIGHT_TEXT
 	)
 	_subtitle.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_subtitle.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_subtitle.custom_minimum_size.x = SUBTITLE_WIDTH
+	_subtitle.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 	column.add_child(_subtitle)
 	var saves: SaveService = SaveService.new(SaveService.default_folder())
 	_coins = UiKit.label(coins_text(saves), 22, Palette.MUSTARD)
@@ -101,6 +128,7 @@ func _ready() -> void:
 	build.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	build.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 	corner.add_child(build)
+	_add_toy_machines()
 	if _saved_run != null:
 		_add_confirmation()
 
@@ -138,6 +166,76 @@ func _add_run_buttons(column: VBoxContainer) -> void:
 	_new_run_button = UiKit.button(buttons, "New run", _on_new_run_pressed, 26)
 	for button: Button in [_continue_button, _new_run_button]:
 		button.custom_minimum_size = Vector2(200, 64)
+
+
+## The toy machine prop and its button, anchored centre-right.
+func _add_toy_machines() -> void:
+	_toys_group = VBoxContainer.new()
+	# Stops clicks in the gap, so they never reach the background and start a run.
+	_toys_group.mouse_filter = Control.MOUSE_FILTER_STOP
+	_toys_group.add_theme_constant_override("separation", TOYS_GAP)
+	var height: float = TOYS_PROP_SIZE.y + TOYS_GAP + TOYS_BUTTON_SIZE.y
+	var width: float = maxf(TOYS_PROP_SIZE.x, TOYS_BUTTON_SIZE.x)
+	_toys_group.anchor_left = 1.0
+	_toys_group.anchor_right = 1.0
+	_toys_group.anchor_top = 0.5
+	_toys_group.anchor_bottom = 0.5
+	_toys_group.offset_left = -TOYS_RIGHT - width
+	_toys_group.offset_right = -TOYS_RIGHT
+	_toys_group.offset_top = -height / 2.0
+	_toys_group.offset_bottom = height / 2.0
+	add_child(_toys_group)
+	var path: String = TOYS_PROP_PATH % _balance.aisles[0].id
+	var texture: Texture2D = (
+		load(path) as Texture2D if ResourceLoader.exists(path) else ToyMachineView.BASE_BODY
+	)
+	_toys_prop = UiKit.sprite(texture)
+	_toys_prop.custom_minimum_size = TOYS_PROP_SIZE
+	_toys_prop.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	# The prop invites a click: it opens the machines, as the button does.
+	_toys_prop.mouse_filter = Control.MOUSE_FILTER_STOP
+	_toys_prop.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
+	_toys_prop.gui_input.connect(_on_toys_prop_input)
+	_toys_group.add_child(_toys_prop)
+	_toys_button = UiKit.button(
+		_toys_group, ResultsPanel.TOY_MACHINES_TEXT, _on_toy_machines_pressed, 22
+	)
+	_toys_button.custom_minimum_size = TOYS_BUTTON_SIZE
+
+
+## Whether the TOY MACHINES are open over the title.
+func toy_machines_open() -> bool:
+	return _toys != null and _toys.visible
+
+
+func _on_toys_prop_input(event: InputEvent) -> void:
+	var press: InputEventMouseButton = event as InputEventMouseButton
+	if press and press.pressed and press.button_index == MOUSE_BUTTON_LEFT:
+		_toys_prop.accept_event()
+		_on_toy_machines_pressed()
+
+
+## Opens the TOY MACHINES on the saved profile, read without reporting or backing anything up:
+## an unreadable profile opens them switched off. A title draw belongs to no run.
+func _on_toy_machines_pressed() -> void:
+	if _starting:
+		return
+	var saves: SaveService = SaveService.new(SaveService.default_folder())
+	var peeked: ProfileState = saves.peek_profile()
+	var profile: ProfileState = peeked if peeked != null else ProfileState.new()
+	if _toys == null:
+		_toys = ToyMachinesScreen.new()
+		add_child(_toys)
+		_toys.closed.connect(_on_toy_machines_closed)
+	_log.run_id = ""
+	var counter: CapsuleCounter = CapsuleCounter.new(
+		profile, saves, _balance, _log, _saved_run != null, peeked != null
+	)
+	_toys.open(counter, _balance)
+
+
+func _on_toy_machines_closed() -> void:
+	_coins.text = coins_text(SaveService.new(SaveService.default_folder()))
 
 
 ## The New run question, hidden until New run is pressed. Added last, so it sits above
@@ -187,7 +285,7 @@ func _start_music() -> void:
 ## deferred music start would already have run.
 func _presses_start_button(event: InputEvent) -> bool:
 	var press: InputEventMouseButton = event as InputEventMouseButton
-	if press == null:
+	if press == null or toy_machines_open():
 		return false
 	for button: Button in [_continue_button, _abandon_button]:
 		if button != null and button.is_visible_in_tree():
@@ -207,6 +305,8 @@ func _unhandled_key_input(event: InputEvent) -> void:
 	var key: InputEventKey = event as InputEventKey
 	if not (key and key.pressed and (key.keycode == KEY_ENTER or key.keycode == KEY_SPACE)):
 		return
+	if toy_machines_open():
+		return
 	if _saved_run == null:
 		_click_start()
 	elif not _confirm.visible:
@@ -217,7 +317,7 @@ func _unhandled_key_input(event: InputEvent) -> void:
 func _on_background_input(event: InputEvent) -> void:
 	var press: InputEventMouseButton = event as InputEventMouseButton
 	if press and press.pressed and press.button_index == MOUSE_BUTTON_LEFT:
-		if _saved_run == null:
+		if _saved_run == null and not toy_machines_open():
 			_click_start()
 
 

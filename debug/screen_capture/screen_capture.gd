@@ -277,7 +277,8 @@ func capture(folder: String) -> void:
 ## then names its file shift_screen_machine_<options>_<tenths>_<w>x<h>.png. `spec` is
 ## "<seconds>[,<option>...]", the options (in any order):
 ## - new_items, coupons, register or upgrades: that chute is chosen at the keys (its draw plays);
-## - odds: that chute's odds card is shown at the keys instead (pinned, CONFIRM ›);
+## - odds: that chute's odds card is shown above its key instead (as on hover); press: that
+##   chute's key is pressed instead (the display's title with CONFIRM ›);
 ## - bonus: the shift passed a Spot check; its ticket picks a NEW ITEMS prize, and the bonus
 ##   ticket's visit is shown; stampday: the shift is a STAMP DAY's; its ticket bins a NEW ITEMS
 ##   draw, and STAMP DAY's draw is shown (pick=<i> picks a stamp);
@@ -299,7 +300,12 @@ func machine(spec: String) -> void:
 	if not _check_out_machine_shift(run, options):
 		return
 	var chute: int = _machine_chute(options)
-	var resumed_pick: bool = options.has("resume") and chute >= 0 and not options.has("odds")
+	var resumed_pick: bool = (
+		options.has("resume")
+		and chute >= 0
+		and not options.has("odds")
+		and not options.has("press")
+	)
 	if resumed_pick and run.phase == RunState.Phase.MACHINE_CHOOSE:
 		run.machine.choose(run, chute)  # Saved after the draw: resumed at the pick.
 	var saved: RunSave = RunSave.new()
@@ -312,7 +318,9 @@ func machine(spec: String) -> void:
 	if chute >= 0 and run.phase == RunState.Phase.MACHINE_CHOOSE:
 		await _machine_armed(flow.view)
 		if options.has("odds"):
-			flow.view.open_odds(chute)
+			flow.view.hover_key(chute)
+		elif options.has("press"):
+			flow.view.press_key(chute)
 		elif not flow._choose(chute):
 			_report("The machine can't choose %s" % MachineVisit.CHUTE_NAMES[chute])
 			return

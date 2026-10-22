@@ -4,7 +4,16 @@ extends Control
 ## 1280x720 stage that ShiftScreen centres in the window over the store's bands that fill it
 ## (StoreBackdrop.screen_parts()). Every position is a stage constant taken from the mirrored B2
 ## mock-up: the register, the printer with its receipt and the cashier stand at the left, so the
-## belt runs toward them and slot 1 is the slot next to the register. The stage never scales.
+## belt runs toward them and slot 1 is the slot next to the register. The stage itself never
+## scales.
+##
+## Machine v2 (#77, Q1 = A): the stage is two layers. `world` holds the store (the monitor, the
+## RECEIPT REWARDS machine on the back wall at MACHINE_WALL_RECT, half size, and the `fore`: the
+## register, the receipt, the belt with its row, the planning layer, the bag, the hand and its
+## baskets). ShiftScreen hands it to the StoreCamera, which zooms it to 2x on the machine during
+## its visits (the fore drops out of frame: set_fore_drop). The stage keeps the `hud`, which never
+## zooms: the top bar, the tank's burst, the scan layer and the popup layer. Every Rect2 below is
+## in stage coordinates (the world's at 1x), except the MACHINE_* rects the camera puts on screen.
 ##
 ## On the stage, back to front: the hung monitor (MonitorView: two rods, its bezel and paper screen,
 ## with the LED's totals, the notices, a scanned item and the count-up on it), the register
@@ -114,32 +123,48 @@ const HAND_AREA := Rect2(336, 494, 944, 226)
 const COUNTING_SHADE_RECT := Rect2(336, 496, 944, 204)
 const COUNTING_SHADE_ALPHA := 0.4
 const SEED_RECT := Rect2(20, 586, 198, 18)
-## Screen panels (the RECEIPT REWARDS machine, the deck view, the results) and their shade stay
-## below this line, under the top bar, so Cart and the menu stay reachable.
+## Screen panels (the deck view, the results) and their shade stay below this line, under the top
+## bar, so Cart and the menu stay reachable.
 const PANEL_TOP := 64.0
-## The RECEIPT REWARDS machine (#77, look F; build spec 4.1), a screen child placed over the
-## stage: the cabinet, and its RESTOCK hood sticking out at the bottom right (still on the stage).
-const MACHINE_RECT := Rect2(760, 70, 420, 630)
-const MACHINE_HOOD_RECT := Rect2(1156, 506, 48, 194)
-## Where the receipt flies to: the middle of the slot plate's mouth.
-const MACHINE_SLOT_POINT := Vector2(970, 146)
-## The prize cells' left edges (cell i holds reveal i) and their top, on the stage.
-const MACHINE_CELL_X: Array[float] = [786.0, 916.0, 1046.0]
+## The RECEIPT REWARDS machine on the back wall (#77 machine v2, Q1 = A): the 420x630 machine at
+## MACHINE_WALL_SCALE, right of the monitor, its foot behind the belt. Shown all run, dimmed
+## between its visits.
+const MACHINE_WALL_RECT := Rect2(956, 70, 210, 315)
+const MACHINE_WALL_SCALE := 0.5
+## The camera at the machine (StoreCamera): CAMERA_ZOOM, and the offset (whole pixels) that puts
+## the machine at MACHINE_RECT on screen, at a net scale of 1 (crisp: 0.5 x 2).
+const CAMERA_ZOOM := 2.0
+## (MACHINE_RECT.position - CAMERA_ZOOM x MACHINE_WALL_RECT.position).
+const CAMERA_OFFSET := Vector2(-1482, -70)
+## The world (the wall's and the counter's bands, the store sections) runs to here on the stage:
+## the camera at the machine shows stage x 741 .. 1381.
+const WORLD_RIGHT := 1420.0
+## Where the camera puts the machine on screen (stage coordinates of the unzoomed layers: the
+## hud and the machine's overlay): the cabinet, under the top bar, its RESTOCK hood at the bottom
+## right, and its prize cells' left edges (cell i holds reveal i) and their top.
+const MACHINE_RECT := Rect2(430, 70, 420, 630)
+const MACHINE_HOOD_RECT := Rect2(826, 506, 48, 194)
+const MACHINE_CELL_X: Array[float] = [456.0, 586.0, 716.0]
 const MACHINE_CELL_Y := 522.0
-## The bonus ticket's stub prints out of the printer's mouth here (its top-left as it starts).
-const MACHINE_STUB_MOUTH := Vector2(RECEIPT_X, RECEIPT_BOTTOM)
-## The odds card left of the machine: its width and top (its height comes from its content and
-## ends above FLOOR_TOP).
-const ODDS_CARD_RECT := Rect2(440, 90, 300, 0)
-## The cart drawer's right edge and top (left of the machine, under the top bar).
-const CART_DRAWER_RIGHT := 748.0
+## The cart drawer's right edge and top (left of the machine at 2x, under the top bar).
+const CART_DRAWER_RIGHT := 418.0
+## The drawer never starts left of this (a four-slot drawer is wider than the room left of the
+## machine: it reaches the machine's cabinet edge, short of its first cell).
+const CART_DRAWER_LEFT := 8.0
 const CART_DRAWER_TOP := 64.0
+## The fore fades to this much of its alpha as it drops out of frame (mock-up: 1 - 0.9 e).
+const FORE_FADE := 0.9
 
 const RECEIPT_PAPER := preload("res://art/frames/receipt_paper.png")
 ## The printer slot's steel lip with its tear teeth (art/src/scenery/printer_lip.txt), drawn 1:1
 ## at PRINTER_SLOT_RECT over the receipt's foot, so the paper seems to come out of the slot.
 const PRINTER_LIP := preload("res://art/scenery/printer_lip.png")
 
+## The zoomed layer (StoreCamera adopts it) and, in it, the part that drops out during the glide.
+var world: Control
+var fore: Control
+## The RECEIPT REWARDS machine on the wall (add_machine), or null.
+var machine: Control
 var top_bar: TopBar
 var shift_label: Label
 var quota_label: Label
@@ -200,13 +225,47 @@ func _init(slot_count: int) -> void:
 	offset_top = -SIZE.y / 2.0
 	offset_right = SIZE.x / 2.0
 	offset_bottom = SIZE.y / 2.0
+	world = _layer("World")
+	world.set_anchors_preset(Control.PRESET_CENTER)
+	world.offset_left = -SIZE.x / 2.0
+	world.offset_top = -SIZE.y / 2.0
+	world.offset_right = SIZE.x / 2.0
+	world.offset_bottom = SIZE.y / 2.0
+	add_child(world)
+	fore = _layer("Fore")
 	_build_monitor()
+	world.add_child(fore)
 	_build_register()
 	_build_belt(slot_count)
 	_build_top_bar()
 	_build_counter()
 	_build_keys()
 	_build_scan_layers()
+
+
+## Puts the machine on the back wall, behind the fore (its foot hides behind the belt), at half
+## size.
+func add_machine(view: Control) -> void:
+	machine = view
+	world.add_child(view)
+	world.move_child(view, fore.get_index())
+	view.position = MACHINE_WALL_RECT.position
+	view.scale = Vector2.ONE * MACHINE_WALL_SCALE
+
+
+## The fore during the camera's glide (`e`, the eased progress: 0 in planning, 1 at the machine):
+## it drops `drop_px` and fades (reduced motion: it only fades out).
+func set_fore_drop(e: float, reduced: bool, drop_px: float) -> void:
+	fore.position.y = 0.0 if reduced else roundf(e * drop_px)
+	fore.modulate.a = 1.0 - e if reduced else 1.0 - e * FORE_FADE
+
+
+## The screen theme on every layer that had it before the world moved to the camera: the hud
+## (the stage), the monitor and the fore. The machine keeps the default font, as before.
+func apply_theme(screen_theme: Theme) -> void:
+	theme = screen_theme
+	monitor.theme = screen_theme
+	fore.theme = screen_theme
 
 
 func _build_top_bar() -> void:
@@ -226,14 +285,14 @@ func _build_top_bar() -> void:
 ## The hung monitor, with the LED and the notices on its screen.
 func _build_monitor() -> void:
 	monitor = MonitorView.new()
-	add_child(monitor)
+	world.add_child(monitor)
 	led = monitor.led
 	notice_label = monitor.notice_label
 
 
 func _build_register() -> void:
 	cabinet = RegisterCabinet.new()
-	add_child(cabinet)
+	fore.add_child(cabinet)
 	register = cabinet
 	receipt = ReceiptView.new()
 	var paper: StyleBoxTexture = ArtStyle.frame_style(RECEIPT_PAPER, 2)
@@ -245,13 +304,13 @@ func _build_register() -> void:
 	ArtStyle.use_pixel_material(receipt)
 	receipt.position = Vector2(RECEIPT_X, RECEIPT_BOTTOM)
 	receipt.size = Vector2(RECEIPT_WIDTH, 0.0)
-	add_child(receipt)
+	fore.add_child(receipt)
 	receipt.fit_up(RECEIPT_BOTTOM, RECEIPT_TOP)
 	printer_lip = UiKit.sprite(PRINTER_LIP)
 	printer_lip.name = "PrinterLip"
 	printer_lip.position = PRINTER_SLOT_RECT.position
 	printer_lip.size = PRINTER_SLOT_RECT.size
-	add_child(printer_lip)
+	fore.add_child(printer_lip)
 
 
 ## Darkens the hand and its baskets while the shift is counted (`counting`), or lifts the shade.
@@ -263,7 +322,7 @@ func _build_belt(slot_count: int) -> void:
 	belt = BeltPanel.new()
 	belt.position = BELT_RECT.position
 	belt.size = BELT_RECT.size
-	add_child(belt)
+	fore.add_child(belt)
 	# 7 slots fit the belt beside the register (plan section 3.1); a wider row scales to them.
 	row_strip = RowStrip.new()
 	belt.add_child(row_strip)
@@ -272,10 +331,10 @@ func _build_belt(slot_count: int) -> void:
 	_place_row()
 	# Over the items and their tickets, under the top bar, the hand and the scan layers (#71).
 	planning_layer = PlanningLayer.new()
-	add_child(planning_layer)
+	fore.add_child(planning_layer)
 	bag = PaperBag.new()
 	bag.position = BAG_RECT.position
-	add_child(bag)
+	fore.add_child(bag)
 
 
 ## Rests the row on ROW_BOTTOM: a scaled row is shorter, so it starts lower. The scanner's plate
@@ -294,18 +353,18 @@ func _build_counter() -> void:
 	hand.position = HAND_RECT.position
 	hand.size = HAND_RECT.size
 	baskets = HandBaskets.new(HandBaskets.Layer.BACK, hand)
-	add_child(baskets)
-	add_child(hand)
+	fore.add_child(baskets)
+	fore.add_child(hand)
 	pop_layer = Control.new()
 	pop_layer.name = "PopLayer"
 	pop_layer.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	pop_layer.clip_contents = true
 	pop_layer.size = Vector2(SIZE.x, HandBaskets.FACE_FOOT_Y)
-	add_child(pop_layer)
+	fore.add_child(pop_layer)
 	basket_fronts = HandBaskets.new(HandBaskets.Layer.FRONT, hand)
-	add_child(basket_fronts)
+	fore.add_child(basket_fronts)
 	basket_tags = BasketTags.new()
-	add_child(basket_tags)
+	fore.add_child(basket_tags)
 	hand_shade = ColorRect.new()
 	hand_shade.name = "HandShade"
 	hand_shade.color = Color(Palette.INK, COUNTING_SHADE_ALPHA)
@@ -313,7 +372,7 @@ func _build_counter() -> void:
 	hand_shade.position = COUNTING_SHADE_RECT.position
 	hand_shade.size = COUNTING_SHADE_RECT.size
 	hand_shade.visible = false
-	add_child(hand_shade)
+	fore.add_child(hand_shade)
 	redraw_layer = Control.new()
 	redraw_layer.name = "RedrawLayer"
 	redraw_layer.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -348,3 +407,11 @@ func _build_scan_layers() -> void:
 	popup_layer.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	popup_layer.size = SIZE
 	add_child(popup_layer)
+
+
+func _layer(layer_name: String) -> Control:
+	var layer: Control = Control.new()
+	layer.name = layer_name
+	layer.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	layer.size = SIZE
+	return layer

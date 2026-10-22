@@ -73,6 +73,12 @@ const LED_COUNT_RECT := Rect2(615, 95, 278, 86)
 const TO_GO_RECT := Rect2(615, 183, 278, 24)
 const STAMP_RECT := Rect2(640, 184, 156, 30)
 const SUNBURST_CENTRE := Vector2(754, 137)
+## The DONE state's "INSPECTION PASSED ✓" under the stamp (#77 machine v2), as the dessert stamps
+## it on the receipt (CountUp.inspection_passed): bold Atkinson (✓ from the display's fallback).
+const INSPECTION_RECT := Rect2(615, 213, 278, 16)
+const INSPECTION_TEXT := "INSPECTION PASSED ✓"
+const INSPECTION_SIZE := 12
+const INSPECTION_WEIGHT := 800
 ## The SPEND MET stamp slams this long after the burst (real time), shaking the monitor
 ## STAMP_SHAKE px over STAMP_SHAKE_S as it lands.
 const STAMP_DELAY_S := 0.25
@@ -168,6 +174,7 @@ var _scan_footer: ScanFooter
 ## How many of the scan's first step lines are "gives" lines (show_scan).
 var _scan_gives: int = 0
 var _scan_tier: int = 0
+var _inspection_passed: Label
 ## Each label's rect (local), set again once in the tree (a label never shrinks back by itself).
 var _rects: Dictionary[Label, Rect2] = {}
 
@@ -204,6 +211,16 @@ func _init() -> void:
 	_tab.position = local(Rect2(OverTab.POSITION, Vector2.ZERO)).position
 	_tab.reduced_motion = _wants_reduced_motion
 	_count_view.add_child(_tab)
+	_inspection_passed = UiKit.body_label(INSPECTION_TEXT, INSPECTION_SIZE, Palette.TEAL_SHADE)
+	_inspection_passed.name = "InspectionPassed"
+	_inspection_passed.add_theme_font_override(
+		"font", MachineDisplay.marked_font(INSPECTION_WEIGHT)
+	)
+	_inspection_passed.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_inspection_passed.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	_inspection_passed.visible = false
+	_count_view.add_child(_inspection_passed)
+	_place(_inspection_passed, INSPECTION_RECT)
 	led = LedDisplay.new()
 	led.position = local(ShiftStage.LED_RECT).position
 	add_child(led)
@@ -277,16 +294,25 @@ func mode() -> Mode:
 
 ## Planning's idle screen is the store channel, showing `run`'s shift (MonitorChannel's
 ## show_state): its number, quota and inspections, the owned upgrades and the coupons in play
-## (on the belt in slot order, then in the hand). The shift screen calls it on every planning
-## refresh, with the LED blank.
-func show_channel(run: RunState) -> void:
+## (on the belt in slot order, then in the hand), whether passing the shift earns the bonus ticket
+## (RewardMachine.bonus_if_passed: the brief's PASS IT plate) and the brief's `news` lines (#77
+## machine v2). The shift screen calls it on every planning refresh, with the LED blank.
+func show_channel(run: RunState, news: PackedStringArray = PackedStringArray()) -> void:
 	var coupons: Array[CardDefinition] = []
 	for cards: Array[CardInstance] in [run.row, run.hand()]:
 		for card: CardInstance in cards:
 			if card.definition.is_coupon():
 				coupons.append(card.definition)
+	var bonus: bool = run.machine != null and run.machine.bonus_if_passed(run)
 	channel.show_state(
-		run.shift_index + 1, run.shift_count(), run.quota(), run.inspections, run.upgrades, coupons
+		run.shift_index + 1,
+		run.shift_count(),
+		run.quota(),
+		run.inspections,
+		run.upgrades,
+		coupons,
+		bonus,
+		news
 	)
 	_channel_on = true
 	_apply()
@@ -362,13 +388,26 @@ func follow(count_up: CountUp) -> void:
 	count_up.ride.connect(_on_ride)
 	count_up.beat_started.connect(_on_beat_started)
 	count_up.quota_met.connect(_on_quota_met)
+	count_up.inspection_passed.connect(_show_inspection_passed)
+
+
+## The DONE state's "INSPECTION PASSED ✓" (the dessert stamped it; hidden at the next count).
+func _show_inspection_passed() -> void:
+	_inspection_passed.visible = true
+
+
+func inspection_passed_label() -> Label:
+	return _inspection_passed
 
 
 ## A resumed checkout's end state (after CountUp's show_end_state, which met the quota or not):
 ## the bay with all of `views`' items paid and bagged (ALL PAID, DONE), no chips or particles.
-## `_plan` is the count-up's.
-func show_end_state(_plan: CountUpPlan, views: Array[CardView]) -> void:
+## `_plan` is the count-up's; an inspected pass shows INSPECTION PASSED ✓ (`inspection_passed`).
+func show_end_state(
+	_plan: CountUpPlan, views: Array[CardView], inspection_passed: bool = false
+) -> void:
 	_bay.show_end_state(views.size(), _met)
+	_inspection_passed.visible = inspection_passed
 	_chips.clear()
 	_pour_due = 0
 	if tank_burst != null:
@@ -481,6 +520,7 @@ func _update_bay() -> void:
 func _on_led_mode(led_mode: LedDisplay.Mode) -> void:
 	if led_mode == LedDisplay.Mode.SUBTOTAL:
 		_bay.reset(true)
+		_inspection_passed.visible = false
 		# Planning's belt is spent: the next planning shows an empty bay until the screen says.
 		_next = null
 		_slots = 0

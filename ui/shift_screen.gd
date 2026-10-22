@@ -27,7 +27,10 @@ extends Control
 ##
 ## The layout (#55; full build plan section 6.1) is ShiftStage's: a 1280x720 stage centred in the
 ## window over a wall and a counter that fill it. The screen keeps its own names for the stage's
-## controls and fills them.
+## controls and fills them. Machine v2 (#77, Q1 = A): the store (the backdrop and the stage's
+## world, with the machine on the back wall) is in the StoreCamera, which glides to the machine at
+## 2x for its visits and back after the last one (MachineFlow); the top band and the stage's hud
+## (the top bar, the scan and popup layers) never zoom. Planning input waits for the glide back.
 ##
 ## Sounds (#62) play on the screen's own Sfx, warmed up when it opens: cards picked up, placed
 ## and let go, refusals, the redraw, CHECKOUT and the log export here, a prize in MachineFlow;
@@ -69,8 +72,11 @@ var _counting: bool = false
 var _run_started_ms: int = 0
 var _run_ended_ms: int = -1
 
-## The 1280x720 stage, centred in the window.
+## The 1280x720 stage, centred in the window (its hud; its world is in the camera).
 var _stage: ShiftStage
+## The store's camera (#77 machine v2) and the wall in it, which takes the background clicks.
+var _camera: StoreCamera
+var _wall: ColorRect
 var _top_bar: HBoxContainer
 var _shift_label: Label
 var _quota_label: Label
@@ -90,7 +96,7 @@ var _checkout_button: FramedButton
 var _results: ResultsPanel
 ## The RECEIPT REWARDS machine's visits (#77) and the machine on screen.
 var _machine: MachineFlow
-## Dims the screen and blocks clicks behind the machine, the deck view and the results.
+## Dims the screen and blocks clicks behind the deck view and the results.
 var _shade: ScreenShade
 var _deck_view: DeckView
 var _row_strip: RowStrip
@@ -119,6 +125,8 @@ var _belt_chips: BeltChips = BeltChips.new()
 var _ride: BeltRide
 ## The planning effects (#71, mock-up h1): the belt's stickers, the hover's relations, the drag's.
 var _effects: PlanningEffects
+## The TOY MACHINES over the results (#63), made the first time they open.
+var _toys: ToyMachinesScreen
 ## The basket redraw's targets and tags, and its motion.
 var _basket_tags: BasketTags
 var _basket_redraw: BasketRedraw
@@ -157,14 +165,22 @@ func start_new_run(seed_value: int, saves_run: bool = true) -> void:
 	_saves_run = saves_run
 	ShiftMusic.new_run(_music)
 	var deck: DeckDefinition = load(STARTER_DECK)
-	# Phase 3's shopping list will set the list; until then the profile's last one is kept.
+	# Until #65's shopping list, a run that needs a list stocks a random one from the run seed's
+	# own stream (#63), so the same seed and profile give the same list; last_list is untouched.
+	var listed: Array[StringName] = []
+	if RunStock.needs_list(_balance, profile.unlocked_items):
+		var stream: RandomNumberGenerator = EventLogService.derived_stream(
+			seed_value, EventLogService.SURPRISE_LIST_STREAM
+		)
+		listed = RunStock.surprise_list(_balance, profile.unlocked_items, stream)
 	var stock: RunStock = RunStock.build(
-		deck, _balance, profile.last_list, profile.unlocked_items, profile.run_count
+		deck, _balance, listed, profile.unlocked_items, profile.run_count
 	)
 	run = RunState.new(seed_value, deck, _balance, stock)
 	_run_started_ms = Time.get_ticks_msec()
 	_run_ended_ms = -1
 	_log.begin_run()
+	_machine.reset_swaps()
 	_close_overlays()
 	_cabinet.set_total_down(false)
 	_log.log_event("run_start", RunEvents.run_start(run))
@@ -197,6 +213,7 @@ func _on_shift_started() -> void:
 	_log.log_event("shift_start", start)
 	_refresh()
 	_save_run()
+	_machine.shift_started()
 
 
 ## Continues a saved run where it stopped (full build plan section 4), under its run id and with
@@ -208,6 +225,7 @@ func _resume_run(saved: RunSave) -> void:
 	_run_ended_ms = -1
 	_log.resume_run(saved.run_id)
 	_log.log_event("run_resume", RunEvents.run_resume(run, saved.run_ms))
+	_machine.reset_swaps()
 	_close_overlays()
 	# A resume never plays a count-up (saves are taken at the click and the machine's visits).
 	_cabinet.set_total_down(false)
@@ -219,6 +237,7 @@ func _resume_run(saved: RunSave) -> void:
 	tracker.begin(Time.get_ticks_msec(), _focus.is_player_present())
 	_refresh()
 	if run.phase == RunState.Phase.PLANNING:
+		_machine.shift_started()
 		return
 	# After the checkout: the row, its receipt (ended as the dessert left it, with the next
 	# shift's inspection notice) and the LED's TOTAL, met or not, as the count-up left them
@@ -232,8 +251,14 @@ func _resume_run(saved: RunSave) -> void:
 		", ".join(InspectionTag.names(run.inspections))
 	)
 	_count_up.show_end_state(run.last_result, run.quota(), count_up_context())
-	_monitor.show_end_state(_count_up.plan, _row_views)
+	var record: ShiftRecord = run.history[-1]
+	_monitor.show_end_state(_count_up.plan, _row_views, record.passed and record.inspection != null)
 	_machine.open(true)  # No dessert: the visit shows as it waits, on a new timeline.
+
+
+## Saves the profile now (the debug panel's Profile tools); false (reported) when it can't be.
+func save_profile() -> bool:
+	return _saves.save_profile(profile)
 
 
 ## Writes the run save at a save point (full build plan section 4): the shift started, every
@@ -246,6 +271,8 @@ func _save_run() -> void:
 ## Hides every panel and lets go of any picked or dragged card.
 func _close_overlays() -> void:
 	_notice_label.clear_notice()
+	# The torn receipt went into the machine (#77 machine v2): the next one prints here.
+	_receipt.visible = true
 	_drag.cancel()
 	_scan.clear()
 	_picked = null
@@ -265,7 +292,7 @@ func _close_overlays() -> void:
 
 
 func _on_hand_card_clicked(view: CardView) -> void:
-	if _counting or _redraw_mode or _redraw_busy or run.phase != RunState.Phase.PLANNING:
+	if _busy() or _redraw_mode or _redraw_busy or run.phase != RunState.Phase.PLANNING:
 		return
 	if _picked == view.card:
 		# Let go on the release, unless the press becomes a drag of the picked card.
@@ -279,7 +306,7 @@ func _on_hand_card_clicked(view: CardView) -> void:
 
 
 func _on_row_card_clicked(view: CardView) -> void:
-	if _counting or _redraw_mode or _redraw_busy or run.phase != RunState.Phase.PLANNING:
+	if _busy() or _redraw_mode or _redraw_busy or run.phase != RunState.Phase.PLANNING:
 		return
 	var slot: int = run.row.find(view.card)
 	# A hand card that fits nowhere (the notice says to take a product out) is let go, so this
@@ -300,7 +327,7 @@ func _on_slot_input(event: InputEvent, slot: int) -> void:
 	var press: InputEventMouseButton = event as InputEventMouseButton
 	if not (press and press.pressed and press.button_index == MOUSE_BUTTON_LEFT):
 		return
-	if _counting or _redraw_mode or _redraw_busy or _picked == null:
+	if _busy() or _redraw_mode or _redraw_busy or _picked == null:
 		return
 	_place_picked(slot)
 
@@ -308,7 +335,7 @@ func _on_slot_input(event: InputEvent, slot: int) -> void:
 ## Drag-and-drop: a drop on a slot places the card as a click there would; anywhere else lets
 ## go of it (a card from the row goes back to the hand). A click on the picked card lets go.
 func _on_card_released(card: CardInstance, slot: int, dragged: bool) -> void:
-	if _counting or _redraw_mode or _picked != card:
+	if _busy() or _redraw_mode or _picked != card:
 		return
 	if dragged and slot >= 0:
 		_place_picked(slot, true)
@@ -364,14 +391,14 @@ func _on_background_input(event: InputEvent) -> void:
 	var press: InputEventMouseButton = event as InputEventMouseButton
 	if not (press and press.pressed and press.button_index == MOUSE_BUTTON_LEFT):
 		return
-	if _picked != null and not _counting:
+	if _picked != null and not _busy():
 		_let_go()
 
 
 ## The Redraw key arms redraw mode (plan section 3.8: "Pick a basket"); pressed again, it backs
 ## out as Cancel does.
 func _on_redraw_pressed() -> void:
-	if _counting or _redraw_busy or run.phase != RunState.Phase.PLANNING:
+	if _busy() or _redraw_busy or run.phase != RunState.Phase.PLANNING:
 		return
 	if _redraw_mode:
 		_redraw_mode = false
@@ -396,7 +423,7 @@ func _on_cancel_pressed() -> void:
 ## and saved), redraw mode ends and the motion plays, blocking every click until it ends. Sounds:
 ## `shuffle` now, then one `card_place` as each new item pops up.
 func _on_basket_clicked(basket: int) -> void:
-	if not _redraw_mode or _redraw_busy or _counting or not run.can_redraw_basket(basket):
+	if not _redraw_mode or _redraw_busy or _busy() or not run.can_redraw_basket(basket):
 		return
 	var before: Array[CardInstance] = run.hand_places()
 	var places: Array[int] = run.redraw_basket(basket)
@@ -410,8 +437,8 @@ func _on_basket_clicked(basket: int) -> void:
 	for place: int in places:
 		replaced.append(before[place])
 		received.append(after[place])
-		old_views.append(_ghost(before[place]))
-		new_views.append(_ghost(after[place]))
+		old_views.append(BasketRedraw.ghost(before[place], run.balance))
+		new_views.append(BasketRedraw.ghost(after[place], run.balance))
 	_log.log_event("redraw", RunEvents.redraw(basket, places, replaced, received))
 	_redraw_mode = false
 	_redraw_busy = true
@@ -442,19 +469,7 @@ func _on_redraw_finished() -> void:
 func _on_basket_hovered(basket: int) -> void:
 	_basket_redraw.hover(basket)
 	if _redraw_mode and not _redraw_busy:
-		_monitor.show_redraw(_redraw_notice(basket))
-
-
-## The monitor's redraw panel for redraw mode, with basket `hovered` hovered (-1: none).
-func _redraw_notice(hovered: int) -> RedrawNotice:
-	var left: int = run.redraws_allowed - run.redraws_used
-	if hovered < 0 or not run.can_redraw_basket(hovered):
-		return RedrawNotice.armed(left)
-	var items: Array[CardDefinition] = []
-	var places: Array[CardInstance] = run.hand_places()
-	for place: int in run.basket_places(hovered):
-		items.append(places[place].definition)
-	return RedrawNotice.hovered(hovered, left, items, run.deck.draw_pile().size())
+		_monitor.show_redraw(RedrawNotice.of_run(run, basket))
 
 
 ## Redraw mode's tags and monitor panel (plan section 3.8), or neither: a tag on each basket that
@@ -472,20 +487,11 @@ func _refresh_redraw() -> void:
 		var count: int = run.basket_places(basket).size()
 		swaps.append(mini(count, pile) if run.can_redraw_basket(basket) else 0)
 	_basket_tags.show_tags(lefts, swaps)
-	_monitor.show_redraw(_redraw_notice(_basket_tags.hovered()))
-
-
-## A display-only copy of `card`'s basket item, for the redraw's motion.
-func _ghost(card: CardInstance) -> Control:
-	var view: ItemView = ItemView.new(
-		card, run.balance.aisle_of(card.definition), ItemView.Form.BASKET
-	)
-	view.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	return view
+	_monitor.show_redraw(RedrawNotice.of_run(run, _basket_tags.hovered()))
 
 
 func _on_checkout_pressed() -> void:
-	if _counting or _redraw_busy or run.phase != RunState.Phase.PLANNING:
+	if _busy() or _redraw_busy or run.phase != RunState.Phase.PLANNING:
 		return
 	_sfx.play("checkout")
 	_counting = true
@@ -545,6 +551,7 @@ func _on_checkout_pressed() -> void:
 	var shift: int = run.shift_index + 1
 	_log.log_event("count_up", RunEvents.count_up_of(_count_up, shift, _click_ms, context))
 	_counting = false
+	_refresh_bar()  # The inspection chip's EARNED (#77 machine v2).
 	_cabinet.set_total_down(false)
 	_stage.dim_hand(false)
 	if run.phase == RunState.Phase.MACHINE_CHOOSE:
@@ -561,13 +568,18 @@ func _on_checkout_pressed() -> void:
 ## Called after RunState.checkout(), which has already added the shift being counted to the
 ## history: its record (the last) is left out.
 func count_up_context() -> CountUpContext:
-	return CountUpContext.new(
+	var context: CountUpContext = CountUpContext.new(
 		run.shift_index + 1,
 		best_earlier_total(run.history),
 		profile.count_up_speed(),
 		profile.reduced_motion(),
 		receipt_header()
 	)
+	# A bonus ticket follows the visit (#77 machine v2, Q2 = 2): the dessert prints its stub.
+	context.bonus_ticket = (
+		run.machine != null and run.machine.pending_kinds().has(MachineVisit.Kind.BONUS)
+	)
+	return context
 
 
 ## The receipt's header for the shift on screen (#75): the shift, and the belt's items with its
@@ -592,6 +604,20 @@ func _on_new_run_pressed() -> void:
 	start_new_run(_log.new_run_seed())
 
 
+## Results: the TOY MACHINES (#63) open over the results, below the debug panel. A draw here is
+## a results draw (its item rides the next 3 runs); the machines are off when the run's profile
+## save failed or the profile can't be saved. Done leaves the results as they were (the receipt's
+## coin total is the run's record and isn't reprinted).
+func _open_toy_machines() -> void:
+	if _toys == null:
+		_toys = ToyMachinesScreen.new()
+		add_child(_toys)
+		if _debug.panel != null:
+			move_child(_toys, _debug.panel.get_index())
+	var can_save: bool = _profile_saved and _saves.can_save_profile()
+	_toys.open(CapsuleCounter.new(profile, _saves, _balance, _log, false, can_save), _balance)
+
+
 # --- Deck view and the loyalty card --------------------------------------------------------
 
 
@@ -604,7 +630,7 @@ func _on_deck_closed() -> void:
 
 
 func _on_deck_button_pressed() -> void:
-	if _counting or _redraw_busy:
+	if _busy() or _redraw_busy:
 		return
 	# During a visit, once the machine has armed (plan 8's armed_ms); it comes back on close.
 	if _machine.is_open():
@@ -664,8 +690,41 @@ func _refresh_bar() -> void:
 	_shift_label.text = "%d/%d" % [run.shift_index + 1, run.shift_count()]
 	_quota_label.text = QuotaMeter.QUOTA_AMOUNT % run.quota()
 	_inspection_tag.show_inspections(run.inspections)
+	_inspection_tag.show_bonus(_bonus_state())
 	_refresh_loyalty_card()
 	_deck_button.caption = "Cart %d/%d" % [run.deck.size(), run.balance.deck_limit]
+	(_top_bar as TopBar).fit_inspection()
+
+
+## The inspection chip's bonus ticket (#77 machine v2): PROMISED in planning when passing the
+## shift earns it (RewardMachine.bonus_if_passed), EARNED at the machine once the count-up is over
+## when the pass earned it (bonus_earned); the count-up keeps the chip as planning left it.
+func _bonus_state() -> InspectionTag.Bonus:
+	if run.machine == null:
+		return InspectionTag.Bonus.NONE
+	if RunState.MACHINE_PHASES.has(run.phase):
+		if _counting:
+			return _inspection_tag.bonus_state()
+		return (
+			InspectionTag.Bonus.EARNED
+			if run.machine.bonus_earned(run)
+			else InspectionTag.Bonus.NONE
+		)
+	if run.phase == RunState.Phase.PLANNING and run.machine.bonus_if_passed(run):
+		return InspectionTag.Bonus.PROMISED
+	return InspectionTag.Bonus.NONE
+
+
+## The items on screen: the hand's baskets, then the belt's (the upgrade swap's, #77 machine v2).
+func item_views() -> Array[ItemView]:
+	var views: Array[ItemView] = []
+	for control: Control in _hand_box.cards():
+		if control is ItemView:
+			views.append(control as ItemView)
+	for card_view: CardView in _row_views:
+		if card_view is ItemView:
+			views.append(card_view as ItemView)
+	return views
 
 
 ## One slot per card the shift allows (upgrades can add slots), then the row's cards, standing
@@ -738,7 +797,7 @@ func _show_projected(total: int) -> void:
 	if _led.mode() != LedDisplay.Mode.BLANK:
 		_led.clear()
 	_quota_meter.show_projected(total, run.quota())
-	_monitor.show_channel(run)
+	_monitor.show_channel(run, _machine.swap_news())
 	var first: CardDefinition = run.row[0].definition if not run.row.is_empty() else null
 	_monitor.show_next(first, RowCapacity.card_limit(run.limits), run.row.size())
 
@@ -780,27 +839,33 @@ func _show_results(result: ScoreResult) -> void:
 	_results.show_results(run, result, profile.coins if _profile_saved else -1, _music)
 
 
+## Planning input waits while the shift is counted and while the camera glides back from the
+## machine, until the upgrade swap starts (#77 machine v2).
+func _busy() -> bool:
+	return _counting or _machine.is_settling()
+
+
 func _process(_delta: float) -> void:
-	_shade.visible = _machine.is_open() or _deck_view.visible or _results.visible
+	# The machine stands in the store (#77 machine v2): only the deck view and the results shade.
+	_shade.visible = _deck_view.visible or _results.visible
 	# The shade starts under the top bar, wherever the stage sits in the window.
 	_shade.offset_top = _stage.position.y + ShiftStage.PANEL_TOP
-	# Beside the machine alone, the register column (the register and the receipt) stays
-	# unshaded (#77; no monitor hole). The shade starts at the column's place on the stage (its
-	# right edge), not at a node's rect, so it holds still while the register rattles.
-	var beside: bool = _machine.is_open() and not _deck_view.visible
-	var column_end: float = (_stage.get_global_transform() * ShiftStage.REGISTER_RECT).end.x
-	_shade.offset_left = column_end if beside else 0.0
 
 
 func _build() -> void:
 	set_anchors_preset(Control.PRESET_FULL_RECT)
-	StoreBackdrop.screen_parts(self, _balance.aisles).gui_input.connect(_on_background_input)
+	_camera = StoreCamera.new()
+	add_child(_camera)
+	_wall = StoreBackdrop.screen_parts(_camera.content, _balance.aisles)
+	_wall.gui_input.connect(_on_background_input)
 	_stage = ShiftStage.new(_balance.slot_count + _balance.coupon_slot_count)
 	# Text on the stage and the overlay without its own font (the count-up's flying numbers,
 	# stamps and verdict) uses the number font. The theme stays off the screen's root, so the
 	# panels #56 restyles and ShiftDebug's panel keep the plain default font.
-	_stage.theme = UiKit.screen_theme()
+	_stage.apply_theme(UiKit.screen_theme())
+	StoreBackdrop.top_parts(self)
 	add_child(_stage)
+	_camera.adopt(_stage.world)
 	_stage.checkout_pressed.connect(_on_checkout_pressed)
 	_stage.redraw_pressed.connect(_on_redraw_pressed)
 	_stage.cancel_pressed.connect(_on_cancel_pressed)
@@ -885,12 +950,13 @@ func _build() -> void:
 	add_child(_shade)
 	_machine = MachineFlow.new()
 	add_child(_machine)
-	add_child(_machine.setup(self, _log))
+	_stage.add_machine(_machine.setup(self, _log))
 	_scan.cover_offers(_machine.view)
 	_results = ResultsPanel.new()
 	add_child(_results)
 	_results.new_run_requested.connect(_on_new_run_pressed)
 	_results.export_requested.connect(_on_export_pressed)
+	_results.toy_machines_requested.connect(_open_toy_machines)
 	# Added last, so the deck view sits above the machine and the results.
 	_deck_view = DeckView.new()
 	add_child(_deck_view)
@@ -905,7 +971,7 @@ func _build() -> void:
 func _scan_blocked() -> bool:
 	var planning: bool = run != null and run.phase == RunState.Phase.PLANNING
 	var redrawing: bool = _redraw_mode or _redraw_busy
-	return _counting or _drag.is_dragging() or not planning or _deck_view.visible or redrawing
+	return _busy() or _drag.is_dragging() or not planning or _deck_view.visible or redrawing
 
 
 func _on_closed_slot_clicked() -> void:

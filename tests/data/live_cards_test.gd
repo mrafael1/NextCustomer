@@ -284,6 +284,51 @@ func test_every_stocked_product_has_its_sprite() -> void:
 		paths[card.art_ref] = card.id
 
 
+## Sticker minis: every plain product with its own sprite has a 7x7 giver-badge mini and its
+## GOLDEN copy (mini_art_ref, mini_golden_art_ref), each its own; a product with no sprite yet,
+## a coupon and a BIG or GOLDEN tier set none, and a tier shows its plain card's (gold-outlined
+## for GOLDEN, the plain one for BIG).
+func test_every_product_with_a_sprite_has_its_mini() -> void:
+	var minis: Dictionary[String, StringName] = {}
+	var with_mini: int = 0
+	for card: CardDefinition in _all_cards():
+		var message: String = "%s: %s / %s" % [card.id, card.mini_art_ref, card.mini_golden_art_ref]
+		var drawn: bool = (
+			card.is_product() and card.variant_of == null and not card.art_ref.is_empty()
+		)
+		if not drawn:
+			assert_str(card.mini_art_ref).override_failure_message(message).is_empty()
+			assert_str(card.mini_golden_art_ref).override_failure_message(message).is_empty()
+			continue
+		with_mini += 1
+		for path: String in [card.mini_art_ref, card.mini_golden_art_ref]:
+			assert_bool(ResourceLoader.exists(path)).override_failure_message(message).is_true()
+			var texture: Texture2D = (
+				load(path) as Texture2D if ResourceLoader.exists(path) else null
+			)
+			assert_object(texture).override_failure_message(message).is_not_null()
+			if texture != null:
+				assert_that(texture.get_size()).override_failure_message(message).is_equal(
+					GiverBadge.MINI_SIZE / float(ArtStyle.ART_SCALE)
+				)
+			assert_bool(minis.has(path)).override_failure_message(message).is_false()
+			minis[path] = card.id
+		assert_str(card.badge_mini_ref()).is_equal(card.mini_art_ref)
+	# The 23 products with a sprite: style frame v2's 10 and #57's 13.
+	assert_int(with_mini).is_equal(23)
+	for card: CardDefinition in _all_cards():
+		if card.tier == CardDefinition.Tier.PLAIN:
+			continue
+		var plain: CardDefinition = card.product_card()
+		var expected: String = (
+			plain.mini_golden_art_ref
+			if card.tier == CardDefinition.Tier.GOLDEN
+			else plain.mini_art_ref
+		)
+		assert_str(card.badge_mini_ref()).override_failure_message(card.id).is_equal(expected)
+		assert_str(card.badge_mini_ref()).override_failure_message(card.id).is_not_empty()
+
+
 ## The products a new profile stocks (full build plan 7.2): the starter deck's products, then
 ## every base aisle's base_cards (a machine-opened aisle has none), each once, in data order.
 static func stocked_products() -> Array[CardDefinition]:

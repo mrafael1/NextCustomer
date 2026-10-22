@@ -34,3 +34,41 @@ extends Resource
 
 ## Seconds between two rings of a boosted item's halo stepping out.
 @export var halo_step_s: float = 0.0
+
+@export_group("Bonus notice")
+## #77 machine v2: on an inspected shift whose pass earns the bonus ticket, planning's notice
+## pulses once as the shift opens (none under reduced motion): the top bar's chip for
+## notice_pulse_ms, then the monitor's PASS IT plate for monitor_pulse_ms, each scaling by
+## 1 + notice_pulse_scale x sin(notice_pulse_rate x seconds). BonusNotice reads them.
+@export var notice_pulse_ms: int = 0
+@export var monitor_pulse_ms: int = 0
+@export var notice_pulse_scale: float = 0.0
+@export var notice_pulse_rate: float = 0.0
+
+@export_group("Upgrade swap")
+## #77 machine v2: the shift after an UPGRADES pick, each upgraded copy on screen swaps in place
+## (UpgradeSwap): a white flash masked to its sprite (swap_flash_alpha fading to 0 over
+## swap_flash_ms), a gold sunburst behind it (swap_shine_px across, turning swap_shine_turn_deg_s,
+## growing from swap_shine_from to swap_shine_to over swap_shine_grow_ms, its alpha a sine bump
+## of swap_shine_alpha over swap_shine_ms), a pop to swap_pop_scale and back over swap_pop_ms, and
+## the gold "BANANA › GOLDEN" tag: in from swap_tag_delay_ms over swap_tag_in_ms, rising
+## swap_tag_rise_px over swap_tag_rise_ms, held swap_tag_hold_ms, then out over swap_tag_out_ms.
+## Several copies start swap_stagger_ms apart. Reduced motion: the tag only, at once.
+@export var swap_flash_ms: int = 0
+@export var swap_flash_alpha: float = 0.0
+@export var swap_shine_ms: int = 0
+@export var swap_shine_px: float = 0.0
+@export var swap_shine_turn_deg_s: float = 0.0
+@export var swap_shine_grow_ms: int = 0
+@export var swap_shine_from: float = 0.0
+@export var swap_shine_to: float = 0.0
+@export var swap_shine_alpha: float = 0.0
+@export var swap_pop_ms: int = 0
+@export var swap_pop_scale: float = 0.0
+@export var swap_tag_delay_ms: int = 0
+@export var swap_tag_in_ms: int = 0
+@export var swap_tag_rise_ms: int = 0
+@export var swap_tag_rise_px: float = 0.0
+@export var swap_tag_hold_ms: int = 0
+@export var swap_tag_out_ms: int = 0
+@export var swap_stagger_ms: int = 0

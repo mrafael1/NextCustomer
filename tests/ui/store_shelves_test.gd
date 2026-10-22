@@ -10,7 +10,8 @@ extends GdUnitTestSuite
 const SCREEN := "res://ui/shift_screen.tscn"
 const BALANCE := "res://data/balance/balance.tres"
 const WINDOWS: Array[Vector2] = [Vector2(1280, 720), Vector2(1920, 1080), Vector2(1600, 720)]
-## The backdrop's parts, back to front, before the top band.
+## The backdrop's parts, back to front (the top band is StoreBackdrop.top_parts', over the camera
+## since #77 machine v2).
 const ORDER: Array[String] = [
 	"Wall",
 	"WallLight",
@@ -25,7 +26,6 @@ const ORDER: Array[String] = [
 	"Cashier",
 	"WallShade",
 	"Lamp",
-	"TopBand",
 ]
 ## The window-wide wall bands and their spans (B2's wall coordinates).
 const BANDS: Dictionary[String, Vector2] = {
@@ -38,13 +38,13 @@ const BANDS: Dictionary[String, Vector2] = {
 	"Haze": Vector2(0, 270),
 	"WallShade": Vector2(0, 270),
 }
-## Points on the stage over decor only: the cold cases, the bakery, a sign, the fruit & veg stand,
-## the cashier, the lamp, the pillar and the bare wall under the monitor (above the slots' drop
-## targets, which reach up over a standing item's art).
+## Points on the stage over decor only: the cold cases, the idle machine on the back wall (#77
+## machine v2: it takes no click between visits), the fruit & veg stand, the cashier, the lamp,
+## the pillar and the bare wall under the monitor (above the slots' drop targets, which reach up
+## over a standing item's art).
 const DECOR_POINTS: Array[Vector2] = [
 	Vector2(1220, 200),
-	Vector2(980, 200),
-	Vector2(1160, 94),
+	Vector2(1060, 200),
 	Vector2(410, 270),
 	Vector2(328, 250),
 	Vector2(210, 64),
@@ -86,7 +86,10 @@ func test_the_wall_covers_the_window_at_every_size() -> void:
 		await _frames(2)
 		var bounds: Rect2 = window.get_global_rect()
 		var origin: Vector2 = stage.get_global_rect().position
-		assert_that(wall.get_global_rect()).is_equal(bounds)
+		# The wall runs past the window's right edge, for the camera at the machine (#77 v2).
+		var wall_rect: Rect2 = wall.get_global_rect()
+		assert_vector(wall_rect.position).is_equal(bounds.position)
+		assert_vector(wall_rect.size).is_equal(bounds.size + Vector2(StoreBackdrop.WORLD_EXTRA, 0))
 		for part_name: String in BANDS:
 			var band: Rect2 = (window.get_node(part_name) as Control).get_global_rect()
 			var span: Vector2 = BANDS[part_name] + Vector2.ONE * ShiftStage.TOP_BAR_BOTTOM
@@ -121,22 +124,37 @@ func test_the_wall_covers_the_window_at_every_size() -> void:
 
 ## Every part of the backdrop, its sections' every node too, takes no click, apart from the wall;
 ## the parts are all behind the stage, and the stage draws the monitor, the receipt, the belt,
-## the register and the top bar. On decor (the cases, the bakery, a sign, the stand, the
-## cashier, the lamp, the pillar, the bare wall) a click reaches the wall, and a press there lets
-## go of a picked item (the background handler).
+## the register and the top bar. On decor (the cases, the idle machine, the stand, the cashier,
+## the lamp, the pillar, the bare wall) a click reaches the wall, and a press there lets go of a
+## picked item (the background handler). Since #77 machine v2 the backdrop is in the store's
+## camera, behind the stage's world; the top band is over the camera, under the stage's hud.
 func test_decor_takes_no_clicks_and_sits_behind_the_stage() -> void:
 	var runner: GdUnitSceneRunner = scene_runner(SCREEN)
 	var screen: ShiftScreen = runner.scene()
 	await _frames(3)
 	var stage: ShiftStage = screen._stage
-	var wall: Control = screen.get_child(0) as Control
+	var wall: Control = screen._wall
 	assert_str(String(wall.name)).is_equal("Wall")
-	for index: int in range(1, stage.get_index()):
-		_assert_ignores_clicks(screen.get_child(index))
+	var content: Control = screen._camera.content
+	for part: Node in content.get_children():
+		if part != wall and part != stage.world:
+			_assert_ignores_clicks(part)
+	for index: int in range(0, stage.get_index()):
+		var over: Control = screen.get_child(index) as Control
+		assert_int(over.mouse_filter).override_failure_message(str(over.name)).is_equal(
+			Control.MOUSE_FILTER_IGNORE
+		)
 	for part_name: String in ["StoreShelves", "Cashier", "Lamp", "Haze", "WallShade"]:
-		assert_int(screen.get_node(part_name).get_index()).is_less(stage.get_index())
-	for front: Control in [stage.monitor, stage.receipt, stage.belt, stage.cabinet, stage.top_bar]:
-		assert_bool(stage.is_ancestor_of(front)).is_true()
+		assert_int(content.get_node(part_name).get_index()).is_less(stage.world.get_index())
+	# The monitor, the receipt, the belt and the register are in the stage's world (zoomed with
+	# the camera, #77 machine v2), the top bar on its hud.
+	for front: Control in [stage.monitor, stage.receipt, stage.belt, stage.cabinet]:
+		(
+			assert_bool(stage.world.is_ancestor_of(front))
+			. override_failure_message(str(front.name))
+			. is_true()
+		)
+	assert_bool(stage.is_ancestor_of(stage.top_bar)).is_true()
 	var origin: Vector2 = stage.get_global_rect().position
 	for point: Vector2 in DECOR_POINTS:
 		var hit: Control = _topmost_at(screen, origin + point)
@@ -233,6 +251,12 @@ static func _topmost_at(node: Node, point: Vector2) -> Control:
 		var child: Node = node.get_child(index)
 		var item: CanvasItem = child as CanvasItem
 		if item != null and not item.visible:
+			continue
+		var disabled: Control = child as Control
+		if (
+			disabled != null
+			and disabled.mouse_behavior_recursive == Control.MOUSE_BEHAVIOR_DISABLED
+		):
 			continue
 		var found: Control = _topmost_at(child, point)
 		if found != null:

@@ -79,6 +79,21 @@ func test_a_stock_over_the_budget_needs_a_full_list() -> void:
 	assert_str(unknown.problem(balance)).is_not_empty()
 
 
+## A #63 profile never has a last list: one that needs a list gets the list's default
+## (RunStock.prefill_list), a full one.
+func test_a_profile_without_a_last_list_gets_the_default_list() -> void:
+	var balance: BalanceDefinition = _balance()
+	var profile: ProfileState = ProfileState.new()
+	profile.unlocked_items = {&"milk": 0, &"frozen_peas": 0}
+	var state: SimCollection = SimCollection.from_profile(profile, balance, [])
+	assert_bool(state.needs_list(balance)).is_true()
+	assert_str(state.problem(balance)).is_empty()
+	assert_int(state.listed.size()).is_equal(balance.run_aisle_picks)
+	var newly: Array[StringName] = RunStock.machine_opened_listable(balance, state.unlocked)
+	var none: Array[StringName] = []
+	assert_array(state.listed).is_equal(RunStock.prefill_list(balance, state.unlocked, none, newly))
+
+
 ## Every legal list at full collection, the first list after the budget is passed, and each
 ## machine-opened aisle just listable with every list that holds it.
 func test_gate_states() -> void:

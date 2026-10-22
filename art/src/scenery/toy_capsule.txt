@@ -1,0 +1,18 @@
+; A capsule in a TOY MACHINE's globe (#63): coloured top half in the teal ramp (recoloured
+; per aisle by the toy_capsule_<aisle> derives), clear glass bottom half, ink seam and outline.
+; 13x13 art px, placed by ToyMachineView on the mock-up's globe slots.
+@size 13x13
+@kind scenery
+....#####....
+..##55444##..
+.#554444433#.
+#54444444433#
+#44444444433#
+#44444444333#
+#############
+#jjjjjjjjjjj#
+#jjjjjjpppjj#
+#jjjjjjjjjjj#
+.#jjjjjjjjj#.
+..##jjjjj##..
+....#####....

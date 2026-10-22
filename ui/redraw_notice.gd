@@ -23,6 +23,19 @@ var foot: String = ""
 var foot_warning: bool = false
 
 
+## Redraw mode's panel for `run`, with basket `hovered_basket` hovered (-1: none, or one that
+## can't be redrawn: armed).
+static func of_run(run: RunState, hovered_basket: int) -> RedrawNotice:
+	var redraws_left: int = run.redraws_allowed - run.redraws_used
+	if hovered_basket < 0 or not run.can_redraw_basket(hovered_basket):
+		return armed(redraws_left)
+	var items: Array[CardDefinition] = []
+	var places: Array[CardInstance] = run.hand_places()
+	for place: int in run.basket_places(hovered_basket):
+		items.append(places[place].definition)
+	return hovered(hovered_basket, redraws_left, items, run.deck.draw_pile().size())
+
+
 ## Redraw mode armed, no basket hovered.
 static func armed(redraws_left: int) -> RedrawNotice:
 	var notice: RedrawNotice = RedrawNotice.new()

@@ -1,7 +1,7 @@
 class_name RunEvents
 extends RefCounted
-## Builds the data of the run_start, run_end, run_resume, run_abandon, machine_visit, count_up
-## and redraw events, the card id lists (starting_deck, cards_drawn, final_order) and the
+## Builds the data of the run_start, run_end, run_resume, run_abandon, machine_visit, count_up,
+## redraw and capsule events, the card id lists (starting_deck, cards_drawn, final_order) and the
 ## upgrade- and inspection-related log fields (plan section 8), so they are defined and tested
 ## in one place. The shift screen logs them (the title screen logs run_abandon).
 ##
@@ -11,7 +11,7 @@ extends RefCounted
 ## for a moment the choice came before); presented_ms and armed_ms leave out the chute wait (the
 ## player at the chute keys, from their arming to the CONFIRM), so they are non-interactive time.
 ##
-## Since v0.38 (#77) the `reward` and `upgrade` events and run_start's impulse_* fields are no
+## Since v0.41 (#77) the `reward` and `upgrade` events and run_start's impulse_* fields are no
 ## longer logged (the impulse rack, the print-out and the exit kiosk are gone): machine_visit
 ## replaces them. tools/log_summary.py still reads older logs.
 
@@ -183,6 +183,29 @@ static func count_up_of(
 		count.plan.step_count,
 		count.plan.planned_ms
 	)
+
+
+## The `capsule` event (#63), logged after a TOY MACHINES draw is saved: the machine (aisle id),
+## the item (card id), the run index it came out at, the coins left, the draw's stream index
+## (`draw`: EventLogService.capsule_stream's) and the capsule seed as a decimal string (a seed
+## can pass 2^31, and JSON readers may round big numbers). On the results it logs under the
+## ended run's id, on the title with an empty run_id.
+static func capsule(
+	aisle: AisleDefinition,
+	card: CardDefinition,
+	run_index: int,
+	coins_left: int,
+	draw: int,
+	capsule_seed: int
+) -> Dictionary:
+	return {
+		"machine": String(aisle.id),
+		"item": String(card.id),
+		"run_index": run_index,
+		"coins_left": coins_left,
+		"draw": draw,
+		"capsule_seed": str(capsule_seed),
+	}
 
 
 ## The `redraw` event (a basket redraw, plan section 3.8): the basket (1-based), the hand places

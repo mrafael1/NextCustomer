@@ -1,0 +1,12 @@
+; A giver-badge mini (sticker minis, mock-up docs/art/mockups/sticker_minis_v1.html): Day-old buns, a wide low bun in its film bag, gathered on top by the tomato twist tie.
+; Approved drawing, ported 1:1 from the prep's minis.py. 7x7, ink outline, light from the top left; shown die-cut (alone) at 2x on a planning sticker's
+; giver badge. Its GOLDEN copy (day_old_buns_golden) is derived (@derive ... golden=outline).
+@size 7x7
+@kind icon
+...#...
+..#R#..
+.##:##.
+#hhhFf#
+#hFFff#
+#ffffe#
+.#####.

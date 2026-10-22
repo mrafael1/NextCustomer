@@ -254,3 +254,24 @@ func test_every_aisle_has_a_glyph() -> void:
 	for aisle: AisleDefinition in (load(BALANCE) as BalanceDefinition).aisles:
 		var path: String = ArtStyle.glyph_path(aisle)
 		assert_bool(ResourceLoader.exists(path)).override_failure_message(path).is_true()
+
+
+## A capsule costs at least one coin (#63, full build plan 7.1): 1 in balance.tres, which the
+## TOY MACHINES' "1 coin" copy reads.
+func test_a_capsule_costs_at_least_one_coin() -> void:
+	var balance: BalanceDefinition = load(BALANCE)
+	assert_int(balance.capsule_price).is_greater_equal(1)
+	assert_int(balance.capsule_price).is_equal(1)
+
+
+## Every aisle of the balance has its TOY MACHINE, its capsule and its shelf sign (#63, built from
+## art/src by the aisle derives).
+func test_every_aisle_has_its_toy_machine_art() -> void:
+	var balance: BalanceDefinition = load(BALANCE)
+	for aisle: AisleDefinition in balance.aisles:
+		for path: String in [
+			"res://art/scenery/toy_machine_%s.png" % aisle.id,
+			"res://art/scenery/toy_capsule_%s.png" % aisle.id,
+			"res://art/frames/aisle_sign_%s.png" % aisle.id,
+		]:
+			assert_bool(ResourceLoader.exists(path)).override_failure_message(path).is_true()

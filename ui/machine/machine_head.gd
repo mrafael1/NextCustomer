@@ -35,6 +35,9 @@ const BONUS_TEXT := "BONUS TICKET!"
 ## blinks (on every other tenth of a second) for head_stamp_blink_ms, and lifts
 ## head_stamp_lift_ms after the punch's end (STAMP DAY: its landing).
 const STAMP_FROM := 2.0
+## A BONUS visit's stamp lands from this (machine v2), on a back ease (overshoot BACK_C).
+const BONUS_STAMP_FROM := 2.2
+const BACK_C := 1.7
 const BLINK_RATE := 10.0
 
 ## The machine this part belongs to (setup(), build spec 4.2).
@@ -155,15 +158,31 @@ func frame(t: float) -> void:
 	var blink_on: bool = true
 	var landing: float = 1.0
 	var land_time: float = MachineTuning.sec(plan.tuning.head_stamp_land_ms)
-	if not plan.reduced_motion and t < MachineTuning.sec(plan.tuning.head_stamp_blink_ms):
-		blink_on = int(floorf(t * BLINK_RATE)) % 2 == 0
-	if not plan.reduced_motion and t < land_time and land_time > 0.0:
-		var p: float = clampf(t / land_time, 0.0, 1.0)
-		landing = lerpf(STAMP_FROM, 1.0, 1.0 - (1.0 - p) * (1.0 - p))
+	var since: float = t
+	if plan.kind == MachineVisit.Kind.BONUS:
+		# Machine v2: the BONUS stamp lands once the ticket is over the slot, from 2.2x, backed.
+		since = t - plan.fly_end
+		if since < 0.0:
+			_show_stamp(false, 1.0)
+			return
+		land_time = MachineTuning.sec(plan.tuning.bonus_stamp_land_ms)
+	if not plan.reduced_motion and since < MachineTuning.sec(plan.tuning.head_stamp_blink_ms):
+		blink_on = int(floorf(since * BLINK_RATE)) % 2 == 0
+	if not plan.reduced_motion and since < land_time and land_time > 0.0:
+		var p: float = clampf(since / land_time, 0.0, 1.0)
+		if plan.kind == MachineVisit.Kind.BONUS:
+			landing = lerpf(BONUS_STAMP_FROM, 1.0, back_ease(p))
+		else:
+			landing = lerpf(STAMP_FROM, 1.0, 1.0 - (1.0 - p) * (1.0 - p))
 	if plan.has_landing and t >= lift_time(plan):
 		_show_stamp(false, 1.0)
 		return
 	_show_stamp(true, landing, blink_on)
+
+
+## The approved page's back ease (backE): 0 at 0, overshooting past 1, 1 at 1.
+static func back_ease(p: float) -> float:
+	return 1.0 + (BACK_C + 1.0) * pow(p - 1.0, 3.0) + BACK_C * pow(p - 1.0, 2.0)
 
 
 ## When the stamp lifts: head_stamp_lift_ms after the punch's end (STAMP DAY: its landing).

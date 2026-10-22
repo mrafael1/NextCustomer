@@ -41,7 +41,8 @@ func test_a_register_from_the_machine_stamps_the_loyalty_card() -> void:
 	await _pass_shift(screen)
 	assert_bool(screen._machine.is_open()).is_true()
 	await _frames(2)
-	assert_bool(screen._shade.visible).is_true()
+	# No shade over the store during a visit (#77 machine v2).
+	assert_bool(screen._shade.visible).is_false()
 	assert_bool(screen._machine._choose(RewardMachine.Chute.REGISTER)).is_true()
 	var prizes: Array[MachinePrize] = run.machine.prizes()
 	assert_int(prizes.size()).is_between(1, 3)

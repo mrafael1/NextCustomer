@@ -2,10 +2,12 @@ class_name GiverBadge
 extends Control
 ## The giver's mini badge on a planning sticker (#71, mock-up h1, H1_BUILD_SPEC.md section 2.5):
 ## a token by the giver's kind (a product, a coupon or a loyalty upgrade) holding its initials,
-## or the inspection's warning icon. It covers every card with no per-card art; the rail strip
-## names the exact item or coupon, and the hover rings the upgrade's box. Decor only: it takes
-## no clicks. Drained (another item hovered, or on a denied item) its token greys
-## (ArtStyle.Grey.DRAINED) and its initials step back.
+## or the inspection's warning icon. A product with a mini (CardDefinition.badge_mini_ref, sticker
+## minis) shows instead its hand-drawn 7x7 mini alone, die-cut, with only its own outline (ink,
+## gold for a GOLDEN giver): no token, no initials. The rail strip names the exact item or
+## coupon, and the hover rings the upgrade's box. Decor only: it takes no clicks. Drained
+## (another item hovered, or on a denied item) its token or mini greys (ArtStyle.Grey.DRAINED)
+## and its initials step back.
 
 enum Kind { NONE, ITEM, COUPON, LOYALTY, INSPECTION }
 
@@ -16,6 +18,8 @@ const LOYALTY_INITIALS := 3
 ## The token (9x9 art at 2x) and the inspection's warning icon (13x11 at 2x).
 const SIZE := Vector2(18, 18)
 const INSPECTION_SIZE := Vector2(26, 22)
+## A mini (7x7 art at 2x), centred in the badge's SIZE so the stack's layout stays as with a token.
+const MINI_SIZE := Vector2(14, 14)
 ## The initials: Pixelify, the largest of these sizes whose width fits INITIALS_WIDTH.
 const INITIALS_SIZES: Array[int] = [9, 8, 7]
 const INITIALS_WIDTH := 12.0
@@ -29,15 +33,27 @@ var kind: Kind = Kind.NONE
 var _token: TextureRect
 var _initials: Label
 var _drained: bool = false
+var _mini: bool = false
 
 
-## A `badge_kind` badge holding `badge_initials` (none for an inspection).
-func _init(badge_kind: Kind, badge_initials: String) -> void:
+## A `badge_kind` badge holding `badge_initials` (none for an inspection), or for an ITEM with a
+## `mini_ref` (a texture path that exists), that mini instead. A missing path falls back to the
+## initials quietly: a stale `mini_art_ref` in the data is caught by live_cards_test (every
+## product's mini ref must load), not here.
+func _init(badge_kind: Kind, badge_initials: String, mini_ref: String = "") -> void:
 	kind = badge_kind
 	name = "GiverBadge"
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
 	size = INSPECTION_SIZE if kind == Kind.INSPECTION else SIZE
 	custom_minimum_size = size
+	if kind == Kind.ITEM and not mini_ref.is_empty() and ResourceLoader.exists(mini_ref):
+		_mini = true
+		_token = UiKit.sprite(load(mini_ref) as Texture2D)
+		_token.name = "Mini"
+		_token.size = MINI_SIZE
+		_token.position = ((size - MINI_SIZE) / 2.0).floor()
+		add_child(_token)
+		return
 	var tokens: Dictionary[Kind, Texture2D] = {
 		Kind.ITEM: ITEM_TOKEN,
 		Kind.COUPON: COUPON_TOKEN,
@@ -82,6 +98,21 @@ func set_drained(drained: bool) -> void:
 
 func is_drained() -> bool:
 	return _drained
+
+
+## Whether it shows a product's mini (no token, no initials).
+func shows_mini() -> bool:
+	return _mini
+
+
+## The drawn texture: the mini, the token or the warning icon (for tests).
+func texture() -> Texture2D:
+	return _token.texture
+
+
+## The drawn texture's rectangle in the badge (for tests).
+func art_rect() -> Rect2:
+	return Rect2(_token.position, _token.size)
 
 
 ## The initials shown, or empty (for tests).
