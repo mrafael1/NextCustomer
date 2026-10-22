@@ -414,7 +414,7 @@ static func _balance() -> BalanceDefinition:
 	balance.coupon_slot_count = 1
 	balance.hand_size = 5
 	balance.base_redraws = 1
-	balance.redraw_limit = 2
+	balance.basket_size = 2
 	balance.deck_limit = 10
 	balance.machine = (load("res://data/balance/balance.tres") as BalanceDefinition).machine
 	balance.quotas = PackedInt32Array([5, 8, 12])

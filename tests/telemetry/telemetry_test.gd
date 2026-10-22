@@ -188,6 +188,28 @@ func test_run_start_and_run_end_fields() -> void:
 ## #77: the machine_visit event's fields, in order, from the visit just recorded (a REGISTER
 ## pick after shift 1), JSON-friendly; a bin (shift 2), and the BONUS visit of the inspected
 ## shift 3 naming its inspection.
+## The `redraw` event (plan section 3.8, the basket redraw): the basket (1-based), the places
+## swapped (0-based, left first) and the cards replaced and received in their order.
+func test_redraw_event_fields() -> void:
+	var deck: DeckDefinition = load(STARTER)
+	var balance: BalanceDefinition = load(BALANCE)
+	var run: RunState = RunState.new(5, deck, balance, RunStock.starting(deck, balance))
+	run.start_shift()
+	var hand_before: Array[CardInstance] = run.hand_places()
+	var places: Array[int] = run.redraw_basket(1)
+	var hand_after: Array[CardInstance] = run.hand_places()
+	var replaced: Array[CardInstance] = [hand_before[2], hand_before[3]]
+	var received: Array[CardInstance] = [hand_after[2], hand_after[3]]
+	var event: Dictionary = RunEvents.redraw(1, places, replaced, received)
+	assert_int(event["basket"]).is_equal(2)
+	assert_array(event["places"]).is_equal([2, 3])
+	assert_array(event["cards_replaced"]).is_equal(RunEvents.card_ids(replaced))
+	assert_array(event["cards_received"]).is_equal(RunEvents.card_ids(received))
+	# It survives the log's JSON round trip as plain numbers and ids.
+	var parsed: Dictionary = JSON.parse_string(JSON.stringify(event))
+	assert_int(int(parsed["places"][1])).is_equal(3)
+
+
 func test_machine_visit_event_fields() -> void:
 	var run: RunState = _passed_run(81)
 	run.machine.choose(run, RewardMachine.Chute.REGISTER)

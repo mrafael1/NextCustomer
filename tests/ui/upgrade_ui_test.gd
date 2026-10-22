@@ -331,7 +331,7 @@ func test_extra_redraw_gives_a_third_redraw() -> void:
 	var screen: ShiftScreen = runner.scene()
 	assert_str(screen._redraw_button.caption).is_equal("Redraw")
 	assert_str(screen._redraw_button.note()).is_equal("2 left")
-	assert_str(screen._redraw_button.accessibility_name).is_equal("Redraw up to 2 items (2 left)")
+	assert_str(screen._redraw_button.accessibility_name).is_equal("Redraw a basket (2 left)")
 	screen._debug.give_upgrade("extra_redraw")
 	assert_int(screen.run.redraws_allowed).is_equal(3)
 	assert_str(screen._redraw_button.note()).is_equal("3 left")
@@ -445,10 +445,11 @@ func _place_ids(screen: ShiftScreen, ids: Array[String]) -> void:
 		screen._on_slot_input(_left_click(), screen.run.row.size())
 
 
+## Redraws the first basket (plan section 3.8) and ends its motion at once.
 func _redraw_first_card(screen: ShiftScreen) -> void:
 	screen._on_redraw_pressed()
-	screen._on_hand_card_clicked(_view_for(screen, screen.run.hand()[0]))
-	screen._on_redraw_pressed()
+	screen._on_basket_clicked(0)
+	screen._basket_redraw.stop()
 
 
 static func _upgrade_steps(result: ScoreResult) -> Array[ScoreStep]:

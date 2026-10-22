@@ -611,7 +611,7 @@ func _report(summaries: Array[SimSummary], seconds: float) -> String:
 		"%d product slots + %d coupon slot" % [_balance.slot_count, _balance.coupon_slot_count]
 	)
 	var redraw_text: String = (
-		"%d redraws of up to %d" % [_balance.base_redraws, _balance.redraw_limit]
+		"%d redraws of a basket (%d items)" % [_balance.base_redraws, _balance.basket_size]
 	)
 	report.append(
 		(

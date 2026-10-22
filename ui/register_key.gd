@@ -5,8 +5,8 @@ extends FramedButton
 ## face is a 9-slice seen from slightly above: a lit top face band (the frame's top margin) over
 ## the front face, in a 2-texel ink outline, with the caption centred on the front face.
 ##
-## It has three frames: NORMAL, LIT for hover and press, and OFF for disabled and held. Pressed,
-## disabled or held, the face sits SINK px lower and its hard shadow (drawn here, ink at
+## It has three frames: NORMAL, LIT for hover, press and `lit`, and OFF for disabled and held.
+## Pressed, disabled or held, the face sits SINK px lower and its hard shadow (drawn here, ink at
 ## SHADOW_ALPHA) shrinks from SHADOW_UP to SHADOW_DOWN, so a state never shows by colour alone;
 ## an OFF caption fades to OFF_CAPTION_ALPHA. CHECKOUT is held down while the shift is counted
 ## (`held`, set through RegisterCabinet.set_total_down). Like every FramedButton it stays a
@@ -56,6 +56,12 @@ var held: bool = false:
 	set(value):
 		held = value
 		queue_redraw()
+## Held lit (Redraw while redraw mode is armed, plan section 3.8): the LIT look, whatever the
+## mouse does (unless held or disabled).
+var lit: bool = false:
+	set(value):
+		lit = value
+		_show_state(get_draw_mode())
 
 var _kind: Kind = Kind.CREAM
 var _styles: Array[StyleBoxTexture] = []
@@ -115,6 +121,8 @@ func note_label() -> Label:
 func look() -> Look:
 	if held or disabled:
 		return Look.OFF
+	if lit:
+		return Look.LIT
 	var mode: DrawMode = get_draw_mode()
 	if mode == DRAW_HOVER or mode == DRAW_PRESSED or mode == DRAW_HOVER_PRESSED:
 		return Look.LIT

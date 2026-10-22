@@ -1,0 +1,55 @@
+[gd_resource type="Resource" script_class="RedrawTuning" format=3]
+
+[ext_resource type="Script" path="res://ui/redraw_tuning.gd" id="1_tuning"]
+
+[resource]
+script = ExtResource("1_tuning")
+length_s = 1.1
+squash_s = 0.1
+squash_y = 0.08
+squash_x = 0.05
+tip_deg = 10.0
+tip_lift = 6.0
+tip_pull = 6.0
+tip_in_s = 0.2
+hold_s = 0.1
+right_s = 0.2
+right_overshoot = 2.2
+out_start_s = 0.22
+out_gap_s = 0.06
+out_s = 0.36
+arc_height = 150.0
+out_scale = 0.3
+out_spin_deg = 220.0
+out_fade = 0.15
+cart_bump = 0.14
+cart_bump_s = 0.16
+cart_leave = 0.6
+in_start_s = 0.5
+in_gap_s = 0.07
+in_s = 0.26
+pop_rise = 104.0
+pop_overshoot = 2.2
+pop_scale_x = 0.9
+pop_scale_y = 1.12
+land_in_s = 0.06
+land_out_s = 0.14
+land_squash_y = 0.16
+land_squash_x = 0.12
+dip = 5.0
+dip_squash = 0.03
+dip_s = 0.18
+sparks = 3
+spark_s = 0.3
+spark_speed = 260.0
+spark_speed_spread = 120.0
+spark_gravity = 1000.0
+spark_angle_from_deg = -160.0
+spark_angle_span_deg = 140.0
+hover_lift = 4.0
+hover_in_s = 0.08
+hover_wobble_deg = 1.4
+hover_wobble_rate = 11.0
+hover_wobble_s = 1.15
+rm_out_s = 0.15
+rm_in_s = 0.15

@@ -419,8 +419,9 @@ func test_the_status_line_and_the_register_stay_clear() -> void:
 
 
 ## Every Redraw caption the run can show fits REDRAW_RECT without growing it, with every upgrade
-## that adds redraws: "Redraw" with its "M left" note for each M, "Redraw used" and, in redraw
-## mode, "Confirm redraw" with its "K/N" note for each K. The note sits beside the caption, on the
+## that adds redraws: "Redraw" with its "M left" note for each M, "Redraw used", "Redraw" with
+## "none to draw" (an empty draw pile) and, in redraw mode (plan section 3.8), "Pick a basket"
+## with its "M left" note, held lit, for each M. The note sits beside the caption, on the
 ## key's face, smaller; Redraw keeps its rect on the register column, clear of Cancel and
 ## CHECKOUT.
 func test_every_redraw_caption_fits() -> void:
@@ -442,19 +443,27 @@ func test_every_redraw_caption_fits() -> void:
 		captions.append("%s %s" % [screen._redraw_button.caption, screen._redraw_button.note()])
 		await _assert_redraw_in_place(screen)
 	assert_str(";".join(captions)).contains("Redraw %d left" % run.redraws_allowed)
-	screen._on_redraw_pressed()
-	assert_bool(screen._cancel_button.visible).is_true()
-	var hand: Array[CardInstance] = []
-	for view: Control in screen._hand_box.cards():
-		hand.append((view as CardView).card)
-	for picked: int in range(mini(run.balance.redraw_limit, hand.size()) + 1):
-		screen._redraw_pick.assign(hand.slice(0, picked))
-		screen._refresh_buttons()
+	assert_str(";".join(captions)).contains("Redraw used")
+	for used: int in range(run.redraws_allowed):
+		run.redraws_used = used
+		screen._refresh()
+		screen._on_redraw_pressed()
+		assert_bool(screen._cancel_button.visible).is_true()
+		assert_str(screen._redraw_button.caption).is_equal("Pick a basket")
+		assert_int(screen._redraw_button.look()).is_equal(RegisterKey.Look.LIT)
 		captions.append("%s %s" % [screen._redraw_button.caption, screen._redraw_button.note()])
 		await _assert_redraw_in_place(screen)
-	assert_str(";".join(captions)).contains("Redraw used")
-	assert_str(";".join(captions)).contains("Confirm redraw %d/" % run.balance.redraw_limit)
-	assert_str(screen._redraw_button.accessibility_name).starts_with("Confirm redraw (")
+		screen._on_cancel_pressed()
+	assert_str(";".join(captions)).contains("Pick a basket %d left" % run.redraws_allowed)
+	assert_int(screen._redraw_button.look()).is_not_equal(RegisterKey.Look.LIT)
+	# An empty draw pile: nothing to draw.
+	run.redraws_used = 0
+	while not run.deck.draw_pile().is_empty():
+		run.deck.redraw_places([0])
+	screen._refresh_buttons()
+	assert_str(screen._redraw_button.note()).is_equal("none to draw")
+	assert_bool(screen._redraw_button.disabled).is_true()
+	await _assert_redraw_in_place(screen)
 
 
 func _assert_redraw_in_place(screen: ShiftScreen) -> void:

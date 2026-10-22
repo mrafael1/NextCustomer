@@ -339,6 +339,7 @@ func test_no_drag_while_redrawing() -> void:
 	screen._on_redraw_pressed()
 	var card: CardInstance = screen.run.hand()[0]
 	screen._on_hand_card_clicked(_view_for(screen, card))
+	assert_object(screen._picked).is_null()
 	_move(screen, _slot_center(screen, 0))
 	assert_bool(screen._drag.is_dragging()).is_false()
 	_release(screen, _slot_center(screen, 0))

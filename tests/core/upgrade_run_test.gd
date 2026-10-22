@@ -100,8 +100,8 @@ func test_history_has_one_entry_per_played_shift() -> void:
 	assert_array(lost.visits).is_empty()
 
 
-## Extra redraw: one more redraw each shift (a third on top of the balance's 2), each of up to
-## redraw_limit hand cards, and no redraw brings back a card that an earlier one replaced.
+## Extra redraw: one more redraw each shift (a third on top of the balance's 2), each of one
+## basket, and no redraw brings back a card that an earlier one replaced.
 func test_extra_redraw_allows_a_third_redraw() -> void:
 	var extra: UpgradeDefinition = _upgrade("extra_redraw")
 	var run: RunState = null
@@ -122,22 +122,17 @@ func test_extra_redraw_allows_a_third_redraw() -> void:
 	assert_bool(run.next_shift()).is_true()
 	assert_int(run.redraws_allowed).is_equal(3)
 	assert_int(run.redraws_used).is_equal(0)
-	var hand: Array[CardInstance] = run.hand()
-	assert_bool(run.can_redraw([hand[0], hand[1], hand[2]])).is_false()
-	var replaced: Array[CardInstance] = [hand[0], hand[1]]
-	assert_int(run.redraw([hand[0], hand[1]]).size()).is_equal(2)
-	assert_int(run.redraws_used).is_equal(1)
-	hand = run.hand()
-	assert_bool(run.can_redraw([hand[2], hand[3]])).is_true()
-	replaced.append_array([hand[2], hand[3]])
-	assert_int(run.redraw([hand[2], hand[3]]).size()).is_equal(2)
-	assert_int(run.redraws_used).is_equal(2)
-	hand = run.hand()
-	replaced.append(hand[4])
-	assert_int(run.redraw([hand[4]]).size()).is_equal(1)
-	assert_int(run.redraws_used).is_equal(3)
-	assert_bool(run.can_redraw([run.hand()[5]])).is_false()
-	assert_array(run.redraw([run.hand()[5]])).is_empty()
+	var replaced: Array[CardInstance] = []
+	for basket: int in range(3):
+		assert_bool(run.can_redraw_basket(basket)).is_true()
+		var by_place: Array[CardInstance] = run.hand_places()
+		var swapped: Array[int] = run.redraw_basket(basket)
+		assert_int(swapped.size()).is_greater(0)
+		for place: int in swapped:
+			replaced.append(by_place[place])
+		assert_int(run.redraws_used).is_equal(basket + 1)
+	assert_bool(run.can_redraw_basket(3)).is_false()
+	assert_array(run.redraw_basket(3)).is_empty()
 	# Neither redraw brought back a replaced card.
 	for card: CardInstance in replaced:
 		assert_bool(run.hand().has(card)).is_false()
@@ -145,11 +140,10 @@ func test_extra_redraw_allows_a_third_redraw() -> void:
 
 func test_without_the_upgrade_a_shift_has_two_redraws() -> void:
 	var run: RunState = _run(30)
-	var hand: Array[CardInstance] = run.hand()
-	run.redraw([hand[0]])
-	assert_bool(run.can_redraw([run.hand()[1]])).is_true()
-	run.redraw([run.hand()[1]])
-	assert_bool(run.can_redraw([run.hand()[2]])).is_false()
+	run.redraw_basket(0)
+	assert_bool(run.can_redraw_basket(1)).is_true()
+	run.redraw_basket(1)
+	assert_bool(run.can_redraw_basket(2)).is_false()
 
 
 ## The preview and the checkout both score with the run's upgrades.

@@ -185,9 +185,18 @@ static func count_up_of(
 	)
 
 
-## The `redraw` event: the cards replaced and the cards received (ids).
-static func redraw(replaced: Array[CardInstance], received: Array[CardInstance]) -> Dictionary:
-	return {"cards_replaced": card_ids(replaced), "cards_received": card_ids(received)}
+## The `redraw` event (a basket redraw, plan section 3.8): the basket (1-based), the hand places
+## swapped (0-based, left first), and the cards replaced and received (ids, in the places'
+## order). `basket` and `places` were added with the basket redraw; older logs have only the ids.
+static func redraw(
+	basket: int, places: Array[int], replaced: Array[CardInstance], received: Array[CardInstance]
+) -> Dictionary:
+	return {
+		"basket": basket + 1,
+		"places": Array(places),
+		"cards_replaced": card_ids(replaced),
+		"cards_received": card_ids(received),
+	}
 
 
 ## Card ids in order, as logged (`cards_drawn`, `final_order`, redraws).

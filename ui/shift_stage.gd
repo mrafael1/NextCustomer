@@ -17,7 +17,9 @@ extends Control
 ## the counter between the receipt and the belt (PaperBag, #86 v6: the counted items go in), the
 ## top bar (TopBar: the SHIFT, QUOTA, inspection and LOYALTY chips, Cart and the menu with Export
 ## log, all above PANEL_TOP), the hand's baskets on the steel ledge (HandBaskets:
-## their backs, the hand in them, their fronts) and the shade that darkens them while counting.
+## their backs, the hand in them, the basket redraw's pop layer, their fronts, and the redraw's
+## targets and tags, BasketTags), the shade that darkens them while counting and the redraw layer
+## (the basket redraw's flights into the Cart and its sparks, over the top bar).
 ## Over them all the tank's burst (TankBurst, #86 v6: the gold jets, coins, splashes and pour, over
 ## the top bar), the scan layer (ScanOverlay: the scan's brackets and beam) and the popup layer,
 ## all taking no clicks. A belt or hand item's scan shows on the monitor (#80); the popup layer
@@ -175,6 +177,13 @@ var notice_label: NoticeLabel
 var baskets: HandBaskets
 var basket_fronts: HandBaskets
 var hand_shade: ColorRect
+## The basket redraw (plan section 3.8): the baskets' click targets and REDRAW tags over the
+## fronts (BasketTags), the pop layer between the hand and the fronts (the redrawn items in the
+## basket, clipped at the baskets' feet) and the redraw layer over the top bar (the flights into
+## the Cart and the sparks). BasketRedraw moves them.
+var basket_tags: BasketTags
+var pop_layer: Control
+var redraw_layer: Control
 ## The register's keys (the cabinet's, so they rattle with it).
 var cancel_button: RegisterKey
 var redraw_button: RegisterKey
@@ -287,8 +296,16 @@ func _build_counter() -> void:
 	baskets = HandBaskets.new(HandBaskets.Layer.BACK, hand)
 	add_child(baskets)
 	add_child(hand)
+	pop_layer = Control.new()
+	pop_layer.name = "PopLayer"
+	pop_layer.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	pop_layer.clip_contents = true
+	pop_layer.size = Vector2(SIZE.x, HandBaskets.FACE_FOOT_Y)
+	add_child(pop_layer)
 	basket_fronts = HandBaskets.new(HandBaskets.Layer.FRONT, hand)
 	add_child(basket_fronts)
+	basket_tags = BasketTags.new()
+	add_child(basket_tags)
 	hand_shade = ColorRect.new()
 	hand_shade.name = "HandShade"
 	hand_shade.color = Color(Palette.INK, COUNTING_SHADE_ALPHA)
@@ -297,6 +314,11 @@ func _build_counter() -> void:
 	hand_shade.size = COUNTING_SHADE_RECT.size
 	hand_shade.visible = false
 	add_child(hand_shade)
+	redraw_layer = Control.new()
+	redraw_layer.name = "RedrawLayer"
+	redraw_layer.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	redraw_layer.size = SIZE
+	add_child(redraw_layer)
 
 
 ## The register's keys (CHECKOUT, Redraw, Cancel in redraw mode only) and seed line, wired to the

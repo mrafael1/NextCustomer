@@ -1,7 +1,7 @@
 extends GdUnitTestSuite
-## RunState: the shift flow from plan sections 2 and 3 (draw 8, redraw up to 2 twice, place up
-## to 6 products and 7 cards in a compacted row, checkout always allowed, one shift per quota
-## with rising quotas).
+## RunState: the shift flow from plan sections 2 and 3 (draw 8, place up to 6 products and 7
+## cards in a compacted row, checkout always allowed, one shift per quota with rising quotas).
+## The basket redraw's tests are in basket_redraw_test.gd.
 
 const STARTER := "res://data/decks/starter.tres"
 const BALANCE := "res://data/balance/balance.tres"
@@ -14,7 +14,7 @@ func test_balance_matches_the_plan() -> void:
 	# 8 shifts, quotas fitted with the balance simulator (plan v0.28, issue #41).
 	assert_array(Array(balance.quotas)).is_equal([34, 35, 53, 61, 73, 98, 111, 120])
 	assert_int(balance.hand_size).is_equal(8)
-	assert_int(balance.redraw_limit).is_equal(2)
+	assert_int(balance.basket_size).is_equal(2)
 	assert_int(balance.slot_count).is_equal(6)
 	assert_int(balance.coupon_slot_count).is_equal(1)
 	assert_int(balance.deck_limit).is_equal(15)
@@ -164,29 +164,6 @@ func test_cannot_place_a_card_twice_or_from_outside_the_hand() -> void:
 	assert_bool(run.place(outside, 0)).is_false()
 
 
-func test_redraw_up_to_two_hand_cards_twice() -> void:
-	var run: RunState = _run(5)
-	var cards: Array[CardInstance] = run.hand()
-	assert_bool(run.can_redraw([cards[0], cards[1], cards[2]])).is_false()
-	assert_bool(run.can_redraw([])).is_false()
-	assert_bool(run.can_redraw([cards[0], cards[0]])).is_false()
-	run.place(cards[3], 0)
-	assert_bool(run.can_redraw([cards[3]])).is_false()
-	var received: Array[CardInstance] = run.redraw([cards[0], cards[1]])
-	assert_int(received.size()).is_equal(2)
-	assert_bool(run.hand().has(cards[0])).is_false()
-	assert_bool(run.hand().has(received[0])).is_true()
-	assert_int(run.redraws_used).is_equal(1)
-	# A replaced card can't be redrawn again; a second redraw is left.
-	assert_bool(run.can_redraw([cards[0]])).is_false()
-	assert_int(run.redraws_allowed).is_equal(2)
-	assert_int(run.redraw([cards[2]]).size()).is_equal(1)
-	assert_int(run.redraws_used).is_equal(2)
-	assert_bool(run.can_redraw([cards[4]])).is_false()
-	assert_array(run.redraw([cards[4]])).is_empty()
-	assert_bool(run.row.has(cards[3])).is_true()
-
-
 func test_preview_matches_checkout() -> void:
 	var run: RunState = _run(6)
 	var cards: Array[CardInstance] = run.hand()
@@ -211,7 +188,7 @@ func test_no_changes_after_checkout() -> void:
 	run.checkout()
 	assert_bool(run.place(cards[1], 1)).is_false()
 	assert_bool(run.remove(cards[0])).is_false()
-	assert_bool(run.can_redraw([cards[1]])).is_false()
+	assert_bool(run.can_redraw_basket(0)).is_false()
 
 
 func test_passing_a_shift_moves_to_the_next_quota() -> void:

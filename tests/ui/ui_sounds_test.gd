@@ -150,8 +150,9 @@ func test_a_refusal_plays_a_soft_denied() -> void:
 	assert_array(sfx.sound_names()).is_equal(["card_pickup", "denied", "denied"])
 
 
-## The redraw fans the hand out, picks and unpicks cards like a pick-up and a return, and on
-## confirm shuffles and deals one card_place per card received. Cancel backs out.
+## The Redraw key arms redraw mode with a fan; Cancel (or the key again) backs out. Clicking a
+## basket (plan section 3.8) shuffles at once, then one card_place per new item as it pops up
+## (RedrawTuning.pop_start); hovering a basket makes no sound (no hover sounds, #62).
 func test_the_redraw_fans_shuffles_and_deals() -> void:
 	var screen: ShiftScreen = await _screen()
 	var sfx: RecordingSfx = _recording_sfx(screen)
@@ -160,21 +161,29 @@ func test_the_redraw_fans_shuffles_and_deals() -> void:
 	assert_array(sfx.sound_names()).is_equal(["fan", "ui_back"])
 	sfx.clear()
 	screen._redraw_button.pressed.emit()
-	var hand: Array[CardInstance] = screen.run.hand()
-	for card: CardInstance in [hand[0], hand[1], hand[1], hand[1]]:
-		screen._on_hand_card_clicked(_view_for(screen, card))
-	assert_array(sfx.sound_names()).is_equal(
-		["fan", "card_pickup", "card_pickup", "card_return", "card_pickup"]
-	)
+	screen._redraw_button.pressed.emit()
+	assert_array(sfx.sound_names()).is_equal(["fan", "ui_back"])
 	sfx.clear()
 	screen._redraw_button.pressed.emit()
+	screen._basket_tags.hovered_changed.emit(0)
+	var hand: Array[CardInstance] = screen.run.hand()
+	screen._on_hand_card_clicked(_view_for(screen, hand[0]))
+	assert_array(sfx.sound_names()).is_equal(["fan"])
+	sfx.clear()
+	# Timed from before the click: the frame after it steps the sounds' tween by the whole frame.
+	await get_tree().process_frame
+	var start: int = Time.get_ticks_msec()
+	screen._on_basket_clicked(0)
 	assert_int(screen.run.redraws_used).is_equal(1)
 	assert_array(sfx.sound_names()).is_equal(["shuffle"])
-	var start: int = Time.get_ticks_msec()
-	while sfx.count("card_place") < 2 and Time.get_ticks_msec() - start < 2000:
+	while sfx.count("card_place") < 2 and Time.get_ticks_msec() - start < 3000:
 		await get_tree().process_frame
+	var heard_ms: int = Time.get_ticks_msec() - start
 	await _frames(10)
 	assert_array(sfx.sound_names()).is_equal(["shuffle", "card_place", "card_place"])
+	# The second card_place comes with the second pop, not at the click.
+	var tuning: RedrawTuning = screen._basket_redraw.tuning
+	assert_int(heard_ms).is_greater_equal(int(tuning.pop_start(1, false) * 1000.0) - 100)
 
 
 ## CHECKOUT plays its key (not a click) as the count-up starts.
