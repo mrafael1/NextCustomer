@@ -163,6 +163,14 @@ extends Resource
 @export var dessert_verdict_sound_ms: int = 0
 ## PAID is stamped this long after the margin has counted (a pass).
 @export var dessert_paid_ms: int = 0
+## A passed shift with a bonus ticket to come (#77 machine v2, Q2 = 2): the gold stub prints at
+## the receipt's foot over dessert_stub_ms (under reduced motion over dessert_stub_rm_ms, a slow
+## grow too, never a jump), with "+1 BONUS TICKET" beside the receipt fading in over
+## dessert_banner_in_ms and out over dessert_banner_out_ms once the stub has printed.
+@export var dessert_stub_ms: int = 0
+@export var dessert_stub_rm_ms: int = 0
+@export var dessert_banner_in_ms: int = 0
+@export var dessert_banner_out_ms: int = 0
 ## The receipt tears this long after PAID; on a miss, this long after `fail` has rung out.
 @export var dessert_tear_ms: int = 0
 ## The next shift's notice prints this long after the tear (inside the printer feed's wait).

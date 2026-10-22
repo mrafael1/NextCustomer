@@ -96,8 +96,19 @@ func test_the_channel_cycles_through_its_slides() -> void:
 	assert_array(Array(channel.slide_keys())).is_equal(keys)
 	var spot_check: InspectionDefinition = load(INSPECTIONS.path_join("spot_check.tres"))
 	var brief: PackedStringArray = channel.slide_texts(0)
-	assert_bool(brief.has(spot_check.display_name)).is_true()
-	assert_bool(brief.has(spot_check.notice_text)).is_true()
+	if channel.is_brief_compact():
+		# The pass earns the bonus ticket and the belt has a sticker key: the compact brief names
+		# the inspection in its kicker over the PASS IT plate, the notice on the chip's tooltip.
+		var kicker: String = (
+			"%s · %s" % [MonitorChannel.INSPECTION_KICKER, spot_check.display_name.to_upper()]
+		)
+		assert_bool(brief.has(kicker)).override_failure_message(str(brief)).is_true()
+		assert_object(channel.pass_line()).is_not_null()
+		assert_array(Array(channel.key_texts())).is_not_empty()
+		assert_str(screen._inspection_tag.tooltip_text).contains(spot_check.notice_text)
+	else:
+		assert_bool(brief.has(spot_check.display_name)).is_true()
+		assert_bool(brief.has(spot_check.notice_text)).is_true()
 	assert_bool(brief.has(MonitorChannel.NO_INSPECTION_TEXT)).is_false()
 	for index: int in [1, 2]:
 		var upgrade: UpgradeDefinition = run.upgrades[index - 1]

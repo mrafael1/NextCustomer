@@ -64,6 +64,7 @@ func test_the_screen_saves_at_every_save_point_and_deletes_the_save_at_the_end()
 	assert_str(_saved()["phase"]).is_equal("machine_pick")
 	screen._machine._on_binned()
 	screen._machine.view.fast_forward()  # The landing plays to its end.
+	screen._machine._end_return()  # No glide back (#77 machine v2).
 	assert_str(_saved()["phase"]).is_equal("planning")
 	assert_int(int(_saved()["shift_index"])).is_equal(1)
 	_place_ids(screen, PASSING_ROW)
@@ -75,6 +76,7 @@ func test_the_screen_saves_at_every_save_point_and_deletes_the_save_at_the_end()
 	var upgrade: UpgradeDefinition = screen.run.machine.prizes()[0].upgrade
 	screen._machine._on_prize_picked(0)
 	screen._machine.view.fast_forward()  # The landing plays to its end.
+	screen._machine._end_return()  # No glide back (#77 machine v2).
 	assert_str(_saved()["phase"]).is_equal("planning")
 	assert_array(_saved()["upgrades"]).is_equal([String(upgrade.id)])
 
@@ -175,7 +177,8 @@ func test_quitting_during_the_count_up_resumes_on_the_machine() -> void:
 	assert_bool(first._cabinet.checkout_key.held).is_true()
 	assert_str(_last_event("run_resume")["phase"]).is_equal("machine")
 	assert_bool(resumed._machine.is_open()).is_true()
-	assert_bool(resumed._shade.visible).is_true()
+	# No shade over the store during a visit (#77 machine v2): the camera is at the machine.
+	assert_bool(resumed._shade.visible).is_false()
 	# The keys, no prizes yet, on a new timeline (no dessert on a resume, #61).
 	var view: RewardMachineView = resumed._machine.view
 	assert_array(view.tickets).is_empty()
@@ -185,13 +188,9 @@ func test_quitting_during_the_count_up_resumes_on_the_machine() -> void:
 	var machine: Rect2 = view.get_global_rect()
 	for key: ChuteKey in view.keys:
 		assert_bool(machine.encloses(key.get_global_rect())).is_true()
-	# The shade starts at the register column's right edge (the receipt stays unshaded) and the
-	# machine is drawn over it.
-	var column_end: float = (
-		resumed._stage.get_global_rect().position.x + ShiftStage.REGISTER_RECT.end.x
-	)
-	assert_float(resumed._shade.get_global_rect().position.x).is_equal_approx(column_end, 0.5)
-	assert_int(view.get_index()).is_greater(resumed._shade.get_index())
+	# At the machine at once (#77 machine v2): the camera at 2x, the machine at MACHINE_RECT.
+	var on_stage: Vector2 = resumed._stage.get_global_rect().position
+	assert_that(machine.position).is_equal(on_stage + ShiftStage.MACHINE_RECT.position)
 
 	await _count_up_end(first)
 	# The receipt	await _count_up_end(first)
@@ -235,14 +234,14 @@ func test_quitting_during_the_count_up_resumes_on_the_machine() -> void:
 func _assert_monitor_end_state(resumed: ShiftScreen) -> void:
 	var monitor: MonitorView = resumed._monitor
 	var stamp: MetStamp = resumed._led.beat().stamp()
-	var paper: Rect2 = Rect2(
-		resumed._stage.get_global_rect().position + MonitorView.PAPER_RECT.position,
-		MonitorView.PAPER_RECT.size
-	)
+	# Resumed at the machine, the camera is at 2x (#77 machine v2): the rects are read back in the
+	# world's frame (the stage's at 1x).
+	var to_world: Transform2D = resumed._stage.world.get_global_transform().affine_inverse()
+	var paper: Rect2 = MonitorView.PAPER_RECT
 	for frame: int in range(2):
 		assert_bool(stamp.is_showing()).is_true()
 		assert_bool(stamp.is_slamming()).is_false()
-		assert_bool(paper.encloses(stamp.drawn_rect())).is_true()
+		assert_bool(paper.encloses(to_world * stamp.drawn_rect())).is_true()
 		var tab: OverTab = monitor.over_tab()
 		# The passing row is over the shift's quota.
 		var over: int = resumed.run.last_result.total - resumed.run.quota()
@@ -250,9 +249,10 @@ func _assert_monitor_end_state(resumed: ShiftScreen) -> void:
 		assert_bool(tab.is_visible_in_tree()).is_true()
 		assert_str(tab.label().text).is_equal(LedBeat.OVER_TEXT % over)
 		assert_vector(tab.scale).is_equal(Vector2.ONE)
-		assert_bool(paper.encloses(tab.get_global_rect())).is_true()
-		var stamp_rect: Rect2 = resumed._led.beat().stamp().drawn_rect()
-		assert_bool(stamp_rect.intersects(tab.get_global_rect())).is_false()
+		var tab_rect: Rect2 = to_world * tab.get_global_rect()
+		assert_bool(paper.encloses(tab_rect)).is_true()
+		var stamp_rect: Rect2 = to_world * resumed._led.beat().stamp().drawn_rect()
+		assert_bool(stamp_rect.intersects(tab_rect)).is_false()
 		assert_bool(monitor.sunburst().is_met()).is_true()
 		assert_that(monitor.bay().light_colour()).is_equal(ScannerBay.LIGHT_MET_COLOR)
 		# The bay's end state (#86 round 7): the bed empty and idle on ALL PAID, THANK YOU, DONE.
@@ -278,8 +278,11 @@ func _assert_belt_counted(screen: ShiftScreen, items: int) -> void:
 	assert_bool(screen._stage.scan_layer.is_posed()).is_false()
 	var bagged: Array[Control] = screen._stage.bag.items()
 	assert_int(bagged.size()).is_equal(items)
+	# Read in the fore's frame (the stage's at rest): at the machine it drops out of frame (#77 v2).
+	var to_fore: Transform2D = screen._stage.fore.get_global_transform().affine_inverse()
+	var stage: Rect2 = Rect2(Vector2.ZERO, ShiftStage.SIZE)
 	for art: Control in bagged:
-		assert_bool(screen._stage.get_global_rect().encloses(art.get_global_rect())).is_true()
+		assert_bool(stage.encloses(to_fore * art.get_global_rect())).is_true()
 
 
 ## A run saved after its chute was chosen resumes on the same prizes (#77, MACHINE_PICK), laid
@@ -306,8 +309,10 @@ func test_a_new_screen_resumes_the_prizes() -> void:
 	assert_bool(view.can_scan()).is_true()
 	first._machine._on_prize_picked(0)
 	first._machine.view.fast_forward()  # The landing plays to its end.
+	first._machine._end_return()  # No glide back (#77 machine v2).
 	resumed._machine._on_prize_picked(0)
 	resumed._machine.view.fast_forward()  # The landing plays to its end.
+	resumed._machine._end_return()  # No glide back (#77 machine v2).
 	assert_int(resumed.run.shift_index).is_equal(1)
 	assert_array(_cards(resumed.run.deck.cards)).is_equal(_cards(first.run.deck.cards))
 	assert_array(_cards(resumed.run.hand())).is_equal(_cards(first.run.hand()))
@@ -330,6 +335,7 @@ func test_a_new_screen_resumes_stamp_day() -> void:
 	assert_bool(first._machine._choose(RewardMachine.Chute.NEW_ITEMS)).is_true()
 	first._machine._on_binned()
 	first._machine.view.fast_forward()  # The landing plays to its end.
+	first._machine._end_return()  # No glide back (#77 machine v2).
 	assert_int(first.run.phase).is_equal(RunState.Phase.MACHINE_PICK)
 	assert_int(first.run.machine.current_visit().kind).is_equal(MachineVisit.Kind.STAMP_DAY)
 
@@ -355,8 +361,10 @@ func test_a_new_screen_resumes_stamp_day() -> void:
 	var upgrade: UpgradeDefinition = first.run.machine.prizes()[0].upgrade
 	first._machine._on_prize_picked(0)
 	first._machine.view.fast_forward()  # The landing plays to its end.
+	first._machine._end_return()  # No glide back (#77 machine v2).
 	resumed._machine._on_prize_picked(0)
 	resumed._machine.view.fast_forward()  # The landing plays to its end.
+	resumed._machine._end_return()  # No glide back (#77 machine v2).
 	assert_int(resumed.run.shift_index).is_equal(2)
 	assert_array(_cards(resumed.run.hand())).is_equal(_cards(first.run.hand()))
 	assert_array(_upgrade_ids(resumed.run.upgrades)).is_equal([String(upgrade.id)])
@@ -366,8 +374,9 @@ func test_a_new_screen_resumes_stamp_day() -> void:
 
 
 ## The bonus ticket's visit (#77): after the first passed inspected shift's ticket is binned, a
-## new screen resumes it waiting for its chute (the BONUS TICKET! stamp, "PICK A CHUTE AGAIN",
-## the BONUS slip checked INSPECTED), then again with its prizes drawn; the pick plays the same.
+## new screen resumes it waiting for its chute (the BONUS TICKET! stamp, "BONUS TICKET" on the
+## display, the BONUS slip checked INSPECTION PASSED), then again with its prizes drawn; the pick
+## plays the same.
 func test_a_new_screen_resumes_a_bonus_visit() -> void:
 	var first: ShiftScreen = await _screen()
 	first.start_new_run(5)
@@ -378,6 +387,7 @@ func test_a_new_screen_resumes_a_bonus_visit() -> void:
 		assert_bool(first._machine._choose(RewardMachine.Chute.NEW_ITEMS)).is_true()
 		first._machine._on_binned()
 		first._machine.view.fast_forward()  # The landing plays to its end.
+		first._machine._end_return()  # No glide back (#77 machine v2).
 		var run: RunState = first.run
 		if (
 			run.phase == RunState.Phase.MACHINE_CHOOSE
@@ -393,7 +403,7 @@ func test_a_new_screen_resumes_a_bonus_visit() -> void:
 	assert_int(resumed.run.machine.current_visit().kind).is_equal(MachineVisit.Kind.BONUS)
 	assert_str(_last_event("run_resume")["phase"]).is_equal("machine")
 	_assert_bonus_faces(resumed)
-	assert_str(resumed._machine.view.display.texts()[0]).is_equal("PICK A CHUTE AGAIN")
+	assert_str(resumed._machine.view.display.texts()[0]).is_equal(RewardMachineView.BONUS_TITLE)
 	await _assert_on_screen(resumed, resumed._machine.view)
 	var chute: int = MachineSteps.first_lit(first.run, RewardMachine.Chute.COUPONS)
 	assert_bool(first._machine._choose(chute)).is_true()
@@ -408,8 +418,10 @@ func test_a_new_screen_resumes_a_bonus_visit() -> void:
 	assert_array(_ticket_ids(again)).is_equal(_prize_ids(first.run))
 	first._machine._on_prize_picked(0)
 	first._machine.view.fast_forward()  # The landing plays to its end.
+	first._machine._end_return()  # No glide back (#77 machine v2).
 	again._machine._on_prize_picked(0)
 	again._machine.view.fast_forward()  # The landing plays to its end.
+	again._machine._end_return()  # No glide back (#77 machine v2).
 	assert_array(_cards(again.run.deck.cards)).is_equal(_cards(first.run.deck.cards))
 	assert_array(_upgrade_ids(again.run.upgrades)).is_equal(_upgrade_ids(first.run.upgrades))
 	var visit: Dictionary = _last_event("machine_visit")
@@ -418,14 +430,16 @@ func test_a_new_screen_resumes_a_bonus_visit() -> void:
 	assert_array(_errors).is_empty()
 
 
-## A bonus visit's machine: the head's BONUS TICKET! stamp (under it, the inspection passed) and
-## the BONUS slip checked INSPECTED.
+## A bonus visit's machine (#77 machine v2): the head's BONUS TICKET! stamp over INSPECTION PASSED
+## and the BONUS slip checked INSPECTION PASSED ✓ over the inspection's name.
 func _assert_bonus_faces(screen: ShiftScreen) -> void:
 	var view: RewardMachineView = screen._machine.view
 	assert_str(view.head.stamp_texts()[0]).is_equal("BONUS TICKET!")
-	assert_str(view.head.stamp_texts()[1]).ends_with("passed")
+	assert_str(view.head.stamp_texts()[1]).is_equal(RewardMachineView.BONUS_UNDER)
 	assert_str(view.slip.texts()[0]).starts_with("BONUS #")
-	assert_str(view.slip.texts()[1]).is_equal("INSPECTED ✓")
+	assert_str(view.slip.texts()[0]).ends_with("b")
+	assert_str(view.slip.texts()[1]).is_equal(RewardMachineView.BONUS_CHECK)
+	assert_str(view.slip.why_text()).is_equal(screen.run.history[-1].inspection.display_name)
 
 
 ## A run saved after the shift's last visit (SCORED) resumes on the next shift's planning.

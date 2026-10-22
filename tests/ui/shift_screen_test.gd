@@ -217,7 +217,8 @@ func test_picking_a_prize_adds_it_to_the_deck_and_logs_it() -> void:
 	assert_bool(screen._machine.view.visible).is_false()
 	screen._deck_view._close()
 	assert_bool(screen._machine.is_open()).is_true()
-	screen._machine.view._on_confirmed(RewardMachine.Chute.NEW_ITEMS)
+	screen._machine.view.press_key(RewardMachine.Chute.NEW_ITEMS)
+	screen._machine.view._on_confirmed()
 	assert_int(screen.run.phase).is_equal(RunState.Phase.MACHINE_PICK)
 	var offered: CardDefinition = screen.run.machine.prizes()[0].card
 	await _until_armed(screen)
@@ -310,7 +311,7 @@ func test_space_after_the_machine_does_not_check_out() -> void:
 	assert_bool(screen._counting).is_false()
 
 
-func test_checkout_closes_the_deck_view_and_overlays_are_shaded() -> void:
+func test_checkout_closes_the_deck_view_and_no_shade_covers_the_visit() -> void:
 	var runner: GdUnitSceneRunner = scene_runner(SCREEN)
 	var screen: ShiftScreen = runner.scene()
 	screen._on_deck_button_pressed()
@@ -320,7 +321,8 @@ func test_checkout_closes_the_deck_view_and_overlays_are_shaded() -> void:
 	assert_bool(screen._deck_view.visible).is_false()
 	await _frames(2)
 	assert_bool(screen._machine.is_open()).is_true()
-	assert_bool(screen._shade.visible).is_true()
+	# No shade over the store during a visit (#77 machine v2): the camera glides to the machine.
+	assert_bool(screen._shade.visible).is_false()
 
 
 ## Clicks meant to speed up the count-up must not choose a chute or pick a prize the player
@@ -331,8 +333,10 @@ func test_the_machine_ignores_clicks_until_armed() -> void:
 	await _pass_first_shift(screen)
 	var view: RewardMachineView = screen._machine.view
 	view._armed = false
-	view.open_odds(RewardMachine.Chute.NEW_ITEMS)
+	view.hover_key(RewardMachine.Chute.NEW_ITEMS)
 	assert_bool(view.odds_card.visible).is_false()
+	view.press_key(RewardMachine.Chute.NEW_ITEMS)
+	assert_int(view.pressed_chute()).is_equal(-1)
 	await _until_armed(screen)
 	assert_bool(screen._machine._choose(RewardMachine.Chute.NEW_ITEMS)).is_true()
 	assert_bool(view.is_armed()).is_false()
