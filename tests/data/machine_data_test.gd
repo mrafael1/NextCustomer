@@ -136,6 +136,44 @@ func test_the_machine_upgrades_the_live_chains() -> void:
 	assert_array(products).is_equal(["banana", "milk", "eggs", "coffee"])
 
 
+## The machine v2 tempo (#77, Q1 = A, Q2 = 2): data/balance/machine_tempo.tres sets the camera
+## glide, the receipt's travel, the stub's snap, the return glide, the reduced-motion cut and the
+## bonus ticket's feed; the old flight and stub fields are gone from the file.
+func test_the_machine_v2_tempo_is_set() -> void:
+	var path: String = "res://data/balance/machine_tempo.tres"
+	var tempo: MachineTuning = load(path) as MachineTuning
+	for field: String in [
+		"travel_ms",
+		"glide_lead_ms",
+		"glide_ms",
+		"lit_ramp_ms",
+		"snap_lead_ms",
+		"snap_ms",
+		"dock_flight_ms",
+		"dock_label_ms",
+		"feed_ms",
+		"return_glide_ms",
+		"dim_ms",
+		"upgrade_after_ms",
+		"rm_cut_ms",
+		"rm_fade_ms",
+		"bonus_to_slot_ms",
+		"bonus_feed_ms",
+		"bonus_stamp_land_ms",
+		"confirm_down_ms",
+	]:
+		assert_int(int(tempo.get(field))).override_failure_message(field).is_greater(0)
+	for field: String in ["tear_lift_px", "tear_tilt_deg", "feed_fit", "fore_drop_px"]:
+		assert_float(float(tempo.get(field))).override_failure_message(field).is_greater(0.0)
+	assert_float(tempo.rm_fade_alpha).is_equal_approx(0.85, 0.0001)
+	assert_float(tempo.snap_db).is_less(0.0)
+	var text: String = FileAccess.get_file_as_string(path)
+	for gone: String in ["\nflight_ms", "\nflight_rm_ms", "\nstub_ms", "stub_rm_ms"]:
+		assert_bool(text.contains(gone)).override_failure_message(gone).is_false()
+	for gone: String in ["stub_lead_ms", "stub_flight_ms", "stub_feed_ms", "stub_feed_rm_ms"]:
+		assert_bool(text.contains(gone)).override_failure_message(gone).is_false()
+
+
 func _ids(items: Array) -> Array[String]:
 	var found: Array[String] = []
 	for item: Resource in items:

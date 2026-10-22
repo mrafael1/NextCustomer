@@ -14,8 +14,26 @@ extends Node
 ## fast-forwards the view's clock up to the pick is logged as the visit's presentation_skipped;
 ## one during the landing, after the visit was logged, as a machine_landing_skipped event.
 ##
+## Machine v2 (#77, Q1 = A): the machine stands in the store, so a visit glides the camera to it
+## (the view does, from its plan) and the shift's last visit ends with the glide back: the next
+## shift starts first (run.next_shift and the screen's shift start, so it is saved at once and a
+## resume lands in planning), then the camera glides back to 1x over MachineTuning's
+## return_glide_ms while the fore comes back up and the machine dims (reduced motion: the cut
+## behind the fade). Planning input waits for it (is_gliding); a tap ends it at once. `returned`
+## follows its end.
+##
+## The next shift's planning (#77 machine v2, B1 and B5): the copies the shift's visits upgraded
+## (MachineLanding.upgraded's pairs, `pending_swaps`) become `shown_swaps` as the next shift
+## starts: their items show the old art through the glide back, then upgrade_after_ms after it an
+## UpgradeSwap plays on the screen's overlay for those on screen, and the monitor's brief lists
+## them (swap_news) until the next checkout. Once planning takes input, BonusNotice pulses the
+## inspection chip and the brief's PASS IT plate when passing the shift earns the bonus ticket.
+##
 ## A part of the shift screen, split out to keep that file short (like ShiftDebug): it works on
 ## the screen's run and display through the screen's own members.
+
+## The glide back to the store is over (planning takes input again).
+signal returned
 
 ## The most steps debug_skip takes (a visit is at most a choose and a pick or bin).
 const DEBUG_SKIP_STEPS := 16
@@ -24,6 +42,12 @@ const DEBUG_SKIP_STEPS := 16
 const ODDS_TIMING_FEATURE := "template_debug"
 
 var view: RewardMachineView
+## The upgraded copies: picked this shift (pending), shown the next one (see the class comment).
+var pending_swaps: Array = []
+var shown_swaps: Array = []
+## The swap on screen (null: none yet, or freed) and the notice's pulse.
+var swap: UpgradeSwap
+var notice: BonusNotice
 var _screen: ShiftScreen
 var _log: EventLogService
 ## The visit on screen: its timeline, the odds cards opened (chutes, in order), the odds card of
@@ -36,6 +60,15 @@ var _resumed: bool = false
 var _pending: int = -1
 ## The landing under way (null: none, or a bin).
 var _landing: MachineLanding
+## Seconds into the glide back to the store, or -1 while there is none; its reduced motion is read
+## when it starts. A tap ends it (`_presses`).
+var _return_t: float = -1.0
+var _return_rm: bool = false
+var _presses: PressReader
+## Seconds since the glide back ended while the swap waits (-1: none), and whether the notice
+## waits for planning to take input.
+var _swap_wait: float = -1.0
+var _notice_due: bool = false
 
 
 ## Builds the machine on `screen` (a screen child over the shade, added at the screen's call).
@@ -43,6 +76,7 @@ func setup(screen: ShiftScreen, event_log: EventLogService) -> RewardMachineView
 	_screen = screen
 	_log = event_log
 	view = RewardMachineView.new()
+	view.camera = screen._camera
 	view.loyalty_card = screen._loyalty_card
 	view.sfx = screen._sfx
 	view.music = screen._music
@@ -54,7 +88,46 @@ func setup(screen: ShiftScreen, event_log: EventLogService) -> RewardMachineView
 	view.beat.connect(_on_beat)
 	view.finished.connect(_on_finished)
 	view.skipped.connect(_on_skipped)
+	_presses = PressReader.new()
+	add_child(_presses)
+	_presses.tapped.connect(func(_now_ms: int) -> void: _end_return())
+	notice = BonusNotice.new()
+	add_child(notice)
 	return view
+
+
+## A new shift's planning (or a resumed one) opened: the notice pulses once planning takes input.
+func shift_started() -> void:
+	notice.stop()
+	_notice_due = true
+
+
+## A new run or a resume: no swap is due, none plays (a resume never replays one).
+func reset_swaps() -> void:
+	pending_swaps = []
+	shown_swaps = []
+	_swap_wait = -1.0
+	if swap != null and is_instance_valid(swap):
+		swap.queue_free()
+	swap = null
+
+
+## The monitor brief's lines for the copies upgraded since the last shift ("Banana is GOLDEN now").
+func swap_news() -> PackedStringArray:
+	var lines: PackedStringArray = PackedStringArray()
+	for pair: Array in shown_swaps:
+		lines.append(UpgradeSwap.news_line((pair[1] as CardInstance).definition))
+	return lines
+
+
+## Plays the swap of the shown copies on screen (the screen's overlay); returns how many play.
+func play_swaps() -> int:
+	_swap_wait = -1.0
+	if swap != null and is_instance_valid(swap):
+		swap.queue_free()
+	swap = UpgradeSwap.new()
+	_screen._overlay.add_child(swap)
+	return swap.play(shown_swaps, _screen.item_views(), _reduced(), _screen._sfx)
 
 
 ## Opens the machine on the run's current visit: at the dessert's printer feed after a checkout
@@ -78,6 +151,8 @@ func open(resumed: bool) -> void:
 	var after_dessert: bool = (
 		not resumed and run.machine.current_visit().kind == MachineVisit.Kind.TICKET
 	)
+	if after_dessert:
+		shown_swaps = []
 	if after_dessert and feed_ms >= 0:
 		start = feed_ms
 	_timeline = OfferTimeline.new(start)
@@ -91,14 +166,48 @@ func open(resumed: bool) -> void:
 		_timeline.mark_presented(Time.get_ticks_msec())
 
 
-## Hides the machine (a new run, the deck view's chooser keeps it).
+## Ends any visit (a new run, a resume, a shift's start): the machine is idle on the wall, the
+## camera in the store. A glide back under way stops where it is; the caller starts it again
+## after a shift's last visit (_on_finished).
 func close() -> void:
 	_pending = -1
-	view.close()
+	_return_t = -1.0
+	_presses.end()
+	view.show_idle(_screen.run)
+	_show_return(MachinePlan.return_length(view.tuning, false))
 
 
+## Whether a visit is under way.
 func is_open() -> bool:
-	return view.visible
+	return view.is_open()
+
+
+## Whether the camera is gliding back to the store after the shift's last visit.
+func is_gliding() -> bool:
+	return _return_t >= 0.0
+
+
+## Whether planning still waits for the machine: the glide back, then the upgrade swap's
+## upgrade_after_ms before it starts (a card moved meanwhile would swap on a new view).
+func is_settling() -> bool:
+	return is_gliding() or _swap_wait >= 0.0
+
+
+func _process(delta: float) -> void:
+	if _swap_wait >= 0.0:
+		_swap_wait += delta
+		if _swap_wait >= view.tuning.upgrade_after_ms / 1000.0:
+			play_swaps()
+	if _notice_due and _return_t < 0.0:
+		_notice_due = false
+		_play_notice()
+	if _return_t < 0.0:
+		return
+	_return_t += delta
+	if _return_t >= MachinePlan.return_length(view.tuning, _return_rm):
+		_end_return()
+	else:
+		_show_return(_return_t)
 
 
 ## The top bar's Cart during a visit: the deck view, once the machine has armed; the machine
@@ -133,12 +242,13 @@ func on_deck_card_chosen(card: CardInstance) -> void:
 ## Debug panel and tests: a landing under way ends at once; then every waiting visit chooses NEW
 ## ITEMS (or the first lit chute) and bins it, STAMP DAY picks its first prize (at the deck limit
 ## swapping the deck's first card out), as the player could, logging and saving as they would,
-## each landing fast-forwarded; the next shift starts.
+## each landing fast-forwarded; the next shift starts, with no glide back (#77 machine v2).
 func debug_skip() -> void:
 	var run: RunState = _screen.run
 	view.fast_forward()
 	for _step: int in range(DEBUG_SKIP_STEPS):
 		if not RunState.MACHINE_PHASES.has(run.phase):
+			_end_return()  # The skip lands in planning: no glide back either.
 			return
 		if run.phase == RunState.Phase.MACHINE_CHOOSE:
 			var chosen: bool = false
@@ -156,6 +266,8 @@ func debug_skip() -> void:
 			var replaced: CardInstance = run.deck.cards[0] if run.deck_is_full() else null
 			_take(0, replaced)
 		view.fast_forward()
+	if not RunState.MACHINE_PHASES.has(run.phase):
+		_end_return()
 
 
 ## The machine armed: at the chute keys the player's chute wait starts (left out of the
@@ -224,6 +336,7 @@ func _take(index: int, replaced: CardInstance) -> void:
 	_screen._deck_view.visible = false
 	view.visible = true
 	_landing = landing
+	pending_swaps.append_array(landing.upgraded)
 	_screen._save_run()
 	view.land(landing)
 
@@ -307,9 +420,65 @@ func _on_finished() -> void:
 	if RunState.MACHINE_PHASES.has(run.phase):
 		open(false)
 		return
+	var reduced: bool = view.plan.reduced_motion if view.plan != null else false
 	view.close()
+	shown_swaps = UpgradeSwap.collapse(pending_swaps)
+	pending_swaps = []
 	run.next_shift()
 	_screen._on_shift_started()
+	UpgradeSwap.hold_old(shown_swaps, _screen.item_views())
+	_start_return(reduced)
+
+
+## The glide back to the store after the shift's last visit (the next shift already started),
+## under `reduced` motion or not.
+func _start_return(reduced: bool) -> void:
+	_return_rm = reduced
+	_return_t = 0.0
+	_presses.begin()
+	_show_return(0.0)
+
+
+## The glide back ends (or a tap ends it): the store at 1x, the fore up, the machine dim.
+func _end_return() -> void:
+	if _return_t < 0.0:
+		return
+	_return_t = -1.0
+	_presses.end()
+	_show_return(MachinePlan.return_length(view.tuning, _return_rm))
+	if not shown_swaps.is_empty():
+		_swap_wait = 0.0
+	returned.emit()
+
+
+## The planning notice's pulse, when passing the shift earns the bonus ticket.
+func _play_notice() -> void:
+	var run: RunState = _screen.run
+	if run == null or run.phase != RunState.Phase.PLANNING or run.machine == null:
+		return
+	if not run.machine.bonus_if_passed(run):
+		return
+	var monitor: MonitorView = _screen._monitor
+	notice.play(
+		_screen._inspection_tag, func() -> Control: return monitor.channel.pass_line(), _reduced()
+	)
+
+
+func _reduced() -> bool:
+	return _screen.profile.reduced_motion()
+
+
+## The store `t` seconds into the glide back: the camera, the cut's fade, the fore, the machine's
+## light.
+func _show_return(t: float) -> void:
+	var tuning: MachineTuning = view.tuning
+	var progress: float = MachinePlan.return_camera(tuning, t, _return_rm)
+	if view.camera != null:
+		view.camera.set_view(progress)
+		view.camera.set_fade(MachinePlan.return_fade(tuning, t, _return_rm))
+	var e: float = StoreCamera.ease_in_out(progress)
+	_screen._stage.set_fore_drop(e, _return_rm, tuning.fore_drop_px)
+	view.set_lit(MachinePlan.return_lit(tuning, t))
 
 
 ## Computes the visit's four odds cards (the machine keeps them for the view) and prints how

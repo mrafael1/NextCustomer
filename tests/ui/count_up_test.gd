@@ -7,8 +7,7 @@ extends GdUnitTestSuite
 ## met (quota_met) at the ding, its reward running in real time through the hold; the payouts'
 ## chips flying from where the item is (source_rect); the Fast setting and reduced motion; shakes
 ## that end where they started; and the run context (the best so far leaves out the shift being
-## counted) and the count_up event's fields. The real saves and logs are never touched: both go to
-## a temporary folder.
+## counted) and the count_up event's fields. The saves and logs go to a temporary folder only.
 
 const SCREEN := "res://ui/shift_screen.tscn"
 const RECORDING_SFX := preload("res://tests/presentation/recording_sfx.gd")
@@ -17,8 +16,7 @@ const SCREEN_RECT := Rect2(0, 0, 1280, 720)
 const FULL_ROW: Array[String] = ["eggs", "bread", "milk", "multipack", "milk", "milk", "milk"]
 ## Milk, Multipack, Milk x5 = 109: passes the first five quotas.
 const PASSING_ROW: Array[String] = ["milk", "multipack", "milk", "milk", "milk", "milk", "milk"]
-## A newest receipt line is checked against the scroll area once it has had this many frames to
-## scroll into view.
+## The frames a newest receipt line gets to scroll into view before the scroll area check.
 const SCROLL_FRAMES := 3
 
 var _folder: String = ""
@@ -808,6 +806,8 @@ static func _lines(receipt: ReceiptView) -> Array[String]:
 		if line is HSeparator:
 			lines.append("---")
 			continue
+		if line is ReceiptStub:
+			continue  # The BONUS stub (#77 machine v2), checked on its own.
 		var texts: PackedStringArray = PackedStringArray()
 		for label: Node in line.get_children():
 			texts.append((label as Label).text)

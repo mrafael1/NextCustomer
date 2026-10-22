@@ -88,7 +88,7 @@ func play_row(card_ids: PackedStringArray) -> void:
 
 ## A new run with this seed.
 func replay_seed(seed_value: int) -> void:
-	if _screen._counting:
+	if _screen._busy():
 		return
 	_log.log_event("debug", {"action": "set_seed", "seed": seed_value})
 	_screen.start_new_run(seed_value)
@@ -157,7 +157,7 @@ func reset_collection() -> void:
 ## Puts a copy of a card into the hand (not the deck). The run save keeps it in the hand.
 func add_card(card_id: String) -> void:
 	var run: RunState = _screen.run
-	if _screen._counting or run.phase != RunState.Phase.PLANNING:
+	if _screen._busy() or run.phase != RunState.Phase.PLANNING:
 		return
 	var path: String = "%s/%s.tres" % [CARDS_FOLDER, card_id]
 	if not ResourceLoader.exists(path):
@@ -172,7 +172,7 @@ func add_card(card_id: String) -> void:
 ## redraws are counted again with the new upgrade. An owned upgrade isn't given twice.
 func give_upgrade(upgrade_id: String) -> void:
 	var run: RunState = _screen.run
-	if _screen._counting or run.phase != RunState.Phase.PLANNING:
+	if _screen._busy() or run.phase != RunState.Phase.PLANNING:
 		return
 	var path: String = "%s/%s.tres" % [UPGRADES_FOLDER, upgrade_id]
 	if not ResourceLoader.exists(path):
@@ -193,7 +193,7 @@ func set_inspection(inspection_id: String) -> void:
 	var run: RunState = _screen.run
 	var path: String = "%s/%s.tres" % [INSPECTIONS_FOLDER, inspection_id]
 	var known: bool = inspection_id.is_empty() or ResourceLoader.exists(path)
-	if _screen._counting or run.phase != RunState.Phase.PLANNING or not known:
+	if _screen._busy() or run.phase != RunState.Phase.PLANNING or not known:
 		return
 	_log.log_event("debug", {"action": "set_inspection", "inspection": inspection_id})
 	run.inspections = []
@@ -206,7 +206,7 @@ func set_inspection(inspection_id: String) -> void:
 ## Jumps to a shift (1-based) and starts it; a machine visit on screen closes, its levels kept
 ## (RunState.debug_skip_to_shift).
 func skip_to_shift(shift_number: int) -> void:
-	if _screen._counting:
+	if _screen._busy():
 		return
 	_log.log_event("debug", {"action": "skip_to_shift", "shift": shift_number})
 	var run: RunState = _screen.run

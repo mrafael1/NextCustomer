@@ -433,7 +433,8 @@ GOLDEN_DATA = Path(__file__).resolve().parent / "testdata" / "pixel_art" / "gold
 # upgrades/png/items_v2/) and the map each item's derived source uses.
 GOLDEN_REFERENCES = {"banana": "yellow", "eggs": "egg", "milk": "rank", "coffee": "rank"}
 
-# A palette with the gold ramp the maps write to (brass darkest k to mustard pale Y, paper w).
+# A palette with the gold ramp the maps write to (brass darkest k to mustard pale Y, paper w)
+# and the brown ramp the bake map reads.
 GOLD_PALETTE = PALETTE + """w fbf7ee paper
 b ddcba5 cream shade
 a b39f78 cream darkest
@@ -446,6 +447,10 @@ Y faecbc mustard pale
 y f1d27a mustard light
 M e2b33c mustard
 m b38425 mustard dark
+e 4a3022 brown darkest
+f 7a5232 brown dark
+F a87a4e brown
+h d2a874 brown light
 """
 
 
@@ -517,6 +522,48 @@ class DeriveTest(TempTestCase):
         self.assertEqual("".join(out[5]), "#:lYYl:#")
         self.assertEqual(out[6][2:6], ["l", "n", "n", "l"])  # brass dark against the carton
 
+    def test_the_bake_map_gilds_only_the_brown_ramp_and_glints(self) -> None:
+        palette = pa.parse_palette(self.ws.src / pa.PALETTE_FILE)
+        grid = [list("." * 21) for _ in range(2)] + [list("#" * 21)]
+        grid += [list("#" + "efFh:" * 3 + "hhhh#") for _ in range(3)] + [list("#" * 21)]
+        out = pa.golden_bake(grid, palette)
+        self.assertEqual(out[0], list("." * 21))
+        self.assertEqual("".join(out[4][1:6]), "klLn:")  # the bag's grey light is kept
+        # The glint: a gilded gold pixel on the 19th diagonal becomes paper; a kept one doesn't.
+        self.assertEqual(out[5][14], "w")  # gold n (from h) at x + y = 19
+        self.assertEqual(out[4][15], ":")  # grey light at x + y = 19 stays
+        self.assertEqual(out[3][16], "w")  # gold n (from h) at x + y = 19
+
+    def test_the_keys_map_recolours_its_pairs_and_keeps_the_rest(self) -> None:
+        grid = [list("." * 21) for _ in range(2)] + [list("#" * 21)]
+        grid += [list("#" + "c" * 19 + "#") for _ in range(2)]
+        grid += [list("#" + "c" * 12 + "R" + "c" * 6 + "#")]
+        grid += [list("#" + "c" * 14 + "4" + "c" * 4 + "#")] + [list("#" * 21)]
+        out = pa.golden_keys(grid, {"c": "n", "R": "w"}, frozenset({"glint"}))
+        self.assertEqual(out[0], list("." * 21))
+        self.assertEqual(out[5][13], "w")  # recoloured to paper (a sign)
+        self.assertEqual(out[6][15], "4")  # a key with no pair is kept
+        self.assertEqual(out[4][1], "n")
+        # The glint, on the 19th diagonal: on clear gold, but never next to a kept key or paper.
+        self.assertEqual(out[3][16], "w")
+        self.assertEqual(out[4][15], "w")
+        self.assertEqual(out[5][14], "n")  # next to the paper sign and the kept teal
+        self.assertEqual(out[6][13], "n")  # under the paper sign
+        plain = pa.golden_keys(grid, {"c": "n", "R": "w"}, frozenset())
+        self.assertEqual(plain[3][16], "n")  # no glint without the flag
+        self.assertEqual("".join(plain[3]), "#" + "n" * 19 + "#")
+        rim = pa.golden_keys(grid, {"c": "n", "R": "w"}, frozenset({"rim"}))
+        self.assertEqual("".join(rim[3]), "#" + "w" * 19 + "#")  # gold right under the outline
+        self.assertEqual(rim[4][1], "n")
+
+    def test_a_keys_derivation_builds(self) -> None:
+        self.ws.add("items_v2/box", item_source(boxed_item("c", 48)))
+        self.ws.add("items_v2/box_gold", "@derive box golden=keys c=n glint rim\n")
+        project = self.ws.load()
+        self.assertEqual(project.errors, [])
+        derived = next(s for s in project.sprites if s.name == "items_v2/box_gold")
+        self.assertEqual({key for row in derived.rows for key in row} - {"w"}, {".", "#", "n"})
+
     def test_derive_errors(self) -> None:
         self.ws.add("items_v2/box", item_source(boxed_item("c", 48)))
         cases = {
@@ -526,6 +573,11 @@ class DeriveTest(TempTestCase):
             "grid": (derived_source("box", "rank") + "#c\n", "holds no grid"),
             "size": ("@size 48x48\n" + derived_source("box", "rank"), "no other directive"),
             "missing source": (derived_source("bag", "rank"), "items_v2/bag: that source doesn't"),
+            "pairs on a fixed map": ("@derive box golden=rank c=n\n", "takes nothing more"),
+            "keys without pairs": ("@derive box golden=keys glint\n", "at least one"),
+            "bad pair": ("@derive box golden=keys cn\n", "takes <from>=<to> pairs"),
+            "ink pair": ("@derive box golden=keys #=n\n", "takes <from>=<to> pairs"),
+            "pair twice": ("@derive box golden=keys c=n c=L\n", "recolours 'c' twice"),
         }
         for label, (text, message) in cases.items():
             with self.subTest(label):

@@ -1,9 +1,11 @@
 extends GdUnitTestSuite
 ## The RECEIPT REWARDS machine's feed and landings on the real shift screen (#77, build spec
-## 4.2-4.6 and section 6, U3): the receipt's copy (a second ReceiptView, the stage's receipt never
-## moving) flies to the machine's slot and feeds in under its clip, never shown for a resumed
-## visit or under reduced motion; an inspected pass stamps INSPECTION PASSED under PAID (with
-## `stamp_notice`) and the BONUS TICKET's stub prints out of the printer's mouth; a new card flies
+## 4.2-4.6 and section 6, U3; machine v2 spec A3-A4): the receipt's copy (a second ReceiptView;
+## the stage's receipt hides, torn off) travels with the camera into the machine's slot and feeds
+## in under its clip, never shown for a resumed visit, cross-faded under reduced motion; an
+## inspected pass stamps INSPECTION PASSED under PAID (with `stamp_notice`) and, with its BONUS
+## visit to come, prints the gold stub, which snaps off at the machine into the slot plate's dock
+## as the bonus ticket and is fed in by the BONUS visit; a new card flies
 ## into the cart drawer (right of the receipt, under the top bar, left of the machine) whose count
 ## chip goes n -> n+1 at the landing; an upgrade glints its copies one after another and changes
 ## them in place; a register flies to its LOYALTY card box, which is stamped (the plain landing
@@ -108,41 +110,65 @@ func test_an_inspected_pass_stamps_inspection_passed_in_the_dessert() -> void:
 	assert_array(Array(_texts(stamp))).contains(["Spot check"])
 
 
-## The ticket's feed: the copy holds the stage receipt's lines; at the flight's end it is
-## FEED_SCALE, centred on the slot with its foot on it; while fed it is clipped at the slot; gone
-## after the feed. The stage receipt never moves. Under reduced motion nothing flies.
-func test_the_receipt_copy_flies_to_the_slot_and_feeds_in() -> void:
+## The ticket's feed (#77 machine v2): the copy holds the stage receipt's lines and the stage's
+## own hides (torn off); mid-travel the copy is between the printer and the slot; at the travel's
+## end it is centred on the slot mouth's live rect (it follows the camera), its foot on the
+## mouth's line, narrower than the receipt (feed_fit of the mouth); while fed it is clipped at
+## the line; gone after the feed. Under reduced motion it cross-fades from the printer to the slot.
+func test_the_receipt_travels_into_the_slot() -> void:
 	var screen: ShiftScreen = await _passed_screen()
 	var view: RewardMachineView = screen._machine.view
 	var feed: ReceiptFeed = view.receipt_feed
 	await _frames(2)
 	assert_object(feed.paper).is_not_null()
-	assert_object(feed.stub).is_null()
+	assert_object(feed.paper.stub).is_null()
 	assert_array(Array(_texts(feed.paper))).is_equal(Array(_texts(screen._receipt)))
-	var receipt_at: Vector2 = screen._receipt.global_position
+	assert_bool(screen._receipt.visible).is_false()
 	var plan: MachinePlan = view.plan
-	view.show_at(plan.fly + (plan.fly_end - plan.fly) / 2.0)
-	assert_bool(feed.visible).is_true()
+	view.show_at(0.0)
+	var rest: Rect2 = _stage_rect(screen, feed.paper)
+	var stage_receipt: Rect2 = _stage_rect(screen, screen._receipt)
+	assert_float(rest.position.x).is_equal_approx(stage_receipt.position.x, PX)
+	assert_float(rest.end.y).is_equal_approx(stage_receipt.end.y, PX)
 	view.show_at(plan.fly_end)
 	var rect: Rect2 = _stage_rect(screen, feed.paper)
-	var slot: Vector2 = ShiftStage.MACHINE_SLOT_POINT
-	assert_float(rect.get_center().x).is_equal_approx(slot.x, PX)
-	assert_float(rect.end.y).is_equal_approx(slot.y, PX)
-	var stage_receipt: Rect2 = _stage_rect(screen, screen._receipt)
-	assert_float(rect.size.x).is_equal_approx(stage_receipt.size.x * ReceiptFeed.FEED_SCALE, PX)
+	var mouth: Rect2 = _stage_mouth(screen, view)
+	assert_float(rect.get_center().x).is_equal_approx(mouth.get_center().x, PX)
+	assert_float(rect.end.y).is_equal_approx(mouth.get_center().y, PX)
+	assert_float(rect.size.x).is_less(stage_receipt.size.x)
+	assert_float(rect.size.x).is_equal_approx(mouth.size.x * view.tuning.feed_fit, PX)
+	view.show_at(plan.fly_end / 2.0)
+	var mid: Rect2 = _stage_rect(screen, feed.paper)
+	assert_float(mid.position.x).is_between(rest.position.x, rect.position.x)
+	assert_float(mid.position.y).is_between(rect.position.y, rest.position.y)
 	view.show_at((plan.fly_end + plan.feed_end) / 2.0)
-	assert_bool(feed.visible).is_true()
-	assert_float(feed.clip.size.y).is_equal(slot.y)
+	assert_bool(feed.clip.visible).is_true()
+	assert_float(feed.clip.size.y).is_equal_approx(_stage_mouth(screen, view).get_center().y, PX)
 	assert_float(_stage_rect(screen, feed.paper).position.y).is_greater(rect.position.y)
 	view.show_at(plan.feed_end)
-	assert_bool(feed.visible).is_false()
-	assert_vector(screen._receipt.global_position).is_equal(receipt_at)
+	assert_bool(feed.clip.visible).is_false()
+	# Reduced motion: the cross-fade switches on the camera's cut, never a full-size receipt
+	# over the zoomed machine.
 	plan.reduced_motion = true
-	view.show_at(plan.fly)
-	assert_bool(feed.visible).is_false()
+	var cut: float = plan.cut_at()
+	var span: float = cut - plan.fly
+	assert_float(cut).is_between(plan.fly, plan.fly_end)
+	view.show_at(plan.fly + span / 2.0)
+	var faded: Rect2 = _stage_rect(screen, feed.paper)
+	assert_vector(faded.position).is_equal_approx(rest.position, Vector2(PX, PX))
+	assert_float(feed.paper.get_parent().modulate.a).is_equal_approx(0.5, 0.01)
+	assert_float(plan.camera_at(plan.fly + span / 2.0)).is_equal(0.0)
+	view.show_at(cut)
+	faded = _stage_rect(screen, feed.paper)
+	var centre_x: float = _stage_mouth(screen, view).get_center().x
+	assert_float(plan.camera_at(cut)).is_equal(1.0)
+	assert_float(faded.get_center().x).is_equal_approx(centre_x, PX)
+	assert_float(faded.size.x).is_less(stage_receipt.size.x)
+	view.show_at(cut + span / 2.0)
+	assert_float(feed.paper.get_parent().modulate.a).is_equal_approx(0.5, 0.01)
 
 
-## A resumed visit's receipt is already fed: no copy.
+## A resumed visit's receipt is already fed: no copy, the stage's own torn off.
 func test_a_resumed_visit_has_no_copy_in_the_slot() -> void:
 	await _passed_screen()
 	var resumed: ShiftScreen = await _screen()
@@ -150,7 +176,25 @@ func test_a_resumed_visit_has_no_copy_in_the_slot() -> void:
 	assert_bool(view.plan.resumed).is_true()
 	await _frames(3)
 	assert_object(view.receipt_feed.paper).is_null()
-	assert_bool(view.receipt_feed.visible).is_false()
+	assert_bool(view.receipt_feed.clip.visible).is_false()
+	assert_bool(resumed._receipt.visible).is_false()
+
+
+## A pass with no bonus ticket to come (shift 1: no inspection): no stub on either receipt, no
+## dock on the slot plate, no banner.
+func test_no_stub_without_a_bonus() -> void:
+	var screen: ShiftScreen = await _passed_screen()
+	var view: RewardMachineView = screen._machine.view
+	await _frames(2)
+	assert_bool(view.plan.stub).is_false()
+	assert_object(screen._receipt.stub).is_null()
+	assert_object(view.receipt_feed.paper.stub).is_null()
+	assert_object(screen._count_up._dessert.banner).is_null()
+	var plan: MachinePlan = view.plan
+	for t: float in [0.0, plan.fly_end, plan.choose_at]:
+		view.show_at(t)
+		assert_bool(view.slot_plate.dock_state()[0]).is_false()
+		assert_object(view.receipt_feed.ticket).is_null()
 
 
 ## A NEW ITEMS pick: the prize flies from its cell into the drawer's new slot; the drawer (right
@@ -299,14 +343,9 @@ func test_a_wide_upgrade_keeps_its_first_copy_and_clears_the_receipt() -> void:
 		+ ((drawer.slots[first]["node"] as Control).position + CartDrawer.SLOT_SIZE / 2.0)
 	)
 	assert_float(drawer.dest().distance_to(slot_centre)).is_less(PX)
-	var receipt: Rect2 = Rect2(
-		ShiftStage.RECEIPT_X,
-		ShiftStage.RECEIPT_TOP,
-		ShiftStage.RECEIPT_WIDTH,
-		ShiftStage.RECEIPT_BOTTOM - ShiftStage.RECEIPT_TOP
-	)
-	assert_bool(drawer.rest_rect().intersects(receipt)).is_false()
-	assert_bool(drawer.rest_rect().intersects(_stage_rect(screen, screen._receipt))).is_false()
+	# Left of the machine's first prize cell at 2x (#77 machine v2: the receipt is fed by then).
+	assert_float(drawer.rest_rect().position.x).is_greater_equal(ShiftStage.CART_DRAWER_LEFT)
+	assert_float(drawer.rest_rect().end.x).is_less_equal(ShiftStage.MACHINE_CELL_X[0])
 
 
 ## A REGISTER pick flies to its LOYALTY card box, shrinking, and the box's stamp slams down at the
@@ -408,8 +447,9 @@ func test_the_sounds_follow_the_plan_and_never_play_on_a_jump() -> void:
 	view.sfx = screen_sfx
 
 
-## A new visit's sounds at 0 play on its first frame: the BONUS TICKET's `stamp_notice` and the
-## stub's `print`, STAMP DAY's `stamp_paid`; a visit resumed at its pick plays neither them nor a
+## A new visit's sounds at 0 play on its first frame: STAMP DAY's `stamp_paid`; the BONUS
+## TICKET's `stamp_notice` lands with the head's stamp as the ticket reaches the slot (#77 machine
+## v2), and nothing prints; a visit resumed at its pick plays neither them nor a
 ## press for the resume, but the player's later pick press (`ui_click`) is heard.
 func test_a_new_visits_first_sounds_play_and_a_resume_keeps_the_players_press() -> void:
 	var screen: ShiftScreen = await _screen()
@@ -423,8 +463,11 @@ func test_a_new_visits_first_sounds_play_and_a_resume_keeps_the_players_press() 
 	view.plan = MachinePlan.new(view.tuning, MachineVisit.Kind.BONUS, false)
 	sounds.frame(0.0)
 	var names: Array[String] = sfx.call("sound_names")
+	assert_int(names.count("stamp_notice")).is_equal(0)
+	_step(sounds, 0.0, view.plan.fly_end + 0.01)
+	names = sfx.call("sound_names")
 	assert_int(names.count("stamp_notice")).is_equal(1)
-	assert_int(names.count("print")).is_equal(1)
+	assert_int(names.count("print")).is_equal(0)
 	sfx.call("clear")
 	view.plan = MachinePlan.new(view.tuning, MachineVisit.Kind.STAMP_DAY, false)
 	sounds.frame(0.0)
@@ -456,49 +499,168 @@ func test_every_rarity_sounds_different() -> void:
 	assert_int(legendary.size()).is_greater(rare.size())
 
 
-## An inspected pass (seed 5's shift 3): the stage receipt carries INSPECTION PASSED; after the
-## ticket's visit the BONUS TICKET's stub prints out of the printer's mouth (clipped there) with
-## its header, the stamp and "1 MORE PRIZE ›", then flies to the slot.
-func test_the_bonus_stub_prints_out_of_the_printer() -> void:
+## An inspected pass (seed 5's shift 3) with its BONUS visit to come (#77 machine v2, Q2 = 2): the
+## dessert prints the gold stub (STUB form) as the receipt's last line above the tear, the
+## ticket's height, across the receipt's scroll area; at the machine the stub snaps off while the
+## paper's body stays on its anchor, and the bonus ticket leaves from the stub's rect and docks in
+## the slot plate's dock, whose caption then hides; the BONUS visit feeds it in, clipped at the
+## slot line.
+func test_the_bonus_stub_prints_on_the_receipt_and_snaps_into_the_dock() -> void:
 	var screen: ShiftScreen = await _screen()
 	screen.start_new_run(5)
 	await _frames(2)
-	var found: bool = false
+	var docked: bool = false
+	var fed: bool = false
+	var sub: String = ""
 	for _shift: int in range(screen.run.shift_count() - 1):
 		await _pass(screen, true)
-		var record: ShiftRecord = screen.run.history[-1]
-		if record.inspection != null and record.passed:
-			assert_object(_inspection_stamp(screen._receipt)).is_not_null()
 		for _visit: int in range(MAX_VISITS):
 			var run: RunState = screen.run
 			if not RunState.MACHINE_PHASES.has(run.phase):
 				break
 			var view: RewardMachineView = screen._machine.view
-			if run.machine.current_visit().kind == MachineVisit.Kind.BONUS and not found:
-				found = true
-				await _frames(2)
-				var feed: ReceiptFeed = view.receipt_feed
-				assert_object(feed.stub).is_not_null()
-				assert_object(feed.paper).is_null()
-				var texts: PackedStringArray = _texts(feed.stub)
-				assert_bool(texts.has(ReceiptFeed.MORE_TEXT)).is_true()
-				assert_bool(texts.has(ReceiptStamps.INSPECTION_TEXT)).is_true()
-				var stub_line: String = ReceiptFeed.STUB_TEXT % [record.shift, run.shift_count()]
-				assert_bool(texts.has(stub_line)).is_true()
-				var plan: MachinePlan = view.plan
-				view.show_at(plan.stub_end / 2.0)
-				assert_bool(feed.visible).is_true()
-				assert_float(feed.clip.size.y).is_equal(ShiftStage.MACHINE_STUB_MOUTH.y)
-				var rect: Rect2 = _stage_rect(screen, feed.stub)
-				assert_float(rect.position.x).is_equal_approx(ShiftStage.MACHINE_STUB_MOUTH.x, PX)
-				assert_float(rect.position.y).is_less(ShiftStage.MACHINE_STUB_MOUTH.y)
-				view.show_at(plan.fly_end)
-				rect = _stage_rect(screen, feed.stub)
-				assert_float(rect.end.y).is_equal_approx(ShiftStage.MACHINE_SLOT_POINT.y, PX)
+			await _frames(2)
+			if view.plan.kind == MachineVisit.Kind.TICKET and view.plan.stub and not docked:
+				docked = true
+				# One wording throughout: the dessert's stub, the fed copy's and the docked ticket.
+				var inspected: bool = run.history[-1].inspection != null
+				sub = BonusTicket.sub_line(inspected, run.history[-1].shift)
+				assert_str(screen._receipt.stub.ticket.texts()[1]).is_equal(sub)
+				_assert_stub_on_the_receipt(screen._receipt)
+				assert_str(view.receipt_feed.paper.stub.ticket.texts()[1]).is_equal(sub)
+				_assert_stub_snaps_into_the_dock(screen, view)
+				assert_str(view.receipt_feed.ticket.texts()[1]).is_equal(sub)
+			elif view.plan.kind == MachineVisit.Kind.BONUS and docked and not fed:
+				fed = true
+				view.show_at(0.0)
+				assert_str(view.receipt_feed.ticket.texts()[1]).is_equal(sub)
+				_assert_ticket_feeds_in(screen, view)
 			_end_visit(screen)
-		if found:
+		if fed:
 			break
-	assert_bool(found).override_failure_message("no bonus visit").is_true()
+	assert_bool(docked).override_failure_message("no ticket visit with a stub").is_true()
+	assert_bool(fed).override_failure_message("no bonus visit").is_true()
+
+
+func _assert_stub_on_the_receipt(receipt: ReceiptView) -> void:
+	var stub: ReceiptStub = receipt.stub
+	assert_object(stub).is_not_null()
+	assert_int(stub.ticket.form).is_equal(BonusTicket.Form.STUB)
+	assert_float(stub.full_height()).is_equal(BonusTicket.SIZE.y)
+	var lines: Array[Node] = stub.get_parent().get_children()
+	var at: int = lines.find(stub)
+	assert_int(at).is_greater(0)
+	var tear: Label = lines[at + 1].get_child(0) as Label
+	assert_object(tear).is_not_null()
+	assert_bool(tear.text.begins_with(ReceiptView.TEAR_PATTERN)).is_true()
+	assert_object(_inspection_stamp(receipt)).is_not_null()
+	var paper: Rect2 = receipt.get_global_rect()
+	var shown: Rect2 = stub.get_global_transform() * stub.stub_rect()
+	assert_float(shown.size.y).is_equal_approx(BonusTicket.SIZE.y, PX)
+	# Across the receipt's scroll area, which clips its lines.
+	assert_float(shown.size.x).is_equal_approx(receipt._scroll.get_global_rect().size.x, PX)
+	assert_bool(paper.grow(PX).encloses(shown)).is_true()
+
+
+func _assert_stub_snaps_into_the_dock(screen: ShiftScreen, view: RewardMachineView) -> void:
+	var feed: ReceiptFeed = view.receipt_feed
+	var plan: MachinePlan = view.plan
+	assert_object(feed.paper).is_not_null()
+	assert_object(feed.paper.stub).is_not_null()
+	view.show_at(plan.snap - 0.05)
+	assert_bool(view.slot_plate.dock_state()[0]).is_true()
+	assert_bool(view.slot_plate.dock_state()[2]).is_true()
+	# The paper's body stays on its anchor while its stub snaps off.
+	var snap_ms: int = view.tuning.snap_delay_ms + view.tuning.snap_ms
+	var snap_end: float = plan.snap + MachineTuning.sec(snap_ms)
+	var full: float = feed.full_height()
+	for t: float in [plan.snap, (plan.snap + snap_end) / 2.0, snap_end]:
+		view.show_at(t)
+		var anchor: Vector2 = feed.paper_anchor(t)["at"]
+		var top_left: Vector2 = _stage_point(screen, feed.paper.get_global_transform().origin)
+		assert_vector(top_left).is_equal_approx(anchor, Vector2.ONE)
+		assert_float(feed.full_height()).is_equal_approx(full, 0.5)
+	assert_float(feed.paper.stub.shown_height()).is_equal(0.0)
+	# The ticket leaves from the stub's rect.
+	view.show_at(plan.snap)
+	var stub_rect: Rect2 = feed.paper.stub.get_global_transform() * feed.paper.stub.stub_rect()
+	var ticket: BonusTicket = feed.ticket
+	assert_object(ticket).is_not_null()
+	assert_int(ticket.form).is_equal(BonusTicket.Form.TICKET)
+	var centre: Vector2 = ticket.get_global_transform() * (BonusTicket.SIZE / 2.0)
+	assert_vector(centre).is_equal_approx(stub_rect.get_center(), Vector2(PX, PX))
+	# ... and docks.
+	var landed: float = plan.snap + MachineTuning.sec(view.tuning.dock_flight_ms)
+	view.show_at(landed)
+	var dock: Rect2 = view.slot_plate.dock_global_rect()
+	var at: Rect2 = ticket.get_global_rect()
+	assert_vector(at.position).is_equal_approx(dock.position, Vector2.ONE)
+	assert_vector(at.size).is_equal_approx(dock.size, Vector2.ONE)
+	view.show_at(plan.fly_end + MachineTuning.sec(view.tuning.dock_label_ms))
+	assert_bool(view.slot_plate.dock_state()[1]).is_true()
+	assert_bool(view.slot_plate.dock_state()[2]).is_false()
+	view.show_at(plan.choose_at)
+	assert_vector(ticket.get_global_rect().position).is_equal_approx(dock.position, Vector2.ONE)
+	_assert_odds_card_over_the_ticket(screen, view, ticket)
+
+
+## Hovering a key whose odds card reaches the docked ticket draws the card over it: the ticket on
+## the hud's feed layer (no top_level layer above it), the card on the machine's top_level card
+## layer, which Godot draws after every item that isn't top_level; and the travelling receipt's
+## layer under the top bar.
+func _assert_odds_card_over_the_ticket(
+	screen: ShiftScreen, view: RewardMachineView, ticket: BonusTicket
+) -> void:
+	view._armed = true  # Headless: no mouse release arms it.
+	var shown: int = 0
+	for chute: int in [RewardMachine.Chute.UPGRADES, RewardMachine.Chute.REGISTER]:
+		var info: MachineChuteInfo = screen.run.machine.chute_info(screen.run, chute)
+		if info.state != RewardMachine.ChuteState.OPEN:
+			continue
+		view._hide_odds()
+		view._on_key_hovered(chute)
+		var card: OddsCard = view.odds_card
+		assert_bool(card.visible).is_true()
+		shown += 1
+		var rect: Rect2 = card.get_global_rect()
+		assert_bool(view.get_global_rect().encloses(rect)).is_true()
+		if rect.intersects(ticket.get_global_rect()):
+			assert_bool(_under_top_level(ticket)).is_false()
+			assert_bool(view.card_layer.top_level).is_true()
+	view._hide_odds()
+	assert_int(view.feed_layer.get_index()).is_less(screen._stage.top_bar.get_index())
+	assert_object(view.feed_layer.get_parent()).is_same(screen._stage)
+	assert_int(shown).is_greater(0)
+
+
+static func _under_top_level(item: CanvasItem) -> bool:
+	var node: Node = item
+	while node != null:
+		if node is CanvasItem and (node as CanvasItem).top_level:
+			return true
+		node = node.get_parent()
+	return false
+
+
+func _assert_ticket_feeds_in(screen: ShiftScreen, view: RewardMachineView) -> void:
+	var feed: ReceiptFeed = view.receipt_feed
+	var plan: MachinePlan = view.plan
+	view.show_at(0.0)
+	var dock: Rect2 = view.slot_plate.dock_global_rect()
+	assert_object(feed.ticket).is_not_null()
+	assert_vector(feed.ticket.get_global_rect().position).is_equal_approx(
+		dock.position, Vector2.ONE
+	)
+	view.show_at((plan.fly_end + plan.feed_end) / 2.0)
+	var line: float = _stage_mouth(screen, view).get_center().y
+	assert_float(feed.ticket_clip.size.y).is_equal_approx(line, PX)
+	var at: Rect2 = _stage_rect(screen, feed.ticket)
+	assert_float(at.end.y).is_greater(line)
+	assert_float(at.position.y).is_less(line)
+	assert_float(feed.ticket.shine).is_between(0.0, 1.0)
+	view.show_at(plan.feed_end)
+	assert_bool(feed.ticket.visible).is_false()
+	assert_bool(view.slot_plate.dock_state()[0]).is_false()
 
 
 # --- helpers ---------------------------------------------------------------------------------
@@ -536,6 +698,8 @@ func _end_visit(screen: ShiftScreen) -> void:
 	else:
 		screen._machine._take(0, run.deck.cards[0] if run.deck_is_full() else null)
 	screen._machine.view.fast_forward()
+	# The last visit's glide back to the store (#77 machine v2) ends at once, as a tap ends it.
+	screen._machine._end_return()
 
 
 func _passed_screen() -> ShiftScreen:
@@ -605,6 +769,18 @@ static func _texts(root: Node) -> PackedStringArray:
 		if not node.is_queued_for_deletion() and not node.get_parent().is_queued_for_deletion():
 			texts.append((node as Label).text)
 	return texts
+
+
+## A screen point in stage coordinates.
+static func _stage_point(screen: ShiftScreen, point: Vector2) -> Vector2:
+	return screen._stage.get_global_transform().affine_inverse() * point
+
+
+## The slot plate's mouth in stage coordinates (it follows the camera).
+static func _stage_mouth(screen: ShiftScreen, view: RewardMachineView) -> Rect2:
+	return (
+		screen._stage.get_global_transform().affine_inverse() * view.slot_plate.mouth_global_rect()
+	)
 
 
 ## `control`'s rect in stage coordinates (its scale included).

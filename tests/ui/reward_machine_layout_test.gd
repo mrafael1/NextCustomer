@@ -1,15 +1,17 @@
 extends GdUnitTestSuite
 ## The RECEIPT REWARDS machine's layout on the 1280x720 stage (#77, look F; build spec 4.1-4.2, 9;
-## memory: UI tests check layout, on-screen geometry): on the real shift screen the machine and
-## its RESTOCK hood sit inside the stage, right of the register column and the receipt; the head
-## sits over the cabinet and every other part (slot, display, keys, meters, stockroom window, order
-## slip, YOUR ORDER plate, belt, box lane) inside it. The prize tickets sit in the tray cells (a
-## short draw uses the centre cell for one prize, the left and centre cells for two), their rarity
-## tabs above them inside the tray's x range, clear of the hood. Each chute's odds card (and the
-## bonus ticket's, and STAMP DAY's REGISTER card) sits below the top bar, inside the stage, right
-## of the receipt and left of the machine. The cart drawer (at its widest) sits below the top bar,
-## left of x 748 and right of the receipt. Every label fits its box, and Pixelify is only ever 12
-## or 24 px (full build plan 6.1). The views are driven directly (no input events).
+## memory: UI tests check layout, on-screen geometry): on the real shift screen, with the camera at
+## the machine (#77 machine v2), the machine and its RESTOCK hood sit at MACHINE_RECT and
+## MACHINE_HOOD_RECT inside the stage, right of the register column; the head sits over the
+## cabinet and every other part (slot, display, keys, meters, stockroom window, order slip, YOUR
+## ORDER plate, belt, box lane) inside it. The prize tickets sit in the tray cells (a short draw
+## uses the centre cell for one prize, the left and centre cells for two), their rarity tabs above
+## them inside the tray's x range, clear of the hood. Each chute's odds card (and the bonus
+## ticket's, and STAMP DAY's REGISTER card) sits above its key inside the machine (#77 machine
+## v2). The cart drawer (at its widest) sits below the top bar, right of x 8 and left of the
+## first prize cell. The standalone views stand where the camera puts the machine. Every label
+## fits its box, and Pixelify is only ever 12 or 24 px (full build plan 6.1). The views are driven
+## directly (no input events).
 
 const Rush := preload("res://tests/ui/count_up_rush.gd")
 const SCREEN := "res://ui/shift_screen.tscn"
@@ -205,13 +207,12 @@ func test_the_order_plate_stays_under_the_tabs_through_the_landing() -> void:
 	)
 
 
-## Every chute's odds card (shift 1's lit chutes, the bonus ticket's with its red band, and STAMP
-## DAY's REGISTER card), with the starting stock and with a full collection's (every aisle
-## product stocked: the longest prize lists), also on a full cart: below the top bar, inside the
-## stage, right of the receipt and left of the machine, its foot (with its shadow) above the
-## floor and CONFIRM on the stage; its lines fit. While it is open at the chute wait the display
-## reads its chute's odds lines (look F).
-func test_every_odds_card_sits_left_of_the_machine() -> void:
+## Every chute's odds card (#77 machine v2's B2: shift 1's lit chutes, the bonus ticket's, and
+## STAMP DAY's REGISTER card), with the starting stock and with a full collection's, also on a
+## full cart: on hover, above its key inside the machine (so inside the stage, below the top bar),
+## its tail's tip just above the key's centre, over every part (OddsCard.Z), three rows inside it
+## and its lines fitting; the display keeps the wait's lines.
+func test_every_odds_card_sits_above_its_key() -> void:
 	var runs: Array[RunState] = [
 		_passed_run(14),
 		_bonus_run(15),
@@ -227,16 +228,16 @@ func test_every_odds_card_sits_left_of_the_machine() -> void:
 		var stamp_day: bool = run.phase == RunState.Phase.MACHINE_PICK
 		view.show_at(view.plan.pick_at if stamp_day else view.plan.choose_at)
 		view._armed = true  # Headless: no mouse release arms it.
+		var machine: Rect2 = view.get_global_rect()
+		var lines: PackedStringArray = view.display.texts()
 		for chute: int in RewardMachine.CHUTES:
 			var info: MachineChuteInfo = run.machine.chute_info(run, chute)
 			if stamp_day and chute != RewardMachine.Chute.REGISTER:
 				continue
 			if not stamp_day and info.state != RewardMachine.ChuteState.OPEN:
 				continue
-			view.close_odds()
-			view.open_odds(chute)
-			if stamp_day:
-				view._on_key_hovered(chute)
+			view._hide_odds()
+			view._on_key_hovered(chute)
 			var card: OddsCard = view.odds_card
 			assert_bool(card.visible).override_failure_message(str(chute)).is_true()
 			view.idle_time += 1.0
@@ -246,33 +247,24 @@ func test_every_odds_card_sits_left_of_the_machine() -> void:
 			var where: String = (
 				"chute %d (stock %d): %s" % [chute, run.stock.card_ids().size(), rect]
 			)
-			var stage: Rect2 = Rect2(Vector2.ZERO, ShiftStage.SIZE)
-			assert_bool(stage.encloses(rect)).override_failure_message(where).is_true()
+			assert_bool(machine.encloses(rect)).override_failure_message(where).is_true()
 			assert_float(rect.position.y).override_failure_message(where).is_greater_equal(
 				ShiftStage.TOP_BAR_BOTTOM
 			)
-			(
-				assert_float(rect.end.y + OddsCard.SHADOW)
-				. override_failure_message(where)
-				. is_less_equal(ShiftStage.FLOOR_TOP)
+			var key: Rect2 = view.keys[chute].get_global_rect()
+			var tip: Vector2 = card.global_position + card.tail_tip()
+			assert_float(rect.end.y).override_failure_message(where).is_less(key.position.y)
+			assert_float(tip.y).override_failure_message(where).is_less_equal(key.position.y)
+			assert_float(tip.x).override_failure_message(where).is_between(
+				key.position.x, key.end.x
 			)
-			if card.is_choosable():
-				var confirm: Rect2 = card.confirm_button().get_global_rect()
-				assert_bool(stage.encloses(confirm)).override_failure_message(where).is_true()
-				assert_str(view.display.texts()[0]).is_equal(
-					"%s: SEE THE ODDS" % ChuteKey.NAMES[chute]
-				)
-			assert_float(rect.position.x).is_greater_equal(
-				ShiftStage.RECEIPT_X + ShiftStage.RECEIPT_WIDTH
-			)
-			assert_float(rect.end.x + OddsCard.SHADOW).is_less_equal(
-				view.get_global_rect().position.x
-			)
-			for label: Control in card.shown_labels():
-				if label is Label:
-					_assert_fits(label as Label)
-				else:
-					assert_float(label.get_global_rect().end.x).is_less_equal(rect.end.x)
+			assert_int(card.z_index).is_equal(OddsCard.Z)
+			assert_int(card.rows().size()).is_equal(3)
+			for row: Panel in card.rows():
+				assert_bool(rect.encloses(row.get_global_rect())).is_true()
+			for label: Label in card.shown_labels():
+				_assert_fits(label)
+			assert_array(Array(view.display.texts())).is_equal(Array(lines))
 		await _close(view)
 
 
@@ -295,9 +287,10 @@ func test_the_cart_drawer_sits_left_of_the_machine() -> void:
 	assert_int(drawer.slots.size()).is_equal(CartDrawer.MAX_SLOTS)
 	var rest: Rect2 = drawer.rest_rect()
 	assert_float(rest.position.y).is_greater_equal(ShiftStage.TOP_BAR_BOTTOM)
-	assert_float(rest.end.x).is_equal(ShiftStage.CART_DRAWER_RIGHT)
-	assert_float(rest.end.x).is_less_equal(ShiftStage.MACHINE_RECT.position.x)
-	assert_float(rest.position.x).is_greater_equal(ShiftStage.RECEIPT_X + ShiftStage.RECEIPT_WIDTH)
+	# At its widest it can't keep its right edge at CART_DRAWER_RIGHT: it starts at CART_DRAWER_LEFT
+	# and reaches the cabinet's edge, short of the first prize cell (#77 machine v2).
+	assert_float(rest.position.x).is_greater_equal(ShiftStage.CART_DRAWER_LEFT)
+	assert_float(rest.end.x).is_less_equal(ShiftStage.MACHINE_CELL_X[0])
 	assert_float(rest.end.y).is_less_equal(ShiftStage.FLOOR_TOP)
 	for label: Label in _labels(drawer):
 		_assert_fits(label)
@@ -315,12 +308,16 @@ func test_pixelify_is_only_12_or_24_and_every_label_fits() -> void:
 		if run.phase == RunState.Phase.MACHINE_CHOOSE:
 			view._armed = true
 			var chute: int = MachineSteps.first_lit(run, RewardMachine.Chute.NEW_ITEMS)
-			view.open_odds(chute)
+			view.hover_key(chute)
 			view.idle_time += 1.0
 			view.odds_card.frame(view.clock)
 			await _frames(2)
 			seen += _audit(view, "odds")
-			view.close_odds()
+			view._hide_odds()
+			view.press_key(chute)  # The title mode with CONFIRM › (#77 machine v2).
+			view.show_at(view.clock)
+			await _frames(2)
+			seen += _audit(view, "pressed")
 			assert_bool(run.machine.choose(run, chute)).is_true()
 			view.show_draw(run)
 		view.show_at(view.plan.pick_at)
@@ -352,22 +349,20 @@ func test_a_legendary_reveal_shakes_and_flashes() -> void:
 		plan.set_draw([MachinePrize.Rarity.COMMON, MachinePrize.Rarity.RARE, legend])
 		var at: Callable = func(index: int, p: float) -> float:
 			return plan.reveal_at[index] + plan.reveal_length[index] * p
-		var shake: Vector2 = RewardMachineView.legendary_shake(plan, at.call(2, 0.65))
-		var flash: float = RewardMachineView.legendary_flash(plan, at.call(2, 0.36))
+		var shake: Vector2 = MachineLayers.legendary_shake(plan, at.call(2, 0.65))
+		var flash: float = MachineLayers.legendary_flash(plan, at.call(2, 0.36))
 		if rm:
 			assert_vector(shake).is_equal(Vector2.ZERO)
 			assert_float(flash).is_equal(0.0)
 			continue
-		assert_float(absf(shake.x)).is_equal(RewardMachineView.SHAKE_X)
-		assert_float(absf(shake.y)).is_equal(RewardMachineView.SHAKE_Y)
-		assert_float(flash).is_between(0.2, RewardMachineView.FLASH_ALPHA)
+		assert_float(absf(shake.x)).is_equal(MachineLayers.SHAKE_X)
+		assert_float(absf(shake.y)).is_equal(MachineLayers.SHAKE_Y)
+		assert_float(flash).is_between(0.2, MachineLayers.FLASH_ALPHA)
 		for p: float in [0.2, 0.5, 0.8, 1.0]:
-			assert_vector(RewardMachineView.legendary_shake(plan, at.call(2, p))).is_equal(
-				Vector2.ZERO
-			)
-		assert_float(RewardMachineView.legendary_flash(plan, at.call(2, 0.5))).is_equal(0.0)
+			assert_vector(MachineLayers.legendary_shake(plan, at.call(2, p))).is_equal(Vector2.ZERO)
+		assert_float(MachineLayers.legendary_flash(plan, at.call(2, 0.5))).is_equal(0.0)
 		for index: int in [0, 1]:
-			assert_vector(RewardMachineView.legendary_shake(plan, at.call(index, 0.65))).is_equal(
+			assert_vector(MachineLayers.legendary_shake(plan, at.call(index, 0.65))).is_equal(
 				Vector2.ZERO
 			)
 	# On the machine: the flash covers the stage; the shake moves the machine, then it settles.
@@ -383,16 +378,14 @@ func test_a_legendary_reveal_shakes_and_flashes() -> void:
 	assert_bool(view.flash.visible).is_true()
 	assert_vector(view.flash.get_global_rect().size).is_equal(ShiftStage.SIZE)
 	view.show_at(reveal.call(0.65))
-	assert_float(view.global_position.distance_to(ShiftStage.MACHINE_RECT.position)).is_greater(1.0)
-	# The whole stage shakes (look F's #shakeWrap): the machine, its stage layer and its flash
-	# move with the stage, so the flash still covers it.
+	# The whole stage shakes (look F's #shakeWrap): its stage layer and its flash move with the
+	# stage, so the flash still covers it (the machine shakes with the camera's world: #77
+	# machine v2, checked in store_camera_test).
 	var stage: Control = view.stage
 	assert_float(stage.position.length()).is_greater(1.0)
-	assert_vector(view.global_position - stage.position).is_equal(ShiftStage.MACHINE_RECT.position)
 	assert_vector(view.stage_layer.global_position).is_equal(stage.global_position)
 	view.show_at(reveal.call(0.9))
 	assert_bool(view.flash.visible).is_false()
-	assert_vector(view.global_position).is_equal(ShiftStage.MACHINE_RECT.position)
 	assert_vector(stage.position).is_equal(Vector2.ZERO)
 	await _close(view)
 
@@ -539,7 +532,16 @@ func _open(run: RunState) -> RewardMachineView:
 	add_child(stage)
 	var view: RewardMachineView = auto_free(RewardMachineView.new())
 	add_child(view)
-	view.open_visit(run, stage, stage, false)
+	# Where the camera puts it at the machine (#77 machine v2): MACHINE_RECT at scale 1.
+	view.position = ShiftStage.MACHINE_RECT.position
+	# The receipt the visit hides (torn off), on the stage like the screen's.
+	var receipt: Control = Control.new()
+	receipt.position = Vector2(ShiftStage.RECEIPT_X, ShiftStage.RECEIPT_TOP)
+	receipt.size = Vector2(
+		ShiftStage.RECEIPT_WIDTH, ShiftStage.RECEIPT_BOTTOM - ShiftStage.RECEIPT_TOP
+	)
+	stage.add_child(receipt)
+	view.open_visit(run, receipt, stage, false)
 	view.fast_forward()
 	await _frames(3)
 	return view

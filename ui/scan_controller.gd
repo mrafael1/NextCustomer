@@ -17,9 +17,9 @@ extends Node
 ##
 ## The offers are items too (#75, decision 4A): cover_offers() watches the RECEIPT REWARDS
 ## machine's prize items (#77) and scans them like hand items while the machine accepts clicks
-## (RewardMachineView.can_scan: once it has armed, not while the deck view hides it). Their scan
-## opens in a layer right above the machine, since the shade and the machine cover the stage's
-## layers: its own marks and the scan popup (ScanPopup), beside the item over the machine. There
+## (RewardMachineView.can_scan: once it has armed). Their scan opens in a layer on the stage's hud
+## (#77 machine v2: the machine is in the zoomed world, the layer never zooms): its own marks and
+## the scan popup (ScanPopup), beside the item over the machine. There
 ## the popup takes the clicks on it and does nothing with them: it covers the neighbouring items
 ## (and can cover the machine's buttons), and a click while reading it must never pick an item the
 ## player can't see.
@@ -136,8 +136,8 @@ func setup(stage: ShiftStage) -> void:
 	stage.popup_layer.add_child(_popup)
 
 
-## Scans `panel`'s offered items too (see the class comment). The layer for their scan goes in
-## right above the panel, as its next sibling, with the stage's theme.
+## Scans `panel`'s offered items too (see the class comment). The layer for their scan goes on the
+## stage's hud (never zoomed, over the zoomed machine), with the stage's theme.
 func cover_offers(panel: RewardMachineView) -> void:
 	_offer_panel = panel
 	_offer_layer = Control.new()
@@ -145,7 +145,8 @@ func cover_offers(panel: RewardMachineView) -> void:
 	_offer_layer.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_offer_layer.set_anchors_preset(Control.PRESET_FULL_RECT)
 	_offer_layer.theme = _stage.theme
-	panel.add_sibling(_offer_layer)
+	# On the stage's hud, never zoomed (#77 machine v2: the machine is in the zoomed world).
+	_stage.add_child(_offer_layer)
 	_offer_overlay = ScanOverlay.new()
 	_offer_overlay.name = "OfferScanOverlay"
 	_offer_overlay.set_anchors_preset(Control.PRESET_FULL_RECT)

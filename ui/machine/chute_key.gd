@@ -6,11 +6,16 @@ extends Control
 ## idle, cream. A shut key is sunk, with a rubber face that says why in words, never by colour
 ## alone: LOCKED_SHIFT a padlock and "OPENS AFTER SHIFT n", EMPTY a padlock and "NOTHING TO
 ## IMPROVE", CARD_FULL the card's stamps and "CARD FULL". Hovering it asks for its odds card (no
-## hover sound, #62) and lifts it 2 px; a click pins the card. During a STAMP DAY pick the
-## REGISTER key carries a "SEE ODDS" tab. It only shows the RewardMachine.ChuteState it is given.
+## hover sound, #62) and lifts it 2 px. During a STAMP DAY pick the REGISTER key carries a "SEE
+## ODDS" tab. It only shows the RewardMachine.ChuteState it is given.
+##
+## Machine v2 (#77): a pressed key (set_pressed, the machine's choice at the chute wait and
+## through its draw) drops SINK px onto its shadow, its lip flattens to PRESSED_LIP, its face turns
+## mustard light inside a RING px gold ring, and its LED (top right, steel when off) lights green
+## with a GLOW px glow.
 ##
 ## frame(t) lights the keys in turn as the plan reaches them (0.14 s apart; a BONUS visit's keys
-## go unlit, then relight 0.08 s apart) and sinks the chosen key while the odds card closes.
+## go unlit, then relight 0.08 s apart); the pressed key stays down until the landing's end.
 
 signal hovered(chute: int)
 signal unhovered(chute: int)
@@ -36,11 +41,15 @@ const TAB_RECT := Rect2(14, -8, 64, 16)
 const TAB_TEXT := "SEE ODDS"
 const BORDER := 2
 const LIP := 5.0
+const PRESSED_LIP := 2.0
 const SHADOW := 4.0
-## How far a shut key, or the chosen key as its odds card closes, sinks; how far a hovered key
-## lifts.
+## How far a shut or pressed key sinks; how far a hovered key lifts.
 const SINK := 4.0
 const LIFT := 2.0
+## The pressed key's gold ring (outside the border) and its LED: LED_RECT on the face, its glow.
+const RING := 4.0
+const LED_RECT := Rect2(80, 6, 6, 6)
+const GLOW := 2.0
 const BOLD_WEIGHT := 800
 const PADLOCK := preload("res://art/icons/padlock.png")
 const CART := preload("res://art/icons/cart.png")
@@ -65,9 +74,11 @@ var _padlock: TextureRect
 var _stamps: HBoxContainer
 var _reason: Label
 var _tab: Label
+var _led: Control
 var _hover: bool = false
-## Its odds card is pinned open (a click): the key stays lifted as when hovered (look F's .hov).
-var _pinned: bool = false
+## The machine's choice (set_pressed), and whether it shows pressed now (frame).
+var _pressed: bool = false
+var _pressed_now: bool = false
 var _lit_now: bool = true
 var _sink: float = 0.0
 
@@ -94,6 +105,13 @@ func _init(key_chute: int) -> void:
 	_shut.name = "ShutFace"
 	_shut.color = Palette.RUBBER
 	_padlock = _sprite(PADLOCK, PADLOCK_RECT, _face)
+	_led = Control.new()
+	_led.name = "Led"
+	_led.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_led.position = LED_RECT.position
+	_led.size = LED_RECT.size
+	_led.draw.connect(_draw_led)
+	_face.add_child(_led)
 	_stamps = HBoxContainer.new()
 	_stamps.name = "CardStamps"
 	_stamps.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -177,13 +195,30 @@ func has_tab() -> bool:
 	return _tab.visible
 
 
-## Marks the key whose odds card is pinned open (it stays lifted while the chutes wait).
-func set_pinned(pinned: bool) -> void:
-	_pinned = pinned
+## Presses the key (the machine's choice) or lets it back up; frame(t) shows it.
+func set_pressed(pressed_now: bool) -> void:
+	_pressed = pressed_now
+	_apply(_lit_now, _sink)
 
 
-func is_pinned() -> bool:
-	return _pinned
+## Whether the key is the machine's choice (set_pressed).
+func is_pressed() -> bool:
+	return _pressed
+
+
+## Whether the key shows pressed now (down, gold ring, LED on).
+func looks_pressed() -> bool:
+	return _pressed_now
+
+
+## Whether its LED is lit (green): the key shows pressed.
+func led_lit() -> bool:
+	return _pressed_now
+
+
+## The LED's rect on screen, for layout tests.
+func led_global_rect() -> Rect2:
+	return _led.get_global_rect()
 
 
 ## Whether the key looks lit now (frame(t): the keys light in turn).
@@ -226,8 +261,8 @@ func setup(machine: RewardMachineView) -> void:
 
 ## The key at time `t` (seconds) of view.plan: during the intro an open key lights once the plan
 ## reaches its turn (lights + its index x the stagger: TICKET 0.14 s, BONUS 0.08 s; a BONUS
-## visit's keys stay unlit until then); the chosen key sinks while the odds card closes; a hovered
-## or pinned lit key lifts 2 px while the chutes wait (none of these move under reduced motion).
+## visit's keys stay unlit until then); the pressed key stays down until the landing's end; a
+## hovered lit key lifts 2 px while the chutes wait (no lift under reduced motion).
 func frame(t: float) -> void:
 	var plan: MachinePlan = view.plan if view != null else null
 	var shut: bool = state != RewardMachine.ChuteState.OPEN
@@ -237,10 +272,10 @@ func frame(t: float) -> void:
 		var intro: bool = plan.kind != MachineVisit.Kind.STAMP_DAY and t < plan.choose_at
 		if intro:
 			on = on and t >= plan.lights + _stagger(plan) * chute
-		var closing: bool = plan.has_draw and t >= plan.choose_at and t < plan.odds_close
-		if closing and on and not plan.reduced_motion:
+		var landed: bool = plan.has_landing and t >= plan.end_at
+		if _pressed and on and not landed:
 			offset = SINK
-		elif (_hover or _pinned) and on and not plan.has_draw and not plan.reduced_motion:
+		elif _hover and on and not plan.has_draw and not plan.reduced_motion:
 			offset = -LIFT
 	_apply(on, offset)
 
@@ -252,14 +287,24 @@ func _stagger(plan: MachinePlan) -> float:
 	return MachineTuning.sec(ms)
 
 
-## The face: lit (paper, mustard lip) or idle (cream, cream-shade lip), at `offset` below rest.
+## The face: lit (paper, mustard lip) or idle (cream, cream-shade lip), at `offset` below rest;
+## pressed (lit and sunk): mustard light, a flat mustard-dark lip, the ring and the LED on.
 func _apply(on: bool, offset: float) -> void:
 	_lit_now = on and state == RewardMachine.ChuteState.OPEN
+	var pressed_now: bool = _pressed and _lit_now and offset >= SINK
 	_style.bg_color = Palette.PAPER if _lit_now else Palette.CREAM
 	_lip.color = Palette.MUSTARD_LIGHT if _lit_now else Palette.CREAM_SHADE
-	if offset != _sink:
+	var lip: float = PRESSED_LIP if pressed_now else LIP
+	if pressed_now:
+		_style.bg_color = Palette.MUSTARD_LIGHT
+		_lip.color = Palette.MUSTARD_DARK
+	_lip.position.y = SIZE.y - BORDER - lip
+	_lip.size.y = lip
+	if offset != _sink or pressed_now != _pressed_now:
 		_sink = offset
+		_pressed_now = pressed_now
 		_face.position.y = offset
+		_led.queue_redraw()
 		queue_redraw()
 
 
@@ -367,7 +412,20 @@ func _on_mouse_exited() -> void:
 	unhovered.emit(chute)
 
 
-## The key's shadow (4 px of ink under the face; none while it sinks onto it).
+## The LED: steel in an ink border, green with a glow ring while the key shows pressed.
+func _draw_led() -> void:
+	var rect: Rect2 = Rect2(Vector2.ZERO, LED_RECT.size)
+	if _pressed_now:
+		_led.draw_rect(rect.grow(GLOW), Color(Palette.GOOD, 0.55))
+	_led.draw_rect(rect, Palette.INK)
+	_led.draw_rect(rect.grow(-1.0), Palette.GOOD if _pressed_now else Palette.STEEL_SHADE)
+
+
+## The key's shadow (4 px of ink under the face; none while it sinks onto it) and, pressed, the
+## gold ring outside its border.
 func _draw() -> void:
 	if _sink < SHADOW:
 		draw_rect(Rect2(0, SIZE.y + _sink, SIZE.x, SHADOW - _sink), Palette.INK)
+	if _pressed_now:
+		var face_rect: Rect2 = Rect2(Vector2(0, _sink), SIZE)
+		draw_rect(face_rect.grow(RING / 2.0), Palette.GOLD, false, RING)

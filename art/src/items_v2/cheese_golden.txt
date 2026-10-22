@@ -1,0 +1,3 @@
+; Cheese GOLDEN (#89 item tier): cheese_big through its own map: a gold body, a lit pale top with a paper rim, brass side and hole rims, brass dark holes.
+; A derived source: no grid, tools/pixel_art.py builds it from the BIG source.
+@derive cheese_big golden=keys y=Y Y=Y M=n m=l u=L glint rim
