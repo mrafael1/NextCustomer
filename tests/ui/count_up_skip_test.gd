@@ -9,6 +9,12 @@ extends GdUnitTestSuite
 
 const SCREEN := "res://ui/shift_screen.tscn"
 const RecordingSfx := preload("res://tests/presentation/recording_sfx.gd")
+const Rush := preload("res://tests/ui/count_up_rush.gd")
+## Game time runs this much faster (Rush.speed_up): the tweens' beats and waits shrink, while the
+## press windows (CountUp.HOLD_THRESHOLD_MS, CHECKOUT_DOUBLE_CLICK_MS), the hit-stops and the
+## pause stay real, so a 7-item count still lasts a few seconds: long enough for every press to
+## land mid-count. A tapped count shrinks by the same factor, so "clearly faster" keeps its margin.
+const TIME_FACTOR := 4.0
 ## Milk, Multipack, Milk x5 = 109: passes the first five quotas.
 const PASSING_ROW: Array[String] = ["milk", "multipack", "milk", "milk", "milk", "milk", "milk"]
 ## The count-up's reference row (with Coupon engine, Slot engine and a Spot check): scans, notes,
@@ -29,6 +35,7 @@ func before_test() -> void:
 
 
 func after_test() -> void:
+	Rush.restore()
 	ProjectSettings.set_setting(SaveService.FOLDER_SETTING, null)
 	if DirAccess.dir_exists_absolute(_folder):
 		for file_name: String in DirAccess.get_files_at(_folder):
@@ -402,6 +409,7 @@ static func _heard(sfx: RecordingSfx) -> Dictionary:
 
 func _screen() -> ShiftScreen:
 	_runner = scene_runner(SCREEN)
+	Rush.speed_up(_runner, TIME_FACTOR)
 	var screen: ShiftScreen = _runner.scene()
 	screen._on_reward_skipped()  # Past the impulse rack.
 	await _frames(2)

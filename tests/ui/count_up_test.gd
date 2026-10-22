@@ -12,6 +12,7 @@ extends GdUnitTestSuite
 
 const SCREEN := "res://ui/shift_screen.tscn"
 const RECORDING_SFX := preload("res://tests/presentation/recording_sfx.gd")
+const Rush := preload("res://tests/ui/count_up_rush.gd")
 const SCREEN_RECT := Rect2(0, 0, 1280, 720)
 const FULL_ROW: Array[String] = ["eggs", "bread", "milk", "multipack", "milk", "milk", "milk"]
 ## Milk, Multipack, Milk x5 = 109: passes the first five quotas.
@@ -38,6 +39,7 @@ func before_test() -> void:
 
 
 func after_test() -> void:
+	Rush.restore()
 	get_tree().root.size = _window_size
 	ProjectSettings.set_setting(SaveService.FOLDER_SETTING, null)
 	if DirAccess.dir_exists_absolute(_folder):
@@ -751,8 +753,7 @@ func _play_tapped(screen: ShiftScreen, result: ScoreResult, quota: int) -> void:
 
 
 func _played(screen: ShiftScreen) -> void:
-	while screen._count_up._playing:
-		await get_tree().process_frame
+	await Rush.played(screen._count_up)  # One tap (none if tapped): no caller times the count.
 
 
 func _assert_full_receipt(screen: ShiftScreen) -> void:
@@ -855,6 +856,7 @@ func test_the_rides_wait_on_the_count_and_move_nothing_themselves() -> void:
 		func(_b: CountUpBeat, _s: ScoreStep, _l: String, _v: CardView, _i: int) -> void:
 			started[0] += 1
 	)
+	Rush.speed_up(_runner, 2.0)  # Untimed; a ride's gap still lasts many frames for the stop.
 	screen._on_checkout_pressed()
 	var forced: bool = false
 	var failures: Array[String] = []

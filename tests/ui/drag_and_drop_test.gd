@@ -5,6 +5,7 @@ extends GdUnitTestSuite
 ## Drops place, move and take out cards exactly as clicks do, and the checkout measures count
 ## them the same way, with input_method "click", "drag" or "both" (plan section 8).
 
+const Rush := preload("res://tests/ui/count_up_rush.gd")
 const SCREEN := "res://ui/shift_screen.tscn"
 
 var _folder: String = ""
@@ -327,7 +328,7 @@ func test_mixed_methods_log_both() -> void:
 	var clicked: CardInstance = _add(screen, "bread")
 	screen._on_hand_card_clicked(_view_for(screen, clicked))
 	screen._on_slot_input(_left_click(), 1)
-	await screen._on_checkout_pressed()
+	await Rush.checkout(screen)
 	var checkout: Dictionary = _last_event("checkout")
 	assert_str(checkout["input_method"]).is_equal("both")
 	assert_int(int(checkout["placements"])).is_equal(2)

@@ -19,9 +19,15 @@ const OFF_SCREEN := Vector2(-500, -500)
 const SCREEN_RECT := Rect2(0, 0, 1280, 720)
 ## The motion tests' slap frame and halo step: long enough that no frame outlasts one.
 const SLOW_FRAME_S := 0.4
+const Rush := preload("res://tests/ui/count_up_rush.gd")
+## Game time runs this much faster while the motion tests wait for the motion to settle (only
+## then: every check runs at 1x), and through the click test's count, which it samples per frame.
+const SETTLE_FACTOR := 8.0
+const COUNT_FACTOR := 4.0
 
 var _folder: String = ""
 var _window_size: Vector2i
+var _runner: GdUnitSceneRunner
 
 
 func before_test() -> void:
@@ -34,6 +40,8 @@ func before_test() -> void:
 
 
 func after_test() -> void:
+	Rush.restore()
+	_runner = null
 	get_tree().root.size = _window_size
 	ProjectSettings.set_setting(SaveService.FOLDER_SETTING, null)
 	if DirAccess.dir_exists_absolute(_folder):
@@ -463,6 +471,8 @@ func test_the_click_keeps_only_the_stickers() -> void:
 		assert_bool(screen._inspection_tag.has_relation()).is_false()
 		assert_object(screen._effects.focused_card()).is_null()
 		var failures: Array[String] = []
+		# Every check above ran at 1x: the count's start is the subject there.
+		Rush.speed_up(_runner, COUNT_FACTOR)
 		while screen._counting:
 			await get_tree().process_frame
 			for part: Control in _layer(screen).parts():
@@ -494,7 +504,7 @@ func _assert_motion(reduced: bool) -> void:
 	await _place(screen, ["eggs", "bread", "milk"])
 	var layer: PlanningLayer = _layer(screen)
 	var settle: float = tuning.halo_step_s * 4.0 + tuning.slap_frame_s * 4.0
-	await _seconds(settle)
+	await _settled(settle)
 	var bread_texts: PackedStringArray = _texts(layer.stack(1))
 	screen._debug.add_card("milk")
 	screen._on_hand_card_clicked(_view_for(screen, screen.run.hand()[-1]))
@@ -516,7 +526,7 @@ func _assert_motion(reduced: bool) -> void:
 	var first: int = milk.boost_rings if reduced else 1
 	assert_object(halo.material).is_same(ArtStyle.halo_material(first))
 	assert_int(_looping_tweens()).is_equal(0)
-	await _seconds(settle)
+	await _settled(settle)
 	for sticker: EffectSticker in fresh:
 		assert_bool(sticker.is_slapping()).is_false()
 		assert_vector(sticker.get_node("Slap").scale).is_equal(Vector2.ONE)
@@ -628,8 +638,8 @@ static func _item(screen: ShiftScreen, slot: int) -> ItemView:
 
 
 func _screen() -> ShiftScreen:
-	var runner: GdUnitSceneRunner = scene_runner(SCREEN)
-	var screen: ShiftScreen = runner.scene()
+	_runner = scene_runner(SCREEN)
+	var screen: ShiftScreen = _runner.scene()
 	screen._on_reward_skipped()  # Past the impulse rack.
 	await _frames(2)
 	return screen
@@ -689,6 +699,14 @@ func _frames(count: int) -> void:
 
 func _seconds(seconds: float) -> void:
 	await get_tree().create_timer(seconds).timeout
+
+
+## Waits `seconds` of game time for the planning motion (tweens and timers, all in game time) to
+## settle, at SETTLE_FACTOR, then puts game time back to 1x.
+func _settled(seconds: float) -> void:
+	Rush.speed_up(_runner, SETTLE_FACTOR)
+	await _seconds(seconds)
+	Rush.speed_up(_runner, 1.0)
 
 
 ## The global centre of `item`'s hit area (where a pointer on it would be).

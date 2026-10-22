@@ -5,6 +5,8 @@ extends GdUnitTestSuite
 ## are sent to the screen's handlers, because headless runs don't deliver input events.
 
 const SCREEN := "res://ui/shift_screen.tscn"
+## Checkouts rush their count (one tap): the suite tests what follows it.
+const Rush := preload("res://tests/ui/count_up_rush.gd")
 const COUPON_ENGINE := "res://data/upgrades/coupon_engine.tres"
 const CATEGORY_ENGINE := "res://data/upgrades/category_engine.tres"
 const BREAD := "res://data/cards/bread.tres"
@@ -189,7 +191,7 @@ func test_upgrade_steps_play_from_the_loyalty_card() -> void:
 	assert_str(_scan_text(screen, 2)).contains("Coupon engine").contains("×")
 	assert_str(_scan_text(screen, 1)).contains("Category engine").contains("+€")
 
-	await screen._on_checkout_pressed()
+	await Rush.checkout(screen)
 	assert_str(screen._led.digits_label().text).is_equal(str(preview.total))
 	assert_str(_receipt_text(screen)).contains("Coupon engine").contains("Category engine")
 	for step: ScoreStep in upgrade_steps:
@@ -214,7 +216,7 @@ func test_an_upgrade_fizzle_plays_and_prints() -> void:
 	var wasted: Array[ScoreStep] = _upgrade_steps(screen.run.preview())
 	assert_int(wasted.size()).is_equal(1)
 	assert_int(wasted[0].step_type).is_equal(ScoreStep.StepType.WASTED)
-	await screen._on_checkout_pressed()
+	await Rush.checkout(screen)
 	assert_str(_receipt_text(screen)).contains("Coupon engine: the first coupon paid nothing")
 	assert_object(screen._count_up._beats._source_control(wasted[0])).is_same(
 		screen._loyalty_card.box(0)
@@ -376,7 +378,7 @@ func test_the_results_screen_lists_the_run_history() -> void:
 	screen._on_reward_skipped()  # Past the impulse rack.
 	await _pass_shift(screen)
 	screen._on_reward_skipped()
-	await screen._on_checkout_pressed()
+	await Rush.checkout(screen)
 	assert_bool(screen._results.visible).is_true()
 	var texts: PackedStringArray = screen._results.texts()
 	assert_str(texts[2]).is_equal("  1  €109 / €34     pass  skipped")
@@ -411,7 +413,7 @@ func test_run_end_lists_the_upgrades() -> void:
 	# An owned upgrade isn't given twice.
 	screen._debug.give_upgrade("coupon_engine")
 	assert_int(screen.run.upgrades.size()).is_equal(2)
-	await screen._on_checkout_pressed()
+	await Rush.checkout(screen)
 	var run_end: Dictionary = _last_event("run_end")
 	assert_array(run_end["upgrades"]).is_equal(["coupon_engine", "category_engine"])
 	assert_str(_last_event("debug")["action"]).is_equal("give_upgrade")
@@ -434,7 +436,7 @@ func test_the_receipt_names_the_upgrade() -> void:
 ## Places a row that passes the first five quotas: Milk, Multipack, Milk x5 = 109.
 func _pass_shift(screen: ShiftScreen) -> void:
 	_place_ids(screen, ["milk", "multipack", "milk", "milk", "milk", "milk", "milk"])
-	await screen._on_checkout_pressed()
+	await Rush.checkout(screen)
 	assert_int(screen.run.phase).is_equal(RunState.Phase.REWARD)
 
 

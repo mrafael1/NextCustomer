@@ -6,6 +6,8 @@ extends GdUnitTestSuite
 ## to the screen's handlers, because headless runs don't deliver input events.
 
 const SCREEN := "res://ui/shift_screen.tscn"
+## Checkouts rush their count (one tap): the suite tests what follows it.
+const Rush := preload("res://tests/ui/count_up_rush.gd")
 const NOTICE := "INSPECTION NEXT SHIFT: The 3rd product pays €0"
 const RECEIPT_LINE := "Spot check: the 3rd product pays €0"
 
@@ -128,7 +130,7 @@ func test_inspection_steps_print_and_play_from_the_tag() -> void:
 		func(step: ScoreStep) -> bool: return step.source_kind == ScoreStep.SourceKind.INSPECTION
 	)
 	assert_int(steps.size()).is_equal(1)
-	await screen._on_checkout_pressed()
+	await Rush.checkout(screen)
 	assert_object(screen._count_up._beats._source_control(steps[0])).is_same(screen._inspection_tag)
 	assert_str(_receipt_text(screen)).contains(RECEIPT_LINE)
 	assert_object(screen.run.history[0].inspection).is_not_null()
@@ -153,7 +155,7 @@ func test_the_debug_panel_clears_the_inspection() -> void:
 ## Places a row that passes the first five quotas: Milk, Multipack, Milk x5 = 109.
 func _pass_shift(screen: ShiftScreen) -> void:
 	_place_ids(screen, ["milk", "multipack", "milk", "milk", "milk", "milk", "milk"])
-	await screen._on_checkout_pressed()
+	await Rush.checkout(screen)
 	assert_int(screen.run.phase).is_equal(RunState.Phase.REWARD)
 
 
