@@ -1,0 +1,13 @@
+; The basket redraw's arrow on the teal REDRAW tag (plan section 3.8, mock-up redraw_basket_v1.html,
+; the user's approval of 2026-10-22): a round arrow, 9x8, shown at 2x before the word; paper w on
+; the tag's teal face.
+@size 9x8
+@kind icon
+..www.w..
+.w...ww..
+w...www..
+w........
+w.......w
+w.......w
+.w.....w.
+..wwwww..

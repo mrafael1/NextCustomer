@@ -250,26 +250,33 @@ func _read_checkout(
 	checkouts.append(checkout)
 
 
-## A redraw puts the received cards where the replaced cards were. The log lists the replaced
-## cards in the order they were picked but the received cards in hand order, so the received
-## cards fill the replaced positions in ascending order. Of copies of one card, the earliest
-## ones in the hand are taken as the replaced ones.
+## A redraw puts the received cards where the replaced cards were. A basket redraw's event
+## (plan section 3.8) names the places swapped, so each received card goes to its place. Older
+## logs list the replaced cards in the order they were picked but the received cards in hand
+## order, so the received cards fill the replaced positions in ascending order; of copies of one
+## card, the earliest ones in the hand are taken as the replaced ones.
 static func _redraw(hand: Array[CardDefinition], event: Dictionary, lookup: ContentLookup) -> void:
 	var replaced: Array = event.get("cards_replaced", [])
 	var received: Array = event.get("cards_received", [])
 	var positions: Array[int] = []
-	for id: Variant in replaced:
-		for position: int in range(hand.size()):
-			if (
-				not positions.has(position)
-				and hand[position] != null
-				and String(hand[position].id) == String(id)
-			):
-				positions.append(position)
-				break
-	positions.sort()
+	var logged: Variant = event.get("places", null)
+	if logged is Array:
+		for place: Variant in logged:
+			positions.append(int(place))
+	else:
+		for id: Variant in replaced:
+			for position: int in range(hand.size()):
+				if (
+					not positions.has(position)
+					and hand[position] != null
+					and String(hand[position].id) == String(id)
+				):
+					positions.append(position)
+					break
+		positions.sort()
 	for index: int in range(mini(positions.size(), received.size())):
-		hand[positions[index]] = lookup.card(String(received[index]))
+		if positions[index] >= 0 and positions[index] < hand.size():
+			hand[positions[index]] = lookup.card(String(received[index]))
 
 
 ## Every id's card, null for an unknown one.

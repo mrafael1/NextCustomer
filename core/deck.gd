@@ -2,7 +2,7 @@ class_name Deck
 extends RefCounted
 ## The run's cards, and drawing for a shift.
 ##
-## Every shift draws from the whole deck, freshly shuffled. Cards replaced by the redraw are
+## Every shift draws from the whole deck, freshly shuffled. Cards replaced by a redraw are
 ## set aside for the rest of that shift, so the redraw can't bring them back. All randomness
 ## comes from the RandomNumberGenerator passed in, never from the global RNG.
 
@@ -64,16 +64,21 @@ func draw_hand(count: int) -> Array[CardInstance]:
 	return _hand.duplicate()
 
 
-## Replaces cards in the current hand with new ones from the draw pile. Replaced cards are set
-## aside for the rest of the shift. Cards not in the hand are ignored. Returns the new hand,
-## with each new card in the place of the card it replaced.
-func redraw(replaced: Array[CardInstance]) -> Array[CardInstance]:
-	for card: CardInstance in replaced:
-		var index: int = _hand.find(card)
-		if index == -1 or _draw_pile.is_empty():
+## Replaces the cards at the given hand places, in the given order, with new ones from the draw
+## pile, each new card in the place of the card it replaced (a basket redraw, plan section 3.8:
+## the caller passes one basket's places, left first). Replaced cards are set aside for the rest
+## of the shift. A place outside the hand is skipped, and the redraw stops when the pile is empty,
+## so a short pile swaps the first places only. Returns the places swapped.
+func redraw_places(places: Array[int]) -> Array[int]:
+	var swapped: Array[int] = []
+	for place: int in places:
+		if place < 0 or place >= _hand.size() or swapped.has(place):
 			continue
-		_hand[index] = _draw_pile.pop_back()
-	return _hand.duplicate()
+		if _draw_pile.is_empty():
+			break
+		_hand[place] = _draw_pile.pop_back()
+		swapped.append(place)
+	return swapped
 
 
 func hand() -> Array[CardInstance]:

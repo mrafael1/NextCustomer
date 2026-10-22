@@ -7,8 +7,10 @@ extends Control
 ## decision of 2026-10-21): in planning it shows belt slot 1's item under NEXT (show_next, which the
 ## shift screen calls on every refresh) or, while a hover-hold scan holds an item, that item under
 ## SCAN (show_scan; ScannerBay.show_planning), and in the count the item at the belt's scanner.
-## The rest of the screen, right of the bay (x 615 to 893, centre 754), shows one of four things
-## (mode()):
+## In redraw mode (plan section 3.8, the basket redraw; show_redraw) the redraw panel (RedrawPanel)
+## covers the whole paper, bay included, as mock-up redraw_basket_v1.html has it (mode() REDRAW).
+## Otherwise the rest of the screen, right of the bay (x 615 to 893, centre 754), shows one of four
+## things (mode()):
 ## - CHANNEL (planning with nothing scanned, show_channel; the user's play test of 2026-10-17):
 ##   the store channel (MonitorChannel, CHANNEL_RECT): the shift's brief, the owned upgrades and the
 ##   coupons in play, a slide at a time; the LED is hidden (the projected total is on the receipt
@@ -40,11 +42,11 @@ extends Control
 ##   px as it lands) and the "+€N" tab comes in; each later payout spurts and punches the tab as its
 ##   pour lands (TankBurst.POUR_S after its chip). A resumed checkout shows the end state at once
 ##   (quota_met without a pop, show_end_state): no particles.
-## A notice shows on the idle screen while it lasts, over a scan and the channel too (they come
-## back once it has faded), never over the count. The channel runs only while it is shown, and
-## comes back on the slide it was on. The monitor follows the LED's mode (mode_changed) and the
-## notice (showing_changed) itself; ScanController and the shift screen fill it. Display only:
-## every amount and line is the caller's (or the LED's, from core's ShiftMargin).
+## A notice shows on the idle screen while it lasts, over a scan, the channel and the redraw panel
+## too (they come back once it has faded), never over the count. The channel runs only while it is
+## shown, and comes back on the slide it was on. The monitor follows the LED's mode (mode_changed)
+## and the notice (showing_changed) itself; ScanController and the shift screen fill it. Display
+## only: every amount and line is the caller's (or the LED's, from core's ShiftMargin).
 ##
 ## Text never carries the pixel material; the art does. Reduced motion (`reduced_motion`) leaves
 ## out the bay's motion (its drop, wobble, slide-out, flash, slap and knock-off; planning's swaps
@@ -52,7 +54,7 @@ extends Control
 ## the bezel instead), the shakes, the stamp's slam and the tab's pop and punches; the states all
 ## stay.
 
-enum Mode { IDLE, SCAN, COUNT, CHANNEL }
+enum Mode { IDLE, SCAN, COUNT, CHANNEL, REDRAW }
 
 ## The parts' rects, in stage coordinates (the view stands at MONITOR_RECT's position), all on
 ## the paper (PAPER_RECT, inside the screen's ink border): the scanner bay (every mode), the right
@@ -130,8 +132,16 @@ var tank_burst: TankBurst:
 		if value != null:
 			value.reduced_motion = _wants_reduced_motion
 			value.bind(led, self)
+## The DONE state's "INSPECTION PASSED ✓" label, for checks (read only; a property, so the class
+## stays within gdlint's 20 public methods).
+var inspection_passed_label: Label:
+	get:
+		return _inspection_passed
 
 var _notice_holder: Control
+## The redraw panel over the whole paper (show_redraw), and whether it is on.
+var _redraw_panel: RedrawPanel
+var _redraw_on: bool = false
 ## The channel is planning's idle screen (show_channel, until end_channel).
 var _channel_on: bool = false
 var _scan_view: Control
@@ -244,6 +254,9 @@ func _init() -> void:
 	channel.size = CHANNEL_RECT.size
 	add_child(channel)
 	_scan_view = _layer("Scan")
+	_redraw_panel = RedrawPanel.new()
+	_redraw_panel.position = local(PAPER_RECT).position
+	add_child(_redraw_panel)
 	_apply()
 
 
@@ -277,6 +290,8 @@ func _draw() -> void:
 func mode() -> Mode:
 	if _counting():
 		return Mode.COUNT
+	if _redraw_panel.visible:
+		return Mode.REDRAW
 	if _scan_view.visible:
 		return Mode.SCAN
 	return Mode.CHANNEL if channel.visible else Mode.IDLE
@@ -312,6 +327,14 @@ func show_channel(run: RunState, news: PackedStringArray = PackedStringArray()) 
 ## key_entries; none takes the key off), shown by the channel's brief.
 func set_planning_key(entries: Array[StickerSpec]) -> void:
 	channel.set_key(entries)
+
+
+## Redraw mode's panel (plan section 3.8): `notice` over the whole paper until null ends it. A
+## notice still shows over it while it lasts; the count takes it off.
+func show_redraw(notice: RedrawNotice) -> void:
+	_redraw_on = notice != null
+	_redraw_panel.show_notice(notice)
+	_apply()
 
 
 ## Planning is over (the CHECKOUT click): the channel leaves the screen. The bay keeps its item
@@ -378,10 +401,6 @@ func _show_inspection_passed() -> void:
 	_inspection_passed.visible = true
 
 
-func inspection_passed_label() -> Label:
-	return _inspection_passed
-
-
 ## A resumed checkout's end state (after CountUp's show_end_state, which met the quota or not):
 ## the bay with all of `views`' items paid and bagged (ALL PAID, DONE), no chips or particles.
 ## `_plan` is the count-up's; an inspected pass shows INSPECTION PASSED ✓ (`inspection_passed`).
@@ -442,7 +461,10 @@ func scan_art() -> TextureRect:
 ## Every text label the screen shows now (the LED's aside), for layout checks.
 func shown_labels() -> Array[Label]:
 	var labels: Array[Label] = []
-	for layer: Control in [_notice_holder, channel, _scan_view, _bay_layer, _count_view]:
+	var layers: Array[Control] = [
+		_notice_holder, channel, _scan_view, _bay_layer, _count_view, _redraw_panel
+	]
+	for layer: Control in layers:
 		if layer.visible:
 			_collect_labels(layer, labels)
 	return labels
@@ -467,8 +489,13 @@ func _apply() -> void:
 	var notice_rect: Rect2 = local(ShiftStage.NOTICE_RECT if led.visible else NOTICE_RECT)
 	_rects[notice_label] = notice_rect
 	notice_label.position = notice_rect.position
-	_scan_view.visible = scanning
-	channel.visible = channel_idle and not scanning and not notice_label.is_showing()
+	var redrawing: bool = _redraw_on and not counting and not notice_label.is_showing()
+	_redraw_panel.visible = redrawing
+	_bay_layer.visible = not redrawing
+	_scan_view.visible = scanning and not redrawing
+	channel.visible = (
+		channel_idle and not scanning and not redrawing and not notice_label.is_showing()
+	)
 	channel.set_running(channel.visible)
 	_count_view.visible = counting
 	_count_top.visible = counting

@@ -360,7 +360,7 @@ func _player(strategy: String, inspection_shifts: Array = []) -> SimPlayer:
 	balance.quotas = PackedInt32Array([5, 8, 12])
 	balance.hand_size = 5
 	balance.base_redraws = 1
-	balance.redraw_limit = 2
+	balance.basket_size = 2
 	balance.deck_limit = 8
 	# The stock: the deck's products, then this aisle, then the coupons.
 	var aisle: AisleDefinition = AisleDefinition.new()

@@ -10,8 +10,8 @@ extends CardView
 ## top-right corner and, in the count-up, the paid chip (PayoutPlaque) pops above the art. In a
 ## hand basket (BASKET, a BASKET_SIZE cell; #80, step 8) the sprite alone, with no sticker (the
 ## monitor shows its price and rule), sinks a third of its art's visible height under the basket's
-## front rim (BASKET_RIM_Y); a selected one gets a mustard outline round its art, a redraw-marked
-## one dims and shows a small REDRAW flag above its art. In the offers' tray (a TRAY_SIZE cell) the
+## front rim (BASKET_RIM_Y); a selected one gets a mustard outline round its art (the basket
+## redraw marks baskets, not items: BasketTags). In the offers' tray (a TRAY_SIZE cell) the
 ## sprite stands on a soft shadow over its sticker. A drag's ghost (GHOST, CardDrag) is the sprite
 ## alone, in a SPRITE_SIZE view with no sticker. A belt item stands on a contact shadow
 ## (BELT_SHADOW, on the cell's ground line; smaller and fainter while the sprite is lifted): its
@@ -114,19 +114,6 @@ const NAME_LINE_SPACING := -2
 const NAME_LINES := 3
 ## The printed name's node name on the art (item_art).
 const PRINTED_NAME := "PrintedName"
-## A redraw-marked item fades to REDRAW_ALPHA; its REDRAW tag covers the sticker's glyph corner
-## (sticker coordinates), clear of the base value (or COUPON) and the summary. In a basket the tag
-## is a flag centred over the art, overlapping its top by REDRAW_FLAG_OVERLAP and never above
-## REDRAW_FLAG_MIN_Y (the cell's coordinates), which keeps it in the cell, under the rail or the
-## hand's top (ShiftStage.HAND_RECT).
-const REDRAW_ALPHA := 0.55
-const REDRAW_RECT := Rect2(56, 6, 48, 22)
-const REDRAW_FLAG_OVERLAP := 4.0
-const REDRAW_FLAG_MIN_Y := 2.0
-const REDRAW_TEXT := "REDRAW"
-const REDRAW_SIZE := 11
-## The tag's text inside its face, in canvas pixels.
-const REDRAW_PADDING := 3
 
 ## The aisle the item is stocked from, or null (a staple or a coupon).
 var aisle: AisleDefinition
@@ -182,8 +169,6 @@ var _mark: EffectMark
 var _outline: TextureRect
 ## A boosted item's halo (#71), behind its sprite, or null until it is first boosted.
 var _halo: TextureRect
-## The REDRAW highlight's alpha, times DIM's on the ticket (#71).
-var _highlight_alpha: float = 1.0
 var _relation_tween: Tween
 ## Steps the halo's rings out (halo_step_s), or null.
 var _halo_tween: Tween
@@ -204,7 +189,7 @@ func _init(
 
 
 ## Lays the item out as a belt item, a basket item, a tray item or a drag's ghost: its size, the
-## sprite's, sticker's, REDRAW tag's, paid chip's and mark's places.
+## sprite's, sticker's, paid chip's and mark's places.
 func set_form(item_form: Form) -> void:
 	form = item_form
 	var belt: bool = form == Form.BELT
@@ -221,16 +206,10 @@ func set_form(item_form: Form) -> void:
 	_stand.position = BELT_SPRITE + Vector2(0, _belt_drop()) if belt else stand
 	_sticker.position = BELT_STICKER if belt else TRAY_STICKER
 	_sticker.visible = not ghost and not basket
-	_redraw_mark.position = _sticker.position + REDRAW_RECT.position
 	# In a basket an undrawn item's name keeps to the box's top, above the rim.
 	if _name_label != null:
 		_name_label.vertical_alignment = (
 			VERTICAL_ALIGNMENT_TOP if basket else VERTICAL_ALIGNMENT_CENTER
-		)
-	if basket:
-		var flag_y: float = _art_top() - REDRAW_RECT.size.y + REDRAW_FLAG_OVERLAP
-		_redraw_mark.position = Vector2(
-			(SPRITE_SIZE.x - REDRAW_RECT.size.x) / 2.0, maxf(flag_y, REDRAW_FLAG_MIN_Y)
 		)
 	_place_badge(_plaque.is_current())
 	_plaque.set_current(_plaque.is_current())
@@ -240,16 +219,12 @@ func set_form(item_form: Form) -> void:
 
 
 ## SELECTED lifts the sprite by LIFT inside gold brackets (in a basket: with a mustard outline
-## round its art instead); REDRAW fades the item to REDRAW_ALPHA and shows the REDRAW tag on its
-## sticker (in a basket: the flag over its art).
+## round its art instead).
 func set_highlight(highlight: CardView.Highlight) -> void:
 	_highlight = highlight
 	_place_body()
-	var alpha: float = REDRAW_ALPHA if highlight == CardView.Highlight.REDRAW else 1.0
-	body.modulate = Color(1, 1, 1, alpha)
-	_highlight_alpha = alpha
-	_sticker.modulate.a = alpha * (dim_alphas.y if relation == Relation.DIM else 1.0)
-	_redraw_mark.visible = highlight == CardView.Highlight.REDRAW
+	body.modulate = Color(1, 1, 1, 1)
+	_sticker.modulate.a = dim_alphas.y if relation == Relation.DIM else 1.0
 	var outlined: bool = form == Form.BASKET and highlight == CardView.Highlight.SELECTED
 	if outlined and _outline == null:
 		_outline = UiKit.sprite(ArtOutline.texture_for(_sprite.texture))
@@ -503,7 +478,7 @@ func _boost_height() -> float:
 func _show_relation() -> void:
 	var dim: bool = relation == Relation.DIM
 	var stand_alpha: float = dim_alphas.x if dim else 1.0
-	var sticker_alpha: float = _highlight_alpha * (dim_alphas.y if dim else 1.0)
+	var sticker_alpha: float = dim_alphas.y if dim else 1.0
 	if _relation_tween != null:
 		_relation_tween.kill()
 		_relation_tween = null
@@ -560,14 +535,12 @@ func _lift_height() -> float:
 	return BASKET_LIFT if form == Form.BASKET and lifted else LIFT
 
 
-## Snaps the sprite and the REDRAW tag back to their sizes: built outside the tree, a Label
-## measures its text in the default font, and a Control never shrinks back by itself.
+## Snaps the sprite back to its size: a Control never shrinks back by itself.
 func _fit_body() -> void:
 	body.size = SPRITE_SIZE
-	_redraw_mark.size = REDRAW_RECT.size
 
 
-## The form-neutral parts: the sprite in `body` on its stand, the REDRAW tag and the paid chip.
+## The form-neutral parts: the sprite in `body` on its stand and the paid chip.
 ## _init adds the sticker and lays them out for the form.
 func _build() -> void:
 	var definition: CardDefinition = card.definition
@@ -584,23 +557,6 @@ func _build() -> void:
 	_sprite = item_art(definition)
 	body.add_child(_sprite)
 	_name_label = _sprite.get_node_or_null(PRINTED_NAME) as Label
-	_redraw_mark = UiKit.display_label(REDRAW_TEXT, REDRAW_SIZE, false)
-	_redraw_mark.add_theme_color_override("font_color", Palette.PAPER)
-	# Teal panel and ink, not tomato: tomato is the fizzle's, CHECKOUT's and CLOSED's (B2).
-	var tag_face: StyleBoxFlat = StyleBoxFlat.new()
-	tag_face.bg_color = Palette.PANEL
-	tag_face.border_color = Palette.INK
-	tag_face.set_border_width_all(ArtStyle.ART_SCALE)
-	tag_face.set_content_margin_all(0)
-	tag_face.content_margin_left = REDRAW_PADDING
-	tag_face.content_margin_right = REDRAW_PADDING
-	_redraw_mark.add_theme_constant_override("outline_size", 0)
-	_redraw_mark.add_theme_stylebox_override("normal", tag_face)
-	_redraw_mark.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	_redraw_mark.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	_redraw_mark.size = REDRAW_RECT.size
-	_redraw_mark.visible = false
-	add_child(_redraw_mark)
 	_plaque = PayoutPlaque.new()
 	badge = _plaque
 	add_child(_plaque)

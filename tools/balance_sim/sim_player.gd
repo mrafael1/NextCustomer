@@ -9,10 +9,12 @@ extends RefCounted
 ## run stocks the stock it is given (a collection state's, SimCollection), by default what a new
 ## profile stocks (RunStock.starting, full build plan 7.2).
 ##
-## Every shift plays the best row of the hand (SimRowSearch). First it redraws, for as long as
-## redraws are left, the hand cards the best row doesn't use (at most redraw_limit each time,
-## lowest base value first). The best row stays in the hand, so such a redraw never lowers the
-## best total.
+## Every shift plays the best row of the hand (SimRowSearch). First it redraws a basket (plan
+## section 3.8: one basket's hand cards, swapped in their places), for as long as redraws are
+## left, as a player does: the row goes on the belt first, so a redraw swaps only the cards the
+## row leaves out and never lowers the kept row. Of the baskets still holding a card, it takes
+## the one with the most cards, then the lowest total base value, then the leftmost (one-item
+## baskets too). The row is then taken back and played again from the row it kept.
 ##
 ## The machine's chute is chosen blind (#77 S1, build spec 7.1): from the odds cards
 ## (RewardMachine.chute_info) only, never from the prizes the machine would drop. "greedy" values
@@ -54,7 +56,7 @@ extends RefCounted
 ## Row players (decided with the user, #41): a strategy plays the best row (above) unless it
 ## ends in "@sensible" (e.g. "greedy@sensible"). Then every row, the shift's and the greedy
 ## valuation's sample hands alike, is the one SimHillClimb plays (a sensible but not optimal
-## order), its redraws replace the cards that row leaves out, and after each redraw it climbs
+## order), its redraws replace the baskets that row leaves out, and after each redraw it climbs
 ## again from the row it kept, with another SimHillClimb.SENSIBLE_CHANGES changes (decided with
 ## the user, #41: a player rearranges once new cards arrive). The shift still searches the
 ## exact best row to record it beside the played total (the "best" field of each shift). Each
@@ -181,8 +183,15 @@ func _play_shift(
 		run.hand(), run.upgrades, run.inspections, run.limits, no_row
 	)
 	while run.redraws_used < run.redraws_allowed and not _search.stopped:
-		var replaced: Array[CardInstance] = _redraw_pick(run.hand(), played)
-		if replaced.is_empty() or run.redraw(replaced).is_empty():
+		# As a player does: the row goes on the belt, a basket of the cards left is redrawn
+		# (row cards are never swapped), then the row is taken back to be played again.
+		for card: CardInstance in played.row:
+			run.place(card, run.row.size())
+		var basket: int = _basket_pick(run.hand_places())
+		var swapped: bool = basket >= 0 and not run.redraw_basket(basket).is_empty()
+		for card: CardInstance in played.row:
+			run.remove(card)
+		if not swapped:
 			break
 		record.redraws += 1
 		played = _play_row(run.hand(), run.upgrades, run.inspections, run.limits, played.row)
@@ -232,20 +241,37 @@ func rows_climbed() -> int:
 	return _climber.rows_scored
 
 
-## The hand cards the played row doesn't use, lowest base value first, at most redraw_limit.
-func _redraw_pick(hand: Array[CardInstance], played: SimHandBest) -> Array[CardInstance]:
-	var unused: Array[CardInstance] = []
+## The basket to redraw (plan section 3.8), by the hand's places with the row on the belt
+## (null: a row card's place, or no card): of the baskets still holding a card, the one with the
+## most cards, then the lowest total base value, then the leftmost. -1 when none holds a card.
+func _basket_pick(hand_by_place: Array[CardInstance]) -> int:
+	var size: int = maxi(_balance.basket_size, 1)
+	var best: int = -1
+	var best_cards: int = 0
+	var best_base: int = 0
+	for basket: int in range(ceili(float(hand_by_place.size()) / size)):
+		var cards: int = 0
+		var base: int = 0
+		for place: int in range(basket * size, mini((basket + 1) * size, hand_by_place.size())):
+			var card: CardInstance = hand_by_place[place]
+			if card != null:
+				cards += 1
+				base += card.definition.base
+		if cards == 0:
+			continue
+		if best < 0 or cards > best_cards or (cards == best_cards and base < best_base):
+			best = basket
+			best_cards = cards
+			best_base = base
+	return best
+
+
+## `hand` by place with `row`'s cards on the belt: null in their places.
+static func _off_row(hand: Array[CardInstance], row: Array[CardInstance]) -> Array[CardInstance]:
+	var places: Array[CardInstance] = []
 	for card: CardInstance in hand:
-		if not played.row.has(card):
-			unused.append(card)
-	var order: Array[CardInstance] = unused.duplicate()
-	order.sort_custom(
-		func(a: CardInstance, b: CardInstance) -> bool:
-			if a.definition.base != b.definition.base:
-				return a.definition.base < b.definition.base
-			return unused.find(a) < unused.find(b)
-	)
-	return order.slice(0, _balance.redraw_limit)
+		places.append(null if row.has(card) else card)
+	return places
 
 
 ## Plays the machine's waiting visit: chooses its chute (MACHINE_CHOOSE), then picks or bins.
@@ -648,7 +674,7 @@ func _register_value(deck: Array[CardDefinition], upgrades: Array[UpgradeDefinit
 
 
 ## Mean total of `_samples` hands drawn from these cards, each played as a shift is (the
-## strategy's row player, redraws of the unused cards included). Kept for the visit
+## strategy's row player, redraws of the unused baskets included). Kept for the visit
 ## (`_values`): the same deck, registers, redraws and seed always give the same value.
 func _sample_value(
 	deck: Array[CardDefinition], upgrades: Array[UpgradeDefinition], redraws: int, sample_seed: int
@@ -692,13 +718,15 @@ func _sampled(
 		while hand.size() < _balance.hand_size and not pile.is_empty():
 			hand.append(pile.pop_back())
 		var best: SimHandBest = _play_row(hand, upgrades, no_inspections, limits, no_row, climb)
+		var size: int = maxi(_balance.basket_size, 1)
 		for _redraw: int in range(redraws):
-			var replaced: Array[CardInstance] = _redraw_pick(hand, best)
-			if replaced.is_empty() or pile.is_empty():
+			var by_place: Array[CardInstance] = _off_row(hand, best.row)
+			var basket: int = _basket_pick(by_place)
+			if basket < 0 or pile.is_empty():
 				break
-			for card: CardInstance in replaced:
-				if not pile.is_empty():
-					hand[hand.find(card)] = pile.pop_back()
+			for place: int in range(basket * size, mini((basket + 1) * size, hand.size())):
+				if by_place[place] != null and not pile.is_empty():
+					hand[place] = pile.pop_back()
 			best = _play_row(hand, upgrades, no_inspections, limits, best.row, climb)
 		total += best.score
 	return float(total) / float(_samples)

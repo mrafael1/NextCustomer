@@ -11,6 +11,14 @@ extends Control
 ## Click-to-place: click a hand card to pick it up, then click a slot to put it there (a
 ## filled slot pushes the cards from there to the right). Click a row card to pick it back up.
 ## Drag-and-drop does the same (CardDrag): drop on a slot to place, anywhere else to let go.
+## Hand items keep their places (plan section 3.8): one placed on the belt leaves its place empty
+## and one taken back returns to it.
+##
+## The basket redraw (plan section 3.8; mock-up redraw_basket_v1.html): the Redraw key arms redraw
+## mode ("Pick a basket", with Cancel), each basket that can be redrawn shows a REDRAW tag
+## (BasketTags) and the monitor explains (RedrawPanel); clicking one redraws it at once (logged and
+## saved) and BasketRedraw plays the motion, every click blocked until it ends. Redraw mode ends
+## with the click.
 ##
 ## The row has slot_count product slots plus coupon-only slots (plan section 3.1). The row is
 ## compacted, so the coupon slot is a capacity, not a position: no panel is marked as the
@@ -34,8 +42,8 @@ const BALANCE := "res://data/balance/balance.tres"
 const CATALOGUE := "res://data/catalogue/catalogue.tres"
 ## A refused card or a closed slot plays `denied` this much softer than the count-up does.
 const REFUSED_DB := -6.0
-## After a redraw's shuffle, each card dealt lands this many seconds after the last.
-const DEAL_GAP := 0.08
+## The Redraw key's caption while redraw mode is armed.
+const PICK_CAPTION := "Pick a basket"
 var run: RunState
 ## Where the save errors go (push_error by default). Tests set it before the screen enters the
 ## tree, so an unreadable save they write on purpose prints nothing.
@@ -56,8 +64,10 @@ var _profile_saved: bool = true
 ## False for a --demo-row run (ShiftDebug): it never writes or deletes the run save.
 var _saves_run: bool = true
 var _click_ms: int = 0
+## Redraw mode (plan section 3.8): armed by the Redraw key until a basket is picked or it is
+## cancelled, and the redraw's motion playing (every click blocked). Neither is saved.
 var _redraw_mode: bool = false
-var _redraw_pick: Array[CardInstance] = []
+var _redraw_busy: bool = false
 var _counting: bool = false
 var _run_started_ms: int = 0
 var _run_ended_ms: int = -1
@@ -117,6 +127,9 @@ var _ride: BeltRide
 var _effects: PlanningEffects
 ## The TOY MACHINES over the results (#63), made the first time they open.
 var _toys: ToyMachinesScreen
+## The basket redraw's targets and tags, and its motion.
+var _basket_tags: BasketTags
+var _basket_redraw: BasketRedraw
 ## The EventLog autoload, typed. Fetched from the tree because standalone script checks
 ## don't know autoload names.
 @onready var _log: EventLogService = get_node("/root/EventLog")
@@ -265,7 +278,10 @@ func _close_overlays() -> void:
 	_picked = null
 	_picked_from_row = false
 	_redraw_mode = false
-	_redraw_pick = []
+	_redraw_busy = false
+	_basket_redraw.stop()
+	_basket_tags.hide_tags()
+	_monitor.show_redraw(null)
 	_results.visible = false
 	_machine.close()
 	_deck_view.visible = false
@@ -276,16 +292,9 @@ func _close_overlays() -> void:
 
 
 func _on_hand_card_clicked(view: CardView) -> void:
-	if _busy() or run.phase != RunState.Phase.PLANNING:
+	if _busy() or _redraw_mode or _redraw_busy or run.phase != RunState.Phase.PLANNING:
 		return
-	if _redraw_mode:
-		if _redraw_pick.has(view.card):
-			_redraw_pick.erase(view.card)
-			_sfx.play("card_return")
-		elif _redraw_pick.size() < run.balance.redraw_limit:
-			_redraw_pick.append(view.card)
-			_sfx.play("card_pickup")
-	elif _picked == view.card:
+	if _picked == view.card:
 		# Let go on the release, unless the press becomes a drag of the picked card.
 		_drag.arm(view.card, get_viewport().get_mouse_position(), true)
 	else:
@@ -297,7 +306,7 @@ func _on_hand_card_clicked(view: CardView) -> void:
 
 
 func _on_row_card_clicked(view: CardView) -> void:
-	if _busy() or _redraw_mode or run.phase != RunState.Phase.PLANNING:
+	if _busy() or _redraw_mode or _redraw_busy or run.phase != RunState.Phase.PLANNING:
 		return
 	var slot: int = run.row.find(view.card)
 	# A hand card that fits nowhere (the notice says to take a product out) is let go, so this
@@ -318,7 +327,7 @@ func _on_slot_input(event: InputEvent, slot: int) -> void:
 	var press: InputEventMouseButton = event as InputEventMouseButton
 	if not (press and press.pressed and press.button_index == MOUSE_BUTTON_LEFT):
 		return
-	if _busy() or _redraw_mode or _picked == null:
+	if _busy() or _redraw_mode or _redraw_busy or _picked == null:
 		return
 	_place_picked(slot)
 
@@ -386,38 +395,103 @@ func _on_background_input(event: InputEvent) -> void:
 		_let_go()
 
 
-## Redraw mode fans the hand out; confirming shuffles and deals (or, with no pick, backs out).
+## The Redraw key arms redraw mode (plan section 3.8: "Pick a basket"); pressed again, it backs
+## out as Cancel does.
 func _on_redraw_pressed() -> void:
-	if _machine.is_gliding():
+	if _busy() or _redraw_busy or run.phase != RunState.Phase.PLANNING:
 		return
-	if not _redraw_mode:
-		_redraw_mode = true
-		_drop_pick()
-		_redraw_pick = []
-		_sfx.play("fan")
-	elif _redraw_pick.is_empty():
+	if _redraw_mode:
 		_redraw_mode = false
 		_sfx.play("ui_back")
 	else:
-		var replaced: Array[CardInstance] = _redraw_pick.duplicate()
-		var received: Array[CardInstance] = run.redraw(replaced)
-		_log.log_event("redraw", RunEvents.redraw(replaced, received))
-		_redraw_mode = false
-		_redraw_pick = []
-		_save_run()
-		_sfx.play("shuffle")
-		_sfx.play_series("card_place", received.size(), DEAL_GAP, DEAL_GAP)
+		_redraw_mode = true
+		_drop_pick()
+		_drag.cancel()
+		_scan.clear()
+		_sfx.play("fan")
 	_refresh()
 
 
 func _on_cancel_pressed() -> void:
+	if _redraw_busy:
+		return
 	_redraw_mode = false
-	_redraw_pick = []
 	_refresh()
 
 
+## A basket picked in redraw mode (plan section 3.8): the run swaps its items at the click (logged
+## and saved), redraw mode ends and the motion plays, blocking every click until it ends. Sounds:
+## `shuffle` now, then one `card_place` as each new item pops up.
+func _on_basket_clicked(basket: int) -> void:
+	if not _redraw_mode or _redraw_busy or _busy() or not run.can_redraw_basket(basket):
+		return
+	var before: Array[CardInstance] = run.hand_places()
+	var places: Array[int] = run.redraw_basket(basket)
+	if places.is_empty():
+		return
+	var after: Array[CardInstance] = run.hand_places()
+	var replaced: Array[CardInstance] = []
+	var received: Array[CardInstance] = []
+	var old_views: Array[Control] = []
+	var new_views: Array[Control] = []
+	for place: int in places:
+		replaced.append(before[place])
+		received.append(after[place])
+		old_views.append(BasketRedraw.ghost(before[place], run.balance))
+		new_views.append(BasketRedraw.ghost(after[place], run.balance))
+	_log.log_event("redraw", RunEvents.redraw(basket, places, replaced, received))
+	_redraw_mode = false
+	_redraw_busy = true
+	_save_run()
+	var tuning: RedrawTuning = _basket_redraw.tuning
+	var reduced: bool = profile.reduced_motion()
+	var first: float = tuning.pop_start(0, reduced)
+	_sfx.play("shuffle")
+	_sfx.play_series("card_place", received.size(), tuning.pop_start(1, reduced) - first, first)
+	_refresh()
+	var left: int = run.redraws_allowed - run.redraws_used
+	_monitor.show_redraw(
+		RedrawNotice.redrawing(left, _definitions(replaced), _definitions(received))
+	)
+	_basket_redraw.play(basket, places, old_views, new_views)
+
+
+## The redraw's motion ended: clicks come back, and the monitor goes back to planning.
+func _on_redraw_finished() -> void:
+	if not _redraw_busy:
+		return
+	_redraw_busy = false
+	_monitor.show_redraw(null)
+	_refresh()
+
+
+## The hovered basket in redraw mode (-1: none): it lifts, and the monitor says what it swaps.
+func _on_basket_hovered(basket: int) -> void:
+	_basket_redraw.hover(basket)
+	if _redraw_mode and not _redraw_busy:
+		_monitor.show_redraw(RedrawNotice.of_run(run, basket))
+
+
+## Redraw mode's tags and monitor panel (plan section 3.8), or neither: a tag on each basket that
+## can be redrawn, naming how many of its items a redraw swaps.
+func _refresh_redraw() -> void:
+	if not _redraw_mode or _redraw_busy or _counting:
+		_basket_tags.hide_tags()
+		if not _redraw_busy:
+			_monitor.show_redraw(null)
+		return
+	var swaps: Array[int] = []
+	var pile: int = run.deck.draw_pile().size()
+	var lefts: Array[float] = _stage.baskets.basket_lefts()
+	for basket: int in range(lefts.size()):
+		var count: int = run.basket_places(basket).size()
+		swaps.append(mini(count, pile) if run.can_redraw_basket(basket) else 0)
+	_basket_tags.show_tags(lefts, swaps)
+	_monitor.show_redraw(RedrawNotice.of_run(run, _basket_tags.hovered()))
+
+
 func _on_checkout_pressed() -> void:
-	if _busy() or run.phase != RunState.Phase.PLANNING:
+	if _busy() or _redraw_busy or run.phase != RunState.Phase.PLANNING:
 		return
 	_sfx.play("checkout")
 	_counting = true
@@ -556,7 +630,7 @@ func _on_deck_closed() -> void:
 
 
 func _on_deck_button_pressed() -> void:
-	if _busy():
+	if _busy() or _redraw_busy:
 		return
 	# During a visit, once the machine has armed (plan 8's armed_ms); it comes back on close.
 	if _machine.is_open():
@@ -606,6 +680,7 @@ func _refresh() -> void:
 	_refresh_buttons()
 	if not _counting and run.phase == RunState.Phase.PLANNING:
 		_refresh_preview()
+	_refresh_redraw()
 	_scan.watch(_row_views, _hand_box.cards())
 
 
@@ -670,35 +745,40 @@ func _refresh_row() -> void:
 
 func _refresh_hand() -> void:
 	_hand_box.reset(run.balance.hand_size)
-	for card: CardInstance in run.hand():
+	var places: Array[CardInstance] = run.hand_places()
+	for place: int in range(places.size()):
+		var card: CardInstance = places[place]
+		if card == null:
+			continue  # On the belt: its place stays empty.
 		var view: ItemView = ItemView.new(
 			card, run.balance.aisle_of(card.definition), ItemView.Form.BASKET
 		)
 		view.clicked.connect(_on_hand_card_clicked)
-		if _redraw_mode and _redraw_pick.has(card):
-			view.set_highlight(CardView.Highlight.REDRAW)
-		elif card == _picked:
+		if card == _picked:
 			view.set_highlight(CardView.Highlight.SELECTED)
-		_hand_box.add_card(view)
+		_hand_box.add_card(view, place)
 
 
 func _refresh_buttons() -> void:
-	var planning: bool = run.phase == RunState.Phase.PLANNING and not _counting
+	var planning: bool = run.phase == RunState.Phase.PLANNING and not _counting and not _redraw_busy
 	_checkout_button.disabled = not planning
-	var redraw_left: bool = run.redraws_used < run.redraws_allowed
-	_redraw_button.disabled = not planning or not redraw_left
+	var left: int = run.redraws_allowed - run.redraws_used
+	var to_draw: bool = not run.deck.draw_pile().is_empty()
+	_redraw_button.disabled = not planning or left <= 0 or not to_draw
 	_cancel_button.visible = _redraw_mode
-	# Mock-up B2's "Redraw  N left": the count is a note beside the word; screen readers still
-	# hear how many items a redraw takes.
+	_redraw_button.lit = _redraw_mode
+	# Mock-up B2's "Redraw  N left": the count is a note beside the word; screen readers hear what
+	# a redraw takes.
 	if _redraw_mode:
-		var picked: String = "%d/%d" % [_redraw_pick.size(), run.balance.redraw_limit]
-		_redraw_button.show_caption("Confirm redraw", picked, "Confirm redraw (%s)" % picked)
-	elif redraw_left:
-		var left: int = run.redraws_allowed - run.redraws_used
-		var spoken: String = "Redraw up to %d items (%d left)" % [run.balance.redraw_limit, left]
-		_redraw_button.show_caption("Redraw", "%d left" % left, spoken)
-	else:
+		_redraw_button.show_caption(
+			PICK_CAPTION, "%d left" % left, "Pick a basket (%d left)" % left
+		)
+	elif left <= 0:
 		_redraw_button.show_caption("Redraw used")
+	elif not to_draw:
+		_redraw_button.show_caption("Redraw", "none to draw", "Redraw: no items left to draw")
+	else:
+		_redraw_button.show_caption("Redraw", "%d left" % left, "Redraw a basket (%d left)" % left)
 
 
 func _refresh_preview() -> void:
@@ -852,6 +932,14 @@ func _build() -> void:
 	_effects.preview = func(card: CardInstance, at: int) -> ScoreResult:
 		return run.preview(card, at)
 	_effects.reduced_motion = _scan.reduced_motion
+	_basket_tags = _stage.basket_tags
+	_basket_tags.basket_clicked.connect(_on_basket_clicked)
+	_basket_tags.hovered_changed.connect(_on_basket_hovered)
+	_basket_redraw = BasketRedraw.new()
+	add_child(_basket_redraw)
+	_basket_redraw.setup(_stage)
+	_basket_redraw.reduced_motion = _scan.reduced_motion
+	_basket_redraw.finished.connect(_on_redraw_finished)
 
 	_shade = ScreenShade.new()
 	_shade.set_anchors_preset(Control.PRESET_FULL_RECT)
@@ -877,16 +965,25 @@ func _build() -> void:
 
 
 ## Scanning the counter's items is off while the shift is counted, an item is dragged, outside
-## planning (the machine or the results are up) and while the deck view is open. The machine's
+## planning (the machine or the results are up), while the deck view is open and in redraw mode
+## (armed, or its motion playing). The machine's
 ## prize items are scanned while it accepts clicks (RewardMachineView.can_scan).
 func _scan_blocked() -> bool:
 	var planning: bool = run != null and run.phase == RunState.Phase.PLANNING
-	return _busy() or _drag.is_dragging() or not planning or _deck_view.visible
+	var redrawing: bool = _redraw_mode or _redraw_busy
+	return _busy() or _drag.is_dragging() or not planning or _deck_view.visible or redrawing
 
 
 func _on_closed_slot_clicked() -> void:
 	_notice_label.show_notice("Closed by the inspection this shift")
 	_sfx.play("denied", 1.0, REFUSED_DB)
+
+
+static func _definitions(cards: Array[CardInstance]) -> Array[CardDefinition]:
+	var definitions: Array[CardDefinition] = []
+	for card: CardInstance in cards:
+		definitions.append(card.definition)
+	return definitions
 
 
 static func _names(cards: Array[CardInstance]) -> PackedStringArray:

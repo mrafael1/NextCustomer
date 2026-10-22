@@ -332,10 +332,9 @@ func test_the_paid_chip_faces_mute_and_echo() -> void:
 	assert_float(plaque.position.y).is_equal(view.badge_rest_y())
 
 
-## Selected: the sprite lifts by LIFT inside gold brackets. Redraw: the item fades to
-## REDRAW_ALPHA and its REDRAW tag sits on the sticker's glyph corner, clear of the base value and
-## the summary. NONE clears both.
-func test_the_selected_and_redraw_looks() -> void:
+## Selected: the sprite lifts by LIFT inside gold brackets. NONE puts it back, fully opaque (the
+## basket redraw marks baskets, not items: no REDRAW look on an item since v0.4x).
+func test_the_selected_look() -> void:
 	var balance: BalanceDefinition = load(BALANCE)
 	for definition: CardDefinition in _cards():
 		var view: ItemView = await _laid_out(
@@ -351,27 +350,9 @@ func test_the_selected_and_redraw_looks() -> void:
 		assert_float(brackets.position.y + view.global_position.y).is_equal(
 			lifted.position.y - ScanOverlay.BRACKET_OUTSET
 		)
-		view.set_highlight(CardView.Highlight.REDRAW)
-		assert_float(view.body.position.y).is_equal(0.0)
-		assert_bool(view.brackets().size == Vector2.ZERO).is_true()
-		assert_float(view.body.modulate.a).is_equal_approx(ItemView.REDRAW_ALPHA, 0.001)
-		assert_float(view.sticker().modulate.a).is_equal_approx(ItemView.REDRAW_ALPHA, 0.001)
-		var tag: Label = view._redraw_mark
-		assert_bool(tag.visible).is_true()
-		await get_tree().process_frame
-		var tag_rect: Rect2 = tag.get_global_rect()
-		var sticker: Rect2 = view.sticker().get_global_rect()
-		assert_bool(sticker.encloses(tag_rect)).override_failure_message(message).is_true()
-		assert_vector(tag.size).is_equal(ItemView.REDRAW_RECT.size)
-		assert_float(tag.get_minimum_size().x).is_less_equal(tag.size.x)
-		assert_float(tag.get_minimum_size().y).is_less_equal(tag.size.y)
-		var base: Label = view.sticker().base_label()
-		var base_text: Rect2 = Rect2(base.global_position, base.get_minimum_size())
-		assert_bool(tag_rect.intersects(base_text)).override_failure_message(message).is_false()
-		var summary: Rect2 = view.sticker().summary_label().get_global_rect()
-		assert_bool(tag_rect.intersects(summary)).override_failure_message(message).is_false()
 		view.set_highlight(CardView.Highlight.NONE)
-		assert_bool(tag.visible).is_false()
+		assert_float(view.body.position.y).override_failure_message(message).is_equal(0.0)
+		assert_bool(view.brackets().size == Vector2.ZERO).is_true()
 		assert_float(view.body.modulate.a).is_equal(1.0)
 		assert_float(view.sticker().modulate.a).is_equal(1.0)
 
@@ -380,9 +361,8 @@ func test_the_selected_and_redraw_looks() -> void:
 ## left, no sticker and no shadow; its art's visible foot is under BASKET_RIM_Y by a third of its
 ## visible height on the 2 px grid (a coupon's slip BASKET_COUPON_RISE higher). Only the sprite's
 ## columns from the art's visible top (lifted) take the pointer, inside the cell. Selected, it
-## lifts with the outline (ArtOutline) one art pixel round it and no brackets; redraw-marked, it
-## dims and its REDRAW flag stands centred over the art, inside the cell, under
-## REDRAW_FLAG_MIN_Y; an undrawn item's name keeps to its box's top.
+## lifts with the outline (ArtOutline) one art pixel round it and no brackets; an undrawn item's
+## name keeps to its box's top.
 func test_basket_items_sink_a_third_under_the_rim() -> void:
 	var cell: Rect2 = Rect2(Vector2.ZERO, ItemView.BASKET_SIZE)
 	# The rim's line in the cell is the baskets' front rim on the stage.
@@ -424,20 +404,8 @@ func test_basket_items_sink_a_third_under_the_rim() -> void:
 		assert_that(outline.get_global_rect()).is_equal(
 			view.sprite().get_global_rect().grow(ArtStyle.ART_SCALE)
 		)
-		view.set_highlight(CardView.Highlight.REDRAW)
-		assert_bool(outline.visible).is_false()
-		assert_float(view.body.modulate.a).is_equal_approx(ItemView.REDRAW_ALPHA, 0.001)
-		var flag: Rect2 = Rect2(view._redraw_mark.position, view._redraw_mark.size)
-		assert_bool(view._redraw_mark.visible).is_true()
-		assert_vector(flag.size).is_equal(ItemView.REDRAW_RECT.size)
-		assert_float(flag.get_center().x).is_equal(ItemView.SPRITE_SIZE.x / 2.0)
-		assert_float(flag.position.y).is_greater_equal(ItemView.REDRAW_FLAG_MIN_Y)
-		assert_float(flag.position.y).override_failure_message(message).is_less(
-			sprite.position.y + box.position.y * texel
-		)
-		assert_bool(cell.encloses(flag)).override_failure_message(message).is_true()
 		view.set_highlight(CardView.Highlight.NONE)
-		assert_bool(outline.visible or view._redraw_mark.visible).is_false()
+		assert_bool(outline.visible).override_failure_message(message).is_false()
 
 
 ## A selected item's outline (ArtOutline): one pixel larger than the art on each side, mustard

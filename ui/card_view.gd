@@ -6,7 +6,7 @@ extends Control
 
 signal clicked(view: CardView)
 
-enum Highlight { NONE, SELECTED, REDRAW }
+enum Highlight { NONE, SELECTED }
 
 const CARD_SIZE := Vector2(120, 168)
 ## Where the value badge sits, above the card.
@@ -21,7 +21,6 @@ var body: PanelContainer
 ## during the count-up.
 var badge: Label
 var _style: StyleBoxFlat
-var _redraw_mark: Label
 var _tags_label: Label
 
 
@@ -41,8 +40,6 @@ func set_highlight(highlight: Highlight) -> void:
 	_style.border_color = Palette.TOMATO if highlight == Highlight.SELECTED else Palette.INK
 	_style.set_border_width_all(5 if highlight == Highlight.SELECTED else 2)
 	body.position.y = -10.0 if highlight == Highlight.SELECTED else 0.0
-	body.modulate = Color(1, 1, 1, 0.55) if highlight == Highlight.REDRAW else Color.WHITE
-	_redraw_mark.visible = highlight == Highlight.REDRAW
 
 
 ## Shows a value above the card. `strong` is for the count-up, otherwise it is a quiet preview.
@@ -162,14 +159,6 @@ func _build() -> void:
 	rule.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	rule.vertical_alignment = VERTICAL_ALIGNMENT_BOTTOM
 	column.add_child(rule)
-
-	_redraw_mark = _label("REDRAW", 16)
-	_redraw_mark.add_theme_color_override("font_color", Palette.TOMATO)
-	_redraw_mark.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	_redraw_mark.position = Vector2(0, CARD_SIZE.y / 2.0 - 12)
-	_redraw_mark.size = Vector2(CARD_SIZE.x, 24)
-	_redraw_mark.visible = false
-	add_child(_redraw_mark)
 
 	badge = Label.new()
 	badge.mouse_filter = Control.MOUSE_FILTER_IGNORE

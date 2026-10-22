@@ -446,6 +446,30 @@ class CheckoutTest(LogTestCase):
         self.assertEqual(checkouts["input_methods"]["drag"]["count"], 1)
 
 
+class RedrawEventTest(LogTestCase):
+    def test_basket_redraw_events_summarise_like_the_old_ones(self) -> None:
+        """The basket redraw (v0.4x) adds `basket` and `places` to the redraw event; a log with
+        them reads exactly as one with the older item redraw's fields only."""
+        summaries = []
+        for extra in ({}, {"basket": 2, "places": [2, 3]}):
+            a = Session("a")
+            a.run_start("r1")
+            a.log("shift_start", "r1", shift=1, quota=10, cards_drawn=[], inspections=[])
+            a.log("redraw", "r1", cards_replaced=["banana", "bread"],
+                  cards_received=["milk", "eggs"], **extra)
+            a.log("checkout", "r1", shift=1, final_order=["banana", "bread", "milk"], score=12,
+                  quota=10, passed=True, placements=3, removals=0, rearrangements=0,
+                  distinct_projected_totals=1, planning_ms=5000, input_method="click",
+                  next_inspection="")
+            a.run_end("r1", True, 1)
+            summary = self.summary(self.write("p.jsonl", a))
+            self.assertEqual(summary["inputs"]["malformed_lines"], 0)
+            self.assertEqual(summary["inputs"]["events"], 5)
+            summary.pop("inputs")
+            summaries.append(summary)
+        self.assertEqual(summaries[0], summaries[1])
+
+
 class RewardTest(LogTestCase):
     def test_first_offer_is_reported_apart(self) -> None:
         s = Session("s")

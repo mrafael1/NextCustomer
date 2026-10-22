@@ -129,30 +129,49 @@ func hand() -> Array[CardInstance]:
 	return cards
 
 
-func can_redraw(cards: Array[CardInstance]) -> bool:
+## The deck's hand by place, with null where the card is in the row. Places never change during
+## a shift: a card taken out of the row is back in its own place, and a redrawn card's
+## replacement takes its place (plan section 3.8).
+func hand_places() -> Array[CardInstance]:
+	var places: Array[CardInstance] = []
+	for card: CardInstance in deck.hand():
+		places.append(null if row.has(card) else card)
+	return places
+
+
+## The places of basket `basket` (basket_size places each, from place 0) that hold hand cards,
+## ascending. Empty for a basket outside the hand.
+func basket_places(basket: int) -> Array[int]:
+	var places: Array[int] = []
+	if basket < 0 or balance.basket_size <= 0:
+		return places
+	var by_place: Array[CardInstance] = hand_places()
+	var first: int = basket * balance.basket_size
+	for index: int in range(first, mini(first + balance.basket_size, by_place.size())):
+		if by_place[index] != null:
+			places.append(index)
+	return places
+
+
+## A redraw needs planning, a redraw left, a hand card in the basket and a card to draw.
+func can_redraw_basket(basket: int) -> bool:
 	if phase != Phase.PLANNING or redraws_used >= redraws_allowed:
 		return false
-	if cards.is_empty() or cards.size() > balance.redraw_limit:
-		return false
-	var in_hand: Array[CardInstance] = hand()
-	for card: CardInstance in cards:
-		if not in_hand.has(card) or cards.count(card) > 1:
-			return false
-	return true
+	return not basket_places(basket).is_empty() and not deck.draw_pile().is_empty()
 
 
-## Replaces hand cards (not row cards), up to redraws_allowed times per shift. Cards replaced by
-## any redraw are set aside for the rest of the shift. Returns the cards received.
-func redraw(cards: Array[CardInstance]) -> Array[CardInstance]:
-	var received: Array[CardInstance] = []
-	if not can_redraw(cards):
-		return received
-	var before: Array[CardInstance] = deck.hand()
-	for card: CardInstance in deck.redraw(cards):
-		if not before.has(card):
-			received.append(card)
+## Plan section 3.8: replaces one basket's hand cards (not row cards), left place first, with
+## new cards in the same places, up to redraws_allowed times per shift. A short draw pile swaps
+## the left ones and the redraw still costs 1. Cards replaced by any redraw are set aside for the
+## rest of the shift. Returns the places swapped (empty when the redraw isn't allowed); the
+## caller reads the old cards before and deck.hand() after.
+func redraw_basket(basket: int) -> Array[int]:
+	var swapped: Array[int] = []
+	if not can_redraw_basket(basket):
+		return swapped
+	swapped = deck.redraw_places(basket_places(basket))
 	redraws_used += 1
-	return received
+	return swapped
 
 
 ## Plan section 3.1: the row's product and card limits, checked by kind (RowCapacity).
@@ -171,7 +190,8 @@ func place(card: CardInstance, slot: int) -> bool:
 	return true
 
 
-## Moves a row card back to the hand; the cards after it shift left.
+## Moves a row card back to the hand, into its own place (hand_places); the row cards after it
+## shift left.
 func remove(card: CardInstance) -> bool:
 	if phase != Phase.PLANNING or not row.has(card):
 		return false

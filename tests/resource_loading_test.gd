@@ -63,6 +63,8 @@ func test_every_scene_and_resource_loads() -> void:
 			assert_object(resource).override_failure_message(path).is_instanceof(MachineDefinition)
 		elif path.ends_with("/balance/planning.tres"):
 			assert_object(resource).override_failure_message(path).is_instanceof(PlanningTuning)
+		elif path.ends_with("/balance/redraw.tres"):
+			assert_object(resource).override_failure_message(path).is_instanceof(RedrawTuning)
 		elif path.contains("/balance/"):
 			assert_object(resource).override_failure_message(path).is_instanceof(BalanceDefinition)
 		elif path.ends_with("_bus_layout.tres"):

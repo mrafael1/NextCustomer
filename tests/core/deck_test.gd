@@ -23,9 +23,9 @@ func test_same_seed_gives_same_draws() -> void:
 	var first: Deck = _deck(12345)
 	var second: Deck = _deck(12345)
 	assert_array(_ids(first.draw_hand(8))).is_equal(_ids(second.draw_hand(8)))
-	var first_redraw: Array[CardInstance] = first.redraw(first.hand().slice(0, 2))
-	var second_redraw: Array[CardInstance] = second.redraw(second.hand().slice(0, 2))
-	assert_array(_ids(first_redraw)).is_equal(_ids(second_redraw))
+	first.redraw_places([0, 1])
+	second.redraw_places([0, 1])
+	assert_array(_ids(first.hand())).is_equal(_ids(second.hand()))
 	assert_array(_ids(first.draw_hand(8))).is_equal(_ids(second.draw_hand(8)))
 
 
@@ -70,18 +70,23 @@ func test_each_shift_reshuffles_the_whole_deck() -> void:
 func test_next_shift_draws_a_full_hand_again() -> void:
 	var deck: Deck = _deck(4)
 	deck.draw_hand(8)
-	deck.redraw(deck.hand().slice(0, 2))
+	deck.redraw_places([0, 1])
 	assert_int(deck.draw_hand(8).size()).is_equal(8)
 
 
-## With every card in the hand replaced, only the 5 cards left in the pile can come in; the
-## other 3 places keep their cards. No replaced card comes back and no place is left empty.
+## With every place redrawn, only the 5 cards left in the pile can come in: the first 5 places
+## given are swapped, in order, and the other 3 keep their cards. No replaced card comes back
+## and no place is left empty.
 func test_redraw_with_a_short_pile() -> void:
 	for seed_value: int in range(1, 20):
 		var deck: Deck = _deck(seed_value)
 		var hand: Array[CardInstance] = deck.draw_hand(8)
-		var new_hand: Array[CardInstance] = deck.redraw(hand)
+		var order: Array[int] = [7, 6, 5, 4, 3, 2, 1, 0]
+		assert_array(deck.redraw_places(order)).is_equal([7, 6, 5, 4, 3])
+		var new_hand: Array[CardInstance] = deck.hand()
 		assert_int(new_hand.size()).is_equal(8)
+		for index: int in [0, 1, 2]:
+			assert_object(new_hand[index]).is_same(hand[index])
 		var changed: int = 0
 		var unique: Dictionary = {}
 		for index: int in range(8):
@@ -119,7 +124,8 @@ func test_redraw_cannot_bring_back_a_replaced_card() -> void:
 		var deck: Deck = _deck(seed_value)
 		var hand: Array[CardInstance] = deck.draw_hand(8)
 		var replaced: Array[CardInstance] = [hand[2], hand[5]]
-		var new_hand: Array[CardInstance] = deck.redraw(replaced)
+		assert_array(deck.redraw_places([2, 5])).is_equal([2, 5])
+		var new_hand: Array[CardInstance] = deck.hand()
 		assert_int(new_hand.size()).is_equal(8)
 		for card: CardInstance in replaced:
 			assert_bool(new_hand.has(card)).is_false()
@@ -130,15 +136,15 @@ func test_redraw_cannot_bring_back_a_replaced_card() -> void:
 			assert_bool(hand.has(new_hand[index])).is_false()
 
 
-func test_redraw_ignores_cards_not_in_hand() -> void:
+func test_redraw_ignores_places_outside_the_hand() -> void:
 	var deck: Deck = _deck(9)
 	var hand: Array[CardInstance] = deck.draw_hand(8)
-	var outside: Array[CardInstance] = []
-	for card: CardInstance in deck.cards:
-		if not hand.has(card):
-			outside.append(card)
-	var new_hand: Array[CardInstance] = deck.redraw([outside[0]])
-	assert_array(_ids(new_hand)).is_equal(_ids(hand))
+	assert_array(deck.redraw_places([-1, 8, 20])).is_empty()
+	assert_array(_ids(deck.hand())).is_equal(_ids(hand))
+	assert_int(deck.draw_pile().size()).is_equal(5)
+	# A place given twice is swapped once.
+	assert_array(deck.redraw_places([3, 3])).is_equal([3])
+	assert_int(deck.draw_pile().size()).is_equal(4)
 
 
 func test_add_and_remove_cards() -> void:
