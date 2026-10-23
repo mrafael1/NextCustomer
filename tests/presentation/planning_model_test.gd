@@ -13,8 +13,8 @@ const UPGRADES: Array[String] = [
 	"res://data/upgrades/slot_engine.tres",
 ]
 const INSPECTION := "res://data/inspections/spot_check.tres"
-## Sticker minis' row: Golden Eggs, Mixed herbs (its mini since v0.52) and Eggs give to the Food after
-## them, Multipack stamps the Milk.
+## Sticker minis' row: Golden Eggs, Mixed herbs (its mini since v0.52) and Eggs give to the Food
+## after them, Multipack stamps the Milk.
 const MINI_ROW := "eggs_golden,bread,mixed_herbs,cheese,multipack,milk,eggs,yogurt"
 
 
