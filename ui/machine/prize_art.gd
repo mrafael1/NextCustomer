@@ -28,7 +28,8 @@ const INITIALS_SIZE := 9
 const BADGE_INITIALS_SIZE := 14
 const STAMP_RING := preload("res://art/icons/stamp_ring.png")
 const STAMP_EMPTY := preload("res://art/icons/stamp_ring_empty.png")
-## The perk's icon on the badge: a small glyph (6 art px or less) at 3x art, else 2x.
+## The perk's icon on the badge: a small glyph (6 art px or less) at 3x art, else 2x or 1x art,
+## whichever fits inside the badge (icon_scale).
 const SMALL_ICON := 6
 
 var prize: MachinePrize
@@ -104,7 +105,7 @@ func _add_loyalty() -> void:
 	stamped.size = STAMP_RING.get_size() * 2.0
 	_icon = icon_of(prize.upgrade)
 	if _icon != null:
-		var k: float = 6.0 if maxf(_icon.get_width(), _icon.get_height()) <= SMALL_ICON else 4.0
+		var k: float = icon_scale(_icon.get_size())
 		var glyph: TextureRect = UiKit.sprite(_icon)
 		glyph.name = "PerkIcon"
 		glyph.size = _icon.get_size() * k
@@ -115,6 +116,19 @@ func _add_loyalty() -> void:
 		badge.name = "PerkInitials"
 		badge.position = BADGE_RECT.position
 		badge.size = BADGE_RECT.size
+
+
+## The badge glyph's scale (canvas px per texel) for an icon of `texels`: 3x art for a small one
+## (SMALL_ICON or less), else the largest of 2x and 1x art that stays inside the badge's ink
+## border, so a larger glyph (Big basket's 13x12 "+1" ticket) never reaches the punch card.
+static func icon_scale(texels: Vector2) -> float:
+	var inside: Vector2 = BADGE_RECT.size - Vector2(4, 4)
+	if maxf(texels.x, texels.y) <= SMALL_ICON:
+		return 6.0
+	for k: float in [4.0, 2.0]:
+		if texels.x * k <= inside.x and texels.y * k <= inside.y:
+			return k
+	return 2.0
 
 
 func _initials_label(text: String, font_size: int, colour: Color) -> Label:

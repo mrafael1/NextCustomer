@@ -411,6 +411,13 @@ func test_the_stock_window_shows_sealed_odds_above_its_key() -> void:
 	assert_str(StockWindow.percent_text(0.4)).is_equal("40%")
 	assert_str(StockWindow.percent_text(0.004)).is_equal("<1%")
 	assert_str(StockWindow.percent_text(0.0)).is_equal("0%")
+	# A column adds up to 100 (largest remainder), keeping "<1%" for a sliver.
+	var thirds: PackedStringArray = StockWindow.percent_texts([0.335, 0.335, 0.33])
+	assert_int(_percent_sum(thirds)).is_equal(100)
+	assert_array(Array(StockWindow.percent_texts([0.666, 0.33, 0.004]))).is_equal(
+		["67%", "33%", "<1%"]
+	)
+	assert_array(Array(StockWindow.percent_texts([0.7, 0.2, 0.1]))).is_equal(["70%", "20%", "10%"])
 	var run: RunState = _passed_run(29)
 	var view: RewardMachineView = auto_free(RewardMachineView.new())
 	add_child(view)
@@ -425,10 +432,11 @@ func test_the_stock_window_shows_sealed_odds_above_its_key() -> void:
 		assert_array(Array(view.stock.odds_texts(shut))).is_empty()
 	for chute: int in RewardMachine.NORMAL_CHUTES:
 		assert_bool(view.stock.column_lit(chute)).is_true()
-		var shares: PackedFloat64Array = run.machine.chute_info(run, chute).odds.rarity_share
+		var shares: Array[float] = []
+		shares.assign(Array(run.machine.chute_info(run, chute).odds.rarity_share))
 		var texts: PackedStringArray = view.stock.odds_texts(chute)
-		for rarity: int in range(3):
-			assert_str(texts[rarity]).is_equal(StockWindow.percent_text(shares[rarity]))
+		assert_array(Array(texts)).is_equal(Array(StockWindow.percent_texts(shares)))
+		assert_int(_percent_sum(texts)).is_equal(100)
 		# The column stands right above its key.
 		var key: Rect2 = view.keys[chute].get_global_rect()
 		var column: float = window.position.x + window.size.x / 4.0 * (2 * (chute % 2) + 1)
@@ -449,6 +457,37 @@ func test_the_stock_window_shows_sealed_odds_above_its_key() -> void:
 	view.close()
 	remove_child(view)
 	await _frames(2)
+
+
+## The stock window's shares follow the shift's odds level: the same chute's LEGENDARY share at
+## the machine's top level is at least its first level's, COMMON's never more, and
+## every column adds up to 100.
+func test_the_stock_window_odds_rise_with_the_odds_level() -> void:
+	var run: RunState = _passed_run(31)
+	var machine: MachineDefinition = run.machine.machine
+	var context: MachineContext = MachineContext.from_run(run, machine, true, true)
+	var top: int = machine.max_level()
+	assert_int(top).is_greater(0)
+	for chute: int in RewardMachine.NORMAL_CHUTES:
+		var shown: Array[PackedStringArray] = []
+		for level: int in [0, top]:
+			var window: StockWindow = auto_free(StockWindow.new())
+			var infos: Array[MachineChuteInfo] = []
+			for each: int in RewardMachine.CHUTES:
+				var info: MachineChuteInfo = MachineChuteInfo.new()
+				info.state = RewardMachine.ChuteState.OPEN
+				info.odds = MachineOdds.card(each, context, level)
+				infos.append(info)
+			window.show_chutes(infos, -1)
+			window.frame(0.0)
+			var texts: PackedStringArray = window.odds_texts(chute)
+			assert_int(texts.size()).is_equal(3)
+			assert_int(_percent_sum(texts)).is_equal(100)
+			shown.append(texts)
+		var legendary: Array[int] = [_percent(shown[0][2]), _percent(shown[1][2])]
+		assert_int(legendary[1]).override_failure_message(str(shown)).is_greater_equal(legendary[0])
+		var common: Array[int] = [_percent(shown[0][0]), _percent(shown[1][0])]
+		assert_int(common[1]).override_failure_message(str(shown)).is_less_equal(common[0])
 
 
 ## A pressed key (#77 machine v2's B3): it drops SINK, rings gold, lights its LED green and clicks;
@@ -603,8 +642,9 @@ func test_long_display_lines_fit() -> void:
 ## receipt is read (the read says PREMIUM RECEIPT), then the transform (premium_at ..
 ## premium_end; the display blinks PREMIUM), after which the sign reads PREMIUM REWARDS over
 ## LOYALTY · UPGRADES, the gold trim, the gold stub in the slot and the gold tray show for the
-## whole visit, and the LOYALTY / UPGRADES pair stands in the key bay (NEW ITEMS and COUPONS down,
-## hidden, saying NORMAL VISITS ONLY); a pressed key's title says "premium"; every line fits.
+## whole visit, and the LOYALTY / UPGRADES pair stands in the key bay (NEW ITEMS and COUPONS cream
+## and idle until they sink, never padlocked; a press on one still says NORMAL VISITS ONLY); a
+## pressed key's title says "premium"; every line fits.
 ## A Normal visit keeps the classic face and says when LOYALTY and UPGRADES come next.
 func test_a_premium_visit_turns_the_machine_gold() -> void:
 	for rm: bool in [false, true]:
@@ -627,6 +667,13 @@ func test_a_premium_visit_turns_the_machine_gold() -> void:
 		view.show_at(plan.read_end - EPSILON)
 		assert_str(view.display.texts()[1]).ends_with(MachineDisplay.BOOSTED_READ)
 		assert_bool(head.premium_face()).is_false()
+		# Before the transform the classic pair stands cream and idle (never padlocked) over its
+		# stocked columns, as the mock-up's classic machine does until the keys sink.
+		for chute: int in RewardMachine.NORMAL_CHUTES:
+			assert_bool(view.keys[chute].visible).is_true()
+			assert_bool(view.keys[chute].has_padlock()).is_false()
+			assert_bool(view.keys[chute].lit).is_false()
+			assert_bool(view.stock.column_lit(chute)).is_true()
 		assert_float(view.cabinet.trim_shown()).is_equal(0.0)
 		assert_bool(view.tray.is_gold()).is_false()
 		if not rm:
@@ -659,16 +706,11 @@ func test_a_premium_visit_turns_the_machine_gold() -> void:
 			assert_bool(key.visible).is_true()
 			assert_bool(bay.encloses(key.get_global_rect())).is_true()
 			assert_bool(view.stock.column_lit(chute)).is_true()
-		for chute: int in RewardMachine.NORMAL_CHUTES:
+		for chute: int in RewardMachine.NORMAL_CHUTES:  # Sunk out of sight, never padlocked.
 			var key: ChuteKey = view.keys[chute]
 			assert_bool(key.visible).is_false()
-			assert_bool(key.has_padlock()).is_true()
-			assert_str(key.sub_text()).is_equal("NORMAL VISITS ONLY")
-			assert_str(key.shown_labels()[0].text).is_equal(
-				"%s\nNORMAL VISITS ONLY" % ChuteKey.NAMES[chute]
-			)
-			for label: Label in key.shown_labels():
-				_assert_fits(label)
+			assert_bool(key.has_padlock()).is_false()
+			assert_bool(view.stock.column_lit(chute)).is_false()
 		# Still PREMIUM at the end of the visit.
 		assert_bool(run.machine.choose(run, RewardMachine.Chute.UPGRADES)).is_true()
 		view.show_draw(run)
@@ -875,3 +917,17 @@ func _frames(count: int) -> void:
 
 static func _event_log() -> EventLogService:
 	return (Engine.get_main_loop() as SceneTree).root.get_node("/root/EventLog")
+
+
+## The whole percents in `texts` added up ("<1%" counts 0).
+static func _percent_sum(texts: PackedStringArray) -> int:
+	var total: int = 0
+	for text: String in texts:
+		if not text.begins_with("<"):
+			total += text.trim_suffix("%").to_int()
+	return total
+
+
+## A shown percent's whole number ("<1%": 0).
+static func _percent(text: String) -> int:
+	return 0 if text.begins_with("<") else text.trim_suffix("%").to_int()

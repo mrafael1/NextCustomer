@@ -459,7 +459,10 @@ func press_key(chute: int) -> void:
 	var info: MachineChuteInfo = run.machine.chute_info(run, chute)
 	if info.state != RewardMachine.ChuteState.OPEN:
 		Sfx.play_at(self, "denied")
-		display.show_denied(ChuteKey.NAMES[chute], keys[chute].sub_text())
+		var why: String = keys[chute].sub_text()
+		if info.state == RewardMachine.ChuteState.UNLIT:  # A PREMIUM visit's classic keys show none.
+			why = ChuteKey.unlit_text(chute, info.opens_after_shift, false)
+		display.show_denied(ChuteKey.NAMES[chute], why)
 		return
 	if _pressed == chute:
 		_release()
@@ -777,14 +780,21 @@ func _show_head(kind: int, visit: MachineVisit) -> void:
 
 
 ## The keys and the stock window from chute_info: once a chute is chosen (`picking`), only it is
-## lit.
+## lit. On a PREMIUM visit the classic keys are only seen before they sink in the transform: they
+## stand cream and idle (as at rest), never padlocked, so nothing reads "locked" just before the
+## machine turns premium.
 func _show_keys(picking: bool) -> void:
 	var visit: MachineVisit = run.machine.current_visit()
 	var infos: Array[MachineChuteInfo] = []
+	var premium: bool = plan != null and plan.premium
 	for chute: int in RewardMachine.CHUTES:
 		var info: MachineChuteInfo = run.machine.chute_info(run, chute)
 		infos.append(info)
 		var lit: bool = not picking or (visit != null and visit.chute == chute)
+		var sinking: bool = premium and not ChuteKey.is_gold(chute)
+		if sinking and info.state == RewardMachine.ChuteState.UNLIT:
+			keys[chute].show_state(RewardMachine.ChuteState.OPEN, 0, false)
+			continue
 		keys[chute].show_state(info.state, info.opens_after_shift, lit)
 	var chosen: int = visit.chute if picking and visit != null else -1
 	if picking and visit != null and visit.kind == MachineVisit.Kind.STAMP_DAY:

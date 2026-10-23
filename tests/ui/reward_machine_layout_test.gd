@@ -251,6 +251,57 @@ func test_pixelify_is_only_12_or_24_and_every_label_fits() -> void:
 	assert_int(seen).is_greater(100)
 
 
+## The dim veil follows the machine's silhouette: its pieces cover the marquee with every bulb,
+## the cabinet and the plinth, and reach no further than they do, so the wall and the floor round
+## the machine keep their colour while it is dim.
+func test_the_dim_veil_follows_the_silhouette() -> void:
+	var dim: MachineDim = auto_free(MachineDim.new())
+	var pieces: Array[Rect2] = dim.piece_rects()
+	assert_int(pieces.size()).is_equal(MachineDim.VEIL_RECTS.size())
+	var head: Rect2 = Rect2(RewardMachineView.HEAD_POSITION, MachineHead.SIZE)
+	var parts: Array[Rect2] = [
+		head,
+		Rect2(Vector2.ZERO, MachineCabinet.SIZE),
+		MachineCabinet.PLINTH_RECT,
+	]
+	for index: int in range(MachineHead.bulb_count()):
+		var at: Vector2 = RewardMachineView.HEAD_POSITION + MachineHead.bulb_point(index)
+		parts.append(Rect2(at - Vector2(2, 2), Vector2(6, 6)))
+	var outline: Rect2 = parts[0]
+	for part: Rect2 in parts:
+		outline = outline.merge(part)
+		var covered: bool = false
+		var rest: Rect2 = part
+		for piece: Rect2 in pieces:
+			if piece.encloses(rest):
+				covered = true
+		if not covered:  # The cabinet's top rows sit under the marquee's piece.
+			covered = pieces[0].merge(pieces[1]).encloses(part)
+		assert_bool(covered).override_failure_message(str(part)).is_true()
+	for piece: Rect2 in pieces:
+		assert_bool(outline.encloses(piece)).override_failure_message(str(piece)).is_true()
+	# No piece reaches past its part's own width: the floor beside the plinth stays clear.
+	assert_float(pieces[2].size.x).is_equal(MachineCabinet.PLINTH_RECT.size.x)
+	assert_float(pieces[1].size.x).is_equal(MachineCabinet.SIZE.x)
+
+
+## The marquee's title is letter-spaced bold Atkinson: its width is the bold font's plus the
+## spacing between its glyphs, not the regular weight's (a wrapped FontVariation drops the weight).
+func test_the_marquee_title_is_bold() -> void:
+	var head: MachineHead = auto_free(MachineHead.new())
+	var title: Label = head.title_labels()[0]
+	var font: Font = title.get_theme_font("font")
+	var font_size: int = title.get_theme_font_size("font_size")
+	var bold: Font = ArtStyle.bold_font(MachineHead.BOLD_WEIGHT)
+	for text: String in [MachineHead.TITLE, MachineHead.PREMIUM_TITLE]:
+		var spaced: float = font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size).x
+		var heavy: float = bold.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size).x
+		var gaps: float = MachineHead.TITLE_SPACING * (text.length() - 1)
+		assert_float(spaced).override_failure_message(text).is_between(
+			heavy + gaps - 0.5, heavy + gaps + MachineHead.TITLE_SPACING + 0.5
+		)
+
+
 ## A LEGENDARY landing jolts the stage (6 px across, 4 px down and up, decaying over SHAKE_S); a
 ## COMMON or RARE landing and reduced motion never do. On the machine the stage moves, then
 ## settles back.
@@ -378,6 +429,10 @@ func _assert_fits(label: Label) -> void:
 		assert_float(width).override_failure_message(failure).is_less_equal(label.size.x + 0.5)
 	var height: float = label.get_line_count() * font.get_height(font_size)
 	assert_float(height).override_failure_message(failure).is_less_equal(label.size.y + SLACK)
+	var wanted: int = label.get_line_count()
+	if label.max_lines_visible >= 0:
+		wanted = mini(wanted, label.max_lines_visible)
+	assert_int(label.get_visible_line_count()).override_failure_message(failure).is_equal(wanted)
 
 
 ## The label keeps the box its part gave it, inside its parent: a part that sizes a label before

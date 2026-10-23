@@ -300,7 +300,39 @@ func test_every_face_fits_the_ticket() -> void:
 		var rule: Label = ticket.face_labels()[2]
 		var shown: float = rule_lines * PrizeTicket.RULE_PITCH
 		assert_float(shown).override_failure_message(what).is_less_equal(rule.size.y + 0.01)
+		# Godot shows a line only when the box holds the font's full height: every line of the
+		# band, the name and the rule must be visible, not merely fit by the pitch.
+		for label: Label in ticket.face_labels():
+			var wanted: int = label.get_line_count()
+			if label.max_lines_visible >= 0:
+				wanted = mini(wanted, label.max_lines_visible)
+			(
+				assert_int(label.get_visible_line_count())
+				. override_failure_message("%s: %s" % [label.name, what])
+				. is_equal(wanted)
+			)
+			assert_int(wanted).override_failure_message(what).is_greater(0)
 		ticket.free()
+
+
+## A LOYALTY prize's perk glyph stays inside its badge, clear of the punch card above it (Big
+## basket's 13x12 "+1" ticket included), with the card's 2 px gap at least.
+func test_the_perk_glyph_stays_on_its_badge() -> void:
+	var shown: int = 0
+	for perk: UpgradeDefinition in _balance.upgrade_pool:
+		var art: PrizeArt = auto_free(
+			PrizeArt.new(MachinePrize.new(MachinePrize.Kind.REGISTER, 0, null, perk), null)
+		)
+		var glyph: Control = art.find_child("PerkIcon", false, false) as Control
+		if glyph == null:
+			continue
+		shown += 1
+		var rect: Rect2 = Rect2(glyph.position, glyph.size)
+		var badge: Rect2 = PrizeArt.BADGE_RECT.grow(-2.0)
+		assert_bool(badge.encloses(rect)).override_failure_message(String(perk.id)).is_true()
+		var gap: float = rect.position.y - PrizeArt.PUNCH_RECT.end.y
+		assert_float(gap).override_failure_message(String(perk.id)).is_greater_equal(2.0)
+	assert_int(shown).is_greater(0)
 
 
 ## Resumed at the pick wait (TICKET and STAMP DAY): every ticket sits face up in its place with

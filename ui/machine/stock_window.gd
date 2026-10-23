@@ -128,6 +128,37 @@ static func percent_text(share: float) -> String:
 	return "%d%%" % int(roundf(share * 100.0))
 
 
+## A column's shares (COMMON, RARE, LEGENDARY) as the window prints them, whole percents by
+## largest remainder so a column always adds up to its total (100 for a full odds card), and
+## "<1%" for a share that gets none.
+static func percent_texts(shares: Array[float]) -> PackedStringArray:
+	var total: float = 0.0
+	for share: float in shares:
+		total += share
+	var whole: Array[int] = []
+	var given: int = 0
+	for share: float in shares:
+		whole.append(floori(share * 100.0 + 0.000001))
+		given += whole[-1]
+	var order: Array[int] = []
+	order.assign(range(shares.size()))
+	order.sort_custom(
+		func(a: int, b: int) -> bool:
+			return shares[a] * 100.0 - whole[a] > shares[b] * 100.0 - whole[b]
+	)
+	var left: int = roundi(total * 100.0) - given
+	for index: int in order:
+		if left <= 0:
+			break
+		whole[index] += 1
+		left -= 1
+	var texts: PackedStringArray = []
+	for index: int in range(shares.size()):
+		var sliver: bool = whole[index] == 0 and shares[index] > 0.0
+		texts.append("<1%" if sliver else "%d%%" % whole[index])
+	return texts
+
+
 ## The columns at time `t` (seconds) of view.plan (MachineLook: the restock during the premium
 ## transform).
 func frame(t: float) -> void:
@@ -139,11 +170,14 @@ func frame(t: float) -> void:
 		var chute: int = column + (2 if loyalty else 0)
 		var info: MachineChuteInfo = _infos[chute]
 		var lit: bool = info != null and info.state == RewardMachine.ChuteState.OPEN
+		# A PREMIUM visit's classic columns keep their stock until they drop out in the restock.
+		lit = lit or (info != null and look.premium_visit and not loyalty and not look.stamp_day)
 		lit = lit and (_chosen < 0 or _chosen == chute)
 		_column_chute[column] = chute
 		_column_lit[column] = lit
 		_column_offset[column] = shape[0]
 		_column_gold[column] = loyalty and look.premium()
+		var texts: PackedStringArray = _column_texts(info) if lit else PackedStringArray()
 		for rarity: int in range(3):
 			var odds: Label = _odds[column * 3 + rarity]
 			var word: Label = _words[column * 3 + rarity]
@@ -151,7 +185,7 @@ func frame(t: float) -> void:
 			word.visible = lit
 			if not lit:
 				continue
-			odds.text = percent_text(info.odds.rarity_share[rarity] if info.odds != null else 0.0)
+			odds.text = texts[rarity]
 			var x: float = _ticket_x(column, rarity) - (TICKET_STEP - TICKET_SIZE.x) / 2.0
 			odds.position = Vector2(x, ODDS_TOP + shape[0])
 			word.position = Vector2(x, WORD_TOP + shape[0])
@@ -159,6 +193,15 @@ func frame(t: float) -> void:
 
 
 ## Ticket `rarity`'s left edge in `column`.
+## `info`'s three rarity shares as the window prints them (percent_texts).
+static func _column_texts(info: MachineChuteInfo) -> PackedStringArray:
+	var shares: Array[float] = [0.0, 0.0, 0.0]
+	if info.odds != null:
+		for rarity: int in range(3):
+			shares[rarity] = info.odds.rarity_share[rarity]
+	return percent_texts(shares)
+
+
 static func _ticket_x(column: int, rarity: int) -> float:
 	var middle: float = SIZE.x / 4.0 * (2 * column + 1)
 	var row: float = TICKET_STEP * 2.0 + TICKET_SIZE.x

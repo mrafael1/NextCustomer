@@ -162,12 +162,21 @@ static func coins(
 		item.draw_texture_rect(COIN, rect, false)
 
 
-## `font` with its glyphs `spacing` px apart (cached by font and spacing).
+## `font` with its glyphs `spacing` px apart (cached by font and spacing). A FontVariation's own
+## (empty) coordinates replace its base's, so a variation `font` (a bold weight) is copied onto one
+## variation of its base font rather than wrapped, or the result would draw at regular weight.
 static func spaced(font: Font, spacing: int) -> Font:
 	var key: String = "%d:%d" % [font.get_instance_id(), spacing]
 	if not _spaced.has(key):
 		var font_variation: FontVariation = FontVariation.new()
-		font_variation.base_font = font
+		var inner: FontVariation = font as FontVariation
+		if inner != null:
+			font_variation.base_font = inner.base_font
+			font_variation.variation_opentype = inner.variation_opentype
+			font_variation.variation_embolden = inner.variation_embolden
+			font_variation.variation_transform = inner.variation_transform
+		else:
+			font_variation.base_font = font
 		font_variation.spacing_glyph = spacing
 		_spaced[key] = font_variation
 	return _spaced[key]

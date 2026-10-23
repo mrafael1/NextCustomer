@@ -38,7 +38,9 @@ extends Control
 ## With `--announce=<seconds>` (v0.50) a new run's shift 1 is the shift before a PREMIUM visit: its
 ## planning prints the gold PREMIUM receipt on the monitor, which then hangs as the PREMIUM NEXT
 ## tag; the capture waits `seconds` from the shift's start, and the file is
-## shift_screen_announce_<tenths>_<width>x<height>.png.
+## shift_screen_announce_<tenths>_<width>x<height>.png. `--announce=<seconds>,shift=<n>` instead
+## jumps to shift n of the real schedule (shift 3: inspected, and the shift before the first
+## PREMIUM visit), named shift_screen_announce_shift<n>_<tenths>_<width>x<height>.png.
 
 const SCREEN := preload("res://ui/shift_screen.tscn")
 const SEED := 20261014
@@ -66,6 +68,7 @@ const MACHINE_ARGUMENT := "--machine="
 const ANNOUNCE_ARGUMENT := "--announce="
 ## An --announce capture's file name part: announce_<tenths>_.
 const ANNOUNCE_PREFIX := "announce_%d_"
+const ANNOUNCE_SHIFT_PREFIX := "announce_shift%d_%d_"
 ## --machine's shift (#77): shift 1's passing row (Milk, Multipack, Milk x5 = 109), and the
 ## inspection a bonus ticket's shift passes.
 const MACHINE_ROW_IDS: Array[String] = ["milk", "multipack", "milk", "milk", "milk", "milk", "milk"]
@@ -141,7 +144,11 @@ func _ready() -> void:
 			await machine(machine_spec)
 		var announce_s: String = _argument(ANNOUNCE_ARGUMENT)
 		if announce_s != "":
-			await announce(announce_s.to_float())
+			var announce_parts: PackedStringArray = announce_s.split(",")
+			var announce_shift: int = 0
+			if announce_parts.size() > 1 and announce_parts[1].begins_with("shift="):
+				announce_shift = announce_parts[1].trim_prefix("shift=").to_int()
+			await announce(announce_parts[0].to_float(), announce_shift)
 		await capture(capture_folder)
 		get_tree().quit()
 
@@ -394,13 +401,18 @@ func _check_out_machine_shift(run: RunState, options: PackedStringArray) -> bool
 
 ## Starts a new run (the same seed) whose shift 1 announces a PREMIUM visit (v0.50: its machine
 ## BOOSTED after shift 1), then waits `seconds` of its planning; capture() then names its file
-## shift_screen_announce_<tenths>_<w>x<h>.png.
-func announce(seconds: float) -> void:
+## shift_screen_announce_<tenths>_<w>x<h>.png. With `shift_number` (> 0) the run jumps to that
+## shift of the real schedule instead (shift_screen_announce_shift<n>_<tenths>_<w>x<h>.png).
+func announce(seconds: float, shift_number: int = 0) -> void:
 	_screen.start_new_run(SEED)
-	var run: RunState = _screen.run
-	run.machine.machine = run.machine.machine.duplicate() as MachineDefinition
-	run.machine.machine.boosted_shifts = PackedInt32Array([run.shift_index + 1])
-	_machine_part = ANNOUNCE_PREFIX % roundi(seconds * 10.0)
+	if shift_number > 0:
+		_screen._debug.skip_to_shift(shift_number)
+		_machine_part = ANNOUNCE_SHIFT_PREFIX % [shift_number, roundi(seconds * 10.0)]
+	else:
+		var run: RunState = _screen.run
+		run.machine.machine = run.machine.machine.duplicate() as MachineDefinition
+		run.machine.machine.boosted_shifts = PackedInt32Array([run.shift_index + 1])
+		_machine_part = ANNOUNCE_PREFIX % roundi(seconds * 10.0)
 	await get_tree().create_timer(seconds).timeout
 
 

@@ -73,6 +73,10 @@ var _presses: PressReader
 var _swap_wait: float = -1.0
 var _notice_due: bool = false
 var _announce_prints: bool = true
+## Seconds left before the bonus notice pulses (-1: none due): an announce printing on the monitor
+## goes first, so the PASS IT plate never pulses hidden under its receipt (shifts 3, 5 and 7 are
+## both inspected and boosted).
+var _notice_wait: float = -1.0
 
 
 ## Builds the machine on `screen` (a screen child over the shade, added at the screen's call).
@@ -103,7 +107,7 @@ func setup(screen: ShiftScreen, event_log: EventLogService) -> RewardMachineView
 		var run: RunState = screen.run
 		return run != null and (run.phase == RunState.Phase.PLANNING or screen._counting)
 	screen._overlay.add_child(announce)
-	announce.setup(screen._monitor, screen._quota_meter.bar())
+	announce.setup(screen._monitor, screen._quota_meter.bar(), screen._quota_meter.flag())
 	return view
 
 
@@ -114,6 +118,7 @@ func shift_started(printing: bool = true) -> void:
 	announce.clear()
 	_announce_prints = printing
 	_notice_due = true
+	_notice_wait = -1.0
 
 
 ## A new run or a resume: no swap is due, none plays (a resume never replays one).
@@ -214,8 +219,12 @@ func _process(delta: float) -> void:
 			play_swaps()
 	if _notice_due and _return_t < 0.0:
 		_notice_due = false
-		_play_notice()
 		_play_announce()
+		_notice_wait = announce.print_left()
+	if _notice_wait >= 0.0:
+		_notice_wait -= delta
+		if _notice_wait < 0.0:
+			_play_notice()
 	if _return_t < 0.0:
 		return
 	_return_t += delta

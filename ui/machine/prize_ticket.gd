@@ -45,6 +45,8 @@ const RULE_WIDTH := 176.0
 const RULE_LINES := 3
 const NAME_LINES := 2
 const BOLD_WEIGHT := 800
+## The extra height of a pitched box, so rounding never drops its last line.
+const PITCH_SLACK := 1.0
 const RULE_WEIGHT := 600
 ## The pips (5x5 art px each, 1 apart) at the face's top right.
 const PIP_GRIDS: Array[String] = [
@@ -361,25 +363,13 @@ func _add_texts(_run: RunState) -> void:
 	_name.name = "Name"
 	var name_lines: int = mini(text_lines(bold, name_text, NAME_SIZE, NAME_WIDTH), NAME_LINES)
 	_name.max_lines_visible = NAME_LINES
-	_pitch(_name, bold, NAME_SIZE, NAME_PITCH)
-	RewardMachineView.fit(
-		_name, Rect2((SIZE.x - NAME_WIDTH) / 2.0, NAME_TOP, NAME_WIDTH, NAME_PITCH * name_lines)
-	)
+	_fit_pitched(_name, bold, NAME_SIZE, NAME_PITCH, Vector2(NAME_WIDTH, NAME_TOP), name_lines)
 	var rule_font: Font = ArtStyle.bold_font(RULE_WEIGHT)
 	_rule = _label(rule_text(prize, _preview), RULE_SIZE, rule_font, Palette.INK)
 	_rule.name = "Rule"
 	_rule.max_lines_visible = RULE_LINES
-	_pitch(_rule, rule_font, RULE_SIZE, RULE_PITCH)
 	var rule_top: float = NAME_TOP + NAME_PITCH * name_lines + RULE_GAP
-	RewardMachineView.fit(
-		_rule,
-		Rect2(
-			(SIZE.x - RULE_WIDTH) / 2.0,
-			rule_top,
-			RULE_WIDTH,
-			minf(RULE_PITCH * RULE_LINES, SIZE.y - 6.0 - rule_top)
-		)
-	)
+	_fit_pitched(_rule, rule_font, RULE_SIZE, RULE_PITCH, Vector2(RULE_WIDTH, rule_top), RULE_LINES)
 	_rule.vertical_alignment = VERTICAL_ALIGNMENT_TOP
 
 
@@ -395,9 +385,19 @@ func _label(text: String, font_size: int, font: Font, colour: Color) -> Label:
 	return label
 
 
-## Sets `label`'s line spacing so its lines are `pitch` px apart.
-static func _pitch(label: Label, font: Font, font_size: int, pitch: float) -> void:
-	label.add_theme_constant_override("line_spacing", int(pitch - font.get_height(font_size)))
+## Sets `label`'s line spacing so its lines are `pitch` px apart and fits it centred in a box
+## `band.x` wide whose first line's middle sits at `band.y + pitch / 2`. The box is one font height
+## plus a pitch per further line (`lines` in all), so Godot shows every line: a box only
+## `pitch * lines` high holds one line fewer when the font is taller than the pitch.
+static func _fit_pitched(
+	label: Label, font: Font, font_size: int, pitch: float, band: Vector2, lines: int
+) -> void:
+	var height: float = font.get_height(font_size)
+	var spacing: int = roundi(pitch - height)
+	label.add_theme_constant_override("line_spacing", spacing)
+	var box: float = height + (height + spacing) * (lines - 1) + PITCH_SLACK
+	var top: float = band.y + (pitch - height) / 2.0 - PITCH_SLACK / 2.0
+	RewardMachineView.fit(label, Rect2((SIZE.x - band.x) / 2.0, top, band.x, box))
 
 
 func _band_colour() -> Color:
