@@ -1,0 +1,2 @@
+; Cream GOLDEN: the cream mini with its ink outline turned gold. A derived source: no grid.
+@derive cream golden=outline

@@ -1,0 +1,3 @@
+; Iced bun GOLDEN (#89 item tier): iced_bun_big with a bronze bun (brown to brass), pale gold icing (pink ramp to mustard pale, gold, brass) and the red cherry kept.
+; A derived source: no grid, tools/pixel_art.py builds it from the BIG source.
+@derive iced_bun_big golden=keys O=Y o=n R=L h=L F=l f=k e=k glint

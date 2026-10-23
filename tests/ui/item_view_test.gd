@@ -618,9 +618,12 @@ func test_sprites_come_from_art_ref() -> void:
 		ItemView.SPRITE_SIZE
 	)
 	assert_str(bread.name_label().text).is_equal("Bread")
-	var repeat: ItemView = await _laid_out(
-		load("%s/repeat.tres" % CARDS), ItemView.Form.BELT, BELT_ORIGIN
+	# A coupon with no icon (every pool coupon has one since v0.52).
+	var plain_repeat: CardDefinition = (
+		(load("%s/repeat.tres" % CARDS) as CardDefinition).duplicate()
 	)
+	plain_repeat.art_ref = ""
+	var repeat: ItemView = await _laid_out(plain_repeat, ItemView.Form.BELT, BELT_ORIGIN)
 	assert_object(repeat.sprite().texture).is_same(ArtStyle.COUPON_SLIP)
 	assert_str(repeat.name_label().text).is_equal("Repeat")
 	var multipack: CardDefinition = (

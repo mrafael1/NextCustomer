@@ -10,7 +10,7 @@ const BALANCE := "res://data/balance/balance.tres"
 const CATALOGUE := "res://data/catalogue/catalogue.tres"
 const DECKS_DIR := "res://data/decks"
 ## The products with a chain: the starter's 4 (#77), then Bread, Soup and the 14 base aisle
-## items (#89 data, v0.48). The 30 capsule products stay plain.
+## items (#89 data, v0.48), then the 30 capsule products, aisle by aisle (#89 + #58, v0.52).
 const CHAINED: Array[StringName] = [
 	&"banana",
 	&"milk",
@@ -32,10 +32,41 @@ const CHAINED: Array[StringName] = [
 	&"scissors",
 	&"batteries",
 	&"flickering_bulb",
+	&"baguette",
+	&"scone",
+	&"croissant",
+	&"broken_biscuit",
+	&"iced_bun",
+	&"birthday_candles",
+	&"squashed_cake",
+	&"stale_doughnut",
+	&"cream",
+	&"ham_ends",
+	&"fruit_salad",
+	&"strawberries",
+	&"grapefruit",
+	&"wonky_carrot",
+	&"lemon",
+	&"bruised_apples",
+	&"soft_tomatoes",
+	&"potatoes",
+	&"egg_timer",
+	&"chipped_mug",
+	&"odd_socks",
+	&"sugar_cubes",
+	&"mixed_herbs",
+	&"crisps",
+	&"cereal_bar",
+	&"bent_lolly",
+	&"pick_n_mix",
+	&"stale_popcorn",
+	&"breadsticks",
+	&"dusty_toffees",
 ]
 ## The tier rule (v0.48): BIG adds `TIER_BASE_STEP` to the base and keeps the rule; GOLDEN keeps
 ## BIG's base and doubles the bonus (`bonus`, `bonus_each`, or `bonus_factor` when the bonus is
-## the base), a charged multiplier gains 1 charge instead, and a card with no bonus (Bread, Soup)
+## the base), a charged multiplier gains 1 charge instead, and a card with no bonus (Bread, Soup,
+## Potatoes)
 ## adds `TIER_BASE_STEP` to the base again. HAND_SET lists the GOLDEN rule values set by hand
 ## instead (plan section 7.2): Carrier bag's +5 per earlier Food would double to +10 each.
 const TIER_BASE_STEP := 2
@@ -158,7 +189,7 @@ func test_every_chain_follows_the_tier_rule() -> void:
 			flat.append(plain.id)
 		var golden_base: int = chain.big.base + (TIER_BASE_STEP if bonuses == 0 else 0)
 		assert_int(chain.golden.base).override_failure_message(where).is_equal(golden_base)
-	assert_array(flat).contains_exactly_in_any_order([&"bread", &"soup"])
+	assert_array(flat).contains_exactly_in_any_order([&"bread", &"soup", &"potatoes"])
 	for id: StringName in HAND_SET:
 		assert_array(CHAINED).contains([id])
 
@@ -244,6 +275,14 @@ func test_tier_values_and_stickers(
 		["batteries_golden", 3, "+8 in last slot"],
 		["flickering_bulb_big", 3, "+3 next Clearance"],
 		["flickering_bulb_golden", 3, "+6 next Clearance"],
+		# A few of the capsule products' (v0.52): the charged multipliers and the flat Potatoes.
+		["lemon_big", 3, "×2 next Produce"],
+		["lemon_golden", 3, "×2 next 2 Produce"],
+		["iced_bun_golden", 3, "×2 next 2 Bakery"],
+		["squashed_cake_golden", 4, "×2 next 2 Clearance"],
+		["potatoes_big", 5, ""],
+		["potatoes_golden", 7, ""],
+		["pick_n_mix_golden", 3, "+4 per earlier Snack"],
 	]
 ) -> void:
 	var card: CardDefinition = _card(id)
@@ -277,6 +316,9 @@ func test_changed_fields_from_the_tier_below(
 		["scissors", PackedStringArray(["base"]), PackedStringArray(["bonus_each"])],
 		["batteries", PackedStringArray(["base"]), PackedStringArray(["bonus"])],
 		["flickering_bulb", PackedStringArray(["base"]), PackedStringArray(["bonus"])],
+		["lemon", PackedStringArray(["base"]), PackedStringArray(["charges"])],
+		["potatoes", PackedStringArray(["base"]), PackedStringArray(["base"])],
+		["mixed_herbs", PackedStringArray(["base"]), PackedStringArray(["bonus"])],
 	]
 ) -> void:
 	var plain: CardDefinition = _card(product)

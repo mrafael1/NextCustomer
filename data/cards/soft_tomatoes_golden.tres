@@ -1,0 +1,27 @@
+[gd_resource type="Resource" script_class="CardDefinition" format=3]
+
+[ext_resource type="Script" path="res://core/rule.gd" id="1_rule"]
+[ext_resource type="Script" path="res://core/rules/adjacent_match_bonus_rule.gd" id="2_soft_tomatoes"]
+[ext_resource type="Script" path="res://core/card_definition.gd" id="3_card"]
+[ext_resource type="Resource" path="res://data/cards/soft_tomatoes.tres" id="9_plain"]
+
+[sub_resource type="Resource" id="Resource_soft_tomatoes"]
+script = ExtResource("2_soft_tomatoes")
+match_by = 2
+match_value = "soup"
+position = 2
+bonus = 4
+receipt_text = "Soft tomatoes beside Soup"
+
+[resource]
+script = ExtResource("3_card")
+id = &"soft_tomatoes_golden"
+display_name = "Golden Soft tomatoes"
+kind = 1
+tags = PackedStringArray("Food", "Produce", "Clearance")
+base = 4
+rules = Array[ExtResource("1_rule")]([SubResource("Resource_soft_tomatoes")])
+rule_text = "+4 if beside Soup"
+art_ref = "res://art/items_v2/soft_tomatoes_golden.png"
+variant_of = ExtResource("9_plain")
+tier = 2

@@ -1,0 +1,2 @@
+; Sugar cubes GOLDEN: the sugar cubes mini with its ink outline turned gold. A derived source: no grid.
+@derive sugar_cubes golden=outline

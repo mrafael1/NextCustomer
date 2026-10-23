@@ -54,6 +54,32 @@ func test_every_icon_ref_loads() -> void:
 	assert_str(_upgrade("extra_redraw").icon_ref).is_equal("res://art/icons/redraw_arrow.png")
 
 
+## Every upgrade a run can be offered (balance.upgrade_pool) has its own perk icon (#59 subset,
+## v0.52: Coupon engine, Slot engine and Extra coupon slot joined the earlier three), no two the
+## same, so no LOYALTY ticket falls back to initials.
+func test_every_pool_upgrade_has_its_own_icon() -> void:
+	var balance: BalanceDefinition = load("res://data/balance/balance.tres")
+	var icons: Dictionary[String, StringName] = {}
+	for upgrade: UpgradeDefinition in balance.upgrade_pool:
+		var message: String = "%s: %s" % [upgrade.id, upgrade.icon_ref]
+		assert_str(upgrade.icon_ref).override_failure_message(message).is_not_empty()
+		(
+			assert_bool(ResourceLoader.exists(upgrade.icon_ref))
+			. override_failure_message(message)
+			. is_true()
+		)
+		assert_bool(icons.has(upgrade.icon_ref)).override_failure_message(message).is_false()
+		icons[upgrade.icon_ref] = upgrade.id
+	assert_int(icons.size()).is_equal(balance.upgrade_pool.size())
+	assert_str(_upgrade("coupon_engine").icon_ref).is_equal(
+		"res://art/icons/perk_coupon_engine.png"
+	)
+	assert_str(_upgrade("slot_engine").icon_ref).is_equal("res://art/icons/perk_slot_engine.png")
+	assert_str(_upgrade("extra_coupon_slot").icon_ref).is_equal(
+		"res://art/icons/perk_extra_coupon_slot.png"
+	)
+
+
 static func _upgrade(id: String) -> UpgradeDefinition:
 	return load("%s/%s.tres" % [UPGRADE_DIR, id])
 

@@ -1,0 +1,27 @@
+[gd_resource type="Resource" script_class="CardDefinition" format=3]
+
+[ext_resource type="Script" path="res://core/rule.gd" id="1_rule"]
+[ext_resource type="Script" path="res://core/rules/adjacent_match_bonus_rule.gd" id="2_bruised_apples"]
+[ext_resource type="Script" path="res://core/card_definition.gd" id="3_card"]
+[ext_resource type="Resource" path="res://data/cards/bruised_apples.tres" id="9_plain"]
+
+[sub_resource type="Resource" id="Resource_bruised_apples"]
+script = ExtResource("2_bruised_apples")
+match_by = 3
+match_value = "Clearance"
+position = 2
+bonus = 6
+receipt_text = "Bruised apples beside Clearance"
+
+[resource]
+script = ExtResource("3_card")
+id = &"bruised_apples_golden"
+display_name = "Golden Bruised apples"
+kind = 1
+tags = PackedStringArray("Food", "Produce", "Clearance")
+base = 4
+rules = Array[ExtResource("1_rule")]([SubResource("Resource_bruised_apples")])
+rule_text = "+6 if beside a Clearance product"
+art_ref = "res://art/items_v2/bruised_apples_golden.png"
+variant_of = ExtResource("9_plain")
+tier = 2

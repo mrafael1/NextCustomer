@@ -1,0 +1,13 @@
+; Coupon engine's perk icon (UpgradeDefinition.icon_ref; the LOYALTY prize's badge, v0.50): a
+; small coupon slip (a cream-shade stub with two ink bites, paper face) carrying the combo
+; diamond in mustard (lit top left, mustard dark at the bottom right), "the first coupon pays
+; more". 9x7, shown at 2x art on the badge, 2 px clear of its ink border.
+@size 9x7
+@kind icon
+#########
+#bwwwMww#
+.bwwMyMw#
+#bwMyMMm#
+.bwwMMmw#
+#bwwwmwc#
+#########

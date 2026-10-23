@@ -22,3 +22,6 @@ base = 1
 rules = Array[ExtResource("1_rule")]([SubResource("Resource_chipped_mug")])
 rule_text = "+3 if beside Coffee"
 sticker_text = "+{bonus} beside Coffee"
+art_ref = "res://art/items_v2/chipped_mug.png"
+mini_art_ref = "res://art/minis/chipped_mug.png"
+mini_golden_art_ref = "res://art/minis/chipped_mug_golden.png"

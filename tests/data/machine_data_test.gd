@@ -140,7 +140,7 @@ func test_the_shift_lists_fit_the_run() -> void:
 
 
 ## The UPGRADES chute upgrades the live chains: the starter's 4 (#77), then Bread, Soup and the
-## 14 base aisle items (v0.48).
+## 14 base aisle items (v0.48), then the 30 capsule products (v0.52).
 func test_the_machine_upgrades_the_live_chains() -> void:
 	var products: Array[String] = []
 	for chain: ItemUpgradeDefinition in _machine.item_upgrades:
@@ -169,6 +169,36 @@ func test_the_machine_upgrades_the_live_chains() -> void:
 				"scissors",
 				"batteries",
 				"flickering_bulb",
+				"baguette",
+				"scone",
+				"croissant",
+				"broken_biscuit",
+				"iced_bun",
+				"birthday_candles",
+				"squashed_cake",
+				"stale_doughnut",
+				"cream",
+				"ham_ends",
+				"fruit_salad",
+				"strawberries",
+				"grapefruit",
+				"wonky_carrot",
+				"lemon",
+				"bruised_apples",
+				"soft_tomatoes",
+				"potatoes",
+				"egg_timer",
+				"chipped_mug",
+				"odd_socks",
+				"sugar_cubes",
+				"mixed_herbs",
+				"crisps",
+				"cereal_bar",
+				"bent_lolly",
+				"pick_n_mix",
+				"stale_popcorn",
+				"breadsticks",
+				"dusty_toffees",
 			]
 		)
 	)

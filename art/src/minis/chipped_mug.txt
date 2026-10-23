@@ -1,0 +1,11 @@
+; A giver-badge mini (sticker minis): Chipped mug, a teal mug with a handle and a chip in the rim.
+; 7x7, ink outline, light from the top left; its GOLDEN copy (chipped_mug_golden) is derived (@derive ... golden=outline).
+@size 7x7
+@kind icon
+.......
+#.###..
+#c#w###
+#544#.#
+#543###
+#443#..
+#####..

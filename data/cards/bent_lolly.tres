@@ -22,3 +22,6 @@ base = 2
 rules = Array[ExtResource("1_rule")]([SubResource("Resource_bent_lolly")])
 rule_text = "+3 if immediately after a Snack product"
 sticker_text = "+{bonus} after {match_value}"
+art_ref = "res://art/items_v2/bent_lolly.png"
+mini_art_ref = "res://art/minis/bent_lolly.png"
+mini_golden_art_ref = "res://art/minis/bent_lolly_golden.png"

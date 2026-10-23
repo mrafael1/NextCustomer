@@ -22,3 +22,6 @@ base = 2
 rules = Array[ExtResource("1_rule")]([SubResource("Resource_wonky_carrot")])
 rule_text = "+3 if immediately after a Produce product"
 sticker_text = "+{bonus} after {match_value}"
+art_ref = "res://art/items_v2/wonky_carrot.png"
+mini_art_ref = "res://art/minis/wonky_carrot.png"
+mini_golden_art_ref = "res://art/minis/wonky_carrot_golden.png"

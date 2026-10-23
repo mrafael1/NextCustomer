@@ -1,0 +1,12 @@
+; A giver-badge mini (sticker minis, mock-up docs/art/mockups/sticker_minis_v1.html): Pick 'n' mix, a cellophane bag tied with a velvet ribbon, full of tomato, mustard, green and velvet sweets.
+; Drawn in the approved minis' style for #58's capsule items. 7x7, ink outline, light from the top left; shown die-cut (alone) at 2x on a planning sticker's
+; giver badge. Its GOLDEN copy (pick_n_mix_golden) is derived (@derive ... golden=outline).
+@size 7x7
+@kind icon
+.#666#.
+..#X#..
+.#RM6#.
+#MGRXG#
+#RXMGR#
+.#GRM#.
+..###..

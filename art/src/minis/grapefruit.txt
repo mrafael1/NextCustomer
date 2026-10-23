@@ -1,0 +1,12 @@
+; A giver-badge mini (sticker minis, mock-up docs/art/mockups/sticker_minis_v1.html): Grapefruit, a round slice seen face on: a peach rind ring around pink segments (light walls) and a paper core (round and pink, so not the lemon).
+; #58 drawing in the approved minis' style. 7x7, ink outline, light from the top left; shown die-cut (alone) at 2x on a planning sticker's
+; giver badge. Its GOLDEN copy (grapefruit_golden) is derived (@derive ... golden=outline).
+@size 7x7
+@kind icon
+..###..
+.#YOo#.
+#ORoRo#
+#OowoR#
+#oRoRr#
+.#oRr#.
+..###..

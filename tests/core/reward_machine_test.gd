@@ -886,12 +886,14 @@ func _normal_only() -> MachineDefinition:
 	return definition
 
 
-## A run whose cart holds nothing UPGRADES can step (a GOLDEN copy and a product with no chain).
+## A run whose cart holds nothing UPGRADES can step (a GOLDEN copy and a coupon).
 func _golden_run() -> RunState:
 	var run: RunState = _run()
 	run.deck = Deck.new(RandomNumberGenerator.new())
 	run.deck.add_card(load("%s/eggs_golden.tres" % CARDS_DIR))
-	run.deck.add_card(load("%s/croissant.tres" % CARDS_DIR))
+	# A coupon: since v0.52 every product has a chain (the capsule products too), so nothing
+	# else in the cart can step.
+	run.deck.add_card(load("%s/repeat.tres" % CARDS_DIR))
 	return run
 
 

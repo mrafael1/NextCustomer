@@ -287,6 +287,36 @@ func test_every_two_aisle_list_deals_thirteen_cards() -> void:
 				assert_int(decks.size()).override_failure_message(where).is_greater(1)
 
 
+## The capsule products have chains since v0.52 (#89), but the game's recipe keeps them out of
+## the draw (random_capsules off, the user decides: plan 7.2), so the deal is as before them; a
+## recipe with random_capsules on draws them too.
+func test_capsule_products_join_the_draw_only_when_the_recipe_says_so() -> void:
+	assert_bool(_recipe.random_capsules).is_false()
+	var unlocked: Dictionary[StringName, int] = {}
+	var capsules: Array[CardDefinition] = []
+	for aisle: AisleDefinition in _balance.aisles:
+		for card: CardDefinition in aisle.capsule_cards:
+			unlocked[card.id] = 0
+			capsules.append(card)
+	var listed: Array[StringName] = [&"bakery", &"snacks"]
+	var stock: RunStock = RunStock.build(_balance, listed, unlocked, 1)
+	var chains: Array[ItemUpgradeDefinition] = _balance.machine.item_upgrades
+	var kept: Array[ItemUpgradeDefinition] = StartingDeck.without_capsules(chains, _balance)
+	assert_int(kept.size()).is_equal(chains.size() - capsules.size())
+	var open: DeckDefinition = _recipe.duplicate()
+	open.random_capsules = true
+	var drew_capsule: bool = false
+	for seed_value: int in SEEDS:
+		var dealt: DeckDefinition = StartingDeck.deal(_recipe, stock, _balance, _stream(seed_value))
+		for card: CardDefinition in dealt.cards.slice(5):
+			assert_bool(capsules.has(card)).override_failure_message(String(card.id)).is_false()
+		var wide: DeckDefinition = StartingDeck.deal(open, stock, _balance, _stream(seed_value))
+		assert_bool(wide.random_capsules).is_true()
+		for card: CardDefinition in wide.cards.slice(5):
+			drew_capsule = drew_capsule or capsules.has(card)
+	assert_bool(drew_capsule).is_true()
+
+
 ## Data: the staples alone fill the deal (their room under copy_max, the core copies counted, is
 ## at least random_count), so a stock with no other chained product still deals 13 cards.
 func test_the_staples_alone_fill_the_deal() -> void:

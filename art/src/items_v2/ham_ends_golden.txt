@@ -1,0 +1,3 @@
+; Ham ends GOLDEN (#89 item tier): ham_ends_big through its own map (gold meat and rind; the fat and twine kept).
+; A derived source: no grid, tools/pixel_art.py builds it from the BIG source.
+@derive ham_ends_big golden=keys O=Y o=n R=L h=n F=L f=l e=k glint

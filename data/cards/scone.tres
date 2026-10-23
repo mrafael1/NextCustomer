@@ -23,3 +23,6 @@ rules = Array[ExtResource("1_rule")]([SubResource("Resource_scone")])
 rule_text = "+3 if beside a Dairy product"
 sticker_text = "+{bonus} beside {match_value}"
 generally_useful = true
+art_ref = "res://art/items_v2/scone.png"
+mini_art_ref = "res://art/minis/scone.png"
+mini_golden_art_ref = "res://art/minis/scone_golden.png"

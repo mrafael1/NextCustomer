@@ -27,6 +27,10 @@ extends Resource
 @export var random_coupon_count: int = 0
 ## The most copies of one card a dealt recipe holds, its core cards included.
 @export var copy_max: int = 0
+## Whether a recipe also draws capsule products (an aisle's capsule_cards) that have an item-tier
+## chain (v0.52). Off: the draw keeps to the fresh-stock products, as before their chains (#89);
+## the user decides whether capsule products join it (full build plan 7.2, TODO(S2)).
+@export var random_capsules: bool = false
 ## An upgrade the run owns from the start (optional): offers skip it, and it takes a box of its
 ## own on the loyalty card before the upgrade-shift boxes.
 @export var starting_upgrade: UpgradeDefinition

@@ -1,0 +1,27 @@
+[gd_resource type="Resource" script_class="CardDefinition" format=3]
+
+[ext_resource type="Script" path="res://core/rule.gd" id="1_rule"]
+[ext_resource type="Script" path="res://core/rules/adjacent_match_bonus_rule.gd" id="2_egg_timer"]
+[ext_resource type="Script" path="res://core/card_definition.gd" id="3_card"]
+[ext_resource type="Resource" path="res://data/cards/egg_timer.tres" id="9_plain"]
+
+[sub_resource type="Resource" id="Resource_egg_timer"]
+script = ExtResource("2_egg_timer")
+match_by = 2
+match_value = "eggs"
+position = 1
+bonus = 4
+receipt_text = "Egg timer after Eggs"
+
+[resource]
+script = ExtResource("3_card")
+id = &"egg_timer_big"
+display_name = "Big Egg timer"
+kind = 1
+tags = PackedStringArray("Household", "Breakfast")
+base = 3
+rules = Array[ExtResource("1_rule")]([SubResource("Resource_egg_timer")])
+rule_text = "+4 if immediately after Eggs"
+art_ref = "res://art/items_v2/egg_timer_big.png"
+variant_of = ExtResource("9_plain")
+tier = 1

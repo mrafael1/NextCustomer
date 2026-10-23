@@ -1,0 +1,11 @@
+; A giver-badge mini (sticker minis): Ham ends, a dome of ham: brown rind, white fat, pink meat.
+; 7x7, ink outline, light from the top left; its GOLDEN copy (ham_ends_golden) is derived (@derive ... golden=outline).
+@size 7x7
+@kind icon
+.......
+..###..
+.#hhF#.
+#wwwwc#
+#OoooR#
+#ooRRR#
+.#####.

@@ -1,0 +1,11 @@
+; A giver-badge mini (sticker minis): Cream, the squirty cream can: nozzle, white can, velvet label with a white swirl.
+; 7x7, ink outline, light from the top left; its GOLDEN copy (cream_golden) is derived (@derive ... golden=outline).
+@size 7x7
+@kind icon
+...##..
+..#wb#.
+.#wcb#.
+.#XwV#.
+.#xwV#.
+.#wcb#.
+.#####.

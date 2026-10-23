@@ -17,3 +17,4 @@ tags = PackedStringArray()
 rules = Array[ExtResource("1_rule")]([SubResource("Resource_shelf_swap")])
 rule_text = "The product in the next slot also counts as just after the first product"
 sticker_text = "Next also follows the 1st"
+art_ref = "res://art/icons/coupon_shelf_swap_v2.png"

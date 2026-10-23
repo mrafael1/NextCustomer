@@ -10,7 +10,8 @@ extends RefCounted
 ##
 ## The drawable coupons are the stock's coupons (its coupon pool, RunStock), in stock order. The
 ## drawable products are the stock's products that have an item-tier chain (a chain's plain card
-## in the balance's MachineDefinition.item_upgrades), so UPGRADES can grow every dealt card. A
+## in the balance's MachineDefinition.item_upgrades), so UPGRADES can grow every dealt card; a
+## capsule product only when the recipe's random_capsules is on (v0.52, off in the game's). A
 ## card never goes past the recipe's copy_max, its core copies included. Each draw picks one of
 ## the cards still below copy_max, equally likely (one randi_range per draw); a draw ends short
 ## when none is left. The dealt cards follow the core cards: the coupons, then the products, each
@@ -27,6 +28,8 @@ static func deal(
 	var chains: Array[ItemUpgradeDefinition] = []
 	if balance.machine != null:
 		chains = balance.machine.item_upgrades
+	if not recipe.random_capsules:
+		chains = without_capsules(chains, balance)
 	var copies: Dictionary[CardDefinition, int] = {}
 	for core: CardDefinition in recipe.core_cards:
 		copies[core] = int(copies.get(core, 0)) + 1
@@ -50,6 +53,21 @@ static func drawable(
 		):
 			found.append(card)
 	return found
+
+
+## `chains` without the capsule products' (an aisle's capsule_cards, v0.52), in order: a recipe
+## with random_capsules off draws only the fresh-stock products.
+static func without_capsules(
+	chains: Array[ItemUpgradeDefinition], balance: BalanceDefinition
+) -> Array[ItemUpgradeDefinition]:
+	var capsules: Array[CardDefinition] = []
+	for aisle: AisleDefinition in balance.aisles:
+		capsules.append_array(aisle.capsule_cards)
+	var kept: Array[ItemUpgradeDefinition] = []
+	for chain: ItemUpgradeDefinition in chains:
+		if not capsules.has(chain.product):
+			kept.append(chain)
+	return kept
 
 
 ## The stock's coupons a recipe can draw (the run's coupon pool), in stock order.
@@ -98,6 +116,7 @@ static func with_cards(recipe: DeckDefinition, cards: Array[CardDefinition]) -> 
 	dealt.random_count = recipe.random_count
 	dealt.random_coupon_count = recipe.random_coupon_count
 	dealt.copy_max = recipe.copy_max
+	dealt.random_capsules = recipe.random_capsules
 	dealt.starting_upgrade = recipe.starting_upgrade
 	dealt.unlock_condition = recipe.unlock_condition
 	dealt.cards = cards.duplicate()

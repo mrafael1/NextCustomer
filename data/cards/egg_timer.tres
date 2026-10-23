@@ -22,3 +22,6 @@ base = 1
 rules = Array[ExtResource("1_rule")]([SubResource("Resource_egg_timer")])
 rule_text = "+4 if immediately after Eggs"
 sticker_text = "+{bonus} after Eggs"
+art_ref = "res://art/items_v2/egg_timer.png"
+mini_art_ref = "res://art/minis/egg_timer.png"
+mini_golden_art_ref = "res://art/minis/egg_timer_golden.png"

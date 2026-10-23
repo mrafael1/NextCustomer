@@ -1,0 +1,2 @@
+; Odd socks GOLDEN: the odd socks mini with its ink outline turned gold. A derived source: no grid.
+@derive odd_socks golden=outline

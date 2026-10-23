@@ -20,3 +20,6 @@ base = 1
 rules = Array[ExtResource("1_rule")]([SubResource("Resource_birthday_candles")])
 rule_text = "+3 to the next Bakery product"
 sticker_text = "+{bonus} next {tag}"
+art_ref = "res://art/items_v2/birthday_candles.png"
+mini_art_ref = "res://art/minis/birthday_candles.png"
+mini_golden_art_ref = "res://art/minis/birthday_candles_golden.png"

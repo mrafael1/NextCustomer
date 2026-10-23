@@ -1,0 +1,3 @@
+; Dusty toffees GOLDEN (#89 item tier for #58's capsule items): dusty_toffees_big through its own map: gold foil toffees, the grey dust kept.
+; A derived source: no grid, tools/pixel_art.py builds it from the BIG source.
+@derive dusty_toffees_big golden=keys X=n x=L V=l glint

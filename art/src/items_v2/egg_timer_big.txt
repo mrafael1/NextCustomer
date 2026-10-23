@@ -1,0 +1,52 @@
+; Egg timer BIG (#89 item tier): a second hourglass behind (up and to the right).
+; Laid out from egg_timer.txt with a scratch script, hand-editable. GOLDEN is derived from it (egg_timer_golden.txt).
+@size 48x48
+@kind item
+................................................
+................................................
+..................############################..
+....############################QQQQQQQQQQQQQQ#.
+...#QQQQQQQQQQQQQQQQQQQQQQQQQQQQ#QQQQQQQQQQQTTT#
+..#QQQQQQQQQQQQQQQQQQQQQQQQQQQTTT#SSSSSSSSSSTTT#
+..#SSSSSSSSSSSSSSSSSSSSSSSSSSSTTT#TTTTTTTTTTTTT#
+..#STTTTTTTTTTTTTTTTTTTTTTTTTTTTT#TTTTTTTTTTTT#.
+...#TTTTTTTTTTTTTTTTTTTTTTTTTTTT##############..
+....############################pppp6666#SSST#..
+....#SSST#jjjppppppppp6666#SSST#pppp6666#SSST#..
+....#SSST#jjjppppppppp6666#SSST#pppp666#QSSSTT#.
+...#QSSSTT#jwppppppppp666#QSSSTT#ppp666#QSSSTT#.
+...#QSSSTT#jwppppppppp666#QSSSTT#ppp666##SSST#..
+....#SSST#jjwjpppppppp666##SSST#pppp666##SSST#..
+....#SSST#jjwjpppppppp666##SSST#pppp666##SSST#..
+....#SSST#jjjjpppppppp666##SSST#ppMmmm#.#SSST#..
+....#SSST##yyyypppppMmmm#y#SSST#ppMmmm#.#SSST#..
+....#SSST##yyyypppppMmmm###SSST#MMMmm#..#SSST#..
+....#SSST#.#yyyMMMMMMmm#..#SSST#MMMm#...#SSST#..
+....#SSST#..#yyMMMMMMm##..#SSST#MMMm#...#SSST#..
+....#SSST#..#yyMMMMMMm##..#SSST#MMM#....#SSST#..
+....#SSST#...#yMMMMMM#TT#.#SSST#MM#....#QSSSTT#.
+...#QSSSTT#...#MMMMM#STT##QSSSTT##.....#QSSSTT#.
+...#QSSSTT#....#MMM#SSTT##QSSSTT##.....#QSSSTT#.
+...#QSSSTT#....#jMM#SSTT##QSSSTT#6#....#QSSSTT#.
+...#QSSSTT#...#jpMM6#ST#.#QSSSTT#66#....#SSST#..
+....#SSST#...#jjpMM66#T#..#SSST#Mp66#...#SSST#..
+....#SSST#..#jjppMMp66##..#SSST#Mp66#...#SSST#..
+....#SSST#..#jjppMMp66##.##SSST#Mpp66#..#SSST#..
+....#SSST#.#jjjppMMpp66##j#SSST#Mpp666#.#SSST#..
+....#SSST##jjjpppMMpp666#j#SSST#Mpp666#.#SSST#..
+....#SSST##jjjpppMMpp666#j#SSST#Mppp666##SSST#..
+....#SSST#jjwjppMMMppp666##SSST#MMpp666##SSST#..
+....#SSST#jjwjpMMMMMpp666##SSST#MMMp666##SSST#..
+....#SSST#jjjjyMMMMMMp666##SSST#MMMm666#QSSSTT#.
+...#QSSSTT#jjyyMMMMMMm666#QSSSTT#MMmm66#QSSSTT#.
+...#QSSSTT#jyyyMMMMMMmm66#QSSSTT#MMmmm66#SSST#..
+....#SSST#jyyyyMMMMMMmmm66#SSST#MMMmmmm6#SSST#..
+....#SSST#yyyyyMMMMMMmmmm6#SSST###############..
+....############################QQQQQQQQQQQQQQ#.
+...#QQQQQQQQQQQQQQQQQQQQQQQQQQQQ#QQQQQQQQQQQTTT#
+..#QQQQQQQQQQQQQQQQQQQQQQQQQQQTTT#SSSSSSSSSSTTT#
+..#SSSSSSSSSSSSSSSSSSSSSSSSSSSTTT#SSSSSSSSSSTTT#
+..#SSSSSSSSSSSSSSSSSSSSSSSSSSSTTT#UUUUUUUUUUTTT#
+..#SUUUUUUUUUUUUUUUUUUUUUUUUUUTTT#TTTTTTTTTTTT#.
+...#TTTTTTTTTTTTTTTTTTTTTTTTTTTT##############..
+....############################................

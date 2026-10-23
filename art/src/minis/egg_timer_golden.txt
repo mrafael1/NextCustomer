@@ -1,0 +1,2 @@
+; Egg timer GOLDEN: the egg timer mini with its ink outline turned gold. A derived source: no grid.
+@derive egg_timer golden=outline

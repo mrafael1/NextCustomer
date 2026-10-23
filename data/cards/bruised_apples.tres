@@ -22,3 +22,6 @@ base = 2
 rules = Array[ExtResource("1_rule")]([SubResource("Resource_bruised_apples")])
 rule_text = "+3 if beside a Clearance product"
 sticker_text = "+{bonus} beside {match_value}"
+art_ref = "res://art/items_v2/bruised_apples.png"
+mini_art_ref = "res://art/minis/bruised_apples.png"
+mini_golden_art_ref = "res://art/minis/bruised_apples_golden.png"

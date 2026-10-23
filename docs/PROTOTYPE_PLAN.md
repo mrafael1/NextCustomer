@@ -1,6 +1,6 @@
 # Next Customer: Prototype Plan
 
-> Status: v0.43, closed at proto-r1. The full build (`docs/FULL_BUILD_PLAN.md`) has taken over; this plan stays the scoring-rule spec (sections 3–5) and changes only when a rule does.
+> Status: v0.44, closed at proto-r1. The full build (`docs/FULL_BUILD_PLAN.md`) has taken over; this plan stays the scoring-rule spec (sections 3–5) and changes only when a rule does.
 > Source: the original "Receipt Rogue" game design plan, plus the decisions made in planning.
 > Engine: Godot 4 (exact version pinned in `AGENTS.md`), GDScript with static typing. Playtest builds are delivered in the browser.
 
@@ -86,7 +86,7 @@ Coupons go through the same steps at their own slot. A coupon has base 0 and no 
 | A coupon between two products | **Breaks adjacency** between them, unless a coupon's rule links them, or the Rule bender upgrade does (section 3.8) |
 | Links (since v0.23) | A link works both ways (the earlier product also counts as just before the later one), and one side can hold several products: a product keeps its real neighbour and gains every product linked to it. A rule that names a neighbour checks them all. |
 | "Same product" (since v0.23) | The same card, where a variant counts as its base card (`variant_of`, one level). It applies everywhere a rule compares products: 2 for 1, Banana-style "same card" bonuses, rules that name a card (Cheese after Organic Bread gets +4). Decided with the user. (A "duplicate payouts" inspection would have used it; it was rejected in v0.25, section 3.9.) |
-| Item tiers (v0.36, issue #77) | A product the RECEIPT REWARDS machine upgrades becomes BIG, then GOLDEN: one copy in the deck is replaced by a tier card (`CardDefinition.tier`), a variant of its plain card (`variant_of`), so it is the same product everywhere (the Banana pair, 2 for 1, rules that name a card, builds). Only the products with a chain in `data/item_upgrades/` can be upgraded (Banana, Milk, Eggs, Coffee; since v0.41 also Bread, Soup, Cheese, Frozen peas, Butter, Yogurt, Reduced yogurt, Cereal, Tea bags, Crackers, Dented can, Day-old buns, Carrier bag, Scissors, Batteries and Flickering bulb). Each tier has its own numbers in its card file: BIG raises the base, GOLDEN also raises one rule value (section 5). Tiers are never stocked or unlocked; "win with X" counts any tier of X. |
+| Item tiers (v0.36, issue #77) | A product the RECEIPT REWARDS machine upgrades becomes BIG, then GOLDEN: one copy in the deck is replaced by a tier card (`CardDefinition.tier`), a variant of its plain card (`variant_of`), so it is the same product everywhere (the Banana pair, 2 for 1, rules that name a card, builds). Only the products with a chain in `data/item_upgrades/` can be upgraded (Banana, Milk, Eggs, Coffee; since v0.41 also Bread, Soup, Cheese, Frozen peas, Butter, Yogurt, Reduced yogurt, Cereal, Tea bags, Crackers, Dented can, Day-old buns, Carrier bag, Scissors, Batteries and Flickering bulb; since v0.44 also the 30 capsule products). Each tier has its own numbers in its card file: BIG raises the base, GOLDEN also raises one rule value (section 5). Tiers are never stocked or unlocked; "win with X" counts any tier of X. |
 | "First product" (since v0.23) | The row's first product, coupons skipped. |
 | 2 for 1 | When the same product is on both sides of it, the two count as adjacent (context pass), and the second pays ×2: an armed effect for that one slot, so it stacks with Eggs and Multipack and a Repeat after it copies the doubled payout. Otherwise it fizzles; two in a row both fizzle (each has a coupon beside it). |
 | Shelf swap | In the context pass, the product in the next slot also counts as just after the row's first product (and the first product as just before it). It fizzles when the next slot holds no product, or when that product is the row's first. |
@@ -468,6 +468,41 @@ The step contract (v0.11):
 | Big Flickering bulb | 3 | As Flickering bulb: +3 to the next Clearance product |
 | Golden Flickering bulb | 3 | +6 to the next Clearance product |
 
+**Item tiers for the capsule products (v0.44).** The same tier rule for all 30 capsule products (`docs/FULL_BUILD_PLAN.md` v0.52): BIG adds +2 to the base and keeps the rule (BIG's rule is the plain one); GOLDEN keeps BIG's base and doubles the bonus, the charged multipliers (Iced bun, Squashed cake, Lemon) gain 1 charge instead (same reset group), and Potatoes, which has no rule, adds +2 at each step. No value is set by hand: no capsule product has a downside or a bonus as large as Carrier bag's. Only numbers change; every condition is the plain card's. Placeholders, tuned in the final balance pass (watch items: Golden Mixed herbs' +6 to the next Food product, nearly any product, and the five "per earlier" cards at +4 each, as Golden Dented can):
+
+| Product (plain) | BIG base | GOLDEN base | GOLDEN rule |
+|---|---|---|---|
+| Baguette (2; +2 for each earlier Bakery product) | 4 | 4 | +4 for each earlier Bakery product |
+| Scone (2; +3 if beside a Dairy product) | 4 | 4 | +6 if beside a Dairy product |
+| Croissant (2; +2 if beside a Bakery product) | 4 | 4 | +4 if beside a Bakery product |
+| Broken biscuit (2; +3 if immediately after a Bakery product) | 4 | 4 | +6 if immediately after a Bakery product |
+| Iced bun (1; Double the next Bakery payout) | 3 | 3 | Double the next 2 Bakery payouts |
+| Birthday candles (1; +3 to the next Bakery product) | 3 | 3 | +6 to the next Bakery product |
+| Squashed cake (2; Double the next Clearance payout) | 4 | 4 | Double the next 2 Clearance payouts |
+| Stale doughnut (1; +3 if in the last slot) | 3 | 3 | +6 if in the last slot |
+| Cream (2; +2 to the next Dairy product) | 4 | 4 | +4 to the next Dairy product |
+| Ham ends (2; +3 if immediately after a Dairy product) | 4 | 4 | +6 if immediately after a Dairy product |
+| Fruit salad (2; +2 for each earlier Produce product) | 4 | 4 | +4 for each earlier Produce product |
+| Strawberries (2; +3 if beside a Produce product) | 4 | 4 | +6 if beside a Produce product |
+| Grapefruit (2; +3 to the next Produce product) | 4 | 4 | +6 to the next Produce product |
+| Wonky carrot (2; +3 if immediately after a Produce product) | 4 | 4 | +6 if immediately after a Produce product |
+| Lemon (1; Double the next Produce payout) | 3 | 3 | Double the next 2 Produce payouts |
+| Bruised apples (2; +3 if beside a Clearance product) | 4 | 4 | +6 if beside a Clearance product |
+| Soft tomatoes (2; +2 if beside Soup) | 4 | 4 | +4 if beside Soup |
+| Potatoes (3; no rule) | 5 | 7 | No rule |
+| Egg timer (1; +4 if immediately after Eggs) | 3 | 3 | +8 if immediately after Eggs |
+| Chipped mug (1; +3 if beside Coffee) | 3 | 3 | +6 if beside Coffee |
+| Odd socks (1; +2 for each earlier Household product) | 3 | 3 | +4 for each earlier Household product |
+| Sugar cubes (2; +4 if immediately after Coffee) | 4 | 4 | +8 if immediately after Coffee |
+| Mixed herbs (1; +3 to the next Food product) | 3 | 3 | +6 to the next Food product |
+| Crisps (2; +3 if beside Bread) | 4 | 4 | +6 if beside Bread |
+| Cereal bar (2; +2 if beside a Snack product) | 4 | 4 | +4 if beside a Snack product |
+| Bent lolly (2; +3 if immediately after a Snack product) | 4 | 4 | +6 if immediately after a Snack product |
+| Pick 'n' mix (1; +2 for each earlier Snack product) | 3 | 3 | +4 for each earlier Snack product |
+| Stale popcorn (2; +3 to the next Snack product) | 4 | 4 | +6 to the next Snack product |
+| Breadsticks (2; +2 if immediately after Soup) | 4 | 4 | +4 if immediately after Soup |
+| Dusty toffees (1; +2 for each earlier Clearance product) | 3 | 3 | +4 for each earlier Clearance product |
+
 ### Base aisles (full build phase 2, v0.22)
 
 Decided with the user (issue #34). The 3 base aisles are open from the start (`docs/FULL_BUILD_PLAN.md` section 7.2): 14 products, within the stock budget of 16, so a new profile stocks them all and skips the list. Cheese and Frozen peas move from phase 1's placeholder aisle into Cold cases. Sign colours come from the art palette (section 6.1 there); tomato stays off aisle signs, because inspection notices are red, and each sign shows its name, so colour is never the only signal. Every number is an `@export` field in `data/`; only Scissors needed a new rule script. The numbers are starting values for the simulator (`docs/FULL_BUILD_PLAN.md` section 8).
@@ -557,7 +592,7 @@ Since v0.26 `coupon_pool` holds 8 coupons, meeting `docs/FULL_BUILD_PLAN.md` sec
 
 ### Starting deck (13 cards, with an early coupon)
 
-Since v0.42 (`docs/FULL_BUILD_PLAN.md` v0.49 section 7.2, decided with the user) the game deals the starting deck each run: 4 fixed cards, 2 Banana, 1 Milk, 1 Eggs, **+ 1 coupon** drawn from `coupon_pool` (since v0.43, `docs/FULL_BUILD_PLAN.md` v0.51; Final markdown, a fixed card, until then), plus 8 products drawn from the run's stock among those with an item-tier chain (the 20 fresh-stock products), never more than 2 copies of a card (`data/decks/random_starter.tres`). The fixed starter deck below stays the deck of the tests and the balance simulator's `--deck` (`data/decks/starter.tres`); the golden rows never used it.
+Since v0.42 (`docs/FULL_BUILD_PLAN.md` v0.49 section 7.2, decided with the user) the game deals the starting deck each run: 4 fixed cards, 2 Banana, 1 Milk, 1 Eggs, **+ 1 coupon** drawn from `coupon_pool` (since v0.43, `docs/FULL_BUILD_PLAN.md` v0.51; Final markdown, a fixed card, until then), plus 8 products drawn from the run's stock among those with an item-tier chain (the 20 fresh-stock products; the capsule products have chains since v0.44 but stay out of the draw, `random_capsules` off on the recipe, until the user decides), never more than 2 copies of a card (`data/decks/random_starter.tres`). The fixed starter deck below stays the deck of the tests and the balance simulator's `--deck` (`data/decks/starter.tres`); the golden rows never used it.
 
 Until v0.42: 3 Banana, 2 Bread, 2 Milk, 2 Eggs, 2 Coffee, 1 Soup **+ 1 Final markdown** (Repeat until v0.29).
 
@@ -806,3 +841,4 @@ Rules for iterating: **one major variable per round**, card values tweaked only 
 | v0.41 | 2026-10-22 | Item tiers for the rest of the fresh stock (full build phase 3; `docs/FULL_BUILD_PLAN.md` v0.48), decided with the user: Bread, Soup, Cheese, Frozen peas, Butter, Yogurt, Reduced yogurt, Cereal, Tea bags, Crackers, Dented can, Day-old buns, Carrier bag, Scissors, Batteries and Flickering bulb each get a BIG and a GOLDEN card and a chain in `data/item_upgrades/`, so the UPGRADES chute can step every product a new profile stocks (section 3.4's Item tiers, section 5's new table) · the tier rule: BIG +2 base; GOLDEN keeps BIG's base and doubles the bonus, charge cards +1 charge; Bread and Soup +2 base at each step; Golden Carrier bag +7 per earlier Food, set by hand · no rule script changes; golden totals unchanged; the 30 capsule products stay plain |
 | v0.42 | 2026-10-22 | The random starting deck (full build phase 3; `docs/FULL_BUILD_PLAN.md` v0.49 section 7.2), decided with the user: the game's starting deck is a recipe, 5 fixed cards (Banana ×2, Milk, Eggs, Final markdown) plus 8 products drawn from the run's stock that have an item-tier chain, at most 2 copies of a product, 13 cards (section 5's Starting deck) · the staples are the balance data's own list, so a new profile's stock is unchanged · NEW ITEMS' guarantee prefers, in each rarity tier, a generally useful product the deck doesn't hold yet · telemetry: `run_start`'s `starting_deck` logs the dealt cards (no field changes) · no scoring rule, card value or golden row changes |
 | v0.43 | 2026-10-23 | The starting deck's random coupon (full build phase 3; `docs/FULL_BUILD_PLAN.md` v0.51 section 7.2), decided with the user: the starting deck's coupon is drawn from `coupon_pool` (`random_coupon_count` 1 on `data/decks/random_starter.tres`) instead of the fixed Final markdown; 4 fixed cards (Banana ×2, Milk, Eggs) + 1 coupon + 8 products, 13 cards, at most 2 copies of a card · no scoring rule, card value or golden row changes; the fixed `starter.tres` is unchanged |
+| v0.44 | 2026-10-23 | Item tiers for the capsule products (full build phase 3, #89; `docs/FULL_BUILD_PLAN.md` v0.52), built while the user was away on the agreed queue (#58, #89, #59 subset), numbers to be confirmed: the 30 capsule products each get a BIG and a GOLDEN card and a chain in `data/item_upgrades/` (section 3.4's Item tiers, section 5's new table) · the v0.41 tier rule unchanged: BIG +2 base; GOLDEN keeps BIG's base and doubles the bonus, the charged multipliers +1 charge, Potatoes (no rule) +2 base at each step; nothing set by hand · the starting deck still draws only the 20 fresh-stock products (`DeckDefinition.random_capsules`, off) · no rule script changes; golden totals unchanged |

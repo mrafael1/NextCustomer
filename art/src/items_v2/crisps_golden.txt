@@ -1,0 +1,3 @@
+; Crisps GOLDEN (#89 item tier): crisps_big through its own map (gold foil; the cream window and its crisps kept).
+; A derived source: no grid, tools/pixel_art.py builds it from the BIG source.
+@derive crisps_big golden=keys O=Y o=Y R=n r=L q=l glint

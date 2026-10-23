@@ -1,0 +1,28 @@
+[gd_resource type="Resource" script_class="CardDefinition" format=3]
+
+[ext_resource type="Script" path="res://core/rule.gd" id="1_rule"]
+[ext_resource type="Script" path="res://core/rules/adjacent_match_bonus_rule.gd" id="2_crisps"]
+[ext_resource type="Script" path="res://core/card_definition.gd" id="3_card"]
+[ext_resource type="Resource" path="res://data/cards/crisps.tres" id="9_plain"]
+
+[sub_resource type="Resource" id="Resource_crisps"]
+script = ExtResource("2_crisps")
+match_by = 2
+match_value = "bread"
+position = 2
+bonus = 6
+receipt_text = "Crisps beside Bread"
+
+[resource]
+script = ExtResource("3_card")
+id = &"crisps_golden"
+display_name = "Golden Crisps"
+kind = 1
+tags = PackedStringArray("Food", "Snack")
+base = 4
+rules = Array[ExtResource("1_rule")]([SubResource("Resource_crisps")])
+rule_text = "+6 if beside Bread"
+generally_useful = true
+art_ref = "res://art/items_v2/crisps_golden.png"
+variant_of = ExtResource("9_plain")
+tier = 2

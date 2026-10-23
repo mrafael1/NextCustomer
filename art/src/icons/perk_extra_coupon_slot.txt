@@ -1,0 +1,18 @@
+; Extra coupon slot's perk icon (UpgradeDefinition.icon_ref; the LOYALTY prize's badge, v0.50):
+; a coupon's ticket on the price rail (as frames/ticket_coupon: the teal dash band, paper face,
+; cream shade) with +1 in ink, the coupon twin of Big basket's plus_slot. 13x12, shown at 1x art
+; on the badge like plus_slot.
+@size 13x12
+@kind icon
+.###########.
+#44w44w44w44#
+#44w44w44w44#
+#wwwwwwwwwwc#
+#www#wwww#wc#
+#www#www##wc#
+#w#####ww#wc#
+#www#wwww#wc#
+#www#www###c#
+#wwwwwwwwwwc#
+#ccccccccccc#
+.###########.

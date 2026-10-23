@@ -1,0 +1,11 @@
+; A giver-badge mini (sticker minis): Egg timer, an hourglass: wooden plates, sand above and a pile below (the eggs are an egg).
+; 7x7, ink outline, light from the top left; its GOLDEN copy (egg_timer_golden) is derived (@derive ... golden=outline).
+@size 7x7
+@kind icon
+#######
+#QSSST#
+.#yMm#.
+..#M#..
+.#jyM#.
+#QSSST#
+#######

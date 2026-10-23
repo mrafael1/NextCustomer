@@ -1,0 +1,11 @@
+; A giver-badge mini (sticker minis): Mixed herbs, green and grey-green leaves tied with a tomato band.
+; 7x7, ink outline, light from the top left; its GOLDEN copy (mixed_herbs_golden) is derived (@derive ... golden=outline).
+@size 7x7
+@kind icon
+.##.##.
+#zG#55#
+#GG#33#
+.#G#3#.
+..#R#..
+..#g#..
+..###..
