@@ -126,31 +126,34 @@ const SEED_RECT := Rect2(20, 586, 198, 18)
 ## Screen panels (the deck view, the results) and their shade stay below this line, under the top
 ## bar, so Cart and the menu stay reachable.
 const PANEL_TOP := 64.0
-## The RECEIPT REWARDS machine on the back wall (#77 machine v2, Q1 = A): the 420x630 machine at
-## MACHINE_WALL_SCALE, right of the monitor, its foot behind the belt. Shown all run, dimmed
-## between its visits.
-const MACHINE_WALL_RECT := Rect2(956, 70, 210, 315)
+## The RECEIPT REWARDS machine on the back wall (#77 machine v2, Q1 = A; redrawn front-on in
+## v0.50, mock-up premium_machine_v1.html): the 448x568 cabinet at MACHINE_WALL_SCALE, right of
+## the monitor, its foot behind the belt. Shown all run, dimmed between its visits. Its marquee
+## and bulbs stand above the rect, its plinth and shadow below it.
+const MACHINE_WALL_RECT := Rect2(949, 94, 224, 284)
 const MACHINE_WALL_SCALE := 0.5
 ## The camera at the machine (StoreCamera): CAMERA_ZOOM, and the offset (whole pixels) that puts
 ## the machine at MACHINE_RECT on screen, at a net scale of 1 (crisp: 0.5 x 2).
 const CAMERA_ZOOM := 2.0
 ## (MACHINE_RECT.position - CAMERA_ZOOM x MACHINE_WALL_RECT.position).
-const CAMERA_OFFSET := Vector2(-1482, -70)
+const CAMERA_OFFSET := Vector2(-1482, -64)
 ## The world (the wall's and the counter's bands, the store sections) runs to here on the stage:
 ## the camera at the machine shows stage x 741 .. 1381.
 const WORLD_RIGHT := 1420.0
-## Where the camera puts the machine on screen (stage coordinates of the unzoomed layers: the
-## hud and the machine's overlay): the cabinet, under the top bar, its RESTOCK hood at the bottom
-## right, and its prize cells' left edges (cell i holds reveal i) and their top.
-const MACHINE_RECT := Rect2(430, 70, 420, 630)
-const MACHINE_HOOD_RECT := Rect2(826, 506, 48, 194)
-const MACHINE_CELL_X: Array[float] = [456.0, 586.0, 716.0]
-const MACHINE_CELL_Y := 522.0
-## The cart drawer's right edge and top (left of the machine at 2x, under the top bar).
-const CART_DRAWER_RIGHT := 418.0
+## Where the camera puts the machine's cabinet on screen (stage coordinates of the unzoomed
+## layers: the hud and the machine's overlay), under the top bar: the marquee's bulbs reach up to
+## y 58 and the plinth's shadow down to y 714, inside the screen (v0.50: the old framing cut the
+## tray off).
+const MACHINE_RECT := Rect2(416, 124, 448, 568)
+## The cart drawer's right edge and top (left of the machine's marquee at 2x, under the top bar).
+const CART_DRAWER_RIGHT := 380.0
 ## The drawer never starts left of this (a four-slot drawer is wider than the room left of the
-## machine: it reaches the machine's cabinet edge, short of its first cell).
+## machine: it reaches over the cabinet's left edge).
 const CART_DRAWER_LEFT := 8.0
+## The widest drawer's right edge (four slots from CART_DRAWER_LEFT): over the cabinet's left
+## 40 px (its frame, the marquee's end and the display's left end, whose lines are centred well
+## clear of it).
+const CART_DRAWER_REACH := 456.0
 const CART_DRAWER_TOP := 64.0
 ## The fore fades to this much of its alpha as it drops out of frame (mock-up: 1 - 0.9 e).
 const FORE_FADE := 0.9

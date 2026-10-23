@@ -1,7 +1,8 @@
 class_name MachineDisplay
 extends Panel
-## The machine's char display (#77, look F; build spec 4.2-4.3): the message in Pixelify 24
-## (mustard light; bold Atkinson 17 when it doesn't fit) with its sub line under it (bold
+## The machine's char display (#77, look F; build spec 4.2-4.3; v0.50: the LED strip left of the
+## receipt slot, 292 px wide, mock-up premium_machine_v1.html): the message in Pixelify 24
+## (mustard light; bold Atkinson 17, then 15, 13 or 12, when it doesn't fit) with its sub line (bold
 ## Atkinson 11, grey light), and the BIN IT ✕ button at the right (NEW ITEMS and COUPONS visits
 ## only: RewardMachine.can_bin; shown from the last reveal's end until the pick or the bin, as
 ## look F). Pixelify and Atkinson have no ✓ or ✕: the display's fonts fall back to JetBrains Mono
@@ -10,15 +11,16 @@ extends Panel
 ## RewardMachineView gives the message for each wait point (show_message: PICK A CHUTE, the pick
 ## prompt, the landing's word); frame(t) plays the visit's own lines around them from the plan:
 ## READING…, then SPEND €N ✓ THANK YOU! with the quota met (a BONUS visit: BONUS TICKET! until
-## its stub is fed), PACKING YOUR ORDER… while the boxes come out, "3 PRIZES FROM <chute>", each
-## reveal's rarity and prize, STAMP DAY's free stamp, and on the landing ENJOY!, UPGRADING…, the
-## landing's word with the cart count and SEE YOU NEXT SHIFT. A BOOSTED visit's receipt read says
-## so (BOOSTED_READ).
+## its stub is fed), on a BOOSTED visit PREMIUM / PREMIUM RECEIPT blinking while the machine turns
+## PREMIUM, PACKING… while the tray packs, each landed ticket's rarity and prize, STAMP DAY's free
+## stamp, and on the landing ENJOY!, UPGRADING…, the landing's word with the cart count and SEE
+## YOU NEXT SHIFT. A BOOSTED visit's receipt read says so (BOOSTED_READ).
 ##
 ## Machine v2 (#77): at the chute wait a pressed key puts the display in its title mode
 ## (show_title): the chute's name in Pixelify 24 (paper, a 2 px teal-shade shadow, left), its sub
 ## line (bold Atkinson 11, mustard light; 9 when it doesn't fit) and the red CONFIRM › key at the
-## right (CONFIRM_RECT, a RegisterKey like the register's CHECKOUT). CONFIRM sinks for
+## right (CONFIRM_RECT, a RegisterKey like the register's CHECKOUT, in bold Atkinson 16 so it fits
+## the strip). CONFIRM sinks for
 ## MachineTuning.confirm_down_ms with `ui_confirm`, then sends confirm_pressed. A BONUS visit's
 ## feed reads the ticket icon and "BONUS TICKET" / "inspection passed · feeding in".
 
@@ -26,27 +28,31 @@ signal bin_pressed
 ## CONFIRM › was pressed (after its down state): the pressed key's chute is confirmed.
 signal confirm_pressed
 
-const SIZE := Vector2(392, 52)
+const SIZE := Vector2(292, 52)
 const MESSAGE_SIZE := 24
-## The message's size in bold Atkinson when Pixelify 24 doesn't fit (look F's 17 px).
-const FALLBACK_SIZE := 17
+## The message's size in bold Atkinson when Pixelify 24 doesn't fit (look F's 17 px), then the
+## smaller steps when that doesn't fit either (v0.50: the strip is 292 px, 180 px beside BIN IT).
+const FALLBACK_STEPS: Array[int] = [17, 15, 13, 12]
+## The sub line's smaller sizes when 11 doesn't fit.
+const SUB_STEPS: Array[int] = [11, 10, 9]
 const SUB_SIZE := 11
 const PAD := 10.0
 const MESSAGE_TOP := 2.0
 const MESSAGE_HEIGHT := 28.0
 const SUB_TOP := 30.0
 const SUB_HEIGHT := 16.0
-const BIN_RECT := Rect2(296, 13, 88, 26)
+const BIN_RECT := Rect2(196, 13, 88, 26)
 const BIN_GAP := 6.0
 const BIN_TEXT := "BIN IT ✕"
 const BIN_SIZE := 12
 ## The title mode: the sub line's smaller size when 11 doesn't fit, the title's shadow, CONFIRM ›.
 const TITLE_SUB_FALLBACK := 9
 const TITLE_SHADOW := 2
-## Wide enough for Pixelify 24's "CONFIRM ›" (116 px) with room each side; the title keeps 232 px.
-const CONFIRM_RECT := Rect2(250, 6, 134, 40)
+## Wide enough for bold Atkinson 16's "CONFIRM ›" with room each side; the title keeps 160 px.
+const CONFIRM_RECT := Rect2(178, 6, 108, 40)
 const CONFIRM_TEXT := "CONFIRM ›"
-const CONFIRM_SIZE := 24
+const CONFIRM_SIZE := 16
+const CONFIRM_WEIGHT := 800
 const CONFIRM_GAP := 8.0
 ## A BONUS visit's feed: the ticket icon (2x) left of BONUS TICKET.
 const BONUS_TICKET := "BONUS TICKET"
@@ -56,10 +62,13 @@ const ICON_GAP := 6.0
 const BOLD_WEIGHT := 700
 const RARITY_WORDS: Array[String] = ["COMMON", "RARE!", "LEGENDARY!!"]
 const READING := "READING…"
-const PACKING := "PACKING YOUR ORDER…"
+const PACKING := "PACKING…"
+## A BOOSTED visit's transform (v0.50): the lines blink this often.
+const PREMIUM_LINES: Array[String] = ["PREMIUM", "PREMIUM RECEIPT"]
+const PREMIUM_BLINK := 6.0
 const SEE_YOU := "SEE YOU NEXT SHIFT"
 ## A BOOSTED visit's receipt read sub line, after the quota (v0.47).
-const BOOSTED_READ := " · BOOSTED VISIT"
+const BOOSTED_READ := " · PREMIUM RECEIPT"
 ## A refused key's message (show_denied) shows this long, then the wait point's comes back.
 const DENIED_MS := 1200
 
@@ -122,7 +131,7 @@ func _init() -> void:
 		RegisterKey.Kind.CHECKOUT, CONFIRM_TEXT, CONFIRM_SIZE, CONFIRM_RECT.size
 	)
 	_confirm.name = "ConfirmKey"
-	_confirm.caption_label().add_theme_font_override("font", marked_font(0))
+	_confirm.caption_label().add_theme_font_override("font", marked_font(CONFIRM_WEIGHT))
 	_confirm.caption_under_band = false
 	_confirm.focus_mode = Control.FOCUS_NONE
 	_confirm.position = CONFIRM_RECT.position
@@ -316,6 +325,11 @@ func _intro_text(plan: MachinePlan, t: float) -> PackedStringArray:
 		return PackedStringArray()
 	if t < plan.feed_end:
 		return PackedStringArray([READING, ""])
+	if plan.premium and t >= plan.premium_at and t < plan.premium_end:
+		var on: bool = int(floorf((t - plan.premium_at) * PREMIUM_BLINK)) % 2 == 1
+		if plan.reduced_motion:
+			on = true
+		return PackedStringArray(PREMIUM_LINES if on else ["", ""])
 	return _read_text() if t < plan.read_end else PackedStringArray()
 
 
@@ -342,18 +356,13 @@ func _draw_text(plan: MachinePlan, t: float) -> PackedStringArray:
 		return PackedStringArray(
 			["STAMP DAY! A FREE STAMP", "your card is behind after shift %d" % shift]
 		)
-	var last_drop: float = plan.draw_end
-	for index: int in range(plan.n_prizes):
-		last_drop = maxf(last_drop, plan.drop_at[index] + plan.drop_length[index])
-	if t < last_drop or plan.n_prizes == 0:
+	if plan.n_prizes == 0 or t < plan.reveal_at[0]:
 		var bonus: bool = plan.kind == MachineVisit.Kind.BONUS
-		return PackedStringArray([PACKING, "bonus ticket" if bonus else ""])
-	if t < plan.reveal_at[0]:
 		var count: String = "1 PRIZE" if plan.n_prizes == 1 else "%d PRIZES" % plan.n_prizes
-		return PackedStringArray(["%s FROM %s" % [count, _chute_name()], "opening…"])
+		var from: String = "%s from %s" % [count.to_lower(), _chute_name().to_lower()]
+		return PackedStringArray([PACKING, "bonus ticket" if bonus else from])
 	var last: int = plan.n_prizes - 1
-	var gap: float = MachineTuning.seconds(plan.tuning.reveal_gap_ms, plan.kind)
-	if t >= plan.reveal_at[last] + plan.reveal_length[last] + gap:
+	if t >= plan.reveal_at[last] + plan.reveal_length[last]:
 		return PackedStringArray()
 	var index: int = last
 	while index > 0 and t < plan.reveal_at[index]:
@@ -468,18 +477,18 @@ func _show(message: String, sub: String) -> void:
 		room = width
 	var fits: bool = width <= room
 	_message.add_theme_font_override("font", font if fits else marked_font(BOLD_WEIGHT))
-	_message.add_theme_font_size_override("font_size", MESSAGE_SIZE if fits else FALLBACK_SIZE)
+	_message.add_theme_font_size_override(
+		"font_size", MESSAGE_SIZE if fits else _step(message, BOLD_WEIGHT, FALLBACK_STEPS, room)
+	)
 	var align: HorizontalAlignment = (
 		HORIZONTAL_ALIGNMENT_LEFT if titled else HORIZONTAL_ALIGNMENT_CENTER
 	)
 	_message.horizontal_alignment = align
 	_style_title(titled)
-	var sub_size: int = SUB_SIZE
 	var sub_room: float = room if not _icon.visible else SIZE.x - 2.0 * PAD
-	if titled:
-		var sub_font: Font = _sub.get_theme_font("font")
-		if sub_font.get_string_size(sub, HORIZONTAL_ALIGNMENT_LEFT, -1, SUB_SIZE).x > sub_room:
-			sub_size = TITLE_SUB_FALLBACK
+	var sub_size: int = _step(sub, BOLD_WEIGHT, SUB_STEPS, sub_room)
+	if titled and sub_size < SUB_SIZE:
+		sub_size = mini(sub_size, TITLE_SUB_FALLBACK)
 	_sub.add_theme_font_size_override("font_size", sub_size)
 	_sub.horizontal_alignment = align
 	var top: float = MESSAGE_TOP if not sub.is_empty() else (SIZE.y - MESSAGE_HEIGHT) / 2.0
@@ -489,6 +498,16 @@ func _show(message: String, sub: String) -> void:
 	_sub.position = Vector2(sub_left, SUB_TOP)
 	_sub.size = Vector2(sub_room, SUB_HEIGHT)
 	_sub.visible = not sub.is_empty()
+
+
+## The first of `steps` (font sizes, largest first) at which `text` in the marked font of
+## `weight` fits `room`, else the last.
+func _step(text: String, weight: int, steps: Array[int], room: float) -> int:
+	var font: Font = marked_font(weight)
+	for font_size: int in steps:
+		if font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size).x <= room:
+			return font_size
+	return steps[-1]
 
 
 ## The title mode's colours: the name in paper with a teal-shade shadow, the sub in mustard light;

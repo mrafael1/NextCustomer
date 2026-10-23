@@ -35,6 +35,10 @@ extends Control
 ## STAMP DAY's visit, a full cart, a draw's rarities, a pick, reduced motion, a resumed visit);
 ## the capture waits `seconds` after the last step, and the file is
 ## shift_screen_machine_<options>_<tenths>_<width>x<height>.png.
+## With `--announce=<seconds>` (v0.50) a new run's shift 1 is the shift before a PREMIUM visit: its
+## planning prints the gold PREMIUM receipt on the monitor, which then hangs as the PREMIUM NEXT
+## tag; the capture waits `seconds` from the shift's start, and the file is
+## shift_screen_announce_<tenths>_<width>x<height>.png.
 
 const SCREEN := preload("res://ui/shift_screen.tscn")
 const SEED := 20261014
@@ -59,6 +63,9 @@ const SCAN_ARGUMENT := "--scan="
 const EFFECTS_ARGUMENT := "--effects"
 const CHECKOUT_ARGUMENT := "--checkout="
 const MACHINE_ARGUMENT := "--machine="
+const ANNOUNCE_ARGUMENT := "--announce="
+## An --announce capture's file name part: announce_<tenths>_.
+const ANNOUNCE_PREFIX := "announce_%d_"
 ## --machine's shift (#77): shift 1's passing row (Milk, Multipack, Milk x5 = 109), and the
 ## inspection a bonus ticket's shift passes.
 const MACHINE_ROW_IDS: Array[String] = ["milk", "multipack", "milk", "milk", "milk", "milk", "milk"]
@@ -132,6 +139,9 @@ func _ready() -> void:
 		var machine_spec: String = _argument(MACHINE_ARGUMENT)
 		if machine_spec != "":
 			await machine(machine_spec)
+		var announce_s: String = _argument(ANNOUNCE_ARGUMENT)
+		if announce_s != "":
+			await announce(announce_s.to_float())
 		await capture(capture_folder)
 		get_tree().quit()
 
@@ -286,6 +296,8 @@ func capture(folder: String) -> void:
 ## - draw=<letters>: the draw's rarities, c, r or l per prize (a debug draw: the prizes drawn,
 ##   relabelled), shown rarest last;
 ## - pick=<i>: once the prizes are armed, prize i is picked (its landing plays);
+## - boosted (v0.50): the shift's ticket visit is BOOSTED, so the machine turns PREMIUM (its
+##   chutes: register, upgrades);
 ## - rm: reduced motion; resume: the visit as a resumed run shows it (at its wait point, no
 ##   replay; with a chute, the run was saved after that chute's draw: resumed at the pick).
 ## The seconds count from the last step: the machine's open, the choice, or the pick. A spec
@@ -338,14 +350,17 @@ func machine(spec: String) -> void:
 	await _machine_settled(flow.view)
 
 
-## Checks out --machine's shift on `run` (shift 1's passing row; `options`: a bonus ticket's
-## Spot check, a STAMP DAY, a full cart) and plays its ticket to the visit asked for. False (with
-## a report) when the run doesn't get there.
+## Checks out --machine's shift on `run` (shift 1's passing row; `options`: a bonus ticket's Spot
+## check, a STAMP DAY, a BOOSTED visit, a full cart) and plays its ticket to the visit asked for.
+## False (with a report) when the run doesn't get there.
 func _check_out_machine_shift(run: RunState, options: PackedStringArray) -> bool:
 	if options.has("stampday"):
 		run.machine.machine = run.machine.machine.duplicate() as MachineDefinition
 		run.machine.machine.stamp_day_shifts = PackedInt32Array([run.shift_index + 1])
 		run.machine.machine.stamp_day_floor = PackedInt32Array([1])
+	if options.has("boosted"):
+		run.machine.machine = run.machine.machine.duplicate() as MachineDefinition
+		run.machine.machine.boosted_shifts = PackedInt32Array([run.shift_index + 1])
 	if options.has("cartfull"):
 		while run.deck.size() < run.balance.deck_limit:
 			run.deck.add_card(_card(FILLER_ID))
@@ -375,6 +390,18 @@ func _check_out_machine_shift(run: RunState, options: PackedStringArray) -> bool
 		_report("No %s visit to show" % MachineVisit.KIND_NAMES[wanted])
 		return false
 	return true
+
+
+## Starts a new run (the same seed) whose shift 1 announces a PREMIUM visit (v0.50: its machine
+## BOOSTED after shift 1), then waits `seconds` of its planning; capture() then names its file
+## shift_screen_announce_<tenths>_<w>x<h>.png.
+func announce(seconds: float) -> void:
+	_screen.start_new_run(SEED)
+	var run: RunState = _screen.run
+	run.machine.machine = run.machine.machine.duplicate() as MachineDefinition
+	run.machine.machine.boosted_shifts = PackedInt32Array([run.shift_index + 1])
+	_machine_part = ANNOUNCE_PREFIX % roundi(seconds * 10.0)
+	await get_tree().create_timer(seconds).timeout
 
 
 ## Waits (at most ARM_LIMIT_MS, real time) for the machine to reach its wait point and arm.

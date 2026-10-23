@@ -1,0 +1,38 @@
+; A sealed prize ticket in the machine's stock window (v0.50, M4: the window shows no real prizes,
+; only one sealed ticket per rarity over its current odds): grey light edge, cream. 24x32, shown
+; at 2x on its pedestal; its pips (one dot) on the stub over the perforation, a seal with a
+; question mark, so the rarity never shows by colour alone. Drawn for the premium machine.
+@size 24x32
+@kind frame
+.######################.
+#::::::::::::::::::::::#
+#:wwwwwwwwwwwwwwwwwwwb:#
+#:wccccccccccccccccccb:#
+#:wccccccc===ccccccccb:#
+#:wcccccc=====cccccccb:#
+#:wcccccc=====cccccccb:#
+#:wcccccc=====cccccccb:#
+#:wccccccc===ccccccccb:#
+#:wccccccccccccccccccb:#
+#:wccccccccccccccccccb:#
+.#wbcbcbcbcbcbcbcbcbcb#.
+#:wccccccccccccccccccb:#
+#:wccccccccccccccccccb:#
+#:wccccccccccccccccccb:#
+#:wcccccc======ccccccb:#
+#:wccccc=w----==cccccb:#
+#:wcccc=w-------=ccccb:#
+#:wccc==---www--==cccb:#
+#:wccc=---w---w--=cccb:#
+#:wccc=------w---=cccb:#
+#:wccc=-----w----=cccb:#
+#:wccc=----------=cccb:#
+#:wccc==----w---==cccb:#
+#:wcccc=--------=ccccb:#
+#:wccccc==----==cccccb:#
+#:wcccccc======ccccccb:#
+#:wccccccccccccccccccb:#
+#:wccccccccccccccccccb:#
+#:wbbbbbbbbbbbbbbbbbbb:#
+#::::::::::::::::::::::#
+.######################.

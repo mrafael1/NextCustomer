@@ -9,8 +9,8 @@ extends ColorRect
 ## The idle machine's brightness and saturation.
 const DIM_BRIGHTNESS := 0.62
 const DIM_SATURATION := 0.55
-## The veil's rect in the machine: over the cabinet, its head and its hood, with their shadows.
-const VEIL_RECT := Rect2(-10, -8, 456, 646)
+## The veil's rect in the machine: over the cabinet, its marquee and bulbs, its plinth and shadow.
+const VEIL_RECT := Rect2(-30, -66, 508, 658)
 const SHADER := preload("res://presentation/machine_dim.gdshader")
 
 ## How lit the machine is (0 dim .. 1 lit).
@@ -45,13 +45,12 @@ static func idle_mouse(machine: Control, idle: bool) -> void:
 
 
 ## The machine's parts at rest: its head plain, its keys cream and unlit with nothing pressed,
-## its display blank, its slip put away (`_run_state`: the run it showed, or null).
+## its display blank, its stock window shut (`_run_state`: the run it showed, or null).
 static func rest_parts(view: RewardMachineView, _run_state: RunState) -> void:
 	view.head.set_stamp("", "")
 	for key: ChuteKey in view.keys:
 		key.show_state(RewardMachine.ChuteState.OPEN, 0, false)
-		key.set_tab(false)
 		key.set_pressed(false)
 	view.display.set_bin(false, false)
 	view.display.show_message("", "")
-	view.slip.rest()
+	view.stock.show_chutes([], -1)

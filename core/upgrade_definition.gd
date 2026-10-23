@@ -20,6 +20,9 @@ enum Type { UNSET, RULE_BENDER, SLOT_ENGINE, CATEGORY_ENGINE, COUPON_ENGINE, ECO
 ## The builds this upgrade pushes towards (data/builds), shown on the ticket. None means any
 ## build (Extra redraw).
 @export var builds: Array[BuildDefinition] = []
+## The perk's glyph (a res:// path to an art/icons PNG) on its LOYALTY prize ticket (v0.50); empty
+## shows its initials. Presentation only: scoring never reads it.
+@export var icon_ref: String = ""
 ## Scoring rules, asked about every slot by the scoring loop (never attached to a card).
 @export var rules: Array[UpgradeRule] = []
 ## Run modifiers (ShiftLimits), from the shift after the pick: redraws added to every shift,

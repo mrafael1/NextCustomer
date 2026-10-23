@@ -1,17 +1,14 @@
 extends GdUnitTestSuite
 ## The RECEIPT REWARDS machine's layout on the 1280x720 stage (#77, look F; build spec 4.1-4.2, 9;
-## memory: UI tests check layout, on-screen geometry): on the real shift screen, with the camera at
-## the machine (#77 machine v2), the machine and its RESTOCK hood sit at MACHINE_RECT and
-## MACHINE_HOOD_RECT inside the stage, right of the register column; the head sits over the
-## cabinet and every other part (slot, display, keys, stockroom window, order slip, YOUR
-## ORDER plate, belt, box lane) inside it. The prize tickets sit in the tray cells (a short draw
-## uses the centre cell for one prize, the left and centre cells for two), their rarity tabs above
-## them inside the tray's x range, clear of the hood. Each chute's odds card (and the bonus
-## ticket's, and STAMP DAY's REGISTER card) sits above its key inside the machine (#77 machine
-## v2). The cart drawer (at its widest) sits below the top bar, right of x 8 and left of the
-## first prize cell. The standalone views stand where the camera puts the machine. Every label
-## fits its box, and Pixelify is only ever 12 or 24 px (full build plan 6.1). The views are driven
-## directly (no input events).
+## v0.50 front-on redraw, mock-up premium_machine_v1.html; memory: UI tests check layout,
+## on-screen geometry): on the real shift screen, with the camera at the machine (#77 machine v2),
+## the machine sits at MACHINE_RECT wholly inside the stage, right of the register column; the
+## head sits over the cabinet and every other part (slot, display, stock window, key bay, tray)
+## inside it. The prize row stands at PrizeRow.card_rect on the stage, its tickets apart, their
+## rarity tabs above them under the top bar; the back effects draw behind every ticket. The stock
+## window fits on every kind of visit. The cart drawer sits below the top bar, left of the machine.
+## Every label fits its box, and Pixelify is only ever 12 or 24 px (full build plan 6.1). The views
+## are driven directly (no input events).
 
 const Rush := preload("res://tests/ui/count_up_rush.gd")
 const SCREEN := "res://ui/shift_screen.tscn"
@@ -43,9 +40,10 @@ func after_test() -> void:
 		DirAccess.remove_absolute(_folder)
 
 
-## On the real screen: the machine at MACHINE_RECT and its hood at MACHINE_HOOD_RECT, both inside
-## the stage and right of the register column and the receipt; the head over the cabinet, below
-## the top bar; every other part inside the cabinet.
+## On the real screen (v0.50 front-on redraw): the machine at MACHINE_RECT, wholly inside the stage
+## (its tray no longer cropped by the view's foot) and right of the register column and the
+## receipt; the marquee over the cabinet, below the top bar; the display, the slot plate, the stock
+## window, the key bay and the tray inside the cabinet.
 func test_the_machine_sits_beside_the_register_inside_the_stage() -> void:
 	var runner: GdUnitSceneRunner = scene_runner(SCREEN)
 	var screen: ShiftScreen = runner.scene()
@@ -62,27 +60,16 @@ func test_the_machine_sits_beside_the_register_inside_the_stage() -> void:
 	var stage: Rect2 = xform * Rect2(Vector2.ZERO, ShiftStage.SIZE)
 	var machine: Rect2 = view.get_global_rect()
 	_assert_rect(machine, xform * ShiftStage.MACHINE_RECT, "machine")
-	_assert_rect(view.hood.get_global_rect(), xform * ShiftStage.MACHINE_HOOD_RECT, "hood")
-	for rect: Rect2 in [machine, view.hood.get_global_rect()]:
-		assert_bool(stage.encloses(rect)).override_failure_message(str(rect)).is_true()
-		assert_float(rect.position.x).is_greater_equal((xform * ShiftStage.REGISTER_RECT).end.x)
-		assert_float(rect.position.x).is_greater_equal(screen._receipt.get_global_rect().end.x)
+	assert_bool(stage.encloses(machine)).override_failure_message(str(machine)).is_true()
+	assert_float(machine.position.x).is_greater_equal((xform * ShiftStage.REGISTER_RECT).end.x)
+	assert_float(machine.position.x).is_greater_equal(screen._receipt.get_global_rect().end.x)
 	var head: Rect2 = view.head.get_global_rect()
 	assert_bool(stage.encloses(head)).is_true()
 	assert_float(head.position.y).is_greater_equal(
 		(xform * Vector2(0, ShiftStage.TOP_BAR_BOTTOM)).y
 	)
 	assert_float(head.get_center().x).is_equal_approx(machine.get_center().x, 1.0)
-	var parts: Array[Control] = [
-		view.slot_plate,
-		view.display,
-		view.stockroom,
-		view.slip,
-		view.order_plate,
-		view.belt,
-		view.box_lane
-	]
-	parts.append_array(view.keys)
+	var parts: Array[Control] = [view.slot_plate, view.display, view.stock, view.key_bay, view.tray]
 	for part: Control in parts:
 		(
 			assert_bool(machine.encloses(part.get_global_rect()))
@@ -91,11 +78,11 @@ func test_the_machine_sits_beside_the_register_inside_the_stage() -> void:
 		)
 
 
-## The prize tickets in the tray cells (3: left, centre, right; 2: left and centre; 1: the
-## centre), at the stage's MACHINE_CELL_X and MACHINE_CELL_Y, on the belt; their rarity tabs,
-## once revealed, above them inside the tray's x range, clear of the hood; the display's short
-## draw prompt fits.
-func test_the_prizes_sit_in_the_tray_cells() -> void:
+## The prize row (3, 2 and 1 tickets) at PrizeRow.card_rect on the machine: every ticket inside the
+## stage, none overlapping another; its rarity tab, once landed, above it, inside the stage and
+## below the top bar; the display's short draw prompt fits.
+func test_the_prize_row_sits_on_the_stage() -> void:
+	var on_stage: Rect2 = Rect2(Vector2.ZERO, ShiftStage.SIZE)
 	for count: int in [3, 2, 1]:
 		var run: RunState = _passed_run(12)
 		var view: RewardMachineView = await _open(run)
@@ -106,25 +93,22 @@ func test_the_prizes_sit_in_the_tray_cells() -> void:
 		view.show_at(view.plan.pick_at)
 		await _frames(2)
 		assert_int(view.tickets.size()).is_equal(count)
-		var belt: Rect2 = view.belt.get_global_rect()
+		var shown: Array[Rect2] = []
 		for index: int in range(count):
 			var ticket: PrizeTicket = view.tickets[index]
 			var rect: Rect2 = ticket.get_global_rect()
-			var cell: int = MachinePlan.cell_of(index, count)
-			if count == 1:
-				assert_int(cell).is_equal(1)
-			elif count == 2:
-				assert_int(cell).is_equal(index)
-			assert_vector(rect.position).is_equal(
-				Vector2(ShiftStage.MACHINE_CELL_X[cell], ShiftStage.MACHINE_CELL_Y)
-			)
-			assert_bool(belt.encloses(rect)).override_failure_message(str(rect)).is_true()
+			var expected: Rect2 = PrizeRow.card_rect(index, count)
+			expected.position += ShiftStage.MACHINE_RECT.position
+			_assert_rect(rect, expected, "ticket %d of %d" % [index, count])
+			assert_bool(on_stage.encloses(rect)).override_failure_message(str(rect)).is_true()
+			for other: Rect2 in shown:
+				assert_bool(rect.intersects(other)).is_false()
+			shown.append(rect)
 			assert_bool(ticket.tab.is_visible_in_tree()).is_true()
 			var tab: Rect2 = ticket.tab.get_global_rect()
-			var tray_left: float = view.global_position.x + PrizeTicket.TRAY_LEFT
-			assert_float(tab.position.x).is_greater_equal(tray_left - SLACK)
-			assert_float(tab.end.x).is_less_equal(view.hood.get_global_rect().position.x)
 			assert_float(tab.position.y).is_less(rect.position.y)
+			assert_float(tab.position.y).is_greater_equal(ShiftStage.TOP_BAR_BOTTOM)
+			assert_bool(on_stage.encloses(tab)).is_true()
 		var prompt: String = RewardMachineView.pick_prompt(count, run)
 		assert_str(view.display.texts()[0]).is_equal(prompt)
 		if count < 3:
@@ -134,84 +118,35 @@ func test_the_prizes_sit_in_the_tray_cells() -> void:
 		await _close(view)
 
 
-## The RARE burst and the LEGENDARY sunburst and sparkles sit in the machine's TicketFx layer:
-## drawn under every ticket (never over a neighbour's card) and clipped to the tray, which ends
-## at the RESTOCK hood's left edge; on a C R L draw and on L L L (the widest shapes in the right
-## cell).
-func test_the_reveal_shapes_stay_in_the_tray() -> void:
+## The RARE glow and the LEGENDARY sunburst stand behind every ticket of the row (each ticket a z
+## step up, its back effects a step down again), so a neighbour's burst never covers a card; on
+## L L L, the widest case.
+func test_the_back_effects_draw_behind_every_ticket() -> void:
 	var legend: int = MachinePrize.Rarity.LEGENDARY
-	var draws: Array = [[MachinePrize.Rarity.COMMON, MachinePrize.Rarity.RARE, legend]]
-	draws.append([legend, legend, legend])
-	draws.append([MachinePrize.Rarity.COMMON, MachinePrize.Rarity.RARE, MachinePrize.Rarity.RARE])
-	for rarities: Array in draws:
-		var run: RunState = _passed_run(13)
-		var view: RewardMachineView = await _open(run)
-		assert_bool(run.machine.choose(run, RewardMachine.Chute.NEW_ITEMS)).is_true()
-		var visit: MachineVisit = run.machine.current_visit()
-		for index: int in range(visit.prizes.size()):
-			visit.prizes[index].rarity = int(rarities[index])
-		visit.set_drawn(visit.in_drop_order())
-		view.show_draw(run)
-		view.show_at(view.plan.pick_at)
-		await _frames(2)
-		var fx: Control = view.ticket_fx
-		var clip: Rect2 = fx.get_global_rect()
-		var hood: Rect2 = view.hood.get_global_rect()
-		assert_bool(fx.clip_contents).is_true()
-		assert_float(clip.end.x).is_less_equal(hood.position.x)
-		assert_float(clip.position.x).is_greater_equal(
-			view.global_position.x + PrizeTicket.TRAY_LEFT
-		)
-		for ticket: PrizeTicket in view.tickets:
-			assert_int(fx.get_index()).is_less(ticket.get_index())
-			var shape: Control = ticket.shape()
-			if shape == null:
-				continue
-			assert_bool(fx.is_ancestor_of(shape)).is_true()
-			assert_bool(shape.is_visible_in_tree()).is_true()
-			# What shows of it (clipped by the layer) ends at the hood's left edge at most.
-			var shown: Rect2 = shape.get_global_rect().intersection(clip)
-			assert_float(shown.end.x).override_failure_message(str(shown)).is_less_equal(
-				hood.position.x
-			)
-			for spark: TextureRect in ticket.sparkles():
-				assert_bool(fx.is_ancestor_of(spark)).is_true()
-		await _close(view)
-		# The closed machine's tickets took their shapes with them.
-		assert_int(fx.get_child_count()).is_equal(0)
+	var run: RunState = _passed_run(13)
+	var view: RewardMachineView = await _open(run)
+	assert_bool(run.machine.choose(run, RewardMachine.Chute.NEW_ITEMS)).is_true()
+	var visit: MachineVisit = run.machine.current_visit()
+	for prize: MachinePrize in visit.prizes:
+		prize.rarity = legend
+	visit.set_drawn(visit.in_drop_order())
+	view.show_draw(run)
+	view.show_at(view.plan.pick_at)
+	await _frames(2)
+	for ticket: PrizeTicket in view.tickets:
+		var back: Control = ticket.get_node("FxBack")
+		assert_int(ticket.z_index).is_equal(1)
+		assert_bool(back.z_as_relative).is_true()
+		assert_int(ticket.z_index + back.z_index).is_less(ticket.z_index)
+		assert_float(ticket.burst_radius()).is_greater(0.0)
+	await _close(view)
 
 
-## The YOUR ORDER plate stays hidden while a rarity tab sits over it: through a pick's landing
-## while the other prizes keep their tabs; it shows again after a bin drops the tickets, or once
-## a lone prize has flown.
-func test_the_order_plate_stays_under_the_tabs_through_the_landing() -> void:
-	var tuning: MachineTuning = load(RewardMachineView.TUNING_PATH)
-	var common: int = MachinePrize.Rarity.COMMON
-	var plan: MachinePlan = MachinePlan.new(tuning, MachineVisit.Kind.TICKET, false)
-	plan.set_draw([common, MachinePrize.Rarity.RARE, MachinePrize.Rarity.LEGENDARY])
-	plan.set_landing(MachinePlan.Landing.NEW_CARD, 0, MachinePlan.NO_VISIT)
-	for t: float in [plan.press, plan.land, plan.punch, plan.end_at]:
-		assert_bool(OrderPlate.hidden_at(plan, t)).override_failure_message(str(t)).is_true()
-	var lone: MachinePlan = MachinePlan.new(tuning, MachineVisit.Kind.TICKET, false)
-	lone.set_draw([common])
-	lone.set_landing(MachinePlan.Landing.NEW_CARD, 0, MachinePlan.NO_VISIT)
-	assert_bool(OrderPlate.hidden_at(lone, lone.press)).is_true()
-	assert_bool(OrderPlate.hidden_at(lone, lone.fly_out + OrderPlate.HIDE_TAIL_S + 0.01)).is_false()
-	var binned: MachinePlan = MachinePlan.new(tuning, MachineVisit.Kind.TICKET, false)
-	binned.set_draw([common, common, common])
-	binned.set_landing(MachinePlan.Landing.BIN, 1, MachinePlan.NO_VISIT)
-	(
-		assert_bool(OrderPlate.hidden_at(binned, binned.press + OrderPlate.HIDE_TAIL_S + 0.01))
-		. is_false()
-	)
-
-
-## Every chute's odds card (#77 machine v2's B2: shift 1's lit chutes, the bonus ticket's, and
-## STAMP DAY's REGISTER card), with the starting stock and with a full collection's, also on a
-## full cart: on hover, above its key inside the machine (so inside the stage, below the top bar),
-## its tail's tip just above the key's centre, over every part (OddsCard.Z), three rows inside it
-## and its lines fitting; the display keeps the wait's lines.
-func test_every_odds_card_sits_above_its_key() -> void:
+## The stock window (v0.50, M4) on every kind of visit (shift 1's lit chutes, the bonus ticket's,
+## STAMP DAY's LOYALTY column), with the starting stock and with a full collection's, also on a
+## full cart: inside the machine, above the key bay, its lit columns' odds and words fitting inside
+## it; the display keeps the wait's lines while a key is hovered.
+func test_the_stock_window_fits_on_every_visit() -> void:
 	var runs: Array[RunState] = [
 		_passed_run(14),
 		_bonus_run(15),
@@ -228,48 +163,29 @@ func test_every_odds_card_sits_above_its_key() -> void:
 		view.show_at(view.plan.pick_at if stamp_day else view.plan.choose_at)
 		view._armed = true  # Headless: no mouse release arms it.
 		var machine: Rect2 = view.get_global_rect()
+		var window: Rect2 = view.stock.get_global_rect()
+		assert_bool(machine.encloses(window)).is_true()
+		assert_float(window.end.y).is_less_equal(view.key_bay.get_global_rect().position.y)
 		var lines: PackedStringArray = view.display.texts()
+		var lit: int = 0
 		for chute: int in RewardMachine.CHUTES:
-			var info: MachineChuteInfo = run.machine.chute_info(run, chute)
-			if stamp_day and chute != RewardMachine.Chute.REGISTER:
+			if not view.stock.column_lit(chute):
 				continue
-			if not stamp_day and info.state != RewardMachine.ChuteState.OPEN:
-				continue
-			view._hide_odds()
+			lit += 1
 			view._on_key_hovered(chute)
-			var card: OddsCard = view.odds_card
-			assert_bool(card.visible).override_failure_message(str(chute)).is_true()
-			view.idle_time += 1.0
-			card.frame(view.clock)
-			await _frames(2)
-			var rect: Rect2 = card.get_global_rect()
-			var where: String = (
-				"chute %d (stock %d): %s" % [chute, run.stock.card_ids().size(), rect]
-			)
-			assert_bool(machine.encloses(rect)).override_failure_message(where).is_true()
-			assert_float(rect.position.y).override_failure_message(where).is_greater_equal(
-				ShiftStage.TOP_BAR_BOTTOM
-			)
-			var key: Rect2 = view.keys[chute].get_global_rect()
-			var tip: Vector2 = card.global_position + card.tail_tip()
-			assert_float(rect.end.y).override_failure_message(where).is_less(key.position.y)
-			assert_float(tip.y).override_failure_message(where).is_less_equal(key.position.y)
-			assert_float(tip.x).override_failure_message(where).is_between(
-				key.position.x, key.end.x
-			)
-			assert_int(card.z_index).is_equal(OddsCard.Z)
-			assert_int(card.rows().size()).is_equal(3)
-			for row: Panel in card.rows():
-				assert_bool(rect.encloses(row.get_global_rect())).is_true()
-			for label: Label in card.shown_labels():
-				_assert_fits(label)
 			assert_array(Array(view.display.texts())).is_equal(Array(lines))
+		var where: String = "stock %d, phase %d" % [run.stock.card_ids().size(), run.phase]
+		assert_int(lit).override_failure_message(where).is_greater(0)
+		for label: Label in view.stock.labels():
+			if not label.visible:
+				continue
+			assert_bool(window.encloses(label.get_global_rect())).is_true()
+			_assert_fits(label)
 		await _close(view)
 
 
 ## The cart drawer at its widest (a landing product with more copies than it shows) rests below
-## the top bar, its right edge at CART_DRAWER_RIGHT (left of the machine), clear of the receipt,
-## and above the floor; its labels fit.
+## the top bar, left of the machine, and above the floor; its labels fit.
 func test_the_cart_drawer_sits_left_of_the_machine() -> void:
 	var run: RunState = _passed_run(18, _with_milks)
 	var view: RewardMachineView = await _open(run)
@@ -286,33 +202,31 @@ func test_the_cart_drawer_sits_left_of_the_machine() -> void:
 	assert_int(drawer.slots.size()).is_equal(CartDrawer.MAX_SLOTS)
 	var rest: Rect2 = drawer.rest_rect()
 	assert_float(rest.position.y).is_greater_equal(ShiftStage.TOP_BAR_BOTTOM)
-	# At its widest it can't keep its right edge at CART_DRAWER_RIGHT: it starts at CART_DRAWER_LEFT
-	# and reaches the cabinet's edge, short of the first prize cell (#77 machine v2).
 	assert_float(rest.position.x).is_greater_equal(ShiftStage.CART_DRAWER_LEFT)
-	assert_float(rest.end.x).is_less_equal(ShiftStage.MACHINE_CELL_X[0])
+	assert_float(rest.end.x).is_less_equal(ShiftStage.CART_DRAWER_REACH)
 	assert_float(rest.end.y).is_less_equal(ShiftStage.FLOOR_TOP)
 	for label: Label in _labels(drawer):
 		_assert_fits(label)
 	await _close(view)
 
 
-## Pixelify only at 12 or 24 px on every machine text, in every state: the chute wait, an odds
-## card, the revealed draw, a landing, the bonus ticket's and STAMP DAY's visits, every rarity
-## tab at full and compact size; and every plain label fits its box.
+## Pixelify only at 12 or 24 px on every machine text, in every state: the chute wait, a hovered
+## key, a pressed key, the landed row, a landing, the bonus ticket's and STAMP DAY's visits, and
+## a PREMIUM visit; every rarity tab; and every plain label fits its box.
 func test_pixelify_is_only_12_or_24_and_every_label_fits() -> void:
 	var seen: int = 0
-	for run: RunState in [_passed_run(20), _bonus_run(21), _stamp_day_run(22)]:
+	var runs: Array[RunState] = [
+		_passed_run(20), _bonus_run(21), _stamp_day_run(22), _passed_run(23, _boosted)
+	]
+	for run: RunState in runs:
 		var view: RewardMachineView = await _open(run)
 		seen += _audit(view, "wait")
 		if run.phase == RunState.Phase.MACHINE_CHOOSE:
 			view._armed = true
 			var chute: int = MachineSteps.first_lit(run, RewardMachine.Chute.NEW_ITEMS)
 			view.hover_key(chute)
-			view.idle_time += 1.0
-			view.odds_card.frame(view.clock)
 			await _frames(2)
-			seen += _audit(view, "odds")
-			view._hide_odds()
+			seen += _audit(view, "hover")
 			view.press_key(chute)  # The title mode with CONFIRM › (#77 machine v2).
 			view.show_at(view.clock)
 			await _frames(2)
@@ -328,63 +242,48 @@ func test_pixelify_is_only_12_or_24_and_every_label_fits() -> void:
 		seen += _audit(view, "landing")
 		await _close(view)
 	for rarity: int in range(RarityTab.TEXTS.size()):
-		for compact: bool in [false, true]:
-			var tab: RarityTab = auto_free(RarityTab.new(rarity))
-			tab.set_compact(compact)
-			var label: Label = tab.get_node("Text") as Label
-			_assert_pixelify_size(label.get_theme_font("font"), tab.font_size(), tab.text())
+		var tab: RarityTab = auto_free(RarityTab.new(rarity))
+		var label: Label = tab.label()
+		_assert_pixelify_size(
+			label.get_theme_font("font"), label.get_theme_font_size("font_size"), tab.text()
+		)
+		_assert_fits(label)
 	assert_int(seen).is_greater(100)
 
 
-## A LEGENDARY reveal jolts the machine (look F's shake: 3 px across, 2 px down and up, at 60-70 %
-## of the reveal) after a gold flash over the whole stage (35-45 %, fading from 0.28); a COMMON or
-## RARE reveal and reduced motion never do.
-func test_a_legendary_reveal_shakes_and_flashes() -> void:
+## A LEGENDARY landing jolts the stage (6 px across, 4 px down and up, decaying over SHAKE_S); a
+## COMMON or RARE landing and reduced motion never do. On the machine the stage moves, then
+## settles back.
+func test_a_legendary_landing_shakes_the_stage() -> void:
 	var run: RunState = _passed_run(24)
 	var view: RewardMachineView = await _open(run)
 	var legend: int = MachinePrize.Rarity.LEGENDARY
 	for rm: bool in [false, true]:
 		var plan: MachinePlan = MachinePlan.new(view.tuning, MachineVisit.Kind.TICKET, rm)
 		plan.set_draw([MachinePrize.Rarity.COMMON, MachinePrize.Rarity.RARE, legend])
-		var at: Callable = func(index: int, p: float) -> float:
-			return plan.reveal_at[index] + plan.reveal_length[index] * p
-		var shake: Vector2 = MachineLayers.legendary_shake(plan, at.call(2, 0.65))
-		var flash: float = MachineLayers.legendary_flash(plan, at.call(2, 0.36))
+		var shake: Vector2 = MachineLayers.legendary_shake(plan, plan.reveal_at[2] + 0.001)
 		if rm:
 			assert_vector(shake).is_equal(Vector2.ZERO)
-			assert_float(flash).is_equal(0.0)
 			continue
-		assert_float(absf(shake.x)).is_equal(MachineLayers.SHAKE_X)
-		assert_float(absf(shake.y)).is_equal(MachineLayers.SHAKE_Y)
-		assert_float(flash).is_between(0.2, MachineLayers.FLASH_ALPHA)
-		for p: float in [0.2, 0.5, 0.8, 1.0]:
-			assert_vector(MachineLayers.legendary_shake(plan, at.call(2, p))).is_equal(Vector2.ZERO)
-		assert_float(MachineLayers.legendary_flash(plan, at.call(2, 0.5))).is_equal(0.0)
+		assert_float(absf(shake.x)).is_less_equal(MachineLayers.SHAKE_X)
+		assert_float(absf(shake.x)).is_greater(0.0)
+		assert_float(absf(shake.y)).is_less_equal(MachineLayers.SHAKE_Y)
+		var settled: float = plan.reveal_at[2] + MachineLayers.SHAKE_S + 0.01
+		assert_vector(MachineLayers.legendary_shake(plan, settled)).is_equal(Vector2.ZERO)
 		for index: int in [0, 1]:
-			assert_vector(MachineLayers.legendary_shake(plan, at.call(index, 0.65))).is_equal(
-				Vector2.ZERO
-			)
-	# On the machine: the flash covers the stage; the shake moves the machine, then it settles.
+			var calm: Vector2 = MachineLayers.legendary_shake(plan, plan.reveal_at[index] + 0.05)
+			assert_vector(calm).is_equal(Vector2.ZERO)
 	assert_bool(run.machine.choose(run, RewardMachine.Chute.NEW_ITEMS)).is_true()
 	var visit: MachineVisit = run.machine.current_visit()
 	for prize: MachinePrize in visit.prizes:
 		prize.rarity = legend
 	visit.set_drawn(visit.in_drop_order())
 	view.show_draw(run)
-	var reveal: Callable = func(p: float) -> float:
-		return view.plan.reveal_at[0] + view.plan.reveal_length[0] * p
-	view.show_at(reveal.call(0.36))
-	assert_bool(view.flash.visible).is_true()
-	assert_vector(view.flash.get_global_rect().size).is_equal(ShiftStage.SIZE)
-	view.show_at(reveal.call(0.65))
-	# The whole stage shakes (look F's #shakeWrap): its stage layer and its flash move with the
-	# stage, so the flash still covers it (the machine shakes with the camera's world: #77
-	# machine v2, checked in store_camera_test).
+	view.show_at(view.plan.reveal_at[0] + 0.001)
 	var stage: Control = view.stage
 	assert_float(stage.position.length()).is_greater(1.0)
 	assert_vector(view.stage_layer.global_position).is_equal(stage.global_position)
-	view.show_at(reveal.call(0.9))
-	assert_bool(view.flash.visible).is_false()
+	view.show_at(view.plan.pick_at)
 	assert_vector(stage.position).is_equal(Vector2.ZERO)
 	await _close(view)
 
@@ -486,10 +385,7 @@ func _assert_fits(label: Label) -> void:
 ## box grows to the default font's size and the centred text slides off centre.
 func _assert_in_parent(label: Label, where: String) -> void:
 	var parent: Control = label.get_parent() as Control
-	# A key's SEE ODDS tab sticks out above its key on purpose (look F): its box is ChuteKey's.
-	if parent == null or parent.size == Vector2.ZERO or parent is ChuteKey:
-		if parent is ChuteKey:
-			_assert_rect(label.get_rect(), ChuteKey.TAB_RECT, "%s: %s" % [where, label.text])
+	if parent == null or parent.size == Vector2.ZERO:
 		return
 	(
 		assert_bool(Rect2(Vector2.ZERO, parent.size).grow(0.5).encloses(label.get_rect()))
@@ -619,6 +515,11 @@ static func _with_milks(run: RunState) -> void:
 	var milk: CardDefinition = load(MILK)
 	while run.deck.size() < run.balance.deck_limit - 1:
 		run.deck.add_card(milk)
+
+
+## Shift 1's ticket visit BOOSTED: the machine turns PREMIUM (v0.50).
+static func _boosted(run: RunState) -> void:
+	MachineSteps.boost_run(run, [1] as Array[int])
 
 
 static func _view_for(screen: ShiftScreen, card: CardInstance) -> CardView:

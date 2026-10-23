@@ -1,34 +1,40 @@
 class_name RewardMachineView
 extends Control
-## The RECEIPT REWARDS machine on the shift screen (#77, look F; build spec 4.2). Machine v2
-## (Q1 = A): it stands in the store, on the back wall of the stage's world at
-## ShiftStage.MACHINE_WALL_RECT, half size, all run. Between visits it is idle (show_idle): dimmed
-## (MachineDim: darker through its modulate, greyer through the veil's shader over it), its
-## keys cream and unlit, its display blank, and it takes no click (mouse_behavior_recursive), so a
-## click on it reaches the wall. A visit (open_visit) drives the StoreCamera (`camera`) and the
-## stage's fore from its plan: a TICKET visit glides the camera to the machine at 2x, where it
-## shows at ShiftStage.MACHINE_RECT at a net scale of 1, and lights it (set_lit). Back to front:
-## the cabinet (drawn), the head plate (MachineHead), the receipt slot (SlotPlate), the display
-## with BIN IT (MachineDisplay), the four chute keys (ChuteKey), the stockroom window
-## (StockroomWindow) with the order slip (OrderSlip), the YOUR
-## ORDER plate (OrderPlate), the tray belt (MachineBelt, BoxLane), the RESTOCK hood (RestockHood)
-## and the prize tickets in their cells (PrizeTicket); the dim veil (MachineDim); then
-## MachineLayers': the receipt feed (ReceiptFeed, with the bonus ticket) and the cart drawer
-## (CartDrawer) on the hud under the top bar, the prize's flight (MachineFlyer) over everything,
-## and the odds card (OddsCard) above a hovered key, over all of them.
+## The RECEIPT REWARDS machine on the shift screen (#77, build spec 4.2; redrawn front-on in v0.50,
+## mock-up docs/art/mockups/premium_machine_v1.html). It stands in the store, on the back wall of
+## the stage's world at ShiftStage.MACHINE_WALL_RECT, half size, all run. Between visits it is idle
+## (show_idle): dimmed (MachineDim), its keys unlit, its display blank, its stock window shut, and
+## it takes no click (mouse_behavior_recursive), so a click on it reaches the wall. A visit
+## (open_visit) drives the StoreCamera (`camera`) and the stage's fore from its plan: a TICKET visit
+## glides the camera to the machine at 2x, where its cabinet shows at ShiftStage.MACHINE_RECT at a
+## net scale of 1, and lights it (set_lit). Back to front: the cabinet (MachineCabinet: body, trim,
+## window frame, key plate, kick panel with the bonus ticket's dock), the marquee (MachineHead), the
+## display (MachineDisplay, with BIN IT and CONFIRM ›) and the receipt slot (SlotPlate) on one
+## strip, the stock window (StockWindow: sealed tickets over each lit chute's odds), the chute keys
+## on the key plate (ChuteKey, in `key_bay`, only the visit's pair standing), the tray
+## (MachineTray), the dim veil (MachineDim); then MachineLayers': the receipt feed (ReceiptFeed,
+## with the bonus ticket) and the cart drawer (CartDrawer) on the hud under the top bar, the prize
+## row's veil (PrizeRow) and the prize's flight (MachineFlyer) over everything, and the prize
+## tickets (PrizeTicket) with KEEP ONE over all of them.
+##
+## CLASSIC AND PREMIUM (v0.50, dressing A): a Normal visit shows RECEIPT REWARDS with NEW ITEMS and
+## COUPONS; a BOOSTED visit (after shifts 3/5/7) turns the same machine PREMIUM after its receipt
+## is read (MachinePlan.premium_at, MachineLook) and it stays so for the visit: LOYALTY (the
+## REGISTER chute's name wherever the player sees it) and UPGRADES. A STAMP DAY visit shows its
+## LOYALTY key on the classic machine.
 ##
 ## It only displays what RunState and RewardMachine give it (chute_info, prizes, preview,
 ## can_bin, current_visit) and reports the player's choices: chute_confirmed, prize_picked and
 ## binned (the top bar's Cart opens the deck view during a visit, MachineFlow.show_deck).
 ## MachineFlow sequences the visits.
 ##
-## CHOOSING A CHUTE (#77 machine v2, the approved page): resting the pointer on a lit key shows
-## its odds card (hover_key; `odds_opened` is logged), and only then. A press (press_key) drops
-## the key, lights its LED and clicks; the display shows the chute's title with CONFIRM ›; a press
-## on another key moves the choice there (the first pops back up), on the same key lets it up.
-## Only CONFIRM › sends chute_confirmed; the chosen key stays down through the draw.
+## CHOOSING A CHUTE: resting the pointer on a lit key lights its stock window column brighter
+## (hover_key; `odds_opened` is logged: the player looked at that chute's odds). A press
+## (press_key) drops the key, lights its LED and clicks; the display shows the chute's title with
+## CONFIRM ›; a press on another key moves the choice there (the first pops back up), on the same
+## key lets it up. Only CONFIRM › sends chute_confirmed; the chosen key stays down through the draw.
 ##
-## THE CLOCK AND THE HOOKS (U0; U1-U3 attach to these, never to the clock itself):
+## THE CLOCK AND THE HOOKS:
 ## - `plan` is the visit's MachinePlan (presentation/machine_plan.gd: every beat's time, from
 ##   data/balance/machine_tempo.tres) and `clock` the time on it, in seconds. open_visit() starts
 ##   a plan at 0 (a resume at its wait point, `plan.resumed`); show_draw() adds the draw,
@@ -42,11 +48,11 @@ extends Control
 ##   current wait point (reaching END there still sends `finished`).
 ## - `idle_time` is the one free-running time (seconds since the visit opened; it goes on at the
 ##   wait points, where the clock holds, and stays 0 under reduced motion): a part's continuous
-##   effects at a wait point (the odds card's pop, a LEGENDARY tab's sparkle and hop, flashing
-##   chevrons and lamps, a GOLDEN item's shine) read it in frame(t), never Time or delta.
+##   effects (the chasing bulbs, the keys' glow, the tickets' sparkles and the sunburst's turn)
+##   read it in frame(t), never Time or delta.
 ## - `beat(beat_name, t0)` fires once per beat of the plan as the clock passes it, `t0` being the
-##   beat's plan time: feed, read, lights, draw, packed, reveal_0..reveal_2, pick, land,
-##   restock, bonus (a BONUS visit's start), stamp_day (STAMP DAY's start), plus armed. Beats
+##   beat's plan time: glide, snap, feed, read, premium, lights, draw, packed, reveal_0..reveal_2,
+##   pick, land, bonus (a BONUS visit's start), stamp_day (STAMP DAY's start), plus armed. Beats
 ##   before a resume's start never fire.
 ## - A tap (a click or Space, PressReader) during a non-interactive beat fast-forwards to the next
 ##   wait point (`skipped`, then fast_forward()): the beats on the way still fire, in order, with
@@ -61,7 +67,7 @@ extends Control
 ##   bin): the loyalty box (`box_index`), the cart counts (`cart_before`, `cart_after`), the copy
 ##   added (`added`) and the one swapped out (`replaced`), the upgraded copies (`upgraded`).
 ## - `plain_landing`: while true MachineFlow plays the plain landing at beat &"land" (the loyalty
-##   card's stamp, the place/stamp sound); U3's landing sets it false from its setup() and plays
+##   card's stamp, the place/stamp sound); MachineFlyer sets it false from its setup() and plays
 ##   its own. The top bar (Cart count, loyalty card) is refreshed at &"land" either way.
 
 signal chute_confirmed(chute: int)
@@ -73,91 +79,64 @@ signal finished
 signal beat(beat_name: StringName, t0: float)
 ## The player tapped to fast-forward (MachineFlow logs presentation_skipped).
 signal skipped
-## The player opened a chute's odds card (hover or click): MachineFlow logs the order.
+## The player looked at a chute's odds (its key hovered): MachineFlow logs the order.
 signal odds_opened(chute: int)
-## The prize tickets were built: the scanner watches their items (ScanController.cover_offers).
+## The prize tickets were built (the scanner watches the machine's items: none since v0.50).
 signal items_shown
 
-const SIZE := Vector2(420, 630)
+const SIZE := MachineCabinet.SIZE
 const TUNING_PATH := "res://data/balance/machine_tempo.tres"
-const HEAD_POSITION := Vector2(-10, -8)
-const SLOT_POSITION := Vector2(14, 54)
-const DISPLAY_POSITION := Vector2(14, 100)
-const KEY_X: Array[float] = [14.0, 114.0, 214.0, 314.0]
-const KEY_Y := 160.0
-const WINDOW_POSITION := Vector2(22, 276)
-const SLIP_POSITION := Vector2(30, 278)
-const SIGN_POSITION := Vector2(270, 271)
-const PLATE_POSITION := Vector2(120, 428)
-const BELT_POSITION := Vector2(10, 444)
-const LANE_POSITION := Vector2(12, 446)
-const HOOD_POSITION := Vector2(396, 436)
-## Cell i's left edge and the cells' top, in machine coordinates.
-const CELL_X: Array[float] = MachinePlan.CELL_X
-const CELL_Y := 452.0
-## The prize tickets' shapes (burst, sunburst, sparkles) are drawn under every ticket and clipped
-## to the tray: from the left rail to the RESTOCK hood, from the stockroom window's foot to the
-## cabinet's bottom border.
-const TICKET_FX_RECT := Rect2(
-	PrizeTicket.TRAY_LEFT, 426, PrizeTicket.TRAY_RIGHT - PrizeTicket.TRAY_LEFT, 202
-)
-const SHADOW := 8.0
+const HEAD_POSITION := Vector2(-20, -56)
+const DISPLAY_POSITION := Vector2(20, 12)
+const SLOT_POSITION := Vector2(320, 12)
+const WINDOW_POSITION := Vector2(20, 76)
+## The key plate's inside, where the keys stand (it clips the pair that is sunk out of sight), and
+## each key's place in it: chutes 0 and 2 on the left, 1 and 3 on the right.
+const KEY_BAY_RECT := Rect2(14, 298, 420, 108)
+const KEY_X: Array[float] = [10.0, 218.0]
+const KEY_Y := 6.0
+const TRAY_POSITION := Vector2(20, 420)
 ## A beat planned at the clock's time when its segment starts (the pick press) still fires.
 const SAME_TIME := 0.000001
-## The STOCKROOM sign (look F's .fSign): bold Atkinson 8 px, 2 px apart, teal light on a teal
-## darkest plate with an ink border, 16 px high.
-const SIGN_SIZE := 8
-const SIGN_WEIGHT := 800
-const SIGN_SPACING := 2
-const SIGN_PAD := 6
-const SIGN_HEIGHT := 16.0
 const SPEND_LINE := "SPEND €%d ✓ THANK YOU!"
-## The order slip's check line (look F: the slip is narrow, no THANK YOU).
-const SLIP_SPEND_LINE := "SPEND €%d ✓"
 ## The chute wait's sub line (build spec 4.3's resume table) and a BONUS visit's lines there
 ## (#77 machine v2: "BONUS TICKET" / "inspection passed · 1 more prize · pick a chute").
 const CHOOSE_SUB := "pick a chute"
-## A BOOSTED visit (v0.47): the head stamp, its under-line and the chute wait's sub line.
-const BOOSTED_STAMP := MachineHead.BOOSTED_TEXT
-const BOOSTED_UNDER := "REGISTER · UPGRADES"
-const BOOSTED_SUB := "boosted visit · register or upgrades · pick a chute"
+## A BOOSTED visit (v0.50: the PREMIUM machine): the chute wait's sub line.
+const BOOSTED_SUB := "premium · loyalty or upgrades · pick a chute"
 const BONUS_TITLE := MachineDisplay.BONUS_TICKET
 const BONUS_SUB := "%s · 1 more prize · pick a chute"
-## A pressed key's title sub line: what the chute does, a BONUS visit's " · bonus ticket", the
+## A pressed key's title sub line: what the chute does (on a BONUS or BOOSTED visit the visit's
+## word in its place, v0.50: the strip beside CONFIRM is 160 px and the key already says it), the
 ## prizes.
-const TITLE_SUB := "%s%s · %d prizes, keep 1"
-const TITLE_BONUS := " · bonus ticket"
-const TITLE_BOOSTED := " · boosted"
+const TITLE_SUB := "%s · %d prizes, keep 1"
+const TITLE_BONUS := "bonus ticket"
+const TITLE_BOOSTED := "premium"
 ## A pressed key's click.
 const PRESS_SOUND := "ui_click"
-## A BONUS visit's head stamp under-line and slip check line (an extra shift's: "shift n").
+## A BONUS visit's head stamp under-line (an extra shift's: "shift n").
 const BONUS_UNDER := "INSPECTION PASSED"
-const BONUS_CHECK := "INSPECTION PASSED ✓"
-const EXTRA_CHECK := "BONUS TICKET ✓"
+## The pick wait's sub line when the cart is full (a pick swaps a card out).
+const CART_FULL_TEXT := "CART FULL: SWAP 1 OUT"
 
+var cabinet: MachineCabinet
 var head: MachineHead
 var slot_plate: SlotPlate
 var display: MachineDisplay
-var stockroom: StockroomWindow
-var slip: OrderSlip
-var order_plate: OrderPlate
-var belt: MachineBelt
-var box_lane: BoxLane
-var hood: RestockHood
-var odds_card: OddsCard
-## The tickets' shapes behind them (PrizeTicket moves its own here), clipped to the tray.
-var ticket_fx: Control
+var stock: StockWindow
+var tray: MachineTray
+## The key plate's inside: the keys stand in it.
+var key_bay: Control
 var keys: Array[ChuteKey] = []
 var tickets: Array[PrizeTicket] = []
-## MachineLayers': the feed layer (on the hud), the stage layer and the odds card's layer.
+## MachineLayers': the feed layer (on the hud), the stage layer and the card layer.
 var feed_layer: Control
 var stage_layer: Control
 var card_layer: Control
 var receipt_feed: ReceiptFeed
 var cart_drawer: CartDrawer
+var prize_row: PrizeRow
 var flyer: MachineFlyer
-## The LEGENDARY reveal's gold flash over the stage (on the stage layer, over its parts).
-var flash: ColorRect
 ## Dims the machine between visits (set_lit).
 var veil: MachineDim
 var tuning: MachineTuning
@@ -193,16 +172,17 @@ var plain_landing: bool = true
 ## CONFIRM › played the confirm's sound for this visit (MachineSounds then doesn't again).
 var confirm_played: bool = false
 var _armed: bool = false
-var _lookup: ContentLookup
 ## The pressed key's chute at the chute wait and through its draw (-1: none).
 var _pressed: int = -1
+## The hovered key's chute (-1: none) and the chute whose odds were last logged.
+var _hovered: int = -1
 ## The wait point (MachinePlan.WaitPoint) the clock runs to, the last time beats fired up to, and
 ## whether `finished` was sent for this visit.
 var _until: int = MachinePlan.WaitPoint.CHOOSE
 var _fired: float = -1.0
 var _ended: bool = true
 var _presses: PressReader
-## The LEGENDARY reveal's shake now (stage px), as applied to the stage.
+## The LEGENDARY landing's shake now (stage px), as applied to the stage.
 var _shake: Vector2 = Vector2.ZERO
 
 
@@ -214,31 +194,28 @@ func _init() -> void:
 	_presses = PressReader.new()
 	add_child(_presses)
 	_presses.tapped.connect(_on_tapped)
+	cabinet = _add(MachineCabinet.new(), Vector2.ZERO) as MachineCabinet
 	head = _add(MachineHead.new(), HEAD_POSITION) as MachineHead
-	slot_plate = _add(SlotPlate.new(), SLOT_POSITION) as SlotPlate
 	display = _add(MachineDisplay.new(), DISPLAY_POSITION) as MachineDisplay
 	display.bin_pressed.connect(_on_bin_pressed)
 	display.confirm_pressed.connect(_on_confirmed)
+	slot_plate = _add(SlotPlate.new(), SLOT_POSITION) as SlotPlate
+	stock = _add(StockWindow.new(), WINDOW_POSITION) as StockWindow
+	key_bay = Control.new()
+	key_bay.name = "KeyBay"
+	key_bay.position = KEY_BAY_RECT.position
+	key_bay.size = KEY_BAY_RECT.size
+	key_bay.clip_contents = true
+	key_bay.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	add_child(key_bay)
 	for chute: int in RewardMachine.CHUTES:
-		var key: ChuteKey = _add(ChuteKey.new(chute), Vector2(KEY_X[chute], KEY_Y)) as ChuteKey
+		var at: Vector2 = Vector2(KEY_X[chute % 2], KEY_Y)
+		var key: ChuteKey = _add(ChuteKey.new(chute), at, key_bay) as ChuteKey
 		key.hovered.connect(_on_key_hovered)
 		key.unhovered.connect(_on_key_unhovered)
 		key.pressed.connect(press_key)
 		keys.append(key)
-	stockroom = _add(StockroomWindow.new(), WINDOW_POSITION) as StockroomWindow
-	slip = _add(OrderSlip.new(), SLIP_POSITION) as OrderSlip
-	add_child(_stockroom_sign())
-	order_plate = _add(OrderPlate.new(), PLATE_POSITION) as OrderPlate
-	belt = _add(MachineBelt.new(), BELT_POSITION) as MachineBelt
-	box_lane = _add(BoxLane.new(), LANE_POSITION) as BoxLane
-	hood = _add(RestockHood.new(), HOOD_POSITION) as RestockHood
-	ticket_fx = Control.new()
-	ticket_fx.name = "TicketFx"
-	ticket_fx.position = TICKET_FX_RECT.position
-	ticket_fx.size = TICKET_FX_RECT.size
-	ticket_fx.clip_contents = true
-	ticket_fx.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	add_child(ticket_fx)
+	tray = _add(MachineTray.new(), TRAY_POSITION) as MachineTray
 	feed_layer = MachineLayers.make("MachineFeedLayer", false)
 	add_child(feed_layer)
 	visibility_changed.connect(func() -> void: feed_layer.visible = visible)
@@ -246,24 +223,18 @@ func _init() -> void:
 	add_child(stage_layer)
 	receipt_feed = _add(ReceiptFeed.new(), Vector2.ZERO, feed_layer) as ReceiptFeed
 	cart_drawer = _add(CartDrawer.new(), Vector2.ZERO, feed_layer) as CartDrawer
+	prize_row = _add(PrizeRow.new(), Vector2.ZERO, stage_layer) as PrizeRow
 	flyer = _add(MachineFlyer.new(), Vector2.ZERO, stage_layer) as MachineFlyer
-	flash = ColorRect.new()
-	flash.name = "LegendaryFlash"
-	flash.color = Palette.GOLD
-	flash.size = ShiftStage.SIZE
-	flash.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	flash.visible = false
-	stage_layer.add_child(flash)
 	veil = MachineDim.new()
 	add_child(veil)
 	card_layer = MachineLayers.make("MachineCardLayer", true)
 	card_layer.size = SIZE
 	add_child(card_layer)
-	odds_card = OddsCard.new()
-	odds_card.setup(self)
-	card_layer.add_child(odds_card)
+	card_layer.add_child(prize_row.keep_label())
+	prize_row.place_keep()
 	MachineDim.idle_mouse(self, true)
 	set_lit(0.0)
+	_place_keys(MachineLook.new())
 
 
 func _process(delta: float) -> void:
@@ -282,10 +253,10 @@ func _process(delta: float) -> void:
 
 ## Opens the machine on `run_state`'s current visit, on `stage_control` (the receipt the visit was
 ## paid with is `receipt_source`'s): a new plan from 0, or `resumed` at its wait point (no
-## replay). A visit waiting for its chute shows the keys (lit, or shut: not this visit's state,
-## CARD FULL or NOTHING TO IMPROVE, from chute_info) and the order slip's "?" lines; one waiting
-## for its
-## pick (a STAMP DAY, or a resume at MACHINE_PICK) shows its prizes too (show_draw).
+## replay). A visit waiting for its chute shows its pair of keys (lit, or shut: CARD FULL or
+## NOTHING TO IMPROVE, from chute_info) and the lit chutes' odds in the stock window; one waiting
+## for its pick (a STAMP DAY, or a resume at MACHINE_PICK) shows its prizes too (show_draw). A
+## BOOSTED visit's plan turns the machine PREMIUM.
 func open_visit(
 	run_state: RunState, receipt_source: Control, stage_control: Control, resumed: bool
 ) -> void:
@@ -293,8 +264,6 @@ func open_visit(
 	run = run_state
 	stage = stage_control
 	receipt = receipt_source
-	if _lookup == null or _lookup.balance != run.balance:
-		_lookup = ContentLookup.new(run.balance)
 	visible = true
 	MachineDim.idle_mouse(self, false)
 	if resumed and is_instance_valid(receipt):
@@ -312,7 +281,8 @@ func open_visit(
 		or (not run.history.is_empty() and run.history[-1].inspection != null)
 	)
 	var stub: bool = run.machine.pending_kinds().has(MachineVisit.Kind.BONUS)
-	_start(MachinePlan.new(tuning, kind, reduced_motion.call(), inspected, stub))
+	var premium: bool = run.machine.is_boosted()
+	_start(MachinePlan.new(tuning, kind, reduced_motion.call(), inspected, stub, premium))
 	_show_head(kind, visit)
 	_show_keys(run.phase == RunState.Phase.MACHINE_PICK)
 	if run.phase == RunState.Phase.MACHINE_PICK:
@@ -320,11 +290,10 @@ func open_visit(
 		return
 	if resumed:
 		_resume(MachinePlan.WaitPoint.CHOOSE)
-	_show_slip(kind, run.machine.machine.prizes_per_visit, -1, false)
 	display.set_bin(false, false)
 	if kind == MachineVisit.Kind.BONUS:
 		display.show_message(BONUS_TITLE, BONUS_SUB % display.why_words())
-	elif run.machine.is_boosted():
+	elif premium:
 		display.show_message(SPEND_LINE % run.history[-1].total, BOOSTED_SUB)
 	else:
 		display.show_message(SPEND_LINE % run.history[-1].total, CHOOSE_SUB)
@@ -332,10 +301,9 @@ func open_visit(
 	_frame()
 
 
-## The visit's prizes in their cells (reveal order; a short draw uses the centre cell for one
-## prize, the left and centre cells for two), the pick prompt and BIN IT when it can be binned.
-## The clock goes on from the chute wait through the draw and the reveals to the pick wait
-## (`resumed`: it starts there).
+## The visit's prizes as tickets (reveal order), the pick prompt and BIN IT when it can be binned.
+## The clock goes on from the chute wait through the draw and the tickets' landings to the pick
+## wait (`resumed`: it starts there).
 func show_draw(run_state: RunState, resumed: bool = false) -> void:
 	run = run_state
 	visible = true
@@ -346,7 +314,9 @@ func show_draw(run_state: RunState, resumed: bool = false) -> void:
 	var visit: MachineVisit = run.machine.current_visit()
 	var prizes: Array[MachinePrize] = run.machine.prizes()
 	if plan == null:
-		_start(MachinePlan.new(tuning, visit.kind, reduced_motion.call()))
+		_start(
+			MachinePlan.new(tuning, visit.kind, reduced_motion.call(), true, false, visit.boosted)
+		)
 	if not resumed and clock < plan.choose_at:
 		_jump_to(plan.choose_at)  # Chosen before the keys lit (debug, tests).
 	var rarities: Array[int] = []
@@ -361,16 +331,16 @@ func show_draw(run_state: RunState, resumed: bool = false) -> void:
 	_show_keys(true)
 	# The chosen key stays down through the draw (none for STAMP DAY's own pick).
 	_press_only(visit.chute if visit.kind != MachineVisit.Kind.STAMP_DAY else -1)
-	var kind: int = prizes[0].kind if not prizes.is_empty() else -1
-	_show_slip(visit.kind, prizes.size(), kind, true)
 	for index: int in range(prizes.size()):
 		var ticket: PrizeTicket = PrizeTicket.new(
 			index, prizes[index], run.machine.preview(run, index), run
 		)
-		ticket.position = Vector2(cell_x(index, prizes.size()), CELL_Y)
+		ticket.rest = PrizeRow.card_rect(index, prizes.size()).position
+		ticket.launch = PrizeRow.LAUNCH
+		ticket.position = ticket.launch
 		ticket.clicked.connect(pick)
 		ticket.setup(self)
-		add_child(ticket)
+		card_layer.add_child(ticket)
 		tickets.append(ticket)
 	var can_bin: bool = run.machine.can_bin()
 	display.set_bin(can_bin, false)
@@ -407,9 +377,9 @@ func land(picked: MachineLanding) -> void:
 	_frame()
 
 
-## Ends the visit: the odds card and the prizes go, the clock stops and the machine is idle again
-## (show_idle's look, with the run it showed). The camera and the fore stay where they are (the
-## glide back moves them: MachineFlow).
+## Ends the visit: the prizes go, the clock stops and the machine is idle again (show_idle's look,
+## with the run it showed). The camera and the fore stay where they are (the glide back moves
+## them: MachineFlow).
 func close() -> void:
 	var shown: RunState = run
 	visible = true
@@ -418,7 +388,6 @@ func close() -> void:
 	_clear_tickets()
 	_presses.end()
 	_set_shake(Vector2.ZERO)
-	flash.visible = false
 	run = null
 	plan = null
 	landing = null
@@ -429,9 +398,9 @@ func close() -> void:
 	_frame()
 
 
-## The idle machine on the wall (between visits, and in planning): no visit, its head plain, its
-## keys cream and unlit with nothing pressed, its display blank, the slot's lamp off, no dock, no
-## prizes; it takes no click. Its dimming is set_lit's.
+## The idle machine on the wall (between visits, and in planning): no visit, its sign classic,
+## its keys unlit with nothing pressed, its display blank, its window shut, the slot's lamp off,
+## no dock, no prizes; it takes no click. Its dimming is set_lit's.
 func show_idle(run_state: RunState) -> void:
 	close()
 	MachineDim.rest_parts(self, run_state)
@@ -481,10 +450,9 @@ func show_at(t: float) -> void:
 
 
 ## A press on `chute`'s key (armed, at the chute wait): a lit key drops, lights and clicks
-## (PRESS_SOUND) and the display shows its title with CONFIRM ›, the odds card going; a press on
-## another key moves the choice (the first pops back up, silently); the same key again lets it up
-## and the wait's lines come back. A shut chute's key is refused (denied) with its reason on the
-## display for a moment.
+## (PRESS_SOUND) and the display shows its title with CONFIRM ›; a press on another key moves the
+## choice (the first pops back up, silently); the same key again lets it up and the wait's lines
+## come back. A shut chute's key is refused (denied) with its reason on the display for a moment.
 func press_key(chute: int) -> void:
 	if run == null or not _armed or run.phase != RunState.Phase.MACHINE_CHOOSE:
 		return
@@ -493,7 +461,6 @@ func press_key(chute: int) -> void:
 		Sfx.play_at(self, "denied")
 		display.show_denied(ChuteKey.NAMES[chute], keys[chute].sub_text())
 		return
-	_hide_odds()
 	if _pressed == chute:
 		_release()
 		_frame()
@@ -504,17 +471,22 @@ func press_key(chute: int) -> void:
 	_frame()
 
 
-## The pointer rests on `chute`'s key: its odds card shows above it while the visit waits for its
-## chute and the key is lit (not the pressed key), and during a STAMP DAY pick on the REGISTER
-## key (the card STAMP DAY drew from, read-only).
+## The pointer rests on `chute`'s key: while the visit waits for its chute and the key is lit,
+## its stock window column glows brighter and the look at its odds is logged (odds_opened).
 func hover_key(chute: int) -> void:
 	if run == null or not _armed:
 		return
 	var choosing: bool = run.phase == RunState.Phase.MACHINE_CHOOSE
 	var info: MachineChuteInfo = run.machine.chute_info(run, chute)
-	var lit: bool = choosing and info.state == RewardMachine.ChuteState.OPEN
-	if (lit and chute != _pressed) or _stamp_day_register(chute):
-		_show_odds(chute, info)
+	if choosing and info.state == RewardMachine.ChuteState.OPEN:
+		_hovered = chute
+		stock.set_hovered(chute)
+		odds_opened.emit(chute)
+
+
+## The hovered key's chute whose odds glow (-1: none).
+func hovered_chute() -> int:
+	return _hovered
 
 
 ## The pressed key's chute (-1: none).
@@ -522,20 +494,20 @@ func pressed_chute() -> int:
 	return _pressed
 
 
-## A pressed key's title sub line: "<what it does> · 3 prizes, keep 1" (a BONUS visit: "… · bonus
-## ticket · 3 prizes, keep 1"; a BOOSTED one: "… · boosted · 3 prizes, keep 1").
+## A pressed key's title sub line: "<what it does> · 3 prizes, keep 1" (a BONUS visit: "bonus
+## ticket · 3 prizes, keep 1"; a BOOSTED one: "premium · 3 prizes, keep 1").
 func title_sub(chute: int) -> String:
 	var visit: MachineVisit = run.machine.current_visit() if run != null else null
-	var extra: String = ""
+	var lead: String = ChuteKey.SUBS[chute].to_lower()
 	if visit != null and visit.kind == MachineVisit.Kind.BONUS:
-		extra = TITLE_BONUS
+		lead = TITLE_BONUS
 	elif visit != null and visit.boosted:
-		extra = TITLE_BOOSTED
+		lead = TITLE_BOOSTED
 	var prizes: int = run.machine.machine.prizes_per_visit if run != null else 3
-	return TITLE_SUB % [ChuteKey.SUBS[chute].to_lower(), extra, prizes]
+	return TITLE_SUB % [lead, prizes]
 
 
-## Picks the prize in cell `index` (armed only).
+## Picks the prize of ticket `index` (armed only).
 func pick(index: int) -> void:
 	if _armed and run != null and run.phase == RunState.Phase.MACHINE_PICK:
 		prize_picked.emit(index)
@@ -551,24 +523,15 @@ func is_armed() -> bool:
 	return visible and _armed
 
 
-## The tray items of the product and coupon prizes (the scanner reads them).
+## The machine's items for the scanner: none since v0.50 (a ticket shows its prize's rule in full,
+## so a prize is never scanned).
 func items() -> Array[ItemView]:
-	var found: Array[ItemView] = []
-	for ticket: PrizeTicket in tickets:
-		if ticket.item != null and ticket.prize.adds_card():
-			found.append(ticket.item)
-	return found
+	return []
 
 
-## Whether the scanner may read the prize items: shown and armed.
+## Whether the scanner may read the machine's items: never (items() is empty).
 func can_scan() -> bool:
-	return is_visible_in_tree() and _armed and not tickets.is_empty()
-
-
-## Cell i's left edge for a draw of `count` prizes: one prize takes the centre cell, two the left
-## and centre cells.
-static func cell_x(index: int, count: int) -> float:
-	return CELL_X[MachinePlan.cell_of(index, count)]
+	return false
 
 
 ## The pick prompt: "PICK 1", or "PICK 1 · ONLY n IN STOCK" for a short draw; STAMP DAY's
@@ -602,23 +565,6 @@ static func plate_style(colour: Color) -> StyleBoxFlat:
 	return style
 
 
-func _stockroom_sign() -> Label:
-	var sign_label: Label = UiKit.body_label("STOCKROOM", SIGN_SIZE, Palette.TEAL_LIGHT)
-	sign_label.name = "StockroomSign"
-	var font: FontVariation = FontVariation.new()
-	font.base_font = ArtStyle.bold_font(SIGN_WEIGHT)
-	font.spacing_glyph = SIGN_SPACING
-	sign_label.add_theme_font_override("font", font)
-	var plate: StyleBoxFlat = plate_style(Palette.BACKGROUND)
-	plate.content_margin_left = SIGN_PAD
-	plate.content_margin_right = SIGN_PAD
-	sign_label.add_theme_stylebox_override("normal", plate)
-	sign_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	sign_label.custom_minimum_size = Vector2(0, SIGN_HEIGHT)
-	sign_label.position = SIGN_POSITION
-	return sign_label
-
-
 ## Places `part` at `at`, hooks it (its setup(view)) and adds it to `parent` (null: the machine).
 func _add(part: Control, at: Vector2, parent: Node = null) -> Control:
 	part.position = at
@@ -630,32 +576,34 @@ func _add(part: Control, at: Vector2, parent: Node = null) -> Control:
 ## Every part at the clock.
 func _frame() -> void:
 	var t: float = clock
+	cabinet.frame(t)
 	head.frame(t)
-	slot_plate.frame(t)
 	display.frame(t)
+	slot_plate.frame(t)
+	stock.frame(t)
+	_place_keys(MachineLook.at(plan, t))
 	for key: ChuteKey in keys:
 		key.frame(t)
-	stockroom.frame(t)
-	slip.frame(t)
-	order_plate.frame(t)
-	belt.frame(t)
-	box_lane.frame(t)
-	hood.frame(t)
+	tray.frame(t)
 	for ticket: PrizeTicket in tickets:
 		ticket.frame(t)
 	_frame_scene(t)
 	_place()
-	if odds_card.visible and not _odds_allowed():
-		_hide_odds()
-	odds_card.frame(t)
 	receipt_feed.frame(t)
 	cart_drawer.frame(t)
+	prize_row.frame(t)
 	flyer.frame(t)
 	_set_shake(MachineLayers.legendary_shake(plan, t))
-	var flash_alpha: float = MachineLayers.legendary_flash(plan, t)
-	flash.visible = flash_alpha > 0.0
-	flash.modulate.a = flash_alpha
 	_place()
+
+
+## Stands the visit's pair of keys on the plate (MachineLook: the classic pair, the loyalty pair,
+## or both moving through the premium transform); a pair sunk out of sight is hidden.
+func _place_keys(look: MachineLook) -> void:
+	for key: ChuteKey in keys:
+		var up: float = look.pair_up(ChuteKey.is_gold(key.chute))
+		key.position.y = KEY_Y + MachineArt.snap((1.0 - up) * (ChuteKey.SIZE.y + KEY_Y * 2.0))
+		key.visible = up > 0.0
 
 
 ## The store around the visit at `t`: the camera's glide and the reduced-motion cut's fade, the
@@ -693,8 +641,7 @@ func _notification(what: int) -> void:
 		MachineLayers.release(feed_layer, self)
 
 
-## Shakes the whole stage by `shake` (stage px), as look F's #shakeWrap moves the register,
-## belt, receipt, top bar, machine and flash together: the hud and the stage layer with the stage
+## Shakes the whole stage by `shake` (stage px): the hud and the stage layer with the stage
 ## (_place), the zoomed world with the camera. Zero puts them back.
 func _set_shake(shake: Vector2) -> void:
 	if shake == _shake:
@@ -774,6 +721,9 @@ func _arm_when_released() -> void:
 	_armed = true
 	display.set_bin(display.bin_offered(), true)
 	beat.emit(&"armed", clock)
+	for key: ChuteKey in keys:
+		if key.is_hovered() and key.visible:
+			hover_key(key.chute)
 
 
 func _on_tapped(_now_ms: int) -> void:
@@ -809,7 +759,7 @@ func _pick_sub(run_state: RunState, can_bin: bool) -> String:
 	var fills: bool = visit.chute == RewardMachine.Chute.NEW_ITEMS
 	fills = fills or visit.chute == RewardMachine.Chute.COUPONS
 	if fills and run_state.deck_is_full():
-		return OddsCard.CART_FULL_TEXT
+		return CART_FULL_TEXT
 	return "or bin them all" if can_bin else "you must pick one"
 
 
@@ -819,43 +769,32 @@ func _show_head(kind: int, visit: MachineVisit) -> void:
 			var under: String = BONUS_UNDER
 			if visit.why.is_empty():
 				under = "shift %d" % run.history[-1].shift
-			head.set_stamp("BONUS TICKET!", under)
+			head.set_stamp(MachineHead.BONUS_TEXT, under)
 		MachineVisit.Kind.STAMP_DAY:
 			head.set_stamp("STAMP DAY!", "")
 		_:
-			var boosted: bool = visit != null and visit.boosted
-			head.set_stamp(BOOSTED_STAMP if boosted else "", BOOSTED_UNDER if boosted else "")
+			head.set_stamp("", "")
 
 
-## The keys from chute_info: once a chute is chosen (`picking`), only it is lit; during a STAMP
-## DAY pick the REGISTER key carries the SEE ODDS tab.
+## The keys and the stock window from chute_info: once a chute is chosen (`picking`), only it is
+## lit.
 func _show_keys(picking: bool) -> void:
 	var visit: MachineVisit = run.machine.current_visit()
+	var infos: Array[MachineChuteInfo] = []
 	for chute: int in RewardMachine.CHUTES:
 		var info: MachineChuteInfo = run.machine.chute_info(run, chute)
+		infos.append(info)
 		var lit: bool = not picking or (visit != null and visit.chute == chute)
 		keys[chute].show_state(info.state, info.opens_after_shift, lit)
-		keys[chute].set_tab(_stamp_day_register(chute))
-
-
-## `chute`'s odds card above its key; the order is logged (odds_opened).
-func _show_odds(chute: int, info: MachineChuteInfo) -> void:
-	odds_card.show_card(chute, info, Rect2(keys[chute].position, ChuteKey.SIZE))
-	odds_opened.emit(chute)
+	var chosen: int = visit.chute if picking and visit != null else -1
+	if picking and visit != null and visit.kind == MachineVisit.Kind.STAMP_DAY:
+		chosen = RewardMachine.Chute.REGISTER
+	stock.show_chutes(infos, chosen)
 
 
 func _hide_odds() -> void:
-	odds_card.visible = false
-
-
-## Whether an odds card may show now: armed at the chute wait, or at a STAMP DAY pick (never
-## while the draw or the landing plays).
-func _odds_allowed() -> bool:
-	if run == null or plan == null or not _armed or not _at_wait():
-		return false
-	if plan.has_landing:
-		return false
-	return run.phase == RunState.Phase.MACHINE_CHOOSE or run.phase == RunState.Phase.MACHINE_PICK
+	_hovered = -1
+	stock.set_hovered(-1)
 
 
 ## Presses `chute`'s key alone (-1: none).
@@ -871,49 +810,6 @@ func _release() -> void:
 	display.clear_title()
 
 
-func _stamp_day_register(chute: int) -> bool:
-	var visit: MachineVisit = run.machine.current_visit() if run != null else null
-	return (
-		chute == RewardMachine.Chute.REGISTER
-		and visit != null
-		and visit.kind == MachineVisit.Kind.STAMP_DAY
-	)
-
-
-func _inspection_name(id: String) -> String:
-	var inspection: InspectionDefinition = _lookup.inspection(id)
-	return inspection.display_name if inspection != null else id
-
-
-func _order_title(kind: int) -> String:
-	match kind:
-		MachineVisit.Kind.BONUS:
-			return "BONUS #%db" % run.history[-1].shift
-		MachineVisit.Kind.STAMP_DAY:
-			return "STAMP DAY"
-	var visit: MachineVisit = run.machine.current_visit()
-	var chute: int = visit.chute + 1 if visit != null and visit.chute >= 0 else 0
-	return "ORDER #%d%d7" % [run.history[-1].shift, chute]
-
-
-## The order slip for a visit of `kind`: its title, its check line (the spend, shorter than the
-## display's; a BONUS visit's red INSPECTION PASSED ✓ over the inspection's name, an extra
-## shift's BONUS TICKET ✓ over "shift n"), `count` prize lines of prize `prize_kind`.
-func _show_slip(kind: int, count: int, prize_kind: int, packed: bool) -> void:
-	var visit: MachineVisit = run.machine.current_visit()
-	var title: String = _order_title(kind)
-	if visit == null or visit.kind != MachineVisit.Kind.BONUS:
-		var spend: String = SLIP_SPEND_LINE % run.history[-1].total
-		slip.show_order(title, spend, count, prize_kind, packed)
-		return
-	var check: String = BONUS_CHECK
-	var why: String = _inspection_name(visit.why)
-	if visit.why.is_empty():
-		check = EXTRA_CHECK
-		why = "shift %d" % run.history[-1].shift
-	slip.show_order(title, check, count, prize_kind, packed, why, Palette.TOMATO_DARK)
-
-
 func _disarm() -> void:
 	_armed = false
 	display.set_bin(display.bin_offered(), false)
@@ -921,15 +817,9 @@ func _disarm() -> void:
 
 func _clear_tickets() -> void:
 	for ticket: PrizeTicket in tickets:
-		remove_child(ticket)
+		ticket.get_parent().remove_child(ticket)
 		ticket.queue_free()
 	tickets = []
-
-
-func _draw() -> void:
-	draw_rect(Rect2(Vector2(SHADOW, SHADOW), SIZE), Palette.TEAL_BLACK)
-	draw_rect(Rect2(Vector2.ZERO, SIZE), Palette.PANEL)
-	draw_rect(Rect2(Vector2.ZERO, SIZE), Palette.INK, false, 2.0)
 
 
 func _on_key_hovered(chute: int) -> void:
@@ -937,7 +827,7 @@ func _on_key_hovered(chute: int) -> void:
 
 
 func _on_key_unhovered(chute: int) -> void:
-	if odds_card.chute == chute:
+	if _hovered == chute:
 		_hide_odds()
 
 

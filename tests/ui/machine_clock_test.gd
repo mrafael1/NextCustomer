@@ -112,7 +112,7 @@ func test_the_clock_plays_a_visit_to_its_end() -> void:
 	assert_int(screen.run.shift_index).is_equal(1)
 	assert_bool(_beats.any(func(seen: Array) -> bool: return seen[2])).is_false()
 	assert_bool(_names().has(&"land")).is_false()  # A bin has no landing.
-	assert_bool(_names().has(&"restock")).is_true()
+	assert_bool(_names().has(&"pick")).is_true()
 	assert_bool(_last_event("machine_visit")["presentation_skipped"]).is_false()
 
 
@@ -242,13 +242,10 @@ func test_every_part_is_hooked_and_show_at_fires_nothing() -> void:
 		view.head,
 		view.slot_plate,
 		view.display,
-		view.stockroom,
-		view.slip,
-		view.order_plate,
-		view.belt,
-		view.box_lane,
-		view.hood,
-		view.odds_card,
+		view.cabinet,
+		view.stock,
+		view.tray,
+		view.prize_row,
 		view.receipt_feed,
 		view.cart_drawer,
 		view.flyer
@@ -257,8 +254,8 @@ func test_every_part_is_hooked_and_show_at_fires_nothing() -> void:
 		parts.append(key)
 	for part: Control in parts:
 		assert_object(part.get(&"view")).override_failure_message(part.name).is_same(view)
-	# The feed and the drawer on the hud under the top bar; the flight over everything; the odds
-	# card over that.
+	# The feed and the drawer on the hud under the top bar; the flight and the prize row's veil
+	# over everything; the tickets and KEEP ONE over that (v0.50).
 	for part: Control in [view.receipt_feed, view.cart_drawer]:
 		assert_object(part.get_parent()).is_same(view.feed_layer)
 	assert_object(view.feed_layer.get_parent()).is_same(screen._stage)
@@ -266,7 +263,8 @@ func test_every_part_is_hooked_and_show_at_fires_nothing() -> void:
 	assert_int(view.feed_layer.get_index()).is_less(screen._stage.top_bar.get_index())
 	assert_object(view.flyer.get_parent()).is_same(view.stage_layer)
 	assert_bool(view.stage_layer.top_level).is_true()
-	assert_object(view.odds_card.get_parent()).is_same(view.card_layer)
+	assert_object(view.prize_row.get_parent()).is_same(view.stage_layer)
+	assert_object(view.prize_row.keep_label().get_parent()).is_same(view.card_layer)
 	assert_bool(view.card_layer.top_level).is_true()
 	assert_int(view.card_layer.get_index()).is_greater(view.stage_layer.get_index())
 	assert_object(view.loyalty_card).is_same(screen._loyalty_card)

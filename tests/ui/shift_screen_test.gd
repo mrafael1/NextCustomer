@@ -333,8 +333,6 @@ func test_the_machine_ignores_clicks_until_armed() -> void:
 	await _pass_first_shift(screen)
 	var view: RewardMachineView = screen._machine.view
 	view._armed = false
-	view.hover_key(RewardMachine.Chute.NEW_ITEMS)
-	assert_bool(view.odds_card.visible).is_false()
 	view.press_key(RewardMachine.Chute.NEW_ITEMS)
 	assert_int(view.pressed_chute()).is_equal(-1)
 	await _until_armed(screen)

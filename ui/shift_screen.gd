@@ -241,7 +241,7 @@ func _resume_run(saved: RunSave) -> void:
 	tracker.begin(Time.get_ticks_msec(), _focus.is_player_present())
 	_refresh()
 	if run.phase == RunState.Phase.PLANNING:
-		_machine.shift_started()
+		_machine.shift_started(false)
 		return
 	# After the checkout: the row, its receipt (ended as the dessert left it, with the next
 	# shift's inspection notice) and the LED's TOTAL, met or not, as the count-up left them

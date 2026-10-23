@@ -181,8 +181,13 @@ func test_mid_glide_states() -> void:
 	assert_float(at.position.x).is_between(
 		minf(rest.position.x, slot.position.x), maxf(rest.position.x, slot.position.x)
 	)
+	# Up to the tear's lift and tilt above its path (v0.50: the slot sits lower than the
+	# receipt's top), both at the camera's zoom.
+	var tuning: MachineTuning = view.tuning
+	var tilt: float = rest.size.x / 2.0 * sin(deg_to_rad(tuning.tear_tilt_deg))
+	var lift: float = (tuning.tear_lift_px + tilt) * screen._camera.zoom()
 	assert_float(at.position.y).is_between(
-		minf(rest.position.y, slot.position.y), maxf(rest.position.y, slot.position.y)
+		minf(rest.position.y, slot.position.y) - lift, maxf(rest.position.y, slot.position.y)
 	)
 	assert_float(at.position.x).is_not_equal(rest.position.x)
 	assert_float(at.position.y).is_not_equal(rest.position.y)
