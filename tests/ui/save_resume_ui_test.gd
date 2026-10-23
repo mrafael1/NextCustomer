@@ -434,12 +434,16 @@ func test_a_new_screen_resumes_a_bonus_visit() -> void:
 
 
 ## A bonus visit's machine (#77 machine v2): the head's BONUS TICKET! stamp over INSPECTION PASSED,
-## on the classic face (a BONUS visit is never PREMIUM, v0.50).
+## on the PREMIUM face when the visit is BOOSTED (after a boosted shift, v0.53: the inspected
+## shifts are the boosted ones, so this run's is), else the classic one.
 func _assert_bonus_faces(screen: ShiftScreen) -> void:
 	var view: RewardMachineView = screen._machine.view
 	assert_str(view.head.stamp_texts()[0]).is_equal("BONUS TICKET!")
 	assert_str(view.head.stamp_texts()[1]).is_equal(RewardMachineView.BONUS_UNDER)
-	assert_bool(view.head.premium_face()).is_false()
+	var boosted: bool = screen.run.machine.current_visit().boosted
+	assert_bool(boosted).is_true()
+	assert_bool(view.plan.premium_held).is_true()
+	assert_bool(view.head.premium_face()).is_true()
 
 
 ## A run saved after the shift's last visit (SCORED) resumes on the next shift's planning.
