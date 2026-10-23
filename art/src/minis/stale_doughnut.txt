@@ -1,12 +1,14 @@
-; A giver-badge mini (sticker minis, mock-up docs/art/mockups/sticker_minis_v1.html): Stale doughnut, a ring with a hole and dull grey icing.
-; Drawn in the approved minis' style. 7x7, ink outline, light from the top left; shown die-cut (alone) at 2x on a planning sticker's
+; A giver-badge mini (sticker minis, mock-up docs/art/mockups/sticker_minis_v1.html): Stale
+; doughnut, a round ring with an inked hole: brown dough with dull grey stale patches top left and
+; lit dough pixels.
+; 7x7, ink outline, light from the top left; shown die-cut (alone) at 2x on a planning sticker's
 ; giver badge. Its GOLDEN copy (stale_doughnut_golden) is derived (@derive ... golden=outline).
 @size 7x7
 @kind icon
-.#####.
-#::-:=#
-#:#.#=#
-#-=#==#
-#FFfff#
-.#####.
-.......
+..###..
+.#::h#.
+#:-#hF#
+#h#.#f#
+#F-#Ff#
+.#Ffe#.
+..###..

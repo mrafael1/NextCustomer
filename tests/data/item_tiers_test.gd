@@ -64,11 +64,10 @@ const CHAINED: Array[StringName] = [
 	&"dusty_toffees",
 ]
 ## The tier rule (v0.48): BIG adds `TIER_BASE_STEP` to the base and keeps the rule; GOLDEN keeps
-## BIG's base and doubles the bonus (`bonus`, `bonus_each`, or `bonus_factor` when the bonus is
-## the base), a charged multiplier gains 1 charge instead, and a card with no bonus (Bread, Soup,
-## Potatoes)
-## adds `TIER_BASE_STEP` to the base again. HAND_SET lists the GOLDEN rule values set by hand
-## instead (plan section 7.2): Carrier bag's +5 per earlier Food would double to +10 each.
+## BIG's base and doubles the bonus (`bonus`, `bonus_each`, or `bonus_factor` when the bonus is the
+## base), a charged multiplier gains 1 charge instead, and a card with no bonus (Bread, Soup,
+## Potatoes) adds `TIER_BASE_STEP` to the base again. HAND_SET lists the GOLDEN rule values set by
+## hand instead (plan section 7.2): Carrier bag's +5 per earlier Food would double to +10 each.
 const TIER_BASE_STEP := 2
 const HAND_SET: Dictionary[StringName, Dictionary] = {&"carrier_bag": {"bonus_each": 7}}
 const DOUBLED_FIELDS: Array[String] = ["bonus", "bonus_each"]

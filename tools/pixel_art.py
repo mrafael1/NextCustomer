@@ -4,6 +4,7 @@ Python 3.11+ standard library only. Run from the repo root:
     python tools/pixel_art.py build    # write every PNG from its source
     python tools/pixel_art.py check    # lint the sources; fail if a PNG is missing or stale
     python tools/pixel_art.py sheet    # write review previews to reports/art/
+    python tools/pixel_art.py sheet --folder items_v2   # only one top folder of art/src/
 
 Each sprite is a text file under art/src/ (ignored by Godot): directives, then one row of
 palette keys per pixel row. art/src/items/milk.txt becomes art/items/milk.png, and any folder
@@ -80,9 +81,11 @@ palette differ from a fresh build (not its bytes, since zlib's output varies bet
 build rewrites only those. A PNG under art/ (outside art/src/) without a source is an orphan.
 
 sheet writes reports/art/preview/<name>.png for each sprite: 8x on cream and teal, then 1x, 2x
-and 4x on cream and teal, then a greyscale and a silhouette at 4x. It also writes
-reports/art/contact_sheet.png with every sprite at 1x and 2x, in the order listed in
-reports/art/contact_sheet.txt.
+and 4x on cream and teal, then a greyscale and a silhouette at 4x (a large sprite, such as a
+full-screen scenery, at smaller factors: preview_factors). It also writes one contact sheet per
+top folder of art/src/, reports/art/contact_sheet_<folder>.png, with each of its sprites at 1x
+and 2x on a line as tall as that sprite, in the order listed in contact_sheet_<folder>.txt.
+--folder <name> limits the previews and sheets to one top folder (e.g. items_v2).
 
 Exit code 0 on success; 1 when check finds a problem, or when build or sheet meets a source with
 errors (the sources that parse are still written); 2 on bad arguments or an unreadable palette.
@@ -120,6 +123,9 @@ MAX_ITEM_COLOURS = 12
 # Preview backgrounds: the palette's cream paper and dark teal (keys 'c' and '2').
 PREVIEW_BACKGROUND_KEYS = ("c", "2")
 PREVIEW_GAP = 8
+# A preview's largest side at its big factor, and at its small factors past 1x (preview_factors).
+PREVIEW_BIG_SIDE = 512
+PREVIEW_SMALL_SIDE = 1024
 
 PNG_SIGNATURE = b"\x89PNG\r\n\x1a\n"
 
@@ -955,73 +961,102 @@ def silhouette(grid: list[list[RGBA]], colour: RGBA) -> list[list[RGBA]]:
     return [[colour if pixel[3] else pixel for pixel in row] for row in grid]
 
 
+def preview_factors(sprite: Sprite) -> tuple[int, tuple[int, ...]]:
+    """The preview's big factor (8x, less for a sprite over PREVIEW_BIG_SIDE / 8 px) and its row
+    of small factors (1x, 2x, 4x, leaving out those over PREVIEW_SMALL_SIDE), so a full-screen
+    scenery sprite previews at 1x instead of filling memory."""
+    side = max(sprite.width, sprite.height)
+    big = max(1, min(8, PREVIEW_BIG_SIDE // side))
+    small = tuple(f for f in (1, 2, 4) if f == 1 or side * f <= PREVIEW_SMALL_SIDE)
+    return big, small
+
+
 def preview(sprite: Sprite, palette: Palette) -> list[list[RGBA]]:
-    """8x on both backgrounds; 1x, 2x, 4x on both; greyscale and silhouette at 4x."""
+    """8x on both backgrounds; 1x, 2x, 4x on both; greyscale and silhouette at 4x (smaller for a
+    large sprite, preview_factors)."""
     base = [[palette.colours[key] for key in row] for row in sprite.rows]
     backgrounds = [palette.colours[key] for key in PREVIEW_BACKGROUND_KEYS
                    if key in palette.colours] or [(255, 255, 255, 255)]
     ink = palette.colours[INK]
     gap = PREVIEW_GAP
     w, h = sprite.width, sprite.height
-    big = [scale_grid(base, 8)] * len(backgrounds)
-    small_row = [scale_grid(base, f) for f in (1, 2, 4)]
-    checks = [scale_grid(greyscale(base), 4), scale_grid(silhouette(base, ink), 4)]
-    panel_w = w + 2 * w + 4 * w + 3 * gap
-    width = max(gap + len(backgrounds) * (w * 8 + gap),
+    big_f, small_f = preview_factors(sprite)
+    check_f = small_f[-1]
+    big = scale_grid(base, big_f)
+    small_row = [scale_grid(base, f) for f in small_f]
+    checks = [scale_grid(greyscale(base), check_f), scale_grid(silhouette(base, ink), check_f)]
+    panel_w = sum(w * f for f in small_f) + len(small_f) * gap
+    small_h = h * small_f[-1]
+    width = max(gap + len(backgrounds) * (w * big_f + gap),
                 gap + len(backgrounds) * (panel_w + gap),
-                gap + 2 * (w * 4 + gap))
-    height = gap + h * 8 + gap + h * 4 + gap + h * 4 + gap
+                gap + 2 * (w * check_f + gap))
+    height = gap + h * big_f + gap + small_h + gap + h * check_f + gap
     sheet = blank(width, height, backgrounds[0])
     x = gap
-    for grid, colour in zip(big, backgrounds):
-        paste(sheet, blank(w * 8 + gap, h * 8 + gap, colour), x - gap // 2, gap // 2)
-        paste(sheet, grid, x, gap)
-        x += w * 8 + gap
-    y = gap + h * 8 + gap
+    for colour in backgrounds:
+        paste(sheet, blank(w * big_f + gap, h * big_f + gap, colour), x - gap // 2, gap // 2)
+        paste(sheet, big, x, gap)
+        x += w * big_f + gap
+    y = gap + h * big_f + gap
     x = gap
     for colour in backgrounds:
-        paste(sheet, blank(panel_w, h * 4 + gap, colour), x - gap // 2, y - gap // 2)
+        paste(sheet, blank(panel_w, small_h + gap, colour), x - gap // 2, y - gap // 2)
         cx = x
         for grid in small_row:
-            paste(sheet, grid, cx, y + h * 4 - len(grid))
+            paste(sheet, grid, cx, y + small_h - len(grid))
             cx += len(grid[0]) + gap
         x += panel_w + gap
-    y += h * 4 + gap
+    y += small_h + gap
     x = gap
     for grid in checks:
         paste(sheet, grid, x, y)
-        x += w * 4 + gap
+        x += w * check_f + gap
     return sheet
 
 
 def contact_sheet(sprites: list[Sprite], palette: Palette) -> list[list[RGBA]]:
-    """Each sprite on one line: 1x and 2x on cream, then 1x and 2x on teal."""
+    """Each sprite on one line: 1x and 2x on cream, then 1x and 2x on teal. Each line is as tall
+    as its own sprite at 2x (not the tallest sprite's), so the sheet grows with the sprites' area
+    and not with the largest one times their count."""
     if not sprites:
         return blank(1, 1, (0, 0, 0, 0))
     backgrounds = [palette.colours[key] for key in PREVIEW_BACKGROUND_KEYS
                    if key in palette.colours] or [(255, 255, 255, 255)]
     gap = PREVIEW_GAP
     cell_w = max(s.width * s.scale for s in sprites)
-    cell_h = max(s.height * s.scale for s in sprites)
     panel_w = gap + cell_w + gap + 2 * cell_w + gap
     width = len(backgrounds) * panel_w
-    height = gap + len(sprites) * (2 * cell_h + gap)
+    height = gap + sum(2 * s.height * s.scale + gap for s in sprites)
     sheet = blank(width, height, backgrounds[0])
     for index, colour in enumerate(backgrounds):
         paste(sheet, blank(panel_w, height, colour), index * panel_w, 0)
     y = gap
     for sprite in sprites:
         grid = sprite.pixels(palette)
+        row_h = 2 * len(grid)
         for index in range(len(backgrounds)):
             x = index * panel_w + gap
-            paste(sheet, grid, x, y + 2 * cell_h - len(grid))
+            paste(sheet, grid, x, y + row_h - len(grid))
             double = scale_grid(grid, 2)
-            paste(sheet, double, x + cell_w + gap, y + 2 * cell_h - len(double))
-        y += 2 * cell_h + gap
+            paste(sheet, double, x + cell_w + gap, y)
+        y += row_h + gap
     return sheet
 
 
-def write_sheets(project: Project, reports: Path) -> list[Path]:
+def sheet_groups(sprites: list[Sprite]) -> dict[str, list[Sprite]]:
+    """The sprites by their top folder under art/src/ ("" for a source at its root): one contact
+    sheet each."""
+    groups: dict[str, list[Sprite]] = {}
+    for sprite in sprites:
+        folder = sprite.name.partition("/")[0] if "/" in sprite.name else ""
+        groups.setdefault(folder, []).append(sprite)
+    return groups
+
+
+def write_sheets(project: Project, reports: Path, folder: str | None = None) -> list[Path]:
+    """A preview per sprite (reports/preview/) and a contact sheet with its legend per top folder
+    (contact_sheet_<folder>.png and .txt; contact_sheet.png for sources at the root). With
+    `folder`, only that top folder's sprites."""
     written: list[Path] = []
     # The tools keep reports/ out of Godot's import.
     repo_reports = REPO / "reports"
@@ -1030,15 +1065,22 @@ def write_sheets(project: Project, reports: Path) -> list[Path]:
         (repo_reports / ".gdignore").touch()
     preview_dir = reports / "preview"
     preview_dir.mkdir(parents=True, exist_ok=True)
-    for sprite in project.sprites:
-        target = preview_dir / f"{sprite.name.replace('/', '__')}.png"
-        target.write_bytes(encode_rgba(preview(sprite, project.palette)))
-        written.append(target)
-    sheet = reports / "contact_sheet.png"
-    sheet.write_bytes(encode_rgba(contact_sheet(project.sprites, project.palette)))
-    legend = reports / "contact_sheet.txt"
-    legend.write_text("".join(f"{s.name}\n" for s in project.sprites), encoding="utf-8")
-    written.extend([sheet, legend])
+    groups = sheet_groups(project.sprites)
+    if folder is not None:
+        if folder not in groups:
+            raise ArtError(f"no sources in art/src/{folder}/")
+        groups = {folder: groups[folder]}
+    for name, sprites in groups.items():
+        for sprite in sprites:
+            target = preview_dir / f"{sprite.name.replace('/', '__')}.png"
+            target.write_bytes(encode_rgba(preview(sprite, project.palette)))
+            written.append(target)
+        stem = f"contact_sheet_{name}" if name else "contact_sheet"
+        sheet = reports / f"{stem}.png"
+        sheet.write_bytes(encode_rgba(contact_sheet(sprites, project.palette)))
+        legend = reports / f"{stem}.txt"
+        legend.write_text("".join(f"{s.name}\n" for s in sprites), encoding="utf-8")
+        written.extend([sheet, legend])
     return written
 
 
@@ -1048,6 +1090,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--src", type=Path, default=DEFAULT_SRC)
     parser.add_argument("--out", type=Path, default=DEFAULT_OUT)
     parser.add_argument("--reports", type=Path, default=DEFAULT_REPORTS)
+    parser.add_argument("--folder", help="sheet: only this top folder of art/src/ (e.g. items_v2)")
     args = parser.parse_args(argv)
     try:
         project = load_project(args.src, args.out)
@@ -1068,7 +1111,11 @@ def main(argv: list[str] | None = None) -> int:
             print(f"wrote {_rel(path)}")
         print(f"{len(project.sprites)} sprites, {len(written)} written")
     else:
-        written = write_sheets(project, args.reports)
+        try:
+            written = write_sheets(project, args.reports, args.folder)
+        except ArtError as error:
+            print(f"error: {error}", file=sys.stderr)
+            return 2
         print(f"wrote {len(written)} files to {_rel(args.reports)}")
     return 1 if project.errors else 0
 

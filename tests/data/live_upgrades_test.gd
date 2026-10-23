@@ -4,6 +4,7 @@ extends GdUnitTestSuite
 
 const UPGRADE_DIR := "res://data/upgrades"
 const CARDS_DIR := "res://data/cards"
+const BALANCE := "res://data/balance/balance.tres"
 
 
 func test_placeholder_upgrades_match_the_plan() -> void:
@@ -58,7 +59,7 @@ func test_every_icon_ref_loads() -> void:
 ## v0.52: Coupon engine, Slot engine and Extra coupon slot joined the earlier three), no two the
 ## same, so no LOYALTY ticket falls back to initials.
 func test_every_pool_upgrade_has_its_own_icon() -> void:
-	var balance: BalanceDefinition = load("res://data/balance/balance.tres")
+	var balance: BalanceDefinition = load(BALANCE)
 	var icons: Dictionary[String, StringName] = {}
 	for upgrade: UpgradeDefinition in balance.upgrade_pool:
 		var message: String = "%s: %s" % [upgrade.id, upgrade.icon_ref]
@@ -78,6 +79,44 @@ func test_every_pool_upgrade_has_its_own_icon() -> void:
 	assert_str(_upgrade("extra_coupon_slot").icon_ref).is_equal(
 		"res://art/icons/perk_extra_coupon_slot.png"
 	)
+
+
+## Two pool upgrades' icons of the same size differ in more than a recoloured header: past their
+## top HEADER_ROWS rows, at least MIN_DIFFERENT_SHARE of the pixels differ. Extra coupon slot's
+## icon was once Big basket's +1 ticket with only its band recoloured, and on a LOYALTY prize the
+## two sit side by side, small.
+func test_pool_upgrade_icons_differ_past_a_header() -> void:
+	const HEADER_ROWS := 3
+	const MIN_DIFFERENT_SHARE := 0.15
+	var balance: BalanceDefinition = load(BALANCE)
+	var images: Dictionary[String, Image] = {}
+	for upgrade: UpgradeDefinition in balance.upgrade_pool:
+		images[upgrade.id] = (load(upgrade.icon_ref) as Texture2D).get_image()
+	var ids: Array[String] = images.keys()
+	var compared: int = 0
+	for i: int in ids.size():
+		for j: int in range(i + 1, ids.size()):
+			var a: Image = images[ids[i]]
+			var b: Image = images[ids[j]]
+			if a.get_size() != b.get_size():
+				continue
+			compared += 1
+			var different: int = 0
+			var total: int = 0
+			for y: int in range(HEADER_ROWS, a.get_height()):
+				for x: int in a.get_width():
+					total += 1
+					if not a.get_pixel(x, y).is_equal_approx(b.get_pixel(x, y)):
+						different += 1
+			(
+				assert_float(float(different) / total)
+				. override_failure_message(
+					"%s vs %s: %d of %d" % [ids[i], ids[j], different, total]
+				)
+				. is_greater_equal(MIN_DIFFERENT_SHARE)
+			)
+	# Big basket's and Extra coupon slot's icons are both 13x12.
+	assert_int(compared).is_greater_equal(1)
 
 
 static func _upgrade(id: String) -> UpgradeDefinition:
