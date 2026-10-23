@@ -1,63 +1,69 @@
 class_name ChuteKey
 extends Control
-## One of the machine's four chute keys (#77, look F; build spec 4.2): a 92x74 key over a 4 px
-## ink shadow with the chute's icon (28 px: the cart, a coupon slip, a stamp ring, an up arrow),
-## its name (Pixelify 12) and what it does (bold Atkinson 8). Lit, it is paper with a mustard lip;
-## idle, cream. A shut key is sunk, with a rubber face that says why in words, never by colour
-## alone: UNLIT a padlock and its visit state (REGISTER and UPGRADES on a Normal visit: "BOOSTED
-## AFTER SHIFT n", or "BOOSTED VISITS ONLY" with none left; NEW ITEMS and COUPONS on a BOOSTED
-## visit: "NORMAL VISITS ONLY"), EMPTY a padlock and "NOTHING TO IMPROVE", CARD_FULL the card's
-## stamps and "CARD FULL". Hovering it asks for its odds card (no
-## hover sound, #62) and lifts it 2 px. During a STAMP DAY pick the REGISTER key carries a "SEE
-## ODDS" tab. It only shows the RewardMachine.ChuteState it is given.
+## One of the machine's chute keys (#77; redrawn front-on in v0.50, mock-up
+## premium_machine_v1.html): a big 192x96 key on the key plate with the chute's icon (the cart,
+## the 2 for 1 coupon, a mini punch card with the top bar's stamp slots, the up arrow), its name
+## (bold Atkinson 18) and what it does (bold Atkinson 10). NEW ITEMS and COUPONS are cream
+## (mustard pale when lit); LOYALTY (the REGISTER chute, named LOYALTY wherever the player sees
+## it) and UPGRADES are gold (gold when lit). Only the visit's pair stands on the plate
+## (RewardMachineView, MachineLook): NEW ITEMS / COUPONS on a Normal visit, LOYALTY / UPGRADES on a
+## BOOSTED (PREMIUM) or STAMP DAY visit; the other pair is sunk out of sight.
 ##
-## Machine v2 (#77): a pressed key (set_pressed, the machine's choice at the chute wait and
-## through its draw) drops SINK px onto its shadow, its lip flattens to PRESSED_LIP, its face turns
-## mustard light inside a RING px gold ring, and its LED (top right, steel when off) lights green
-## with a GLOW px glow.
+## A lit key glows (a pulsing ring, on view.idle_time). A shut key is sunk, with a rubber face
+## that says why in words, never by colour alone: UNLIT a padlock and its visit state ("PREMIUM
+## VISITS ONLY" or "PREMIUM AFTER SHIFT n" for LOYALTY and UPGRADES, "NORMAL VISITS ONLY" for the
+## others), EMPTY a padlock and "NOTHING TO IMPROVE", CARD_FULL the card's stamps and "CARD FULL".
+## Hovering it lifts it 2 px (no hover sound, #62) and lights its stock window column. It only
+## shows the RewardMachine.ChuteState it is given.
 ##
+## A pressed key (set_pressed, the machine's choice at the chute wait and through its draw) sinks
+## PRESS px, its glow ring turns solid gold and its LED (top right, steel when off) lights green.
 ## frame(t) lights the keys in turn as the plan reaches them (0.14 s apart; a BONUS visit's keys
-## go unlit, then relight 0.08 s apart); the pressed key stays down until the landing's end.
+## relight 0.08 s apart); the pressed key stays down until the landing's end.
 
 signal hovered(chute: int)
 signal unhovered(chute: int)
 signal pressed(chute: int)
 
-const SIZE := Vector2(92, 74)
-const NAMES: Array[String] = ["NEW ITEMS", "COUPONS", "REGISTER", "UPGRADES"]
+const SIZE := Vector2(192, 96)
+const NAMES: Array[String] = ["NEW ITEMS", "COUPONS", "LOYALTY", "UPGRADES"]
 const SUBS: Array[String] = ["ADD TO CART", "ADD TO CART", "STAMP YOUR CARD", "IMPROVE ONE YOU OWN"]
-const NAME_SIZE := 12
-const SUB_SIZE := 8
-const REASON_SIZE := 9
-const FULL_SIZE := 10
-const NAME_RECT := Rect2(0, 33, 92, 14)
-const SUB_RECT := Rect2(2, 48, 88, 24)
-const ICON_TOP := 4.0
-const ICON_HEIGHT := 28.0
-const PADLOCK_RECT := Rect2(37, 6, 18, 20)
-const STAMPS_TOP := 6.0
-const STAMP_SIZE := 22.0
-const STAMP_GAP := 2.0
-const STAMP_INITIALS_SIZE := 8
-const TAB_RECT := Rect2(14, -8, 64, 16)
-const TAB_TEXT := "SEE ODDS"
-const BORDER := 2
-const LIP := 5.0
-const PRESSED_LIP := 2.0
-const SHADOW := 4.0
-## How far a shut or pressed key sinks; how far a hovered key lifts.
-const SINK := 4.0
+const NAME_SIZE := 18
+const SUB_SIZE := 10
+const REASON_SIZE := 10
+const NAME_WEIGHT := 800
+const SUB_WEIGHT := 750
+## The face (it sinks by PRESS), the base under it and the icon's, the name's and the sub line's
+## middles on the face.
+const FACE_HEIGHT := 84.0
+const BASE_RECT := Rect2(0, 8, 192, 88)
+const ICON_MIDDLE := 26.0
+const NAME_RECT := Rect2(4, 44, 184, 24)
+const SUB_RECT := Rect2(4, 64, 184, 16)
+const REASON_RECT := Rect2(8, 44, 176, 36)
+const PADLOCK_RECT := Rect2(87, 8, 18, 20)
+const STAMPS_TOP := 8.0
+const STAMP_SIZE := 26.0
+const STAMP_GAP := 4.0
+const STAMP_INITIALS_SIZE := 9
+const PRESS := 6.0
 const LIFT := 2.0
-## The pressed key's gold ring (outside the border) and its LED: LED_RECT on the face, its glow.
-const RING := 4.0
-const LED_RECT := Rect2(80, 6, 6, 6)
-const GLOW := 2.0
-const BOLD_WEIGHT := 800
+## How far a shut key sinks.
+const SINK := 6.0
+## The glow ring round a lit key (outside it) and its pulse.
+const GLOW_GROW := 6.0
+const GLOW_RATE := 5.0
+const LED_RECT := Rect2(176, 8, 8, 8)
 const PADLOCK := preload("res://art/icons/padlock.png")
 const CART := preload("res://art/icons/cart.png")
 const COUPON := preload("res://art/icons/coupon_two_for_one_v2.png")
 const STAMP_RING := preload("res://art/icons/stamp_ring.png")
+const STAMP_EMPTY := preload("res://art/icons/stamp_ring_empty.png")
 const UP_ARROW := preload("res://art/icons/up_arrow.png")
+## The icons' scale (canvas px per art px): the cart and the arrow at the mock-up's 2x (4), the
+## coupon and the stamp rings at its 1x (2).
+const BIG_ICON := 4.0
+const ICON := 2.0
 
 var chute: int = 0
 ## RewardMachine.ChuteState shown.
@@ -65,24 +71,20 @@ var state: int = RewardMachine.ChuteState.OPEN
 var lit: bool = true
 ## The machine this part belongs to (setup(), build spec 4.2).
 var view: RewardMachineView
-var _face: Panel
-var _style: StyleBoxFlat
-var _lip: ColorRect
+var _face: Control
 var _icon: Control
 var _name: Label
 var _sub: Label
-var _shut: ColorRect
 var _padlock: TextureRect
 var _stamps: HBoxContainer
 var _reason: Label
-var _tab: Label
-var _led: Control
 var _hover: bool = false
 ## The machine's choice (set_pressed), and whether it shows pressed now (frame).
 var _pressed: bool = false
 var _pressed_now: bool = false
 var _lit_now: bool = true
 var _sink: float = 0.0
+var _glow: float = 0.0
 
 
 func _init(key_chute: int) -> void:
@@ -91,65 +93,41 @@ func _init(key_chute: int) -> void:
 	size = SIZE
 	mouse_filter = Control.MOUSE_FILTER_STOP
 	mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
-	_face = Panel.new()
+	_face = Control.new()
 	_face.name = "Face"
-	_face.size = SIZE
+	_face.size = Vector2(SIZE.x, FACE_HEIGHT)
 	_face.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_style = StyleBoxFlat.new()
-	_style.border_color = Palette.INK
-	_style.set_border_width_all(BORDER)
-	_face.add_theme_stylebox_override("panel", _style)
+	_face.draw.connect(_draw_face)
 	add_child(_face)
-	_lip = _rect(Rect2(BORDER, SIZE.y - BORDER - LIP, SIZE.x - 2 * BORDER, LIP), _face)
 	_icon = _make_icon()
 	_face.add_child(_icon)
-	_shut = _rect(Rect2(BORDER, BORDER, SIZE.x - 2 * BORDER, SIZE.y - 2 * BORDER), _face)
-	_shut.name = "ShutFace"
-	_shut.color = Palette.RUBBER
 	_padlock = _sprite(PADLOCK, PADLOCK_RECT, _face)
-	_led = Control.new()
-	_led.name = "Led"
-	_led.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_led.position = LED_RECT.position
-	_led.size = LED_RECT.size
-	_led.draw.connect(_draw_led)
-	_face.add_child(_led)
 	_stamps = HBoxContainer.new()
 	_stamps.name = "CardStamps"
 	_stamps.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_stamps.add_theme_constant_override("separation", int(STAMP_GAP))
 	_face.add_child(_stamps)
-	_name = _label(UiKit.display_label(NAMES[chute], NAME_SIZE, false), NAME_RECT)
-	_sub = _label(UiKit.body_label(SUBS[chute], SUB_SIZE, Palette.INK), SUB_RECT, true)
-	_reason = _label(UiKit.body_label("", REASON_SIZE, Palette.GREY_LIGHT), SUB_RECT, true)
+	_name = _label(NAMES[chute], NAME_SIZE, NAME_WEIGHT, NAME_RECT, false)
+	_sub = _label(SUBS[chute], SUB_SIZE, SUB_WEIGHT, SUB_RECT, false)
+	_reason = _label("", REASON_SIZE, NAME_WEIGHT, REASON_RECT, true)
 	_reason.name = "Reason"
-	_tab = UiKit.body_label(TAB_TEXT, SUB_SIZE, Palette.PAPER)
-	_tab.name = "SeeOddsTab"
-	_tab.add_theme_font_override("font", ArtStyle.bold_font(BOLD_WEIGHT))
-	_tab.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	_tab.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	var tab_style: StyleBoxFlat = StyleBoxFlat.new()
-	tab_style.bg_color = Palette.TOMATO_DARK
-	tab_style.border_color = Palette.INK
-	tab_style.set_border_width_all(BORDER)
-	_tab.add_theme_stylebox_override("normal", tab_style)
-	RewardMachineView.fit(_tab, TAB_RECT)
-	_tab.visible = false
-	add_child(_tab)
 	mouse_entered.connect(_on_mouse_entered)
 	mouse_exited.connect(_on_mouse_exited)
 	show_state(RewardMachine.ChuteState.OPEN, 0, true)
 
 
-## Shows the chute's state: `opens_after` is an UNLIT REGISTER or UPGRADES key's next boosted
-## shift (0: none left); `is_lit`
-## lights an open key (an unchosen key is idle once a chute is chosen, and on a bonus visit before
-## the keys relight).
+## Whether the key is one of the gold pair (LOYALTY, UPGRADES).
+static func is_gold(key_chute: int) -> bool:
+	return RewardMachine.BOOSTED_CHUTES.has(key_chute)
+
+
+## Shows the chute's state: `opens_after` is an UNLIT LOYALTY or UPGRADES key's next PREMIUM
+## shift (0: none left); `is_lit` lights an open key (an unchosen key is idle once a chute is
+## chosen, and on a bonus visit before the keys relight).
 func show_state(key_state: int, opens_after: int, is_lit: bool) -> void:
 	state = key_state
 	lit = is_lit
 	var shut: bool = key_state != RewardMachine.ChuteState.OPEN
-	_shut.visible = shut
 	_padlock.visible = (
 		key_state == RewardMachine.ChuteState.UNLIT or key_state == RewardMachine.ChuteState.EMPTY
 	)
@@ -157,55 +135,45 @@ func show_state(key_state: int, opens_after: int, is_lit: bool) -> void:
 	_stamps.visible = key_state == RewardMachine.ChuteState.CARD_FULL
 	_sub.visible = not shut
 	_reason.visible = shut
-	_name.add_theme_color_override("font_color", Palette.PAPER if shut else Palette.INK)
+	_name.visible = not shut
 	match key_state:
 		RewardMachine.ChuteState.UNLIT:
 			_sub.text = unlit_text(chute, opens_after, false)
-			_reason.text = unlit_text(chute, opens_after, true)
+			_reason.text = "%s\n%s" % [NAMES[chute], unlit_text(chute, opens_after, false)]
 		RewardMachine.ChuteState.CARD_FULL:
 			_sub.text = "CARD FULL"
-			_reason.text = "CARD FULL"
+			_reason.text = "%s\nCARD FULL" % NAMES[chute]
 			_show_card_stamps()
 		RewardMachine.ChuteState.EMPTY:
 			_sub.text = "NOTHING TO IMPROVE"
-			_reason.text = "NOTHING TO\nIMPROVE"
+			_reason.text = "%s\nNOTHING TO IMPROVE" % NAMES[chute]
 		_:
 			_sub.text = SUBS[chute]
 	var full: bool = key_state == RewardMachine.ChuteState.CARD_FULL
 	_reason.add_theme_color_override(
 		"font_color", Palette.MUSTARD_LIGHT if full else Palette.GREY_LIGHT
 	)
-	_reason.add_theme_font_size_override("font_size", FULL_SIZE if full else REASON_SIZE)
 	_apply(is_lit, SINK if shut else 0.0)
 
 
-## Why an UNLIT key is shut, by its chute (`opens_after`: the next boosted shift, 0 for none),
-## on one line or (`wrapped`) on the rubber face's two.
+## Why an UNLIT key is shut, by its chute (`opens_after`: the next PREMIUM shift, 0 for none),
+## on one line or (`wrapped`) on two.
 static func unlit_text(key_chute: int, opens_after: int, wrapped: bool) -> String:
 	var gap: String = "\n" if wrapped else " "
 	if not RewardMachine.BOOSTED_CHUTES.has(key_chute):
 		return "NORMAL%sVISITS ONLY" % gap
 	if opens_after > 0:
-		return "BOOSTED%sAFTER SHIFT %d" % [gap, opens_after]
-	return "BOOSTED%sVISITS ONLY" % gap
+		return "PREMIUM%sAFTER SHIFT %d" % [gap, opens_after]
+	return "PREMIUM%sVISITS ONLY" % gap
 
 
-## Shows or hides the STAMP DAY "SEE ODDS" tab.
-func set_tab(shown: bool) -> void:
-	_tab.visible = shown
-
-
-## The key's sub line ("ADD TO CART", "BOOSTED AFTER SHIFT 3", ...), for tests.
+## The key's sub line ("ADD TO CART", "PREMIUM AFTER SHIFT 3", ...), for tests.
 func sub_text() -> String:
 	return _sub.text
 
 
 func has_padlock() -> bool:
 	return _padlock.visible
-
-
-func has_tab() -> bool:
-	return _tab.visible
 
 
 ## Presses the key (the machine's choice) or lets it back up; frame(t) shows it.
@@ -231,7 +199,7 @@ func led_lit() -> bool:
 
 ## The LED's rect on screen, for layout tests.
 func led_global_rect() -> Rect2:
-	return _led.get_global_rect()
+	return _face.get_global_transform() * LED_RECT
 
 
 ## Whether the key looks lit now (frame(t): the keys light in turn).
@@ -239,24 +207,26 @@ func looks_lit() -> bool:
 	return _lit_now
 
 
+## Whether the pointer is on the key.
+func is_hovered() -> bool:
+	return _hover
+
+
 ## How far the face sits below its rest (negative: lifted by a hover).
 func face_offset() -> float:
 	return _sink
 
 
-## The labels shown on the face (the name, then the sub line or the reason), for layout tests.
+## The labels shown on the face (the name and the sub line, or the reason), for layout tests.
 func shown_labels() -> Array[Label]:
-	return [_name, _reason if _reason.visible else _sub]
+	if _reason.visible:
+		return [_reason]
+	return [_name, _sub]
 
 
 ## The key's face (sinks and lifts), for layout tests.
 func face() -> Control:
 	return _face
-
-
-## The STAMP DAY tab, for layout tests.
-func tab() -> Label:
-	return _tab
 
 
 func _gui_input(event: InputEvent) -> void:
@@ -273,9 +243,9 @@ func setup(machine: RewardMachineView) -> void:
 
 
 ## The key at time `t` (seconds) of view.plan: during the intro an open key lights once the plan
-## reaches its turn (lights + its index x the stagger: TICKET 0.14 s, BONUS 0.08 s; a BONUS
-## visit's keys stay unlit until then); the pressed key stays down until the landing's end; a
-## hovered lit key lifts 2 px while the chutes wait (no lift under reduced motion).
+## reaches its turn (lights + its place x the stagger: TICKET 0.14 s, BONUS 0.08 s); the pressed
+## key stays down until the landing's end; a hovered lit key lifts 2 px while the chutes wait (no
+## lift under reduced motion). A lit key's ring pulses on view.idle_time.
 func frame(t: float) -> void:
 	var plan: MachinePlan = view.plan if view != null else null
 	var shut: bool = state != RewardMachine.ChuteState.OPEN
@@ -284,12 +254,19 @@ func frame(t: float) -> void:
 	if plan != null and not shut:
 		var intro: bool = plan.kind != MachineVisit.Kind.STAMP_DAY and t < plan.choose_at
 		if intro:
-			on = on and t >= plan.lights + _stagger(plan) * chute
+			on = on and t >= plan.lights + _stagger(plan) * (chute % 2)
 		var landed: bool = plan.has_landing and t >= plan.end_at
 		if _pressed and on and not landed:
-			offset = SINK
+			offset = PRESS
 		elif _hover and on and not plan.has_draw and not plan.reduced_motion:
 			offset = -LIFT
+	var glow: float = 0.0
+	if on and plan != null:
+		var idle: float = view.idle_time
+		glow = 1.0 if _pressed else 0.55 + 0.45 * sin(idle * GLOW_RATE)
+	if glow != _glow:
+		_glow = glow
+		queue_redraw()
 	_apply(on, offset)
 
 
@@ -300,25 +277,27 @@ func _stagger(plan: MachinePlan) -> float:
 	return MachineTuning.sec(ms)
 
 
-## The face: lit (paper, mustard lip) or idle (cream, cream-shade lip), at `offset` below rest;
-## pressed (lit and sunk): mustard light, a flat mustard-dark lip, the ring and the LED on.
+## The face lit or idle at `offset` below rest; pressed (lit and down) its ring solid and its LED
+## on.
 func _apply(on: bool, offset: float) -> void:
 	_lit_now = on and state == RewardMachine.ChuteState.OPEN
-	var pressed_now: bool = _pressed and _lit_now and offset >= SINK
-	_style.bg_color = Palette.PAPER if _lit_now else Palette.CREAM
-	_lip.color = Palette.MUSTARD_LIGHT if _lit_now else Palette.CREAM_SHADE
-	var lip: float = PRESSED_LIP if pressed_now else LIP
-	if pressed_now:
-		_style.bg_color = Palette.MUSTARD_LIGHT
-		_lip.color = Palette.MUSTARD_DARK
-	_lip.position.y = SIZE.y - BORDER - lip
-	_lip.size.y = lip
+	var pressed_now: bool = _pressed and _lit_now and offset >= PRESS
+	var colours: Array[Color] = _ink()
+	_name.add_theme_color_override("font_color", colours[0])
+	_sub.add_theme_color_override("font_color", colours[1])
 	if offset != _sink or pressed_now != _pressed_now:
 		_sink = offset
 		_pressed_now = pressed_now
 		_face.position.y = offset
-		_led.queue_redraw()
-		queue_redraw()
+	_face.queue_redraw()
+	queue_redraw()
+
+
+## The name's and the sub line's colours.
+func _ink() -> Array[Color]:
+	if is_gold(chute):
+		return [Palette.BRASS_DARKEST, Palette.BRASS_DARKEST]
+	return [Palette.INK, Palette.MUSTARD_DARKEST]
 
 
 ## The card's stamps on a CARD FULL key: the owned registers' rings with their initials (the
@@ -334,9 +313,9 @@ func _show_card_stamps() -> void:
 		var ring: TextureRect = UiKit.sprite(STAMP_RING)
 		ring.custom_minimum_size = Vector2.ONE * STAMP_SIZE
 		var initials: Label = UiKit.body_label(
-			LoyaltyCard.initials(upgrade.display_name), STAMP_INITIALS_SIZE, Palette.INK
+			LoyaltyCard.initials(upgrade.display_name), STAMP_INITIALS_SIZE, Palette.PAPER
 		)
-		initials.add_theme_font_override("font", ArtStyle.bold_font(BOLD_WEIGHT))
+		initials.add_theme_font_override("font", ArtStyle.bold_font(NAME_WEIGHT))
 		initials.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		initials.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 		initials.size = Vector2.ONE * STAMP_SIZE
@@ -347,44 +326,41 @@ func _show_card_stamps() -> void:
 	_stamps.size = Vector2(width, STAMP_SIZE)
 
 
-## The chute's icon, centred in the key's top 28 px: the cart on a teal tag, the 2 for 1 coupon
-## slip, a stamp ring, the up arrow.
+## The chute's icon, centred ICON_MIDDLE down the face: the cart, the 2 for 1 coupon, a mini
+## punch card (the top bar's stamp slots, two stamped), the up arrow.
 func _make_icon() -> Control:
 	var holder: Control = Control.new()
 	holder.name = "Icon"
 	holder.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	holder.position = Vector2(0, ICON_TOP)
-	holder.size = Vector2(SIZE.x, ICON_HEIGHT)
+	holder.size = Vector2(SIZE.x, ICON_MIDDLE * 2.0)
 	match chute:
 		RewardMachine.Chute.NEW_ITEMS:
-			var tag: Panel = Panel.new()
-			tag.mouse_filter = Control.MOUSE_FILTER_IGNORE
-			var tag_style: StyleBoxFlat = StyleBoxFlat.new()
-			tag_style.bg_color = Palette.TEAL
-			tag_style.border_color = Palette.INK
-			tag_style.set_border_width_all(BORDER)
-			tag.add_theme_stylebox_override("panel", tag_style)
-			var cart_size: Vector2 = CART.get_size() * 2.0
-			tag.size = cart_size + Vector2(16, 8)
-			tag.position = _centred(tag.size)
-			holder.add_child(tag)
-			_sprite(CART, Rect2(Vector2(8, 4), cart_size), tag)
+			_centred_sprite(CART, BIG_ICON, holder)
 		RewardMachine.Chute.COUPONS:
-			var coupon_size: Vector2 = COUPON.get_size() * 2.0
-			_sprite(COUPON, Rect2(_centred(coupon_size), coupon_size), holder)
+			_centred_sprite(COUPON, ICON, holder)
 		RewardMachine.Chute.REGISTER:
-			var ring_size: Vector2 = STAMP_RING.get_size() * 2.0
-			_sprite(STAMP_RING, Rect2(_centred(ring_size), ring_size), holder)
+			holder.draw.connect(_draw_punch_card.bind(holder))
 		_:
-			var arrow_size: Vector2 = UP_ARROW.get_size() * 3.0
-			_sprite(UP_ARROW, Rect2(_centred(arrow_size), arrow_size), holder)
+			_centred_sprite(UP_ARROW, BIG_ICON, holder)
 	return holder
 
 
-## The top-left that centres `item_size` in the icon's 92x28 box, on the 2 px grid.
-static func _centred(item_size: Vector2) -> Vector2:
-	var at: Vector2 = (Vector2(SIZE.x, ICON_HEIGHT) - item_size) / 2.0
-	return Vector2(floorf(at.x / 2.0) * 2.0, floorf(at.y / 2.0) * 2.0)
+func _centred_sprite(texture: Texture2D, k: float, holder: Control) -> void:
+	var side: Vector2 = texture.get_size() * k
+	var at: Vector2 = MachineArt.snap_point(Vector2(SIZE.x / 2.0, ICON_MIDDLE) - side / 2.0)
+	_sprite(texture, Rect2(at, side), holder)
+
+
+## The mini punch card: cream, a teal band, three stamp slots, two stamped.
+func _draw_punch_card(holder: Control) -> void:
+	var centre: Vector2 = Vector2(SIZE.x / 2.0, ICON_MIDDLE)
+	var card: Rect2 = Rect2(centre - Vector2(50, 18), Vector2(100, 38))
+	MachineArt.box(holder, card, Palette.CREAM, Palette.INK)
+	holder.draw_rect(Rect2(centre - Vector2(48, 16), Vector2(96, 4)), Palette.TEAL)
+	for slot: int in range(3):
+		var texture: Texture2D = STAMP_RING if slot < 2 else STAMP_EMPTY
+		var at: Vector2 = centre + Vector2(-44 + slot * 30, -10)
+		holder.draw_texture_rect(texture, Rect2(at, texture.get_size() * ICON), false)
 
 
 func _sprite(texture: Texture2D, rect: Rect2, parent: Control) -> TextureRect:
@@ -395,21 +371,16 @@ func _sprite(texture: Texture2D, rect: Rect2, parent: Control) -> TextureRect:
 	return result
 
 
-func _rect(rect: Rect2, parent: Control) -> ColorRect:
-	var result: ColorRect = ColorRect.new()
-	result.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	result.position = rect.position
-	result.size = rect.size
-	parent.add_child(result)
-	return result
-
-
-func _label(label: Label, rect: Rect2, wraps: bool = false) -> Label:
+func _label(text: String, font_size: int, weight: int, rect: Rect2, wraps: bool) -> Label:
+	var label: Label = UiKit.body_label(text, font_size, Palette.INK)
+	label.add_theme_font_override("font", ArtStyle.bold_font(weight))
 	label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	if wraps:
-		label.add_theme_font_override("font", ArtStyle.bold_font(BOLD_WEIGHT))
 		label.autowrap_mode = TextServer.AUTOWRAP_WORD
 		label.add_theme_constant_override("line_spacing", -2)
+	else:
+		label.clip_text = true
 	RewardMachineView.fit(label, rect)
 	_face.add_child(label)
 	return label
@@ -425,20 +396,37 @@ func _on_mouse_exited() -> void:
 	unhovered.emit(chute)
 
 
-## The LED: steel in an ink border, green with a glow ring while the key shows pressed.
-func _draw_led() -> void:
-	var rect: Rect2 = Rect2(Vector2.ZERO, LED_RECT.size)
-	if _pressed_now:
-		_led.draw_rect(rect.grow(GLOW), Color(Palette.GOOD, 0.55))
-	_led.draw_rect(rect, Palette.INK)
-	_led.draw_rect(rect.grow(-1.0), Palette.GOOD if _pressed_now else Palette.STEEL_SHADE)
+## The face: a bevelled key, cream or gold, lit or idle (a shut key's rubber face), the LED.
+func _draw_face() -> void:
+	var rect: Rect2 = Rect2(Vector2.ZERO, _face.size)
+	var gold: bool = is_gold(chute)
+	if state != RewardMachine.ChuteState.OPEN:
+		MachineArt.bevel(_face, rect, Palette.RUBBER, Palette.STEEL_DARK, Palette.RUBBER_DARK)
+		return
+	var face_colour: Color = Palette.MUSTARD_PALE if _lit_now else Palette.CREAM
+	var hi: Color = Palette.PAPER
+	var lo: Color = Palette.CREAM_SHADE
+	var line: Color = Palette.INK
+	if gold:
+		face_colour = Palette.GOLD if _lit_now else Palette.MUSTARD_LIGHT
+		hi = Palette.MUSTARD_PALE
+		lo = Palette.BRASS
+		line = Palette.BRASS_DARKEST
+	MachineArt.bevel(_face, rect, face_colour, hi, lo, line)
+	MachineArt.box(
+		_face, LED_RECT, Palette.GOOD if _pressed_now else Palette.STEEL_SHADE, Palette.INK
+	)
 
 
-## The key's shadow (4 px of ink under the face; none while it sinks onto it) and, pressed, the
-## gold ring outside its border.
+## The key's base and shadow under the face, and a lit key's glow ring outside it.
 func _draw() -> void:
-	if _sink < SHADOW:
-		draw_rect(Rect2(0, SIZE.y + _sink, SIZE.x, SHADOW - _sink), Palette.INK)
-	if _pressed_now:
-		var face_rect: Rect2 = Rect2(Vector2(0, _sink), SIZE)
-		draw_rect(face_rect.grow(RING / 2.0), Palette.GOLD, false, RING)
+	var gold: bool = is_gold(chute)
+	var line: Color = Palette.BRASS_DARKEST if gold else Palette.INK
+	draw_rect(Rect2(-2, 8, SIZE.x + 4, SIZE.y - 4), Color(Palette.INK, 0.35))
+	MachineArt.box(self, BASE_RECT, Palette.BRASS_DARK if gold else Palette.CREAM_SHADE, line)
+	if _glow > 0.0:
+		var ring: Rect2 = Rect2(
+			Vector2(-GLOW_GROW, -GLOW_GROW + _sink), Vector2(SIZE.x + 12, SIZE.y)
+		)
+		var colour: Color = Palette.GOLD if gold or _pressed_now else Palette.MUSTARD
+		MachineArt.ring(self, ring, Color(colour, _glow), 2.0)

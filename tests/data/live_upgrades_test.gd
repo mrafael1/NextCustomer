@@ -35,6 +35,25 @@ func test_live_upgrades_score_the_plan_examples() -> void:
 	assert_int(Scoring.score(_row("bread,banana"), category).total).is_equal(19)
 
 
+## Every upgrade's icon_ref (v0.50: the perk's glyph on a LOYALTY prize ticket) names a texture
+## that loads, or is empty (the ticket shows the perk's initials); Big basket's is the "+1 slot"
+## ticket, Extra redraw's the redraw arrow.
+func test_every_icon_ref_loads() -> void:
+	var named: int = 0
+	for file_name: String in DirAccess.get_files_at(UPGRADE_DIR):
+		if file_name.get_extension() != "tres":
+			continue
+		var upgrade: UpgradeDefinition = load(UPGRADE_DIR.path_join(file_name))
+		if upgrade.icon_ref.is_empty():
+			continue
+		named += 1
+		var texture: Texture2D = load(upgrade.icon_ref) as Texture2D
+		assert_object(texture).override_failure_message(file_name).is_not_null()
+	assert_int(named).is_greater_equal(3)
+	assert_str(_upgrade("big_basket").icon_ref).is_equal("res://art/icons/plus_slot.png")
+	assert_str(_upgrade("extra_redraw").icon_ref).is_equal("res://art/icons/redraw_arrow.png")
+
+
 static func _upgrade(id: String) -> UpgradeDefinition:
 	return load("%s/%s.tres" % [UPGRADE_DIR, id])
 

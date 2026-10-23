@@ -77,6 +77,7 @@ func test_boosted_and_normal_visits_light_their_chutes_per_shift() -> void:
 			if not lit:
 				assert_bool(machine.choose(run, chute)).is_false()
 	assert_array(RewardMachine.lit_chutes(null)).is_equal(RewardMachine.NORMAL_CHUTES)
+	_assert_boosted_if_passed_matches_the_checkout()
 
 
 ## The bonus ticket's visit is always Normal, also after a boosted shift: shift 3 inspected gives
@@ -778,6 +779,27 @@ func _finish_stamp_day(run: RunState, machine: RewardMachine) -> void:
 	var visit: MachineVisit = machine.current_visit()
 	if visit != null and visit.kind == MachineVisit.Kind.STAMP_DAY:
 		machine.pick(run, 0)
+
+
+## The PREMIUM NEXT announce's query (v0.50): boosted_if_passed, asked during a shift's planning,
+## agrees with the ticket visit that shift's passed checkout opens (is_boosted): the data's
+## boosted shifts (3, 5, 7) say yes, the others no, and the last shift (no machine) no; it changes
+## nothing on the machine.
+func _assert_boosted_if_passed_matches_the_checkout() -> void:
+	var last: int = _balance.quotas.size()
+	for shift_number: int in range(1, last + 1):
+		var run: RunState = _run()
+		var machine: RewardMachine = _machine()
+		run.shift_index = shift_number - 1
+		var announced: bool = machine.boosted_if_passed(run)
+		assert_object(machine.current_visit()).is_null()
+		var failure: String = "shift %d" % shift_number
+		var expected: bool = shift_number < last and _balance.machine.is_boosted_shift(shift_number)
+		assert_bool(announced).override_failure_message(failure).is_equal(expected)
+		if shift_number == last:
+			continue
+		_pass(run, machine, shift_number)
+		assert_bool(machine.is_boosted()).override_failure_message(failure).is_equal(announced)
 
 
 ## A register picked from the machine after an earlier shift, as the history records it.

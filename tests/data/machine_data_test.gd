@@ -210,6 +210,12 @@ func test_the_machine_v2_tempo_is_set() -> void:
 		assert_bool(text.contains(gone)).override_failure_message(gone).is_false()
 	for gone: String in ["stub_lead_ms", "stub_flight_ms", "stub_feed_ms", "stub_feed_rm_ms"]:
 		assert_bool(text.contains(gone)).override_failure_message(gone).is_false()
+	# v0.50 (premium machine, R1 drop): the belt, the boxes, the restock and the old reveal's
+	# spacing are gone; the premium transform and the drop are set.
+	for gone: String in ["lands_ms", "belt_", "restock", "box_", "reveal_start_ms", "odds_open"]:
+		assert_bool(text.contains(gone)).override_failure_message(gone).is_false()
+	for field: String in ["premium_ms", "premium_rm_ms", "draw_rm_ms", "land_lead_rm_ms"]:
+		assert_int(int(tempo.get(field))).override_failure_message(field).is_greater(0)
 
 
 func _ids(items: Array) -> Array[String]:

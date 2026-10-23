@@ -302,10 +302,9 @@ func test_a_new_screen_resumes_the_prizes() -> void:
 	assert_int(int(times["presented_ms"])).is_between(0, 100)
 	var view: RewardMachineView = resumed._machine.view
 	await _assert_on_screen(resumed, view)
-	var machine: Rect2 = view.get_global_rect()
+	var window: Rect2 = resumed.get_viewport_rect()
 	for ticket: PrizeTicket in view.tickets:
-		assert_bool(machine.encloses(ticket.get_global_rect())).is_true()
-	assert_bool(view.can_scan()).is_true()
+		assert_bool(window.encloses(ticket.get_global_rect())).is_true()
 	first._machine._on_prize_picked(0)
 	first._machine.view.fast_forward()  # The landing plays to its end.
 	first._machine._end_return()  # No glide back (#77 machine v2).
@@ -434,16 +433,13 @@ func test_a_new_screen_resumes_a_bonus_visit() -> void:
 	assert_array(_errors).is_empty()
 
 
-## A bonus visit's machine (#77 machine v2): the head's BONUS TICKET! stamp over INSPECTION PASSED
-## and the BONUS slip checked INSPECTION PASSED ✓ over the inspection's name.
+## A bonus visit's machine (#77 machine v2): the head's BONUS TICKET! stamp over INSPECTION PASSED,
+## on the classic face (a BONUS visit is never PREMIUM, v0.50).
 func _assert_bonus_faces(screen: ShiftScreen) -> void:
 	var view: RewardMachineView = screen._machine.view
 	assert_str(view.head.stamp_texts()[0]).is_equal("BONUS TICKET!")
 	assert_str(view.head.stamp_texts()[1]).is_equal(RewardMachineView.BONUS_UNDER)
-	assert_str(view.slip.texts()[0]).starts_with("BONUS #")
-	assert_str(view.slip.texts()[0]).ends_with("b")
-	assert_str(view.slip.texts()[1]).is_equal(RewardMachineView.BONUS_CHECK)
-	assert_str(view.slip.why_text()).is_equal(screen.run.history[-1].inspection.display_name)
+	assert_bool(view.head.premium_face()).is_false()
 
 
 ## A run saved after the shift's last visit (SCORED) resumes on the next shift's planning.

@@ -27,7 +27,9 @@ extends Node
 ## starts: their items show the old art through the glide back, then upgrade_after_ms after it an
 ## UpgradeSwap plays on the screen's overlay for those on screen, and the monitor's brief lists
 ## them (swap_news) until the next checkout. Once planning takes input, BonusNotice pulses the
-## inspection chip and the brief's PASS IT plate when passing the shift earns the bonus ticket.
+## inspection chip and the brief's PASS IT plate when passing the shift earns the bonus ticket,
+## and PremiumAnnounce (v0.50) prints its gold receipt on the monitor and hangs the PREMIUM NEXT
+## tag when passing it earns a PREMIUM visit (RewardMachine.boosted_if_passed; a resume: the tag).
 ##
 ## A part of the shift screen, split out to keep that file short (like ShiftDebug): it works on
 ## the screen's run and display through the screen's own members.
@@ -48,6 +50,7 @@ var shown_swaps: Array = []
 ## The swap on screen (null: none yet, or freed) and the notice's pulse.
 var swap: UpgradeSwap
 var notice: BonusNotice
+var announce: PremiumAnnounce
 var _screen: ShiftScreen
 var _log: EventLogService
 ## The visit on screen: its timeline, the odds cards opened (chutes, in order), the odds card of
@@ -69,6 +72,11 @@ var _presses: PressReader
 ## waits for planning to take input.
 var _swap_wait: float = -1.0
 var _notice_due: bool = false
+var _announce_prints: bool = true
+## Seconds left before the bonus notice pulses (-1: none due): an announce printing on the monitor
+## goes first, so the PASS IT plate never pulses hidden under its receipt (shifts 3, 5 and 7 are
+## both inspected and boosted).
+var _notice_wait: float = -1.0
 
 
 ## Builds the machine on `screen` (a screen child over the shade, added at the screen's call).
@@ -93,13 +101,24 @@ func setup(screen: ShiftScreen, event_log: EventLogService) -> RewardMachineView
 	_presses.tapped.connect(func(_now_ms: int) -> void: _end_return())
 	notice = BonusNotice.new()
 	add_child(notice)
+	announce = PremiumAnnounce.new()
+	announce.reduced_motion = _reduced
+	announce.active = func() -> bool:
+		var run: RunState = screen.run
+		return run != null and (run.phase == RunState.Phase.PLANNING or screen._counting)
+	screen._overlay.add_child(announce)
+	announce.setup(screen._monitor, screen._quota_meter.bar(), screen._quota_meter.flag())
 	return view
 
 
-## A new shift's planning (or a resumed one) opened: the notice pulses once planning takes input.
-func shift_started() -> void:
+## A new shift's planning (or a resumed one, `printing` false) opened: the notice pulses and the
+## premium announce prints (a resume: hangs its tag) once planning takes input.
+func shift_started(printing: bool = true) -> void:
 	notice.stop()
+	announce.clear()
+	_announce_prints = printing
 	_notice_due = true
+	_notice_wait = -1.0
 
 
 ## Something covers planning (the cart reveal, v0.51): no notice pulses until shift_started().
@@ -206,7 +225,12 @@ func _process(delta: float) -> void:
 			play_swaps()
 	if _notice_due and _return_t < 0.0:
 		_notice_due = false
-		_play_notice()
+		_play_announce()
+		_notice_wait = announce.print_left()
+	if _notice_wait >= 0.0:
+		_notice_wait -= delta
+		if _notice_wait < 0.0:
+			_play_notice()
 	if _return_t < 0.0:
 		return
 	_return_t += delta
@@ -468,6 +492,14 @@ func _play_notice() -> void:
 	notice.play(
 		_screen._inspection_tag, func() -> Control: return monitor.channel.pass_line(), _reduced()
 	)
+
+
+func _play_announce() -> void:
+	var run: RunState = _screen.run
+	if run == null or run.phase != RunState.Phase.PLANNING or run.machine == null:
+		return
+	if run.machine.boosted_if_passed(run):
+		announce.show_tag(_announce_prints)
 
 
 func _reduced() -> bool:

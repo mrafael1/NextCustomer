@@ -393,7 +393,7 @@ func test_history_rows_name_the_visits_and_the_inspection() -> void:
 			[
 				"  4  €30 / €22      pass",
 				"     NEW ITEMS: Bread",
-				"     BONUS · REGISTER: Category engine",
+				"     BONUS · LOYALTY: Category engine",
 				"     inspection Spot check",
 			]
 		)

@@ -6,18 +6,17 @@ extends RefCounted
 ## resume, show_at): a jump plays nothing, as `skipping` beats do.
 ##
 ## - the receipt's (or the BONUS stub's) flight lands: `tick` x5 (x3), then `slot_tick` as it is
-##   fed; the keys light: one ladder note each (C5 D5 E5 G5), staggered as the keys (a BOOSTED
-##   visit's stamp lands with them: `stamp_notice`);
+##   fed; a BOOSTED visit turning PREMIUM (v0.50): `stamp_notice` as its sign flips and a rising
+##   run (G4 C5 E5 G5 C6), then `ui_switch` as the gold keys rise; the keys light: one ladder note
+##   each (C5 D5 E5 G5), staggered as the keys;
 ## - the chute confirmed: `ui_confirm` (CONFIRM › plays it as it is pressed, #77 machine v2);
-##   each bay pick: a ladder note (C5 E5 G5) and `card_place`;
-##   the belt: `rattle_s` as it starts, a `tick` every BELT_TICK while it moves; a box through the
-##   RESTOCK curtain: `ui_switch`; PACKED: `stamp_1`; each box's lid tape: `rip`;
-## - the reveals (reveal_sounds): COMMON one note and `tick`, RARE two rising notes (E5 A5),
-##   LEGENDARY four (C5 E5 G5 C6) and `rattle_l`; every rarity keeps its sound under reduced
-##   motion;
-## - the pick: `ui_click` (a bin: `ui_back`); the landing: a new card `card_place`, a register
-##   (or STAMP DAY's) `stamp_loyalty`, an upgrade's glint `ding` and G5 C6 E6; the restock: a
-##   soft `card_place` per bay;
+##   the tray packs: `rattle_s`; PACKED: `stamp_1`; each ticket out of the tray: a quiet
+##   `ui_switch`;
+## - each ticket landing face up (reveal_sounds): COMMON one note and `tick`, RARE a two-note chime
+##   (E5 A5), LEGENDARY a sting (`rattle_l` and C5 E5 G5 C6); every rarity keeps its sound under
+##   reduced motion;
+## - the pick: `ui_click` (a bin: `ui_back`); the landing: a new card `card_place`, a LOYALTY stamp
+##   (or STAMP DAY's) `stamp_loyalty`, an upgrade's glint `ding` and G5 C6 E6;
 ## - the BONUS TICKET's stamp: `stamp_notice` and the stub's `print`; STAMP DAY's: `stamp_paid`.
 ## The padlocked key's `denied` is the machine's own (RewardMachineView.press_key).
 ##
@@ -32,23 +31,20 @@ const A5 := 6
 const C6 := 7
 const E6 := 9
 const KEY_NOTES: Array[int] = [C5, D5, E5, G5]
-const BAY_NOTES: Array[int] = [C5, E5, G5]
+const G4 := 0
+## The premium transform's run, PREMIUM_GAP apart from the sign's flip.
+const PREMIUM_NOTES: Array[int] = [G4, C5, E5, G5, C6]
+const PREMIUM_GAP := 0.07
 const GLINT_NOTES: Array[int] = [G5, C6, E6]
 ## The feed's ticks: per visit kind (TICKET, BONUS, STAMP DAY), this far apart.
 const FEED_TICKS: Array[int] = [5, 3, 0]
 const TICK_GAP := 0.09
-## The belt ticks this often while it moves (the page's placeholder).
-const BELT_TICK := 0.18
 ## The notes of a RARE and a LEGENDARY reveal follow each other this far apart; an upgrade's glint
 ## notes this far.
 const RARE_GAP := 0.12
 const LEGENDARY_GAP := 0.1
 const GLINT_GAP := 0.06
-## Where in its reveal a rarity's sound lands, and where its lid's tape splits (oa x 0.45), as a
-## share of the reveal (look F).
-const REVEAL_SHARE: Array[float] = [0.6, 0.5, 0.55]
-const TAPE_SHARE: Array[float] = [0.0, 0.09, 0.1575]
-## The soft sounds' level (dB): the bay's thump, the restock, the belt's ticks.
+## The soft sounds' level (dB): the packing, the tickets leaving the tray.
 const SOFT_DB := -8.0
 const QUIET_DB := -14.0
 ## A frame never moves the clock further than this: a longer step is a jump, which plays nothing.
@@ -163,24 +159,36 @@ func _add_intro(plan: MachinePlan) -> void:
 	var stagger: int = view.tuning.key_stagger_ms
 	if plan.kind == MachineVisit.Kind.BONUS:
 		stagger = view.tuning.relight_stagger_ms
-	elif view.run != null and view.run.machine.is_boosted():
-		_cue(plan.lights, SOUND, "stamp_notice")
+	if plan.premium_at >= 0.0:
+		_add_premium(plan)
 	for chute: int in RewardMachine.CHUTES:
 		if _lit(chute):
-			_cue(plan.lights + MachineTuning.sec(stagger * chute), NOTE, KEY_NOTES[chute])
+			var at: float = plan.lights + MachineTuning.sec(stagger * (chute % 2))
+			_cue(at, NOTE, KEY_NOTES[chute])
+
+
+## The premium transform's sounds (MachineLook's times, scaled to the plan's transform).
+func _add_premium(plan: MachinePlan) -> void:
+	var length: float = plan.premium_length()
+	var flip: float = plan.premium_at + length * MachineLook.FACE_AT / MachineLook.MOCK_LENGTH
+	if plan.reduced_motion:
+		flip = plan.premium_end
+	_cue(flip, SOUND, "stamp_notice")
+	for index: int in range(PREMIUM_NOTES.size()):
+		_cue(flip + PREMIUM_GAP * index, NOTE, PREMIUM_NOTES[index])
+	if not plan.reduced_motion:
+		var rise: float = plan.premium_at + length * MachineLook.RISE_FROM / MachineLook.MOCK_LENGTH
+		_cue(rise, SOUND, "ui_switch", SOFT_DB)
 
 
 func _add_draw(plan: MachinePlan) -> void:
+	if plan.draw_end > plan.draw:
+		_cue(plan.draw, SOUND, "rattle_s", SOFT_DB)
 	for index: int in range(plan.n_prizes):
-		_cue(plan.picks[index], NOTE, BAY_NOTES[mini(index, BAY_NOTES.size() - 1)])
-		_cue(plan.picks[index], SOUND, "card_place", SOFT_DB)
-		if plan.run_from[index] >= 0.0:
-			_cue(plan.run_from[index], SOUND, "ui_switch", QUIET_DB)
+		if plan.drop_length[index] > 0.0:
+			_cue(plan.drop_at[index], SOUND, "ui_switch", QUIET_DB)
 		var rarity: int = plan.rarities[index]
-		var start: float = plan.reveal_at[index]
-		var length: float = plan.reveal_length[index]
-		_cue(start + length * TAPE_SHARE[rarity], SOUND, "rip", SOFT_DB)
-		var at: float = start + length * REVEAL_SHARE[rarity]
+		var at: float = plan.reveal_at[index]
 		var gap: float = RARE_GAP if rarity == MachinePrize.Rarity.RARE else LEGENDARY_GAP
 		var notes: int = 0
 		for sound: String in reveal_sounds(rarity):
@@ -190,14 +198,6 @@ func _add_draw(plan: MachinePlan) -> void:
 			else:
 				_cue(at, SOUND, sound)
 	_cue(plan.packed, SOUND, "stamp_1")
-	if plan.belt_from >= 0.0:
-		var ramp: float = MachineTuning.sec(view.tuning.belt_ramp_up_ms)
-		var stop: float = plan.belt_to + MachineTuning.sec(view.tuning.belt_ramp_down_ms)
-		_cue(plan.belt_from - ramp, SOUND, "rattle_s", SOFT_DB)
-		var at: float = plan.belt_from - ramp + BELT_TICK
-		while at < stop:
-			_cue(at, SOUND, "tick", QUIET_DB)
-			at += BELT_TICK
 
 
 func _add_landing(plan: MachinePlan) -> void:
@@ -210,8 +210,6 @@ func _add_landing(plan: MachinePlan) -> void:
 			_cue(plan.glint, SOUND, "ding")
 			for index: int in range(GLINT_NOTES.size()):
 				_cue(plan.glint + GLINT_GAP * index, NOTE, GLINT_NOTES[index])
-	for at: float in plan.restock:
-		_cue(at, SOUND, "card_place", QUIET_DB)
 
 
 func _cue(at: float, kind: StringName, what: Variant, level: float = 0.0) -> void:

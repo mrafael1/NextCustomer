@@ -5,6 +5,7 @@
 [resource]
 script = ExtResource("1_upgrade")
 id = &"extra_redraw"
+icon_ref = "res://art/icons/redraw_arrow.png"
 display_name = "Extra redraw"
 type = 5
 effect_text = "+1 redraw each shift"

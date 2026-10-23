@@ -1,20 +1,20 @@
 class_name MachineFlyer
 extends Control
 ## The picked prize flying home (#77, look F; build spec 4.2-4.3), on the machine's stage layer:
-## from its cell on the tray to its slot in the cart drawer (an item, a coupon, an upgrade's up
-## arrow; a 60 px arc, full size) or to its LOYALTY card box (the stamp ring; a 120 px arc,
-## shrinking to 0.3), between view.plan's fly_out and land; none under reduced motion (the
-## prize is home at once). It owns the landing's one-shot moments: at beat `land` the LOYALTY
-## card's stamp slams down on the register's box (view.plain_landing is off), and the machine's
-## sounds (MachineSounds), which it frames.
+## from its ticket in the prize row (v0.50) to its slot in the cart drawer (an item, a coupon, an
+## upgrade's up arrow; a 60 px arc, full size) or to its LOYALTY card box (the stamp ring; a 120 px
+## arc, shrinking to 0.3), between view.plan's fly_out and land; none under reduced motion (the
+## prize is home at once). It owns the landing's one-shot moments: at beat `land` the LOYALTY card's
+## stamp slams down on the register's box (view.plain_landing is off), and the machine's sounds
+## (MachineSounds), which it frames.
 
 const SIZE := Vector2(96, 96)
 ## The arcs' heights and the loyalty stamp's end scale (look F).
 const DRAWER_ARC := 60.0
 const LOYALTY_ARC := 120.0
 const LOYALTY_SCALE := 0.3
-## The prize leaves its ticket from here (the ticket's centre, a little up: look F's 54, 42).
-const LEAVE_OFFSET := Vector2(54, 42)
+## The prize leaves its ticket from its art's middle.
+const LEAVE_OFFSET := PrizeTicket.ART_RECT.position + PrizeArt.SPRITE_AT + Vector2(48, 48)
 ## The up arrow (an upgrade) is drawn at 6x, centred in the flyer.
 const UP_ARROW := preload("res://art/icons/up_arrow.png")
 const STAMP_RING := preload("res://art/icons/stamp_ring.png")
@@ -78,14 +78,15 @@ func frame(t: float) -> void:
 	scale = Vector2.ONE * (lerpf(1.0, LOYALTY_SCALE, p) if to_loyalty else 1.0)
 
 
-## Where the prize leaves, in stage coordinates: its ticket's cell.
+## Where the prize leaves, in stage coordinates: its ticket in the row, lifted.
 func start_point() -> Vector2:
 	var plan: MachinePlan = view.plan
 	var visit: MachineVisit = _visit()
 	var index: int = visit.picked if visit != null and visit.picked >= 0 else 0
 	var count: int = plan.n_prizes if plan != null else 1
-	var cell: int = MachinePlan.cell_of(index, maxi(count, 1))
-	return Vector2(ShiftStage.MACHINE_CELL_X[cell], ShiftStage.MACHINE_CELL_Y) + LEAVE_OFFSET
+	var ticket: Rect2 = PrizeRow.card_rect(index, maxi(count, 1))
+	var lift: Vector2 = Vector2(0, -PrizeTicket.PICK_LIFT)
+	return ShiftStage.MACHINE_RECT.position + ticket.position + LEAVE_OFFSET + lift
 
 
 ## Where it lands, in stage coordinates: its cart drawer slot, or its LOYALTY card box (still

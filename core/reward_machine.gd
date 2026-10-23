@@ -468,6 +468,24 @@ func bonus_if_passed(run: RunState) -> bool:
 	return _bonus_for(machine, run.shift_index + 1, not run.inspections.is_empty())
 
 
+## Read-only, for the planning announce (v0.50, "PREMIUM NEXT"): whether passing the current
+## shift would queue a BOOSTED ticket visit, as begin_after_checkout decides it at that checkout
+## (a boosted shift, and REGISTER or UPGRADES able to draw from the run as it is now). False on
+## the last shift (no machine follows it).
+func boosted_if_passed(run: RunState) -> bool:
+	if run.is_last_shift() or not machine.is_boosted_shift(run.shift_index + 1):
+		return false
+	var context: MachineContext = MachineContext.from_run(
+		run, machine, coupons_first_done, new_items_first_done
+	)
+	for chute: int in BOOSTED_CHUTES:
+		if chute == Chute.REGISTER and registers_picked(run) >= machine.register_cap:
+			continue
+		if not context.pools(chute).all(func(pool: Array) -> bool: return pool.is_empty()):
+			return true
+	return false
+
+
 ## Read-only, for the inspection chip (#77 machine v2): whether the shift just checked out was an
 ## inspected one, passed, and its pass earned the bonus ticket (the chip's EARNED state). False
 ## before any checkout and after a failed or last shift.
