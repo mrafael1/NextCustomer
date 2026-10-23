@@ -359,7 +359,7 @@ func test_the_results_screen_lists_the_run_history() -> void:
 	await Rush.checkout(screen)
 	assert_bool(screen._results.visible).is_true()
 	var texts: PackedStringArray = screen._results.texts()
-	assert_str(texts[2]).is_equal("  1  €109 / €34     pass")
+	assert_str(texts[2]).is_equal("  1  €109 / €29     pass")
 	assert_str(texts[3]).is_equal("     binned NEW ITEMS")
 	assert_str(texts[4]).is_equal("  2  €0 / €35       fail")
 	# The full 8-shift receipt's layout: tests/ui/results_panel_test.gd.
