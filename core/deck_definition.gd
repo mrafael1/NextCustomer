@@ -31,6 +31,16 @@ extends Resource
 ## chain (v0.52). Off: the draw keeps to the fresh-stock products, as before their chains (#89);
 ## the user decides whether capsule products join it (full build plan 7.2, TODO(S2)).
 @export var random_capsules: bool = false
+## The fair-deal check (v0.54, full build plan 7.2): a recipe's deal is kept when, of
+## `fair_deal_hands` hands of the balance's hand_size sampled from it on the deal's stream, at
+## least `fair_deal_passes` reach shift 1's quota with the sensible climb (RowClimb, up to
+## `fair_deal_changes` changes, no redraws). Otherwise it is dealt again on the same stream, up to
+## `fair_deal_redeals` times, and the deal with the most passing hands (the first on a tie) is
+## kept. 0 hands: no check.
+@export var fair_deal_hands: int = 0
+@export var fair_deal_passes: int = 0
+@export var fair_deal_changes: int = 0
+@export var fair_deal_redeals: int = 0
 ## An upgrade the run owns from the start (optional): offers skip it, and it takes a box of its
 ## own on the loyalty card before the upgrade-shift boxes.
 @export var starting_upgrade: UpgradeDefinition

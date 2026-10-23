@@ -38,7 +38,7 @@
 
 [resource]
 script = ExtResource("1_balance")
-quotas = PackedInt32Array(34, 35, 53, 61, 73, 98, 111, 120)
+quotas = PackedInt32Array(29, 35, 53, 61, 73, 98, 111, 120)
 hand_size = 8
 base_redraws = 2
 basket_size = 2

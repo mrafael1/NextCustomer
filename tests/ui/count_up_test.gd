@@ -82,14 +82,14 @@ func test_the_full_row_counts_up_on_screen_in_five_to_nine_seconds() -> void:
 
 	_assert_sounds(sfx, plan, count_up.printer_feed_ms)
 	_assert_rides(rides, plan)
-	# Shift 1's quota (34) is reached mid-row: the ding, then the quota met for good.
+	# Shift 1's quota (29) is reached mid-row: the ding, then the quota met for good.
 	assert_int(plan.ding_beat).is_greater_equal(0)
 	assert_int(_sounds(sfx, "ding")).is_equal(1)
 	assert_bool(probe["met_before_total"]).is_true()
 	# It was met at the ding beat, the subtotal past the quota but short of the total, and stayed
 	# met on every frame after.
 	var quota: int = screen.run.quota()
-	assert_int(quota).is_equal(34)
+	assert_int(quota).is_equal(29)
 	assert_int(int(probe["met_subtotal"])).is_between(quota, plan.total - 1)
 	assert_int(int(probe["met_subtotal"])).is_equal(plan.beats[plan.ding_beat].subtotal)
 	assert_bool(probe["met_lost"]).is_false()
@@ -118,7 +118,7 @@ func test_the_fast_setting_counts_faster_with_the_same_receipt() -> void:
 	assert_array(failures).override_failure_message("\n".join(failures)).is_empty()
 	var plan: CountUpPlan = screen._count_up.plan
 	var normal: CountUpPlan = CountUpPlan.build(
-		screen.run.last_result.steps, 34, CountUpContext.new(1, 0), load(CountUp.TUNING_PATH)
+		screen.run.last_result.steps, 29, CountUpContext.new(1, 0), load(CountUp.TUNING_PATH)
 	)
 	assert_float(plan.base_speed).is_equal(1.5)
 	assert_int(plan.planned_ms).is_less(normal.planned_ms)

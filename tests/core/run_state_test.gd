@@ -11,8 +11,9 @@ const REPEAT := "res://data/cards/repeat.tres"
 
 func test_balance_matches_the_plan() -> void:
 	var balance: BalanceDefinition = load(BALANCE)
-	# 8 shifts, quotas fitted with the balance simulator (plan v0.28, issue #41).
-	assert_array(Array(balance.quotas)).is_equal([34, 35, 53, 61, 73, 98, 111, 120])
+	# 8 shifts, quotas fitted with the balance simulator (plan v0.28, issue #41); shift 1
+	# lowered to 29 in v0.54.
+	assert_array(Array(balance.quotas)).is_equal([29, 35, 53, 61, 73, 98, 111, 120])
 	assert_int(balance.hand_size).is_equal(8)
 	assert_int(balance.basket_size).is_equal(2)
 	assert_int(balance.slot_count).is_equal(6)
@@ -24,7 +25,7 @@ func test_start_shift_draws_a_hand_and_empties_the_row() -> void:
 	var run: RunState = _run(1)
 	assert_int(run.hand().size()).is_equal(8)
 	assert_array(run.row).is_empty()
-	assert_int(run.quota()).is_equal(34)
+	assert_int(run.quota()).is_equal(29)
 	assert_int(run.phase).is_equal(RunState.Phase.PLANNING)
 
 

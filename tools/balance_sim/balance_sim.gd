@@ -134,6 +134,9 @@ var _options: Dictionary[String, String] = {}
 var _starter: DeckDefinition
 var _balance: BalanceDefinition
 var _builds: SimBuilds
+## The fair-deal check's quota (StartingDeck, v0.54): the balance data's shift 1 quota, kept
+## when --quotas plays others, so every run is dealt as the game deals it.
+var _deal_quota: int = -1
 ## The collection states played: the given one, or the fresh profile then the gate's states.
 var _states: Array[SimCollection] = []
 ## Per scenario key (Scenario), its runs in run order.
@@ -177,7 +180,8 @@ func _reference_deck() -> DeckDefinition:
 		_starter,
 		RunStock.starting(_balance),
 		_balance,
-		EventLogService.derived_stream(int(_options["seed"]), EventLogService.STARTING_DECK_STREAM)
+		EventLogService.derived_stream(int(_options["seed"]), EventLogService.STARTING_DECK_STREAM),
+		_deal_quota
 	)
 
 
@@ -278,6 +282,10 @@ func _override_quotas(text: String) -> bool:
 			"balance_sim: --quotas needs 1 or %d values, got %s" % [_balance.quotas.size(), text]
 		)
 		return false
+	var starting: Array[UpgradeDefinition] = []
+	if _starter.starting_upgrade != null:
+		starting.append(_starter.starting_upgrade)
+	_deal_quota = ShiftLimits.for_shift(_balance, starting, 0).quota
 	_balance = _balance.duplicate()
 	_balance.quotas = quotas
 	return true
@@ -420,6 +428,7 @@ func _simulate(shard: int, shards: int, search: SimRowSearch) -> void:
 			stocks[scenario.state],
 			_builds
 		)
+		player.deal_quota = _deal_quota
 		var records: Array[SimRunRecord] = []
 		_begin_phase(limit, search)
 		for index: int in range(shard, runs, shards):
@@ -473,6 +482,7 @@ func _play_chains(
 		var player: SimPlayer = SimPlayer.new(
 			_starter, _balance, search, strategy, int(_options["samples"]), stock, _builds
 		)
+		player.deal_quota = _deal_quota
 		return player
 	for index: int in range(shard, int(_options["chains"]), shards):
 		if limit.is_phase_over(Time.get_ticks_msec()):

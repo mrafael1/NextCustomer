@@ -18,13 +18,114 @@ extends RefCounted
 ## in stock order.
 
 
+## How a recipe was dealt (`deal_counted`): the deck kept, how many deals were made (1 when the
+## first passed the fair-deal check or there is no check), and the kept deal's passing hands (-1
+## without a check).
+class Dealt:
+	extends RefCounted
+	var deck: DeckDefinition
+	var deals: int = 1
+	var passes: int = -1
+
+
 ## The dealt deck: a copy of `recipe` whose cards are its core cards plus the drawn coupons and
-## products. A fixed deck (not a recipe) is returned as it is.
+## products, kept by the fair-deal check (`deal_counted`). A fixed deck (not a recipe) is returned
+## as it is. `quota` is the check's target; -1: shift 1's quota from `balance` (ShiftLimits, the
+## recipe's starting upgrade included).
 static func deal(
+	recipe: DeckDefinition,
+	stock: RunStock,
+	balance: BalanceDefinition,
+	rng: RandomNumberGenerator,
+	quota: int = -1
+) -> DeckDefinition:
+	return deal_counted(recipe, stock, balance, rng, quota).deck
+
+
+## Deals `recipe` (see `deal`), then the fair-deal check (v0.54, the recipe's fair_deal_* fields):
+## after each deal, up to fair_deal_hands hands of the balance's hand_size are sampled from it on
+## the same stream (a partial Fisher-Yates each), and each is climbed by RowClimb (the sensible
+## player, fair_deal_changes changes, shift 1's limits and starting upgrade, no inspection, no
+## redraw). A deal is kept as soon as fair_deal_passes hands reach the quota; the sampling stops
+## early once that can no longer happen. Otherwise the recipe is dealt again on the same stream,
+## up to fair_deal_redeals more times, and the deal with the most passing hands (the first on a
+## tie) is kept. Everything is drawn on `rng`, so the same stream state gives the same deck.
+static func deal_counted(
+	recipe: DeckDefinition,
+	stock: RunStock,
+	balance: BalanceDefinition,
+	rng: RandomNumberGenerator,
+	quota: int = -1
+) -> Dealt:
+	var result: Dealt = Dealt.new()
+	if not recipe.is_recipe():
+		result.deck = recipe
+		return result
+	result.deck = _deal_once(recipe, stock, balance, rng)
+	if recipe.fair_deal_hands <= 0:
+		return result
+	var upgrades: Array[UpgradeDefinition] = []
+	if recipe.starting_upgrade != null:
+		upgrades.append(recipe.starting_upgrade)
+	var limits: ShiftLimits = ShiftLimits.for_shift(balance, upgrades, 0)
+	var target: int = quota if quota >= 0 else limits.quota
+	var climber: RowClimb = RowClimb.new(upgrades)
+	var dealt: DeckDefinition = result.deck
+	for deal_index: int in range(recipe.fair_deal_redeals + 1):
+		if deal_index > 0:
+			dealt = _deal_once(recipe, stock, balance, rng)
+		var passes: int = fair_passes(
+			dealt.cards, recipe, balance.hand_size, limits, target, climber, rng
+		)
+		if passes > result.passes:
+			result.deck = dealt
+			result.passes = passes
+		result.deals = deal_index + 1
+		if passes >= recipe.fair_deal_passes:
+			result.deck = dealt
+			result.passes = passes
+			break
+	return result
+
+
+## How many of up to `recipe.fair_deal_hands` hands of `hand_size` sampled from `cards` on `rng`
+## reach `target` with `climber` (fair_deal_changes changes under `limits`). It stops sampling once
+## fair_deal_passes hands passed or can no longer pass, so the count is exact only below that.
+static func fair_passes(
+	cards: Array[CardDefinition],
+	recipe: DeckDefinition,
+	hand_size: int,
+	limits: ShiftLimits,
+	target: int,
+	climber: RowClimb,
+	rng: RandomNumberGenerator
+) -> int:
+	var pile: Array[CardInstance] = []
+	for card: CardDefinition in cards:
+		pile.append(CardInstance.new(card, pile.size() + 1))
+	var drawn: int = mini(hand_size, pile.size())
+	var passes: int = 0
+	for sample: int in range(recipe.fair_deal_hands):
+		if passes >= recipe.fair_deal_passes:
+			break
+		if passes + recipe.fair_deal_hands - sample < recipe.fair_deal_passes:
+			break
+		# A partial Fisher-Yates: the hand is the pile's last `drawn` cards.
+		for index: int in range(pile.size() - 1, pile.size() - 1 - drawn, -1):
+			var other: int = rng.randi_range(0, index)
+			var swap: CardInstance = pile[index]
+			pile[index] = pile[other]
+			pile[other] = swap
+		var hand: Array[CardInstance] = pile.slice(pile.size() - drawn)
+		if climber.climb_total(hand, limits, recipe.fair_deal_changes) >= target:
+			passes += 1
+	return passes
+
+
+## One deal of `recipe`: its core cards, then the drawn coupons and products.
+static func _deal_once(
 	recipe: DeckDefinition, stock: RunStock, balance: BalanceDefinition, rng: RandomNumberGenerator
 ) -> DeckDefinition:
-	if not recipe.is_recipe():
-		return recipe
 	var chains: Array[ItemUpgradeDefinition] = []
 	if balance.machine != null:
 		chains = balance.machine.item_upgrades
@@ -117,6 +218,10 @@ static func with_cards(recipe: DeckDefinition, cards: Array[CardDefinition]) -> 
 	dealt.random_coupon_count = recipe.random_coupon_count
 	dealt.copy_max = recipe.copy_max
 	dealt.random_capsules = recipe.random_capsules
+	dealt.fair_deal_hands = recipe.fair_deal_hands
+	dealt.fair_deal_passes = recipe.fair_deal_passes
+	dealt.fair_deal_changes = recipe.fair_deal_changes
+	dealt.fair_deal_redeals = recipe.fair_deal_redeals
 	dealt.starting_upgrade = recipe.starting_upgrade
 	dealt.unlock_condition = recipe.unlock_condition
 	dealt.cards = cards.duplicate()
