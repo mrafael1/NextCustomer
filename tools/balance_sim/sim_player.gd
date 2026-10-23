@@ -71,6 +71,9 @@ const BUILD_MARGIN := 2
 ## share of the best offered upgrade.
 const LISTED_UPGRADE_SHARE := 0.95
 
+## The quota a recipe's fair-deal check aims at (StartingDeck.deal, v0.54); -1: shift 1's quota
+## of the balance played. The simulator sets the balance data's when --quotas plays others.
+var deal_quota: int = -1
 var _starter: DeckDefinition
 var _balance: BalanceDefinition
 var _stock: RunStock
@@ -139,7 +142,8 @@ func play(run_seed: int) -> SimRunRecord:
 		_starter,
 		_stock,
 		_balance,
-		EventLogService.derived_stream(run_seed, EventLogService.STARTING_DECK_STREAM)
+		EventLogService.derived_stream(run_seed, EventLogService.STARTING_DECK_STREAM),
+		deal_quota
 	)
 	var run: RunState = RunState.new(run_seed, deck, _balance, _stock)
 	_rng.seed = hash("balance_sim:%d" % run_seed)

@@ -15,3 +15,7 @@ core_cards = Array[ExtResource("1_card")]([ExtResource("2_banana"), ExtResource(
 random_count = 8
 random_coupon_count = 1
 copy_max = 2
+fair_deal_hands = 8
+fair_deal_passes = 1
+fair_deal_changes = 3
+fair_deal_redeals = 4

@@ -55,16 +55,20 @@ func test_a_deal_is_the_core_cards_then_a_coupon_then_eight_products() -> void:
 
 ## v0.51: the coupon is drawn from the whole coupon pool, equally likely, on the deal's stream
 ## before the products: over 200 seeds every pool coupon shows up, and the stream's first draw
-## picks it.
+## picks it (in a deal the fair-deal check kept the first time, v0.54).
 func test_the_coupon_is_random_from_the_coupon_pool() -> void:
 	assert_array(StartingDeck.drawable_coupons(_stock)).is_equal(_balance.coupon_pool)
 	var seen: Dictionary[CardDefinition, int] = {}
 	for seed_value: int in FIT_SEEDS:
-		var coupon: CardDefinition = _deal(seed_value).cards[4]
+		var dealt: StartingDeck.Dealt = StartingDeck.deal_counted(
+			_recipe, _stock, _balance, _stream(seed_value)
+		)
+		var coupon: CardDefinition = dealt.deck.cards[4]
 		seen[coupon] = int(seen.get(coupon, 0)) + 1
 		var stream: RandomNumberGenerator = _stream(seed_value)
 		var first: int = stream.randi_range(0, _balance.coupon_pool.size() - 1)
-		assert_object(coupon).is_same(_balance.coupon_pool[first])
+		if dealt.deals == 1:
+			assert_object(coupon).is_same(_balance.coupon_pool[first])
 	assert_array(seen.keys()).contains_exactly_in_any_order(_balance.coupon_pool)
 
 
