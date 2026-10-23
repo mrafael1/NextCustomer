@@ -264,7 +264,7 @@ func _tilt_stamped_boxes() -> void:
 
 func _make_box(upgrade: UpgradeDefinition) -> PanelContainer:
 	if _chip:
-		return _make_ring(upgrade)
+		return make_ring(upgrade)
 	var panel: PanelContainer = PanelContainer.new()
 	panel.custom_minimum_size = BOX_SIZE
 	if upgrade == null:
@@ -300,8 +300,9 @@ func _make_box(upgrade: UpgradeDefinition) -> PanelContainer:
 
 
 ## The chip face's box: B2's ring (dashed when empty) at 2x, the initials in mustard pale at the
-## largest CHIP_INITIALS_SIZES size that fits inside the rings.
-func _make_ring(upgrade: UpgradeDefinition) -> PanelContainer:
+## largest CHIP_INITIALS_SIZES size that fits inside the rings. The deck view's Run info shows it
+## beside each upgrade (#56).
+static func make_ring(upgrade: UpgradeDefinition) -> PanelContainer:
 	var panel: PanelContainer = PanelContainer.new()
 	panel.custom_minimum_size = CHIP_BOX_SIZE
 	var ring: StyleBoxTexture = StyleBoxTexture.new()

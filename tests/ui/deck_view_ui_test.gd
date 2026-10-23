@@ -6,6 +6,9 @@ extends GdUnitTestSuite
 const Rush := preload("res://tests/ui/count_up_rush.gd")
 const SCREEN := "res://ui/shift_screen.tscn"
 const STARTER := "res://data/decks/starter.tres"
+## A centred pop-in on the 720 px screen that leaves the top bar (and the shade's top, 64)
+## clear (#56's derived limit).
+const MAX_PANEL_HEIGHT := 592.0
 
 var _folder: String = ""
 
@@ -54,12 +57,14 @@ func test_the_deck_tab_groups_copies_and_counts_tags() -> void:
 		"final_markdown": "",
 	}
 	var ids: Array = []
-	for card_view: CardView in view.card_views():
-		var id: String = String(card_view.card.definition.id)
+	for cell: DeckCell in view.cells():
+		var id: String = String(cell.card.id)
 		ids.append(id)
-		var note: Label = card_view.get_parent().get_child(1)
-		assert_str(note.text).override_failure_message(id).is_equal(counts[id])
+		assert_str(cell.count_text()).override_failure_message(id).is_equal(counts[id])
+		# The plain starter deck isn't dealt: no staple or pick marks, and no legend.
+		assert_array(cell.marks()).is_empty()
 	assert_array(ids).is_equal(counts.keys())
+	assert_object(view.find_child("Legend", true, false)).is_null()
 	assert_bool(view._deck_tab.disabled).is_true()
 	assert_bool(view._info_tab.visible).is_true()
 
@@ -92,10 +97,10 @@ func test_the_game_deals_the_recipe_deck() -> void:
 	assert_int(view.card_views().size()).is_equal(_distinct(run.starter.cards))
 
 
-## v0.51: the Cart page keeps the cart reveal's marks for the run: a staple's padlock at the left
-## of its count line, a starting pick's "+" (the coupon's token) at its right, both on a staple's
-## 2nd copy; a card only the machine gave has none. The marks sit inside their cell, clear of
-## the count text.
+## v0.51: the Cart page keeps the cart reveal's marks for the run (#56: on the item's art): a
+## staple's padlock, then a starting pick's "+" (the coupon's token), both on a staple dealt
+## again; a card only the machine gave has none. The marks sit on the art's top left, inside the
+## cell, apart from each other and clear of the copies' count label; the legend names them.
 func test_the_cart_page_marks_staples_and_picks() -> void:
 	var screen: ShiftScreen = await _screen()
 	screen.start_new_run(20261014, false)
@@ -109,37 +114,34 @@ func test_the_cart_page_marks_staples_and_picks() -> void:
 	await get_tree().create_timer(0.4).timeout
 	var picks: Array[CardDefinition] = StartingDeck.picks(run.starter)
 	var seen: Dictionary[String, Array] = {}
-	for card_view: CardView in view.card_views():
-		var card: CardDefinition = card_view.card.definition
-		var note: Label = card_view.get_parent().get_child(1)
-		var staple: Node = note.get_node_or_null(DeckView.STAPLE_MARK)
-		var pick: Node = note.get_node_or_null(DeckView.PICK_MARK)
+	for cell: DeckCell in view.cells():
+		var card: CardDefinition = cell.card
+		var staple: Node = cell.get_node_or_null(DeckCell.STAPLE_MARK)
+		var pick: Node = cell.get_node_or_null(DeckCell.PICK_MARK)
 		var id: String = String(card.id)
 		seen[id] = [staple != null, pick != null]
 		assert_bool(staple != null).override_failure_message(id).is_equal(
 			card.is_product() and run.starter.core_cards.has(card)
 		)
 		assert_bool(pick != null).override_failure_message(id).is_equal(picks.has(card))
-		var cell: Rect2 = card_view.get_parent().get_global_rect()
-		var font: Font = note.get_theme_font("font")
-		var text_width: float = (
-			font
-			. get_string_size(
-				note.text, HORIZONTAL_ALIGNMENT_LEFT, -1, note.get_theme_font_size("font_size")
-			)
-			. x
-		)
-		var text_left: float = note.get_global_rect().get_center().x - text_width / 2.0
-		for mark: Node in [staple, pick]:
-			if mark == null:
-				continue
-			var rect: Rect2 = (mark as RevealChip).get_global_rect().grow(RevealChip.OUTLINE)
+		var column: Rect2 = cell.get_global_rect()
+		var count: Control = cell.get_node_or_null(DeckCell.COUNT_LABEL)
+		var placed: Array[Rect2] = []
+		for mark: RevealChip in cell.marks():
+			var rect: Rect2 = mark.get_global_rect().grow(RevealChip.OUTLINE)
 			assert_float(rect.position.x).override_failure_message(id).is_greater_equal(
-				cell.position.x
+				column.position.x
 			)
-			assert_float(rect.end.x).override_failure_message(id).is_less_equal(cell.end.x)
-			var clear: bool = rect.end.x <= text_left or rect.position.x >= text_left + text_width
-			assert_bool(clear or note.text.is_empty()).override_failure_message(id).is_true()
+			assert_float(rect.end.x).override_failure_message(id).is_less_equal(column.end.x)
+			if count != null:
+				(
+					assert_bool(rect.intersects(count.get_global_rect()))
+					. override_failure_message(id)
+					. is_false()
+				)
+			for other: Rect2 in placed:
+				assert_bool(rect.intersects(other)).override_failure_message(id).is_false()
+			placed.append(rect)
 	# Banana: a staple only; Milk and Eggs: staples dealt again; the coupon: a pick (its token).
 	assert_array(seen["banana"]).is_equal([true, false])
 	assert_array(seen["milk"]).is_equal([true, true])
@@ -148,20 +150,22 @@ func test_the_cart_page_marks_staples_and_picks() -> void:
 	var coupon: CardDefinition = picks[0]
 	assert_bool(coupon.is_coupon()).is_true()
 	assert_array(seen[String(coupon.id)]).is_equal([false, true])
+	assert_array(Array(view.texts())).contains(
+		[DeckView.STAPLE_LEGEND, DeckView.PICK_LEGEND, DeckView.COUPON_LEGEND]
+	)
 
 
-## v0.49: a dealt deck with more distinct products than one row holds (COLUMNS) scrolls inside
-## the fixed area: on a seed that deals the most distinct cards the page is taller than the
-## area, and every card with its count line, the coupon row included, is inside the area at the
-## top or at the end of the scroll. A seed that deals one row of products fits unscrolled. The
-## seeds are the first ones in 0 to 199 that deal each case on a new profile's stock.
-func test_a_dealt_deck_with_two_product_rows_scrolls_inside_its_area() -> void:
+## #56: any dealt cart, and a full cart of 15 distinct cards with BIG and GOLDEN copies, fits the
+## Cart page unscrolled: every cell sits inside the scroll area on the page's two shelves, no two
+## cells overlap, and the view sits inside the window below the top bar, at most
+## MAX_PANEL_HEIGHT tall (a centred pop-in that leaves the top bar clickable). The seed is the
+## first in 0 to 199 that deals the most distinct cards on a new profile's stock.
+func test_a_dealt_or_full_cart_fits_unscrolled() -> void:
 	var balance: BalanceDefinition = load("res://data/balance/balance.tres")
 	var recipe: DeckDefinition = load(ShiftScreen.STARTER_DECK)
 	var stock: RunStock = RunStock.starting(balance)
 	var widest: int = -1
 	var widest_size: int = 0
-	var narrow: int = -1
 	for seed_value: int in 200:
 		var stream: RandomNumberGenerator = EventLogService.derived_stream(
 			seed_value, EventLogService.STARTING_DECK_STREAM
@@ -170,21 +174,20 @@ func test_a_dealt_deck_with_two_product_rows_scrolls_inside_its_area() -> void:
 		if size > widest_size:
 			widest = seed_value
 			widest_size = size
-		if narrow == -1 and size - 1 <= DeckView.COLUMNS:
-			narrow = seed_value
-	# The most distinct: up to 12 (11 products and the coupon), well past one row.
-	assert_int(widest_size - 1).is_greater(DeckView.COLUMNS)
-	assert_int(narrow).is_not_equal(-1)
+	# The most distinct: up to 12 (11 products and the coupon), more than one shelf holds.
+	assert_int(widest_size).is_greater(DeckView.COLUMNS)
 	var screen: ShiftScreen = await _screen()
-	for case: int in [widest, narrow]:
-		screen.start_new_run(case, false)
-		if case == widest:
-			assert_int(_distinct(screen.run.starter.cards)).is_equal(widest_size)
+	for full: bool in [false, true]:
+		screen.start_new_run(widest, false)
+		var run: RunState = screen.run
+		if full:
+			_fill_distinct(run)
+			assert_int(_distinct_in_deck(run)).is_equal(run.balance.deck_limit)
 		screen._on_deck_button_pressed()
 		var view: DeckView = screen._deck_view
 		# Past the pop-in tween, whose overshoot scales the panel for a moment.
 		await get_tree().create_timer(0.4).timeout
-		var where: String = "seed %d" % case
+		var where: String = "full" if full else "seed %d" % widest
 		var rect: Rect2 = view.get_global_rect()
 		(
 			assert_bool(screen.get_global_rect().encloses(rect))
@@ -192,34 +195,44 @@ func test_a_dealt_deck_with_two_product_rows_scrolls_inside_its_area() -> void:
 			. is_true()
 		)
 		assert_float(rect.position.y).is_greater_equal(screen._shade.offset_top)
+		assert_float(rect.size.y).is_less_equal(MAX_PANEL_HEIGHT)
 		assert_float(view._scroll.size.y).is_equal(DeckView.PAGE_SIZE.y)
 		var content: Control = view._scroll.get_child(0)
+		assert_float(content.size.y).override_failure_message(where).is_less_equal(
+			view._scroll.size.y
+		)
 		var area: Rect2 = view._scroll.get_global_rect()
-		var seen_at_top: Array[bool] = _cells_inside(view, area)
-		if case == narrow:
-			assert_float(content.size.y).override_failure_message(where).is_less_equal(
-				view._scroll.size.y
-			)
-			assert_array(seen_at_top).not_contains([false])
-		else:
-			assert_float(content.size.y).override_failure_message(where).is_greater(
-				view._scroll.size.y
-			)
-			assert_array(seen_at_top).contains([false])
-			view._scroll.scroll_vertical = int(content.size.y)
-			await get_tree().process_frame
-			assert_int(view._scroll.scroll_vertical).is_greater(0)
-			var seen_at_end: Array[bool] = _cells_inside(view, area)
-			for index: int in seen_at_top.size():
-				(
-					assert_bool(seen_at_top[index] or seen_at_end[index])
-					. override_failure_message("%s: card %d" % [where, index])
-					. is_true()
+		assert_array(_cells_inside(view, area)).override_failure_message(where).not_contains(
+			[false]
+		)
+		assert_int(view._deck_page.find_children("*", "DeckShelf", true, false).size()).is_equal(
+			DeckView.MIN_SHELVES
+		)
+		var cells: Array[DeckCell] = view.cells()
+		assert_int(cells.size()).is_equal(_distinct_in_deck(run))
+		for index: int in cells.size():
+			for other: int in range(index + 1, cells.size()):
+				var overlap: bool = cells[index].get_global_rect().intersects(
+					cells[other].get_global_rect()
 				)
-			# The last card (the coupon row) is reachable.
-			assert_bool(seen_at_end[seen_at_end.size() - 1]).is_true()
+				assert_bool(overlap).override_failure_message(where).is_false()
 		view._close()
 		await get_tree().process_frame
+
+
+## The shelves' slots: products from the first slot, the coupons at the end of the last shelf
+## after at least one empty slot; a 15-distinct cart takes two shelves of 10.
+func test_shelf_slots_put_the_coupons_at_the_end() -> void:
+	assert_array(DeckView.shelf_slots(8, 1, 10)).is_equal([0, 1, 2, 3, 4, 5, 6, 7, 9])
+	assert_array(DeckView.shelf_slots(9, 1, 10)).is_equal([0, 1, 2, 3, 4, 5, 6, 7, 8, 19])
+	assert_array(DeckView.shelf_slots(12, 1, 10)).is_equal(
+		[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 19]
+	)
+	assert_array(DeckView.shelf_slots(13, 2, 10)).is_equal(
+		[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 18, 19]
+	)
+	assert_array(DeckView.shelf_slots(0, 2, 10)).is_equal([8, 9])
+	assert_array(DeckView.shelf_slots(3, 0, 10)).is_equal([0, 1, 2])
 
 
 ## The fixed starter deck's page shows whole, unscrolled: every card and its count line sit
@@ -262,10 +275,16 @@ func test_the_run_info_tab_shows_upgrades_inspections_and_stock() -> void:
 				"None yet.",
 				"This shift: no inspection.",
 				"Next shift: no inspection.",
-				"Aisles: Cold cases, Pantry, Household",
+				"Aisles:",
+				"Cold cases,",
+				"Pantry,",
+				"Household",
 			]
 		)
 	)
+	# No inspection: no warning sign shows.
+	for warning: Node in view.find_children("Warning", "TextureRect", true, false):
+		assert_float((warning as TextureRect).self_modulate.a).is_equal(0.0)
 	assert_int(view.card_views().size()).is_equal(screen.run.stock.cards.size())
 	assert_int(view.card_views().size()).is_equal(28)
 	view._close()
@@ -279,14 +298,26 @@ func test_the_run_info_tab_shows_upgrades_inspections_and_stock() -> void:
 		assert_array(Array(texts))
 		. contains(
 			[
+				"Category engine",
+				"CATEGORY ENGINE",
 				(
-					"Category engine (Category Engine): +3 for each different tag among your"
-					+ " products  ·  Paid on the last product in the row"
+					"+3 for each different tag among your products  ·  Paid on the last product"
+					+ " in the row"
 				),
 				"This shift: Spot check, The 3rd product pays €0",
 			]
 		)
 	)
+	# The upgrade's LOYALTY stamp ring with its initials, and the inspected shift's warning sign.
+	var rings: Array[String] = []
+	for label: Node in view._info_page.find_children("*", "Label", true, false):
+		if label.get_parent() is PanelContainer:
+			rings.append((label as Label).text)
+	assert_array(rings).contains([LoyaltyCard.initials("Category engine")])
+	var warned: int = 0
+	for warning: Node in view.find_children("Warning", "TextureRect", true, false):
+		warned += 1 if (warning as TextureRect).self_modulate.a > 0.0 else 0
+	assert_int(warned).is_equal(1)
 	view.show_page(false)
 	assert_str(view.texts()[0]).starts_with("Tags: ")
 
@@ -355,11 +386,11 @@ func test_run_info_marks_new_arrivals() -> void:
 	screen._on_deck_button_pressed()
 	var view: DeckView = screen._deck_view
 	view.show_page(true)
-	assert_array(Array(view.texts())).contains(["NEW"])
-	for card_view: CardView in view.card_views():
-		var note: Label = card_view.get_parent().get_child(1)
-		var expected: String = "NEW" if card_view.card.definition == arrival else ""
-		assert_str(note.text).is_equal(expected)
+	for cell: DeckCell in view.cells():
+		var mark: RevealChip = cell.get_node_or_null(DeckCell.NEW_MARK)
+		assert_bool(mark != null).is_equal(cell.card == arrival)
+		if mark != null:
+			assert_str(mark.text_label().text).is_equal(DeckCell.NEW_TEXT)
 
 
 ## At the deck limit only the deck shows, and a grouped card chooses one of its copies.
@@ -418,8 +449,8 @@ func test_browsing_clicks_choose_nothing() -> void:
 	assert_bool(screen._deck_view.visible).is_true()
 
 
-## A full collection's stock (the base stock plus 15 more cards, about 40) and a deck of 15
-## distinct cards still fit the window: the pages scroll inside a fixed area.
+## A full collection's stock (the base stock plus 15 more cards, about 40) and a deck past the limit
+## still fit the window: the pages scroll inside a fixed area (the stock's shelves scroll).
 func test_a_big_stock_and_deck_fit_the_screen() -> void:
 	var screen: ShiftScreen = await _screen()
 	var run: RunState = screen.run
@@ -440,8 +471,71 @@ func test_a_big_stock_and_deck_fit_the_screen() -> void:
 		var width: int = ProjectSettings.get_setting("display/window/size/viewport_width")
 		assert_float(rect.size.x).is_less_equal(width)
 		var content: Control = view._scroll.get_child(0)
-		assert_float(content.size.y).is_greater(view._scroll.size.y)
+		if page:
+			assert_float(content.size.y).is_greater(view._scroll.size.y)
 	assert_int(view.card_views().size()).is_equal(base_stock + 15)
+
+
+## #56: resting the pointer on an item opens the scan popup beside it, inside the window, with the
+## card's rule text, and lifts the item; leaving it closes the popup. In the chooser the hovered
+## item also gets the gold ring; browsing never rings it.
+func test_hovering_an_item_shows_its_effect() -> void:
+	var screen: ShiftScreen = await _screen()
+	for choosing: bool in [false, true]:
+		var view: DeckView = screen._deck_view
+		view.open(screen.run, "Your cart", choosing)
+		await get_tree().create_timer(0.4).timeout
+		var cells: Array[DeckCell] = view.cells()
+		var cell: DeckCell = cells[floori(cells.size() / 2.0)]
+		cell.item().hovered.emit(cell.item())
+		var popup: ScanPopup = view.popup()
+		assert_bool(popup.visible).is_true()
+		assert_bool(cell.item().lifted).is_true()
+		assert_bool(cell.ringed).is_equal(choosing)
+		assert_str(popup.rule_label().text).is_equal(cell.card.rule_text)
+		var rect: Rect2 = popup.get_global_rect()
+		assert_bool(screen.get_global_rect().encloses(rect)).is_true()
+		# Beside the item's column, never over it.
+		var column: Rect2 = cell.get_global_transform() * cell.column_rect()
+		assert_bool(rect.intersects(column)).is_false()
+		cell.item().unhovered.emit(cell.item())
+		assert_bool(popup.visible).is_false()
+		assert_bool(cell.item().lifted).is_false()
+		assert_bool(cell.ringed).is_false()
+		view._close()
+
+
+## #56: the title's and headings' numbers print in the number font (Pixelify's digits read poorly),
+## the words in the display font.
+func test_numbers_print_in_the_number_font() -> void:
+	var screen: ShiftScreen = await _screen()
+	screen._on_deck_button_pressed()
+	var view: DeckView = screen._deck_view
+	assert_str(view.title_text()).is_equal(
+		"Your cart (%d/%d)" % [screen.run.deck.size(), screen.run.balance.deck_limit]
+	)
+	var fonts: Dictionary[String, Font] = {}
+	for label: Label in view._title.labels():
+		fonts[label.text] = label.get_theme_font("font")
+	assert_object(fonts["Your cart"]).is_same(ArtStyle.DISPLAY_FONT)
+	var count: String = "(%d/%d)" % [screen.run.deck.size(), screen.run.balance.deck_limit]
+	assert_object(fonts[count]).is_same(ArtStyle.number_font())
+
+
+## #56: every card's name fits its line under its item at one of the name's sizes (the plain
+## product's name for a BIG or GOLDEN card).
+func test_every_name_fits_under_its_item() -> void:
+	var font: Font = ArtStyle.bold_font(DeckCell.NAME_WEIGHT)
+	for file_name: String in DirAccess.get_files_at("res://data/cards"):
+		if not file_name.ends_with(".tres"):
+			continue
+		var card: CardDefinition = load("res://data/cards/" + file_name)
+		var shown: String = (card.product_card() if card.is_product() else card).display_name
+		var size: int = DeckCell.name_size(shown)
+		var width: float = font.get_string_size(shown, HORIZONTAL_ALIGNMENT_LEFT, -1, size).x
+		assert_float(width).override_failure_message(shown).is_less_equal(
+			DeckCell.SIZE.x + DeckCell.NAME_SPILL
+		)
 
 
 func _screen() -> ShiftScreen:
@@ -452,7 +546,37 @@ func _screen() -> ShiftScreen:
 	return screen
 
 
-## Whether each card view's cell and its count line sit inside `area` (for each card, in order).
+## Fills `run`'s cart to the deck limit with distinct cards: one copy of each dealt card, the
+## first Banana GOLDEN and the first Milk BIG, then stocked products the cart lacks.
+static func _fill_distinct(run: RunState) -> void:
+	var kept: Array[CardDefinition] = []
+	for card: CardInstance in run.deck.cards.duplicate():
+		if kept.has(card.definition):
+			run.deck.remove_card(card)
+		else:
+			kept.append(card.definition)
+	for tier: Array in [["banana", "banana_golden"], ["milk", "milk_big"]]:
+		for card: CardInstance in run.deck.cards:
+			if card.definition.id == StringName(tier[0]):
+				run.deck.upgrade(card, load("res://data/cards/%s.tres" % tier[1]))
+				break
+	for card: CardDefinition in DeckSummary.in_view_order(run.stock.cards):
+		var owned: bool = run.deck.cards.any(
+			func(owned_card: CardInstance) -> bool:
+				return owned_card.definition.is_same_product(card)
+		)
+		if not owned and not run.deck_is_full():
+			run.deck.add_card(card)
+
+
+static func _distinct_in_deck(run: RunState) -> int:
+	var cards: Array[CardDefinition] = []
+	for card: CardInstance in run.deck.cards:
+		cards.append(card.definition)
+	return _distinct(cards)
+
+
+## Whether each card view's cell sits inside `area` (for each card, in order).
 static func _cells_inside(view: DeckView, area: Rect2) -> Array[bool]:
 	var inside: Array[bool] = []
 	for card_view: CardView in view.card_views():

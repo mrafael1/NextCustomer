@@ -1,0 +1,23 @@
+; The deck view's hand basket (#56, deck view B, mock-up screens_deck_b.html), a 9-slice
+; (5 art px margins; the middle stretches): B2's teal basket in an ink outline with rounded
+; corners, its rolled rim on top (teal light lip, teal bright face, teal shade underside) over
+; an ink seam, then the teal body lit on the left (teal light) and shaded on the right and
+; bottom (teal shade). The slotted band and the cart badge at its foot are drawn by code
+; (frames/basket_slots tiled, icons/cart). 14x14 @2.
+@size 14x14
+@kind frame
+@scale 2
+..##########..
+.#5555555555#.
+#577777777773#
+#577777777773#
+#333333333333#
+##############
+#544444444443#
+#544444444443#
+#544444444443#
+#544444444443#
+#544444444443#
+#533333333333#
+.#3333333333#.
+..##########..

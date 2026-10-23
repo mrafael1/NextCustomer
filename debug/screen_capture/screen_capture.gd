@@ -45,6 +45,8 @@ extends Control
 ## the cart reveal, frozen at that time of its timeline (and of its fold into the Cart button), and
 ## the file is shift_screen_reveal_[outro_<tenths>_][hover<n>_]<tenths>_<width>x<height>.png;
 ## `hover=<n>` (v0.54) opens the scan popup of tile n (the staples, then the picks, from 0).
+## With `--deck=<page>[,<option>...]` (#56) a new run opens the deck view (see deck() for the pages
+## and options), and the file is shift_screen_deck_<page>[_<options>]_<width>x<height>.png.
 
 const SCREEN := preload("res://ui/shift_screen.tscn")
 const SEED := 20261014
@@ -76,6 +78,13 @@ const ANNOUNCE_SHIFT_PREFIX := "announce_shift%d_%d_"
 const REVEAL_ARGUMENT := "--reveal="
 ## A --reveal capture's file name part: reveal_[outro_<tenths>_]<tenths>_.
 const REVEAL_PREFIX := "reveal_%s%d_"
+const DECK_ARGUMENT := "--deck="
+## --deck's full cart: the first copies upgraded to these tiers, and this coupon added.
+const FULL_TIERS: Dictionary[String, String] = {"banana": "banana_golden", "milk": "milk_big"}
+const FULL_COUPON_ID := "multipack"
+## --deck's Run info: the inspection of the shift and the prize the chooser is for.
+const DECK_INSPECTION := "short_belt"
+const CHOOSER_PRIZE_ID := "breakfast_sticker"
 ## --machine's shift (#77): shift 1's passing row (Milk, Multipack, Milk x5 = 109), and the
 ## inspection a bonus ticket's shift passes.
 const MACHINE_ROW_IDS: Array[String] = ["milk", "multipack", "milk", "milk", "milk", "milk", "milk"]
@@ -138,8 +147,11 @@ func _ready() -> void:
 	var effects_on: bool = OS.get_cmdline_user_args().has(EFFECTS_ARGUMENT)
 	var focus_id: String = _argument(EFFECTS_ARGUMENT + "=")
 	var reveal_spec: String = _argument(REVEAL_ARGUMENT)
+	var deck_spec: String = _argument(DECK_ARGUMENT)
 	if reveal_spec != "":
 		reveal(reveal_spec)
+	elif deck_spec != "":
+		await deck(deck_spec)
 	elif effects_on or focus_id != "":
 		await effects(focus_id)
 	else:
@@ -328,6 +340,84 @@ func reveal(spec: String) -> void:
 		cart_reveal.show_popup(tiles[hovered])
 		fold += "hover%d_" % hovered
 	_reveal_part = REVEAL_PREFIX % [fold, roundi(seconds * 10.0)]
+
+
+## Opens the deck view (#56) on a new run (SEED), as the top bar's Cart would; capture() then names
+## its file shift_screen_deck_<page>[_<options>]_<w>x<h>.png. `spec` is "<page>[,<option>...]":
+## the page is cart, info (Run info: the capture's upgrades, a Short belt shift, a new arrival in
+## the stock) or chooser (the machine's deck-full chooser for a Breakfast sticker, on a full cart);
+## the options:
+## - seed=<n>: the run's seed;
+## - full: the cart filled to the deck limit with distinct items (the dealt deck with one copy of
+##   each card but its first repeated one, the first Banana GOLDEN and the first Milk BIG, a
+##   Multipack, then stocked products it lacks);
+## - hover=<i>: the page's item i is hovered (its scan popup opens beside it).
+func deck(spec: String) -> void:
+	var options: PackedStringArray = spec.split(",", false)
+	var page: String = options[0] if not options.is_empty() else "cart"
+	options = options.slice(1)
+	var seed_value: String = _option_value(options, "seed=")
+	_screen.start_new_run(seed_value.to_int() if seed_value != "" else SEED, false)
+	var run: RunState = _screen.run
+	if options.has("full") or page == "chooser":
+		_fill_cart(run)
+	if page == "info":
+		var upgrades: Array[UpgradeDefinition] = []
+		for upgrade_id: String in UPGRADE_IDS:
+			upgrades.append(_upgrade(upgrade_id))
+		run.upgrades = upgrades
+		run.inspections = [load("res://data/inspections/%s.tres" % DECK_INSPECTION)]
+		run.stock.new_arrivals = [DeckSummary.in_view_order(run.stock.cards)[5]]
+		_screen._refresh_loyalty_card()
+	var view: DeckView = _screen._deck_view
+	if page == "chooser":
+		var prize: CardDefinition = _card(CHOOSER_PRIZE_ID)
+		view.open(
+			run,
+			(
+				"Cart full (%d/%d): choose an item to remove for %s"
+				% [run.deck.size(), run.balance.deck_limit, prize.display_name]
+			),
+			true
+		)
+	else:
+		_screen._on_deck_button_pressed()
+	view.show_page(page == "info")
+	# Past the pop-in (and its overshoot), laid out.
+	await get_tree().create_timer(UiKit.POP_IN_SECONDS + 0.2).timeout
+	var hovered: String = _option_value(options, "hover=")
+	if hovered != "":
+		view.hover(view.cells()[hovered.to_int()])
+	var named: String = "_".join(options).replace("=", "")
+	_machine_part = "deck_%s_" % (page + ("_" + named if named != "" else ""))
+
+
+## Fills `run`'s cart to the deck limit with distinct items (see deck()'s full).
+func _fill_cart(run: RunState) -> void:
+	var kept: Array[CardDefinition] = []
+	var repeated: CardDefinition = null
+	for card: CardInstance in run.deck.cards.duplicate():
+		if not kept.has(card.definition):
+			kept.append(card.definition)
+		elif repeated == null or repeated == card.definition:
+			repeated = card.definition
+		else:
+			run.deck.remove_card(card)
+	for card_id: String in FULL_TIERS:
+		for card: CardInstance in run.deck.cards:
+			if card.definition.id == StringName(card_id):
+				run.deck.upgrade(card, _card(FULL_TIERS[card_id]))
+				break
+	run.deck.add_card(_card(FULL_COUPON_ID))
+	for card: CardDefinition in DeckSummary.in_view_order(run.stock.cards):
+		if run.deck_is_full():
+			break
+		var owned: bool = run.deck.cards.any(
+			func(owned_card: CardInstance) -> bool:
+				return owned_card.definition.is_same_product(card)
+		)
+		if card.is_product() and not owned:
+			run.deck.add_card(card)
 
 
 ## Opens the RECEIPT REWARDS machine (#77) on a new run (the same seed) whose shift 1 checked out

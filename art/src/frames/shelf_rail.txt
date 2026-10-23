@@ -1,0 +1,18 @@
+; The deck view's shelf rail (#56, deck view B): the steel price rail the items' stickers
+; hang on, behind them, as the belt's price rail (mock-up B2): an ink-outlined steel bar lit on
+; top (steel highlight, steel light), steel pale face, shaded underneath (steel, steel shade).
+; A 9-slice (3 art px margins), stretched along a shelf. 8x11 @2.
+@size 8x11
+@kind frame
+@scale 2
+########
+#AAAAAA#
+#BBBBBB#
+#CCCCCC#
+#CCCCCC#
+#CCCCCC#
+#CCCCCC#
+#CCCCCC#
+#DDDDDD#
+#EEEEEE#
+########
