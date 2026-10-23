@@ -22,6 +22,15 @@ extends Control
 ## dealt and saved before it opens, so quitting during it resumes shift 1 without it. Its sounds
 ## play on the screen's Sfx (Sfx.find): ui_open, the padlocks' stamp, a tick as each pick leaves,
 ## card_place as a product lands (tag for the coupon), ding on the summary, shuffle on the fold.
+##
+## Hovering a card shows what it does (v0.54, decided with the user on 2026-10-23 after playing):
+## once the pointer has stayed on a staple's tile or a landed pick's tile (the coupon's too) for
+## the planning scanner's hold (ScanTuning.hold_ms, data/balance/scan.tres), the planning's scan
+## popup (ScanPopup: name, tags and aisle, rule text) opens beside it over the panel, with the
+## scanner's soft beep, during the animation and on the summary alike. A slot still waiting for
+## its pick shows nothing (it is a surprise). The popup closes when the pointer leaves the tile,
+## at the fold and when the reveal closes. Hovering never changes the tap: a click anywhere, on
+## a tile or the popup too, still skips to the summary or folds the panel.
 
 signal finished
 
@@ -39,6 +48,8 @@ const LOCK_DB := -12.0
 const TICK_DB := -8.0
 const LAND_DB := -4.0
 const TAP_KEYS: Array[Key] = [KEY_SPACE, KEY_ENTER, KEY_KP_ENTER, KEY_ESCAPE]
+## The planning scanner's hold (ms), unless `hover_hold_ms` is set.
+const SCAN_TUNING_PATH := "res://data/balance/scan.tres"
 
 static var _fonts: Dictionary[String, Font] = {}
 ## Set by the title (request) for the next reveal made.
@@ -48,7 +59,17 @@ var tuning: CartRevealTuning
 ## Whether the title asked for this reveal (request) before it was made.
 var requested: bool = false
 var reduced_motion: bool = false
+## How long the pointer stays on a tile before its popup opens (ms).
+var hover_hold_ms: int = 0
 var _panel: RevealPanel
+## The run's balance (the cards' aisles for the popup).
+var _balance: BalanceDefinition
+## The scan popup, over the panel, and the tile it shows (null: hidden); the tile under the
+## pointer and how long it has stayed there (s).
+var _popup: ScanPopup
+var _shown_tile: RevealTile
+var _hover_tile: RevealTile
+var _hover_s: float = 0.0
 ## The 1280x720 stage the panel sits on, centred like ShiftStage.
 var _stage: Control
 ## The Cart button the panel folds into (its global rect), or null.
@@ -78,6 +99,11 @@ func _init() -> void:
 	_stage.offset_right = ShiftStage.SIZE.x / 2.0
 	_stage.offset_bottom = ShiftStage.SIZE.y / 2.0
 	add_child(_stage)
+	_popup = ScanPopup.new()
+	_popup.name = "ScanPopup"
+	_popup.visible = false
+	add_child(_popup)
+	hover_hold_ms = (load(SCAN_TUNING_PATH) as ScanTuning).hold_ms
 	set_process(false)
 
 
@@ -94,6 +120,7 @@ func play(run: RunState, cart: Control, reduced: bool) -> bool:
 	if picks.is_empty():
 		return false
 	_cart = cart
+	_balance = run.balance
 	reduced_motion = reduced
 	_panel = RevealPanel.new(
 		run.starter.core_cards,
@@ -120,6 +147,8 @@ func close() -> void:
 	visible = false
 	set_process(false)
 	_outro = -1.0
+	_hover_tile = null
+	_hide_popup()
 	if _panel != null:
 		_panel.queue_free()
 		_panel = null
@@ -159,6 +188,8 @@ func tap() -> void:
 		_render()
 		return
 	Sfx.play_at(self, "shuffle")
+	_hover_tile = null
+	_hide_popup()
 	if reduced_motion:
 		_finish()
 		return
@@ -194,9 +225,92 @@ func advance(seconds: float) -> void:
 func _process(delta: float) -> void:
 	if not _frozen:
 		advance(delta)
+	hover_for(delta)
+
+
+## The popup's tile (for tests and captures), or null when it is hidden.
+func popup_tile() -> RevealTile:
+	return _shown_tile
+
+
+## The scan popup (for tests and captures).
+func popup() -> ScanPopup:
+	return _popup
+
+
+## The tile under `point` (global) that can show its popup: a staple's, or a landed pick's
+## (its tile shown); null over anything else, and while folding.
+func tile_at(point: Vector2) -> RevealTile:
+	if _panel == null or _outro >= 0.0:
+		return null
+	for tile: RevealTile in _panel.staple_tiles + _panel.pick_tiles:
+		if tile.is_visible_in_tree() and tile.get_global_rect().has_point(point):
+			return tile
+	return null
+
+
+## The pointer is over `tile` (null: none): another tile starts its hold again, and leaving the
+## shown tile hides the popup.
+func hover(tile: RevealTile) -> void:
+	if tile == _hover_tile:
+		return
+	_hover_tile = tile
+	_hover_s = 0.0
+	if tile != _shown_tile:
+		_hide_popup()
+
+
+## Moves the hover's hold on by `seconds` (as _process does each frame): the popup opens once the
+## pointer has stayed on its tile for hover_hold_ms. A landed pick under a still pointer counts
+## as hovered from its landing.
+func hover_for(seconds: float) -> void:
+	if not visible:
+		return
+	if _hover_tile == null and get_global_rect().has_point(get_global_mouse_position()):
+		hover(tile_at(get_global_mouse_position()))
+	if _hover_tile == null or _hover_tile == _shown_tile:
+		return
+	_hover_s += seconds
+	if _hover_s * 1000.0 >= hover_hold_ms:
+		show_popup(_hover_tile)
+
+
+## Opens the popup for `tile` at once (the hold's end; development tools and tests).
+func show_popup(tile: RevealTile) -> void:
+	_hover_tile = tile
+	_shown_tile = tile
+	var aisle: AisleDefinition = _balance.aisle_of(tile.card) if _balance != null else null
+	_popup.visible = true
+	_popup.show_card(tile.card, aisle, tile.card.tags)
+	_place_popup()
+	Sfx.play_at(self, ScanController.HOVER_SOUND, ScanController.HOVER_DB)
+
+
+## Places the popup beside its tile over the panel, on the stage (ScanPopup.place_at).
+func _place_popup() -> void:
+	if _shown_tile == null or _panel == null:
+		return
+	var tile_rect: Rect2 = _shown_tile.get_global_rect()
+	var stage_rect: Rect2 = _stage.get_global_rect()
+	_popup.place_at(tile_rect, tile_rect, stage_rect, _panel.get_global_rect())
+
+
+func _hide_popup() -> void:
+	_shown_tile = null
+	if _popup != null:
+		_popup.visible = false
+
+
+func _notification(what: int) -> void:
+	if what == NOTIFICATION_MOUSE_EXIT:
+		hover(null)
 
 
 func _gui_input(event: InputEvent) -> void:
+	var motion: InputEventMouseMotion = event as InputEventMouseMotion
+	if motion != null:
+		hover(tile_at(get_global_transform() * motion.position))
+		return
 	var click: InputEventMouseButton = event as InputEventMouseButton
 	if click != null and click.pressed and click.button_index == MOUSE_BUTTON_LEFT:
 		accept_event()
@@ -254,6 +368,7 @@ func _render() -> void:
 		_panel.pivot_offset = _panel.size / 2.0
 	_panel.scale = Vector2.ONE * panel_scale
 	_panel.modulate.a = alpha
+	_place_popup()
 	queue_redraw()
 
 

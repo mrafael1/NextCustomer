@@ -136,6 +136,99 @@ func test_space_enter_and_a_click_tap() -> void:
 	assert_int(reveal.mouse_filter).is_equal(Control.MOUSE_FILTER_STOP)
 
 
+## v0.54: hovering a staple's tile or a landed pick's tile for the scanner's hold opens the scan
+## popup for its card; a slot still waiting shows nothing; leaving the tile closes it.
+func test_hovering_a_card_shows_its_effect_after_the_hold() -> void:
+	var reveal: CartReveal = _reveal(_run(SEED))
+	var panel: RevealPanel = reveal.panel()
+	assert_int(reveal.hover_hold_ms).is_equal(
+		(load(CartReveal.SCAN_TUNING_PATH) as ScanTuning).hold_ms
+	)
+	reveal.freeze_at(reveal.tuning.pick_start(0))
+	var staple: RevealTile = panel.staple_tiles[1]
+	assert_object(reveal.tile_at(staple.get_global_rect().get_center())).is_same(staple)
+	# A pick not landed yet is a surprise: its slot shows nothing.
+	var waiting: Vector2 = panel.slots[3].get_global_rect().get_center()
+	assert_object(reveal.tile_at(waiting)).is_null()
+	reveal.hover(staple)
+	reveal.hover_for(reveal.hover_hold_ms / 1000.0 - 0.05)
+	assert_bool(reveal.popup().visible).is_false()
+	reveal.hover_for(0.1)
+	assert_bool(reveal.popup().visible).is_true()
+	assert_object(reveal.popup_tile()).is_same(staple)
+	assert_str(reveal.popup().name_label().text).is_equal(staple.card.display_name)
+	assert_str(reveal.popup().rule_label().text).is_equal(staple.card.rule_text)
+	# Another tile starts its own hold; no tile closes the popup.
+	reveal.hover(panel.staple_tiles[2])
+	assert_bool(reveal.popup().visible).is_false()
+	reveal.hover(null)
+	reveal.hover_for(1.0)
+	assert_bool(reveal.popup().visible).is_false()
+	# On the summary every pick can be read, the coupon too.
+	reveal.freeze_at(reveal.end_time())
+	var coupon: RevealTile = panel.pick_tiles[0]
+	assert_object(reveal.tile_at(coupon.get_global_rect().get_center())).is_same(coupon)
+	reveal.show_popup(coupon)
+	assert_str(reveal.popup().rule_label().text).is_equal(coupon.card.rule_text)
+	# The popup's earlier text is freed at the frame's end.
+	await await_idle_frame()
+
+
+## v0.54: a click with the popup open still taps (skips, then folds), and the fold closes it.
+func test_a_click_over_the_popup_still_taps() -> void:
+	var reveal: CartReveal = _reveal(_run(SEED))
+	reveal.freeze_at(0.5)
+	reveal.show_popup(reveal.panel().staple_tiles[0])
+	assert_int(reveal.popup().mouse_filter).is_equal(Control.MOUSE_FILTER_IGNORE)
+	var click: InputEventMouseButton = InputEventMouseButton.new()
+	click.button_index = MOUSE_BUTTON_LEFT
+	click.pressed = true
+	reveal._gui_input(click)
+	assert_float(reveal.time()).is_equal_approx(reveal.end_time(), 0.001)
+	assert_bool(reveal.popup().visible).is_true()
+	reveal._gui_input(click)
+	assert_bool(reveal.is_folding()).is_true()
+	assert_bool(reveal.popup().visible).is_false()
+	(
+		assert_object(reveal.tile_at(reveal.panel().staple_tiles[0].get_global_rect().get_center()))
+		. is_null()
+	)
+
+
+## v0.54 UI geometry: every card's popup, at the end, sits inside the stage and the panel, beside
+## its tile without covering it, its tail at the tile, its text inside it.
+func test_every_popup_sits_beside_its_tile_on_screen() -> void:
+	for seed_value: int in [SEED, 1, 2]:
+		var reveal: CartReveal = _reveal(_run(seed_value))
+		reveal.freeze_at(reveal.end_time())
+		var panel: RevealPanel = reveal.panel()
+		var stage: Rect2 = Rect2(Vector2.ZERO, ShiftStage.SIZE)
+		for tile: RevealTile in panel.staple_tiles + panel.pick_tiles:
+			reveal.show_popup(tile)
+			var popup: ScanPopup = reveal.popup()
+			var rect: Rect2 = popup.get_global_rect()
+			var where: String = "seed %d: %s at %s" % [seed_value, tile.card.id, rect]
+			assert_bool(stage.encloses(rect)).override_failure_message(where).is_true()
+			(
+				assert_bool(panel.get_global_rect().grow(1.0).encloses(rect))
+				. override_failure_message(where)
+				. is_true()
+			)
+			assert_bool(rect.intersects(_outer(tile))).override_failure_message(where).is_false()
+			var tip: Vector2 = popup.get_parent().get_global_transform() * popup.tail_tip()
+			var tile_rect: Rect2 = _outer(tile).grow(ScanPopup.SIDE_GAP + 2.0)
+			assert_bool(tile_rect.has_point(tip)).override_failure_message(where).is_true()
+			for label: Label in popup.text_labels():
+				var text: Rect2 = label.get_global_rect()
+				(
+					assert_bool(rect.encloses(text))
+					. override_failure_message(where + " " + label.text)
+					. is_true()
+				)
+		reveal.close()
+	await await_idle_frame()
+
+
 func test_reduced_motion_opens_on_the_summary_and_closes_at_the_tap() -> void:
 	var reveal: CartReveal = _reveal(_run(SEED), true)
 	assert_float(reveal.time()).is_equal_approx(reveal.end_time(), 0.001)

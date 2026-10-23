@@ -41,9 +41,10 @@ extends Control
 ## shift_screen_announce_<tenths>_<width>x<height>.png. `--announce=<seconds>,shift=<n>` instead
 ## jumps to shift n of the real schedule (shift 3: inspected, and the shift before the first
 ## PREMIUM visit), named shift_screen_announce_shift<n>_<tenths>_<width>x<height>.png.
-## With `--reveal=<seconds>[,outro=<seconds>][,seed=<seed>]` (v0.51) a new run opens on the cart
-## reveal, frozen at that time of its timeline (and of its fold into the Cart button), and the file
-## is shift_screen_reveal_[outro_<tenths>_]<tenths>_<width>x<height>.png.
+## With `--reveal=<seconds>[,outro=<seconds>][,seed=<seed>][,hover=<n>]` (v0.51) a new run opens on
+## the cart reveal, frozen at that time of its timeline (and of its fold into the Cart button), and
+## the file is shift_screen_reveal_[outro_<tenths>_][hover<n>_]<tenths>_<width>x<height>.png;
+## `hover=<n>` (v0.54) opens the scan popup of tile n (the staples, then the picks, from 0).
 
 const SCREEN := preload("res://ui/shift_screen.tscn")
 const SEED := 20261014
@@ -308,14 +309,24 @@ func reveal(spec: String) -> void:
 	var seconds: float = options[0].to_float() if not options.is_empty() else 0.0
 	var outro: float = -1.0
 	var seed_value: int = SEED
+	var hovered: int = -1
 	for option: String in options.slice(1):
 		if option.begins_with("outro="):
 			outro = option.trim_prefix("outro=").to_float()
 		elif option.begins_with("seed="):
 			seed_value = option.trim_prefix("seed=").to_int()
+		elif option.begins_with("hover="):
+			hovered = option.trim_prefix("hover=").to_int()
 	_screen.start_new_run(seed_value, true, true)
-	_screen._cart_reveal.freeze_at(seconds, outro)
+	var cart_reveal: CartReveal = _screen._cart_reveal
+	cart_reveal.freeze_at(seconds, outro)
 	var fold: String = "outro_%d_" % roundi(outro * 10.0) if outro >= 0.0 else ""
+	if hovered >= 0:
+		var tiles: Array[RevealTile] = (
+			cart_reveal.panel().staple_tiles + cart_reveal.panel().pick_tiles
+		)
+		cart_reveal.show_popup(tiles[hovered])
+		fold += "hover%d_" % hovered
 	_reveal_part = REVEAL_PREFIX % [fold, roundi(seconds * 10.0)]
 
 
