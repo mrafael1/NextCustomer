@@ -169,7 +169,7 @@ func test_the_count_up_receipt_fills_in_as_it_counts() -> void:
 	var expected: ReceiptView = auto_free(ReceiptView.new())
 	expected.show_result(
 		run.preview(),
-		ShiftScreen._names(run.row),
+		CardInstance.names(run.row),
 		LoyaltyCard.names(run.upgrades),
 		InspectionTag.names(run.inspections),
 		header

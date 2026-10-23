@@ -9,11 +9,13 @@ extends PanelContainer
 ## under it (PriceSticker.tier_text), so a player never swaps one out unknowingly. It only displays
 ## RunState and DeckSummary.
 ##
-## v0.51: on the Cart page a dealt starting deck's cards keep the cart reveal's marks (CartReveal)
-## for the whole run, at the ends of their count line: a staple (one of the recipe's core
-## products, any tier) the mustard padlock at the left, a pick (a product or coupon the run was
-## dealt) the teal "+" (the tomato token for a coupon) at the right. A card can be both (a staple's
-## 2nd copy); a card only the machine gave carries none.
+## v0.51: the Cart page keeps the cart reveal's marks (CartReveal) for the whole run, showing which
+## products the run started with, at the ends of their count line: a staple's product (one of the
+## recipe's core products, any tier) the mustard padlock at the left, a dealt pick's product the
+## teal "+" (the tomato token for a coupon) at the right. A line can carry both (a staple's 2nd
+## copy). Marks go by product, per line: a later copy of a marked product (another Milk, a BIG
+## Cheese from NEW ITEMS) shares its line's marks, since copies carry no origin in the save; only a
+## product that was not in the deal carries none.
 
 signal closed
 signal card_chosen(card: CardInstance)

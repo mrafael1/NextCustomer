@@ -8,7 +8,8 @@ extends Resource
 ## --deck use) or a recipe (v0.49, section 5.2: `random_count` or `random_coupon_count` > 0). A
 ## recipe's run starts with its `core_cards`, then `random_coupon_count` coupons (v0.51) and
 ## `random_count` products drawn from the run's stock (StartingDeck.deal), and the dealt deck is a
-## copy of the recipe with those cards in `cards`.
+## copy of the recipe with those cards in `cards`. The cart reveal (v0.51) lays out at most 4 core
+## cards and 9 dealt cards (RevealPanel.fits); a recipe needing more needs its layout reworked.
 
 @export var id: StringName = &""
 @export var display_name: String = ""

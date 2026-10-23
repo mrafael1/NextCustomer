@@ -99,7 +99,7 @@ func test_a_held_belt_item_lists_its_fizzles_on_the_monitor() -> void:
 	var expected: PackedStringArray = PackedStringArray()
 	var fizzles: int = 0
 	for step: ScoreStep in ScanController.footer_steps(result, 2):
-		expected.append(ReceiptView.step_line(step, ShiftScreen._names(screen.run.row)))
+		expected.append(ReceiptView.step_line(step, CardInstance.names(screen.run.row)))
 		if step.step_type == ScoreStep.StepType.WASTED:
 			fizzles += 1
 	assert_int(fizzles).is_equal(1)
@@ -467,7 +467,7 @@ func test_the_scans_hold_every_line_of_the_planning_receipt() -> void:
 	add_child(receipt)
 	receipt.show_result(
 		result,
-		ShiftScreen._names(screen.run.row),
+		CardInstance.names(screen.run.row),
 		LoyaltyCard.names(screen.run.upgrades),
 		InspectionTag.names(screen.run.inspections)
 	)
@@ -477,13 +477,13 @@ func test_the_scans_hold_every_line_of_the_planning_receipt() -> void:
 	var expected: Dictionary[int, PackedStringArray] = ReceiptFooters.by_slot(
 		receipt,
 		result,
-		ShiftScreen._names(screen.run.row),
+		CardInstance.names(screen.run.row),
 		LoyaltyCard.names(screen.run.upgrades),
 		InspectionTag.names(screen.run.inspections)
 	)
 	# A giver's scan opens with its "gives" line (#71): Eggs' ×2 to Bread, Multipack's ×3 to the
 	# three Milks after it, each with its targets' summed gain, before its receipt lines.
-	var names: PackedStringArray = ShiftScreen._names(screen.run.row)
+	var names: PackedStringArray = CardInstance.names(screen.run.row)
 	var gives: Dictionary[int, String] = {}
 	for slot: int in range(screen._row_views.size()):
 		var given: String = ScanController.gives_line(result, slot, names)

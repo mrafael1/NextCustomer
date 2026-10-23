@@ -40,6 +40,8 @@ func test_the_titles_request_opens_it_on_the_new_run() -> void:
 	var screen: ShiftScreen = await _screen()
 	var reveal: CartReveal = screen._cart_reveal
 	assert_bool(reveal.is_open()).is_true()
+	# The machine's notice waits for the reveal to fold (it would pulse under the dim).
+	assert_bool(screen._machine._notice_due).is_false()
 	assert_bool(CartReveal._request).is_false()
 	var panel: RevealPanel = reveal.panel()
 	assert_array(panel.staples).is_equal(screen.run.starter.core_cards)
@@ -97,8 +99,12 @@ func test_it_sits_under_the_top_bar_and_folds_into_the_cart() -> void:
 	var hand: Array[CardInstance] = screen.run.hand()
 	reveal.freeze_at(reveal.end_time())
 	reveal.tap()
+	var folding_ms: int = Time.get_ticks_msec()
 	reveal.advance(reveal.tuning.outro_s + 0.1)
 	assert_bool(reveal.is_open()).is_false()
+	# Shift 1's time to checkout starts once the reveal is gone (plan section 8).
+	assert_int(screen.tracker._start_ms).is_greater_equal(folding_ms)
+	assert_bool(screen._machine._notice_due).is_true()
 	assert_array(screen.run.hand()).is_equal(hand)
 	assert_int(screen.run.phase).is_equal(RunState.Phase.PLANNING)
 	assert_array(screen.run.row).is_empty()

@@ -28,6 +28,10 @@ const TRAY_HEIGHT := 144.0
 const TRAY_PAD := 12.0
 const TILE_LEFT := 158.0
 const TILE_STEP := 108.0
+## The most tiles the layout holds: the staples' tray (left of the dispenser) and the picks' row
+## (the panel's width). A recipe needing more (DeckDefinition) fails the data test that checks it.
+const MAX_STAPLES := 4
+const MAX_PICKS := 9
 const STAPLE_TOP := 196.0
 ## TODAY'S PICKS: the heading, its sub line, the CART chip, and the slots (the coupons first, a
 ## gap, then the products).
@@ -127,6 +131,13 @@ func _init(
 			_fly_layer.add_child(sparkle)
 			burst.append(sparkle)
 		_bursts.append(burst)
+
+
+## Whether the panel's layout holds `recipe`'s deal: at most MAX_STAPLES core cards and
+## MAX_PICKS coupons and products.
+static func fits(recipe: DeckDefinition) -> bool:
+	var dealt: int = recipe.random_count + recipe.random_coupon_count
+	return recipe.core_cards.size() <= MAX_STAPLES and dealt <= MAX_PICKS
 
 
 ## Where pick `index`'s slot is, in stage coordinates.

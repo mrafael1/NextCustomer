@@ -192,8 +192,15 @@ func start_new_run(seed_value: int, saves_run: bool = true, reveal: bool = false
 	_log.log_event("run_start", RunEvents.run_start(run))
 	run.start_shift()
 	_on_shift_started()
-	if reveal:
-		_cart_reveal.play(run, _deck_button, profile.reduced_motion())
+	if reveal and _cart_reveal.play(run, _deck_button, profile.reduced_motion()):
+		_machine.hold_notice()  # Planning takes input after the reveal (_on_cart_reveal_finished).
+
+
+## The cart reveal folded away: shift 1's planning takes input only now, so its time to checkout
+## (plan section 8) starts here and the machine's notice pulses now, not under the reveal's dim.
+func _on_cart_reveal_finished() -> void:
+	tracker.begin(Time.get_ticks_msec(), _focus.is_player_present())
+	_machine.shift_started()
 
 
 ## Development tools only (the screen capture in debug/): shows the run's current shift as the
@@ -550,7 +557,7 @@ func _on_checkout_pressed() -> void:
 	await _count_up.play(
 		result,
 		_row_views,
-		_names(committed),
+		CardInstance.names(committed),
 		run.quota(),
 		context,
 		_loyalty_card.stamped_boxes(),
@@ -581,7 +588,7 @@ func _on_checkout_pressed() -> void:
 func count_up_context() -> CountUpContext:
 	var context: CountUpContext = CountUpContext.new(
 		run.shift_index + 1,
-		best_earlier_total(run.history),
+		CountUpContext.best_earlier_total(run.history),
 		profile.count_up_speed(),
 		profile.reduced_motion(),
 		receipt_header()
@@ -597,14 +604,6 @@ func count_up_context() -> CountUpContext:
 ## coupons. The planning stub, the count-up and a resumed checkout all print it.
 func receipt_header() -> PackedStringArray:
 	return ReceiptView.header_lines(run.shift_index + 1, run.shift_count(), run.row.size())
-
-
-## The best total of every shift record but the last (the shift being counted), 0 for none.
-static func best_earlier_total(history: Array[ShiftRecord]) -> int:
-	var best: int = 0
-	for index: int in range(history.size() - 1):
-		best = maxi(best, history[index].total)
-	return best
 
 
 ## Results screen: New run.
@@ -816,7 +815,9 @@ func _show_projected(total: int) -> void:
 ## The preview: the itemised planning receipt (#80) and the belt's tags and marks.
 func _show_planning(result: ScoreResult) -> void:
 	var slots: int = RowCapacity.card_limit(run.limits)
-	_receipt.show_planning(receipt_header(), result, _names(run.row), slots, run.quota())
+	_receipt.show_planning(
+		receipt_header(), result, CardInstance.names(run.row), slots, run.quota()
+	)
 	_show_belt(result)
 
 
@@ -825,7 +826,7 @@ func _show_planning(result: ScoreResult) -> void:
 func _show_checked_out(result: ScoreResult) -> void:
 	var upgrade_names: PackedStringArray = LoyaltyCard.names(run.upgrades)
 	var inspection_names: PackedStringArray = InspectionTag.names(run.inspections)
-	var names: PackedStringArray = _names(run.row)
+	var names: PackedStringArray = CardInstance.names(run.row)
 	_receipt.show_result(result, names, upgrade_names, inspection_names, receipt_header())
 	_show_belt(result, true)
 
@@ -835,7 +836,7 @@ func _show_checked_out(result: ScoreResult) -> void:
 func _show_belt(result: ScoreResult, paid: bool = false) -> void:
 	var upgrade_names: PackedStringArray = LoyaltyCard.names(run.upgrades)
 	var inspection_names: PackedStringArray = InspectionTag.names(run.inspections)
-	_scan.set_result(result, _names(run.row), upgrade_names, inspection_names)
+	_scan.set_result(result, CardInstance.names(run.row), upgrade_names, inspection_names)
 	_belt_chips.show_all(_row_views)
 	if not paid:
 		_effects.show_all(result, _row_views, run)
@@ -975,6 +976,7 @@ func _build() -> void:
 	_deck_view.closed.connect(_on_deck_closed)
 	_cart_reveal = CartReveal.new()  # Over all but the debug panel (v0.51).
 	add_child(_cart_reveal)
+	_cart_reveal.finished.connect(_on_cart_reveal_finished)
 
 
 ## Scanning the counter's items is off while the shift is counted, an item is dragged, outside
@@ -990,10 +992,3 @@ func _scan_blocked() -> bool:
 func _on_closed_slot_clicked() -> void:
 	_notice_label.show_notice("Closed by the inspection this shift")
 	_sfx.play("denied", 1.0, REFUSED_DB)
-
-
-static func _names(cards: Array[CardInstance]) -> PackedStringArray:
-	var names: PackedStringArray = PackedStringArray()
-	for card: CardInstance in cards:
-		names.append(card.definition.display_name)
-	return names

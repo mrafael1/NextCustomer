@@ -625,7 +625,7 @@ func _start(
 	count_up.play(
 		screen.run.preview(),
 		screen._row_views,
-		ShiftScreen._names(screen.run.row),
+		CardInstance.names(screen.run.row),
 		quota,
 		context if context != null else CountUpContext.new(1, 0),
 		screen._loyalty_card.stamped_boxes(),

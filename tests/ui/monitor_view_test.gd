@@ -215,7 +215,7 @@ func test_a_held_scan_fills_the_monitor_then_it_goes_back_to_the_channel() -> vo
 	var result: ScoreResult = screen.run.preview()
 	var expected: PackedStringArray = PackedStringArray()
 	for step: ScoreStep in ScanController.footer_steps(result, 2):
-		expected.append(ReceiptView.step_line(step, ShiftScreen._names(screen.run.row)))
+		expected.append(ReceiptView.step_line(step, CardInstance.names(screen.run.row)))
 	var texts: PackedStringArray = monitor.scan_footer().texts()
 	assert_bool(texts == expected).override_failure_message(str(texts)).is_true()
 	assert_bool(_shown_texts(monitor).has("€%d" % result.payouts[2])).is_true()
@@ -289,7 +289,7 @@ func test_the_count_up_shows_each_beat_on_the_monitor() -> void:
 				var sticker: EffectSticker = bay.landing_sticker()
 				if sticker == null or sticker.text() != spec.text:
 					failures.append("%s: sticker not '%s'" % [where, spec.text])
-		if line != ReceiptView.step_line(step, ShiftScreen._names(screen.run.row)):
+		if line != ReceiptView.step_line(step, CardInstance.names(screen.run.row)):
 			failures.append("%s: line '%s'" % [where, line])
 		var shown: int = int(led.digits_label().text)
 		var to_go: String = LedBeat.to_go_text(ShiftMargin.of(shown, quota))
@@ -386,7 +386,7 @@ func test_a_total_met_on_the_last_payout_shows_the_stamp_and_the_tab_not_the_lin
 	count_up.play(
 		result,
 		screen._row_views,
-		ShiftScreen._names(screen.run.row),
+		CardInstance.names(screen.run.row),
 		quota,
 		CountUpContext.new(1, 0, 1.0, false, screen.receipt_header())
 	)

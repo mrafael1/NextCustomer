@@ -102,6 +102,12 @@ func shift_started() -> void:
 	_notice_due = true
 
 
+## Something covers planning (the cart reveal, v0.51): no notice pulses until shift_started().
+func hold_notice() -> void:
+	notice.stop()
+	_notice_due = false
+
+
 ## A new run or a resume: no swap is due, none plays (a resume never replays one).
 func reset_swaps() -> void:
 	pending_swaps = []
@@ -357,7 +363,7 @@ func _on_binned() -> void:
 ## with the shift end's total, quota and next inspection's notice.
 func _show_receipt_lines(run: RunState) -> void:
 	view.receipt_header = _screen.receipt_header()
-	view.receipt_names = ShiftScreen._names(run.row)
+	view.receipt_names = CardInstance.names(run.row)
 	view.receipt_upgrades = LoyaltyCard.names(run.upgrades)
 	view.receipt_inspections = InspectionTag.names(run.inspections)
 	view.shift_total = run.last_result.total if run.last_result != null else 0

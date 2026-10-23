@@ -656,7 +656,7 @@ func test_a_boosted_visit_shows_its_marker_and_lights_its_chutes() -> void:
 		add_child(view)
 		view.position = ShiftStage.MACHINE_RECT.position
 		# The receipt the feed prints as the clock runs (MachineFlow sets the same).
-		view.receipt_names = ShiftScreen._names(run.row)
+		view.receipt_names = CardInstance.names(run.row)
 		view.open_visit(run, stage, stage, false)
 		await _frames(2)
 		var plan: MachinePlan = view.plan

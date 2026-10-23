@@ -87,7 +87,7 @@ func test_an_inspected_pass_stamps_inspection_passed_in_the_dessert() -> void:
 	count_up.play(
 		screen.run.preview(),
 		screen._row_views,
-		ShiftScreen._names(screen.run.row),
+		CardInstance.names(screen.run.row),
 		40,
 		CountUpContext.new(1, 0),
 		[],

@@ -203,7 +203,7 @@ func _play_tapped(screen: ShiftScreen, result: ScoreResult, quota: int) -> void:
 	count_up.play(
 		result,
 		screen._row_views,
-		ShiftScreen._names(screen.run.row),
+		CardInstance.names(screen.run.row),
 		quota,
 		CountUpContext.new(1, 0, 1.0, false, screen.receipt_header()),
 		screen._loyalty_card.stamped_boxes(),
@@ -227,7 +227,7 @@ func _assert_receipt_of(screen: ShiftScreen, result: ScoreResult, quota: int) ->
 	var expected: ReceiptView = auto_free(ReceiptView.new())
 	expected.show_result(
 		result,
-		ShiftScreen._names(run.row),
+		CardInstance.names(run.row),
 		LoyaltyCard.names(run.upgrades),
 		InspectionTag.names(run.inspections),
 		screen.receipt_header()

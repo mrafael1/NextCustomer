@@ -9,6 +9,7 @@ extends GdUnitTestSuite
 const RECIPE := "res://data/decks/random_starter.tres"
 const STARTER := "res://data/decks/starter.tres"
 const BALANCE := "res://data/balance/balance.tres"
+const DECKS := "res://data/decks"
 ## The screen capture's seed: its deal holds a 2nd Milk and a 2nd Eggs (staples' 2nd copies).
 const SEED := 20261014
 
@@ -229,6 +230,120 @@ func test_the_layout_fits_the_panel_with_no_overlaps() -> void:
 			var heading_end: float = heading.get_global_rect().end.x
 			assert_float(count.get_global_rect().position.x).is_greater_equal(heading_end + 13.0)
 		reveal.close()
+
+
+## Every recipe deck in data/decks fits the panel's layout (its tray and its slot row): a recipe
+## with more core cards or dealt cards needs the layout reworked, not tiles past the panel.
+func test_every_recipe_fits_the_layout() -> void:
+	for file_name: String in DirAccess.get_files_at(DECKS):
+		if not file_name.ends_with(".tres"):
+			continue
+		var deck: DeckDefinition = load(DECKS.path_join(file_name))
+		if not deck.is_recipe():
+			continue
+		var message: String = (
+			"%s needs %d staple tiles and %d pick slots; the cart reveal holds %d and %d"
+			% [
+				file_name,
+				deck.core_cards.size(),
+				deck.random_count + deck.random_coupon_count,
+				RevealPanel.MAX_STAPLES,
+				RevealPanel.MAX_PICKS,
+			]
+		)
+		assert_bool(RevealPanel.fits(deck)).override_failure_message(message).is_true()
+
+
+## Every card a deal can show (every coupon of the pool, every product with an item-tier chain),
+## as a pick and as a staple's 2nd copy: its name fits under its art (or its slip's wrapped name
+## stays on the slip, inside the tile) and its badges stay in the tile's badge margin.
+func test_every_drawable_card_fits_its_tile() -> void:
+	var balance: BalanceDefinition = load(BALANCE)
+	var cards: Array[CardDefinition] = balance.coupon_pool.duplicate()
+	for chain: ItemUpgradeDefinition in balance.machine.item_upgrades:
+		if not cards.has(chain.product):
+			cards.append(chain.product)
+	assert_array(cards).is_not_empty()
+	var tiles: Array[RevealTile] = []
+	for card: CardDefinition in cards:
+		var kind: RevealTile.Kind = (
+			RevealTile.Kind.COUPON if card.is_coupon() else RevealTile.Kind.PICK
+		)
+		for second: bool in [false, true]:
+			var tile: RevealTile = RevealTile.new(card, kind, second and card.is_product())
+			tile.position = Vector2(400, 300)
+			_host.add_child(tile)
+			tiles.append(tile)
+	await get_tree().process_frame
+	for tile: RevealTile in tiles:
+		var what: String = tile.card.display_name
+		var box: Rect2 = tile.get_global_rect()
+		for found: Node in tile.find_children("*", "Label", true, false):
+			var label: Label = found as Label
+			# A badge's text grows its chip (checked below with the badges).
+			var in_chip: bool = label.get_parent() is RevealChip
+			if not label.is_visible_in_tree() or label.text.is_empty() or in_chip:
+				continue
+			var rect: Rect2 = label.get_global_rect()
+			if label.autowrap_mode == TextServer.AUTOWRAP_OFF:
+				# The name's line (its box may run under the tile's edge; its glyphs don't).
+				var line: Rect2 = Rect2(
+					rect.position, Vector2(rect.size.x, label.get_line_height())
+				)
+				assert_bool(box.encloses(line)).override_failure_message(what).is_true()
+				assert_float(_text_width(label)).override_failure_message(what).is_less_equal(
+					rect.size.x + 0.5
+				)
+			else:
+				var lines: int = label.get_line_count()
+				var spacing: int = label.get_theme_constant("line_spacing")
+				var height: float = lines * label.get_line_height() + (lines - 1) * spacing
+				assert_bool(box.encloses(rect)).override_failure_message(what).is_true()
+				assert_float(height).override_failure_message(what).is_less_equal(rect.size.y + 0.5)
+				# Each word fits a line: none is cut at the slip's sides.
+				for word: String in label.text.split(" ", false):
+					var font: Font = label.get_theme_font("font")
+					var font_size: int = label.get_theme_font_size("font_size")
+					var width: float = (
+						font.get_string_size(word, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size).x
+					)
+					assert_float(width).override_failure_message(what).is_less_equal(rect.size.x)
+		# The corner badges overhang the tile by design (the padlock, the "+", the COUPON tab).
+		var margin: Rect2 = box.grow_individual(
+			-RevealTile.LOCK_RECT.position.x,
+			-RevealTile.TAB_RECT.position.y,
+			RevealTile.SPARK_RECT.end.x - RevealTile.SIZE.x,
+			0.0
+		)
+		for chip: Node in tile.find_children("*", "RevealChip", true, false):
+			var badge: Rect2 = (chip as RevealChip).get_global_rect().grow(RevealChip.OUTLINE)
+			(
+				assert_bool(margin.grow(RevealChip.OUTLINE).encloses(badge))
+				. override_failure_message(what)
+				. is_true()
+			)
+
+
+## A coupon in the dispenser's heap sits whole inside the glass (its slip prints its name).
+func test_a_coupon_sits_whole_in_the_dispensers_glass() -> void:
+	var balance: BalanceDefinition = load(BALANCE)
+	var picks: Array[CardDefinition] = [balance.coupon_pool[0]]
+	for _index: int in RevealPanel.MAX_PICKS - 1:
+		picks.append(balance.staples[0])
+	var dispenser: StockDispenser = StockDispenser.new(picks)
+	_host.add_child(dispenser)
+	var glass: Rect2 = Rect2(Vector2.ZERO, StockDispenser.WINDOW_RECT.size)
+	for art: TextureRect in dispenser.heap_art():
+		if art.get_child_count() > 0:  # The coupon's slip carries its printed name or icon.
+			assert_bool(glass.encloses(Rect2(art.position, art.size))).is_true()
+	(
+		assert_bool(
+			dispenser.heap_art().any(
+				func(art: TextureRect) -> bool: return art.get_child_count() > 0
+			)
+		)
+		. is_true()
+	)
 
 
 ## Mid-way (picks in flight, the cabinet jolting): the flyers stay inside the panel.

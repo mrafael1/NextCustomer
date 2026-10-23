@@ -43,7 +43,7 @@ func test_every_golden_rows_items_add_up_to_the_total() -> void:
 		for row_ids: String in GoldenRows.GOLDEN_ROWS[fixture]:
 			var row: Array[CardInstance] = _row(fixture, row_ids)
 			var result: ScoreResult = Scoring.score(row)
-			closings += _count_up(receipt, result, ShiftScreen._names(row))
+			closings += _count_up(receipt, result, CardInstance.names(row))
 			failures.append_array(_failures(receipt, result, row_ids))
 			rows += 1
 			await get_tree().process_frame
@@ -75,7 +75,7 @@ func test_a_long_rows_items_add_up_to_the_total() -> void:
 		ScoreStep.StepType.WASTED,
 	]:
 		assert_bool(kinds.has(kind)).override_failure_message(str(kind)).is_true()
-	assert_int(_count_up(receipt, result, ShiftScreen._names(row))).is_greater(0)
+	assert_int(_count_up(receipt, result, CardInstance.names(row))).is_greater(0)
 	var failures: PackedStringArray = _failures(receipt, result, "long row")
 	assert_array(failures).override_failure_message("\n".join(failures)).is_empty()
 	await get_tree().process_frame

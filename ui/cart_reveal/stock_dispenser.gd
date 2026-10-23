@@ -93,6 +93,11 @@ func _init(cards: Array[CardDefinition]) -> void:
 			HEAP_LEFT + (index % HEAP_COLUMNS) * HEAP_STEP + (HEAP_FRONT_SHIFT if front else 0.0),
 			(HEAP_FRONT_Y if front else HEAP_BACK_Y) + float((index * 5) % 9) / 8.0 * HEAP_JITTER
 		)
+		if card.is_coupon():
+			# A coupon's slip (its name printed on it) sits whole in the glass, never cut: on the
+			# back row (the front row runs past the glass's bottom), inside its sides.
+			rest.x = clampf(rest.x, 0.0, WINDOW_RECT.size.x - ItemView.SPRITE_SIZE.x)
+			rest.y = HEAP_BACK_Y
 		art.position = rest
 		_window.add_child(art)
 		_heap.append(art)
@@ -159,6 +164,11 @@ func show_state(
 ## The LED's text (for tests).
 func led_text() -> String:
 	return _led.text
+
+
+## The heap's art of every pick, in the order they were added (for tests).
+func heap_art() -> Array[TextureRect]:
+	return _heap
 
 
 ## The heap's items still in the window (for tests).
