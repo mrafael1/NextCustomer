@@ -35,6 +35,9 @@ extends Control
 ## STAMP DAY's visit, a full cart, a draw's rarities, a pick, reduced motion, a resumed visit);
 ## the capture waits `seconds` after the last step, and the file is
 ## shift_screen_machine_<options>_<tenths>_<width>x<height>.png.
+## With `--reveal=<seconds>[,outro=<seconds>][,seed=<seed>]` (v0.51) a new run opens on the cart
+## reveal, frozen at that time of its timeline (and of its fold into the Cart button), and the file
+## is shift_screen_reveal_[outro_<tenths>_]<tenths>_<width>x<height>.png.
 
 const SCREEN := preload("res://ui/shift_screen.tscn")
 const SEED := 20261014
@@ -59,6 +62,9 @@ const SCAN_ARGUMENT := "--scan="
 const EFFECTS_ARGUMENT := "--effects"
 const CHECKOUT_ARGUMENT := "--checkout="
 const MACHINE_ARGUMENT := "--machine="
+const REVEAL_ARGUMENT := "--reveal="
+## A --reveal capture's file name part: reveal_[outro_<tenths>_]<tenths>_.
+const REVEAL_PREFIX := "reveal_%s%d_"
 ## --machine's shift (#77): shift 1's passing row (Milk, Multipack, Milk x5 = 109), and the
 ## inspection a bonus ticket's shift passes.
 const MACHINE_ROW_IDS: Array[String] = ["milk", "multipack", "milk", "milk", "milk", "milk", "milk"]
@@ -100,6 +106,8 @@ var _focused: bool = false
 var _checkout_s: float = -1.0
 ## Since machine(): the file name part naming its options and wait ("" before).
 var _machine_part: String = ""
+## Since reveal(): the file name part naming its time ("" before).
+var _reveal_part: String = ""
 ## Since hold_pointer(): the real pointer drives no hover, tooltip or click.
 var _holding_pointer: bool = false
 
@@ -118,7 +126,10 @@ func _ready() -> void:
 	add_child(_screen)
 	var effects_on: bool = OS.get_cmdline_user_args().has(EFFECTS_ARGUMENT)
 	var focus_id: String = _argument(EFFECTS_ARGUMENT + "=")
-	if effects_on or focus_id != "":
+	var reveal_spec: String = _argument(REVEAL_ARGUMENT)
+	if reveal_spec != "":
+		reveal(reveal_spec)
+	elif effects_on or focus_id != "":
 		await effects(focus_id)
 	else:
 		_set_up_shift(INSPECTION, ROW_IDS)
@@ -260,7 +271,7 @@ func capture(folder: String) -> void:
 		prefix = FOCUS_PREFIX if _focused else EFFECTS_PREFIX
 	if _checkout_s >= 0.0:
 		prefix += CHECKOUT_PREFIX % roundi(_checkout_s * 10.0)
-	prefix += _machine_part
+	prefix += _machine_part + _reveal_part
 	var path: String = folder.path_join(FILE_NAME % [prefix, window.x, window.y])
 	var image: Image = (
 		grab_image.call() as Image
@@ -270,6 +281,25 @@ func capture(folder: String) -> void:
 	var error: Error = ERR_UNAVAILABLE if image == null else image.save_png(path)
 	if error != OK:
 		_report("Can't save %s (error %d)" % [path, error])
+
+
+## Starts a new run (SEED, or `seed=<seed>`) on the cart reveal (v0.51), frozen at `spec`'s seconds
+## (and `outro=<seconds>` into its fold); capture() then names its file
+## shift_screen_reveal_[outro_<tenths>_]<tenths>_<w>x<h>.png.
+func reveal(spec: String) -> void:
+	var options: PackedStringArray = spec.split(",", false)
+	var seconds: float = options[0].to_float() if not options.is_empty() else 0.0
+	var outro: float = -1.0
+	var seed_value: int = SEED
+	for option: String in options.slice(1):
+		if option.begins_with("outro="):
+			outro = option.trim_prefix("outro=").to_float()
+		elif option.begins_with("seed="):
+			seed_value = option.trim_prefix("seed=").to_int()
+	_screen.start_new_run(seed_value, true, true)
+	_screen._cart_reveal.freeze_at(seconds, outro)
+	var fold: String = "outro_%d_" % roundi(outro * 10.0) if outro >= 0.0 else ""
+	_reveal_part = REVEAL_PREFIX % [fold, roundi(seconds * 10.0)]
 
 
 ## Opens the RECEIPT REWARDS machine (#77) on a new run (the same seed) whose shift 1 checked out

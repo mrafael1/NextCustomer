@@ -65,7 +65,8 @@ func test_the_deck_tab_groups_copies_and_counts_tags() -> void:
 
 
 ## v0.49: a new run starts from the recipe deck, dealt from its stock on the run seed's own
-## stream: the 5 core cards, then 8 stocked products with a tier chain, and the Deck tab shows it.
+## stream: the 4 core cards, a coupon from the pool (v0.51), then 8 stocked products with a tier
+## chain, and the Deck tab shows it.
 func test_the_game_deals_the_recipe_deck() -> void:
 	var screen: ShiftScreen = await _screen()
 	var run: RunState = screen.run
@@ -73,7 +74,7 @@ func test_the_game_deals_the_recipe_deck() -> void:
 	assert_int(run.starter.cards.size()).is_equal(13)
 	assert_int(run.deck.size()).is_equal(13)
 	var recipe: DeckDefinition = load(ShiftScreen.STARTER_DECK)
-	assert_array(run.starter.cards.slice(0, 5)).is_equal(recipe.core_cards)
+	assert_array(run.starter.cards.slice(0, 4)).is_equal(recipe.core_cards)
 	var expected: DeckDefinition = StartingDeck.deal(
 		recipe,
 		run.stock,
@@ -89,6 +90,64 @@ func test_the_game_deals_the_recipe_deck() -> void:
 	assert_array(Array(view.texts())).contains(["PRODUCTS  (%d)" % total])
 	# One card per distinct card.
 	assert_int(view.card_views().size()).is_equal(_distinct(run.starter.cards))
+
+
+## v0.51: the Cart page keeps the cart reveal's marks for the run: a staple's padlock at the left
+## of its count line, a starting pick's "+" (the coupon's token) at its right, both on a staple's
+## 2nd copy; a card only the machine gave has none. The marks sit inside their cell, clear of
+## the count text.
+func test_the_cart_page_marks_staples_and_picks() -> void:
+	var screen: ShiftScreen = await _screen()
+	screen.start_new_run(20261014, false)
+	var run: RunState = screen.run
+	# A machine prize the deal didn't give.
+	var prize: CardDefinition = load("res://data/cards/coffee.tres")
+	assert_bool(run.starter.cards.has(prize)).is_false()
+	run.deck.add_card(prize)
+	screen._on_deck_button_pressed()
+	var view: DeckView = screen._deck_view
+	await get_tree().create_timer(0.4).timeout
+	var picks: Array[CardDefinition] = StartingDeck.picks(run.starter)
+	var seen: Dictionary[String, Array] = {}
+	for card_view: CardView in view.card_views():
+		var card: CardDefinition = card_view.card.definition
+		var note: Label = card_view.get_parent().get_child(1)
+		var staple: Node = note.get_node_or_null(DeckView.STAPLE_MARK)
+		var pick: Node = note.get_node_or_null(DeckView.PICK_MARK)
+		var id: String = String(card.id)
+		seen[id] = [staple != null, pick != null]
+		assert_bool(staple != null).override_failure_message(id).is_equal(
+			card.is_product() and run.starter.core_cards.has(card)
+		)
+		assert_bool(pick != null).override_failure_message(id).is_equal(picks.has(card))
+		var cell: Rect2 = card_view.get_parent().get_global_rect()
+		var font: Font = note.get_theme_font("font")
+		var text_width: float = (
+			font
+			. get_string_size(
+				note.text, HORIZONTAL_ALIGNMENT_LEFT, -1, note.get_theme_font_size("font_size")
+			)
+			. x
+		)
+		var text_left: float = note.get_global_rect().get_center().x - text_width / 2.0
+		for mark: Node in [staple, pick]:
+			if mark == null:
+				continue
+			var rect: Rect2 = (mark as RevealChip).get_global_rect().grow(RevealChip.OUTLINE)
+			assert_float(rect.position.x).override_failure_message(id).is_greater_equal(
+				cell.position.x
+			)
+			assert_float(rect.end.x).override_failure_message(id).is_less_equal(cell.end.x)
+			var clear: bool = rect.end.x <= text_left or rect.position.x >= text_left + text_width
+			assert_bool(clear or note.text.is_empty()).override_failure_message(id).is_true()
+	# Banana: a staple only; Milk and Eggs: staples dealt again; the coupon: a pick (its token).
+	assert_array(seen["banana"]).is_equal([true, false])
+	assert_array(seen["milk"]).is_equal([true, true])
+	assert_array(seen["eggs"]).is_equal([true, true])
+	assert_array(seen["coffee"]).is_equal([false, false])
+	var coupon: CardDefinition = picks[0]
+	assert_bool(coupon.is_coupon()).is_true()
+	assert_array(seen[String(coupon.id)]).is_equal([false, true])
 
 
 ## v0.49: a dealt deck with more distinct products than one row holds (COLUMNS) scrolls inside

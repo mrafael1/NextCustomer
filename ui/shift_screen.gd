@@ -128,6 +128,7 @@ var _ride: BeltRide
 var _effects: PlanningEffects
 ## The TOY MACHINES over the results (#63), made the first time they open.
 var _toys: ToyMachinesScreen
+var _cart_reveal: CartReveal
 ## The basket redraw's targets and tags, and its motion.
 var _basket_tags: BasketTags
 var _basket_redraw: BasketRedraw
@@ -157,12 +158,13 @@ func _ready() -> void:
 	if saved != null:
 		_resume_run(saved)
 	else:
-		start_new_run(_log.new_run_seed())
+		start_new_run(_log.new_run_seed(), true, _cart_reveal.requested)
 
 
 ## Starts a run with a seed (a new random one, or one set from the debug panel) and its first
 ## shift. Without `saves_run` (the --demo-row run) the run never writes or deletes the run save.
-func start_new_run(seed_value: int, saves_run: bool = true) -> void:
+## With `reveal` the cart reveal (v0.51) opens over shift 1 once it is dealt and saved.
+func start_new_run(seed_value: int, saves_run: bool = true, reveal: bool = false) -> void:
 	_saves_run = saves_run
 	ShiftMusic.new_run(_music)
 	# Until #65's shopping list, a run that needs a list stocks a random one from the run seed's
@@ -190,6 +192,8 @@ func start_new_run(seed_value: int, saves_run: bool = true) -> void:
 	_log.log_event("run_start", RunEvents.run_start(run))
 	run.start_shift()
 	_on_shift_started()
+	if reveal:
+		_cart_reveal.play(run, _deck_button, profile.reduced_motion())
 
 
 ## Development tools only (the screen capture in debug/): shows the run's current shift as the
@@ -289,6 +293,7 @@ func _close_overlays() -> void:
 	_results.visible = false
 	_machine.close()
 	_deck_view.visible = false
+	_cart_reveal.close()
 	_ride.reset()
 
 
@@ -455,7 +460,9 @@ func _on_basket_clicked(basket: int) -> void:
 	_refresh()
 	var left: int = run.redraws_allowed - run.redraws_used
 	_monitor.show_redraw(
-		RedrawNotice.redrawing(left, _definitions(replaced), _definitions(received))
+		RedrawNotice.redrawing(
+			left, RedrawNotice.definitions(replaced), RedrawNotice.definitions(received)
+		)
 	)
 	_basket_redraw.play(basket, places, old_views, new_views)
 
@@ -605,7 +612,7 @@ func _on_new_run_pressed() -> void:
 	_log.log_event(
 		"restart", {"since_run_end_ms": Time.get_ticks_msec() - _run_ended_ms, "screen": "results"}
 	)
-	start_new_run(_log.new_run_seed())
+	start_new_run(_log.new_run_seed(), true, true)
 
 
 ## Results: the TOY MACHINES (#63) open over the results, below the debug panel. A draw here is
@@ -966,6 +973,8 @@ func _build() -> void:
 	add_child(_deck_view)
 	_deck_view.card_chosen.connect(_on_deck_card_chosen)
 	_deck_view.closed.connect(_on_deck_closed)
+	_cart_reveal = CartReveal.new()  # Over all but the debug panel (v0.51).
+	add_child(_cart_reveal)
 
 
 ## Scanning the counter's items is off while the shift is counted, an item is dragged, outside
@@ -981,13 +990,6 @@ func _scan_blocked() -> bool:
 func _on_closed_slot_clicked() -> void:
 	_notice_label.show_notice("Closed by the inspection this shift")
 	_sfx.play("denied", 1.0, REFUSED_DB)
-
-
-static func _definitions(cards: Array[CardInstance]) -> Array[CardDefinition]:
-	var definitions: Array[CardDefinition] = []
-	for card: CardInstance in cards:
-		definitions.append(card.definition)
-	return definitions
 
 
 static func _names(cards: Array[CardInstance]) -> PackedStringArray:

@@ -5,9 +5,10 @@ extends Resource
 ## balance data's own list (BalanceDefinition.staples, section 7.2), not a deck's products.
 ##
 ## A deck is either fixed (`cards`, e.g. the starter deck the tests and the balance simulator's
-## --deck use) or a recipe (v0.49, section 5.2: `random_count` > 0). A recipe's run starts with
-## its `core_cards` plus `random_count` products drawn from the run's stock (StartingDeck.deal),
-## and the dealt deck is a copy of the recipe with those cards in `cards`.
+## --deck use) or a recipe (v0.49, section 5.2: `random_count` or `random_coupon_count` > 0). A
+## recipe's run starts with its `core_cards`, then `random_coupon_count` coupons (v0.51) and
+## `random_count` products drawn from the run's stock (StartingDeck.deal), and the dealt deck is a
+## copy of the recipe with those cards in `cards`.
 
 @export var id: StringName = &""
 @export var display_name: String = ""
@@ -20,7 +21,10 @@ extends Resource
 ## How many products a recipe draws from the run's stock on top of its core cards (0: a fixed
 ## deck).
 @export var random_count: int = 0
-## The most copies of one product a dealt recipe holds, its core cards included.
+## How many coupons a recipe draws from the run's stock (its coupon pool) after its core cards
+## and before its products (v0.51; 0: none).
+@export var random_coupon_count: int = 0
+## The most copies of one card a dealt recipe holds, its core cards included.
 @export var copy_max: int = 0
 ## An upgrade the run owns from the start (optional): offers skip it, and it takes a box of its
 ## own on the loyalty card before the upgrade-shift boxes.
@@ -31,4 +35,4 @@ extends Resource
 
 ## Whether this deck is a recipe, dealt at the start of each run (StartingDeck).
 func is_recipe() -> bool:
-	return random_count > 0
+	return random_count > 0 or random_coupon_count > 0

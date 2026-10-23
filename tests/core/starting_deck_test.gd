@@ -1,8 +1,8 @@
 extends GdUnitTestSuite
-## The random starting deck (v0.49, full build plan 5.2): the recipe's 5 core cards plus 8
-## products drawn from the run's stock, only products with an item-tier chain, at most 2 copies
-## of a product, on the run seed's own derived stream, so the run's RNG and a new profile's
-## stock are unchanged.
+## The random starting deck (v0.49 and v0.51, full build plan 5.2): the recipe's 4 core cards
+## (the staples Banana x2, Milk, Eggs), 1 coupon drawn from the run's coupon pool and 8 products
+## drawn from the run's stock, only products with an item-tier chain, at most 2 copies of a card,
+## on the run seed's own derived stream, so the run's RNG and a new profile's stock are unchanged.
 
 const RECIPE := "res://data/decks/random_starter.tres"
 const STARTER := "res://data/decks/starter.tres"
@@ -22,29 +22,50 @@ func before_test() -> void:
 	_stock = RunStock.starting(_balance)
 
 
-func test_the_recipe_is_five_fixed_cards_plus_eight_at_most_two_copies() -> void:
+func test_the_recipe_is_four_staples_a_coupon_and_eight_at_most_two_copies() -> void:
 	assert_bool(_recipe.is_recipe()).is_true()
 	assert_bool((load(STARTER) as DeckDefinition).is_recipe()).is_false()
-	assert_array(_ids(_recipe.core_cards)).is_equal(
-		["banana", "banana", "milk", "eggs", "final_markdown"]
-	)
+	assert_array(_ids(_recipe.core_cards)).is_equal(["banana", "banana", "milk", "eggs"])
 	assert_array(_recipe.cards).is_empty()
+	assert_int(_recipe.random_coupon_count).is_equal(1)
 	assert_int(_recipe.random_count).is_equal(8)
 	assert_int(_recipe.copy_max).is_equal(2)
 
 
-func test_a_deal_is_the_core_cards_then_eight_products() -> void:
+func test_a_deal_is_the_core_cards_then_a_coupon_then_eight_products() -> void:
 	for seed_value: int in SEEDS:
 		var dealt: DeckDefinition = _deal(seed_value)
 		var where: String = "seed %d" % seed_value
 		assert_int(dealt.cards.size()).override_failure_message(where).is_equal(13)
-		assert_array(dealt.cards.slice(0, 5)).override_failure_message(where).is_equal(
+		assert_array(dealt.cards.slice(0, 4)).override_failure_message(where).is_equal(
 			_recipe.core_cards
 		)
+		var coupon: CardDefinition = dealt.cards[4]
+		assert_bool(coupon.is_coupon()).override_failure_message(where).is_true()
+		assert_bool(_balance.coupon_pool.has(coupon)).override_failure_message(where).is_true()
+		for card: CardDefinition in dealt.cards.slice(5):
+			assert_bool(card.is_product()).override_failure_message(where).is_true()
+		assert_array(StartingDeck.picks(dealt)).is_equal(dealt.cards.slice(4))
 		assert_str(String(dealt.id)).is_equal("random_starter")
 		assert_bool(dealt.is_recipe()).is_true()
 	# The recipe itself is never changed.
 	assert_array(_recipe.cards).is_empty()
+	assert_array(StartingDeck.picks(load(STARTER))).is_empty()
+
+
+## v0.51: the coupon is drawn from the whole coupon pool, equally likely, on the deal's stream
+## before the products: over 200 seeds every pool coupon shows up, and the stream's first draw
+## picks it.
+func test_the_coupon_is_random_from_the_coupon_pool() -> void:
+	assert_array(StartingDeck.drawable_coupons(_stock)).is_equal(_balance.coupon_pool)
+	var seen: Dictionary[CardDefinition, int] = {}
+	for seed_value: int in FIT_SEEDS:
+		var coupon: CardDefinition = _deal(seed_value).cards[4]
+		seen[coupon] = int(seen.get(coupon, 0)) + 1
+		var stream: RandomNumberGenerator = _stream(seed_value)
+		var first: int = stream.randi_range(0, _balance.coupon_pool.size() - 1)
+		assert_object(coupon).is_same(_balance.coupon_pool[first])
+	assert_array(seen.keys()).contains_exactly_in_any_order(_balance.coupon_pool)
 
 
 func test_no_product_passes_two_copies() -> void:
@@ -87,13 +108,21 @@ func test_a_small_pool_ends_the_deal_short() -> void:
 	var milk: CardDefinition = load("res://data/cards/milk.tres")
 	var bread: CardDefinition = load("res://data/cards/bread.tres")
 	var cheese_capsule: CardDefinition = _balance.aisles[0].capsule_cards[0]
-	var cards: Array[CardDefinition] = [milk, bread, cheese_capsule]
+	var markdown: CardDefinition = load("res://data/cards/final_markdown.tres")
+	var cards: Array[CardDefinition] = [milk, bread, cheese_capsule, markdown]
 	var none: Array[CardDefinition] = []
 	var small: RunStock = RunStock.from_saved(cards, [], true, none)
 	var dealt: DeckDefinition = StartingDeck.deal(_recipe, small, _balance, _stream(3))
 	# Milk has 1 core copy, so 1 more; Bread 2; the capsule product has no chain.
 	assert_array(_ids(dealt.cards)).is_equal(
 		["banana", "banana", "milk", "eggs", "final_markdown", "milk", "bread", "bread"]
+	)
+	# A stock with no coupon deals none.
+	cards.erase(markdown)
+	small = RunStock.from_saved(cards, [], true, none)
+	dealt = StartingDeck.deal(_recipe, small, _balance, _stream(3))
+	assert_array(_ids(dealt.cards)).is_equal(
+		["banana", "banana", "milk", "eggs", "milk", "bread", "bread"]
 	)
 
 
@@ -186,7 +215,7 @@ func test_a_random_start_round_trips() -> void:
 
 
 ## A save whose starting deck the recipe couldn't deal (lost, cut short of the core, past the
-## copy limit, too long, or a drawn coupon) is refused.
+## copy limit, too long, two coupons, or a coupon out of its place) is refused.
 func test_a_save_with_a_deal_the_recipe_cant_give_is_refused() -> void:
 	var stock: RunStock = RunStock.starting(_balance)
 	var deck: DeckDefinition = StartingDeck.deal(_recipe, stock, _balance, _stream(5))
@@ -202,6 +231,9 @@ func test_a_save_with_a_deal_the_recipe_cant_give_is_refused() -> void:
 		dealt + ["banana"],
 		dealt + ["soup"],
 		dealt.slice(0, 5) + ["final_markdown"],
+		dealt.slice(0, 5) + ["two_for_one"],
+		dealt.slice(0, 4) + dealt.slice(5) + [dealt[4]],
+		["banana", "banana", "milk", "final_markdown", "eggs"],
 	]
 	for bad: Array in bad_deals:
 		data["starting_deck"] = bad
@@ -210,16 +242,21 @@ func test_a_save_with_a_deal_the_recipe_cant_give_is_refused() -> void:
 			. override_failure_message(",".join(bad))
 			. is_null()
 		)
-	# A deal ended short (a small pool) is one the recipe can give.
-	data["starting_deck"] = dealt.slice(0, 8)
-	assert_object(RunSave.from_dictionary(_json(data), lookup)).is_not_null()
+	# A deal ended short (a small pool) is one the recipe can give, with or without its coupon.
+	for short: Array in [dealt.slice(0, 8), dealt.slice(0, 4) + dealt.slice(5)]:
+		data["starting_deck"] = short
+		(
+			assert_object(RunSave.from_dictionary(_json(data), lookup))
+			. override_failure_message(",".join(short))
+			. is_not_null()
+		)
 
 
 ## Every list a later profile can make (every pair of aisles, all capsule items unlocked) deals
 ## the full 13 cards. A list of two machine-opened aisles (no chained products) leaves only the
-## staples, whose room under copy_max is exactly random_count, so that deal is forced: every seed
-## gets the same deck (plan 7.2). This pins it, so a change to the staples, copy_max or the
-## chains shows here.
+## staples, whose room under copy_max is exactly random_count, so its products are forced: every
+## seed gets the same products, only the coupon differs (v0.51; plan 7.2). This pins it, so a
+## change to the staples, copy_max or the chains shows here.
 func test_every_two_aisle_list_deals_thirteen_cards() -> void:
 	var unlocked: Dictionary[StringName, int] = {}
 	for aisle: AisleDefinition in _balance.aisles:
@@ -239,7 +276,8 @@ func test_every_two_aisle_list_deals_thirteen_cards() -> void:
 					_recipe, stock, _balance, _stream(seed_value)
 				)
 				assert_int(dealt.cards.size()).override_failure_message(where).is_equal(13)
-				decks[",".join(_ids(dealt.cards))] = true
+				# The products only: the coupon is drawn from the whole pool on every list.
+				decks[",".join(_ids(dealt.cards.slice(5)))] = true
 			var capsule_only: bool = (
 				aisles[first].base_cards.is_empty() and aisles[second].base_cards.is_empty()
 			)

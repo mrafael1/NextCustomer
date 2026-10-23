@@ -91,7 +91,8 @@ func replay_seed(seed_value: int) -> void:
 	if _screen._busy():
 		return
 	_log.log_event("debug", {"action": "set_seed", "seed": seed_value})
-	_screen.start_new_run(seed_value)
+	# A new run as the player starts one: with the cart reveal (v0.51).
+	_screen.start_new_run(seed_value, true, true)
 
 
 ## TEMPORARY (#60): the count-up speed setting, Fast or Normal, saved in the profile at once.

@@ -370,4 +370,6 @@ func _start() -> void:
 	if changes_scene:
 		# The start click finishes over the shift screen.
 		_sfx.outlive_scene()
+		# A new run there opens on the cart reveal (v0.51); a resumed run ignores it.
+		CartReveal.request()
 		get_tree().change_scene_to_file(SHIFT_SCREEN)

@@ -86,6 +86,14 @@ static func redrawing(
 	return notice
 
 
+## The cards' definitions, in order.
+static func definitions(cards: Array[CardInstance]) -> Array[CardDefinition]:
+	var found: Array[CardDefinition] = []
+	for card: CardInstance in cards:
+		found.append(card.definition)
+	return found
+
+
 ## "[b]A[/b]", "[b]A[/b] and [b]B[/b]" (BBCode).
 static func names(items: Array[CardDefinition]) -> String:
 	var parts: PackedStringArray = PackedStringArray()

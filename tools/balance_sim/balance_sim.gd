@@ -15,7 +15,8 @@ extends SceneTree
 ##   --samples=N       sample hands per greedy pick (default 6)
 ##   --deck=PATH       starting deck (default the starter deck, data/decks/starter.tres); a
 ##                     recipe deck (DeckDefinition.is_recipe) is dealt for each run from its
-##                     stock and seed, as the game deals it (StartingDeck, v0.49)
+##                     stock and seed, as the game deals it (StartingDeck, v0.49; its coupon
+##                     from the coupon pool since v0.51)
 ##   --random-start    start each run from the game's recipe deck (RANDOM_START_DECK) instead
 ##                     of the fixed starter deck; not with --deck
 ##   --balance=PATH    balance data (default the live balance data)

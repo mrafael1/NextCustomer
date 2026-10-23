@@ -8,6 +8,12 @@ extends PanelContainer
 ## chooses one of its copies (to remove it from the deck). A BIG or GOLDEN copy carries its tier tag
 ## under it (PriceSticker.tier_text), so a player never swaps one out unknowingly. It only displays
 ## RunState and DeckSummary.
+##
+## v0.51: on the Cart page a dealt starting deck's cards keep the cart reveal's marks (CartReveal)
+## for the whole run, at the ends of their count line: a staple (one of the recipe's core
+## products, any tier) the mustard padlock at the left, a pick (a product or coupon the run was
+## dealt) the teal "+" (the tomato token for a coupon) at the right. A card can be both (a staple's
+## 2nd copy); a card only the machine gave carries none.
 
 signal closed
 signal card_chosen(card: CardInstance)
@@ -18,6 +24,12 @@ const GAP := 8
 ## It holds one product row and a coupon row unscrolled (the fixed starter deck's page); a dealt
 ## starting deck (v0.49) with more than COLUMNS distinct products scrolls.
 const PAGE_SIZE := Vector2(COLUMNS * CardView.CARD_SIZE.x + (COLUMNS - 1) * GAP + 16, 500)
+## The staple and pick marks on a card's count line (v0.51).
+const MARK_SIZE := Vector2(22, 22)
+const NOTE_HEIGHT := 20.0
+## Node names of the marks (for tests).
+const STAPLE_MARK := "StapleMark"
+const PICK_MARK := "PickMark"
 
 var _title: Label
 var _deck_tab: Button
@@ -26,6 +38,8 @@ var _scroll: ScrollContainer
 var _deck_page: VBoxContainer
 var _info_page: VBoxContainer
 var _choosing: bool = false
+## The run's starting deck, for the staple and pick marks (null: no marks).
+var _starter: DeckDefinition
 
 
 func _init() -> void:
@@ -64,6 +78,7 @@ func _init() -> void:
 func open(run: RunState, title: String, choosing: bool) -> void:
 	_choosing = choosing
 	_title.text = title
+	_starter = run.starter
 	_fill_deck_page(run.deck.cards)
 	_fill_info_page(run)
 	_deck_tab.visible = not choosing
@@ -136,7 +151,34 @@ func _add_section(heading: String, groups: Array[DeckSummary.Group]) -> void:
 			notes.append("×%d" % group.copies.size())
 		if not PriceSticker.tier_text(group.card).is_empty():
 			notes.append(PriceSticker.tier_text(group.card))
-		grid.add_child(_cell(group.copies[0], " ".join(notes)))
+		var cell: VBoxContainer = _cell(group.copies[0], " ".join(notes))
+		_add_marks(cell.get_child(1) as Label, group.card)
+		grid.add_child(cell)
+
+
+## The cart reveal's marks on a card's count line (v0.51): the padlock of a staple at its left,
+## the "+" (or coupon token) of a starting pick at its right.
+func _add_marks(note: Label, card: CardDefinition) -> void:
+	if _starter == null or not _starter.is_recipe():
+		return
+	var staple: bool = card.is_product() and _starter.core_cards.any(card.is_same_product)
+	var picked: bool = StartingDeck.picks(_starter).any(card.is_same_product)
+	var top: float = roundf((NOTE_HEIGHT - MARK_SIZE.y) / 2.0)
+	if staple:
+		var lock: RevealChip = RevealChip.new(Palette.MUSTARD, MARK_SIZE, RevealTile.LOCK_ICON)
+		lock.name = STAPLE_MARK
+		lock.position = Vector2(RevealChip.OUTLINE, top)
+		note.add_child(lock)
+	if picked:
+		var coupon: bool = card.is_coupon()
+		var mark: RevealChip = RevealChip.new(
+			Palette.TOMATO if coupon else Palette.TEAL_BRIGHT,
+			MARK_SIZE,
+			RevealTile.COUPON_ICON if coupon else RevealTile.PICK_ICON
+		)
+		mark.name = PICK_MARK
+		mark.position = Vector2(CardView.CARD_SIZE.x - MARK_SIZE.x - RevealChip.OUTLINE, top)
+		note.add_child(mark)
 
 
 func _fill_info_page(run: RunState) -> void:
@@ -206,7 +248,7 @@ func _cell(card: CardInstance, note: String) -> VBoxContainer:
 	cell.add_child(view)
 	var label: Label = UiKit.label(note, 16, Palette.CREAM)
 	label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	label.custom_minimum_size = Vector2(0, 20)
+	label.custom_minimum_size = Vector2(0, NOTE_HEIGHT)
 	cell.add_child(label)
 	return cell
 
