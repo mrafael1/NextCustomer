@@ -76,7 +76,8 @@ extends Resource
 @export_group("Chute press")
 ## The pressed chute settles this long after CONFIRM before the draw starts, per kind.
 @export var odds_close_ms: PackedInt32Array = PackedInt32Array()
-## CONFIRM › on the display stays down this long before the chute is confirmed (#77 machine v2).
+## The push bar (v0.53; CONFIRM › on the display until then) stays down this long before the
+## chute is confirmed (#77 machine v2).
 @export var confirm_down_ms: int = 0
 @export_group("Premium transform")
 ## A Normal machine turns PREMIUM (mock-up premium_machine_v1.html, dressing A) after a BOOSTED

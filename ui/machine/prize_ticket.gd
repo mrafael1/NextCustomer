@@ -18,12 +18,16 @@ extends Control
 ##
 ## The face (paper, its rarity's edge) holds the art box (PrizeArt: the real sprite, the coupon
 ## slip, a LOYALTY punch card, an upgrade's item at its new tier), a band ("NEW ITEM · €2",
-## "COUPON", "LOYALTY STAMP", "UPGRADE"), the prize's name and its rule in full, so nothing needs
-## a hover. A click picks it once the machine has armed; after the pick the picked ticket lifts and
-## flies off (MachineFlyer takes it), the others fall away, and a bin drops them all. frame(t)
-## reads only view.plan, t, view.landing and view.idle_time.
+## "COUPON", "LOYALTY STAMP", "UPGRADE"), the prize's name and its rule's summary; resting the
+## pointer on it (hovered) opens the scan popup with the whole effect (v0.53,
+## PrizePopup). A click picks it once the machine has armed; after the pick the
+## picked ticket lifts and flies off (MachineFlyer takes it), the others fall away, and a bin drops
+## them all. frame(t) reads only view.plan, t, view.landing and view.idle_time.
 
 signal clicked(index: int)
+## The pointer rests on the ticket, or left it (the view opens or closes its popup).
+signal hovered(index: int)
+signal unhovered(index: int)
 
 const SIZE := Vector2(200, 264)
 const RARITY_TEXTS: Array[String] = RarityTab.TEXTS
@@ -121,6 +125,8 @@ func _init(
 	pivot_offset = Vector2(SIZE.x / 2.0, SIZE.y)
 	mouse_filter = Control.MOUSE_FILTER_STOP
 	mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
+	mouse_entered.connect(func() -> void: hovered.emit(index))
+	mouse_exited.connect(func() -> void: unhovered.emit(index))
 	visible = false
 	# The tickets stand a z step up, their back effects a step down again: every ticket's glow and
 	# sunburst draw behind all the tickets' faces, never over a neighbour's card.
@@ -296,6 +302,11 @@ func pips_text() -> String:
 ## Seconds since it landed face up (below 0: not yet).
 func since_landed() -> float:
 	return _te
+
+
+## What picking it would do (RewardMachine.preview), or null.
+func prize_preview() -> MachinePreview:
+	return _preview
 
 
 func _gui_input(event: InputEvent) -> void:

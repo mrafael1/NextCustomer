@@ -5,7 +5,12 @@ extends Control
 ## so nothing in it reads as a promise: a lit chute's column holds three SEALED tickets (COMMON,
 ## RARE, LEGENDARY: art/machine/sealed_ticket_*.png, their pips on them) on pedestals, each over
 ## its chute's current odds (MachineChuteInfo.odds.rarity_share: MachineOdds at the shift's odds
-## level) and its rarity's word. A column whose chute isn't lit is shut (dark, its shutter down);
+## level) and its rarity's word. The tickets are drawn on the pixel grid through the sharp-pixel
+## material (a layer of their own, integer 2x, snapped), never filtered soft (v0.53). Each odds
+## sits on an odds plate in the machine's own language (v0.53): a small LED window like the
+## display's (charcoal, scanlines, a backlight in its rarity's colour) with the share in the
+## number font (Atkinson 750) in that colour, over a tab in the rarity's colours and word, as the
+## prize tickets' RarityTab. A column whose chute isn't lit is shut (dark, its shutter down);
 ## the idle machine's are both shut. Each column has a spot lamp; a hovered key's column glows
 ## brighter. Once a chute is chosen only its column stays lit, through the draw.
 ##
@@ -24,13 +29,23 @@ const TICKET_SIZE := Vector2(48, 64)
 const TICKET_STEP := 62.0
 const TICKET_TOP := 44.0
 const PEDESTAL_SIZE := Vector2(56, 18)
-const ODDS_TOP := 132.0
-const ODDS_SIZE := 18
-const WORD_TOP := 154.0
+## The odds plate under each pedestal: its LED window (the share) over its rarity tab (the word).
+const PLATE_TOP := 132.0
+const PLATE_SIZE := Vector2(56, 44)
+const LED_HEIGHT := 26.0
+const ODDS_SIZE := 17
 const WORD_SIZE := 9
+## The word's smaller size when it doesn't fit its tab.
+const WORD_SMALL := 8
 const BOLD_WEIGHT := 800
 const RARITY_WORDS: Array[String] = ["COMMON", "RARE", "LEGENDARY"]
-const RARITY_INK: Array[Color] = [Palette.GREY_LIGHT, Palette.TEAL_LIGHT, Palette.GOLD]
+## The share's colour, lit in its LED window, per rarity.
+const RARITY_INK: Array[Color] = [Palette.PAPER, Palette.TEAL_BRIGHT, Palette.GOLD]
+## The LED window's backlight (its rarity's colour) and its scanlines; brighter on a hovered key's
+## column.
+const BACKLIGHT_ALPHA := 0.14
+const BACKLIGHT_HOVER_ALPHA := 0.26
+const SCANLINE_ALPHA := 0.22
 ## The divider between the two columns and the shutter's slats.
 const DIVIDER := 8.0
 const SLAT := 8.0
@@ -54,6 +69,8 @@ var _column_offset: Array[float] = [0.0, 0.0]
 var _column_gold: Array[bool] = [false, false]
 var _odds: Array[Label] = []
 var _words: Array[Label] = []
+## The sealed tickets' layer, drawn through the sharp-pixel material.
+var _tickets: Control
 
 
 func _init() -> void:
@@ -61,14 +78,26 @@ func _init() -> void:
 	size = SIZE
 	clip_contents = true
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_tickets = Control.new()
+	_tickets.name = "SealedTickets"
+	_tickets.size = SIZE
+	_tickets.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	ArtStyle.use_pixel_material(_tickets)
+	_tickets.draw.connect(_draw_tickets)
+	add_child(_tickets)
 	for column: int in range(COLUMNS):
 		for rarity: int in range(3):
-			var odds: Label = _label(ODDS_SIZE)
+			var odds: Label = UiKit.number_label("", ODDS_SIZE, false)
+			odds.add_theme_color_override("font_color", RARITY_INK[rarity])
+			_place_label(odds, Vector2(PLATE_SIZE.x, LED_HEIGHT))
 			odds.name = "Odds%d%d" % [column, rarity]
 			_odds.append(odds)
-			var word: Label = _label(WORD_SIZE)
+			var word: Label = UiKit.body_label(
+				RARITY_WORDS[rarity], _word_size(rarity), RarityTab.INKS[rarity]
+			)
+			word.add_theme_font_override("font", ArtStyle.bold_font(BOLD_WEIGHT))
+			_place_label(word, Vector2(PLATE_SIZE.x, PLATE_SIZE.y - LED_HEIGHT))
 			word.name = "Word%d%d" % [column, rarity]
-			word.text = RARITY_WORDS[rarity]
 			_words.append(word)
 
 
@@ -111,6 +140,18 @@ func odds_texts(chute: int) -> PackedStringArray:
 				[_odds[column * 3].text, _odds[column * 3 + 1].text, _odds[column * 3 + 2].text]
 			)
 	return PackedStringArray()
+
+
+## The sealed tickets' layer (pixel art through the sharp-pixel material), for tests.
+func tickets_layer() -> Control:
+	return _tickets
+
+
+## Where rarity `rarity`'s odds plate stands in `column` (window coordinates, on the 2 px grid,
+## before a restock's offset).
+static func plate_rect(column: int, rarity: int) -> Rect2:
+	var x: float = _ticket_x(column, rarity) - (PLATE_SIZE.x - TICKET_SIZE.x) / 2.0
+	return Rect2(Vector2(x, PLATE_TOP), PLATE_SIZE)
 
 
 ## The odds and rarity labels, for layout tests.
@@ -186,10 +227,11 @@ func frame(t: float) -> void:
 			if not lit:
 				continue
 			odds.text = texts[rarity]
-			var x: float = _ticket_x(column, rarity) - (TICKET_STEP - TICKET_SIZE.x) / 2.0
-			odds.position = Vector2(x, ODDS_TOP + shape[0])
-			word.position = Vector2(x, WORD_TOP + shape[0])
+			var plate: Rect2 = plate_rect(column, rarity)
+			odds.position = plate.position + Vector2(0, shape[0])
+			word.position = plate.position + Vector2(0, LED_HEIGHT + shape[0])
 	queue_redraw()
+	_tickets.queue_redraw()
 
 
 ## Ticket `rarity`'s left edge in `column`.
@@ -208,17 +250,24 @@ static func _ticket_x(column: int, rarity: int) -> float:
 	return MachineArt.snap(middle - row / 2.0 + rarity * TICKET_STEP)
 
 
-func _label(font_size: int) -> Label:
-	var label: Label = UiKit.body_label("", font_size, Palette.PAPER)
-	label.add_theme_font_override("font", ArtStyle.bold_font(BOLD_WEIGHT))
+func _place_label(label: Label, box: Vector2) -> void:
 	label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	label.clip_text = true
 	label.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	RewardMachineView.fit(label, Rect2(Vector2.ZERO, Vector2(TICKET_STEP, font_size + 6)))
+	RewardMachineView.fit(label, Rect2(Vector2.ZERO, box))
 	label.visible = false
 	add_child(label)
-	return label
+
+
+## The word's size on its tab: WORD_SIZE, or WORD_SMALL when it doesn't fit inside the tab's
+## outline.
+static func _word_size(rarity: int) -> int:
+	var font: Font = ArtStyle.bold_font(BOLD_WEIGHT)
+	var room: float = PLATE_SIZE.x - 4.0 * MachineArt.PIXEL
+	if MachineArt.text_width(RARITY_WORDS[rarity], font, WORD_SIZE) <= room:
+		return WORD_SIZE
+	return WORD_SMALL
 
 
 func _draw() -> void:
@@ -270,8 +319,49 @@ func _draw_column(column: int, cell: Rect2) -> void:
 		draw_rect(Rect2(pedestal.position + Vector2(2, 8), Vector2(PEDESTAL_SIZE.x - 4, 6)), side)
 		var foot: Color = Palette.BRASS_DARK if gold else Palette.STEEL_DARK
 		draw_rect(Rect2(pedestal.position + Vector2(2, 14), Vector2(PEDESTAL_SIZE.x - 4, 2)), foot)
-		var ticket: Rect2 = Rect2(Vector2(x, TICKET_TOP + dy), TICKET_SIZE)
-		draw_texture_rect(TICKETS[rarity], ticket, false)
+		_draw_plate(column, rarity, dy, hover)
+
+
+## Rarity `rarity`'s odds plate in `column`, `dy` px down: a charcoal LED window with its
+## backlight and scanlines over the rarity's tab (RarityTab's colours), with a soft shadow.
+func _draw_plate(column: int, rarity: int, dy: float, hover: bool) -> void:
+	var plate: Rect2 = plate_rect(column, rarity)
+	plate.position.y += dy
+	var p: float = MachineArt.PIXEL
+	draw_rect(Rect2(plate.position + Vector2(p, p), plate.size), Color(Palette.INK, 0.35))
+	MachineArt.box(self, plate, Palette.CHARCOAL, Palette.INK)
+	var led: Rect2 = Rect2(
+		plate.position + Vector2(p, p), Vector2(plate.size.x - 2.0 * p, LED_HEIGHT - p)
+	)
+	var glow: float = BACKLIGHT_HOVER_ALPHA if hover else BACKLIGHT_ALPHA
+	draw_rect(led, Color(RARITY_INK[rarity], glow))
+	var y: float = led.position.y + p
+	while y < led.end.y:
+		draw_rect(Rect2(led.position.x, y, led.size.x, p / 2.0), Color(Palette.INK, SCANLINE_ALPHA))
+		y += p * 2.0
+	var tab: Rect2 = Rect2(
+		Vector2(plate.position.x, plate.position.y + LED_HEIGHT),
+		Vector2(plate.size.x, plate.size.y - LED_HEIGHT)
+	)
+	var legendary: bool = rarity == MachinePrize.Rarity.LEGENDARY
+	var line: Color = Palette.BRASS_DARKEST if legendary else Palette.INK
+	MachineArt.box(self, tab, RarityTab.FILLS[rarity], line)
+	if legendary:
+		var top: Rect2 = Rect2(tab.position + Vector2(p, p), Vector2(tab.size.x - 2.0 * p, p))
+		draw_rect(top, Palette.MUSTARD_PALE)
+
+
+## The lit columns' sealed tickets, on the 2 px grid (the art at an integer 2x).
+func _draw_tickets() -> void:
+	for column: int in range(COLUMNS):
+		if not _column_lit[column]:
+			continue
+		for rarity: int in range(3):
+			var at: Vector2 = Vector2(
+				_ticket_x(column, rarity), TICKET_TOP + _column_offset[column]
+			)
+			var ticket: Rect2 = Rect2(MachineArt.snap_point(at), TICKET_SIZE)
+			_tickets.draw_texture_rect(TICKETS[rarity], ticket, false)
 
 
 ## A shut column: dark, its shutter's slats down.

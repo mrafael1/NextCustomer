@@ -9,12 +9,14 @@ extends Control
 ## (RewardMachineView, MachineLook): NEW ITEMS / COUPONS on a Normal visit, LOYALTY / UPGRADES on a
 ## BOOSTED (PREMIUM) or STAMP DAY visit; the other pair is sunk out of sight.
 ##
-## A lit key glows (a pulsing ring, on view.idle_time). A shut key is sunk, with a rubber face
-## that says why in words, never by colour alone: UNLIT a padlock and its visit state ("PREMIUM
-## VISITS ONLY" or "PREMIUM AFTER SHIFT n" for LOYALTY and UPGRADES, "NORMAL VISITS ONLY" for the
-## others), EMPTY a padlock and "NOTHING TO IMPROVE", CARD_FULL the card's stamps and "CARD FULL".
-## Hovering it lifts it 2 px (no hover sound, #62) and lights its stock window column. It only
-## shows the RewardMachine.ChuteState it is given.
+## A lit key glows (a pulsing ring, on view.idle_time): since v0.53 the ring hugs the key's whole
+## silhouette, its face and the base under it (the key's bottom face, its depth), a 2 px gap off it,
+## with a fainter ring outside, so the glow never crosses the base. A shut key is sunk, with a
+## rubber face that says why in words, never by colour alone: UNLIT a padlock and its visit state
+## ("PREMIUM VISITS ONLY" or "PREMIUM AFTER SHIFT n" for LOYALTY and UPGRADES, "NORMAL VISITS ONLY"
+## for the others), EMPTY a padlock and "NOTHING TO IMPROVE", CARD_FULL the card's stamps and "CARD
+## FULL". Hovering it lifts it 2 px (no hover sound, #62) and lights its stock window column. It
+## only shows the RewardMachine.ChuteState it is given.
 ##
 ## A pressed key (set_pressed, the machine's choice at the chute wait and through its draw) sinks
 ## PRESS px, its glow ring turns solid gold and its LED (top right, steel when off) lights green.
@@ -50,8 +52,10 @@ const PRESS := 6.0
 const LIFT := 2.0
 ## How far a shut key sinks.
 const SINK := 6.0
-## The glow ring round a lit key (outside it) and its pulse.
-const GLOW_GROW := 6.0
+## The glow round a lit key: a ring GLOW_GAP outside its silhouette (face and base), a fainter
+## one outside that at GLOW_OUTER_ALPHA of it; and its pulse.
+const GLOW_GAP := 2.0
+const GLOW_OUTER_ALPHA := 0.4
 const GLOW_RATE := 5.0
 const LED_RECT := Rect2(176, 8, 8, 8)
 const PADLOCK := preload("res://art/icons/padlock.png")
@@ -339,6 +343,7 @@ func _make_icon() -> Control:
 		RewardMachine.Chute.COUPONS:
 			_centred_sprite(COUPON, ICON, holder)
 		RewardMachine.Chute.REGISTER:
+			ArtStyle.use_pixel_material(holder)
 			holder.draw.connect(_draw_punch_card.bind(holder))
 		_:
 			_centred_sprite(UP_ARROW, BIG_ICON, holder)
@@ -425,8 +430,21 @@ func _draw() -> void:
 	draw_rect(Rect2(-2, 8, SIZE.x + 4, SIZE.y - 4), Color(Palette.INK, 0.35))
 	MachineArt.box(self, BASE_RECT, Palette.BRASS_DARK if gold else Palette.CREAM_SHADE, line)
 	if _glow > 0.0:
-		var ring: Rect2 = Rect2(
-			Vector2(-GLOW_GROW, -GLOW_GROW + _sink), Vector2(SIZE.x + 12, SIZE.y)
-		)
 		var colour: Color = Palette.GOLD if gold or _pressed_now else Palette.MUSTARD
-		MachineArt.ring(self, ring, Color(colour, _glow), 2.0)
+		var ring: Rect2 = glow_rect()
+		MachineArt.ring(self, ring, Color(colour, _glow))
+		var outer: Rect2 = ring.grow(MachineArt.PIXEL)
+		MachineArt.ring(self, outer, Color(colour, _glow * GLOW_OUTER_ALPHA))
+
+
+## The glow's inner ring (key coordinates): the key's silhouette now, its face (sunk or lifted by
+## the offset) over its base, grown by the gap and the ring.
+func glow_rect() -> Rect2:
+	var top: float = minf(_sink, BASE_RECT.position.y)
+	var silhouette: Rect2 = Rect2(0, top, SIZE.x, BASE_RECT.end.y - top)
+	return silhouette.grow(GLOW_GAP + MachineArt.PIXEL)
+
+
+## How bright the glow is now (0: none).
+func glow_level() -> float:
+	return _glow

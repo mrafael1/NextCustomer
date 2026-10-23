@@ -18,9 +18,11 @@ extends RefCounted
 ## TICKET t = 0 is the dessert's printer feed (page T.fly); BONUS t = 0 is the page's b0 (the
 ## first visit's punch end + 0.3); STAMP DAY t = 0 is the page's T.sd.
 ##
-## v0.50 (mock-up docs/art/mockups/premium_machine_v1.html): a BOOSTED visit (`premium`) turns
-## the machine PREMIUM after its receipt is read (premium_at .. premium_end, the transform's
-## juice moment, dressing A), and the keys light after it. The draw is R1's "drop": the tray packs
+## v0.50 (mock-up docs/art/mockups/premium_machine_v1.html): a BOOSTED visit (`premium`) turns the
+## machine PREMIUM after its receipt is read (premium_at .. premium_end, the transform's juice
+## moment, dressing A), and the keys light after it. Since v0.53 a BOOSTED BONUS visit is PREMIUM
+## too: from its start when the ticket's visit was (`premium_held`: premium_at and premium_end both
+## 0, no beat), else with the transform after its read. The draw is R1's "drop": the tray packs
 ## (draw .. draw_end), then each prize ticket flies out of the tray to the front (drop_at,
 ## drop_length) and lands face up at its reveal (reveal_at), where its rarity's effect plays for
 ## reveal_length; the LEGENDARY one lands a beat later.
@@ -53,8 +55,12 @@ var reduced_motion: bool = false
 var inspected: bool = true
 ## TICKET: a BONUS visit follows, so the receipt carries the gold stub that snaps off (Q2 = 2).
 var stub: bool = false
-## TICKET: a BOOSTED visit, so the machine turns PREMIUM after the receipt is read (v0.50).
+## TICKET or BONUS (v0.53): a BOOSTED visit, so the machine turns PREMIUM after the receipt is
+## read (v0.50).
 var premium: bool = false
+## BONUS (v0.53): the shift's ticket visit was PREMIUM too, so the machine is PREMIUM from the
+## visit's start (no transform, no snap back to classic between the two visits).
+var premium_held: bool = false
 ## Positioned at a wait point by resume_at(): the clock starts at `start` and nothing before it
 ## replays (every node shows the resume frame of build spec 4.3).
 var resumed: bool = false
@@ -121,14 +127,16 @@ func _init(
 	rm: bool,
 	has_inspection: bool = true,
 	has_stub: bool = false,
-	is_premium: bool = false
+	is_premium: bool = false,
+	held: bool = false
 ) -> void:
 	tuning = machine_tuning
 	kind = visit_kind
 	reduced_motion = rm
 	inspected = has_inspection
 	stub = has_stub and visit_kind == MachineVisit.Kind.TICKET
-	premium = is_premium and visit_kind == MachineVisit.Kind.TICKET
+	premium = is_premium and visit_kind != MachineVisit.Kind.STAMP_DAY
+	premium_held = premium and held and visit_kind == MachineVisit.Kind.BONUS
 	_build()
 
 
@@ -161,7 +169,9 @@ func wait_time(point: int) -> float:
 
 ## A copy positioned at `point` for a resume: resumed, starting at that wait point.
 func resume_at(point: int) -> MachinePlan:
-	var copy: MachinePlan = MachinePlan.new(tuning, kind, reduced_motion, inspected, stub, premium)
+	var copy: MachinePlan = MachinePlan.new(
+		tuning, kind, reduced_motion, inspected, stub, premium, premium_held
+	)
 	if has_draw:
 		copy.set_draw(rarities)
 	if has_landing:
@@ -343,6 +353,11 @@ func _build_intro() -> void:
 			feed_end = fly_end + MachineTuning.sec(tuning.bonus_feed_ms)
 			read_end = feed_end + MachineTuning.sec(tuning.bonus_read_ms)
 			lights = read_end
+			if premium_held:
+				premium_at = 0.0
+				premium_end = 0.0
+			elif premium:
+				lights = _plan_premium(read_end)
 			lights_end = lights + MachineTuning.sec(tuning.bonus_lights_ms)
 			choose_at = maxf(lights_end, feed_end + MachineTuning.sec(tuning.again_ms))
 			_beat(&"bonus", 0.0)
@@ -356,13 +371,7 @@ func _build_intro() -> void:
 			read_end = feed_end + MachineTuning.sec(tuning.read_ms)
 			lights = read_end
 			if premium:
-				premium_at = read_end
-				premium_end = (
-					premium_at
-					+ MachineTuning.sec(tuning.premium_rm_ms if rm else tuning.premium_ms)
-				)
-				lights = premium_end
-				_beat(&"premium", premium_at)
+				lights = _plan_premium(read_end)
 			lights_end = lights + MachineTuning.sec(tuning.lights_ms)
 			choose_at = lights_end
 			glide = MachineTuning.sec(tuning.glide_lead_ms)
@@ -374,6 +383,18 @@ func _build_intro() -> void:
 	_beat(&"feed", fly)
 	_beat(&"read", feed_end)
 	_beat(&"lights", lights)
+
+
+## The premium transform from `at` (premium_ms, reduced motion premium_rm_ms) and its beat;
+## returns its end, where the keys light.
+func _plan_premium(at: float) -> float:
+	premium_at = at
+	premium_end = (
+		premium_at
+		+ MachineTuning.sec(tuning.premium_rm_ms if reduced_motion else tuning.premium_ms)
+	)
+	_beat(&"premium", premium_at)
+	return premium_end
 
 
 func _build_draw() -> void:

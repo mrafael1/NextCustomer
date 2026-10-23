@@ -9,9 +9,11 @@ extends RefCounted
 ## Two machine states (v0.47): a Normal visit lights NEW ITEMS and COUPONS; a BOOSTED visit (the
 ## ticket's visit after one of MachineDefinition.boosted_shifts) lights REGISTER and UPGRADES. A
 ## boosted shift whose REGISTER is full (or has nothing to draw) and whose UPGRADES has nothing to
-## improve gives a Normal visit instead. The bonus ticket's visit is always Normal; STAMP DAY is
-## its own REGISTER pick. Every visit after a shift draws at that shift's odds level
-## (MachineDefinition.odds_level_after): rarity rises with the run's progress, not with use.
+## improve gives a Normal visit instead. The bonus ticket's visit after a boosted shift is BOOSTED
+## too (v0.53, decided with the user on 2026-10-23), by the same rule from the state after the
+## ticket's pick; STAMP DAY is its own REGISTER pick. Every visit after a shift draws at that
+## shift's odds level (MachineDefinition.odds_level_after): rarity rises with the run's progress,
+## not with use.
 ##
 ## The machine holds the run's RNG (a shared reference) but never the run: methods that read or
 ## change the run take it. It has its own stage and never writes RunState.phase. Cards from a pick
@@ -62,10 +64,11 @@ func _init(machine_definition: MachineDefinition, rng: RandomNumberGenerator) ->
 	_rng = rng
 
 
-## RunState.checkout on a passed shift that isn't the last: queues the ticket's visit (BOOSTED
-## after a boosted shift when REGISTER or UPGRADES can draw, else Normal), the bonus ticket's when
-## due and STAMP DAY when due, and waits for the ticket's chute. A visit none of whose lit chutes
-## can draw is skipped (no lit key to wait on): the next queued one starts, else the machine idles.
+## RunState.checkout on a passed shift that isn't the last: queues the ticket's visit (BOOSTED after
+## a boosted shift when REGISTER or UPGRADES can draw, else Normal), the bonus ticket's when due
+## (BOOSTED or Normal by the same rule when it starts) and STAMP DAY when due, and waits for the
+## ticket's chute. A visit none of whose lit chutes can draw is skipped (no lit key to wait on): the
+## next queued one starts, else the machine idles.
 func begin_after_checkout(run: RunState) -> void:
 	clear_visits()
 	if run.history.is_empty():
@@ -413,7 +416,8 @@ func _end_visit(run: RunState) -> void:
 
 
 ## Starts the next queued visit that has something to draw (a BONUS visit none of whose lit
-## chutes can draw is skipped), else idles.
+## chutes can draw is skipped), else idles. A BONUS visit after a boosted shift is BOOSTED when
+## REGISTER or UPGRADES can draw after the ticket's pick (v0.53), else Normal.
 func _next_visit(run: RunState) -> void:
 	if not _stamp_day_due(run):
 		_queue.erase(MachineVisit.Kind.STAMP_DAY)
@@ -423,6 +427,7 @@ func _next_visit(run: RunState) -> void:
 			var record: ShiftRecord = run.history[-1]
 			var why: String = String(record.inspection.id) if record.inspection != null else ""
 			_visit = MachineVisit.new(MachineVisit.Kind.BONUS, why)
+			_visit.boosted = _boosted_due(run)
 			stage = Stage.CHOOSE
 			if _can_draw_lit(run):
 				return
@@ -514,9 +519,9 @@ func _stamp_day_due(run: RunState) -> bool:
 
 
 ## CARD_FULL (REGISTER at the cap) first, then UNLIT (not a chute of the visit's state), then
-## EMPTY (nothing to draw). On a boosted shift's ticket visit that fell back to Normal, REGISTER
-## and UPGRADES show their real reason (CARD_FULL, EMPTY) instead of UNLIT, which would promise
-## a boost the visit has just skipped.
+## EMPTY (nothing to draw). On a boosted shift's ticket or BONUS visit that fell back to Normal,
+## REGISTER and UPGRADES show their real reason (CARD_FULL, EMPTY) instead of UNLIT, which would
+## promise a boost the visit has just skipped.
 func _chute_state(run: RunState, chute: int) -> ChuteState:
 	if chute == Chute.REGISTER and registers_picked(run) >= machine.register_cap:
 		return ChuteState.CARD_FULL
@@ -527,10 +532,10 @@ func _chute_state(run: RunState, chute: int) -> ChuteState:
 	return ChuteState.OPEN if _can_draw(run, chute) else ChuteState.EMPTY
 
 
-## Whether the waiting visit is a boosted shift's ticket visit that fell back to Normal (neither
-## REGISTER nor UPGRADES could draw).
+## Whether the waiting visit is a boosted shift's ticket or BONUS visit that fell back to Normal
+## (neither REGISTER nor UPGRADES could draw).
 func _boost_fell_back(run: RunState) -> bool:
-	if _visit == null or _visit.kind != MachineVisit.Kind.TICKET or _visit.boosted:
+	if _visit == null or _visit.kind == MachineVisit.Kind.STAMP_DAY or _visit.boosted:
 		return false
 	return machine.is_boosted_shift(_shift(run))
 
@@ -548,8 +553,8 @@ func _can_draw_lit(run: RunState) -> bool:
 	return lit_chutes(_visit).any(func(chute: int) -> bool: return _can_draw(run, chute))
 
 
-## The ticket's visit after the last played shift is BOOSTED: a boosted shift, and REGISTER or
-## UPGRADES can draw (else it falls back to Normal).
+## The ticket's (or the bonus ticket's) visit after the last played shift is BOOSTED: a boosted
+## shift, and REGISTER or UPGRADES can draw (else it falls back to Normal).
 func _boosted_due(run: RunState) -> bool:
 	if not machine.is_boosted_shift(_shift(run)):
 		return false

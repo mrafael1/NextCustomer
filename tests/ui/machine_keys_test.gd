@@ -336,13 +336,14 @@ func test_a_bonus_visit_says_its_inspection_passed() -> void:
 		assert_array(Array(view.display.texts())).is_equal(
 			[RewardMachineView.BONUS_TITLE, RewardMachineView.BONUS_SUB % why]
 		)
-		# A BONUS visit is never PREMIUM (v0.50): the classic face and keys.
+		# A BONUS visit after a Normal shift is not PREMIUM: the classic face and keys (v0.53:
+		# after a boosted shift it is, reward_machine_layout_test).
 		assert_bool(view.plan.premium).is_false()
 		assert_bool(view.head.premium_face()).is_false()
 		view._armed = true  # Headless: no mouse release arms it.
 		view.press_key(RewardMachine.Chute.NEW_ITEMS)
-		assert_array(Array(view.display.texts())).is_equal(
-			["NEW ITEMS", "bonus ticket · 3 prizes, keep 1"]
+		assert_array(Array(view.tray.texts())).is_equal(
+			["PUSH TO CONFIRM · NEW ITEMS", "BONUS TICKET · 3 PRIZES, KEEP 1"]
 		)
 		view.close()
 		remove_child(view)
@@ -491,9 +492,11 @@ func test_the_stock_window_odds_rise_with_the_odds_level() -> void:
 
 
 ## A pressed key (#77 machine v2's B3): it drops SINK, rings gold, lights its LED green and clicks;
-## the display's title mode shows the chute's name and "<does> · 3 prizes, keep 1" left of the red
-## CONFIRM › (CONFIRM_RECT inside the display, clear of the lines); a press on another key moves
-## it, the same key lets it up; only CONFIRM confirms, after its confirm_down_ms down state.
+## the display keeps its lines (v0.53) and the tray's push bar offers the chute: PUSH TO CONFIRM ·
+## NEW ITEMS on its flap (inside the tray's mouth, on screen) and "<does> · 3 prizes, keep 1"
+## under it, both fitting; the tray takes clicks only then. A press on another key moves it, the
+## same key lets it up; only the push bar confirms, after its confirm_down_ms down state (the flap
+## pushed in).
 func test_a_pressed_key_drops_and_confirm_confirms() -> void:
 	var run: RunState = _passed_run(32)
 	var view: RewardMachineView = auto_free(RewardMachineView.new())
@@ -517,39 +520,43 @@ func test_a_pressed_key_drops_and_confirm_confirms() -> void:
 	assert_bool(new_items.get_global_rect().encloses(new_items.led_global_rect())).is_true()
 	assert_bool(coupons.is_pressed() or coupons.led_lit()).is_false()
 	var display: MachineDisplay = view.display
-	assert_bool(display.in_title_mode()).is_true()
-	assert_array(Array(display.texts())).is_equal(["NEW ITEMS", "add to cart · 3 prizes, keep 1"])
-	var confirm: Rect2 = display.confirm_key().get_global_rect()
-	var screen: Rect2 = display.get_global_rect()
-	assert_bool(display.confirm_key().visible).is_true()
-	assert_vector(confirm.position - screen.position).is_equal(MachineDisplay.CONFIRM_RECT.position)
-	assert_vector(confirm.size).is_equal(MachineDisplay.CONFIRM_RECT.size)
-	assert_bool(screen.encloses(confirm)).is_true()
-	var caption: Label = display.confirm_key().caption_label()
-	assert_bool(confirm.encloses(caption.get_global_rect())).is_true()
-	_assert_fits(caption)
-	for label: Label in display.labels():
-		assert_bool(label.get_global_rect().intersects(confirm)).is_false()
-		_assert_fits(label)
-	_assert_glyphs(MachineDisplay.CONFIRM_TEXT, MachineDisplay.marked_font(0))
+	assert_array(Array(display.texts())).is_equal(Array(display.rest_texts()))
+	var tray: MachineTray = view.tray
+	assert_bool(tray.confirm_offered()).is_true()
+	assert_int(tray.mouse_filter).is_equal(Control.MOUSE_FILTER_STOP)
+	assert_array(Array(tray.texts())).is_equal(
+		["PUSH TO CONFIRM · NEW ITEMS", "ADD TO CART · 3 PRIZES, KEEP 1"]
+	)
+	var flap: Rect2 = tray.flap_rect()
+	assert_bool(MachineTray.MOUTH_RECT.encloses(flap)).is_true()
+	var tray_screen: Rect2 = tray.get_global_rect()
+	assert_bool(tray.get_viewport_rect().encloses(tray_screen)).is_true()
+	var font: Font = ArtStyle.bold_font(MachineTray.BOLD_WEIGHT)
+	var flap_text: float = MachineArt.text_width(tray.texts()[0], font, MachineTray.CONFIRM_SIZE)
+	assert_float(flap_text + 2.0 * tray._chevron_room()).is_less_equal(flap.size.x)
+	var sub_text: float = MachineArt.text_width(tray.texts()[1], font, MachineTray.TAKE_SIZE)
+	assert_float(sub_text).is_less_equal(MachineTray.SIZE.x - 16.0)
 	# Another key moves the press; the same key lets it up.
 	view.press_key(RewardMachine.Chute.COUPONS)
 	assert_bool(new_items.is_pressed()).is_false()
 	assert_bool(coupons.is_pressed()).is_true()
-	assert_str(display.texts()[0]).is_equal("COUPONS")
+	assert_str(tray.texts()[0]).is_equal("PUSH TO CONFIRM · COUPONS")
 	view.press_key(RewardMachine.Chute.COUPONS)
 	assert_int(view.pressed_chute()).is_equal(-1)
-	assert_bool(display.in_title_mode()).is_false()
+	assert_bool(tray.confirm_offered()).is_false()
+	assert_int(tray.mouse_filter).is_equal(Control.MOUSE_FILTER_IGNORE)
+	assert_array(Array(tray.texts())).is_equal([MachineTray.PUSH_TEXT, MachineTray.TAKE_TEXT])
+	tray.press_confirm()  # Nothing offered: nothing happens.
+	assert_bool(tray.confirm_down()).is_false()
 	view.show_at(view.clock)
-	assert_bool(display.confirm_key().visible).is_false()
 	assert_array(confirmed).is_empty()
-	# CONFIRM: down for confirm_down_ms, then the chute is confirmed.
+	# The push bar: down for confirm_down_ms (the flap pushed in), then the chute is confirmed.
 	view.press_key(RewardMachine.Chute.NEW_ITEMS)
-	display.press_confirm()
-	assert_bool(display.confirm_down()).is_true()
-	assert_bool(display.confirm_key().is_sunk()).is_true()
+	tray.press_confirm()
+	assert_bool(tray.confirm_down()).is_true()
+	assert_float(tray.flap_rect().position.y - flap.position.y).is_equal(MachineTray.PUSH_DEPTH)
 	assert_array(confirmed).is_empty()
-	display._confirm_at_ms -= view.tuning.confirm_down_ms + 1
+	tray._down_at_ms -= view.tuning.confirm_down_ms + 1
 	view.show_at(view.clock)
 	assert_array(confirmed).is_equal([RewardMachine.Chute.NEW_ITEMS])
 	assert_bool(view.confirm_played).is_true()
@@ -604,9 +611,9 @@ func test_machine_lines_use_glyphs_their_fonts_have() -> void:
 	for label: Label in view.stock.labels():
 		_assert_glyphs(label.text, label.get_theme_font("font"))
 	view.press_key(RewardMachine.Chute.NEW_ITEMS)
-	var confirm: RegisterKey = view.display.confirm_key()
-	_assert_glyphs(MachineDisplay.CONFIRM_TEXT, MachineDisplay.marked_font(0))
-	assert_bool(confirm.visible).is_true()
+	assert_bool(view.tray.confirm_offered()).is_true()
+	for line: String in view.tray.texts():
+		_assert_glyphs(line, ArtStyle.bold_font(MachineTray.BOLD_WEIGHT))
 	for label: Label in view.display.labels():
 		_assert_glyphs(label.text, label.get_theme_font("font"))
 	for label: Label in view.head.title_labels():
@@ -729,14 +736,20 @@ func test_a_premium_visit_turns_the_machine_gold() -> void:
 	titled.fast_forward()
 	titled._armed = true  # Headless: no mouse release arms it.
 	titled.press_key(RewardMachine.Chute.REGISTER)
-	assert_array(Array(titled.display.texts())).is_equal(["LOYALTY", "premium · 3 prizes, keep 1"])
+	assert_array(Array(titled.tray.texts())).is_equal(
+		["PUSH TO CONFIRM · LOYALTY", "PREMIUM · 3 PRIZES, KEEP 1"]
+	)
 	titled.press_key(RewardMachine.Chute.NEW_ITEMS)  # Shut: refused.
 	assert_array(Array(titled.display.texts())).is_equal(["NEW ITEMS", "NORMAL VISITS ONLY"])
+	var bold: Font = ArtStyle.bold_font(MachineTray.BOLD_WEIGHT)
 	for chute: int in RewardMachine.CHUTES:
 		assert_str(titled.title_sub(chute)).contains(RewardMachineView.TITLE_BOOSTED)
-		titled.display.show_title(ChuteKey.NAMES[chute], titled.title_sub(chute), true)
-		for label: Label in titled.display.labels():
-			_assert_fits(label)
+		titled.tray.offer_confirm(ChuteKey.NAMES[chute], titled.title_sub(chute))
+		var lines: PackedStringArray = titled.tray.texts()
+		var room: float = MachineTray.FLAP_RECT.size.x - 2.0 * titled.tray._chevron_room()
+		assert_float(MachineArt.text_width(lines[0], bold, MachineTray.CONFIRM_SIZE)).is_less_equal(
+			room
+		)
 	titled.close()
 	remove_child(titled)
 	# A Normal visit: the classic face; LOYALTY and UPGRADES say when they come next.

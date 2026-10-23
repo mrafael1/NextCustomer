@@ -77,12 +77,12 @@ func test_choose_and_pick_a_prize() -> void:
 	assert_int(view.hovered_chute()).is_equal(RewardMachine.Chute.NEW_ITEMS)
 	assert_bool(view.stock.column_lit(RewardMachine.Chute.NEW_ITEMS)).is_true()
 	assert_int(view.stock.odds_texts(RewardMachine.Chute.NEW_ITEMS).size()).is_equal(3)
-	# Machine v2: the key is pressed, then CONFIRM › on the display confirms it.
+	# Machine v2: the key is pressed, then the tray's push bar confirms it (v0.53).
 	view.press_key(RewardMachine.Chute.NEW_ITEMS)
 	assert_int(screen.run.phase).is_equal(RunState.Phase.MACHINE_CHOOSE)
-	view.display.press_confirm()
-	view.display._confirm_at_ms -= view.tuning.confirm_down_ms + 1
-	view.display.frame(view.clock)
+	view.tray.press_confirm()
+	view.tray._down_at_ms -= view.tuning.confirm_down_ms + 1
+	view.tray.frame(view.clock)
 	assert_int(screen.run.phase).is_equal(RunState.Phase.MACHINE_PICK)
 	assert_str(_saved_phase()).is_equal("machine_pick")
 	var prizes: Array[MachinePrize] = screen.run.machine.prizes()
@@ -305,11 +305,10 @@ func _assert_resume_frame(run: RunState, kind: int, picking: bool) -> void:
 		var which: String = "%s key %d" % [where, chute]
 		assert_bool(key.looks_lit()).override_failure_message(which).is_equal(lit)
 	# No key is pressed on a resume at the chutes (at a pick, the chosen chute's stays down): the
-	# display shows the wait's lines, no CONFIRM ›.
+	# push bar offers nothing.
 	var pressed: int = visit.chute if picking and kind != MachineVisit.Kind.STAMP_DAY else -1
 	assert_int(view.pressed_chute()).override_failure_message(where).is_equal(pressed)
-	assert_bool(view.display.in_title_mode()).is_false()
-	assert_bool(view.display.confirm_key().visible).is_false()
+	assert_bool(view.tray.confirm_offered()).is_false()
 	# No tickets, or the prizes face up in their row with their rarity tabs.
 	assert_int(view.tickets.size()).is_equal(prizes.size() if picking else 0)
 	for index: int in range(view.tickets.size()):

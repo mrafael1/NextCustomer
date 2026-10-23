@@ -9,18 +9,19 @@ extends Control
 ## glides the camera to the machine at 2x, where its cabinet shows at ShiftStage.MACHINE_RECT at a
 ## net scale of 1, and lights it (set_lit). Back to front: the cabinet (MachineCabinet: body, trim,
 ## window frame, key plate, kick panel with the bonus ticket's dock), the marquee (MachineHead), the
-## display (MachineDisplay, with BIN IT and CONFIRM ›) and the receipt slot (SlotPlate) on one
-## strip, the stock window (StockWindow: sealed tickets over each lit chute's odds), the chute keys
-## on the key plate (ChuteKey, in `key_bay`, only the visit's pair standing), the tray
-## (MachineTray), the dim veil (MachineDim); then MachineLayers': the receipt feed (ReceiptFeed,
-## with the bonus ticket) and the cart drawer (CartDrawer) on the hud under the top bar, the prize
-## row's veil (PrizeRow) and the prize's flight (MachineFlyer) over everything, and the prize
-## tickets (PrizeTicket) with KEEP ONE over all of them.
+## display (MachineDisplay, with BIN IT) and the receipt slot (SlotPlate) on one strip, the stock
+## window (StockWindow: sealed tickets over each lit chute's odds), the chute keys on the key plate
+## (ChuteKey, in `key_bay`, only the visit's pair standing), the tray (MachineTray, its push bar
+## confirming the chosen chute), the dim veil (MachineDim); then MachineLayers': the receipt feed
+## (ReceiptFeed, with the bonus ticket) and the cart drawer (CartDrawer) on the hud under the top
+## bar, the prize row's veil (PrizeRow) and the prize's flight (MachineFlyer) over everything, and
+## the prize tickets (PrizeTicket) with KEEP ONE over all of them.
 ##
 ## CLASSIC AND PREMIUM (v0.50, dressing A): a Normal visit shows RECEIPT REWARDS with NEW ITEMS and
 ## COUPONS; a BOOSTED visit (after shifts 3/5/7) turns the same machine PREMIUM after its receipt
 ## is read (MachinePlan.premium_at, MachineLook) and it stays so for the visit: LOYALTY (the
-## REGISTER chute's name wherever the player sees it) and UPGRADES. A STAMP DAY visit shows its
+## REGISTER chute's name wherever the player sees it) and UPGRADES. The BONUS visit after it is
+## BOOSTED too (v0.53) and opens PREMIUM (MachinePlan.premium_held). A STAMP DAY visit shows its
 ## LOYALTY key on the classic machine.
 ##
 ## It only displays what RunState and RewardMachine give it (chute_info, prizes, preview,
@@ -30,9 +31,13 @@ extends Control
 ##
 ## CHOOSING A CHUTE: resting the pointer on a lit key lights its stock window column brighter
 ## (hover_key; `odds_opened` is logged: the player looked at that chute's odds). A press
-## (press_key) drops the key, lights its LED and clicks; the display shows the chute's title with
-## CONFIRM ›; a press on another key moves the choice there (the first pops back up), on the same
-## key lets it up. Only CONFIRM › sends chute_confirmed; the chosen key stays down through the draw.
+## (press_key) drops the key, lights its LED and clicks; the tray's push bar lights up with the
+## chute's name (PUSH TO CONFIRM, v0.53: the display keeps its lines); a press on another key moves
+## the choice there (the first pops back up), on the same key lets it up. Only the push bar sends
+## chute_confirmed; the chosen key stays down through the draw.
+##
+## THE PRIZES' EFFECTS (v0.53): resting the pointer on a revealed prize ticket opens `popup`
+## (PrizePopup, the scan popup the offers used) with what it does in full, beside the ticket.
 ##
 ## THE CLOCK AND THE HOOKS:
 ## - `plan` is the visit's MachinePlan (presentation/machine_plan.gd: every beat's time, from
@@ -129,6 +134,8 @@ var tray: MachineTray
 var key_bay: Control
 var keys: Array[ChuteKey] = []
 var tickets: Array[PrizeTicket] = []
+## The hovered prize's popup, on the card layer (PrizePopup).
+var popup: PrizePopup
 ## MachineLayers': the feed layer (on the hud), the stage layer and the card layer.
 var feed_layer: Control
 var stage_layer: Control
@@ -198,7 +205,6 @@ func _init() -> void:
 	head = _add(MachineHead.new(), HEAD_POSITION) as MachineHead
 	display = _add(MachineDisplay.new(), DISPLAY_POSITION) as MachineDisplay
 	display.bin_pressed.connect(_on_bin_pressed)
-	display.confirm_pressed.connect(_on_confirmed)
 	slot_plate = _add(SlotPlate.new(), SLOT_POSITION) as SlotPlate
 	stock = _add(StockWindow.new(), WINDOW_POSITION) as StockWindow
 	key_bay = Control.new()
@@ -216,6 +222,7 @@ func _init() -> void:
 		key.pressed.connect(press_key)
 		keys.append(key)
 	tray = _add(MachineTray.new(), TRAY_POSITION) as MachineTray
+	tray.confirm_pressed.connect(_on_confirmed)
 	feed_layer = MachineLayers.make("MachineFeedLayer", false)
 	add_child(feed_layer)
 	visibility_changed.connect(func() -> void: feed_layer.visible = visible)
@@ -232,6 +239,8 @@ func _init() -> void:
 	add_child(card_layer)
 	card_layer.add_child(prize_row.keep_label())
 	prize_row.place_keep()
+	popup = PrizePopup.new()
+	card_layer.add_child(popup)
 	MachineDim.idle_mouse(self, true)
 	set_lit(0.0)
 	_place_keys(MachineLook.new())
@@ -282,7 +291,11 @@ func open_visit(
 	)
 	var stub: bool = run.machine.pending_kinds().has(MachineVisit.Kind.BONUS)
 	var premium: bool = run.machine.is_boosted()
-	_start(MachinePlan.new(tuning, kind, reduced_motion.call(), inspected, stub, premium))
+	_start(
+		MachinePlan.new(
+			tuning, kind, reduced_motion.call(), inspected, stub, premium, _ticket_was_premium()
+		)
+	)
 	_show_head(kind, visit)
 	_show_keys(run.phase == RunState.Phase.MACHINE_PICK)
 	if run.phase == RunState.Phase.MACHINE_PICK:
@@ -309,13 +322,21 @@ func show_draw(run_state: RunState, resumed: bool = false) -> void:
 	visible = true
 	_disarm()
 	_hide_odds()
-	display.clear_title()
+	tray.clear_confirm()
 	_clear_tickets()
 	var visit: MachineVisit = run.machine.current_visit()
 	var prizes: Array[MachinePrize] = run.machine.prizes()
 	if plan == null:
 		_start(
-			MachinePlan.new(tuning, visit.kind, reduced_motion.call(), true, false, visit.boosted)
+			MachinePlan.new(
+				tuning,
+				visit.kind,
+				reduced_motion.call(),
+				true,
+				false,
+				visit.boosted,
+				_ticket_was_premium()
+			)
 		)
 	if not resumed and clock < plan.choose_at:
 		_jump_to(plan.choose_at)  # Chosen before the keys lit (debug, tests).
@@ -339,6 +360,8 @@ func show_draw(run_state: RunState, resumed: bool = false) -> void:
 		ticket.launch = PrizeRow.LAUNCH
 		ticket.position = ticket.launch
 		ticket.clicked.connect(pick)
+		ticket.hovered.connect(_on_ticket_hovered)
+		ticket.unhovered.connect(_on_ticket_unhovered)
 		ticket.setup(self)
 		card_layer.add_child(ticket)
 		tickets.append(ticket)
@@ -356,6 +379,7 @@ func show_draw(run_state: RunState, resumed: bool = false) -> void:
 func land(picked: MachineLanding) -> void:
 	_disarm()
 	_hide_odds()
+	popup.close_popup()
 	if plan == null:
 		return
 	landing = picked
@@ -384,6 +408,7 @@ func close() -> void:
 	var shown: RunState = run
 	visible = true
 	_hide_odds()
+	popup.close_popup()
 	_release()
 	_clear_tickets()
 	_presses.end()
@@ -450,9 +475,9 @@ func show_at(t: float) -> void:
 
 
 ## A press on `chute`'s key (armed, at the chute wait): a lit key drops, lights and clicks
-## (PRESS_SOUND) and the display shows its title with CONFIRM ›; a press on another key moves the
-## choice (the first pops back up, silently); the same key again lets it up and the wait's lines
-## come back. A shut chute's key is refused (denied) with its reason on the display for a moment.
+## (PRESS_SOUND) and the tray's push bar offers it (PUSH TO CONFIRM); a press on another key moves
+## the choice (the first pops back up, silently); the same key again lets it up and the bar goes
+## dark. A shut chute's key is refused (denied) with its reason on the display for a moment.
 func press_key(chute: int) -> void:
 	if run == null or not _armed or run.phase != RunState.Phase.MACHINE_CHOOSE:
 		return
@@ -470,7 +495,7 @@ func press_key(chute: int) -> void:
 		return
 	_press_only(chute)
 	Sfx.play_at(self, PRESS_SOUND)
-	display.show_title(ChuteKey.NAMES[chute], title_sub(chute), true)
+	tray.offer_confirm(ChuteKey.NAMES[chute], title_sub(chute))
 	_frame()
 
 
@@ -497,8 +522,8 @@ func pressed_chute() -> int:
 	return _pressed
 
 
-## A pressed key's title sub line: "<what it does> · 3 prizes, keep 1" (a BONUS visit: "bonus
-## ticket · 3 prizes, keep 1"; a BOOSTED one: "premium · 3 prizes, keep 1").
+## A pressed key's line under the push bar: "<what it does> · 3 prizes, keep 1" (a BONUS visit:
+## "bonus ticket · 3 prizes, keep 1"; a BOOSTED one: "premium · 3 prizes, keep 1").
 func title_sub(chute: int) -> String:
 	var visit: MachineVisit = run.machine.current_visit() if run != null else null
 	var lead: String = ChuteKey.SUBS[chute].to_lower()
@@ -766,6 +791,14 @@ func _pick_sub(run_state: RunState, can_bin: bool) -> String:
 	return "or bin them all" if can_bin else "you must pick one"
 
 
+## Whether the shift's visit before this one (a BONUS visit's ticket) was BOOSTED: the machine is
+## then PREMIUM already and a BOOSTED BONUS visit keeps it so from its start (v0.53).
+func _ticket_was_premium() -> bool:
+	if run == null or run.history.is_empty() or run.history[-1].visits.is_empty():
+		return false
+	return run.history[-1].visits[-1].boosted
+
+
 func _show_head(kind: int, visit: MachineVisit) -> void:
 	match kind:
 		MachineVisit.Kind.BONUS:
@@ -814,10 +847,10 @@ func _press_only(chute: int) -> void:
 		key.set_pressed(key.chute == chute)
 
 
-## Lets every key up; the display leaves its title mode.
+## Lets every key up; the push bar goes dark.
 func _release() -> void:
 	_press_only(-1)
-	display.clear_title()
+	tray.clear_confirm()
 
 
 func _disarm() -> void:
@@ -826,6 +859,7 @@ func _disarm() -> void:
 
 
 func _clear_tickets() -> void:
+	popup.close_popup()
 	for ticket: PrizeTicket in tickets:
 		ticket.get_parent().remove_child(ticket)
 		ticket.queue_free()
@@ -841,7 +875,7 @@ func _on_key_unhovered(chute: int) -> void:
 		_hide_odds()
 
 
-## CONFIRM › on the display: the pressed key's chute is confirmed (it stays down for the draw).
+## The push bar: the pressed key's chute is confirmed (it stays down for the draw).
 func _on_confirmed() -> void:
 	if run == null or run.phase != RunState.Phase.MACHINE_CHOOSE or _pressed < 0:
 		return
@@ -853,3 +887,12 @@ func _on_confirmed() -> void:
 func _on_bin_pressed() -> void:
 	if _armed and run != null and run.machine.can_bin():
 		binned.emit()
+
+
+func _on_ticket_hovered(index: int) -> void:
+	if index >= 0 and index < tickets.size():
+		popup.open_for(tickets[index])
+
+
+func _on_ticket_unhovered(index: int) -> void:
+	popup.leave(index)

@@ -103,7 +103,9 @@ func test_a_ticket_intro_follows_the_tuning() -> void:
 
 
 ## A BOOSTED visit (v0.50) turns PREMIUM right after its receipt is read, over premium_ms
-## (reduced motion: premium_rm_ms, a cut), and the keys light after it; no other visit has one.
+## (reduced motion: premium_rm_ms, a cut), and the keys light after it. A BOOSTED BONUS visit
+## (v0.53) after a PREMIUM ticket visit is PREMIUM from its start (premium_held: the transform at 0
+## for 0 s, no beat, its times unchanged), else it turns after its own read; STAMP DAY never does.
 func test_a_premium_visit_turns_after_the_read() -> void:
 	var tuning: MachineTuning = _tuning()
 	for rm: bool in [false, true]:
@@ -123,10 +125,31 @@ func test_a_premium_visit_turns_after_the_read() -> void:
 		assert_float(plain.premium_progress(10.0)).is_equal(MachinePlan.NOT_SET)
 		assert_float(plain.premium_length()).is_equal(0.0)
 		assert_float(plain.beat_time(&"premium")).is_equal(MachinePlan.NOT_SET)
-	for kind: int in [BONUS, STAMP_DAY]:
-		var other: MachinePlan = MachinePlan.new(tuning, kind, false, true, false, true)
-		assert_bool(other.premium).is_false()
-		assert_float(other.premium_at).is_equal(MachinePlan.NOT_SET)
+	var stamp_day: MachinePlan = MachinePlan.new(tuning, STAMP_DAY, false, true, false, true)
+	assert_bool(stamp_day.premium).is_false()
+	assert_float(stamp_day.premium_at).is_equal(MachinePlan.NOT_SET)
+	for rm: bool in [false, true]:
+		var bonus: MachinePlan = MachinePlan.new(tuning, BONUS, rm)
+		var held: MachinePlan = MachinePlan.new(tuning, BONUS, rm, true, false, true, true)
+		assert_bool(held.premium).is_true()
+		assert_bool(held.premium_held).is_true()
+		assert_float(held.premium_at).is_equal(0.0)
+		assert_float(held.premium_length()).is_equal(0.0)
+		assert_float(held.beat_time(&"premium")).is_equal(MachinePlan.NOT_SET)
+		_near(held.choose_at, bonus.choose_at, "held choose")
+		var look: MachineLook = MachineLook.at(held, 0.0)
+		assert_bool(look.night_face()).is_true()
+		assert_float(look.pair_up(true)).is_equal(1.0)
+		assert_float(look.pair_up(false)).is_equal(0.0)
+		assert_bool(held.resume_at(MachinePlan.WaitPoint.CHOOSE).premium_held).is_true()
+		var turning: MachinePlan = MachinePlan.new(tuning, BONUS, rm, true, false, true, false)
+		assert_bool(turning.premium_held).is_false()
+		_near(turning.premium_at, turning.read_end, "bonus premium at")
+		assert_float(turning.beat_time(&"premium")).is_equal(turning.premium_at)
+		assert_bool(MachineLook.at(turning, 0.0).premium()).is_false()
+		# Held without a BOOSTED visit means nothing.
+		var not_boosted: MachinePlan = MachinePlan.new(tuning, BONUS, rm, true, false, false, true)
+		assert_bool(not_boosted.premium or not_boosted.premium_held).is_false()
 	var boosted: MachinePlan = MachinePlan.new(tuning, TICKET, false, true, false, true)
 	assert_bool(boosted.resume_at(MachinePlan.WaitPoint.CHOOSE).premium).is_true()
 

@@ -281,7 +281,7 @@ static func _phase_fits(restored: RunState) -> bool:
 		ok = ok and (inspected or extra) and not record.visits.is_empty()
 	elif visit.kind == MachineVisit.Kind.TICKET:
 		ok = ok and record.visits.is_empty()
-	# A BOOSTED visit is a boosted shift's ticket (MachineVisit checked the kind).
+	# A BOOSTED visit is a boosted shift's ticket or BONUS visit (MachineVisit checked the kind).
 	ok = ok and (not visit.boosted or machine.machine.is_boosted_shift(record.shift))
 	if restored.phase == RunState.Phase.MACHINE_CHOOSE:
 		return ok

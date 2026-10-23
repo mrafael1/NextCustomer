@@ -41,6 +41,9 @@ const RULE_LINE_SPACING := 2
 const COUPON_TITLE_WIDTH := 76.0
 const STAPLE := "Staple"
 const COUPON_TITLE := "COUPON"
+## A LOYALTY perk's title (show_upgrade) and when it applies.
+const LOYALTY_TITLE := "LOYALTY"
+const LOYALTY_WHEN := "from the next shift"
 const TAG_SEPARATOR := " · "
 
 const FRAME := preload("res://art/frames/popup.png")
@@ -93,6 +96,31 @@ func show_card(definition: CardDefinition, aisle: AisleDefinition, tags: PackedS
 			tag_label.size.y = tag_label.get_minimum_size().y
 			y = top + tag_label.size.y
 	_rule = UiKit.body_label(definition.rule_text, RULE_SIZE, Palette.INK)
+	_rule.add_theme_constant_override("line_spacing", RULE_LINE_SPACING)
+	_rule.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	y = _add_text(_rule, y, -1.0)
+	size = Vector2(WIDTH, clampf(y + PADDING, MIN_HEIGHT, MAX_HEIGHT))
+	queue_redraw()
+
+
+## Fills the popup for a LOYALTY perk (v0.53, a prize ticket's hover): its name with LOYALTY in
+## the coupon title's place, its type and when it applies as the tag line, its effect and its
+## condition (when it has one) as the rule. Call it once the popup is in the tree, as show_card.
+func show_upgrade(upgrade: UpgradeDefinition) -> void:
+	for child: Node in _content.get_children():
+		_content.remove_child(child)
+		child.queue_free()
+	var y: float = PADDING
+	_build_title(upgrade.display_name, LOYALTY_TITLE, y)
+	y += HEADER_HEIGHT
+	var tag_label: Label = UiKit.body_label(
+		TAG_SEPARATOR.join([upgrade.type_label(), LOYALTY_WHEN]), TAG_SIZE, Palette.GREY_DARK
+	)
+	y = _add_text(tag_label, y, TAG_HEIGHT)
+	var rule: String = upgrade.effect_text
+	if not upgrade.condition_text.is_empty():
+		rule += "\n" + upgrade.condition_text
+	_rule = UiKit.body_label(rule, RULE_SIZE, Palette.INK)
 	_rule.add_theme_constant_override("line_spacing", RULE_LINE_SPACING)
 	_rule.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	y = _add_text(_rule, y, -1.0)
@@ -190,6 +218,22 @@ func tail_tip() -> Vector2:
 	if placement == Placement.LEFT:
 		return position + Vector2(box.end.x, box.get_center().y)
 	return position + Vector2(box.position.x, box.get_center().y)
+
+
+## A header with `title_text` in the coupon title's style at the right (show_upgrade).
+func _build_title(heading: String, title_text: String, top: float) -> void:
+	_name = UiKit.display_label(heading, NAME_SIZE, false)
+	_name.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	_name.position = Vector2(PADDING, top)
+	_name.size = Vector2(WIDTH - 2.0 * PADDING - COUPON_TITLE_WIDTH - 6.0, HEADER_HEIGHT)
+	_content.add_child(_name)
+	var title: Label = UiKit.display_label(title_text, COUPON_TITLE_SIZE, false)
+	title.add_theme_color_override("font_color", Palette.TEAL)
+	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	title.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	title.position = Vector2(WIDTH - PADDING - COUPON_TITLE_WIDTH, top)
+	title.size = Vector2(COUPON_TITLE_WIDTH, HEADER_HEIGHT)
+	_content.add_child(title)
 
 
 func _build_header(definition: CardDefinition, aisle: AisleDefinition, top: float) -> void:

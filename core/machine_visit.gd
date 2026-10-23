@@ -18,7 +18,8 @@ var kind: Kind = Kind.TICKET
 var chute: int = NO_CHUTE
 ## BONUS: the inspection id it was earned by, or "" for a bonus extra shift.
 var why: String = ""
-## TICKET only: a BOOSTED visit (REGISTER and UPGRADES lit; v0.47), decided when it starts.
+## TICKET or BONUS (v0.53): a BOOSTED visit (REGISTER and UPGRADES lit; v0.47), decided when it
+## starts.
 var boosted: bool = false
 ## The prizes in reveal order (rarity ascending, drop order within a rarity).
 var prizes: Array[MachinePrize] = []
@@ -138,7 +139,7 @@ func _is_consistent() -> bool:
 		return false
 	if binned and picked >= 0:
 		return false
-	if boosted and kind != Kind.TICKET:
+	if boosted and kind == Kind.STAMP_DAY:
 		return false
 	var seen: Dictionary = {}
 	for reveal: int in drop_order:

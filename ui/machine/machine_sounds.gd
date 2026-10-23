@@ -159,7 +159,7 @@ func _add_intro(plan: MachinePlan) -> void:
 	var stagger: int = view.tuning.key_stagger_ms
 	if plan.kind == MachineVisit.Kind.BONUS:
 		stagger = view.tuning.relight_stagger_ms
-	if plan.premium_at >= 0.0:
+	if plan.premium_at >= 0.0 and not plan.premium_held:
 		_add_premium(plan)
 	for chute: int in RewardMachine.CHUTES:
 		if _lit(chute):

@@ -80,9 +80,10 @@ func test_boosted_and_normal_visits_light_their_chutes_per_shift() -> void:
 	_assert_boosted_if_passed_matches_the_checkout()
 
 
-## The bonus ticket's visit is always Normal, also after a boosted shift: shift 3 inspected gives
-## a BOOSTED ticket visit, then a Normal BONUS visit (REGISTER unlit until shift 5).
-func test_the_bonus_visit_after_a_boosted_shift_is_normal() -> void:
+## The bonus ticket's visit after a boosted shift is BOOSTED too (v0.53): shift 3 inspected gives
+## a BOOSTED ticket visit, then a BOOSTED BONUS visit (LOYALTY and UPGRADES lit, NEW ITEMS and
+## COUPONS unlit); a bonus visit after a Normal shift stays Normal.
+func test_the_bonus_visit_after_a_boosted_shift_is_boosted() -> void:
 	var run: RunState = _run()
 	var machine: RewardMachine = _machine()
 	_pass(run, machine, 3, true)
@@ -91,20 +92,63 @@ func test_the_bonus_visit_after_a_boosted_shift_is_normal() -> void:
 	assert_object(machine.pick(run, 0)).is_not_null()
 	var bonus: MachineVisit = machine.current_visit()
 	assert_int(bonus.kind).is_equal(MachineVisit.Kind.BONUS)
-	assert_bool(bonus.boosted).is_false()
-	assert_str(RewardMachine.state_of(bonus)).is_equal(RewardMachine.STATE_NORMAL)
-	var register: MachineChuteInfo = machine.chute_info(run, RewardMachine.Chute.REGISTER)
-	assert_int(register.state).is_equal(RewardMachine.ChuteState.UNLIT)
-	assert_int(register.opens_after_shift).is_equal(5)
-	var upgrades: MachineChuteInfo = machine.chute_info(run, RewardMachine.Chute.UPGRADES)
-	assert_int(upgrades.state).is_equal(RewardMachine.ChuteState.UNLIT)
-	for chute: int in RewardMachine.NORMAL_CHUTES:
+	assert_bool(bonus.boosted).is_true()
+	assert_bool(machine.is_boosted()).is_true()
+	assert_str(RewardMachine.state_of(bonus)).is_equal(RewardMachine.STATE_BOOSTED)
+	for chute: int in RewardMachine.BOOSTED_CHUTES:
 		var info: MachineChuteInfo = machine.chute_info(run, chute)
 		assert_int(info.state).is_equal(RewardMachine.ChuteState.OPEN)
-	assert_bool(machine.choose(run, RewardMachine.Chute.REGISTER)).is_false()
-	assert_bool(machine.choose(run, RewardMachine.Chute.NEW_ITEMS)).is_true()
-	assert_bool(machine.bin(run)).is_true()
-	assert_array(run.history[-1].visits.map(_boosted)).is_equal([true, false])
+	for chute: int in RewardMachine.NORMAL_CHUTES:
+		var info: MachineChuteInfo = machine.chute_info(run, chute)
+		assert_int(info.state).is_equal(RewardMachine.ChuteState.UNLIT)
+	assert_bool(machine.choose(run, RewardMachine.Chute.NEW_ITEMS)).is_false()
+	assert_bool(machine.can_bin()).is_false()
+	assert_bool(machine.choose(run, RewardMachine.Chute.REGISTER)).is_true()
+	assert_bool(machine.can_bin()).is_false()
+	assert_object(machine.pick(run, 0)).is_not_null()
+	assert_array(run.history[-1].visits.map(_boosted)).is_equal([true, true])
+	# A bonus visit after a shift that isn't boosted (a bonus extra shift) is Normal.
+	var normal_run: RunState = _run()
+	var extra: MachineDefinition = _balance.machine.duplicate() as MachineDefinition
+	extra.bonus_extra_shifts = PackedInt32Array([2])
+	var normal_machine: RewardMachine = _machine(7, extra)
+	_pass(normal_run, normal_machine, 2)
+	assert_bool(normal_machine.is_boosted()).is_false()
+	assert_bool(normal_machine.choose(normal_run, RewardMachine.Chute.NEW_ITEMS)).is_true()
+	assert_bool(normal_machine.bin(normal_run)).is_true()
+	var normal_bonus: MachineVisit = normal_machine.current_visit()
+	assert_int(normal_bonus.kind).is_equal(MachineVisit.Kind.BONUS)
+	assert_bool(normal_bonus.boosted).is_false()
+
+	# The boost's fallback, from the state after the ticket's pick: with LOYALTY full after it (the
+	# third register) and nothing to improve, the bonus visit is Normal, its LOYALTY key CARD FULL
+	# and UPGRADES NOTHING TO IMPROVE.
+	_assert_bonus_falls_back()
+
+
+func _assert_bonus_falls_back() -> void:
+	var run: RunState = _golden_run()
+	var registers: Array[String] = ["extra_redraw", "big_basket"]
+	for index: int in registers.size():
+		_give_register(run, _upgrade(registers[index]), index + 1)
+	var machine: RewardMachine = _machine()
+	_pass(run, machine, 3, true)
+	assert_bool(machine.is_boosted()).is_true()
+	assert_bool(machine.choose(run, RewardMachine.Chute.REGISTER)).is_true()
+	assert_object(machine.pick(run, 0)).is_not_null()
+	var bonus: MachineVisit = machine.current_visit()
+	assert_int(bonus.kind).is_equal(MachineVisit.Kind.BONUS)
+	assert_bool(bonus.boosted).is_false()
+	_assert_states(
+		run,
+		machine,
+		[
+			RewardMachine.ChuteState.OPEN,
+			RewardMachine.ChuteState.OPEN,
+			RewardMachine.ChuteState.CARD_FULL,
+			RewardMachine.ChuteState.EMPTY,
+		]
+	)
 
 
 ## A boosted shift whose REGISTER is full and whose UPGRADES has nothing to improve gives a Normal
@@ -344,8 +388,8 @@ func test_the_first_coupons_flag_is_spent_at_the_draw() -> void:
 
 
 ## The bonus ticket: only after a passed inspected shift (why: the inspection) or a bonus extra
-## shift (why: ""); a Normal visit; its odds reflect the first pick (an owned register no longer
-## drops).
+## shift (why: ""); after a boosted shift a BOOSTED visit (v0.53); its odds reflect the first pick
+## (an owned register no longer drops).
 func test_the_bonus_visit_follows_an_inspected_pass() -> void:
 	var plain: RunState = _run()
 	var plain_machine: RewardMachine = _machine()
@@ -363,7 +407,7 @@ func test_the_bonus_visit_follows_an_inspected_pass() -> void:
 	assert_str(visit.why).is_equal(String(_balance.inspection_pool[0].id))
 	assert_int(machine.stage).is_equal(RewardMachine.Stage.CHOOSE)
 	var info: MachineChuteInfo = machine.chute_info(run, register)
-	assert_int(info.state).is_equal(RewardMachine.ChuteState.UNLIT)
+	assert_int(info.state).is_equal(RewardMachine.ChuteState.OPEN)
 	for key: String in info.odds.in_draw:
 		assert_bool(key.contains(":%s:" % taken.id)).is_false()
 	# What the first pick changed here, for the bonus band (the UI only words it).
@@ -392,8 +436,8 @@ func test_the_bonus_visit_follows_an_inspected_pass() -> void:
 		var coupon_info: MachineChuteInfo = coupon_machine.chute_info(coupon_run, coupons)
 		assert_bool(coupon_info.first_pick_spent_coupon).is_equal(not earlier_coupons)
 		assert_bool(coupon_info.first_pick_kept).is_true()
-	assert_bool(machine.choose(run, register)).is_false()
-	assert_bool(machine.choose(run, RewardMachine.Chute.NEW_ITEMS)).is_true()
+	assert_bool(machine.choose(run, RewardMachine.Chute.NEW_ITEMS)).is_false()
+	assert_bool(machine.choose(run, register)).is_true()
 	assert_object(machine.pick(run, 0)).is_not_null()
 	assert_int(machine.stage).is_equal(RewardMachine.Stage.IDLE)
 	assert_array(run.history[-1].visits.map(_kind)).is_equal(
@@ -635,13 +679,13 @@ func test_the_save_form_round_trips_and_bad_fields_are_refused() -> void:
 	var missing: Dictionary = good.duplicate(true)
 	missing.erase("upgrades_at_checkout")
 	bad.append(missing)
-	# UPGRADES drawn on a Normal visit, a BOOSTED bonus visit, and no state at all.
+	# UPGRADES drawn on a Normal visit, a BOOSTED STAMP DAY visit, and no state at all.
 	var normal_upgrades: Dictionary = good.duplicate(true)
 	normal_upgrades["visit"]["boosted"] = false
 	bad.append(normal_upgrades)
-	var boosted_bonus: Dictionary = good.duplicate(true)
-	boosted_bonus["visit"]["kind"] = "bonus"
-	bad.append(boosted_bonus)
+	var boosted_stamp_day: Dictionary = good.duplicate(true)
+	boosted_stamp_day["visit"]["kind"] = "stamp_day"
+	bad.append(boosted_stamp_day)
 	var stateless: Dictionary = good.duplicate(true)
 	(stateless["visit"] as Dictionary).erase("boosted")
 	bad.append(stateless)
@@ -687,11 +731,10 @@ func test_shift_records_save_their_visits() -> void:
 	_pass(run, machine, 3, true)
 	assert_bool(machine.choose(run, RewardMachine.Chute.REGISTER)).is_true()
 	var register: UpgradeDefinition = machine.pick(run, 0).register
-	assert_bool(machine.choose(run, RewardMachine.Chute.NEW_ITEMS)).is_true()
-	var added: CardDefinition = machine.pick(run, 0).added.definition
+	assert_bool(machine.choose(run, RewardMachine.Chute.UPGRADES)).is_true()
+	assert_object(machine.pick(run, 0)).is_not_null()
 	var record: ShiftRecord = run.history[-1]
-	assert_int(record.cards_added().size()).is_equal(1)
-	assert_object(record.cards_added()[0]).is_same(added)
+	assert_int(record.cards_added().size()).is_equal(0)
 	assert_int(record.registers_taken().size()).is_equal(1)
 	assert_object(record.registers_taken()[0]).is_same(register)
 	var saved: Dictionary = JSON.parse_string(JSON.stringify(record.to_dictionary()))
@@ -699,7 +742,7 @@ func test_shift_records_save_their_visits() -> void:
 	assert_object(read).is_not_null()
 	assert_dict(read.to_dictionary()).is_equal(record.to_dictionary())
 	assert_bool(read.visits[0].boosted).is_true()
-	assert_bool(read.visits[1].boosted).is_false()
+	assert_bool(read.visits[1].boosted).is_true()
 	saved["visits"][0]["picked"] = 7
 	assert_object(ShiftRecord.from_dictionary(saved, lookup)).is_null()
 

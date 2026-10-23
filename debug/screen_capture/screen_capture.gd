@@ -326,13 +326,15 @@ func reveal(spec: String) -> void:
 ## - new_items, coupons, register or upgrades: that chute is chosen at the keys (its draw plays);
 ## - odds: that chute's odds card is shown above its key instead (as on hover); press: that
 ##   chute's key is pressed instead (the display's title with CONFIRM ›);
-## - bonus: the shift passed a Spot check; its ticket picks a NEW ITEMS prize, and the bonus
-##   ticket's visit is shown; stampday: the shift is a STAMP DAY's; its ticket bins a NEW ITEMS
+## - bonus: the shift passed a Spot check; its ticket picks a NEW ITEMS prize (with boosted: a
+##   LOYALTY prize, and the BONUS visit is PREMIUM too, v0.53), and the bonus ticket's visit is
+##   shown; stampday: the shift is a STAMP DAY's; its ticket bins a NEW ITEMS
 ##   draw, and STAMP DAY's draw is shown (pick=<i> picks a stamp);
 ## - cartfull: the cart is at the deck limit before the checkout;
 ## - draw=<letters>: the draw's rarities, c, r or l per prize (a debug draw: the prizes drawn,
 ##   relabelled), shown rarest last;
 ## - pick=<i>: once the prizes are armed, prize i is picked (its landing plays);
+## - hover=<i> (v0.53): once the prizes are armed, the pointer rests on prize i (its popup opens);
 ## - boosted (v0.50): the shift's ticket visit is BOOSTED, so the machine turns PREMIUM (its
 ##   chutes: register, upgrades);
 ## - rm: reduced motion; resume: the visit as a resumed run shows it (at its wait point, no
@@ -377,6 +379,10 @@ func machine(spec: String) -> void:
 	if rarities != "" and run.phase == RunState.Phase.MACHINE_PICK:
 		_rig_draw(run, rarities)
 		flow.view.show_draw(run)
+	var hover: String = _option_value(options, "hover=")
+	if hover != "":
+		await _machine_armed(flow.view)
+		flow.view.popup.open_for(flow.view.tickets[hover.to_int()])
 	var pick: String = _option_value(options, "pick=")
 	if pick != "":
 		await _machine_armed(flow.view)
@@ -411,7 +417,10 @@ func _check_out_machine_shift(run: RunState, options: PackedStringArray) -> bool
 		_report("The machine's shift didn't pass")
 		return false
 	if options.has("bonus") or options.has("stampday"):
-		run.machine.choose(run, RewardMachine.Chute.NEW_ITEMS)
+		var first: int = RewardMachine.Chute.NEW_ITEMS
+		if options.has("bonus") and run.machine.is_boosted():
+			first = RewardMachine.Chute.REGISTER
+		run.machine.choose(run, first)
 		if options.has("bonus"):
 			var replaced: CardInstance = run.deck.cards[0] if run.deck_is_full() else null
 			run.machine.pick(run, 0, replaced)
