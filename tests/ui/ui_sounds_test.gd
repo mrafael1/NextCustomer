@@ -212,7 +212,7 @@ func test_the_deck_view_and_machine_sounds() -> void:
 	screen._deck_view._info_tab.pressed.emit()
 	screen._deck_view._deck_tab.pressed.emit()
 	for button: Button in screen._deck_view.find_children("*", "Button", true, false):
-		if button.text == "Close":
+		if button is FramedButton and (button as FramedButton).caption == "Close":
 			button.pressed.emit()
 	assert_array(sfx.sound_names()).is_equal(
 		["fan", "ui_open", "ui_switch", "ui_switch", "ui_close"]
