@@ -64,6 +64,6 @@ func test_redraw_needs_a_hand_card_and_a_card_to_draw() -> void:
 static func _run(seed_value: int) -> RunState:
 	var balance: BalanceDefinition = load(BALANCE)
 	var deck: DeckDefinition = load(STARTER)
-	var run: RunState = RunState.new(seed_value, deck, balance, RunStock.starting(deck, balance))
+	var run: RunState = RunState.new(seed_value, deck, balance, RunStock.starting(balance))
 	run.start_shift()
 	return run

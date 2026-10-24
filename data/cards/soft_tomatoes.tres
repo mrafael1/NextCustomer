@@ -22,3 +22,6 @@ base = 2
 rules = Array[ExtResource("1_rule")]([SubResource("Resource_soft_tomatoes")])
 rule_text = "+2 if beside Soup"
 sticker_text = "+{bonus} beside Soup"
+art_ref = "res://art/items_v2/soft_tomatoes.png"
+mini_art_ref = "res://art/minis/soft_tomatoes.png"
+mini_golden_art_ref = "res://art/minis/soft_tomatoes_golden.png"

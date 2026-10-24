@@ -92,6 +92,22 @@ func test_guarantees_hold_whenever_a_tier_has_one() -> void:
 		assert_bool(MachineDraw.holds(coupons, held_coupons)).is_true()
 
 
+## v0.49: NEW ITEMS' guarantee prefers, in each rarity tier, the stocked generally useful
+## products the deck doesn't hold yet (a tier counts as its plain card); a tier whose useful
+## products are all in the deck keeps them all, so every tier that could swap one in still can.
+func test_the_new_items_guarantee_prefers_products_not_in_the_deck() -> void:
+	var run: RunState = RunState.new(1, _starter, _balance, RunStock.starting(_balance))
+	assert_array(_held(run)).contains_exactly_in_any_order(_expected_held(run))
+	# The starter holds both COMMON useful products (Banana, Bread): that tier keeps them.
+	assert_array(_held(run)).contains([&"banana", &"bread"])
+	assert_array(_held(run)).not_contains([&"milk", &"eggs"])
+	assert_array(_held(run)).contains([&"butter"])
+	# A BIG copy counts as its plain product.
+	run.deck.add_card(load("res://data/cards/butter_big.tres"))
+	assert_array(_held(run)).not_contains([&"butter"])
+	assert_array(_held(run)).contains_exactly_in_any_order(_expected_held(run))
+
+
 ## The swap replaces the last drop whose own tier holds a guarantee member, with a member of that
 ## tier; when no drop's tier holds one, the draw stands.
 func test_the_guarantee_swap_stays_inside_the_drop_tier() -> void:
@@ -244,9 +260,39 @@ func _id(prize: MachinePrize) -> StringName:
 	return prize.id()
 
 
+## The NEW ITEMS guarantee set of a run's machine context, as ids.
+func _held(run: RunState) -> Array:
+	var context: MachineContext = MachineContext.from_run(run, _balance.machine, true, true)
+	return context.guarantee(RewardMachine.Chute.NEW_ITEMS).keys()
+
+
+## The stocked useful products per the v0.49 rule, worked out from the deck by hand.
+func _expected_held(run: RunState) -> Array:
+	var held: Array = []
+	var deck_ids: Array = run.deck.cards.map(
+		func(card: CardInstance) -> StringName: return card.definition.product_card().id
+	)
+	for card: CardDefinition in run.stock.cards:
+		if not (card.is_product() and card.generally_useful):
+			continue
+		var rarity: int = _balance.machine.product_rarity(card)
+		var tier_fresh: bool = run.stock.cards.any(
+			func(other: CardDefinition) -> bool:
+				return (
+					other.is_product()
+					and other.generally_useful
+					and _balance.machine.product_rarity(other) == rarity
+					and not deck_ids.has(other.id)
+				)
+		)
+		if not tier_fresh or not deck_ids.has(card.id):
+			held.append(card.id)
+	return held
+
+
 ## The fresh run's snapshot with the live machine.
 func _context() -> MachineContext:
-	var run: RunState = RunState.new(1, _starter, _balance, RunStock.starting(_starter, _balance))
+	var run: RunState = RunState.new(1, _starter, _balance, RunStock.starting(_balance))
 	return MachineContext.from_run(run, _balance.machine, true, true)
 
 

@@ -22,3 +22,6 @@ base = 2
 rules = Array[ExtResource("1_rule")]([SubResource("Resource_sugar_cubes")])
 rule_text = "+4 if immediately after Coffee"
 sticker_text = "+{bonus} after Coffee"
+art_ref = "res://art/items_v2/sugar_cubes.png"
+mini_art_ref = "res://art/minis/sugar_cubes.png"
+mini_golden_art_ref = "res://art/minis/sugar_cubes_golden.png"

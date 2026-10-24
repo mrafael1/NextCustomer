@@ -2,8 +2,10 @@ extends GdUnitTestSuite
 ## Tests on the live data/ files. Unlike the golden rows, these expected values are updated
 ## when card values are tuned between playtest rounds (plan section 3.7).
 
+const LiveCardCount := preload("res://tests/data/live_card_count.gd")
 const CARDS_DIR := "res://data/cards"
 const STARTER := "res://data/decks/starter.tres"
+const BALANCE := "res://data/balance/balance.tres"
 const PLACEHOLDER := "\\{([a-z_]+)\\}"
 const ORDINAL := "\\d+(st|nd|rd|th)"
 ## A number that isn't an ordinal ("2nd" stays): the data's numbers, which balance passes change.
@@ -122,8 +124,9 @@ func test_base_products_fizzle(
 	assert_array(fizzles).is_equal(expected)
 
 
-## 59 cards, plus the 8 item tiers (#77: BIG and GOLDEN Banana, Milk, Eggs and Coffee).
-func test_all_sixty_seven_cards_exist() -> void:
+## 59 cards, plus the 100 item tiers: BIG and GOLDEN Banana, Milk, Eggs and Coffee (#77), Bread,
+## Soup and the 14 base aisle items (v0.48), and the 30 capsule products (v0.52).
+func test_all_cards_and_their_tiers_exist() -> void:
 	var ids: Array = []
 	var tiers: int = 0
 	for file: String in DirAccess.get_files_at(CARDS_DIR):
@@ -132,8 +135,8 @@ func test_all_sixty_seven_cards_exist() -> void:
 			ids.append(card.id)
 			if card.tier != CardDefinition.Tier.PLAIN:
 				tiers += 1
-	assert_int(ids.size()).is_equal(67)
-	assert_int(tiers).is_equal(8)
+	assert_int(ids.size()).is_equal(LiveCardCount.CARDS)
+	assert_int(tiers).is_equal(100)
 
 
 ## Every card has a price-sticker template (#75); only a card with no rule has an empty one (its
@@ -143,7 +146,7 @@ func test_every_card_has_a_digit_free_sticker_template() -> void:
 	var ordinal: RegEx = RegEx.create_from_string(ORDINAL)
 	var digit: RegEx = RegEx.create_from_string("\\d")
 	var cards: Array[CardDefinition] = _all_cards()
-	assert_int(cards.size()).is_equal(67)
+	assert_int(cards.size()).is_equal(LiveCardCount.CARDS)
 	for card: CardDefinition in cards:
 		var template: String = CardText.sticker_template(card)
 		var message: String = '%s: "%s"' % [card.id, template]
@@ -218,12 +221,14 @@ func test_stickers_show_every_rule_value() -> void:
 				elif _is_set(key, rule.get(key)):
 					assert_bool(shows).override_failure_message(message + " " + key).is_true()
 	# Cheese, Crisps, Breadsticks, Cereal, Chipped mug, Crackers, Egg timer, Soft tomatoes, Sugar
-	# cubes and Yogurt.
-	assert_int(named_products).is_equal(10)
+	# cubes and Yogurt, plus their BIG and GOLDEN tiers (Cheese, Cereal, Crackers and Yogurt in
+	# v0.48, the six capsule products in v0.52).
+	assert_int(named_products).is_equal(30)
 
 
 ## A charged multiplier's sticker says "next": with one charge that is the next product, so the
-## sticker names no count; one with more charges (Golden Eggs, #77) names `{charges}`.
+## sticker names no count; one with more charges (Golden Eggs, #77; Golden Tea bags, v0.48;
+## Golden Iced bun, Squashed cake and Lemon, v0.52) names `{charges}`.
 func test_charged_multipliers_with_more_charges_name_them() -> void:
 	var several: int = 0
 	for card: CardDefinition in _all_cards():
@@ -237,7 +242,7 @@ func test_charged_multipliers_with_more_charges_name_them() -> void:
 			if charged.charges > 1:
 				assert_str(template).override_failure_message(message).contains("{charges}")
 				several += 1
-	assert_int(several).is_equal(1)
+	assert_int(several).is_equal(5)
 
 
 ## Every art_ref names art drawn for an item (#75, decision 3A: 48x48 at 2x everywhere): a
@@ -262,9 +267,11 @@ func test_every_art_ref_is_item_art() -> void:
 			Vector2(expected)
 		)
 		drawn += 1
-	# The 10 products and 2 coupon icons drawn for style frame v2, the 8 item tiers (#77) and
-	# #57's 13 products.
-	assert_int(drawn).is_equal(33)
+	# The 10 products and 2 coupon icons drawn for style frame v2, the 8 item tiers (#77),
+	# #57's 13 products, the 32 tiers of Bread, Soup and the 14 base aisle items (#99, v0.48),
+	# and #58's 27 capsule products, their 30 products' 60 tiers (#89) and #59's 6 coupon icons
+	# (v0.52).
+	assert_int(drawn).is_equal(158)
 
 
 ## The 20 products a new profile stocks (#57), read from data/: the starter deck's products and
@@ -282,6 +289,60 @@ func test_every_stocked_product_has_its_sprite() -> void:
 		assert_that(texture.get_size()).override_failure_message(message).is_equal(Vector2(48, 48))
 		assert_bool(paths.has(card.art_ref)).override_failure_message(message).is_false()
 		paths[card.art_ref] = card.id
+
+
+## The 30 capsule products (#58, v0.52), read from every aisle's capsule_cards: each has its own
+## 48x48 sprite and a complete chain in the machine's UPGRADES table (#89) whose BIG and GOLDEN
+## tiers have their own 48x48 sprites too; no two of the 90 share one. Whether the chain follows
+## the tier rule is item_tiers_test's.
+func test_every_capsule_product_has_its_sprite_and_tiers() -> void:
+	var balance: BalanceDefinition = load(BALANCE)
+	var paths: Dictionary[String, StringName] = {}
+	var products: int = 0
+	for aisle: AisleDefinition in balance.aisles:
+		for card: CardDefinition in aisle.capsule_cards:
+			products += 1
+			var chain: ItemUpgradeDefinition = ItemUpgrades.chain_for(
+				balance.machine.item_upgrades, card
+			)
+			assert_object(chain).override_failure_message(String(card.id)).is_not_null()
+			if chain == null:
+				continue
+			assert_object(chain.product).is_same(card)
+			for tier: CardDefinition in [card, chain.big, chain.golden]:
+				var message: String = "%s: %s" % [tier.id, tier.art_ref]
+				assert_str(tier.art_ref).override_failure_message(message).is_not_empty()
+				var texture: Texture2D = ArtStyle.item_sprite(tier)
+				assert_object(texture).override_failure_message(message).is_not_same(
+					ArtStyle.ITEM_PENDING
+				)
+				assert_that(texture.get_size()).override_failure_message(message).is_equal(
+					Vector2(48, 48)
+				)
+				assert_bool(paths.has(tier.art_ref)).override_failure_message(message).is_false()
+				paths[tier.art_ref] = tier.id
+	assert_int(products).is_equal(30)
+
+
+## Every coupon a run can be offered (balance.coupon_pool) has its own icon on the slip (#59
+## subset, v0.52: the 6 drawn after Multipack's and 2 for 1's).
+func test_every_pool_coupon_has_its_icon() -> void:
+	var balance: BalanceDefinition = load(BALANCE)
+	var icon: Vector2 = ItemView.COUPON_ICON_RECT.size / float(ArtStyle.ART_SCALE)
+	var paths: Dictionary[String, StringName] = {}
+	for card: CardDefinition in balance.coupon_pool:
+		var message: String = "%s: %s" % [card.id, card.art_ref]
+		assert_bool(card.is_coupon()).override_failure_message(message).is_true()
+		assert_str(card.art_ref).override_failure_message(message).is_not_empty()
+		var texture: Texture2D = (
+			load(card.art_ref) as Texture2D if ResourceLoader.exists(card.art_ref) else null
+		)
+		assert_object(texture).override_failure_message(message).is_not_null()
+		if texture != null:
+			assert_that(texture.get_size()).override_failure_message(message).is_equal(icon)
+		assert_bool(paths.has(card.art_ref)).override_failure_message(message).is_false()
+		paths[card.art_ref] = card.id
+	assert_int(paths.size()).is_equal(8)
 
 
 ## Sticker minis: every plain product with its own sprite has a 7x7 giver-badge mini and its
@@ -314,8 +375,8 @@ func test_every_product_with_a_sprite_has_its_mini() -> void:
 			assert_bool(minis.has(path)).override_failure_message(message).is_false()
 			minis[path] = card.id
 		assert_str(card.badge_mini_ref()).is_equal(card.mini_art_ref)
-	# The 23 products with a sprite: style frame v2's 10 and #57's 13.
-	assert_int(with_mini).is_equal(23)
+	# The 50 products with a sprite: style frame v2's 10, #57's 13 and #58's 27 (v0.52).
+	assert_int(with_mini).is_equal(50)
 	for card: CardDefinition in _all_cards():
 		if card.tier == CardDefinition.Tier.PLAIN:
 			continue
@@ -334,7 +395,7 @@ func test_every_product_with_a_sprite_has_its_mini() -> void:
 static func stocked_products() -> Array[CardDefinition]:
 	var products: Array[CardDefinition] = []
 	var deck: DeckDefinition = load(STARTER)
-	var balance: BalanceDefinition = load("res://data/balance/balance.tres")
+	var balance: BalanceDefinition = load(BALANCE)
 	var cards: Array[CardDefinition] = deck.cards.duplicate()
 	for aisle: AisleDefinition in balance.aisles:
 		cards.append_array(aisle.base_cards)

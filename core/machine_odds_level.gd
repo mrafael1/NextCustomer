@@ -1,6 +1,6 @@
 class_name MachineOddsLevel
 extends Resource
-## One Regular level of the RECEIPT REWARDS machine (#77): the weights each drop rolls its
+## One odds level of the RECEIPT REWARDS machine (#77): the weights each drop rolls its
 ## rarity with (integers; the odds card shows them as percentages), and an optional floor for the
 ## first drop. Data in data/balance/machine.tres (MachineDefinition.odds_levels).
 

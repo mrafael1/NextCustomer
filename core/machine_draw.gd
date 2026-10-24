@@ -4,7 +4,7 @@ extends RefCounted
 ## draw77.js. Pure and static: the forward draw (draw, with the run's RNG) and the exact odds
 ## (MachineOdds, which never touches an RNG) share these steps.
 ##
-## Per visit: each drop rolls a rarity from the Regular level's weights (drop 1 may have a floor)
+## Per visit: each drop rolls a rarity from the odds level's weights (drop 1 may have a floor)
 ## and takes a prize of that rarity, uniform among the candidates: never a prize twice, and
 ## REGISTER never repeats a type. A rarity with no candidate steps down a tier, then up (the
 ## empty-tier fallback); none at all ends the draw short. Then the guarantee swap: if no drop is
@@ -49,14 +49,29 @@ static func pools(chute: int, context: MachineContext) -> Array:
 
 
 ## The ids a draw must hold one of (empty: no guarantee). NEW ITEMS: the stocked generally useful
-## products; COUPONS on the run's first COUPONS draw: the first-offer pool; REGISTER: the unowned
-## upgrades that fit the deck; UPGRADES: none.
+## products, preferring in each rarity tier those the deck doesn't hold yet (v0.49; no copy of the
+## same product, a tier counting as its plain card): a tier's members are its useful products not
+## in the deck, or all its useful products when the deck holds every one, so a tier that could
+## swap one in before still can; COUPONS on the run's first COUPONS draw: the first-offer pool;
+## REGISTER: the unowned upgrades that fit the deck; UPGRADES: none.
 static func guarantee(chute: int, context: MachineContext) -> Dictionary:
 	var found: Dictionary = {}
 	match chute:
 		RewardMachine.Chute.NEW_ITEMS:
+			var deck_cards: Array[CardDefinition] = context.deck_cards()
+			# Per rarity: [its useful products, those of them not in the deck].
+			var tiers: Dictionary[int, Array] = {}
 			for card: CardDefinition in context.products:
 				if card.generally_useful:
+					var rarity: int = context.machine.product_rarity(card)
+					if not tiers.has(rarity):
+						tiers[rarity] = [[], []]
+					tiers[rarity][0].append(card)
+					if not deck_cards.any(card.is_same_product):
+						tiers[rarity][1].append(card)
+			for rarity: int in tiers:
+				var fresh: Array = tiers[rarity][1]
+				for card: CardDefinition in fresh if not fresh.is_empty() else tiers[rarity][0]:
 					found[card.id] = true
 		RewardMachine.Chute.COUPONS:
 			if context.first_coupons:
@@ -71,7 +86,7 @@ static func guarantee(chute: int, context: MachineContext) -> Dictionary:
 	return found
 
 
-## The rarity weights drop `drop_index` rolls with at a Regular level.
+## The rarity weights drop `drop_index` rolls with at an odds level.
 static func weights(machine: MachineDefinition, level: int, drop_index: int) -> PackedInt32Array:
 	var odds: MachineOddsLevel = machine.odds_level(level)
 	if odds == null:

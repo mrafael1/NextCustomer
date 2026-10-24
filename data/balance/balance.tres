@@ -10,6 +10,12 @@
 [ext_resource type="Resource" path="res://data/cards/shelf_swap.tres" id="c17_shelf_swap"]
 [ext_resource type="Resource" path="res://data/cards/clearance_tag.tres" id="c18_clearance_tag"]
 [ext_resource type="Resource" path="res://data/cards/opening_deal.tres" id="c19_opening_deal"]
+[ext_resource type="Resource" path="res://data/cards/banana.tres" id="s1_banana"]
+[ext_resource type="Resource" path="res://data/cards/bread.tres" id="s2_bread"]
+[ext_resource type="Resource" path="res://data/cards/milk.tres" id="s3_milk"]
+[ext_resource type="Resource" path="res://data/cards/eggs.tres" id="s4_eggs"]
+[ext_resource type="Resource" path="res://data/cards/coffee.tres" id="s5_coffee"]
+[ext_resource type="Resource" path="res://data/cards/soup.tres" id="s6_soup"]
 [ext_resource type="Script" path="res://core/aisle_definition.gd" id="a1_aisle"]
 [ext_resource type="Resource" path="res://data/aisles/cold_cases.tres" id="a2_cold_cases"]
 [ext_resource type="Resource" path="res://data/aisles/pantry.tres" id="a3_pantry"]
@@ -32,13 +38,14 @@
 
 [resource]
 script = ExtResource("1_balance")
-quotas = PackedInt32Array(34, 35, 53, 61, 73, 98, 111, 120)
+quotas = PackedInt32Array(29, 35, 53, 61, 73, 98, 111, 120)
 hand_size = 8
 base_redraws = 2
 basket_size = 2
 slot_count = 6
 coupon_slot_count = 1
 deck_limit = 15
+staples = Array[ExtResource("2_card")]([ExtResource("s1_banana"), ExtResource("s2_bread"), ExtResource("s3_milk"), ExtResource("s4_eggs"), ExtResource("s5_coffee"), ExtResource("s6_soup")])
 aisles = Array[ExtResource("a1_aisle")]([ExtResource("a2_cold_cases"), ExtResource("a3_pantry"), ExtResource("a4_household"), ExtResource("a5_fruit_and_veg"), ExtResource("a6_bakery"), ExtResource("a7_snacks")])
 coupon_pool = Array[ExtResource("2_card")]([ExtResource("c11_repeat"), ExtResource("c12_final_markdown"), ExtResource("c14_breakfast_sticker"), ExtResource("c15_multipack"), ExtResource("c16_two_for_one"), ExtResource("c17_shelf_swap"), ExtResource("c18_clearance_tag"), ExtResource("c19_opening_deal")])
 run_aisle_picks = 2

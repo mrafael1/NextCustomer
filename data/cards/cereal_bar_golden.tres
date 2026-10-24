@@ -1,0 +1,27 @@
+[gd_resource type="Resource" script_class="CardDefinition" format=3]
+
+[ext_resource type="Script" path="res://core/rule.gd" id="1_rule"]
+[ext_resource type="Script" path="res://core/rules/adjacent_match_bonus_rule.gd" id="2_cereal_bar"]
+[ext_resource type="Script" path="res://core/card_definition.gd" id="3_card"]
+[ext_resource type="Resource" path="res://data/cards/cereal_bar.tres" id="9_plain"]
+
+[sub_resource type="Resource" id="Resource_cereal_bar"]
+script = ExtResource("2_cereal_bar")
+match_by = 3
+match_value = "Snack"
+position = 2
+bonus = 4
+receipt_text = "Cereal bar beside Snack"
+
+[resource]
+script = ExtResource("3_card")
+id = &"cereal_bar_golden"
+display_name = "Golden Cereal bar"
+kind = 1
+tags = PackedStringArray("Food", "Snack", "Breakfast")
+base = 4
+rules = Array[ExtResource("1_rule")]([SubResource("Resource_cereal_bar")])
+rule_text = "+4 if beside a Snack product"
+art_ref = "res://art/items_v2/cereal_bar_golden.png"
+variant_of = ExtResource("9_plain")
+tier = 2

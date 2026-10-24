@@ -35,8 +35,8 @@ func after_test() -> void:
 
 ## The machine stands in the store (#77 machine v2): once the camera has glided to it, it shows at
 ## the stage's MACHINE_RECT, inside the stage, with no shade over the store (the receipt has been
-## fed: the stage's own is torn off); the keys sit in the machine, NEW ITEMS, COUPONS and REGISTER
-## lit and UPGRADES padlocked after shift 1.
+## fed: the stage's own is torn off); the keys sit in the machine, NEW ITEMS and COUPONS lit and
+## REGISTER and UPGRADES padlocked after shift 1 (v0.47: a Normal visit).
 func test_a_pass_opens_the_machine_inside_the_stage_beside_the_receipt() -> void:
 	var screen: ShiftScreen = await _passed_screen()
 	var view: RewardMachineView = screen._machine.view
@@ -53,47 +53,48 @@ func test_a_pass_opens_the_machine_inside_the_stage_beside_the_receipt() -> void
 	assert_bool(screen._shade.visible).is_false()
 	assert_bool(screen._receipt.visible).is_false()
 	assert_int(view.keys.size()).is_equal(RewardMachine.CHUTES.size())
-	for key: ChuteKey in view.keys:
-		assert_bool(machine.encloses(key.get_global_rect())).is_true()
+	# v0.50: the keys stand in the key bay, which clips the pair that isn't up.
+	assert_bool(machine.encloses(view.key_bay.get_global_rect())).is_true()
+	assert_bool(view.key_bay.clip_contents).is_true()
 	var states: Array = RewardMachine.CHUTES.map(
 		func(chute: int) -> int: return screen.run.machine.chute_info(screen.run, chute).state
 	)
 	var open: int = RewardMachine.ChuteState.OPEN
-	assert_array(states).is_equal([open, open, open, RewardMachine.ChuteState.LOCKED_SHIFT])
+	var unlit: int = RewardMachine.ChuteState.UNLIT
+	assert_array(states).is_equal([open, open, unlit, unlit])  # v0.47: a Normal visit.
 	assert_array(view.tickets).is_empty()
 
 
-## The real flow: a lit key's odds card, CONFIRM draws the prizes (saved at MACHINE_PICK), the
-## scanner reads a prize item once armed, the pick lands in the deck, machine_visit logs the
-## visit (the odds card viewed, its timeline) and the next shift starts with the machine closed.
-func test_choose_scan_and_pick_a_prize() -> void:
+## The real flow: hovering a lit key brightens its column of odds in the stock window (v0.50, the
+## odds viewed), CONFIRM draws the prizes (saved at MACHINE_PICK), the tickets show the prizes in
+## full (nothing to scan), the pick lands in the deck, machine_visit logs the visit (the odds
+## viewed, its timeline) and the next shift starts with the machine closed.
+func test_choose_and_pick_a_prize() -> void:
 	var screen: ShiftScreen = await _passed_screen()
 	var view: RewardMachineView = screen._machine.view
 	await _until_armed(screen)
 	view.hover_key(RewardMachine.Chute.NEW_ITEMS)
-	assert_bool(view.odds_card.visible).is_true()
-	# Machine v2: the key is pressed, then CONFIRM › on the display confirms it.
+	assert_int(view.hovered_chute()).is_equal(RewardMachine.Chute.NEW_ITEMS)
+	assert_bool(view.stock.column_lit(RewardMachine.Chute.NEW_ITEMS)).is_true()
+	assert_int(view.stock.odds_texts(RewardMachine.Chute.NEW_ITEMS).size()).is_equal(3)
+	# Machine v2: the key is pressed, then the tray's push bar confirms it (v0.53).
 	view.press_key(RewardMachine.Chute.NEW_ITEMS)
 	assert_int(screen.run.phase).is_equal(RunState.Phase.MACHINE_CHOOSE)
-	view.display.press_confirm()
-	view.display._confirm_at_ms -= view.tuning.confirm_down_ms + 1
-	view.display.frame(view.clock)
+	view.tray.press_confirm()
+	view.tray._down_at_ms -= view.tuning.confirm_down_ms + 1
+	view.tray.frame(view.clock)
 	assert_int(screen.run.phase).is_equal(RunState.Phase.MACHINE_PICK)
 	assert_str(_saved_phase()).is_equal("machine_pick")
 	var prizes: Array[MachinePrize] = screen.run.machine.prizes()
 	assert_int(view.tickets.size()).is_equal(prizes.size())
 	await _frames(3)
-	var machine: Rect2 = view.get_global_rect()
-	for ticket: PrizeTicket in view.tickets:
-		assert_bool(machine.encloses(ticket.get_global_rect())).is_true()
-	# The prize items are the scanner's once the machine has armed.
-	var items: Array[ItemView] = view.items()
-	assert_int(items.size()).is_equal(prizes.size())
+	var window: Rect2 = screen.get_viewport_rect()
 	await _until_armed(screen)
-	assert_bool(view.can_scan()).is_true()
-	screen._scan._on_hovered(items[0])
-	assert_object(screen._scan.scanned()).is_same(items[0])
-	screen._scan.clear()
+	for ticket: PrizeTicket in view.tickets:
+		assert_bool(window.encloses(ticket.get_global_rect())).is_true()
+	# v0.50: the tickets print each prize's rule, so the scanner has nothing to read there.
+	assert_array(view.items()).is_empty()
+	assert_bool(view.can_scan()).is_false()
 	var card: CardDefinition = prizes[1].card
 	view.pick(1)
 	view.fast_forward()  # The landing plays to its end.
@@ -201,11 +202,10 @@ func test_a_pick_before_another_visit_keeps_the_belt_and_counts_the_cart() -> vo
 
 ## Every resume frame of build spec 4.3, each on a new screen over a run saved at that point:
 ## TICKET, BONUS and STAMP DAY at their wait points (the receipt already fed, no copy in the slot;
-## the head stamp at rest or none; the display's wait lines; the slip's "?" lines, or the chute's
-## ticked and PACKED; the saved meter levels, not punching; the keys from chute_info, only the
-## chosen one lit once picking, REGISTER's SEE ODDS tab on STAMP DAY; the odds card closed; an
-## empty belt, or the prizes open in their cells with their tabs), armed at once; a run saved at
-## SCORED starts the next shift with the machine closed.
+## the head stamp at rest or none; the display's wait lines; the keys from chute_info, only the
+## chosen one lit once picking; the stock window's lit columns; no tickets, or the prizes face up
+## in their row with their tabs), armed at once; a run saved at SCORED starts the next shift with
+## the machine closed.
 func test_every_resume_frame() -> void:
 	var run: RunState = _core_passed_run()
 	await _assert_resume_frame(run, MachineVisit.Kind.TICKET, false)
@@ -258,7 +258,7 @@ func _assert_resume_frame(run: RunState, kind: int, picking: bool) -> void:
 	if kind == MachineVisit.Kind.TICKET and view.plan.stub:
 		assert_object(bonus).override_failure_message(where).is_not_null()
 		assert_bool(bonus.is_visible_in_tree()).is_true()
-		var dock: Rect2 = view.slot_plate.dock_global_rect()
+		var dock: Rect2 = view.cabinet.dock_global_rect()
 		var shown: Rect2 = bonus.get_global_rect()
 		assert_vector(shown.get_center()).is_equal_approx(dock.get_center(), Vector2.ONE)
 	else:
@@ -282,22 +282,21 @@ func _assert_resume_frame(run: RunState, kind: int, picking: bool) -> void:
 	else:
 		var spend: String = RewardMachineView.SPEND_LINE % resumed.history[-1].total
 		assert_array(Array(lines)).is_equal([spend, RewardMachineView.CHOOSE_SUB])
-	# The order slip.
-	var slip: PackedStringArray = view.slip.texts()
-	var titles: Array[String] = ["ORDER #", "BONUS #", "STAMP DAY"]
-	assert_str(slip[0]).override_failure_message(where).starts_with(titles[kind])
-	for index: int in range(2, slip.size()):
-		var question: bool = slip[index].ends_with("?")
-		assert_bool(question).override_failure_message(slip[index]).is_equal(not picking)
-		assert_bool(view.slip.is_ticked(index - 2)).is_equal(picking)
-	if picking and kind != MachineVisit.Kind.STAMP_DAY:
-		assert_bool(view.slip.is_packed()).override_failure_message(where).is_true()
-	# The meters at their saved levels, still; the keys from chute_info.
+	# The keys from chute_info; the stock window's columns (v0.50): only the chosen chute's once
+	# picking (STAMP DAY: LOYALTY's), else every open chute's, with its three odds.
 	var visit: MachineVisit = resumed.machine.current_visit()
 	for chute: int in RewardMachine.CHUTES:
-		var meter: PunchMeter = view.meters[chute]
-		assert_int(meter.shown_level()).is_equal(resumed.machine.level(chute))
-		assert_bool(meter.is_punching()).is_false()
+		var open_now: bool = (
+			resumed.machine.chute_info(resumed, chute).state == RewardMachine.ChuteState.OPEN
+		)
+		var chosen: int = visit.chute
+		if kind == MachineVisit.Kind.STAMP_DAY:
+			chosen = RewardMachine.Chute.REGISTER
+		var column: bool = open_now and (not picking or chosen == chute)
+		var tag: String = "%s column %d" % [where, chute]
+		assert_bool(view.stock.column_lit(chute)).override_failure_message(tag).is_equal(column)
+		assert_int(view.stock.odds_texts(chute).size()).is_equal(3 if column else 0)
+	for chute: int in RewardMachine.CHUTES:
 		var info: MachineChuteInfo = resumed.machine.chute_info(resumed, chute)
 		var key: ChuteKey = view.keys[chute]
 		assert_int(key.state).is_equal(info.state)
@@ -305,33 +304,26 @@ func _assert_resume_frame(run: RunState, kind: int, picking: bool) -> void:
 		var lit: bool = open and (not picking or visit.chute == chute)
 		var which: String = "%s key %d" % [where, chute]
 		assert_bool(key.looks_lit()).override_failure_message(which).is_equal(lit)
-		var tab: bool = (
-			kind == MachineVisit.Kind.STAMP_DAY and chute == RewardMachine.Chute.REGISTER
-		)
-		assert_bool(key.has_tab()).override_failure_message(which).is_equal(tab)
-	assert_bool(view.odds_card.visible).is_false()
 	# No key is pressed on a resume at the chutes (at a pick, the chosen chute's stays down): the
-	# display shows the wait's lines, no CONFIRM ›.
+	# push bar offers nothing.
 	var pressed: int = visit.chute if picking and kind != MachineVisit.Kind.STAMP_DAY else -1
 	assert_int(view.pressed_chute()).override_failure_message(where).is_equal(pressed)
-	assert_bool(view.display.in_title_mode()).is_false()
-	assert_bool(view.display.confirm_key().visible).is_false()
-	# The belt: empty, or the prizes open in their cells.
-	assert_array(view.box_lane.riding(view.clock)).is_empty()
+	assert_bool(view.tray.confirm_offered()).is_false()
+	# No tickets, or the prizes face up in their row with their rarity tabs.
 	assert_int(view.tickets.size()).is_equal(prizes.size() if picking else 0)
 	for index: int in range(view.tickets.size()):
 		var ticket: PrizeTicket = view.tickets[index]
 		assert_bool(ticket.visible).is_true()
-		assert_bool(ticket.shows_box()).is_false()
 		assert_bool(ticket.tab.visible).is_true()
-		assert_float(ticket.position.x).is_equal(RewardMachineView.cell_x(index, prizes.size()))
+		var rest: Rect2 = PrizeRow.card_rect(index, prizes.size())
+		assert_vector(ticket.rest).is_equal(rest.position)
 
 
 ## A run (seed 7) that passed shift 1 with the passing row, at its ticket's chute wait.
 func _core_passed_run() -> RunState:
 	var deck: DeckDefinition = load(STARTER)
 	var balance: BalanceDefinition = load(BALANCE)
-	var run: RunState = RunState.new(7, deck, balance, RunStock.starting(deck, balance))
+	var run: RunState = RunState.new(7, deck, balance, RunStock.starting(balance))
 	run.start_shift()
 	_core_pass(run)
 	return run

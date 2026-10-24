@@ -22,3 +22,6 @@ base = 1
 rules = Array[ExtResource("1_rule")]([SubResource("Resource_lemon")])
 rule_text = "Double the next Produce payout"
 sticker_text = "×{factor} next {tag}"
+art_ref = "res://art/items_v2/lemon.png"
+mini_art_ref = "res://art/minis/lemon.png"
+mini_golden_art_ref = "res://art/minis/lemon_golden.png"

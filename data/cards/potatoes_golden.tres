@@ -1,0 +1,17 @@
+[gd_resource type="Resource" script_class="CardDefinition" format=3]
+
+[ext_resource type="Script" path="res://core/rule.gd" id="1_rule"]
+[ext_resource type="Script" path="res://core/card_definition.gd" id="3_card"]
+[ext_resource type="Resource" path="res://data/cards/potatoes.tres" id="9_plain"]
+
+[resource]
+script = ExtResource("3_card")
+id = &"potatoes_golden"
+display_name = "Golden Potatoes"
+kind = 1
+tags = PackedStringArray("Food", "Produce")
+base = 7
+rule_text = "No rule"
+art_ref = "res://art/items_v2/potatoes_golden.png"
+variant_of = ExtResource("9_plain")
+tier = 2

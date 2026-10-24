@@ -1,11 +1,11 @@
 class_name MachineTuning
 extends Resource
-## The RECEIPT REWARDS machine's tempo (#77, build spec 4.3-4.4): every time of a visit's
-## timeline, from the approved page (docs/art/mockups/machine_77_flow.html: buildTimeline,
-## bonusTimeline and look F's plan). They live in data/balance/machine_tempo.tres so they can be
-## tuned without code changes; MachinePlan reads them and never hard-codes one. Every default is
-## neutral (0 or empty), like CountUpTuning, so a script edit can never silently change the tuned
-## values in the file.
+## The RECEIPT REWARDS machine's tempo (#77, build spec 4.3-4.4): every time of a visit's timeline,
+## from the approved page (docs/art/mockups/machine_77_flow.html: buildTimeline, bonusTimeline) and,
+## for the premium transform and the draw, mock-up premium_machine_v1.html (v0.50: dressing A,
+## rarity reveal R1). They live in data/balance/machine_tempo.tres so they can be tuned without code
+## changes; MachinePlan reads them and never hard-codes one. Every default is neutral (0 or empty),
+## like CountUpTuning, so a script edit can never silently change the tuned values in the file.
 ##
 ## Times are in ms at 1x (the count-up's speed setting doesn't scale the machine); `_rm_ms` fields
 ## are the reduced-motion variants. A field that is a list holds one value per visit kind, in
@@ -73,70 +73,44 @@ extends Resource
 ## The BONUS TICKET line from the feed's end to the chute wait.
 @export var again_ms: int = 0
 
-@export_group("Odds card")
-## The odds card popping open (ease) and closing after CONFIRM, per kind.
-@export var odds_open_ms: int = 0
+@export_group("Chute press")
+## The pressed chute settles this long after CONFIRM before the draw starts, per kind.
 @export var odds_close_ms: PackedInt32Array = PackedInt32Array()
-## CONFIRM › on the display stays down this long before the chute is confirmed (#77 machine v2).
+## The push bar (v0.53; CONFIRM › on the display until then) stays down this long before the
+## chute is confirmed (#77 machine v2).
 @export var confirm_down_ms: int = 0
-
+@export_group("Premium transform")
+## A Normal machine turns PREMIUM (mock-up premium_machine_v1.html, dressing A) after a BOOSTED
+## visit's receipt is read: the sign, the bulbs, the trim, the gold parts and the keys change over
+## premium_ms (reduced motion: a cut after premium_rm_ms), then the keys light.
+@export var premium_ms: int = 0
+@export var premium_rm_ms: int = 0
 @export_group("Draw")
-## "PACKING YOUR ORDER…": from the odds card closed to the draw's end, per kind (STAMP DAY: 0,
-## its drops are timed from the visit's start).
+## The tray packs the draw (its light flickers grey, teal, gold) from the press settling to the
+## draw's end, per kind; under reduced motion draw_rm_ms.
 @export var draw_ms: PackedInt32Array = PackedInt32Array()
 @export var draw_rm_ms: int = 0
-## When box i reaches its gate, after the draw's end (look F's LANDS).
-@export var lands_ms: PackedInt32Array = PackedInt32Array()
-## The first bay pick, after the draw starts (look F's `T.draw + .05`; STAMP DAY's `T.sd + .02`),
-## per kind; none under reduced motion for TICKET and BONUS.
-@export var pick_lead_ms: PackedInt32Array = PackedInt32Array()
-## Belt speed in machine px per second (look F's V_MAIN, V_SD), per kind.
-@export var belt_px_per_s: PackedInt32Array = PackedInt32Array()
-## The belt's speed ramps up before its first box and down after its last.
-@export var belt_ramp_up_ms: int = 0
-@export var belt_ramp_down_ms: int = 0
-## A box shows on the belt this long before it clears the curtain (look F's `r.e - .05`).
-@export var box_show_early_ms: int = 0
-## A box's trip from its bay (look F's RUN), per kind: the trapdoor fall, the runway speed in
-## stockroom art px per second, and the time inside the hatch.
-@export var fall_ms: PackedInt32Array = PackedInt32Array()
-@export var runway_px_per_s: PackedInt32Array = PackedInt32Array()
-@export var hidden_ms: PackedInt32Array = PackedInt32Array()
-## Under reduced motion boxes appear at their gates: box i at drop_gap_rm_ms x i after the draw's
-## end, for drop_rm_ms.
-@export var drop_gap_rm_ms: int = 0
-@export var drop_rm_ms: int = 0
-## STAMP DAY's drops (it has no belt run timed from LANDS): box i drops at stamp_drop_ms +
-## stamp_drop_gap_ms x i, for stamp_drop_length_ms.
-@export var stamp_drop_ms: int = 0
-@export var stamp_drop_gap_ms: int = 0
-@export var stamp_drop_gap_rm_ms: int = 0
-@export var stamp_drop_length_ms: int = 0
-@export var stamp_drop_length_rm_ms: int = 0
-## The PACKED stamp after the last bay pick (STAMP DAY: packed_stamp_day_ms), its 1.6 -> 1 pop,
-## and under reduced motion after the draw starts.
-@export var packed_ms: int = 0
-@export var packed_stamp_day_ms: int = 0
-@export var packed_pop_ms: int = 0
-@export var packed_rm_ms: int = 0
-
 @export_group("Reveals")
-## The first reveal after the last box lands, per kind.
-@export var reveal_start_ms: PackedInt32Array = PackedInt32Array()
-## A reveal's length per rarity: TICKET and BONUS, STAMP DAY, and their reduced-motion lengths.
+## The prize tickets fly out of the tray to the front (mock-up R1 "drop"): each flight lasts
+## fly_ms (per kind; none under reduced motion), the first ticket lands first_land_ms after the
+## draw's end (per kind), each next one land_lead_ms after the one before it, by the rarity of the
+## ticket landing (per rarity: the LEGENDARY one a beat later); under reduced motion
+## land_lead_rm_ms apart.
+@export var fly_ms: PackedInt32Array = PackedInt32Array()
+@export var first_land_ms: PackedInt32Array = PackedInt32Array()
+@export var land_lead_ms: PackedInt32Array = PackedInt32Array()
+@export var land_lead_rm_ms: int = 0
+## A ticket's landing effect per rarity (COMMON's dust, RARE's shine and glow, LEGENDARY's burst
+## shrinking to a glow), and its reduced-motion length.
 @export var reveal_ms: PackedInt32Array = PackedInt32Array()
 @export var reveal_rm_ms: PackedInt32Array = PackedInt32Array()
-@export var reveal_stamp_day_ms: PackedInt32Array = PackedInt32Array()
-@export var reveal_stamp_day_rm_ms: PackedInt32Array = PackedInt32Array()
-## The gap after each reveal, per kind.
-@export var reveal_gap_ms: PackedInt32Array = PackedInt32Array()
-## The pick arms this long after the last reveal's gap (the page's curPick), per kind.
+## The pick arms this long after the last landing effect, per kind.
 @export var pick_arm_ms: PackedInt32Array = PackedInt32Array()
-
 @export_group("Landing")
 ## From the pick press to the flight's start, per kind.
 @export var pick_lead_flight_ms: PackedInt32Array = PackedInt32Array()
-## The prize's flight to the cart drawer or the loyalty box, per kind, and under reduced motion.
+## The picked prize's flight to the cart drawer or the loyalty box, per kind, and under reduced
+## motion.
 @export var pick_flight_ms: PackedInt32Array = PackedInt32Array()
 @export var pick_flight_rm_ms: int = 0
 ## UPGRADES: the glint after the landing (per kind; reduced motion), one step per extra copy and
@@ -158,11 +132,6 @@ extends Resource
 ## The cart drawer slides in before the flight's start and out after the punch.
 @export var drawer_lead_ms: int = 0
 @export var drawer_tail_ms: int = 0
-## The bays refill after the punch, restock_gap_ms apart (together under reduced motion);
-## STAMP DAY's after its landing.
-@export var restock_ms: int = 0
-@export var restock_stamp_day_ms: int = 0
-@export var restock_gap_ms: int = 0
 
 @export_group("Holds")
 ## The end hold after the punch when no visit follows, per kind (STAMP DAY: after its landing).

@@ -86,8 +86,8 @@ func problem(balance: BalanceDefinition) -> String:
 	return ""
 
 
-func stock(deck: DeckDefinition, balance: BalanceDefinition) -> RunStock:
-	return RunStock.build(deck, balance, listed, unlocked, run_index)
+func stock(balance: BalanceDefinition) -> RunStock:
+	return RunStock.build(balance, listed, unlocked, run_index)
 
 
 ## Every state the list gate checks (plan section 8), in this order: every legal list at full

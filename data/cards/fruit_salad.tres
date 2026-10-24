@@ -20,3 +20,6 @@ base = 2
 rules = Array[ExtResource("1_rule")]([SubResource("Resource_fruit_salad")])
 rule_text = "+2 for each earlier Produce product"
 sticker_text = "+{bonus_each} per earlier {tag}"
+art_ref = "res://art/items_v2/fruit_salad.png"
+mini_art_ref = "res://art/minis/fruit_salad.png"
+mini_golden_art_ref = "res://art/minis/fruit_salad_golden.png"

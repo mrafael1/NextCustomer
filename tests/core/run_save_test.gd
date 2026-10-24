@@ -244,7 +244,33 @@ func test_the_run_id_and_played_time_are_kept() -> void:
 	assert_str(save.run_id).is_equal("abc123")
 	assert_int(save.run_ms).is_equal(98765)
 	assert_int(int(data["format_version"])).is_equal(RunSave.FORMAT_VERSION)
-	assert_int(RunSave.FORMAT_VERSION).is_equal(2)
+	assert_int(RunSave.FORMAT_VERSION).is_equal(4)
+	# v0.47: the machine saves no Regular levels.
+	assert_bool((data["machine"] as Dictionary).has("levels")).is_false()
+
+
+## v0.47: a run at a BOOSTED visit's pick (after shift 3) round-trips with the visit's state and no
+## Regular levels; the restored machine lights the same chutes.
+func test_a_boosted_visit_round_trips_without_levels() -> void:
+	var run: RunState = _run_at_shift_three(18)
+	_fill(run)
+	run.checkout()
+	assert_bool(run.machine.is_boosted()).is_true()
+	var at_choose: RunState = _round_trip(run)
+	assert_bool(at_choose.machine.is_boosted()).is_true()
+	for chute: int in RewardMachine.CHUTES:
+		assert_int(at_choose.machine.chute_info(at_choose, chute).state).is_equal(
+			run.machine.chute_info(run, chute).state
+		)
+	assert_bool(MachineSteps.choose(run, RewardMachine.Chute.REGISTER)).is_true()
+	var data: Dictionary = _json(_save(run))
+	assert_bool((data["machine"] as Dictionary).has("levels")).is_false()
+	assert_bool(data["machine"]["visit"]["boosted"]).is_true()
+	var restored: RunState = _round_trip(run)
+	assert_bool(restored.machine.is_boosted()).is_true()
+	assert_int(restored.phase).is_equal(RunState.Phase.MACHINE_PICK)
+	var key: Callable = func(prize: MachinePrize) -> String: return prize.key()
+	assert_array(restored.machine.prizes().map(key)).is_equal(run.machine.prizes().map(key))
 
 
 func test_a_save_that_cant_be_resumed_reads_as_null() -> void:
@@ -265,8 +291,13 @@ func test_a_save_that_cant_be_resumed_reads_as_null() -> void:
 	var cases: Dictionary[String, Array] = {
 		"no format version": [planning, func(d: Dictionary) -> void: d.erase("format_version")],
 		"version 1": [planning, func(d: Dictionary) -> void: d["format_version"] = 1],
-		"newer format": [planning, func(d: Dictionary) -> void: d["format_version"] = 3],
-		"format as text": [planning, func(d: Dictionary) -> void: d["format_version"] = "2"],
+		"version 2 (Regular levels)":
+		[planning, func(d: Dictionary) -> void: d["format_version"] = 2],
+		"version 3, before the dealt starting deck":
+		[planning, func(d: Dictionary) -> void: d["format_version"] = 3],
+		"newer format": [planning, func(d: Dictionary) -> void: d["format_version"] = 5],
+		"format as text": [planning, func(d: Dictionary) -> void: d["format_version"] = "4"],
+		"starting deck missing": [planning, func(d: Dictionary) -> void: d.erase("starting_deck")],
 		"seed as a number": [planning, func(d: Dictionary) -> void: d["seed"] = 12],
 		"seed not a number": [planning, func(d: Dictionary) -> void: d["seed"] = "12a"],
 		"seed too big": [planning, func(d: Dictionary) -> void: d["seed"] = "9223372036854775808"],
@@ -312,7 +343,8 @@ func test_a_save_that_cant_be_resumed_reads_as_null() -> void:
 		"pick with the choose stage": [pick, func(d: Dictionary) -> void: d["phase"] = "machine"],
 		"pick without prizes":
 		[pick, func(d: Dictionary) -> void: d["machine"]["visit"]["prizes"] = []],
-		"level over the top": [pick, func(d: Dictionary) -> void: d["machine"]["levels"][0] = 99],
+		"boosted after a normal shift":
+		[pick, func(d: Dictionary) -> void: d["machine"]["visit"]["boosted"] = true],
 		"scored with a visit":
 		[scored, func(d: Dictionary) -> void: d["machine"] = pick["machine"]],
 		"ticket visit already recorded":
@@ -503,7 +535,7 @@ func _observe(run: RunState) -> String:
 
 func _new_run(seed_value: int) -> RunState:
 	var deck: DeckDefinition = load(STARTER)
-	return RunState.new(seed_value, deck, _balance, RunStock.starting(deck, _balance))
+	return RunState.new(seed_value, deck, _balance, RunStock.starting(_balance))
 
 
 ## Shift 1, planning.
@@ -530,7 +562,8 @@ func _run_at_shift_two_checkout(seed_value: int) -> RunState:
 
 ## The first passed inspected shift's bonus visit, waiting for its chute (MACHINE_CHOOSE): each
 ## shift checks out Milk, Multipack and Milk x5 (what the row takes of it), the ticket chooses
-## NEW ITEMS and bins it; the other visits pass (MachineSteps).
+## NEW ITEMS and bins it (a BOOSTED ticket, v0.47: takes the first lit chute's first prize); the
+## other visits pass (MachineSteps).
 func _run_at_bonus_visit(seed_value: int) -> RunState:
 	var run: RunState = _planning_run(seed_value)
 	for _shift: int in range(run.shift_count() - 1):
@@ -539,8 +572,11 @@ func _run_at_bonus_visit(seed_value: int) -> RunState:
 			run.place(card, run.row.size())
 		run.checkout()
 		assert_bool(RunState.MACHINE_PHASES.has(run.phase)).is_true()
-		MachineSteps.choose(run, RewardMachine.Chute.NEW_ITEMS)
-		run.machine.bin(run)
+		MachineSteps.choose(run, MachineSteps.first_lit(run, RewardMachine.Chute.NEW_ITEMS))
+		if run.machine.can_bin():
+			run.machine.bin(run)
+		else:
+			MachineSteps.take(run, 0)
 		if (
 			run.phase == RunState.Phase.MACHINE_CHOOSE
 			and run.machine.current_visit().kind == MachineVisit.Kind.BONUS

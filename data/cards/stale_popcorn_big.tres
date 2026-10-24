@@ -1,0 +1,25 @@
+[gd_resource type="Resource" script_class="CardDefinition" format=3]
+
+[ext_resource type="Script" path="res://core/rule.gd" id="1_rule"]
+[ext_resource type="Script" path="res://core/rules/grant_next_tag_bonus_rule.gd" id="2_stale_popcorn"]
+[ext_resource type="Script" path="res://core/card_definition.gd" id="3_card"]
+[ext_resource type="Resource" path="res://data/cards/stale_popcorn.tres" id="9_plain"]
+
+[sub_resource type="Resource" id="Resource_stale_popcorn"]
+script = ExtResource("2_stale_popcorn")
+tag = "Snack"
+bonus = 3
+receipt_text = "Stale popcorn bonus"
+
+[resource]
+script = ExtResource("3_card")
+id = &"stale_popcorn_big"
+display_name = "Big Stale popcorn"
+kind = 1
+tags = PackedStringArray("Food", "Snack", "Clearance")
+base = 4
+rules = Array[ExtResource("1_rule")]([SubResource("Resource_stale_popcorn")])
+rule_text = "+3 to the next Snack product"
+art_ref = "res://art/items_v2/stale_popcorn_big.png"
+variant_of = ExtResource("9_plain")
+tier = 1

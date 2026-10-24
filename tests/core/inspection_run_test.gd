@@ -33,7 +33,7 @@ func test_the_inspection_is_announced_at_the_previous_checkout() -> void:
 	assert_object(run.next_inspection).is_same(load(SPOT_CHECK))
 	assert_array(run.inspections).is_empty()
 	assert_int(run.phase).is_equal(RunState.Phase.MACHINE_CHOOSE)
-	MachineSteps.choose(run, RewardMachine.Chute.REGISTER)
+	MachineSteps.choose(run, RewardMachine.Chute.COUPONS)
 	assert_object(run.next_inspection).is_same(load(SPOT_CHECK))
 	MachineSteps.pass_visits(run)
 	assert_object(run.next_inspection).is_same(load(SPOT_CHECK))
@@ -79,7 +79,7 @@ func test_the_last_shift_announces_nothing() -> void:
 	# stops the draw.
 	balance.inspection_shifts = PackedInt32Array([3, 5, 7, balance.quotas.size() + 1])
 	var deck: DeckDefinition = load(STARTER)
-	var run: RunState = RunState.new(44, deck, balance, RunStock.starting(deck, balance))
+	var run: RunState = RunState.new(44, deck, balance, RunStock.starting(balance))
 	run.start_shift()
 	run.debug_skip_to_shift(balance.quotas.size() - 1)
 	assert_bool(InspectionSchedule.is_inspection_shift(balance, run.shift_index + 2)).is_true()
@@ -126,7 +126,7 @@ func test_an_empty_pool_draws_nothing_and_uses_no_rng() -> void:
 	assert_int(rng.state).is_equal(state)
 	# A run with no pool plays its inspected shifts without an inspection.
 	var deck: DeckDefinition = load(STARTER)
-	var run: RunState = RunState.new(46, deck, balance, RunStock.starting(deck, balance))
+	var run: RunState = RunState.new(46, deck, balance, RunStock.starting(balance))
 	run.start_shift()
 	run.debug_skip_to_shift(1)
 	_pass(run)
@@ -166,7 +166,7 @@ static func _two_inspection_run(seed_value: int, inspection_shifts: PackedInt32A
 	balance.inspection_pool = pool
 	balance.inspection_shifts = inspection_shifts
 	var deck: DeckDefinition = load(STARTER)
-	var run: RunState = RunState.new(seed_value, deck, balance, RunStock.starting(deck, balance))
+	var run: RunState = RunState.new(seed_value, deck, balance, RunStock.starting(balance))
 	run.start_shift()
 	return run
 
@@ -186,7 +186,7 @@ static func _low_quotas() -> BalanceDefinition:
 static func _run(seed_value: int) -> RunState:
 	var balance: BalanceDefinition = _low_quotas()
 	var deck: DeckDefinition = load(STARTER)
-	var run: RunState = RunState.new(seed_value, deck, balance, RunStock.starting(deck, balance))
+	var run: RunState = RunState.new(seed_value, deck, balance, RunStock.starting(balance))
 	run.start_shift()
 	return run
 

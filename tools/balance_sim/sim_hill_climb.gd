@@ -1,6 +1,7 @@
 class_name SimHillClimb
 extends RefCounted
-## The balance simulator's "sensible" row player (decided with the user, #41): a stand-in for a
+## The balance simulator's "sensible" row player (decided with the user, #41; its moves are
+## core's RowClimb, v0.54): a stand-in for a
 ## player who orders the row with the live preview instead of trying every order, so quotas can
 ## be set where "a sensible but not optimal order passes" (full build plan section 8).
 ##
@@ -145,51 +146,16 @@ func _climb_key(
 	return key
 
 
-## Every row one change away from `row` that fits the limits, in the order ties are broken:
-## moves, swaps, additions, removals. Spare cards with the same definition give the same rows,
-## so only the first of them is tried.
+## Every row one change away from `row` that fits the limits (RowClimb.neighbours, core).
 static func _neighbours(
 	row: Array[CardInstance], hand: Array[CardInstance], limits: ShiftLimits
 ) -> Array[Array]:
-	var spare: Array[CardInstance] = []
-	var spare_kinds: Array[CardDefinition] = []
-	for card: CardInstance in hand:
-		if not row.has(card) and not spare_kinds.has(card.definition):
-			spare.append(card)
-			spare_kinds.append(card.definition)
-	var rows: Array[Array] = []
-	for from: int in range(row.size()):
-		for to: int in range(row.size()):
-			if to != from and row[to].definition != row[from].definition:
-				var moved: Array[CardInstance] = row.duplicate()
-				var card: CardInstance = moved.pop_at(from)
-				moved.insert(to, card)
-				rows.append(moved)
-	for index: int in range(row.size()):
-		for card: CardInstance in spare:
-			if card.definition == row[index].definition:
-				continue
-			var swapped: Array[CardInstance] = row.duplicate()
-			swapped[index] = card
-			if fits(limits, swapped):
-				rows.append(swapped)
-	for card: CardInstance in spare:
-		if not RowCapacity.fits(limits, row, card.definition):
-			continue
-		for at: int in range(row.size() + 1):
-			var added: Array[CardInstance] = row.duplicate()
-			added.insert(at, card)
-			rows.append(added)
-	for index: int in range(row.size()):
-		var removed: Array[CardInstance] = row.duplicate()
-		removed.remove_at(index)
-		rows.append(removed)
-	return rows
+	return RowClimb.neighbours(row, hand, limits)
 
 
-## Whether a whole row fits the shift's limits (plan section 3.1).
+## Whether a whole row fits the shift's limits (RowClimb.fits, core).
 static func fits(limits: ShiftLimits, row: Array[CardInstance]) -> bool:
-	return row.size() <= limits.card_limit() and RowCapacity.product_count(row) <= limits.slot_count
+	return RowClimb.fits(limits, row)
 
 
 func _score(

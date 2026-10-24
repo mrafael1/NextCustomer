@@ -14,6 +14,7 @@ receipt_text = "Coupon engine"
 [resource]
 script = ExtResource("3_upgrade")
 id = &"coupon_engine"
+icon_ref = "res://art/icons/perk_coupon_engine.png"
 display_name = "Coupon engine"
 type = 4
 effect_text = "The first coupon in the row pays ×2"

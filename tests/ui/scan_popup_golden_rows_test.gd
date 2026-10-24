@@ -120,7 +120,7 @@ func test_the_scans_hold_every_line_of_each_golden_rows_receipt() -> void:
 		for row_ids: String in GOLDEN_ROWS[fixture]:
 			var row: Array[CardInstance] = _fixture_row(fixture, row_ids)
 			var result: ScoreResult = Scoring.score(row)
-			var names: PackedStringArray = ShiftScreen._names(row)
+			var names: PackedStringArray = CardInstance.names(row)
 			receipt.show_result(result, names)
 			(
 				assert_int(ReceiptFooters.printed(receipt).size())

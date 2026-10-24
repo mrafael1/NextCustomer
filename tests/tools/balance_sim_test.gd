@@ -253,17 +253,28 @@ func test_expected_best_weights_the_best_drawn_prize() -> void:
 	assert_float(SimPlayer.expected_best(one, half)).is_equal_approx(4.0, 0.0001)
 
 
-## The record and the summary report the machine (S1): registers, Regular levels, BIG / GOLDEN
-## copies, visits by kind and the bin rate.
+## The record and the summary report the machine (S1): registers, BIG / GOLDEN copies, visits by
+## kind and by machine state (v0.47), and the bin rate. The simulator follows the lit chutes:
+## REGISTER and UPGRADES only on BOOSTED visits (registers otherwise from STAMP DAY), NEW ITEMS
+## and COUPONS only on Normal ones.
 func test_records_and_summary_report_the_machine() -> void:
 	var record: SimRunRecord = _player("greedy", [2]).play(2)
-	assert_int(record.levels.size()).is_equal(RewardMachine.CHUTES.size())
 	var registers: int = 0
+	var boosted: int = 0
 	for shift: Dictionary in record.shifts:
 		for visit: Dictionary in shift["visits"]:
 			var picked: int = int(visit["picked"])
 			if picked >= 0 and visit["prizes"][picked]["kind"] == "register":
 				registers += 1
+			var chute: String = visit["chute"]
+			var boosted_chute: bool = chute == "register" or chute == "upgrades"
+			if visit["kind"] == "stamp_day":
+				assert_str(chute).is_equal("register")
+			else:
+				assert_bool(boosted_chute).is_equal(bool(visit["boosted"]))
+			if visit["boosted"]:
+				boosted += 1
+				assert_bool([3, 5, 7].has(int(shift["shift"]))).is_true()
 	assert_int(record.registers).is_equal(registers)
 	var copy: SimRunRecord = SimRunRecord.from_dictionary(
 		JSON.parse_string(JSON.stringify(record.to_dictionary()))
@@ -276,7 +287,10 @@ func test_records_and_summary_report_the_machine() -> void:
 	assert_str(text).contains("GOLDEN Milk per run: 2.00")
 	assert_str(text).contains("BIG / GOLDEN copies per run: milk_golden 2.00, banana_big 1.00")
 	assert_str(text).contains("Registers owned (runs): ")
-	assert_str(text).contains("Regular levels at the end (runs): new_items ")
+	assert_str(text).contains("Machine visits per run by state: normal ")
+	assert_str(text).not_contains("Regular levels")
+	var states: Dictionary = summary.to_dictionary()["machine_visit_states"]
+	assert_int(int(states.get(RewardMachine.STATE_BOOSTED, 0))).is_equal(boosted)
 	assert_str(text).contains("Machine visits per run: ticket ")
 	assert_str(text).contains("Binned: ")
 	assert_int(summary.to_dictionary()["registers_owned"][record.registers]).is_equal(1)
@@ -362,7 +376,9 @@ func _player(strategy: String, inspection_shifts: Array = []) -> SimPlayer:
 	balance.base_redraws = 1
 	balance.basket_size = 2
 	balance.deck_limit = 8
-	# The stock: the deck's products, then this aisle, then the coupons.
+	# The stock: the staples (the deck's products), then this aisle, then the coupons.
+	for id: String in ["banana", "bread", "eggs", "milk"]:
+		balance.staples.append(_card(id))
 	var aisle: AisleDefinition = AisleDefinition.new()
 	aisle.id = &"test"
 	aisle.base_cards.append(_card("cheese"))

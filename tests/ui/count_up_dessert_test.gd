@@ -199,7 +199,7 @@ func test_the_last_shift_is_stamped_and_torn_then_shows_the_results() -> void:
 	assert_array(_names_of(_dessert_sounds(sfx, count_up))).is_equal(
 		["total", "pass", "stamp_paid", "rip"]
 	)
-	assert_str(_lines(screen._receipt)[-2]).is_equal("+€75.00 OVER QUOTA | PAID")
+	assert_str(_lines(screen._receipt)[-2]).is_equal("+€80.00 OVER QUOTA | PAID")
 	assert_bool(_last_event("count_up").is_empty()).is_false()
 
 
@@ -625,7 +625,7 @@ func _start(
 	count_up.play(
 		screen.run.preview(),
 		screen._row_views,
-		ShiftScreen._names(screen.run.row),
+		CardInstance.names(screen.run.row),
 		quota,
 		context if context != null else CountUpContext.new(1, 0),
 		screen._loyalty_card.stamped_boxes(),

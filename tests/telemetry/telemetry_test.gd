@@ -151,11 +151,30 @@ func test_export_joins_every_session_and_includes_its_own_event() -> void:
 	DirAccess.remove_absolute(folder)
 
 
+## v0.49: a run dealt from the recipe deck logs the cards it was dealt as its starting_deck.
+func test_run_start_logs_the_dealt_starting_deck() -> void:
+	var balance: BalanceDefinition = load(BALANCE)
+	var stock: RunStock = RunStock.starting(balance)
+	var deck: DeckDefinition = StartingDeck.deal(
+		load("res://data/decks/random_starter.tres"),
+		stock,
+		balance,
+		EventLogService.derived_stream(77, EventLogService.STARTING_DECK_STREAM)
+	)
+	var run: RunState = RunState.new(77, deck, balance, stock)
+	var start: Dictionary = RunEvents.run_start(run)
+	var expected: Array = deck.cards.map(
+		func(card: CardDefinition) -> String: return String(card.id)
+	)
+	assert_int(expected.size()).is_equal(13)
+	assert_array(start["starting_deck"]).is_equal(expected)
+
+
 ## Plan section 8: run_start's and run_end's fields, JSON-friendly.
 func test_run_start_and_run_end_fields() -> void:
 	var deck: DeckDefinition = load(STARTER)
 	var balance: BalanceDefinition = load(BALANCE)
-	var run: RunState = RunState.new(77, deck, balance, RunStock.starting(deck, balance))
+	var run: RunState = RunState.new(77, deck, balance, RunStock.starting(balance))
 	run.start_shift()
 	var start: Dictionary = RunEvents.run_start(run)
 	(
@@ -185,15 +204,12 @@ func test_run_start_and_run_end_fields() -> void:
 	)
 
 
-## #77: the machine_visit event's fields, in order, from the visit just recorded (a REGISTER
-## pick after shift 1), JSON-friendly; a bin (shift 2), and the BONUS visit of the inspected
-## shift 3 naming its inspection.
 ## The `redraw` event (plan section 3.8, the basket redraw): the basket (1-based), the places
 ## swapped (0-based, left first) and the cards replaced and received in their order.
 func test_redraw_event_fields() -> void:
 	var deck: DeckDefinition = load(STARTER)
 	var balance: BalanceDefinition = load(BALANCE)
-	var run: RunState = RunState.new(5, deck, balance, RunStock.starting(deck, balance))
+	var run: RunState = RunState.new(5, deck, balance, RunStock.starting(balance))
 	run.start_shift()
 	var hand_before: Array[CardInstance] = run.hand_places()
 	var places: Array[int] = run.redraw_basket(1)
@@ -210,8 +226,12 @@ func test_redraw_event_fields() -> void:
 	assert_int(int(parsed["places"][1])).is_equal(3)
 
 
+## #77: the machine_visit event's fields, in order, from the visit just recorded (a REGISTER
+## pick on a BOOSTED visit after shift 1), JSON-friendly, with its machine state (v0.47) and no
+## Regular levels; a bin (shift 2, Normal), and the Normal BONUS visit of the inspected shift 3
+## naming its inspection.
 func test_machine_visit_event_fields() -> void:
-	var run: RunState = _passed_run(81)
+	var run: RunState = _passed_run(81, [1])
 	run.machine.choose(run, RewardMachine.Chute.REGISTER)
 	var odds: MachineOddsCard = run.machine.chute_info(run, RewardMachine.Chute.REGISTER).odds
 	var timeline: OfferTimeline = OfferTimeline.new(100)
@@ -230,11 +250,9 @@ func test_machine_visit_event_fields() -> void:
 				"shift",
 				"visit_index",
 				"kind",
+				"state",
 				"inspection",
 				"chute",
-				"level_before",
-				"levels",
-				"meter_rose",
 				"odds_shown",
 				"guarantee_held",
 				"fallback",
@@ -261,9 +279,7 @@ func test_machine_visit_event_fields() -> void:
 	assert_str(event["kind"]).is_equal("ticket")
 	assert_str(event["inspection"]).is_empty()
 	assert_str(event["chute"]).is_equal("register")
-	assert_int(event["level_before"]).is_equal(0)
-	assert_array(event["levels"]).is_equal([0, 0, 1, 0])
-	assert_bool(event["meter_rose"]).is_true()
+	assert_str(event["state"]).is_equal("boosted")
 	assert_array(event["chutes_viewed"]).is_equal(["coupons", "register"])
 	assert_int((event["offered"] as Array).size()).is_equal(prizes.size())
 	assert_str(event["offered"][1]["id"]).is_equal(String(prizes[1].id()))
@@ -296,6 +312,7 @@ func test_machine_visit_event_fields() -> void:
 	)
 	assert_int(bin["picked"]).is_equal(-1)
 	assert_bool(bin["binned"]).is_true()
+	assert_str(bin["state"]).is_equal("normal")
 	assert_dict(bin["odds_shown"]).is_empty()
 	assert_array(bin["fallback"]).is_empty()
 	# Shift 3 is inspected: its BONUS visit names the inspection.
@@ -311,6 +328,7 @@ func test_machine_visit_event_fields() -> void:
 		run, run.history[-1].visits[-1], null, [], false, false, timeline.fields(900)
 	)
 	assert_str(bonus["kind"]).is_equal("bonus")
+	assert_str(bonus["state"]).is_equal("normal")
 	assert_int(bonus["visit_index"]).is_equal(1)
 	assert_str(bonus["inspection"]).is_equal(String(run.history[-1].inspection.id))
 
@@ -363,11 +381,14 @@ func test_resume_run_sets_the_run_id() -> void:
 
 
 ## A run with every quota at 1 that passed shift 1 (two Breads): the machine waits for its chute.
-static func _passed_run(seed_value: int) -> RunState:
+## `boosted`: the shifts whose ticket visit is BOOSTED instead of the data's (v0.47), or none.
+static func _passed_run(seed_value: int, boosted: Array[int] = []) -> RunState:
 	var balance: BalanceDefinition = (load(BALANCE) as BalanceDefinition).duplicate()
 	balance.quotas = PackedInt32Array([1, 1, 1, 1, 1, 1, 1, 1])
+	if not boosted.is_empty():
+		MachineSteps.boosted_on(balance, boosted)
 	var deck: DeckDefinition = load(STARTER)
-	var run: RunState = RunState.new(seed_value, deck, balance, RunStock.starting(deck, balance))
+	var run: RunState = RunState.new(seed_value, deck, balance, RunStock.starting(balance))
 	run.start_shift()
 	_pass(run)
 	return run

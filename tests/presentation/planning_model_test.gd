@@ -13,8 +13,8 @@ const UPGRADES: Array[String] = [
 	"res://data/upgrades/slot_engine.tres",
 ]
 const INSPECTION := "res://data/inspections/spot_check.tres"
-## Sticker minis' row: Golden Eggs, Mixed herbs (no sprite yet) and Eggs give to the Food after
-## them, Multipack stamps the Milk.
+## Sticker minis' row: Golden Eggs, Mixed herbs (its mini since v0.52) and Eggs give to the Food
+## after them, Multipack stamps the Milk.
 const MINI_ROW := "eggs_golden,bread,mixed_herbs,cheese,multipack,milk,eggs,yogurt"
 
 
@@ -405,8 +405,8 @@ func test_the_tuning_defaults_are_neutral_and_the_file_holds_the_values() -> voi
 
 
 ## Sticker minis: an ITEM badge carries its giver's mini (CardDefinition.badge_mini_ref: Golden
-## Eggs' gold-outlined one, plain Eggs' ink one), none for a product with no sprite (Mixed herbs
-## keeps "Mi") nor for a coupon's or a loyalty badge; the initials are kept for every badge.
+## Eggs' gold-outlined one, plain Eggs' ink one, Mixed herbs' since v0.52), none for a coupon's or
+## a loyalty badge; the initials are kept for every badge (Mixed herbs keeps "Mi").
 func test_item_badges_carry_the_givers_mini() -> void:
 	var row: Array[CardDefinition] = []
 	for card_id: String in MINI_ROW.split(","):
@@ -436,7 +436,7 @@ func test_item_badges_carry_the_givers_mini() -> void:
 				&"eggs":
 					assert_str(sticker.badge_mini).is_equal("res://art/minis/eggs.png")
 				&"mixed_herbs":
-					assert_str(sticker.badge_mini).is_empty()
+					assert_str(sticker.badge_mini).is_equal("res://art/minis/mixed_herbs.png")
 					assert_str(sticker.badge_text).is_equal("Mi")
 	assert_array(seen.keys()).contains_exactly_in_any_order(
 		["eggs_golden", "eggs", "mixed_herbs", "coupon"]

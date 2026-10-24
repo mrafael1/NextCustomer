@@ -114,9 +114,10 @@ const SCREEN_SHADOW_ALPHA := 0.12
 const NOTICE_LINE_SPACING := -4
 ## The notice's ink: plain, as tomato is only for fizzles, CHECKOUT and CLOSED (#80).
 const NOTICE_COLOR := Palette.INK
-## The scan's text: the name row (with "pays €N" at its right), the tag row, the gaps.
+## The scan's text: the name row (with "pays €N" at its right; the name in the first of NAME_SIZES
+## that fits beside it, the smaller ones for long BIG and GOLDEN names), the tag row, the gaps.
 const NAME_HEIGHT := 26.0
-const NAME_SIZES: Array[int] = [20, 16]
+const NAME_SIZES: Array[int] = [20, 16, 14, 12]
 const PAYS_WORD := "pays"
 const PAYS_WORD_SIZE := 13
 const PAYS_AMOUNT_SIZE := 18
@@ -748,6 +749,8 @@ func _build_scan(
 		_scan_name.add_theme_font_size_override("font_size", name_size)
 		if _scan_name.get_minimum_size().x <= name_width:
 			break
+	# A name too wide at the larger sizes grew the label; it takes the row's width again.
+	_scan_name.size = Vector2(name_width, NAME_HEIGHT)
 	var y: float = column.position.y + NAME_HEIGHT
 	var tag_text: String = ScanPopup.tag_line(tags, definition, aisle)
 	if not tag_text.is_empty():

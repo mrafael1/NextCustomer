@@ -91,7 +91,8 @@ func replay_seed(seed_value: int) -> void:
 	if _screen._busy():
 		return
 	_log.log_event("debug", {"action": "set_seed", "seed": seed_value})
-	_screen.start_new_run(seed_value)
+	# A new run as the player starts one: with the cart reveal (v0.51).
+	_screen.start_new_run(seed_value, true, true)
 
 
 ## TEMPORARY (#60): the count-up speed setting, Fast or Normal, saved in the profile at once.
@@ -204,7 +205,7 @@ func set_inspection(inspection_id: String) -> void:
 	_screen._on_shift_started()
 
 
-## Jumps to a shift (1-based) and starts it; a machine visit on screen closes, its levels kept
+## Jumps to a shift (1-based) and starts it; a machine visit on screen closes
 ## (RunState.debug_skip_to_shift).
 func skip_to_shift(shift_number: int) -> void:
 	if _screen._busy():

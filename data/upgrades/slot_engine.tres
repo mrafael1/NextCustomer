@@ -16,6 +16,7 @@ receipt_text = "Slot engine ×2"
 [resource]
 script = ExtResource("3_upgrade")
 id = &"slot_engine"
+icon_ref = "res://art/icons/perk_slot_engine.png"
 display_name = "Slot engine"
 type = 2
 effect_text = "Your 6th product pays ×2"

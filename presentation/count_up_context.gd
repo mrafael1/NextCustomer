@@ -34,3 +34,11 @@ func _init(
 	speed_setting = speed
 	reduced_motion = reduce_motion
 	receipt_header = header
+
+
+## The best total of every shift record but the last (the shift being counted), 0 for none.
+static func best_earlier_total(history: Array[ShiftRecord]) -> int:
+	var best: int = 0
+	for index: int in range(history.size() - 1):
+		best = maxi(best, history[index].total)
+	return best

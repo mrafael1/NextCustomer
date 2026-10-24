@@ -1,0 +1,11 @@
+; A giver-badge mini (sticker minis): Sugar cubes, two white cubes with one on top.
+; 7x7, ink outline, light from the top left; its GOLDEN copy (sugar_cubes_golden) is derived (@derive ... golden=outline).
+@size 7x7
+@kind icon
+.......
+..####.
+..#wb#.
+#######
+#wb#wb#
+#cb#cb#
+#######

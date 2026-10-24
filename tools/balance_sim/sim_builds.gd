@@ -80,7 +80,7 @@ static func is_key_card(build: BuildDefinition, card: CardDefinition) -> bool:
 
 
 ## Per build id: the chance that a later NEW ITEMS or COUPONS draw (not a run's first) from this
-## stock at REGULAR 0 shows at least one of the build's key cards, the higher of the two chutes
+## stock at odds level 0 shows at least one of the build's key cards, the higher of the two chutes
 ## (#77). Read from the machine's exact odds card (MachineOdds.card's in_draw, each prize's chance
 ## to be in the draw): the key cards' chances summed, capped at 1 (the expected count of key cards
 ## shown, an upper bound of the chance when several key cards are stocked). `_samples` and

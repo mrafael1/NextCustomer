@@ -1,0 +1,15 @@
+; The deck view's well inside the basket (#56, deck view B): the teal dark panel the shelves
+; stand in, a 9-slice (3 art px margins), sunk into the basket: a teal darkest rim, teal
+; black on the top and left (in shadow, the light comes from the top left) and teal shade on
+; the bottom and right. 8x8 @2.
+@size 8x8
+@kind frame
+@scale 2
+11111111
+18888883
+18222223
+18222223
+18222223
+18222223
+18222223
+13333333

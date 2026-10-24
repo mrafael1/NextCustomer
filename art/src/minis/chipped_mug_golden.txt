@@ -1,0 +1,2 @@
+; Chipped mug GOLDEN: the chipped mug mini with its ink outline turned gold. A derived source: no grid.
+@derive chipped_mug golden=outline

@@ -36,6 +36,52 @@
 [ext_resource type="Resource" path="res://data/item_upgrades/milk.tres" id="i_milk"]
 [ext_resource type="Resource" path="res://data/item_upgrades/eggs.tres" id="i_eggs"]
 [ext_resource type="Resource" path="res://data/item_upgrades/coffee.tres" id="i_coffee"]
+[ext_resource type="Resource" path="res://data/item_upgrades/bread.tres" id="i_bread"]
+[ext_resource type="Resource" path="res://data/item_upgrades/soup.tres" id="i_soup"]
+[ext_resource type="Resource" path="res://data/item_upgrades/cheese.tres" id="i_cheese"]
+[ext_resource type="Resource" path="res://data/item_upgrades/frozen_peas.tres" id="i_frozen_peas"]
+[ext_resource type="Resource" path="res://data/item_upgrades/butter.tres" id="i_butter"]
+[ext_resource type="Resource" path="res://data/item_upgrades/yogurt.tres" id="i_yogurt"]
+[ext_resource type="Resource" path="res://data/item_upgrades/reduced_yogurt.tres" id="i_reduced_yogurt"]
+[ext_resource type="Resource" path="res://data/item_upgrades/cereal.tres" id="i_cereal"]
+[ext_resource type="Resource" path="res://data/item_upgrades/tea_bags.tres" id="i_tea_bags"]
+[ext_resource type="Resource" path="res://data/item_upgrades/crackers.tres" id="i_crackers"]
+[ext_resource type="Resource" path="res://data/item_upgrades/dented_can.tres" id="i_dented_can"]
+[ext_resource type="Resource" path="res://data/item_upgrades/day_old_buns.tres" id="i_day_old_buns"]
+[ext_resource type="Resource" path="res://data/item_upgrades/carrier_bag.tres" id="i_carrier_bag"]
+[ext_resource type="Resource" path="res://data/item_upgrades/scissors.tres" id="i_scissors"]
+[ext_resource type="Resource" path="res://data/item_upgrades/batteries.tres" id="i_batteries"]
+[ext_resource type="Resource" path="res://data/item_upgrades/flickering_bulb.tres" id="i_flickering_bulb"]
+[ext_resource type="Resource" path="res://data/item_upgrades/baguette.tres" id="i_baguette"]
+[ext_resource type="Resource" path="res://data/item_upgrades/scone.tres" id="i_scone"]
+[ext_resource type="Resource" path="res://data/item_upgrades/croissant.tres" id="i_croissant"]
+[ext_resource type="Resource" path="res://data/item_upgrades/broken_biscuit.tres" id="i_broken_biscuit"]
+[ext_resource type="Resource" path="res://data/item_upgrades/iced_bun.tres" id="i_iced_bun"]
+[ext_resource type="Resource" path="res://data/item_upgrades/birthday_candles.tres" id="i_birthday_candles"]
+[ext_resource type="Resource" path="res://data/item_upgrades/squashed_cake.tres" id="i_squashed_cake"]
+[ext_resource type="Resource" path="res://data/item_upgrades/stale_doughnut.tres" id="i_stale_doughnut"]
+[ext_resource type="Resource" path="res://data/item_upgrades/cream.tres" id="i_cream"]
+[ext_resource type="Resource" path="res://data/item_upgrades/ham_ends.tres" id="i_ham_ends"]
+[ext_resource type="Resource" path="res://data/item_upgrades/fruit_salad.tres" id="i_fruit_salad"]
+[ext_resource type="Resource" path="res://data/item_upgrades/strawberries.tres" id="i_strawberries"]
+[ext_resource type="Resource" path="res://data/item_upgrades/grapefruit.tres" id="i_grapefruit"]
+[ext_resource type="Resource" path="res://data/item_upgrades/wonky_carrot.tres" id="i_wonky_carrot"]
+[ext_resource type="Resource" path="res://data/item_upgrades/lemon.tres" id="i_lemon"]
+[ext_resource type="Resource" path="res://data/item_upgrades/bruised_apples.tres" id="i_bruised_apples"]
+[ext_resource type="Resource" path="res://data/item_upgrades/soft_tomatoes.tres" id="i_soft_tomatoes"]
+[ext_resource type="Resource" path="res://data/item_upgrades/potatoes.tres" id="i_potatoes"]
+[ext_resource type="Resource" path="res://data/item_upgrades/egg_timer.tres" id="i_egg_timer"]
+[ext_resource type="Resource" path="res://data/item_upgrades/chipped_mug.tres" id="i_chipped_mug"]
+[ext_resource type="Resource" path="res://data/item_upgrades/odd_socks.tres" id="i_odd_socks"]
+[ext_resource type="Resource" path="res://data/item_upgrades/sugar_cubes.tres" id="i_sugar_cubes"]
+[ext_resource type="Resource" path="res://data/item_upgrades/mixed_herbs.tres" id="i_mixed_herbs"]
+[ext_resource type="Resource" path="res://data/item_upgrades/crisps.tres" id="i_crisps"]
+[ext_resource type="Resource" path="res://data/item_upgrades/cereal_bar.tres" id="i_cereal_bar"]
+[ext_resource type="Resource" path="res://data/item_upgrades/bent_lolly.tres" id="i_bent_lolly"]
+[ext_resource type="Resource" path="res://data/item_upgrades/pick_n_mix.tres" id="i_pick_n_mix"]
+[ext_resource type="Resource" path="res://data/item_upgrades/stale_popcorn.tres" id="i_stale_popcorn"]
+[ext_resource type="Resource" path="res://data/item_upgrades/breadsticks.tres" id="i_breadsticks"]
+[ext_resource type="Resource" path="res://data/item_upgrades/dusty_toffees.tres" id="i_dusty_toffees"]
 
 [sub_resource type="Resource" id="level_0"]
 script = ExtResource("2_odds_level")
@@ -73,10 +119,11 @@ legendary_coupons = Array[ExtResource("3_card")]([ExtResource("c_opening_deal")]
 rare_upgrades = Array[ExtResource("4_upgrade")]([ExtResource("u_coupon_engine"), ExtResource("u_category_engine")])
 legendary_upgrades = Array[ExtResource("4_upgrade")]([ExtResource("u_slot_engine")])
 register_cap = 3
-upgrades_open_shifts = PackedInt32Array(3, 5, 7)
+boosted_shifts = PackedInt32Array(3, 5, 7)
+shift_odds_levels = PackedInt32Array(0, 0, 1, 1, 2, 2, 3, 3)
 stamp_day_shifts = PackedInt32Array(2, 4, 6)
 stamp_day_floor = PackedInt32Array(1, 2, 3)
 bonus_after_inspection = true
 new_arrival_first_visit = true
 shelf_min_copies = 2
-item_upgrades = Array[ExtResource("5_item_upgrade")]([ExtResource("i_banana"), ExtResource("i_milk"), ExtResource("i_eggs"), ExtResource("i_coffee")])
+item_upgrades = Array[ExtResource("5_item_upgrade")]([ExtResource("i_banana"), ExtResource("i_milk"), ExtResource("i_eggs"), ExtResource("i_coffee"), ExtResource("i_bread"), ExtResource("i_soup"), ExtResource("i_cheese"), ExtResource("i_frozen_peas"), ExtResource("i_butter"), ExtResource("i_yogurt"), ExtResource("i_reduced_yogurt"), ExtResource("i_cereal"), ExtResource("i_tea_bags"), ExtResource("i_crackers"), ExtResource("i_dented_can"), ExtResource("i_day_old_buns"), ExtResource("i_carrier_bag"), ExtResource("i_scissors"), ExtResource("i_batteries"), ExtResource("i_flickering_bulb"), ExtResource("i_baguette"), ExtResource("i_scone"), ExtResource("i_croissant"), ExtResource("i_broken_biscuit"), ExtResource("i_iced_bun"), ExtResource("i_birthday_candles"), ExtResource("i_squashed_cake"), ExtResource("i_stale_doughnut"), ExtResource("i_cream"), ExtResource("i_ham_ends"), ExtResource("i_fruit_salad"), ExtResource("i_strawberries"), ExtResource("i_grapefruit"), ExtResource("i_wonky_carrot"), ExtResource("i_lemon"), ExtResource("i_bruised_apples"), ExtResource("i_soft_tomatoes"), ExtResource("i_potatoes"), ExtResource("i_egg_timer"), ExtResource("i_chipped_mug"), ExtResource("i_odd_socks"), ExtResource("i_sugar_cubes"), ExtResource("i_mixed_herbs"), ExtResource("i_crisps"), ExtResource("i_cereal_bar"), ExtResource("i_bent_lolly"), ExtResource("i_pick_n_mix"), ExtResource("i_stale_popcorn"), ExtResource("i_breadsticks"), ExtResource("i_dusty_toffees")])

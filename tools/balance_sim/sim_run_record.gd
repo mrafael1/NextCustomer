@@ -28,10 +28,9 @@ var main_build: String = ""
 var fitted_builds: PackedStringArray = PackedStringArray()
 var coins: int = 0
 var overtime_coins: int = 0
-## The machine at the end of the run (#77): the registers picked from it, each chute's Regular
-## level (RewardMachine.Chute order), and the final deck's BIG and GOLDEN copies by card id.
+## The machine at the end of the run (#77): the registers picked from it and the final deck's
+## BIG and GOLDEN copies by card id.
 var registers: int = 0
-var levels: PackedInt32Array = PackedInt32Array()
 var tier_copies: Dictionary[String, int] = {}
 
 
@@ -58,8 +57,6 @@ static func from_dictionary(data: Dictionary) -> SimRunRecord:
 	record.coins = int(data["coins"])
 	record.overtime_coins = int(data["overtime_coins"])
 	record.registers = int(data.get("registers", 0))
-	for level: Variant in data.get("levels", []):
-		record.levels.append(int(level))
 	var copies: Dictionary = data.get("tier_copies", {})
 	for id: String in copies:
 		record.tier_copies[id] = int(copies[id])
@@ -71,7 +68,6 @@ static func _visits(visits: Array) -> Array:
 	var found: Array = []
 	for visit: Dictionary in visits:
 		var entry: Dictionary = visit.duplicate(true)
-		entry["level_before"] = int(entry.get("level_before", 0))
 		entry["picked"] = int(entry.get("picked", -1))
 		entry["drop_order"] = (entry.get("drop_order", []) as Array).map(
 			func(value: Variant) -> int: return int(value)
@@ -100,7 +96,6 @@ func to_dictionary() -> Dictionary:
 		"coins": coins,
 		"overtime_coins": overtime_coins,
 		"registers": registers,
-		"levels": levels,
 		"tier_copies": tier_copies,
 	}
 

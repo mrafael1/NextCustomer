@@ -54,6 +54,31 @@ func test_an_item_without_a_mini_keeps_its_initials() -> void:
 		assert_that(badge.art_rect()).is_equal(Rect2(Vector2.ZERO, GiverBadge.SIZE))
 
 
+## A product with no mini in its data (every live product has one since v0.52, so a live card
+## with its minis cleared stands in for one added before its art): its plain, BIG and GOLDEN
+## cards give no badge mini, and the badge built from them shows the name's initials on the item
+## token.
+func test_a_product_with_no_mini_in_its_data_shows_its_initials() -> void:
+	var plain: CardDefinition = (load("res://data/cards/eggs.tres") as CardDefinition).duplicate()
+	plain.mini_art_ref = ""
+	plain.mini_golden_art_ref = ""
+	var tiers: Array[CardDefinition] = [plain]
+	for path: String in ["res://data/cards/eggs_big.tres", "res://data/cards/eggs_golden.tres"]:
+		var tier: CardDefinition = (load(path) as CardDefinition).duplicate()
+		tier.variant_of = plain
+		tiers.append(tier)
+	for card: CardDefinition in tiers:
+		assert_str(card.badge_mini_ref()).override_failure_message(card.id).is_empty()
+		var initials: String = GiverBadge.initials_for(GiverBadge.Kind.ITEM, card.display_name)
+		var badge: GiverBadge = auto_free(
+			GiverBadge.new(GiverBadge.Kind.ITEM, initials, card.badge_mini_ref())
+		)
+		assert_bool(badge.shows_mini()).override_failure_message(card.id).is_false()
+		assert_str(badge.initials()).override_failure_message(card.id).is_not_empty()
+		assert_str(badge.initials()).is_equal(initials)
+		assert_object(badge.texture()).is_same(GiverBadge.ITEM_TOKEN)
+
+
 func test_coupon_loyalty_and_inspection_badges_are_unchanged() -> void:
 	# A mini given to another kind is ignored.
 	var coupon: GiverBadge = auto_free(GiverBadge.new(GiverBadge.Kind.COUPON, "Mu", EGGS))

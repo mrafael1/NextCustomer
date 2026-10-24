@@ -156,7 +156,7 @@ func _play(screen: ShiftScreen, quota: int) -> void:
 	count_up.play(
 		screen.run.preview(),
 		screen._row_views,
-		ShiftScreen._names(screen.run.row),
+		CardInstance.names(screen.run.row),
 		quota,
 		CountUpContext.new(1, 0, 1.0, false, screen.receipt_header())
 	)

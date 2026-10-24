@@ -9,3 +9,11 @@ var instance_id: int = 0
 func _init(card_definition: CardDefinition, card_instance_id: int) -> void:
 	definition = card_definition
 	instance_id = card_instance_id
+
+
+## The cards' display names, in order.
+static func names(cards: Array[CardInstance]) -> PackedStringArray:
+	var found: PackedStringArray = PackedStringArray()
+	for card: CardInstance in cards:
+		found.append(card.definition.display_name)
+	return found

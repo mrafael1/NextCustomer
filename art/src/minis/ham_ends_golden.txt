@@ -1,0 +1,2 @@
+; Ham ends GOLDEN: the ham ends mini with its ink outline turned gold. A derived source: no grid.
+@derive ham_ends golden=outline

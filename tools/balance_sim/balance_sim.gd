@@ -13,7 +13,12 @@ extends SceneTree
 ##                     quota, so these runs are the runs of any quota curve, each cut at its
 ##                     first failed shift (tools/quota_fit.py fits curves to their --records)
 ##   --samples=N       sample hands per greedy pick (default 6)
-##   --deck=PATH       starting deck (default the starter deck)
+##   --deck=PATH       starting deck (default the starter deck, data/decks/starter.tres); a
+##                     recipe deck (DeckDefinition.is_recipe) is dealt for each run from its
+##                     stock and seed, as the game deals it (StartingDeck, v0.49; its coupon
+##                     from the coupon pool since v0.51)
+##   --random-start    start each run from the game's recipe deck (RANDOM_START_DECK) instead
+##                     of the fixed starter deck; not with --deck
 ##   --balance=PATH    balance data (default the live balance data)
 ##   --builds=DIR      the build files (default res://data/builds); see SimBuilds
 ##   --profile=PATH    stock the runs from this profile save (its unlocked items, run count and
@@ -88,6 +93,7 @@ const SIMULATION_DEFAULTS: Dictionary[String, String] = {
 	"collection": "",
 	"list": "",
 	"list-gate": "false",
+	"random-start": "false",
 	"offer-samples": "1000",
 	"orphan-samples": "30",
 	"duel-samples": "200",
@@ -120,12 +126,17 @@ const NUMBER_OPTIONS: Array[String] = [
 ## Chain i's run j uses seed + CHAIN_SEED_STEP * (i + 1) + j, apart from the single runs' seeds.
 const CHAIN_SEED_STEP := 100000
 ## Options given without a value (--list-gate): they read "true".
-const FLAG_OPTIONS: Array[String] = ["list-gate", "cache-name"]
+const FLAG_OPTIONS: Array[String] = ["list-gate", "cache-name", "random-start"]
+## The game's starting deck (a recipe, v0.49), played with --random-start.
+const RANDOM_START_DECK := "res://data/decks/random_starter.tres"
 
 var _options: Dictionary[String, String] = {}
 var _starter: DeckDefinition
 var _balance: BalanceDefinition
 var _builds: SimBuilds
+## The fair-deal check's quota (StartingDeck, v0.54): the balance data's shift 1 quota, kept
+## when --quotas plays others, so every run is dealt as the game deals it.
+var _deal_quota: int = -1
 ## The collection states played: the given one, or the fresh profile then the gate's states.
 var _states: Array[SimCollection] = []
 ## Per scenario key (Scenario), its runs in run order.
@@ -162,14 +173,24 @@ func _print_cache_name() -> int:
 	return 0
 
 
+## The deck the coupon duel plays: the starting deck, or for a recipe the
+## deal of the first run's seed from a new profile's stock.
+func _reference_deck() -> DeckDefinition:
+	return StartingDeck.deal(
+		_starter,
+		RunStock.starting(_balance),
+		_balance,
+		EventLogService.derived_stream(int(_options["seed"]), EventLogService.STARTING_DECK_STREAM),
+		_deal_quota
+	)
+
+
 func _run() -> int:
 	var started: int = Time.get_ticks_msec()
 	if not _parse_options():
 		return 1
-	_duel = SimCouponDuel.new(_starter, _balance, int(_options["seed"]))
-	_orphans = SimOrphans.new(
-		_starter, _balance, int(_options["orphan-samples"]), int(_options["seed"])
-	)
+	_duel = SimCouponDuel.new(_reference_deck(), _balance, int(_options["seed"]))
+	_orphans = SimOrphans.new(_balance, int(_options["orphan-samples"]), int(_options["seed"]))
 	var search: SimRowSearch = SimRowSearch.new(_balance)
 	var cache_file: String = _cache_file()
 	if not cache_file.is_empty() and FileAccess.file_exists(cache_file):
@@ -227,10 +248,7 @@ func _parse_options() -> bool:
 	):
 		push_error("balance_sim: --shard needs I/N with 0 <= I < N, got %s" % _options["shard"])
 		return false
-	_starter = load(_options["deck"]) as DeckDefinition
-	_balance = load(_options["balance"]) as BalanceDefinition
-	if _starter == null or _balance == null:
-		push_error("balance_sim: couldn't load the deck or the balance data")
+	if not _load_data():
 		return false
 	_builds = SimBuilds.new(SimBuilds.load_folder(_options["builds"]))
 	for strategy: String in _strategies():
@@ -264,6 +282,10 @@ func _override_quotas(text: String) -> bool:
 			"balance_sim: --quotas needs 1 or %d values, got %s" % [_balance.quotas.size(), text]
 		)
 		return false
+	var starting: Array[UpgradeDefinition] = []
+	if _starter.starting_upgrade != null:
+		starting.append(_starter.starting_upgrade)
+	_deal_quota = ShiftLimits.for_shift(_balance, starting, 0).quota
 	_balance = _balance.duplicate()
 	_balance.quotas = quotas
 	return true
@@ -301,6 +323,32 @@ func _make_states() -> bool:
 		return false
 	_states = [state]
 	return true
+
+
+## Loads the starting deck (--deck, or the game's recipe deck with --random-start) and the
+## balance data; false, with an error, when an option is wrong or a file doesn't load.
+func _load_data() -> bool:
+	var problem: String = random_start_problem(_options)
+	if problem.is_empty():
+		var random_start: bool = _options["random-start"] == "true"
+		_starter = load(RANDOM_START_DECK if random_start else _options["deck"]) as DeckDefinition
+		_balance = load(_options["balance"]) as BalanceDefinition
+		if _starter == null or _balance == null:
+			problem = "couldn't load the deck or the balance data"
+	if not problem.is_empty():
+		push_error("balance_sim: " + problem)
+		return false
+	return true
+
+
+## What is wrong with --random-start in `options` (the parsed options), or "": it takes no
+## value, and it plays the game's recipe deck, so it refuses a --deck.
+static func random_start_problem(options: Dictionary[String, String]) -> String:
+	if not options["random-start"] in ["true", "false"]:
+		return "--random-start takes no value"
+	if options["random-start"] == "true" and options["deck"] != SIMULATION_DEFAULTS["deck"]:
+		return "--random-start plays the game's recipe deck: no --deck"
+	return ""
 
 
 ## What is wrong with the collection options, or "".
@@ -370,7 +418,7 @@ func _simulate(shard: int, shards: int, search: SimRowSearch) -> void:
 	for scenario: Scenario in scenarios:
 		print("Simulating runs: %s (shard %d/%d)..." % [scenario.key, shard, shards])
 		if not stocks.has(scenario.state):
-			stocks[scenario.state] = scenario.state.stock(_starter, _balance)
+			stocks[scenario.state] = scenario.state.stock(_balance)
 		var player: SimPlayer = SimPlayer.new(
 			_starter,
 			_balance,
@@ -380,6 +428,7 @@ func _simulate(shard: int, shards: int, search: SimRowSearch) -> void:
 			stocks[scenario.state],
 			_builds
 		)
+		player.deal_quota = _deal_quota
 		var records: Array[SimRunRecord] = []
 		_begin_phase(limit, search)
 		for index: int in range(shard, runs, shards):
@@ -433,13 +482,14 @@ func _play_chains(
 		var player: SimPlayer = SimPlayer.new(
 			_starter, _balance, search, strategy, int(_options["samples"]), stock, _builds
 		)
+		player.deal_quota = _deal_quota
 		return player
 	for index: int in range(shard, int(_options["chains"]), shards):
 		if limit.is_phase_over(Time.get_ticks_msec()):
 			limit.hit()
 			break
 		var chain_seed: int = int(_options["seed"]) + CHAIN_SEED_STEP * (index + 1)
-		var chain: SimChain = SimChain.new(_starter, _balance, make_player, chain_seed)
+		var chain: SimChain = SimChain.new(_balance, make_player, chain_seed)
 		chain.play(chain_seed, int(_options["chain-runs"]))
 		if chain.stopped:
 			limit.hit()
@@ -535,7 +585,7 @@ func _cache_file() -> String:
 	context["core"] = _files_text("res://core")
 	context["search"] = FileAccess.get_file_as_string("res://tools/balance_sim/sim_row_search.gd")
 	var cards: Array[CardDefinition] = []
-	cards.append_array(_starter.cards)
+	cards.append_array(_starter.cards + _starter.core_cards + _balance.staples)
 	for aisle: AisleDefinition in _balance.aisles:
 		cards.append_array(aisle.base_cards + aisle.capsule_cards)
 	cards.append_array(_balance.coupon_pool)
@@ -695,7 +745,7 @@ func _is_gate() -> bool:
 
 
 func _stock_text(state: SimCollection) -> String:
-	var stock: RunStock = state.stock(_starter, _balance)
+	var stock: RunStock = state.stock(_balance)
 	var arrivals: Array = stock.new_arrivals.map(
 		func(card: CardDefinition) -> String: return String(card.id)
 	)
@@ -720,10 +770,7 @@ func _key_offer_chances() -> Array[Dictionary]:
 	var result: Array[Dictionary] = []
 	for state: SimCollection in states:
 		var chances: Dictionary[String, float] = _builds.key_offer_chance(
-			_balance,
-			state.stock(_starter, _balance),
-			int(_options["offer-samples"]),
-			int(_options["seed"])
+			_balance, state.stock(_balance), int(_options["offer-samples"]), int(_options["seed"])
 		)
 		result.append({"state": state.label, "chances": chances})
 	return result
@@ -748,7 +795,7 @@ func _key_offer_text(chances: Array[Dictionary]) -> String:
 			line += " %18.1f%%" % (100.0 * chances[index]["chances"][id])
 		lines.append(line)
 	lines.append(
-		"Exact odds: a later NEW ITEMS or COUPONS draw at REGULAR 0, the higher of the two"
+		"Exact odds: a later NEW ITEMS or COUPONS draw at odds level 0, the higher of the two"
 	)
 	return "\n".join(lines)
 
@@ -790,7 +837,7 @@ func _write_json(summaries: Array[SimSummary], seconds: float) -> int:
 		"build_label": ProjectSettings.get_setting("next_customer/build_label", ""),
 		"options": _simulation_options(),
 		"quotas": Array(_balance.quotas),
-		"stock": _states[0].stock(_starter, _balance).to_dictionary(),
+		"stock": _states[0].stock(_balance).to_dictionary(),
 		"stock_label": _states[0].label,
 		"strategies": strategies,
 		"key_card_chances": chances,

@@ -35,6 +35,18 @@ extends Control
 ## STAMP DAY's visit, a full cart, a draw's rarities, a pick, reduced motion, a resumed visit);
 ## the capture waits `seconds` after the last step, and the file is
 ## shift_screen_machine_<options>_<tenths>_<width>x<height>.png.
+## With `--announce=<seconds>` (v0.50) a new run's shift 1 is the shift before a PREMIUM visit: its
+## planning prints the gold PREMIUM receipt on the monitor, which then hangs as the PREMIUM NEXT
+## tag; the capture waits `seconds` from the shift's start, and the file is
+## shift_screen_announce_<tenths>_<width>x<height>.png. `--announce=<seconds>,shift=<n>` instead
+## jumps to shift n of the real schedule (shift 3: inspected, and the shift before the first
+## PREMIUM visit), named shift_screen_announce_shift<n>_<tenths>_<width>x<height>.png.
+## With `--reveal=<seconds>[,outro=<seconds>][,seed=<seed>][,hover=<n>]` (v0.51) a new run opens on
+## the cart reveal, frozen at that time of its timeline (and of its fold into the Cart button), and
+## the file is shift_screen_reveal_[outro_<tenths>_][hover<n>_]<tenths>_<width>x<height>.png;
+## `hover=<n>` (v0.54) opens the scan popup of tile n (the staples, then the picks, from 0).
+## With `--deck=<page>[,<option>...]` (#56) a new run opens the deck view (see deck() for the pages
+## and options), and the file is shift_screen_deck_<page>[_<options>]_<width>x<height>.png.
 
 const SCREEN := preload("res://ui/shift_screen.tscn")
 const SEED := 20261014
@@ -59,6 +71,20 @@ const SCAN_ARGUMENT := "--scan="
 const EFFECTS_ARGUMENT := "--effects"
 const CHECKOUT_ARGUMENT := "--checkout="
 const MACHINE_ARGUMENT := "--machine="
+const ANNOUNCE_ARGUMENT := "--announce="
+## An --announce capture's file name part: announce_<tenths>_.
+const ANNOUNCE_PREFIX := "announce_%d_"
+const ANNOUNCE_SHIFT_PREFIX := "announce_shift%d_%d_"
+const REVEAL_ARGUMENT := "--reveal="
+## A --reveal capture's file name part: reveal_[outro_<tenths>_]<tenths>_.
+const REVEAL_PREFIX := "reveal_%s%d_"
+const DECK_ARGUMENT := "--deck="
+## --deck's full cart: the first copies upgraded to these tiers, and this coupon added.
+const FULL_TIERS: Dictionary[String, String] = {"banana": "banana_golden", "milk": "milk_big"}
+const FULL_COUPON_ID := "multipack"
+## --deck's Run info: the inspection of the shift and the prize the chooser is for.
+const DECK_INSPECTION := "short_belt"
+const CHOOSER_PRIZE_ID := "breakfast_sticker"
 ## --machine's shift (#77): shift 1's passing row (Milk, Multipack, Milk x5 = 109), and the
 ## inspection a bonus ticket's shift passes.
 const MACHINE_ROW_IDS: Array[String] = ["milk", "multipack", "milk", "milk", "milk", "milk", "milk"]
@@ -100,6 +126,8 @@ var _focused: bool = false
 var _checkout_s: float = -1.0
 ## Since machine(): the file name part naming its options and wait ("" before).
 var _machine_part: String = ""
+## Since reveal(): the file name part naming its time ("" before).
+var _reveal_part: String = ""
 ## Since hold_pointer(): the real pointer drives no hover, tooltip or click.
 var _holding_pointer: bool = false
 
@@ -118,7 +146,13 @@ func _ready() -> void:
 	add_child(_screen)
 	var effects_on: bool = OS.get_cmdline_user_args().has(EFFECTS_ARGUMENT)
 	var focus_id: String = _argument(EFFECTS_ARGUMENT + "=")
-	if effects_on or focus_id != "":
+	var reveal_spec: String = _argument(REVEAL_ARGUMENT)
+	var deck_spec: String = _argument(DECK_ARGUMENT)
+	if reveal_spec != "":
+		reveal(reveal_spec)
+	elif deck_spec != "":
+		await deck(deck_spec)
+	elif effects_on or focus_id != "":
 		await effects(focus_id)
 	else:
 		_set_up_shift(INSPECTION, ROW_IDS)
@@ -132,6 +166,13 @@ func _ready() -> void:
 		var machine_spec: String = _argument(MACHINE_ARGUMENT)
 		if machine_spec != "":
 			await machine(machine_spec)
+		var announce_s: String = _argument(ANNOUNCE_ARGUMENT)
+		if announce_s != "":
+			var announce_parts: PackedStringArray = announce_s.split(",")
+			var announce_shift: int = 0
+			if announce_parts.size() > 1 and announce_parts[1].begins_with("shift="):
+				announce_shift = announce_parts[1].trim_prefix("shift=").to_int()
+			await announce(announce_parts[0].to_float(), announce_shift)
 		await capture(capture_folder)
 		get_tree().quit()
 
@@ -260,7 +301,7 @@ func capture(folder: String) -> void:
 		prefix = FOCUS_PREFIX if _focused else EFFECTS_PREFIX
 	if _checkout_s >= 0.0:
 		prefix += CHECKOUT_PREFIX % roundi(_checkout_s * 10.0)
-	prefix += _machine_part
+	prefix += _machine_part + _reveal_part
 	var path: String = folder.path_join(FILE_NAME % [prefix, window.x, window.y])
 	var image: Image = (
 		grab_image.call() as Image
@@ -272,6 +313,113 @@ func capture(folder: String) -> void:
 		_report("Can't save %s (error %d)" % [path, error])
 
 
+## Starts a new run (SEED, or `seed=<seed>`) on the cart reveal (v0.51), frozen at `spec`'s seconds
+## (and `outro=<seconds>` into its fold); capture() then names its file
+## shift_screen_reveal_[outro_<tenths>_]<tenths>_<w>x<h>.png.
+func reveal(spec: String) -> void:
+	var options: PackedStringArray = spec.split(",", false)
+	var seconds: float = options[0].to_float() if not options.is_empty() else 0.0
+	var outro: float = -1.0
+	var seed_value: int = SEED
+	var hovered: int = -1
+	for option: String in options.slice(1):
+		if option.begins_with("outro="):
+			outro = option.trim_prefix("outro=").to_float()
+		elif option.begins_with("seed="):
+			seed_value = option.trim_prefix("seed=").to_int()
+		elif option.begins_with("hover="):
+			hovered = option.trim_prefix("hover=").to_int()
+	_screen.start_new_run(seed_value, true, true)
+	var cart_reveal: CartReveal = _screen._cart_reveal
+	cart_reveal.freeze_at(seconds, outro)
+	var fold: String = "outro_%d_" % roundi(outro * 10.0) if outro >= 0.0 else ""
+	if hovered >= 0:
+		var tiles: Array[RevealTile] = (
+			cart_reveal.panel().staple_tiles + cart_reveal.panel().pick_tiles
+		)
+		cart_reveal.show_popup(tiles[hovered])
+		fold += "hover%d_" % hovered
+	_reveal_part = REVEAL_PREFIX % [fold, roundi(seconds * 10.0)]
+
+
+## Opens the deck view (#56) on a new run (SEED), as the top bar's Cart would; capture() then names
+## its file shift_screen_deck_<page>[_<options>]_<w>x<h>.png. `spec` is "<page>[,<option>...]":
+## the page is cart, info (Run info: the capture's upgrades, a Short belt shift, a new arrival in
+## the stock) or chooser (the machine's deck-full chooser for a Breakfast sticker, on a full cart);
+## the options:
+## - seed=<n>: the run's seed;
+## - full: the cart filled to the deck limit with distinct items (the dealt deck with one copy of
+##   each card but its first repeated one, the first Banana GOLDEN and the first Milk BIG, a
+##   Multipack, then stocked products it lacks);
+## - hover=<i>: the page's item i is hovered (its scan popup opens beside it).
+func deck(spec: String) -> void:
+	var options: PackedStringArray = spec.split(",", false)
+	var page: String = options[0] if not options.is_empty() else "cart"
+	options = options.slice(1)
+	var seed_value: String = _option_value(options, "seed=")
+	_screen.start_new_run(seed_value.to_int() if seed_value != "" else SEED, false)
+	var run: RunState = _screen.run
+	if options.has("full") or page == "chooser":
+		_fill_cart(run)
+	if page == "info":
+		var upgrades: Array[UpgradeDefinition] = []
+		for upgrade_id: String in UPGRADE_IDS:
+			upgrades.append(_upgrade(upgrade_id))
+		run.upgrades = upgrades
+		run.inspections = [load("res://data/inspections/%s.tres" % DECK_INSPECTION)]
+		run.stock.new_arrivals = [DeckSummary.in_view_order(run.stock.cards)[5]]
+		_screen._refresh_loyalty_card()
+	var view: DeckView = _screen._deck_view
+	if page == "chooser":
+		var prize: CardDefinition = _card(CHOOSER_PRIZE_ID)
+		view.open(
+			run,
+			(
+				"Cart full (%d/%d): choose an item to remove for %s"
+				% [run.deck.size(), run.balance.deck_limit, prize.display_name]
+			),
+			true
+		)
+	else:
+		_screen._on_deck_button_pressed()
+	view.show_page(page == "info")
+	# Past the pop-in (and its overshoot), laid out.
+	await get_tree().create_timer(UiKit.POP_IN_SECONDS + 0.2).timeout
+	var hovered: String = _option_value(options, "hover=")
+	if hovered != "":
+		view.hover(view.cells()[hovered.to_int()])
+	var named: String = "_".join(options).replace("=", "")
+	_machine_part = "deck_%s_" % (page + ("_" + named if named != "" else ""))
+
+
+## Fills `run`'s cart to the deck limit with distinct items (see deck()'s full).
+func _fill_cart(run: RunState) -> void:
+	var kept: Array[CardDefinition] = []
+	var repeated: CardDefinition = null
+	for card: CardInstance in run.deck.cards.duplicate():
+		if not kept.has(card.definition):
+			kept.append(card.definition)
+		elif repeated == null or repeated == card.definition:
+			repeated = card.definition
+		else:
+			run.deck.remove_card(card)
+	for card_id: String in FULL_TIERS:
+		for card: CardInstance in run.deck.cards:
+			if card.definition.id == StringName(card_id):
+				run.deck.upgrade(card, _card(FULL_TIERS[card_id]))
+				break
+	run.deck.add_card(_card(FULL_COUPON_ID))
+	for card: CardDefinition in DeckSummary.in_view_order(run.stock.cards):
+		if run.deck_is_full():
+			break
+		var owned: bool = run.deck.cards.any(
+			func(owned_card: CardInstance) -> bool:
+				return owned_card.definition.is_same_product(card)
+		)
+		if card.is_product() and not owned:
+			run.deck.add_card(card)
+
+
 ## Opens the RECEIPT REWARDS machine (#77) on a new run (the same seed) whose shift 1 checked out
 ## its passing row, as the dessert's printer feed would, then waits `spec`'s seconds; capture()
 ## then names its file shift_screen_machine_<options>_<tenths>_<w>x<h>.png. `spec` is
@@ -279,13 +427,17 @@ func capture(folder: String) -> void:
 ## - new_items, coupons, register or upgrades: that chute is chosen at the keys (its draw plays);
 ## - odds: that chute's odds card is shown above its key instead (as on hover); press: that
 ##   chute's key is pressed instead (the display's title with CONFIRM ›);
-## - bonus: the shift passed a Spot check; its ticket picks a NEW ITEMS prize, and the bonus
-##   ticket's visit is shown; stampday: the shift is a STAMP DAY's; its ticket bins a NEW ITEMS
+## - bonus: the shift passed a Spot check; its ticket picks a NEW ITEMS prize (with boosted: a
+##   LOYALTY prize, and the BONUS visit is PREMIUM too, v0.53), and the bonus ticket's visit is
+##   shown; stampday: the shift is a STAMP DAY's; its ticket bins a NEW ITEMS
 ##   draw, and STAMP DAY's draw is shown (pick=<i> picks a stamp);
 ## - cartfull: the cart is at the deck limit before the checkout;
 ## - draw=<letters>: the draw's rarities, c, r or l per prize (a debug draw: the prizes drawn,
 ##   relabelled), shown rarest last;
 ## - pick=<i>: once the prizes are armed, prize i is picked (its landing plays);
+## - hover=<i> (v0.53): once the prizes are armed, the pointer rests on prize i (its popup opens);
+## - boosted (v0.50): the shift's ticket visit is BOOSTED, so the machine turns PREMIUM (its
+##   chutes: register, upgrades);
 ## - rm: reduced motion; resume: the visit as a resumed run shows it (at its wait point, no
 ##   replay; with a chute, the run was saved after that chute's draw: resumed at the pick).
 ## The seconds count from the last step: the machine's open, the choice, or the pick. A spec
@@ -328,6 +480,10 @@ func machine(spec: String) -> void:
 	if rarities != "" and run.phase == RunState.Phase.MACHINE_PICK:
 		_rig_draw(run, rarities)
 		flow.view.show_draw(run)
+	var hover: String = _option_value(options, "hover=")
+	if hover != "":
+		await _machine_armed(flow.view)
+		flow.view.popup.open_for(flow.view.tickets[hover.to_int()])
 	var pick: String = _option_value(options, "pick=")
 	if pick != "":
 		await _machine_armed(flow.view)
@@ -338,14 +494,17 @@ func machine(spec: String) -> void:
 	await _machine_settled(flow.view)
 
 
-## Checks out --machine's shift on `run` (shift 1's passing row; `options`: a bonus ticket's
-## Spot check, a STAMP DAY, a full cart) and plays its ticket to the visit asked for. False (with
-## a report) when the run doesn't get there.
+## Checks out --machine's shift on `run` (shift 1's passing row; `options`: a bonus ticket's Spot
+## check, a STAMP DAY, a BOOSTED visit, a full cart) and plays its ticket to the visit asked for.
+## False (with a report) when the run doesn't get there.
 func _check_out_machine_shift(run: RunState, options: PackedStringArray) -> bool:
 	if options.has("stampday"):
 		run.machine.machine = run.machine.machine.duplicate() as MachineDefinition
 		run.machine.machine.stamp_day_shifts = PackedInt32Array([run.shift_index + 1])
 		run.machine.machine.stamp_day_floor = PackedInt32Array([1])
+	if options.has("boosted"):
+		run.machine.machine = run.machine.machine.duplicate() as MachineDefinition
+		run.machine.machine.boosted_shifts = PackedInt32Array([run.shift_index + 1])
 	if options.has("cartfull"):
 		while run.deck.size() < run.balance.deck_limit:
 			run.deck.add_card(_card(FILLER_ID))
@@ -359,7 +518,10 @@ func _check_out_machine_shift(run: RunState, options: PackedStringArray) -> bool
 		_report("The machine's shift didn't pass")
 		return false
 	if options.has("bonus") or options.has("stampday"):
-		run.machine.choose(run, RewardMachine.Chute.NEW_ITEMS)
+		var first: int = RewardMachine.Chute.NEW_ITEMS
+		if options.has("bonus") and run.machine.is_boosted():
+			first = RewardMachine.Chute.REGISTER
+		run.machine.choose(run, first)
 		if options.has("bonus"):
 			var replaced: CardInstance = run.deck.cards[0] if run.deck_is_full() else null
 			run.machine.pick(run, 0, replaced)
@@ -375,6 +537,23 @@ func _check_out_machine_shift(run: RunState, options: PackedStringArray) -> bool
 		_report("No %s visit to show" % MachineVisit.KIND_NAMES[wanted])
 		return false
 	return true
+
+
+## Starts a new run (the same seed) whose shift 1 announces a PREMIUM visit (v0.50: its machine
+## BOOSTED after shift 1), then waits `seconds` of its planning; capture() then names its file
+## shift_screen_announce_<tenths>_<w>x<h>.png. With `shift_number` (> 0) the run jumps to that
+## shift of the real schedule instead (shift_screen_announce_shift<n>_<tenths>_<w>x<h>.png).
+func announce(seconds: float, shift_number: int = 0) -> void:
+	_screen.start_new_run(SEED)
+	if shift_number > 0:
+		_screen._debug.skip_to_shift(shift_number)
+		_machine_part = ANNOUNCE_SHIFT_PREFIX % [shift_number, roundi(seconds * 10.0)]
+	else:
+		var run: RunState = _screen.run
+		run.machine.machine = run.machine.machine.duplicate() as MachineDefinition
+		run.machine.machine.boosted_shifts = PackedInt32Array([run.shift_index + 1])
+		_machine_part = ANNOUNCE_PREFIX % roundi(seconds * 10.0)
+	await get_tree().create_timer(seconds).timeout
 
 
 ## Waits (at most ARM_LIMIT_MS, real time) for the machine to reach its wait point and arm.

@@ -18,3 +18,4 @@ tags = PackedStringArray()
 rules = Array[ExtResource("1_hkr0w")]([SubResource("Resource_eqmnq")])
 rule_text = "+4 if in the last slot"
 sticker_text = "+{bonus} in last slot"
+art_ref = "res://art/icons/coupon_final_markdown_v2.png"

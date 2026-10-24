@@ -1,0 +1,14 @@
+; A giver-badge mini (sticker minis, mock-up docs/art/mockups/sticker_minis_v1.html): Bent lolly,
+; the sprite's lolly: a disc with one red C arc on paper, its paper stick coming out sideways and
+; bent down.
+; 7x7, ink outline, light from the top left; shown die-cut (alone) at 2x on a planning sticker's
+; giver badge. Its GOLDEN copy (bent_lolly_golden) is derived (@derive ... golden=outline).
+@size 7x7
+@kind icon
+.###...
+#RRw##.
+#Rwwcc#
+#RRw#c#
+.####c#
+....#c#
+.....#.

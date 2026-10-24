@@ -1,0 +1,3 @@
+; Cream GOLDEN (#89 item tier): cream_big through its own map (gold cans and valve, the velvet label and its swirl kept).
+; A derived source: no grid, tools/pixel_art.py builds it from the BIG source.
+@derive cream_big golden=keys w=Y c=n b=L a=l B=Y D=n E=L glint

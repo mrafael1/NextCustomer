@@ -165,14 +165,15 @@ func test_preview_and_checkout_use_the_run_upgrades() -> void:
 static func _low_quotas() -> BalanceDefinition:
 	var balance: BalanceDefinition = (load(BALANCE) as BalanceDefinition).duplicate()
 	balance.quotas = PackedInt32Array([5, 5, 5, 5, 5, 5, 5, 5])
-	return MachineSteps.without_stamp_day(balance)
+	# Registers are taken after shift 2 (v0.47: only a BOOSTED visit lights REGISTER).
+	return MachineSteps.boosted_on(MachineSteps.without_stamp_day(balance), [2])
 
 
 ## A run whose quotas are all 5, so two Breads (6) pass any shift.
 static func _run(seed_value: int) -> RunState:
 	var balance: BalanceDefinition = _low_quotas()
 	var deck: DeckDefinition = load(STARTER)
-	var run: RunState = RunState.new(seed_value, deck, balance, RunStock.starting(deck, balance))
+	var run: RunState = RunState.new(seed_value, deck, balance, RunStock.starting(balance))
 	run.start_shift()
 	return run
 

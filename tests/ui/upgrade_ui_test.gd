@@ -38,6 +38,7 @@ func test_a_register_from_the_machine_stamps_the_loyalty_card() -> void:
 	var runner: GdUnitSceneRunner = scene_runner(SCREEN)
 	var screen: ShiftScreen = runner.scene()
 	var run: RunState = screen.run
+	MachineSteps.boost_run(run, [1])  # v0.47: only a BOOSTED visit lights REGISTER.
 	await _pass_shift(screen)
 	assert_bool(screen._machine.is_open()).is_true()
 	await _frames(2)
@@ -107,9 +108,7 @@ func test_a_starting_upgrade_has_its_own_stamped_box() -> void:
 	var screen: ShiftScreen = runner.scene()
 	var deck: DeckDefinition = (load("res://data/decks/starter.tres") as DeckDefinition).duplicate()
 	deck.starting_upgrade = load(COUPON_ENGINE)
-	screen.run = RunState.new(
-		61, deck, screen.run.balance, RunStock.starting(deck, screen.run.balance)
-	)
+	screen.run = RunState.new(61, deck, screen.run.balance, RunStock.starting(screen.run.balance))
 	screen.run.start_shift()
 	screen._on_shift_started()
 	var texts: PackedStringArray = screen._loyalty_card.box_texts()
@@ -360,7 +359,7 @@ func test_the_results_screen_lists_the_run_history() -> void:
 	await Rush.checkout(screen)
 	assert_bool(screen._results.visible).is_true()
 	var texts: PackedStringArray = screen._results.texts()
-	assert_str(texts[2]).is_equal("  1  €109 / €34     pass")
+	assert_str(texts[2]).is_equal("  1  €109 / €29     pass")
 	assert_str(texts[3]).is_equal("     binned NEW ITEMS")
 	assert_str(texts[4]).is_equal("  2  €0 / €35       fail")
 	# The full 8-shift receipt's layout: tests/ui/results_panel_test.gd.
@@ -394,7 +393,7 @@ func test_history_rows_name_the_visits_and_the_inspection() -> void:
 			[
 				"  4  €30 / €22      pass",
 				"     NEW ITEMS: Bread",
-				"     BONUS · REGISTER: Category engine",
+				"     BONUS · LOYALTY: Category engine",
 				"     inspection Spot check",
 			]
 		)

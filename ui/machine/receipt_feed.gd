@@ -12,9 +12,10 @@ extends Control
 ## A TICKET visit with a bonus ticket to come (Q2 = 2: view.plan.stub) prints the receipt with the
 ## gold stub at its foot. At plan.snap the stub shrinks away (plan.stub_left) and a BonusTicket in
 ## its TICKET form (`ticket`, in its own clip) leaves from the stub's exact rect and flies to the
-## slot plate's dock (plan.dock_flight; per-axis scale, rotation -6 deg x sin(pi g)), where it
-## stays. A BONUS visit moves it from the dock to over the slot (fly .. fly_end) and feeds it in
-## under the clip (.. feed_end) with its shine. Reduced motion: the receipt cross-fades from the
+## cabinet's dock on its kick panel (v0.50; plan.dock_flight; per-axis scale, rotation -6 deg x
+## sin(pi g)), where it stays. A BONUS visit moves it from the dock to over the slot (fly ..
+## fly_end) and feeds it in under the clip (.. feed_end) with its shine. Reduced motion: the receipt
+## cross-fades from the
 ## printer to the slot instead of travelling, the ticket jumps to the dock, nothing shines.
 ##
 ## The copy is printed at the TICKET visit's `feed` beat (none when it is fast-forwarded, and none
@@ -149,7 +150,7 @@ func ticket_rect(t: float) -> Array:
 	var plan: MachinePlan = view.plan
 	if plan == null:
 		return [Rect2(), 0.0]
-	var dock: Rect2 = _to_stage(view.slot_plate.dock_global_rect())
+	var dock: Rect2 = _to_stage(view.cabinet.dock_global_rect())
 	if plan.kind == MachineVisit.Kind.BONUS:
 		return [_bonus_rect(plan, t, dock), 0.0]
 	if plan.kind != MachineVisit.Kind.TICKET or not plan.stub:

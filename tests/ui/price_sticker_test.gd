@@ -7,6 +7,7 @@ extends GdUnitTestSuite
 ## its text, moves the aisle glyph after the base and hides it next to a pay tag, shrinks the base
 ## when the tag needs the room, and puts it all back; set_got swaps a product's face.
 
+const LiveCardCount := preload("res://tests/data/live_card_count.gd")
 const CARDS := "res://data/cards"
 const BALANCE := "res://data/balance/balance.tres"
 ## A number that isn't an ordinal ("2nd" stays): the data's numbers, which balance passes may
@@ -32,7 +33,7 @@ const READINGS: Dictionary[String, String] = {
 
 func test_every_summary_fits_two_lines() -> void:
 	var cards: Array[CardDefinition] = _cards()
-	assert_int(cards.size()).is_equal(67)
+	assert_int(cards.size()).is_equal(LiveCardCount.CARDS)
 	var balance: BalanceDefinition = load(BALANCE) as BalanceDefinition
 	var stickers: Array[PriceSticker] = []
 	for definition: CardDefinition in cards:

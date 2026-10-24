@@ -1,0 +1,11 @@
+; A giver-badge mini (sticker minis): Odd socks, a striped tomato sock and a dotted teal one.
+; 7x7, ink outline, light from the top left; its GOLDEN copy (odd_socks_golden) is derived (@derive ... golden=outline).
+@size 7x7
+@kind icon
+###....
+#R#....
+#M#.###
+#R#.#4#
+#RR##w#
+####44#
+...####

@@ -74,7 +74,7 @@ enabled=PackedStringArray("res://addons/gdUnit4/plugin.cfg")
 
 [next_customer]
 
-build_label="fb-p2"
+build_label="fb-p3"
 
 [rendering]
 

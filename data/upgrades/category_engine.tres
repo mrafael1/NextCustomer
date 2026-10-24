@@ -14,6 +14,7 @@ receipt_text = "Category engine"
 [resource]
 script = ExtResource("3_upgrade")
 id = &"category_engine"
+icon_ref = "res://art/icons/combo_diamond.png"
 display_name = "Category engine"
 type = 3
 effect_text = "+3 for each different tag among your products"

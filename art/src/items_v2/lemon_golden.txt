@@ -1,0 +1,5 @@
+; Lemon GOLDEN (#89 item tier): lemon_big through its own map: paper-lit tops, bright gold bodies and
+; brass shade, so a gold lemon reads brighter than the plain yellow one (the earlier Y=n y=n M=L m=l
+; map read as a darker lemon); a paper rim, the green leaf kept.
+; A derived source: no grid, tools/pixel_art.py builds it from the BIG source.
+@derive lemon_big golden=keys Y=w y=n M=n m=L glint rim

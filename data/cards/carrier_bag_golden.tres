@@ -1,0 +1,26 @@
+[gd_resource type="Resource" script_class="CardDefinition" format=3]
+
+[ext_resource type="Script" path="res://core/rule.gd" id="1_rule"]
+[ext_resource type="Script" path="res://core/rules/count_earlier_tag_bonus_rule.gd" id="2_carrier_bag"]
+[ext_resource type="Script" path="res://core/card_definition.gd" id="3_card"]
+[ext_resource type="Resource" path="res://data/cards/carrier_bag.tres" id="9_plain"]
+
+[sub_resource type="Resource" id="Resource_carrier_bag"]
+script = ExtResource("2_carrier_bag")
+tag = "Food"
+bonus_each = 7
+receipt_text = "Carrier bag: earlier Food"
+
+[resource]
+script = ExtResource("3_card")
+id = &"carrier_bag_golden"
+display_name = "Golden Carrier bag"
+kind = 1
+tags = PackedStringArray("Household")
+base = 3
+rules = Array[ExtResource("1_rule")]([SubResource("Resource_carrier_bag")])
+rule_text = "+7 for each earlier Food product"
+generally_useful = true
+art_ref = "res://art/items_v2/carrier_bag_golden.png"
+variant_of = ExtResource("9_plain")
+tier = 2

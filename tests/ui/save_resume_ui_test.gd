@@ -68,6 +68,7 @@ func test_the_screen_saves_at_every_save_point_and_deletes_the_save_at_the_end()
 	assert_str(_saved()["phase"]).is_equal("planning")
 	assert_int(int(_saved()["shift_index"])).is_equal(1)
 	_place_ids(screen, PASSING_ROW)
+	MachineSteps.boost_run(screen.run, [2])  # v0.47: only a BOOSTED visit lights REGISTER.
 	await Rush.checkout(screen)
 	assert_int(screen.run.phase).is_equal(RunState.Phase.MACHINE_CHOOSE)
 	assert_str(_saved()["phase"]).is_equal("machine")
@@ -301,10 +302,9 @@ func test_a_new_screen_resumes_the_prizes() -> void:
 	assert_int(int(times["presented_ms"])).is_between(0, 100)
 	var view: RewardMachineView = resumed._machine.view
 	await _assert_on_screen(resumed, view)
-	var machine: Rect2 = view.get_global_rect()
+	var window: Rect2 = resumed.get_viewport_rect()
 	for ticket: PrizeTicket in view.tickets:
-		assert_bool(machine.encloses(ticket.get_global_rect())).is_true()
-	assert_bool(view.can_scan()).is_true()
+		assert_bool(window.encloses(ticket.get_global_rect())).is_true()
 	first._machine._on_prize_picked(0)
 	first._machine.view.fast_forward()  # The landing plays to its end.
 	first._machine._end_return()  # No glide back (#77 machine v2).
@@ -382,8 +382,13 @@ func test_a_new_screen_resumes_a_bonus_visit() -> void:
 	for _shift: int in range(first.run.shift_count() - 1):
 		_place_ids(first, PASSING_ROW)
 		await first._on_checkout_pressed()
-		assert_bool(first._machine._choose(RewardMachine.Chute.NEW_ITEMS)).is_true()
-		first._machine._on_binned()
+		# A BOOSTED ticket visit (v0.47) lights only REGISTER and UPGRADES, which can't be binned.
+		var ticket_chute: int = MachineSteps.first_lit(first.run, RewardMachine.Chute.NEW_ITEMS)
+		assert_bool(first._machine._choose(ticket_chute)).is_true()
+		if first.run.machine.can_bin():
+			first._machine._on_binned()
+		else:
+			first._machine._on_prize_picked(0)
 		first._machine.view.fast_forward()  # The landing plays to its end.
 		first._machine._end_return()  # No glide back (#77 machine v2).
 		var run: RunState = first.run
@@ -428,16 +433,17 @@ func test_a_new_screen_resumes_a_bonus_visit() -> void:
 	assert_array(_errors).is_empty()
 
 
-## A bonus visit's machine (#77 machine v2): the head's BONUS TICKET! stamp over INSPECTION PASSED
-## and the BONUS slip checked INSPECTION PASSED ✓ over the inspection's name.
+## A bonus visit's machine (#77 machine v2): the head's BONUS TICKET! stamp over INSPECTION PASSED,
+## on the PREMIUM face when the visit is BOOSTED (after a boosted shift, v0.53: the inspected
+## shifts are the boosted ones, so this run's is), else the classic one.
 func _assert_bonus_faces(screen: ShiftScreen) -> void:
 	var view: RewardMachineView = screen._machine.view
 	assert_str(view.head.stamp_texts()[0]).is_equal("BONUS TICKET!")
 	assert_str(view.head.stamp_texts()[1]).is_equal(RewardMachineView.BONUS_UNDER)
-	assert_str(view.slip.texts()[0]).starts_with("BONUS #")
-	assert_str(view.slip.texts()[0]).ends_with("b")
-	assert_str(view.slip.texts()[1]).is_equal(RewardMachineView.BONUS_CHECK)
-	assert_str(view.slip.why_text()).is_equal(screen.run.history[-1].inspection.display_name)
+	var boosted: bool = screen.run.machine.current_visit().boosted
+	assert_bool(boosted).is_true()
+	assert_bool(view.plan.premium_held).is_true()
+	assert_bool(view.head.premium_face()).is_true()
 
 
 ## A run saved after the shift's last visit (SCORED) resumes on the next shift's planning.

@@ -82,14 +82,14 @@ func test_the_full_row_counts_up_on_screen_in_five_to_nine_seconds() -> void:
 
 	_assert_sounds(sfx, plan, count_up.printer_feed_ms)
 	_assert_rides(rides, plan)
-	# Shift 1's quota (34) is reached mid-row: the ding, then the quota met for good.
+	# Shift 1's quota (29) is reached mid-row: the ding, then the quota met for good.
 	assert_int(plan.ding_beat).is_greater_equal(0)
 	assert_int(_sounds(sfx, "ding")).is_equal(1)
 	assert_bool(probe["met_before_total"]).is_true()
 	# It was met at the ding beat, the subtotal past the quota but short of the total, and stayed
 	# met on every frame after.
 	var quota: int = screen.run.quota()
-	assert_int(quota).is_equal(34)
+	assert_int(quota).is_equal(29)
 	assert_int(int(probe["met_subtotal"])).is_between(quota, plan.total - 1)
 	assert_int(int(probe["met_subtotal"])).is_equal(plan.beats[plan.ding_beat].subtotal)
 	assert_bool(probe["met_lost"]).is_false()
@@ -118,7 +118,7 @@ func test_the_fast_setting_counts_faster_with_the_same_receipt() -> void:
 	assert_array(failures).override_failure_message("\n".join(failures)).is_empty()
 	var plan: CountUpPlan = screen._count_up.plan
 	var normal: CountUpPlan = CountUpPlan.build(
-		screen.run.last_result.steps, 34, CountUpContext.new(1, 0), load(CountUp.TUNING_PATH)
+		screen.run.last_result.steps, 29, CountUpContext.new(1, 0), load(CountUp.TUNING_PATH)
 	)
 	assert_float(plan.base_speed).is_equal(1.5)
 	assert_int(plan.planned_ms).is_less(normal.planned_ms)
@@ -266,7 +266,7 @@ func test_flights_and_puffs_start_where_the_item_is_now() -> void:
 	screen._overlay.child_entered_tree.connect(on_added)
 	var result: ScoreResult = screen.run.preview()
 	count_up.play(
-		result, screen._row_views, ShiftScreen._names(screen.run.row), 1, CountUpContext.new()
+		result, screen._row_views, CardInstance.names(screen.run.row), 1, CountUpContext.new()
 	)
 	await _played(screen)
 	screen._overlay.child_entered_tree.disconnect(on_added)
@@ -303,7 +303,7 @@ func test_a_payout_that_prints_no_line_still_flies_its_chip() -> void:
 			cheese = step.value
 	var count_up: CountUp = screen._count_up
 	count_up.play(
-		result, screen._row_views, ShiftScreen._names(screen.run.row), 1, CountUpContext.new()
+		result, screen._row_views, CardInstance.names(screen.run.row), 1, CountUpContext.new()
 	)
 	await _played(screen)
 	screen._overlay.child_entered_tree.disconnect(on_added)
@@ -339,12 +339,12 @@ func test_the_best_so_far_leaves_out_the_shift_being_counted() -> void:
 	assert_int(screen.count_up_context().best_so_far).is_equal(109)
 	# The helper on its own: every record but the last.
 	var history: Array[ShiftRecord] = []
-	assert_int(ShiftScreen.best_earlier_total(history)).is_equal(0)
+	assert_int(CountUpContext.best_earlier_total(history)).is_equal(0)
 	history.append(ShiftRecord.new(1, 34, 60))
-	assert_int(ShiftScreen.best_earlier_total(history)).is_equal(0)
+	assert_int(CountUpContext.best_earlier_total(history)).is_equal(0)
 	history.append(ShiftRecord.new(2, 35, 40))
 	history.append(ShiftRecord.new(3, 53, 200))
-	assert_int(ShiftScreen.best_earlier_total(history)).is_equal(60)
+	assert_int(CountUpContext.best_earlier_total(history)).is_equal(60)
 
 
 ## The LED and CHECKOUT's key through a passed shift (#55; #80, step 9): planning shows the
@@ -647,7 +647,7 @@ func test_the_notice_prints_then_its_stamp_lands() -> void:
 	count_up.play(
 		screen.run.preview(),
 		screen._row_views,
-		ShiftScreen._names(screen.run.row),
+		CardInstance.names(screen.run.row),
 		1,
 		CountUpContext.new(1, 0),
 		screen._loyalty_card.stamped_boxes(),
@@ -738,7 +738,7 @@ func _play_tapped(screen: ShiftScreen, result: ScoreResult, quota: int) -> void:
 	count_up.play(
 		result,
 		screen._row_views,
-		ShiftScreen._names(screen.run.row),
+		CardInstance.names(screen.run.row),
 		quota,
 		CountUpContext.new(1, 0, 1.0, false, screen.receipt_header()),
 		screen._loyalty_card.stamped_boxes(),
@@ -772,7 +772,7 @@ func _assert_receipt_of(
 	var expected: ReceiptView = auto_free(ReceiptView.new())
 	expected.show_result(
 		result,
-		ShiftScreen._names(run.row),
+		CardInstance.names(run.row),
 		LoyaltyCard.names(run.upgrades),
 		InspectionTag.names(run.inspections),
 		screen.receipt_header()
@@ -963,7 +963,7 @@ func test_the_burst_runs_in_real_time_through_the_quota_hold() -> void:
 	count_up.play(
 		screen.run.preview(),
 		screen._row_views,
-		ShiftScreen._names(screen.run.row),
+		CardInstance.names(screen.run.row),
 		40,
 		CountUpContext.new(1, 0, 1.0, false, screen.receipt_header())
 	)

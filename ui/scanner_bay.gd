@@ -293,7 +293,7 @@ func start(items: int, first: CardDefinition = null) -> void:
 	if keep:
 		_bed_slot = 0
 		_coupon = first.is_coupon()
-		_set_name(first.display_name.to_upper())
+		_set_name(name_text(first))
 
 
 ## Slaps `spec`'s landing sticker over the bay's bottom-right corner (the last one goes); none for
@@ -533,7 +533,7 @@ func _enter(slot: int, definition: CardDefinition, fall_s: float) -> void:
 	_bed_slot = slot
 	_coupon = definition.is_coupon()
 	_queue.enter(slot)
-	_set_name(definition.display_name.to_upper())
+	_set_name(name_text(definition))
 	_tag.hide_tag()
 	_bed.drop_in(definition, fall_s)
 
@@ -628,7 +628,7 @@ func _show_planning_label() -> void:
 	elif _scanned:
 		_set_name(kind_text(shown), true)
 	else:
-		_set_name(shown.display_name.to_upper())
+		_set_name(name_text(shown))
 	_queue_text()
 
 
@@ -657,6 +657,23 @@ static func kind_text(definition: CardDefinition) -> String:
 	if definition.is_coupon():
 		return KIND_COUPON_TEXT
 	return KIND_BASE_TEXT % definition.base
+
+
+## An item's name for the label, uppercase: its own when it fits the label's inside at one of
+## NAME_SIZES, else (a long BIG or GOLDEN name) its plain product's, as the item's art shows its
+## tier and the monitor's scan names it in full. Pure.
+static func name_text(definition: CardDefinition) -> String:
+	var own: String = definition.display_name.to_upper()
+	if definition.tier == CardDefinition.Tier.PLAIN or name_fits(own):
+		return own
+	return definition.product_card().display_name.to_upper()
+
+
+## Whether `text` fits the name label's inside on one line at one of NAME_SIZES. Pure.
+static func name_fits(text: String) -> bool:
+	var font: Font = ArtStyle.spaced_display_font(NAME_SPACING)
+	var room: float = NAME_RECT.size.x - 2.0 * NAME_BORDER
+	return font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, NAME_SIZES[-1]).x <= room
 
 
 ## The name label's text (a held item's kind on the cream face when `kind`), fitted.

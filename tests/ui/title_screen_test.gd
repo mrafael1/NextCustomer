@@ -301,7 +301,7 @@ func _title() -> TitleScreen:
 func _save_run_at_shift(shift: int) -> void:
 	var deck: DeckDefinition = load(STARTER)
 	var balance: BalanceDefinition = load(BALANCE)
-	var run: RunState = RunState.new(31, deck, balance, RunStock.starting(deck, balance))
+	var run: RunState = RunState.new(31, deck, balance, RunStock.starting(balance))
 	run.start_shift()
 	run.debug_skip_to_shift(shift - 1)
 	assert_bool(SaveService.new(_folder).save_run(run, RUN_ID, 1000)).is_true()

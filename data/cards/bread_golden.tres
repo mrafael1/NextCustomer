@@ -1,0 +1,18 @@
+[gd_resource type="Resource" script_class="CardDefinition" format=3]
+
+[ext_resource type="Script" path="res://core/rule.gd" id="1_oitjh"]
+[ext_resource type="Script" path="res://core/card_definition.gd" id="2_ex8hi"]
+[ext_resource type="Resource" path="res://data/cards/bread.tres" id="9_plain"]
+
+[resource]
+script = ExtResource("2_ex8hi")
+id = &"bread_golden"
+display_name = "Golden Bread"
+kind = 1
+tags = PackedStringArray("Food", "Breakfast", "Bakery")
+base = 9
+rule_text = "No rule"
+generally_useful = true
+art_ref = "res://art/items_v2/bread_golden.png"
+variant_of = ExtResource("9_plain")
+tier = 2

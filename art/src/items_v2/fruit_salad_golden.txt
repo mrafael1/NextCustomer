@@ -1,0 +1,3 @@
+; Fruit salad GOLDEN (#89 item tier): fruit_salad_big through its own map: a gold pot and lid, the fruit cubes in gold steps.
+; A derived source: no grid, tools/pixel_art.py builds it from the BIG source.
+@derive fruit_salad_big golden=keys 6=Y 5=n y=n M=L o=Y R=l G=L z=n g=l X=k glint

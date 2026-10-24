@@ -19,3 +19,6 @@ base = 1
 rules = Array[ExtResource("1_rule")]([SubResource("Resource_stale_doughnut")])
 rule_text = "+3 if in the last slot"
 sticker_text = "+{bonus} in last slot"
+art_ref = "res://art/items_v2/stale_doughnut.png"
+mini_art_ref = "res://art/minis/stale_doughnut.png"
+mini_golden_art_ref = "res://art/minis/stale_doughnut_golden.png"

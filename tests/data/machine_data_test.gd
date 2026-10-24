@@ -51,7 +51,7 @@ func test_the_odds_levels_are_the_approved_ones() -> void:
 ## coupon is in the coupon pool, every listed upgrade in the upgrade pool, and nothing is in two
 ## lists.
 func test_the_rarity_lists_hold_the_right_kinds() -> void:
-	var stockable: Array[CardDefinition] = RunStock.staples(load(STARTER))
+	var stockable: Array[CardDefinition] = RunStock.staples(_balance)
 	for aisle: AisleDefinition in _balance.aisles:
 		stockable.append_array(aisle.base_cards + aisle.capsule_cards)
 	for card: CardDefinition in _machine.rare_products + _machine.legendary_products:
@@ -102,22 +102,33 @@ func test_the_rarities_follow_the_approved_table_with_r3b() -> void:
 		["coupon_engine", "category_engine"]
 	)
 	assert_array(_ids(_machine.legendary_upgrades)).is_equal(["slot_engine"])
-	var fresh: RunStock = RunStock.starting(load(STARTER), _balance)
+	var fresh: RunStock = RunStock.starting(_balance)
 	for card: CardDefinition in fresh.cards:
 		if card.is_product():
 			assert_int(_machine.product_rarity(card)).is_less(MachinePrize.Rarity.LEGENDARY)
 
 
 ## The shift lists fit the run: each is a shift with a visit after it (1 to shift count - 1), the
-## STAMP DAY floors match its shifts, and no shift has both a bonus visit and a STAMP DAY.
+## STAMP DAY floors match its shifts, and no shift has both a bonus visit and a STAMP DAY. The
+## BOOSTED shifts are 3, 5 and 7 (v0.47), and each shift's odds level is the approved one (1-2
+## level 0, 3-4 1, 5-6 2, 7 3), never falling and always a level there is.
 func test_the_shift_lists_fit_the_run() -> void:
 	var last: int = _balance.quotas.size() - 1
 	for shifts: PackedInt32Array in [
-		_machine.upgrades_open_shifts, _machine.stamp_day_shifts, _machine.bonus_extra_shifts
+		_machine.boosted_shifts, _machine.stamp_day_shifts, _machine.bonus_extra_shifts
 	]:
 		for shift_number: int in shifts:
 			assert_int(shift_number).is_between(1, last)
-	assert_array(Array(_machine.upgrades_open_shifts)).is_equal([3, 5, 7])
+	assert_array(Array(_machine.boosted_shifts)).is_equal([3, 5, 7])
+	var levels: Array[int] = []
+	for shift_number: int in range(1, last + 1):
+		levels.append(_machine.odds_level_after(shift_number))
+	assert_array(levels).is_equal([0, 0, 1, 1, 2, 2, 3])
+	for index: int in _machine.shift_odds_levels.size():
+		var level: int = _machine.shift_odds_levels[index]
+		assert_int(level).is_between(0, _machine.max_level())
+		if index > 0:
+			assert_int(level).is_greater_equal(_machine.shift_odds_levels[index - 1])
 	assert_array(Array(_machine.stamp_day_shifts)).is_equal([2, 4, 6])
 	assert_array(Array(_machine.stamp_day_floor)).is_equal([1, 2, 3])
 	assert_int(_machine.stamp_day_floor.size()).is_equal(_machine.stamp_day_shifts.size())
@@ -128,12 +139,69 @@ func test_the_shift_lists_fit_the_run() -> void:
 	assert_int(_machine.stamp_floor(3)).is_equal(0)
 
 
-## The UPGRADES chute upgrades the four live chains.
+## The UPGRADES chute upgrades the live chains: the starter's 4 (#77), then Bread, Soup and the
+## 14 base aisle items (v0.48), then the 30 capsule products (v0.52).
 func test_the_machine_upgrades_the_live_chains() -> void:
 	var products: Array[String] = []
 	for chain: ItemUpgradeDefinition in _machine.item_upgrades:
 		products.append(String(chain.product.id))
-	assert_array(products).is_equal(["banana", "milk", "eggs", "coffee"])
+	(
+		assert_array(products)
+		. is_equal(
+			[
+				"banana",
+				"milk",
+				"eggs",
+				"coffee",
+				"bread",
+				"soup",
+				"cheese",
+				"frozen_peas",
+				"butter",
+				"yogurt",
+				"reduced_yogurt",
+				"cereal",
+				"tea_bags",
+				"crackers",
+				"dented_can",
+				"day_old_buns",
+				"carrier_bag",
+				"scissors",
+				"batteries",
+				"flickering_bulb",
+				"baguette",
+				"scone",
+				"croissant",
+				"broken_biscuit",
+				"iced_bun",
+				"birthday_candles",
+				"squashed_cake",
+				"stale_doughnut",
+				"cream",
+				"ham_ends",
+				"fruit_salad",
+				"strawberries",
+				"grapefruit",
+				"wonky_carrot",
+				"lemon",
+				"bruised_apples",
+				"soft_tomatoes",
+				"potatoes",
+				"egg_timer",
+				"chipped_mug",
+				"odd_socks",
+				"sugar_cubes",
+				"mixed_herbs",
+				"crisps",
+				"cereal_bar",
+				"bent_lolly",
+				"pick_n_mix",
+				"stale_popcorn",
+				"breadsticks",
+				"dusty_toffees",
+			]
+		)
+	)
 
 
 ## The machine v2 tempo (#77, Q1 = A, Q2 = 2): data/balance/machine_tempo.tres sets the camera
@@ -172,6 +240,12 @@ func test_the_machine_v2_tempo_is_set() -> void:
 		assert_bool(text.contains(gone)).override_failure_message(gone).is_false()
 	for gone: String in ["stub_lead_ms", "stub_flight_ms", "stub_feed_ms", "stub_feed_rm_ms"]:
 		assert_bool(text.contains(gone)).override_failure_message(gone).is_false()
+	# v0.50 (premium machine, R1 drop): the belt, the boxes, the restock and the old reveal's
+	# spacing are gone; the premium transform and the drop are set.
+	for gone: String in ["lands_ms", "belt_", "restock", "box_", "reveal_start_ms", "odds_open"]:
+		assert_bool(text.contains(gone)).override_failure_message(gone).is_false()
+	for field: String in ["premium_ms", "premium_rm_ms", "draw_rm_ms", "land_lead_rm_ms"]:
+		assert_int(int(tempo.get(field))).override_failure_message(field).is_greater(0)
 
 
 func _ids(items: Array) -> Array[String]:

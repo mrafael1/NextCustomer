@@ -1,9 +1,8 @@
 class_name MachineOddsCard
 extends RefCounted
 ## The exact odds of one chute's next draw (#77, build spec 1.5), as the odds card shows them.
-## Made by MachineOdds (every possible draw enumerated with its probability, no RNG used); the
-## next-visit fields are set by RewardMachine. The UI only displays these numbers; `notes` are
-## keys the UI maps to text.
+## Made by MachineOdds (every possible draw enumerated with its probability, no RNG used). The UI
+## only displays these numbers; `notes` are keys the UI maps to text.
 
 ## Note keys.
 const NOTE_LEGENDARY_EMPTY := &"legendary_empty_falls"
@@ -44,8 +43,3 @@ var guarded: bool = false
 ## the names the odds card prints bold.
 var guaranteed: Dictionary = {}
 var notes: Array[StringName] = []
-## Set by RewardMachine: the level after this visit's pick or bin, whether the meter rises, and
-## the per-drop shares this chute would print on its next visit (as `rarity_share`).
-var next_level: int = 0
-var meter_rises: bool = false
-var next_rarity_share: PackedFloat64Array = PackedFloat64Array([0.0, 0.0, 0.0])

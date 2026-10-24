@@ -3,8 +3,17 @@ extends RefCounted
 ## The RECEIPT REWARDS machine (#77, build spec 1.6): after a passed shift that isn't the last,
 ## the shift's ticket buys one visit; a passed inspected shift adds the bonus ticket's visit; on a
 ## STAMP DAY shift a run behind on registers gets a REGISTER pick. A visit chooses a chute, draws
-## its prizes (MachineDraw, with the run's RNG) and picks one or bins them; each chute has a
-## Regular meter that raises its odds. Odds come from MachineOdds and never use the RNG.
+## its prizes (MachineDraw, with the run's RNG) and picks one or bins them. Odds come from
+## MachineOdds and never use the RNG.
+##
+## Two machine states (v0.47): a Normal visit lights NEW ITEMS and COUPONS; a BOOSTED visit (the
+## ticket's visit after one of MachineDefinition.boosted_shifts) lights REGISTER and UPGRADES. A
+## boosted shift whose REGISTER is full (or has nothing to draw) and whose UPGRADES has nothing to
+## improve gives a Normal visit instead. The bonus ticket's visit after a boosted shift is BOOSTED
+## too (v0.53, decided with the user on 2026-10-23), by the same rule from the state after the
+## ticket's pick; STAMP DAY is its own REGISTER pick. Every visit after a shift draws at that
+## shift's odds level (MachineDefinition.odds_level_after): rarity rises with the run's progress,
+## not with use.
 ##
 ## The machine holds the run's RNG (a shared reference) but never the run: methods that read or
 ## change the run take it. It has its own stage and never writes RunState.phase. Cards from a pick
@@ -12,19 +21,25 @@ extends RefCounted
 ## upgrades when a shift starts).
 
 enum Chute { NEW_ITEMS, COUPONS, REGISTER, UPGRADES }
-## OPEN: lit. LOCKED_SHIFT: UPGRADES after a shift it isn't open on. CARD_FULL: REGISTER at the
-## register cap. EMPTY: nothing to draw (UPGRADES: "NOTHING TO IMPROVE").
-enum ChuteState { OPEN, LOCKED_SHIFT, CARD_FULL, EMPTY }
+## OPEN: lit. UNLIT: not a chute of this visit's state (REGISTER and UPGRADES on a Normal visit,
+## NEW ITEMS and COUPONS on a BOOSTED one). CARD_FULL: REGISTER at the register cap. EMPTY:
+## nothing to draw (UPGRADES: "NOTHING TO IMPROVE").
+enum ChuteState { OPEN, UNLIT, CARD_FULL, EMPTY }
 ## IDLE: no visit. CHOOSE: a visit waits for its chute. PICK: its prizes wait for a pick or bin.
 enum Stage { IDLE, CHOOSE, PICK }
 
 const CHUTES: Array[int] = [Chute.NEW_ITEMS, Chute.COUPONS, Chute.REGISTER, Chute.UPGRADES]
+## The chutes a Normal and a BOOSTED visit light.
+const NORMAL_CHUTES: Array[int] = [Chute.NEW_ITEMS, Chute.COUPONS]
+const BOOSTED_CHUTES: Array[int] = [Chute.REGISTER, Chute.UPGRADES]
+## A visit's machine state, as logged (machine_visit's `state`).
+const STATE_NORMAL := "normal"
+const STATE_BOOSTED := "boosted"
+const STATE_STAMP_DAY := "stamp_day"
 const STAGE_NAMES: Array[String] = ["idle", "choose", "pick"]
 
 var machine: MachineDefinition
 var stage: Stage = Stage.IDLE
-## The Regular level of each chute (0 to machine.max_level()), for this run.
-var levels: PackedInt32Array = PackedInt32Array([0, 0, 0, 0])
 ## The run's first COUPONS / NEW ITEMS draw happened (spent at the draw, picked or binned).
 var coupons_first_done: bool = false
 var new_items_first_done: bool = false
@@ -49,8 +64,11 @@ func _init(machine_definition: MachineDefinition, rng: RandomNumberGenerator) ->
 	_rng = rng
 
 
-## RunState.checkout on a passed shift that isn't the last: queues the ticket's visit, the bonus
-## ticket's when due and STAMP DAY when due, and waits for the ticket's chute.
+## RunState.checkout on a passed shift that isn't the last: queues the ticket's visit (BOOSTED after
+## a boosted shift when REGISTER or UPGRADES can draw, else Normal), the bonus ticket's when due
+## (BOOSTED or Normal by the same rule when it starts) and STAMP DAY when due, and waits for the
+## ticket's chute. A visit none of whose lit chutes can draw is skipped (no lit key to wait on): the
+## next queued one starts, else the machine idles.
 func begin_after_checkout(run: RunState) -> void:
 	clear_visits()
 	if run.history.is_empty():
@@ -60,34 +78,35 @@ func begin_after_checkout(run: RunState) -> void:
 		return
 	upgrades_at_checkout = run.upgrades.size()
 	_visit = MachineVisit.new(MachineVisit.Kind.TICKET)
+	_visit.boosted = _boosted_due(run)
 	if _bonus_due(run):
 		_queue.append(MachineVisit.Kind.BONUS)
 	if _stamp_day_due(run):
 		_queue.append(MachineVisit.Kind.STAMP_DAY)
 	stage = Stage.CHOOSE
+	if not _can_draw_lit(run):
+		_visit = null
+		_next_visit(run)
 
 
-## One chute's state for the UI: lit or why not, its meter and its exact odds card.
+## One chute's state for the UI: lit or why not, and its exact odds card.
 func chute_info(run: RunState, chute: int) -> MachineChuteInfo:
 	var info: MachineChuteInfo = MachineChuteInfo.new()
 	info.state = _chute_state(run, chute)
-	info.level = levels[chute]
-	info.max_level = machine.max_level()
 	info.odds = _odds(run, chute)
-	info.meter_rises = info.odds.meter_rises
 	info.cart_full = (
 		(chute == Chute.NEW_ITEMS or chute == Chute.COUPONS)
 		and run.deck.size() >= run.balance.deck_limit
 	)
-	if info.state == ChuteState.LOCKED_SHIFT:
-		info.opens_after_shift = _next_open_shift(run)
+	if info.state == ChuteState.UNLIT and BOOSTED_CHUTES.has(chute):
+		info.opens_after_shift = _next_boosted_shift(run)
 	if _visit != null and _visit.kind == MachineVisit.Kind.BONUS:
 		_first_pick_changes(run, chute, info)
 	return info
 
 
 ## A BONUS visit's chute_info: what the shift's first visit changed for `chute` when it was made
-## there (its meter's rise, a kept prize, the run's first-visit coupon spent by its draw).
+## there (a kept prize, the run's first-visit coupon spent by its draw).
 func _first_pick_changes(run: RunState, chute: int, info: MachineChuteInfo) -> void:
 	if run.history.is_empty() or run.history[-1].visits.is_empty():
 		return
@@ -95,8 +114,6 @@ func _first_pick_changes(run: RunState, chute: int, info: MachineChuteInfo) -> v
 	var first: MachineVisit = record.visits[0]
 	if first.chute != chute:
 		return
-	if first.meter_rose and first.level_before < levels[chute]:
-		info.first_pick_level_before = first.level_before
 	info.first_pick_kept = first.picked_prize() != null
 	if chute != Chute.COUPONS:
 		return
@@ -118,11 +135,10 @@ func choose(run: RunState, chute: int) -> bool:
 	if _chute_state(run, chute) != ChuteState.OPEN:
 		return false
 	var context: MachineContext = _snapshot(run)
-	var drawn: Array[MachinePrize] = MachineDraw.draw(chute, context, levels[chute], _rng)
+	var drawn: Array[MachinePrize] = MachineDraw.draw(chute, context, odds_level(run), _rng)
 	if drawn.is_empty():
 		return false
 	_visit.chute = chute
-	_visit.level_before = levels[chute]
 	_visit.set_drawn(drawn)
 	_visit.guarantee_held = MachineDraw.holds(drawn, context.guarantee(chute))
 	_first_draw = (
@@ -178,8 +194,8 @@ func needs_replace(run: RunState, index: int) -> bool:
 
 
 ## Takes the prize at `index`: adds the card (swapping `replaced` out at the deck limit), takes
-## the register (refused at the cap) or upgrades the copies; raises the meter when a later visit
-## can use it, records the visit and moves on. Null when refused.
+## the register (refused at the cap) or upgrades the copies; records the visit and moves on. Null
+## when refused.
 func pick(run: RunState, index: int, replaced: CardInstance = null) -> MachineLanding:
 	var prize: MachinePrize = _prize(index)
 	if prize == null or not _can_take(run, prize, index, replaced):
@@ -187,7 +203,6 @@ func pick(run: RunState, index: int, replaced: CardInstance = null) -> MachineLa
 	var landing: MachineLanding = MachineLanding.new()
 	landing.prize = prize
 	landing.cart_before = run.deck.size()
-	var rose: bool = _meter_rises(run, _visit.chute)
 	if _visit.kind == MachineVisit.Kind.STAMP_DAY:
 		_odds(run, Chute.REGISTER)
 	match prize.kind:
@@ -214,19 +229,17 @@ func pick(run: RunState, index: int, replaced: CardInstance = null) -> MachineLa
 				)
 	_visit.picked = index
 	landing.cart_after = run.deck.size()
-	landing.meter_rose = rose
-	_end_visit(run, rose)
+	_end_visit(run)
 	landing.last_of_shift = stage == Stage.IDLE
 	return landing
 
 
-## Bins the prizes (can_bin only): the meter still rises; records the visit and moves on.
+## Bins the prizes (can_bin only): records the visit and moves on.
 func bin(run: RunState) -> bool:
 	if not can_bin():
 		return false
-	var rose: bool = _meter_rises(run, _visit.chute)
 	_visit.binned = true
-	_end_visit(run, rose)
+	_end_visit(run)
 	return true
 
 
@@ -249,14 +262,42 @@ func registers_picked(run: RunState) -> int:
 	return found
 
 
-func level(chute: int) -> int:
-	return levels[chute]
+## The odds level the visits after the last played shift draw at (0 before any checkout).
+func odds_level(run: RunState) -> int:
+	return machine.odds_level_after(_shift(run))
+
+
+## Whether the waiting visit is BOOSTED.
+func is_boosted() -> bool:
+	return _visit != null and _visit.boosted
+
+
+## A visit's machine state, as logged (STATE_NORMAL, STATE_BOOSTED, STATE_STAMP_DAY).
+static func state_of(visit: MachineVisit) -> String:
+	return state_for(visit.kind, visit.boosted)
+
+
+## The machine state of a visit of `kind` (MachineVisit.Kind) that is `boosted` or not; also for
+## a saved visit's fields (the simulator's records).
+static func state_for(kind: int, boosted: bool) -> String:
+	if kind == MachineVisit.Kind.STAMP_DAY:
+		return STATE_STAMP_DAY
+	return STATE_BOOSTED if boosted else STATE_NORMAL
+
+
+## The chutes a visit lights by its state: BOOSTED_CHUTES on a BOOSTED visit, REGISTER alone on
+## STAMP DAY, else NORMAL_CHUTES (no visit: Normal).
+static func lit_chutes(visit: MachineVisit) -> Array[int]:
+	if visit != null and visit.kind == MachineVisit.Kind.STAMP_DAY:
+		return [Chute.REGISTER]
+	if visit != null and visit.boosted:
+		return BOOSTED_CHUTES
+	return NORMAL_CHUTES
 
 
 ## The machine's state for the run save (RunSave).
 func to_dictionary() -> Dictionary:
 	return {
-		"levels": Array(levels),
 		"coupons_first_done": coupons_first_done,
 		"new_items_first_done": new_items_first_done,
 		"upgrades_at_checkout": upgrades_at_checkout,
@@ -271,7 +312,6 @@ func to_dictionary() -> Dictionary:
 ## is missing or wrong or the stage and the visit don't fit together.
 func restore_from(data: Dictionary, lookup: ContentLookup) -> bool:
 	var reader: SaveReader = SaveReader.new(data, lookup)
-	var saved_levels: Array[int] = reader.wholes("levels")
 	var saved_stage: int = STAGE_NAMES.find(reader.text("stage"))
 	var saved_queue: Array[int] = []
 	var queue_data: Variant = data.get("queue")
@@ -283,8 +323,6 @@ func restore_from(data: Dictionary, lookup: ContentLookup) -> bool:
 		visit = MachineVisit.from_dictionary(visit_data, lookup)
 	var valid: bool = (
 		reader.ok
-		and saved_levels.size() == CHUTES.size()
-		and saved_levels.all(func(value: int) -> bool: return value <= machine.max_level())
 		and saved_queue.all(func(kind: int) -> bool: return kind > MachineVisit.Kind.TICKET)
 		and visit_data is Dictionary
 		and _fits_stage(saved_stage, visit, visit_data, saved_queue)
@@ -296,7 +334,6 @@ func restore_from(data: Dictionary, lookup: ContentLookup) -> bool:
 	var first_draw: Variant = data.get("first_draw", false)
 	if not valid or not reader.ok or not first_draw is bool:
 		return false
-	levels = PackedInt32Array(saved_levels)
 	coupons_first_done = first_coupons
 	new_items_first_done = first_new_items
 	upgrades_at_checkout = at_checkout
@@ -308,7 +345,7 @@ func restore_from(data: Dictionary, lookup: ContentLookup) -> bool:
 	return true
 
 
-## Empties the queue and the current visit (debug jump); the levels stay.
+## Empties the queue and the current visit (debug jump).
 func clear_visits() -> void:
 	_queue = []
 	_visit = null
@@ -338,7 +375,7 @@ func _fits_stage(
 				and visit.prizes.size() <= machine.prizes_per_visit
 				and visit.picked == -1
 				and not visit.binned
-				and (visit.kind != MachineVisit.Kind.STAMP_DAY or visit.chute == Chute.REGISTER)
+				and lit_chutes(visit).has(visit.chute)
 			)
 	return false
 
@@ -369,15 +406,19 @@ func _stepped(target: CardInstance, prize: MachinePrize) -> CardDefinition:
 	return ItemUpgrades.tier_step(machine.item_upgrades, target.definition, steps)
 
 
-## Records the finished visit (meter, history) and moves on to the next queued one.
-func _end_visit(run: RunState, rose: bool) -> void:
-	if rose:
-		levels[_visit.chute] += 1
-	_visit.meter_rose = rose
+## Records the finished visit (history) and moves on to the next queued one.
+func _end_visit(run: RunState) -> void:
 	run.history[-1].visits.append(_visit)
 	_visit = null
 	_first_draw = false
 	_clear_cache()
+	_next_visit(run)
+
+
+## Starts the next queued visit that has something to draw (a BONUS visit none of whose lit
+## chutes can draw is skipped), else idles. A BONUS visit after a boosted shift is BOOSTED when
+## REGISTER or UPGRADES can draw after the ticket's pick (v0.53), else Normal.
+func _next_visit(run: RunState) -> void:
 	if not _stamp_day_due(run):
 		_queue.erase(MachineVisit.Kind.STAMP_DAY)
 	while not _queue.is_empty():
@@ -386,26 +427,29 @@ func _end_visit(run: RunState, rose: bool) -> void:
 			var record: ShiftRecord = run.history[-1]
 			var why: String = String(record.inspection.id) if record.inspection != null else ""
 			_visit = MachineVisit.new(MachineVisit.Kind.BONUS, why)
+			_visit.boosted = _boosted_due(run)
 			stage = Stage.CHOOSE
-			return
+			if _can_draw_lit(run):
+				return
+			_visit = null
+			continue
 		if _start_stamp_day(run):
 			return
 	stage = Stage.IDLE
 
 
-## STAMP DAY: draws REGISTER at its level with the run's RNG and waits for the pick. False (no
-## visit) when nothing can be drawn.
+## STAMP DAY: draws REGISTER at the shift's odds level with the run's RNG and waits for the pick.
+## False (no visit) when nothing can be drawn.
 func _start_stamp_day(run: RunState) -> bool:
 	var context: MachineContext = _snapshot(run)
 	var odds: MachineOddsCard = _odds(run, Chute.REGISTER)
 	var drawn: Array[MachinePrize] = MachineDraw.draw(
-		Chute.REGISTER, context, levels[Chute.REGISTER], _rng
+		Chute.REGISTER, context, odds_level(run), _rng
 	)
 	if drawn.is_empty():
 		return false
 	var visit: MachineVisit = MachineVisit.new(MachineVisit.Kind.STAMP_DAY)
 	visit.chute = Chute.REGISTER
-	visit.level_before = levels[Chute.REGISTER]
 	visit.set_drawn(drawn)
 	visit.guarantee_held = MachineDraw.holds(drawn, context.guarantee(Chute.REGISTER))
 	visit.stamp_day_odds = odds
@@ -427,6 +471,24 @@ func bonus_if_passed(run: RunState) -> bool:
 	if run.is_last_shift():
 		return false
 	return _bonus_for(machine, run.shift_index + 1, not run.inspections.is_empty())
+
+
+## Read-only, for the planning announce (v0.50, "PREMIUM NEXT"): whether passing the current
+## shift would queue a BOOSTED ticket visit, as begin_after_checkout decides it at that checkout
+## (a boosted shift, and REGISTER or UPGRADES able to draw from the run as it is now). False on
+## the last shift (no machine follows it).
+func boosted_if_passed(run: RunState) -> bool:
+	if run.is_last_shift() or not machine.is_boosted_shift(run.shift_index + 1):
+		return false
+	var context: MachineContext = MachineContext.from_run(
+		run, machine, coupons_first_done, new_items_first_done
+	)
+	for chute: int in BOOSTED_CHUTES:
+		if chute == Chute.REGISTER and registers_picked(run) >= machine.register_cap:
+			continue
+		if not context.pools(chute).all(func(pool: Array) -> bool: return pool.is_empty()):
+			return true
+	return false
 
 
 ## Read-only, for the inspection chip (#77 machine v2): whether the shift just checked out was an
@@ -456,54 +518,64 @@ func _stamp_day_due(run: RunState) -> bool:
 	return picked < floor_count and picked < machine.register_cap
 
 
+## CARD_FULL (REGISTER at the cap) first, then UNLIT (not a chute of the visit's state), then
+## EMPTY (nothing to draw). On a boosted shift's ticket or BONUS visit that fell back to Normal,
+## REGISTER and UPGRADES show their real reason (CARD_FULL, EMPTY) instead of UNLIT, which would
+## promise a boost the visit has just skipped.
 func _chute_state(run: RunState, chute: int) -> ChuteState:
 	if chute == Chute.REGISTER and registers_picked(run) >= machine.register_cap:
 		return ChuteState.CARD_FULL
-	if chute == Chute.UPGRADES and not machine.upgrades_open_shifts.has(_shift(run)):
-		return ChuteState.LOCKED_SHIFT
-	var chute_pools: Array = _snapshot(run).pools(chute)
-	var empty: bool = chute_pools.all(func(pool: Array) -> bool: return pool.is_empty())
-	return ChuteState.EMPTY if empty else ChuteState.OPEN
+	if not lit_chutes(_visit).has(chute):
+		if BOOSTED_CHUTES.has(chute) and _boost_fell_back(run) and not _can_draw(run, chute):
+			return ChuteState.EMPTY
+		return ChuteState.UNLIT
+	return ChuteState.OPEN if _can_draw(run, chute) else ChuteState.EMPTY
 
 
-## The meter rule (build spec 1.6): on a ticket or bonus visit, picking or binning here raises
-## the chute's level when it is below the top and a later draw from it is possible: the bonus
-## visit still due this shift, or a later shift's visit (UPGRADES: on a shift it opens after;
-## REGISTER: below the cap after this pick). STAMP DAY never raises a meter.
-func _meter_rises(run: RunState, chute: int) -> bool:
-	if _visit == null or _visit.kind == MachineVisit.Kind.STAMP_DAY or not CHUTES.has(chute):
+## Whether the waiting visit is a boosted shift's ticket or BONUS visit that fell back to Normal
+## (neither REGISTER nor UPGRADES could draw).
+func _boost_fell_back(run: RunState) -> bool:
+	if _visit == null or _visit.kind == MachineVisit.Kind.STAMP_DAY or _visit.boosted:
 		return false
-	var shift_number: int = _shift(run)
-	var register_room: bool = registers_picked(run) + 1 < machine.register_cap
-	var bonus_left: bool = (
-		_visit.kind == MachineVisit.Kind.TICKET and _queue.has(MachineVisit.Kind.BONUS)
-	)
-	var later_shift: bool = shift_number < run.shift_count() - 1
-	match chute:
-		Chute.UPGRADES:
-			bonus_left = bonus_left and machine.upgrades_open_shifts.has(shift_number)
-			later_shift = later_shift and _next_open_shift(run) > 0
-		Chute.REGISTER:
-			bonus_left = bonus_left and register_room
-			later_shift = later_shift and register_room
-	return levels[chute] < machine.max_level() and (bonus_left or later_shift)
+	return machine.is_boosted_shift(_shift(run))
 
 
-## The first shift after the current one that opens UPGRADES and has a visit after it, or 0.
-func _next_open_shift(run: RunState) -> int:
+## Whether `chute` has something to draw (REGISTER: below the cap too).
+func _can_draw(run: RunState, chute: int) -> bool:
+	if chute == Chute.REGISTER and registers_picked(run) >= machine.register_cap:
+		return false
+	var chute_pools: Array = _snapshot(run).pools(chute)
+	return not chute_pools.all(func(pool: Array) -> bool: return pool.is_empty())
+
+
+## Whether one of the waiting visit's lit chutes can draw.
+func _can_draw_lit(run: RunState) -> bool:
+	return lit_chutes(_visit).any(func(chute: int) -> bool: return _can_draw(run, chute))
+
+
+## The ticket's (or the bonus ticket's) visit after the last played shift is BOOSTED: a boosted
+## shift, and REGISTER or UPGRADES can draw (else it falls back to Normal).
+func _boosted_due(run: RunState) -> bool:
+	if not machine.is_boosted_shift(_shift(run)):
+		return false
+	return BOOSTED_CHUTES.any(func(chute: int) -> bool: return _can_draw(run, chute))
+
+
+## The first boosted shift after the current one that has a visit after it, or 0.
+func _next_boosted_shift(run: RunState) -> int:
 	var found: int = 0
-	for shift_number: int in machine.upgrades_open_shifts:
+	for shift_number: int in machine.boosted_shifts:
 		var later: bool = shift_number > _shift(run) and shift_number < run.shift_count()
 		if later and (found == 0 or shift_number < found):
 			found = shift_number
 	return found
 
 
-## The odds card of a chute's next draw, with the next visit's fields; cached until the state
+## The odds card of a chute's next draw, at the shift's odds level; cached until the state
 ## changes. During STAMP DAY, REGISTER's is the card its draw was made from, pinned on the visit
 ## (after a resume, recomputed from the restored state, which is the state the draw was made
 ## from); during PICK after a chute's first draw, that chute's is the first draw's card (resumed
-## too). The meter only rises on the visit's chute or one that can be chosen (OPEN).
+## too).
 func _odds(run: RunState, chute: int) -> MachineOddsCard:
 	var stamp_day: bool = _visit != null and _visit.kind == MachineVisit.Kind.STAMP_DAY
 	if stamp_day and chute == Chute.REGISTER:
@@ -529,13 +601,7 @@ func _new_card(run: RunState, chute: int) -> MachineOddsCard:
 			coupons_first_done and chute != Chute.COUPONS,
 			new_items_first_done and chute != Chute.NEW_ITEMS
 		)
-	var odds: MachineOddsCard = MachineOdds.card(chute, context, levels[chute])
-	var can_rise: bool = chosen or _chute_state(run, chute) == ChuteState.OPEN
-	odds.meter_rises = can_rise and _meter_rises(run, chute)
-	odds.next_level = levels[chute] + (1 if odds.meter_rises else 0)
-	var spent: MachineContext = MachineContext.from_run(run, machine, true, true)
-	odds.next_rarity_share = MachineOdds.card(chute, spent, odds.next_level).rarity_share
-	return odds
+	return MachineOdds.card(chute, context, odds_level(run))
 
 
 ## The run's snapshot for this state, built once.

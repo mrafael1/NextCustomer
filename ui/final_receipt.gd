@@ -18,7 +18,7 @@ const WIDTH := 44
 const COIN_GAP := 0.07
 const MAX_COIN_SOUNDS := 15
 ## The machine's chutes as the receipt names them (RewardMachine.Chute order).
-const CHUTE_WORDS: Array[String] = ["NEW ITEMS", "COUPONS", "REGISTER", "UPGRADES"]
+const CHUTE_WORDS: Array[String] = ChuteKey.NAMES
 ## A shift's dim lines start this far in.
 const DETAIL_INDENT := "     "
 

@@ -15,9 +15,9 @@ const SCREEN := "res://ui/shift_screen.tscn"
 ## check set: Eggs lands ×2 on Bread, the 3rd product (Milk) is denied, Multipack arms ×3 and
 ## Coupon engine fizzles on it, Slot engine stamps the 6th product.
 const FULL_ROW: Array[String] = ["eggs", "bread", "milk", "multipack", "milk", "milk", "milk"]
-## Sticker minis' row: Eggs gives Bread ×2 (its mini), Mixed herbs (no sprite yet) gives Golden
-## Eggs +3 (its initials), Golden Eggs gives the next 2 Food ×2 (the gold-outlined mini) and
-## Multipack gives the Milk ×3 for the Cheese's Dairy (the coupon token).
+## Sticker minis' row: Eggs gives Bread ×2 (its mini), Mixed herbs gives Golden Eggs +3 (its mini
+## since v0.52, its initials before), Golden Eggs gives the next 2 Food ×2 (the gold-outlined mini)
+## and Multipack gives the Milk ×3 for the Cheese's Dairy (the coupon token).
 const MINI_ROW: Array[String] = [
 	"eggs", "bread", "mixed_herbs", "eggs_golden", "cheese", "multipack", "milk"
 ]
@@ -134,9 +134,9 @@ func test_every_item_shows_its_model() -> void:
 
 
 ## Sticker minis on the real screen: each item badge shows its giver's mini (Golden Eggs' with the
-## gold outline, plain Eggs' with ink) or, for a product with no sprite (Mixed herbs), its
-## initials token; the coupon badge keeps its token. Every badge stays 18x18, hangs off its
-## sticker's left edge inside its stack's span (PlanningLayer._span) and lies on the screen with
+## gold outline, plain Eggs' with ink) or, for a product with no mini (none in the live data since
+## v0.52), its initials token; the coupon badge keeps its token. Every badge stays 18x18, hangs off
+## its sticker's left edge inside its stack's span (PlanningLayer._span) and lies on the screen with
 ## its mini inside it; drained (another item hovered) a mini greys.
 func test_item_badges_show_the_givers_mini() -> void:
 	var screen: ShiftScreen = await _screen()

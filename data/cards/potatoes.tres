@@ -11,3 +11,6 @@ kind = 1
 tags = PackedStringArray("Food", "Produce")
 base = 3
 rule_text = "No rule"
+art_ref = "res://art/items_v2/potatoes.png"
+mini_art_ref = "res://art/minis/potatoes.png"
+mini_golden_art_ref = "res://art/minis/potatoes_golden.png"

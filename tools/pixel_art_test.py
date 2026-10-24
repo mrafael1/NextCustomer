@@ -408,12 +408,46 @@ class BuildCheckTest(TempTestCase):
         reports = self.root / "reports"
         written = pa.write_sheets(self.ws.load(), reports)
         self.assertIn(reports / "preview" / "items__box.png", written)
-        sheet = pa.decode_png((reports / "contact_sheet.png").read_bytes())
+        sheet = pa.decode_png((reports / "contact_sheet_items.png").read_bytes())
         self.assertGreater(len(sheet), 64)
-        self.assertEqual((reports / "contact_sheet.txt").read_text(encoding="utf-8"),
-                         "frames/f\nitems/box\n")
+        self.assertEqual((reports / "contact_sheet_frames.txt").read_text(encoding="utf-8"),
+                         "frames/f\n")
+        self.assertEqual((reports / "contact_sheet_items.txt").read_text(encoding="utf-8"),
+                         "items/box\n")
         preview = pa.decode_png((reports / "preview" / "frames__f.png").read_bytes())
         self.assertGreater(len(preview[0]), 4 * 8)
+
+    def test_sheet_folder_writes_only_that_folder(self) -> None:
+        self.ws.add("frames/f", FRAME)
+        self.ws.add("items/box", item_source(boxed_item()))
+        reports = self.root / "reports"
+        written = pa.write_sheets(self.ws.load(), reports, "items")
+        self.assertIn(reports / "contact_sheet_items.png", written)
+        self.assertFalse((reports / "contact_sheet_frames.png").exists())
+        self.assertFalse((reports / "preview" / "frames__f.png").exists())
+        with self.assertRaises(pa.ArtError):
+            pa.write_sheets(self.ws.load(), reports, "nothing")
+
+    def test_contact_sheet_lines_follow_each_sprite_not_the_largest(self) -> None:
+        """Many small sprites beside one large one: each line is its own sprite's height at 2x,
+        so the sheet stays small (it once sized every line from the largest sprite and ran out of
+        memory at about 400 sprites)."""
+        for index in range(120):
+            self.ws.add(f"items/box{index:03}", item_source(boxed_item()))
+        wide = ["." * 300] * 2 + ["#" * 300] * 3
+        self.ws.add("items/wide", "@size 300x5\n@kind scenery\n@scale 2\n" + "\n".join(wide) + "\n")
+        project = self.ws.load()
+        sheet = pa.contact_sheet(project.sprites, project.palette)
+        gap = pa.PREVIEW_GAP
+        self.assertEqual(len(sheet), gap + 120 * (2 * 32 + gap) + (2 * 10 + gap))
+
+    def test_a_large_sprite_previews_at_smaller_factors(self) -> None:
+        rows = ["." * 640] * 2 + ["#" * 640] * 358
+        self.ws.add("scenery/big", "@size 640x360\n@kind scenery\n" + "\n".join(rows) + "\n")
+        (sprite,) = self.ws.load().sprites
+        self.assertEqual(pa.preview_factors(sprite), (1, (1,)))
+        preview = pa.preview(sprite, self.ws.load().palette)
+        self.assertLess(len(preview[0]), 2 * 640 + 4 * pa.PREVIEW_GAP)
 
     def test_main_exit_codes(self) -> None:
         self.ws.add("frames/f", FRAME)

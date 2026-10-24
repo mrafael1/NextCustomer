@@ -1,7 +1,8 @@
 class_name MachineDisplay
 extends Panel
-## The machine's char display (#77, look F; build spec 4.2-4.3): the message in Pixelify 24
-## (mustard light; bold Atkinson 17 when it doesn't fit) with its sub line under it (bold
+## The machine's char display (#77, look F; build spec 4.2-4.3; v0.50: the LED strip left of the
+## receipt slot, 292 px wide, mock-up premium_machine_v1.html): the message in Pixelify 24
+## (mustard light; bold Atkinson 17, then 15, 13 or 12, when it doesn't fit) with its sub line (bold
 ## Atkinson 11, grey light), and the BIN IT ✕ button at the right (NEW ITEMS and COUPONS visits
 ## only: RewardMachine.can_bin; shown from the last reveal's end until the pick or the bin, as
 ## look F). Pixelify and Atkinson have no ✓ or ✕: the display's fonts fall back to JetBrains Mono
@@ -10,43 +11,34 @@ extends Panel
 ## RewardMachineView gives the message for each wait point (show_message: PICK A CHUTE, the pick
 ## prompt, the landing's word); frame(t) plays the visit's own lines around them from the plan:
 ## READING…, then SPEND €N ✓ THANK YOU! with the quota met (a BONUS visit: BONUS TICKET! until
-## its stub is fed), PACKING YOUR ORDER… while the boxes come out, "3 PRIZES FROM <chute>", each
-## reveal's rarity and prize, STAMP DAY's free stamp, and on the landing ENJOY!, UPGRADING…, the
-## landing's word with the cart count, the chute's REGULAR level and SEE YOU NEXT SHIFT.
+## its stub is fed), on a BOOSTED visit PREMIUM / PREMIUM RECEIPT blinking while the machine turns
+## PREMIUM, PACKING… while the tray packs, each landed ticket's rarity and prize, STAMP DAY's free
+## stamp, and on the landing ENJOY!, UPGRADING…, the landing's word with the cart count and SEE
+## YOU NEXT SHIFT. A BOOSTED visit's receipt read says so (BOOSTED_READ).
 ##
-## Machine v2 (#77): at the chute wait a pressed key puts the display in its title mode
-## (show_title): the chute's name in Pixelify 24 (paper, a 2 px teal-shade shadow, left), its sub
-## line (bold Atkinson 11, mustard light; 9 when it doesn't fit) and the red CONFIRM › key at the
-## right (CONFIRM_RECT, a RegisterKey like the register's CHECKOUT). CONFIRM sinks for
-## MachineTuning.confirm_down_ms with `ui_confirm`, then sends confirm_pressed. A BONUS visit's
-## feed reads the ticket icon and "BONUS TICKET" / "inspection passed · feeding in".
+## A pressed key no longer changes the display (v0.53: the tray's push bar confirms, MachineTray;
+## until then a title mode with a CONFIRM › key took the strip). A BONUS visit's feed reads the
+## ticket icon and "BONUS TICKET" / "inspection passed · feeding in".
 
 signal bin_pressed
-## CONFIRM › was pressed (after its down state): the pressed key's chute is confirmed.
-signal confirm_pressed
 
-const SIZE := Vector2(392, 52)
+const SIZE := Vector2(292, 52)
 const MESSAGE_SIZE := 24
-## The message's size in bold Atkinson when Pixelify 24 doesn't fit (look F's 17 px).
-const FALLBACK_SIZE := 17
+## The message's size in bold Atkinson when Pixelify 24 doesn't fit (look F's 17 px), then the
+## smaller steps when that doesn't fit either (v0.50: the strip is 292 px, 180 px beside BIN IT).
+const FALLBACK_STEPS: Array[int] = [17, 15, 13, 12]
+## The sub line's smaller sizes when 11 doesn't fit.
+const SUB_STEPS: Array[int] = [11, 10, 9]
 const SUB_SIZE := 11
 const PAD := 10.0
 const MESSAGE_TOP := 2.0
 const MESSAGE_HEIGHT := 28.0
 const SUB_TOP := 30.0
 const SUB_HEIGHT := 16.0
-const BIN_RECT := Rect2(296, 13, 88, 26)
+const BIN_RECT := Rect2(196, 13, 88, 26)
 const BIN_GAP := 6.0
 const BIN_TEXT := "BIN IT ✕"
 const BIN_SIZE := 12
-## The title mode: the sub line's smaller size when 11 doesn't fit, the title's shadow, CONFIRM ›.
-const TITLE_SUB_FALLBACK := 9
-const TITLE_SHADOW := 2
-## Wide enough for Pixelify 24's "CONFIRM ›" (116 px) with room each side; the title keeps 232 px.
-const CONFIRM_RECT := Rect2(250, 6, 134, 40)
-const CONFIRM_TEXT := "CONFIRM ›"
-const CONFIRM_SIZE := 24
-const CONFIRM_GAP := 8.0
 ## A BONUS visit's feed: the ticket icon (2x) left of BONUS TICKET.
 const BONUS_TICKET := "BONUS TICKET"
 const TICKET_ICON := preload("res://art/icons/bonus_ticket.png")
@@ -55,8 +47,13 @@ const ICON_GAP := 6.0
 const BOLD_WEIGHT := 700
 const RARITY_WORDS: Array[String] = ["COMMON", "RARE!", "LEGENDARY!!"]
 const READING := "READING…"
-const PACKING := "PACKING YOUR ORDER…"
+const PACKING := "PACKING…"
+## A BOOSTED visit's transform (v0.50): the lines blink this often.
+const PREMIUM_LINES: Array[String] = ["PREMIUM", "PREMIUM RECEIPT"]
+const PREMIUM_BLINK := 6.0
 const SEE_YOU := "SEE YOU NEXT SHIFT"
+## A BOOSTED visit's receipt read sub line, after the quota (v0.47).
+const BOOSTED_READ := " · PREMIUM RECEIPT"
 ## A refused key's message (show_denied) shows this long, then the wait point's comes back.
 const DENIED_MS := 1200
 
@@ -69,13 +66,7 @@ var _message: Label
 var _sub: Label
 var _bin: Button
 var _bin_shown: bool = false
-var _confirm: RegisterKey
 var _icon: TextureRect
-## The title mode's lines (show_title; empty: off) and whether it offers CONFIRM ›.
-var _title: PackedStringArray = PackedStringArray()
-var _confirm_offered: bool = false
-## CONFIRM's down state: when it was pressed (Time ticks, ms; -1: not down).
-var _confirm_at_ms: int = -1
 ## The wait point's message and sub line (show_message), shown when the plan has no line of its
 ## own at the time.
 var _rest: PackedStringArray = PackedStringArray(["", ""])
@@ -115,18 +106,6 @@ func _init() -> void:
 	_style_bin()
 	RewardMachineView.fit(_bin, BIN_RECT)
 	_bin.visible = false
-	_confirm = RegisterKey.new(
-		RegisterKey.Kind.CHECKOUT, CONFIRM_TEXT, CONFIRM_SIZE, CONFIRM_RECT.size
-	)
-	_confirm.name = "ConfirmKey"
-	_confirm.caption_label().add_theme_font_override("font", marked_font(0))
-	_confirm.caption_under_band = false
-	_confirm.focus_mode = Control.FOCUS_NONE
-	_confirm.position = CONFIRM_RECT.position
-	_confirm.size = CONFIRM_RECT.size
-	_confirm.visible = false
-	_confirm.pressed.connect(_on_confirm)
-	add_child(_confirm)
 	_icon = UiKit.sprite(TICKET_ICON)
 	_icon.name = "TicketIcon"
 	_icon.size = TICKET_ICON.get_size() * ICON_SCALE
@@ -140,47 +119,6 @@ func _init() -> void:
 func show_message(message: String, sub: String = "") -> void:
 	_rest = PackedStringArray([message, sub])
 	_show(message, sub)
-
-
-## The title mode at the chute wait (a pressed key): `title` (the chute) over `sub`, with CONFIRM ›
-## when `confirm`. clear_title() leaves it.
-func show_title(title: String, sub: String, confirm: bool) -> void:
-	_title = PackedStringArray([title, sub])
-	_confirm_offered = confirm
-	_confirm_at_ms = -1
-	_confirm.down = false
-	_show(title, sub)
-
-
-## Leaves the title mode: the wait point's lines come back.
-func clear_title() -> void:
-	if _title.is_empty():
-		return
-	_title = PackedStringArray()
-	_confirm_offered = false
-	_confirm_at_ms = -1
-	_confirm.down = false
-	_show(_rest[0], _rest[1])
-
-
-## Whether the display is in its title mode.
-func in_title_mode() -> bool:
-	return not _title.is_empty()
-
-
-func confirm_key() -> RegisterKey:
-	return _confirm
-
-
-## Whether CONFIRM › is in its down state (pressed, before confirm_pressed).
-func confirm_down() -> bool:
-	return _confirm_at_ms >= 0
-
-
-## Presses CONFIRM › (a click on it, or a test): down for confirm_down_ms with `ui_confirm`, then
-## confirm_pressed.
-func press_confirm() -> void:
-	_on_confirm()
 
 
 ## A refused key's lines for DENIED_MS, then the wait point's again (show_message's stay).
@@ -262,18 +200,14 @@ func frame(t: float) -> void:
 	var bin_now: bool = _bin_at(t)
 	var moved: bool = bin_now != _bin.visible
 	_bin.visible = bin_now
-	_end_confirm_down()
 	var timed: PackedStringArray = _timed(plan, t)
 	var shown: PackedStringArray = timed if not timed.is_empty() else _rest
-	if timed.is_empty() and not _title.is_empty():
-		shown = _title
 	if not _denied.is_empty():
 		if Time.get_ticks_msec() - _denied_at_ms < DENIED_MS:
 			shown = _denied
 		else:
 			_denied = PackedStringArray()
-	var titled: bool = not _title.is_empty() and shown == _title and _confirm_offered
-	if moved or titled != _confirm.visible or shown[0] != _message.text or shown[1] != _sub.text:
+	if moved or shown[0] != _message.text or shown[1] != _sub.text:
 		_show(shown[0], shown[1])
 
 
@@ -313,16 +247,25 @@ func _intro_text(plan: MachinePlan, t: float) -> PackedStringArray:
 		return PackedStringArray()
 	if t < plan.feed_end:
 		return PackedStringArray([READING, ""])
+	if plan.premium and t >= plan.premium_at and t < plan.premium_end:
+		var on: bool = int(floorf((t - plan.premium_at) * PREMIUM_BLINK)) % 2 == 1
+		if plan.reduced_motion:
+			on = true
+		return PackedStringArray(PREMIUM_LINES if on else ["", ""])
 	return _read_text() if t < plan.read_end else PackedStringArray()
 
 
-## The receipt read: the spend thanked, the quota met (and the inspection passed).
+## The receipt read: the spend thanked, the quota met and the inspection passed; a BOOSTED visit
+## says BOOSTED VISIT in the inspection's place, so the line fits (the BONUS visit that follows
+## names the inspection).
 func _read_text() -> PackedStringArray:
 	var record: ShiftRecord = _record()
 	if record == null:
 		return PackedStringArray()
 	var met: String = "quota €%d met" % record.quota
-	if record.inspection != null:
+	if view.run.machine.is_boosted():
+		met += BOOSTED_READ
+	elif record.inspection != null:
 		met += " · %s passed" % record.inspection.display_name
 	return PackedStringArray([RewardMachineView.SPEND_LINE % record.total, met])
 
@@ -335,18 +278,13 @@ func _draw_text(plan: MachinePlan, t: float) -> PackedStringArray:
 		return PackedStringArray(
 			["STAMP DAY! A FREE STAMP", "your card is behind after shift %d" % shift]
 		)
-	var last_drop: float = plan.draw_end
-	for index: int in range(plan.n_prizes):
-		last_drop = maxf(last_drop, plan.drop_at[index] + plan.drop_length[index])
-	if t < last_drop or plan.n_prizes == 0:
+	if plan.n_prizes == 0 or t < plan.reveal_at[0]:
 		var bonus: bool = plan.kind == MachineVisit.Kind.BONUS
-		return PackedStringArray([PACKING, "bonus ticket" if bonus else ""])
-	if t < plan.reveal_at[0]:
 		var count: String = "1 PRIZE" if plan.n_prizes == 1 else "%d PRIZES" % plan.n_prizes
-		return PackedStringArray(["%s FROM %s" % [count, _chute_name()], "opening…"])
+		var from: String = "%s from %s" % [count.to_lower(), _chute_name().to_lower()]
+		return PackedStringArray([PACKING, "bonus ticket" if bonus else from])
 	var last: int = plan.n_prizes - 1
-	var gap: float = MachineTuning.seconds(plan.tuning.reveal_gap_ms, plan.kind)
-	if t >= plan.reveal_at[last] + plan.reveal_length[last] + gap:
+	if t >= plan.reveal_at[last] + plan.reveal_length[last]:
 		return PackedStringArray()
 	var index: int = last
 	while index > 0 and t < plan.reveal_at[index]:
@@ -355,24 +293,13 @@ func _draw_text(plan: MachinePlan, t: float) -> PackedStringArray:
 
 
 ## The landing: ENJOY! while the prize flies, UPGRADING… while it glints, then the landing's word
-## and what it did (a bin: BINNED), then the chute's REGULAR level; the shift's last visit ends
-## on SEE YOU NEXT SHIFT.
+## and what it did (a bin: BINNED); the shift's last visit ends on SEE YOU NEXT SHIFT.
 func _landing_text(plan: MachinePlan, t: float) -> PackedStringArray:
-	var before: PackedStringArray = _before_punch(plan, t)
-	if not before.is_empty():
-		return before
+	if plan.kind == MachineVisit.Kind.STAMP_DAY:
+		return PackedStringArray(["ENJOY!", ""] if t < plan.land else [_rest[0], _toast()])
 	var split: float = plan.punch_end + (plan.end_at - plan.punch_end) / 2.0
 	if plan.next_visit == MachinePlan.NO_VISIT and t >= split:
 		return PackedStringArray([SEE_YOU, _end_sub(plan)])
-	return _regular_text()
-
-
-## The landing's lines before the punch (none after it).
-func _before_punch(plan: MachinePlan, t: float) -> PackedStringArray:
-	if plan.kind == MachineVisit.Kind.STAMP_DAY:
-		return PackedStringArray(["ENJOY!", ""] if t < plan.land else [_rest[0], _toast()])
-	if t >= plan.punch:
-		return PackedStringArray()
 	if plan.landing == MachinePlan.Landing.BIN:
 		return PackedStringArray(["BINNED ✕", "no prize this time"])
 	if t < plan.land:
@@ -397,25 +324,6 @@ func _toast() -> String:
 	if landing.replaced != null:
 		return "1 swapped out · cart %d/%d" % [landing.cart_after, limit]
 	return "cart %d/%d" % [landing.cart_after, limit]
-
-
-## The landed chute's REGULAR level and what it does next.
-func _regular_text() -> PackedStringArray:
-	var visit: MachineVisit = _landed_visit()
-	if visit == null or visit.chute < 0:
-		return PackedStringArray([_rest[0], ""])
-	var level: int = view.run.machine.level(visit.chute)
-	var top: int = view.run.machine.machine.max_level()
-	var line: String = "%s REGULAR %d/%d" % [ChuteKey.NAMES[visit.chute], level, top]
-	var sub: String = "no later visit uses it"
-	if visit.meter_rose:
-		var shares: String = view.odds_card.next_share_text(visit.chute)
-		sub = "next visit here draws better"
-		if not shares.is_empty():
-			sub = "next visit here: %s" % shares
-	elif level >= top:
-		sub = "max level"
-	return PackedStringArray([line, sub])
 
 
 func _end_sub(plan: MachinePlan) -> String:
@@ -449,13 +357,6 @@ func _record() -> ShiftRecord:
 	return view.run.history[-1]
 
 
-func _landed_visit() -> MachineVisit:
-	var record: ShiftRecord = _record()
-	if record == null or record.visits.is_empty():
-		return null
-	return record.visits[-1]
-
-
 func _chute_name() -> String:
 	var visit: MachineVisit = view.run.machine.current_visit() if view.run != null else null
 	if visit == null or visit.chute < 0:
@@ -473,22 +374,18 @@ func _prize_name(index: int) -> String:
 
 
 ## Shows the two lines: the message in Pixelify 24 if it fits the room left of BIN IT (else bold
-## Atkinson 17), both centred in that room; a lone message centred in the display. The title
-## mode's lines sit left, beside CONFIRM ›; BONUS TICKET gets the ticket icon before it.
+## Atkinson 17), both centred in that room; a lone message centred in the display. BONUS TICKET
+## gets the ticket icon before it.
 func _show(message: String, sub: String) -> void:
-	var titled: bool = not _title.is_empty() and message == _title[0] and sub == _title[1]
 	_message.text = message
 	_sub.text = sub
 	var left: float = PAD
 	var room: float = SIZE.x - 2.0 * PAD
 	if _bin.visible:
 		room = BIN_RECT.position.x - BIN_GAP - PAD
-	_confirm.visible = titled and _confirm_offered
-	if _confirm.visible:
-		room = CONFIRM_RECT.position.x - CONFIRM_GAP - PAD
 	var font: Font = marked_font(0)
 	var width: float = font.get_string_size(message, HORIZONTAL_ALIGNMENT_LEFT, -1, MESSAGE_SIZE).x
-	_icon.visible = message == BONUS_TICKET and not titled
+	_icon.visible = message == BONUS_TICKET
 	if _icon.visible:
 		# The icon and the line centred together.
 		var pair: float = _icon.size.x + ICON_GAP + width
@@ -498,20 +395,14 @@ func _show(message: String, sub: String) -> void:
 		room = width
 	var fits: bool = width <= room
 	_message.add_theme_font_override("font", font if fits else marked_font(BOLD_WEIGHT))
-	_message.add_theme_font_size_override("font_size", MESSAGE_SIZE if fits else FALLBACK_SIZE)
-	var align: HorizontalAlignment = (
-		HORIZONTAL_ALIGNMENT_LEFT if titled else HORIZONTAL_ALIGNMENT_CENTER
+	_message.add_theme_font_size_override(
+		"font_size", MESSAGE_SIZE if fits else _step(message, BOLD_WEIGHT, FALLBACK_STEPS, room)
 	)
-	_message.horizontal_alignment = align
-	_style_title(titled)
-	var sub_size: int = SUB_SIZE
+	_message.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	var sub_room: float = room if not _icon.visible else SIZE.x - 2.0 * PAD
-	if titled:
-		var sub_font: Font = _sub.get_theme_font("font")
-		if sub_font.get_string_size(sub, HORIZONTAL_ALIGNMENT_LEFT, -1, SUB_SIZE).x > sub_room:
-			sub_size = TITLE_SUB_FALLBACK
+	var sub_size: int = _step(sub, BOLD_WEIGHT, SUB_STEPS, sub_room)
 	_sub.add_theme_font_size_override("font_size", sub_size)
-	_sub.horizontal_alignment = align
+	_sub.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	var top: float = MESSAGE_TOP if not sub.is_empty() else (SIZE.y - MESSAGE_HEIGHT) / 2.0
 	_message.position = Vector2(left, top)
 	_message.size = Vector2(room, MESSAGE_HEIGHT)
@@ -521,43 +412,14 @@ func _show(message: String, sub: String) -> void:
 	_sub.visible = not sub.is_empty()
 
 
-## The title mode's colours: the name in paper with a teal-shade shadow, the sub in mustard light;
-## else the display's mustard light message over a grey light sub.
-func _style_title(titled: bool) -> void:
-	_message.add_theme_color_override(
-		"font_color", Palette.PAPER if titled else Palette.MUSTARD_LIGHT
-	)
-	_message.add_theme_color_override(
-		"font_shadow_color", Palette.TEAL_SHADE if titled else Color(Palette.TEAL_SHADE, 0.0)
-	)
-	_message.add_theme_constant_override("shadow_offset_x", TITLE_SHADOW if titled else 0)
-	_message.add_theme_constant_override("shadow_offset_y", TITLE_SHADOW if titled else 0)
-	_message.add_theme_constant_override("shadow_outline_size", 0)
-	_sub.add_theme_color_override(
-		"font_color", Palette.MUSTARD_LIGHT if titled else Palette.GREY_LIGHT
-	)
-
-
-func _on_confirm() -> void:
-	if not _confirm.visible or _confirm_at_ms >= 0:
-		return
-	_confirm_at_ms = Time.get_ticks_msec()
-	_confirm.down = true
-	Sfx.play_at(self, "ui_confirm")
-	_end_confirm_down()
-
-
-## CONFIRM's down state ends after confirm_down_ms: confirm_pressed.
-func _end_confirm_down() -> void:
-	if _confirm_at_ms < 0 or Time.get_ticks_msec() - _confirm_at_ms < _down_ms():
-		return
-	_confirm_at_ms = -1
-	_confirm.down = false
-	confirm_pressed.emit()
-
-
-func _down_ms() -> int:
-	return view.tuning.confirm_down_ms if view != null and view.tuning != null else 0
+## The first of `steps` (font sizes, largest first) at which `text` in the marked font of
+## `weight` fits `room`, else the last.
+func _step(text: String, weight: int, steps: Array[int], room: float) -> int:
+	var font: Font = marked_font(weight)
+	for font_size: int in steps:
+		if font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size).x <= room:
+			return font_size
+	return steps[-1]
 
 
 func _style_bin() -> void:

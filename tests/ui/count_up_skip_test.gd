@@ -334,7 +334,7 @@ func _assert_full_receipt(screen: ShiftScreen) -> void:
 	var expected: ReceiptView = auto_free(ReceiptView.new())
 	expected.show_result(
 		run.last_result,
-		ShiftScreen._names(run.row),
+		CardInstance.names(run.row),
 		LoyaltyCard.names(run.upgrades),
 		InspectionTag.names(run.inspections),
 		screen.receipt_header()
@@ -378,7 +378,7 @@ func _play(screen: ShiftScreen, result: ScoreResult) -> void:
 	screen._count_up.play(
 		result,
 		screen._row_views,
-		ShiftScreen._names(screen.run.row),
+		CardInstance.names(screen.run.row),
 		SOUND_QUOTA,
 		CountUpContext.new(1, 0),
 		screen._loyalty_card.stamped_boxes(),

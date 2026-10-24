@@ -107,7 +107,7 @@ func test_a_first_press_on_continue_leaves_the_title_silent() -> void:
 	DirAccess.make_dir_recursive_absolute(_folder)
 	var deck: DeckDefinition = load("res://data/decks/starter.tres")
 	var balance: BalanceDefinition = load("res://data/balance/balance.tres")
-	var run: RunState = RunState.new(31, deck, balance, RunStock.starting(deck, balance))
+	var run: RunState = RunState.new(31, deck, balance, RunStock.starting(balance))
 	run.start_shift()
 	assert_bool(SaveService.new(_folder).save_run(run, "0011223344556677", 1000)).is_true()
 	var runner: GdUnitSceneRunner = scene_runner(TITLE)

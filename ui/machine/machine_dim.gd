@@ -1,30 +1,44 @@
 class_name MachineDim
-extends ColorRect
+extends Control
 ## The idle machine's look on the back wall (#77 machine v2, Q1 = A; the approved page's filter),
 ## kept out of RewardMachineView so it stays under gdlint's file length: the veil over the machine
 ## (its last child) desaturates what is drawn under it (presentation/machine_dim.gdshader) while
-## the machine's modulate darkens it; set_lit eases both from dim (0) to lit (1). Its statics put
-## the machine's parts at rest and stop it taking clicks between visits.
+## the machine's modulate darkens it; set_lit eases both from dim (0) to lit (1). The veil follows
+## the machine's silhouette (v0.50: the marquee with its bulbs, the cabinet, the plinth), one
+## piece each, so the wall and the floor round it keep their colour. Its statics put the machine's
+## parts at rest and stop it taking clicks between visits.
 
 ## The idle machine's brightness and saturation.
 const DIM_BRIGHTNESS := 0.62
 const DIM_SATURATION := 0.55
-## The veil's rect in the machine: over the cabinet, its head and its hood, with their shadows.
-const VEIL_RECT := Rect2(-10, -8, 456, 646)
+## The veil's pieces in the machine: the marquee and its bulb ring (RewardMachineView's
+## HEAD_POSITION, MachineHead's bulbs 10 px round it), the cabinet (MachineCabinet.SIZE, under the
+## marquee) and its plinth (MachineCabinet.PLINTH_RECT). The floor shadow is left out.
+const VEIL_RECTS: Array[Rect2] = [
+	Rect2(-30, -66, 506, 72),
+	Rect2(0, 6, 448, 562),
+	Rect2(-8, 568, 464, 16),
+]
 const SHADER := preload("res://presentation/machine_dim.gdshader")
 
 ## How lit the machine is (0 dim .. 1 lit).
 var lit: float = 1.0
+var _look: ShaderMaterial
 
 
 func _init() -> void:
 	name = "DimVeil"
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
-	position = VEIL_RECT.position
-	size = VEIL_RECT.size
-	var dim: ShaderMaterial = ShaderMaterial.new()
-	dim.shader = SHADER
-	material = dim
+	_look = ShaderMaterial.new()
+	_look.shader = SHADER
+	for index: int in range(VEIL_RECTS.size()):
+		var piece: ColorRect = ColorRect.new()
+		piece.name = "Piece%d" % index
+		piece.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		piece.position = VEIL_RECTS[index].position
+		piece.size = VEIL_RECTS[index].size
+		piece.material = _look
+		add_child(piece)
 
 
 ## `machine` lit by `p` (0 dim .. 1 lit): its brightness through its modulate, its saturation
@@ -34,7 +48,17 @@ func set_lit(machine: CanvasItem, p: float) -> void:
 	var brightness: float = lerpf(DIM_BRIGHTNESS, 1.0, lit)
 	machine.modulate = Color(brightness, brightness, brightness)
 	visible = lit < 1.0
-	(material as ShaderMaterial).set_shader_parameter("saturation", lerpf(DIM_SATURATION, 1.0, lit))
+	_look.set_shader_parameter("saturation", lerpf(DIM_SATURATION, 1.0, lit))
+
+
+## The veil's pieces' rects in the machine, for layout tests.
+func piece_rects() -> Array[Rect2]:
+	var rects: Array[Rect2] = []
+	for piece: Node in get_children():
+		var rect: ColorRect = piece as ColorRect
+		if rect != null:
+			rects.append(Rect2(rect.position, rect.size))
+	return rects
 
 
 ## While idle `machine` and every part of it take no click (a click reaches the wall).
@@ -45,18 +69,12 @@ static func idle_mouse(machine: Control, idle: bool) -> void:
 
 
 ## The machine's parts at rest: its head plain, its keys cream and unlit with nothing pressed,
-## its meters at `run_state`'s levels (none: as they are), its display blank, its slip put away.
-static func rest_parts(view: RewardMachineView, run_state: RunState) -> void:
+## its display blank, its stock window shut (`_run_state`: the run it showed, or null).
+static func rest_parts(view: RewardMachineView, _run_state: RunState) -> void:
 	view.head.set_stamp("", "")
 	for key: ChuteKey in view.keys:
 		key.show_state(RewardMachine.ChuteState.OPEN, 0, false)
-		key.set_tab(false)
 		key.set_pressed(false)
-	if run_state != null:
-		for chute: int in RewardMachine.CHUTES:
-			view.meters[chute].show_level(
-				run_state.machine.level(chute), run_state.machine.machine.max_level()
-			)
 	view.display.set_bin(false, false)
 	view.display.show_message("", "")
-	view.slip.rest()
+	view.stock.show_chutes([], -1)

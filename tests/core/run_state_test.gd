@@ -11,8 +11,9 @@ const REPEAT := "res://data/cards/repeat.tres"
 
 func test_balance_matches_the_plan() -> void:
 	var balance: BalanceDefinition = load(BALANCE)
-	# 8 shifts, quotas fitted with the balance simulator (plan v0.28, issue #41).
-	assert_array(Array(balance.quotas)).is_equal([34, 35, 53, 61, 73, 98, 111, 120])
+	# 8 shifts, quotas fitted with the balance simulator (plan v0.28, issue #41); shift 1
+	# lowered to 29 in v0.54.
+	assert_array(Array(balance.quotas)).is_equal([29, 35, 53, 61, 73, 98, 111, 120])
 	assert_int(balance.hand_size).is_equal(8)
 	assert_int(balance.basket_size).is_equal(2)
 	assert_int(balance.slot_count).is_equal(6)
@@ -24,7 +25,7 @@ func test_start_shift_draws_a_hand_and_empties_the_row() -> void:
 	var run: RunState = _run(1)
 	assert_int(run.hand().size()).is_equal(8)
 	assert_array(run.row).is_empty()
-	assert_int(run.quota()).is_equal(34)
+	assert_int(run.quota()).is_equal(29)
 	assert_int(run.phase).is_equal(RunState.Phase.PLANNING)
 
 
@@ -132,7 +133,7 @@ func test_without_coupon_slots_the_row_holds_slot_count_cards() -> void:
 	var balance: BalanceDefinition = load(BALANCE).duplicate()
 	balance.coupon_slot_count = 0
 	var deck: DeckDefinition = load(STARTER)
-	var run: RunState = RunState.new(18, deck, balance, RunStock.starting(deck, balance))
+	var run: RunState = RunState.new(18, deck, balance, RunStock.starting(balance))
 	run.start_shift()
 	for index: int in range(6):
 		run.place(_add(run, REPEAT if index == 2 else BREAD), index)
@@ -214,7 +215,7 @@ func test_win_on_the_last_shift() -> void:
 	var balance: BalanceDefinition = load(BALANCE).duplicate()
 	balance.quotas = PackedInt32Array([5, 5])
 	var deck: DeckDefinition = load(STARTER)
-	var run: RunState = RunState.new(11, deck, balance, RunStock.starting(deck, balance))
+	var run: RunState = RunState.new(11, deck, balance, RunStock.starting(balance))
 	run.start_shift()
 	var bread: CardDefinition = load("res://data/cards/bread.tres")
 	run.place(run.debug_add_to_hand(bread), 0)
@@ -241,7 +242,7 @@ func test_debug_add_to_hand_does_not_grow_the_deck() -> void:
 static func _run(seed_value: int) -> RunState:
 	var balance: BalanceDefinition = load(BALANCE)
 	var deck: DeckDefinition = load(STARTER)
-	var run: RunState = RunState.new(seed_value, deck, balance, RunStock.starting(deck, balance))
+	var run: RunState = RunState.new(seed_value, deck, balance, RunStock.starting(balance))
 	run.start_shift()
 	return run
 

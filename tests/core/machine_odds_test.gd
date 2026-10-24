@@ -85,12 +85,12 @@ func test_odds_add_up_and_use_no_rng() -> void:
 	var rng: RandomNumberGenerator = RandomNumberGenerator.new()
 	rng.seed = 67
 	var state_before: int = rng.state
-	run.history.append(ShiftRecord.new(1, 10, 20))
-	for level: int in range(machine.max_level() + 1):
+	for shift_number: int in range(1, run.shift_count()):
+		run.history = [ShiftRecord.new(shift_number, 10, 20)]
 		var reward_machine: RewardMachine = RewardMachine.new(machine, rng)
-		reward_machine.levels.fill(level)
 		for chute: int in RewardMachine.CHUTES:
-			assert_object(reward_machine.chute_info(run, chute).odds).is_not_null()
+			var odds: MachineOddsCard = reward_machine.chute_info(run, chute).odds
+			assert_int(odds.level).is_equal(machine.odds_level_after(shift_number))
 	assert_int(rng.state).is_equal(state_before)
 
 
@@ -590,12 +590,12 @@ func _upgrades(ids: Array[String]) -> Array[UpgradeDefinition]:
 
 
 func _fresh_run() -> RunState:
-	return RunState.new(5, _starter, _balance, RunStock.starting(_starter, _balance))
+	return RunState.new(5, _starter, _balance, RunStock.starting(_balance))
 
 
 ## A stock of the staples and every product of the listed aisles (all capsules unlocked).
 func _stock_with_aisles(aisle_ids: Array[StringName]) -> RunStock:
-	var cards: Array[CardDefinition] = RunStock.staples(_starter)
+	var cards: Array[CardDefinition] = RunStock.staples(_balance)
 	for aisle: AisleDefinition in _balance.aisles:
 		if aisle_ids.has(aisle.id):
 			for card: CardDefinition in aisle.base_cards + aisle.capsule_cards:

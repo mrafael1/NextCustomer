@@ -1,0 +1,14 @@
+; The deck view's basket band (#56, deck view B): one slot of the hand basket's slotted foot
+; (as scenery/basket_front's slots), tiled along the basket's bottom: an ink-rimmed teal black
+; hole with a teal light lip under it in the teal body, over the teal shade foot row. 14x7 @2,
+; tiled, no outline (it sits inside the basket's frame).
+@size 14x7
+@kind frame
+@scale 2
+44444444444444
+4##########444
+4#88888888#444
+4#88888888#444
+45555555555444
+44444444444444
+33333333333333

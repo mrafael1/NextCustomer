@@ -57,8 +57,8 @@ func test_big_basket_raises_every_quota_rounded_up() -> void:
 	var raised: Array = []
 	for shift: int in range(balance.quotas.size()):
 		raised.append(ShiftLimits.for_shift(balance, owned, shift).quota)
-	assert_array(Array(balance.quotas)).is_equal([34, 35, 53, 61, 73, 98, 111, 120])
-	assert_array(raised).is_equal([40, 41, 61, 71, 84, 113, 128, 138])
+	assert_array(Array(balance.quotas)).is_equal([29, 35, 53, 61, 73, 98, 111, 120])
+	assert_array(raised).is_equal([34, 41, 61, 71, 84, 113, 128, 138])
 	assert_int(ShiftLimits.raised_quota(20, 15)).is_equal(23)
 	assert_int(ShiftLimits.raised_quota(17, 0)).is_equal(17)
 
@@ -276,8 +276,10 @@ static func _run(seed_value: int) -> RunState:
 	balance.inspection_shifts = PackedInt32Array()
 	# No STAMP DAY: its forced register would add slots or redraws of its own.
 	MachineSteps.without_stamp_day(balance)
+	# Registers are taken after shift 2 (v0.47: only a BOOSTED visit lights REGISTER).
+	MachineSteps.boosted_on(balance, [2])
 	var deck: DeckDefinition = load(STARTER)
-	var run: RunState = RunState.new(seed_value, deck, balance, RunStock.starting(deck, balance))
+	var run: RunState = RunState.new(seed_value, deck, balance, RunStock.starting(balance))
 	run.start_shift()
 	return run
 

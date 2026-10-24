@@ -1,0 +1,2 @@
+; Mixed herbs GOLDEN: the mixed herbs mini with its ink outline turned gold. A derived source: no grid.
+@derive mixed_herbs golden=outline

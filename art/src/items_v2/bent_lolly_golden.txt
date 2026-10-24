@@ -1,0 +1,3 @@
+; Bent lolly GOLDEN (#89 item tier for #58's capsule items): bent_lolly_big through its own map: gold and paper swirls, the paper sticks kept (still bent).
+; A derived source: no grid, tools/pixel_art.py builds it from the BIG source.
+@derive bent_lolly_big golden=keys o=Y R=n r=L glint
