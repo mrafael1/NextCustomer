@@ -1,13 +1,12 @@
 extends GdUnitTestSuite
 ## The family looks as data (#105, data/families/): every family a card names has a style, the
 ## main-family order covers the ticket families once, every colour is the art's, the text reads
-## on every face (WCAG 4.5:1, set A's styles too), and the default is the colour-blind-safe set
-## B, with the mock-up readability v3's exact values.
+## on every face (WCAG 4.5:1), and the colours are the mock-up readability v3's set A (chosen by the
+## user on 2026-10-25 over the colour-blind set B).
 
 const LiveCardCount := preload("res://tests/data/live_card_count.gd")
 const CARDS_DIR := "res://data/cards"
 const FAMILIES_DIR := "res://data/families"
-const SET_A_DIR := "res://data/families/set_a"
 const PALETTE_FILE := "res://art/src/palette.txt"
 const MIN_CONTRAST := 4.5
 const GLYPH_SIZE := Vector2i(9, 9)
@@ -16,8 +15,8 @@ const TICKET_FAMILIES := [
 	"Breakfast", "Bakery", "Produce", "Dairy", "Frozen", "Snack", "Household", "Clearance", "Food"
 ]
 const COUPON := "Coupon"
-## The mock-up's colours (readability_v3 FC with CBSET B): face, light, shade, paper text.
-const SET_B: Dictionary[String, Array] = {
+## The mock-up's colours (readability_v3 FC, set A): face, light, shade, paper text.
+const COLOURS: Dictionary[String, Array] = {
 	"Breakfast": ["e2b33c", "f1d27a", "b38425", false],
 	"Bakery": ["d2a874", "ddcba5", "a87a4e", false],
 	"Produce": ["5fae5a", "a5d17e", "3d7a45", false],
@@ -25,10 +24,6 @@ const SET_B: Dictionary[String, Array] = {
 	"Frozen": ["c3e0d4", "fbf7ee", "86c2b6", false],
 	"Snack": ["7a5232", "a87a4e", "4a3022", true],
 	"Household": ["5e574d", "8a8172", "4a3f38", true],
-	"Clearance": ["6e2630", "a83a3c", "561327", true],
-	"Food": ["f5bfa0", "fbf7ee", "ec8a6e", false],
-}
-const SET_A: Dictionary[String, Array] = {
 	"Clearance": ["a83a3c", "d9534f", "6e2630", true],
 	"Food": ["ec8a6e", "f5bfa0", "d9534f", false],
 }
@@ -101,21 +96,10 @@ func test_every_family_a_card_names_has_a_style() -> void:
 	assert_int(cards).is_equal(LiveCardCount.CARDS)
 
 
-func test_the_default_is_set_b() -> void:
+func test_the_colours_are_set_a() -> void:
 	var palette: FamilyPalette = FamilyPalette.shared()
-	for id: String in SET_B:
-		_assert_values(palette.style(id), SET_B[id])
-
-
-func test_set_a_holds_the_v3_clearance_and_food() -> void:
-	var found: Dictionary[String, FamilyStyle] = {}
-	for style: FamilyStyle in _styles(SET_A_DIR):
-		found[style.id] = style
-	assert_array(found.keys()).contains_exactly_in_any_order(SET_A.keys())
-	for id: String in SET_A:
-		_assert_values(found[id], SET_A[id])
-		# Set A's glyph is the default's.
-		assert_object(found[id].glyph).is_same(FamilyPalette.shared().style(id).glyph)
+	for id: String in COLOURS:
+		_assert_values(palette.style(id), COLOURS[id])
 
 
 func test_every_colour_is_the_arts_and_the_text_reads() -> void:
@@ -123,7 +107,7 @@ func test_every_colour_is_the_arts_and_the_text_reads() -> void:
 	for colour: Color in _art_palette():
 		allowed[colour.to_html(false)] = true
 	assert_int(allowed.size()).is_greater(30)
-	var styles: Array[FamilyStyle] = _styles(FAMILIES_DIR) + _styles(SET_A_DIR)
+	var styles: Array[FamilyStyle] = _styles(FAMILIES_DIR)
 	var checked: int = 0
 	for style: FamilyStyle in styles:
 		if not style.has_ticket_colours():
@@ -142,7 +126,7 @@ func test_every_colour_is_the_arts_and_the_text_reads() -> void:
 			. override_failure_message("%s: %.2f" % [style.id, ratio])
 			. is_greater_equal(MIN_CONTRAST)
 		)
-	assert_int(checked).is_equal(TICKET_FAMILIES.size() + SET_A.size())
+	assert_int(checked).is_equal(TICKET_FAMILIES.size())
 
 
 func test_the_text_colour_is_paper_only_on_dark_faces() -> void:

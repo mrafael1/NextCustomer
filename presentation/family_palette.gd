@@ -3,8 +3,7 @@ extends Resource
 ## The families' looks (#105, full build plan section 6.1), as data in
 ## data/families/family_palette.tres: each family's glyph, tooltip name and ticket colours
 ## (FamilyStyle), the order that picks a card's main family and the families the glyph row leaves
-## out. The colour-blind-safe set B (Food tomato pale, Clearance tomato darkest) is the default;
-## set A's two styles sit in data/families/set_a/, so switching sets is two paths in the .tres.
+## out. The colours are the mock-up's set A, chosen by the user on 2026-10-25.
 ##
 ## A ticket's families come from CardFamilies (core), with this palette's order and data_card as
 ## its card lookup; nothing here reads a rule. Every default is neutral (empty).

@@ -112,7 +112,7 @@ func test_a_card_with_no_rule_shows_only_its_price() -> void:
 
 ## The face (mock-up v3, frame3URL): an ink outline with cut corners, the family's light top row,
 ## its shade on the right column and the bottom row, its face colour inside; the text in ink or
-## paper by the family (set B's Clearance and Household are paper).
+## paper by the family (Clearance and Household are paper).
 func test_the_face_is_in_its_familys_colours() -> void:
 	var palette: FamilyPalette = FamilyPalette.shared()
 	var cases: Dictionary[String, Array] = {
