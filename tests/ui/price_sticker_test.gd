@@ -18,7 +18,8 @@ const NUMBER := "\\d+(?!st|nd|rd|th)"
 const READINGS: Dictionary[String, String] = {
 	"eggs": "×N next Food",
 	"tea_bags": "×N next Breakfast",
-	"banana": "+N after Banana",
+	# The Banana chain (#106) replaced v2's "+N after Banana".
+	"banana": "+prev after Banana",
 	"batteries": "+N in last slot",
 	"two_for_one": "Same both sides: 2nd ×N",
 	"crisps": "+N beside Bread",

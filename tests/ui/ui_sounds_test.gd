@@ -138,7 +138,7 @@ func test_a_drag_ticks_over_the_slots() -> void:
 ## A card that fits nowhere plays a soft denied with its notice; so does a closed slot.
 func test_a_refusal_plays_a_soft_denied() -> void:
 	var screen: ShiftScreen = await _screen()
-	for _index: int in range(6):
+	for _index: int in range(7):
 		_add(screen, "bread")
 		screen._on_hand_card_clicked(_view_for(screen, screen.run.hand()[-1]))
 		screen._on_slot_input(_left_click(), screen.run.row.size())

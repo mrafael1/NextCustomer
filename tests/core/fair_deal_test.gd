@@ -7,6 +7,8 @@ extends GdUnitTestSuite
 const RECIPE := "res://data/decks/random_starter.tres"
 const BALANCE := "res://data/balance/balance.tres"
 const SEEDS := 200
+## A stricter check than the live one, so that some deals fail it (test_a_failed_deal_...).
+const STRICT_PASSES := 6
 
 var _balance: BalanceDefinition
 var _recipe: DeckDefinition
@@ -40,22 +42,25 @@ func test_the_check_is_deterministic() -> void:
 		assert_int(again.passes).is_equal(first.passes)
 
 
-## Every deal is kept within the re-deal limit, and a kept deal passed the check; on the live
-## data some seeds are re-dealt (seeds 23 and 25 among the first 30), and a re-dealt deck is not
-## the first deal (the recipe dealt with no check, on the same stream).
+## Every deal is kept within the re-deal limit, and a kept deal passed the check; some seeds are
+## re-dealt, and a re-dealt deck is not the first deal (the recipe dealt with no check, on the
+## same stream). Since plan v0.46's 7 general slots every first live deal passes the live check (1
+## hand of 8), so this asks for STRICT_PASSES hands to see re-deals.
 func test_a_failed_deal_is_dealt_again_within_the_limit() -> void:
+	var strict: DeckDefinition = _strict_recipe()
 	var unchecked: DeckDefinition = _recipe.duplicate()
 	unchecked.fair_deal_hands = 0
 	var redealt: Array[int] = []
 	for seed_value: int in SEEDS:
-		var dealt: StartingDeck.Dealt = _counted(seed_value)
+		var dealt: StartingDeck.Dealt = _counted(seed_value, strict)
 		var where: String = "seed %d" % seed_value
 		assert_int(dealt.deals).override_failure_message(where).is_between(
-			1, _recipe.fair_deal_redeals + 1
+			1, strict.fair_deal_redeals + 1
 		)
-		assert_int(dealt.passes).override_failure_message(where).is_greater_equal(
-			_recipe.fair_deal_passes
-		)
+		if dealt.deals <= strict.fair_deal_redeals:
+			assert_int(dealt.passes).override_failure_message(where).is_greater_equal(
+				strict.fair_deal_passes
+			)
 		var first: DeckDefinition = StartingDeck.deal(
 			unchecked, _stock, _balance, _stream(seed_value)
 		)
@@ -65,7 +70,7 @@ func test_a_failed_deal_is_dealt_again_within_the_limit() -> void:
 			redealt.append(seed_value)
 			assert_array(_ids(dealt.deck.cards)).is_not_equal(_ids(first.cards))
 		assert_bool(StartingDeck.could_deal(_recipe, dealt.deck.cards)).is_true()
-	assert_array(redealt).contains([23, 25])
+	assert_array(redealt).is_not_empty()
 
 
 ## A deal no hand can make pass (a quota of 1000) is dealt the most times allowed and the deal
@@ -123,11 +128,15 @@ func test_row_climb_matches_the_simulators_sensible_player() -> void:
 ## The check draws on the deal's own stream: the run's RNG is untouched, and a re-dealt deck
 ## round-trips through the run save (StartingDeck.could_deal accepts it).
 func test_a_re_dealt_run_saves_and_resumes() -> void:
-	var dealt: StartingDeck.Dealt = _counted(23)
+	var seed_value: int = 0
+	var dealt: StartingDeck.Dealt = _counted(seed_value, _strict_recipe())
+	while dealt.deals == 1 and seed_value < SEEDS:
+		seed_value += 1
+		dealt = _counted(seed_value, _strict_recipe())
 	assert_int(dealt.deals).is_greater(1)
-	var run: RunState = RunState.new(23, dealt.deck, _balance, _stock)
+	var run: RunState = RunState.new(seed_value, dealt.deck, _balance, _stock)
 	var fresh: RandomNumberGenerator = RandomNumberGenerator.new()
-	fresh.seed = 23
+	fresh.seed = seed_value
 	assert_int(run.rng_state).is_equal(fresh.state)
 	run.start_shift()
 	var data: Dictionary = RunSave.to_dictionary(run, "run-1", 0)
@@ -147,8 +156,15 @@ func test_the_check_is_quick() -> void:
 	assert_int(Time.get_ticks_msec() - started).is_less(5000)
 
 
-func _counted(seed_value: int) -> StartingDeck.Dealt:
-	return StartingDeck.deal_counted(_recipe, _stock, _balance, _stream(seed_value))
+func _counted(seed_value: int, recipe: DeckDefinition = _recipe) -> StartingDeck.Dealt:
+	return StartingDeck.deal_counted(recipe, _stock, _balance, _stream(seed_value))
+
+
+## The live recipe asking for STRICT_PASSES passing hands of its 8.
+func _strict_recipe() -> DeckDefinition:
+	var strict: DeckDefinition = _recipe.duplicate()
+	strict.fair_deal_passes = STRICT_PASSES
+	return strict
 
 
 func _stream(seed_value: int) -> RandomNumberGenerator:

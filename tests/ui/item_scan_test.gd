@@ -554,7 +554,8 @@ func test_every_card_scan_fits_the_monitor() -> void:
 			await _hover(screen, view)
 			_assert_scanned_on_monitor(screen, view)
 	var coupon: int = 0
-	var per_row: int = screen.run.limits.slot_count
+	# A batch of products and one coupon fills the row's slots.
+	var per_row: int = RowCapacity.card_limit(screen.run.limits) - 1
 	for start: int in range(0, products.size(), per_row):
 		var batch: Array[String] = _ids(products, start, per_row)
 		batch.append(coupons[coupon % coupons.size()])

@@ -385,8 +385,7 @@ func test_list_gate_without_runs_is_not_a_pass() -> void:
 ## An item the staples and its aisle never put in a best row is an orphan.
 func test_orphan_check() -> void:
 	var balance: BalanceDefinition = BalanceDefinition.new()
-	balance.slot_count = 6
-	balance.coupon_slot_count = 1
+	balance.slot_count = 7
 	balance.hand_size = 4
 	var deli: AisleDefinition = AisleDefinition.new()
 	deli.id = &"deli"
@@ -424,8 +423,7 @@ func test_orphan_check() -> void:
 ## lists of 2, an aisle listable at 2 items.
 static func _balance() -> BalanceDefinition:
 	var balance: BalanceDefinition = BalanceDefinition.new()
-	balance.slot_count = 6
-	balance.coupon_slot_count = 1
+	balance.slot_count = 7
 	balance.hand_size = 5
 	balance.base_redraws = 1
 	balance.basket_size = 2

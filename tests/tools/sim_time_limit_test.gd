@@ -38,14 +38,14 @@ func test_a_phase_that_starts_after_the_end_is_over_at_once() -> void:
 func test_a_search_past_its_time_stops_and_caches_nothing() -> void:
 	var no_upgrades: Array[UpgradeDefinition] = []
 	var hand: String = "eggs,banana,banana,repeat,soup,frozen_peas,final_markdown"
-	var search: SimRowSearch = SimRowSearch.new(BalanceSimTest._balance(6, 1))
+	var search: SimRowSearch = SimRowSearch.new(BalanceSimTest._balance(7))
 	search.stop_at_msec = 1
 	search.search(BalanceSimTest._cards(hand), no_upgrades)
 	assert_bool(search.stopped).is_true()
 	assert_int(search.cache_size()).is_equal(0)
 	search.stop_at_msec = 0
 	search.stopped = false
-	var full: SimHandBest = SimRowSearch.new(BalanceSimTest._balance(6, 1)).search(
+	var full: SimHandBest = SimRowSearch.new(BalanceSimTest._balance(7)).search(
 		BalanceSimTest._cards(hand), no_upgrades
 	)
 	assert_int(search.search(BalanceSimTest._cards(hand), no_upgrades).score).is_equal(full.score)

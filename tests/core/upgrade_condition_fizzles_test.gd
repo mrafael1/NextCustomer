@@ -151,7 +151,7 @@ func test_neutral_and_unconditional_upgrades_never_fizzle() -> void:
 		_upgrade("Neutral category", DistinctTagBonusRule.new()),
 		_upgrade("Bridge", CouponBridgeRule.new()),
 	]
-	for file_name: String in ["big_basket", "extra_redraw", "extra_coupon_slot", "rule_bender"]:
+	for file_name: String in ["big_basket", "extra_redraw", "rule_bender"]:
 		upgrades.append(load("%s/%s.tres" % [UPGRADES_DIR, file_name]) as UpgradeDefinition)
 	for row: String in ["bread", "repeat", "bread,cheese,milk"]:
 		for step: ScoreStep in Scoring.score(_row(row), upgrades).steps:

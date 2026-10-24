@@ -3,8 +3,8 @@ extends GdUnitTestSuite
 ## face, the lip, apron and rail, the bolts) at its rects with the sharp-pixel material, taking no
 ## click; the row's cells stand in the row's band over the belt at B2's coordinates, the row's
 ## cards stand on the belt as belt items on their contact shadows with their tickets on the rail,
-## the empty slots' footprints recede to the belt's vanishing point, and 7-slot, CLOSED, 8-slot
-## and 9-slot rows stay on the belt with every item's sprite, plaque, sticker and chips inside its
+## the empty slots' footprints recede to the belt's vanishing point, and 7-slot, CLOSED and
+## 8-slot rows stay on the belt with every item's sprite, plaque, sticker and chips inside its
 ## own cell, each slot's drop target inside it, on the 1280x720 stage, and the scanner's glass
 ## plate (#86 v6) lies on the top face under each row's first cell. Every rect is checked on
 ## screen (headless
@@ -205,8 +205,8 @@ func test_items_cast_shadows_and_footprints_recede() -> void:
 			assert_float(absf(sine)).override_failure_message(str(slot)).is_less(0.0001)
 
 
-## The usual 7-slot row, a CLOSED row (Short belt) and a 9-slot row (Big basket and Extra coupon
-## slot, scaled to the 7-slot width) stay in the row's band over the belt, apart, clear of the
+## The usual 7-slot row, a CLOSED row (Short belt) and an 8-slot row (Big basket, scaled to the
+## 7-slot width) stay in the row's band over the belt, apart, clear of the
 ## receipt, resting on ROW_BOTTOM, with each value plaque under the top bar, inside its cell and
 ## clear of its sprite. Row items are belt items (ItemView.BELT_SIZE, the 7-slot row
 ## never scaled) whose sprite is the moving body.
@@ -233,12 +233,11 @@ func test_the_rows_stay_on_the_belt() -> void:
 
 	run.inspections = []
 	screen._debug.give_upgrade("big_basket")
-	screen._debug.give_upgrade("extra_coupon_slot")
 	_place(screen, ["bread", "milk", "eggs", "cheese"])
 	await _frames(3)
-	assert_int(screen._slots.size()).is_equal(9)
+	assert_int(screen._slots.size()).is_equal(8)
 	assert_float(screen._row_strip.box.scale.x).is_less(1.0)
-	_assert_row_on_belt(screen, 9)
+	_assert_row_on_belt(screen, 8)
 	# The belt keeps its size; the scaled row rests on its bottom line, the empty band above it.
 	var row: Rect2 = screen._slots[0].get_global_rect()
 	var stage: Rect2 = screen._stage.get_global_rect()
@@ -246,7 +245,7 @@ func test_the_rows_stay_on_the_belt() -> void:
 	assert_float(row.position.y).is_greater(stage.position.y + ShiftStage.ROW_POSITION.y)
 
 
-## Full 8- and 9-slot rows (a full row of products and coupons, two chips each): every item's
+## A full 8-slot row (Big basket; products and coupons, two chips each): every item's
 ## sprite stays above its ticket, its plaque (a four-digit payout), sticker and chips in its own
 ## cell, so nothing reaches a neighbour, all of it on the stage and in the row's band; the sticker's
 ## summary prints at least MIN_SUMMARY_PX tall.
@@ -255,9 +254,6 @@ func test_full_wide_rows_keep_each_item_in_its_cell() -> void:
 	screen._debug.give_upgrade("big_basket")
 	await _frames(2)
 	await _assert_full_row_fits(screen, 8)
-	screen._debug.give_upgrade("extra_coupon_slot")
-	await _frames(2)
-	await _assert_full_row_fits(screen, 9)
 
 
 func _assert_full_row_fits(screen: ShiftScreen, count: int) -> void:

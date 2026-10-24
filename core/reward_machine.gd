@@ -254,11 +254,14 @@ func pending_kinds() -> Array[int]:
 
 
 ## Registers picked from the machine this run (REGISTER and STAMP DAY picks); a starting deck's
-## starting_upgrade never counts.
+## starting_upgrade never counts, nor does a retired register's pick (ContentLookup.is_retired:
+## RunSave drops it from the run, so its loyalty box is free again).
 func registers_picked(run: RunState) -> int:
 	var found: int = 0
 	for record: ShiftRecord in run.history:
-		found += record.registers_taken().size()
+		for upgrade: UpgradeDefinition in record.registers_taken():
+			if not ContentLookup.is_retired(upgrade):
+				found += 1
 	return found
 
 
@@ -321,6 +324,10 @@ func restore_from(data: Dictionary, lookup: ContentLookup) -> bool:
 	var visit: MachineVisit = null
 	if visit_data is Dictionary and not (visit_data as Dictionary).is_empty():
 		visit = MachineVisit.from_dictionary(visit_data, lookup)
+	# A visit still waiting for its pick never offers a retired register (a save made before
+	# the rule change that retired it).
+	if visit != null and visit.picked == -1:
+		visit.drop_retired_prizes()
 	var valid: bool = (
 		reader.ok
 		and saved_queue.all(func(kind: int) -> bool: return kind > MachineVisit.Kind.TICKET)

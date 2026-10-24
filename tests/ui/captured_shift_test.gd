@@ -104,7 +104,7 @@ func test_cells_lie_inside_the_belt_and_the_tray() -> void:
 			assert_float(rect.position.x).is_greater_equal(belt_rect.position.x)
 			assert_float(rect.end.x).is_less_equal(belt_rect.end.x)
 			assert_float(rect.end.y).is_less_equal(rail.end.y)
-		# Short belt: 5 product slots and the coupon slot open, one product slot CLOSED.
+		# Short belt: 6 of the 7 general slots open, one CLOSED.
 		assert_int(cells.size()).is_equal(7)
 		_assert_apart(cells, "belt cells")
 		var belt: Array[ItemView] = _belt_items(screen)

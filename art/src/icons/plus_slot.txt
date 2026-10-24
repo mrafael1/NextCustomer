@@ -1,4 +1,4 @@
-; Big basket's perk glyph (v0.50 prize tickets, M5): a product slot's shelf ticket (as
+; Big basket's perk glyph (v0.50 prize tickets, M5): a slot's shelf ticket (as
 ; frames/ticket_product: mustard light band, paper face, cream shade) with +1 in ink. 13x12,
 ; shown at 2x on the loyalty prize's badge.
 @size 13x12

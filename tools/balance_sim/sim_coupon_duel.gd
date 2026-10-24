@@ -1,6 +1,6 @@
 class_name SimCouponDuel
 extends RefCounted
-## Coupons valued against each other for the coupon slot (plan section 8), not against
+## Coupons valued against each other for a slot (plan section 8), not against
 ## skipping. Each sample draws hand_size - 1 cards from the deck; then each coupon in turn
 ## completes that same hand, and the coupons are compared on its best total.
 
@@ -95,7 +95,7 @@ func needed_share(coupon_index: int) -> float:
 
 func format() -> String:
 	var lines: PackedStringArray = PackedStringArray()
-	lines.append("== Coupon slot: coupons against each other ==")
+	lines.append("== Coupons against each other ==")
 	lines.append(
 		(
 			"%d starting-deck hands of %d cards, each completed by every coupon in turn"

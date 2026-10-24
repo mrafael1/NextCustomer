@@ -530,27 +530,25 @@ static func _event_log() -> EventLogService:
 	return (Engine.get_main_loop() as SceneTree).root.get_node("/root/EventLog")
 
 
-## Big basket and Extra coupon slot make a 9-slot row: it is rebuilt with 9 slots, closes the
-## gaps between its cells and is scaled to the width the screen was laid out for, so every slot
-## stays on the belt, never overlapping the one before it, and clear of the receipt
-## (shift_screen_layout_test checks the rest of the stage). The usual 7-slot row is never scaled.
-func test_a_nine_slot_row_fits_the_screen() -> void:
+## Big basket makes an 8-slot row: it is rebuilt with 8 slots, closes the gaps between its
+## cells and is scaled to the width the screen was laid out for, so every slot stays on the belt,
+## never overlapping the one before it, and clear of the receipt (shift_screen_layout_test checks
+## the rest of the stage). The usual 7-slot row is never scaled.
+func test_an_eight_slot_row_fits_the_screen() -> void:
 	var runner: GdUnitSceneRunner = scene_runner(SCREEN)
 	var screen: ShiftScreen = runner.scene()
 	await await_idle_frame()
 	assert_int(screen._slots.size()).is_equal(7)
 	assert_vector(screen._row_strip.box.scale).is_equal(Vector2.ONE)
 	screen._debug.give_upgrade("big_basket")
-	screen._debug.give_upgrade("extra_coupon_slot")
 	for _frame: int in range(3):
 		await await_idle_frame()
-	assert_int(screen._slots.size()).is_equal(9)
+	assert_int(screen._slots.size()).is_equal(8)
 	assert_float(screen._row_strip.box.scale.x).is_less(1.0)
 	assert_int(screen._row_strip.box.get_theme_constant("separation")).is_equal(
 		RowStrip.WIDE_SEPARATION
 	)
-	assert_int(screen.run.limits.slot_count).is_equal(7)
-	assert_int(screen.run.limits.coupon_slot_count).is_equal(2)
+	assert_int(screen.run.limits.slot_count).is_equal(8)
 	var belt: Rect2 = (
 		Rect2(
 			screen._stage.get_global_rect().position + ShiftStage.ROW_AREA.position,

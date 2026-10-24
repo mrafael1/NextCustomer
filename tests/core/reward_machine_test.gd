@@ -500,15 +500,13 @@ func _assert_bonus_if_passed_matches_the_checkout() -> void:
 		assert_bool(earned).override_failure_message(failure).is_equal(promised and inspected)
 
 
-## Big basket picked on a BOOSTED visit changes only the next shift's quota: the scored shift's
-## limits stay.
+## Big basket picked on a BOOSTED visit changes only the next shift's slots: the scored shift's
+## limits stay, and no quota changes (plan v0.46, #106).
 func test_big_basket_on_a_boosted_visit_changes_only_the_next_shift() -> void:
 	var basket: UpgradeDefinition = _upgrade("big_basket")
 	for seed_value: int in range(1, 40):
 		var run: RunState = _run(seed_value)
-		run.upgrades = _upgrades(
-			["coupon_engine", "category_engine", "extra_redraw", "extra_coupon_slot"]
-		)
+		run.upgrades = _upgrades(["coupon_engine", "category_engine", "extra_redraw"])
 		run.shift_index = 2
 		run.start_shift()
 		var scored: ShiftLimits = run.limits
@@ -522,11 +520,12 @@ func test_big_basket_on_a_boosted_visit_changes_only_the_next_shift() -> void:
 		assert_object(machine.pick(run, index)).is_not_null()
 		assert_object(run.limits).is_same(scored)
 		assert_int(run.quota()).is_equal(scored_quota)
-		var without: Array[UpgradeDefinition] = run.upgrades.slice(0, 4)
-		var plain_next: int = ShiftLimits.for_shift(_balance, without, 3).quota
+		var without: Array[UpgradeDefinition] = run.upgrades.slice(0, 3)
+		var plain_next: ShiftLimits = ShiftLimits.for_shift(_balance, without, 3)
 		run.shift_index = 3
 		run.start_shift()
-		assert_int(run.quota()).is_greater(plain_next)
+		assert_int(run.limits.slot_count).is_equal(plain_next.slot_count + 1)
+		assert_int(run.quota()).is_equal(plain_next.quota)
 		return
 	fail("no draw offered Big basket")
 
@@ -624,9 +623,7 @@ func test_reveal_order_and_drop_order() -> void:
 ## Short draws (REGISTER with only 2 types left) pick and save like full ones.
 func test_short_draws_pick_and_save() -> void:
 	var run: RunState = _run()
-	run.upgrades = _upgrades(
-		["coupon_engine", "category_engine", "extra_redraw", "extra_coupon_slot"]
-	)
+	run.upgrades = _upgrades(["coupon_engine", "category_engine", "extra_redraw"])
 	var machine: RewardMachine = _machine()
 	_pass(run, machine, 3)
 	assert_bool(machine.choose(run, RewardMachine.Chute.REGISTER)).is_true()

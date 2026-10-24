@@ -121,16 +121,16 @@ func test_a_press_without_moving_stays_a_click() -> void:
 
 func test_a_refused_drop_explains_and_lets_go() -> void:
 	var screen: ShiftScreen = await _screen()
-	for _index: int in range(6):
+	for _index: int in range(7):
 		_drag_hand_card(screen, _add(screen, "bread"), 6)
-	var seventh: CardInstance = _add(screen, "bread")
-	_press_hand_card(screen, seventh)
+	var eighth: CardInstance = _add(screen, "bread")
+	_press_hand_card(screen, eighth)
 	screen._notice_label.text = ""
 	_move(screen, _slot_center(screen, 6))
 	_release(screen, _slot_center(screen, 6))
-	assert_int(screen.run.row.size()).is_equal(6)
-	assert_bool(screen.run.row.has(seventh)).is_false()
-	assert_str(screen._notice_label.text).contains("6/6 products")
+	assert_int(screen.run.row.size()).is_equal(7)
+	assert_bool(screen.run.row.has(eighth)).is_false()
+	assert_str(screen._notice_label.text).contains("Row full (7/7 items)")
 	assert_object(screen._picked).is_null()
 
 
@@ -311,11 +311,11 @@ func test_the_highlight_shows_the_landing_slot() -> void:
 	assert_bool(RowStrip.is_hovered(screen._slots[2])).is_true()
 	_release(screen, _slot_center(screen, 5))
 	assert_object(screen.run.row[2]).is_same(card)
-	# A 7th product fits nowhere: no slot lights up.
-	for _index: int in range(3):
+	# An 8th card fits nowhere (7 general slots): no slot lights up.
+	for _index: int in range(4):
 		_drag_hand_card(screen, _add(screen, "bread"), 6)
-	var seventh: CardInstance = _add(screen, "bread")
-	_press_hand_card(screen, seventh)
+	var eighth: CardInstance = _add(screen, "bread")
+	_press_hand_card(screen, eighth)
 	_move(screen, _slot_center(screen, 6))
 	assert_int(screen._drag.hovered_slot()).is_equal(-1)
 	_release(screen, _slot_center(screen, 6))

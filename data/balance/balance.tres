@@ -28,12 +28,10 @@
 [ext_resource type="Resource" path="res://data/upgrades/category_engine.tres" id="u3_category_engine"]
 [ext_resource type="Resource" path="res://data/upgrades/extra_redraw.tres" id="u4_extra_redraw"]
 [ext_resource type="Resource" path="res://data/upgrades/slot_engine.tres" id="u6_slot_engine"]
-[ext_resource type="Resource" path="res://data/upgrades/extra_coupon_slot.tres" id="u7_extra_coupon_slot"]
 [ext_resource type="Resource" path="res://data/upgrades/big_basket.tres" id="u8_big_basket"]
 [ext_resource type="Script" path="res://core/inspection_definition.gd" id="i1_inspection"]
 [ext_resource type="Resource" path="res://data/inspections/spot_check.tres" id="i2_spot_check"]
 [ext_resource type="Resource" path="res://data/inspections/short_belt.tres" id="i3_short_belt"]
-[ext_resource type="Resource" path="res://data/inspections/coupon_slot_closed.tres" id="i4_coupon_slot_closed"]
 [ext_resource type="Resource" path="res://data/balance/machine.tres" id="m1_machine"]
 
 [resource]
@@ -42,8 +40,7 @@ quotas = PackedInt32Array(29, 35, 53, 61, 73, 98, 111, 120)
 hand_size = 8
 base_redraws = 2
 basket_size = 2
-slot_count = 6
-coupon_slot_count = 1
+slot_count = 7
 deck_limit = 15
 staples = Array[ExtResource("2_card")]([ExtResource("s1_banana"), ExtResource("s2_bread"), ExtResource("s3_milk"), ExtResource("s4_eggs"), ExtResource("s5_coffee"), ExtResource("s6_soup")])
 aisles = Array[ExtResource("a1_aisle")]([ExtResource("a2_cold_cases"), ExtResource("a3_pantry"), ExtResource("a4_household"), ExtResource("a5_fruit_and_veg"), ExtResource("a6_bakery"), ExtResource("a7_snacks")])
@@ -54,9 +51,9 @@ aisle_listable_min = 4
 end_cap_max = 3
 end_cap_window_runs = 3
 first_offer_pool = Array[ExtResource("2_card")]([ExtResource("c14_breakfast_sticker"), ExtResource("c15_multipack"), ExtResource("c16_two_for_one")])
-upgrade_pool = Array[ExtResource("u1_upgrade")]([ExtResource("u2_coupon_engine"), ExtResource("u3_category_engine"), ExtResource("u4_extra_redraw"), ExtResource("u6_slot_engine"), ExtResource("u7_extra_coupon_slot"), ExtResource("u8_big_basket")])
+upgrade_pool = Array[ExtResource("u1_upgrade")]([ExtResource("u2_coupon_engine"), ExtResource("u3_category_engine"), ExtResource("u4_extra_redraw"), ExtResource("u6_slot_engine"), ExtResource("u8_big_basket")])
 inspection_shifts = PackedInt32Array(3, 5, 7)
-inspection_pool = Array[ExtResource("i1_inspection")]([ExtResource("i2_spot_check"), ExtResource("i3_short_belt"), ExtResource("i4_coupon_slot_closed")])
+inspection_pool = Array[ExtResource("i1_inspection")]([ExtResource("i2_spot_check"), ExtResource("i3_short_belt")])
 coins_by_shifts_passed = PackedInt32Array(0, 0, 0, 0, 1, 1, 1, 1, 2)
 overtime_coin_euros = 923
 overtime_coin_max = 1

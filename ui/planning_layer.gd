@@ -16,7 +16,7 @@ extends Control
 ## drawn while calm. The strips hide during a drag (show_strips): the stickers and the SPEND chip
 ## say what the drop does.
 ##
-## Every anchor comes from the views' rects mapped into the layer, so a scaled 8- or 9-slot row
+## Every anchor comes from the views' rects mapped into the layer, so a scaled 8-slot row
 ## places them by its scaled cells while the art never scales; CLOSED cells and empty slots are no
 ## view, so they get nothing. The layout follows the views (it is redone whenever a view moves
 ## relative to the layer, e.g. once the row's containers have sorted). apply_focus lights the

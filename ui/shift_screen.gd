@@ -20,10 +20,8 @@ extends Control
 ## saved) and BasketRedraw plays the motion, every click blocked until it ends. Redraw mode ends
 ## with the click.
 ##
-## The row has slot_count product slots plus coupon-only slots (plan section 3.1). The row is
-## compacted, so the coupon slot is a capacity, not a position: no panel is marked as the
-## coupon slot (a coupon can go anywhere). The row's slots alone show the capacity, and
-## RowCapacity enforces it.
+## The row has slot_count general slots (plan section 3.1, v0.46): any card fits any free slot.
+## The row is compacted, so its slots alone show the capacity, and RowCapacity enforces it.
 ##
 ## The layout (#55; full build plan section 6.1) is ShiftStage's: a 1280x720 stage centred in the
 ## window over a wall and a counter that fill it. The screen keeps its own names for the stage's
@@ -316,7 +314,7 @@ func _on_hand_card_clicked(view: CardView) -> void:
 	else:
 		_pick(view.card, false)
 		_sfx.play("card_pickup")
-		_explain_if_refused(view.card)
+		_explain_if_refused()
 		_drag.arm(view.card, get_viewport().get_mouse_position())
 	_refresh()
 
@@ -380,12 +378,12 @@ func _place_picked(slot: int, dragged: bool = false) -> void:
 		_refresh()
 		_save_run()
 	else:
-		_explain_if_refused(_picked)
+		_explain_if_refused()
 
 
-## Plan section 3.1: says why a product doesn't fit instead of silently ignoring the click.
-func _explain_if_refused(card: CardInstance) -> void:
-	if _notice_label.explain_refusal(card.definition, run.limits, run.row):
+## Plan section 3.1: says why a card doesn't fit instead of silently ignoring the click.
+func _explain_if_refused() -> void:
+	if _notice_label.explain_refusal(run.limits, run.row):
 		_sfx.play("denied", 1.0, REFUSED_DB)
 
 
@@ -740,7 +738,7 @@ func item_views() -> Array[ItemView]:
 ## One slot per card the shift allows (upgrades can add slots), then the row's cards, standing
 ## on the belt as belt items with their tickets on the rail (RowStrip.show_cards).
 func _refresh_row() -> void:
-	var closed: int = run.limits.closed_slots + run.limits.closed_coupon_slots
+	var closed: int = run.limits.closed_slots
 	var reason: String = (
 		"Closed by the inspection: %s" % ", ".join(InspectionTag.names(run.inspections))
 	)
@@ -870,7 +868,7 @@ func _build() -> void:
 	add_child(_camera)
 	_wall = StoreBackdrop.screen_parts(_camera.content, _balance.aisles)
 	_wall.gui_input.connect(_on_background_input)
-	_stage = ShiftStage.new(_balance.slot_count + _balance.coupon_slot_count)
+	_stage = ShiftStage.new(_balance.slot_count)
 	# Text on the stage and the overlay without its own font (the count-up's flying numbers,
 	# stamps and verdict) uses the number font. The theme stays off the screen's root, so the
 	# panels #56 restyles and ShiftDebug's panel keep the plain default font.

@@ -33,7 +33,7 @@ func _init(
 func climb_total(hand: Array[CardInstance], limits: ShiftLimits, max_changes: int) -> int:
 	var row: Array[CardInstance] = []
 	for card: CardInstance in hand:
-		if RowCapacity.fits(limits, row, card.definition):
+		if RowCapacity.fits(limits, row):
 			row.append(card)
 	var total: int = _score(row)
 	for _change: int in range(max_changes):
@@ -80,7 +80,7 @@ static func neighbours(
 			if fits(limits, swapped):
 				rows.append(swapped)
 	for card: CardInstance in spare:
-		if not RowCapacity.fits(limits, row, card.definition):
+		if not RowCapacity.fits(limits, row):
 			continue
 		for at: int in range(row.size() + 1):
 			var added: Array[CardInstance] = row.duplicate()
@@ -95,7 +95,7 @@ static func neighbours(
 
 ## Whether a whole row fits the shift's limits (plan section 3.1).
 static func fits(limits: ShiftLimits, row: Array[CardInstance]) -> bool:
-	return row.size() <= limits.card_limit() and RowCapacity.product_count(row) <= limits.slot_count
+	return RowCapacity.row_fits(limits, row)
 
 
 func _score(row: Array[CardInstance]) -> int:

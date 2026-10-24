@@ -7,9 +7,8 @@ RECORDS is the run-record file the balance simulator writes with --records (tool
 ... --quotas=0 --records=res://reports/records.json). No simulator choice reads the quota, so a run
 played with every quota at 0 is, shift for shift, the same run as under any other curve until its
 first failed shift (the run's RNG is used the same way at every passed checkout). This tool
-replays every recorded run under a candidate curve and coin amounts: Big basket's raise from the
-shift after its pick (ShiftLimits.raised_quota), the loss at the first total under the quota, and
-the coins (CoinPayout: the table by shifts passed plus one overtime coin per overtime_coin_euros of
+replays every recorded run under a candidate curve and coin amounts: the loss at the first total
+under the quota, and the coins (CoinPayout: the table by shifts passed plus one overtime coin per overtime_coin_euros of
 summed margin, at most overtime_coin_max). A recorded run that ended before the last shift without
 failing the candidate curve was cut by the quotas it was played with, so it can't be replayed; it
 is counted and the curve's numbers are flagged.
@@ -74,13 +73,13 @@ TARGET_RUNS_MIDDLE = 32.5
 class Run:
     """One recorded run: per played shift its total, the inspection it was played under, the
     registers taken after it (the machine's REGISTER and STAMP DAY picks, #77; older records'
-    `upgrade_taken`) and the quota percent they add (Big basket)."""
+    `upgrade_taken`). Older records' `upgrade_quota_percent` (Big basket's quota raise, removed
+    in v0.56, #106) is ignored."""
 
     seed: int
     totals: list[int]
     inspections: list[str]
     upgrades_taken: list[list[str]]
-    percents_taken: list[int]
     # The card ids of each shift's hand at checkout (empty lists in older records).
     hands: list[list[str]] = field(default_factory=list)
 
@@ -115,15 +114,10 @@ class Outcome:
     won: bool
     overtime: int
     shift1_margin: int
-    # The quota of each shift it played (raised by Big basket), in order.
+    # The quota of each shift it played, in order.
     quotas: list[int] = field(default_factory=list)
     # False when the recorded run ended early without failing this curve (can't be replayed).
     complete: bool = True
-
-
-def raised_quota(base: int, percent: int) -> int:
-    """ShiftLimits.raised_quota: rounded up to whole euros."""
-    return math.ceil(base * (100 + percent) / 100.0) if percent > 0 else base
 
 
 def shift_registers(shift: dict[str, Any]) -> list[str]:
@@ -143,7 +137,6 @@ def shift_registers(shift: dict[str, Any]) -> list[str]:
 
 def load_records(path: Path) -> Records:
     data = json.loads(path.read_text(encoding="utf-8"))
-    percents: dict[str, int] = {k: int(v) for k, v in data["upgrade_quota_percent"].items()}
     scenarios: dict[str, list[Run]] = {}
     for key, entries in data["scenarios"].items():
         runs = []
@@ -155,7 +148,6 @@ def load_records(path: Path) -> Records:
                 totals=[int(s["total"]) for s in shifts],
                 inspections=[str(s.get("inspection", "")) for s in shifts],
                 upgrades_taken=upgrades,
-                percents_taken=[sum(percents.get(u, 0) for u in taken) for taken in upgrades],
                 hands=[[str(card) for card in s.get("hand", [])] for s in shifts],
             ))
         scenarios[key] = runs
@@ -169,21 +161,19 @@ def load_records(path: Path) -> Records:
 
 
 def replay(run: Run, curve: list[int]) -> Outcome:
-    percent = 0
     passed = 0
     overtime = 0
     quotas: list[int] = []
     for index, base in enumerate(curve):
         if index >= len(run.totals):
             return Outcome(passed, False, overtime, _shift1_margin(run, curve), quotas, False)
-        quota = raised_quota(base, percent)
+        quota = base
         quotas.append(quota)
         total = run.totals[index]
         if total < quota:
             return Outcome(passed, False, overtime, _shift1_margin(run, curve), quotas)
         passed += 1
         overtime += total - quota
-        percent += run.percents_taken[index]
     return Outcome(passed, True, overtime, _shift1_margin(run, curve), quotas)
 
 
@@ -227,20 +217,19 @@ def fit_curve(runs: list[Run], shifts: int, win: float, shift1: float, shift2: f
 
 def _quota_for_share(runs: list[Run], curve: list[int], keep: float) -> int:
     """The highest quota for the next shift that at least `keep` of the runs reaching it meet
-    (each against its own raised quota), and at least 1 more than the previous shift's."""
+    and at least 1 more than the previous shift's."""
     index = len(curve)
     floor = curve[-1] + 1 if curve else 0
-    reaching: list[tuple[int, int]] = []
+    reaching: list[int] = []
     for run in runs:
         outcome = replay(run, curve)
         if outcome.won and outcome.complete and len(run.totals) > index:
-            percent = sum(run.percents_taken[:index])
-            reaching.append((run.totals[index], percent))
+            reaching.append(run.totals[index])
     if not reaching:
         return floor
     need = math.ceil(keep * len(reaching) - 1e-9)
     # Pass count only falls as the quota rises: bisect for the highest quota keeping `need`.
-    low, high = floor, max(t for t, _ in reaching) + 1
+    low, high = floor, max(reaching) + 1
     if _meeting(reaching, low) < need:
         return floor
     while high - low > 1:
@@ -252,8 +241,8 @@ def _quota_for_share(runs: list[Run], curve: list[int], keep: float) -> int:
     return low
 
 
-def _meeting(reaching: list[tuple[int, int]], quota: int) -> int:
-    return sum(1 for total, percent in reaching if total >= raised_quota(quota, percent))
+def _meeting(reaching: list[int], quota: int) -> int:
+    return sum(1 for total in reaching if total >= quota)
 
 
 def win_rate(runs: list[Run], curve: list[int]) -> float:

@@ -1,10 +1,10 @@
 class_name RowStrip
 extends Control
 ## The checkout row's slots (plan section 3.1), one cell per card the shift allows. Upgrades
-## can add slots (Extra coupon slot, Big basket), so the cells are rebuilt when the shift's card
+## can add slots (Big basket), so the cells are rebuilt when the shift's card
 ## limit changes. A row wider than the 7 slots the screen was laid out for first closes the gap
 ## between its cells (the tickets keep their own inset apart), then scales down to the 7-slot
-## width (8 slots about x0.95, 9 slots about x0.85). The common 7-slot row is never scaled.
+## width (8 slots, with Big basket, about x0.95). The common 7-slot row is never scaled.
 ##
 ## The slots are cells on the belt (#80, mock-up B2): each open cell (ItemView.BELT_SIZE) stands
 ## its item on the belt's top face and clips its ticket (the item's sticker) on the price rail,
@@ -15,14 +15,14 @@ extends Control
 ## to each neighbour, so the pointer on an item, a footprint or the gap between two finds a slot;
 ## the band above the art (where the count-up's paid chip pops) is the wall's, whose click lets go
 ## of the picked item. A belt item, the cell's last child, takes its own hover over its art and
-## ticket first. No slot is marked as the coupon slot (a coupon slot is a capacity, not a
-## position: see ShiftScreen). The slots the picked item can go to wear a solid mustard ring
+## ticket first. Every slot is general (any card fits any slot, see ShiftScreen). The slots the
+## picked item can go to wear a solid mustard ring
 ## between ink lines around the ticket (slot_placeable), so they differ from an empty slot in
 ## shape, not only colour; and the empty ticket under a dragged item is filled (slot_hover). The
 ## ring and the fill sit on each cell's marks layer, over the ticket and under the item;
 ## is_outlined() and is_hovered() read them.
 ##
-## A slot the shift's inspection closed (Short belt, Coupon slot closed) shows as a CLOSED cell
+## A slot the shift's inspection closed (Short belt) shows as a CLOSED cell
 ## after the open slots: a velvet rope on two brass stanchions standing on the belt, each post
 ## two regions of its art so it stands as tall as an item (the only velvet and brass left on the
 ## belt), with their contact shadows; and on the rail the ink plate (ticket_closed, its tomato
@@ -244,11 +244,11 @@ static func is_hovered(panel: PanelContainer) -> bool:
 	return marks != null and (marks.get_node(NodePath(HOVER_NAME)) as CanvasItem).visible
 
 
-## The caption of a CLOSED cell: CLOSED_CAPTION_TEXT when one of `inspections` closes slots
-## (product or coupon slots), else empty. The cell's hover text names the inspections.
+## The caption of a CLOSED cell: CLOSED_CAPTION_TEXT when one of `inspections` closes slots,
+## else empty. The cell's hover text names the inspections.
 static func closed_caption(inspections: Array[InspectionDefinition]) -> String:
 	for inspection: InspectionDefinition in inspections:
-		if inspection.extra_slots < 0 or inspection.extra_coupon_slots < 0:
+		if inspection.extra_slots < 0:
 			return CLOSED_CAPTION_TEXT
 	return ""
 

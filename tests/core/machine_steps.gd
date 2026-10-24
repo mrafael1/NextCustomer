@@ -84,7 +84,7 @@ static func boost_run(run: RunState, shifts: Array[int]) -> void:
 
 
 ## `balance` with its own machine copy that holds no STAMP DAY, so a low-quota test run never
-## gets a forced register (Big basket would raise its quotas).
+## gets a forced register.
 static func without_stamp_day(balance: BalanceDefinition) -> BalanceDefinition:
 	balance.machine = balance.machine.duplicate() as MachineDefinition
 	balance.machine.stamp_day_shifts = PackedInt32Array()
