@@ -30,7 +30,7 @@ const STAMP_TILT := -6.0
 const FRAME_MARGIN := 3
 const PADDING := Vector4(10, 6, 8, 4)
 const TITLE_SIZE := 11
-## The initials' size: the widest ("ExCS", Extra coupon slot) just fits inside the border.
+## The initials' size: the widest (four letters, e.g. "ExCS") just fits inside the border.
 const INITIALS_SIZE := 12
 ## A stamped box's ink ring, in canvas pixels.
 const STAMP_BORDER := 2

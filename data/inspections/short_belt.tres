@@ -6,6 +6,6 @@
 script = ExtResource("1_inspection")
 id = &"short_belt"
 display_name = "Short belt"
-notice_text = "One product slot fewer"
+notice_text = "One slot fewer"
 chip_text = "−1 slot"
 extra_slots = -1

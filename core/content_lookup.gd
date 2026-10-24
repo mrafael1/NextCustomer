@@ -8,6 +8,11 @@ extends RefCounted
 ## a file is checked with ResourceLoader.exists before it is loaded, and an id that isn't a
 ## plain name (empty, or a path such as "../balance/balance") is never looked up.
 ##
+## A retired id (content removed from data/ by a rule change, RETIRED_UPGRADES and
+## RETIRED_INSPECTIONS) resolves to an inert stand-in with that id and name and no effect, so a
+## save or a log made before the change still reads; RunSave drops retired registers from the
+## run (is_retired).
+##
 ## Tests point `root` at a folder of their own, or add in-memory resources with add().
 
 const DATA_ROOT := "res://data"
@@ -15,6 +20,16 @@ const CARDS_FOLDER := "cards"
 const UPGRADES_FOLDER := "upgrades"
 const INSPECTIONS_FOLDER := "inspections"
 const DECKS_FOLDER := "decks"
+## Upgrades removed from data/, by id: their names (plan v0.46, #106: every slot is general).
+const RETIRED_UPGRADES: Dictionary[StringName, String] = {
+	&"extra_coupon_slot": "Extra coupon slot",
+}
+## Inspections removed from data/, by id: their names (plan v0.46, #106).
+const RETIRED_INSPECTIONS: Dictionary[StringName, String] = {
+	&"coupon_slot_closed": "Coupon slot closed",
+}
+## The effect text of a retired stand-in.
+const RETIRED_TEXT := "Retired: no effect"
 
 ## The balance the run is played with: aisle ids resolve to its aisles, and a restored run uses
 ## it.
@@ -53,7 +68,8 @@ func aisle(id: String) -> AisleDefinition:
 	return null
 
 
-## Tests only: makes a card, upgrade, inspection or deck made in code resolvable by its id.
+## Makes a card, upgrade, inspection or deck made in code resolvable by its id (tests, and the
+## retired stand-ins).
 func add(resource: Resource) -> void:
 	var folder: String = _folder_of(resource)
 	if not folder.is_empty():
@@ -70,12 +86,44 @@ func _resolve(folder: String, id: String) -> Resource:
 		return _added[key]
 	var path: String = "%s/%s.tres" % [root.path_join(folder), id]
 	if not ResourceLoader.exists(path):
-		return null
+		return _retired(folder, StringName(id))
 	var resource: Resource = load(path)
 	if resource == null or _folder_of(resource) != folder:
 		return null
 	var own_id: Variant = resource.get("id")
 	return resource if own_id is StringName and own_id == StringName(id) else null
+
+
+## Whether `resource` is a retired upgrade's or inspection's inert stand-in.
+static func is_retired(resource: Resource) -> bool:
+	if resource is UpgradeDefinition:
+		return RETIRED_UPGRADES.has((resource as UpgradeDefinition).id)
+	if resource is InspectionDefinition:
+		return RETIRED_INSPECTIONS.has((resource as InspectionDefinition).id)
+	return false
+
+
+## The inert stand-in for a retired id in `folder`, made once per lookup, or null when the id
+## isn't retired.
+func _retired(folder: String, id: StringName) -> Resource:
+	var stand_in: Resource = null
+	if folder == UPGRADES_FOLDER and RETIRED_UPGRADES.has(id):
+		var upgrade_stand_in: UpgradeDefinition = UpgradeDefinition.new()
+		upgrade_stand_in.id = id
+		upgrade_stand_in.display_name = RETIRED_UPGRADES[id]
+		upgrade_stand_in.type = UpgradeDefinition.Type.ECONOMY
+		upgrade_stand_in.effect_text = RETIRED_TEXT
+		stand_in = upgrade_stand_in
+	elif folder == INSPECTIONS_FOLDER and RETIRED_INSPECTIONS.has(id):
+		var inspection_stand_in: InspectionDefinition = InspectionDefinition.new()
+		inspection_stand_in.id = id
+		inspection_stand_in.display_name = RETIRED_INSPECTIONS[id]
+		inspection_stand_in.notice_text = RETIRED_TEXT
+		inspection_stand_in.chip_text = "no effect"
+		stand_in = inspection_stand_in
+	if stand_in != null:
+		add(stand_in)
+	return stand_in
 
 
 ## The folder for a resource's kind, or "" when it isn't one of the kinds.

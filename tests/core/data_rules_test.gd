@@ -141,7 +141,8 @@ func test_every_upgrade_states_its_type_and_id() -> void:
 		# Only Extra redraw supports any build (no build listed).
 		if upgrade.id != &"extra_redraw":
 			assert_array(upgrade.builds).override_failure_message(file).is_not_empty()
-	assert_int(ids.size()).is_equal(7)
+	# Extra coupon slot was removed in plan v0.46 (#106).
+	assert_int(ids.size()).is_equal(6)
 
 
 ## Plan section 5.2: like an upgrade's type, a build's measure has an UNSET default that no
@@ -180,7 +181,8 @@ func test_every_inspection_states_its_id_and_notice() -> void:
 		assert_str(inspection.display_name).override_failure_message(file).is_not_empty()
 		assert_str(inspection.notice_text).override_failure_message(file).is_not_empty()
 		assert_str(inspection.chip_text).override_failure_message(file).is_not_empty()
-	assert_int(ids.size()).is_equal(3)
+	# Coupon slot closed was removed in plan v0.46 (#106).
+	assert_int(ids.size()).is_equal(2)
 
 
 ## Full build plan 7.3: the catalogue lists every deck file and every card variant, each once,

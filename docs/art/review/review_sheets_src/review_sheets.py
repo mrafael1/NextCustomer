@@ -82,7 +82,7 @@ def aisle_sheet(aisle: str, cards: list[str]) -> Path:
 
 def icons_sheet() -> Path:
     coupons = ["repeat", "final_markdown", "breakfast_sticker", "shelf_swap", "clearance_tag", "opening_deal"]
-    perks = ["perk_coupon_engine", "perk_slot_engine", "perk_extra_coupon_slot", "plus_slot"]
+    perks = ["perk_coupon_engine", "perk_slot_engine", "plus_slot"]
     slip = load("art/items_v2/coupon_slip.png")
     s = 4
     cell = 48 * s + 8

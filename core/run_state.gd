@@ -98,7 +98,7 @@ func shift_count() -> int:
 	return balance.quotas.size()
 
 
-## The current shift's quota: the balance data's, raised by Big basket (ShiftLimits).
+## The current shift's quota: the balance data's (ShiftLimits).
 func quota() -> int:
 	return limits.quota
 
@@ -174,11 +174,11 @@ func redraw_basket(basket: int) -> Array[int]:
 	return swapped
 
 
-## Plan section 3.1: the row's product and card limits, checked by kind (RowCapacity).
+## Plan section 3.1: the row's slots (RowCapacity); any card fits any free slot.
 func can_place(card: CardInstance) -> bool:
 	if phase != Phase.PLANNING or not hand().has(card):
 		return false
-	return RowCapacity.fits(limits, row, card.definition)
+	return RowCapacity.fits(limits, row)
 
 
 ## Puts a hand card into the row at `slot`. The row stays compacted: a slot past the end

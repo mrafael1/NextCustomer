@@ -7,6 +7,7 @@ extends GdUnitTestSuite
 
 const SCREEN := "res://ui/shift_screen.tscn"
 const SPOT_CHECK := "res://data/inspections/spot_check.tres"
+const SHORT_BELT := "res://data/inspections/short_belt.tres"
 ## Checkouts rush their count (one tap): the suite tests what follows it.
 const Rush := preload("res://tests/ui/count_up_rush.gd")
 const NOTICE := "INSPECTION NEXT SHIFT: The 3rd product pays €0"
@@ -338,7 +339,7 @@ static func _only_spot_check(screen: ShiftScreen) -> void:
 	screen.run.balance = balance
 
 
-## Short belt on the shift screen: 5 open slots plus a CLOSED panel after them, so the row keeps
+## Short belt on the shift screen: 6 open slots plus a CLOSED panel after them, so the row keeps
 ## its usual 7 panels and its scale; the panel reads "inspection" and its hover text names the
 ## inspection, a click on it explains, the run's limits lose the slot and the top bar's chip says
 ## what the inspection took.
@@ -346,7 +347,7 @@ func test_a_closed_slot_shows_on_the_row() -> void:
 	var runner: GdUnitSceneRunner = scene_runner(SCREEN)
 	var screen: ShiftScreen = runner.scene()
 	var run: RunState = screen.run
-	run.inspections = [load("res://data/inspections/short_belt.tres")]
+	run.inspections = [load(SHORT_BELT)]
 	run.debug_skip_to_shift(run.shift_index)
 	screen._on_shift_started()
 	await _frames(3)
@@ -381,20 +382,20 @@ func test_a_closed_slot_shows_on_the_row() -> void:
 	assert_bool(belt.encloses(closed_rect)).is_true()
 	assert_float(closed_rect.position.x).is_greater_equal(screen._slots[-1].get_global_rect().end.x)
 	assert_bool(closed_rect.intersects(screen._receipt.get_global_rect())).is_false()
-	assert_int(screen.run.limits.slot_count).is_equal(5)
+	assert_int(screen.run.limits.slot_count).is_equal(6)
 	assert_int(screen.run.limits.closed_slots).is_equal(1)
 	assert_str(screen._inspection_tag.text()).is_equal("Inspection · −1 slot")
 	screen._row_strip.closed_clicked.emit()
 	assert_str(screen._notice_label.text).contains("Closed by the inspection")
 
 
-## Coupon slot closed: one coupon and 5 products fill the 6-card row before the products are
-## full, so a 6th product is refused with a notice, never silently.
-func test_a_full_row_explains_why_a_product_does_not_fit() -> void:
+## Short belt: one coupon and 5 products fill the 6-slot row, so a 7th card is refused with a
+## notice, never silently.
+func test_a_full_row_explains_why_a_card_does_not_fit() -> void:
 	var runner: GdUnitSceneRunner = scene_runner(SCREEN)
 	var screen: ShiftScreen = runner.scene()
 	var run: RunState = screen.run
-	run.inspections = [load("res://data/inspections/coupon_slot_closed.tres")]
+	run.inspections = [load(SHORT_BELT)]
 	run.debug_skip_to_shift(run.shift_index)
 	screen._on_shift_started()
 	var bread: CardDefinition = load("res://data/cards/bread.tres")
@@ -404,11 +405,11 @@ func test_a_full_row_explains_why_a_product_does_not_fit() -> void:
 	assert_int(run.row.size()).is_equal(RowCapacity.card_limit(run.limits))
 	var extra: CardInstance = run.debug_add_to_hand(bread)
 	assert_bool(run.can_place(extra)).is_false()
-	screen._explain_if_refused(extra)
+	screen._explain_if_refused()
 	assert_str(screen._notice_label.text).contains("Row full (6/6 items)")
-	# The closed coupon slot's panel says an inspection closed it, and its hover text which one.
+	# The closed slot's panel says an inspection closed it, and its hover text which one.
 	assert_int(screen._row_strip.closed.size()).is_equal(1)
 	var caption: Label = RowStrip.closed_caption_label(screen._row_strip.closed[0])
 	assert_str(caption.text).is_equal("inspection")
-	assert_str(screen._row_strip.closed[0].tooltip_text).contains("Coupon slot closed")
-	assert_str(screen._inspection_tag.text()).is_equal("Inspection · −1 coupon slot")
+	assert_str(screen._row_strip.closed[0].tooltip_text).contains("Short belt")
+	assert_str(screen._inspection_tag.text()).is_equal("Inspection · −1 slot")

@@ -26,7 +26,7 @@ func test_next_permutation_visits_each_distinct_order_once() -> void:
 ## Plan section 8: the best of every selection and order, shorter rows included. Soup beside
 ## Frozen peas pays 0 and Final markdown only pays last, so leaving cards out matters here.
 func test_search_matches_brute_force() -> void:
-	var balance: BalanceDefinition = _balance(6, 1)
+	var balance: BalanceDefinition = _balance(7)
 	var hand: Array[CardInstance] = _cards(
 		"eggs,banana,banana,repeat,soup,frozen_peas,final_markdown"
 	)
@@ -44,36 +44,35 @@ func test_search_matches_brute_force() -> void:
 func test_the_golden_31_row_is_found() -> void:
 	var hand: Array[CardInstance] = _cards("banana,repeat,bread,eggs,banana,cheese")
 	var no_upgrades: Array[UpgradeDefinition] = []
-	var best: SimHandBest = SimRowSearch.new(_balance(6, 1)).search(hand, no_upgrades)
+	var best: SimHandBest = SimRowSearch.new(_balance(7)).search(hand, no_upgrades)
 	assert_int(best.score).is_greater_equal(31)
 	assert_int(Scoring.score(best.row).total).is_equal(best.score)
 
 
-## Plan section 3.1: at most slot_count products, and the coupon slot holds only a coupon.
+## Plan section 3.1 (v0.46, #106): at most slot_count cards, any card in any slot.
 func test_best_row_keeps_the_row_limits() -> void:
-	var search: SimRowSearch = SimRowSearch.new(_balance(6, 1))
+	var search: SimRowSearch = SimRowSearch.new(_balance(7))
 	var no_upgrades: Array[UpgradeDefinition] = []
 	var products: SimHandBest = search.search(
 		_cards("bread,bread,bread,bread,bread,bread,bread,bread"), no_upgrades
 	)
-	assert_int(products.row.size()).is_equal(6)
+	assert_int(products.row.size()).is_equal(7)
 	var with_coupons: SimHandBest = search.search(
 		_cards("bread,bread,bread,bread,bread,bread,repeat,repeat"), no_upgrades
 	)
 	assert_int(with_coupons.row.size()).is_equal(7)
-	assert_int(RowCapacity.product_count(with_coupons.row)).is_equal(6)
-	var no_coupon_slot: SimHandBest = SimRowSearch.new(_balance(6, 0)).search(
+	var fewer: SimHandBest = SimRowSearch.new(_balance(6)).search(
 		_cards("bread,bread,bread,bread,bread,bread,repeat,repeat"), no_upgrades
 	)
-	assert_int(no_coupon_slot.row.size()).is_equal(6)
+	assert_int(fewer.row.size()).is_equal(6)
 
 
 ## Results never depend on draw order or on what the cache already holds.
 func test_result_does_not_depend_on_hand_order_or_cache() -> void:
 	var no_upgrades: Array[UpgradeDefinition] = []
-	var fresh: SimRowSearch = SimRowSearch.new(_balance(6, 1))
+	var fresh: SimRowSearch = SimRowSearch.new(_balance(7))
 	var first: SimHandBest = fresh.search(_cards("milk,coffee,bread,eggs,banana"), no_upgrades)
-	var warm: SimRowSearch = SimRowSearch.new(_balance(6, 1))
+	var warm: SimRowSearch = SimRowSearch.new(_balance(7))
 	warm.search(_cards("milk,bread,eggs"), no_upgrades)
 	var second: SimHandBest = warm.search(_cards("banana,eggs,bread,coffee,milk"), no_upgrades)
 	assert_int(second.score).is_equal(first.score)
@@ -82,10 +81,10 @@ func test_result_does_not_depend_on_hand_order_or_cache() -> void:
 
 func test_saved_cache_gives_the_same_result_without_scoring() -> void:
 	var no_upgrades: Array[UpgradeDefinition] = []
-	var search: SimRowSearch = SimRowSearch.new(_balance(6, 1))
+	var search: SimRowSearch = SimRowSearch.new(_balance(7))
 	var best: SimHandBest = search.search(_cards("eggs,bread,cheese,banana"), no_upgrades)
 	assert_bool(search.save_cache(CACHE_FILE, true)).is_true()
-	var loaded: SimRowSearch = SimRowSearch.new(_balance(6, 1))
+	var loaded: SimRowSearch = SimRowSearch.new(_balance(7))
 	assert_bool(loaded.load_cache(CACHE_FILE)).is_true()
 	var again: SimHandBest = loaded.search(_cards("banana,cheese,bread,eggs"), no_upgrades)
 	assert_int(loaded.rows_scored).is_equal(0)
@@ -98,7 +97,7 @@ func test_saved_cache_gives_the_same_result_without_scoring() -> void:
 func test_search_respects_inspections_and_keeps_their_cache_apart() -> void:
 	var no_upgrades: Array[UpgradeDefinition] = []
 	var inspections: Array[InspectionDefinition] = [_third_product_pays_zero()]
-	var search: SimRowSearch = SimRowSearch.new(_balance(6, 1))
+	var search: SimRowSearch = SimRowSearch.new(_balance(7))
 	var plain: SimHandBest = search.search(_cards("bread,bread,bread,bread"), no_upgrades)
 	assert_int(plain.score).is_equal(12)
 	var inspected: SimHandBest = search.search(
@@ -128,10 +127,10 @@ func test_cache_keeps_slot_changes_apart() -> void:
 	var with_engine: Array[UpgradeDefinition] = [engine]
 	var with_both: Array[UpgradeDefinition] = [engine, basket]
 	var hand_ids: String = "banana,bread,milk,eggs,cheese,soup"
-	var search: SimRowSearch = SimRowSearch.new(_balance(6, 1))
+	var search: SimRowSearch = SimRowSearch.new(_balance(7))
 	var engine_best: int = search.search(_cards(hand_ids), with_engine).score
 	var both_best: int = search.search(_cards(hand_ids), with_both).score
-	var fresh: SimRowSearch = SimRowSearch.new(_balance(6, 1))
+	var fresh: SimRowSearch = SimRowSearch.new(_balance(7))
 	assert_int(both_best).is_equal(fresh.search(_cards(hand_ids), with_both).score)
 	assert_int(both_best).is_less(engine_best)
 
@@ -354,17 +353,14 @@ func _brute_force(
 		if not used:
 			without[card.definition] = maxi(without.get(card.definition, -1), total)
 	for card: CardInstance in hand:
-		if (
-			not row.has(card)
-			and RowCapacity.fits(_no_upgrade_limits(balance), typed_row, card.definition)
-		):
+		if not row.has(card) and RowCapacity.fits(_no_upgrade_limits(balance), typed_row):
 			_brute_force(balance, hand, row + [card], result)
 
 
 ## A 3-shift test balance with the live machine (#77; STAMP DAY after shift 2) and the live
 ## register pool; `inspection_shifts` are inspected (a BONUS visit follows each).
 func _player(strategy: String, inspection_shifts: Array = []) -> SimPlayer:
-	var balance: BalanceDefinition = _balance(6, 1)
+	var balance: BalanceDefinition = _balance(7)
 	var live: BalanceDefinition = load("res://data/balance/balance.tres")
 	balance.machine = live.machine
 	balance.upgrade_pool = live.upgrade_pool.duplicate()
@@ -404,10 +400,9 @@ static func _third_product_pays_zero() -> InspectionDefinition:
 	return inspection
 
 
-static func _balance(slots: int, coupon_slots: int) -> BalanceDefinition:
+static func _balance(slots: int) -> BalanceDefinition:
 	var balance: BalanceDefinition = BalanceDefinition.new()
 	balance.slot_count = slots
-	balance.coupon_slot_count = coupon_slots
 	return balance
 
 

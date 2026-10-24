@@ -44,6 +44,24 @@ func test_bonus_is_base_reads_the_base() -> void:
 	assert_str(banana.sticker_summary()).is_equal("+2 or +2 after Banana")
 
 
+## The Banana chain (#106): `{bonus}` reads "prev", after its factor when that is not 1, and a
+## tier counting it twice shows as a changed bonus.
+func test_chain_bonus_reads_prev() -> void:
+	var rule: AdjacentMatchBonusRule = AdjacentMatchBonusRule.new()
+	rule.match_by = AdjacentMatchBonusRule.Match.SAME_CARD
+	rule.position = AdjacentMatchBonusRule.Position.IMMEDIATELY_AFTER
+	rule.bonus_is_previous_price = true
+	var banana: CardDefinition = _card("Banana", 2, rule)
+	banana.sticker_text = "+{bonus} after {name}"
+	assert_str(banana.sticker_summary()).is_equal("+prev after Banana")
+	var twice: AdjacentMatchBonusRule = rule.duplicate() as AdjacentMatchBonusRule
+	twice.bonus_factor = 2
+	var golden: CardDefinition = _card("Banana", 4, twice)
+	golden.sticker_text = "+{bonus} after {name}"
+	assert_str(golden.sticker_summary()).is_equal("+2× prev after Banana")
+	assert_array(Array(CardText.changed_fields(banana, golden))).is_equal(["base", "bonus"])
+
+
 ## Keys outside STICKER_KEYS (enums, bools, the card's id) stay unformatted, braces
 ## and all, so the live-data test catches them instead of printing "2" for an enum.
 func test_other_keys_are_left_unformatted() -> void:

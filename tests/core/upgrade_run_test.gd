@@ -25,13 +25,13 @@ func test_balance_upgrade_data_fits_the_run() -> void:
 				"big_basket",
 				"category_engine",
 				"coupon_engine",
-				"extra_coupon_slot",
 				"extra_redraw",
 				"slot_engine",
 			]
 		)
 	)
-	# One per type, and two Economy upgrades (plan v0.24); Rule bender left the pool in #42.
+	# One per type (Extra coupon slot, the second Economy one, left in v0.56, #106); Rule bender
+	# left the pool in #42.
 	assert_int(types.size()).is_equal(5)
 	# The loyalty card holds 3 machine registers (#77).
 	assert_int(balance.machine.register_cap).is_equal(3)

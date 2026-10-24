@@ -1,6 +1,6 @@
 extends GdUnitTestSuite
-## RunState: the shift flow from plan sections 2 and 3 (draw 8, place up to 6 products and 7
-## cards in a compacted row, checkout always allowed, one shift per quota with rising quotas).
+## RunState: the shift flow from plan sections 2 and 3 (draw 8, place up to 7 cards of any kind
+## in a compacted row, checkout always allowed, one shift per quota with rising quotas).
 ## The basket redraw's tests are in basket_redraw_test.gd.
 
 const STARTER := "res://data/decks/starter.tres"
@@ -16,8 +16,7 @@ func test_balance_matches_the_plan() -> void:
 	assert_array(Array(balance.quotas)).is_equal([29, 35, 53, 61, 73, 98, 111, 120])
 	assert_int(balance.hand_size).is_equal(8)
 	assert_int(balance.basket_size).is_equal(2)
-	assert_int(balance.slot_count).is_equal(6)
-	assert_int(balance.coupon_slot_count).is_equal(1)
+	assert_int(balance.slot_count).is_equal(7)
 	assert_int(balance.deck_limit).is_equal(15)
 
 
@@ -46,100 +45,38 @@ func test_place_keeps_the_row_compacted() -> void:
 	assert_bool(run.hand().has(cards[0])).is_true()
 
 
-## Plan section 3.1: 6 shared slots + 1 coupon-only slot.
-func test_six_products_then_only_a_coupon_fits() -> void:
+## Plan section 3.1 (v0.46, #106): 7 general slots, any card in any slot. Seven products fill
+## the row, and so do seven coupons.
+func test_seven_cards_of_any_kind_fill_the_row() -> void:
 	var run: RunState = _run(3)
-	for index: int in range(6):
+	for index: int in range(7):
 		assert_bool(run.place(_add(run, BREAD), index)).is_true()
-	var product: CardInstance = _add(run, BREAD)
-	assert_bool(RowCapacity.products_full(run.limits, run.row)).is_true()
-	assert_bool(run.can_place(product)).is_false()
-	assert_bool(run.place(product, 6)).is_false()
-	var coupon: CardInstance = _add(run, REPEAT)
-	assert_bool(run.can_place(coupon)).is_true()
-	# The coupon slot is a capacity, not a position: the coupon can go anywhere in the row.
-	assert_bool(run.place(coupon, 3)).is_true()
-	assert_object(run.row[3]).is_same(coupon)
-	assert_int(run.row.size()).is_equal(7)
-	assert_int(RowCapacity.product_count(run.row)).is_equal(6)
-
-
-func test_seven_cards_fill_the_row() -> void:
-	var run: RunState = _run(3)
-	for index: int in range(6):
-		run.place(_add(run, BREAD), index)
-	run.place(_add(run, REPEAT), 0)
 	assert_int(run.row.size()).is_equal(RowCapacity.card_limit(run.limits))
 	assert_bool(run.can_place(_add(run, BREAD))).is_false()
 	var coupon: CardInstance = _add(run, REPEAT)
 	assert_bool(run.can_place(coupon)).is_false()
 	assert_bool(run.place(coupon, 2)).is_false()
 	assert_int(run.row.size()).is_equal(7)
+	var coupons: RunState = _run(13)
+	for index: int in range(7):
+		assert_bool(coupons.place(_add(coupons, REPEAT), index)).is_true()
+	assert_bool(coupons.can_place(_add(coupons, BREAD))).is_false()
 
 
-func test_two_coupons_and_five_products_fit() -> void:
-	var run: RunState = _run(13)
-	assert_bool(run.place(_add(run, REPEAT), 0)).is_true()
-	for index: int in range(5):
-		assert_bool(run.place(_add(run, BREAD), run.row.size())).is_true()
-	assert_bool(run.place(_add(run, REPEAT), 3)).is_true()
-	assert_int(run.row.size()).is_equal(7)
-	assert_int(RowCapacity.product_count(run.row)).is_equal(5)
-	assert_int(RowCapacity.coupon_slots_used(run.limits, run.row)).is_equal(1)
-
-
-func test_a_coupon_in_the_row_does_not_let_a_seventh_product_in() -> void:
-	var run: RunState = _run(14)
-	run.place(_add(run, REPEAT), 0)
-	for index: int in range(6):
-		assert_bool(run.place(_add(run, BREAD), run.row.size())).is_true()
-	assert_bool(run.can_place(_add(run, BREAD))).is_false()
-	# Without the coupon: six products and one free slot, and that slot is the coupon slot.
-	run.remove(run.row[0])
-	assert_int(run.row.size()).is_equal(6)
-	assert_int(RowCapacity.coupon_slots_used(run.limits, run.row)).is_equal(0)
-	assert_bool(run.can_place(_add(run, BREAD))).is_false()
-	assert_bool(run.can_place(_add(run, REPEAT))).is_true()
-
-
+## A product takes the slot a coupon left, and a coupon the slot a product left.
 func test_remove_frees_capacity_again() -> void:
 	var run: RunState = _run(16)
 	for index: int in range(6):
 		run.place(_add(run, BREAD), index)
-	run.place(_add(run, REPEAT), 6)
+	run.place(_add(run, REPEAT), 3)
 	var product: CardInstance = _add(run, BREAD)
 	assert_bool(run.can_place(product)).is_false()
-	assert_bool(run.remove(run.row[0])).is_true()
+	assert_bool(run.remove(run.row[3])).is_true()
 	assert_bool(run.can_place(product)).is_true()
 	assert_bool(run.place(product, 0)).is_true()
 	assert_bool(run.remove(run.row[6])).is_true()
 	assert_bool(run.can_place(_add(run, REPEAT))).is_true()
-	assert_bool(run.can_place(_add(run, BREAD))).is_false()
-
-
-## The first coupon takes the coupon slot wherever it sits; a second one uses a product slot.
-func test_the_first_coupon_takes_the_coupon_slot() -> void:
-	var run: RunState = _run(17)
-	run.place(_add(run, BREAD), 0)
-	assert_int(RowCapacity.coupon_slots_used(run.limits, run.row)).is_equal(0)
-	run.place(_add(run, REPEAT), 0)
-	assert_int(RowCapacity.coupon_slots_used(run.limits, run.row)).is_equal(1)
-	run.place(_add(run, REPEAT), 1)
-	assert_int(RowCapacity.coupon_slots_used(run.limits, run.row)).is_equal(1)
-
-
-## The neutral script default: without coupon slots the row holds slot_count cards of any kind.
-func test_without_coupon_slots_the_row_holds_slot_count_cards() -> void:
-	var balance: BalanceDefinition = load(BALANCE).duplicate()
-	balance.coupon_slot_count = 0
-	var deck: DeckDefinition = load(STARTER)
-	var run: RunState = RunState.new(18, deck, balance, RunStock.starting(balance))
-	run.start_shift()
-	for index: int in range(6):
-		run.place(_add(run, REPEAT if index == 2 else BREAD), index)
-	assert_int(RowCapacity.card_limit(run.limits)).is_equal(6)
-	assert_bool(run.can_place(_add(run, REPEAT))).is_false()
-	assert_bool(run.can_place(_add(run, BREAD))).is_false()
+	assert_bool(run.can_place(_add(run, BREAD))).is_true()
 
 
 ## Scoring has no row limit of its own: a 7-card row scores like any other (plan section 3.1).

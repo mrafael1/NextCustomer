@@ -72,7 +72,7 @@ func climb(
 	var row: Array[CardInstance] = []
 	if start.is_empty():
 		for card: CardInstance in hand:
-			if RowCapacity.fits(limits, row, card.definition):
+			if RowCapacity.fits(limits, row):
 				row.append(card)
 	else:
 		row = start.duplicate()
@@ -102,8 +102,8 @@ func climb(
 
 ## What a total depends on besides the row (Scoring reads nothing else of them): the upgrades
 ## and the inspections that have rules, in order (by resource, so two resources never share a
-## key), and the product slots they all add or close (ScoreState.product_slot_change, which a
-## rule can read). So a register without rules (Extra redraw, Extra coupon slot) shares the
+## key), and the slots they all add or close (ScoreState.product_slot_change, which a
+## rule can read). So a register without rules (Extra redraw) shares the
 ## totals of the rows it doesn't change.
 static func context_key(
 	upgrades: Array[UpgradeDefinition], inspections: Array[InspectionDefinition]
@@ -134,10 +134,7 @@ static func row_key(row: Array[CardInstance]) -> String:
 func _climb_key(
 	context: String, hand: Array[CardInstance], limits: ShiftLimits, start: Array[CardInstance]
 ) -> String:
-	var key: String = (
-		"%s/%d/%d/%d/%s/"
-		% [context, limits.slot_count, limits.coupon_slot_count, max_changes, row_key(hand)]
-	)
+	var key: String = "%s/%d/%d/%s/" % [context, limits.slot_count, max_changes, row_key(hand)]
 	for card: CardInstance in start:
 		var position: int = hand.find(card)
 		if position < 0:

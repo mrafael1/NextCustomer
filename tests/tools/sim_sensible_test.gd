@@ -13,7 +13,7 @@ func test_no_change_keeps_the_hand_order() -> void:
 	var hand: Array[CardInstance] = _cards("cheese,bread,banana")
 	var climber: SimHillClimb = SimHillClimb.new()
 	climber.max_changes = 0
-	var row: SimHandBest = climber.climb(hand, _limits(6, 1), _no_upgrades(), _no_inspections())
+	var row: SimHandBest = climber.climb(hand, _limits(7), _no_upgrades(), _no_inspections())
 	assert_array(_ids(row.row)).is_equal(["cheese", "bread", "banana"])
 	assert_int(row.score).is_equal(Scoring.score(row.row).total)
 
@@ -26,7 +26,7 @@ func test_each_change_is_the_best_single_change_up_to_the_cap() -> void:
 	for changes: int in expected:
 		climber.max_changes = changes
 		var row: SimHandBest = climber.climb(
-			_cards("banana,cheese,bread,banana"), _limits(6, 1), _no_upgrades(), _no_inspections()
+			_cards("banana,cheese,bread,banana"), _limits(7), _no_upgrades(), _no_inspections()
 		)
 		assert_int(row.score).is_equal(expected[changes])
 		assert_int(Scoring.score(row.row).total).is_equal(row.score)
@@ -41,18 +41,18 @@ func test_rows_fit_the_limits_and_never_beat_the_best() -> void:
 		"bread,bread,bread,bread,bread,bread,bread,repeat",
 		"multipack,repeat,final_markdown,breakfast_sticker,milk,coffee,bread,banana",
 	]
-	for slots: int in [6, 5]:
-		var balance: BalanceDefinition = _balance(slots, 1)
+	for slots: int in [7, 6]:
+		var balance: BalanceDefinition = _balance(slots)
 		var search: SimRowSearch = SimRowSearch.new(balance)
 		for ids: String in hands:
 			var row: SimHandBest = SimHillClimb.new().climb(
-				_cards(ids), _limits(slots, 1), _no_upgrades(), _no_inspections()
+				_cards(ids), _limits(slots), _no_upgrades(), _no_inspections()
 			)
-			assert_bool(SimHillClimb.fits(_limits(slots, 1), row.row)).is_true()
+			assert_bool(SimHillClimb.fits(_limits(slots), row.row)).is_true()
 			assert_int(Scoring.score(row.row).total).is_equal(row.score)
 			assert_int(row.score).is_less_equal(search.search(_cards(ids), _no_upgrades()).score)
 			var again: SimHandBest = SimHillClimb.new().climb(
-				_cards(ids), _limits(slots, 1), _no_upgrades(), _no_inspections()
+				_cards(ids), _limits(slots), _no_upgrades(), _no_inspections()
 			)
 			assert_array(_ids(again.row)).is_equal(_ids(row.row))
 
@@ -63,9 +63,7 @@ func test_a_climb_can_start_from_a_kept_row() -> void:
 	var start: Array[CardInstance] = [hand[3], hand[1]]
 	var climber: SimHillClimb = SimHillClimb.new()
 	climber.max_changes = 0
-	var row: SimHandBest = climber.climb(
-		hand, _limits(6, 1), _no_upgrades(), _no_inspections(), start
-	)
+	var row: SimHandBest = climber.climb(hand, _limits(7), _no_upgrades(), _no_inspections(), start)
 	assert_array(_ids(row.row)).is_equal(["bread", "cheese"])
 	assert_int(row.score).is_equal(10)
 
@@ -76,7 +74,7 @@ func test_a_climb_can_start_from_a_kept_row() -> void:
 func test_a_remembered_climb_is_the_same_climb() -> void:
 	var climber: SimHillClimb = SimHillClimb.new()
 	var fresh: SimHillClimb = SimHillClimb.new()
-	var limits: ShiftLimits = _limits(6, 1)
+	var limits: ShiftLimits = _limits(7)
 	for ids: String in ["banana,cheese,bread,banana", "eggs,bread,repeat,banana,cheese"]:
 		var hand: Array[CardInstance] = _cards(ids)
 		var first: SimHandBest = climber.climb(hand, limits, _no_upgrades(), _no_inspections())
@@ -311,7 +309,7 @@ static func _id(resource: Resource) -> String:
 
 
 func _player(strategy: String) -> SimPlayer:
-	var balance: BalanceDefinition = _balance(6, 1)
+	var balance: BalanceDefinition = _balance(7)
 	balance.quotas = PackedInt32Array([5, 8, 12])
 	balance.hand_size = 5
 	balance.base_redraws = 1
@@ -336,15 +334,14 @@ func _player(strategy: String) -> SimPlayer:
 	return SimPlayer.new(deck, balance, SimRowSearch.new(balance), strategy, 2)
 
 
-static func _balance(slots: int, coupon_slots: int) -> BalanceDefinition:
+static func _balance(slots: int) -> BalanceDefinition:
 	var balance: BalanceDefinition = BalanceDefinition.new()
 	balance.slot_count = slots
-	balance.coupon_slot_count = coupon_slots
 	return balance
 
 
-static func _limits(slots: int, coupon_slots: int) -> ShiftLimits:
-	return ShiftLimits.for_shift(_balance(slots, coupon_slots), _no_upgrades(), 0)
+static func _limits(slots: int) -> ShiftLimits:
+	return ShiftLimits.for_shift(_balance(slots), _no_upgrades(), 0)
 
 
 static func _no_upgrades() -> Array[UpgradeDefinition]:

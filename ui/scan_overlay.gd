@@ -3,7 +3,7 @@ extends Control
 ## The scan's marks over the stage (#75; mock-up B2, #80): corner brackets around the scanned
 ## sprite (gold for the count-up's current scan, tomato for a hover) and a scan line across its
 ## middle. B2 has no handheld scanner, so nothing stands over the sprite. One rule serves the belt
-## and the hand. The sprite rects it takes are global, so a scaled row (RowStrip's 8 and 9 slots)
+## and the hand. The sprite rects it takes are global, so a scaled row (RowStrip's 8 slots)
 ## is marked where it is drawn. The marks snap into place; only a hover's scan line may pulse
 ## (start_beam_loop), which reduced motion leaves off.
 ##

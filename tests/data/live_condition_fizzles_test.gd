@@ -69,7 +69,8 @@ func test_only_a_lone_pair_card_fizzles() -> void:
 
 
 ## The BIG and GOLDEN Bananas (#77) count as Banana: a mixed pair shows no WASTED either way
-## round, and the GOLDEN one after a Banana still pays its doubled bonus.
+## round, and the GOLDEN one after a Banana still pays its doubled bonus (twice the plain
+## Banana's price, #106).
 func test_a_mixed_tier_banana_pair_never_fizzles() -> void:
 	var banana: CardDefinition = load("%s/banana.tres" % CARDS_DIR)
 	for tier_id: String in ["banana_big", "banana_golden"]:
@@ -81,7 +82,7 @@ func test_a_mixed_tier_banana_pair_never_fizzles() -> void:
 			assert_array(_wasted(result)).override_failure_message(tier_id).is_empty()
 	var golden: CardDefinition = load("%s/banana_golden.tres" % CARDS_DIR)
 	var paid: ScoreResult = Scoring.score(_row([banana, golden]))
-	assert_int(paid.payouts[1]).is_equal(golden.base * 3)
+	assert_int(paid.payouts[1]).is_equal(golden.base + 2 * banana.base)
 
 
 ## Every other "just before" adjacency card still fizzles with its partner right after it: only

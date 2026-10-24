@@ -37,7 +37,7 @@ extends SceneTree
 ##                     exact odds); kept so older command lines still run (default 1000)
 ##   --orphan-samples=N hands per capsule item for the orphan check (full build plan 7.2), 0 to
 ##                     leave it out (default 30)
-##   --duel-samples=N  hands for the coupon-slot comparison, 0 to leave it out (default 200)
+##   --duel-samples=N  hands for the coupon comparison, 0 to leave it out (default 200)
 ##   --chains=N        also play N chained profiles per strategy (SimChain, decided with the user
 ##                     in #41): each starts fresh and plays run after run, its coins buying
 ##                     capsules, to measure the runs to 30 unlocks (default 0: none)
@@ -606,7 +606,7 @@ func _cache_file() -> String:
 		context[upgrade.resource_path] = FileAccess.get_file_as_string(upgrade.resource_path)
 	for inspection: InspectionDefinition in _balance.inspection_pool:
 		context[inspection.resource_path] = FileAccess.get_file_as_string(inspection.resource_path)
-	context["limits"] = [_balance.slot_count, _balance.coupon_slot_count]
+	context["limits"] = [_balance.slot_count]
 	var keys: Array = context.keys()
 	keys.sort()
 	var text: String = ""
@@ -657,9 +657,7 @@ func _report(summaries: Array[SimSummary], seconds: float) -> String:
 			% [build_label, _starter.id, _runs_text(summaries)]
 		)
 	)
-	var row_text: String = (
-		"%d product slots + %d coupon slot" % [_balance.slot_count, _balance.coupon_slot_count]
-	)
+	var row_text: String = "%d slots" % _balance.slot_count
 	var redraw_text: String = (
 		"%d redraws of a basket (%d items)" % [_balance.base_redraws, _balance.basket_size]
 	)
@@ -856,23 +854,18 @@ func _write_json(summaries: Array[SimSummary], seconds: float) -> int:
 
 
 ## Every run record by scenario key, with the quota and coin data tools/quota_fit.py needs to
-## replay the runs under another quota curve: the base quotas played, each upgrade's
-## quota_percent (Big basket raises the quota from the shift after its pick) and the coin
-## amounts (CoinPayout).
+## replay the runs under another quota curve: the quotas played and the coin amounts
+## (CoinPayout).
 func _write_records() -> int:
 	var scenarios: Dictionary[String, Array] = {}
 	for key: String in _records:
 		scenarios[key] = _records[key].map(
 			func(record: SimRunRecord) -> Dictionary: return record.to_dictionary()
 		)
-	var percents: Dictionary[String, int] = {}
-	for upgrade: UpgradeDefinition in _balance.upgrade_pool:
-		percents[String(upgrade.id)] = upgrade.quota_percent
 	var data: Dictionary = {
 		"build_label": ProjectSettings.get_setting("next_customer/build_label", ""),
 		"options": _simulation_options(),
 		"quotas": Array(_balance.quotas),
-		"upgrade_quota_percent": percents,
 		"coins_by_shifts_passed": Array(_balance.coins_by_shifts_passed),
 		"overtime_coin_euros": _balance.overtime_coin_euros,
 		"overtime_coin_max": _balance.overtime_coin_max,

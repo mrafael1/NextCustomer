@@ -16,6 +16,15 @@ extends RefCounted
 ## played time. Ids resolve through a ContentLookup, and the stock is restored from its ids, so a
 ## resume never depends on a profile that changed after the run started.
 ##
+## Content retired by a rule change (ContentLookup.RETIRED_UPGRADES and RETIRED_INSPECTIONS,
+## plan v0.46) still reads, as inert stand-ins: a retired register is dropped from the run's
+## registers (the history keeps its pick), a retired inspection stays on its shift with no effect
+## (so the shift keeps its bonus ticket). With a register dropped, a planning row longer than the
+## shift's slots (Extra coupon slot's last card) gives its last cards back to the hand, and a row
+## already checked out with that slot is checked by its total only. A retired register's pick
+## doesn't count toward the register cap (RewardMachine.registers_picked), and a visit waiting for
+## its pick no longer offers one (MachineVisit.drop_retired_prizes).
+##
 ## The seed and the RNG state are decimal strings: JSON numbers are doubles and lose precision
 ## above 2^53. The draw pile is saved only during PLANNING (the next shift reshuffles the whole
 ## deck, so it means nothing after the checkout).
@@ -24,7 +33,13 @@ extends RefCounted
 ## read: an older save (version 1, from before the machine; version 2, with the machine's
 ## Regular levels, before v0.47's two machine states; version 3, before v0.49's dealt starting
 ## deck) is refused, so SaveService keeps it as a .bad backup and a new run starts.
-const FORMAT_VERSION := 4
+const FORMAT_VERSION := 5
+## Version 4 has the same saved form, scored before v0.46's Banana chain (#106), and is still
+## read: after its checkout the row scores again by today's rules, so a row with a Banana after a
+## Banana can total otherwise than its record. The record's total stands (it decided the shift
+## and the machine's visits) and last_result is today's score of the row. Saved again, it is
+## version 5.
+const BEFORE_BANANA_CHAIN_VERSION := 4
 ## The save points, and their names in the saved form (the run_resume event uses them too).
 const SAVE_POINTS: Array[RunState.Phase] = [
 	RunState.Phase.PLANNING,
@@ -99,8 +114,12 @@ static func to_dictionary(saved_run: RunState, saved_run_id: String, played_ms: 
 ## _is_consistent). Never prints anything.
 static func from_dictionary(data: Dictionary, lookup: ContentLookup) -> RunSave:
 	var version: Variant = data.get("format_version")
-	if not SaveReader.is_whole(version) or int(version) != FORMAT_VERSION:
+	if (
+		not SaveReader.is_whole(version)
+		or not [FORMAT_VERSION, BEFORE_BANANA_CHAIN_VERSION].has(int(version))
+	):
 		return null
+	var rescored: bool = int(version) == BEFORE_BANANA_CHAIN_VERSION
 	var reader: SaveReader = SaveReader.new(data, lookup)
 	var starter: DeckDefinition = reader.deck("starter")
 	var starting_cards: Array[CardDefinition] = reader.cards("starting_deck")
@@ -133,6 +152,7 @@ static func from_dictionary(data: Dictionary, lookup: ContentLookup) -> RunSave:
 		machine_data is Dictionary
 		and restored.machine.restore_from(machine_data as Dictionary, lookup)
 	)
+	var retired: bool = _drop_retired_registers(restored)
 	# The limits the shift started with (its quota and slots): after the checkout, a register
 	# picked from the machine applies only from the next shift.
 	if restored.shift_index < restored.shift_count():
@@ -141,14 +161,46 @@ static func from_dictionary(data: Dictionary, lookup: ContentLookup) -> RunSave:
 		)
 	var history_ok: bool = _restore_history(restored, reader.dictionaries("history"), lookup)
 	var cards_ok: bool = _restore_cards(restored, reader)
+	if retired and restored.phase == RunState.Phase.PLANNING:
+		_fit_row(restored)
 	var save: RunSave = RunSave.new()
 	save.run = restored
 	save.run_id = reader.text("run_id")
 	save.run_ms = reader.whole("run_ms")
 	var ok: bool = reader.ok and machine_ok and history_ok and cards_ok
-	if not ok or restored.phase != SAVE_POINTS[phase_index] or not _is_consistent(restored):
+	if (
+		not ok
+		or restored.phase != SAVE_POINTS[phase_index]
+		or not _is_consistent(restored, retired, rescored)
+	):
 		return null
 	return save
+
+
+## Drops the retired registers (inert stand-ins) from the run's registers, and from the count
+## owned at the last checkout. True when there was one.
+static func _drop_retired_registers(restored: RunState) -> bool:
+	var kept: Array[UpgradeDefinition] = []
+	var at_checkout: int = restored.machine.upgrades_at_checkout
+	for index: int in range(restored.upgrades.size()):
+		var upgrade: UpgradeDefinition = restored.upgrades[index]
+		if not ContentLookup.is_retired(upgrade):
+			kept.append(upgrade)
+		elif index < restored.machine.upgrades_at_checkout:
+			at_checkout -= 1
+	var dropped: bool = kept.size() < restored.upgrades.size()
+	restored.upgrades = kept
+	restored.machine.upgrades_at_checkout = at_checkout
+	return dropped
+
+
+## A planning row longer than the shift's slots (saved with a retired register's slot) gives its
+## last cards back to the hand: they stay hand cards, only out of the row.
+static func _fit_row(restored: RunState) -> void:
+	if restored.shift_index >= restored.shift_count():
+		return
+	if restored.row.size() > RowCapacity.card_limit(restored.limits):
+		restored.row.resize(RowCapacity.card_limit(restored.limits))
 
 
 static func _restore_history(
@@ -214,15 +266,17 @@ static func _index(cards: Array[CardInstance], into: Dictionary[int, CardInstanc
 ## Whether the restored run is a state the game reaches at its save point. Restores
 ## last_result after the checkout: the row is kept until the next shift starts, so scoring it
 ## again with the upgrades owned at the checkout gives the checkout's result, which must be the
-## last record's total.
-static func _is_consistent(restored: RunState) -> bool:
+## last record's total. `retired`: a retired register was dropped, so a row checked out with its
+## slot is checked by its total only. `rescored`: a save from before the Banana chain
+## (BEFORE_BANANA_CHAIN_VERSION), whose row may now total otherwise, so the total isn't checked.
+static func _is_consistent(restored: RunState, retired: bool, rescored: bool) -> bool:
 	if restored.shift_index >= restored.shift_count():
 		return false
 	var ok: bool = _history_fits(restored) and _phase_fits(restored)
-	# The row's limits, as place() keeps them: a save made before the balance's slots were
-	# lowered can't be resumed.
-	ok = ok and restored.row.size() <= RowCapacity.card_limit(restored.limits)
-	ok = ok and RowCapacity.product_count(restored.row) <= restored.limits.slot_count
+	# The row's limit, as place() keeps it: a save made before the balance's slots were lowered
+	# can't be resumed.
+	if not retired or restored.phase == RunState.Phase.PLANNING:
+		ok = ok and RowCapacity.row_fits(restored.limits, restored.row)
 	ok = ok and restored.redraws_used <= restored.redraws_allowed
 	for card: CardDefinition in restored.stock.new_arrivals:
 		ok = ok and restored.stock.cards.has(card)
@@ -233,6 +287,8 @@ static func _is_consistent(restored: RunState) -> bool:
 	restored.last_result = Scoring.score(
 		restored.row, _played_upgrades(restored), restored.inspections
 	)
+	if rescored:
+		return true
 	return restored.last_result.total == restored.history[-1].total and restored.passed()
 
 
@@ -269,7 +325,7 @@ static func _phase_fits(restored: RunState) -> bool:
 		and machine.upgrades_at_checkout <= restored.upgrades.size()
 		and (
 			restored.upgrades.size() - machine.upgrades_at_checkout
-			== record.registers_taken().size()
+			== _live_count(record.registers_taken())
 		)
 		and picked <= machine.machine.register_cap
 	)
@@ -288,6 +344,17 @@ static func _phase_fits(restored: RunState) -> bool:
 	if visit.chute == RewardMachine.Chute.REGISTER:
 		ok = ok and picked < machine.machine.register_cap
 	return ok
+
+
+## The registers that aren't retired stand-ins.
+static func _live_count(registers: Array[UpgradeDefinition]) -> int:
+	return (
+		registers
+		. filter(
+			func(upgrade: UpgradeDefinition) -> bool: return not ContentLookup.is_retired(upgrade)
+		)
+		. size()
+	)
 
 
 static func _after_checkout(restored: RunState) -> bool:

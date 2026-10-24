@@ -4,7 +4,7 @@ extends Control
 ## captures (docs/art/style_frame_*.png and style_frame_v2_*.png) stay as the record of the
 ## approved frames. #56 adds the other screens.
 ##
-## The shift: shift 5 of 8 on a fixed seed, under Short belt (5 product slots and a CLOSED one),
+## The shift: shift 5 of 8 on a fixed seed, under Short belt (6 slots and a CLOSED one),
 ## with a fixed full hand of 8 items in its baskets, four items on the belt with their tickets
 ## and corner marks, the itemised planning receipt, and a 4-box loyalty card (a starting upgrade
 ## and the upgrades of shifts 2 and 4 stamped, shift 6's box empty). The hand and the belt hold

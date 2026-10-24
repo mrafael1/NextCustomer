@@ -15,7 +15,6 @@ extends Resource
 @export var chip_text: String = ""
 ## Scoring rules, asked about every slot by the scoring loop (never attached to a card).
 @export var rules: Array[InspectionRule] = []
-## Shift modifiers (ShiftLimits), added to the run's: product slots and coupon-only slots, negative
-## to close slots for this shift (Short belt: -1 product slot; Coupon slot closed: -1 coupon slot).
+## Shift modifier (ShiftLimits), added to the run's slots: negative to close slots for this shift
+## (Short belt: -1 slot).
 @export var extra_slots: int = 0
-@export var extra_coupon_slots: int = 0

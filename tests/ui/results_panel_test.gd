@@ -15,14 +15,14 @@ const MUSIC_SCRIPT := preload("res://presentation/music.gd")
 const SCREEN_RECT := Rect2(0, 0, 1280, 720)
 ## The longest names of each kind, for the widest lines.
 const LONG_CARD := "res://data/cards/breakfast_sticker.tres"
-const LONG_UPGRADE := "res://data/upgrades/extra_coupon_slot.tres"
-const LONG_INSPECTION := "res://data/inspections/coupon_slot_closed.tres"
+const LONG_UPGRADE := "res://data/upgrades/category_engine.tres"
+const LONG_INSPECTION := "res://data/inspections/short_belt.tres"
 const STARTING_UPGRADE := "res://data/upgrades/big_basket.tres"
 const SPOT_CHECK := "res://data/inspections/spot_check.tres"
 const UPGRADES: Array[String] = [
 	"res://data/upgrades/coupon_engine.tres",
 	"res://data/upgrades/category_engine.tres",
-	"res://data/upgrades/extra_coupon_slot.tres",
+	"res://data/upgrades/extra_redraw.tres",
 ]
 ## A line prints no earlier than planned (less a ms of rounding), and at most this much later
 ## (frame boundaries in the headless runner).
@@ -347,9 +347,7 @@ func _full_run(screen: ShiftScreen) -> void:
 			record.visits.append(ticket)
 		if run.balance.inspection_shifts.has(shift):
 			record.inspection = load(LONG_INSPECTION)
-			var bonus: MachineVisit = MachineVisit.new(
-				MachineVisit.Kind.BONUS, "coupon_slot_closed"
-			)
+			var bonus: MachineVisit = MachineVisit.new(MachineVisit.Kind.BONUS, "short_belt")
 			bonus.chute = RewardMachine.Chute.REGISTER
 			var register: MachinePrize = MachinePrize.new(
 				MachinePrize.Kind.REGISTER, MachinePrize.Rarity.COMMON, null, load(LONG_UPGRADE)

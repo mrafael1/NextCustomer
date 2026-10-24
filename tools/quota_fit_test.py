@@ -37,7 +37,6 @@ def make_run(totals: list[int], upgrades: list[str] | None = None, inspections: 
 def make_records(scenarios: dict[str, list[dict]], quotas: list[int] | None = None) -> dict:
     return {
         "quotas": quotas or [0, 0, 0],
-        "upgrade_quota_percent": {"big_basket": 15, "slot_engine": 0},
         "coins_by_shifts_passed": [0, 0, 1, 2],
         "overtime_coin_euros": 60,
         "overtime_coin_max": 1,
@@ -62,16 +61,20 @@ class ReplayTest(unittest.TestCase):
         self.assertEqual(won.overtime, 0)
         self.assertEqual(qf.replay(run, [5, 5, 5]).overtime, 5 + 15 + 25)
 
-    def test_big_basket_raises_the_quota_from_the_next_shift_rounded_up(self) -> None:
-        # ShiftLimits.raised_quota: 17 * 1.15 = 19.55 -> 20.
-        self.assertEqual(qf.raised_quota(17, 15), 20)
-        self.assertEqual(qf.raised_quota(17, 0), 17)
-        run = to_runs([make_run([10, 19, 30], upgrades=["big_basket", "", ""])])[0]
+    def test_big_basket_no_longer_raises_the_quota(self) -> None:
+        # plan v0.46 (#106): Big basket lost its quota raise; an older record's percents are ignored.
+        entries = [make_run([10, 19, 30], upgrades=["big_basket", "", ""])]
+        records = make_records({"s": entries})
+        records["upgrade_quota_percent"] = {"big_basket": 15}
+        with tempfile.TemporaryDirectory() as folder:
+            path = Path(folder) / "records.json"
+            path.write_text(json.dumps(records), encoding="utf-8")
+            run = qf.load_records(path).scenarios["s"][0]
         outcome = qf.replay(run, [10, 17, 17])
-        self.assertEqual(outcome.quotas, [10, 20])
-        self.assertEqual(outcome.shifts_passed, 1)
+        self.assertEqual(outcome.quotas, [10, 17, 17])
+        self.assertTrue(outcome.won)
 
-    def test_two_registers_in_one_shift_both_raise_the_quota(self) -> None:
+    def test_every_register_of_a_shift_is_recorded(self) -> None:
         # #77: the machine's visits (a REGISTER pick and STAMP DAY's) record every register.
         entry = make_run([10, 30, 30])
         register = {"kind": "register", "id": "big_basket", "rarity": 0}
@@ -86,9 +89,6 @@ class ReplayTest(unittest.TestCase):
         ]
         run = to_runs([entry])[0]
         self.assertEqual(run.upgrades_taken, [["big_basket", "big_basket"], [], []])
-        self.assertEqual(run.percents_taken, [30, 0, 0])
-        # 20 * 1.30 = 26.
-        self.assertEqual(qf.replay(run, [10, 20, 20]).quotas, [10, 26, 26])
 
     def test_a_run_cut_short_by_its_recorded_quotas_is_incomplete(self) -> None:
         run = to_runs([make_run([10, 20])])[0]

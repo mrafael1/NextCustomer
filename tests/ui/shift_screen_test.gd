@@ -125,24 +125,18 @@ func test_full_row_highlights_no_slot() -> void:
 			assert_bool(screen._row_strip.is_outlined(slot)).is_false()
 
 
-## Plan section 3.1: 6 shared slots + 1 coupon-only slot, and the window fits all 7. The coupon
-## slot is a count, not a position: no panel is marked for coupons, because a new player
-## would read that as "coupons only go here" (playtest feedback).
-func test_the_row_shows_the_coupon_slot() -> void:
+## Plan section 3.1 (v0.46, #106): 7 general slots, and the window fits all 7. Any card goes in
+## any slot: no panel is marked for coupons.
+func test_the_row_shows_seven_general_slots() -> void:
 	var runner: GdUnitSceneRunner = scene_runner(SCREEN)
 	var screen: ShiftScreen = runner.scene()
 	assert_int(screen._slots.size()).is_equal(7)
 	for slot: int in range(7):
 		assert_str(_slot_hint(screen, slot)).is_equal(str(slot + 1))
 	var run: RunState = screen.run
-	assert_int(run.limits.slot_count).is_equal(6)
-	assert_int(run.limits.coupon_slot_count).is_equal(1)
-	_place_ids(screen, ["bread", "repeat"])
-	assert_int(RowCapacity.product_count(run.row)).is_equal(1)
-	assert_int(RowCapacity.coupon_slots_used(run.limits, run.row)).is_equal(1)
-	_place_ids(screen, ["repeat"])
-	assert_int(RowCapacity.product_count(run.row)).is_equal(1)
-	assert_int(RowCapacity.coupon_slots_used(run.limits, run.row)).is_equal(1)
+	assert_int(run.limits.slot_count).is_equal(7)
+	_place_ids(screen, ["bread", "repeat", "repeat"])
+	assert_int(run.row.size()).is_equal(3)
 	await _frames(2)
 	var stage: Rect2 = _stage_rect(screen)
 	var receipt: Rect2 = screen._receipt.get_global_rect()
@@ -151,31 +145,29 @@ func test_the_row_shows_the_coupon_slot() -> void:
 		assert_bool(panel.get_global_rect().intersects(receipt)).is_false()
 
 
-## A product that doesn't fit says why instead of doing nothing; a coupon still fits.
-func test_a_seventh_product_is_refused_with_a_notice() -> void:
+## A card that doesn't fit says why instead of doing nothing: a 7th product fits (any card in
+## any slot, v0.46), and an 8th card of either kind is refused with a notice.
+func test_an_eighth_card_is_refused_with_a_notice() -> void:
 	var runner: GdUnitSceneRunner = scene_runner(SCREEN)
 	var screen: ShiftScreen = runner.scene()
-	_place_ids(screen, ["bread", "bread", "bread", "bread", "bread", "bread"])
-	assert_str(screen._notice_label.text).is_empty()
-	screen._debug.add_card("bread")
-	var product: CardInstance = screen.run.hand()[-1]
-	screen._on_hand_card_clicked(_view_for(screen, product))
-	assert_str(screen._notice_label.text).contains("6/6 products").contains("coupon")
-	screen._notice_label.text = ""
-	screen._on_slot_input(_left_click(), 6)
-	assert_int(screen.run.row.size()).is_equal(6)
-	assert_bool(screen.run.row.has(product)).is_false()
-	assert_str(screen._notice_label.text).contains("6/6 products")
-	screen._debug.add_card("repeat")
-	var coupon: CardInstance = screen.run.hand()[-1]
-	screen._on_hand_card_clicked(_view_for(screen, coupon))
-	screen._on_slot_input(_left_click(), 2)
-	assert_object(screen.run.row[2]).is_same(coupon)
+	_place_ids(screen, ["bread", "bread", "bread", "bread", "bread", "bread", "bread"])
 	assert_int(screen.run.row.size()).is_equal(7)
+	assert_str(screen._notice_label.text).is_empty()
+	for id: String in ["bread", "repeat"]:
+		screen._debug.add_card(id)
+		var card: CardInstance = screen.run.hand()[-1]
+		screen._on_hand_card_clicked(_view_for(screen, card))
+		assert_str(screen._notice_label.text).contains("Row full (7/7 items)")
+		screen._notice_label.text = ""
+		screen._on_slot_input(_left_click(), 2)
+		assert_int(screen.run.row.size()).is_equal(7)
+		assert_bool(screen.run.row.has(card)).is_false()
+		assert_str(screen._notice_label.text).contains("Row full (7/7 items)")
+		screen._notice_label.text = ""
 
 
-## The notice says to take a product out: clicking a row product does that, it doesn't
-## repeat the refusal.
+## The notice says to take an item out: clicking a row product does that, it doesn't repeat the
+## refusal.
 func test_a_refused_pick_lets_a_row_card_be_taken_out() -> void:
 	var runner: GdUnitSceneRunner = scene_runner(SCREEN)
 	var screen: ShiftScreen = runner.scene()
@@ -183,7 +175,7 @@ func test_a_refused_pick_lets_a_row_card_be_taken_out() -> void:
 	screen._debug.add_card("bread")
 	var product: CardInstance = screen.run.hand()[-1]
 	screen._on_hand_card_clicked(_view_for(screen, product))
-	assert_str(screen._notice_label.text).contains("take a product out")
+	assert_str(screen._notice_label.text).contains("take an item out")
 	var row_card: CardInstance = screen.run.row[1]
 	screen._on_row_card_clicked(_row_view(screen, 1))
 	assert_int(screen.run.row.size()).is_equal(6)

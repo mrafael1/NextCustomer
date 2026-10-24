@@ -16,8 +16,9 @@ func test_balance_inspection_data_fits_the_run() -> void:
 	for shift_number: int in balance.inspection_shifts:
 		# Announced on the previous shift's receipt, so never shift 1.
 		assert_int(shift_number).is_between(2, balance.quotas.size())
+	# Coupon slot closed left in v0.56 (#106): every slot is general.
 	assert_array(RunEvents.inspection_ids(balance.inspection_pool)).is_equal(
-		["spot_check", "short_belt", "coupon_slot_closed"]
+		["spot_check", "short_belt"]
 	)
 
 

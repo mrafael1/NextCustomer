@@ -6,8 +6,9 @@ extends UpgradeRule
 ## once, on the row's last slot;
 ## a product there that pays 0 has nothing to multiply, so the upgrade fizzles. 0 means no
 ## product. With follows_slot_changes, the number moves with the shift's product slots
-## (ScoreState.product_slot_change), so it stays the last regular product slot: the 5th on a
-## Short belt shift, the 7th with Big basket (decided with the user in #42).
+## (ScoreState.product_slot_change): the 5th on a Short belt shift, the 7th with Big basket
+## (decided with the user in #42, when it was the last product slot; since plan v0.46 every slot is
+## general and the row has one slot more).
 
 @export var product_number: int = 0
 @export var factor: int = 1
