@@ -18,7 +18,6 @@ extends GdUnitTestSuite
 const LiveCardCount := preload("res://tests/data/live_card_count.gd")
 const SCREEN := "res://ui/shift_screen.tscn"
 const CARDS := "res://data/cards"
-const BALANCE := "res://data/balance/balance.tres"
 ## Milk, Multipack, Milk x5 = 109: passes the first five quotas.
 const PASSING_ROW: Array[String] = ["milk", "multipack", "milk", "milk", "milk", "milk", "milk"]
 ## More step lines than any belt item carries, every other one a fizzle whose reason wraps.
@@ -146,7 +145,6 @@ func test_the_monitor_hangs_on_the_stage_clear_of_the_rest() -> void:
 func test_every_card_scan_fits_the_screen() -> void:
 	var monitor: MonitorView = await _monitor()
 	monitor.reduced_motion = func() -> bool: return true
-	var balance: BalanceDefinition = load(BALANCE) as BalanceDefinition
 	var worst: PackedStringArray = PackedStringArray()
 	var worst_fizzles: Array[bool] = []
 	for index: int in range(WORST_LINES):
@@ -158,20 +156,19 @@ func test_every_card_scan_fits_the_screen() -> void:
 	assert_int(cards.size()).is_equal(LiveCardCount.CARDS)
 	var tiers: Dictionary[int, int] = {}
 	for definition: CardDefinition in cards:
-		var aisle: AisleDefinition = balance.aisle_of(definition)
 		var none: Array[bool] = []
-		monitor.show_scan(definition, aisle, definition.tags, -1, PackedStringArray(), none)
+		monitor.show_scan(definition, definition.tags, -1, PackedStringArray(), none)
 		await get_tree().process_frame
 		_assert_scan_fits(monitor, definition, "%s in the hand" % definition.id)
 		assert_object(monitor.scan_footer()).is_null()
-		monitor.show_scan(definition, aisle, definition.tags, definition.base, short, short_fizzles)
+		monitor.show_scan(definition, definition.tags, definition.base, short, short_fizzles)
 		await get_tree().process_frame
 		_assert_scan_fits(monitor, definition, "%s on the belt" % definition.id)
 		var texts: PackedStringArray = monitor.scan_footer().texts()
 		assert_bool(texts == short).override_failure_message(str(texts)).is_true()
 		var count: int = tiers.get(monitor.scan_tier(), 0)
 		tiers[monitor.scan_tier()] = count + 1
-		monitor.show_scan(definition, aisle, definition.tags, definition.base, worst, worst_fizzles)
+		monitor.show_scan(definition, definition.tags, definition.base, worst, worst_fizzles)
 		await get_tree().process_frame
 		_assert_scan_fits(monitor, definition, "%s, worst footer" % definition.id)
 		assert_int(monitor.scan_tier()).is_equal(MonitorView.TIERS.size() - 1)
@@ -209,8 +206,8 @@ func test_a_held_scan_fills_the_monitor_then_it_goes_back_to_the_channel() -> vo
 	assert_bool(screen._scan.popup().visible).is_false()
 	assert_bool(screen._led.visible).is_false()
 	var definition: CardDefinition = view.card.definition
-	assert_str(monitor.scan_name_label().text).is_equal(definition.display_name)
-	assert_str(monitor.scan_rule_label().text).is_equal(definition.rule_text)
+	assert_str(ItemName.text_of(monitor.scan_name())).is_equal(definition.display_name)
+	assert_str(monitor.scan_summary().text).is_equal(_scan_text(definition))
 	assert_object(monitor.scan_art().texture).is_same(ArtStyle.item_sprite(definition))
 	var result: ScoreResult = screen.run.preview()
 	var expected: PackedStringArray = PackedStringArray()
@@ -749,8 +746,8 @@ func test_the_shade_leaves_its_hole_unshaded() -> void:
 
 ## The scan on the screen: the art in the bay's bed (at rest: the monitor here has reduced
 ## motion), its kind on the bay's label, whole; every other text label shown inside TEXT_RECT, the
-## bay's inside BAY_RECT; the scan's own labels (name, pays, tag line and rule) apart, the name on
-## one row and the rule whole.
+## bay's inside BAY_RECT; the scan's own parts (name, its family glyphs, pays and the short text,
+## #105) apart and inside TEXT_RECT, the name on one row and the text whole.
 func _assert_scan_fits(monitor: MonitorView, definition: CardDefinition, message: String) -> void:
 	assert_int(monitor.mode()).override_failure_message(message).is_equal(MonitorView.Mode.SCAN)
 	var bay: ScannerBay = monitor.bay()
@@ -777,29 +774,48 @@ func _assert_scan_fits(monitor: MonitorView, definition: CardDefinition, message
 			. override_failure_message("%s: '%s' %s" % [message, label.text, rect])
 			. is_true()
 		)
-	var own: Array[Control] = [bay]
+	var own: Array[Rect2] = [bay.get_global_rect()]
+	var name_control: Control = monitor.scan_name()
+	# The name by its text's labels: its row runs on under its glyphs.
+	for label: Label in ItemName.labels(name_control):
+		var drawn: Rect2 = label.get_global_rect()
+		drawn.size.x = minf(drawn.size.x, ceilf(_text_width(label)))
+		own.append(drawn)
 	for child: Node in monitor._scan_view.get_children():
-		if child is Label:
-			own.append(child as Control)
+		if (child is Label and child != name_control) or child is FamilyGlyph:
+			own.append((child as Control).get_global_rect())
+	var summary: GlyphLabel = monitor.scan_summary()
+	var summary_rect: Rect2 = summary.get_global_transform() * summary.text_rect()
+	if summary_rect.has_area():
+		own.append(summary_rect)
+	for glyph: FamilyGlyph in summary.glyphs():
+		(
+			assert_bool(MonitorView.TEXT_RECT.encloses(glyph.get_global_rect()))
+			. override_failure_message(message)
+			. is_true()
+		)
 	for index: int in range(own.size()):
+		var a: Rect2 = own[index]
+		if index > 0:
+			(
+				assert_bool(MonitorView.TEXT_RECT.encloses(a))
+				. override_failure_message("%s: %s outside" % [message, a])
+				. is_true()
+			)
 		for other: int in range(index + 1, own.size()):
-			var a: Rect2 = own[index].get_global_rect()
-			var b: Rect2 = own[other].get_global_rect()
+			var b: Rect2 = own[other]
 			(
 				assert_bool(a.intersects(b))
 				. override_failure_message("%s: %s over %s" % [message, a, b])
 				. is_false()
 			)
-	var name_label: Label = monitor.scan_name_label()
-	assert_str(name_label.text).is_equal(definition.display_name)
-	assert_float(_text_width(name_label)).override_failure_message(message).is_less_equal(
-		name_label.size.x
-	)
-	var rule: Label = monitor.scan_rule_label()
-	assert_str(rule.text).is_equal(definition.rule_text)
-	assert_int(rule.get_visible_line_count()).override_failure_message(message).is_equal(
-		rule.get_line_count()
-	)
+	assert_str(ItemName.text_of(name_control)).is_equal(definition.display_name)
+	for label: Label in ItemName.labels(name_control):
+		assert_float(label.get_global_rect().end.x).override_failure_message(message).is_less_equal(
+			name_control.get_global_rect().end.x + 0.01
+		)
+	assert_str(summary.text).is_equal(_scan_text(definition))
+	assert_bool(summary.fits()).override_failure_message(message).is_true()
 
 
 ## A monitor alone at its stage place, in the tree.
@@ -866,6 +882,12 @@ static func _cards() -> Array[CardDefinition]:
 
 
 ## A label's text width, in its own font and size.
+## The monitor's scan text for `definition` (#105): its short sticker text, else its rule text.
+static func _scan_text(definition: CardDefinition) -> String:
+	var summary: String = definition.sticker_summary()
+	return summary if not summary.is_empty() else definition.rule_text
+
+
 static func _text_width(label: Label) -> float:
 	var font: Font = label.get_theme_font("font")
 	var font_size: int = label.get_theme_font_size("font_size")

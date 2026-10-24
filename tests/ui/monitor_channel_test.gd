@@ -351,6 +351,24 @@ func test_every_slide_fits_the_screen() -> void:
 							. override_failure_message("%s overlaps %s" % [where, other.text])
 							. is_false()
 						)
+			# A coupon's effect with its glyphs (#105): whole, inside, off the labels.
+			for child: Node in channel._slides[index].get_children():
+				var effect: GlyphLabel = child as GlyphLabel
+				if effect == null:
+					continue
+				var text: Rect2 = effect.get_global_transform() * effect.text_rect()
+				var where: String = "%s %s: %s" % [channel.slide_keys()[index], effect.text, text]
+				assert_bool(effect.fits()).override_failure_message(where).is_true()
+				assert_bool(area.encloses(text)).override_failure_message(where).is_true()
+				assert_bool(paper.encloses(text)).override_failure_message(where).is_true()
+				for glyph: FamilyGlyph in effect.glyphs():
+					assert_bool(area.encloses(glyph.get_global_rect())).is_true()
+				for label: Label in labels:
+					(
+						assert_bool(text.intersects(label.get_global_rect()))
+						. override_failure_message("%s overlaps %s" % [where, label.text])
+						. is_false()
+					)
 		prints("#80 channel slides:", channel.slide_keys())
 	# Every upgrade has its slide, and every coupon a row.
 	var keys: PackedStringArray = channel.slide_keys()

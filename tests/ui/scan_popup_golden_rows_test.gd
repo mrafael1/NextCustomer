@@ -139,7 +139,7 @@ func test_the_scans_hold_every_line_of_each_golden_rows_receipt() -> void:
 					fizzles.append(step.step_type == ScoreStep.StepType.WASTED)
 				var definition: CardDefinition = row[slot].definition
 				monitor.show_scan(
-					definition, null, result.tags[slot], result.payouts[slot], lines, fizzles
+					definition, result.tags[slot], result.payouts[slot], lines, fizzles
 				)
 				footers[slot] = monitor.scan_footer().texts()
 				var count: int = tiers.get(monitor.scan_tier(), 0)

@@ -2,9 +2,10 @@ extends GdUnitTestSuite
 ## The planning layer's geometry on the real shift screen at 1280x720 (#71, mock-up h1,
 ## H1_BUILD_SPEC.md section 13) for 7 and 8 slots and with a CLOSED cell, on the reference row
 ## and on a stress row with 6 or more stickers on one item and overlapping rail strips: no
-## sticker, stamp, pay tag or strip part covers any ticket's base or summary text (a pay tag sits
-## on its ticket's top band only); every stack stands on STACK_BOTTOM_Y or higher and under its
-## ceiling (the hung monitor's foot over its x-range, else the top bar's); every strip's body lies
+## sticker, stamp, pay tag or strip part covers any ticket's struck price or summary text (a pay
+## tag sits on its ticket's top band only); every stack stands on STACK_BOTTOM_Y or higher and
+## under its ceiling (the hung monitor's foot over its x-range, else the top bar's); every strip's
+## body lies
 ## in its lane's band and the belt's x-range, its notches, plate, plug, stem and cap in the lip
 ## band, a notch (lane 0) or a drop (lane 1) on each target's ticket and no factor badge on any
 ## strip, calm or hot (the factor is the target's sticker only, since the h1 build's play test),
@@ -186,7 +187,8 @@ func _assert_laid_out(screen: ShiftScreen, case: String) -> void:
 	for view: CardView in screen._row_views:
 		var ticket: PriceSticker = (view as ItemView).sticker()
 		var to_global: Transform2D = ticket.get_global_transform()
-		texts.append(to_global * ticket.base_text_rect())
+		if ticket.is_struck():
+			texts.append(to_global * ticket.struck_rect())
 		if ticket.summary_text_rect().has_area():
 			texts.append(to_global * ticket.summary_text_rect())
 	var clear: Array[Rect2] = _keep_clear(screen)

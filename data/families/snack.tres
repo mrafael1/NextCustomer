@@ -1,0 +1,14 @@
+[gd_resource type="Resource" script_class="FamilyStyle" format=3]
+
+[ext_resource type="Script" path="res://presentation/family_style.gd" id="1_style"]
+[ext_resource type="Texture2D" path="res://art/icons/aisle_snacks.png" id="2_glyph"]
+
+[resource]
+script = ExtResource("1_style")
+id = "Snack"
+display_name = "Snack"
+glyph = ExtResource("2_glyph")
+face = Color(0.478431, 0.321569, 0.196078, 1)
+light = Color(0.658824, 0.478431, 0.305882, 1)
+shade = Color(0.290196, 0.188235, 0.133333, 1)
+paper_text = true

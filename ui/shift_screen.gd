@@ -127,6 +127,7 @@ var _effects: PlanningEffects
 ## The TOY MACHINES over the results (#63), made the first time they open.
 var _toys: ToyMachinesScreen
 var _cart_reveal: CartReveal
+var _glyph_tips: GlyphTips  # Family glyphs' tooltips (#105): none in a drag or the count.
 ## The basket redraw's targets and tags, and its motion.
 var _basket_tags: BasketTags
 var _basket_redraw: BasketRedraw
@@ -978,6 +979,10 @@ func _build() -> void:
 	_cart_reveal = CartReveal.new()  # Over all but the debug panel (v0.51).
 	add_child(_cart_reveal)
 	_cart_reveal.finished.connect(_on_cart_reveal_finished)
+	_glyph_tips = GlyphTips.new()
+	_glyph_tips.blocked = func() -> bool: return _counting or _drag.is_dragging()
+	_glyph_tips.reduced_motion = _monitor.reduced_motion
+	add_child(_glyph_tips)
 
 
 ## Scanning the counter's items is off while the shift is counted, an item is dragged, outside

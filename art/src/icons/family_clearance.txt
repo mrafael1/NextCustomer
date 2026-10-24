@@ -1,0 +1,14 @@
+; Clearance's family glyph (#105, mock-up readability v2/v3, FAM.Clearance): a tomato price tag
+; with an ink hole, a paper arrow pointing down and a tomato dark shaded edge. 9x9: the
+; mock-up's 7x7 shape with a 4-neighbour ink outline, shown at 2x.
+@size 9x9
+@kind icon
+...#####.
+..#RRRRR#
+.#RRRwRR#
+#RRRRwRR#
+#R#RRwRr#
+#RRRwwwr#
+.#RRRwRr#
+..#Rrrrr#
+...#####.

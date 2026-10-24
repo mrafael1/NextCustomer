@@ -1,0 +1,20 @@
+[gd_resource type="Resource" script_class="FamilyPalette" format=3]
+
+[ext_resource type="Script" path="res://presentation/family_palette.gd" id="1_palette"]
+[ext_resource type="Script" path="res://presentation/family_style.gd" id="2_style"]
+[ext_resource type="Resource" path="res://data/families/breakfast.tres" id="3_breakfast"]
+[ext_resource type="Resource" path="res://data/families/bakery.tres" id="4_bakery"]
+[ext_resource type="Resource" path="res://data/families/produce.tres" id="5_produce"]
+[ext_resource type="Resource" path="res://data/families/dairy.tres" id="6_dairy"]
+[ext_resource type="Resource" path="res://data/families/frozen.tres" id="7_frozen"]
+[ext_resource type="Resource" path="res://data/families/snack.tres" id="8_snack"]
+[ext_resource type="Resource" path="res://data/families/household.tres" id="9_household"]
+[ext_resource type="Resource" path="res://data/families/clearance.tres" id="10_clearance"]
+[ext_resource type="Resource" path="res://data/families/food.tres" id="11_food"]
+[ext_resource type="Resource" path="res://data/families/coupon.tres" id="12_coupon"]
+
+[resource]
+script = ExtResource("1_palette")
+families = Array[ExtResource("2_style")]([ExtResource("3_breakfast"), ExtResource("4_bakery"), ExtResource("5_produce"), ExtResource("6_dairy"), ExtResource("7_frozen"), ExtResource("8_snack"), ExtResource("9_household"), ExtResource("10_clearance"), ExtResource("11_food"), ExtResource("12_coupon")])
+main_family_order = PackedStringArray("Bakery", "Produce", "Dairy", "Frozen", "Snack", "Household", "Breakfast", "Clearance", "Food")
+quiet_families = PackedStringArray("Food")

@@ -45,6 +45,10 @@ enum Tier { PLAIN, BIG, GOLDEN }
 ## ItemUpgradeDefinition chain; tiers are run upgrades from the machine, never stocked or
 ## unlocked.
 @export var tier: Tier = Tier.PLAIN
+## The families this card's ticket is coloured by (#105), when its rules don't say it right: one
+## family, or two for a split ticket. Empty (the default) derives them (CardFamilies).
+## Presentation only: no rule reads it.
+@export var ticket_families: PackedStringArray = PackedStringArray()
 
 
 func is_product() -> bool:

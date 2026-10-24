@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://ckr4o36tqpx3t"
-path="res://.godot/imported/ticket_got.png-02cf6ac1dfd91f6222dd345c8ad9e769.ctex"
+uid="uid://b854cj72g80rm"
+path="res://.godot/imported/glyph_tip_tail.png-4ecd973b6bc5fc03d7e25f72f2174215.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://art/effects/ticket_got.png"
-dest_files=["res://.godot/imported/ticket_got.png-02cf6ac1dfd91f6222dd345c8ad9e769.ctex"]
+source_file="res://art/frames/glyph_tip_tail.png"
+dest_files=["res://.godot/imported/glyph_tip_tail.png-4ecd973b6bc5fc03d7e25f72f2174215.ctex"]
 
 [params]
 

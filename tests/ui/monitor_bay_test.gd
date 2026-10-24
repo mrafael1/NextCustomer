@@ -267,7 +267,7 @@ func test_planning_bay_shows_slot_one_and_the_held_item() -> void:
 	assert_array(queue.pip_colours()).is_equal([first, shade, shade, shade, shade])
 	# A held scan: the held item under SCAN, its kind on the label, the light on.
 	var none: Array[bool] = []
-	monitor.show_scan(milk, null, milk.tags, -1, PackedStringArray(), none)
+	monitor.show_scan(milk, milk.tags, -1, PackedStringArray(), none)
 	assert_object(bay.bed().shown_definition()).is_same(milk)
 	assert_object(monitor.scan_art()).is_same(bay.bed().art())
 	assert_bool(bay.shows_scan()).is_true()
@@ -276,7 +276,7 @@ func test_planning_bay_shows_slot_one_and_the_held_item() -> void:
 	# The light blinks on for the scan, then stays on in HELD_COLOR while the item is held.
 	await get_tree().create_timer(ScannerBay.LIGHT_S + 0.05).timeout
 	assert_that(bay.light_colour()).is_equal(ScannerBay.HELD_COLOR)
-	monitor.show_scan(coupon, null, coupon.tags, -1, PackedStringArray(), none)
+	monitor.show_scan(coupon, coupon.tags, -1, PackedStringArray(), none)
 	assert_object(bay.bed().shown_definition()).is_same(coupon)
 	assert_str(bay.name_label().text).is_equal(ScannerBay.KIND_COUPON_TEXT)
 	# The scan ends: slot 1's item again, under NEXT.
@@ -289,7 +289,7 @@ func test_planning_bay_shows_slot_one_and_the_held_item() -> void:
 	assert_that(bay.light_colour()).is_equal(ScannerBay.LIGHT_OFF_COLOR)
 	# A hold on the item already in the bay: scanned there, the same art (no drop).
 	var art: TextureRect = bay.bed().art()
-	monitor.show_scan(bread, null, bread.tags, 2, PackedStringArray(), none)
+	monitor.show_scan(bread, bread.tags, 2, PackedStringArray(), none)
 	assert_object(bay.bed().art()).is_same(art)
 	assert_bool(bay.shows_scan()).is_true()
 	assert_str(bay.name_label().text).is_equal(ScannerBay.KIND_BASE_TEXT % bread.base)
@@ -304,7 +304,7 @@ func test_planning_bay_shows_slot_one_and_the_held_item() -> void:
 	assert_str(bay.bed().idle_label().text).is_equal("")
 	assert_array(queue.pip_colours()).is_equal([shade, shade, shade, shade, shade])
 	# A held hand item over an empty slot 1 still shows, and goes again.
-	monitor.show_scan(milk, null, milk.tags, -1, PackedStringArray(), none)
+	monitor.show_scan(milk, milk.tags, -1, PackedStringArray(), none)
 	assert_object(bay.bed().shown_definition()).is_same(milk)
 	monitor.end_scan()
 	assert_object(bay.bed().shown_definition()).is_null()
@@ -342,7 +342,7 @@ func test_planning_bay_swaps_slide_out_then_drop_in() -> void:
 	await get_tree().create_timer(BayBed.FALL_S + 0.1).timeout
 	assert_str(bay.name_label().text).is_equal("BREAD")
 	var none: Array[bool] = []
-	monitor.show_scan(milk, null, milk.tags, -1, PackedStringArray(), none)
+	monitor.show_scan(milk, milk.tags, -1, PackedStringArray(), none)
 	assert_str(bay.queue().text()).is_equal(BayQueue.NEXT_TEXT)
 	await get_tree().create_timer(ScannerBay.PLAN_OUT_S + 0.05).timeout
 	assert_object(bay.bed().shown_definition()).is_same(milk)

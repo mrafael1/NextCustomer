@@ -127,8 +127,8 @@ func test_cells_lie_inside_the_belt_and_the_tray() -> void:
 
 
 ## No ticket covers another ticket or a sprite (lifted or not), and no planning part (#71, mock-up
-## h1: a sticker, a pay tag or a stamp; planning shows no corner mark) covers any ticket's base or
-## summary text: a pay tag may sit on a ticket's top band only.
+## h1: a sticker, a pay tag or a stamp; planning shows no corner mark) covers any ticket's struck
+## price or summary text: a pay tag may sit on a ticket's top band only.
 func test_stickers_never_cover_a_sticker_a_sprite_or_a_mark() -> void:
 	for scan: String in SCANS:
 		var screen: ShiftScreen = await _captured(scan)
@@ -140,7 +140,8 @@ func test_stickers_never_cover_a_sticker_a_sprite_or_a_mark() -> void:
 				var ticket: PriceSticker = view.sticker()
 				stickers.append(ticket.get_global_rect())
 				var to_global: Transform2D = ticket.get_global_transform()
-				texts.append(to_global * ticket.base_text_rect())
+				if ticket.is_struck():
+					texts.append(to_global * ticket.struck_rect())
 				if ticket.summary_text_rect().has_area():
 					texts.append(to_global * ticket.summary_text_rect())
 			others.append(view.sprite().get_global_rect())

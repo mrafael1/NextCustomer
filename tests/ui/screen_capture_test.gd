@@ -87,7 +87,7 @@ func test_the_scan_scans_a_card_on_the_counter() -> void:
 	assert_int(scanned.form).is_equal(ItemView.Form.BELT)
 	assert_bool(scanned.lifted).is_true()
 	assert_int(screen._monitor.mode()).is_equal(MonitorView.Mode.SCAN)
-	assert_str(screen._monitor.scan_name_label().text).is_equal(
+	assert_str(ItemName.text_of(screen._monitor.scan_name())).is_equal(
 		scanned.card.definition.display_name
 	)
 	assert_bool(screen._scan.popup().visible).is_false()
@@ -155,7 +155,9 @@ func test_the_effects_show_and_focus_the_planning_effects() -> void:
 			targets += 1
 	assert_int(targets).is_greater_equal(1)
 	# Its scan has finished: the monitor explains it (mock-up h1's hover).
-	assert_str(screen._monitor.scan_name_label().text).is_equal(focused.definition.display_name)
+	assert_str(ItemName.text_of(screen._monitor.scan_name())).is_equal(
+		focused.definition.display_name
+	)
 	await capture.call("capture", _capture_folder)
 	assert_array(_errors).is_empty()
 	var file_name: String = "shift_screen_effects_focus_%dx%d.png" % [window.x, window.y]

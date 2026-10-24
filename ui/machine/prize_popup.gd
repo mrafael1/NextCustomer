@@ -31,7 +31,7 @@ func open_for(ticket: PrizeTicket) -> bool:
 	if plan != null and plan.has_landing and view.clock >= plan.press:
 		close_popup()
 		return false
-	if not fill(self, ticket.prize, ticket.prize_preview(), view.run):
+	if not fill(self, ticket.prize, ticket.prize_preview()):
 		close_popup()
 		return false
 	ticket_index = ticket.index
@@ -59,9 +59,7 @@ func leave(index: int) -> void:
 ## Fills `shown` (a ScanPopup in the tree) with what `prize` does: the card it adds, the card an
 ## UPGRADES pick turns a copy into (`preview`'s first), or the LOYALTY perk. False when there is
 ## nothing to show.
-static func fill(
-	shown: ScanPopup, prize: MachinePrize, preview: MachinePreview, run: RunState
-) -> bool:
+static func fill(shown: ScanPopup, prize: MachinePrize, preview: MachinePreview) -> bool:
 	var card: CardDefinition = prize.card
 	match prize.kind:
 		MachinePrize.Kind.REGISTER:
@@ -75,11 +73,8 @@ static func fill(
 			)
 	if card == null:
 		return false
-	var aisle: AisleDefinition = null
 	var tags: PackedStringArray = PackedStringArray()
 	if card.is_product():
 		tags = card.tags.duplicate()
-		if run != null and run.balance != null:
-			aisle = run.balance.aisle_of(card)
-	shown.show_card(card, aisle, tags)
+	shown.show_card(card, tags)
 	return true

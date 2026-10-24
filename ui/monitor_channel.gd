@@ -317,10 +317,16 @@ func slide_labels(index: int) -> Array[Label]:
 	return labels
 
 
+## Slide `index`'s texts in order: its labels' and its glyph texts' (a coupon's effect, #105).
 func slide_texts(index: int) -> PackedStringArray:
 	var texts: PackedStringArray = PackedStringArray()
-	for label: Label in slide_labels(index):
-		texts.append(label.text)
+	for child: Node in _slides[index].get_children():
+		if child.is_queued_for_deletion():
+			continue
+		if child is Label:
+			texts.append((child as Label).text)
+		elif child is GlyphLabel:
+			texts.append((child as GlyphLabel).text)
 	return texts
 
 
@@ -571,16 +577,27 @@ func _build_coupons() -> void:
 
 
 ## One coupon's row at `y`: its name in its column, its sticker's effect (its rule text when it
-## has no sticker text) beside it. Returns the row's bottom.
+## has no sticker text) beside it, its family names as glyphs. Returns the row's bottom.
 func _add_coupon_row(page: Control, coupon: CardDefinition, y: float) -> float:
 	var title: Label = UiKit.display_label(coupon.display_name, COUPON_NAME_SIZE, false)
 	var name_bottom: float = _add_wrapped(page, title, 0.0, y, COUPON_NAME_WIDTH)
 	var summary: String = coupon.sticker_summary()
 	if summary.is_empty():
 		summary = coupon.rule_text
-	var effect: Label = UiKit.body_label(summary, COUPON_TEXT_SIZE, Palette.INK)
 	var x: float = COUPON_NAME_WIDTH + COUPON_COLUMN_GAP
-	return maxf(name_bottom, _add_wrapped(page, effect, x, y, page.size.x - x))
+	# Its family names as glyphs (#105, GlyphLabel), on the body font's own line pitch.
+	var font: Font = ArtStyle.BODY_FONT
+	var effect: GlyphLabel = GlyphLabel.new(
+		summary,
+		font,
+		COUPON_TEXT_SIZE,
+		Palette.INK,
+		ceilf(font.get_height(COUPON_TEXT_SIZE)),
+		page.size.x - x
+	)
+	page.add_child(effect)
+	effect.position = Vector2(x, y)
+	return maxf(name_bottom, y + effect.size.y)
 
 
 ## A slide's caption at `y`. Returns where the slide goes on under it.

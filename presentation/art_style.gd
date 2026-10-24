@@ -37,6 +37,8 @@ const PIXEL_SHADER := preload("res://presentation/pixel_art.gdshader")
 const GREY_SHADER := preload("res://presentation/pixel_art_grey.gdshader")
 ## A boosted item's stepped halo (#71): halo_material's rings.
 const HALO_SHADER := preload("res://presentation/halo_outline.gdshader")
+## A die-cut rim (#105): rim_material's bands.
+const RIM_SHADER := preload("res://presentation/rim_outline.gdshader")
 ## Each Grey look's (brightness, contrast), the mock-up's CSS filters: a denied sprite's
 ## grayscale(1) brightness(.78) contrast(.9), a drained sticker's brightness(.62) contrast(.55).
 const GREY_LOOKS: Dictionary[Grey, Vector2] = {
@@ -57,6 +59,31 @@ const PIXEL_ART_META := &"pixel_art"
 const LOOK_META := &"pixel_art_look"
 ## An aisle's glyph (9x9 art), by the aisle's id.
 const GLYPH_PATH := "res://art/icons/aisle_%s.png"
+## The readability pass (#105, mock-up readability v3). Item names (ItemName) are Pixelify Sans
+## (DISPLAY_FONT, its regular weight: the variable font's default) at its native size (one font
+## pixel = 2 canvas px, the art's grid), and never smaller: a name too long for its row falls back
+## to the body font at NAME_FALLBACK_WEIGHT (as the Cart prints it). Pixelify never prints numbers
+## (its 5 and S differ by one font pixel): the number font does.
+const ITEM_NAME_SIZE := 22
+const NAME_FALLBACK_WEIGHT := 700
+## A family glyph's size on screen: its 9x9 art at 2x (a ticket's adds a one-texel paper rim).
+const FAMILY_GLYPH_SIZE := 18
+## A ticket's short text (the sticker summary): the body font at TICKET_TEXT_WEIGHT,
+## TICKET_TEXT_SIZE px on a TICKET_TEXT_LINE px pitch, at most TICKET_TEXT_LINES lines.
+const TICKET_TEXT_WEIGHT := 800
+const TICKET_TEXT_SIZE := 13
+const TICKET_TEXT_LINE := 15
+const TICKET_TEXT_LINES := 2
+## The stacked price: the new price's digits in the burst (BURST_PRICE_SIZE, or
+## BURST_PRICE_SIZE_3 for three characters such as "€10"), the struck old price under it.
+const BURST_PRICE_SIZE := 22
+const BURST_PRICE_SIZE_3 := 21
+const STRUCK_PRICE_SIZE := 15
+## A glyph tooltip's text: the body font at TIP_TEXT_WEIGHT, TIP_TEXT_SIZE px.
+const TIP_TEXT_WEIGHT := 800
+const TIP_TEXT_SIZE := 13
+## A rim_material's art: grown by this many art pixels on every side (its ring and outline).
+const RIM_TEXELS := 2
 
 static var _material: ShaderMaterial
 static var _grey_materials: Dictionary[Grey, ShaderMaterial] = {}
@@ -64,6 +91,7 @@ static var _halo_materials: Dictionary[int, ShaderMaterial] = {}
 static var _number_font: FontVariation
 static var _bold_fonts: Dictionary[int, FontVariation] = {}
 static var _spaced_display_fonts: Dictionary[int, FontVariation] = {}
+static var _rim_materials: Dictionary[String, ShaderMaterial] = {}
 
 
 ## Marks a node that draws pixel art (its own texture or stylebox, never text: a Label or a
@@ -153,6 +181,32 @@ static func halo_bands(rings: int) -> PackedColorArray:
 	while bands.size() < HALO_MAX_RINGS + 1:
 		bands.append(INK)
 	return bands
+
+
+## A shared die-cut rim material (#105, mock-up readability v3's chained 2 px drop-shadows): the
+## rim shader with its two bands, `bands` (the first art pixel round the art, then the second; a
+## transparent colour draws nothing). Drawn on a TextureRect showing the art's own texture over
+## its rect grown by RIM_TEXELS art pixels on every side, behind the art.
+static func rim_material(bands: PackedColorArray) -> ShaderMaterial:
+	var key: String = ",".join(
+		Array(bands).map(func(colour: Color) -> String: return colour.to_html())
+	)
+	if not _rim_materials.has(key):
+		var material: ShaderMaterial = ShaderMaterial.new()
+		material.shader = RIM_SHADER
+		material.set_shader_parameter(&"bands", bands)
+		_rim_materials[key] = material
+	return _rim_materials[key]
+
+
+## A changed price's die-cut (#105): a paper texel, then an ink one, round the tag's art.
+static func cut_material() -> ShaderMaterial:
+	return rim_material(PackedColorArray([Palette.PAPER, INK]))
+
+
+## A family glyph's paper rim on a ticket (#105): one paper texel round the glyph's art.
+static func glyph_rim_material() -> ShaderMaterial:
+	return rim_material(PackedColorArray([Palette.PAPER, Color(0, 0, 0, 0)]))
 
 
 ## The font for numbers and money: Atkinson Hyperlegible Next at NUMBER_WEIGHT.

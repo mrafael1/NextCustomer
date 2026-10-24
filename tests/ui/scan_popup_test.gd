@@ -1,6 +1,7 @@
 extends GdUnitTestSuite
 ## The scan popup (#75; offers only since #80): every card in data/cards keeps its text inside
-## the popup, its rule text whole and its height within MAX_HEIGHT, and opens inside the 1280x720
+## the popup (#105: its name, price and family glyphs too), its rule text whole and its height
+## within MAX_HEIGHT, and opens inside the 1280x720
 ## stage, beside the scanned item over the offers' panel, off the item's sprite and sticker, with
 ## its tail at the sprite's middle, wherever the item stands in the panel. It is placed from
 ## global rects, so an item in a scaled panel is pointed at where it is drawn.
@@ -21,11 +22,10 @@ const TRAY_BELOW := Rect2(0, 104, 108, 64)
 
 func test_every_card_fits_and_opens_beside_its_item() -> void:
 	var popup: ScanPopup = _popup()
-	var balance: BalanceDefinition = load(BALANCE) as BalanceDefinition
 	var cards: Array[CardDefinition] = _cards()
 	assert_int(cards.size()).is_equal(LiveCardCount.CARDS)
 	for definition: CardDefinition in cards:
-		popup.show_card(definition, balance.aisle_of(definition), definition.tags)
+		popup.show_card(definition, definition.tags)
 		await get_tree().process_frame
 		_assert_holds_its_text(popup, definition, definition.id)
 		for index: int in range(PANEL_COUNT):
@@ -55,37 +55,82 @@ func test_a_popup_of_any_height_opens_beside_the_item() -> void:
 			height += 10.0
 
 
-## The tag line shows the tags passed in (a granted tag included), then a product's aisle or
-## Staple, never twice (Batteries' Household tag in the Household aisle); a coupon's shows only
-## its tags.
-func test_the_tag_line_shows_the_given_tags() -> void:
+## The "Counts as" row (#105) shows the glyphs of the tags passed in (a granted tag included),
+## FamilyPalette.shelf_families, after its words, inside the popup, apart, their tooltips opening
+## above; no aisle and no Staple anywhere. A coupon has no row.
+func test_the_counts_row_shows_the_given_tags_as_glyphs() -> void:
 	var balance: BalanceDefinition = load(BALANCE) as BalanceDefinition
+	var palette: FamilyPalette = FamilyPalette.shared()
 	var milk: CardDefinition = load("%s/milk.tres" % CARDS) as CardDefinition
 	var granted: PackedStringArray = milk.tags.duplicate()
 	granted.append("Clearance")
 	var aisle: AisleDefinition = balance.aisle_of(milk)
-	var expected: PackedStringArray = granted.duplicate()
-	expected.append(aisle.display_name if aisle != null else ScanPopup.STAPLE)
-	assert_str(ScanPopup.tag_line(granted, milk, aisle)).is_equal(
-		ScanPopup.TAG_SEPARATOR.join(expected)
-	)
-	var bread: CardDefinition = load("%s/bread.tres" % CARDS) as CardDefinition
-	assert_str(ScanPopup.tag_line(PackedStringArray(), bread, null)).is_equal(ScanPopup.STAPLE)
-	var batteries: CardDefinition = load("%s/batteries.tres" % CARDS) as CardDefinition
-	var household: AisleDefinition = balance.aisle_of(batteries)
-	assert_str(household.display_name).is_equal("Household")
-	assert_bool(batteries.tags.has("Household")).is_true()
-	assert_str(ScanPopup.tag_line(batteries.tags, batteries, household)).is_equal(
-		ScanPopup.TAG_SEPARATOR.join(batteries.tags)
-	)
-	var coupon: CardDefinition = load("%s/multipack.tres" % CARDS) as CardDefinition
-	assert_str(ScanPopup.tag_line(PackedStringArray(["Food"]), coupon, null)).is_equal("Food")
 	var popup: ScanPopup = _popup()
-	popup.show_card(milk, aisle, granted)
-	var texts: Array[String] = []
+	popup.show_card(milk, granted)
+	var shown: PackedStringArray = PackedStringArray()
+	var box: Rect2 = Rect2(Vector2.ZERO, popup.size)
+	var counts: Label = popup.find_child("CountsAs", true, false) as Label
+	assert_str(counts.text).is_equal(ScanPopup.COUNTS_TEXT)
+	var placed: Array[Rect2] = [_inner(popup, counts)]
+	for glyph: FamilyGlyph in popup.glyphs():
+		shown.append(glyph.family)
+		assert_bool(glyph.tip_below).is_false()
+		var rect: Rect2 = _inner(popup, glyph)
+		assert_bool(box.encloses(rect)).override_failure_message(str(rect)).is_true()
+		for other: Rect2 in placed:
+			assert_bool(rect.intersects(other)).override_failure_message(str(rect)).is_false()
+		placed.append(rect)
+	assert_array(Array(shown)).is_equal(Array(palette.shelf_families(granted)))
+	assert_array(Array(shown)).contains(["Clearance"])
 	for label: Label in popup.text_labels():
-		texts.append(label.text)
-	assert_array(texts).contains([ScanPopup.tag_line(granted, milk, aisle)])
+		assert_str(label.text).not_contains("Staple")
+		if aisle != null:
+			assert_str(label.text).is_not_equal(aisle.display_name)
+	var coupon: CardDefinition = load("%s/multipack.tres" % CARDS) as CardDefinition
+	popup.show_card(coupon, PackedStringArray(["Food"]))
+	assert_array(popup.glyphs()).is_empty()
+	assert_object(popup.find_child("CountsAs", true, false)).is_null()
+	# The cleared rows are freed at the end of the frame: let them go before the orphan check.
+	await await_idle_frame()
+
+
+## The header (#105): a band in the ticket's colours (Milk's Breakfast; a plain coupon keeps the
+## paper), the name in Pixelify at ArtStyle.ITEM_NAME_SIZE when it fits (else the bold fallback),
+## and the price at the right, apart and inside the band; under it the line that says what the
+## colour means (none for the plain coupon).
+func test_the_header_is_in_the_tickets_colours() -> void:
+	var palette: FamilyPalette = FamilyPalette.shared()
+	var popup: ScanPopup = _popup()
+	var milk: CardDefinition = load("%s/milk.tres" % CARDS) as CardDefinition
+	popup.show_card(milk, milk.tags)
+	var band: Array[FamilyStyle] = popup.band_families()
+	assert_int(band.size()).is_equal(1)
+	assert_str(band[0].id).is_equal(palette.ticket_families(milk)[0])
+	assert_str(popup.name_text()).is_equal("Milk")
+	assert_bool(ItemName.is_display(popup.name_control())).is_true()
+	var label: Label = ItemName.labels(popup.name_control())[0]
+	assert_int(label.get_theme_font_size("font_size")).is_equal(ArtStyle.ITEM_NAME_SIZE)
+	var name_rect: Rect2 = _inner(popup, popup.name_control())
+	var price: Rect2 = _inner(popup, popup.price_label())
+	assert_str(popup.price_label().text).is_equal(PriceSticker.price_text(milk.base))
+	assert_bool(popup.band_rect().encloses(name_rect)).is_true()
+	assert_bool(popup.band_rect().encloses(price)).is_true()
+	assert_bool(name_rect.intersects(price)).is_false()
+	# Under the band, the line that teaches the colour, with the glyph of the family it names.
+	assert_str(popup.colour_line().text).is_equal("Breakfast ticket: works with Breakfast")
+	assert_str(popup.colour_line_glyph().family).is_equal("Breakfast")
+	assert_bool(popup.colour_line_glyph().tip_below).is_false()
+	var cereal: CardDefinition = load("%s/cereal.tres" % CARDS) as CardDefinition
+	popup.show_card(cereal, cereal.tags)
+	assert_str(popup.colour_line().text).is_equal("Dairy ticket: works with Milk")
+	assert_object(popup.colour_line_glyph()).is_null()
+	var coupon: CardDefinition = load("%s/multipack.tres" % CARDS) as CardDefinition
+	popup.show_card(coupon, PackedStringArray())
+	assert_array(popup.band_families()).is_empty()
+	assert_object(popup.price_label()).is_null()
+	assert_object(popup.colour_line()).is_null()
+	assert_bool(popup.swatch_rect().has_area()).is_false()
+	await await_idle_frame()
 
 
 ## An item in a scaled, moved panel is pointed at where it is drawn: place_at takes global rects
@@ -105,7 +150,7 @@ func test_a_scaled_panel_is_placed_from_global_rects() -> void:
 	var popup: ScanPopup = ScanPopup.new()
 	layer.add_child(popup)
 	var cheese: CardDefinition = load("%s/cheese.tres" % CARDS) as CardDefinition
-	popup.show_card(cheese, null, cheese.tags)
+	popup.show_card(cheese, cheese.tags)
 	var global_sprite: Rect2 = sprite.get_global_rect()
 	var below: Rect2 = Rect2(global_sprite.position + Vector2(0, 84), Vector2(86, 51))
 	var area: Rect2 = panel.get_global_transform() * PANEL_RECT
@@ -144,7 +189,43 @@ func _assert_holds_its_text(popup: ScanPopup, definition: CardDefinition, messag
 	assert_int(rule.get_visible_line_count()).override_failure_message(message).is_equal(
 		rule.get_line_count()
 	)
-	assert_str(popup.name_label().text).is_equal(definition.display_name)
+	assert_str(popup.name_text()).is_equal(definition.display_name)
+	var box: Rect2 = Rect2(Vector2.ZERO, popup.size)
+	for glyph: FamilyGlyph in popup.glyphs():
+		var glyph_rect: Rect2 = _inner(popup, glyph)
+		assert_bool(box.encloses(glyph_rect)).override_failure_message(message).is_true()
+	var name_rect: Rect2 = _inner(popup, popup.name_control())
+	assert_bool(box.encloses(name_rect)).override_failure_message(message).is_true()
+	# The colour's line (#105): under a coloured band, between it and the rule, its swatch and
+	# glyph inside the popup and clear of its words.
+	var line: Label = popup.colour_line()
+	assert_bool(line != null).override_failure_message(message).is_equal(
+		not popup.band_families().is_empty()
+	)
+	if line != null:
+		var words: Rect2 = _inner(popup, line)
+		assert_str(line.text).is_equal(FamilyPalette.shared().ticket_line(definition))
+		assert_float(words.position.y).override_failure_message(message).is_greater_equal(
+			popup.band_rect().end.y
+		)
+		assert_float(words.end.y).override_failure_message(message).is_less_equal(
+			_inner(popup, popup.rule_label()).position.y
+		)
+		var swatch: Rect2 = popup.swatch_rect()
+		assert_bool(box.encloses(swatch)).override_failure_message(message).is_true()
+		assert_bool(swatch.intersects(words)).override_failure_message(message).is_false()
+		if popup.colour_line_glyph() != null:
+			var mark: Rect2 = _inner(popup, popup.colour_line_glyph())
+			assert_bool(box.encloses(mark)).override_failure_message(message).is_true()
+			assert_float(mark.end.x).override_failure_message(message).is_less_equal(
+				ScanPopup.WIDTH - ScanPopup.PADDING
+			)
+	if popup.price_label() != null:
+		(
+			assert_bool(name_rect.intersects(_inner(popup, popup.price_label())))
+			. override_failure_message(message)
+			. is_false()
+		)
 	assert_float(popup.size.y).override_failure_message(message).is_between(
 		ScanPopup.MIN_HEIGHT, ScanPopup.MAX_HEIGHT
 	)
@@ -170,6 +251,11 @@ func _assert_placed(popup: ScanPopup, sprite: Rect2, below: Rect2, message: Stri
 	assert_float(popup.tail_tip().y).override_failure_message(message).is_equal(
 		sprite.get_center().y
 	)
+
+
+## `control`'s rect in `popup`'s coordinates.
+static func _inner(popup: ScanPopup, control: Control) -> Rect2:
+	return popup.get_global_transform().affine_inverse() * control.get_global_rect()
 
 
 static func _cell(index: int) -> Vector2:

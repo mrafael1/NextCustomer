@@ -459,7 +459,7 @@ func _show(view: ItemView) -> void:
 		# Over the offers, a click on the popup stops there (see the class comment).
 		_popup.mouse_filter = Control.MOUSE_FILTER_STOP
 		_popup.visible = true
-		_popup.show_card(definition, view.aisle, view.tags())
+		_popup.show_card(definition, view.tags())
 		_popup.place_at(
 			sprite, view.below_rect(), _stage.get_global_rect(), _offer_panel.get_global_rect()
 		)
@@ -467,7 +467,7 @@ func _show(view: ItemView) -> void:
 		_highlight(-1)
 	else:
 		_popup.visible = false
-		_monitor.show_scan(definition, view.aisle, view.tags(), payout, lines, fizzles, gives)
+		_monitor.show_scan(definition, view.tags(), payout, lines, fizzles, gives)
 		_highlight(slot if view.form == ItemView.Form.BELT else -1)
 	marks.pose_hover(sprite)
 	if _wants_reduced_motion():

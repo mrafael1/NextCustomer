@@ -11,12 +11,13 @@ extends PanelContainer
 ## Products fill the shelves from the top left; the coupons stand at the right end of the last
 ## shelf, at least one empty column after the products, so a 15-card cart (up to 15 distinct
 ## cards) fits on two shelves unscrolled. A BIG or GOLDEN copy shows its tier tag under its sticker
-## (PriceSticker.tier_text), so a player never swaps one out unknowingly. The cart reveal's marks
-## (v0.51) stay for the whole run, on each item's art: a staple's product (one of the recipe's core
-## products, any tier) the mustard padlock, a dealt pick's product the teal "+" (the tomato token
-## for the coupon); an item can carry both (a staple dealt again). Marks go by product: a later
-## copy of a marked product shares its marks, since copies carry no origin in the save; only a
-## product that was not in the deal carries none. A legend beside the tag line names the marks.
+## (PriceSticker.tier_text), so a player never swaps one out unknowingly. The cart reveal's pick
+## marks (v0.51) stay for the whole run, on each item's art: a dealt pick's product the teal "+"
+## (the tomato token for the coupon). The staple padlock shows only on the cart reveal (#105).
+## Marks go by product: a later copy of a marked product shares its mark, since copies carry no
+## origin in the save; only a product that was not in the deal carries none. A legend beside the
+## tag line names the marks. The tickets' family glyphs show their names below the ticket on
+## hover (GlyphTips, mounted by the screen).
 ##
 ## The Run info page shows the owned upgrades (each with its LOYALTY stamp ring), this shift's and
 ## the next shift's inspections (a warning sign on an inspected one), and the run's stock: every
@@ -68,7 +69,6 @@ const UPGRADE_NAME_WEIGHT := 750
 const ICON_TEXT_GAP := 8
 const LEGEND_SIZE := 14
 const LEGEND_CHIP := Vector2(18, 18)
-const STAPLE_LEGEND := "staple"
 const PICK_LEGEND := "start pick"
 const COUPON_LEGEND := "start coupon"
 const STOCK_HEADING := "STOCK  (every item the RECEIPT REWARDS machine can offer this run)"
@@ -81,7 +81,7 @@ var _scroll: ScrollContainer
 var _deck_page: VBoxContainer
 var _info_page: VBoxContainer
 var _choosing: bool = false
-## The run's starting deck, for the staple and pick marks (null: no marks).
+## The run's starting deck, for the pick marks (null: no marks).
 var _starter: DeckDefinition
 var _balance: BalanceDefinition
 ## The scan popup's layer (top level, over the view), the popup, and the hovered cell.
@@ -207,7 +207,7 @@ func hover(cell: DeckCell) -> void:
 	item.lifted = true
 	cell.ringed = _choosing
 	_popup.visible = true
-	_popup.show_card(item.card.definition, item.aisle, item.tags())
+	_popup.show_card(item.card.definition, item.tags())
 	_popup.place_at(
 		item.get_global_transform() * Rect2(ItemView.TRAY_SPRITE, ItemView.SPRITE_SIZE),
 		item.below_rect(),
@@ -326,8 +326,7 @@ func _deck_cell(group: DeckSummary.Group) -> DeckCell:
 	var cell: DeckCell = _cell(group.copies[0], group.copies.size())
 	if _marks_shown():
 		var card: CardDefinition = group.card
-		var staple: bool = card.is_product() and _starter.core_cards.any(card.is_same_product)
-		cell.add_origin_marks(staple, StartingDeck.picks(_starter).any(card.is_same_product))
+		cell.add_origin_marks(StartingDeck.picks(_starter).any(card.is_same_product))
 	return cell
 
 
@@ -341,7 +340,6 @@ func _legend() -> HBoxContainer:
 	legend.name = "Legend"
 	legend.add_theme_constant_override("separation", 6)
 	var entries: Array[Array] = [
-		[Palette.MUSTARD, RevealTile.LOCK_ICON, STAPLE_LEGEND],
 		[Palette.TEAL_BRIGHT, RevealTile.PICK_ICON, PICK_LEGEND],
 		[Palette.TOMATO, RevealTile.COUPON_ICON, COUPON_LEGEND],
 	]
@@ -433,7 +431,7 @@ func _aisle_line(aisles: Array[AisleDefinition]) -> HBoxContainer:
 	row.add_child(UiKit.body_label("Aisles:", LINE_SIZE, Palette.PAPER))
 	for index: int in aisles.size():
 		var glyph: TextureRect = UiKit.sprite(load(ArtStyle.glyph_path(aisles[index])) as Texture2D)
-		glyph.custom_minimum_size = ScanPopup.GLYPH_SIZE
+		glyph.custom_minimum_size = Vector2.ONE * ArtStyle.FAMILY_GLYPH_SIZE
 		glyph.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 		row.add_child(glyph)
 		var comma: String = "," if index < aisles.size() - 1 else ""

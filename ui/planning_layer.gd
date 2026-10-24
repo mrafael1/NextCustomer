@@ -7,7 +7,7 @@ extends Control
 ## applied at the bottom nearest the ticket, growing up over the item and the back wall (never
 ## over the ticket, never past the hung monitor's foot or the top bar's: the stack squeezes, then
 ## its earliest stickers fold into one "…+N"); the pay on its ticket (PayTag, over the ticket's top
-## band, never over its text: PriceSticker.set_pay strikes the base and moves the aisle glyph); a
+## right corner, die-cut, the struck old price under it: PriceSticker.set_pay; #105); a
 ## denied item's rubber stamp (DenyStamp); and a 3-ring item's two sparkles. It boosts (halo and
 ## lift) and greys the items themselves (ItemView.set_boost, set_denied). A drag's ghost carries
 ## its slot's stack, stamp and pay tag as its own children, so they follow it. Under all of that,
@@ -21,7 +21,7 @@ extends Control
 ## view, so they get nothing. The layout follows the views (it is redone whenever a view moves
 ## relative to the layer, e.g. once the row's containers have sorted). apply_focus lights the
 ## hovered item's stickers and drains the rest, and dims the unrelated pay tags and stamps; it rings
-## the hovered item's ticket (mustard pale, mustard, ink), gives its targets' tickets the "got" face
+## the hovered item's ticket (mustard pale, mustard, ink), gives its targets' tickets the "got" ring
 ## and turns the related rail strips hot (section 5.3): the hovered giver's own strip is drawn
 ## again in lane 0's geometry on top of everything, with every target's gain, and the strips
 ## giving to it with its gain only (in lane 1 when they share a slot with it), while every other
@@ -66,16 +66,15 @@ const STAMP_OFFSET := Vector2(2, 26)
 const SPARKLE_RINGS := 3
 const SPARKLE_OFFSETS: Array[Vector2] = [Vector2(2, 14), Vector2(76, -24)]
 const SPARKLE_SIZE := Vector2(10, 10)
-## A pay tag's overhang past the ticket's right edge and above its top (section 4.5), none on a
-## scaled row past the right edge; its bottom at most TAG_MAX_BOTTOM under the ticket's top (the
-## summary starts 2 px lower), its left TAG_BASE_GAP after the base's text, and its right at most
-## TAG_MAX_RIGHT past the ticket's (else the base shrinks: PriceSticker.BASE_STRUCK_SIZE).
+## A pay tag on its ticket's top-right corner (#105, mock-up readability v3's stacked price): its
+## overhang past the ticket's right edge and above its top, none past the right edge on a scaled
+## row. A wide burst over a two-glyph row (Golden Milk at €126) moves right to WIDE_CLEAR_LEFT
+## from the ticket's left (its die-cut meets the squeezed glyph row's rims, PriceSticker), at most
+## WIDE_CLEAR_LEFT + its width - the ticket's width past the ticket (the rail's gap holds it).
 const BURST_OVERHANG := Vector2(6, 6)
-const WIDE_OVERHANG := Vector2(6, 10)
+const WIDE_OVERHANG := Vector2(14, 12)
 const TAG_OVERHANG := Vector2(4, 4)
-const TAG_MAX_BOTTOM := 26.0
-const TAG_BASE_GAP := 4.0
-const TAG_MAX_RIGHT := 16.0
+const WIDE_CLEAR_LEFT := 46.0
 ## The hovered item's ticket ring: bands RING_BAND wide round the ticket, inside out.
 const RING_BAND := 2.0
 const RING_COLOURS: Array[Color] = [Palette.MUSTARD_PALE, Palette.MUSTARD, Palette.INK]
@@ -172,7 +171,7 @@ func show_model(shown: PlanningModel, items: Array[ItemView], ghost: ItemView = 
 		_painted.append(item)
 		var on_ghost: bool = item == _ghost
 		if planning.pay != PlanningModel.Pay.PLAIN:
-			var tag: PayTag = PayTag.new(planning.pay, planning.pay_text, planning.glyph)
+			var tag: PayTag = PayTag.new(planning.pay, planning.pay_text, planning.glyph, true)
 			tag.dimmed_alpha = tuning.dim_ticket_alpha if tuning != null else 1.0
 			(_ghost_box if on_ghost else _pay_box).add_child(tag)
 			_pays[slot] = tag
@@ -253,7 +252,7 @@ func strips() -> Array[RailStrip]:
 ## of slots outside `related`, over `fade_s` seconds (0: at once). With a focus, the strips of
 ## `hot` (giver slot: the target whose gain shows, -1 for every target's) turn hot and every
 ## other strip dims, and the item at `focus_slot` (-1: none) gets its ticket ring and its targets'
-## tickets the "got" face.
+## tickets the "got" ring.
 func apply_focus(
 	lit_causes: Callable,
 	related: PackedInt32Array,
@@ -569,10 +568,18 @@ func _lay_out_belt(slot: int, planning: PlanningSlot, item: ItemView) -> void:
 	var ticket: Rect2 = ticket_xf * Rect2(Vector2.ZERO, PriceSticker.SIZE)
 	var tag: PayTag = _pays.get(slot, null)
 	var tag_rect: Rect2 = Rect2()
+	var struck: bool = planning.struck and not _counting
 	if tag != null:
 		tag_rect = _tag_rect(tag, ticket, item.sticker(), scale_x)
 		tag.position = tag_rect.position
-	item.sticker().set_pay(planning.struck and not _counting, ticket_xf.affine_inverse() * tag_rect)
+	item.sticker().set_pay(struck, ticket_xf.affine_inverse() * tag_rect)
+	if tag != null:
+		var old: PriceSticker.StruckPrice = item.sticker().struck_price()
+		if item.sticker().is_struck() and old != null:
+			var at: Vector2 = ticket_xf * item.sticker().struck_rect().position - tag.position
+			tag.show_struck(old.text, old.dark, at, ticket_xf.get_scale())
+		else:
+			tag.hide_struck()
 	var stamped: DenyStamp = _stamps.get(slot, null)
 	if stamped != null:
 		stamped.position = (sprite.position + STAMP_OFFSET * scale_x).snappedf(ArtStyle.ART_SCALE)
@@ -594,6 +601,7 @@ func _lay_out_ghost(slot: int, planning: PlanningSlot, ghost: ItemView) -> void:
 	var tag: PayTag = _pays.get(slot, null)
 	if tag != null:
 		tag.position = GHOST_PAY_AT
+		tag.hide_struck()
 	var stamped: DenyStamp = _stamps.get(slot, null)
 	if stamped != null:
 		stamped.position = sprite.position + STAMP_OFFSET
@@ -654,28 +662,29 @@ func _build_stack(slot: int, shown: Array[StickerSpec], parent: Control) -> void
 	_paint_focus(0.0)
 
 
-## The pay tag's rect for `ticket` (layer coordinates) of `sticker`, at the row's `scale_x`:
-## overhanging the ticket's top right (not past its right edge on a scaled row), after the base's
-## text (shrunk if the tag would reach past TAG_MAX_RIGHT), its bottom over the summary.
+## The pay tag's rect for `ticket` (layer coordinates) of `sticker`, at the row's `scale_x`: on
+## the ticket's top-right corner, overhanging it (not past its right edge on a scaled row); a wide
+## burst that would cut into the sticker's glyph row moves right to WIDE_CLEAR_LEFT.
 func _tag_rect(tag: PayTag, ticket: Rect2, sticker: PriceSticker, scale_x: float) -> Rect2:
 	var overhang: Vector2 = TAG_OVERHANG
+	var wide: bool = false
 	if tag.pay == PlanningModel.Pay.BOOSTED:
-		var wide: bool = tag.size.x > PayTag.BURST_SIZE.x
+		wide = tag.size.x > PayTag.BURST_SIZE.x
 		overhang = WIDE_OVERHANG if wide else BURST_OVERHANG
 	if scale_x < 1.0:
 		overhang.x = 0.0
-	var natural_left: float = ticket.end.x + overhang.x - tag.size.x
-	var after_base: float = ticket.position.x + TAG_BASE_GAP
-	var left: float = maxf(
-		natural_left, after_base + sticker.base_text_end(PriceSticker.BASE_SIZE) * scale_x
-	)
-	if left + tag.size.x > ticket.end.x + TAG_MAX_RIGHT:
-		var small_end: float = sticker.base_text_end(PriceSticker.BASE_STRUCK_SIZE) * scale_x
-		left = maxf(natural_left, after_base + small_end)
-	var top: float = minf(
-		ticket.position.y - overhang.y, ticket.position.y + TAG_MAX_BOTTOM * scale_x - tag.size.y
-	)
-	return Rect2(Vector2(left, top).snappedf(ArtStyle.ART_SCALE), tag.size)
+	var left: float = ticket.end.x + overhang.x - tag.size.x
+	if wide and scale_x >= 1.0:
+		var cut_left: float = left - ticket.position.x - ArtStyle.RIM_TEXELS * ArtStyle.ART_SCALE
+		if sticker.glyph_row_end() > cut_left:
+			left = ticket.position.x + WIDE_CLEAR_LEFT
+	# The tag keeps its size on a scaled row: its foot stays where it sits on a full-size ticket
+	# (over the struck price and the text), so it rises a little more.
+	var scale_y: float = ticket.size.y / PriceSticker.SIZE.y
+	var foot: float = ticket.position.y + (tag.size.y - overhang.y) * scale_y
+	var top: float = floorf((foot - tag.size.y) / ArtStyle.ART_SCALE) * ArtStyle.ART_SCALE
+	left = snappedf(left, ArtStyle.ART_SCALE)
+	return Rect2(Vector2(left, top), tag.size)
 
 
 ## The focus's look on every part (apply_focus); a denied item's stickers stay drained.

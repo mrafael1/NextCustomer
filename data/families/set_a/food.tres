@@ -1,0 +1,13 @@
+[gd_resource type="Resource" script_class="FamilyStyle" format=3]
+
+[ext_resource type="Script" path="res://presentation/family_style.gd" id="1_style"]
+[ext_resource type="Texture2D" path="res://art/icons/aisle_pantry.png" id="2_glyph"]
+
+[resource]
+script = ExtResource("1_style")
+id = "Food"
+display_name = "Food"
+glyph = ExtResource("2_glyph")
+face = Color(0.92549, 0.541176, 0.431373, 1)
+light = Color(0.960784, 0.74902, 0.627451, 1)
+shade = Color(0.85098, 0.32549, 0.309804, 1)

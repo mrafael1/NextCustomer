@@ -255,7 +255,7 @@ func test_a_revealed_prize_shows_its_effect_beside_it() -> void:
 					assert_str(rule).contains(prizes[index].upgrade.effect_text)
 				MachinePrize.Kind.UPGRADE:
 					var preview: MachinePreview = run.machine.preview(run, index)
-					assert_str(popup.name_label().text).is_equal(preview.to_cards[0].display_name)
+					assert_str(popup.name_text()).is_equal(preview.to_cards[0].display_name)
 					assert_str(rule).is_equal(preview.to_cards[0].rule_text)
 				_:
 					assert_str(rule).is_equal(prizes[index].card.rule_text)

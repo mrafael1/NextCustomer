@@ -4,10 +4,10 @@ extends Control
 ## its tray item (ItemView, TRAY: the sprite over its price sticker, a BIG or GOLDEN copy's tier
 ## tag under the sticker) and its name under it. Its other copies stand stacked behind the first,
 ## dimmed, and a cream price-gun label slapped on the art counts them ("×3"). On the Cart page the
-## cart reveal's marks (v0.51) sit on the art's top-left corner: the mustard padlock of a staple's
-## product, the teal "+" of a starting pick's (the tomato token for the coupon). In the stock a new
-## arrival carries a mustard NEW chip there instead. The name is the plain product's (the art and
-## the tier tag show the tier), stepped down to fit.
+## cart reveal's pick marks (v0.51) sit on the art's top-left corner: the teal "+" of a starting
+## pick's product (the tomato token for the coupon); the staple padlock shows only on the cart
+## reveal (#105). In the stock a new arrival carries a mustard NEW chip there instead. The name is
+## the plain product's (the art and the tier tag show the tier), stepped down to fit.
 ##
 ## Hover (the pointer on its sprite or sticker) lifts the art; `ringed` draws the chooser's gold
 ## ring round it. It only displays its card: DeckView owns the clicks, the hover and the popup.
@@ -37,7 +37,6 @@ const NEW_TEXT := "NEW"
 const RING_WIDTH := 4.0
 const RING_OUTSET := 4.0
 ## Node names (for tests).
-const STAPLE_MARK := "StapleMark"
 const PICK_MARK := "PickMark"
 const NEW_MARK := "NewMark"
 const COUNT_LABEL := "CountLabel"
@@ -94,11 +93,9 @@ static func name_size(text: String) -> int:
 	return NAME_SIZES[-1]
 
 
-## Adds the cart reveal's marks (v0.51): the padlock of a staple, then the "+" of a starting pick
-## (the token of the starting coupon).
-func add_origin_marks(staple: bool, picked: bool) -> void:
-	if staple:
-		_add_mark(STAPLE_MARK, RevealChip.new(Palette.MUSTARD, MARK_SIZE, RevealTile.LOCK_ICON))
+## Adds the cart reveal's pick mark (v0.51): the "+" of a starting pick (the token of the
+## starting coupon). A staple carries no mark here: its padlock is the cart reveal's (#105).
+func add_origin_marks(picked: bool) -> void:
 	if picked:
 		var coupon: bool = card.is_coupon()
 		var chip: RevealChip = RevealChip.new(

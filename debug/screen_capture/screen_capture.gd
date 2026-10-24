@@ -45,6 +45,10 @@ extends Control
 ## the cart reveal, frozen at that time of its timeline (and of its fold into the Cart button), and
 ## the file is shift_screen_reveal_[outro_<tenths>_][hover<n>_]<tenths>_<width>x<height>.png;
 ## `hover=<n>` (v0.54) opens the scan popup of tile n (the staples, then the picks, from 0).
+## With `--tip=<card id>[,<n>]` (#105) the glyph tooltip of glyph n (from 0) on that card's first
+## belt ticket shows (below the ticket), `--tip=<card id>,colour` its colour's tooltip, and
+## `--tip=monitor[,<n>]` that of the monitor scan's glyph n (above it; with --effects=<card id>);
+## the file name gets tip_<what>_<n>_ (tip_<what>_colour_).
 ## With `--deck=<page>[,<option>...]` (#56) a new run opens the deck view (see deck() for the pages
 ## and options), and the file is shift_screen_deck_<page>[_<options>]_<width>x<height>.png.
 
@@ -79,6 +83,10 @@ const REVEAL_ARGUMENT := "--reveal="
 ## A --reveal capture's file name part: reveal_[outro_<tenths>_]<tenths>_.
 const REVEAL_PREFIX := "reveal_%s%d_"
 const DECK_ARGUMENT := "--deck="
+const TIP_ARGUMENT := "--tip="
+const TIP_PREFIX := "tip_%s_%d_"
+const TIP_COLOUR_PREFIX := "tip_%s_colour_"
+const COLOUR_TIP := "colour"
 ## --deck's full cart: the first copies upgraded to these tiers, and this coupon added.
 const FULL_TIERS: Dictionary[String, String] = {"banana": "banana_golden", "milk": "milk_big"}
 const FULL_COUPON_ID := "multipack"
@@ -128,6 +136,8 @@ var _checkout_s: float = -1.0
 var _machine_part: String = ""
 ## Since reveal(): the file name part naming its time ("" before).
 var _reveal_part: String = ""
+## A --tip capture's file name part.
+var _tip_part: String = ""
 ## Since hold_pointer(): the real pointer drives no hover, tooltip or click.
 var _holding_pointer: bool = false
 
@@ -166,6 +176,9 @@ func _ready() -> void:
 		var machine_spec: String = _argument(MACHINE_ARGUMENT)
 		if machine_spec != "":
 			await machine(machine_spec)
+		var tip_spec: String = _argument(TIP_ARGUMENT)
+		if tip_spec != "":
+			await tip(tip_spec)
 		var announce_s: String = _argument(ANNOUNCE_ARGUMENT)
 		if announce_s != "":
 			var announce_parts: PackedStringArray = announce_s.split(",")
@@ -301,7 +314,7 @@ func capture(folder: String) -> void:
 		prefix = FOCUS_PREFIX if _focused else EFFECTS_PREFIX
 	if _checkout_s >= 0.0:
 		prefix += CHECKOUT_PREFIX % roundi(_checkout_s * 10.0)
-	prefix += _machine_part + _reveal_part
+	prefix += _machine_part + _reveal_part + _tip_part
 	var path: String = folder.path_join(FILE_NAME % [prefix, window.x, window.y])
 	var image: Image = (
 		grab_image.call() as Image
@@ -311,6 +324,44 @@ func capture(folder: String) -> void:
 	var error: Error = ERR_UNAVAILABLE if image == null else image.save_png(path)
 	if error != OK:
 		_report("Can't save %s (error %d)" % [path, error])
+
+
+## Shows a family glyph's tooltip (#105): `spec` is "<card id>[,<n>]" (glyph n of that card's first
+## belt ticket), "<card id>,colour" (that ticket's colour) or "monitor[,<n>]" (glyph n of the
+## monitor's scan). A missing glyph goes to report_error.
+func tip(spec: String) -> void:
+	for _frame: int in range(SCAN_SETTLE_FRAMES):
+		await get_tree().process_frame
+	var parts: PackedStringArray = spec.split(",", false)
+	var what: String = parts[0] if not parts.is_empty() else ""
+	var colour: bool = parts.size() > 1 and parts[1] == COLOUR_TIP
+	var index: int = parts[1].to_int() if parts.size() > 1 and not colour else 0
+	var targets: Array[TipTarget] = []
+	if what == "monitor":
+		for found: Node in _screen._monitor.find_children("*", "FamilyGlyph", true, false):
+			targets.append(found as FamilyGlyph)
+	else:
+		for found: Node in _screen.find_children("*", "ItemView", true, false):
+			var item: ItemView = found as ItemView
+			if item.form == ItemView.Form.BELT and item.card.definition.id == what:
+				if colour:
+					targets.append(
+						item.sticker().get_node(PriceSticker.COLOUR_SPOT_NAME) as TipTarget
+					)
+				else:
+					targets.append_array(item.sticker().glyphs())
+				break
+	if index >= targets.size():
+		_report("No glyph %d for %s" % [index, what])
+		return
+	var target: TipTarget = targets[index]
+	# The pointer rests on it (the real pointer drives nothing in a capture): a colour off the
+	# ticket's glyphs, at its lower left.
+	var rect: Rect2 = target.get_global_rect()
+	var at: Vector2 = rect.position + Vector2(4, rect.size.y - 6) if colour else rect.get_center()
+	_screen._glyph_tips.point_at(at)
+	_screen._glyph_tips.show_tip(target)
+	_tip_part = (TIP_COLOUR_PREFIX % what) if colour else (TIP_PREFIX % [what, index])
 
 
 ## Starts a new run (SEED, or `seed=<seed>`) on the cart reveal (v0.51), frozen at `spec`'s seconds

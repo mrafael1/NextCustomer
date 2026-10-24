@@ -1,0 +1,14 @@
+[gd_resource type="Resource" script_class="FamilyStyle" format=3]
+
+[ext_resource type="Script" path="res://presentation/family_style.gd" id="1_style"]
+[ext_resource type="Texture2D" path="res://art/icons/family_clearance.png" id="2_glyph"]
+
+[resource]
+script = ExtResource("1_style")
+id = "Clearance"
+display_name = "Clearance"
+glyph = ExtResource("2_glyph")
+face = Color(0.431373, 0.14902, 0.188235, 1)
+light = Color(0.658824, 0.227451, 0.235294, 1)
+shade = Color(0.337255, 0.07451, 0.152941, 1)
+paper_text = true

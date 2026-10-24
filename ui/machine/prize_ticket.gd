@@ -18,7 +18,12 @@ extends Control
 ##
 ## The face (paper, its rarity's edge) holds the art box (PrizeArt: the real sprite, the coupon
 ## slip, a LOYALTY punch card, an upgrade's item at its new tier), a band ("NEW ITEM · €2",
-## "COUPON", "LOYALTY STAMP", "UPGRADE"), the prize's name and its rule's summary; resting the
+## "COUPON", "LOYALTY STAMP", "UPGRADE"), the prize's name (#105: in Pixelify, as the scan popup
+## prints it, at the machine's NAME_DISPLAY_SIZE on one line, its numbers in the number font,
+## MixedLabel; a name too long for that in bold Atkinson in up to NAME_LINES lines) and its rule
+## (#105: an item's long rule text, its whole contract, in up to RULE_LINES lines,
+## RULE_LINES_ONE_NAME under a one-line name, at the first of RULE_SIZES that shows it uncut);
+## resting the
 ## pointer on it (hovered) opens the scan popup with the whole effect (v0.53,
 ## PrizePopup). A click picks it once the machine has armed; after the pick the
 ## picked ticket lifts and flies off (MachineFlyer takes it), the others fall away, and a bin drops
@@ -42,11 +47,18 @@ const NAME_TOP := 171.0
 const NAME_SIZE := 18
 const NAME_PITCH := 18.0
 const NAME_WIDTH := 180.0
+## A Pixelify name (#105): NAME_DISPLAY_SIZE px (the machine prints Pixelify at 12 or 24 px only),
+## centred on a row from NAME_ROW_TOP as tall as its font's line, the rule NAME_ROW_GAP under it.
+const NAME_DISPLAY_SIZE := 24
+const NAME_ROW_TOP := 164.0
+const NAME_ROW_GAP := 2.0
 const RULE_GAP := 4.0
-const RULE_SIZE := 13
-const RULE_PITCH := 16.0
+const RULE_SIZES: Array[int] = [13, 12, 11]
+## Each RULE_SIZES size's line pitch.
+const RULE_PITCHES: Array[float] = [16.0, 15.0, 14.0]
 const RULE_WIDTH := 176.0
 const RULE_LINES := 3
+const RULE_LINES_ONE_NAME := 4
 const NAME_LINES := 2
 const BOLD_WEIGHT := 800
 ## The extra height of a pitched box, so rounding never drops its last line.
@@ -106,7 +118,9 @@ var _fx_back: Control
 var _fx_front: Control
 var _burst: ColorRect
 var _band: Label
-var _name: Label
+## The name: a MixedLabel (Pixelify) or, too long for it, a bold Label.
+var _name: Control
+var _name_lines: int = 1
 var _rule: Label
 ## Seconds since it landed face up (below 0: not yet), and the idle time, for the effects.
 var _te: float = -1.0
@@ -185,15 +199,28 @@ static func prize_name(shown: MachinePrize) -> String:
 	return shown.card.display_name
 
 
-## The prize's rule on its ticket: the item's sticker rule, the perk's effect, or what the upgrade
-## does (upgrade_text).
+## The prize's rule on its ticket: the item's long rule text (#105), the perk's effect, or what
+## the upgrade does (upgrade_text).
 static func rule_text(shown: MachinePrize, preview: MachinePreview) -> String:
 	match shown.kind:
 		MachinePrize.Kind.REGISTER:
 			return shown.upgrade.effect_text
 		MachinePrize.Kind.UPGRADE:
 			return upgrade_text(shown, preview)
-	return CardText.sticker_summary(shown.card)
+	return shown.card.rule_text
+
+
+## The rule's lines and its size (an index into RULE_SIZES) on a ticket whose name takes
+## `name_lines` lines: up to RULE_LINES_ONE_NAME lines under a one-line name, else RULE_LINES, at
+## the first size that shows `text` uncut (else the smallest, cut). Pure.
+static func rule_fit(text: String, name_lines: int) -> Vector2i:
+	var font: Font = ArtStyle.bold_font(RULE_WEIGHT)
+	var room: int = RULE_LINES_ONE_NAME if name_lines <= 1 else RULE_LINES
+	for step: int in RULE_SIZES.size():
+		var lines: int = text_lines(font, text, RULE_SIZES[step], RULE_WIDTH)
+		if lines <= room:
+			return Vector2i(lines, step)
+	return Vector2i(room, RULE_SIZES.size() - 1)
 
 
 ## What an UPGRADES pick does, from the machine's preview: one copy one step ("1 copy: BIG ›
@@ -277,12 +304,33 @@ func rarity_texts() -> PackedStringArray:
 
 ## The face's texts: the band, the name and the rule.
 func face_texts() -> PackedStringArray:
-	return PackedStringArray([_band.text, _name.text, _rule.text])
+	return PackedStringArray([_band.text, ItemName.text_of(_name), _rule.text])
 
 
-## The face's labels (band, name, rule), for layout tests.
+## The face's labels (the band, the name's, the rule), for layout tests.
 func face_labels() -> Array[Label]:
-	return [_band, _name, _rule]
+	var found: Array[Label] = [_band]
+	found.append_array(ItemName.labels(_name))
+	found.append(_rule)
+	return found
+
+
+## The name (a MixedLabel in Pixelify, or the bold fallback's Label) and its line count.
+func name_control() -> Control:
+	return _name
+
+
+func name_line_count() -> int:
+	return _name_lines
+
+
+func rule_label() -> Label:
+	return _rule
+
+
+## Whether `text` prints in Pixelify on one line (else the bold fallback).
+static func name_is_display(text: String) -> bool:
+	return ItemName.width_of(text, NAME_DISPLAY_SIZE) <= NAME_WIDTH
 
 
 ## Whether the LEGENDARY sunburst shows now, and its radius.
@@ -370,17 +418,43 @@ func _add_texts(_run: RunState) -> void:
 	_band.name = "Band"
 	RewardMachineView.fit(_band, BAND_RECT)
 	var name_text: String = prize_name(prize)
-	_name = _label(name_text, NAME_SIZE, bold, Palette.INK)
-	_name.name = "Name"
-	var name_lines: int = mini(text_lines(bold, name_text, NAME_SIZE, NAME_WIDTH), NAME_LINES)
-	_name.max_lines_visible = NAME_LINES
-	_fit_pitched(_name, bold, NAME_SIZE, NAME_PITCH, Vector2(NAME_WIDTH, NAME_TOP), name_lines)
+	var rule_top: float
+	if name_is_display(name_text):
+		var shown: MixedLabel = MixedLabel.new(name_text, NAME_DISPLAY_SIZE, false, Palette.INK)
+		shown.alignment = BoxContainer.ALIGNMENT_CENTER
+		shown.name = "Name"
+		_card.add_child(shown)
+		# Measured from the fonts: out of the tree a label measures with the default size.
+		var row: float = ceilf(
+			maxf(
+				ArtStyle.DISPLAY_FONT.get_height(NAME_DISPLAY_SIZE),
+				ArtStyle.number_font().get_height(NAME_DISPLAY_SIZE)
+			)
+		)
+		shown.position = Vector2((SIZE.x - NAME_WIDTH) / 2.0, NAME_ROW_TOP)
+		shown.size = Vector2(NAME_WIDTH, row)
+		_name = shown
+		_name_lines = 1
+		rule_top = NAME_ROW_TOP + row + NAME_ROW_GAP
+	else:
+		var label: Label = _label(name_text, NAME_SIZE, bold, Palette.INK)
+		label.name = "Name"
+		_name_lines = mini(text_lines(bold, name_text, NAME_SIZE, NAME_WIDTH), NAME_LINES)
+		label.max_lines_visible = NAME_LINES
+		var name_band: Vector2 = Vector2(NAME_WIDTH, NAME_TOP)
+		_fit_pitched(label, bold, NAME_SIZE, NAME_PITCH, name_band, _name_lines)
+		_name = label
+		rule_top = NAME_TOP + NAME_PITCH * _name_lines + RULE_GAP
 	var rule_font: Font = ArtStyle.bold_font(RULE_WEIGHT)
-	_rule = _label(rule_text(prize, _preview), RULE_SIZE, rule_font, Palette.INK)
+	var text: String = rule_text(prize, _preview)
+	var fit: Vector2i = rule_fit(text, _name_lines)
+	var rule_size: int = RULE_SIZES[fit.y]
+	var room: int = RULE_LINES_ONE_NAME if _name_lines <= 1 else RULE_LINES
+	_rule = _label(text, rule_size, rule_font, Palette.INK)
 	_rule.name = "Rule"
-	_rule.max_lines_visible = RULE_LINES
-	var rule_top: float = NAME_TOP + NAME_PITCH * name_lines + RULE_GAP
-	_fit_pitched(_rule, rule_font, RULE_SIZE, RULE_PITCH, Vector2(RULE_WIDTH, rule_top), RULE_LINES)
+	_rule.max_lines_visible = room
+	var band: Vector2 = Vector2(RULE_WIDTH, rule_top)
+	_fit_pitched(_rule, rule_font, rule_size, RULE_PITCHES[fit.y], band, room)
 	_rule.vertical_alignment = VERTICAL_ALIGNMENT_TOP
 
 

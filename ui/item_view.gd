@@ -2,8 +2,9 @@ class_name ItemView
 extends CardView
 ## A card shown as an item on the counter (#75; style frame v2's spec sections 3 and 4): its
 ## sprite (a product's 48x48 art at 2x, or the shared coupon slip with the coupon's icon) over
-## its price sticker. It keeps CardView's API (body, badge, center, highlight, tags), so the
-## count-up plays it unchanged.
+## its price sticker (PriceSticker: since #105 a full-colour ticket in the colour of the family the
+## card works with, its family glyphs, price and short text). It keeps CardView's API (body,
+## badge, center, highlight, tags), so the count-up plays it unchanged.
 ##
 ## Four forms. On the belt (a BELT_SIZE cell; mock-up B2, #80) the sprite stands on the belt's top
 ## face, the sticker is its ticket on the price rail, an EffectMark may sit on the art's visible
@@ -115,7 +116,8 @@ const NAME_LINES := 3
 ## The printed name's node name on the art (item_art).
 const PRINTED_NAME := "PrintedName"
 
-## The aisle the item is stocked from, or null (a staple or a coupon).
+## The aisle the item is stocked from, or null (a staple or a coupon): the scan's popup and the
+## monitor's bay read it; its ticket shows its families instead (#105).
 var aisle: AisleDefinition
 var form: Form = Form.TRAY
 ## A hover scan (ScanController) lifts the sprite by LIFT, as a selection does; let go, the
@@ -182,7 +184,7 @@ func _init(
 	aisle = card_aisle if definition.is_product() else null
 	if definition.is_product():
 		_tags = definition.tags.duplicate()
-	_sticker = PriceSticker.new(definition, aisle)
+	_sticker = PriceSticker.new(definition)
 	add_child(_sticker)
 	move_child(_sticker, _stand.get_index() + 1)
 	set_form(item_form)

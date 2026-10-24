@@ -97,10 +97,11 @@ func test_the_game_deals_the_recipe_deck() -> void:
 	assert_int(view.card_views().size()).is_equal(_distinct(run.starter.cards))
 
 
-## v0.51: the Cart page keeps the cart reveal's marks for the run (#56: on the item's art): a
-## staple's padlock, then a starting pick's "+" (the coupon's token), both on a staple dealt
-## again; a card only the machine gave has none. The marks sit on the art's top left, inside the
-## cell, apart from each other and clear of the copies' count label; the legend names them.
+## v0.51: the Cart page keeps the cart reveal's pick marks for the run (#56: on the item's art):
+## a starting pick's "+" (the coupon's token); a staple and a card only the machine gave have
+## none (#105: the staple's padlock shows only on the cart reveal). The marks sit on the art's top
+## left, inside the cell, apart from each other and clear of the copies' count label; the legend
+## names them and has no staple entry.
 func test_the_cart_page_marks_staples_and_picks() -> void:
 	var screen: ShiftScreen = await _screen()
 	screen.start_new_run(20261014, false)
@@ -116,13 +117,11 @@ func test_the_cart_page_marks_staples_and_picks() -> void:
 	var seen: Dictionary[String, Array] = {}
 	for cell: DeckCell in view.cells():
 		var card: CardDefinition = cell.card
-		var staple: Node = cell.get_node_or_null(DeckCell.STAPLE_MARK)
+		var staple: Node = cell.find_child("*Staple*", true, false)
 		var pick: Node = cell.get_node_or_null(DeckCell.PICK_MARK)
 		var id: String = String(card.id)
 		seen[id] = [staple != null, pick != null]
-		assert_bool(staple != null).override_failure_message(id).is_equal(
-			card.is_product() and run.starter.core_cards.has(card)
-		)
+		assert_bool(staple != null).override_failure_message(id).is_false()
 		assert_bool(pick != null).override_failure_message(id).is_equal(picks.has(card))
 		var column: Rect2 = cell.get_global_rect()
 		var count: Control = cell.get_node_or_null(DeckCell.COUNT_LABEL)
@@ -142,17 +141,16 @@ func test_the_cart_page_marks_staples_and_picks() -> void:
 			for other: Rect2 in placed:
 				assert_bool(rect.intersects(other)).override_failure_message(id).is_false()
 			placed.append(rect)
-	# Banana: a staple only; Milk and Eggs: staples dealt again; the coupon: a pick (its token).
-	assert_array(seen["banana"]).is_equal([true, false])
-	assert_array(seen["milk"]).is_equal([true, true])
-	assert_array(seen["eggs"]).is_equal([true, true])
+	# Banana: a staple only (no mark); Milk and Eggs: staples dealt again; the coupon: a pick.
+	assert_array(seen["banana"]).is_equal([false, false])
+	assert_array(seen["milk"]).is_equal([false, true])
+	assert_array(seen["eggs"]).is_equal([false, true])
 	assert_array(seen["coffee"]).is_equal([false, false])
 	var coupon: CardDefinition = picks[0]
 	assert_bool(coupon.is_coupon()).is_true()
 	assert_array(seen[String(coupon.id)]).is_equal([false, true])
-	assert_array(Array(view.texts())).contains(
-		[DeckView.STAPLE_LEGEND, DeckView.PICK_LEGEND, DeckView.COUPON_LEGEND]
-	)
+	assert_array(Array(view.texts())).contains([DeckView.PICK_LEGEND, DeckView.COUPON_LEGEND])
+	assert_array(Array(view.texts())).not_contains(["staple"])
 
 
 ## #56: any dealt cart, and a full cart of 15 distinct cards with BIG and GOLDEN copies, fits the

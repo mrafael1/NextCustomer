@@ -294,10 +294,8 @@ func _assert_full_row_fits(screen: ShiftScreen, count: int) -> void:
 				. is_true()
 			)
 			assert_bool(stage.encloses(rect)).override_failure_message(message).is_true()
-		var summary: Label = item.sticker().summary_label()
-		var shown: float = (
-			summary.get_theme_font_size("font_size") * summary.get_global_transform().get_scale().y
-		)
+		var summary: GlyphLabel = item.sticker().summary()
+		var shown: float = summary.font_size() * summary.get_global_transform().get_scale().y
 		assert_float(shown).override_failure_message(message).is_greater_equal(MIN_SUMMARY_PX)
 	_assert_scanner_under_first_cell(screen)
 

@@ -191,7 +191,7 @@ func test_the_veil_frames_the_row() -> void:
 	assert_bool(row.keep_label().visible).is_false()
 
 
-## Each prize in full: a product's band and its price, its name and sticker rule over its real
+## Each prize in full: a product's band and its price, its name and long rule (#105) over its real
 ## sprite; a coupon's band; a LOYALTY prize's band, the perk's name and effect over a punch card
 ## and its perk badge (Big basket's "+1 slot" glyph); an upgrade's new tier on its chip; the SHELF
 ## upgrade's plain item on a gold plank, "SHELF +1".
@@ -202,7 +202,7 @@ func test_every_ticket_shows_its_prize_in_full() -> void:
 		view, 0, MachinePrize.new(MachinePrize.Kind.PRODUCT, 0, milk), null, 1
 	)
 	assert_array(Array(product.face_texts())).is_equal(
-		["NEW ITEM · €%d" % milk.base, milk.display_name, CardText.sticker_summary(milk)]
+		["NEW ITEM · €%d" % milk.base, milk.display_name, milk.rule_text]
 	)
 	assert_object(product.art.get_node("Sprite")).is_not_null()
 	var coupon_card: CardDefinition = _balance.first_offer_pool[0]
@@ -246,8 +246,10 @@ func test_every_ticket_shows_its_prize_in_full() -> void:
 	assert_str(shelf.art.chip_text()).is_equal("SHELF +1")
 
 
-## Every face's lines fit the ticket (the band on one line, the name in NAME_LINES, the rule in
-## RULE_LINES, all inside the ticket): every product and coupon the machine can draw, every
+## Every face's lines fit the ticket (the band on one line, the name in Pixelify on one line when
+## it fits NAME_WIDTH at NAME_DISPLAY_SIZE (#105), else bold in NAME_LINES, the long rule text
+## whole in RULE_LINES, or RULE_LINES_ONE_NAME under a one-line name, at a RULE_SIZES size, under
+## the name; all inside the ticket): every product and coupon the machine can draw, every
 ## LOYALTY perk and every UPGRADES prize of every chain and rarity.
 func test_every_face_fits_the_ticket() -> void:
 	var view: RewardMachineView = _view(MachineVisit.Kind.TICKET, true, [0])
@@ -280,25 +282,57 @@ func test_every_face_fits_the_ticket() -> void:
 	var face: Rect2 = Rect2(Vector2.ZERO, PrizeTicket.SIZE)
 	for index: int in range(prizes.size()):
 		var ticket: PrizeTicket = _ticket(view, 0, prizes[index], previews[index], 1)
+		# The name's row lays out its labels at the frame's end.
+		await get_tree().process_frame
 		var texts: PackedStringArray = ticket.face_texts()
 		var what: String = " / ".join(texts)
 		var band: int = PrizeTicket.text_lines(
 			bold, texts[0], PrizeTicket.BAND_SIZE, PrizeTicket.BAND_RECT.size.x
 		)
 		assert_int(band).override_failure_message(what).is_equal(1)
-		var name_lines: int = PrizeTicket.text_lines(
-			bold, texts[1], PrizeTicket.NAME_SIZE, PrizeTicket.NAME_WIDTH
+		var display: bool = PrizeTicket.name_is_display(texts[1])
+		assert_bool(ticket.name_control() is MixedLabel).override_failure_message(what).is_equal(
+			display
 		)
+		var name_lines: int = (
+			1
+			if display
+			else PrizeTicket.text_lines(
+				bold, texts[1], PrizeTicket.NAME_SIZE, PrizeTicket.NAME_WIDTH
+			)
+		)
+		assert_int(ticket.name_line_count()).override_failure_message(what).is_equal(name_lines)
 		assert_int(name_lines).override_failure_message(what).is_less_equal(PrizeTicket.NAME_LINES)
-		var rule_lines: int = PrizeTicket.text_lines(
-			rule_font, texts[2], PrizeTicket.RULE_SIZE, PrizeTicket.RULE_WIDTH
+		# #105: the long rule text, whole, at the first RULE_SIZES size that shows it.
+		var fit: Vector2i = PrizeTicket.rule_fit(texts[2], name_lines)
+		var room: int = (
+			PrizeTicket.RULE_LINES_ONE_NAME if name_lines <= 1 else PrizeTicket.RULE_LINES
 		)
-		assert_int(rule_lines).override_failure_message(what).is_less_equal(PrizeTicket.RULE_LINES)
+		var rule_lines: int = PrizeTicket.text_lines(
+			rule_font, texts[2], PrizeTicket.RULE_SIZES[fit.y], PrizeTicket.RULE_WIDTH
+		)
+		assert_int(rule_lines).override_failure_message(what).is_less_equal(room)
+		assert_int(rule_lines).override_failure_message(what).is_equal(fit.x)
+		# The face's own coordinates: the card layer holding the rule.
+		var card: Control = ticket.rule_label().get_parent() as Control
+		var to_face: Transform2D = card.get_global_transform().affine_inverse()
 		for label: Label in ticket.face_labels():
-			var rect: Rect2 = Rect2(label.position, label.size)
+			var rect: Rect2 = (
+				to_face * label.get_global_transform() * Rect2(Vector2.ZERO, label.size)
+			)
 			assert_bool(face.encloses(rect)).override_failure_message(what).is_true()
-		var rule: Label = ticket.face_labels()[2]
-		var shown: float = rule_lines * PrizeTicket.RULE_PITCH
+		var rule: Label = ticket.rule_label()
+		var name_box: Control = ticket.name_control()
+		var name_rect: Rect2 = (
+			to_face * name_box.get_global_transform() * Rect2(Vector2.ZERO, name_box.size)
+		)
+		assert_float(name_rect.end.y).override_failure_message(what).is_less_equal(
+			(
+				(to_face * rule.get_global_transform() * Rect2(Vector2.ZERO, rule.size)).position.y
+				+ 1.0
+			)
+		)
+		var shown: float = rule_lines * PrizeTicket.RULE_PITCHES[fit.y]
 		assert_float(shown).override_failure_message(what).is_less_equal(rule.size.y + 0.01)
 		# Godot shows a line only when the box holds the font's full height: every line of the
 		# band, the name and the rule must be visible, not merely fit by the pitch.

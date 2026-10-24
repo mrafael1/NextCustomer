@@ -1,12 +1,21 @@
 class_name ScanPopup
 extends Control
-## The scan popup (#75; style frame v2's spec section 4.5): what a scanned offer does, in full.
-## A paper panel with a gold trim and a hard drop shadow: a header (aisle glyph, name and a mini
-## sticker with the base, or COUPON), the tag line (the item's tags and its aisle, or Staple) and
-## the card's rule text verbatim. It grows with its text up to MAX_HEIGHT. place() is the pure
-## placement rule: it opens beside the item, over the offers' panel, its tail pointing sideways at
-## the item. Since #80 the shift screen opens it for the offers only (ScanController.cover_offers):
-## a belt or hand item's scan shows on the monitor (MonitorView), with its payout and step lines.
+## The scan popup (#75; style frame v2's spec section 4.5; #105's readability pass, mock-up
+## readability v3): what a scanned offer does, in full. A paper panel with a gold trim and a hard
+## drop shadow: a header band in the colour of the card's ticket (FamilyPalette, data; a plain
+## coupon keeps the paper) with its name (ItemName: Pixelify at 22 px, or the bold body font when
+## too long) and its price "€N" (or COUPON); under a coloured header, the line that teaches the
+## colour (a swatch of it and FamilyPalette.ticket_line, "Breakfast ticket: works with Breakfast",
+## with the glyph of the family it names); a "Counts as" row of the family glyphs it counts as
+## (FamilyPalette.shelf_families of its tags) and the card's long rule text verbatim. No aisle and
+## no staple mark (the padlock is only on the cart reveal). Its glyphs' tooltips open above them
+## (GlyphTips) where the pointer can reach them: over the offers, whose popup stays while the
+## pointer is on it (ScanController); the Cart's and the machine's popups close as the pointer
+## leaves their item, so there the words say it. It grows with its text up to MAX_HEIGHT. place() is
+## the pure placement rule: it opens beside the item, over the offers' panel, its tail pointing
+## sideways at the item. Since #80 the shift screen opens it for the offers only
+## (ScanController.cover_offers): a belt or hand item's scan shows on the monitor (MonitorView),
+## with its payout and step lines.
 
 ## Where the popup opened: right or left of the item.
 enum Placement { RIGHT, LEFT }
@@ -29,21 +38,48 @@ const TAIL_OVERLAP := 2.0
 const SHADOW_OFFSET := Vector2(4, 4)
 const SHADOW_ALPHA := 0.3
 const HEADER_HEIGHT := 28.0
-const GLYPH_SIZE := Vector2(18, 18)
-const NAME_SIZE := 20
+## The header band (a coloured ticket's): inside the popup's outline, BAND_HEIGHT tall, its top
+## BAND_EDGE px in the family's light colour and its foot BAND_EDGE px of ink; the content starts
+## BAND_GAP under it.
+const BAND_INSET := 2.0
+const BAND_HEIGHT := 40.0
+const BAND_EDGE := 2.0
+const BAND_GAP := 6.0
+const PRICE_SIZE := 18
+const PRICE_GAP := 8.0
 const COUPON_TITLE_SIZE := 14
-const MINI_STICKER_SIZE := Vector2(56, 26)
-const MINI_BASE_SIZE := 18
-const TAG_HEIGHT := 16.0
-const TAG_SIZE := 12
+## The "Counts as" row: its words (the body font at COUNTS_WEIGHT, COUNTS_SIZE px, grey dark) and
+## the glyphs after them, COUNTS_GAP apart.
+const COUNTS_HEIGHT := 22.0
+const COUNTS_SIZE := 12
+const COUNTS_WEIGHT := 700
+const COUNTS_GAP := 4.0
+const COUNTS_TEXT := "Counts as"
+## The colour's line (#105, mock-up readability v3): the body font at LINE_WEIGHT, LINE_SIZE px, in
+## ink, LINE_TOP under the band and LINE_GAP over the next row, wrapping; before it a swatch of the
+## ticket's colour (SWATCH_SIZE, an ink ring SWATCH_RING wide, LINE_SWATCH_ROOM wide with its gap)
+## and after its last line the glyph of the family it names (LINE_GLYPH_GAP before it).
+const LINE_SIZE := 13
+const LINE_WEIGHT := 700
+## Its wrapped lines' spacing (the font's own line is loose for a two-line note).
+const LINE_SPACING := -4
+const LINE_TOP := 1.0
+const LINE_GAP := 2.0
+const SWATCH_SIZE := Vector2(14, 12)
+const SWATCH_RING := 2.0
+const LINE_SWATCH_ROOM := 20.0
+const LINE_GLYPH_GAP := 4.0
+const LINE_NAME := "ColourLine"
 const RULE_SIZE := 15
 const RULE_LINE_SPACING := 2
 const COUPON_TITLE_WIDTH := 76.0
-const STAPLE := "Staple"
 const COUPON_TITLE := "COUPON"
-## A LOYALTY perk's title (show_upgrade) and when it applies.
+## A LOYALTY perk's title (show_upgrade), its name's size, its tag line and when it applies.
 const LOYALTY_TITLE := "LOYALTY"
 const LOYALTY_WHEN := "from the next shift"
+const NAME_SIZE := 20
+const TAG_HEIGHT := 16.0
+const TAG_SIZE := 12
 const TAG_SEPARATOR := " · "
 
 const FRAME := preload("res://art/frames/popup.png")
@@ -53,8 +89,16 @@ var placement: Placement = Placement.RIGHT
 
 var _content: Control
 var _rule: Label
-var _name: Label
+var _name: Control
+var _price: Label
+var _glyphs: Array[FamilyGlyph] = []
+var _line: Label
+var _line_glyph: FamilyGlyph
+## The colour line's swatch (empty: none).
+var _swatch: Rect2 = Rect2()
 var _tail: TextureRect
+## The header band's colours (none: a paper header).
+var _band: Array[FamilyStyle] = []
 
 
 func _init() -> void:
@@ -72,29 +116,55 @@ func _draw() -> void:
 	var rect: Rect2 = Rect2(Vector2.ZERO, size)
 	draw_rect(Rect2(SHADOW_OFFSET, size), Color(Palette.INK, SHADOW_ALPHA))
 	draw_style_box(ArtStyle.frame_style(FRAME, FRAME_MARGIN), rect)
+	if _band.is_empty():
+		return
+	var band: Rect2 = band_rect()
+	var half: float = roundf(band.size.x / _band.size())
+	for index: int in _band.size():
+		var family: FamilyStyle = _band[index]
+		var left: float = band.position.x + half * index
+		var right: float = band.end.x if index == _band.size() - 1 else left + half
+		var part: Rect2 = Rect2(left, band.position.y, right - left, band.size.y)
+		draw_rect(part, family.face)
+		draw_rect(Rect2(part.position, Vector2(part.size.x, BAND_EDGE)), family.light)
+	draw_rect(Rect2(band.position.x, band.end.y - BAND_EDGE, band.size.x, BAND_EDGE), Palette.INK)
+	if _swatch.has_area():
+		draw_rect(_swatch, Palette.INK)
+		var inside: Rect2 = _swatch.grow(-SWATCH_RING)
+		var part: float = roundf(inside.size.x / _band.size())
+		for index: int in _band.size():
+			var left: float = inside.position.x + part * index
+			var right: float = inside.end.x if index == _band.size() - 1 else left + part
+			draw_rect(
+				Rect2(left, inside.position.y, right - left, inside.size.y), _band[index].face
+			)
 
 
-## Fills the popup for `definition` (its `aisle`, or null) with its `tags`. Call it once the popup
-## is in the tree: the text's height is measured with the real font. The popup takes its height
-## (MIN_HEIGHT to MAX_HEIGHT); place it with place_at().
-func show_card(definition: CardDefinition, aisle: AisleDefinition, tags: PackedStringArray) -> void:
-	for child: Node in _content.get_children():
-		_content.remove_child(child)
-		child.queue_free()
+## Fills the popup for `definition` with its `tags`. Call it once the popup is in the tree: the
+## text's height is measured with the real font. The popup takes its height (MIN_HEIGHT to
+## MAX_HEIGHT); place it with place_at().
+func show_card(definition: CardDefinition, tags: PackedStringArray) -> void:
+	_clear_content()
+	var palette: FamilyPalette = FamilyPalette.shared()
+	var families: PackedStringArray = palette.ticket_families(definition)
+	_band.clear()
+	for style: FamilyStyle in palette.styles(families):
+		if style.has_ticket_colours():
+			_band.append(style)
+	var ink: Color = palette.text_color(families) if not _band.is_empty() else Palette.INK
 	var y: float = PADDING
-	_build_header(definition, aisle, y)
-	y += HEADER_HEIGHT
-	var tag_text: String = tag_line(tags, definition, aisle)
-	if not tag_text.is_empty():
-		var tag_label: Label = UiKit.body_label(tag_text, TAG_SIZE, Palette.GREY_DARK)
-		var top: float = y
-		y = _add_text(tag_label, top, TAG_HEIGHT)
-		# One TAG_HEIGHT row; a tag line too wide for it (three tags and an aisle) wraps.
-		if tag_label.get_minimum_size().x > CONTENT_WIDTH:
-			tag_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-			tag_label.size = Vector2(CONTENT_WIDTH, 1.0)
-			tag_label.size.y = tag_label.get_minimum_size().y
-			y = top + tag_label.size.y
+	if not _band.is_empty():
+		var band: Rect2 = band_rect()
+		_build_header(definition, band.position.y, band.size.y - BAND_EDGE, ink)
+		y = _build_line(definition, palette, band.end.y + LINE_TOP)
+	else:
+		_build_header(definition, y, HEADER_HEIGHT, ink)
+		y += HEADER_HEIGHT
+	var shown: PackedStringArray = (
+		palette.shelf_families(tags) if definition.is_product() else PackedStringArray()
+	)
+	if not shown.is_empty():
+		y = _build_counts(shown, palette, y)
 	_rule = UiKit.body_label(definition.rule_text, RULE_SIZE, Palette.INK)
 	_rule.add_theme_constant_override("line_spacing", RULE_LINE_SPACING)
 	_rule.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
@@ -103,13 +173,22 @@ func show_card(definition: CardDefinition, aisle: AisleDefinition, tags: PackedS
 	queue_redraw()
 
 
+## The header band's rect (in the popup's coordinates), drawn when the card's ticket has colours.
+func band_rect() -> Rect2:
+	return Rect2(BAND_INSET, BAND_INSET, WIDTH - 2.0 * BAND_INSET, BAND_HEIGHT)
+
+
+## The header band's families (none: a paper header).
+func band_families() -> Array[FamilyStyle]:
+	return _band
+
+
 ## Fills the popup for a LOYALTY perk (v0.53, a prize ticket's hover): its name with LOYALTY in
 ## the coupon title's place, its type and when it applies as the tag line, its effect and its
 ## condition (when it has one) as the rule. Call it once the popup is in the tree, as show_card.
 func show_upgrade(upgrade: UpgradeDefinition) -> void:
-	for child: Node in _content.get_children():
-		_content.remove_child(child)
-		child.queue_free()
+	_clear_content()
+	_band.clear()
 	var y: float = PADDING
 	_build_title(upgrade.display_name, LOYALTY_TITLE, y)
 	y += HEADER_HEIGHT
@@ -179,26 +258,44 @@ static func place(
 	return Rect2(Vector2(x, top), popup_size)
 
 
-## The tag line: the item's `tags` and, for a product, its aisle (or Staple), unless a tag
-## already reads the same (Batteries' Household tag in the Household aisle); a coupon shows only
-## its tags.
-static func tag_line(
-	tags: PackedStringArray, definition: CardDefinition, aisle: AisleDefinition
-) -> String:
-	var parts: PackedStringArray = tags.duplicate()
-	if definition.is_product():
-		var where: String = aisle.display_name if aisle != null else STAPLE
-		if not parts.has(where):
-			parts.append(where)
-	return TAG_SEPARATOR.join(parts)
-
-
 func rule_label() -> Label:
 	return _rule
 
 
-func name_label() -> Label:
+## The name (ItemName.make's control: a MixedLabel, or the fallback's Label; a LOYALTY perk's
+## Label).
+func name_control() -> Control:
 	return _name
+
+
+## The name's text.
+func name_text() -> String:
+	return ItemName.text_of(_name)
+
+
+## The price "€N", or null (a coupon, a LOYALTY perk).
+func price_label() -> Label:
+	return _price
+
+
+## The "Counts as" row's glyphs, left to right (none for a coupon).
+func glyphs() -> Array[FamilyGlyph]:
+	return _glyphs
+
+
+## The colour's line under a coloured header, or null (a plain coupon, a LOYALTY perk).
+func colour_line() -> Label:
+	return _line
+
+
+## The glyph after the colour's line (the family it names), or null.
+func colour_line_glyph() -> FamilyGlyph:
+	return _line_glyph
+
+
+## The colour line's swatch (empty: none).
+func swatch_rect() -> Rect2:
+	return _swatch
 
 
 func tail() -> TextureRect:
@@ -222,11 +319,13 @@ func tail_tip() -> Vector2:
 
 ## A header with `title_text` in the coupon title's style at the right (show_upgrade).
 func _build_title(heading: String, title_text: String, top: float) -> void:
-	_name = UiKit.display_label(heading, NAME_SIZE, false)
-	_name.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	_name.position = Vector2(PADDING, top)
-	_name.size = Vector2(WIDTH - 2.0 * PADDING - COUPON_TITLE_WIDTH - 6.0, HEADER_HEIGHT)
-	_content.add_child(_name)
+	var name_label: Label = UiKit.display_label(heading, NAME_SIZE, false)
+	name_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	name_label.position = Vector2(PADDING, top)
+	name_label.size = Vector2(WIDTH - 2.0 * PADDING - COUPON_TITLE_WIDTH - 6.0, HEADER_HEIGHT)
+	_content.add_child(name_label)
+	_name = name_label
+	_price = null
 	var title: Label = UiKit.display_label(title_text, COUPON_TITLE_SIZE, false)
 	title.add_theme_color_override("font_color", Palette.TEAL)
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
@@ -236,45 +335,121 @@ func _build_title(heading: String, title_text: String, top: float) -> void:
 	_content.add_child(title)
 
 
-func _build_header(definition: CardDefinition, aisle: AisleDefinition, top: float) -> void:
-	var x: float = PADDING
-	if aisle != null:
-		var glyph: TextureRect = UiKit.sprite(load(ArtStyle.glyph_path(aisle)) as Texture2D)
-		glyph.position = Vector2(x, top + (HEADER_HEIGHT - GLYPH_SIZE.y) / 2.0)
-		glyph.size = GLYPH_SIZE
-		_content.add_child(glyph)
-		x += GLYPH_SIZE.x + 6.0
-	_name = UiKit.display_label(definition.display_name, NAME_SIZE, false)
-	_name.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	_name.position = Vector2(x, top)
-	var badge: float = COUPON_TITLE_WIDTH if definition.is_coupon() else MINI_STICKER_SIZE.x
-	_name.size = Vector2(WIDTH - PADDING - badge - 6.0 - x, HEADER_HEIGHT)
-	_content.add_child(_name)
+## The header row at `top`, `height` tall: the name, then the price (or COUPON) at the right, in
+## `ink`.
+func _build_header(definition: CardDefinition, top: float, height: float, ink: Color) -> void:
 	var right: float = WIDTH - PADDING
+	var badge: float = COUPON_TITLE_WIDTH
+	_price = null
 	if definition.is_coupon():
 		var title: Label = UiKit.display_label(COUPON_TITLE, COUPON_TITLE_SIZE, false)
-		title.add_theme_color_override("font_color", Palette.VELVET)
+		title.add_theme_color_override("font_color", Palette.VELVET if _band.is_empty() else ink)
 		title.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 		title.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 		title.position = Vector2(right - COUPON_TITLE_WIDTH, top)
-		title.size = Vector2(COUPON_TITLE_WIDTH, HEADER_HEIGHT)
+		title.size = Vector2(COUPON_TITLE_WIDTH, height)
 		_content.add_child(title)
-		return
-	var sticker: Panel = Panel.new()
-	sticker.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	sticker.add_theme_stylebox_override("panel", PriceSticker.frame_style())
-	ArtStyle.use_pixel_material(sticker)
-	sticker.position = Vector2(
-		right - MINI_STICKER_SIZE.x, top + (HEADER_HEIGHT - MINI_STICKER_SIZE.y) / 2.0
+	else:
+		_price = UiKit.number_label(PriceSticker.price_text(definition.base), PRICE_SIZE, false)
+		_price.name = "Price"
+		_price.add_theme_color_override("font_color", ink)
+		_price.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+		_price.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+		_content.add_child(_price)
+		badge = ceilf(_price.get_minimum_size().x)
+		_price.position = Vector2(right - badge, top)
+		_price.size = Vector2(badge, height)
+	_name = ItemName.make(definition.display_name, right - badge - PRICE_GAP - PADDING, height, ink)
+	_name.position = Vector2(PADDING, top)
+	_content.add_child(_name)
+
+
+## The colour's line at `top` (FamilyPalette.ticket_line): the swatch, the words wrapping in the
+## room left of the glyph, and the glyph of the family it works with or gives after its last line.
+## Returns the next top.
+func _build_line(definition: CardDefinition, palette: FamilyPalette, top: float) -> float:
+	var text: String = palette.ticket_line(definition)
+	if text.is_empty():
+		return top + BAND_GAP - LINE_TOP
+	var why: CardFamilies.Why = palette.colour_reason(definition)
+	var named: FamilyStyle = null
+	if why.reason == CardFamilies.Reason.FAMILY or why.reason == CardFamilies.Reason.GIVES:
+		named = palette.style(why.subject)
+		if named != null and named.glyph == null:
+			named = null
+	var font: Font = ArtStyle.bold_font(LINE_WEIGHT)
+	var glyph_room: float = ArtStyle.FAMILY_GLYPH_SIZE + LINE_GLYPH_GAP if named != null else 0.0
+	var width: float = CONTENT_WIDTH - LINE_SWATCH_ROOM - glyph_room
+	_line = UiKit.body_label(text, LINE_SIZE, Palette.INK)
+	_line.name = LINE_NAME
+	_line.add_theme_font_override("font", font)
+	_line.add_theme_constant_override("line_spacing", LINE_SPACING)
+	_line.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_content.add_child(_line)
+	_line.position = Vector2(PADDING + LINE_SWATCH_ROOM, top)
+	_line.size = Vector2(width, 1.0)
+	_line.size.y = _line.get_minimum_size().y
+	var line_height: float = font.get_height(LINE_SIZE)
+	_swatch = Rect2(
+		Vector2(PADDING, roundf(top + (line_height - SWATCH_SIZE.y) / 2.0)), SWATCH_SIZE
 	)
-	sticker.size = MINI_STICKER_SIZE
-	_content.add_child(sticker)
-	var base: Label = UiKit.number_label("€%d" % definition.base, MINI_BASE_SIZE, false)
-	base.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	base.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	base.position = Vector2(0, 4)
-	base.size = MINI_STICKER_SIZE - Vector2(0, 4)
-	sticker.add_child(base)
+	if named != null:
+		_line_glyph = FamilyGlyph.new(named)
+		var last: float = _last_line_width(text, font, width)
+		var pitch: float = line_height + LINE_SPACING
+		var last_top: float = top + pitch * (_line.get_line_count() - 1)
+		_line_glyph.position = Vector2(
+			roundf(_line.position.x + last + LINE_GLYPH_GAP),
+			roundf(last_top + (line_height - _line_glyph.size.y) / 2.0)
+		)
+		_content.add_child(_line_glyph)
+	return top + _line.size.y + LINE_GAP
+
+
+## How wide the last line of `text` is, wrapped at `width` as a smart-wrapping label wraps it.
+static func _last_line_width(text: String, font: Font, width: float) -> float:
+	var paragraph: TextParagraph = TextParagraph.new()
+	paragraph.add_string(text, font, LINE_SIZE)
+	paragraph.width = width
+	paragraph.break_flags = (
+		TextServer.BREAK_MANDATORY | TextServer.BREAK_WORD_BOUND | TextServer.BREAK_ADAPTIVE
+	)
+	var lines: int = paragraph.get_line_count()
+	return ceilf(paragraph.get_line_width(lines - 1)) if lines > 0 else 0.0
+
+
+## The "Counts as" row at `top`: its words, then the glyphs of `families`. Returns the next top.
+func _build_counts(families: PackedStringArray, palette: FamilyPalette, top: float) -> float:
+	var words: Label = UiKit.body_label(COUNTS_TEXT, COUNTS_SIZE, Palette.GREY_DARK)
+	words.name = "CountsAs"
+	words.add_theme_font_override("font", ArtStyle.bold_font(COUNTS_WEIGHT))
+	words.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	_content.add_child(words)
+	var width: float = ceilf(words.get_minimum_size().x)
+	words.position = Vector2(PADDING, top)
+	words.size = Vector2(width, COUNTS_HEIGHT)
+	var x: float = PADDING + width + COUNTS_GAP
+	_glyphs.clear()
+	for family: String in families:
+		var style: FamilyStyle = palette.style(family)
+		if style == null or style.glyph == null:
+			continue
+		var glyph: FamilyGlyph = FamilyGlyph.new(style)
+		glyph.position = Vector2(x, top + (COUNTS_HEIGHT - glyph.size.y) / 2.0)
+		_content.add_child(glyph)
+		_glyphs.append(glyph)
+		x += glyph.size.x + COUNTS_GAP
+	return top + COUNTS_HEIGHT
+
+
+func _clear_content() -> void:
+	for child: Node in _content.get_children():
+		_content.remove_child(child)
+		child.queue_free()
+	_glyphs.clear()
+	_line = null
+	_line_glyph = null
+	_swatch = Rect2()
 
 
 ## Adds `label` at `top` across the content width: `height`, or its measured height when

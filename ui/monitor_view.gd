@@ -19,10 +19,13 @@ extends Control
 ##   the LED's compact layout only when it shows a projected total (no longer in the game: a blank
 ##   LED is hidden);
 ## - SCAN (a belt or hand item fully scanned: ScanController calls show_scan): the bay shows the
-##   item and its kind (COUPON, or its base price), and beside it (TEXT_RECT) its name, "pays €N"
-##   for a belt item, its tag line, its rule text and, for a belt item, its step lines as the caller
-##   words them (ScanFooter), in the largest of the TIERS sizes that shows every line; on the
-##   smallest, lines that don't fit fold into "+N more";
+##   item and its kind (COUPON, or its base price), and beside it (TEXT_RECT) its name (ItemName:
+##   Pixelify at 22 px, or the bold body font when too long) with its family glyphs after it
+##   (#105: FamilyPalette.shelf_families of its tags, their tooltips above), "pays €N" for a belt
+##   item, its short text (the sticker summary, its family names as glyphs: GlyphLabel; the rule
+##   text when it has none) and, for a belt item, its step lines as the caller words them
+##   (ScanFooter), in the largest of the TIERS sizes that shows every line; on the smallest, lines
+##   that don't fit fold into "+N more";
 ## - COUNT (the count-up: the LED shows SUBTOTAL or TOTAL in its count layout; #86 v6's scan
 ##   count-up, mock-up count_up_86_v6_scan.html): the bay follows the beats (follow_beat on
 ##   CountUp's beat_started: the item, its name and each beat's landing sticker), the LED's number
@@ -114,23 +117,23 @@ const SCREEN_SHADOW_ALPHA := 0.12
 const NOTICE_LINE_SPACING := -4
 ## The notice's ink: plain, as tomato is only for fizzles, CHECKOUT and CLOSED (#80).
 const NOTICE_COLOR := Palette.INK
-## The scan's text: the name row (with "pays €N" at its right; the name in the first of NAME_SIZES
-## that fits beside it, the smaller ones for long BIG and GOLDEN names), the tag row, the gaps.
+## The scan's text: the name row (the name, its glyphs NAME_GLYPH_GAP after it, GLYPH_GAP apart,
+## and "pays €N" at its right), the gaps.
 const NAME_HEIGHT := 26.0
-const NAME_SIZES: Array[int] = [20, 16, 14, 12]
+const NAME_GLYPH_GAP := 4.0
+const GLYPH_GAP := 3.0
 const PAYS_WORD := "pays"
 const PAYS_WORD_SIZE := 13
 const PAYS_AMOUNT_SIZE := 18
 const PAYS_GAP := 4.0
 const NAME_GAP := 8.0
-const TAG_HEIGHT := 16.0
-const TAG_SIZE := 12
-const RULE_GAP := 2.0
-const RULE_LINE_SPACING := 0
+const SUMMARY_GAP := 2.0
+const SUMMARY_WEIGHT := 800
 const FOOTER_GAP := 4.0
-## The rule text's and the step lines' sizes, largest first: the scan takes the first that shows
-## every step line.
-const TIERS: Array[Vector2i] = [Vector2i(13, 12), Vector2i(12, 11), Vector2i(11, 10)]
+## The short text's and the step lines' sizes, largest first, and the short text's line pitch at
+## each: the scan takes the first that shows every step line.
+const TIERS: Array[Vector2i] = [Vector2i(16, 12), Vector2i(14, 11), Vector2i(13, 10)]
+const SUMMARY_PITCHES: Array[float] = [19.0, 17.0, 15.0]
 ## Returns true when the player asked for reduced motion. None means false.
 var reduced_motion: Callable = Callable()
 ## The LED and the notices on the screen (the stage hands them to the shift screen).
@@ -192,8 +195,9 @@ var _next: CardDefinition
 var _slots: int = 0
 var _filled: int = 0
 var _held: CardDefinition
-var _scan_name: Label
-var _scan_rule: Label
+var _scan_name: Control
+var _scan_summary: GlyphLabel
+var _scan_glyphs: Array[FamilyGlyph] = []
 var _scan_footer: ScanFooter
 ## How many of the scan's first step lines are "gives" lines (show_scan).
 var _scan_gives: int = 0
@@ -383,7 +387,7 @@ func show_next(definition: CardDefinition, slots: int, filled: int) -> void:
 	_update_bay()
 
 
-## Shows a scanned item (ScanController): `definition` (its `aisle`, or null) with its `tags`
+## Shows a scanned item (ScanController): `definition` with its `tags`
 ## (on the belt the scored ones). A belt item passes its `payout` and step lines (each with
 ## whether it is a fizzle; the first `gives` of them are its "gives" lines, #71, their amount in
 ## mustard darkest); a hand item passes payout -1. Call it once the monitor is in the
@@ -391,7 +395,6 @@ func show_next(definition: CardDefinition, slots: int, filled: int) -> void:
 ## scan off the screen until it ends.
 func show_scan(
 	definition: CardDefinition,
-	aisle: AisleDefinition,
 	tags: PackedStringArray,
 	payout: int,
 	lines: PackedStringArray,
@@ -401,7 +404,7 @@ func show_scan(
 	_scanning = true
 	_scan_gives = gives
 	_held = definition
-	_fill_scan(definition, aisle, tags, payout, lines, fizzles)
+	_fill_scan(definition, tags, payout, lines, fizzles)
 	_apply()
 	_update_bay()
 
@@ -448,14 +451,14 @@ func show_end_state(
 		tank_burst.clear()
 
 
-## The scan's name label, rule label and step lines (while a scan was shown), and the size tier
-## it took (an index into TIERS).
-func scan_name_label() -> Label:
+## The scan's name (ItemName.make's control; its family glyphs are FamilyGlyphs after it), short
+## text and step lines (while a scan was shown), and the size tier it took (an index into TIERS).
+func scan_name() -> Control:
 	return _scan_name
 
 
-func scan_rule_label() -> Label:
-	return _scan_rule
+func scan_summary() -> GlyphLabel:
+	return _scan_summary
 
 
 func scan_footer() -> ScanFooter:
@@ -713,7 +716,6 @@ func _on_notice_showing(_showing: bool) -> void:
 ## shows the item's art and kind).
 func _fill_scan(
 	definition: CardDefinition,
-	aisle: AisleDefinition,
 	tags: PackedStringArray,
 	payout: int,
 	lines: PackedStringArray,
@@ -722,52 +724,70 @@ func _fill_scan(
 	for tier: int in range(TIERS.size()):
 		_clear(_scan_view)
 		_scan_tier = tier
-		var fits: bool = _build_scan(definition, aisle, tags, payout, lines, fizzles, TIERS[tier])
+		var fits: bool = _build_scan(definition, tags, payout, lines, fizzles, tier)
 		if fits:
 			return
 
 
-## The scan's text at `sizes` (the rule's, the step lines') in TEXT_RECT. Returns whether
-## everything shows inside it, no step line folded.
+## The scan's text at TIERS[`tier`] (the short text's size, the step lines') in TEXT_RECT.
+## Returns whether everything shows inside it, no step line folded.
 func _build_scan(
 	definition: CardDefinition,
-	aisle: AisleDefinition,
 	tags: PackedStringArray,
 	payout: int,
 	lines: PackedStringArray,
 	fizzles: Array[bool],
-	sizes: Vector2i
+	tier: int
 ) -> bool:
+	var sizes: Vector2i = TIERS[tier]
 	var column: Rect2 = local(TEXT_RECT)
-	var name_width: float = column.size.x
+	var palette: FamilyPalette = FamilyPalette.shared()
+	var row_width: float = column.size.x
 	if payout >= 0:
-		name_width -= _add_pays(payout, column) + NAME_GAP
-	_scan_name = UiKit.display_label(definition.display_name, NAME_SIZES[0], false)
-	_scan_name.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	_add(_scan_name, Rect2(column.position, Vector2(name_width, NAME_HEIGHT)))
-	for name_size: int in NAME_SIZES:
-		_scan_name.add_theme_font_size_override("font_size", name_size)
-		if _scan_name.get_minimum_size().x <= name_width:
-			break
-	# A name too wide at the larger sizes grew the label; it takes the row's width again.
-	_scan_name.size = Vector2(name_width, NAME_HEIGHT)
-	var y: float = column.position.y + NAME_HEIGHT
-	var tag_text: String = ScanPopup.tag_line(tags, definition, aisle)
-	if not tag_text.is_empty():
-		var tag: Label = UiKit.body_label(tag_text, TAG_SIZE, Palette.GREY_DARK)
-		_add(tag, Rect2(column.position.x, y, column.size.x, TAG_HEIGHT))
-		# One TAG_HEIGHT row; a tag line too wide for it wraps.
-		if tag.get_minimum_size().x > column.size.x:
-			tag.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-			tag.size = Vector2(column.size.x, 1.0)
-			tag.size.y = tag.get_minimum_size().y
-		y += maxf(tag.size.y, TAG_HEIGHT)
-	_scan_rule = UiKit.body_label(definition.rule_text, sizes.x, Palette.INK)
-	_scan_rule.add_theme_constant_override("line_spacing", RULE_LINE_SPACING)
-	_scan_rule.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	_add(_scan_rule, Rect2(column.position.x, y + RULE_GAP, column.size.x, 1.0))
-	_scan_rule.size.y = _scan_rule.get_minimum_size().y
-	y = _scan_rule.position.y + _scan_rule.size.y
+		row_width -= _add_pays(payout, column) + NAME_GAP
+	var shown: PackedStringArray = (
+		palette.shelf_families(tags) if definition.is_product() else PackedStringArray()
+	)
+	_scan_glyphs.clear()
+	for family: String in shown:
+		var style: FamilyStyle = palette.style(family)
+		if style != null and style.glyph != null:
+			_scan_glyphs.append(FamilyGlyph.new(style))
+	var glyphs_width: float = 0.0
+	if not _scan_glyphs.is_empty():
+		glyphs_width = (
+			NAME_GLYPH_GAP
+			+ _scan_glyphs.size() * ArtStyle.FAMILY_GLYPH_SIZE
+			+ (_scan_glyphs.size() - 1) * GLYPH_GAP
+		)
+	var name_room: float = row_width - glyphs_width
+	_scan_name = ItemName.make(definition.display_name, name_room, NAME_HEIGHT, Palette.INK)
+	_scan_view.add_child(_scan_name)
+	_scan_name.position = column.position
+	# The glyphs follow the name's text, not its row.
+	var name_end: float = minf(_name_width(_scan_name), name_room)
+	var x: float = column.position.x + ceilf(name_end) + NAME_GLYPH_GAP
+	for glyph: FamilyGlyph in _scan_glyphs:
+		glyph.position = Vector2(x, column.position.y + (NAME_HEIGHT - glyph.size.y) / 2.0)
+		_scan_view.add_child(glyph)
+		x += glyph.size.x + GLYPH_GAP
+	# A name with a number ("2 for 1") is as tall as the number font's line.
+	var y: float = column.position.y + maxf(NAME_HEIGHT, _scan_name.size.y)
+	var text: String = definition.sticker_summary()
+	if text.is_empty():
+		text = definition.rule_text
+	_scan_summary = GlyphLabel.new(
+		text,
+		ArtStyle.bold_font(SUMMARY_WEIGHT),
+		sizes.x,
+		Palette.INK,
+		SUMMARY_PITCHES[tier],
+		column.size.x
+	)
+	_scan_summary.name = "ScanSummary"
+	_scan_summary.position = Vector2(column.position.x, y + SUMMARY_GAP)
+	_scan_view.add_child(_scan_summary)
+	y = _scan_summary.position.y + _scan_summary.size.y
 	var bottom: float = local(TEXT_RECT).end.y
 	_scan_footer = null
 	if payout < 0:
@@ -778,6 +798,16 @@ func _build_scan(
 	_scan_footer.position = Vector2(column.position.x, y + FOOTER_GAP)
 	var all_shown: bool = _scan_footer.fill(lines, fizzles, bottom - _scan_footer.position.y)
 	return all_shown and y <= bottom
+
+
+## The width of a name's text (ItemName.make's control).
+static func _name_width(name_control: Control) -> float:
+	if name_control is MixedLabel:
+		return name_control.get_combined_minimum_size().x
+	var label: Label = name_control as Label
+	var font: Font = label.get_theme_font("font")
+	var font_size: int = label.get_theme_font_size("font_size")
+	return font.get_string_size(label.text, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size).x
 
 
 ## "pays €N" right-aligned on the name row of `column`. Returns its width.

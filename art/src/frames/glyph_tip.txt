@@ -1,0 +1,12 @@
+; A family glyph's tooltip (#105, mock-up readability v3, tipBox): a 9-slice with 2 art px
+; margins (the middle pixel stretches). Ink outline with cut corners, a grey dark lit top row
+; and an ink light face; the family's name is drawn on it in paper by code, and its 2,2 ink
+; drop shadow too.
+@size 5x5
+@kind frame
+@scale 2
+.###.
+#===#
+#%%%#
+#%%%#
+.###.

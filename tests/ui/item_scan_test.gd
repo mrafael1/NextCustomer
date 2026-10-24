@@ -72,8 +72,8 @@ func test_a_held_hand_item_shows_on_the_monitor() -> void:
 	assert_int(monitor.mode()).is_equal(MonitorView.Mode.SCAN)
 	assert_bool(screen._scan.popup().visible).is_false()
 	assert_float(view.body.position.y).is_equal(-ItemView.BASKET_LIFT)
-	assert_str(monitor.scan_rule_label().text).is_equal(view.card.definition.rule_text)
-	assert_str(monitor.scan_name_label().text).is_equal(view.card.definition.display_name)
+	assert_str(monitor.scan_summary().text).is_equal(_scan_text(view.card.definition))
+	assert_str(ItemName.text_of(monitor.scan_name())).is_equal(view.card.definition.display_name)
 	assert_object(monitor.scan_footer()).is_null()
 	_assert_monitor_holds_its_text(screen)
 	_assert_scanner_posed(screen, view)
@@ -111,7 +111,7 @@ func test_a_held_belt_item_lists_its_fizzles_on_the_monitor() -> void:
 		. is_true()
 	)
 	assert_bool(_monitor_texts(screen).has("€%d" % result.payouts[2])).is_true()
-	assert_str(monitor.scan_rule_label().text).is_equal(view.card.definition.rule_text)
+	assert_str(monitor.scan_summary().text).is_equal(_scan_text(view.card.definition))
 	_assert_monitor_holds_its_text(screen)
 	_assert_scanner_posed(screen, view)
 
@@ -581,12 +581,13 @@ func _assert_scanned_on_monitor(screen: ShiftScreen, view: ItemView) -> void:
 	assert_object(screen._scan.scanned()).override_failure_message(message).is_same(view)
 	var monitor: MonitorView = screen._monitor
 	assert_int(monitor.mode()).override_failure_message(message).is_equal(MonitorView.Mode.SCAN)
-	assert_str(monitor.scan_name_label().text).is_equal(view.card.definition.display_name)
+	assert_str(ItemName.text_of(monitor.scan_name())).is_equal(view.card.definition.display_name)
 	_assert_monitor_holds_its_text(screen)
 
 
 ## Every text label the monitor's scan shows inside its room: the bay's in the bay (BAY_RECT),
-## the others in the text column beside it (TEXT_RECT); its rule text whole.
+## the others in the text column beside it (TEXT_RECT); its summary (#105: the short text with
+## its family glyphs) whole and in the column too.
 func _assert_monitor_holds_its_text(screen: ShiftScreen) -> void:
 	var bay: ScannerBay = screen._monitor.bay()
 	for label: Label in screen._monitor.shown_labels():
@@ -600,8 +601,21 @@ func _assert_monitor_holds_its_text(screen: ShiftScreen) -> void:
 			. override_failure_message("'%s' %s outside %s" % [label.text, rect, content])
 			. is_true()
 		)
-	var rule: Label = screen._monitor.scan_rule_label()
-	assert_int(rule.get_visible_line_count()).is_equal(rule.get_line_count())
+	var summary: GlyphLabel = screen._monitor.scan_summary()
+	assert_bool(summary.fits()).is_true()
+	var column: Rect2 = _on_stage(screen, MonitorView.TEXT_RECT)
+	var text: Rect2 = summary.get_global_transform() * summary.text_rect()
+	if text.has_area():
+		assert_bool(column.encloses(text)).override_failure_message(str(text)).is_true()
+	for glyph: FamilyGlyph in summary.glyphs():
+		var rect: Rect2 = glyph.get_global_rect()
+		assert_bool(column.encloses(rect)).override_failure_message(str(rect)).is_true()
+
+
+## The monitor's scan text for `definition` (#105): its short sticker text, else its rule text.
+static func _scan_text(definition: CardDefinition) -> String:
+	var summary: String = definition.sticker_summary()
+	return summary if not summary.is_empty() else definition.rule_text
 
 
 static func _monitor_texts(screen: ShiftScreen) -> PackedStringArray:

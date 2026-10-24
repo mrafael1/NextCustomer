@@ -4,19 +4,25 @@ extends Control
 ## gold burst for a boosted pay (a wide one from WIDE_CHARS characters), a cream tag for a
 ## lowered one, and a punched tomato "€0" tag with the warning glyph (an inspection's denial) or
 ## the paper fizzle glyph (a card's own denial, or a pay wiped by fizzles). Its shadow is the same
-## art in ink at SHADOW_ALPHA, SHADOW_OFFSET down and right. PlanningLayer pins it over the
-## ticket's top band, never over its text. Dimmed (an unrelated item while another is hovered)
-## it fades to `dimmed_alpha`. Decor only: every number is a payout from the score.
+## art in ink at SHADOW_ALPHA, SHADOW_OFFSET down and right. PlanningLayer pins it on the ticket's
+## top-right corner (#105, mock-up readability v3: the stacked price, the struck old price under
+## it, PriceSticker), die-cut out of the ticket's colour (`cut`: a paper art pixel, then an ink one,
+## round its art, ArtStyle.cut_material). Dimmed (an unrelated item while another is hovered) it
+## fades to `dimmed_alpha`. Decor only: every number is a payout from the score. A ticket's own
+## plain tag at rest (PriceSticker) is the LOWERED tag's look.
 
 ## A boosted pay this long or longer takes the wide burst.
 const WIDE_CHARS := 4
 const BURST_SIZE := Vector2(60, 32)
 const WIDE_SIZE := Vector2(80, 36)
 const TAG_SIZE := Vector2(52, 26)
-const BURST_TEXT_SIZE := 19
-## The wide burst's text: WIDE_TEXT_SIZE, shrinking to WIDE_MIN_SIZE to fit its width less
-## WIDE_PADDING.
-const WIDE_TEXT_SIZE := 20
+## The burst's text (#105): BURST_TEXT_SIZE, or ArtStyle.BURST_PRICE_SIZE_3 for three characters
+## ("€10").
+const BURST_TEXT_SIZE := ArtStyle.BURST_PRICE_SIZE
+## The wide burst's text: WIDE_TEXT_SIZE for WIDE_CHARS characters, WIDE_LONG_SIZE for more, still
+## shrinking to WIDE_MIN_SIZE to fit its width less WIDE_PADDING.
+const WIDE_TEXT_SIZE := 21
+const WIDE_LONG_SIZE := 18
 const WIDE_MIN_SIZE := 16
 const WIDE_PADDING := 16.0
 const TAG_TEXT_SIZE := 17
@@ -30,6 +36,8 @@ const TEXT_LEFT := 18.0
 const TEXT_RIGHT := 4.0
 const SHADOW_OFFSET := Vector2(3, 3)
 const SHADOW_ALPHA := 0.42
+const CUT_NAME := "Cut"
+const STRUCK_NAME := "Struck"
 
 const BURST := preload("res://art/effects/pay_burst.png")
 const WIDE_BURST := preload("res://art/effects/pay_burst_wide.png")
@@ -47,11 +55,13 @@ var _dimmed: bool = false
 var _tween: Tween
 
 
-## The tag of a `tag_pay` pay showing `shown`, with `tag_glyph` on a €0 tag.
+## The tag of a `tag_pay` pay showing `shown`, with `tag_glyph` on a €0 tag, die-cut when
+## `die_cut`.
 func _init(
 	tag_pay: PlanningModel.Pay,
 	shown: String,
-	tag_glyph: PlanningModel.Glyph = PlanningModel.Glyph.NONE
+	tag_glyph: PlanningModel.Glyph = PlanningModel.Glyph.NONE,
+	die_cut: bool = false
 ) -> void:
 	pay = tag_pay
 	glyph = tag_glyph
@@ -66,6 +76,22 @@ func _init(
 	shadow.size = size
 	shadow.self_modulate = Color(Palette.INK, SHADOW_ALPHA)
 	add_child(shadow)
+	if die_cut:
+		# The cut's outline is the tag's new edge: the shadow falls from it too.
+		var grow: float = ArtStyle.RIM_TEXELS * ArtStyle.ART_SCALE
+		var cut_shadow: TextureRect = UiKit.sprite(texture)
+		cut_shadow.name = "CutShadow"
+		cut_shadow.position = SHADOW_OFFSET - Vector2.ONE * grow
+		cut_shadow.size = size + Vector2.ONE * 2.0 * grow
+		var ink: Color = Color(Palette.INK, SHADOW_ALPHA)
+		ArtStyle.set_look(cut_shadow, ArtStyle.rim_material(PackedColorArray([ink, ink])))
+		add_child(cut_shadow)
+		var rim: TextureRect = UiKit.sprite(texture)
+		rim.name = CUT_NAME
+		rim.position = -Vector2.ONE * grow
+		rim.size = size + Vector2.ONE * 2.0 * grow
+		ArtStyle.set_look(rim, ArtStyle.cut_material())
+		add_child(rim)
 	var face: TextureRect = UiKit.sprite(texture)
 	face.name = "Face"
 	face.size = size
@@ -102,6 +128,38 @@ func text() -> String:
 	return _label.text
 
 
+## The text's label.
+func label() -> Label:
+	return _label
+
+
+## Shows the ticket's struck old price (#105, PriceSticker.StruckPrice of `old_price`, paper on a
+## `dark` ticket) over the tag at `at` (this tag's coordinates), scaled `struck_scale` (a scaled
+## row's ticket): drawn after the tag, so its shadow never greys it, as the mock-up stacks them.
+func show_struck(old_price: String, dark: bool, at: Vector2, struck_scale: Vector2) -> void:
+	var shown: PriceSticker.StruckPrice = struck()
+	if shown == null or shown.text != old_price or shown.dark != dark:
+		if shown != null:
+			remove_child(shown)
+			shown.queue_free()
+		shown = PriceSticker.StruckPrice.new(old_price, dark)
+		add_child(shown)
+	shown.position = at
+	shown.scale = struck_scale
+	shown.visible = true
+
+
+func hide_struck() -> void:
+	var shown: PriceSticker.StruckPrice = struck()
+	if shown != null:
+		shown.visible = false
+
+
+## The struck old price over the tag, or null.
+func struck() -> PriceSticker.StruckPrice:
+	return get_node_or_null(STRUCK_NAME) as PriceSticker.StruckPrice
+
+
 ## Fades the tag to `dimmed_alpha` (`dimmed`) or back to full, over `fade` seconds (0: at once).
 func set_dimmed(dimmed: bool, fade: float = 0.0) -> void:
 	_dimmed = dimmed
@@ -134,9 +192,10 @@ static func _text_size(tag_pay: PlanningModel.Pay, shown: String) -> int:
 	if tag_pay != PlanningModel.Pay.BOOSTED:
 		return TAG_TEXT_SIZE
 	if shown.length() < WIDE_CHARS:
-		return BURST_TEXT_SIZE
+		return BURST_TEXT_SIZE if shown.length() < 3 else ArtStyle.BURST_PRICE_SIZE_3
 	var font: Font = ArtStyle.number_font()
-	for font_size: int in range(WIDE_TEXT_SIZE, WIDE_MIN_SIZE - 1, -1):
+	var largest: int = WIDE_TEXT_SIZE if shown.length() == WIDE_CHARS else WIDE_LONG_SIZE
+	for font_size: int in range(largest, WIDE_MIN_SIZE - 1, -1):
 		var width: float = font.get_string_size(shown, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size).x
 		if width <= WIDE_SIZE.x - WIDE_PADDING:
 			return font_size
