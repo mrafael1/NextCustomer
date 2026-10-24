@@ -17,6 +17,8 @@ var steps: Array[ScoreStep] = []
 var subtotal: int = 0
 ## Slots the shift has more (+) or fewer (-) than the balance data's, from the run's
 ## upgrades and the shift's inspections (Big basket +1, Short belt -1). Set by Scoring.score().
+## No live rule reads it since the Slot engine keeps to slot 6 (2026-10-24, #106 follow-up); a
+## rule may, so the simulator's caches still key on it.
 var product_slot_change: int = 0
 ## Read-only, set when the state is made (a row's kinds never change while it is scored): each
 ## slot's number among the row's products (coupons skipped; 1 for the first product, 0 for a

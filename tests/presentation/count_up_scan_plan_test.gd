@@ -32,8 +32,8 @@ func test_the_full_row_scans_its_items_in_turn() -> void:
 			assert_int(beat.ride_ms).override_failure_message(at).is_equal(0)
 		if beat.closes_slot:
 			closings.append(index)
-	assert_array(openings).is_equal([0, 2, 5, 9, 12, 16, 20])
-	assert_array(closings).is_equal([1, 4, 8, 11, 15, 19, 24])
+	assert_array(openings).is_equal([0, 2, 5, 9, 12, 16, 21])
+	assert_array(closings).is_equal([1, 4, 8, 11, 15, 20, 24])
 	assert_int(rides).is_equal(6 * tuning.ride_ms)
 
 

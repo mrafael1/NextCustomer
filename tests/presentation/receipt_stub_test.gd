@@ -99,7 +99,7 @@ func test_slot_marks_read_the_recorded_amounts() -> void:
 	waste.source_slot = 1
 	result.steps.append(waste)
 	assert_int(ReceiptView.slot_mark(result, 1)).is_equal(ReceiptView.Mark.RAISED)
-	# An upgrade's row-wide fizzle (#45: the Slot engine with too few products) on a slot is not
+	# An upgrade's row-wide fizzle (#45: the Slot engine with too few cards) on a slot is not
 	# that item's: Milk keeps no mark. An upgrade's fizzle on its own target (the first coupon
 	# paid nothing) still marks it.
 	var row_waste: ScoreStep = _step(ScoreStep.StepType.WASTED, "Slot engine")

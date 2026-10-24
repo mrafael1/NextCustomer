@@ -1,13 +1,15 @@
 extends GdUnitTestSuite
 ## Upgrade condition fizzles (#45, decided with the user: upgrades' conditions fizzle too): a
 ## register upgrade whose condition the checked-out row never meets (the Coupon engine with no
-## coupon, the Slot engine with too few products, the Category engine with no product) records
+## coupon, the Slot engine with too few cards, the Category engine with no product) records
 ## one WASTED step, the upgrade's, on the row's last slot, after every other step, naming what
 ## was missing. A met condition records none, and the total and payouts never change. Upgrade
 ## numbers are set here, on the frozen card fixture, except in the live-data test.
 
 const FIXTURE_DIR := "res://tests/fixtures/cards_v0_4"
 const UPGRADES_DIR := "res://data/upgrades"
+const FIVE_BREADS := "bread,bread,bread,bread,bread"
+const SIX_BREADS := "bread,bread,bread,bread,bread,bread"
 
 
 ## Each row's expected fizzles are [upgrade index, reason], in step order; `bonus` is what the
@@ -21,16 +23,12 @@ func test_upgrade_condition_fizzles(
 		["bread,cheese", ["coupon"], [[0, "no coupon in the row"]], 0],
 		# Final markdown 6 x 2.
 		["bread,final_markdown", ["coupon"], [], 6],
-		["bread,bread,bread,bread,bread", ["slot"], [[0, "fewer than 6 products"]], 0],
-		# The 6th Bread 3 x 2.
+		["bread,bread,bread,bread,bread", ["slot"], [[0, "fewer than 6 cards"]], 0],
+		# The Bread in slot 6: 3 x 2.
 		["bread,bread,bread,bread,bread,bread", ["slot"], [], 3],
-		# Coupons don't count as products.
-		[
-			"bread,bread,bread,repeat,bread,bread,final_markdown",
-			["slot"],
-			[[0, "fewer than 6 products"]],
-			0
-		],
+		# Coupons count as cards: Final markdown in slot 6, 6 x 2.
+		["bread,bread,bread,repeat,bread,final_markdown", ["slot"], [], 6],
+		["bread,repeat,bread,final_markdown,bread", ["slot"], [[0, "fewer than 6 cards"]], 0],
 		["final_markdown", ["category"], [[0, "no product in the row"]], 0],
 		# Food, Produce: +3 each.
 		["banana", ["category"], [], 6],
@@ -38,13 +36,13 @@ func test_upgrade_condition_fizzles(
 		[
 			"repeat",
 			["category", "slot"],
-			[[0, "no product in the row"], [1, "fewer than 6 products"]],
+			[[0, "no product in the row"], [1, "fewer than 6 cards"]],
 			0
 		],
 		[
 			"bread,milk",
 			["coupon", "slot"],
-			[[0, "no coupon in the row"], [1, "fewer than 6 products"]],
+			[[0, "no coupon in the row"], [1, "fewer than 6 cards"]],
 			0
 		],
 	]
@@ -87,27 +85,36 @@ func test_upgrade_condition_fizzles(
 		assert_array(_data(others)).override_failure_message(row).is_equal(_data(plain.steps))
 
 
-## A Slot engine target that follows the shift's product slots moves with them: with Big
-## basket's extra slot the 7th product, so 6 products fizzle.
-func test_slot_engine_follows_the_slot_change() -> void:
+## The Slot engine keeps to slot 6 whatever the shift's slots (2026-10-24, #106 follow-up): Big
+## basket's extra slot and a closed one move it nowhere, so 6 cards pay and 5 fizzle.
+func test_slot_engine_ignores_the_slot_change() -> void:
 	var slot_engine: UpgradeDefinition = _test_upgrade("slot")
-	(slot_engine.rules[0] as NthProductMultiplierRule).follows_slot_changes = true
 	var basket: UpgradeDefinition = UpgradeDefinition.new()
 	basket.display_name = "Big basket"
 	basket.type = UpgradeDefinition.Type.RISKY
 	basket.extra_slots = 1
-	var row: String = "bread,bread,bread,bread,bread,bread"
-	var result: ScoreResult = Scoring.score(_row(row), [slot_engine, basket])
-	var reasons: Array = []
-	for step: ScoreStep in result.steps:
-		if step.step_type == ScoreStep.StepType.WASTED:
-			reasons.append(step.reason)
-	assert_array(reasons).is_equal(["fewer than 7 products"])
-	assert_int(result.total).is_equal(18)
+	var belt: InspectionDefinition = InspectionDefinition.new()
+	belt.display_name = "Short belt"
+	belt.extra_slots = -1
+	var cases: Array[Array] = [[[slot_engine, basket], []], [[slot_engine], [belt]]]
+	for case: Array in cases:
+		var upgrades: Array[UpgradeDefinition] = []
+		upgrades.assign(case[0])
+		var inspections: Array[InspectionDefinition] = []
+		inspections.assign(case[1])
+		var six: ScoreResult = Scoring.score(_row(SIX_BREADS), upgrades, inspections)
+		assert_array(_reasons(six)).is_empty()
+		# The Bread in slot 6: 3 x 2.
+		assert_int(six.total).is_equal(21)
+		assert_int(six.payouts[5]).is_equal(6)
+		var five: ScoreResult = Scoring.score(_row(FIVE_BREADS), upgrades, inspections)
+		assert_array(_reasons(five)).is_equal(["fewer than 6 cards"])
+		assert_int(five.total).is_equal(15)
 
 
-## A met condition whose target pays 0 keeps its one existing fizzle ("product 6 paid nothing"),
-## never a second one for the row.
+## A met condition whose target pays 0 keeps its one existing fizzle ("slot 6 paid nothing"),
+## never a second one for the row: a product that pays nothing, or a coupon (Final markdown
+## out of the last slot pays 0, and fizzles on its own too).
 func test_a_target_that_pays_nothing_fizzles_once() -> void:
 	var free: CardDefinition = CardDefinition.new()
 	free.kind = CardDefinition.Kind.PRODUCT
@@ -115,14 +122,13 @@ func test_a_target_that_pays_nothing_fizzles_once() -> void:
 	var row: Array[CardInstance] = _row("bread,bread,bread,bread,bread")
 	row.append(CardInstance.new(free, row.size() + 1))
 	var result: ScoreResult = Scoring.score(row, [_test_upgrade("slot")])
-	var reasons: Array = []
-	for step: ScoreStep in result.steps:
-		if step.source_kind == ScoreStep.SourceKind.UPGRADE:
-			reasons.append(step.reason)
-			# The 6th product's own fizzle, not a row-wide one.
-			assert_bool(step.row_wide).is_false()
-	assert_array(reasons).is_equal(["product 6 paid nothing"])
+	assert_array(_upgrade_reasons(result)).is_equal(["slot 6 paid nothing"])
 	assert_int(result.total).is_equal(15)
+	var coupon: ScoreResult = Scoring.score(
+		_row("bread,bread,bread,bread,bread,final_markdown,bread"), [_test_upgrade("slot")]
+	)
+	assert_array(_upgrade_reasons(coupon)).is_equal(["slot 6 paid nothing"])
+	assert_int(coupon.total).is_equal(18)
 
 
 ## The Category engine with products but no tag among them fizzles too ("no tag on the
@@ -147,7 +153,7 @@ func test_the_category_engine_fizzles_with_no_tag() -> void:
 func test_neutral_and_unconditional_upgrades_never_fizzle() -> void:
 	var upgrades: Array[UpgradeDefinition] = [
 		_upgrade("Neutral coupon", FirstCouponMultiplierRule.new()),
-		_upgrade("Neutral slot", NthProductMultiplierRule.new()),
+		_upgrade("Neutral slot", NthSlotMultiplierRule.new()),
 		_upgrade("Neutral category", DistinctTagBonusRule.new()),
 		_upgrade("Bridge", CouponBridgeRule.new()),
 	]
@@ -163,7 +169,7 @@ func test_neutral_and_unconditional_upgrades_never_fizzle() -> void:
 
 
 ## The live upgrades (data/upgrades) fizzle on a two-product row: the Coupon engine (no coupon)
-## and the Slot engine (too few products), each named by its receipt text; the Category engine
+## and the Slot engine (too few cards), each named by its receipt text; the Category engine
 ## pays. Totals are the cards' own plus the Category engine's bonus.
 func test_live_upgrades_fizzle_on_a_short_row() -> void:
 	var upgrades: Array[UpgradeDefinition] = []
@@ -179,13 +185,32 @@ func test_live_upgrades_fizzle_on_a_short_row() -> void:
 		. is_equal(
 			[
 				[0, "Coupon engine", "no coupon in the row"],
-				[1, "Slot engine ×2", "fewer than 6 products"],
+				[1, "Slot engine ×2", "fewer than 6 cards"],
 			]
 		)
 	)
 	var without: ScoreResult = Scoring.score(_row("bread,milk"), [upgrades[2]])
 	assert_int(result.total).is_equal(without.total)
 	assert_array(Array(result.payouts)).is_equal(Array(without.payouts))
+
+
+## Every WASTED step's reason, in step order.
+static func _reasons(result: ScoreResult) -> Array:
+	var reasons: Array = []
+	for step: ScoreStep in result.steps:
+		if step.step_type == ScoreStep.StepType.WASTED:
+			reasons.append(step.reason)
+	return reasons
+
+
+## The reasons of the upgrades' steps, in step order; none is row-wide (a slot's own fizzle).
+func _upgrade_reasons(result: ScoreResult) -> Array:
+	var reasons: Array = []
+	for step: ScoreStep in result.steps:
+		if step.source_kind == ScoreStep.SourceKind.UPGRADE:
+			reasons.append(step.reason)
+			assert_bool(step.row_wide).is_false()
+	return reasons
 
 
 static func _data(steps: Array) -> Array:
@@ -202,8 +227,8 @@ static func _test_upgrade(kind: String) -> UpgradeDefinition:
 			coupon.factor = 2
 			return _upgrade("Coupon engine", coupon)
 		"slot":
-			var slot: NthProductMultiplierRule = NthProductMultiplierRule.new()
-			slot.product_number = 6
+			var slot: NthSlotMultiplierRule = NthSlotMultiplierRule.new()
+			slot.slot_number = 6
 			slot.factor = 2
 			return _upgrade("Slot engine", slot)
 	var category: DistinctTagBonusRule = DistinctTagBonusRule.new()

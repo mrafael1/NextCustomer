@@ -293,9 +293,9 @@ static func _upgrade_key(upgrades: Array[UpgradeDefinition]) -> String:
 
 
 ## The slots the upgrades and inspections add or close (ScoreState.product_slot_change):
-## a rule can read it (Slot engine's last regular slot follows it), so a multiset's best order is
-## never reused under another slot change, even when no upgrade or inspection with rules differs
-## (Big basket, Short belt).
+## a rule can read it (no live rule does since the Slot engine keeps to slot 6), so a multiset's
+## best order is never reused under another slot change, even when no upgrade or inspection with
+## rules differs (Big basket, Short belt).
 static func _slot_key(
 	upgrades: Array[UpgradeDefinition], inspections: Array[InspectionDefinition]
 ) -> String:

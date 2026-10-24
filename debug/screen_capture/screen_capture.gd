@@ -22,7 +22,7 @@ extends Control
 ## shift_screen_scan_<width>x<height>.png.
 ## With `--effects` the shift shows the planning effects (#71) on a richer belt: #60's reference
 ## row under the Spot check (Eggs lands ×2 on Bread, the 3rd product is denied, Multipack arms ×3
-## and Coupon engine fizzles on it, Slot engine stamps the 6th product), and the file is
+## and Coupon engine fizzles on it, Slot engine stamps slot 6 under its talker), and the file is
 ## shift_screen_effects_<width>x<height>.png. `--effects=<card id>` also hovers that card's belt
 ## item (the first), highlighting its causes and targets, and lets its scan finish so the monitor
 ## explains it (its "gives" line, as in mock-up h1's hover); the file is

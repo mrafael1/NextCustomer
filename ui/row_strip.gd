@@ -30,6 +30,12 @@ extends Control
 ## slots; its tooltip says why. It is never a drop target, and the row keeps the run's usual
 ## cell count, so an inspection never rescales it.
 ##
+## A slot a loyalty upgrade acts on wears that upgrade's SlotMark (show_slot_marks): the Slot
+## engine's talker hangs under the right end of slot 6's ticket (2026-10-24), as an item tier's
+## tag hangs under its left end, on the cell's talker layer, its first child: behind the ticket,
+## the blank one or the item's, which hides the talker's top. It shows whether the slot is empty
+## or filled and rides with its cell in the count (BeltRide fires it).
+##
 ## A plain Control holds the row: a Container would reset the row's scale. `slots` is kept as
 ## one array, changed in place, because CardDrag holds it.
 ##
@@ -83,6 +89,10 @@ const ROPE_RECT := Rect2(12, 10, 88, 24)
 const CLOSED_SIGN_RECT := Rect2(4, 176, 108, 24)
 const CLOSED_PLATE_RECT := TICKET_RECT
 const CLOSED_PLATE_MARGIN := 3
+## A SlotMark's top in its cell, tucked behind the ticket's foot, and its right end: the cell's
+## (past the ticket's, clear of a tier tag under the ticket's left end).
+const SLOT_MARK_TOP := TICKET_RECT.end.y - SlotMark.TUCKED
+const SLOT_MARK_RIGHT := CELL_SIZE.x
 const CLOSED_TEXT := "CLOSED"
 const CLOSED_SIZE := 18
 const CLOSED_CAPTION_TEXT := "inspection"
@@ -101,6 +111,7 @@ const PLATE_NAME := &"ClosedPlate"
 const PLATE_SHADOW_NAME := &"ClosedPlateShadow"
 const NUMBER_NAME := &"SlotNumber"
 const MARKS_NAME := &"Marks"
+const TALKERS_NAME := &"Talkers"
 const RING_NAME := &"Ring"
 const HOVER_NAME := &"Hover"
 const SIGN_NAME := &"ClosedSign"
@@ -195,6 +206,75 @@ func show_cards(
 		ring.visible = slot <= placeable_until
 		set_hovered(panel, false)
 	return views
+
+
+## Puts `marks` (SlotMark.marks_for the run's upgrades) on their slots, in place of the ones
+## shown: each hangs under the right end of its slot's ticket (slot_mark_rect). A mark for a slot
+## the row doesn't have is dropped. The same marks as shown (slot, upgrade and factor) leave the
+## shown ones as they are, so a refresh never cuts a firing mark.
+func show_slot_marks(marks: Array[SlotMark]) -> void:
+	var shown: Array[SlotMark] = []
+	for panel: PanelContainer in slots:
+		for child: Node in _talkers(panel).get_children():
+			if child is SlotMark and not child.is_queued_for_deletion():
+				shown.append(child as SlotMark)
+	if _same_marks(shown, marks):
+		for mark: SlotMark in marks:
+			mark.free()
+		return
+	for panel: PanelContainer in slots:
+		var layer: Control = _talkers(panel)
+		for child: Node in layer.get_children():
+			layer.remove_child(child)
+			child.queue_free()
+	for mark: SlotMark in marks:
+		if mark.slot < 0 or mark.slot >= slots.size():
+			mark.free()
+			continue
+		var rect: Rect2 = slot_mark_rect(mark.size.x)
+		mark.position = rect.position
+		_talkers(slots[mark.slot]).add_child(mark)
+
+
+## A SlotMark `width` wide in its cell: right-aligned to SLOT_MARK_RIGHT on the art grid, from
+## SLOT_MARK_TOP.
+static func slot_mark_rect(width: float) -> Rect2:
+	var left: float = snappedf(SLOT_MARK_RIGHT - width, ArtStyle.ART_SCALE)
+	return Rect2(left, SLOT_MARK_TOP, width, SlotMark.HEIGHT)
+
+
+## Whether `shown` are the marks `marks` would show: the same slot, upgrade and factor, in order
+## (a mark for a slot the row doesn't have shows nowhere).
+func _same_marks(shown: Array[SlotMark], marks: Array[SlotMark]) -> bool:
+	var placed: Array[SlotMark] = []
+	for mark: SlotMark in marks:
+		if mark.slot >= 0 and mark.slot < slots.size():
+			placed.append(mark)
+	if placed.size() != shown.size():
+		return false
+	placed.sort_custom(func(a: SlotMark, b: SlotMark) -> bool: return a.slot < b.slot)
+	for index: int in range(placed.size()):
+		var mark: SlotMark = placed[index]
+		var old: SlotMark = shown[index]
+		if (
+			mark.slot != old.slot
+			or mark.upgrade_index != old.upgrade_index
+			or mark.factor != old.factor
+		):
+			return false
+	return true
+
+
+## The mark on `slot` of upgrade `upgrade_index` (any upgrade's for -1), or null.
+func slot_mark(slot: int, upgrade_index: int = -1) -> SlotMark:
+	if slot < 0 or slot >= slots.size():
+		return null
+	for child: Node in _talkers(slots[slot]).get_children():
+		var mark: SlotMark = child as SlotMark
+		if mark != null and not mark.is_queued_for_deletion():
+			if upgrade_index < 0 or mark.upgrade_index == upgrade_index:
+				return mark
+	return null
 
 
 ## The distance from one cell's left edge to the next one's as drawn (the cell and its gap,
@@ -323,7 +403,8 @@ static func row_width(count: int, separation: int = SEPARATION) -> float:
 ## An open slot in a row whose cells are `separation` apart: its ground (the drop target, the
 ## footprint, the ticket's shadow, the blank ticket and the number), then the marks over it. The
 ## PanelContainer sizes both layers to the cell; their parts are placed in the cell's coordinates
-## (the drop target reaches half the gap past the cell's sides). Only the drop target takes clicks.
+## (the drop target reaches half the gap past the cell's sides), after the talker layer for its
+## SlotMark (behind the ticket). Only the drop target takes clicks.
 func _slot_panel(slot: int, separation: int) -> PanelContainer:
 	var panel: PanelContainer = PanelContainer.new()
 	panel.custom_minimum_size = CELL_SIZE
@@ -351,6 +432,11 @@ func _slot_panel(slot: int, separation: int) -> PanelContainer:
 	var number: Label = _slot_number_label(slot)
 	number.name = NUMBER_NAME
 	_child_at(ground, number, NUMBER_RECT)
+	# The talkers first: behind the ticket.
+	var talkers: Control = Control.new()
+	talkers.name = TALKERS_NAME
+	talkers.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	panel.add_child(talkers)
 	panel.add_child(ground)
 	panel.add_child(_new_marks())
 	_show_empty(panel, true)
@@ -470,6 +556,10 @@ static func _new_marks() -> Control:
 	_child_at(marks, ring, TICKET_RECT.grow(RING_GROW))
 	ring.visible = false
 	return marks
+
+
+static func _talkers(panel: PanelContainer) -> Control:
+	return panel.get_node(NodePath(TALKERS_NAME)) as Control
 
 
 static func _marks(panel: PanelContainer) -> Control:

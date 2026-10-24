@@ -1,9 +1,9 @@
 extends GdUnitTestSuite
 ## Phase 2's inspections (issue #39, plan section 3.9, v0.25): Short belt (one slot fewer than
 ## the run has) through the shift's limits, Slot engine under Short belt with and without Big
-## basket, and the draw that never repeats the run's last inspection. Since #42 Slot engine's
-## product follows the shift's slots, so Short belt moves it to the 5th product instead of
-## turning it off. Coupon slot closed was removed in v0.56 (#106: every slot is general).
+## basket, and the draw that never repeats the run's last inspection. Since 2026-10-24 (#106
+## follow-up) Slot engine keeps to slot 6 whatever the shift's slots (from #42 until then its
+## product followed them). Coupon slot closed was removed in v0.56 (#106: every slot is general).
 
 const STARTER := "res://data/decks/starter.tres"
 const BALANCE := "res://data/balance/balance.tres"
@@ -29,9 +29,9 @@ func test_short_belt_closes_one_slot() -> void:
 	assert_int(with_basket.quota).is_equal(balance.quotas[2])
 
 
-## Short belt leaves 6 slots, and an owned Slot engine doubles the 5th product (decided with the
-## user in #42; until then Short belt turned it off). With Big basket the row keeps 7 slots and
-## Slot engine the 6th product.
+## Short belt leaves 6 slots, and an owned Slot engine still doubles slot 6, the last open one
+## (decided with the user on 2026-10-24; from #42 until then the 5th product). With Big basket the
+## row keeps 7 slots and Slot engine slot 6 still.
 func test_short_belt_and_slot_engine() -> void:
 	var run: RunState = _run(52, "short_belt")
 	run.upgrades.append(_upgrade("slot_engine"))
@@ -40,19 +40,21 @@ func test_short_belt_and_slot_engine() -> void:
 		run.place(run.debug_add_to_hand(load(BREAD)), index)
 	assert_bool(run.can_place(run.debug_add_to_hand(load(BREAD)))).is_false()
 	assert_int(_upgrade_multipliers(run.preview())).is_equal(1)
-	assert_int(run.preview().payouts[4]).is_equal(10)
+	assert_int(run.preview().payouts[4]).is_equal(5)
+	assert_int(run.preview().payouts[5]).is_equal(10)
 	run.upgrades.append(_upgrade("big_basket"))
 	run.debug_skip_to_shift(run.shift_index)
 	for index: int in range(7):
 		assert_bool(run.place(run.debug_add_to_hand(load(BREAD)), index)).is_true()
 	assert_int(_upgrade_multipliers(run.preview())).is_equal(1)
-	assert_int(run.preview().payouts[4]).is_equal(5)
 	assert_int(run.preview().payouts[5]).is_equal(10)
+	assert_int(run.preview().payouts[6]).is_equal(5)
 
 
-## Slot engine's product follows the shift's slots (#42): the 6th with none of them, the
-## 7th with Big basket, the 5th on a Short belt shift and the 6th with both. Coupons don't count.
-func test_slot_engine_follows_the_shift_slots() -> void:
+## Slot engine keeps to slot 6 whatever the shift's slots (2026-10-24): with none of them, with
+## Big basket, on a Short belt shift and with both. Coupons count as cards, so a Repeat in the
+## row moves no product onto it.
+func test_slot_engine_keeps_to_slot_6() -> void:
 	var engine: UpgradeDefinition = _upgrade("slot_engine")
 	var basket: UpgradeDefinition = _upgrade("big_basket")
 	var belt: Array[InspectionDefinition] = [_inspection("short_belt")]
@@ -62,10 +64,10 @@ func test_slot_engine_follows_the_shift_slots() -> void:
 		row.append(CardInstance.new(load(BREAD), index + 1))
 	row.insert(2, CardInstance.new(load(REPEAT), 8))
 	var cases: Array[Array] = [
-		[[engine], none, 6],
-		[[engine, basket], none, 7],
-		[[engine], belt, 5],
-		[[engine, basket], belt, 6],
+		[[engine], none],
+		[[engine, basket], none],
+		[[engine], belt],
+		[[engine, basket], belt],
 	]
 	for case: Array in cases:
 		var upgrades: Array[UpgradeDefinition] = []
@@ -80,8 +82,7 @@ func test_slot_engine_follows_the_shift_slots() -> void:
 				and step.source_kind == ScoreStep.SourceKind.UPGRADE
 			):
 				doubled.append(step.slot)
-		# The Repeat in slot index 2 puts the Nth product (N >= 3) at slot index N.
-		assert_array(doubled).override_failure_message(str(case)).is_equal([case[2]])
+		assert_array(doubled).override_failure_message(str(case)).is_equal([5])
 
 
 ## The shift's inspection reaches the run save: a resumed run gets the same closed slot.

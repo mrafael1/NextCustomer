@@ -1,0 +1,17 @@
+; The Slot engine's slot talker (2026-10-24, #106 follow-up): a loyalty tag hanging from the
+; price rail under slot 6, holding the upgrade's perk icon and its "x2" (code-drawn). The loyalty
+; stamp's colours (badge_stamp): mustard light y lit along the top and left, mustard M on the
+; right and bottom, around a teal dark 2 face, rounded two-texel corners in an ink outline.
+; 9-slice 9x9 @2 (margin 3), like sticker_label.
+@size 9x9
+@kind frame
+@scale 2
+..#####..
+.#yyyyy#.
+#y22222M#
+#y22222M#
+#y22222M#
+#y22222M#
+#y22222M#
+.#MMMMM#.
+..#####..

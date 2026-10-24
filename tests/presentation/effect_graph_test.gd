@@ -61,7 +61,7 @@ func test_the_reference_row_links_its_causes_and_targets() -> void:
 	assert_str(milk[1].token).is_equal("€0")
 	assert_int(graph.by_inspection(0).size()).is_equal(1)
 	assert_bool(graph.by_inspection(0)[0] == milk[1]).is_true()
-	# Coupon engine fizzles on Multipack; Slot engine stamps the 6th product (slot 6).
+	# Coupon engine fizzles on Multipack; Slot engine stamps slot 6 (row index 5).
 	var coupon_engine: Array[EffectLink] = graph.by_upgrade(0)
 	assert_int(coupon_engine.size()).is_equal(1)
 	assert_int(coupon_engine[0].kind).is_equal(EffectLink.Kind.FIZZLE)
@@ -71,10 +71,10 @@ func test_the_reference_row_links_its_causes_and_targets() -> void:
 	var slot_engine: Array[EffectLink] = graph.by_upgrade(1)
 	assert_int(slot_engine.size()).is_equal(1)
 	assert_int(slot_engine[0].kind).is_equal(EffectLink.Kind.STAMP)
-	assert_int(slot_engine[0].target_slot).is_equal(6)
+	assert_int(slot_engine[0].target_slot).is_equal(5)
 	assert_int(slot_engine[0].cause_slot).is_equal(-1)
 	assert_str(slot_engine[0].token).is_equal("×2")
-	assert_array(_kinds(graph.incoming(6))).is_equal(
+	assert_array(_kinds(graph.incoming(5))).is_equal(
 		[EffectLink.Kind.BONUS, EffectLink.Kind.STAMP, EffectLink.Kind.STAMP]
 	)
 	# Relations: Multipack gives to the Milks after it; a Milk gets from Multipack.

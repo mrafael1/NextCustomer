@@ -13,7 +13,7 @@ extends GdUnitTestSuite
 const SCREEN := "res://ui/shift_screen.tscn"
 ## #60's reference row (count_up_test), with Coupon engine and Slot engine given and the Spot
 ## check set: Eggs lands ×2 on Bread, the 3rd product (Milk) is denied, Multipack arms ×3 and
-## Coupon engine fizzles on it, Slot engine stamps the 6th product.
+## Coupon engine fizzles on it, Slot engine stamps slot 6.
 const FULL_ROW: Array[String] = ["eggs", "bread", "milk", "multipack", "milk", "milk", "milk"]
 ## Sticker minis' row: Eggs gives Bread ×2 (its mini), Mixed herbs gives Golden Eggs +3 (its mini
 ## since v0.52, its initials before), Golden Eggs gives the next 2 Food ×2 (the gold-outlined mini)
@@ -341,7 +341,7 @@ func test_the_top_bar_relates_both_ways() -> void:
 	effects.unfocus()
 	assert_bool(tag.has_relation()).is_false()
 	assert_str(tag.label().text).is_not_equal(screen.run.inspections[0].display_name)
-	# Slot engine (the 2nd upgrade) stamps the 6th product.
+	# Slot engine (the 2nd upgrade) stamps slot 6.
 	screen._loyalty_card.box_hovered.emit(1)
 	assert_bool(screen._loyalty_card.has_relation(1)).is_true()
 	assert_bool(screen._loyalty_card.has_relation(0)).is_false()

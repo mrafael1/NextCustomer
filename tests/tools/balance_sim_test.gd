@@ -110,13 +110,11 @@ func test_search_respects_inspections_and_keeps_their_cache_apart() -> void:
 	assert_int(again.score).is_equal(12)
 
 
-## A best order is never reused under another product slot change (#77 S1 fix): Slot engine's
-## product moves with Big basket's extra slot, though Big basket has no rules of its own.
+## A best order is never reused under another product slot change (#77 S1 fix): a rule may read
+## the slot change (SlotChangeRule here: no live rule does since the Slot engine keeps to slot 6,
+## 2026-10-24), and Big basket changes it, though Big basket has no rules of its own.
 func test_cache_keeps_slot_changes_apart() -> void:
-	var rule: NthProductMultiplierRule = NthProductMultiplierRule.new()
-	rule.product_number = 6
-	rule.factor = 2
-	rule.follows_slot_changes = true
+	var rule: SlotChangeRule = SlotChangeRule.new()
 	var engine: UpgradeDefinition = UpgradeDefinition.new()
 	engine.id = &"test_slot_engine"
 	var rules: Array[UpgradeRule] = [rule]
@@ -424,3 +422,12 @@ static func _ids(cards: Array[CardInstance]) -> Array:
 static func _no_upgrade_limits(balance: BalanceDefinition) -> ShiftLimits:
 	var none: Array[UpgradeDefinition] = []
 	return ShiftLimits.for_shift(balance, none, 0)
+
+
+## A test rule that reads ScoreState.product_slot_change: the 6th product, or the 7th with one
+## slot more, pays x2 (the Slot engine's rule before 2026-10-24).
+class SlotChangeRule:
+	extends UpgradeRule
+
+	func multiplier(state: ScoreState, slot: int) -> int:
+		return 2 if state.product_numbers[slot] == 6 + state.product_slot_change else 1

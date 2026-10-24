@@ -2,7 +2,7 @@ extends GdUnitTestSuite
 ## The register upgrades of issue #38 (plan section 3.8, v0.24): the shift limits they change
 ## (ShiftLimits: slots and redraws; Big basket's quota raise was removed in v0.56, #106), Rule
 ## bender's links, Slot engine's
-## 6th product and the builds an upgrade supports (the REGISTER chute's "fits your cart"
+## slot 6 and the builds an upgrade supports (the REGISTER chute's "fits your cart"
 ## guarantee is tested in machine_draw_test, #77).
 ## Scoring rows use the frozen fixtures, upgrades built here from their rule scripts.
 
@@ -156,21 +156,25 @@ func test_rule_bender_rows(
 		assert_str(step.text).is_equal("Test upgrade")
 
 
-## Slot engine: the 6th product (coupons skipped) pays x2, and a later Repeat copies the doubled
-## payout. With fewer than 6 products it fizzles instead (#45; upgrade_condition_fizzles_test).
+## Slot engine: the card in slot 6 (products and coupons both count) pays x2, and a later Repeat
+## copies the doubled payout; a coupon there is doubled like any card. With fewer than 6 cards it
+## fizzles instead (#45; upgrade_condition_fizzles_test).
 func test_slot_engine_rows(
 	row: String,
 	total: int,
 	doubled_slot: int,
 	_test_parameters := [
-		["bread,eggs,repeat,coffee,bread,banana,milk", 45, 6],
+		# Banana sits in slot 6, though it is the 5th product.
+		["bread,eggs,repeat,coffee,bread,banana,milk", 38, 5],
 		# The best order of that hand: Repeat copies the doubled Milk.
 		["bread,banana,eggs,bread,coffee,milk,repeat", 126, 5],
+		# A coupon in slot 6: Repeat's copy of the Bread before it is doubled.
+		["bread,bread,bread,bread,bread,repeat", 21, 5],
 		["bread,bread,bread,bread,bread", 15, -1],
 	]
 ) -> void:
-	var rule: NthProductMultiplierRule = NthProductMultiplierRule.new()
-	rule.product_number = 6
+	var rule: NthSlotMultiplierRule = NthSlotMultiplierRule.new()
+	rule.slot_number = 6
 	rule.factor = 2
 	var result: ScoreResult = Scoring.score(_row("v4:" + row), [_built_upgrade(rule)])
 	assert_int(result.total).override_failure_message(row).is_equal(total)

@@ -95,7 +95,7 @@ func test_the_full_row_counts_up_on_screen_in_five_to_nine_seconds() -> void:
 	assert_bool(probe["met_lost"]).is_false()
 	assert_array(probe["pops"]).is_equal([true])
 	_assert_met(screen, true)
-	# The 110 is huge against the €45 floor.
+	# The 107 is huge against the €45 floor.
 	assert_int(plan.size).is_equal(CountUpPlan.Size.HUGE)
 	assert_object(count_up.intensity).is_not_null()
 	assert_bool(count_up.intensity.is_huge).is_true()
@@ -215,29 +215,29 @@ func test_the_quota_is_met_with_the_total_on_a_last_payout_crossing_and_never_on
 	var sfx: Sfx = _recording_sfx(screen)
 	await _full_row(screen)
 	var result: ScoreResult = screen.run.preview()
-	assert_int(result.total).is_equal(110)
+	assert_int(result.total).is_equal(107)
 	var count_up: CountUp = screen._count_up
 	var mets: Array[bool] = []
 	var led: LedDisplay = screen._led
 	count_up.quota_met.connect(
 		func(_pop: bool) -> void: mets.append(led.caption_label().text == LedDisplay.TOTAL_TEXT)
 	)
-	_play_tapped(screen, result, 110)
+	_play_tapped(screen, result, 107)
 	await _played(screen)
 	assert_bool(count_up.plan.chip_at_total).is_true()
 	# Once, as the total shows (never before it).
 	assert_array(mets).is_equal([true])
 	assert_int(_sounds(sfx, "ding")).is_equal(0)
 	_assert_met(screen, true)
-	await _assert_receipt_of(screen, result, 110)
+	await _assert_receipt_of(screen, result, 107)
 
 	mets.clear()
-	_play_tapped(screen, result, 111)
+	_play_tapped(screen, result, 108)
 	await _played(screen)
 	assert_array(mets).is_empty()
 	assert_bool(count_up.plan.quota_reached).is_false()
 	_assert_met(screen, false)
-	await _assert_receipt_of(screen, result, 111)
+	await _assert_receipt_of(screen, result, 108)
 
 
 ## Flights and puffs start where the item is now (#86 v6, source_rect: the belt ride gives the
