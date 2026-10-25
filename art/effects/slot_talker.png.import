@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://jj4ir62cktto"
-path="res://.godot/imported/perk_extra_coupon_slot.png-56abbf28a3f4800c17827acde5c2ff95.ctex"
+uid="uid://dnkg12wr6d8cu"
+path="res://.godot/imported/slot_talker.png-3bb2d609c699303f0686fd1f69d4c81e.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://art/icons/perk_extra_coupon_slot.png"
-dest_files=["res://.godot/imported/perk_extra_coupon_slot.png-56abbf28a3f4800c17827acde5c2ff95.ctex"]
+source_file="res://art/effects/slot_talker.png"
+dest_files=["res://.godot/imported/slot_talker.png-3bb2d609c699303f0686fd1f69d4c81e.ctex"]
 
 [params]
 

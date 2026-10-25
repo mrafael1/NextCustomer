@@ -22,8 +22,7 @@ extends RefCounted
 ## total of the deck (and registers) it makes (`_sample_value`, all on the visit's sample
 ## shuffles, played with the sensible player's rows whatever the strategy's row player, as an
 ## exact search per prize would take hours per run), as a gain over the current deck (NEW
-## ITEMS and COUPONS: never below 0, since the prizes can be binned; REGISTER: Big basket
-## normalised, as the pick does). The chute's value is
+## ITEMS and COUPONS: never below 0, since the prizes can be binned). The chute's value is
 ## the expected gain of the best prize drawn, each prize weighted by its chance to be in the draw
 ## and none of the better ones to be (MachineOddsCard.in_draw, taken as independent: a top-k
 ## expectation). The highest value wins, ties to the chute order. "random" chooses a random lit
@@ -677,11 +676,9 @@ func _pick_item_upgrade(run: RunState, prizes: Array[MachinePrize]) -> int:
 
 
 ## A deck's value with these registers, as a register pick judges it: its mean best total on
-## the visit's sample hands, with the registers' redraws, against the quota it has to reach
-## (Big basket's quota raise costs as much as it adds).
+## the visit's sample hands, with the registers' redraws.
 func _register_value(deck: Array[CardDefinition], upgrades: Array[UpgradeDefinition]) -> float:
-	var value: float = _sample_value(deck, upgrades, _redraws_with(upgrades), _visit_seed)
-	return value * 100.0 / (100.0 + _quota_percent(upgrades))
+	return _sample_value(deck, upgrades, _redraws_with(upgrades), _visit_seed)
 
 
 ## Mean total of `_samples` hands drawn from these cards, each played as a shift is (the
@@ -782,13 +779,6 @@ static func _least_used_of(
 		):
 			least = card
 	return least
-
-
-static func _quota_percent(upgrades: Array[UpgradeDefinition]) -> int:
-	var percent: int = 0
-	for upgrade: UpgradeDefinition in upgrades:
-		percent += upgrade.quota_percent
-	return percent
 
 
 func _redraws_with(upgrades: Array[UpgradeDefinition]) -> int:

@@ -17,10 +17,12 @@ extends Node
 ## bagged item shows in the bag at once, no sweep).
 ##
 ## The planning stickers ride on their items (PlanningEffects.show_count): as a step lands, the
-## sticker of that step fires (EffectSticker.fire: a punch, a flash, then a check); when an armed
-## giver is scanned, gold sparks run from the scanner to the stickers of its targets still on the
-## belt (GiverSparks), each charging as they land. No sparks or punches under reduced motion; the
-## checks still show. The belt shows no paid chips in the count (ItemView.shows_paid_chip).
+## sticker of that step fires (EffectSticker.fire: a punch, a flash, then a check), and a loyalty
+## upgrade's multiplier fires its slot's mark (SlotMark.fire: the Slot engine's talker); when an
+## armed giver is scanned, gold sparks run from the scanner to the stickers of its targets still
+## on the belt (GiverSparks), each charging as they land. No sparks or punches under reduced
+## motion; the checks still show. The belt shows no paid chips in the count
+## (ItemView.shows_paid_chip).
 ##
 ## Where an item is now (source_rect, CountUp.source_rect while counting): its sprite on the belt,
 ## or the bag's mouth once bagged, for the count's flights and puffs. A resumed checkout shows the
@@ -282,9 +284,18 @@ func _land(art: TextureRect) -> void:
 func _on_step_landed(index: int) -> void:
 	if not _active or _result == null or index < 0 or index >= _result.steps.size():
 		return
-	var sticker: EffectSticker = _sticker_of(_result.steps[index].slot, index)
+	var step: ScoreStep = _result.steps[index]
+	var sticker: EffectSticker = _sticker_of(step.slot, index)
 	if sticker != null:
 		sticker.fire(_reduced, _count.tween_maker())
+	# A loyalty upgrade's multiplier on its marked slot (the Slot engine's slot 6) fires the mark.
+	if (
+		step.step_type == ScoreStep.StepType.MULTIPLIER
+		and step.source_kind == ScoreStep.SourceKind.UPGRADE
+	):
+		var mark: SlotMark = _stage.row_strip.slot_mark(step.slot, step.source_index)
+		if mark != null:
+			mark.fire(_reduced, _count.tween_maker())
 
 
 ## A beat starts (CountUp.beat_started): an armed giver's beat sends its sparks from the scanner

@@ -67,6 +67,17 @@ func set_drawn(drawn: Array[MachinePrize]) -> void:
 		drop_order[order[reveal]] = reveal
 
 
+## Drops the retired registers (ContentLookup.is_retired) from the prizes, keeping the others'
+## drop order. For a visit restored while it waits for its pick.
+func drop_retired_prizes() -> void:
+	var kept: Array[MachinePrize] = []
+	for prize: MachinePrize in in_drop_order():
+		if prize.upgrade == null or not ContentLookup.is_retired(prize.upgrade):
+			kept.append(prize)
+	if kept.size() < prizes.size():
+		set_drawn(kept)
+
+
 ## The prizes in drop order.
 func in_drop_order() -> Array[MachinePrize]:
 	var found: Array[MachinePrize] = []

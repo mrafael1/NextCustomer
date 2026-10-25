@@ -13,11 +13,8 @@ extends Resource
 ## basket's hand cards (plan section 3.8). The shift screen draws two items to a basket
 ## (HandRow.ITEMS_PER_BASKET), so only 2 is supported; a test pins the two equal.
 @export var basket_size: int = 0
-## Product slots: the most products the row holds (plan section 3.1).
+## The row's slots: the most cards the row holds; any card fits any slot (plan section 3.1).
 @export var slot_count: int = 0
-## Coupon-only slots on top of the product slots: the row holds at most slot_count +
-## coupon_slot_count cards, and only coupons can use the extra room.
-@export var coupon_slot_count: int = 0
 @export var deck_limit: int = 0
 ## The staples (full build plan 7.2): products every run stocks, in stock order, outside any
 ## aisle. Since v0.49 they are a list of their own, no longer the starting deck's products.

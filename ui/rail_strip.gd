@@ -14,7 +14,7 @@ extends Control
 ##
 ## PlanningLayer owns it: the strip's body parts are its own children, while its gap fills and
 ## gain badges (fills(), gains()) go in the layer's own z-ordered boxes (section 6), all in layer
-## coordinates. lay_out places everything from the tickets' rects, so a scaled 8- or 9-slot row
+## coordinates. lay_out places everything from the tickets' rects, so a scaled 8-slot row
 ## moves the anchors (the offsets scale) while the art never scales. Calm strips are brass and
 ## nothing loops. Hot (set_hot: its giver or a target hovered, section 5.3) it turns bright gold
 ## in a pale ring and a gain badge ("+€14", the target's summed gain) stands on each target (or

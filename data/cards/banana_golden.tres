@@ -9,9 +9,9 @@
 script = ExtResource("2_dqwiy")
 match_by = 1
 position = 1
-bonus_is_base = true
+bonus_is_previous_price = true
 bonus_factor = 2
-receipt_text = "Banana pair"
+receipt_text = "Banana chain"
 
 [resource]
 script = ExtResource("3_0geey")
@@ -21,7 +21,7 @@ kind = 1
 tags = PackedStringArray("Food", "Produce")
 base = 4
 rules = Array[ExtResource("1_h6p8l")]([SubResource("Resource_5sgdl")])
-rule_text = "+ twice its base value (+8) as a flat bonus if immediately after another Banana"
+rule_text = "+ twice the price of the Banana just before it"
 sticker_text = "+{bonus} after {name}"
 generally_useful = true
 art_ref = "res://art/items_v2/banana_golden.png"

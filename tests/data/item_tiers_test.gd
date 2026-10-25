@@ -234,8 +234,8 @@ func test_tier_values_and_stickers(
 	base: int,
 	sticker: String,
 	_test_parameters := [
-		["banana_big", 4, "+4 after Banana"],
-		["banana_golden", 4, "+8 after Banana"],
+		["banana_big", 4, "+prev after Banana"],
+		["banana_golden", 4, "+2× prev after Banana"],
 		["milk_big", 6, "+1 per earlier Breakfast"],
 		["milk_golden", 6, "+2 per earlier Breakfast"],
 		["eggs_big", 3, "×2 next Food"],
@@ -295,7 +295,7 @@ func test_changed_fields_from_the_tier_below(
 	big_changes: PackedStringArray,
 	golden_changes: PackedStringArray,
 	_test_parameters := [
-		["banana", PackedStringArray(["base", "bonus"]), PackedStringArray(["bonus"])],
+		["banana", PackedStringArray(["base"]), PackedStringArray(["bonus"])],
 		["milk", PackedStringArray(["base"]), PackedStringArray(["bonus_each"])],
 		["eggs", PackedStringArray(["base"]), PackedStringArray(["charges"])],
 		["coffee", PackedStringArray(["base"]), PackedStringArray(["bonus"])],
@@ -333,14 +333,14 @@ func test_tiers_score_as_their_product(
 	row: String,
 	payouts: Array,
 	_test_parameters := [
-		# Big Banana 4 + its base 4 after a plain Banana.
-		["banana,banana_big", [2, 8]],
-		# Golden Banana 4 + its base counted twice after a Big Banana.
+		# The Banana chain (#106): Big Banana 4 + the plain Banana's price 2.
+		["banana,banana_big", [2, 6]],
+		# Golden Banana 4 + twice the Big Banana's price.
 		["banana_big,banana_golden", [4, 12]],
-		# A plain Banana after a Golden one: + its own base 2.
-		["banana_golden,banana", [4, 4]],
-		# 2 for 1 links a plain and a Big Banana: (4 + 4) × 2.
-		["banana,two_for_one,banana_big", [2, 0, 16]],
+		# A plain Banana after a Golden one: + the Golden one's price 4.
+		["banana_golden,banana", [4, 6]],
+		# 2 for 1 links a plain and a Big Banana: (4 + 2) × 2.
+		["banana,two_for_one,banana_big", [2, 0, 12]],
 		# Golden Eggs doubles the next 2 Food: Bread 5 × 2 twice.
 		["eggs_golden,bread,bread,bread", [3, 10, 10, 5]],
 		# Big Eggs keeps one charge.
@@ -378,14 +378,16 @@ static func _rule_fields(rule: Rule) -> Array[String]:
 
 
 ## A BIG rule field's GOLDEN value under the tier rule: a charged multiplier gains 1 charge, a
-## bonus that is the base counts twice (`bonus_factor`), any other bonus doubles.
+## bonus that is the base or the previous price (the Banana chain) counts twice
+## (`bonus_factor`), any other bonus doubles.
 static func _golden_value(rule: Rule, key: String) -> Variant:
 	var value: Variant = rule.get(key)
 	if rule is GrantChargedMultiplierRule and key == "charges":
 		return int(value) + 1
 	var adjacent: AdjacentMatchBonusRule = rule as AdjacentMatchBonusRule
 	if adjacent != null and key == "bonus_factor":
-		return int(value) * 2 if adjacent.bonus_is_base else value
+		var counts_twice: bool = adjacent.bonus_is_base or adjacent.bonus_is_previous_price
+		return int(value) * 2 if counts_twice else value
 	if DOUBLED_FIELDS.has(key):
 		return int(value) * 2
 	return value

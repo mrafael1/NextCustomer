@@ -1,10 +1,10 @@
 class_name RowStrip
 extends Control
 ## The checkout row's slots (plan section 3.1), one cell per card the shift allows. Upgrades
-## can add slots (Extra coupon slot, Big basket), so the cells are rebuilt when the shift's card
+## can add slots (Big basket), so the cells are rebuilt when the shift's card
 ## limit changes. A row wider than the 7 slots the screen was laid out for first closes the gap
 ## between its cells (the tickets keep their own inset apart), then scales down to the 7-slot
-## width (8 slots about x0.95, 9 slots about x0.85). The common 7-slot row is never scaled.
+## width (8 slots, with Big basket, about x0.95). The common 7-slot row is never scaled.
 ##
 ## The slots are cells on the belt (#80, mock-up B2): each open cell (ItemView.BELT_SIZE) stands
 ## its item on the belt's top face and clips its ticket (the item's sticker) on the price rail,
@@ -15,20 +15,26 @@ extends Control
 ## to each neighbour, so the pointer on an item, a footprint or the gap between two finds a slot;
 ## the band above the art (where the count-up's paid chip pops) is the wall's, whose click lets go
 ## of the picked item. A belt item, the cell's last child, takes its own hover over its art and
-## ticket first. No slot is marked as the coupon slot (a coupon slot is a capacity, not a
-## position: see ShiftScreen). The slots the picked item can go to wear a solid mustard ring
+## ticket first. Every slot is general (any card fits any slot, see ShiftScreen). The slots the
+## picked item can go to wear a solid mustard ring
 ## between ink lines around the ticket (slot_placeable), so they differ from an empty slot in
 ## shape, not only colour; and the empty ticket under a dragged item is filled (slot_hover). The
 ## ring and the fill sit on each cell's marks layer, over the ticket and under the item;
 ## is_outlined() and is_hovered() read them.
 ##
-## A slot the shift's inspection closed (Short belt, Coupon slot closed) shows as a CLOSED cell
+## A slot the shift's inspection closed (Short belt) shows as a CLOSED cell
 ## after the open slots: a velvet rope on two brass stanchions standing on the belt, each post
 ## two regions of its art so it stands as tall as an item (the only velvet and brass left on the
 ## belt), with their contact shadows; and on the rail the ink plate (ticket_closed, its tomato
 ## band the belt's one tomato) reading CLOSED over the names of the inspections that closed
 ## slots; its tooltip says why. It is never a drop target, and the row keeps the run's usual
 ## cell count, so an inspection never rescales it.
+##
+## A slot a loyalty upgrade acts on wears that upgrade's SlotMark (show_slot_marks): the Slot
+## engine's talker hangs under the right end of slot 6's ticket (2026-10-24), as an item tier's
+## tag hangs under its left end, on the cell's talker layer, its first child: behind the ticket,
+## the blank one or the item's, which hides the talker's top. It shows whether the slot is empty
+## or filled and rides with its cell in the count (BeltRide fires it).
 ##
 ## A plain Control holds the row: a Container would reset the row's scale. `slots` is kept as
 ## one array, changed in place, because CardDrag holds it.
@@ -83,6 +89,10 @@ const ROPE_RECT := Rect2(12, 10, 88, 24)
 const CLOSED_SIGN_RECT := Rect2(4, 176, 108, 24)
 const CLOSED_PLATE_RECT := TICKET_RECT
 const CLOSED_PLATE_MARGIN := 3
+## A SlotMark's top in its cell, tucked behind the ticket's foot, and its right end: the cell's
+## (past the ticket's, clear of a tier tag under the ticket's left end).
+const SLOT_MARK_TOP := TICKET_RECT.end.y - SlotMark.TUCKED
+const SLOT_MARK_RIGHT := CELL_SIZE.x
 const CLOSED_TEXT := "CLOSED"
 const CLOSED_SIZE := 18
 const CLOSED_CAPTION_TEXT := "inspection"
@@ -101,6 +111,7 @@ const PLATE_NAME := &"ClosedPlate"
 const PLATE_SHADOW_NAME := &"ClosedPlateShadow"
 const NUMBER_NAME := &"SlotNumber"
 const MARKS_NAME := &"Marks"
+const TALKERS_NAME := &"Talkers"
 const RING_NAME := &"Ring"
 const HOVER_NAME := &"Hover"
 const SIGN_NAME := &"ClosedSign"
@@ -197,6 +208,75 @@ func show_cards(
 	return views
 
 
+## Puts `marks` (SlotMark.marks_for the run's upgrades) on their slots, in place of the ones
+## shown: each hangs under the right end of its slot's ticket (slot_mark_rect). A mark for a slot
+## the row doesn't have is dropped. The same marks as shown (slot, upgrade and factor) leave the
+## shown ones as they are, so a refresh never cuts a firing mark.
+func show_slot_marks(marks: Array[SlotMark]) -> void:
+	var shown: Array[SlotMark] = []
+	for panel: PanelContainer in slots:
+		for child: Node in _talkers(panel).get_children():
+			if child is SlotMark and not child.is_queued_for_deletion():
+				shown.append(child as SlotMark)
+	if _same_marks(shown, marks):
+		for mark: SlotMark in marks:
+			mark.free()
+		return
+	for panel: PanelContainer in slots:
+		var layer: Control = _talkers(panel)
+		for child: Node in layer.get_children():
+			layer.remove_child(child)
+			child.queue_free()
+	for mark: SlotMark in marks:
+		if mark.slot < 0 or mark.slot >= slots.size():
+			mark.free()
+			continue
+		var rect: Rect2 = slot_mark_rect(mark.size.x)
+		mark.position = rect.position
+		_talkers(slots[mark.slot]).add_child(mark)
+
+
+## A SlotMark `width` wide in its cell: right-aligned to SLOT_MARK_RIGHT on the art grid, from
+## SLOT_MARK_TOP.
+static func slot_mark_rect(width: float) -> Rect2:
+	var left: float = snappedf(SLOT_MARK_RIGHT - width, ArtStyle.ART_SCALE)
+	return Rect2(left, SLOT_MARK_TOP, width, SlotMark.HEIGHT)
+
+
+## Whether `shown` are the marks `marks` would show: the same slot, upgrade and factor, in order
+## (a mark for a slot the row doesn't have shows nowhere).
+func _same_marks(shown: Array[SlotMark], marks: Array[SlotMark]) -> bool:
+	var placed: Array[SlotMark] = []
+	for mark: SlotMark in marks:
+		if mark.slot >= 0 and mark.slot < slots.size():
+			placed.append(mark)
+	if placed.size() != shown.size():
+		return false
+	placed.sort_custom(func(a: SlotMark, b: SlotMark) -> bool: return a.slot < b.slot)
+	for index: int in range(placed.size()):
+		var mark: SlotMark = placed[index]
+		var old: SlotMark = shown[index]
+		if (
+			mark.slot != old.slot
+			or mark.upgrade_index != old.upgrade_index
+			or mark.factor != old.factor
+		):
+			return false
+	return true
+
+
+## The mark on `slot` of upgrade `upgrade_index` (any upgrade's for -1), or null.
+func slot_mark(slot: int, upgrade_index: int = -1) -> SlotMark:
+	if slot < 0 or slot >= slots.size():
+		return null
+	for child: Node in _talkers(slots[slot]).get_children():
+		var mark: SlotMark = child as SlotMark
+		if mark != null and not mark.is_queued_for_deletion():
+			if upgrade_index < 0 or mark.upgrade_index == upgrade_index:
+				return mark
+	return null
+
+
 ## The distance from one cell's left edge to the next one's as drawn (the cell and its gap,
 ## scaled with a wide row): how far the cells ride left for each cell that rides out.
 func pitch() -> float:
@@ -244,11 +324,11 @@ static func is_hovered(panel: PanelContainer) -> bool:
 	return marks != null and (marks.get_node(NodePath(HOVER_NAME)) as CanvasItem).visible
 
 
-## The caption of a CLOSED cell: CLOSED_CAPTION_TEXT when one of `inspections` closes slots
-## (product or coupon slots), else empty. The cell's hover text names the inspections.
+## The caption of a CLOSED cell: CLOSED_CAPTION_TEXT when one of `inspections` closes slots,
+## else empty. The cell's hover text names the inspections.
 static func closed_caption(inspections: Array[InspectionDefinition]) -> String:
 	for inspection: InspectionDefinition in inspections:
-		if inspection.extra_slots < 0 or inspection.extra_coupon_slots < 0:
+		if inspection.extra_slots < 0:
 			return CLOSED_CAPTION_TEXT
 	return ""
 
@@ -323,7 +403,8 @@ static func row_width(count: int, separation: int = SEPARATION) -> float:
 ## An open slot in a row whose cells are `separation` apart: its ground (the drop target, the
 ## footprint, the ticket's shadow, the blank ticket and the number), then the marks over it. The
 ## PanelContainer sizes both layers to the cell; their parts are placed in the cell's coordinates
-## (the drop target reaches half the gap past the cell's sides). Only the drop target takes clicks.
+## (the drop target reaches half the gap past the cell's sides), after the talker layer for its
+## SlotMark (behind the ticket). Only the drop target takes clicks.
 func _slot_panel(slot: int, separation: int) -> PanelContainer:
 	var panel: PanelContainer = PanelContainer.new()
 	panel.custom_minimum_size = CELL_SIZE
@@ -351,6 +432,11 @@ func _slot_panel(slot: int, separation: int) -> PanelContainer:
 	var number: Label = _slot_number_label(slot)
 	number.name = NUMBER_NAME
 	_child_at(ground, number, NUMBER_RECT)
+	# The talkers first: behind the ticket.
+	var talkers: Control = Control.new()
+	talkers.name = TALKERS_NAME
+	talkers.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	panel.add_child(talkers)
 	panel.add_child(ground)
 	panel.add_child(_new_marks())
 	_show_empty(panel, true)
@@ -470,6 +556,10 @@ static func _new_marks() -> Control:
 	_child_at(marks, ring, TICKET_RECT.grow(RING_GROW))
 	ring.visible = false
 	return marks
+
+
+static func _talkers(panel: PanelContainer) -> Control:
+	return panel.get_node(NodePath(TALKERS_NAME)) as Control
 
 
 static func _marks(panel: PanelContainer) -> Control:

@@ -30,8 +30,6 @@ var redraws: int = 0
 ## Per shift (0-based): runs that played it, and its best totals.
 var reached: PackedInt32Array = PackedInt32Array()
 var passed: PackedInt32Array = PackedInt32Array()
-## Per shift: runs that played it against a raised quota (Big basket). `quotas` are the base.
-var raised: PackedInt32Array = PackedInt32Array()
 var scores: Array[PackedInt32Array] = []
 ## Per shift: the exact best totals, and each played total as a share of its best in percent
 ## (100 when the best is 0). They differ from `scores` only for "@sensible" strategies.
@@ -76,7 +74,6 @@ func _init(strategy_name: String, run_quotas: PackedInt32Array, summary_title: S
 	quotas = run_quotas
 	reached.resize(quotas.size())
 	passed.resize(quotas.size())
-	raised.resize(quotas.size())
 	for _shift: int in range(quotas.size()):
 		scores.append(PackedInt32Array())
 		best_scores.append(PackedInt32Array())
@@ -97,8 +94,6 @@ func add(record: SimRunRecord) -> void:
 		best_shares[index].append(100 if best <= 0 else floori(100.0 * entry["total"] / best))
 		if entry["passed"]:
 			passed[index] += 1
-		if int(entry["quota"]) > quotas[index]:
-			raised[index] += 1
 		for visit: Dictionary in entry.get("visits", []):
 			_add_visit(visit, record.won)
 	for id: String in record.drawn:
@@ -299,17 +294,16 @@ func format() -> String:
 		)
 	)
 	lines.append("")
-	var header: String = "Shift  Quota  Raised  Played  Passed "
+	var header: String = "Shift  Quota  Played  Passed "
 	for percent: int in PERCENTILES:
 		header += "%5s" % ("p%d" % percent)
 	lines.append(header + "   max")
 	for index: int in range(quotas.size()):
 		var line: String = (
-			"%5d  %5d  %6s  %6d  %6s "
+			"%5d  %5d  %6d  %6s "
 			% [
 				index + 1,
 				quotas[index],
-				percent_text(raised[index], reached[index]),
 				reached[index],
 				percent_text(passed[index], reached[index]),
 			]
@@ -507,7 +501,6 @@ func to_dictionary() -> Dictionary:
 				{
 					"shift": index + 1,
 					"quota": quotas[index],
-					"raised_quota": raised[index],
 					"played": reached[index],
 					"passed": passed[index],
 					"best_totals": percentiles,

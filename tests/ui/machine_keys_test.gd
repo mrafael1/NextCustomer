@@ -196,7 +196,7 @@ func test_keys_light_in_turn_and_relight_on_a_bonus() -> void:
 ## lines fit their boxes, in every state.
 func test_shut_keys_say_why_and_their_lines_fit() -> void:
 	var run: RunState = _passed_run(21)
-	for id: String in ["category_engine", "big_basket", "extra_coupon_slot"]:
+	for id: String in ["category_engine", "big_basket", "extra_redraw"]:
 		run.upgrades.append(load("res://data/upgrades/%s.tres" % id) as UpgradeDefinition)
 	var view: RewardMachineView = auto_free(RewardMachineView.new())
 	view.open_visit(run, null, null, false)

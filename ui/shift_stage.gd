@@ -63,8 +63,8 @@ const FLOOR_TOP := 700.0
 ## The belt, from its steel guard down to the price rail's shadow (BeltPanel draws its bands).
 const BELT_RECT := Rect2(348, 314, 918, 180)
 ## Where the 7-slot row starts: each cell (ItemView.BELT_SIZE) stands its item on the belt's top
-## face and clips its ticket on the rail. Every row rests on ROW_BOTTOM: a scaled 8- or 9-slot
-## row too.
+## face and clips its ticket on the rail. Every row rests on ROW_BOTTOM: a scaled 8-slot row
+## too.
 const ROW_POSITION := Vector2(364, 258)
 const ROW_BOTTOM := ROW_POSITION.y + ItemView.BELT_SIZE.y
 ## The band the row's cells stand in: across the belt's top face, from the plaques over the items

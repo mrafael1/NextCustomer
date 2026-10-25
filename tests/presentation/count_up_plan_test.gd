@@ -8,8 +8,8 @@ const TUNING := "res://data/balance/count_up.tres"
 const CARDS := "res://data/cards"
 const FIXTURE_DIR := "res://tests/fixtures/cards_v0_4"
 ## The full reference row of the #60 decisions: Eggs and Multipack arm effects, the Spot check
-## zeroes the 3rd product, Coupon engine fizzles on Multipack, Slot engine stamps the 6th
-## product.
+## zeroes the 3rd product, Coupon engine fizzles on Multipack, Slot engine stamps slot 6 (the
+## 2nd Milk after Multipack; since 2026-10-24, until then the 6th product, the last Milk).
 const FULL_ROW := "eggs,bread,milk,multipack,milk,milk,milk"
 ## The golden rows of plan section 3.7 (tests/core/golden_rows_test.gd), on the frozen fixture.
 const GOLDEN_ROWS := [
@@ -130,14 +130,14 @@ func test_full_row_beats_follow_the_decided_shape() -> void:
 				"BASE BONUS DENIED PAYOUT",
 				"MERGED_PLAIN ARMED FIZZLE",
 				"BASE BONUS STAMP PAYOUT",
-				"BASE BONUS STAMP PAYOUT",
 				"BASE BONUS STAMP STAMP PAYOUT",
+				"BASE BONUS STAMP PAYOUT",
 			]
 		)
 	)
 	assert_str(" ".join(kinds)).is_equal(expected)
 	assert_int(plan.step_count).is_equal(27)
-	assert_int(plan.total).is_equal(110)
+	assert_int(plan.total).is_equal(107)
 	# Multipack pays 0 before its armed beat: merged, but not a gain.
 	assert_int(plan.beats[9].payout).is_equal(0)
 	assert_int(plan.beats[9].note).is_equal(-1)
@@ -212,17 +212,17 @@ func test_armed_beats_replay_the_current_note_quietly() -> void:
 func test_each_armed_beat_targets_its_landings() -> void:
 	var plan: CountUpPlan = _plan(_full_steps())
 	assert_array(Array(plan.beats[1].targets)).is_equal([3])
-	assert_array(Array(plan.beats[10].targets)).is_equal([14, 18, 22])
+	assert_array(Array(plan.beats[10].targets)).is_equal([14, 18, 23])
 	for index: int in range(plan.beats.size()):
 		var beat: CountUpBeat = plan.beats[index]
 		var expected_from: int = -1
 		if index == 3:
 			expected_from = 1
-		elif index in [14, 18, 22]:
+		elif index in [14, 18, 23]:
 			expected_from = 10
 		assert_int(beat.armed_from).override_failure_message(str(index)).is_equal(expected_from)
 	# Slot engine's stamp (an upgrade) and Milk's own flats are no landings.
-	assert_int(plan.beats[23].armed_from).is_equal(-1)
+	assert_int(plan.beats[19].armed_from).is_equal(-1)
 	assert_int(plan.beats[13].armed_from).is_equal(-1)
 	# A later arming of the same effect takes over the landings after it.
 	var steps: Array[ScoreStep] = [
@@ -249,25 +249,25 @@ func test_each_armed_beat_targets_its_landings() -> void:
 
 func test_the_quota_dings_on_the_first_crossing_unless_it_is_the_last() -> void:
 	var plan: CountUpPlan = _plan(_full_steps(), 40)
-	# Milk at S5 takes the subtotal from 32 to 56.
-	assert_int(plan.ding_beat).is_equal(19)
-	assert_bool(plan.beats[19].ding).is_true()
-	assert_int(plan.beats[19].subtotal).is_equal(56)
+	# The doubled Milk in slot 6 takes the subtotal from 32 to 80.
+	assert_int(plan.ding_beat).is_equal(20)
+	assert_bool(plan.beats[20].ding).is_true()
+	assert_int(plan.beats[20].subtotal).is_equal(80)
 	assert_bool(plan.quota_reached).is_true()
 	assert_bool(plan.chip_at_total).is_false()
 	assert_int(_ding_count(plan)).is_equal(1)
-	assert_int(_hit_stop_at(plan, 19)).is_equal((load(TUNING) as CountUpTuning).hit_stop_ding_ms)
+	assert_int(_hit_stop_at(plan, 20)).is_equal((load(TUNING) as CountUpTuning).hit_stop_ding_ms)
 	# Reached exactly, on the first payout.
 	var first: CountUpPlan = _plan(_full_steps(), 1)
 	assert_int(first.ding_beat).is_equal(0)
 	# Crossed on the last payout: no ding, the chip comes with the TOTAL line.
-	var last: CountUpPlan = _plan(_full_steps(), 110)
+	var last: CountUpPlan = _plan(_full_steps(), 107)
 	assert_bool(last.quota_reached).is_true()
 	assert_bool(last.chip_at_total).is_true()
 	assert_int(last.ding_beat).is_equal(-1)
 	assert_int(_ding_count(last)).is_equal(0)
 	# Never reached: no ding and no chip.
-	var missed: CountUpPlan = _plan(_full_steps(), 111)
+	var missed: CountUpPlan = _plan(_full_steps(), 108)
 	assert_bool(missed.quota_reached).is_false()
 	assert_bool(missed.chip_at_total).is_false()
 	assert_int(missed.ding_beat).is_equal(-1)
@@ -352,21 +352,23 @@ func test_payout_rolls_and_rattles_follow_the_best_so_far() -> void:
 	assert_float(bread.rattle_px).is_equal_approx(3.0 + 60.0 / 45.0, 0.0001)
 	var eggs: CountUpBeat = plan.beats[0]
 	assert_float(eggs.rattle_px).is_equal(0.0)
-	# The subtotal first passes 45 at S5 (56): +2 px and the punch from there on.
-	assert_int(plan.passes_best_beat).is_equal(19)
+	# The subtotal first passes 45 in slot 6 (80): +2 px and the punch from there on.
+	assert_int(plan.passes_best_beat).is_equal(20)
 	assert_float(plan.beats[15].punch_boost).is_equal(0.0)
-	assert_float(plan.beats[19].punch_boost).is_equal_approx(0.1, 0.0001)
+	assert_float(plan.beats[20].punch_boost).is_equal_approx(0.1, 0.0001)
 	assert_float(plan.beats[24].punch_boost).is_equal_approx(0.1, 0.0001)
-	assert_float(plan.beats[19].rattle_px).is_equal_approx(3.0 + 6.0 * 24 / 45.0 + 2.0, 0.0001)
-	# Milk's €54 at S6: 3 + 6 x 54 / 45, plus 2.
-	assert_float(plan.beats[24].rattle_px).is_equal_approx(12.2, 0.0001)
+	assert_float(plan.beats[20].rattle_px).is_equal_approx(3.0 + 6.0 * 48 / 45.0 + 2.0, 0.0001)
+	# The last Milk's €27 in slot 7: 3 + 6 x 27 / 45, plus 2.
+	assert_float(plan.beats[24].rattle_px).is_equal_approx(8.6, 0.0001)
 	# The amplitude is capped at 12 before the +2.
 	assert_float(_plan(_flat_steps(1, 100)).beats[2].rattle_px).is_equal_approx(14.0, 0.0001)
 	# A higher best: no step-up, and smaller rattles.
 	var rich: CountUpPlan = _plan(_full_steps(), 40, CountUpContext.new(1, 200))
 	assert_int(rich.passes_best_beat).is_equal(-1)
 	assert_float(rich.beats[4].rattle_px).is_equal(0.0)
-	assert_float(rich.beats[24].rattle_px).is_equal_approx(3.0 + 6.0 * 54 / 200.0, 0.0001)
+	assert_float(rich.beats[20].rattle_px).is_equal_approx(3.0 + 6.0 * 48 / 200.0, 0.0001)
+	# €27 is under max(€10, 0.2 x 200 = €40): no rattle.
+	assert_float(rich.beats[24].rattle_px).is_equal(0.0)
 
 
 func test_reduced_motion_removes_every_rattle_but_keeps_the_hit_stops() -> void:
@@ -412,7 +414,7 @@ func test_hit_stops_land_on_the_heavy_beats_and_merge_when_close() -> void:
 		if plan.beats[index].hit_stop_ms > 0:
 			stops[index] = plan.beats[index].hit_stop_ms
 	# The Eggs stamp, the Spot check's red 0, three Multipack stamps, Slot engine.
-	var expected: Dictionary[int, int] = {3: 50, 7: 70, 14: 50, 18: 50, 22: 50, 23: 70}
+	var expected: Dictionary[int, int] = {3: 50, 7: 70, 14: 50, 18: 50, 19: 70, 23: 50}
 	assert_dict(stops).is_equal(expected)
 	for index: int in stops:
 		(
@@ -420,7 +422,7 @@ func test_hit_stops_land_on_the_heavy_beats_and_merge_when_close() -> void:
 			. is_true()
 		)
 	assert_bool(plan.beats[3].first_stamp_on_card).is_true()
-	assert_bool(plan.beats[23].first_stamp_on_card).is_false()
+	assert_bool(plan.beats[19].first_stamp_on_card).is_false()
 	# Unfitted, every beat has its D7 length; a paying PAYOUT is its roll and the gap.
 	var live: CountUpTuning = load(TUNING)
 	var roll: int = -1
@@ -444,11 +446,11 @@ func test_hit_stops_land_on_the_heavy_beats_and_merge_when_close() -> void:
 		live.base_ms,
 		live.bonus_own_ms,
 		live.stamp_card_ms,
+		live.stamp_upgrade_ms,
 		roll,
 		live.base_ms,
 		live.bonus_own_ms,
 		live.stamp_card_ms,
-		live.stamp_upgrade_ms,
 		roll,
 	]
 	assert_int(plan.beats.size()).is_equal(lengths_by_beat.size())
@@ -536,7 +538,7 @@ func test_the_full_row_plans_five_to_nine_seconds_from_its_parts() -> void:
 		CountUpContext.new(8, 160),
 		CountUpContext.new(8, 160, 1.5),
 	]:
-		for quota: int in [40, 110, 500]:
+		for quota: int in [40, 107, 500]:
 			var plan: CountUpPlan = _plan(_full_steps(), quota, context)
 			var where: String = (
 				"shift %d best %d speed %s quota %d: %d ms (stage %d)"
@@ -553,7 +555,7 @@ func test_the_full_row_plans_five_to_nine_seconds_from_its_parts() -> void:
 				assert_int(plan.planned_ms).override_failure_message(where).is_between(5000, 8750)
 			else:
 				assert_int(plan.planned_ms).override_failure_message(where).is_less_equal(8750)
-	# Shift 1, best 45: the total (110) is huge, the row is fitted down to stage 4, which may
+	# Shift 1, best 45: the total (107) is huge, the row is fitted down to stage 4, which may
 	# leave it a little over fit_target_ms: its six rides and the ding's hold are never shortened.
 	var first: CountUpPlan = _plan(_full_steps(), 40, CountUpContext.new(1, 0))
 	assert_int(first.size).is_equal(CountUpPlan.Size.HUGE)
@@ -617,14 +619,14 @@ func test_the_fit_runs_its_stages_in_order_and_spares_the_climax() -> void:
 	assert_bool(plan.beats[14].echo).is_false()
 	assert_int(plan.beats[14].duration_ms).is_equal(tuning.stamp_card_ms - 20)
 	assert_int(plan.beats[14].hit_stop_ms).is_equal(50)
-	for index: int in [18, 22]:
+	for index: int in [18, 23]:
 		assert_bool(plan.beats[index].echo).is_true()
 		assert_int(plan.beats[index].duration_ms).is_equal(tuning.echo_ms)
 		assert_int(plan.beats[index].hit_stop_ms).is_equal(0)
 	# Merged plain beats and the ding keep their (gap-trimmed) length.
 	assert_int(plan.beats[0].duration_ms).is_equal(tuning.merged_ms - 20)
-	assert_int(plan.ding_beat).is_equal(19)
-	assert_int(plan.beats[19].hit_stop_ms).is_equal(100)
+	assert_int(plan.ding_beat).is_equal(20)
+	assert_int(plan.beats[20].hit_stop_ms).is_equal(100)
 
 
 func test_a_very_long_row_runs_every_stage_but_keeps_its_floors() -> void:

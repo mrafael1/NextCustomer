@@ -11,13 +11,17 @@ extends RefCounted
 ## - `bonus`, `bonus_each`, `factor`, `charges`, `tag` and `match_value`: the fields of the
 ##   card's first rule that has them. A match bonus's `bonus` is what it pays on a match: the
 ##   card's base when that rule's bonus is its base (Banana), counted `bonus_factor` times
-##   (Golden Banana, #77). `charges` names a charged multiplier's charges (Golden Eggs, #77).
+##   (Golden Banana, #77). A chain bonus (the Banana, #106) reads PREVIOUS_PRICE, after its
+##   factor when that is not 1 ("prev", "2× prev"). `charges` names a charged multiplier's
+##   charges (Golden Eggs, #77).
 ## Any other `{key}` (e.g. `{match_by}`) is left unformatted, braces and all, so the live-data
 ## test rejects it.
 const STICKER_KEYS: Array[String] = [
 	"base", "name", "bonus", "bonus_each", "factor", "charges", "tag", "match_value"
 ]
 const RULE_KEYS: Array[String] = ["bonus", "bonus_each", "factor", "charges", "tag", "match_value"]
+## What a chain bonus's `{bonus}` reads: the previous product's price.
+const PREVIOUS_PRICE := "prev"
 
 
 ## The card's sticker summary, or "" when its template is empty (a card with no rule shows only
@@ -46,9 +50,16 @@ static func sticker_values(definition: CardDefinition) -> Dictionary:
 			if is_field and RULE_KEYS.has(key) and not values.has(key):
 				values[key] = rule.get(key)
 		var adjacent: AdjacentMatchBonusRule = rule as AdjacentMatchBonusRule
-		if adjacent != null and (adjacent.bonus_is_base or adjacent.bonus_factor != 1):
+		if adjacent != null and adjacent.bonus_is_previous_price:
+			values["bonus"] = previous_price_text(adjacent.bonus_factor)
+		elif adjacent != null and (adjacent.bonus_is_base or adjacent.bonus_factor != 1):
 			values["bonus"] = adjacent.bonus_for(definition.base)
 	return values
+
+
+## A chain bonus's `{bonus}`: PREVIOUS_PRICE, counted `factor` times ("prev", "2× prev").
+static func previous_price_text(factor: int) -> String:
+	return PREVIOUS_PRICE if factor == 1 else "%d× %s" % [factor, PREVIOUS_PRICE]
 
 
 ## The sticker values (`base`, then RULE_KEYS) that differ between two cards, e.g. an item tier

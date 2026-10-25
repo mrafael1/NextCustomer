@@ -244,7 +244,7 @@ func test_the_run_id_and_played_time_are_kept() -> void:
 	assert_str(save.run_id).is_equal("abc123")
 	assert_int(save.run_ms).is_equal(98765)
 	assert_int(int(data["format_version"])).is_equal(RunSave.FORMAT_VERSION)
-	assert_int(RunSave.FORMAT_VERSION).is_equal(4)
+	assert_int(RunSave.FORMAT_VERSION).is_equal(5)
 	# v0.47: the machine saves no Regular levels.
 	assert_bool((data["machine"] as Dictionary).has("levels")).is_false()
 
@@ -295,8 +295,8 @@ func test_a_save_that_cant_be_resumed_reads_as_null() -> void:
 		[planning, func(d: Dictionary) -> void: d["format_version"] = 2],
 		"version 3, before the dealt starting deck":
 		[planning, func(d: Dictionary) -> void: d["format_version"] = 3],
-		"newer format": [planning, func(d: Dictionary) -> void: d["format_version"] = 5],
-		"format as text": [planning, func(d: Dictionary) -> void: d["format_version"] = "4"],
+		"newer format": [planning, func(d: Dictionary) -> void: d["format_version"] = 6],
+		"format as text": [planning, func(d: Dictionary) -> void: d["format_version"] = "5"],
 		"starting deck missing": [planning, func(d: Dictionary) -> void: d.erase("starting_deck")],
 		"seed as a number": [planning, func(d: Dictionary) -> void: d["seed"] = 12],
 		"seed not a number": [planning, func(d: Dictionary) -> void: d["seed"] = "12a"],
@@ -364,7 +364,6 @@ func test_a_save_that_cant_be_resumed_reads_as_null() -> void:
 		"redraws over the limit": [planning, func(d: Dictionary) -> void: d["redraws_used"] = 5],
 		"row over the card limit":
 		[planning, func(d: Dictionary) -> void: d["row"] = d["hand"].map(_first)],
-		"row over the product limit": [planning, _over_products],
 	}
 	for case_name: String in cases:
 		var data: Dictionary = (cases[case_name][0] as Dictionary).duplicate(true)
@@ -376,7 +375,7 @@ func test_a_save_that_cant_be_resumed_reads_as_null() -> void:
 		assert_object(RunSave.from_dictionary(data, _lookup)).is_not_null()
 
 
-## A save made with a full row, read with a balance that has fewer product slots (tuned between
+## A save made with a full row, read with a balance that has fewer slots (tuned between
 ## sessions), can't be resumed: the row would no longer fit.
 func test_a_save_whose_row_no_longer_fits_the_balance_reads_as_null() -> void:
 	var planning: RunState = _planning_run(25)
@@ -385,7 +384,7 @@ func test_a_save_whose_row_no_longer_fits_the_balance_reads_as_null() -> void:
 	var fewer_slots: BalanceDefinition = _balance.duplicate()
 	fewer_slots.slot_count -= 1
 	for run: RunState in [planning, visit]:
-		assert_int(RowCapacity.product_count(run.row)).is_equal(_balance.slot_count)
+		assert_int(run.row.size()).is_equal(_balance.slot_count)
 		var data: Dictionary = _json(_save(run))
 		assert_object(RunSave.from_dictionary(data, _lookup)).is_not_null()
 		var stale: RunSave = RunSave.from_dictionary(data, ContentLookup.new(fewer_slots))
@@ -615,23 +614,6 @@ static func _json(data: Dictionary) -> Dictionary:
 	return json.data
 
 
-## Fills the row with one product more than the product slots, and no more cards than the row
-## holds: extra Banana copies join the hand, as the debug panel adds them.
-func _over_products(data: Dictionary) -> void:
-	assert_int(_balance.slot_count + 1).is_less_equal(RowCapacity.card_limit(_no_upgrade_limits()))
-	var products: Array = []
-	for pair: Array in data["hand"]:
-		if not _lookup.card(pair[1]).is_coupon():
-			products.append(pair[0])
-	var next_id: int = int(data["next_instance_id"])
-	while products.size() <= _balance.slot_count:
-		data["hand"].append([next_id, "banana"])
-		products.append(next_id)
-		next_id += 1
-	data["next_instance_id"] = next_id
-	data["row"] = products.slice(0, _balance.slot_count + 1)
-
-
 static func _first(pair: Array) -> Variant:
 	return pair[0]
 
@@ -674,11 +656,6 @@ static func _ids(resources: Array) -> Array:
 
 
 ## The row's limits with no upgrades, as a new run's shift starts.
-func _no_upgrade_limits() -> ShiftLimits:
-	var none: Array[UpgradeDefinition] = []
-	return ShiftLimits.for_shift(_balance, none, 0)
-
-
 ## Each hand place's instance id, -1 where the card is in the row.
 static func _place_ids(run: RunState) -> Array:
 	return run.hand_places().map(

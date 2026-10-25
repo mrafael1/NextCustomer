@@ -1,6 +1,6 @@
 extends GdUnitTestSuite
 ## The planning layer's geometry on the real shift screen at 1280x720 (#71, mock-up h1,
-## H1_BUILD_SPEC.md section 13) for 7, 8 and 9 slots and with a CLOSED cell, on the reference row
+## H1_BUILD_SPEC.md section 13) for 7 and 8 slots and with a CLOSED cell, on the reference row
 ## and on a stress row with 6 or more stickers on one item and overlapping rail strips: no
 ## sticker, stamp, pay tag or strip part covers any ticket's base or summary text (a pay tag sits
 ## on its ticket's top band only); every stack stands on STACK_BOTTOM_Y or higher and under its
@@ -19,8 +19,10 @@ const SCREEN_RECT := Rect2(0, 0, 1280, 720)
 ## fizzle and Slot engine's stamp.
 const REFERENCE_ROW: Array[String] = ["eggs", "bread", "milk", "multipack", "milk", "milk", "milk"]
 const REFERENCE_UPGRADES: Array[String] = ["coupon_engine", "slot_engine"]
-## Squashed cake, the 6th product, takes Flickering bulb's +3, Multipack's ×3, Birthday candles'
-## +3, Eggs' ×2, Tea bags' ×4 (with the Breakfast tag) and Slot engine's stamp.
+## Squashed cake, the last product, takes Flickering bulb's +3, Multipack's ×3, Birthday candles'
+## +3, Eggs' ×2, Tea bags' ×4 (with the Breakfast tag) and Category engine's bonus. The 8 cards
+## need Big basket's 8th slot (v0.56: 7 general slots; Extra coupon slot, which gave it before,
+## was removed).
 const STRESS_ROW: Array[String] = [
 	"bread",
 	"flickering_bulb",
@@ -31,7 +33,7 @@ const STRESS_ROW: Array[String] = [
 	"breakfast_sticker",
 	"squashed_cake",
 ]
-const STRESS_UPGRADES: Array[String] = ["extra_coupon_slot", "slot_engine"]
+const STRESS_UPGRADES: Array[String] = ["big_basket", "category_engine"]
 const STRESS_STICKERS := 6
 const TOLERANCE := 0.01
 
@@ -78,29 +80,13 @@ func test_the_reference_row_on_8_slots() -> void:
 	await _assert_hot(screen, "8 slots")
 
 
-## 8 slots (an extra coupon slot): the stress row, its tall stack squeezed or folded under the
-## monitor.
+## 8 slots (Big basket): the stress row, its tall stack squeezed or folded under the monitor.
 func test_the_stress_row_on_8_slots() -> void:
 	var screen: ShiftScreen = await _shift(STRESS_UPGRADES, "", STRESS_ROW)
 	assert_int(screen._row_strip.slots.size()).is_equal(8)
 	_assert_stressed(screen)
 	_assert_laid_out(screen, "stress, 8 slots")
 	var covers: int = await _assert_hot(screen, "stress, 8 slots")
-	# Some lane-1 gain stands over the hovered giver's own hot ring here (drawn over it).
-	assert_int(covers).is_greater(0)
-
-
-## 9 slots (Big basket and an extra coupon slot): the stress row after Milk, on a scaled row.
-func test_the_stress_row_on_9_slots() -> void:
-	var upgrades: Array[String] = STRESS_UPGRADES.duplicate()
-	upgrades.append("big_basket")
-	var row: Array[String] = STRESS_ROW.duplicate()
-	row.push_front("milk")
-	var screen: ShiftScreen = await _shift(upgrades, "", row)
-	assert_int(screen._row_strip.slots.size()).is_equal(9)
-	_assert_stressed(screen)
-	_assert_laid_out(screen, "stress, 9 slots")
-	var covers: int = await _assert_hot(screen, "stress, 9 slots")
 	# Some lane-1 gain stands over the hovered giver's own hot ring here (drawn over it).
 	assert_int(covers).is_greater(0)
 

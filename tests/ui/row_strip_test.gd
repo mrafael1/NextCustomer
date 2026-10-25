@@ -507,12 +507,12 @@ func test_every_closed_caption_fits() -> void:
 			continue
 		var inspection: InspectionDefinition = load(INSPECTIONS.path_join(file_name))
 		var caption: String = RowStrip.closed_caption([inspection])
-		if inspection.extra_slots < 0 or inspection.extra_coupon_slots < 0:
+		if inspection.extra_slots < 0:
 			assert_str(caption).is_equal(RowStrip.CLOSED_CAPTION_TEXT)
 			closing.append(inspection)
 		else:
 			assert_str(caption).is_empty()
-	assert_int(closing.size()).is_greater_equal(2)
+	assert_int(closing.size()).is_greater_equal(1)
 	var captions: Array[String] = [RowStrip.closed_caption(closing)]
 	for inspection: InspectionDefinition in closing:
 		captions.append(RowStrip.closed_caption([inspection]))

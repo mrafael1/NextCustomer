@@ -1,7 +1,7 @@
 extends GdUnitTestSuite
 ## Item tiers (#77, build spec 1.3-1.4): Deck.upgrade replaces one copy and leaves the others
 ## alone, ItemUpgrades picks the copies a prize steps up by its rarity, and the Golden Banana's
-## pair bonus counts twice (`bonus_factor`, decided with the user). The chains and the Banana
+## chain bonus counts twice (`bonus_factor`, decided with the user). The chains and the Banana
 ## rows are built here, so tuning data/ never changes them; the upgraded-copy test uses the live
 ## Milk chain, as issue #77 asks.
 
@@ -151,17 +151,18 @@ func test_applying_targets_steps_each_copy() -> void:
 	assert_array(_definitions(deck)).is_equal([milk.golden, milk.golden, milk.big, milk.golden])
 
 
-## Decided with the user (#77 answer 1, plan section 3.4): the Golden Banana's pair bonus counts
-## twice. Banana 2 (+ its base after a Banana); Big Banana 4 (+4); Golden Banana 4 (+8).
-func test_golden_banana_pair_counts_twice(
+## Decided with the user (#77 answer 1, plan section 3.4; the chain since #106): the Golden
+## Banana's chain bonus counts twice. Banana 2 and Big Banana 4 (+ the previous Banana's price
+## after a Banana); Golden Banana 4 (+ twice that price).
+func test_golden_banana_chain_counts_twice(
 	row: String,
 	payouts: Array,
 	total: int,
 	_test_parameters := [
-		["banana,golden", [2, 12], 14],
-		["golden,banana", [4, 4], 8],
+		["banana,golden", [2, 8], 10],
+		["golden,banana", [4, 6], 10],
 		["golden,golden", [4, 12], 16],
-		["banana,big", [2, 8], 10],
+		["banana,big", [2, 6], 8],
 		["big,golden", [4, 12], 16],
 		["golden,big", [4, 8], 12],
 		["golden", [4], 4],
@@ -186,7 +187,7 @@ func test_golden_banana_bonus_is_one_step() -> void:
 	for step: ScoreStep in Scoring.score(row).steps:
 		if step.step_type == ScoreStep.StepType.FLAT:
 			flats.append([step.slot, step.value, step.text])
-	assert_array(flats).is_equal([[1, 8, "Banana pair"]])
+	assert_array(flats).is_equal([[1, 4, "Banana chain"]])
 
 
 static func _bananas() -> Dictionary[String, CardDefinition]:
@@ -202,9 +203,9 @@ static func _banana(id: String, base: int, bonus_factor: int) -> CardDefinition:
 	var rule: AdjacentMatchBonusRule = AdjacentMatchBonusRule.new()
 	rule.match_by = AdjacentMatchBonusRule.Match.SAME_CARD
 	rule.position = AdjacentMatchBonusRule.Position.IMMEDIATELY_AFTER
-	rule.bonus_is_base = true
+	rule.bonus_is_previous_price = true
 	rule.bonus_factor = bonus_factor
-	rule.receipt_text = "Banana pair"
+	rule.receipt_text = "Banana chain"
 	var card: CardDefinition = _card(id, base)
 	card.tags = PackedStringArray(["Food", "Produce"])
 	card.rules.append(rule)

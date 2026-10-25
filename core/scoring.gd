@@ -120,6 +120,7 @@ static func _scan(state: ScoreState, slot: int, registers: Array, checks: Array)
 					)
 	if has_upgrades:
 		value = _upgrade_flat_bonuses(state, slot, value, registers)
+	state.prices[slot] = value
 
 	# Multipliers: the card's own rules, then effects.
 	if has_rules:

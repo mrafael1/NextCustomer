@@ -37,7 +37,7 @@ func test_the_reference_row_shows_its_stickers_in_step_order() -> void:
 	_assert_stickers(
 		model.slots[3], [[StickerSpec.Kind.FIZZLE, "WASTED", GiverBadge.Kind.LOYALTY, "CoE"]]
 	)
-	# Milks 5 to 7: their own bonus, then Multipack's ×3 (coupon badge); the 6th product also
+	# Milks 5 to 7: their own bonus, then Multipack's ×3 (coupon badge); the Milk in slot 6 also
 	# gets Slot engine's ×2 last.
 	for slot: int in [4, 5, 6]:
 		var stickers: Array[StickerSpec] = model.slots[slot].stickers
@@ -48,13 +48,14 @@ func test_the_reference_row_shows_its_stickers_in_step_order() -> void:
 		assert_str(stickers[1].badge_text).is_equal("Mu")
 		assert_int(stickers[1].cause_slot).is_equal(3)
 	assert_int(model.slots[4].stickers.size()).is_equal(2)
-	assert_int(model.slots[6].stickers.size()).is_equal(3)
+	assert_int(model.slots[5].stickers.size()).is_equal(3)
+	assert_int(model.slots[6].stickers.size()).is_equal(2)
 	_assert_sticker(
-		model.slots[6].stickers[2],
+		model.slots[5].stickers[2],
 		[StickerSpec.Kind.MULTIPLY, "×2", GiverBadge.Kind.LOYALTY, "SlE"]
 	)
-	assert_int(model.slots[6].stickers[2].cause_kind).is_equal(ScoreStep.SourceKind.UPGRADE)
-	assert_int(model.slots[6].stickers[2].cause_index).is_equal(1)
+	assert_int(model.slots[5].stickers[2].cause_kind).is_equal(ScoreStep.SourceKind.UPGRADE)
+	assert_int(model.slots[5].stickers[2].cause_index).is_equal(1)
 	# Every sticker is in step order.
 	for slot: PlanningSlot in model.slots:
 		for index: int in range(1, slot.stickers.size()):
@@ -281,7 +282,7 @@ func test_key_entries_take_the_first_sticker_of_each_kind_in_order() -> void:
 	assert_bool(entries[0] == model.slots[2].stickers[0]).is_true()
 	assert_bool(entries[1] == model.slots[1].stickers[0]).is_true()
 	assert_bool(entries[2] == model.slots[4].stickers[1]).is_true()
-	assert_bool(entries[3] == model.slots[6].stickers[2]).is_true()
+	assert_bool(entries[3] == model.slots[5].stickers[2]).is_true()
 	assert_bool(entries[4] == model.slots[3].stickers[0]).is_true()
 	# No stickers, no key.
 	assert_array(PlanningModel.new().key_entries()).is_empty()

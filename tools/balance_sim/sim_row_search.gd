@@ -1,8 +1,8 @@
 class_name SimRowSearch
 extends RefCounted
 ## Exact best-row search for the balance simulator (plan section 8). It tries every selection
-## and order of the hand's cards that fits the row (at most slot_count products and
-## RowCapacity.card_limit cards), shorter rows and the empty row included, and scores each one
+## and order of the hand's cards that fits the row (at most RowCapacity.card_limit cards, any
+## card in any slot), shorter rows and the empty row included, and scores each one
 ## with core's Scoring, so the simulator never has its own copy of a rule.
 ##
 ## Copies of a card are interchangeable, so each distinct order of a multiset is scored once.
@@ -72,7 +72,7 @@ func search(
 	# A hand's best also depends on the row limits, which upgrades can raise (ShiftLimits; the
 	# quota doesn't matter here).
 	var row_limits: ShiftLimits = ShiftLimits.for_shift(_balance, upgrades, 0, inspections)
-	var limits_key: String = "%d/%d:" % [row_limits.slot_count, row_limits.card_limit()]
+	var limits_key: String = "%d:" % RowCapacity.card_limit(row_limits)
 	var hand_key: String = "hand " + limits_key + ",".join(everything) + upgrade_key
 	var entry: Array = _cache.get(hand_key, [])
 	if entry.is_empty():
@@ -157,10 +157,7 @@ func _search_hand(
 	inspections: Array[InspectionDefinition],
 	upgrade_key: String
 ) -> Array:
-	var card_limit: int = row_limits.card_limit()
-	var coupons: Array[bool] = []
-	for id: String in ids:
-		coupons.append(_definitions[id].is_coupon())
+	var card_limit: int = RowCapacity.card_limit(row_limits)
 	var best_total: int = 0
 	var best_order: PackedStringArray = PackedStringArray()
 	var found: bool = false
@@ -171,14 +168,11 @@ func _search_hand(
 	var choice: PackedInt32Array = PackedInt32Array()
 	choice.resize(ids.size())
 	while true:
-		var products: int = 0
 		var multiset: PackedStringArray = PackedStringArray()
 		for index: int in range(ids.size()):
-			if not coupons[index]:
-				products += choice[index]
 			for _copy: int in range(choice[index]):
 				multiset.append(ids[index])
-		if multiset.size() <= card_limit and products <= row_limits.slot_count:
+		if multiset.size() <= card_limit:
 			var entry: Array = _best_order(multiset, upgrades, inspections, upgrade_key)
 			if stopped:
 				break
@@ -298,10 +292,10 @@ static func _upgrade_key(upgrades: Array[UpgradeDefinition]) -> String:
 	return key
 
 
-## The product slots the upgrades and inspections add or close (ScoreState.product_slot_change):
-## a rule can read it (Slot engine's last regular slot follows it), so a multiset's best order is
-## never reused under another slot change, even when no upgrade or inspection with rules differs
-## (Big basket, Short belt).
+## The slots the upgrades and inspections add or close (ScoreState.product_slot_change):
+## a rule can read it (no live rule does since the Slot engine keeps to slot 6), so a multiset's
+## best order is never reused under another slot change, even when no upgrade or inspection with
+## rules differs (Big basket, Short belt).
 static func _slot_key(
 	upgrades: Array[UpgradeDefinition], inspections: Array[InspectionDefinition]
 ) -> String:

@@ -42,13 +42,13 @@ const EFFECTS_TAGS: Array[Array] = [
 	[true, 4, false],
 	[true, 8, true],
 	[true, 24, true],
-	[true, 24, true],
+	[true, 48, true],
+	[true, 48, true],
 	[true, 4, false],
 	[true, 9, true],
 	[true, 21, true],
 	[true, 63, true],
-	[true, 126, true],
-	[true, 126, true],
+	[true, 63, true],
 ]
 ## Manual stepping of the count's tweens (seconds per step).
 const STEP := 0.01
@@ -231,7 +231,7 @@ func test_the_tag_hangs_off_the_bays_top_right() -> void:
 ## The --effects row (live data, the capture tool's three upgrades and Spot check): after each
 ## beat the tag reads that beat's step's value_after (paper at the scan, gold on a gain or at the
 ## payout's rise, paper at €0 on the denial, none for the coupon at €0), the table of
-## bay_v7_spec.md section 0; its payouts sum to the plan's total (182 with Category engine).
+## bay_v7_spec.md section 0; its payouts sum to the plan's total (143 with Category engine).
 func test_the_tag_reads_each_steps_value_after() -> void:
 	var monitor: MonitorView = await _monitor()
 	monitor.reduced_motion = func() -> bool: return true
@@ -249,7 +249,7 @@ func test_the_tag_reads_each_steps_value_after() -> void:
 	var plan: CountUpPlan = CountUpPlan.build(
 		result.steps, EFFECTS_QUOTA, CountUpContext.new(), load(CountUp.TUNING_PATH)
 	)
-	assert_int(result.total).is_equal(182)
+	assert_int(result.total).is_equal(143)
 	assert_int(plan.beats.size()).is_equal(EFFECTS_TAGS.size())
 	monitor.led.start_count(EFFECTS_QUOTA)
 	bay.start(row.size())

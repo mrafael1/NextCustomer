@@ -177,6 +177,10 @@ func test_sticker_numbers_come_from_the_data() -> void:
 			var value: Variant = _data_value(card, key)
 			if value is int:
 				expected.append(str(value))
+			elif value is String:
+				# A chain bonus's factor ("2× prev", #106).
+				for found_number: RegExMatch in number.search_all(value):
+					expected.append(found_number.get_string())
 		var shown: Array[String] = []
 		for found: RegExMatch in number.search_all(summary):
 			shown.append(found.get_string())
@@ -199,7 +203,10 @@ func test_stickers_show_every_rule_value() -> void:
 			for key: String in CardText.RULE_KEYS:
 				var shows: bool = template.contains("{%s}" % key)
 				var adjacent: AdjacentMatchBonusRule = rule as AdjacentMatchBonusRule
-				if adjacent != null and key == "bonus" and adjacent.bonus_is_base:
+				if adjacent != null and key == "bonus" and adjacent.bonus_is_previous_price:
+					# The Banana chain (#106): "+prev", or "+2× prev" when counted twice.
+					assert_bool(shows).override_failure_message(message).is_true()
+				elif adjacent != null and key == "bonus" and adjacent.bonus_is_base:
 					(
 						assert_bool(template.contains("{base}") or shows)
 						. override_failure_message(message)
@@ -415,7 +422,8 @@ static func _all_cards() -> Array[CardDefinition]:
 
 ## A sticker key's value read straight from the data (not through CardText): the card's base,
 ## its product's name, or the first rule's field; a match bonus is the one the rule pays for this
-## base (the base or its flat bonus, times its factor), as CardText shows it.
+## base (the base or its flat bonus, times its factor), or a chain's "prev" (#106), as CardText
+## shows it.
 static func _data_value(card: CardDefinition, key: String) -> Variant:
 	if key == "base":
 		return card.base
@@ -423,6 +431,8 @@ static func _data_value(card: CardDefinition, key: String) -> Variant:
 		return card.product_card().display_name
 	for rule: Rule in card.rules:
 		var adjacent: AdjacentMatchBonusRule = rule as AdjacentMatchBonusRule
+		if key == "bonus" and adjacent != null and adjacent.bonus_is_previous_price:
+			return "prev" if adjacent.bonus_factor == 1 else "%d× prev" % adjacent.bonus_factor
 		if key == "bonus" and adjacent != null:
 			return adjacent.bonus_for(card.base)
 		if key in rule:

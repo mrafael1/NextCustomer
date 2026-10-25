@@ -206,9 +206,7 @@ func test_other_states_frequencies_match_the_card() -> void:
 	_assert_frequencies(RewardMachine.Chute.REGISTER, one_fits, 0, 5000, "one fits")
 	# REGISTER with only 2 types left: short draws.
 	var two_types: RunState = _fresh_run()
-	two_types.upgrades = _upgrades(
-		["coupon_engine", "category_engine", "extra_redraw", "extra_coupon_slot"]
-	)
+	two_types.upgrades = _upgrades(["coupon_engine", "category_engine", "extra_redraw"])
 	var short: MachineContext = MachineContext.from_run(two_types, machine, false, false)
 	var short_odds: MachineOddsCard = _assert_frequencies(
 		RewardMachine.Chute.REGISTER, short, 2, 5000, "two types"

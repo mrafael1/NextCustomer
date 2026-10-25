@@ -316,7 +316,7 @@ func test_the_top_bar_fits_its_longest_texts() -> void:
 	for quota: int in run.balance.quotas:
 		largest = maxi(largest, quota)
 	var inspections: Array[InspectionDefinition] = _all_inspections()
-	assert_int(inspections.size()).is_greater_equal(3)
+	assert_int(inspections.size()).is_greater_equal(2)
 	for inspection: InspectionDefinition in inspections:
 		run.inspections = [inspection]
 		run.debug_skip_to_shift(last)  # The same shift: it keeps the inspection.
@@ -412,12 +412,12 @@ func test_the_receipt_grows_up_from_the_printer() -> void:
 func test_the_status_line_and_the_register_stay_clear() -> void:
 	var screen: ShiftScreen = await _screen()
 	var run: RunState = screen.run
-	screen._debug.give_upgrade("extra_coupon_slot")
-	for inspection_id: String in ["short_belt", "coupon_slot_closed"]:
+	screen._debug.give_upgrade("big_basket")
+	for inspection_id: String in ["short_belt"]:
 		run.inspections = [load("res://data/inspections/%s.tres" % inspection_id)]
 		run.debug_skip_to_shift(run.shift_index)
 		screen._on_shift_started()
-		screen._notice_label.show_notice("Row full (9/9 items): take an item out first")
+		screen._notice_label.show_notice("Row full (8/8 items): take an item out first")
 		screen._quota_meter.show_projected(999, run.quota())
 		await _frames(2)
 		assert_int(screen._row_strip.closed.size()).is_equal(1)

@@ -13,7 +13,7 @@ extends RefCounted
 ## Egg reset) is armed first, then the replaced effect's WASTED step follows at once. WASTED
 ## steps for effects that never found a target (a lost Coffee bonus, unused Egg charges) come
 ## next, then one WASTED step for each upgrade whose condition the row never met (#45: no coupon
-## for the Coupon engine, too few products for the Slot engine), on the row's last slot, last.
+## for the Coupon engine, too few cards for the Slot engine), on the row's last slot, last.
 ## An armed effect that later fizzles keeps its EFFECT_ARMED step.
 ##
 ## Every step has a source: a card (SourceKind.CARD, the card in source_slot), a register

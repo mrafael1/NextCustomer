@@ -25,13 +25,10 @@ enum Type { UNSET, RULE_BENDER, SLOT_ENGINE, CATEGORY_ENGINE, COUPON_ENGINE, ECO
 @export var icon_ref: String = ""
 ## Scoring rules, asked about every slot by the scoring loop (never attached to a card).
 @export var rules: Array[UpgradeRule] = []
-## Run modifiers (ShiftLimits), from the shift after the pick: redraws added to every shift,
-## product slots and coupon-only slots added to the row, and the quota raised by this percent
-## (Big basket, rounded up to whole euros).
+## Run modifiers (ShiftLimits), from the shift after the pick: redraws added to every shift and
+## slots added to the row.
 @export var extra_redraws: int = 0
 @export var extra_slots: int = 0
-@export var extra_coupon_slots: int = 0
-@export var quota_percent: int = 0
 
 
 ## The ticket's "Supports" text: the builds' names, or "Any build".

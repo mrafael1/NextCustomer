@@ -266,6 +266,21 @@ func test_a_version_2_profile_saves_and_loads() -> void:
 	assert_array(_errors).is_empty()
 
 
+## plan v0.46 (#106): a run save naming a retired register (Extra coupon slot) loads without an
+## error: the register is dropped and the row's eighth card goes back to the hand.
+func test_a_run_save_with_retired_content_loads_without_an_error() -> void:
+	var run: RunState = _run(6)
+	var data: Dictionary = RunSave.to_dictionary(run, "old", 100)
+	data["upgrades"] = ["extra_coupon_slot"]
+	data["row"] = (data["hand"] as Array).map(func(pair: Array) -> Variant: return pair[0])
+	_write_file(_service().run_path(), JSON.stringify(data))
+	var save: RunSave = _service().load_run(_lookup())
+	assert_object(save).is_not_null()
+	assert_array(_errors).is_empty()
+	assert_array(save.run.upgrades).is_empty()
+	assert_int(save.run.row.size()).is_equal(save.run.balance.slot_count)
+
+
 func _service() -> SaveService:
 	return SaveService.new(_folder, func(message: String) -> void: _errors.append(message))
 

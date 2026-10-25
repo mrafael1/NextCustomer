@@ -8,12 +8,17 @@ var row: Array[CardInstance] = []
 var tags: Array[PackedStringArray] = []
 ## Final payout of each slot, filled in as slots are scanned.
 var payouts: PackedInt32Array = PackedInt32Array()
+## Each scanned slot's value after its flat bonuses, before any multiplier: the price a
+## Banana chain passes on from its middle (AdjacentMatchBonusRule, #106).
+var prices: PackedInt32Array = PackedInt32Array()
 ## Effects left by scanned cards for later products.
 var effects: Array[ScoreEffect] = []
 var steps: Array[ScoreStep] = []
 var subtotal: int = 0
-## Product slots the shift has more (+) or fewer (-) than the balance data's, from the run's
+## Slots the shift has more (+) or fewer (-) than the balance data's, from the run's
 ## upgrades and the shift's inspections (Big basket +1, Short belt -1). Set by Scoring.score().
+## No live rule reads it since the Slot engine keeps to slot 6 (2026-10-24, #106 follow-up); a
+## rule may, so the simulator's caches still key on it.
 var product_slot_change: int = 0
 ## Read-only, set when the state is made (a row's kinds never change while it is scored): each
 ## slot's number among the row's products (coupons skipped; 1 for the first product, 0 for a
@@ -46,6 +51,7 @@ func _init(row_cards: Array[CardInstance], explained: bool = true) -> void:
 	row = row_cards.duplicate() if explained else row_cards
 	var count: int = row.size()
 	payouts.resize(count)
+	prices.resize(count)
 	_scanned.resize(count)
 	_products.resize(count)
 	_coupons.resize(count)

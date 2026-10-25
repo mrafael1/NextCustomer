@@ -1,7 +1,8 @@
 extends GdUnitTestSuite
 ## The register upgrades of issue #38 (plan section 3.8, v0.24): the shift limits they change
-## (ShiftLimits: slots, redraws, Big basket's raised quota), Rule bender's links, Slot engine's
-## 6th product and the builds an upgrade supports (the REGISTER chute's "fits your cart"
+## (ShiftLimits: slots and redraws; Big basket's quota raise was removed in v0.56, #106), Rule
+## bender's links, Slot engine's
+## slot 6 and the builds an upgrade supports (the REGISTER chute's "fits your cart"
 ## guarantee is tested in machine_draw_test, #77).
 ## Scoring rows use the frozen fixtures, upgrades built here from their rule scripts.
 
@@ -20,10 +21,11 @@ func test_limits_default_to_the_balance_data() -> void:
 	var balance: BalanceDefinition = load(BALANCE)
 	var limits: ShiftLimits = ShiftLimits.for_shift(balance, _none(), 2)
 	assert_int(limits.slot_count).is_equal(balance.slot_count)
-	assert_int(limits.coupon_slot_count).is_equal(balance.coupon_slot_count)
 	assert_int(limits.redraws).is_equal(balance.base_redraws)
 	assert_int(limits.quota).is_equal(balance.quotas[2])
-	assert_int(limits.card_limit()).is_equal(balance.slot_count + balance.coupon_slot_count)
+	# plan v0.46 (#106): 7 general slots, any card in any slot.
+	assert_int(balance.slot_count).is_equal(7)
+	assert_int(RowCapacity.card_limit(limits)).is_equal(balance.slot_count)
 
 
 ## Every shift allows base_redraws redraws before upgrades: 2 in the live balance data (the user's
@@ -40,31 +42,26 @@ func test_a_shift_has_the_balance_data_redraws() -> void:
 
 func test_upgrades_add_slots_and_redraws() -> void:
 	var balance: BalanceDefinition = load(BALANCE)
-	var owned: Array[UpgradeDefinition] = [
-		_upgrade("extra_redraw"), _upgrade("extra_coupon_slot"), _upgrade("big_basket")
-	]
+	var owned: Array[UpgradeDefinition] = [_upgrade("extra_redraw"), _upgrade("big_basket")]
 	var limits: ShiftLimits = ShiftLimits.for_shift(balance, owned, 0)
 	assert_int(limits.slot_count).is_equal(balance.slot_count + 1)
-	assert_int(limits.coupon_slot_count).is_equal(balance.coupon_slot_count + 1)
 	assert_int(limits.redraws).is_equal(balance.base_redraws + 1)
-	assert_int(limits.card_limit()).is_equal(9)
+	assert_int(RowCapacity.card_limit(limits)).is_equal(8)
 
 
-## Big basket: +15%, rounded up to whole euros, on every shift's quota.
-func test_big_basket_raises_every_quota_rounded_up() -> void:
+## Big basket has no quota raise since plan v0.46 (#106): every shift keeps the balance's quota.
+func test_big_basket_keeps_every_quota() -> void:
 	var balance: BalanceDefinition = load(BALANCE)
 	var owned: Array[UpgradeDefinition] = [_upgrade("big_basket")]
-	var raised: Array = []
+	var quotas: Array = []
 	for shift: int in range(balance.quotas.size()):
-		raised.append(ShiftLimits.for_shift(balance, owned, shift).quota)
-	assert_array(Array(balance.quotas)).is_equal([29, 35, 53, 61, 73, 98, 111, 120])
-	assert_array(raised).is_equal([34, 41, 61, 71, 84, 113, 128, 138])
-	assert_int(ShiftLimits.raised_quota(20, 15)).is_equal(23)
-	assert_int(ShiftLimits.raised_quota(17, 0)).is_equal(17)
+		quotas.append(ShiftLimits.for_shift(balance, owned, shift).quota)
+	assert_array(quotas).is_equal(Array(balance.quotas))
+	assert_str(_upgrade("big_basket").condition_text).is_empty()
 
 
-## The quota is fixed when the shift starts: Big basket picked from the machine after shift 2
-## leaves shift 2's record, pass and quota alone and raises shift 3's.
+## The limits are fixed when the shift starts: Big basket picked from the machine after shift 2
+## leaves shift 2's record, pass and quota alone, and its slot comes from shift 3.
 func test_the_quota_is_fixed_for_the_shift() -> void:
 	var basket: UpgradeDefinition = _upgrade("big_basket")
 	var run: RunState = null
@@ -83,26 +80,23 @@ func test_the_quota_is_fixed_for_the_shift() -> void:
 	assert_int(run.history[-1].quota).is_equal(run.balance.quotas[1])
 	assert_bool(run.passed()).is_true()
 	assert_bool(run.next_shift()).is_true()
-	assert_int(run.quota()).is_equal(ShiftLimits.raised_quota(run.balance.quotas[2], 15))
+	assert_int(run.quota()).is_equal(run.balance.quotas[2])
 	assert_int(run.limits.slot_count).is_equal(run.balance.slot_count + 1)
 
 
-## Big basket's 7th product fits; Extra coupon slot's second coupon fits as a coupon only.
+## Big basket's 8th slot takes any card: a product or a coupon (plan v0.46: every slot is general).
 func test_extra_slots_reach_the_row() -> void:
 	var run: RunState = _run(42)
-	for index: int in range(6):
+	for index: int in range(7):
 		run.place(run.debug_add_to_hand(load(BREAD)), index)
-	assert_bool(run.can_place(run.debug_add_to_hand(load(BREAD)))).is_false()
+	assert_bool(run.can_place(run.debug_add_to_hand(load(REPEAT)))).is_false()
 	run.upgrades.append(_upgrade("big_basket"))
-	run.upgrades.append(_upgrade("extra_coupon_slot"))
 	run.debug_skip_to_shift(run.shift_index)
 	for index: int in range(7):
 		assert_bool(run.place(run.debug_add_to_hand(load(BREAD)), index)).is_true()
-	assert_bool(run.can_place(run.debug_add_to_hand(load(BREAD)))).is_false()
-	assert_bool(run.place(run.debug_add_to_hand(load(REPEAT)), 7)).is_true()
-	assert_bool(run.place(run.debug_add_to_hand(load(FINAL_MARKDOWN)), 8)).is_true()
-	assert_int(run.row.size()).is_equal(9)
-	assert_int(RowCapacity.coupon_slots_used(run.limits, run.row)).is_equal(2)
+	assert_bool(run.can_place(run.debug_add_to_hand(load(BREAD)))).is_true()
+	assert_bool(run.place(run.debug_add_to_hand(load(FINAL_MARKDOWN)), 7)).is_true()
+	assert_int(run.row.size()).is_equal(8)
 	assert_bool(run.can_place(run.debug_add_to_hand(load(REPEAT)))).is_false()
 
 
@@ -111,7 +105,7 @@ func test_a_resumed_run_keeps_its_limits() -> void:
 	var run: RunState = _run(43)
 	run.upgrades.append(_upgrade("big_basket"))
 	run.debug_skip_to_shift(2)
-	for index: int in range(7):
+	for index: int in range(8):
 		run.place(run.debug_add_to_hand(load(BREAD)), index)
 	var lookup: ContentLookup = ContentLookup.new(run.balance)
 	var data: Dictionary = JSON.parse_string(
@@ -119,7 +113,7 @@ func test_a_resumed_run_keeps_its_limits() -> void:
 	)
 	var restored: RunSave = RunSave.from_dictionary(data, lookup)
 	assert_object(restored).is_not_null()
-	assert_int(restored.run.row.size()).is_equal(7)
+	assert_int(restored.run.row.size()).is_equal(8)
 	assert_int(restored.run.quota()).is_equal(run.quota())
 	assert_int(restored.run.limits.slot_count).is_equal(run.limits.slot_count)
 
@@ -162,21 +156,25 @@ func test_rule_bender_rows(
 		assert_str(step.text).is_equal("Test upgrade")
 
 
-## Slot engine: the 6th product (coupons skipped) pays x2, and a later Repeat copies the doubled
-## payout. With fewer than 6 products it fizzles instead (#45; upgrade_condition_fizzles_test).
+## Slot engine: the card in slot 6 (products and coupons both count) pays x2, and a later Repeat
+## copies the doubled payout; a coupon there is doubled like any card. With fewer than 6 cards it
+## fizzles instead (#45; upgrade_condition_fizzles_test).
 func test_slot_engine_rows(
 	row: String,
 	total: int,
 	doubled_slot: int,
 	_test_parameters := [
-		["bread,eggs,repeat,coffee,bread,banana,milk", 45, 6],
+		# Banana sits in slot 6, though it is the 5th product.
+		["bread,eggs,repeat,coffee,bread,banana,milk", 38, 5],
 		# The best order of that hand: Repeat copies the doubled Milk.
 		["bread,banana,eggs,bread,coffee,milk,repeat", 126, 5],
+		# A coupon in slot 6: Repeat's copy of the Bread before it is doubled.
+		["bread,bread,bread,bread,bread,repeat", 21, 5],
 		["bread,bread,bread,bread,bread", 15, -1],
 	]
 ) -> void:
-	var rule: NthProductMultiplierRule = NthProductMultiplierRule.new()
-	rule.product_number = 6
+	var rule: NthSlotMultiplierRule = NthSlotMultiplierRule.new()
+	rule.slot_number = 6
 	rule.factor = 2
 	var result: ScoreResult = Scoring.score(_row("v4:" + row), [_built_upgrade(rule)])
 	assert_int(result.total).override_failure_message(row).is_equal(total)
@@ -221,7 +219,10 @@ func test_builds_measure_the_deck() -> void:
 	tagged.append(load("res://data/cards/dented_can.tres"))
 	assert_bool(clearance.fits(tagged)).is_true()
 	# An Economy upgrade never counts as fitting, even when its build does.
-	assert_bool(_upgrade("extra_coupon_slot").fits(coupons)).is_false()
+	var economy: UpgradeDefinition = UpgradeDefinition.new()
+	economy.type = UpgradeDefinition.Type.ECONOMY
+	economy.builds = [load(BUILDS % "coupon_specialist")]
+	assert_bool(economy.fits(coupons)).is_false()
 	assert_bool(_upgrade("coupon_engine").fits(coupons)).is_true()
 	assert_str(_upgrade("extra_redraw").build_names()).is_equal("Any build")
 	assert_str(_upgrade("big_basket").build_names()).is_equal("Clearance collector, Bulk buyer")

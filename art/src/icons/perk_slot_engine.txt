@@ -1,7 +1,8 @@
 ; Slot engine's perk icon (UpgradeDefinition.icon_ref; the LOYALTY prize's badge, v0.50): six
-; slots as two rows of three paper pips (cream shade below), the sixth gold over brass, "the 6th
-; product pays x2". No ink outline, like redraw_arrow and combo_diamond: the badge's teal shade
-; parts the pips. 8x5, shown at 2x art on the badge.
+; slots as two rows of three paper pips (cream shade below), the sixth gold over brass, "the card
+; in slot 6 pays x2" (until 2026-10-24 the 6th product). No ink outline, like redraw_arrow and
+; combo_diamond: the badge's teal shade parts the pips. 8x5, shown at 2x art on the badge and on
+; the talker under slot 6 (SlotMark).
 @size 8x5
 @kind icon
 ww.ww.ww
