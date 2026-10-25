@@ -111,10 +111,10 @@ func test_a_starting_upgrade_is_owned_from_the_first_shift() -> void:
 	var run: RunState = _run_with_deck(56, _deck_with_upgrade(EXTRA_REDRAW), [2])
 	assert_array(run.upgrades).is_equal([load(EXTRA_REDRAW)])
 	assert_int(run.redraws_allowed).is_equal(3)
-	# The REGISTER chute never drops it, as any owned upgrade.
+	# The UPGRADE chute never drops it again, as any owned perk (only its level-up, #108).
 	run.debug_skip_to_shift(1)
 	_pass(run, [BREAD, BREAD])
-	assert_bool(MachineSteps.choose(run, RewardMachine.Chute.REGISTER)).is_true()
+	assert_bool(MachineSteps.choose(run, RewardMachine.Chute.UPGRADE)).is_true()
 	var drawn: Array = run.machine.prizes().map(
 		func(prize: MachinePrize) -> UpgradeDefinition: return prize.upgrade
 	)
@@ -195,13 +195,13 @@ static func _run(seed_value: int) -> RunState:
 	return _run_with_deck(seed_value, load(STARTER))
 
 
-## `boosted`: the shifts whose ticket visit is BOOSTED instead of the data's (v0.47), or none.
+## `premium`: the shifts after which the machine is PREMIUM instead of the data's, or none.
 static func _run_with_deck(
-	seed_value: int, deck: DeckDefinition, boosted: Array[int] = []
+	seed_value: int, deck: DeckDefinition, premium: Array[int] = []
 ) -> RunState:
 	var balance: BalanceDefinition = _low_quotas()
-	if not boosted.is_empty():
-		MachineSteps.boosted_on(balance, boosted)
+	if not premium.is_empty():
+		MachineSteps.premium_on(balance, premium)
 	var run: RunState = RunState.new(seed_value, deck, balance, RunStock.starting(balance))
 	run.start_shift()
 	return run

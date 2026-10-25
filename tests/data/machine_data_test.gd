@@ -12,6 +12,8 @@ const RARITY_TABLE := "res://docs/art/mockups/machine_77_src/product_rarity.json
 const R3B_RARE: Array[String] = ["tea_bags", "carrier_bag"]
 ## draw77.js ODDS, per Regular level (COMMON, RARE, LEGENDARY).
 const ODDS := [[75, 22, 3], [65, 28, 7], [55, 33, 12], [45, 37, 18]]
+## The tier a NEW ITEMS product with a chain arrives at, per odds level (plain, BIG, GOLDEN; #108).
+const TIERS := [[85, 13, 2], [75, 20, 5], [65, 27, 8], [55, 33, 12]]
 
 var _balance: BalanceDefinition
 var _machine: MachineDefinition
@@ -30,9 +32,17 @@ func test_the_balance_uses_the_machine_file() -> void:
 	assert_bool(_machine.bonus_after_inspection).is_true()
 	assert_bool(_machine.new_arrival_first_visit).is_true()
 	assert_array(Array(_machine.bonus_extra_shifts)).is_empty()
+	# #108: NEW ITEMS draws 1 coupon a draw; UPGRADE a loyalty perk and an item upgrade, then
+	# either. PREMIUM: RARE or better, BIG or better.
+	assert_int(_machine.coupons_per_draw).is_equal(1)
+	assert_int(_machine.loyalty_per_draw).is_equal(1)
+	assert_int(_machine.item_upgrades_per_draw).is_equal(1)
+	assert_int(_machine.premium_min_rarity).is_equal(MachinePrize.Rarity.RARE)
+	assert_int(_machine.premium_min_tier).is_equal(CardDefinition.Tier.BIG)
 
 
-## The approved odds; every level rolls something, drop 1 too (its floor leaves a positive sum).
+## The approved odds; every level rolls something, drop 1 too (its floor leaves a positive sum),
+## and a PREMIUM drop too; the tier weights rise with the level and PREMIUM leaves BIG and GOLDEN.
 func test_the_odds_levels_are_the_approved_ones() -> void:
 	assert_int(_machine.odds_levels.size()).is_equal(ODDS.size())
 	assert_int(_machine.max_level()).is_equal(3)
@@ -45,6 +55,12 @@ func test_the_odds_levels_are_the_approved_ones() -> void:
 			var rolled: PackedInt32Array = level.weights(drop)
 			assert_int(rolled[0] + rolled[1] + rolled[2]).is_greater(0)
 		assert_int(level.first_drop_min_rarity).is_equal(1 if index == 3 else 0)
+		var premium: PackedInt32Array = level.weights(0, _machine.premium_min_rarity)
+		assert_int(premium[1] + premium[2]).is_greater(0)
+		assert_array(Array(level.tier_weights())).is_equal(TIERS[index])
+		var premium_tiers: PackedInt32Array = level.tier_weights(_machine.premium_min_tier)
+		assert_int(premium_tiers[0]).is_equal(0)
+		assert_int(premium_tiers[1] + premium_tiers[2]).is_greater(0)
 
 
 ## Every listed product is a plain stockable product (a staple or an aisle item), every listed
@@ -108,18 +124,15 @@ func test_the_rarities_follow_the_approved_table_with_r3b() -> void:
 			assert_int(_machine.product_rarity(card)).is_less(MachinePrize.Rarity.LEGENDARY)
 
 
-## The shift lists fit the run: each is a shift with a visit after it (1 to shift count - 1), the
-## STAMP DAY floors match its shifts, and no shift has both a bonus visit and a STAMP DAY. The
-## BOOSTED shifts are 3, 5 and 7 (v0.47), and each shift's odds level is the approved one (1-2
-## level 0, 3-4 1, 5-6 2, 7 3), never falling and always a level there is.
+## The shift lists fit the run: each is a shift with a visit after it (1 to shift count - 1). The
+## PREMIUM shifts are 3, 5 and 7 (#108), and each shift's odds level is the approved one (1-2
+## level 0, 3-4 1, 5-6 2, 7 3), never falling and always a level there is. STAMP DAY is gone.
 func test_the_shift_lists_fit_the_run() -> void:
 	var last: int = _balance.quotas.size() - 1
-	for shifts: PackedInt32Array in [
-		_machine.boosted_shifts, _machine.stamp_day_shifts, _machine.bonus_extra_shifts
-	]:
+	for shifts: PackedInt32Array in [_machine.premium_shifts, _machine.bonus_extra_shifts]:
 		for shift_number: int in shifts:
 			assert_int(shift_number).is_between(1, last)
-	assert_array(Array(_machine.boosted_shifts)).is_equal([3, 5, 7])
+	assert_array(Array(_machine.premium_shifts)).is_equal([3, 5, 7])
 	var levels: Array[int] = []
 	for shift_number: int in range(1, last + 1):
 		levels.append(_machine.odds_level_after(shift_number))
@@ -129,18 +142,13 @@ func test_the_shift_lists_fit_the_run() -> void:
 		assert_int(level).is_between(0, _machine.max_level())
 		if index > 0:
 			assert_int(level).is_greater_equal(_machine.shift_odds_levels[index - 1])
-	assert_array(Array(_machine.stamp_day_shifts)).is_equal([2, 4, 6])
-	assert_array(Array(_machine.stamp_day_floor)).is_equal([1, 2, 3])
-	assert_int(_machine.stamp_day_floor.size()).is_equal(_machine.stamp_day_shifts.size())
-	for shift_number: int in _machine.stamp_day_shifts:
-		assert_bool(_balance.inspection_shifts.has(shift_number)).is_false()
-		assert_bool(_machine.bonus_extra_shifts.has(shift_number)).is_false()
-	assert_int(_machine.stamp_floor(4)).is_equal(2)
-	assert_int(_machine.stamp_floor(3)).is_equal(0)
+	var text: String = FileAccess.get_file_as_string(MACHINE)
+	for gone: String in ["stamp_day", "boosted_shifts"]:
+		assert_bool(text.contains(gone)).override_failure_message(gone).is_false()
 
 
-## The UPGRADES chute upgrades the live chains: the starter's 4 (#77), then Bread, Soup and the
-## 14 base aisle items (v0.48), then the 30 capsule products (v0.52).
+## The UPGRADE chute's item upgrades step the live chains: the starter's 4 (#77), then Bread, Soup
+## and the 14 base aisle items (v0.48), then the 30 capsule products (v0.52).
 func test_the_machine_upgrades_the_live_chains() -> void:
 	var products: Array[String] = []
 	for chain: ItemUpgradeDefinition in _machine.item_upgrades:
@@ -246,6 +254,27 @@ func test_the_machine_v2_tempo_is_set() -> void:
 		assert_bool(text.contains(gone)).override_failure_message(gone).is_false()
 	for field: String in ["premium_ms", "premium_rm_ms", "draw_rm_ms", "land_lead_rm_ms"]:
 		assert_int(int(tempo.get(field))).override_failure_message(field).is_greater(0)
+	# #108: one entry per visit kind (TICKET, BONUS) in every per-kind list; STAMP DAY's entries
+	# and its hold are gone.
+	for field: String in [
+		"odds_close_ms",
+		"draw_ms",
+		"fly_ms",
+		"first_land_ms",
+		"pick_arm_ms",
+		"pick_lead_flight_ms",
+		"pick_flight_ms",
+		"glint_ms",
+		"punch_new_ms",
+		"punch_register_ms",
+		"punch_upgrade_ms",
+		"punch_rm_ms",
+		"end_hold_ms",
+	]:
+		var list: PackedInt32Array = tempo.get(field)
+		var size: int = MachineVisit.KIND_NAMES.size()
+		assert_int(list.size()).override_failure_message(field).is_equal(size)
+	assert_bool(text.contains("stamp_day")).is_false()
 
 
 func _ids(items: Array) -> Array[String]:

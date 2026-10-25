@@ -1,10 +1,11 @@
 class_name PremiumAnnounce
 extends Control
 ## The PREMIUM NEXT announce (v0.50, mock-up premium_machine_v1.html, scene 1): in the planning of
-## a shift whose pass earns the next receipt a PREMIUM visit (RewardMachine.boosted_if_passed), a
+## a shift whose pass earns the next receipt a PREMIUM visit (RewardMachine.premium_if_passed), a
 ## gold receipt prints down inside the hung monitor's screen over a dithered gold sunburst
 ## (presentation/dither_burst.gdshader; "NEXT RECEIPT", PREMIUM between two pixel stars, the
-## LOYALTY and UPGRADES keys' icons, "MEET THIS SHIFT'S QUOTA"), then shrinks and flies up to
+## rarity boost it gives, v0.61 #108: "EVERY TICKET RARE+" between two RARE diamonds and "ITEMS BIG
+## OR BETTER", then "MEET THIS SHIFT'S QUOTA"), then shrinks and flies up to
 ## hang, on a string from the quota mark (the flag once the quota is met, else the gauge's end),
 ## as a gold "PREMIUM NEXT" tag with a pixel star on the monitor's top bezel, clear of the brief's
 ## text, that glints every SHINE_PERIOD for the rest of the shift's planning and its count-up.
@@ -49,17 +50,17 @@ const TAG_TEXT := "PREMIUM NEXT"
 const TITLE_TEXT := "PREMIUM"
 const HEAD_TEXT := "NEXT RECEIPT"
 const FOOT_TEXT := "MEET THIS SHIFT'S QUOTA"
-const KEY_TEXTS: Array[String] = ["LOYALTY", "UPGRADES"]
+## What a PREMIUM visit gives (v0.61, #108: a rarity boost), on two lines.
+const BOOST_TEXTS: Array[String] = ["EVERY TICKET RARE+", "ITEMS BIG OR BETTER"]
+const BOOST_SIZES: Array[int] = [16, 13]
+## The RARE pip (PrizeTicket's) either side of the first line, its gap from the text.
+const DIAMOND_GRID := "..x...xxx.xxxxx.xxx...x.."
+const DIAMOND_GAP := 14.0
 const TITLE_SIZE := 28
 const TAG_FONT_SIZE := 12
 const MONO_SIZE := 13
 const SMALL_MONO_SIZE := 12
 const BOLD_WEIGHT := 800
-const UP_ARROW := preload("res://art/icons/up_arrow.png")
-const STAMP_RING := preload("res://art/icons/stamp_ring.png")
-const STAMP_EMPTY := preload("res://art/icons/stamp_ring_empty.png")
-const ICON_SCALE := 4.0
-const STAMP_SCALE := 2.0
 
 ## Whether reduced motion is on (the profile's setting; the shift screen sets it).
 var reduced_motion: Callable = func() -> bool: return false
@@ -283,13 +284,12 @@ func _draw_slip(area: Rect2) -> void:
 		_draw_star(Vector2(mid + half + 18.0, 40), ink)
 	if cut >= 60.0:
 		draw_rect(Rect2(24, 58, w - 48, 2), Palette.BRASS)
-	if cut >= 104.0:
-		_draw_punch(Vector2(mid - 68.0, 82))
-		var arrow: Vector2 = UP_ARROW.get_size() * ICON_SCALE
-		var arrow_at: Vector2 = MachineArt.snap_point(Vector2(mid + 72.0, 82) - arrow / 2.0)
-		draw_texture_rect(UP_ARROW, Rect2(arrow_at, arrow), false)
-	_text_if(KEY_TEXTS[0], Vector2(mid - 68.0, 112), mono, SMALL_MONO_SIZE, ink, cut)
-	_text_if(KEY_TEXTS[1], Vector2(mid + 72.0, 112), mono, SMALL_MONO_SIZE, ink, cut)
+	_text_if(BOOST_TEXTS[0], Vector2(mid, 80), bold, BOOST_SIZES[0], ink, cut)
+	if cut >= 90.0:
+		var reach: float = MachineArt.text_width(BOOST_TEXTS[0], bold, BOOST_SIZES[0]) / 2.0
+		_draw_grid(DIAMOND_GRID, Vector2(mid - reach - DIAMOND_GAP, 80), Palette.TEAL)
+		_draw_grid(DIAMOND_GRID, Vector2(mid + reach + DIAMOND_GAP, 80), Palette.TEAL)
+	_text_if(BOOST_TEXTS[1], Vector2(mid, 106), bold, BOOST_SIZES[1], ink, cut)
 	if cut >= 126.0:
 		draw_rect(Rect2(24, 124, w - 48, 2), Palette.BRASS)
 	_text_if(FOOT_TEXT, Vector2(mid, 137), mono, SMALL_MONO_SIZE, ink, cut)
@@ -297,9 +297,14 @@ func _draw_slip(area: Rect2) -> void:
 
 ## The pixel star (STAR_GRID, 2 px per cell) centred on `centre`, in `colour`.
 func _draw_star(centre: Vector2, colour: Color) -> void:
+	_draw_grid(STAR_GRID, centre, colour)
+
+
+## A 5x5 pixel grid (`grid`: "x" cells lit, 2 px per cell) centred on `centre`, in `colour`.
+func _draw_grid(grid: String, centre: Vector2, colour: Color) -> void:
 	var origin: Vector2 = MachineArt.snap_point(centre - Vector2(5, 5))
 	for cell: int in range(25):
-		if STAR_GRID[cell] == "x":
+		if grid[cell] == "x":
 			var at: Vector2 = origin + Vector2(cell % 5, floori(cell / 5.0)) * 2.0
 			draw_rect(Rect2(at, Vector2(2, 2)), colour)
 
@@ -309,17 +314,6 @@ func _text_if(
 ) -> void:
 	if centre.y + font_size / 2.0 <= cut:
 		MachineArt.centred_text(self, text, centre, font, font_size, colour)
-
-
-## The LOYALTY key's mini punch card (the top bar's stamp slots, two stamped), centred on `centre`.
-func _draw_punch(centre: Vector2) -> void:
-	var card: Rect2 = Rect2(centre - Vector2(50, 18), Vector2(100, 38))
-	MachineArt.box(self, card, Palette.CREAM, Palette.INK)
-	draw_rect(Rect2(centre - Vector2(48, 16), Vector2(96, 4)), Palette.TEAL)
-	for slot: int in range(3):
-		var texture: Texture2D = STAMP_RING if slot < 2 else STAMP_EMPTY
-		var at: Vector2 = centre + Vector2(-44 + slot * 30, -10)
-		draw_texture_rect(texture, Rect2(at, texture.get_size() * STAMP_SCALE), false)
 
 
 ## The hanging tag, its string from the quota mark, its glint and its landing sparkles.

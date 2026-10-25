@@ -4,14 +4,13 @@ extends GdUnitTestSuite
 ## receipt's travel with the camera's glide, the stub's snap, the bonus ticket's feed; v0.50: the
 ## premium transform after the read), R1's draw (the tray packs, then each ticket flies out of it
 ## and lands face up, the LEGENDARY one a beat later), the landing and the holds, at 1x and under
-## reduced motion; TICKET, BONUS with and without an inspection, STAMP DAY; resume_at for each wait
-## point. Pure data: no saves, no event log, no Node.
+## reduced motion; TICKET, BONUS with and without an inspection (STAMP DAY is gone since #108);
+## resume_at for each wait point. Pure data: no saves, no event log, no Node.
 
 const TUNING := "res://data/balance/machine_tempo.tres"
 const TOLERANCE := 0.000001
 const TICKET := MachineVisit.Kind.TICKET
 const BONUS := MachineVisit.Kind.BONUS
-const STAMP_DAY := MachineVisit.Kind.STAMP_DAY
 const COMMON := MachinePrize.Rarity.COMMON
 const RARE := MachinePrize.Rarity.RARE
 const LEGENDARY := MachinePrize.Rarity.LEGENDARY
@@ -39,16 +38,12 @@ func test_the_tempo_loads_with_every_time_set() -> void:
 		assert_int(ms).is_greater(0)
 	assert_float(tuning.feed_fit).is_greater(0.0)
 	assert_float(tuning.rm_fade_alpha).is_equal_approx(0.85, 0.0001)
+	# Per visit kind (TICKET, BONUS; STAMP DAY is gone since #108) and per rarity.
 	for list: PackedInt32Array in [
-		tuning.draw_ms,
-		tuning.fly_ms,
-		tuning.first_land_ms,
-		tuning.land_lead_ms,
-		tuning.reveal_ms,
-		tuning.reveal_rm_ms,
-		tuning.pick_arm_ms,
-		tuning.end_hold_ms,
+		tuning.draw_ms, tuning.fly_ms, tuning.first_land_ms, tuning.pick_arm_ms, tuning.end_hold_ms
 	]:
+		assert_int(list.size()).is_equal(MachineVisit.KIND_NAMES.size())
+	for list: PackedInt32Array in [tuning.land_lead_ms, tuning.reveal_ms, tuning.reveal_rm_ms]:
 		assert_int(list.size()).is_equal(3)
 	# R1: the bigger the rarity, the longer its effect plays and the later it lands.
 	assert_int(tuning.reveal_ms[LEGENDARY]).is_greater(tuning.reveal_ms[RARE])
@@ -102,10 +97,10 @@ func test_a_ticket_intro_follows_the_tuning() -> void:
 				_near(plan.camera_at(mid), 0.5, tag + " mid glide")
 
 
-## A BOOSTED visit (v0.50) turns PREMIUM right after its receipt is read, over premium_ms
-## (reduced motion: premium_rm_ms, a cut), and the keys light after it. A BOOSTED BONUS visit
-## (v0.53) after a PREMIUM ticket visit is PREMIUM from its start (premium_held: the transform at 0
-## for 0 s, no beat, its times unchanged), else it turns after its own read; STAMP DAY never does.
+## A PREMIUM visit (v0.50) turns the machine PREMIUM right after its receipt is read, over
+## premium_ms (reduced motion: premium_rm_ms, a cut), and the keys light after it. A PREMIUM BONUS
+## visit (v0.53) after a PREMIUM ticket visit is PREMIUM from its start (premium_held: the
+## transform at 0 for 0 s, no beat, its times unchanged), else it turns after its own read.
 func test_a_premium_visit_turns_after_the_read() -> void:
 	var tuning: MachineTuning = _tuning()
 	for rm: bool in [false, true]:
@@ -125,9 +120,6 @@ func test_a_premium_visit_turns_after_the_read() -> void:
 		assert_float(plain.premium_progress(10.0)).is_equal(MachinePlan.NOT_SET)
 		assert_float(plain.premium_length()).is_equal(0.0)
 		assert_float(plain.beat_time(&"premium")).is_equal(MachinePlan.NOT_SET)
-	var stamp_day: MachinePlan = MachinePlan.new(tuning, STAMP_DAY, false, true, false, true)
-	assert_bool(stamp_day.premium).is_false()
-	assert_float(stamp_day.premium_at).is_equal(MachinePlan.NOT_SET)
 	for rm: bool in [false, true]:
 		var bonus: MachinePlan = MachinePlan.new(tuning, BONUS, rm)
 		var held: MachinePlan = MachinePlan.new(tuning, BONUS, rm, true, false, true, true)
@@ -139,19 +131,21 @@ func test_a_premium_visit_turns_after_the_read() -> void:
 		_near(held.choose_at, bonus.choose_at, "held choose")
 		var look: MachineLook = MachineLook.at(held, 0.0)
 		assert_bool(look.night_face()).is_true()
-		assert_float(look.pair_up(true)).is_equal(1.0)
-		assert_float(look.pair_up(false)).is_equal(0.0)
+		# The keys stand back up, gold (v0.61, #108: PREMIUM is the rarity boost).
+		assert_float(look.keys_up()).is_equal(1.0)
+		assert_bool(look.keys_gold()).is_true()
+		assert_bool(MachineLook.at(bonus, 0.0).keys_gold()).is_false()
 		assert_bool(held.resume_at(MachinePlan.WaitPoint.CHOOSE).premium_held).is_true()
 		var turning: MachinePlan = MachinePlan.new(tuning, BONUS, rm, true, false, true, false)
 		assert_bool(turning.premium_held).is_false()
 		_near(turning.premium_at, turning.read_end, "bonus premium at")
 		assert_float(turning.beat_time(&"premium")).is_equal(turning.premium_at)
 		assert_bool(MachineLook.at(turning, 0.0).premium()).is_false()
-		# Held without a BOOSTED visit means nothing.
-		var not_boosted: MachinePlan = MachinePlan.new(tuning, BONUS, rm, true, false, false, true)
-		assert_bool(not_boosted.premium or not_boosted.premium_held).is_false()
-	var boosted: MachinePlan = MachinePlan.new(tuning, TICKET, false, true, false, true)
-	assert_bool(boosted.resume_at(MachinePlan.WaitPoint.CHOOSE).premium).is_true()
+		# Held without a PREMIUM visit means nothing.
+		var classic: MachinePlan = MachinePlan.new(tuning, BONUS, rm, true, false, false, true)
+		assert_bool(classic.premium or classic.premium_held).is_false()
+	var premium: MachinePlan = MachinePlan.new(tuning, TICKET, false, true, false, true)
+	assert_bool(premium.resume_at(MachinePlan.WaitPoint.CHOOSE).premium).is_true()
 
 
 ## R1's draw: the odds close, the tray packs over draw_ms (draw_rm_ms), then each ticket flies
@@ -160,7 +154,7 @@ func test_a_premium_visit_turns_after_the_read() -> void:
 ## its rarity (reveal_rm_ms); the pick arms pick_arm_ms after the last effect ends.
 func test_the_draw_follows_r1() -> void:
 	var tuning: MachineTuning = _tuning()
-	for kind: int in [TICKET, BONUS, STAMP_DAY]:
+	for kind: int in [TICKET, BONUS]:
 		for rm: bool in [false, true]:
 			for tiers: Array in [[COMMON, RARE, LEGENDARY], [LEGENDARY, COMMON], [RARE]]:
 				var plan: MachinePlan = MachinePlan.new(tuning, kind, rm)
@@ -216,11 +210,6 @@ func test_the_landing_follows_the_tuning() -> void:
 	var to_bonus: MachinePlan = _full(TICKET, false, [COMMON], MachinePlan.Landing.NEW_CARD, BONUS)
 	var gap: float = MachineTuning.sec(tuning.before_bonus_ms)
 	_near(to_bonus.end_at, to_bonus.punch_end + gap, "before bonus")
-	var to_stamp: MachinePlan = _full(
-		TICKET, false, [COMMON], MachinePlan.Landing.REGISTER, STAMP_DAY
-	)
-	gap = MachineTuning.sec(tuning.before_stamp_day_ms)
-	_near(to_stamp.end_at, to_stamp.punch_end + gap, "before stamp day")
 
 
 func test_a_bonus_visit_follows_the_tuning() -> void:
@@ -244,24 +233,6 @@ func test_a_bonus_without_an_inspection_keeps_the_times() -> void:
 	]:
 		_near(extra.wait_time(point), inspected.wait_time(point), "wait %d" % point)
 	assert_array(extra.beat_names()).is_equal(inspected.beat_names())
-
-
-## STAMP DAY has no intro and no choice (CHOOSE is 0): its draw starts at once, it holds
-## end_hold_ms after the landing, and has no settle of its own.
-func test_a_stamp_day_visit_follows_the_tuning() -> void:
-	var tuning: MachineTuning = _tuning()
-	for rm: bool in [false, true]:
-		var plan: MachinePlan = _full(
-			STAMP_DAY, rm, [COMMON, RARE, COMMON], MachinePlan.Landing.REGISTER
-		)
-		assert_float(plan.wait_time(MachinePlan.WaitPoint.CHOOSE)).is_equal(0.0)
-		assert_float(plan.odds_close).is_equal(0.0)
-		_assert_draw("stamp day rm %s" % rm, plan)
-		var hold: float = MachineTuning.seconds(tuning.end_hold_ms, STAMP_DAY)
-		_near(plan.end_at, plan.land + hold, "stamp day end")
-		_near(plan.punch, plan.land, "no settle")
-		assert_float(plan.beat_time(&"punch")).is_equal(MachinePlan.NOT_SET)
-		assert_float(plan.beat_time(&"stamp_day")).is_equal(0.0)
 
 
 ## The glide back after the shift's last visit: the camera from 1 to 0 over return_glide_ms (a
@@ -356,9 +327,7 @@ func _assert_draw(tag: String, plan: MachinePlan) -> void:
 	var tuning: MachineTuning = plan.tuning
 	var kind: int = plan.kind
 	var rm: bool = plan.reduced_motion
-	var close: float = 0.0
-	if kind != STAMP_DAY:
-		close = MachineTuning.seconds(tuning.odds_close_ms, kind)
+	var close: float = MachineTuning.seconds(tuning.odds_close_ms, kind)
 	_near(plan.odds_close, plan.choose_at + close, tag + " odds close")
 	_near(plan.draw, plan.odds_close, tag + " draw")
 	var packing: float = MachineTuning.sec(tuning.draw_rm_ms)

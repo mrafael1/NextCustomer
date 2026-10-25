@@ -3,8 +3,8 @@ extends RefCounted
 ## The presentation timeline of one RECEIPT REWARDS machine visit (#77), logged with its pick or
 ## bin in the machine_visit event (plan section 8, since v0.20 for the offers before it). Every
 ## time is in ms from the moment the visit starts presenting: the ticket's at the receipt's
-## flight to the machine's slot (the dessert's printer feed), the bonus ticket's and STAMP DAY's
-## at their start. Up to:
+## flight to the machine's slot (the dessert's printer feed), the bonus ticket's at its start. Up
+## to:
 ## - `presented_ms`: the prizes are fully shown (the end of the last reveal);
 ## - `armed_ms`: the prizes accept clicks (after the last reveal, once the mouse is released);
 ## - `decide_ms`: the pick or bin is applied (at the deck limit, once the card to remove is

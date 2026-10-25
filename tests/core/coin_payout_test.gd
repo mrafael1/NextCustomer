@@ -104,8 +104,6 @@ static func _balance(table: Array, euros: int, cap: int) -> BalanceDefinition:
 	balance.coins_by_shifts_passed = PackedInt32Array(table)
 	balance.overtime_coin_euros = euros
 	balance.overtime_coin_max = cap
-	# No STAMP DAY, so a passed shift goes straight on after the machine's ticket (binned).
-	MachineSteps.without_stamp_day(balance)
 	balance.inspection_shifts = PackedInt32Array()
 	return balance
 

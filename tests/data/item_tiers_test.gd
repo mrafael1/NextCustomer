@@ -193,9 +193,9 @@ func test_every_chain_follows_the_tier_rule() -> void:
 		assert_array(CHAINED).contains([id])
 
 
-## The machine's UPGRADES chute (its `item_upgrades` table) can step every chained product: a
-## plain copy goes to BIG (COMMON) or straight to GOLDEN (RARE), and SHELF UPGRADE needs its
-## `shelf_min_copies`.
+## The machine's item upgrades (UPGRADE chute, its `item_upgrades` table) can step every chained
+## product: a plain copy goes to BIG (COMMON) or straight to GOLDEN (RARE), and SHELF UPGRADE needs
+## its `shelf_min_copies`.
 func test_upgrades_can_step_every_chained_product() -> void:
 	var balance: BalanceDefinition = load(BALANCE)
 	var machine: MachineDefinition = balance.machine

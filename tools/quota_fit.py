@@ -72,8 +72,8 @@ TARGET_RUNS_MIDDLE = 32.5
 @dataclass
 class Run:
     """One recorded run: per played shift its total, the inspection it was played under, the
-    registers taken after it (the machine's REGISTER and STAMP DAY picks, #77; older records'
-    `upgrade_taken`). Older records' `upgrade_quota_percent` (Big basket's quota raise, removed
+    loyalty perks taken after it (the machine's perk picks, #77; a level-up, #108, by its level's
+    id, e.g. coupon_engine_lv2; older records' REGISTER and STAMP DAY picks, or `upgrade_taken`). Older records' `upgrade_quota_percent` (Big basket's quota raise, removed
     in v0.56, #106) is ignored."""
 
     seed: int
@@ -121,8 +121,8 @@ class Outcome:
 
 
 def shift_registers(shift: dict[str, Any]) -> list[str]:
-    """The registers taken after a recorded shift: the picked REGISTER prizes of its machine
-    `visits` (#77), else an older record's `upgrade_taken`."""
+    """The loyalty perks taken after a recorded shift: the picked perk prizes (kind "register") of
+    its machine `visits` (#77; UPGRADE since #108), else an older record's `upgrade_taken`."""
     if "visits" in shift:
         taken = []
         for visit in shift["visits"]:

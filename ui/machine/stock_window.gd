@@ -14,9 +14,9 @@ extends Control
 ## the idle machine's are both shut. Each column has a spot lamp; a hovered key's column glows
 ## brighter. Once a chute is chosen only its column stays lit, through the draw.
 ##
-## On a BOOSTED visit the columns restock one by one as the machine turns PREMIUM (MachineLook:
-## the classic tickets drop out, the loyalty pair's rise onto gold pedestals); a STAMP DAY visit
-## shows the loyalty pair's columns from its start.
+## On a PREMIUM visit the columns restock one by one as the machine turns PREMIUM (MachineLook:
+## the classic tickets drop out and the same chutes' rise onto gold pedestals, with the premium
+## odds).
 
 const SIZE := Vector2(408, 208)
 const COLUMNS := 2
@@ -58,7 +58,7 @@ const CONE_HOVER_ALPHA := 0.16
 ## The machine this part belongs to (setup(), build spec 4.2).
 var view: RewardMachineView
 ## Each chute's info for this visit (RewardMachine.chute_info), null while idle.
-var _infos: Array[MachineChuteInfo] = [null, null, null, null]
+var _infos: Array[MachineChuteInfo] = [null, null]
 ## The chosen chute (-1: none yet): only its column stays lit.
 var _chosen: int = -1
 var _hovered: int = -1
@@ -110,8 +110,8 @@ func setup(machine: RewardMachineView) -> void:
 ## The visit's chutes (RewardMachine.chute_info for each, by chute) and its chosen chute (-1:
 ## none yet); empty `infos`: the idle machine, both columns shut.
 func show_chutes(infos: Array[MachineChuteInfo], chosen: int) -> void:
-	_infos = [null, null, null, null]
-	for chute: int in range(mini(infos.size(), 4)):
+	_infos = [null, null]
+	for chute: int in range(mini(infos.size(), COLUMNS)):
 		_infos[chute] = infos[chute]
 	_chosen = chosen
 	queue_redraw()
@@ -129,6 +129,14 @@ func column_lit(chute: int) -> bool:
 	for column: int in range(COLUMNS):
 		if _column_chute[column] == chute:
 			return _column_lit[column]
+	return false
+
+
+## Whether `chute`'s column stands lit on gold pedestals now (a PREMIUM visit, restocked).
+func column_gold(chute: int) -> bool:
+	for column: int in range(COLUMNS):
+		if _column_chute[column] == chute:
+			return _column_lit[column] and _column_gold[column]
 	return false
 
 
@@ -207,17 +215,15 @@ func frame(t: float) -> void:
 	var look: MachineLook = MachineLook.at(plan, t)
 	for column: int in range(COLUMNS):
 		var shape: Array = look.column(column)
-		var loyalty: bool = shape[1]
-		var chute: int = column + (2 if loyalty else 0)
+		var gold: bool = shape[1]
+		var chute: int = column
 		var info: MachineChuteInfo = _infos[chute]
 		var lit: bool = info != null and info.state == RewardMachine.ChuteState.OPEN
-		# A PREMIUM visit's classic columns keep their stock until they drop out in the restock.
-		lit = lit or (info != null and look.premium_visit and not loyalty and not look.stamp_day)
 		lit = lit and (_chosen < 0 or _chosen == chute)
 		_column_chute[column] = chute
 		_column_lit[column] = lit
 		_column_offset[column] = shape[0]
-		_column_gold[column] = loyalty and look.premium()
+		_column_gold[column] = gold and look.premium()
 		var texts: PackedStringArray = _column_texts(info) if lit else PackedStringArray()
 		for rarity: int in range(3):
 			var odds: Label = _odds[column * 3 + rarity]
@@ -234,7 +240,6 @@ func frame(t: float) -> void:
 	_tickets.queue_redraw()
 
 
-## Ticket `rarity`'s left edge in `column`.
 ## `info`'s three rarity shares as the window prints them (percent_texts).
 static func _column_texts(info: MachineChuteInfo) -> PackedStringArray:
 	var shares: Array[float] = [0.0, 0.0, 0.0]
@@ -244,6 +249,7 @@ static func _column_texts(info: MachineChuteInfo) -> PackedStringArray:
 	return percent_texts(shares)
 
 
+## Ticket `rarity`'s left edge in `column`.
 static func _ticket_x(column: int, rarity: int) -> float:
 	var middle: float = SIZE.x / 4.0 * (2 * column + 1)
 	var row: float = TICKET_STEP * 2.0 + TICKET_SIZE.x

@@ -75,10 +75,14 @@ class ReplayTest(unittest.TestCase):
         self.assertTrue(outcome.won)
 
     def test_every_register_of_a_shift_is_recorded(self) -> None:
-        # #77: the machine's visits (a REGISTER pick and STAMP DAY's) record every register.
+        # #77: the machine's visits record every loyalty perk picked, from UPGRADE (#108, a
+        # level-up by its level's id) and from an older record's REGISTER and STAMP DAY visits.
         entry = make_run([10, 30, 30])
         register = {"kind": "register", "id": "big_basket", "rarity": 0}
         coupon = {"kind": "coupon", "id": "repeat", "rarity": 0}
+        engine = {"kind": "register", "id": "coupon_engine", "rarity": 1, "level": 1}
+        level_up = {"kind": "register", "id": "coupon_engine_lv2", "rarity": 1, "level": 2}
+        item = {"kind": "upgrade", "id": "milk", "rarity": 0}
         entry["shifts"][0]["visits"] = [
             {"kind": "ticket", "chute": "register", "picked": 0, "prizes": [register, coupon]},
             {"kind": "stamp_day", "chute": "register", "picked": 1, "prizes": [coupon, register]},
@@ -86,9 +90,16 @@ class ReplayTest(unittest.TestCase):
         ]
         entry["shifts"][1]["visits"] = [
             {"kind": "ticket", "chute": "new_items", "picked": -1, "prizes": [coupon]},
+            {"kind": "bonus", "chute": "upgrade", "picked": 0, "prizes": [engine, item]},
+        ]
+        entry["shifts"][2]["visits"] = [
+            {"kind": "ticket", "chute": "upgrade", "picked": 1, "prizes": [item, level_up]},
         ]
         run = to_runs([entry])[0]
-        self.assertEqual(run.upgrades_taken, [["big_basket", "big_basket"], [], []])
+        self.assertEqual(
+            run.upgrades_taken,
+            [["big_basket", "big_basket"], ["coupon_engine"], ["coupon_engine_lv2"]],
+        )
 
     def test_a_run_cut_short_by_its_recorded_quotas_is_incomplete(self) -> None:
         run = to_runs([make_run([10, 20])])[0]

@@ -104,7 +104,7 @@ func test_the_clock_plays_a_visit_to_its_end() -> void:
 	var screen: ShiftScreen = await _passed_screen()
 	var view: RewardMachineView = screen._machine.view
 	await _until(func() -> bool: return view.is_armed(), 5000)
-	assert_bool(screen._machine._choose(RewardMachine.Chute.COUPONS)).is_true()
+	assert_bool(screen._machine._choose(RewardMachine.Chute.NEW_ITEMS)).is_true()
 	await _until(func() -> bool: return view.is_armed(), 15000)
 	assert_float(view.clock).is_equal(view.plan.pick_at)
 	view._on_bin_pressed()
@@ -168,13 +168,14 @@ func test_a_resumed_visit_starts_at_its_wait_point() -> void:
 	await _assert_resumed_at(view, view.plan.pick_at)
 
 
-## The bonus ticket's visit resumed at its chute wait, and STAMP DAY's at its pick wait (build
-## spec 4.3's resume table): each starts there, armed, with nothing before it replayed.
-func test_bonus_and_stamp_day_resume_at_their_wait_points() -> void:
+## The bonus ticket's visit resumed at its chute wait, and a PREMIUM ticket visit's at its pick
+## wait (build spec 4.3's resume table): each starts there, armed, with nothing before it
+## replayed (the PREMIUM transform included: the keys are gold at once).
+func test_bonus_and_premium_resume_at_their_wait_points() -> void:
 	var first: ShiftScreen = await _screen()
 	first.start_new_run(5)
 	var bonus: bool = false
-	var stamp_day: bool = false
+	var premium: bool = false
 	for _shift: int in range(first.run.shift_count() - 1):
 		await _pass(first, true)
 		for _visit: int in range(MAX_VISITS):
@@ -189,18 +190,24 @@ func test_bonus_and_stamp_day_resume_at_their_wait_points() -> void:
 				var view: RewardMachineView = resumed._machine.view
 				assert_int(view.plan.kind).is_equal(MachineVisit.Kind.BONUS)
 				await _assert_resumed_at(view, view.plan.choose_at)
-			elif kind == MachineVisit.Kind.STAMP_DAY and not stamp_day:
-				stamp_day = true
+			elif kind == MachineVisit.Kind.TICKET and run.machine.is_premium() and not premium:
+				premium = true
+				var chute: int = MachineSteps.first_lit(run, RewardMachine.Chute.UPGRADE)
+				assert_bool(first._machine._choose(chute)).is_true()
+				first._machine.view.fast_forward()
 				assert_int(run.phase).is_equal(RunState.Phase.MACHINE_PICK)
 				var resumed: ShiftScreen = await _screen()
 				var view: RewardMachineView = resumed._machine.view
-				assert_int(view.plan.kind).is_equal(MachineVisit.Kind.STAMP_DAY)
+				assert_int(view.plan.kind).is_equal(MachineVisit.Kind.TICKET)
+				assert_bool(view.plan.premium).is_true()
 				await _assert_resumed_at(view, view.plan.pick_at)
+				for key: ChuteKey in view.keys:
+					assert_bool(key.gold).is_true()
 			_end_visit(first)
-		if bonus and stamp_day:
+		if bonus and premium:
 			break
 	assert_bool(bonus).override_failure_message("no bonus visit").is_true()
-	assert_bool(stamp_day).override_failure_message("no STAMP DAY").is_true()
+	assert_bool(premium).override_failure_message("no PREMIUM visit").is_true()
 
 
 ## A tap during the landing (here the prize's flight) fast-forwards it to END and, the visit

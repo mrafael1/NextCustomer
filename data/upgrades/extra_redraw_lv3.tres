@@ -1,0 +1,14 @@
+[gd_resource type="Resource" script_class="UpgradeDefinition" format=3]
+
+[ext_resource type="Script" path="res://core/upgrade_definition.gd" id="1_upgrade"]
+
+[resource]
+script = ExtResource("1_upgrade")
+id = &"extra_redraw_lv3"
+icon_ref = "res://art/icons/redraw_arrow.png"
+display_name = "Extra redraw"
+type = 5
+effect_text = "+3 redraws each shift"
+extra_redraws = 3
+level = 3
+family_id = &"extra_redraw"

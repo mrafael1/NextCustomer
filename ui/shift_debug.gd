@@ -170,7 +170,8 @@ func add_card(card_id: String) -> void:
 
 
 ## Gives an upgrade straight away, for testing. The shift restarts (a fresh hand), so its
-## redraws are counted again with the new upgrade. An owned upgrade isn't given twice.
+## redraws are counted again with the new upgrade. An owned upgrade isn't given twice; a level
+## file (#108, e.g. coupon_engine_lv2) replaces its perk's box.
 func give_upgrade(upgrade_id: String) -> void:
 	var run: RunState = _screen.run
 	if _screen._busy() or _screen._redraw_busy or run.phase != RunState.Phase.PLANNING:
@@ -179,13 +180,15 @@ func give_upgrade(upgrade_id: String) -> void:
 	if not ResourceLoader.exists(path):
 		return
 	var upgrade: UpgradeDefinition = load(path)
-	if run.upgrades.has(upgrade):
+	var owned: int = PerkLevels.owned_index(run.upgrades, upgrade)
+	if run.upgrades.has(upgrade) or (owned >= 0 and not PerkLevels.is_level_up(upgrade)):
 		return
 	_log.log_event("debug", {"action": "give_upgrade", "upgrade": upgrade_id})
-	run.upgrades.append(upgrade)
+	# A level file (#108) replaces its family's box, as a level-up does.
+	run.upgrades = PerkLevels.with_pick(run.upgrades, upgrade)
 	run.debug_skip_to_shift(run.shift_index)
 	_screen._refresh_loyalty_card()
-	_screen._loyalty_card.play_stamp(run.upgrades.size() - 1)
+	_screen._loyalty_card.play_stamp(PerkLevels.owned_index(run.upgrades, upgrade))
 	_screen._on_shift_started()
 
 

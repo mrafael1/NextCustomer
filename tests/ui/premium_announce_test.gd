@@ -40,7 +40,7 @@ func test_the_announce_prints_in_the_monitor_before_the_bonus_notice() -> void:
 		screen._debug.set_inspection("spot_check")
 	var run: RunState = screen.run
 	assert_int(run.shift_index).is_equal(2)
-	assert_bool(run.machine.boosted_if_passed(run)).is_true()
+	assert_bool(run.machine.premium_if_passed(run)).is_true()
 	assert_bool(run.machine.bonus_if_passed(run)).is_true()
 	await _frames(3)
 	var flow: MachineFlow = screen._machine
@@ -98,6 +98,15 @@ func test_the_announce_prints_in_the_monitor_before_the_bonus_notice() -> void:
 		announce.tag_text(), bold, PremiumAnnounce.TAG_FONT_SIZE
 	)
 	assert_float(width + 34.0).is_less_equal(PremiumAnnounce.TAG_SIZE.x)
+	# The receipt's boost lines (v0.61, #108: PREMIUM is the rarity boost) fit inside its brass
+	# rules, the first with its RARE diamond (5 cells of 2 px) on each side.
+	var inner: float = PremiumAnnounce.RECEIPT_SIZE.x - 48.0
+	for index: int in range(PremiumAnnounce.BOOST_TEXTS.size()):
+		var line: String = PremiumAnnounce.BOOST_TEXTS[index]
+		var reach: float = MachineArt.text_width(line, bold, PremiumAnnounce.BOOST_SIZES[index])
+		if index == 0:
+			reach += 2.0 * (PremiumAnnounce.DIAMOND_GAP + 5.0)
+		assert_float(reach).override_failure_message(line).is_less_equal(inner)
 
 
 func _frames(count: int) -> void:

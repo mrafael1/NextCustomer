@@ -25,20 +25,27 @@ extends RefCounted
 ## doesn't count toward the register cap (RewardMachine.registers_picked), and a visit waiting for
 ## its pick no longer offers one (MachineVisit.drop_retired_prizes).
 ##
+## A save from before v0.61's machine restructure (#108: formats 4 and 5) is converted first
+## (RunSaveMigration.to_v6) and then read like any other.
+##
 ## The seed and the RNG state are decimal strings: JSON numbers are doubles and lose precision
 ## above 2^53. The draw pile is saved only during PLANNING (the next shift reshuffles the whole
 ## deck, so it means nothing after the checkout).
 
-## The run save's format version. Raise it when the saved form changes. Only this version is
-## read: an older save (version 1, from before the machine; version 2, with the machine's
-## Regular levels, before v0.47's two machine states; version 3, before v0.49's dealt starting
-## deck) is refused, so SaveService keeps it as a .bad backup and a new run starts.
-const FORMAT_VERSION := 5
-## Version 4 has the same saved form, scored before v0.46's Banana chain (#106), and is still
+## The run save's format version. Raise it when the saved form changes. This version is read, and
+## versions 4 and 5 through RunSaveMigration: an older save (version 1, from before the machine;
+## version 2, with the machine's Regular levels, before v0.47's two machine states; version 3,
+## before v0.49's dealt starting deck) is refused, so SaveService keeps it as a .bad backup and a
+## new run starts. Version 6 (v0.61, #108): one machine with two chutes, CLASSIC or PREMIUM, no
+## STAMP DAY, loyalty levels, and the machine's played upgrades as a list.
+const FORMAT_VERSION := 6
+## Version 5: the machine before v0.61 (four chutes, STAMP DAY), converted by RunSaveMigration.
+const BEFORE_MACHINE_REWORK_VERSION := 5
+## Version 4 has version 5's saved form, scored before v0.46's Banana chain (#106), and is still
 ## read: after its checkout the row scores again by today's rules, so a row with a Banana after a
 ## Banana can total otherwise than its record. The record's total stands (it decided the shift
 ## and the machine's visits) and last_result is today's score of the row. Saved again, it is
-## version 5.
+## the current version.
 const BEFORE_BANANA_CHAIN_VERSION := 4
 ## The save points, and their names in the saved form (the run_resume event uses them too).
 const SAVE_POINTS: Array[RunState.Phase] = [
@@ -112,12 +119,16 @@ static func to_dictionary(saved_run: RunState, saved_run_id: String, played_ms: 
 ## isn't a run this version can resume: a missing or other format version, a field missing or
 ## of the wrong type, an id that no longer resolves, or a state the game can't reach (see
 ## _is_consistent). Never prints anything.
-static func from_dictionary(data: Dictionary, lookup: ContentLookup) -> RunSave:
-	var version: Variant = data.get("format_version")
-	if (
-		not SaveReader.is_whole(version)
-		or not [FORMAT_VERSION, BEFORE_BANANA_CHAIN_VERSION].has(int(version))
-	):
+static func from_dictionary(saved: Dictionary, lookup: ContentLookup) -> RunSave:
+	var version: Variant = saved.get("format_version")
+	if not SaveReader.is_whole(version):
+		return null
+	var data: Dictionary = saved
+	if RunSaveMigration.FROM_VERSIONS.has(int(version)):
+		data = RunSaveMigration.to_v6(saved)
+	elif int(version) != FORMAT_VERSION:
+		return null
+	if data.is_empty():
 		return null
 	var rescored: bool = int(version) == BEFORE_BANANA_CHAIN_VERSION
 	var reader: SaveReader = SaveReader.new(data, lookup)
@@ -177,21 +188,23 @@ static func from_dictionary(data: Dictionary, lookup: ContentLookup) -> RunSave:
 	return save
 
 
-## Drops the retired registers (inert stand-ins) from the run's registers, and from the count
-## owned at the last checkout. True when there was one.
+## Drops the retired registers (inert stand-ins) from the run's registers, and from those owned at
+## the last checkout. True when there was one.
 static func _drop_retired_registers(restored: RunState) -> bool:
-	var kept: Array[UpgradeDefinition] = []
-	var at_checkout: int = restored.machine.upgrades_at_checkout
-	for index: int in range(restored.upgrades.size()):
-		var upgrade: UpgradeDefinition = restored.upgrades[index]
-		if not ContentLookup.is_retired(upgrade):
-			kept.append(upgrade)
-		elif index < restored.machine.upgrades_at_checkout:
-			at_checkout -= 1
+	var kept: Array[UpgradeDefinition] = _live(restored.upgrades)
 	var dropped: bool = kept.size() < restored.upgrades.size()
 	restored.upgrades = kept
-	restored.machine.upgrades_at_checkout = at_checkout
+	restored.machine.played_upgrades = _live(restored.machine.played_upgrades)
 	return dropped
+
+
+## The upgrades that aren't retired stand-ins, in order.
+static func _live(upgrades: Array[UpgradeDefinition]) -> Array[UpgradeDefinition]:
+	var found: Array[UpgradeDefinition] = []
+	for upgrade: UpgradeDefinition in upgrades:
+		if not ContentLookup.is_retired(upgrade):
+			found.append(upgrade)
+	return found
 
 
 ## A planning row longer than the shift's slots (saved with a retired register's slot) gives its
@@ -280,8 +293,16 @@ static func _is_consistent(restored: RunState, retired: bool, rescored: bool) ->
 	ok = ok and restored.redraws_used <= restored.redraws_allowed
 	for card: CardDefinition in restored.stock.new_arrivals:
 		ok = ok and restored.stock.cards.has(card)
+	# One box per perk: never a perk twice, nor two levels of one perk.
 	for upgrade: UpgradeDefinition in restored.upgrades:
 		ok = ok and restored.upgrades.count(upgrade) == 1
+		ok = (
+			ok
+			and (
+				PerkLevels.owned_index(restored.upgrades, upgrade)
+				== restored.upgrades.find(upgrade)
+			)
+		)
 	if not ok or not _after_checkout(restored):
 		return ok
 	restored.last_result = Scoring.score(
@@ -318,16 +339,15 @@ static func _phase_fits(restored: RunState) -> bool:
 	if restored.phase == RunState.Phase.PLANNING:
 		return machine.stage == RewardMachine.Stage.IDLE and restored.next_inspection == null
 	var record: ShiftRecord = restored.history[-1]
-	var picked: int = machine.registers_picked(restored)
-	# The registers picked after the checkout are the last record's.
+	# The perks picked after the checkout are the last record's: the played ones with those picks
+	# (a level-up in its box) are the run's.
+	var expected: Array[UpgradeDefinition] = machine.played_upgrades.duplicate()
+	for upgrade: UpgradeDefinition in _live(record.registers_taken()):
+		expected = PerkLevels.with_pick(expected, upgrade)
 	var ok: bool = (
 		not restored.is_last_shift()
-		and machine.upgrades_at_checkout <= restored.upgrades.size()
-		and (
-			restored.upgrades.size() - machine.upgrades_at_checkout
-			== _live_count(record.registers_taken())
-		)
-		and picked <= machine.machine.register_cap
+		and expected == restored.upgrades
+		and RewardMachine.registers_picked(restored) <= machine.machine.register_cap
 	)
 	if restored.phase == RunState.Phase.SCORED:
 		return ok and visit == null and machine.pending_kinds().is_empty()
@@ -337,24 +357,8 @@ static func _phase_fits(restored: RunState) -> bool:
 		ok = ok and (inspected or extra) and not record.visits.is_empty()
 	elif visit.kind == MachineVisit.Kind.TICKET:
 		ok = ok and record.visits.is_empty()
-	# A BOOSTED visit is a boosted shift's ticket or BONUS visit (MachineVisit checked the kind).
-	ok = ok and (not visit.boosted or machine.machine.is_boosted_shift(record.shift))
-	if restored.phase == RunState.Phase.MACHINE_CHOOSE:
-		return ok
-	if visit.chute == RewardMachine.Chute.REGISTER:
-		ok = ok and picked < machine.machine.register_cap
-	return ok
-
-
-## The registers that aren't retired stand-ins.
-static func _live_count(registers: Array[UpgradeDefinition]) -> int:
-	return (
-		registers
-		. filter(
-			func(upgrade: UpgradeDefinition) -> bool: return not ContentLookup.is_retired(upgrade)
-		)
-		. size()
-	)
+	# A PREMIUM visit is a premium shift's ticket or BONUS visit.
+	return ok and (not visit.premium or machine.machine.is_premium_shift(record.shift))
 
 
 static func _after_checkout(restored: RunState) -> bool:
@@ -362,11 +366,11 @@ static func _after_checkout(restored: RunState) -> bool:
 
 
 ## The upgrades the current shift was played with: after the checkout, those owned at the
-## checkout (a register picked from the machine applies from the next shift).
+## checkout (a perk picked from the machine, or a level-up, applies from the next shift).
 static func _played_upgrades(restored: RunState) -> Array[UpgradeDefinition]:
 	if not _after_checkout(restored):
 		return restored.upgrades
-	return restored.upgrades.slice(0, restored.machine.upgrades_at_checkout)
+	return restored.machine.played_upgrades
 
 
 ## The machine upgraded a copy of `before` into `after`: a higher tier of the same product.

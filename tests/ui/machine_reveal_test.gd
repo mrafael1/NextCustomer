@@ -12,6 +12,7 @@ extends GdUnitTestSuite
 
 const BALANCE := "res://data/balance/balance.tres"
 const STARTER := "res://data/decks/starter.tres"
+const CARDS := "res://data/cards/"
 const MILK := "res://data/cards/milk.tres"
 const MILK_BIG := "res://data/cards/milk_big.tres"
 const MILK_GOLDEN := "res://data/cards/milk_golden.tres"
@@ -369,11 +370,50 @@ func test_the_perk_glyph_stays_on_its_badge() -> void:
 	assert_int(shown).is_greater(0)
 
 
-## Resumed at the pick wait (TICKET and STAMP DAY): every ticket sits face up in its place with
-## its tab. A bin drops them all; a pick lifts the picked one, which goes once it flies, while the
+## The art's chip (v0.61, #108): every perk level above 1 reads "LV n", and every BIG or GOLDEN
+## item its tier; the chip lies inside the art, and a level's clear of the perk's badge.
+func test_the_level_and_tier_chips_stay_inside_the_art() -> void:
+	var art_box: Rect2 = Rect2(Vector2.ZERO, PrizeArt.SIZE)
+	var levels: int = 0
+	for perk: UpgradeDefinition in _balance.upgrade_pool:
+		var level: UpgradeDefinition = perk.next_level
+		while level != null:
+			levels += 1
+			var art: PrizeArt = auto_free(
+				PrizeArt.new(MachinePrize.new(MachinePrize.Kind.REGISTER, 0, null, level), null)
+			)
+			var what: String = "%s: %s" % [level.id, art.chip_rect()]
+			assert_str(art.chip_text()).is_equal("LV %d" % level.level_number())
+			assert_bool(art_box.encloses(art.chip_rect())).override_failure_message(what).is_true()
+			(
+				assert_bool(art.chip_rect().intersects(PrizeArt.BADGE_RECT))
+				. override_failure_message(what)
+				. is_false()
+			)
+			level = level.next_level
+	assert_int(levels).is_greater(0)
+	var tiers: int = 0
+	for file: String in DirAccess.get_files_at(CARDS):
+		if not file.ends_with(".tres"):
+			continue
+		var card: CardDefinition = load(CARDS + file)
+		if PriceSticker.tier_text(card).is_empty():
+			continue
+		tiers += 1
+		var art: PrizeArt = auto_free(
+			PrizeArt.new(MachinePrize.new(MachinePrize.Kind.PRODUCT, 0, card), null)
+		)
+		var what: String = "%s: %s" % [file, art.chip_rect()]
+		assert_str(art.chip_text()).is_equal(PriceSticker.tier_text(card))
+		assert_bool(art_box.encloses(art.chip_rect())).override_failure_message(what).is_true()
+	assert_int(tiers).is_greater(0)
+
+
+## Resumed at the pick wait (TICKET and BONUS): every ticket sits face up in its place with its
+## tab. A bin drops them all; a pick lifts the picked one, which goes once it flies, while the
 ## others fall away.
 func test_a_resume_at_the_pick_shows_the_row_at_rest() -> void:
-	for kind: int in [MachineVisit.Kind.TICKET, MachineVisit.Kind.STAMP_DAY]:
+	for kind: int in [MachineVisit.Kind.TICKET, MachineVisit.Kind.BONUS]:
 		var view: RewardMachineView = _view(kind, false, RARITIES)
 		view.plan = view.plan.resume_at(MachinePlan.WaitPoint.PICK)
 		var plan: MachinePlan = view.plan
@@ -387,8 +427,6 @@ func test_a_resume_at_the_pick_shows_the_row_at_rest() -> void:
 			assert_bool(tickets[index].tab.visible).is_true()
 			var rest: Vector2 = PrizeRow.card_rect(index, tickets.size()).position
 			assert_vector(tickets[index].position).is_equal(rest)
-		if kind == MachineVisit.Kind.STAMP_DAY:
-			continue  # A stamp can't be binned.
 		plan.set_landing(MachinePlan.Landing.BIN, 1, MachinePlan.NO_VISIT)
 		for ticket: PrizeTicket in tickets:
 			ticket.frame(plan.press + PrizeTicket.FALL_S + 0.01)

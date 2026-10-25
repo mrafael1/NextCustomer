@@ -6,9 +6,9 @@ extends RefCounted
 ## resume, show_at): a jump plays nothing, as `skipping` beats do.
 ##
 ## - the receipt's (or the BONUS stub's) flight lands: `tick` x5 (x3), then `slot_tick` as it is
-##   fed; a BOOSTED visit turning PREMIUM (v0.50): `stamp_notice` as its sign flips and a rising
-##   run (G4 C5 E5 G5 C6), then `ui_switch` as the gold keys rise; the keys light: one ladder note
-##   each (C5 D5 E5 G5), staggered as the keys;
+##   fed; a PREMIUM visit turning PREMIUM (v0.50): `stamp_notice` as its sign flips and a rising
+##   run (G4 C5 E5 G5 C6), then `ui_switch` as the keys rise back gold; the keys light: one
+##   ladder note each (C5 D5 E5 G5), staggered as the keys;
 ## - the chute confirmed: `ui_confirm` (CONFIRM › plays it as it is pressed, #77 machine v2);
 ##   the tray packs: `rattle_s`; PACKED: `stamp_1`; each ticket out of the tray: a quiet
 ##   `ui_switch`;
@@ -16,8 +16,8 @@ extends RefCounted
 ##   (E5 A5), LEGENDARY a sting (`rattle_l` and C5 E5 G5 C6); every rarity keeps its sound under
 ##   reduced motion;
 ## - the pick: `ui_click` (a bin: `ui_back`); the landing: a new card `card_place`, a LOYALTY stamp
-##   (or STAMP DAY's) `stamp_loyalty`, an upgrade's glint `ding` and G5 C6 E6;
-## - the BONUS TICKET's stamp: `stamp_notice` and the stub's `print`; STAMP DAY's: `stamp_paid`.
+##   (a new perk or a level-up) `stamp_loyalty`, an upgrade's glint `ding` and G5 C6 E6;
+## - the BONUS TICKET's stamp: `stamp_notice` and the stub's `print`.
 ## The padlocked key's `denied` is the machine's own (RewardMachineView.press_key).
 ##
 ## Built by MachineFlyer (the landing's part), framed with it.
@@ -36,8 +36,8 @@ const G4 := 0
 const PREMIUM_NOTES: Array[int] = [G4, C5, E5, G5, C6]
 const PREMIUM_GAP := 0.07
 const GLINT_NOTES: Array[int] = [G5, C6, E6]
-## The feed's ticks: per visit kind (TICKET, BONUS, STAMP DAY), this far apart.
-const FEED_TICKS: Array[int] = [5, 3, 0]
+## The feed's ticks: per visit kind (TICKET, BONUS), this far apart.
+const FEED_TICKS: Array[int] = [5, 3]
 const TICK_GAP := 0.09
 ## The notes of a RARE and a LEGENDARY reveal follow each other this far apart; an upgrade's glint
 ## notes this far.
@@ -98,7 +98,7 @@ func frame(t: float) -> void:
 		_has_draw = false
 		_has_landing = false
 		_jumped = false
-		# A new visit's cues at 0 (BONUS, STAMP DAY) play on its first frame, which is no jump;
+		# A new visit's cues at 0 (BONUS) play on its first frame, which is no jump;
 		# a resumed one's start where it waits.
 		_last = plan.start if plan.resumed else -FIRST_EPS
 		cues = []
@@ -129,7 +129,7 @@ func _grow(plan: MachinePlan, acted: bool) -> void:
 	var live: bool = acted and not _jumped and not view.skipping
 	if plan.has_draw and not _has_draw:
 		_has_draw = true
-		if live and plan.kind != MachineVisit.Kind.STAMP_DAY and not view.confirm_played:
+		if live and not view.confirm_played:
 			_play([0.0, SOUND, "ui_confirm", 0.0])
 		_add_draw(plan)
 	if plan.has_landing and not _has_landing:
@@ -146,9 +146,6 @@ func _add_intro(plan: MachinePlan) -> void:
 		MachineVisit.Kind.BONUS:
 			# The head's stamp lands as the bonus ticket reaches the slot (#77 machine v2).
 			_cue(plan.fly_end, SOUND, "stamp_notice")
-		MachineVisit.Kind.STAMP_DAY:
-			_cue(0.0, SOUND, "stamp_paid")
-			return
 	if plan.snap >= 0.0:
 		# The bonus stub snaps off the receipt, quietly (#77 machine v2).
 		_cue(plan.snap, SOUND, "rip", view.tuning.snap_db)

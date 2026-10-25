@@ -40,34 +40,31 @@ func test_the_machine_phases_follow_the_visits() -> void:
 		assert_int(jumped.shift_index).is_equal(3)
 
 
-## A visit none of whose lit chutes can draw is skipped, as there is no lit key to wait on (live
-## data never gives one): a Normal ticket visit with no products and no coupons ends the shift's
-## visits at once (SCORED); with a BONUS visit and STAMP DAY queued, the BONUS visit (Normal too)
-## is skipped and STAMP DAY's pick waits (MACHINE_PICK).
+## A visit none of whose chutes can draw is skipped, as there is no open key to wait on (live
+## data never gives one): with no products, no coupons, no perks and no item to upgrade, the
+## ticket's visit and a queued BONUS visit both are, and the shift's visits end at once (SCORED).
 func test_a_visit_with_nothing_to_draw_is_skipped() -> void:
 	var none: Array[CardDefinition] = []
+	var no_perks: Array[UpgradeDefinition] = []
+	var no_chains: Array[ItemUpgradeDefinition] = []
 	var bare: BalanceDefinition = (load(BALANCE) as BalanceDefinition).duplicate()
 	bare.coupon_pool = none
-	var queued: MachineDefinition = bare.machine.duplicate() as MachineDefinition
+	bare.upgrade_pool = no_perks
+	var empty: MachineDefinition = bare.machine.duplicate() as MachineDefinition
+	empty.item_upgrades = no_chains
+	var queued: MachineDefinition = empty.duplicate() as MachineDefinition
 	queued.bonus_extra_shifts = PackedInt32Array([1])
-	queued.stamp_day_shifts = PackedInt32Array([1])
-	queued.stamp_day_floor = PackedInt32Array([1])
 	for with_queue: bool in [false, true]:
 		var run: RunState = _run(15)
 		run.balance = bare
 		run.stock.cards = none
-		if with_queue:
-			run.machine.machine = queued
+		run.machine.machine = queued if with_queue else empty
 		_pass_with_milks(run)
 		assert_array(run.machine.pending_kinds()).is_empty()
-		if not with_queue:
-			assert_int(run.phase).is_equal(RunState.Phase.SCORED)
-			assert_int(run.machine.stage).is_equal(RewardMachine.Stage.IDLE)
-			assert_object(run.machine.current_visit()).is_null()
-			assert_bool(run.next_shift()).is_true()
-			continue
-		assert_int(run.phase).is_equal(RunState.Phase.MACHINE_PICK)
-		assert_int(run.machine.current_visit().kind).is_equal(MachineVisit.Kind.STAMP_DAY)
+		assert_int(run.phase).is_equal(RunState.Phase.SCORED)
+		assert_int(run.machine.stage).is_equal(RewardMachine.Stage.IDLE)
+		assert_object(run.machine.current_visit()).is_null()
+		assert_bool(run.next_shift()).is_true()
 
 
 static func _run(seed_value: int) -> RunState:

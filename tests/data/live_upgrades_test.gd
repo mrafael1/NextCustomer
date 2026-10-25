@@ -36,6 +36,42 @@ func test_live_upgrades_score_the_plan_examples() -> void:
 	assert_int(Scoring.score(_row("bread,banana"), category).total).is_equal(19)
 
 
+## Loyalty levels (#108, v0.61): Coupon engine, Category engine, Extra redraw and Slot engine go up
+## to LV 3 (LV 2 and LV 3 files linked by next_level, with the LV 1 icon), each level a step up;
+## Big basket and Rule bender have no levels. A level scores and sets the shift's limits like any
+## perk.
+func test_perk_levels_match_the_plan() -> void:
+	var numbers: Dictionary[String, Array] = {
+		"coupon_engine": [2, 3, 4],
+		"category_engine": [3, 4, 5],
+		"extra_redraw": [1, 2, 3],
+		"slot_engine": [2, 3, 4],
+	}
+	for family: String in numbers:
+		var upgrade: UpgradeDefinition = _upgrade(family)
+		var found: Array = []
+		while upgrade != null:
+			assert_str(upgrade.icon_ref).override_failure_message(family).is_equal(
+				_upgrade(family).icon_ref
+			)
+			found.append(_level_number(upgrade))
+			assert_int(upgrade.level_number()).is_equal(found.size())
+			upgrade = upgrade.next_level
+		assert_array(found).override_failure_message(family).is_equal(numbers[family])
+	for family: String in ["big_basket", "rule_bender"]:
+		assert_object(_upgrade(family).next_level).override_failure_message(family).is_null()
+	var row: String = "bread,final_markdown"
+	var totals: Array[int] = []
+	for id: String in ["coupon_engine", "coupon_engine_lv2", "coupon_engine_lv3"]:
+		var perks: Array[UpgradeDefinition] = [_upgrade(id)]
+		totals.append(Scoring.score(_row(row), perks).total)
+	assert_array(totals).is_equal([13, 17, 21])
+	var balance: BalanceDefinition = load(BALANCE)
+	var top: Array[UpgradeDefinition] = [_upgrade("extra_redraw_lv3")]
+	var limits: ShiftLimits = ShiftLimits.for_shift(balance, top, 0)
+	assert_int(limits.redraws).is_equal(balance.base_redraws + 3)
+
+
 ## Every upgrade's icon_ref (v0.50: the perk's glyph on a LOYALTY prize ticket) names a texture
 ## that loads, or is empty (the ticket shows the perk's initials); Big basket's is the "+1 slot"
 ## ticket, Extra redraw's the redraw arrow.
@@ -112,6 +148,16 @@ func test_pool_upgrade_icons_differ_past_a_header() -> void:
 				)
 				. is_greater_equal(MIN_DIFFERENT_SHARE)
 			)
+
+
+## The number a level of a perk steps up: its multiplier, its bonus per tag or its redraws.
+static func _level_number(upgrade: UpgradeDefinition) -> int:
+	if upgrade.rules.is_empty():
+		return upgrade.extra_redraws
+	var rule: UpgradeRule = upgrade.rules[0]
+	if rule is DistinctTagBonusRule:
+		return (rule as DistinctTagBonusRule).bonus_per_tag
+	return int(rule.get("factor"))
 
 
 static func _upgrade(id: String) -> UpgradeDefinition:

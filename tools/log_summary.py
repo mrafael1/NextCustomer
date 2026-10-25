@@ -69,10 +69,17 @@ SESSION_FILE = re.compile(r"^\d{8}T\d{6}_[0-9a-f]+\.jsonl$")
 # (`docs/FULL_BUILD_PLAN.md` v0.40 and older, kept readable); "machine" is the RECEIPT
 # REWARDS machine's machine_visit events.
 OFFER_KINDS = ("rack", "reward", "upgrade", "machine")
-MACHINE_CHUTES = ("new_items", "coupons", "register", "upgrades")
-MACHINE_VISIT_KINDS = ("ticket", "bonus", "stamp_day")
-# machine_visit's `state` (v0.47's two machine states); older machine logs have none.
-MACHINE_VISIT_STATES = ("normal", "boosted", "stamp_day")
+# The machine's two chutes since #108 (v0.61); the older logs' four chutes, STAMP DAY visits
+# and states (v0.47: normal, boosted, stamp_day) are still read, and reported when present.
+MACHINE_CHUTES = ("new_items", "upgrade")
+LEGACY_MACHINE_CHUTES = ("coupons", "register", "upgrades")
+MACHINE_VISIT_KINDS = ("ticket", "bonus")
+LEGACY_MACHINE_VISIT_KINDS = ("stamp_day",)
+# machine_visit's `state` (#108: classic, premium); machine logs before v0.47 have none.
+MACHINE_VISIT_STATES = ("classic", "premium")
+LEGACY_MACHINE_VISIT_STATES = ("normal", "boosted", "stamp_day")
+# A loyalty perk's level file id (data/upgrades/<family>_lv<n>.tres, #108); LV 1 is the family id.
+PERK_LEVEL = re.compile(r"^(?P<family>.+)_lv(?P<level>\d+)$")
 # Item tier card ids end in these (data/cards/<product>_big.tres, <product>_golden.tres).
 TIER_SUFFIXES = ("_big", "_golden")
 OFFER_TIMES = ("presented_ms", "armed_ms", "decide_ms")
@@ -143,7 +150,10 @@ class Catalogue:
         return self.cards[card_id][0] if card_id in self.cards else f"{card_id} (unknown)"
 
     def upgrade_name(self, upgrade_id: str) -> str:
-        return self.upgrades.get(upgrade_id, f"{upgrade_id} (unknown)")
+        """The perk's name; a level above LV 1 (#108) adds " LV <n>"."""
+        name = self.upgrades.get(upgrade_id, f"{upgrade_id} (unknown)")
+        family, level = perk_family(upgrade_id)
+        return f"{self.upgrades.get(family, name)} LV {level}" if level > 1 else name
 
     def aisle_name(self, aisle_id: str) -> str:
         return self.aisles.get(aisle_id, f"{aisle_id} (unknown)")
@@ -948,9 +958,18 @@ def coupon_label(deck: Counter, catalogue: Catalogue) -> str:
     return " + ".join(name if count == 1 else f"{name} x{count}" for name, count in coupons)
 
 
+def perk_family(upgrade_id: str) -> tuple[str, int]:
+    """A perk id's family and level (#108): ("coupon_engine", 2) for "coupon_engine_lv2", the id
+    itself at level 1 otherwise."""
+    match = PERK_LEVEL.match(upgrade_id)
+    if match is None:
+        return upgrade_id, 1
+    return match["family"], int(match["level"])
+
+
 def run_upgrades(run: Run) -> list[str]:
     """run_end's upgrades when logged, else the upgrade events' picks and the machine's
-    register picks."""
+    loyalty perk picks (a level-up, #108, takes its family's place)."""
     logged = id_list(run.end, "upgrades")
     if logged is not None:
         return logged
@@ -960,22 +979,43 @@ def run_upgrades(run: Run) -> list[str]:
             picks.append(pick)
         elif event["type"] == "machine_visit":
             prize = visit_prize(event)
-            if prize is not None and prize.get("kind") == "register":
+            if prize is None or prize.get("kind") != "register":
+                continue
+            family = perk_family(prize["id"])[0]
+            same = [i for i, owned in enumerate(picks) if perk_family(owned)[0] == family]
+            if same:
+                picks[same[0]] = prize["id"]
+            else:
                 picks.append(prize["id"])
     return picks
 
 
+def present(names: tuple, legacy: tuple, counts: Counter) -> tuple:
+    """`names`, then the `legacy` names an older log holds (#108)."""
+    return names + tuple(name for name in legacy if counts[name])
+
+
 def machine_summary(runs: list[Run]) -> dict:
     """The RECEIPT REWARDS machine's visits (#77, machine_visit events): visits by kind and by
-    machine state (v0.47: normal, boosted, stamp_day; a visit logged before the states counts
-    under none of them, as `stateless`), chute shares and pick or bin per chute, the bin rate, and per ended run the
-    BIG and GOLDEN copies in its final deck (by product). The Regular levels older logs carry
-    (`level_before`, `levels`) are ignored: the meter is gone."""
+    machine state (#108: classic, premium; older logs' normal, boosted, stamp_day when present;
+    a visit logged before v0.47's states counts under none of them, as `stateless`), chute
+    shares and pick or bin per chute (new_items, upgrade, and older logs' chutes when present),
+    the bin rate, the loyalty level-ups picked (#108), and per ended run the BIG and GOLDEN
+    copies in its final deck (by product). The Regular levels older logs carry (`level_before`,
+    `levels`) are ignored: the meter is gone."""
     visits = [event for run in runs for event in run.of_type("machine_visit")]
     by_kind = Counter(text(event, "kind") or "?" for event in visits)
     by_state = Counter(text(event, "state") or "?" for event in visits)
     chosen = Counter(text(event, "chute") or "?" for event in visits)
     binned = sum(1 for event in visits if flag(event, "binned"))
+    level_ups = 0
+    for event in visits:
+        prize = visit_prize(event)
+        if prize is not None and prize.get("kind") == "register":
+            level = num(prize, "level")
+            if (level if level is not None else perk_family(prize["id"])[1]) > 1:
+                level_ups += 1
+    chutes = present(MACHINE_CHUTES, LEGACY_MACHINE_CHUTES, chosen)
     bins = Counter(text(event, "chute") or "?" for event in visits if flag(event, "binned"))
     tiers: Counter = Counter()
     ended = 0
@@ -989,12 +1029,15 @@ def machine_summary(runs: list[Run]) -> dict:
                           if card_id.endswith(TIER_SUFFIXES)})
     return {
         "visits": len(visits),
-        "visit_kinds": {kind: by_kind[kind] for kind in MACHINE_VISIT_KINDS},
-        "visit_states": {state: by_state[state] for state in MACHINE_VISIT_STATES},
+        "visit_kinds": {kind: by_kind[kind] for kind in
+                        present(MACHINE_VISIT_KINDS, LEGACY_MACHINE_VISIT_KINDS, by_kind)},
+        "visit_states": {state: by_state[state] for state in
+                         present(MACHINE_VISIT_STATES, LEGACY_MACHINE_VISIT_STATES, by_state)},
         "stateless": by_state["?"],
-        "chutes": {chute: rate(chosen[chute], len(visits)) for chute in MACHINE_CHUTES},
-        "bins": {chute: bins[chute] for chute in MACHINE_CHUTES},
+        "chutes": {chute: rate(chosen[chute], len(visits)) for chute in chutes},
+        "bins": {chute: bins[chute] for chute in chutes},
         "bin_rate": rate(binned, len(visits)),
+        "level_ups": level_ups,
         "ended_runs": ended,
         "tier_copies": dict(sorted(tiers.items())),
     }
@@ -1514,16 +1557,18 @@ def render_machine(s: dict) -> list[str]:
         states += f" ({m['stateless']} logged before the states)"
     lines = heading(
         "RECEIPT REWARDS machine",
-        "From machine_visit events (#77): visits by kind and by machine state (v0.47; visits "
-        "logged before it have no state), the chute chosen per visit, binned visits, and the "
-        "BIG and GOLDEN copies in the final decks of won and lost runs.",
+        "From machine_visit events (#77): visits by kind and by machine state (#108: classic, "
+        "premium; older logs' states when present; visits logged before v0.47 have no state), "
+        "the chute chosen per visit, binned visits, the loyalty level-ups picked, and the BIG "
+        "and GOLDEN copies in the final decks of won and lost runs.",
     ) + [
         f"  visits: {m['visits']} ({kinds})",
         f"  machine states: {states}",
         f"  bin rate: {fmt_rate(m['bin_rate'])}",
+        f"  loyalty level-ups picked: {m.get('level_ups', 0)}",
     ]
     rows = [[chute, fmt_rate(m["chutes"][chute]), str(m["bins"][chute])]
-            for chute in MACHINE_CHUTES]
+            for chute in m["chutes"]]
     lines += table(["chute", "chosen", "binned"], rows)
     copies = ", ".join(f"{card_id} {n}" for card_id, n in m["tier_copies"].items()) or "none"
     lines.append(f"  BIG and GOLDEN copies over {m['ended_runs']} ended runs: {copies}")

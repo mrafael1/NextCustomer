@@ -10,7 +10,8 @@ const NOTE_LEGENDARY_NONE_IN_STOCK := &"legendary_none_in_stock"
 const NOTE_SHORT_DRAW := &"short_draw"
 const NOTE_NEW_ARRIVAL_HELD := &"new_arrival_held"
 const NOTE_CART_FULL := &"cart_full"
-## Drop 1 can land below the level's first-drop floor (its rarity and those above are empty).
+## A drop can land below its floor (the level's first-drop floor, or a PREMIUM visit's floor on
+## every drop: its rarity and those above are empty).
 const NOTE_FLOOR_FALLS := &"floor_falls"
 
 ## RewardMachine.Chute.
@@ -28,8 +29,14 @@ var first_share: PackedFloat64Array = PackedFloat64Array([0.0, 0.0, 0.0])
 var rest_share: PackedFloat64Array = PackedFloat64Array([0.0, 0.0, 0.0])
 ## The level's first-drop floor (1: "1 of 3 at least RARE"; 0: none).
 var first_drop_min_rarity: int = 0
+## A PREMIUM visit (#108), and its rarity floor on every drop (0 on a CLASSIC visit).
+var premium: bool = false
+var min_rarity: int = 0
+## NEW ITEMS (#108): the share of each tier (plain, BIG, GOLDEN) a product with an upgrade chain
+## arrives at; [1, 0, 0] for the other chute.
+var tier_share: PackedFloat64Array = PackedFloat64Array([1.0, 0.0, 0.0])
 ## Prize key (MachinePrize.key) to the chance the prize is among the drops; prizes that can't
-## drop are left out.
+## drop are left out. A product with an upgrade chain has one key per tier it can arrive at.
 var in_draw: Dictionary = {}
 ## The chance of at least one RARE or better, of a LEGENDARY, of fewer drops than the visit's
 ## prizes (a short draw), and that the draw holds its guarantee.

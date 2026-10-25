@@ -1,9 +1,9 @@
 class_name SimPlayer
 extends RefCounted
 ## Plays runs for the balance simulator (plan section 8) through RunState, as the game does:
-## the same seeded draws, redraws, row limits, RECEIPT REWARDS machine visits (#77: the ticket's,
-## the bonus ticket's and STAMP DAY's, drawn by RewardMachine with the run's RNG) and
-## inspections.
+## the same seeded draws, redraws, row limits, RECEIPT REWARDS machine visits (#77: the ticket's
+## and the bonus ticket's, drawn by RewardMachine with the run's RNG; #108: two chutes, NEW ITEMS
+## and UPGRADE, CLASSIC or PREMIUM) and inspections.
 ## Only the choices come from the simulator. An inspected shift's best row is searched under its
 ## inspection; machine picks don't look ahead to the next shift's inspection. Every
 ## run stocks the stock it is given (a collection state's, SimCollection), by default what a new
@@ -21,24 +21,24 @@ extends RefCounted
 ## each lit chute's draw: every prize its odds card can drop is valued once per visit by the mean
 ## total of the deck (and registers) it makes (`_sample_value`, all on the visit's sample
 ## shuffles, played with the sensible player's rows whatever the strategy's row player, as an
-## exact search per prize would take hours per run), as a gain over the current deck (NEW
-## ITEMS and COUPONS: never below 0, since the prizes can be binned). The chute's value is
+## exact search per prize would take hours per run), as a gain over the current deck (never
+## below 0, since both chutes' prizes can be binned since v0.61). The chute's value is
 ## the expected gain of the best prize drawn, each prize weighted by its chance to be in the draw
 ## and none of the better ones to be (MachineOddsCard.in_draw, taken as independent: a top-k
 ## expectation). The highest value wins, ties to the chute order. "random" chooses a random lit
 ## chute; "skip" NEW ITEMS (else the first lit chute) and bins it. "favour:" chooses the first lit
 ## chute whose odds card can drop a favoured card, else as greedy. "build:" chooses, while it
-## still builds, the card chute with the highest chance to drop a card that raises its measure,
-## else REGISTER when its odds card can drop an upgrade listing the build and the run owns none,
-## else as greedy. STAMP DAY's register is always picked greedily, by every strategy.
+## still builds, NEW ITEMS when it has a chance to drop a card that raises its measure, else
+## UPGRADE when its odds card can drop a loyalty perk listing the build and the run owns none,
+## else as greedy.
 ##
-## Strategies, for the picks among the prizes shown (NEW ITEMS and COUPONS prizes are "offered
-## cards"; binning is the skip):
+## Strategies, for the picks among the prizes shown (NEW ITEMS prizes, products of any tier and
+## coupons, are "offered cards"; binning is the skip):
 ## - "greedy": the offered card, or skip, with the highest mean best total over sample hands
 ##   of the deck it makes (redraws included)
 ## - "random": a random offered card, never a skip
-## - "skip": always skips, so the deck stays the starting deck (but for item upgrades and
-##   registers, which can't be binned)
+## - "skip": always skips (bins NEW ITEMS and UPGRADE alike), so the deck stays the starting
+##   deck
 ## - "favour:id+id": the first offered card in its list, else as greedy (a build-focused player)
 ## - "build:id": drafts towards a build (SimBuilds, decided with the user, #40; revised in #42):
 ##   while the deck's measure is under the build's min_count + BUILD_MARGIN, of the offered
@@ -48,9 +48,10 @@ extends RefCounted
 ##   at most min_count + BUILD_MARGIN. Its upgrade pick is the offered upgrade that lists the
 ##   build and that greedy values most, if that value is within LISTED_UPGRADE_SHARE of the
 ##   best offered upgrade's, else as greedy.
-## Registers and item upgrades are always picked (there is no skip): at random by "random", else
-## greedily (an item upgrade by the mean best total of the deck it makes). At the deck limit, the
-## card that leaves is the deck card the run's rows used least.
+## UPGRADE's prizes (loyalty perks, new or a level-up, and item upgrades) are picked at random by
+## "random" (never binned), else greedily by the mean best total of the deck and perks each makes,
+## binned when none beats the current deck (#108; "build:" prefers a listed perk as above). At the
+## deck limit, the card that leaves is the deck card the run's rows used least.
 ##
 ## Row players (decided with the user, #41): a strategy plays the best row (above) unless it
 ## ends in "@sensible" (e.g. "greedy@sensible"). Then every row, the shift's and the greedy
@@ -175,7 +176,10 @@ func play(run_seed: int) -> SimRunRecord:
 		record.final_deck.append(id)
 		if card.definition.tier != CardDefinition.Tier.PLAIN:
 			record.tier_copies[id] = record.tier_copies.get(id, 0) + 1
-	record.registers = run.machine.registers_picked(run)
+	record.registers = RewardMachine.registers_picked(run)
+	var levels: Dictionary = RunEvents.perk_levels(run.upgrades)
+	for family: String in levels:
+		record.perk_levels[family] = levels[family]
 	var final_cards: Array[CardDefinition] = _deck_definitions(run.deck.cards)
 	record.main_build = _builds.main_build(final_cards)
 	record.fitted_builds = _builds.fitted(final_cards)
@@ -296,13 +300,10 @@ func _visit(run: RunState, usage: Dictionary[CardDefinition, int]) -> bool:
 			return false
 	var prizes: Array[MachinePrize] = machine.prizes()
 	var index: int = -1
-	match machine.current_visit().chute:
-		RewardMachine.Chute.REGISTER:
-			index = _pick_upgrade(run, prizes)
-		RewardMachine.Chute.UPGRADES:
-			index = _pick_item_upgrade(run, prizes)
-		_:
-			index = _pick_card(run, usage, prizes)
+	if machine.current_visit().chute == RewardMachine.Chute.UPGRADE:
+		index = _pick_mixed(run, prizes)
+	else:
+		index = _pick_card(run, usage, prizes)
 	if index < 0:
 		return machine.bin(run)
 	var replaced: CardInstance = null
@@ -354,9 +355,9 @@ func _shows_favoured(odds: MachineOddsCard) -> bool:
 	return false
 
 
-## For "build:": while it still builds, the lit card chute most likely to drop a card that raises
-## the build's measure; else REGISTER when its odds card can drop an upgrade listing the build
-## and the run owns none; else -1 (it chooses as greedy).
+## For "build:": while it still builds, NEW ITEMS when it can drop a card that raises the build's
+## measure; else UPGRADE when its odds card can drop a loyalty perk listing the build and the run
+## owns none; else -1 (it chooses as greedy).
 func _build_chute(
 	run: RunState,
 	usage: Dictionary[CardDefinition, int],
@@ -369,7 +370,7 @@ func _build_chute(
 		var best: int = -1
 		var best_chance: float = 0.0
 		for chute: int in lit:
-			if chute != RewardMachine.Chute.NEW_ITEMS and chute != RewardMachine.Chute.COUPONS:
+			if chute != RewardMachine.Chute.NEW_ITEMS:
 				continue
 			var chance: float = 0.0
 			for key: String in odds[chute].in_draw:
@@ -385,27 +386,26 @@ func _build_chute(
 		if best >= 0:
 			return best
 	var owned: Array[UpgradeDefinition] = upgrades_listing(_target, run.upgrades)
-	if not lit.has(RewardMachine.Chute.REGISTER) or not owned.is_empty():
+	if not lit.has(RewardMachine.Chute.UPGRADE) or not owned.is_empty():
 		return -1
-	for key: String in odds[RewardMachine.Chute.REGISTER].in_draw:
+	for key: String in odds[RewardMachine.Chute.UPGRADE].in_draw:
+		if key.get_slice(":", 0) != "register":
+			continue
 		var upgrade: UpgradeDefinition = content.get(key.get_slice(":", 1)) as UpgradeDefinition
 		var one: Array[UpgradeDefinition] = []
 		if upgrade != null:
 			one.append(upgrade)
 		if not upgrades_listing(_target, one).is_empty():
-			return RewardMachine.Chute.REGISTER
+			return RewardMachine.Chute.UPGRADE
 	return -1
 
 
 ## The expected gain of a chute's draw for greedy (see the class comment): its prizes valued on
 ## the visit's sample hands, each weighted by its chance to be the best one drawn.
 func _chute_value(
-	run: RunState, usage: Dictionary[CardDefinition, int], chute: int, odds: MachineOddsCard
+	run: RunState, usage: Dictionary[CardDefinition, int], _chute: int, odds: MachineOddsCard
 ) -> float:
 	var content: Dictionary[String, Resource] = _content(run)
-	var binnable: bool = (
-		chute == RewardMachine.Chute.NEW_ITEMS or chute == RewardMachine.Chute.COUPONS
-	)
 	var gains: Array[float] = []
 	var chances: Array[float] = []
 	for key: String in odds.in_draw:
@@ -414,7 +414,7 @@ func _chute_value(
 		if found == null:
 			continue
 		var gain: float = _prize_gain(run, usage, parts[0], found, int(parts[2]))
-		gains.append(maxf(gain, 0.0) if binnable else gain)
+		gains.append(maxf(gain, 0.0))
 		chances.append(clampf(float(odds.in_draw[key]), 0.0, 1.0))
 	return expected_best(gains, chances)
 
@@ -452,8 +452,9 @@ func _prize_gain(
 ) -> float:
 	var current: Array[CardDefinition] = _deck_definitions(run.deck.cards)
 	if kind == "register":
-		var upgrades: Array[UpgradeDefinition] = run.upgrades.duplicate()
-		upgrades.append(found as UpgradeDefinition)
+		var upgrades: Array[UpgradeDefinition] = PerkLevels.with_pick(
+			run.upgrades, found as UpgradeDefinition
+		)
 		return _register_value(current, upgrades) - _register_value(current, run.upgrades)
 	var redraws: int = _redraws_with(run.upgrades)
 	var deck: Array[CardDefinition] = []
@@ -476,22 +477,27 @@ func _prize_gain(
 
 
 ## The machine's prizes by id: the stock's products, the coupon pools, the item upgrade chains'
-## products and the register pool.
+## cards (plain, BIG and GOLDEN: NEW ITEMS draws tiers, #108), and the perk pool and the owned
+## perks with every level above them (level-ups).
 func _content(run: RunState) -> Dictionary[String, Resource]:
 	var content: Dictionary[String, Resource] = {}
 	var cards: Array[CardDefinition] = run.stock.cards + run.balance.coupon_pool
 	cards.append_array(run.balance.first_offer_pool)
 	if run.balance.machine != null:
 		for chain: ItemUpgradeDefinition in run.balance.machine.item_upgrades:
-			cards.append(chain.product)
+			cards.append_array(chain.tiers())
 	for card: CardDefinition in cards:
-		content[String(card.id)] = card
-	for upgrade: UpgradeDefinition in run.balance.upgrade_pool:
-		content[String(upgrade.id)] = upgrade
+		if card != null:
+			content[String(card.id)] = card
+	for upgrade: UpgradeDefinition in run.balance.upgrade_pool + run.upgrades:
+		var level: UpgradeDefinition = upgrade
+		while level != null:
+			content[String(level.id)] = level
+			level = level.next_level
 	return content
 
 
-## The index of the NEW ITEMS or COUPONS prize to take, or -1 to bin.
+## The index of the NEW ITEMS prize (a product of any tier, or a coupon) to take, or -1 to bin.
 func _pick_card(
 	run: RunState, usage: Dictionary[CardDefinition, int], prizes: Array[MachinePrize]
 ) -> int:
@@ -622,57 +628,48 @@ func _kept_deck(run: RunState, usage: Dictionary[CardDefinition, int]) -> Array[
 	return kept
 
 
-## The index of the register to take (REGISTER and STAMP DAY; STAMP DAY's always greedily).
-func _pick_upgrade(run: RunState, prizes: Array[MachinePrize]) -> int:
-	var offer: Array[UpgradeDefinition] = []
-	for prize: MachinePrize in prizes:
-		offer.append(prize.upgrade)
-	var choice: UpgradeDefinition = offer[0]
-	var stamp_day: bool = run.machine.current_visit().kind == MachineVisit.Kind.STAMP_DAY
-	if _strategy == "random" and not stamp_day:
-		choice = offer[_rng.randi_range(0, offer.size() - 1)]
-	else:
-		var fitting: Array[UpgradeDefinition] = []
-		if _target != null:
-			fitting = upgrades_listing(_target, offer)
-		var deck: Array[CardDefinition] = _deck_definitions(run.deck.cards)
-		var best_value: float = -1.0
-		var best_fitting: UpgradeDefinition = null
-		var best_fitting_value: float = -1.0
-		for upgrade: UpgradeDefinition in offer:
-			var upgrades: Array[UpgradeDefinition] = run.upgrades.duplicate()
-			upgrades.append(upgrade)
-			var value: float = _register_value(deck, upgrades)
-			if value > best_value:
-				best_value = value
-				choice = upgrade
-			if fitting.has(upgrade) and value > best_fitting_value:
-				best_fitting_value = value
-				best_fitting = upgrade
-		if best_fitting != null and prefers_listed(best_fitting_value, best_value):
-			choice = best_fitting
-	return offer.find(choice)
-
-
-## The index of the item upgrade to take: at random by "random", else the one whose upgraded
-## deck has the highest mean best total.
-func _pick_item_upgrade(run: RunState, prizes: Array[MachinePrize]) -> int:
+## The index of the UPGRADE prize to take (a loyalty perk, new or a level-up, or an item upgrade),
+## or -1 to bin: "skip" bins, "random" takes one at random, else the prize whose deck and perks
+## have the highest mean best total, binned when none beats the current ones; "build:" takes the
+## best perk listing its build instead when prefers_listed says so.
+func _pick_mixed(run: RunState, prizes: Array[MachinePrize]) -> int:
+	if _strategy == "skip":
+		return -1
 	if _strategy == "random":
 		return _rng.randi_range(0, prizes.size() - 1)
-	var sample_seed: int = _visit_seed
-	var redraws: int = _redraws_with(run.upgrades)
-	var best_index: int = 0
-	var best_value: float = -1.0
+	var deck: Array[CardDefinition] = _deck_definitions(run.deck.cards)
+	var best_value: float = _register_value(deck, run.upgrades)
+	var best_index: int = -1
+	var best_fitting: int = -1
+	var best_fitting_value: float = -1.0
 	for index: int in range(prizes.size()):
-		var preview: MachinePreview = run.machine.preview(run, index)
-		var deck: Array[CardDefinition] = _deck_definitions(run.deck.cards)
-		for step: int in range(preview.targets.size()):
-			deck[run.deck.cards.find(preview.targets[step])] = preview.to_cards[step]
-		var value: float = _sample_value(deck, run.upgrades, redraws, sample_seed)
+		var value: float = _mixed_value(run, index)
 		if value > best_value:
 			best_value = value
 			best_index = index
+		var prize: MachinePrize = prizes[index]
+		var one: Array[UpgradeDefinition] = []
+		if prize.kind == MachinePrize.Kind.REGISTER:
+			one.append(prize.upgrade)
+		var listed: bool = _target != null and not upgrades_listing(_target, one).is_empty()
+		if listed and value > best_fitting_value:
+			best_fitting_value = value
+			best_fitting = index
+	if best_fitting >= 0 and prefers_listed(best_fitting_value, best_value):
+		return best_fitting
 	return best_index
+
+
+## The mean best total after taking UPGRADE prize `index`: a perk with its level-up applied, or
+## the deck with the item upgrade's copies stepped.
+func _mixed_value(run: RunState, index: int) -> float:
+	var preview: MachinePreview = run.machine.preview(run, index)
+	var deck: Array[CardDefinition] = _deck_definitions(run.deck.cards)
+	if preview.prize.kind == MachinePrize.Kind.REGISTER:
+		return _register_value(deck, PerkLevels.with_pick(run.upgrades, preview.prize.upgrade))
+	for step: int in range(preview.targets.size()):
+		deck[run.deck.cards.find(preview.targets[step])] = preview.to_cards[step]
+	return _sample_value(deck, run.upgrades, _redraws_with(run.upgrades), _visit_seed)
 
 
 ## A deck's value with these registers, as a register pick judges it: its mean best total on

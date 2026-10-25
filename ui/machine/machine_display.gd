@@ -3,18 +3,18 @@ extends Panel
 ## The machine's char display (#77, look F; build spec 4.2-4.3; v0.50: the LED strip left of the
 ## receipt slot, 292 px wide, mock-up premium_machine_v1.html): the message in Pixelify 24
 ## (mustard light; bold Atkinson 17, then 15, 13 or 12, when it doesn't fit) with its sub line (bold
-## Atkinson 11, grey light), and the BIN IT ✕ button at the right (NEW ITEMS and COUPONS visits
-## only: RewardMachine.can_bin; shown from the last reveal's end until the pick or the bin, as
-## look F). Pixelify and Atkinson have no ✓ or ✕: the display's fonts fall back to JetBrains Mono
+## Atkinson 11, grey light), and the BIN IT ✕ button at the right (RewardMachine.can_bin: both
+## chutes since v0.61; shown from the last reveal's end until the pick or the bin, as look F).
+## Pixelify and Atkinson have no ✓ or ✕: the display's fonts fall back to JetBrains Mono
 ## (ArtStyle.MONO_FONT) for them, the same on desktop and on the web build (marked_font).
 ##
 ## RewardMachineView gives the message for each wait point (show_message: PICK A CHUTE, the pick
 ## prompt, the landing's word); frame(t) plays the visit's own lines around them from the plan:
 ## READING…, then SPEND €N ✓ THANK YOU! with the quota met (a BONUS visit: BONUS TICKET! until
-## its stub is fed), on a BOOSTED visit PREMIUM / PREMIUM RECEIPT blinking while the machine turns
-## PREMIUM, PACKING… while the tray packs, each landed ticket's rarity and prize, STAMP DAY's free
-## stamp, and on the landing ENJOY!, UPGRADING…, the landing's word with the cart count and SEE
-## YOU NEXT SHIFT. A BOOSTED visit's receipt read says so (BOOSTED_READ).
+## its stub is fed), on a PREMIUM visit PREMIUM / PREMIUM RECEIPT blinking while the machine turns
+## PREMIUM, PACKING… while the tray packs, each landed ticket's rarity and prize (a level-up's
+## "Coupon engine LV 2"), and on the landing ENJOY!, UPGRADING…, the landing's word with the cart
+## count and SEE YOU NEXT SHIFT. A PREMIUM visit's receipt read says so (PREMIUM_READ).
 ##
 ## A pressed key no longer changes the display (v0.53: the tray's push bar confirms, MachineTray;
 ## until then a title mode with a CONFIRM › key took the strip). A BONUS visit's feed reads the
@@ -48,12 +48,12 @@ const BOLD_WEIGHT := 700
 const RARITY_WORDS: Array[String] = ["COMMON", "RARE!", "LEGENDARY!!"]
 const READING := "READING…"
 const PACKING := "PACKING…"
-## A BOOSTED visit's transform (v0.50): the lines blink this often.
+## A PREMIUM visit's transform (v0.50): the lines blink this often.
 const PREMIUM_LINES: Array[String] = ["PREMIUM", "PREMIUM RECEIPT"]
 const PREMIUM_BLINK := 6.0
 const SEE_YOU := "SEE YOU NEXT SHIFT"
-## A BOOSTED visit's receipt read sub line, after the quota (v0.47).
-const BOOSTED_READ := " · PREMIUM RECEIPT"
+## A PREMIUM visit's receipt read sub line, after the quota (v0.47).
+const PREMIUM_READ := " · PREMIUM RECEIPT"
 ## A refused key's message (show_denied) shows this long, then the wait point's comes back.
 const DENIED_MS := 1200
 
@@ -255,29 +255,23 @@ func _intro_text(plan: MachinePlan, t: float) -> PackedStringArray:
 	return _read_text() if t < plan.read_end else PackedStringArray()
 
 
-## The receipt read: the spend thanked, the quota met and the inspection passed; a BOOSTED visit
-## says BOOSTED VISIT in the inspection's place, so the line fits (the BONUS visit that follows
+## The receipt read: the spend thanked, the quota met and the inspection passed; a PREMIUM visit
+## says PREMIUM RECEIPT in the inspection's place, so the line fits (the BONUS visit that follows
 ## names the inspection).
 func _read_text() -> PackedStringArray:
 	var record: ShiftRecord = _record()
 	if record == null:
 		return PackedStringArray()
 	var met: String = "quota €%d met" % record.quota
-	if view.run.machine.is_boosted():
-		met += BOOSTED_READ
+	if view.run.machine.is_premium():
+		met += PREMIUM_READ
 	elif record.inspection != null:
 		met += " · %s passed" % record.inspection.display_name
 	return PackedStringArray([RewardMachineView.SPEND_LINE % record.total, met])
 
 
-## The draw: packing, the prizes out, each reveal's rarity and prize; STAMP DAY's free stamp.
+## The draw: packing, the prizes out, each reveal's rarity and prize.
 func _draw_text(plan: MachinePlan, t: float) -> PackedStringArray:
-	if plan.kind == MachineVisit.Kind.STAMP_DAY:
-		var record: ShiftRecord = _record()
-		var shift: int = record.shift if record != null else 0
-		return PackedStringArray(
-			["STAMP DAY! A FREE STAMP", "your card is behind after shift %d" % shift]
-		)
 	if plan.n_prizes == 0 or t < plan.reveal_at[0]:
 		var bonus: bool = plan.kind == MachineVisit.Kind.BONUS
 		var count: String = "1 PRIZE" if plan.n_prizes == 1 else "%d PRIZES" % plan.n_prizes
@@ -295,8 +289,6 @@ func _draw_text(plan: MachinePlan, t: float) -> PackedStringArray:
 ## The landing: ENJOY! while the prize flies, UPGRADING… while it glints, then the landing's word
 ## and what it did (a bin: BINNED); the shift's last visit ends on SEE YOU NEXT SHIFT.
 func _landing_text(plan: MachinePlan, t: float) -> PackedStringArray:
-	if plan.kind == MachineVisit.Kind.STAMP_DAY:
-		return PackedStringArray(["ENJOY!", ""] if t < plan.land else [_rest[0], _toast()])
 	var split: float = plan.punch_end + (plan.end_at - plan.punch_end) / 2.0
 	if plan.next_visit == MachinePlan.NO_VISIT and t >= split:
 		return PackedStringArray([SEE_YOU, _end_sub(plan)])
@@ -309,7 +301,7 @@ func _landing_text(plan: MachinePlan, t: float) -> PackedStringArray:
 	return PackedStringArray([_rest[0], _toast()])
 
 
-## What the pick did: the cart count, a copy swapped out, the register stamped.
+## What the pick did: the cart count, a copy swapped out, the perk stamped or levelled up.
 func _toast() -> String:
 	var landing: MachineLanding = view.landing if view != null else null
 	if landing == null or view.run == null:
@@ -320,7 +312,9 @@ func _toast() -> String:
 			return "cart stays %d/%d" % [landing.cart_after, limit]
 		MachinePrize.Kind.REGISTER:
 			var stamped: UpgradeDefinition = landing.register
-			return "%s on your card" % stamped.display_name if stamped != null else ""
+			if stamped == null:
+				return ""
+			return "%s on your card" % LoyaltyCard.perk_name(stamped)
 	if landing.replaced != null:
 		return "1 swapped out · cart %d/%d" % [landing.cart_after, limit]
 	return "cart %d/%d" % [landing.cart_after, limit]
@@ -369,7 +363,7 @@ func _prize_name(index: int) -> String:
 		return ""
 	var prize: MachinePrize = view.tickets[index].prize
 	if prize.kind == MachinePrize.Kind.REGISTER:
-		return prize.upgrade.display_name if prize.upgrade != null else ""
+		return LoyaltyCard.perk_name(prize.upgrade) if prize.upgrade != null else ""
 	return prize.card.display_name if prize.card != null else ""
 
 

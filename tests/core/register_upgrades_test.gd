@@ -69,10 +69,8 @@ func test_the_quota_is_fixed_for_the_shift() -> void:
 		run = _run(seed_value)
 		run.debug_skip_to_shift(1)
 		_pass(run)
-		MachineSteps.choose(run, RewardMachine.Chute.REGISTER)
-		if run.machine.prizes().any(
-			func(prize: MachinePrize) -> bool: return prize.upgrade == basket
-		):
+		MachineSteps.choose(run, RewardMachine.Chute.UPGRADE)
+		if MachineSteps.offers(run, basket):
 			break
 	assert_object(MachineSteps.take_register(run, basket)).is_same(basket)
 	assert_int(run.phase).is_equal(RunState.Phase.SCORED)
@@ -275,10 +273,6 @@ static func _run(seed_value: int) -> RunState:
 	balance.quotas = PackedInt32Array([1, 1, 1, 1, 1, 1, 1, 1])
 	# No inspected shifts: an inspection's slot changes would hide the upgrades' here.
 	balance.inspection_shifts = PackedInt32Array()
-	# No STAMP DAY: its forced register would add slots or redraws of its own.
-	MachineSteps.without_stamp_day(balance)
-	# Registers are taken after shift 2 (v0.47: only a BOOSTED visit lights REGISTER).
-	MachineSteps.boosted_on(balance, [2])
 	var deck: DeckDefinition = load(STARTER)
 	var run: RunState = RunState.new(seed_value, deck, balance, RunStock.starting(balance))
 	run.start_shift()
