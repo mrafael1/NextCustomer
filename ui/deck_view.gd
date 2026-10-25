@@ -24,9 +24,13 @@ extends PanelContainer
 ## item the RECEIPT REWARDS machine can offer, new arrivals with a NEW chip. Its shelves scroll.
 ##
 ## Hovering an item opens the scan popup (ScanPopup, as on the machine's prizes) beside it with
-## its rule text in full. In choosing mode (the machine's deck-full chooser, #77) only the Cart page
-## shows, a hovered item gets a gold ring, and clicking it chooses one of its copies (to remove it
-## from the deck); Close cancels the pick. It only displays RunState and DeckSummary.
+## its rule text in full. The mix highlight (#105 piece 3, MixModel; mock-up readability v3's Cart)
+## paints every cell of both pages: the hovered item lights the cells it works with (a broad "next
+## Food" match faint) and greys the rest, and `mix_family` (a family glyph's tooltip in the view,
+## PlanningEffects.watch_glyphs) lights that family's cells instead. Off in choosing mode. In
+## choosing mode (the machine's deck-full chooser, #77) only the Cart page shows, a hovered item
+## gets a gold ring, and clicking it chooses one of its copies (to remove it from the deck); Close
+## cancels the pick. It only displays RunState and DeckSummary.
 
 signal closed
 signal card_chosen(card: CardInstance)
@@ -73,6 +77,14 @@ const PICK_LEGEND := "start pick"
 const COUPON_LEGEND := "start coupon"
 const STOCK_HEADING := "STOCK  (every item the RECEIPT REWARDS machine can offer this run)"
 
+## The family whose glyph's tooltip shows in the view (#105 piece 3), or "": its cells light.
+var mix_family: String = "":
+	set(value):
+		if mix_family != value:
+			mix_family = value
+			_paint_mix()
+## The mix highlight's grey (PlanningTuning's).
+var tuning: PlanningTuning = load(PlanningEffects.TUNING_PATH) as PlanningTuning
 var _title: MixedLabel
 var _deck_tab: FramedButton
 var _info_tab: FramedButton
@@ -214,6 +226,7 @@ func hover(cell: DeckCell) -> void:
 		get_viewport_rect(),
 		_scroll.get_global_rect()
 	)
+	_paint_mix()
 
 
 func _header() -> HBoxContainer:
@@ -502,6 +515,35 @@ func _unhover() -> void:
 	_hovered = null
 	if _popup != null:
 		_popup.visible = false
+	_paint_mix()
+
+
+## The mix highlight on every cell of both pages: `mix_family`'s, else the hovered cell's
+## matches, else none (and none in choosing mode).
+func _paint_mix() -> void:
+	if _deck_page == null or _info_page == null:
+		return
+	var painted: Array[DeckCell] = []
+	var entries: Array[MixModel.Entry] = []
+	var focus: MixModel.Entry = null
+	for page: Control in [_deck_page, _info_page]:
+		for found: Node in page.find_children("*", "DeckCell", true, false):
+			var cell: DeckCell = found as DeckCell
+			if cell.is_queued_for_deletion():
+				continue
+			var entry: MixModel.Entry = MixModel.Entry.new(cell.item().card, cell.item().tags())
+			painted.append(cell)
+			entries.append(entry)
+			if cell == _hovered:
+				focus = entry
+	var looks: Array[MixModel.Look] = []
+	if not _choosing and not mix_family.is_empty():
+		looks = MixModel.for_family(entries, mix_family)
+	elif not _choosing and focus != null:
+		looks = MixModel.for_card(entries, focus, null, FamilyPalette.shared().quiet_families)
+	for index: int in range(painted.size()):
+		painted[index].mix_greyness = Vector2(tuning.mix_brightness, tuning.mix_saturation)
+		painted[index].mix_look = looks[index] if index < looks.size() else MixModel.Look.NONE
 
 
 func _heading(text: String) -> MixedLabel:

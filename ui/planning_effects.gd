@@ -39,6 +39,23 @@ extends Node
 ## Motion (none under reduced motion, and nothing loops): stickers new since the last refresh slap
 ## on, a halo steps out ring by ring, the strips' chevrons step once (PlanningLayer).
 ##
+## Mix highlight (#105 piece 3, mock-up readability v3 section 4, option A; MixModel): hovering a
+## family glyph anywhere (a ticket, the monitor, a popup, the Cart: GlyphTips.shown_changed,
+## watch_glyphs) lights every belt and hand item in that family and greys the rest; hovering an
+## item on the belt or in the hand baskets, or holding one (the picked card, or the dragged one),
+## lights the items it works with (CardAffinity: its rule's targets and the items that boost it),
+## a pair paying now with a check, a penalty pair with a "!", a broad "next Food" match faint under
+## a dashed outline, and greys the rest. A glyph wins over an item, a hovered item over the held
+## one. The grey is the calm one (PlanningTuning's mix_brightness and mix_saturation, over
+## mix_fade_s), which replaced #71's fade (DIM). It greys whole items: a greyed belt item's
+## stickers take the same calm grey (_grey_stickers), its pay tag dims and its stamp drains, while
+## a lit item keeps every sticker in colour (#71's sticker drain is for a loyalty box's or the
+## inspection chip's hover only); the hovered belt item keeps #71's hot strips, ticket rings and
+## receipt. A hand item's hover is the mix only (no strips, rings or receipt). Opening a folded
+## stack's fan (StackFan.fanned_changed) hovers its item, and the pointer on the fan keeps it. The
+## Cart greys its own cells (DeckView), and no hover reaches the counter while it is open. Off in
+## the count.
+##
 ## The CHECKOUT click (show_count, #86 v6) keeps only the stickers (and a denied item's stamp) on
 ## the items for the count, where they fire as their steps land (BeltRide); the rail strips,
 ## halos, pay tags and the hover's highlight go, until the next planning refresh.
@@ -63,6 +80,18 @@ var _total: int = 0
 var _quota: int = 0
 var _run: RunState
 var _views: Array[CardView] = []
+## The hand's items (#105 piece 3: the mix highlight lights and greys them too).
+var _hand: Array[Control] = []
+## Each belt slot's scored tags (a granted Breakfast included), for the mix highlight.
+var _belt_tags: Array[PackedStringArray] = []
+## The hovered family glyph's family on the counter (#105 piece 3), or "".
+var _family: String = ""
+## The card a drag carries, while it shows its landings.
+var _dragged: CardInstance
+## The Cart, whose glyphs light its own cells (watch_glyphs).
+var _deck: DeckView
+## The broad families (Food): a match through one of them shows faint.
+var _broad: PackedStringArray = FamilyPalette.shared().quiet_families
 ## Between show_all and clear: planning is on screen.
 var _shown: bool = false
 ## The landing slot whose effects show during a drag, or -1.
@@ -81,6 +110,9 @@ var _focus_card: CardInstance
 var _focus_index: int = -1
 ## The stickers' keys at the last refresh (only new ones slap).
 var _slapped: Dictionary[String, bool] = {}
+## How far each belt sticker's calm grey is in (EffectSticker: 0 to 1), and its fade.
+var _sticker_grey: Dictionary = {}
+var _grey_tween: Tween
 
 
 ## Takes `stage`'s loyalty card, inspection chip, quota chip, planning layer, monitor (for a drag's
@@ -93,6 +125,8 @@ func setup(stage: ShiftStage, drag: CardDrag) -> void:
 	_drag = drag
 	_layer = stage.planning_layer
 	_layer.tuning = tuning
+	_layer.fan().blocked = _blocked
+	_layer.fan().fanned_changed.connect(_on_fanned)
 	_monitor = stage.monitor
 	_receipt = stage.receipt
 	_unfocus_timer = Timer.new()
@@ -108,18 +142,26 @@ func setup(stage: ShiftStage, drag: CardDrag) -> void:
 
 
 ## Planning's refresh: shows `result` (the preview of `run`'s row) on the belt items `views`
-## (rebuilt by each refresh), and puts the focus back on the same card, box or chip at once.
-func show_all(result: ScoreResult, views: Array[CardView], run: RunState) -> void:
+## (rebuilt by each refresh), with the hand's items `hand` for the mix highlight, and puts the
+## focus back on the same card, box or chip at once.
+func show_all(
+	result: ScoreResult, views: Array[CardView], run: RunState, hand: Array[Control] = []
+) -> void:
 	_run = run
 	_model = model_of(result, run.row, run, tuning)
 	_total = result.total
 	_quota = run.quota()
 	_views = views
+	_hand = hand
+	_belt_tags = result.tags.duplicate()
 	_shown = true
 	_landing = -1
+	var items: Array[ItemView] = _hand_items()
 	for slot: int in range(views.size()):
-		var item: ItemView = _item(slot)
-		if item != null and not item.hovered.is_connected(_on_item_hovered):
+		if _item(slot) != null:
+			items.append(_item(slot))
+	for item: ItemView in items:
+		if not item.hovered.is_connected(_on_item_hovered):
 			item.hovered.connect(_on_item_hovered)
 			item.unhovered.connect(_on_left)
 	_layer.reduced_motion = _reduced()
@@ -143,7 +185,8 @@ static func model_of(
 ## `views` as they stand: slots before `landing` on their views, `landing` on `ghost`, later ones
 ## on the view left of them. A `landing` of -1 shows `model` on `views` alone, and `ghost` plain.
 ## No item is related meanwhile: the focus and the rings are off, and the rail strips hide while
-## the ghost is over the row.
+## the ghost is over the row. The dragged card (a drag's, _on_landing_changed) keeps its mix
+## highlight on the items, with no "pays now" check (the order is only hypothetical).
 func show_hypothetical(
 	model: PlanningModel, views: Array[CardView], ghost: ItemView, landing: int
 ) -> void:
@@ -155,10 +198,11 @@ func show_hypothetical(
 	_layer.reduced_motion = _reduced()
 	_layer.show_model(model, items, ghost if landing >= 0 else null)
 	_layer.show_strips(landing < 0)
-	for slot: int in range(views.size()):
-		var item: ItemView = _item_in(views, slot)
-		if item != null:
-			_relate(item, ItemView.Relation.NONE, 0.0, Vector2.ONE)
+	var looks: Dictionary[ItemView, MixModel.Look] = {}
+	if _dragged != null:
+		looks = _mix_looks(null, _dragged)
+	_paint_items(looks, Callable(), PackedInt32Array(), -1, _fade(tuning.mix_fade_s))
+	_grey_stickers(items, looks, 0.0)
 	_ring({}, -2)
 	_explain(-1, {})
 
@@ -176,6 +220,18 @@ func focus_upgrade(index: int) -> void:
 ## Highlights the items the shift's inspections act on, and rings the inspection chip.
 func focus_inspection() -> void:
 	_set_focus(Focus.INSPECTION, null, -1)
+
+
+## Watches `tips` for a family glyph's tooltip: while one shows, its family lights (the mix
+## highlight); one in `deck` (the Cart) lights the Cart's cells instead.
+func watch_glyphs(tips: GlyphTips, deck: DeckView = null) -> void:
+	_deck = deck
+	tips.shown_changed.connect(_on_tip_shown)
+
+
+## The family glyph's family lit on the counter (for tests), or "".
+func lit_family() -> String:
+	return _family
 
 
 ## Takes the hover's highlight off (fading, unless reduced motion).
@@ -196,13 +252,16 @@ func clear() -> void:
 	_landing = -1
 	_focus = Focus.NONE
 	_focus_card = null
+	_family = ""
+	_dragged = null
 	_slapped.clear()
+	if _grey_tween != null:
+		_grey_tween.kill()
+		_grey_tween = null
+	_sticker_grey.clear()
 	_layer.clear()
 	_explain(-1, {})
-	for slot: int in range(_views.size()):
-		var item: ItemView = _item(slot)
-		if item != null:
-			_relate(item, ItemView.Relation.NONE, 0.0, Vector2.ONE)
+	_paint_items({}, Callable(), PackedInt32Array(), -1, 0.0)
 	_loyalty.clear_relations()
 	_tag.set_relation(false)
 
@@ -238,8 +297,10 @@ func _set_focus(focus: Focus, card: CardInstance, index: int) -> void:
 
 
 ## The focus on the items, the layer and the top bar: fading in when `fade` (and motion is on),
-## else at once. Nothing dims unless something relates; a focused card no longer on the belt loses
-## the focus.
+## else at once. Nothing dims unless something relates; a focused card no longer on the belt nor
+## in the hand loses the focus. The mix highlight (a family glyph, a hovered or held item) decides
+## which items grey when it lights anything, whole (no sticker drains: _grey_stickers); else #71's
+## relations do.
 func _apply_focus(fade: bool) -> void:
 	var related: PackedInt32Array = PackedInt32Array()
 	var boxes: Dictionary[int, bool] = {}
@@ -251,10 +312,10 @@ func _apply_focus(fade: bool) -> void:
 	match _focus:
 		Focus.CARD:
 			focused = _slot_of(_focus_card)
-			if focused < 0:
+			if focused < 0 and _hand_item(_focus_card) == null:
 				_focus = Focus.NONE
 				_focus_card = null
-			else:
+			elif focused >= 0:
 				related = _model.related(focused)
 				_card_causes(graph, focused, boxes, cause)
 				var stickered: bool = (
@@ -283,24 +344,139 @@ func _apply_focus(fade: bool) -> void:
 			cause[0] = -1
 			if not related.is_empty():
 				lit = func(_slot: int, _spec: StickerSpec) -> bool: return false
+	var looks: Dictionary[ItemView, MixModel.Look] = _mix_looks(graph, _mix_card())
+	if not looks.is_empty():
+		related = _lit_slots(looks)
+		lit = func(_slot: int, _spec: StickerSpec) -> bool: return true
+		if not _family.is_empty():
+			hot = {}
+			focused = -1
 	var fade_time: float = tuning.focus_fade_s if fade and not _reduced() else 0.0
+	var mix_fade: float = _fade(tuning.mix_fade_s if fade else 0.0)
+	_paint_items(looks, lit, related, focused, mix_fade)
+	if not lit.is_valid():
+		related = PackedInt32Array()
+		focused = -1
+	_layer.apply_focus(lit, related, hot, fade_time, focused)
+	_grey_stickers(_items_in(_views, -1, null), looks, mix_fade)
+	_ring(boxes, cause[0])
+	_explain(focused, _tokens(_model, focused))
+
+
+## The items' looks: with mix `looks` (not empty) each belt and hand item's (SELF focused, a grey
+## one DIM, the rest RELATED); else #71's on the belt (with `lit`: `focused` FOCUS, `related`
+## RELATED, the rest DIM) and the hand plain. Fading over `fade` seconds.
+func _paint_items(
+	looks: Dictionary[ItemView, MixModel.Look],
+	lit: Callable,
+	related: PackedInt32Array,
+	focused: int,
+	fade: float
+) -> void:
+	var greyness: Vector2 = Vector2(tuning.mix_brightness, tuning.mix_saturation)
 	for slot: int in range(_views.size()):
 		var item: ItemView = _item(slot)
 		if item == null:
 			continue
 		var relation: ItemView.Relation = ItemView.Relation.NONE
-		if lit.is_valid():
+		if looks.is_empty() and lit.is_valid():
 			relation = ItemView.Relation.RELATED if related.has(slot) else ItemView.Relation.DIM
 			if slot == focused:
 				relation = ItemView.Relation.FOCUS
-		var alphas: Vector2 = Vector2(tuning.dim_item_alpha, tuning.dim_ticket_alpha)
-		_relate(item, relation, fade_time, alphas)
-	if not lit.is_valid():
-		related = PackedInt32Array()
-		focused = -1
-	_layer.apply_focus(lit, related, hot, fade_time, focused)
-	_ring(boxes, cause[0])
-	_explain(focused, _tokens(_model, focused))
+		_relate(item, relation, looks.get(item, MixModel.Look.NONE), fade, greyness)
+	for item: ItemView in _hand_items():
+		_relate(item, ItemView.Relation.NONE, looks.get(item, MixModel.Look.NONE), fade, greyness)
+
+
+## The calm grey on the belt's stickers by their items' mix `looks` (the view of each slot of the
+## model shown: `items`): a greyed item's stickers grey with it, every other one goes plain, over
+## `fade` seconds from where each is.
+func _grey_stickers(
+	items: Array[ItemView], looks: Dictionary[ItemView, MixModel.Look], fade: float
+) -> void:
+	var targets: Dictionary = {}
+	for slot: int in range(items.size()):
+		var item: ItemView = items[slot]
+		var grey: bool = item != null and looks.has(item) and MixModel.greys(looks[item])
+		for sticker: EffectSticker in _layer.stack(slot):
+			targets[sticker] = 1.0 if grey else 0.0
+	if _grey_tween != null:
+		_grey_tween.kill()
+		_grey_tween = null
+	var starts: Dictionary = {}
+	for sticker: Variant in targets:
+		starts[sticker] = _sticker_grey.get(sticker, 0.0)
+	_sticker_grey = starts.duplicate()
+	if fade > 0.0 and is_inside_tree():
+		_grey_tween = create_tween()
+		_grey_tween.tween_method(_step_grey.bind(starts, targets), 0.0, 1.0, fade)
+	else:
+		_step_grey(1.0, starts, targets)
+
+
+## The stickers' grey `progress` of the way from `starts` to `targets` (EffectSticker: amount).
+func _step_grey(progress: float, starts: Dictionary, targets: Dictionary) -> void:
+	var greyness: Vector2 = Vector2(tuning.mix_brightness, tuning.mix_saturation)
+	for key: Variant in targets:
+		if not is_instance_valid(key):
+			continue
+		var amount: float = lerpf(float(starts[key]), float(targets[key]), progress)
+		_sticker_grey[key] = amount
+		ArtStyle.set_mix_grey(key as EffectSticker, amount, greyness)
+
+
+## The mix highlight's looks of the belt and hand items (empty: none): the hovered family's, else
+## `card`'s (a hovered or held one; with `graph` the pairs paying now), else none.
+func _mix_looks(graph: EffectGraph, card: CardInstance) -> Dictionary[ItemView, MixModel.Look]:
+	var items: Array[ItemView] = []
+	var entries: Array[MixModel.Entry] = []
+	for slot: int in range(_views.size()):
+		var item: ItemView = _item(slot)
+		if item != null:
+			var tags: PackedStringArray = (
+				_belt_tags[slot] if slot < _belt_tags.size() else item.tags()
+			)
+			items.append(item)
+			entries.append(MixModel.Entry.new(item.card, tags, slot))
+	for item: ItemView in _hand_items():
+		items.append(item)
+		entries.append(MixModel.Entry.new(item.card, item.card.definition.tags))
+	var shown: Array[MixModel.Look] = []
+	if not _family.is_empty():
+		shown = MixModel.for_family(entries, _family)
+	elif card != null:
+		var focus: MixModel.Entry = MixModel.Entry.new(card, card.definition.tags)
+		for entry: MixModel.Entry in entries:
+			if entry.card == card:
+				focus = entry
+		shown = MixModel.for_card(entries, focus, graph, _broad)
+	var looks: Dictionary[ItemView, MixModel.Look] = {}
+	for index: int in range(shown.size()):
+		looks[items[index]] = shown[index]
+	return looks
+
+
+## The card whose matches the mix highlight lights: the hovered item's, else (no box or chip
+## hovered) the held one's (the picked hand item), else null.
+func _mix_card() -> CardInstance:
+	if _focus == Focus.CARD:
+		return _focus_card
+	if _focus != Focus.NONE:
+		return null
+	for item: ItemView in _hand_items():
+		if item.selected:
+			return item.card
+	return null
+
+
+## The belt slots the mix `looks` keep lit (not greyed), ascending.
+func _lit_slots(looks: Dictionary[ItemView, MixModel.Look]) -> PackedInt32Array:
+	var slots: PackedInt32Array = PackedInt32Array()
+	for slot: int in range(_views.size()):
+		var item: ItemView = _item(slot)
+		if item != null and looks.has(item) and not MixModel.greys(looks[item]):
+			slots.append(slot)
+	return slots
 
 
 ## The rail strips hot while the item at `slot` is hovered (section 5.3): its own (every target's
@@ -337,13 +513,22 @@ func _explain(slot: int, tokens: Dictionary[int, String]) -> void:
 	_receipt.show_relations(slot, tokens, hint)
 
 
-## Relates `item` to the focus: `relation`, fading over `fade` seconds to DIM's `alphas`.
+## Relates `item` to the focus: `relation` (fading over `fade` seconds to DIM's `greyness`) and
+## the mix highlight's mark of `look` (a FOCUS for SELF, a DIM for a greying look).
 static func _relate(
-	item: ItemView, relation: ItemView.Relation, fade: float, alphas: Vector2
+	item: ItemView, relation: ItemView.Relation, look: MixModel.Look, fade: float, greyness: Vector2
 ) -> void:
+	var shown: ItemView.Relation = relation
+	if look == MixModel.Look.SELF:
+		shown = ItemView.Relation.FOCUS
+	elif MixModel.greys(look):
+		shown = ItemView.Relation.DIM
+	elif look != MixModel.Look.NONE:
+		shown = ItemView.Relation.RELATED
 	item.relation_fade = fade
-	item.dim_alphas = alphas
-	item.relation = relation
+	item.dim_greyness = greyness
+	item.relation = shown
+	item.mix_look = look
 
 
 ## Fills `boxes` (the upgrades to ring) and `cause` (its first entry: the inspection to name, -2
@@ -389,6 +574,19 @@ func _on_tag_hovered() -> void:
 		focus_inspection()
 
 
+## A folded stack's fan opened over `slot`'s item (it hovers that item: the stack sits on its
+## shoulder; already hovered, it stays), or shut (-1: the pointer left the fan, so the focus goes
+## after the delay).
+func _on_fanned(slot: int) -> void:
+	var item: ItemView = _item(slot)
+	if slot < 0 or item == null:
+		_on_left()
+	elif _focus == Focus.CARD and _focus_card == item.card:
+		_unfocus_timer.stop()
+	elif not _blocked():
+		focus_card(item.card)
+
+
 ## The pointer left an item, a box or the chip: the focus goes after the unfocus delay, unless
 ## the pointer is back on something by then. Nothing while the screen leaves the tree (a scan
 ## torn down at quit says it left).
@@ -410,7 +608,12 @@ func _pointer_on_focus() -> bool:
 		point = pointer.call()
 	match _focus:
 		Focus.CARD:
-			var item: ItemView = _item(_slot_of(_focus_card))
+			var slot: int = _slot_of(_focus_card)
+			if slot >= 0 and _layer.fan().fanned() == slot:
+				return true
+			var item: ItemView = _item(slot)
+			if item == null:
+				item = _hand_item(_focus_card)
 			if item != null:
 				return item.hit_rect().has_point(
 					item.get_global_transform().affine_inverse() * point
@@ -429,6 +632,7 @@ func _pointer_on_focus() -> bool:
 func _on_landing_changed(card: CardInstance, slot: int) -> void:
 	if not _shown:
 		return
+	_dragged = card
 	var ghost: ItemView = _drag.ghost()
 	var result: ScoreResult = null
 	if card != null and slot >= 0 and preview.is_valid() and _run != null:
@@ -447,13 +651,54 @@ func _on_landing_changed(card: CardInstance, slot: int) -> void:
 	_monitor.show_plan(result.total, _quota)
 
 
-## Hovers do nothing outside planning and while an item is dragged.
+## Hovers do nothing outside planning, while an item is dragged and while the Cart (the deck view
+## watch_glyphs took) covers the counter.
 func _blocked() -> bool:
-	return not _shown or _landing >= 0 or (_drag != null and _drag.is_dragging())
+	var covered: bool = _deck != null and _deck.visible
+	return not _shown or _landing >= 0 or (_drag != null and _drag.is_dragging()) or covered
 
 
 func _reduced() -> bool:
 	return reduced_motion.is_valid() and reduced_motion.call()
+
+
+## `seconds`, or 0 under reduced motion.
+func _fade(seconds: float) -> float:
+	return 0.0 if _reduced() else seconds
+
+
+## A family glyph's tooltip shows (`target`; null: none): its family lights the Cart's cells
+## when it is in the open Cart, else the counter's items (not while hovers are blocked).
+func _on_tip_shown(target: TipTarget) -> void:
+	var glyph: FamilyGlyph = target as FamilyGlyph
+	var family: String = glyph.family if glyph != null else ""
+	var in_deck: bool = _deck != null and target != null and _deck.is_ancestor_of(target)
+	if _deck != null:
+		_deck.mix_family = family if in_deck and _deck.visible else ""
+	var counter: String = "" if in_deck or _blocked() else family
+	if counter == _family:
+		return
+	_family = counter
+	if _shown and _landing < 0:
+		_apply_focus(true)
+
+
+## The hand's items still shown.
+func _hand_items() -> Array[ItemView]:
+	var items: Array[ItemView] = []
+	for control: Control in _hand:
+		var item: ItemView = control as ItemView
+		if item != null and is_instance_valid(item) and not item.is_queued_for_deletion():
+			items.append(item)
+	return items
+
+
+## The hand's item of `card`, or null.
+func _hand_item(card: CardInstance) -> ItemView:
+	for item: ItemView in _hand_items():
+		if item.card == card:
+			return item
+	return null
 
 
 func _slot_of(card: CardInstance) -> int:

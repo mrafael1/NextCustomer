@@ -169,7 +169,7 @@ func test_stickers_never_cover_a_sticker_a_sprite_or_a_mark() -> void:
 
 ## Planning shows no paid chip (#80, step 7: the receipt lists the payouts) and no corner mark
 ## (#71); each belt item wears one sticker per effect it receives in the preview's model (shown,
-## or folded into "…+N"), and the coupon's fizzles show as a "WASTED" sticker.
+## or folded into the "+N" chip), and the coupon's fizzles show as a "WASTED" sticker.
 func test_planning_shows_marks_and_no_paid_chips() -> void:
 	var screen: ShiftScreen = await _captured("")
 	var result: ScoreResult = screen.run.preview()

@@ -3,10 +3,14 @@ extends GdUnitTestSuite
 ## boosted, its sprite stands BOOST_LIFT higher on the lifted shadow inside its halo (a node behind
 ## the sprite, grown (rings + 1) art pixels on every side, with that ring count's halo material);
 ## its hit area and the slot's drop target reach the raised sprite; denied, its sprite greys
-## (ArtStyle.Grey.DENIED) and comes back; DIM fades its sprite and ticket to the tuning's alphas,
-## FOCUS shows its brackets; and once cleared, the count-up's body moves are those of a plain item.
+## (ArtStyle.Grey.DENIED) and comes back; DIM greys its sprite and ticket to the mix highlight's
+## calm grey (#105 piece 3: brightness by modulate, saturation by a greyed material on every plain
+## pixel-art part, a halo or a denied grey kept), FOCUS shows its brackets (a basket item's round
+## its art down to the rim), the mix marks draw over the bracket box; and once cleared, the
+## count-up's body moves are those of a plain item.
 
 const MILK := "res://data/cards/milk.tres"
+const BANANA := "res://data/cards/banana.tres"
 const TUNING := "res://data/balance/planning.tres"
 
 var _holder: Control
@@ -105,33 +109,121 @@ func test_a_denied_sprite_greys_and_comes_back() -> void:
 	assert_object(item.sprite().material).is_same(ArtStyle.pixel_material())
 
 
-## DIM fades the sprite (its stand) and the ticket to the tuning's alphas, through a highlight
-## change too; FOCUS shows the gold brackets; NONE puts it back.
-func test_relations_dim_and_frame_the_item() -> void:
+## DIM greys the sprite (its stand) and the ticket to the tuning's calm grey, through a highlight
+## change too; FOCUS shows the gold brackets; NONE puts it back; a fade tweens there.
+func test_relations_grey_and_frame_the_item() -> void:
 	var tuning: PlanningTuning = load(TUNING) as PlanningTuning
+	var greyness: Vector2 = Vector2(tuning.mix_brightness, tuning.mix_saturation)
 	var item: ItemView = await _belt_item()
-	item.dim_alphas = Vector2(tuning.dim_item_alpha, tuning.dim_ticket_alpha)
+	item.dim_greyness = greyness
 	item.relation = ItemView.Relation.DIM
-	assert_float(item._stand.modulate.a).is_equal_approx(tuning.dim_item_alpha, 0.001)
-	assert_float(item.sticker().modulate.a).is_equal_approx(tuning.dim_ticket_alpha, 0.001)
+	_assert_grey(item, greyness)
 	item.set_highlight(CardView.Highlight.SELECTED)
-	assert_float(item.sticker().modulate.a).is_equal_approx(tuning.dim_ticket_alpha, 0.001)
+	_assert_grey(item, greyness)
 	item.set_highlight(CardView.Highlight.NONE)
 	assert_vector(item.brackets().size).is_equal(Vector2.ZERO)
 	item.relation = ItemView.Relation.FOCUS
-	assert_float(item._stand.modulate.a).is_equal(1.0)
-	assert_float(item.sticker().modulate.a).is_equal(1.0)
+	_assert_plain(item)
 	assert_bool(item.brackets().has_area()).is_true()
 	item.relation = ItemView.Relation.RELATED
 	assert_vector(item.brackets().size).is_equal(Vector2.ZERO)
 	item.relation = ItemView.Relation.NONE
-	assert_float(item._stand.modulate.a).is_equal(1.0)
+	_assert_plain(item)
 	# A fade tweens there.
-	item.relation_fade = tuning.focus_fade_s
+	item.relation_fade = tuning.mix_fade_s
 	item.relation = ItemView.Relation.DIM
-	assert_float(item._stand.modulate.a).is_equal(1.0)
-	await get_tree().create_timer(tuning.focus_fade_s + 0.05).timeout
-	assert_float(item._stand.modulate.a).is_equal_approx(tuning.dim_item_alpha, 0.001)
+	assert_float(item._stand.modulate.r).is_equal(1.0)
+	await get_tree().create_timer(tuning.mix_fade_s + 0.05).timeout
+	_assert_grey(item, greyness)
+	item.relation_fade = 0.0
+	item.relation = ItemView.Relation.NONE
+	_assert_plain(item)
+
+
+## The grey keeps a part's own look (a halo, a denied sprite) and only dims it; taking the denial
+## off a greyed item greys its sprite again; the material set_sharp keeps is the grey.
+func test_the_grey_keeps_own_looks() -> void:
+	var greyness: Vector2 = Vector2(0.78, 0.2)
+	var item: ItemView = await _belt_item()
+	item.boost_rings = 2
+	item.denied = true
+	item.dim_greyness = greyness
+	item.relation = ItemView.Relation.DIM
+	var halo: TextureRect = item.sprite().get_node(ItemView.HALO_NAME) as TextureRect
+	assert_object(halo.material).is_same(ArtStyle.halo_material(2))
+	assert_object(item.sprite().material).is_same(ArtStyle.grey_material(ArtStyle.Grey.DENIED))
+	assert_float(item._stand.modulate.r).is_equal_approx(greyness.x, 0.001)
+	item.denied = false
+	var mix: ShaderMaterial = item._stand.get_meta(ArtStyle.MIX_META) as ShaderMaterial
+	assert_object(item.sprite().material).is_same(mix)
+	ArtStyle.set_sharp(item, false)
+	assert_object(item.sprite().material).is_same(mix)
+	ArtStyle.set_sharp(item, true)
+	item.relation = ItemView.Relation.NONE
+	assert_object(item.sprite().material).is_same(ArtStyle.pixel_material())
+	assert_object(halo.material).is_same(ArtStyle.halo_material(2))
+
+
+## The mix marks (MixMark) over the bracket box: FAINT's dashed outline inside it, NOW's check and
+## PENALTY's "!" tile at its top right, inside it and above the ticket; NONE, SELF and LIT draw
+## none. A basket item's FOCUS brackets hug its art down to the rim, in mustard.
+func test_mix_marks_sit_in_the_bracket_box() -> void:
+	var item: ItemView = await _belt_item()
+	var box: Rect2 = item._bracket_box()
+	assert_object(item._mix_mark).is_null()
+	item.mix_look = MixModel.Look.FAINT
+	var mark: MixMark = item._mix_mark
+	assert_bool(mark.visible).is_true()
+	assert_object(mark.get_parent()).is_same(item)
+	assert_int(mark.get_index()).is_equal(item.get_child_count() - 1)
+	assert_bool(box.encloses(mark.mark_rect())).is_true()
+	assert_vector(mark.mark_rect().position).is_equal(box.position + Vector2.ONE * MixMark.INSET)
+	var ticket: Rect2 = Rect2(item.sticker().position, PriceSticker.SIZE)
+	for look: MixModel.Look in [MixModel.Look.NOW, MixModel.Look.PENALTY]:
+		item.mix_look = look
+		var rect: Rect2 = mark.mark_rect()
+		assert_bool(mark.visible).is_true()
+		assert_bool(box.encloses(rect)).override_failure_message(str(look)).is_true()
+		assert_bool(rect.intersects(ticket)).is_false()
+		assert_float(rect.end.x).is_less_equal(box.end.x)
+		assert_float(rect.position.y).is_equal(box.position.y + 2.0)
+	for look: MixModel.Look in [MixModel.Look.NONE, MixModel.Look.SELF, MixModel.Look.LIT]:
+		item.mix_look = look
+		assert_bool(mark.visible).is_false()
+	# A basket item: no brackets unless focused, then round its art down to the rim.
+	var card: CardInstance = CardInstance.new(load(BANANA) as CardDefinition, 2)
+	var basket: ItemView = ItemView.new(card, null, ItemView.Form.BASKET)
+	_holder.add_child(basket)
+	await get_tree().process_frame
+	assert_vector(basket.brackets().size).is_equal(Vector2.ZERO)
+	basket.set_highlight(CardView.Highlight.SELECTED)
+	assert_vector(basket.brackets().size).is_equal(Vector2.ZERO)
+	basket.set_highlight(CardView.Highlight.NONE)
+	basket.relation = ItemView.Relation.FOCUS
+	var frame: Rect2 = basket.brackets()
+	assert_bool(frame.has_area()).is_true()
+	assert_float(frame.end.y).is_equal(ItemView.BASKET_RIM_Y)
+	assert_float(frame.position.y).is_equal(basket._art_top() - ScanOverlay.BRACKET_OUTSET)
+	assert_bool(Rect2(Vector2.ZERO, ItemView.BASKET_SIZE).grow(8.0).encloses(frame)).is_true()
+	# Its faint outline keeps a pad round the art (the bracket box's own outset): it never runs
+	# along the art's edge.
+	basket.mix_look = MixModel.Look.FAINT
+	assert_that(basket._mix_mark.mark_rect()).is_equal(basket._bracket_box())
+	assert_float(basket._mix_mark.mark_rect().position.y).is_equal(
+		basket._art_top() - ScanOverlay.BRACKET_OUTSET
+	)
+	basket.mix_look = MixModel.Look.NONE
+	# Lifted by a hover scan, the scan's brackets mark it: its own go (one frame, not two).
+	basket.lifted = true
+	assert_vector(basket.brackets().size).is_equal(Vector2.ZERO)
+	basket.lifted = false
+	assert_bool(basket.brackets().has_area()).is_true()
+	item.relation = ItemView.Relation.FOCUS
+	assert_bool(item.brackets().has_area()).is_true()
+	item.lifted = true
+	assert_vector(item.brackets().size).is_equal(Vector2.ZERO)
+	item.lifted = false
+	item.relation = ItemView.Relation.NONE
 
 
 ## Cleared (no boost, no grey, no relation: PlanningEffects.clear before the count-up), the
@@ -141,6 +233,7 @@ func test_the_count_ups_moves_are_unaffected_after_clear() -> void:
 	var item: ItemView = await _belt_item()
 	item.boost_rings = 3
 	item.denied = true
+	item.dim_greyness = Vector2(0.78, 0.2)
 	item.relation = ItemView.Relation.DIM
 	item.boost_rings = 0
 	item.denied = false
@@ -188,6 +281,29 @@ func _belt_item() -> ItemView:
 	_holder.add_child(item)
 	await get_tree().process_frame
 	return item
+
+
+## The calm grey on the sprite and the ticket: their modulate at the brightness and the greyed
+## material (keeping the saturation) on the sprite and the ticket's face.
+func _assert_grey(item: ItemView, greyness: Vector2) -> void:
+	for root: CanvasItem in [item._stand, item.sticker()]:
+		assert_float(root.modulate.r).is_equal_approx(greyness.x, 0.001)
+		assert_float(root.modulate.a).is_equal(1.0)
+		var mix: ShaderMaterial = root.get_meta(ArtStyle.MIX_META) as ShaderMaterial
+		assert_object(mix).is_not_null()
+		assert_float(mix.get_shader_parameter(&"saturation")).is_equal_approx(greyness.y, 0.001)
+	assert_object(item.sprite().material).is_same(item._stand.get_meta(ArtStyle.MIX_META))
+	assert_object(item.sticker().face().material).is_same(
+		item.sticker().get_meta(ArtStyle.MIX_META)
+	)
+
+
+func _assert_plain(item: ItemView) -> void:
+	for root: CanvasItem in [item._stand, item.sticker()]:
+		assert_float(root.modulate.r).is_equal(1.0)
+		assert_bool(root.has_meta(ArtStyle.MIX_META)).is_false()
+	assert_object(item.sprite().material).is_same(ArtStyle.pixel_material())
+	assert_object(item.sticker().face().material).is_same(ArtStyle.pixel_material())
 
 
 ## How far the belt sprite drops so its art's foot stands on the ground line.

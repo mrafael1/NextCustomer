@@ -108,8 +108,7 @@ var _cabinet: RegisterCabinet
 var _monitor: MonitorView
 ## The monitor's LED: blank in planning, the count-up's subtotal and total.
 var _led: LedDisplay
-## The top bar's SPEND chip: the projected total in planning (fed here), the LED's readings while
-## counting.
+## The top bar's SPEND chip: the projected total in planning (fed here), the LED's while counting.
 var _quota_meter: QuotaMeter
 var _overlay: Control
 var _count_up: CountUp
@@ -840,7 +839,7 @@ func _show_belt(result: ScoreResult, paid: bool = false) -> void:
 	_scan.set_result(result, CardInstance.names(run.row), upgrade_names, inspection_names)
 	_belt_chips.show_all(_row_views)
 	if not paid:
-		_effects.show_all(result, _row_views, run)
+		_effects.show_all(result, _row_views, run, _hand_box.cards())
 	for slot: int in range(_row_views.size()):
 		_row_views[slot].set_tags(result.tags[slot])
 
@@ -982,12 +981,13 @@ func _build() -> void:
 	_glyph_tips.blocked = func() -> bool: return _counting or _drag.is_dragging()
 	_glyph_tips.reduced_motion = _monitor.reduced_motion
 	add_child(_glyph_tips)
+	_effects.watch_glyphs(_glyph_tips, _deck_view)  # A glyph's family lights (#105 piece 3).
 
 
 ## Scanning the counter's items is off while the shift is counted, an item is dragged, outside
 ## planning (the machine or the results are up), while the deck view is open and in redraw mode
-## (armed, or its motion playing). The machine's
-## prize items are scanned while it accepts clicks (RewardMachineView.can_scan).
+## (armed, or its motion playing). The machine's prize items are scanned while it accepts clicks
+## (RewardMachineView.can_scan).
 func _scan_blocked() -> bool:
 	var planning: bool = run != null and run.phase == RunState.Phase.PLANNING
 	var redrawing: bool = _redraw_mode or _redraw_busy

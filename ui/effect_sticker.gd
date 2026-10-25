@@ -2,8 +2,12 @@ class_name EffectSticker
 extends Control
 ## One planning sticker on a belt item (#71, mock-up h1, H1_BUILD_SPEC.md section 4.1): an effect
 ## the item receives, slapped on it. ADD is a cream price-gun label ("+3"), MULTIPLY a gold
-## starburst ("×3"), COPY a teal label ("=€6"), FIZZLE a grey "WASTED" label and MORE the grey
-## "…+N" label the earliest stickers of a too-tall stack fold into. The frame (and its shadow,
+## starburst ("×3"), COPY a teal label ("=€6"), FIZZLE a grey "WASTED" label and MORE the fold
+## chip the earliest stickers of a stack fold into from its 5th (#105 piece 3, mock-up readability
+## v3 fold A): a grey label turned FOLD_TILT_DEG with a card-fan mark and the count ("+3") in ink.
+## The chip pops in and punches as more fold in (fold_punch); in the count it counts down as each
+## folded sticker's step lands and shrinks away after the last (fire). A fanned-out copy
+## (StackFan) wears its order number on its top-left corner (set_number). The frame (and its shadow,
 ## ink at SHADOW_ALPHA at SHADOW_OFFSET) turns by `tilt_deg` about its centre on the texel grid
 ## (the sharp-pixel material keeps the texels hard); the text stays upright and centred. The
 ## giver's badge (GiverBadge) hangs off its left edge. Drained (another item hovered, or on a
@@ -33,6 +37,30 @@ const BURST_SMALL_SIZE := 18
 const BURST_SMALL_CHARS := 4
 const GREY_TEXT_SIZE := 15
 const FIZZLE_PADDING := 6.0
+## The fold chip (MORE): FOLD_SIZE, or wider for its text (from FOLD_TEXT_X, plus FOLD_PADDING),
+## its frame turned FOLD_TILT_DEG, the mark at FOLD_MARK_AT and the count in ink at FOLD_TEXT_SIZE.
+const FOLD_SIZE := Vector2(64, 30)
+const FOLD_TEXT_X := 38.0
+const FOLD_PADDING := 8.0
+const FOLD_TEXT_SIZE := 17
+const FOLD_TILT_DEG := -3.0
+const FOLD_MARK_AT := Vector2(6, 4)
+## The chip's motion: it pops in from FOLD_POP_FROM over FOLD_POP_S, punches to 1 + FOLD_PUNCH
+## easing back over FOLD_PUNCH_S, and shrinks to FOLD_POP_FROM, fading, over FOLD_POP_S once its
+## count is down to 0 in the count.
+const FOLD_POP_FROM := 0.3
+const FOLD_POP_S := 0.12
+const FOLD_PUNCH := 0.3
+const FOLD_PUNCH_S := 0.22
+## A fanned sticker's order number: a NUMBER_SIZE ink square in a NUMBER_RING paper ring, the
+## number in paper at NUMBER_TEXT_SIZE, its top-left at NUMBER_AT: up and left of the sticker's
+## top-left corner, so its ring clears the giver badge's mini under it (who gave what stays
+## readable in the fan).
+const NUMBER_AT := Vector2(-16, -12)
+const NUMBER_SIZE := Vector2(16, 16)
+const NUMBER_RING := 2.0
+const NUMBER_TEXT_SIZE := 12
+const NUMBER_NAME := &"Number"
 ## The badge hangs this far left of a burst, or of a label.
 const BURST_BADGE_X := -8.0
 const LABEL_BADGE_X := -14.0
@@ -79,6 +107,7 @@ const LABEL_FRAME := preload("res://art/effects/sticker_label.png")
 const GREY_FRAME := preload("res://art/effects/sticker_label_grey.png")
 const TEAL_FRAME := preload("res://art/effects/sticker_label_teal.png")
 const BURST := preload("res://art/effects/sticker_burst.png")
+const FOLD_MARK := preload("res://art/effects/fold_mark.png")
 
 var _spec: StickerSpec
 ## Holds every part, so the slap scales them about the sticker's bottom centre.
@@ -93,11 +122,19 @@ var _slap_tween: Tween
 var _check: Control
 var _fired: bool = false
 var _fire_tween: Tween
+## The fold chip's mark, and how many of its folded stickers have not fired in the count.
+var _mark: TextureRect
+var _unfired: int = 0
+## A fanned copy's order number (set_number), or null.
+var _number: Control
 
 
 ## The sticker of `sticker_spec`, its frame turned `tilt_deg` degrees.
 func _init(sticker_spec: StickerSpec, tilt_deg: float = 0.0) -> void:
 	_spec = sticker_spec
+	_unfired = sticker_spec.folds
+	if _spec.kind == StickerSpec.Kind.MORE:
+		tilt_deg = FOLD_TILT_DEG
 	name = "EffectSticker"
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
 	size = size_for(sticker_spec)
@@ -123,9 +160,18 @@ func _init(sticker_spec: StickerSpec, tilt_deg: float = 0.0) -> void:
 	_label.name = "Text"
 	_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	var left: float = FIZZLE_PADDING if _grey() else 0.0
+	var left: float = FIZZLE_PADDING if _spec.kind == StickerSpec.Kind.FIZZLE else 0.0
 	_label.position = Vector2(left, 0)
 	_label.size = Vector2(size.x - left, size.y)
+	if _spec.kind == StickerSpec.Kind.MORE:
+		_mark = UiKit.sprite(FOLD_MARK)
+		_mark.name = "FoldMark"
+		_mark.position = FOLD_MARK_AT
+		_mark.size = FOLD_MARK.get_size() * ArtStyle.ART_SCALE
+		_inner.add_child(_mark)
+		_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+		_label.position = Vector2(FOLD_TEXT_X, 0)
+		_label.size = Vector2(size.x - FOLD_TEXT_X, size.y - ArtStyle.ART_SCALE)
 	_inner.add_child(_label)
 	if _spec.badge != GiverBadge.Kind.NONE:
 		_badge = GiverBadge.new(_spec.badge, _spec.badge_text, _spec.badge_mini)
@@ -156,6 +202,10 @@ static func size_for(sticker_spec: StickerSpec) -> Vector2:
 			var grey: float = _text_width(sticker_spec) + FIZZLE_PADDING + LABEL_PADDING
 			var width: float = maxf(FIZZLE_SIZE.x, snappedf(grey, ArtStyle.ART_SCALE))
 			return Vector2(width, FIZZLE_SIZE.y)
+		StickerSpec.Kind.MORE:
+			var wide: float = FOLD_TEXT_X + _text_width(sticker_spec) + FOLD_PADDING
+			var grid: float = ArtStyle.ART_SCALE
+			return Vector2(maxf(FOLD_SIZE.x, ceilf(wide / grid) * grid), FOLD_SIZE.y)
 	var characters: int = sticker_spec.text.length()
 	if characters <= 2:
 		return Vector2(LABEL_WIDTHS[0], LABEL_HEIGHT)
@@ -197,8 +247,9 @@ func text() -> String:
 func set_drained(drained: bool) -> void:
 	_drained = drained
 	var look: ShaderMaterial = ArtStyle.grey_material(ArtStyle.Grey.DRAINED) if drained else null
-	for part: Control in [_shadow, _frame]:
-		ArtStyle.set_look(part, look)
+	for part: Control in [_shadow, _frame, _mark]:
+		if part != null:
+			ArtStyle.set_look(part, look)
 	if _badge != null:
 		_badge.set_drained(drained)
 	_colour_text()
@@ -232,9 +283,14 @@ func is_slapping() -> bool:
 ## Its step landed in the count (#86 v6): the sticker punches, flashes and turns back, then the
 ## green check settles on its corner, on `make_tween`'s tweens when given (the count-up's, so its
 ## hit-stops and skips hold and speed it). Under `reduced_motion` (or out of the tree) the check
-## shows at once, with no punch or flash. A second fire punches again; the check stays.
+## shows at once, with no punch or flash. A second fire punches again; the check stays. The fold
+## chip gets no check: each fire counts it down by one folded sticker with a punch, and the last
+## shrinks it away (at once under reduced motion).
 func fire(reduced_motion: bool, make_tween: Callable = Callable()) -> void:
 	_fired = true
+	if _spec.kind == StickerSpec.Kind.MORE:
+		_count_down(reduced_motion, make_tween)
+		return
 	var tween: Tween = _start_motion(reduced_motion, make_tween)
 	if tween == null:
 		_check.visible = true
@@ -253,6 +309,54 @@ func charge(reduced_motion: bool, make_tween: Callable = Callable()) -> void:
 	var tween: Tween = _start_motion(reduced_motion, make_tween)
 	if tween != null:
 		tween.tween_method(_punch.bind(CHARGE_PUNCH, false), 0.0, 1.0, FIRE_S)
+
+
+## The fold chip's motion as more stickers fold into it while planning: a pop from FOLD_POP_FROM
+## when it is `first` shown, else a punch; on `make_tween`'s tweens when given; nothing under
+## `reduced_motion`.
+func fold_punch(first: bool, reduced_motion: bool, make_tween: Callable = Callable()) -> void:
+	var tween: Tween = _start_motion(reduced_motion, make_tween)
+	if tween == null:
+		return
+	if first:
+		_set_inner_scale(FOLD_POP_FROM)
+		tween.tween_method(_set_inner_scale, FOLD_POP_FROM, 1.0, FOLD_POP_S)
+	else:
+		tween.tween_method(_bump, 0.0, 1.0, FOLD_PUNCH_S)
+
+
+## Shows `number` (1 and up) on the top-left corner at `alpha`, or hides it (0 or less): a fanned
+## sticker's order (StackFan).
+func set_number(number: int, alpha: float = 1.0) -> void:
+	if number <= 0:
+		if _number != null:
+			_number.visible = false
+		return
+	if _number == null:
+		_number = Control.new()
+		_number.name = NUMBER_NAME
+		_number.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		_number.position = NUMBER_AT
+		_number.size = NUMBER_SIZE
+		_number.draw.connect(_draw_number)
+		var label: Label = UiKit.number_label("", NUMBER_TEXT_SIZE, false)
+		label.add_theme_color_override("font_color", Palette.PAPER)
+		label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+		label.size = NUMBER_SIZE
+		_number.add_child(label)
+		add_child(_number)
+	(_number.get_child(0) as Label).text = str(number)
+	_number.visible = true
+	_number.modulate.a = clampf(alpha, 0.0, 1.0)
+
+
+## The order number's rect (its ring included) in the sticker's coordinates, or an empty rect
+## when none shows.
+func number_rect() -> Rect2:
+	if _number == null or not _number.visible:
+		return Rect2()
+	return Rect2(_number.position, _number.size).grow(NUMBER_RING)
 
 
 ## Whether its step has landed in the count (fire).
@@ -332,6 +436,46 @@ func _punch(progress: float, amount: float, turn: bool) -> void:
 	_inner.modulate = Color(flash, flash, flash)
 
 
+## The fold chip in the count: one folded sticker fired. The count drops by one with a punch; at
+## 0 the chip shrinks and fades away (its alpha stays 0: the layer's layout only shows and hides).
+func _count_down(reduced_motion: bool, make_tween: Callable) -> void:
+	_unfired = maxi(_unfired - 1, 0)
+	if _unfired > 0:
+		_label.text = StickerSpec.MORE_TEXT % _unfired
+	var tween: Tween = _start_motion(reduced_motion, make_tween)
+	if _unfired > 0:
+		if tween != null:
+			tween.tween_method(_bump, 0.0, 1.0, FOLD_PUNCH_S)
+		return
+	if tween == null:
+		modulate.a = 0.0
+		return
+	tween.tween_method(_vanish, 0.0, 1.0, FOLD_POP_S)
+
+
+func _set_inner_scale(inner_scale: float) -> void:
+	_inner.scale = Vector2.ONE * inner_scale
+
+
+## The fold chip's punch at `progress` (0 to 1): 1 + FOLD_PUNCH easing back to 1.
+func _bump(progress: float) -> void:
+	var left: float = 1.0 - progress
+	_set_inner_scale(1.0 + FOLD_PUNCH * left * left)
+
+
+## The fold chip going at `progress` (0 to 1): shrinking to FOLD_POP_FROM and fading.
+func _vanish(progress: float) -> void:
+	_set_inner_scale(lerpf(1.0, FOLD_POP_FROM, progress))
+	modulate.a = 1.0 - progress
+
+
+## The order number: its paper ring, then the ink square (the number is its label).
+func _draw_number() -> void:
+	var square: Rect2 = Rect2(Vector2.ZERO, NUMBER_SIZE)
+	_number.draw_rect(square.grow(NUMBER_RING), Palette.PAPER)
+	_number.draw_rect(square, Palette.INK)
+
+
 func _settle_check(check_scale: float) -> void:
 	_check.scale = Vector2.ONE * check_scale
 
@@ -346,12 +490,9 @@ func _draw_check() -> void:
 			_check.draw_rect(rect.grow(grow), colour)
 
 
-func _grey() -> bool:
-	return _spec.kind == StickerSpec.Kind.FIZZLE or _spec.kind == StickerSpec.Kind.MORE
-
-
 func _colour_text() -> void:
-	var colour: Color = Palette.INK_LIGHT if _grey() else Palette.INK
+	var fizzle: bool = _spec.kind == StickerSpec.Kind.FIZZLE
+	var colour: Color = Palette.INK_LIGHT if fizzle else Palette.INK
 	_label.add_theme_color_override("font_color", Palette.GREY_DARK if _drained else colour)
 
 
@@ -361,6 +502,8 @@ static func _text_size(sticker_spec: StickerSpec) -> int:
 			if sticker_spec.text.length() >= BURST_SMALL_CHARS:
 				return BURST_SMALL_SIZE
 			return BURST_TEXT_SIZE
-		StickerSpec.Kind.FIZZLE, StickerSpec.Kind.MORE:
+		StickerSpec.Kind.FIZZLE:
 			return GREY_TEXT_SIZE
+		StickerSpec.Kind.MORE:
+			return FOLD_TEXT_SIZE
 	return LABEL_TEXT_SIZE

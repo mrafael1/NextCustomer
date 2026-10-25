@@ -270,7 +270,8 @@ func test_copies_make_a_backward_strip_when_the_copy_comes_first() -> void:
 
 
 func test_a_folded_sticker_reads_its_count() -> void:
-	assert_str(StickerSpec.folded(3).text).is_equal("…+3")
+	assert_str(StickerSpec.folded(3).text).is_equal("+3")
+	assert_int(StickerSpec.folded(3).folds).is_equal(3)
 
 
 func test_lanes_keep_overlapping_strips_apart() -> void:
@@ -371,7 +372,9 @@ func test_the_tuning_defaults_are_neutral_and_the_file_holds_the_values() -> voi
 	for property: String in [
 		"focus_fade_s",
 		"unfocus_delay_s",
-		"dim_item_alpha",
+		"mix_brightness",
+		"mix_saturation",
+		"mix_fade_s",
 		"dim_ticket_alpha",
 		"dim_strip_alpha",
 		"slap_frame_s",
@@ -381,7 +384,9 @@ func test_the_tuning_defaults_are_neutral_and_the_file_holds_the_values() -> voi
 	var tuning: PlanningTuning = load(TUNING)
 	assert_float(tuning.focus_fade_s).is_equal_approx(0.12, 0.0001)
 	assert_float(tuning.unfocus_delay_s).is_equal_approx(0.08, 0.0001)
-	assert_float(tuning.dim_item_alpha).is_equal_approx(0.4, 0.0001)
+	assert_float(tuning.mix_brightness).is_equal_approx(0.78, 0.0001)
+	assert_float(tuning.mix_saturation).is_equal_approx(0.2, 0.0001)
+	assert_float(tuning.mix_fade_s).is_equal_approx(0.15, 0.0001)
 	assert_float(tuning.dim_ticket_alpha).is_equal_approx(0.45, 0.0001)
 	assert_float(tuning.dim_strip_alpha).is_equal_approx(0.3, 0.0001)
 	assert_float(tuning.slap_frame_s).is_equal_approx(0.04, 0.0001)

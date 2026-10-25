@@ -123,7 +123,7 @@ func test_every_item_shows_its_model() -> void:
 ## v0.52), its initials token; the coupon badge keeps its token. Every badge stays 18x18, hangs off
 ## its sticker's left edge inside its stack's span (PlanningLayer._span) and lies on the screen with
 ## its mini inside it; the monitor's item column marks the scanned target's line with the same
-## mini; drained (another item hovered) a mini greys.
+## mini; drained (a focus lighting none of them) a mini greys, and an item's hover drains none.
 func test_item_badges_show_the_givers_mini() -> void:
 	var screen: ShiftScreen = await _screen()
 	await _place(screen, MINI_ROW)
@@ -214,15 +214,24 @@ func test_item_badges_show_the_givers_mini() -> void:
 		. is_true()
 	)
 	screen._monitor.end_scan()
-	# Hovering the coupon drains every sticker it doesn't cause: the minis grey.
-	var coupon: ItemView = _item(screen, MINI_ROW.find("multipack"))
-	coupon.hovered.emit(coupon)
-	await _frames(1)
+	# A focus lighting none of them (a loyalty box's or the chip's hover, #71) drains them: the
+	# minis grey.
+	layer.apply_focus(
+		func(_slot: int, _spec: StickerSpec) -> bool: return false, PackedInt32Array()
+	)
 	for badge: GiverBadge in minis:
 		assert_bool(badge.is_drained()).is_true()
 		assert_object((badge.get_child(0) as CanvasItem).material).is_same(
 			ArtStyle.grey_material(ArtStyle.Grey.DRAINED)
 		)
+	layer.apply_focus(Callable(), PackedInt32Array())
+	# An item's hover (the coupon's) greys whole items (#105 piece 3): no mini drains.
+	var coupon: ItemView = _item(screen, MINI_ROW.find("multipack"))
+	coupon.hovered.emit(coupon)
+	await _seconds(screen._effects.tuning.mix_fade_s + 0.05)
+	for badge: GiverBadge in minis:
+		assert_bool(badge.is_drained()).is_false()
+	_assert_mixed(screen)
 
 
 ## Moving Eggs after Bread changes the stickers (Eggs' ×2 has nothing after it, so Eggs' own
@@ -248,8 +257,10 @@ func test_the_stickers_follow_the_row() -> void:
 	assert_array(_layer(screen).parts()).is_empty()
 
 
-## Hovering Bread relates Eggs (its giver), lights Bread's stickers and Eggs' given ones, drains
-## the others and dims every other item and its pay tag; hovering Eggs relates Bread. The focus
+## Hovering Bread relates Eggs (its giver, checked: it pays now) and the Milks (they count Bread as
+## Breakfast: the mix highlight, #105 piece 3) and greys Multipack, whole (the calm grey on its
+## sprite, ticket and stickers; the lit items keep every sticker in colour, none drains);
+## hovering Eggs relates Bread. The focus
 ## survives a refresh, stays while the pointer comes back within the unfocus delay or is still on
 ## the item when the delay is up, and goes once it has been off that long.
 func test_hovering_an_item_highlights_its_givers_and_targets() -> void:
@@ -263,26 +274,33 @@ func test_hovering_an_item_highlights_its_givers_and_targets() -> void:
 	bread.hovered.emit(bread)
 	assert_int(bread.relation).is_equal(ItemView.Relation.FOCUS)
 	assert_int(_item(screen, 0).relation).is_equal(ItemView.Relation.RELATED)
-	assert_int(_item(screen, 4).relation).is_equal(ItemView.Relation.DIM)
-	_assert_lit(screen, 1)
-	assert_bool(_layer(screen).pay_tag(4).is_dimmed()).is_true()
+	assert_int(_item(screen, 0).mix_look).is_equal(MixModel.Look.NOW)
+	assert_int(_item(screen, 4).relation).is_equal(ItemView.Relation.RELATED)
+	assert_int(_item(screen, 4).mix_look).is_equal(MixModel.Look.LIT)
+	assert_int(_item(screen, 3).relation).is_equal(ItemView.Relation.DIM)
+	await _seconds(tuning.mix_fade_s + 0.05)
+	_assert_mixed(screen)
+	if _layer(screen).pay_tag(3) != null:
+		assert_bool(_layer(screen).pay_tag(3).is_dimmed()).is_true()
+	assert_bool(_layer(screen).pay_tag(4).is_dimmed()).is_false()
 	assert_bool(_layer(screen).pay_tag(1).is_dimmed()).is_false()
-	assert_bool(_layer(screen).stamp(2).is_drained()).is_true()
+	assert_bool(_layer(screen).stamp(2).is_drained()).is_false()
 	var eggs: ItemView = _item(screen, 0)
 	eggs.hovered.emit(eggs)
 	assert_int(_item(screen, 0).relation).is_equal(ItemView.Relation.FOCUS)
 	assert_int(_item(screen, 1).relation).is_equal(ItemView.Relation.RELATED)
-	_assert_lit(screen, 0)
+	await _seconds(tuning.mix_fade_s + 0.05)
+	_assert_mixed(screen)
 	# A refresh rebuilds the items: the focus goes to Eggs' new view, at once.
 	screen._refresh()
 	await _frames(2)
 	assert_object(effects.focused_card()).is_same(screen.run.row[0])
 	assert_int(_item(screen, 1).relation).is_equal(ItemView.Relation.RELATED)
-	assert_float(_item(screen, 4)._stand.modulate.a).is_equal_approx(tuning.dim_item_alpha, 0.001)
-	assert_float(_item(screen, 4).sticker().modulate.a).is_equal_approx(
-		tuning.dim_ticket_alpha, 0.001
+	assert_float(_item(screen, 3)._stand.modulate.r).is_equal_approx(tuning.mix_brightness, 0.001)
+	assert_float(_item(screen, 3).sticker().modulate.r).is_equal_approx(
+		tuning.mix_brightness, 0.001
 	)
-	_assert_lit(screen, 0)
+	_assert_mixed(screen)
 	# Off and back on within the delay: kept.
 	_item(screen, 0).unhovered.emit(_item(screen, 0))
 	_item(screen, 0).hovered.emit(_item(screen, 0))
@@ -397,8 +415,9 @@ func test_a_hovered_giver_lights_its_strip_and_explains_it() -> void:
 		assert_bool(parts.has(strip)).is_equal(not mine)
 		assert_bool(strip.is_dimmed()).is_equal(not mine)
 	assert_bool(parts.has(hot[0])).is_true()
-	# The hot strip draws over every other part of the layer.
-	assert_int(hot[0].get_parent().get_index()).is_equal(layer.get_child_count() - 1)
+	# The hot strip draws over every other part of the layer, under only the stack fan (#105).
+	assert_int(hot[0].get_parent().get_index()).is_equal(layer.get_child_count() - 2)
+	assert_object(layer.get_child(layer.get_child_count() - 1)).is_same(layer.fan())
 	var ticket: Rect2 = Rect2(
 		layer.get_global_transform().affine_inverse() * multipack.sticker().get_global_position(),
 		PriceSticker.SIZE
@@ -462,7 +481,8 @@ func test_reduced_motion_stills_the_effects() -> void:
 
 ## At each landing slot the views and the ghost show the model of the preview with the card placed
 ## there (the ghost carrying its slot's stickers, halo, grey and pay tag as its own children), no
-## item is related, and the quota chip shows its total and change (the monitor's PLAN number its
+## item is related but by the dragged card's mix highlight (#105 piece 3, no check: the order is
+## hypothetical), and the quota chip shows its total and change (the monitor's PLAN number its
 ## total); the run never changes; leaving
 ## the row and the release show the committed model again, with the ghost plain off the row.
 func test_a_drag_previews_each_landing() -> void:
@@ -491,8 +511,17 @@ func test_a_drag_previews_each_landing() -> void:
 			assert_bool(ghost.is_ancestor_of(sticker)).is_true()
 			var rect: Rect2 = sticker.get_global_rect()
 			assert_bool(SCREEN_RECT.encloses(rect)).override_failure_message(str(rect)).is_true()
+		# The dragged Eggs keeps its mix highlight: Milk counts it as Breakfast (lit), the Breads
+		# only take its "next Food" (faint, greyed).
+		var looks: Array[MixModel.Look] = []
+		var relations: Array[ItemView.Relation] = []
 		for view: CardView in screen._row_views:
-			assert_int((view as ItemView).relation).is_equal(ItemView.Relation.NONE)
+			looks.append((view as ItemView).mix_look)
+			relations.append((view as ItemView).relation)
+		assert_array(looks).is_equal([MixModel.Look.FAINT, MixModel.Look.LIT, MixModel.Look.FAINT])
+		assert_array(relations).is_equal(
+			[ItemView.Relation.DIM, ItemView.Relation.RELATED, ItemView.Relation.DIM]
+		)
 		# The rail strips hide while the ghost is over the row; the monitor's PLAN number follows
 		# the would-be total (#105 piece 2, D11).
 		for part: Control in _layer(screen).parts():
@@ -565,7 +594,7 @@ func test_the_click_keeps_only_the_stickers() -> void:
 			for spec: StickerSpec in planned.stickers:
 				planned_texts.append(spec.text)
 			var shown: PackedStringArray = _texts(_layer(screen).stack(slot))
-			if shown.is_empty() or not shown[0].begins_with("…"):
+			if not _folds(_layer(screen).stack(slot)):
 				assert_array(Array(shown)).is_equal(Array(planned_texts))
 			stickers += shown.size()
 			assert_bool(shown.is_empty()).is_equal(planned.stickers.is_empty())
@@ -656,7 +685,7 @@ func _assert_motion(reduced: bool) -> void:
 
 
 ## `items` (the view showing each slot) show `model`: each stack's texts are its stickers' (the
-## earliest folded into "…+N" when they don't fit), each pay tag's text and glyph, each struck
+## earliest folded into the "+N" chip from the 5th), each pay tag's text and glyph, each struck
 ## base, each stamp, each halo and grey.
 func _assert_model_shown(screen: ShiftScreen, model: PlanningModel, items: Array[ItemView]) -> void:
 	var layer: PlanningLayer = _layer(screen)
@@ -669,7 +698,7 @@ func _assert_model_shown(screen: ShiftScreen, model: PlanningModel, items: Array
 		for spec: StickerSpec in planning.stickers:
 			expected.append(spec.text)
 		var shown: PackedStringArray = _texts(layer.stack(slot))
-		if not shown.is_empty() and shown[0].begins_with("…"):
+		if _folds(layer.stack(slot)):
 			var kept: int = shown.size() - 1
 			assert_str(shown[0]).is_equal(StickerSpec.MORE_TEXT % (expected.size() - kept))
 			shown = shown.slice(1)
@@ -723,6 +752,28 @@ func _assert_lit(screen: ShiftScreen, focused: int) -> void:
 				. override_failure_message("slot %d %s" % [slot, sticker.text()])
 				. is_equal(not lit)
 			)
+
+
+## The mix highlight's stickers (#105 piece 3): none drains (but on a denied item), a greyed
+## item's take the calm grey, a lit one's stay plain.
+func _assert_mixed(screen: ShiftScreen) -> void:
+	var layer: PlanningLayer = _layer(screen)
+	var brightness: float = screen._effects.tuning.mix_brightness
+	for slot: int in range(screen._row_views.size()):
+		var grey: bool = MixModel.greys(_item(screen, slot).mix_look)
+		for sticker: EffectSticker in layer.stack(slot):
+			var message: String = "slot %d %s" % [slot, sticker.text()]
+			assert_bool(sticker.is_drained()).override_failure_message(message).is_equal(
+				layer.stamp(slot) != null
+			)
+			assert_float(sticker.modulate.r).override_failure_message(message).is_equal_approx(
+				brightness if grey else 1.0, 0.001
+			)
+
+
+## Whether `stickers` (a stack, top first) starts with the fold chip.
+static func _folds(stickers: Array[EffectSticker]) -> bool:
+	return not stickers.is_empty() and stickers[0].spec().kind == StickerSpec.Kind.MORE
 
 
 static func _texts(stickers: Array[EffectSticker]) -> PackedStringArray:

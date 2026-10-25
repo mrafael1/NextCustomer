@@ -27,9 +27,11 @@ extends CardView
 ## on the lifted contact shadow inside its stepped pixel halo (ItemHalo: 1 to 3 rings, drawn by
 ## halo_outline.gdshader from the sprite's own texture, behind it); a denied one's sprite greys
 ## (denied, ArtStyle.Grey.DENIED). `relation` says how it relates to the hovered item: FOCUS shows
-## the gold brackets, RELATED nothing, DIM fades its sprite and its ticket. None of it writes
-## `body.modulate`, which the highlight and the count-up's glow own, and PlanningEffects clears it
-## all before the count-up.
+## the brackets (gold on the belt, mustard round a basket item's art down to the rim), RELATED
+## nothing, DIM greys its sprite and its ticket to the mix highlight's calm grey (#105 piece 3,
+## ArtStyle.set_mix_grey); `mix_look` adds the mix highlight's mark (MixMark: a faint outline, a
+## "pays now" check or a penalty "!"). None of it writes `body.modulate`, which the highlight and
+## the count-up's glow own, and PlanningEffects clears it all before the count-up.
 ##
 ## An undrawn product shows the dashed art-pending box with its name printed in it, and a coupon
 ## without an icon the real slip with its name in the icon's place (#75, decision 3A). The view
@@ -42,7 +44,7 @@ signal hovered(view: ItemView)
 signal unhovered(view: ItemView)
 
 enum Form { TRAY, BELT, GHOST, BASKET }
-## How the item relates to the hovered item, loyalty box or inspection (#71).
+## How the item relates to the hovered item, loyalty box, inspection or family glyph (#71, #105).
 enum Relation { NONE, FOCUS, RELATED, DIM }
 
 const BELT_SIZE := Vector2(116, 232)
@@ -126,18 +128,29 @@ var lifted: bool = false:
 	set(value):
 		lifted = value
 		_place_body()
-## How the item relates to the hovered one (#71): FOCUS shows the gold brackets, DIM fades the
-## sprite and the ticket to `dim_alphas` over `relation_fade` seconds (0: at once), RELATED and
-## NONE show it plain. Set the fade and the alphas first. (Properties, not setters: gdlint allows
-## the class 20 public methods.)
+## How the item relates to the hovered one (#71, #105 piece 3): FOCUS shows the brackets, DIM greys
+## the sprite and the ticket to `dim_greyness` over `relation_fade` seconds (0: at once), RELATED
+## and NONE show it plain. Set the fade and the greyness first. (Properties, not setters: gdlint
+## allows the class 20 public methods.)
 var relation: Relation = Relation.NONE:
 	set(value):
 		relation = value
 		_show_relation()
 ## How long a relation's fade takes, in seconds (0: at once, e.g. under reduced motion).
 var relation_fade: float = 0.0
-## DIM's alphas: the sprite's (x) and the ticket's (y), PlanningTuning's.
-var dim_alphas: Vector2 = Vector2.ONE
+## DIM's calm grey: its brightness (x) and saturation (y), PlanningTuning's mix_brightness and
+## mix_saturation (ArtStyle.set_mix_grey).
+var dim_greyness: Vector2 = Vector2.ONE
+## The mix highlight's mark (#105 piece 3, MixMark): FAINT's dashed outline, NOW's check or
+## PENALTY's "!" over the art; any other look draws none (the grey is DIM's).
+var mix_look: MixModel.Look = MixModel.Look.NONE:
+	set(value):
+		mix_look = value
+		_show_mix_mark()
+## Whether the item is selected (picked: a held card, #105 piece 3).
+var selected: bool:
+	get:
+		return _highlight == CardView.Highlight.SELECTED
 ## A boost (#71): with 1 to 3 rings the sprite shows its halo (HALO_NAME, behind it) of that many
 ## rings and, on the belt, stands BOOST_LIFT higher on the lifted shadow; 0 takes both off.
 var boost_rings: int = 0:
@@ -154,6 +167,7 @@ var denied: bool = false:
 	set(value):
 		denied = value
 		ArtStyle.set_look(_sprite, ArtStyle.grey_material(ArtStyle.Grey.DENIED) if denied else null)
+		_set_grey(_grey)
 ## Whether the paid chip may show (show_badge): the count's belt shows none (#86 v6: the stickers
 ## fire and the receipt and the monitor show the pay; the belt ride turns it off).
 var shows_paid_chip: bool = true
@@ -172,6 +186,9 @@ var _outline: TextureRect
 ## A boosted item's halo (#71), behind its sprite, or null until it is first boosted.
 var _halo: TextureRect
 var _relation_tween: Tween
+## How far DIM's grey is in (0 to 1; the fade steps it), and the mix mark (null until one shows).
+var _grey: float = 0.0
+var _mix_mark: MixMark
 ## Steps the halo's rings out (halo_step_s), or null.
 var _halo_tween: Tween
 
@@ -217,6 +234,7 @@ func set_form(item_form: Form) -> void:
 	_plaque.set_current(_plaque.is_current())
 	_plaque.position.y = badge_rest_y()
 	_place_mark()
+	_show_mix_mark()
 	queue_redraw()
 
 
@@ -226,7 +244,7 @@ func set_highlight(highlight: CardView.Highlight) -> void:
 	_highlight = highlight
 	_place_body()
 	body.modulate = Color(1, 1, 1, 1)
-	_sticker.modulate.a = dim_alphas.y if relation == Relation.DIM else 1.0
+	_sticker.modulate.a = 1.0
 	var outlined: bool = form == Form.BASKET and highlight == CardView.Highlight.SELECTED
 	if outlined and _outline == null:
 		_outline = UiKit.sprite(ArtOutline.texture_for(_sprite.texture))
@@ -332,13 +350,18 @@ func clear_mark() -> void:
 		_mark = null
 
 
-## The selected item's gold brackets (this view's coordinates), or an empty rect (and always in a
-## basket, which outlines a selected item instead).
+## The selected or focused item's brackets (this view's coordinates), or an empty rect. A basket
+## item gets them only when focused and not selected (FOCUS: the mix highlight's hovered item,
+## #105 piece 3), round its art's visible box down to the rim (a selected one is outlined instead).
+## None while a hover scan lifts it: the scan's own brackets mark it then (ScanOverlay), so it never
+## wears two frames.
 func brackets() -> Rect2:
-	var marked: bool = _highlight == CardView.Highlight.SELECTED or relation == Relation.FOCUS
-	if not marked or form == Form.BASKET:
+	var selected_now: bool = _highlight == CardView.Highlight.SELECTED
+	if lifted:
 		return Rect2()
-	return Rect2(_stand.position + body.position, SPRITE_SIZE).grow(ScanOverlay.BRACKET_OUTSET)
+	if form == Form.BASKET:
+		return _bracket_box() if relation == Relation.FOCUS and not selected_now else Rect2()
+	return _bracket_box() if selected_now or relation == Relation.FOCUS else Rect2()
 
 
 ## Where the pointer hovers and clicks the item (this view's coordinates): the sprite (lifted or
@@ -419,15 +442,33 @@ func _draw() -> void:
 		draw_colored_polygon(shadow, Color(Palette.INK, SHADOW_ALPHA))
 	var marked: Rect2 = brackets()
 	if marked.size != Vector2.ZERO:
-		ScanOverlay.draw_brackets(self, marked, Palette.GOLD)
+		var colour: Color = Palette.MUSTARD if form == Form.BASKET else Palette.GOLD
+		ScanOverlay.draw_brackets(self, marked, colour)
 
 
 ## Lifts the sprite by _lift_height() while it is selected or scanned, else rests it (its shadow
-## and mark follow).
+## and marks follow).
 func _place_body() -> void:
 	body.position.y = -_boost_height() - (_lift_height() if _is_up() else 0.0)
 	_place_mark()
+	_show_mix_mark()
 	queue_redraw()
+
+
+## The brackets' box round the sprite as it stands (lifted or not), grown by BRACKET_OUTSET; on a
+## basket item round its art's visible box (ContactShadow.opaque_rect) down to the rim.
+func _bracket_box() -> Rect2:
+	var standing: Rect2 = Rect2(_stand.position + body.position, SPRITE_SIZE)
+	if form != Form.BASKET:
+		return standing.grow(ScanOverlay.BRACKET_OUTSET)
+	var texture: Texture2D = _sprite.texture
+	var art: Rect2i = ContactShadow.opaque_rect(texture)
+	var texel: Vector2 = SPRITE_SIZE / Vector2(texture.get_size())
+	var left: float = standing.position.x + art.position.x * texel.x
+	var top: float = standing.position.y + art.position.y * texel.y
+	var box: Rect2 = Rect2(left, top, art.size.x * texel.x, maxf(BASKET_RIM_Y - top, 0.0))
+	var outset: float = ScanOverlay.BRACKET_OUTSET
+	return box.grow_individual(outset, outset, outset, 0.0)
 
 
 ## The art's visible top at rest, in this view's coordinates (ContactShadow.opaque_rect).
@@ -475,27 +516,43 @@ func _boost_height() -> float:
 	return BOOST_LIFT if boost_rings > 0 and form == Form.BELT else 0.0
 
 
-## The relation's look (#71): DIM fades the sprite and the ticket (over relation_fade); FOCUS's
-## brackets are drawn.
+## The relation's look (#71, #105 piece 3): DIM greys the sprite and the ticket (over
+## relation_fade); FOCUS's brackets are drawn.
 func _show_relation() -> void:
-	var dim: bool = relation == Relation.DIM
-	var stand_alpha: float = dim_alphas.x if dim else 1.0
-	var sticker_alpha: float = dim_alphas.y if dim else 1.0
+	var grey: float = 1.0 if relation == Relation.DIM else 0.0
 	if _relation_tween != null:
 		_relation_tween.kill()
 		_relation_tween = null
-	var changed: bool = (
-		not is_equal_approx(_stand.modulate.a, stand_alpha)
-		or not is_equal_approx(_sticker.modulate.a, sticker_alpha)
-	)
-	if relation_fade > 0.0 and is_inside_tree() and changed:
-		_relation_tween = create_tween().set_parallel()
-		_relation_tween.tween_property(_stand, "modulate:a", stand_alpha, relation_fade)
-		_relation_tween.tween_property(_sticker, "modulate:a", sticker_alpha, relation_fade)
+	if relation_fade > 0.0 and is_inside_tree() and not is_equal_approx(_grey, grey):
+		_relation_tween = create_tween()
+		_relation_tween.tween_method(_set_grey, _grey, grey, relation_fade)
 	else:
-		_stand.modulate.a = stand_alpha
-		_sticker.modulate.a = sticker_alpha
+		_set_grey(grey)
+	_show_mix_mark()
 	queue_redraw()
+
+
+## DIM's grey `amount` of the way in on the sprite and the ticket.
+func _set_grey(amount: float) -> void:
+	_grey = amount
+	if _stand == null or _sticker == null:
+		return
+	ArtStyle.set_mix_grey(_stand, amount, dim_greyness)
+	ArtStyle.set_mix_grey(_sticker, amount, dim_greyness)
+
+
+## The mix mark of `mix_look` over the brackets' box (made at the first mark): a basket item's
+## faint outline on the box itself, padded off its art.
+func _show_mix_mark() -> void:
+	var marked: bool = mix_look in [MixModel.Look.FAINT, MixModel.Look.NOW, MixModel.Look.PENALTY]
+	if _mix_mark == null and not marked:
+		return
+	if _mix_mark == null:
+		_mix_mark = MixMark.new()
+		add_child(_mix_mark)
+	# A basket item's box hugs its art (BRACKET_OUTSET round it): its outline keeps that pad.
+	var inset: float = 0.0 if form == Form.BASKET else MixMark.INSET
+	_mix_mark.show_look(mix_look, _bracket_box(), inset)
 
 
 ## The boost's look (#71): the halo of boost_rings rings round the sprite's art (made at the

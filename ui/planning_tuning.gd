@@ -20,10 +20,15 @@ extends Resource
 ## related items doesn't flicker).
 @export var unfocus_delay_s: float = 0.0
 
-## The sprite's alpha of an item unrelated to the hovered one.
-@export var dim_item_alpha: float = 0.0
+## The mix highlight's calm grey (#105 piece 3, mock-up readability v3's saturate(.2)
+## brightness(.78)) on an item unrelated to the hovered item, glyph or held card: its brightness and
+## the share of its colour it keeps (ArtStyle.set_mix_grey), faded in over mix_fade_s seconds (0
+## under reduced motion).
+@export var mix_brightness: float = 0.0
+@export var mix_saturation: float = 0.0
+@export var mix_fade_s: float = 0.0
 
-## The ticket's and pay tag's alpha of an item unrelated to the hovered one.
+## The pay tag's alpha of an item unrelated to the hovered one.
 @export var dim_ticket_alpha: float = 0.0
 
 ## A rail strip's alpha while an unrelated item is hovered.

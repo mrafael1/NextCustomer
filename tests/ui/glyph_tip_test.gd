@@ -257,6 +257,32 @@ func test_a_belt_glyph_tips_and_keeps_its_item() -> void:
 	screen._counting = false
 
 
+## shown_changed says which tip shows, once per change (#105 piece 3: the mix highlight follows
+## it): the glyph when its tip shows, null when it hides, nothing for a repeat.
+func test_the_shown_tip_is_signalled_once_per_change() -> void:
+	var holder: Control = auto_free(Control.new())
+	holder.size = STAGE.size
+	add_child(holder)
+	var palette: FamilyPalette = FamilyPalette.shared()
+	var breakfast: FamilyGlyph = FamilyGlyph.new(palette.style("Breakfast"))
+	var dairy: FamilyGlyph = FamilyGlyph.new(palette.style("Dairy"))
+	breakfast.position = Vector2(100, 200)
+	dairy.position = Vector2(300, 200)
+	holder.add_child(breakfast)
+	holder.add_child(dairy)
+	var tips: GlyphTips = GlyphTips.new()
+	holder.add_child(tips)
+	var seen: Array[TipTarget] = []
+	tips.shown_changed.connect(func(target: TipTarget) -> void: seen.append(target))
+	tips.show_tip(breakfast)
+	tips.show_tip(breakfast)
+	tips.show_tip(dairy)
+	tips.hide_tip()
+	tips.hide_tip()
+	assert_array(seen).is_equal([breakfast, dairy, null])
+	assert_str((seen[0] as FamilyGlyph).family).is_equal("Breakfast")
+
+
 ## Rests the pointer on `glyph` (at `at`, else its middle) for the wait, returning the shown tip.
 func _tip_for(tips: GlyphTips, glyph: TipTarget, at: Vector2 = Vector2.INF) -> GlyphTip:
 	tips.hide_tip()

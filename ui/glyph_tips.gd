@@ -12,6 +12,12 @@ extends Control
 ## Mount one over a screen (add it last, so it draws on top): it serves every glyph under its
 ## parent that no nearer GlyphTips serves. A glyph covered by a control that takes the pointer (a
 ## panel opened over the belt) shows nothing.
+##
+## shown_changed says which target's tip shows (null: none), once per change: a family glyph's
+## lights its family for the mix highlight (#105 piece 3, PlanningEffects.watch_glyphs).
+
+## The target whose tip shows changed: `target`, or null when no tip shows.
+signal shown_changed(target: TipTarget)
 
 const SHOW_DELAY_S := 0.15
 const POP_S := 0.08
@@ -92,10 +98,13 @@ func _process(delta: float) -> void:
 
 ## Shows the tip of `glyph` now (after the wait; tests call it directly).
 func show_tip(glyph: TipTarget) -> void:
+	var changed: bool = _shown != glyph
 	_shown = glyph
 	_candidate = glyph
 	_place(glyph)
 	_tip.visible = true
+	if changed:
+		shown_changed.emit(glyph)
 	if _pop != null:
 		_pop.kill()
 		_pop = null
@@ -108,8 +117,11 @@ func show_tip(glyph: TipTarget) -> void:
 
 
 func hide_tip() -> void:
+	var was_shown: bool = _shown != null
 	_shown = null
 	_tip.visible = false
+	if was_shown:
+		shown_changed.emit(null)
 	if _pop != null:
 		_pop.kill()
 		_pop = null

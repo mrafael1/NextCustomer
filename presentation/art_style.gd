@@ -57,6 +57,8 @@ const PIXEL_ART_META := &"pixel_art"
 ## A pixel-art node's own look material (a grey or a halo, set_look), which set_sharp keeps
 ## instead of resetting it to the plain sharp-pixel material.
 const LOOK_META := &"pixel_art_look"
+## A root greyed by set_mix_grey: its own greyed material (#105 piece 3).
+const MIX_META := &"mix_grey"
 ## An aisle's glyph (9x9 art), by the aisle's id.
 const GLYPH_PATH := "res://art/icons/aisle_%s.png"
 ## The readability pass (#105, mock-up readability v3). Item names (ItemName) are Pixelify Sans
@@ -138,6 +140,46 @@ static func set_look(item: CanvasItem, look: ShaderMaterial) -> void:
 	else:
 		item.set_meta(LOOK_META, look)
 		item.material = look
+
+
+## The mix highlight's calm grey (#105 piece 3, mock-up readability v3's saturate(.2)
+## brightness(.78)) on `root`, `amount` of the way (0: none, 1: all of it; a fade steps it): its
+## modulate's colour goes to `greyness.x` (the brightness, its alpha kept) and every pixel-art node
+## under it with no look of its own keeps `greyness.y` of its colour (the saturation), through a
+## greyed material of the root's own (so roots fade apart). A node with its own look (a halo, a rim,
+## a denied or drained grey) keeps it, only dimmed. Text is dimmed only. 0 puts the plain look
+## back.
+static func set_mix_grey(root: CanvasItem, amount: float, greyness: Vector2) -> void:
+	var shown: float = clampf(amount, 0.0, 1.0)
+	var bright: float = lerpf(1.0, greyness.x, shown)
+	root.modulate = Color(bright, bright, bright, root.modulate.a)
+	var material: ShaderMaterial = null
+	if root.has_meta(MIX_META):
+		material = root.get_meta(MIX_META) as ShaderMaterial
+	if shown <= 0.0:
+		if material != null:
+			_set_mix_look(root, material, false)
+			root.remove_meta(MIX_META)
+		return
+	if material == null:
+		material = ShaderMaterial.new()
+		material.shader = GREY_SHADER
+		root.set_meta(MIX_META, material)
+	material.set_shader_parameter(&"saturation", lerpf(1.0, greyness.y, shown))
+	_set_mix_look(root, material, true)
+
+
+## Gives every plain pixel-art node under `node` the mix grey `material` (`on`), or takes it off.
+static func _set_mix_look(node: Node, material: ShaderMaterial, on: bool) -> void:
+	var item: CanvasItem = node as CanvasItem
+	if item != null and item.has_meta(PIXEL_ART_META):
+		var own: bool = item.has_meta(LOOK_META)
+		if on and not own:
+			set_look(item, material)
+		elif not on and own and item.get_meta(LOOK_META) == material:
+			set_look(item, null)
+	for child: Node in node.get_children():
+		_set_mix_look(child, material, on)
 
 
 ## The shared greyed sharp-pixel material of `look` (#71): a denied item's sprite or a drained

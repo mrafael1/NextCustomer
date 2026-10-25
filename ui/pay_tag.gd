@@ -1,12 +1,12 @@
 class_name PayTag
 extends Control
-## The real pay on a planning item's ticket (#71, mock-up h1, H1_BUILD_SPEC.md section 4.5): a
-## gold burst for a boosted pay (a wide one from WIDE_CHARS characters), a cream tag for a
-## lowered one, and a punched tomato "€0" tag with the warning glyph (an inspection's denial) or
-## the paper fizzle glyph (a card's own denial, or a pay wiped by fizzles). Its shadow is the same
-## art in ink at SHADOW_ALPHA, SHADOW_OFFSET down and right. PlanningLayer pins it on the ticket's
-## top-right corner (#105, mock-up readability v3: the stacked price, the struck old price under
-## it, PriceSticker), die-cut out of the ticket's colour (`cut`: a paper art pixel, then an ink one,
+## The real pay on a planning item's ticket (#71, mock-up h1, H1_BUILD_SPEC.md section 4.5): a gold
+## burst for a boosted pay (a wide one from WIDE_CHARS characters), a cream tag for a lowered one,
+## and a punched tomato "€0" tag with the warning glyph (an inspection's denial) or the paper fizzle
+## glyph (a card's own denial, or a pay wiped by fizzles). Its shadow is the same art in ink at
+## SHADOW_ALPHA, SHADOW_OFFSET down and right. PlanningLayer pins it on the ticket's top-right
+## corner (rect_on; #105, mock-up readability v3: the stacked price, the struck old price under it,
+## PriceSticker), die-cut out of the ticket's colour (`cut`: a paper art pixel, then an ink one,
 ## round its art, ArtStyle.cut_material). Dimmed (an unrelated item while another is hovered) it
 ## fades to `dimmed_alpha`. Decor only: every number is a payout from the score. A ticket's own
 ## plain tag at rest (PriceSticker) is the LOWERED tag's look.
@@ -38,6 +38,16 @@ const SHADOW_OFFSET := Vector2(3, 3)
 const SHADOW_ALPHA := 0.42
 const CUT_NAME := "Cut"
 const STRUCK_NAME := "Struck"
+## Pinned on its ticket's top-right corner (rect_on; #105, mock-up readability v3's stacked
+## price): its overhang past the ticket's right edge and above its top, none past the right edge
+## on a scaled row. A wide burst over a two-glyph row (Golden Milk at €126) moves right to
+## WIDE_CLEAR_LEFT from the ticket's left (its die-cut meets the squeezed glyph row's rims,
+## PriceSticker), at most WIDE_CLEAR_LEFT + its width - the ticket's width past the ticket (the
+## rail's gap holds it).
+const BURST_OVERHANG := Vector2(6, 6)
+const WIDE_OVERHANG := Vector2(14, 12)
+const TAG_OVERHANG := Vector2(4, 4)
+const WIDE_CLEAR_LEFT := 46.0
 
 const BURST := preload("res://art/effects/pay_burst.png")
 const WIDE_BURST := preload("res://art/effects/pay_burst_wide.png")
@@ -121,6 +131,31 @@ static func size_for(tag_pay: PlanningModel.Pay, shown: String) -> Vector2:
 	if tag_pay == PlanningModel.Pay.BOOSTED:
 		return WIDE_SIZE if shown.length() >= WIDE_CHARS else BURST_SIZE
 	return TAG_SIZE
+
+
+## The tag's rect on the ticket `ticket` (PlanningLayer's coordinates) of `sticker`, at the row's
+## `scale_x`: on the ticket's top-right corner, overhanging it (not past its right edge on a scaled
+## row); a wide burst that would cut into the sticker's glyph row moves right to WIDE_CLEAR_LEFT.
+func rect_on(ticket: Rect2, sticker: PriceSticker, scale_x: float) -> Rect2:
+	var overhang: Vector2 = TAG_OVERHANG
+	var wide: bool = false
+	if pay == PlanningModel.Pay.BOOSTED:
+		wide = size.x > BURST_SIZE.x
+		overhang = WIDE_OVERHANG if wide else BURST_OVERHANG
+	if scale_x < 1.0:
+		overhang.x = 0.0
+	var left: float = ticket.end.x + overhang.x - size.x
+	if wide and scale_x >= 1.0:
+		var cut_left: float = left - ticket.position.x - ArtStyle.RIM_TEXELS * ArtStyle.ART_SCALE
+		if sticker.glyph_row_end() > cut_left:
+			left = ticket.position.x + WIDE_CLEAR_LEFT
+	# The tag keeps its size on a scaled row: its foot stays where it sits on a full-size ticket
+	# (over the struck price and the text), so it rises a little more.
+	var scale_y: float = ticket.size.y / PriceSticker.SIZE.y
+	var foot: float = ticket.position.y + (size.y - overhang.y) * scale_y
+	var top: float = floorf((foot - size.y) / ArtStyle.ART_SCALE) * ArtStyle.ART_SCALE
+	left = snappedf(left, ArtStyle.ART_SCALE)
+	return Rect2(Vector2(left, top), size)
 
 
 ## The text shown.

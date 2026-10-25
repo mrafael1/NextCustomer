@@ -3,13 +3,13 @@ extends RefCounted
 ## One sticker on a planning item (#71, mock-up h1, H1_BUILD_SPEC.md section 2.1): an effect the
 ## item receives, read from one EffectLink. ADD is the cream "+N" price-gun label, MULTIPLY the
 ## gold "×N" starburst, COPY the teal "=€N" label, FIZZLE the grey "WASTED" label and MORE the
-## grey "…+N" sticker the earliest stickers fold into when a stack is too tall (PlanningLayer
-## makes it). Pure data: it never scores.
+## grey "+N" fold chip the earliest stickers fold into from a stack's 5th sticker (#105 piece 3:
+## PlanningLayer makes it). Pure data: it never scores.
 
 enum Kind { ADD, MULTIPLY, COPY, FIZZLE, MORE }
 
 ## MORE's text: how many stickers it folds.
-const MORE_TEXT := "…+%d"
+const MORE_TEXT := "+%d"
 
 var kind: Kind = Kind.ADD
 ## The sticker's text: the link's token ("+3", "×3", "=€6", "WASTED") or MORE_TEXT.
@@ -30,6 +30,8 @@ var cause_slot: int = -1
 var cause_index: int = -1
 ## The step's index in ScoreResult.steps (-1 for MORE).
 var step_index: int = -1
+## MORE: how many stickers it folds (0 for the other kinds).
+var folds: int = 0
 
 
 ## A MORE sticker folding `count` stickers.
@@ -37,6 +39,7 @@ static func folded(count: int) -> StickerSpec:
 	var spec: StickerSpec = StickerSpec.new()
 	spec.kind = Kind.MORE
 	spec.text = MORE_TEXT % count
+	spec.folds = count
 	return spec
 
 

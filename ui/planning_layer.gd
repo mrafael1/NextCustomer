@@ -3,10 +3,13 @@ extends Control
 ## The planning effects' layer over the belt (#71, mock-up h1, H1_BUILD_SPEC.md sections 4 and 6):
 ## one per stage (ShiftStage.planning_layer), over the items and their tickets, under the top bar,
 ## the hand, the scan layers and the drag's ghost. For each filled slot of a PlanningModel it shows
-## what the item receives and pays: its stickers (EffectSticker) stacked in apply order, the last
-## applied at the bottom nearest the ticket, growing up over the item and the back wall (never
-## over the ticket, never past the hung monitor's foot or the top bar's: the stack squeezes, then
-## its earliest stickers fold into one "…+N"); the pay on its ticket (PayTag, over the ticket's top
+## what the item receives and pays: its stickers (EffectSticker) stacked in apply order on the
+## item's right shoulder (#105 piece 3, mock-up readability v3 section 3, fold A), the last applied
+## at the bottom, each overlapping the one above by STACK_OVERLAP, growing up over the back wall
+## (never over the ticket, never past the hung monitor's foot or the top bar's); from the 5th
+## sticker the earliest fold into the grey "+N" chip on top, so at most STACK_SHOWN show (a stack
+## still too tall squeezes, then folds more), and hovering a folded stack fans every sticker out
+## above the item, numbered (StackFan); the pay on its ticket (PayTag, over the ticket's top
 ## right corner, die-cut, the struck old price under it: PriceSticker.set_pay; #105); a
 ## denied item's rubber stamp (DenyStamp); and a 3-ring item's two sparkles. It boosts (halo and
 ## lift) and greys the items themselves (ItemView.set_boost, set_denied). A drag's ghost carries
@@ -33,23 +36,37 @@ extends Control
 ## shows none of its parts.
 ##
 ## Motion (none under `reduced_motion`, and nothing loops): the stickers new since the last
-## slap_new slap on, a boosted item's halo steps out from the rings its card showed before, and
-## each rebuild steps the strips' chevrons once. Decor only: it takes no clicks, and every number
-## on it comes from the model (the score's steps and payouts).
+## slap_new slap on, the fold chip pops in as a stack first folds and punches as more fold in (each
+## newly folded sticker shrinking into it), a boosted item's halo steps out from the rings its card
+## showed before, and each rebuild steps the strips' chevrons once. Decor only: it takes no clicks,
+## and every number on it comes from the model (the score's steps and payouts).
 
 ## The bottom of every belt stack (the item's ground line, less ItemView.BOOST_LIFT and 2), and
-## its left edge from the cell's (STACK_NUDGE more for every odd sticker: slapped, not aligned).
+## its left edge from the cell's: the sprite's right shoulder (STACK_NUDGE more for every odd
+## sticker from the bottom: slapped, not aligned; a burst STACK_BURST_SHIFT and a WASTED label
+## STACK_FIZZLE_SHIFT more, so their wider frames sit over the shoulder too; the fold chip on the
+## edge itself).
 const STACK_BOTTOM_Y := 374.0
-const STACK_LEFT := 72.0
+const STACK_LEFT := 88.0
 const STACK_NUDGE := 4.0
-## The least room a belt stack keeps from the screen's right edge: it moves left to keep it.
+const STACK_BURST_SHIFT := -8.0
+const STACK_FIZZLE_SHIFT := -18.0
+## The least room a belt stack keeps from the screen's right edge: it moves left to keep it. Moved
+## more than STACK_PUSH_MAX (the last slot's), it would cover its item: it stands on the art's
+## visible top instead (raised as a boost raises it), STACK_ON_ART into it, so the item stays in
+## view.
 const STACK_EDGE_GAP := 4.0
-## Each sticker overlaps the one above it by STACK_OVERLAP, squeezed in STACK_SQUEEZE steps up to
-## STACK_OVERLAP_MAX when the stack is too tall for its ceiling.
-const STACK_OVERLAP := 6.0
+const STACK_PUSH_MAX := 8.0
+const STACK_ON_ART := 6.0
+## Each sticker overlaps the one above it by STACK_OVERLAP (the mock-up's 3 px, on the 2 px art
+## grid), squeezed in STACK_SQUEEZE steps up to STACK_OVERLAP_MAX when the stack is too tall for its
+## ceiling.
+const STACK_OVERLAP := 4.0
 const STACK_OVERLAP_MAX := 14.0
 const STACK_SQUEEZE := 2.0
-## The frames' tilts by stack index (mod their count), in degrees.
+## The most stickers a stack shows: from one more, its earliest fold into the "+N" chip.
+const STACK_SHOWN := 4
+## The frames' tilts by place from the stack's bottom (mod their count), in degrees.
 const STICKER_TILTS: Array[float] = [-4.0, 3.0, -3.0, 4.0, -2.0]
 ## A stack's ceiling: MONITOR_GAP under the hung monitor's drawing when it overlaps its x-range,
 ## else TOP_BAR_GAP under the top bar's foot.
@@ -57,7 +74,7 @@ const MONITOR_GAP := 2.0
 const TOP_BAR_GAP := 8.0
 ## Over a drag's ghost (its coordinates): the stack's left edge, its bottom GHOST_STACK_GAP over
 ## the sprite's, and the pay tag's place (the ghost has no ticket).
-const GHOST_STACK_LEFT := 62.0
+const GHOST_STACK_LEFT := 78.0
 const GHOST_STACK_GAP := 2.0
 const GHOST_PAY_AT := Vector2(60, 70)
 ## A denied item's stamp, from its sprite's top-left.
@@ -66,15 +83,6 @@ const STAMP_OFFSET := Vector2(2, 26)
 const SPARKLE_RINGS := 3
 const SPARKLE_OFFSETS: Array[Vector2] = [Vector2(2, 14), Vector2(76, -24)]
 const SPARKLE_SIZE := Vector2(10, 10)
-## A pay tag on its ticket's top-right corner (#105, mock-up readability v3's stacked price): its
-## overhang past the ticket's right edge and above its top, none past the right edge on a scaled
-## row. A wide burst over a two-glyph row (Golden Milk at €126) moves right to WIDE_CLEAR_LEFT
-## from the ticket's left (its die-cut meets the squeezed glyph row's rims, PriceSticker), at most
-## WIDE_CLEAR_LEFT + its width - the ticket's width past the ticket (the rail's gap holds it).
-const BURST_OVERHANG := Vector2(6, 6)
-const WIDE_OVERHANG := Vector2(14, 12)
-const TAG_OVERHANG := Vector2(4, 4)
-const WIDE_CLEAR_LEFT := 46.0
 ## The hovered item's ticket ring: bands RING_BAND wide round the ticket, inside out.
 const RING_BAND := 2.0
 const RING_COLOURS: Array[Color] = [Palette.MUSTARD_PALE, Palette.MUSTARD, Palette.INK]
@@ -127,6 +135,10 @@ var _ring: RailStrip.Painter
 var _got: Array[PriceSticker] = []
 ## The rings each card's item showed at the last show_model (a halo steps out from there).
 var _rings_by_card: Dictionary[CardInstance, int] = {}
+## How many stickers each card's stack folded at the last slap_new (the chip pops in from 0).
+var _folds_by_card: Dictionary[CardInstance, int] = {}
+## The folded stacks' fan, over every other part.
+var _fan: StackFan
 ## The count's look (keep_stickers): no pay tag or strike on the tickets.
 var _counting: bool = false
 
@@ -143,6 +155,8 @@ func _init() -> void:
 	_stamp_box = _box("Stamps")
 	_sparkle_box = _box("Sparkles")
 	_hot_box = _box("HotStrips")
+	_fan = StackFan.new()
+	add_child(_fan)
 
 
 ## Shows the model `shown` on `items` (the view showing each of its slots, null for none): the
@@ -199,20 +213,39 @@ func show_model(shown: PlanningModel, items: Array[ItemView], ghost: ItemView = 
 
 ## Slaps on every sticker shown whose key (StickerSpec.key() and its item's card) is not in
 ## `known` (none under reduced motion), and returns every shown sticker's key: PlanningEffects
-## passes the keys of the last refresh, so only new stickers slap.
+## passes the keys of the last refresh, so only new stickers slap. A stack's fold chip pops in
+## when its card's stack first folds and punches when more fold in, the stickers newly folded
+## (shown at the last refresh) shrinking into it (_fold_in).
 func slap_new(known: Dictionary[String, bool]) -> Dictionary[String, bool]:
 	var keys: Dictionary[String, bool] = {}
 	var frame_s: float = _motion(tuning.slap_frame_s if tuning != null else 0.0)
+	var folds: Dictionary[CardInstance, int] = {}
 	for slot: int in _stacks:
 		var item: ItemView = _item(slot)
 		if item == null:
 			continue
-		for sticker: EffectSticker in stack(slot):
+		var shown: Array[EffectSticker] = stack(slot)
+		for sticker: EffectSticker in shown:
 			var key: String = "%s|%d" % [sticker.spec().key(), item.card.instance_id]
 			keys[key] = true
-			if not known.has(key):
+			if not known.has(key) and sticker.spec().kind != StickerSpec.Kind.MORE:
 				sticker.slap(frame_s <= 0.0, frame_s)
+		if _folded(_specs_of(shown)):
+			folds[item.card] = _fold_in(slot, item.card, shown, known)
+	_folds_by_card = folds
 	return keys
+
+
+## The folded stacks' fan (StackFan).
+func fan() -> StackFan:
+	return _fan
+
+
+## Adds `part` (the count's giver sparks, BeltRide) over the stickers and every other part, under
+## the hover's hot strips and the fan.
+func add_under_hot(part: Node) -> void:
+	add_child(part)
+	move_child(part, _hot_box.get_index())
 
 
 ## The hot rail strips drawn on top (apply_focus), the hovered giver's own first.
@@ -318,6 +351,7 @@ func clear() -> void:
 	_model = null
 	_items.clear()
 	_rings_by_card.clear()
+	_folds_by_card.clear()
 	show_strips(true)
 
 
@@ -380,20 +414,28 @@ static func stack_ceiling(stack_rect: Rect2) -> float:
 
 
 ## What a stack of `specs` shows under a `ceiling`, its bottom at `bottom`: [shown specs,
-## overlap]. It squeezes first, then folds the earliest stickers into one MORE sticker.
+## overlap]. Past STACK_SHOWN stickers the earliest fold into one MORE sticker (the "+N" chip, on
+## top); a stack still too tall squeezes, then folds more.
 static func fit_stack(specs: Array[StickerSpec], bottom: float, ceiling: float) -> Array:
 	var room: float = bottom - ceiling
+	var kept: int = mini(specs.size(), STACK_SHOWN)
+	var shown: Array[StickerSpec] = _kept(specs, kept)
 	var overlap: float = STACK_OVERLAP
-	while _height(specs, overlap) > room and overlap < STACK_OVERLAP_MAX:
-		overlap += STACK_SQUEEZE
-	if _height(specs, overlap) <= room:
-		return [specs, overlap]
-	for kept: int in range(specs.size() - 1, -1, -1):
-		var shown: Array[StickerSpec] = [StickerSpec.folded(specs.size() - kept)]
-		shown.append_array(specs.slice(specs.size() - kept))
-		if _height(shown, overlap) <= room or kept == 0:
-			return [shown, overlap]
-	return [specs, overlap]
+	while _height(shown, overlap) > room and overlap < STACK_OVERLAP_MAX:
+		overlap = minf(overlap + STACK_SQUEEZE, STACK_OVERLAP_MAX)
+	while _height(shown, overlap) > room and kept > 0:
+		kept -= 1
+		shown = _kept(specs, kept)
+	return [shown, overlap]
+
+
+## `specs` with all but the last `kept` folded into one MORE sticker on top (none to fold: as is).
+static func _kept(specs: Array[StickerSpec], kept: int) -> Array[StickerSpec]:
+	if kept >= specs.size():
+		return specs
+	var shown: Array[StickerSpec] = [StickerSpec.folded(specs.size() - kept)]
+	shown.append_array(specs.slice(specs.size() - kept))
+	return shown
 
 
 func _process(_delta: float) -> void:
@@ -424,6 +466,7 @@ func _lay_out() -> void:
 		strip.lay_out(_anchors(strip.spec()), RailStrip.LANE_RECTS[lane], lane == 0)
 	_lay_out_focus()
 	_hide_hot_calm()
+	_fan.track(_folded_stacks())
 
 
 ## Places the hot strips in their lanes and the hovered item's ticket ring.
@@ -562,15 +605,19 @@ func _lay_out_belt(slot: int, planning: PlanningSlot, item: ItemView) -> void:
 	var to_layer: Transform2D = _to_layer(item)
 	var scale_x: float = to_layer.get_scale().x
 	var sprite: Rect2 = _sprite_rect(item, to_layer)
-	var left: float = _on_screen((to_layer * Vector2(STACK_LEFT, 0)).x, planning)
-	_lay_out_stack(slot, planning, Vector2(left, STACK_BOTTOM_Y), Vector2.ZERO, _stack_box)
+	var shoulder: float = (to_layer * Vector2(STACK_LEFT, 0)).x
+	var left: float = _on_screen(shoulder, planning)
+	var bottom: float = STACK_BOTTOM_Y
+	if shoulder - left > STACK_PUSH_MAX:
+		bottom = minf(bottom, _art_top(item, sprite) + STACK_ON_ART)
+	_lay_out_stack(slot, planning, Vector2(left, bottom), Vector2.ZERO, _stack_box)
 	var ticket_xf: Transform2D = to_layer * Transform2D(0.0, item.sticker().position)
 	var ticket: Rect2 = ticket_xf * Rect2(Vector2.ZERO, PriceSticker.SIZE)
 	var tag: PayTag = _pays.get(slot, null)
 	var tag_rect: Rect2 = Rect2()
 	var struck: bool = planning.struck and not _counting
 	if tag != null:
-		tag_rect = _tag_rect(tag, ticket, item.sticker(), scale_x)
+		tag_rect = tag.rect_on(ticket, item.sticker(), scale_x)
 		tag.position = tag_rect.position
 	item.sticker().set_pay(struck, ticket_xf.affine_inverse() * tag_rect)
 	if tag != null:
@@ -642,7 +689,7 @@ func _lay_out_stack(
 	for index: int in range(stickers.size() - 1, -1, -1):
 		var sticker: EffectSticker = stickers[index]
 		y -= sticker.size.y
-		var x: float = anchor.x + (STACK_NUDGE if index % 2 == 1 else 0.0)
+		var x: float = anchor.x + _shift(sticker.spec(), stickers.size() - 1 - index)
 		sticker.position = (Vector2(x, y) - origin).snappedf(ArtStyle.ART_SCALE)
 		y += overlap
 
@@ -653,8 +700,9 @@ func _build_stack(slot: int, shown: Array[StickerSpec], parent: Control) -> void
 		old.queue_free()
 	var made: Array[EffectSticker] = []
 	for index: int in range(shown.size()):
+		var from_bottom: int = shown.size() - 1 - index
 		var sticker: EffectSticker = EffectSticker.new(
-			shown[index], STICKER_TILTS[index % STICKER_TILTS.size()]
+			shown[index], STICKER_TILTS[from_bottom % STICKER_TILTS.size()]
 		)
 		parent.add_child(sticker)
 		made.append(sticker)
@@ -662,39 +710,70 @@ func _build_stack(slot: int, shown: Array[StickerSpec], parent: Control) -> void
 	_paint_focus(0.0)
 
 
-## The pay tag's rect for `ticket` (layer coordinates) of `sticker`, at the row's `scale_x`: on
-## the ticket's top-right corner, overhanging it (not past its right edge on a scaled row); a wide
-## burst that would cut into the sticker's glyph row moves right to WIDE_CLEAR_LEFT.
-func _tag_rect(tag: PayTag, ticket: Rect2, sticker: PriceSticker, scale_x: float) -> Rect2:
-	var overhang: Vector2 = TAG_OVERHANG
-	var wide: bool = false
-	if tag.pay == PlanningModel.Pay.BOOSTED:
-		wide = tag.size.x > PayTag.BURST_SIZE.x
-		overhang = WIDE_OVERHANG if wide else BURST_OVERHANG
-	if scale_x < 1.0:
-		overhang.x = 0.0
-	var left: float = ticket.end.x + overhang.x - tag.size.x
-	if wide and scale_x >= 1.0:
-		var cut_left: float = left - ticket.position.x - ArtStyle.RIM_TEXELS * ArtStyle.ART_SCALE
-		if sticker.glyph_row_end() > cut_left:
-			left = ticket.position.x + WIDE_CLEAR_LEFT
-	# The tag keeps its size on a scaled row: its foot stays where it sits on a full-size ticket
-	# (over the struck price and the text), so it rises a little more.
-	var scale_y: float = ticket.size.y / PriceSticker.SIZE.y
-	var foot: float = ticket.position.y + (tag.size.y - overhang.y) * scale_y
-	var top: float = floorf((foot - tag.size.y) / ArtStyle.ART_SCALE) * ArtStyle.ART_SCALE
-	left = snappedf(left, ArtStyle.ART_SCALE)
-	return Rect2(Vector2(left, top), tag.size)
+## The fold chip `shown[0]` of `slot`'s stack (`card`'s) at slap_new: how many it folds now. More
+## than at the last slap_new, it pops in (none folded before) or punches, and each sticker folded
+## since (one `known` was showing) shrinks from the stack's top into its centre and goes.
+func _fold_in(
+	slot: int, card: CardInstance, shown: Array[EffectSticker], known: Dictionary[String, bool]
+) -> int:
+	var chip: EffectSticker = shown[0]
+	var specs: Array[StickerSpec] = _model.slots[slot].stickers
+	var folded: int = specs.size() - (shown.size() - 1)
+	var before: int = _folds_by_card.get(card, 0)
+	if folded <= before:
+		return folded
+	chip.fold_punch(before == 0, reduced_motion)
+	var seconds: float = _motion(EffectSticker.FOLD_PUNCH_S)
+	if seconds <= 0.0:
+		return folded
+	for spec: StickerSpec in specs.slice(0, folded):
+		if not known.has("%s|%d" % [spec.key(), card.instance_id]):
+			continue
+		var going: EffectSticker = EffectSticker.new(spec, STICKER_TILTS[0])
+		going.name = "Folding"
+		going.pivot_offset = going.size / 2.0
+		chip.get_parent().add_child(going, true)
+		chip.get_parent().move_child(going, chip.get_index())
+		var top: Vector2 = chip.position + Vector2(0, chip.size.y - going.size.y)
+		var centre: Vector2 = chip.position + (chip.size - going.size) / 2.0
+		going.position = top
+		var tween: Tween = going.create_tween().set_parallel()
+		tween.tween_property(going, "position", centre, seconds)
+		tween.tween_property(going, "scale", Vector2.ONE * EffectSticker.FOLD_POP_FROM, seconds)
+		tween.tween_property(going, "modulate:a", 0.0, seconds)
+		tween.chain().tween_callback(going.queue_free)
+	return folded
+
+
+## The belt's folded stacks (their first sticker the fold chip) for the fan, by slot: none on the
+## ghost, on a hidden view or in the count.
+func _folded_stacks() -> Dictionary[int, StackFan.Folded]:
+	var found: Dictionary[int, StackFan.Folded] = {}
+	if _counting or _model == null:
+		return found
+	for slot: int in _stacks:
+		var item: ItemView = _item(slot)
+		var shown: Array[EffectSticker] = stack(slot)
+		if item == null or item == _ghost or not item.is_visible_in_tree():
+			continue
+		if not _folded(_specs_of(shown)) or slot >= _model.slots.size():
+			continue
+		var folded: StackFan.Folded = StackFan.Folded.new()
+		folded.specs = _model.slots[slot].stickers
+		folded.stack = shown
+		folded.sprite = _sprite_rect(item, _to_layer(item))
+		folded.drained = _drained_spec.bind(slot)
+		found[slot] = folded
+	return found
 
 
 ## The focus's look on every part (apply_focus); a denied item's stickers stay drained.
 func _paint_focus(fade: float) -> void:
 	var focused: bool = _lit.is_valid()
 	for slot: int in _stacks:
-		var stamped: bool = _stamps.has(slot)
 		for sticker: EffectSticker in stack(slot):
-			var lit: bool = not focused or bool(_lit.call(slot, sticker.spec()))
-			sticker.set_drained(stamped or not lit)
+			sticker.set_drained(_drained_spec(sticker.spec(), slot))
+	_fan.repaint()
 	for slot: int in _pays:
 		_pays[slot].set_dimmed(focused and not _related.has(slot), fade)
 	for slot: int in _stamps:
@@ -703,6 +782,7 @@ func _paint_focus(fade: float) -> void:
 
 ## Takes every part off, and every painted view's boost, grey and ticket pay.
 func _reset() -> void:
+	_fan.track({})
 	for item: ItemView in _painted:
 		if is_instance_valid(item):
 			item.boost_rings = 0
@@ -794,6 +874,16 @@ func _to_layer(item: Control) -> Transform2D:
 	return get_global_transform().affine_inverse() * item.get_global_transform()
 
 
+## The top of `item`'s visible art (ContactShadow.opaque_rect) in its `sprite` rect at rest
+## (_sprite_rect), raised by a boost's lift, on the art grid.
+static func _art_top(item: ItemView, sprite: Rect2) -> float:
+	var texture: Texture2D = item.sprite().texture
+	var art: Rect2i = ContactShadow.opaque_rect(texture)
+	var top: float = sprite.position.y + art.position.y * sprite.size.y / texture.get_height()
+	var raised: float = ItemView.BOOST_LIFT * sprite.size.y / ItemView.SPRITE_SIZE.y
+	return snappedf(top - raised, ArtStyle.ART_SCALE)
+
+
 ## `item`'s sprite at rest (no lift or boost) through `to_layer` (`item`'s coordinates into the
 ## ones wanted).
 static func _sprite_rect(item: ItemView, to_layer: Transform2D) -> Rect2:
@@ -835,15 +925,43 @@ func _box(box_name: String) -> Control:
 	return box
 
 
-## The x-range a stack of `specs` with its left at `left` spans, badges and nudges included.
+## The x-range a stack of `specs` (as fit_stack shows them) with its left at `left` spans, badges
+## and shifts included.
 static func _span(specs: Array[StickerSpec], left: float) -> Rect2:
 	var start: float = left
 	var end: float = left
-	for index: int in range(specs.size()):
-		var x: float = left + (STACK_NUDGE if index % 2 == 1 else 0.0)
-		start = minf(start, x - EffectSticker.badge_overhang(specs[index]))
-		end = maxf(end, x + EffectSticker.size_for(specs[index]).x)
+	var shown: Array[StickerSpec] = _kept(specs, STACK_SHOWN)
+	for index: int in range(shown.size()):
+		var x: float = left + _shift(shown[index], shown.size() - 1 - index)
+		start = minf(start, x - EffectSticker.badge_overhang(shown[index]))
+		end = maxf(end, x + EffectSticker.size_for(shown[index]).x)
 	return Rect2(start, 0.0, end - start, 0.0)
+
+
+## How far right of its stack's left edge a sticker sits, `from_bottom` places up from the
+## bottom: STACK_NUDGE for every odd place, plus its kind's shift; the fold chip sits on the edge.
+static func _shift(spec: StickerSpec, from_bottom: int) -> float:
+	var shift: float = STACK_NUDGE if from_bottom % 2 == 1 else 0.0
+	match spec.kind:
+		StickerSpec.Kind.MORE:
+			return 0.0
+		StickerSpec.Kind.MULTIPLY:
+			shift += STACK_BURST_SHIFT
+		StickerSpec.Kind.FIZZLE:
+			shift += STACK_FIZZLE_SHIFT
+	return shift
+
+
+## Whether a sticker of `spec` on `slot` is drained: on a denied item, or unlit by the focus.
+func _drained_spec(spec: StickerSpec, slot: int) -> bool:
+	return _stamps.has(slot) or (_lit.is_valid() and not bool(_lit.call(slot, spec)))
+
+
+static func _specs_of(stickers: Array[EffectSticker]) -> Array[StickerSpec]:
+	var specs: Array[StickerSpec] = []
+	for sticker: EffectSticker in stickers:
+		specs.append(sticker.spec())
+	return specs
 
 
 ## A stack's height with each sticker overlapping the one above by `overlap`.

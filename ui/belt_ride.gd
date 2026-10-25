@@ -67,10 +67,9 @@ func setup(count_up: CountUp, stage: ShiftStage) -> void:
 	_count = count_up
 	_stage = stage
 	_stage.bag.make_tween = count_up.tween_maker()
-	# Over the stickers, under the planning hover's hot strips (the layer's last part).
+	# Over the stickers, under the planning hover's hot strips and the stack fan.
 	_sparks = GiverSparks.new()
-	_stage.planning_layer.add_child(_sparks)
-	_stage.planning_layer.move_child(_sparks, _stage.planning_layer.get_child_count() - 2)
+	_stage.planning_layer.add_under_hot(_sparks)
 	count_up.ride.connect(_on_ride)
 	count_up.step_landed.connect(_on_step_landed)
 	count_up.beat_started.connect(_on_beat_started)
@@ -296,8 +295,8 @@ func _land(art: TextureRect) -> void:
 	_stage.bag.land(_reduced)
 
 
-## Step `index` landed (CountUp.step_landed): the sticker of that step fires (the fold's when it
-## is folded into "…+N").
+## Step `index` landed (CountUp.step_landed): the sticker of that step fires (the fold chip's,
+## counting down, when it is folded into "+N").
 func _on_step_landed(index: int) -> void:
 	if not _active or _result == null or index < 0 or index >= _result.steps.size():
 		return
@@ -355,8 +354,8 @@ func _targets_of(beat: CountUpBeat) -> Array[EffectSticker]:
 	return found
 
 
-## The sticker on `slot` of step `index`, the stack's fold ("…+N") when that step's sticker is one
-## it folded in (the slot's earliest), or null (a step with no sticker, such as a denial).
+## The sticker on `slot` of step `index`, the stack's fold chip ("+N") when that step's sticker is
+## one it folded in (the slot's earliest), or null (a step with no sticker, such as a denial).
 func _sticker_of(slot: int, index: int) -> EffectSticker:
 	var stack: Array[EffectSticker] = _stage.planning_layer.stack(slot)
 	for sticker: EffectSticker in stack:
