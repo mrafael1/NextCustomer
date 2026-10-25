@@ -30,12 +30,11 @@ func after_test() -> void:
 		DirAccess.remove_absolute(_folder)
 
 
-## The tag's and the brief's lines name the product and the new tier.
+## The tag's line names the product and the new tier.
 func test_the_lines_name_the_item_and_its_tier() -> void:
 	var golden: CardDefinition = _step(load(BANANA), 2)
 	assert_int(golden.tier).is_equal(CardDefinition.Tier.GOLDEN)
 	assert_str(UpgradeSwap.tier_line(golden)).is_equal("BANANA › GOLDEN")
-	assert_str(UpgradeSwap.news_line(golden)).is_equal("Banana is GOLDEN now")
 	var big: CardDefinition = _step(load(MILK), 1)
 	assert_str(UpgradeSwap.tier_line(big)).is_equal("MILK › BIG")
 
@@ -65,8 +64,8 @@ func test_a_copy_upgraded_twice_swaps_once() -> void:
 
 
 ## Back in the store after the glide, upgrade_after_ms later: the hand's Banana swaps (old art
-## held until then), the off-screen Milk is skipped but on the brief; the flash, sunburst, pop and
-## tag at their times and places; everything cleared at the end.
+## held until then), the off-screen Milk is skipped; the flash, sunburst, pop and tag at their
+## times and places; everything cleared at the end.
 func test_an_upgraded_item_on_screen_swaps_in_place() -> void:
 	var runner: GdUnitSceneRunner = scene_runner(SCREEN)
 	var screen: ShiftScreen = runner.scene()
@@ -83,10 +82,6 @@ func test_an_upgraded_item_on_screen_swaps_in_place() -> void:
 	var flow: MachineFlow = screen._machine
 	flow.shown_swaps = pairs
 	screen._refresh()
-	var news: PackedStringArray = flow.swap_news()
-	assert_array(Array(news)).is_equal(["Banana is GOLDEN now", "Milk is BIG now"])
-	var brief: Array = Array(screen._monitor.channel.slide_texts(0))
-	assert_array(brief).contains(["Banana is GOLDEN now", "Milk is BIG now"])
 	var item: ItemView = _item_of(screen, banana)
 	assert_object(item).is_not_null()
 	UpgradeSwap.hold_old(pairs, screen.item_views())

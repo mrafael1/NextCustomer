@@ -38,10 +38,9 @@ extends Resource
 @export_group("Bonus notice")
 ## #77 machine v2: on an inspected shift whose pass earns the bonus ticket, planning's notice
 ## pulses once as the shift opens (none under reduced motion): the top bar's chip for
-## notice_pulse_ms, then the monitor's PASS IT plate for monitor_pulse_ms, each scaling by
-## 1 + notice_pulse_scale x sin(notice_pulse_rate x seconds). BonusNotice reads them.
+## notice_pulse_ms, scaling by 1 + notice_pulse_scale x sin(notice_pulse_rate x seconds).
+## BonusNotice reads them.
 @export var notice_pulse_ms: int = 0
-@export var monitor_pulse_ms: int = 0
 @export var notice_pulse_scale: float = 0.0
 @export var notice_pulse_rate: float = 0.0
 

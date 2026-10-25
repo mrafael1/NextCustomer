@@ -1,55 +1,14 @@
 extends GdUnitTestSuite
-## The scanner bay on the monitor's count view (#86 v6 scan count-up, round 7's TALLY, ALIVE and
-## QUEUE; ScannerBay with BayBed, BayTag and BayQueue): each beat's landing sticker (landing_spec);
-## its geometry on the monitor (at BAY_RECT, its header's queue, bed, art and name inside it, all
-## on the paper, the landing sticker's bottom-right at stage (623,195), the tag hanging off its top
-## right at stage (565,102), growing to the right only); the tag reading each step's value_after on
-## the capture tool's --effects row (paper, gold, back to paper on a denial, none for a coupon at
-## €0); the queue's text and pips; the item's pose (drop, land, wobble, slide-out); the scan's
-## laser fan, BEEP and flash; a ride's slide-out and drop-in with the tag and sticker leaving with
-## the item; reduced motion keeping the states; the slap on make_tween's tweens and the knock-off
-## in real time; a resumed checkout's ALL PAID end state; and every card's name fitting its label.
+## The scanner bay on the monitor (#86 v6 scan count-up, round 7's ALIVE and QUEUE; #105 piece 2:
+## ScannerBay with BayBed, BayQueue and its FamilyChip): its geometry on the monitor (at BAY_RECT,
+## its header's queue, bed, art and family chip inside it, all on the paper, apart from the item
+## column); the queue's text and pips; the item's pose (drop, land, wobble, slide-out); the scan's
+## laser fan, BEEP and flash; a ride's slide-out and drop-in with the chip following the item;
+## reduced motion keeping the states; the motion on the count-up's tweens; a resumed checkout's
+## ALL PAID end state; and every card's chip naming what the item works with, fitting its face.
+## The bay's price and lines went to the item column (MonitorItemColumn, monitor_layout_test).
 
 const CARDS := "res://data/cards"
-## The landing sticker's bottom-right corner on the stage (the mock-up's).
-const STICKER_CORNER := Vector2(623, 195)
-## The tag's place and string on the stage (the mock-up's).
-const TAG_AT := Vector2(565, 102)
-const STRING_AT := Rect2(574, 96, 2, 10)
-## The capture tool's --effects shift: its row, upgrades, inspection and quota.
-const EFFECTS_ROW: Array[String] = ["eggs", "bread", "milk", "multipack", "milk", "milk", "milk"]
-const EFFECTS_UPGRADES: Array[String] = ["coupon_engine", "slot_engine", "category_engine"]
-const EFFECTS_QUOTA := 73
-## The tag after each of the --effects row's 26 beats: [shown, value, paid] (bay_v7_spec.md
-## section 0).
-const EFFECTS_TAGS: Array[Array] = [
-	[true, 1, true],
-	[true, 1, true],
-	[true, 5, false],
-	[true, 10, true],
-	[true, 10, true],
-	[true, 4, false],
-	[true, 6, true],
-	[true, 0, false],
-	[true, 0, false],
-	[false, 0, false],
-	[false, 0, false],
-	[false, 0, false],
-	[true, 4, false],
-	[true, 7, true],
-	[true, 21, true],
-	[true, 21, true],
-	[true, 4, false],
-	[true, 8, true],
-	[true, 24, true],
-	[true, 48, true],
-	[true, 48, true],
-	[true, 4, false],
-	[true, 9, true],
-	[true, 21, true],
-	[true, 63, true],
-	[true, 63, true],
-]
 ## Manual stepping of the count's tweens (seconds per step).
 const STEP := 0.01
 
@@ -73,49 +32,14 @@ func after_test() -> void:
 		DirAccess.remove_absolute(_folder)
 
 
-## Each beat kind's landing sticker, its numbers the step's, its step index the beat's first.
-func test_the_landing_spec_follows_the_beat_kind() -> void:
-	var spec: StickerSpec = ScannerBay.landing_spec(
-		_beat(CountUpBeat.Kind.MERGED_PLAIN, 4), _step(3)
-	)
-	assert_int(spec.kind).is_equal(StickerSpec.Kind.ADD)
-	assert_str(spec.text).is_equal("€3")
-	assert_int(spec.step_index).is_equal(4)
-	spec = ScannerBay.landing_spec(_beat(CountUpBeat.Kind.BASE, 0), _step(5))
-	assert_str(spec.text).is_equal("€5")
-	assert_int(spec.kind).is_equal(StickerSpec.Kind.ADD)
-	var flat: ScoreStep = _step(2, ScoreStep.StepType.FLAT)
-	spec = ScannerBay.landing_spec(_beat(CountUpBeat.Kind.BONUS, 1), flat)
-	assert_int(spec.kind).is_equal(StickerSpec.Kind.ADD)
-	assert_str(spec.text).is_equal("+2")
-	var times: ScoreStep = _step(3, ScoreStep.StepType.MULTIPLIER)
-	spec = ScannerBay.landing_spec(_beat(CountUpBeat.Kind.STAMP, 2), times)
-	assert_int(spec.kind).is_equal(StickerSpec.Kind.MULTIPLY)
-	assert_str(spec.text).is_equal("×3")
-	var denied: ScoreStep = _step(0, ScoreStep.StepType.PAYOUT_OVERRIDE)
-	spec = ScannerBay.landing_spec(_beat(CountUpBeat.Kind.DENIED, 3), denied)
-	assert_int(spec.kind).is_equal(StickerSpec.Kind.FIZZLE)
-	assert_str(spec.text).is_equal("€0")
-	spec = ScannerBay.landing_spec(_beat(CountUpBeat.Kind.FIZZLE, 3), _step(0))
-	assert_int(spec.kind).is_equal(StickerSpec.Kind.FIZZLE)
-	for kind: CountUpBeat.Kind in [
-		CountUpBeat.Kind.PAYOUT,
-		CountUpBeat.Kind.ARMED,
-		CountUpBeat.Kind.TAG,
-		CountUpBeat.Kind.LINK,
-	]:
-		assert_object(ScannerBay.landing_spec(_beat(kind, 0), _step(1))).is_null()
-
-
-## On the monitor the bay stands at BAY_RECT, on the paper, and its parts inside it: the queue over
-## the header (the light in it), the bed at BED_RECT with the art over its inside (96x96), the name
-## label under the bed; the landing sticker lands with its bottom-right at STICKER_CORNER, on the
-## paper, in the monitor's sticker layer (clipped to the paper, over the LED).
+## On the monitor the bay stands at BAY_RECT, on the paper (its shadow too), in every mode, and its
+## parts inside it: the queue over the header (the light in it), the bed at BED_RECT with the art
+## over its inside (96x96), the family chip under the bed at CHIP_AT; the bay apart from the item
+## column and the checkout column.
 func test_the_bay_sits_on_the_paper() -> void:
 	var monitor: MonitorView = await _monitor()
 	var bay: ScannerBay = monitor.bay()
 	monitor.reduced_motion = func() -> bool: return true
-	# On the screen in every mode (the monitor bay follow-up of #86).
 	assert_bool(bay.is_visible_in_tree()).is_true()
 	monitor.led.start_count(34)
 	await _frames(1)
@@ -124,7 +48,6 @@ func test_the_bay_sits_on_the_paper() -> void:
 	assert_that(rect).is_equal(MonitorView.BAY_RECT)
 	assert_vector(rect.size).is_equal(ScannerBay.SIZE)
 	var paper: Rect2 = MonitorView.PAPER_RECT
-	# The bay with its shadow.
 	(
 		assert_bool(
 			paper.encloses(rect.grow_individual(0, 0, ScannerBay.SHADOW, ScannerBay.SHADOW))
@@ -140,9 +63,9 @@ func test_the_bay_sits_on_the_paper() -> void:
 	var header: Rect2 = _shifted(ScannerBay.HEADER_RECT, rect.position)
 	assert_that(bay.queue().get_global_rect()).is_equal(header)
 	var light: Rect2 = _shifted(ScannerBay.LIGHT_RECT, rect.position)
-	var label: Rect2 = bay.name_label().get_global_rect()
-	assert_that(label).is_equal(_shifted(ScannerBay.NAME_RECT, rect.position))
-	for part: Rect2 in [header, bed, label]:
+	var chip: Rect2 = bay.chip().get_global_rect()
+	assert_that(chip).is_equal(Rect2(rect.position + ScannerBay.CHIP_AT, FamilyChip.SIZE))
+	for part: Rect2 in [header, bed, chip]:
 		(
 			assert_bool(rect.grow(-ScannerBay.BORDER).encloses(part))
 			. override_failure_message(str(part))
@@ -150,180 +73,20 @@ func test_the_bay_sits_on_the_paper() -> void:
 		)
 	assert_bool(header.encloses(light)).is_true()
 	assert_bool(header.intersects(bed)).is_false()
-	assert_bool(bed.intersects(label)).is_false()
-	# The bay apart from the LED's number and € and the right part (channel, scan text).
-	assert_bool(rect.intersects(MonitorView.LED_COUNT_RECT)).is_false()
-	assert_bool(rect.intersects(MonitorView.RIGHT_RECT)).is_false()
-	# A landing sticker at the corner, on the paper.
-	var milk: CardDefinition = _card("milk")
-	bay.follow_beat(_beat(CountUpBeat.Kind.MERGED_PLAIN, 0, 0, true), _step(3), milk)
-	var sticker: EffectSticker = bay.landing_sticker()
-	assert_object(sticker).is_not_null()
-	await _frames(1)
-	var layer: Control = sticker.get_parent() as Control
-	assert_object(layer).is_not_same(bay)
-	assert_bool(layer.clip_contents).is_true()
-	assert_that(layer.get_global_rect()).is_equal(paper)
-	assert_int(layer.get_parent().get_index()).is_greater(monitor.led.get_index())
-	var placed: Rect2 = sticker.get_global_rect()
-	assert_vector(placed.end).is_equal(STICKER_CORNER)
-	assert_vector(bay.get_global_transform() * ScannerBay.STICKER_CORNER).is_equal(STICKER_CORNER)
-	assert_bool(paper.encloses(placed)).override_failure_message(str(placed)).is_true()
-	assert_vector(bay.landing_point()).is_equal(placed.get_center())
-	assert_bool(sticker.is_visible_in_tree()).is_true()
-	# Outside the count the sticker goes; the bay stays, planning's again.
+	assert_bool(bed.intersects(chip)).is_false()
+	assert_bool(rect.intersects(MonitorView.ITEM_RECT)).is_false()
+	assert_bool(rect.intersects(MonitorView.CHECKOUT_RECT)).is_false()
+	# Outside the count the bay stays, planning's again.
 	monitor.led.clear()
 	await _frames(1)
 	assert_bool(bay.is_visible_in_tree()).is_true()
 	assert_bool(bay.is_planning()).is_true()
-	assert_object(bay.landing_sticker()).is_null()
-
-
-## The tag hangs off the bay's top right on the monitor's top layer: at rest at TAG_AT, its string
-## at STRING_AT, MIN_WIDTH wide for "€1"; wider values grow it to the right only, on the 2 px grid,
-## on the paper; it sends its chips from (565 + w - 6, 111); its text sits on its face, right of
-## TEXT_LEFT.
-func test_the_tag_hangs_off_the_bays_top_right() -> void:
-	var monitor: MonitorView = await _monitor()
-	monitor.reduced_motion = func() -> bool: return true
-	monitor.led.start_count(34)
-	await _frames(1)
-	var tag: BayTag = monitor.bay().tag()
-	tag.show_value(1, false)
-	await _frames(1)
-	assert_bool(tag.is_visible_in_tree()).is_true()
-	assert_that(tag.get_global_rect()).is_equal(Rect2(TAG_AT, Vector2(52, 24)))
-	assert_that(_shifted(BayTag.STRING_RECT, tag.get_global_rect().position)).is_equal(STRING_AT)
-	# Over the bay, the sticker layer and the chips.
-	var layer: Control = tag.get_parent() as Control
-	assert_int(tag.get_index()).is_greater(monitor.chips().get_index())
-	assert_int(layer.get_index()).is_greater(monitor.led.get_index())
-	for value: int in [1, 126, 999]:
-		tag.show_value(value, true)
-		await _frames(1)
-		var rect: Rect2 = tag.get_global_rect()
-		var message: String = "%s %s" % [tag.text(), rect]
-		assert_float(rect.position.x).override_failure_message(message).is_equal(TAG_AT.x)
-		assert_float(rect.position.y).is_equal(TAG_AT.y)
-		assert_int(int(rect.size.x) % 2).override_failure_message(message).is_equal(0)
-		assert_float(rect.size.x).is_greater_equal(BayTag.MIN_WIDTH)
-		assert_float(rect.size.x).is_equal(BayTag.width_for(tag.text()))
-		var string: Rect2 = _shifted(BayTag.STRING_RECT, rect.position)
-		(
-			assert_bool(MonitorView.PAPER_RECT.encloses(rect.merge(string)))
-			. override_failure_message(message)
-			. is_true()
-		)
-		assert_vector(tag.send_point()).is_equal(Vector2(TAG_AT.x + rect.size.x - 6.0, 111.0))
-		var label: Label = tag.get_child(0) as Label
-		var face: Rect2 = label.get_global_rect()
-		assert_float(face.position.x).is_equal(rect.position.x + BayTag.TEXT_LEFT)
-		assert_bool(rect.encloses(face)).override_failure_message(message).is_true()
-		var font: Font = label.get_theme_font("font")
-		var width: float = (
-			font.get_string_size(tag.text(), HORIZONTAL_ALIGNMENT_LEFT, -1, BayTag.FONT_SIZE).x
-		)
-		assert_float(width).override_failure_message(message).is_less_equal(face.size.x)
-	assert_float(BayTag.width_for("€1")).is_equal(BayTag.MIN_WIDTH)
-	assert_float(BayTag.width_for("€126")).is_greater(BayTag.width_for("€1"))
-
-
-## The --effects row (live data, the capture tool's three upgrades and Spot check): after each
-## beat the tag reads that beat's step's value_after (paper at the scan, gold on a gain or at the
-## payout's rise, paper at €0 on the denial, none for the coupon at €0), the table of
-## bay_v7_spec.md section 0; its payouts sum to the plan's total (143 with Category engine).
-func test_the_tag_reads_each_steps_value_after() -> void:
-	var monitor: MonitorView = await _monitor()
-	monitor.reduced_motion = func() -> bool: return true
-	var bay: ScannerBay = monitor.bay()
-	var row: Array[CardInstance] = []
-	for card_id: String in EFFECTS_ROW:
-		row.append(CardInstance.new(_card(card_id), row.size() + 1))
-	var upgrades: Array[UpgradeDefinition] = []
-	for upgrade_id: String in EFFECTS_UPGRADES:
-		upgrades.append(load("res://data/upgrades/%s.tres" % upgrade_id) as UpgradeDefinition)
-	var inspections: Array[InspectionDefinition] = [
-		load("res://data/inspections/spot_check.tres") as InspectionDefinition
-	]
-	var result: ScoreResult = Scoring.score(row, upgrades, inspections)
-	var plan: CountUpPlan = CountUpPlan.build(
-		result.steps, EFFECTS_QUOTA, CountUpContext.new(), load(CountUp.TUNING_PATH)
-	)
-	assert_int(result.total).is_equal(143)
-	assert_int(plan.beats.size()).is_equal(EFFECTS_TAGS.size())
-	monitor.led.start_count(EFFECTS_QUOTA)
-	bay.start(row.size())
-	var seen: Array[Array] = []
-	var paid_out: int = 0
-	for beat: CountUpBeat in plan.beats:
-		var step: ScoreStep = result.steps[beat.steps[0]]
-		var definition: CardDefinition = row[beat.scan_slot].definition
-		bay.follow_beat(beat, step, definition)
-		if beat.payout > 0:
-			bay.pay()
-			paid_out += beat.payout
-		var tag: BayTag = bay.tag()
-		seen.append([tag.visible, tag.value() if tag.visible else 0, tag.is_paid() and tag.visible])
-		# The tag is the step's own reading: no sums of its own.
-		var own: ScoreStep = result.steps[beat.steps[beat.steps.size() - 1]]
-		if tag.visible and own.slot == beat.scan_slot:
-			assert_int(tag.value()).override_failure_message(str(beat.steps)).is_equal(
-				own.value_after
-			)
-	assert_array(seen).is_equal(EFFECTS_TAGS)
-	assert_int(paid_out).is_equal(result.total)
-
-
-## A plain item's payout rise (pay()) that comes before its opening count starts (SLAP_IN_S on
-## the count's clock) keeps the tag gold: the waiting count never turns it back to paper; a
-## DENIED count still does.
-func test_a_rise_before_the_opening_count_stays_gold() -> void:
-	var monitor: MonitorView = await _monitor()
-	_manual(monitor)
-	monitor.led.start_count(40)
-	var bay: ScannerBay = monitor.bay()
-	var tag: BayTag = bay.tag()
-	bay.follow_beat(_beat(CountUpBeat.Kind.MERGED_PLAIN, 0, 0, true), _step(5), _card("milk"))
-	assert_bool(tag.is_paid()).is_false()
-	_advance(0.06)
-	bay.pay()
-	assert_bool(tag.is_paid()).is_true()
-	_advance(ScannerBay.SLAP_IN_S + BayTag.COUNT_S + 0.1)
-	assert_bool(tag.is_paid()).is_true()
-	assert_int(tag.value()).is_equal(5)
-	assert_array(tag.face_colours()).is_equal(BayTag.PAID_COLOURS)
-	var denied: ScoreStep = _step(0, ScoreStep.StepType.PAYOUT_OVERRIDE)
-	bay.follow_beat(_beat(CountUpBeat.Kind.DENIED, 1), denied, null)
-	_advance(ScannerBay.SLAP_IN_S + BayTag.COUNT_S + 0.1)
-	assert_bool(tag.is_paid()).is_false()
-	assert_int(tag.value()).is_equal(0)
-
-
-## A coupon at €0 hangs no tag; a step that gives it worth shows it (gold).
-func test_a_coupon_has_no_tag_until_it_pays() -> void:
-	var monitor: MonitorView = await _monitor()
-	monitor.reduced_motion = func() -> bool: return true
-	monitor.led.start_count(34)
-	var bay: ScannerBay = monitor.bay()
-	var multipack: CardDefinition = _card("multipack")
-	assert_bool(multipack.is_coupon()).is_true()
-	bay.follow_beat(_beat(CountUpBeat.Kind.MERGED_PLAIN, 0, 0, true), _step(0), multipack)
-	assert_bool(bay.tag().visible).is_false()
-	bay.follow_beat(
-		_beat(CountUpBeat.Kind.ARMED, 1), _step(3, ScoreStep.StepType.WASTED), multipack
-	)
-	assert_bool(bay.tag().visible).is_false()
-	var gain: ScoreStep = _step(2, ScoreStep.StepType.FLAT)
-	gain.value_after = 2
-	bay.follow_beat(_beat(CountUpBeat.Kind.BONUS, 2), gain, multipack)
-	assert_bool(bay.tag().visible).is_true()
-	assert_int(bay.tag().value()).is_equal(2)
-	assert_bool(bay.tag().is_paid()).is_true()
 
 
 ## The queue: "SCANNER" with no pips outside a count; start(5) reads "5 LEFT" with five teal
 ## pips; each ride in counts down ("4 LEFT" … "LAST"), the item in the bay tomato light (green
-## light once met), the bagged ones gold; after the last ride DONE, every pip gold.
+## light once met), the bagged ones gold; after the last ride DONE, every pip gold, THANK YOU on
+## the chip and ALL PAID on the bed.
 func test_the_queue_counts_down_and_colours_its_pips() -> void:
 	var monitor: MonitorView = await _monitor()
 	monitor.reduced_motion = func() -> bool: return true
@@ -356,7 +119,7 @@ func test_the_queue_counts_down_and_colours_its_pips() -> void:
 	bay.ride(4, -1, null, 0.0)
 	assert_str(queue.text()).is_equal(BayQueue.DONE_TEXT)
 	assert_array(queue.pip_colours()).is_equal(_colours(5, BayQueue.BAGGED_COLOR))
-	assert_str(bay.name_label().text).is_equal(ScannerBay.END_NAME)
+	assert_str(bay.chip().chip_text()).is_equal(ScannerBay.END_NAME)
 	assert_str(bay.bed().idle_label().text).is_equal(BayBed.END_TEXT)
 	assert_bool(bay.bed().idle_label().visible).is_true()
 
@@ -438,8 +201,8 @@ func test_the_fan_and_beep_follow_the_scan() -> void:
 	assert_array(bed.fan_colours()).is_equal([BayBed.FAN_MET_COLOR, BayBed.FAN_MET_CORE_COLOR])
 
 
-## A ride: the item in the bay slides out over OUT_SHARE of it (its tag and sticker with it), the
-## bed empty with GONE_NAME, then the next drops in and lands as the belt brings it; its pip and
+## A ride: the item in the bay slides out over OUT_SHARE of it, the bed empty with GONE_NAME on the
+## chip, then the next drops in and lands as the belt brings it, its chip naming it; its pip and
 ## the bagged one's follow; the last ride ends ALL PAID, THANK YOU, DONE.
 func test_a_ride_slides_out_then_drops_in() -> void:
 	var monitor: MonitorView = await _monitor()
@@ -452,13 +215,9 @@ func test_a_ride_slides_out_then_drops_in() -> void:
 	var bread: CardDefinition = _card("bread")
 	bay.ride(-1, 0, milk, 0.0)
 	assert_object(bed.art()).is_not_null()
-	assert_str(bay.name_label().text).is_equal("MILK")
+	assert_str(bay.chip().chip_text()).is_equal(FamilyChip.item_text(milk))
 	bay.follow_beat(_beat(CountUpBeat.Kind.MERGED_PLAIN, 0, 0, true), _step(3), milk)
 	_advance(1.0)
-	var tag: BayTag = bay.tag()
-	var sticker: EffectSticker = bay.landing_sticker()
-	var tag_rest: Vector2 = tag.position
-	var sticker_rest: Vector2 = sticker.position
 	var old: TextureRect = bed.art()
 	bay.ride(0, 1, bread, 0.3)
 	var out_s: float = 0.3 * ScannerBay.OUT_SHARE
@@ -467,17 +226,13 @@ func test_a_ride_slides_out_then_drops_in() -> void:
 	await _frames(1)
 	assert_float(old.position.x).is_less(0.0)
 	assert_float(old.modulate.a).is_less(1.0)
-	assert_float(tag.position.x).is_less(tag_rest.x)
-	assert_float(sticker.position.x).is_less(sticker_rest.x)
 	_advance(out_s / 2.0 + STEP / 2.0)
 	assert_object(bed.art()).is_null()
-	assert_bool(tag.visible).is_false()
-	assert_object(bay.landing_sticker()).is_null()
-	assert_str(bay.name_label().text).is_equal(ScannerBay.GONE_NAME)
+	assert_str(bay.chip().chip_text()).is_equal(ScannerBay.GONE_NAME)
 	assert_str(bay.queue().text()).is_equal("1 LEFT")
 	_advance(0.3 - out_s - BayBed.FALL_S / 2.0)
 	assert_object(bed.art()).is_not_null()
-	assert_str(bay.name_label().text).is_equal("BREAD")
+	assert_str(bay.chip().chip_text()).is_equal(FamilyChip.item_text(bread))
 	assert_float(bed.art_pose().offset.y).is_less(0.0)
 	assert_str(bay.queue().text()).is_equal("LAST")
 	assert_that(bay.queue().pip_colours()[0]).is_equal(BayQueue.IN_COLOR)
@@ -492,14 +247,14 @@ func test_a_ride_slides_out_then_drops_in() -> void:
 	assert_str(bay.queue().text()).is_equal("LAST")
 	_advance(0.3 - BayBed.OUT_S + STEP)
 	assert_str(bay.queue().text()).is_equal(BayQueue.DONE_TEXT)
-	assert_str(bay.name_label().text).is_equal(ScannerBay.END_NAME)
+	assert_str(bay.chip().chip_text()).is_equal(ScannerBay.END_NAME)
 	assert_bool(bed.idle_label().visible).is_true()
 	assert_str(bed.idle_label().text).is_equal(BayBed.END_TEXT)
 
 
 ## Reduced motion keeps the states: the item shows at its opening beat, at rest; the fan stands at
-## its middle for FAN_S, the BEEP shows unpopped, no flash; the tag shows at once; a ride takes the
-## item out at once; no wobble.
+## its middle for FAN_S, the BEEP shows unpopped, no flash; a later landing doesn't wobble it; a
+## ride takes the item out at once.
 func test_reduced_motion_keeps_the_states() -> void:
 	var monitor: MonitorView = await _monitor()
 	_manual(monitor)
@@ -516,15 +271,11 @@ func test_reduced_motion_keeps_the_states() -> void:
 	assert_vector(bed.art_pose().offset).is_equal(Vector2.ZERO)
 	assert_vector(bed.art().scale).is_equal(Vector2.ONE)
 	assert_float(bed.fan_angle()).is_equal(0.0)
-	assert_bool(bay.tag().visible).is_true()
-	assert_int(bay.tag().value()).is_equal(3)
-	assert_bool(bay.tag().is_paid()).is_false()
 	var bonus: ScoreStep = _step(2, ScoreStep.StepType.FLAT)
 	bonus.value_after = 5
-	bay.follow_beat(_beat(CountUpBeat.Kind.BONUS, 1), bonus, milk)
-	assert_int(bay.tag().value()).is_equal(5)
-	assert_bool(bay.tag().is_paid()).is_true()
-	assert_vector(bay.tag().scale).is_equal(Vector2.ONE)
+	var landing: CountUpBeat = _beat(CountUpBeat.Kind.BONUS, 1)
+	landing.land = CountUpBeat.Land.ADD
+	bay.follow_beat(landing, bonus, milk)
 	_advance(BayBed.BEEP_DELAY_S + 0.05)
 	assert_float(bed.fan_angle()).is_equal(0.0)
 	assert_bool(bed.beep_label().visible).is_true()
@@ -535,89 +286,25 @@ func test_reduced_motion_keeps_the_states() -> void:
 	assert_bool(is_nan(bed.fan_angle())).is_true()
 	bay.ride(0, 1, _card("bread"), 0.2)
 	assert_object(bed.art()).is_null()
-	assert_bool(bay.tag().visible).is_false()
-	assert_str(bay.name_label().text).is_equal(ScannerBay.GONE_NAME)
+	assert_str(bay.chip().chip_text()).is_equal(ScannerBay.GONE_NAME)
 	_advance(0.3)
 	assert_object(bed.art()).is_null()
 
 
-## The scan's slap runs on make_tween's tweens (the count-up's on the real screen); reduced
-## motion keeps the states (the sticker at its size) and drops the slap.
-func test_the_slap_runs_on_the_count_ups_tweens() -> void:
-	var monitor: MonitorView = await _monitor()
-	var bay: ScannerBay = monitor.bay()
-	var reduced: Array[bool] = [false]
-	monitor.reduced_motion = func() -> bool: return reduced[0]
-	var made: Array[Tween] = []
-	monitor.led.beat().make_tween = func() -> Tween:
-		var tween: Tween = monitor.create_tween()
-		made.append(tween)
-		return tween
-	monitor.led.start_count(34)
-	var milk: CardDefinition = _card("milk")
-	bay.follow_beat(_beat(CountUpBeat.Kind.MERGED_PLAIN, 0, 0, true), _step(3), milk)
-	assert_int(made.size()).is_greater_equal(4)
-	var sticker: EffectSticker = bay.landing_sticker()
-	assert_float(sticker.scale.x).is_equal_approx(ScannerBay.SLAP_FROM, 0.001)
-	await get_tree().create_timer(ScannerBay.SLAP_IN_S + ScannerBay.SLAP_SETTLE_S + 0.1).timeout
-	assert_vector(sticker.scale).is_equal_approx(Vector2.ONE, Vector2(0.001, 0.001))
-	reduced[0] = true
-	bay.follow_beat(
-		_beat(CountUpBeat.Kind.MERGED_PLAIN, 1, 1, true), _step(4, ScoreStep.StepType.BASE, 1), milk
-	)
-	assert_vector(bay.landing_sticker().scale).is_equal(Vector2.ONE)
-	# On the real screen the LED's beat takes the count-up's tweens, which the bay uses.
+## On the real screen the bay's motion runs on the count-up's tweens (it follows taps, holds and
+## hit-stops), as the item column's, the checkout column's and the chips' do.
+func test_the_bay_runs_on_the_count_ups_tweens() -> void:
 	var screen: ShiftScreen = await _screen()
-	assert_bool(screen._led.beat().make_tween == screen._count_up._tween).is_true()
+	var maker: Callable = screen._count_up.tween_maker()
+	var monitor: MonitorView = screen._monitor
+	assert_bool(monitor.bay().make_tween == maker).is_true()
+	assert_bool(monitor.item_column().make_tween == maker).is_true()
+	assert_bool(monitor.checkout().make_tween == maker).is_true()
+	assert_bool(monitor.chips().make_tween == maker).is_true()
 
 
-## The knock-off sends the sticker off left and up, spinning, on the bay's own real-time tween
-## (a frozen count-up clock never holds it), then frees it; under reduced motion it goes at once,
-## and a reset mid-flight frees it too.
-func test_the_knock_off_flies_in_real_time() -> void:
-	var monitor: MonitorView = await _monitor()
-	var bay: ScannerBay = monitor.bay()
-	var reduced: Array[bool] = [true]
-	monitor.reduced_motion = func() -> bool: return reduced[0]
-	# A frozen count-up clock: the slap never moves on it.
-	monitor.led.beat().make_tween = func() -> Tween:
-		return monitor.create_tween().set_speed_scale(0.0)
-	monitor.led.start_count(34)
-	var milk: CardDefinition = _card("milk")
-	bay.follow_beat(_beat(CountUpBeat.Kind.MERGED_PLAIN, 0, 0, true), _step(3), milk)
-	var sticker: EffectSticker = bay.landing_sticker()
-	bay.knock_off()
-	assert_object(bay.landing_sticker()).is_null()
-	await _frames(1)
-	assert_bool(is_instance_valid(sticker)).is_false()
-	reduced[0] = false
-	bay.land(ScannerBay.landing_spec(_beat(CountUpBeat.Kind.BASE, 1), _step(4)))
-	sticker = bay.landing_sticker()
-	var start: Vector2 = sticker.position
-	bay.knock_off()
-	assert_vector(sticker.scale).is_equal(Vector2.ONE)
-	await get_tree().create_timer(ScannerBay.KNOCK_S * 0.4).timeout
-	assert_float(sticker.position.x).is_less(start.x)
-	assert_float(sticker.position.y).is_less(start.y)
-	assert_float(sticker.rotation_degrees).is_less(0.0)
-	await get_tree().create_timer(ScannerBay.KNOCK_S).timeout
-	assert_bool(is_instance_valid(sticker)).is_false()
-	# Nothing to knock off: nothing happens.
-	bay.knock_off()
-	assert_object(bay.landing_sticker()).is_null()
-	# A reset mid-flight (the LED leaving the count, a new count) frees the flying sticker.
-	bay.land(ScannerBay.landing_spec(_beat(CountUpBeat.Kind.BASE, 2), _step(5)))
-	sticker = bay.landing_sticker()
-	bay.knock_off()
-	await get_tree().create_timer(ScannerBay.KNOCK_S * 0.3).timeout
-	assert_bool(is_instance_valid(sticker)).is_true()
-	bay.reset()
-	await _frames(1)
-	assert_bool(is_instance_valid(sticker)).is_false()
-
-
-## A resumed checkout's end state: every item paid and bagged (no art, no tag, no sticker; ALL
-## PAID, THANK YOU, DONE with every pip gold), met or not, nothing moving.
+## A resumed checkout's end state: every item paid and bagged (no art; ALL PAID, THANK YOU, DONE
+## with every pip gold), met or not, nothing moving.
 func test_the_end_state_reads_all_paid() -> void:
 	var monitor: MonitorView = await _monitor()
 	var bay: ScannerBay = monitor.bay()
@@ -626,11 +313,9 @@ func test_the_end_state_reads_all_paid() -> void:
 	bay.follow_beat(_beat(CountUpBeat.Kind.MERGED_PLAIN, 0, 0, true), _step(3), milk)
 	bay.show_end_state(5, true)
 	assert_object(bay.bed().art()).is_null()
-	assert_bool(bay.tag().visible).is_false()
-	assert_object(bay.landing_sticker()).is_null()
 	assert_bool(bay.bed().idle_label().visible).is_true()
 	assert_str(bay.bed().idle_label().text).is_equal(BayBed.END_TEXT)
-	assert_str(bay.name_label().text).is_equal(ScannerBay.END_NAME)
+	assert_str(bay.chip().chip_text()).is_equal(ScannerBay.END_NAME)
 	assert_str(bay.queue().text()).is_equal(BayQueue.DONE_TEXT)
 	assert_array(bay.queue().pip_colours()).is_equal(_colours(5, BayQueue.BAGGED_COLOR))
 	assert_bool(bay.is_met()).is_true()
@@ -642,59 +327,54 @@ func test_the_end_state_reads_all_paid() -> void:
 	assert_int(bay.queue().pip_rects().size()).is_equal(3)
 
 
-## Every product's name (uppercase) fits the name label's inside on one line at one of
-## NAME_SIZES, most plain names at the largest; a BIG or GOLDEN name too long for it shows its
-## plain product's name (v0.48), which fits; so do THANK YOU and the dash between items, which
-## Pixelify has a glyph for.
-func test_every_name_fits_the_label() -> void:
+## Every card's chip (#105 piece 2) names what the item works with (FamilyChip.item_text: a
+## family, a card, the item itself, both halves of a split ticket, or COUPON), in its ticket's
+## colour, on one line inside the chip's text room without being cut; so do THANK YOU and the dash
+## between items, which the chip's font has glyphs for.
+func test_every_chip_fits() -> void:
 	var monitor: MonitorView = await _monitor()
 	monitor.reduced_motion = func() -> bool: return true
 	var bay: ScannerBay = monitor.bay()
 	monitor.led.start_count(34)
-	var label: Label = bay.name_label()
-	var room: float = ScannerBay.NAME_RECT.size.x - 2.0 * ScannerBay.NAME_BORDER
-	var at_largest: int = 0
-	var products: int = 0
-	var shortened: int = 0
+	var chip: FamilyChip = bay.chip()
 	var slot: int = 0
+	var splits: int = 0
 	for definition: CardDefinition in _cards():
-		if definition.is_coupon():
-			continue
 		var opening: CountUpBeat = _beat(CountUpBeat.Kind.BASE, slot, slot, true)
 		bay.follow_beat(opening, _step(1, ScoreStep.StepType.BASE, slot), definition)
 		slot += 1
-		var own: String = definition.display_name.to_upper()
-		if definition.tier != CardDefinition.Tier.PLAIN:
-			if label.text != own:
-				shortened += 1
-				assert_bool(ScannerBay.name_fits(own)).override_failure_message(own).is_false()
-				assert_str(label.text).is_equal(definition.product_card().display_name.to_upper())
-			_assert_label_fits(label, room)
-			continue
-		products += 1
-		assert_str(label.text).is_equal(own)
-		var font_size: int = label.get_theme_font_size("font_size")
-		if font_size == ScannerBay.NAME_SIZES[0]:
-			at_largest += 1
-		_assert_label_fits(label, room)
-	prints("#86 bay names at the largest size:", at_largest, "of", products)
-	prints("v0.48 tier names shown as their plain product's:", shortened)
-	assert_int(shortened).is_greater(0)
-	assert_int(2 * at_largest).is_greater(products)
+		var message: String = String(definition.id)
+		assert_str(chip.chip_text()).override_failure_message(message).is_equal(
+			FamilyChip.item_text(definition)
+		)
+		if chip.chip_text().contains(" + "):
+			splits += 1
+		_assert_chip_fits(chip, message)
+		assert_str(chip.tip_text).override_failure_message(message).is_not_empty()
+	prints("#105 split tickets' chips:", splits)
 	bay.ride(slot - 1, -1, null, 0.0)
-	assert_str(label.text).is_equal(ScannerBay.END_NAME)
-	assert_float(_label_width(label)).is_less_equal(room)
-	assert_bool(ArtStyle.DISPLAY_FONT.has_char(ScannerBay.GONE_NAME.unicode_at(0))).is_true()
+	assert_str(chip.chip_text()).is_equal(ScannerBay.END_NAME)
+	_assert_chip_fits(chip, ScannerBay.END_NAME)
+	var font: Font = chip.text_label().get_theme_font("font")
+	assert_bool(font.has_char(ScannerBay.GONE_NAME.unicode_at(0))).is_true()
 
 
-## `label`'s text fits `room` on one line at its font size.
-func _assert_label_fits(label: Label, room: float) -> void:
-	var font_size: int = label.get_theme_font_size("font_size")
+## `chip`'s text fits its label on one line (no ellipsis) inside the chip.
+func _assert_chip_fits(chip: FamilyChip, message: String) -> void:
+	var label: Label = chip.text_label()
+	var width: float = _label_width(label)
 	(
-		assert_float(_label_width(label))
-		. override_failure_message("%s at %d" % [label.text, font_size])
-		. is_less_equal(room)
+		assert_float(width)
+		. override_failure_message(
+			"%s: %s %.1f in %.1f" % [message, label.text, width, label.size.x]
+		)
+		. is_less_equal(label.size.x)
 	)
+	var rect: Rect2 = Rect2(label.position, label.size)
+	assert_bool(Rect2(Vector2.ZERO, chip.size).encloses(rect)).is_true()
+	if chip.glyph_sprite().visible:
+		var glyph: Rect2 = Rect2(chip.glyph_sprite().position, chip.glyph_sprite().size)
+		assert_bool(glyph.intersects(rect)).override_failure_message(message).is_false()
 
 
 ## A beat of `kind` on step `step_index`, slot `slot`, the scan on `slot` (opening it when
@@ -752,9 +432,9 @@ static func _label_width(label: Label) -> float:
 	return font.get_string_size(label.text, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size).x
 
 
-## The monitor's count tweens made paused, for _advance to step.
+## The bay's count tweens made paused, for _advance to step.
 func _manual(monitor: MonitorView) -> void:
-	monitor.led.beat().make_tween = func() -> Tween:
+	monitor.bay().make_tween = func() -> Tween:
 		var tween: Tween = monitor.create_tween()
 		tween.pause()
 		_made.append(tween)

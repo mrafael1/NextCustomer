@@ -2,17 +2,16 @@ extends GdUnitTestSuite
 ## ReceiptView's planning receipt, count-up lines, header and combo lines (#75, #80). Planning
 ## (show_planning) is itemised: the header, a dashed rule, one line per item (name, payout with
 ## cents, its mark: the check when raised, the fizzle icon when it fizzles), "n ·····" per open
-## empty slot, a dashed rule, "PROJECTED €N.00" (given the quota: green with the met mark at or
-## over it, red under it, the shortfall "short €1.00" on its own row under it), then the fizzle
-## footer ("2 WASTED · hover an item", none without fizzles); highlight_slot frames a line
-## (planning only). The count-up
-## (begin_count) pre-prints every item's line greyed and "TOTAL •••••" with its footer; the steps
-## fill the lines in (the base, kept) and print under their item, the newest framed; an item whose
-## lines don't add up to its payout closes with "= €3.00"; add_total fills TOTAL in and
-## drops the footer and the frame; show_result prints the same receipt at once. Every bonus,
-## multiplier or copy another source caused is a combo line, marked by a gold band and a diamond
-## in place of its marker. The receipt is laid out on its own, at the shift screen's width. No
-## saves, no event log.
+## empty slot, a dashed rule, "PROJECTED €N.00" (given the quota: green with the met mark at or over
+## it, red under it, the shortfall "short €1.00" on its own row under it), then the fizzle footer
+## ("2 WASTED · hover an item", none without fizzles); highlight_slot frames a line (planning only).
+## The count-up (begin_count) prints the header and its footer only; the steps print line by line
+## (#105 piece 2): an item's line with its base, then its lines under it, the newest framed; an item
+## whose lines don't add up to its payout closes with "= €3.00"; add_total prints the dashed rule
+## and TOTAL at the end and drops the footer and the frame; show_result prints the same receipt at
+## once. Every bonus, multiplier or copy another source caused is a combo line, marked by a gold
+## band and a diamond in place of its marker. The receipt is laid out on its own, at the shift
+## screen's width. No saves, no event log.
 
 const RECEIPT_SIZE := Vector2(ShiftStage.RECEIPT_WIDTH, 600)
 const HEADER: Array[String] = ["NEXT CUSTOMER · REG 3", "SHIFT 5/8 · 4 ITEMS"]
@@ -51,9 +50,7 @@ func test_money_prints_cents() -> void:
 
 ## The receipt's font has every glyph its lines print (the dots, the bullets, € and ×).
 func test_the_font_has_the_receipts_glyphs() -> void:
-	for text: String in [
-		ReceiptView.WAITING_DOTS, ReceiptView.TOTAL_WAITING, ReceiptView.HEADER_TEXT, "€×+="
-	]:
+	for text: String in [ReceiptView.HEADER_TEXT, "€×+="]:
 		for index: int in range(text.length()):
 			(
 				assert_bool(ReceiptView.MONO_FONT.has_char(text.unicode_at(index)))
@@ -293,27 +290,22 @@ func test_highlight_frames_a_planning_line() -> void:
 	await _frames(1)
 
 
-## The count-up's receipt: pre-printed greyed lines and TOTAL with the footer; each step fills
-## its item's line in or prints under its item, framed; the item's line keeps its base, and a
-## payout its lines already add up to prints nothing (the item's line is framed); add_total fills
-## TOTAL in plainly and drops the footer and the frame.
-func test_the_count_up_fills_its_waiting_lines() -> void:
+## The count-up's receipt prints line by line (#105 piece 2): at first only the header and the
+## footer (no waiting lines, no TOTAL); each step prints its item's line (the base) or a line under
+## its item, framed; the item's line keeps its base, and a payout its lines already add up to
+## prints nothing (the item's line is framed); add_total prints the rule and TOTAL plainly at the
+## end and drops the footer and the frame.
+func test_the_count_up_prints_line_by_line() -> void:
 	var names: PackedStringArray = PackedStringArray(NAMES)
 	_receipt.begin_count(PackedStringArray(HEADER), names)
-	var waiting: Array[String] = [
+	var first: Array[String] = [
 		"NEXT CUSTOMER · REG 3 | ",
 		"SHIFT 5/8 · 4 ITEMS | ",
 		"---",
-		"Milk ····· | ",
-		"Bread ····· | ",
-		"Coffee ····· | ",
-		"---",
-		"TOTAL | •••••",
 		"tap: skip · hold: fast | ",
 	]
-	assert_array(_lines(_receipt)).is_equal(waiting)
-	assert_that(_color(_receipt._items[0], 0)).is_equal(Palette.MUTED_INK)
-	assert_that(_color(_receipt._total_line, 1)).is_equal(Palette.MUTED_INK)
+	assert_array(_lines(_receipt)).is_equal(first)
+	assert_object(_receipt._items.get(0)).is_null()
 	var result: ScoreResult = _result()
 	var returned: Array[Control] = []
 	for step: ScoreStep in result.steps:
@@ -432,7 +424,7 @@ func test_a_four_digit_verdict_stays_on_the_total_line() -> void:
 
 
 ## show_result prints the count-up's receipt at once (no footer); without a header it prints
-## none and no rule under it.
+## none and no rule under it. A tag on a later item printed first keeps the items in scan order.
 func test_show_result_is_the_count_ups_receipt() -> void:
 	var result: ScoreResult = _result()
 	var names: PackedStringArray = PackedStringArray(NAMES)
@@ -450,6 +442,37 @@ func test_show_result_is_the_count_ups_receipt() -> void:
 	_receipt.begin()
 	assert_int(_lines(_receipt).size()).is_equal(0)
 	# The lines let go are freed at the frame's end.
+	await _frames(1)
+	await _assert_a_later_items_tag_keeps_the_scan_order()
+
+
+## A context-pass step on a later item (a tag Milk's coupon gives Coffee) prints before any base:
+## its item's line still goes in scan order, under the earlier items' groups, with the tag line
+## under it, in the count and in show_result (a resumed checkout).
+func _assert_a_later_items_tag_keeps_the_scan_order() -> void:
+	var names: PackedStringArray = PackedStringArray(NAMES)
+	var result: ScoreResult = _result()
+	var tag: ScoreStep = _step(ScoreStep.StepType.TAG_ADDED, "Clearance tag")
+	tag.slot = 2
+	tag.tag = "Clearance"
+	result.steps.insert(0, tag)
+	for receipt: ReceiptView in [_receipt, auto_free(ReceiptView.new()) as ReceiptView]:
+		if receipt == _receipt:
+			receipt.begin_count(PackedStringArray(), names, false)
+			for step: ScoreStep in result.steps:
+				receipt.add_step(step, names)
+			receipt.add_total(result.total)
+		else:
+			receipt.show_result(result, names)
+		var milk: int = receipt._items[0].get_index()
+		var bread: int = receipt._items[1].get_index()
+		var coffee: int = receipt._items[2].get_index()
+		assert_int(milk).is_less(bread)
+		assert_int(bread).is_less(coffee)
+		var lines: Array[String] = _lines(receipt)
+		assert_str(lines[coffee]).is_equal("Coffee | €1.00")
+		assert_str(lines[coffee + 1]).is_equal("Clearance tag: Coffee gains Clearance | ")
+		assert_str(lines[-1]).is_equal("TOTAL | €8.00")
 	await _frames(1)
 
 
@@ -701,6 +724,8 @@ static func _lines(receipt: ReceiptView) -> Array[String]:
 	var lines: Array[String] = []
 	for line: Node in receipt._lines.get_children():
 		if line.is_queued_for_deletion():
+			continue
+		if not (line as CanvasItem).visible:
 			continue
 		if line is HSeparator:
 			lines.append("---")

@@ -401,9 +401,9 @@ func test_a_bonus_ticket_prints_its_stub_before_the_tear() -> void:
 
 
 ## Follows the dessert frame by frame until play() returns: the slam (as drawn, scaled) stays
-## inside the screen on every frame and lands on the monitor's digits (#80), in their colour (never
-## tomato) and drawn as them (#86 v6: their ink outline and their shadow, which carries the outline
-## too), never on the receipt. Returns the failures.
+## inside the screen on every frame and lands on the checkout column's number (#80; #105 piece 2),
+## in its colour (never tomato) and drawn as it (#86 v6: its ink outline and its drop, which
+## carries the outline too), never on the receipt. Returns the failures.
 func _watch_dessert(screen: ShiftScreen) -> Array[String]:
 	var count_up: CountUp = screen._count_up
 	var failures: Array[String] = []
@@ -421,7 +421,7 @@ func _watch_dessert(screen: ShiftScreen) -> Array[String]:
 		last_slam = _drawn_rect(slam)
 		colour = slam.get_theme_color("font_color")
 		look = _look(slam)
-		total = screen._led.digits_label().get_global_rect()
+		total = _number_label(screen).get_global_rect()
 		if not SCREEN_RECT.grow(1.0).encloses(last_slam):
 			failures.append("slam outside the screen at %s" % last_slam)
 	if not slam_seen:
@@ -430,19 +430,19 @@ func _watch_dessert(screen: ShiftScreen) -> Array[String]:
 		failures.append("slam landed at %s, the digits at %s" % [last_slam, total])
 	if last_slam.intersects(screen._receipt.get_global_rect()):
 		failures.append("slam landed on the receipt at %s" % last_slam)
-	if slam_seen and colour != screen._led.digits_label().get_theme_color("font_color"):
+	if slam_seen and colour != _number_label(screen).get_theme_color("font_color"):
 		failures.append("slam in %s, not the digits' colour" % colour.to_html(false))
 	if colour in [Palette.TOMATO, Palette.TOMATO_DARK, Palette.TOMATO_LIGHT]:
 		failures.append("slam in tomato")
-	var digits: Label = screen._led.digits_label()
+	var digits: Label = _number_label(screen)
 	if slam_seen and look != _look(digits):
 		failures.append("slam drawn as %s, the digits as %s" % [look, _look(digits)])
-	# #86 v6: the TOTAL's digits carry an ink outline over a shadow that covers it.
+	# #86 v6: the TOTAL's digits carry an ink outline over a drop that covers it.
 	var digits_look: Dictionary = _look(digits)
 	var outlined: bool = (
-		int(digits_look["outline_size"]) == LedDisplay.COUNT_OUTLINE
-		and int(digits_look["shadow_outline_size"]) == LedDisplay.COUNT_OUTLINE
-		and int(digits_look["shadow_offset_y"]) == LedDisplay.COUNT_SHADOW
+		int(digits_look["outline_size"]) == TotalNumber.OUTLINE
+		and int(digits_look["shadow_outline_size"]) == TotalNumber.OUTLINE
+		and int(digits_look["shadow_offset_y"]) == TotalNumber.DROP
 	)
 	if not outlined:
 		failures.append("the TOTAL's digits drawn without their outline: %s" % digits_look)
@@ -489,9 +489,14 @@ func _assert_lines_on_screen(screen: ShiftScreen, count: int) -> void:
 		above = rect
 
 
-## The slam label flying over the overlay (the LED's total), or null.
+## The checkout column's number as one label (the slam's landing).
+static func _number_label(screen: ShiftScreen) -> Label:
+	return screen._monitor.checkout().total_number().slam_label()
+
+
+## The slam label flying over the overlay (the column number's total), or null.
 static func _slam_label(screen: ShiftScreen) -> Label:
-	var total: String = screen._led.digits_label().text
+	var total: String = _number_label(screen).text
 	for child: Node in screen._overlay.get_children():
 		var label: Label = child as Label
 		if label != null and not label.is_queued_for_deletion() and label.text == total:

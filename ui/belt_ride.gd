@@ -24,6 +24,10 @@ extends Node
 ## motion; the checks still show. The belt shows no paid chips in the count
 ## (ItemView.shows_paid_chip).
 ##
+## As a giver's effect pays (CountUp.landing of a step whose source is another item), the rail
+## light (#86, kept by #105 piece 2: RailLight, ShiftStage.rail_light) runs gold along the price
+## rail from the giver's ticket (the rail's left end once it is bagged) to the target's.
+##
 ## Where an item is now (source_rect, CountUp.source_rect while counting): its sprite on the belt,
 ## or the bag's mouth once bagged, for the count's flights and puffs. A resumed checkout shows the
 ## count's end (show_end_state: the belt empty, the items in the bag); reset() puts the row back
@@ -70,7 +74,10 @@ func setup(count_up: CountUp, stage: ShiftStage) -> void:
 	count_up.ride.connect(_on_ride)
 	count_up.step_landed.connect(_on_step_landed)
 	count_up.beat_started.connect(_on_beat_started)
+	count_up.landing.connect(_on_landing)
 	count_up.finished.connect(_on_finished)
+	if _stage.rail_light != null:
+		_stage.rail_light.make_tween = count_up.tween_maker()
 
 
 ## The CHECKOUT click (after the refresh that rebuilt the belt items `views`): `result` is about
@@ -95,6 +102,16 @@ func begin(result: ScoreResult, views: Array[CardView], reduced_motion: bool) ->
 	for cell: int in range(views.size(), cells.size()):
 		cells[cell].visible = false
 	_count.source_rect = source_rect
+
+
+## Item `slot`'s ticket on the rail now (global), or an empty rect once it is bagged (or no item).
+func ticket_rect(slot: int) -> Rect2:
+	var item: ItemView = _item(slot)
+	if item == null or _bagged.has(slot) or not item.is_visible_in_tree():
+		return Rect2()
+	var local: Rect2 = Rect2(ItemView.BELT_STICKER, PriceSticker.SIZE)
+	var to_global: Transform2D = item.get_global_transform()
+	return Rect2(to_global * local.position, local.size * to_global.get_scale())
 
 
 ## Where item `slot` is now (global): its sprite on the belt, or the bag's mouth once it is bagged
@@ -363,6 +380,36 @@ func _on_finished() -> void:
 	_count.source_rect = Callable()
 
 
+## CountUp.landing: a giver's effect pays (a +N or a × from another item): the rail light runs
+## from the giver's ticket (the rail's left end once it is bagged) to the target's.
+func _on_landing(beat: CountUpBeat) -> void:
+	var light: RailLight = _stage.rail_light
+	if not _active or light == null or _result == null or beat.steps.is_empty():
+		return
+	if beat.land != CountUpBeat.Land.ADD and beat.land != CountUpBeat.Land.MUL:
+		return
+	var step: ScoreStep = _result.steps[beat.steps[0]]
+	if step.source_kind != ScoreStep.SourceKind.CARD:
+		return
+	if step.source_slot < 0 or step.source_slot == step.slot:
+		return
+	var to_local: Transform2D = light.get_global_transform().affine_inverse()
+	var giver: Rect2 = _to(to_local, ticket_rect(step.source_slot))
+	var target: Rect2 = _to(to_local, ticket_rect(step.slot))
+	if not target.has_area():
+		return
+	var rail_left: float = ShiftStage.BELT_RECT.position.x + BeltPanel.RAIL.position.x
+	var from_x: float = giver.get_center().x if giver.has_area() else rail_left
+	light.reduced_motion = func() -> bool: return _reduced
+	light.run(from_x, target.get_center().x, giver, target)
+
+
+static func _to(transform: Transform2D, rect: Rect2) -> Rect2:
+	if not rect.has_area():
+		return Rect2()
+	return Rect2(transform * rect.position, rect.size * transform.get_scale())
+
+
 ## Stops the slide, the hops (their copies go) and the sparks, and clears the scanner.
 func _stop() -> void:
 	if _slide != null and _slide.is_valid():
@@ -373,6 +420,8 @@ func _stop() -> void:
 			hop.kill()
 	_hops.clear()
 	_sparks.clear()
+	if _stage.rail_light != null:
+		_stage.rail_light.clear()
 	_stage.scan_layer.clear()
 
 

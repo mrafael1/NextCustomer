@@ -93,8 +93,7 @@ func test_every_item_shows_its_model() -> void:
 			var own: bool = sticker.spec().badge == GiverBadge.Kind.NONE
 			assert_bool(sticker.badge() == null).is_equal(own)
 	# The rail strips: Eggs' over Bread and Multipack's over the three Milks after it, both calm on
-	# lane 0 with a notch on each target and no factor badge (the sticker says "×3"); the monitor's
-	# brief keys the stickers.
+	# lane 0 with a notch on each target and no factor badge (the sticker says "×3").
 	_assert_strips_shown(screen, model)
 	var strips: Array[RailStrip] = layer.strips()
 	assert_int(strips.size()).is_equal(2)
@@ -108,27 +107,13 @@ func test_every_item_shows_its_model() -> void:
 		assert_int(strip.lip_rects().size()).is_equal(3 + strip.spec().targets.size())
 		assert_int(strip.target_centres().size()).is_equal(strip.spec().targets.size())
 		assert_array(strip.find_children("*Badge*", "", true, false)).is_empty()
-	var key: PackedStringArray = PackedStringArray()
-	for entry: StickerSpec in model.key_entries():
-		key.append(MonitorChannel.KEY_TEXT % [entry.text, PlanningModel.key_caption(entry)])
-	# The entries that fit the brief's width, in order (at least the first; a wide one is skipped
-	# for a later, narrower one). Since v0.40 the channel sits right of the scanner bay, 110 px
-	# narrower, so two of h1's three entries fit here.
-	var shown_key: PackedStringArray = screen._monitor.channel.key_texts()
-	assert_int(shown_key.size()).is_greater(0)
-	assert_str(shown_key[0]).is_equal(key[0])
-	assert_bool(_in_order(shown_key, key)).override_failure_message(str(shown_key)).is_true()
-	assert_int(shown_key.size()).is_equal(2)
-	var channel: MonitorChannel = screen._monitor.channel
-	assert_object(channel.key_row()).is_not_null()
-	# Spot check's pass earns the bonus ticket: the key stays, the PASS IT plate above it.
-	var plate: Control = channel.pass_line()
-	assert_object(plate).is_not_null()
-	var row: Control = channel.key_row()
-	assert_float(plate.position.y + plate.size.y).is_less_equal(
-		row.position.y - MonitorChannel.KEY_RULE
-	)
-	assert_float(plate.size.x).is_less_equal(row.size.x)
+	# The monitor's one screen (#105 piece 2; the store channel's key went): belt slot 1's item
+	# in the item column and PLAN over the projected total in the checkout column.
+	var column: CheckoutColumn = screen._monitor.checkout()
+	assert_str(column.caption().text).is_equal(MonitorText.PLAN_CAPTION)
+	assert_int(column.total_number().value()).is_equal(result.total)
+	var first: CardDefinition = screen.run.row[0].definition
+	assert_object(screen._monitor.item_column().shown_definition()).is_same(first)
 	assert_int(screen.run.preview().total).is_equal(result.total)
 	assert_array(screen.run.preview().payouts).is_equal(result.payouts)
 
@@ -137,7 +122,8 @@ func test_every_item_shows_its_model() -> void:
 ## gold outline, plain Eggs' with ink) or, for a product with no mini (none in the live data since
 ## v0.52), its initials token; the coupon badge keeps its token. Every badge stays 18x18, hangs off
 ## its sticker's left edge inside its stack's span (PlanningLayer._span) and lies on the screen with
-## its mini inside it; drained (another item hovered) a mini greys.
+## its mini inside it; the monitor's item column marks the scanned target's line with the same
+## mini; drained (another item hovered) a mini greys.
 func test_item_badges_show_the_givers_mini() -> void:
 	var screen: ShiftScreen = await _screen()
 	await _place(screen, MINI_ROW)
@@ -202,28 +188,32 @@ func test_item_badges_show_the_givers_mini() -> void:
 			return badge.texture().resource_path.ends_with("_golden.png")
 	)
 	assert_int(golden.size()).is_greater(0)
-	# The monitor key's "from an item" entry shows the same badge: the first item sticker's giver
-	# (Eggs, on Bread) with its mini, inside the channel.
-	var channel: MonitorChannel = screen._monitor.channel
-	var key_row: Control = channel.key_row()
-	assert_object(key_row).is_not_null()
-	var item_keys: Array[EffectSticker] = []
-	for child: Node in key_row.get_children():
-		var key_sticker: EffectSticker = child as EffectSticker
-		if key_sticker != null and key_sticker.spec().badge == GiverBadge.Kind.ITEM:
-			item_keys.append(key_sticker)
-	assert_int(item_keys.size()).is_equal(1)
-	var key_badge: GiverBadge = item_keys[0].badge()
-	assert_object(key_badge).is_not_null()
-	assert_bool(key_badge.shows_mini()).is_true()
+	# The monitor's item column shows the same mini on a scanned item's line (#105 piece 2): Bread's
+	# ×2 from Eggs, marked with Eggs' mini, inside the column.
+	var bread: int = MINI_ROW.find("bread")
+	var lines: ScanController.ItemLines = screen._scan.item_lines(bread)
+	var tags: PackedStringArray = screen.run.preview().tags[bread]
+	screen._monitor.show_scan(screen.run.row[bread].definition, tags, lines)
+	await _frames(1)
 	var eggs_mini: String = screen.run.row[MINI_ROW.find("eggs")].definition.badge_mini_ref()
-	assert_str(key_badge.texture().resource_path).is_equal(eggs_mini)
-	var key_rect: Rect2 = key_badge.get_global_rect()
+	var column: Rect2 = screen._monitor.item_column().get_global_rect()
+	var marked: bool = false
+	for row: Control in screen._monitor.item_column().step_rows():
+		var rect: Rect2 = row.get_global_rect()
+		(
+			assert_bool(column.encloses(rect))
+			. override_failure_message("%s in %s" % [rect, column])
+			. is_true()
+		)
+		var mark: TextureRect = row.get_node_or_null("Mark") as TextureRect
+		if mark != null and mark.texture != null and mark.texture.resource_path == eggs_mini:
+			marked = true
 	(
-		assert_bool(channel.get_global_rect().encloses(key_rect))
-		. override_failure_message("%s in %s" % [key_rect, channel.get_global_rect()])
+		assert_bool(marked)
+		. override_failure_message(str(screen._monitor.item_column().step_texts()))
 		. is_true()
 	)
+	screen._monitor.end_scan()
 	# Hovering the coupon drains every sticker it doesn't cause: the minis grey.
 	var coupon: ItemView = _item(screen, MINI_ROW.find("multipack"))
 	coupon.hovered.emit(coupon)
@@ -472,14 +462,15 @@ func test_reduced_motion_stills_the_effects() -> void:
 
 ## At each landing slot the views and the ghost show the model of the preview with the card placed
 ## there (the ghost carrying its slot's stickers, halo, grey and pay tag as its own children), no
-## item is related, and the quota chip shows its total and change; the run never changes; leaving
+## item is related, and the quota chip shows its total and change (the monitor's PLAN number its
+## total); the run never changes; leaving
 ## the row and the release show the committed model again, with the ghost plain off the row.
 func test_a_drag_previews_each_landing() -> void:
 	var screen: ShiftScreen = await _screen()
 	await _place(screen, ["bread", "milk", "bread"])
 	var committed: Array[CardInstance] = screen.run.row.duplicate()
 	var total: int = screen.run.preview().total
-	var key: PackedStringArray = screen._monitor.channel.key_texts()
+	var column: CheckoutColumn = screen._monitor.checkout()
 	screen._debug.add_card("eggs")
 	var eggs: CardInstance = screen.run.hand()[-1]
 	screen._on_hand_card_clicked(_view_for(screen, eggs))
@@ -502,10 +493,11 @@ func test_a_drag_previews_each_landing() -> void:
 			assert_bool(SCREEN_RECT.encloses(rect)).override_failure_message(str(rect)).is_true()
 		for view: CardView in screen._row_views:
 			assert_int((view as ItemView).relation).is_equal(ItemView.Relation.NONE)
-		# The rail strips hide while the ghost is over the row; the key stays the committed one.
+		# The rail strips hide while the ghost is over the row; the monitor's PLAN number follows
+		# the would-be total (#105 piece 2, D11).
 		for part: Control in _layer(screen).parts():
 			assert_bool(part is RailStrip).override_failure_message(part.name).is_false()
-		assert_array(Array(screen._monitor.channel.key_texts())).is_equal(Array(key))
+		assert_int(column.total_number().value()).is_equal(result.total)
 		var expected: String = QuotaMeter.HYPOTHETICAL_TEXT % [result.total, result.total - total]
 		assert_str(screen._quota_meter.shown_text()).is_equal(expected)
 		var font: Font = screen._quota_meter.amount_label.get_theme_font("font")
@@ -528,6 +520,7 @@ func test_a_drag_previews_each_landing() -> void:
 	assert_int(carried.boost_rings).is_equal(0)
 	assert_bool(carried.denied).is_false()
 	assert_str(screen._quota_meter.amount_label.text).is_equal("€%d" % total)
+	assert_int(column.total_number().value()).is_equal(total)
 	_move(screen, _slot_center(screen, 0))
 	_release(screen, _slot_center(screen, 0))
 	await _frames(3)
@@ -541,11 +534,12 @@ func test_a_drag_previews_each_landing() -> void:
 	assert_str(screen._quota_meter.amount_label.text).is_equal("€%d" % landed.total)
 
 
-## The CHECKOUT click (#86 v6, show_count) keeps only the stickers, unslapped, and the denied
-## item's stamp and grey, for the count: the rail strips, pay tags, sparkles, halos, lifts,
-## strikes, relations, rings, the key and the focus go; nothing loops, with or without reduced
-## motion. Through the count only stickers and stamps show, each on a view still on the belt (a
-## bagged item's parts hide with its cell), and by the end every one has gone with its item.
+## The CHECKOUT click (#86 v6, show_count) keeps only the stickers, unslapped, and the denied item's
+## stamp and grey, for the count: the rail strips, pay tags, sparkles, halos, lifts, strikes,
+## relations, rings and the focus go (the monitor turns from PLAN to TOTAL); nothing loops, with or
+## without reduced motion. Through the count only stickers and stamps show, each on a view still on
+## the belt (a bagged item's parts hide with its cell), and by the end every one has gone with its
+## item.
 func test_the_click_keeps_only_the_stickers() -> void:
 	for reduced: bool in [false, true]:
 		var screen: ShiftScreen = await _screen()
@@ -556,13 +550,13 @@ func test_the_click_keeps_only_the_stickers() -> void:
 		await _frames(2)
 		assert_int(_looping_tweens()).is_equal(0)
 		assert_array(_layer(screen).strips()).is_not_empty()
-		assert_array(Array(screen._monitor.channel.key_texts())).is_not_empty()
+		var caption: Label = screen._monitor.checkout().caption()
+		assert_str(caption.text).is_equal(MonitorText.PLAN_CAPTION)
 		var model: PlanningModel = screen._effects.committed_model()
 		screen._on_checkout_pressed()
 		await _frames(2)
 		assert_array(_layer(screen).strips()).is_empty()
-		assert_array(Array(screen._monitor.channel.key_texts())).is_empty()
-		assert_object(screen._monitor.channel.key_row()).is_null()
+		assert_str(caption.text).is_equal(MonitorText.TOTAL_CAPTION)
 		var stickers: int = 0
 		for slot: int in range(screen._row_views.size()):
 			var item: ItemView = _item(screen, slot)
@@ -854,14 +848,3 @@ static func _left_click() -> InputEventMouseButton:
 
 static func _event_log() -> EventLogService:
 	return (Engine.get_main_loop() as SceneTree).root.get_node("/root/EventLog")
-
-
-## Whether every text of `shown` is in `all`, in the same order (a subsequence).
-static func _in_order(shown: PackedStringArray, all: PackedStringArray) -> bool:
-	var at: int = 0
-	for text: String in shown:
-		at = all.find(text, at)
-		if at < 0:
-			return false
-		at += 1
-	return true

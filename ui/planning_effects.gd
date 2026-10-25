@@ -25,23 +25,23 @@ extends Node
 ## tuning's unfocus_delay_s, so sweeping across the belt never flickers, and the focus is kept by
 ## card across a refresh.
 ##
-## Rail strips and key (sections 5 and 7): the layer draws a brass strip along the belt lip from
-## each giver's ticket to its targets' (in two lanes where spans share a slot), and the monitor's
-## brief gets a one-line key of the stickers on the belt ("+3 own rule", "×3 from an item"),
-## changed only by a refresh (show_all), never by a drag.
+## Rail strips (section 5): the layer draws a brass strip along the belt lip from each giver's
+## ticket to its targets' (in two lanes where spans share a slot), changed only by a refresh
+## (show_all), never by a drag.
 ##
 ## Drag (section 9): each new landing slot (CardDrag.landing_changed) shows the model of the drop
 ## (`preview`: RunState.preview with the card placed there) on the views as they stand, the ghost
 ## carrying the dropped card's stickers, halo, stamp and pay; the quota chip shows that total and
-## its change. The rail strips hide meanwhile. Off the row and at the drag's end the committed
-## model comes back, strips included.
+## its change, and the monitor's checkout column its PLAN number (#105 piece 2). The rail strips
+## hide meanwhile. Off the row and at the drag's end the committed model comes back, strips
+## included.
 ##
 ## Motion (none under reduced motion, and nothing loops): stickers new since the last refresh slap
 ## on, a halo steps out ring by ring, the strips' chevrons step once (PlanningLayer).
 ##
 ## The CHECKOUT click (show_count, #86 v6) keeps only the stickers (and a denied item's stamp) on
 ## the items for the count, where they fire as their steps land (BeltRide); the rail strips,
-## halos, pay tags, the hover's highlight and the key go, until the next planning refresh.
+## halos, pay tags and the hover's highlight go, until the next planning refresh.
 
 enum Focus { NONE, CARD, UPGRADE, INSPECTION }
 
@@ -83,9 +83,9 @@ var _focus_index: int = -1
 var _slapped: Dictionary[String, bool] = {}
 
 
-## Takes `stage`'s loyalty card, inspection chip, quota chip, planning layer, monitor (for the
-## key) and receipt (to explain the hover; the screen's layout part: ShiftScreen owns them), and
-## follows `drag`'s landings and the top bar's hovers.
+## Takes `stage`'s loyalty card, inspection chip, quota chip, planning layer, monitor (for a drag's
+## PLAN number) and receipt (to explain the hover; the screen's layout part: ShiftScreen owns them),
+## and follows `drag`'s landings and the top bar's hovers.
 func setup(stage: ShiftStage, drag: CardDrag) -> void:
 	_loyalty = stage.loyalty_card
 	_tag = stage.inspection_tag
@@ -126,7 +126,6 @@ func show_all(result: ScoreResult, views: Array[CardView], run: RunState) -> voi
 	_layer.show_model(_model, _items_in(views, -1, null))
 	_layer.show_strips(true)
 	_slapped = _layer.slap_new(_slapped)
-	_monitor.set_planning_key(_model.key_entries())
 	_apply_focus(false)
 
 
@@ -190,8 +189,7 @@ func unfocus() -> void:
 
 
 ## The CHECKOUT click: every sticker, pay tag, stamp, rail strip, halo, lift, grey, strike,
-## relation and ring goes, and the monitor's key and the focus with them, until the next planning
-## refresh.
+## relation and ring goes, and the focus with them, until the next planning refresh.
 func clear() -> void:
 	_unfocus_timer.stop()
 	_shown = false
@@ -201,8 +199,6 @@ func clear() -> void:
 	_slapped.clear()
 	_layer.clear()
 	_explain(-1, {})
-	var no_key: Array[StickerSpec] = []
-	_monitor.set_planning_key(no_key)
 	for slot: int in range(_views.size()):
 		var item: ItemView = _item(slot)
 		if item != null:
@@ -441,12 +437,14 @@ func _on_landing_changed(card: CardInstance, slot: int) -> void:
 		show_hypothetical(_model, _views, ghost, -1)
 		_landing = -1
 		_quota_meter.show_projected(_total, _quota)
+		_monitor.show_plan(_total, _quota)
 		return
 	var landing: int = clampi(slot, 0, _run.row.size())
 	var row: Array[CardInstance] = _run.row.duplicate()
 	row.insert(landing, card)
 	show_hypothetical(model_of(result, row, _run, tuning), _views, ghost, landing)
 	_quota_meter.show_hypothetical(result.total, result.total - _total, _quota)
+	_monitor.show_plan(result.total, _quota)
 
 
 ## Hovers do nothing outside planning and while an item is dragged.

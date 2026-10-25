@@ -247,20 +247,37 @@ func test_each_armed_beat_targets_its_landings() -> void:
 	assert_int(again.beats[9].armed_from).is_equal(-1)
 
 
+## D5 (#105 piece 2): the quota dings at the first landing after which the shown total stays at
+## or over it, unless that is the row's last landing (the quota is then met with the TOTAL).
 func test_the_quota_dings_on_the_first_crossing_unless_it_is_the_last() -> void:
 	var plan: CountUpPlan = _plan(_full_steps(), 40)
-	# The doubled Milk in slot 6 takes the subtotal from 32 to 80.
-	assert_int(plan.ding_beat).is_equal(20)
-	assert_bool(plan.beats[20].ding).is_true()
-	assert_int(plan.beats[20].subtotal).is_equal(80)
+	var ding: int = plan.ding_beat
+	assert_int(ding).is_greater_equal(0)
+	assert_bool(plan.beats[ding].ding).is_true()
+	assert_bool(CountUpPlan.is_landing(plan.beats[ding])).is_true()
+	assert_int(plan.beats[ding].shown_from).is_less(40)
+	assert_int(plan.beats[ding].shown_to).is_greater_equal(40)
+	# Its crossing tick: the first of its ticks at or over the quota.
+	var crossing: int = plan.beats[ding].ding_tick
+	assert_int(plan.beats[ding].ticks[crossing]).is_greater_equal(40)
+	if crossing > 0:
+		assert_int(plan.beats[ding].ticks[crossing - 1]).is_less(40)
+	for index: int in range(ding + 1, plan.beats.size()):
+		if CountUpPlan.is_landing(plan.beats[index]):
+			assert_int(plan.beats[index].shown_to).is_greater_equal(40)
 	assert_bool(plan.quota_reached).is_true()
 	assert_bool(plan.chip_at_total).is_false()
 	assert_int(_ding_count(plan)).is_equal(1)
-	assert_int(_hit_stop_at(plan, 20)).is_equal((load(TUNING) as CountUpTuning).hit_stop_ding_ms)
-	# Reached exactly, on the first payout.
+	var ding_ms: int = (load(TUNING) as CountUpTuning).hit_stop_ding_ms
+	assert_int(_hit_stop_at(plan, ding)).is_equal(ding_ms)
+	# Reached on the first landing.
 	var first: CountUpPlan = _plan(_full_steps(), 1)
-	assert_int(first.ding_beat).is_equal(0)
-	# Crossed on the last payout: no ding, the chip comes with the TOTAL line.
+	var first_landing: int = -1
+	for index: int in range(first.beats.size()):
+		if first_landing == -1 and CountUpPlan.is_landing(first.beats[index]):
+			first_landing = index
+	assert_int(first.ding_beat).is_equal(first_landing)
+	# Crossed on the last landing: no ding, the chip comes with the TOTAL line.
 	var last: CountUpPlan = _plan(_full_steps(), 107)
 	assert_bool(last.quota_reached).is_true()
 	assert_bool(last.chip_at_total).is_true()
@@ -302,8 +319,9 @@ func test_another_quota_never_changes_the_intensity() -> void:
 		_assert_same_but_the_ding(fitted[1], other, "long row")
 	# Without a fit, the hit-stops differ only by the ding's.
 	var context_3: CountUpContext = CountUpContext.new(3, 47)
-	var plan_low: CountUpPlan = _plan(_full_steps(), 40, context_3)
-	var plan_high: CountUpPlan = _plan(_full_steps(), 500, context_3)
+	var unfitted: CountUpTuning = _unfitted()
+	var plan_low: CountUpPlan = CountUpPlan.build(_full_steps(), 40, context_3, unfitted)
+	var plan_high: CountUpPlan = CountUpPlan.build(_full_steps(), 500, context_3, unfitted)
 	assert_int(plan_low.fit_stage).is_equal(0)
 	assert_int(plan_high.fit_stage).is_equal(0)
 	for index: int in range(plan_low.beats.size()):
@@ -338,7 +356,7 @@ func test_speeds_follow_the_shift_the_setting_and_the_steps() -> void:
 
 
 func test_payout_rolls_and_rattles_follow_the_best_so_far() -> void:
-	# Shift 1, best 45 (the floor): printer speed 1.13. Unfitted, so no roll is cut.
+	# Shift 1, best 45 (the floor): printer speed 1.13. Unfitted.
 	var unfitted: CountUpTuning = (load(TUNING) as CountUpTuning).duplicate()
 	unfitted.fit_target_ms = 100000
 	var plan: CountUpPlan = CountUpPlan.build(_full_steps(), 40, CountUpContext.new(1, 0), unfitted)
@@ -346,17 +364,14 @@ func test_payout_rolls_and_rattles_follow_the_best_so_far() -> void:
 	assert_int(plan.best).is_equal(45)
 	var bread: CountUpBeat = plan.beats[4]
 	assert_int(bread.payout).is_equal(10)
-	# (110 + 50 x min(1, 10 / 11.25)) / 1.13 = 136.6.
-	assert_int(bread.roll_ms).is_equal(137)
+	# No roll (#105 piece 2): the total counted in at the item's landings.
+	assert_int(bread.roll_ms).is_equal(0)
 	# €10 is at least max(€10, 0.2 x 45 = €9), so it rattles: 3 + 6 x 10 / 45.
 	assert_float(bread.rattle_px).is_equal_approx(3.0 + 60.0 / 45.0, 0.0001)
 	var eggs: CountUpBeat = plan.beats[0]
 	assert_float(eggs.rattle_px).is_equal(0.0)
-	# The subtotal first passes 45 in slot 6 (80): +2 px and the punch from there on.
+	# The subtotal first passes 45 in slot 6 (80): +2 px from there on.
 	assert_int(plan.passes_best_beat).is_equal(20)
-	assert_float(plan.beats[15].punch_boost).is_equal(0.0)
-	assert_float(plan.beats[20].punch_boost).is_equal_approx(0.1, 0.0001)
-	assert_float(plan.beats[24].punch_boost).is_equal_approx(0.1, 0.0001)
 	assert_float(plan.beats[20].rattle_px).is_equal_approx(3.0 + 6.0 * 48 / 45.0 + 2.0, 0.0001)
 	# The last Milk's €27 in slot 7: 3 + 6 x 27 / 45, plus 2.
 	assert_float(plan.beats[24].rattle_px).is_equal_approx(8.6, 0.0001)
@@ -407,7 +422,9 @@ func test_the_total_size_sets_the_pause() -> void:
 
 
 func test_hit_stops_land_on_the_heavy_beats_and_merge_when_close() -> void:
-	var plan: CountUpPlan = _plan(_full_steps(), 500, CountUpContext.new(3, 47))
+	var plan: CountUpPlan = CountUpPlan.build(
+		_full_steps(), 500, CountUpContext.new(3, 47), _unfitted()
+	)
 	assert_int(plan.fit_stage).is_equal(0)
 	var stops: Dictionary[int, int] = {}
 	for index: int in range(plan.beats.size()):
@@ -423,8 +440,10 @@ func test_hit_stops_land_on_the_heavy_beats_and_merge_when_close() -> void:
 		)
 	assert_bool(plan.beats[3].first_stamp_on_card).is_true()
 	assert_bool(plan.beats[19].first_stamp_on_card).is_false()
-	# Unfitted, every beat has its D7 length; a paying PAYOUT is its roll and the gap.
+	# Unfitted, every beat has its D7 length (a paying PAYOUT its gap: no roll since #105 piece
+	# 2), at least the landing gap for a beat that lands on the total.
 	var live: CountUpTuning = load(TUNING)
+	var landing_gap: int = _total().landing_gap_ms
 	var roll: int = -1
 	var lengths_by_beat: Array[int] = [
 		live.merged_ms,
@@ -458,8 +477,9 @@ func test_hit_stops_land_on_the_heavy_beats_and_merge_when_close() -> void:
 		var beat: CountUpBeat = plan.beats[index]
 		var expected_ms: int = lengths_by_beat[index]
 		if expected_ms == roll:
-			assert_int(beat.roll_ms).is_greater(0)
-			expected_ms = beat.roll_ms + live.gap_ms
+			expected_ms = live.gap_ms
+		if CountUpPlan.is_landing(beat):
+			expected_ms = maxi(expected_ms, landing_gap)
 		assert_int(beat.duration_ms).override_failure_message(str(index)).is_equal(expected_ms)
 	_assert_unfitted_kind_lengths(live)
 	# Close together, they merge into the first with the longest. The live beats are all at
@@ -555,11 +575,12 @@ func test_the_full_row_plans_five_to_nine_seconds_from_its_parts() -> void:
 				assert_int(plan.planned_ms).override_failure_message(where).is_between(5000, 8750)
 			else:
 				assert_int(plan.planned_ms).override_failure_message(where).is_less_equal(8750)
-	# Shift 1, best 45: the total (107) is huge, the row is fitted down to stage 4, which may
-	# leave it a little over fit_target_ms: its six rides and the ding's hold are never shortened.
+	# Shift 1, best 45: the total (107) is huge, the row is fitted down to stage 5 (#105 piece 2:
+	# its landings keep their floor), which may leave it a little over fit_target_ms: its six
+	# rides, the landing floors and the ding's hold are never shortened.
 	var first: CountUpPlan = _plan(_full_steps(), 40, CountUpContext.new(1, 0))
 	assert_int(first.size).is_equal(CountUpPlan.Size.HUGE)
-	assert_int(first.fit_stage).is_equal(4)
+	assert_int(first.fit_stage).is_equal(CountUpPlan.LAST_STAGE)
 	assert_int(first.planned_ms).is_less_equal(8750)
 	# planned_ms adds up its parts.
 	for parts_context: CountUpContext in [
@@ -602,16 +623,20 @@ func test_no_shorter_row_plans_over_eight_and_three_quarter_seconds() -> void:
 					assert_int(plan.planned_ms).is_less_equal(tuning.fit_target_ms)
 
 
-## The stages on #60's tuning (no rides, a 100 ms ding, a 5500 ms target, tempo 1), where the
-## shift 1 row stops at stage 2; the live tuning takes it to stage 4 (above).
+## The stages on #60's tuning (no rides, a 100 ms ding, tempo 1) with a 5000 ms target (#60's
+## 5500 less the payout rolls #105 piece 2 took out) and no landing floors, where the shift 1 row
+## stops at stage 2; the live tuning takes it to stage 5 (above).
 func test_the_fit_runs_its_stages_in_order_and_spares_the_climax() -> void:
 	var tuning: CountUpTuning = (load(TUNING) as CountUpTuning).duplicate()
 	tuning.count_tempo = 1.0
 	tuning.ride_ms = 0
 	tuning.hit_stop_ding_ms = 100
-	tuning.fit_target_ms = 5500
-	# Shift 1, best 45: 6,000-odd ms planned before the fit.
-	var plan: CountUpPlan = CountUpPlan.build(_full_steps(), 40, CountUpContext.new(1, 0), tuning)
+	tuning.fit_target_ms = 5000
+	# Shift 1, best 45: 5,000-odd ms planned before the fit (no payout rolls since #105 piece 2;
+	# their landing floors left out).
+	var plan: CountUpPlan = CountUpPlan.build(
+		_full_steps(), 40, CountUpContext.new(1, 0), tuning, _no_floors()
+	)
 	assert_int(plan.fit_stage).is_equal(2)
 	# Stage 1: every gap is 40 ms.
 	assert_int(plan.beats[2].duration_ms).is_equal(tuning.base_ms - 20)
@@ -625,14 +650,17 @@ func test_the_fit_runs_its_stages_in_order_and_spares_the_climax() -> void:
 		assert_int(plan.beats[index].hit_stop_ms).is_equal(0)
 	# Merged plain beats and the ding keep their (gap-trimmed) length.
 	assert_int(plan.beats[0].duration_ms).is_equal(tuning.merged_ms - 20)
-	assert_int(plan.ding_beat).is_equal(20)
-	assert_int(plan.beats[20].hit_stop_ms).is_equal(100)
+	assert_int(plan.ding_beat).is_greater_equal(0)
+	assert_int(plan.beats[plan.ding_beat].hit_stop_ms).is_equal(100)
 
 
 func test_a_very_long_row_runs_every_stage_but_keeps_its_floors() -> void:
 	var tuning: CountUpTuning = load(TUNING)
 	var steps: Array[ScoreStep] = _long_steps()
-	var plan: CountUpPlan = _plan(steps, 30, CountUpContext.new(1, 0))
+	# The landing floors (#105 piece 2) left out: the stages and the factor as #60 tuned them.
+	var plan: CountUpPlan = CountUpPlan.build(
+		steps, 30, CountUpContext.new(1, 0), tuning, _no_floors()
+	)
 	assert_int(plan.fit_stage).is_equal(5)
 	for beat: CountUpBeat in plan.beats:
 		match beat.kind:
@@ -662,15 +690,11 @@ func test_a_very_long_row_runs_every_stage_but_keeps_its_floors() -> void:
 		if unscaled <= 0:
 			continue
 		checked[beat.kind] = checked.get(beat.kind, 0) + 1
-		if beat.kind == CountUpBeat.Kind.PAYOUT:
-			assert_int(beat.roll_ms).is_equal(tuning.fit_roll_max_ms)
 		var where: String = "%s at %d ms" % [CountUpBeat.Kind.keys()[beat.kind], beat.start_ms]
 		var ratio: float = beat.duration_ms / float(unscaled)
 		assert_float(ratio).override_failure_message(where).is_equal_approx(factor, 0.01)
-	# Stage 3 cut every roll but the ding's, which keeps its full one.
-	assert_int(checked.get(CountUpBeat.Kind.PAYOUT, 0)).is_equal(6)
-	assert_int(plan.beats[plan.ding_beat].kind).is_equal(CountUpBeat.Kind.PAYOUT)
-	assert_int(plan.beats[plan.ding_beat].roll_ms).is_greater(tuning.fit_roll_max_ms)
+	# A payout no longer rolls (#105 piece 2): every paying PAYOUT is its fitted gap.
+	assert_int(checked.get(CountUpBeat.Kind.PAYOUT, 0)).is_greater(0)
 	# Both bonus lengths, both stamp lengths (upgrades and Milk's later own stamp), tag, link.
 	assert_int(checked.get(CountUpBeat.Kind.BONUS, 0)).is_equal(14)
 	assert_int(checked.get(CountUpBeat.Kind.STAMP, 0)).is_equal(8)
@@ -680,7 +704,9 @@ func test_a_very_long_row_runs_every_stage_but_keeps_its_floors() -> void:
 	var tight: CountUpTuning = tuning.duplicate()
 	tight.fit_target_ms = 1000
 	tight.fit_max_factor = 2.0
-	var squeezed: CountUpPlan = CountUpPlan.build(steps, 30, CountUpContext.new(1, 0), tight)
+	var squeezed: CountUpPlan = CountUpPlan.build(
+		steps, 30, CountUpContext.new(1, 0), tight, _no_floors()
+	)
 	assert_int(squeezed.fit_stage).is_equal(5)
 	assert_int(squeezed.beats[4].duration_ms).is_equal(roundi((tuning.base_ms - 20) / 2.0))
 	var fizzle: CountUpBeat = squeezed.beats[squeezed.beats.size() - 1]
@@ -707,7 +733,6 @@ func _assert_same_but_the_ding(a: CountUpPlan, b: CountUpPlan, where: String) ->
 		var x: CountUpBeat = a.beats[index]
 		var y: CountUpBeat = b.beats[index]
 		assert_float(x.rattle_px).is_equal(y.rattle_px)
-		assert_float(x.punch_boost).is_equal(y.punch_boost)
 		assert_int(x.note).is_equal(y.note)
 		assert_bool(x.echo).is_equal(y.echo)
 		if index == a.ding_beat or index == b.ding_beat:
@@ -750,7 +775,7 @@ func _assert_unfitted_kind_lengths(live: CountUpTuning) -> void:
 		live.bonus_other_ms,
 		live.bonus_other_ms,
 		live.stamp_upgrade_ms,
-		plan.beats[8].roll_ms + live.gap_ms,
+		live.gap_ms,
 		live.fizzle_reset_ms,
 		live.fizzle_ms,
 		live.fizzle_ms,
@@ -758,9 +783,31 @@ func _assert_unfitted_kind_lengths(live: CountUpTuning) -> void:
 	assert_int(plan.beats.size()).is_equal(expected.size())
 	for index: int in range(expected.size()):
 		var beat: CountUpBeat = plan.beats[index]
-		assert_int(beat.duration_ms).override_failure_message(str(index)).is_equal(expected[index])
+		var expected_ms: int = expected[index]
+		if CountUpPlan.is_landing(beat):
+			expected_ms = maxi(expected_ms, _total().landing_gap_ms)
+		assert_int(beat.duration_ms).override_failure_message(str(index)).is_equal(expected_ms)
 	# An inspection stamp is no card stamp: the upgrade hit-stop.
 	assert_int(plan.beats[7].hit_stop_ms).is_equal(live.hit_stop_upgrade_stamp_ms)
+
+
+## The live tuning with a target no row reaches: no fit.
+static func _unfitted() -> CountUpTuning:
+	var tuning: CountUpTuning = (load(TUNING) as CountUpTuning).duplicate()
+	tuning.fit_target_ms = 100000
+	return tuning
+
+
+static func _total() -> CountTotalTuning:
+	return load(CountUpPlan.TOTAL_TUNING_PATH) as CountTotalTuning
+
+
+## The live monitor total's tuning without the landing floors (#105 piece 2).
+static func _no_floors() -> CountTotalTuning:
+	var total: CountTotalTuning = _total().duplicate()
+	total.landing_gap_ms = 0
+	total.fit_landing_gap_ms = 0
+	return total
 
 
 static func _plan(
@@ -885,8 +932,10 @@ static func _fitted_length_before_factor(
 		CountUpBeat.Kind.BASE:
 			return tuning.base_ms - cut
 		CountUpBeat.Kind.PAYOUT:
-			# Stage 3 cut the roll to fit_roll_max_ms (asserted by the caller).
-			return tuning.fit_roll_max_ms + tuning.fit_gap_ms
+			# No roll since #105 piece 2: a paying payout's fitted gap.
+			if beat.payout <= 0:
+				return 0
+			return tuning.fit_gap_ms
 		CountUpBeat.Kind.TAG:
 			return _fly_in(tuning.tag_ms - cut, tuning)
 		CountUpBeat.Kind.LINK:

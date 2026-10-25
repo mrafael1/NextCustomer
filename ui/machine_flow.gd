@@ -25,10 +25,9 @@ extends Node
 ## The next shift's planning (#77 machine v2, B1 and B5): the copies the shift's visits upgraded
 ## (MachineLanding.upgraded's pairs, `pending_swaps`) become `shown_swaps` as the next shift
 ## starts: their items show the old art through the glide back, then upgrade_after_ms after it an
-## UpgradeSwap plays on the screen's overlay for those on screen, and the monitor's brief lists
-## them (swap_news) until the next checkout. Once planning takes input, BonusNotice pulses the
-## inspection chip and the brief's PASS IT plate when passing the shift earns the bonus ticket,
-## and PremiumAnnounce (v0.50) prints its gold receipt on the monitor and hangs the PREMIUM NEXT
+## UpgradeSwap plays on the screen's overlay for those on screen. Once planning takes input,
+## BonusNotice pulses the inspection chip when passing the shift earns the bonus ticket, and
+## PremiumAnnounce (v0.50) prints its gold receipt on the monitor and hangs the PREMIUM NEXT
 ## tag when passing it earns a PREMIUM visit (RewardMachine.boosted_if_passed; a resume: the tag).
 ##
 ## A part of the shift screen, split out to keep that file short (like ShiftDebug): it works on
@@ -135,14 +134,6 @@ func reset_swaps() -> void:
 	if swap != null and is_instance_valid(swap):
 		swap.queue_free()
 	swap = null
-
-
-## The monitor brief's lines for the copies upgraded since the last shift ("Banana is GOLDEN now").
-func swap_news() -> PackedStringArray:
-	var lines: PackedStringArray = PackedStringArray()
-	for pair: Array in shown_swaps:
-		lines.append(UpgradeSwap.news_line((pair[1] as CardInstance).definition))
-	return lines
 
 
 ## Plays the swap of the shown copies on screen (the screen's overlay); returns how many play.
@@ -488,10 +479,7 @@ func _play_notice() -> void:
 		return
 	if not run.machine.bonus_if_passed(run):
 		return
-	var monitor: MonitorView = _screen._monitor
-	notice.play(
-		_screen._inspection_tag, func() -> Control: return monitor.channel.pass_line(), _reduced()
-	)
+	notice.play(_screen._inspection_tag, _reduced())
 
 
 func _play_announce() -> void:

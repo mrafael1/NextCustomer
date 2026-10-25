@@ -13,7 +13,6 @@ dim_strip_alpha = 0.3
 slap_frame_s = 0.04
 halo_step_s = 0.08
 notice_pulse_ms = 1000
-monitor_pulse_ms = 1800
 notice_pulse_scale = 0.06
 notice_pulse_rate = 12.0
 swap_flash_ms = 250

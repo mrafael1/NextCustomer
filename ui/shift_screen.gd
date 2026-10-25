@@ -103,8 +103,8 @@ var _row_strip: RowStrip
 ## set_total_down() marks CHECKOUT held while the shift is counted.
 var _register: Control
 var _cabinet: RegisterCabinet
-## The hung monitor (#80): the store channel in planning, the LED, the notices, a scanned item
-## and the count-up's beats.
+## The hung monitor (#80; one screen since #105 piece 2): the bay, the item column, the checkout
+## column, the notices and the count-up's beats.
 var _monitor: MonitorView
 ## The monitor's LED: blank in planning, the count-up's subtotal and total.
 var _led: LedDisplay
@@ -266,7 +266,8 @@ func _resume_run(saved: RunSave) -> void:
 	)
 	_count_up.show_end_state(run.last_result, run.quota(), count_up_context())
 	var record: ShiftRecord = run.history[-1]
-	_monitor.show_end_state(_count_up.plan, _row_views, record.passed and record.inspection != null)
+	var passed: bool = record.passed and record.inspection != null
+	_monitor.show_end_state(_count_up.plan, _row_views, passed, run.last_result, _scan.line_of)
 	_machine.open(true)  # No dessert: the visit shows as it waits, on a new timeline.
 
 
@@ -522,7 +523,6 @@ func _on_checkout_pressed() -> void:
 	_drag.cancel()
 	_redraw_mode = false
 	_deck_view.visible = false
-	_monitor.end_channel()
 	_click_ms = Time.get_ticks_msec()
 	tracker.on_checkout(_click_ms)
 	var committed: Array[CardInstance] = run.row.duplicate()
@@ -797,21 +797,20 @@ func _refresh_preview() -> void:
 	var result: ScoreResult = run.preview()
 	tracker.on_preview(run.row.size(), result.total)
 	_show_planning(result)
-	_show_projected(result.total)
+	_show_projected(result)
 
 
-## Planning's monitor and SPEND chip (the user's play test of 2026-10-17): the LED goes blank
-## (the last count-up's TOTAL leaves it) and the monitor shows the store channel, its scanner bay
-## belt slot 1's item (the monitor bay follow-up of #86); the projected `total` goes to the top
-## bar's SPEND chip (and is on the receipt). The count-up's subtotal and total take the LED from
-## the checkout on.
-func _show_projected(total: int) -> void:
+## Planning's monitor and SPEND chip (#105 piece 2): the LED goes blank; the monitor shows belt
+## slot 1's item with its lines and, like the SPEND chip, the projected total of `result`.
+func _show_projected(result: ScoreResult) -> void:
 	if _led.mode() != LedDisplay.Mode.BLANK:
 		_led.clear()
-	_quota_meter.show_projected(total, run.quota())
-	_monitor.show_channel(run, _machine.swap_news())
-	var first: CardDefinition = run.row[0].definition if not run.row.is_empty() else null
-	_monitor.show_next(first, RowCapacity.card_limit(run.limits), run.row.size())
+	_quota_meter.show_projected(result.total, run.quota())
+	_monitor.show_plan(result.total, run.quota())
+	var first: CardDefinition = null if run.row.is_empty() else run.row[0].definition
+	var tags: PackedStringArray = PackedStringArray() if first == null else result.tags[0]
+	var slots: int = RowCapacity.card_limit(run.limits)
+	_monitor.show_next(first, slots, run.row.size(), tags, _scan.item_lines(0))
 
 
 ## The preview: the itemised planning receipt (#80) and the belt's tags and marks.

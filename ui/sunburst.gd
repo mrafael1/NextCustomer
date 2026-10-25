@@ -1,12 +1,9 @@
 class_name Sunburst
 extends ColorRect
-## The sunburst behind the count view (#86 v6 scan count-up, mock-up count_up_86_v6_scan.html): over
-## the monitor's whole paper (MonitorView.PAPER_RECT), behind the scanner bay and the number and its
-## € (the monitor bay follow-up, mock-up monitor_bay_v1.html: bigger, centred on that group in the
-## paper right of the bay, the bay covering its left end), cream and paper rays fan out from
-## MonitorView.SUNBURST_CENTRE and turn slowly; once the quota is met (set_met) they turn mustard
-## light and pale and reach further (met_radius: MET_RADIUS unless set; the monitor sets the
-## monitor juice's, CountUpTuning.sunburst_met_radius, WIN B of mock-up monitor_juice_v2.html).
+## A turning sunburst of cream and paper rays fanning out from a centre (it stood behind the
+## monitor's count view in #86; since #105 piece 2 the monitor has PixelSunburst, and this one
+## shines behind the toy reveal and the upgrade swap); once met (set_met) the rays turn mustard
+## light and pale and reach further (met_radius: MET_RADIUS unless set).
 ## boost() (the quota met, with its pop) spins them BOOST times faster, easing back over
 ## BOOST_SECONDS, and grows them out to met_radius over grow_seconds (a back-out ease, as the
 ## mock-up's; at once when 0). Drawn by a canvas shader
@@ -100,13 +97,6 @@ func turn_speed() -> float:
 		return 0.0
 	var left: float = _boost_left / BOOST_SECONDS
 	return TURN * (1.0 + (BOOST - 1.0) * left * left)
-
-
-## The ray and gap colours and the radius shown now.
-func ray_colours() -> Array[Color]:
-	var ray: Color = _shader.get_shader_parameter(&"ray_colour") as Color
-	var gap: Color = _shader.get_shader_parameter(&"gap_colour") as Color
-	return [ray, gap]
 
 
 ## The radius now: RADIUS, met_radius once met (growing out to it just after a boost).

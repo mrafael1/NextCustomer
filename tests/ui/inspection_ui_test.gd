@@ -151,9 +151,9 @@ func test_the_debug_panel_clears_the_inspection() -> void:
 
 ## The planning notice (#77 machine v2's B1): an inspected shift whose pass earns the bonus ticket
 ## (RewardMachine.bonus_if_passed) shows the mustard "PASS › +1 BONUS TICKET" pill in the chip,
-## inside the chip and the top bar, right of the text, and the gold "PASS IT › +1 BONUS TICKET"
-## plate on the monitor's brief; the chip pulses, then the plate (PlanningTuning's Bonus notice
-## times), back at 1 after, none under reduced motion. After the pass the monitor's count shows
+## inside the chip and the top bar, right of the text; the chip pulses (PlanningTuning's Bonus
+## notice times; the monitor's plate went with the store channel, #105 piece 2), back at 1 after,
+## none under reduced motion. After the pass the monitor's count shows
 ## INSPECTION PASSED ✓ inside the screen and the chip turns EARNED: "<name> passed" with the
 ## check mark, teal pale, the pill without "PASS ›".
 func test_the_planning_notice_promises_and_earns_the_bonus_ticket() -> void:
@@ -190,17 +190,7 @@ func test_the_planning_notice_promises_and_earns_the_bonus_ticket() -> void:
 			font.get_string_size(label.text, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size).x
 		)
 		assert_float(width).is_less_equal(label.size.x + 0.5)
-	# The monitor brief's gold plate.
-	var plate: Control = screen._monitor.channel.pass_line()
-	assert_object(plate).is_not_null()
-	var plate_text: Label = plate.find_child("PassText", true, false) as Label
-	assert_str(plate_text.text).is_equal(MonitorChannel.PASS_TEXT)
-	var page: Control = plate.get_parent() as Control
-	(
-		assert_bool(Rect2(Vector2.ZERO, page.size).encloses(Rect2(plate.position, plate.size)))
-		. is_true()
-	)
-	# The pulse: the chip, then the plate.
+	# The pulse: the chip alone (the store channel's plate went with #105 piece 2).
 	var notice: BonusNotice = screen._machine.notice
 	assert_bool(notice.is_playing()).is_true()
 	var tuning: PlanningTuning = notice.tuning
@@ -209,15 +199,10 @@ func test_the_planning_notice_promises_and_earns_the_bonus_ticket() -> void:
 	notice.show_at(peak)
 	assert_float(tag.scale.x).is_equal_approx(1.0 + tuning.notice_pulse_scale, 0.001)
 	assert_vector(tag.pivot_offset).is_equal(tag.size / 2.0)
-	assert_float(plate.scale.x).is_equal(1.0)
-	notice.show_at(tuning.notice_pulse_ms / 1000.0 + peak)
-	assert_float(tag.scale.x).is_equal(1.0)
-	var plate_now: Control = screen._monitor.channel.pass_line()
-	assert_float(plate_now.scale.x).is_equal_approx(1.0 + tuning.notice_pulse_scale, 0.001)
 	notice.show_at(notice.length())
 	assert_bool(notice.is_playing()).is_false()
-	assert_float(plate_now.scale.x).is_equal(1.0)
-	notice.play(tag, func() -> Control: return plate_now, true)  # Reduced motion: none.
+	assert_float(tag.scale.x).is_equal(1.0)
+	notice.play(tag, true)  # Reduced motion: none.
 	assert_bool(notice.is_playing()).is_false()
 	assert_float(tag.scale.x).is_equal(1.0)
 	# The pass: INSPECTION PASSED ✓ on the monitor, the chip EARNED.
@@ -273,8 +258,8 @@ static func _scan_text(screen: ShiftScreen, slot: int) -> String:
 	screen._scan.pointer = func() -> Vector2: return point
 	view.hovered.emit(view)
 	screen._scan._go_full()
-	# A belt item's scan shows on the hung monitor (#80).
-	var text: String = "\n".join(screen._monitor.scan_footer().texts())
+	# A belt item's scan shows on the hung monitor (#80), in its item column (#105 piece 2).
+	var text: String = "\n".join(screen._monitor.item_column().step_texts())
 	screen._scan.clear()
 	return text
 

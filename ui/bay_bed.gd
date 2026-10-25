@@ -382,12 +382,6 @@ func has_item() -> bool:
 	return _art != null
 
 
-## The slide-out's part of the pose now (offset, turn and alpha; identity when not leaving), which
-## the bay's tag and sticker copy.
-func out_offset() -> BayPose:
-	return out_pose(_out_p)
-
-
 ## The art's pose `drop_t` s after its drop started (negative: at rest) with a fall of `fall_s`,
 ## `wobble_t` s into a wobble (negative: none), `out_p` of the way out (negative: not leaving) and
 ## bobbed up or not. Pure.

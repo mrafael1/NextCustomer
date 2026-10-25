@@ -4,11 +4,12 @@ extends HBoxContainer
 ## count_up_86_v4_live.html): the word SPEND and the shift's quota as "€N+" (#86: players read
 ## the quota as an amount to spend; code and data keep "quota"), a liquid gauge, the amount in
 ## mustard and a tag saying how far the quota is ("€N to go" on paper, "Spot on" or "+€N" on
-## mustard; LedBeat.to_go_text). In planning the amount is the projected total, which the shift
-## screen hands it from its preview (show_projected): the monitor shows its store channel then,
-## not the total (the user's play test of 2026-10-17). During the count it mirrors the monitor's
-## LED (follow): the running subtotal, so the gauge never shows the final total early. Blank LED
-## alone: no amount, no tag and an empty gauge.
+## mustard; to_go_text). In planning the amount is the projected total, which the shift
+## screen hands it from its preview (show_projected), as the monitor's checkout column shows it
+## (#105 piece 2). During the count it mirrors the register's reading (LedDisplay, follow), as the
+## monitor's number does: the running total, so the gauge never shows the final total early and
+## both read the same whole number at every moment. Blank alone: no amount, no tag and an empty
+## gauge.
 ##
 ## The gauge (#86, TA) is a liquid coloured by status (red, orange, green, gold: SHORT_RAMP). While
 ## short of the quota it is full exactly at the quota. Once the amount meets it (the count-up's
@@ -102,13 +103,20 @@ const BUBBLE_COLOR := Palette.PAPER
 ## would lose (its bottom).
 const GAIN_PREVIEW_ALPHA := 0.55
 const LOSS_PREVIEW_ALPHA := 0.8
+## The tag's words for core's ShiftMargin of the shown amount against the quota (to_go_text):
+## "€N to go" short of it, "Spot on" on it, "+€N" past it; dark tomato while short (tomato is only
+## for fizzles, CHECKOUT and CLOSED), ink from the near share on.
+const TO_GO_TEXT := "€%d to go"
+const ON_QUOTA_TEXT := "Spot on"
+const OVER_TEXT := "+€%d"
+const FIZZLE_COLOR := Palette.TOMATO_DARK
 
 ## Returns whether to reduce motion (the profile's setting); an empty Callable means no.
 var reduced_motion: Callable = Callable()
 
 var quota_label: Label
 var amount_label: Label
-## How far the quota is (LedBeat.to_go_text); hidden while a drag shows its change.
+## How far the quota is (to_go_text); hidden while a drag shows its change.
 var tag_label: Label
 ## A drag's change, in the tag's slot; empty otherwise.
 var delta_label: Label
@@ -168,7 +176,7 @@ func _init() -> void:
 	_tail.custom_minimum_size = Vector2(maxf(tag_width(), delta_width()), TopBar.ROW_SIZE.y / 2.0)
 	_tail.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	add_child(_tail)
-	tag_label = UiKit.body_label("", TAG_FONT_SIZE, LedBeat.FIZZLE_COLOR)
+	tag_label = UiKit.body_label("", TAG_FONT_SIZE, FIZZLE_COLOR)
 	tag_label.add_theme_font_override("font", ArtStyle.bold_font(TAG_WEIGHT))
 	tag_label.add_theme_constant_override("outline_size", 0)
 	tag_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
@@ -225,8 +233,7 @@ func shown_text() -> String:
 
 
 ## The gauge's fill for `amount` against `quota`, from 0 to 1 (full for a quota of 0): full at the
-## quota and past it, since past it the gauge re-scales to the amount. Display arithmetic only, as
-## LedDisplay.lit_segments.
+## quota and past it, since past it the gauge re-scales to the amount. Display arithmetic only.
 static func fill_fraction(amount: int, quota: int) -> float:
 	if quota <= 0:
 		return 1.0
@@ -275,7 +282,7 @@ static func delta_width() -> float:
 ## border.
 static func tag_width() -> float:
 	var font: Font = ArtStyle.bold_font(TAG_WEIGHT)
-	var text: String = LedBeat.TO_GO_TEXT % 0
+	var text: String = TO_GO_TEXT % 0
 	var width: float = font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, TAG_FONT_SIZE).x
 	var digit: float = font.get_string_size("0", HORIZONTAL_ALIGNMENT_LEFT, -1, TAG_FONT_SIZE).x
 	return ceilf(width + (TAG_DIGITS - 1) * digit + 2.0 * (TAG_PADDING + TAG_BORDER))
@@ -358,11 +365,11 @@ func _show(amount: int, quota: int, met: bool) -> void:
 
 func _show_tag(amount: int, quota: int) -> void:
 	var margin: ShiftMargin = ShiftMargin.of(amount, quota)
-	tag_label.text = LedBeat.to_go_text(margin)
+	tag_label.text = to_go_text(margin)
 	tag_label.visible = true
 	var short: bool = margin.kind() == ShiftMargin.Kind.SHORT
 	_tag_style.bg_color = Palette.PAPER if short else Palette.MUSTARD
-	var colour: Color = LedBeat.FIZZLE_COLOR if short and not is_near() else Palette.INK
+	var colour: Color = FIZZLE_COLOR if short and not is_near() else Palette.INK
 	tag_label.add_theme_color_override("font_color", colour)
 
 
@@ -566,3 +573,13 @@ static func _digit_width() -> float:
 ## The LED shows the count-up's SUBTOTAL or TOTAL.
 static func _counting(mode: LedDisplay.Mode) -> bool:
 	return mode == LedDisplay.Mode.SUBTOTAL or mode == LedDisplay.Mode.TOTAL
+
+
+## The tag's text for `margin` (see TO_GO_TEXT).
+static func to_go_text(margin: ShiftMargin) -> String:
+	match margin.kind():
+		ShiftMargin.Kind.SHORT:
+			return TO_GO_TEXT % margin.amount()
+		ShiftMargin.Kind.ON:
+			return ON_QUOTA_TEXT
+	return OVER_TEXT % margin.amount()

@@ -11,13 +11,14 @@ const PALETTE_SIZE := 67
 ## LedDisplay), the scan pieces #75 moves out of style frame v2 (PriceSticker,
 ## ScanPopup, ScanOverlay), the items, their marks and their cells (ItemView, EffectMark,
 ## PayoutPlaque, RowStrip), which take their colours from Palette, and the hung monitor's pieces
-## #80 adds (MonitorView, LedBeat, ScanFooter) and the back of the store (StoreShelves, step 11):
+## #80 adds (MonitorView) and the back of the store (StoreShelves, step 11):
 ## style frame v2's palette check, kept for the screen that replaced it (#75, step 9), and the
 ## planning effects' pieces (#71, mock-up h1: PlanningLayer, RailStrip, EffectSticker, GiverBadge,
-## PayTag, DenyStamp), the count-up's receipt chip (#86 v6, ReceiptFly) and its paper bag
-## (PaperBag, which declares no colour: its art is drawn from the palette), the belt ride and the
-## giver sparks (BeltRide, GiverSparks), and the monitor's count view (ScannerBay, MetStamp,
-## Sunburst, OverTab) with the burst outside it (TankBurst), and the RECEIPT REWARDS machine's
+## PayTag, DenyStamp), the count-up's paper bag (PaperBag, which declares no colour: its art is
+## drawn from the palette), the belt ride and the giver sparks (BeltRide, GiverSparks), the
+## monitor's single screen (#105 piece 2: ScannerBay, FamilyChip, MonitorItemColumn,
+## CheckoutColumn, TotalNumber, CountChips, RailLight, MonitorClimax, PixelSunburst, MonitorKit,
+## Sunburst), and the RECEIPT REWARDS machine's
 ## parts (#77, build spec 4.2: ui/machine/, and the receipt's stamps, ReceiptStamps), listed ahead
 ## of their builds. A class is checked once its script exists, so each step of the adoption is
 ## covered as it lands.
@@ -38,8 +39,6 @@ const SCRIPTS: Array[String] = [
 	"res://ui/payout_plaque.gd",
 	"res://ui/row_strip.gd",
 	"res://ui/monitor_view.gd",
-	"res://ui/led_beat.gd",
-	"res://ui/scan_footer.gd",
 	"res://ui/store_shelves.gd",
 	"res://ui/planning_layer.gd",
 	"res://ui/rail_strip.gd",
@@ -53,20 +52,22 @@ const SCRIPTS: Array[String] = [
 	"res://ui/glyph_tips.gd",
 	"res://ui/item_name.gd",
 	"res://ui/deny_stamp.gd",
-	"res://presentation/receipt_fly.gd",
+	"res://ui/family_chip.gd",
 	"res://ui/paper_bag.gd",
 	"res://ui/belt_ride.gd",
 	"res://ui/giver_sparks.gd",
 	"res://ui/scanner_bay.gd",
-	"res://ui/met_stamp.gd",
 	"res://ui/sunburst.gd",
-	"res://ui/over_tab.gd",
-	"res://ui/tank_burst.gd",
-	"res://ui/gold_tank.gd",
 	"res://ui/bay_bed.gd",
-	"res://ui/bay_tag.gd",
 	"res://ui/bay_queue.gd",
-	"res://ui/tally_chips.gd",
+	"res://ui/monitor_item_column.gd",
+	"res://ui/checkout_column.gd",
+	"res://ui/total_number.gd",
+	"res://ui/count_chips.gd",
+	"res://ui/rail_light.gd",
+	"res://ui/monitor_climax.gd",
+	"res://ui/pixel_sunburst.gd",
+	"res://ui/monitor_kit.gd",
 	"res://ui/machine/reward_machine_view.gd",
 	"res://ui/machine/machine_head.gd",
 	"res://ui/machine/slot_plate.gd",
@@ -87,9 +88,9 @@ const SCRIPTS: Array[String] = [
 	"res://ui/machine/receipt_feed.gd",
 	"res://presentation/receipt_stamps.gd",
 ]
-## The scan pieces (the scan's step lines in ScanFooter, #80, too), the items and the planning
-## effects' pieces (#71), the receipt chip and the giver sparks (#86 v6) name no colour of their
-## own: every colour they draw is a Palette constant.
+## The scan pieces, the items and the planning effects' pieces (#71), the giver sparks (#86 v6)
+## and the bay's family chip (#105 piece 2) name no colour of their own: every colour they draw
+## is a Palette constant.
 const PALETTE_ONLY: Array[String] = [
 	"res://ui/price_sticker.gd",
 	"res://ui/scan_popup.gd",
@@ -97,14 +98,13 @@ const PALETTE_ONLY: Array[String] = [
 	"res://ui/effect_mark.gd",
 	"res://ui/item_view.gd",
 	"res://ui/payout_plaque.gd",
-	"res://ui/scan_footer.gd",
 	"res://ui/planning_layer.gd",
 	"res://ui/rail_strip.gd",
 	"res://ui/effect_sticker.gd",
 	"res://ui/giver_badge.gd",
 	"res://ui/pay_tag.gd",
 	"res://ui/deny_stamp.gd",
-	"res://presentation/receipt_fly.gd",
+	"res://ui/family_chip.gd",
 	"res://ui/giver_sparks.gd",
 ]
 ## The machine's parts (test_the_machine_parts_use_the_palette) and the colour literals they may

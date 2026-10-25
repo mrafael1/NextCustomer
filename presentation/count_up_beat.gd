@@ -26,6 +26,10 @@ enum Kind {
 	LINK,
 }
 
+## What a beat does to the monitor's total (#105 piece 2, mock-up readability_v3.html): nothing, the
+## item's base lands, a +N or a × lands its gain, a denial lowers it, or WASTED drops a grey €0.
+enum Land { NONE, BASE, ADD, MUL, DOWN, WASTE }
+
 var kind: Kind = Kind.BASE
 ## Indices into ScoreResult.steps, in step order: two for MERGED_PLAIN, one otherwise.
 var steps: PackedInt32Array = PackedInt32Array()
@@ -42,7 +46,8 @@ var duration_ms: int = 0
 var start_ms: int = 0
 ## Real-time freeze when the beat lands (D6), after merging; 0 for none.
 var hit_stop_ms: int = 0
-## PAYOUT and MERGED_PLAIN: how long the subtotal rolls up, at speed 1. 0 otherwise.
+## A landing (#105 piece 2): how long its ticks run, from the first to the last, at speed 1. 0
+## otherwise (a payout no longer rolls the total).
 var roll_ms: int = 0
 ## PAYOUT and MERGED_PLAIN: the payout. 0 otherwise.
 var payout: int = 0
@@ -50,8 +55,6 @@ var payout: int = 0
 var subtotal: int = 0
 ## Register rattle amplitude in px (D3); 0 for none and always 0 under reduced motion.
 var rattle_px: float = 0.0
-## Extra subtotal punch once the row has passed the best so far (D3).
-var punch_boost: float = 0.0
 ## A repeat landing of an armed effect played as a short echo (D7 stage 2).
 var echo: bool = false
 ## ARMED: the beat indices of its landings, in order (D8).
@@ -60,6 +63,9 @@ var targets: PackedInt32Array = PackedInt32Array()
 var armed_from: int = -1
 ## The quota is reached on this beat, mid-row (D5).
 var ding: bool = false
+## The ding beat's crossing tick (#105 piece 2): the index in `ticks` of the first one at or over
+## the quota, where the quota is met and the climax starts; -1 on other beats.
+var ding_tick: int = -1
 ## The first multiplier from a card on this beat's card: it gets the card hit-stop and is never
 ## shortened by the fly-in or uniform fit stages (D6, D7).
 var first_stamp_on_card: bool = false
@@ -74,3 +80,21 @@ var closes_slot: bool = false
 ## An opening beat's ride gap, played before it at speed 1 (the tuning's ride_ms), or 0: none
 ## for item 0 already in the scanner's cell.
 var ride_ms: int = 0
+## How the beat lands on the monitor's total (#105 piece 2; CountUpPlan's _set_landings).
+var land: Land = Land.NONE
+## The total the monitor and the top bar show before and after the beat's landing, in whole
+## euros: the payouts so far plus the running value of every item not yet paid. It always equals
+## the step's subtotal at a PAYOUT, so the count ends on ScoreResult.total.
+var shown_from: int = 0
+var shown_to: int = 0
+## shown_to - shown_from.
+var gain: int = 0
+## A × landing's factor as its chip first reads ("×2"), else "".
+var factor_text: String = ""
+## The landing's whole-euro ticks, in order (at most the tuning's ticks_per_landing; the last is
+## shown_to). Empty for a beat that does not move the total.
+var ticks: PackedInt32Array = PackedInt32Array()
+## The ladder lamp a gain landing lights (its 0-based count among the row's gain landings), or -1.
+var lamp: int = -1
+## From the beat's start to its landing, at speed 1 (0 for a beat that does not land).
+var fly_ms: int = 0

@@ -12,28 +12,28 @@ extends Control
 ## register, the receipt, the belt with its row, the planning layer, the bag, the hand and its
 ## baskets). ShiftScreen hands it to the StoreCamera, which zooms it to 2x on the machine during
 ## its visits (the fore drops out of frame: set_fore_drop). The stage keeps the `hud`, which never
-## zooms: the top bar, the tank's burst, the scan layer and the popup layer. Every Rect2 below is
+## zooms: the top bar, the scan layer and the popup layer. Every Rect2 below is
 ## in stage coordinates (the world's at 1x), except the MACHINE_* rects the camera puts on screen.
 ##
 ## On the stage, back to front: the hung monitor (MonitorView: two rods, its bezel and paper screen,
-## with the LED's totals, the notices, a scanned item and the count-up on it), the register
+## with the scanner bay, the item column, the checkout column and the notices on it), the register
 ## (RegisterCabinet, the count-up's rattle target: the printer box on the counter top and the
 ## register column under it, with the key deck and its keys, Cancel, Redraw and CHECKOUT, the
 ## keypad, the seed line under Redraw and the cash drawer), the receipt rising from the printer's
 ## slot, the belt (BeltPanel: the steel guard, the rubber top face, the lip, the apron and the price
 ## rail, then the row of items standing on the belt with their tickets on the rail), the planning
-## layer (PlanningLayer: #71's stickers, stamps and pay tags over the items), the paper bag on
-## the counter between the receipt and the belt (PaperBag, #86 v6: the counted items go in), the
-## top bar (TopBar: the SHIFT, QUOTA, inspection and LOYALTY chips, Cart and the menu with Export
-## log, all above PANEL_TOP), the hand's baskets on the steel ledge (HandBaskets:
-## their backs, the hand in them, the basket redraw's pop layer, their fronts, and the redraw's
-## targets and tags, BasketTags), the shade that darkens them while counting and the redraw layer
-## (the basket redraw's flights into the Cart and its sparks, over the top bar).
-## Over them all the tank's burst (TankBurst, #86 v6: the gold jets, coins, splashes and pour, over
-## the top bar), the scan layer (ScanOverlay: the scan's brackets and beam) and the popup layer,
-## all taking no clicks. A belt or hand item's scan shows on the monitor (#80); the popup layer
-## only parks the hidden scan popup, which opens over the offers alone, in the layer an offer's
-## scan moves it to (ScanController.cover_offers).
+## layer (PlanningLayer: #71's stickers, stamps and pay tags over the items), the paper bag on the
+## counter between the receipt and the belt (PaperBag, #86 v6: the counted items go in), the top bar
+## (TopBar: the SHIFT, QUOTA, inspection and LOYALTY chips, Cart and the menu with Export log, all
+## above PANEL_TOP), the hand's baskets on the steel ledge (HandBaskets: their backs, the hand in
+## them, the basket redraw's pop layer, their fronts, and the redraw's targets and tags,
+## BasketTags), the shade that darkens them while counting and the redraw layer (the basket redraw's
+## flights into the Cart and its sparks, over the top bar). Over the fore's parts the count's rail
+## light (RailLight, #86 kept by #105 piece 2: the price rail lit gold from a giver's ticket to its
+## target's). Over them all the scan layer (ScanOverlay: the scan's brackets and beam) and the popup
+## layer, all taking no clicks. A belt or hand item's scan shows on the monitor (#80); the popup
+## layer only parks the hidden scan popup, which opens over the offers alone, in the layer an
+## offer's scan moves it to (ScanController.cover_offers).
 ##
 ## The receipt stands on the printer's slot and grows up as its lines print, up to under the top
 ## bar; past that it scrolls to its newest line.
@@ -74,18 +74,12 @@ const ROW_AREA := Rect2(354, ROW_POSITION.y, 904, ItemView.BELT_SIZE.y)
 ## left of the belt, in front of the cashier's lower half.
 const BAG_RECT := Rect2(284, 246, 64, 84)
 ## The monitor hung from the ceiling on two rods, its bezel and paper screen, and the shade under
-## it (MonitorView draws them). The LED (LedDisplay: caption, digits and the quota line with its
-## bar) and the notices are on its screen; MonitorView lays out its states (planning's store
-## channel among them).
+## it (MonitorView draws them): its one screen (#105 piece 2) holds the scanner bay, the item
+## column, the checkout column and the notices.
 const MONITOR_RECT := Rect2(484, 66, 424, 176)
 const MONITOR_SCREEN_RECT := Rect2(493, 75, 406, 158)
 const MONITOR_UNDER_RECT := Rect2(490, 240, 412, 8)
 const ROD_RECTS: Array[Rect2] = [Rect2(542, 56, 8, 12), Rect2(842, 56, 8, 12)]
-const LED_RECT := Rect2(552, 80, 288, 96)
-const LED_CAPTION_RECT := Rect2(564, 84, 264, 14)
-const LED_DIGITS_RECT := Rect2(564, 98, 264, 52)
-const LED_QUOTA_RECT := Rect2(564, 152, 264, 22)
-const NOTICE_RECT := Rect2(500, 182, 392, 44)
 ## The register (RegisterCabinet): the printer box on the counter top with its slot, and the
 ## register column under it: the key deck (the keys, the keypad and the seed line stand on it)
 ## and the cash drawer.
@@ -175,7 +169,8 @@ var loyalty_card: LoyaltyCard
 var inspection_tag: InspectionTag
 var deck_button: FramedButton
 var export_button: FramedButton
-## The hung monitor: its rods, bezel and screen, with the LED and the notices on it.
+## The hung monitor: its rods, bezel and screen, with the register's reading (the LED) and the
+## notices on it.
 var monitor: MonitorView
 ## The register: the count-up's rattle target (the same node as `cabinet`).
 var register: Control
@@ -195,8 +190,8 @@ var planning_layer: PlanningLayer
 var bag: PaperBag
 ## Over everything on the stage, taking no clicks: the scan's marks, and the layer the scan
 ## popup opens in.
-## The € tank's gold outside the monitor (#86 v6), over the top bar and under the scan layer.
-var tank_burst: TankBurst
+## The count's rail light over the price rail (#105 piece 2), last in the fore.
+var rail_light: RailLight
 var scan_layer: ScanOverlay
 var popup_layer: Control
 var notice_label: NoticeLabel
@@ -396,11 +391,12 @@ func _build_keys() -> void:
 	seed_label = cabinet.seed_label
 
 
-## The scan layer and the popup layer (where the hidden scan popup waits) over the whole stage.
+## The rail light (last in the fore), then the scan layer and the popup layer (where the hidden
+## scan popup waits) over the whole stage.
 func _build_scan_layers() -> void:
-	tank_burst = TankBurst.new()
-	add_child(tank_burst)
-	monitor.tank_burst = tank_burst
+	rail_light = RailLight.new()
+	rail_light.size = SIZE
+	fore.add_child(rail_light)
 	scan_layer = ScanOverlay.new()
 	scan_layer.name = "ScanLayer"
 	scan_layer.size = SIZE

@@ -227,13 +227,24 @@ func test_every_printed_character_has_its_glyph() -> void:
 		assert_bool(printed.has(required)).override_failure_message(required).is_true()
 
 
-## No text goes through the sharp-pixel material (the monitor's scan included), and the sharp-pixel
-## switch (ArtStyle.set_sharp, the capture's S key) reaches every piece of art, items too.
+## No text goes through the sharp-pixel material (the monitor's scan included; the gold number's
+## own gold-bands shader aside), and the sharp-pixel switch (ArtStyle.set_sharp, the capture's S
+## key) reaches every piece of art, items too.
 func test_text_never_carries_the_pixel_material() -> void:
 	for scan: String in SCANS:
 		var screen: ShiftScreen = await _captured(scan)
 		for label: Label in _labels(screen):
-			assert_object(label.material).override_failure_message(str(label.get_path())).is_null()
+			# The checkout column's gold number has its gold-bands shader (TotalNumber), no other.
+			var gold: bool = (
+				label.material is ShaderMaterial
+				and (label.material as ShaderMaterial).shader == TotalNumber.SHADER
+			)
+			if not gold:
+				(
+					assert_object(label.material)
+					. override_failure_message(str(label.get_path()))
+					. is_null()
+				)
 			assert_bool(label.has_meta(ArtStyle.PIXEL_ART_META)).is_false()
 		var marked: Array[CanvasItem] = _pixel_art(screen)
 		assert_int(marked.size()).is_greater(60)

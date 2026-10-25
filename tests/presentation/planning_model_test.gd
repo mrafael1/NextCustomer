@@ -1,8 +1,8 @@
 extends GdUnitTestSuite
 ## PlanningModel (#71, mock-up h1, H1_BUILD_SPEC.md sections 2, 5 and 7) and the links' gains:
 ## the reference row's stickers, pays, stamps and strips; the five pay states, the halo's ring
-## thresholds and both stamp kinds on synthetic results; EffectLink.gain and cancelled; the
-## monitor key's entries; the lane rule; and every golden row builds a model whose numbers all
+## thresholds and both stamp kinds on synthetic results; EffectLink.gain and cancelled; a
+## folded sticker; the lane rule; and every golden row builds a model whose numbers all
 ## come from its steps and payouts. Pure data: no saves, no event log, no Node.
 
 const GoldenRows := preload("res://tests/ui/scan_popup_golden_rows_test.gd")
@@ -269,24 +269,7 @@ func test_copies_make_a_backward_strip_when_the_copy_comes_first() -> void:
 	assert_int(spec.hi()).is_equal(4)
 
 
-func test_key_entries_take_the_first_sticker_of_each_kind_in_order() -> void:
-	var model: PlanningModel = _reference_model()
-	var entries: Array[StickerSpec] = model.key_entries()
-	var captions: Array = []
-	for entry: StickerSpec in entries:
-		captions.append(PlanningModel.key_caption(entry))
-	# Bread's item stamp comes first on the belt, but the key's order is fixed.
-	assert_array(captions).is_equal(
-		["own rule", "from an item", "from a coupon", "loyalty", "wasted"]
-	)
-	assert_bool(entries[0] == model.slots[2].stickers[0]).is_true()
-	assert_bool(entries[1] == model.slots[1].stickers[0]).is_true()
-	assert_bool(entries[2] == model.slots[4].stickers[1]).is_true()
-	assert_bool(entries[3] == model.slots[5].stickers[2]).is_true()
-	assert_bool(entries[4] == model.slots[3].stickers[0]).is_true()
-	# No stickers, no key.
-	assert_array(PlanningModel.new().key_entries()).is_empty()
-	assert_str(PlanningModel.key_caption(StickerSpec.folded(3))).is_empty()
+func test_a_folded_sticker_reads_its_count() -> void:
 	assert_str(StickerSpec.folded(3).text).is_equal("…+3")
 
 
