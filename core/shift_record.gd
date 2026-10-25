@@ -15,7 +15,7 @@ var inspection: InspectionDefinition
 ## The cards checked out, in row order (coupon uses for unlocks, full build plan 7.3).
 var played: Array[CardDefinition] = []
 ## The RECEIPT REWARDS machine's visits after this shift (#77), in order: the ticket, the bonus
-## ticket, STAMP DAY. Empty after a lost or the last shift.
+## ticket. Empty after a lost or the last shift.
 var visits: Array[MachineVisit] = []
 
 
@@ -26,14 +26,32 @@ func _init(shift_number: int, shift_quota: int, shift_total: int) -> void:
 	passed = shift_total >= shift_quota
 
 
-## Every register taken from the machine after this shift (REGISTER and STAMP DAY picks), in
-## order.
+## Every loyalty perk taken from the machine after this shift (new perks and level-ups; before
+## v0.61 also STAMP DAY's), in order.
 func registers_taken() -> Array[UpgradeDefinition]:
 	var found: Array[UpgradeDefinition] = []
 	for visit: MachineVisit in visits:
 		var prize: MachinePrize = visit.picked_prize()
 		if prize != null and prize.kind == MachinePrize.Kind.REGISTER:
 			found.append(prize.upgrade)
+	return found
+
+
+## The new perks taken after this shift (each stamped a loyalty box; LV 1 only), in order.
+func perks_added() -> Array[UpgradeDefinition]:
+	var found: Array[UpgradeDefinition] = []
+	for upgrade: UpgradeDefinition in registers_taken():
+		if not PerkLevels.is_level_up(upgrade):
+			found.append(upgrade)
+	return found
+
+
+## The level-ups taken after this shift (#108), in order.
+func level_ups() -> Array[UpgradeDefinition]:
+	var found: Array[UpgradeDefinition] = []
+	for upgrade: UpgradeDefinition in registers_taken():
+		if PerkLevels.is_level_up(upgrade):
+			found.append(upgrade)
 	return found
 
 

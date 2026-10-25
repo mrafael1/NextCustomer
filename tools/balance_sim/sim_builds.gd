@@ -79,12 +79,13 @@ static func is_key_card(build: BuildDefinition, card: CardDefinition) -> bool:
 	return build.count(alone) > 0
 
 
-## Per build id: the chance that a later NEW ITEMS or COUPONS draw (not a run's first) from this
-## stock at odds level 0 shows at least one of the build's key cards, the higher of the two chutes
-## (#77). Read from the machine's exact odds card (MachineOdds.card's in_draw, each prize's chance
-## to be in the draw): the key cards' chances summed, capped at 1 (the expected count of key cards
-## shown, an upper bound of the chance when several key cards are stocked). `_samples` and
-## `_offer_seed` are kept for the --offer-samples option until S1 (nothing is sampled now).
+## Per build id: the chance that a later NEW ITEMS draw (not a run's first; its products, of any
+## tier, and its coupon, #108) from this stock at odds level 0 on a CLASSIC visit shows at least one
+## of the build's key cards (#77). Read from the machine's exact odds card (MachineOdds.card's
+## in_draw, each prize's chance to be in the draw): the key cards' chances summed, capped at 1 (the
+## expected count of key cards shown, an upper bound of the chance when several key cards are
+## stocked). `_samples` and `_offer_seed` are kept for the --offer-samples option until S1 (nothing
+## is sampled now).
 func key_offer_chance(
 	balance: BalanceDefinition, stock: RunStock, _samples: int, _offer_seed: int
 ) -> Dictionary[String, float]:
@@ -101,19 +102,23 @@ func key_offer_chance(
 	var by_id: Dictionary[String, CardDefinition] = {}
 	for card: CardDefinition in context.products + context.coupons:
 		by_id[String(card.id)] = card
+	# A BIG or GOLDEN card drawn counts as its plain card.
+	if balance.machine != null:
+		for chain: ItemUpgradeDefinition in balance.machine.item_upgrades:
+			for tier: CardDefinition in chain.tiers():
+				if tier != null and by_id.has(String(chain.product.id)):
+					by_id[String(tier.id)] = chain.product
 	var chances: Dictionary[String, float] = {}
 	for build: BuildDefinition in builds:
 		chances[String(build.id)] = 0.0
 	if balance.machine == null:
 		return chances
-	for chute: int in [RewardMachine.Chute.NEW_ITEMS, RewardMachine.Chute.COUPONS]:
-		var odds: MachineOddsCard = MachineOdds.card(chute, context, 0)
-		for build: BuildDefinition in builds:
-			var shown: float = 0.0
-			for key: String in odds.in_draw:
-				var card: CardDefinition = by_id.get(key.get_slice(":", 1))
-				if card != null and is_key_card(build, card):
-					shown += float(odds.in_draw[key])
-			var id: String = String(build.id)
-			chances[id] = maxf(chances[id], minf(shown, 1.0))
+	var odds: MachineOddsCard = MachineOdds.card(RewardMachine.Chute.NEW_ITEMS, context, 0)
+	for build: BuildDefinition in builds:
+		var shown: float = 0.0
+		for key: String in odds.in_draw:
+			var card: CardDefinition = by_id.get(key.get_slice(":", 1))
+			if card != null and is_key_card(build, card):
+				shown += float(odds.in_draw[key])
+		chances[String(build.id)] = minf(shown, 1.0)
 	return chances

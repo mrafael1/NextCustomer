@@ -10,8 +10,9 @@ extends RefCounted
 ## A checkout counts when a player placed its cards (`placements` > 0; debug rows place none)
 ## and its hand can be rebuilt: the shift's `shift_start` cards, then each `redraw`, must hold
 ## every card of `final_order`. The upgrades are the run's register picks before the shift (the
-## `upgrade` events of older logs, the REGISTER and STAMP DAY picks of `machine_visit` events,
-## #77), the inspections the shift's `inspections`. Events are grouped by run and read in time
+## `upgrade` events of older logs, the loyalty picks of `machine_visit` events, #77: before v0.61
+## REGISTER and STAMP DAY picks, since then UPGRADE's, a level-up replacing its perk, #108), the
+## inspections the shift's `inspections`. Events are grouped by run and read in time
 ## order, so a run resumed in a later session still counts.
 
 ## The climb variants compared, as [label, max_changes]; the simulator's sensible player is
@@ -197,12 +198,12 @@ func _read_run(events: Array, lookup: ContentLookup) -> void:
 			"machine_visit":
 				var register: UpgradeDefinition = _register_picked(event, lookup)
 				if register != null:
-					upgrades.append(register)
+					upgrades.assign(PerkLevels.with_pick(upgrades, register))
 			"checkout":
 				_read_checkout(event, hand, upgrades, inspections, shift, lookup)
 
 
-## The register a machine_visit event took (a REGISTER or STAMP DAY pick), or null.
+## The loyalty perk a machine_visit event took (a new perk or a level-up), or null.
 static func _register_picked(event: Dictionary, lookup: ContentLookup) -> UpgradeDefinition:
 	var index: int = int(event.get("picked", -1))
 	var offered: Array = event.get("offered", [])

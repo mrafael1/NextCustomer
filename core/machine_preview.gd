@@ -8,10 +8,13 @@ var prize: MachinePrize
 var adds_card: bool = false
 ## The cart is full: the pick needs a card swapped out.
 var needs_replace: bool = false
-## UPGRADES: the copies that step up, in deck order, with the card each becomes.
+## An item upgrade: the copies that step up, in deck order, with the card each becomes.
 var targets: Array[CardInstance] = []
 var to_cards: Array[CardDefinition] = []
-## UPGRADES: how many copies change (SHELF UPGRADE: every copy below GOLDEN).
+## An item upgrade: how many copies change (SHELF UPGRADE: every copy below GOLDEN).
 var copies: int = 0
-## REGISTER: the loyalty card box the register lands in (its index in the run's upgrades).
+## A loyalty perk: the loyalty card box it lands in (its index in the run's upgrades); for a
+## level-up (#108) the owned perk's box, with the level it has now.
 var box_index: int = -1
+var level_up: bool = false
+var from_level: int = 0

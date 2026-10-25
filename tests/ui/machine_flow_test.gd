@@ -1,11 +1,12 @@
 extends GdUnitTestSuite
 ## The RECEIPT REWARDS machine on the real shift screen (#77, MachineFlow): a passed checkout
 ## opens it inside the stage, over the shade, with the register column left unshaded; its keys
-## are lit or padlocked from the run; a confirmed chute draws its prizes, which the scanner reads
-## as items once armed; a pick lands (the card in the deck, a register stamped on the loyalty
-## card) and the next shift starts; BIN IT bins; STAMP DAY's stamps can't be binned; every visit
-## is logged as machine_visit with its timeline; every resume frame of build spec 4.3 shows as
-## its table says. Clicks are sent to the handlers, because headless runs don't deliver input
+## are lit or padlocked from the run (NEW ITEMS and UPGRADE on every visit since v0.61, #108); a
+## confirmed chute draws its prizes; a pick lands (the card in the deck, a perk stamped on the
+## loyalty card, a level-up re-stamped in its own box at the cap) and the next shift starts; BIN IT
+## bins, on either chute; every visit is logged as machine_visit with its timeline; every resume
+## frame of build spec 4.3 shows as its table says (a PREMIUM visit's keys gold). Clicks are sent
+## to the handlers, because headless runs don't deliver input
 ## events. The deck-full chooser: shift_screen_test; the resumed picks: save_resume_ui_test.
 
 const SCREEN := "res://ui/shift_screen.tscn"
@@ -35,8 +36,8 @@ func after_test() -> void:
 
 ## The machine stands in the store (#77 machine v2): once the camera has glided to it, it shows at
 ## the stage's MACHINE_RECT, inside the stage, with no shade over the store (the receipt has been
-## fed: the stage's own is torn off); the keys sit in the machine, NEW ITEMS and COUPONS lit and
-## REGISTER and UPGRADES padlocked after shift 1 (v0.47: a Normal visit).
+## fed: the stage's own is torn off); the keys sit in the machine, NEW ITEMS and UPGRADE both open
+## after shift 1 (v0.61: a classic visit, both chutes).
 func test_a_pass_opens_the_machine_inside_the_stage_beside_the_receipt() -> void:
 	var screen: ShiftScreen = await _passed_screen()
 	var view: RewardMachineView = screen._machine.view
@@ -53,15 +54,18 @@ func test_a_pass_opens_the_machine_inside_the_stage_beside_the_receipt() -> void
 	assert_bool(screen._shade.visible).is_false()
 	assert_bool(screen._receipt.visible).is_false()
 	assert_int(view.keys.size()).is_equal(RewardMachine.CHUTES.size())
-	# v0.50: the keys stand in the key bay, which clips the pair that isn't up.
+	# v0.50: the keys stand in the key bay, which clips them while they sink (a PREMIUM visit).
 	assert_bool(machine.encloses(view.key_bay.get_global_rect())).is_true()
 	assert_bool(view.key_bay.clip_contents).is_true()
 	var states: Array = RewardMachine.CHUTES.map(
 		func(chute: int) -> int: return screen.run.machine.chute_info(screen.run, chute).state
 	)
 	var open: int = RewardMachine.ChuteState.OPEN
-	var unlit: int = RewardMachine.ChuteState.UNLIT
-	assert_array(states).is_equal([open, open, unlit, unlit])  # v0.47: a Normal visit.
+	assert_array(states).is_equal([open, open])  # v0.61: a classic visit, both chutes.
+	for key: ChuteKey in view.keys:
+		assert_bool(key.visible).is_true()
+		assert_bool(key.gold).is_false()
+		assert_bool(view.key_bay.get_global_rect().encloses(key.get_global_rect())).is_true()
 	assert_array(view.tickets).is_empty()
 
 
@@ -87,6 +91,11 @@ func test_choose_and_pick_a_prize() -> void:
 	assert_str(_saved_phase()).is_equal("machine_pick")
 	var prizes: Array[MachinePrize] = screen.run.machine.prizes()
 	assert_int(view.tickets.size()).is_equal(prizes.size())
+	# v0.61: a NEW ITEMS draw holds one coupon among its items.
+	var coupons: Array = prizes.filter(
+		func(prize: MachinePrize) -> bool: return prize.kind == MachinePrize.Kind.COUPON
+	)
+	assert_int(coupons.size()).is_equal(1)
 	await _frames(3)
 	var window: Rect2 = screen.get_viewport_rect()
 	await _until_armed(screen)
@@ -116,67 +125,115 @@ func test_choose_and_pick_a_prize() -> void:
 	assert_bool(visit["resumed"]).is_false()
 
 
-## BIN IT bins the draw: the deck is kept, the visit logged as binned, the next shift starts.
+## BIN IT bins the draw (an UPGRADE draw can be binned since v0.61): the deck and the loyalty card
+## are kept, the visit logged as binned, the next shift starts.
 func test_bin_it_bins_the_draw() -> void:
 	var screen: ShiftScreen = await _passed_screen()
 	var view: RewardMachineView = screen._machine.view
-	assert_bool(screen._machine._choose(RewardMachine.Chute.COUPONS)).is_true()
+	var owned: Array[UpgradeDefinition] = screen.run.upgrades.duplicate()
+	assert_bool(screen._machine._choose(RewardMachine.Chute.UPGRADE)).is_true()
 	assert_bool(view.display.bin_button().visible).is_false()  # Shown once the reveals end.
 	await _until_armed(screen)
 	assert_bool(view.display.bin_button().visible).is_true()
 	view._on_bin_pressed()
 	view.fast_forward()  # The landing plays to its end.
 	assert_int(screen.run.deck.size()).is_equal(13)
+	assert_array(screen.run.upgrades).is_equal(owned)
 	assert_int(screen.run.shift_index).is_equal(1)
 	var visit: Dictionary = _last_event("machine_visit")
-	assert_str(visit["chute"]).is_equal("coupons")
+	assert_str(visit["chute"]).is_equal("upgrade")
+	assert_str(visit["state"]).is_equal("classic")
 	assert_bool(visit["binned"]).is_true()
 	assert_int(int(visit["picked"])).is_equal(-1)
 
 
-## STAMP DAY (shift 2, no register yet): after the ticket's visit its REGISTER draw waits for a
-## pick that can't be binned; the stamp lands on the loyalty card and the visit is logged.
-func test_stamp_day_stamps_the_loyalty_card() -> void:
+## An UPGRADE pick of a loyalty perk: the perk is stamped in the next empty box of the loyalty
+## card (no level mark: LV 1), the landing word is STAMPED ✓, and the visit is logged.
+func test_an_upgrade_pick_stamps_the_loyalty_card() -> void:
 	var screen: ShiftScreen = await _passed_screen()
-	screen._machine.debug_skip()
-	await _pass(screen)
-	assert_bool(screen._machine._choose(RewardMachine.Chute.NEW_ITEMS)).is_true()
-	await _until_armed(screen)
-	screen._machine.view._on_bin_pressed()
-	screen._machine.view.fast_forward()  # The landing plays to its end.
 	var run: RunState = screen.run
-	assert_int(run.phase).is_equal(RunState.Phase.MACHINE_PICK)
-	assert_int(run.machine.current_visit().kind).is_equal(MachineVisit.Kind.STAMP_DAY)
-	assert_bool(screen._machine.is_open()).is_true()
+	var owned_before: int = run.upgrades.size()
+	assert_bool(screen._machine._choose(RewardMachine.Chute.UPGRADE)).is_true()
 	var view: RewardMachineView = screen._machine.view
-	assert_bool(view.display.bin_button().visible).is_false()
-	assert_str(RewardMachineView.pick_prompt(view.tickets.size(), run)).is_equal("PICK 1 STAMP")
-	var register: UpgradeDefinition = run.machine.prizes()[0].upgrade
+	var index: int = MachineSteps.register_index(run)
+	assert_int(index).is_greater_equal(0)
+	var perk: UpgradeDefinition = run.machine.prizes()[index].upgrade
+	assert_bool(PerkLevels.is_level_up(perk)).is_false()
 	await _until_armed(screen)
-	view._on_bin_pressed()
+	view.pick(index)
+	assert_str(view.display.rest_texts()[0]).is_equal("STAMPED ✓")
 	view.fast_forward()  # The landing plays to its end.
-	assert_int(run.phase).is_equal(RunState.Phase.MACHINE_PICK)
-	view.pick(0)
-	view.fast_forward()  # The landing plays to its end.
-	assert_array(run.upgrades).is_equal([register])
-	assert_int(screen._loyalty_card.stamped_boxes().size()).is_equal(1)
-	assert_int(run.shift_index).is_equal(2)
+	assert_int(run.upgrades.size()).is_equal(owned_before + 1)
+	assert_object(run.upgrades[-1]).is_same(perk)
+	assert_int(screen._loyalty_card.stamped_boxes().size()).is_equal(owned_before + 1)
+	assert_object(screen._loyalty_card.level_mark(owned_before)).is_null()
+	assert_int(run.shift_index).is_equal(1)
 	var visit: Dictionary = _last_event("machine_visit")
-	assert_str(visit["kind"]).is_equal("stamp_day")
-	assert_str(visit["chute"]).is_equal("register")
-	assert_int(int(visit["registers_owned"])).is_equal(1)
+	assert_str(visit["kind"]).is_equal("ticket")
+	assert_str(visit["chute"]).is_equal("upgrade")
+	assert_int(int(visit["registers_owned"])).is_equal(owned_before + 1)
 	assert_bool((visit["odds_shown"] as Dictionary).is_empty()).is_false()
 
 
-## A ticket pick followed by another visit (shift 2's STAMP DAY, no register yet) refreshes only
-## the top bar: the Cart counts the pick, while the belt stays as the count-up left it (every
-## cell hidden, the row in the bag) behind the machine. STAMP DAY's visit doesn't inherit the
+## At the card's cap (#108 Q4 B) UPGRADE offers only level-ups of owned perks (and item upgrades):
+## picking the Coupon engine's LV 2 replaces it in its own box (no new box), the landing word is
+## LEVEL UP ✓, and the box shows its LV 2 badge inside it, on the top bar's chip; the next shift
+## plays it at LV 2 and the log names its level.
+func test_a_level_up_at_the_cap_restamps_its_own_box() -> void:
+	var runner: GdUnitSceneRunner = scene_runner(SCREEN)
+	var screen: ShiftScreen = runner.scene()
+	var run: RunState = screen.run
+	var engine: UpgradeDefinition = load("res://data/upgrades/coupon_engine.tres")
+	run.upgrades.append(engine)
+	run.machine.machine = run.machine.machine.duplicate() as MachineDefinition
+	run.machine.machine.register_cap = 0  # The card is full: only level-ups.
+	screen._refresh_loyalty_card()
+	await _pass(screen)
+	var boxes: int = screen._loyalty_card.stamped_boxes().size()
+	var box: int = run.upgrades.find(engine)
+	assert_bool(screen._machine._choose(RewardMachine.Chute.UPGRADE)).is_true()
+	for prize: MachinePrize in run.machine.prizes():
+		if prize.kind == MachinePrize.Kind.REGISTER:
+			assert_bool(PerkLevels.is_level_up(prize.upgrade)).is_true()
+	var index: int = MachineSteps.register_index(run, engine.next_level)
+	assert_int(index).is_greater_equal(0)
+	var view: RewardMachineView = screen._machine.view
+	await _until_armed(screen)
+	assert_str(view.tickets[index].face_texts()[0]).is_equal("LEVEL UP · LV 2")
+	view.pick(index)
+	assert_str(view.display.rest_texts()[0]).is_equal("LEVEL UP ✓")
+	assert_int(view.landing.box_index).is_equal(box)
+	view.fast_forward()  # The landing plays to its end.
+	await _frames(2)
+	assert_object(run.upgrades[box]).is_same(engine.next_level)
+	assert_int(screen._loyalty_card.stamped_boxes().size()).is_equal(boxes)
+	var mark: Control = screen._loyalty_card.level_mark(box)
+	assert_object(mark).is_not_null()
+	assert_str((mark as Label).text).is_equal("2")
+	assert_bool(mark.is_visible_in_tree()).is_true()
+	var in_box: Array[Rect2] = screen._loyalty_card.level_mark_in_box(box)
+	(
+		assert_bool(in_box[1].grow(0.01).encloses(in_box[0]))
+		. override_failure_message(str(in_box))
+		. is_true()
+	)
+	assert_int(run.shift_index).is_equal(1)
+	var visit: Dictionary = _last_event("machine_visit")
+	assert_str(visit["chute"]).is_equal("upgrade")
+	assert_int(int((visit["perk_levels"] as Dictionary)["coupon_engine"])).is_equal(2)
+
+
+## A ticket pick followed by another visit (shift 2's bonus visit: a bonus extra shift) refreshes
+## only the top bar: the Cart counts the pick, while the belt stays as the count-up left it (every
+## cell hidden, the row in the bag) behind the machine. The BONUS visit doesn't inherit the
 ## dessert's skip, which only the ticket's visit followed.
 func test_a_pick_before_another_visit_keeps_the_belt_and_counts_the_cart() -> void:
 	var screen: ShiftScreen = await _passed_screen()
 	screen._machine.debug_skip()
-	await _pass(screen)
 	var run: RunState = screen.run
+	run.machine.machine = run.machine.machine.duplicate() as MachineDefinition
+	run.machine.machine.bonus_extra_shifts = PackedInt32Array([2])
+	await _pass(screen)
 	screen._count_up.dessert_skipped = true
 	screen._machine.open(false)
 	assert_bool(screen._machine._timeline.presentation_skipped).is_true()
@@ -185,7 +242,7 @@ func test_a_pick_before_another_visit_keeps_the_belt_and_counts_the_cart() -> vo
 	var size_before: int = run.deck.size()
 	screen._machine.view.pick(0)
 	screen._machine.view.fast_forward()  # The landing plays to its end.
-	assert_int(run.machine.current_visit().kind).is_equal(MachineVisit.Kind.STAMP_DAY)
+	assert_int(run.machine.current_visit().kind).is_equal(MachineVisit.Kind.BONUS)
 	assert_int(run.deck.size()).is_equal(size_before + 1)
 	assert_str(screen._deck_button.caption).is_equal(
 		"Cart %d/%d" % [run.deck.size(), run.balance.deck_limit]
@@ -195,17 +252,20 @@ func test_a_pick_before_another_visit_keeps_the_belt_and_counts_the_cart() -> vo
 	assert_int(screen._stage.bag.items().size()).is_equal(run.row.size())
 	assert_bool(screen._machine._timeline.presentation_skipped).is_false()
 	await _until_armed(screen)
+	assert_bool(screen._machine._choose(RewardMachine.Chute.NEW_ITEMS)).is_true()
+	await _until_armed(screen)
 	screen._machine.view.pick(0)
 	screen._machine.view.fast_forward()  # The landing plays to its end.
 	assert_bool(_last_event("machine_visit")["presentation_skipped"]).is_false()
 
 
 ## Every resume frame of build spec 4.3, each on a new screen over a run saved at that point:
-## TICKET, BONUS and STAMP DAY at their wait points (the receipt already fed, no copy in the slot;
-## the head stamp at rest or none; the display's wait lines; the keys from chute_info, only the
-## chosen one lit once picking; the stock window's lit columns; no tickets, or the prizes face up
-## in their row with their tabs), armed at once; a run saved at SCORED starts the next shift with
-## the machine closed.
+## TICKET and BONUS at their wait points (the receipt already fed, no copy in the slot; the head
+## stamp at rest or none; the display's wait lines; the keys from chute_info, only the chosen one
+## lit once picking, gold only on a PREMIUM visit; the stock window's lit columns; no tickets, or
+## the prizes face up in their row with their tabs), armed at once; a run saved at SCORED starts
+## the next shift with the machine closed. A PREMIUM visit's resume needs a real premium shift for
+## its save to load (RunSave), so save_resume_ui_test plays one.
 func test_every_resume_frame() -> void:
 	var run: RunState = _core_passed_run()
 	await _assert_resume_frame(run, MachineVisit.Kind.TICKET, false)
@@ -217,14 +277,8 @@ func test_every_resume_frame() -> void:
 	assert_bool(MachineSteps.choose(run, RewardMachine.Chute.NEW_ITEMS)).is_true()
 	assert_object(MachineSteps.take(run, 0)).is_not_null()
 	await _assert_resume_frame(run, MachineVisit.Kind.BONUS, false)
-	assert_bool(MachineSteps.choose(run, RewardMachine.Chute.COUPONS)).is_true()
+	assert_bool(MachineSteps.choose(run, RewardMachine.Chute.UPGRADE)).is_true()
 	await _assert_resume_frame(run, MachineVisit.Kind.BONUS, true)
-	run = _core_passed_run()
-	assert_bool(MachineSteps.next_shift(run)).is_true()
-	_core_pass(run)
-	assert_bool(MachineSteps.choose(run, RewardMachine.Chute.NEW_ITEMS)).is_true()
-	assert_bool(run.machine.bin(run)).is_true()
-	await _assert_resume_frame(run, MachineVisit.Kind.STAMP_DAY, true)
 	run = _core_passed_run()
 	assert_bool(MachineSteps.pass_visits(run)).is_true()
 	assert_int(run.phase).is_equal(RunState.Phase.SCORED)
@@ -266,7 +320,7 @@ func _assert_resume_frame(run: RunState, kind: int, picking: bool) -> void:
 	# At the machine at once: no glide on a resume.
 	assert_float(screen._camera.progress()).override_failure_message(where).is_equal(1.0)
 	# The head stamp, at rest.
-	var stamps: Array[String] = ["", "BONUS TICKET!", "STAMP DAY!"]
+	var stamps: Array[String] = ["", "BONUS TICKET!"]
 	assert_str(view.head.stamp_texts()[0]).override_failure_message(where).is_equal(stamps[kind])
 	assert_bool(view.head.stamp_shown()).is_equal(kind != MachineVisit.Kind.TICKET)
 	if view.head.stamp_shown():
@@ -283,16 +337,13 @@ func _assert_resume_frame(run: RunState, kind: int, picking: bool) -> void:
 		var spend: String = RewardMachineView.SPEND_LINE % resumed.history[-1].total
 		assert_array(Array(lines)).is_equal([spend, RewardMachineView.CHOOSE_SUB])
 	# The keys from chute_info; the stock window's columns (v0.50): only the chosen chute's once
-	# picking (STAMP DAY: LOYALTY's), else every open chute's, with its three odds.
+	# picking, else every open chute's, with its three odds; gold on a PREMIUM visit.
 	var visit: MachineVisit = resumed.machine.current_visit()
 	for chute: int in RewardMachine.CHUTES:
 		var open_now: bool = (
 			resumed.machine.chute_info(resumed, chute).state == RewardMachine.ChuteState.OPEN
 		)
-		var chosen: int = visit.chute
-		if kind == MachineVisit.Kind.STAMP_DAY:
-			chosen = RewardMachine.Chute.REGISTER
-		var column: bool = open_now and (not picking or chosen == chute)
+		var column: bool = open_now and (not picking or visit.chute == chute)
 		var tag: String = "%s column %d" % [where, chute]
 		assert_bool(view.stock.column_lit(chute)).override_failure_message(tag).is_equal(column)
 		assert_int(view.stock.odds_texts(chute).size()).is_equal(3 if column else 0)
@@ -304,9 +355,15 @@ func _assert_resume_frame(run: RunState, kind: int, picking: bool) -> void:
 		var lit: bool = open and (not picking or visit.chute == chute)
 		var which: String = "%s key %d" % [where, chute]
 		assert_bool(key.looks_lit()).override_failure_message(which).is_equal(lit)
+		assert_bool(key.visible).override_failure_message(which).is_true()
+		assert_bool(key.gold).override_failure_message(which).is_equal(visit.premium)
+		var gold_column: bool = visit.premium and view.stock.column_lit(chute)
+		assert_bool(view.stock.column_gold(chute)).override_failure_message(which).is_equal(
+			gold_column
+		)
 	# No key is pressed on a resume at the chutes (at a pick, the chosen chute's stays down): the
 	# push bar offers nothing.
-	var pressed: int = visit.chute if picking and kind != MachineVisit.Kind.STAMP_DAY else -1
+	var pressed: int = visit.chute if picking else -1
 	assert_int(view.pressed_chute()).override_failure_message(where).is_equal(pressed)
 	assert_bool(view.tray.confirm_offered()).is_false()
 	# No tickets, or the prizes face up in their row with their rarity tabs.

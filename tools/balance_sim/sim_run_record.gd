@@ -28,9 +28,10 @@ var main_build: String = ""
 var fitted_builds: PackedStringArray = PackedStringArray()
 var coins: int = 0
 var overtime_coins: int = 0
-## The machine at the end of the run (#77): the registers picked from it and the final deck's
-## BIG and GOLDEN copies by card id.
+## The machine at the end of the run (#77): the new loyalty perks picked from it, each owned
+## perk's level by family (#108, v0.61) and the final deck's BIG and GOLDEN copies by card id.
 var registers: int = 0
+var perk_levels: Dictionary[String, int] = {}
 var tier_copies: Dictionary[String, int] = {}
 
 
@@ -57,6 +58,9 @@ static func from_dictionary(data: Dictionary) -> SimRunRecord:
 	record.coins = int(data["coins"])
 	record.overtime_coins = int(data["overtime_coins"])
 	record.registers = int(data.get("registers", 0))
+	var levels: Dictionary = data.get("perk_levels", {})
+	for family: String in levels:
+		record.perk_levels[family] = int(levels[family])
 	var copies: Dictionary = data.get("tier_copies", {})
 	for id: String in copies:
 		record.tier_copies[id] = int(copies[id])
@@ -74,6 +78,8 @@ static func _visits(visits: Array) -> Array:
 		)
 		for prize: Dictionary in entry.get("prizes", []):
 			prize["rarity"] = int(prize.get("rarity", 0))
+			if prize.has("level"):
+				prize["level"] = int(prize["level"])
 		for copy: Array in entry.get("upgraded", []):
 			if not copy.is_empty():
 				copy[0] = int(copy[0])
@@ -96,6 +102,7 @@ func to_dictionary() -> Dictionary:
 		"coins": coins,
 		"overtime_coins": overtime_coins,
 		"registers": registers,
+		"perk_levels": perk_levels,
 		"tier_copies": tier_copies,
 	}
 

@@ -9,7 +9,7 @@ extends Resource
 ##
 ## Times are in ms at 1x (the count-up's speed setting doesn't scale the machine); `_rm_ms` fields
 ## are the reduced-motion variants. A field that is a list holds one value per visit kind, in
-## MachineVisit.Kind order: [TICKET, BONUS, STAMP_DAY], or one per rarity, in
+## MachineVisit.Kind order: [TICKET, BONUS], or one per rarity, in
 ## MachinePrize.Rarity order: [COMMON, RARE, LEGENDARY]. A missing entry reads 0.
 
 @export_group("Ticket intro")
@@ -80,7 +80,7 @@ extends Resource
 ## chute is confirmed (#77 machine v2).
 @export var confirm_down_ms: int = 0
 @export_group("Premium transform")
-## A Normal machine turns PREMIUM (mock-up premium_machine_v1.html, dressing A) after a BOOSTED
+## A CLASSIC machine turns PREMIUM (mock-up premium_machine_v1.html, dressing A) after a PREMIUM
 ## visit's receipt is read: the sign, the bulbs, the trim, the gold parts and the keys change over
 ## premium_ms (reduced motion: a cut after premium_rm_ms), then the keys light.
 @export var premium_ms: int = 0
@@ -113,13 +113,13 @@ extends Resource
 ## motion.
 @export var pick_flight_ms: PackedInt32Array = PackedInt32Array()
 @export var pick_flight_rm_ms: int = 0
-## UPGRADES: the glint after the landing (per kind; reduced motion), one step per extra copy and
-## the glint's tail (none under reduced motion).
+## An item upgrade: the glint after the landing (per kind; reduced motion), one step per extra copy
+## and the glint's tail (none under reduced motion).
 @export var glint_ms: PackedInt32Array = PackedInt32Array()
 @export var glint_rm_ms: int = 0
 @export var glint_copy_ms: int = 0
 @export var glint_tail_ms: int = 0
-## The punch after the landing: a new card (NEW ITEMS, COUPONS), a register stamp, an upgrade
+## The punch after the landing: a new card (NEW ITEMS), a loyalty stamp, an item upgrade
 ## (after the glint's end); per kind; and the reduced-motion waits, per kind.
 @export var punch_new_ms: PackedInt32Array = PackedInt32Array()
 @export var punch_register_ms: PackedInt32Array = PackedInt32Array()
@@ -134,15 +134,14 @@ extends Resource
 @export var drawer_tail_ms: int = 0
 
 @export_group("Holds")
-## The end hold after the punch when no visit follows, per kind (STAMP DAY: after its landing).
+## The end hold after the punch when no visit follows, per kind.
 @export var end_hold_ms: PackedInt32Array = PackedInt32Array()
-## The hold before the next visit: a BONUS TICKET, STAMP DAY.
+## The hold before the next visit (a BONUS TICKET).
 @export var before_bonus_ms: int = 0
-@export var before_stamp_day_ms: int = 0
 
 @export_group("Head stamp")
-## The BONUS TICKET! / STAMP DAY! head stamp: it lands (2x to 1x) and blinks in from the visit's
-## start, and lifts this long after the punch's end (STAMP DAY: its landing).
+## The BONUS TICKET! head stamp: it lands (2x to 1x) and blinks in from the visit's start, and
+## lifts this long after the punch's end.
 @export var head_stamp_land_ms: int = 0
 @export var head_stamp_blink_ms: int = 0
 @export var head_stamp_lift_ms: int = 0

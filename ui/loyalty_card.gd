@@ -18,6 +18,11 @@ extends PanelContainer
 ## tooltip stays); set_relation rings a box in gold (the hovered item's cause, or the hovered box
 ## itself). A rebuild (the upgrades changed) clears it. An upgrade's fizzles show as "WASTED"
 ## stickers with its badge on the belt (PlanningLayer), not on its box.
+##
+## Perk levels (#108, v0.61): a perk levelled up by the machine (LV 2, LV 3) keeps its box, which
+## shows its level as a small mustard badge with the level's numeral in Pixelify at the box's
+## bottom right, inside the box (level_mark), on both faces; its tooltip names the level
+## ("Coupon engine LV 2").
 
 ## The pointer entered or left the stamped box of the run's upgrade `index`.
 signal box_hovered(index: int)
@@ -49,6 +54,13 @@ const CHIP_INITIALS_SIZES: Array[int] = [12, 11, 10, 9, 8, 7]
 const RING_WIDTH := 2
 const RING_OUTSET := 2
 const RING_NAME := "RelationRing"
+## A levelled perk's badge (#108): Pixelify LEVEL_SIZE ink on mustard light with an ink border,
+## LEVEL_PAD px each side of its numeral, in the box's bottom right corner (the round box leaves
+## that corner free, so the badge sits on the ring's edge).
+const LEVEL_MARK_NAME := "LevelMark"
+const LEVEL_SIZE := 12
+const LEVEL_PAD := 3.0
+const LEVEL_BORDER := 2
 
 const CARD_FRAME := preload("res://art/frames/loyalty_card.png")
 const STAMP_EMPTY := preload("res://art/icons/stamp_empty.png")
@@ -227,6 +239,32 @@ func play_stamp(index: int) -> void:
 	slam.chain().tween_property(target, "scale", Vector2.ONE, 0.12)
 
 
+## The perk's name with its level past LV 1 ("Coupon engine", "Coupon engine LV 2").
+static func perk_name(upgrade: UpgradeDefinition) -> String:
+	if upgrade.level_number() > 1:
+		return "%s LV %d" % [upgrade.display_name, upgrade.level_number()]
+	return upgrade.display_name
+
+
+## The level badge on the box of upgrade `index` (null: none, a LV 1 perk or no such box).
+func level_mark(index: int) -> Control:
+	var holder: Control = _part(index, LEVEL_MARK_NAME)
+	return holder.get_child(0) as Control if holder != null else null
+
+
+## The level badge of upgrade `index` in its box's own frame (the box's stamp tilt undone), and
+## the box's rect in that frame: [badge, box], or [] when there is no badge.
+func level_mark_in_box(index: int) -> Array[Rect2]:
+	var badge: Control = level_mark(index)
+	var stamped: Control = box(index)
+	if badge == null or stamped == null:
+		return []
+	var to_box: Transform2D = (
+		stamped.get_global_transform().affine_inverse() * badge.get_global_transform()
+	)
+	return [to_box * Rect2(Vector2.ZERO, badge.size), Rect2(Vector2.ZERO, stamped.size)]
+
+
 ## Placeholder for the perk icon: the first two letters of the first word, then the initials of
 ## the others ("Coupon engine" CoE, "Category engine" CaE), so similar names stay apart.
 static func initials(display_name: String) -> String:
@@ -242,7 +280,7 @@ static func initials(display_name: String) -> String:
 ## A stamped box's hover text: the ticket's fields, so nothing is only in the animation.
 static func tooltip_for(upgrade: UpgradeDefinition) -> String:
 	var lines: PackedStringArray = PackedStringArray(
-		["%s (%s)" % [upgrade.display_name, upgrade.type_label()], upgrade.effect_text]
+		["%s (%s)" % [perk_name(upgrade), upgrade.type_label()], upgrade.effect_text]
 	)
 	if not upgrade.condition_text.is_empty():
 		lines.append(upgrade.condition_text)
@@ -296,6 +334,7 @@ func _make_box(upgrade: UpgradeDefinition) -> PanelContainer:
 	label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	panel.add_child(label)
+	add_level_mark(panel, upgrade, BOX_SIZE)
 	return panel
 
 
@@ -323,7 +362,44 @@ static func make_ring(upgrade: UpgradeDefinition) -> PanelContainer:
 	panel.tooltip_text = tooltip_for(upgrade)
 	label.text = initials(upgrade.display_name)
 	label.add_theme_font_size_override("font_size", chip_initials_size(label.text))
+	add_level_mark(panel, upgrade, CHIP_BOX_SIZE)
 	return panel
+
+
+## Adds `upgrade`'s level badge to its box `stamped` (`box_size`), past LV 1 only: a holder over
+## the whole box (the container fits it), the badge at the holder's bottom right. The box's first
+## child stays its label (box_texts).
+static func add_level_mark(
+	stamped: PanelContainer, upgrade: UpgradeDefinition, box_size: Vector2
+) -> void:
+	if upgrade == null or upgrade.level_number() <= 1:
+		return
+	var holder: Control = Control.new()
+	holder.name = LEVEL_MARK_NAME
+	holder.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	stamped.add_child(holder)
+	var text: String = str(upgrade.level_number())
+	var badge: Label = UiKit.display_label(text, LEVEL_SIZE, false)
+	badge.name = "Badge"
+	badge.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	badge.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	badge.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var style: StyleBoxFlat = StyleBoxFlat.new()
+	style.bg_color = Palette.MUSTARD_LIGHT
+	style.border_color = Palette.INK
+	style.set_border_width_all(LEVEL_BORDER)
+	style.set_content_margin_all(0)
+	badge.add_theme_stylebox_override("normal", style)
+	var font: Font = ArtStyle.DISPLAY_FONT
+	var width: float = font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, LEVEL_SIZE).x
+	var side: Vector2 = Vector2(
+		width + 2.0 * (LEVEL_PAD + LEVEL_BORDER), font.get_height(LEVEL_SIZE)
+	)
+	side = (side / 2.0).ceil() * 2.0  # On the 2 px grid.
+	badge.notification(Control.NOTIFICATION_THEME_CHANGED)
+	badge.size = side
+	badge.position = box_size - side
+	holder.add_child(badge)
 
 
 ## The largest CHIP_INITIALS_SIZES size at which `text` fits inside the chip's rings (else the

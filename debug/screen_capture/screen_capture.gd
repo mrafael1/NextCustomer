@@ -34,8 +34,8 @@ extends Control
 ## count-up (#86), and the file is shift_screen_[effects_]checkout_<tenths>_<width>x<height>.png.
 ## With `--machine=<seconds>[,<option>...]` (#77) shift 1's passing row is checked out and the
 ## RECEIPT REWARDS machine opens beside the receipt, its visit played from the printer feed (see
-## machine() for the options: a chute to choose or whose odds card to show, the bonus ticket's or
-## STAMP DAY's visit, a full cart, a draw's rarities, a pick, reduced motion, a resumed visit);
+## machine() for the options: a chute to choose or whose odds card to show, the bonus ticket's
+## visit, a PREMIUM visit, a full cart, a draw's rarities, a pick, reduced motion, a resumed visit);
 ## the capture waits `seconds` after the last step, and the file is
 ## shift_screen_machine_<options>_<tenths>_<width>x<height>.png.
 ## With `--announce=<seconds>` (v0.50) a new run's shift 1 is the shift before a PREMIUM visit: its
@@ -121,6 +121,8 @@ const MACHINE_ROW_IDS: Array[String] = ["milk", "multipack", "milk", "milk", "mi
 const BONUS_INSPECTION := "spot_check"
 ## A full cart is filled up with this card.
 const FILLER_ID := "milk"
+## --machine levelup's perk, owned at LV 2.
+const LEVEL_UP_PERK := "res://data/upgrades/coupon_engine_lv2.tres"
 ## A --machine capture's file name part: machine_<options>_<tenths>_.
 const MACHINE_PREFIX := "machine_%s%d_"
 ## The rarities --machine's draw=<letters> sets (c, r, l).
@@ -534,20 +536,21 @@ func _fill_cart(run: RunState) -> void:
 ## its passing row, as the dessert's printer feed would, then waits `spec`'s seconds; capture()
 ## then names its file shift_screen_machine_<options>_<tenths>_<w>x<h>.png. `spec` is
 ## "<seconds>[,<option>...]", the options (in any order):
-## - new_items, coupons, register or upgrades: that chute is chosen at the keys (its draw plays);
+## - new_items or upgrade: that chute is chosen at the keys (its draw plays);
 ## - odds: that chute's odds card is shown above its key instead (as on hover); press: that
 ##   chute's key is pressed instead (the display's title with CONFIRM ›);
-## - bonus: the shift passed a Spot check; its ticket picks a NEW ITEMS prize (with boosted: a
-##   LOYALTY prize, and the BONUS visit is PREMIUM too, v0.53), and the bonus ticket's visit is
-##   shown; stampday: the shift is a STAMP DAY's; its ticket bins a NEW ITEMS
-##   draw, and STAMP DAY's draw is shown (pick=<i> picks a stamp);
+## - bonus: the shift passed a Spot check; its ticket picks a NEW ITEMS prize (with premium: an
+##   UPGRADE prize, and the BONUS visit is PREMIUM too, v0.53), and the bonus ticket's visit is
+##   shown;
 ## - cartfull: the cart is at the deck limit before the checkout;
+## - levelup (v0.61, #108): the run owns Coupon engine at LV 2 and its loyalty card is full, so
+##   an UPGRADE draw's perks are level-ups (Coupon engine LV 3);
 ## - draw=<letters>: the draw's rarities, c, r or l per prize (a debug draw: the prizes drawn,
 ##   relabelled), shown rarest last;
 ## - pick=<i>: once the prizes are armed, prize i is picked (its landing plays);
 ## - hover=<i> (v0.53): once the prizes are armed, the pointer rests on prize i (its popup opens);
-## - boosted (v0.50): the shift's ticket visit is BOOSTED, so the machine turns PREMIUM (its
-##   chutes: register, upgrades);
+## - premium (v0.50; v0.61 a rarity boost): the shift's ticket visit is PREMIUM, so the machine
+##   turns PREMIUM;
 ## - rm: reduced motion; resume: the visit as a resumed run shows it (at its wait point, no
 ##   replay; with a chute, the run was saved after that chute's draw: resumed at the pick).
 ## The seconds count from the last step: the machine's open, the choice, or the pick. A spec
@@ -605,19 +608,19 @@ func machine(spec: String) -> void:
 
 
 ## Checks out --machine's shift on `run` (shift 1's passing row; `options`: a bonus ticket's Spot
-## check, a STAMP DAY, a BOOSTED visit, a full cart) and plays its ticket to the visit asked for.
+## check, a PREMIUM visit, a full cart) and plays its ticket to the visit asked for.
 ## False (with a report) when the run doesn't get there.
 func _check_out_machine_shift(run: RunState, options: PackedStringArray) -> bool:
-	if options.has("stampday"):
+	if options.has("premium"):
 		run.machine.machine = run.machine.machine.duplicate() as MachineDefinition
-		run.machine.machine.stamp_day_shifts = PackedInt32Array([run.shift_index + 1])
-		run.machine.machine.stamp_day_floor = PackedInt32Array([1])
-	if options.has("boosted"):
-		run.machine.machine = run.machine.machine.duplicate() as MachineDefinition
-		run.machine.machine.boosted_shifts = PackedInt32Array([run.shift_index + 1])
+		run.machine.machine.premium_shifts = PackedInt32Array([run.shift_index + 1])
 	if options.has("cartfull"):
 		while run.deck.size() < run.balance.deck_limit:
 			run.deck.add_card(_card(FILLER_ID))
+	if options.has("levelup"):
+		run.upgrades.append(load(LEVEL_UP_PERK) as UpgradeDefinition)
+		run.machine.machine = run.machine.machine.duplicate() as MachineDefinition
+		run.machine.machine.register_cap = 0  # The card is full: only level-ups.
 	for card_id: String in MACHINE_ROW_IDS:
 		run.place(run.debug_add_to_hand(_card(card_id)), run.row.size())
 	run.checkout()
@@ -627,21 +630,16 @@ func _check_out_machine_shift(run: RunState, options: PackedStringArray) -> bool
 	if run.phase != RunState.Phase.MACHINE_CHOOSE:
 		_report("The machine's shift didn't pass")
 		return false
-	if options.has("bonus") or options.has("stampday"):
+	if options.has("bonus"):
 		var first: int = RewardMachine.Chute.NEW_ITEMS
-		if options.has("bonus") and run.machine.is_boosted():
-			first = RewardMachine.Chute.REGISTER
+		if run.machine.is_premium():
+			first = RewardMachine.Chute.UPGRADE
 		run.machine.choose(run, first)
-		if options.has("bonus"):
-			var replaced: CardInstance = run.deck.cards[0] if run.deck_is_full() else null
-			run.machine.pick(run, 0, replaced)
-		else:
-			run.machine.bin(run)
+		var replaced: CardInstance = run.deck.cards[0] if run.deck_is_full() else null
+		run.machine.pick(run, 0, replaced)
 	var wanted: int = MachineVisit.Kind.TICKET
 	if options.has("bonus"):
 		wanted = MachineVisit.Kind.BONUS
-	elif options.has("stampday"):
-		wanted = MachineVisit.Kind.STAMP_DAY
 	var visit: MachineVisit = run.machine.current_visit()
 	if visit == null or visit.kind != wanted:
 		_report("No %s visit to show" % MachineVisit.KIND_NAMES[wanted])
@@ -650,7 +648,7 @@ func _check_out_machine_shift(run: RunState, options: PackedStringArray) -> bool
 
 
 ## Starts a new run (the same seed) whose shift 1 announces a PREMIUM visit (v0.50: its machine
-## BOOSTED after shift 1), then waits `seconds` of its planning; capture() then names its file
+## PREMIUM after shift 1), then waits `seconds` of its planning; capture() then names its file
 ## shift_screen_announce_<tenths>_<w>x<h>.png. With `shift_number` (> 0) the run jumps to that
 ## shift of the real schedule instead (shift_screen_announce_shift<n>_<tenths>_<w>x<h>.png).
 func announce(seconds: float, shift_number: int = 0) -> void:
@@ -661,7 +659,7 @@ func announce(seconds: float, shift_number: int = 0) -> void:
 	else:
 		var run: RunState = _screen.run
 		run.machine.machine = run.machine.machine.duplicate() as MachineDefinition
-		run.machine.machine.boosted_shifts = PackedInt32Array([run.shift_index + 1])
+		run.machine.machine.premium_shifts = PackedInt32Array([run.shift_index + 1])
 		_machine_part = ANNOUNCE_PREFIX % roundi(seconds * 10.0)
 	await get_tree().create_timer(seconds).timeout
 

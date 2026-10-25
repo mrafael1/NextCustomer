@@ -43,14 +43,19 @@ var needed: Dictionary[String, int] = {}
 var chutes: Dictionary[String, int] = {}
 var picks: Dictionary[String, int] = {}
 var skips: int = 0
-## Machine visits by kind (MachineVisit.KIND_NAMES: ticket, bonus, stamp_day), and the NEW
-## ITEMS and COUPONS visits (the ones that can be binned).
+## Machine visits by kind (MachineVisit.KIND_NAMES: ticket, bonus; records from before v0.61 may
+## hold stamp_day), and the visits that can be binned (every visit since v0.61).
 var visit_kinds: Dictionary[String, int] = {}
 var binnable_visits: int = 0
-## Machine visits by state (RewardMachine.STATE_*: normal, boosted, stamp_day; v0.47).
+## Machine visits by state (RewardMachine.STATE_*: classic, premium; v0.61, #108).
 var visit_states: Dictionary[String, int] = {}
-## Runs by the registers picked from the machine (index = count).
+## Runs by the new loyalty perks picked from the machine (index = count).
 var registers_owned: PackedInt32Array = PackedInt32Array()
+## Owned perks at the run's end by "<family> LV<n>" (#108), and the UPGRADE picks by what they
+## were (a new perk, a level-up, an item upgrade), and the NEW ITEMS products picked BIG or GOLDEN.
+var perk_levels: Dictionary[String, int] = {}
+var upgrade_picks: Dictionary[String, int] = {}
+var tier_picks: Dictionary[String, int] = {}
 ## BIG and GOLDEN copies in the final decks, by card id (all runs together).
 var tier_copies: Dictionary[String, int] = {}
 ## Registers taken (REGISTER and STAMP DAY picks), and how many of those runs were won.
@@ -120,6 +125,9 @@ func _add_machine(record: SimRunRecord) -> void:
 	if registers_owned.size() <= record.registers:
 		registers_owned.resize(record.registers + 1)
 	registers_owned[record.registers] += 1
+	for family: String in record.perk_levels:
+		var key: String = "%s LV%d" % [family, record.perk_levels[family]]
+		perk_levels[key] = perk_levels.get(key, 0) + 1
 	for id: String in record.tier_copies:
 		tier_copies[id] = tier_copies.get(id, 0) + record.tier_copies[id]
 
@@ -130,12 +138,9 @@ func _add_visit(visit: Dictionary, won: bool) -> void:
 	chutes[chute] = chutes.get(chute, 0) + 1
 	var kind: String = visit.get("kind", "ticket")
 	visit_kinds[kind] = visit_kinds.get(kind, 0) + 1
-	var state: String = RewardMachine.state_for(
-		MachineVisit.KIND_NAMES.find(kind), bool(visit.get("boosted", false))
-	)
+	var state: String = RewardMachine.state_for(bool(visit.get("premium", false)))
 	visit_states[state] = visit_states.get(state, 0) + 1
-	if kind != "stamp_day" and (chute == "new_items" or chute == "coupons"):
-		binnable_visits += 1
+	binnable_visits += 1
 	if visit["binned"]:
 		skips += 1
 	var index: int = int(visit["picked"])
@@ -146,14 +151,22 @@ func _add_visit(visit: Dictionary, won: bool) -> void:
 	match String(prize["kind"]):
 		"product", "coupon":
 			picks[id] = picks.get(id, 0) + 1
+			for tier: String in ["big", "golden"]:
+				if id.ends_with("_" + tier):
+					tier_picks[tier] = tier_picks.get(tier, 0) + 1
 		"register":
 			upgrades_taken[id] = upgrades_taken.get(id, 0) + 1
 			if won:
 				upgrade_wins[id] = upgrade_wins.get(id, 0) + 1
+			var what: String = "level-up" if int(prize.get("level", 1)) > 1 else "new perk"
+			upgrade_picks[what] = upgrade_picks.get(what, 0) + 1
+		"upgrade":
+			upgrade_picks["item upgrade"] = upgrade_picks.get("item upgrade", 0) + 1
 
 
-## The machine lines of the report (#77): visits by kind and by state, the bin rate, registers
-## owned, and the final decks' BIG and GOLDEN copies per run.
+## The machine lines of the report (#77): visits by kind and by state, the bin rate, new perks
+## owned, the perks' levels at the end, UPGRADE's picks by what they were, the BIG and GOLDEN
+## NEW ITEMS picks, and the final decks' BIG and GOLDEN copies per run.
 func _machine_lines() -> PackedStringArray:
 	var lines: PackedStringArray = PackedStringArray()
 	var per_run: float = maxf(runs, 1)
@@ -161,11 +174,10 @@ func _machine_lines() -> PackedStringArray:
 		lines
 		. append(
 			(
-				"Machine visits per run: ticket %.2f, BONUS %.2f, STAMP DAY %.2f"
+				"Machine visits per run: ticket %.2f, BONUS %.2f"
 				% [
 					visit_kinds.get("ticket", 0) / per_run,
 					visit_kinds.get("bonus", 0) / per_run,
-					visit_kinds.get("stamp_day", 0) / per_run,
 				]
 			)
 		)
@@ -174,21 +186,28 @@ func _machine_lines() -> PackedStringArray:
 		lines
 		. append(
 			(
-				"Machine visits per run by state: normal %.2f, boosted %.2f, stamp_day %.2f"
+				"Machine visits per run by state: classic %.2f, premium %.2f"
 				% [
-					visit_states.get(RewardMachine.STATE_NORMAL, 0) / per_run,
-					visit_states.get(RewardMachine.STATE_BOOSTED, 0) / per_run,
-					visit_states.get(RewardMachine.STATE_STAMP_DAY, 0) / per_run,
+					visit_states.get(RewardMachine.STATE_CLASSIC, 0) / per_run,
+					visit_states.get(RewardMachine.STATE_PREMIUM, 0) / per_run,
 				]
 			)
 		)
 	)
-	lines.append("Binned: %s of NEW ITEMS / COUPONS visits" % percent_text(skips, binnable_visits))
+	lines.append("Binned: %s of visits" % percent_text(skips, binnable_visits))
 	var owned_texts: PackedStringArray = PackedStringArray()
 	for count: int in range(registers_owned.size()):
 		owned_texts.append("%d: %s" % [count, percent_text(registers_owned[count], runs)])
 	lines.append(
 		"Registers owned (runs): " + (", ".join(owned_texts) if not owned_texts.is_empty() else "-")
+	)
+	lines.append("Perk levels at the end (runs): " + _counts_text(perk_levels))
+	lines.append("UPGRADE picks: " + _counts_text(upgrade_picks))
+	lines.append(
+		(
+			"NEW ITEMS picked BIG %d, GOLDEN %d"
+			% [tier_picks.get("big", 0), tier_picks.get("golden", 0)]
+		)
 	)
 	var tier_texts: PackedStringArray = PackedStringArray()
 	for id: String in _sorted_by_count(tier_copies):
@@ -531,6 +550,9 @@ func to_dictionary() -> Dictionary:
 		"machine_visit_kinds": visit_kinds,
 		"machine_visit_states": visit_states,
 		"registers_owned": Array(registers_owned),
+		"perk_levels": perk_levels,
+		"upgrade_picks": upgrade_picks,
+		"tier_picks": tier_picks,
 		"tier_copies": tier_copies,
 		"golden_milk_per_run": tier_copies.get("milk_golden", 0) / maxf(runs, 1),
 		"upgrades_taken": upgrades_taken,
@@ -569,6 +591,14 @@ static func _sorted_by_count(counts: Dictionary[String, int]) -> Array[String]:
 			return a < b
 	)
 	return ids
+
+
+## "<key> <count>, ..." by count, or "none".
+static func _counts_text(counts: Dictionary[String, int]) -> String:
+	var texts: PackedStringArray = PackedStringArray()
+	for key: String in _sorted_by_count(counts):
+		texts.append("%s %d" % [key, counts[key]])
+	return ", ".join(texts) if not texts.is_empty() else "none"
 
 
 static func percent_text(part: int, whole: int) -> String:

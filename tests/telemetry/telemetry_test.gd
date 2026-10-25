@@ -226,20 +226,23 @@ func test_redraw_event_fields() -> void:
 	assert_int(int(parsed["places"][1])).is_equal(3)
 
 
-## #77: the machine_visit event's fields, in order, from the visit just recorded (a REGISTER
-## pick on a BOOSTED visit after shift 1), JSON-friendly, with its machine state (v0.47) and no
-## Regular levels; a bin (shift 2, Normal), and the Normal BONUS visit of the inspected shift 3
-## naming its inspection.
+## #77: the machine_visit event's fields, in order, from the visit just recorded (a loyalty perk
+## picked from UPGRADE on a PREMIUM visit after shift 1), JSON-friendly, with its machine state
+## (#108: classic or premium), the perks' levels and no Regular levels; a bin (shift 2, CLASSIC),
+## and the CLASSIC BONUS visit of the inspected shift 3 naming its inspection.
 func test_machine_visit_event_fields() -> void:
 	var run: RunState = _passed_run(81, [1])
-	run.machine.choose(run, RewardMachine.Chute.REGISTER)
-	var odds: MachineOddsCard = run.machine.chute_info(run, RewardMachine.Chute.REGISTER).odds
+	run.machine.choose(run, RewardMachine.Chute.UPGRADE)
+	var odds: MachineOddsCard = run.machine.chute_info(run, RewardMachine.Chute.UPGRADE).odds
 	var timeline: OfferTimeline = OfferTimeline.new(100)
 	timeline.mark_presented(330)
 	timeline.mark_armed(460)
 	var prizes: Array[MachinePrize] = run.machine.prizes()
-	assert_object(run.machine.pick(run, 1)).is_not_null()
-	var viewed: Array[int] = [RewardMachine.Chute.COUPONS, RewardMachine.Chute.REGISTER]
+	var index: int = MachineSteps.register_index(run)
+	assert_int(index).is_not_equal(-1)
+	var perk: UpgradeDefinition = prizes[index].upgrade
+	assert_object(run.machine.pick(run, index)).is_not_null()
+	var viewed: Array[int] = [RewardMachine.Chute.NEW_ITEMS, RewardMachine.Chute.UPGRADE]
 	var event: Dictionary = RunEvents.machine_visit(
 		run, run.history[-1].visits[-1], odds, viewed, false, true, timeline.fields(1334)
 	)
@@ -265,6 +268,7 @@ func test_machine_visit_event_fields() -> void:
 				"cart_size",
 				"cart_full_at_pick",
 				"registers_owned",
+				"perk_levels",
 				"resumed",
 				"decide_ms",
 				"presented_ms",
@@ -278,15 +282,17 @@ func test_machine_visit_event_fields() -> void:
 	assert_int(event["visit_index"]).is_equal(0)
 	assert_str(event["kind"]).is_equal("ticket")
 	assert_str(event["inspection"]).is_empty()
-	assert_str(event["chute"]).is_equal("register")
-	assert_str(event["state"]).is_equal("boosted")
-	assert_array(event["chutes_viewed"]).is_equal(["coupons", "register"])
+	assert_str(event["chute"]).is_equal("upgrade")
+	assert_str(event["state"]).is_equal("premium")
+	assert_array(event["chutes_viewed"]).is_equal(["new_items", "upgrade"])
 	assert_int((event["offered"] as Array).size()).is_equal(prizes.size())
-	assert_str(event["offered"][1]["id"]).is_equal(String(prizes[1].id()))
-	assert_str(event["offered"][1]["kind"]).is_equal("register")
-	assert_int(event["picked"]).is_equal(1)
+	assert_str(event["offered"][index]["id"]).is_equal(String(perk.id))
+	assert_str(event["offered"][index]["kind"]).is_equal("register")
+	assert_int(event["offered"][index]["level"]).is_equal(1)
+	assert_int(event["picked"]).is_equal(index)
 	assert_bool(event["binned"]).is_false()
 	assert_int(event["registers_owned"]).is_equal(1)
+	assert_dict(event["perk_levels"]).is_equal({String(perk.family()): 1})
 	assert_bool(event["resumed"]).is_true()
 	assert_bool(event["cart_full_at_pick"]).is_false()
 	assert_int(event["cart_size"]).is_equal(13)
@@ -299,9 +305,14 @@ func test_machine_visit_event_fields() -> void:
 	for pct: float in shown["rarity_pct"]:
 		total += pct
 	assert_float(total).is_equal_approx(100.0, 0.2)
-	assert_str(JSON.stringify(event)).contains('"chute":"register"')
+	assert_str(JSON.stringify(event)).contains('"chute":"upgrade"')
 	assert_bool(RunEvents.odds_fields(null).is_empty()).is_true()
-	# Shift 2: no STAMP DAY (a register is held), shift 3's inspection announced.
+	var levelled: Array[UpgradeDefinition] = [
+		load("res://data/upgrades/coupon_engine_lv3.tres"),
+		load("res://data/upgrades/big_basket.tres")
+	]
+	assert_dict(RunEvents.perk_levels(levelled)).is_equal({"coupon_engine": 3, "big_basket": 1})
+	# Shift 2, shift 3's inspection announced.
 	MachineSteps.next_shift(run)
 	_pass(run)
 	MachineSteps.choose(run, RewardMachine.Chute.NEW_ITEMS)
@@ -312,7 +323,7 @@ func test_machine_visit_event_fields() -> void:
 	)
 	assert_int(bin["picked"]).is_equal(-1)
 	assert_bool(bin["binned"]).is_true()
-	assert_str(bin["state"]).is_equal("normal")
+	assert_str(bin["state"]).is_equal("classic")
 	assert_dict(bin["odds_shown"]).is_empty()
 	assert_array(bin["fallback"]).is_empty()
 	# Shift 3 is inspected: its BONUS visit names the inspection.
@@ -328,7 +339,7 @@ func test_machine_visit_event_fields() -> void:
 		run, run.history[-1].visits[-1], null, [], false, false, timeline.fields(900)
 	)
 	assert_str(bonus["kind"]).is_equal("bonus")
-	assert_str(bonus["state"]).is_equal("normal")
+	assert_str(bonus["state"]).is_equal("classic")
 	assert_int(bonus["visit_index"]).is_equal(1)
 	assert_str(bonus["inspection"]).is_equal(String(run.history[-1].inspection.id))
 
@@ -381,12 +392,12 @@ func test_resume_run_sets_the_run_id() -> void:
 
 
 ## A run with every quota at 1 that passed shift 1 (two Breads): the machine waits for its chute.
-## `boosted`: the shifts whose ticket visit is BOOSTED instead of the data's (v0.47), or none.
-static func _passed_run(seed_value: int, boosted: Array[int] = []) -> RunState:
+## `premium`: the shifts after which the machine is PREMIUM instead of the data's, or none.
+static func _passed_run(seed_value: int, premium: Array[int] = []) -> RunState:
 	var balance: BalanceDefinition = (load(BALANCE) as BalanceDefinition).duplicate()
 	balance.quotas = PackedInt32Array([1, 1, 1, 1, 1, 1, 1, 1])
-	if not boosted.is_empty():
-		MachineSteps.boosted_on(balance, boosted)
+	if not premium.is_empty():
+		MachineSteps.premium_on(balance, premium)
 	var deck: DeckDefinition = load(STARTER)
 	var run: RunState = RunState.new(seed_value, deck, balance, RunStock.starting(balance))
 	run.start_shift()

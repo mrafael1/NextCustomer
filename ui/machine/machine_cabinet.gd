@@ -2,7 +2,7 @@ class_name MachineCabinet
 extends Control
 ## The machine's cabinet, front-on (v0.50, mock-up premium_machine_v1.html), drawn first under
 ## every other part: its plinth and shadow, the teal body lit from the upper left, the kick panel's
-## vents and, once a BOOSTED visit turns PREMIUM (MachineLook), the 3 px gold trim (highlight,
+## vents and, once a PREMIUM visit turns PREMIUM (MachineLook), the 3 px gold trim (highlight,
 ## gold, shadow) running down both edges with a spark at its tip, then two sparks gliding on it.
 ##
 ## The bonus ticket's dock (#77 machine v2, Q2 = 2) is on the kick panel (DOCK_RECT, a dashed

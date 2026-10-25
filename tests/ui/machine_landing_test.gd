@@ -210,7 +210,7 @@ func test_a_new_card_flies_into_the_cart_drawer() -> void:
 	var screen: ShiftScreen = await _passed_screen()
 	var view: RewardMachineView = screen._machine.view
 	var run: RunState = screen.run
-	await _pick(screen, RewardMachine.Chute.NEW_ITEMS)
+	await _pick(screen, RewardMachine.Chute.NEW_ITEMS, MachinePrize.Kind.PRODUCT)
 	var plan: MachinePlan = view.plan
 	var landing: MachineLanding = view.landing
 	assert_int(plan.landing).is_equal(MachinePlan.Landing.NEW_CARD)
@@ -357,7 +357,6 @@ func test_a_wide_upgrade_keeps_its_first_copy_and_clears_the_receipt() -> void:
 ## landing with one `stamp_loyalty` (the plain landing is off: no second sound); no drawer.
 func test_a_register_flies_to_its_loyalty_box_and_is_stamped() -> void:
 	var screen: ShiftScreen = await _screen()
-	MachineSteps.boost_run(screen.run, [1])  # v0.47: only a BOOSTED visit lights REGISTER.
 	await _pass(screen, true)
 	var view: RewardMachineView = screen._machine.view
 	assert_bool(view.plain_landing).is_false()
@@ -365,10 +364,10 @@ func test_a_register_flies_to_its_loyalty_box_and_is_stamped() -> void:
 	screen.add_child(sfx)
 	view.sfx = sfx
 	screen._sfx = sfx
-	assert_int(MachineSteps.first_lit(screen.run, RewardMachine.Chute.REGISTER)).is_equal(
-		RewardMachine.Chute.REGISTER
+	assert_int(MachineSteps.first_lit(screen.run, RewardMachine.Chute.UPGRADE)).is_equal(
+		RewardMachine.Chute.UPGRADE
 	)
-	await _pick(screen, RewardMachine.Chute.REGISTER)
+	await _pick(screen, RewardMachine.Chute.UPGRADE, MachinePrize.Kind.REGISTER)
 	var plan: MachinePlan = view.plan
 	assert_int(plan.landing).is_equal(MachinePlan.Landing.REGISTER)
 	var flyer: MachineFlyer = view.flyer
@@ -394,6 +393,50 @@ func test_a_register_flies_to_its_loyalty_box_and_is_stamped() -> void:
 	assert_int(sfx.call("count", "stamp_loyalty")).is_equal(1)
 	assert_int(sfx.call("count", "card_place")).is_equal(0)
 	assert_bool(view.cart_drawer.visible).is_false()
+
+
+## A perk's level-up (v0.61, #108) flies to the box its perk already stamps and restamps it there
+## with one `stamp_loyalty`: the box count stays, and its LV mark reads the new level inside the
+## box.
+func test_a_level_up_flies_to_its_own_box_and_shows_its_level() -> void:
+	var screen: ShiftScreen = await _screen()
+	var run: RunState = screen.run
+	var engine: UpgradeDefinition = load("res://data/upgrades/coupon_engine.tres")
+	run.upgrades.append(engine)
+	run.machine.machine = run.machine.machine.duplicate() as MachineDefinition
+	run.machine.machine.register_cap = 0  # The card is full: only level-ups.
+	screen._refresh_loyalty_card()
+	await _pass(screen, true)
+	var view: RewardMachineView = screen._machine.view
+	var sfx: Sfx = RECORDING_SFX.new()
+	screen.add_child(sfx)
+	view.sfx = sfx
+	screen._sfx = sfx
+	var owned: int = run.upgrades.find(engine)
+	var boxes: int = screen._loyalty_card.stamped_boxes().size()
+	await _pick(screen, RewardMachine.Chute.UPGRADE, MachinePrize.Kind.REGISTER)
+	var plan: MachinePlan = view.plan
+	assert_int(plan.landing).is_equal(MachinePlan.Landing.REGISTER)
+	assert_bool(view.landing.level_up).is_true()
+	assert_int(view.landing.box_index).is_equal(owned)
+	var target: Vector2 = _stage_rect(screen, screen._loyalty_card.any_box(owned)).get_center()
+	view.show_at(plan.land - 0.001)
+	assert_float(view.flyer.end_point().distance_to(target)).is_less(PX)
+	await _until(func() -> bool: return view.clock >= plan.land or view.plan != plan, 5000)
+	await _frames(1)
+	assert_int(sfx.call("count", "stamp_loyalty")).is_equal(1)
+	view.fast_forward()  # The landing plays to its end.
+	await _frames(2)
+	assert_int(screen._loyalty_card.stamped_boxes().size()).is_equal(boxes)
+	var mark: Control = screen._loyalty_card.level_mark(owned)
+	assert_object(mark).is_not_null()
+	assert_str((mark as Label).text).is_equal("2")
+	var in_box: Array[Rect2] = screen._loyalty_card.level_mark_in_box(owned)
+	(
+		assert_bool(in_box[1].grow(0.01).encloses(in_box[0]))
+		. override_failure_message(str(in_box))
+		. is_true()
+	)
 
 
 ## The sounds follow the plan: the feed's ticks (a series of 5) and slot tick, a note per lit key;
@@ -454,10 +497,10 @@ func test_the_sounds_follow_the_plan_and_never_play_on_a_jump() -> void:
 	view.sfx = screen_sfx
 
 
-## A new visit's sounds at 0 play on its first frame: STAMP DAY's `stamp_paid`; the BONUS
-## TICKET's `stamp_notice` lands with the head's stamp as the ticket reaches the slot (#77 machine
-## v2), and nothing prints; a visit resumed at its pick plays neither them nor a
-## press for the resume, but the player's later pick press (`ui_click`) is heard.
+## A new visit's first sounds: the BONUS TICKET's `stamp_notice` lands with the head's stamp as
+## the ticket reaches the slot (#77 machine v2), and nothing prints; a visit resumed at its pick
+## plays neither them nor a press for the resume, but the player's later pick press (`ui_click`)
+## is heard.
 func test_a_new_visits_first_sounds_play_and_a_resume_keeps_the_players_press() -> void:
 	var screen: ShiftScreen = await _screen()
 	var sfx: Sfx = RECORDING_SFX.new()
@@ -475,11 +518,6 @@ func test_a_new_visits_first_sounds_play_and_a_resume_keeps_the_players_press() 
 	names = sfx.call("sound_names")
 	assert_int(names.count("stamp_notice")).is_equal(1)
 	assert_int(names.count("print")).is_equal(0)
-	sfx.call("clear")
-	view.plan = MachinePlan.new(view.tuning, MachineVisit.Kind.STAMP_DAY, false)
-	sounds.frame(0.0)
-	names = sfx.call("sound_names")
-	assert_int(names.count("stamp_paid")).is_equal(1)
 	# Resumed at its pick: the resume is silent, the pick press after it is not.
 	sfx.call("clear")
 	var ticket: MachinePlan = MachinePlan.new(view.tuning, MachineVisit.Kind.TICKET, false)
@@ -668,7 +706,7 @@ func _step(sounds: MachineSounds, from: float, to: float) -> void:
 
 ## Chooses `chute` once the keys arm, fast-forwards the draw, picks the first prize (swapping
 ## the cart's first card out at the deck limit): the landing then plays.
-func _pick(screen: ShiftScreen, chute: int) -> void:
+func _pick(screen: ShiftScreen, chute: int, kind: int = -1) -> void:
 	var view: RewardMachineView = screen._machine.view
 	view.fast_forward()
 	await _until(func() -> bool: return view.is_armed(), 5000)
@@ -676,7 +714,12 @@ func _pick(screen: ShiftScreen, chute: int) -> void:
 	view.fast_forward()
 	await _until(func() -> bool: return view.is_armed(), 5000)
 	var run: RunState = screen.run
-	screen._machine._take(0, run.deck.cards[0] if run.deck_is_full() else null)
+	var index: int = 0
+	if kind >= 0:
+		var kinds: Array = run.machine.prizes().map(func(p: MachinePrize) -> int: return p.kind)
+		index = kinds.find(kind)
+		assert_int(index).override_failure_message(str(kinds)).is_greater_equal(0)
+	screen._machine._take(index, run.deck.cards[0] if run.deck_is_full() else null)
 	assert_bool(view.plan.has_landing).is_true()
 
 

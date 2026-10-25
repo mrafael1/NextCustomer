@@ -4,10 +4,10 @@ extends RefCounted
 ## core tests can get past a passed shift without the screen.
 
 
-## Plays every waiting visit: chooses NEW ITEMS (else the first lit chute: a BOOSTED visit's
-## REGISTER or UPGRADES) and bins it; a visit that can't be binned (STAMP DAY, REGISTER, UPGRADES)
-## takes its first prize, at the deck limit swapping the deck's first card out. True when the
-## run ended its visits (SCORED, or no visit).
+## Plays every waiting visit: chooses NEW ITEMS (else the first open chute, UPGRADE) and bins it
+## (every visit can be binned since v0.61); a visit that can't be binned takes its first prize, at
+## the deck limit swapping the deck's first card out. True when the run ended its visits (SCORED,
+## or no visit).
 static func pass_visits(run: RunState) -> bool:
 	while RunState.MACHINE_PHASES.has(run.phase):
 		if run.phase == RunState.Phase.MACHINE_CHOOSE:
@@ -39,22 +39,42 @@ static func take(run: RunState, index: int) -> MachineLanding:
 	return run.machine.pick(run, index, replaced)
 
 
-## Chooses REGISTER on the waiting visit and takes `upgrade` when it is drawn (else the first
-## register). Returns the register taken, or null.
+## Chooses UPGRADE on the waiting visit and takes the loyalty perk `upgrade` when it is drawn
+## (else the first loyalty perk drawn). Returns the perk taken, or null (no perk drawn).
 static func take_register(run: RunState, upgrade: UpgradeDefinition = null) -> UpgradeDefinition:
 	if run.phase == RunState.Phase.MACHINE_CHOOSE:
-		if not run.machine.choose(run, RewardMachine.Chute.REGISTER):
+		if not run.machine.choose(run, RewardMachine.Chute.UPGRADE):
 			return null
-	var prizes: Array[MachinePrize] = run.machine.prizes()
-	var index: int = 0
-	for found: int in range(prizes.size()):
-		if prizes[found].upgrade == upgrade:
-			index = found
+	var index: int = register_index(run, upgrade)
+	if index == -1:
+		return null
 	var landing: MachineLanding = take(run, index)
 	return landing.register if landing != null else null
 
 
-## `preferred` when it is lit, else the first lit chute (NEW ITEMS when none is lit).
+## The reveal index of the loyalty perk `upgrade` in the waiting pick, else of its first loyalty
+## perk (null `upgrade`, or not drawn); -1 when it holds none.
+static func register_index(run: RunState, upgrade: UpgradeDefinition = null) -> int:
+	var prizes: Array[MachinePrize] = run.machine.prizes()
+	var index: int = -1
+	for found: int in range(prizes.size()):
+		if prizes[found].kind != MachinePrize.Kind.REGISTER:
+			continue
+		if index == -1 or prizes[found].upgrade == upgrade:
+			index = found
+		if prizes[found].upgrade == upgrade:
+			break
+	return index
+
+
+## Whether the waiting pick offers the loyalty perk `upgrade`.
+static func offers(run: RunState, upgrade: UpgradeDefinition) -> bool:
+	return run.machine.prizes().any(
+		func(prize: MachinePrize) -> bool: return prize.upgrade == upgrade
+	)
+
+
+## `preferred` when it is open, else the first open chute (NEW ITEMS when none is open).
 static func first_lit(run: RunState, preferred: int) -> int:
 	if _lit(run, preferred):
 		return preferred
@@ -68,25 +88,15 @@ static func _lit(run: RunState, chute: int) -> bool:
 	return run.machine.chute_info(run, chute).state == RewardMachine.ChuteState.OPEN
 
 
-## `balance` with its own machine copy whose ticket visit is BOOSTED (v0.47: REGISTER and
-## UPGRADES lit) after exactly the 1-based `shifts`, so a test can take a register after them.
-static func boosted_on(balance: BalanceDefinition, shifts: Array[int]) -> BalanceDefinition:
+## `balance` with its own machine copy that is PREMIUM (#108: a rarity boost) after exactly the
+## 1-based `shifts`.
+static func premium_on(balance: BalanceDefinition, shifts: Array[int]) -> BalanceDefinition:
 	balance.machine = balance.machine.duplicate() as MachineDefinition
-	balance.machine.boosted_shifts = PackedInt32Array(shifts)
+	balance.machine.premium_shifts = PackedInt32Array(shifts)
 	return balance
 
 
-## `run`'s machine on its own definition copy whose ticket visit is BOOSTED after exactly the
-## 1-based `shifts` (v0.47), for a screen test that takes a register or upgrade early.
-static func boost_run(run: RunState, shifts: Array[int]) -> void:
+## `run`'s machine on its own definition copy that is PREMIUM after exactly the 1-based `shifts`.
+static func premium_run(run: RunState, shifts: Array[int]) -> void:
 	run.machine.machine = run.machine.machine.duplicate() as MachineDefinition
-	run.machine.machine.boosted_shifts = PackedInt32Array(shifts)
-
-
-## `balance` with its own machine copy that holds no STAMP DAY, so a low-quota test run never
-## gets a forced register.
-static func without_stamp_day(balance: BalanceDefinition) -> BalanceDefinition:
-	balance.machine = balance.machine.duplicate() as MachineDefinition
-	balance.machine.stamp_day_shifts = PackedInt32Array()
-	balance.machine.stamp_day_floor = PackedInt32Array()
-	return balance
+	run.machine.machine.premium_shifts = PackedInt32Array(shifts)

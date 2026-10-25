@@ -1,7 +1,7 @@
 class_name MachineTray
 extends Control
 ## The machine's prize tray (v0.50, mock-up premium_machine_v1.html; R1 "drop"): a short steel
-## slot under the keys (gold once a BOOSTED visit turns PREMIUM, MachineLook) with a dark mouth, a
+## slot under the keys (gold once a PREMIUM visit turns PREMIUM, MachineLook) with a dark mouth, a
 ## light strip, the PUSH flap and "TAKE YOUR PRIZE". While the draw packs (view.plan's draw ..
 ## draw_end) the strip and the mouth flicker and the flap rattles; the light runs grey, then teal,
 ## then gold, up to the best rarity drawn (a hint, never the prize: COMMON stays grey). Once the

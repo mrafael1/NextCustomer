@@ -1,0 +1,27 @@
+[gd_resource type="Resource" script_class="UpgradeDefinition" format=3]
+
+[ext_resource type="Script" path="res://core/upgrades/upgrade_rule.gd" id="1_rule"]
+[ext_resource type="Script" path="res://core/upgrades/distinct_tag_bonus_rule.gd" id="2_distinct_tags"]
+[ext_resource type="Script" path="res://core/upgrade_definition.gd" id="3_upgrade"]
+[ext_resource type="Script" path="res://core/build_definition.gd" id="4_build"]
+[ext_resource type="Resource" path="res://data/builds/mixed_basket.tres" id="5_mixed_basket"]
+[ext_resource type="Resource" path="res://data/upgrades/category_engine_lv3.tres" id="9_next_level"]
+
+[sub_resource type="Resource" id="Resource_distinct_tags"]
+script = ExtResource("2_distinct_tags")
+bonus_per_tag = 4
+receipt_text = "Category engine"
+
+[resource]
+script = ExtResource("3_upgrade")
+id = &"category_engine_lv2"
+icon_ref = "res://art/icons/combo_diamond.png"
+display_name = "Category engine"
+type = 3
+effect_text = "+4 for each different tag among your products"
+condition_text = "Paid on the last product in the row"
+builds = Array[ExtResource("4_build")]([ExtResource("5_mixed_basket")])
+rules = Array[ExtResource("1_rule")]([SubResource("Resource_distinct_tags")])
+level = 2
+family_id = &"category_engine"
+next_level = ExtResource("9_next_level")

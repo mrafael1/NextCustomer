@@ -170,9 +170,10 @@ func test_the_effects_show_and_focus_the_planning_effects() -> void:
 ## the receipt and replays its visit from the printer feed; new_items chooses that chute (the draw
 ## shows its prizes) and draw=crl relabels them COMMON, RARE, LEGENDARY (rarest last); the capture
 ## is named for the options and the wait. The bonus ticket's visit (its shift passed a Spot check)
-## and STAMP DAY's (pick=0 stamps the loyalty card) show too; a resumed visit holds at its wait
-## point; odds hovers a chute's key (its odds in the stock window); a full cart is at the deck
-## limit; boosted makes the visit PREMIUM; --announce shows the PREMIUM NEXT announce.
+## shows too; a resumed visit holds at its wait point; levelup offers level-ups of the owned
+## Coupon engine LV 2 (its box's LV mark); odds hovers a chute's key (its odds in the stock
+## window); a full cart is at the deck limit; premium makes the visit PREMIUM (gold keys, RARE or
+## better); --announce shows the PREMIUM NEXT announce.
 func test_the_machine_shows_its_visits() -> void:
 	var capture: Control = scene_runner(CAPTURE).scene()
 	capture.set("report_error", _record)
@@ -203,28 +204,35 @@ func test_the_machine_shows_its_visits() -> void:
 	assert_int(run.machine.current_visit().kind).is_equal(MachineVisit.Kind.BONUS)
 	assert_bool(view.plan.resumed).is_true()
 	assert_str(view.head.stamp_texts()[0]).is_equal("BONUS TICKET!")
-	await capture.call("machine", "0,stampday,pick=0")
+	await capture.call("machine", "0,levelup,upgrade")
 	run = screen.run
-	assert_int(run.upgrades.size()).is_equal(1)
-	assert_int(view.plan.kind).is_equal(MachineVisit.Kind.STAMP_DAY)
-	assert_bool(view.plan.has_landing).is_true()
-	await capture.call("machine", "0,coupons,odds,cartfull")
+	assert_int(run.phase).is_equal(RunState.Phase.MACHINE_PICK)
+	assert_str((screen._loyalty_card.level_mark(0) as Label).text).is_equal("2")
+	var perks: int = 0
+	for prize: MachinePrize in run.machine.prizes():
+		if prize.kind == MachinePrize.Kind.REGISTER:
+			perks += 1
+			assert_int(prize.upgrade.level_number()).is_equal(3)
+	assert_int(perks).is_greater(0)
+	await capture.call("machine", "0,new_items,odds,cartfull")
 	run = screen.run
 	assert_int(run.phase).is_equal(RunState.Phase.MACHINE_CHOOSE)
 	assert_bool(run.deck_is_full()).is_true()
-	assert_int(view.hovered_chute()).is_equal(RewardMachine.Chute.COUPONS)
-	# v0.50: boosted turns the visit PREMIUM (LOYALTY or UPGRADES); --announce shows the shift
-	# before one, its gold receipt on the monitor.
-	await capture.call("machine", "0,boosted,upgrades")
+	assert_int(view.hovered_chute()).is_equal(RewardMachine.Chute.NEW_ITEMS)
+	# premium turns the visit PREMIUM (v0.61: every prize RARE or better, the keys gold);
+	# --announce shows the shift before one, its gold receipt on the monitor.
+	await capture.call("machine", "0,premium,upgrade")
 	run = screen.run
 	assert_bool(view.plan.premium).is_true()
-	assert_int(run.machine.current_visit().chute).is_equal(RewardMachine.Chute.UPGRADES)
+	assert_int(run.machine.current_visit().chute).is_equal(RewardMachine.Chute.UPGRADE)
+	for key: ChuteKey in view.keys:
+		assert_bool(key.gold).is_true()
+	for prize: MachinePrize in run.machine.prizes():
+		assert_int(prize.rarity).is_greater_equal(MachinePrize.Rarity.RARE)
 	await capture.call("announce", 0.2)
 	assert_int(screen.run.phase).is_equal(RunState.Phase.PLANNING)
 	assert_bool(screen._machine.announce.is_shown()).is_true()
 	assert_array(_errors).is_empty()
-	await capture.call("machine", "0,upgrades")
-	assert_array(_errors).contains_exactly(["The machine can't choose upgrades"])
 
 
 ## A capture holds the real pointer (hold_pointer, from the start of a --capture run): the

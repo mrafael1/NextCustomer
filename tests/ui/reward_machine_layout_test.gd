@@ -17,6 +17,7 @@ const BALANCE := "res://data/balance/balance.tres"
 const STARTER := "res://data/decks/starter.tres"
 const SPOT_CHECK := "res://data/inspections/spot_check.tres"
 const MILK := "res://data/cards/milk.tres"
+const COUPON_ENGINE := "res://data/upgrades/coupon_engine.tres"
 ## Milk, Multipack, then five Milks (109): passes shift 1.
 const PASSING_ROW: Array[String] = ["milk", "multipack", "milk", "milk", "milk", "milk", "milk"]
 ## The only Pixelify sizes (full build plan 6.1).
@@ -143,25 +144,25 @@ func test_the_back_effects_draw_behind_every_ticket() -> void:
 	await _close(view)
 
 
-## The stock window (v0.50, M4) on every kind of visit (shift 1's lit chutes, the bonus ticket's,
-## STAMP DAY's LOYALTY column), with the starting stock and with a full collection's, also on a
-## full cart: inside the machine, above the key bay, its lit columns' odds and words fitting inside
-## it; the display keeps the wait's lines while a key is hovered.
+## The stock window (v0.50, M4) on every kind of visit (shift 1's two lit chutes, the bonus
+## ticket's, a PREMIUM visit's gold columns), with the starting stock and with a full collection's,
+## also on a full cart: inside the machine, above the key bay, each column over its key, its lit
+## columns' odds and words fitting inside it; the display keeps the wait's lines while a key is
+## hovered.
 func test_the_stock_window_fits_on_every_visit() -> void:
 	var runs: Array[RunState] = [
 		_passed_run(14),
 		_bonus_run(15),
-		_stamp_day_run(16),
+		_passed_run(16, _premium),
 		_passed_run(31, Callable(), true),
 		_bonus_run(32, true),
-		_stamp_day_run(33, true),
+		_passed_run(33, _premium, true),
 		_bonus_run(34, true, true),
 		_passed_run(35, _with_full_cart, true),
 	]
 	for run: RunState in runs:
 		var view: RewardMachineView = await _open(run)
-		var stamp_day: bool = run.phase == RunState.Phase.MACHINE_PICK
-		view.show_at(view.plan.pick_at if stamp_day else view.plan.choose_at)
+		view.show_at(view.plan.choose_at)
 		view._armed = true  # Headless: no mouse release arms it.
 		var machine: Rect2 = view.get_global_rect()
 		var window: Rect2 = view.stock.get_global_rect()
@@ -173,6 +174,11 @@ func test_the_stock_window_fits_on_every_visit() -> void:
 			if not view.stock.column_lit(chute):
 				continue
 			lit += 1
+			# The column stands over its key (NEW ITEMS left, UPGRADE right).
+			var middle: float = window.position.x + window.size.x / 4.0 * (2 * chute + 1)
+			var key: Rect2 = view.keys[chute].get_global_rect()
+			assert_float(absf(middle - key.get_center().x)).is_less(24.0)
+			assert_bool(view.stock.column_gold(chute)).is_equal(run.machine.is_premium())
 			view._on_key_hovered(chute)
 			assert_array(Array(view.display.texts())).is_equal(Array(lines))
 		var where: String = "stock %d, phase %d" % [run.stock.card_ids().size(), run.phase]
@@ -188,14 +194,14 @@ func test_the_stock_window_fits_on_every_visit() -> void:
 
 ## The BONUS visit after a PREMIUM ticket visit (v0.53, decided with the user on 2026-10-23) is
 ## PREMIUM from its first frame (no snap back to classic, no second transform): the night sign,
-## the trim, the gold tray, the LOYALTY and UPGRADES keys lit over gold pedestals, the classic
-## pair sunk; the display names the bonus ticket.
+## the trim, the gold tray, both keys up and gold over gold pedestals (v0.61: the same two
+## chutes); the display names the bonus ticket.
 func test_a_bonus_visit_after_a_premium_one_stays_premium() -> void:
 	for rm: bool in [false, true]:
 		var run: RunState = _bonus_run(36, false, false, true)
 		var visit: MachineVisit = run.machine.current_visit()
 		assert_int(visit.kind).is_equal(MachineVisit.Kind.BONUS)
-		assert_bool(visit.boosted).is_true()
+		assert_bool(visit.premium).is_true()
 		var view: RewardMachineView = await _open(run, rm)
 		assert_bool(view.plan.premium_held).is_true()
 		for t: float in [0.0, view.plan.feed_end, view.plan.choose_at]:
@@ -205,24 +211,25 @@ func test_a_bonus_visit_after_a_premium_one_stays_premium() -> void:
 			assert_float(view.cabinet.trim_shown()).override_failure_message(when).is_equal(1.0)
 			assert_bool(view.tray.is_gold()).override_failure_message(when).is_true()
 			for chute: int in RewardMachine.CHUTES:
-				var gold: bool = ChuteKey.is_gold(chute)
-				assert_bool(view.keys[chute].visible).override_failure_message(when).is_equal(gold)
-		for chute: int in RewardMachine.BOOSTED_CHUTES:
+				assert_bool(view.keys[chute].visible).override_failure_message(when).is_true()
+				assert_bool(view.keys[chute].gold).override_failure_message(when).is_true()
+		for chute: int in RewardMachine.CHUTES:
 			assert_bool(view.stock.column_lit(chute)).is_true()
+			assert_bool(view.stock.column_gold(chute)).is_true()
 		assert_str(view.display.texts()[0]).is_equal(RewardMachineView.BONUS_TITLE)
 		await _close(view)
 
 
 ## Resting the pointer on a revealed prize (v0.53, the user's "user can't see effect of them")
 ## opens the scan popup with its whole effect, beside its ticket and never over it, on the view,
-## its lines inside it: NEW ITEMS (the product's rule), and on a PREMIUM visit LOYALTY (the perk's
-## effect) and UPGRADES (the card at its new tier). Not before the ticket lands face up; gone after
-## the pick.
+## its lines inside it: NEW ITEMS (the product's or the coupon's rule), and UPGRADE, classic and
+## PREMIUM (a loyalty perk's effect, an item upgrade's card at its new tier). Not before the ticket
+## lands face up; gone after the pick.
 func test_a_revealed_prize_shows_its_effect_beside_it() -> void:
 	var cases: Array[Array] = [
 		[_passed_run(37), RewardMachine.Chute.NEW_ITEMS],
-		[_passed_run(38, _boosted), RewardMachine.Chute.REGISTER],
-		[_passed_run(39, _boosted), RewardMachine.Chute.UPGRADES],
+		[_passed_run(38), RewardMachine.Chute.UPGRADE],
+		[_passed_run(39, _premium), RewardMachine.Chute.UPGRADE],
 	]
 	var screen: Rect2 = Rect2(Vector2.ZERO, ShiftStage.SIZE)
 	for case: Array in cases:
@@ -323,19 +330,26 @@ func test_the_cart_drawer_sits_left_of_the_machine() -> void:
 
 
 ## Pixelify only at 12 or 24 px on every machine text, in every state: the chute wait, a hovered
-## key, a pressed key, the landed row, a landing, the bonus ticket's and STAMP DAY's visits, and
-## a PREMIUM visit; every rarity tab; and every plain label fits its box.
+## key, a pressed key, the landed row, a landing, the bonus ticket's visit, an UPGRADE visit and a
+## PREMIUM visit; every rarity tab; and every plain label fits its box.
 func test_pixelify_is_only_12_or_24_and_every_label_fits() -> void:
 	var seen: int = 0
 	var runs: Array[RunState] = [
-		_passed_run(20), _bonus_run(21), _stamp_day_run(22), _passed_run(23, _boosted)
+		_passed_run(20), _bonus_run(21), _passed_run(22), _passed_run(23, _premium)
 	]
-	for run: RunState in runs:
+	var chutes: Array[int] = [
+		RewardMachine.Chute.NEW_ITEMS,
+		RewardMachine.Chute.NEW_ITEMS,
+		RewardMachine.Chute.UPGRADE,
+		RewardMachine.Chute.UPGRADE,
+	]
+	for run_index: int in range(runs.size()):
+		var run: RunState = runs[run_index]
 		var view: RewardMachineView = await _open(run)
 		seen += _audit(view, "wait")
 		if run.phase == RunState.Phase.MACHINE_CHOOSE:
 			view._armed = true
-			var chute: int = MachineSteps.first_lit(run, RewardMachine.Chute.NEW_ITEMS)
+			var chute: int = MachineSteps.first_lit(run, chutes[run_index])
 			view.hover_key(chute)
 			await _frames(2)
 			seen += _audit(view, "hover")
@@ -361,6 +375,79 @@ func test_pixelify_is_only_12_or_24_and_every_label_fits() -> void:
 		)
 		_assert_fits(label)
 	assert_int(seen).is_greater(100)
+
+
+## The prize tickets of a NEW ITEMS draw holding its coupon and an item that arrived BIG or GOLDEN
+## (v0.61, #108), and of an UPGRADE draw holding a perk's level-up and an item upgrade: every
+## ticket inside the stage and apart; its chip (the item's tier, the level-up's "LV 2") inside its
+## ticket and its art box, clear of the face's labels; the band says what the prize is; every
+## label fits.
+func test_new_items_and_upgrade_tickets_fit_with_their_marks() -> void:
+	var on_stage: Rect2 = Rect2(Vector2.ZERO, ShiftStage.SIZE)
+	var engine: UpgradeDefinition = load(COUPON_ENGINE)
+	for chute: int in RewardMachine.CHUTES:
+		var run: RunState = _passed_run(40, _with_coupon_engine)
+		var view: RewardMachineView = await _open(run)
+		assert_bool(run.machine.choose(run, chute)).is_true()
+		var visit: MachineVisit = run.machine.current_visit()
+		var kinds: Array = visit.prizes.map(func(p: MachinePrize) -> int: return p.kind)
+		var marked: int = -1
+		if chute == RewardMachine.Chute.NEW_ITEMS:
+			assert_int(kinds.count(MachinePrize.Kind.COUPON)).is_equal(1)
+			for index: int in range(visit.prizes.size()):
+				var prize: MachinePrize = visit.prizes[index]
+				if prize.kind == MachinePrize.Kind.PRODUCT and marked < 0:
+					prize.card = load("res://data/cards/banana_golden.tres")
+					marked = index
+		else:
+			# A level-up of the owned Coupon engine in the first perk's place.
+			for index: int in range(visit.prizes.size()):
+				if visit.prizes[index].kind == MachinePrize.Kind.REGISTER and marked < 0:
+					visit.prizes[index].upgrade = engine.next_level
+					marked = index
+			assert_bool(kinds.has(MachinePrize.Kind.UPGRADE)).is_true()
+		assert_int(marked).override_failure_message(str(kinds)).is_greater_equal(0)
+		view.show_draw(run)
+		view.show_at(view.plan.pick_at)
+		await _frames(2)
+		var shown: Array[Rect2] = []
+		for ticket: PrizeTicket in view.tickets:
+			var rect: Rect2 = ticket.get_global_rect()
+			assert_bool(on_stage.encloses(rect)).override_failure_message(str(rect)).is_true()
+			for other: Rect2 in shown:
+				assert_bool(rect.intersects(other)).is_false()
+			shown.append(rect)
+			for label: Label in ticket.face_labels():
+				if label.is_visible_in_tree():
+					_assert_whole(label)
+		var marked_ticket: PrizeTicket = null
+		for ticket: PrizeTicket in view.tickets:
+			if ticket.prize == visit.prizes[marked]:
+				marked_ticket = ticket
+		assert_object(marked_ticket).is_not_null()
+		var chip: Rect2 = marked_ticket.chip_rect()
+		assert_bool(chip.has_area()).is_true()
+		var ticket_box: Rect2 = Rect2(Vector2.ZERO, PrizeTicket.SIZE)
+		assert_bool(ticket_box.encloses(chip)).override_failure_message(str(chip)).is_true()
+		(
+			assert_bool(PrizeTicket.ART_RECT.encloses(chip))
+			. override_failure_message(str(chip))
+			. is_true()
+		)
+		for label: Label in marked_ticket.face_labels():
+			assert_bool(label.get_rect().intersects(chip)).is_false()
+		var band: String = marked_ticket.face_texts()[0]
+		if chute == RewardMachine.Chute.NEW_ITEMS:
+			assert_str(marked_ticket.art.chip_text()).is_equal("GOLDEN")
+			assert_str(band).is_equal("NEW ITEM · €%d" % visit.prizes[marked].card.base)
+		else:
+			assert_str(marked_ticket.art.chip_text()).is_equal("LV 2")
+			assert_str(band).is_equal("LEVEL UP · LV 2")
+			# The perk's badge stays clear of the chip.
+			var badge: Rect2 = PrizeArt.BADGE_RECT
+			badge.position += PrizeTicket.ART_RECT.position
+			assert_bool(badge.intersects(chip)).is_false()
+		await _close(view)
 
 
 ## The dim veil follows the machine's silhouette: its pieces cover the marquee with every bulb,
@@ -575,6 +662,17 @@ func _assert_fits(label: Label) -> void:
 	assert_int(label.get_visible_line_count()).override_failure_message(failure).is_equal(wanted)
 
 
+## A ticket face's label shows all its lines, uncut. Its lines are pitched closer than the font's
+## height, so _assert_fits's height check does not apply (machine_reveal_test checks the pitch).
+func _assert_whole(label: Label) -> void:
+	var failure: String = "%s: '%s' in %s" % [label.name, label.text, label.size]
+	var lines: int = label.get_line_count()
+	assert_int(lines).override_failure_message(failure).is_greater(0)
+	if label.max_lines_visible >= 0:
+		assert_int(lines).override_failure_message(failure).is_less_equal(label.max_lines_visible)
+	assert_int(label.get_visible_line_count()).override_failure_message(failure).is_equal(lines)
+
+
 ## The label keeps the box its part gave it, inside its parent: a part that sizes a label before
 ## the machine is in the tree must apply the label's theme first (RewardMachineView.fit), or the
 ## box grows to the default font's size and the centred text slides off centre.
@@ -673,38 +771,28 @@ static func _passed_run(
 
 ## A run waiting at the bonus ticket's chute wait (shift 1 passed a Spot check; its ticket took
 ## a NEW ITEMS prize); `full`: a full collection's stock; `full_cart`: the cart at its limit;
-## `boosted`: shift 1 is a boosted shift, so its ticket took a LOYALTY prize and the bonus visit is
-## BOOSTED too (v0.53).
+## `premium`: shift 1 is a premium shift, so its ticket took an UPGRADE prize and the bonus visit
+## is PREMIUM too (v0.53).
 static func _bonus_run(
-	seed_value: int, full: bool = false, full_cart: bool = false, boosted: bool = false
+	seed_value: int, full: bool = false, full_cart: bool = false, premium: bool = false
 ) -> RunState:
 	var prepare: Callable = _with_full_cart if full_cart else Callable()
-	if boosted:
-		prepare = _boosted
+	if premium:
+		prepare = _premium
 	var run: RunState = _passed_run(seed_value, prepare, full)
 	run.history[-1].inspection = load(SPOT_CHECK)
 	run.machine.begin_after_checkout(run)
 	var first: int = RewardMachine.Chute.NEW_ITEMS
-	if boosted:
-		first = RewardMachine.Chute.REGISTER
+	if premium:
+		first = RewardMachine.Chute.UPGRADE
 	MachineSteps.choose(run, first)
 	MachineSteps.take(run, 0)
 	return run
 
 
-## A run waiting at STAMP DAY's pick (after shift 1; its ticket binned a NEW ITEMS draw);
-## `full`: a full collection's stock.
-static func _stamp_day_run(seed_value: int, full: bool = false) -> RunState:
-	var run: RunState = _passed_run(seed_value, _with_stamp_day, full)
-	MachineSteps.choose(run, RewardMachine.Chute.NEW_ITEMS)
-	run.machine.bin(run)
-	return run
-
-
-static func _with_stamp_day(run: RunState) -> void:
-	run.machine.machine = run.machine.machine.duplicate() as MachineDefinition
-	run.machine.machine.stamp_day_shifts = PackedInt32Array([1])
-	run.machine.machine.stamp_day_floor = PackedInt32Array([1])
+## The run owns the Coupon engine (LV 1), so UPGRADE can draw its level-up.
+static func _with_coupon_engine(run: RunState) -> void:
+	run.upgrades.append(load(COUPON_ENGINE) as UpgradeDefinition)
 
 
 ## Milk copies up to the deck limit (a full cart: a NEW ITEMS pick swaps a card out).
@@ -722,9 +810,9 @@ static func _with_milks(run: RunState) -> void:
 		run.deck.add_card(milk)
 
 
-## Shift 1's ticket visit BOOSTED: the machine turns PREMIUM (v0.50).
-static func _boosted(run: RunState) -> void:
-	MachineSteps.boost_run(run, [1] as Array[int])
+## Shift 1's ticket visit PREMIUM: the machine turns PREMIUM (v0.50; a rarity boost, v0.61).
+static func _premium(run: RunState) -> void:
+	MachineSteps.premium_run(run, [1] as Array[int])
 
 
 static func _view_for(screen: ShiftScreen, card: CardInstance) -> CardView:

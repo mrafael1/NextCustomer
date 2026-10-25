@@ -9,7 +9,7 @@ extends Node
 ## visit) and lands the prize; at the landing's beat the top bar shows what changed (the Cart
 ## count, the loyalty card, with the plain stamp while view.plain_landing); once the landing is
 ## over (the view's `finished`) it opens the next visit (the bonus ticket's, waiting at
-## MACHINE_CHOOSE; STAMP DAY's, drawn, at MACHINE_PICK) or starts the next shift. A resumed run
+## MACHINE_CHOOSE) or starts the next shift. A resumed run
 ## (MACHINE_CHOOSE or MACHINE_PICK) opens here at its wait point, with no replay. A tap that
 ## fast-forwards the view's clock up to the pick is logged as the visit's presentation_skipped;
 ## one during the landing, after the visit was logged, as a machine_landing_skipped event.
@@ -28,7 +28,7 @@ extends Node
 ## UpgradeSwap plays on the screen's overlay for those on screen. Once planning takes input,
 ## BonusNotice pulses the inspection chip when passing the shift earns the bonus ticket, and
 ## PremiumAnnounce (v0.50) prints its gold receipt on the monitor and hangs the PREMIUM NEXT
-## tag when passing it earns a PREMIUM visit (RewardMachine.boosted_if_passed; a resume: the tag).
+## tag when passing it earns a PREMIUM visit (RewardMachine.premium_if_passed; a resume: the tag).
 ##
 ## A part of the shift screen, split out to keep that file short (like ShiftDebug): it works on
 ## the screen's run and display through the screen's own members.
@@ -74,7 +74,7 @@ var _notice_due: bool = false
 var _announce_prints: bool = true
 ## Seconds left before the bonus notice pulses (-1: none due): an announce printing on the monitor
 ## goes first, so the PASS IT plate never pulses hidden under its receipt (shifts 3, 5 and 7 are
-## both inspected and boosted).
+## both inspected and premium).
 var _notice_wait: float = -1.0
 
 
@@ -163,7 +163,7 @@ func open(resumed: bool) -> void:
 	var feed_ms: int = count.printer_feed_ms
 	var start: int = Time.get_ticks_msec()
 	# Only the ticket's visit follows the dessert: its timeline starts at the printer feed and
-	# carries the dessert's skip; the bonus ticket's and STAMP DAY's start at their own show.
+	# carries the dessert's skip; the bonus ticket's starts at its own show.
 	var after_dessert: bool = (
 		not resumed and run.machine.current_visit().kind == MachineVisit.Kind.TICKET
 	)
@@ -261,9 +261,8 @@ func on_deck_card_chosen(card: CardInstance) -> void:
 
 
 ## Debug panel and tests: a landing under way ends at once; then every waiting visit chooses NEW
-## ITEMS (or the first lit chute) and bins it, STAMP DAY picks its first prize (at the deck limit
-## swapping the deck's first card out), as the player could, logging and saving as they would,
-## each landing fast-forwarded; the next shift starts, with no glide back (#77 machine v2).
+## ITEMS (or the first lit chute) and bins it, as the player could, logging and saving as they
+## would, each landing fast-forwarded; the next shift starts, with no glide back (#77 machine v2).
 func debug_skip() -> void:
 	var run: RunState = _screen.run
 	view.fast_forward()
@@ -408,11 +407,8 @@ func _on_skipped() -> void:
 func _log_visit(cart_full: bool, timing: Dictionary) -> void:
 	var run: RunState = _screen.run
 	var visit: MachineVisit = run.history[-1].visits[-1]
-	var odds: MachineOddsCard = _odds
-	if visit.kind == MachineVisit.Kind.STAMP_DAY:
-		odds = visit.stamp_day_odds
 	var data: Dictionary = RunEvents.machine_visit(
-		run, visit, odds, _viewed, cart_full, _resumed, timing
+		run, visit, _odds, _viewed, cart_full, _resumed, timing
 	)
 	_log.log_event("machine_visit", data)
 
@@ -431,7 +427,7 @@ func _landed() -> void:
 		_screen._sfx.play("card_place")
 
 
-## The landing is over: the next visit (the bonus ticket's, STAMP DAY's), or the next shift after
+## The landing is over: the next visit (the bonus ticket's), or the next shift after
 ## the last one. Only the top bar shows what the pick changed: the belt and the receipt stay as
 ## the count-up left them behind the machine.
 func _on_finished() -> void:
@@ -486,7 +482,7 @@ func _play_announce() -> void:
 	var run: RunState = _screen.run
 	if run == null or run.phase != RunState.Phase.PLANNING or run.machine == null:
 		return
-	if run.machine.boosted_if_passed(run):
+	if run.machine.premium_if_passed(run):
 		announce.show_tag(_announce_prints)
 
 
@@ -507,7 +503,7 @@ func _show_return(t: float) -> void:
 	view.set_lit(MachinePlan.return_lit(tuning, t))
 
 
-## Computes the visit's four odds cards (the machine keeps them for the view) and prints how
+## Computes the visit's two odds cards (the machine keeps them for the view) and prints how
 ## long that took.
 static func _print_odds_time(run: RunState) -> void:
 	var start: int = Time.get_ticks_usec()
@@ -519,9 +515,7 @@ static func _print_odds_time(run: RunState) -> void:
 	print("machine odds: %d us (shift %d, %s)" % [spent, run.shift_index + 1, kind])
 
 
-## The odds card a resumed pick was drawn from: STAMP DAY's own, else the chosen chute's now.
+## The odds card a resumed pick was drawn from: the chosen chute's now.
 static func _shown_odds(run: RunState) -> MachineOddsCard:
 	var visit: MachineVisit = run.machine.current_visit()
-	if visit.kind == MachineVisit.Kind.STAMP_DAY:
-		return run.machine.chute_info(run, RewardMachine.Chute.REGISTER).odds
 	return run.machine.chute_info(run, visit.chute).odds

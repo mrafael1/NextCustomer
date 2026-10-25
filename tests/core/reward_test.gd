@@ -125,17 +125,24 @@ func test_no_offer_pool_contains_bundle() -> void:
 		assert_str(String(card.id)).is_not_equal("bundle")
 
 
-## The machine's first COUPONS draw always holds a combination coupon (first_offer_pool).
-func test_the_first_coupons_draw_holds_a_combination_coupon() -> void:
+## The machine's first NEW ITEMS draw holds one coupon, a combination coupon (first_offer_pool,
+## #108: the first coupon draw draws from it only).
+func test_the_first_new_items_draw_holds_a_combination_coupon() -> void:
 	for seed_value: int in range(1, 60):
 		var run: RunState = _passed_run(seed_value)
-		assert_bool(MachineSteps.choose(run, RewardMachine.Chute.COUPONS)).is_true()
+		assert_bool(MachineSteps.choose(run, RewardMachine.Chute.NEW_ITEMS)).is_true()
 		var ids: Array = _prize_ids(run)
 		assert_int(ids.size()).is_equal(3)
-		var has_combination: bool = ids.any(
-			func(id: StringName) -> bool: return COMBINATION_COUPONS.has(id)
+		var coupons: Array = run.machine.prizes().filter(
+			func(prize: MachinePrize) -> bool: return prize.kind == MachinePrize.Kind.COUPON
 		)
-		assert_bool(has_combination).override_failure_message("seed %d" % seed_value).is_true()
+		assert_int(coupons.size()).override_failure_message("seed %d" % seed_value).is_equal(1)
+		var coupon: MachinePrize = coupons[0]
+		(
+			assert_bool(COMBINATION_COUPONS.has(coupon.card.id))
+			. override_failure_message("seed %d" % seed_value)
+			. is_true()
+		)
 
 
 ## The machine draws only from the run's stock: a product outside it is never a prize.
@@ -151,8 +158,12 @@ func test_the_run_draws_from_its_own_stock() -> void:
 		assert_bool(MachineSteps.choose(run, RewardMachine.Chute.NEW_ITEMS)).is_true()
 		assert_array(run.machine.prizes()).has_size(3)
 		for prize: MachinePrize in run.machine.prizes():
-			assert_str(String(prize.card.id)).is_not_equal("cheese")
-			assert_bool(stock.cards.has(prize.card)).is_true()
+			# A BIG or GOLDEN product (#108) is its plain card's.
+			assert_str(String(prize.plain_id())).is_not_equal("cheese")
+			var plain: CardDefinition = prize.card
+			if plain.tier != CardDefinition.Tier.PLAIN:
+				plain = plain.variant_of
+			assert_bool(stock.cards.has(plain)).is_true()
 
 
 func test_same_seed_gives_same_prizes() -> void:
@@ -199,11 +210,11 @@ func test_a_bin_keeps_the_deck() -> void:
 	assert_bool(run.machine.bin(run)).is_false()
 
 
-## Only the run's first COUPONS draw is the combination draw: the flag is spent at the draw.
-func test_only_the_first_coupons_draw_is_the_combination_draw() -> void:
+## Only the run's first NEW ITEMS draw is the combination draw: the flag is spent at the draw.
+func test_only_the_first_new_items_draw_is_the_combination_draw() -> void:
 	var run: RunState = _passed_run(9)
 	assert_bool(run.machine.coupons_first_done).is_false()
-	MachineSteps.choose(run, RewardMachine.Chute.COUPONS)
+	MachineSteps.choose(run, RewardMachine.Chute.NEW_ITEMS)
 	assert_bool(run.machine.coupons_first_done).is_true()
 	MachineSteps.next_shift(run)
 	_fill_and_pass(run)

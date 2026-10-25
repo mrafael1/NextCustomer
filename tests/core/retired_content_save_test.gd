@@ -59,38 +59,43 @@ func test_a_planning_save_with_a_retired_register_resumes_without_it() -> void:
 
 
 ## After the checkout, a retired register owned at the checkout is dropped from the registers and
-## from the count owned then; a retired inspection (the next shift's, and a played shift's) stays
+## from the ones played then; a retired inspection (the next shift's, and a played shift's) stays
 ## as an inert stand-in, so the shift keeps its bonus ticket. Saved again, it reads back.
 func test_a_machine_save_with_retired_content_resumes() -> void:
 	var run: RunState = _run_at_shift_two_checkout(28)
 	var data: Dictionary = _json(_save(run))
 	data["upgrades"] = ["extra_coupon_slot"]
-	data["machine"]["upgrades_at_checkout"] = 1
+	data["machine"]["played_upgrades"] = ["extra_coupon_slot"]
 	data["next_inspection"] = "coupon_slot_closed"
 	data["history"][0]["inspection"] = "coupon_slot_closed"
 	var save: RunSave = RunSave.from_dictionary(data, _lookup)
 	assert_object(save).is_not_null()
 	assert_array(save.run.upgrades).is_empty()
-	assert_int(save.run.machine.upgrades_at_checkout).is_equal(0)
+	assert_array(save.run.machine.played_upgrades).is_empty()
 	assert_bool(ContentLookup.is_retired(save.run.next_inspection)).is_true()
 	assert_bool(ContentLookup.is_retired(save.run.history[0].inspection)).is_true()
 	assert_object(RunSave.from_dictionary(_json(_save(save.run)), _lookup)).is_not_null()
 
 
-## A pick saved with Extra coupon slot among the drawn registers resumes without it: the other
+## A pick saved with Extra coupon slot among the drawn perks resumes without it: the other
 ## prizes stay, in their drop order, and the retired one can't be taken.
 func test_a_pick_save_no_longer_offers_a_retired_register() -> void:
-	_balance = MachineSteps.without_stamp_day(MachineSteps.boosted_on(_balance, [1]))
-	_lookup = ContentLookup.new(_balance)
 	var run: RunState = _planning_run(29)
 	_fill(run)
 	run.checkout()
-	assert_bool(MachineSteps.choose(run, RewardMachine.Chute.REGISTER)).is_true()
+	assert_bool(MachineSteps.choose(run, RewardMachine.Chute.UPGRADE)).is_true()
 	var data: Dictionary = _json(_save(run))
 	var prizes: Array = data["machine"]["visit"]["prizes"]
 	assert_int(prizes.size()).is_greater(1)
-	var kept: Array = prizes.slice(1).map(func(prize: Dictionary) -> String: return prize["id"])
-	prizes[0]["id"] = "extra_coupon_slot"
+	var perk: int = prizes.find_custom(
+		func(prize: Dictionary) -> bool: return prize["kind"] == "register"
+	)
+	assert_int(perk).is_not_equal(-1)
+	var kept: Array = []
+	for index: int in prizes.size():
+		if index != perk:
+			kept.append(prizes[index]["id"])
+	prizes[perk]["id"] = "extra_coupon_slot"
 	var save: RunSave = RunSave.from_dictionary(data, _lookup)
 	assert_object(save).is_not_null()
 	var restored: Array[MachinePrize] = save.run.machine.prizes()
@@ -103,8 +108,6 @@ func test_a_pick_save_no_longer_offers_a_retired_register() -> void:
 ## A retired register picked on an earlier shift no longer counts toward the register cap: its
 ## loyalty box is free again, as the card shows it.
 func test_a_retired_pick_frees_its_loyalty_box() -> void:
-	_balance = MachineSteps.without_stamp_day(MachineSteps.boosted_on(_balance, [1]))
-	_lookup = ContentLookup.new(_balance)
 	# A register that doesn't score (Extra redraw), so the row checked out with it totals the
 	# same once the stand-in is dropped.
 	var redraw: UpgradeDefinition = _lookup.upgrade("extra_redraw")
@@ -119,25 +122,27 @@ func test_a_retired_pick_frees_its_loyalty_box() -> void:
 	assert_bool(MachineSteps.next_shift(run)).is_true()
 	_fill(run)
 	run.checkout()
-	assert_int(run.machine.registers_picked(run)).is_equal(1)
+	assert_int(RewardMachine.registers_picked(run)).is_equal(1)
 	var data: Dictionary = _json(_save(run))
 	var visit: Dictionary = data["history"][0]["visits"][0]
 	visit["prizes"][int(visit["picked"])]["id"] = "extra_coupon_slot"
 	data["upgrades"] = ["extra_coupon_slot"]
+	data["machine"]["played_upgrades"] = ["extra_coupon_slot"]
 	var save: RunSave = RunSave.from_dictionary(data, _lookup)
 	assert_object(save).is_not_null()
 	assert_array(save.run.upgrades).is_empty()
-	assert_int(save.run.machine.registers_picked(save.run)).is_equal(0)
+	assert_int(RewardMachine.registers_picked(save.run)).is_equal(0)
 
 
 ## A save from before the Banana chain (format 4) whose checked-out row now totals otherwise
-## still resumes: the record's total stands. Format 5 is still checked by its total.
+## still resumes (as format 6, #108): the record's total stands. Format 5 is still checked by its
+## total.
 func test_a_save_from_before_the_banana_chain_skips_the_total_check() -> void:
 	var run: RunState = _run_at_shift_two_checkout(31)
 	var data: Dictionary = _json(_save(run))
 	data["history"][-1]["total"] = int(data["history"][-1]["total"]) + 1
 	assert_object(RunSave.from_dictionary(data, _lookup)).is_null()
-	data["format_version"] = RunSave.BEFORE_BANANA_CHAIN_VERSION
+	data = LegacySave.as_format(data, RunSave.BEFORE_BANANA_CHAIN_VERSION)
 	var save: RunSave = RunSave.from_dictionary(data, _lookup)
 	assert_object(save).is_not_null()
 	assert_int(save.run.history[-1].total).is_equal(run.last_result.total + 1)

@@ -43,7 +43,7 @@ func test_losing_a_shift_ends_the_run_without_a_visit() -> void:
 	run.checkout()
 	assert_int(run.phase).is_equal(RunState.Phase.LOST)
 	assert_object(run.machine.current_visit()).is_null()
-	assert_bool(run.machine.choose(run, RewardMachine.Chute.REGISTER)).is_false()
+	assert_bool(run.machine.choose(run, RewardMachine.Chute.UPGRADE)).is_false()
 	assert_bool(run.history[-1].passed).is_false()
 	assert_array(run.history[-1].visits).is_empty()
 
@@ -105,16 +105,14 @@ func test_history_has_one_entry_per_played_shift() -> void:
 func test_extra_redraw_allows_a_third_redraw() -> void:
 	var extra: UpgradeDefinition = _upgrade("extra_redraw")
 	var run: RunState = null
-	# The seed whose REGISTER draw after shift 2 holds it.
+	# The seed whose UPGRADE draw after shift 2 holds it.
 	for seed_value: int in range(29, 129):
 		run = _run(seed_value)
 		assert_int(run.redraws_allowed).is_equal(2)
 		run.debug_skip_to_shift(1)
 		_pass(run)
-		MachineSteps.choose(run, RewardMachine.Chute.REGISTER)
-		if run.machine.prizes().any(
-			func(prize: MachinePrize) -> bool: return prize.upgrade == extra
-		):
+		MachineSteps.choose(run, RewardMachine.Chute.UPGRADE)
+		if MachineSteps.offers(run, extra):
 			break
 	assert_object(MachineSteps.take_register(run, extra)).is_same(extra)
 	# It applies from the next shift on.
@@ -161,12 +159,11 @@ func test_preview_and_checkout_use_the_run_upgrades() -> void:
 	assert_int(run.checkout().total).is_equal(13)
 
 
-## Quotas all 5 and no STAMP DAY (its forced register would add redraws of its own).
+## Quotas all 5.
 static func _low_quotas() -> BalanceDefinition:
 	var balance: BalanceDefinition = (load(BALANCE) as BalanceDefinition).duplicate()
 	balance.quotas = PackedInt32Array([5, 5, 5, 5, 5, 5, 5, 5])
-	# Registers are taken after shift 2 (v0.47: only a BOOSTED visit lights REGISTER).
-	return MachineSteps.boosted_on(MachineSteps.without_stamp_day(balance), [2])
+	return balance
 
 
 ## A run whose quotas are all 5, so two Breads (6) pass any shift.

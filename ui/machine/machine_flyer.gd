@@ -5,8 +5,9 @@ extends Control
 ## upgrade's up arrow; a 60 px arc, full size) or to its LOYALTY card box (the stamp ring; a 120 px
 ## arc, shrinking to 0.3), between view.plan's fly_out and land; none under reduced motion (the
 ## prize is home at once). It owns the landing's one-shot moments: at beat `land` the LOYALTY card's
-## stamp slams down on the register's box (view.plain_landing is off), and the machine's sounds
-## (MachineSounds), which it frames.
+## stamp slams down on the perk's box (view.plain_landing is off): a new perk's next empty box, or
+## for a level-up (#108) the box the perk already has, re-stamped with its new level's badge
+## (LoyaltyCard.level_mark); and the machine's sounds (MachineSounds), which it frames.
 
 const SIZE := Vector2(96, 96)
 ## The arcs' heights and the loyalty stamp's end scale (look F).
@@ -89,9 +90,9 @@ func start_point() -> Vector2:
 	return ShiftStage.MACHINE_RECT.position + ticket.position + LEAVE_OFFSET + lift
 
 
-## Where it lands, in stage coordinates: its cart drawer slot, or its LOYALTY card box (still
-## empty during the flight: the card shows the stamp at the landing). With no such box (a full
-## card, debug) it heads for the machine's top-left corner.
+## Where it lands, in stage coordinates: its cart drawer slot, or its LOYALTY card box (a new
+## perk's still empty during the flight: the card shows the stamp at the landing; a level-up's
+## the perk's own box). With no such box (debug) it heads for the machine's top-left corner.
 func end_point() -> Vector2:
 	var plan: MachinePlan = view.plan
 	if plan != null and plan.landing == MachinePlan.Landing.REGISTER:
@@ -121,7 +122,7 @@ func _show(shown: MachineLanding, plan: MachinePlan) -> void:
 	sprite.position = (SIZE - sprite.size) / 2.0
 
 
-## The landing's moment: the LOYALTY card's stamp on the register's box (not when the beat is
+## The landing's moment: the LOYALTY card's stamp on the perk's box (not when the beat is
 ## fast-forwarded: the card shows its stamps once the top bar is refreshed). On the next frame:
 ## MachineFlow refreshes the top bar (the card's new box) at the same beat, after this part hears
 ## it, and the card's container lays the new box out (scale 1) at the end of this frame.

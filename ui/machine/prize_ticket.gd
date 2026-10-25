@@ -18,7 +18,8 @@ extends Control
 ##
 ## The face (paper, its rarity's edge) holds the art box (PrizeArt: the real sprite, the coupon
 ## slip, a LOYALTY punch card, an upgrade's item at its new tier), a band ("NEW ITEM · €2",
-## "COUPON", "LOYALTY STAMP", "UPGRADE"), the prize's name (#105: in Pixelify, as the scan popup
+## "COUPON", "LOYALTY STAMP", a perk's "LEVEL UP · LV 2", "UPGRADE"), the prize's name (#105: in
+## Pixelify, as the scan popup
 ## prints it, at the machine's NAME_DISPLAY_SIZE on one line, its numbers in the number font,
 ## MixedLabel; a name too long for that in bold Atkinson in up to NAME_LINES lines) and its rule
 ## (#105: an item's long rule text, its whole contract, in up to RULE_LINES lines,
@@ -177,12 +178,15 @@ func _init(
 	add_child(tab)
 
 
-## The band's text: "NEW ITEM · €2", "COUPON", "LOYALTY STAMP" or "UPGRADE".
+## The band's text: "NEW ITEM · €2" (a BIG or GOLDEN item's own price), "COUPON", "LOYALTY STAMP",
+## a perk's level-up "LEVEL UP · LV 2" (#108), or "UPGRADE".
 static func band_text(shown: MachinePrize) -> String:
 	match shown.kind:
 		MachinePrize.Kind.COUPON:
 			return "COUPON"
 		MachinePrize.Kind.REGISTER:
+			if PerkLevels.is_level_up(shown.upgrade):
+				return "LEVEL UP · LV %d" % shown.upgrade.level_number()
 			return "LOYALTY STAMP"
 		MachinePrize.Kind.UPGRADE:
 			return "UPGRADE"
@@ -300,6 +304,15 @@ func frame(t: float) -> void:
 ## The prize's rarity texts (the tab), for tests.
 func rarity_texts() -> PackedStringArray:
 	return PackedStringArray([tab.text()])
+
+
+## The art's chip on the ticket (ticket coordinates; empty when it has none): a BIG or GOLDEN
+## item's tier, an upgrade's, a level-up's "LV n".
+func chip_rect() -> Rect2:
+	var rect: Rect2 = art.chip_rect()
+	if rect.has_area():
+		rect.position += ART_RECT.position
+	return rect
 
 
 ## The face's texts: the band, the name and the rule.

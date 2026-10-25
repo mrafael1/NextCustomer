@@ -5,7 +5,7 @@ extends RefCounted
 ## (docs/art/mockups/machine_77_src/flow/flow_template.html) and look F's plan()
 ## (flow/looks/look_f.js), with the page's demo cursor replaced by wait points where the clock
 ## holds for the player:
-## - CHOOSE: the chute keys are lit (a TICKET or BONUS visit; STAMP DAY has none, its CHOOSE is 0);
+## - CHOOSE: the chute keys are lit (a TICKET or BONUS visit);
 ## - PICK: the prizes are revealed (the page's curPick);
 ## - END: the landing is over (the next visit, or the next shift, follows).
 ## The segments between them are INTRO (0 .. CHOOSE), DRAW_TO_REVEALED (CHOOSE .. PICK) and
@@ -16,16 +16,16 @@ extends RefCounted
 ## Pure: it reads only its MachineTuning (data/balance/machine_tempo.tres) and its inputs. Every
 ## machine node's frame(t) reads only the plan and t, a test seam like the page's `?at=`.
 ## TICKET t = 0 is the dessert's printer feed (page T.fly); BONUS t = 0 is the page's b0 (the
-## first visit's punch end + 0.3); STAMP DAY t = 0 is the page's T.sd.
+## first visit's punch end + 0.3). (STAMP DAY, the page's T.sd, went in v0.61.)
 ##
-## v0.50 (mock-up docs/art/mockups/premium_machine_v1.html): a BOOSTED visit (`premium`) turns the
-## machine PREMIUM after its receipt is read (premium_at .. premium_end, the transform's juice
-## moment, dressing A), and the keys light after it. Since v0.53 a BOOSTED BONUS visit is PREMIUM
-## too: from its start when the ticket's visit was (`premium_held`: premium_at and premium_end both
-## 0, no beat), else with the transform after its read. The draw is R1's "drop": the tray packs
-## (draw .. draw_end), then each prize ticket flies out of the tray to the front (drop_at,
-## drop_length) and lands face up at its reveal (reveal_at), where its rarity's effect plays for
-## reveal_length; the LEGENDARY one lands a beat later.
+## v0.50 (mock-up docs/art/mockups/premium_machine_v1.html): a PREMIUM visit (`premium`; since v0.61
+## a rarity boost, #108) turns the machine PREMIUM after its receipt is read (premium_at ..
+## premium_end, the transform's juice moment, dressing A), and the keys light after it. Since v0.53
+## a premium shift's BONUS visit is PREMIUM too: from its start when the ticket's visit was
+## (`premium_held`: premium_at and premium_end both 0, no beat), else with the transform after its
+## read. The draw is R1's "drop": the tray packs (draw .. draw_end), then each prize ticket flies
+## out of the tray to the front (drop_at, drop_length) and lands face up at its reveal (reveal_at),
+## where its rarity's effect plays for reveal_length; the LEGENDARY one lands a beat later.
 ##
 ## Machine v2 (Q1 = A, docs/art/mockups/machine_77_v2.html): the machine stands on the back wall
 ## and a TICKET visit's intro glides the camera to it (glide .. glide_end, camera_at) while the
@@ -55,8 +55,8 @@ var reduced_motion: bool = false
 var inspected: bool = true
 ## TICKET: a BONUS visit follows, so the receipt carries the gold stub that snaps off (Q2 = 2).
 var stub: bool = false
-## TICKET or BONUS (v0.53): a BOOSTED visit, so the machine turns PREMIUM after the receipt is
-## read (v0.50).
+## TICKET or BONUS (v0.53): a PREMIUM visit (#108: after a premium shift), so the machine turns
+## PREMIUM after the receipt is read (v0.50).
 var premium: bool = false
 ## BONUS (v0.53): the shift's ticket visit was PREMIUM too, so the machine is PREMIUM from the
 ## visit's start (no transform, no snap back to classic between the two visits).
@@ -135,7 +135,7 @@ func _init(
 	reduced_motion = rm
 	inspected = has_inspection
 	stub = has_stub and visit_kind == MachineVisit.Kind.TICKET
-	premium = is_premium and visit_kind != MachineVisit.Kind.STAMP_DAY
+	premium = is_premium
 	premium_held = premium and held and visit_kind == MachineVisit.Kind.BONUS
 	_build()
 
@@ -361,9 +361,6 @@ func _build_intro() -> void:
 			lights_end = lights + MachineTuning.sec(tuning.bonus_lights_ms)
 			choose_at = maxf(lights_end, feed_end + MachineTuning.sec(tuning.again_ms))
 			_beat(&"bonus", 0.0)
-		MachineVisit.Kind.STAMP_DAY:
-			_beat(&"stamp_day", 0.0)
-			return
 		_:
 			fly = 0.0
 			fly_end = fly + MachineTuning.sec(tuning.travel_ms)
@@ -400,9 +397,7 @@ func _plan_premium(at: float) -> float:
 func _build_draw() -> void:
 	var rm: bool = reduced_motion
 	n_prizes = mini(rarities.size(), MAX_PRIZES)
-	odds_close = choose_at
-	if kind != MachineVisit.Kind.STAMP_DAY:
-		odds_close += MachineTuning.seconds(tuning.odds_close_ms, kind)
+	odds_close = choose_at + MachineTuning.seconds(tuning.odds_close_ms, kind)
 	draw = odds_close
 	var packing: float = MachineTuning.sec(tuning.draw_rm_ms)
 	if not rm:
@@ -467,30 +462,23 @@ func _build_landing() -> void:
 			)
 		punch = _punch_time()
 		_beat(&"land", land)
-	var stamp_day: bool = kind == MachineVisit.Kind.STAMP_DAY
-	punch_end = punch if stamp_day else punch + MachineTuning.sec(tuning.punch_length_ms)
+	punch_end = punch + MachineTuning.sec(tuning.punch_length_ms)
 	drawer_in = NOT_SET
 	drawer_out = NOT_SET
 	if landing != Landing.BIN:
 		drawer_in = fly_out - MachineTuning.sec(tuning.drawer_lead_ms)
 		drawer_out = punch + MachineTuning.sec(tuning.drawer_tail_ms)
-	if stamp_day:
-		end_at = land + MachineTuning.seconds(tuning.end_hold_ms, kind)
-	elif next_visit == MachineVisit.Kind.BONUS:
+	if next_visit == MachineVisit.Kind.BONUS:
 		end_at = punch_end + MachineTuning.sec(tuning.before_bonus_ms)
-	elif next_visit == MachineVisit.Kind.STAMP_DAY:
-		end_at = punch_end + MachineTuning.sec(tuning.before_stamp_day_ms)
 	else:
 		end_at = punch_end + MachineTuning.seconds(tuning.end_hold_ms, kind)
 	_beat(&"pick", press)
 
 
 ## The settle after the landing (`punch`, where the Regular meter's punch played until v0.47; its
-## times stay): after the landing (a new card, a register stamp) or the glint's end (UPGRADES);
-## STAMP DAY has none (its time is the landing's).
+## times stay): after the landing (a new card, a loyalty stamp) or the glint's end (an item
+## upgrade).
 func _punch_time() -> float:
-	if kind == MachineVisit.Kind.STAMP_DAY:
-		return land
 	var after: float = glint_end if landing == Landing.UPGRADE else land
 	if reduced_motion:
 		return after + MachineTuning.seconds(tuning.punch_rm_ms, kind)
