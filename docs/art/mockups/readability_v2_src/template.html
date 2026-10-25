@@ -1,0 +1,1365 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Readability v2 (#105)</title>
+<style>
+/*FONTS*/
+:root{
+  --ink:#2b2420;--ink-l:#4a3f38;--grey-d:#5e574d;--grey:#8a8172;--grey-l:#c7beab;
+  --cream-dk:#b39f78;--cream-sh:#ddcba5;--cream:#f3e9d2;--paper:#fbf7ee;
+  --teal-dk2:#1f3b3a;--teal-dk:#2a4d4b;--teal-sh:#3a7672;--teal:#4f9a94;--teal-l:#86c2b6;--teal-p:#c3e0d4;
+  --tom-dk2:#6e2630;--tom-dk:#a83a3c;--tom:#d9534f;--tom-l:#ec8a6e;
+  --mus-dk2:#7a5a1c;--mus-dk:#b38425;--mus:#e2b33c;--mus-l:#f1d27a;--mus-p:#faecbc;
+  --grn-dk:#3d7a45;--grn:#5fae5a;--gold:#ffcf3f;--charcoal:#24221f;
+}
+*{box-sizing:border-box}
+html,body{font-variant-ligatures:none;font-synthesis:none;margin:0;background:var(--charcoal);color:var(--paper);font-family:Atkinson,sans-serif}
+img.px,canvas.px,.px{image-rendering:pixelated;image-rendering:crisp-edges}
+.page{max-width:1320px;margin:0 auto;padding:24px 16px 80px}
+h1{font-family:Pixelify;font-weight:600;font-size:34px;margin:0 0 6px;color:var(--mus-l)}
+h2{font-family:Pixelify;font-weight:600;font-size:26px;margin:0;color:var(--paper)}
+h2 .n{color:var(--mus);margin-right:10px}
+h2 .qtag{font:800 13px Atkinson;letter-spacing:1px;background:var(--mus);color:var(--ink);padding:3px 8px;border-radius:3px;vertical-align:5px;margin-left:10px}
+h2 .dtag{font:800 13px Atkinson;letter-spacing:1px;background:var(--grn-dk);color:var(--paper);padding:3px 8px;border-radius:3px;vertical-align:5px;margin-left:10px}
+.lede{font-size:16px;line-height:1.5;color:var(--cream);max-width:980px;margin:0 0 8px}
+.small{font-size:13px;color:var(--grey-l)}
+section{margin:34px 0 0;padding:20px 0 0;border-top:2px dashed var(--grey-d)}
+.q{font-size:16px;color:var(--cream);margin:8px 0 12px;max-width:1040px;line-height:1.45}
+.opts{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:0 0 12px}
+.opt{font-family:Atkinson;font-weight:800;font-size:15px;background:var(--paper);color:var(--ink);border:2px solid var(--ink);
+  border-radius:4px;padding:6px 12px;cursor:pointer;box-shadow:0 3px 0 var(--cream-dk)}
+.opt.on{background:var(--mus);box-shadow:0 3px 0 var(--mus-dk2)}
+.opt .rec{font-size:12px;letter-spacing:1px;color:var(--grn-dk);margin-left:6px}
+.optlist{margin:0 0 12px;padding:0;list-style:none;display:grid;gap:6px;max-width:1100px}
+.optlist li{font-size:15px;line-height:1.4;color:var(--cream)}
+.optlist b{color:var(--paper)}
+.recbox{display:inline-block;background:var(--grn-dk);color:var(--paper);font-weight:800;font-size:14px;padding:6px 10px;border-radius:3px;margin:0 0 12px;max-width:1100px;line-height:1.45}
+.asks{background:var(--mus-p);color:var(--ink);border:2px solid var(--ink);border-radius:4px;padding:12px 16px;max-width:1100px;font-size:15px;line-height:1.5;margin:10px 0 0}
+.asks h3{font-family:Pixelify;font-weight:600;margin:0 0 6px;font-size:20px}
+.asks ol{margin:0;padding-left:22px}
+.asks a{color:var(--teal-dk);font-weight:800}
+.fit{position:relative;width:100%;overflow:hidden}
+.fit>.stage{transform-origin:0 0;position:absolute;left:0;top:0}
+.stage{width:1280px;height:720px;position:relative;overflow:hidden;background:#000}
+.abs *{position:absolute}
+.stage *{position:absolute}
+.stage .flow,.stage .flow *,.abs .flow,.abs .flow *{position:static}
+.stage .tagbox *,.abs .tagbox *{position:absolute}
+.stage span,.stage b,.stage br,.abs span,.abs b,.abs br{position:static}
+.stage .belt,.stage .cur,.stage .press,.stage .demo{pointer-events:none}
+.crops{display:grid;gap:14px;margin:14px 0 0}
+.crop{position:relative;overflow:hidden;border:2px solid var(--grey-d)}
+.crop>.stage,.crop>.ref{position:absolute}
+.cap{font-family:Atkinson;font-weight:800;font-size:14px;color:var(--mus-l);margin:0 0 4px}
+.cap span{color:var(--grey-l);font-weight:600}
+.ref{width:1280px;height:720px;background-repeat:no-repeat;image-rendering:pixelated}
+.notes{font-size:14px;line-height:1.5;color:var(--cream);max-width:1040px}
+.notes li{margin:3px 0}
+.notes b{color:var(--paper)}
+.legend{display:grid;grid-template-columns:230px 110px 110px 1fr;background:var(--paper);color:var(--ink);border:2px solid var(--ink);max-width:1100px}
+.legend>div{padding:6px 10px;border-bottom:1px solid var(--cream-sh);display:flex;align-items:center;gap:10px;font-weight:700;font-size:14px;min-height:48px}
+.legend .hd{background:var(--ink);color:var(--paper);font-weight:800;font-size:14px;min-height:0}
+.legend .ex{font-weight:800;font-size:14px}
+.legend .fn{display:flex;flex-direction:column;align-items:flex-start;gap:0;line-height:1.25}
+.legend .fn .small{font-weight:600;color:var(--grey-d)}
+.legend .ex img{vertical-align:-4px}
+.gl{cursor:help}
+.defaults{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:12px;max-width:1280px}
+.dcard{background:var(--paper);color:var(--ink);border:2px solid var(--ink);border-radius:4px;padding:10px 12px;font-size:14px;line-height:1.45}
+.dcard h3{font-family:Pixelify;font-weight:600;font-size:17px;margin:0 0 4px}
+.dcard .new{display:inline-block;font:800 11px Atkinson;letter-spacing:1px;background:var(--mus);color:var(--ink);padding:1px 6px;border-radius:2px;margin-left:6px;vertical-align:2px}
+.first{background:var(--mus-p);color:var(--ink);border:2px solid var(--ink);border-radius:4px;padding:12px 16px;max-width:1100px;font-size:15px;line-height:1.5}
+.first h3{font-family:Pixelify;font-weight:600;margin:0 0 6px;font-size:20px}
+.first table{border-collapse:collapse;width:100%;font-size:14px}
+.first td{border-top:1px solid var(--cream-dk);padding:4px 8px 4px 0;vertical-align:top}
+.ctl{position:sticky;top:0;z-index:50;display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin:0 -16px 10px;padding:8px 16px;
+  font-size:13px;color:var(--grey-l);background:rgba(36,34,31,.96);border-bottom:2px solid var(--grey-d)}
+.ctl button{font:700 13px Atkinson;background:var(--teal-dk);color:var(--paper);border:1px solid var(--teal-l);border-radius:3px;padding:4px 9px;cursor:pointer}
+.ctl button.on{background:var(--mus);color:var(--ink);border-color:var(--mus-dk2)}
+.ctl .sep{width:1px;height:20px;background:var(--grey-d);margin:0 4px}
+.panel{background:#3d3a36;border:2px solid var(--grey-d);padding:16px 18px 12px;max-width:1240px}
+.gallery{display:flex;flex-wrap:wrap;gap:26px 22px;align-items:flex-start}
+.gallery figure{margin:0;display:flex;flex-direction:column;align-items:flex-start;gap:8px;width:150px}
+.gallery figcaption{font-size:13px;font-weight:700;color:var(--cream);line-height:1.35}
+.gallery figcaption b{color:var(--paper)}
+.aisles{display:flex;flex-wrap:wrap;gap:8px;margin:0 0 16px}
+.aisles .ai{display:flex;align-items:center;gap:6px;background:var(--charcoal);border:1px solid var(--grey-d);border-radius:3px;padding:4px 8px 4px 4px;font-weight:800;font-size:13px}
+.aisles .sw{width:26px;height:20px;border:2px solid var(--ink);border-radius:2px}
+.specimen{display:flex;flex-wrap:wrap;gap:30px 26px;align-items:flex-end;background:#3d3a36;border:2px solid var(--grey-d);padding:26px 22px 14px;max-width:1240px}
+.specimen figure{margin:0;display:flex;flex-direction:column;align-items:center;gap:10px}
+.specimen figcaption{font-size:13px;font-weight:700;color:var(--cream);text-align:center;max-width:150px;line-height:1.35}
+.specimen .sk{position:relative}
+.specimen.x2 .sk{zoom:2}
+.specimen.x2 figcaption{max-width:260px}
+.popup{background:var(--paper);color:var(--ink);border:2px solid var(--ink);box-shadow:inset 0 0 0 2px var(--mus),4px 4px 0 rgba(43,36,32,.3);padding:10px 12px;width:288px}
+body.zoom .crops.zm{grid-template-columns:1fr !important}
+body.solo .page{display:none}
+body.solo{background:#000}
+body.sec .page>section,body.sec .page>header,body.sec .page>.ctl{display:none}
+body.sec .page>section.show{display:block;border:0;margin:0;padding:0}
+body.sec .page{padding:12px 16px}
+/* stage pieces */
+.mon-paper{background:var(--paper);overflow:hidden}
+.bay{background:var(--teal-sh);box-shadow:inset 0 0 0 2px var(--ink)}
+.bay .hdr{left:2px;top:2px;width:108px;height:17px;background:var(--ink)}
+.bay .lamp{left:5px;top:7px;width:6px;height:6px;background:var(--tom-dk)}
+.bay .lamp.on{background:var(--tom)}
+.bay .ht{left:15px;top:2px;line-height:17px;font:800 12px Atkinson;letter-spacing:1px;color:var(--cream);white-space:nowrap}
+.bay .pips{right:6px;top:8px;height:4px;width:24px;background:repeating-linear-gradient(90deg,var(--teal-l) 0 4px,transparent 4px 6px)}
+.bay .bed{left:6px;top:21px;width:100px;height:100px;background-color:var(--teal-dk2);
+  background-image:linear-gradient(var(--teal-dk) 2px,transparent 2px),linear-gradient(90deg,var(--teal-dk) 2px,transparent 2px);background-size:12px 12px;background-position:4px 4px}
+.bay .nm{left:6px;top:125px;width:100px;height:20px;background:var(--paper);box-shadow:inset 0 0 0 2px var(--ink);font:800 12px Atkinson;text-transform:uppercase;color:var(--ink);text-align:center;line-height:20px;letter-spacing:.5px;white-space:nowrap;overflow:hidden}
+.rich img{vertical-align:-4px;margin:-2px 1px -3px}
+.nw{white-space:nowrap}
+/* the glyph tooltip (pixel frame, shared by the live hover and the stage demo) */
+.tip{height:26px;padding:0 9px;border:4px solid transparent;border-image-slice:2 fill;border-image-width:4px;border-image-repeat:stretch;
+  image-rendering:pixelated;font:800 13px/18px Atkinson;color:var(--paper);white-space:nowrap;filter:drop-shadow(2px 2px 0 rgba(43,36,32,.45))}
+.tip .tail{position:absolute;left:50%;bottom:-12px;width:14px;height:8px;margin-left:-7px}
+#hovertip{position:fixed;z-index:100;pointer-events:none;display:none}
+</style>
+</head>
+<body>
+<div id="solo"></div>
+<div id="hovertip" class="tip"><span id="hovertxt"></span><img class="px tail" alt=""></div>
+<div class="page">
+<header>
+  <h1>Readability pass v2 · issue #105</h1>
+  <p class="lede">The same six items as v1 (Eggs, Milk, Strawberries, Lemon, Frozen peas, Batteries; SPEND €26+, plan €28) on a real capture of the shift screen, with your v1 answers built in: <b>glyphs alone</b> with a name on hover, <b>Pixelify Sans</b> for item names, the <b>top bar exactly as in the newest build</b> (its chips are pasted from a real capture; only the SPEND numbers and the liquid are redrawn for this belt), giver badges back on the <b>left</b> of the sticker at the new size, short sticker text everywhere you plan. The timeline loops every 17.5 s: stickers slap in (gold sparks run from each giver), the cursor hovers two glyphs on the Frozen peas ticket (tooltips open under the ticket), scans Strawberries, scans Frozen peas (WASTED), presses CHECKOUT, and the count runs with the top bar filling.</p>
+  <div class="asks">
+    <h3>Two questions this round</h3>
+    <ol>
+      <li><b>Q1 · Ticket</b> (<a href="#s-ticket">section 2</a>): the struck base and the gold price burst stay as they are today, big. Where does the aisle colour go: <b>A header band</b> (recommended), <b>B spine</b> or <b>C price flag</b>? Before you answer, check the list of products whose aisle and families differ (section 2): the colour rule has to be fine with those.</li>
+      <li><b>Q2 · Monitor</b> (<a href="#s-monitor">section 3</a>): <b>a</b> today's monitor without the slide switching, or <b>b</b> one cleaned-up screen for scan and count (recommended), which keeps #86's big gold climax for about a second when SPEND is met?</li>
+    </ol>
+    <p style="margin:8px 0 0">Everything else is a default you can veto: the glyph set and its tooltips (1), the aisle-colour rule (2), the polished badges (4), and short or long text, sizes and the first-time player notes (5). New since the review: four glyphs redrawn so no two look alike, staples with no colour, Pantry's band one shade darker, die-cut giver badges, a sad thud for WASTED instead of a shine.</p>
+  </div>
+  <p class="small">Best at 100 % zoom in a window at least 1312 px wide: narrower windows shrink the stages by a non-integer factor and the pixels go uneven (hovering still works there: it was checked with a synthetic hover at 900 px). Hover any glyph for its name. The sticky bar jumps to a beat (it pauses there; Play resumes). URL options: <code>v1=B</code> ticket, <code>v2=a</code> monitor, <code>at=4.9</code> freezes the clock, <code>slow=1</code> half speed, <code>zoom=2</code> 2× crops, <code>solo=stage</code> one bare 1280×720 stage.</p>
+</header>
+<div class="ctl" id="ctl"><button id="pause">Pause</button><button id="restart">Restart</button><span class="sep"></span><span>Beat:</span><span id="beats"></span><span class="sep"></span><button id="zoom">Crops 2×</button><span class="sep"></span><span id="clock">t = 0.0 s</span></div>
+
+<section id="s-icons">
+  <h2><span class="n">1</span>Family glyphs, alone, with their name on hover<span class="dtag">DECIDED · A</span></h2>
+  <p class="q">One glyph per family, no tiles and no words: the aisle glyphs players already see on the signs, plus four new ones (Breakfast, Dairy, Clearance and the Coupon mark, redrawn after the review so no two look alike at 18 px) and the Cart's padlock for Staple. Hovering a glyph anywhere (ticket, sticker text, monitor, Cart) shows its family name in a small tooltip. <b>Try it: hover the glyphs below or in any stage.</b></p>
+  <div class="legend" id="legend"></div>
+  <ul class="notes">
+    <li><b>Tooltip:</b> the family name only, Atkinson 13 px bold in paper on an ink-light pixel frame with a tail pointing at the glyph. It opens after Godot's usual tooltip delay and closes when the pointer leaves. The stage shows it as an auto-demo at 1.2 to 3.0 s (beat "Tooltip").</li>
+    <li><b>Where it opens:</b> on a rail or Cart-shelf ticket it opens <b>below the ticket</b>, tail up, the box ending just right of the glyph so the pointer never covers the word; the glyphs sit right under the price burst, so a tooltip above would always hide the price. Everywhere else (sticker text, the monitor, the offer popup, this table) it opens above.</li>
+    <li><b>Redrawn after the review:</b> Breakfast is a white mug of coffee (the rising sun read as a burger bun), Dairy a white bottle with a dark cap (it was teal like the Frozen snowflake), Clearance a red price tag with an arrow down (the % sign read as an X, like the scissors), and the Coupon scissors are redrawn open, steel blades over teal finger rings (a dashed cut line did not fit in 9×9 art: it merged with the outline). Not changed here: the Pantry tin and the Bakery loaf are both tan and rounded at 18 px; they are the aisle signs' own glyphs, so redrawing one is a separate art change (say if you want it).</li>
+    <li>Glyphs stay 9×9 art at 2× (18 px) everywhere, so they sit on the same pixel grid as the sprites; the 2× column is only for this review.</li>
+    <li>Food is the Pantry tin. Almost every product is Food, so tickets leave it out of their family row (v1 default, unchanged); it still shows where a rule names it ("×2 next <span id="foodglyph"></span>").</li>
+  </ul>
+  <div class="crops" id="crops-icons"></div>
+</section>
+
+<section id="s-ticket">
+  <h2><span class="n">2</span>Item tickets: the old price look, coloured by aisle<span class="qtag">Q1</span></h2>
+  <p class="q">You liked today's price: the base struck through with the new price in the gold burst. Every variant keeps exactly that, at today's sizes (22 px base, 60×32 burst with 19 px digits, overhanging the top-right corner). The colour answers your question "which colour when an item has several families?": <b>the ticket takes the colour of the aisle the product is stocked in</b>, which is always exactly one aisle (data/aisles); the glyphs then show every family it counts as. Staples have no aisle, so they have <b>no colour</b>: plain paper with the padlock among their glyphs. <b>Where does the aisle colour go?</b></p>
+  <ul class="optlist">
+    <li><b>A · Header band.</b> The top 13 art rows are the aisle colour and carry the struck base; the glyph column under the burst takes a pale tint of the same colour, so band and column make one L. The most colour, readable along the whole rail; the effect sits on paper beside the column.</li>
+    <li><b>B · Spine.</b> Today's ticket, with the thin top band and a 4-art-px spine on the left in the aisle colour. The smallest change; the colour is a thin edge.</li>
+    <li><b>C · Price flag.</b> A paper ticket whose struck base sits on an aisle-colour flag (a shelf-edge flag with a notched end). Colour only where the price is (and the pale glyph column).</li>
+  </ul>
+  <div class="recbox">Recommended: A. It is v1's header that you called "a good step", now with the price back at full size: the band holds the 22 px struck base and the burst overhangs it exactly as today. The colour is big enough to read the aisles along the rail at a glance; B's 8 px spine and C's flag are hard to tell apart at game size (Cold cases teal next to Household grey, Fruit &amp; veg green next to Snacks brown).</div>
+  <div class="opts" data-key="card"></div>
+  <div class="fit" data-stage="card"></div>
+  <p class="cap" style="margin-top:18px">The colour rule: one aisle colour per product, the glyphs carry every family</p>
+  <div class="panel">
+    <div class="aisles" id="aisles"></div>
+    <div class="gallery" id="gallery"></div>
+  </div>
+  <ul class="notes">
+    <li><b>Why the aisle and not a family:</b> no product is in two aisles (159 cards checked: 50 products × plain/BIG/GOLDEN, every tier in its base's aisle), so the colour never has to pick. A family colour would have to pick one tag and hide the others: Frozen peas would read "Frozen" while Lemon's "×2 next Produce" hits it.</li>
+    <li><b>The catch: every product whose aisle and families differ</b> (all 44 aisle products checked in data/aisles and data/cards). The colour says where it lives, the glyph says what rules see; rules never test the aisle, so the glyph is the one to trust.
+      <ul>
+        <li><b>Crackers</b> and <b>Day-old buns</b>: stocked in Pantry, count as Bakery.</li>
+        <li><b>Birthday candles</b>: on the Bakery aisle, count as Household (not Food).</li>
+        <li><b>Ham ends</b>: in Cold cases, but neither Dairy nor Frozen (Food, Clearance).</li>
+        <li><b>Tea bags</b>: in Pantry, whose sign is the Food tin, but not Food (Breakfast only), so "×2 next Food" skips it.</li>
+        <li><b>Cold cases</b> holds two themes: five Dairy products and Frozen peas, the only Frozen product (it is also Produce, so Lemon's "×2 next Produce" hits it).</li>
+      </ul>
+      This is a note, not a question: if you would rather move a card to another aisle, that is a data change for later, with your approval.</li>
+    <li><b>No aisle:</b> the six staples (Banana, Bread, Milk, Eggs, Coffee, Soup) have no band, spine or flag at all, just paper, and the padlock joins their glyphs, so "no colour" always means "no aisle" (their old cream band looked like Bakery's tan). A staple with three glyphs (Milk) puts the third left of the column on line 1. Coupons keep today's coupon ticket (teal dashes, COUPON).</li>
+    <li><b>Pantry, one shade darker:</b> its sign colour is mustard, the same family as the gold burst, so its band uses the next shade down (mustard dark) and the burst stands clear (stress row, Day-old buns). Only Pantry: darkening every aisle one step would make Pantry and Bakery two near-identical browns.</li>
+    <li><b>The struck base:</b> ink digits with a 1-texel paper outline on a colour band, so they read on grey, teal and mustard alike; the strike is tomato with an ink line under it, drawn low through the digits so a struck "€1" no longer reads as "€t".</li>
+    <li><b>Price sizes (worth deciding with Q1):</b> today the new price (19 px digits in the burst) is smaller than the old one (22 px struck base), though it is the one you pay. Every variant keeps today's sizes as you asked; a later tweak could give the burst 22 px digits or the struck base 18 px, so the paid price is the biggest number. The wide burst (Golden Milk €126) also reaches over the struck "€6" with its left spikes; a 3-digit price would need the base set 4 px further left.</li>
+    <li>The family glyphs stack in a column on the ticket's right edge, under the burst (one glyph centred, two stacked), on a pale tint of the aisle colour instead of the old cream divider. Today's aisle glyph sat in the top-right corner and simply hid whenever the burst covered it; the column is never covered. Each inline glyph is glued to the word before it, so "beside <span class="g-produce"></span>" wraps as one piece and a glyph never sits alone on line 2.</li>
+  </ul>
+  <div class="crops" id="crops-cards"></div>
+</section>
+
+<section id="s-monitor">
+  <h2><span class="n">3</span>Monitor: no slide switching, top bar unchanged<span class="qtag">Q2</span></h2>
+  <p class="q">The top bar keeps #86's liquid gauge exactly as today (it fills during the count, plants its flag at €26 and shows "€N to go" on paper, then "+€N" on mustard), so the monitor no longer needs a tank. Both options drop the cycling shift brief, loyalty and coupon slides: when nothing is scanned the bay shows NEXT (belt slot 1). <b>Which monitor?</b></p>
+  <ul class="optlist">
+    <li><b>a · Today's monitor, no switching.</b> Today's scan layout (name, glyph row and aisle, effect, step lines, "pays €N") for NEXT and SCAN, and today's count screen at CHECKOUT (the big gold number on its sunburst, the € tag on the bay). Only the glyphs, the Atkinson labels and the short sticker text change. Smallest change.</li>
+    <li><b>b · One cleaned-up screen.</b> One layout for NEXT, SCAN and the count: the item (sprite, an aisle chip in the ticket's colour under it, the Pixelify name with its glyphs beside it, the ticket's struck base + gold burst, the effect in bold 16 px, step lines in bold 14 px with every amount in one right-hand column) and a checkout column (PLAN / TOTAL, SPEND 26€+, "to go", the SPEND MET stamp, all in the monitor's "N€" style). During the count the item's burst climbs from its base as each step fires, beside the running total. <b>The climax stays:</b> when the total meets SPEND, it takes the whole screen on #86's sunburst (WIN B) with the stamp for about a second, then shrinks back into the column (beat "Climax").</li>
+  </ul>
+  <div class="recbox">Recommended: b. The count is where a new player asks "why did that pay €10?", and b keeps the answer on screen: the item, the step that just fired and its price going from struck €4 to €10, the same look as its ticket. a blanks all of that at CHECKOUT for one big number, which the top bar already shows. The cost, said openly: during the count b's running total is a 40 px number in a side column, not a's 72 px number on its sunburst. b wins it back at the moment that matters: SPEND MET takes the whole screen for about a second (compare a and b at the "Climax" beat).</div>
+  <div class="opts" data-key="mon"></div>
+  <div class="fit" data-stage="mon"></div>
+  <div class="crops" id="crops-monitor"></div>
+  <ul class="notes">
+    <li>The step lines use the receipt's wording and order (base, each bonus, each multiplier with its giver, WASTED in tomato), so the scan, the count and the receipt read the same.</li>
+    <li>The top bar is the newest build's (start_fixes_v1 capture): its chips are pasted from that capture and only the SPEND numbers and the liquid are redrawn, at the game's geometry (gauge x 265 to 362, amount at 372, tag at 465). The liquid follows QuotaMeter: tomato with bubbles while short, mustard from 80 %, green to the flag once met and gold past it, a slosh and droplets on each gain, a flash at the quota.</li>
+    <li>Not drawn: the coin fountain (WIN B) on the total; the receipt doesn't print line by line here (it only highlights the line being counted).</li>
+  </ul>
+</section>
+
+<section id="s-badges">
+  <h2><span class="n">4</span>Bonus stickers and giver badges, polished<span class="dtag">DEFAULT</span></h2>
+  <p class="q">v1's stickers were flat boxes with square corners and the giver mini on the top-right corner. Now they are built like the game's (ink outline, 0.42 ink shadow at (2, 2), the tilt list −4°, 3°, −3°, 4°, −2°) at v1's bigger size, with the giver badge back on the <b>left</b>, vertically centred, and polished so it reads at game size: corners rounded in a 3-step stair (2-1-1 texels), a full-white texel row along the top and left, a 2-texel lip at the bottom (cream, then darker) over a 1-texel inner ink line so the sticker has a thickness, a white specular tick on the burst, and an embossed number. <b>Juice:</b> a one-frame white flash as it lands, a pop-in that overshoots and settles (squash 1.2×0.8 → 0.92×1.08), 2 px impact dust under it, four gold sparks bursting out, a hard-edged pixel shine, a number punch, and the count's fire (the whole sticker punches and turns −6° with its text and badge, flash, green check). A giver's gold sparks (the game's GiverSparks) run from the giver to its sticker as it slaps on, and again in the count when the giver is scanned. <b>WASTED</b> gets none of the celebration: it drops in heavy, then a sad thud (a short darken, a 2 px shake) and a tomato underline.</p>
+  <div class="crops" id="crops-bonus"></div>
+  <p class="cap" style="margin-top:16px">Where a bonus came from (game size, animated: slap in, shine, then fire with the check)</p>
+  <div class="specimen" id="specimen"></div>
+  <p class="cap" style="margin-top:16px">The same at 2× for review</p>
+  <div class="specimen x2" id="specimen2"></div>
+  <ul class="notes">
+    <li><b>Sizes (kept from v1):</b> "+N" label 32 px tall with 24 px digits (was 28 / 21), "×N" burst 76×42 with 26 px digits (was 62×34 / 22), WASTED 17 px on a 92 px label, giver badge, loyalty and coupon badges 28 px (14×14 art at 2×; were 14 to 18 px).</li>
+    <li><b>Giver badges are die-cut stickers now:</b> v2 blew the 7×7 minis up 4×, off the 2× pixel grid, and the Lemon read as a yellow square, the Eggs white on Milk's white carton. Here each mini is redrawn at 10×10 art with its own ink outline and set on a 14×14 plate with a 1-texel paper rim and an ink outline, the classic sticker die-cut: the rim makes it read on any sprite. A GOLDEN giver gets a gold rim. Only Eggs and Lemon are redrawn for this page; the game would need all the minis redrawn at 10×10.</li>
+    <li><b>Badge on the left:</b> it hangs off the sticker's left edge by 20 px (14 px on the burst, whose spikes start inside its box), vertically centred and snapped to 2 px, as the game does today. It pops in 0.12 s after its sticker.</li>
+    <li>A coupon giver shows the coupon token (teal, dashed edge, two initials); a loyalty upgrade shows its stamp (mustard ring, teal panel, initials), now centred.</li>
+    <li>When another item is hovered or scanned, the other stacks go grey as today (stage, beat "Scan").</li>
+  </ul>
+</section>
+
+<section id="s-defaults">
+  <h2><span class="n">5</span>Defaults (say if you want any changed)</h2>
+  <div class="defaults" style="margin-top:10px">
+    <div class="dcard"><h3>Short text where you plan<span class="new">NEW</span></h3>The short sticker text with glyphs ("+3 beside <span class="g-produce"></span>") on the belt tickets, the Cart's shelves and the monitor. The long rule text ("+3 if beside a Produce product") stays in two places: the hover popup on the machine's offers (NEW ITEMS, COUPONS) and the machine's prize tickets, the one place to read the full rule before you take a card. Example below.</div>
+    <div class="dcard"><h3>Glyph tooltips<span class="new">NEW</span></h3>Every family glyph shows its name on hover: tickets, sticker text, the monitor, the Cart. Name only (no rule text). The ticket's colour band shows its aisle ("Fruit &amp; veg aisle") on hover.</div>
+    <div class="dcard"><h3>Minimum sizes</h3>Glyphs 18 px; sticker digits ≥ 24 px; giver badges 28 px; ticket effect 13 px bold; monitor text ≥ 14 px in b (effect 16 px); labels ≥ 12 px. Pixelify Sans for item names, Atkinson for small text and numbers. One exception: a loyalty badge's 3 initials are 10 px.</div>
+    <div class="dcard"><h3>Top bar unchanged</h3>#86's liquid gauge, its "€N to go" / "+€N" tag and the anchoring flag stay exactly as in the newest build (the stage pastes its chips from a real capture). The receipt keeps its PROJECTED total.</div>
+    <div class="dcard"><h3>No new options</h3>Nothing new in the options menu: no glyph/word toggle, no font picker.</div>
+  </div>
+  <p class="cap" style="margin-top:18px">Short text on the belt, long text in the offer popup (same card)</p>
+  <div class="panel" id="shortlong"></div>
+  <div class="first" style="margin-top:18px">
+    <h3>For first-time players: what got removed or moved</h3>
+    <p style="margin:0 0 8px">A new player saw a lot at once with no tutorial. This pass removes what competes for attention and keeps each thing in one place.</p>
+    <table>
+      <tr><td><b>Monitor slides</b> (shift brief, loyalty, coupons, sticker key) cycling every few seconds</td><td>Gone in both options. The shift and SPEND live on the top bar, the inspection on its top-bar chip, loyalty upgrades on the card's stamps (hover), coupons on their own tickets.</td></tr>
+      <tr><td><b>Sticker key</b> ("+2 own rule, ×2 from an item, +12 loyalty")</td><td>Gone. The giver's 28 px die-cut badge, coupon token or loyalty stamp on the left of each sticker says where a bonus came from; no badge = the item's own rule.</td></tr>
+      <tr><td><b>Long rule text</b> on the monitor</td><td>The short sticker text (bold in b) plus step lines that say what happened ("Beside Lemon +€3", "No <span class="g-frozen"></span> beside: WASTED").</td></tr>
+      <tr><td><b>Tag words</b> on the monitor, tickets and Cart</td><td>One glyph set; hover a glyph for its name.</td></tr>
+      <tr><td><b>One aisle glyph</b> per ticket (hidden when boosted)</td><td>The aisle is the ticket's colour; the glyphs show the families, never hidden.</td></tr>
+    </table>
+  </div>
+  <ul class="notes" style="margin-top:16px">
+    <li><b>Still rough in this mock-up:</b> the receipt doesn't print during the count; the rail strip's gold light from giver to target and the coin fountain are not drawn; the sticker tilt is CSS rotation, which smooths the pixels (Godot's nearest-neighbour rotation will look crisper).</li>
+  </ul>
+</section>
+</div>
+
+<script>
+"use strict";
+const ART = '../../../art/';
+const Q = new URLSearchParams(location.search);
+const SHOT = Q.has('shot');
+const AT = Q.has('at') ? parseFloat(Q.get('at')) : null;
+const SPEED = Q.has('slow') ? 0.5 : 1;
+const LOOP = 17.5;
+const P = {ink:'#2b2420',inkL:'#4a3f38',greyD:'#5e574d',grey:'#8a8172',greyL:'#c7beab',creamDk:'#b39f78',creamSh:'#ddcba5',
+  cream:'#f3e9d2',paper:'#fbf7ee',white:'#ffffff',tealDk2:'#1f3b3a',tealDk:'#2a4d4b',tealSh:'#3a7672',teal:'#4f9a94',tealL:'#86c2b6',tealP:'#c3e0d4',
+  tomDk2:'#6e2630',tomDk:'#a83a3c',tom:'#d9534f',tomL:'#ec8a6e',tomP:'#f5bfa0',musDk2:'#7a5a1c',musDk:'#b38425',mus:'#e2b33c',
+  musL:'#f1d27a',musP:'#faecbc',grnDk:'#3d7a45',grn:'#5fae5a',grnL:'#a5d17e',brDk2:'#4a3022',brDk:'#7a5232',br:'#a87a4e',brL:'#d2a874',
+  woodP:'#ddb07a',woodL:'#c98c4e',wood:'#a8703a',woodDk:'#6e4524',brass:'#c8932b',brassDk:'#8a5d1a',
+  gold:'#ffcf3f',velDk:'#561327',vel:'#8a1f33',velS:'#b23a55',charcoal:'#24221f',
+  steelHi:'#ecebe4',steelL:'#c7c3b8',steelP:'#a9a59b',steel:'#8d8a83'};
+const NUM = '750';
+
+// ---------- the family glyphs (option A): aisle PNGs where one exists, else a 7x7 shape with an ink outline ----------
+const FAM = {
+  Food:      {glyph:'aisle_pantry'},
+  // v2 review: the four new glyphs redrawn so no two read alike at 18 px (cols: per-pixel colours inside the ink outline)
+  Breakfast: {cols:{g:P.greyL, b:P.brDk, w:P.paper, t:P.tom, s:P.creamSh},   // a white mug of coffee, red band, steam
+    sil:['.g.g...', '..g.g..', 'bbbbb..', 'wwwwwww', 'tttttsw', 'wwwwsww', '.wwws..']},
+  Produce:   {glyph:'aisle_fruit_and_veg'},
+  Bakery:    {glyph:'aisle_bakery'},
+  Dairy:     {cols:{c:P.tealDk, w:P.paper, s:P.creamSh, t:P.teal},           // a white milk bottle, dark cap, teal label
+    sil:['..ccc..', '..wws..', '.wwwws.', 'wwwwwws', 'ttttttt', 'wwwwwws', 'wwwwwws']},
+  Frozen:    {glyph:'aisle_cold_cases'},
+  Snack:     {glyph:'aisle_snacks'},
+  Household: {glyph:'aisle_household'},
+  Clearance: {cols:{r:P.tom, d:P.tomDk, h:P.ink, a:P.paper},                  // a red price tag with a down arrow
+    sil:['..rrrrr', '.rrrarr', 'rrrrarr', 'rhrrard', 'rrraaad', '.rrrard', '..rdddd']},
+  Coupon:    {cols:{w:P.steelHi, p:P.tealDk, d:P.teal}, mark:true,   // open scissors: steel blades, teal finger rings
+    sil:['w.....w', '.w...w.', '..w.w..', '...p...', 'ddd.ddd', 'd.d.d.d', 'ddd.ddd']},
+  Staple:    {mark:true, img:'icons/padlock.png'},
+};
+const FAM_ORDER = ['Food','Breakfast','Produce','Bakery','Dairy','Frozen','Snack','Household','Clearance','Coupon','Staple'];
+const FAM_NOTE = {Food:'the Pantry tin', Produce:'the Fruit & veg apple', Bakery:'the Bakery loaf', Frozen:'the Cold cases snowflake', Snack:'the Snacks packet',
+  Household:'the Household spray', Breakfast:'new: a mug of coffee', Dairy:'new: a white milk bottle', Clearance:'new: a red price tag, arrow down', Coupon:'mark: open scissors', Staple:'mark: the Cart\'s padlock'};
+
+function canvas(w, h) { const c = document.createElement('canvas'); c.width = w; c.height = h; return c; }
+const URLS = {};
+function memo(key, make) { return URLS[key] || (URLS[key] = make()); }
+function glyphURL(name) {
+  const f = FAM[name];
+  if (f.glyph) return ART + 'icons/' + f.glyph + '.png';
+  if (f.img) return ART + f.img;
+  return memo('glyph' + name, () => {
+    const c = canvas(9, 9), g = c.getContext('2d'), on = (x, y) => x >= 0 && y >= 0 && x < 7 && y < 7 && f.sil[y][x] !== '.' && f.sil[y][x] !== f.bare;
+    for (let y = -1; y < 8; y++) for (let x = -1; x < 8; x++) {
+      if (on(x, y)) continue;
+      if (on(x + 1, y) || on(x - 1, y) || on(x, y + 1) || on(x, y - 1)) { g.fillStyle = P.ink; g.fillRect(x + 1, y + 1, 1, 1); }
+    }
+    f.sil.forEach((row, y) => [...row].forEach((ch, x) => { if (ch !== '.') { g.fillStyle = f.cols[ch]; g.fillRect(x + 1, y + 1, 1, 1); } }));   // bare pixels: drawn, not outlined
+    return c.toDataURL();
+  });
+}
+// a glyph: 9x9 art at 2x (18 px), or k = 2 for the review column; data-tip drives the hover tooltip
+function glyph(name, k, style) {
+  k = k || 1; const h = (FAM[name].img ? 20 : 18) * k;
+  return `<img class="px gl" data-tip="${name}" src="${glyphURL(name)}" width="${18 * k}" height="${h}" alt="${name}"${style ? ` style="${style}"` : ''}>`;
+}
+// sticker text: {Tag} becomes the glyph alone, glued (no break) to the word before it, and to the word before that
+// when that word is a count ("next 2 {Food}" wraps as one piece)
+function rich(str, loose) { return str.replace(/((?:\S+ )?\d+ |\S+ )?\{(\w+)\}/g, (m, pre, t) => loose ? `${pre || ''}${glyph(t)}` : `<span class="nw">${pre || ''}${glyph(t)}</span>`); }
+
+// ---------- aisles (data/aisles/*.tres sign_color); staples have none ----------
+// col = the band (the sign colour; Pantry's one step darker so it never merges with the gold burst), sign = data's
+// sign_color, pale = the family column's tint. Staples have no aisle: no band, no tint, plain paper.
+const AISLE = {
+  cold_cases:    {name:'Cold cases',  col:'#4f9a94', sign:'#4f9a94', lt:P.tealL, dk:P.tealSh, pale:P.tealP,  glyph:'aisle_cold_cases'},
+  pantry:        {name:'Pantry',      col:P.musDk,   sign:'#e2b33c', lt:P.mus,   dk:P.musDk2, pale:P.musP,   glyph:'aisle_pantry'},
+  household:     {name:'Household',   col:'#8a8172', sign:'#8a8172', lt:P.greyL, dk:P.greyD,  pale:'#e4dfd3', glyph:'aisle_household'},
+  fruit_and_veg: {name:'Fruit & veg', col:'#3d7a45', sign:'#3d7a45', lt:P.grn,   dk:P.tealDk, pale:'#d3e6bd', glyph:'aisle_fruit_and_veg'},
+  bakery:        {name:'Bakery',      col:'#d2a874', sign:'#d2a874', lt:P.cream, dk:P.br,     pale:'#f0dfc2', glyph:'aisle_bakery'},
+  snacks:        {name:'Snacks',      col:'#7a5232', sign:'#7a5232', lt:P.br,    dk:P.brDk2,  pale:'#e8d5c0', glyph:'aisle_snacks'},
+  staple:        {name:'Staple',      col:P.paper,   sign:null,      lt:P.paper, dk:P.creamSh, pale:null, staple:true},
+};
+const AISLE_ORDER = ['cold_cases','pantry','household','fruit_and_veg','bakery','snacks','staple'];
+function lum(hex) { const n = parseInt(hex.slice(1), 16); return (0.299 * (n >> 16) + 0.587 * ((n >> 8) & 255) + 0.114 * (n & 255)) / 255; }
+const onCol = hex => lum(hex) < 0.6 ? P.paper : P.ink;
+
+// ---------- measuring ----------
+const MEASURE = canvas(1, 1).getContext('2d');
+function textW(font, s) { MEASURE.font = font; return MEASURE.measureText(s).width; }
+const even = v => Math.ceil(v / 2) * 2;
+
+// ---------- pixel shapes: inside() + layers by erosion (0 = rim) ----------
+const CANV = {};   // the art canvases behind memoised frames, for the pixel shine masks
+function shapeURL(key, w, h, inside, paint) {
+  return memo(key, () => {
+    const c = canvas(w, h), g = c.getContext('2d'); CANV[key] = c;
+    const D = [];
+    for (let y = 0; y < h; y++) { D.push([]); for (let x = 0; x < w; x++) D[y].push(inside(x, y) ? 99 : -1); }
+    const get = (x, y) => (x < 0 || y < 0 || x >= w || y >= h) ? -1 : D[y][x];
+    for (let layer = 0; layer < 6; layer++) {
+      const mark = [];
+      for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+        if (D[y][x] !== 99) continue;
+        const nb = [get(x - 1, y), get(x + 1, y), get(x, y - 1), get(x, y + 1)];
+        if (nb.some(v => v !== 99)) mark.push([x, y]);
+      }
+      mark.forEach(([x, y]) => { D[y][x] = layer; });
+    }
+    for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+      const d = D[y][x]; if (d < 0) continue;
+      const col = paint(x, y, d === 99 ? 6 : d); if (!col) continue;
+      g.fillStyle = col; g.fillRect(x, y, 1, 1);
+    }
+    return c.toDataURL();
+  });
+}
+
+// ---------- polished stickers ----------
+// "+N" label: w art px x 16 (32 px tall). Corners: a 3-step stair (2-1-1 texels) so they read as round at 1x.
+// Light: a full-white texel row on top and column on the left, a shaded right column, a 2-texel lip at the
+// bottom (cream shadow, then a darker last row) and a 1-texel inner ink line under it, so the sticker has a thickness.
+const LABEL_H = 16, CORNER = [3, 1, 1];
+function labelURL(w, kind) {
+  const S = kind === 'grey' ? {hi:P.steelHi, face:P.steelL, sh:P.steelP, lip:P.steel}
+    : kind === 'gold' ? {hi:P.musP, face:P.gold, sh:P.mus, lip:P.musDk}
+    : {hi:P.white, face:P.paper, sh:P.creamSh, lip:P.creamDk};
+  const H = LABEL_H, inside = (x, y) => {
+    if (x < 0 || y < 0 || x >= w || y >= H) return false;
+    const r = Math.min(y, H - 1 - y), ins = r < 3 ? CORNER[r] : 0;
+    return x >= ins && x <= w - 1 - ins;
+  };
+  return shapeURL(`lab${w}${kind}`, w, H, inside, (x, y, d) => {
+    if (d === 0 || y >= H - 2) return P.ink;
+    if (y === H - 3) return S.lip;
+    if (y === H - 4) return S.sh;
+    if (d === 1 && (!inside(x, y - 1) || !inside(x - 1, y))) return S.hi;
+    if (d === 1 && !inside(x + 1, y)) return S.sh;
+    return S.face;
+  });
+}
+const PXD = {};   // each frame's pixels, read once
+// the shine: a hard-edged diagonal stair on the art grid (a 3-texel band and a 1-texel trail), masked to the frame's face
+function shineURL(key, pos) {
+  return memo(`shine${key}_${pos}`, () => {
+    const src = CANV[key], w = src.width, h = src.height, px = PXD[key] || (PXD[key] = src.getContext('2d').getImageData(0, 0, w, h).data);
+    const c = canvas(w, h), g = c.getContext('2d'); g.fillStyle = 'rgba(255,255,255,.85)';
+    for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+      const i = (y * w + x) * 4; if (!px[i + 3] || (px[i] === 43 && px[i + 1] === 36 && px[i + 2] === 32)) continue;
+      const u = x + Math.floor(y / 2) - pos; if ((u >= 0 && u < 3) || u === 4) g.fillRect(x, y, 1, 1);
+    }
+    return c.toDataURL();
+  });
+}
+function shineHTML(key, w, h, shine) {
+  const aw = w / 2, ah = h / 2, pos = Math.round(-ah / 2 - 5 + (aw + ah / 2 + 10) * shine);
+  return `<img class="px" src="${shineURL(key, pos)}" width="${w}" height="${h}" style="left:0;top:0">`;
+}
+// a gold spark (the game's GiverSparks cell: a plus of gold arms round a paper centre), snapped to the 2 px grid
+const snap2 = v => Math.round(v / 2) * 2;
+function sparkHTML(x, y, dot) {
+  x = snap2(x); y = snap2(y);
+  if (dot) return `<div style="left:${x}px;top:${y}px;width:2px;height:2px;background:${dot}"></div>`;
+  return [[0, -2], [-2, 0], [2, 0], [0, 2]].map(([a, b]) => `<div style="left:${x + a}px;top:${y + b}px;width:2px;height:2px;background:${P.gold}"></div>`).join('')
+    + `<div style="left:${x}px;top:${y}px;width:2px;height:2px;background:${P.paper}"></div>`;
+}
+// a giver's run: the spark on an arc (26 px at its middle) from the giver to its sticker, three trail dots behind
+function sparkRunHTML(from, to, u) {
+  let h = '';
+  for (let dot = 3; dot >= 0; dot--) {
+    const a = clamp(u - dot * 0.06); if (a <= 0) continue;
+    const x = lerp(from[0], to[0], a), y = lerp(from[1], to[1], a) - Math.sin(a * Math.PI) * 26;
+    h += sparkHTML(x, y, dot === 0 ? null : (dot === 1 ? P.paper : P.musL));
+  }
+  return h;
+}
+// "xN" burst: the game's 18-point formula (radius .84 + .16 * |k - .5| * 2) at 38x21 art (76x42), with a gloss and a lip
+function burstURL() {
+  const W = 38, H = 21;
+  const nrm = (x, y) => [(x + 0.5 - W / 2) / (W / 2), (y + 0.5 - H / 2) / (H / 2)];
+  const inside = (x, y) => {
+    const [nx, ny] = nrm(x, y), r = Math.hypot(nx, ny), a = Math.atan2(ny, nx);
+    const k = (((a / (2 * Math.PI)) * 18) % 1 + 1) % 1;
+    return r < 0.84 + 0.16 * Math.abs(k - 0.5) * 2;
+  };
+  return shapeURL('burst', W, H, inside, (x, y, d) => {
+    const [nx, ny] = nrm(x, y);
+    if (d === 0) return P.ink;
+    if (d === 1) return nx * 0.6 + ny < -0.05 ? P.musP : (nx * 0.6 + ny > 0.35 ? P.musDk : P.mus);
+    if ((x === 9 && y === 5) || (x === 10 && y === 4) || (x === 12 && y === 4)) return P.white;   // the specular tick by the top-left spike
+    if (((nx + 0.28) / 0.42) ** 2 + ((ny + 0.36) / 0.2) ** 2 < 1) return P.musP;
+    if (ny > 0.42) return P.musDk;
+    return P.mus;
+  });
+}
+const BURST_W = 76, BURST_H = 42;
+// 28 px badges: 14x14 art at 2x
+const roundSq = (n, cut) => (x, y) => Math.min(x, n - 1 - x) + Math.min(y, n - 1 - y) >= cut;
+function stampURL() {
+  return shapeURL('stamp', 14, 14, roundSq(14, 2), (x, y, d) => d === 0 ? P.ink : d === 1 ? (x + y < 13 ? P.musL : P.mus) : d === 2 ? (x + y < 13 ? P.mus : P.musDk) : P.tealDk);
+}
+function couponTokenURL() {
+  return shapeURL('ctok', 14, 14, roundSq(14, 1), (x, y, d) => d === 0 ? P.ink : d === 1 ? ((x + y) % 3 === 0 ? P.tealL : P.tealSh) : (x + y < 8 && d === 2 ? P.teal : P.tealSh));
+}
+// giver minis redrawn at 10x10 art (own ink outline), die-cut on a 14x14 plate: a 1-texel paper rim, then ink.
+// A GOLDEN giver gets a gold rim (lit top-left, brass bottom-right) instead of paper.
+const MINI10 = {
+  eggs: ['...kkkk...', '..kwwcck..', '.kwwcccck.', '.kwccccsk.', 'kwcccccssk', 'kwcccccssk', 'kccccccssk', 'kdccccsssk', '.kddssssk.', '..kkkkkk..'],
+  lemon: ['.......kk.', '......kgGk', '...kkkkGk.', '.kkpllmmk.', 'kpllllmmdk', 'kllllllmdk', 'kllllmmmdk', '.kmmmmmddk', '.kkmdddkk.', '...kkkk...'],
+};
+MINI10.eggs_golden = MINI10.eggs;
+const MINI_COL = {k:P.ink, w:P.paper, c:P.cream, s:P.creamSh, d:P.creamDk, p:P.musP, l:P.musL, m:P.mus, g:P.grn, G:P.grnDk};
+function plateURL(id) {
+  return memo('plate' + id, () => {
+    const rows = MINI10[id], gold = id.endsWith('_golden'), N = 14, c = canvas(N, N), g = c.getContext('2d');
+    const art = (x, y) => { const r = rows[y - 2]; return r && x >= 2 && x < 12 && r[x - 2] !== '.' ? r[x - 2] : null; };
+    const near = (x, y, f) => [[0, 0], [1, 0], [-1, 0], [0, 1], [0, -1], [1, 1], [-1, -1], [1, -1], [-1, 1]].some(([a, b]) => f(x + a, y + b));
+    const rim = (x, y) => !art(x, y) && near(x, y, art);
+    for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) {
+      const a = art(x, y); let col = null;
+      if (a) col = MINI_COL[a];
+      else if (rim(x, y)) col = gold ? (x + y < 13 ? P.gold : P.brass) : (x + y < 13 ? P.white : P.paper);
+      else if (near(x, y, rim)) col = P.ink;
+      if (col) { g.fillStyle = col; g.fillRect(x, y, 1, 1); }
+    }
+    return c.toDataURL();
+  });
+}
+function checkURL() {
+  return memo('check', () => {
+    const rows = ['.......kk','......kGk','.kk..kGLk','kGLkkGGk.','kGGGGGk..','.kGGGk...','..kGk....','...k.....'];
+    const c = canvas(9, 8), g = c.getContext('2d');
+    rows.forEach((r, y) => [...r].forEach((ch, x) => { if (ch !== '.') { g.fillStyle = ch === 'k' ? P.ink : ch === 'L' ? P.grnL : P.grn; g.fillRect(x, y, 1, 1); } }));
+    return c.toDataURL();
+  });
+}
+const TILTS = [-4, 3, -3, 4, -2];
+const DROP = 'drop-shadow(2px 2px 0 rgba(43,36,32,.42))';
+const WASTE_FONT = '800 17px Atkinson';
+function stickerDims(st) {
+  if (st.k === 'mul') return {w:BURST_W, h:BURST_H};
+  if (st.k === 'waste') return {w:Math.max(92, even(textW(WASTE_FONT, 'WASTED') + 6 + 18)), h:32};
+  if (st.k === 'fold') return {w:60, h:32};
+  const tw = textW('800 24px Atkinson', st.t);
+  return {w:Math.max(52, even(tw + 22)), h:32};
+}
+// keyframes [time, sx, sy]: pop-in with overshoot, the game's slap squash, settle; WASTED drops in heavy, no bounce
+const POP = [[0, 0.2, 0.2], [0.06, 1.28, 1.28], [0.1, 1.2, 0.8], [0.15, 0.92, 1.08], [0.23, 1.04, 0.97], [0.3, 1, 1]];
+const POP_SAD = [[0, 1.12, 1.12], [0.05, 1.04, 0.9], [0.1, 1, 1]];
+function keyAt(keys, p) {
+  if (p >= keys[keys.length - 1][0]) return keys[keys.length - 1].slice(1);
+  for (let i = 1; i < keys.length; i++) if (p < keys[i][0]) {
+    const a = keys[i - 1], b = keys[i], u = (p - a[0]) / (b[0] - a[0]);
+    return a.slice(1).map((v, j) => v + (b[j + 1] - v) * u);
+  }
+}
+// the sad thud (WASTED): a short darken and a 2 px horizontal shake, no shine
+function thud(q) { return q >= 0 && q < 0.22 ? {br:0.7, dx:(Math.floor(q / 0.045) % 2 ? 2 : -2)} : null; }
+// one sticker at (x, y); ta = slap time, tf = fire time (count) or null, t = now. The tilt and the fire's turn rotate
+// the whole sticker (frame, text, badge and check together, as the game turns _inner).
+function stickerHTML(st, x, y, tilt, ta, tf, t, drained) {
+  if (t < ta) return '';
+  const {w, h} = stickerDims(st), p = t - ta, sad = st.k === 'waste', grey = sad || st.k === 'fold';
+  let [sx, sy] = keyAt(sad ? POP_SAD : POP, p), rot = tilt, br = 1, chk = 0, shine = null, tp = 1, dx = 0;
+  tp = sad ? 1 : (p > 0.05 ? 1 + 0.45 * (1 - clamp((p - 0.05) / 0.22)) ** 2 : 0);
+  if (p < 0.034) br = sad ? 1 : 2.4;   // one white frame as it lands
+  if (!grey && p > 0.3 && p < 0.75) shine = (p - 0.3) / 0.45;
+  let strike = sad ? clamp((p - 0.1) / 0.08) : 0;
+  if (sad) { const th = thud(p - 0.1); if (th) { br = th.br; dx = th.dx; } }
+  if (tf !== null && t >= tf) {
+    const pf = t - tf;
+    if (sad) { const th = thud(pf); if (th) { br = th.br; dx = th.dx; } }
+    else {
+      if (pf < 0.3) { const k = 1 + 0.55 * (1 - pf / 0.3) ** 2; sx *= k; sy *= k; rot += -6 * (1 - pf / 0.3); tp = 1 + 0.3 * (1 - pf / 0.3); }
+      if (pf < 0.12) br = 1.6;
+      if (pf > 0.06 && pf < 0.5) shine = (pf - 0.06) / 0.44;
+      if (pf >= 0.34 && st.k !== 'fold') chk = pf < 0.44 ? 1.6 - 0.6 * (pf - 0.34) / 0.1 : 1;
+    }
+  }
+  const kind = grey ? 'grey' : 'paper', key = st.k === 'mul' ? 'burst' : `lab${w / 2}${kind}`;
+  const frame = st.k === 'mul' ? burstURL() : labelURL(w / 2, kind);
+  const txt = sad ? 'WASTED' : st.t;
+  const lh = st.k === 'mul' ? h : 26;   // the label's face is rows 1-11: centre the text there, above the lip
+  const font = st.k === 'mul' ? `800 26px/${lh}px Atkinson` : grey ? `800 17px/${lh}px Atkinson` : `800 24px/${lh}px Atkinson`;
+  const tcol = grey ? P.inkL : P.ink;
+  const tsh = st.k === 'mul' ? `0 2px 0 ${P.mus}` : grey ? `0 2px 0 ${P.steelHi}` : `0 2px 0 ${P.creamSh}`;
+  let badge = '';
+  if (st.giver || st.stamp || st.coupon) {
+    const pb = p - 0.12;
+    if (pb >= 0) {
+      const bs = pb < 0.08 ? 1.35 * pb / 0.08 : 1.35 - 0.35 * ease((pb - 0.08) / 0.14);
+      const bx = st.k === 'mul' ? -14 : -20, by = Math.round((h - 28) / 4) * 2;
+      let inner;
+      if (st.giver) inner = `<img class="px" src="${plateURL(st.giver)}" width="28" height="28" style="left:0;top:0">`;
+      else inner = `<img class="px" src="${st.stamp ? stampURL() : couponTokenURL()}" width="28" height="28" style="left:0;top:0">
+        <div style="left:0;top:0;width:28px;height:28px;text-align:center;font:800 ${st.stamp ? 10 : 11}px/28px Atkinson;letter-spacing:-.3px;color:${st.stamp ? P.musP : P.paper}">${st.stamp || st.coupon}</div>`;
+      badge = `<div style="left:${bx}px;top:${by}px;width:28px;height:28px;transform:scale(${bs.toFixed(3)});filter:${DROP}">${inner}</div>`;
+    }
+  }
+  const check = chk ? `<img class="px" src="${checkURL()}" width="18" height="16" style="left:${w - 12}px;top:-6px;transform:scale(${chk.toFixed(3)})">` : '';
+  // WASTED's tomato underline, drawn in once as it lands
+  const tw = sad ? even(textW(WASTE_FONT, 'WASTED') + 6) : 0;
+  const under = strike ? `<div style="left:${(w - tw) / 2}px;top:21px;width:${snap2(tw * strike)}px;height:2px;background:${P.tom};box-shadow:0 2px 0 ${P.tomDk2}"></div>` : '';
+  // impact dust: 2 px puffs out of both bottom corners as it lands
+  let fx = '';
+  const dq = (p - 0.04) / 0.3;
+  if (dq > 0 && dq < 1) {
+    const e = 1 - (1 - dq) ** 2;
+    [[-1, 0], [-1, 1], [1, 0], [1, 1]].forEach(([sg, k]) => {
+      const px = w / 2 + sg * (w / 2 - 4 + (8 + 6 * k) * e), py = h - 2 - (2 + 4 * k) * e;
+      if (dq < 0.85 - k * 0.2) fx += sparkHTML(px, py, k ? P.greyL : P.cream);
+    });
+  }
+  // the slap's sparks: four gold sparks burst out of the sticker (not for WASTED or a fold)
+  const sq = (p - 0.05) / 0.4;
+  if (!grey && sq > 0 && sq < 1) {
+    const e = 1 - (1 - sq) ** 3;
+    [[-150, 1], [-35, 1.1], [-95, 0.8], [160, 0.9]].forEach(([a, k], i) => {
+      const r = (w / 2 + 6) * k * (0.55 + 0.5 * e), px = w / 2 + Math.cos(a * Math.PI / 180) * r, py = h / 2 + Math.sin(a * Math.PI / 180) * r * 0.7;
+      fx += sparkHTML(px, py, sq > 0.7 ? (i % 2 ? P.musL : P.paper) : null);
+    });
+  }
+  return `<div style="left:${x}px;top:${y}px;width:${w}px;height:${h}px;${drained ? 'filter:saturate(.15) brightness(.78) contrast(.7);' : ''}">${fx}
+    <div style="left:0;top:0;width:${w}px;height:${h}px;transform-origin:50% 100%;transform:translateX(${dx}px) scale(${sx.toFixed(3)},${sy.toFixed(3)})">
+    <div style="left:0;top:0;width:${w}px;height:${h}px;transform:rotate(${rot.toFixed(2)}deg);${br !== 1 ? `filter:brightness(${br})` : ''}">
+      <img class="px" src="${frame}" width="${w}" height="${h}" style="left:0;top:0;filter:${DROP}">${shine === null ? '' : shineHTML(key, w, h, shine)}
+      <div style="left:${st.k === 'mul' ? 2 : 0}px;top:0;width:${w}px;height:${lh}px;text-align:center;font:${font};${grey ? 'letter-spacing:1px;' : ''}color:${tcol};text-shadow:${tsh};transform:scale(${tp.toFixed(3)})">${txt}</div>
+      ${under}${badge}${check}</div></div></div>`;
+}
+
+// ---------- the € tag on the bay (BayTag look), used by monitor a ----------
+function tagURL(w, paid) {
+  return memo(`tag${w}_${paid}`, () => {
+    const rows = 11, h = rows - 1, c = canvas(w, rows), g = c.getContext('2d');
+    const face = paid ? P.gold : P.paper, hi = paid ? P.musP : P.paper, sh = paid ? P.mus : P.creamSh;
+    const ch = Math.floor(h / 3), left = y => Math.max(0, ch - y, y - (h - 1 - ch));
+    g.fillStyle = 'rgba(43,36,32,0.38)'; for (let y = 0; y < h; y++) g.fillRect(left(y) + 1, y + 1, w - left(y) - 1, 1);
+    for (let y = 0; y < h; y++) { g.fillStyle = P.ink; g.fillRect(left(y), y, w - left(y), 1); }
+    for (let y = 1; y < h - 1; y++) { const l = left(y) + 1; g.fillStyle = y === 1 ? hi : (y === h - 2 ? sh : face); g.fillRect(l, y, w - 1 - l, 1); }
+    g.fillStyle = P.ink; g.fillRect(ch, Math.floor(h / 2) - 1, 1, 2);
+    return c.toDataURL();
+  });
+}
+function euroTag(text, paid) {
+  const font = `800 17px Atkinson`, tw = Math.ceil(textW(font, text)), wArt = Math.max(22, Math.ceil((tw + 18) / 2));
+  return {w: wArt * 2, html: `<div class="tagbox" style="left:0;top:0;width:${wArt * 2}px;height:22px">
+    <img class="px" src="${tagURL(wArt, paid)}" width="${wArt * 2}" height="22" style="left:0;top:0">
+    <div style="left:12px;top:0;width:${wArt * 2 - 14}px;height:20px;line-height:20px;text-align:center;font:${font};color:${P.ink}">${text}</div></div>`};
+}
+
+// ---------- the price: struck base + the game's pay tags (real art) ----------
+function payTag(pay, base) {
+  const s = '€' + pay;
+  if (pay === 0) return {src:'effects/pay_zero.png', w:52, h:26, size:17, col:P.paper, txt:s, ox:4, oy:4};
+  if (pay < base) return {src:'effects/pay_plain.png', w:52, h:26, size:17, col:P.ink, txt:s, ox:4, oy:4};
+  if (s.length >= 4) return {src:'effects/pay_burst_wide.png', w:80, h:36, size:s.length > 4 ? 16 : 20, col:P.ink, txt:s, ox:6, oy:10};
+  return {src:'effects/pay_burst.png', w:60, h:32, size:19, col:P.ink, txt:s, ox:6, oy:6};
+}
+function payTagHTML(tg, x, y, scale) {
+  return `<div style="left:${x}px;top:${y}px;width:${tg.w}px;height:${tg.h}px;transform:scale(${(scale || 1).toFixed(3)});filter:drop-shadow(3px 3px 0 rgba(43,36,32,.42))">
+    <img class="px" src="${ART}${tg.src}" width="${tg.w}" height="${tg.h}" style="left:0;top:0">
+    <div style="left:0;top:0;width:${tg.w}px;height:${tg.h}px;line-height:${tg.h}px;text-align:center;font:${NUM} ${tg.size}px Atkinson;color:${tg.col}">${tg.src.includes('zero') ? `<img class="px" src="${ART}icons/warning.png" width="13" height="11" style="position:static;vertical-align:0;margin-right:2px">` : ''}${tg.txt}</div></div>`;
+}
+// the base: 22 px number font in ink, with a 1-texel paper outline when it sits on a colour band; struck = a 2 px
+// tomato line (ink under it) low through the digits, 3 px past each end, so a struck "€1" never reads as "€t"
+const PAPER_RIM = [[-2, 0], [2, 0], [0, -2], [0, 2], [-2, -2], [2, -2], [-2, 2], [2, 2]].map(([a, b]) => `${a}px ${b}px 0 ${P.paper}`).join(',');
+function baseHTML(base, struck, x, y, onBand) {
+  const s = '€' + base, tw = Math.ceil(textW(`${NUM} 22px Atkinson`, s));
+  return {w: tw, html: `<div style="left:${x}px;top:${y}px;width:${tw + 4}px;height:24px;line-height:24px;font:${NUM} 22px Atkinson;color:${struck && !onBand ? P.inkL : P.ink};${onBand ? `text-shadow:${PAPER_RIM}` : ''}">${s}</div>`
+    + (struck ? `<div style="left:${x - 3}px;top:${y + 14}px;width:${tw + 6}px;height:2px;background:${P.tom};box-shadow:0 2px 0 ${P.ink}"></div>` : '')};
+}
+
+// ---------- the items on the belt (real card data, shift 3, slot 7 closed) ----------
+const ITEMS = [
+  {id:'eggs', name:'Eggs', base:1, tags:['Food','Breakfast'], aisle:'staple', eff:'×2 next {Food}', long:'Double the next Food payout (resets, does not stack)', pay:1,
+    steps:[{t:'Gives ×2 › Milk', give:true}], stick:[]},
+  {id:'milk', name:'Milk', base:4, tags:['Food','Breakfast','Dairy'], aisle:'staple', eff:'+1 per earlier {Breakfast}', long:'+1 for each earlier Breakfast product', pay:10,
+    steps:[{t:'Eggs before it', d:'+€1', v:5}, {t:'×2 from Eggs', d:'×2', v:10, giver:'eggs'}],
+    stick:[{k:'add', t:'+1'}, {k:'mul', t:'×2', giver:'eggs'}]},
+  {id:'strawberries', name:'Strawberries', base:2, tags:['Food','Produce'], aisle:'fruit_and_veg', eff:'+3 beside {Produce}', long:'+3 if beside a Produce product', pay:5,
+    steps:[{t:'Beside Lemon', d:'+€3', v:5}], stick:[{k:'add', t:'+3'}]},
+  {id:'lemon', name:'Lemon', base:1, tags:['Food','Produce'], aisle:'fruit_and_veg', eff:'×2 next {Produce}', long:'Double the next Produce payout', pay:1,
+    steps:[{t:'Gives ×2 › Frozen peas', give:true}], stick:[]},
+  {id:'frozen_peas', name:'Frozen peas', base:3, tags:['Food','Frozen','Produce'], aisle:'cold_cases', eff:'+3 beside {Frozen}', long:'+ its base value (+3) as a flat bonus if beside another Frozen product', pay:6,
+    steps:[{t:'No {Frozen} beside', d:'WASTED', fiz:true, v:3}, {t:'×2 from Lemon', d:'×2', v:6, giver:'lemon'}],
+    stick:[{k:'waste'}, {k:'mul', t:'×2', giver:'lemon'}]},
+  {id:'batteries', name:'Batteries', base:1, tags:['Household'], aisle:'household', eff:'+4 in last slot', long:'+4 if in the last slot', pay:5,
+    steps:[{t:'Last open slot', d:'+€4', v:5}], stick:[{k:'add', t:'+4'}]},
+];
+ITEMS.forEach((it, i) => { it.slot = i; });
+// stress cases (real card data): a coupon, a staple GOLDEN, two-glyph items, aisle != family, a 3-digit pay, a €0 spot check
+const STRESS = [
+  {id:'multipack', name:'Multipack', coupon:true, base:0, tags:[], eff:"×3 later with prior's tag", pay:0},
+  {id:'eggs_golden', name:'Golden Eggs', base:3, tags:['Food','Breakfast'], aisle:'staple', eff:'×2 next 2 {Food}', pay:3, tier:'GOLDEN'},
+  {id:'day_old_buns', name:'Day-old buns', base:2, tags:['Food','Bakery','Clearance'], aisle:'pantry', eff:'+3 after {Clearance}', pay:5},
+  {id:'birthday_candles', name:'Birthday candles', base:1, tags:['Household'], aisle:'bakery', eff:'+3 next {Bakery}', pay:1},
+  {id:'cereal_bar', name:'Cereal bar', base:2, tags:['Food','Snack','Breakfast'], aisle:'snacks', eff:'+2 beside {Snack}', pay:4},
+  {id:'milk_golden', name:'Golden Milk', base:6, tags:['Food','Breakfast','Dairy'], aisle:'staple', eff:'+2 per earlier {Breakfast}', pay:126, tier:'GOLDEN'},
+  {id:'frozen_peas', name:'Frozen peas', base:3, tags:['Food','Frozen','Produce'], aisle:'cold_cases', eff:'+3 beside {Frozen}', pay:0},
+];
+const GALLERY = [
+  [{id:'frozen_peas', name:'Frozen peas', base:3, tags:['Food','Frozen','Produce'], aisle:'cold_cases', eff:'+3 beside {Frozen}', pay:6},
+    '<b>Frozen peas</b>: stocked in Cold cases (teal); counts as Frozen and Produce, so Lemon\'s "×2 next Produce" hits it.'],
+  [{id:'crackers', name:'Crackers', base:2, tags:['Food','Bakery'], aisle:'pantry', eff:'+3 beside Soup', pay:2},
+    '<b>Crackers</b>: Pantry (dark mustard) but counts as Bakery: the glyph is what rules see.'],
+  [STRESS[2], '<b>Day-old buns</b>: Pantry; Bakery and Clearance. Two glyphs, one colour.'],
+  [STRESS[3], '<b>Birthday candles</b>: on the Bakery aisle, counts as Household.'],
+  [{id:'ham_ends', name:'Ham ends', base:2, tags:['Food','Clearance'], aisle:'cold_cases', eff:'+3 after {Dairy}', pay:2},
+    '<b>Ham ends</b>: Cold cases (teal), but neither Dairy nor Frozen.'],
+  [{id:'tea_bags', name:'Tea bags', base:1, tags:['Breakfast'], aisle:'pantry', eff:'×4 next {Breakfast}', pay:1},
+    '<b>Tea bags</b>: Pantry, the aisle of the Food tin, but not Food.'],
+  [STRESS[4], '<b>Cereal bar</b>: Snacks (dark brown); Snack and Breakfast.'],
+  [ITEMS[1], '<b>Milk</b>: a staple, no aisle: plain paper, the padlock with its Breakfast and Dairy glyphs.'],
+  [STRESS[0], '<b>Multipack</b>: coupons keep the coupon ticket.'],
+];
+function shelfTags(it) { const t = it.tags.filter(x => x !== 'Food'); return t.length ? t : it.tags.slice(0, 1); }
+const QUOTA = 26, TOTAL = ITEMS.reduce((s, it) => s + it.pay, 0);
+const slotX = i => 368 + 128 * i;
+const spriteX = i => 374 + 128 * i;
+const SPRITE_Y = 290, TICKET_Y = 424;
+
+// ---------- tickets ----------
+// the families shown on a ticket: every tag but Food, plus the padlock for a staple (no aisle, no colour)
+function ticketFams(it) { return it.coupon ? [] : shelfTags(it).concat(AISLE[it.aisle || 'staple'].staple ? ['Staple'] : []); }
+const COL_X = n => 82;   // the family column's left edge (2 px units); a staple's third glyph sits left of it, untinted
+function frameURL(v, ak, n) {
+  return memo('frame' + v + ak + n, () => {
+    const a = AISLE[ak], W = 54, H = 32, c = canvas(W, H), g = c.getContext('2d');
+    const R = (x, y, w, h, col) => { g.fillStyle = col; g.fillRect(x, y, w, h); };
+    R(1, 0, W - 2, H, P.ink); R(0, 1, W, H - 2, P.ink);
+    R(1, 1, W - 2, H - 2, P.paper);
+    const cx = COL_X(n) / 2;
+    // the family column: a pale aisle tint, part of the colour (an L with A's band); none for a staple or no glyphs
+    if (n && a.pale && v !== 'NOW') R(cx, v === 'A' ? 13 : (v === 'B' ? 3 : 1), W - 1 - cx, H - 2 - (v === 'A' ? 12 : (v === 'B' ? 2 : 0)), a.pale);
+    R(W - 2, 3, 1, H - 4, P.creamSh); R(1, H - 2, W - 2, 1, P.creamSh);
+    if (n && a.pale && v !== 'NOW') { R(W - 2, v === 'A' ? 13 : 3, 1, H - (v === 'A' ? 15 : 5), a.lt === P.paper ? P.creamSh : a.dk); }
+    if (!a.staple) {
+      if (v === 'A') { R(1, 1, W - 2, 12, a.col); R(1, 1, W - 2, 1, a.lt); R(1, 12, cx - 1, 1, a.dk); R(W - 2, 2, 1, 10, a.dk); }
+      if (v === 'B') { R(1, 1, W - 2, 2, a.col); R(1, 1, W - 2, 1, a.lt); R(1, 1, 4, H - 2, a.col); R(1, 1, 1, H - 3, a.lt); R(5, 3, 1, H - 4, a.dk); R(1, H - 2, 5, 1, a.dk); }
+    }
+    if (v === 'NOW') { R(1, 1, W - 2, 2, P.musL); }
+    return c.toDataURL();
+  });
+}
+// C's flag: w art px x 13, a notched (swallowtail) right end, lit top row, shaded bottom row
+function flagURL(w, ak) {
+  const a = AISLE[ak], H = 13;
+  return shapeURL(`flag${w}${ak}`, w, H, (x, y) => x <= w - 1 - Math.max(0, 3 - Math.abs(y - 6)) && !(x === 0 && (y === 0 || y === H - 1)),
+    (x, y, d) => d === 0 ? P.ink : (y === 1 ? a.lt : (y === H - 2 ? a.dk : a.col)));
+}
+// a ticket at (x, y); cart = base price only (the Cart's shelf); records the glyph spots on it.gp[v].
+// data-tipbelow: tooltips on a rail or shelf ticket open below the ticket, so they never cover its price.
+function ticketHTML(it, v, x, y, cart) {
+  const a = AISLE[it.aisle || 'staple'], pay = cart ? it.base : it.pay, changed = !it.coupon && pay !== it.base;
+  const fams = ticketFams(it), n = fams.length, tip = a.staple ? 'Staple: no aisle' : a.name + ' aisle';
+  let h = `<div data-tipbelow="1" style="left:${x}px;top:${y}px;width:108px;height:64px">`;
+  if (it.coupon) h += `<img class="px" src="${ART}frames/ticket_coupon.png" width="108" height="64" style="left:0;top:0">`;
+  else h += `<img class="px" src="${frameURL(v, it.aisle || 'staple', n)}" width="108" height="64" style="left:0;top:0">`;
+  let effX = 6;
+  if (it.coupon) {
+    h += `<div style="left:8px;top:7px;height:18px;line-height:18px;font:800 12px Atkinson;letter-spacing:1px;color:${P.tealDk}">COUPON</div>`;
+  } else if (v === 'A') {
+    if (!a.staple) h += `<div data-tip="${tip}" style="left:2px;top:2px;width:104px;height:22px"></div>`;
+    h += baseHTML(it.base, changed, 8, 1, !a.staple).html;
+  } else if (v === 'B') {
+    if (!a.staple) h += `<div data-tip="${tip}" style="left:2px;top:2px;width:10px;height:60px"></div>`;
+    h += baseHTML(it.base, changed, a.staple ? 8 : 16, 6, false).html;
+    effX = a.staple ? 6 : 16;
+  } else if (v === 'C') {
+    if (!a.staple) {
+      const tw = Math.ceil(textW(`${NUM} 22px Atkinson`, '€' + it.base)), fw = Math.ceil((tw + 22) / 2);
+      h += `<img class="px" data-tip="${tip}" src="${flagURL(fw, it.aisle)}" width="${fw * 2}" height="26" style="left:0;top:3px">`;
+      h += baseHTML(it.base, changed, 7, 4, true).html;
+    } else h += baseHTML(it.base, changed, 8, 4, false).html;
+  } else {   // NOW: today's ticket redrawn (aisle glyph top right, words in the effect)
+    h += baseHTML(it.base, changed, 8, 6, false).html;
+  }
+  // effect (short sticker text) on the left; the family glyphs stack in a column at the right edge, under the burst
+  // one glyph centred, two stacked; three (a staple's) take a second column on the first line only, the effect text
+  // flowing under it on line 2
+  const effR = n ? 80 : 102;
+  const gpos = j => n === 1 ? [84, 34] : n === 2 ? [84, 26 + j * 18] : [j < 2 ? 84 : 64, j < 2 ? 26 + j * 18 : 26];
+  const notch = n > 2 ? '<span style="float:right;width:20px;height:15px"></span>' : '';
+  h += `<div class="flow rich" style="position:absolute;left:${effX}px;top:${it.coupon ? 28 : 29}px;width:${effR - effX}px;height:31px;overflow:hidden;font:800 13px/15px Atkinson;color:${P.ink}">${notch}${rich(it.eff)}</div>`;
+  it.gp = it.gp || {};
+  it.gp[v] = fams.map((f, j) => ({fam:f, x:x + gpos(j)[0], y:y + gpos(j)[1], bottom:y + 64}));
+  fams.forEach((f, j) => { h += glyph(f, 1, `left:${gpos(j)[0]}px;top:${gpos(j)[1]}px`); });
+  if (it.tier) h += `<div style="left:4px;top:60px;height:14px;padding:0 5px;line-height:14px;font:800 10px Atkinson;letter-spacing:1px;background:${P.gold};color:${P.ink};box-shadow:0 0 0 2px ${P.ink}">${it.tier}</div>`;
+  if (changed) { const tg = payTag(pay, it.base); h += payTagHTML(tg, 108 + tg.ox - tg.w, -tg.oy); }
+  return h + '</div>';
+}
+
+// ---------- the timeline ----------
+const T_TIP1 = 2.15, T_TO_SCAN = 3.0, T_SCAN1 = 3.9, T_MOVE2 = 5.9, T_SCAN2 = 6.75, T_MOVE3 = 8.6, T_PRESS = 9.15, T_COUNT = 9.4, BEAT = 0.95;
+const T_END = T_COUNT + BEAT * ITEMS.length;
+const BEATS = [['Slap', 0.3], ['Tooltip', 1.7], ['Scan', 4.9], ['Wasted', 7.7], ['Checkout', 9.3], ['Count', 11.8], ['Climax', 15.4], ['Met', 16.5]];
+function lerp(a, b, u) { return a + (b - a) * u; }
+function clamp(u) { return Math.max(0, Math.min(1, u)); }
+function ease(u) { u = clamp(u); return u * u * (3 - 2 * u); }
+const LAND = 0.82;   // an item's € lands on the total 0.82 s into its beat
+function stateAt(t, gp) {
+  const s = {t, cursor:null, hold:0, mode:'next', item:0, t0:0, count:null, tip:null};
+  const home = [760, 640], over = i => [spriteX(i) + 40, SPRITE_Y + 56], chk = [168, 470];
+  const g0 = [gp[0].x + 9, gp[0].y + 9], g1 = gp[1] ? [gp[1].x + 9, gp[1].y + 9] : g0;
+  const mv = (a, b, u) => [lerp(a[0], b[0], u), lerp(a[1], b[1], u)];
+  if (t < T_TIP1) { s.cursor = mv(home, g0, ease((t - 0.5) / 0.6)); if (t > 1.15) s.tip = 0; }
+  else if (t < T_TO_SCAN) { s.cursor = mv(g0, g1, ease((t - T_TIP1) / 0.18)); if (t > T_TIP1 + 0.2) s.tip = 1; }
+  else if (t < T_SCAN1) {
+    s.cursor = mv(g1, over(2), ease((t - T_TO_SCAN) / 0.45));
+    if (t > T_TO_SCAN + 0.5) { s.hold = clamp((t - T_TO_SCAN - 0.5) / 0.4); s.holdSlot = 2; }
+  } else if (t < T_MOVE2) { s.mode = 'scan'; s.item = 2; s.t0 = T_SCAN1; s.cursor = over(2); s.reticle = 2; }
+  else if (t < T_SCAN2) {
+    s.cursor = mv(over(2), over(4), ease((t - T_MOVE2) / 0.45));
+    if (t > T_MOVE2 + 0.45) { s.hold = clamp((t - T_MOVE2 - 0.45) / 0.4); s.holdSlot = 4; }
+  } else if (t < T_MOVE3) { s.mode = 'scan'; s.item = 4; s.t0 = T_SCAN2; s.cursor = over(4); s.reticle = 4; }
+  else if (t < T_COUNT) { s.cursor = mv(over(4), chk, ease((t - T_MOVE3) / 0.5)); s.press = t > T_PRESS && t < T_PRESS + 0.2; }
+  else {
+    const k = Math.min(ITEMS.length - 1, Math.floor((t - T_COUNT) / BEAT));
+    s.mode = 'count'; s.item = k; s.t0 = T_COUNT + k * BEAT; s.cursor = chk;
+    let poured = 0, lastLand = -9;
+    for (let i = 0; i < ITEMS.length; i++) {
+      const done = T_COUNT + i * BEAT + LAND;
+      if (t >= done) { poured += ITEMS[i].pay; lastLand = done; }
+      else if (t > done - 0.25) poured += ITEMS[i].pay * ease((t - (done - 0.25)) / 0.25);
+    }
+    s.count = {k, poured, end: t >= T_END, lastLand};
+  }
+  return s;
+}
+const fireAt = (k, j) => T_COUNT + k * BEAT + 0.25 + j * 0.22;
+
+// ---------- pieces drawn in code ----------
+function cursorURL() {
+  return memo('cursor', () => {
+    const rows = ['k.........','kk........','kwk.......','kwwk......','kwwwk.....','kwwwwk....','kwwwwwk...','kwwwwwwk..','kwwwwkkkk.','kwkwwk....','kk.kwwk...','k...kwwk..','....kwwk..','.....kk...'];
+    const c = canvas(10, 14), g = c.getContext('2d');
+    rows.forEach((r, y) => [...r].forEach((ch, x) => { if (ch !== '.') { g.fillStyle = ch === 'k' ? P.ink : P.paper; g.fillRect(x, y, 1, 1); } }));
+    return c.toDataURL();
+  });
+}
+function tipFrameURL() {
+  return memo('tipf', () => {
+    const rows = ['.###.', '#hhh#', '#fff#', '#fff#', '.###.'], c = canvas(5, 5), g = c.getContext('2d');
+    rows.forEach((r, y) => [...r].forEach((ch, x) => { if (ch !== '.') { g.fillStyle = ch === '#' ? P.ink : ch === 'h' ? P.greyD : P.inkL; g.fillRect(x, y, 1, 1); } }));
+    return c.toDataURL();
+  });
+}
+function tipTailURL() {
+  return memo('tipt', () => {
+    const rows = ['#fffff#', '.#fff#.', '..#f#..', '...#...'], c = canvas(7, 4), g = c.getContext('2d');
+    rows.forEach((r, y) => [...r].forEach((ch, x) => { if (ch !== '.') { g.fillStyle = ch === '#' ? P.ink : P.inkL; g.fillRect(x, y, 1, 1); } }));
+    return c.toDataURL();
+  });
+}
+function tipName(name) { return name; }
+// a tooltip box. Above (the monitor, sticker text, the Cart's labels): its tail points down at (cx, gy). Below (a rail
+// or shelf ticket): it opens under the ticket (gy = the ticket's bottom), tail up, the box ending just right of the
+// glyph so the pointer never covers the word.
+function tipBox(name, cx, gy, below) {
+  const w = even(textW('800 13px Atkinson', name) + 26);
+  return below ? {w, x:Math.round(cx + 14 - w), y:gy + 12, tail:w - 14 - 7} : {w, x:Math.round(cx - w / 2), y:gy - 36, tail:w / 2 - 7};
+}
+function tipHTML(name, cx, gy, pop, below) {
+  const b = tipBox(name, cx, gy, below);
+  return `<div class="demo" style="left:${b.x}px;top:${b.y}px;width:${b.w}px;height:26px;transform-origin:${b.tail + 7}px ${below ? 0 : 26}px;transform:scale(${pop.toFixed(3)})">
+    <div class="tip" style="left:0;top:0;width:${b.w}px;border-image-source:url(${tipFrameURL()})"><span>${name}</span></div>
+    <img class="px" src="${tipTailURL()}" width="14" height="8" style="left:${b.tail}px;top:${below ? -6 : 24}px;${below ? 'transform:scaleY(-1)' : ''}"></div>`;
+}
+function hatchURL() {
+  return memo('hatch', () => { const c = canvas(4, 4), g = c.getContext('2d');
+    for (let y = 0; y < 4; y++) for (let x = 0; x < 4; x++) { g.fillStyle = ((x + y) % 4) < 2 ? P.musL : P.cream; g.fillRect(x, y, 1, 1); }
+    return c.toDataURL(); });
+}
+function sunURL(w, h, gold) {
+  return memo(`sun${w}_${h}_${gold}`, () => {
+    const c = canvas(w, h), g = c.getContext('2d'), cx = w / 2 - 0.5, cy = h / 2 - 0.5;
+    for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+      const a = Math.atan2(y - cy, (x - cx) * h / w), r = Math.hypot((x - cx) / (w / 2), (y - cy) / (h / 2));
+      if (r > 1) continue;
+      g.fillStyle = (Math.floor((a + Math.PI) / (Math.PI / 8)) % 2) ? (gold ? P.musL : P.cream) : (gold ? P.musP : P.paper); g.fillRect(x, y, 1, 1);
+    }
+    return c.toDataURL();
+  });
+}
+function scanCorners(x, y, w, h, col, arm, th) {
+  const b = `background:${col}`;
+  return [[x, y, arm, th], [x, y, th, arm], [x + w - arm, y, arm, th], [x + w - th, y, th, arm],
+    [x, y + h - th, arm, th], [x, y + h - arm, th, arm], [x + w - arm, y + h - th, arm, th], [x + w - th, y + h - arm, th, arm]]
+    .map(r => `<div style="left:${r[0]}px;top:${r[1]}px;width:${r[2]}px;height:${r[3]}px;${b}"></div>`).join('');
+}
+// the big gold number (solid: the top bar is the gauge now), ink outline, FONT C shine on landing
+function bigNum(x, y, w, size, align, txt, shine) {
+  const h = Math.round(size * 0.8), font = `${NUM} ${size}px/${h}px Atkinson`;
+  const o = [[-2,0],[2,0],[0,-2],[0,2],[-2,-2],[2,-2],[-2,2],[2,2],[0,4],[2,4],[-2,4]].map(([a, b]) => `${a}px ${b}px 0 ${P.ink}`).join(',');
+  const sh = shine === null || shine === undefined ? '' : `,linear-gradient(110deg,transparent ${-20 + 150 * shine}%,rgba(255,255,255,.9) ${-20 + 150 * shine}%,rgba(255,255,255,.9) ${-8 + 150 * shine}%,transparent ${-8 + 150 * shine}%)`;
+  return `<div style="left:${x}px;top:${y}px;width:${w}px;height:${h}px;text-align:${align};font:${font};color:${P.ink};text-shadow:${o};white-space:nowrap">${txt}</div>
+    <div class="px" style="left:${x}px;top:${y}px;width:${w}px;height:${h}px;text-align:${align};font:${font};color:transparent;white-space:nowrap;
+      background:${sh ? sh.slice(1) + ',' : ''}linear-gradient(to top,${P.musDk} 0 12%,${P.gold} 12% 60%,${P.musL} 60% 76%,${P.gold} 76%);-webkit-background-clip:text;background-clip:text">${txt}</div>`;
+}
+function stamp(x, y, w, size, tilt) {
+  return `<div style="left:${x}px;top:${y}px;width:${w}px;text-align:center;font:600 ${size}px/${size + 6}px Pixelify;letter-spacing:${size < 15 ? 0 : 1}px;white-space:nowrap;color:${P.grnDk};border:2px solid ${P.grnDk};background:${P.paper};transform:rotate(${tilt}deg)">SPEND MET</div>`;
+}
+
+// ---------- the monitor ----------
+function stepLine(st, size, weight, alpha) {
+  const col = st.fiz ? P.tomDk : (st.give ? P.musDk2 : P.ink);
+  const mark = st.fiz ? `<img class="px" src="${ART}icons/fizzle.png" width="14" height="14" style="vertical-align:-2px;margin-right:4px">`
+    : (st.giver ? `<img class="px" src="${ART}minis/${st.giver}.png" width="14" height="14" style="vertical-align:-2px;margin-right:4px">`
+      : st.give ? `<span style="color:${P.musDk};font:800 ${size}px Atkinson;margin-right:4px">✦</span>`
+      : `<span style="color:${P.grnDk};font:800 ${size}px Atkinson;margin-right:4px">✓</span>`);
+  const amt = st.d ? `<span style="margin-left:auto;padding-left:6px;min-width:${st.fiz ? 0 : 40}px;text-align:right;font:800 ${size + (st.fiz ? 0 : 1)}px Atkinson;color:${st.fiz ? P.tomDk : P.musDk2};white-space:nowrap">${st.d}</span>` : '';
+  return `<div class="flow rich" style="display:flex;align-items:baseline;font:${weight} ${size}px Atkinson;line-height:1.3;color:${col};opacity:${alpha}"><span>${mark}${rich(st.t)}</span>${amt}</div>`;
+}
+function bayHTML(s, it, label, extra) {
+  const since = s.t - s.t0, slide = s.mode === 'next' ? 1 : ease(since / 0.22);
+  const hdr = s.mode === 'next' ? 'NEXT' : (s.mode === 'scan' ? 'SCAN' : `${ITEMS.length - s.item - 1} LEFT`);
+  const beep = s.mode !== 'next' && since < 0.35;
+  return `<div class="bay" style="left:4px;top:2px;width:112px;height:150px">
+    <div class="hdr"></div><div class="lamp ${beep ? 'on' : ''}"></div><div class="ht">${hdr}</div><div class="pips"></div>
+    <div class="bed"></div>
+    ${scanCorners(10, 25, 92, 92, s.mode === 'count' ? P.gold : P.mus, 10, 2)}
+    <img class="px" src="${ART}items_v2/${it.id}.png" width="96" height="96" style="left:${8 + (1 - slide) * 60}px;top:23px;opacity:${slide}">
+    ${label.chip ? aisleChip(it) : `<div class="nm" style="${label.col ? `color:${label.col}` : ''}">${label.t}</div>
+    ${it.aisle === 'staple' ? `<img class="px gl" data-tip="Staple" src="${ART}icons/padlock.png" width="18" height="20" style="left:2px;top:122px">` : ''}`}
+    ${beep ? `<div style="left:30px;top:26px;font:800 13px Atkinson;color:${P.ink};background:${P.gold};padding:1px 4px;box-shadow:0 0 0 2px ${P.ink};transform:rotate(-8deg)">BEEP!</div>` : ''}
+    ${extra || ''}</div>`;
+}
+// monitor b's bay plate: the aisle as a chip in the ticket's band colour (glyph + name); a staple's is paper + padlock
+function aisleChip(it) {
+  const a = AISLE[it.aisle];
+  return `<div data-tip="${a.staple ? 'Staple: no aisle' : a.name + ' aisle'}" style="left:6px;top:125px;width:100px;height:20px;background:${a.col};box-shadow:inset 0 0 0 2px ${P.ink},inset 0 2px 0 2px ${a.lt}">
+    <img class="px" src="${a.staple ? ART + 'icons/padlock.png' : ART + 'icons/' + a.glyph + '.png'}" width="${a.staple ? 16 : 18}" height="18" style="left:4px;top:1px">
+    <div style="left:24px;top:0;width:74px;height:20px;font:800 11px/21px Atkinson;letter-spacing:.5px;text-transform:uppercase;white-space:nowrap;color:${a.staple ? P.ink : onCol(a.col)}">${a.staple ? 'Staple' : a.name}</div></div>`;
+}
+// the item's value during the count: base until its steps fire
+function countVal(it, since) {
+  let val = it.base, shown = 0;
+  it.steps.forEach((st, i) => { if (since > 0.25 + i * 0.22) { shown = i + 1; if (st.v) val = st.v; } });
+  return {val, shown, lastChange: shown ? 0.25 + (shown - 1) * 0.22 : null};
+}
+function landSticker(x, y, it, since) {
+  const land = since > LAND - 0.2 && since < BEAT ? clamp((since - (LAND - 0.2)) / 0.08) : 0;
+  if (!land) return '';
+  const tw = even(textW('800 18px Atkinson', '+€' + it.pay) + 22);
+  return `<div style="left:${x}px;top:${y}px;width:${tw}px;height:32px;transform:rotate(-6deg) scale(${(1.5 - 0.5 * land).toFixed(3)});opacity:${land};filter:${DROP}">
+    <img class="px" src="${labelURL(tw / 2, 'gold').replace(/^/, '')}" width="${tw}" height="32" style="left:0;top:0">
+    <div style="left:0;top:0;width:${tw}px;line-height:26px;text-align:center;font:800 18px Atkinson;color:${P.ink}">+${it.pay}€</div></div>`;
+}
+function monitorA(s) {
+  const it = ITEMS[s.item], t = s.t, since = t - s.t0, ap = d => s.mode === 'next' ? 1 : clamp((since - d) / 0.16);
+  let h = '';
+  if (s.mode !== 'count') {
+    h += bayHTML(s, it, s.mode === 'scan' ? {t:`BASE €${it.base}`, col:P.tomDk} : {t:it.name});
+    const aisleWord = AISLE[it.aisle].staple ? 'Staple' : AISLE[it.aisle].name;
+    h += `<div style="left:124px;top:6px;width:274px;height:144px;overflow:hidden">
+      <div style="left:0;top:0;width:200px;font:600 20px/24px Pixelify;color:${P.ink};white-space:nowrap;opacity:${ap(0)}">${it.name}</div>
+      <div style="right:4px;top:2px;font:700 13px/22px Atkinson;color:${P.inkL};opacity:${ap(0)}">pays <span style="font:${NUM} 20px Atkinson;color:${P.ink}">€${it.pay}</span></div>
+      <div class="flow" style="position:absolute;left:0;top:28px;display:flex;align-items:center;gap:3px;font:700 12px Atkinson;color:${P.greyD};opacity:${ap(0.1)}">${shelfTags(it).map(f => glyph(f)).join('')}<span style="margin-left:4px">· ${aisleWord}</span></div>
+      <div class="flow rich" style="position:absolute;left:0;top:52px;width:270px;font:400 13px/17px Atkinson;color:${P.ink};opacity:${ap(0.2)}">${rich(it.eff)}</div>
+      <div style="left:0;top:76px;width:266px;height:0;border-top:2px dashed ${P.creamSh}"></div>
+      <div class="flow" style="position:absolute;left:0;top:82px;width:266px">${it.steps.map((st, i) => stepLine(st, 12, 400, ap(0.3 + i * 0.1))).join('')}</div>
+    </div>`;
+    return h;
+  }
+  // count: today's screen, the big number on its sunburst, the € tag on the bay
+  const cv = countVal(it, since), paid = cv.shown === it.steps.length;
+  const tag = euroTag('€' + cv.val, cv.val > it.base);
+  const swing = cv.lastChange !== null && since - cv.lastChange < 0.4 ? `rotate(${(-14 * Math.sin((since - cv.lastChange) * 18) * (1 - (since - cv.lastChange) / 0.4)).toFixed(1)}deg) scale(1.1)` : 'rotate(-3deg)';
+  h += bayHTML(s, it, {t:it.name}, `<div style="left:66px;top:22px;width:${tag.w}px;height:22px;transform:${swing};transform-origin:6px 11px">${tag.html}<div style="left:-8px;top:9px;width:10px;height:2px;background:${P.ink}"></div></div>`);
+  const poured = s.count.poured, metNow = poured >= QUOTA - 1e-6, shown = Math.floor(poured + 1e-6);
+  const rot = (t * 8) % 360;
+  h += `<img class="px" src="${sunURL(110, 70, metNow)}" width="300" height="190" style="left:110px;top:-18px;transform:rotate(${rot.toFixed(1)}deg) scale(1.05)">`;
+  const ls = s.count.lastLand, shine = t - ls < 0.45 ? (t - ls) / 0.45 : null;
+  const pop = t - ls < 0.25 ? 1 + 0.22 * (1 - (t - ls) / 0.25) : 1;
+  h += `<div style="left:120px;top:22px;width:278px;height:60px;transform:scale(${pop.toFixed(3)})">${bigNum(0, 0, 278, 72, 'center', `${shown}€`, shine)}</div>`;
+  if (!s.count.end) h += `<div style="left:120px;top:100px;width:278px;text-align:center;font:800 16px Atkinson;color:${metNow ? P.grnDk : P.tomDk}">${metNow ? `+€${shown - QUOTA} over` : `€${Math.ceil(QUOTA - poured - 1e-6)} to go`}</div>`;
+  else { h += stamp(176, 98, 120, 18, -5); h += `<div style="left:304px;top:102px;font:800 16px/22px Atkinson;color:${P.ink};background:${P.gold};padding:0 6px;box-shadow:0 0 0 2px ${P.ink}">+€${shown - QUOTA}</div>`; }
+  h += landSticker(330, 6, it, since);
+  return h;
+}
+function monitorB(s) {
+  const it = ITEMS[s.item], t = s.t, since = t - s.t0, ap = d => s.mode === 'next' ? 1 : clamp((since - d) / 0.16);
+  let h = bayHTML(s, it, {chip:true});
+  // item column: the name with its family glyphs beside it, the price (struck base + gold burst), the effect, the step
+  let val = it.pay, shownSteps = it.steps.length, punch = 1;
+  if (s.mode === 'count') {
+    const cv = countVal(it, since); val = cv.val; shownSteps = cv.shown;
+    if (cv.lastChange !== null && since - cv.lastChange < 0.2) punch = 1 + 0.3 * (1 - (since - cv.lastChange) / 0.2);
+  }
+  const changed = val !== it.base;
+  h += `<div style="left:124px;top:4px;width:178px;height:146px;overflow:hidden">`;
+  h += `<div class="flow" style="position:absolute;left:0;top:0;width:178px;height:26px;display:flex;align-items:center;gap:3px;white-space:nowrap;opacity:${ap(0)}">
+    <span style="font:600 22px/26px Pixelify;color:${P.ink};margin-right:4px">${it.name}</span>${shelfTags(it).map(f => glyph(f, 1, 'position:static')).join('')}</div>`;
+  const b = baseHTML(it.base, changed, 4, 34, false);
+  h += `<div style="left:0;top:0;width:178px;height:70px;opacity:${ap(0.08)}">${b.html}`;
+  if (changed) { const tg = payTag(val, it.base); h += payTagHTML(tg, b.w + 12, 30 - (tg.h - 32) / 2, punch); }
+  h += `</div>`;
+  h += `<div class="flow" style="position:absolute;left:0;top:70px;width:176px;display:flex;flex-direction:column;gap:2px">`;
+  h += `<div class="flow rich" style="font:800 16px/20px Atkinson;color:${P.ink};opacity:${ap(0.18)}">${rich(it.eff)}</div>`;
+  h += `<div class="flow" style="border-top:2px dashed ${P.creamSh};height:0;margin:2px 0 2px;opacity:${ap(0.26)}"></div>`;
+  if (s.mode === 'count') { if (shownSteps) h += stepLine(it.steps[shownSteps - 1], 15, 800, clamp((since - 0.25 - (shownSteps - 1) * 0.22) / 0.1)); }
+  else it.steps.forEach((st, i) => { h += stepLine(st, 14, 700, ap(0.32 + i * 0.1)); });
+  h += `</div></div>`;
+  // checkout column; one € convention inside it: the monitor's "N€" (#86's plain gold € after the number)
+  const cx = 310, cw = 88;
+  h += `<div style="left:${cx - 4}px;top:4px;width:2px;height:146px;background:${P.cream}"></div>`;
+  const poured = s.count ? s.count.poured : 0, metNow = s.count && poured >= QUOTA - 1e-6, met = metNow && s.count.end;
+  const shown = s.count ? Math.floor(poured + 1e-6) : TOTAL;
+  if (metNow) h += `<img class="px" src="${sunURL(50, 34, true)}" width="100" height="68" style="left:${cx - 1}px;top:6px;transform:rotate(${((t * 8) % 360).toFixed(1)}deg)">`;
+  h += `<div style="left:${cx}px;top:6px;width:${cw}px;text-align:center;font:800 12px Atkinson;letter-spacing:2px;color:${P.inkL}">${s.count ? 'TOTAL' : 'PLAN'}</div>`;
+  const ls = s.count ? s.count.lastLand : -9, shine = t - ls < 0.45 ? (t - ls) / 0.45 : null, pop = t - ls < 0.25 ? 1 + 0.22 * (1 - (t - ls) / 0.25) : 1;
+  h += `<div style="left:${cx - 2}px;top:26px;width:${cw + 4}px;height:34px;transform:scale(${pop.toFixed(3)})">${bigNum(0, 0, cw + 4, 40, 'center', `${shown}€`, shine)}</div>`;
+  h += `<div style="left:${cx}px;top:66px;width:${cw}px;height:2px;background:${P.ink}"></div>`;
+  h += `<div style="left:${cx}px;top:72px;width:${cw}px;text-align:center;font:800 12px/16px Atkinson;color:${P.inkL}">SPEND <span style="font:${NUM} 16px Atkinson;letter-spacing:0;color:${P.ink}">${QUOTA}€+</span></div>`;
+  const status = !s.count ? `<span style="color:${P.grnDk}">+${TOTAL - QUOTA}€ planned</span>`
+    : (metNow ? `<span style="color:${P.grnDk}">+${shown - QUOTA}€ over</span>` : `<span style="color:${P.tomDk}">${Math.ceil(QUOTA - poured - 1e-6)}€ to go</span>`);
+  h += `<div style="left:${cx}px;top:94px;width:${cw}px;text-align:center;font:800 14px/18px Atkinson">${met ? '' : status}</div>`;
+  if (met) { h += stamp(cx + 1, 98, 86, 14, -6); h += `<div style="left:${cx + 26}px;top:126px;font:800 14px/18px Atkinson;color:${P.ink};background:${P.gold};padding:0 5px;box-shadow:0 0 0 2px ${P.ink}">+${shown - QUOTA}€</div>`; }
+  if (s.mode === 'count') h += landSticker(cx + 40, 0, it, since);
+  // the climax (#86 WIN B kept): when the total meets SPEND it takes the whole screen on its sunburst for about 1 s,
+  // then shrinks back into the column
+  const cross = s.count ? crossTime() : null;
+  if (cross !== null && t >= cross && t < cross + 1.3) {
+    const q = t - cross, out = q > 1.05 ? ease((q - 1.05) / 0.25) : 0;
+    const sc = (q < 0.12 ? 0.4 + 0.75 * ease(q / 0.12) : (q < 0.25 ? 1.15 - 0.15 * ease((q - 0.12) / 0.13) : 1)) * (1 - 0.72 * out);
+    const ox = lerp(0, cx + cw / 2 - 201, out), oy = lerp(0, 43 - 77, out);
+    const shineQ = q > 0.15 && q < 0.6 ? (q - 0.15) / 0.45 : null;
+    h += `<div style="left:0;top:0;width:402px;height:154px;opacity:${(1 - out).toFixed(3)};overflow:hidden">
+      <div style="left:0;top:0;width:402px;height:154px;background:${P.paper}"></div>
+      <img class="px" src="${sunURL(110, 70, true)}" width="440" height="280" style="left:-19px;top:-63px;transform:rotate(${((t * 14) % 360).toFixed(1)}deg)"></div>
+      <div style="left:${ox.toFixed(1)}px;top:${oy.toFixed(1)}px;width:402px;height:154px;transform-origin:201px 77px;transform:scale(${sc.toFixed(3)})">
+        ${bigNum(40, 22, 322, 84, 'center', `${shown}€`, shineQ)}
+        ${q > 0.3 ? stamp(110, 108, 150, 20, -5) : ''}
+        ${q > 0.42 ? `<div style="left:272px;top:110px;font:800 18px/24px Atkinson;color:${P.ink};background:${P.gold};padding:0 6px;box-shadow:0 0 0 2px ${P.ink}">+${shown - QUOTA}€</div>` : ''}</div>`;
+  }
+  return h;
+}
+
+// ---------- the top bar: today's #86 liquid gauge (QuotaMeter), at the newest capture's geometry ----------
+// The bar's chips come from the newest real capture (start_fixes_v1, pasted over the background), and only the SPEND
+// panel's insides are redrawn with this belt's numbers: the gauge at x 265-362 (18 px, 2 px ink border), the amount at
+// x 372 in mustard light, the tag at x 465 (84 x 22). The liquid is QuotaMeter's: rows lit / mid / dark, tomato while
+// short, mustard-brass from 80 %, green to the flag once met and gold past it; paper bubbles drift, the front sloshes
+// and sprays on each gain, and meeting the quota flashes it.
+const TB = {gx:267, gy:21, gw:94, gh:14};
+const RAMP = {short:[P.tomL, P.tom, P.tomDk], near:[P.mus, P.brass, P.brassDk], met:[P.grnL, P.grn, P.grnDk], past:[P.musP, P.musL, P.mus]};
+function liquidRows(x, w, ramp, front, t) {
+  // rows 0-3 lit, 4-9 mid, 10-13 dark; the front's rows step 2 px in and out as it sloshes
+  let h = '';
+  [[0, 4, 0], [4, 6, 1], [10, 4, 2]].forEach(([y, hh, k], i) => {
+    const off = front ? snap2(Math.sin(t * 9 + i * 1.7) * front) : 0, ww = Math.max(0, w + off);
+    if (ww > 0) h += `<div style="left:${x}px;top:${y}px;width:${ww}px;height:${hh}px;background:${ramp[k]}"></div>`;
+  });
+  return h;
+}
+function topBarHTML(s) {
+  const t = s.t, v = s.count ? s.count.poured : TOTAL, met = v >= QUOTA - 1e-6, amt = Math.floor(v + 1e-6);
+  const frac = met ? 1 : v / QUOTA, flagFrac = met ? QUOTA / Math.max(v, QUOTA) : null;
+  const fw = snap2(TB.gw * frac);
+  const since = s.count ? t - s.count.lastLand : 9, counting = s.count && !s.count.end;
+  const slosh = counting ? Math.max(0.6, 2.4 * Math.max(0, 1 - since / 0.6)) : 0.6;
+  let liq = '';
+  if (met) {
+    const fx = snap2(TB.gw * flagFrac);
+    liq += liquidRows(0, fx, RAMP.met, 0, t) + liquidRows(fx, fw - fx, RAMP.past, slosh, t);
+  } else if (fw) liq += liquidRows(0, fw, frac >= 0.8 ? RAMP.near : RAMP.short, slosh, t);
+  // bubbles drift up and along inside the liquid
+  [[0.13, 9, 2, 4], [0.37, 5, 4, 2], [0.58, 11, 2, 2], [0.76, 3, 2, 2], [0.9, 7, 4, 2]].forEach(([k, y0, bw, bh], i) => {
+    const bx = snap2(((k * TB.gw + t * (6 + i * 2)) % TB.gw)), by = snap2((y0 - t * 3 * (1 + i % 2)) % 12 + 12) % 12;
+    if (bx + bw < fw - 2) liq += `<div style="left:${bx}px;top:${by}px;width:${bw}px;height:${bh}px;background:${P.paper}"></div>`;
+  });
+  // the spray off the front on a gain: droplets over the gauge's top edge, falling back
+  if (counting && since < 0.8) [[-6, -40], [-2, -60], [3, -50], [7, -35], [-9, -25], [1, -70]].forEach(([vx, vy], i) => {
+    const q = since, dx = fw + vx * q * 6, dy = 2 + vy * q + 90 * q * q;
+    if (dy < 12) liq += `<div style="left:${snap2(dx)}px;top:${snap2(Math.max(-8, dy))}px;width:2px;height:2px;background:${i % 2 ? P.paper : (met ? P.musL : RAMP.short[0])}"></div>`;
+  });
+  // meeting the quota flashes the liquid
+  const cross = s.count ? crossTime() : null;
+  if (cross !== null && t >= cross && t - cross < 0.5) liq += `<div style="left:0;top:0;width:${TB.gw}px;height:${TB.gh}px;background:rgba(255,255,255,${(0.8 * (1 - (t - cross) / 0.5)).toFixed(2)})"></div>`;
+  const near = frac >= 0.8 && !met, glow = near ? (0.55 + 0.45 * Math.sin(t * Math.PI * 2 / 0.7)) : 0;
+  let h = `<div style="left:204px;top:11px;width:354px;height:33px;background:${P.tealDk}"></div>
+    ${near ? `<div style="left:137px;top:6px;width:428px;height:43px;box-shadow:0 0 0 3px rgba(241,210,122,${glow.toFixed(2)});pointer-events:none"></div>` : ''}
+    <div style="left:208px;top:11px;height:32px;font:800 21px/32px Atkinson;color:${P.paper}">€${QUOTA}+</div>
+    <div style="left:265px;top:19px;width:98px;height:18px;background:${P.ink}"></div>
+    <div style="left:${TB.gx}px;top:${TB.gy}px;width:${TB.gw}px;height:${TB.gh}px;background:${P.charcoal};overflow:hidden">${liq}</div>`;
+  if (met) {   // the flag (QuotaFlag) planted at the quota, a drawn check on green
+    const fx = TB.gx + snap2(TB.gw * flagFrac);
+    h += `<div style="left:${fx - 2}px;top:13px;width:2px;height:24px;background:${P.ink}"></div>
+      <div style="left:${fx}px;top:11px;width:14px;height:10px;background:${P.grn};box-shadow:0 0 0 2px ${P.ink}"></div>
+      <div style="left:${fx + 4}px;top:15px;width:2px;height:2px;background:${P.paper}"></div><div style="left:${fx + 6}px;top:17px;width:2px;height:2px;background:${P.paper}"></div><div style="left:${fx + 8}px;top:13px;width:2px;height:4px;background:${P.paper}"></div>`;
+  }
+  const punch = s.count && since < 0.28 ? 1 + 0.22 * (1 - since / 0.28) : 1;
+  h += `<div style="left:372px;top:11px;height:32px;font:800 21px/32px Atkinson;color:${P.musL};transform-origin:0 50%;transform:scale(${punch.toFixed(3)})">€${amt}</div>`;
+  const tag = !met ? `€${Math.ceil(QUOTA - v - 1e-6)} to go` : (amt === QUOTA ? 'Spot on' : `+€${amt - QUOTA}`);
+  h += `<div style="left:465px;top:19px;width:84px;height:22px;background:${met ? P.mus : P.paper};box-shadow:inset 0 0 0 2px ${P.ink};font:750 13px/22px Atkinson;color:${met ? P.ink : P.tomDk};text-align:center">${tag}</div>`;
+  return h;
+}
+// when the running total first meets the quota (the count's ding)
+function crossTime() { let c = 0; for (let i = 0; i < ITEMS.length; i++) { c += ITEMS[i].pay; if (c >= QUOTA) return T_COUNT + i * BEAT + LAND; } return null; }
+
+// ---------- a whole stage ----------
+function receiptHTML(s) {
+  const lines = ITEMS.map((it, i) => {
+    const fiz = it.steps.some(x => x.fiz), on = s.mode === 'count' && s.item === i;
+    const mark = fiz ? `<img class="px" src="${ART}icons/fizzle.png" width="14" height="14" style="vertical-align:-2px">` : `<span style="color:${P.grnDk}">✓</span>`;
+    return `<div class="flow" style="display:flex;justify-content:space-between;${on ? `background:${P.musP};box-shadow:0 0 0 2px ${P.mus}` : ''}"><span>${it.name}</span><span>€${it.pay}.00 ${mark}</span></div>`;
+  }).join('');
+  return `<div style="left:46px;top:112px;width:236px;height:228px;background:${P.paper}">
+    <div class="flow" style="position:absolute;left:8px;top:10px;width:218px;font:400 13px/19px JetBrains;color:${P.ink}">
+      <div class="flow">NEXT CUSTOMER · REG 3</div><div class="flow">SHIFT 3/8 · 6 ITEMS</div>
+      <div class="flow" style="border-top:2px dashed ${P.creamSh};margin:3px 0 2px"></div>${lines}
+      <div class="flow" style="border-top:2px dashed ${P.creamSh};margin:4px 0 4px"></div>
+      <div class="flow" style="display:flex;justify-content:space-between;align-items:baseline"><span style="font-size:15px">PROJECTED</span><span style="font-size:22px;color:${P.grnDk}">€${TOTAL}.00</span></div>
+      <div class="flow" style="color:${P.tomDk}">1 WASTED</div>
+    </div></div>`;
+}
+const STAGES = [];
+function makeStage(cfg) {
+  const el = document.createElement('div'); el.className = 'stage';
+  const items = cfg.stress ? STRESS : ITEMS;
+  el.innerHTML = `<img class="px" src="premium_machine_ref_shift3_planning_no_announce.png" width="1280" height="720" style="left:0;top:0">
+    <div style="left:136px;top:0;width:940px;height:48px;background:url(start_fixes_v1/shift_screen_scan_1280x720.png) -136px 0 no-repeat"></div>
+    <div style="left:490px;top:314px;width:776px;height:86px;background:url(${ART}scenery/belt_top.png) -142px 0 no-repeat"></div>
+    <div class="top"></div><div class="rcpt"></div>
+    <div class="tickets"></div><div class="belt"></div><div class="dim belt"></div>
+    <div class="mon mon-paper" style="left:495px;top:77px;width:402px;height:154px"></div>
+    <div class="press" style="left:22px;top:425px;width:292px;height:76px;background:rgba(43,36,32,.35);display:none"></div>
+    <div class="demo"></div>
+    <img class="px cur" src="${cursorURL()}" width="20" height="28" style="left:0;top:0">`;
+  const st = {el, cfg, last:null, visible:true};
+  ['tickets', 'mon', 'cur', 'press', 'top', 'rcpt', 'demo'].forEach(k => { st[k] = el.querySelector('.' + k); });
+  st.belt = el.querySelector('.belt:not(.dim)'); st.dim = el.querySelector('.dim');
+  st.tickets.innerHTML = items.map((it, i) => ticketHTML(it, cfg.card, slotX(i), TICKET_Y)).join('');
+  if (cfg.stress) ticketHTML(ITEMS[4], cfg.card, slotX(4), TICKET_Y);   // the tooltip demo's glyph spots
+  STAGES.push(st);
+  if (OBS) OBS.observe(el);
+  return st;
+}
+// a stack: the newest sticker at the bottom, overlapping by 6 px; drawn top first so the newest is in front
+function stackHTML(it, t, drained, order) {
+  const n = it.stick.length; if (!n) return '';
+  const parts = []; let bottom = 384;
+  for (let idx = 0; idx < n; idx++) {
+    const j = n - 1 - idx, st = it.stick[j], d = stickerDims(st);
+    const top = bottom - d.h, left = slotX(it.slot) + 70 + (idx % 2 ? 4 : 0) - (st.k === 'mul' ? 8 : 0) - (st.k === 'waste' ? 18 : 0);
+    parts.push({st, j, idx, left, top, w:d.w}); bottom = top + 6;
+  }
+  // a giver's sparks (GiverSparks): one runs from the giver to its sticker as the sticker slaps on, and again in the count
+  // as the giver is scanned (the sticker charges as it lands)
+  let runs = '';
+  parts.forEach(p => {
+    if (!p.st.giver || drained) return;
+    const gs = ITEMS.findIndex(x => x.id === p.st.giver); if (gs < 0) return;
+    const from = [spriteX(gs) + 48, SPRITE_Y + 18], to = [p.left + p.w / 2, p.top + 4], ta = 0.15 + 0.11 * (order + p.j);
+    [[ta - 0.35, 0.35], [T_COUNT + gs * BEAT + 0.25, 0.45]].forEach(([t0, dur]) => { const u = (t - t0) / dur; if (u > 0 && u < 1.18) runs += sparkRunHTML(from, to, u); });
+  });
+  return parts.reverse().map(p => stickerHTML(p.st, p.left, p.top, TILTS[p.idx % 5], 0.15 + 0.11 * (order + p.j), fireAt(it.slot, p.j), t, drained)).join('') + runs;
+}
+function drawStage(st, t) {
+  const cfg = st.cfg, gp = ITEMS[4].gp[cfg.card], s = stateAt(t, gp);
+  let b = '', order = 0;
+  ITEMS.forEach((it, i) => {
+    let lift = 0;
+    if (s.mode === 'count' && i === s.item) lift = -6 * Math.sin(clamp((t - s.t0) / 0.3) * Math.PI);
+    b += `<img class="px" src="${ART}items_v2/${it.id}.png" width="96" height="96" style="left:${spriteX(i)}px;top:${SPRITE_Y + lift}px">`;
+  });
+  ITEMS.forEach(it => { const drained = s.mode === 'scan' && s.item !== it.slot; b += stackHTML(it, t, drained, order); order += it.stick.length; });
+  if (s.reticle !== undefined) b += scanCorners(spriteX(s.reticle) - 6, SPRITE_Y - 8, 108, 104, P.tom, 12, 2);
+  if (s.hold) { const i = s.holdSlot; b += scanCorners(spriteX(i) - 6, SPRITE_Y - 8, 108, 104, `rgba(217,83,79,${0.3 + 0.7 * s.hold})`, 4 + 8 * s.hold, 2); }
+  let d = '';
+  if (s.mode === 'count') { b += scanCorners(spriteX(s.item) - 6, SPRITE_Y - 8, 108, 104, P.gold, 14, 3);
+    for (let j = 0; j < s.item; j++) d += `<div style="left:${slotX(j)}px;top:${TICKET_Y}px;width:108px;height:64px;background:rgba(36,34,31,.28)"></div>`; }
+  st.belt.innerHTML = b; st.dim.innerHTML = d;
+  st.mon.innerHTML = cfg.mon === 'a' ? monitorA(s) : monitorB(s);
+  st.top.innerHTML = topBarHTML(s);
+  st.rcpt.innerHTML = receiptHTML(s);
+  let tip = '';
+  if (s.tip !== null && !cfg.stress) {
+    const g = gp[s.tip], since = t - (s.tip === 0 ? 1.15 : T_TIP1 + 0.2);
+    tip = tipHTML(g.fam, g.x + 9, g.bottom, since < 0.08 ? 0.6 + 0.4 * since / 0.08 : 1, true);
+  }
+  st.demo.innerHTML = tip;
+  st.cur.style.display = s.cursor ? 'block' : 'none';
+  if (s.cursor) { st.cur.style.left = s.cursor[0] + 'px'; st.cur.style.top = s.cursor[1] + 'px'; }
+  st.press.style.display = s.press ? 'block' : 'none';
+}
+
+// ---------- the Cart (deck view B): the chosen ticket on the steel shelf rail, base price ----------
+function makeCart(cfg) {
+  const el = document.createElement('div'); el.className = 'stage';
+  const X0 = 112, STEP = 128, cells = (list, y) => list.map((it, i) => {
+    const x = X0 + STEP * i;
+    const art = it.coupon
+      ? `<img class="px" src="${ART}icons/coupon_${it.id}_v2.png" width="80" height="56" style="left:${x + 14}px;top:${y + 34}px">`
+      : `<img class="px" src="${ART}items_v2/${it.id}.png" width="96" height="96" style="left:${x + 6}px;top:${y + 4}px">`;
+    return art + ticketHTML(Object.assign({}, it), cfg.card, x, y + 100, true)
+      + `<div style="left:${x - 4}px;top:${y + 172}px;width:116px;text-align:center;font:600 16px Pixelify;color:${P.paper};white-space:nowrap">${it.name}</div>`;
+  }).join('');
+  const rail = (y, n) => `<div class="px" style="left:${X0 - 8}px;top:${y + 112}px;width:${STEP * n + 4}px;height:40px;border:6px solid transparent;
+    border-image:url(${ART}frames/shelf_rail.png) 3 fill / 6px stretch;image-rendering:pixelated"></div>`;
+  const products = ITEMS.concat([STRESS[2], STRESS[4]]);
+  el.innerHTML = `<img class="px" src="premium_machine_ref_shift3_planning_no_announce.png" width="1280" height="720" style="left:0;top:0">
+    <div style="left:0;top:0;width:1280px;height:720px;background:rgba(20,18,16,.45)"></div>
+    <div style="left:80px;top:62px;width:1120px;height:610px;background:${P.teal};box-shadow:0 0 0 4px ${P.ink}"></div>
+    <div style="left:88px;top:112px;width:1104px;height:552px;background:${P.tealDk};box-shadow:0 0 0 2px ${P.ink}"></div>
+    <div style="left:100px;top:70px;font:600 28px/36px Pixelify;color:${P.musL}">Your cart (10/15)</div>
+    <div style="left:104px;top:120px;font:800 15px Atkinson;letter-spacing:1px;color:${P.mus}">PRODUCTS (8)</div>
+    ${rail(140, products.length)}${cells(products, 140)}
+    <div style="left:104px;top:376px;font:800 15px Atkinson;letter-spacing:1px;color:${P.mus}">COUPONS (2)</div>
+    ${rail(396, 2)}${cells([STRESS[0], {id:'final_markdown', name:'Final markdown', coupon:true, base:0, tags:[], eff:'+4 in last slot', pay:0}], 396)}`;
+  return el;
+}
+
+// ---------- page wiring ----------
+const REC = {card:'A', mon:'b'};
+const CHOICE = {card:Q.get('v1') || REC.card, mon:Q.get('v2') || REC.mon};
+const OPTS = {card:['A', 'B', 'C'], mon:['a', 'b']};
+const OPT_NAMES = {card:{A:'Header band', B:'Spine', C:'Price flag', NOW:'Today'}, mon:{a:'Today, no switching', b:'One cleaned-up screen'}};
+const FIT = [];
+let ZOOM = Q.get('zoom') === '2' ? 2 : 1;
+const OBS = (!SHOT && 'IntersectionObserver' in window) ? new IntersectionObserver(es => es.forEach(e => {
+  const st = STAGES.find(x => x.el === e.target); if (st) { st.visible = e.isIntersecting; st.last = null; } }), {rootMargin:'200px'}) : null;
+function fitStage(holder, st) {
+  holder.appendChild(st.el);
+  const apply = () => { const sc = Math.min(1, holder.clientWidth / 1280); holder.style.height = 720 * sc + 'px'; st.el.style.transform = `scale(${sc})`; };
+  FIT.push(apply); apply();
+}
+function cropBox(parent, label, region, make, zoomable) {
+  const wrap = document.createElement('div');
+  wrap.innerHTML = `<p class="cap">${label}</p>`;
+  const box = document.createElement('div'); box.className = 'crop'; box.style.maxWidth = '100%';
+  wrap.appendChild(box); parent.appendChild(wrap);
+  const inner = make(); box.appendChild(inner);
+  const apply = () => { const z = zoomable ? ZOOM : 1; box.style.width = region[2] * z + 4 + 'px';
+    const sc = Math.min(z, (box.clientWidth - 4) / region[2]); box.style.height = region[3] * sc + 4 + 'px';
+    inner.style.transformOrigin = '0 0'; inner.style.transform = `scale(${sc}) translate(${-region[0]}px,${-region[1]}px)`; };
+  if (zoomable) parent.classList.add('zm');
+  FIT.push(apply); apply();
+}
+function refDiv(src) { const d = document.createElement('div'); d.className = 'ref'; d.style.backgroundImage = `url(${src})`; return d; }
+function stageDiv(cfg) { return makeStage(cfg).el; }
+function cfgWith(k, v, extra) { return Object.assign({}, CHOICE, {[k]: v}, extra || {}); }
+const recTag = (k, v) => v === REC[k] ? ' <span>(recommended)</span>' : '';
+
+function buildPage() {
+  document.querySelectorAll('[data-stage]').forEach(holder => {
+    const key = holder.dataset.stage, bar = holder.parentElement.querySelector('.opts[data-key]');
+    let st = null;
+    const set = v => {
+      holder.innerHTML = ''; if (st) STAGES.splice(STAGES.indexOf(st), 1);
+      st = makeStage(cfgWith(key, v)); fitStage(holder, st);
+      bar.querySelectorAll('.opt').forEach(b => b.classList.toggle('on', b.dataset.v === v));
+    };
+    bar.innerHTML = OPTS[key].map(v => `<button class="opt" data-v="${v}">${v} · ${OPT_NAMES[key][v]}${v === REC[key] ? '<span class="rec">RECOMMENDED</span>' : ''}</button>`).join('');
+    bar.querySelectorAll('.opt').forEach(b => b.onclick = () => set(b.dataset.v));
+    set(CHOICE[key]);
+  });
+  // 1. the glyph legend; Produce's tooltip is pinned open as an example
+  let h = `<div class="hd">Family</div><div class="hd">Game size (18 px)</div><div class="hd">2× (review)</div><div class="hd">Inline in sticker text, and the tooltip</div>`;
+  FAM_ORDER.forEach(n => {
+    const ex = n === 'Coupon' ? '+2 per earlier {Coupon}' : n === 'Staple' ? null : n === 'Food' ? '×2 next {Food}' : n === 'Breakfast' ? '+1 per earlier {Breakfast}' : `+3 beside {${n}}`;
+    const pinned = n === 'Produce' ? `<span class="abs" style="position:relative;display:inline-block;width:18px;height:20px;margin-left:28px;vertical-align:-4px">${glyph('Produce')}${tipHTML('Produce', 9, 0, 1)}</span><span class="small" style="margin-left:6px">hovered: the tooltip</span>` : '';
+    h += `<div class="fn"><span>${n}</span><span class="small">${FAM_NOTE[n]}</span></div><div>${glyph(n)}</div><div>${glyph(n, 2)}</div>
+      <div class="ex rich"${n === 'Produce' ? ' style="padding-top:44px"' : ''}><span>${ex ? rich(ex) : '<span class="small">shown on the bay and the Cart, not in rules</span>'}${pinned}</span></div>`;
+  });
+  document.getElementById('legend').innerHTML = h;
+  document.getElementById('foodglyph').innerHTML = glyph('Food');
+  document.querySelectorAll('.g-produce').forEach(e => { e.innerHTML = glyph('Produce', 1, 'vertical-align:-4px'); });
+  document.querySelectorAll('.g-frozen').forEach(e => { e.innerHTML = glyph('Frozen', 1, 'vertical-align:-4px'); });
+  const ci = document.getElementById('crops-icons');
+  cropBox(ci, 'Auto-demo · <span>the cursor rests on Frozen peas\' glyphs: "Frozen", then "Produce" (beat Tooltip)</span>', [740, 290, 520, 250], () => stageDiv(Object.assign({}, CHOICE)), true);
+  // 2. tickets
+  document.getElementById('aisles').innerHTML = AISLE_ORDER.map(k => {
+    const a = AISLE[k];
+    return `<div class="ai"><span class="sw" style="background:${a.col}"></span>${a.glyph ? `<img class="px" src="${ART}icons/${a.glyph}.png" width="18" height="18">` : `<img class="px" src="${ART}icons/padlock.png" width="16" height="18">`}${a.staple ? 'Staples: no aisle, no colour' : a.name}${a.sign && a.sign !== a.col ? ' <span style="font-weight:600;color:var(--grey-l)">(sign one shade lighter)</span>' : ''}</div>`;
+  }).join('') + `<div class="ai"><img class="px" src="${ART}frames/ticket_coupon.png" width="27" height="16">Coupons</div>`;
+  const gal = document.getElementById('gallery');
+  const drawGallery = v => {
+    gal.innerHTML = GALLERY.map(([it, cap]) => `<figure><div class="abs" style="position:relative;width:118px;height:76px;margin-top:10px">${ticketHTML(Object.assign({}, it), v, 2, 8)}</div><figcaption>${cap}</figcaption></figure>`).join('');
+  };
+  drawGallery(CHOICE.card);
+  document.querySelector('.opts[data-key="card"]').addEventListener('click', e => { const b = e.target.closest('.opt'); if (b) drawGallery(b.dataset.v); });
+  const cc = document.getElementById('crops-cards');
+  cc.style.gridTemplateColumns = '1fr';
+  cropBox(cc, 'NOW · <span>as shipped (real capture, shift 5, other items): struck base, gold burst, one aisle glyph</span>', [348, 404, 918, 92], () => refDiv('../shift_screen_effects_1280x720.png'));
+  ['A', 'B', 'C'].forEach(v => cropBox(cc, `${v} · ${OPT_NAMES.card[v]}${recTag('card', v)}`, [348, 404, 918, 92], () => stageDiv(cfgWith('card', v))));
+  ['A', 'B', 'C'].forEach(v => cropBox(cc, `Stress row, ${v} · <span>Multipack coupon (longest text), Golden Eggs (staple), Day-old buns (Pantry, 2 glyphs), Birthday candles (Bakery aisle, Household), Cereal bar (Snacks), Golden Milk €126 (wide burst), Frozen peas at €0 (spot check)</span>`,
+    [348, 396, 918, 100], () => stageDiv(cfgWith('card', v, {stress:true}))));
+  cropBox(cc, `The Cart's shelves, ${CHOICE.card} · ${OPT_NAMES.card[CHOICE.card]} <span>(deck view B; the shelf shows the base price, names in Pixelify)</span>`, [88, 112, 1104, 500], () => makeCart(Object.assign({}, CHOICE)));
+  // 3. monitor
+  const cm = document.getElementById('crops-monitor');
+  cm.style.gridTemplateColumns = 'repeat(auto-fit,minmax(424px,1fr))';
+  cropBox(cm, 'NOW · <span>scan screen as shipped (real capture)</span>', [484, 62, 424, 180], () => refDiv('start_fixes_v1/shift_screen_scan_1280x720.png'), true);
+  cropBox(cm, 'NOW · <span>count screen as shipped (real capture)</span>', [484, 62, 424, 180], () => refDiv('monitor_bay_game_count_mid.png'), true);
+  ['a', 'b'].forEach(v => cropBox(cm, `${v} · ${OPT_NAMES.mon[v]}${recTag('mon', v)} <span>(live, with the top bar)</span>`, [140, 0, 768, 242], () => stageDiv(cfgWith('mon', v)), true));
+  // 4. badges
+  const cb = document.getElementById('crops-bonus');
+  cb.style.gridTemplateColumns = 'repeat(auto-fit,minmax(300px,1fr))';
+  cropBox(cb, 'NOW · <span>real capture: 14 px giver badges on the left, flat labels</span>', [1076, 250, 204, 150], () => refDiv('../shift_screen_effects_1280x720.png'), true);
+  cropBox(cb, 'NEW · <span>Milk and Strawberries on the belt (live)</span>', [470, 250, 300, 150], () => stageDiv(Object.assign({}, CHOICE)), true);
+  // 5. short and long text
+  const sp = ITEMS[2];
+  document.getElementById('shortlong').innerHTML = `<div style="display:flex;flex-wrap:wrap;gap:28px;align-items:flex-start">
+    <div><p class="cap">Belt, shelf, monitor: short</p><div class="abs" style="position:relative;width:124px;height:80px">${ticketHTML(Object.assign({}, sp), CHOICE.card, 4, 10)}</div></div>
+    <div><p class="cap">Offer popup and prize ticket: long</p><div class="popup">
+      <div style="display:flex;align-items:center;gap:8px;margin:-10px -12px 0;padding:5px 12px;background:${AISLE.fruit_and_veg.col};color:${P.paper};box-shadow:inset 0 2px 0 ${AISLE.fruit_and_veg.lt},inset 0 -2px 0 ${P.ink}"><img class="px" src="${ART}icons/aisle_fruit_and_veg.png" width="18" height="18"><span style="font:600 20px Pixelify">Strawberries</span><span style="margin-left:auto;font:${NUM} 18px Atkinson">€2</span></div>
+      <div class="rich" style="font:700 12px Atkinson;color:var(--grey-d);margin:6px 0 4px">${glyph('Produce')} · <span style="display:inline-block;width:12px;height:10px;background:${AISLE.fruit_and_veg.col};box-shadow:0 0 0 1px ${P.ink};vertical-align:-1px"></span> Fruit &amp; veg aisle</div>
+      <div style="font:400 15px/19px Atkinson">${sp.long}</div></div></div>
+    <ul class="notes" style="flex:1;min-width:280px;margin:22px 0 0"><li>Same card, two lengths: the short text is what you compare while arranging the belt; the long text is the contract, read once when you choose the card.</li>
+      <li>The popup's header band is the aisle colour, next to "Fruit &amp; veg aisle" in words, so the popup teaches that colour = aisle before the card reaches the rail. Its tag line uses the glyphs too.</li></ul></div>`;
+  buildSpecimens();
+}
+const SPECS = [
+  [{k:'add', t:'+3'}, 'No badge: the item\'s own rule'],
+  [{k:'mul', t:'×2', giver:'eggs'}, 'Eggs\' mini: ×2 from Eggs'],
+  [{k:'mul', t:'×2', giver:'lemon'}, 'Lemon\'s mini: ×2 from Lemon'],
+  [{k:'add', t:'+4', giver:'eggs_golden'}, 'A GOLDEN giver: gold rim'],
+  [{k:'add', t:'+12', stamp:'CoE'}, 'Loyalty stamp: an upgrade'],
+  [{k:'mul', t:'×3', coupon:'Mu'}, 'Coupon token: from Multipack'],
+  [{k:'waste'}, 'WASTED: the rule fizzled'],
+  [{k:'fold', t:'…+2'}, 'Folded: 2 more above'],
+];
+const SPEC_EL = [];
+function buildSpecimens() {
+  ['specimen', 'specimen2'].forEach(id => {
+    const el = document.getElementById(id);
+    el.innerHTML = SPECS.map(([st, cap], i) => { const d = stickerDims(st);
+      return `<figure><div class="sk abs" style="width:${d.w + 30}px;height:${d.h + 14}px" data-i="${i}"></div><figcaption>${cap}</figcaption></figure>`; }).join('');
+    el.querySelectorAll('.sk').forEach(sk => SPEC_EL.push(sk));
+  });
+}
+const SPEC_LOOP = 3.6;
+function drawSpecimens(t) {
+  const ts = t % SPEC_LOOP;
+  SPEC_EL.forEach(sk => {
+    const i = +sk.dataset.i, st = SPECS[i][0], d = stickerDims(st);
+    sk.innerHTML = stickerHTML(st, 26, 10, TILTS[i % 5], 0.2 + 0.12 * i, 1.9 + 0.12 * i, ts, false);
+  });
+}
+
+// ---------- the live hover tooltip ----------
+function hookTips() {
+  const box = document.getElementById('hovertip'), txt = document.getElementById('hovertxt'), tail = box.querySelector('.tail');
+  box.style.borderImageSource = `url(${tipFrameURL()})`;
+  tail.src = tipTailURL();
+  const show = (x, y) => {
+    const el = document.elementFromPoint(x, y), tg = el && el.closest ? el.closest('[data-tip]') : null;
+    if (!tg) { box.style.display = 'none'; return null; }
+    txt.textContent = tg.dataset.tip; box.style.display = 'block';
+    const r = tg.getBoundingClientRect(), w = box.offsetWidth, tk = tg.closest('[data-tipbelow]');
+    if (tk) {   // a rail or shelf ticket: below the ticket, tail up
+      const rb = tk.getBoundingClientRect();
+      box.style.left = Math.round(r.left + r.width / 2 + 14 - w) + 'px'; box.style.top = Math.round(rb.bottom + 12) + 'px';
+      tail.style.left = (w - 14 - 7 - 4) + 'px'; tail.style.marginLeft = '0'; tail.style.top = '-10px'; tail.style.bottom = 'auto'; tail.style.transform = 'scaleY(-1)';
+    } else {
+      box.style.left = Math.round(r.left + r.width / 2 - w / 2) + 'px'; box.style.top = Math.round(r.top - 36) + 'px';
+      tail.style.left = ''; tail.style.marginLeft = ''; tail.style.top = ''; tail.style.bottom = ''; tail.style.transform = '';
+    }
+    return tg;
+  };
+  document.addEventListener('mousemove', e => show(e.clientX, e.clientY));
+  // hovertest=1: a synthetic hover on the first glyph of the shown ticket stage, to check the hover inside a scaled stage
+  if (Q.has('hovertest')) requestAnimationFrame(() => requestAnimationFrame(() => {
+    const g = document.querySelector('#s-ticket .stage [data-tipbelow] .gl[data-tip="Produce"]') || document.querySelector('.stage .gl');
+    if (!g) return;
+    g.scrollIntoView({block:'center'});
+    const r = g.getBoundingClientRect(), tg = show(r.left + r.width / 2, r.top + r.height / 2);
+    const cur = document.createElement('img'); cur.src = cursorURL(); cur.className = 'px';
+    cur.style.cssText = `position:fixed;z-index:101;left:${r.left + r.width / 2}px;top:${r.top + r.height / 2}px;width:20px;height:28px;pointer-events:none`;
+    document.body.appendChild(cur);
+    document.title = 'hovertest ' + (tg ? tg.dataset.tip : 'MISS') + ' scale ' + (r.width / 18).toFixed(3);
+  }));
+}
+
+let start = performance.now(), paused = false, pauseT = 0;
+function now() { return AT !== null ? AT : (paused ? pauseT : ((performance.now() - start) / 1000 * SPEED) % LOOP); }
+function tick() {
+  const t = now();
+  STAGES.forEach(st => { if ((st.visible || SHOT) && st.last !== t) { drawStage(st, t); st.last = t; } });
+  drawSpecimens(t);
+  const c = document.getElementById('clock'); if (c) c.textContent = `t = ${t.toFixed(1)} s`;
+  if (AT === null) requestAnimationFrame(tick);
+}
+document.fonts.ready.then(() => {
+  const solo = Q.get('solo'), sec = Q.get('sec');
+  if (solo) {
+    document.body.classList.add('solo');
+    const cfg = Object.assign({}, CHOICE);
+    if (solo === 'cart') document.getElementById('solo').appendChild(makeCart(cfg));
+    else { // solo=stage (stress=1 for the stress row)
+      const holder = document.getElementById('solo');
+      holder.appendChild(makeStage(Object.assign(cfg, Q.has('stress') ? {stress:true} : {})).el);
+    }
+  } else {
+    buildPage();
+    if (sec) { document.body.classList.add('sec'); document.getElementById('s-' + sec).classList.add('show'); }
+  }
+  hookTips();
+  addEventListener('resize', () => FIT.forEach(f => f()));
+  const pb = document.getElementById('pause');
+  const play = () => { start = performance.now() - pauseT * 1000 / SPEED; paused = false; pb.textContent = 'Pause'; };
+  if (pb) pb.onclick = () => { if (paused) play(); else { pauseT = now(); paused = true; pb.textContent = 'Play'; } };
+  const rb = document.getElementById('restart'); if (rb) rb.onclick = () => { start = performance.now(); paused = false; if (pb) pb.textContent = 'Pause'; };
+  const bt = document.getElementById('beats');
+  if (bt) {
+    bt.innerHTML = BEATS.map(([n, t]) => `<button data-t="${t}">${n}</button>`).join(' ');
+    bt.querySelectorAll('button').forEach(b => b.onclick = () => { pauseT = parseFloat(b.dataset.t); paused = true; pb.textContent = 'Play'; });
+  }
+  document.body.classList.toggle('zoom', ZOOM === 2);
+  const zb = document.getElementById('zoom');
+  if (zb) { zb.classList.toggle('on', ZOOM === 2); zb.onclick = () => { ZOOM = ZOOM === 2 ? 1 : 2; zb.classList.toggle('on', ZOOM === 2); document.body.classList.toggle('zoom', ZOOM === 2); FIT.forEach(f => f()); }; }
+  tick();
+});
+</script>
+</body>
+</html>
