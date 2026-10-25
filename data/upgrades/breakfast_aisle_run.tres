@@ -1,0 +1,25 @@
+[gd_resource type="Resource" script_class="UpgradeDefinition" format=3]
+
+[ext_resource type="Script" path="res://core/upgrades/upgrade_rule.gd" id="1_rule"]
+[ext_resource type="Script" path="res://core/upgrades/aisle_run_rule.gd" id="2_rule_script"]
+[ext_resource type="Script" path="res://core/upgrade_definition.gd" id="3_upgrade"]
+[ext_resource type="Resource" path="res://data/upgrades/breakfast_aisle_run_lv2.tres" id="9_next_level"]
+
+[sub_resource type="Resource" id="Resource_rule"]
+script = ExtResource("2_rule_script")
+tag = "Breakfast"
+min_run = 3
+factor = 3
+receipt_text = "Breakfast aisle run"
+
+[resource]
+script = ExtResource("3_upgrade")
+id = &"breakfast_aisle_run"
+icon_ref = "res://art/icons/family_breakfast.png"
+display_name = "Breakfast aisle run"
+type = 8
+effect_text = "3 or more Breakfast products in a row: the last pays ×3"
+condition_text = "Only the last product of each run, and only if it pays something"
+rules = Array[ExtResource("1_rule")]([SubResource("Resource_rule")])
+next_level = ExtResource("9_next_level")
+boosts_tag = "Breakfast"

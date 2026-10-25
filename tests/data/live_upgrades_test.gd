@@ -5,6 +5,11 @@ extends GdUnitTestSuite
 const UPGRADE_DIR := "res://data/upgrades"
 const CARDS_DIR := "res://data/cards"
 const BALANCE := "res://data/balance/balance.tres"
+const FAMILIES_DIR := "res://data/families"
+## The families with a Regulars and an Aisle run (#108), by file prefix.
+const FAMILIES: Array[String] = [
+	"bakery", "produce", "dairy", "snack", "household", "breakfast", "clearance"
+]
 
 
 func test_placeholder_upgrades_match_the_plan() -> void:
@@ -37,16 +42,22 @@ func test_live_upgrades_score_the_plan_examples() -> void:
 
 
 ## Loyalty levels (#108, v0.61): Coupon engine, Category engine, Extra redraw and Slot engine go up
-## to LV 3 (LV 2 and LV 3 files linked by next_level, with the LV 1 icon), each level a step up;
-## Big basket and Rule bender have no levels. A level scores and sets the shift's limits like any
-## perk.
+## to LV 3 (LV 2 and LV 3 files linked by next_level, with the LV 1 icon), each level a step up,
+## and so do piece 2's Regulars (+1, +2, +3), Aisle runs (x3, x4, x5), Mixed basket and Bulk deal
+## (+3, +4, +5); Big basket, Rule bender and the jackpots have no levels. A level scores and sets
+## the shift's limits like any perk.
 func test_perk_levels_match_the_plan() -> void:
 	var numbers: Dictionary[String, Array] = {
 		"coupon_engine": [2, 3, 4],
 		"category_engine": [3, 4, 5],
 		"extra_redraw": [1, 2, 3],
 		"slot_engine": [2, 3, 4],
+		"mixed_basket": [3, 4, 5],
+		"bulk_deal": [3, 4, 5],
 	}
+	for aisle: String in FAMILIES:
+		numbers[aisle + "_regulars"] = [1, 2, 3]
+		numbers[aisle + "_aisle_run"] = [3, 4, 5]
 	for family: String in numbers:
 		var upgrade: UpgradeDefinition = _upgrade(family)
 		var found: Array = []
@@ -58,7 +69,9 @@ func test_perk_levels_match_the_plan() -> void:
 			assert_int(upgrade.level_number()).is_equal(found.size())
 			upgrade = upgrade.next_level
 		assert_array(found).override_failure_message(family).is_equal(numbers[family])
-	for family: String in ["big_basket", "rule_bender"]:
+	for family: String in [
+		"big_basket", "rule_bender", "banana_stand", "lemon_squeezer", "fire_sale"
+	]:
 		assert_object(_upgrade(family).next_level).override_failure_message(family).is_null()
 	var row: String = "bread,final_markdown"
 	var totals: Array[int] = []
@@ -93,11 +106,12 @@ func test_every_icon_ref_loads() -> void:
 
 ## Every upgrade a run can be offered (balance.upgrade_pool) has its own perk icon (#59 subset,
 ## v0.52: Coupon engine, Slot engine and Extra coupon slot joined the earlier three; Extra coupon
-## slot left in v0.56), no two the
-## same, so no LOYALTY ticket falls back to initials.
+## slot left in v0.56), so no LOYALTY ticket falls back to initials. No two share one, except a
+## family's two perks (#108: its Regulars and its Aisle run, of different types), whose icon is
+## the family's glyph (data/families), as their tickets take the family's look.
 func test_every_pool_upgrade_has_its_own_icon() -> void:
 	var balance: BalanceDefinition = load(BALANCE)
-	var icons: Dictionary[String, StringName] = {}
+	var icons: Dictionary[String, UpgradeDefinition] = {}
 	for upgrade: UpgradeDefinition in balance.upgrade_pool:
 		var message: String = "%s: %s" % [upgrade.id, upgrade.icon_ref]
 		assert_str(upgrade.icon_ref).override_failure_message(message).is_not_empty()
@@ -106,9 +120,26 @@ func test_every_pool_upgrade_has_its_own_icon() -> void:
 			. override_failure_message(message)
 			. is_true()
 		)
-		assert_bool(icons.has(upgrade.icon_ref)).override_failure_message(message).is_false()
-		icons[upgrade.icon_ref] = upgrade.id
-	assert_int(icons.size()).is_equal(balance.upgrade_pool.size())
+		var family_perk: bool = (
+			upgrade.type in [UpgradeDefinition.Type.REGULARS, UpgradeDefinition.Type.AISLE_RUN]
+		)
+		if family_perk:
+			var style: Resource = load(
+				FAMILIES_DIR.path_join(upgrade.boosts_tag.to_lower() + ".tres")
+			)
+			var glyph: Texture2D = style.get("glyph")
+			assert_str(upgrade.icon_ref).override_failure_message(message).is_equal(
+				glyph.resource_path
+			)
+		if icons.has(upgrade.icon_ref):
+			var other: UpgradeDefinition = icons[upgrade.icon_ref]
+			var shared: bool = (
+				family_perk
+				and other.boosts_tag == upgrade.boosts_tag
+				and other.type != upgrade.type
+			)
+			assert_bool(shared).override_failure_message(message).is_true()
+		icons[upgrade.icon_ref] = upgrade
 	assert_str(_upgrade("coupon_engine").icon_ref).is_equal(
 		"res://art/icons/perk_coupon_engine.png"
 	)
@@ -125,7 +156,12 @@ func test_pool_upgrade_icons_differ_past_a_header() -> void:
 	const MIN_DIFFERENT_SHARE := 0.15
 	var balance: BalanceDefinition = load(BALANCE)
 	var images: Dictionary[String, Image] = {}
+	var seen: Dictionary[String, bool] = {}
 	for upgrade: UpgradeDefinition in balance.upgrade_pool:
+		# A family's two perks share its glyph (#108): it is compared once.
+		if seen.has(upgrade.icon_ref):
+			continue
+		seen[upgrade.icon_ref] = true
 		images[upgrade.id] = (load(upgrade.icon_ref) as Texture2D).get_image()
 	var ids: Array[String] = images.keys()
 	for i: int in ids.size():
@@ -157,6 +193,10 @@ static func _level_number(upgrade: UpgradeDefinition) -> int:
 	var rule: UpgradeRule = upgrade.rules[0]
 	if rule is DistinctTagBonusRule:
 		return (rule as DistinctTagBonusRule).bonus_per_tag
+	if rule is FamilyRegularsRule or rule is CopiesBonusRule:
+		return int(rule.get("bonus_each"))
+	if rule is NewFamilyBonusRule:
+		return (rule as NewFamilyBonusRule).bonus
 	return int(rule.get("factor"))
 
 

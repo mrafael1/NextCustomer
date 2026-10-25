@@ -43,6 +43,10 @@ var limits: ShiftLimits
 ## plus each owned upgrade's extra_redraws), set when the shift starts.
 var redraws_used: int = 0
 var redraws_allowed: int = 0
+## The instance ids of the cards this shift's extra redraws brought into the hand (#108 piece 2:
+## the redraws past the balance's base_redraws are Extra redraw's), for the receipt's credit
+## (ScoreCredits).
+var redrawn_in: PackedInt32Array = PackedInt32Array()
 var last_result: ScoreResult
 ## Owned upgrades, in pick order (a starting deck's upgrade first). Scoring steps name them by
 ## index in this list.
@@ -116,6 +120,7 @@ func start_shift() -> void:
 	row = []
 	redraws_used = 0
 	redraws_allowed = limits.redraws
+	redrawn_in = PackedInt32Array()
 	last_result = null
 	phase = Phase.PLANNING
 
@@ -170,6 +175,10 @@ func redraw_basket(basket: int) -> Array[int]:
 	if not can_redraw_basket(basket):
 		return swapped
 	swapped = deck.redraw_places(basket_places(basket))
+	if redraws_used >= balance.base_redraws:
+		var by_place: Array[CardInstance] = deck.hand()
+		for spot: int in swapped:
+			redrawn_in.append(by_place[spot].instance_id)
 	redraws_used += 1
 	return swapped
 
@@ -206,10 +215,10 @@ func remove(card: CardInstance) -> bool:
 ## 20 public methods.)
 func preview(card: CardInstance = null, slot: int = 0) -> ScoreResult:
 	if card == null or not can_place(card):
-		return Scoring.score(row, upgrades, inspections)
+		return Scoring.score(row, upgrades, inspections, ScoreCredits.for_run(self))
 	var placed: Array[CardInstance] = row.duplicate()
 	placed.insert(clampi(slot, 0, placed.size()), card)
-	return Scoring.score(placed, upgrades, inspections)
+	return Scoring.score(placed, upgrades, inspections, ScoreCredits.for_run(self))
 
 
 ## Scores the row with the run's upgrades and the shift's inspections. Always allowed, even for
@@ -219,7 +228,7 @@ func preview(card: CardInstance = null, slot: int = 0) -> ScoreResult:
 func checkout() -> ScoreResult:
 	if phase != Phase.PLANNING:
 		return last_result
-	last_result = Scoring.score(row, upgrades, inspections)
+	last_result = Scoring.score(row, upgrades, inspections, ScoreCredits.for_run(self))
 	var record: ShiftRecord = ShiftRecord.new(shift_index + 1, quota(), last_result.total)
 	for card: CardInstance in row:
 		record.played.append(card.definition)

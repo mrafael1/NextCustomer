@@ -1,0 +1,25 @@
+[gd_resource type="Resource" script_class="UpgradeDefinition" format=3]
+
+[ext_resource type="Script" path="res://core/upgrades/upgrade_rule.gd" id="1_rule"]
+[ext_resource type="Script" path="res://core/upgrades/copies_bonus_rule.gd" id="2_rule_script"]
+[ext_resource type="Script" path="res://core/upgrade_definition.gd" id="3_upgrade"]
+[ext_resource type="Script" path="res://core/build_definition.gd" id="4_build"]
+[ext_resource type="Resource" path="res://data/builds/bulk_buyer.tres" id="5_build_0"]
+
+[sub_resource type="Resource" id="Resource_rule"]
+script = ExtResource("2_rule_script")
+bonus_each = 5
+receipt_text = "Bulk deal"
+
+[resource]
+script = ExtResource("3_upgrade")
+id = &"bulk_deal_lv3"
+icon_ref = "res://art/icons/perk_bulk_deal.png"
+display_name = "Bulk deal"
+type = 10
+effect_text = "Each product +5 for each copy of it earlier in the row"
+condition_text = "A BIG or GOLDEN copy counts as its plain card"
+builds = Array[ExtResource("4_build")]([ExtResource("5_build_0")])
+rules = Array[ExtResource("1_rule")]([SubResource("Resource_rule")])
+level = 3
+family_id = &"bulk_deal"

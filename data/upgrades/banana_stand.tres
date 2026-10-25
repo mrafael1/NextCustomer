@@ -1,0 +1,21 @@
+[gd_resource type="Resource" script_class="UpgradeDefinition" format=3]
+
+[ext_resource type="Script" path="res://core/upgrades/upgrade_rule.gd" id="1_rule"]
+[ext_resource type="Script" path="res://core/upgrades/tag_chain_rule.gd" id="2_rule_script"]
+[ext_resource type="Script" path="res://core/upgrade_definition.gd" id="3_upgrade"]
+
+[sub_resource type="Resource" id="Resource_rule"]
+script = ExtResource("2_rule_script")
+tag = "Produce"
+receipt_text = "Banana stand"
+
+[resource]
+script = ExtResource("3_upgrade")
+id = &"banana_stand"
+icon_ref = "res://art/minis/banana.png"
+display_name = "Banana stand"
+type = 11
+effect_text = "Every Produce chains like a Banana: + the price of the Produce just before it"
+condition_text = "A Banana after a Banana keeps its own chain"
+rules = Array[ExtResource("1_rule")]([SubResource("Resource_rule")])
+boosts_tag = "Produce"

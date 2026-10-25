@@ -225,6 +225,8 @@ func test_the_chute_choice_never_reads_the_drops() -> void:
 	assert_int(player._choose_chute(run, usage)).is_equal(chosen)
 	var best: int = -1
 	var best_value: float = -INF
+	# Valued as the choice values them: with the sensible player's rows.
+	player._choosing = true
 	for chute: int in RewardMachine.CHUTES:
 		var info: MachineChuteInfo = run.machine.chute_info(run, chute)
 		if info.state != RewardMachine.ChuteState.OPEN:
@@ -233,6 +235,7 @@ func test_the_chute_choice_never_reads_the_drops() -> void:
 		if value > best_value:
 			best_value = value
 			best = chute
+	player._choosing = false
 	assert_int(chosen).is_equal(best)
 	assert_float(best_value).is_greater_equal(0.0)
 

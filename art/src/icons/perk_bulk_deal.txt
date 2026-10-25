@@ -1,0 +1,11 @@
+; Bulk deal's perk icon (#108, UpgradeDefinition.icon_ref; the LOYALTY prize's badge): three
+; copies of one paper box, stepped, "each product +3 per copy of it before it". No ink outline,
+; like perk_slot_engine. 7x6, shown at 2x art. A placeholder for the art review.
+@size 7x6
+@kind icon
+.www...
+.ccc...
+..www..
+..ccc..
+...www.
+...ccc.

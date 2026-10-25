@@ -1,0 +1,11 @@
+; Mixed basket's perk icon (#108, UpgradeDefinition.icon_ref; the LOYALTY prize's badge): four
+; family colours in a 2x2 grid (Produce green, Breakfast mustard, Dairy teal, Clearance tomato),
+; "each product that brings a new family". No ink outline, like combo_diamond: the badge's teal
+; shade parts the squares. 5x5, shown at 2x art. A placeholder for the art review.
+@size 5x5
+@kind icon
+GG.MM
+gG.mM
+.....
+54.oR
+44.RR

@@ -101,6 +101,7 @@ static func to_dictionary(saved_run: RunState, saved_run_id: String, played_ms: 
 		"row": _instance_ids(saved_run.row),
 		"redraws_used": saved_run.redraws_used,
 		"redraws_allowed": saved_run.redraws_allowed,
+		"redrawn_in": Array(saved_run.redrawn_in),
 		"upgrades": _ids(saved_run.upgrades),
 		"inspections": _ids(saved_run.inspections),
 		"next_inspection": _id(saved_run.next_inspection),
@@ -155,6 +156,9 @@ static func from_dictionary(saved: Dictionary, lookup: ContentLookup) -> RunSave
 	restored.debug_jumped = reader.flag("debug_jumped")
 	restored.redraws_used = reader.whole("redraws_used")
 	restored.redraws_allowed = reader.whole("redraws_allowed")
+	# Left out by format 6 saves made before #108 piece 2: no card came from an extra redraw.
+	if data.has("redrawn_in"):
+		restored.redrawn_in = PackedInt32Array(reader.wholes("redrawn_in", 1))
 	restored.upgrades = reader.upgrades("upgrades")
 	restored.inspections = reader.inspections("inspections")
 	restored.next_inspection = reader.inspection("next_inspection")
@@ -305,8 +309,9 @@ static func _is_consistent(restored: RunState, retired: bool, rescored: bool) ->
 		)
 	if not ok or not _after_checkout(restored):
 		return ok
+	var played: Array[UpgradeDefinition] = _played_upgrades(restored)
 	restored.last_result = Scoring.score(
-		restored.row, _played_upgrades(restored), restored.inspections
+		restored.row, played, restored.inspections, ScoreCredits.for_run(restored)
 	)
 	if rescored:
 		return true

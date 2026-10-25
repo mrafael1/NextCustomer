@@ -255,12 +255,17 @@ func test_upgrade_frequencies_match_the_card() -> void:
 	for card: CardInstance in fits_one.deck.cards:
 		deck_cards.append(card.definition)
 	var fitting: Array[UpgradeDefinition] = []
-	for upgrade: UpgradeDefinition in _balance.upgrade_pool:
+	# The five perks from before #108's family perks (whose fit reads the deck's families).
+	var classic_pool: Array[UpgradeDefinition] = _upgrades(
+		["coupon_engine", "category_engine", "extra_redraw", "slot_engine", "big_basket"]
+	)
+	for upgrade: UpgradeDefinition in classic_pool:
 		if upgrade.fits(deck_cards):
 			fitting.append(upgrade)
 	assert_array(fitting).is_not_empty()
 	fits_one.upgrades = fitting.slice(1)
 	var one_fits: MachineContext = MachineContext.from_run(fits_one, machine, false, false)
+	one_fits.upgrade_pool = classic_pool
 	assert_int(one_fits.guarantee(RewardMachine.Chute.UPGRADE).size()).is_equal(1)
 	_assert_frequencies(RewardMachine.Chute.UPGRADE, one_fits, 0, 5000, "one fits")
 	# One new perk left, every owned one at its top level, nothing to improve: short draws.
@@ -270,6 +275,7 @@ func test_upgrade_frequencies_match_the_card() -> void:
 		["coupon_engine_lv3", "category_engine_lv3", "extra_redraw_lv3", "slot_engine_lv3"]
 	)
 	var short: MachineContext = MachineContext.from_run(one_left, machine, false, false)
+	short.upgrade_pool = classic_pool
 	var short_odds: MachineOddsCard = _assert_frequencies(
 		RewardMachine.Chute.UPGRADE, short, 2, 5000, "one perk left"
 	)
@@ -771,5 +777,7 @@ class FitUpgrade:
 
 	var fit: bool = false
 
-	func fits(_deck: Array[CardDefinition]) -> bool:
+	func fits(
+		_deck: Array[CardDefinition], _families: PackedStringArray = PackedStringArray()
+	) -> bool:
 		return fit

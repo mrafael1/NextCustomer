@@ -523,6 +523,10 @@ static func step_text(
 			# No line: the receipt stays a straight list of payouts and explanations. What the
 			# effect does is printed where it lands (its FLAT or MULTIPLIER line, or a fizzle).
 			return PackedStringArray()
+		ScoreStep.StepType.CREDIT:
+			# A label, not an addend (#108 piece 2): the amount is in its words, already counted
+			# in the item's payout, so the right side stays empty.
+			left = "  %s earned %s (%s)" % [cause, money(step.value), step.reason]
 	return PackedStringArray([left, right])
 
 

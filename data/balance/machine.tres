@@ -32,6 +32,18 @@
 [ext_resource type="Resource" path="res://data/upgrades/coupon_engine.tres" id="u_coupon_engine"]
 [ext_resource type="Resource" path="res://data/upgrades/category_engine.tres" id="u_category_engine"]
 [ext_resource type="Resource" path="res://data/upgrades/slot_engine.tres" id="u_slot_engine"]
+[ext_resource type="Resource" path="res://data/upgrades/bakery_aisle_run.tres" id="u_bakery_aisle_run"]
+[ext_resource type="Resource" path="res://data/upgrades/produce_aisle_run.tres" id="u_produce_aisle_run"]
+[ext_resource type="Resource" path="res://data/upgrades/dairy_aisle_run.tres" id="u_dairy_aisle_run"]
+[ext_resource type="Resource" path="res://data/upgrades/snack_aisle_run.tres" id="u_snack_aisle_run"]
+[ext_resource type="Resource" path="res://data/upgrades/household_aisle_run.tres" id="u_household_aisle_run"]
+[ext_resource type="Resource" path="res://data/upgrades/breakfast_aisle_run.tres" id="u_breakfast_aisle_run"]
+[ext_resource type="Resource" path="res://data/upgrades/clearance_aisle_run.tres" id="u_clearance_aisle_run"]
+[ext_resource type="Resource" path="res://data/upgrades/mixed_basket.tres" id="u_mixed_basket"]
+[ext_resource type="Resource" path="res://data/upgrades/bulk_deal.tres" id="u_bulk_deal"]
+[ext_resource type="Resource" path="res://data/upgrades/banana_stand.tres" id="u_banana_stand"]
+[ext_resource type="Resource" path="res://data/upgrades/lemon_squeezer.tres" id="u_lemon_squeezer"]
+[ext_resource type="Resource" path="res://data/upgrades/fire_sale.tres" id="u_fire_sale"]
 [ext_resource type="Resource" path="res://data/item_upgrades/banana.tres" id="i_banana"]
 [ext_resource type="Resource" path="res://data/item_upgrades/milk.tres" id="i_milk"]
 [ext_resource type="Resource" path="res://data/item_upgrades/eggs.tres" id="i_eggs"]
@@ -128,8 +140,8 @@ rare_products = Array[ExtResource("3_card")]([ExtResource("p_milk"), ExtResource
 legendary_products = Array[ExtResource("3_card")]([ExtResource("p_lemon"), ExtResource("p_iced_bun"), ExtResource("p_squashed_cake")])
 rare_coupons = Array[ExtResource("3_card")]([ExtResource("c_repeat"), ExtResource("c_two_for_one"), ExtResource("c_multipack")])
 legendary_coupons = Array[ExtResource("3_card")]([ExtResource("c_opening_deal")])
-rare_upgrades = Array[ExtResource("4_upgrade")]([ExtResource("u_coupon_engine"), ExtResource("u_category_engine")])
-legendary_upgrades = Array[ExtResource("4_upgrade")]([ExtResource("u_slot_engine")])
+rare_upgrades = Array[ExtResource("4_upgrade")]([ExtResource("u_coupon_engine"), ExtResource("u_category_engine"), ExtResource("u_bakery_aisle_run"), ExtResource("u_produce_aisle_run"), ExtResource("u_dairy_aisle_run"), ExtResource("u_snack_aisle_run"), ExtResource("u_household_aisle_run"), ExtResource("u_breakfast_aisle_run"), ExtResource("u_clearance_aisle_run"), ExtResource("u_mixed_basket"), ExtResource("u_bulk_deal")])
+legendary_upgrades = Array[ExtResource("4_upgrade")]([ExtResource("u_slot_engine"), ExtResource("u_banana_stand"), ExtResource("u_lemon_squeezer"), ExtResource("u_fire_sale")])
 register_cap = 3
 premium_shifts = PackedInt32Array(3, 5, 7)
 premium_min_rarity = 1
@@ -141,4 +153,5 @@ shift_odds_levels = PackedInt32Array(0, 0, 1, 1, 2, 2, 3, 3)
 bonus_after_inspection = true
 new_arrival_first_visit = true
 shelf_min_copies = 2
+families = PackedStringArray("Bakery", "Produce", "Dairy", "Frozen", "Snack", "Household", "Breakfast", "Clearance")
 item_upgrades = Array[ExtResource("5_item_upgrade")]([ExtResource("i_banana"), ExtResource("i_milk"), ExtResource("i_eggs"), ExtResource("i_coffee"), ExtResource("i_bread"), ExtResource("i_soup"), ExtResource("i_cheese"), ExtResource("i_frozen_peas"), ExtResource("i_butter"), ExtResource("i_yogurt"), ExtResource("i_reduced_yogurt"), ExtResource("i_cereal"), ExtResource("i_tea_bags"), ExtResource("i_crackers"), ExtResource("i_dented_can"), ExtResource("i_day_old_buns"), ExtResource("i_carrier_bag"), ExtResource("i_scissors"), ExtResource("i_batteries"), ExtResource("i_flickering_bulb"), ExtResource("i_baguette"), ExtResource("i_scone"), ExtResource("i_croissant"), ExtResource("i_broken_biscuit"), ExtResource("i_iced_bun"), ExtResource("i_birthday_candles"), ExtResource("i_squashed_cake"), ExtResource("i_stale_doughnut"), ExtResource("i_cream"), ExtResource("i_ham_ends"), ExtResource("i_fruit_salad"), ExtResource("i_strawberries"), ExtResource("i_grapefruit"), ExtResource("i_wonky_carrot"), ExtResource("i_lemon"), ExtResource("i_bruised_apples"), ExtResource("i_soft_tomatoes"), ExtResource("i_potatoes"), ExtResource("i_egg_timer"), ExtResource("i_chipped_mug"), ExtResource("i_odd_socks"), ExtResource("i_sugar_cubes"), ExtResource("i_mixed_herbs"), ExtResource("i_crisps"), ExtResource("i_cereal_bar"), ExtResource("i_bent_lolly"), ExtResource("i_pick_n_mix"), ExtResource("i_stale_popcorn"), ExtResource("i_breadsticks"), ExtResource("i_dusty_toffees")])

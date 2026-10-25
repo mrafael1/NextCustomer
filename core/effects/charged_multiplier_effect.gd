@@ -6,6 +6,8 @@ extends ScoreEffect
 var tag: String = ""
 var factor: int = 1
 var charges: int = 0
+## The last use came from a reaching upgrade (past the charges).
+var _reached: bool = false
 
 
 func _init(
@@ -26,11 +28,23 @@ func armed_value() -> int:
 	return factor
 
 
+## With a reaching upgrade (#108), every later product with the tag takes the factor once the
+## charges are spent: those uses are the upgrade's (reached_last).
 func multiplier(state: ScoreState, slot: int) -> int:
-	if charges <= 0 or not state.has_tag(slot, tag):
+	_reached = false
+	if not state.has_tag(slot, tag):
 		return 1
-	charges -= 1
+	if charges > 0:
+		charges -= 1
+		return factor
+	if reach_rule == null:
+		return 1
+	_reached = true
 	return factor
+
+
+func reached_last() -> bool:
+	return _reached
 
 
 func waste_reason() -> String:
@@ -46,4 +60,4 @@ func reset_reason() -> String:
 
 
 func is_spent() -> bool:
-	return charges <= 0
+	return charges <= 0 and reach_rule == null

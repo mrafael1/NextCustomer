@@ -138,12 +138,16 @@ func test_every_upgrade_states_its_type_and_id() -> void:
 		assert_str(upgrade.effect_text).override_failure_message(file).is_not_empty()
 		for build: BuildDefinition in upgrade.builds:
 			assert_object(build).override_failure_message(file).is_not_null()
-		# Only Extra redraw (each level of it) supports any build (no build listed).
-		if upgrade.family() != &"extra_redraw":
+		# Only Extra redraw (each level of it) supports any build (no build listed); a family perk
+		# or a jackpot (#108) fits by its family or its product instead.
+		var fits_by_family: bool = not upgrade.boosts_tag.is_empty() or upgrade.needs_card != null
+		if upgrade.family() != &"extra_redraw" and not fits_by_family:
 			assert_array(upgrade.builds).override_failure_message(file).is_not_empty()
 		_assert_level_chain(upgrade, file)
-	# Extra coupon slot was removed in plan v0.46 (#106); #108 added LV 2 and LV 3 of four perks.
-	assert_int(ids.size()).is_equal(14)
+	# Extra coupon slot was removed in plan v0.46 (#106); #108 added LV 2 and LV 3 of four perks,
+	# then (piece 2) 7 Regulars and 7 Aisle runs, Mixed basket and Bulk deal at 3 levels each and
+	# the 3 jackpots.
+	assert_int(ids.size()).is_equal(65)
 
 
 ## A loyalty level (#108): LV 1 has no family id, a level file names its LV 1 file as family and

@@ -24,6 +24,8 @@ enum Kind {
 	TAG,
 	## LINKED.
 	LINK,
+	## CREDIT (#108 piece 2): a perk's earnings, a label that changes no value.
+	CREDIT,
 }
 
 ## What a beat does to the monitor's total (#105 piece 2, mock-up readability_v3.html): nothing, the

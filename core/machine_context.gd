@@ -72,6 +72,20 @@ func deck_cards() -> Array[CardDefinition]:
 	return found
 
 
+## Whether the machine can offer `upgrade` as a new perk (#108): a family perk needs a stocked
+## product or a deck card of its family, a jackpot its product in the stock or the deck.
+func stocks(upgrade: UpgradeDefinition) -> bool:
+	var cards: Array[CardDefinition] = products + deck_cards()
+	if upgrade.needs_card != null:
+		return cards.any(upgrade.needs_card.is_same_product)
+	if not upgrade.boosts_tag.is_empty():
+		return cards.any(
+			func(card: CardDefinition) -> bool:
+				return card.is_product() and card.tags.has(upgrade.boosts_tag)
+		)
+	return true
+
+
 ## Whether this context's NEW ITEMS draw holds the new arrival (build spec 1.5, Q4).
 func holds_new_arrival() -> bool:
 	return (
