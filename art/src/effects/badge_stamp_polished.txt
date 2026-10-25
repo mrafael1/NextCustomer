@@ -1,0 +1,17 @@
+; Readability v3: 14x14 giver token at 2x, initials drawn by GiverBadge.
+@size 14x14
+@kind icon
+..##########..
+.##yyyyyyyy##.
+##yyMMMMMMyM##
+#yyMM2222MmMM#
+#yMM222222mmM#
+#yM22222222mM#
+#yM22222222mM#
+#yM22222222mM#
+#yM22222222mM#
+#yMM222222mmM#
+#yymm2222mmMM#
+##MMmmmmmmMM##
+.##MMMMMMMM##.
+..##########..

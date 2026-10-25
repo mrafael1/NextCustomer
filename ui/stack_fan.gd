@@ -1,7 +1,8 @@
 class_name StackFan
 extends Control
 ## The fan of a folded sticker stack (#105 piece 3, mock-up readability v3 section 3, fold A):
-## hovering a belt stack whose earliest stickers fold into the "+N" chip (PlanningLayer) fans every
+## hovering a belt item or its stack whose earliest stickers fold into the "+N" chip
+## (PlanningLayer) fans every
 ## sticker of the item out above it, in step order, each numbered 1 to N up and left of its top-left
 ## corner, clear of its giver's mini (EffectSticker.set_number). Rows hold at most PER_ROW, GAP
 ## apart on a gentle arch (the ends ARCH lower, each turned by its place up to TURN_DEG), ROW apart
@@ -25,14 +26,14 @@ extends Control
 signal fanned_changed(slot: int)
 
 const GAP := 76.0
-const ROW := 46.0
+const ROW := 58.0
 const PER_ROW := 4
 const ARCH := 10.0
 ## The arch's and the turn's reach: an end GAP x 1.5 from a row's centre is ARCH lower and turned
 ## TURN_DEG.
 const ARCH_SPAN := GAP * 1.5
 const TURN_DEG := 9.0
-const ABOVE_SPRITE := 18.0
+const ABOVE_SPRITE := 24.0
 ## The fan's room: the belt's x-range, from TOP_GAP under the top bar down to SPRITE_SLACK under
 ## the sprite's top.
 const TOP_GAP := 8.0
@@ -73,6 +74,8 @@ class Folded:
 	var stack: Array[EffectSticker] = []
 	## The item's sprite at rest.
 	var sprite: Rect2 = Rect2()
+	## The item's hover area (sprite and ticket), in layer coordinates.
+	var hit: Rect2 = Rect2()
 	## (spec: StickerSpec) -> bool: whether its sticker is drained (the layer's focus).
 	var drained: Callable = Callable()
 
@@ -198,7 +201,7 @@ func _look() -> void:
 			wanted = _slot
 		else:
 			for slot: int in _stacks:
-				if _stack_rect(_stacks[slot]).grow(HOVER_MARGIN).has_point(_point):
+				if _hover_rect(_stacks[slot]).grow(HOVER_MARGIN).has_point(_point):
 					wanted = slot
 					break
 	if wanted >= 0 and wanted != _slot:
@@ -311,10 +314,15 @@ func _shut() -> void:
 ## Where the pointer keeps the open fan: its stack and every fan place (with its number), and the
 ## room between, grown by HOVER_MARGIN.
 func _open_rect() -> Rect2:
-	var rect: Rect2 = _stack_rect(_stacks[_slot])
+	var rect: Rect2 = _hover_rect(_stacks[_slot])
 	for place: Rect2 in _to:
 		rect = rect.merge(_drawn(place))
 	return rect.grow(HOVER_MARGIN)
+
+
+## The item's hover area and the stickers on its shoulder both open the fan.
+func _hover_rect(folded: Folded) -> Rect2:
+	return _stack_rect(folded).merge(folded.hit)
 
 
 ## The stack's stickers' rects merged (the fan's coordinates).

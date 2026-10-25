@@ -1,0 +1,20 @@
+; Readability v2 polished sticker: stepped corners, lit edge, shaded lip.
+@size 12x16
+@kind frame
+@scale 2
+...######...
+.##BBBBBB##.
+.#BBBBBBBB#.
+#BBBBBBBBBB#
+#BBBBBBBBBB#
+#BBBBBBBBBB#
+#BBBBBBBBBB#
+#BBBBBBBBBB#
+#BBBBBBBBBB#
+#BBBBBBBBBB#
+#BBBBBBBBBB#
+#BBBBBBBBBB#
+#CCCCCCCCCC#
+.#DDDDDDDD#.
+.##########.
+...######...

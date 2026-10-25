@@ -3,7 +3,7 @@ extends Control
 ## One planning sticker on a belt item (#71, mock-up h1, H1_BUILD_SPEC.md section 4.1): an effect
 ## the item receives, slapped on it. ADD is a cream price-gun label ("+3"), MULTIPLY a gold
 ## starburst ("×3"), COPY a teal label ("=€6"), FIZZLE a grey "WASTED" label and MORE the fold
-## chip the earliest stickers of a stack fold into from its 5th (#105 piece 3, mock-up readability
+## chip the earliest stickers of a stack fold into from its 4th (#105 piece 3, mock-up readability
 ## v3 fold A): a grey label turned FOLD_TILT_DEG with a card-fan mark and the count ("+3") in ink.
 ## The chip pops in and punches as more fold in (fold_punch); in the count it counts down as each
 ## folded sticker's step lands and shrinks away after the last (fire). A fanned-out copy
@@ -18,24 +18,24 @@ extends Control
 ## its top right corner) and a giver's sparks charge it (charge: a lighter punch). Decor only: it
 ## takes no clicks, and every number on it is a step's (StickerSpec).
 
-const LABEL_HEIGHT := 28.0
+const LABEL_HEIGHT := 32.0
 ## ADD, COPY and MORE are LABEL_WIDTHS[0] wide for up to 2 characters, [1] for 3, else their
 ## text's width plus LABEL_PADDING (on the 2 px grid).
-const LABEL_WIDTHS: Array[float] = [46.0, 54.0]
-const LABEL_PADDING := 16.0
+const LABEL_WIDTHS: Array[float] = [52.0, 62.0]
+const LABEL_PADDING := 22.0
 ## FIZZLE is FIZZLE_SIZE, or wider for a longer text (its width plus FIZZLE_PADDING and
 ## LABEL_PADDING, on the 2 px grid): "WASTED" (#45).
-const FIZZLE_SIZE := Vector2(60, 28)
-const BURST_SIZE := Vector2(62, 34)
+const FIZZLE_SIZE := Vector2(92, 32)
+const BURST_SIZE := Vector2(76, 42)
 ## The label 9-slices' margin, in art pixels.
-const FRAME_MARGIN := 3
+const FRAME_MARGIN := 4
 ## Text sizes: the labels', the burst's (BURST_SMALL_SIZE from BURST_SMALL_CHARS characters) and
 ## the grey labels' (with FIZZLE_PADDING more on the left).
-const LABEL_TEXT_SIZE := 21
-const BURST_TEXT_SIZE := 22
-const BURST_SMALL_SIZE := 18
+const LABEL_TEXT_SIZE := 24
+const BURST_TEXT_SIZE := 26
+const BURST_SMALL_SIZE := 22
 const BURST_SMALL_CHARS := 4
-const GREY_TEXT_SIZE := 15
+const GREY_TEXT_SIZE := 17
 const FIZZLE_PADDING := 6.0
 ## The fold chip (MORE): FOLD_SIZE, or wider for its text (from FOLD_TEXT_X, plus FOLD_PADDING),
 ## its frame turned FOLD_TILT_DEG, the mark at FOLD_MARK_AT and the count in ink at FOLD_TEXT_SIZE.
@@ -56,14 +56,14 @@ const FOLD_PUNCH_S := 0.22
 ## number in paper at NUMBER_TEXT_SIZE, its top-left at NUMBER_AT: up and left of the sticker's
 ## top-left corner, so its ring clears the giver badge's mini under it (who gave what stays
 ## readable in the fan).
-const NUMBER_AT := Vector2(-16, -12)
+const NUMBER_AT := Vector2(-20, -22)
 const NUMBER_SIZE := Vector2(16, 16)
 const NUMBER_RING := 2.0
 const NUMBER_TEXT_SIZE := 12
 const NUMBER_NAME := &"Number"
 ## The badge hangs this far left of a burst, or of a label.
-const BURST_BADGE_X := -8.0
-const LABEL_BADGE_X := -14.0
+const BURST_BADGE_X := -14.0
+const LABEL_BADGE_X := -20.0
 const SHADOW_OFFSET := Vector2(2, 2)
 const SHADOW_ALPHA := 0.42
 ## The slap's frames (scales), each held for the frame time slap() is given; it ends at 1.
@@ -103,10 +103,10 @@ const CHECK_SIZE := Vector2(18, 16)
 const CHECK_OVERHANG := Vector2(6, 6)
 const CHECK_NAME := &"Check"
 
-const LABEL_FRAME := preload("res://art/effects/sticker_label.png")
-const GREY_FRAME := preload("res://art/effects/sticker_label_grey.png")
-const TEAL_FRAME := preload("res://art/effects/sticker_label_teal.png")
-const BURST := preload("res://art/effects/sticker_burst.png")
+const LABEL_FRAME := preload("res://art/effects/sticker_label_polished.png")
+const GREY_FRAME := preload("res://art/effects/sticker_label_grey_polished.png")
+const TEAL_FRAME := preload("res://art/effects/sticker_label_teal_polished.png")
+const BURST := preload("res://art/effects/sticker_burst_polished.png")
 const FOLD_MARK := preload("res://art/effects/fold_mark.png")
 
 var _spec: StickerSpec
@@ -163,6 +163,16 @@ func _init(sticker_spec: StickerSpec, tilt_deg: float = 0.0) -> void:
 	var left: float = FIZZLE_PADDING if _spec.kind == StickerSpec.Kind.FIZZLE else 0.0
 	_label.position = Vector2(left, 0)
 	_label.size = Vector2(size.x - left, size.y)
+	if _spec.kind != StickerSpec.Kind.MULTIPLY:
+		# Centre the digits on the face above the label's shaded bottom lip.
+		_label.size.y = 26.0
+	if _spec.kind != StickerSpec.Kind.MORE:
+		_label.add_theme_color_override(
+			"font_shadow_color",
+			Palette.MUSTARD if _spec.kind == StickerSpec.Kind.MULTIPLY else Palette.CREAM_SHADE
+		)
+		_label.add_theme_constant_override("shadow_offset_x", 0)
+		_label.add_theme_constant_override("shadow_offset_y", ArtStyle.ART_SCALE)
 	if _spec.kind == StickerSpec.Kind.MORE:
 		_mark = UiKit.sprite(FOLD_MARK)
 		_mark.name = "FoldMark"
