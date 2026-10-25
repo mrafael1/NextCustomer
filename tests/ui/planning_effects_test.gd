@@ -77,7 +77,7 @@ func test_every_item_shows_its_model() -> void:
 	assert_object(bread).is_not_null()
 	assert_int(bread.badge().kind).is_equal(GiverBadge.Kind.ITEM)
 	assert_bool(bread.badge().shows_mini()).is_true()
-	assert_str(bread.badge().texture().resource_path).is_equal("res://art/minis/eggs.png")
+	assert_str(bread.badge().texture().resource_path).is_equal("res://art/giver_badges/eggs.png")
 	var stamped: EffectSticker = _sticker_with(layer.stack(4), "×3")
 	assert_object(stamped).is_not_null()
 	assert_int(stamped.badge().kind).is_equal(GiverBadge.Kind.COUPON)
@@ -173,7 +173,9 @@ func test_item_badges_show_the_givers_mini() -> void:
 				not giver.badge_mini_ref().is_empty()
 			)
 			if badge.shows_mini():
-				assert_str(badge.texture().resource_path).is_equal(giver.badge_mini_ref())
+				assert_str(badge.texture().resource_path).is_equal(
+					GiverBadge.PLATE_FOLDER.path_join(giver.badge_mini_ref().get_file())
+				)
 				assert_str(badge.initials()).is_empty()
 				minis.append(badge)
 			else:

@@ -1,10 +1,8 @@
 extends GdUnitTestSuite
-## Sticker minis (mock-up docs/art/mockups/sticker_minis_v1.html): an ITEM giver badge with a
-## mini (CardDefinition.badge_mini_ref) shows that 7x7 mini alone at 2x, die-cut, centred in the
-## badge's 18x18 with no token and no initials; its GOLDEN copy has a gold outline where the plain
-## one has ink; an item with no mini keeps its initials token, and the coupon, loyalty and
-## inspection badges stay as before. Drained, the mini greys as the token does. Pure UI: no
-## screen, no saves.
+## Readability v2's larger giver plates: a 10x10 product drawing with a paper or GOLDEN rim
+## inside a 28 px badge. Coupon and loyalty tokens share that size; inspection keeps its warning.
+## The original 7x7 minis still select the plates and remain available to the monitor. Missing
+## product art falls back to initials. Pure UI: no screen or saves.
 
 const EGGS := "res://art/minis/eggs.png"
 const EGGS_GOLDEN := "res://art/minis/eggs_golden.png"
@@ -13,18 +11,40 @@ const OUTLINE_PIXEL := Vector2i(2, 0)
 const GOLD := Color("ffcf3f")
 
 
-func test_an_item_with_a_mini_shows_the_mini_alone() -> void:
+func test_an_item_with_a_mini_shows_its_larger_framed_plate() -> void:
 	var badge: GiverBadge = auto_free(GiverBadge.new(GiverBadge.Kind.ITEM, "Eg", EGGS))
 	assert_bool(badge.shows_mini()).is_true()
-	assert_str(badge.texture().resource_path).is_equal(EGGS)
+	assert_str(badge.texture().resource_path).is_equal(
+		GiverBadge.PLATE_FOLDER.path_join("eggs.png")
+	)
 	assert_str(badge.initials()).is_empty()
 	assert_that(badge.size).is_equal(GiverBadge.SIZE)
-	# 7x7 at 2x, centred: a 2 px margin all round, the whole mini inside the badge.
-	assert_that(badge.art_rect()).is_equal(Rect2(Vector2(2, 2), GiverBadge.MINI_SIZE))
+	# A 14x14 native plate at 2x, including the die-cut rim and ink edge.
+	assert_that(badge.art_rect()).is_equal(Rect2(Vector2.ZERO, GiverBadge.SIZE))
 	assert_bool(Rect2(Vector2.ZERO, badge.size).encloses(badge.art_rect())).is_true()
-	assert_that(badge.texture().get_size() * ArtStyle.ART_SCALE).is_equal(GiverBadge.MINI_SIZE)
+	assert_that(badge.texture().get_size() * ArtStyle.ART_SCALE).is_equal(GiverBadge.SIZE)
 	# No token, no label: the mini is the badge's only child.
 	assert_int(badge.get_child_count()).is_equal(1)
+
+
+func test_every_product_mini_has_a_larger_plate() -> void:
+	for file_name: String in DirAccess.get_files_at("res://art/minis"):
+		if file_name.get_extension() != "png":
+			continue
+		var plate: Texture2D = load(GiverBadge.PLATE_FOLDER.path_join(file_name))
+		assert_object(plate).override_failure_message(file_name).is_not_null()
+		assert_that(plate.get_size() * ArtStyle.ART_SCALE).is_equal(GiverBadge.SIZE)
+	var plain: Image = (
+		(load(GiverBadge.PLATE_FOLDER.path_join("eggs.png")) as Texture2D).get_image()
+	)
+	var golden: Image = (
+		(load(GiverBadge.PLATE_FOLDER.path_join("eggs_golden.png")) as Texture2D).get_image()
+	)
+	# Only the die-cut rim changes: the egg's drawing and the outer ink edge stay legible.
+	assert_that(plain.get_pixel(5, 1)).is_equal(Palette.PAPER)
+	assert_that(golden.get_pixel(5, 1)).is_equal(GOLD)
+	assert_that(golden.get_pixel(5, 0)).is_equal(Palette.INK)
+	assert_that(golden.get_pixel(5, 3)).is_equal(plain.get_pixel(5, 3))
 
 
 func test_a_golden_givers_mini_has_a_gold_outline() -> void:
@@ -42,7 +62,9 @@ func test_a_golden_givers_mini_has_a_gold_outline() -> void:
 	var badge: GiverBadge = auto_free(
 		GiverBadge.new(GiverBadge.Kind.ITEM, "Go", golden_card.badge_mini_ref())
 	)
-	assert_str(badge.texture().resource_path).is_equal(EGGS_GOLDEN)
+	assert_str(badge.texture().resource_path).is_equal(
+		GiverBadge.PLATE_FOLDER.path_join("eggs_golden.png")
+	)
 
 
 func test_an_item_without_a_mini_keeps_its_initials() -> void:
@@ -79,7 +101,7 @@ func test_a_product_with_no_mini_in_its_data_shows_its_initials() -> void:
 		assert_object(badge.texture()).is_same(GiverBadge.ITEM_TOKEN)
 
 
-func test_coupon_loyalty_and_inspection_badges_are_unchanged() -> void:
+func test_coupon_and_loyalty_plates_are_larger_and_inspection_keeps_its_icon() -> void:
 	# A mini given to another kind is ignored.
 	var coupon: GiverBadge = auto_free(GiverBadge.new(GiverBadge.Kind.COUPON, "Mu", EGGS))
 	assert_bool(coupon.shows_mini()).is_false()
@@ -107,7 +129,7 @@ func test_a_drained_mini_greys() -> void:
 
 ## On a sticker, the mini badge hangs off the sticker's left edge as the token did, vertically
 ## centred on it: the stack's layout is unchanged.
-func test_a_sticker_hangs_the_mini_badge_as_before() -> void:
+func test_a_sticker_hangs_the_larger_badge_clear_of_its_amount() -> void:
 	for kind: StickerSpec.Kind in [StickerSpec.Kind.ADD, StickerSpec.Kind.MULTIPLY]:
 		var spec: StickerSpec = StickerSpec.new()
 		spec.kind = kind

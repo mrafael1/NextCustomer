@@ -6,7 +6,7 @@ extends Control
 ## what the item receives and pays: its stickers (EffectSticker) stacked in apply order on the
 ## item's right shoulder (#105 piece 3, mock-up readability v3 section 3, fold A), the last applied
 ## at the bottom, each overlapping the one above by STACK_OVERLAP, growing up over the back wall
-## (never over the ticket, never past the hung monitor's foot or the top bar's); from the 5th
+## (never over the ticket, never past the hung monitor's foot or the top bar's); from the 4th
 ## sticker the earliest fold into the grey "+N" chip on top, so at most STACK_SHOWN show (a stack
 ## still too tall squeezes, then folds more), and hovering a folded stack fans every sticker out
 ## above the item, numbered (StackFan); the pay on its ticket (PayTag, over the ticket's top
@@ -65,7 +65,7 @@ const STACK_OVERLAP := 4.0
 const STACK_OVERLAP_MAX := 14.0
 const STACK_SQUEEZE := 2.0
 ## The most stickers a stack shows: from one more, its earliest fold into the "+N" chip.
-const STACK_SHOWN := 4
+const STACK_SHOWN := 3
 ## The frames' tilts by place from the stack's bottom (mod their count), in degrees.
 const STICKER_TILTS: Array[float] = [-4.0, 3.0, -3.0, 4.0, -2.0]
 ## A stack's ceiling: MONITOR_GAP under the hung monitor's drawing when it overlaps its x-range,
@@ -762,6 +762,7 @@ func _folded_stacks() -> Dictionary[int, StackFan.Folded]:
 		folded.specs = _model.slots[slot].stickers
 		folded.stack = shown
 		folded.sprite = _sprite_rect(item, _to_layer(item))
+		folded.hit = _to_layer(item) * item.hit_rect()
 		folded.drained = _drained_spec.bind(slot)
 		found[slot] = folded
 	return found

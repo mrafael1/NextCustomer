@@ -3,7 +3,7 @@ extends RefCounted
 ## One sticker on a planning item (#71, mock-up h1, H1_BUILD_SPEC.md section 2.1): an effect the
 ## item receives, read from one EffectLink. ADD is the cream "+N" price-gun label, MULTIPLY the
 ## gold "×N" starburst, COPY the teal "=€N" label, FIZZLE the grey "WASTED" label and MORE the
-## grey "+N" fold chip the earliest stickers fold into from a stack's 5th sticker (#105 piece 3:
+## grey "+N" fold chip the earliest stickers fold into from a stack's 4th sticker (#105 piece 3:
 ## PlanningLayer makes it). Pure data: it never scores.
 
 enum Kind { ADD, MULTIPLY, COPY, FIZZLE, MORE }

@@ -326,7 +326,7 @@ func effects(card_spec: String = "") -> void:
 
 
 ## Sets up --stack's shift (the stress row on 8 slots, no inspection) and, when `fan`, hovers the
-## first folded stack's chip once the items are laid out, waiting for its fan to open; capture()
+## first folded stack's item once the items are laid out, waiting for its fan to open; capture()
 ## then names its file shift_screen_stack_[fan_]<w>x<h>.png. No folded stack goes to report_error.
 func stack(fan: bool) -> void:
 	_set_up_shift("", STACK_ROW_IDS, STACK_UPGRADE_IDS)
@@ -339,7 +339,8 @@ func stack(fan: bool) -> void:
 	for slot: int in range(_screen.run.row.size()):
 		var shown: Array[EffectSticker] = layer.stack(slot)
 		if not shown.is_empty() and shown[0].spec().kind == StickerSpec.Kind.MORE:
-			layer.fan().point_at(shown[0].get_global_rect().get_center())
+			var item: ItemView = _screen._row_views[slot] as ItemView
+			layer.fan().point_at(item.get_global_transform() * item.hit_rect().get_center())
 			await get_tree().create_timer(StackFan.OPEN_S + 0.2).timeout
 			return
 	_report("No folded stack to fan")

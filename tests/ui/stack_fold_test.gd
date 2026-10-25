@@ -1,13 +1,13 @@
 extends GdUnitTestSuite
 ## Sticker stacks with a fold and their fan (#105 piece 3, mock-up readability v3 section 3, fold
-## A). fit_stack shows 1 to 4 stickers in full and, from the 5th, the earliest folded into one
+## A). fit_stack shows 1 to 3 stickers in full and, from the 4th, the earliest folded into one
 ## "+N" chip on top (more only when the ceiling still demands it). The chip: a grey label at least
 ## 64x30, turned -3 degrees, its card-fan mark and the count in ink; it pops in, punches, and in
 ## the count counts down and goes. The fan's geometry (StackFan.fan_rects): rows of at most 4, 76
-## px apart, about 310 px wide at most, the lower row above the sprite, the whole fan inside its
+## px apart, about 330 px wide at most, the lower row above the sprite, the whole fan inside its
 ## bounds (clamped at both ends of the belt). On the real shift screen at 1280x720 (the stress row
-## on 8 slots, Squashed cake's 6 stickers): the stack sits on the item's right shoulder with at
-## most 4 stickers and the chip on top, overlapping by exactly 4 px (the mock-up's 3 px on the art
+## on 8 slots, Squashed cake's many stickers): the stack sits on the item's right shoulder with at
+## most 3 stickers and the chip on top, overlapping by exactly 4 px (the mock-up's 3 px on the art
 ## grid) where its ceiling allows, inside the screen and under its ceiling (the last slot's, pushed
 ## off its shoulder by the screen's edge, on its art's top instead); hovering it fans every
 ## sticker out in step order, numbered 1 to N, on screen, inside the belt's x-range, under the top
@@ -32,7 +32,7 @@ const STRESS_ROW: Array[String] = [
 ]
 const STRESS_UPGRADES: Array[String] = ["big_basket", "category_engine"]
 ## A row of the fan's width at most: 3 gaps and a burst's width, its giver badge and its number.
-const FAN_ROW_MAX := 312.0
+const FAN_ROW_MAX := 328.0
 const TOLERANCE := 0.01
 
 var _folder: String = ""
@@ -57,23 +57,23 @@ func after_test() -> void:
 		DirAccess.remove_absolute(_folder)
 
 
-func test_a_stack_shows_four_then_folds_the_earliest() -> void:
+func test_a_stack_shows_three_then_folds_the_earliest() -> void:
 	for count: int in [1, 2, 3, 4, 5, 7, 12]:
 		var specs: Array[StickerSpec] = _specs(count)
 		var fitted: Array = PlanningLayer.fit_stack(specs, 374.0, 64.0)
 		var shown: Array[StickerSpec] = []
 		shown.assign(fitted[0])
 		assert_float(fitted[1]).is_equal(PlanningLayer.STACK_OVERLAP)
-		if count <= PlanningLayer.STACK_SHOWN:
+		if count <= 3:
 			assert_array(shown).is_equal(specs)
 			continue
-		assert_int(shown.size()).is_equal(PlanningLayer.STACK_SHOWN + 1)
+		assert_int(shown.size()).is_equal(4)
 		assert_int(shown[0].kind).is_equal(StickerSpec.Kind.MORE)
-		assert_str(shown[0].text).is_equal("+%d" % (count - PlanningLayer.STACK_SHOWN))
-		assert_int(shown[0].folds).is_equal(count - PlanningLayer.STACK_SHOWN)
-		# The newest four stay, in order.
-		assert_array(shown.slice(1)).is_equal(specs.slice(count - PlanningLayer.STACK_SHOWN))
-	# A low ceiling squeezes the four and the chip, then folds more.
+		assert_str(shown[0].text).is_equal("+%d" % (count - 3))
+		assert_int(shown[0].folds).is_equal(count - 3)
+		# The newest three stay, in order.
+		assert_array(shown.slice(1)).is_equal(specs.slice(count - 3))
+	# A low ceiling squeezes the three and the chip, then folds more.
 	var tight: Array = PlanningLayer.fit_stack(_specs(7), 374.0, 290.0)
 	var tight_shown: Array[StickerSpec] = []
 	tight_shown.assign(tight[0])
@@ -133,7 +133,7 @@ func test_a_fanned_sticker_wears_its_number() -> void:
 	assert_bool(number.visible).is_true()
 	assert_float(number.modulate.a).is_equal(0.5)
 	assert_str((number.get_child(0) as Label).text).is_equal("7")
-	assert_bool(sticker.number_rect() == Rect2(-18, -14, 20, 20)).is_true()
+	assert_bool(sticker.number_rect() == Rect2(-22, -24, 20, 20)).is_true()
 	sticker.set_number(0)
 	assert_bool(number.visible).is_false()
 	# The number never covers the giver's mini, on a label or a burst.
@@ -198,6 +198,8 @@ func test_a_folded_stack_on_the_shift_screen() -> void:
 		for at: int in range(shown.size()):
 			var rect: Rect2 = to_layer * shown[at].get_global_rect()
 			span = rect if at == 0 else span.merge(rect)
+		for at: int in range(shown.size()):
+			var rect: Rect2 = to_layer * shown[at].get_global_rect()
 			var message: String = "slot %d sticker %d %s" % [index, at, rect]
 			(
 				assert_bool(SCREEN_RECT.encloses(shown[at].get_global_rect()))
@@ -206,7 +208,7 @@ func test_a_folded_stack_on_the_shift_screen() -> void:
 			)
 			# On the right shoulder: from the sprite's middle rightward (the badges overhang),
 			# unless the screen's right edge moved it left.
-			if rect.end.x < SCREEN_RECT.end.x - PlanningLayer.STACK_EDGE_GAP - 2.0:
+			if span.end.x < SCREEN_RECT.end.x - PlanningLayer.STACK_EDGE_GAP - 2.0:
 				assert_float(rect.position.x).override_failure_message(message).is_greater(
 					sprite.get_center().x
 				)
@@ -234,8 +236,36 @@ func test_a_folded_stack_on_the_shift_screen() -> void:
 	assert_int(pushed).is_equal(1)
 	var cake: Array[EffectSticker] = layer.stack(slot)
 	assert_str(cake[0].text()).is_equal(
-		"+%d" % (screen._effects.committed_model().slots[slot].stickers.size() - 4)
+		"+%d" % (screen._effects.committed_model().slots[slot].stickers.size() - 3)
 	)
+
+
+func test_hovering_the_item_or_its_ticket_opens_the_folded_stack() -> void:
+	var screen: ShiftScreen = await _shift()
+	var fan: StackFan = screen._stage.planning_layer.fan()
+	var slot: int = _folded_slot(screen)
+	var item: ItemView = screen._row_views[slot] as ItemView
+	var previous_pointer: Vector2 = screen.get_viewport().get_mouse_position()
+	for point: Vector2 in [
+		BeltRide.sprite_rect(item).get_center(), item.sticker().get_global_rect().get_center()
+	]:
+		fan.point_at(Vector2(-500, -500))
+		await _seconds(StackFan.OPEN_S + 0.1)
+		# Use real input dispatch, rather than calling the fan's hit test directly.
+		var motion: InputEventMouseMotion = InputEventMouseMotion.new()
+		motion.position = point
+		Input.parse_input_event(motion)
+		await _frames(2)
+		assert_int(fan.fanned()).is_equal(slot)
+		await _seconds(StackFan.OPEN_S + 0.1)
+		assert_int(fan.copies().size()).is_equal(
+			screen._effects.committed_model().slots[slot].stickers.size()
+		)
+		assert_object(screen._effects.focused_card()).is_same(item.card)
+	var restore: InputEventMouseMotion = InputEventMouseMotion.new()
+	restore.position = previous_pointer
+	Input.parse_input_event(restore)
+	await _frames(1)
 
 
 func test_hovering_a_folded_stack_fans_it_out() -> void:
@@ -330,7 +360,7 @@ func test_hovering_a_folded_stack_fans_it_out() -> void:
 	assert_int(fan.fanned()).is_equal(-1)
 
 
-## A stack growing past 4 stickers: the chip pops in (from 0.3) and each newly folded sticker,
+## A stack growing past 3 stickers: the chip pops in (from 0.3) and each newly folded sticker,
 ## shown at the last refresh, shrinks into it and goes.
 func test_the_chip_pops_in_as_the_stack_folds() -> void:
 	var screen: ShiftScreen = await _shift()
