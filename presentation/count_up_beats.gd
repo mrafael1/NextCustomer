@@ -151,6 +151,8 @@ func play(index: int) -> void:
 			_tag_added(beat, step)
 		CountUpBeat.Kind.LINK:
 			_linked(beat, step)
+		CountUpBeat.Kind.CREDIT:
+			_credit(beat, step)
 	if beat.kind not in [CountUpBeat.Kind.BONUS, CountUpBeat.Kind.STAMP, CountUpBeat.Kind.FIZZLE]:
 		landed.call(beat)
 	_land_total(beat)
@@ -227,6 +229,18 @@ func _linked(beat: CountUpBeat, step: ScoreStep) -> void:
 	tween.tween_property(line, "width", 3.0, shrink)
 	tween.tween_property(line, "modulate:a", 0.0, 0.25)
 	tween.tween_callback(line.queue_free)
+
+
+## A perk's credit (#108 piece 2): its loyalty-card box punches and what it earned ("€17") flies
+## from the box to the item, in teal; the total doesn't move (the payout is already in it).
+func _credit(beat: CountUpBeat, step: ScoreStep) -> void:
+	_print_step(step)
+	var box: Control = _upgrade_box(step)
+	if box == null:
+		return
+	_fx.punch(_moving_part(box), 1.15)
+	var flight: float = minf(TAG_FLIGHT, _motion(beat) * 0.7)
+	_fx.fly_text("€%d" % step.value, _center(box), _at(step.slot), Palette.TEAL, 20, flight, true)
 
 
 ## A fizzle: the card shudders, greys out for a moment, and lets out a little WASTED puff where

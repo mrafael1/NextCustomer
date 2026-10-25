@@ -29,6 +29,25 @@
 [ext_resource type="Resource" path="res://data/upgrades/extra_redraw.tres" id="u4_extra_redraw"]
 [ext_resource type="Resource" path="res://data/upgrades/slot_engine.tres" id="u6_slot_engine"]
 [ext_resource type="Resource" path="res://data/upgrades/big_basket.tres" id="u8_big_basket"]
+[ext_resource type="Resource" path="res://data/upgrades/bakery_regulars.tres" id="u_bakery_regulars"]
+[ext_resource type="Resource" path="res://data/upgrades/produce_regulars.tres" id="u_produce_regulars"]
+[ext_resource type="Resource" path="res://data/upgrades/dairy_regulars.tres" id="u_dairy_regulars"]
+[ext_resource type="Resource" path="res://data/upgrades/snack_regulars.tres" id="u_snack_regulars"]
+[ext_resource type="Resource" path="res://data/upgrades/household_regulars.tres" id="u_household_regulars"]
+[ext_resource type="Resource" path="res://data/upgrades/breakfast_regulars.tres" id="u_breakfast_regulars"]
+[ext_resource type="Resource" path="res://data/upgrades/clearance_regulars.tres" id="u_clearance_regulars"]
+[ext_resource type="Resource" path="res://data/upgrades/bakery_aisle_run.tres" id="u_bakery_aisle_run"]
+[ext_resource type="Resource" path="res://data/upgrades/produce_aisle_run.tres" id="u_produce_aisle_run"]
+[ext_resource type="Resource" path="res://data/upgrades/dairy_aisle_run.tres" id="u_dairy_aisle_run"]
+[ext_resource type="Resource" path="res://data/upgrades/snack_aisle_run.tres" id="u_snack_aisle_run"]
+[ext_resource type="Resource" path="res://data/upgrades/household_aisle_run.tres" id="u_household_aisle_run"]
+[ext_resource type="Resource" path="res://data/upgrades/breakfast_aisle_run.tres" id="u_breakfast_aisle_run"]
+[ext_resource type="Resource" path="res://data/upgrades/clearance_aisle_run.tres" id="u_clearance_aisle_run"]
+[ext_resource type="Resource" path="res://data/upgrades/mixed_basket.tres" id="u_mixed_basket"]
+[ext_resource type="Resource" path="res://data/upgrades/bulk_deal.tres" id="u_bulk_deal"]
+[ext_resource type="Resource" path="res://data/upgrades/banana_stand.tres" id="u_banana_stand"]
+[ext_resource type="Resource" path="res://data/upgrades/lemon_squeezer.tres" id="u_lemon_squeezer"]
+[ext_resource type="Resource" path="res://data/upgrades/fire_sale.tres" id="u_fire_sale"]
 [ext_resource type="Script" path="res://core/inspection_definition.gd" id="i1_inspection"]
 [ext_resource type="Resource" path="res://data/inspections/spot_check.tres" id="i2_spot_check"]
 [ext_resource type="Resource" path="res://data/inspections/short_belt.tres" id="i3_short_belt"]
@@ -51,7 +70,7 @@ aisle_listable_min = 4
 end_cap_max = 3
 end_cap_window_runs = 3
 first_offer_pool = Array[ExtResource("2_card")]([ExtResource("c14_breakfast_sticker"), ExtResource("c15_multipack"), ExtResource("c16_two_for_one")])
-upgrade_pool = Array[ExtResource("u1_upgrade")]([ExtResource("u2_coupon_engine"), ExtResource("u3_category_engine"), ExtResource("u4_extra_redraw"), ExtResource("u6_slot_engine"), ExtResource("u8_big_basket")])
+upgrade_pool = Array[ExtResource("u1_upgrade")]([ExtResource("u2_coupon_engine"), ExtResource("u3_category_engine"), ExtResource("u4_extra_redraw"), ExtResource("u6_slot_engine"), ExtResource("u8_big_basket"), ExtResource("u_bakery_regulars"), ExtResource("u_produce_regulars"), ExtResource("u_dairy_regulars"), ExtResource("u_snack_regulars"), ExtResource("u_household_regulars"), ExtResource("u_breakfast_regulars"), ExtResource("u_clearance_regulars"), ExtResource("u_bakery_aisle_run"), ExtResource("u_produce_aisle_run"), ExtResource("u_dairy_aisle_run"), ExtResource("u_snack_aisle_run"), ExtResource("u_household_aisle_run"), ExtResource("u_breakfast_aisle_run"), ExtResource("u_clearance_aisle_run"), ExtResource("u_mixed_basket"), ExtResource("u_bulk_deal"), ExtResource("u_banana_stand"), ExtResource("u_lemon_squeezer"), ExtResource("u_fire_sale")])
 inspection_shifts = PackedInt32Array(3, 5, 7)
 inspection_pool = Array[ExtResource("i1_inspection")]([ExtResource("i2_spot_check"), ExtResource("i3_short_belt")])
 coins_by_shifts_passed = PackedInt32Array(0, 0, 0, 0, 1, 1, 1, 1, 2)

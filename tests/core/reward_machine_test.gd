@@ -485,9 +485,14 @@ func test_reveal_order_and_drop_order() -> void:
 
 
 ## Short draws (UPGRADE with one new perk left, every owned one at its top level and nothing to
-## improve) pick and save like full ones.
+## improve) pick and save like full ones. The pool is the five perks from before #108's family
+## perks, so one is left.
 func test_short_draws_pick_and_save() -> void:
 	var run: RunState = _golden_run()
+	run.balance = run.balance.duplicate()
+	run.balance.upgrade_pool = _upgrades(
+		["coupon_engine", "category_engine", "extra_redraw", "slot_engine", "big_basket"]
+	)
 	run.upgrades = _upgrades(
 		["coupon_engine_lv3", "category_engine_lv3", "extra_redraw_lv3", "slot_engine_lv3"]
 	)

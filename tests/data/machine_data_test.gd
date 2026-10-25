@@ -114,10 +114,29 @@ func test_the_rarities_follow_the_approved_table_with_r3b() -> void:
 		["repeat", "two_for_one", "multipack"]
 	)
 	assert_array(_ids(_machine.legendary_coupons)).is_equal(["opening_deal"])
+	# #108: the Aisle runs, Mixed basket and Bulk deal are RARE, the jackpots LEGENDARY, and the
+	# Regulars COMMON (not listed).
 	assert_array(_ids(_machine.rare_upgrades)).contains_exactly_in_any_order(
-		["coupon_engine", "category_engine"]
+		[
+			"coupon_engine",
+			"category_engine",
+			"bakery_aisle_run",
+			"produce_aisle_run",
+			"dairy_aisle_run",
+			"snack_aisle_run",
+			"household_aisle_run",
+			"breakfast_aisle_run",
+			"clearance_aisle_run",
+			"mixed_basket",
+			"bulk_deal"
+		]
 	)
-	assert_array(_ids(_machine.legendary_upgrades)).is_equal(["slot_engine"])
+	assert_array(_ids(_machine.legendary_upgrades)).contains_exactly_in_any_order(
+		["slot_engine", "banana_stand", "lemon_squeezer", "fire_sale"]
+	)
+	assert_array(Array(_machine.families)).contains_exactly_in_any_order(
+		["Bakery", "Produce", "Dairy", "Frozen", "Snack", "Household", "Breakfast", "Clearance"]
+	)
 	var fresh: RunStock = RunStock.starting(_balance)
 	for card: CardDefinition in fresh.cards:
 		if card.is_product():

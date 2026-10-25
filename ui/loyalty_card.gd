@@ -265,14 +265,15 @@ func level_mark_in_box(index: int) -> Array[Rect2]:
 	return [to_box * Rect2(Vector2.ZERO, badge.size), Rect2(Vector2.ZERO, stamped.size)]
 
 
-## Placeholder for the perk icon: the first two letters of the first word, then the initials of
-## the others ("Coupon engine" CoE, "Category engine" CaE), so similar names stay apart.
+## Placeholder for the perk icon: the first two letters of the first word, then the second
+## word's initial ("Coupon engine" CoE, "Category engine" CaE, #108's "Dairy aisle run" DaA), so
+## similar names stay apart and three letters fit the ring.
 static func initials(display_name: String) -> String:
 	var words: PackedStringArray = display_name.split(" ", false)
 	if words.is_empty():
 		return "?"
 	var text: String = words[0].substr(0, 2).capitalize()
-	for word: String in words.slice(1):
+	for word: String in words.slice(1, 2):
 		text += word.substr(0, 1).to_upper()
 	return text
 

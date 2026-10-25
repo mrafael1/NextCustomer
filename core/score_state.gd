@@ -11,6 +11,18 @@ var payouts: PackedInt32Array = PackedInt32Array()
 ## Each scanned slot's value after its flat bonuses, before any multiplier: the price a
 ## Banana chain passes on from its middle (AdjacentMatchBonusRule, #106).
 var prices: PackedInt32Array = PackedInt32Array()
+## 1 for each scanned slot that took a chain bonus (a Banana after a Banana; with Banana stand,
+## #108, any Produce after a Produce): such a link passes on its price, a chain's first product
+## its payout (AdjacentMatchBonusRule.chain_price).
+var chained: PackedByteArray = PackedByteArray()
+## The run's upgrade rules and each one's upgrade index (set by Scoring): add_effect asks them
+## whether they reach a card's effect further (UpgradeRule.reaches, #108's Lemon squeezer).
+var upgrade_rules: Array[UpgradeRule] = []
+var rule_upgrades: PackedInt32Array = PackedInt32Array()
+## How many uses past an effect's own charges each reaching rule gave (by rule; Scoring counts).
+var reach_uses: Dictionary[UpgradeRule, int] = {}
+## What the perks with no scoring rule earned (#108 piece 2), or null: CREDIT steps.
+var credits: ScoreCredits
 ## Effects left by scanned cards for later products.
 var effects: Array[ScoreEffect] = []
 var steps: Array[ScoreStep] = []
@@ -52,6 +64,7 @@ func _init(row_cards: Array[CardInstance], explained: bool = true) -> void:
 	var count: int = row.size()
 	payouts.resize(count)
 	prices.resize(count)
+	chained.resize(count)
 	_scanned.resize(count)
 	_products.resize(count)
 	_coupons.resize(count)
@@ -171,6 +184,7 @@ func add_effect(effect: ScoreEffect) -> void:
 			running,
 			effect.text
 		)
+	_reach(effect)
 	if effect.group != &"":
 		var kept: Array[ScoreEffect] = []
 		for existing: ScoreEffect in effects:
@@ -182,6 +196,17 @@ func add_effect(effect: ScoreEffect) -> void:
 					add_waste(existing.source_slot, existing.text, reset_reason, effect.source_slot)
 		effects = kept
 	effects.append(effect)
+
+
+## An upgrade rule that reaches the arming card's effect further takes it over past the
+## effect's own charges (the first such rule; UpgradeRule.reaches).
+func _reach(effect: ScoreEffect) -> void:
+	var card: CardDefinition = definition(effect.source_slot)
+	for at: int in range(upgrade_rules.size()):
+		if upgrade_rules[at].reaches(card):
+			effect.reach_rule = upgrade_rules[at]
+			effect.reach_upgrade = rule_upgrades[at]
+			return
 
 
 ## End of the value pass: effects that still have something left are wasted.

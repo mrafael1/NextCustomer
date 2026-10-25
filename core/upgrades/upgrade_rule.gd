@@ -38,6 +38,13 @@ func wasted_reason(_state: ScoreState, _slot: int) -> String:
 	return ""
 
 
+## When `card` arms an effect: whether this rule reaches it past its own charges (#108's Lemon
+## squeezer and Fire sale: the card's charged multiplier reaches every later product with its
+## tag). Those uses are this upgrade's steps; the card's own charges stay the card's.
+func reaches(_card: CardDefinition) -> bool:
+	return false
+
+
 ## After the whole row's value pass: why this rule's condition was never met anywhere in the row
 ## (#45: no coupon for the Coupon engine, too few cards for the Slot engine), or "" when it
 ## was, or when the rule has no condition. A non-empty reason becomes one WASTED step, the

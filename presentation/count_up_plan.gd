@@ -245,6 +245,8 @@ static func _kind_of(step_type: ScoreStep.StepType) -> CountUpBeat.Kind:
 			return CountUpBeat.Kind.TAG
 		ScoreStep.StepType.LINKED:
 			return CountUpBeat.Kind.LINK
+		ScoreStep.StepType.CREDIT:
+			return CountUpBeat.Kind.CREDIT
 	return CountUpBeat.Kind.BASE
 
 
@@ -458,6 +460,9 @@ func _set_raw_lengths(steps: Array[ScoreStep]) -> void:
 			CountUpBeat.Kind.LINK:
 				fly = true
 				length = _tuning.link_ms
+			CountUpBeat.Kind.CREDIT:
+				fly = true
+				length = _tuning.tag_ms
 		if is_landing(beat):
 			length = maxi(length, _total_tuning.landing_gap_ms)
 		_raw_ms.append(length)

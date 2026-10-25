@@ -82,7 +82,7 @@ static func guarantee(chute: int, context: MachineContext) -> Dictionary:
 		RewardMachine.Chute.UPGRADE:
 			var deck_cards: Array[CardDefinition] = context.deck_cards()
 			for upgrade: UpgradeDefinition in _new_perks(context):
-				if upgrade.fits(deck_cards):
+				if upgrade.fits(deck_cards, context.machine.families):
 					found[upgrade.id] = true
 	return found
 
@@ -293,13 +293,14 @@ static func roll(rarity_weights: PackedInt32Array, rng: RandomNumberGenerator) -
 
 
 ## The pool's perks the run can take as new ones: none once the card is full, else those whose
-## family the run doesn't own.
+## family the run doesn't own and whose aisle family or product the stock or deck holds
+## (MachineContext.stocks, #108).
 static func _new_perks(context: MachineContext) -> Array[UpgradeDefinition]:
 	var found: Array[UpgradeDefinition] = []
 	if context.card_full:
 		return found
 	for upgrade: UpgradeDefinition in context.upgrade_pool:
-		if PerkLevels.owned_index(context.owned, upgrade) == -1:
+		if PerkLevels.owned_index(context.owned, upgrade) == -1 and context.stocks(upgrade):
 			found.append(upgrade)
 	return found
 

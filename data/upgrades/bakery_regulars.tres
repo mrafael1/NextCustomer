@@ -1,0 +1,24 @@
+[gd_resource type="Resource" script_class="UpgradeDefinition" format=3]
+
+[ext_resource type="Script" path="res://core/upgrades/upgrade_rule.gd" id="1_rule"]
+[ext_resource type="Script" path="res://core/upgrades/family_regulars_rule.gd" id="2_rule_script"]
+[ext_resource type="Script" path="res://core/upgrade_definition.gd" id="3_upgrade"]
+[ext_resource type="Resource" path="res://data/upgrades/bakery_regulars_lv2.tres" id="9_next_level"]
+
+[sub_resource type="Resource" id="Resource_rule"]
+script = ExtResource("2_rule_script")
+tag = "Bakery"
+bonus_each = 1
+receipt_text = "Bakery regulars"
+
+[resource]
+script = ExtResource("3_upgrade")
+id = &"bakery_regulars"
+icon_ref = "res://art/icons/aisle_bakery.png"
+display_name = "Bakery regulars"
+type = 7
+effect_text = "Each Bakery product +1 for each Bakery product before it"
+condition_text = "Counts Bakery products anywhere earlier in the row"
+rules = Array[ExtResource("1_rule")]([SubResource("Resource_rule")])
+next_level = ExtResource("9_next_level")
+boosts_tag = "Bakery"

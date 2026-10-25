@@ -1,0 +1,26 @@
+[gd_resource type="Resource" script_class="UpgradeDefinition" format=3]
+
+[ext_resource type="Script" path="res://core/upgrades/upgrade_rule.gd" id="1_rule"]
+[ext_resource type="Script" path="res://core/upgrades/family_regulars_rule.gd" id="2_rule_script"]
+[ext_resource type="Script" path="res://core/upgrade_definition.gd" id="3_upgrade"]
+[ext_resource type="Resource" path="res://data/upgrades/snack_regulars_lv3.tres" id="9_next_level"]
+
+[sub_resource type="Resource" id="Resource_rule"]
+script = ExtResource("2_rule_script")
+tag = "Snack"
+bonus_each = 2
+receipt_text = "Snack regulars"
+
+[resource]
+script = ExtResource("3_upgrade")
+id = &"snack_regulars_lv2"
+icon_ref = "res://art/icons/aisle_snacks.png"
+display_name = "Snack regulars"
+type = 7
+effect_text = "Each Snack product +2 for each Snack product before it"
+condition_text = "Counts Snack products anywhere earlier in the row"
+rules = Array[ExtResource("1_rule")]([SubResource("Resource_rule")])
+level = 2
+family_id = &"snack_regulars"
+next_level = ExtResource("9_next_level")
+boosts_tag = "Snack"

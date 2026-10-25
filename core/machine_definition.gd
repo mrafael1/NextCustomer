@@ -56,6 +56,10 @@ extends Resource
 @export var new_arrival_first_visit: bool = false
 ## SHELF UPGRADE (a LEGENDARY item upgrade) needs this many copies that can step.
 @export var shelf_min_copies: int = 0
+## The aisle families a family perk can name and the draw counts (#108: Food is left out, so it
+## never counts): an UPGRADE draw's guarantee reads the deck's two most common of them
+## (UpgradeDefinition.fits).
+@export var families: PackedStringArray = PackedStringArray()
 ## The products the UPGRADE chute can upgrade, one chain each (NEW ITEMS draws their BIG and
 ## GOLDEN tiers too).
 @export var item_upgrades: Array[ItemUpgradeDefinition] = []

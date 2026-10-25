@@ -1,0 +1,26 @@
+[gd_resource type="Resource" script_class="UpgradeDefinition" format=3]
+
+[ext_resource type="Script" path="res://core/upgrades/upgrade_rule.gd" id="1_rule"]
+[ext_resource type="Script" path="res://core/upgrades/new_family_bonus_rule.gd" id="2_rule_script"]
+[ext_resource type="Script" path="res://core/upgrade_definition.gd" id="3_upgrade"]
+[ext_resource type="Script" path="res://core/build_definition.gd" id="4_build"]
+[ext_resource type="Resource" path="res://data/builds/mixed_basket.tres" id="5_build_0"]
+
+[sub_resource type="Resource" id="Resource_rule"]
+script = ExtResource("2_rule_script")
+families = PackedStringArray("Bakery", "Produce", "Dairy", "Frozen", "Snack", "Household", "Breakfast", "Clearance")
+bonus = 5
+receipt_text = "Mixed basket"
+
+[resource]
+script = ExtResource("3_upgrade")
+id = &"mixed_basket_lv3"
+icon_ref = "res://art/icons/perk_mixed_basket.png"
+display_name = "Mixed basket"
+type = 9
+effect_text = "Each product that brings a new family to the row +5"
+condition_text = "Food is not a family"
+builds = Array[ExtResource("4_build")]([ExtResource("5_build_0")])
+rules = Array[ExtResource("1_rule")]([SubResource("Resource_rule")])
+level = 3
+family_id = &"mixed_basket"

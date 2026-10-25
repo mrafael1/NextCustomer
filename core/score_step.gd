@@ -32,6 +32,9 @@ enum StepType {
 	LINKED,
 	WASTED,
 	EFFECT_ARMED,
+	## A perk's credit (#108 piece 2): what a perk with no scoring rule earned, a label only. Its
+	## value is the credited slot's payout, already in the total; value_after is that payout too.
+	CREDIT,
 }
 
 enum SourceKind {
@@ -75,7 +78,8 @@ var tag: String = ""
 ## LINKED: the product slot now counted as adjacent to `slot`. COPY: the slot whose payout
 ## was copied. Otherwise -1.
 var linked_slot: int = -1
-## WASTED: why the effect did nothing, e.g. "no Breakfast product after it". Otherwise empty.
+## WASTED: why the effect did nothing, e.g. "no Breakfast product after it". CREDIT: what the
+## perk did for the slot ("slot 8", "redrawn in"). Otherwise empty.
 var reason: String = ""
 ## WASTED: true for an upgrade whose condition the row never met (#45), which sits on the row's
 ## last slot without being that item's own fizzle: the item marks (the receipt's slot mark, the

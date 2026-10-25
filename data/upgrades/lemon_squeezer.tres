@@ -1,0 +1,22 @@
+[gd_resource type="Resource" script_class="UpgradeDefinition" format=3]
+
+[ext_resource type="Script" path="res://core/upgrades/upgrade_rule.gd" id="1_rule"]
+[ext_resource type="Script" path="res://core/upgrades/effect_reach_rule.gd" id="2_rule_script"]
+[ext_resource type="Script" path="res://core/upgrade_definition.gd" id="3_upgrade"]
+[ext_resource type="Resource" path="res://data/cards/lemon.tres" id="6_card"]
+
+[sub_resource type="Resource" id="Resource_rule"]
+script = ExtResource("2_rule_script")
+card = ExtResource("6_card")
+receipt_text = "Lemon squeezer"
+
+[resource]
+script = ExtResource("3_upgrade")
+id = &"lemon_squeezer"
+icon_ref = "res://art/minis/lemon.png"
+display_name = "Lemon squeezer"
+type = 11
+effect_text = "Lemon's ×2 reaches every later Produce"
+condition_text = "Every Produce after a Lemon, until the next Lemon"
+rules = Array[ExtResource("1_rule")]([SubResource("Resource_rule")])
+needs_card = ExtResource("6_card")
