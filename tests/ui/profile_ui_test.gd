@@ -64,6 +64,9 @@ func test_the_results_print_the_coins_and_fit_the_screen() -> void:
 	var screen: ShiftScreen = runner.scene()
 	var count: int = screen.run.shift_count()
 	screen._debug.skip_to_shift(count)
+	# Without the final Manager's review (v0.65), so the row below scores its own total.
+	screen.run.inspections = []
+	screen.run.debug_skip_to_shift(screen.run.shift_index)
 	# The debug jump writes no history: the 11 earlier shifts are passed records, each €2 over.
 	for shift: int in range(count - 1, 0, -1):
 		screen.run.history.push_front(ShiftRecord.new(shift, 10, 12))

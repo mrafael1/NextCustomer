@@ -36,8 +36,8 @@ const FITS: Array[Vector3i] = [
 ]
 ## A 12-shift run's receipt (v0.65) may not fit even then: it is built again compact
 ## (FinalReceipt.lines' `compact`, its inspection lines folded into the shift lines) through FITS,
-## then COMPACT_FIT, smaller still.
-const COMPACT_FIT := Vector3i(12, 9, 2)
+## then COMPACT_FITS, smaller still (a won run with every bonus visit is 34 lines).
+const COMPACT_FITS: Array[Vector3i] = [Vector3i(12, 9, 2), Vector3i(11, 8, 0), Vector3i(10, 8, 0)]
 ## The staple across the loyalty card's top edge.
 const STAPLE_SIZE := Vector2(20, 5)
 
@@ -207,7 +207,7 @@ func _lay_out(lines: Array[FinalReceipt.Line], compact: Array[FinalReceipt.Line]
 	for each: Array[FinalReceipt.Line] in [lines, compact]:
 		var fits: Array[Vector3i] = FITS.duplicate()
 		if each == compact:
-			fits.append(COMPACT_FIT)
+			fits.append_array(COMPACT_FITS)
 		for fit: Vector3i in fits:
 			_fit = fit
 			_column.add_theme_constant_override("separation", fit.z)
