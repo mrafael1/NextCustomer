@@ -150,6 +150,35 @@ func test_a_loyalty_badge_shows_its_perk_icon() -> void:
 	assert_str(missing.initials()).is_equal("CoE")
 
 
+## An Aisle run's loyalty badge wears the loyalty box's "×" tag at its top left (#108 follow-up),
+## so Produce regulars and Produce aisle run differ on the stickers; drained, the tag greys. A
+## Regulars badge has none.
+func test_an_aisle_run_badge_wears_the_run_tag() -> void:
+	var run: UpgradeDefinition = load("res://data/upgrades/produce_aisle_run.tres")
+	var regulars: UpgradeDefinition = load("res://data/upgrades/produce_regulars.tres")
+	var colour: Color = LoyaltyCard.run_mark_colour(run)
+	assert_object(colour).is_equal(FamilyPalette.shared().style("Produce").face)
+	assert_object(LoyaltyCard.run_mark_colour(regulars)).is_equal(Color())
+	var badge: GiverBadge = auto_free(
+		GiverBadge.new(GiverBadge.Kind.LOYALTY, "PrA", run.icon_ref, colour)
+	)
+	assert_bool(badge.shows_icon()).is_true()
+	var tag: Control = badge.run_tag()
+	assert_object(tag).is_not_null()
+	assert_object(tag.get_parent()).is_same(badge)
+	assert_vector(tag.position).is_equal(Vector2.ZERO)
+	assert_vector(tag.size).is_equal(LoyaltyCard.RUN_MARK_SIZE)
+	assert_object(tag.get_meta(LoyaltyCard.RUN_MARK_FACE)).is_equal(colour)
+	badge.set_drained(true)
+	assert_object(tag.get_meta(LoyaltyCard.RUN_MARK_FACE)).is_equal(Palette.GREY_LIGHT)
+	badge.set_drained(false)
+	assert_object(tag.get_meta(LoyaltyCard.RUN_MARK_FACE)).is_equal(colour)
+	var plain: GiverBadge = auto_free(
+		GiverBadge.new(GiverBadge.Kind.LOYALTY, "PrR", regulars.icon_ref)
+	)
+	assert_object(plain.run_tag()).is_null()
+
+
 func test_a_drained_mini_greys() -> void:
 	var badge: GiverBadge = auto_free(GiverBadge.new(GiverBadge.Kind.ITEM, "Eg", EGGS))
 	var drawn: TextureRect = badge.get_child(0) as TextureRect

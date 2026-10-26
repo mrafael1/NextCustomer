@@ -84,6 +84,7 @@ const FAMILY_EDGE_NAME := "FamilyEdge"
 ## small enough to stay clear of the level badge in the bottom right, even on the chip.
 const RUN_MARK_NAME := "RunMark"
 const RUN_MARK_SIZE := Vector2(10, 10)
+const RUN_MARK_FACE := &"run_mark_face"
 const RUN_MARK_CROSS: Array[Vector2i] = [
 	Vector2i(1, 1), Vector2i(3, 1), Vector2i(2, 2), Vector2i(1, 3), Vector2i(3, 3)
 ]
@@ -521,21 +522,43 @@ func box_icon(index: int) -> Texture2D:
 ## Adds an Aisle run's tag (#108 follow-up) to its box `stamped`: the RUN_MARK_SIZE "×" badge on
 ## its family's face colour at the box's top left. Other perks get none.
 static func add_run_mark(stamped: PanelContainer, upgrade: UpgradeDefinition) -> void:
-	var family: FamilyStyle = _family(upgrade)
-	if family == null or upgrade.type != UpgradeDefinition.Type.AISLE_RUN:
+	var face: Color = run_mark_colour(upgrade)
+	if face == Color():
 		return
 	var holder: Control = Control.new()
 	holder.name = RUN_MARK_NAME
 	holder.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	stamped.add_child(holder)
+	holder.add_child(make_run_tag(face))
+
+
+## The colour of `upgrade`'s Aisle run tag: its family's face for an Aisle run with a family
+## colour, else Color() (no tag).
+static func run_mark_colour(upgrade: UpgradeDefinition) -> Color:
+	var family: FamilyStyle = _family(upgrade)
+	if family == null or upgrade.type != UpgradeDefinition.Type.AISLE_RUN:
+		return Color()
+	return family.face
+
+
+## A RUN_MARK_SIZE Aisle run tag in `face`, at (0, 0): the loyalty box's and the planning
+## sticker's loyalty badge's (GiverBadge). Its colour is its RUN_MARK_FACE meta, so a drained
+## badge can repaint it grey (set_run_tag_face).
+static func make_run_tag(face: Color) -> Control:
 	var tag: Control = Control.new()
 	tag.name = "Tag"
 	tag.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	tag.size = RUN_MARK_SIZE
 	tag.position = Vector2.ZERO
-	var face: Color = family.face
-	tag.draw.connect(func() -> void: _draw_run_mark(tag, face))
-	holder.add_child(tag)
+	tag.set_meta(RUN_MARK_FACE, face)
+	tag.draw.connect(func() -> void: _draw_run_mark(tag, tag.get_meta(RUN_MARK_FACE) as Color))
+	return tag
+
+
+## Repaints the run tag `tag` (make_run_tag) in `face`.
+static func set_run_tag_face(tag: Control, face: Color) -> void:
+	tag.set_meta(RUN_MARK_FACE, face)
+	tag.queue_redraw()
 
 
 ## Draws the Aisle run tag on `tag`: ink, the family's `face` inside a one-texel edge, the ink

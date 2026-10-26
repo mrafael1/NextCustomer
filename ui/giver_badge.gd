@@ -6,8 +6,10 @@ extends Control
 ## in art/giver_badges; that small mini is still used in monitor lines. A missing plate falls
 ## back to the small mini; missing mini art falls back to initials. Inspection keeps its warning
 ## icon. A loyalty perk's token holds its perk icon (#108 follow-up: as its loyalty box,
-## LoyaltyCard.perk_icon) when one fits inside the stamp, else its initials. Decor only, with the
-## same drained grey as the sticker.
+## LoyaltyCard.perk_icon) when one fits inside the stamp, else its initials, and an Aisle run's
+## badge wears the box's "×" tag at its top left (LoyaltyCard.make_run_tag), so a family's
+## Regulars and Aisle run tell apart on the stickers too. Decor only, with the same drained grey
+## as the sticker.
 
 enum Kind { NONE, ITEM, COUPON, LOYALTY, INSPECTION }
 
@@ -40,14 +42,19 @@ var _initials: Label
 var _drained: bool = false
 var _mini: bool = false
 var _icon: TextureRect
+var _run_tag: Control
+var _run_colour: Color = Color()
 
 
 ## A `badge_kind` badge holding `badge_initials` (none for an inspection), or for an ITEM with a
 ## `mini_ref` (a texture path that exists), that mini instead; for a LOYALTY badge, `mini_ref` is
 ## the perk's icon (UpgradeDefinition.icon_ref), drawn on the stamp token instead of the initials
 ## when it fits. A missing path falls back to the initials quietly: a stale `mini_art_ref` in the
-## data is caught by live_cards_test (every product's mini ref must load), not here.
-func _init(badge_kind: Kind, badge_initials: String, mini_ref: String = "") -> void:
+## data is caught by live_cards_test (every product's mini ref must load), not here. A LOYALTY
+## badge with a `run_colour` (LoyaltyCard.run_mark_colour, an Aisle run's) wears the run tag.
+func _init(
+	badge_kind: Kind, badge_initials: String, mini_ref: String = "", run_colour: Color = Color()
+) -> void:
 	kind = badge_kind
 	name = "GiverBadge"
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -73,7 +80,12 @@ func _init(badge_kind: Kind, badge_initials: String, mini_ref: String = "") -> v
 	_token.name = "Token"
 	_token.size = size
 	add_child(_token)
+	if kind == Kind.LOYALTY and run_colour != Color():
+		_run_colour = run_colour
+		_run_tag = LoyaltyCard.make_run_tag(run_colour)
+		_run_tag.name = "RunTag"
 	if kind == Kind.LOYALTY and _add_icon(mini_ref):
+		_add_run_tag()
 		return
 	if kind == Kind.INSPECTION or badge_initials.is_empty():
 		return
@@ -85,6 +97,7 @@ func _init(badge_kind: Kind, badge_initials: String, mini_ref: String = "") -> v
 	_initials.size = size
 	add_child(_initials)
 	_colour_initials()
+	_add_run_tag()
 
 
 ## The initials a `badge_kind` badge shows for a giver named `display_name`: a card's first two
@@ -107,6 +120,9 @@ func set_drained(drained: bool) -> void:
 	ArtStyle.set_look(_token, look)
 	if _icon != null:
 		ArtStyle.set_look(_icon, look)
+	if _run_tag != null:
+		# Drawn in code, so it greys by its colour, not the grey material.
+		LoyaltyCard.set_run_tag_face(_run_tag, Palette.GREY_LIGHT if drained else _run_colour)
 	_colour_initials()
 
 
@@ -117,6 +133,11 @@ func is_drained() -> bool:
 ## Whether it shows a product's mini (no token, no initials).
 func shows_mini() -> bool:
 	return _mini
+
+
+## The Aisle run tag on a loyalty badge, or null (for tests).
+func run_tag() -> Control:
+	return _run_tag
 
 
 ## Whether a loyalty badge shows its perk icon on the token (no initials).
@@ -162,6 +183,12 @@ func _add_icon(icon_ref: String) -> bool:
 	_icon.position = ((size - drawn) / 2.0 / ArtStyle.ART_SCALE).floor() * ArtStyle.ART_SCALE
 	add_child(_icon)
 	return true
+
+
+## Adds the Aisle run tag, if any, over the token and the icon or initials.
+func _add_run_tag() -> void:
+	if _run_tag != null:
+		add_child(_run_tag)
 
 
 ## The initials' colour: ink on the cream item token, mustard pale on the stamp, paper on the

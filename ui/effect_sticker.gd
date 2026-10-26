@@ -204,7 +204,9 @@ func _init(sticker_spec: StickerSpec, tilt_deg: float = 0.0) -> void:
 			part.pivot_offset = size / 2.0 - part.position
 			part.rotation_degrees = tilt_deg
 	if _spec.badge != GiverBadge.Kind.NONE:
-		_badge = GiverBadge.new(_spec.badge, _spec.badge_text, _spec.badge_mini)
+		_badge = GiverBadge.new(
+			_spec.badge, _spec.badge_text, _spec.badge_mini, _spec.badge_run_colour
+		)
 		var badge_x: float = (
 			BURST_BADGE_X if _spec.kind == StickerSpec.Kind.MULTIPLY else LABEL_BADGE_X
 		)
