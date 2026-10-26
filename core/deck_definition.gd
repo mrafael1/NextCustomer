@@ -41,6 +41,16 @@ extends Resource
 @export var fair_deal_passes: int = 0
 @export var fair_deal_changes: int = 0
 @export var fair_deal_redeals: int = 0
+## Starter packs (#107, v0.63): a recipe with packs offers `packs_offered` of them before the run's
+## first shift, and its products (`random_count`) are dealt once for every pack (StartingDeck.
+## deal_offer). `first_pick_pack` is raised for a player who has never won ("good first pick"),
+## and is always in such a player's offer. A dealt deck names the pack taken (`starter_pack`):
+## its cards follow the core cards, then the products.
+@export var starter_packs: Array[StarterPackDefinition] = []
+@export var packs_offered: int = 0
+@export var first_pick_pack: StarterPackDefinition
+## The pack a dealt deck took (null: none, or not yet picked).
+@export var starter_pack: StarterPackDefinition
 ## An upgrade the run owns from the start (optional): offers skip it, and it takes a box of its
 ## own on the loyalty card before the upgrade-shift boxes.
 @export var starting_upgrade: UpgradeDefinition

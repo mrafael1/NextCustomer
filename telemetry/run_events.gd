@@ -1,9 +1,10 @@
 class_name RunEvents
 extends RefCounted
-## Builds the data of the run_start, run_end, run_resume, run_abandon, machine_visit, count_up,
-## redraw and capsule events, the card id lists (starting_deck, cards_drawn, final_order) and the
-## upgrade- and inspection-related log fields (plan section 8), so they are defined and tested
-## in one place. The shift screen logs them (the title screen logs run_abandon).
+## Builds the data of the run_start, start_choice (#107), run_end, run_resume, run_abandon,
+## machine_visit, count_up, redraw and capsule events, the card id lists (starting_deck,
+## cards_drawn, final_order) and the upgrade- and inspection-related log fields (plan section
+## 8), so they are defined and tested in one place. The shift screen logs them (the title screen
+## logs run_abandon).
 ##
 ## A machine visit's times (`timing`) are OfferTimeline.fields(): decide_ms, presented_ms,
 ## armed_ms, presentation_skipped and chute_wait_ms, each in ms from the visit starting to
@@ -25,6 +26,28 @@ static func run_start(run: RunState) -> Dictionary:
 		"shift_count": run.shift_count(),
 	}
 	return data.merged(run.stock.to_dictionary())
+
+
+## The `start_choice` event (#107, v0.63), logged when the run takes its starter pack, after
+## run_start: the packs offered (ids, in order), today's shared products, the good first pick
+## raised for the player ("" for none), the pack taken, whether the player chose it in the reveal
+## (false: taken for them, a run started without the reveal), the ms from the choice opening to
+## the pick (-1 when not chosen), and the fair-deal check's pack swaps and shared deals. The
+## run_start before it logs the deck before the pick (the staples and the shared products).
+static func start_choice(run: RunState, decide_ms: int) -> Dictionary:
+	var offer: StartOffer = run.start_offer
+	var pack: StarterPackDefinition = run.starter.starter_pack
+	return {
+		"offered":
+		offer.packs.map(func(offered: StarterPackDefinition) -> String: return String(offered.id)),
+		"shared": definition_ids(offer.shared),
+		"first_pick": String(offer.first_pick.id) if offer.first_pick != null else "",
+		"pick": String(pack.id) if pack != null else "",
+		"chosen": decide_ms >= 0,
+		"decide_ms": decide_ms,
+		"swaps": offer.swaps,
+		"deals": offer.deals,
+	}
 
 
 ## The `run_end` event of a won or lost run: the result, the shift reached, the last checkout's

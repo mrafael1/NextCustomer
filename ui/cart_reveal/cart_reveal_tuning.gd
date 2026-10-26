@@ -20,6 +20,14 @@ extends Resource
 @export var lock_scale: float = 0.0
 @export var lock_turn_deg: float = 0.0
 
+## The starter pack choice (#107): the packs drop in from pack_start_s, pack_gap_s apart, each
+## over pack_drop_s from pack_drop_px above; a raised pack sits pack_raise_px higher.
+@export var pack_start_s: float = 0.0
+@export var pack_gap_s: float = 0.0
+@export var pack_drop_s: float = 0.0
+@export var pack_drop_px: float = 0.0
+@export var pack_raise_px: float = 0.0
+
 ## Pick k leaves the chute at pick_start_s + pick_gap_s * k: it pops out over `exit_s` (from a
 ## scale of exit_scale, sliding exit_drop px down), then arcs into its slot over `fly_s`, an arc
 ## `arc_height` px high (a coupon's coupon_arc_height, fluttering coupon_flutter_deg); a product

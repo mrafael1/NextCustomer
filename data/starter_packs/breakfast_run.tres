@@ -1,0 +1,15 @@
+[gd_resource type="Resource" script_class="StarterPackDefinition" format=3]
+
+[ext_resource type="Script" path="res://core/starter_pack_definition.gd" id="1_pack"]
+[ext_resource type="Script" path="res://core/card_definition.gd" id="2_card"]
+[ext_resource type="Resource" path="res://data/cards/breakfast_sticker.tres" id="c_breakfast_sticker"]
+[ext_resource type="Resource" path="res://data/cards/coffee.tres" id="c_coffee"]
+[ext_resource type="Resource" path="res://data/cards/tea_bags.tres" id="c_tea_bags"]
+
+[resource]
+script = ExtResource("1_pack")
+id = &"breakfast_run"
+display_name = "Breakfast run"
+family = "Breakfast"
+cards = Array[ExtResource("2_card")]([ExtResource("c_breakfast_sticker"), ExtResource("c_coffee"), ExtResource("c_tea_bags")])
+hint_text = "Line up Breakfast items: Coffee and Tea bags boost the next one."

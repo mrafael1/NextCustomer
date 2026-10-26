@@ -6,6 +6,15 @@ extends Control
 ## STOCK dispenser (StockDispenser) and arcs into its slot, the CART chip counting them, then the
 ## summary line "CART 13/15 = 4 staples + 1 coupon + 8 from today's stock" and the tap hint.
 ##
+## With starter packs (#107, mock-up starter_choice_107.html layout A, v0.63) it has two modes.
+## The choice (`choice`, made with an offer): the staples, the dispenser holding today's shared
+## products as pictures (their popups open on hover), and PICK A STARTER PACK with the offer's
+## packs (PackChoice) where TODAY'S PICKS will be. After the pick (made with `pack`): the pack's
+## cards are the first picks and fly in from where they sat on the pack's face (`pack_from`),
+## then the shared products drop out of the dispenser as before; a bracket in the pack's colour
+## names it under its cards, and the summary reads "CART 13/15 = 4 staples + 3 from Breakfast run
+## + 6 from today's stock".
+##
 ## Its layout is the mock-up's, in stage coordinates (the game's 640x360 at 2x): the panel sits at
 ## RECT on the 1280x720 stage and its content is placed in stage coordinates. show_at(t) poses
 ## everything for a time t on the reveal's timeline (CartRevealTuning), so the same t always
@@ -60,6 +69,14 @@ const STAPLES_SUB_TEXT := "In every run’s cart. Never a surprise."
 const PICKS_TEXT := "TODAY’S PICKS"
 const SKIP_HINT := "TAP TO SKIP ››"
 const START_HINT := "TAP TO START SHIFT %d ›"
+## The choice's hint, and the dispenser's LED while it waits for the pick (#107).
+const CHOOSE_HINT := "1 · 2 · 3 RAISE  ·  ENTER TAKES IT"
+const CHOOSE_LED := "PICK A PACK ↓"
+## The bracket under the pack's cards (#107): its bar, under the tiles, and its name.
+const BRACKET_TOP := 590.0
+const BRACKET_HEIGHT := 4.0
+const BRACKET_NAME_TOP := 598.0
+const BRACKET_NAME_SIZE := 12
 
 var staples: Array[CardDefinition] = []
 var picks: Array[CardDefinition] = []
@@ -74,6 +91,14 @@ var staples_heading: Label
 var picks_heading: Label
 var picks_count: Label
 var picks_sub: Label
+## The starter pack choice (#107; null outside it) and the pack taken (null without packs).
+var choice: PackChoice
+var pack: StarterPackDefinition
+var _pack_count: int = 0
+## Where each of the pack's cards sat on its face (stage coordinates): their flights start there.
+var _pack_from: Array[Vector2] = []
+## The dispenser's heap: the picks after the pack's, or the offer's shared products (the choice).
+var _heap_cards: Array[CardDefinition] = []
 var _content: Control
 var _fly_layer: Control
 var _flyers: Array[TextureRect] = []
@@ -86,20 +111,33 @@ var _shift: int = 1
 
 ## The panel for a dealt deck: its `core` cards (the staples) and its `dealt` picks (the coupons
 ## first), at most `copy_max` copies of a card, a cart of `deck_limit`, before shift `shift`.
+## With `taken` (#107) the first picks are that pack's cards, flying in from `taken_from`; with
+## `offer` the panel is the choice (no picks yet).
 func _init(
 	core: Array[CardDefinition],
 	dealt: Array[CardDefinition],
 	copy_max: int,
 	deck_limit: int,
-	shift: int
+	shift: int,
+	taken: StarterPackDefinition = null,
+	taken_from: Array[Vector2] = [],
+	offer: StartOffer = null
 ) -> void:
 	_copy_max = copy_max
 	staples = core.duplicate()
 	picks = dealt.duplicate()
+	if offer != null:
+		picks.clear()
 	_deck_limit = deck_limit
 	_shift = shift
-	for card: CardDefinition in picks:
-		_coupons += 1 if card.is_coupon() else 0
+	pack = taken
+	if pack != null:
+		_pack_count = mini(pack.cards.size(), picks.size())
+		_pack_from = taken_from.duplicate()
+	_heap_cards = offer.shared.duplicate() if offer != null else picks.slice(_pack_count)
+	if pack == null and offer == null:
+		for card: CardDefinition in picks:
+			_coupons += 1 if card.is_coupon() else 0
 	name = "RevealPanel"
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
 	position = RECT.position
@@ -113,6 +151,9 @@ func _init(
 	_build_staples()
 	_build_picks()
 	_build_summary()
+	if offer != null:
+		choice = PackChoice.new(offer)
+		_content.add_child(choice)
 	_fly_layer = Control.new()
 	_fly_layer.name = "Flyers"
 	_fly_layer.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -155,6 +196,15 @@ func flyer_of(index: int) -> TextureRect:
 ## picks in flight or landed, their sparkles, the counts, the summary and the hint, and the
 ## dispenser.
 func show_at(t: float, timing: CartRevealTuning) -> void:
+	_show_locks(t, timing)
+	if choice != null:
+		_show_choice(t, timing)
+		return
+	_show_picks(t, timing)
+
+
+## The staples' padlocks clunk on, one after another.
+func _show_locks(t: float, timing: CartRevealTuning) -> void:
 	for index: int in staple_tiles.size():
 		var start: float = timing.lock_start_s + timing.lock_gap_s * index
 		var q: float = clampf((t - start) / timing.lock_s, 0.0, 1.0)
@@ -163,6 +213,22 @@ func show_at(t: float, timing: CartRevealTuning) -> void:
 		var grow: float = (timing.lock_scale - 1.0) * (1.0 - CartReveal.ease_out(q))
 		lock.scale = Vector2.ONE * (1.0 + grow)
 		lock.rotation_degrees = (1.0 - q) * timing.lock_turn_deg
+
+
+## The choice (#107): the packs drop in and wait; the dispenser shows today's products, full.
+func _show_choice(t: float, timing: CartRevealTuning) -> void:
+	choice.show_at(t, timing)
+	var chase: int = int(floorf(t * timing.chase_hz))
+	var lit: Array[bool] = []
+	for bulb: int in StockDispenser.BULB_COUNT:
+		lit.append((bulb + chase) % 3 == 0)
+	dispenser.show_state(0, 0.0, 0.0, 0.0, 0.0, lit, CHOOSE_LED, false)
+	hint.text = CHOOSE_HINT
+	hint.modulate.a = 0.7
+
+
+## The picks in flight or landed, the counts, the summary, the hint and the dispenser.
+func _show_picks(t: float, timing: CartRevealTuning) -> void:
 	var landed: int = 0
 	var pulse: bool = false
 	for index: int in picks.size():
@@ -227,6 +293,15 @@ func _show_pick(index: int, t: float, timing: CartRevealTuning) -> bool:
 ## arc into its slot (a coupon flutters, a product rights itself).
 func _flight(index: int, since: float, timing: CartRevealTuning) -> Transform2D:
 	var coupon: bool = picks[index].is_coupon()
+	if index < _pack_count and index < _pack_from.size():
+		# A pack's card (#107) arcs from its place on the pack's face, with no chute to leave.
+		var lift: float = clampf(since / (timing.exit_s + timing.fly_s), 0.0, 1.0)
+		var into: Vector2 = slot_position(index) + RevealTile.SPRITE_POSITION
+		var arc: float = timing.coupon_arc_height if coupon else timing.arc_height
+		var pose_at: Vector2 = (
+			_pack_from[index].lerp(into, lift) - Vector2(0, arc * 4.0 * lift * (1.0 - lift))
+		)
+		return Transform2D(0.0, Vector2.ONE, 0.0, pose_at)
 	var exit: Vector2 = StockDispenser.EXIT_POINT
 	if since < timing.exit_s:
 		var e: float = CartReveal.ease_out(clampf(since / timing.exit_s, 0.0, 1.0))
@@ -246,19 +321,19 @@ func _flight(index: int, since: float, timing: CartRevealTuning) -> Transform2D:
 
 
 func _show_dispenser(t: float, timing: CartRevealTuning) -> void:
-	var total: int = picks.size()
+	var total: int = _heap_cards.size()
 	var dispensed: int = 0
 	var jolt: float = 0.0
 	var open: float = 0.0
 	for index: int in total:
-		var since: float = t - timing.pick_start(index)
+		var since: float = t - timing.pick_start(index + _pack_count)
 		if since >= 0.0:
 			dispensed = index + 1
 		if since >= 0.0 and since < timing.jolt_s:
 			jolt = sin(since / timing.jolt_s * PI * 3.0) * timing.jolt_px
 		if since >= 0.0 and since < timing.flap_s:
 			open = maxf(open, sin(since / timing.flap_s * PI))
-	var last_land: float = timing.pick_land(total - 1) if total > 0 else 0.0
+	var last_land: float = timing.pick_land(total - 1 + _pack_count) if total > 0 else 0.0
 	var done: bool = t >= last_land
 	var chase: int = int(floorf(t * timing.chase_hz))
 	var blink: bool = done and int(floorf(t * timing.blink_hz)) % 2 == 1
@@ -266,7 +341,9 @@ func _show_dispenser(t: float, timing: CartRevealTuning) -> void:
 	for bulb: int in StockDispenser.BULB_COUNT:
 		lit.append((bulb + chase) % 3 == 0 or blink)
 	var message: String
-	if dispensed == 0:
+	if dispensed == 0 and pack != null:
+		message = "%d FROM TODAY’S STOCK" % total
+	elif dispensed == 0:
 		message = "%d PICKS + %d %s" % [total - _coupons, _coupons, _plural("COUPON", _coupons)]
 	elif done:
 		message = "CART READY ✓"
@@ -296,33 +373,43 @@ func _build_picks() -> void:
 	picks_heading = _heading(PICKS_TEXT, PICKS_HEADING, "0/%d" % picks.size())
 	picks_count = picks_heading.get_parent().get_child(1) as Label
 	var products: int = picks.size() - _coupons
-	picks_sub = _sub(
-		(
-			"%d %s + %d %s, random from today’s stock. A pick can repeat a staple (×2), never a %s copy."
-			% [
-				_coupons,
-				_plural("coupon", _coupons),
-				products,
-				_plural("product", products),
-				CartReveal.ordinal(_copy_max + 1),
-			]
-		),
-		PICKS_SUB
+	var sub_text: String = (
+		"%d %s + %d %s, random from today’s stock. A pick can repeat a staple (×2), never a %s copy."
+		% [
+			_coupons,
+			_plural("coupon", _coupons),
+			products,
+			_plural("product", products),
+			CartReveal.ordinal(_copy_max + 1),
+		]
 	)
+	if pack != null:
+		sub_text = (
+			"%d from your %s pack + %d from today’s stock."
+			% [_pack_count, pack.display_name, picks.size() - _pack_count]
+		)
+	picks_sub = _sub(sub_text, PICKS_SUB)
 	chip = RevealChip.new(Palette.MUSTARD, CHIP_SIZE, null, "CART 0/0", CHIP_TEXT_SIZE, Palette.INK)
 	chip.pad = 12.0
 	chip.ledge = Palette.MUSTARD_DARKEST
 	chip.position = CHIP_POSITION
 	_content.add_child(chip)
-	dispenser = StockDispenser.new(picks)
+	dispenser = StockDispenser.new(_heap_cards)
 	_content.add_child(dispenser)
+	if picks.is_empty():
+		# The choice (#107): TODAY'S PICKS waits for the pack.
+		picks_heading.get_parent().visible = false
+		picks_sub.visible = false
+		chip.visible = false
 	for index: int in picks.size():
 		var card: CardDefinition = picks[index]
 		var slot: RevealSlot = RevealSlot.new(card.is_coupon())
 		slot.position = slot_position(index)
 		_content.add_child(slot)
 		slots.append(slot)
-		var second: bool = card.is_product() and staples.any(card.is_same_product)
+		var second: bool = (
+			index >= _pack_count and card.is_product() and staples.any(card.is_same_product)
+		)
 		var kind: RevealTile.Kind = (
 			RevealTile.Kind.COUPON if card.is_coupon() else RevealTile.Kind.PICK
 		)
@@ -331,6 +418,8 @@ func _build_picks() -> void:
 		tile.visible = false
 		_content.add_child(tile)
 		pick_tiles.append(tile)
+	if pack != null and _pack_count > 0:
+		_build_bracket()
 
 
 ## The summary line: CART n/limit = <padlock> 4 staples + <token> 1 coupon + <+> 8 from today's
@@ -374,6 +463,17 @@ func _build_summary() -> void:
 				"%d %s" % [_coupons, _plural("coupon", _coupons)]
 			)
 		)
+	if pack != null:
+		var style: FamilyStyle = FamilyPalette.shared().style(pack.family)
+		summary.add_child(_summary_text("+", Palette.TEAL_LIGHT, PLUS_SIZE))
+		summary.add_child(
+			_summary_part(
+				style.face if style != null else Palette.TEAL,
+				style.glyph if style != null else RevealTile.PICK_ICON,
+				"%d from %s" % [_pack_count, pack.display_name]
+			)
+		)
+		products = picks.size() - _pack_count
 	summary.add_child(_summary_text("+", Palette.TEAL_LIGHT, PLUS_SIZE))
 	summary.add_child(
 		_summary_part(Palette.TEAL_BRIGHT, RevealTile.PICK_ICON, "%d from today’s stock" % products)
@@ -385,6 +485,29 @@ func _build_summary() -> void:
 	hint.position = HINT_RECT.position
 	hint.size = HINT_RECT.size
 	_content.add_child(hint)
+
+
+## The bracket under the pack's cards (#107): a bar in its family's colour and its name.
+func _build_bracket() -> void:
+	var style: FamilyStyle = FamilyPalette.shared().style(pack.family)
+	var colour: Color = style.face if style != null else Palette.TEAL
+	var left: float = slot_position(0).x
+	var right: float = slot_position(_pack_count - 1).x + RevealTile.SIZE.x
+	var bar: ColorRect = ColorRect.new()
+	bar.name = "PackBracket"
+	bar.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	bar.color = colour
+	bar.position = Vector2(left, BRACKET_TOP)
+	bar.size = Vector2(right - left, BRACKET_HEIGHT)
+	_content.add_child(bar)
+	var label: Label = UiKit.body_label(
+		pack.display_name.to_upper(), BRACKET_NAME_SIZE, style.light if style != null else colour
+	)
+	label.add_theme_font_override("font", CartReveal.spaced_font(800, 1))
+	label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	label.position = Vector2(left, BRACKET_NAME_TOP)
+	label.size = Vector2(right - left, 16)
+	_content.add_child(label)
 
 
 func _summary_part(color: Color, icon: Texture2D, text: String) -> HBoxContainer:

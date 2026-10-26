@@ -1,0 +1,15 @@
+[gd_resource type="Resource" script_class="StarterPackDefinition" format=3]
+
+[ext_resource type="Script" path="res://core/starter_pack_definition.gd" id="1_pack"]
+[ext_resource type="Script" path="res://core/card_definition.gd" id="2_card"]
+[ext_resource type="Resource" path="res://data/cards/clearance_tag.tres" id="c_clearance_tag"]
+[ext_resource type="Resource" path="res://data/cards/dented_can.tres" id="c_dented_can"]
+[ext_resource type="Resource" path="res://data/cards/flickering_bulb.tres" id="c_flickering_bulb"]
+
+[resource]
+script = ExtResource("1_pack")
+id = &"bargain_bin"
+display_name = "Bargain bin"
+family = "Clearance"
+cards = Array[ExtResource("2_card")]([ExtResource("c_clearance_tag"), ExtResource("c_dented_can"), ExtResource("c_flickering_bulb")])
+hint_text = "Clearance in a row: Dented can pays +2 for each Clearance before it."

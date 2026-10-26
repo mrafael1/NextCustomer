@@ -70,23 +70,29 @@ func test_the_deck_tab_groups_copies_and_counts_tags() -> void:
 
 
 ## v0.49: a new run starts from the recipe deck, dealt from its stock on the run seed's own
-## stream: the 4 core cards, a coupon from the pool (v0.51), then 8 stocked products with a tier
-## chain, and the Deck tab shows it.
+## stream; since v0.63 (#107) the recipe with starter packs: the 4 core cards, the pack taken (a
+## run started without the reveal takes the offer's default, a new profile's good first pick),
+## then 6 stocked products with a tier chain, and the Deck tab shows it.
 func test_the_game_deals_the_recipe_deck() -> void:
 	var screen: ShiftScreen = await _screen()
 	var run: RunState = screen.run
-	assert_str(String(run.starter.id)).is_equal("random_starter")
+	assert_str(String(run.starter.id)).is_equal("pack_starter")
 	assert_int(run.starter.cards.size()).is_equal(13)
 	assert_int(run.deck.size()).is_equal(13)
 	var recipe: DeckDefinition = load(ShiftScreen.STARTER_DECK)
 	assert_array(run.starter.cards.slice(0, 4)).is_equal(recipe.core_cards)
-	var expected: DeckDefinition = StartingDeck.deal(
+	var offer: StartOffer = StartingDeck.deal_offer(
 		recipe,
 		run.stock,
 		run.balance,
-		EventLogService.derived_stream(run.run_seed, EventLogService.STARTING_DECK_STREAM)
+		EventLogService.derived_stream(run.run_seed, EventLogService.STARTING_DECK_STREAM),
+		not screen.profile.has_won()
+	)
+	var expected: DeckDefinition = StartingDeck.with_pack(
+		recipe, offer.default_pack(), offer.shared
 	)
 	assert_array(run.starter.cards).is_equal(expected.cards)
+	assert_object(run.starter.starter_pack).is_same(offer.default_pack())
 	screen._on_deck_button_pressed()
 	var view: DeckView = screen._deck_view
 	var total: int = 0
@@ -106,8 +112,8 @@ func test_the_cart_page_marks_staples_and_picks() -> void:
 	var screen: ShiftScreen = await _screen()
 	screen.start_new_run(20261014, false)
 	var run: RunState = screen.run
-	# A machine prize the deal didn't give.
-	var prize: CardDefinition = load("res://data/cards/coffee.tres")
+	# A machine prize the deal didn't give (a capsule product: never dealt).
+	var prize: CardDefinition = load("res://data/cards/lemon.tres")
 	assert_bool(run.starter.cards.has(prize)).is_false()
 	run.deck.add_card(prize)
 	screen._on_deck_button_pressed()
@@ -141,11 +147,9 @@ func test_the_cart_page_marks_staples_and_picks() -> void:
 			for other: Rect2 in placed:
 				assert_bool(rect.intersects(other)).override_failure_message(id).is_false()
 			placed.append(rect)
-	# Banana: a staple only (no mark); Milk and Eggs: staples dealt again; the coupon: a pick.
+	# Banana: a staple only (no mark); the machine's prize: none; the pack's coupon: a pick.
 	assert_array(seen["banana"]).is_equal([false, false])
-	assert_array(seen["milk"]).is_equal([false, true])
-	assert_array(seen["eggs"]).is_equal([false, true])
-	assert_array(seen["coffee"]).is_equal([false, false])
+	assert_array(seen["lemon"]).is_equal([false, false])
 	var coupon: CardDefinition = picks[0]
 	assert_bool(coupon.is_coupon()).is_true()
 	assert_array(seen[String(coupon.id)]).is_equal([false, true])
@@ -168,11 +172,15 @@ func test_a_dealt_or_full_cart_fits_unscrolled() -> void:
 		var stream: RandomNumberGenerator = EventLogService.derived_stream(
 			seed_value, EventLogService.STARTING_DECK_STREAM
 		)
-		var size: int = _distinct(StartingDeck.deal(recipe, stock, balance, stream).cards)
+		var offer: StartOffer = StartingDeck.deal_offer(recipe, stock, balance, stream, true)
+		var cart: DeckDefinition = StartingDeck.with_pack(
+			recipe, offer.default_pack(), offer.shared
+		)
+		var size: int = _distinct(cart.cards)
 		if size > widest_size:
 			widest = seed_value
 			widest_size = size
-	# The most distinct: up to 12 (11 products and the coupon), more than one shelf holds.
+	# The most distinct: up to 12 (the 3 staples, the pack's 3, 6 products), more than one shelf.
 	assert_int(widest_size).is_greater(DeckView.COLUMNS)
 	var screen: ShiftScreen = await _screen()
 	for full: bool in [false, true]:
