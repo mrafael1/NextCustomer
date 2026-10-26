@@ -19,7 +19,9 @@ var _rngs: Dictionary = {}
 
 
 func before() -> void:
-	_balance = load(BALANCE)
+	# The 8-shift loop before v0.65 (PREMIUM after shifts 3, 5 and 7): these runs are scripted
+	# around it, and machine_data_test checks the live schedule.
+	_balance = EightShiftLoop.apply((load(BALANCE) as BalanceDefinition).duplicate())
 	_starter = load(STARTER)
 
 
@@ -643,7 +645,7 @@ func test_calls_outside_their_stage_do_nothing() -> void:
 	run.history.append(ShiftRecord.new(1, 10, 5))
 	machine.begin_after_checkout(run)
 	assert_int(machine.stage).is_equal(RewardMachine.Stage.IDLE)
-	_pass(run, machine, 8)
+	_pass(run, machine, run.shift_count())  # The last shift: no visit follows it.
 	assert_int(machine.stage).is_equal(RewardMachine.Stage.IDLE)
 	_pass(run, machine, 1)
 	assert_object(machine.pick(run, 0)).is_null()

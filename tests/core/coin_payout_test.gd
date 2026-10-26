@@ -77,13 +77,14 @@ func test_an_ended_run_adds_its_coins_to_the_profile() -> void:
 	assert_int(profile.coins).is_equal(5)
 
 
-## The amounts fitted with the balance simulator (plan v0.28, issue #41): one entry per number
-## of shifts passed, never decreasing, nothing for a run lost on shifts 1 to 4.
+## The amounts fitted with the balance simulator (plan v0.28, issue #41; stretched to 12 shifts
+## in v0.65 as placeholders until the refit): one entry per number of shifts passed, never
+## decreasing, nothing for a run lost on shifts 1 to 4.
 func test_live_coin_amounts() -> void:
 	var balance: BalanceDefinition = load(BALANCE)
 	var table: PackedInt32Array = balance.coins_by_shifts_passed
 	assert_int(table.size()).is_equal(balance.quotas.size() + 1)
-	assert_array(Array(table)).is_equal([0, 0, 0, 0, 1, 1, 1, 1, 2])
+	assert_array(Array(table)).is_equal([0, 0, 0, 0, 1, 1, 1, 1, 2, 2, 2, 2, 3])
 	for index: int in range(1, table.size()):
 		assert_int(table[index]).is_greater_equal(table[index - 1])
 	assert_int(balance.overtime_coin_euros).is_equal(923)
@@ -105,6 +106,9 @@ static func _balance(table: Array, euros: int, cap: int) -> BalanceDefinition:
 	balance.overtime_coin_euros = euros
 	balance.overtime_coin_max = cap
 	balance.inspection_shifts = PackedInt32Array()
+	balance.review_shifts = PackedInt32Array()
+	# A miss ends the run (no write-ups, v0.65): these runs end where the test misses.
+	balance.write_up_limit = 0
 	return balance
 
 

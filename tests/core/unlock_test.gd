@@ -188,6 +188,9 @@ static func _deck_with_upgrade(upgrade_path: String) -> DeckDefinition:
 static func _low_quotas() -> BalanceDefinition:
 	var balance: BalanceDefinition = (load(BALANCE) as BalanceDefinition).duplicate()
 	balance.quotas = PackedInt32Array([5, 5, 5, 5, 5, 5, 5, 5])
+	# The run before v0.65's loop rework: no Manager's reviews, and a miss ends the run.
+	balance.review_shifts = PackedInt32Array()
+	balance.write_up_limit = 0
 	return balance
 
 

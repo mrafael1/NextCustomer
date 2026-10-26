@@ -19,6 +19,8 @@ func before_test() -> void:
 	# Quotas of 1: every row with a product passes, so a scripted run reaches its end.
 	_balance = (load(BALANCE) as BalanceDefinition).duplicate()
 	_balance.quotas = PackedInt32Array([1, 1, 1, 1, 1, 1, 1, 1])
+	# The run before v0.65's loop rework (these runs are scripted around it).
+	EightShiftLoop.apply(_balance)
 	_lookup = ContentLookup.new(_balance)
 
 
@@ -252,7 +254,7 @@ func test_the_run_id_and_played_time_are_kept() -> void:
 	assert_str(save.run_id).is_equal("abc123")
 	assert_int(save.run_ms).is_equal(98765)
 	assert_int(int(data["format_version"])).is_equal(RunSave.FORMAT_VERSION)
-	assert_int(RunSave.FORMAT_VERSION).is_equal(7)
+	assert_int(RunSave.FORMAT_VERSION).is_equal(8)
 	# v0.47: the machine saves no Regular levels.
 	assert_bool((data["machine"] as Dictionary).has("levels")).is_false()
 
@@ -303,7 +305,7 @@ func test_a_save_that_cant_be_resumed_reads_as_null() -> void:
 		[planning, func(d: Dictionary) -> void: d["format_version"] = 2],
 		"version 3, before the dealt starting deck":
 		[planning, func(d: Dictionary) -> void: d["format_version"] = 3],
-		"newer format": [planning, func(d: Dictionary) -> void: d["format_version"] = 8],
+		"newer format": [planning, func(d: Dictionary) -> void: d["format_version"] = 9],
 		"format as text": [planning, func(d: Dictionary) -> void: d["format_version"] = "7"],
 		"version 5 without its upgrade count":
 		[planning, func(d: Dictionary) -> void: d["format_version"] = 5],

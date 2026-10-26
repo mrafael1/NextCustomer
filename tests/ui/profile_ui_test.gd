@@ -38,7 +38,8 @@ func test_an_ended_run_is_saved_to_the_profile_and_a_restart_is_not() -> void:
 	# A new run before this one ends (the debug seed) records nothing.
 	screen.start_new_run(5)
 	assert_int(saves.load_profile().run_count).is_equal(3)
-	# A Repeat alone pays 0: the run is lost, recorded and saved at the click.
+	# A Repeat alone pays 0: the run is lost (no write-up, v0.65), recorded and saved at the click.
+	Rush.no_write_ups(screen)
 	screen.run.place(screen.run.debug_add_to_hand(load(REPEAT)), 0)
 	# Saved at the click, before the count-up: closing the game during it loses nothing.
 	screen._on_checkout_pressed()
@@ -53,7 +54,7 @@ func test_an_ended_run_is_saved_to_the_profile_and_a_restart_is_not() -> void:
 
 
 ## Full build plan 7.1: the results print the run's coins at the bottom, with the profile's
-## total, and the results fit the 1280 x 720 screen even with 8 history rows.
+## total, and the results fit the 1280 x 720 screen even with 12 history rows (v0.65).
 func test_the_results_print_the_coins_and_fit_the_screen() -> void:
 	var saves: SaveService = SaveService.new(_folder)
 	var saved: ProfileState = ProfileState.new()
@@ -63,7 +64,7 @@ func test_the_results_print_the_coins_and_fit_the_screen() -> void:
 	var screen: ShiftScreen = runner.scene()
 	var count: int = screen.run.shift_count()
 	screen._debug.skip_to_shift(count)
-	# The debug jump writes no history: the 7 earlier shifts are passed records, each €2 over.
+	# The debug jump writes no history: the 11 earlier shifts are passed records, each €2 over.
 	for shift: int in range(count - 1, 0, -1):
 		screen.run.history.push_front(ShiftRecord.new(shift, 10, 12))
 	# The last quota (plan v0.28) expects upgrades: this test plays it against 48 instead.
@@ -74,13 +75,13 @@ func test_the_results_print_the_coins_and_fit_the_screen() -> void:
 		screen.run.place(screen.run.debug_add_to_hand(card), screen.run.row.size())
 	await Rush.checkout(screen)
 	assert_int(screen.run.phase).is_equal(RunState.Phase.WON)
-	# 8 shifts passed pay 2; overtime 7 x 2 + (82 - 48) = 48, under the €923 step.
+	# 12 shifts passed pay 3; overtime 11 x 2 + (82 - 48) = 56, under the €923 step.
 	screen._results.skip_printing()
 	var texts: PackedStringArray = screen._results.texts().slice(-3)
-	assert_str(texts[0]).starts_with("Shifts passed 8").ends_with("+2")
-	assert_str(texts[1]).starts_with("Overtime €48").ends_with("+0")
-	assert_str(texts[2]).starts_with("COINS +2").ends_with("you have 8")
-	assert_int(saves.load_profile().coins).is_equal(8)
+	assert_str(texts[0]).starts_with("Shifts passed 12").ends_with("+3")
+	assert_str(texts[1]).starts_with("Overtime €56").ends_with("+0")
+	assert_str(texts[2]).starts_with("COINS +3").ends_with("you have 9")
+	assert_int(saves.load_profile().coins).is_equal(9)
 	for frame: int in range(4):
 		await get_tree().process_frame
 	var banner: Rect2 = screen._results.get_global_rect()
