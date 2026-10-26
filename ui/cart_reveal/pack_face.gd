@@ -13,11 +13,11 @@ const GLYPH_RECT := Rect2(10, 6, 28, 28)
 const NAME_POSITION := Vector2(46, 4)
 const NAME_SIZE := 20
 ## The cards: reveal tiles at TILE_SCALE, TILE_LEFT from the face's left, TILE_STEP apart.
-const TILE_SCALE := 0.8
-const TILE_LEFT := 18.0
-const TILE_TOP := 50.0
+const TILE_SCALE := 0.75
+const TILE_LEFT := 20.0
+const TILE_TOP := 54.0
 const TILE_STEP := 92.0
-const HINT_RECT := Rect2(12, 148, 276, 44)
+const HINT_RECT := Rect2(12, 150, 276, 40)
 const HINT_SIZE := 13
 const FRAME := 3.0
 const RAISED_FRAME := 4.0
@@ -63,6 +63,7 @@ func _init(starter_pack: StarterPackDefinition, is_first_pick: bool = false) -> 
 			RevealTile.Kind.COUPON if card.is_coupon() else RevealTile.Kind.PICK
 		)
 		var tile: RevealTile = RevealTile.new(card, kind)
+		tile.pivot_offset = Vector2.ZERO  # Scaled from its top left, inside the face.
 		tile.scale = Vector2.ONE * TILE_SCALE
 		tile.position = Vector2(TILE_LEFT + index * TILE_STEP, TILE_TOP)
 		add_child(tile)
@@ -89,9 +90,24 @@ func _init(starter_pack: StarterPackDefinition, is_first_pick: bool = false) -> 
 	_ribbon.add_child(ribbon_text)
 
 
-## The face's colour (its family's), or the panel's teal for a family with none.
+## The face's colour: its family's ticket colour, or the coupon's tomato for a family with none
+## (the Coupon family keeps the plain coupon look).
 func face_color() -> Color:
-	return _style.face if _style != null else Palette.TEAL
+	return _style.face if _has_colours() else Palette.TOMATO
+
+
+func _has_colours() -> bool:
+	return _style != null and _style.has_ticket_colours()
+
+
+## A pack's colours (its face, then its light) and glyph, as its face shows them: its family's
+## ticket colours, or the coupon's tomato for a family with none (the Coupon family).
+static func pack_look(starter_pack: StarterPackDefinition) -> Array:
+	var style: FamilyStyle = FamilyPalette.shared().style(starter_pack.family)
+	var glyph: Texture2D = style.glyph if style != null else null
+	if style == null or not style.has_ticket_colours():
+		return [Palette.TOMATO, Palette.TOMATO_LIGHT, glyph]
+	return [style.face, style.light, glyph]
 
 
 ## Whether the ribbon shows (the good first pick).
@@ -116,8 +132,11 @@ func name_text() -> String:
 	return _name.text
 
 
+## Paper text on a dark face (the family's own choice, or a face too dark for ink).
 func _paper_text() -> bool:
-	return _style != null and _style.paper_text
+	if not _has_colours():
+		return true
+	return _style.paper_text or _style.face.get_luminance() < 0.4
 
 
 func _draw() -> void:
@@ -128,8 +147,8 @@ func _draw() -> void:
 	if raised:
 		frame_colour = Palette.GOLD
 		frame = RAISED_FRAME
-	elif hovered and _style != null:
-		frame_colour = _style.light
+	elif hovered:
+		frame_colour = _style.light if _has_colours() else Palette.TOMATO_LIGHT
 	draw_rect(rect, Palette.INK)
 	draw_rect(rect.grow(-2.0), frame_colour)
 	var body: Rect2 = rect.grow(-2.0 - frame)

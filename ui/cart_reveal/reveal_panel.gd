@@ -464,14 +464,11 @@ func _build_summary() -> void:
 			)
 		)
 	if pack != null:
-		var style: FamilyStyle = FamilyPalette.shared().style(pack.family)
+		var look: Array = PackFace.pack_look(pack)
+		var glyph: Texture2D = look[2] if look[2] != null else RevealTile.PICK_ICON
 		summary.add_child(_summary_text("+", Palette.TEAL_LIGHT, PLUS_SIZE))
 		summary.add_child(
-			_summary_part(
-				style.face if style != null else Palette.TEAL,
-				style.glyph if style != null else RevealTile.PICK_ICON,
-				"%d from %s" % [_pack_count, pack.display_name]
-			)
+			_summary_part(look[0], glyph, "%d from %s" % [_pack_count, pack.display_name])
 		)
 		products = picks.size() - _pack_count
 	summary.add_child(_summary_text("+", Palette.TEAL_LIGHT, PLUS_SIZE))
@@ -489,8 +486,8 @@ func _build_summary() -> void:
 
 ## The bracket under the pack's cards (#107): a bar in its family's colour and its name.
 func _build_bracket() -> void:
-	var style: FamilyStyle = FamilyPalette.shared().style(pack.family)
-	var colour: Color = style.face if style != null else Palette.TEAL
+	var look: Array = PackFace.pack_look(pack)
+	var colour: Color = look[0]
 	var left: float = slot_position(0).x
 	var right: float = slot_position(_pack_count - 1).x + RevealTile.SIZE.x
 	var bar: ColorRect = ColorRect.new()
@@ -500,9 +497,7 @@ func _build_bracket() -> void:
 	bar.position = Vector2(left, BRACKET_TOP)
 	bar.size = Vector2(right - left, BRACKET_HEIGHT)
 	_content.add_child(bar)
-	var label: Label = UiKit.body_label(
-		pack.display_name.to_upper(), BRACKET_NAME_SIZE, style.light if style != null else colour
-	)
+	var label: Label = UiKit.body_label(pack.display_name.to_upper(), BRACKET_NAME_SIZE, look[1])
 	label.add_theme_font_override("font", CartReveal.spaced_font(800, 1))
 	label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	label.position = Vector2(left, BRACKET_NAME_TOP)

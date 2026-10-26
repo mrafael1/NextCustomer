@@ -33,6 +33,8 @@ var overtime_coins: int = 0
 var registers: int = 0
 var perk_levels: Dictionary[String, int] = {}
 var tier_copies: Dictionary[String, int] = {}
+## The starter pack the run took (#107, v0.63; "" for a deck without packs).
+var start_pack: String = ""
 
 
 static func from_dictionary(data: Dictionary) -> SimRunRecord:
@@ -64,6 +66,7 @@ static func from_dictionary(data: Dictionary) -> SimRunRecord:
 	var copies: Dictionary = data.get("tier_copies", {})
 	for id: String in copies:
 		record.tier_copies[id] = int(copies[id])
+	record.start_pack = String(data.get("start_pack", ""))
 	return record
 
 
@@ -104,6 +107,7 @@ func to_dictionary() -> Dictionary:
 		"registers": registers,
 		"perk_levels": perk_levels,
 		"tier_copies": tier_copies,
+		"start_pack": start_pack,
 	}
 
 

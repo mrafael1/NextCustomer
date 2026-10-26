@@ -242,12 +242,18 @@ func take_pack() -> bool:
 	_choosing = false
 	_hover_tile = null
 	_hide_popup()
-	_panel.queue_free()
+	Sfx.play_at(self, "ui_confirm")
+	# The screen starts shift 1, which closes its overlays (this reveal among them): the picks'
+	# panel is built after it.
+	pack_taken.emit(pack)
+	if _panel != null:
+		_panel.queue_free()
 	_panel = RevealPanel.new(_core, pack.cards + shared, _copy_max, _deck_limit, _shift, pack, from)
 	_stage.add_child(_panel)
 	_t = end_time() if reduced_motion else tuning.pick_start_s
-	Sfx.play_at(self, "ui_confirm")
-	pack_taken.emit(pack)
+	_outro = -1.0
+	visible = true
+	set_process(not _frozen)
 	_render()
 	return true
 
