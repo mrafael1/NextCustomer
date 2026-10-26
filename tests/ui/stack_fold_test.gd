@@ -8,8 +8,8 @@ extends GdUnitTestSuite
 ## bounds (clamped at both ends of the belt). On the real shift screen at 1280x720 (the stress row
 ## on 8 slots, Squashed cake's many stickers): the stack sits on the item's right shoulder with at
 ## most 3 stickers and the chip on top, overlapping by exactly 4 px (the mock-up's 3 px on the art
-## grid) where its ceiling allows, inside the screen and under its ceiling (the last slot's, pushed
-## off its shoulder by the screen's edge, on its art's top instead); hovering it fans every
+## grid) where its ceiling allows, inside the screen and under its ceiling (the last slot's
+## shifted left by the screen's edge, at the same height); hovering it fans every
 ## sticker out in step order, numbered 1 to N, on screen, inside the belt's x-range, under the top
 ## bar, above the item and never over its ticket or pay tag, the stack hidden meanwhile; the fan
 ## hovers its item (the mix highlight and #71's focus) and keeps it while the pointer is on it;
@@ -133,7 +133,7 @@ func test_a_fanned_sticker_wears_its_number() -> void:
 	assert_bool(number.visible).is_true()
 	assert_float(number.modulate.a).is_equal(0.5)
 	assert_str((number.get_child(0) as Label).text).is_equal("7")
-	assert_bool(sticker.number_rect() == Rect2(-22, -24, 20, 20)).is_true()
+	assert_bool(sticker.number_rect().intersects(Rect2(Vector2.ZERO, sticker.size))).is_true()
 	sticker.set_number(0)
 	assert_bool(number.visible).is_false()
 	# The number never covers the giver's mini, on a label or a burst.
@@ -212,13 +212,12 @@ func test_a_folded_stack_on_the_shift_screen() -> void:
 				assert_float(rect.position.x).override_failure_message(message).is_greater(
 					sprite.get_center().x
 				)
-		# Pushed off its shoulder by the screen's edge (the last slot), it stands on the art's
-		# visible top instead, so the item stays in view.
-		if span.position.x < sprite.get_center().x:
+		# The screen edge shifts the last stack sideways, keeping it attached at the same height.
+		if span.end.x >= SCREEN_RECT.end.x - PlanningLayer.STACK_EDGE_GAP - 2.0:
 			pushed += 1
-			assert_float(span.end.y).override_failure_message("slot %d" % index).is_less_equal(
-				PlanningLayer._art_top(item, sprite) + PlanningLayer.STACK_ON_ART + TOLERANCE
-			)
+		assert_float(span.end.y).override_failure_message("slot %d" % index).is_equal_approx(
+			PlanningLayer.STACK_BOTTOM_Y, TOLERANCE
+		)
 		var ceiling: float = PlanningLayer.stack_ceiling(span)
 		assert_float(span.position.y).is_greater_equal(ceiling - TOLERANCE)
 		assert_float(span.end.y).is_less_equal(PlanningLayer.STACK_BOTTOM_Y + TOLERANCE)

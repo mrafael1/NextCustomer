@@ -7,7 +7,7 @@ extends Control
 ## v3 fold A): a grey label turned FOLD_TILT_DEG with a card-fan mark and the count ("+3") in ink.
 ## The chip pops in and punches as more fold in (fold_punch); in the count it counts down as each
 ## folded sticker's step lands and shrinks away after the last (fire). A fanned-out copy
-## (StackFan) wears its order number on its top-left corner (set_number). The frame (and its shadow,
+## (StackFan) wears its order number on its top edge (set_number). The frame (and its shadow,
 ## ink at SHADOW_ALPHA at SHADOW_OFFSET) turns by `tilt_deg` about its centre on the texel grid
 ## (the sharp-pixel material keeps the texels hard); the text stays upright and centred. The
 ## giver's badge (GiverBadge) hangs off its left edge. Drained (another item hovered, or on a
@@ -23,9 +23,9 @@ const LABEL_HEIGHT := 32.0
 ## text's width plus LABEL_PADDING (on the 2 px grid).
 const LABEL_WIDTHS: Array[float] = [52.0, 62.0]
 const LABEL_PADDING := 22.0
-## FIZZLE is FIZZLE_SIZE, or wider for a longer text (its width plus FIZZLE_PADDING and
-## LABEL_PADDING, on the 2 px grid): "WASTED" (#45).
+## Readability v3's WASTED: at least 92 px wide, its text plus 6 px and 18 px of padding.
 const FIZZLE_SIZE := Vector2(92, 32)
+const FIZZLE_TEXT_PADDING := 18.0
 const BURST_SIZE := Vector2(76, 42)
 ## The label 9-slices' margin, in art pixels.
 const FRAME_MARGIN := 4
@@ -37,6 +37,9 @@ const BURST_SMALL_SIZE := 22
 const BURST_SMALL_CHARS := 4
 const GREY_TEXT_SIZE := 17
 const FIZZLE_PADDING := 6.0
+## WASTED's tomato underline, with a darker lower edge, above the label's shaded lip.
+const FIZZLE_UNDERLINE_Y := 22.0
+const FIZZLE_UNDERLINE_HEIGHT := 4.0
 ## The fold chip (MORE): FOLD_SIZE, or wider for its text (from FOLD_TEXT_X, plus FOLD_PADDING),
 ## its frame turned FOLD_TILT_DEG, the mark at FOLD_MARK_AT and the count in ink at FOLD_TEXT_SIZE.
 const FOLD_SIZE := Vector2(64, 30)
@@ -53,10 +56,9 @@ const FOLD_POP_S := 0.12
 const FOLD_PUNCH := 0.3
 const FOLD_PUNCH_S := 0.22
 ## A fanned sticker's order number: a NUMBER_SIZE ink square in a NUMBER_RING paper ring, the
-## number in paper at NUMBER_TEXT_SIZE, its top-left at NUMBER_AT: up and left of the sticker's
-## top-left corner, so its ring clears the giver badge's mini under it (who gave what stays
-## readable in the fan).
-const NUMBER_AT := Vector2(-20, -22)
+## number in paper at NUMBER_TEXT_SIZE, its top-left at NUMBER_AT: attached to the sticker's
+## top edge, clear of the giver badge on its left.
+const NUMBER_AT := Vector2(10, -10)
 const NUMBER_SIZE := Vector2(16, 16)
 const NUMBER_RING := 2.0
 const NUMBER_TEXT_SIZE := 12
@@ -105,6 +107,7 @@ const CHECK_NAME := &"Check"
 
 const LABEL_FRAME := preload("res://art/effects/sticker_label_polished.png")
 const GREY_FRAME := preload("res://art/effects/sticker_label_grey_polished.png")
+const WASTED_FRAME := preload("res://art/effects/sticker_label_wasted_polished.png")
 const TEAL_FRAME := preload("res://art/effects/sticker_label_teal_polished.png")
 const BURST := preload("res://art/effects/sticker_burst_polished.png")
 const FOLD_MARK := preload("res://art/effects/fold_mark.png")
@@ -115,6 +118,7 @@ var _inner: Control
 var _frame: Control
 var _shadow: Control
 var _label: Label
+var _underline: Control
 var _badge: GiverBadge
 var _drained: bool = false
 var _slap_tween: Tween
@@ -183,6 +187,22 @@ func _init(sticker_spec: StickerSpec, tilt_deg: float = 0.0) -> void:
 		_label.position = Vector2(FOLD_TEXT_X, 0)
 		_label.size = Vector2(size.x - FOLD_TEXT_X, size.y - ArtStyle.ART_SCALE)
 	_inner.add_child(_label)
+	if _spec.kind == StickerSpec.Kind.FIZZLE:
+		_label.add_theme_color_override("font_shadow_color", Palette.STEEL_HIGHLIGHT)
+		_underline = Control.new()
+		_underline.name = "WastedUnderline"
+		_underline.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		var width: float = snappedf(_text_width(_spec) + 6.0, ArtStyle.ART_SCALE)
+		_underline.size = Vector2(width, FIZZLE_UNDERLINE_HEIGHT)
+		_underline.position = Vector2(
+			snappedf((size.x - width) / 2.0, ArtStyle.ART_SCALE), FIZZLE_UNDERLINE_Y
+		)
+		_underline.draw.connect(_draw_underline)
+		_inner.add_child(_underline)
+		# V3's word and underline follow the face's tilt, about the same centre.
+		for part: Control in [_label, _underline]:
+			part.pivot_offset = size / 2.0 - part.position
+			part.rotation_degrees = tilt_deg
 	if _spec.badge != GiverBadge.Kind.NONE:
 		_badge = GiverBadge.new(_spec.badge, _spec.badge_text, _spec.badge_mini)
 		var badge_x: float = (
@@ -209,7 +229,7 @@ static func size_for(sticker_spec: StickerSpec) -> Vector2:
 		StickerSpec.Kind.MULTIPLY:
 			return BURST_SIZE
 		StickerSpec.Kind.FIZZLE:
-			var grey: float = _text_width(sticker_spec) + FIZZLE_PADDING + LABEL_PADDING
+			var grey: float = _text_width(sticker_spec) + FIZZLE_PADDING + FIZZLE_TEXT_PADDING
 			var width: float = maxf(FIZZLE_SIZE.x, snappedf(grey, ArtStyle.ART_SCALE))
 			return Vector2(width, FIZZLE_SIZE.y)
 		StickerSpec.Kind.MORE:
@@ -257,7 +277,7 @@ func text() -> String:
 func set_drained(drained: bool) -> void:
 	_drained = drained
 	var look: ShaderMaterial = ArtStyle.grey_material(ArtStyle.Grey.DRAINED) if drained else null
-	for part: Control in [_shadow, _frame, _mark]:
+	for part: Control in [_shadow, _frame, _mark, _underline]:
 		if part != null:
 			ArtStyle.set_look(part, look)
 	if _badge != null:
@@ -335,7 +355,7 @@ func fold_punch(first: bool, reduced_motion: bool, make_tween: Callable = Callab
 		tween.tween_method(_bump, 0.0, 1.0, FOLD_PUNCH_S)
 
 
-## Shows `number` (1 and up) on the top-left corner at `alpha`, or hides it (0 or less): a fanned
+## Shows `number` (1 and up) on the top edge at `alpha`, or hides it (0 or less): a fanned
 ## sticker's order (StackFan).
 func set_number(number: int, alpha: float = 1.0) -> void:
 	if number <= 0:
@@ -406,7 +426,7 @@ func _make_frame() -> Control:
 	else:
 		var textures: Dictionary[StickerSpec.Kind, Texture2D] = {
 			StickerSpec.Kind.COPY: TEAL_FRAME,
-			StickerSpec.Kind.FIZZLE: GREY_FRAME,
+			StickerSpec.Kind.FIZZLE: WASTED_FRAME,
 			StickerSpec.Kind.MORE: GREY_FRAME,
 		}
 		var panel: Panel = Panel.new()
@@ -484,6 +504,13 @@ func _draw_number() -> void:
 	var square: Rect2 = Rect2(Vector2.ZERO, NUMBER_SIZE)
 	_number.draw_rect(square.grow(NUMBER_RING), Palette.PAPER)
 	_number.draw_rect(square, Palette.INK)
+
+
+func _draw_underline() -> void:
+	_underline.draw_rect(Rect2(Vector2.ZERO, _underline.size), Palette.TOMATO_DARK)
+	_underline.draw_rect(
+		Rect2(Vector2.ZERO, Vector2(_underline.size.x, ArtStyle.ART_SCALE)), Palette.TOMATO
+	)
 
 
 func _settle_check(check_scale: float) -> void:

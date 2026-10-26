@@ -3,8 +3,8 @@ extends Control
 ## The fan of a folded sticker stack (#105 piece 3, mock-up readability v3 section 3, fold A):
 ## hovering a belt item or its stack whose earliest stickers fold into the "+N" chip
 ## (PlanningLayer) fans every
-## sticker of the item out above it, in step order, each numbered 1 to N up and left of its top-left
-## corner, clear of its giver's mini (EffectSticker.set_number). Rows hold at most PER_ROW, GAP
+## sticker of the item out above it, in step order, each numbered 1 to N on its top edge,
+## clear of its giver's mini (EffectSticker.set_number). Rows hold at most PER_ROW, GAP
 ## apart on a gentle arch (the ends ARCH lower, each turned by its place up to TURN_DEG), ROW apart
 ## with the oldest row on top and read left to right; the lower row's centre stands ABOVE_SPRITE
 ## over the item's sprite. So a row is at most about 310 px wide; the whole fan moves sideways to

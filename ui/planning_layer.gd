@@ -47,17 +47,13 @@ extends Control
 ## STACK_FIZZLE_SHIFT more, so their wider frames sit over the shoulder too; the fold chip on the
 ## edge itself).
 const STACK_BOTTOM_Y := 374.0
-const STACK_LEFT := 88.0
+const STACK_LEFT := 72.0
 const STACK_NUDGE := 4.0
 const STACK_BURST_SHIFT := -8.0
-const STACK_FIZZLE_SHIFT := -18.0
-## The least room a belt stack keeps from the screen's right edge: it moves left to keep it. Moved
-## more than STACK_PUSH_MAX (the last slot's), it would cover its item: it stands on the art's
-## visible top instead (raised as a boost raises it), STACK_ON_ART into it, so the item stays in
-## view.
+const STACK_FIZZLE_SHIFT := -8.0
+## The least room a belt stack keeps from the screen's right edge: it moves left to keep it,
+## retaining the same bottom as every other stack so it stays attached to its item.
 const STACK_EDGE_GAP := 4.0
-const STACK_PUSH_MAX := 8.0
-const STACK_ON_ART := 6.0
 ## Each sticker overlaps the one above it by STACK_OVERLAP (the mock-up's 3 px, on the 2 px art
 ## grid), squeezed in STACK_SQUEEZE steps up to STACK_OVERLAP_MAX when the stack is too tall for its
 ## ceiling.
@@ -607,10 +603,7 @@ func _lay_out_belt(slot: int, planning: PlanningSlot, item: ItemView) -> void:
 	var sprite: Rect2 = _sprite_rect(item, to_layer)
 	var shoulder: float = (to_layer * Vector2(STACK_LEFT, 0)).x
 	var left: float = _on_screen(shoulder, planning)
-	var bottom: float = STACK_BOTTOM_Y
-	if shoulder - left > STACK_PUSH_MAX:
-		bottom = minf(bottom, _art_top(item, sprite) + STACK_ON_ART)
-	_lay_out_stack(slot, planning, Vector2(left, bottom), Vector2.ZERO, _stack_box)
+	_lay_out_stack(slot, planning, Vector2(left, STACK_BOTTOM_Y), Vector2.ZERO, _stack_box)
 	var ticket_xf: Transform2D = to_layer * Transform2D(0.0, item.sticker().position)
 	var ticket: Rect2 = ticket_xf * Rect2(Vector2.ZERO, PriceSticker.SIZE)
 	var tag: PayTag = _pays.get(slot, null)
@@ -873,16 +866,6 @@ func _item(slot: int) -> ItemView:
 ## `item`'s coordinates in the layer's.
 func _to_layer(item: Control) -> Transform2D:
 	return get_global_transform().affine_inverse() * item.get_global_transform()
-
-
-## The top of `item`'s visible art (ContactShadow.opaque_rect) in its `sprite` rect at rest
-## (_sprite_rect), raised by a boost's lift, on the art grid.
-static func _art_top(item: ItemView, sprite: Rect2) -> float:
-	var texture: Texture2D = item.sprite().texture
-	var art: Rect2i = ContactShadow.opaque_rect(texture)
-	var top: float = sprite.position.y + art.position.y * sprite.size.y / texture.get_height()
-	var raised: float = ItemView.BOOST_LIFT * sprite.size.y / ItemView.SPRITE_SIZE.y
-	return snappedf(top - raised, ArtStyle.ART_SCALE)
 
 
 ## `item`'s sprite at rest (no lift or boost) through `to_layer` (`item`'s coordinates into the

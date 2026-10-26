@@ -1,0 +1,20 @@
+; Readability v2 WASTED label: silver top/left highlight, shaded right edge and lower lip.
+@size 12x16
+@kind frame
+@scale 2
+...######...
+.##AAAAAA##.
+.#ABBBBBBC#.
+#ABBBBBBBBC#
+#ABBBBBBBBC#
+#ABBBBBBBBC#
+#ABBBBBBBBC#
+#ABBBBBBBBC#
+#ABBBBBBBBC#
+#ABBBBBBBBC#
+#ABBBBBBBBC#
+#ABBBBBBBBC#
+#CCCCCCCCCC#
+.#DDDDDDDD#.
+.##########.
+...######...
