@@ -107,14 +107,47 @@ func test_coupon_and_loyalty_plates_are_larger_and_inspection_keeps_its_icon() -
 	assert_bool(coupon.shows_mini()).is_false()
 	assert_object(coupon.texture()).is_same(GiverBadge.COUPON_TOKEN)
 	assert_str(coupon.initials()).is_equal("Mu")
-	var loyalty: GiverBadge = auto_free(GiverBadge.new(GiverBadge.Kind.LOYALTY, "SlE", EGGS))
+	var loyalty: GiverBadge = auto_free(GiverBadge.new(GiverBadge.Kind.LOYALTY, "RuB"))
 	assert_bool(loyalty.shows_mini()).is_false()
+	assert_bool(loyalty.shows_icon()).is_false()
 	assert_object(loyalty.texture()).is_same(GiverBadge.LOYALTY_TOKEN)
-	assert_str(loyalty.initials()).is_equal("SlE")
+	assert_str(loyalty.initials()).is_equal("RuB")
 	var inspection: GiverBadge = auto_free(GiverBadge.new(GiverBadge.Kind.INSPECTION, "", EGGS))
 	assert_bool(inspection.shows_mini()).is_false()
 	assert_object(inspection.texture()).is_same(GiverBadge.WARNING)
 	assert_that(inspection.size).is_equal(GiverBadge.INSPECTION_SIZE)
+
+
+## A loyalty badge holds its perk's icon on the stamp token (#108 follow-up), centred on the art
+## grid, with no initials; an icon too big for the token (Big basket's ticket) or a missing one
+## keeps the initials. Drained, the icon greys with the token.
+func test_a_loyalty_badge_shows_its_perk_icon() -> void:
+	var glyph: String = "res://art/icons/aisle_fruit_and_veg.png"
+	var badge: GiverBadge = auto_free(GiverBadge.new(GiverBadge.Kind.LOYALTY, "PrR", glyph))
+	assert_bool(badge.shows_icon()).is_true()
+	assert_bool(badge.shows_mini()).is_false()
+	assert_object(badge.texture()).is_same(GiverBadge.LOYALTY_TOKEN)
+	assert_str(badge.icon_texture().resource_path).is_equal(glyph)
+	assert_str(badge.initials()).is_empty()
+	var icon: TextureRect = badge.get_node("Icon") as TextureRect
+	assert_vector(icon.size).is_equal(Vector2(18, 18))
+	(
+		assert_bool(Rect2(Vector2.ZERO, GiverBadge.SIZE).encloses(Rect2(icon.position, icon.size)))
+		. is_true()
+	)
+	assert_float(fmod(icon.position.x, ArtStyle.ART_SCALE)).is_equal(0.0)
+	badge.set_drained(true)
+	assert_object(icon.material).is_same(ArtStyle.grey_material(ArtStyle.Grey.DRAINED))
+	var big: GiverBadge = auto_free(
+		GiverBadge.new(GiverBadge.Kind.LOYALTY, "BiB", "res://art/icons/plus_slot.png")
+	)
+	assert_bool(big.shows_icon()).is_false()
+	assert_str(big.initials()).is_equal("BiB")
+	var missing: GiverBadge = auto_free(
+		GiverBadge.new(GiverBadge.Kind.LOYALTY, "CoE", "res://art/icons/no_such_icon.png")
+	)
+	assert_bool(missing.shows_icon()).is_false()
+	assert_str(missing.initials()).is_equal("CoE")
 
 
 func test_a_drained_mini_greys() -> void:

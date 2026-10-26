@@ -37,6 +37,10 @@ func test_the_reference_row_shows_its_stickers_in_step_order() -> void:
 	_assert_stickers(
 		model.slots[3], [[StickerSpec.Kind.FIZZLE, "WASTED", GiverBadge.Kind.LOYALTY, "CoE"]]
 	)
+	# Its badge carries the perk's icon, as its box (#108 follow-up).
+	assert_str(model.slots[3].stickers[0].badge_mini).is_equal(
+		"res://art/icons/perk_coupon_engine.png"
+	)
 	# Milks 5 to 7: their own bonus, then Multipack's ×3 (coupon badge); the Milk in slot 6 also
 	# gets Slot engine's ×2 last.
 	for slot: int in [4, 5, 6]:
