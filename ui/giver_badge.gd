@@ -27,13 +27,15 @@ const PLATE_FOLDER := "res://art/giver_badges/"
 ## The initials: Pixelify, the largest of these sizes whose width fits INITIALS_WIDTH.
 const INITIALS_SIZES: Array[int] = [11, 10, 9]
 const INITIALS_WIDTH := 22.0
-## The room inside the loyalty stamp token for a perk icon at the art scale (its 10x10 art inside
-## the 14x14 token's rim).
+## The room inside the loyalty icon token (LOYALTY_ICON_TOKEN) for a perk icon at the art scale:
+## its 10x10 middle inside the 14x14 token's rim.
 const LOYALTY_ICON_ROOM := 20.0
 
 const ITEM_TOKEN := preload("res://art/effects/badge_item_polished.png")
 const COUPON_TOKEN := preload("res://art/effects/badge_coupon_polished.png")
 const LOYALTY_TOKEN := preload("res://art/effects/badge_stamp_polished.png")
+## The loyalty token under a perk icon (polish pass): a thinner rim round a 10x10 middle.
+const LOYALTY_ICON_TOKEN := preload("res://art/effects/badge_stamp_icon.png")
 const WARNING := preload("res://art/icons/warning.png")
 
 var kind: Kind = Kind.NONE
@@ -176,6 +178,7 @@ func _add_icon(icon_ref: String) -> bool:
 	var drawn: Vector2 = art.get_size() * ArtStyle.ART_SCALE
 	if drawn.x > LOYALTY_ICON_ROOM or drawn.y > LOYALTY_ICON_ROOM:
 		return false
+	_token.texture = LOYALTY_ICON_TOKEN
 	_icon = UiKit.sprite(art)
 	_icon.name = "Icon"
 	_icon.size = drawn

@@ -72,6 +72,14 @@ const LEVEL_MARK_NAME := "LevelMark"
 const LEVEL_SIZE := 12
 const LEVEL_PAD := 3.0
 const LEVEL_BORDER := 2
+## The chip face's smaller level badge (polish pass): the 26 px ring's full-size badge hid most of
+## the perk icon, so the chip's numeral is CHIP_LEVEL_SIZE with CHIP_LEVEL_PAD each side.
+const CHIP_LEVEL_SIZE := 9
+const CHIP_LEVEL_PAD := 1.0
+## The card face's upright level badge sits this far in from the box's corner (polish pass).
+const LEVEL_INSET := 2.0
+## The ring laid over a perk icon (polish pass), so the icon's corners tuck under the ring.
+const ICON_RIM_NAME := "Rim"
 ## A perk icon's node in its box.
 const ICON_NAME := "Icon"
 ## A family perk's ring (#108 follow-up), this wide on both faces (the chip's ring art is CHIP_RING
@@ -93,6 +101,8 @@ const CARD_FRAME := preload("res://art/frames/loyalty_card.png")
 const STAMP_EMPTY := preload("res://art/icons/stamp_empty.png")
 const RING := preload("res://art/icons/stamp_ring.png")
 const RING_EMPTY := preload("res://art/icons/stamp_ring_empty.png")
+## The chip ring's rim alone, laid over a perk icon so its square corners tuck under the ring.
+const RING_RIM := preload("res://art/icons/stamp_ring_rim.png")
 
 var _boxes: HBoxContainer
 var _box_count: int = 0
@@ -366,9 +376,9 @@ func _make_box(upgrade: UpgradeDefinition) -> PanelContainer:
 	label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	panel.add_child(label)
-	add_family_edge(panel, upgrade, BOX_SIZE)
 	add_perk_icon(panel, upgrade, false)
-	add_run_mark(panel, upgrade)
+	add_family_edge(panel, upgrade, BOX_SIZE)
+	add_run_mark(panel, upgrade, false)
 	add_level_mark(panel, upgrade, BOX_SIZE)
 	return panel
 
@@ -401,9 +411,9 @@ static func make_ring(upgrade: UpgradeDefinition) -> PanelContainer:
 	panel.tooltip_text = tooltip_for(upgrade)
 	label.text = stamp_text(upgrade, true)
 	label.add_theme_font_size_override("font_size", chip_initials_size(label.text))
-	add_family_edge(panel, upgrade, CHIP_BOX_SIZE)
 	add_perk_icon(panel, upgrade, true)
-	add_run_mark(panel, upgrade)
+	add_family_edge(panel, upgrade, CHIP_BOX_SIZE)
+	add_run_mark(panel, upgrade, true)
 	add_level_mark(panel, upgrade, CHIP_BOX_SIZE)
 	return panel
 
@@ -510,7 +520,37 @@ static func add_perk_icon(stamped: PanelContainer, upgrade: UpgradeDefinition, c
 	sprite.position = (
 		((box_size - sprite.size) / 2.0 / ArtStyle.ART_SCALE).floor() * ArtStyle.ART_SCALE
 	)
+	if not chip:
+		# Upright inside the card's tilted stamp (polish pass): a round ring looks the same at any
+		# tilt, and pixel art turned 6 degrees goes soft and jagged.
+		sprite.pivot_offset = box_size / 2.0 - sprite.position
+		sprite.rotation = -deg_to_rad(STAMP_TILT)
 	holder.add_child(sprite)
+	holder.add_child(_icon_rim(upgrade, chip))
+
+
+## The ring laid over `upgrade`'s icon (polish pass), the same as the box's own ring under it: a
+## family perk's ring in its family's colour, else the chip's rim art or the card's ink ring.
+static func _icon_rim(upgrade: UpgradeDefinition, chip: bool) -> Control:
+	var box_size: Vector2 = CHIP_BOX_SIZE if chip else BOX_SIZE
+	if chip and family_ring(upgrade) == Color():
+		var rim: TextureRect = UiKit.sprite(RING_RIM)
+		rim.name = ICON_RIM_NAME
+		rim.size = box_size
+		return rim
+	var panel: Panel = Panel.new()
+	panel.name = ICON_RIM_NAME
+	panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	panel.size = box_size
+	var line: StyleBoxFlat = StyleBoxFlat.new()
+	line.anti_aliasing = false
+	line.draw_center = false
+	var family: Color = family_ring(upgrade)
+	line.border_color = family if family != Color() else Palette.INK
+	line.set_border_width_all(FAMILY_RING if family != Color() else STAMP_BORDER)
+	line.set_corner_radius_all(int(box_size.x / 2.0))
+	panel.add_theme_stylebox_override("panel", line)
+	return panel
 
 
 ## The perk icon shown in the box of upgrade `index`, or null (its initials, or no such box).
@@ -519,9 +559,11 @@ func box_icon(index: int) -> Texture2D:
 	return (holder.get_child(0) as TextureRect).texture if holder != null else null
 
 
-## Adds an Aisle run's tag (#108 follow-up) to its box `stamped`: the RUN_MARK_SIZE "×" badge on
-## its family's face colour at the box's top left. Other perks get none.
-static func add_run_mark(stamped: PanelContainer, upgrade: UpgradeDefinition) -> void:
+## Adds an Aisle run's tag (#108 follow-up) to its box `stamped` on the chip face (`chip`) or the
+## card face: the RUN_MARK_SIZE "×" badge on its family's face colour at the box's top left,
+## upright on the card's tilted stamp (polish pass: drawn turned, its texels went jagged). Other
+## perks get none.
+static func add_run_mark(stamped: PanelContainer, upgrade: UpgradeDefinition, chip: bool) -> void:
 	var face: Color = run_mark_colour(upgrade)
 	if face == Color():
 		return
@@ -529,7 +571,11 @@ static func add_run_mark(stamped: PanelContainer, upgrade: UpgradeDefinition) ->
 	holder.name = RUN_MARK_NAME
 	holder.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	stamped.add_child(holder)
-	holder.add_child(make_run_tag(face))
+	var tag: Control = make_run_tag(face)
+	if not chip:
+		tag.pivot_offset = RUN_MARK_SIZE / 2.0
+		tag.rotation = -deg_to_rad(STAMP_TILT)
+	holder.add_child(tag)
 
 
 ## The colour of `upgrade`'s Aisle run tag: its family's face for an Aisle run with a family
@@ -590,7 +636,10 @@ static func add_level_mark(
 	holder.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	stamped.add_child(holder)
 	var text: String = str(upgrade.level_number())
-	var badge: Label = UiKit.display_label(text, LEVEL_SIZE, false)
+	var chip: bool = box_size == CHIP_BOX_SIZE
+	var font_size: int = CHIP_LEVEL_SIZE if chip else LEVEL_SIZE
+	var pad: float = CHIP_LEVEL_PAD if chip else LEVEL_PAD
+	var badge: Label = UiKit.display_label(text, font_size, false)
 	badge.name = "Badge"
 	badge.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	badge.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
@@ -602,14 +651,18 @@ static func add_level_mark(
 	style.set_content_margin_all(0)
 	badge.add_theme_stylebox_override("normal", style)
 	var font: Font = ArtStyle.DISPLAY_FONT
-	var width: float = font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, LEVEL_SIZE).x
-	var side: Vector2 = Vector2(
-		width + 2.0 * (LEVEL_PAD + LEVEL_BORDER), font.get_height(LEVEL_SIZE)
-	)
+	var width: float = font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size).x
+	var side: Vector2 = Vector2(width + 2.0 * (pad + LEVEL_BORDER), font.get_height(font_size))
 	side = (side / 2.0).ceil() * 2.0  # On the 2 px grid.
 	badge.notification(Control.NOTIFICATION_THEME_CHANGED)
 	badge.size = side
 	badge.position = box_size - side
+	if not chip:
+		# Upright on the card's tilted stamp (polish pass: turned, its numeral went soft), moved in
+		# by LEVEL_INSET so its turned corners stay inside the box.
+		badge.position -= Vector2.ONE * LEVEL_INSET
+		badge.pivot_offset = side / 2.0
+		badge.rotation = -deg_to_rad(STAMP_TILT)
 	holder.add_child(badge)
 
 
