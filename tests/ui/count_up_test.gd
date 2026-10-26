@@ -740,7 +740,7 @@ func _played(screen: ShiftScreen) -> void:
 
 func _assert_full_receipt(screen: ShiftScreen) -> void:
 	var run: RunState = screen.run
-	var notice: String = InspectionTag.next_notice(run.next_inspection)
+	var notice: String = InspectionTag.next_notice(run.next_inspections)
 	await _assert_receipt_of(screen, run.last_result, run.quota(), notice)
 
 

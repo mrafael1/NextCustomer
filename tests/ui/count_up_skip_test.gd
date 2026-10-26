@@ -340,7 +340,7 @@ func _assert_full_receipt(screen: ShiftScreen) -> void:
 		screen.receipt_header()
 	)
 	assert_str(_lines(expected)[0]).is_equal(ReceiptView.HEADER_TEXT + " | ")
-	var notice: String = InspectionTag.next_notice(run.next_inspection)
+	var notice: String = InspectionTag.next_notice(run.next_inspections)
 	expected.show_shift_end(run.last_result.total, run.quota(), notice)
 	assert_array(_lines(screen._receipt)).is_equal(_lines(expected))
 	for line: Node in screen._receipt._lines.get_children():

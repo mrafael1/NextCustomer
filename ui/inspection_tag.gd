@@ -27,6 +27,11 @@ enum Bonus { NONE, PROMISED, EARNED }
 
 ## The red notice printed under a passed shift's total when the next shift is inspected.
 const NEXT_NOTICE := "INSPECTION NEXT SHIFT: %s"
+## A Manager's review's notice (v0.65): its several inspections at once, their notices joined.
+const NEXT_REVIEW_NOTICE := "MANAGER'S REVIEW NEXT SHIFT: %s"
+## The chip's caption: an inspected shift's, and a Manager's review's (several at once, v0.65).
+const CAPTION := "Inspection"
+const REVIEW_CAPTION := "Review"
 const FONT_SIZE := 14
 const FONT_WEIGHT := 700
 ## The warning sign (13x11 art) at 2x.
@@ -106,7 +111,8 @@ func show_inspections(inspections: Array[InspectionDefinition]) -> void:
 	var tips: PackedStringArray = PackedStringArray()
 	for inspection: InspectionDefinition in inspections:
 		tips.append("INSPECTION: %s\n%s" % [inspection.display_name, inspection.notice_text])
-	_effects_text = " · ".join(PackedStringArray(["Inspection"]) + effects(inspections))
+	var caption: String = REVIEW_CAPTION if inspections.size() > 1 else CAPTION
+	_effects_text = " · ".join(PackedStringArray([caption]) + effects(inspections))
 	_shown_text = _effects_text
 	_label.text = _effects_text
 	custom_minimum_size.x = 0.0
@@ -312,8 +318,13 @@ static func effects(inspections: Array[InspectionDefinition]) -> PackedStringArr
 	return result
 
 
-## The notice for the next shift's inspection, or "" when it isn't inspected.
-static func next_notice(next_inspection: InspectionDefinition) -> String:
-	if next_inspection == null:
+## The notice for the next shift's inspections, or "" when it isn't inspected: a Manager's
+## review's (several, v0.65) names them all.
+static func next_notice(next_inspections: Array[InspectionDefinition]) -> String:
+	if next_inspections.is_empty():
 		return ""
-	return NEXT_NOTICE % next_inspection.notice_text
+	var notices: PackedStringArray = PackedStringArray()
+	for inspection: InspectionDefinition in next_inspections:
+		notices.append(inspection.notice_text)
+	var notice: String = NEXT_REVIEW_NOTICE if next_inspections.size() > 1 else NEXT_NOTICE
+	return notice % " · ".join(notices)

@@ -251,7 +251,7 @@ func _resume_run(saved: RunSave) -> void:
 	_receipt.show_shift_end(
 		run.last_result.total,
 		run.quota(),
-		InspectionTag.next_notice(run.next_inspection),
+		InspectionTag.next_notice(run.next_inspections),
 		", ".join(InspectionTag.names(run.inspections))
 	)
 	_count_up.show_end_state(run.last_result, run.quota(), count_up_context())
@@ -525,6 +525,8 @@ func _on_checkout_pressed() -> void:
 		"quota": run.quota(),
 		"passed": run.passed(),
 		"next_inspection": RunEvents.inspection_id(run.next_inspection),
+		"next_inspections": RunEvents.inspection_ids(run.next_inspections),
+		"write_ups": run.write_ups,
 	}
 	checkout_data.merge(tracker.measures(committed.size()))
 	_log.log_event("checkout", checkout_data)
@@ -553,7 +555,7 @@ func _on_checkout_pressed() -> void:
 		LoyaltyCard.names(run.upgrades),
 		_inspection_tag.sources(run.inspections),
 		InspectionTag.names(run.inspections),
-		InspectionTag.next_notice(run.next_inspection)
+		InspectionTag.next_notice(run.next_inspections)
 	)
 	var shift: int = run.shift_index + 1
 	_log.log_event("count_up", RunEvents.count_up_of(_count_up, shift, _click_ms, context))
@@ -564,8 +566,12 @@ func _on_checkout_pressed() -> void:
 	if run.phase == RunState.Phase.MACHINE_CHOOSE:
 		_machine.open(false)
 	elif run.phase == RunState.Phase.SCORED:
-		run.next_shift()  # A balance without a machine.
+		# A write-up (v0.65), or a balance without a machine: no visit, the next shift starts.
+		var written_up: bool = not run.passed()
+		run.next_shift()
 		_on_shift_started()
+		if written_up:
+			_notice_label.show_notice(WriteUp.notice_text(run))
 	else:
 		_show_results(result)
 
@@ -586,6 +592,7 @@ func count_up_context() -> CountUpContext:
 	context.bonus_ticket = (
 		run.machine != null and run.machine.pending_kinds().has(MachineVisit.Kind.BONUS)
 	)
+	context.write_up = WriteUp.stamp_text(run)
 	return context
 
 

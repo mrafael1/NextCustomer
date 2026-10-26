@@ -354,6 +354,7 @@ func play(
 		if context.bonus_ticket
 		else ""
 	)
+	_dessert.write_up = context.write_up
 	await _climax_ended()
 	await _dessert.play(
 		result.total, quota, notice, _tuning, intensity, plan.reduced_motion, _beats.print_pitch()
