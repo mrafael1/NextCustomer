@@ -410,6 +410,13 @@ func test_item_badges_carry_the_givers_mini() -> void:
 	for slot: PlanningSlot in model.slots:
 		for sticker: StickerSpec in slot.stickers:
 			var message: String = "%s %s" % [sticker.text, sticker.badge_text]
+			if sticker.badge == GiverBadge.Kind.LOYALTY:
+				# A loyalty badge carries its perk's icon (#108 follow-up).
+				var perk: UpgradeDefinition = _upgrades()[sticker.cause_index]
+				assert_str(sticker.badge_mini).override_failure_message(message).is_equal(
+					perk.icon_ref
+				)
+				continue
 			if sticker.badge != GiverBadge.Kind.ITEM:
 				assert_str(sticker.badge_mini).override_failure_message(message).is_empty()
 				if sticker.badge == GiverBadge.Kind.COUPON:
