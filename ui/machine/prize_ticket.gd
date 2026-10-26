@@ -103,6 +103,21 @@ const ORBIT_SPARKLES := 8
 const PICK_LIFT := 10.0
 const FALL := 24.0
 const FALL_S := 0.3
+## The win sticker (#108, mock-up machine_loyalty_108.html section 4a): a gold label stuck over the
+## face's bottom edge, WIN_TILT degrees, a line per row: the last row and, from shift 2, the best
+## row this run. A line is grey and reads WASTED when it would have won nothing.
+const WIN_LABELS: Array[String] = ["ON YOUR LAST ROW", "BEST ROW THIS RUN"]
+const WIN_LABEL_SIZE := 10
+const WIN_AMOUNT_SIZE := 14
+## One line's size, and the room its label takes (the amount is right-aligned after it).
+const WIN_LINE := Vector2(172, 18)
+const WIN_LABEL_WIDTH := 106.0
+const WIN_PAD := 3.0
+## The sticker's right edge and its top, on the ticket.
+const WIN_RIGHT := SIZE.x + 6.0
+const WIN_TOP := SIZE.y - 14.0
+const WIN_TILT := -4.0
+const WIN_SHADOW := Vector2(3, 3)
 
 var index: int = 0
 var prize: MachinePrize
@@ -123,6 +138,10 @@ var _band: Label
 var _name: Control
 var _name_lines: int = 1
 var _rule: Label
+## What the prize would have won on the run's rows (PrizeWin), or null; its sticker.
+var _win: PrizeWin
+var _win_sticker: Control
+var _win_texts: PackedStringArray = PackedStringArray()
 ## Seconds since it landed face up (below 0: not yet), and the idle time, for the effects.
 var _te: float = -1.0
 var _idle: float = 0.0
@@ -169,6 +188,9 @@ func _init(
 	art.position = ART_RECT.position
 	_card.add_child(art)
 	_add_texts(run)
+	_win = PrizeWin.of(run, preview)
+	if _win != null:
+		_add_win()
 	var chip: Control = _layer("Chip", _card)
 	chip.draw.connect(func() -> void: art.draw_chip(chip, ART_RECT.position))
 	_fx_front = _layer("FxFront")
@@ -299,6 +321,20 @@ func frame(t: float) -> void:
 	_frame_burst()
 	_fx_back.queue_redraw()
 	_fx_front.queue_redraw()
+
+
+## The win sticker's lines ("ON YOUR LAST ROW +€6", "BEST ROW THIS RUN WASTED"); empty without one.
+func win_texts() -> PackedStringArray:
+	return _win_texts
+
+
+func win_sticker() -> Control:
+	return _win_sticker
+
+
+## A win's amount as its sticker prints it: "+€6", or WASTED for nothing.
+static func win_amount(gain: int) -> String:
+	return "+€%d" % gain if gain > 0 else "WASTED"
 
 
 ## The prize's rarity texts (the tab), for tests.
@@ -471,7 +507,62 @@ func _add_texts(_run: RunState) -> void:
 	_rule.vertical_alignment = VERTICAL_ALIGNMENT_TOP
 
 
-func _label(text: String, font_size: int, font: Font, colour: Color) -> Label:
+## The win sticker: two lines (the last row, the best row this run), each gold, or grey when it
+## would have won nothing, a dashed rule between them.
+func _add_win() -> void:
+	var gains: Array[int] = [_win.last]
+	if _win.rows > 1:
+		gains.append(_win.best)
+	var box: Vector2 = Vector2(
+		WIN_LINE.x + WIN_PAD * 2.0, WIN_LINE.y * gains.size() + WIN_PAD * 2.0
+	)
+	_win_sticker = Control.new()
+	_win_sticker.name = "WinSticker"
+	_win_sticker.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_win_sticker.size = box
+	_win_sticker.position = MachineArt.snap_point(Vector2(WIN_RIGHT - box.x, WIN_TOP))
+	_win_sticker.pivot_offset = box / 2.0
+	_win_sticker.rotation_degrees = WIN_TILT
+	_win_sticker.draw.connect(_draw_win.bind(gains, box))
+	add_child(_win_sticker)
+	var bold: Font = ArtStyle.bold_font(BOLD_WEIGHT)
+	for line: int in gains.size():
+		var top: float = WIN_PAD + WIN_LINE.y * line
+		var amount: String = win_amount(gains[line])
+		_win_texts.append("%s %s" % [WIN_LABELS[line], amount])
+		var small: Label = _label(WIN_LABELS[line], WIN_LABEL_SIZE, bold, Palette.INK, _win_sticker)
+		small.name = "WinLabel%d" % line
+		small.autowrap_mode = TextServer.AUTOWRAP_OFF
+		small.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+		RewardMachineView.fit(small, Rect2(WIN_PAD + 2.0, top, WIN_LABEL_WIDTH, WIN_LINE.y))
+		var shown: Label = _label(amount, WIN_AMOUNT_SIZE, bold, Palette.INK, _win_sticker)
+		shown.name = "WinAmount%d" % line
+		shown.autowrap_mode = TextServer.AUTOWRAP_OFF
+		shown.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+		var room: float = WIN_LINE.x - WIN_LABEL_WIDTH - 4.0
+		RewardMachineView.fit(shown, Rect2(WIN_PAD + WIN_LABEL_WIDTH + 2.0, top, room, WIN_LINE.y))
+
+
+## The sticker: its shadow, an ink edge, each line's fill (gold, or grey for WASTED) and a dashed
+## rule between the lines.
+func _draw_win(gains: Array[int], box: Vector2) -> void:
+	_win_sticker.draw_rect(Rect2(WIN_SHADOW, box), Color(Palette.INK, 0.45))
+	_win_sticker.draw_rect(Rect2(Vector2.ZERO, box), Palette.INK)
+	for line: int in gains.size():
+		var top: float = 2.0 if line == 0 else WIN_PAD + WIN_LINE.y * line
+		var last: bool = line == gains.size() - 1
+		var bottom: float = box.y - 2.0 if last else WIN_PAD + WIN_LINE.y * (line + 1)
+		var fill: Color = Palette.GOLD if gains[line] > 0 else Palette.GREY_LIGHT
+		_win_sticker.draw_rect(Rect2(2.0, top, box.x - 4.0, bottom - top), fill)
+	for line: int in range(1, gains.size()):
+		var y: float = WIN_PAD + WIN_LINE.y * line
+		for x: int in range(6, int(box.x) - 6, 6):
+			_win_sticker.draw_rect(Rect2(x, y - 1.0, 3.0, 1.0), Palette.INK)
+
+
+func _label(
+	text: String, font_size: int, font: Font, colour: Color, parent: Control = null
+) -> Label:
 	var label: Label = UiKit.body_label(text, font_size, colour)
 	label.add_theme_font_override("font", font)
 	label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
@@ -479,7 +570,7 @@ func _label(text: String, font_size: int, font: Font, colour: Color) -> Label:
 	label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	label.clip_text = true
 	label.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_card.add_child(label)
+	(parent if parent != null else _card).add_child(label)
 	return label
 
 

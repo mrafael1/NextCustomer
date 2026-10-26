@@ -18,6 +18,8 @@ const MILK_BIG := "res://data/cards/milk_big.tres"
 const MILK_GOLDEN := "res://data/cards/milk_golden.tres"
 const MACHINE := "res://data/balance/machine.tres"
 const BIG_BASKET := "res://data/upgrades/big_basket.tres"
+const DAIRY_REGULARS := "res://data/upgrades/dairy_regulars.tres"
+const BREAD := "res://data/cards/bread.tres"
 const PLUS_SLOT := "res://art/icons/plus_slot.png"
 const RARITIES: Array[int] = [
 	MachinePrize.Rarity.COMMON, MachinePrize.Rarity.RARE, MachinePrize.Rarity.LEGENDARY
@@ -252,6 +254,35 @@ func test_every_ticket_shows_its_prize_in_full() -> void:
 ## whole in RULE_LINES, or RULE_LINES_ONE_NAME under a one-line name, at a RULE_SIZES size, under
 ## the name; all inside the ticket): every product and coupon the machine can draw, every
 ## LOYALTY perk and every UPGRADES prize of every chain and rarity.
+## #108 section 4a: a LOYALTY ticket carries the win sticker, one line after shift 1 (the last
+## row is the only one) and two from shift 2, a line that wins nothing reading WASTED; its labels
+## fit their boxes. A product ticket and a perk with no scoring rule carry none.
+func test_a_loyalty_ticket_shows_its_win_sticker() -> void:
+	var view: RewardMachineView = _view(MachineVisit.Kind.TICKET, true, [0])
+	var milk: CardDefinition = load(MILK)
+	var regulars: UpgradeDefinition = load(DAIRY_REGULARS)
+	var stamp: MachinePrize = MachinePrize.new(MachinePrize.Kind.REGISTER, 0, null, regulars)
+	var preview: MachinePreview = MachinePreview.new()
+	preview.prize = stamp
+	var run: RunState = _run_with_rows([[milk, milk, milk]])
+	var first: PrizeTicket = _ticket(view, 0, stamp, preview, 1, run)
+	assert_array(Array(first.win_texts())).is_equal(["ON YOUR LAST ROW +€3"])
+	run = _run_with_rows([[milk, milk, milk], [load(BREAD)]])
+	var later: PrizeTicket = _ticket(view, 0, stamp, preview, 1, run)
+	assert_array(Array(later.win_texts())).is_equal(
+		["ON YOUR LAST ROW WASTED", "BEST ROW THIS RUN +€3"]
+	)
+	for label: Node in later.win_sticker().get_children():
+		_assert_fits(label as Label)
+	var product: PrizeTicket = _ticket(
+		view, 0, MachinePrize.new(MachinePrize.Kind.PRODUCT, 0, milk), null, 1, run
+	)
+	assert_object(product.win_sticker()).is_null()
+	var basket: MachinePreview = MachinePreview.new()
+	basket.prize = MachinePrize.new(MachinePrize.Kind.REGISTER, 0, null, load(BIG_BASKET))
+	assert_object(_ticket(view, 0, basket.prize, basket, 1, run).win_sticker()).is_null()
+
+
 func test_every_face_fits_the_ticket() -> void:
 	var view: RewardMachineView = _view(MachineVisit.Kind.TICKET, true, [0])
 	var prizes: Array[MachinePrize] = []
@@ -497,15 +528,32 @@ func _tickets(view: RewardMachineView, rarities: Array[int]) -> Array[PrizeTicke
 
 
 func _ticket(
-	view: RewardMachineView, index: int, prize: MachinePrize, preview: MachinePreview, count: int
+	view: RewardMachineView,
+	index: int,
+	prize: MachinePrize,
+	preview: MachinePreview,
+	count: int,
+	run: RunState = null
 ) -> PrizeTicket:
-	var run: RunState = RunState.new(1, _starter, _balance, RunStock.starting(_balance))
+	if run == null:
+		run = RunState.new(1, _starter, _balance, RunStock.starting(_balance))
 	var ticket: PrizeTicket = PrizeTicket.new(index, prize, preview, run)
 	ticket.rest = PrizeRow.card_rect(index, count).position
 	ticket.launch = PrizeRow.LAUNCH
 	ticket.setup(view)
 	view.card_layer.add_child(ticket)
 	return ticket
+
+
+## A new run whose history holds `rows`, each a checked-out shift.
+func _run_with_rows(rows: Array) -> RunState:
+	var run: RunState = RunState.new(1, _starter, _balance, RunStock.starting(_balance))
+	for index: int in rows.size():
+		var record: ShiftRecord = ShiftRecord.new(index + 1, 0, 0)
+		for card: CardDefinition in rows[index]:
+			record.played.append(card)
+		run.history.append(record)
+	return run
 
 
 ## The time ticket `index`'s reveal is over.
