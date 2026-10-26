@@ -22,6 +22,9 @@ var badge_text: String = ""
 ## a LOYALTY badge's perk icon (UpgradeDefinition.icon_ref, #108 follow-up); empty for a product
 ## with none (the badge keeps its initials) and for the other badges.
 var badge_mini: String = ""
+## A LOYALTY badge's Aisle run tag colour (LoyaltyCard.run_mark_colour, #108 follow-up), or
+## Color() for no tag.
+var badge_run_colour: Color = Color()
 ## What caused the effect (EffectLink's cause).
 var cause_kind: ScoreStep.SourceKind = ScoreStep.SourceKind.CARD
 ## CARD causes: the causing card's slot; otherwise -1.

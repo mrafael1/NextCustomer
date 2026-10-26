@@ -237,6 +237,7 @@ static func _sticker(link: EffectLink, names: CauseNames) -> StickerSpec:
 			sticker.badge_mini = names.mini_of(link)
 		elif sticker.badge == GiverBadge.Kind.LOYALTY:
 			sticker.badge_mini = names.icon_of(link)
+			sticker.badge_run_colour = names.run_colour_of(link)
 	return sticker
 
 
@@ -337,6 +338,15 @@ class CauseNames:
 		if link.cause_index < 0 or link.cause_index >= _upgrades.size():
 			return ""
 		return _upgrades[link.cause_index].icon_ref
+
+	## The Aisle run tag colour of `link`'s cause (LoyaltyCard.run_mark_colour) for an upgrade
+	## cause, or Color().
+	func run_colour_of(link: EffectLink) -> Color:
+		if link.cause_kind != ScoreStep.SourceKind.UPGRADE:
+			return Color()
+		if link.cause_index < 0 or link.cause_index >= _upgrades.size():
+			return Color()
+		return LoyaltyCard.run_mark_colour(_upgrades[link.cause_index])
 
 	## The badge of `link`'s cause.
 	func badge_of(link: EffectLink) -> GiverBadge.Kind:
