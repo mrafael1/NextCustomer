@@ -12,17 +12,25 @@ extends RefCounted
 ## shift earned: the UI chooses chutes and picks or bins prizes through `machine`, and the phase
 ## follows the machine's stage (MACHINE_CHOOSE, MACHINE_PICK, then SCORED when no visit is left).
 
+## A run whose recipe has starter packs (#107, v0.63) starts in CHOOSE_START: its offer
+## (`start_offer`) waits for the player's pick (take_pack), which makes the deck; the first shift
+## starts after it.
+
 ## PLANNING: placing cards. MACHINE_CHOOSE: a machine visit waits for its chute.
 ## MACHINE_PICK: its prizes wait for a pick or a bin. SCORED: ready for the next shift. WON /
-## LOST: the run is over.
-enum Phase { PLANNING, MACHINE_CHOOSE, MACHINE_PICK, SCORED, WON, LOST }
+## LOST: the run is over. CHOOSE_START (#107): the starter pack offer waits for the pick, before
+## the first shift (added last: the phases' numbers are kept).
+enum Phase { PLANNING, MACHINE_CHOOSE, MACHINE_PICK, SCORED, WON, LOST, CHOOSE_START }
 
 const MACHINE_PHASES: Array[Phase] = [Phase.MACHINE_CHOOSE, Phase.MACHINE_PICK]
 
 var run_seed: int = 0
 var balance: BalanceDefinition
-## The starting deck the run began with.
+## The starting deck the run began with (before the pick, #107: the core cards and the offer's
+## shared products, no pack).
 var starter: DeckDefinition
+## The starter pack offer (#107), or null for a recipe without packs; kept after the pick.
+var start_offer: StartOffer
 ## The cards the machine's NEW ITEMS and COUPONS chutes draw from (full build plan 7.2).
 var stock: RunStock
 var deck: Deck
@@ -78,11 +86,14 @@ var _rng: RandomNumberGenerator
 var _phase: Phase = Phase.PLANNING
 
 
+## With `offer` (#107) the run waits for its pick (CHOOSE_START): `deck_definition` is then the
+## deck before the pick (StartingDeck.before_pick).
 func _init(
 	seed_value: int,
 	deck_definition: DeckDefinition,
 	run_balance: BalanceDefinition,
-	run_stock: RunStock
+	run_stock: RunStock,
+	offer: StartOffer = null
 ) -> void:
 	run_seed = seed_value
 	balance = run_balance
@@ -96,6 +107,9 @@ func _init(
 	if deck_definition.starting_upgrade != null:
 		upgrades.append(deck_definition.starting_upgrade)
 	limits = ShiftLimits.for_shift(balance, upgrades, shift_index)
+	if offer != null:
+		start_offer = offer
+		_phase = Phase.CHOOSE_START
 
 
 func shift_count() -> int:
@@ -181,6 +195,18 @@ func redraw_basket(basket: int) -> Array[int]:
 			redrawn_in.append(by_place[spot].instance_id)
 	redraws_used += 1
 	return swapped
+
+
+## Takes an offered starter pack (#107; CHOOSE_START only): the deck becomes the core cards, the
+## pack's cards and the shared products (StartingDeck.with_pack), and the run waits in PLANNING
+## for start_shift. False, changing nothing, for a pack not offered or outside CHOOSE_START.
+func take_pack(pack: StarterPackDefinition) -> bool:
+	if phase != Phase.CHOOSE_START or start_offer == null or not start_offer.packs.has(pack):
+		return false
+	starter = StartingDeck.with_pack(starter, pack, start_offer.shared)
+	deck = Deck.from_definition(starter, _rng)
+	phase = Phase.PLANNING
+	return true
 
 
 ## Plan section 3.1: the row's slots (RowCapacity); any card fits any free slot.

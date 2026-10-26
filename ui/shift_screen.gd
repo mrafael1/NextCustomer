@@ -36,7 +36,7 @@ extends Control
 ## sound is the scanner's beep (#75, ScanController), played once a hover on an item is held.
 
 ## The game's starting deck: a recipe (v0.49) dealt from each run's stock (StartingDeck).
-const STARTER_DECK := "res://data/decks/random_starter.tres"
+const STARTER_DECK := "res://data/decks/pack_starter.tres"
 const BALANCE := "res://data/balance/balance.tres"
 const CATALOGUE := "res://data/catalogue/catalogue.tres"
 ## A refused card or a closed slot plays `denied` this much softer than the count-up does.
@@ -126,6 +126,7 @@ var _effects: PlanningEffects
 ## The TOY MACHINES over the results (#63), made the first time they open.
 var _toys: ToyMachinesScreen
 var _cart_reveal: CartReveal
+var _start_choice: StartChoice  # The starter pack choice's part of a run's start (#107).
 var _glyph_tips: GlyphTips  # Family glyphs' tooltips (#105): none in a drag or the count.
 ## The basket redraw's targets and tags, and its motion.
 var _basket_tags: BasketTags
@@ -146,6 +147,7 @@ func _ready() -> void:
 	_sfx.warm_up()
 	ShiftMusic.screen_opened(_music)
 	_debug = ShiftDebug.new(self, _log)
+	_start_choice = StartChoice.new(self, _log)
 	_debug.add_panel(_balance.quotas.size())
 	if _debug.wants_demo_row():
 		_debug.play_demo_row()  # A new run that leaves the run save as it is.
@@ -165,22 +167,7 @@ func _ready() -> void:
 func start_new_run(seed_value: int, saves_run: bool = true, reveal: bool = false) -> void:
 	_saves_run = saves_run
 	ShiftMusic.new_run(_music)
-	# Until #65's shopping list, a run that needs a list stocks a random one from the run seed's
-	# own stream (#63), so the same seed and profile give the same list; last_list is untouched.
-	var listed: Array[StringName] = []
-	if RunStock.needs_list(_balance, profile.unlocked_items):
-		var stream: RandomNumberGenerator = EventLogService.derived_stream(
-			seed_value, EventLogService.SURPRISE_LIST_STREAM
-		)
-		listed = RunStock.surprise_list(_balance, profile.unlocked_items, stream)
-	var stock: RunStock = RunStock.build(
-		_balance, listed, profile.unlocked_items, profile.run_count
-	)
-	var deal_rng: RandomNumberGenerator = EventLogService.derived_stream(
-		seed_value, EventLogService.STARTING_DECK_STREAM
-	)
-	var deck: DeckDefinition = StartingDeck.deal(load(STARTER_DECK), stock, _balance, deal_rng)
-	run = RunState.new(seed_value, deck, _balance, stock)
+	run = _start_choice.new_run(seed_value, _balance, load(STARTER_DECK))
 	_run_started_ms = Time.get_ticks_msec()
 	_run_ended_ms = -1
 	_log.begin_run()
@@ -188,6 +175,8 @@ func start_new_run(seed_value: int, saves_run: bool = true, reveal: bool = false
 	_close_overlays()
 	_cabinet.set_total_down(false)
 	_log.log_event("run_start", RunEvents.run_start(run))
+	if _start_choice.begin_if_choosing(reveal):  # #107: the starter pack choice, then shift 1.
+		return
 	run.start_shift()
 	_on_shift_started()
 	if reveal and _cart_reveal.play(run, _deck_button, profile.reduced_motion()):
@@ -246,6 +235,8 @@ func _resume_run(saved: RunSave) -> void:
 		# The shift's last visit was done: the next shift starts.
 		run.next_shift()
 		_on_shift_started()
+		return
+	if _start_choice.begin_if_choosing(true):  # #107: the same offer waits for its pick.
 		return
 	tracker.begin(Time.get_ticks_msec(), _focus.is_player_present())
 	_refresh()

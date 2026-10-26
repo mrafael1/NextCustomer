@@ -1,0 +1,15 @@
+[gd_resource type="Resource" script_class="StarterPackDefinition" format=3]
+
+[ext_resource type="Script" path="res://core/starter_pack_definition.gd" id="1_pack"]
+[ext_resource type="Script" path="res://core/card_definition.gd" id="2_card"]
+[ext_resource type="Resource" path="res://data/cards/repeat.tres" id="c_repeat"]
+[ext_resource type="Resource" path="res://data/cards/shelf_swap.tres" id="c_shelf_swap"]
+[ext_resource type="Resource" path="res://data/cards/scissors.tres" id="c_scissors"]
+
+[resource]
+script = ExtResource("1_pack")
+id = &"coupon_clipper"
+display_name = "Coupon clipper"
+family = "Coupon"
+cards = Array[ExtResource("2_card")]([ExtResource("c_repeat"), ExtResource("c_shelf_swap"), ExtResource("c_scissors")])
+hint_text = "Two coupons, then Scissors: +2 for each coupon before it."

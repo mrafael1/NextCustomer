@@ -1,0 +1,30 @@
+[gd_resource type="Resource" script_class="DeckDefinition" format=3]
+
+[ext_resource type="Script" path="res://core/card_definition.gd" id="1_card"]
+[ext_resource type="Resource" path="res://data/cards/banana.tres" id="2_banana"]
+[ext_resource type="Resource" path="res://data/cards/milk.tres" id="3_milk"]
+[ext_resource type="Resource" path="res://data/cards/eggs.tres" id="4_eggs"]
+[ext_resource type="Script" path="res://core/deck_definition.gd" id="6_deck"]
+[ext_resource type="Script" path="res://core/starter_pack_definition.gd" id="7_pack"]
+[ext_resource type="Resource" path="res://data/starter_packs/breakfast_run.tres" id="p_breakfast_run"]
+[ext_resource type="Resource" path="res://data/starter_packs/bargain_bin.tres" id="p_bargain_bin"]
+[ext_resource type="Resource" path="res://data/starter_packs/banana_bunch.tres" id="p_banana_bunch"]
+[ext_resource type="Resource" path="res://data/starter_packs/coupon_clipper.tres" id="p_coupon_clipper"]
+[ext_resource type="Resource" path="res://data/starter_packs/deli_counter.tres" id="p_deli_counter"]
+[ext_resource type="Resource" path="res://data/starter_packs/big_shop.tres" id="p_big_shop"]
+
+[resource]
+script = ExtResource("6_deck")
+id = &"pack_starter"
+display_name = "Starter deck"
+description = "A Banana pair, Milk and Eggs, the starter pack you pick, and 6 products from today's stock."
+core_cards = Array[ExtResource("1_card")]([ExtResource("2_banana"), ExtResource("2_banana"), ExtResource("3_milk"), ExtResource("4_eggs")])
+random_count = 6
+copy_max = 2
+fair_deal_hands = 8
+fair_deal_passes = 1
+fair_deal_changes = 3
+fair_deal_redeals = 4
+starter_packs = Array[ExtResource("7_pack")]([ExtResource("p_breakfast_run"), ExtResource("p_bargain_bin"), ExtResource("p_banana_bunch"), ExtResource("p_coupon_clipper"), ExtResource("p_deli_counter"), ExtResource("p_big_shop")])
+packs_offered = 3
+first_pick_pack = ExtResource("p_breakfast_run")

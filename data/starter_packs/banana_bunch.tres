@@ -1,0 +1,14 @@
+[gd_resource type="Resource" script_class="StarterPackDefinition" format=3]
+
+[ext_resource type="Script" path="res://core/starter_pack_definition.gd" id="1_pack"]
+[ext_resource type="Script" path="res://core/card_definition.gd" id="2_card"]
+[ext_resource type="Resource" path="res://data/cards/two_for_one.tres" id="c_two_for_one"]
+[ext_resource type="Resource" path="res://data/cards/banana.tres" id="c_banana"]
+
+[resource]
+script = ExtResource("1_pack")
+id = &"banana_bunch"
+display_name = "Banana bunch"
+family = "Produce"
+cards = Array[ExtResource("2_card")]([ExtResource("c_two_for_one"), ExtResource("c_banana"), ExtResource("c_banana")])
+hint_text = "4 Bananas in a row pay 2, 4, 6, 8. 2 for 1 between two doubles the 2nd."
