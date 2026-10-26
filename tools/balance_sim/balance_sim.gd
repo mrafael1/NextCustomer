@@ -127,8 +127,9 @@ const NUMBER_OPTIONS: Array[String] = [
 const CHAIN_SEED_STEP := 100000
 ## Options given without a value (--list-gate): they read "true".
 const FLAG_OPTIONS: Array[String] = ["list-gate", "cache-name", "random-start"]
-## The game's starting deck (a recipe, v0.49), played with --random-start.
-const RANDOM_START_DECK := "res://data/decks/random_starter.tres"
+## The game's starting deck (a recipe, v0.49; since v0.63 the one with starter packs, #107),
+## played with --random-start.
+const RANDOM_START_DECK := "res://data/decks/pack_starter.tres"
 
 var _options: Dictionary[String, String] = {}
 var _starter: DeckDefinition
@@ -175,14 +176,18 @@ func _print_cache_name() -> int:
 
 ## The deck the coupon duel plays: the starting deck, or for a recipe the
 ## deal of the first run's seed from a new profile's stock.
+## A recipe with starter packs (#107): its first offer's first pack.
 func _reference_deck() -> DeckDefinition:
-	return StartingDeck.deal(
-		_starter,
-		RunStock.starting(_balance),
-		_balance,
-		EventLogService.derived_stream(int(_options["seed"]), EventLogService.STARTING_DECK_STREAM),
-		_deal_quota
+	var stock: RunStock = RunStock.starting(_balance)
+	var stream: RandomNumberGenerator = EventLogService.derived_stream(
+		int(_options["seed"]), EventLogService.STARTING_DECK_STREAM
 	)
+	if _starter.starter_packs.is_empty():
+		return StartingDeck.deal(_starter, stock, _balance, stream, _deal_quota)
+	var offer: StartOffer = StartingDeck.deal_offer(
+		_starter, stock, _balance, stream, false, _deal_quota
+	)
+	return StartingDeck.with_pack(_starter, offer.default_pack(), offer.shared)
 
 
 func _run() -> int:

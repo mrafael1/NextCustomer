@@ -70,6 +70,8 @@ const BUILD_MARGIN := 2
 ## A "build:id" strategy picks an upgrade listing its build when greedy values it at least this
 ## share of the best offered upgrade.
 const LISTED_UPGRADE_SHARE := 0.95
+## Hands sampled per offered pack when a strategy picks its starter pack (#107).
+const PACK_SAMPLE_HANDS := 8
 
 ## The quota a recipe's fair-deal check aims at (StartingDeck.deal, v0.54); -1: shift 1's quota
 ## of the balance played. The simulator sets the balance data's when --quotas plays others.
@@ -134,21 +136,62 @@ static func is_known_strategy(strategy: String) -> bool:
 	return STRATEGIES.has(strategy)
 
 
+## The starter pack this strategy takes from `offer` (#107): "random" one at random, "skip" the
+## first offered, any other the one whose cart (the staples, the pack, the shared products) has the
+## best mean shift 1 total over PACK_SAMPLE_HANDS sampled hands, climbed by the sensible player
+## (RowClimb, the recipe's fair-deal changes), sampled on the run's own simulator RNG.
+func pick_pack(offer: StartOffer) -> StarterPackDefinition:
+	if _strategy == "random":
+		return offer.packs[_rng.randi_range(0, offer.packs.size() - 1)]
+	if _strategy == "skip":
+		return offer.default_pack()
+	var limits: ShiftLimits = ShiftLimits.for_shift(_balance, [], 0)
+	var climber: RowClimb = RowClimb.new([])
+	var best: StarterPackDefinition = offer.packs[0]
+	var best_mean: float = -INF
+	for pack: StarterPackDefinition in offer.packs:
+		var cart: Array[CardDefinition] = _starter.core_cards + pack.cards + offer.shared
+		var pile: Array[CardInstance] = []
+		for card: CardDefinition in cart:
+			pile.append(CardInstance.new(card, pile.size() + 1))
+		var total: int = 0
+		for _hand: int in PACK_SAMPLE_HANDS:
+			var hand: Array[CardInstance] = []
+			var left: Array[CardInstance] = pile.duplicate()
+			for _draw: int in mini(_balance.hand_size, left.size()):
+				hand.append(left.pop_at(_rng.randi_range(0, left.size() - 1)))
+			total += climber.climb_total(hand, limits, _starter.fair_deal_changes)
+		var mean: float = float(total) / PACK_SAMPLE_HANDS
+		if mean > best_mean:
+			best_mean = mean
+			best = pack
+	return best
+
+
 ## Plays the run of `run_seed`, or returns null if the search's time limit stopped it partway.
 func play(run_seed: int) -> SimRunRecord:
 	# A recipe deck (--random-start) is dealt from the run's stock and seed, as the game deals
-	# it (v0.49): its own derived stream, so the run's RNG draws as before.
-	var deck: DeckDefinition = StartingDeck.deal(
-		_starter,
-		_stock,
-		_balance,
-		EventLogService.derived_stream(run_seed, EventLogService.STARTING_DECK_STREAM),
-		deal_quota
+	# it (v0.49): its own derived stream, so the run's RNG draws as before. A recipe with starter
+	# packs (#107) deals its offer (no first pick: a profile that has won) and the strategy picks.
+	var stream: RandomNumberGenerator = EventLogService.derived_stream(
+		run_seed, EventLogService.STARTING_DECK_STREAM
 	)
-	var run: RunState = RunState.new(run_seed, deck, _balance, _stock)
 	_rng.seed = hash("balance_sim:%d" % run_seed)
 	var record: SimRunRecord = SimRunRecord.new()
 	record.run_seed = run_seed
+	var run: RunState
+	if _starter.starter_packs.is_empty():
+		var deck: DeckDefinition = StartingDeck.deal(_starter, _stock, _balance, stream, deal_quota)
+		run = RunState.new(run_seed, deck, _balance, _stock)
+	else:
+		var offer: StartOffer = StartingDeck.deal_offer(
+			_starter, _stock, _balance, stream, false, deal_quota
+		)
+		var before: DeckDefinition = StartingDeck.before_pick(_starter, offer)
+		run = RunState.new(run_seed, before, _balance, _stock, offer)
+		var pack: StarterPackDefinition = pick_pack(offer)
+		run.take_pack(pack)
+		record.start_pack = String(pack.id)
 	# Per card definition: how many of the run's best rows used it.
 	var usage: Dictionary[CardDefinition, int] = {}
 	run.start_shift()

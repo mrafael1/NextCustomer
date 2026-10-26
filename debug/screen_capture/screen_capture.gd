@@ -48,6 +48,10 @@ extends Control
 ## the cart reveal, frozen at that time of its timeline (and of its fold into the Cart button), and
 ## the file is shift_screen_reveal_[outro_<tenths>_][hover<n>_]<tenths>_<width>x<height>.png;
 ## `hover=<n>` (v0.54) opens the scan popup of tile n (the staples, then the picks, from 0).
+## Since #107 (v0.63) a new run opens on the starter pack choice: `raise=<n>` raises pack n (from
+## 0), `pick=<n>` raises and takes it (the timeline then runs from the picks' start, so
+## `<seconds>` counts from 0 again), `stock=<n>` opens the popup of today's product n in the
+## dispenser; the file name gets raise<n>_, pick<n>_ or stock<n>_.
 ## With `--tip=<card id>[,<n>]` (#105) the glyph tooltip of glyph n (from 0) on that card's first
 ## belt ticket shows (below the ticket), `--tip=<card id>,colour` its colour's tooltip, and
 ## `--tip=monitor[,<n>]` that of the monitor scan's glyph n (above it; with --effects=<card id>);
@@ -435,6 +439,9 @@ func reveal(spec: String) -> void:
 	var outro: float = -1.0
 	var seed_value: int = SEED
 	var hovered: int = -1
+	var raised: int = -1
+	var picked: int = -1
+	var stocked: int = -1
 	for option: String in options.slice(1):
 		if option.begins_with("outro="):
 			outro = option.trim_prefix("outro=").to_float()
@@ -442,10 +449,26 @@ func reveal(spec: String) -> void:
 			seed_value = option.trim_prefix("seed=").to_int()
 		elif option.begins_with("hover="):
 			hovered = option.trim_prefix("hover=").to_int()
+		elif option.begins_with("raise="):
+			raised = option.trim_prefix("raise=").to_int()
+		elif option.begins_with("pick="):
+			picked = option.trim_prefix("pick=").to_int()
+		elif option.begins_with("stock="):
+			stocked = option.trim_prefix("stock=").to_int()
 	_screen.start_new_run(seed_value, true, true)
 	var cart_reveal: CartReveal = _screen._cart_reveal
-	cart_reveal.freeze_at(seconds, outro)
 	var fold: String = "outro_%d_" % roundi(outro * 10.0) if outro >= 0.0 else ""
+	if cart_reveal.is_choosing() and (raised >= 0 or picked >= 0):
+		cart_reveal.freeze_at(cart_reveal.end_time())
+		cart_reveal.raise_pack(raised if picked < 0 else picked)
+		fold += ("raise%d_" % raised) if picked < 0 else ("pick%d_" % picked)
+		if picked >= 0:
+			cart_reveal.take_pack()
+	cart_reveal.freeze_at(seconds, outro)
+	if stocked >= 0 and cart_reveal.is_choosing():
+		var heap: Array[TextureRect] = cart_reveal.panel().dispenser.heap_art()
+		cart_reveal.show_popup(heap[heap.size() - 1 - stocked])
+		fold += "stock%d_" % stocked
 	if hovered >= 0:
 		var tiles: Array[RevealTile] = (
 			cart_reveal.panel().staple_tiles + cart_reveal.panel().pick_tiles

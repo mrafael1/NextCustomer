@@ -34,7 +34,8 @@ func test_a_screen_opened_without_a_request_starts_without_it() -> void:
 
 
 ## The title's New run: the new run opens on the reveal, already dealt and saved, showing its
-## staples and picks; the request is used up.
+## staples and (since #107) the starter pack choice, today's products in the dispenser; the
+## request is used up.
 func test_the_titles_request_opens_it_on_the_new_run() -> void:
 	CartReveal.request()
 	var screen: ShiftScreen = await _screen()
@@ -45,8 +46,11 @@ func test_the_titles_request_opens_it_on_the_new_run() -> void:
 	assert_bool(CartReveal._request).is_false()
 	var panel: RevealPanel = reveal.panel()
 	assert_array(panel.staples).is_equal(screen.run.starter.core_cards)
-	assert_array(panel.picks).is_equal(StartingDeck.picks(screen.run.starter))
-	assert_int(screen.run.phase).is_equal(RunState.Phase.PLANNING)
+	assert_bool(reveal.is_choosing()).is_true()
+	assert_object(panel.choice).is_not_null()
+	assert_array(panel.picks).is_empty()
+	assert_int(panel.dispenser.heap_left()).is_equal(screen.run.start_offer.shared.size())
+	assert_int(screen.run.phase).is_equal(RunState.Phase.CHOOSE_START)
 	assert_bool(FileAccess.file_exists(_folder.path_join(SaveService.RUN_FILE))).is_true()
 	# Over the deck view and the machine: the screen's last child but the debug panel.
 	assert_int(reveal.get_index()).is_greater(screen._deck_view.get_index())
@@ -85,6 +89,10 @@ func test_it_sits_under_the_top_bar_and_folds_into_the_cart() -> void:
 	CartReveal.request()
 	var screen: ShiftScreen = await _screen()
 	var reveal: CartReveal = screen._cart_reveal
+	reveal.set_process(false)
+	# #107: the starter pack choice first (a new profile's good first pick is raised).
+	reveal.freeze_at(reveal.end_time())
+	assert_bool(reveal.take_pack()).is_true()
 	reveal.set_process(false)
 	reveal.freeze_at(reveal.end_time())
 	await get_tree().process_frame

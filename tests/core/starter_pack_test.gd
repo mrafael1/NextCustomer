@@ -210,6 +210,34 @@ func test_the_profile_counts_its_wins() -> void:
 	assert_bool(saved.has_won()).is_true()
 
 
+## The start_choice event (#107, v0.63): the offer's packs, today's shared products, the good
+## first pick, the pack taken, whether the player chose it (decide_ms -1 when not) and the deal's
+## swaps and deals.
+func test_start_choice_logs_the_offer_and_the_pick() -> void:
+	var stream: RandomNumberGenerator = EventLogService.derived_stream(
+		7, EventLogService.STARTING_DECK_STREAM
+	)
+	var offer: StartOffer = StartingDeck.deal_offer(_recipe, _stock, _balance, stream, true)
+	var run: RunState = RunState.new(
+		7, StartingDeck.before_pick(_recipe, offer), _balance, _stock, offer
+	)
+	var pack: StarterPackDefinition = offer.packs[0]
+	run.take_pack(pack)
+	var data: Dictionary = RunEvents.start_choice(run, 1234)
+	assert_array(data["offered"]).is_equal(
+		offer.packs.map(func(offered: StarterPackDefinition) -> String: return String(offered.id))
+	)
+	assert_array(data["shared"]).is_equal(RunEvents.definition_ids(offer.shared))
+	assert_str(data["first_pick"]).is_equal("breakfast_run")
+	assert_str(data["pick"]).is_equal(String(pack.id))
+	assert_bool(data["chosen"]).is_true()
+	assert_int(data["decide_ms"]).is_equal(1234)
+	assert_int(data["swaps"]).is_equal(offer.swaps)
+	assert_int(data["deals"]).is_equal(offer.deals)
+	var taken_for: Dictionary = RunEvents.start_choice(run, -1)
+	assert_bool(taken_for["chosen"]).is_false()
+
+
 func _offer(seed_value: int, first_pick: bool) -> StartOffer:
 	var stream: RandomNumberGenerator = EventLogService.derived_stream(
 		seed_value, EventLogService.STARTING_DECK_STREAM

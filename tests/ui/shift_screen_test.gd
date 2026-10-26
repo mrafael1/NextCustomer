@@ -67,12 +67,13 @@ func test_a_shift_from_draw_to_next_shift() -> void:
 
 	var events: Array = _events()
 	var types: Array = events.map(func(event: Dictionary) -> String: return event["type"])
-	var expected_types: Array = ["run_start", "shift_start", "redraw", "checkout"]
+	# start_choice (#107): a run started without the reveal takes its default starter pack.
+	var expected_types: Array = ["run_start", "start_choice", "shift_start", "redraw", "checkout"]
 	if not passed:
 		expected_types.append("run_end")
 	expected_types.append("count_up")
 	assert_array(types).contains_exactly(expected_types)
-	var checkout: Dictionary = events[3]
+	var checkout: Dictionary = events[4]
 	assert_int(int(checkout["score"])).is_equal(expected_total)
 	assert_int(int(checkout["placements"])).is_equal(4)
 	# A move within the row is 1 placement and 0 removals (plan section 8).
@@ -93,7 +94,9 @@ func test_a_shift_from_draw_to_next_shift() -> void:
 		screen._on_new_run_pressed()
 		types = _events().map(func(event: Dictionary) -> String: return event["type"])
 		assert_int(screen.run.shift_index).is_equal(0)
-		assert_array(types.slice(-3)).is_equal(["restart", "run_start", "shift_start"])
+		# The new run waits for its starter pack in the reveal (#107): shift 1 starts on the pick.
+		assert_array(types.slice(-2)).is_equal(["restart", "run_start"])
+		assert_int(screen.run.phase).is_equal(RunState.Phase.CHOOSE_START)
 
 
 ## A row card picked up and dropped back in the hand is a removal; one placed again is not.
