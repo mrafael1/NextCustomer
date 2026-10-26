@@ -126,7 +126,8 @@ func test_a_loyalty_badge_shows_its_perk_icon() -> void:
 	var badge: GiverBadge = auto_free(GiverBadge.new(GiverBadge.Kind.LOYALTY, "PrR", glyph))
 	assert_bool(badge.shows_icon()).is_true()
 	assert_bool(badge.shows_mini()).is_false()
-	assert_object(badge.texture()).is_same(GiverBadge.LOYALTY_TOKEN)
+	# The thin-rimmed token, whose middle holds a 9x9 icon (polish pass).
+	assert_object(badge.texture()).is_same(GiverBadge.LOYALTY_ICON_TOKEN)
 	assert_str(badge.icon_texture().resource_path).is_equal(glyph)
 	assert_str(badge.initials()).is_empty()
 	var icon: TextureRect = badge.get_node("Icon") as TextureRect
@@ -142,6 +143,7 @@ func test_a_loyalty_badge_shows_its_perk_icon() -> void:
 		GiverBadge.new(GiverBadge.Kind.LOYALTY, "BiB", "res://art/icons/plus_slot.png")
 	)
 	assert_bool(big.shows_icon()).is_false()
+	assert_object(big.texture()).is_same(GiverBadge.LOYALTY_TOKEN)
 	assert_str(big.initials()).is_equal("BiB")
 	var missing: GiverBadge = auto_free(
 		GiverBadge.new(GiverBadge.Kind.LOYALTY, "CoE", "res://art/icons/no_such_icon.png")
