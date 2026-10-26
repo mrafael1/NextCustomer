@@ -475,7 +475,7 @@ static func _family(upgrade: UpgradeDefinition) -> FamilyStyle:
 
 ## The icon `upgrade`'s box shows on the chip face (`chip`) or the card face: its perk icon when
 ## it fits inside the box's ring (FAMILY_RING for a family perk, else the face's own ring), else
-## null. Big basket's 13x12 "+1 slot" ticket fits the card's box, not the chip's ring.
+## null. Every perk's icon fits both (#108 follow-up: Big basket's is a 9x9 "+1" ticket since).
 static func face_icon(upgrade: UpgradeDefinition, chip: bool) -> Texture2D:
 	var box_size: Vector2 = CHIP_BOX_SIZE if chip else BOX_SIZE
 	var ring: int = CHIP_RING if chip else STAMP_BORDER

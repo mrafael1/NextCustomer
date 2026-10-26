@@ -144,7 +144,8 @@ func _add_loyalty() -> void:
 
 ## The badge glyph's scale (canvas px per texel) for an icon of `texels`: 3x art for a small one
 ## (SMALL_ICON or less), else the largest of 2x and 1x art that stays inside the badge's ink
-## border, so a larger glyph (Big basket's 13x12 "+1" ticket) never reaches the punch card.
+## border, so a larger glyph (a 13x12 one, as Big basket's "+1" ticket was) never reaches the
+## punch card.
 static func icon_scale(texels: Vector2) -> float:
 	var inside: Vector2 = BADGE_RECT.size - Vector2(4, 4)
 	if maxf(texels.x, texels.y) <= SMALL_ICON:
@@ -208,6 +209,6 @@ func _draw_punch_card() -> void:
 		var at: Vector2 = card.position + Vector2(6 + slot * 28, 22)
 		draw_texture_rect(texture, Rect2(at, texture.get_size() * 2.0), false)
 	if _icon != null and _icon.get_width() > SMALL_ICON * 2:
-		return  # Big basket's +1 slot ticket stands on its own, as the mock-up draws it.
+		return  # A wide ticket icon stands on its own, as the mock-up drew Big basket's.
 	MachineArt.box(self, BADGE_RECT, Palette.TEAL_SHADE, Palette.INK)
 	draw_rect(Rect2(BADGE_RECT.position + Vector2(4, 2), Vector2(36, 2)), Palette.TEAL)

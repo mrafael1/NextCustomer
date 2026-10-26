@@ -8,7 +8,7 @@
 [resource]
 script = ExtResource("3_upgrade")
 id = &"big_basket"
-icon_ref = "res://art/icons/plus_slot.png"
+icon_ref = "res://art/icons/perk_big_basket.png"
 display_name = "Big basket"
 type = 6
 effect_text = "+1 slot"

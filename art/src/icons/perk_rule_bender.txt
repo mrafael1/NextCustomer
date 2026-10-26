@@ -1,0 +1,14 @@
+; Rule bender's perk icon (#108 follow-up, UpgradeDefinition.icon_ref): two brown product boxes
+; with a teal coupon slip between them and a tomato arc jumping from one box to the other over
+; it, "coupons no longer break adjacency" (tomato, not gold: gold ran into the chip's mustard
+; ring). No ink outline, like perk_slot_engine: the ring's teal dark parts the shapes. 9x7,
+; shown at 2x art. A placeholder for the art review.
+@size 9x7
+@kind icon
+...RRR...
+.RR...RR.
+R.......R
+hh.666.hh
+FF.6#6.FF
+hh.666.hh
+FF.555.FF
