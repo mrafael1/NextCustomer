@@ -149,13 +149,13 @@ func initials() -> String:
 func _add_icon(icon_ref: String) -> bool:
 	if icon_ref.is_empty() or not ResourceLoader.exists(icon_ref):
 		return false
-	var texture: Texture2D = load(icon_ref) as Texture2D
-	if texture == null:
+	var art: Texture2D = load(icon_ref) as Texture2D
+	if art == null:
 		return false
-	var drawn: Vector2 = texture.get_size() * ArtStyle.ART_SCALE
+	var drawn: Vector2 = art.get_size() * ArtStyle.ART_SCALE
 	if drawn.x > LOYALTY_ICON_ROOM or drawn.y > LOYALTY_ICON_ROOM:
 		return false
-	_icon = UiKit.sprite(texture)
+	_icon = UiKit.sprite(art)
 	_icon.name = "Icon"
 	_icon.size = drawn
 	# On the art grid, so the icon's texels stay square.
