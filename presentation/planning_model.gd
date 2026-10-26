@@ -235,6 +235,8 @@ static func _sticker(link: EffectLink, names: CauseNames) -> StickerSpec:
 		sticker.badge_text = GiverBadge.initials_for(sticker.badge, names.of_cause(link))
 		if sticker.badge == GiverBadge.Kind.ITEM:
 			sticker.badge_mini = names.mini_of(link)
+		elif sticker.badge == GiverBadge.Kind.LOYALTY:
+			sticker.badge_mini = names.icon_of(link)
 	return sticker
 
 
@@ -326,6 +328,15 @@ class CauseNames:
 		if link.cause_slot < 0 or link.cause_slot >= _row.size():
 			return ""
 		return _row[link.cause_slot].badge_mini_ref()
+
+	## The perk icon of `link`'s cause (UpgradeDefinition.icon_ref) for an upgrade cause, or
+	## empty.
+	func icon_of(link: EffectLink) -> String:
+		if link.cause_kind != ScoreStep.SourceKind.UPGRADE:
+			return ""
+		if link.cause_index < 0 or link.cause_index >= _upgrades.size():
+			return ""
+		return _upgrades[link.cause_index].icon_ref
 
 	## The badge of `link`'s cause.
 	func badge_of(link: EffectLink) -> GiverBadge.Kind:

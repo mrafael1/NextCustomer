@@ -19,7 +19,8 @@ var badge: GiverBadge.Kind = GiverBadge.Kind.NONE
 ## The badge's initials (GiverBadge.initials_for); empty for NONE and INSPECTION.
 var badge_text: String = ""
 ## An ITEM badge's mini (CardDefinition.badge_mini_ref: the giver's, gold-outlined for GOLDEN);
-## empty for a product with none (the badge keeps its initials) and for the other badges.
+## a LOYALTY badge's perk icon (UpgradeDefinition.icon_ref, #108 follow-up); empty for a product
+## with none (the badge keeps its initials) and for the other badges.
 var badge_mini: String = ""
 ## What caused the effect (EffectLink's cause).
 var cause_kind: ScoreStep.SourceKind = ScoreStep.SourceKind.CARD

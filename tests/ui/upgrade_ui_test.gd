@@ -86,7 +86,8 @@ func test_a_register_from_the_machine_stamps_the_loyalty_card() -> void:
 	# The loyalty card's first box is stamped; hovering it tells what the register does.
 	var texts: PackedStringArray = screen._loyalty_card.box_texts()
 	assert_int(texts.size()).is_equal(run.balance.machine.register_cap)
-	assert_str(texts[0]).is_equal(LoyaltyCard.initials(picked.display_name))
+	assert_str(texts[0]).is_equal(LoyaltyCard.stamp_text(picked, true))
+	assert_object(screen._loyalty_card.box_icon(0)).is_same(LoyaltyCard.face_icon(picked, true))
 	assert_str(texts[1]).is_empty()
 	assert_object(screen._loyalty_card.level_mark(0)).is_null()
 	var tooltip: String = screen._loyalty_card.box(0).tooltip_text
@@ -118,7 +119,11 @@ func test_a_starting_upgrade_has_its_own_stamped_box() -> void:
 	screen._on_shift_started()
 	var texts: PackedStringArray = screen._loyalty_card.box_texts()
 	assert_int(texts.size()).is_equal(screen.run.balance.machine.register_cap + 1)
-	assert_str(texts[0]).is_equal("CoE")
+	# Its perk icon, not its initials (#108 follow-up).
+	assert_str(texts[0]).is_empty()
+	assert_str(screen._loyalty_card.box_icon(0).resource_path).is_equal(
+		"res://art/icons/perk_coupon_engine.png"
+	)
 	assert_str(texts[1]).is_empty()
 	assert_int(screen._loyalty_card.stamped_boxes().size()).is_equal(1)
 
@@ -236,8 +241,9 @@ func test_every_stamped_box_keeps_its_tilt() -> void:
 	assert_float(empty_box.rotation).is_equal(0.0)
 
 
-## Every upgrade's stamp is legible (#55 review #9): its initials are in the number font, paper
-## with an ink outline on the dark tomato face, and fit inside the box's ink ring.
+## Every upgrade's stamp is legible (#55 review #9): its perk icon (#108 follow-up) sits inside the
+## box's ring on teal dark, on the art grid; with no icon that fits, its initials are in the number
+## font, paper with an ink outline on the dark tomato face, and fit inside the box's ink ring.
 func test_every_stamp_fits_inside_its_ring() -> void:
 	var upgrades: Array[UpgradeDefinition] = []
 	for file_name: String in DirAccess.get_files_at(UPGRADES):
@@ -249,10 +255,29 @@ func test_every_stamp_fits_inside_its_ring() -> void:
 	card.show_upgrades(upgrades.size(), upgrades)
 	await _frames(2)
 	var inside: float = LoyaltyCard.BOX_SIZE.x - 2.0 * LoyaltyCard.STAMP_BORDER
-	for box: Control in card.stamped_boxes():
+	var stamped: Array[Control] = card.stamped_boxes()
+	for index: int in range(stamped.size()):
+		var box: Control = stamped[index]
 		var face: StyleBoxFlat = box.get_theme_stylebox("panel") as StyleBoxFlat
-		assert_object(face.bg_color).is_equal(Palette.TOMATO_DARK)
 		var label: Label = box.get_child(0) as Label
+		var icon: Texture2D = card.box_icon(index)
+		assert_object(icon).is_same(LoyaltyCard.face_icon(upgrades[index], false))
+		if icon != null:
+			assert_str(label.text).is_empty()
+			assert_object(face.bg_color).is_equal(Palette.TEAL_DARK)
+			var sprite: TextureRect = (
+				box.get_node(LoyaltyCard.ICON_NAME).get_child(0) as TextureRect
+			)
+			assert_vector(sprite.size).is_equal(icon.get_size() * ArtStyle.ART_SCALE)
+			assert_float(fmod(sprite.position.x, ArtStyle.ART_SCALE)).is_equal(0.0)
+			assert_float(fmod(sprite.position.y, ArtStyle.ART_SCALE)).is_equal(0.0)
+			var ring: int = face.border_width_left
+			var room: Rect2 = Rect2(
+				Vector2.ONE * ring, LoyaltyCard.BOX_SIZE - Vector2.ONE * ring * 2
+			)
+			assert_bool(room.encloses(Rect2(sprite.position, sprite.size))).is_true()
+			continue
+		assert_object(face.bg_color).is_equal(Palette.TOMATO_DARK)
 		assert_object(label.get_theme_font("font")).is_same(ArtStyle.number_font())
 		assert_object(label.get_theme_color("font_color")).is_equal(Palette.PAPER)
 		assert_object(label.get_theme_color("font_outline_color")).is_equal(Palette.INK)
@@ -269,10 +294,12 @@ func test_every_stamp_fits_inside_its_ring() -> void:
 		)
 
 
-## The top bar's stamps (#80 step 10, mock-up B2; #59's glyphs not drawn yet): every upgrade's
-## initials fall back into B2's 13x13 ring at 2x, mustard pale in the number font, at the largest
-## size that fits inside both rings (the teal panel); an empty box is the dashed ring. The rings
-## take no clicks but keep their hover text.
+## The top bar's stamps (#80 step 10, mock-up B2): every upgrade shows its perk icon in its ring
+## when it fits (#108 follow-up: a family perk's ring in its family's colour, the others B2's
+## 13x13 ring at 2x); with none that fits (Big basket's "+1 slot" ticket), its initials fall back
+## into the ring, mustard pale in the number font, at the largest size that fits inside both rings
+## (the teal panel); an empty box is the dashed ring. The rings take no clicks but keep their
+## hover text.
 func test_every_chip_stamp_fits_inside_its_ring() -> void:
 	var upgrades: Array[UpgradeDefinition] = []
 	for file_name: String in DirAccess.get_files_at(UPGRADES):
@@ -288,10 +315,22 @@ func test_every_chip_stamp_fits_inside_its_ring() -> void:
 	for index: int in range(stamped.size()):
 		var box: Control = stamped[index]
 		assert_vector(box.size).is_equal(LoyaltyCard.CHIP_BOX_SIZE)
-		var ring: StyleBoxTexture = box.get_theme_stylebox("panel") as StyleBoxTexture
-		assert_object(ring.texture).is_same(LoyaltyCard.RING)
+		var family: Color = LoyaltyCard.family_ring(upgrades[index])
+		if family != Color():
+			var line: StyleBoxFlat = box.get_theme_stylebox("panel") as StyleBoxFlat
+			assert_object(line.border_color).is_equal(family)
+			assert_object(box.get_node(LoyaltyCard.FAMILY_EDGE_NAME)).is_not_null()
+		else:
+			var ring: StyleBoxTexture = box.get_theme_stylebox("panel") as StyleBoxTexture
+			assert_object(ring.texture).is_same(LoyaltyCard.RING)
 		var label: Label = box.get_child(0) as Label
-		assert_str(label.text).is_equal(LoyaltyCard.initials(upgrades[index].display_name))
+		assert_str(label.text).is_equal(LoyaltyCard.stamp_text(upgrades[index], true))
+		assert_object(chip.box_icon(index)).is_same(LoyaltyCard.face_icon(upgrades[index], true))
+		assert_str(box.tooltip_text).contains(upgrades[index].display_name)
+		assert_int(box.mouse_filter).is_equal(Control.MOUSE_FILTER_PASS)
+		if label.text.is_empty():
+			assert_object(chip.box_icon(index)).is_not_null()
+			continue
 		assert_object(label.get_theme_font("font")).is_same(ArtStyle.number_font())
 		assert_object(label.get_theme_color("font_color")).is_equal(Palette.MUSTARD_PALE)
 		(
@@ -311,12 +350,71 @@ func test_every_chip_stamp_fits_inside_its_ring() -> void:
 				. is_greater(inside)
 			)
 			label.add_theme_font_size_override("font_size", font_size)
-		assert_str(box.tooltip_text).contains(upgrades[index].display_name)
-		assert_int(box.mouse_filter).is_equal(Control.MOUSE_FILTER_PASS)
 	var empty: Control = chip._boxes.get_child(chip._boxes.get_child_count() - 1) as Control
 	var empty_ring: StyleBoxTexture = empty.get_theme_stylebox("panel") as StyleBoxTexture
 	assert_object(empty_ring.texture).is_same(LoyaltyCard.RING_EMPTY)
 	assert_int(empty.mouse_filter).is_equal(Control.MOUSE_FILTER_IGNORE)
+
+
+## Perk icons (#108 follow-up): every perk in the data shows an icon on the card face, and on the
+## chip all but Big basket (its 13x12 ticket is wider than the ring). A family perk's ring takes
+## its family's colour (Produce regulars, Banana stand); only an Aisle run wears the "×" tag; a
+## perk with no family keeps the plain ring and no tag.
+func test_family_perks_show_their_glyph_and_colour() -> void:
+	for file_name: String in DirAccess.get_files_at(UPGRADES):
+		if not file_name.ends_with(".tres"):
+			continue
+		var upgrade: UpgradeDefinition = load(UPGRADES.path_join(file_name)) as UpgradeDefinition
+		if upgrade.icon_ref.is_empty():
+			continue
+		(
+			assert_object(LoyaltyCard.face_icon(upgrade, false))
+			. override_failure_message(file_name)
+			. is_not_null()
+		)
+		var on_chip: bool = upgrade.id != &"big_basket"
+		(
+			assert_bool(LoyaltyCard.face_icon(upgrade, true) != null)
+			. override_failure_message(file_name)
+			. is_equal(on_chip)
+		)
+	var palette: FamilyPalette = FamilyPalette.shared()
+	var produce: Color = palette.style("Produce").face
+	var chip: LoyaltyCard = auto_free(LoyaltyCard.new(true))
+	get_tree().root.add_child(chip)
+	var ids: Array[String] = [
+		"produce_regulars", "produce_aisle_run", "banana_stand", "slot_engine"
+	]
+	var upgrades: Array[UpgradeDefinition] = []
+	for id: String in ids:
+		upgrades.append(load(UPGRADES.path_join(id + ".tres")) as UpgradeDefinition)
+	chip.show_upgrades(upgrades.size(), upgrades)
+	await _frames(2)
+	assert_str(chip.box_icon(0).resource_path).is_equal("res://art/icons/aisle_fruit_and_veg.png")
+	assert_str(chip.box_icon(1).resource_path).is_equal("res://art/icons/aisle_fruit_and_veg.png")
+	assert_str(chip.box_icon(2).resource_path).is_equal("res://art/minis/banana.png")
+	assert_str(chip.box_icon(3).resource_path).is_equal("res://art/icons/perk_slot_engine.png")
+	for index: int in [0, 1, 2]:
+		var line: StyleBoxFlat = chip.box(index).get_theme_stylebox("panel") as StyleBoxFlat
+		assert_object(line.border_color).is_equal(produce)
+	assert_bool(chip.box(3).get_theme_stylebox("panel") is StyleBoxTexture).is_true()
+	assert_object(chip.run_mark(0)).is_null()
+	assert_object(chip.run_mark(2)).is_null()
+	assert_object(chip.run_mark(3)).is_null()
+	var tag: Control = chip.run_mark(1)
+	assert_vector(tag.position).is_equal(Vector2.ZERO)
+	assert_vector(tag.size).is_equal(LoyaltyCard.RUN_MARK_SIZE)
+	# The tag keeps clear of a level badge in the opposite corner.
+	var levelled: UpgradeDefinition = load(UPGRADES.path_join("produce_aisle_run_lv2.tres"))
+	var single: Array[UpgradeDefinition] = [levelled]
+	chip.show_upgrades(1, single)
+	await _frames(1)
+	var level: Control = chip.level_mark(0)
+	var run: Control = chip.run_mark(0)
+	(
+		assert_bool(Rect2(run.position, run.size).intersects(Rect2(level.position, level.size)))
+		. is_false()
+	)
 
 
 ## A ticket already under the cursor lights up as soon as it is armed.
@@ -341,7 +439,9 @@ func test_extra_redraw_gives_a_third_redraw() -> void:
 	screen._debug.give_upgrade("extra_redraw")
 	assert_int(screen.run.redraws_allowed).is_equal(3)
 	assert_str(screen._redraw_button.note()).is_equal("3 left")
-	assert_str(screen._loyalty_card.box_texts()[0]).is_equal("ExR")
+	assert_str(screen._loyalty_card.box_icon(0).resource_path).is_equal(
+		"res://art/icons/redraw_arrow.png"
+	)
 	_redraw_first_card(screen)
 	assert_int(screen.run.redraws_used).is_equal(1)
 	assert_str(screen._redraw_button.note()).is_equal("2 left")

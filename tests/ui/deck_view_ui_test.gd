@@ -314,12 +314,14 @@ func test_the_run_info_tab_shows_upgrades_inspections_and_stock() -> void:
 			]
 		)
 	)
-	# The upgrade's LOYALTY stamp ring with its initials, and the inspected shift's warning sign.
-	var rings: Array[String] = []
-	for label: Node in view._info_page.find_children("*", "Label", true, false):
-		if label.get_parent() is PanelContainer:
-			rings.append((label as Label).text)
-	assert_array(rings).contains([LoyaltyCard.initials("Category engine")])
+	# The upgrade's LOYALTY stamp ring with its perk icon (#108 follow-up), and the inspected
+	# shift's warning sign.
+	var icons: Array[String] = []
+	for holder: Node in view._info_page.find_children(
+		LoyaltyCard.ICON_NAME, "Control", true, false
+	):
+		icons.append((holder.get_child(0) as TextureRect).texture.resource_path)
+	assert_array(icons).contains(["res://art/icons/combo_diamond.png"])
 	var warned: int = 0
 	for warning: Node in view.find_children("Warning", "TextureRect", true, false):
 		warned += 1 if (warning as TextureRect).self_modulate.a > 0.0 else 0
