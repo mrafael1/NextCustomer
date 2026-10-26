@@ -57,14 +57,21 @@ func test_balance_upgrade_data_fits_the_run() -> void:
 	assert_int(balance.machine.register_cap).is_equal(3)
 
 
-func test_losing_a_shift_ends_the_run_without_a_visit() -> void:
+## A missed shift gets no visit (v0.65): the first is a write-up the run goes on after, the
+## second ends the run.
+func test_a_missed_shift_gets_no_visit_and_the_second_ends_the_run() -> void:
 	var run: RunState = _run(26)
 	run.debug_skip_to_shift(1)
 	run.checkout()
-	assert_int(run.phase).is_equal(RunState.Phase.LOST)
+	assert_int(run.phase).is_equal(RunState.Phase.SCORED)
 	assert_object(run.machine.current_visit()).is_null()
 	assert_bool(run.machine.choose(run, RewardMachine.Chute.UPGRADE)).is_false()
 	assert_bool(run.history[-1].passed).is_false()
+	assert_array(run.history[-1].visits).is_empty()
+	assert_bool(run.next_shift()).is_true()
+	run.checkout()
+	assert_int(run.phase).is_equal(RunState.Phase.LOST)
+	assert_object(run.machine.current_visit()).is_null()
 	assert_array(run.history[-1].visits).is_empty()
 
 
@@ -89,7 +96,7 @@ func test_history_has_one_entry_per_played_shift() -> void:
 	var upgrade: UpgradeDefinition = MachineSteps.take_register(run)
 	assert_object(upgrade).is_not_null()
 	run.next_shift()
-	# Shift 3: lost with an empty row.
+	# Shift 3: missed with an empty row (a write-up).
 	run.checkout()
 	assert_int(run.history.size()).is_equal(3)
 	var first: Dictionary = run.history[0].to_dictionary()
@@ -104,6 +111,7 @@ func test_history_has_one_entry_per_played_shift() -> void:
 				"total": 10,
 				"passed": true,
 				"inspection": "",
+				"inspections": [],
 				"played": ["bread", "bread"],
 			}
 		)

@@ -7,7 +7,10 @@ extends RefCounted
 ## "UPGRADE: Coupon engine LV 2", "binned NEW ITEMS") and one for the inspection it was played
 ## under, the shortfall on a lost run, a rule, then the coins: the shifts passed, the overtime,
 ## the run's coins and the profile's total ("you have ?" when the profile couldn't be saved). It
-## only lays out text; core computes the payout and the margin.
+## only lays out text; core computes the payout and the margin. A missed shift the run went on
+## after reads "write-up" (v0.65), the miss that ended it "fail". The compact receipt (a 12-shift
+## run's, when the full one can't fit the screen) folds each shift's inspection line into its
+## shift line ("inspected", or "review" for a Manager's review).
 
 enum Tone { HEADLINE, RULE, SHIFT, DETAIL, SHORTFALL, COINS, COINS_TOTAL }
 
@@ -38,12 +41,15 @@ class Line:
 
 ## The receipt of an ended run: `result` is its last checkout, `coins_owned` the profile's coins
 ## after the run (< 0 when unknown).
-static func lines(run: RunState, result: ScoreResult, coins_owned: int) -> Array[Line]:
+static func lines(
+	run: RunState, result: ScoreResult, coins_owned: int, compact: bool = false
+) -> Array[Line]:
 	var won: bool = run.phase == RunState.Phase.WON
 	var printed: Array[Line] = [Line.new("RUN WON!" if won else "RUN OVER", Tone.HEADLINE)]
 	printed.append(Line.new(rule(), Tone.RULE))
 	for record: ShiftRecord in run.history:
-		var texts: PackedStringArray = shift_texts(record)
+		var fatal: bool = not won and record == run.history[-1]
+		var texts: PackedStringArray = shift_texts(record, compact, not fatal)
 		printed.append(Line.new(texts[0], Tone.SHIFT, not record.passed))
 		for detail: String in texts.slice(1):
 			printed.append(Line.new(detail, Tone.DETAIL, not record.passed))
@@ -63,17 +69,25 @@ static func lines(run: RunState, result: ScoreResult, coins_owned: int) -> Array
 
 
 ## A shift's line ("  4  €30 / €22        pass") and its dim lines: one per machine visit
-## after it (visit_text), then the inspection it was played under.
-static func shift_texts(record: ShiftRecord) -> PackedStringArray:
+## after it (visit_text), then the inspections it was played under. A miss reads "write-up" when
+## the run went on after it (`went_on`, v0.65). `compact` folds the inspections into the shift
+## line ("  4  €30 / €22        pass  review").
+static func shift_texts(
+	record: ShiftRecord, compact: bool = false, went_on: bool = false
+) -> PackedStringArray:
 	var main: String = (
 		"%3d  %-13s  %s"
-		% [record.shift, "€%d / €%d" % [record.total, record.quota], _result(record)]
+		% [record.shift, "€%d / €%d" % [record.total, record.quota], _result(record, went_on)]
 	)
+	if compact and not record.inspections.is_empty():
+		main = "%-28s  %s" % [main, "review" if record.inspections.size() > 1 else "inspected"]
 	var texts: PackedStringArray = PackedStringArray([main])
 	for visit: MachineVisit in record.visits:
 		texts.append(DETAIL_INDENT + visit_text(visit))
-	if record.inspection != null:
-		texts.append(DETAIL_INDENT + "inspection " + record.inspection.display_name)
+	if not compact and not record.inspections.is_empty():
+		texts.append(
+			DETAIL_INDENT + "inspection " + ", ".join(InspectionTag.names(record.inspections))
+		)
 	return texts
 
 
@@ -127,8 +141,10 @@ static func rule() -> String:
 	return "-".repeat(WIDTH)
 
 
-static func _result(record: ShiftRecord) -> String:
-	return "pass" if record.passed else "fail"
+static func _result(record: ShiftRecord, went_on: bool) -> String:
+	if record.passed:
+		return "pass"
+	return "write-up" if went_on else "fail"
 
 
 static func _owned_text(coins_owned: int) -> String:

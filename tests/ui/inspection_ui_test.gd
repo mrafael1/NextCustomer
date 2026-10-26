@@ -113,6 +113,8 @@ func test_the_notice_comes_before_the_machine() -> void:
 func test_inspection_steps_print_and_play_from_the_tag() -> void:
 	var runner: GdUnitSceneRunner = scene_runner(SCREEN)
 	var screen: ShiftScreen = runner.scene()
+	# The row misses: its receipt stays on screen as the run ends (no write-up, v0.65).
+	Rush.no_write_ups(screen)
 	_only_spot_check(screen)
 	screen._debug.set_inspection("spot_check")
 	assert_bool(screen._inspection_tag.visible).is_true()

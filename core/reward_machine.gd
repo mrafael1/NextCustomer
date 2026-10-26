@@ -69,9 +69,10 @@ func begin_after_checkout(run: RunState) -> void:
 	if run.history.is_empty():
 		return
 	var record: ShiftRecord = run.history[-1]
+	# Kept after a write-up too (v0.65), which gets no visit: the save checks the perks against it.
+	played_upgrades = run.upgrades.duplicate()
 	if not record.passed or record.shift >= run.shift_count():
 		return
-	played_upgrades = run.upgrades.duplicate()
 	_visit = MachineVisit.new(MachineVisit.Kind.TICKET)
 	_visit.premium = machine.is_premium_shift(record.shift)
 	if _bonus_due(run):

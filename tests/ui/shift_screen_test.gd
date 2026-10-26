@@ -29,6 +29,7 @@ func after_test() -> void:
 func test_a_shift_from_draw_to_next_shift() -> void:
 	var runner: GdUnitSceneRunner = scene_runner(SCREEN)
 	var screen: ShiftScreen = runner.scene()
+	Rush.no_write_ups(screen)  # A fail ends the run (v0.65 writes the first one up).
 	var run: RunState = screen.run
 	assert_int(run.hand().size()).is_equal(8)
 
@@ -441,6 +442,7 @@ func test_winning_the_last_shift_shows_the_results() -> void:
 func test_empty_checkout_loses_and_logs_run_end() -> void:
 	var runner: GdUnitSceneRunner = scene_runner(SCREEN)
 	var screen: ShiftScreen = runner.scene()
+	Rush.no_write_ups(screen)  # The miss ends the run (v0.65 writes the first one up).
 	await Rush.checkout(screen)
 	var events: Array = _events()
 	assert_str(events[-1]["type"]).is_equal("count_up")

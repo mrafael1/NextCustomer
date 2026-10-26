@@ -10,12 +10,21 @@ var shift: int = 0
 var quota: int = 0
 var total: int = 0
 var passed: bool = false
-## The inspection this shift was played under, or null.
-var inspection: InspectionDefinition
+## The inspections this shift was played under (several on a Manager's review, v0.65).
+var inspections: Array[InspectionDefinition] = []
+## The first inspection this shift was played under, or null: setting it makes that one the
+## shift's only inspection (null: none).
+var inspection: InspectionDefinition:
+	get:
+		return inspections[0] if not inspections.is_empty() else null
+	set(value):
+		inspections = []
+		if value != null:
+			inspections.append(value)
 ## The cards checked out, in row order (coupon uses for unlocks, full build plan 7.3).
 var played: Array[CardDefinition] = []
 ## The RECEIPT REWARDS machine's visits after this shift (#77), in order: the ticket, the bonus
-## ticket. Empty after a lost or the last shift.
+## ticket. Empty after a missed (a write-up, v0.65) or the last shift.
 var visits: Array[MachineVisit] = []
 
 
@@ -72,6 +81,8 @@ func to_dictionary() -> Dictionary:
 		"total": total,
 		"passed": passed,
 		"inspection": String(inspection.id) if inspection != null else "",
+		"inspections":
+		inspections.map(func(each: InspectionDefinition) -> String: return String(each.id)),
 		"played": played.map(func(card: CardDefinition) -> String: return String(card.id)),
 		"visits": visits.map(func(visit: MachineVisit) -> Dictionary: return visit.to_dictionary()),
 	}
@@ -89,7 +100,11 @@ static func from_dictionary(data: Dictionary, lookup: ContentLookup) -> ShiftRec
 		reader.whole("total", -SaveReader.MAX_EXACT)
 	)
 	var saved_passed: bool = reader.flag("passed")
-	record.inspection = reader.inspection("inspection")
+	# Saves and logs before v0.65 name one inspection only.
+	if data.has("inspections"):
+		record.inspections = reader.inspections("inspections")
+	else:
+		record.inspection = reader.inspection("inspection")
 	record.played = reader.cards("played")
 	for visit_data: Dictionary in reader.dictionaries("visits"):
 		var visit: MachineVisit = MachineVisit.from_dictionary(visit_data, lookup)

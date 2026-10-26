@@ -35,11 +35,12 @@ func test_the_announce_prints_in_the_monitor_before_the_bonus_notice() -> void:
 	var pool: Array[InspectionDefinition] = [load(SPOT_CHECK)]
 	balance.inspection_pool = pool
 	screen.run.balance = balance
-	screen._debug.skip_to_shift(3)
+	# Shift 4, the first Manager's review, is the first one a PREMIUM visit follows (v0.65).
+	screen._debug.skip_to_shift(4)
 	if screen.run.inspections.is_empty():
 		screen._debug.set_inspection("spot_check")
 	var run: RunState = screen.run
-	assert_int(run.shift_index).is_equal(2)
+	assert_int(run.shift_index).is_equal(3)
 	assert_bool(run.machine.premium_if_passed(run)).is_true()
 	assert_bool(run.machine.bonus_if_passed(run)).is_true()
 	await _frames(3)

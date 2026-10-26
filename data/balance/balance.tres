@@ -55,7 +55,7 @@
 
 [resource]
 script = ExtResource("1_balance")
-quotas = PackedInt32Array(29, 35, 53, 61, 73, 98, 111, 120)
+quotas = PackedInt32Array(29, 35, 53, 61, 73, 85, 98, 111, 125, 140, 155, 175)
 hand_size = 8
 base_redraws = 2
 basket_size = 2
@@ -71,9 +71,12 @@ end_cap_max = 3
 end_cap_window_runs = 3
 first_offer_pool = Array[ExtResource("2_card")]([ExtResource("c14_breakfast_sticker"), ExtResource("c15_multipack"), ExtResource("c16_two_for_one")])
 upgrade_pool = Array[ExtResource("u1_upgrade")]([ExtResource("u2_coupon_engine"), ExtResource("u3_category_engine"), ExtResource("u4_extra_redraw"), ExtResource("u6_slot_engine"), ExtResource("u8_big_basket"), ExtResource("u_bakery_regulars"), ExtResource("u_produce_regulars"), ExtResource("u_dairy_regulars"), ExtResource("u_snack_regulars"), ExtResource("u_household_regulars"), ExtResource("u_breakfast_regulars"), ExtResource("u_clearance_regulars"), ExtResource("u_bakery_aisle_run"), ExtResource("u_produce_aisle_run"), ExtResource("u_dairy_aisle_run"), ExtResource("u_snack_aisle_run"), ExtResource("u_household_aisle_run"), ExtResource("u_breakfast_aisle_run"), ExtResource("u_clearance_aisle_run"), ExtResource("u_mixed_basket"), ExtResource("u_bulk_deal"), ExtResource("u_banana_stand"), ExtResource("u_lemon_squeezer"), ExtResource("u_fire_sale")])
-inspection_shifts = PackedInt32Array(3, 5, 7)
+inspection_shifts = PackedInt32Array(3, 7, 11)
 inspection_pool = Array[ExtResource("i1_inspection")]([ExtResource("i2_spot_check"), ExtResource("i3_short_belt")])
-coins_by_shifts_passed = PackedInt32Array(0, 0, 0, 0, 1, 1, 1, 1, 2)
+review_shifts = PackedInt32Array(4, 8, 12)
+review_inspection_count = 2
+write_up_limit = 2
+coins_by_shifts_passed = PackedInt32Array(0, 0, 0, 0, 1, 1, 1, 1, 2, 2, 2, 2, 3)
 overtime_coin_euros = 923
 overtime_coin_max = 1
 capsule_price = 1

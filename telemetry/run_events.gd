@@ -51,7 +51,8 @@ static func start_choice(run: RunState, decide_ms: int) -> Dictionary:
 
 
 ## The `run_end` event of a won or lost run: the result, the shift reached, the last checkout's
-## total, the run's length and the upgrades owned.
+## total, the run's length, the upgrades owned and the write-ups (v0.65; a lost run's last one
+## got the cashier fired).
 static func run_end(run: RunState, run_ms: int) -> Dictionary:
 	return {
 		"result": "win" if run.phase == RunState.Phase.WON else "loss",
@@ -59,6 +60,7 @@ static func run_end(run: RunState, run_ms: int) -> Dictionary:
 		"last_score": run.last_result.total if run.last_result != null else 0,
 		"run_ms": run_ms,
 		"upgrades": upgrade_ids(run.upgrades),
+		"write_ups": run.write_ups,
 	}
 
 

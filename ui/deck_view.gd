@@ -474,8 +474,8 @@ static func _inspection_lines(run: RunState) -> PackedStringArray:
 	if run.phase == RunState.Phase.PLANNING:
 		lines.append(_inspection_line("This shift", run.inspections))
 	var next_shift: int = run.shift_index + 2
-	if run.next_inspection != null:
-		lines.append(_inspection_line("Next shift", [run.next_inspection]))
+	if not run.next_inspections.is_empty():
+		lines.append(_inspection_line("Next shift", run.next_inspections))
 	elif InspectionSchedule.is_inspection_shift(run.balance, next_shift):
 		lines.append("Next shift: inspected (announced at checkout).")
 	elif next_shift <= run.shift_count():

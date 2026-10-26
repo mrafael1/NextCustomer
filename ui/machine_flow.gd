@@ -382,7 +382,7 @@ func _show_receipt_lines(run: RunState) -> void:
 	view.receipt_inspections = InspectionTag.names(run.inspections)
 	view.shift_total = run.last_result.total if run.last_result != null else 0
 	view.shift_quota = run.quota()
-	view.shift_notice = InspectionTag.next_notice(run.next_inspection)
+	view.shift_notice = InspectionTag.next_notice(run.next_inspections)
 
 
 ## The player tapped to fast-forward: before the pick, the visit's presentation_skipped; during

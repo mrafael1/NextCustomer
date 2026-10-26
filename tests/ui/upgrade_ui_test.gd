@@ -203,6 +203,8 @@ func test_upgrade_steps_play_from_the_loyalty_card() -> void:
 func test_an_upgrade_fizzle_plays_and_prints() -> void:
 	var runner: GdUnitSceneRunner = scene_runner(SCREEN)
 	var screen: ShiftScreen = runner.scene()
+	# The row misses: its receipt stays on screen as the run ends (no write-up, v0.65).
+	Rush.no_write_ups(screen)
 	screen._debug.give_upgrade("coupon_engine")
 	_place_ids(screen, ["bread", "multipack", "bread"])
 	var wasted: Array[ScoreStep] = _upgrade_steps(screen.run.preview())
@@ -457,6 +459,7 @@ func test_extra_redraw_gives_a_third_redraw() -> void:
 func test_the_results_screen_lists_the_run_history() -> void:
 	var runner: GdUnitSceneRunner = scene_runner(SCREEN)
 	var screen: ShiftScreen = runner.scene()
+	Rush.no_write_ups(screen)  # Shift 2's miss ends the run (v0.65).
 	await _pass_shift(screen)
 	screen._machine.debug_skip()
 	await Rush.checkout(screen)
@@ -465,7 +468,7 @@ func test_the_results_screen_lists_the_run_history() -> void:
 	assert_str(texts[2]).is_equal("  1  €109 / €29     pass")
 	assert_str(texts[3]).is_equal("     binned NEW ITEMS")
 	assert_str(texts[4]).is_equal("  2  €0 / €35       fail")
-	# The full 8-shift receipt's layout: tests/ui/results_panel_test.gd.
+	# The full 12-shift receipt's layout: tests/ui/results_panel_test.gd.
 
 
 ## A shift's dim lines: one per machine visit (#77), then the inspection.
@@ -513,6 +516,7 @@ func test_run_end_lists_the_upgrades() -> void:
 	# An owned upgrade isn't given twice.
 	screen._debug.give_upgrade("coupon_engine")
 	assert_int(screen.run.upgrades.size()).is_equal(2)
+	Rush.no_write_ups(screen)  # The empty row's miss ends the run (v0.65).
 	await Rush.checkout(screen)
 	var run_end: Dictionary = _last_event("run_end")
 	assert_array(run_end["upgrades"]).is_equal(["coupon_engine", "category_engine"])

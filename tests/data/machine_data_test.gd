@@ -151,11 +151,12 @@ func test_the_shift_lists_fit_the_run() -> void:
 	for shifts: PackedInt32Array in [_machine.premium_shifts, _machine.bonus_extra_shifts]:
 		for shift_number: int in shifts:
 			assert_int(shift_number).is_between(1, last)
-	assert_array(Array(_machine.premium_shifts)).is_equal([3, 5, 7])
+	# PREMIUM after the Manager's reviews of weeks 1 and 2 (v0.65; shifts 3, 5 and 7 before).
+	assert_array(Array(_machine.premium_shifts)).is_equal([4, 8])
 	var levels: Array[int] = []
 	for shift_number: int in range(1, last + 1):
 		levels.append(_machine.odds_level_after(shift_number))
-	assert_array(levels).is_equal([0, 0, 1, 1, 2, 2, 3])
+	assert_array(levels).is_equal([0, 0, 1, 1, 1, 2, 2, 2, 3, 3, 3])
 	for index: int in _machine.shift_odds_levels.size():
 		var level: int = _machine.shift_odds_levels[index]
 		assert_int(level).is_between(0, _machine.max_level())

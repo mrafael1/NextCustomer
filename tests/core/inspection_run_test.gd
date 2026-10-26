@@ -12,10 +12,13 @@ const SPOT_CHECK := "res://data/inspections/spot_check.tres"
 
 func test_balance_inspection_data_fits_the_run() -> void:
 	var balance: BalanceDefinition = load(BALANCE)
-	assert_array(Array(balance.inspection_shifts)).is_equal([3, 5, 7])
-	for shift_number: int in balance.inspection_shifts:
+	# v0.65: each week's 3rd shift, and its 4th the Manager's review (2 inspections at once).
+	assert_array(Array(balance.inspection_shifts)).is_equal([3, 7, 11])
+	assert_array(Array(balance.review_shifts)).is_equal([4, 8, 12])
+	for shift_number: int in balance.inspection_shifts + balance.review_shifts:
 		# Announced on the previous shift's receipt, so never shift 1.
 		assert_int(shift_number).is_between(2, balance.quotas.size())
+	assert_int(balance.review_inspection_count).is_between(2, balance.inspection_pool.size())
 	# Coupon slot closed left in v0.56 (#106): every slot is general.
 	assert_array(RunEvents.inspection_ids(balance.inspection_pool)).is_equal(
 		["spot_check", "short_belt"]
@@ -177,6 +180,8 @@ static func _two_inspection_run(seed_value: int, inspection_shifts: PackedInt32A
 static func _low_quotas() -> BalanceDefinition:
 	var balance: BalanceDefinition = (load(BALANCE) as BalanceDefinition).duplicate()
 	balance.quotas = PackedInt32Array([5, 5, 5, 5, 5, 5, 5, 5])
+	# The run before v0.65's loop rework (these runs are scripted around it).
+	EightShiftLoop.apply(balance)
 	var pool: Array[InspectionDefinition] = [load("res://data/inspections/spot_check.tres")]
 	balance.inspection_pool = pool
 	return balance

@@ -158,6 +158,11 @@ static func _run(seed_value: int, inspection_id: String) -> RunState:
 static func _plain_run(seed_value: int) -> RunState:
 	var balance: BalanceDefinition = (load(BALANCE) as BalanceDefinition).duplicate()
 	balance.quotas = PackedInt32Array([1, 1, 1, 1, 1, 1, 1, 1])
+	# The run before v0.65's loop rework: shifts 3, 5 and 7 inspected, no Manager's reviews, and
+	# a miss ends the run.
+	balance.inspection_shifts = PackedInt32Array([3, 5, 7])
+	balance.review_shifts = PackedInt32Array()
+	balance.write_up_limit = 0
 	var deck: DeckDefinition = load(STARTER)
 	var run: RunState = RunState.new(seed_value, deck, balance, RunStock.starting(balance))
 	run.start_shift()

@@ -228,6 +228,8 @@ func test_the_last_shift_wins_without_a_visit() -> void:
 	quotas.resize(balance.quotas.size())
 	quotas.fill(1)
 	balance.quotas = quotas
+	# The last shift without its Manager's review (v0.65): the row's score stays its own.
+	balance.review_shifts = PackedInt32Array()
 	var deck: DeckDefinition = load(STARTER)
 	var run: RunState = RunState.new(10, deck, balance, RunStock.starting(balance))
 	run.start_shift()

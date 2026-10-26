@@ -28,6 +28,15 @@ static func checkout(screen: ShiftScreen) -> void:
 	await screen._on_checkout_pressed()
 
 
+## Makes the screen's run end at its next miss, as before v0.65's write-ups: the run gets a copy
+## of its balance with no write-ups, so a test about losing still loses at once (the loaded balance
+## is shared, so it is never changed itself).
+static func no_write_ups(screen: ShiftScreen) -> void:
+	var balance: BalanceDefinition = screen.run.balance.duplicate()
+	balance.write_up_limit = 0
+	screen.run.balance = balance
+
+
 ## Rushes the screen's running checkout and waits until it has ended (the rest of
 ## _on_checkout_pressed runs in the frame _counting turns false).
 static func finish(screen: ShiftScreen) -> void:

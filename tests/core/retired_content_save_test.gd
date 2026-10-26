@@ -17,6 +17,8 @@ func before_test() -> void:
 	# Quotas of 1: every row with a product passes.
 	_balance = (load(BALANCE) as BalanceDefinition).duplicate()
 	_balance.quotas = PackedInt32Array([1, 1, 1, 1, 1, 1, 1, 1])
+	# The run before v0.65's loop rework (these runs are scripted around it).
+	EightShiftLoop.apply(_balance)
 	_lookup = ContentLookup.new(_balance)
 
 
@@ -66,8 +68,8 @@ func test_a_machine_save_with_retired_content_resumes() -> void:
 	var data: Dictionary = _json(_save(run))
 	data["upgrades"] = ["extra_coupon_slot"]
 	data["machine"]["played_upgrades"] = ["extra_coupon_slot"]
-	data["next_inspection"] = "coupon_slot_closed"
-	data["history"][0]["inspection"] = "coupon_slot_closed"
+	data["next_inspections"] = ["coupon_slot_closed"]
+	data["history"][0]["inspections"] = ["coupon_slot_closed"]
 	var save: RunSave = RunSave.from_dictionary(data, _lookup)
 	assert_object(save).is_not_null()
 	assert_array(save.run.upgrades).is_empty()

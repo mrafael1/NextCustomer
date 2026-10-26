@@ -352,7 +352,12 @@ func test_run_info_announces_a_scheduled_inspection() -> void:
 		)
 		. is_false()
 	)
-	assert_array(Array(texts)).contains(["This shift: no inspection."])
+	# The last shift is the final Manager's review (v0.65): its inspections, all of them.
+	assert_int(screen.run.inspections.size()).is_equal(2)
+	var line: String = DeckView._inspection_line("This shift", screen.run.inspections)
+	assert_array(Array(texts)).contains([line])
+	for inspection: InspectionDefinition in screen.run.inspections:
+		assert_str(line).contains(inspection.display_name)
 
 
 ## During the machine's visit (#77) the drawn inspection shows for the next shift, and the shift

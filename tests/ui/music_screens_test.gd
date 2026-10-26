@@ -203,6 +203,8 @@ func test_a_fail_stays_ducked_then_the_results_duck_for_the_coins() -> void:
 	# A payout of BIG_PAYOUT coins: the most coin sounds, the last one after COINS_PRINT_S.
 	var balance: BalanceDefinition = screen.run.balance.duplicate()
 	balance.coins_by_shifts_passed = PackedInt32Array([BIG_PAYOUT])
+	# The miss ends the run (no write-up, v0.65): the results follow the fail.
+	balance.write_up_limit = 0
 	screen.run.balance = balance
 	screen._on_checkout_pressed()
 	await _frames(2)
