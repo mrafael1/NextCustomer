@@ -18,7 +18,7 @@ const MILK_BIG := "res://data/cards/milk_big.tres"
 const MILK_GOLDEN := "res://data/cards/milk_golden.tres"
 const MACHINE := "res://data/balance/machine.tres"
 const BIG_BASKET := "res://data/upgrades/big_basket.tres"
-const PLUS_SLOT := "res://art/icons/plus_slot.png"
+const PLUS_SLOT := "res://art/icons/perk_big_basket.png"
 const RARITIES: Array[int] = [
 	MachinePrize.Rarity.COMMON, MachinePrize.Rarity.RARE, MachinePrize.Rarity.LEGENDARY
 ]

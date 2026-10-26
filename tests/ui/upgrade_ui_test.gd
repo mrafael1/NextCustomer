@@ -356,8 +356,8 @@ func test_every_chip_stamp_fits_inside_its_ring() -> void:
 	assert_int(empty.mouse_filter).is_equal(Control.MOUSE_FILTER_IGNORE)
 
 
-## Perk icons (#108 follow-up): every perk in the data shows an icon on the card face, and on the
-## chip all but Big basket (its 13x12 ticket is wider than the ring). A family perk's ring takes
+## Perk icons (#108 follow-up): every perk in the data has an icon, and it shows on both the card
+## face and the chip. A family perk's ring takes
 ## its family's colour (Produce regulars, Banana stand); only an Aisle run wears the "×" tag; a
 ## perk with no family keeps the plain ring and no tag.
 func test_family_perks_show_their_glyph_and_colour() -> void:
@@ -365,18 +365,15 @@ func test_family_perks_show_their_glyph_and_colour() -> void:
 		if not file_name.ends_with(".tres"):
 			continue
 		var upgrade: UpgradeDefinition = load(UPGRADES.path_join(file_name)) as UpgradeDefinition
-		if upgrade.icon_ref.is_empty():
-			continue
 		(
 			assert_object(LoyaltyCard.face_icon(upgrade, false))
 			. override_failure_message(file_name)
 			. is_not_null()
 		)
-		var on_chip: bool = upgrade.id != &"big_basket"
 		(
-			assert_bool(LoyaltyCard.face_icon(upgrade, true) != null)
+			assert_object(LoyaltyCard.face_icon(upgrade, true))
 			. override_failure_message(file_name)
-			. is_equal(on_chip)
+			. is_not_null()
 		)
 	var palette: FamilyPalette = FamilyPalette.shared()
 	var produce: Color = palette.style("Produce").face

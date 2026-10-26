@@ -248,10 +248,10 @@ func test_a_full_receipt_fits_the_screen_with_the_card_and_the_coins() -> void:
 	assert_int(results._loyalty_card.box_texts().size()).is_equal(
 		screen.run.balance.machine.register_cap + 1
 	)
-	# Big basket's "+1 slot" icon fits the card face's box (#108 follow-up), so no initials.
+	# Big basket's "+1" icon (#108 follow-up), so no initials.
 	assert_str(results._loyalty_card.box_texts()[0]).is_empty()
 	assert_str(results._loyalty_card.box_icon(0).resource_path).is_equal(
-		"res://art/icons/plus_slot.png"
+		"res://art/icons/perk_big_basket.png"
 	)
 	assert_object(results._loyalty_card.level_mark(0)).is_null()
 	var mark: Control = results._loyalty_card.level_mark(1)

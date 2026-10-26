@@ -1,0 +1,15 @@
+; Big basket's perk icon (#108 follow-up, UpgradeDefinition.icon_ref): a paper shelf ticket
+; (cream shade right and bottom) with "+1" in ink, after plus_slot's but 9x8 and with no mustard
+; band (on the chip it ran into the mustard ring), so it fits every loyalty ring (the top bar
+; chip's 18 px inside, the sticker badge's stamp) at 2x art, where plus_slot's 13x12 fit only the
+; receipt card's box.
+@size 9x8
+@kind icon
+.#######.
+#wwwwwwc#
+#w#ww##c#
+####ww#c#
+#w#www#c#
+#wwwww#c#
+#ccccccc#
+.#######.

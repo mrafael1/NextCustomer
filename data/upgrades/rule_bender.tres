@@ -13,6 +13,7 @@ receipt_text = "Rule bender"
 [resource]
 script = ExtResource("3_upgrade")
 id = &"rule_bender"
+icon_ref = "res://art/icons/perk_rule_bender.png"
 display_name = "Rule bender"
 type = 1
 effect_text = "Coupons no longer break adjacency between products"
