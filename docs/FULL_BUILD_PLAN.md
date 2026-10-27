@@ -625,3 +625,5 @@ Content freeze at the end of phase 3. No new features after that.
 **WASTED styling follow-up (2026-10-26, #105):** the compact WASTED label gains the readability v2 mock-up's tomato underline with a darker lower edge, a silver text emboss and the grey frame's missing top/left highlight and right-edge shading. Its approved size and placement stay the same. Presentation only.
 
 **WASTED v3 correction (2026-10-26, #105):** checked directly against `readability_v3_src/template.html` and `readability_v3_stacks.png`: restore WASTED's 17 px lettering and minimum 92 px label (text width + 6 + 18 px), with the word and tomato underline following the face's tilt. Keep the approved closer stack placement and attached fan numbers. Presentation only.
+
+**Hovered ticket price overlap (2026-10-27, #105):** the hovered ticket outline draws beneath the planning price badges and their die-cut rims, so it no longer crosses a boosted price sticker. Presentation only; no scoring or balance change.

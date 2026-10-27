@@ -436,6 +436,12 @@ func test_a_hovered_giver_lights_its_strip_and_explains_it() -> void:
 	# A Milk: Multipack's strip hot in its lane with that Milk's gain only.
 	var milk: ItemView = _item(screen, 5)
 	milk.hovered.emit(milk)
+	# A boosted price overlaps the ticket ring and must draw over it, including its cut rim.
+	var pay: PayTag = layer.pay_tag(5)
+	assert_int(pay.pay).is_equal(PlanningModel.Pay.BOOSTED)
+	assert_bool(layer.ticket_ring().intersects(Rect2(pay.position, pay.size))).is_true()
+	var ring_box: Control = layer.get_node("TicketRing") as Control
+	assert_int(pay.get_parent().get_index()).is_greater(ring_box.get_index())
 	hot = layer.hot_strips()
 	assert_int(hot.size()).is_equal(1)
 	assert_array(Array(hot[0].gain_texts())).is_equal([RailStrip.GAIN_TEXT % spec.gains[1]])
