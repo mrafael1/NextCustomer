@@ -1,0 +1,600 @@
+<meta charset="utf-8">
+<title>Checkout Rhythm v3</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<style>
+/* Layout: the game screen first, its controls under it, the pacing strip, the beat sheet, then the notes. */
+@font-face { font-family: "Pixelify"; src: url({{font:fonts/PixelifySans-Variable.ttf}}) format("truetype"); font-weight: 400 700; }
+@font-face { font-family: "Atkinson"; src: url({{font:fonts/AtkinsonHyperlegibleNext-Variable.ttf}}) format("truetype"); font-weight: 200 800; }
+@font-face { font-family: "JBMono"; src: url({{font:fonts/JetBrainsMono-Regular.ttf}}) format("truetype"); }
+:root {
+  color-scheme: dark;
+  /* The game's own palette (ui/palette.gd). */
+  --bg: #172c2b; --panel: #1f3b3a; --panel-2: #2a4d4b;
+  --paper: #fbf7ee; --ink: #2b2420; --ink-soft: #4a3f38; --muted: #8a8172;
+  --fg: #ece0c6; --fg-soft: #c7beab;
+  --teal: #4f9a94; --teal-pale: #c3e0d4;
+  --gold: #ffcf3f; --mustard: #e2b33c; --mustard-light: #f1d27a; --mustard-pale: #faecbc; --mustard-dark: #b38425;
+  --tomato: #d9534f; --good: #5fae5a; --green-dark: #3d7a45; --cream-shade: #ddcba5;
+  --charcoal: #24221f; --vfd: #7ff5d8; --vfd-dim: #1f5a4e; --glass: #0e1716;
+  --font-display: "Pixelify", "Courier New", monospace;
+  --font-body: "Atkinson", "Segoe UI", system-ui, sans-serif;
+  --font-mono: "JBMono", ui-monospace, "Consolas", monospace;
+}
+html, body { background: var(--bg); color: var(--fg); }
+body { font-family: var(--font-body); font-size: 15px; line-height: 1.5; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); padding-block: 20px 48px; }
+.wrap { max-width: 1280px; margin: 0 auto; display: flex; flex-direction: column; gap: 18px; }
+header { display: flex; flex-direction: column; gap: 6px; }
+.eyebrow { font-family: var(--font-display); font-size: 13px; letter-spacing: .12em; text-transform: uppercase; color: var(--mustard); }
+h1 { font-family: var(--font-display); font-weight: 700; font-size: clamp(28px, 4vw, 44px); line-height: 1.05; margin: 0; color: var(--paper); text-wrap: balance; }
+h2 { font-family: var(--font-display); font-weight: 600; font-size: 22px; margin: 0; color: var(--paper); text-wrap: balance; }
+p { margin: 0; max-width: 72ch; color: var(--fg-soft); }
+p strong, li strong { color: var(--paper); }
+.controls { display: flex; flex-wrap: wrap; gap: 10px 18px; align-items: center; }
+.group { display: flex; gap: 4px; align-items: center; flex-wrap: wrap; }
+.group > span { font-family: var(--font-display); font-size: 12px; letter-spacing: .1em; text-transform: uppercase; color: var(--fg-soft); margin-right: 4px; }
+button { font: 600 14px var(--font-body); color: var(--paper); background: var(--panel-2); border: 2px solid #3c6461; padding: 6px 12px; cursor: pointer; border-radius: 2px; }
+button:hover { border-color: #5fb0a8; }
+button:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
+button[aria-pressed="true"] { background: var(--mustard); color: var(--ink); border-color: var(--mustard-light); }
+button.primary { background: var(--tomato); border-color: #ec8a6e; }
+.status { font-family: var(--font-mono); font-size: 13px; color: var(--fg-soft); }
+
+/* Stage: the real capture, with the moving parts cropped from it */
+.stage-box { width: 100%; max-width: 100%; aspect-ratio: 16 / 9; position: relative; overflow: hidden; background: #000; border: 2px solid #0f1d1c; }
+.stage { position: absolute; left: 0; top: 0; width: 1280px; height: 720px; transform-origin: 0 0; color: var(--ink); }
+.abs { position: absolute; }
+.crop { position: absolute; background-size: 1280px 720px; background-repeat: no-repeat; image-rendering: pixelated; }
+.plan { background-image: var(--plan); }
+.after { background-image: var(--after); }
+.fg { background-image: var(--fg); }
+.lane { position: absolute; left: 0; top: 0; width: 0; height: 0; transition: transform var(--ride, 220ms) cubic-bezier(.45,0,.3,1); }
+.inner { position: absolute; left: 0; top: 0; }
+.itemc { transform-origin: 50% 100%; }
+.brk { border: 2px solid var(--gold); z-index: 5; pointer-events: none; clip-path: polygon(0 0,14px 0,14px 2px,2px 2px,2px 14px,0 14px,0 calc(100% - 14px),2px calc(100% - 14px),2px calc(100% - 2px),14px calc(100% - 2px),14px 100%,0 100%,0 0,100% 0,calc(100% - 14px) 0,calc(100% - 14px) 2px,calc(100% - 2px) 2px,calc(100% - 2px) 14px,100% 14px,100% calc(100% - 14px),calc(100% - 2px) calc(100% - 14px),calc(100% - 2px) calc(100% - 2px),calc(100% - 14px) calc(100% - 2px),calc(100% - 14px) 100%,100% 100%,100% 0); }
+.beam { left: 370px; top: 372px; width: 118px; height: 4px; background: #ff5a4a; box-shadow: 0 0 6px #ff5a4a; opacity: 0; z-index: 6; }
+
+/* Top bar gauge (drawn over the capture's; it follows the register quietly) */
+.tb-cover { left: 268px; top: 13px; width: 552px; height: 31px; background: var(--panel-2); }
+.gauge { left: 274px; top: 18px; width: 352px; height: 20px; background: var(--charcoal); box-shadow: inset 0 0 0 2px #171513; }
+.gfill { left: 2px; top: 2px; height: 16px; width: 0; background: var(--tomato); transition: width .3s steps(14); }
+.gfill.met { background: linear-gradient(90deg, var(--good) 0 var(--q), var(--mustard-light) var(--q)); }
+.notch { top: -6px; width: 3px; height: 32px; background: var(--paper); box-shadow: 0 0 0 1px #171513; }
+.gnum { left: 638px; top: 12px; font: 700 23px var(--font-display); color: var(--mustard-light); }
+.gbadge { left: 732px; top: 17px; width: 82px; height: 22px; background: var(--paper); border: 2px solid var(--tomato); color: var(--tomato); font: 800 13px/18px var(--font-body); text-align: center; box-sizing: border-box; }
+.gbadge.met { background: var(--mustard); border-color: var(--mustard-dark); color: var(--ink); }
+
+/* Receipt */
+.rc { left: 48px; top: 66px; width: 232px; height: 268px; background: var(--paper); overflow: hidden; display: flex; flex-direction: column; justify-content: flex-end; box-sizing: border-box; padding: 4px 8px 6px; }
+.rc-line { font: 12.5px/19px var(--font-mono); color: var(--ink); display: flex; justify-content: space-between; white-space: pre; flex: none; }
+.rc-line.sub { padding-left: 14px; }
+.rc-line.perk { background: var(--mustard-pale); margin: 0 -4px; padding: 0 4px 0 18px; }
+.rc-line.eq { justify-content: flex-end; }
+.rc-line.new { animation: print .18s steps(5); }
+@keyframes print { from { clip-path: inset(0 100% 0 0); } to { clip-path: inset(0 0 0 0); } }
+
+/* Monitor: the item column takes the old TOTAL column's room */
+.paper-cover { left: 613px; top: 77px; width: 284px; height: 154px; background: var(--paper); }
+.bay-item { left: 509px; top: 100px; width: 96px; height: 96px; image-rendering: pixelated; }
+.bay-item.coupon { width: 80px; height: 56px; left: 515px; top: 122px; }
+.bay-head { left: 501px; top: 81px; width: 108px; height: 14px; background: #172c2b; color: var(--paper); font: 700 11px/14px var(--font-display); letter-spacing: .14em; padding-left: 6px; box-sizing: border-box; }
+.beep { left: 504px; top: 116px; background: var(--tomato); color: var(--paper); font: 700 12px var(--font-display); padding: 0 4px; transform: rotate(-10deg); border: 1px solid var(--paper); z-index: 3; }
+.bay-strip { left: 505px; top: 203px; width: 100px; height: 20px; box-sizing: border-box; border: 2px solid var(--ink); background: var(--good); color: var(--ink); font: 800 12px/16px var(--font-body); text-align: center; letter-spacing: .04em; }
+.bay-strip.coupon { background: var(--paper); color: var(--teal); }
+.col { left: 621px; top: 82px; width: 270px; height: 145px; }
+.c-head { display: flex; align-items: center; gap: 6px; height: 28px; }
+.c-name { font: 700 22px var(--font-display); color: var(--ink); }
+.c-head img { width: 18px; height: 18px; image-rendering: pixelated; }
+.c-eff { font: 800 13px/15px var(--font-body); color: var(--ink-soft); height: 15px; white-space: nowrap; overflow: hidden; }
+.burst { margin-left: auto; position: relative; height: 30px; min-width: 58px; padding: 0 12px; display: flex; align-items: center; justify-content: center; font: 800 18px var(--font-body); color: var(--ink); background: var(--ink); clip-path: polygon(0 50%, 7% 18%, 13% 30%, 20% 0, 30% 22%, 40% 4%, 50% 22%, 60% 4%, 70% 22%, 80% 0, 87% 30%, 93% 18%, 100% 50%, 93% 82%, 87% 70%, 80% 100%, 70% 78%, 60% 96%, 50% 78%, 40% 96%, 30% 78%, 20% 100%, 13% 70%, 7% 82%); }
+.burst::before { content: ""; position: absolute; inset: 2px 3px; background: var(--gold); clip-path: inherit; }
+.burst span { position: relative; }
+.burst.base::before { background: var(--paper); }
+.c-rule { height: 2px; margin: 4px 0 3px; background: repeating-linear-gradient(90deg, var(--cream-shade) 0 4px, transparent 4px 8px); }
+.lines { display: flex; flex-direction: column; gap: 1px; }
+.ln { display: grid; grid-template-columns: 20px 1fr auto; gap: 5px; align-items: center; height: 18px; font: 800 13.5px var(--font-body); color: var(--ink); padding: 0 3px; }
+.ln .mk { width: 20px; height: 18px; display: flex; align-items: center; justify-content: center; }
+.ln .mk img { width: 14px; height: 14px; image-rendering: pixelated; background: var(--paper); box-shadow: 0 0 0 1px var(--ink); padding: 1px; }
+.ln .amt { font: 800 14px var(--font-body); color: var(--mustard-dark); }
+.ln.mul .amt { font-size: 15px; color: var(--ink); background: var(--gold); padding: 0 4px; box-shadow: 0 0 0 1px var(--ink); }
+.ln.now { background: var(--mustard-pale); }
+.ln.pay { border-top: 2px solid var(--ink); }
+.ln.pay .amt { color: var(--ink); font-size: 15px; }
+.ln.arm .amt { color: var(--teal); }
+.ln.idle { color: var(--muted); font-weight: 700; grid-template-columns: 1fr; }
+.from { font: 700 11px var(--font-body); color: var(--muted); margin-left: 4px; }
+
+/* Effects */
+.gun { font: 700 19px var(--font-display); color: var(--paper); text-shadow: 2px 0 0 var(--ink), -2px 0 0 var(--ink), 0 2px 0 var(--ink), 0 -2px 0 var(--ink), 2px 2px 0 var(--ink); z-index: 30; pointer-events: none; white-space: nowrap; transform: translate(-50%, -50%); }
+.gun.mul { color: var(--gold); font-size: 26px; }
+.dust { width: 4px; height: 4px; background: var(--paper); box-shadow: 0 0 0 1px var(--ink); z-index: 29; pointer-events: none; }
+.coin { width: 10px; height: 10px; background: var(--gold); box-shadow: 0 0 0 2px var(--ink); border-radius: 1px; z-index: 31; pointer-events: none; }
+
+/* The register's customer display, over the CHECKOUT key during the count */
+.reg { left: 24px; top: 427px; width: 292px; height: 76px; background: var(--glass); box-shadow: inset 0 0 0 2px #050908, 0 0 0 2px #3d3a36; overflow: hidden; }
+.reg::after { content: ""; position: absolute; inset: 0; background: repeating-linear-gradient(0deg, rgba(0,0,0,.18) 0 1px, transparent 1px 3px); pointer-events: none; }
+.vfd-lab { left: 10px; top: 6px; font: 700 12px var(--font-display); letter-spacing: .2em; color: var(--vfd-dim); }
+.vfd-num { right: 12px; top: 2px; font: 700 46px/56px var(--font-display); color: var(--vfd); text-shadow: 0 0 6px rgba(127,245,216,.55); }
+.vfd-sub { left: 10px; bottom: 5px; font: 700 12px var(--font-display); color: var(--vfd); letter-spacing: .12em; }
+.vfd-sub.short { color: #f5a07f; }
+.vfd-msg { inset: 0; display: flex; align-items: center; justify-content: center; font: 700 34px var(--font-display); color: var(--vfd); letter-spacing: .12em; text-shadow: 0 0 8px rgba(127,245,216,.7); background: var(--glass); opacity: 0; z-index: 2; }
+.drawer { left: 12px; top: 618px; width: 316px; height: 82px; }
+
+/* Pacing strip and beat sheet */
+.pace { display: flex; flex-direction: column; gap: 6px; }
+.pace-head { display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap; font: 600 13px var(--font-mono); color: var(--fg-soft); }
+.strip-box { overflow-x: auto; }
+.strip { display: flex; gap: 2px; height: 30px; align-items: stretch; min-width: 640px; }
+.pb { background: var(--panel-2); position: relative; }
+.pb.ride { background: #33504e; }
+.pb.add { background: #8a7a3a; }
+.pb.mul { background: var(--mustard); }
+.pb.pay { background: var(--good); }
+.pb.big { background: var(--gold); }
+.pb.climax { background: var(--vfd); }
+.pb.now { outline: 2px solid var(--paper); outline-offset: 1px; z-index: 1; }
+.legend { display: flex; gap: 14px; flex-wrap: wrap; font-size: 13px; color: var(--fg-soft); }
+.legend i { display: inline-block; width: 12px; height: 12px; margin-right: 5px; vertical-align: -1px; }
+.sheet { display: flex; flex-direction: column; gap: 6px; }
+.srow { display: grid; grid-template-columns: 34px minmax(0, 1fr); gap: 10px; align-items: center; padding: 4px 8px; background: var(--panel); border: 2px solid transparent; }
+.srow.now { border-color: var(--mustard); }
+.srow img { width: 32px; height: 32px; object-fit: contain; image-rendering: pixelated; }
+.sbeats { display: flex; flex-wrap: wrap; gap: 4px; align-items: center; min-width: 0; }
+.sb { font: 600 13px var(--font-mono); padding: 1px 6px; background: var(--panel-2); color: var(--fg-soft); border: 1px solid #3c6461; white-space: nowrap; }
+.sb small { color: var(--muted); font-size: 11px; margin-left: 4px; }
+.sb.give { color: var(--mustard-light); }
+.sb.pay { color: var(--paper); background: #3a3420; border-color: var(--mustard-dark); }
+.sb.now { background: var(--mustard); color: var(--ink); border-color: var(--gold); }
+.sb.now small { color: var(--ink-soft); }
+.sb.past { opacity: .55; }
+.cols { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 18px 28px; }
+.cols > section { display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+ol, ul { margin: 0; padding-left: 20px; display: flex; flex-direction: column; gap: 6px; color: var(--fg-soft); max-width: 72ch; }
+table { border-collapse: collapse; font-size: 14px; color: var(--fg-soft); }
+td, th { padding: 3px 12px 3px 0; text-align: left; border-bottom: 1px solid #2f4f4d; }
+th { color: var(--paper); font-weight: 700; }
+td.n { font-family: var(--font-mono); text-align: right; font-variant-numeric: tabular-nums; }
+.eu { font-family: var(--font-body); font-style: normal; font-weight: 800; font-size: .8em; }
+@media (prefers-reduced-motion: reduce) { .lane, .gfill { transition: none; } .rc-line.new { animation: none; } }
+</style>
+
+<div class="wrap">
+  <header>
+    <div class="eyebrow">Next Customer · count-up mock-up · v3</div>
+    <h1>Checkout rhythm</h1>
+    <p>Version 2's register display, refined from your review. The belt carries each item to the scanner and a paid item hops into the bag beside it. A giver that has already been bagged shows on its monitor line, where its mini pulses. The pacing follows what matters: plain items pass quickly, and the multipliers and big pays take the time.</p>
+  </header>
+
+  <div class="controls">
+    <div class="group" role="group" aria-label="Playback">
+      <button id="play" class="primary">Pause</button>
+      <button id="step">Next beat</button>
+      <button id="restart">Restart</button>
+    </div>
+    <div class="group" role="group" aria-label="Speed">
+      <span>Speed</span>
+      <button id="s-05" aria-pressed="false">½×</button>
+      <button id="s-1" aria-pressed="true">1×</button>
+      <button id="s-2" aria-pressed="false">2×</button>
+    </div>
+    <div class="group"><button id="sound" aria-pressed="false">Sound off</button></div>
+    <div class="status" id="status" aria-live="polite"></div>
+  </div>
+
+  <div class="stage-box" id="stage-box">
+    <div class="stage" id="stage">
+      <img class="abs" style="left:0;top:0;width:1280px;height:720px" id="plan-img" src="{{img:docs/art/mockups/count_rhythm_src/v2_planning.png}}" alt="">
+      <img hidden id="fg-img" src="{{img:docs/art/mockups/count_rhythm_src/v3_planning_fg.png}}" alt="">
+      <img hidden id="after-img" src="{{img:docs/art/mockups/count_rhythm_src/v2_today_last.png}}" alt="">
+      <div class="crop after" style="left:0;top:400px;width:340px;height:320px;background-position:0 -400px"></div>
+      <div class="crop after" style="left:499px;top:79px;width:112px;height:150px;background-position:-499px -79px"></div>
+      <div class="abs tb-cover"></div>
+      <div class="abs gauge"><div class="abs gfill" id="gfill"></div><div class="abs notch" id="notch"></div></div>
+      <div class="abs gnum" id="gnum"></div>
+      <div class="abs gbadge" id="gbadge"></div>
+      <div class="abs rc" id="rc"></div>
+      <div class="abs paper-cover"></div>
+      <div id="bay"></div>
+      <div class="abs col" id="col"></div>
+      <div class="abs reg" id="reg">
+        <div class="abs vfd-lab">TOTAL</div>
+        <div class="abs vfd-num" id="vfd-num"></div>
+        <div class="abs vfd-sub short" id="vfd-sub"></div>
+        <div class="abs vfd-msg" id="vfd-msg">SPEND MET</div>
+      </div>
+      <div class="crop after drawer" id="drawer" style="background-position:-12px -618px"></div>
+      <div id="patches"></div>
+      <div class="crop plan" id="bagc" style="left:284px;top:254px;width:64px;height:76px;background-position:-284px -254px;transform-origin:50% 100%"></div>
+      <div id="belt"></div>
+      <div class="abs beam" id="beam"></div>
+      <div class="abs brk" id="brk" style="display:none"></div>
+      <div id="fx"></div>
+    </div>
+  </div>
+
+  <section class="pace" aria-label="Pacing">
+    <div class="pace-head"><span>Pacing at 1×, one block per beat</span><span id="pace-total"></span></div>
+    <div class="strip-box"><div class="strip" id="strip"></div></div>
+    <div class="legend"><span><i style="background:#33504e"></i>belt ride and scan</span><span><i style="background:#8a7a3a"></i>add</span><span><i style="background:var(--mustard)"></i>multiplier</span><span><i style="background:var(--good)"></i>pay</span><span><i style="background:var(--gold)"></i>big pay</span><span><i style="background:var(--vfd)"></i>spend met</span></div>
+  </section>
+
+  <section class="sheet" id="sheet" aria-label="Beat sheet"></section>
+
+  <div class="cols">
+    <section>
+      <h2>What changed from v2</h2>
+      <ol>
+        <li><strong>The belt carries the row.</strong> At each item the belt advances one slot, so the item reaches the scanner with its ticket, as it does in the game today. The scanner beam sweeps it and the monitor shows it. Once paid, it makes a short hop into the bag next to the scanner, and its ticket drops off.</li>
+        <li><strong>Bagged givers stay readable.</strong> A giver still on the belt hops. A giver already in the bag (the Banana before a chain, the Multipack for the later Bananas) can't, so its mini pulses on the monitor line, "from the bag" is written beside its name, and the bag gives a small nudge. Loyalty perks flip in the top bar and pulse on their line too.</li>
+        <li><strong>Variable pacing.</strong> The time goes to what changes the score. A plain item rides, beeps and pays in well under a second, and adds are quick taps. Multipliers get a heavier stamp and a held beat, and a pay waits in proportion to its size. The last pay and the spend get the longest holds.</li>
+        <li><strong>The total lives on the register.</strong> The CHECKOUT key turns into the customer display during the count, coins drop into the drawer on each pay, and SPEND MET flashes there. The monitor is never covered.</li>
+      </ol>
+    </section>
+    <section>
+      <h2>Beat lengths at 1×</h2>
+      <table>
+        <thead><tr><th>Beat</th><th class="n">ms</th></tr></thead>
+        <tbody>
+          <tr><td>Belt advances one slot</td><td class="n">220</td></tr>
+          <tr><td>Scan (beam and beep)</td><td class="n">180</td></tr>
+          <tr><td>Add (+N), each next one 10% faster</td><td class="n">240</td></tr>
+          <tr><td>Multiplier (×N)</td><td class="n">460</td></tr>
+          <tr><td>Arming a coupon</td><td class="n">360</td></tr>
+          <tr><td>Pay: €0 / under €10 / €10–49 / €50+</td><td class="n">180 / 240 / 380 / 640</td></tr>
+          <tr><td>Last item's pay, extra</td><td class="n">+300</td></tr>
+          <tr><td>Spend met</td><td class="n">850</td></tr>
+        </tbody>
+      </table>
+      <h2>Open questions</h2>
+      <ul>
+        <li>Is the belt advance (one slot at a time, 220 ms) the right feel, or should the whole row glide in one motion?</li>
+        <li>Should plain items with no bonus at all skip their monitor line and pay at the scan?</li>
+      </ul>
+    </section>
+  </div>
+</div>
+
+<script>
+const IMG = {
+  banana: "{{img:art/items_v2/banana.png}}",
+  strawberries: "{{img:art/items_v2/strawberries.png}}",
+  multipack: "{{img:art/icons/coupon_multipack_v2.png}}",
+  mini_banana: "{{img:art/minis/banana.png}}",
+  fruit: "{{img:art/icons/aisle_fruit_and_veg.png}}",
+  slot: "{{img:art/icons/perk_slot_engine.png}}",
+};
+const QUOTA = 73, PITCH = 128, BAG = [316, 300];
+const $ = id => document.getElementById(id);
+const stage = $("stage"), fx = $("fx");
+stage.style.setProperty("--plan", `url(${$("plan-img").src})`);
+stage.style.setProperty("--after", `url(${$("after-img").src})`);
+stage.style.setProperty("--fg", `url(${$("fg-img").src})`);
+const reduce = matchMedia("(prefers-reduced-motion: reduce)").matches;
+function fit() { stage.style.transform = `scale(${$("stage-box").clientWidth / 1280})`; }
+addEventListener("resize", fit); fit();
+const euro = n => `<i class="eu">€</i>${n}`;
+const el = (tag, cls, html) => { const e = document.createElement(tag); if (cls) e.className = cls; if (html !== undefined) e.innerHTML = html; return e; };
+function crop(src, r, cls = "") {
+  const d = el("div", `crop ${src} ${cls}`);
+  Object.assign(d.style, { left: r[0] + "px", top: r[1] + "px", width: r[2] + "px", height: r[3] + "px", backgroundPosition: `-${r[0]}px -${r[1]}px` });
+  return d;
+}
+const PERKS = [[923, 14, 28, 28], [956, 14, 28, 28], [990, 14, 28, 28]];
+// The row as Scoring.score() steps it. giver: "p0".."p2" a perk, "c3" the card in slot 3,
+// "prev" the item before (a chain), "next" the item after. mini: the giver's art on the line.
+const ITEMS = [
+  { name: "Strawberries", spr: "strawberries", base: 2, eff: "+3 beside Produce", rect: [372, 282, 134, 98], ticket: [366, 411, 114, 79], burst: [418, 410, 66, 40],
+    steps: [{ giver: "next", op: "+", v: 3, name: "Beside Produce", mini: "mini_banana", stk: [452, 341, 52, 30] }] },
+  { name: "Banana", spr: "banana", base: 2, eff: "+prev after Banana", rect: [504, 270, 130, 110], ticket: [494, 411, 114, 79], burst: [546, 410, 66, 40],
+    steps: [{ giver: "p0", op: "+", v: 1, name: "Produce regulars", mini: "fruit", stk: [558, 340, 74, 31] }] },
+  { name: "Banana", spr: "banana", base: 2, eff: "+prev after Banana", rect: [630, 270, 140, 110], ticket: [622, 411, 114, 79], burst: [672, 410, 70, 40],
+    steps: [
+      { giver: "prev", op: "+", v: 3, name: "Banana chain", mini: "mini_banana", stk: [705, 275, 58, 30] },
+      { giver: "p0", op: "+", v: 2, name: "Produce regulars", mini: "fruit", stk: [690, 303, 75, 29] },
+      { giver: "p1", op: "×", v: 3, name: "Produce aisle run", mini: "fruit", stk: [683, 333, 95, 37] },
+    ] },
+  { name: "Multipack", spr: "multipack", coupon: true, base: 0, eff: "×3 later with prior's tag", rect: [770, 318, 82, 62], ticket: [750, 411, 114, 79], burst: null,
+    arm: "×3 to later Produce", steps: [] },
+  { name: "Banana", spr: "banana", base: 2, eff: "+prev after Banana", rect: [884, 280, 144, 100], ticket: [878, 411, 114, 79], burst: [928, 410, 70, 40],
+    steps: [
+      { giver: "p0", op: "+", v: 3, name: "Produce regulars", mini: "fruit", stk: [946, 303, 76, 31] },
+      { giver: "c3", op: "×", v: 3, name: "Multipack", mini: "multipack", stk: [938, 333, 92, 37] },
+    ] },
+  { name: "Banana", spr: "banana", base: 2, eff: "+prev after Banana", rect: [1010, 236, 154, 144], ticket: [1006, 411, 132, 79], burst: [1050, 405, 82, 44],
+    steps: [
+      { giver: "prev", op: "+", v: 15, name: "Banana chain", mini: "mini_banana", stk: [1090, 238, 70, 32], folded: true },
+      { giver: "p0", op: "+", v: 4, name: "Produce regulars", mini: "fruit", stk: [1068, 264, 80, 31] },
+      { giver: "c3", op: "×", v: 3, name: "Multipack", mini: "multipack", stk: [1071, 293, 92, 39] },
+      { giver: "p2", op: "×", v: 2, name: "Slot engine", mini: "slot", stk: [1068, 331, 94, 37] },
+    ] },
+];
+for (const it of ITEMS) {
+  let p = it.base, m = 1;
+  for (const s of it.steps) { if (s.op === "+") p += s.v; else m *= s.v; }
+  it.pay = p * m;
+}
+const center = r => [r[0] + r[2] / 2, r[1] + r[3] / 2];
+
+// ---------- the plan: beats and their lengths (the pacing) ----------
+const T = { ride: 220, scan: 180, add: 240, mul: 460, arm: 360, pay0: 180, paySmall: 240, payMid: 380, payBig: 640, lastExtra: 300, climax: 850 };
+function payMs(it, last) { const p = it.pay; return (p === 0 ? T.pay0 : p < 10 ? T.paySmall : p < 50 ? T.payMid : T.payBig) + (last ? T.lastExtra : 0); }
+const BEATS = [];
+ITEMS.forEach((it, i) => {
+  BEATS.push({ type: "intro", i, ms: (i ? T.ride : 0) + T.scan, kind: "ride" });
+  let adds = 0;
+  it.steps.forEach((s, k) => {
+    const ms = s.op === "+" ? Math.round(T.add * Math.pow(.9, adds++)) : T.mul;
+    BEATS.push({ type: "step", i, k, ms, kind: s.op === "+" ? "add" : "mul" });
+  });
+  if (it.arm) BEATS.push({ type: "arm", i, ms: T.arm, kind: "mul" });
+  BEATS.push({ type: "pay", i, ms: payMs(it, i === ITEMS.length - 1), kind: it.pay >= 50 ? "big" : "pay" });
+});
+// the spend is met on the last Banana's pay in this row
+const PLANNED = BEATS.reduce((a, b) => a + b.ms, 0) + T.climax;
+
+let speed = 1, playing = true, token = 0, active = false, pendingStep = false, stepResolve = null, soundOn = false, actx = null;
+let total = 0, met = false, price = 0, mult = 1, advanced = 0, nodes = {};
+function sleep(ms) { const t = token; return new Promise((res, rej) => setTimeout(() => (t === token ? res() : rej("abort")), ms / speed)); }
+function gate() {
+  if (playing) return Promise.resolve();
+  if (pendingStep) { pendingStep = false; return Promise.resolve(); }
+  return new Promise(r => { stepResolve = r; });
+}
+function anim(n, frames, ms, opts = {}) {
+  if (reduce || !n) return { finished: Promise.resolve() };
+  return n.animate(frames, { duration: ms / speed, easing: "cubic-bezier(.2,.8,.3,1)", ...opts });
+}
+const hop = (n, ms = 240, h = 12) => anim(n, [{ transform: "translateY(0)" }, { transform: `translateY(-${h}px) rotate(-3deg)` }, { transform: "translateY(0) rotate(2deg)" }, { transform: "none" }], ms);
+const flip = (n, ms = 300) => anim(n, [{ transform: "scaleX(1)" }, { transform: "scaleX(-1) scale(1.25)" }, { transform: "scaleX(1) scale(1.25)" }, { transform: "scale(1)" }], ms);
+const punch = (n, s = 1.25, ms = 200) => anim(n, [{ transform: "scale(1)" }, { transform: `scale(${s})` }, { transform: "scale(1)" }], ms);
+const pulse = (n, ms = 420) => anim(n, [{ transform: "scale(1)" }, { transform: "scale(1.6)" }, { transform: "scale(1)" }, { transform: "scale(1.4)" }, { transform: "scale(1)" }], ms);
+const stamp = (n, big, ms = 220) => anim(n, [{ transform: `scale(${big ? 1.9 : 1.45})`, filter: "brightness(1.3)" }, { transform: "scale(.94)", filter: "brightness(1.1)", offset: .55 }, { transform: "scale(1)", filter: "none" }], ms, { easing: "cubic-bezier(.6,0,.4,1)" });
+
+function tone(freq, ms = 70, type = "square", vol = .045, at = 0) {
+  if (!soundOn || !actx) return;
+  const o = actx.createOscillator(), g = actx.createGain(), t0 = actx.currentTime + at;
+  o.type = type; o.frequency.value = freq; g.gain.setValueAtTime(vol, t0);
+  g.gain.exponentialRampToValueAtTime(.0001, t0 + ms / 1000);
+  o.connect(g).connect(actx.destination); o.start(t0); o.stop(t0 + ms / 1000);
+}
+const note = n => 880 * Math.pow(2, n / 12);
+
+function buildScene() {
+  const belt = $("belt"), patches = $("patches"); belt.innerHTML = ""; patches.innerHTML = "";
+  nodes.lanes = []; nodes.inner = []; nodes.items = []; nodes.stickers = []; nodes.tickets = []; nodes.bursts = [];
+  patches.append(crop("after", [350, 395, 915, 118]));  // the ticket rail, empty
+  ITEMS.forEach(it => {
+    patches.append(crop("after", it.rect));
+    const lane = el("div", "lane"), inner = el("div", "inner"), tk = el("div", "inner");
+    const c = crop("fg", it.rect, "itemc"); inner.append(c);
+    nodes.stickers.push(it.steps.map(s => { const k = crop("fg", s.stk); inner.append(k); return k; }));
+    tk.append(crop("fg", it.ticket));
+    const b = it.burst ? crop("fg", it.burst) : null; if (b) tk.append(b);
+    lane.append(tk, inner); belt.append(lane);
+    nodes.lanes.push(lane); nodes.inner.push(inner); nodes.items.push(c); nodes.tickets.push(tk); nodes.bursts.push(b);
+  });
+  nodes.perks = PERKS.map(r => { const d = crop("plan", r); belt.append(d); return d; });
+  $("notch").style.left = (2 + 348 * QUOTA / 180) + "px";
+  $("gfill").style.setProperty("--q", (100 * QUOTA / 180) + "%");
+  buildSheet(); buildStrip();
+}
+function buildSheet() {
+  const sh = $("sheet"); sh.innerHTML = ""; nodes.sheetRows = []; nodes.sheetBeats = [];
+  ITEMS.forEach(it => { const r = el("div", "srow", `<img src="${IMG[it.spr]}" alt="">`); r.append(el("div", "sbeats")); sh.append(r); nodes.sheetRows.push(r); });
+  BEATS.forEach(b => {
+    const it = ITEMS[b.i]; let txt, cls = "";
+    if (b.type === "intro") txt = `${b.i ? "ride + " : ""}scan ${it.name}`;
+    else if (b.type === "step") { const s = it.steps[b.k]; txt = `${s.op}${s.v} ${s.name}`; cls = "give"; }
+    else if (b.type === "arm") { txt = "arms ×3"; cls = "give"; }
+    else { txt = `pays €${it.pay}`; cls = "pay"; }
+    const s = el("span", "sb " + cls, `${txt}<small>${b.ms}</small>`); nodes.sheetRows[b.i].lastChild.append(s); nodes.sheetBeats.push(s);
+  });
+}
+function buildStrip() {
+  const st = $("strip"); st.innerHTML = ""; nodes.strip = [];
+  BEATS.forEach(b => { const d = el("div", "pb " + b.kind); d.style.flex = `${b.ms} 0 0`; d.title = `${b.ms} ms`; st.append(d); nodes.strip.push(d); });
+  const c = el("div", "pb climax"); c.style.flex = `${T.climax} 0 0`; st.append(c); nodes.climaxBlock = c;
+  $("pace-total").textContent = `${(PLANNED / 1000).toFixed(1)} s for this row (v2: about 14 s)`;
+}
+function markBeat(n) {
+  nodes.sheetBeats.forEach((s, k) => { s.classList.toggle("now", k === n); s.classList.toggle("past", k < n); });
+  nodes.strip.forEach((s, k) => s.classList.toggle("now", k === n));
+  const cur = n >= 0 && n < BEATS.length ? BEATS[n].i : -1;
+  nodes.sheetRows.forEach((r, k) => r.classList.toggle("now", k === cur));
+  $("status").textContent = n < 0 ? "Ready" : n >= BEATS.length ? `Done · €${total}` : `Beat ${n + 1} of ${BEATS.length}`;
+}
+
+function setTotal(n) {
+  total = n;
+  $("gfill").style.width = (348 * Math.min(n / 180, 1)) + "px";
+  $("gfill").classList.toggle("met", n >= QUOTA);
+  $("gnum").innerHTML = euro(n);
+  const gb = $("gbadge"); gb.classList.toggle("met", n >= QUOTA); gb.innerHTML = n >= QUOTA ? `+${euro(n - QUOTA)}` : `${euro(QUOTA - n)} to go`;
+  $("vfd-num").innerHTML = `<span class="eu" style="font-size:.6em">€</span>${n}`;
+  const vs = $("vfd-sub"); vs.classList.toggle("short", n < QUOTA);
+  vs.textContent = n >= QUOTA ? `SPEND 73 ✓  +${n - QUOTA} OVER` : `SPEND 73  ·  ${QUOTA - n} TO GO`;
+}
+async function rollTotal(to, ms) {
+  const from = total, n = 8;
+  for (let k = 1; k <= n; k++) { setTotal(Math.round(from + (to - from) * k / n)); await sleep(ms / n); }
+}
+function print(text, amount = "", cls = "") {
+  const rc = $("rc");
+  const l = el("div", "rc-line new " + cls); l.append(el("span", "", text), el("span", "", amount)); rc.append(l);
+  while (rc.children.length > 13) rc.firstChild.remove();
+}
+function gun(at, text, cls) {
+  const g = el("div", "abs gun " + cls, text); g.style.left = at[0] + "px"; g.style.top = at[1] + "px"; fx.append(g);
+  const a = anim(g, [{ transform: "translate(-50%,-50%) scale(.6)", opacity: 0 }, { transform: "translate(-50%,-90%) scale(1.15)", opacity: 1, offset: .2 }, { transform: "translate(-50%,-150%) scale(1)", opacity: 1, offset: .75 }, { transform: "translate(-50%,-190%) scale(1)", opacity: 0 }], 680, { easing: "linear" });
+  a.finished.then(() => g.remove()); if (reduce) setTimeout(() => g.remove(), 680);
+  for (let k = 0; k < 4; k++) {
+    const d = el("div", "abs dust"); d.style.left = (at[0] - 20) + "px"; d.style.top = (at[1] + 6) + "px"; fx.append(d);
+    anim(d, [{ transform: "translate(0,0)", opacity: 1 }, { transform: `translate(${(k - 1.5) * 16}px,${k % 2 ? -8 : 6}px)`, opacity: 0 }], 260).finished.then(() => d.remove());
+    if (reduce) d.remove();
+  }
+}
+function coins(from, to, n = 5) {
+  for (let k = 0; k < n; k++) {
+    const c = el("div", "abs coin"); c.style.left = (from[0] + (k - 2) * 6) + "px"; c.style.top = from[1] + "px"; fx.append(c);
+    const a = anim(c, [{ transform: "translate(0,0)" }, { transform: `translate(${(to[0] - from[0]) * .5}px, ${-30 - k * 5}px)`, offset: .4 }, { transform: `translate(${to[0] - from[0] - (k - 2) * 6}px, ${to[1] - from[1]}px)` }], 360 + k * 35, { easing: "ease-in" });
+    a.finished.then(() => c.remove()); if (reduce) c.remove();
+  }
+}
+// Where item i is now (the belt has moved it `advanced` slots left).
+const shift = r => [r[0] - PITCH * advanced, r[1], r[2], r[3]];
+function bagged(i) { return i < curItem; }
+let curItem = 0;
+
+const MON = {
+  start(it) {
+    $("col").innerHTML = `<div class="c-head"><span class="c-name">${it.name}</span>${it.coupon ? "" : `<img src="${IMG.fruit}" alt="">`}<span class="burst base" id="m-burst"><span>${euro(it.base)}</span></span></div>
+      <div class="c-eff">${it.eff}</div><div class="c-rule"></div><div class="lines" id="m-lines"></div>`;
+    const bay = $("bay"); bay.innerHTML = "";
+    bay.append(el("div", "abs bay-head", `${ITEMS.length - ITEMS.indexOf(it) - 1} LEFT`));
+    const im = el("img", "abs bay-item" + (it.coupon ? " coupon" : "")); im.src = IMG[it.spr]; im.alt = ""; bay.append(im);
+    bay.append(el("div", "abs beep", "BEEP!"), el("div", "abs bay-strip" + (it.coupon ? " coupon" : ""), it.coupon ? "COUPON" : "PRODUCE"));
+    anim(im, [{ transform: "translateY(-24px)", opacity: 0 }, { transform: "none", opacity: 1 }], 150);
+  },
+  line(mini, text, amt, cls, note) {
+    const box = $("m-lines");
+    box.querySelectorAll(".ln").forEach(l => l.classList.remove("now"));
+    const l = el("div", "ln now " + cls, `<span class="mk">${mini ? `<img src="${IMG[mini]}" alt="">` : ""}</span><span>${text}${note ? `<span class="from">${note}</span>` : ""}</span><span class="amt">${amt}</span>`);
+    if (cls === "idle") l.innerHTML = `<span>${text}</span>`;
+    box.append(l); anim(l, [{ opacity: 0, transform: "translateX(-10px)" }, { opacity: 1, transform: "none" }], 140);
+    return l;
+  },
+  burst(n, big) { const b = $("m-burst"); b.classList.remove("base"); b.innerHTML = `<span>${euro(n)}</span>`; punch(b, big ? 1.4 : 1.2, 200); },
+};
+
+async function doBeat(b, n) {
+  markBeat(n);
+  const it = ITEMS[b.i];
+  if (b.type === "intro") {
+    curItem = b.i;
+    if (b.i > 0) {
+      advanced = b.i;
+      nodes.lanes.forEach((l, k) => { if (k >= b.i) { l.style.setProperty("--ride", `${T.ride / speed}ms`); l.style.transform = `translateX(-${PITCH * advanced}px)`; } });
+      tone(note(-24), 40, "triangle", .03);
+      await sleep(T.ride);
+    }
+    price = it.base; mult = 1;
+    const r = shift(it.rect), bk = $("brk");
+    Object.assign(bk.style, { left: (r[0] - 2) + "px", top: (r[1] - 2) + "px", width: (r[2] + 4) + "px", height: (r[3] + 6) + "px", display: "block" });
+    anim($("beam"), [{ opacity: 0, transform: "translateY(-80px)" }, { opacity: 1, transform: "translateY(-40px)", offset: .3 }, { opacity: 1, transform: "translateY(0)", offset: .8 }, { opacity: 0, transform: "translateY(0)" }], T.scan);
+    MON.start(it);
+    print(it.name, `€${it.base}.00`);
+    tone(note(-12), 60);
+    await sleep(T.scan);
+  } else if (b.type === "step") {
+    const s = it.steps[b.k], mul = s.op === "×";
+    if (s.op === "+") price += s.v; else mult *= s.v;
+    let note2 = "", giverOnBelt = null;
+    if (/^p\d$/.test(s.giver)) { flip(nodes.perks[+s.giver[1]]); note2 = "loyalty"; }
+    else {
+      const gi = s.giver === "prev" ? b.i - 1 : s.giver === "next" ? b.i + 1 : +s.giver[1];
+      if (bagged(gi)) { note2 = "from the bag"; anim($("bagc"), [{ transform: "rotate(0)" }, { transform: "rotate(-5deg) scale(1.05)" }, { transform: "rotate(3deg)" }, { transform: "none" }], 260); }
+      else { giverOnBelt = nodes.inner[gi]; hop(giverOnBelt, 220, 10); }
+    }
+    const l = MON.line(s.mini, s.name, mul ? `×${s.v}` : `+€${s.v}`, mul ? "mul" : "add", note2);
+    pulse(l.querySelector(".mk img"), mul ? 460 : 380);
+    await sleep(mul ? 150 : 90);
+    stamp(nodes.stickers[b.i][b.k], mul, mul ? 280 : 200);
+    const r = shift(s.stk);
+    gun([r[0] + r[2] + 22, r[1] + r[3] / 2], `${s.op}${mul ? "" : "€"}${s.v}${s.folded ? " chain" : ""}`, mul ? "mul" : "add");
+    if (mul) { tone(note(-10), 140, "sawtooth", .04); tone(note(-3), 120, "square", .04, .05); }
+    else tone(note(b.k * 2 - 5), 50);
+    MON.burst(price * mult, mul);
+    print(s.name, mul ? `×${s.v}` : `+€${s.v}.00`, /^p\d$/.test(s.giver) ? "perk" : "sub");
+    await sleep(b.ms - (mul ? 150 : 90));
+  } else if (b.type === "arm") {
+    hop(nodes.inner[b.i], 300, 14);
+    const r = shift(it.rect);
+    gun([r[0] + r[2] + 30, r[1] + 10], "×3 later", "mul");
+    ITEMS.forEach((o, k) => o.steps.forEach((s, j) => { if (s.giver === "c3") punch(nodes.stickers[k][j], 1.25, 320); }));
+    MON.line("multipack", it.arm, "×3", "arm");
+    tone(note(-2), 90, "triangle", .07);
+    await sleep(b.ms);
+  } else {
+    const last = b.i === ITEMS.length - 1;
+    if (it.steps.length) MON.line("", it.steps.some(s => s.op === "×") ? `Pays €${price} × ${mult}` : "Pays", `€${it.pay}`, "pay");
+    MON.burst(it.pay, it.pay >= 50);
+    if (nodes.bursts[b.i]) stamp(nodes.bursts[b.i], it.pay >= 50, 260);
+    if (it.steps.length) print("", `= €${it.pay}.00`, "eq");
+    if (it.pay) { tone(note(7), 60, "triangle", .07); tone(note(12 + (it.pay >= 50 ? 7 : 0)), 160, "triangle", .07, .06); } else tone(note(-17), 80);
+    const hold = Math.max(0, b.ms - 260);
+    await sleep(Math.min(120, hold * .3));
+    // a short hop into the bag beside the scanner; the ticket drops off the rail
+    $("brk").style.display = "none";
+    const c = center(shift(it.rect));
+    anim(nodes.inner[b.i], [{ transform: "none", opacity: 1 }, { transform: `translate(${(BAG[0] - c[0]) * .5}px, -36px) scale(.8)`, opacity: 1, offset: .5 }, { transform: `translate(${BAG[0] - c[0]}px, ${BAG[1] - c[1]}px) scale(.3)`, opacity: 0 }], 260, { fill: "forwards", easing: "ease-in" });
+    anim(nodes.tickets[b.i], [{ transform: "none", opacity: 1 }, { transform: "translateY(14px)", opacity: 0 }], 220, { fill: "forwards", delay: 120 / speed });
+    if (reduce) { nodes.inner[b.i].style.opacity = 0; nodes.tickets[b.i].style.opacity = 0; }
+    setTimeout(() => anim($("bagc"), [{ transform: "scaleY(1)" }, { transform: "scaleY(.9) scaleX(1.06)" }, { transform: "none" }], 160), 240 / speed);
+    if (it.pay) {
+      const from = it.burst ? center(shift(it.burst)) : [c[0], 420];
+      coins(from, [170, 470], Math.min(2 + Math.round(it.pay / 25), 8));
+      await sleep(240);
+      anim($("drawer"), [{ transform: "translateY(0)" }, { transform: "translateY(4px)" }, { transform: "none" }], 140);
+      await rollTotal(total + it.pay, Math.min(320, hold * .6));
+      punch($("vfd-num"), it.pay >= 50 ? 1.2 : 1.08, 200);
+      await sleep(Math.max(0, hold - Math.min(120, hold * .3) - 240 - Math.min(320, hold * .6)));
+      if (!met && total >= QUOTA) await climax();
+    } else await sleep(Math.max(0, b.ms - 40));
+  }
+}
+async function climax() {
+  met = true; nodes.strip.forEach(s => s.classList.remove("now")); nodes.climaxBlock.classList.add("now");
+  [0, 4, 7, 12].forEach((s, k) => tone(note(s), 180, "square", .04, k * .07));
+  const m = $("vfd-msg");
+  for (let k = 0; k < 3; k++) { m.style.opacity = 1; await sleep(150); m.style.opacity = 0; await sleep(90); }
+  anim($("drawer"), [{ transform: "translateY(0)" }, { transform: "translateY(18px)", offset: .3 }, { transform: "translateY(18px)", offset: .8 }, { transform: "none" }], 600);
+  coins([170, 600], [170, 640], 8);
+  await sleep(T.climax - 720);
+  nodes.climaxBlock.classList.remove("now");
+}
+
+function reset() {
+  fx.innerHTML = ""; $("rc").innerHTML = ""; advanced = 0; curItem = 0;
+  $("bay").innerHTML = `<div class="abs bay-head">${ITEMS.length} LEFT</div>`;
+  $("brk").style.display = "none";
+  buildScene(); met = false; setTotal(0); markBeat(-1);
+  $("col").innerHTML = `<div class="c-head"><span class="c-name">Checkout</span></div><div class="c-eff">The belt brings the row to the scanner.</div>`;
+  ["NEXT CUSTOMER · REG 3", "SHIFT 5/12 · 6 ITEMS"].forEach(t => print(t));
+}
+async function run() {
+  const t = ++token; active = true; reset();
+  if (stepResolve) { stepResolve(); stepResolve = null; }
+  try {
+    await sleep(500);
+    for (let n = 0; n < BEATS.length; n++) { await gate(); if (t !== token) return; await doBeat(BEATS[n], n); }
+    markBeat(BEATS.length); print("TOTAL", `€${total}.00`);
+    if (t === token) { active = false; setPlay(false); }
+  } catch (e) { /* restarted */ }
+}
+function setPlay(on) { playing = on; $("play").textContent = on ? "Pause" : "Play"; }
+$("play").onclick = () => {
+  if (!active) { setPlay(true); run(); return; }
+  setPlay(!playing); if (playing && stepResolve) { stepResolve(); stepResolve = null; }
+};
+$("step").onclick = () => {
+  setPlay(false);
+  if (!active) { pendingStep = true; run(); return; }
+  if (stepResolve) { stepResolve(); stepResolve = null; } else pendingStep = true;
+};
+$("restart").onclick = () => { pendingStep = false; setPlay(true); run(); };
+function pick(ids, id) { ids.forEach(k => $(k).setAttribute("aria-pressed", k === id)); }
+[["s-05", .5], ["s-1", 1], ["s-2", 2]].forEach(([id, v]) => $(id).onclick = () => { speed = v; pick(["s-05", "s-1", "s-2"], id); });
+$("sound").onclick = () => {
+  soundOn = !soundOn; $("sound").setAttribute("aria-pressed", soundOn); $("sound").textContent = soundOn ? "Sound on" : "Sound off";
+  if (soundOn && !actx) { try { actx = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) { soundOn = false; } }
+};
+// Capture hooks (stills_v3.js): ?beat=N plays fast up to beat N and stops.
+window.__beat = n => { speed = 1; return doBeat(BEATS[n], n).catch(() => {}); };
+const qs = new URLSearchParams(location.search);
+if (qs.has("beat")) toBeat(+qs.get("beat")); else run();
+async function toBeat(target) {
+  speed = 12; ++token; active = true; reset();
+  try { for (let n = 0; n <= target; n++) await doBeat(BEATS[n], n); } catch (e) {}
+  await new Promise(r => setTimeout(r, 300));
+  speed = 1; setPlay(false); active = false; document.body.dataset.ready = "1";
+}
+</script>
