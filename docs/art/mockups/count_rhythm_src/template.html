@@ -1,0 +1,706 @@
+<meta charset="utf-8">
+<title>Checkout Rhythm</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<style>
+/* Layout: a game-screen stage first, its controls under it, then the beat sheet and the notes in one reading column. */
+@font-face { font-family: "Pixelify"; src: url({{font:fonts/PixelifySans-Variable.ttf}}) format("truetype"); font-weight: 400 700; }
+@font-face { font-family: "Atkinson"; src: url({{font:fonts/AtkinsonHyperlegibleNext-Variable.ttf}}) format("truetype"); font-weight: 200 800; }
+@font-face { font-family: "JBMono"; src: url({{font:fonts/JetBrainsMono-Regular.ttf}}) format("truetype"); }
+:root {
+  color-scheme: dark;
+  /* The game's own palette (ui/palette.gd). */
+  --bg: #172c2b;          /* TEAL_BLACK */
+  --panel: #1f3b3a;       /* BACKGROUND */
+  --panel-2: #2a4d4b;     /* PANEL */
+  --paper: #fbf7ee;       /* PAPER */
+  --ink: #2b2420;
+  --ink-soft: #4a3f38;    /* INK_LIGHT */
+  --muted: #8a8172;       /* MUTED_INK */
+  --line: #c3e0d4;        /* TEAL_PALE */
+  --fg: #ece0c6;          /* PLASTER_LIGHT */
+  --fg-soft: #c7beab;     /* GREY_LIGHT */
+  --teal: #4f9a94;
+  --teal-bright: #5fb0a8;
+  --teal-pale: #c3e0d4;
+  --gold: #ffcf3f;
+  --mustard: #e2b33c;
+  --mustard-light: #f1d27a;
+  --mustard-pale: #faecbc;
+  --mustard-dark: #b38425;
+  --tomato: #d9534f;
+  --good: #5fae5a;
+  --cream-shade: #ddcba5;
+  --font-display: "Pixelify", "Courier New", monospace;
+  --font-body: "Atkinson", "Segoe UI", system-ui, sans-serif;
+  --font-mono: "JBMono", ui-monospace, "Consolas", monospace;
+}
+html, body { background: var(--bg); color: var(--fg); }
+body { font-family: var(--font-body); font-size: 15px; line-height: 1.5; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); padding-block: 20px 48px; }
+.wrap { max-width: 1280px; margin: 0 auto; display: flex; flex-direction: column; gap: 18px; }
+header { display: flex; flex-direction: column; gap: 6px; }
+.eyebrow { font-family: var(--font-display); font-size: 13px; letter-spacing: .12em; text-transform: uppercase; color: var(--mustard); }
+h1 { font-family: var(--font-display); font-weight: 700; font-size: clamp(28px, 4vw, 44px); line-height: 1.05; margin: 0; color: var(--paper); text-wrap: balance; }
+h2 { font-family: var(--font-display); font-weight: 600; font-size: 22px; margin: 0; color: var(--paper); text-wrap: balance; }
+p { margin: 0; max-width: 72ch; color: var(--fg-soft); }
+p strong { color: var(--paper); }
+
+/* Controls */
+.controls { display: flex; flex-wrap: wrap; gap: 10px 18px; align-items: center; }
+.group { display: flex; gap: 4px; align-items: center; flex-wrap: wrap; }
+.group > span { font-family: var(--font-display); font-size: 12px; letter-spacing: .1em; text-transform: uppercase; color: var(--fg-soft); margin-right: 4px; }
+button { font: 600 14px var(--font-body); color: var(--paper); background: var(--panel-2); border: 2px solid #3c6461; padding: 6px 12px; cursor: pointer; border-radius: 2px; }
+button:hover { border-color: var(--teal-bright); }
+button:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
+button[aria-pressed="true"] { background: var(--mustard); color: var(--ink); border-color: var(--mustard-light); }
+button.primary { background: var(--tomato); border-color: #ec8a6e; }
+.status { font-family: var(--font-mono); font-size: 13px; color: var(--fg-soft); min-width: 0; }
+
+/* Stage */
+.stage-box { width: 100%; max-width: 100%; aspect-ratio: 16 / 9; position: relative; overflow: hidden; background: #000; border: 2px solid #0f1d1c; }
+.stage { position: absolute; left: 0; top: 0; width: 1280px; height: 720px; transform-origin: 0 0; font-family: var(--font-body); color: var(--ink); }
+.stage img, .stage .px { image-rendering: pixelated; }
+.abs { position: absolute; }
+.backdrop { left: 0; top: 0; width: 1280px; height: 720px; }
+.clone { background-image: var(--backdrop); background-size: 1280px 720px; }
+
+/* Top bar */
+.tb-cover { background: var(--panel-2); }
+.tb-bar { left: 272px; top: 20px; width: 128px; height: 16px; background: #172c2b; border: 2px solid #0f1d1c; }
+.tb-fill { left: 0; top: 0; height: 100%; width: 0; background: var(--mustard); transition: width .25s steps(8); }
+.tb-fill.met { background: var(--good); }
+.tb-num { left: 408px; top: 13px; font: 700 22px var(--font-display); color: var(--mustard-light); }
+.tb-badge { left: 474px; top: 17px; width: 80px; height: 22px; font: 700 14px var(--font-body); color: var(--tomato); background: var(--paper); border: 2px solid var(--tomato); display: flex; align-items: center; justify-content: center; }
+.tb-badge.met { color: var(--ink); background: var(--mustard); border-color: var(--mustard-dark); }
+.tb-insp { left: 572px; top: 12px; width: 252px; height: 32px; background: var(--paper); border: 2px solid #0f1d1c; font: 700 14px var(--font-body); display: flex; align-items: center; justify-content: center; color: var(--muted); }
+.perk { width: 28px; height: 28px; top: 14px; border-radius: 50%; background: var(--paper); box-shadow: 0 0 0 3px var(--good), 0 0 0 5px #0f1d1c; display: flex; align-items: center; justify-content: center; }
+.perk img { width: 18px; height: 18px; object-fit: contain; }
+.perk .x { position: absolute; right: -5px; bottom: -4px; width: 11px; height: 11px; background: var(--good); color: var(--paper); font: 800 9px/11px var(--font-body); text-align: center; border: 1px solid #0f1d1c; }
+.perk.empty { background: transparent; box-shadow: 0 0 0 2px #557, 0 0 0 0 transparent; box-shadow: inset 0 0 0 2px #4d6f6c; }
+
+/* Receipt */
+.rc { left: 48px; top: 66px; width: 232px; height: 266px; background: var(--paper); overflow: hidden; display: flex; flex-direction: column; justify-content: flex-end; padding: 0 8px 8px; box-sizing: border-box; }
+.rc-line { font: 12.5px/19px var(--font-mono); color: var(--ink); display: flex; justify-content: space-between; white-space: pre; }
+.rc-line.sub { padding-left: 14px; }
+.rc-line.mul { background: #faecbc; margin: 0 -4px; padding: 0 4px 0 18px; }
+.rc-line.eq { justify-content: flex-end; }
+.rc-line.new { animation: print .22s steps(4); }
+@keyframes print { from { clip-path: inset(0 100% 0 0); } to { clip-path: inset(0 0 0 0); } }
+
+/* Belt */
+.item { width: 106px; height: 110px; top: 278px; transition: transform .16s ease-out, opacity .25s, filter .25s; }
+.item .spr { position: absolute; left: 5px; bottom: 0; width: 96px; height: 96px; transform-origin: 50% 100%; }
+.item.coupon .spr { width: 88px; height: 62px; left: 9px; bottom: 6px; }
+.item.up { transform: translateY(-14px); }
+.item.done .spr, .item.done .stk-col { opacity: .5; filter: saturate(.5); }
+.item.done .brackets { opacity: 0; }
+.brackets { position: absolute; inset: 4px -2px -6px; border: 2px solid var(--gold); opacity: 0; transition: opacity .12s; clip-path: polygon(0 0,16px 0,16px 2px,2px 2px,2px 16px,0 16px,0 calc(100% - 16px),2px calc(100% - 16px),2px calc(100% - 2px),16px calc(100% - 2px),16px 100%,0 100%,0 0, 100% 0, calc(100% - 16px) 0, calc(100% - 16px) 2px, calc(100% - 2px) 2px, calc(100% - 2px) 16px, 100% 16px, 100% calc(100% - 16px), calc(100% - 2px) calc(100% - 16px), calc(100% - 2px) calc(100% - 2px), calc(100% - 16px) calc(100% - 2px), calc(100% - 16px) 100%, 100% 100%, 100% 0); }
+.item.up .brackets { opacity: 1; }
+.stk-col { position: absolute; right: -2px; bottom: 44px; display: flex; flex-direction: column-reverse; gap: 2px; align-items: flex-end; }
+.stk { display: flex; align-items: center; gap: 3px; height: 20px; padding: 0 5px 0 2px; font: 800 13px var(--font-body); transform-origin: 70% 50%; }
+.stk img { width: 14px; height: 14px; object-fit: contain; background: var(--paper); border: 1px solid #0f1d1c; border-radius: 50%; padding: 1px; box-sizing: border-box; }
+.stk.add { background: var(--paper); border: 2px solid var(--ink); color: var(--ink); }
+.stk.mul { background: var(--gold); color: var(--ink); padding: 0 8px 0 6px; clip-path: polygon(0 50%, 6% 15%, 14% 25%, 22% 0, 32% 18%, 44% 2%, 54% 18%, 66% 0, 76% 20%, 86% 6%, 92% 28%, 100% 50%, 92% 72%, 86% 94%, 76% 80%, 66% 100%, 54% 82%, 44% 98%, 32% 82%, 22% 100%, 14% 75%, 6% 85%); height: 24px; }
+.stk.fired { filter: brightness(.82); }
+.stk.fired::after { content: "✓"; font: 800 11px var(--font-body); margin-left: 2px; color: #3d7a45; }
+.pay { position: absolute; left: 50%; top: -18px; transform: translateX(-50%); font: 700 20px var(--font-display); color: var(--ink); background: var(--gold); padding: 1px 8px; border: 2px solid var(--ink); white-space: nowrap; }
+.pay.zero { background: var(--cream-shade); color: var(--muted); font-size: 15px; }
+.ticket { top: 424px; width: 106px; height: 62px; box-sizing: border-box; background: var(--mustard-pale); border: 2px solid var(--ink); padding: 18px 5px 3px; font: 800 11.5px/13px var(--font-body); color: var(--ink); transform-origin: 50% 0; }
+.ticket.coupon { background: var(--paper); }
+.ticket .price { position: absolute; right: 4px; top: -8px; background: var(--paper); border: 2px solid var(--ink); font: 800 13px var(--font-body); padding: 0 5px; }
+.ticket .cap { position: absolute; left: 5px; top: 3px; font: 800 10px var(--font-body); letter-spacing: .08em; color: var(--teal); }
+
+/* Pop-ups at the giver, Balatro style */
+.pop { font: 700 30px var(--font-display); padding: 0 10px; border: 3px solid #0f1d1c; white-space: nowrap; pointer-events: none; z-index: 30; transform: translate(-50%, -50%); }
+.pop.add { background: var(--teal); color: var(--paper); }
+.pop.mul { background: var(--gold); color: var(--ink); }
+.pop.arm { background: var(--gold); color: var(--ink); font-size: 20px; }
+.pop .lab { display: block; font: 800 11px var(--font-body); text-align: center; margin-top: -4px; padding-bottom: 2px; }
+.token { width: 12px; height: 12px; border: 2px solid #0f1d1c; z-index: 31; pointer-events: none; }
+.token.add { background: var(--teal-bright); }
+.token.mul, .token.pay { background: var(--gold); }
+
+/* Monitor */
+.paper { left: 495px; top: 77px; width: 402px; height: 154px; background: var(--paper); overflow: hidden; }
+.bay { left: 499px; top: 79px; width: 112px; height: 150px; background: #1f3b3a; background-image: linear-gradient(#2a4d4b 1px, transparent 1px), linear-gradient(90deg, #2a4d4b 1px, transparent 1px); background-size: 12px 12px; border: 2px solid #0f1d1c; box-sizing: border-box; }
+.bay-head { left: 0; top: 0; right: 0; height: 18px; background: #172c2b; color: var(--paper); font: 700 11px/18px var(--font-display); letter-spacing: .14em; padding-left: 8px; }
+.bay img { position: absolute; left: 8px; top: 32px; width: 96px; height: 96px; }
+.bay img.coupon { width: 88px; height: 62px; left: 12px; top: 48px; }
+.beep { left: 6px; top: 40px; background: var(--tomato); color: var(--paper); font: 700 12px var(--font-display); padding: 0 4px; transform: rotate(-10deg); border: 1px solid var(--paper); }
+.bay-name { left: 0; right: 0; bottom: 0; height: 20px; background: var(--mustard); color: var(--ink); font: 800 11px/20px var(--font-body); text-align: center; letter-spacing: .06em; text-transform: uppercase; }
+.col { left: 619px; top: 81px; width: 178px; height: 146px; }
+.co { left: 799px; top: 77px; width: 98px; height: 154px; border-left: 2px solid var(--cream-shade); box-sizing: border-box; text-align: center; }
+.co-lab { font: 700 11px var(--font-body); letter-spacing: .16em; color: var(--muted); margin-top: 6px; }
+.co-num { font: 700 30px/40px var(--font-display); color: var(--mustard); text-shadow: 2px 2px 0 var(--ink); margin-top: 2px; }
+.ladder { display: flex; gap: 2px; justify-content: center; align-items: flex-end; height: 18px; margin-top: 4px; }
+.ladder i { width: 8px; background: var(--cream-shade); border: 1px solid var(--ink); box-sizing: border-box; }
+.ladder i.on { background: var(--mustard); }
+.co-spend { font: 800 12px var(--font-body); margin-top: 6px; color: var(--ink); }
+.co-spend b { font-size: 16px; }
+.co-go { font: 800 13px var(--font-body); color: var(--tomato); margin-top: 2px; }
+.co-go.met { color: #3d7a45; }
+.stamp { left: 560px; top: 120px; padding: 2px 14px; font: 700 34px var(--font-display); color: #3d7a45; border: 4px solid #3d7a45; background: rgba(251,247,238,.9); transform: rotate(-7deg); z-index: 20; opacity: 0; letter-spacing: .04em; }
+
+/* Monitor A: price × mult */
+.a-name { font: 700 21px/24px var(--font-display); color: var(--ink); display: flex; justify-content: space-between; align-items: baseline; }
+.a-name small { font: 700 11px var(--font-body); color: var(--muted); letter-spacing: .06em; }
+.a-math { display: flex; align-items: center; gap: 6px; margin-top: 3px; }
+.a-math .lab { font: 800 10px var(--font-body); letter-spacing: .08em; color: var(--muted); }
+.res { font: 800 16px var(--font-body); color: var(--ink); background: var(--paper); border: 2px dashed var(--ink-soft); padding: 0 5px; }
+.res.paid { background: var(--gold); border: 2px solid var(--ink); }
+.box { height: 34px; min-width: 56px; display: flex; align-items: center; justify-content: center; font: 700 26px var(--font-display); border: 2px solid var(--ink); box-sizing: border-box; padding: 0 6px; }
+.box.price { background: var(--teal); color: var(--paper); }
+.box.mult { background: var(--gold); color: var(--ink); min-width: 48px; }
+.box.result { background: var(--paper); color: var(--ink); border-style: dashed; min-width: 50px; font-size: 22px; }
+.box.result.paid { background: var(--mustard); border-style: solid; }
+.op { font: 700 18px var(--font-display); color: var(--ink-soft); }
+.chips { display: flex; flex-wrap: wrap; gap: 3px; margin-top: 6px; min-height: 22px; }
+.chip { display: flex; align-items: center; gap: 2px; height: 20px; padding: 0 4px 0 2px; font: 800 12px var(--font-body); border: 2px solid var(--ink); box-sizing: border-box; }
+.chip img { width: 12px; height: 12px; object-fit: contain; }
+.chip.add { background: var(--teal-pale); }
+.chip.mul { background: var(--mustard-light); }
+.chip.base { background: var(--paper); color: var(--ink-soft); }
+.chip.now { outline: 2px solid var(--tomato); outline-offset: 1px; }
+.caption { margin-top: 4px; font: 800 12px/14px var(--font-body); color: var(--ink); min-height: 30px; }
+.caption .src { color: var(--teal); }
+.caption.arm .src { color: var(--mustard-dark); }
+
+/* Monitor B: full ledger */
+.b-head { display: flex; justify-content: space-between; align-items: center; height: 26px; }
+.b-name { font: 700 21px var(--font-display); color: var(--ink); }
+.b-price { font: 800 17px var(--font-body); background: var(--gold); border: 2px solid var(--ink); padding: 0 6px; color: var(--ink); }
+.b-price.base { background: var(--paper); }
+.b-rule { height: 2px; background: repeating-linear-gradient(90deg, var(--cream-shade) 0 4px, transparent 4px 8px); margin: 2px 0 2px; }
+.rows { display: flex; flex-direction: column; gap: 1px; }
+.row { display: grid; grid-template-columns: 16px 1fr auto; gap: 4px; align-items: center; height: 16px; font: 800 12px var(--font-body); color: var(--ink); padding: 0 2px; }
+.row img { width: 13px; height: 13px; object-fit: contain; }
+.row .amt { font: 800 13px var(--font-body); }
+.row.add .amt { color: var(--teal); }
+.row.mul .amt { color: var(--mustard-dark); }
+.row.now { background: var(--mustard-pale); }
+.row.total { border-top: 2px solid var(--ink); font-size: 13px; }
+.row.total .amt { color: var(--ink); font-size: 14px; }
+
+/* Beat sheet */
+.sheet { display: flex; flex-direction: column; gap: 6px; }
+.srow { display: grid; grid-template-columns: 34px minmax(0, 1fr); gap: 10px; align-items: center; padding: 4px 8px; background: var(--panel); border: 2px solid transparent; }
+.srow.now { border-color: var(--mustard); }
+.srow img { width: 32px; height: 32px; object-fit: contain; image-rendering: pixelated; }
+.sbeats { display: flex; flex-wrap: wrap; gap: 4px; align-items: center; min-width: 0; }
+.sb { font: 600 13px var(--font-mono); padding: 1px 6px; background: var(--panel-2); color: var(--fg-soft); border: 1px solid #3c6461; white-space: nowrap; }
+.sb.add { color: var(--teal-pale); }
+.sb.mul, .sb.arm { color: var(--mustard-light); }
+.sb.pay { color: var(--paper); background: #3a3420; border-color: var(--mustard-dark); }
+.sb.now { background: var(--mustard); color: var(--ink); border-color: var(--gold); }
+.sb.past { opacity: .55; }
+
+/* Notes */
+.cols { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 18px 28px; }
+.cols > section { display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+ol, ul { margin: 0; padding-left: 20px; display: flex; flex-direction: column; gap: 6px; color: var(--fg-soft); max-width: 72ch; }
+li strong { color: var(--paper); }
+.today { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 14px; }
+figure { margin: 0; display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+figure img { width: 100%; border: 2px solid #0f1d1c; image-rendering: auto; }
+figcaption { font-size: 13px; color: var(--fg-soft); }
+.eu { font-family: var(--font-body); font-style: normal; font-weight: 800; font-size: .82em; }
+.ticket .price.paid { background: var(--gold); font-size: 16px; top: -12px; }
+.ticket .price.zero { background: var(--cream-shade); color: var(--muted); }
+.ticket .was { position: absolute; right: 8px; top: 14px; font: 700 11px var(--font-body); color: var(--muted); text-decoration: line-through; }
+.tag { display: inline-block; font: 700 11px var(--font-display); letter-spacing: .1em; text-transform: uppercase; padding: 1px 6px; background: var(--panel-2); color: var(--mustard); }
+@media (prefers-reduced-motion: reduce) { .item, .tb-fill { transition: none; } .rc-line.new { animation: none; } }
+</style>
+
+<div class="wrap">
+  <header>
+    <div class="eyebrow">Next Customer · count-up mock-up · v1</div>
+    <h1>Checkout rhythm</h1>
+    <p>One beat at a time, like a Balatro hand: the item steps up, each bonus fires from its giver, and the item pays. The row and its numbers come from the real scorer: Strawberries, Banana, Banana, Multipack, Banana, Banana, with <strong>Produce regulars</strong>, <strong>Produce aisle run</strong> and <strong>Slot engine</strong> on the loyalty card. The spend is €73. The last Banana has four bonuses, which is the case today's monitor can't show.</p>
+  </header>
+
+  <div class="controls">
+    <div class="group" role="group" aria-label="Monitor layout">
+      <span>Monitor</span>
+      <button id="v-a" aria-pressed="true">A · Price × mult</button>
+      <button id="v-b" aria-pressed="false">B · Full ledger</button>
+    </div>
+    <div class="group" role="group" aria-label="Playback">
+      <button id="play" class="primary">Pause</button>
+      <button id="step">Next beat</button>
+      <button id="restart">Restart</button>
+    </div>
+    <div class="group" role="group" aria-label="Speed">
+      <span>Speed</span>
+      <button id="s-05" aria-pressed="false">½×</button>
+      <button id="s-1" aria-pressed="true">1×</button>
+      <button id="s-2" aria-pressed="false">2×</button>
+    </div>
+    <div class="group"><button id="sound" aria-pressed="false">Sound off</button></div>
+    <div class="status" id="status" aria-live="polite"></div>
+  </div>
+
+  <div class="stage-box" id="stage-box">
+    <div class="stage" id="stage">
+      <img class="abs backdrop" src="{{img:docs/art/mockups/count_rhythm_src/backdrop_empty_belt.png}}" alt="">
+      <!-- covers: the closed slot and its ticket (cloned from the next slot), top bar, perks -->
+      <div class="abs clone" style="left:352px;top:322px;width:140px;height:90px;background-position:-480px -322px"></div>
+      <div class="abs clone" style="left:352px;top:412px;width:140px;height:82px;background-position:-480px -412px"></div>
+      <div class="abs tb-cover" style="left:268px;top:13px;width:286px;height:31px"></div>
+      <div class="abs tb-bar"><div class="abs tb-fill" id="tb-fill"></div></div>
+      <div class="abs tb-num" id="tb-num">€0</div>
+      <div class="abs tb-badge" id="tb-badge">€73 to go</div>
+      <div class="abs" style="left:566px;top:8px;width:264px;height:40px;background:#1f3b3a"></div>
+      <div class="abs tb-insp">No inspection this shift</div>
+      <div class="abs tb-cover" style="left:920px;top:11px;width:136px;height:34px"></div>
+      <div id="perks"></div>
+      <div class="abs rc" id="rc"></div>
+      <div id="belt"></div>
+      <div class="abs paper"></div>
+      <div class="abs bay" id="bay"><div class="abs bay-head" id="bay-head">6 LEFT</div></div>
+      <div class="abs col" id="col"></div>
+      <div class="abs co">
+        <div class="co-lab">TOTAL</div>
+        <div class="co-num" id="co-num">0€</div>
+        <div class="ladder" id="ladder"></div>
+        <div class="co-spend">SPEND <b>73€+</b></div>
+        <div class="co-go" id="co-go">73€ to go</div>
+      </div>
+      <div class="abs stamp" id="stamp">SPEND MET</div>
+      <div id="fx"></div>
+    </div>
+  </div>
+
+  <section class="sheet" id="sheet" aria-label="Beat sheet"></section>
+
+  <div class="cols">
+    <section>
+      <h2>The rhythm</h2>
+      <ol>
+        <li><strong>One beat at a time, in score order.</strong> The item steps up and shows its price, then each bonus fires in the scorer's order (adds, then multipliers), then the item pays. Nothing else moves during a beat.</li>
+        <li><strong>The giver moves.</strong> A belt item or ticket wiggles, or a loyalty perk wiggles in the top bar, and the bonus pops at the giver. The sticker it gave the item punches and gets a ✓.</li>
+        <li><strong>Two boxes, one sum.</strong> Adds go into the teal price box, multipliers into the gold × box, and the pay is price × mult. The scorer already applies every add before any multiplier, so the screen math is the real math.</li>
+        <li><strong>Nothing disappears early.</strong> Every bonus the item got stays on the monitor until it pays. The receipt keeps the full text.</li>
+        <li><strong>Rising tempo.</strong> Inside an item, each bonus comes a little faster and beeps a note higher. The pay is the loudest beat, and the spend ding gets a stamp.</li>
+      </ol>
+    </section>
+    <section>
+      <h2>A or B</h2>
+      <ul>
+        <li><strong>A · Price × mult.</strong> The closest to Balatro. The monitor carries the sum (€21 × 6) and one chip per bonus. The caption names the bonus that just fired. This is the clearest to read, but it says less on the monitor.</li>
+        <li><strong>B · Full ledger.</strong> Every line stays: base, each bonus with its giver, then the pay. Six lines fit. A longer list would fold its earliest adds into one "+N earlier" line. This is closer to today's monitor, without lines replacing each other.</li>
+        <li>Both keep the receipt, the scanner bay and the TOTAL column as they are now. The giver wiggles and pop-ups are the same in both.</li>
+      </ul>
+      <h2>Open questions</h2>
+      <ul>
+        <li>Should items still ride to the scanner, or score in place on the belt (Balatro's cards stay in the hand), with the bay only showing a copy?</li>
+        <li>Is 1× (about 11 s for this row) the right pace before the auto speed-up?</li>
+      </ul>
+    </section>
+  </div>
+
+  <section class="cols" style="grid-template-columns:1fr">
+    <div style="display:flex;flex-direction:column;gap:10px">
+      <h2>Today in the game</h2>
+      <div class="today">
+        <figure><img src="{{img:docs/art/mockups/count_rhythm_src/today_mid_count.png}}" alt="Today's count-up, mid-row: stickers, receipt and monitor all move at once."><figcaption><span class="tag">Today</span> Mid-count: the belt stickers, the receipt and the monitor all move at once, and it is hard to tell which bonus came from where.</figcaption></figure>
+        <figure><img src="{{img:docs/art/mockups/count_rhythm_src/today_last_item.png}}" alt="Today's count-up on the last Milk: the monitor shows only ×3 Multipack."><figcaption><span class="tag">Today</span> The last Milk pays €63 from Breakfast +5, Category engine +12 and Multipack ×3, but the monitor only shows "×3 Multipack".</figcaption></figure>
+      </div>
+    </div>
+  </section>
+</div>
+
+<script>
+const IMG = {
+  banana: "{{img:art/items_v2/banana.png}}",
+  strawberries: "{{img:art/items_v2/strawberries.png}}",
+  multipack: "{{img:art/icons/coupon_multipack_v2.png}}",
+  mini_banana: "{{img:art/minis/banana.png}}",
+  mini_strawberries: "{{img:art/minis/strawberries.png}}",
+  fruit: "{{img:art/icons/aisle_fruit_and_veg.png}}",
+  slot: "{{img:art/icons/perk_slot_engine.png}}",
+};
+const QUOTA = 73;
+// The loyalty card: x is the chip's centre in the top bar.
+const PERKS = [
+  { name: "Produce regulars", icon: "fruit", x: 937 },
+  { name: "Produce aisle run", icon: "fruit", x: 970, run: true },
+  { name: "Slot engine", icon: "slot", x: 1004 },
+];
+// The row as Scoring.score() steps it (BASE, FLAT..., MULTIPLIER..., PAYOUT).
+// src: "self" (the item's own rule: its ticket), "p0".."p2" (a perk), "c3" (the card in slot 3).
+const ITEMS = [
+  { name: "Strawberries", spr: "strawberries", mini: "mini_strawberries", base: 2, ticket: "+3 beside Produce",
+    steps: [{ src: "self", op: "+", v: 3, chip: "Beside", icon: "mini_strawberries", text: "Beside Produce" }] },
+  { name: "Banana", spr: "banana", mini: "mini_banana", base: 2, ticket: "+ the Banana before it",
+    steps: [{ src: "p0", op: "+", v: 1, chip: "Regulars", icon: "fruit", text: "Produce regulars: 1 Produce before" }] },
+  { name: "Banana", spr: "banana", mini: "mini_banana", base: 2, ticket: "+ the Banana before it",
+    steps: [
+      { src: "self", op: "+", v: 3, chip: "Chain", icon: "mini_banana", text: "Banana chain: the Banana before paid 3" },
+      { src: "p0", op: "+", v: 2, chip: "Regulars", icon: "fruit", text: "Produce regulars: 2 Produce before" },
+      { src: "p1", op: "×", v: 3, chip: "Aisle run", icon: "fruit", text: "Produce aisle run: 3 Produce in a row" },
+    ] },
+  { name: "Multipack", spr: "multipack", coupon: true, base: 0, ticket: "×3 later with prior's tag",
+    arm: { v: 3, text: "×3 to later Produce" }, steps: [] },
+  { name: "Banana", spr: "banana", mini: "mini_banana", base: 2, ticket: "+ the Banana before it",
+    steps: [
+      { src: "p0", op: "+", v: 3, chip: "Regulars", icon: "fruit", text: "Produce regulars: 3 Produce before" },
+      { src: "c3", op: "×", v: 3, chip: "Multipack", icon: "multipack", text: "Multipack: later Produce ×3" },
+    ] },
+  { name: "Banana", spr: "banana", mini: "mini_banana", base: 2, ticket: "+ the Banana before it",
+    steps: [
+      { src: "self", op: "+", v: 15, chip: "Chain", icon: "mini_banana", text: "Banana chain: the Banana before paid 15" },
+      { src: "p0", op: "+", v: 4, chip: "Regulars", icon: "fruit", text: "Produce regulars: 4 Produce before" },
+      { src: "c3", op: "×", v: 3, chip: "Multipack", icon: "multipack", text: "Multipack: later Produce ×3" },
+      { src: "p2", op: "×", v: 2, chip: "Slot 6", icon: "slot", text: "Slot engine: slot 6 pays ×2" },
+    ] },
+];
+for (const it of ITEMS) {
+  let price = it.base, mult = 1;
+  for (const s of it.steps) { if (s.op === "+") price += s.v; else mult *= s.v; }
+  it.pay = price * mult;
+}
+const SLOT_X = i => 369 + 128 * i;
+
+// ---------- beats ----------
+const BEATS = [];
+ITEMS.forEach((it, i) => {
+  BEATS.push({ type: "intro", i });
+  it.steps.forEach((s, k) => BEATS.push({ type: "step", i, k }));
+  if (it.arm) BEATS.push({ type: "arm", i });
+  BEATS.push({ type: "pay", i });
+});
+
+// ---------- dom helpers ----------
+const $ = id => document.getElementById(id);
+const el = (tag, cls, html) => { const e = document.createElement(tag); if (cls) e.className = cls; if (html !== undefined) e.innerHTML = html; return e; };
+const stage = $("stage"), fx = $("fx");
+const reduce = matchMedia("(prefers-reduced-motion: reduce)").matches;
+stage.style.setProperty("--backdrop", `url(${document.querySelector(".backdrop").src})`);
+function fit() { const w = $("stage-box").clientWidth; stage.style.transform = `scale(${w / 1280})`; }
+addEventListener("resize", fit); fit();
+const euro = n => `<i class="eu">€</i>${n}`;
+
+// ---------- state ----------
+let variant = "a", speed = 1, playing = true, token = 0, active = false, pendingStep = false, stepResolve = null, soundOn = false, actx = null;
+let total = 0, beatIndex = -1, met = false;
+let price = 0, mult = 1, nodes = {};
+
+function sleep(ms) {
+  const t = token;
+  return new Promise((res, rej) => setTimeout(() => (t === token ? res() : rej("abort")), ms / speed));
+}
+function gate() {
+  if (playing) return Promise.resolve();
+  if (pendingStep) { pendingStep = false; return Promise.resolve(); }
+  return new Promise(r => { stepResolve = r; });
+}
+function anim(node, frames, ms, opts = {}) {
+  if (reduce || !node) return { finished: Promise.resolve() };
+  return node.animate(frames, { duration: ms / speed, easing: "cubic-bezier(.2,.8,.3,1)", ...opts });
+}
+const wiggle = (n, ms = 260) => anim(n, [
+  { transform: "rotate(0) scale(1)" }, { transform: "rotate(-9deg) scale(1.14)" },
+  { transform: "rotate(7deg) scale(1.14)" }, { transform: "rotate(-3deg) scale(1.06)" }, { transform: "rotate(0) scale(1)" }], ms);
+const punch = (n, s = 1.25, ms = 200) => anim(n, [{ transform: "scale(1)" }, { transform: `scale(${s})` }, { transform: "scale(1)" }], ms);
+
+// ---------- sound ----------
+function beep(freq, ms = 70, type = "square", vol = .05) {
+  if (!soundOn || !actx) return;
+  const o = actx.createOscillator(), g = actx.createGain();
+  o.type = type; o.frequency.value = freq; g.gain.value = vol;
+  g.gain.exponentialRampToValueAtTime(.0001, actx.currentTime + ms / 1000);
+  o.connect(g).connect(actx.destination); o.start(); o.stop(actx.currentTime + ms / 1000);
+}
+const note = n => 440 * Math.pow(2, n / 12);
+
+// ---------- build the static scene ----------
+function buildScene() {
+  const perks = $("perks"); perks.innerHTML = "";
+  nodes.perks = PERKS.map(p => {
+    const d = el("div", "abs perk", `<img class="px" src="${IMG[p.icon]}" alt="">${p.run ? '<span class="x">×</span>' : ""}`);
+    d.style.left = (p.x - 14) + "px"; d.title = p.name; perks.append(d); return d;
+  });
+  const empty = el("div", "abs perk empty"); empty.style.left = "1024px"; perks.append(empty);
+
+  const belt = $("belt"); belt.innerHTML = "";
+  nodes.items = []; nodes.tickets = []; nodes.stickers = [];
+  ITEMS.forEach((it, i) => {
+    const t = el("div", "abs ticket" + (it.coupon ? " coupon" : ""),
+      `${it.coupon ? '<span class="cap">COUPON</span>' : ""}<span class="price">${euro(it.base)}</span>${it.ticket}`);
+    t.style.left = SLOT_X(i) + "px"; belt.append(t); nodes.tickets.push(t);
+    const d = el("div", "abs item" + (it.coupon ? " coupon" : ""), `<div class="brackets"></div><img class="spr px" src="${IMG[it.spr]}" alt="${it.name}">`);
+    d.style.left = SLOT_X(i) + "px";
+    const col = el("div", "stk-col"); d.append(col);
+    const stks = [];
+    it.steps.forEach(s => {
+      if (s.src === "self") { stks.push(null); return; }
+      const k = el("div", "stk " + (s.op === "+" ? "add" : "mul"), `<img class="px" src="${IMG[s.icon]}" alt="">${s.op === "+" ? "+" + s.v : "×" + s.v}`);
+      col.append(k); stks.push(k);
+    });
+    nodes.stickers.push(stks);
+    belt.append(d); nodes.items.push(d);
+  });
+
+  const lad = $("ladder"); lad.innerHTML = "";
+  for (let k = 0; k < 8; k++) { const b = el("i"); b.style.height = (6 + k * 1.7) + "px"; lad.append(b); }
+  buildSheet();
+}
+
+function buildSheet() {
+  const sh = $("sheet"); sh.innerHTML = "";
+  nodes.sheetRows = []; nodes.sheetBeats = [];
+  ITEMS.forEach((it, i) => {
+    const r = el("div", "srow", `<img src="${IMG[it.spr]}" alt="">`);
+    const bs = el("div", "sbeats"); r.append(bs); sh.append(r); nodes.sheetRows.push(r);
+  });
+  BEATS.forEach(b => {
+    const it = ITEMS[b.i];
+    let txt, cls;
+    if (b.type === "intro") { txt = `${it.name} ${euro(it.base)}`; cls = ""; }
+    else if (b.type === "step") { const s = it.steps[b.k]; txt = `${s.op}${s.v} ${s.chip}`; cls = s.op === "+" ? "add" : "mul"; }
+    else if (b.type === "arm") { txt = `arms ×${it.arm.v}`; cls = "arm"; }
+    else { txt = `pays ${euro(it.pay)}`; cls = "pay"; }
+    const s = el("span", "sb " + cls, txt);
+    nodes.sheetRows[b.i].querySelector(".sbeats").append(s); nodes.sheetBeats.push(s);
+  });
+}
+
+function markBeat(n) {
+  beatIndex = n;
+  nodes.sheetBeats.forEach((s, k) => { s.classList.toggle("now", k === n); s.classList.toggle("past", k < n); });
+  const cur = n >= 0 && n < BEATS.length ? BEATS[n].i : -1;
+  nodes.sheetRows.forEach((r, k) => r.classList.toggle("now", k === cur));
+  $("status").textContent = n < 0 ? "Ready" : n >= BEATS.length ? `Done · ${euro(total)}` : `Beat ${n + 1} of ${BEATS.length}`;
+}
+
+// ---------- shared outputs ----------
+function setTotal(n) {
+  total = n;
+  $("co-num").innerHTML = `${n}<i class="eu">€</i>`;
+  $("tb-num").innerHTML = euro(n);
+  const frac = Math.min(n / QUOTA, 1);
+  $("tb-fill").style.width = (frac * 100) + "%";
+  [...$("ladder").children].forEach((b, k) => b.classList.toggle("on", k < Math.floor(frac * 8)));
+  const go = $("co-go"), badge = $("tb-badge");
+  if (n >= QUOTA) { go.textContent = `+${n - QUOTA}€`; go.classList.add("met"); badge.textContent = `+€${n - QUOTA}`; badge.classList.add("met"); $("tb-fill").classList.add("met"); }
+  else { go.textContent = `${QUOTA - n}€ to go`; go.classList.remove("met"); badge.textContent = `€${QUOTA - n} to go`; badge.classList.remove("met"); $("tb-fill").classList.remove("met"); }
+}
+async function rollTotal(to, ms) {
+  const from = total, steps = 10;
+  for (let k = 1; k <= steps; k++) { setTotal(Math.round(from + (to - from) * k / steps)); await sleep(ms / steps); }
+}
+function print(text, amount = "", cls = "") {
+  const rc = $("rc");
+  const l = el("div", "rc-line new " + cls); l.append(el("span", "", text), el("span", "", amount));
+  rc.append(l);
+  while (rc.children.length > 13) rc.firstChild.remove();
+}
+function popAt(x, y, html, cls, ms) {
+  const p = el("div", "abs pop " + cls, html); p.style.left = x + "px"; p.style.top = y + "px"; fx.append(p);
+  const a = anim(p, [
+    { transform: "translate(-50%,-50%) scale(.3)", opacity: 0 },
+    { transform: "translate(-50%,-50%) scale(1.18)", opacity: 1, offset: .18 },
+    { transform: "translate(-50%,-50%) scale(1)", opacity: 1, offset: .3 },
+    { transform: "translate(-50%,-70%) scale(1)", opacity: 1, offset: .8 },
+    { transform: "translate(-50%,-95%) scale(.9)", opacity: 0 }], ms, { easing: "linear" });
+  a.finished.then(() => p.remove()); if (reduce) setTimeout(() => p.remove(), ms / speed);
+}
+function fly(from, to, cls, ms = 240) {
+  const t = el("div", "abs token " + cls); t.style.left = (from[0] - 6) + "px"; t.style.top = (from[1] - 6) + "px"; fx.append(t);
+  const a = anim(t, [{ transform: "translate(0,0) scale(1)" }, { transform: `translate(${to[0] - from[0]}px,${to[1] - from[1]}px) scale(.6)` }], ms, { easing: "cubic-bezier(.5,0,.8,.4)" });
+  a.finished.then(() => t.remove()); if (reduce) t.remove();
+}
+function srcPoint(it, s, i) {
+  if (s.src === "self") return { node: nodes.tickets[i], at: [SLOT_X(i) + 53, 410] };
+  if (s.src[0] === "p") { const p = PERKS[+s.src[1]]; return { node: nodes.perks[+s.src[1]], at: [p.x, 76] }; }
+  const c = +s.src[1]; return { node: nodes.items[c].querySelector(".spr"), at: [SLOT_X(c) + 53, 262] };
+}
+
+// ---------- the monitor's item column, two layouts ----------
+const MON = {
+  a: {
+    target: op => (op === "+" ? [672, 136] : [738, 136]),
+    payTarget: [848, 118],
+    start(it) {
+      const c = $("col");
+      c.innerHTML = `<div class="a-name"><span>${it.name}</span><span class="res" id="m-res">${euro(it.base)}</span></div>
+        <div class="a-math"><div class="box price" id="m-price">${euro(it.base)}</div><span class="op">×</span><div class="box mult" id="m-mult">1</div><span class="lab">PRICE<br>× MULT</span></div>
+        <div class="chips" id="m-chips"><span class="chip base">${euro(it.base)} ticket</span></div>
+        <div class="caption" id="m-cap">${it.coupon ? "A coupon pays nothing itself" : "Comes in at its ticket price"}</div>`;
+    },
+    step(it, s) {
+      $("m-chips").querySelectorAll(".chip").forEach(c => c.classList.remove("now"));
+      const ch = el("span", "chip now " + (s.op === "+" ? "add" : "mul"), `<img class="px" src="${IMG[s.icon]}" alt="">${s.op}${s.v}`);
+      $("m-chips").append(ch); punch(ch, 1.3);
+      $("m-price").innerHTML = euro(price); $("m-mult").textContent = mult;
+      $("m-res").innerHTML = euro(price * mult);
+      punch(s.op === "+" ? $("m-price") : $("m-mult"), 1.22, 220);
+      const cap = $("m-cap"); cap.className = "caption"; cap.innerHTML = `<span class="src">${s.op}${s.v}</span> ${s.text}`;
+    },
+    arm(it) {
+      const cap = $("m-cap"); cap.className = "caption arm"; cap.innerHTML = `<span class="src">×${it.arm.v} armed</span> ${it.arm.text}`;
+      const ch = el("span", "chip now mul", `<img class="px" src="${IMG.multipack}" alt="">×${it.arm.v} later`); $("m-chips").append(ch); punch(ch, 1.3);
+    },
+    pay(it) {
+      $("m-chips").querySelectorAll(".chip").forEach(c => c.classList.remove("now"));
+      const r = $("m-res"); r.classList.add("paid"); r.innerHTML = euro(it.pay); punch(r, 1.35, 260);
+      const steps = it.steps.length;
+      $("m-cap").className = "caption";
+      $("m-cap").innerHTML = steps ? `<span class="src">Pays ${euro(it.pay)}</span> ${euro(price)} × ${mult}` : `<span class="src">Pays ${euro(it.pay)}</span>`;
+    },
+  },
+  b: {
+    target: () => [770, 96],
+    payTarget: [848, 118],
+    start(it) {
+      const c = $("col");
+      c.innerHTML = `<div class="b-head"><span class="b-name">${it.name}</span><span class="b-price base" id="m-bp">${euro(it.base)}</span></div>
+        <div class="b-rule"></div><div class="rows" id="m-rows"></div>`;
+      this.row(`<img class="px" src="${IMG[it.mini || "multipack"]}" alt="">`, it.coupon ? "Coupon" : "Ticket price", euro(it.base), "");
+    },
+    row(icon, text, amt, cls) {
+      const rows = $("m-rows");
+      rows.querySelectorAll(".row").forEach(r => r.classList.remove("now"));
+      const r = el("div", "row now " + cls, `${icon}<span>${text}</span><span class="amt">${amt}</span>`);
+      rows.append(r); anim(r, [{ opacity: 0, transform: "translateX(-8px)" }, { opacity: 1, transform: "none" }], 160);
+      return r;
+    },
+    step(it, s) {
+      this.row(`<img class="px" src="${IMG[s.icon]}" alt="">`, s.text.split(":")[0], `${s.op}${s.v}`, s.op === "+" ? "add" : "mul");
+      const p = $("m-bp"); p.classList.remove("base"); p.innerHTML = euro(price * mult); punch(p, 1.3, 220);
+    },
+    arm(it) { this.row(`<img class="px" src="${IMG.multipack}" alt="">`, it.arm.text, `×${it.arm.v}`, "mul"); },
+    pay(it) {
+      const r = this.row("", it.steps.length ? `Pays ${euro(price)} × ${mult}` : "Pays", euro(it.pay), "total");
+      const p = $("m-bp"); p.classList.remove("base"); p.innerHTML = euro(it.pay); punch(p, 1.35, 260);
+    },
+  },
+};
+
+// ---------- beats ----------
+async function doBeat(b, n) {
+  markBeat(n);
+  const it = ITEMS[b.i], mon = MON[variant];
+  if (b.type === "intro") {
+    nodes.items.forEach((d, k) => d.classList.toggle("up", k === b.i));
+    price = it.base; mult = 1;
+    const bay = $("bay");
+    bay.querySelectorAll("img,.beep,.bay-name").forEach(e => e.remove());
+    $("bay-head").textContent = `${ITEMS.length - b.i - 1} LEFT`;
+    const im = el("img", "px" + (it.coupon ? " coupon" : "")); im.src = IMG[it.spr]; im.alt = ""; bay.append(im);
+    bay.append(el("div", "abs beep", "BEEP!"), el("div", "abs bay-name", it.coupon ? "COUPON" : "PRODUCE"));
+    anim(im, [{ transform: "translateY(-30px)", opacity: 0 }, { transform: "none", opacity: 1 }], 180);
+    mon.start(it);
+    punch(nodes.tickets[b.i].querySelector(".price"), 1.4, 220);
+    print(it.name, euro(it.base) + ".00");
+    beep(note(-5), 50);
+    await sleep(380);
+  } else if (b.type === "step") {
+    const s = it.steps[b.k];
+    const tempo = Math.max(260, 440 * Math.pow(.88, b.k));
+    if (s.op === "+") price += s.v; else mult *= s.v;
+    const src = srcPoint(it, s, b.i);
+    wiggle(src.node, 260);
+    const stk = nodes.stickers[b.i][b.k];
+    if (stk) { punch(stk, 1.35, 220); }
+    popAt(src.at[0], src.at[1], `${s.op}${s.v}<span class="lab">${s.chip}</span>`, s.op === "+" ? "add" : "mul", tempo + 380);
+    beep(note(b.k * 2), 60);
+    await sleep(110);
+    fly(src.at, mon.target(s.op), s.op === "+" ? "add" : "mul", 200);
+    await sleep(200);
+    mon.step(it, s);
+    if (stk) stk.classList.add("fired");
+    print(s.text.split(":")[0], `${s.op === "+" ? "+€" + s.v + ".00" : "×" + s.v}`, s.op === "+" ? "sub" : "mul");
+    await sleep(tempo - 310);
+  } else if (b.type === "arm") {
+    wiggle(nodes.items[b.i].querySelector(".spr"), 300);
+    popAt(SLOT_X(b.i) + 53, 262, `×${it.arm.v}<span class="lab">later Produce</span>`, "arm", 820);
+    // the stickers this coupon gave later items blink, so the link reads
+    ITEMS.forEach((o, k) => o.steps.forEach((s, j) => { if (s.src === "c" + b.i) punch(nodes.stickers[k][j], 1.3, 360); }));
+    mon.arm(it);
+    beep(note(3), 90, "triangle", .08);
+    await sleep(560);
+  } else {
+    const d = nodes.items[b.i];
+    mon.pay(it);
+    const tp = nodes.tickets[b.i].querySelector(".price");
+    tp.classList.add(it.pay ? "paid" : "zero"); tp.innerHTML = euro(it.pay); punch(tp, 1.5, 280);
+    if (it.pay !== it.base) nodes.tickets[b.i].append(el("span", "was", euro(it.base)));
+    if (it.steps.length) print("", `= €${it.pay}.00`, "eq");
+    beep(it.pay ? note(7 + it.steps.length * 2) : note(-9), 120, "square", .07);
+    if (it.pay) {
+      fly([SLOT_X(b.i) + 90, 420], MON[variant].payTarget, "pay", 260);
+      await sleep(260);
+      const before = total;
+      await rollTotal(total + it.pay, 320);
+      punch($("co-num"), 1.25, 220);
+      if (before < QUOTA && total >= QUOTA) await climax();
+    } else await sleep(200);
+    await sleep(160);
+    d.classList.remove("up"); d.classList.add("done");
+    await sleep(140);
+  }
+}
+async function climax() {
+  met = true;
+  const st = $("stamp");
+  beep(note(12), 160, "square", .06); setTimeout(() => beep(note(16), 160, "square", .06), 90 / speed); setTimeout(() => beep(note(19), 260, "square", .06), 180 / speed);
+  st.style.opacity = 1;
+  anim(st, [{ transform: "rotate(-7deg) scale(2.2)", opacity: 0 }, { transform: "rotate(-7deg) scale(.95)", opacity: 1, offset: .6 }, { transform: "rotate(-7deg) scale(1)", opacity: 1 }], 280);
+  anim(document.querySelector(".paper"), [{ background: "#fff8d0" }, { background: "#fbf7ee" }], 500);
+  await sleep(900);
+}
+
+// ---------- playback ----------
+function reset() {
+  fx.innerHTML = ""; $("rc").innerHTML = ""; $("col").innerHTML = ""; $("stamp").style.opacity = 0;
+  $("bay").querySelectorAll("img,.beep,.bay-name").forEach(e => e.remove()); $("bay-head").textContent = `${ITEMS.length} LEFT`;
+  buildScene(); setTotal(0); met = false; markBeat(-1);
+  $("col").innerHTML = `<div class="a-name"><span>Checkout</span></div><div class="caption" style="color:#8a8172">Press CHECKOUT: the row scans from slot 1.</div>`;
+}
+async function run() {
+  const t = ++token; active = true; reset();
+  if (stepResolve) { stepResolve(); stepResolve = null; }
+  try {
+    await sleep(500);
+    for (let n = 0; n < BEATS.length; n++) {
+      await gate(); if (t !== token) return;
+      await doBeat(BEATS[n], n);
+    }
+    markBeat(BEATS.length);
+    nodes.items.forEach(d => d.classList.remove("up"));
+    if (t === token) { active = false; setPlay(false); }
+  } catch (e) { /* restarted */ }
+}
+function setPlay(on) { playing = on; $("play").textContent = on ? "Pause" : "Play"; }
+$("play").onclick = () => {
+  if (!active) { setPlay(true); run(); return; }
+  setPlay(!playing);
+  if (playing && stepResolve) { stepResolve(); stepResolve = null; }
+};
+$("step").onclick = () => {
+  setPlay(false);
+  if (!active) { pendingStep = true; run(); return; }
+  if (stepResolve) { stepResolve(); stepResolve = null; } else pendingStep = true;
+};
+$("restart").onclick = () => { pendingStep = false; setPlay(true); run(); };
+function pick(ids, id) { ids.forEach(k => $(k).setAttribute("aria-pressed", k === id)); }
+$("v-a").onclick = () => { variant = "a"; pick(["v-a", "v-b"], "v-a"); pendingStep = false; setPlay(true); run(); };
+$("v-b").onclick = () => { variant = "b"; pick(["v-a", "v-b"], "v-b"); pendingStep = false; setPlay(true); run(); };
+[["s-05", .5], ["s-1", 1], ["s-2", 2]].forEach(([id, v]) => $(id).onclick = () => { speed = v; pick(["s-05", "s-1", "s-2"], id); });
+$("sound").onclick = () => {
+  soundOn = !soundOn; $("sound").setAttribute("aria-pressed", soundOn); $("sound").textContent = soundOn ? "Sound on" : "Sound off";
+  if (soundOn && !actx) { try { actx = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) { soundOn = false; } }
+};
+// Capture hooks (count_rhythm_src/stills.js): ?v=b&beat=N stops after beat N.
+const qs = new URLSearchParams(location.search);
+if (qs.get("v") === "b") { variant = "b"; pick(["v-a", "v-b"], "v-b"); }
+window.__beat = n => doBeat(BEATS[n], n).catch(() => {});
+if (qs.has("beat")) {
+  reduceToBeat(+qs.get("beat"));
+} else { run(); }
+async function reduceToBeat(target) {
+  speed = 8; const t = ++token; active = true; reset();
+  try { for (let n = 0; n <= target; n++) await doBeat(BEATS[n], n); } catch (e) {}
+  speed = 1; setPlay(false); active = false; document.body.dataset.ready = "1";
+}
+</script>
