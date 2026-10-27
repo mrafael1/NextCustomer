@@ -1,0 +1,621 @@
+<meta charset="utf-8">
+<title>Checkout Rhythm v2</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<style>
+/* Layout: the game screen first, its controls under it, then the beat sheet and the notes in one reading column. */
+@font-face { font-family: "Pixelify"; src: url({{font:fonts/PixelifySans-Variable.ttf}}) format("truetype"); font-weight: 400 700; }
+@font-face { font-family: "Atkinson"; src: url({{font:fonts/AtkinsonHyperlegibleNext-Variable.ttf}}) format("truetype"); font-weight: 200 800; }
+@font-face { font-family: "JBMono"; src: url({{font:fonts/JetBrainsMono-Regular.ttf}}) format("truetype"); }
+:root {
+  color-scheme: dark;
+  /* The game's own palette (ui/palette.gd). */
+  --bg: #172c2b; --panel: #1f3b3a; --panel-2: #2a4d4b;
+  --paper: #fbf7ee; --ink: #2b2420; --ink-soft: #4a3f38; --muted: #8a8172;
+  --fg: #ece0c6; --fg-soft: #c7beab;
+  --teal: #4f9a94; --teal-pale: #c3e0d4;
+  --gold: #ffcf3f; --mustard: #e2b33c; --mustard-light: #f1d27a; --mustard-pale: #faecbc; --mustard-dark: #b38425;
+  --tomato: #d9534f; --tomato-dark: #a83a3c; --good: #5fae5a; --green-dark: #3d7a45; --cream-shade: #ddcba5;
+  --charcoal: #24221f; --vfd: #7ff5d8; --vfd-dim: #1f5a4e; --glass: #0e1716;
+  --font-display: "Pixelify", "Courier New", monospace;
+  --font-body: "Atkinson", "Segoe UI", system-ui, sans-serif;
+  --font-mono: "JBMono", ui-monospace, "Consolas", monospace;
+}
+html, body { background: var(--bg); color: var(--fg); }
+body { font-family: var(--font-body); font-size: 15px; line-height: 1.5; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); padding-block: 20px 48px; }
+.wrap { max-width: 1280px; margin: 0 auto; display: flex; flex-direction: column; gap: 18px; }
+header { display: flex; flex-direction: column; gap: 6px; }
+.eyebrow { font-family: var(--font-display); font-size: 13px; letter-spacing: .12em; text-transform: uppercase; color: var(--mustard); }
+h1 { font-family: var(--font-display); font-weight: 700; font-size: clamp(28px, 4vw, 44px); line-height: 1.05; margin: 0; color: var(--paper); text-wrap: balance; }
+h2 { font-family: var(--font-display); font-weight: 600; font-size: 22px; margin: 0; color: var(--paper); text-wrap: balance; }
+p { margin: 0; max-width: 72ch; color: var(--fg-soft); }
+p strong, li strong { color: var(--paper); }
+.controls { display: flex; flex-wrap: wrap; gap: 10px 18px; align-items: center; }
+.group { display: flex; gap: 4px; align-items: center; flex-wrap: wrap; }
+.group > span { font-family: var(--font-display); font-size: 12px; letter-spacing: .1em; text-transform: uppercase; color: var(--fg-soft); margin-right: 4px; }
+button { font: 600 14px var(--font-body); color: var(--paper); background: var(--panel-2); border: 2px solid #3c6461; padding: 6px 12px; cursor: pointer; border-radius: 2px; }
+button:hover { border-color: #5fb0a8; }
+button:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
+button[aria-pressed="true"] { background: var(--mustard); color: var(--ink); border-color: var(--mustard-light); }
+button.primary { background: var(--tomato); border-color: #ec8a6e; }
+.status { font-family: var(--font-mono); font-size: 13px; color: var(--fg-soft); }
+
+/* Stage: the real capture, with the moving parts cropped from it */
+.stage-box { width: 100%; max-width: 100%; aspect-ratio: 16 / 9; position: relative; overflow: hidden; background: #000; border: 2px solid #0f1d1c; }
+.stage { position: absolute; left: 0; top: 0; width: 1280px; height: 720px; transform-origin: 0 0; color: var(--ink); }
+.abs { position: absolute; }
+.crop { position: absolute; background-size: 1280px 720px; background-repeat: no-repeat; image-rendering: pixelated; }
+.plan { background-image: var(--plan); }
+.after { background-image: var(--after); }
+.itemc { transform-origin: 50% 100%; transition: transform .14s ease-out; }
+.brk { border: 2px solid var(--gold); z-index: 5; pointer-events: none; clip-path: polygon(0 0,14px 0,14px 2px,2px 2px,2px 14px,0 14px,0 calc(100% - 14px),2px calc(100% - 14px),2px calc(100% - 2px),14px calc(100% - 2px),14px 100%,0 100%,0 0,100% 0,calc(100% - 14px) 0,calc(100% - 14px) 2px,calc(100% - 2px) 2px,calc(100% - 2px) 14px,100% 14px,100% calc(100% - 14px),calc(100% - 2px) calc(100% - 14px),calc(100% - 2px) calc(100% - 2px),calc(100% - 14px) calc(100% - 2px),calc(100% - 14px) 100%,100% 100%,100% 0); }
+.stkc { transform-origin: 50% 50%; z-index: 4; }
+.hot { filter: brightness(1.15) drop-shadow(0 0 0 #fff); }
+.mini { image-rendering: pixelated; }
+
+/* Top bar gauge (drawn over the capture's) */
+.tb-cover { left: 268px; top: 13px; width: 552px; height: 31px; background: var(--panel-2); }
+.gauge { left: 274px; top: 18px; width: 352px; height: 20px; background: var(--charcoal); box-shadow: inset 0 0 0 2px #171513; }
+.gfill { left: 2px; top: 2px; height: 16px; width: 0; background: var(--tomato); transition: width .3s steps(14); }
+.gfill.met { background: linear-gradient(90deg, var(--good) 0 var(--q), var(--mustard-light) var(--q)); }
+.notch { top: -6px; width: 3px; height: 32px; background: var(--paper); box-shadow: 0 0 0 1px #171513; }
+.flag { top: -10px; width: 14px; height: 10px; background: var(--paper); border: 1px solid #171513; font: 800 9px/9px var(--font-body); text-align: center; color: var(--green-dark); opacity: 0; }
+.gnum { left: 638px; top: 12px; font: 700 23px var(--font-display); color: var(--mustard-light); }
+.gbadge { left: 732px; top: 17px; width: 82px; height: 22px; background: var(--paper); border: 2px solid var(--tomato); color: var(--tomato); font: 800 13px/22px var(--font-body); text-align: center; box-sizing: border-box; line-height: 18px; }
+.gbadge.met { background: var(--mustard); border-color: var(--mustard-dark); color: var(--ink); }
+.gbig .gauge { box-shadow: inset 0 0 0 2px #171513, 0 0 0 2px var(--mustard-dark); }
+
+/* Receipt */
+.rc { left: 48px; top: 66px; width: 232px; height: 268px; background: var(--paper); overflow: hidden; display: flex; flex-direction: column; box-sizing: border-box; padding: 4px 8px 6px; }
+.rc-lines { flex: 1; display: flex; flex-direction: column; justify-content: flex-end; overflow: hidden; }
+.rc-line { font: 12.5px/19px var(--font-mono); color: var(--ink); display: flex; justify-content: space-between; white-space: pre; flex: none; }
+.rc-line.sub { padding-left: 14px; }
+.rc-line.perk { background: var(--mustard-pale); margin: 0 -4px; padding: 0 4px 0 18px; }
+.rc-line.eq { justify-content: flex-end; }
+.rc-line.met { color: var(--green-dark); font-weight: 700; justify-content: center; letter-spacing: .08em; }
+.rc-line.new { animation: print .2s steps(5); }
+@keyframes print { from { clip-path: inset(0 100% 0 0); } to { clip-path: inset(0 0 0 0); } }
+.rc-foot { flex: none; border-top: 2px dashed var(--cream-shade); margin-top: 4px; padding-top: 3px; display: none; }
+.t1 .rc-foot { display: block; }
+.rc-foot .row { display: flex; justify-content: space-between; align-items: baseline; font: 700 13px var(--font-mono); }
+.rc-foot .big { font: 700 22px var(--font-display); color: var(--ink); }
+.rc-foot .q { font: 12px var(--font-mono); color: var(--tomato-dark); display: flex; justify-content: space-between; }
+.rc-foot .q.met { color: var(--green-dark); font-weight: 700; }
+.rc-stamp { left: 96px; top: 230px; padding: 0 10px; font: 700 26px var(--font-display); color: var(--green-dark); border: 3px solid var(--green-dark); transform: rotate(-8deg); opacity: 0; z-index: 8; background: rgba(251,247,238,.85); }
+
+/* Monitor (the TOTAL column is gone: the item column takes its room) */
+.paper-cover { left: 613px; top: 77px; width: 284px; height: 154px; background: var(--paper); }
+.bay-item { left: 509px; top: 100px; width: 96px; height: 96px; image-rendering: pixelated; }
+.bay-item.coupon { width: 80px; height: 56px; left: 515px; top: 122px; }
+.bay-head { left: 501px; top: 81px; width: 108px; height: 14px; background: #172c2b; color: var(--paper); font: 700 11px/14px var(--font-display); letter-spacing: .14em; padding-left: 6px; box-sizing: border-box; }
+.beep { left: 504px; top: 116px; background: var(--tomato); color: var(--paper); font: 700 12px var(--font-display); padding: 0 4px; transform: rotate(-10deg); border: 1px solid var(--paper); z-index: 3; }
+.bay-strip { left: 505px; top: 203px; width: 100px; height: 20px; box-sizing: border-box; border: 2px solid var(--ink); background: var(--good); color: var(--ink); font: 800 12px/16px var(--font-body); text-align: center; letter-spacing: .04em; }
+.bay-strip.coupon { background: var(--paper); color: var(--teal); }
+.col { left: 621px; top: 82px; width: 270px; height: 145px; }
+.c-head { display: flex; align-items: center; gap: 6px; height: 28px; }
+.c-name { font: 700 22px var(--font-display); color: var(--ink); }
+.c-head .mini { width: 18px; height: 18px; }
+.c-eff { font: 800 13px/15px var(--font-body); color: var(--ink-soft); height: 15px; white-space: nowrap; overflow: hidden; }
+.burst { margin-left: auto; position: relative; height: 30px; min-width: 58px; padding: 0 12px; display: flex; align-items: center; justify-content: center; font: 800 18px var(--font-body); color: var(--ink); background: var(--ink); clip-path: polygon(0 50%, 7% 18%, 13% 30%, 20% 0, 30% 22%, 40% 4%, 50% 22%, 60% 4%, 70% 22%, 80% 0, 87% 30%, 93% 18%, 100% 50%, 93% 82%, 87% 70%, 80% 100%, 70% 78%, 60% 96%, 50% 78%, 40% 96%, 30% 78%, 20% 100%, 13% 70%, 7% 82%); }
+.burst::before { content: ""; position: absolute; inset: 2px 3px; background: var(--gold); clip-path: inherit; }
+.burst span { position: relative; }
+.burst.base::before { background: var(--paper); }
+.c-rule { height: 2px; margin: 4px 0 3px; background: repeating-linear-gradient(90deg, var(--cream-shade) 0 4px, transparent 4px 8px); }
+.lines { display: flex; flex-direction: column; gap: 1px; }
+.ln { display: grid; grid-template-columns: 20px 1fr auto; gap: 5px; align-items: center; height: 18px; font: 800 13.5px var(--font-body); color: var(--ink); padding: 0 3px; }
+.ln .mk { width: 20px; height: 18px; overflow: hidden; display: flex; align-items: center; justify-content: center; color: var(--green-dark); font-weight: 800; }
+.ln .amt { font: 800 14px var(--font-body); }
+.ln.add .amt { color: var(--mustard-dark); }
+.ln.mul .amt { color: var(--mustard-dark); }
+.ln.now { background: var(--mustard-pale); }
+.ln.pay { border-top: 2px solid var(--ink); }
+.ln.pay .amt { color: var(--ink); font-size: 15px; }
+.ln.arm .amt { color: var(--teal); }
+.ln.idle { color: var(--muted); font-weight: 700; grid-template-columns: 1fr; }
+
+/* Effects */
+.gun { font: 700 19px var(--font-display); color: var(--paper); text-shadow: 2px 0 0 var(--ink), -2px 0 0 var(--ink), 0 2px 0 var(--ink), 0 -2px 0 var(--ink), 2px 2px 0 var(--ink); z-index: 30; pointer-events: none; white-space: nowrap; transform: translate(-50%, -50%); }
+.gun.mul { color: var(--gold); }
+.dust { width: 4px; height: 4px; background: var(--paper); box-shadow: 0 0 0 1px var(--ink); z-index: 29; pointer-events: none; }
+.coin { width: 10px; height: 10px; background: var(--gold); box-shadow: 0 0 0 2px var(--ink); border-radius: 1px; z-index: 31; pointer-events: none; }
+.chipfly { font: 800 14px var(--font-body); background: var(--gold); color: var(--ink); border: 2px solid var(--ink); padding: 0 4px; z-index: 31; pointer-events: none; white-space: nowrap; }
+.rail { opacity: 0; left: 760px; top: 398px; height: 12px; width: 0; background: linear-gradient(90deg, rgba(255,207,63,0), rgba(255,236,150,.95)); mix-blend-mode: screen; z-index: 3; pointer-events: none; }
+
+/* T2: the register display over the CHECKOUT key */
+.reg { left: 24px; top: 427px; width: 292px; height: 76px; background: var(--glass); box-shadow: inset 0 0 0 2px #050908, 0 0 0 2px #3d3a36; display: none; overflow: hidden; }
+.t2 .reg { display: block; }
+.reg::after { content: ""; position: absolute; inset: 0; background: repeating-linear-gradient(0deg, rgba(0,0,0,.18) 0 1px, transparent 1px 3px); pointer-events: none; }
+.vfd-lab { left: 10px; top: 6px; font: 700 12px var(--font-display); letter-spacing: .2em; color: var(--vfd-dim); }
+.vfd-lab b { color: var(--vfd); font-weight: 700; }
+.vfd-num { right: 12px; top: 2px; font: 700 46px/56px var(--font-display); color: var(--vfd); text-shadow: 0 0 6px rgba(127,245,216,.55); letter-spacing: .02em; }
+.vfd-num .ghost { color: var(--vfd-dim); text-shadow: none; }
+.vfd-sub { left: 10px; bottom: 5px; font: 700 12px var(--font-display); color: var(--vfd); letter-spacing: .12em; }
+.vfd-sub.short { color: #f5a07f; }
+.vfd-msg { inset: 0; display: flex; align-items: center; justify-content: center; font: 700 34px var(--font-display); color: var(--vfd); letter-spacing: .12em; text-shadow: 0 0 8px rgba(127,245,216,.7); background: var(--glass); opacity: 0; z-index: 2; }
+.drawer { left: 12px; top: 618px; width: 316px; height: 82px; }
+
+/* Beat sheet */
+.sheet { display: flex; flex-direction: column; gap: 6px; }
+.srow { display: grid; grid-template-columns: 34px minmax(0, 1fr); gap: 10px; align-items: center; padding: 4px 8px; background: var(--panel); border: 2px solid transparent; }
+.srow.now { border-color: var(--mustard); }
+.srow img { width: 32px; height: 32px; object-fit: contain; image-rendering: pixelated; }
+.sbeats { display: flex; flex-wrap: wrap; gap: 4px; align-items: center; min-width: 0; }
+.sb { font: 600 13px var(--font-mono); padding: 1px 6px; background: var(--panel-2); color: var(--fg-soft); border: 1px solid #3c6461; white-space: nowrap; }
+.sb.give { color: var(--mustard-light); }
+.sb.pay { color: var(--paper); background: #3a3420; border-color: var(--mustard-dark); }
+.sb.now { background: var(--mustard); color: var(--ink); border-color: var(--gold); }
+.sb.past { opacity: .55; }
+.cols { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 18px 28px; }
+.cols > section { display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+ol, ul { margin: 0; padding-left: 20px; display: flex; flex-direction: column; gap: 6px; color: var(--fg-soft); max-width: 72ch; }
+.today { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 14px; }
+figure { margin: 0; display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+figure img { width: 100%; border: 2px solid #0f1d1c; }
+figcaption { font-size: 13px; color: var(--fg-soft); }
+.tag { display: inline-block; font: 700 11px var(--font-display); letter-spacing: .1em; text-transform: uppercase; padding: 1px 6px; background: var(--panel-2); color: var(--mustard); }
+.eu { font-family: var(--font-body); font-style: normal; font-weight: 800; font-size: .8em; }
+@media (prefers-reduced-motion: reduce) { .itemc, .gfill { transition: none; } .rc-line.new { animation: none; } }
+</style>
+
+<div class="wrap">
+  <header>
+    <div class="eyebrow">Next Customer · count-up mock-up · v2</div>
+    <h1>Checkout rhythm</h1>
+    <p>The same banana row on the game's own art: the belt items, stickers, tickets, loyalty perks and register are cropped from a real capture and moved, and only the monitor, the receipt and the totals are drawn. Each bonus fires from its giver and the price gun re-stamps its sticker. The monitor keeps every line of the item, and the TOTAL leaves the monitor. Switch between the two places the total can go.</p>
+  </header>
+
+  <div class="controls">
+    <div class="group" role="group" aria-label="Where the total goes">
+      <span>Total</span>
+      <button id="t-1" aria-pressed="true">1 · Receipt + gauge</button>
+      <button id="t-2" aria-pressed="false">2 · Register display</button>
+    </div>
+    <div class="group" role="group" aria-label="Playback">
+      <button id="play" class="primary">Pause</button>
+      <button id="step">Next beat</button>
+      <button id="restart">Restart</button>
+    </div>
+    <div class="group" role="group" aria-label="Speed">
+      <span>Speed</span>
+      <button id="s-05" aria-pressed="false">½×</button>
+      <button id="s-1" aria-pressed="true">1×</button>
+      <button id="s-2" aria-pressed="false">2×</button>
+    </div>
+    <div class="group"><button id="sound" aria-pressed="false">Sound off</button></div>
+    <div class="status" id="status" aria-live="polite"></div>
+  </div>
+
+  <div class="stage-box" id="stage-box">
+    <div class="stage t1" id="stage">
+      <img class="abs" style="left:0;top:0;width:1280px;height:720px" id="plan-img" src="{{img:docs/art/mockups/count_rhythm_src/v2_planning.png}}" alt="">
+      <img hidden id="after-img" src="{{img:docs/art/mockups/count_rhythm_src/v2_today_last.png}}" alt="">
+      <!-- the register before the count (CHECKOUT dimmed), the bay's empty screen -->
+      <div class="crop after" style="left:0;top:400px;width:340px;height:320px;background-position:0 -400px"></div>
+      <div class="crop after" style="left:499px;top:79px;width:112px;height:150px;background-position:-499px -79px"></div>
+      <div class="abs tb-cover"></div>
+      <div class="abs gauge" id="gauge"><div class="abs gfill" id="gfill"></div><div class="abs notch" id="notch"></div><div class="abs flag" id="flag">✓</div></div>
+      <div class="abs gnum" id="gnum"></div>
+      <div class="abs gbadge" id="gbadge"></div>
+      <div class="abs rc" id="rc"><div class="rc-lines" id="rc-lines"></div>
+        <div class="rc-foot" id="rc-foot"><div class="row"><span>SUBTOTAL</span><span class="big" id="rc-sub">€0</span></div><div class="q" id="rc-q"><span>SPEND €73</span><span id="rc-go">€73 to go</span></div></div>
+      </div>
+      <div class="abs rc-stamp" id="rc-stamp">SPEND MET</div>
+      <div class="abs paper-cover"></div>
+      <div id="bay"></div>
+      <div class="abs col" id="col"></div>
+      <div class="abs reg" id="reg">
+        <div class="abs vfd-lab">TOTAL</div>
+        <div class="abs vfd-num" id="vfd-num"></div>
+        <div class="abs vfd-sub short" id="vfd-sub"></div>
+        <div class="abs vfd-msg" id="vfd-msg">SPEND MET</div>
+      </div>
+      <div class="crop after drawer" id="drawer" style="background-position:-12px -618px"></div>
+      <div id="belt"></div>
+      <div class="abs rail" id="rail"></div>
+      <div class="abs brk" id="brk" style="display:none"></div>
+      <div id="fx"></div>
+    </div>
+  </div>
+
+  <section class="sheet" id="sheet" aria-label="Beat sheet"></section>
+
+  <div class="cols">
+    <section>
+      <h2>The rhythm</h2>
+      <ol>
+        <li><strong>The item steps up.</strong> It lifts on the belt, the scanner beeps, and the monitor shows it with its effect.</li>
+        <li><strong>Each bonus fires from its giver.</strong> A loyalty perk flips in the top bar. The Multipack hops and its brass rail lights up to the item. For a Banana chain, the Banana before it hops. Then the price gun re-stamps the sticker it gave, with a little dust, and its amount floats off the sticker.</li>
+        <li><strong>The monitor adds a line per bonus</strong> and never drops one: giver, name, amount. The gold price ticks up on each line. Five lines fit in the wider column; a sixth would fold the earliest adds into one "+N earlier" line.</li>
+        <li><strong>The item pays.</strong> Its ticket's price punches, the item hops into the bag, and the money leaves for the total, wherever the total lives.</li>
+        <li><strong>The scanner beep climbs a note per bonus</strong> and the pay rings like a till. The spend ding happens where the total is, so the monitor never gets covered.</li>
+      </ol>
+    </section>
+    <section>
+      <h2>Where the total goes</h2>
+      <ul>
+        <li><strong>1 · Receipt + gauge.</strong> The monitor has no TOTAL. The receipt keeps a SUBTOTAL foot under the printing lines, and each pay flies a "+€N" chip into the top-bar gauge. At the spend, the gauge's flag flips, the bar turns green, and the receipt gets a SPEND MET stamp.</li>
+        <li><strong>2 · Register display.</strong> During the count the CHECKOUT key (unusable then anyway) becomes the register's customer display, with a big total and the spend line under it. Each pay drops coins into the cash drawer. At the spend, the display flashes SPEND MET and the drawer kicks open. The top-bar gauge follows quietly, as it does today.</li>
+      </ul>
+      <h2>Open questions</h2>
+      <ul>
+        <li>Which home for the total, 1 or 2? Could they combine (the receipt foot without the gauge chip)?</li>
+        <li>Here items lift where they stand and hop into the bag once paid. Should they keep riding to the scanner end of the belt instead?</li>
+      </ul>
+    </section>
+  </div>
+
+  <section style="display:flex;flex-direction:column;gap:10px">
+    <h2>Today, the same row</h2>
+    <div class="today">
+      <figure><img src="{{img:docs/art/mockups/count_rhythm_src/v2_today_mid.png}}" alt="Today's count-up at 3 seconds."><figcaption><span class="tag">Today · 3 s</span> Several stickers, the receipt and the monitor change at once. The monitor keeps one line: "×3 Produce aisle run".</figcaption></figure>
+      <figure><img src="{{img:docs/art/mockups/count_rhythm_src/v2_today_climax.png}}" alt="Today's spend climax covering the monitor."><figcaption><span class="tag">Today · 6 s</span> The SPEND MET climax covers the whole monitor while the last Banana is still counting.</figcaption></figure>
+      <figure><img src="{{img:docs/art/mockups/count_rhythm_src/v2_today_last.png}}" alt="Today's end of count: the last Banana shows only ×2 Slot engine."><figcaption><span class="tag">Today · 8 s</span> The last Banana pays €126 from four bonuses, and the monitor shows "×2 Slot engine".</figcaption></figure>
+    </div>
+  </section>
+</div>
+
+<script>
+const IMG = {
+  banana: "{{img:art/items_v2/banana.png}}",
+  strawberries: "{{img:art/items_v2/strawberries.png}}",
+  multipack: "{{img:art/icons/coupon_multipack_v2.png}}",
+  fruit: "{{img:art/icons/aisle_fruit_and_veg.png}}",
+};
+const QUOTA = 73;
+const $ = id => document.getElementById(id);
+const stage = $("stage"), fx = $("fx");
+stage.style.setProperty("--plan", `url(${$("plan-img").src})`);
+stage.style.setProperty("--after", `url(${$("after-img").src})`);
+const reduce = matchMedia("(prefers-reduced-motion: reduce)").matches;
+function fit() { stage.style.transform = `scale(${$("stage-box").clientWidth / 1280})`; }
+addEventListener("resize", fit); fit();
+const euro = n => `<i class="eu">€</i>${n}`;
+const el = (tag, cls, html) => { const e = document.createElement(tag); if (cls) e.className = cls; if (html !== undefined) e.innerHTML = html; return e; };
+function crop(src, r, cls = "") {
+  const d = el("div", `crop ${src} ${cls}`);
+  Object.assign(d.style, { left: r[0] + "px", top: r[1] + "px", width: r[2] + "px", height: r[3] + "px", backgroundPosition: `-${r[0]}px -${r[1]}px` });
+  return d;
+}
+
+// Rects in the capture (stage px). Perks: the loyalty card's chips.
+const PERKS = [
+  { name: "Produce regulars", rect: [923, 14, 28, 28] },
+  { name: "Produce aisle run", rect: [956, 14, 28, 28] },
+  { name: "Slot engine", rect: [990, 14, 28, 28] },
+];
+// Badges cropped from the stickers, for the monitor's lines.
+const BADGE = { fruit: [562, 344, 20, 20], mu: [1078, 302, 20, 20], slot: [1075, 342, 20, 20] };
+// The row as Scoring.score() steps it. giver: "p0".."p2" a perk, "c3" the card in slot 3, "prev"
+// the Banana before it, "next" the item after it. stk: the sticker's rect on the belt.
+const ITEMS = [
+  { name: "Strawberries", spr: "strawberries", base: 2, eff: "+3 beside Produce", rect: [372, 282, 134, 100],
+    steps: [{ giver: "next", op: "+", v: 3, name: "Beside Produce", mark: "✓", stk: [452, 341, 52, 30] }] },
+  { name: "Banana", spr: "banana", base: 2, eff: "+prev after Banana", rect: [504, 270, 130, 110],
+    steps: [{ giver: "p0", op: "+", v: 1, name: "Produce regulars", badge: "fruit", stk: [558, 340, 74, 31] }] },
+  { name: "Banana", spr: "banana", base: 2, eff: "+prev after Banana", rect: [630, 270, 140, 112],
+    steps: [
+      { giver: "prev", op: "+", v: 3, name: "Banana chain", mark: "✓", stk: [705, 275, 58, 30] },
+      { giver: "p0", op: "+", v: 2, name: "Produce regulars", badge: "fruit", stk: [690, 303, 75, 29] },
+      { giver: "p1", op: "×", v: 3, name: "Produce aisle run", badge: "fruit", stk: [683, 333, 95, 37] },
+    ] },
+  { name: "Multipack", spr: "multipack", coupon: true, base: 0, eff: "×3 later with prior's tag", rect: [770, 318, 82, 64],
+    arm: "×3 to later Produce", steps: [] },
+  { name: "Banana", spr: "banana", base: 2, eff: "+prev after Banana", rect: [884, 280, 144, 102],
+    steps: [
+      { giver: "p0", op: "+", v: 3, name: "Produce regulars", badge: "fruit", stk: [946, 303, 76, 31] },
+      { giver: "c3", op: "×", v: 3, name: "Multipack", badge: "mu", stk: [938, 333, 92, 37] },
+    ] },
+  { name: "Banana", spr: "banana", base: 2, eff: "+prev after Banana", rect: [1010, 236, 154, 146],
+    steps: [
+      { giver: "prev", op: "+", v: 15, name: "Banana chain", mark: "✓", stk: [1090, 238, 70, 32], folded: true },
+      { giver: "p0", op: "+", v: 4, name: "Produce regulars", badge: "fruit", stk: [1068, 264, 80, 31] },
+      { giver: "c3", op: "×", v: 3, name: "Multipack", badge: "mu", stk: [1071, 293, 92, 39] },
+      { giver: "p2", op: "×", v: 2, name: "Slot engine", badge: "slot", stk: [1068, 331, 94, 37] },
+    ] },
+];
+const TICKET_BURST = [[418, 410, 66, 40], [546, 410, 66, 40], [672, 410, 70, 40], null, [928, 410, 70, 40], [1050, 405, 82, 44]];
+for (const it of ITEMS) {
+  let p = it.base, m = 1;
+  for (const s of it.steps) { if (s.op === "+") p += s.v; else m *= s.v; }
+  it.pay = p * m;
+}
+const center = r => [r[0] + r[2] / 2, r[1] + r[3] / 2];
+const BEATS = [];
+ITEMS.forEach((it, i) => {
+  BEATS.push({ type: "intro", i });
+  it.steps.forEach((s, k) => BEATS.push({ type: "step", i, k }));
+  if (it.arm) BEATS.push({ type: "arm", i });
+  BEATS.push({ type: "pay", i });
+});
+
+let homeTotal = 1, speed = 1, playing = true, token = 0, active = false, pendingStep = false, stepResolve = null, soundOn = false, actx = null;
+let total = 0, met = false, price = 0, mult = 1, nodes = {};
+function sleep(ms) { const t = token; return new Promise((res, rej) => setTimeout(() => (t === token ? res() : rej("abort")), ms / speed)); }
+function gate() {
+  if (playing) return Promise.resolve();
+  if (pendingStep) { pendingStep = false; return Promise.resolve(); }
+  return new Promise(r => { stepResolve = r; });
+}
+function anim(n, frames, ms, opts = {}) {
+  if (reduce || !n) return { finished: Promise.resolve() };
+  return n.animate(frames, { duration: ms / speed, easing: "cubic-bezier(.2,.8,.3,1)", ...opts });
+}
+const hop = (n, ms = 260) => anim(n, [{ transform: "translateY(0)" }, { transform: "translateY(-12px) rotate(-3deg)" }, { transform: "translateY(0) rotate(2deg)" }, { transform: "none" }], ms);
+const flip = (n, ms = 320) => anim(n, [{ transform: "scaleX(1)" }, { transform: "scaleX(-1) scale(1.25)" }, { transform: "scaleX(1) scale(1.25)" }, { transform: "scale(1)" }], ms);
+const punch = (n, s = 1.25, ms = 200) => anim(n, [{ transform: "scale(1)" }, { transform: `scale(${s})` }, { transform: "scale(1)" }], ms);
+const stamp = (n, ms = 220) => anim(n, [{ transform: "scale(1.55)", filter: "brightness(1.3)" }, { transform: "scale(.94)", filter: "brightness(1.1)", offset: .55 }, { transform: "scale(1)", filter: "none" }], ms, { easing: "cubic-bezier(.6,0,.4,1)" });
+
+function tone(freq, ms = 70, type = "square", vol = .045, at = 0) {
+  if (!soundOn || !actx) return;
+  const o = actx.createOscillator(), g = actx.createGain(), t0 = actx.currentTime + at;
+  o.type = type; o.frequency.value = freq; g.gain.setValueAtTime(vol, t0);
+  g.gain.exponentialRampToValueAtTime(.0001, t0 + ms / 1000);
+  o.connect(g).connect(actx.destination); o.start(t0); o.stop(t0 + ms / 1000);
+}
+const note = n => 880 * Math.pow(2, n / 12);
+const kaching = () => { tone(note(7), 60, "triangle", .07); tone(note(12), 160, "triangle", .07, .06); };
+
+function buildScene() {
+  const belt = $("belt"); belt.innerHTML = "";
+  nodes.items = []; nodes.stickers = []; nodes.bursts = [];
+  ITEMS.forEach((it, i) => {
+    belt.append(crop("after", it.rect));
+    const c = crop("plan", it.rect, "itemc"); belt.append(c); nodes.items.push(c);
+    nodes.stickers.push(it.steps.map(s => { const k = crop("plan", s.stk, "stkc"); belt.append(k); return k; }));
+    if (TICKET_BURST[i]) { const b = crop("plan", TICKET_BURST[i], "stkc"); belt.append(b); nodes.bursts.push(b); } else nodes.bursts.push(null);
+  });
+  nodes.perks = PERKS.map(p => { const d = crop("plan", p.rect, "stkc"); belt.append(d); return d; });
+  $("notch").style.left = (2 + 348 * QUOTA / 180) + "px";
+  $("flag").style.left = (2 + 348 * QUOTA / 180 - 6) + "px";
+  $("gfill").style.setProperty("--q", (100 * QUOTA / 180) + "%");
+  buildSheet();
+}
+function buildSheet() {
+  const sh = $("sheet"); sh.innerHTML = ""; nodes.sheetRows = []; nodes.sheetBeats = [];
+  ITEMS.forEach(it => { const r = el("div", "srow", `<img src="${IMG[it.spr]}" alt="">`); r.append(el("div", "sbeats")); sh.append(r); nodes.sheetRows.push(r); });
+  BEATS.forEach(b => {
+    const it = ITEMS[b.i]; let txt, cls = "";
+    if (b.type === "intro") txt = `${it.name} €${it.base}`;
+    else if (b.type === "step") { const s = it.steps[b.k]; txt = `${s.op}${s.v} ${s.name}`; cls = "give"; }
+    else if (b.type === "arm") { txt = "arms ×3"; cls = "give"; }
+    else { txt = `pays €${it.pay}`; cls = "pay"; }
+    const s = el("span", "sb " + cls, txt); nodes.sheetRows[b.i].lastChild.append(s); nodes.sheetBeats.push(s);
+  });
+}
+function markBeat(n) {
+  nodes.sheetBeats.forEach((s, k) => { s.classList.toggle("now", k === n); s.classList.toggle("past", k < n); });
+  const cur = n >= 0 && n < BEATS.length ? BEATS[n].i : -1;
+  nodes.sheetRows.forEach((r, k) => r.classList.toggle("now", k === cur));
+  $("status").textContent = n < 0 ? "Ready" : n >= BEATS.length ? `Done · €${total}` : `Beat ${n + 1} of ${BEATS.length}`;
+}
+
+// ---------- the total, in its two homes ----------
+function setTotal(n) {
+  total = n;
+  const frac = Math.min(n / 180, 1);
+  $("gfill").style.width = (348 * frac) + "px";
+  $("gfill").classList.toggle("met", n >= QUOTA);
+  $("gnum").innerHTML = euro(n);
+  const gb = $("gbadge"); gb.classList.toggle("met", n >= QUOTA); gb.innerHTML = n >= QUOTA ? `+${euro(n - QUOTA)}` : `${euro(QUOTA - n)} to go`;
+  $("rc-sub").innerHTML = euro(n);
+  const q = $("rc-q"); q.classList.toggle("met", n >= QUOTA);
+  $("rc-go").innerHTML = n >= QUOTA ? `✓ +€${n - QUOTA}` : `€${QUOTA - n} to go`;
+  $("vfd-num").innerHTML = `<span class="eu" style="font-size:.6em">€</span>${n}`;
+  const vs = $("vfd-sub"); vs.classList.toggle("short", n < QUOTA);
+  vs.textContent = n >= QUOTA ? `SPEND 73 ✓  +${n - QUOTA} OVER` : `SPEND 73  ·  ${QUOTA - n} TO GO`;
+}
+async function rollTotal(to, ms) {
+  const from = total, n = 8;
+  for (let k = 1; k <= n; k++) { setTotal(Math.round(from + (to - from) * k / n)); await sleep(ms / n); }
+}
+function print(text, amount = "", cls = "") {
+  const box = $("rc-lines");
+  const l = el("div", "rc-line new " + cls); l.append(el("span", "", text), el("span", "", amount)); box.append(l);
+  while (box.children.length > (homeTotal === 1 ? 10 : 13)) box.firstChild.remove();
+}
+function gun(at, text, cls) {
+  const g = el("div", "abs gun " + cls, text); g.style.left = at[0] + "px"; g.style.top = at[1] + "px"; fx.append(g);
+  const a = anim(g, [{ transform: "translate(-50%,-50%) scale(.6)", opacity: 0 }, { transform: "translate(-50%,-90%) scale(1.15)", opacity: 1, offset: .2 }, { transform: "translate(-50%,-150%) scale(1)", opacity: 1, offset: .75 }, { transform: "translate(-50%,-190%) scale(1)", opacity: 0 }], 700, { easing: "linear" });
+  a.finished.then(() => g.remove()); if (reduce) setTimeout(() => g.remove(), 700);
+  for (let k = 0; k < 4; k++) {
+    const d = el("div", "abs dust"); d.style.left = at[0] + "px"; d.style.top = (at[1] + 6) + "px"; fx.append(d);
+    const dx = (k - 1.5) * 16, dy = (k % 2 ? -8 : 6);
+    anim(d, [{ transform: "translate(0,0)", opacity: 1 }, { transform: `translate(${dx}px,${dy}px)`, opacity: 0 }], 260).finished.then(() => d.remove());
+    if (reduce) d.remove();
+  }
+}
+function flyChip(from, to, html, ms = 380) {
+  const c = el("div", "abs chipfly", html); c.style.left = from[0] + "px"; c.style.top = from[1] + "px"; fx.append(c);
+  const a = anim(c, [{ transform: "translate(-50%,-50%) scale(1)" }, { transform: `translate(calc(-50% + ${(to[0] - from[0]) * .5}px), calc(-50% + ${(to[1] - from[1]) * .5 - 50}px)) scale(1.1)`, offset: .5 }, { transform: `translate(calc(-50% + ${to[0] - from[0]}px), calc(-50% + ${to[1] - from[1]}px)) scale(.7)` }], ms, { easing: "ease-in" });
+  a.finished.then(() => c.remove()); if (reduce) c.remove();
+}
+function coins(from, to, n = 5) {
+  for (let k = 0; k < n; k++) {
+    const c = el("div", "abs coin"); c.style.left = (from[0] + (k - 2) * 6) + "px"; c.style.top = from[1] + "px"; fx.append(c);
+    const a = anim(c, [{ transform: "translate(0,0)" }, { transform: `translate(${(to[0] - from[0]) * .5}px, ${-40 - k * 6}px)`, offset: .4 }, { transform: `translate(${to[0] - from[0] - (k - 2) * 6}px, ${to[1] - from[1]}px)` }], 420 + k * 40, { easing: "ease-in" });
+    a.finished.then(() => c.remove()); if (reduce) c.remove();
+  }
+}
+function giverNode(it, s, i) {
+  if (s.giver[0] === "p") return nodes.perks[+s.giver[1]];
+  if (s.giver === "prev") return nodes.items[i - 1];
+  if (s.giver === "next") return nodes.items[i + 1];
+  return nodes.items[+s.giver[1]];
+}
+function badgeHtml(key) {
+  const r = BADGE[key];
+  return `<span class="crop plan" style="position:relative;display:inline-block;width:${r[2]}px;height:${r[3]}px;background-position:-${r[0]}px -${r[1]}px;transform:scale(.85)"></span>`;
+}
+
+// ---------- the monitor's item column ----------
+const MON = {
+  start(it) {
+    $("col").innerHTML = `<div class="c-head"><span class="c-name">${it.name}</span>${it.coupon ? "" : `<img class="mini" src="${IMG.fruit}" alt="">`}<span class="burst base" id="m-burst"><span>${euro(it.base)}</span></span></div>
+      <div class="c-eff">${it.eff}</div><div class="c-rule"></div><div class="lines" id="m-lines"></div>`;
+    const bay = $("bay"); bay.innerHTML = "";
+    bay.append(el("div", "abs bay-head", `${ITEMS.length - ITEMS.indexOf(it) - 1} LEFT`));
+    const im = el("img", "abs bay-item" + (it.coupon ? " coupon" : "")); im.src = IMG[it.spr]; im.alt = ""; bay.append(im);
+    bay.append(el("div", "abs beep", "BEEP!"), el("div", "abs bay-strip" + (it.coupon ? " coupon" : ""), it.coupon ? "COUPON" : `PRODUCE`));
+    anim(im, [{ transform: "translateY(-24px)", opacity: 0 }, { transform: "none", opacity: 1 }], 180);
+    if (!it.steps.length && !it.arm) this.line("", "No bonus on this item", "", "idle");
+  },
+  line(mk, text, amt, cls) {
+    const box = $("m-lines");
+    box.querySelectorAll(".ln").forEach(l => l.classList.remove("now"));
+    const l = el("div", "ln now " + cls, `<span class="mk">${mk}</span><span>${text}</span><span class="amt">${amt}</span>`);
+    if (cls === "idle") l.innerHTML = `<span>${text}</span>`;
+    box.append(l); anim(l, [{ opacity: 0, transform: "translateX(-10px)" }, { opacity: 1, transform: "none" }], 160);
+  },
+  burst(n, big) {
+    const b = $("m-burst"); b.classList.remove("base"); b.innerHTML = `<span>${euro(n)}</span>`; punch(b, big ? 1.4 : 1.22, 220);
+  },
+};
+
+// ---------- beats ----------
+async function doBeat(b, n) {
+  markBeat(n);
+  const it = ITEMS[b.i];
+  if (b.type === "intro") {
+    const bk = $("brk"), r = it.rect;
+    Object.assign(bk.style, { left: (r[0] - 2) + "px", top: (r[1] - 2) + "px", width: (r[2] + 4) + "px", height: (r[3] + 6) + "px", display: "block" });
+    punch(bk, 1.06, 180);
+    hop(nodes.items[b.i], 240); nodes.stickers[b.i].forEach(k => hop(k, 240));
+    price = it.base; mult = 1;
+    MON.start(it);
+    print(it.name, `€${it.base}.00`);
+    tone(note(-12), 70);
+    await sleep(400);
+  } else if (b.type === "step") {
+    const s = it.steps[b.k];
+    const tempo = Math.max(300, 470 * Math.pow(.88, b.k));
+    if (s.op === "+") price += s.v; else mult *= s.v;
+    const g = giverNode(it, s, b.i);
+    if (s.giver[0] === "p") flip(g); else hop(g);
+    if (s.giver === "c3") {
+      const r = $("rail"), x1 = it.rect[0] + it.rect[2] / 2;
+      r.style.width = (x1 - 760) + "px";
+      anim(r, [{ clipPath: "inset(0 100% 0 0)", opacity: 1 }, { clipPath: "inset(0 0 0 0)", opacity: 1, offset: .6 }, { clipPath: "inset(0 0 0 0)", opacity: 0 }], 420);
+    }
+    await sleep(150);
+    const stk = nodes.stickers[b.i][b.k];
+    stamp(stk);
+    const at = center(s.stk);
+    gun([s.stk[0] + s.stk[2] + 22, at[1]], `${s.op}${s.op === "+" ? "€" : ""}${s.v}${s.folded ? " chain" : ""}`, s.op === "+" ? "add" : "mul");
+    tone(note(b.k * 2 - 5), 60);
+    MON.line(s.badge ? badgeHtml(s.badge) : s.mark, s.name, s.op === "+" ? `+€${s.v}` : `×${s.v}`, s.op === "+" ? "add" : "mul");
+    MON.burst(price * mult);
+    const perk = s.giver[0] === "p";
+    print(s.name, s.op === "+" ? `+€${s.v}.00` : `×${s.v}`, perk ? "perk" : "sub");
+    await sleep(tempo - 150);
+  } else if (b.type === "arm") {
+    hop(nodes.items[b.i], 320);
+    gun([it.rect[0] + 40, it.rect[1]], "×3 later", "mul");
+    const r = $("rail"); r.style.width = (1150 - 760) + "px";
+    anim(r, [{ clipPath: "inset(0 100% 0 0)", opacity: 1 }, { clipPath: "inset(0 0 0 0)", opacity: 1, offset: .6 }, { clipPath: "inset(0 0 0 0)", opacity: 0 }], 600);
+    ITEMS.forEach((o, k) => o.steps.forEach((s, j) => { if (s.giver === "c3") punch(nodes.stickers[k][j], 1.2, 360); }));
+    MON.line(badgeHtml("mu"), it.arm, "×3", "arm");
+    tone(note(-2), 90, "triangle", .07);
+    await sleep(620);
+  } else {
+    const burst = nodes.bursts[b.i];
+    if (it.steps.length) MON.line("", it.steps.some(s => s.op === "×") ? `Pays €${price} × ${mult}` : "Pays", `€${it.pay}`, "pay");
+    MON.burst(it.pay, true);
+    if (burst) stamp(burst, 260);
+    if (it.steps.length) print("", `= €${it.pay}.00`, "eq");
+    if (it.pay) kaching(); else tone(note(-17), 90);
+    await sleep(140);
+    // the item hops into the bag
+    const d = nodes.items[b.i]; $("brk").style.display = "none";
+    const c = center(it.rect);
+    anim(d, [{ transform: "none", opacity: 1 }, { transform: `translate(${(316 - c[0]) * .45}px, -70px) scale(.8)`, opacity: 1, offset: .45 }, { transform: `translate(${316 - c[0]}px, ${292 - c[1]}px) scale(.3)`, opacity: 0 }], 460, { fill: "forwards", easing: "ease-in" });
+    nodes.stickers[b.i].forEach(k => anim(k, [{ opacity: 1 }, { opacity: 0 }], 160, { fill: "forwards" }));
+    if (reduce) { d.style.opacity = 0; nodes.stickers[b.i].forEach(k => (k.style.opacity = 0)); }
+    if (it.pay) {
+      const from = burst ? center(TICKET_BURST[b.i]) : [c[0], 420];
+      if (homeTotal === 1) {
+        flyChip(from, [276 + 348 * Math.min((total + it.pay) / 180, 1), 28], `+${euro(it.pay)}`, 420);
+        await sleep(400);
+        await rollTotal(total + it.pay, 300);
+        punch($("rc-sub"), 1.3, 220); punch($("gnum"), 1.25, 200);
+      } else {
+        coins(from, [170, 470], Math.min(3 + Math.round(it.pay / 25), 8));
+        await sleep(380);
+        anim($("drawer"), [{ transform: "translateY(0)" }, { transform: "translateY(5px)" }, { transform: "none" }], 160);
+        await rollTotal(total + it.pay, 300);
+        punch($("vfd-num"), 1.12, 200);
+      }
+      if (!met && total >= QUOTA) await climax();
+    } else await sleep(260);
+    await sleep(140);
+  }
+}
+async function climax() {
+  met = true;
+  [0, 4, 7, 12].forEach((s, k) => tone(note(s), 180, "square", .04, k * .07));
+  if (homeTotal === 1) {
+    const f = $("flag"); f.style.opacity = 1; punch(f, 2, 300);
+    anim($("gauge"), [{ boxShadow: "inset 0 0 0 2px #171513, 0 0 0 0 #ffcf3f" }, { boxShadow: "inset 0 0 0 2px #171513, 0 0 0 6px #ffcf3f" }, { boxShadow: "inset 0 0 0 2px #171513, 0 0 0 0 #ffcf3f" }], 600);
+    coins([276 + 348 * QUOTA / 180, 28], [276 + 348 * QUOTA / 180, 120], 6);
+    print("SPEND MET ✓", "", "met");
+    const st = $("rc-stamp"); st.style.opacity = 1;
+    anim(st, [{ transform: "rotate(-8deg) scale(2)", opacity: 0 }, { transform: "rotate(-8deg) scale(.95)", opacity: 1, offset: .6 }, { transform: "rotate(-8deg) scale(1)", opacity: 1 }], 280);
+    await sleep(700);
+    anim(st, [{ opacity: 1 }, { opacity: .35 }], 400, { fill: "forwards" }); if (reduce) st.style.opacity = .35;
+  } else {
+    const m = $("vfd-msg");
+    for (let k = 0; k < 3; k++) { m.style.opacity = 1; await sleep(170); m.style.opacity = 0; await sleep(110); }
+    anim($("drawer"), [{ transform: "translateY(0)" }, { transform: "translateY(18px)", offset: .3 }, { transform: "translateY(18px)", offset: .8 }, { transform: "none" }], 700);
+    coins([170, 600], [170, 640], 8);
+    await sleep(300);
+  }
+}
+
+// ---------- playback ----------
+function reset() {
+  fx.innerHTML = ""; $("rc-lines").innerHTML = ""; $("rc-stamp").style.opacity = 0; $("flag").style.opacity = 0;
+  $("bay").innerHTML = `<div class="abs bay-head">${ITEMS.length} LEFT</div>`;
+  buildScene(); met = false; setTotal(0); markBeat(-1);
+  $("col").innerHTML = `<div class="c-head"><span class="c-name">Checkout</span></div><div class="c-eff">The row scans from slot 1.</div>`;
+  ["NEXT CUSTOMER · REG 3", "SHIFT 5/12 · 6 ITEMS"].forEach(t => print(t));
+  stage.classList.toggle("t1", homeTotal === 1); stage.classList.toggle("t2", homeTotal === 2);
+}
+async function run() {
+  const t = ++token; active = true; reset();
+  if (stepResolve) { stepResolve(); stepResolve = null; }
+  try {
+    await sleep(500);
+    for (let n = 0; n < BEATS.length; n++) { await gate(); if (t !== token) return; await doBeat(BEATS[n], n); }
+    markBeat(BEATS.length);
+    if (homeTotal === 1) print("TOTAL", `€${total}.00`);
+    if (t === token) { active = false; setPlay(false); }
+  } catch (e) { /* restarted */ }
+}
+function setPlay(on) { playing = on; $("play").textContent = on ? "Pause" : "Play"; }
+$("play").onclick = () => {
+  if (!active) { setPlay(true); run(); return; }
+  setPlay(!playing); if (playing && stepResolve) { stepResolve(); stepResolve = null; }
+};
+$("step").onclick = () => {
+  setPlay(false);
+  if (!active) { pendingStep = true; run(); return; }
+  if (stepResolve) { stepResolve(); stepResolve = null; } else pendingStep = true;
+};
+$("restart").onclick = () => { pendingStep = false; setPlay(true); run(); };
+function pick(ids, id) { ids.forEach(k => $(k).setAttribute("aria-pressed", k === id)); }
+$("t-1").onclick = () => { homeTotal = 1; pick(["t-1", "t-2"], "t-1"); pendingStep = false; setPlay(true); run(); };
+$("t-2").onclick = () => { homeTotal = 2; pick(["t-1", "t-2"], "t-2"); pendingStep = false; setPlay(true); run(); };
+[["s-05", .5], ["s-1", 1], ["s-2", 2]].forEach(([id, v]) => $(id).onclick = () => { speed = v; pick(["s-05", "s-1", "s-2"], id); });
+$("sound").onclick = () => {
+  soundOn = !soundOn; $("sound").setAttribute("aria-pressed", soundOn); $("sound").textContent = soundOn ? "Sound on" : "Sound off";
+  if (soundOn && !actx) { try { actx = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) { soundOn = false; } }
+};
+// Capture hooks (stills_v2.js): ?t=2&beat=N plays fast up to beat N and stops.
+window.__beat = n => { speed = 1; return doBeat(BEATS[n], n).catch(() => {}); };
+const qs = new URLSearchParams(location.search);
+if (qs.get("t") === "2") { homeTotal = 2; pick(["t-1", "t-2"], "t-2"); }
+if (qs.has("beat")) toBeat(+qs.get("beat")); else run();
+async function toBeat(target) {
+  speed = 10; ++token; active = true; reset();
+  try { for (let n = 0; n <= target; n++) await doBeat(BEATS[n], n); } catch (e) {}
+  speed = 1; setPlay(false); active = false; document.body.dataset.ready = "1";
+}
+</script>
