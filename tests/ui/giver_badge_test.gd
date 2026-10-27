@@ -102,8 +102,8 @@ func test_a_product_with_no_mini_in_its_data_shows_its_initials() -> void:
 
 
 func test_coupon_and_loyalty_plates_are_larger_and_inspection_keeps_its_icon() -> void:
-	# A mini given to another kind is ignored.
-	var coupon: GiverBadge = auto_free(GiverBadge.new(GiverBadge.Kind.COUPON, "Mu", EGGS))
+	# A coupon without mini art keeps its initials.
+	var coupon: GiverBadge = auto_free(GiverBadge.new(GiverBadge.Kind.COUPON, "Mu"))
 	assert_bool(coupon.shows_mini()).is_false()
 	assert_object(coupon.texture()).is_same(GiverBadge.COUPON_TOKEN)
 	assert_str(coupon.initials()).is_equal("Mu")
@@ -210,3 +210,42 @@ func test_a_sticker_hangs_the_larger_badge_clear_of_its_amount() -> void:
 		assert_bool(art.position.y >= 0.0).is_true()
 		assert_bool(art.end.y <= sticker.size.y).is_true()
 		assert_bool(art.end.x > 0.0).is_true()  # it overlaps the sticker's left edge
+
+
+## Every live coupon keeps its teal token and shows its own mini instead of initials.
+func test_every_coupon_badge_shows_its_mini_and_drains_with_its_token() -> void:
+	var paths: Dictionary[String, bool] = {}
+	for card_id: String in [
+		"multipack",
+		"opening_deal",
+		"two_for_one",
+		"final_markdown",
+		"breakfast_sticker",
+		"clearance_tag",
+		"repeat",
+		"shelf_swap",
+	]:
+		var card: CardDefinition = load("res://data/cards/%s.tres" % card_id)
+		var badge: GiverBadge = auto_free(
+			GiverBadge.new(GiverBadge.Kind.COUPON, "Cu", card.badge_mini_ref())
+		)
+		assert_str(card.mini_golden_art_ref).is_empty()
+		assert_bool(paths.has(card.mini_art_ref)).is_false()
+		paths[card.mini_art_ref] = true
+		assert_bool(badge.shows_icon()).override_failure_message(card.id).is_true()
+		assert_str(badge.initials()).is_empty()
+		assert_object(badge.texture()).is_same(GiverBadge.COUPON_TOKEN)
+		assert_str(badge.icon_texture().resource_path).is_equal(card.mini_art_ref)
+		var icon: TextureRect = badge.get_node("Icon") as TextureRect
+		assert_vector(icon.size).is_equal(badge.icon_texture().get_size() * ArtStyle.ART_SCALE)
+		assert_vector(icon.position + icon.size / 2.0).is_equal(badge.size / 2.0)
+		(
+			assert_bool(Rect2(Vector2.ZERO, badge.size).encloses(Rect2(icon.position, icon.size)))
+			. is_true()
+		)
+		var normal_material: Material = icon.material
+		badge.set_drained(true)
+		assert_object(icon.material).is_same(ArtStyle.grey_material(ArtStyle.Grey.DRAINED))
+		badge.set_drained(false)
+		assert_object(icon.material).is_same(normal_material)
+	assert_int(paths.size()).is_equal(8)

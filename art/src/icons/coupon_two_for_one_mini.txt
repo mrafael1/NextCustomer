@@ -1,0 +1,11 @@
+; Coupon giver badge, PR #113: two for one.
+; Trimmed to the drawing so it centres exactly inside the teal token.
+@size 9x7
+@kind icon
+####.####
+#Oo#.#Oo#
+#RR#.#RR#
+#ww###ww#
+#Rr#.#Rr#
+#rr###rr#
+####.####

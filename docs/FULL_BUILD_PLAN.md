@@ -644,3 +644,9 @@ Content freeze at the end of phase 3. No new features after that.
 **WASTED styling follow-up (2026-10-26, #105):** the compact WASTED label gains the readability v2 mock-up's tomato underline with a darker lower edge, a silver text emboss and the grey frame's missing top/left highlight and right-edge shading. Its approved size and placement stay the same. Presentation only.
 
 **WASTED v3 correction (2026-10-26, #105):** checked directly against `readability_v3_src/template.html` and `readability_v3_stacks.png`: restore WASTED's 17 px lettering and minimum 92 px label (text width + 6 + 18 px), with the word and tomato underline following the face's tilt. Keep the approved closer stack placement and attached fan numbers. Presentation only.
+
+**Coupon mini icons (2026-10-27, PR #113 follow-up):** all eight live coupons have distinct pixel minis up to 10x10 matching their slip art. Planning stickers show them inside the teal coupon token instead of initials, including Multipack, Opening deal, 2 for 1 and Final markdown multiplier stickers. The same data supplies the monitor and scan receipt lines. Icons grey with their badges; missing art keeps the initials fallback. Presentation only; no scoring or balance change.
+
+**Coupon mini centring correction (2026-10-27, PR #113):** crop transparent margins from the coupon drawings and centre them exactly on their teal tokens. Odd-sized drawings use an integer screen-pixel offset at 2x instead of rounding down to the art grid; nearest filtering preserves sharp pixels. Presentation only.
+
+**Repeat and Final markdown mini revision (2026-10-27, PR #113):** simplify Repeat to a gold payout between opposing tomato return arrows, and Final markdown to one tomato tag with a paper down arrow. Their trimmed drawings use up to 10x10 pixels and stay exactly centred in their coupon tokens. The other six minis are unchanged. Presentation only.

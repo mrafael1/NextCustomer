@@ -1,0 +1,13 @@
+; Coupon giver badge, PR #113: shelf swap.
+; Trimmed to the drawing so it centres exactly inside the teal token.
+@size 9x9
+@kind icon
+......w..
+.wwwwwww.
+......w..
+..w......
+.wwwwwww.
+..w......
+.##..###.
+#43#.#Mm#
+#########

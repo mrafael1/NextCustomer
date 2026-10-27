@@ -398,8 +398,8 @@ func test_the_tuning_defaults_are_neutral_and_the_file_holds_the_values() -> voi
 
 
 ## Sticker minis: an ITEM badge carries its giver's mini (CardDefinition.badge_mini_ref: Golden
-## Eggs' gold-outlined one, plain Eggs' ink one, Mixed herbs' since v0.52), none for a coupon's or
-## a loyalty badge; the initials are kept for every badge (Mixed herbs keeps "Mi").
+## Eggs' gold-outlined one, plain Eggs' ink one, Mixed herbs' since v0.52); a coupon carries
+## its own mini and a loyalty badge its icon. Initials remain as a fallback.
 func test_item_badges_carry_the_givers_mini() -> void:
 	var row: Array[CardDefinition] = []
 	for card_id: String in MINI_ROW.split(","):
@@ -417,10 +417,14 @@ func test_item_badges_carry_the_givers_mini() -> void:
 					perk.icon_ref
 				)
 				continue
+			if sticker.badge == GiverBadge.Kind.COUPON:
+				var coupon: CardDefinition = row[sticker.cause_slot]
+				assert_str(sticker.badge_mini).is_equal(coupon.mini_art_ref)
+				assert_str(sticker.badge_mini).is_not_empty()
+				seen["coupon"] = true
+				continue
 			if sticker.badge != GiverBadge.Kind.ITEM:
 				assert_str(sticker.badge_mini).override_failure_message(message).is_empty()
-				if sticker.badge == GiverBadge.Kind.COUPON:
-					seen["coupon"] = true
 				continue
 			var giver: CardDefinition = row[sticker.cause_slot]
 			assert_str(sticker.badge_mini).override_failure_message(message).is_equal(

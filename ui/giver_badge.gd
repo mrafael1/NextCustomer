@@ -5,7 +5,8 @@ extends Control
 ## edge (a GOLDEN giver has a gold rim). The card's existing 7x7 mini reference selects its plate
 ## in art/giver_badges; that small mini is still used in monitor lines. A missing plate falls
 ## back to the small mini; missing mini art falls back to initials. Inspection keeps its warning
-## icon. A loyalty perk's token holds its perk icon (#108 follow-up: as its loyalty box,
+## icon. A coupon token holds its mini (up to 10x10). A loyalty perk's token holds its perk icon
+## (#108 follow-up: as its loyalty box,
 ## LoyaltyCard.perk_icon) when one fits inside the stamp, else its initials, and an Aisle run's
 ## badge wears the box's "×" tag at its top left (LoyaltyCard.make_run_tag), so a family's
 ## Regulars and Aisle run tell apart on the stickers too. Decor only, with the same drained grey
@@ -50,7 +51,8 @@ var _run_colour: Color = Color()
 
 ## A `badge_kind` badge holding `badge_initials` (none for an inspection), or for an ITEM with a
 ## `mini_ref` (a texture path that exists), that mini instead; for a LOYALTY badge, `mini_ref` is
-## the perk's icon (UpgradeDefinition.icon_ref), drawn on the stamp token instead of the initials
+## the perk's icon (UpgradeDefinition.icon_ref); a COUPON mini stays on the teal token,
+## drawn instead of the initials
 ## when it fits. A missing path falls back to the initials quietly: a stale `mini_art_ref` in the
 ## data is caught by live_cards_test (every product's mini ref must load), not here. A LOYALTY
 ## badge with a `run_colour` (LoyaltyCard.run_mark_colour, an Aisle run's) wears the run tag.
@@ -86,7 +88,7 @@ func _init(
 		_run_colour = run_colour
 		_run_tag = LoyaltyCard.make_run_tag(run_colour)
 		_run_tag.name = "RunTag"
-	if kind == Kind.LOYALTY and _add_icon(mini_ref):
+	if kind in [Kind.COUPON, Kind.LOYALTY] and _add_icon(mini_ref):
 		_add_run_tag()
 		return
 	if kind == Kind.INSPECTION or badge_initials.is_empty():
@@ -142,12 +144,12 @@ func run_tag() -> Control:
 	return _run_tag
 
 
-## Whether a loyalty badge shows its perk icon on the token (no initials).
+## Whether a coupon or loyalty badge shows its icon on the token (no initials).
 func shows_icon() -> bool:
 	return _icon != null
 
 
-## The perk icon on a loyalty badge's token, or null (for tests).
+## The coupon or perk icon on its token, or null (for tests).
 func icon_texture() -> Texture2D:
 	return _icon.texture if _icon != null else null
 
@@ -167,7 +169,7 @@ func initials() -> String:
 	return _initials.text if _initials != null else ""
 
 
-## Draws the perk icon at `icon_ref` centred on the loyalty token, when it exists and fits
+## Draws a coupon mini or perk icon at `icon_ref` centred on its token, when it exists and fits
 ## LOYALTY_ICON_ROOM at the art scale. Whether it did.
 func _add_icon(icon_ref: String) -> bool:
 	if icon_ref.is_empty() or not ResourceLoader.exists(icon_ref):
@@ -178,12 +180,16 @@ func _add_icon(icon_ref: String) -> bool:
 	var drawn: Vector2 = art.get_size() * ArtStyle.ART_SCALE
 	if drawn.x > LOYALTY_ICON_ROOM or drawn.y > LOYALTY_ICON_ROOM:
 		return false
-	_token.texture = LOYALTY_ICON_TOKEN
+	if kind == Kind.LOYALTY:
+		_token.texture = LOYALTY_ICON_TOKEN
 	_icon = UiKit.sprite(art)
 	_icon.name = "Icon"
 	_icon.size = drawn
-	# On the art grid, so the icon's texels stay square.
-	_icon.position = ((size - drawn) / 2.0 / ArtStyle.ART_SCALE).floor() * ArtStyle.ART_SCALE
+	# Coupon drawings are trimmed and centred exactly. Odd native dimensions land on an
+	# integer screen pixel at 2x, so nearest filtering still keeps every texel sharp.
+	_icon.position = (size - drawn) / 2.0
+	if kind == Kind.LOYALTY:
+		_icon.position = (_icon.position / ArtStyle.ART_SCALE).floor() * ArtStyle.ART_SCALE
 	add_child(_icon)
 	return true
 

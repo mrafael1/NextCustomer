@@ -1,0 +1,13 @@
+; Coupon giver badge, PR #113: opening deal.
+; Trimmed to the drawing so it centres exactly inside the teal token.
+@size 9x9
+@kind icon
+.##...##.
+#5#...#5#
+.##B.B##.
+...#M#...
+...B#D...
+..B#.#D..
+###...###
+#oR#.#Rr#
+###...###

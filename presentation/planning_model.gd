@@ -233,7 +233,7 @@ static func _sticker(link: EffectLink, names: CauseNames) -> StickerSpec:
 	if not link.own:
 		sticker.badge = names.badge_of(link)
 		sticker.badge_text = GiverBadge.initials_for(sticker.badge, names.of_cause(link))
-		if sticker.badge == GiverBadge.Kind.ITEM:
+		if sticker.badge in [GiverBadge.Kind.ITEM, GiverBadge.Kind.COUPON]:
 			sticker.badge_mini = names.mini_of(link)
 		elif sticker.badge == GiverBadge.Kind.LOYALTY:
 			sticker.badge_mini = names.icon_of(link)

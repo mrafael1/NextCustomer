@@ -20,3 +20,4 @@ rule_text = "+4 if in the last slot"
 sticker_text = "+{bonus} in last slot"
 art_ref = "res://art/icons/coupon_final_markdown_v2.png"
 ticket_families = PackedStringArray("Clearance")
+mini_art_ref = "res://art/icons/coupon_final_markdown_mini.png"
