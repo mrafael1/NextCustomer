@@ -30,6 +30,7 @@ extends Control
 ## slots; its tooltip says why. It is never a drop target, and the row keeps the run's usual
 ## cell count, so an inspection never rescales it.
 ##
+## A slot an inspection zeroes (Spot check's slot 3) wears its tomato "€0" SlotMark the same way.
 ## A slot a loyalty upgrade acts on wears that upgrade's SlotMark (show_slot_marks): the Slot
 ## engine's talker hangs under the right end of slot 6's ticket (2026-10-24), as an item tier's
 ## tag hangs under its left end, on the cell's talker layer, its first child: behind the ticket,
@@ -260,6 +261,7 @@ func _same_marks(shown: Array[SlotMark], marks: Array[SlotMark]) -> bool:
 			mark.slot != old.slot
 			or mark.upgrade_index != old.upgrade_index
 			or mark.factor != old.factor
+			or mark.inspection_index != old.inspection_index
 		):
 			return false
 	return true
@@ -267,14 +269,32 @@ func _same_marks(shown: Array[SlotMark], marks: Array[SlotMark]) -> bool:
 
 ## The mark on `slot` of upgrade `upgrade_index` (any upgrade's for -1), or null.
 func slot_mark(slot: int, upgrade_index: int = -1) -> SlotMark:
+	for mark: SlotMark in _slot_marks(slot):
+		if not mark.is_inspection() and (upgrade_index < 0 or mark.upgrade_index == upgrade_index):
+			return mark
+	return null
+
+
+## The mark on `slot` of inspection `inspection_index` (any inspection's for -1), or null.
+func inspection_mark(slot: int, inspection_index: int = -1) -> SlotMark:
+	for mark: SlotMark in _slot_marks(slot):
+		if (
+			mark.is_inspection()
+			and (inspection_index < 0 or mark.inspection_index == inspection_index)
+		):
+			return mark
+	return null
+
+
+func _slot_marks(slot: int) -> Array[SlotMark]:
+	var marks: Array[SlotMark] = []
 	if slot < 0 or slot >= slots.size():
-		return null
+		return marks
 	for child: Node in _talkers(slots[slot]).get_children():
 		var mark: SlotMark = child as SlotMark
 		if mark != null and not mark.is_queued_for_deletion():
-			if upgrade_index < 0 or mark.upgrade_index == upgrade_index:
-				return mark
-	return null
+			marks.append(mark)
+	return marks
 
 
 ## The distance from one cell's left edge to the next one's as drawn (the cell and its gap,

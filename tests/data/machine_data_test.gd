@@ -66,6 +66,23 @@ func test_the_odds_levels_are_the_approved_ones() -> void:
 ## Every listed product is a plain stockable product (a staple or an aisle item), every listed
 ## coupon is in the coupon pool, every listed upgrade in the upgrade pool, and nothing is in two
 ## lists.
+## NEW ITEMS rolls its rarities one odds level above UPGRADE (decided with the user on
+## 2026-10-28), up to the top level; its tier roll stays at the visit's level.
+func test_new_items_roll_rarities_one_level_up() -> void:
+	var new_items: int = RewardMachine.Chute.NEW_ITEMS
+	var upgrade: int = RewardMachine.Chute.UPGRADE
+	assert_int(_machine.new_items_rarity_levels).is_equal(1)
+	for level: int in range(_machine.max_level() + 1):
+		assert_int(_machine.rarity_level(upgrade, level)).is_equal(level)
+		var up: int = mini(level + 1, _machine.max_level())
+		assert_int(_machine.rarity_level(new_items, level)).is_equal(up)
+	# Shift 1's NEW ITEMS draw rolls level 1's rarities (65/28/7), not level 0's.
+	var weights: PackedInt32Array = MachineDraw.weights(
+		_machine, _machine.rarity_level(new_items, _machine.odds_level_after(1)), 1
+	)
+	assert_array(Array(weights)).is_equal(ODDS[1])
+
+
 func test_the_rarity_lists_hold_the_right_kinds() -> void:
 	var stockable: Array[CardDefinition] = RunStock.staples(_balance)
 	for aisle: AisleDefinition in _balance.aisles:

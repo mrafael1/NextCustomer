@@ -106,6 +106,7 @@ func test_choose_and_pick_a_prize() -> void:
 	assert_bool(view.can_scan()).is_false()
 	var card: CardDefinition = prizes[1].card
 	view.pick(1)
+	screen._machine._on_add_pressed()
 	view.fast_forward()  # The landing plays to its end.
 	assert_int(screen.run.deck.size()).is_equal(14)
 	assert_array(screen.run.history[0].cards_added()).is_equal([card])
@@ -123,6 +124,48 @@ func test_choose_and_pick_a_prize() -> void:
 	assert_int(int(visit["decide_ms"])).is_greater_equal(int(visit["armed_ms"]))
 	assert_bool(visit["presentation_skipped"]).is_false()
 	assert_bool(visit["resumed"]).is_false()
+
+
+## Below the deck limit a picked product or coupon is offered as ADD or SWAP… (2026-10-28):
+## the keys and their line on the display, clear of BIN IT; SWAP… opens the cart chooser, closing
+## it keeps the offer; a chosen card is swapped out and the cart keeps its size.
+func test_a_pick_below_the_limit_offers_add_or_swap() -> void:
+	var screen: ShiftScreen = await _passed_screen()
+	var view: RewardMachineView = screen._machine.view
+	assert_bool(screen._machine._choose(RewardMachine.Chute.NEW_ITEMS)).is_true()
+	await _until_armed(screen)
+	var size: int = screen.run.deck.size()
+	var card: CardDefinition = screen.run.machine.prizes()[0].card
+	view.pick(0)
+	var display: MachineDisplay = view.display
+	assert_bool(display.swap_offered()).is_true()
+	assert_int(screen.run.deck.size()).is_equal(size)
+	var strip: Rect2 = display.get_global_rect()
+	var rects: Array[Rect2] = [display.bin_button().get_global_rect()]
+	for part: Control in display.offer_parts():
+		assert_bool(part.is_visible_in_tree()).is_true()
+		var rect: Rect2 = part.get_global_rect()
+		assert_bool(strip.encloses(rect)).override_failure_message(str(rect)).is_true()
+		for other: Rect2 in rects:
+			assert_bool(rect.intersects(other)).override_failure_message(str(rect)).is_false()
+		rects.append(rect)
+	for label: Label in display.labels():
+		assert_bool(label.visible).is_false()
+	# SWAP… opens the chooser; closed, the offer is still there.
+	screen._machine._on_swap_pressed()
+	assert_bool(screen._deck_view.visible).is_true()
+	screen._deck_view.closed.emit()
+	assert_bool(view.visible).is_true()
+	assert_bool(display.swap_offered()).is_true()
+	# SWAP… again and a card chosen: it leaves, the prize comes in, the cart keeps its size.
+	screen._machine._on_swap_pressed()
+	var out: CardInstance = screen.run.deck.cards[0]
+	screen._deck_view.card_chosen.emit(out)
+	view.fast_forward()
+	assert_bool(display.swap_offered()).is_false()
+	assert_int(screen.run.deck.size()).is_equal(size)
+	assert_bool(screen.run.deck.cards.has(out)).is_false()
+	assert_array(screen.run.history[0].cards_added()).is_equal([card])
 
 
 ## BIN IT bins the draw (an UPGRADE draw can be binned since v0.61): the deck and the loyalty card
@@ -161,6 +204,7 @@ func test_an_upgrade_pick_stamps_the_loyalty_card() -> void:
 	assert_bool(PerkLevels.is_level_up(perk)).is_false()
 	await _until_armed(screen)
 	view.pick(index)
+	screen._machine._on_add_pressed()
 	assert_str(view.display.rest_texts()[0]).is_equal("STAMPED ✓")
 	view.fast_forward()  # The landing plays to its end.
 	assert_int(run.upgrades.size()).is_equal(owned_before + 1)
@@ -201,6 +245,7 @@ func test_a_level_up_at_the_cap_restamps_its_own_box() -> void:
 	await _until_armed(screen)
 	assert_str(view.tickets[index].face_texts()[0]).is_equal("LEVEL UP · LV 2")
 	view.pick(index)
+	screen._machine._on_add_pressed()
 	assert_str(view.display.rest_texts()[0]).is_equal("LEVEL UP ✓")
 	assert_int(view.landing.box_index).is_equal(box)
 	view.fast_forward()  # The landing plays to its end.
@@ -241,6 +286,7 @@ func test_a_pick_before_another_visit_keeps_the_belt_and_counts_the_cart() -> vo
 	await _until_armed(screen)
 	var size_before: int = run.deck.size()
 	screen._machine.view.pick(0)
+	screen._machine._on_add_pressed()
 	screen._machine.view.fast_forward()  # The landing plays to its end.
 	assert_int(run.machine.current_visit().kind).is_equal(MachineVisit.Kind.BONUS)
 	assert_int(run.deck.size()).is_equal(size_before + 1)
@@ -255,6 +301,7 @@ func test_a_pick_before_another_visit_keeps_the_belt_and_counts_the_cart() -> vo
 	assert_bool(screen._machine._choose(RewardMachine.Chute.NEW_ITEMS)).is_true()
 	await _until_armed(screen)
 	screen._machine.view.pick(0)
+	screen._machine._on_add_pressed()
 	screen._machine.view.fast_forward()  # The landing plays to its end.
 	assert_bool(_last_event("machine_visit")["presentation_skipped"]).is_false()
 

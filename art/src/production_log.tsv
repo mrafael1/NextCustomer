@@ -588,3 +588,4 @@ icons/coupon_breakfast_sticker_mini	icon (9x9 coupon giver)	n				1	0			PR #113 c
 icons/coupon_clearance_tag_mini	icon (9x9 coupon giver)	n				1	0			PR #113 coupon mini follow-up: slip motif redrawn for the teal sticker token, with initials fallback. User review pending.
 icons/coupon_repeat_mini	icon (9x9 coupon giver)	n				1	0			PR #113 coupon mini follow-up: slip motif redrawn for the teal sticker token, with initials fallback. User review pending.
 icons/coupon_shelf_swap_mini	icon (9x9 coupon giver)	n				1	0			PR #113 coupon mini follow-up: slip motif redrawn for the teal sticker token, with initials fallback. User review pending.
+effects/slot_talker_inspection	9-slice (inspection tag, tomato)	n	2026-10-28T10:00:00	2026-10-28T10:02:00	0.1	1	0			Spot check on slot 3 (2026-10-28, rule tweaks 2): the dead slot's tag under slot 3. slot_talker's shape in pay_zero's tomato colours. Drawn by hand.

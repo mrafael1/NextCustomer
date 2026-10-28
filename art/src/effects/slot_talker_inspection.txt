@@ -1,0 +1,17 @@
+; Spot check's dead-slot talker (2026-10-28, rule tweaks 2: "it should be on a precise slot with
+; an effect allowing player to know this spot is the wasted one"): slot_talker's shape in the
+; pay_zero tag's colours, hanging under slot 3 with the warning sign and "€0" (code-drawn).
+; Tomato light o lit along the top and left, tomato dark r on the right and bottom, around a
+; tomato R face, rounded two-texel corners in an ink outline. 9-slice 9x9 @2 (margin 3).
+@size 9x9
+@kind frame
+@scale 2
+..#####..
+.#ooooo#.
+#oRRRRRr#
+#oRRRRRr#
+#oRRRRRr#
+#oRRRRRr#
+#oRRRRRr#
+.#rrrrr#.
+..#####..

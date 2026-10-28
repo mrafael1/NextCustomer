@@ -736,7 +736,7 @@ func item_views() -> Array[ItemView]:
 
 ## One slot per card the shift allows (upgrades can add slots), then the row's cards, standing
 ## on the belt as belt items with their tickets on the rail (RowStrip.show_cards), and the
-## loyalty upgrades' slot marks (RowStrip.show_slot_marks).
+## loyalty upgrades' and inspections' slot marks (RowStrip.show_slot_marks).
 func _refresh_row() -> void:
 	var closed: int = run.limits.closed_slots
 	var reason: String = (
@@ -749,8 +749,8 @@ func _refresh_row() -> void:
 	_row_views = _row_strip.show_cards(
 		run.row, run.row.size() if placeable else -1, _on_row_card_clicked, run.balance
 	)
-	# The slots a loyalty upgrade acts on (the Slot engine's slot 6) wear its mark.
-	_row_strip.show_slot_marks(SlotMark.marks_for(run.upgrades))
+	# The Slot engine's slot 6 wears its mark, Spot check's dead slot 3 its "€0" mark.
+	_row_strip.show_slot_marks(SlotMark.marks_for(run.upgrades, run.inspections))
 
 
 func _refresh_hand() -> void:

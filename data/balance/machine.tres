@@ -150,6 +150,7 @@ coupons_per_draw = 1
 loyalty_per_draw = 1
 item_upgrades_per_draw = 1
 shift_odds_levels = PackedInt32Array(0, 0, 1, 1, 1, 2, 2, 2, 3, 3, 3, 3)
+new_items_rarity_levels = 1
 bonus_after_inspection = true
 new_arrival_first_visit = true
 shelf_min_copies = 2

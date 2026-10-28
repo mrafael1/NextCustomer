@@ -310,7 +310,7 @@ func test_the_run_info_tab_shows_upgrades_inspections_and_stock() -> void:
 					"+3 for each different tag among your products  ·  Paid on the last product"
 					+ " in the row"
 				),
-				"This shift: Spot check, The 3rd product pays €0",
+				"This shift: Spot check, Slot 3 pays €0",
 			]
 		)
 	)
@@ -439,6 +439,7 @@ func test_a_prize_at_the_deck_limit_removes_one_copy_of_a_grouped_card() -> void
 	assert_bool(screen._machine._choose(RewardMachine.Chute.NEW_ITEMS)).is_true()
 	await _until_machine_armed(screen)
 	screen._machine.view.pick(0)
+	screen._machine._on_add_pressed()
 	screen._machine.view.fast_forward()  # The landing plays to its end.
 	var view: DeckView = screen._deck_view
 	assert_bool(view.visible).is_true()

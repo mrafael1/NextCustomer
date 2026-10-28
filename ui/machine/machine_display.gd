@@ -19,8 +19,14 @@ extends Panel
 ## A pressed key no longer changes the display (v0.53: the tray's push bar confirms, MachineTray;
 ## until then a title mode with a CONFIRM › key took the strip). A BONUS visit's feed reads the
 ## ticket icon and "BONUS TICKET" / "inspection passed · feeding in".
+##
+## A product or coupon picked below the deck limit (2026-10-28: "even when deck isn't full, you can
+## replace an item instead of taking a new slot") is offered as ADD or SWAP… (offer_swap): the
+## left of the strip reads "MILK · ADD OR SWAP?" over the two keys, BIN IT ✕ still at the right.
 
 signal bin_pressed
+signal add_pressed
+signal swap_pressed
 
 const SIZE := Vector2(292, 52)
 const MESSAGE_SIZE := 24
@@ -39,6 +45,14 @@ const BIN_RECT := Rect2(196, 13, 88, 26)
 const BIN_GAP := 6.0
 const BIN_TEXT := "BIN IT ✕"
 const BIN_SIZE := 12
+## The swap offer: its line over the ADD and SWAP… keys, left of BIN IT.
+const OFFER_FORMAT := "%s · ADD OR SWAP?"
+const OFFER_RECT := Rect2(10, 0, 176, 23)
+const OFFER_SIZE := 11
+const ADD_TEXT := "ADD"
+const ADD_RECT := Rect2(10, 23, 84, 27)
+const SWAP_TEXT := "SWAP…"
+const SWAP_RECT := Rect2(100, 23, 84, 27)
 ## A BONUS visit's feed: the ticket icon (2x) left of BONUS TICKET.
 const BONUS_TICKET := "BONUS TICKET"
 const TICKET_ICON := preload("res://art/icons/bonus_ticket.png")
@@ -66,6 +80,9 @@ var _message: Label
 var _sub: Label
 var _bin: Button
 var _bin_shown: bool = false
+var _add: Button
+var _swap: Button
+var _offer: Label
 var _icon: TextureRect
 ## The wait point's message and sub line (show_message), shown when the plan has no line of its
 ## own at the time.
@@ -103,9 +120,23 @@ func _init() -> void:
 	_bin = UiKit.button(self, BIN_TEXT, func() -> void: bin_pressed.emit(), BIN_SIZE, "")
 	_bin.name = "BinButton"
 	_bin.add_theme_font_override("font", marked_font(0))
-	_style_bin()
+	_style_key(_bin)
 	RewardMachineView.fit(_bin, BIN_RECT)
 	_bin.visible = false
+	_add = _offer_key("AddButton", ADD_TEXT, ADD_RECT, func() -> void: add_pressed.emit())
+	# ADD is the plain take: gold like the push bar, so it never reads as disabled.
+	_style_key(_add, Palette.GOLD, Palette.MUSTARD_PALE)
+	_swap = _offer_key("SwapButton", SWAP_TEXT, SWAP_RECT, func() -> void: swap_pressed.emit())
+	_offer = UiKit.body_label("", OFFER_SIZE, Palette.MUSTARD_LIGHT)
+	_offer.name = "Offer"
+	_offer.add_theme_font_override("font", marked_font(BOLD_WEIGHT))
+	_offer.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_offer.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	_offer.clip_text = true
+	_offer.position = OFFER_RECT.position
+	_offer.size = OFFER_RECT.size
+	_offer.visible = false
+	add_child(_offer)
 	_icon = UiKit.sprite(TICKET_ICON)
 	_icon.name = "TicketIcon"
 	_icon.size = TICKET_ICON.get_size() * ICON_SCALE
@@ -175,6 +206,22 @@ func set_bin(shown: bool, enabled: bool) -> void:
 	_bin.disabled = not enabled
 	_bin.visible = _bin_at(view.clock if view != null else 0.0)
 	_show(_message.text, _sub.text)
+
+
+## Offers the picked `item_name` as ADD or SWAP… ("" takes the offer off).
+func offer_swap(item_name: String) -> void:
+	_offer.text = OFFER_FORMAT % item_name.to_upper() if not item_name.is_empty() else ""
+	_show(_message.text, _sub.text)
+
+
+## Whether ADD and SWAP… are offered.
+func swap_offered() -> bool:
+	return not _offer.text.is_empty()
+
+
+## The swap offer's ADD and SWAP… keys and its line, for tests.
+func offer_parts() -> Array[Control]:
+	return [_add, _swap, _offer]
 
 
 ## Whether this draw offers BIN IT (set_bin), shown yet or not.
@@ -403,7 +450,12 @@ func _show(message: String, sub: String) -> void:
 	var sub_left: float = left if not _icon.visible else PAD
 	_sub.position = Vector2(sub_left, SUB_TOP)
 	_sub.size = Vector2(sub_room, SUB_HEIGHT)
-	_sub.visible = not sub.is_empty()
+	# The swap offer takes the message's room.
+	var offered: bool = swap_offered()
+	_message.visible = not offered
+	_sub.visible = not sub.is_empty() and not offered
+	for part: Control in offer_parts():
+		part.visible = offered
 
 
 ## The first of `steps` (font sizes, largest first) at which `text` in the marked font of
@@ -416,10 +468,23 @@ func _step(text: String, weight: int, steps: Array[int], room: float) -> int:
 	return steps[-1]
 
 
-func _style_bin() -> void:
+## A swap offer key: styled as BIN IT, at `rect`, hidden until offered.
+func _offer_key(key_name: String, text: String, rect: Rect2, on_pressed: Callable) -> Button:
+	var key: Button = UiKit.button(self, text, on_pressed, BIN_SIZE)
+	key.name = key_name
+	key.add_theme_font_override("font", marked_font(0))
+	_style_key(key)
+	RewardMachineView.fit(key, rect)
+	key.visible = false
+	return key
+
+
+func _style_key(
+	key: Button, face: Color = Palette.STEEL_LIGHT, hover: Color = Palette.STEEL_HIGHLIGHT
+) -> void:
 	var looks: Dictionary[String, Color] = {
-		"normal": Palette.STEEL_LIGHT,
-		"hover": Palette.STEEL_HIGHLIGHT,
+		"normal": face,
+		"hover": hover,
 		"pressed": Palette.STEEL_PALE,
 		"disabled": Palette.STEEL_PALE,
 	}
@@ -428,7 +493,7 @@ func _style_bin() -> void:
 		style.bg_color = looks[state]
 		style.border_color = Palette.INK
 		style.set_border_width_all(2)
-		_bin.add_theme_stylebox_override(state, style)
+		key.add_theme_stylebox_override(state, style)
 	for colour: String in ["font_color", "font_hover_color", "font_pressed_color"]:
-		_bin.add_theme_color_override(colour, Palette.INK)
-	_bin.add_theme_color_override("font_disabled_color", Palette.GREY_DARK)
+		key.add_theme_color_override(colour, Palette.INK)
+	key.add_theme_color_override("font_disabled_color", Palette.GREY_DARK)

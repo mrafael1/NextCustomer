@@ -10,8 +10,8 @@ const SPOT_CHECK := "res://data/inspections/spot_check.tres"
 const SHORT_BELT := "res://data/inspections/short_belt.tres"
 ## Checkouts rush their count (one tap): the suite tests what follows it.
 const Rush := preload("res://tests/ui/count_up_rush.gd")
-const NOTICE := "INSPECTION NEXT SHIFT: The 3rd product pays €0"
-const RECEIPT_LINE := "Spot check: the 3rd product pays €0"
+const NOTICE := "INSPECTION NEXT SHIFT: Slot 3 pays €0"
+const RECEIPT_LINE := "Spot check: slot 3 pays €0"
 
 var _folder: String = ""
 
@@ -84,9 +84,9 @@ func test_the_notice_comes_before_the_machine() -> void:
 	assert_int(run.shift_index).is_equal(2)
 	assert_bool(screen._inspection_tag.visible).is_true()
 	# The bonus pill's chip may drop "Inspection · " to fit the bar (#77 machine v2).
-	assert_str(screen._inspection_tag.text()).ends_with("3rd product pays €0")
+	assert_str(screen._inspection_tag.text()).ends_with("Slot 3 pays €0")
 	assert_str(screen._inspection_tag.tooltip_text).contains("Spot check")
-	assert_str(screen._inspection_tag.tooltip_text).contains("The 3rd product pays €0")
+	assert_str(screen._inspection_tag.tooltip_text).contains("Slot 3 pays €0")
 	assert_bool(screen._loyalty_card.is_ancestor_of(screen._inspection_tag)).is_false()
 	assert_int(screen._loyalty_card.stamped_boxes().size()).is_equal(run.upgrades.size())
 	assert_array(_last_event("shift_start")["inspections"]).is_equal(["spot_check"])
@@ -119,6 +119,12 @@ func test_inspection_steps_print_and_play_from_the_tag() -> void:
 	screen._debug.set_inspection("spot_check")
 	assert_bool(screen._inspection_tag.visible).is_true()
 	assert_str(_last_event("debug")["action"]).is_equal("set_inspection")
+	# Slot 3 wears the inspection's "€0" mark on the empty belt already (2026-10-28).
+	var dead: SlotMark = screen._row_strip.inspection_mark(2, 0)
+	assert_object(dead).is_not_null()
+	assert_bool(dead.is_visible_in_tree()).is_true()
+	assert_str(dead.text()).is_equal(SlotMark.INSPECTION_TEXT)
+	assert_object(screen._row_strip.inspection_mark(1)).is_null()
 	_place_ids(screen, ["bread", "bread", "bread", "bread"])
 	# The live preview already pays the 3rd Bread 0, and scanning it names the inspection (#75:
 	# the planning receipt is a stub, its lines are read on the items).
@@ -134,6 +140,7 @@ func test_inspection_steps_print_and_play_from_the_tag() -> void:
 	assert_object(screen._count_up._beats._source_control(steps[0])).is_same(screen._inspection_tag)
 	assert_str(_receipt_text(screen)).contains(RECEIPT_LINE)
 	assert_object(screen.run.history[0].inspection).is_not_null()
+	assert_int(dead.fired_count()).is_equal(1)
 
 
 func test_the_debug_panel_clears_the_inspection() -> void:

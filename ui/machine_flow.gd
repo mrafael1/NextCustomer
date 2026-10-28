@@ -54,12 +54,14 @@ var _screen: ShiftScreen
 var _log: EventLogService
 ## The visit on screen: its timeline, the odds cards opened (chutes, in order), the odds card of
 ## the chute chosen (as shown before the draw), whether the cart was full when it was chosen,
-## whether it was resumed from a save, and a pick waiting for the deck-full chooser (-1: none).
+## whether it was resumed from a save, a pick waiting for the deck chooser (-1: none) and a pick
+## offered as ADD or SWAP… below the deck limit (-1: none).
 var _timeline: OfferTimeline = OfferTimeline.new()
 var _viewed: Array[int] = []
 var _odds: MachineOddsCard
 var _resumed: bool = false
 var _pending: int = -1
+var _offered: int = -1
 ## The landing under way (null: none, or a bin).
 var _landing: MachineLanding
 ## Seconds into the glide back to the store, or -1 while there is none; its reduced motion is read
@@ -91,6 +93,8 @@ func setup(screen: ShiftScreen, event_log: EventLogService) -> RewardMachineView
 	view.chute_confirmed.connect(_on_chute_confirmed)
 	view.prize_picked.connect(_on_prize_picked)
 	view.binned.connect(_on_binned)
+	view.display.add_pressed.connect(_on_add_pressed)
+	view.display.swap_pressed.connect(_on_swap_pressed)
 	view.odds_opened.connect(func(chute: int) -> void: _viewed.append(chute))
 	view.beat.connect(_on_beat)
 	view.finished.connect(_on_finished)
@@ -158,6 +162,7 @@ func open(resumed: bool) -> void:
 	_resumed = resumed
 	_viewed = []
 	_pending = -1
+	_offer(-1)
 	_odds = null
 	var count: CountUp = _screen._count_up
 	var feed_ms: int = count.printer_feed_ms
@@ -187,6 +192,7 @@ func open(resumed: bool) -> void:
 ## after a shift's last visit (_on_finished).
 func close() -> void:
 	_pending = -1
+	_offer(-1)
 	_return_t = -1.0
 	_presses.end()
 	view.show_idle(_screen.run)
@@ -326,11 +332,15 @@ func _choose(chute: int) -> bool:
 
 func _on_prize_picked(index: int) -> void:
 	var run: RunState = _screen.run
+	var prize: MachinePrize = run.machine.prizes()[index]
 	if not run.machine.needs_replace(run, index):
-		_take(index, null)
+		# Below the deck limit a card can be added or swapped for one in the cart (2026-10-28).
+		if prize.adds_card():
+			_offer(index)
+		else:
+			_take(index, null)
 		return
 	# Plan section 2: at the deck limit, taking a card means choosing one to remove.
-	var prize: MachinePrize = run.machine.prizes()[index]
 	_pending = index
 	view.visible = false
 	_screen._deck_view.open(
@@ -338,6 +348,41 @@ func _on_prize_picked(index: int) -> void:
 		(
 			"Cart full (%d/%d): choose an item to remove for %s"
 			% [run.deck.size(), run.balance.deck_limit, prize.card.display_name]
+		),
+		true
+	)
+
+
+## Offers pick `index` as ADD or SWAP… on the display (-1: takes the offer off).
+func _offer(index: int) -> void:
+	_offered = index
+	var item_name: String = ""
+	if index >= 0:
+		item_name = _screen.run.machine.prizes()[index].card.display_name
+	view.display.offer_swap(item_name)
+
+
+func _on_add_pressed() -> void:
+	if _offered >= 0:
+		_take(_offered, null)
+
+
+## SWAP…: the deck chooser picks the card the offered prize replaces; closed, the offer stays.
+func _on_swap_pressed() -> void:
+	if _offered < 0:
+		return
+	var run: RunState = _screen.run
+	_pending = _offered
+	view.visible = false
+	_screen._deck_view.open(
+		run,
+		(
+			"Your cart (%d/%d): choose an item to swap out for %s"
+			% [
+				run.deck.size(),
+				run.balance.deck_limit,
+				run.machine.prizes()[_offered].card.display_name
+			]
 		),
 		true
 	)
@@ -352,6 +397,7 @@ func _take(index: int, replaced: CardInstance) -> void:
 	var landing: MachineLanding = run.machine.pick(run, index, replaced)
 	if landing == null:
 		return
+	_offer(-1)
 	_log_visit(cart_full, timing)
 	_screen._deck_view.visible = false
 	view.visible = true
@@ -367,6 +413,7 @@ func _on_binned() -> void:
 	var cart_full: bool = run.deck_is_full()
 	if not run.machine.bin(run):
 		return
+	_offer(-1)
 	_log_visit(cart_full, timing)
 	_landing = null
 	_screen._save_run()

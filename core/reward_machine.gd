@@ -184,7 +184,8 @@ func needs_replace(run: RunState, index: int) -> bool:
 	return prize != null and prize.adds_card() and run.deck.size() >= run.balance.deck_limit
 
 
-## Takes the prize at `index`: adds the card (swapping `replaced` out at the deck limit), stamps
+## Takes the prize at `index`: adds the card (swapping `replaced` out: needed at the deck limit,
+## and since 2026-10-28 a choice below it too), stamps
 ## a new perk (refused at the cap) or levels up an owned one in its box, or upgrades the copies;
 ## records the visit and moves on. Null when refused.
 func pick(run: RunState, index: int, replaced: CardInstance = null) -> MachineLanding:
@@ -196,7 +197,7 @@ func pick(run: RunState, index: int, replaced: CardInstance = null) -> MachineLa
 	landing.cart_before = run.deck.size()
 	match prize.kind:
 		MachinePrize.Kind.PRODUCT, MachinePrize.Kind.COUPON:
-			if needs_replace(run, index):
+			if replaced != null:
 				run.deck.remove_card(replaced)
 				landing.replaced = replaced
 				_visit.replaced = replaced.definition
@@ -386,7 +387,9 @@ func _can_take(run: RunState, prize: MachinePrize, index: int, replaced: CardIns
 			)
 		MachinePrize.Kind.UPGRADE:
 			return not _targets(run, prize).is_empty()
-	return not needs_replace(run, index) or (replaced != null and run.deck.cards.has(replaced))
+	if replaced != null:
+		return run.deck.cards.has(replaced)
+	return not needs_replace(run, index)
 
 
 func _targets(run: RunState, prize: MachinePrize) -> Array[CardInstance]:

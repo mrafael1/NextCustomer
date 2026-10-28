@@ -258,7 +258,9 @@ static func draw(
 	var floor_rarity: int = context.min_rarity()
 	var drawn: Array[MachinePrize] = []
 	for drop: int in range(machine.prizes_per_visit):
-		var rolled: int = roll(weights(machine, level, drop, floor_rarity), rng)
+		var rolled: int = roll(
+			weights(machine, machine.rarity_level(chute, level), drop, floor_rarity), rng
+		)
 		if rolled == -1:
 			break
 		var kind: int = drop_kind(chute, machine, drop)

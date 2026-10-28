@@ -443,6 +443,27 @@ func test_a_full_cart_swaps_a_card_out() -> void:
 	assert_object(run.history[-1].visits[0].replaced).is_same(out.definition)
 
 
+## Below the deck limit a card prize may swap a card out too (2026-10-28): the cart keeps its
+## size; a card not in the cart is refused; with none it is added as before.
+func test_a_card_prize_may_swap_below_the_limit() -> void:
+	var run: RunState = _run()
+	var machine: RewardMachine = _machine()
+	_pass(run, machine, 1)
+	assert_bool(machine.choose(run, RewardMachine.Chute.NEW_ITEMS)).is_true()
+	var size: int = run.deck.size()
+	assert_int(size).is_less(_balance.deck_limit)
+	assert_bool(machine.needs_replace(run, 0)).is_false()
+	var bread: CardDefinition = load("%s/bread.tres" % CARDS_DIR)
+	assert_object(machine.pick(run, 0, CardInstance.new(bread, 999))).is_null()
+	var out: CardInstance = run.deck.cards[0]
+	var landing: MachineLanding = machine.pick(run, 0, out)
+	assert_object(landing).is_not_null()
+	assert_object(landing.replaced).is_same(out)
+	assert_int(landing.cart_after).is_equal(size)
+	assert_bool(run.deck.cards.has(out)).is_false()
+	assert_object(run.history[-1].visits[0].replaced).is_same(out.definition)
+
+
 ## clear_visits (a debug jump) from CHOOSE and from PICK: queue, visit and stage cleared; the
 ## first-draw flags stay.
 func test_clear_visits_empties_the_queue() -> void:

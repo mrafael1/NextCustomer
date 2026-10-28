@@ -77,6 +77,7 @@ func test_the_screen_saves_at_every_save_point_and_deletes_the_save_at_the_end()
 	assert_int(perk).is_greater_equal(0)
 	var upgrade: UpgradeDefinition = screen.run.machine.prizes()[perk].upgrade
 	screen._machine._on_prize_picked(perk)
+	screen._machine._on_add_pressed()
 	screen._machine.view.fast_forward()  # The landing plays to its end.
 	screen._machine._end_return()  # No glide back (#77 machine v2).
 	assert_str(_saved()["phase"]).is_equal("planning")
@@ -326,9 +327,11 @@ func test_a_new_screen_resumes_the_prizes() -> void:
 	for ticket: PrizeTicket in view.tickets:
 		assert_bool(window.encloses(ticket.get_global_rect())).is_true()
 	first._machine._on_prize_picked(0)
+	first._machine._on_add_pressed()
 	first._machine.view.fast_forward()  # The landing plays to its end.
 	first._machine._end_return()  # No glide back (#77 machine v2).
 	resumed._machine._on_prize_picked(0)
+	resumed._machine._on_add_pressed()
 	resumed._machine.view.fast_forward()  # The landing plays to its end.
 	resumed._machine._end_return()  # No glide back (#77 machine v2).
 	assert_int(resumed.run.shift_index).is_equal(1)
@@ -386,6 +389,7 @@ func test_a_new_screen_resumes_a_bonus_visit() -> void:
 			first._machine._on_binned()
 		else:
 			first._machine._on_prize_picked(0)
+			first._machine._on_add_pressed()
 		first._machine.view.fast_forward()  # The landing plays to its end.
 		first._machine._end_return()  # No glide back (#77 machine v2).
 		var run: RunState = first.run
@@ -420,9 +424,11 @@ func test_a_new_screen_resumes_a_bonus_visit() -> void:
 	assert_array(_prize_ids(again.run)).is_equal(_prize_ids(first.run))
 	assert_array(_ticket_ids(again)).is_equal(_prize_ids(first.run))
 	first._machine._on_prize_picked(0)
+	first._machine._on_add_pressed()
 	first._machine.view.fast_forward()  # The landing plays to its end.
 	first._machine._end_return()  # No glide back (#77 machine v2).
 	again._machine._on_prize_picked(0)
+	again._machine._on_add_pressed()
 	again._machine.view.fast_forward()  # The landing plays to its end.
 	again._machine._end_return()  # No glide back (#77 machine v2).
 	assert_array(_cards(again.run.deck.cards)).is_equal(_cards(first.run.deck.cards))

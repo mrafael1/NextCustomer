@@ -48,6 +48,10 @@ extends Resource
 ## The odds level (an index of odds_levels) the visits after each 1-based shift draw at: entry
 ## i is shift i + 1's; a shift past the end uses the last entry (none: level 0).
 @export var shift_odds_levels: PackedInt32Array = PackedInt32Array()
+## NEW ITEMS rolls its rarities this many odds levels above the visit's (clamped to the top
+## level), so a new item is worth its risk against UPGRADE (decided with the user on 2026-10-28).
+## Its tier roll (MachineOddsLevel.tier_weights) stays at the visit's level.
+@export var new_items_rarity_levels: int = 0
 ## A passed inspected shift gives a BONUS visit (the bonus ticket).
 @export var bonus_after_inspection: bool = false
 ## 1-based shifts that give a BONUS visit without an inspection (a balance lever; empty: none).
@@ -77,6 +81,14 @@ func odds_level_after(shift_number: int) -> int:
 		return 0
 	var index: int = clampi(shift_number - 1, 0, shift_odds_levels.size() - 1)
 	return clampi(shift_odds_levels[index], 0, max_level())
+
+
+## The odds level `chute`'s rarities roll at on a visit at `level`: NEW ITEMS's is
+## new_items_rarity_levels higher, clamped to the levels there are.
+func rarity_level(chute: int, level: int) -> int:
+	if chute != RewardMachine.Chute.NEW_ITEMS:
+		return level
+	return clampi(level + new_items_rarity_levels, 0, max_level())
 
 
 ## Whether the visits after a 1-based shift are PREMIUM.
