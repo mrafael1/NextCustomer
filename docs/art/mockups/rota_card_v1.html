@@ -1,0 +1,512 @@
+<title>Rota Card Weeks</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:wght@400;700&family=Pixelify+Sans:wght@400;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  color-scheme:dark;
+  --ink:#2b2420;--ink-l:#4a3f38;--grey-d:#5e574d;--grey:#8a8172;--grey-l:#c7beab;
+  --cream-dk:#b39f78;--cream-sh:#ddcba5;--cream:#f3e9d2;--paper:#fbf7ee;
+  --teal-dk2:#1f3b3a;--teal-dk:#2a4d4b;--teal-sh:#3a7672;--teal:#4f9a94;--teal-l:#86c2b6;--teal-p:#c3e0d4;
+  --tom-dk2:#6e2630;--tom-dk:#a83a3c;--tom:#d9534f;--tom-l:#ec8a6e;--tom-p:#f7d3c4;
+  --mus-dk2:#7a5a1c;--mus-dk:#b38425;--mus:#e2b33c;--mus-l:#f1d27a;--mus-p:#faecbc;
+  --grn-dk:#3d7a45;--grn:#5fae5a;--grn-p:#d4ebc9;--gold:#ffcf3f;--charcoal:#24221f;--panel:#3d3a36;
+  --cork:#b07a45;--cork-dk:#8a5a2f;--cork-l:#c9935c;
+  --pin:#d9534f;
+  --px:'Pixelify Sans',monospace;--tx:'Atkinson Hyperlegible',system-ui,sans-serif;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--charcoal);color:var(--paper);font-family:var(--tx);font-size:16px;line-height:1.45;-webkit-text-size-adjust:100%}
+img.px{image-rendering:pixelated;image-rendering:crisp-edges}
+.page{max-width:1100px;margin:0 auto;padding:20px max(16px,env(safe-area-inset-right,0px)) 80px max(16px,env(safe-area-inset-left,0px))}
+h1{font:400 30px/1.1 var(--px);margin:0 0 6px;color:var(--mus-l)}
+h2{font:400 24px/1.15 var(--px);margin:0 0 6px;color:var(--paper)}
+h2 .n{color:var(--mus);margin-right:8px}
+h3{font:400 20px/1.2 var(--px);margin:0 0 4px;color:var(--mus-l)}
+p{margin:0 0 10px}
+.lede{color:var(--cream);max-width:760px}
+.lede b{color:var(--paper)}
+.small{font-size:14px;color:var(--grey-l)}
+section{margin:30px 0 0;padding:20px 0 0;border-top:2px dashed var(--grey-d)}
+.rec{display:inline-block;font:700 12px var(--tx);letter-spacing:1px;background:var(--grn);color:var(--ink);padding:2px 7px;border:2px solid var(--ink);border-radius:3px;vertical-align:3px}
+
+/* ---------- controls ---------- */
+.ctl{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin:10px 0 12px}
+.ctl .lab{font:700 12px var(--tx);letter-spacing:1px;color:var(--grey-l);margin-right:2px}
+.btn{font:700 14px var(--tx);background:var(--paper);color:var(--ink);border:2px solid var(--ink);border-radius:4px;padding:6px 11px;cursor:pointer;box-shadow:0 3px 0 var(--cream-dk);min-height:36px;touch-action:manipulation}
+.btn:active{transform:translateY(2px);box-shadow:0 1px 0 var(--cream-dk)}
+.btn.on{background:var(--mus);box-shadow:0 3px 0 var(--mus-dk2)}
+.btn.go{background:var(--teal);color:var(--paper);box-shadow:0 3px 0 var(--teal-dk2)}
+.ctl .sep{width:2px;height:24px;background:var(--grey-d);margin:0 4px}
+
+/* ---------- the game stage ---------- */
+.stagewrap{max-width:440px}
+.stage{position:relative;background:var(--teal-dk2);border:3px solid var(--ink);box-shadow:0 0 0 2px var(--grey-d);overflow:hidden;border-radius:4px}
+.topbar{position:relative;z-index:5;display:flex;align-items:center;gap:5px;padding:7px 6px;background:var(--ink);border-bottom:3px solid #120f0d;min-height:46px}
+.topbar .sp{flex:1}
+.quota{font:700 10px/1 var(--tx);letter-spacing:1px;color:var(--cream);white-space:nowrap;text-align:right;flex:none}
+.quota b{display:block;font:400 18px/1 var(--px);letter-spacing:0;color:var(--gold)}
+.chipslot{position:relative;height:30px;display:flex;align-items:center;min-width:0}
+#wslot{flex:none}
+.wchip,.dchip{display:inline-flex;align-items:center;gap:4px;height:30px;padding:0 6px 0 4px;border:2px solid #120f0d;border-radius:3px;font:700 11px var(--tx);letter-spacing:.2px;white-space:nowrap;max-width:100%;min-width:0;overflow:hidden;cursor:pointer;box-shadow:inset 0 -3px 0 rgba(0,0,0,.25)}
+.wchip{background:var(--wk,var(--teal));color:var(--paper)}
+.wchip .wn{font:400 16px var(--px);background:rgba(0,0,0,.28);padding:0 5px;border-radius:2px}
+.wchip .pips{display:inline-flex;gap:2px;margin-left:2px}
+.wchip .pips i{width:6px;height:6px;background:rgba(255,255,255,.3);display:block}
+.wchip .pips i.done{background:var(--paper)}
+.wchip .pips i.now{background:var(--gold);box-shadow:0 0 0 1px var(--ink)}
+.dchip{background:var(--grey-d);color:var(--paper)}
+.dchip.b{background:var(--grn-dk)}
+.dchip.m{background:var(--tom-dk)}
+.dchip.r{background:var(--mus);color:var(--ink)}
+.dchip .dn{font:400 16px var(--px);flex:none}
+.dchip .lb{overflow:hidden;text-overflow:ellipsis;min-width:0}
+.dchip img{flex:none}
+.dchip img{width:18px;height:auto}
+.wchip .wnm{overflow:hidden}
+@media (max-width:400px){.wchip .wnm{display:none}}
+.chip-ghost{width:64px;height:30px;border:2px dashed var(--grey-d);border-radius:3px}
+.pop{animation:pop .38s cubic-bezier(.3,1.6,.5,1) both}
+@keyframes pop{0%{transform:scale(.2);opacity:0}100%{transform:scale(1);opacity:1}}
+
+.scene{position:relative;min-height:470px;padding:16px 10px 18px;display:flex;align-items:flex-start;justify-content:center}
+.scene .bg{position:absolute;inset:0;background:
+  linear-gradient(180deg,transparent 0 62%,rgba(0,0,0,.25) 62% 64%,#2e2a26 64% 100%),
+  repeating-linear-gradient(90deg,var(--teal-dk) 0 46px,var(--teal-dk2) 46px 50px)}
+.scene .bg .belt{position:absolute;left:0;right:0;top:66%;height:40px;background:repeating-linear-gradient(90deg,#3d3a36 0 14px,#2b2826 14px 16px);border-top:3px solid #120f0d;border-bottom:3px solid #120f0d}
+.scene .bg .hint{position:absolute;left:0;right:0;bottom:18px;text-align:center;font:400 18px var(--px);color:var(--cream-sh);opacity:0;transition:opacity .4s}
+.scene.done .bg .hint{opacity:1}
+.scene .dim{position:absolute;inset:0;background:rgba(18,15,13,.72);transition:opacity .45s}
+.scene.done .dim{opacity:0}
+.scene .slotc{position:relative;z-index:3;width:100%;display:flex;justify-content:center}
+
+/* ---------- shared card bits ---------- */
+.card{--wk:var(--teal);position:relative;color:var(--ink);transform-origin:50% 50%}
+.wbanner{position:relative;display:block;background:var(--wk);color:var(--paper);border:3px solid var(--ink);padding:6px 10px 7px;text-align:center;box-shadow:3px 3px 0 rgba(0,0,0,.3);transform:rotate(-2deg)}
+.wbanner .k{display:block;font:700 11px var(--tx);letter-spacing:1.5px;opacity:.9}
+.wbanner .t{display:block;font:400 22px/1.1 var(--px);letter-spacing:.5px}
+.wbanner .fx{display:block;font:700 14px/1.3 var(--tx);margin-top:2px}
+.ev{display:flex;gap:6px;align-items:flex-start;padding:5px 6px;border:2px solid var(--ink);border-radius:2px;font:700 13px/1.25 var(--tx);text-align:left}
+.ev img{width:18px;height:auto;flex:none;margin-top:1px}
+.ev .nm{display:block;font:400 15px/1.1 var(--px)}
+.ev .fx{display:block;font:700 12px/1.25 var(--tx)}
+.ev.b{background:var(--grn-p);border-color:var(--grn-dk);color:#1f3d22}
+.ev.b .nm{color:var(--grn-dk)}
+.ev.m{background:var(--tom-p);border-color:var(--tom-dk);color:var(--tom-dk2)}
+.ev.m .nm{color:var(--tom-dk)}
+.ev.n{background:transparent;border:2px dashed var(--grey);color:var(--grey-d)}
+.reward{display:flex;align-items:center;gap:6px;background:var(--gold);border:2px solid var(--ink);padding:4px 6px;font:700 11px/1.2 var(--tx);letter-spacing:.4px;color:var(--ink);box-shadow:2px 2px 0 rgba(0,0,0,.3);position:relative;overflow:hidden}
+.reward img{width:18px;height:auto;flex:none}
+.reward .tk{display:flex;gap:2px}
+.reward.final{background:var(--mus-l)}
+.reward::after{content:"";position:absolute;top:0;bottom:0;width:30%;left:-40%;background:linear-gradient(90deg,transparent,rgba(255,255,255,.75),transparent);transform:skewX(-20deg)}
+.reward.glint::after{animation:glint .7s ease-out .1s}
+@keyframes glint{to{left:120%}}
+.revk{font:700 11px var(--tx);letter-spacing:1px;color:var(--mus-dk2)}
+
+/* pre-states (only while a timeline runs) */
+.pre .wbanner{opacity:0}
+.pre .day:not(.on) .fillable{opacity:0}
+.pre .day:not(.on) .ph{opacity:1}
+.ph{opacity:0;position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font:400 22px var(--px);color:var(--grey-l);pointer-events:none}
+.day{position:relative}
+.day.on .fillable{animation:fillin .34s cubic-bezier(.3,1.5,.5,1) both}
+.day.on .fillable:nth-child(2){animation-delay:.12s}
+.day.on .fillable:nth-child(3){animation-delay:.24s}
+.day.on .fillable:nth-child(4){animation-delay:.36s}
+@keyframes fillin{0%{transform:scale(.6);opacity:0}100%{transform:scale(1);opacity:1}}
+.wbanner.stamp{animation:stamp .42s cubic-bezier(.2,1.4,.4,1) both}
+@keyframes stamp{0%{transform:scale(2.3) rotate(-9deg);opacity:0}55%{transform:scale(.94) rotate(-2deg);opacity:1}100%{transform:scale(1) rotate(-2deg);opacity:1}}
+.shake{animation:shake .25s linear}
+@keyframes shake{25%{translate:-3px 1px}50%{translate:3px -1px}75%{translate:-2px 0}100%{translate:0 0}}
+
+/* ---------- variant A: rota on a corkboard ---------- */
+.vA{container-type:inline-size;width:100%;max-width:420px;background:var(--cork);padding:14px 10px 12px;border:4px solid var(--cork-dk);box-shadow:inset 0 0 0 2px var(--cork-l),0 4px 0 rgba(0,0,0,.35);
+  background-image:radial-gradient(var(--cork-dk) 1.2px,transparent 1.6px),radial-gradient(var(--cork-l) 1px,transparent 1.4px);background-size:9px 9px,13px 13px;background-position:0 0,4px 6px}
+.vA .sheet{position:relative;background:var(--paper);border:2px solid var(--ink);padding:16px 10px 10px;box-shadow:4px 4px 0 rgba(0,0,0,.35);transform:rotate(.6deg)}
+.vA .pinI{position:absolute;top:-9px;left:50%;width:16px;height:16px;margin-left:-8px;background:var(--pin);border:2px solid var(--ink);border-radius:50%;box-shadow:inset -3px -3px 0 var(--tom-dk),2px 3px 0 rgba(0,0,0,.35);z-index:2}
+.vA .hd{display:flex;justify-content:space-between;align-items:baseline;font:700 11px var(--tx);letter-spacing:1.4px;color:var(--grey-d);margin:0 0 8px}
+.vA .hd b{font:400 18px var(--px);letter-spacing:0;color:var(--ink)}
+.vA .grid{display:grid;grid-template-columns:repeat(4,1fr);gap:5px;margin-top:10px}
+@container (max-width:400px){.vA .grid{grid-template-columns:1fr 1fr}}
+.vA .day{display:flex;flex-direction:column;gap:4px;border-top:3px solid var(--ink);padding-top:4px;min-height:120px}
+.vA .day .dh{font:700 11px var(--tx);letter-spacing:1px;color:var(--grey-d);display:flex;justify-content:space-between}
+.vA .day .dh b{font:400 16px var(--px);letter-spacing:0;color:var(--ink)}
+.vA .day.rv{background:var(--mus-p);outline:2px solid var(--mus-dk);outline-offset:-1px;padding:4px 4px 5px}
+.vA .ev{flex-direction:column;gap:2px}
+.vA .ev img{margin:0}
+.in-A{animation:pinDrop .6s cubic-bezier(.3,1.3,.5,1) both}
+@keyframes pinDrop{0%{transform:translateY(-120%) rotate(-6deg);opacity:0}60%{transform:translateY(6px) rotate(1.5deg);opacity:1}100%{transform:none}}
+
+/* ---------- variant B: receipt strip ---------- */
+.vB{width:100%;max-width:300px;background:var(--paper);padding:14px 12px 16px;font-family:var(--tx);box-shadow:4px 4px 0 rgba(0,0,0,.35);
+  -webkit-mask:linear-gradient(#000 0 0) 0 8px/100% calc(100% - 16px) no-repeat,conic-gradient(from -45deg at 50% 8px,#000 90deg,transparent 0) 0 0/12px 8px repeat-x,conic-gradient(from 135deg at 50% 0,#000 90deg,transparent 0) 0 100%/12px 8px repeat-x;
+  mask:linear-gradient(#000 0 0) 0 8px/100% calc(100% - 16px) no-repeat,conic-gradient(from -45deg at 50% 8px,#000 90deg,transparent 0) 0 0/12px 8px repeat-x,conic-gradient(from 135deg at 50% 0,#000 90deg,transparent 0) 0 100%/12px 8px repeat-x}
+.vB .hd{text-align:center;font:700 11px var(--tx);letter-spacing:2px;color:var(--grey-d);padding-top:4px}
+.vB .hd b{display:block;font:400 20px var(--px);letter-spacing:1px;color:var(--ink)}
+.vB .rule{border-top:2px dashed var(--grey);margin:8px 0}
+.vB .wbanner{margin:6px 2px 4px}
+.vB .day{display:grid;grid-template-columns:44px 1fr;gap:6px;padding:6px 0;border-bottom:2px dashed var(--cream-sh)}
+.vB .day:last-child{border-bottom:0}
+.vB .day .dh{font:700 10px/1.1 var(--tx);letter-spacing:1px;color:var(--grey-d);text-align:center;padding-top:2px}
+.vB .day .dh b{display:block;font:400 22px/1 var(--px);color:var(--ink);letter-spacing:0}
+.vB .day .col{display:flex;flex-direction:column;gap:4px;position:relative}
+.vB .day.rv{background:var(--mus-p);margin:0 -6px;padding:6px 6px 8px;border:2px solid var(--mus-dk)}
+.vB .ft{text-align:center;font:700 11px var(--tx);letter-spacing:1.5px;color:var(--grey);margin-top:6px}
+.in-B{animation:printB 1s steps(14) both}
+@keyframes printB{0%{clip-path:inset(0 0 100% 0);transform:translateY(-14px)}100%{clip-path:inset(0 0 0 0);transform:none}}
+
+/* ---------- variant C: punch-clock time card ---------- */
+.vC{width:100%;max-width:330px;background:var(--mus-p);border:3px solid var(--ink);padding:10px 10px 12px;box-shadow:4px 4px 0 rgba(0,0,0,.35);position:relative}
+.vC::before{content:"";position:absolute;left:50%;top:-3px;width:46px;height:9px;margin-left:-23px;background:var(--charcoal);border:3px solid var(--ink);border-top:0;border-radius:0 0 8px 8px}
+.vC .hd{display:flex;justify-content:space-between;align-items:flex-end;border-bottom:3px solid var(--ink);padding:6px 0 4px;margin-bottom:8px}
+.vC .hd b{font:400 20px var(--px);color:var(--ink)}
+.vC .hd span{font:700 11px var(--tx);letter-spacing:1px;color:var(--mus-dk2);text-align:right}
+.vC .wbanner{margin:0 0 8px}
+.vC .tbl{border:2px solid var(--ink);background:var(--paper)}
+.vC .day{display:grid;grid-template-columns:52px 1fr;border-bottom:2px solid var(--ink)}
+.vC .day:last-child{border-bottom:0}
+.vC .pc{border-right:2px solid var(--ink);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;padding:4px 2px;background:repeating-linear-gradient(0deg,transparent 0 9px,var(--cream-sh) 9px 10px)}
+.vC .pc b{font:400 20px/1 var(--px);color:var(--ink)}
+.vC .pc .punch{font:700 9px var(--tx);letter-spacing:.5px;color:#6a3a8f;border:2px solid #6a3a8f;padding:0 3px;transform:rotate(-8deg);opacity:0}
+.vC .day.punched .punch{opacity:.85}
+.vC .day.on .punch{animation:punch .3s steps(3) both}
+@keyframes punch{0%{transform:scale(1.8) rotate(-8deg);opacity:0}100%{transform:scale(1) rotate(-8deg);opacity:.85}}
+.vC .col{display:flex;flex-direction:column;gap:4px;padding:5px;position:relative}
+.vC .day.rv .col{background:var(--mus-l)}
+.vC .day.rv .pc{background:var(--mus)}
+.in-C{animation:clockC .7s cubic-bezier(.2,1,.4,1) both}
+@keyframes clockC{0%{transform:translateY(55%);clip-path:inset(0 0 55% 0);opacity:0}70%{transform:translateY(-6px);clip-path:inset(0 0 0 0);opacity:1}85%{transform:translateY(2px)}100%{transform:none}}
+
+/* ---------- variant panels ---------- */
+.vars{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:16px;margin-top:10px}
+.vpan{background:var(--panel);border:2px solid var(--grey-d);padding:12px;display:flex;flex-direction:column;gap:10px;min-width:0}
+.vpan.best{border-color:var(--grn)}
+.vpan .vh{display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap}
+.vpan .vstage{background:var(--teal-dk2);border:2px solid var(--ink);padding:16px 8px;display:flex;justify-content:center;min-height:200px;overflow:hidden}
+.pc2{font-size:14px;color:var(--cream);margin:0}
+.pc2 b{color:var(--paper)}
+.pc2 .p{color:#a8dca0}
+.pc2 .c{color:#f5a58c}
+
+/* ---------- week events ---------- */
+.wk{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:16px}
+.wkcol{background:var(--panel);border:2px solid var(--grey-d);padding:12px}
+.cand{display:grid;grid-template-columns:auto 1fr;gap:4px 10px;align-items:start;padding:9px 0;border-top:2px dashed var(--grey-d)}
+.cand:first-of-type{border-top:0}
+.cand .tag{font:400 15px var(--px);background:var(--wk);color:var(--paper);border:2px solid var(--ink);padding:2px 7px;white-space:nowrap}
+.cand .tx{font-size:14px;color:var(--cream)}
+.cand .tx b{color:var(--paper)}
+.cand .tx .why{display:block;color:var(--grey-l);font-size:13px}
+
+/* ---------- pools ---------- */
+.pools{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:12px;margin-top:10px}
+.pools .ev{margin:0 0 6px}
+
+/* ---------- questions ---------- */
+.asks{background:var(--mus-p);color:var(--ink);border:3px solid var(--ink);border-radius:4px;padding:14px 16px;box-shadow:4px 4px 0 rgba(0,0,0,.35)}
+.asks h3{color:var(--ink);font-size:22px}
+.asks ol{margin:0;padding-left:22px}
+.asks li{margin:0 0 12px}
+.asks li>b{display:block}
+.asks ul{margin:4px 0 0;padding-left:18px}
+.asks ul li{margin:2px 0}
+.asks .r{font:700 11px var(--tx);letter-spacing:1px;background:var(--grn);color:var(--ink);padding:1px 5px;border:1px solid var(--ink);margin-left:4px;white-space:nowrap}
+
+@media (prefers-reduced-motion:reduce){
+  *,*::before,*::after{animation-duration:.001ms!important;animation-delay:0s!important;transition-duration:.001ms!important}
+}
+</style>
+
+<div class="page">
+<header>
+  <h1>Rota card: weeks and days</h1>
+  <p class="lede">A run is <b>12 shifts in 3 weeks of 4 days</b>. At the start of each week a <b>rota card</b> shows the week event and all 4 days. Then it shrinks into the top bar as a <b>week chip</b> and a <b>day chip</b>. Green days help you, red days hurt, and day 4 of each week is the <b>Manager's review</b> with 2 maluses.</p>
+  <p class="small">Mock-up for the 2026-10-28 decision. Event names and numbers are examples, not tuned.</p>
+</header>
+
+<section id="seq">
+  <h2><span class="n">1</span>Week start, live</h2>
+  <p class="lede">The card arrives, the week event stamps, the 4 days fill in, then the card flies into the top bar. Tap the week chip to open the card again. <b>Next shift</b> moves the day chip.</p>
+  <div class="ctl" role="group" aria-label="Week">
+    <span class="lab">WEEK</span>
+    <button class="btn wkb on" data-w="0">Week 1</button>
+    <button class="btn wkb" data-w="1">Week 2</button>
+    <button class="btn wkb" data-w="2">Week 3</button>
+  </div>
+  <div class="ctl" role="group" aria-label="Card layout">
+    <span class="lab">CARD</span>
+    <button class="btn vb" data-v="A">A Corkboard</button>
+    <button class="btn vb" data-v="B">B Receipt</button>
+    <button class="btn vb on" data-v="C">C Time card</button>
+  </div>
+  <div class="ctl">
+    <button class="btn go" id="replay">&#8635; Replay</button>
+    <button class="btn" id="next">Next shift &#9656;</button>
+  </div>
+  <div class="stagewrap">
+    <div class="stage" id="stage">
+      <div class="topbar">
+        <div class="chipslot" id="wslot"><span class="chip-ghost"></span></div>
+        <div class="chipslot" id="dslot"><span class="chip-ghost"></span></div>
+        <span class="sp"></span>
+        <span class="quota">QUOTA<b id="quota">€60</b></span>
+      </div>
+      <div class="scene" id="scene">
+        <div class="bg"><div class="belt"></div><div class="hint" id="hint">Shift 1 starts</div></div>
+        <div class="dim"></div>
+        <div class="slotc" id="cardslot"></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="vars">
+  <h2><span class="n">2</span>Three card layouts</h2>
+  <p class="lede">Same content, three looks. Each one plays its own arrival. They follow the week picked above.</p>
+  <div class="ctl"><button class="btn go" id="replayAll">&#8635; Replay all three</button></div>
+  <div class="vars">
+    <div class="vpan" data-v="A">
+      <div class="vh"><h3>A. Rota on a corkboard</h3><button class="btn rp">&#8635; Replay</button></div>
+      <div class="vstage"></div>
+      <p class="pc2"><span class="p">+ Reads like a real staff rota; 4 days side by side show the week shape at a glance; fits the landscape Windows screen.</span><br><span class="c">− On a phone the 4 columns drop to 2×2; the cork needs a new background asset.</span></p>
+    </div>
+    <div class="vpan" data-v="B">
+      <div class="vh"><h3>B. Receipt strip</h3><button class="btn rp">&#8635; Replay</button></div>
+      <div class="vstage"></div>
+      <p class="pc2"><span class="p">+ Reuses the receipt paper and the print-out motion players already know; a vertical list reads well on a phone.</span><br><span class="c">− A third receipt next to the shift receipt and the machine tickets; it can blur with the score receipt.</span></p>
+    </div>
+    <div class="vpan best" data-v="C">
+      <div class="vh"><h3>C. Punch-clock time card <span class="rec">RECOMMENDED</span></h3><button class="btn rp">&#8635; Replay</button></div>
+      <div class="vstage"></div>
+      <p class="pc2"><span class="p">+ A cashier's own card: each shift start punches the day, so the card is also your progress. Vertical, so it works on phone and Windows. Different from the receipts.</span><br><span class="c">− Needs one new frame (the card) and a punch sound; rows are less "week at a glance" than A.</span></p>
+    </div>
+  </div>
+  <p class="small" style="margin-top:10px">Recommendation: <b>C</b>. It gives every shift start a small moment (the punch) and the week chip in the top bar can show the same punched pips.</p>
+</section>
+
+<section id="weeks">
+  <h2><span class="n">3</span>Fixed week events</h2>
+  <p class="lede">Week 1 is always <b>Training week</b>. Weeks 2 and 3 are authored too. Week 2 adds a theme; week 3 is the hardest week and ends the run.</p>
+  <div class="wk">
+    <div class="wkcol">
+      <h3>Week 2 candidates</h3>
+      <div class="cand" style="--wk:var(--mus-dk)"><span class="tag">Bakery festival</span><span class="tx"><b>Bakery items +€2, quota +10%.</b> <span class="rec">PICK</span><span class="why">Pushes one aisle; easy to read; uses aisle signs we have.</span></span></div>
+      <div class="cand" style="--wk:var(--mus-dk)"><span class="tag">Clearance drive</span><span class="tx"><b>Clearance items +€2, quota +10%.</b><span class="why">Rewards the Clearance tag builds; same shape as Bakery.</span></span></div>
+      <div class="cand" style="--wk:var(--mus-dk)"><span class="tag">Coupon week</span><span class="tx"><b>+1 coupon slot, quota +15%.</b><span class="why">Helps coupon builds; bigger quota to pay for it.</span></span></div>
+      <div class="cand" style="--wk:var(--mus-dk)"><span class="tag">Stocktake</span><span class="tx"><b>+1 hand item, −1 redraw each shift.</b><span class="why">No quota change; changes how you play, not how much you need.</span></span></div>
+    </div>
+    <div class="wkcol">
+      <h3>Week 3 candidates</h3>
+      <div class="cand" style="--wk:var(--ink-l)"><span class="tag">Holiday rush</span><span class="tx"><b>Quota +15%, machine odds +1 level.</b> <span class="rec">PICK</span><span class="why">Harder, but the machine pays better: a fair final stretch.</span></span></div>
+      <div class="cand" style="--wk:var(--ink-l)"><span class="tag">Head office visit</span><span class="tx"><b>Every day adds 1 extra malus, machine odds +2 levels.</b><span class="why">Hardest; may be too much with day 12's review.</span></span></div>
+      <div class="cand" style="--wk:var(--ink-l)"><span class="tag">Heatwave</span><span class="tx"><b>Cold cases items +€2, Bakery items −€1, quota +15%.</b><span class="why">Theme week again; changes which aisle is good.</span></span></div>
+      <div class="cand" style="--wk:var(--ink-l)"><span class="tag">Double shifts</span><span class="tx"><b>Quota +20%, +1 redraw each shift.</b><span class="why">Plain and readable; no machine change.</span></span></div>
+    </div>
+  </div>
+</section>
+
+<section id="pools">
+  <h2><span class="n">4</span>Day event pools</h2>
+  <p class="lede">Days 2, 5, 6, 9, 10 draw one <b>boon</b>. Days 3, 7, 11 draw one <b>malus</b>. Days 4, 8, 12 draw <b>2 different maluses</b> for the review. Day 1 has none.</p>
+  <div class="pools" id="poolbox"></div>
+</section>
+
+<section id="ask">
+  <div class="asks">
+    <h3>Questions</h3>
+    <ol>
+      <li><b>Which card layout?</b>
+        <ul><li>C Punch-clock time card <span class="r">RECOMMENDED</span></li><li>A Rota on a corkboard</li><li>B Receipt strip</li></ul></li>
+      <li><b>How much does the card show at week start?</b>
+        <ul><li>All 4 days in full, so you can plan the week <span class="r">RECOMMENDED</span></li><li>Day types only (green, red, review); names show on the day</li><li>All days, but the review's 2 maluses stay hidden until day 4</li></ul></li>
+      <li><b>Which fixed weeks 2 and 3?</b>
+        <ul><li>Bakery festival, then Holiday rush <span class="r">RECOMMENDED</span></li><li>Clearance drive, then Holiday rush</li><li>Pick another pair from section 3</li></ul></li>
+      <li><b>When does the card come back?</b>
+        <ul><li>Week start, plus tap the week chip any time <span class="r">RECOMMENDED</span></li><li>Week start, plus a short punch-in before every shift</li><li>Week start only</li></ul></li>
+    </ol>
+  </div>
+</section>
+</div>
+
+<script>
+(function(){
+const IMG={
+  up:"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAkAAAAJCAMAAADXT/YiAAAAzFBMVEUAAAArJCBKPzheV02KgXLHvquzn3jdy6Xz6dL79+4fOzoqTUs6dnJPmpSGwrbD4NRuJjCoOjzZU0/sim71v6B6WhyzhCXiszzx0nr67Lw9ekVfrlql0X5KMCJ6UjKoek7SqHRKMBCKXRrIkyv/zz8qDhRWEyeKHzOyOlXs6+THw7ippZuNioNva2NXU0xFQj09OjYsKSYkIh/dsHrJjE6ocDpuRSQ+JhTs4Mbk1rnNu5i5pHzk9vO/4t0sNTMiKilfsKgXLCvitIzDj2o0VfsQAAAAAXRSTlMAQObYZgAAACtJREFUeNpjYAACRgYoYFRhhDFUIEwQA8xkZASLMTIiyyKzxMXFoSxGsCoAgO0C5oc/CfEAAAAASUVORK5CYII=",slot:"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAA0AAAAMCAMAAACOacfrAAAAzFBMVEUAAAArJCBKPzheV02KgXLHvquzn3jdy6Xz6dL79+4fOzoqTUs6dnJPmpSGwrbD4NRuJjCoOjzZU0/sim71v6B6WhyzhCXiszzx0nr67Lw9ekVfrlql0X5KMCJ6UjKoek7SqHRKMBCKXRrIkyv/zz8qDhRWEyeKHzOyOlXs6+THw7ippZuNioNva2NXU0xFQj09OjYsKSYkIh/dsHrJjE6ocDpuRSQ+JhTs4Mbk1rnNu5i5pHzk9vO/4t0sNTMiKilfsKgXLCvitIzDj2o0VfsQAAAAAXRSTlMAQObYZgAAADNJREFUeNpjYGBEAAYGRgkEYETnccIBB4QHFmFE5jFCeWDj0OTQVTJyYJjJgQAgxyC5DADdgAS5j87IiAAAAABJRU5ErkJggg==",redraw:"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAkAAAAICAMAAAAcEyWHAAAAzFBMVEUAAAArJCBKPzheV02KgXLHvquzn3jdy6Xz6dL79+4fOzoqTUs6dnJPmpSGwrbD4NRuJjCoOjzZU0/sim71v6B6WhyzhCXiszzx0nr67Lw9ekVfrlql0X5KMCJ6UjKoek7SqHRKMBCKXRrIkyv/zz8qDhRWEyeKHzOyOlXs6+THw7ippZuNioNva2NXU0xFQj09OjYsKSYkIh/dsHrJjE6ocDpuRSQ+JhTs4Mbk1rnNu5i5pHzk9vO/4t0sNTMiKilfsKgXLCvitIzDj2o0VfsQAAAAAXRSTlMAQObYZgAAACZJREFUeNpjYGDg5ORk4GQAAhDByQlnwFgQwAmnESwoE6KZE6wDACFlANDjT83mAAAAAElFTkSuQmCC",cart:"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAwAAAAJCAMAAAAxZj1mAAAAzFBMVEUAAAArJCBKPzheV02KgXLHvquzn3jdy6Xz6dL79+4fOzoqTUs6dnJPmpSGwrbD4NRuJjCoOjzZU0/sim71v6B6WhyzhCXiszzx0nr67Lw9ekVfrlql0X5KMCJ6UjKoek7SqHRKMBCKXRrIkyv/zz8qDhRWEyeKHzOyOlXs6+THw7ippZuNioNva2NXU0xFQj09OjYsKSYkIh/dsHrJjE6ocDpuRSQ+JhTs4Mbk1rnNu5i5pHzk9vO/4t0sNTMiKilfsKgXLCvitIzDj2o0VfsQAAAAAXRSTlMAQObYZgAAACRJREFUeNpj4ORkQAKoHAQA8bihEEUKohAhAZfCYh4DxBxOBgBtKgHaNolQCQAAAABJRU5ErkJggg==",
+  coin:"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAwAAAAMCAMAAABhq6zVAAAAzFBMVEUAAAArJCBKPzheV02KgXLHvquzn3jdy6Xz6dL79+4fOzoqTUs6dnJPmpSGwrbD4NRuJjCoOjzZU0/sim71v6B6WhyzhCXiszzx0nr67Lw9ekVfrlql0X5KMCJ6UjKoek7SqHRKMBCKXRrIkyv/zz8qDhRWEyeKHzOyOlXs6+THw7ippZuNioNva2NXU0xFQj09OjYsKSYkIh/dsHrJjE6ocDpuRSQ+JhTs4Mbk1rnNu5i5pHzk9vO/4t0sNTMiKilfsKgXLCvitIzDj2o0VfsQAAAAAXRSTlMAQObYZgAAADhJREFUeNqVzrEVACAIQ8FkCMgC7j+jEih8dl7FbwAAoAEeZU5qlVOeNdgRIeVPjOx1yiK+R693NqNiCHXRk8hJAAAAAElFTkSuQmCC",warn:"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAA0AAAALCAMAAACTbPdTAAAAzFBMVEUAAAArJCBKPzheV02KgXLHvquzn3jdy6Xz6dL79+4fOzoqTUs6dnJPmpSGwrbD4NRuJjCoOjzZU0/sim71v6B6WhyzhCXiszzx0nr67Lw9ekVfrlql0X5KMCJ6UjKoek7SqHRKMBCKXRrIkyv/zz8qDhRWEyeKHzOyOlXs6+THw7ippZuNioNva2NXU0xFQj09OjYsKSYkIh/dsHrJjE6ocDpuRSQ+JhTs4Mbk1rnNu5i5pHzk9vO/4t0sNTMiKilfsKgXLCvitIzDj2o0VfsQAAAAAXRSTlMAQObYZgAAADFJREFUeNp1ycENADAIw0A8Rdh/0hZEJPqofydHdMQK8RO5+YgUMi9Kw5KsBqZXi90ByqIDxQUUkxwAAAAASUVORK5CYII=",lock:"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAkAAAAKCAMAAABR24SMAAAAzFBMVEUAAAArJCBKPzheV02KgXLHvquzn3jdy6Xz6dL79+4fOzoqTUs6dnJPmpSGwrbD4NRuJjCoOjzZU0/sim71v6B6WhyzhCXiszzx0nr67Lw9ekVfrlql0X5KMCJ6UjKoek7SqHRKMBCKXRrIkyv/zz8qDhRWEyeKHzOyOlXs6+THw7ippZuNioNva2NXU0xFQj09OjYsKSYkIh/dsHrJjE6ocDpuRSQ+JhTs4Mbk1rnNu5i5pHzk9vO/4t0sNTMiKilfsKgXLCvitIzDj2o0VfsQAAAAAXRSTlMAQObYZgAAACtJREFUeNpjYGBgBAEGIGBkBQFGMAtIoLIYYYCBURwCICxGdJYYBDAidAAAWrkCpPBqs/cAAAAASUVORK5CYII=",ticket:"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABgAAAAgCAMAAAA/gEgKAAAAzFBMVEUAAAArJCBKPzheV02KgXLHvquzn3jdy6Xz6dL79+4fOzoqTUs6dnJPmpSGwrbD4NRuJjCoOjzZU0/sim71v6B6WhyzhCXiszzx0nr67Lw9ekVfrlql0X5KMCJ6UjKoek7SqHRKMBCKXRrIkyv/zz8qDhRWEyeKHzOyOlXs6+THw7ippZuNioNva2NXU0xFQj09OjYsKSYkIh/dsHrJjE6ocDpuRSQ+JhTs4Mbk1rnNu5i5pHzk9vO/4t0sNTMiKilfsKgXLCvitIzDj2o0VfsQAAAAAXRSTlMAQObYZgAAAIFJREFUeNqVk0sOwCAIRGFpMtgr9f6nKn5qiEBax8iCFxBQiTgUEd+hWEHxqgNcThbAWAsALGsBmqb9F5GfkVflAHGpl1t9JKepvgFWe1sfRVS+weFvaJ+V+vQiZowBzT+2B5NFoEgCJABYmbCVK3G5b0xwg+lIjqZbvTpIHnX2DR5bdzbhDdtPwwAAAABJRU5ErkJggg==",
+  bakery:"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAkAAAAJCAMAAADXT/YiAAAAzFBMVEUAAAArJCBKPzheV02KgXLHvquzn3jdy6Xz6dL79+4fOzoqTUs6dnJPmpSGwrbD4NRuJjCoOjzZU0/sim71v6B6WhyzhCXiszzx0nr67Lw9ekVfrlql0X5KMCJ6UjKoek7SqHRKMBCKXRrIkyv/zz8qDhRWEyeKHzOyOlXs6+THw7ippZuNioNva2NXU0xFQj09OjYsKSYkIh/dsHrJjE6ocDpuRSQ+JhTs4Mbk1rnNu5i5pHzk9vO/4t0sNTMiKilfsKgXLCvitIzDj2o0VfsQAAAAAXRSTlMAQObYZgAAAC5JREFUeNpjYEACjCAAZnAoAAGQyaigwA5CjEAWmCEPYoEBiCUPAYxQrRDNUAAAndMDspe+/r8AAAAASUVORK5CYII=",snacks:"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAkAAAAJCAMAAADXT/YiAAAAzFBMVEUAAAArJCBKPzheV02KgXLHvquzn3jdy6Xz6dL79+4fOzoqTUs6dnJPmpSGwrbD4NRuJjCoOjzZU0/sim71v6B6WhyzhCXiszzx0nr67Lw9ekVfrlql0X5KMCJ6UjKoek7SqHRKMBCKXRrIkyv/zz8qDhRWEyeKHzOyOlXs6+THw7ippZuNioNva2NXU0xFQj09OjYsKSYkIh/dsHrJjE6ocDpuRSQ+JhTs4Mbk1rnNu5i5pHzk9vO/4t0sNTMiKilfsKgXLCvitIzDj2o0VfsQAAAAAXRSTlMAQObYZgAAADJJREFUeNpFycENADAIAkBYovZT3H/Lqq0RHlwCAFYj9KhYcinFXOkwta1lqzXvF/iCC9FiBQ0SJ7QaAAAAAElFTkSuQmCC",check:"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAA0AAAANCAMAAABFNRROAAAAzFBMVEUAAAArJCBKPzheV02KgXLHvquzn3jdy6Xz6dL79+4fOzoqTUs6dnJPmpSGwrbD4NRuJjCoOjzZU0/sim71v6B6WhyzhCXiszzx0nr67Lw9ekVfrlql0X5KMCJ6UjKoek7SqHRKMBCKXRrIkyv/zz8qDhRWEyeKHzOyOlXs6+THw7ippZuNioNva2NXU0xFQj09OjYsKSYkIh/dsHrJjE6ocDpuRSQ+JhTs4Mbk1rnNu5i5pHzk9vO/4t0sNTMiKilfsKgXLCvitIzDj2o0VfsQAAAAAXRSTlMAQObYZgAAAD5JREFUeNpNzsENACAIQ1E4dgXr/nNqlaL/9hJCGrFLFVVOlQbVZYEc+QGiBQsXFg58iYN+09gcfBDVm+adC2JiCWBCGdj2AAAAAElFTkSuQmCC"
+};
+const EV={
+  none:{t:'n',nm:'Normal day',fx:'No event'},
+  quiet:{t:'b',nm:'Quiet morning',fx:'Quota −10%',i:'up',flip:1},
+  till:{t:'b',nm:'Extra till',fx:'+1 slot',i:'slot'},
+  regulars:{t:'b',nm:"Regulars' day",fx:'+1 redraw',i:'redraw'},
+  trolleys:{t:'b',nm:'Big trolleys',fx:'+1 hand item',i:'cart'},
+  samples:{t:'b',nm:'Free samples',fx:'1st product ×2',i:'coin'},
+  happy:{t:'b',nm:'Happy hour',fx:'Last slot +€3',i:'coin'},
+  spot:{t:'m',nm:'Spot check',fx:'Slot 3 pays €0',i:'lock'},
+  short:{t:'m',nm:'Short belt',fx:'−1 slot',i:'warn'},
+  jam:{t:'m',nm:'Till jam',fx:'−1 redraw',i:'redraw'},
+  small:{t:'m',nm:'Small baskets',fx:'−1 hand item',i:'cart'},
+  rush:{t:'m',nm:'Rush hour',fx:'Quota +10%',i:'up'},
+  late:{t:'m',nm:'Late delivery',fx:'Snacks −€2',i:'snacks'}
+};
+const WEEKS=[
+  {n:1,nm:'TRAINING WEEK',fx:'Miss a quota? Up to 2 slips forgiven (shifts 1–4).',c:'var(--teal-sh)',quota:[60,66,72,80],
+   days:[{d:1,e:['none']},{d:2,e:['quiet']},{d:3,e:['spot']},{d:4,rv:1,e:['short','rush']}]},
+  {n:2,nm:'BAKERY FESTIVAL',fx:'Bakery items +€2, quota +10%.',c:'var(--mus-dk)',quota:[96,104,112,124],
+   days:[{d:5,e:['samples']},{d:6,e:['till']},{d:7,e:['jam']},{d:8,rv:1,e:['small','late']}]},
+  {n:3,nm:'HOLIDAY RUSH',fx:'Quota +15%, machine odds +1 level.',c:'var(--ink-l)',quota:[150,162,176,195],
+   days:[{d:9,e:['happy']},{d:10,e:['trolleys']},{d:11,e:['rush']},{d:12,rv:1,final:1,e:['spot','short']}]}
+];
+const DAYNAME=['MON','TUE','WED','THU'];
+const RM=matchMedia('(prefers-reduced-motion: reduce)');
+const sleep=ms=>new Promise(r=>setTimeout(r,RM.matches?0:ms));
+const h=(tag,cls,html)=>{const e=document.createElement(tag);if(cls)e.className=cls;if(html!=null)e.innerHTML=html;return e;};
+const icon=(k,flip)=>k?`<img class="px" src="${IMG[k]}" alt=""${flip?' style="transform:scaleY(-1)"':''}>`:'';
+function evEl(k){const e=EV[k];const d=h('div','ev '+e.t+' fillable',`${icon(e.i,e.flip)}<span><span class="nm">${e.nm}</span><span class="fx">${e.fx}</span></span>`);return d;}
+function rewardEl(w,day){
+  if(day.final)return h('div','reward final fillable',`${icon('check')}<span>PASS = RUN WON</span>`);
+  return h('div','reward fillable',`<span class="tk">${icon('ticket')}${icon('ticket')}</span><span>REVIEW PASSED<br>2 PREMIUM TICKETS</span>`);
+}
+function banner(w){return h('div','wbanner',`<span class="k">WEEK ${w.n} OF 3</span><span class="t">${w.nm}</span><span class="fx">${w.fx}</span>`);}
+function dayBody(w,day,col){
+  if(day.rv)col.append(h('div','revk fillable',day.final?"FINAL REVIEW · 2 MALUSES":"MANAGER'S REVIEW · 2 MALUSES"));
+  day.e.forEach(k=>col.append(evEl(k)));
+  if(day.rv)col.append(rewardEl(w,day));
+  col.append(h('div','ph','?'));
+}
+function build(v,wi){
+  const w=WEEKS[wi];
+  const card=h('div','card v'+v);card.style.setProperty('--wk',w.c);
+  if(v==='A'){
+    const sheet=h('div','sheet');sheet.append(h('span','pinI'));
+    sheet.append(h('div','hd',`<span>STAFF ROTA</span><b>Week ${w.n}</b><span>TILL 4</span>`));
+    sheet.append(banner(w));
+    const g=h('div','grid');
+    w.days.forEach((day,i)=>{const c=h('div','day'+(day.rv?' rv':''));c.append(h('div','dh fillable',`<span>${DAYNAME[i]}</span><b>Day ${day.d}</b>`));dayBody(w,day,c);g.append(c);});
+    sheet.append(g);card.append(sheet);
+  }else if(v==='B'){
+    card.append(h('div','hd',`NEXT CUSTOMER STORES<b>STAFF ROTA</b>WEEK ${w.n} · DAYS ${w.days[0].d}–${w.days[3].d}`));
+    card.append(h('div','rule'));card.append(banner(w));card.append(h('div','rule'));
+    w.days.forEach(day=>{const r=h('div','day'+(day.rv?' rv':''));r.append(h('div','dh',`DAY<b>${day.d}</b>`));const c=h('div','col');dayBody(w,day,c);r.append(c);card.append(r);});
+    card.append(h('div','ft','** KEEP THIS SLIP **'));
+  }else{
+    card.append(h('div','hd',`<b>TIME CARD</b><span>CASHIER · TILL 4<br>WEEK ${w.n} OF 3</span>`));
+    card.append(banner(w));
+    const t=h('div','tbl');
+    w.days.forEach(day=>{const r=h('div','day'+(day.rv?' rv':''));r.append(h('div','pc',`<b>${day.d}</b><span class="punch">IN</span>`));const c=h('div','col');dayBody(w,day,c);r.append(c);t.append(r);});
+    card.append(t);
+  }
+  return card;
+}
+/* timeline: arrive, stamp, fill days */
+async function play(host,v,wi,tok,still){
+  host.innerHTML='';
+  const card=build(v,wi);
+  if(RM.matches){host.append(card);return card;}
+  card.classList.add('pre','in-'+v);host.append(card);
+  await sleep(v==='B'?1000:650);if(still()!==tok)return null;
+  const b=card.querySelector('.wbanner');b.classList.add('stamp');
+  await sleep(220);card.classList.add('shake');
+  await sleep(380);if(still()!==tok)return null;
+  const days=card.querySelectorAll('.day');
+  for(const d of days){
+    d.classList.add('on');
+    if(d.classList.contains('rv')){await sleep(520);const r=d.querySelector('.reward');r&&r.classList.add('glint');await sleep(300);}
+    else await sleep(360);
+    if(still()!==tok)return null;
+  }
+  card.classList.remove('pre');
+  return card;
+}
+
+/* ---- stage ---- */
+const st={w:0,v:'C',day:0,tok:0};
+const scene=document.getElementById('scene'),slot=document.getElementById('cardslot'),
+      wslot=document.getElementById('wslot'),dslot=document.getElementById('dslot'),hint=document.getElementById('hint'),
+      quota=document.getElementById('quota');
+function wchip(){
+  const w=WEEKS[st.w];const c=h('button','wchip');c.style.setProperty('--wk',w.c);c.type='button';c.title='Open the rota card';
+  const name=w.nm.split(' ')[0];
+  c.innerHTML=`<span class="wn">W${w.n}</span><span class="wnm">${name}</span><span class="pips">${w.days.map((_,i)=>`<i class="${i<st.day?'done':i===st.day?'now':''}"></i>`).join('')}</span>`;
+  c.addEventListener('click',reopen);return c;
+}
+function dchip(){
+  const w=WEEKS[st.w],day=w.days[st.day];
+  let cls='n',txt,ic='';
+  if(day.rv){cls='r';txt=day.final?'FINAL REVIEW':'REVIEW';ic=icon('warn');}
+  else{const e=EV[day.e[0]];cls=e.t;txt=e.nm.toUpperCase();ic=icon(e.i,e.flip);}
+  const c=h('button','dchip '+cls,`<span class="dn">D${day.d}</span>${ic}<span class="lb">${txt}</span>`);c.type='button';c.title='Open the rota card';c.addEventListener('click',reopen);return c;
+}
+function setChips(anim){
+  wslot.innerHTML='';dslot.innerHTML='';
+  const a=wchip(),b=dchip();wslot.append(a);dslot.append(b);
+  if(anim&&!RM.matches){a.classList.add('pop');b.style.animationDelay='.15s';b.classList.add('pop');}
+  const w=WEEKS[st.w],day=w.days[st.day];quota.textContent='€'+w.quota[st.day];
+  hint.textContent=`Shift ${day.d} starts`;
+}
+function ghosts(){wslot.innerHTML='<span class="chip-ghost"></span>';dslot.innerHTML='<span class="chip-ghost"></span>';}
+async function shrinkInto(card){
+  const target=wslot.getBoundingClientRect(),r=card.getBoundingClientRect();
+  const dx=(target.left+target.width/2)-(r.left+r.width/2),dy=(target.top+15)-(r.top+r.height/2);
+  const s=Math.max(.08,70/r.width);
+  card.style.transition='transform .6s cubic-bezier(.55,0,.8,.3), opacity .6s ease-in';
+  card.style.transform=`translate(${dx}px,${dy}px) scale(${s})`;card.style.opacity='0';
+  scene.classList.add('done');
+  await sleep(560);
+}
+async function run(){
+  const tok=++st.tok;st.day=0;scene.classList.remove('done');ghosts();
+  const card=await play(slot,st.v,st.w,tok,()=>st.tok);
+  if(!card||st.tok!==tok)return;
+  if(RM.matches){setChips(false);return;}  /* reduced motion: card stays open, chips filled */
+  await sleep(1500);if(st.tok!==tok)return;
+  await shrinkInto(card);if(st.tok!==tok)return;
+  card.style.visibility='hidden';setChips(true);
+}
+function reopen(){
+  st.tok++;slot.innerHTML='';const c=build(st.v,st.w);
+  c.querySelectorAll('.day').forEach((d,i)=>{if(i<st.day)d.classList.add('punched');});
+  slot.append(c);if(!RM.matches)c.classList.add('pop');scene.classList.remove('done');
+  c.addEventListener('click',closeCard);c.style.cursor='pointer';c.title='Tap to close';
+}
+async function closeCard(){
+  const tok=++st.tok;const c=slot.querySelector('.card');if(!c)return;
+  await shrinkInto(c);if(st.tok!==tok)return;c.style.visibility='hidden';setChips(true);
+}
+async function nextShift(){
+  if(!wslot.querySelector('.wchip')){return;}
+  st.day++;
+  if(st.day>3){st.w=(st.w+1)%3;syncWeekBtns();run();return;}
+  setChips(true);
+}
+document.getElementById('replay').addEventListener('click',run);
+document.getElementById('next').addEventListener('click',nextShift);
+const wkbs=[...document.querySelectorAll('.wkb')],vbs=[...document.querySelectorAll('.vb')];
+function syncWeekBtns(){wkbs.forEach(b=>b.classList.toggle('on',+b.dataset.w===st.w));}
+wkbs.forEach(b=>b.addEventListener('click',()=>{st.w=+b.dataset.w;syncWeekBtns();run();playAll();}));
+vbs.forEach(b=>b.addEventListener('click',()=>{st.v=b.dataset.v;vbs.forEach(x=>x.classList.toggle('on',x===b));run();}));
+
+/* ---- variant panels ---- */
+const pans=[...document.querySelectorAll('.vpan')];const ptok=new Map();
+function playPan(p){const t=(ptok.get(p)||0)+1;ptok.set(p,t);play(p.querySelector('.vstage'),p.dataset.v,st.w,t,()=>ptok.get(p));}
+function playAll(){pans.forEach(playPan);}
+pans.forEach(p=>p.querySelector('.rp').addEventListener('click',()=>playPan(p)));
+document.getElementById('replayAll').addEventListener('click',playAll);
+
+/* ---- pools ---- */
+const pb=document.getElementById('poolbox');
+[['Boons (green)',['quiet','till','regulars','trolleys','samples','happy']],['Maluses (red)',['spot','short','jam','small','rush','late']]].forEach(([t,ks])=>{
+  const c=h('div','');c.append(h('h3','',t));ks.forEach(k=>{const e=evEl(k);e.classList.remove('fillable');c.append(e);});pb.append(c);
+});
+
+/* start: render everything visible first, then animate */
+pans.forEach(p=>p.querySelector('.vstage').append(build(p.dataset.v,st.w)));
+slot.append(build(st.v,st.w));
+const io='IntersectionObserver' in window?new IntersectionObserver(es=>{es.forEach(e=>{if(e.isIntersecting){io.unobserve(e.target);if(e.target.id==='stage')run();else playPan(e.target);}});},{threshold:.35}):null;
+if(io&&!RM.matches){io.observe(document.getElementById('stage'));pans.forEach(p=>io.observe(p));}else{setChips(false);}
+})();
+</script>
