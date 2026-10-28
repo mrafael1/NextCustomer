@@ -145,8 +145,9 @@ func _init() -> void:
 	size = ShiftStage.SIZE
 	_gap_box = _box("RailGaps")
 	_lane_boxes = [_box("Lane0"), _box("Lane1")]
-	_pay_box = _box("Pays")
+	# The hover ring stays behind pay tags and their die-cut rims at the ticket's corner.
 	_ring_box = _box("TicketRing")
+	_pay_box = _box("Pays")
 	_stack_box = _box("Stacks")
 	_stamp_box = _box("Stamps")
 	_sparkle_box = _box("Sparkles")

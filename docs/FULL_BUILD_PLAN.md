@@ -650,3 +650,5 @@ Content freeze at the end of phase 3. No new features after that.
 **Coupon mini centring correction (2026-10-27, PR #113):** crop transparent margins from the coupon drawings and centre them exactly on their teal tokens. Odd-sized drawings use an integer screen-pixel offset at 2x instead of rounding down to the art grid; nearest filtering preserves sharp pixels. Presentation only.
 
 **Repeat and Final markdown mini revision (2026-10-27, PR #113):** simplify Repeat to a gold payout between opposing tomato return arrows, and Final markdown to one tomato tag with a paper down arrow. Their trimmed drawings use up to 10x10 pixels and stay exactly centred in their coupon tokens. The other six minis are unchanged. Presentation only.
+
+**Hovered ticket price overlap (2026-10-27, #105):** the hovered ticket outline draws beneath the planning price badges and their die-cut rims, so it no longer crosses a boosted price sticker. Presentation only; no scoring or balance change.
