@@ -325,11 +325,19 @@ func test_the_top_bar_fits_its_longest_texts() -> void:
 		screen._led.show_subtotal(9999, true)
 		await _frames(2)
 		var top_bar: TopBar = screen._stage.top_bar
-		assert_str(screen._quota_label.text).is_equal(QuotaMeter.QUOTA_AMOUNT % largest)
+		# Rush hour's and Quiet morning's quota percent (v0.69) change the quota shown.
+		var shown: int = ShiftLimits.with_percent(largest, inspection.quota_percent)
+		assert_str(screen._quota_label.text).is_equal(QuotaMeter.QUOTA_AMOUNT % shown)
 		assert_str(top_bar.quota_meter.amount_label.text).is_equal("€9999")
 		assert_bool(top_bar.quota_meter.flag_shown()).is_true()
 		assert_int(screen._loyalty_card.box_texts().size()).is_equal(4)
-		assert_str(screen._inspection_tag.text()).is_equal("Inspection · %s" % inspection.chip_text)
+		# A boon's chip (v0.69) reads "Today: name — effect".
+		var chip_text: String = (
+			"Today: %s — %s" % [inspection.display_name, inspection.chip_text]
+			if inspection.is_boon()
+			else "Inspection · %s" % inspection.chip_text
+		)
+		assert_str(screen._inspection_tag.text()).is_equal(chip_text)
 		var parts: Array[Control] = [
 			screen._top_bar.get_child(0) as Control,
 			screen._top_bar.get_child(1) as Control,

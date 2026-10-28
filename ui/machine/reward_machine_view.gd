@@ -175,6 +175,8 @@ var receipt_names: PackedStringArray = PackedStringArray()
 var receipt_cards: Array[CardDefinition] = []
 var receipt_upgrades: PackedStringArray = PackedStringArray()
 var receipt_inspections: PackedStringArray = PackedStringArray()
+## The shift's boon day events' names (v0.69): on the copy's lines, never stamped INSPECTION PASSED.
+var receipt_boons: PackedStringArray = PackedStringArray()
 var shift_total: int = 0
 var shift_quota: int = 0
 var shift_notice: String = ""

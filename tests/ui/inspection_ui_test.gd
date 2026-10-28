@@ -227,7 +227,11 @@ func test_the_planning_notice_promises_and_earns_the_bonus_ticket() -> void:
 	assert_int(tag.bonus_state()).is_equal(InspectionTag.Bonus.EARNED)
 	assert_str(tag.label().text).is_equal("Spot check passed")
 	assert_str(tag.full_text()).starts_with("Spot check passed +1")
-	assert_bool(tag.self_modulate == Color.WHITE).is_false()
+	# EARNED tints the paper frame teal pale (unearned, it is tomato pale).
+	var pale: Color = Palette.TEAL_PALE
+	var paper: Color = Palette.PAPER
+	var earned_tint: Color = Color(pale.r / paper.r, pale.g / paper.g, pale.b / paper.b)
+	assert_bool(tag.self_modulate.is_equal_approx(earned_tint)).is_true()
 	screen._machine.debug_skip()  # The ticket's visit and the bonus ticket's.
 	# Shift 2 is not inspected: no pill.
 	assert_int(run.phase).is_equal(RunState.Phase.PLANNING)
@@ -326,12 +330,13 @@ static func _event_log() -> EventLogService:
 	return (Engine.get_main_loop() as SceneTree).root.get_node("/root/EventLog")
 
 
-## These tests follow Spot check through the screen: the run draws from a pool holding only it
-## (a copy of the balance data, so the shared resource is untouched).
+## These tests follow Spot check through the screen: the run draws from a pool holding only it,
+## with no boon days (v0.69; a copy of the balance data, so the shared resource is untouched).
 static func _only_spot_check(screen: ShiftScreen) -> void:
 	var balance: BalanceDefinition = screen.run.balance.duplicate()
 	var pool: Array[InspectionDefinition] = [load(SPOT_CHECK)]
 	balance.inspection_pool = pool
+	balance.boon_shifts = PackedInt32Array()
 	screen.run.balance = balance
 
 

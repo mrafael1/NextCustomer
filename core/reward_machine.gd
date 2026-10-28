@@ -444,9 +444,10 @@ func _next_visit(run: RunState) -> void:
 	while not _queue.is_empty():
 		var kind: int = _queue.pop_front()
 		var record: ShiftRecord = run.history[-1]
-		# Every inspection the shift was played under (a Manager's review has several).
+		# Every inspection the shift was played under (a Manager's review has several; a boon is
+		# never one, v0.69).
 		var ids: PackedStringArray = PackedStringArray()
-		for inspection: InspectionDefinition in record.inspections:
+		for inspection: InspectionDefinition in InspectionDefinition.maluses(record.inspections):
 			ids.append(String(inspection.id))
 		var why: String = ",".join(ids)
 		_visit = MachineVisit.new(kind as MachineVisit.Kind, why)
@@ -471,7 +472,8 @@ func _bonus_due(run: RunState) -> bool:
 func bonus_if_passed(run: RunState) -> bool:
 	if run.is_last_shift():
 		return false
-	return _bonus_for(machine, run.shift_index + 1, not run.inspections.is_empty())
+	var inspected: bool = not InspectionDefinition.maluses(run.inspections).is_empty()
+	return _bonus_for(machine, run.shift_index + 1, inspected)
 
 
 ## Read-only, for the planning announce (v0.50, "PREMIUM NEXT"): whether passing the current

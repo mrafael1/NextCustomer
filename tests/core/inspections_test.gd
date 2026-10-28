@@ -162,6 +162,7 @@ static func _plain_run(seed_value: int) -> RunState:
 	# a miss ends the run.
 	balance.inspection_shifts = PackedInt32Array([3, 5, 7])
 	balance.review_shifts = PackedInt32Array()
+	balance.boon_shifts = PackedInt32Array()
 	balance.write_up_limit = 0
 	var deck: DeckDefinition = load(STARTER)
 	var run: RunState = RunState.new(seed_value, deck, balance, RunStock.starting(balance))

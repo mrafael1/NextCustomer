@@ -378,8 +378,9 @@ func _fill_info_page(run: RunState) -> void:
 	for upgrade: UpgradeDefinition in run.upgrades:
 		_info_page.add_child(_upgrade_row(upgrade))
 	_info_page.add_child(_heading("INSPECTIONS"))
-	for line: String in _inspection_lines(run):
-		var row: HBoxContainer = _icon_row(not line.ends_with("no inspection."))
+	var lines: Dictionary = _inspection_lines(run)
+	for line: String in lines:
+		var row: HBoxContainer = _icon_row(lines[line])
 		row.add_child(_line(line, Palette.CREAM))
 		_info_page.add_child(row)
 	_info_page.add_child(_heading(STOCK_HEADING))
@@ -465,24 +466,33 @@ func _icon_row(warned: bool) -> HBoxContainer:
 	return row
 
 
-## While planning: this shift's inspections. After a checkout,
-## run.inspections still holds the shift just played, so only the next shift shows. The next
-## shift's inspection is drawn at the previous passed checkout: before that, a scheduled one is
-## announced as coming. The last shift has no next shift.
-static func _inspection_lines(run: RunState) -> PackedStringArray:
-	var lines: PackedStringArray = PackedStringArray()
+## While planning: this shift's inspections. After a checkout, run.inspections still holds the
+## shift just played, so only the next shift shows. The next shift's inspection is drawn at the
+## previous passed checkout: before that, a scheduled one is announced as coming. The last shift
+## has no next shift. Each line maps to whether it wears the warning sign: one that names or
+## announces an inspection, never a boon day's alone (v0.69).
+static func _inspection_lines(run: RunState) -> Dictionary:
+	var lines: Dictionary = {}
 	if run.phase == RunState.Phase.PLANNING:
-		lines.append(_inspection_line("This shift", run.inspections))
+		lines[_inspection_line("This shift", run.inspections)] = _has_malus(run.inspections)
 	var next_shift: int = run.shift_index + 2
 	if not run.next_inspections.is_empty():
-		lines.append(_inspection_line("Next shift", run.next_inspections))
+		lines[_inspection_line("Next shift", run.next_inspections)] = (_has_malus(
+			run.next_inspections
+		))
 	elif InspectionSchedule.is_review_shift(run.balance, next_shift):
-		lines.append("Next shift: Manager's review (announced at checkout).")
+		lines["Next shift: Manager's review (announced at checkout)."] = true
 	elif InspectionSchedule.is_inspection_shift(run.balance, next_shift):
-		lines.append("Next shift: inspected (announced at checkout).")
+		lines["Next shift: inspected (announced at checkout)."] = true
+	elif InspectionSchedule.is_boon_shift(run.balance, next_shift):
+		lines["Next shift: a good day (announced at checkout)."] = false
 	elif next_shift <= run.shift_count():
-		lines.append(_inspection_line("Next shift", []))
+		lines[_inspection_line("Next shift", [])] = false
 	return lines
+
+
+static func _has_malus(events: Array[InspectionDefinition]) -> bool:
+	return not InspectionDefinition.maluses(events).is_empty()
 
 
 static func _inspection_line(when: String, inspections: Array[InspectionDefinition]) -> String:
@@ -491,8 +501,10 @@ static func _inspection_line(when: String, inspections: Array[InspectionDefiniti
 	var notices: PackedStringArray = PackedStringArray()
 	for inspection: InspectionDefinition in inspections:
 		notices.append("%s, %s" % [inspection.display_name, inspection.notice_text])
-	# A Manager's review (several inspections) says so, then names every one of them.
-	var review: String = "Manager's review: " if inspections.size() > 1 else ""
+	# A Manager's review (several inspections) says so, then names every one of them (a boon day's
+	# event too, v0.69).
+	var maluses: int = InspectionDefinition.maluses(inspections).size()
+	var review: String = "Manager's review: " if maluses > 1 else ""
 	return "%s: %s%s" % [when, review, "  ·  ".join(notices)]
 
 

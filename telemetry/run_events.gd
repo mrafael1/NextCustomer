@@ -296,3 +296,10 @@ static func inspection_ids(inspections: Array[InspectionDefinition]) -> Array:
 ## One inspection's id, or "" for none (`next_inspection` in `checkout`).
 static func inspection_id(inspection: InspectionDefinition) -> String:
 	return String(inspection.id) if inspection != null else ""
+
+
+## The id of the first inspection (a malus) among a shift's day events, or "" when it has none:
+## `next_inspection` in `checkout` never names a boon (v0.69; `next_inspections` lists them all).
+static func first_inspection_id(events: Array[InspectionDefinition]) -> String:
+	var found: Array[InspectionDefinition] = InspectionDefinition.maluses(events)
+	return inspection_id(found[0] if not found.is_empty() else null)

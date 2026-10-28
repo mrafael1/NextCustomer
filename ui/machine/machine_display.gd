@@ -315,8 +315,9 @@ func _read_text() -> PackedStringArray:
 		met += Payday.READ
 	elif view.run.machine.is_premium():
 		met += PREMIUM_READ
-	elif not record.inspections.is_empty():
-		met += " · %s passed" % ", ".join(InspectionTag.names(record.inspections))
+	elif record.inspection != null:
+		var passed: Array[InspectionDefinition] = InspectionDefinition.maluses(record.inspections)
+		met += " · %s passed" % ", ".join(InspectionTag.names(passed))
 	return PackedStringArray([RewardMachineView.SPEND_LINE % record.total, met])
 
 
@@ -395,8 +396,9 @@ func _why() -> String:
 	var record: ShiftRecord = _record()
 	if record == null:
 		return ""
-	if not record.inspections.is_empty():
-		return "%s passed" % ", ".join(InspectionTag.names(record.inspections))
+	if record.inspection != null:
+		var passed: Array[InspectionDefinition] = InspectionDefinition.maluses(record.inspections)
+		return "%s passed" % ", ".join(InspectionTag.names(passed))
 	return "shift %d" % record.shift
 
 

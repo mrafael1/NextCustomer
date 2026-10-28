@@ -48,11 +48,20 @@ extends RefCounted
 ## by today's schedule when it names another count (a Manager's review it didn't know of).
 ## v0.68 (Payday, the training week) keeps version 8: a version 8 save from before it reads as
 ## it is (a BONUS visit after an inspected shift, or a slip after the training week, is kept).
-const FORMAT_VERSION := 8
+## Version 9 (v0.69, day events): the same form, its event lists holding boons too; a version 8
+## (or older) save after a checkout announces no boon, so a boon day next gets its boon drawn as
+## it loads (_add_next_boon); one saved in planning plays its shift without one.
+const FORMAT_VERSION := 9
+## Version 8: version 9's form from before the boon days, read as it is (_add_next_boon).
+const BEFORE_DAY_EVENTS_VERSION := 8
 ## Version 7: version 8's form with one next inspection and one per record, read as it is.
 const BEFORE_LOOP_VERSION := 7
 ## Version 6: version 7's form without the starter pack fields, read as it is.
 const BEFORE_STARTER_PACKS_VERSION := 6
+## The versions read as they are (older ones through RunSaveMigration).
+const READ_VERSIONS: Array[int] = [
+	FORMAT_VERSION, BEFORE_DAY_EVENTS_VERSION, BEFORE_LOOP_VERSION, BEFORE_STARTER_PACKS_VERSION
+]
 ## Version 5: the machine before v0.61 (four chutes, STAMP DAY), converted by RunSaveMigration.
 const BEFORE_MACHINE_REWORK_VERSION := 5
 ## Version 4 has version 5's saved form, scored before v0.46's Banana chain (#106), and is still
@@ -146,13 +155,13 @@ static func from_dictionary(saved: Dictionary, lookup: ContentLookup) -> RunSave
 	var data: Dictionary = saved
 	if RunSaveMigration.FROM_VERSIONS.has(int(version)):
 		data = RunSaveMigration.to_v6(saved)
-	elif not [FORMAT_VERSION, BEFORE_LOOP_VERSION, BEFORE_STARTER_PACKS_VERSION].has(int(version)):
+	elif not READ_VERSIONS.has(int(version)):
 		return null
 	if data.is_empty():
 		return null
 	var rescored: bool = int(version) == BEFORE_BANANA_CHAIN_VERSION
 	# Saved before the loop rework (v0.65): another schedule of inspections and premium shifts.
-	var legacy: bool = int(version) < FORMAT_VERSION
+	var legacy: bool = int(version) < BEFORE_DAY_EVENTS_VERSION
 	var reader: SaveReader = SaveReader.new(data, lookup)
 	var starter: DeckDefinition = reader.deck("starter")
 	var starting_cards: Array[CardDefinition] = reader.cards("starting_deck")
@@ -231,7 +240,32 @@ static func from_dictionary(saved: Dictionary, lookup: ContentLookup) -> RunSave
 		return null
 	if legacy:
 		_redraw_next_inspections(restored)
+	if int(version) < FORMAT_VERSION:
+		_add_next_boon(restored)
 	return save
+
+
+## A save from before the boon days (v0.69) after a checkout the run goes on from: when the next
+## shift is a boon day, its boon is drawn now with the run's RNG (InspectionSchedule.draw_for's;
+## the next shift's inspections, already drawn, are kept) and announced with its inspections.
+static func _add_next_boon(restored: RunState) -> void:
+	var next_shift: int = restored.shift_index + 2
+	if not _after_checkout(restored) or next_shift > restored.shift_count():
+		return
+	if not InspectionDefinition.boons(restored.next_inspections).is_empty():
+		return
+	if not InspectionSchedule.is_boon_shift(restored.balance, next_shift):
+		return
+	var rng: RandomNumberGenerator = RandomNumberGenerator.new()
+	rng.state = restored.rng_state
+	var drawn: Array[InspectionDefinition] = InspectionSchedule.draw_for(
+		rng,
+		restored.balance,
+		next_shift,
+		InspectionSchedule.last_of(restored.inspections, restored.history)
+	)
+	restored.next_inspections.append_array(InspectionDefinition.boons(drawn))
+	restored.rng_state = rng.state
 
 
 ## A legacy save (before v0.65) after a checkout the run goes on from: the next shift's
@@ -247,7 +281,7 @@ static func _redraw_next_inspections(restored: RunState) -> void:
 	if next_shift > restored.shift_count():
 		return
 	var count: int = InspectionSchedule.count_for(restored.balance, next_shift)
-	if restored.next_inspections.size() == count:
+	if InspectionDefinition.maluses(restored.next_inspections).size() == count:
 		return
 	var rng: RandomNumberGenerator = RandomNumberGenerator.new()
 	rng.state = restored.rng_state
@@ -261,21 +295,34 @@ static func _redraw_next_inspections(restored: RunState) -> void:
 
 
 ## A legacy save in planning: the current shift's inspections by today's schedule when the saved
-## ones are another count (a Manager's review the save didn't know of), drawn with the run's RNG;
-## the shift's limits follow them, and a row longer than its slots gives its last cards back.
+## ones are another count (a Manager's review the save didn't know of), drawn with the run's RNG
+## from the inspections that leave the dealt hand and the quota as they are (no hand size or quota
+## change: the shift is already being planned); the shift's limits and redraws follow them, and a
+## row longer than its slots gives its last cards back.
 static func _redraw_current_inspections(restored: RunState) -> void:
 	var shift: int = restored.shift_index + 1
 	if restored.inspections.size() == InspectionSchedule.count_for(restored.balance, shift):
 		return
+	var balance: BalanceDefinition = restored.balance.duplicate() as BalanceDefinition
+	var fitting: Array[InspectionDefinition] = []
+	for inspection: InspectionDefinition in restored.balance.inspection_pool:
+		if inspection.hand_size_delta == 0 and inspection.quota_percent == 0:
+			fitting.append(inspection)
+	balance.inspection_pool = fitting
+	# Its inspections only: the hand was dealt before any boon could change it.
+	var no_boons: Array[InspectionDefinition] = []
+	balance.boon_pool = no_boons
 	var rng: RandomNumberGenerator = RandomNumberGenerator.new()
 	rng.state = restored.rng_state
 	restored.inspections = InspectionSchedule.draw_for(
-		rng, restored.balance, shift, InspectionSchedule.last_of([], restored.history)
+		rng, balance, shift, InspectionSchedule.last_of([], restored.history)
 	)
 	restored.rng_state = rng.state
 	restored.limits = ShiftLimits.for_shift(
 		restored.balance, _played_upgrades(restored), restored.shift_index, restored.inspections
 	)
+	# A new inspection's redraws apply at once, never fewer than those already used.
+	restored.redraws_allowed = maxi(restored.limits.redraws, restored.redraws_used)
 	_fit_row(restored)
 
 
@@ -507,7 +554,7 @@ static func _phase_fits(restored: RunState, legacy: bool = false) -> bool:
 	if offer != null and (pack == null or not offer.packs.has(pack)):
 		return false
 	if restored.phase == RunState.Phase.PLANNING:
-		return machine.stage == RewardMachine.Stage.IDLE and restored.next_inspection == null
+		return machine.stage == RewardMachine.Stage.IDLE and restored.next_inspections.is_empty()
 	var record: ShiftRecord = restored.history[-1]
 	# The perks picked after the checkout are the last record's: the played ones with those picks
 	# (a level-up in its box) are the run's.

@@ -77,9 +77,11 @@ static func _run(
 		_scan(state, slot, registers, checks)
 	# Effects that never found a target fizzle at the end (a lost Coffee bonus, unused charges).
 	state.report_unused_effects()
-	# Upgrades whose condition the row never met fizzle last, on its last slot (#45).
+	# Upgrades whose condition the row never met fizzle last, on its last slot (#45), then the
+	# day events that found nothing to boost (v0.69).
 	if state.explain:
 		_upgrade_row_fizzles(state, upgrades)
+		_inspection_row_fizzles(state, checks)
 	return state
 
 
@@ -127,6 +129,11 @@ static func _scan(state: ScoreState, slot: int, registers: Array, checks: Array)
 					)
 	if has_upgrades:
 		value = _upgrade_flat_bonuses(state, slot, value, registers)
+	# Then the shift's day events' (v0.69: Late delivery's -€2, Happy hour's +€3).
+	var inspection_rules: Array[InspectionRule] = checks[1]
+	var has_checks: bool = not inspection_rules.is_empty()
+	if has_checks:
+		value = _inspection_flat_bonuses(state, slot, value, checks)
 	state.prices[slot] = value
 
 	# Multipliers: the card's own rules, then effects.
@@ -180,6 +187,10 @@ static func _scan(state: ScoreState, slot: int, registers: Array, checks: Array)
 	var upgrade_fizzles: Array[Vector2i] = []
 	if has_upgrades:
 		value = _upgrade_multipliers(state, slot, value, registers, upgrade_fizzles)
+	# Then the day events' (v0.69: Free samples' ×2); those with nothing to multiply fizzle last.
+	var check_fizzles: PackedInt32Array = PackedInt32Array()
+	if has_checks:
+		value = _inspection_multipliers(state, slot, value, checks, check_fizzles)
 
 	# Final payout overrides (Soup beside Frozen pays 0).
 	if has_rules:
@@ -197,8 +208,7 @@ static func _scan(state: ScoreState, slot: int, registers: Array, checks: Array)
 						rule.text_for(card)
 					)
 	# Then the shift's inspections (plan section 3.9: the 3rd product pays 0), like Soup's.
-	var inspection_rules: Array[InspectionRule] = checks[1]
-	if not inspection_rules.is_empty():
+	if has_checks:
 		value = _inspection_overrides(state, slot, value, checks)
 
 	state.record_payout(slot, value)
@@ -213,6 +223,12 @@ static func _scan(state: ScoreState, slot: int, registers: Array, checks: Array)
 
 	if explain:
 		_report_fizzles(state, slot, card, registers[0], upgrade_fizzles)
+		for at: int in check_fizzles:
+			var waste: ScoreStep = _add_inspection_step(
+				state, ScoreStep.StepType.WASTED, slot, at, 0, state.payouts[slot], checks
+			)
+			var rules_of_checks: Array[InspectionRule] = checks[1]
+			waste.reason = rules_of_checks[at].wasted_reason(state, slot)
 	if not state.effects.is_empty():
 		state.drop_spent_effects()
 
@@ -379,6 +395,87 @@ static func _upgrade_row_fizzles(state: ScoreState, upgrades: Array[UpgradeDefin
 			)
 			waste.reason = reason
 			waste.row_wide = true
+
+
+## Applies the day events' flat bonuses, each with a FLAT step (the event's) when it changes the
+## value.
+static func _inspection_flat_bonuses(
+	state: ScoreState, slot: int, value: int, checks: Array
+) -> int:
+	var inspection_rules: Array[InspectionRule] = checks[1]
+	for at: int in range(inspection_rules.size()):
+		var rule: InspectionRule = inspection_rules[at]
+		var bonus: int = rule.flat_bonus(state, slot, value)
+		if bonus == 0:
+			continue
+		value += bonus
+		if state.explain:
+			_add_inspection_step(state, ScoreStep.StepType.FLAT, slot, at, bonus, value, checks)
+	return value
+
+
+## Applies the day events' multipliers, each with a MULTIPLIER step (the event's). A factor aimed
+## at a value of 0 has nothing to multiply: it gets no step and its rule's index (in checks[1]) is
+## added to `fizzles` instead.
+static func _inspection_multipliers(
+	state: ScoreState, slot: int, value: int, checks: Array, fizzles: PackedInt32Array
+) -> int:
+	var inspection_rules: Array[InspectionRule] = checks[1]
+	for at: int in range(inspection_rules.size()):
+		var rule: InspectionRule = inspection_rules[at]
+		var factor: int = rule.multiplier(state, slot)
+		if factor == 1:
+			continue
+		if value == 0:
+			fizzles.append(at)
+			continue
+		value *= factor
+		if state.explain:
+			_add_inspection_step(
+				state, ScoreStep.StepType.MULTIPLIER, slot, at, factor, value, checks
+			)
+	return value
+
+
+## One WASTED step for each day event rule that never found its target in the row
+## (InspectionRule.row_wasted_reason), on the row's last slot, carrying that slot's payout.
+static func _inspection_row_fizzles(state: ScoreState, checks: Array) -> void:
+	var last: int = state.size() - 1
+	var inspection_rules: Array[InspectionRule] = checks[1]
+	if last < 0 or inspection_rules.is_empty():
+		return
+	for at: int in range(inspection_rules.size()):
+		var reason: String = inspection_rules[at].row_wasted_reason(state)
+		if reason.is_empty():
+			continue
+		var waste: ScoreStep = _add_inspection_step(
+			state, ScoreStep.StepType.WASTED, last, at, 0, state.payouts[last], checks
+		)
+		waste.reason = reason
+		waste.row_wide = true
+
+
+## A step caused by the day event rule `at` of `checks` (see _run): source_kind INSPECTION,
+## source_index its event's index in the shift's list, the rule's receipt text.
+static func _add_inspection_step(
+	state: ScoreState,
+	step_type: ScoreStep.StepType,
+	slot: int,
+	at: int,
+	value: int,
+	value_after: int,
+	checks: Array
+) -> ScoreStep:
+	var inspections: Array[InspectionDefinition] = checks[0]
+	var inspection_rules: Array[InspectionRule] = checks[1]
+	var rule_inspections: PackedInt32Array = checks[2]
+	var index: int = rule_inspections[at]
+	var step: ScoreStep = state.add_step(
+		step_type, slot, slot, value, value_after, inspection_rules[at].text_for(inspections[index])
+	)
+	step.source_kind = ScoreStep.SourceKind.INSPECTION
+	step.source_index = index
+	return step
 
 
 ## Applies the inspections' final payout overrides, each with a PAYOUT_OVERRIDE step when it

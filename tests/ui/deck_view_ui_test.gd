@@ -280,7 +280,8 @@ func test_the_run_info_tab_shows_upgrades_inspections_and_stock() -> void:
 				"UPGRADES",
 				"None yet.",
 				"This shift: no inspection.",
-				"Next shift: no inspection.",
+				# Shift 2 is a boon day (v0.69).
+				"Next shift: a good day (announced at checkout).",
 				"Aisles:",
 				"Cold cases,",
 				"Pantry,",
@@ -335,11 +336,15 @@ func test_the_run_info_tab_shows_upgrades_inspections_and_stock() -> void:
 func test_run_info_announces_a_scheduled_inspection() -> void:
 	var screen: ShiftScreen = await _screen()
 	screen._debug.skip_to_shift(2)
+	# Shift 2 is a boon day (v0.69): its boon is this shift's event, never an inspection.
+	var boons: Array[InspectionDefinition] = InspectionDefinition.boons(screen.run.inspections)
+	assert_int(boons.size()).is_equal(1)
 	screen._on_deck_button_pressed()
 	var view: DeckView = screen._deck_view
 	view.show_page(true)
+	var this_shift: String = "This shift: %s, %s" % [boons[0].display_name, boons[0].notice_text]
 	assert_array(Array(view.texts())).contains(
-		["This shift: no inspection.", "Next shift: inspected (announced at checkout)."]
+		[this_shift, "Next shift: inspected (announced at checkout)."]
 	)
 	view._close()
 	# Shift 3: the next one is the first Manager's review (v0.65).

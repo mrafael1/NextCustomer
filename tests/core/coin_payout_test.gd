@@ -127,6 +127,7 @@ static func _balance(table: Array, euros: int, cap: int) -> BalanceDefinition:
 	balance.overtime_coin_max = cap
 	balance.inspection_shifts = PackedInt32Array()
 	balance.review_shifts = PackedInt32Array()
+	balance.boon_shifts = PackedInt32Array()
 	# A miss ends the run (no slips, v0.68): these runs end where the test misses.
 	balance.write_up_limit = 0
 	return balance

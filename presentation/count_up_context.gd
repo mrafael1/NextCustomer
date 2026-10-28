@@ -27,6 +27,10 @@ var payday: bool = false
 ## else empty (a pass, or the miss that ends the run). The shift screen sets it after the
 ## checkout.
 var write_up: String = ""
+## The names of the shift's boon day events (v0.69): their steps' lines name them, but a boon is
+## never an inspection, so the dessert's INSPECTION PASSED leaves them out. The shift screen sets
+## it.
+var boon_names: PackedStringArray = PackedStringArray()
 
 
 func _init(

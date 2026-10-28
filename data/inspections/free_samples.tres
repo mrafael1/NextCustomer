@@ -1,0 +1,20 @@
+[gd_resource type="Resource" script_class="InspectionDefinition" format=3]
+
+[ext_resource type="Script" path="res://core/inspections/inspection_rule.gd" id="1_rule"]
+[ext_resource type="Script" path="res://core/inspections/nth_product_multiplier_rule.gd" id="2_nth_product"]
+[ext_resource type="Script" path="res://core/inspection_definition.gd" id="3_inspection"]
+
+[sub_resource type="Resource" id="Resource_nth_product"]
+script = ExtResource("2_nth_product")
+product_number = 1
+factor = 2
+receipt_text = "1st product ×2"
+
+[resource]
+script = ExtResource("3_inspection")
+id = &"free_samples"
+display_name = "Free samples"
+tone = 1
+notice_text = "The 1st product pays ×2"
+chip_text = "1st product ×2"
+rules = Array[ExtResource("1_rule")]([SubResource("Resource_nth_product")])

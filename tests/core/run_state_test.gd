@@ -160,9 +160,14 @@ func test_passing_a_shift_moves_to_the_next_quota() -> void:
 	assert_int(run.phase).is_equal(RunState.Phase.SCORED)
 	assert_bool(run.next_shift()).is_true()
 	assert_int(run.shift_index).is_equal(1)
-	assert_int(run.quota()).is_equal(35)
+	# Shift 2 is a boon day (v0.69): its quota is 35 changed by its boon's percent, its hand 8
+	# with its boon's change.
+	assert_int(run.inspections.size()).is_equal(1)
+	var boon: InspectionDefinition = run.inspections[0]
+	assert_bool(boon.is_boon()).is_true()
+	assert_int(run.quota()).is_equal(ShiftLimits.with_percent(35, boon.quota_percent))
 	assert_array(run.row).is_empty()
-	assert_int(run.hand().size()).is_equal(8)
+	assert_int(run.hand().size()).is_equal(8 + boon.hand_size_delta)
 	assert_int(run.redraws_used).is_equal(0)
 
 

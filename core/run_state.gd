@@ -52,15 +52,16 @@ var limits: ShiftLimits
 var redraws_used: int = 0
 var redraws_allowed: int = 0
 ## The instance ids of the cards this shift's extra redraws brought into the hand (#108 piece 2:
-## the redraws past the balance's base_redraws are Extra redraw's), for the receipt's credit
-## (ScoreCredits).
+## the redraws past the shift's own, ShiftLimits.own_redraws, are Extra redraw's), for the
+## receipt's credit (ScoreCredits).
 var redrawn_in: PackedInt32Array = PackedInt32Array()
 var last_result: ScoreResult
 ## Owned upgrades, in pick order (a starting deck's upgrade first). Scoring steps name them by
 ## index in this list.
 var upgrades: Array[UpgradeDefinition] = []
-## The current shift's inspections (plan section 3.9; empty, one, or a Manager's review's
-## several since v0.65). Scoring steps name them by index in this list.
+## The current shift's day events (plan section 3.9; empty, one, or a Manager's review's several
+## since v0.65; a boon day's boon since v0.69): inspections (maluses) first, then boons. Scoring
+## steps name them by index in this list.
 var inspections: Array[InspectionDefinition] = []
 ## The inspections announced for the next shift: drawn at a checkout the run survives when the
 ## next shift is inspected (InspectionSchedule.draw_for), kept through the machine's visits and
@@ -143,12 +144,12 @@ func is_last_shift() -> bool:
 	return shift_index == shift_count() - 1
 
 
-## Starts the current shift: draws a fresh hand from the whole deck and empties the row. The
-## shift's limits read the upgrades owned now, so a register picked from the machine applies from
-## here.
+## Starts the current shift: draws a fresh hand (the limits' hand_size: a day event can change
+## it) from the whole deck and empties the row. The shift's limits read the upgrades owned now, so
+## a register picked from the machine applies from here.
 func start_shift() -> void:
 	limits = ShiftLimits.for_shift(balance, upgrades, shift_index, inspections)
-	deck.draw_hand(balance.hand_size)
+	deck.draw_hand(limits.hand_size)
 	row = []
 	redraws_used = 0
 	redraws_allowed = limits.redraws
@@ -207,7 +208,7 @@ func redraw_basket(basket: int) -> Array[int]:
 	if not can_redraw_basket(basket):
 		return swapped
 	swapped = deck.redraw_places(basket_places(basket))
-	if redraws_used >= balance.base_redraws:
+	if redraws_used >= limits.own_redraws:
 		var by_place: Array[CardInstance] = deck.hand()
 		for spot: int in swapped:
 			redrawn_in.append(by_place[spot].instance_id)

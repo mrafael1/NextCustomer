@@ -19,10 +19,32 @@ func test_balance_inspection_data_fits_the_run() -> void:
 		# Announced on the previous shift's receipt, so never shift 1.
 		assert_int(shift_number).is_between(2, balance.quotas.size())
 	assert_int(balance.review_inspection_count).is_between(2, balance.inspection_pool.size())
-	# Coupon slot closed left in v0.56 (#106): every slot is general.
+	# Coupon slot closed left in v0.56 (#106): every slot is general. v0.69's day events: 6
+	# inspections (maluses), and 6 boons for the boon days (never shift 1, nor an inspected one).
 	assert_array(RunEvents.inspection_ids(balance.inspection_pool)).is_equal(
-		["spot_check", "short_belt"]
+		["spot_check", "short_belt", "till_jam", "small_baskets", "rush_hour", "late_delivery"]
 	)
+	for inspection: InspectionDefinition in balance.inspection_pool:
+		assert_bool(inspection.is_boon()).is_false()
+	assert_array(Array(balance.boon_shifts)).is_equal([2, 5, 6, 9, 10])
+	(
+		assert_array(RunEvents.inspection_ids(balance.boon_pool))
+		. is_equal(
+			[
+				"quiet_morning",
+				"extra_till",
+				"regulars_day",
+				"big_trolleys",
+				"free_samples",
+				"happy_hour",
+			]
+		)
+	)
+	for boon: InspectionDefinition in balance.boon_pool:
+		assert_bool(boon.is_boon()).is_true()
+	for shift_number: int in balance.boon_shifts:
+		assert_bool(InspectionSchedule.is_inspection_shift(balance, shift_number)).is_false()
+		assert_int(shift_number).is_between(2, balance.quotas.size())
 
 
 func test_the_inspection_is_announced_at_the_previous_checkout() -> void:

@@ -25,6 +25,9 @@ const GREY_LIGHT := Color("c7beab")
 const CREAM_SHADE := Color("ddcba5")
 const TOMATO_DARK := Color("a83a3c")
 const TOMATO_LIGHT := Color("ec8a6e")
+## An inspection's (a malus day event's) top-bar chip (v0.69): art/src/palette.txt's tomato
+## pale.
+const TOMATO_PALE := Color("f5bfa0")
 const MUSTARD_LIGHT := Color("f1d27a")
 const MUSTARD_PALE := Color("faecbc")
 ## The mustard ramp's dark end (#71's planning effects, mock-up h1): a calm rail strip's fill,

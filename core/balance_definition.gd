@@ -43,7 +43,7 @@ extends Resource
 ## 1-based shift numbers played under an inspection (plan section 3.9). Each is announced on
 ## the previous shift's receipt, so each is a shift of the run and never shift 1.
 @export var inspection_shifts: PackedInt32Array = PackedInt32Array()
-## Inspections that an inspected shift draws from.
+## Inspections (MALUS day events) that an inspected shift and a review draw from.
 @export var inspection_pool: Array[InspectionDefinition] = []
 ## The Manager's reviews (v0.65, the loop rework): 1-based shift numbers that end a week, each
 ## played under review_inspection_count inspections at once instead of one. A review shift need
@@ -51,6 +51,13 @@ extends Resource
 @export var review_shifts: PackedInt32Array = PackedInt32Array()
 ## How many different inspections a review shift draws (InspectionSchedule.count_for).
 @export var review_inspection_count: int = 0
+## The boon days (v0.69, day events): 1-based shift numbers that each draw one boon day event from
+## boon_pool (InspectionDefinition.Tone.BOON), announced on the previous shift's receipt like an
+## inspection. Shift 1 never gets one (nothing announces it).
+@export var boon_shifts: PackedInt32Array = PackedInt32Array()
+## The boon day events a boon day draws from (never an inspection: inspection_pool holds the
+## maluses).
+@export var boon_pool: Array[InspectionDefinition] = []
 ## Slips (v0.68, the training week; the code's write-ups since v0.65): the most missed quotas the
 ## run forgives, on shifts up to write_up_last_shift. A forgiven miss stamps SLIP n/limit, gets no
 ## ticket and the run goes on; the next miss ends the run. 0: every miss ends the run, as before

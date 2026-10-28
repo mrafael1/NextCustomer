@@ -60,6 +60,8 @@ enum LineStyle {
 ## denied by an inspection; and the PROJECTED line's met (the total reaches the quota).
 enum Mark { NONE, RAISED, FIZZLED, DENIED, MET }
 
+## How a boon day's notice starts (v0.69: a shift is a day): its NOTICE line prints in green.
+const BOON_NOTICE_PREFIX := "TOMORROW: "
 ## Monospace for the receipt (plan section 2). JetBrains Mono, SIL Open Font License.
 const MONO_FONT := preload("res://fonts/JetBrainsMono-Regular.ttf")
 ## The TOTAL and PROJECTED amounts' font size; their captions print at CAPTION_FONT_SIZE.
@@ -367,10 +369,11 @@ static func header_lines(shift: int, shifts: int, items: int) -> PackedStringArr
 	return PackedStringArray([HEADER_TEXT, shift_text])
 
 
-## A money amount as the receipt prints it: "€3.00", or "+€15.00" when `signed`. Values are
-## whole euros: only the receipt shows cents.
+## A money amount as the receipt prints it: "€3.00", or "+€15.00" when `signed` ("−€2.00" for a
+## fall: Late delivery's, v0.69). Values are whole euros: only the receipt shows cents.
 static func money(euros: int, signed: bool = false) -> String:
-	return ("+" if signed else "") + MONEY_TEXT % euros
+	var prefix: String = "" if not signed else "+" if euros >= 0 else "−"
+	return prefix + MONEY_TEXT % (absi(euros) if signed else euros)
 
 
 ## How many of `result`'s steps fizzle (the footer's count): every WASTED step, the upgrades'
@@ -604,7 +607,7 @@ static func step_line(
 	var cause: String = source_text(step, upgrade_names, inspection_names)
 	match step.step_type:
 		ScoreStep.StepType.FLAT:
-			return "+€%d %s" % [step.value, cause]
+			return "%s %s" % [MonitorText.signed_euros(step.value), cause]
 		ScoreStep.StepType.MULTIPLIER:
 			return "×%d %s" % [step.value, multiplier_cause(step, upgrade_names, inspection_names)]
 		ScoreStep.StepType.COPY:
@@ -695,7 +698,8 @@ func add_total(total: int) -> Control:
 	return _total_line
 
 
-## A red notice under the total (plan section 3.9: the next shift's inspection).
+## A red notice under the total (plan section 3.9: the next shift's inspection; a boon day's in
+## green, v0.69).
 func add_notice(text: String) -> Control:
 	return add_line(text, "", LineStyle.NOTICE)
 
@@ -947,7 +951,7 @@ func _label(text: String, style: LineStyle) -> Label:
 			font_size = TOTAL_FONT_SIZE
 		LineStyle.NOTICE:
 			font_size = 15
-			color = Palette.TOMATO
+			color = Palette.GREEN_DARK if text.begins_with(BOON_NOTICE_PREFIX) else Palette.TOMATO
 		LineStyle.MARGIN:
 			font_size = 15
 		LineStyle.TEAR, LineStyle.WAITING:

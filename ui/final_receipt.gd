@@ -80,15 +80,18 @@ static func shift_texts(
 		"%3d  %-13s  %s"
 		% [record.shift, "€%d / €%d" % [record.total, record.quota], _result(record, went_on)]
 	)
-	if compact and not record.inspections.is_empty():
-		main = "%-28s  %s" % [main, "review" if record.inspections.size() > 1 else "inspected"]
+	var maluses: Array[InspectionDefinition] = InspectionDefinition.maluses(record.inspections)
+	if compact and not maluses.is_empty():
+		main = "%-28s  %s" % [main, "review" if maluses.size() > 1 else "inspected"]
 	var texts: PackedStringArray = PackedStringArray([main])
 	for visit: MachineVisit in record.visits:
 		texts.append(DETAIL_INDENT + visit_text(visit))
-	if not compact and not record.inspections.is_empty():
-		texts.append(
-			DETAIL_INDENT + "inspection " + ", ".join(InspectionTag.names(record.inspections))
-		)
+	if not compact and not maluses.is_empty():
+		texts.append(DETAIL_INDENT + "inspection " + ", ".join(InspectionTag.names(maluses)))
+	# A boon day's event (v0.69), as its chip named it.
+	var boons: Array[InspectionDefinition] = InspectionDefinition.boons(record.inspections)
+	if not compact and not boons.is_empty():
+		texts.append(DETAIL_INDENT + "today " + ", ".join(InspectionTag.names(boons)))
 	return texts
 
 

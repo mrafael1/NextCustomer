@@ -1,0 +1,16 @@
+; A boon day event's chip icon (v0.69, day events): a green coin with a paper plus, lit z along
+; its top left and shaded g at its bottom right, in an ink outline. 11x11, shown at 2x on the top
+; bar's chip in place of the inspection's warning sign.
+@size 11x11
+@kind icon
+...#####...
+.##zzzzG##.
+.#zzzwGGG#.
+#zzzzwGGGG#
+#zzzzwGGGG#
+#zwwwwwwwG#
+#GGGGwGGGg#
+#GGGGwGGgg#
+.#GGGwGgg#.
+.##GGGgg##.
+...#####...

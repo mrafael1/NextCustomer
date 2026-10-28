@@ -1,11 +1,12 @@
 class_name InspectionTag
 extends PanelContainer
-## The current shift's inspection in the top bar (plan section 3.9; #80 step 10, mock-up B2): a
-## paper chip with the mustard warning sign and "Inspection · <effect>" in the body font (each
-## inspection's chip_text, from data, e.g. "Inspection · −1 slot"), visible for the whole shift, so
-## the restriction is never shown only inside an animation. Hovering it shows each inspection's
-## name and notice. Hidden on shifts without an inspection. Inspections never go on the loyalty
-## card.
+## The current shift's day events in the top bar (plan section 3.9; #80 step 10, mock-up B2): an
+## inspection's (a MALUS) chip is tomato pale with the mustard warning sign and "Inspection ·
+## <effect>" in the body font (each inspection's chip_text, from data, e.g. "Inspection · −1
+## slot"); a boon day's (v0.69) is green with the boon coin and "Today: <name> — <effect>" ("Today:
+## Quiet morning — quota −10%"). Visible for the whole shift, so the change is never shown only
+## inside an animation. Hovering it shows each event's name and notice. Hidden on shifts without
+## an event. Day events never go on the loyalty card.
 ##
 ## Planning effects (#71): hovering it reports hovered / unhovered (its tooltip stays);
 ## set_relation rings it in gold and, for an inspection that causes the hovered item's effect,
@@ -29,9 +30,15 @@ enum Bonus { NONE, PROMISED, EARNED }
 const NEXT_NOTICE := "INSPECTION NEXT SHIFT: %s"
 ## A Manager's review's notice (v0.65): its several inspections at once, their notices joined.
 const NEXT_REVIEW_NOTICE := "MANAGER'S REVIEW NEXT SHIFT: %s"
+## A boon day's notice (v0.69), in green (ReceiptView.BOON_NOTICE_PREFIX): "TOMORROW: Quiet
+## morning — quota −10%".
+const NEXT_BOON_NOTICE := ReceiptView.BOON_NOTICE_PREFIX + "%s"
 ## The chip's caption: an inspected shift's, and a Manager's review's (several at once, v0.65).
 const CAPTION := "Inspection"
 const REVIEW_CAPTION := "Review"
+## A boon's words on the chip and its notice (v0.69): "Today: Quiet morning — quota −10%".
+const TODAY_TEXT := "Today: %s"
+const BOON_TEXT := "%s — %s"
 const FONT_SIZE := 14
 const FONT_WEIGHT := 700
 ## The warning sign (13x11 art) at 2x.
@@ -53,6 +60,7 @@ const PILL_GAP := 4
 
 const CHIP_FRAME := preload("res://art/frames/chip_warn.png")
 const WARNING := preload("res://art/icons/warning.png")
+const BOON := preload("res://art/icons/boon.png")
 const CHECK := preload("res://art/icons/mark_check.png")
 const TICKET := preload("res://art/icons/bonus_ticket.png")
 
@@ -103,16 +111,24 @@ func _init() -> void:
 	visible = false
 
 
-## Shows the shift's inspections by their effects (empty: hidden). Hovering shows each one's
-## name and notice.
+## Shows the shift's day events by their effects (empty: hidden): the inspections' under their
+## caption, then each boon's "Today: <name> — <effect>". Hovering shows each one's name and notice.
 func show_inspections(inspections: Array[InspectionDefinition]) -> void:
 	visible = not inspections.is_empty()
 	_inspections = inspections.duplicate()
 	var tips: PackedStringArray = PackedStringArray()
 	for inspection: InspectionDefinition in inspections:
-		tips.append("INSPECTION: %s\n%s" % [inspection.display_name, inspection.notice_text])
-	var caption: String = REVIEW_CAPTION if inspections.size() > 1 else CAPTION
-	_effects_text = " · ".join(PackedStringArray([caption]) + effects(inspections))
+		var kind: String = "TODAY" if inspection.is_boon() else "INSPECTION"
+		tips.append("%s: %s\n%s" % [kind, inspection.display_name, inspection.notice_text])
+	var maluses: Array[InspectionDefinition] = InspectionDefinition.maluses(inspections)
+	var parts: PackedStringArray = PackedStringArray()
+	if not maluses.is_empty():
+		var caption: String = REVIEW_CAPTION if maluses.size() > 1 else CAPTION
+		parts.append(" · ".join(PackedStringArray([caption]) + effects(maluses)))
+	var boons: Array[InspectionDefinition] = InspectionDefinition.boons(inspections)
+	if not boons.is_empty():
+		parts.append(TODAY_TEXT % ", ".join(boon_texts(boons)))
+	_effects_text = " · ".join(parts)
 	_shown_text = _effects_text
 	_label.text = _effects_text
 	custom_minimum_size.x = 0.0
@@ -223,6 +239,11 @@ func fit_width(width: float) -> void:
 	_label.custom_minimum_size.x = maxf(0.0, text_width - (whole - width))
 
 
+## Whether the chip shows a boon day only (v0.69: green, the boon coin), no inspection.
+func is_boon() -> bool:
+	return not _inspections.is_empty() and InspectionDefinition.maluses(_inspections).is_empty()
+
+
 ## Whether the text is trimmed to fit (fit_width).
 func is_trimmed() -> bool:
 	return _label.text_overrun_behavior != TextServer.OVERRUN_NO_TRIMMING
@@ -233,18 +254,22 @@ func _show_bonus_state() -> void:
 	var earned: bool = _bonus == Bonus.EARNED
 	_pill.visible = _bonus != Bonus.NONE
 	_pass_word.visible = _bonus == Bonus.PROMISED and not _pass_hidden
-	_icon.texture = CHECK if earned else WARNING
-	_icon.custom_minimum_size = CHECK.get_size() * 2.0 if earned else ICON_SIZE
+	var boon: bool = is_boon()
+	var icon: Texture2D = CHECK if earned else (BOON if boon else WARNING)
+	_icon.texture = icon
+	_icon.custom_minimum_size = icon.get_size() * 2.0 if earned or boon else ICON_SIZE
 	if earned:
-		_label.text = EARNED_TEXT % ", ".join(names(_inspections))
+		var passed: Array[InspectionDefinition] = InspectionDefinition.maluses(_inspections)
+		_label.text = EARNED_TEXT % ", ".join(names(passed))
 	elif _label.text != _shown_text and not _ringed:
 		_label.text = _shown_text
-	var tint: Color = Color.WHITE
-	if earned:
-		var pale: Color = Palette.TEAL_PALE
-		var paper: Color = Palette.PAPER
-		tint = Color(pale.r / paper.r, pale.g / paper.g, pale.b / paper.b)
-	self_modulate = tint
+	# The paper chip tinted: teal pale once earned, green for a boon day, tomato pale for an
+	# inspection.
+	var pale: Color = Palette.TEAL_PALE if earned else Palette.TOMATO_PALE
+	if boon and not earned:
+		pale = Palette.GREEN_LIGHT
+	var paper: Color = Palette.PAPER
+	self_modulate = Color(pale.r / paper.r, pale.g / paper.g, pale.b / paper.b)
 	tooltip_text = _tips + ("\n\n" + PILL_TIP if _bonus == Bonus.PROMISED else "")
 
 
@@ -338,13 +363,30 @@ static func bonus_for(run: RunState, counting: bool, shown: Bonus) -> Bonus:
 	return Bonus.NONE
 
 
-## The notice for the next shift's inspections, or "" when it isn't inspected: a Manager's
-## review's (several, v0.65) names them all.
+## The notice for the next shift's day events, or "" when it has none: its inspections' (a
+## Manager's review's several, v0.65, named all), then its boon's (v0.69: "TOMORROW: Quiet
+## morning — quota −10%", in green when it is the only event).
 static func next_notice(next_inspections: Array[InspectionDefinition]) -> String:
-	if next_inspections.is_empty():
-		return ""
-	var notices: PackedStringArray = PackedStringArray()
-	for inspection: InspectionDefinition in next_inspections:
-		notices.append(inspection.notice_text)
-	var notice: String = NEXT_REVIEW_NOTICE if next_inspections.size() > 1 else NEXT_NOTICE
-	return notice % " · ".join(notices)
+	var parts: PackedStringArray = PackedStringArray()
+	var maluses: Array[InspectionDefinition] = InspectionDefinition.maluses(next_inspections)
+	if not maluses.is_empty():
+		var notices: PackedStringArray = PackedStringArray()
+		for inspection: InspectionDefinition in maluses:
+			notices.append(inspection.notice_text)
+		var notice: String = NEXT_REVIEW_NOTICE if maluses.size() > 1 else NEXT_NOTICE
+		parts.append(notice % " · ".join(notices))
+	var boons: Array[InspectionDefinition] = InspectionDefinition.boons(next_inspections)
+	if not boons.is_empty():
+		parts.append(NEXT_BOON_NOTICE % ", ".join(boon_texts(boons)))
+	return " · ".join(parts)
+
+
+## Each boon's "<name> — <effect>" (its chip_text; the name alone without one).
+static func boon_texts(boons: Array[InspectionDefinition]) -> PackedStringArray:
+	var texts: PackedStringArray = PackedStringArray()
+	for boon: InspectionDefinition in boons:
+		var effect: String = boon.chip_text
+		texts.append(
+			BOON_TEXT % [boon.display_name, effect] if not effect.is_empty() else boon.display_name
+		)
+	return texts

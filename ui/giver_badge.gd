@@ -5,14 +5,14 @@ extends Control
 ## edge (a GOLDEN giver has a gold rim). The card's existing 7x7 mini reference selects its plate
 ## in art/giver_badges; that small mini is still used in monitor lines. A missing plate falls
 ## back to the small mini; missing mini art falls back to initials. Inspection keeps its warning
-## icon. A coupon token holds its mini (up to 10x10). A loyalty perk's token holds its perk icon
-## (#108 follow-up: as its loyalty box,
+## icon, and a boon (v0.69) its green coin. A coupon token holds its mini (up to 10x10). A
+## loyalty perk's token holds its perk icon (#108 follow-up: as its loyalty box,
 ## LoyaltyCard.perk_icon) when one fits inside the stamp, else its initials, and an Aisle run's
 ## badge wears the box's "×" tag at its top left (LoyaltyCard.make_run_tag), so a family's
 ## Regulars and Aisle run tell apart on the stickers too. Decor only, with the same drained grey
 ## as the sticker.
 
-enum Kind { NONE, ITEM, COUPON, LOYALTY, INSPECTION }
+enum Kind { NONE, ITEM, COUPON, LOYALTY, INSPECTION, BOON }
 
 ## A product's or coupon's badge holds this many letters of its name.
 const CARD_INITIALS := 2
@@ -21,6 +21,8 @@ const LOYALTY_INITIALS := 3
 ## The token (14x14 art at 2x) and the inspection's warning icon (13x11 at 2x).
 const SIZE := Vector2(28, 28)
 const INSPECTION_SIZE := Vector2(26, 22)
+## A boon's coin icon (11x11 at 2x).
+const BOON_SIZE := Vector2(22, 22)
 ## The original 7x7 mini at 2x, retained for fallback and monitor lines.
 const MINI_SIZE := Vector2(14, 14)
 ## Readability v3: a 10x10 drawing inside a 14x14 die-cut plate, shown at 2x.
@@ -38,6 +40,7 @@ const LOYALTY_TOKEN := preload("res://art/effects/badge_stamp_polished.png")
 ## The loyalty token under a perk icon (polish pass): a thinner rim round a 10x10 middle.
 const LOYALTY_ICON_TOKEN := preload("res://art/effects/badge_stamp_icon.png")
 const WARNING := preload("res://art/icons/warning.png")
+const BOON := preload("res://art/icons/boon.png")
 
 var kind: Kind = Kind.NONE
 var _token: TextureRect
@@ -62,7 +65,8 @@ func _init(
 	kind = badge_kind
 	name = "GiverBadge"
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
-	size = INSPECTION_SIZE if kind == Kind.INSPECTION else SIZE
+	var sizes: Dictionary[Kind, Vector2] = {Kind.INSPECTION: INSPECTION_SIZE, Kind.BOON: BOON_SIZE}
+	size = sizes.get(kind, SIZE)
 	custom_minimum_size = size
 	if kind == Kind.ITEM and not mini_ref.is_empty() and ResourceLoader.exists(mini_ref):
 		_mini = true
@@ -79,6 +83,7 @@ func _init(
 		Kind.COUPON: COUPON_TOKEN,
 		Kind.LOYALTY: LOYALTY_TOKEN,
 		Kind.INSPECTION: WARNING,
+		Kind.BOON: BOON,
 	}
 	_token = UiKit.sprite(tokens.get(kind, ITEM_TOKEN))
 	_token.name = "Token"
@@ -91,7 +96,7 @@ func _init(
 	if kind in [Kind.COUPON, Kind.LOYALTY] and _add_icon(mini_ref):
 		_add_run_tag()
 		return
-	if kind == Kind.INSPECTION or badge_initials.is_empty():
+	if kind in [Kind.INSPECTION, Kind.BOON] or badge_initials.is_empty():
 		return
 	_initials = UiKit.display_label(badge_initials, INITIALS_SIZES[-1], false)
 	_initials.name = "Initials"
@@ -106,7 +111,7 @@ func _init(
 
 ## The initials a `badge_kind` badge shows for a giver named `display_name`: a card's first two
 ## letters ("Eggs" → "Eg", spaces skipped), an upgrade's LoyaltyCard.initials capped at
-## LOYALTY_INITIALS, and none for an inspection (its icon) or no badge.
+## LOYALTY_INITIALS, and none for an inspection or a boon (its icon) or no badge.
 static func initials_for(badge_kind: Kind, display_name: String) -> String:
 	match badge_kind:
 		Kind.ITEM, Kind.COUPON:

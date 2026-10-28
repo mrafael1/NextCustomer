@@ -12,6 +12,7 @@ extends RefCounted
 static func apply(balance: BalanceDefinition) -> BalanceDefinition:
 	balance.inspection_shifts = PackedInt32Array([3, 5, 7])
 	balance.review_shifts = PackedInt32Array()
+	balance.boon_shifts = PackedInt32Array()
 	balance.write_up_limit = 0
 	if balance.machine != null:
 		var machine: MachineDefinition = balance.machine.duplicate()

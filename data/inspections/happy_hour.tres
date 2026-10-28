@@ -1,0 +1,19 @@
+[gd_resource type="Resource" script_class="InspectionDefinition" format=3]
+
+[ext_resource type="Script" path="res://core/inspections/inspection_rule.gd" id="1_rule"]
+[ext_resource type="Script" path="res://core/inspections/last_card_bonus_rule.gd" id="2_last_card"]
+[ext_resource type="Script" path="res://core/inspection_definition.gd" id="3_inspection"]
+
+[sub_resource type="Resource" id="Resource_last_card"]
+script = ExtResource("2_last_card")
+bonus = 3
+receipt_text = "last slot"
+
+[resource]
+script = ExtResource("3_inspection")
+id = &"happy_hour"
+display_name = "Happy hour"
+tone = 1
+notice_text = "The last filled slot pays +€3"
+chip_text = "last slot +€3"
+rules = Array[ExtResource("1_rule")]([SubResource("Resource_last_card")])

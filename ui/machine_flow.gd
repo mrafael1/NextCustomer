@@ -435,6 +435,7 @@ func _show_receipt_lines(run: RunState) -> void:
 	view.receipt_cards = ReceiptInk.cards_of(run.row)
 	view.receipt_upgrades = LoyaltyCard.names(run.upgrades)
 	view.receipt_inspections = InspectionTag.names(run.inspections)
+	view.receipt_boons = InspectionTag.names(InspectionDefinition.boons(run.inspections))
 	view.shift_total = run.last_result.total if run.last_result != null else 0
 	view.shift_quota = run.quota()
 	view.shift_notice = InspectionTag.next_notice(run.next_inspections)

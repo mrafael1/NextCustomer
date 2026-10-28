@@ -354,6 +354,32 @@ func test_a_format_7_save_in_planning_draws_the_review() -> void:
 	assert_array(kept.run.inspections).is_equal(run.inspections)
 
 
+## The review drawn for a format 7 save in planning leaves the dealt hand and the quota as they
+## are (no hand size or quota inspection), and its redraws apply at once (Till jam's fewer, never
+## fewer than those used).
+func test_a_format_7_review_in_planning_keeps_the_hand_and_follows_redraws() -> void:
+	var jammed: bool = false
+	for seed_value: int in range(30, 50):
+		var run: RunState = _run(seed_value)
+		var lookup: ContentLookup = ContentLookup.new(run.balance)
+		for _shift: int in range(3):
+			_pass(run)
+			MachineSteps.next_shift(run)
+		var data: Dictionary = _old_save(run)
+		data["inspections"] = []
+		var resumed: RunState = RunSave.from_dictionary(data, lookup).run
+		var message: String = "seed %d" % seed_value
+		assert_int(resumed.inspections.size()).override_failure_message(message).is_equal(2)
+		for inspection: InspectionDefinition in resumed.inspections:
+			assert_int(inspection.hand_size_delta).override_failure_message(message).is_equal(0)
+			assert_int(inspection.quota_percent).override_failure_message(message).is_equal(0)
+			jammed = jammed or inspection.extra_redraws < 0
+		assert_int(resumed.redraws_allowed).override_failure_message(message).is_equal(
+			maxi(resumed.limits.redraws, resumed.redraws_used)
+		)
+	assert_bool(jammed).is_true()
+
+
 ## A format 7 form of `run`'s save: no next inspection, one inspection per record.
 static func _old_save(run: RunState) -> Dictionary:
 	var data: Dictionary = _json(RunSave.to_dictionary(run, "old", 7))

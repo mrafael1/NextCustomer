@@ -262,7 +262,7 @@ func _resume_run(saved: RunSave) -> void:
 		run.last_result.total,
 		run.quota(),
 		InspectionTag.next_notice(run.next_inspections),
-		", ".join(InspectionTag.names(run.inspections))
+		", ".join(InspectionTag.names(InspectionDefinition.maluses(run.inspections)))
 	)
 	_count_up.show_end_state(run.last_result, run.quota(), count_up_context())
 	var record: ShiftRecord = run.history[-1]
@@ -534,7 +534,7 @@ func _on_checkout_pressed() -> void:
 		"score": result.total,
 		"quota": run.quota(),
 		"passed": run.passed(),
-		"next_inspection": RunEvents.inspection_id(run.next_inspection),
+		"next_inspection": RunEvents.first_inspection_id(run.next_inspections),
 		"next_inspections": RunEvents.inspection_ids(run.next_inspections),
 		"write_ups": run.write_ups,
 	}
@@ -604,6 +604,7 @@ func count_up_context() -> CountUpContext:
 	)
 	context.payday = context.bonus_ticket and run.machine.is_payday(run)
 	context.write_up = WriteUp.stamp_text(run)
+	context.boon_names = InspectionTag.names(InspectionDefinition.boons(run.inspections))
 	return context
 
 
@@ -736,9 +737,8 @@ func item_views() -> Array[ItemView]:
 ## loyalty upgrades' and inspections' slot marks (RowStrip.show_slot_marks).
 func _refresh_row() -> void:
 	var closed: int = run.limits.closed_slots
-	var reason: String = (
-		"Closed by the inspection: %s" % ", ".join(InspectionTag.names(run.inspections))
-	)
+	var closing: Array[InspectionDefinition] = InspectionDefinition.maluses(run.inspections)
+	var reason: String = "Closed by the inspection: %s" % ", ".join(InspectionTag.names(closing))
 	_row_strip.set_slot_count(
 		RowCapacity.card_limit(run.limits), closed, reason, RowStrip.closed_caption(run.inspections)
 	)
@@ -751,7 +751,7 @@ func _refresh_row() -> void:
 
 
 func _refresh_hand() -> void:
-	_hand_box.reset(run.balance.hand_size)
+	_hand_box.reset(run.limits.hand_size)
 	var places: Array[CardInstance] = run.hand_places()
 	for place: int in range(places.size()):
 		var card: CardInstance = places[place]

@@ -312,12 +312,13 @@ func _print_receipt(rect: Rect2) -> void:
 			view.receipt_cards
 		)
 	var sub: String = _ticket_sub(_plan) if _plan.stub else ""
+	# INSPECTION PASSED names the inspections, never a boon day's event (v0.69).
+	var passed: PackedStringArray = PackedStringArray()
+	for inspection_name: String in view.receipt_inspections:
+		if not view.receipt_boons.has(inspection_name):
+			passed.append(inspection_name)
 	paper.show_shift_end(
-		view.shift_total,
-		view.shift_quota,
-		view.shift_notice,
-		", ".join(view.receipt_inspections),
-		sub
+		view.shift_total, view.shift_quota, view.shift_notice, ", ".join(passed), sub
 	)
 	paper.fit_height()
 

@@ -245,7 +245,8 @@ func _credit(beat: CountUpBeat, step: ScoreStep) -> void:
 
 ## A fizzle: the card shudders, greys out for a moment, and lets out a little WASTED puff where
 ## it is now (the bag's mouth for a bagged item). An upgrade's fizzle comes out of its
-## loyalty-card box instead (the card it had nothing to work on gives a small nudge).
+## loyalty-card box instead, a day event's from its chip (v0.69; the card it had nothing to work
+## on gives a small nudge).
 func _fizzle(beat: CountUpBeat, step: ScoreStep) -> void:
 	_print_step(step)
 	var view: CardView = _views[step.slot]
@@ -253,6 +254,8 @@ func _fizzle(beat: CountUpBeat, step: ScoreStep) -> void:
 	var puff_at: Vector2 = _at(step.slot) + Vector2(0, -30)
 	var puff_to: Vector2 = puff_at + Vector2(0, -50)
 	var upgrade_box: Control = _upgrade_box(step)
+	if upgrade_box == null:
+		upgrade_box = _inspection_source(step)
 	var resetter: CardView = _source_view(step)
 	var motion: float = _motion(beat)
 	if upgrade_box != null:
@@ -317,14 +320,16 @@ func _merged(beat: CountUpBeat, base: ScoreStep, payout: ScoreStep) -> void:
 	_land_payout(beat, payout, line)
 
 
-## A bonus flies in from the card that caused it, or from the upgrade's loyalty-card box (or
-## rises from the card for its own rules).
+## A bonus flies in from the card that caused it, from the upgrade's loyalty-card box or from the
+## day event's chip in the top bar (v0.69: Happy hour's +3, Late delivery's −2 in tomato), or
+## rises from the card for its own rules.
 func _bonus(beat: CountUpBeat, step: ScoreStep) -> void:
 	_print_step(step)
 	var target: CardView = _views[step.slot]
-	var text: String = "+%d" % step.value
+	var text: String = EffectLinks.token_text(step)
+	var color: Color = Palette.MUSTARD if step.value >= 0 else Palette.TOMATO
 	if beat.echo:
-		_echo(beat, step, text, Palette.MUSTARD)
+		_echo(beat, step, text, color)
 		return
 	# A copy flies in from the copied card; any other bonus from the card or upgrade that
 	# caused it, unless it is the target's own rule.
@@ -334,7 +339,7 @@ func _bonus(beat: CountUpBeat, step: ScoreStep) -> void:
 	if step.step_type == ScoreStep.StepType.COPY:
 		source = _views[step.linked_slot]
 		from = _at(step.linked_slot)
-	elif step.source_kind == ScoreStep.SourceKind.UPGRADE or step.card_giver_slot() != step.slot:
+	elif step.source_kind != ScoreStep.SourceKind.CARD or step.card_giver_slot() != step.slot:
 		source = _source_control(step)
 		if source != null:
 			from = _source_point(step)
@@ -343,13 +348,11 @@ func _bonus(beat: CountUpBeat, step: ScoreStep) -> void:
 		if step.step_type == ScoreStep.StepType.COPY:
 			sfx.play("copy")
 		var flight: float = minf(BONUS_FLIGHT, _motion(beat) * 0.75)
-		await _fx.fly_text(text, from, _at(step.slot), Palette.MUSTARD, 30, flight)
+		await _fx.fly_text(text, from, _at(step.slot), color, 30, flight)
 		waited = flight
 	else:
 		var above: Vector2 = _at(step.slot) + Vector2(0, -20)
-		_fx.fly_text(
-			text, above, above + Vector2(0, -40), Palette.MUSTARD, 30, OWN_BONUS_RISE, true
-		)
+		_fx.fly_text(text, above, above + Vector2(0, -40), color, 30, OWN_BONUS_RISE, true)
 	await _hold_value(beat, waited)
 	if beat.note >= 0 and not CountUpPlan.is_landing(beat):
 		sfx.play_note(beat.note)
@@ -360,8 +363,8 @@ func _bonus(beat: CountUpBeat, step: ScoreStep) -> void:
 
 
 ## A multiplier lands like a stamp: big, rotated, slammed down, with a shake. An upgrade's
-## factor first flies in from its loyalty-card box; an armed effect's stamp punches and lights
-## up the arming card.
+## factor first flies in from its loyalty-card box, a day event's (v0.69: Free samples' ×2) from
+## its chip; an armed effect's stamp punches and lights up the arming card.
 func _stamp(beat: CountUpBeat, step: ScoreStep) -> void:
 	_print_step(step)
 	var target: CardView = _views[step.slot]
@@ -372,7 +375,10 @@ func _stamp(beat: CountUpBeat, step: ScoreStep) -> void:
 	var motion: float = _motion(beat)
 	var slam_time: float = minf(STAMP_SLAM, motion * 0.6)
 	var waited: float = 0.0
+	# The upgrade's box, or the day event's chip.
 	var upgrade_box: Control = _upgrade_box(step)
+	if upgrade_box == null:
+		upgrade_box = _inspection_source(step)
 	var source: CardView = _source_view(step)
 	if upgrade_box != null:
 		_pulse_giver(upgrade_box)

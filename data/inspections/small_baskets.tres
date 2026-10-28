@@ -1,0 +1,11 @@
+[gd_resource type="Resource" script_class="InspectionDefinition" format=3]
+
+[ext_resource type="Script" path="res://core/inspection_definition.gd" id="1_inspection"]
+
+[resource]
+script = ExtResource("1_inspection")
+id = &"small_baskets"
+display_name = "Small baskets"
+notice_text = "One item fewer in the hand"
+chip_text = "−1 hand item"
+hand_size_delta = -1

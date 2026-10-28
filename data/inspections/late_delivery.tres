@@ -1,0 +1,19 @@
+[gd_resource type="Resource" script_class="InspectionDefinition" format=3]
+
+[ext_resource type="Script" path="res://core/inspections/inspection_rule.gd" id="1_rule"]
+[ext_resource type="Script" path="res://core/inspections/tag_flat_bonus_rule.gd" id="2_tag_bonus"]
+[ext_resource type="Script" path="res://core/inspection_definition.gd" id="3_inspection"]
+
+[sub_resource type="Resource" id="Resource_tag_bonus"]
+script = ExtResource("2_tag_bonus")
+tag = "Dairy"
+bonus = -2
+receipt_text = "Dairy pays less"
+
+[resource]
+script = ExtResource("3_inspection")
+id = &"late_delivery"
+display_name = "Late delivery"
+notice_text = "Dairy items pay €2 less"
+chip_text = "Dairy −€2"
+rules = Array[ExtResource("1_rule")]([SubResource("Resource_tag_bonus")])
