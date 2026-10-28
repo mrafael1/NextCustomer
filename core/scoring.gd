@@ -14,13 +14,17 @@ extends RefCounted
 
 ## `upgrades` are the run's upgrades in pick order; an upgrade step's source_index is its index
 ## in this list. `inspections` are the shift's inspections; an inspection step's source_index
-## is its index in that list.
+## is its index in that list. `credits` (#108 piece 2) names what Big basket and Extra redraw
+## earned: a CREDIT step after each credited slot's PAYOUT, which never changes the total.
 static func score(
 	row: Array[CardInstance],
 	upgrades: Array[UpgradeDefinition] = [],
-	inspections: Array[InspectionDefinition] = []
+	inspections: Array[InspectionDefinition] = [],
+	credits: ScoreCredits = null
 ) -> ScoreResult:
-	return _run(ScoreState.new(row), upgrades, inspections).to_result()
+	var state: ScoreState = ScoreState.new(row)
+	state.credits = credits
+	return _run(state, upgrades, inspections).to_result()
 
 
 ## The total score() would give, without the steps that explain it (the balance simulator's
@@ -48,6 +52,8 @@ static func _run(
 			upgrade_rules.append(upgrade.rules[number])
 			rule_upgrades.append(index)
 			rule_numbers.append(number)
+	state.upgrade_rules = upgrade_rules
+	state.rule_upgrades = rule_upgrades
 	# The inspections' rules likewise, with the index of their inspection.
 	var inspection_rules: Array[InspectionRule] = []
 	var rule_inspections: PackedInt32Array = PackedInt32Array()
@@ -142,7 +148,9 @@ static func _scan(state: ScoreState, slot: int, registers: Array, checks: Array)
 			var effect_factor: int = effect.multiplier(state, slot)
 			if effect_factor != 1:
 				value *= effect_factor
-				if explain:
+				if effect.reached_last():
+					_reached_step(state, slot, effect, effect_factor, value, registers)
+				elif explain:
 					state.add_step(
 						ScoreStep.StepType.MULTIPLIER,
 						slot,
@@ -193,6 +201,8 @@ static func _scan(state: ScoreState, slot: int, registers: Array, checks: Array)
 		value = _inspection_overrides(state, slot, value, checks)
 
 	state.record_payout(slot, value)
+	if explain and state.credits != null:
+		_add_credit(state, slot, registers[0])
 
 	# Only now do this card's effects for later cards become active, each with an
 	# EFFECT_ARMED step (and the WASTED step of any effect it replaces, an Egg reset).
@@ -204,6 +214,40 @@ static func _scan(state: ScoreState, slot: int, registers: Array, checks: Array)
 		_report_fizzles(state, slot, card, registers[0], upgrade_fizzles)
 	if not state.effects.is_empty():
 		state.drop_spent_effects()
+
+
+## A use an upgrade's reach gave past a card effect's own charges (#108: Lemon squeezer): counted
+## for the upgrade's row fizzle, and its MULTIPLIER step is the upgrade's (from its box).
+static func _reached_step(
+	state: ScoreState, slot: int, effect: ScoreEffect, factor: int, value: int, registers: Array
+) -> void:
+	var rule: UpgradeRule = effect.reach_rule
+	state.reach_uses[rule] = state.reach_uses.get(rule, 0) + 1
+	if not state.explain:
+		return
+	var upgrades: Array[UpgradeDefinition] = registers[0]
+	_add_upgrade_step(
+		state,
+		ScoreStep.StepType.MULTIPLIER,
+		slot,
+		effect.reach_upgrade,
+		factor,
+		value,
+		rule.text_for(upgrades[effect.reach_upgrade])
+	)
+
+
+## A CREDIT step after a slot's PAYOUT when a perk with no scoring rule earned it (ScoreCredits).
+static func _add_credit(state: ScoreState, slot: int, upgrades: Array[UpgradeDefinition]) -> void:
+	var credit: Array = state.credits.credit_for(state.row, slot, upgrades)
+	var index: int = credit[0]
+	if index < 0:
+		return
+	var payout: int = state.payouts[slot]
+	var step: ScoreStep = _add_upgrade_step(
+		state, ScoreStep.StepType.CREDIT, slot, index, payout, payout, upgrades[index].display_name
+	)
+	step.reason = credit[1]
 
 
 ## Fizzles of this card's own rules (Repeat with nothing to copy, Final markdown not last),

@@ -1,10 +1,10 @@
 extends GdUnitTestSuite
-## The RECEIPT REWARDS machine's logic (#77, build spec 1.6 and 9): prizes come from the chosen
-## chute and a pick does what its preview says (issue #77 item 2), the two machine states and the
-## odds that rise with the run's progress (v0.47), the first-draw flags, the register cap and
-## STAMP DAY, the bonus ticket, the deck limit, clear_visits, reveal order, short draws and the
-## machine's save form. Runs are built with the current RunState; the machine gets its own seeded
-## RNG and the shift records are made here, so no checkout is played.
+## The RECEIPT REWARDS machine's logic (#77, build spec 1.6 and 9; #108's two chutes): prizes come
+## from the chosen chute and a pick does what its preview says (issue #77 item 2), CLASSIC and
+## PREMIUM visits and the odds that rise with the run's progress, the first-draw flags, the
+## register cap and loyalty level-ups, the bonus ticket, the deck limit, clear_visits, reveal
+## order, short draws and the machine's save form. Runs are built with the current RunState; the
+## machine gets its own seeded RNG and the shift records are made here, so no checkout is played.
 
 const BALANCE := "res://data/balance/balance.tres"
 const STARTER := "res://data/decks/starter.tres"
@@ -23,210 +23,159 @@ func before() -> void:
 	_starter = load(STARTER)
 
 
-## Issue #77 item 2: every chute, seeded, on a visit that lights it (NEW ITEMS and COUPONS after
-## shift 1, REGISTER and UPGRADES on shift 3's BOOSTED visit): the prizes come from the chosen
-## chute, and picking one adds or upgrades exactly that item, as its preview said.
+## Issue #77 item 2: both chutes, seeded, on a CLASSIC visit (after shift 1) and a PREMIUM one
+## (after shift 3): the prizes come from the chosen chute, and picking one adds, stamps or upgrades
+## exactly that item, as its preview said.
 func test_prizes_come_from_the_chute_and_a_pick_does_what_its_preview_says() -> void:
 	for chute: int in RewardMachine.CHUTES:
-		var shift_number: int = 3 if RewardMachine.BOOSTED_CHUTES.has(chute) else 1
-		for seed_value: int in range(1, 13):
-			var run: RunState = _run(seed_value)
-			var machine: RewardMachine = _machine(seed_value)
-			_pass(run, machine, shift_number)
-			assert_bool(machine.choose(run, chute)).is_true()
-			var prizes: Array[MachinePrize] = machine.prizes()
-			assert_int(prizes.size()).is_between(1, 3)
-			for prize: MachinePrize in prizes:
-				_assert_from_chute(run, chute, prize)
-			var index: int = seed_value % prizes.size()
-			_assert_pick_matches_preview(run, machine, index)
-			assert_int(run.history[-1].visits.size()).is_equal(1)
-			assert_int(run.history[-1].visits[0].picked).is_equal(index)
-			assert_int(run.history[-1].visits[0].chute).is_equal(chute)
+		for shift_number: int in [1, 3]:
+			for seed_value: int in range(1, 13):
+				var run: RunState = _run(seed_value)
+				var machine: RewardMachine = _machine(seed_value)
+				_pass(run, machine, shift_number)
+				assert_bool(machine.choose(run, chute)).is_true()
+				var prizes: Array[MachinePrize] = machine.prizes()
+				assert_int(prizes.size()).is_equal(3)
+				for prize: MachinePrize in prizes:
+					_assert_from_chute(run, chute, prize)
+				var index: int = seed_value % prizes.size()
+				_assert_pick_matches_preview(run, machine, index)
+				assert_int(run.history[-1].visits.size()).is_equal(1)
+				assert_int(run.history[-1].visits[0].picked).is_equal(index)
+				assert_int(run.history[-1].visits[0].chute).is_equal(chute)
 
 
-## v0.47: the ticket's visit after shifts 3, 5 and 7 is BOOSTED (REGISTER and UPGRADES lit, NEW
-## ITEMS and COUPONS unlit); after the other shifts it is Normal (the other way round). An unlit
-## REGISTER or UPGRADES key names the next boosted shift; an unlit chute can't be chosen.
-func test_boosted_and_normal_visits_light_their_chutes_per_shift() -> void:
-	assert_array(Array(_balance.machine.boosted_shifts)).is_equal([3, 5, 7])
-	var next_boosted: Array[int] = [3, 3, 5, 5, 7, 7, 0]
+## The ticket's visit after shifts 3, 5 and 7 is PREMIUM, CLASSIC after the others; both chutes
+## are open either way. A PREMIUM draw is RARE or better, its products with a chain BIG or better.
+func test_premium_and_classic_visits_per_shift() -> void:
+	assert_array(Array(_balance.machine.premium_shifts)).is_equal([3, 5, 7])
 	for shift_number: int in range(1, 8):
-		var run: RunState = _run()
-		var machine: RewardMachine = _machine()
+		var run: RunState = _run(shift_number)
+		var machine: RewardMachine = _machine(shift_number)
 		_pass(run, machine, shift_number)
-		var boosted: bool = [3, 5, 7].has(shift_number)
+		var premium: bool = [3, 5, 7].has(shift_number)
 		var failure: String = "shift %d" % shift_number
-		assert_bool(machine.is_boosted()).override_failure_message(failure).is_equal(boosted)
+		assert_bool(machine.is_premium()).override_failure_message(failure).is_equal(premium)
 		var visit: MachineVisit = machine.current_visit()
-		assert_bool(visit.boosted).is_equal(boosted)
+		assert_bool(visit.premium).is_equal(premium)
 		assert_str(RewardMachine.state_of(visit)).is_equal(
-			RewardMachine.STATE_BOOSTED if boosted else RewardMachine.STATE_NORMAL
+			RewardMachine.STATE_PREMIUM if premium else RewardMachine.STATE_CLASSIC
 		)
 		for chute: int in RewardMachine.CHUTES:
 			var info: MachineChuteInfo = machine.chute_info(run, chute)
-			var lit: bool = RewardMachine.BOOSTED_CHUTES.has(chute) == boosted
-			var expected: int = (
-				RewardMachine.ChuteState.OPEN if lit else RewardMachine.ChuteState.UNLIT
+			assert_int(info.state).override_failure_message(failure).is_equal(
+				RewardMachine.ChuteState.OPEN
 			)
-			assert_int(info.state).override_failure_message(failure).is_equal(expected)
-			var opens: int = 0
-			if not lit and RewardMachine.BOOSTED_CHUTES.has(chute):
-				opens = next_boosted[shift_number - 1]
-			assert_int(info.opens_after_shift).override_failure_message(failure).is_equal(opens)
-			if not lit:
-				assert_bool(machine.choose(run, chute)).is_false()
-	assert_array(RewardMachine.lit_chutes(null)).is_equal(RewardMachine.NORMAL_CHUTES)
-	_assert_boosted_if_passed_matches_the_checkout()
+			assert_bool(info.premium).is_equal(premium)
+			assert_bool(info.odds.premium).is_equal(premium)
+		assert_bool(machine.choose(run, RewardMachine.Chute.NEW_ITEMS)).is_true()
+		if premium:
+			_assert_premium_prizes(machine)
+	assert_str(RewardMachine.state_for(true)).is_equal(RewardMachine.STATE_PREMIUM)
+	assert_str(RewardMachine.state_for(false)).is_equal(RewardMachine.STATE_CLASSIC)
+	_assert_premium_if_passed_matches_the_checkout()
 
 
-## The bonus ticket's visit after a boosted shift is BOOSTED too (v0.53): shift 3 inspected gives
-## a BOOSTED ticket visit, then a BOOSTED BONUS visit (LOYALTY and UPGRADES lit, NEW ITEMS and
-## COUPONS unlit); a bonus visit after a Normal shift stays Normal.
-func test_the_bonus_visit_after_a_boosted_shift_is_boosted() -> void:
+## The bonus ticket's visit after a premium shift is PREMIUM too (v0.53): shift 3 inspected gives a
+## PREMIUM ticket visit, then a PREMIUM BONUS visit with both chutes open; every visit can be
+## binned. A bonus visit after a CLASSIC shift stays CLASSIC.
+func test_the_bonus_visit_after_a_premium_shift_is_premium() -> void:
 	var run: RunState = _run()
 	var machine: RewardMachine = _machine()
 	_pass(run, machine, 3, true)
-	assert_bool(machine.is_boosted()).is_true()
-	assert_bool(machine.choose(run, RewardMachine.Chute.UPGRADES)).is_true()
-	assert_object(machine.pick(run, 0)).is_not_null()
+	assert_bool(machine.is_premium()).is_true()
+	assert_bool(machine.choose(run, RewardMachine.Chute.UPGRADE)).is_true()
+	_assert_premium_prizes(machine)
+	assert_bool(machine.can_bin()).is_true()
+	assert_object(machine.pick(run, _perk_index(machine))).is_not_null()
 	var bonus: MachineVisit = machine.current_visit()
 	assert_int(bonus.kind).is_equal(MachineVisit.Kind.BONUS)
-	assert_bool(bonus.boosted).is_true()
-	assert_bool(machine.is_boosted()).is_true()
-	assert_str(RewardMachine.state_of(bonus)).is_equal(RewardMachine.STATE_BOOSTED)
-	for chute: int in RewardMachine.BOOSTED_CHUTES:
+	assert_bool(bonus.premium).is_true()
+	assert_bool(machine.is_premium()).is_true()
+	assert_str(RewardMachine.state_of(bonus)).is_equal(RewardMachine.STATE_PREMIUM)
+	for chute: int in RewardMachine.CHUTES:
 		var info: MachineChuteInfo = machine.chute_info(run, chute)
 		assert_int(info.state).is_equal(RewardMachine.ChuteState.OPEN)
-	for chute: int in RewardMachine.NORMAL_CHUTES:
-		var info: MachineChuteInfo = machine.chute_info(run, chute)
-		assert_int(info.state).is_equal(RewardMachine.ChuteState.UNLIT)
-	assert_bool(machine.choose(run, RewardMachine.Chute.NEW_ITEMS)).is_false()
-	assert_bool(machine.can_bin()).is_false()
-	assert_bool(machine.choose(run, RewardMachine.Chute.REGISTER)).is_true()
-	assert_bool(machine.can_bin()).is_false()
+	assert_bool(machine.choose(run, RewardMachine.Chute.NEW_ITEMS)).is_true()
+	_assert_premium_prizes(machine)
+	assert_bool(machine.can_bin()).is_true()
 	assert_object(machine.pick(run, 0)).is_not_null()
-	assert_array(run.history[-1].visits.map(_boosted)).is_equal([true, true])
-	# A bonus visit after a shift that isn't boosted (a bonus extra shift) is Normal.
-	var normal_run: RunState = _run()
+	assert_array(run.history[-1].visits.map(_premium)).is_equal([true, true])
+	# A bonus visit after a shift that isn't premium (a bonus extra shift) is CLASSIC.
+	var classic_run: RunState = _run()
 	var extra: MachineDefinition = _balance.machine.duplicate() as MachineDefinition
 	extra.bonus_extra_shifts = PackedInt32Array([2])
-	var normal_machine: RewardMachine = _machine(7, extra)
-	_pass(normal_run, normal_machine, 2)
-	assert_bool(normal_machine.is_boosted()).is_false()
-	assert_bool(normal_machine.choose(normal_run, RewardMachine.Chute.NEW_ITEMS)).is_true()
-	assert_bool(normal_machine.bin(normal_run)).is_true()
-	var normal_bonus: MachineVisit = normal_machine.current_visit()
-	assert_int(normal_bonus.kind).is_equal(MachineVisit.Kind.BONUS)
-	assert_bool(normal_bonus.boosted).is_false()
-
-	# The boost's fallback, from the state after the ticket's pick: with LOYALTY full after it (the
-	# third register) and nothing to improve, the bonus visit is Normal, its LOYALTY key CARD FULL
-	# and UPGRADES NOTHING TO IMPROVE.
-	_assert_bonus_falls_back()
+	var classic_machine: RewardMachine = _machine(7, extra)
+	_pass(classic_run, classic_machine, 2)
+	assert_bool(classic_machine.is_premium()).is_false()
+	assert_bool(classic_machine.choose(classic_run, RewardMachine.Chute.UPGRADE)).is_true()
+	assert_bool(classic_machine.bin(classic_run)).is_true()
+	var classic_bonus: MachineVisit = classic_machine.current_visit()
+	assert_int(classic_bonus.kind).is_equal(MachineVisit.Kind.BONUS)
+	assert_bool(classic_bonus.premium).is_false()
 
 
-func _assert_bonus_falls_back() -> void:
-	var run: RunState = _golden_run()
-	var registers: Array[String] = ["extra_redraw", "big_basket"]
-	for index: int in registers.size():
-		_give_register(run, _upgrade(registers[index]), index + 1)
-	var machine: RewardMachine = _machine()
-	_pass(run, machine, 3, true)
-	assert_bool(machine.is_boosted()).is_true()
-	assert_bool(machine.choose(run, RewardMachine.Chute.REGISTER)).is_true()
-	assert_object(machine.pick(run, 0)).is_not_null()
-	var bonus: MachineVisit = machine.current_visit()
-	assert_int(bonus.kind).is_equal(MachineVisit.Kind.BONUS)
-	assert_bool(bonus.boosted).is_false()
-	_assert_states(
-		run,
-		machine,
-		[
-			RewardMachine.ChuteState.OPEN,
-			RewardMachine.ChuteState.OPEN,
-			RewardMachine.ChuteState.CARD_FULL,
-			RewardMachine.ChuteState.EMPTY,
-		]
-	)
-
-
-## A boosted shift whose REGISTER is full and whose UPGRADES has nothing to improve gives a Normal
-## visit; with only one of the two available the visit stays BOOSTED and lights only that one.
-func test_a_boosted_shift_with_nothing_to_draw_falls_back() -> void:
-	var registers: Array[String] = ["extra_redraw", "big_basket", "coupon_engine"]
-	# REGISTER full, UPGRADES with nothing to improve: Normal.
-	var neither: RunState = _golden_run()
-	for index: int in registers.size():
-		_give_register(neither, _upgrade(registers[index]), index + 1)
-	var neither_machine: RewardMachine = _machine()
-	_pass(neither, neither_machine, 5)
-	assert_bool(neither_machine.is_boosted()).is_false()
-	assert_str(RewardMachine.state_of(neither_machine.current_visit())).is_equal(
-		RewardMachine.STATE_NORMAL
-	)
-	# REGISTER and UPGRADES say why the boost was skipped (CARD FULL, NOTHING TO IMPROVE), not
-	# when the next boost comes.
-	_assert_states(
-		neither,
-		neither_machine,
-		[
-			RewardMachine.ChuteState.OPEN,
-			RewardMachine.ChuteState.OPEN,
-			RewardMachine.ChuteState.CARD_FULL,
-			RewardMachine.ChuteState.EMPTY,
-		]
-	)
-	for chute: int in RewardMachine.BOOSTED_CHUTES:
-		assert_int(neither_machine.chute_info(neither, chute).opens_after_shift).is_equal(0)
-	# Only REGISTER: BOOSTED, UPGRADES shows NOTHING TO IMPROVE.
-	var register_only: RunState = _golden_run()
-	var register_machine: RewardMachine = _machine()
-	_pass(register_only, register_machine, 5)
-	assert_bool(register_machine.is_boosted()).is_true()
-	_assert_states(
-		register_only,
-		register_machine,
-		[
-			RewardMachine.ChuteState.UNLIT,
-			RewardMachine.ChuteState.UNLIT,
-			RewardMachine.ChuteState.OPEN,
-			RewardMachine.ChuteState.EMPTY,
-		]
-	)
-	# Only UPGRADES: BOOSTED, REGISTER shows CARD FULL.
-	var upgrades_only: RunState = _run()
-	for index: int in registers.size():
-		_give_register(upgrades_only, _upgrade(registers[index]), index + 1)
-	var upgrades_machine: RewardMachine = _machine()
-	_pass(upgrades_only, upgrades_machine, 5)
-	assert_bool(upgrades_machine.is_boosted()).is_true()
-	_assert_states(
-		upgrades_only,
-		upgrades_machine,
-		[
-			RewardMachine.ChuteState.UNLIT,
-			RewardMachine.ChuteState.UNLIT,
-			RewardMachine.ChuteState.CARD_FULL,
-			RewardMachine.ChuteState.OPEN,
-		]
-	)
+## A full loyalty card (3 machine perks) still opens UPGRADE: its perks drawn are level-ups only,
+## and taking one replaces the perk in its own box (the preview says so), so the card stays full.
+## With every perk at its top level (or without levels) and nothing to improve, UPGRADE is EMPTY.
+func test_a_full_card_levels_up_its_perks_in_their_boxes() -> void:
+	var run: RunState = _run(5)
+	var perks: Array[String] = ["coupon_engine", "extra_redraw", "big_basket"]
+	for index: int in perks.size():
+		_give_register(run, _upgrade(perks[index]), index + 1)
+	var machine: RewardMachine = _machine(5)
+	_pass(run, machine, 4)
+	assert_int(RewardMachine.registers_picked(run)).is_equal(3)
+	var upgrade: int = RewardMachine.Chute.UPGRADE
+	assert_int(machine.chute_info(run, upgrade).state).is_equal(RewardMachine.ChuteState.OPEN)
+	assert_bool(machine.choose(run, upgrade)).is_true()
+	for prize: MachinePrize in machine.prizes():
+		if prize.kind == MachinePrize.Kind.REGISTER:
+			assert_bool(PerkLevels.is_level_up(prize.upgrade)).is_true()
+	var index: int = _perk_index(machine)
+	assert_int(index).is_not_equal(-1)
+	var level_up: UpgradeDefinition = machine.prizes()[index].upgrade
+	var box: int = PerkLevels.owned_index(run.upgrades, level_up)
+	var preview: MachinePreview = machine.preview(run, index)
+	assert_bool(preview.level_up).is_true()
+	assert_int(preview.from_level).is_equal(1)
+	assert_int(preview.box_index).is_equal(box)
+	var landing: MachineLanding = machine.pick(run, index)
+	assert_bool(landing.level_up).is_true()
+	assert_int(landing.box_index).is_equal(box)
+	assert_object(run.upgrades[box]).is_same(level_up)
+	assert_int(level_up.level_number()).is_equal(2)
+	assert_int(run.upgrades.size()).is_equal(3)
+	assert_int(RewardMachine.registers_picked(run)).is_equal(3)
+	assert_array(run.history[-1].level_ups()).is_equal([level_up])
+	assert_array(run.history[-1].perks_added()).is_empty()
+	# Top levels, a perk without levels and a cart nothing can step in: UPGRADE is EMPTY.
+	var top: RunState = _golden_run()
+	for index_given: int in perks.size():
+		_give_register(top, _upgrade(perks[index_given]), index_given + 1)
+	top.upgrades[0] = _upgrade("coupon_engine_lv3")
+	top.upgrades[1] = _upgrade("extra_redraw_lv3")
+	var top_machine: RewardMachine = _machine()
+	_pass(top, top_machine, 4)
+	assert_int(top_machine.chute_info(top, upgrade).state).is_equal(RewardMachine.ChuteState.EMPTY)
+	assert_bool(top_machine.choose(top, upgrade)).is_false()
+	assert_bool(top_machine.choose(top, RewardMachine.Chute.NEW_ITEMS)).is_true()
 
 
 ## v0.47: no Regular meter. Every visit after a shift draws at that shift's odds level (shifts 1-2
 ## level 0, 3-4 1, 5-6 2, 7 3; level 3's first drop at least RARE), whatever was picked or binned
-## before: the ticket, the bonus ticket and STAMP DAY alike.
+## before: the ticket and the bonus ticket alike.
 func test_the_odds_rise_with_the_run_progress() -> void:
 	assert_array(Array(_balance.machine.shift_odds_levels).slice(0, 7)).is_equal(LEVEL_AFTER)
-	var normal_only: MachineDefinition = _normal_only()
-	normal_only.bonus_extra_shifts = PackedInt32Array([1, 2, 3, 4, 5, 6, 7])
+	var classic_only: MachineDefinition = _classic_only()
+	classic_only.bonus_extra_shifts = PackedInt32Array([1, 2, 3, 4, 5, 6, 7])
 	var run: RunState = _run()
-	var machine: RewardMachine = _machine(7, normal_only)
+	var machine: RewardMachine = _machine(7, classic_only)
 	for shift_number: int in range(1, 8):
 		_pass(run, machine, shift_number)
 		var level: int = LEVEL_AFTER[shift_number - 1]
 		assert_int(machine.odds_level(run)).is_equal(level)
-		for chute: int in RewardMachine.NORMAL_CHUTES:
+		for chute: int in RewardMachine.CHUTES:
 			var odds: MachineOddsCard = machine.chute_info(run, chute).odds
 			assert_int(odds.level).override_failure_message("shift %d" % shift_number).is_equal(
 				level
@@ -235,30 +184,16 @@ func test_the_odds_rise_with_the_run_progress() -> void:
 		assert_bool(machine.bin(run)).is_true()
 		# The bonus visit draws at the same level: binning raised nothing.
 		assert_int(machine.current_visit().kind).is_equal(MachineVisit.Kind.BONUS)
-		var bonus_odds: MachineOddsCard = (
-			machine.chute_info(run, RewardMachine.Chute.NEW_ITEMS).odds
-		)
+		var bonus_odds: MachineOddsCard = machine.chute_info(run, RewardMachine.Chute.UPGRADE).odds
 		assert_int(bonus_odds.level).is_equal(level)
-		assert_bool(machine.choose(run, RewardMachine.Chute.NEW_ITEMS)).is_true()
+		assert_bool(machine.choose(run, RewardMachine.Chute.UPGRADE)).is_true()
 		assert_bool(machine.bin(run)).is_true()
-		_finish_stamp_day(run, machine)
+		assert_int(machine.stage).is_equal(RewardMachine.Stage.IDLE)
 	_pass(run, machine, 7)
 	var top: MachineOddsCard = machine.chute_info(run, RewardMachine.Chute.NEW_ITEMS).odds
 	assert_int(top.first_drop_min_rarity).is_equal(1)
 	assert_float(top.first_share[MachinePrize.Rarity.COMMON]).is_equal(0.0)
 	assert_int(_balance.machine.odds_levels[3].first_drop_min_rarity).is_equal(1)
-	# STAMP DAY after shift 4 (1 register behind the floor of 2) draws at level 1.
-	var stamp: RunState = _run()
-	var stamp_machine: RewardMachine = _machine()
-	_give_register(stamp, _upgrade("extra_redraw"), 2)
-	_pass(stamp, stamp_machine, 4)
-	assert_bool(stamp_machine.choose(stamp, RewardMachine.Chute.COUPONS)).is_true()
-	assert_bool(stamp_machine.bin(stamp)).is_true()
-	assert_int(stamp_machine.current_visit().kind).is_equal(MachineVisit.Kind.STAMP_DAY)
-	var stamp_odds: MachineOddsCard = (
-		stamp_machine.chute_info(stamp, RewardMachine.Chute.REGISTER).odds
-	)
-	assert_int(stamp_odds.level).is_equal(1)
 	# The data's mapping: a shift past its end uses the last entry; none at all is level 0.
 	assert_int(_balance.machine.odds_level_after(99)).is_equal(3)
 	var empty: MachineDefinition = _balance.machine.duplicate() as MachineDefinition
@@ -266,130 +201,80 @@ func test_the_odds_rise_with_the_run_progress() -> void:
 	assert_int(empty.odds_level_after(7)).is_equal(0)
 
 
-## STAMP DAY: behind the floor it skips CHOOSE, draws REGISTER at the shift's odds level with the
-## run's RNG when it becomes current, can't be binned, and its odds card is the one it drew from;
-## on schedule there is none.
-func test_stamp_day_follows_a_run_behind_the_floor() -> void:
-	var run: RunState = _run()
-	var machine: RewardMachine = _machine(31)
-	_pass(run, machine, 2)
-	assert_array(machine.pending_kinds()).is_equal([MachineVisit.Kind.STAMP_DAY])
-	assert_bool(machine.choose(run, RewardMachine.Chute.COUPONS)).is_true()
-	var rng: RandomNumberGenerator = _rngs[31]
-	var state: int = rng.state
-	var landing: MachineLanding = machine.pick(run, 0)
-	assert_bool(landing.last_of_shift).is_false()
-	assert_int(rng.state).is_not_equal(state)
-	var visit: MachineVisit = machine.current_visit()
-	assert_int(visit.kind).is_equal(MachineVisit.Kind.STAMP_DAY)
-	assert_str(RewardMachine.state_of(visit)).is_equal(RewardMachine.STATE_STAMP_DAY)
-	assert_int(machine.stage).is_equal(RewardMachine.Stage.PICK)
-	assert_int(visit.chute).is_equal(RewardMachine.Chute.REGISTER)
-	assert_bool(machine.can_bin()).is_false()
-	assert_bool(machine.bin(run)).is_false()
-	for prize: MachinePrize in machine.prizes():
-		assert_int(prize.kind).is_equal(MachinePrize.Kind.REGISTER)
-	var info: MachineChuteInfo = machine.chute_info(run, RewardMachine.Chute.REGISTER)
-	assert_object(info.odds).is_same(visit.stamp_day_odds)
-	assert_int(info.odds.level).is_equal(0)
-	# Resumed at STAMP DAY's pick: the same prizes, and its odds card is computed again.
-	var resumed: RewardMachine = _machine(32)
-	assert_bool(resumed.restore_from(_saved(machine), _lookup())).is_true()
-	assert_array(resumed.prizes().map(_key)).is_equal(machine.prizes().map(_key))
-	var resumed_odds: MachineOddsCard = resumed.chute_info(run, RewardMachine.Chute.REGISTER).odds
-	assert_dict(resumed_odds.in_draw).is_equal(info.odds.in_draw)
-	assert_object(resumed.current_visit().stamp_day_odds).is_same(resumed_odds)
-	assert_bool(resumed.can_bin()).is_false()
-	# Resumed and picked at once: the pick pins the card on the visit for the log.
-	var picked_at_once: RewardMachine = _machine(33)
-	assert_bool(picked_at_once.restore_from(_saved(machine), _lookup())).is_true()
-	var stamp_visit: MachineVisit = picked_at_once.current_visit()
-	assert_object(picked_at_once.pick(run, 0)).is_not_null()
-	assert_object(stamp_visit.stamp_day_odds).is_not_null()
-	assert_dict(stamp_visit.stamp_day_odds.in_draw).is_equal(info.odds.in_draw)
-	assert_int(picked_at_once.registers_picked(run)).is_equal(1)
-	assert_int(picked_at_once.stage).is_equal(RewardMachine.Stage.IDLE)
-	# On schedule (a register picked after shift 1): no STAMP DAY after shift 2.
-	var on_time: RunState = _run()
-	_give_register(on_time, _upgrade("extra_redraw"), 1)
-	var on_time_machine: RewardMachine = _machine()
-	_pass(on_time, on_time_machine, 2)
-	assert_array(on_time_machine.pending_kinds()).is_empty()
-	assert_bool(on_time_machine.choose(on_time, RewardMachine.Chute.NEW_ITEMS)).is_true()
-	assert_bool(on_time_machine.pick(on_time, 0).last_of_shift).is_true()
-	assert_int(on_time_machine.stage).is_equal(RewardMachine.Stage.IDLE)
-	assert_array(on_time.history[-1].visits.map(_kind)).is_equal([MachineVisit.Kind.TICKET])
-
-
-## The register cap counts machine picks only: a starting deck's upgrade doesn't count, the card is
-## full after 3 machine picks (REGISTER refused, the boosted visit lights UPGRADES alone), and the
-## STAMP DAY floor ignores the starter's.
+## The register cap counts new perks picked from the machine only: a starting deck's upgrade and a
+## level-up don't count; the card is full after 3 machine picks, and then UPGRADE draws only
+## level-ups.
 func test_the_register_cap_counts_machine_picks_only() -> void:
-	var run: RunState = _run()
-	run.upgrades.append(_upgrade("rule_bender"))
-	var machine: RewardMachine = _machine()
-	assert_int(machine.registers_picked(run)).is_equal(0)
-	var register: int = RewardMachine.Chute.REGISTER
-	for shift_number: int in [3, 5, 7]:
-		_pass(run, machine, shift_number)
-		assert_int(machine.chute_info(run, register).state).is_equal(RewardMachine.ChuteState.OPEN)
-		assert_bool(machine.choose(run, register)).is_true()
-		assert_object(machine.pick(run, 0)).is_not_null()
-	assert_int(machine.registers_picked(run)).is_equal(3)
-	assert_int(run.upgrades.size()).is_equal(4)
-	_pass(run, machine, 7)
-	assert_bool(machine.is_boosted()).is_true()
-	assert_int(machine.chute_info(run, register).state).is_equal(RewardMachine.ChuteState.CARD_FULL)
-	assert_bool(machine.choose(run, register)).is_false()
-	var starter_only: RunState = _run()
-	starter_only.upgrades.append(_upgrade("rule_bender"))
-	var floor_machine: RewardMachine = _machine()
-	_pass(starter_only, floor_machine, 2)
-	assert_array(floor_machine.pending_kinds()).is_equal([MachineVisit.Kind.STAMP_DAY])
+	for seed_value: int in range(1, 30):
+		var run: RunState = _run(seed_value)
+		run.upgrades.append(_upgrade("rule_bender"))
+		_give_register(run, _upgrade("extra_redraw"), 1)
+		_give_register(run, _upgrade("big_basket"), 2)
+		assert_int(RewardMachine.registers_picked(run)).is_equal(2)
+		var machine: RewardMachine = _machine(seed_value)
+		_pass(run, machine, 3)
+		assert_bool(machine.choose(run, RewardMachine.Chute.UPGRADE)).is_true()
+		var index: int = _perk_index(machine, true)
+		if index == -1:
+			continue
+		assert_object(machine.pick(run, index)).is_not_null()
+		assert_int(RewardMachine.registers_picked(run)).is_equal(3)
+		assert_int(run.upgrades.size()).is_equal(4)
+		_pass(run, machine, 4)
+		assert_bool(machine.choose(run, RewardMachine.Chute.UPGRADE)).is_true()
+		var drawn: int = 0
+		for prize: MachinePrize in machine.prizes():
+			if prize.kind == MachinePrize.Kind.REGISTER:
+				assert_bool(PerkLevels.is_level_up(prize.upgrade)).is_true()
+				drawn += 1
+		assert_int(drawn).is_greater(0)
+		return
+	fail("no draw offered a new perk")
 
 
-## The first COUPONS draw holds a first-offer coupon and spends its flag at the draw, whether the
-## prizes are then picked or binned, and the flag stays spent across a save. While its prizes
-## wait (and after a resume there), the chute's odds card is still the first draw's (the
-## guarantee, the first NEW ITEMS draw's new-arrival note): the card the player confirmed.
-func test_the_first_coupons_flag_is_spent_at_the_draw() -> void:
+## The run's first NEW ITEMS draw holds a first-offer coupon and spends both first-draw flags at
+## the draw, whether the prizes are then picked or binned, and the flags stay spent across a save.
+## While its prizes wait (and after a resume there), the chute's odds card is still the first
+## draw's (the guarantee, the new-arrival note): the card the player confirmed. An UPGRADE draw
+## spends neither.
+func test_the_first_new_items_draw_spends_both_flags() -> void:
 	var run: RunState = _run()
 	var machine: RewardMachine = _machine()
 	_pass(run, machine, 1)
-	var coupons: int = RewardMachine.Chute.COUPONS
-	var shown: MachineOddsCard = machine.chute_info(run, coupons).odds
+	var new_items: int = RewardMachine.Chute.NEW_ITEMS
+	assert_bool(machine.choose(run, RewardMachine.Chute.UPGRADE)).is_true()
+	assert_bool(machine.coupons_first_done).is_false()
+	assert_bool(machine.new_items_first_done).is_false()
+	assert_bool(machine.bin(run)).is_true()
+	_pass(run, machine, 2)
+	var shown: MachineOddsCard = machine.chute_info(run, new_items).odds
 	assert_bool(shown.guarded).is_true()
-	assert_bool(machine.choose(run, coupons)).is_true()
+	assert_bool(machine.choose(run, new_items)).is_true()
 	assert_bool(machine.coupons_first_done).is_true()
+	assert_bool(machine.new_items_first_done).is_true()
 	assert_bool(machine.current_visit().guarantee_held).is_true()
-	_assert_same_card(machine.chute_info(run, coupons).odds, shown)
+	var coupons: Array = machine.prizes().filter(
+		func(prize: MachinePrize) -> bool: return prize.kind == MachinePrize.Kind.COUPON
+	)
+	assert_int(coupons.size()).is_equal(1)
+	assert_bool(_balance.first_offer_pool.has((coupons[0] as MachinePrize).card)).is_true()
+	_assert_same_card(machine.chute_info(run, new_items).odds, shown)
 	var restored: RewardMachine = _machine()
 	assert_bool(restored.restore_from(_saved(machine), _lookup())).is_true()
 	assert_bool(restored.coupons_first_done).is_true()
-	_assert_same_card(restored.chute_info(run, coupons).odds, shown)
-	assert_bool(machine.bin(run)).is_true()
-	_pass(run, machine, 2)
-	assert_bool(machine.chute_info(run, coupons).odds.guarded).is_false()
-	assert_bool(machine.new_items_first_done).is_false()
-	var new_items: int = RewardMachine.Chute.NEW_ITEMS
-	var first_items: MachineOddsCard = machine.chute_info(run, new_items).odds
-	assert_bool(machine.choose(run, new_items)).is_true()
-	assert_bool(machine.new_items_first_done).is_true()
-	var resumed: RewardMachine = _machine()
-	assert_bool(resumed.restore_from(_saved(machine), _lookup())).is_true()
-	_assert_same_card(resumed.chute_info(run, new_items).odds, first_items)
-	# A later draw of the chute is no first draw: the card is the spent-flag one.
+	assert_bool(restored.new_items_first_done).is_true()
+	_assert_same_card(restored.chute_info(run, new_items).odds, shown)
+	# A later draw is no first draw: the card is the spent-flags one.
 	assert_bool(machine.bin(run)).is_true()
 	_pass(run, machine, 4)
-	var later: MachineOddsCard = machine.chute_info(run, coupons).odds
-	assert_bool(machine.choose(run, coupons)).is_true()
-	_assert_same_card(machine.chute_info(run, coupons).odds, later)
-	assert_bool(machine.chute_info(run, coupons).odds.guarded).is_false()
+	var later: MachineOddsCard = machine.chute_info(run, new_items).odds
+	assert_bool(machine.choose(run, new_items)).is_true()
+	_assert_same_card(machine.chute_info(run, new_items).odds, later)
 
 
 ## The bonus ticket: only after a passed inspected shift (why: the inspection) or a bonus extra
-## shift (why: ""); after a boosted shift a BOOSTED visit (v0.53); its odds reflect the first pick
-## (an owned register no longer drops).
+## shift (why: ""); after a premium shift a PREMIUM visit (v0.53); its odds reflect the first pick
+## (an owned perk no longer drops as new).
 func test_the_bonus_visit_follows_an_inspected_pass() -> void:
 	var plain: RunState = _run()
 	var plain_machine: RewardMachine = _machine()
@@ -399,14 +284,14 @@ func test_the_bonus_visit_follows_an_inspected_pass() -> void:
 	var machine: RewardMachine = _machine()
 	_pass(run, machine, 3, true)
 	assert_array(machine.pending_kinds()).is_equal([MachineVisit.Kind.BONUS])
-	var register: int = RewardMachine.Chute.REGISTER
-	assert_bool(machine.choose(run, register)).is_true()
-	var taken: UpgradeDefinition = machine.pick(run, 0).register
+	var upgrade: int = RewardMachine.Chute.UPGRADE
+	assert_bool(machine.choose(run, upgrade)).is_true()
+	var taken: UpgradeDefinition = machine.pick(run, _perk_index(machine)).register
 	var visit: MachineVisit = machine.current_visit()
 	assert_int(visit.kind).is_equal(MachineVisit.Kind.BONUS)
 	assert_str(visit.why).is_equal(String(_balance.inspection_pool[0].id))
 	assert_int(machine.stage).is_equal(RewardMachine.Stage.CHOOSE)
-	var info: MachineChuteInfo = machine.chute_info(run, register)
+	var info: MachineChuteInfo = machine.chute_info(run, upgrade)
 	assert_int(info.state).is_equal(RewardMachine.ChuteState.OPEN)
 	for key: String in info.odds.in_draw:
 		assert_bool(key.contains(":%s:" % taken.id)).is_false()
@@ -415,29 +300,28 @@ func test_the_bonus_visit_follows_an_inspected_pass() -> void:
 	assert_bool(info.first_pick_spent_coupon).is_false()
 	var other: MachineChuteInfo = machine.chute_info(run, RewardMachine.Chute.NEW_ITEMS)
 	assert_bool(other.first_pick_kept).is_false()
-	# COUPONS (on a machine without boosted shifts, so the ticket's visit can choose it): the
-	# first pick spent the run's first-visit coupon only on the run's first COUPONS draw.
-	var coupons: int = RewardMachine.Chute.COUPONS
-	for earlier_coupons: bool in [false, true]:
+	# NEW ITEMS: the first pick spent the run's first-visit coupon only on the run's first NEW
+	# ITEMS draw.
+	var new_items: int = RewardMachine.Chute.NEW_ITEMS
+	for earlier_draw: bool in [false, true]:
 		var coupon_run: RunState = _run()
-		var coupon_machine: RewardMachine = _machine(9, _normal_only())
-		if earlier_coupons:
+		var coupon_machine: RewardMachine = _machine(9, _classic_only())
+		if earlier_draw:
 			_pass(coupon_run, coupon_machine, 1)
-			assert_bool(coupon_machine.choose(coupon_run, coupons)).is_true()
+			assert_bool(coupon_machine.choose(coupon_run, new_items)).is_true()
 			assert_bool(coupon_machine.bin(coupon_run)).is_true()
 		_pass(coupon_run, coupon_machine, 3, true)
 		(
-			assert_bool(coupon_machine.chute_info(coupon_run, coupons).first_pick_spent_coupon)
+			assert_bool(coupon_machine.chute_info(coupon_run, new_items).first_pick_spent_coupon)
 			. is_false()
 		)
-		assert_bool(coupon_machine.choose(coupon_run, coupons)).is_true()
+		assert_bool(coupon_machine.choose(coupon_run, new_items)).is_true()
 		coupon_machine.pick(coupon_run, 0)
 		assert_int(coupon_machine.current_visit().kind).is_equal(MachineVisit.Kind.BONUS)
-		var coupon_info: MachineChuteInfo = coupon_machine.chute_info(coupon_run, coupons)
-		assert_bool(coupon_info.first_pick_spent_coupon).is_equal(not earlier_coupons)
+		var coupon_info: MachineChuteInfo = coupon_machine.chute_info(coupon_run, new_items)
+		assert_bool(coupon_info.first_pick_spent_coupon).is_equal(not earlier_draw)
 		assert_bool(coupon_info.first_pick_kept).is_true()
-	assert_bool(machine.choose(run, RewardMachine.Chute.NEW_ITEMS)).is_false()
-	assert_bool(machine.choose(run, register)).is_true()
+	assert_bool(machine.choose(run, upgrade)).is_true()
 	assert_object(machine.pick(run, 0)).is_not_null()
 	assert_int(machine.stage).is_equal(RewardMachine.Stage.IDLE)
 	assert_array(run.history[-1].visits.map(_kind)).is_equal(
@@ -500,9 +384,10 @@ func _assert_bonus_if_passed_matches_the_checkout() -> void:
 		assert_bool(earned).override_failure_message(failure).is_equal(promised and inspected)
 
 
-## Big basket picked on a BOOSTED visit changes only the next shift's slots: the scored shift's
-## limits stay, and no quota changes (plan v0.46, #106).
-func test_big_basket_on_a_boosted_visit_changes_only_the_next_shift() -> void:
+## Big basket picked from the machine changes only the next shift's slots: the scored shift's
+## limits stay, and no quota changes (plan v0.46, #106). (A CLASSIC visit: Big basket is COMMON, so
+## a PREMIUM one never drops it.)
+func test_big_basket_from_the_machine_changes_only_the_next_shift() -> void:
 	var basket: UpgradeDefinition = _upgrade("big_basket")
 	for seed_value: int in range(1, 40):
 		var run: RunState = _run(seed_value)
@@ -511,9 +396,9 @@ func test_big_basket_on_a_boosted_visit_changes_only_the_next_shift() -> void:
 		run.start_shift()
 		var scored: ShiftLimits = run.limits
 		var scored_quota: int = run.quota()
-		var machine: RewardMachine = _machine(seed_value)
+		var machine: RewardMachine = _machine(seed_value, _classic_only())
 		_pass(run, machine, 3, true)
-		assert_bool(machine.choose(run, RewardMachine.Chute.REGISTER)).is_true()
+		assert_bool(machine.choose(run, RewardMachine.Chute.UPGRADE)).is_true()
 		var index: int = machine.prizes().map(_upgrade_of).find(basket)
 		if index == -1:
 			continue
@@ -530,27 +415,6 @@ func test_big_basket_on_a_boosted_visit_changes_only_the_next_shift() -> void:
 	fail("no draw offered Big basket")
 
 
-## UPGRADES is unlit on a Normal visit (with the next boosted shift) and EMPTY on a BOOSTED one
-## when nothing can step.
-func test_upgrades_is_unlit_on_normal_visits_and_empty_with_nothing_to_improve() -> void:
-	var upgrades: int = RewardMachine.Chute.UPGRADES
-	var run: RunState = _run()
-	var machine: RewardMachine = _machine()
-	_pass(run, machine, 1)
-	var unlit: MachineChuteInfo = machine.chute_info(run, upgrades)
-	assert_int(unlit.state).is_equal(RewardMachine.ChuteState.UNLIT)
-	assert_int(unlit.opens_after_shift).is_equal(3)
-	assert_bool(machine.choose(run, upgrades)).is_false()
-	var golden: RunState = _golden_run()
-	var golden_machine: RewardMachine = _machine()
-	_pass(golden, golden_machine, 3)
-	assert_bool(golden_machine.is_boosted()).is_true()
-	assert_int(golden_machine.chute_info(golden, upgrades).state).is_equal(
-		RewardMachine.ChuteState.EMPTY
-	)
-	assert_bool(golden_machine.choose(golden, upgrades)).is_false()
-
-
 ## At the deck limit a card prize needs a card swapped out: refused without one (or with a card
 ## not in the cart), swapped with one.
 func test_a_full_cart_swaps_a_card_out() -> void:
@@ -563,6 +427,7 @@ func test_a_full_cart_swaps_a_card_out() -> void:
 	var info: MachineChuteInfo = machine.chute_info(run, RewardMachine.Chute.NEW_ITEMS)
 	assert_bool(info.cart_full).is_true()
 	assert_array(info.odds.notes).contains([MachineOddsCard.NOTE_CART_FULL])
+	assert_bool(machine.chute_info(run, RewardMachine.Chute.UPGRADE).cart_full).is_false()
 	assert_bool(machine.choose(run, RewardMachine.Chute.NEW_ITEMS)).is_true()
 	assert_bool(machine.needs_replace(run, 0)).is_true()
 	assert_bool(machine.preview(run, 0).needs_replace).is_true()
@@ -585,7 +450,7 @@ func test_clear_visits_empties_the_queue() -> void:
 		machine.coupons_first_done = true
 		_pass(run, machine, 3, true)
 		if draw_first:
-			assert_bool(machine.choose(run, RewardMachine.Chute.REGISTER)).is_true()
+			assert_bool(machine.choose(run, RewardMachine.Chute.UPGRADE)).is_true()
 		machine.clear_visits()
 		assert_int(machine.stage).is_equal(RewardMachine.Stage.IDLE)
 		assert_object(machine.current_visit()).is_null()
@@ -600,61 +465,72 @@ func test_clear_visits_empties_the_queue() -> void:
 ## the draw's own order, which is what MachineDraw.draw returns from the same RNG state at the
 ## shift's odds level.
 func test_reveal_order_and_drop_order() -> void:
-	var normal_only: MachineDefinition = _normal_only()
+	var classic_only: MachineDefinition = _classic_only()
 	for seed_value: int in range(1, 30):
 		var run: RunState = _run(seed_value)
-		var machine: RewardMachine = _machine(seed_value, normal_only)
+		var machine: RewardMachine = _machine(seed_value, classic_only)
 		var shift_number: int = 1 + seed_value % 7
+		var chute: int = RewardMachine.CHUTES[seed_value % 2]
 		_pass(run, machine, shift_number)
 		var copy: RandomNumberGenerator = RandomNumberGenerator.new()
 		copy.state = (_rngs[seed_value] as RandomNumberGenerator).state
-		var context: MachineContext = MachineContext.from_run(run, normal_only, false, false)
+		var context: MachineContext = MachineContext.from_run(run, classic_only, false, false)
 		var level: int = LEVEL_AFTER[shift_number - 1]
-		var expected: Array[MachinePrize] = MachineDraw.draw(
-			RewardMachine.Chute.NEW_ITEMS, context, level, copy
-		)
-		assert_bool(machine.choose(run, RewardMachine.Chute.NEW_ITEMS)).is_true()
+		var expected: Array[MachinePrize] = MachineDraw.draw(chute, context, level, copy)
+		assert_bool(machine.choose(run, chute)).is_true()
 		var visit: MachineVisit = machine.current_visit()
 		assert_array(visit.in_drop_order().map(_key)).is_equal(expected.map(_key))
 		for index: int in range(1, visit.prizes.size()):
 			assert_int(visit.prizes[index].rarity).is_greater_equal(visit.prizes[index - 1].rarity)
 
 
-## Short draws (REGISTER with only 2 types left) pick and save like full ones.
+## Short draws (UPGRADE with one new perk left, every owned one at its top level and nothing to
+## improve) pick and save like full ones. The pool is the five perks from before #108's family
+## perks, so one is left.
 func test_short_draws_pick_and_save() -> void:
-	var run: RunState = _run()
-	run.upgrades = _upgrades(["coupon_engine", "category_engine", "extra_redraw"])
+	var run: RunState = _golden_run()
+	run.balance = run.balance.duplicate()
+	run.balance.upgrade_pool = _upgrades(
+		["coupon_engine", "category_engine", "extra_redraw", "slot_engine", "big_basket"]
+	)
+	run.upgrades = _upgrades(
+		["coupon_engine_lv3", "category_engine_lv3", "extra_redraw_lv3", "slot_engine_lv3"]
+	)
 	var machine: RewardMachine = _machine()
 	_pass(run, machine, 3)
-	assert_bool(machine.choose(run, RewardMachine.Chute.REGISTER)).is_true()
+	assert_bool(machine.choose(run, RewardMachine.Chute.UPGRADE)).is_true()
 	var prizes: Array[MachinePrize] = machine.prizes()
-	assert_int(prizes.size()).is_between(1, 2)
+	assert_int(prizes.size()).is_equal(1)
 	var restored: RewardMachine = _machine()
 	assert_bool(restored.restore_from(_saved(machine), _lookup())).is_true()
 	assert_array(restored.prizes().map(_key)).is_equal(prizes.map(_key))
-	var last: int = prizes.size() - 1
-	assert_object(restored.pick(run, last).register).is_same(prizes[last].upgrade)
+	var picked: UpgradeDefinition = restored.pick(run, 0).register
+	assert_object(picked).is_same(prizes[0].upgrade)
+	assert_object(picked).is_same(_upgrade("big_basket"))
 
 
-## The machine's save form round-trips at CHOOSE (a BOOSTED visit with a bonus queued) and PICK,
-## with no Regular levels and the visit's state kept; a save that doesn't fit is refused without
-## changing the machine.
+## The machine's save form round-trips at CHOOSE (a PREMIUM visit with a bonus queued) and PICK,
+## with no Regular levels and the visit's state and the played perks kept; a save that doesn't fit
+## is refused without changing the machine.
 func test_the_save_form_round_trips_and_bad_fields_are_refused() -> void:
 	var run: RunState = _run()
+	run.upgrades = _upgrades(["coupon_engine"])
 	var machine: RewardMachine = _machine()
 	_pass(run, machine, 3, true)
 	for stage: int in [RewardMachine.Stage.CHOOSE, RewardMachine.Stage.PICK]:
 		if stage == RewardMachine.Stage.PICK:
-			assert_bool(machine.choose(run, RewardMachine.Chute.UPGRADES)).is_true()
+			assert_bool(machine.choose(run, RewardMachine.Chute.UPGRADE)).is_true()
 		var saved: Dictionary = _saved(machine)
 		assert_bool(saved.has("levels")).is_false()
-		assert_bool(saved["visit"]["boosted"]).is_true()
+		assert_bool(saved["visit"]["premium"]).is_true()
+		assert_array(saved["played_upgrades"]).is_equal(["coupon_engine"])
 		assert_bool((saved["visit"] as Dictionary).has("level_before")).is_false()
 		var restored: RewardMachine = _machine()
 		assert_bool(restored.restore_from(saved, _lookup())).is_true()
 		assert_dict(_saved(restored)).is_equal(saved)
 		assert_int(restored.stage).is_equal(stage)
-		assert_bool(restored.is_boosted()).is_true()
+		assert_bool(restored.is_premium()).is_true()
+		assert_array(restored.played_upgrades).is_equal(run.upgrades)
 	var good: Dictionary = _saved(machine)
 	var bad: Array[Dictionary] = []
 	for change: Array in [
@@ -662,9 +538,11 @@ func test_the_save_form_round_trips_and_bad_fields_are_refused() -> void:
 		["stage", "choose"],
 		["stage", "idle"],
 		["queue", ["ticket"]],
+		["queue", ["stamp_day"]],
 		["visit", {}],
 		["coupons_first_done", "yes"],
 		["first_draw", "yes"],
+		["played_upgrades", ["gone"]],
 	]:
 		var copy: Dictionary = good.duplicate(true)
 		copy[change[0]] = change[1]
@@ -674,17 +552,17 @@ func test_the_save_form_round_trips_and_bad_fields_are_refused() -> void:
 	no_prizes["visit"]["drop_order"] = []
 	bad.append(no_prizes)
 	var missing: Dictionary = good.duplicate(true)
-	missing.erase("upgrades_at_checkout")
+	missing.erase("played_upgrades")
 	bad.append(missing)
-	# UPGRADES drawn on a Normal visit, a BOOSTED STAMP DAY visit, and no state at all.
-	var normal_upgrades: Dictionary = good.duplicate(true)
-	normal_upgrades["visit"]["boosted"] = false
-	bad.append(normal_upgrades)
-	var boosted_stamp_day: Dictionary = good.duplicate(true)
-	boosted_stamp_day["visit"]["kind"] = "stamp_day"
-	bad.append(boosted_stamp_day)
+	# A STAMP DAY visit, an old chute name, and no state at all.
+	var stamp_day: Dictionary = good.duplicate(true)
+	stamp_day["visit"]["kind"] = "stamp_day"
+	bad.append(stamp_day)
+	var old_chute: Dictionary = good.duplicate(true)
+	old_chute["visit"]["chute"] = "register"
+	bad.append(old_chute)
 	var stateless: Dictionary = good.duplicate(true)
-	(stateless["visit"] as Dictionary).erase("boosted")
+	(stateless["visit"] as Dictionary).erase("premium")
 	bad.append(stateless)
 	for data: Dictionary in bad:
 		var untouched: RewardMachine = _machine()
@@ -713,8 +591,18 @@ func test_a_resumed_machine_draws_the_same_prizes() -> void:
 	var resumed: RewardMachine = _machine(99)
 	(_rngs[99] as RandomNumberGenerator).state = state
 	assert_bool(resumed.restore_from(saved, _lookup())).is_true()
-	assert_bool(machine.choose(run, RewardMachine.Chute.REGISTER)).is_true()
-	assert_bool(resumed.choose(run, RewardMachine.Chute.REGISTER)).is_true()
+	for chute: int in RewardMachine.CHUTES:
+		var first: RewardMachine = _machine(98)
+		var second: RewardMachine = _machine(97)
+		(_rngs[98] as RandomNumberGenerator).state = state
+		(_rngs[97] as RandomNumberGenerator).state = state
+		assert_bool(first.restore_from(saved, _lookup())).is_true()
+		assert_bool(second.restore_from(saved, _lookup())).is_true()
+		assert_bool(first.choose(run, chute)).is_true()
+		assert_bool(second.choose(run, chute)).is_true()
+		assert_array(second.prizes().map(_key)).is_equal(first.prizes().map(_key))
+	assert_bool(machine.choose(run, RewardMachine.Chute.UPGRADE)).is_true()
+	assert_bool(resumed.choose(run, RewardMachine.Chute.UPGRADE)).is_true()
 	assert_array(resumed.prizes().map(_key)).is_equal(machine.prizes().map(_key))
 
 
@@ -726,20 +614,20 @@ func test_shift_records_save_their_visits() -> void:
 	var run: RunState = _run()
 	var machine: RewardMachine = _machine()
 	_pass(run, machine, 3, true)
-	assert_bool(machine.choose(run, RewardMachine.Chute.REGISTER)).is_true()
-	var register: UpgradeDefinition = machine.pick(run, 0).register
-	assert_bool(machine.choose(run, RewardMachine.Chute.UPGRADES)).is_true()
+	assert_bool(machine.choose(run, RewardMachine.Chute.UPGRADE)).is_true()
+	var register: UpgradeDefinition = machine.pick(run, _perk_index(machine)).register
+	assert_bool(machine.choose(run, RewardMachine.Chute.NEW_ITEMS)).is_true()
 	assert_object(machine.pick(run, 0)).is_not_null()
 	var record: ShiftRecord = run.history[-1]
-	assert_int(record.cards_added().size()).is_equal(0)
+	assert_int(record.cards_added().size()).is_equal(1)
 	assert_int(record.registers_taken().size()).is_equal(1)
 	assert_object(record.registers_taken()[0]).is_same(register)
 	var saved: Dictionary = JSON.parse_string(JSON.stringify(record.to_dictionary()))
 	var read: ShiftRecord = ShiftRecord.from_dictionary(saved, lookup)
 	assert_object(read).is_not_null()
 	assert_dict(read.to_dictionary()).is_equal(record.to_dictionary())
-	assert_bool(read.visits[0].boosted).is_true()
-	assert_bool(read.visits[1].boosted).is_true()
+	assert_bool(read.visits[0].premium).is_true()
+	assert_bool(read.visits[1].premium).is_true()
 	saved["visits"][0]["picked"] = 7
 	assert_object(ShiftRecord.from_dictionary(saved, lookup)).is_null()
 
@@ -765,15 +653,18 @@ func test_calls_outside_their_stage_do_nothing() -> void:
 func _assert_from_chute(run: RunState, chute: int, prize: MachinePrize) -> void:
 	match chute:
 		RewardMachine.Chute.NEW_ITEMS:
+			if prize.kind == MachinePrize.Kind.COUPON:
+				assert_bool(_balance.coupon_pool.has(prize.card)).is_true()
+				return
 			assert_int(prize.kind).is_equal(MachinePrize.Kind.PRODUCT)
-			assert_bool(run.stock.cards.has(prize.card)).is_true()
-		RewardMachine.Chute.COUPONS:
-			assert_int(prize.kind).is_equal(MachinePrize.Kind.COUPON)
-			assert_bool(_balance.coupon_pool.has(prize.card)).is_true()
-		RewardMachine.Chute.REGISTER:
-			assert_int(prize.kind).is_equal(MachinePrize.Kind.REGISTER)
-			assert_bool(run.upgrades.has(prize.upgrade)).is_false()
-		RewardMachine.Chute.UPGRADES:
+			var plain: CardDefinition = prize.card
+			if plain.tier != CardDefinition.Tier.PLAIN:
+				plain = plain.variant_of
+			assert_bool(run.stock.cards.has(plain)).is_true()
+		RewardMachine.Chute.UPGRADE:
+			if prize.kind == MachinePrize.Kind.REGISTER:
+				assert_bool(run.upgrades.has(prize.upgrade)).is_false()
+				return
 			assert_int(prize.kind).is_equal(MachinePrize.Kind.UPGRADE)
 			(
 				assert_object(ItemUpgrades.chain_for(_balance.machine.item_upgrades, prize.card))
@@ -795,6 +686,7 @@ func _assert_pick_matches_preview(run: RunState, machine: RewardMachine, index: 
 			assert_object(landing.added.definition).is_same(preview.prize.card)
 			assert_object(run.deck.cards[-1]).is_same(landing.added)
 		MachinePrize.Kind.REGISTER:
+			assert_bool(preview.level_up).is_false()
 			assert_int(preview.box_index).is_equal(owned)
 			assert_int(landing.box_index).is_equal(owned)
 			assert_object(run.upgrades[-1]).is_same(preview.prize.upgrade)
@@ -814,39 +706,56 @@ func _assert_pick_matches_preview(run: RunState, machine: RewardMachine, index: 
 					assert_bool(run.deck.cards.has(card)).is_true()
 
 
-## Picks the first prize of a STAMP DAY visit if one is waiting.
-func _finish_stamp_day(run: RunState, machine: RewardMachine) -> void:
-	var visit: MachineVisit = machine.current_visit()
-	if visit != null and visit.kind == MachineVisit.Kind.STAMP_DAY:
-		machine.pick(run, 0)
+## Every waiting prize is RARE or better, and a product with a chain BIG or better.
+func _assert_premium_prizes(machine: RewardMachine) -> void:
+	for prize: MachinePrize in machine.prizes():
+		assert_int(prize.rarity).override_failure_message(prize.key()).is_greater_equal(
+			MachinePrize.Rarity.RARE
+		)
+		if MachineDraw.chain_of(machine.machine, prize) != null:
+			assert_int(prize.card.tier).override_failure_message(prize.key()).is_not_equal(
+				CardDefinition.Tier.PLAIN
+			)
 
 
-## The PREMIUM NEXT announce's query (v0.50): boosted_if_passed, asked during a shift's planning,
-## agrees with the ticket visit that shift's passed checkout opens (is_boosted): the data's
-## boosted shifts (3, 5, 7) say yes, the others no, and the last shift (no machine) no; it changes
-## nothing on the machine.
-func _assert_boosted_if_passed_matches_the_checkout() -> void:
+## The PREMIUM NEXT announce's query (v0.50): premium_if_passed, asked during a shift's planning,
+## agrees with the ticket visit that shift's passed checkout opens (is_premium): the data's premium
+## shifts (3, 5, 7) say yes, the others no, and the last shift (no machine) no; it changes nothing
+## on the machine.
+func _assert_premium_if_passed_matches_the_checkout() -> void:
 	var last: int = _balance.quotas.size()
 	for shift_number: int in range(1, last + 1):
 		var run: RunState = _run()
 		var machine: RewardMachine = _machine()
 		run.shift_index = shift_number - 1
-		var announced: bool = machine.boosted_if_passed(run)
+		var announced: bool = machine.premium_if_passed(run)
 		assert_object(machine.current_visit()).is_null()
 		var failure: String = "shift %d" % shift_number
-		var expected: bool = shift_number < last and _balance.machine.is_boosted_shift(shift_number)
+		var expected: bool = shift_number < last and _balance.machine.is_premium_shift(shift_number)
 		assert_bool(announced).override_failure_message(failure).is_equal(expected)
 		if shift_number == last:
 			continue
 		_pass(run, machine, shift_number)
-		assert_bool(machine.is_boosted()).override_failure_message(failure).is_equal(announced)
+		assert_bool(machine.is_premium()).override_failure_message(failure).is_equal(announced)
 
 
-## A register picked from the machine after an earlier shift, as the history records it.
+## The reveal index of the first loyalty perk waiting (with `new_only`, the first that isn't a
+## level-up), or -1.
+func _perk_index(machine: RewardMachine, new_only: bool = false) -> int:
+	var prizes: Array[MachinePrize] = machine.prizes()
+	for index: int in prizes.size():
+		if prizes[index].kind != MachinePrize.Kind.REGISTER:
+			continue
+		if not new_only or not PerkLevels.is_level_up(prizes[index].upgrade):
+			return index
+	return -1
+
+
+## A loyalty perk picked from the machine after an earlier shift, as the history records it.
 func _give_register(run: RunState, upgrade: UpgradeDefinition, shift_number: int) -> void:
 	var record: ShiftRecord = ShiftRecord.new(shift_number, 10, 20)
 	var visit: MachineVisit = MachineVisit.new(MachineVisit.Kind.TICKET)
-	visit.chute = RewardMachine.Chute.REGISTER
+	visit.chute = RewardMachine.Chute.UPGRADE
 	var prizes: Array[MachinePrize] = [
 		MachinePrize.new(MachinePrize.Kind.REGISTER, 0, null, upgrade)
 	]
@@ -919,14 +828,14 @@ func _upgrade_of(prize: MachinePrize) -> UpgradeDefinition:
 	return prize.upgrade
 
 
-## The machine data without boosted shifts: every ticket visit is Normal.
-func _normal_only() -> MachineDefinition:
+## The machine data without premium shifts: every visit is CLASSIC.
+func _classic_only() -> MachineDefinition:
 	var definition: MachineDefinition = _balance.machine.duplicate() as MachineDefinition
-	definition.boosted_shifts = PackedInt32Array()
+	definition.premium_shifts = PackedInt32Array()
 	return definition
 
 
-## A run whose cart holds nothing UPGRADES can step (a GOLDEN copy and a coupon).
+## A run whose cart holds nothing an item upgrade can step (a GOLDEN copy and a coupon).
 func _golden_run() -> RunState:
 	var run: RunState = _run()
 	run.deck = Deck.new(RandomNumberGenerator.new())
@@ -937,12 +846,5 @@ func _golden_run() -> RunState:
 	return run
 
 
-## Every chute's state on the waiting visit, in RewardMachine.CHUTES order.
-func _assert_states(run: RunState, machine: RewardMachine, states: Array[int]) -> void:
-	for chute: int in RewardMachine.CHUTES:
-		var state: int = machine.chute_info(run, chute).state
-		assert_int(state).override_failure_message("chute %d" % chute).is_equal(states[chute])
-
-
-func _boosted(visit: MachineVisit) -> bool:
-	return visit.boosted
+func _premium(visit: MachineVisit) -> bool:
+	return visit.premium

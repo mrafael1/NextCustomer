@@ -4,8 +4,9 @@ extends ScanPopup
 ## item are revealed after a receipt machine, user can't see effect of them"): the scan popup the
 ## offers used (ScanPopup), on the machine's card layer over the tickets. Resting the pointer on a
 ## ticket (PrizeTicket.hovered) opens it with what the prize does: a product's or coupon's card
-## (with its aisle and tags), an UPGRADES prize's card at its new tier (its preview's first copy),
-## a LOYALTY perk (ScanPopup.show_upgrade). It opens only once the ticket has landed face up and
+## (with its aisle and tags), an item upgrade's card at its new tier (its preview's first copy),
+## a LOYALTY perk (ScanPopup.show_upgrade; a level-up, #108: titled "LV n", with the owned
+## level's effect as its "Now:" line). It opens only once the ticket has landed face up and
 ## before the pick, beside the ticket (right of it when that fits the stage, else left; never
 ## over it), and closes as the pointer leaves, at the pick or the bin, and when the visit closes.
 
@@ -31,7 +32,7 @@ func open_for(ticket: PrizeTicket) -> bool:
 	if plan != null and plan.has_landing and view.clock >= plan.press:
 		close_popup()
 		return false
-	if not fill(self, ticket.prize, ticket.prize_preview()):
+	if not fill(self, ticket.prize, ticket.prize_preview(), view.run.upgrades):
 		close_popup()
 		return false
 	ticket_index = ticket.index
@@ -57,15 +58,25 @@ func leave(index: int) -> void:
 
 
 ## Fills `shown` (a ScanPopup in the tree) with what `prize` does: the card it adds, the card an
-## UPGRADES pick turns a copy into (`preview`'s first), or the LOYALTY perk. False when there is
-## nothing to show.
-static func fill(shown: ScanPopup, prize: MachinePrize, preview: MachinePreview) -> bool:
+## item upgrade turns a copy into (`preview`'s first), or the LOYALTY perk (a level-up with the
+## effect of the level it replaces among `owned`, the run's perks). False when there is nothing to
+## show.
+static func fill(
+	shown: ScanPopup,
+	prize: MachinePrize,
+	preview: MachinePreview,
+	owned: Array[UpgradeDefinition] = []
+) -> bool:
 	var card: CardDefinition = prize.card
 	match prize.kind:
 		MachinePrize.Kind.REGISTER:
 			if prize.upgrade == null:
 				return false
-			shown.show_upgrade(prize.upgrade)
+			var now: String = ""
+			var index: int = PerkLevels.owned_index(owned, prize.upgrade)
+			if PerkLevels.is_level_up(prize.upgrade) and index >= 0:
+				now = owned[index].effect_text
+			shown.show_upgrade(prize.upgrade, now)
 			return true
 		MachinePrize.Kind.UPGRADE:
 			card = (

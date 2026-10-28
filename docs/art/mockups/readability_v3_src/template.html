@@ -1,0 +1,1908 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Readability v3 (#105)</title>
+<style>
+/*FONTS*/
+:root{
+  --ink:#2b2420;--ink-l:#4a3f38;--grey-d:#5e574d;--grey:#8a8172;--grey-l:#c7beab;
+  --cream-dk:#b39f78;--cream-sh:#ddcba5;--cream:#f3e9d2;--paper:#fbf7ee;
+  --teal-dk2:#1f3b3a;--teal-dk:#2a4d4b;--teal-sh:#3a7672;--teal:#4f9a94;--teal-l:#86c2b6;--teal-p:#c3e0d4;
+  --tom-dk2:#6e2630;--tom-dk:#a83a3c;--tom:#d9534f;--tom-l:#ec8a6e;
+  --mus-dk2:#7a5a1c;--mus-dk:#b38425;--mus:#e2b33c;--mus-l:#f1d27a;--mus-p:#faecbc;
+  --grn-dk:#3d7a45;--grn:#5fae5a;--gold:#ffcf3f;--charcoal:#24221f;
+}
+*{box-sizing:border-box}
+html,body{font-variant-ligatures:none;font-synthesis:none;margin:0;background:var(--charcoal);color:var(--paper);font-family:Atkinson,sans-serif}
+img.px,canvas.px,.px{image-rendering:pixelated;image-rendering:crisp-edges}
+.page{max-width:1320px;margin:0 auto;padding:24px 16px 80px}
+h1{font-family:Pixelify;font-weight:400;font-size:33px;margin:0 0 6px;color:var(--mus-l)}
+h2{font-family:Pixelify;font-weight:400;font-size:22px;margin:0;color:var(--paper)}
+h2 .n{color:var(--mus);margin-right:10px}
+h2 .qtag{font:800 13px Atkinson;letter-spacing:1px;background:var(--mus);color:var(--ink);padding:3px 8px;border-radius:3px;vertical-align:5px;margin-left:10px}
+h2 .dtag{font:800 13px Atkinson;letter-spacing:1px;background:var(--grn-dk);color:var(--paper);padding:3px 8px;border-radius:3px;vertical-align:5px;margin-left:10px}
+.lede{font-size:16px;line-height:1.5;color:var(--cream);max-width:980px;margin:0 0 8px}
+.small{font-size:13px;color:var(--grey-l)}
+section{margin:34px 0 0;padding:20px 0 0;border-top:2px dashed var(--grey-d)}
+.q{font-size:16px;color:var(--cream);margin:8px 0 12px;max-width:1040px;line-height:1.45}
+.opts{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:0 0 12px}
+.opt{font-family:Atkinson;font-weight:800;font-size:15px;background:var(--paper);color:var(--ink);border:2px solid var(--ink);
+  border-radius:4px;padding:6px 12px;cursor:pointer;box-shadow:0 3px 0 var(--cream-dk)}
+.opt.on{background:var(--mus);box-shadow:0 3px 0 var(--mus-dk2)}
+.opt .rec{font-size:12px;letter-spacing:1px;color:var(--grn-dk);margin-left:6px}
+.optlist{margin:0 0 12px;padding:0;list-style:none;display:grid;gap:6px;max-width:1100px}
+.optlist li{font-size:15px;line-height:1.4;color:var(--cream)}
+.optlist b{color:var(--paper)}
+.recbox{display:inline-block;background:var(--grn-dk);color:var(--paper);font-weight:800;font-size:14px;padding:6px 10px;border-radius:3px;margin:0 0 12px;max-width:1100px;line-height:1.45}
+.asks{background:var(--mus-p);color:var(--ink);border:2px solid var(--ink);border-radius:4px;padding:12px 16px;max-width:1100px;font-size:15px;line-height:1.5;margin:10px 0 0}
+.asks h3{font-family:Pixelify;font-weight:400;margin:0 0 6px;font-size:22px}
+.asks ol{margin:0;padding-left:22px}
+.asks a{color:var(--teal-dk);font-weight:800}
+.fit{position:relative;width:100%;overflow:hidden}
+.fit>.stage{transform-origin:0 0;position:absolute;left:0;top:0}
+.stage{width:1280px;height:720px;position:relative;overflow:hidden;background:#000}
+.abs *{position:absolute}
+.stage *{position:absolute}
+.stage .flow,.stage .flow *,.abs .flow,.abs .flow *{position:static}
+.stage .tagbox *,.abs .tagbox *{position:absolute}
+.stage span,.stage b,.stage br,.abs span,.abs b,.abs br{position:static}
+.stage .belt,.stage .cur,.stage .press,.stage .demo{pointer-events:none}
+.crops{display:grid;gap:14px;margin:14px 0 0}
+.crop{position:relative;overflow:hidden;border:2px solid var(--grey-d)}
+.crop>.stage,.crop>.ref{position:absolute}
+.cap{font-family:Atkinson;font-weight:800;font-size:14px;color:var(--mus-l);margin:0 0 4px}
+.cap span{color:var(--grey-l);font-weight:600}
+.ref{width:1280px;height:720px;background-repeat:no-repeat;image-rendering:pixelated}
+.notes{font-size:14px;line-height:1.5;color:var(--cream);max-width:1040px}
+.notes li{margin:3px 0}
+.notes b{color:var(--paper)}
+.legend{display:grid;grid-template-columns:230px 110px 110px 1fr;background:var(--paper);color:var(--ink);border:2px solid var(--ink);max-width:1100px}
+.legend>div{padding:6px 10px;border-bottom:1px solid var(--cream-sh);display:flex;align-items:center;gap:10px;font-weight:700;font-size:14px;min-height:48px}
+.legend .hd{background:var(--ink);color:var(--paper);font-weight:800;font-size:14px;min-height:0}
+.legend .ex{font-weight:800;font-size:14px}
+.legend .fn{display:flex;flex-direction:column;align-items:flex-start;gap:0;line-height:1.25}
+.legend .fn .small{font-weight:600;color:var(--grey-d)}
+.legend .ex img{vertical-align:-4px}
+.gl{cursor:help}
+.defaults{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:12px;max-width:1280px}
+.dcard{background:var(--paper);color:var(--ink);border:2px solid var(--ink);border-radius:4px;padding:10px 12px;font-size:14px;line-height:1.45}
+.dcard h3{font-family:Pixelify;font-weight:400;font-size:22px;margin:0 0 4px}
+.dcard .new{display:inline-block;font:800 11px Atkinson;letter-spacing:1px;background:var(--mus);color:var(--ink);padding:1px 6px;border-radius:2px;margin-left:6px;vertical-align:2px}
+.first{background:var(--mus-p);color:var(--ink);border:2px solid var(--ink);border-radius:4px;padding:12px 16px;max-width:1100px;font-size:15px;line-height:1.5}
+.first h3{font-family:Pixelify;font-weight:400;margin:0 0 6px;font-size:22px}
+.first table{border-collapse:collapse;width:100%;font-size:14px}
+.first td{border-top:1px solid var(--cream-dk);padding:4px 8px 4px 0;vertical-align:top}
+.ctl{position:sticky;top:0;z-index:50;display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin:0 -16px 10px;padding:8px 16px;
+  font-size:13px;color:var(--grey-l);background:rgba(36,34,31,.96);border-bottom:2px solid var(--grey-d)}
+.ctl button{font:700 13px Atkinson;background:var(--teal-dk);color:var(--paper);border:1px solid var(--teal-l);border-radius:3px;padding:4px 9px;cursor:pointer}
+.ctl button.on{background:var(--mus);color:var(--ink);border-color:var(--mus-dk2)}
+.ctl .sep{width:1px;height:20px;background:var(--grey-d);margin:0 4px}
+.panel{background:#3d3a36;border:2px solid var(--grey-d);padding:16px 18px 12px;max-width:1240px}
+.gallery{display:flex;flex-wrap:wrap;gap:26px 22px;align-items:flex-start}
+.gallery figure{margin:0;display:flex;flex-direction:column;align-items:flex-start;gap:8px;width:150px}
+.gallery figcaption{font-size:13px;font-weight:700;color:var(--cream);line-height:1.35}
+.gallery figcaption b{color:var(--paper)}
+.aisles{display:flex;flex-wrap:wrap;gap:8px;margin:0 0 16px}
+.aisles .ai{display:flex;align-items:center;gap:6px;background:var(--charcoal);border:1px solid var(--grey-d);border-radius:3px;padding:4px 8px 4px 4px;font-weight:800;font-size:13px}
+.aisles .sw{width:26px;height:20px;border:2px solid var(--ink);border-radius:2px}
+.specimen{display:flex;flex-wrap:wrap;gap:30px 26px;align-items:flex-end;background:#3d3a36;border:2px solid var(--grey-d);padding:26px 22px 14px;max-width:1240px}
+.specimen figure{margin:0;display:flex;flex-direction:column;align-items:center;gap:10px}
+.specimen figcaption{font-size:13px;font-weight:700;color:var(--cream);text-align:center;max-width:150px;line-height:1.35}
+.specimen .sk{position:relative}
+.specimen.x2 .sk{zoom:2}
+.specimen.x2 figcaption{max-width:260px}
+.popup{background:var(--paper);color:var(--ink);border:2px solid var(--ink);box-shadow:inset 0 0 0 2px var(--mus),4px 4px 0 rgba(43,36,32,.3);padding:10px 12px;width:288px}
+body.zoom .crops.zm{grid-template-columns:1fr !important}
+body.solo .page{display:none}
+body.solo{background:#000}
+body.sec .page>section,body.sec .page>header,body.sec .page>.ctl{display:none}
+body.sec .page>section.show{display:block;border:0;margin:0;padding:0}
+body.sec .page{padding:12px 16px}
+body.vision #s-ticket>*:not(.cbpart){display:none}
+/* stage pieces */
+.mon-paper{background:var(--paper);overflow:hidden}
+.bay{background:var(--teal-sh);box-shadow:inset 0 0 0 2px var(--ink)}
+.bay .hdr{left:2px;top:2px;width:108px;height:17px;background:var(--ink)}
+.bay .lamp{left:5px;top:7px;width:6px;height:6px;background:var(--tom-dk)}
+.bay .lamp.on{background:var(--tom)}
+.bay .ht{left:15px;top:2px;line-height:17px;font:800 12px Atkinson;letter-spacing:1px;color:var(--cream);white-space:nowrap}
+.bay .pips{right:6px;top:8px;height:4px;width:24px;background:repeating-linear-gradient(90deg,var(--teal-l) 0 4px,transparent 4px 6px)}
+.bay .bed{left:6px;top:21px;width:100px;height:100px;background-color:var(--teal-dk2);
+  background-image:linear-gradient(var(--teal-dk) 2px,transparent 2px),linear-gradient(90deg,var(--teal-dk) 2px,transparent 2px);background-size:12px 12px;background-position:4px 4px}
+.bay .nm{left:6px;top:125px;width:100px;height:20px;background:var(--paper);box-shadow:inset 0 0 0 2px var(--ink);font:800 12px Atkinson;text-transform:uppercase;color:var(--ink);text-align:center;line-height:20px;letter-spacing:.5px;white-space:nowrap;overflow:hidden}
+.rich img{vertical-align:-4px;margin:-2px 1px -3px}
+.nw{white-space:nowrap}
+/* the glyph tooltip (pixel frame, shared by the live hover and the stage demo) */
+.tip{height:26px;padding:0 9px;border:4px solid transparent;border-image-slice:2 fill;border-image-width:4px;border-image-repeat:stretch;
+  image-rendering:pixelated;font:800 13px/18px Atkinson;color:var(--paper);white-space:nowrap;filter:drop-shadow(2px 2px 0 rgba(43,36,32,.45))}
+.tip .tail{position:absolute;left:50%;bottom:-12px;width:14px;height:8px;margin-left:-7px}
+#hovertip{position:fixed;z-index:100;pointer-events:none;display:none}
+/* v3 */
+.ovf .gl{filter:drop-shadow(2px 0 0 #fbf7ee) drop-shadow(-2px 0 0 #fbf7ee) drop-shadow(0 2px 0 #fbf7ee) drop-shadow(0 -2px 0 #fbf7ee)}
+.ctl .grp{color:var(--mus-l);font-weight:800;margin-left:2px}
+.sw-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(290px,1fr));gap:10px;max-width:1240px}
+.swc{display:flex;gap:12px;align-items:center;background:var(--charcoal);border:1px solid var(--grey-d);border-radius:3px;padding:8px 10px}
+.swc .tk{position:relative;width:112px;height:72px;flex:none}
+.swc b{font-family:Pixelify;font-weight:400;font-size:22px;color:var(--paper)}
+.swc .meta{font-size:13px;line-height:1.4;color:var(--grey-l)}
+.swc .meta em{font-style:normal;color:var(--cream);font-weight:700}
+.cgroup{margin:22px 0 0;max-width:1240px}
+.cgroup h4{display:flex;align-items:center;gap:10px;margin:0 0 8px;font:400 22px Pixelify;color:var(--paper)}
+.cgroup h4 .chip{width:32px;height:20px;border:2px solid var(--ink);border-radius:2px}
+.cgroup h4 .n{font:700 13px Atkinson;color:var(--grey-l)}
+.cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:10px 12px}
+.cardrow{display:flex;gap:10px;align-items:flex-start;background:#3d3a36;border:1px solid var(--grey-d);padding:12px 8px 8px}
+.cardrow .tk{position:relative;width:112px;height:72px;flex:none}
+.cardrow .tx{font-size:13px;line-height:1.38;color:var(--cream)}
+.cardrow .tx b{font-family:Pixelify;font-weight:400;font-size:22px;line-height:24px;color:var(--paper)}
+.cardrow .tx .src{color:var(--grey-l);font-weight:700}
+.cardrow .tx .why{color:var(--paper);font-weight:700}
+.cardrow .tx .flag{color:var(--mus-l)}
+.cardrow.flagged{border:2px solid var(--mus-dk)}
+.splitrow{display:flex;flex-wrap:wrap;gap:22px;align-items:flex-start}
+.splitrow figure{margin:0;display:flex;flex-direction:column;gap:8px;width:200px}
+.splitrow figcaption{font-size:13px;font-weight:700;color:var(--cream);line-height:1.35}
+.stackrow{display:flex;flex-wrap:wrap;background:#3d3a36;border:2px solid var(--grey-d);max-width:1240px;padding:6px 0 0}
+.stackrow .cell{position:relative;width:200px;height:318px;cursor:pointer}
+.stackrow .cell.hot{z-index:5}
+.stackrow .cell .lbl{position:absolute;left:0;bottom:6px;width:100%;text-align:center;font-size:13px;font-weight:700;color:var(--cream)}
+.stackdemo{position:relative;background:#3d3a36;border:2px solid var(--grey-d);overflow:hidden}
+.demos{display:flex;flex-wrap:wrap;gap:16px;align-items:flex-start}
+.qbox{background:var(--charcoal);border:2px solid var(--mus);border-radius:4px;padding:10px 14px;max-width:1100px;margin:12px 0}
+.qbox .ql{font:800 13px Atkinson;letter-spacing:1px;color:var(--ink);background:var(--mus);padding:2px 8px;border-radius:2px;margin-right:8px}
+.legend3{display:flex;flex-wrap:wrap;gap:10px 18px;font-size:13px;color:var(--cream);margin:10px 0 0}
+.legend3 span{display:inline-flex;align-items:center;gap:6px}
+html[data-cb="deut"] .page>header,html[data-cb="deut"] .page>section,html[data-cb="deut"] #solo{filter:url(#cb-deut)}
+html[data-cb="prot"] .page>header,html[data-cb="prot"] .page>section,html[data-cb="prot"] #solo{filter:url(#cb-prot)}
+html[data-cb="trit"] .page>header,html[data-cb="trit"] .page>section,html[data-cb="trit"] #solo{filter:url(#cb-trit)}
+</style>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs>
+  <filter id="cb-deut" color-interpolation-filters="linearRGB"><feColorMatrix type="matrix" values="0.367322 0.860646 -0.227968 0 0  0.280085 0.672501 0.047413 0 0  -0.011820 0.042940 0.968881 0 0  0 0 0 1 0"/></filter>
+  <filter id="cb-prot" color-interpolation-filters="linearRGB"><feColorMatrix type="matrix" values="0.152286 1.052583 -0.204868 0 0  0.114503 0.786281 0.099216 0 0  -0.003882 -0.048116 1.051998 0 0  0 0 0 1 0"/></filter>
+  <filter id="cb-trit" color-interpolation-filters="linearRGB"><feColorMatrix type="matrix" values="1.255528 -0.076749 -0.178779 0 0  -0.078411 0.930809 0.147602 0 0  0.004733 0.691367 0.303900 0 0  0 0 0 1 0"/></filter>
+</defs></svg>
+<div id="solo"></div>
+<div id="hovertip" class="tip"><span id="hovertxt"></span><img class="px tail" alt=""></div>
+<div class="page">
+<header>
+  <h1>Readability pass v3 (revised) · issue #105</h1>
+  <p class="lede">Your v2 answers are built in: glyphs alone with their name on hover (unchanged), monitor <b>b</b> (one cleaned-up screen) and the polished stickers and badges. New this round: <b>full-colour tickets</b> coloured by the family the card <b>works with</b> (not its aisle), with the <b>new price stacked on the struck old price</b>; a juicier <b>total count-up</b> on the monitor; badge <b>stacks that fold</b> from the 5th sticker; and a <b>highlight that helps you mix</b> while planning. Same belt as before (Eggs, Milk, Strawberries, Lemon, Frozen peas, Batteries; SPEND €26+, plan €28). The main stage loops every 17.5 s.</p>
+  <p class="lede"><b>Revised after a review against your answers:</b> Breakfast stays mustard and the price burst gets an ink outline on every ticket; Household turns grey dark (paper text); a colour-vision preview and a colour-blind-safer set to choose (Q1b); the count-up counts in whole euros (only the changing digits roll), its amounts dissolve at the number's edge, its beats are spaced 0.3 s apart and only a × landing flashes; #86's rail light is back; the fan is a 100° arc that stays above the belt, with order numbers; the "+N" chip is readable; stacks sit on the item's shoulder; Pixelify at its regular weight; and a calmer grey for the highlight.</p>
+  <div class="asks">
+    <h3>Questions this round</h3>
+    <ol>
+      <li><b>Q1a · Colours</b> (<a href="#s-ticket">section 1</a>): check the nine family colours and the table of every stocked card (58 cards, grouped by colour; ✱ marks the 22 I had to decide). Anything to change? Answer as "Cereal → Breakfast". <b>Recommended: as shown.</b> Changed since v3: Household is now <b>grey dark</b> with paper text (6.7:1; the grey with ink text was 4.0:1), and Breakfast <b>stays mustard</b> (the light mustard I suggested would have sat closer to Bakery, not further).</li>
+      <li><b>Q1b · Colour-blind players</b> (<a href="#cb">section 1, colour vision</a>): in a deuteranopia simulation Bakery and Food look the same (difference 3) and Snack and Clearance nearly so (5). The glyphs still say which family a ticket is, so nothing breaks, but "match the colours along the rail" does. <b>A</b> keep the set, or <b>B</b> Food → tomato pale and Clearance → tomato darkest (no pair under 9.6 in deuteranopia or protanopia; in normal vision Bakery and Food come down to 15, about as close as Frozen and the plain coupon are today)? <b>Recommended: B.</b> The switch in the sticky bar previews the page as each colour vision sees it.</li>
+      <li><b>Q2 · Fold style</b> (<a href="#s-badges">section 3</a>): from the 5th sticker, <b>A</b> a "+N" chip on top of the stack, or <b>B</b> the folded stickers' edges peeking out above the stack with a small count? Both fan out on hover. <b>Recommended: A.</b></li>
+      <li><b>Q3 · What an item hover lights up</b> (<a href="#s-mix">section 4</a>): <b>A</b> every item its rule matches and every item whose rule matches it (a "next Food" match only as a faint dashed outline, since nearly everything is Food), with a small check on the pairs that already pay; or <b>B</b> only the pairs that pay now (the #71 EffectGraph links)? <b>Recommended: A.</b></li>
+    </ol>
+    <p style="margin:8px 0 0">Everything else is a default you can veto (section 5). Not a question: the split ticket (section 1) has no card yet, because no stocked card works with two families; it is drawn so you can see it before one exists.</p>
+  </div>
+  <p class="small">Best at 100 % zoom in a window at least 1312 px wide (narrower windows shrink the stages by a non-integer factor and the pixels go uneven). Hover any glyph for its name. The sticky bar jumps to a beat (it pauses there; Play resumes), has a slow-motion switch for the count and a colour-vision preview. URL options: <code>at=10.9</code> freezes the clock, <code>slow=1</code> slow motion, <code>zoom=2</code> 2× crops, <code>fold=B</code>, <code>mix=B</code>, <code>set=B</code> the colour-blind-safer set, <code>cb=deut</code> (or <code>prot</code>, <code>trit</code>) the colour-vision preview, <code>solo=stage</code> one bare 1280×720 stage (<code>solo=mix</code> the planning highlight stage, <code>solo=cart</code> the Cart).</p>
+</header>
+<div class="ctl" id="ctl"><button id="pause">Pause</button><button id="restart">Restart</button><button id="slowmo">Slow-mo ¼×</button><span class="sep"></span><span class="grp">Belt:</span><span id="beats"></span><span class="sep"></span><span class="grp">Stacks:</span><span id="beats2"></span><span class="sep"></span><span class="grp">Mix:</span><span id="beats3"></span><span class="sep"></span><span class="grp">Vision:</span><span id="cbbar"></span><span class="sep"></span><button id="zoom">Crops 2×</button><span id="clock">t = 0.0 s</span></div>
+
+<section id="s-ticket">
+  <h2><span class="n">1</span>Tickets in full colour: the colour of what the card works with<span class="qtag">Q1</span></h2>
+  <p class="q">The whole ticket is one colour now. The colour is the family the card's rule <b>works with</b>, so along the rail you match colours: Milk ("+1 per earlier <span class="g-breakfast"></span>") is a Breakfast ticket and wants Breakfast items before it. Your defaults pick it: <b>the rule names a family</b> → that family (Milk, Coffee → Breakfast; Eggs "×2 next <span class="g-food"></span>" → Food); <b>it names a product</b> → that product's main family (Cereal "beside Milk" → Dairy, Banana "after Banana" → Produce); <b>it works with two families</b> → a split ticket; <b>it names nothing</b> (a plain item, a slot rule) → its own main family. The glyphs still show what the card <b>is</b>; the colour shows what it <b>wants</b>.</p>
+  <p class="q" style="margin-top:0"><b>The price</b> sits in the top-right corner: the new price in the gold burst on top (22 px), the struck old price right under it (15 px, so the new one leads). The burst is die-cut: a 1-texel paper rim and a 2 px ink outline round it, so the gold stays a separate object on every colour, the mustard Breakfast one included. On the dark tickets (Snack, Household, Clearance) the struck price is in the ticket's own paper text with a paper strike, since a red strike vanishes on red. The glyphs moved to the top-left, two in a row with room to spare, each with a 1-texel paper rim so it reads on its own colour (a green apple on a green ticket), and the short text runs underneath across the ticket. A staple's padlock sits in the bottom-right corner. An unchanged price shows on the plain paper tag in the same corner.</p>
+  <div class="fit" data-stage="card"></div>
+  <div class="crops" id="crops-cards"></div>
+
+  <p class="cap" style="margin-top:22px">The nine family colours <span>(from the game's 32-colour palette; text in ink or paper, whichever reads better)</span></p>
+  <div class="sw-grid" id="swatches"></div>
+  <ul class="notes">
+    <li><b>Kept from the aisle signs:</b> Bakery (light brown), Produce (the Fruit &amp; veg green, one shade lighter so ink text reads on it), Dairy (the Cold cases teal), Household (the sign's grey, one step darker so paper text reads on it), Snack (dark brown, the Snacks sign). <b>New:</b> Breakfast takes Pantry's mustard (Pantry has no tag of its own; tea and cereal are Pantry's Breakfast cards), Frozen an icy pale teal (Cold cases' sign stays with Dairy), Clearance the dark tomato of a "reduced" sticker, and Food a light tomato, a warm colour no aisle uses, so a Food ticket never looks like an uncoloured one.</li>
+    <li><b>Contrast:</b> every ticket's text passes 4.5:1 now (the swatches print each ratio). Household moved from grey with ink text (4.0:1) to grey dark with paper text (6.7:1); it sits 22 from Snack's dark brown in Lab, and reads apart by hue (a neutral grey against a warm brown). The other way, grey light with ink text (8.3:1), would sit only 17 from Frozen.</li>
+    <li><b>Closest pairs</b> (colour difference in Lab, computed live from the colours above): <span id="pairs-none"></span>. Breakfast and Bakery are 31.6 apart; the light mustard (f1d27a) I suggested in v3 would have brought them to 21.9 and matched the gold burst's brightness, so Breakfast stays mustard.</li>
+    <li><b>Coupons:</b> a coupon that names a family takes its colour with the coupon's perforated top (Breakfast sticker, Clearance tag, and Final markdown as Clearance for its theme). The other five (Multipack, 2 for 1, Shelf swap, Repeat, Opening deal) work with whatever is beside them, so they keep today's plain coupon ticket.</li>
+  </ul>
+
+  <p class="cap cbpart" style="margin-top:22px" id="cb">Colour vision <span>(Q1b: the same tickets as three colour-vision deficiencies see them, simulated; the sticky bar's Vision switch shows the whole page that way)</span></p>
+  <div class="opts cbpart" id="setopt"></div>
+  <div class="panel cbpart" id="cbpanel"></div>
+  <ul class="notes cbpart">
+    <li><b>The glyphs carry the meaning.</b> The colour is a quick match along the rail; the glyph on each ticket says the family in every colour vision, and its name is on hover. Nothing in a rule depends on telling two colours apart, so a colour-blind player loses the shortcut, not the information.</li>
+    <li><b>Set A</b> (as shown above) fails for the warm families in deuteranopia (the most common, about 1 man in 20 with some degree of it): Bakery and Food look the same, Snack and Clearance nearly. <b>Set B</b> moves Food one step paler (tomato pale, ink text 9.3:1) and Clearance one step darker (tomato darkest, paper text 9.9:1), both still in the tomato ramp: no pair under 9.6 in deuteranopia or protanopia. Its cost is in normal vision: Bakery and Food come down from 26 to 15 (pink against tan, about as close as Frozen and the plain coupon today, which also differ by the coupon's perforated top). Tritanopia (rare) keeps Breakfast and Bakery at 7.9 in both sets.</li>
+  </ul>
+
+  <p class="cap" style="margin-top:22px">A split ticket <span>(for a card that works with two families: none is stocked today; Cereal shown as if Milk counted as both)</span></p>
+  <div class="panel"><div class="splitrow" id="splits"></div></div>
+
+  <p class="cap" style="margin-top:22px">Every stocked card, grouped by ticket colour <span>(base tiers; BIG and GOLDEN share their base's colour; shelf look, base price)</span></p>
+  <div class="qbox"><span class="ql">Q1</span><b>Corrections:</b> say "card → family" for any card (for example "Cereal → Breakfast" or "Soup's three → their own family"). The 22 cards with a yellow border (✱) are where I had to decide; the rest follow the rule directly.</div>
+  <div id="ctable"></div>
+
+  <p class="cap" style="margin-top:22px">In context: the Cart's shelves and the offer popup</p>
+  <div class="crops" id="crops-cart"></div>
+  <div class="panel" id="shortlong" style="margin-top:14px"></div>
+</section>
+
+<section id="s-monitor">
+  <h2><span class="n">2</span>Monitor b: the total count-up, juicier<span class="dtag">DECIDED · b</span></h2>
+  <p class="q">Monitor b as you chose it, with the count reworked so you can follow every euro into the total, and nothing ever half-drawn. Each step is a beat: <b>the amount flies</b> from its step line (or the item's price, for the base) on a short hop to the <b>left edge of the number</b> and dissolves as it arrives, so it never covers the digits; a multiplier's chip turns from "×2" into the euros it adds ("+5€") halfway. On arrival <b>the number counts up in whole euros</b>, at most three ticks per landing (the printer's three ticks per payout roll, #60), and <b>only the digits that change roll</b>. It <b>punches</b> about its centre: small for a base, more for a bonus, 1.22 for a multiplier (the approved cap), which alone also flashes, frames the number with gold corners and throws two coins off the ladder's ends, down and away, while the status line says "×2 → +5€". Under the number, <b>the ladder</b> lights one lamp per landing, rising like #60's pentatonic ladder (eight lamps, then a brighter octave). WASTED's grey "€0" drops off its step line, with a tomato flicker on the next lamp, no landing. On the belt, <b>#86's rail light</b> runs gold along the rail strip from the giver's ticket to the target's as its effect pays. At 80 % of SPEND the "to go" line pulses. When the total meets SPEND, <b>the climax</b> takes the whole screen (v2's sunburst, stamp and "+N€") with a coin fountain behind the number, then shrinks back into the column, and the top bar fills and plants its flag as today. The top bar and the monitor show the same whole number at every moment, and the receipt prints line by line.</p>
+  <div class="opts"><button class="opt" id="slowmo2">Slow motion ¼× (also in the sticky bar)</button></div>
+  <div class="crops" id="crops-monitor"></div>
+  <ul class="notes">
+    <li><b>Timing:</b> an item's beat is 0.95 s as before; inside it the landings are now at least 0.3 s apart (base at 0.18 s, then each step's amount at 0.48 s and 0.78 s), so Milk's three landings no longer pile up in 0.45 s. The stickers on the belt fire in step with them.</li>
+    <li><b>Readable, not noisy:</b> one flying amount at a time; the white flash only for a × landing and the climax (v3 flashed every landing, about 12 times in 5.7 s); a base throws no sparks, a "+N" three, a × six; the number never shakes; TOTAL keeps 4 px clear above the digits at the full punch.</li>
+    <li>The price on the monitor is stacked like the ticket's: burst on top (22 px), struck old price under it (15 px), in the item column's top-right corner.</li>
+  </ul>
+</section>
+
+<section id="s-badges">
+  <h2><span class="n">3</span>Sticker stacks: 1 to 4, then a fold<span class="qtag">Q2</span></h2>
+  <p class="q">The polished stickers and giver badges are unchanged. An item still carries every sticker it earns: the stack sits on the item's right shoulder (so the item stays visible) and grows upward, the newest at the bottom, 1 to 4 in full, overlapping by only 3 px. From the 5th, the oldest fold away so the stack never gets taller than four. <b>Hover a folded stack to fan it out</b> (every sticker in step order, numbered, on a short arc above the item). During the count the stack fires in order; the fold fans out by itself while its stickers fire, then closes. <b>Which fold?</b></p>
+  <ul class="optlist">
+    <li><b>A · "+N" chip.</b> A grey chip on top of the stack with a card-fan mark and the count ("+3") in ink. It punches each time another sticker folds into it.</li>
+    <li><b>B · Pile edges.</b> No chip: the folded stickers peek out above the top sticker as up to three greyed edges, with a small ink count disc ("3") on the pile.</li>
+  </ul>
+  <div class="recbox">Recommended: A. The chip is one clear object with a number, the same size and grey as the WASTED and fold labels players already know; B's edges read as "more stuff" but at game size they merge with the sticker tilt, and the count disc is a new small thing to learn.</div>
+  <div class="opts" data-key="fold"></div>
+  <p class="cap">Stacks of 1, 2, 3, 4, 5 and 7 at game size <span>(hover the 5 and the 7 to fan them)</span></p>
+  <div class="stackrow" id="stackrow"></div>
+  <p class="cap" style="margin-top:16px">Building up while you plan, then firing in order in the count <span>(loops every 8.75 s: seven stickers land one by one, the fold takes the 5th to 7th, the cursor fans it, then the count fires all seven; game size and 2×)</span></p>
+  <div class="demos" id="stackdemos"></div>
+  <ul class="notes">
+    <li><b>Which ones fold:</b> the oldest (the top of the stack, the first to fire). The four you see are the newest, the ones your last moves added.</li>
+    <li><b>The fan:</b> all stickers in step order, in rows of at most four on a gentle arch just above the item (the oldest row on top, read left to right), each tilted by its place and carrying its order number, 1 to N. It stays above the belt and within about one slot either side (v3's 150° arc reached down to the neighbours' tickets). A single 100° arc of radius 110 was tried first, but seven stickers on it overlap by half and hide their amounts, so it became two rows. It opens in 0.18 s and closes when the pointer leaves.</li>
+    <li>The price climbs on the ticket as each sticker fires (here to €170: a 3-digit price in the wide burst, with the struck €4 still under it).</li>
+  </ul>
+</section>
+
+<section id="s-mix">
+  <h2><span class="n">4</span>Highlight to help mixing<span class="qtag">Q3</span></h2>
+  <p class="q">While you plan: <b>hover a family glyph</b> (on a ticket, the monitor or the Cart) and every item of that family on the belt, in the hand and in the Cart stays lit while the rest greys out. <b>Hover (or hold) an item</b> and the items it works with stay lit: the ones its rule names, and the ones whose rule names it. A small green check marks a pair that already pays in this order; a tomato "!" marks a penalty (Soup pays €0 beside Frozen). The grey is calm: desaturated to 20 % and dimmed to 78 %, nothing glows. The stage runs an auto-demo (Produce glyph, Breakfast glyph, Milk, Cereal in the hand, Frozen peas); <b>move the pointer over it to take over</b>.</p>
+  <ul class="optlist">
+    <li><b>A · Rule matches everywhere</b> (recommended): what the rule could work with, on the belt, in the hand and in the Cart, plus the check on pairs that already pay. Helps you pick what to bring in from the hand.</li>
+    <li><b>B · Pays now only:</b> the #71 EffectGraph links (presentation/effect_graph.gd, related_slots) on the belt; nothing in the hand.</li>
+  </ul>
+  <div class="recbox">Recommended: A. B only repeats what the effect markers already show for this order; mixing is about what to put where next, which A answers. The game needs one small static matcher for A (a rule's target against a card's tags or id); EffectGraph still supplies the checks.</div>
+  <div class="opts" data-key="mix"></div>
+  <div class="fit" data-stage="mix"></div>
+  <div class="legend3" id="mixlegend"></div>
+  <div class="crops" id="crops-mix"></div>
+  <ul class="notes">
+    <li><b>Glyph hover</b> uses the card's families (tags), the same as the glyphs on its ticket; the padlock lights the staples. <b>Item hover</b> reads the rules: Milk lights the Breakfast items it counts, Eggs with its check (its "×2 next <span class="g-food"></span>" pays Milk now) and Cereal ("+3 beside Milk"); Frozen peas finds no Frozen partner (that is why it WASTES): it lights Strawberries ("+3 beside <span class="g-produce"></span>", and the peas are Produce too), Lemon with its check (it pays them now) and Soup with its penalty; the Eggs ("×2 next <span class="g-food"></span>") only get a faint dashed outline.</li>
+    <li><b>Food targets are faint</b> (v3 review: Eggs lit up on almost every hover): a rule that names Food matches nearly every product, so such a match shows as a faint dashed outline over the grey, unless the pair pays now (then it is lit with its check). The same goes for Mixed herbs and the Carrier bag.</li>
+    <li>The hovered item keeps its pointer brackets; the tooltip on a hand item shows its name and short rule, because the hand has no tickets.</li>
+    <li>Not a new mode: it only shows while the pointer rests (Godot's usual tooltip delay) and clears the moment you move off, drag or scan.</li>
+  </ul>
+</section>
+
+<section id="s-defaults">
+  <h2><span class="n">5</span>Defaults (say if you want any changed)</h2>
+  <div class="defaults" style="margin-top:10px">
+    <div class="dcard"><h3>Ticket colour = what it works with<span class="new">NEW</span></h3>Your rule, applied to every stocked card (section 1); Household in grey dark with paper text. Split ticket: a clean 45° pixel diagonal, top-left the first family, with a 1-texel light seam (a vertical split is shown next to it). Hovering a ticket's colour says why ("Breakfast colour · works with Breakfast").</div>
+    <div class="dcard"><h3>Stacked price<span class="new">NEW</span></h3>New price on top in the gold burst (22 px digits, 21 px for 3 digits in the wide burst), die-cut on the ticket with a paper rim and a 2 px ink outline; struck old price under it (15 px; ink with a paper rim and a tomato strike on light tickets, the ticket's paper text and strike on dark ones), both in the top-right corner; the plain paper tag there when the price did not change. Same on the monitor.</div>
+    <div class="dcard"><h3>Glyphs and tooltips<span class="dtag" style="font-size:11px;padding:1px 6px;margin-left:6px">KEPT</span></h3>The v2 glyph set, alone, 18 px, with the family name on hover (legend below). On tickets they moved to the top-left row and carry a 1-texel paper rim (die-cut, like the burst) so a green apple reads on a green ticket; a staple's padlock went to the bottom-right corner. The glyph art itself is unchanged.</div>
+    <div class="dcard"><h3>Short text where you plan</h3>The short sticker text with glyphs on belt tickets, the Cart's shelves and the monitor; the long rule text in the machine's offer popup and prize tickets. Item names in Pixelify Sans at its regular weight (400, as the game's labels use it) and its native size, 22 px (one font pixel = 2 screen px, the art's grid). Its C and O, 5 and S, ( and { differ by a single font pixel by design, so it never prints numbers or brackets (Atkinson does, as in the game) and names in it never go below 22 px (the small SPEND MET stamp, letters only, stays 14 px): the Cart's shelf names, too long for 22 px in a 128 px cell, are in bold Atkinson as the game's Cart prints them. Small text and numbers in Atkinson.</div>
+    <div class="dcard"><h3>Minimum sizes</h3>Glyphs 18 px; ticket text 13 px bold; sticker digits ≥ 24 px; giver badges 28 px; monitor text ≥ 14 px (effect 16 px); labels ≥ 12 px. One exception: a loyalty badge's 3 initials are 10 px.</div>
+    <div class="dcard"><h3>Top bar unchanged</h3>#86's liquid gauge, its "€N to go" / "+€N" tag and the anchoring flag, exactly as in the newest build. No new options in the menu.</div>
+  </div>
+  <p class="cap" style="margin-top:18px">The glyph set (decided in v2, unchanged; hover for the tooltip)</p>
+  <div class="legend" id="legend"></div>
+  <div class="first" style="margin-top:18px">
+    <h3>For first-time players</h3>
+    <table>
+      <tr><td><b>Ticket colour</b></td><td>Taught once by the offer popup: its header is the ticket's colour with "Breakfast ticket: works with Breakfast" spelled out, so the colour means something before the card reaches the rail. Hovering a ticket says it again.</td></tr>
+      <tr><td><b>Aisle colour</b> (v2)</td><td>Gone from tickets: the aisle never mattered to a rule. The aisle signs keep their colours in the store.</td></tr>
+      <tr><td><b>Tall sticker stacks</b></td><td>Never taller than four plus a fold; the fan shows them all on hover.</td></tr>
+      <tr><td><b>"What goes with this?"</b></td><td>Hover an item or a glyph: what works with it stays lit. No new button, no new screen.</td></tr>
+      <tr><td><b>Monitor slides, sticker key, long rules, tag words</b></td><td>Stay removed as in v2 (one screen, badges say who gave a bonus, short text, glyphs).</td></tr>
+    </table>
+  </div>
+  <ul class="notes" style="margin-top:16px">
+    <li><b>Still rough in this mock-up:</b> the sticker tilt and the fan's arc are CSS rotations, which smooth the pixels (Godot's nearest-neighbour rotation will look crisper); the hand items are cut out of a capture (Godot would grey its own sprites).</li>
+  </ul>
+</section>
+</div>
+
+<script>
+"use strict";
+// QA: a script error shows in the title (dom.sh prints it)
+addEventListener('error', e => { document.title += ' ERROR:' + e.message + '@' + e.lineno; });
+addEventListener('unhandledrejection', e => { document.title += ' ERROR:' + (e.reason && e.reason.message) + ' ' + String(e.reason && e.reason.stack).split(String.fromCharCode(10))[1]; });
+const ART = '../../../art/';
+const Q = new URLSearchParams(location.search);
+const SHOT = Q.has('shot');
+const AT = Q.has('at') ? parseFloat(Q.get('at')) : null;
+const P = {ink:'#2b2420',inkL:'#4a3f38',greyD:'#5e574d',grey:'#8a8172',greyL:'#c7beab',creamDk:'#b39f78',creamSh:'#ddcba5',
+  cream:'#f3e9d2',paper:'#fbf7ee',white:'#ffffff',tealDk2:'#1f3b3a',tealDk:'#2a4d4b',tealSh:'#3a7672',teal:'#4f9a94',tealL:'#86c2b6',tealP:'#c3e0d4',
+  tomDk2:'#6e2630',tomDk:'#a83a3c',tom:'#d9534f',tomL:'#ec8a6e',tomP:'#f5bfa0',musDk2:'#7a5a1c',musDk:'#b38425',mus:'#e2b33c',
+  musL:'#f1d27a',musP:'#faecbc',grnDk:'#3d7a45',grn:'#5fae5a',grnL:'#a5d17e',brDk2:'#4a3022',brDk:'#7a5232',br:'#a87a4e',brL:'#d2a874',
+  woodP:'#ddb07a',woodL:'#c98c4e',wood:'#a8703a',woodDk:'#6e4524',brass:'#c8932b',brassDk:'#8a5d1a',
+  gold:'#ffcf3f',velDk:'#561327',vel:'#8a1f33',velS:'#b23a55',charcoal:'#24221f',
+  steelHi:'#ecebe4',steelL:'#c7c3b8',steelP:'#a9a59b',steel:'#8d8a83'};
+const NUM = '750';
+
+// ---------- the family glyphs (option A): aisle PNGs where one exists, else a 7x7 shape with an ink outline ----------
+const FAM = {
+  Food:      {glyph:'aisle_pantry'},
+  // v2 review: the four new glyphs redrawn so no two read alike at 18 px (cols: per-pixel colours inside the ink outline)
+  Breakfast: {cols:{g:P.greyL, b:P.brDk, w:P.paper, t:P.tom, s:P.creamSh},   // a white mug of coffee, red band, steam
+    sil:['.g.g...', '..g.g..', 'bbbbb..', 'wwwwwww', 'tttttsw', 'wwwwsww', '.wwws..']},
+  Produce:   {glyph:'aisle_fruit_and_veg'},
+  Bakery:    {glyph:'aisle_bakery'},
+  Dairy:     {cols:{c:P.tealDk, w:P.paper, s:P.creamSh, t:P.teal},           // a white milk bottle, dark cap, teal label
+    sil:['..ccc..', '..wws..', '.wwwws.', 'wwwwwws', 'ttttttt', 'wwwwwws', 'wwwwwws']},
+  Frozen:    {glyph:'aisle_cold_cases'},
+  Snack:     {glyph:'aisle_snacks'},
+  Household: {glyph:'aisle_household'},
+  Clearance: {cols:{r:P.tom, d:P.tomDk, h:P.ink, a:P.paper},                  // a red price tag with a down arrow
+    sil:['..rrrrr', '.rrrarr', 'rrrrarr', 'rhrrard', 'rrraaad', '.rrrard', '..rdddd']},
+  Coupon:    {cols:{w:P.steelHi, p:P.tealDk, d:P.teal}, mark:true,   // open scissors: steel blades, teal finger rings
+    sil:['w.....w', '.w...w.', '..w.w..', '...p...', 'ddd.ddd', 'd.d.d.d', 'ddd.ddd']},
+  Staple:    {mark:true, img:'icons/padlock.png'},
+};
+const FAM_ORDER = ['Food','Breakfast','Produce','Bakery','Dairy','Frozen','Snack','Household','Clearance','Coupon','Staple'];
+const FAM_NOTE = {Food:'the Pantry tin', Produce:'the Fruit & veg apple', Bakery:'the Bakery loaf', Frozen:'the Cold cases snowflake', Snack:'the Snacks packet',
+  Household:'the Household spray', Breakfast:'new: a mug of coffee', Dairy:'new: a white milk bottle', Clearance:'new: a red price tag, arrow down', Coupon:'mark: open scissors', Staple:'mark: the Cart\'s padlock'};
+
+function canvas(w, h) { const c = document.createElement('canvas'); c.width = w; c.height = h; return c; }
+const URLS = {};
+function memo(key, make) { return URLS[key] || (URLS[key] = make()); }
+function glyphURL(name) {
+  const f = FAM[name];
+  if (f.glyph) return ART + 'icons/' + f.glyph + '.png';
+  if (f.img) return ART + f.img;
+  return memo('glyph' + name, () => {
+    const c = canvas(9, 9), g = c.getContext('2d'), on = (x, y) => x >= 0 && y >= 0 && x < 7 && y < 7 && f.sil[y][x] !== '.' && f.sil[y][x] !== f.bare;
+    for (let y = -1; y < 8; y++) for (let x = -1; x < 8; x++) {
+      if (on(x, y)) continue;
+      if (on(x + 1, y) || on(x - 1, y) || on(x, y + 1) || on(x, y - 1)) { g.fillStyle = P.ink; g.fillRect(x + 1, y + 1, 1, 1); }
+    }
+    f.sil.forEach((row, y) => [...row].forEach((ch, x) => { if (ch !== '.') { g.fillStyle = f.cols[ch]; g.fillRect(x + 1, y + 1, 1, 1); } }));   // bare pixels: drawn, not outlined
+    return c.toDataURL();
+  });
+}
+// a glyph: 9x9 art at 2x (18 px), or k = 2 for the review column; data-tip drives the hover tooltip
+function glyph(name, k, style) {
+  k = k || 1; const h = (FAM[name].img ? 20 : 18) * k;
+  return `<img class="px gl" data-tip="${name}" src="${glyphURL(name)}" width="${18 * k}" height="${h}" alt="${name}"${style ? ` style="${style}"` : ''}>`;
+}
+// sticker text: {Tag} becomes the glyph alone, glued (no break) to the word before it, and to the word before that
+// when that word is a count ("next 2 {Food}" wraps as one piece)
+function rich(str, loose) { return str.replace(/((?:\S+ )?\d+ |\S+ )?\{(\w+)\}/g, (m, pre, t) => loose ? `${pre || ''}${glyph(t)}` : `<span class="nw">${pre || ''}${glyph(t)}</span>`); }
+
+// ---------- aisles (data/aisles/*.tres sign_color); staples have none ----------
+// col = the band (the sign colour; Pantry's one step darker so it never merges with the gold burst), sign = data's
+// sign_color, pale = the family column's tint. Staples have no aisle: no band, no tint, plain paper.
+const AISLE = {
+  cold_cases:    {name:'Cold cases',  col:'#4f9a94', sign:'#4f9a94', lt:P.tealL, dk:P.tealSh, pale:P.tealP,  glyph:'aisle_cold_cases'},
+  pantry:        {name:'Pantry',      col:P.musDk,   sign:'#e2b33c', lt:P.mus,   dk:P.musDk2, pale:P.musP,   glyph:'aisle_pantry'},
+  household:     {name:'Household',   col:'#8a8172', sign:'#8a8172', lt:P.greyL, dk:P.greyD,  pale:'#e4dfd3', glyph:'aisle_household'},
+  fruit_and_veg: {name:'Fruit & veg', col:'#3d7a45', sign:'#3d7a45', lt:P.grn,   dk:P.tealDk, pale:'#d3e6bd', glyph:'aisle_fruit_and_veg'},
+  bakery:        {name:'Bakery',      col:'#d2a874', sign:'#d2a874', lt:P.cream, dk:P.br,     pale:'#f0dfc2', glyph:'aisle_bakery'},
+  snacks:        {name:'Snacks',      col:'#7a5232', sign:'#7a5232', lt:P.br,    dk:P.brDk2,  pale:'#e8d5c0', glyph:'aisle_snacks'},
+  staple:        {name:'Staple',      col:P.paper,   sign:null,      lt:P.paper, dk:P.creamSh, pale:null, staple:true},
+};
+const AISLE_ORDER = ['cold_cases','pantry','household','fruit_and_veg','bakery','snacks','staple'];
+function lum(hex) { const n = parseInt(hex.slice(1), 16); return (0.299 * (n >> 16) + 0.587 * ((n >> 8) & 255) + 0.114 * (n & 255)) / 255; }
+const onCol = hex => lum(hex) < 0.6 ? P.paper : P.ink;
+
+// ---------- measuring ----------
+const MEASURE = canvas(1, 1).getContext('2d');
+function textW(font, s) { MEASURE.font = font; return MEASURE.measureText(s).width; }
+const even = v => Math.ceil(v / 2) * 2;
+
+// ---------- pixel shapes: inside() + layers by erosion (0 = rim) ----------
+const CANV = {};   // the art canvases behind memoised frames, for the pixel shine masks
+function shapeURL(key, w, h, inside, paint) {
+  return memo(key, () => {
+    const c = canvas(w, h), g = c.getContext('2d'); CANV[key] = c;
+    const D = [];
+    for (let y = 0; y < h; y++) { D.push([]); for (let x = 0; x < w; x++) D[y].push(inside(x, y) ? 99 : -1); }
+    const get = (x, y) => (x < 0 || y < 0 || x >= w || y >= h) ? -1 : D[y][x];
+    for (let layer = 0; layer < 6; layer++) {
+      const mark = [];
+      for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+        if (D[y][x] !== 99) continue;
+        const nb = [get(x - 1, y), get(x + 1, y), get(x, y - 1), get(x, y + 1)];
+        if (nb.some(v => v !== 99)) mark.push([x, y]);
+      }
+      mark.forEach(([x, y]) => { D[y][x] = layer; });
+    }
+    for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+      const d = D[y][x]; if (d < 0) continue;
+      const col = paint(x, y, d === 99 ? 6 : d); if (!col) continue;
+      g.fillStyle = col; g.fillRect(x, y, 1, 1);
+    }
+    return c.toDataURL();
+  });
+}
+
+// ---------- polished stickers ----------
+// "+N" label: w art px x 16 (32 px tall). Corners: a 3-step stair (2-1-1 texels) so they read as round at 1x.
+// Light: a full-white texel row on top and column on the left, a shaded right column, a 2-texel lip at the
+// bottom (cream shadow, then a darker last row) and a 1-texel inner ink line under it, so the sticker has a thickness.
+const LABEL_H = 16, CORNER = [3, 1, 1];
+function labelURL(w, kind) {
+  const S = kind === 'grey' ? {hi:P.steelHi, face:P.steelL, sh:P.steelP, lip:P.steel}
+    : kind === 'gold' ? {hi:P.musP, face:P.gold, sh:P.mus, lip:P.musDk}
+    : {hi:P.white, face:P.paper, sh:P.creamSh, lip:P.creamDk};
+  const H = LABEL_H, inside = (x, y) => {
+    if (x < 0 || y < 0 || x >= w || y >= H) return false;
+    const r = Math.min(y, H - 1 - y), ins = r < 3 ? CORNER[r] : 0;
+    return x >= ins && x <= w - 1 - ins;
+  };
+  return shapeURL(`lab${w}${kind}`, w, H, inside, (x, y, d) => {
+    if (d === 0 || y >= H - 2) return P.ink;
+    if (y === H - 3) return S.lip;
+    if (y === H - 4) return S.sh;
+    if (d === 1 && (!inside(x, y - 1) || !inside(x - 1, y))) return S.hi;
+    if (d === 1 && !inside(x + 1, y)) return S.sh;
+    return S.face;
+  });
+}
+const PXD = {};   // each frame's pixels, read once
+// the shine: a hard-edged diagonal stair on the art grid (a 3-texel band and a 1-texel trail), masked to the frame's face
+function shineURL(key, pos) {
+  return memo(`shine${key}_${pos}`, () => {
+    const src = CANV[key], w = src.width, h = src.height, px = PXD[key] || (PXD[key] = src.getContext('2d').getImageData(0, 0, w, h).data);
+    const c = canvas(w, h), g = c.getContext('2d'); g.fillStyle = 'rgba(255,255,255,.85)';
+    for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+      const i = (y * w + x) * 4; if (!px[i + 3] || (px[i] === 43 && px[i + 1] === 36 && px[i + 2] === 32)) continue;
+      const u = x + Math.floor(y / 2) - pos; if ((u >= 0 && u < 3) || u === 4) g.fillRect(x, y, 1, 1);
+    }
+    return c.toDataURL();
+  });
+}
+function shineHTML(key, w, h, shine) {
+  const aw = w / 2, ah = h / 2, pos = Math.round(-ah / 2 - 5 + (aw + ah / 2 + 10) * shine);
+  return `<img class="px" src="${shineURL(key, pos)}" width="${w}" height="${h}" style="left:0;top:0">`;
+}
+// a gold spark (the game's GiverSparks cell: a plus of gold arms round a paper centre), snapped to the 2 px grid
+const snap2 = v => Math.round(v / 2) * 2;
+function sparkHTML(x, y, dot) {
+  x = snap2(x); y = snap2(y);
+  if (dot) return `<div style="left:${x}px;top:${y}px;width:2px;height:2px;background:${dot}"></div>`;
+  return [[0, -2], [-2, 0], [2, 0], [0, 2]].map(([a, b]) => `<div style="left:${x + a}px;top:${y + b}px;width:2px;height:2px;background:${P.gold}"></div>`).join('')
+    + `<div style="left:${x}px;top:${y}px;width:2px;height:2px;background:${P.paper}"></div>`;
+}
+// a giver's run: the spark on an arc (26 px at its middle) from the giver to its sticker, three trail dots behind
+function sparkRunHTML(from, to, u) {
+  let h = '';
+  for (let dot = 3; dot >= 0; dot--) {
+    const a = clamp(u - dot * 0.06); if (a <= 0) continue;
+    const x = lerp(from[0], to[0], a), y = lerp(from[1], to[1], a) - Math.sin(a * Math.PI) * 26;
+    h += sparkHTML(x, y, dot === 0 ? null : (dot === 1 ? P.paper : P.musL));
+  }
+  return h;
+}
+// "xN" burst: the game's 18-point formula (radius .84 + .16 * |k - .5| * 2) at 38x21 art (76x42), with a gloss and a lip
+function burstURL() {
+  const W = 38, H = 21;
+  const nrm = (x, y) => [(x + 0.5 - W / 2) / (W / 2), (y + 0.5 - H / 2) / (H / 2)];
+  const inside = (x, y) => {
+    const [nx, ny] = nrm(x, y), r = Math.hypot(nx, ny), a = Math.atan2(ny, nx);
+    const k = (((a / (2 * Math.PI)) * 18) % 1 + 1) % 1;
+    return r < 0.84 + 0.16 * Math.abs(k - 0.5) * 2;
+  };
+  return shapeURL('burst', W, H, inside, (x, y, d) => {
+    const [nx, ny] = nrm(x, y);
+    if (d === 0) return P.ink;
+    if (d === 1) return nx * 0.6 + ny < -0.05 ? P.musP : (nx * 0.6 + ny > 0.35 ? P.musDk : P.mus);
+    if ((x === 9 && y === 5) || (x === 10 && y === 4) || (x === 12 && y === 4)) return P.white;   // the specular tick by the top-left spike
+    if (((nx + 0.28) / 0.42) ** 2 + ((ny + 0.36) / 0.2) ** 2 < 1) return P.musP;
+    if (ny > 0.42) return P.musDk;
+    return P.mus;
+  });
+}
+const BURST_W = 76, BURST_H = 42;
+// 28 px badges: 14x14 art at 2x
+const roundSq = (n, cut) => (x, y) => Math.min(x, n - 1 - x) + Math.min(y, n - 1 - y) >= cut;
+function stampURL() {
+  return shapeURL('stamp', 14, 14, roundSq(14, 2), (x, y, d) => d === 0 ? P.ink : d === 1 ? (x + y < 13 ? P.musL : P.mus) : d === 2 ? (x + y < 13 ? P.mus : P.musDk) : P.tealDk);
+}
+function couponTokenURL() {
+  return shapeURL('ctok', 14, 14, roundSq(14, 1), (x, y, d) => d === 0 ? P.ink : d === 1 ? ((x + y) % 3 === 0 ? P.tealL : P.tealSh) : (x + y < 8 && d === 2 ? P.teal : P.tealSh));
+}
+// giver minis redrawn at 10x10 art (own ink outline), die-cut on a 14x14 plate: a 1-texel paper rim, then ink.
+// A GOLDEN giver gets a gold rim (lit top-left, brass bottom-right) instead of paper.
+const MINI10 = {
+  eggs: ['...kkkk...', '..kwwcck..', '.kwwcccck.', '.kwccccsk.', 'kwcccccssk', 'kwcccccssk', 'kccccccssk', 'kdccccsssk', '.kddssssk.', '..kkkkkk..'],
+  lemon: ['.......kk.', '......kgGk', '...kkkkGk.', '.kkpllmmk.', 'kpllllmmdk', 'kllllllmdk', 'kllllmmmdk', '.kmmmmmddk', '.kkmdddkk.', '...kkkk...'],
+};
+MINI10.eggs_golden = MINI10.eggs;
+MINI10.coffee = ['..q..q....', '...q..q...', 'kkkkkkkk..', 'kbbbbbbkk.', 'kwwwwwwk.k', 'krrrrrrk.k', 'kwwwwwwkk.', 'kswwwwsk..', '.kssssk...', '..kkkk....'];   // v3: a mug of coffee
+const MINI_COL = {k:P.ink, w:P.paper, c:P.cream, s:P.creamSh, d:P.creamDk, p:P.musP, l:P.musL, m:P.mus, g:P.grn, G:P.grnDk, b:P.brDk, q:P.greyL, r:P.tom};
+function plateURL(id) {
+  return memo('plate' + id, () => {
+    const rows = MINI10[id], gold = id.endsWith('_golden'), N = 14, c = canvas(N, N), g = c.getContext('2d');
+    const art = (x, y) => { const r = rows[y - 2]; return r && x >= 2 && x < 12 && r[x - 2] !== '.' ? r[x - 2] : null; };
+    const near = (x, y, f) => [[0, 0], [1, 0], [-1, 0], [0, 1], [0, -1], [1, 1], [-1, -1], [1, -1], [-1, 1]].some(([a, b]) => f(x + a, y + b));
+    const rim = (x, y) => !art(x, y) && near(x, y, art);
+    for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) {
+      const a = art(x, y); let col = null;
+      if (a) col = MINI_COL[a];
+      else if (rim(x, y)) col = gold ? (x + y < 13 ? P.gold : P.brass) : (x + y < 13 ? P.white : P.paper);
+      else if (near(x, y, rim)) col = P.ink;
+      if (col) { g.fillStyle = col; g.fillRect(x, y, 1, 1); }
+    }
+    return c.toDataURL();
+  });
+}
+function checkURL() {
+  return memo('check', () => {
+    const rows = ['.......kk','......kGk','.kk..kGLk','kGLkkGGk.','kGGGGGk..','.kGGGk...','..kGk....','...k.....'];
+    const c = canvas(9, 8), g = c.getContext('2d');
+    rows.forEach((r, y) => [...r].forEach((ch, x) => { if (ch !== '.') { g.fillStyle = ch === 'k' ? P.ink : ch === 'L' ? P.grnL : P.grn; g.fillRect(x, y, 1, 1); } }));
+    return c.toDataURL();
+  });
+}
+const TILTS = [-4, 3, -3, 4, -2];
+const DROP = 'drop-shadow(2px 2px 0 rgba(43,36,32,.42))';
+const WASTE_FONT = '800 17px Atkinson';
+function stickerDims(st) {
+  if (st.k === 'mul') return {w:BURST_W, h:BURST_H};
+  if (st.k === 'waste') return {w:Math.max(92, even(textW(WASTE_FONT, 'WASTED') + 6 + 18)), h:32};
+  if (st.k === 'fold') return {w:60, h:32};
+  const tw = textW('800 24px Atkinson', st.t);
+  return {w:Math.max(52, even(tw + 22)), h:32};
+}
+// keyframes [time, sx, sy]: pop-in with overshoot, the game's slap squash, settle; WASTED drops in heavy, no bounce
+const POP = [[0, 0.2, 0.2], [0.06, 1.28, 1.28], [0.1, 1.2, 0.8], [0.15, 0.92, 1.08], [0.23, 1.04, 0.97], [0.3, 1, 1]];
+const POP_SAD = [[0, 1.12, 1.12], [0.05, 1.04, 0.9], [0.1, 1, 1]];
+function keyAt(keys, p) {
+  if (p >= keys[keys.length - 1][0]) return keys[keys.length - 1].slice(1);
+  for (let i = 1; i < keys.length; i++) if (p < keys[i][0]) {
+    const a = keys[i - 1], b = keys[i], u = (p - a[0]) / (b[0] - a[0]);
+    return a.slice(1).map((v, j) => v + (b[j + 1] - v) * u);
+  }
+}
+// the sad thud (WASTED): a short darken and a 2 px horizontal shake, no shine
+function thud(q) { return q >= 0 && q < 0.22 ? {br:0.7, dx:(Math.floor(q / 0.045) % 2 ? 2 : -2)} : null; }
+// one sticker at (x, y); ta = slap time, tf = fire time (count) or null, t = now. The tilt and the fire's turn rotate
+// the whole sticker (frame, text, badge and check together, as the game turns _inner).
+function stickerHTML(st, x, y, tilt, ta, tf, t, drained) {
+  if (t < ta) return '';
+  const {w, h} = stickerDims(st), p = t - ta, sad = st.k === 'waste', grey = sad || st.k === 'fold';
+  let [sx, sy] = keyAt(sad ? POP_SAD : POP, p), rot = tilt, br = 1, chk = 0, shine = null, tp = 1, dx = 0;
+  tp = sad ? 1 : (p > 0.05 ? 1 + 0.45 * (1 - clamp((p - 0.05) / 0.22)) ** 2 : 0);
+  if (p < 0.034) br = sad ? 1 : 2.4;   // one white frame as it lands
+  if (!grey && p > 0.3 && p < 0.75) shine = (p - 0.3) / 0.45;
+  let strike = sad ? clamp((p - 0.1) / 0.08) : 0;
+  if (sad) { const th = thud(p - 0.1); if (th) { br = th.br; dx = th.dx; } }
+  if (tf !== null && t >= tf) {
+    const pf = t - tf;
+    if (sad) { const th = thud(pf); if (th) { br = th.br; dx = th.dx; } }
+    else {
+      if (pf < 0.3) { const k = 1 + 0.55 * (1 - pf / 0.3) ** 2; sx *= k; sy *= k; rot += -6 * (1 - pf / 0.3); tp = 1 + 0.3 * (1 - pf / 0.3); }
+      if (pf < 0.12) br = 1.6;
+      if (pf > 0.06 && pf < 0.5) shine = (pf - 0.06) / 0.44;
+      if (pf >= 0.34 && st.k !== 'fold') chk = pf < 0.44 ? 1.6 - 0.6 * (pf - 0.34) / 0.1 : 1;
+    }
+  }
+  const kind = grey ? 'grey' : 'paper', key = st.k === 'mul' ? 'burst' : `lab${w / 2}${kind}`;
+  const frame = st.k === 'mul' ? burstURL() : labelURL(w / 2, kind);
+  const txt = sad ? 'WASTED' : st.t;
+  const lh = st.k === 'mul' ? h : 26;   // the label's face is rows 1-11: centre the text there, above the lip
+  const font = st.k === 'mul' ? `800 26px/${lh}px Atkinson` : grey ? `800 17px/${lh}px Atkinson` : `800 24px/${lh}px Atkinson`;
+  const tcol = grey ? P.inkL : P.ink;
+  const tsh = st.k === 'mul' ? `0 2px 0 ${P.mus}` : grey ? `0 2px 0 ${P.steelHi}` : `0 2px 0 ${P.creamSh}`;
+  let badge = '';
+  if (st.giver || st.stamp || st.coupon) {
+    const pb = p - 0.12;
+    if (pb >= 0) {
+      const bs = pb < 0.08 ? 1.35 * pb / 0.08 : 1.35 - 0.35 * ease((pb - 0.08) / 0.14);
+      const bx = st.k === 'mul' ? -14 : -20, by = Math.round((h - 28) / 4) * 2;
+      let inner;
+      if (st.giver) inner = `<img class="px" src="${plateURL(st.giver)}" width="28" height="28" style="left:0;top:0">`;
+      else inner = `<img class="px" src="${st.stamp ? stampURL() : couponTokenURL()}" width="28" height="28" style="left:0;top:0">
+        <div style="left:0;top:0;width:28px;height:28px;text-align:center;font:800 ${st.stamp ? 10 : 11}px/28px Atkinson;letter-spacing:-.3px;color:${st.stamp ? P.musP : P.paper}">${st.stamp || st.coupon}</div>`;
+      badge = `<div style="left:${bx}px;top:${by}px;width:28px;height:28px;transform:scale(${bs.toFixed(3)});filter:${DROP}">${inner}</div>`;
+    }
+  }
+  const check = chk ? `<img class="px" src="${checkURL()}" width="18" height="16" style="left:${w - 12}px;top:-6px;transform:scale(${chk.toFixed(3)})">` : '';
+  // WASTED's tomato underline, drawn in once as it lands
+  const tw = sad ? even(textW(WASTE_FONT, 'WASTED') + 6) : 0;
+  const under = strike ? `<div style="left:${(w - tw) / 2}px;top:21px;width:${snap2(tw * strike)}px;height:2px;background:${P.tom};box-shadow:0 2px 0 ${P.tomDk2}"></div>` : '';
+  // impact dust: 2 px puffs out of both bottom corners as it lands
+  let fx = '';
+  const dq = (p - 0.04) / 0.3;
+  if (dq > 0 && dq < 1) {
+    const e = 1 - (1 - dq) ** 2;
+    [[-1, 0], [-1, 1], [1, 0], [1, 1]].forEach(([sg, k]) => {
+      const px = w / 2 + sg * (w / 2 - 4 + (8 + 6 * k) * e), py = h - 2 - (2 + 4 * k) * e;
+      if (dq < 0.85 - k * 0.2) fx += sparkHTML(px, py, k ? P.greyL : P.cream);
+    });
+  }
+  // the slap's sparks: four gold sparks burst out of the sticker (not for WASTED or a fold)
+  const sq = (p - 0.05) / 0.4;
+  if (!grey && sq > 0 && sq < 1) {
+    const e = 1 - (1 - sq) ** 3;
+    [[-150, 1], [-35, 1.1], [-95, 0.8], [160, 0.9]].forEach(([a, k], i) => {
+      const r = (w / 2 + 6) * k * (0.55 + 0.5 * e), px = w / 2 + Math.cos(a * Math.PI / 180) * r, py = h / 2 + Math.sin(a * Math.PI / 180) * r * 0.7;
+      fx += sparkHTML(px, py, sq > 0.7 ? (i % 2 ? P.musL : P.paper) : null);
+    });
+  }
+  return `<div style="left:${x}px;top:${y}px;width:${w}px;height:${h}px;${drained ? `filter:${drained === true ? 'saturate(.15) brightness(.78) contrast(.7)' : drained};` : ''}">${fx}
+    <div style="left:0;top:0;width:${w}px;height:${h}px;transform-origin:50% 100%;transform:translateX(${dx}px) scale(${sx.toFixed(3)},${sy.toFixed(3)})">
+    <div style="left:0;top:0;width:${w}px;height:${h}px;transform:rotate(${rot.toFixed(2)}deg);${br !== 1 ? `filter:brightness(${br})` : ''}">
+      <img class="px" src="${frame}" width="${w}" height="${h}" style="left:0;top:0;filter:${DROP}">${shine === null ? '' : shineHTML(key, w, h, shine)}
+      <div style="left:${st.k === 'mul' ? 2 : 0}px;top:0;width:${w}px;height:${lh}px;text-align:center;font:${font};${grey ? 'letter-spacing:1px;' : ''}color:${tcol};text-shadow:${tsh};transform:scale(${tp.toFixed(3)})">${txt}</div>
+      ${under}${badge}${check}</div></div></div>`;
+}
+
+// ---------- the € tag on the bay (BayTag look), used by monitor a ----------
+function tagURL(w, paid) {
+  return memo(`tag${w}_${paid}`, () => {
+    const rows = 11, h = rows - 1, c = canvas(w, rows), g = c.getContext('2d');
+    const face = paid ? P.gold : P.paper, hi = paid ? P.musP : P.paper, sh = paid ? P.mus : P.creamSh;
+    const ch = Math.floor(h / 3), left = y => Math.max(0, ch - y, y - (h - 1 - ch));
+    g.fillStyle = 'rgba(43,36,32,0.38)'; for (let y = 0; y < h; y++) g.fillRect(left(y) + 1, y + 1, w - left(y) - 1, 1);
+    for (let y = 0; y < h; y++) { g.fillStyle = P.ink; g.fillRect(left(y), y, w - left(y), 1); }
+    for (let y = 1; y < h - 1; y++) { const l = left(y) + 1; g.fillStyle = y === 1 ? hi : (y === h - 2 ? sh : face); g.fillRect(l, y, w - 1 - l, 1); }
+    g.fillStyle = P.ink; g.fillRect(ch, Math.floor(h / 2) - 1, 1, 2);
+    return c.toDataURL();
+  });
+}
+function euroTag(text, paid) {
+  const font = `800 17px Atkinson`, tw = Math.ceil(textW(font, text)), wArt = Math.max(22, Math.ceil((tw + 18) / 2));
+  return {w: wArt * 2, html: `<div class="tagbox" style="left:0;top:0;width:${wArt * 2}px;height:22px">
+    <img class="px" src="${tagURL(wArt, paid)}" width="${wArt * 2}" height="22" style="left:0;top:0">
+    <div style="left:12px;top:0;width:${wArt * 2 - 14}px;height:20px;line-height:20px;text-align:center;font:${font};color:${P.ink}">${text}</div></div>`};
+}
+
+// ---------- the price: struck base + the game's pay tags (real art) ----------
+function payTag(pay, base) {
+  const s = '€' + pay;
+  if (pay === 0) return {src:'effects/pay_zero.png', w:52, h:26, size:17, col:P.paper, txt:s, ox:4, oy:4};
+  if (pay < base) return {src:'effects/pay_plain.png', w:52, h:26, size:17, col:P.ink, txt:s, ox:4, oy:4};
+  // v3 review: the new price 22 px (21 px for a 3-digit price), the struck old price under it 15 px
+  if (s.length >= 4) return {src:'effects/pay_burst_wide.png', w:80, h:36, size:s.length > 4 ? 18 : 21, col:P.ink, txt:s, ox:6, oy:10};
+  return {src:'effects/pay_burst.png', w:60, h:32, size:s.length > 2 ? 21 : 22, col:P.ink, txt:s, ox:6, oy:6};
+}
+function payTagHTML(tg, x, y, scale) {
+  return `<div style="left:${x}px;top:${y}px;width:${tg.w}px;height:${tg.h}px;transform:scale(${(scale || 1).toFixed(3)});filter:drop-shadow(3px 3px 0 rgba(43,36,32,.42))">
+    <img class="px" src="${ART}${tg.src}" width="${tg.w}" height="${tg.h}" style="left:0;top:0">
+    <div style="left:0;top:0;width:${tg.w}px;height:${tg.h}px;line-height:${tg.h}px;text-align:center;font:${NUM} ${tg.size}px Atkinson;color:${tg.col}">${tg.src.includes('zero') ? `<img class="px" src="${ART}icons/warning.png" width="13" height="11" style="position:static;vertical-align:0;margin-right:2px">` : ''}${tg.txt}</div></div>`;
+}
+// the base: 22 px number font in ink, with a 1-texel paper outline when it sits on a colour band; struck = a 2 px
+// tomato line (ink under it) low through the digits, 3 px past each end, so a struck "€1" never reads as "€t"
+const PAPER_RIM = [[-2, 0], [2, 0], [0, -2], [0, 2], [-2, -2], [2, -2], [-2, 2], [2, 2]].map(([a, b]) => `${a}px ${b}px 0 ${P.paper}`).join(',');
+function baseHTML(base, struck, x, y, onBand) {
+  const s = '€' + base, tw = Math.ceil(textW(`${NUM} 22px Atkinson`, s));
+  return {w: tw, html: `<div style="left:${x}px;top:${y}px;width:${tw + 4}px;height:24px;line-height:24px;font:${NUM} 22px Atkinson;color:${struck && !onBand ? P.inkL : P.ink};${onBand ? `text-shadow:${PAPER_RIM}` : ''}">${s}</div>`
+    + (struck ? `<div style="left:${x - 3}px;top:${y + 14}px;width:${tw + 6}px;height:2px;background:${P.tom};box-shadow:0 2px 0 ${P.ink}"></div>` : '')};
+}
+
+// ---------- v3: every stocked card (cards.js, from data/cards by cards.py) ----------
+/*CARDS*/
+const CARD = {}; CARDS.forEach(c => { CARD[c.id] = c; });
+
+// ---------- v3: the family colours (the game's 32-colour palette); lt = the lit top row, dk = the shaded edge ----------
+const FC = {
+  Breakfast:{col:'#e2b33c', lt:'#f1d27a', dk:'#b38425', ink:true,  pal:'mustard'},
+  Bakery:   {col:'#d2a874', lt:'#ddcba5', dk:'#a87a4e', ink:true,  pal:'brown light'},
+  Produce:  {col:'#5fae5a', lt:'#a5d17e', dk:'#3d7a45', ink:true,  pal:'green'},
+  Dairy:    {col:'#4f9a94', lt:'#86c2b6', dk:'#3a7672', ink:true,  pal:'teal'},
+  Frozen:   {col:'#c3e0d4', lt:'#fbf7ee', dk:'#86c2b6', ink:true,  pal:'teal pale'},
+  Snack:    {col:'#7a5232', lt:'#a87a4e', dk:'#4a3022', ink:false, pal:'brown dark'},
+  Household:{col:'#5e574d', lt:'#8a8172', dk:'#4a3f38', ink:false, pal:'grey dark'},   // v3 review: grey (ink 4.0:1) -> grey dark, paper text 6.7:1
+  Clearance:{col:'#a83a3c', lt:'#d9534f', dk:'#6e2630', ink:false, pal:'tomato dark'},
+  Food:     {col:'#ec8a6e', lt:'#f5bfa0', dk:'#d9534f', ink:true,  pal:'tomato light'},
+};
+const FC_ORDER = ['Breakfast','Bakery','Produce','Dairy','Frozen','Snack','Household','Clearance','Food'];
+// Q1b: a colour-blind-safer set (cb set B): Food tomato pale, Clearance tomato darkest. Set A is the v3 set above.
+const CBSET = {A:{Food:Object.assign({}, FC.Food), Clearance:Object.assign({}, FC.Clearance)},
+  B:{Food:{col:'#f5bfa0', lt:'#fbf7ee', dk:'#ec8a6e', ink:true, pal:'tomato pale'}, Clearance:{col:'#6e2630', lt:'#a83a3c', dk:'#561327', ink:false, pal:'tomato darkest'}}};
+let CB_SET = Q.get('set') === 'B' ? 'B' : 'A';
+Object.assign(FC.Food, CBSET[CB_SET].Food); Object.assign(FC.Clearance, CBSET[CB_SET].Clearance);
+// colour difference (CIE76 in Lab, D65) in normal vision and in three colour-vision deficiencies (Machado 2009, severity 1)
+const CVD = {deut:[[0.367322,0.860646,-0.227968],[0.280085,0.672501,0.047413],[-0.011820,0.042940,0.968881]],
+  prot:[[0.152286,1.052583,-0.204868],[0.114503,0.786281,0.099216],[-0.003882,-0.048116,1.051998]],
+  trit:[[1.255528,-0.076749,-0.178779],[-0.078411,0.930809,0.147602],[0.004733,0.691367,0.303900]]};
+const CVD_NAME = {none:'normal vision', deut:'deuteranopia', prot:'protanopia', trit:'tritanopia'};
+function linRGB(hex) { const n = parseInt(hex.slice(1), 16); return [n >> 16, (n >> 8) & 255, n & 255].map(c => { c /= 255; return c <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4; }); }
+function labOf(hex, kind) {
+  let l = linRGB(hex);
+  if (kind && kind !== 'none') l = CVD[kind].map(r => Math.max(0, Math.min(1, r[0] * l[0] + r[1] * l[1] + r[2] * l[2])));
+  const X = (0.4124 * l[0] + 0.3576 * l[1] + 0.1805 * l[2]) / 0.95047, Y = 0.2126 * l[0] + 0.7152 * l[1] + 0.0722 * l[2], Z = (0.0193 * l[0] + 0.1192 * l[1] + 0.9505 * l[2]) / 1.08883;
+  const f = v => v > 0.008856 ? Math.cbrt(v) : 7.787 * v + 16 / 116;
+  return [116 * f(Y) - 16, 500 * (f(X) - f(Y)), 200 * (f(Y) - f(Z))];
+}
+function deltaE(a, b, kind) { const A = labOf(a, kind), B = labOf(b, kind); return Math.hypot(A[0] - B[0], A[1] - B[1], A[2] - B[2]); }
+function closestPairs(kind, n) {
+  const out = [];
+  FC_ORDER.forEach((a, i) => FC_ORDER.slice(i + 1).forEach(b => out.push([deltaE(FC[a].col, FC[b].col, kind), a, b])));
+  return out.sort((x, y) => x[0] - y[0]).slice(0, n || 3);
+}
+function relLum(hex) { const n = parseInt(hex.slice(1), 16); return [n >> 16, (n >> 8) & 255, n & 255].map(c => { c /= 255; return c <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4; }).reduce((s, c, i) => s + c * [0.2126, 0.7152, 0.0722][i], 0); }
+function contrast(a, b) { const x = relLum(a), y = relLum(b); return (Math.max(x, y) + 0.05) / (Math.min(x, y) + 0.05); }
+// the ticket's text colour: ink or paper, the one that reads on every part of the ticket
+function textCol(col) {
+  if (col === 'Coupon') return P.ink;
+  const fs = Array.isArray(col) ? col.slice(0, 2) : [col];
+  return fs.every(f => !FC[f].ink) ? P.paper : P.ink;
+}
+function colourTip(c) {
+  if (c.col === 'Coupon') return 'Plain coupon: works with whatever is beside it';
+  if (Array.isArray(c.col)) return `${c.col[0]} + ${c.col[1]}: works with both`;
+  const t = c.tgt;
+  const what = t.startsWith('T:') ? `works with ${t.slice(2)}` : t.startsWith('C:') ? `works with ${CARD[t.slice(2)].name}` : t === 'S' ? `works with another ${c.name}`
+    : t.startsWith('G:') ? `gives ${t.slice(2)}` : 'its own family';
+  return `${c.col} colour · ${what}`;
+}
+
+// ---------- the items on the belt (real card data, shift 3, slot 7 closed) ----------
+const card = (id, extra) => Object.assign({}, CARD[id], extra || {});
+const ITEMS = [
+  card('eggs', {pay:1, steps:[{t:'Gives ×2 › Milk', give:true}], stick:[]}),
+  card('milk', {pay:10, steps:[{t:'Eggs before it', d:'+€1', v:5}, {t:'×2 from Eggs', d:'×2', v:10, giver:'eggs'}],
+    stick:[{k:'add', t:'+1'}, {k:'mul', t:'×2', giver:'eggs'}]}),
+  card('strawberries', {pay:5, steps:[{t:'Beside Lemon', d:'+€3', v:5}], stick:[{k:'add', t:'+3'}]}),
+  card('lemon', {pay:1, steps:[{t:'Gives ×2 › Frozen peas', give:true}], stick:[]}),
+  card('frozen_peas', {pay:6, steps:[{t:'No {Frozen} beside', d:'WASTED', fiz:true, v:3}, {t:'×2 from Lemon', d:'×2', v:6, giver:'lemon'}],
+    stick:[{k:'waste'}, {k:'mul', t:'×2', giver:'lemon'}]}),
+  card('batteries', {pay:5, steps:[{t:'Last open slot', d:'+€4', v:5}], stick:[{k:'add', t:'+4'}]}),
+];
+ITEMS.forEach((it, i) => { it.slot = i; });
+// stress cases (real card data): a plain coupon, a family coupon, a staple GOLDEN, two glyphs, a 3-digit pay, a €0 spot check
+const STRESS = [
+  card('multipack'),
+  card('breakfast_sticker'),
+  card('eggs', {name:'Golden Eggs', base:3, eff:'×2 next 2 {Food}', pay:3, tier:'GOLDEN'}),
+  card('day_old_buns', {pay:5}),
+  card('cereal_bar', {pay:4}),
+  card('milk', {name:'Golden Milk', base:6, eff:'+2 per earlier {Breakfast}', pay:126, tier:'GOLDEN'}),
+  card('frozen_peas', {pay:0}),
+];
+function shelfTags(it) { const t = it.tags.filter(x => x !== 'Food'); return t.length ? t : it.tags.slice(0, 1); }
+const QUOTA = 26, TOTAL = ITEMS.reduce((s, it) => s + it.pay, 0);
+const slotX = i => 368 + 128 * i;
+const spriteX = i => 374 + 128 * i;
+const SPRITE_Y = 290, TICKET_Y = 424;
+
+// ---------- v3 tickets: one colour, the price stacked in the top-right corner, glyphs top-left ----------
+// 54x32 art at 2x: ink outline with cut corners, the fill, a lit top row, a shaded right column and bottom row.
+// A split: a 45° pixel stair (first family top-left) with a 1-texel seam in the second family's light shade, or a
+// vertical split. A coupon that names a family: the coupon's perforated top in the family's shades.
+function frame3URL(col, coupon) {
+  const fs = Array.isArray(col) ? col.slice(0, 2) : [col], mode = Array.isArray(col) ? (col[2] || 'diag') : null;
+  return memo('f3' + fs.map(f => FC[f].col + FC[f].lt).join('') + (mode || '') + (coupon ? 'c' : ''), () => {
+    const W = 54, H = 32, c = canvas(W, H), g = c.getContext('2d');
+    const side = (x, y) => !mode ? 0 : (mode === 'vert' ? (x >= W / 2 ? 1 : 0) : (x + y > 41 ? 1 : 0));
+    for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+      if ((x === 0 || x === W - 1) && (y === 0 || y === H - 1)) continue;
+      let col;
+      if (x === 0 || y === 0 || x === W - 1 || y === H - 1) col = P.ink;
+      else {
+        const f = FC[fs[side(x, y)]];
+        col = y === 1 ? f.lt : (y === H - 2 || x === W - 2) ? f.dk : f.col;
+        if (mode === 'diag' && x + y === 42 && y > 1 && y < H - 2 && x < W - 2) col = FC[fs[1]].lt;
+        if (mode === 'vert' && x === W / 2 && y > 1 && y < H - 2) col = FC[fs[1]].lt;
+        if (coupon && (y === 1 || y === 2)) col = ((x - 1) % 3 < 2) ? f.dk : f.lt;
+      }
+      g.fillStyle = col; g.fillRect(x, y, 1, 1);
+    }
+    return c.toDataURL();
+  });
+}
+// the gold burst die-cut on a ticket: a 1-texel paper rim, then a 1-texel (2 px) ink outline round it, so the price
+// is cut out of every ticket colour, the mustard Breakfast one included; then the usual ink shadow
+const RIM = [P.paper, P.ink].map(c => `drop-shadow(2px 0 0 ${c}) drop-shadow(-2px 0 0 ${c}) drop-shadow(0 2px 0 ${c}) drop-shadow(0 -2px 0 ${c})`).join(' ');
+function payTag3HTML(tg, x, y, scale, rim) {
+  return `<div style="left:${x}px;top:${y}px;width:${tg.w}px;height:${tg.h}px;transform:scale(${(scale || 1).toFixed(3)});filter:${rim ? RIM + ' ' : ''}drop-shadow(3px 3px 0 rgba(43,36,32,.42))">
+    <img class="px" src="${ART}${tg.src}" width="${tg.w}" height="${tg.h}" style="left:0;top:0">
+    <div style="left:0;top:0;width:${tg.w}px;height:${tg.h}px;line-height:${tg.h}px;text-align:center;font:${NUM} ${tg.size}px Atkinson;color:${tg.col}">${tg.src.includes('zero') ? `<img class="px" src="${ART}icons/warning.png" width="13" height="11" style="position:static;vertical-align:0;margin-right:2px">` : ''}${tg.txt}</div></div>`;
+}
+// the struck old price, 15 px, right-aligned at `right`. On a light ticket (or the monitor): ink with a paper rim and a
+// tomato strike. On a dark ticket (paper text: Snack, Household, Clearance): the ticket's own paper text, no rim, the
+// strike in paper too (a red strike on red would vanish).
+const PAPER_RIM1 = [[-1, 0], [1, 0], [0, -1], [0, 1], [-1, -1], [1, -1], [-1, 1], [1, 1]].map(([a, b]) => `${a}px ${b}px 0 ${P.paper}`).join(',');
+function struckHTML(base, right, y, size, dark) {
+  size = size || 15;
+  const s = '€' + base, tw = Math.ceil(textW(`${NUM} ${size}px Atkinson`, s)), x = right - tw;
+  return {w: tw, html: `<div style="left:${x}px;top:${y}px;width:${tw + 4}px;height:${size + 2}px;line-height:${size + 2}px;font:${NUM} ${size}px Atkinson;color:${dark ? P.paper : P.ink};${dark ? '' : `text-shadow:${PAPER_RIM1}`}">${s}</div>
+    <div style="left:${x - 2}px;top:${y + Math.round(size * 0.62)}px;width:${tw + 4}px;height:2px;background:${dark ? P.paper : P.tom}"></div>`};
+}
+const TK_FONT = '800 13px/15px Atkinson';
+// glyphs on a coloured ticket get a 1-texel paper rim (die-cut, like the burst), so a green apple reads on green
+const GRIM = `drop-shadow(2px 0 0 ${P.paper}) drop-shadow(-2px 0 0 ${P.paper}) drop-shadow(0 2px 0 ${P.paper}) drop-shadow(0 -2px 0 ${P.paper})`;
+const OVERFLOW = new Set();
+// a ticket at (x, y). o.pay: the price now (burst when it differs from the base); o.cart: the shelf (base only);
+// o.item: the highlight key; o.burstScale: the count's punch. Records the glyph spots on it.gp.
+function ticketHTML(it, x, y, o) {
+  o = o || {};
+  const coupon = !!it.coupon, neutral = it.col === 'Coupon', staple = it.src === 'Staple';
+  const pay = o.cart || coupon ? it.base : (o.pay !== undefined ? o.pay : (it.pay !== undefined ? it.pay : it.base));
+  const changed = !coupon && pay !== it.base, tcol = textCol(it.col);
+  const fams = coupon ? [] : shelfTags(it);
+  let h = `<div data-tipbelow="1" data-tip="${colourTip(it)}"${o.item ? ` data-item="${o.item}"` : ''} style="left:${x}px;top:${y}px;width:108px;height:64px">`;
+  h += neutral ? `<img class="px" src="${ART}frames/ticket_coupon.png" width="108" height="64" style="left:0;top:0">`
+    : `<img class="px" src="${frame3URL(it.col, coupon)}" width="108" height="64" style="left:0;top:0">`;
+  // top-left: the family glyphs in a row (a coupon: the word COUPON)
+  if (coupon) h += `<div style="left:8px;top:8px;height:18px;line-height:18px;font:800 12px Atkinson;letter-spacing:1px;color:${neutral ? P.tealDk : tcol}">COUPON</div>`;
+  it.gp = [];
+  fams.forEach((f, j) => { h += glyph(f, 1, `left:${4 + j * 20}px;top:5px;filter:${GRIM}`); it.gp.push({fam:f, x:x + 4 + j * 20, y:y + 5, bottom:y + 64}); });
+  // top-right: the price. Changed: the burst over the corner, the struck old price under it. Same: the plain tag.
+  let sw = 1;
+  if (!coupon) {
+    if (changed) {
+      const tg = payTag(pay, it.base);
+      h += payTag3HTML(tg, 108 + tg.ox - tg.w + (tg.w > 60 ? 8 : 0), -tg.oy - (tg.w > 60 ? 2 : 0), o.burstScale, true);
+      const st = struckHTML(it.base, 101, 26, 15, tcol === P.paper);
+      h += st.html; sw = st.w + 14;   // the float keeps line 1 clear of the struck price, with a gap
+    } else {
+      const tg = {src:'effects/pay_plain.png', w:52, h:26, size:17, col:P.ink, txt:'€' + pay};
+      h += payTag3HTML(tg, 108 + 4 - 52, -4, 1, false);
+    }
+  }
+  if (staple) { h += glyph('Staple', 1, `left:86px;top:44px;filter:${GRIM}`); it.gp.push({fam:'Staple', x:x + 86, y:y + 44, bottom:y + 64}); }
+  // the short text under the glyphs, across the ticket; floats keep it off the struck price (line 1) and the padlock (line 2)
+  const sp = `<span style="float:right;width:${sw}px;height:15px"></span>` + (staple ? `<span style="float:right;clear:right;width:22px;height:15px"></span>` : '');
+  const ty = coupon ? 28 : 27;
+  h += `<div class="flow rich ovf" data-ovf="${it.id}" style="position:absolute;left:6px;top:${ty}px;width:98px;height:${62 - ty}px;overflow:hidden;font:${TK_FONT};color:${tcol}">${sp}${rich(it.eff)}</div>`;
+  if (it.tier) h += `<div style="left:4px;top:60px;height:14px;padding:0 5px;line-height:14px;font:800 10px Atkinson;letter-spacing:1px;background:${P.gold};color:${P.ink};box-shadow:0 0 0 2px ${P.ink}">${it.tier}</div>`;
+  return h + '</div>';
+}
+// QA: report any ticket whose short text does not fit (checked after layout)
+function checkOverflow() {
+  document.querySelectorAll('.ovf').forEach(el => { if (el.scrollHeight > el.clientHeight + 1) OVERFLOW.add(el.dataset.ovf); });
+  if (OVERFLOW.size) { document.title += ' OVERFLOW:' + [...OVERFLOW].join(','); console.warn('ticket text overflow', [...OVERFLOW]); }
+}
+
+// ---------- the timeline ----------
+const T_TIP1 = 2.15, T_TO_SCAN = 3.0, T_SCAN1 = 3.9, T_MOVE2 = 5.9, T_SCAN2 = 6.75, T_MOVE3 = 8.6, T_PRESS = 9.15, T_COUNT = 9.4, BEAT = 0.95;
+const T_END = T_COUNT + BEAT * ITEMS.length;
+const BEATS = [['Slap', 0.3], ['Tooltip', 1.7], ['Scan', 4.9], ['Wasted', 7.7], ['Checkout', 9.3], ['Base lands', 10.56], ['+1 lands', 10.88], ['×2 flies', 11.04], ['×2 lands', 11.16], ['Climax', 14.8], ['Met', 16.5]];
+function lerp(a, b, u) { return a + (b - a) * u; }
+function clamp(u) { return Math.max(0, Math.min(1, u)); }
+function ease(u) { u = clamp(u); return u * u * (3 - 2 * u); }
+// v3 review: the landings of one item are at least 0.3 s apart (base at 0.18 s, steps at 0.48 s and 0.78 s)
+const FLY = 0.18, STEP0 = 0.30, STEP_GAP = 0.30;
+const fireAt = (k, j) => T_COUNT + k * BEAT + STEP0 + j * STEP_GAP;
+// the count's events: each item's base flies in first, then each step's amount (a multiplier lands its gain);
+// WASTED is an event that never lands. FLY = take-off to landing.
+// The total counts in whole euros only: a landing adds its amount in at most TICKS whole-euro ticks (#60: the printer's
+// TICKS_PER_ROLL = 3 ticks per payout roll), TICK_GAP apart, so the roll lasts about the game's roll_min_ms + extra.
+const TICKS = 3, TICK_GAP = 0.06, DIGIT_ROLL = 0.03;   // a digit rolls in 2 frames at 60 fps; static between ticks
+const EVENTS = (() => {
+  const ev = [];
+  ITEMS.forEach((it, k) => {
+    const s0 = T_COUNT + k * BEAT; let v = it.base;
+    ev.push({k, j:-1, kind:'base', t0:s0, land:s0 + FLY, d:it.base, txt:'+' + it.base + '€'});
+    it.steps.forEach((st, j) => {
+      if (st.give) return;
+      const tf = fireAt(k, j);
+      if (st.fiz) { ev.push({k, j, kind:'waste', t0:tf, land:tf + FLY, d:0, txt:'€0'}); return; }
+      const d = st.v - v; v = st.v;
+      const mul = st.d[0] === '×';
+      ev.push({k, j, kind:mul ? 'mul' : 'add', t0:tf, land:tf + FLY, d, txt:mul ? st.d : '+' + d + '€', gain:'+' + d + '€', giver:st.giver});
+    });
+  });
+  // each event's whole-euro ticks: [time, total after it]
+  let run = 0;
+  ev.forEach(e => {
+    e.ticks = [];
+    if (!e.d) return;
+    const n = Math.min(TICKS, e.d), from = run;
+    for (let i = 1; i <= n; i++) e.ticks.push([e.land + (i - 1) * TICK_GAP, from + Math.round(e.d * i / n)]);
+    run += e.d;
+  });
+  return ev;
+})();
+const ALL_TICKS = EVENTS.flatMap(e => e.ticks);
+// the one whole number the monitor and the top bar both show, and the tick it last changed on
+function shownTotal(t) { let v = 0; ALL_TICKS.forEach(([tt, val]) => { if (t >= tt) v = val; }); return v; }
+function lastTickAt(t) { let last = null, prev = 0; ALL_TICKS.forEach(([tt, val]) => { if (t >= tt) { last = {t:tt, from:prev, to:val}; prev = val; } }); return last; }
+function countValue(t) { return shownTotal(t); }
+function lastLanded(t) { let last = null; EVENTS.forEach(e => { if (e.kind !== 'waste' && t >= e.land) last = e; }); return last; }
+function ticksAt(t) { return EVENTS.filter(e => e.kind !== 'waste' && t >= e.land).length; }
+function stateAt(t, gp) {
+  const s = {t, cursor:null, hold:0, mode:'next', item:0, t0:0, count:null, tip:null};
+  const home = [760, 640], over = i => [spriteX(i) + 40, SPRITE_Y + 56], chk = [168, 470];
+  const g0 = [gp[0].x + 9, gp[0].y + 9], g1 = gp[1] ? [gp[1].x + 9, gp[1].y + 9] : g0;
+  const mv = (a, b, u) => [lerp(a[0], b[0], u), lerp(a[1], b[1], u)];
+  if (t < T_TIP1) { s.cursor = mv(home, g0, ease((t - 0.5) / 0.6)); if (t > 1.15) s.tip = 0; }
+  else if (t < T_TO_SCAN) { s.cursor = mv(g0, g1, ease((t - T_TIP1) / 0.18)); if (t > T_TIP1 + 0.2) s.tip = 1; }
+  else if (t < T_SCAN1) {
+    s.cursor = mv(g1, over(2), ease((t - T_TO_SCAN) / 0.45));
+    if (t > T_TO_SCAN + 0.5) { s.hold = clamp((t - T_TO_SCAN - 0.5) / 0.4); s.holdSlot = 2; }
+  } else if (t < T_MOVE2) { s.mode = 'scan'; s.item = 2; s.t0 = T_SCAN1; s.cursor = over(2); s.reticle = 2; }
+  else if (t < T_SCAN2) {
+    s.cursor = mv(over(2), over(4), ease((t - T_MOVE2) / 0.45));
+    if (t > T_MOVE2 + 0.45) { s.hold = clamp((t - T_MOVE2 - 0.45) / 0.4); s.holdSlot = 4; }
+  } else if (t < T_MOVE3) { s.mode = 'scan'; s.item = 4; s.t0 = T_SCAN2; s.cursor = over(4); s.reticle = 4; }
+  else if (t < T_COUNT) { s.cursor = mv(over(4), chk, ease((t - T_MOVE3) / 0.5)); s.press = t > T_PRESS && t < T_PRESS + 0.2; }
+  else {
+    const k = Math.min(ITEMS.length - 1, Math.floor((t - T_COUNT) / BEAT));
+    s.mode = 'count'; s.item = k; s.t0 = T_COUNT + k * BEAT; s.cursor = chk;
+    const v = countValue(t), last = lastLanded(t);
+    s.count = {k, poured:v, value:v, end: t >= T_END, lastLand: last ? last.land : -9, last, ticks:ticksAt(t), tick:lastTickAt(t)};
+  }
+  return s;
+}
+
+// ---------- pieces drawn in code ----------
+function cursorURL() {
+  return memo('cursor', () => {
+    const rows = ['k.........','kk........','kwk.......','kwwk......','kwwwk.....','kwwwwk....','kwwwwwk...','kwwwwwwk..','kwwwwkkkk.','kwkwwk....','kk.kwwk...','k...kwwk..','....kwwk..','.....kk...'];
+    const c = canvas(10, 14), g = c.getContext('2d');
+    rows.forEach((r, y) => [...r].forEach((ch, x) => { if (ch !== '.') { g.fillStyle = ch === 'k' ? P.ink : P.paper; g.fillRect(x, y, 1, 1); } }));
+    return c.toDataURL();
+  });
+}
+function tipFrameURL() {
+  return memo('tipf', () => {
+    const rows = ['.###.', '#hhh#', '#fff#', '#fff#', '.###.'], c = canvas(5, 5), g = c.getContext('2d');
+    rows.forEach((r, y) => [...r].forEach((ch, x) => { if (ch !== '.') { g.fillStyle = ch === '#' ? P.ink : ch === 'h' ? P.greyD : P.inkL; g.fillRect(x, y, 1, 1); } }));
+    return c.toDataURL();
+  });
+}
+function tipTailURL() {
+  return memo('tipt', () => {
+    const rows = ['#fffff#', '.#fff#.', '..#f#..', '...#...'], c = canvas(7, 4), g = c.getContext('2d');
+    rows.forEach((r, y) => [...r].forEach((ch, x) => { if (ch !== '.') { g.fillStyle = ch === '#' ? P.ink : P.inkL; g.fillRect(x, y, 1, 1); } }));
+    return c.toDataURL();
+  });
+}
+function tipName(name) { return name; }
+// a tooltip box. Above (the monitor, sticker text, the Cart's labels): its tail points down at (cx, gy). Below (a rail
+// or shelf ticket): it opens under the ticket (gy = the ticket's bottom), tail up, the box ending just right of the
+// glyph so the pointer never covers the word.
+function tipBox(name, cx, gy, below) {
+  const w = even(textW('800 13px Atkinson', name) + 26);
+  return below ? {w, x:Math.round(cx + 14 - w), y:gy + 12, tail:w - 14 - 7} : {w, x:Math.round(cx - w / 2), y:gy - 36, tail:w / 2 - 7};
+}
+function tipHTML(name, cx, gy, pop, below) {
+  const b = tipBox(name, cx, gy, below);
+  return `<div class="demo" style="left:${b.x}px;top:${b.y}px;width:${b.w}px;height:26px;transform-origin:${b.tail + 7}px ${below ? 0 : 26}px;transform:scale(${pop.toFixed(3)})">
+    <div class="tip" style="left:0;top:0;width:${b.w}px;border-image-source:url(${tipFrameURL()})"><span>${name}</span></div>
+    <img class="px" src="${tipTailURL()}" width="14" height="8" style="left:${b.tail}px;top:${below ? -6 : 24}px;${below ? 'transform:scaleY(-1)' : ''}"></div>`;
+}
+function hatchURL() {
+  return memo('hatch', () => { const c = canvas(4, 4), g = c.getContext('2d');
+    for (let y = 0; y < 4; y++) for (let x = 0; x < 4; x++) { g.fillStyle = ((x + y) % 4) < 2 ? P.musL : P.cream; g.fillRect(x, y, 1, 1); }
+    return c.toDataURL(); });
+}
+function sunURL(w, h, gold) {
+  return memo(`sun${w}_${h}_${gold}`, () => {
+    const c = canvas(w, h), g = c.getContext('2d'), cx = w / 2 - 0.5, cy = h / 2 - 0.5;
+    for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+      const a = Math.atan2(y - cy, (x - cx) * h / w), r = Math.hypot((x - cx) / (w / 2), (y - cy) / (h / 2));
+      if (r > 1) continue;
+      g.fillStyle = (Math.floor((a + Math.PI) / (Math.PI / 8)) % 2) ? (gold ? P.musL : P.cream) : (gold ? P.musP : P.paper); g.fillRect(x, y, 1, 1);
+    }
+    return c.toDataURL();
+  });
+}
+function scanCorners(x, y, w, h, col, arm, th) {
+  const b = `background:${col}`;
+  return [[x, y, arm, th], [x, y, th, arm], [x + w - arm, y, arm, th], [x + w - th, y, th, arm],
+    [x, y + h - th, arm, th], [x, y + h - arm, th, arm], [x + w - arm, y + h - th, arm, th], [x + w - th, y + h - arm, th, arm]]
+    .map(r => `<div style="left:${r[0]}px;top:${r[1]}px;width:${r[2]}px;height:${r[3]}px;${b}"></div>`).join('');
+}
+// the big gold number (solid: the top bar is the gauge now), ink outline, FONT C shine on landing
+function bigNum(x, y, w, size, align, txt, shine) {
+  const h = Math.round(size * 0.8), font = `${NUM} ${size}px/${h}px Atkinson`;
+  const o = [[-2,0],[2,0],[0,-2],[0,2],[-2,-2],[2,-2],[-2,2],[2,2],[0,4],[2,4],[-2,4]].map(([a, b]) => `${a}px ${b}px 0 ${P.ink}`).join(',');
+  const sh = shine === null || shine === undefined ? '' : `,linear-gradient(110deg,transparent ${-20 + 150 * shine}%,rgba(255,255,255,.9) ${-20 + 150 * shine}%,rgba(255,255,255,.9) ${-8 + 150 * shine}%,transparent ${-8 + 150 * shine}%)`;
+  return `<div style="left:${x}px;top:${y}px;width:${w}px;height:${h}px;text-align:${align};font:${font};color:${P.ink};text-shadow:${o};white-space:nowrap">${txt}</div>
+    <div class="px" style="left:${x}px;top:${y}px;width:${w}px;height:${h}px;text-align:${align};font:${font};color:transparent;white-space:nowrap;
+      background:${sh ? sh.slice(1) + ',' : ''}linear-gradient(to top,${P.musDk} 0 12%,${P.gold} 12% 60%,${P.musL} 60% 76%,${P.gold} 76%);-webkit-background-clip:text;background-clip:text">${txt}</div>`;
+}
+function stamp(x, y, w, size, tilt) {
+  return `<div style="left:${x}px;top:${y}px;width:${w}px;text-align:center;font:400 ${size}px/${size + 6}px Pixelify;letter-spacing:${size < 15 ? 0 : 1}px;white-space:nowrap;color:${P.grnDk};border:2px solid ${P.grnDk};background:${P.paper};transform:rotate(${tilt}deg)">SPEND MET</div>`;
+}
+
+// ---------- the monitor ----------
+function stepLine(st, size, weight, alpha) {
+  const col = st.fiz ? P.tomDk : (st.give ? P.musDk2 : P.ink);
+  const mark = st.fiz ? `<img class="px" src="${ART}icons/fizzle.png" width="14" height="14" style="vertical-align:-2px;margin-right:4px">`
+    : (st.giver ? `<img class="px" src="${ART}minis/${st.giver}.png" width="14" height="14" style="vertical-align:-2px;margin-right:4px">`
+      : st.give ? `<span style="color:${P.musDk};font:800 ${size}px Atkinson;margin-right:4px">✦</span>`
+      : `<span style="color:${P.grnDk};font:800 ${size}px Atkinson;margin-right:4px">✓</span>`);
+  const amt = st.d ? `<span style="margin-left:auto;padding-left:6px;min-width:${st.fiz ? 0 : 40}px;text-align:right;font:800 ${size + (st.fiz ? 0 : 1)}px Atkinson;color:${st.fiz ? P.tomDk : P.musDk2};white-space:nowrap">${st.d}</span>` : '';
+  return `<div class="flow rich" style="display:flex;align-items:baseline;font:${weight} ${size}px Atkinson;line-height:1.3;color:${col};opacity:${alpha}"><span>${mark}${rich(st.t)}</span>${amt}</div>`;
+}
+function bayHTML(s, it, label, extra) {
+  const since = s.t - s.t0, slide = s.mode === 'next' ? 1 : ease(since / 0.22);
+  const hdr = s.mode === 'next' ? 'NEXT' : (s.mode === 'scan' ? 'SCAN' : `${ITEMS.length - s.item - 1} LEFT`);
+  const beep = s.mode !== 'next' && since < 0.35;
+  return `<div class="bay" style="left:4px;top:2px;width:112px;height:150px">
+    <div class="hdr"></div><div class="lamp ${beep ? 'on' : ''}"></div><div class="ht">${hdr}</div><div class="pips"></div>
+    <div class="bed"></div>
+    ${scanCorners(10, 25, 92, 92, s.mode === 'count' ? P.gold : P.mus, 10, 2)}
+    <img class="px" src="${ART}items_v2/${it.id}.png" width="96" height="96" style="left:${8 + (1 - slide) * 60}px;top:23px;opacity:${slide}">
+    ${label.chip ? aisleChip(it) : `<div class="nm" style="${label.col ? `color:${label.col}` : ''}">${label.t}</div>
+    ${it.aisle === 'staple' ? `<img class="px gl" data-tip="Staple" src="${ART}icons/padlock.png" width="18" height="20" style="left:2px;top:122px">` : ''}`}
+    ${beep ? `<div style="left:30px;top:26px;font:800 13px Atkinson;color:${P.ink};background:${P.gold};padding:1px 4px;box-shadow:0 0 0 2px ${P.ink};transform:rotate(-8deg)">BEEP!</div>` : ''}
+    ${extra || ''}</div>`;
+}
+// monitor b's bay plate: a chip in the ticket's colour naming what the item works with (its tooltip says so)
+function aisleChip(it) {
+  const t = it.tgt, f = FC[it.col];
+  const fam = t.startsWith('T:') ? t.slice(2) : (Array.isArray(it.col) || it.col === 'Coupon' ? null : it.col);
+  const label = t.startsWith('C:') ? CARD[t.slice(2)].name : (t === 'S' ? it.name : (fam || 'Coupon'));
+  return `<div data-tip="${colourTip(it)}" style="left:6px;top:125px;width:100px;height:20px;background:${f ? f.col : P.paper};box-shadow:inset 0 0 0 2px ${P.ink},inset 0 2px 0 2px ${f ? f.lt : P.paper}">
+    ${fam ? `<img class="px" src="${glyphURL(fam)}" width="18" height="18" style="left:4px;top:1px">` : ''}
+    <div style="left:${fam ? 24 : 6}px;top:0;width:${fam ? 74 : 90}px;height:20px;font:800 11px/21px Atkinson;letter-spacing:.5px;text-transform:uppercase;white-space:nowrap;color:${textCol(it.col)}">${label}</div></div>`;
+}
+// the item's value during the count: base until its steps fire
+function countVal(it, since) {
+  let val = it.base, shown = 0;
+  it.steps.forEach((st, i) => { if (since > STEP0 + i * STEP_GAP) { shown = i + 1; if (st.v) val = st.v; } });
+  return {val, shown, lastChange: shown ? STEP0 + (shown - 1) * STEP_GAP : null};
+}
+// the TOTAL in whole euros, each digit in its own cell (as wide as the digit), then the €. On a tick only the digits
+// that change roll: the old one slides up and out, the new one up from below, in DIGIT_ROLL s, snapped to the 2 px grid
+// and clipped to the cell's height only (the outline stays whole). Between ticks the number is still: it never shows a
+// half value.
+const NUM_SIZE = 38, NUM_H = 34, NUM_FONT = `${NUM} ${NUM_SIZE}px Atkinson`;
+const charW = ch => Math.ceil(textW(NUM_FONT, ch)) + 1;
+function totalGroupW(v) { return [...String(v === undefined ? 88 : v)].reduce((w, ch) => w + charW(ch), 0) + charW('€') + 2; }
+function totalHTML(cx, y, v, tick, t, sc, flash, shine) {
+  const s = String(v), gw = totalGroupW(v), u = tick ? (t - tick.t) / DIGIT_ROLL : 1;
+  const p = tick && u < 1 ? String(tick.from).padStart(s.length, ' ') : s;
+  let cells = '', x = 0;
+  [...s].forEach((ch, i) => {
+    const pc = p[p.length - s.length + i] || ' ', dw = charW(ch);
+    let inner;
+    if (ch !== pc && u < 1) {
+      const off = snap2(ease(u) * NUM_H);
+      inner = (pc.trim() ? `<div style="left:0;top:${-off}px;width:${dw}px;height:${NUM_H}px">${bigNum(0, 2, dw, NUM_SIZE, 'center', pc, null)}</div>` : '')
+        + `<div style="left:0;top:${NUM_H - off}px;width:${dw}px;height:${NUM_H}px">${bigNum(0, 2, dw, NUM_SIZE, 'center', ch, null)}</div>`;
+    } else inner = bigNum(0, 2, dw, NUM_SIZE, 'center', ch, shine);
+    cells += `<div style="left:${x}px;top:0;width:${dw}px;height:${NUM_H}px;clip-path:inset(0 -8px)">${inner}</div>`;
+    x += dw;
+  });
+  cells += `<div style="left:${x + 2}px;top:0;width:${charW('€')}px;height:${NUM_H}px">${bigNum(0, 2, charW('€'), NUM_SIZE, 'left', '€', shine)}</div>`;
+  return `<div style="left:${Math.round(cx - gw / 2)}px;top:${y}px;width:${gw}px;height:${NUM_H}px;transform:scale(${sc.toFixed(3)});${flash ? `filter:brightness(${flash.toFixed(2)})` : ''}">${cells}</div>`;
+}
+// the ladder: one lamp per tick, rising like the pentatonic ladder (#60); after eight, a brighter octave over the first
+const LADDER_H = [4, 6, 6, 8, 8, 10, 10, 12];
+const OCT = [P.mus, P.gold, P.musP];
+function ladderHTML(x, y, s) {
+  const t = s.t, ticks = s.count ? s.count.ticks : 0, lastT = s.count ? s.count.lastLand : -9;
+  const oct = ticks ? Math.floor((ticks - 1) / 8) : 0, idx = ticks ? (ticks - 1) % 8 : -1;
+  const waste = EVENTS.find(e => e.kind === 'waste' && t >= e.t0 && t < e.t0 + 0.3);
+  let h = '';
+  LADDER_H.forEach((lh, i) => {
+    let col = oct > 0 ? OCT[Math.min(oct - 1, 2)] : P.cream;
+    if (i <= idx) col = OCT[Math.min(oct, 2)];
+    if (i === idx && t - lastT < 0.1) col = P.white;
+    if (waste && i === (idx + 1) % 8 && Math.floor((t - waste.t0) / 0.06) % 2 === 0) col = P.tom;
+    h += `<div style="left:${x + i * 11}px;top:${y + 12 - lh}px;width:8px;height:${lh}px;background:${col};box-shadow:0 0 0 2px ${P.ink}"></div>`;
+  });
+  return h;
+}
+// a flying amount: a small sticker label on a short hop from its step line (or the price, for the base) to the
+// number's left edge, where it dissolves as it arrives (it never covers the digits). A multiplier's chip turns from
+// "×2" into the euros it adds ("+5€") halfway. WASTED's grey "€0" just drops off its step line, no landing.
+function chipHTML(e, t, from, to) {
+  if (e.kind === 'waste') {
+    const q = t - e.t0; if (q < 0 || q > 0.45) return '';
+    return labelChip(e.txt, 'grey', from[0] + 10 * q, from[1] + 280 * q * q, 1, 22 * q, clamp(1 - (q - 0.3) / 0.15));
+  }
+  const u = (t - e.t0) / FLY;
+  if (u < 0 || u >= 1) return '';
+  // across first, then up: the path keeps right of the item column's price burst and arrives level with the digits
+  const x = lerp(from[0], to[0], 1 - (1 - u) ** 2), y = lerp(from[1], to[1], u * u);
+  const dis = clamp((u - 0.7) / 0.3);
+  let txt = e.txt, sx = 1;
+  if (e.kind === 'mul') { const f = (u - 0.3) / 0.3; if (f >= 0.5) txt = e.gain; if (f > 0 && f < 1) sx = Math.max(0.08, Math.abs(Math.cos(f * Math.PI))); }
+  return labelChip(txt, e.kind === 'base' ? 'paper' : 'gold', x, y, (e.kind === 'mul' ? 1.1 : 1) * (1 - 0.6 * dis), -4, 1 - dis, sx);
+}
+function labelChip(txt, kind, cx, cy, sc, rot, op, sx) {
+  const w = even(textW('800 16px Atkinson', txt) + 16);
+  return `<div style="left:${snap2(cx - w / 2)}px;top:${snap2(cy - 13)}px;width:${w}px;height:26px;transform:rotate(${rot.toFixed(1)}deg) scale(${(sc * (sx || 1)).toFixed(3)},${sc.toFixed(3)});opacity:${op.toFixed(2)};filter:${DROP}">
+    <img class="px" src="${labelURL(w / 2, kind)}" width="${w}" height="32" style="left:0;top:-3px">
+    <div style="left:0;top:-2px;width:${w}px;line-height:24px;text-align:center;font:800 16px Atkinson;color:${kind === 'grey' ? P.inkL : P.ink}">${txt}</div></div>`;
+}
+// landing beats at the total, kept sparse (v3 review): a base only punches small and lights its lamp; a "+N" punches
+// and throws 3 sparks out of the number's sides; a multiplier punches hardest (1.22), flashes once, shoots gold corners
+// round the number and two coins off the ladder's ends, down and out (never over the digits)
+function landFX(e, t, cx, cy, gw) {
+  const q = t - e.land; if (q < 0 || q > 0.6) return '';
+  let h = '';
+  const n = e.kind === 'base' ? 0 : e.kind === 'add' ? 3 : 6;
+  for (let i = 0; i < n; i++) {
+    const side = i % 2 ? 1 : -1, a = (side > 0 ? -20 + 22 * Math.floor(i / 2) : 200 - 22 * Math.floor(i / 2)) * Math.PI / 180;
+    const r = gw / 2 + 4 + 22 * (1 - (1 - clamp(q / 0.35)) ** 3);
+    if (q < 0.4) h += sparkHTML(cx + Math.cos(a) * r, cy + Math.sin(a) * r * 0.6, q > 0.28 ? (i % 2 ? P.musL : P.paper) : null);
+  }
+  if (e.kind === 'mul') {
+    const g = snap2(10 * ease(q / 0.3));
+    if (q < 0.32) h += scanCorners(cx - gw / 2 - 8 - g / 2, cy - 18, gw + 16 + g, 38, q < 0.06 ? P.white : P.gold, 8, 2);
+    [[-1, 1], [1, 0.8]].forEach(([sg, k]) => {
+      const x = cx + sg * (50 + 150 * k * q), y = 72 - 60 * q + 560 * q * q;
+      if (q < 0.4) h += `<img class="px" src="${ART}icons/coin.png" width="24" height="24" style="left:${snap2(x - 12)}px;top:${snap2(y - 12)}px;transform:scaleX(${Math.cos(q * 22).toFixed(2)})">`;
+    });
+  }
+  return h;
+}
+function monitorB(s) {
+  const it = ITEMS[s.item], t = s.t, since = t - s.t0, ap = d => s.mode === 'next' ? 1 : clamp((since - d) / 0.16);
+  let h = bayHTML(s, it, {chip:true});
+  // item column: the name with its family glyphs, the stacked price (burst over the struck base) top right, the effect, the step
+  let val = it.pay, shownSteps = it.steps.length, punch = 1;
+  if (s.mode === 'count') {
+    const cv = countVal(it, since); val = cv.val; shownSteps = cv.shown;
+    if (cv.lastChange !== null && since - cv.lastChange < 0.2) punch = 1 + 0.3 * (1 - (since - cv.lastChange) / 0.2);
+  }
+  const changed = val !== it.base;
+  h += `<div style="left:124px;top:4px;width:178px;height:146px">`;
+  h += `<div class="flow" style="position:absolute;left:0;top:0;width:178px;height:26px;display:flex;align-items:center;gap:3px;white-space:nowrap;opacity:${ap(0)}">
+    <span style="font:400 22px/26px Pixelify;color:${P.ink};margin-right:4px">${it.name}</span>${shelfTags(it).map(f => glyph(f, 1, 'position:static')).join('')}</div>`;
+  h += `<div style="left:0;top:0;width:178px;height:84px;opacity:${ap(0.08)}">`;
+  if (changed) { const tg = payTag(val, it.base); h += payTag3HTML(tg, 178 - tg.w, 30 - (tg.h - 32) / 2, punch, false); h += struckHTML(it.base, 172, 64).html; }
+  else h += payTag3HTML({src:'effects/pay_plain.png', w:52, h:26, size:17, col:P.ink, txt:'€' + val}, 126, 33, 1, false);
+  h += `</div>`;
+  h += `<div class="flow rich" style="position:absolute;left:0;top:32px;width:114px;font:800 16px/19px Atkinson;color:${P.ink};opacity:${ap(0.18)}">${rich(it.eff)}</div>`;
+  h += `<div style="left:0;top:84px;width:176px;height:0;border-top:2px dashed ${P.creamSh};opacity:${ap(0.26)}"></div>`;
+  h += `<div class="flow" style="position:absolute;left:0;top:90px;width:176px;display:flex;flex-direction:column;gap:2px">`;
+  if (s.mode === 'count') { if (shownSteps) h += stepLine(it.steps[shownSteps - 1], 15, 800, clamp((since - STEP0 - (shownSteps - 1) * STEP_GAP) / 0.1)); }
+  else it.steps.forEach((st, i) => { h += stepLine(st, 14, 700, ap(0.32 + i * 0.1)); });
+  h += `</div></div>`;
+  // the checkout column, in the monitor's "N€" style
+  const cx = 310, cw = 88, NX = cx + cw / 2, NY = 42;
+  h += `<div style="left:${cx - 4}px;top:4px;width:2px;height:146px;background:${P.cream}"></div>`;
+  const c = s.count, v = c ? c.value : TOTAL, metNow = c && v >= QUOTA, met = metNow && c.end;
+  const shown = v;
+  if (metNow) h += `<img class="px" src="${sunURL(50, 34, true)}" width="100" height="68" style="left:${cx - 6}px;top:8px;transform:rotate(${((t * 8) % 360).toFixed(1)}deg)">`;
+  h += `<div style="left:${cx}px;top:2px;width:${cw}px;height:15px;text-align:center;font:800 12px/15px Atkinson;letter-spacing:2px;color:${P.inkL}">${c ? 'TOTAL' : 'PLAN'}</div>`;
+  // the punch by the kind of the last landing (base 1.06, +N 1.12, × 1.22, the approved cap), about the number's centre;
+  // the white flash only on a × landing (the climax has its own); the shine runs over the number on a bonus
+  let sc = 1, fl = 0, shine = null;
+  if (c && c.last) {
+    const q = t - c.last.land, A = {base:0.06, add:0.12, mul:0.22}[c.last.kind];
+    if (q < 0.22) sc = 1 + A * (1 - q / 0.22) ** 2;
+    if (q < 0.05 && c.last.kind === 'mul') fl = 1.6;
+    if (q < 0.45 && c.last.kind !== 'base') shine = q / 0.45;
+  }
+  const NUM_Y = 21, gw = totalGroupW(shown), NCY = NUM_Y + NUM_H / 2;   // TOTAL ends at 17: 4 px clear above the digits at rest and at the full punch
+  h += totalHTML(NX, NUM_Y, shown, c ? c.tick : null, t, sc, fl, shine);
+  h += ladderHTML(cx + 1, 60, s);
+  h += `<div style="left:${cx}px;top:76px;width:${cw}px;text-align:center;font:800 12px/16px Atkinson;color:${P.inkL}">SPEND <span style="font:${NUM} 16px Atkinson;letter-spacing:0;color:${P.ink}">${QUOTA}€+</span></div>`;
+  const near = c && !metNow && v >= QUOTA * 0.8, pulse = near ? 1 + 0.08 * Math.max(0, Math.sin(t * Math.PI * 2 / 0.6)) : 1;
+  const status = !c ? `<span style="color:${P.grnDk}">+${TOTAL - QUOTA}€ planned</span>`
+    : (metNow ? `<span style="color:${P.grnDk}">+${shown - QUOTA}€ over</span>` : `<span style="color:${near ? P.musDk2 : P.tomDk}">${QUOTA - shown}€ to go</span>`);
+  const gain = c && c.last && c.last.kind === 'mul' && t - c.last.land < 0.6 ? c.last : null;
+  if (gain) { const q = t - gain.land; h += `<div style="left:${cx - 4}px;top:100px;width:${cw + 8}px;text-align:center;font:800 15px/22px Atkinson;color:${P.ink};white-space:nowrap;transform:scale(${(q < 0.15 ? 1.1 - 0.67 * q : 1).toFixed(3)})"><span style="background:${P.gold};padding:0 5px;box-shadow:0 0 0 2px ${P.ink}">${gain.txt} → ${gain.gain}</span></div>`; }
+  else h += `<div style="left:${cx}px;top:96px;width:${cw}px;text-align:center;font:800 14px/18px Atkinson;transform:scale(${pulse.toFixed(3)})">${met ? '' : status}</div>`;
+  if (met) { h += stamp(cx + 1, 100, 86, 14, -6); h += `<div style="left:${cx + 26}px;top:128px;font:800 14px/18px Atkinson;color:${P.ink};background:${P.gold};padding:0 5px;box-shadow:0 0 0 2px ${P.ink}">+${shown - QUOTA}€</div>`; }
+  // the flying amounts (to the number's left edge) and the landing beats
+  if (c) EVENTS.forEach(e => {
+    if (e.k !== s.item && !(e.k === s.item - 1 && t - e.land < 0.6)) return;
+    const from = e.kind === 'base' ? [124 + 150, 4 + 46] : e.kind === 'waste' ? [124 + 158, 4 + 118] : [124 + 156, 4 + 100];
+    h += chipHTML(e, t, from, [NX - gw / 2 - 20, NCY]);   // the chip's centre stops short, so its right edge just meets the digits
+    if (e.kind !== 'waste') h += landFX(e, t, NX, NCY, gw);
+  });
+  // the climax (#86 WIN B kept): when the total meets SPEND it takes the whole screen on its sunburst for about 1 s,
+  // a coin fountain erupts, then it shrinks back into the column
+  const cross = c ? crossTime() : null;
+  if (cross !== null && t >= cross && t < cross + 1.3) {
+    const q = t - cross, out = q > 1.05 ? ease((q - 1.05) / 0.25) : 0;
+    const scl = (q < 0.12 ? 0.4 + 0.75 * ease(q / 0.12) : (q < 0.25 ? 1.15 - 0.15 * ease((q - 0.12) / 0.13) : 1)) * (1 - 0.72 * out);
+    const ox = lerp(0, NX - 201, out), oy = lerp(0, NY - 77, out);
+    const shineQ = q > 0.15 && q < 0.6 ? (q - 0.15) / 0.45 : null;
+    let coins = '';
+    for (let i = 0; i < 14; i++) {
+      const qq = q - 0.08 - (i % 7) * 0.035; if (qq < 0 || qq > 0.95) continue;
+      const vx = ((i * 37) % 13 - 6) * 34, vy = -330 - (i * 53) % 120;
+      const x = 201 + vx * qq, y = 160 + vy * qq + 620 * qq * qq;
+      coins += `<img class="px" src="${ART}icons/coin.png" width="24" height="24" style="left:${snap2(x - 12)}px;top:${snap2(y - 12)}px;transform:scaleX(${Math.cos(qq * 18 + i).toFixed(2)})">`;
+    }
+    h += `<div style="left:0;top:0;width:402px;height:154px;opacity:${(1 - out).toFixed(3)};overflow:hidden">
+      <div style="left:0;top:0;width:402px;height:154px;background:${P.paper}"></div>
+      <img class="px" src="${sunURL(110, 70, true)}" width="440" height="280" style="left:-19px;top:-63px;transform:rotate(${((t * 14) % 360).toFixed(1)}deg)">${coins}</div>
+      <div style="left:${ox.toFixed(1)}px;top:${oy.toFixed(1)}px;width:402px;height:154px;transform-origin:201px 77px;transform:scale(${scl.toFixed(3)})">
+        ${bigNum(40, 22, 322, 84, 'center', `${shown}€`, shineQ)}
+        ${q > 0.3 ? stamp(106, 106, 158, 22, -5) : ''}
+        ${q > 0.42 ? `<div style="left:272px;top:110px;font:800 18px/24px Atkinson;color:${P.ink};background:${P.gold};padding:0 6px;box-shadow:0 0 0 2px ${P.ink}">+${shown - QUOTA}€</div>` : ''}</div>`;
+  }
+  return h;
+}
+
+// ---------- the top bar: today's #86 liquid gauge (QuotaMeter), at the newest capture's geometry ----------
+// The bar's chips come from the newest real capture (start_fixes_v1, pasted over the background), and only the SPEND
+// panel's insides are redrawn with this belt's numbers: the gauge at x 265-362 (18 px, 2 px ink border), the amount at
+// x 372 in mustard light, the tag at x 465 (84 x 22). The liquid is QuotaMeter's: rows lit / mid / dark, tomato while
+// short, mustard-brass from 80 %, green to the flag once met and gold past it; paper bubbles drift, the front sloshes
+// and sprays on each gain, and meeting the quota flashes it.
+const TB = {gx:267, gy:21, gw:94, gh:14};
+const RAMP = {short:[P.tomL, P.tom, P.tomDk], near:[P.mus, P.brass, P.brassDk], met:[P.grnL, P.grn, P.grnDk], past:[P.musP, P.musL, P.mus]};
+function liquidRows(x, w, ramp, front, t) {
+  // rows 0-3 lit, 4-9 mid, 10-13 dark; the front's rows step 2 px in and out as it sloshes
+  let h = '';
+  [[0, 4, 0], [4, 6, 1], [10, 4, 2]].forEach(([y, hh, k], i) => {
+    const off = front ? snap2(Math.sin(t * 9 + i * 1.7) * front) : 0, ww = Math.max(0, w + off);
+    if (ww > 0) h += `<div style="left:${x}px;top:${y}px;width:${ww}px;height:${hh}px;background:${ramp[k]}"></div>`;
+  });
+  return h;
+}
+function topBarHTML(s) {
+  const t = s.t, v = s.count ? s.count.poured : TOTAL, met = v >= QUOTA - 1e-6, amt = Math.floor(v + 1e-6);
+  const frac = met ? 1 : v / QUOTA, flagFrac = met ? QUOTA / Math.max(v, QUOTA) : null;
+  const fw = snap2(TB.gw * frac);
+  const since = s.count ? t - s.count.lastLand : 9, counting = s.count && !s.count.end;
+  const slosh = counting ? Math.max(0.6, 2.4 * Math.max(0, 1 - since / 0.6)) : 0.6;
+  let liq = '';
+  if (met) {
+    const fx = snap2(TB.gw * flagFrac);
+    liq += liquidRows(0, fx, RAMP.met, 0, t) + liquidRows(fx, fw - fx, RAMP.past, slosh, t);
+  } else if (fw) liq += liquidRows(0, fw, frac >= 0.8 ? RAMP.near : RAMP.short, slosh, t);
+  // bubbles drift up and along inside the liquid
+  [[0.13, 9, 2, 4], [0.37, 5, 4, 2], [0.58, 11, 2, 2], [0.76, 3, 2, 2], [0.9, 7, 4, 2]].forEach(([k, y0, bw, bh], i) => {
+    const bx = snap2(((k * TB.gw + t * (6 + i * 2)) % TB.gw)), by = snap2((y0 - t * 3 * (1 + i % 2)) % 12 + 12) % 12;
+    if (bx + bw < fw - 2) liq += `<div style="left:${bx}px;top:${by}px;width:${bw}px;height:${bh}px;background:${P.paper}"></div>`;
+  });
+  // the spray off the front on a gain: droplets over the gauge's top edge, falling back
+  if (counting && since < 0.8) [[-6, -40], [-2, -60], [3, -50], [7, -35], [-9, -25], [1, -70]].forEach(([vx, vy], i) => {
+    const q = since, dx = fw + vx * q * 6, dy = 2 + vy * q + 90 * q * q;
+    if (dy < 12) liq += `<div style="left:${snap2(dx)}px;top:${snap2(Math.max(-8, dy))}px;width:2px;height:2px;background:${i % 2 ? P.paper : (met ? P.musL : RAMP.short[0])}"></div>`;
+  });
+  // meeting the quota flashes the liquid
+  const cross = s.count ? crossTime() : null;
+  if (cross !== null && t >= cross && t - cross < 0.5) liq += `<div style="left:0;top:0;width:${TB.gw}px;height:${TB.gh}px;background:rgba(255,255,255,${(0.8 * (1 - (t - cross) / 0.5)).toFixed(2)})"></div>`;
+  const near = frac >= 0.8 && !met, glow = near ? (0.55 + 0.45 * Math.sin(t * Math.PI * 2 / 0.7)) : 0;
+  let h = `<div style="left:204px;top:11px;width:354px;height:33px;background:${P.tealDk}"></div>
+    ${near ? `<div style="left:137px;top:6px;width:428px;height:43px;box-shadow:0 0 0 3px rgba(241,210,122,${glow.toFixed(2)});pointer-events:none"></div>` : ''}
+    <div style="left:208px;top:11px;height:32px;font:800 21px/32px Atkinson;color:${P.paper}">€${QUOTA}+</div>
+    <div style="left:265px;top:19px;width:98px;height:18px;background:${P.ink}"></div>
+    <div style="left:${TB.gx}px;top:${TB.gy}px;width:${TB.gw}px;height:${TB.gh}px;background:${P.charcoal};overflow:hidden">${liq}</div>`;
+  if (met) {   // the flag (QuotaFlag) planted at the quota, a drawn check on green
+    const fx = TB.gx + snap2(TB.gw * flagFrac);
+    h += `<div style="left:${fx - 2}px;top:13px;width:2px;height:24px;background:${P.ink}"></div>
+      <div style="left:${fx}px;top:11px;width:14px;height:10px;background:${P.grn};box-shadow:0 0 0 2px ${P.ink}"></div>
+      <div style="left:${fx + 4}px;top:15px;width:2px;height:2px;background:${P.paper}"></div><div style="left:${fx + 6}px;top:17px;width:2px;height:2px;background:${P.paper}"></div><div style="left:${fx + 8}px;top:13px;width:2px;height:4px;background:${P.paper}"></div>`;
+  }
+  const punch = s.count && since < 0.28 ? 1 + 0.22 * (1 - since / 0.28) : 1;
+  h += `<div style="left:372px;top:11px;height:32px;font:800 21px/32px Atkinson;color:${P.musL};transform-origin:0 50%;transform:scale(${punch.toFixed(3)})">€${amt}</div>`;
+  const tag = !met ? `€${Math.ceil(QUOTA - v - 1e-6)} to go` : (amt === QUOTA ? 'Spot on' : `+€${amt - QUOTA}`);
+  h += `<div style="left:465px;top:19px;width:84px;height:22px;background:${met ? P.mus : P.paper};box-shadow:inset 0 0 0 2px ${P.ink};font:750 13px/22px Atkinson;color:${met ? P.ink : P.tomDk};text-align:center">${tag}</div>`;
+  return h;
+}
+
+// when the running total first meets the quota (the count's ding)
+function crossTime() { const x = ALL_TICKS.find(([, val]) => val >= QUOTA); return x ? x[0] : null; }
+
+// ---------- a whole stage ----------
+// the receipt: the projection while planning; during the count it prints line by line (#61): a line appears as its
+// item's beat starts and its amount follows the monitor's, the lines still to come are not printed yet, and the TOTAL
+// prints when the count ends
+function receiptHTML(s) {
+  const counting = s.mode === 'count', done = counting && s.count.end;
+  const lines = ITEMS.map((it, i) => {
+    if (counting && !done && i > s.item) return `<div class="flow" style="height:19px"></div>`;
+    const fiz = it.steps.some(x => x.fiz), on = counting && !done && s.item === i;
+    const amt = on ? countVal(it, s.t - s.t0).val : it.pay, settled = !on || s.t - s.t0 > STEP0 + it.steps.length * STEP_GAP;
+    const mark = !settled ? '' : fiz ? `<img class="px" src="${ART}icons/fizzle.png" width="14" height="14" style="vertical-align:-2px">` : `<span style="color:${P.grnDk}">✓</span>`;
+    const feed = on ? clamp((s.t - s.t0) / 0.12) : 1;
+    return `<div class="flow" style="display:flex;justify-content:space-between;opacity:${feed.toFixed(2)};${on ? `background:${P.musP};box-shadow:0 0 0 2px ${P.mus}` : ''}"><span>${it.name}</span><span>€${amt}.00 ${mark || '<span style="display:inline-block;width:14px"></span>'}</span></div>`;
+  }).join('');
+  const foot = !counting ? `<div class="flow" style="display:flex;justify-content:space-between;align-items:baseline"><span style="font-size:15px">PROJECTED</span><span style="font-size:22px;color:${P.grnDk}">€${TOTAL}.00</span></div><div class="flow" style="color:${P.tomDk}">1 WASTED</div>`
+    : done ? `<div class="flow" style="display:flex;justify-content:space-between;align-items:baseline"><span style="font-size:15px">TOTAL</span><span style="font-size:22px;color:${P.grnDk}">€${TOTAL}.00</span></div><div class="flow" style="color:${P.tomDk}">1 WASTED</div>` : '';
+  return `<div style="left:46px;top:112px;width:236px;height:228px;background:${P.paper}">
+    <div class="flow" style="position:absolute;left:8px;top:10px;width:218px;font:400 13px/19px JetBrains;color:${P.ink}">
+      <div class="flow">NEXT CUSTOMER · REG 3</div><div class="flow">SHIFT 3/8 · 6 ITEMS</div>
+      <div class="flow" style="border-top:2px dashed ${P.creamSh};margin:3px 0 2px"></div>${lines}
+      ${foot ? `<div class="flow" style="border-top:2px dashed ${P.creamSh};margin:4px 0 4px"></div>${foot}` : ''}
+    </div></div>`;
+}
+// the top strip both stages share: the newest capture's chips (start_fixes_v1) over the background, and the Cart
+// chip's count repainted to the Cart's 10 cards (the background capture says 13), so the bar and the Cart agree
+function topStripHTML() {
+  return `<div style="left:136px;top:0;width:940px;height:48px;background:url(start_fixes_v1/shift_screen_scan_1280x720.png) -136px 0 no-repeat"></div>
+    <div style="left:1150px;top:13px;width:52px;height:22px;background:${P.teal}"></div>
+    <div style="left:1153px;top:13px;height:22px;font:800 18px/22px Atkinson;color:${P.paper};white-space:nowrap">10/15</div>`;
+}
+const STAGES = [];
+function makeStage(cfg) {
+  const el = document.createElement('div'); el.className = 'stage';
+  const items = cfg.stress ? STRESS : ITEMS;
+  el.innerHTML = `<img class="px" src="premium_machine_ref_shift3_planning_no_announce.png" width="1280" height="720" style="left:0;top:0">
+    ${topStripHTML()}
+    <div style="left:490px;top:314px;width:776px;height:86px;background:url(${ART}scenery/belt_top.png) -142px 0 no-repeat"></div>
+    <div class="top"></div><div class="rcpt"></div>
+    <div class="tickets"></div><div class="hand"></div><div class="belt"></div><div class="dim belt"></div>
+    <div class="mon mon-paper" style="left:495px;top:77px;width:402px;height:154px"></div>
+    <div class="press" style="left:22px;top:425px;width:292px;height:76px;background:rgba(43,36,32,.35);display:none"></div>
+    <div class="demo"></div>
+    <img class="px cur" src="${cursorURL()}" width="20" height="28" style="left:0;top:0">
+    <div class="hits"></div>`;
+  const st = {el, cfg, last:null, visible:true};
+  ['tickets', 'mon', 'cur', 'press', 'top', 'rcpt', 'demo', 'hand', 'hits'].forEach(k => { st[k] = el.querySelector('.' + k); });
+  st.belt = el.querySelector('.belt:not(.dim)'); st.dim = el.querySelector('.dim');
+  st.tickets.innerHTML = items.map((it, i) => ticketHTML(it, slotX(i), TICKET_Y, {item: cfg.mix ? 'b' + i : null})).join('');
+  st.tk = [...st.tickets.children];
+  if (cfg.stress) ticketHTML(ITEMS[4], slotX(4), TICKET_Y);   // the tooltip demo's glyph spots
+  if (cfg.mix) setupMix(st);
+  STAGES.push(st);
+  if (OBS) OBS.observe(el);
+  return st;
+}
+// a stack on the item's right shoulder (v3 review: it used to cover most of the sprite): the newest sticker at the
+// bottom, overlapping by STACK_OVERLAP px; drawn top first so the newest is in front
+const STACK_DX = 78, STACK_OVERLAP = 3, STACK_BOTTOM = 374;
+const stackLeft = (sx, idx, st) => sx + STACK_DX + (idx % 2 ? 4 : 0) - (st.k === 'mul' ? 8 : 0) - (st.k === 'waste' ? 18 : 0);
+function stackHTML(it, t, drained, order) {
+  const n = it.stick.length; if (!n) return '';
+  const parts = []; let bottom = STACK_BOTTOM;
+  for (let idx = 0; idx < n; idx++) {
+    const j = n - 1 - idx, st = it.stick[j], d = stickerDims(st);
+    const top = bottom - d.h, left = stackLeft(spriteX(it.slot), idx, st);
+    parts.push({st, j, idx, left, top, w:d.w}); bottom = top + STACK_OVERLAP;
+  }
+  // the giver's spark run while planning (the slap); in the count the rail light carries the link instead (#86)
+  let runs = '';
+  parts.forEach(p => {
+    if (!p.st.giver || drained) return;
+    const gs = ITEMS.findIndex(x => x.id === p.st.giver); if (gs < 0) return;
+    const from = [spriteX(gs) + 48, SPRITE_Y + 18], to = [p.left + p.w / 2, p.top + 4], ta = 0.15 + 0.11 * (order + p.j);
+    const u = (t - (ta - 0.35)) / 0.35; if (u > 0 && u < 1.18) runs += sparkRunHTML(from, to, u);
+  });
+  return parts.reverse().map(p => stickerHTML(p.st, p.left, p.top, TILTS[p.idx % 5], 0.15 + 0.11 * (order + p.j), fireAt(it.slot, p.j), t, drained)).join('') + runs;
+}
+// #86's rail light, kept: as a giver's effect pays, the rail strip over the tickets (y 414-420, between its ink lines)
+// lights gold from the giver's ticket to the target's in 0.2 s (the head a paper pixel run with two sparks), both
+// tickets get a gold edge, then it holds and fades
+const RAIL_Y = 414, RAIL_H = 6;
+function railLightHTML(t) {
+  let h = '';
+  EVENTS.forEach(e => {
+    if (!e.giver) return;
+    const g = ITEMS.findIndex(x => x.id === e.giver); if (g < 0) return;
+    const q = t - e.t0; if (q < 0 || q > 0.7) return;
+    const gx = slotX(g) + 54, tx = slotX(e.k) + 54, u = ease(q / 0.2), hx = snap2(lerp(gx, tx, u));
+    const op = q < 0.45 ? 1 : 1 - (q - 0.45) / 0.25, x0 = Math.min(gx, hx), w = Math.abs(hx - gx);
+    h += `<div style="left:${x0}px;top:${RAIL_Y}px;width:${w}px;height:${RAIL_H}px;background:linear-gradient(90deg,${P.mus},${P.gold});opacity:${op.toFixed(2)}"></div>
+      <div style="left:${x0}px;top:${RAIL_Y}px;width:${w}px;height:2px;background:${P.musP};opacity:${op.toFixed(2)}"></div>`;
+    if (u < 1) h += `<div style="left:${hx - 4}px;top:${RAIL_Y}px;width:8px;height:${RAIL_H}px;background:${P.paper}"></div>` + sparkHTML(hx - 6, RAIL_Y - 6, null) + sparkHTML(hx - 10, RAIL_Y + 6, P.musL);
+    [g, u >= 1 ? e.k : null].forEach(i => { if (i !== null) h += `<div style="left:${slotX(i)}px;top:${TICKET_Y}px;width:108px;height:64px;box-shadow:0 0 0 2px ${P.gold};opacity:${op.toFixed(2)}"></div>`; });
+  });
+  return h;
+}
+function drawStage(st, t) {
+  if (st.cfg.mix) return drawMix(st, t);
+  const cfg = st.cfg, gp = ITEMS[4].gp, s = stateAt(t, gp);
+  let b = '', order = 0;
+  ITEMS.forEach((it, i) => {
+    let lift = 0;
+    if (s.mode === 'count' && i === s.item) lift = -6 * Math.sin(clamp((t - s.t0) / 0.3) * Math.PI);
+    b += `<img class="px" src="${ART}items_v2/${it.id}.png" width="96" height="96" style="left:${spriteX(i)}px;top:${SPRITE_Y + lift}px">`;
+  });
+  ITEMS.forEach(it => { const drained = s.mode === 'scan' && s.item !== it.slot; b += stackHTML(it, t, drained, order); order += it.stick.length; });
+  if (s.reticle !== undefined) b += scanCorners(spriteX(s.reticle) - 6, SPRITE_Y - 8, 108, 104, P.tom, 12, 2);
+  if (s.hold) { const i = s.holdSlot; b += scanCorners(spriteX(i) - 6, SPRITE_Y - 8, 108, 104, `rgba(217,83,79,${0.3 + 0.7 * s.hold})`, 4 + 8 * s.hold, 2); }
+  let d = '';
+  if (s.mode === 'count') { b += scanCorners(spriteX(s.item) - 6, SPRITE_Y - 8, 108, 104, P.gold, 14, 3);
+    for (let j = 0; j < s.item; j++) d += `<div style="left:${slotX(j)}px;top:${TICKET_Y}px;width:108px;height:64px;background:rgba(36,34,31,.28)"></div>`;
+    d += railLightHTML(t); }
+  st.belt.innerHTML = b; st.dim.innerHTML = d;
+  st.mon.innerHTML = monitorB(s);
+  st.top.innerHTML = topBarHTML(s);
+  st.rcpt.innerHTML = receiptHTML(s);
+  let tip = '';
+  if (s.tip !== null && !cfg.stress) {
+    const g = gp[s.tip], since = t - (s.tip === 0 ? 1.15 : T_TIP1 + 0.2);
+    tip = tipHTML(g.fam, g.x + 9, g.bottom, since < 0.08 ? 0.6 + 0.4 * since / 0.08 : 1, true);
+  }
+  st.demo.innerHTML = tip;
+  st.cur.style.display = s.cursor ? 'block' : 'none';
+  if (s.cursor) { st.cur.style.left = s.cursor[0] + 'px'; st.cur.style.top = s.cursor[1] + 'px'; }
+  st.press.style.display = s.press ? 'block' : 'none';
+}
+
+// ---------- section 4: highlight to help mixing ----------
+// the planning stage: the belt (settled stickers), the hand (items cut out of the capture), the Cart via makeCart
+/*HAND*/
+// v3 review: a calmer grey (it was saturate .12 brightness .62, near-black slabs)
+const GREY_SAT = 0.2, GREY_BR = 0.78, GREY = `saturate(${GREY_SAT}) brightness(${GREY_BR})`;
+const REAL_LINKS = [[0, 1], [2, 3], [3, 4]];   // the pairs that pay in this order (EffectGraph): Eggs > Milk, Strawberries + Lemon, Lemon > Frozen peas
+let MIX = Q.get('mix') === 'B' ? 'B' : 'A';
+function mixCard(key) { return key[0] === 'b' ? ITEMS[+key.slice(1)] : CARD[HAND[+key.slice(1)].id]; }
+// does a's rule name b? 'pen' for a penalty; 'weak' for a Food target (almost every product is Food, so "×2 next Food"
+// would light nearly everything: those matches show only as a faint outline unless the pair pays now)
+function ruleHits(a, b) {
+  const t = a.tgt || '-';
+  if (t === 'T:Food') return b.tags.includes('Food') ? 'weak' : null;
+  if (t.startsWith('T:')) return b.tags.includes(t.slice(2)) ? 'yes' : null;
+  if (t.startsWith('P:')) return b.tags.includes(t.slice(2)) ? 'pen' : null;
+  if (t.startsWith('C:')) return b.id === t.slice(2) ? 'yes' : null;
+  if (t === 'S') return b.id === a.id ? 'yes' : null;
+  if (t === 'X:coupon') return b.coupon ? 'yes' : null;
+  return null;
+}
+const MIX_KEYS = () => ITEMS.map((_, i) => 'b' + i).concat(HAND.map((_, j) => 'h' + j));
+// what stays lit: {key: 'lit' | 'now' | 'pen'}; null = no highlight
+function litSet(hl, keys) {
+  if (!hl) return null;
+  const out = {};
+  if (hl.fam) { keys.forEach(k => { const c = mixCard(k); if (hl.fam === 'Staple' ? c.src === 'Staple' : c.tags.includes(hl.fam)) out[k] = 'lit'; }); return out; }
+  const h = mixCard(hl.item); out[hl.item] = 'self';
+  keys.forEach(k => {
+    if (k === hl.item) return;
+    const c = mixCard(k);
+    const now = hl.item[0] === 'b' && k[0] === 'b' && REAL_LINKS.some(([a, b]) => (a === +hl.item.slice(1) && b === +k.slice(1)) || (b === +hl.item.slice(1) && a === +k.slice(1)));
+    if (MIX === 'B') { if (now) out[k] = 'now'; return; }
+    const r1 = ruleHits(h, c), r2 = ruleHits(c, h);
+    if (r1 === 'pen' || r2 === 'pen') out[k] = 'pen';
+    else if (now) out[k] = 'now';
+    else if (r1 === 'yes' || r2 === 'yes') out[k] = 'lit';
+    else if (r1 || r2) out[k] = 'faint';
+  });
+  return out;
+}
+function setupMix(st) {
+  st.hand.innerHTML = '';
+  st.hits.innerHTML = ITEMS.map((_, i) => `<div data-item="b${i}" style="left:${spriteX(i)}px;top:${SPRITE_Y}px;width:96px;height:96px"></div>`).join('')
+    + HAND.map((hd, j) => `<div data-item="h${j}" style="left:${hd.x}px;top:${hd.y}px;width:${hd.w}px;height:${590 - hd.y}px"></div>`).join('');
+  st.el.addEventListener('mousemove', e => {
+    const el = document.elementFromPoint(e.clientX, e.clientY);
+    const gl = el && el.closest('.gl'), itm = el && el.closest('[data-item]');
+    st.hover = gl && FAM[gl.dataset.tip] ? {hl:{fam:gl.dataset.tip}} : itm ? {hl:{item:itm.dataset.item}} : {hl:null};
+    st.last = null;
+  });
+  st.el.addEventListener('mouseleave', () => { st.hover = null; st.last = null; });
+}
+// the auto-demo: Produce glyph (Strawberries' ticket), Breakfast glyph (Milk's), Milk, Cereal in the hand, Frozen peas
+const MIX_BEATS = [['Produce', 2.6], ['Breakfast', 6.6], ['Milk', 10.5], ['Hand', 13.9], ['Peas', 16.2]];
+function mixDemo(t) {
+  const glyphAt = (i, j) => { const g = ITEMS[i].gp[j]; return [g.x + 9, g.y + 9]; };
+  const overB = i => [spriteX(i) + 44, SPRITE_Y + 52], overH = j => [HAND[j].x + HAND[j].w / 2, HAND[j].y + 22];
+  const P0 = [700, 660], seq = [
+    [0.4, 1.0, glyphAt(2, 0), {fam:'Produce'}, 4.4],
+    [4.4, 4.9, glyphAt(1, 0), {fam:'Breakfast'}, 8.2],
+    [8.2, 8.7, overB(1), {item:'b1'}, 12.4],
+    [12.4, 12.9, overH(3), {item:'h3'}, 14.6],
+    [14.6, 15.1, overB(4), {item:'b4'}, 17.3],
+  ];
+  let from = P0;
+  for (const [m0, m1, to, hl, end] of seq) {
+    if (t < m0) return {cursor:from, hl:null};
+    if (t < m1) return {cursor:[lerp(from[0], to[0], ease((t - m0) / (m1 - m0))), lerp(from[1], to[1], ease((t - m0) / (m1 - m0)))], hl:null};
+    if (t < end) return {cursor:to, hl, since:t - m1};
+    from = to;
+  }
+  return {cursor:from, hl:null};
+}
+function drawMix(st, t) {
+  const real = st.hover !== null && st.hover !== undefined;
+  const s = real ? {cursor:null, hl:st.hover.hl, since:1} : mixDemo(t);
+  const keys = MIX_KEYS(), lit = litSet(s.hl, keys), fade = clamp((s.since || 0) / 0.15);
+  const greyOf = k => lit && (!lit[k] || lit[k] === 'faint') ? `filter:saturate(${(1 - (1 - GREY_SAT) * fade).toFixed(2)}) brightness(${(1 - (1 - GREY_BR) * fade).toFixed(2)});` : '';
+  let b = '';
+  ITEMS.forEach((it, i) => { b += `<img class="px" src="${ART}items_v2/${it.id}.png" width="96" height="96" style="left:${spriteX(i)}px;top:${SPRITE_Y}px;${greyOf('b' + i)}">`; });
+  ITEMS.forEach(it => { const g = greyOf('b' + it.slot); b += g ? `<div style="left:0;top:0;${g}">${stackHTML(it, 4, false, 0)}</div>` : stackHTML(it, 4, false, 0); });
+  st.tk.forEach((el, i) => { el.style.filter = (greyOf('b' + i).match(/filter:([^;]*)/) || [, ''])[1]; });
+  let hd = '';
+  HAND.forEach((x, j) => { const g = greyOf('h' + j); if (g) hd += `<img class="px" src="${x.src}" width="${x.w}" height="${x.h}" style="left:${x.x}px;top:${x.y}px;${g}">`; });
+  let mk = '';
+  // marks: the hovered item's brackets; a green check on a pair that pays now; a tomato "!" on a penalty
+  const box = k => k[0] === 'b' ? [spriteX(+k.slice(1)) - 6, SPRITE_Y - 8, 108, 104] : (x => [x.x - 6, x.y - 8, x.w + 12, 590 - x.y + 8])(HAND[+k.slice(1)]);
+  if (lit) Object.entries(lit).forEach(([k, v]) => {
+    const [x, y, w] = box(k);
+    if (v === 'self') mk += scanCorners(x, y, w, box(k)[3], P.mus, 12, 2);
+    if (v === 'faint') mk += `<div style="left:${x + 4}px;top:${y + 4}px;width:${w - 8}px;height:${box(k)[3] - 8}px;outline:2px dashed rgba(241,210,122,${(0.6 * fade).toFixed(2)})"></div>`;
+    if (v === 'now') mk += `<img class="px" src="${checkURL()}" width="18" height="16" style="left:${x + w - 22}px;top:${y + 2}px;filter:${DROP}">`;
+    if (v === 'pen') mk += `<div style="left:${x + w - 20}px;top:${y + 2}px;width:16px;height:18px;background:${P.tom};box-shadow:0 0 0 2px ${P.ink};font:800 14px/18px Atkinson;text-align:center;color:${P.paper};filter:${DROP}">!</div>`;
+  });
+  st.belt.innerHTML = b; st.hand.innerHTML = hd; st.dim.innerHTML = mk;
+  const s0 = {t, mode:'next', item:0, t0:0, count:null};
+  if (st.last === null || st.last === undefined) { st.mon.innerHTML = monitorB(s0); st.top.innerHTML = topBarHTML(s0); st.rcpt.innerHTML = receiptHTML(s0); }
+  // the demo's tooltips: the glyph's family name under the ticket; a hand item's name and short rule above it
+  let tip = '';
+  if (!real && s.hl && s.since > 0.15) {
+    const pop = s.since < 0.23 ? 0.6 + 0.4 * (s.since - 0.15) / 0.08 : 1;
+    if (s.hl.fam) { const g = s.hl.fam === 'Produce' ? ITEMS[2].gp[0] : ITEMS[1].gp[0]; tip = tipHTML(s.hl.fam, g.x + 9, g.bottom, pop, true); }
+    else if (s.hl.item[0] === 'h') { const x = HAND[+s.hl.item.slice(1)], c = CARD[x.id]; tip = tipHTML(`${c.name} · ${c.eff.replace(/\{(\w+)\}/g, '$1')}`, x.x + x.w / 2, x.y - 10, pop, false); }
+  }
+  st.demo.innerHTML = tip;
+  st.cur.style.display = s.cursor ? 'block' : 'none';
+  if (s.cursor) { st.cur.style.left = s.cursor[0] + 'px'; st.cur.style.top = s.cursor[1] + 'px'; }
+}
+
+// ---------- the Cart (deck view B): the ticket on the steel shelf rail, base price; hover a glyph or an item to highlight ----------
+function makeCart(cfg) {
+  const el = document.createElement('div'); el.className = 'stage';
+  const X0 = 112, STEP = 128;
+  const products = ITEMS.concat([STRESS[3], STRESS[4]]), coupons = [CARD.multipack, CARD.final_markdown];
+  const cells = (list, y, pre) => list.map((it, i) => {
+    const x = X0 + STEP * i;
+    const art = it.coupon
+      ? `<img class="px" src="${ART}icons/coupon_${it.id}_v2.png" width="80" height="56" style="left:${x + 14}px;top:${y + 34}px">`
+      : `<img class="px" src="${ART}items_v2/${it.id}.png" width="96" height="96" style="left:${x + 6}px;top:${y + 4}px">`;
+    return `<div class="cell" data-key="${pre}${i}" style="left:0;top:0">` + art + ticketHTML(Object.assign({}, it), x, y + 100, {cart:true, item:pre + i})
+      + `<div style="left:${x - 4}px;top:${y + 172}px;width:116px;text-align:center;font:800 14px Atkinson;color:${P.paper};white-space:nowrap">${it.name}</div></div>`;   // the game's Cart prints names in Atkinson (deck_cell.gd)
+  }).join('');
+  const rail = (y, n) => `<div class="px" style="left:${X0 - 8}px;top:${y + 112}px;width:${STEP * n + 4}px;height:40px;border:6px solid transparent;
+    border-image:url(${ART}frames/shelf_rail.png) 3 fill / 6px stretch;image-rendering:pixelated"></div>`;
+  el.innerHTML = `<img class="px" src="premium_machine_ref_shift3_planning_no_announce.png" width="1280" height="720" style="left:0;top:0">
+    ${topStripHTML()}<div class="top">${topBarHTML({t:0, mode:'next', item:0, t0:0, count:null})}</div>
+    <div style="left:0;top:0;width:1280px;height:720px;background:rgba(20,18,16,.45)"></div>
+    <div style="left:80px;top:62px;width:1120px;height:610px;background:${P.teal};box-shadow:0 0 0 4px ${P.ink}"></div>
+    <div style="left:88px;top:112px;width:1104px;height:552px;background:${P.tealDk};box-shadow:0 0 0 2px ${P.ink}"></div>
+    <div style="left:100px;top:70px;font:400 22px/36px Pixelify;color:${P.musL}">Your cart <span style="font:${NUM} 20px Atkinson">(10/15)</span></div>
+    <div style="left:104px;top:120px;font:800 15px Atkinson;letter-spacing:1px;color:${P.mus}">PRODUCTS (8)</div>
+    ${rail(140, products.length)}${cells(products, 140, 'p')}
+    <div style="left:104px;top:376px;font:800 15px Atkinson;letter-spacing:1px;color:${P.mus}">COUPONS (2)</div>
+    ${rail(396, 2)}${cells(coupons, 396, 'c')}<div class="faints"></div>`;
+  const all = {}; products.forEach((c, i) => { all['p' + i] = c; }); coupons.forEach((c, i) => { all['c' + i] = c; });
+  const faints = el.querySelector('.faints');
+  const apply = hl => {
+    let fh = '';
+    el.querySelectorAll('.cell').forEach(cell => {
+      const k = cell.dataset.key, c = all[k]; let on = true;
+      if (hl && hl.fam) on = hl.fam === 'Staple' ? c.src === 'Staple' : (c.tags || []).includes(hl.fam);
+      else if (hl && hl.item) {
+        const r1 = ruleHits(all[hl.item], c), r2 = ruleHits(c, all[hl.item]);
+        on = k === hl.item || r1 === 'yes' || r2 === 'yes' || r1 === 'pen' || r2 === 'pen';
+        if (!on && (r1 || r2)) { const i = +k.slice(1), y = k[0] === 'p' ? 140 : 396; fh += `<div style="left:${X0 + STEP * i - 2}px;top:${y + 2}px;width:112px;height:192px;outline:2px dashed rgba(241,210,122,.6)"></div>`; }
+      }
+      cell.style.filter = hl && !on ? GREY : '';
+    });
+    faints.innerHTML = fh;
+  };
+  el.addEventListener('mousemove', e => {
+    const t = document.elementFromPoint(e.clientX, e.clientY), gl = t && t.closest('.gl'), itm = t && t.closest('[data-item]');
+    apply(gl && FAM[gl.dataset.tip] ? {fam:gl.dataset.tip} : itm ? {item:itm.dataset.item} : null);
+  });
+  el.addEventListener('mouseleave', () => apply(null));
+  if (cfg.hl) apply(cfg.hl);
+  return el;
+}
+
+// ---------- section 3: sticker stacks that fold from the 5th ----------
+let FOLD = Q.get('fold') === 'B' ? 'B' : 'A';
+const ST7 = [{k:'add', t:'+2'}, {k:'mul', t:'×2', giver:'eggs'}, {k:'add', t:'+3', giver:'coffee'}, {k:'add', t:'+12', stamp:'CoE'},
+  {k:'mul', t:'×3', coupon:'Mu'}, {k:'add', t:'+4', giver:'eggs_golden'}, {k:'mul', t:'×2', coupon:'2f'}];
+const ST7_V = [4, 6, 12, 15, 27, 81, 85, 170];   // the demo Milk's price after each sticker (base €4)
+// positions for m placed stickers (step order 0..m-1) on an item whose sprite's left edge is sx; the newest at the
+// bottom (its bottom edge at `bottom`), 6 px overlap; from the 5th the oldest fold into the chip (A) or the pile (B)
+function stackLayout(list, m, sx, bottom) {
+  const pos = [], vis = Math.min(m, 4); let b = bottom - 10;   // the stage's stack bottom sits 12 px above the sprite's
+  for (let idx = 0; idx < vis; idx++) {
+    const j = m - 1 - idx, st = list[j], d = stickerDims(st);
+    const top = b - d.h, left = stackLeft(sx, idx, st);
+    pos[j] = {x:left, y:top, w:d.w, h:d.h, s:1, o:1, idx}; b = top + STACK_OVERLAP;
+  }
+  const chip = {x:sx + STACK_DX, y:b - 30, w:64, h:30};
+  for (let j = 0; j < m - 4; j++) {
+    const d = stickerDims(list[j]), top = pos[m - 4];
+    if (FOLD === 'A') pos[j] = {x:chip.x + chip.w / 2 - d.w / 2, y:chip.y + chip.h / 2 - d.h / 2, w:d.w, h:d.h, s:0.3, o:0, idx:4, folded:true};
+    else { const k = Math.min(m - 4 - j, 3); pos[j] = {x:top.x + 2 * k, y:top.y - 4 * k, w:d.w, h:d.h, s:1, o:1, idx:4, folded:true, edge:k}; }
+  }
+  return {pos, chip, folded:Math.max(0, m - 4)};
+}
+// the fan (v3 review: it was a 150° arc of radius 200, about 390 px wide, its ends down on the neighbours' tickets):
+// at most four stickers to a row, 76 px apart on a gentle arch (the ends 10 px lower, each tilted by its place, about
+// ±9° across a row), from 5 stickers in two rows 44 px apart, the oldest row on top; so the whole fan is at most about
+// 310 px wide (about one slot either side), sits just above the item and above the belt, and no amount is hidden. One arc of
+// 100° at radius 110 was tried first: seven stickers on it overlap by half and hide their amounts. Each sticker carries
+// its order number, 1 to N, at its top-left corner; the oldest is top left.
+const FAN_GAP = 76, FAN_ROW = 44, FAN_PER_ROW = 4;
+function fanPos(n, j, list, sx, bottom, dx) {
+  const rows = Math.ceil(n / FAN_PER_ROW), per = Math.ceil(n / rows), row = Math.floor(j / per), i = j % per;
+  const m = row < rows - 1 ? per : n - per * (rows - 1), off = (i - (m - 1) / 2) * FAN_GAP;
+  const d = stickerDims(list[j]), px = sx + 48 + (dx || 0), base = bottom - 112;   // the lower row's centre: just above the item
+  const y = base - (rows - 1 - row) * FAN_ROW + 10 * (off / (1.5 * FAN_GAP)) ** 2;
+  return {x:px + off - d.w / 2, y:y - d.h / 2, w:d.w, h:d.h, s:1, o:1, rot:off / (1.5 * FAN_GAP) * 9, order:j + 1};
+}
+const lerpPos = (a, b, u) => ({x:lerp(a.x, b.x, u), y:lerp(a.y, b.y, u), w:b.w, h:b.h, s:lerp(a.s, b.s, u), o:lerp(a.o, b.o, u), rot:lerp(a.rot || 0, b.rot || 0, u), idx:u < 0.5 ? a.idx : b.idx, folded:u < 0.5 ? a.folded : b.folded, edge:u < 0.5 ? a.edge : b.edge, order:b.order, orderU:b.order ? u : 0});
+// one item with its stack. ta[j]: when sticker j lands; tf[j]: when it fires (or null); fanU: 0..1 (hover)
+function stackItemHTML(it, list, sx, bottom, ty, ta, tf, t, fanU, opts) {
+  opts = opts || {};
+  const m = ta.filter(x => t >= x).length;
+  let h = `<img class="px" src="${ART}items_v2/${it.id}.png" width="96" height="96" style="left:${sx}px;top:${bottom - 94}px">`;
+  // the price climbs as the stack fires
+  let fired = 0; if (tf) tf.forEach((x, j) => { if (j < m && x !== null && t >= x) fired = j + 1; });
+  const pay = opts.values ? opts.values[fired] : it.base, lastF = fired ? tf[fired - 1] : -9;
+  h += ticketHTML(Object.assign({}, it), sx - 6, ty, {pay, burstScale:t - lastF < 0.2 ? 1 + 0.3 * (1 - (t - lastF) / 0.2) : 1});
+  if (!m) return h;
+  // the count opens the fan while folded stickers fire
+  let fan = fanU;
+  if (tf && m > 4 && tf[0] !== null) { const a = tf[0] - 0.25, z = tf[m - 5] + 0.4; fan = Math.max(fan, t < a ? 0 : t < a + 0.18 ? ease((t - a) / 0.18) : t < z ? 1 : 1 - ease((t - z) / 0.18)); }
+  const now = stackLayout(list, m, sx, bottom), prev = m > 1 ? stackLayout(list, m - 1, sx, bottom) : null;
+  const mv = ease((t - ta[m - 1]) / 0.2);
+  const parts = [];
+  for (let j = 0; j < m; j++) {
+    let p = now.pos[j];
+    if (prev && prev.pos[j] && mv < 1) p = lerpPos(prev.pos[j], p, mv);
+    if (fan > 0) p = lerpPos(p, fanPos(m, j, list, sx, bottom, opts.fanDx), ease(fan));
+    parts.push({j, p});
+  }
+  // draw: the stack top first (the newest in front); in the fan, left to right
+  parts.sort((a, b) => fan > 0.5 ? a.j - b.j : a.j - b.j);
+  parts.forEach(({j, p}) => {
+    if (p.o < 0.02) return;
+    const pile = p.edge && fan < 0.5;
+    const inner = stickerHTML(list[j], 0, 0, (fan > 0.5 ? 0 : TILTS[p.idx % 5]) + (p.rot || 0), ta[j], tf ? tf[j] : null, t, pile ? 'saturate(.2) brightness(.8)' : false);
+    const num = p.order && p.orderU > 0.6 ? `<div style="left:-8px;top:-8px;width:16px;height:16px;background:${P.ink};box-shadow:0 0 0 2px ${P.paper};font:800 12px/16px Atkinson;text-align:center;color:${P.paper};opacity:${((p.orderU - 0.6) / 0.4).toFixed(2)};transform:rotate(${(p.rot || 0).toFixed(1)}deg)">${p.order}</div>` : '';
+    h += `<div style="left:${p.x.toFixed(1)}px;top:${p.y.toFixed(1)}px;width:${p.w}px;height:${p.h}px;opacity:${p.o.toFixed(2)};transform:scale(${p.s.toFixed(3)})">${inner}${num}</div>`;
+  });
+  // the fold: A's chip (pops in with the 5th, punches on each new fold), B's count disc on the pile
+  if (now.folded && fan < 0.98) {
+    const op = 1 - ease(fan), lastFold = ta[m - 1], q = t - lastFold, sc = q < 0.22 ? 1 + 0.3 * (1 - q / 0.22) ** 2 : 1;
+    const pop = m === 5 && q < 0.12 ? 0.3 + 0.7 * q / 0.12 : 1;
+    if (FOLD === 'A') h += foldChipHTML(now.chip.x, now.chip.y, now.folded, sc * pop, op);
+    else { const tp = now.pos[m - 4]; h += `<div style="left:${tp.x + tp.w - 6}px;top:${tp.y - 14}px;width:20px;height:20px;border-radius:10px;background:${P.ink};box-shadow:0 0 0 2px ${P.paper};font:800 13px/20px Atkinson;text-align:center;color:${P.paper};opacity:${op.toFixed(2)};transform:scale(${(sc * pop).toFixed(3)})">${now.folded}</div>`; }
+  }
+  return h;
+}
+// A's chip: a grey sticker label with a card-fan mark (three paper cards, ink-edged) and the count in ink, 17 px, no
+// shadow (v3 review: the pale inkL count with its steel shadow could not be read)
+function foldChipHTML(x, y, n, sc, op) {
+  const w = 64;
+  const mark = [[0, 3, -14], [5, 1, 0], [10, 3, 14]].map(([dx, dy, r]) => `<div style="left:${9 + dx}px;top:${5 + dy}px;width:10px;height:14px;background:${P.paper};box-shadow:0 0 0 2px ${P.ink};transform:rotate(${r}deg)"></div>`).join('');
+  return `<div style="left:${x}px;top:${y}px;width:${w}px;height:32px;opacity:${op.toFixed(2)};transform:rotate(-3deg) scale(${sc.toFixed(3)});filter:${DROP}">
+    <img class="px" src="${labelURL(w / 2, 'grey')}" width="${w}" height="32" style="left:0;top:0">${mark}
+    <div style="left:32px;top:0;width:28px;height:26px;line-height:26px;font:800 17px Atkinson;color:${P.ink}">+${n}</div></div>`;
+}
+// the static specimens (1, 2, 3, 4, 5, 7) with hover fans, and the building/firing demo
+const STACK_SPECS = [
+  [card('strawberries'), [{k:'add', t:'+3'}], '1: Strawberries'],
+  [card('frozen_peas'), [{k:'waste'}, {k:'mul', t:'×2', giver:'lemon'}], '2: Frozen peas'],
+  [card('milk'), ST7.slice(0, 3), '3'],
+  [card('milk'), ST7.slice(0, 4), '4: the most in full'],
+  [card('milk'), ST7.slice(0, 5), '5: one folds (hover)'],
+  [card('milk'), ST7, '7: three fold (hover)'],
+];
+const SPEC_CELLS = [];
+function buildStackRow() {
+  const row = document.getElementById('stackrow');
+  row.innerHTML = STACK_SPECS.map((s, i) => `<div class="cell" data-i="${i}"><div class="abs" style="position:absolute;left:0;top:0;width:200px;height:300px"></div><div class="lbl">${s[2]}</div></div>`).join('');
+  row.querySelectorAll('.cell').forEach(c => {
+    const o = {el:c, box:c.firstElementChild, i:+c.dataset.i, hoverAt:null, leaveAt:-9};
+    c.addEventListener('mouseenter', () => { o.hoverAt = performance.now() / 1000; c.classList.add('hot'); });
+    c.addEventListener('mouseleave', () => { o.hoverAt = null; o.leaveAt = performance.now() / 1000; setTimeout(() => c.classList.remove('hot'), 200); });
+    SPEC_CELLS.push(o);
+  });
+  if (Q.has('fan')) SPEC_CELLS[5].el.classList.add('hot');
+}
+function fanOf(o) {
+  if (Q.has('fan') && o.i === 5) return 1;
+  const r = performance.now() / 1000;
+  return o.hoverAt !== null ? ease((r - o.hoverAt) / 0.18) : 1 - ease((r - o.leaveAt) / 0.18);
+}
+function drawStackRow() {
+  const fans = SPEC_CELLS.map(fanOf), top = Math.max(...fans);
+  SPEC_CELLS.forEach((o, i) => { const dim = top > 0 && fans[i] < top ? `saturate(${(1 - 0.8 * top).toFixed(2)}) brightness(${(1 - 0.4 * top).toFixed(2)})` : ''; if (o.box.style.filter !== dim) o.box.style.filter = dim; });
+  SPEC_CELLS.forEach(o => {
+    const [it, list] = STACK_SPECS[o.i], f = fanOf(o), key = FOLD + f.toFixed(3);
+    if (o.key === key) return; o.key = key;
+    o.box.innerHTML = stackItemHTML(it, list, 52, 214, 230, list.map(() => -1), null, 100, f, {fanDx:0});
+  });
+}
+const SD_LOOP = 8.75, SD_TA = ST7.map((_, j) => 0.3 + 0.45 * j), SD_TF = [5.05, 5.3, 5.55, 6.05, 6.3, 6.55, 6.8];
+const SD_EL = [];
+function buildStackDemos() {
+  const wrap = document.getElementById('stackdemos');
+  [1, 2].forEach(z => {
+    const d = document.createElement('div'); d.className = 'stackdemo';
+    d.style.width = 500 * z + 'px'; d.style.height = 300 * z + 'px';
+    d.innerHTML = `<div class="abs" style="position:absolute;left:0;top:0;width:500px;height:300px;transform-origin:0 0;transform:scale(${z})">
+      <div style="left:0;top:132px;width:500px;height:86px;background:url(${ART}scenery/belt_top.png) -260px 0 no-repeat"></div><div class="sd"></div>
+      <img class="px sdcur" src="${cursorURL()}" width="20" height="28" style="left:0;top:0;display:none"></div>`;
+    wrap.appendChild(d); SD_EL.push({box:d.querySelector('.sd'), cur:d.querySelector('.sdcur')});
+  });
+}
+function drawStackDemos(t) {
+  const ts = t % SD_LOOP, fanU = ts > 3.45 && ts < 4.75 ? (ts < 3.65 ? ease((ts - 3.45) / 0.18) : ts < 4.55 ? 1 : 1 - ease((ts - 4.55) / 0.18)) : 0;
+  const tf = ts > 4.9 ? SD_TF : null;
+  SD_EL.forEach(o => {
+    o.box.innerHTML = stackItemHTML(CARD.milk, ST7, 200, 214, 226, SD_TA, tf || ST7.map(() => null), ts, fanU, {values:ST7_V})
+      + (ts > 7.1 ? `<div style="left:330px;top:236px;font:800 13px Atkinson;color:${P.musL}">fired in order</div>` : '');
+    const show = ts > 3.0 && ts < 4.9;
+    o.cur.style.display = show ? 'block' : 'none';
+    if (show) { const u = ease((ts - 3.0) / 0.4); o.cur.style.left = lerp(380, 276, u) + 'px'; o.cur.style.top = lerp(250, 104, u) + 'px'; }
+  });
+}
+
+// ---------- page wiring ----------
+const FIT = [];
+let ZOOM = Q.get('zoom') === '2' ? 2 : 1;
+const OBS = (!SHOT && 'IntersectionObserver' in window) ? new IntersectionObserver(es => es.forEach(e => {
+  const st = STAGES.find(x => x.el === e.target); if (st) { st.visible = e.isIntersecting; st.last = null; } }), {rootMargin:'200px'}) : null;
+function fitStage(holder, st) {
+  holder.appendChild(st.el);
+  const apply = () => { const sc = Math.min(1, holder.clientWidth / 1280); holder.style.height = 720 * sc + 'px'; st.el.style.transform = `scale(${sc})`; };
+  FIT.push(apply); apply();
+}
+function cropBox(parent, label, region, make, zoomable) {
+  const wrap = document.createElement('div');
+  wrap.innerHTML = `<p class="cap">${label}</p>`;
+  const box = document.createElement('div'); box.className = 'crop'; box.style.maxWidth = '100%';
+  wrap.appendChild(box); parent.appendChild(wrap);
+  const inner = make(); box.appendChild(inner);
+  const apply = () => { const z = zoomable === 2 ? 2 : zoomable ? ZOOM : 1; box.style.width = region[2] * z + 4 + 'px';
+    const sc = Math.min(z, (box.clientWidth - 4) / region[2]); box.style.height = region[3] * sc + 4 + 'px';
+    inner.style.transformOrigin = '0 0'; inner.style.transform = `scale(${sc}) translate(${-region[0]}px,${-region[1]}px)`; };
+  if (zoomable === true) parent.classList.add('zm');
+  FIT.push(apply); apply();
+}
+function refDiv(src) { const d = document.createElement('div'); d.className = 'ref'; d.style.backgroundImage = `url(${src})`; return d; }
+function stageDiv(cfg) { return makeStage(cfg).el; }
+function optBar(key, opts, cur, rec, names, onSet) {
+  const bar = document.querySelector(`.opts[data-key="${key}"]`); if (!bar) return;
+  const paint = v => bar.querySelectorAll('.opt').forEach(b => b.classList.toggle('on', b.dataset.v === v));
+  bar.innerHTML = opts.map(v => `<button class="opt" data-v="${v}">${v} · ${names[v]}${v === rec ? '<span class="rec">RECOMMENDED</span>' : ''}</button>`).join('');
+  bar.querySelectorAll('.opt').forEach(b => b.onclick = () => { onSet(b.dataset.v); paint(b.dataset.v); });
+  paint(cur);
+}
+function fig(it, o) { return `<div class="tk abs">${ticketHTML(Object.assign({}, it), 2, 8, o || {cart:true})}</div>`; }
+
+function buildPage() {
+  fitStage(document.querySelector('[data-stage="card"]'), makeStage({}));
+  // 1. tickets: NOW, v2, NEW crops and the stress row
+  const cc = document.getElementById('crops-cards');
+  cc.style.gridTemplateColumns = '1fr';
+  cropBox(cc, 'NOW · <span>as shipped (real capture, shift 5, other items): struck base, gold burst, one aisle glyph</span>', [348, 404, 918, 92], () => refDiv('../shift_screen_effects_1280x720.png'));
+  cropBox(cc, 'v2 A · <span>last round: aisle colour as a header band, base and burst side by side</span>', [348, 404, 918, 92], () => refDiv('readability_v2_ticket_A.png'));
+  cropBox(cc, 'NEW · <span>full colour by what the card works with, price stacked top right, glyphs top left (live)</span>', [348, 404, 918, 92], () => stageDiv({}));
+  cropBox(cc, `Stress row, NEW · <span>Multipack (plain coupon), Breakfast sticker (a coupon that names a family), Golden Eggs (staple, Food; its "×2 next 2 Food" is the data's sticker template, flagged for the copy pass), Day-old buns (Clearance), Cereal bar (Snack), Golden Milk €126 (Breakfast, wide burst on mustard), Frozen peas at €0 (spot check)</span>`,
+    [348, 396, 918, 100], () => stageDiv({stress:true}));
+  // swatches
+  const sw = () => {
+    const count = f => CARDS.filter(c => c.col === f).length;
+    document.getElementById('swatches').innerHTML = FC_ORDER.map(f => {
+      const c = FC[f], tc = c.ink ? P.ink : P.paper, ex = CARDS.find(x => x.col === f && !x.coupon && x.src !== 'Staple') || CARDS.find(x => x.col === f);
+      return `<div class="swc">${fig(ex)}<div><b>${f}</b> ${glyph(f, 1, 'vertical-align:-4px')}<div class="meta"><em>#${c.col.slice(1)}</em> ${c.pal} · text in <em>${c.ink ? 'ink' : 'paper'}</em> ${contrast(c.col, tc).toFixed(1)}:1<br>${count(f)} ticket${count(f) === 1 ? '' : 's'} · e.g. ${ex.name}</div></div></div>`;
+    }).join('') + `<div class="swc">${fig(CARD.multipack)}<div><b>Plain coupon</b><div class="meta">today's coupon ticket, unchanged · ink ${contrast(P.paper, P.ink).toFixed(1)}:1<br>${count('Coupon')} tickets: coupons that name no family</div></div></div>`;
+  };
+  sw();
+  // colour vision (Q1b): the nine family tickets in each colour vision, the closest pairs in each, and the set switch
+  const pairsText = kind => closestPairs(kind, 3).map(([d, a, b]) => `${a}/${b} ${d.toFixed(1)}`).join(', ');
+  const cbPanel = () => {
+    document.getElementById('pairs-none').textContent = pairsText('none');
+    document.getElementById('cbpanel').innerHTML = `<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:14px">${['none', 'deut', 'prot', 'trit'].map(k =>
+      `<div><p class="cap" style="margin:0 0 6px">${CVD_NAME[k]}</p><div style="display:flex;flex-wrap:wrap;gap:6px;${k === 'none' ? '' : `filter:url(#cb-${k})`}">${FC_ORDER.map(f => {
+        const ex = CARDS.find(x => x.col === f && !x.coupon && x.src !== 'Staple') || CARDS.find(x => x.col === f);
+        return `<div class="abs" style="position:relative;width:112px;height:72px">${ticketHTML(Object.assign({}, ex), 2, 6, {cart:true})}</div>`; }).join('')}</div>
+        <p class="small" style="margin:6px 0 0">closest: ${pairsText(k)}</p></div>`).join('')}</div>`;
+  };
+  const setBar = document.getElementById('setopt');
+  setBar.innerHTML = `<button class="opt" data-v="A">A · as shown (v3 + Household grey dark)</button><button class="opt" data-v="B">B · Food tomato pale, Clearance tomato darkest<span class="rec">RECOMMENDED</span></button>`;
+  const paintSet = () => setBar.querySelectorAll('.opt').forEach(b => b.classList.toggle('on', b.dataset.v === CB_SET));
+  setBar.querySelectorAll('.opt').forEach(b => b.onclick = () => { CB_SET = b.dataset.v; Object.assign(FC.Food, CBSET[CB_SET].Food); Object.assign(FC.Clearance, CBSET[CB_SET].Clearance); rebuildColours(); paintSet(); });
+  paintSet();
+  // split tickets
+  const cereal = Object.assign({}, CARD.cereal, {col:['Dairy', 'Breakfast', 'diag']});
+  const splits = () => { document.getElementById('splits').innerHTML = [
+    [cereal, '<b>Diagonal</b> (default): Dairy top-left, Breakfast bottom-right, a 45° pixel stair with a light seam.'],
+    [Object.assign({}, cereal, {col:['Dairy', 'Breakfast', 'vert']}), '<b>Vertical</b>: half and half, the seam down the middle.'],
+    [Object.assign({}, cereal, {pay:5}), 'The diagonal with a raised price: the burst sits on the second colour.'],
+  ].map(([it, cap]) => `<figure><div class="abs" style="position:relative;width:118px;height:76px">${ticketHTML(it, 2, 10, it.pay ? {pay:it.pay} : {cart:true})}</div><figcaption>${cap}</figcaption></figure>`).join(''); };
+  splits();
+  // the full card table, grouped by colour
+  const table = () => {
+    const groups = FC_ORDER.concat(['Coupon']);
+    document.getElementById('ctable').innerHTML = groups.map(f => {
+      const list = CARDS.filter(c => c.col === f), c = FC[f];
+      return `<div class="cgroup"><h4><span class="chip" style="background:${c ? c.col : P.paper}"></span>${f === 'Coupon' ? 'Plain coupon' : f}<span class="n">${list.length} ticket${list.length === 1 ? '' : 's'}</span></h4><div class="cards">${list.map(x =>
+        `<div class="cardrow${x.flag ? ' flagged' : ''}">${fig(x)}<div class="tx"><b>${x.name}</b>${x.flag ? ' <span class="flag">✱</span>' : ''}<br><span class="src">${x.src}</span> · <span class="rich">${shelfTags(x.coupon ? {tags:['Coupon']} : x).map(g => glyph(g)).join('')}</span><br>
+          <span class="why">${x.why}</span><br>${x.flag ? `<span class="flag">${x.flag}</span>` : x.note ? x.note : `"${x.long}"`}</div></div>`).join('')}</div></div>`;
+    }).join('');
+  };
+  table();
+  cbPanel();
+  const rebuildColours = () => { sw(); cbPanel(); splits(); table(); STAGES.forEach(st => { st.tickets.innerHTML = (st.cfg.stress ? STRESS : ITEMS).map((it, i) => ticketHTML(it, slotX(i), TICKET_Y, {item: st.cfg.mix ? 'b' + i : null})).join(''); st.tk = [...st.tickets.children]; st.last = null; }); cartBox(); };
+  // the Cart and the popup
+  const cart = document.getElementById('crops-cart');
+  const cartBox = () => { cart.innerHTML = ''; cropBox(cart, 'The Cart\'s shelves <span>(deck view B; base price on the plain tag; hover a glyph or an item: the highlight of section 4 works here too)</span>', [88, 112, 1104, 500], () => makeCart({})); };
+  cartBox();
+  const sp = ITEMS[1], f = FC[sp.col];
+  document.getElementById('shortlong').innerHTML = `<div style="display:flex;flex-wrap:wrap;gap:28px;align-items:flex-start">
+    <div><p class="cap">Belt, shelf, monitor: short</p><div class="abs" style="position:relative;width:124px;height:80px">${ticketHTML(Object.assign({}, sp), 4, 10, {cart:true})}</div></div>
+    <div><p class="cap">Offer popup and prize ticket: long</p><div class="popup" style="width:340px">
+      <div style="display:flex;align-items:center;gap:8px;margin:-10px -12px 0;padding:5px 12px;background:${f.col};color:${textCol(sp.col)};box-shadow:inset 0 2px 0 ${f.lt},inset 0 -2px 0 ${P.ink}"><span style="font:400 22px Pixelify">${sp.name}</span><span style="margin-left:auto;font:${NUM} 18px Atkinson">€${sp.base}</span></div>
+      <div class="rich" style="font:700 13px Atkinson;color:var(--ink);margin:7px 0 2px"><span style="display:inline-block;width:12px;height:10px;background:${f.col};box-shadow:0 0 0 1px ${P.ink};vertical-align:-1px"></span> Breakfast ticket: works with Breakfast ${glyph('Breakfast')}</div>
+      <div class="rich" style="font:700 12px Atkinson;color:var(--grey-d);margin:0 0 4px">Counts as ${shelfTags(sp).map(g => glyph(g)).join(' ')} · staple ${glyph('Staple')}</div>
+      <div style="font:400 15px/19px Atkinson">${sp.long}</div></div></div>
+    <ul class="notes" style="flex:1;min-width:280px;margin:22px 0 0"><li>The popup teaches the colour: its header is the ticket's colour, and the line under it says what the colour means in words, next to the families the card <b>is</b>.</li>
+      <li>Same card, two lengths: the short text is what you compare while arranging the belt; the long text is the contract, read once when you choose the card.</li></ul></div>`;
+  // 2. monitor
+  const cm = document.getElementById('crops-monitor');
+  cm.style.gridTemplateColumns = '1fr';
+  cropBox(cm, 'Monitor b, 2× <span>(live; the beats "Count", "×2 lands", "Climax" and "Met" in the sticky bar stop on its moments)</span>', [490, 72, 412, 164], () => stageDiv({}), 2);
+  cropBox(cm, 'With the top bar and the belt, game size <span>(the stickers fire on the belt as their amounts fly)</span>', [140, 0, 1000, 400], () => stageDiv({}));
+  // 3. stacks
+  optBar('fold', ['A', 'B'], FOLD, 'A', {A:'"+N" chip', B:'Pile edges'}, v => { FOLD = v; SPEC_CELLS.forEach(o => { o.key = null; }); });
+  buildStackRow(); buildStackDemos();
+  // 4. mix
+  optBar('mix', ['A', 'B'], MIX, 'A', {A:'Rule matches everywhere', B:'Pays now only'}, v => { MIX = v; STAGES.forEach(s => { s.last = null; }); });
+  fitStage(document.querySelector('[data-stage="mix"]'), makeStage({mix:true}));
+  document.getElementById('mixlegend').innerHTML = `<span><img class="px" src="${checkURL()}" width="18" height="16"> pays now in this order (EffectGraph)</span>
+    <span><span style="display:inline-block;width:16px;height:18px;background:${P.tom};box-shadow:0 0 0 2px ${P.ink};font:800 14px/18px Atkinson;text-align:center;color:${P.paper}">!</span> a penalty between them</span>
+    <span><span style="display:inline-block;width:18px;height:18px;border:2px solid ${P.mus}"></span> the hovered item</span>
+    <span><span style="display:inline-block;width:18px;height:18px;outline:2px dashed rgba(241,210,122,.6);outline-offset:-2px;background:#6b665f"></span> a "next Food" match only (faint)</span><span>grey: works with neither</span>`;
+  const cx = document.getElementById('crops-mix');
+  cx.style.gridTemplateColumns = 'repeat(auto-fit,minmax(424px,1fr))';
+  cropBox(cx, 'The Cart with the Produce glyph hovered <span>(still; hover the live Cart in section 1)</span>', [88, 112, 1104, 500], () => makeCart({hl:{fam:'Produce'}}));
+  // 5. defaults: the glyph legend (v2)
+  let h = `<div class="hd">Family</div><div class="hd">Game size (18 px)</div><div class="hd">2× (review)</div><div class="hd">Inline in sticker text, and the tooltip</div>`;
+  FAM_ORDER.forEach(n => {
+    const ex = n === 'Coupon' ? '+2 per earlier {Coupon}' : n === 'Staple' ? null : n === 'Food' ? '×2 next {Food}' : n === 'Breakfast' ? '+1 per earlier {Breakfast}' : `+3 beside {${n}}`;
+    const pinned = n === 'Produce' ? `<span class="abs" style="position:relative;display:inline-block;width:18px;height:20px;margin-left:28px;vertical-align:-4px">${glyph('Produce')}${tipHTML('Produce', 9, 0, 1)}</span><span class="small" style="margin-left:6px">hovered: the tooltip</span>` : '';
+    h += `<div class="fn"><span>${n}</span><span class="small">${FAM_NOTE[n]}</span></div><div>${glyph(n)}</div><div>${glyph(n, 2)}</div>
+      <div class="ex rich"${n === 'Produce' ? ' style="padding-top:44px"' : ''}><span>${ex ? rich(ex) : '<span class="small">shown on tickets, the bay and the Cart, not in rules</span>'}${pinned}</span></div>`;
+  });
+  document.getElementById('legend').innerHTML = h;
+  [['g-breakfast', 'Breakfast'], ['g-food', 'Food'], ['g-produce', 'Produce'], ['g-frozen', 'Frozen']].forEach(([c, n]) => document.querySelectorAll('.' + c).forEach(e => { e.innerHTML = glyph(n, 1, 'vertical-align:-4px'); }));
+}
+
+// ---------- the live hover tooltip ----------
+function hookTips() {
+  const box = document.getElementById('hovertip'), txt = document.getElementById('hovertxt'), tail = box.querySelector('.tail');
+  box.style.borderImageSource = `url(${tipFrameURL()})`;
+  tail.src = tipTailURL();
+  const show = (x, y) => {
+    const el = document.elementFromPoint(x, y), tg = el && el.closest ? el.closest('[data-tip]') : null;
+    if (!tg) { box.style.display = 'none'; return null; }
+    txt.textContent = tg.dataset.tip; box.style.display = 'block';
+    const r = tg.getBoundingClientRect(), w = box.offsetWidth, tk = tg.closest('[data-tipbelow]');
+    if (tk) {
+      const rb = tk.getBoundingClientRect();
+      box.style.left = Math.round(r.left + r.width / 2 + 14 - w) + 'px'; box.style.top = Math.round(rb.bottom + 12) + 'px';
+      if (tg === tk) box.style.left = Math.round(rb.left + rb.width / 2 - w / 2) + 'px';
+      tail.style.left = (tg === tk ? w / 2 - 7 - 4 : w - 14 - 7 - 4) + 'px'; tail.style.marginLeft = '0'; tail.style.top = '-10px'; tail.style.bottom = 'auto'; tail.style.transform = 'scaleY(-1)';
+    } else {
+      box.style.left = Math.round(r.left + r.width / 2 - w / 2) + 'px'; box.style.top = Math.round(r.top - 36) + 'px';
+      tail.style.left = ''; tail.style.marginLeft = ''; tail.style.top = ''; tail.style.bottom = ''; tail.style.transform = '';
+    }
+    return tg;
+  };
+  document.addEventListener('mousemove', e => show(e.clientX, e.clientY));
+}
+
+let SPEED = Q.has('slow') ? 0.25 : 1;
+let start = performance.now(), paused = false, pauseT = 0;
+const LOOP = 17.5;
+function now() { return AT !== null ? AT : (paused ? pauseT : ((performance.now() - start) / 1000 * SPEED) % LOOP); }
+function tick() {
+  const t = now();
+  STAGES.forEach(st => { if ((st.visible || SHOT) && (st.last !== t || st.cfg.mix)) { drawStage(st, t); st.last = t; } });
+  if (SPEC_CELLS.length) drawStackRow();
+  if (SD_EL.length) drawStackDemos(t);
+  const c = document.getElementById('clock'); if (c) c.textContent = `t = ${t.toFixed(2)} s`;
+  if (AT === null) requestAnimationFrame(tick);
+}
+document.fonts.ready.then(() => {
+  const solo = Q.get('solo'), sec = Q.get('sec');
+  if (solo) {
+    document.body.classList.add('solo');
+    const holder = document.getElementById('solo');
+    if (solo === 'cart') holder.appendChild(makeCart(Q.get('carthl') ? {hl:{fam:Q.get('carthl')}} : {}));
+    else holder.appendChild(makeStage(solo === 'mix' ? {mix:true} : (Q.has('stress') ? {stress:true} : {})).el);
+  } else {
+    buildPage();
+    if (sec) { const v = sec === 'vision'; document.body.classList.add('sec'); if (v) document.body.classList.add('vision'); document.getElementById('s-' + (v ? 'ticket' : sec)).classList.add('show'); }
+  }
+  hookTips();
+  addEventListener('resize', () => FIT.forEach(f => f()));
+  const pb = document.getElementById('pause');
+  const play = () => { start = performance.now() - pauseT * 1000 / SPEED; paused = false; pb.textContent = 'Pause'; };
+  if (pb) pb.onclick = () => { if (paused) play(); else { pauseT = now(); paused = true; pb.textContent = 'Play'; } };
+  const rb = document.getElementById('restart'); if (rb) rb.onclick = () => { start = performance.now(); paused = false; if (pb) pb.textContent = 'Pause'; };
+  const slowBtns = ['slowmo', 'slowmo2'].map(id => document.getElementById(id)).filter(Boolean);
+  const paintSlow = () => slowBtns.forEach(b => b.classList.toggle('on', SPEED < 1));
+  slowBtns.forEach(b => b.onclick = () => { const t = now(); SPEED = SPEED < 1 ? 1 : 0.25; start = performance.now() - t * 1000 / SPEED; paintSlow(); });
+  paintSlow();
+  const beatBar = (id, list) => { const bt = document.getElementById(id); if (!bt) return;
+    bt.innerHTML = list.map(([n, t]) => `<button data-t="${t}">${n}</button>`).join(' ');
+    bt.querySelectorAll('button').forEach(b => b.onclick = () => { pauseT = parseFloat(b.dataset.t); paused = true; pb.textContent = 'Play'; STAGES.forEach(s => { s.last = null; }); }); };
+  beatBar('beats', BEATS);
+  const cbb = document.getElementById('cbbar');
+  const setCB = v => { if (v === 'none') document.documentElement.removeAttribute('data-cb'); else document.documentElement.setAttribute('data-cb', v); if (cbb) cbb.querySelectorAll('button').forEach(b => b.classList.toggle('on', b.dataset.v === v)); };
+  if (cbb) { cbb.innerHTML = [['none', 'Normal'], ['deut', 'Deutan'], ['prot', 'Protan'], ['trit', 'Tritan']].map(([v, n]) => `<button data-v="${v}">${n}</button>`).join(' ');
+    cbb.querySelectorAll('button').forEach(b => b.onclick = () => setCB(b.dataset.v)); }
+  setCB(['deut', 'prot', 'trit'].includes(Q.get('cb')) ? Q.get('cb') : 'none');
+  beatBar('beats2', [['Fold', 2.2], ['Fan', 4.0], ['Fire folded', 5.36], ['Fire', 6.62]]);
+  beatBar('beats3', MIX_BEATS);
+  document.body.classList.toggle('zoom', ZOOM === 2);
+  const zb = document.getElementById('zoom');
+  if (zb) { zb.classList.toggle('on', ZOOM === 2); zb.onclick = () => { ZOOM = ZOOM === 2 ? 1 : 2; zb.classList.toggle('on', ZOOM === 2); document.body.classList.toggle('zoom', ZOOM === 2); FIT.forEach(f => f()); }; }
+  tick();
+  if (SHOT) document.title += ' READY';
+  requestAnimationFrame(() => requestAnimationFrame(checkOverflow));
+});
+</script>
+</body>
+</html>

@@ -31,24 +31,28 @@ func after_test() -> void:
 		DirAccess.remove_absolute(_folder)
 
 
-## The machine's REGISTER chute (#77): its prizes are registers; the Cart shows the deck and
-## gives the machine back; the pick stamps the loyalty card's first box (its hover tells what the
-## register does), applies from the next shift and is logged as machine_visit.
+## A perk from the machine's UPGRADE chute (#77; v0.61, #108: perks and item upgrades share it):
+## the Cart shows the deck and gives the machine back; the pick stamps the loyalty card's first
+## box at LV 1, so no level mark (its hover tells what the perk does), applies from the next shift
+## and is logged as machine_visit.
 func test_a_register_from_the_machine_stamps_the_loyalty_card() -> void:
 	var runner: GdUnitSceneRunner = scene_runner(SCREEN)
 	var screen: ShiftScreen = runner.scene()
 	var run: RunState = screen.run
-	MachineSteps.boost_run(run, [1])  # v0.47: only a BOOSTED visit lights REGISTER.
 	await _pass_shift(screen)
 	assert_bool(screen._machine.is_open()).is_true()
 	await _frames(2)
 	# No shade over the store during a visit (#77 machine v2).
 	assert_bool(screen._shade.visible).is_false()
-	assert_bool(screen._machine._choose(RewardMachine.Chute.REGISTER)).is_true()
+	assert_bool(screen._machine._choose(RewardMachine.Chute.UPGRADE)).is_true()
 	var prizes: Array[MachinePrize] = run.machine.prizes()
 	assert_int(prizes.size()).is_between(1, 3)
-	for prize: MachinePrize in prizes:
-		assert_int(prize.kind).is_equal(MachinePrize.Kind.REGISTER)
+	var index: int = -1
+	for at: int in range(prizes.size()):
+		assert_int(prizes[at].kind).is_in([MachinePrize.Kind.REGISTER, MachinePrize.Kind.UPGRADE])
+		if prizes[at].kind == MachinePrize.Kind.REGISTER and index < 0:
+			index = at
+	assert_int(index).is_greater_equal(0)
 	# The machine and its prize tickets fit the screen.
 	await _frames(3)
 	var machine: Rect2 = screen._machine.view.get_global_rect()
@@ -69,8 +73,8 @@ func test_a_register_from_the_machine_stamps_the_loyalty_card() -> void:
 	screen._deck_view._close()
 	assert_bool(screen._machine.view.visible).is_true()
 	assert_int(run.phase).is_equal(RunState.Phase.MACHINE_PICK)
-	var picked: UpgradeDefinition = prizes[0].upgrade
-	screen._machine.view.pick(0)
+	var picked: UpgradeDefinition = prizes[index].upgrade
+	screen._machine.view.pick(index)
 	screen._machine.view.fast_forward()  # The landing plays to its end.
 
 	assert_array(run.upgrades).contains_exactly([picked])
@@ -84,6 +88,7 @@ func test_a_register_from_the_machine_stamps_the_loyalty_card() -> void:
 	assert_int(texts.size()).is_equal(run.balance.machine.register_cap)
 	assert_str(texts[0]).is_equal(LoyaltyCard.initials(picked.display_name))
 	assert_str(texts[1]).is_empty()
+	assert_object(screen._loyalty_card.level_mark(0)).is_null()
 	var tooltip: String = screen._loyalty_card.box(0).tooltip_text
 	assert_str(tooltip).contains(picked.display_name).contains(picked.effect_text)
 	if not picked.condition_text.is_empty():
@@ -93,9 +98,9 @@ func test_a_register_from_the_machine_stamps_the_loyalty_card() -> void:
 	assert_array(types.slice(-2)).is_equal(["machine_visit", "shift_start"])
 	var visit: Dictionary = _last_event("machine_visit")
 	assert_int(int(visit["shift"])).is_equal(1)
-	assert_str(visit["chute"]).is_equal("register")
-	assert_int(int(visit["picked"])).is_equal(0)
-	assert_str(visit["offered"][0]["id"]).is_equal(String(picked.id))
+	assert_str(visit["chute"]).is_equal("upgrade")
+	assert_int(int(visit["picked"])).is_equal(index)
+	assert_str(visit["offered"][index]["id"]).is_equal(String(picked.id))
 	assert_int((visit["offered"] as Array).size()).is_equal(prizes.size())
 	assert_int(int(visit["registers_owned"])).is_equal(1)
 	assert_int(int(visit["decide_ms"])).is_greater_equal(0)
@@ -378,7 +383,7 @@ func test_history_rows_name_the_visits_and_the_inspection() -> void:
 	ticket.set_drawn(bread)
 	ticket.picked = 0
 	var bonus: MachineVisit = MachineVisit.new(MachineVisit.Kind.BONUS, "spot_check")
-	bonus.chute = RewardMachine.Chute.REGISTER
+	bonus.chute = RewardMachine.Chute.UPGRADE
 	var engine: Array[MachinePrize] = [
 		MachinePrize.new(
 			MachinePrize.Kind.REGISTER, MachinePrize.Rarity.COMMON, null, load(CATEGORY_ENGINE)
@@ -394,7 +399,7 @@ func test_history_rows_name_the_visits_and_the_inspection() -> void:
 			[
 				"  4  €30 / €22      pass",
 				"     NEW ITEMS: Bread",
-				"     BONUS · LOYALTY: Category engine",
+				"     BONUS · UPGRADE: Category engine",
 				"     inspection Spot check",
 			]
 		)

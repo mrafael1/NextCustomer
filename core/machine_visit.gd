@@ -1,16 +1,18 @@
 class_name MachineVisit
 extends RefCounted
-## One visit to the RECEIPT REWARDS machine (#77, build spec 2.2): the shift's ticket, the
-## inspection's bonus ticket or a STAMP DAY, the chute chosen, the prizes drawn and what was done
-## with them. RewardMachine fills it in and appends it to the shift's ShiftRecord.visits at the
-## pick or bin; to_dictionary is the form the run save and the event log use.
+## One visit to the RECEIPT REWARDS machine (#77, build spec 2.2): the shift's ticket or the
+## inspection's bonus ticket, CLASSIC or PREMIUM (#108), the chute chosen, the prizes drawn and what
+## was done with them. RewardMachine fills it in and appends it to the shift's ShiftRecord.visits at
+## the pick or bin; to_dictionary is the form the run save and the event log use.
 
-enum Kind { TICKET, BONUS, STAMP_DAY }
+enum Kind { TICKET, BONUS }
 
-## Kind names, as saved.
-const KIND_NAMES: Array[String] = ["ticket", "bonus", "stamp_day"]
-## RewardMachine.Chute names, as saved and logged.
-const CHUTE_NAMES: Array[String] = ["new_items", "coupons", "register", "upgrades"]
+## Kind names, as saved (STAMP DAY's "stamp_day" went in v0.61; RunSaveMigration turns it into a
+## ticket).
+const KIND_NAMES: Array[String] = ["ticket", "bonus"]
+## RewardMachine.Chute names, as saved and logged (v0.61; before it "coupons", "register" and
+## "upgrades", which RunSaveMigration renames).
+const CHUTE_NAMES: Array[String] = ["new_items", "upgrade"]
 const NO_CHUTE := -1
 
 var kind: Kind = Kind.TICKET
@@ -18,9 +20,9 @@ var kind: Kind = Kind.TICKET
 var chute: int = NO_CHUTE
 ## BONUS: the inspection id it was earned by, or "" for a bonus extra shift.
 var why: String = ""
-## TICKET or BONUS (v0.53): a BOOSTED visit (REGISTER and UPGRADES lit; v0.47), decided when it
-## starts.
-var boosted: bool = false
+## A PREMIUM visit (#108: every drop at least RARE, products at least BIG), decided when it starts:
+## the ticket's and the BONUS visit after a premium shift.
+var premium: bool = false
 ## The prizes in reveal order (rarity ascending, drop order within a rarity).
 var prizes: Array[MachinePrize] = []
 ## The reveal index of each drop, in drop order.
@@ -30,12 +32,10 @@ var picked: int = -1
 var binned: bool = false
 ## The cart card swapped out for the pick at the deck limit, or null.
 var replaced: CardDefinition
-## UPGRADES: [instance_id, from card id, to card id] per upgraded copy.
+## An item upgrade: [instance_id, from card id, to card id] per upgraded copy.
 var upgraded: Array = []
 ## The draw held its chute's guarantee.
 var guarantee_held: bool = false
-## STAMP DAY only: the REGISTER odds card the draw was made from (for the event log; not saved).
-var stamp_day_odds: MachineOddsCard
 
 
 func _init(visit_kind: Kind = Kind.TICKET, visit_why: String = "") -> void:
@@ -92,7 +92,7 @@ func to_dictionary() -> Dictionary:
 		"kind": KIND_NAMES[kind],
 		"chute": CHUTE_NAMES[chute] if chute >= 0 and chute < CHUTE_NAMES.size() else "",
 		"why": why,
-		"boosted": boosted,
+		"premium": premium,
 		"prizes": prizes.map(func(prize: MachinePrize) -> Dictionary: return prize.to_dictionary()),
 		"drop_order": Array(drop_order),
 		"picked": picked,
@@ -111,7 +111,7 @@ static func from_dictionary(data: Dictionary, lookup: ContentLookup) -> MachineV
 	var visit: MachineVisit = MachineVisit.new(maxi(kind_index, 0) as Kind, reader.text("why"))
 	var chute_text: String = reader.text("chute")
 	visit.chute = CHUTE_NAMES.find(chute_text)
-	visit.boosted = reader.flag("boosted")
+	visit.premium = reader.flag("premium")
 	for prize_data: Dictionary in reader.dictionaries("prizes"):
 		var prize: MachinePrize = MachinePrize.from_dictionary(prize_data, lookup)
 		if prize == null:
@@ -149,8 +149,6 @@ func _is_consistent() -> bool:
 	if drop_order.size() != prizes.size() or picked >= prizes.size():
 		return false
 	if binned and picked >= 0:
-		return false
-	if boosted and kind == Kind.STAMP_DAY:
 		return false
 	var seen: Dictionary = {}
 	for reveal: int in drop_order:

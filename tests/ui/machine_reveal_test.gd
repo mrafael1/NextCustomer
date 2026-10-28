@@ -12,11 +12,14 @@ extends GdUnitTestSuite
 
 const BALANCE := "res://data/balance/balance.tres"
 const STARTER := "res://data/decks/starter.tres"
+const CARDS := "res://data/cards/"
 const MILK := "res://data/cards/milk.tres"
 const MILK_BIG := "res://data/cards/milk_big.tres"
 const MILK_GOLDEN := "res://data/cards/milk_golden.tres"
 const MACHINE := "res://data/balance/machine.tres"
 const BIG_BASKET := "res://data/upgrades/big_basket.tres"
+const DAIRY_REGULARS := "res://data/upgrades/dairy_regulars.tres"
+const BREAD := "res://data/cards/bread.tres"
 const PLUS_SLOT := "res://art/icons/plus_slot.png"
 const RARITIES: Array[int] = [
 	MachinePrize.Rarity.COMMON, MachinePrize.Rarity.RARE, MachinePrize.Rarity.LEGENDARY
@@ -251,6 +254,35 @@ func test_every_ticket_shows_its_prize_in_full() -> void:
 ## whole in RULE_LINES, or RULE_LINES_ONE_NAME under a one-line name, at a RULE_SIZES size, under
 ## the name; all inside the ticket): every product and coupon the machine can draw, every
 ## LOYALTY perk and every UPGRADES prize of every chain and rarity.
+## #108 section 4a: a LOYALTY ticket carries the win sticker, one line after shift 1 (the last
+## row is the only one) and two from shift 2, a line that wins nothing reading WASTED; its labels
+## fit their boxes. A product ticket and a perk with no scoring rule carry none.
+func test_a_loyalty_ticket_shows_its_win_sticker() -> void:
+	var view: RewardMachineView = _view(MachineVisit.Kind.TICKET, true, [0])
+	var milk: CardDefinition = load(MILK)
+	var regulars: UpgradeDefinition = load(DAIRY_REGULARS)
+	var stamp: MachinePrize = MachinePrize.new(MachinePrize.Kind.REGISTER, 0, null, regulars)
+	var preview: MachinePreview = MachinePreview.new()
+	preview.prize = stamp
+	var run: RunState = _run_with_rows([[milk, milk, milk]])
+	var first: PrizeTicket = _ticket(view, 0, stamp, preview, 1, run)
+	assert_array(Array(first.win_texts())).is_equal(["ON YOUR LAST ROW +€3"])
+	run = _run_with_rows([[milk, milk, milk], [load(BREAD)]])
+	var later: PrizeTicket = _ticket(view, 0, stamp, preview, 1, run)
+	assert_array(Array(later.win_texts())).is_equal(
+		["ON YOUR LAST ROW WASTED", "BEST ROW THIS RUN +€3"]
+	)
+	for label: Node in later.win_sticker().get_children():
+		_assert_fits(label as Label)
+	var product: PrizeTicket = _ticket(
+		view, 0, MachinePrize.new(MachinePrize.Kind.PRODUCT, 0, milk), null, 1, run
+	)
+	assert_object(product.win_sticker()).is_null()
+	var basket: MachinePreview = MachinePreview.new()
+	basket.prize = MachinePrize.new(MachinePrize.Kind.REGISTER, 0, null, load(BIG_BASKET))
+	assert_object(_ticket(view, 0, basket.prize, basket, 1, run).win_sticker()).is_null()
+
+
 func test_every_face_fits_the_ticket() -> void:
 	var view: RewardMachineView = _view(MachineVisit.Kind.TICKET, true, [0])
 	var prizes: Array[MachinePrize] = []
@@ -369,11 +401,50 @@ func test_the_perk_glyph_stays_on_its_badge() -> void:
 	assert_int(shown).is_greater(0)
 
 
-## Resumed at the pick wait (TICKET and STAMP DAY): every ticket sits face up in its place with
-## its tab. A bin drops them all; a pick lifts the picked one, which goes once it flies, while the
+## The art's chip (v0.61, #108): every perk level above 1 reads "LV n", and every BIG or GOLDEN
+## item its tier; the chip lies inside the art, and a level's clear of the perk's badge.
+func test_the_level_and_tier_chips_stay_inside_the_art() -> void:
+	var art_box: Rect2 = Rect2(Vector2.ZERO, PrizeArt.SIZE)
+	var levels: int = 0
+	for perk: UpgradeDefinition in _balance.upgrade_pool:
+		var level: UpgradeDefinition = perk.next_level
+		while level != null:
+			levels += 1
+			var art: PrizeArt = auto_free(
+				PrizeArt.new(MachinePrize.new(MachinePrize.Kind.REGISTER, 0, null, level), null)
+			)
+			var what: String = "%s: %s" % [level.id, art.chip_rect()]
+			assert_str(art.chip_text()).is_equal("LV %d" % level.level_number())
+			assert_bool(art_box.encloses(art.chip_rect())).override_failure_message(what).is_true()
+			(
+				assert_bool(art.chip_rect().intersects(PrizeArt.BADGE_RECT))
+				. override_failure_message(what)
+				. is_false()
+			)
+			level = level.next_level
+	assert_int(levels).is_greater(0)
+	var tiers: int = 0
+	for file: String in DirAccess.get_files_at(CARDS):
+		if not file.ends_with(".tres"):
+			continue
+		var card: CardDefinition = load(CARDS + file)
+		if PriceSticker.tier_text(card).is_empty():
+			continue
+		tiers += 1
+		var art: PrizeArt = auto_free(
+			PrizeArt.new(MachinePrize.new(MachinePrize.Kind.PRODUCT, 0, card), null)
+		)
+		var what: String = "%s: %s" % [file, art.chip_rect()]
+		assert_str(art.chip_text()).is_equal(PriceSticker.tier_text(card))
+		assert_bool(art_box.encloses(art.chip_rect())).override_failure_message(what).is_true()
+	assert_int(tiers).is_greater(0)
+
+
+## Resumed at the pick wait (TICKET and BONUS): every ticket sits face up in its place with its
+## tab. A bin drops them all; a pick lifts the picked one, which goes once it flies, while the
 ## others fall away.
 func test_a_resume_at_the_pick_shows_the_row_at_rest() -> void:
-	for kind: int in [MachineVisit.Kind.TICKET, MachineVisit.Kind.STAMP_DAY]:
+	for kind: int in [MachineVisit.Kind.TICKET, MachineVisit.Kind.BONUS]:
 		var view: RewardMachineView = _view(kind, false, RARITIES)
 		view.plan = view.plan.resume_at(MachinePlan.WaitPoint.PICK)
 		var plan: MachinePlan = view.plan
@@ -387,8 +458,6 @@ func test_a_resume_at_the_pick_shows_the_row_at_rest() -> void:
 			assert_bool(tickets[index].tab.visible).is_true()
 			var rest: Vector2 = PrizeRow.card_rect(index, tickets.size()).position
 			assert_vector(tickets[index].position).is_equal(rest)
-		if kind == MachineVisit.Kind.STAMP_DAY:
-			continue  # A stamp can't be binned.
 		plan.set_landing(MachinePlan.Landing.BIN, 1, MachinePlan.NO_VISIT)
 		for ticket: PrizeTicket in tickets:
 			ticket.frame(plan.press + PrizeTicket.FALL_S + 0.01)
@@ -459,15 +528,32 @@ func _tickets(view: RewardMachineView, rarities: Array[int]) -> Array[PrizeTicke
 
 
 func _ticket(
-	view: RewardMachineView, index: int, prize: MachinePrize, preview: MachinePreview, count: int
+	view: RewardMachineView,
+	index: int,
+	prize: MachinePrize,
+	preview: MachinePreview,
+	count: int,
+	run: RunState = null
 ) -> PrizeTicket:
-	var run: RunState = RunState.new(1, _starter, _balance, RunStock.starting(_balance))
+	if run == null:
+		run = RunState.new(1, _starter, _balance, RunStock.starting(_balance))
 	var ticket: PrizeTicket = PrizeTicket.new(index, prize, preview, run)
 	ticket.rest = PrizeRow.card_rect(index, count).position
 	ticket.launch = PrizeRow.LAUNCH
 	ticket.setup(view)
 	view.card_layer.add_child(ticket)
 	return ticket
+
+
+## A new run whose history holds `rows`, each a checked-out shift.
+func _run_with_rows(rows: Array) -> RunState:
+	var run: RunState = RunState.new(1, _starter, _balance, RunStock.starting(_balance))
+	for index: int in rows.size():
+		var record: ShiftRecord = ShiftRecord.new(index + 1, 0, 0)
+		for card: CardDefinition in rows[index]:
+			record.played.append(card)
+		run.history.append(record)
+	return run
 
 
 ## The time ticket `index`'s reveal is over.

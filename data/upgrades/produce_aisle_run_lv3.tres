@@ -1,0 +1,25 @@
+[gd_resource type="Resource" script_class="UpgradeDefinition" format=3]
+
+[ext_resource type="Script" path="res://core/upgrades/upgrade_rule.gd" id="1_rule"]
+[ext_resource type="Script" path="res://core/upgrades/aisle_run_rule.gd" id="2_rule_script"]
+[ext_resource type="Script" path="res://core/upgrade_definition.gd" id="3_upgrade"]
+
+[sub_resource type="Resource" id="Resource_rule"]
+script = ExtResource("2_rule_script")
+tag = "Produce"
+min_run = 3
+factor = 5
+receipt_text = "Produce aisle run"
+
+[resource]
+script = ExtResource("3_upgrade")
+id = &"produce_aisle_run_lv3"
+icon_ref = "res://art/icons/aisle_fruit_and_veg.png"
+display_name = "Produce aisle run"
+type = 8
+effect_text = "3 or more Produce products in a row: the last pays ×5"
+condition_text = "Only the last product of each run, and only if it pays something"
+rules = Array[ExtResource("1_rule")]([SubResource("Resource_rule")])
+level = 3
+family_id = &"produce_aisle_run"
+boosts_tag = "Produce"

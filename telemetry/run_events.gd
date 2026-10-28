@@ -55,16 +55,18 @@ static func run_abandon(run: RunState, run_ms: int) -> Dictionary:
 
 ## The `machine_visit` event (#77), logged at each pick or bin of a RECEIPT REWARDS visit,
 ## once RewardMachine.pick or bin has recorded `visit` (the run's last record holds it): the
-## shift (1-based), the visit's index in the shift (0: the ticket), its kind (ticket, bonus,
-## stamp_day), its machine state (normal, boosted, stamp_day; v0.47), the inspection that earned
-## a bonus ticket ("" otherwise), the chute, the odds shown (`odds`: the chosen chute's card, or
-## STAMP DAY's REGISTER card: each rarity's % per drop, P(at least one RARE or better) and P(a
-## LEGENDARY), in %), whether the draw held its guarantee, the card's fallback notes, the
-## chutes whose odds card was opened, in order, the prizes offered ({kind, id, rarity}, reveal
-## order), the reveal index picked (-1 for a bin), whether it was binned, the cart card it
-## replaced, the upgraded copies ([instance id, from, to]), the cart size after it, whether the
-## cart was full at the pick, the registers owned, whether the visit was resumed from a save, and
-## the visit's times (`timing`).
+## shift (1-based), the visit's index in the shift (0: the ticket), its kind (ticket, bonus; until
+## v0.61 also stamp_day), its machine state (classic, premium; v0.61, #108: until then normal,
+## boosted, stamp_day), the inspection that earned a bonus ticket ("" otherwise), the chute
+## (new_items, upgrade; until v0.61 new_items, coupons, register, upgrades), the odds shown
+## (`odds`: the chosen chute's card: each rarity's % per drop, P(at least one RARE or better) and
+## P(a LEGENDARY), in %), whether the draw held its guarantee, the card's fallback notes, the
+## chutes whose odds card was opened, in order, the prizes offered ({kind, id, rarity}, a loyalty
+## perk with its `level`; reveal order), the reveal index picked (-1 for a bin), whether it was
+## binned, the cart card it replaced, the upgraded copies ([instance id, from, to]), the cart size
+## after it, whether the cart was full at the pick, the loyalty boxes filled (`registers_owned`)
+## and each owned perk's level by family (`perk_levels`, v0.61), whether the visit was resumed
+## from a save, and the visit's times (`timing`).
 static func machine_visit(
 	run: RunState,
 	visit: MachineVisit,
@@ -101,6 +103,7 @@ static func machine_visit(
 		"cart_size": run.deck.size(),
 		"cart_full_at_pick": cart_full_at_pick,
 		"registers_owned": run.upgrades.size(),
+		"perk_levels": perk_levels(run.upgrades),
 		"resumed": resumed,
 		"decide_ms": timing["decide_ms"],
 		"presented_ms": timing["presented_ms"],
@@ -108,6 +111,14 @@ static func machine_visit(
 		"presentation_skipped": timing["presentation_skipped"],
 		"chute_wait_ms": timing["chute_wait_ms"],
 	}
+
+
+## Each owned perk's level by family id ({"coupon_engine": 2, ...}), as machine_visit logs it.
+static func perk_levels(upgrades: Array[UpgradeDefinition]) -> Dictionary:
+	var found: Dictionary = {}
+	for upgrade: UpgradeDefinition in upgrades:
+		found[String(upgrade.family())] = upgrade.level_number()
+	return found
 
 
 ## An odds card as logged (`odds_shown`): each rarity's % per drop as printed (COMMON, RARE,

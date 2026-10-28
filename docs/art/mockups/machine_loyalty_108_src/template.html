@@ -1,0 +1,666 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Machine prizes (#108)</title>
+<style>
+/*FONTS*/
+:root{
+  --ink:#2b2420;--ink-l:#4a3f38;--grey-d:#5e574d;--grey:#8a8172;--grey-l:#c7beab;
+  --cream-dk:#b39f78;--cream-sh:#ddcba5;--cream:#f3e9d2;--paper:#fbf7ee;
+  --teal-dk2:#1f3b3a;--teal-dk:#2a4d4b;--teal-sh:#3a7672;--teal:#4f9a94;--teal-l:#86c2b6;--teal-p:#c3e0d4;
+  --tom-dk2:#6e2630;--tom-dk:#a83a3c;--tom:#d9534f;--tom-l:#ec8a6e;
+  --mus-dk2:#7a5a1c;--mus-dk:#b38425;--mus:#e2b33c;--mus-l:#f1d27a;--mus-p:#faecbc;
+  --grn-dk:#3d7a45;--grn:#5fae5a;--gold:#ffcf3f;--charcoal:#24221f;--panel:#3d3a36;
+}
+*{box-sizing:border-box}
+html,body{font-variant-ligatures:none;font-synthesis:none;margin:0;background:var(--charcoal);color:var(--paper);font-family:Atkinson,sans-serif}
+img.px,canvas.px,.px{image-rendering:pixelated;image-rendering:crisp-edges}
+.page{max-width:1320px;margin:0 auto;padding:24px 16px 80px}
+h1{font-family:Pixelify;font-weight:400;font-size:33px;margin:0 0 6px;color:var(--mus-l)}
+h2{font-family:Pixelify;font-weight:400;font-size:24px;margin:0 0 6px;color:var(--paper)}
+h2 .n{color:var(--mus);margin-right:10px}
+h2 .qtag{font:800 13px Atkinson;letter-spacing:1px;background:var(--mus);color:var(--ink);padding:3px 8px;border-radius:3px;vertical-align:5px;margin-left:10px}
+h3{font-family:Pixelify;font-weight:400;font-size:20px;margin:0 0 6px;color:var(--mus-l)}
+.lede{font-size:16px;line-height:1.5;color:var(--cream);max-width:1040px;margin:0 0 8px}
+.lede b{color:var(--paper)}
+.small{font-size:13px;color:var(--grey-l);line-height:1.45}
+section{margin:34px 0 0;padding:20px 0 0;border-top:2px dashed var(--grey-d)}
+.opts{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:8px 0 12px}
+.opt{font-family:Atkinson;font-weight:800;font-size:15px;background:var(--paper);color:var(--ink);border:2px solid var(--ink);
+  border-radius:4px;padding:6px 12px;cursor:pointer;box-shadow:0 3px 0 var(--cream-dk)}
+.opt.on{background:var(--mus);box-shadow:0 3px 0 var(--mus-dk2)}
+.opt .rec{font-size:12px;letter-spacing:1px;color:var(--grn-dk);margin-left:6px}
+.asks{background:var(--mus-p);color:var(--ink);border:2px solid var(--ink);border-radius:4px;padding:12px 16px;max-width:1120px;font-size:15px;line-height:1.5;margin:12px 0 0}
+.asks h3{color:var(--ink);font-size:22px}
+.asks ol{margin:0;padding-left:22px}
+.asks li{margin:3px 0}
+.asks a{color:var(--teal-dk);font-weight:800}
+.notes{font-size:14px;line-height:1.5;color:var(--cream);max-width:1080px;padding-left:20px}
+.notes li{margin:3px 0}
+.notes b{color:var(--paper)}
+.ctl{position:sticky;top:0;z-index:50;display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin:0 -16px 10px;padding:8px 16px;
+  font-size:13px;color:var(--grey-l);background:rgba(36,34,31,.96);border-bottom:2px solid var(--grey-d)}
+.ctl a,.ctl button{font:700 13px Atkinson;background:var(--teal-dk);color:var(--paper);border:1px solid var(--teal-l);border-radius:3px;padding:4px 9px;cursor:pointer;text-decoration:none}
+.ctl button.on{background:var(--mus);color:var(--ink);border-color:var(--mus-dk2)}
+.ctl .sep{width:1px;height:20px;background:var(--grey-d);margin:0 4px}
+.ctl .grp{color:var(--mus-l);font-weight:800;margin-left:2px}
+body.shot .ctl{display:none}
+body.sec .page>section,body.sec .page>header{display:none}
+body.sec .page>section.show{display:block;border:0;margin:0;padding:0}
+body.sec .page{padding:14px 16px 16px}
+.panel{background:var(--panel);border:2px solid var(--grey-d);padding:14px 16px;max-width:1288px}
+.gl{cursor:help;vertical-align:-4px}
+.rich img.gl{margin:-2px 1px -3px}
+.nw{white-space:nowrap}
+/* ---------- the loyalty ticket (a 62x112 art-px frame at 2x) ---------- */
+.lt{position:relative;width:124px;height:224px;flex:none;transition:transform .12s}
+.lt>*{position:absolute}
+.lt .fr{left:0;top:0;width:124px;height:224px}
+.lt .pips{right:9px;top:6px;font:800 13px Atkinson;letter-spacing:1px;color:var(--ink)}
+.lt .tier{left:8px;top:7px;font:800 10px Atkinson;letter-spacing:1px;color:var(--grey-d)}
+.lt .ring{left:36px;top:30px;width:52px;height:52px}
+.lt .mid{left:36px;top:30px;width:52px;height:52px;display:flex;align-items:center;justify-content:center}
+.lt .mid img{position:static}
+.lt .code{font:400 15px Pixelify;color:var(--teal-l)}
+.lt .lv{left:0;top:88px;width:124px;text-align:center;font:800 10px Atkinson;letter-spacing:1px;color:var(--grey-d)}
+.lt .band{left:4px;top:106px;width:116px;height:16px;line-height:16px;text-align:center;font:800 11px Atkinson;letter-spacing:.6px;white-space:nowrap;overflow:hidden}
+.lt .low{left:6px;top:128px;width:112px;height:90px;text-align:center;color:var(--ink)}
+.lt .low b{display:block;font:800 13px/15px Atkinson;margin:0 0 4px}
+.lt .low .ef{font:700 12px/16px Atkinson}
+.lt .low .ef img.gl{width:18px;height:18px;vertical-align:-5px}
+.lt .win{right:-10px;bottom:-24px;padding:3px 7px;font:800 15px Atkinson;background:var(--gold);color:var(--ink);border:2px solid var(--ink);box-shadow:3px 3px 0 rgba(43,36,32,.45);transform:rotate(-4deg);white-space:nowrap}
+.lt .win small{display:block;font:700 9px Atkinson;letter-spacing:.5px}
+.lt .win.zero{background:var(--grey-l)}
+.lt .win.two{bottom:-66px;right:-4px}
+.lt .win .ln2{display:block;margin-top:2px;padding-top:2px;border-top:1px dashed var(--ink)}
+.lt .win .ln2.zero{color:var(--grey-d)}
+.lt .lv b{color:var(--ink);background:var(--gold);padding:0 3px}
+table.mx td.q1{background:#fde3c8}
+table.mx td.q2{background:#f5bfa0;font-weight:800}
+table.mx td.q3{background:var(--tom);color:var(--paper);font-weight:800}
+.chaintg{display:inline-flex;gap:6px;align-items:center;margin-left:14px}
+.lt .out{left:6px;top:44px;width:112px;text-align:center;transform:rotate(-12deg);font:800 15px Atkinson;letter-spacing:1px;color:var(--tom-dk);border:3px solid var(--tom-dk);background:rgba(251,247,238,.85)}
+.lt.pick{cursor:pointer}
+.lt.pick:hover{transform:translateY(-3px)}
+.lt.sel{transform:translateY(-8px);filter:drop-shadow(0 0 0 var(--gold)) drop-shadow(0 6px 0 rgba(0,0,0,.35))}
+.lt.sel::after{content:'ON YOUR CARD';position:absolute;left:14px;top:-20px;font:800 10px Atkinson;letter-spacing:1px;background:var(--gold);color:var(--ink);padding:2px 6px;border:2px solid var(--ink)}
+.trow{display:flex;flex-wrap:wrap;gap:30px 16px;align-items:flex-end;padding:34px 0 14px}
+/* ---------- section 1: today ---------- */
+.today{display:grid;grid-template-columns:repeat(auto-fill,minmax(400px,1fr));gap:14px;max-width:1288px}
+.tcard{display:flex;gap:14px;background:var(--panel);border:1px solid var(--grey-d);padding:14px 12px 12px}
+.tcard .tx{font-size:13px;line-height:1.42;color:var(--cream)}
+.tcard .tx h4{margin:0 0 4px;font:400 20px Pixelify;color:var(--paper)}
+.tcard .tx .k{color:var(--mus-l);font-weight:800}
+.tcard .tx .bad{color:#f5a58c}
+.tcard.out{opacity:.8}
+.chips{display:flex;flex-wrap:wrap;gap:4px;margin:6px 0 0}
+.chip{font:800 12px Atkinson;padding:2px 6px;border-radius:2px;background:var(--charcoal);border:1px solid var(--grey-d);color:var(--cream);white-space:nowrap}
+.chip.w{color:#f5a58c;border-color:var(--tom-dk)}
+.chip.z{color:var(--grey)}
+.bars{display:grid;grid-template-columns:200px 1fr;gap:6px 12px;align-items:center;font-size:14px;max-width:760px}
+.bar{height:22px;display:flex;border:2px solid var(--ink)}
+.bar span{min-width:40px;display:flex;align-items:center;padding:0 8px;font:800 13px Atkinson;color:var(--ink);white-space:nowrap;overflow:hidden}
+.why{display:grid;grid-template-columns:1fr 1fr;gap:14px;max-width:1288px;margin:12px 0}
+/* ---------- section 2: the belt and the receipt ---------- */
+.dirhead{display:grid;grid-template-columns:1.2fr 1fr;gap:16px;max-width:1288px}
+.proscons{font-size:14px;line-height:1.45;color:var(--cream)}
+.proscons b{color:var(--paper)}
+.shapes{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:8px 0 0}
+.shape{background:var(--charcoal);border:1px solid var(--grey-d);padding:8px 10px;font-size:13px;line-height:1.4;color:var(--cream)}
+.shape .t{font:800 11px Atkinson;letter-spacing:1px;color:var(--mus-l)}
+.beltwrap{display:flex;gap:16px;align-items:flex-start;flex-wrap:wrap;margin:10px 0 0}
+.belt{position:relative;width:842px;background:var(--teal-dk2);border:2px solid var(--ink);padding:0 0 10px}
+.belt .strip{height:120px;background:url(../../../art/scenery/belt_top.png) 0 18px repeat-x;image-rendering:pixelated;position:relative}
+.belt .slots{display:flex;position:absolute;left:4px;top:0}
+.slot{position:relative;width:119px;height:120px}
+.slot>img.it{position:absolute;left:12px;top:6px;width:96px;height:96px}
+.slot>img.cp{position:absolute;left:20px;top:28px;width:80px;height:56px}
+.slot .no{position:absolute;left:4px;top:4px;font:800 11px Atkinson;color:var(--teal-l)}
+.slot .nm{position:absolute;left:0;bottom:0;width:119px;text-align:center;font:800 11px Atkinson;color:var(--paper);text-shadow:0 1px 0 var(--ink)}
+.pays{display:flex;padding:0 4px}
+.pay{position:relative;width:119px;height:78px}
+.pay .tag{position:absolute;left:30px;top:6px;width:60px;height:32px}
+.pay .tag img{position:absolute;left:0;top:0}
+.pay .tag div{position:absolute;left:0;top:0;width:100%;height:100%;display:flex;align-items:center;justify-content:center;font:750 20px Atkinson;color:var(--ink)}
+.pay .was{position:absolute;left:0;top:42px;width:119px;text-align:center;font:750 13px Atkinson;color:var(--grey-l)}
+.pay .was s{text-decoration-color:var(--tom);text-decoration-thickness:2px}
+.pay .up{position:absolute;left:0;top:58px;width:119px;text-align:center;font:800 12px Atkinson;color:var(--gold)}
+.steps{display:flex;padding:0 4px;min-height:60px}
+.steps .col{width:119px;padding:0 4px;display:flex;flex-direction:column;gap:3px;align-items:center}
+.st{font:800 11px Atkinson;padding:2px 5px;border-radius:2px;background:var(--teal-dk);color:var(--teal-p);white-space:nowrap;max-width:111px;overflow:hidden;text-overflow:ellipsis}
+.st.pk{border:2px solid var(--ink);box-shadow:0 2px 0 rgba(0,0,0,.4)}
+.st.w{background:var(--tom-dk2);color:#f5bfa0}
+.card3{display:flex;gap:8px;align-items:center;margin:8px 4px 0 6px;font:800 12px Atkinson;color:var(--teal-l)}
+.card3 .box{width:30px;height:30px;border:2px dashed var(--teal-l);border-radius:50%;display:flex;align-items:center;justify-content:center}
+.card3 .box img{position:static}
+.rcpt{width:400px;background:var(--paper);color:var(--ink);border:2px solid var(--ink);padding:12px 14px 14px;font:13px/1.5 JetBrains;box-shadow:4px 4px 0 rgba(0,0,0,.35)}
+.rcpt .hd{text-align:center;font:400 18px Pixelify;margin:0 0 6px}
+.rcpt .ln{display:flex;justify-content:space-between;gap:8px}
+.rcpt .ln.pk{font-weight:700}
+.rcpt .ln.sub{padding-left:14px;color:var(--grey-d)}
+.rcpt .ln.w{color:var(--tom-dk);padding-left:14px}
+.rcpt hr{border:0;border-top:2px dashed var(--cream-dk);margin:8px 0}
+.rcpt .tot{font-weight:700;font-size:15px}
+.rcpt .delta{margin:8px 0 0;padding:6px 8px;background:var(--gold);border:2px solid var(--ink);font:800 16px Atkinson;text-align:center}
+.rcpt .delta small{display:block;font:700 12px Atkinson}
+.rowpick{display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin:4px 0 0}
+.rowpick .opt{font-size:13px;padding:4px 9px}
+table.mx{border-collapse:collapse;background:var(--paper);color:var(--ink);border:2px solid var(--ink);font-size:13px;margin:12px 0 0}
+table.mx th,table.mx td{padding:4px 10px;border-bottom:1px solid var(--cream-sh);text-align:right;white-space:nowrap}
+table.mx th{background:var(--ink);color:var(--paper);font-weight:800;text-align:right}
+table.mx th:first-child,table.mx td:first-child{text-align:left}
+table.mx td.best{background:var(--mus-p);font-weight:800}
+table.mx td.wz{color:var(--tom-dk);font-weight:800}
+table.mx tr.tier td:first-child{font-weight:800}
+table.mx .tp{display:inline-block;width:18px;font-weight:800;color:var(--grey-d)}
+table.mx .sw{display:inline-block;width:12px;height:12px;border:2px solid var(--ink);vertical-align:-2px;margin-right:6px}
+/* ---------- section 3 ---------- */
+.ideas{display:grid;grid-template-columns:repeat(auto-fill,minmax(610px,1fr));gap:14px;max-width:1288px}
+.idea{background:var(--panel);border:1px solid var(--grey-d);padding:14px 16px}
+.idea p{font-size:14px;line-height:1.48;color:var(--cream);margin:6px 0 0}
+.idea p b{color:var(--paper)}
+.idea .demo{display:flex;gap:16px;align-items:flex-end;flex-wrap:wrap;padding:18px 0 26px}
+.utk{position:relative;width:124px;height:188px;background:var(--paper);border:2px solid var(--ink);flex:none}
+.utk>*{position:absolute}
+.utk .band{left:0;top:112px;width:120px;height:18px;line-height:18px;text-align:center;font:800 11px Atkinson;letter-spacing:1px;background:var(--mus);border-top:2px solid var(--ink);border-bottom:2px solid var(--ink)}
+.utk .tx{left:4px;top:134px;width:112px;text-align:center;font:800 12px/15px Atkinson;color:var(--ink)}
+.utk .tx span{font-weight:700;display:block}
+.minirc{width:300px;background:var(--paper);color:var(--ink);border:2px solid var(--ink);padding:8px 12px;font:12px/1.55 JetBrains}
+.minirc .ln{display:flex;justify-content:space-between}
+.minirc .pk{font-weight:700;padding:0 4px;margin:1px -4px}
+/* ---------- section 4 ---------- */
+.qs{display:grid;gap:14px;max-width:1288px}
+.qcard{background:var(--panel);border:2px solid var(--mus);border-radius:4px;padding:12px 16px}
+.qcard h3{font-size:21px}
+.qcard .ql{font:800 13px Atkinson;letter-spacing:1px;color:var(--ink);background:var(--mus);padding:2px 8px;border-radius:2px;margin-right:8px;vertical-align:3px}
+.qopts{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin:8px 0 0}
+.qo{background:var(--charcoal);border:1px solid var(--grey-d);padding:8px 10px;font-size:14px;line-height:1.45;color:var(--cream)}
+.qo.rec{border:2px solid var(--grn);background:#26332a}
+.qo .l{font:800 14px Atkinson;color:var(--paper)}
+.qo .r{font:800 11px Atkinson;letter-spacing:1px;color:var(--grn);margin-left:6px}
+.defaults{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:12px;max-width:1288px}
+.dcard{background:var(--paper);color:var(--ink);border:2px solid var(--ink);border-radius:4px;padding:10px 12px;font-size:14px;line-height:1.45}
+.dcard h3{color:var(--ink);font-size:20px;margin:0 0 4px}
+#hovertip{position:fixed;z-index:100;pointer-events:none;display:none;background:var(--ink);color:var(--paper);font:800 13px Atkinson;padding:3px 8px;border:2px solid var(--paper)}
+</style>
+</head>
+<body>
+<div id="hovertip"></div>
+<div class="page">
+<header>
+  <h1>Receipt machine prizes and loyalty perks · issue #108</h1>
+  <p class="lede">You asked to rework the prizes' effects so they're <b>more interesting and satisfying</b>, and to make bonuses <b>more consistent and strategically interesting</b>. The machine's look stays as it is (#77, premium machine). This page is about <b>what you win</b>. Section 1 shows today's prizes on one screen. Section 2 offers three directions for the loyalty perks, drawn as real loyalty tickets and scored on five example rows: click a ticket to put it on your card. Section 3 asks how strong a stack may get. Section 4 covers making a win feel like a win. Section 5 has the questions.</p>
+  <p class="lede">The short version: <b>players almost never choose LOYALTY.</b> On fb-p3, all 19 BOOSTED visits went to UPGRADES and none to LOYALTY. Every perk came from the free STAMP DAY. Of the six perks, two never make a receipt step (Extra redraw, Big basket), the Coupon engine fizzles with 6 of the 8 coupons, and the Category engine is one lump that fits every deck. Only the Slot engine works, and it's the rarest. So the perks need reworking, and so does the choice.</p>
+  <div class="asks">
+    <h3>Four questions (details and options in <a href="#s-q">section 5</a>)</h3>
+    <ol>
+      <li><b>Q1 · How strong may a stack get?</b> (<a href="#s-ceil">section 3</a>) No ceiling (Balatro style), about 1.5× the quota with "perks change the payout, not the price", or a hard cap? <b>Recommended: about 1.5× the quota.</b></li>
+      <li><b>Q2 · Direction for the loyalty perks</b> (<a href="#s-dir">section 2</a>): <b>A</b> family loyalty with jackpots, <b>B</b> position and sequence engines, or <b>C</b> build-around jackpots alone? <b>Recommended: A</b>, a hybrid that takes B's Coupon engine and C's Bulk deal, Banana stand and Lemon squeezer.</li>
+      <li><b>Q3 · Extra redraw and Big basket</b>: keep them and credit what they earned on the receipt, rework them with new bonuses, or cut them? <b>Recommended: keep and credit them.</b></li>
+      <li><b>Q4 · Why pick LOYALTY when STAMP DAY fills the card for free?</b> Lower STAMP DAY's floor, let a LOYALTY pick <b>level up</b> a perk, or give both a perk and an upgrade? <b>Recommended: lower STAMP DAY's floor.</b></li>
+    </ol>
+  </div>
+  <p class="small" style="margin-top:10px">All numbers are proposals for the final balance pass (no simulator run). The example rows are scored in the game's order (<code>core/scoring.gd</code>) by a small copy of the scorer for these 20 cards (<code>machine_loyalty_108_src/scorer.js</code>), using card values from the rule-tweaks branch (v0.57: Banana chain, 7 slots, Big basket without penalty). Hover a glyph for its family. URL options: <code>dir=B</code>, <code>row=R3</code>, <code>perks=B_CO,B_EN</code>, <code>chain=off</code> (perks change the payout, not the price), <code>sec=s-dir</code> (one section).</p>
+</header>
+<div class="ctl" id="ctl"><span class="grp">Go to:</span><a href="#s-today">1 · Today</a><a href="#s-dir">2 · Directions</a><a href="#s-ceil">3 · Ceiling</a><a href="#s-win">4 · What you win</a><a href="#s-q">5 · Questions</a><span class="sep"></span><span class="grp">Direction:</span><span id="ctldir"></span><span class="sep"></span><span class="grp">Row:</span><span id="ctlrow"></span></div>
+
+<section id="s-today">
+  <h2><span class="n">1</span>Today in one view: every prize, what it does, what's wrong</h2>
+  <p class="lede">Data from the rule-tweaks branch (v0.57). "Offered / picked" counts every LOYALTY ticket in the fb-p2 and fb-p3 logs (24 runs). "First draw" is the chance the perk is among the 3 tickets of a run's first loyalty draw (STAMP DAY after shift 2, Mixed basket deck, 40k simulated draws). The chips show what each perk adds to the five example rows of section 2. A red chip means the perk was WASTED on that row.</p>
+  <h3>The choice</h3>
+  <div class="bars" id="bars"></div>
+  <div class="why">
+    <div class="panel proscons"><b>Why LOYALTY loses.</b> STAMP DAY (after shifts 2, 4 and 6) tops the card up to 1, 2 and 3 perks for free. So picking LOYALTY on a BOOSTED visit only gets a perk one shift earlier, and costs an item upgrade. The card never holds more than 3 perks.</div>
+    <div class="panel proscons"><b>Why the perks feel flat.</b> Extra redraw and Big basket never make a receipt step, so they never "fire". The Coupon engine pays nothing with 6 of the 8 coupons. The Category engine fits about 97% of dealt decks, so mixing is the default, not a choice. Its pay is one lump on the last product. The Slot engine is the strongest perk (6 of 6 picked, +20 points of win rate) but the rarest (9% on the first draw), and it's about positions, not families. The COMMON tier has only 2 perks, and neither fires.</div>
+  </div>
+  <h3 style="margin-top:14px">The prizes</h3>
+  <div class="today" id="today"></div>
+</section>
+
+<section id="s-dir">
+  <h2><span class="n">2</span>Three directions for the loyalty perks<span class="qtag">Q2</span></h2>
+  <p class="lede">Each direction is a pool of perks with COMMON, RARE and LEGENDARY tiers, drawn as the machine's loyalty tickets. A perk's ticket takes the colour and glyph of the family it boosts, as item tickets do since #105. Perks that name no family (positions, copies) are <b>silver</b>, so they no longer read as Breakfast's gold. <b>Click tickets to put up to 3 on your loyalty card</b>, pick a row, and the belt and receipt rescore. The table at the bottom shows what each perk adds to each row on its own.</p>
+  <div class="opts" id="diropt"></div>
+  <div id="dirbody"></div>
+</section>
+
+<section id="s-ceil">
+  <h2><span class="n">3</span>The ceiling: how strong may a stack get?<span class="qtag">Q1</span></h2>
+  <p class="lede">Family perks stack on purpose, and two things make them stack hard. Regulars grows with the square of your family count (+1, +2, +3 ...), and today <b>a perk's flat bonus goes into the price that the Banana chain passes on</b> (<code>_scan</code> sets <code>prices[slot]</code> after the upgrade bonuses), so every link carries it again. The table scores the same stacks both ways, against shift 5's quota (€73) and shift 8's (€120). "Payout only" is a one-line change: set <code>prices[slot]</code> before <code>_upgrade_flat_bonuses</code>. A chain's first link still passes its full payout, as it does today.</p>
+  <div id="ceil"></div>
+</section>
+
+<section id="s-win">
+  <h2><span class="n">4</span>What you win: making a prize feel like a win</h2>
+  <p class="lede">The machine's visuals were just reworked, so these ideas change only <b>what is on the ticket and what it does afterwards</b>. They work with any direction from section 2.</p>
+  <div class="ideas" id="ideas"></div>
+</section>
+
+<section id="s-q">
+  <h2><span class="n">5</span>Questions and defaults</h2>
+  <div class="qs" id="qs"></div>
+  <h3 style="margin-top:22px">Defaults (say if you want any changed)</h3>
+  <div class="defaults" id="defaults"></div>
+  <h3 style="margin-top:22px">Gaps</h3>
+  <ul class="notes" id="gaps"></ul>
+  <h3 style="margin-top:22px">Changed after review (and what I skipped)</h3>
+  <ul class="notes" id="review"></ul>
+</section>
+</div>
+<script>
+"use strict";
+addEventListener('error', e => { document.title += ' ERROR:' + e.message + '@' + e.lineno; });
+const ART = '../../../art/';
+const Q = new URLSearchParams(location.search);
+if (Q.has('shot')) document.body.classList.add('shot');
+const P = {ink:'#2b2420',inkL:'#4a3f38',greyD:'#5e574d',grey:'#8a8172',greyL:'#c7beab',creamDk:'#b39f78',creamSh:'#ddcba5',
+  cream:'#f3e9d2',paper:'#fbf7ee',tealDk2:'#1f3b3a',tealDk:'#2a4d4b',tealSh:'#3a7672',teal:'#4f9a94',tealL:'#86c2b6',tealP:'#c3e0d4',
+  tomDk2:'#6e2630',tomDk:'#a83a3c',tom:'#d9534f',tomL:'#ec8a6e',musDk2:'#7a5a1c',musDk:'#b38425',mus:'#e2b33c',musL:'#f1d27a',musP:'#faecbc',
+  grnDk:'#3d7a45',grn:'#5fae5a',gold:'#ffcf3f',brDk:'#7a5232',br:'#a87a4e',steelHi:'#ecebe4',steelP:'#a9a59b'};
+
+/*SCORER*/
+/*RINGS*/
+
+// ---------- family colours (NC-read data/families/*.tres, set A) and glyphs (#105 v2 set) ----------
+const FC = {
+  Breakfast:{col:'#e2b33c', lt:'#f1d27a', dk:'#b38425', ink:true},
+  Bakery:   {col:'#d2a874', lt:'#ddcba5', dk:'#a87a4e', ink:true},
+  Produce:  {col:'#5fae5a', lt:'#a5d17e', dk:'#3d7a45', ink:true},
+  Dairy:    {col:'#4f9a94', lt:'#86c2b6', dk:'#3a7672', ink:true},
+  Frozen:   {col:'#c3e0d4', lt:'#fbf7ee', dk:'#86c2b6', ink:true},
+  Snack:    {col:'#7a5232', lt:'#a87a4e', dk:'#4a3022', ink:false},
+  Household:{col:'#5e574d', lt:'#8a8172', dk:'#4a3f38', ink:false},
+  Clearance:{col:'#a83a3c', lt:'#d9534f', dk:'#6e2630', ink:false},
+  Food:     {col:'#ec8a6e', lt:'#f5bfa0', dk:'#d9534f', ink:true},
+  Coupon:   {col:'#fbf7ee', lt:'#ffffff', dk:'#c7beab', ink:true, txt:'#2a4d4b'},
+  Neutral:  {col:'#c7beab', lt:'#ecebe4', dk:'#8a8172', ink:true},   // perks naming no family: silver (Breakfast owns gold)
+  Mixed:    {col:'#c7beab', lt:'#ecebe4', dk:'#8a8172', ink:true},
+  Today:    {col:'#e2b33c', lt:'#f1d27a', dk:'#b38425', ink:true},   // today's perk tickets (section 1), as the game has them
+};
+const FAM = {
+  Food:      {glyph:'aisle_pantry'},
+  Breakfast: {cols:{g:P.greyL, b:P.brDk, w:P.paper, t:P.tom, s:P.creamSh}, sil:['.g.g...', '..g.g..', 'bbbbb..', 'wwwwwww', 'tttttsw', 'wwwwsww', '.wwws..']},
+  Produce:   {glyph:'aisle_fruit_and_veg'},
+  Bakery:    {glyph:'aisle_bakery'},
+  Dairy:     {cols:{c:P.tealDk, w:P.paper, s:P.creamSh, t:P.teal}, sil:['..ccc..', '..wws..', '.wwwws.', 'wwwwwws', 'ttttttt', 'wwwwwws', 'wwwwwws']},
+  Frozen:    {glyph:'aisle_cold_cases'},
+  Snack:     {glyph:'aisle_snacks'},
+  Household: {glyph:'aisle_household'},
+  Clearance: {cols:{r:P.tom, d:P.tomDk, h:P.ink, a:P.paper}, sil:['..rrrrr', '.rrrarr', 'rrrrarr', 'rhrrard', 'rrraaad', '.rrrard', '..rdddd']},
+  Coupon:    {cols:{w:P.steelHi, p:P.tealDk, d:P.teal}, sil:['w.....w', '.w...w.', '..w.w..', '...p...', 'ddd.ddd', 'd.d.d.d', 'ddd.ddd']},
+};
+function canvas(w, h) { const c = document.createElement('canvas'); c.width = w; c.height = h; return c; }
+const MEMO = {};
+function memo(k, f) { return MEMO[k] || (MEMO[k] = f()); }
+function glyphURL(name) {
+  const f = FAM[name];
+  if (f.glyph) return ART + 'icons/' + f.glyph + '.png';
+  return memo('g' + name, () => {
+    const c = canvas(9, 9), g = c.getContext('2d'), on = (x, y) => x >= 0 && y >= 0 && x < 7 && y < 7 && f.sil[y][x] !== '.';
+    for (let y = -1; y < 8; y++) for (let x = -1; x < 8; x++) {
+      if (on(x, y)) continue;
+      if (on(x + 1, y) || on(x - 1, y) || on(x, y + 1) || on(x, y - 1)) { g.fillStyle = P.ink; g.fillRect(x + 1, y + 1, 1, 1); }
+    }
+    f.sil.forEach((row, y) => [...row].forEach((ch, x) => { if (ch !== '.') { g.fillStyle = f.cols[ch]; g.fillRect(x + 1, y + 1, 1, 1); } }));
+    return c.toDataURL();
+  });
+}
+const glyph = (name, px) => `<img class="px gl" data-tip="${name}" src="${glyphURL(name)}" width="${px || 18}" height="${px || 18}" alt="${name}">`;
+const rich = s => s.replace(/\{(\w+)\}/g, (m, t) => glyph(t));
+
+// ---------- the loyalty ticket frame: 62x112 art px at 2x ----------
+// ink outline with cut corners; the cream top (lit top row, shaded right column); an ink rule; the family band
+// (lit / face / shade rows); an ink rule; the paper bottom. Tier: RARE a teal inner rim, LEGENDARY a gold one.
+function frameURL(fam, tier) {
+  const f = FC[fam] || FC.Neutral;
+  return memo('fr' + fam + tier, () => {
+    const W = 62, H = 112, c = canvas(W, H), g = c.getContext('2d');
+    const rim = tier === 'R' ? [P.teal, P.tealL] : tier === 'L' ? [P.musDk, P.gold] : null;
+    for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+      if ((x === 0 || x === W - 1) && (y === 0 || y === H - 1)) continue;
+      let col;
+      if (x === 0 || y === 0 || x === W - 1 || y === H - 1) col = P.ink;
+      else if (rim && (x === 1 || x === W - 2 || y === 1 || y === H - 2)) col = rim[0];
+      else if (rim && tier === 'L' && (x === 2 || x === W - 3 || y === 2 || y === H - 3)) col = rim[1];
+      else if (y === 52 || y === 62) col = P.ink;
+      else if (y > 52 && y < 62) col = y === 53 ? f.lt : y === 61 ? f.dk : f.col;
+      else if (y < 52) col = (y <= 3 && !rim) || y === (rim ? (tier === 'L' ? 3 : 2) : 1) ? P.paper : (x >= W - 3 || y === 51) ? P.creamSh : P.cream;
+      else col = P.paper;
+      g.fillStyle = col; g.fillRect(x, y, 1, 1);
+    }
+    if (fam === 'Mixed') {   // a striped band: one stripe per main family
+      const fs = ['Bakery','Produce','Dairy','Frozen','Snack','Household','Breakfast','Clearance'];
+      for (let x = 1; x < W - 1; x++) { const k = FC[fs[Math.floor((x - 1) / ((W - 2) / fs.length))]]; for (let y = 53; y < 62; y++) { g.fillStyle = y === 53 ? k.lt : y === 61 ? k.dk : k.col; g.fillRect(x, y, 1, 1); } }
+    }
+    if (fam === 'Coupon') {   // a coupon's perforation along the band
+      for (let x = 1; x < W - 1; x++) { g.fillStyle = (x % 3 === 0) ? P.tealL : P.paper; g.fillRect(x, 53, 1, 1); g.fillRect(x, 61, 1, 1); }
+    }
+    return c.toDataURL();
+  });
+}
+const PIPS = {C:'●', R:'◆◆', L:'★★★'}, TIERNAME = {C:'COMMON', R:'RARE', L:'LEGENDARY', '-':'OUT OF POOL'};
+const BANDTXT = {Neutral:'STAMP', Today:'STAMP', Mixed:'MIXED', Coupon:'COUPONS'};
+const lookOf = pk => pk.fam || (pk.id && pk.id.startsWith('T_') ? 'Today' : 'Neutral');
+// a loyalty ticket. o.win: the preview sticker (o.best: a second line, the best row this run); o.lv: a level line;
+// o.pick: clickable
+function ticket(pk, o) {
+  o = o || {};
+  const fam = lookOf(pk), f = FC[fam], tier = pk.tier === '-' ? 'C' : pk.tier;
+  const famGlyph = FAM[fam] && !pk.item;
+  const mid = pk.item ? `<img class="px" src="${ART}minis/${pk.item}.png" width="28" height="28">`
+    : famGlyph ? `<img class="px gl" data-tip="${fam}" src="${glyphURL(fam)}" width="27" height="27">`
+    : `<span class="code">${pk.code}</span>`;
+  const band = (BANDTXT[fam] || fam.toUpperCase()) + (fam === 'Neutral' || fam === 'Today' ? ' · ' + pk.code : ' STAMP');
+  const txtCol = f.txt || (f.ink ? P.ink : P.paper);
+  return `<div class="lt${o.pick ? ' pick' : ''}${o.sel ? ' sel' : ''}" data-perk="${pk.id}">
+    <img class="px fr" src="${frameURL(fam, tier)}" width="124" height="224">
+    <span class="tier">${TIERNAME[pk.tier]}</span><span class="pips">${PIPS[tier] || ''}</span>
+    <img class="px ring" src="${RING[fam] || RING.Neutral}" width="52" height="52"><div class="mid">${mid}</div>
+    ${o.lv ? `<div class="lv">${o.lv}</div>` : ''}
+    <div class="band" style="color:${txtCol}">${band}</div>
+    <div class="low"><b>${pk.name}</b><div class="ef rich">${rich(o.eff || pk.eff)}</div></div>
+    ${pk.out ? '<div class="out">OUT OF POOL</div>' : ''}
+    ${o.win !== undefined ? `<div class="win${o.win || o.best ? '' : ' zero'}${o.best !== undefined ? ' two' : ''}"><small>${o.winLabel || 'ON YOUR LAST ROW'}</small>${o.win ? '+€' + o.win : 'WASTED'}${o.best !== undefined ? `<span class="ln2${o.best ? '' : ' zero'}"><small>${o.bestLabel || 'BEST ROW THIS RUN'}</small>${o.best ? '+€' + o.best : 'WASTED'}</span>` : ''}</div>` : ''}
+  </div>`;
+}
+// a prize ticket that is not a perk (NEW ITEMS, COUPONS, UPGRADES): sprite, band, text
+function prizeTicket(img, w, h, band, name, sub, tier, extra) {
+  const tc = tier === 'R' ? P.teal : tier === 'L' ? P.gold : P.ink;
+  return `<div class="utk" style="box-shadow:inset 0 0 0 3px ${tier === 'C' || !tier ? P.paper : tc}">
+    <span style="left:8px;top:6px;font:800 10px Atkinson;letter-spacing:1px;color:${P.greyD}">${tier ? TIERNAME[tier] : ''}</span>
+    <span style="right:8px;top:4px;font:800 13px Atkinson">${tier ? PIPS[tier] : ''}</span>
+    <img class="px" src="${img}" width="${w}" height="${h}" style="left:${(120 - w) / 2}px;top:${20 + (92 - h) / 2}px">
+    ${extra || ''}
+    <div class="band">${band}</div>
+    <div class="tx">${name}<span>${sub || ''}</span></div></div>`;
+}
+
+const ROWKEYS = Object.keys(ROWS108);
+const deltaChip = (rk, pk) => {
+  const s = score108(ROWS108[rk].ids, [pk]), d = delta108(rk, pk), w = s.wasted.length > 0;
+  return `<span class="chip${w ? ' w' : d ? '' : ' z'}" data-tip="${ROWS108[rk].name}${w ? ': WASTED, ' + s.wasted[0].txt : ''}">${rk} ${w && !d ? 'WASTED' : '+' + d}</span>`;
+};
+
+// ---------- section 1 ----------
+function buildToday() {
+  const bars = [
+    ['BOOSTED visits (fb-p3)', [['UPGRADES 19', 19, P.mus], ['LOYALTY 0', 0.0001, P.teal]]],
+    ['Where perks came from', [['STAMP DAY (free) 18', 18, P.tealL], ['BOOSTED 0', 0.0001, P.teal]]],
+    ['Normal visits (fb-p3)', [['NEW ITEMS 31', 31, P.grn], ['COUPONS 6', 6, P.paper], ['bin 1', 1, P.greyL]]],
+  ];
+  document.getElementById('bars').innerHTML = bars.map(([lab, segs]) => {
+    const tot = segs.reduce((s, x) => s + x[1], 0);
+    const zero = segs.filter(s => s[1] < 1).map(s => s[0]).join(', ');
+    return `<div style="color:var(--cream);font-weight:700">${lab}</div><div style="display:flex;align-items:center;gap:10px"><div class="bar" style="width:${zero ? 78 : 100}%">${segs.filter(s => s[1] >= 1).map(([t, v, c]) => `<span style="width:${v / tot * 100}%;background:${c}">${t}</span>`).join('')}</div>${zero ? `<span style="font:800 13px Atkinson;color:var(--tom-l);white-space:nowrap">${zero}</span>` : ''}</div>`;
+  }).join('');
+  const T = [
+    {tk:prizeTicket(ART + 'items_v2/strawberries.png', 96, 96, 'NEW ITEMS', 'Strawberries', '+3 beside Produce', 'C'),
+     h:'NEW ITEMS · Normal visit', does:'3 products from the stock (17 rare, 3 legendary: Lemon, Iced bun, Squashed cake). One is always "generally useful", preferring one you don\'t own yet.',
+     data:'Picked on 31 of 38 Normal visits.', prob:'Works, but no ticket says which of your families it feeds, so planning a build is guesswork.'},
+    {tk:prizeTicket(ART + 'icons/coupon_two_for_one_v2.png', 80, 56, 'COUPONS', '2 for 1', 'Same both sides: 2nd ×2', 'R'),
+     h:'COUPONS · Normal visit', does:'3 of the 8 coupons (rare: Repeat, 2 for 1, Multipack; legendary: Opening deal). The first draw comes from the first-offer pool.',
+     data:'Picked on 6 of 38 Normal visits.', prob:'Coupon specialist is the weakest build (17.3% won against a 24.5% bar, #42). Only the Coupon engine and Scissors read coupons, and Extra coupon slot is gone (v0.56).'},
+    {tk:prizeTicket(ART + 'items_v2/eggs_big.png', 96, 96, 'UPGRADE', 'Eggs +1 step', '1 copy: PLAIN › BIG', 'C'),
+     h:'UPGRADES · BOOSTED visit', does:'COMMON: one copy steps up (plain → BIG: +2 base, same rule). RARE: a plain copy goes straight to GOLDEN (BIG\'s base, twice the bonus, +1 charge). LEGENDARY: SHELF UPGRADE, every copy below GOLDEN steps once (needs 2 copies).',
+     data:'Picked on 19 of 19 BOOSTED visits (Eggs 10 of 15 offered, Milk 8 of 22, Banana 8 of 31).', prob:'The tiers look and feel good (keep them). But a COMMON step is only +2 base on one copy, and the chute has no guarantee and no family logic.'},
+  ];
+  const L = [
+    {id:'T_ER', off:'20 / 5', first:'92%', prob:'No receipt step, so it never fires. It "supports any build", so it never fits your cart. Against rule 1 of §5.2 ("change what you draft or how you order").'},
+    {id:'T_BB', off:'33 / 8', first:'92%', prob:'No receipt step. It "supports" Clearance collector and Bulk buyer only because the data says so. Its quota penalty is gone (v0.56), so it is now a free +1 slot.'},
+    {id:'T_CO', off:'24 / 7', first:'12%', prob:'WASTED with 6 of the 8 coupons: only Repeat and Final markdown in the last slot pay anything. In practice about +4 a shift. It is Coupon specialist\'s only loyalty support.'},
+    {id:'T_CA', off:'15 / 9', first:'95%', prob:'Fits about 97% of dealt decks, so "mix everything" is the default strategy. It pays one invisible lump on the last product (up to +24, +27 with Snack).'},
+    {id:'T_SL', off:'6 / 6', first:'9%', prob:'The strongest perk (39% of runs won with it, 18% without) but the rarest. It is about positions, not families, and it is Breakfast special\'s only support.'},
+    {id:'T_RB', off:'— / —', first:'0%', prob:'Out of the pool since v0.27. Bulk buyer\'s real engine is now the Banana chain, and no perk boosts chains.'},
+  ];
+  let h = T.map(t => `<div class="tcard">${t.tk}<div class="tx"><h4>${t.h}</h4><div><span class="k">Does:</span> ${t.does}</div><div><span class="k">Seen:</span> ${t.data}</div><div class="bad"><span class="k">Problem:</span> ${t.prob}</div></div></div>`).join('');
+  h += L.map(l => { const pk = PERKS[l.id]; return `<div class="tcard${pk.out ? ' out' : ''}">${ticket(pk)}<div class="tx"><h4>${pk.name} · LOYALTY</h4>
+    <div><span class="k">Does:</span> ${rich(pk.eff)}${l.id === 'T_CA' ? ' (paid on the last product)' : ''}.</div>
+    <div><span class="k">Offered / picked:</span> ${l.off} · <span class="k">first draw:</span> ${l.first}</div>
+    <div class="bad"><span class="k">Problem:</span> ${l.prob}</div>
+    ${pk.out ? '' : `<div class="chips">${ROWKEYS.map(rk => deltaChip(rk, l.id)).join('')}</div>`}</div></div>`; }).join('');
+  document.getElementById('today').innerHTML = h;
+}
+
+// ---------- section 2 ----------
+// OPT.payoutOnly: "perks change the payout, not the price" (Q1 B): the chain no longer carries a perk's flat bonus
+let OPT = {payoutOnly: Q.get('chain') === 'off'};
+const DIRS = {
+  A: {name:'Family loyalty + jackpots', rec:true, perks:['A_RP','A_RB','A_RC','A_NP','A_NB','A_NC','A_MX','C_BD','B_CO','A_BS','C_LS','A_FS'], show:{row:'R1', perks:['A_RP']},
+    pitch:'Every family perk names one family and grows with how many of it you scan. <b>Two rule shapes are the same for every family</b>: learn the Produce ones and you know the Dairy ones. The issue\'s own example ("each Produce pays +1 for each Produce scanned before it") is the COMMON shape. Three RARE perks name no family and keep the other builds alive: Mixed basket (reworked), Bulk deal (from C) and the Coupon engine (from B). The LEGENDARY tickets are family jackpots that bend one signature product (from C). The pool: Regulars and Aisle run for 7 families (Bakery, Produce, Dairy, Snack, Household, Breakfast, Clearance) is 14 perks, plus the 3 RAREs for any deck, plus 3 jackpots designed so far, so 20. The 12 tickets below are examples.',
+    shapes:[['COMMON · Regulars', 'Each {F} pays +1 for each {F} before it. It grows with commitment: 3 Produce give +3, 5 give +10, 6 give +15, before multipliers.'],
+      ['RARE · Aisle run, and 3 for any deck', '3 or more {F} in a row: the last ×3, an ordering puzzle. Plus Mixed basket (each product that brings a new family +3), Bulk deal (+3 per copy before it) and Coupon engine (the product after each coupon ×2).'],
+      ['LEGENDARY · Jackpots', 'A family\'s signature product bends: Banana stand (every {F} chains like a Banana), Lemon squeezer, Fire sale. No GOLDEN wording: that word stays with the item tiers.']],
+    pros:'<b>For:</b> consistent (2 shapes for 7 families, all data); uses the family colours, glyphs and #105\'s hover highlight. Family perks read the game\'s context tags and adjacency, so Breakfast sticker and Clearance tag add to a family, and Bundle, 2 for 1 and Shelf swap extend an Aisle run: coupons finally feed families. Bakery, Dairy, Snack and Household get a reason to exist. Each of today\'s 5 builds keeps a perk: Mixed basket, Bulk deal, Coupon engine (+44 on R3), and the Breakfast and Clearance perks.',
+    cons:'<b>Against:</b> a stack of one family gets strong (section 3, Q1). It pulls towards one family, which Mixed basket has to balance. With 20 perks the draw must read your deck (section 4e), or most tickets are dead. Breakfast cuts across aisles (Milk is Dairy too, Bread is Bakery), so Breakfast regulars (+29 on R2) beats every RARE: flagged for the balance pass. Jackpots exist only for Produce and Clearance so far.'},
+  B: {name:'Position and sequence engines', perks:['B_RC','B_BB','B_BE','B_PA','B_CO','B_SL','B_EN'], show:{row:'R3', perks:['B_CO']},
+    pitch:'Keep today\'s five engines and make each one fire, plus two new ones. Perks are about <b>where</b> a card sits and <b>what follows what</b>: the first and last product, copies side by side, the product after a coupon, slot 6, and your best payout.',
+    shapes:[['COMMON', 'Rain check (Extra redraw that pays), Big basket (its last product pays), Bookends.'],
+      ['RARE', 'Pairs (copies side by side ×2), Coupon engine (the product after each coupon ×2), Slot engine (unchanged, now RARE).'],
+      ['LEGENDARY', 'Encore: your best payout pays again at the end. One big hit becomes two.']],
+    pros:'<b>For:</b> closest to today, with small code changes (new UpgradeRule hooks, no family logic). The reworked Coupon engine finally carries Coupon specialist (Opening deal ×5, then ×2: Milk pays €40), which is why A takes it.',
+    cons:'<b>Against:</b> no link to the family colours: the tickets are silver and generic. Bookends fizzles on most rows and Rain check is a small flat bonus. Pairs (×2 beside a copy of itself) makes the 2 for 1 coupon redundant. Encore pays on any deck, so it never asks for a build. The puzzle is the belt\'s order, which the cards and coupons already ask for.'},
+  C: {name:'Build-around jackpots alone', perks:['C_MR','C_FR','C_LC','C_BD','C_BC','C_BS','C_LS','C_CK'], show:{row:'R2', perks:['C_BC']},
+    pitch:'Each perk <b>bends one product\'s own rule</b>, in the spirit of the Golden Banana: Coffee\'s +3 reaches every later Breakfast, Lemon\'s ×2 every later Produce, Bananas chain across the whole row. A LEGENDARY one can define a run.',
+    shapes:[['COMMON', 'A small bend to a common product: Milk counts every Breakfast, Eggs\' ×2 reaches 3 Food, Final markdown counts Clearance.'],
+      ['RARE', 'A bend that changes the order you want: Breakfast club, Bulk deal.'],
+      ['LEGENDARY', 'A jackpot: Banana stand, Lemon squeezer, Coupon king (every coupon also pays the product before it).']],
+    pros:'<b>For:</b> the most memorable moments (Joker-like). Each one is a clear goal ("get more Bananas"), and it reuses the item-tier language (chains, charges).',
+    cons:'<b>Against:</b> it does nothing without its product, so the offer must read your deck, and many products get no perk. One rule per perk (less consistent, more code), and it overlaps the item UPGRADES chute. Coupon king is Repeat\'s rule on every coupon. This Banana stand\'s "each link twice" is the Golden Banana\'s rule (A\'s Banana stand drops it), and Free range is the only perk that names Food.'},
+};
+let DIR = DIRS[Q.get('dir')] ? Q.get('dir') : 'A';
+let ROW = ROWS108[Q.get('row')] ? Q.get('row') : DIRS[DIR].show.row;
+let SEL = Q.get('perks') ? Q.get('perks').split(',').filter(k => PERKS[k]) : DIRS[DIR].show.perks.slice();
+const famOf = id => PERKS[id] ? lookOf(PERKS[id]) : 'Neutral';
+const stepStyle = id => { const f = FC[famOf(id)]; return `background:${f.col};color:${f.txt || (f.ink ? P.ink : P.paper)}`; };
+function itemImg(id) {
+  const c = C108[id];
+  return c.coupon ? `<img class="px cp" src="${ART}icons/coupon_${id}_v2.png" width="80" height="56">` : `<img class="px it" src="${ART}items_v2/${id}.png" width="96" height="96">`;
+}
+function payTagHTML(v, changed) {
+  const src = changed ? 'effects/pay_burst.png' : 'effects/pay_plain.png', w = changed ? 60 : 52, h = changed ? 32 : 26;
+  const s = '€' + v, size = s.length > 4 ? 15 : s.length > 3 ? 17 : 20;
+  return `<div class="tag" style="left:${(119 - w) / 2}px;width:${w}px;height:${h}px"><img class="px" src="${ART}${src}" width="${w}" height="${h}"><div style="font-size:${size}px">${s}</div></div>`;
+}
+function stepLabel(st) {
+  if (st.k === 'mult') return '×' + st.f + ' ' + st.txt;
+  if (st.k === 'copy') return '+' + st.amt + ' ' + st.txt;
+  if (st.k === 'wasted') return 'WASTED';
+  return '+' + st.amt + ' ' + st.txt;
+}
+function loyaltyBox(id) {
+  if (!id) return '<span class="box"></span>';
+  const pk = PERKS[id], fam = famOf(id);
+  const inner = FAM[fam] && !pk.item ? `<img class="px" src="${glyphURL(fam)}" width="18" height="18">`
+    : pk.item ? `<img class="px" src="${ART}minis/${pk.item}.png" width="14" height="14">`
+    : `<span style="font:400 11px Pixelify;color:${P.tealL}">${pk.code}</span>`;
+  return `<span class="box" style="border-style:solid;border-color:${FC[fam].col};background:${P.tealDk2}" data-tip="${pk.name}">${inner}</span>`;
+}
+function beltHTML(rowKey, perkIds) {
+  const ids = ROWS108[rowKey].ids, base = score108(ids, [], OPT), s = score108(ids, perkIds, OPT);
+  let h = `<div class="belt"><div class="strip"><div class="slots">${ids.map((id, i) => `<div class="slot"><span class="no">${i + 1}</span>${itemImg(id)}<span class="nm">${C108[id].name}</span></div>`).join('')}</div></div>`;
+  h += `<div class="pays">${s.slots.map((x, i) => { const was = base.slots[i].pay, ch = x.pay !== was; return `<div class="pay">${payTagHTML(x.pay, ch)}${ch ? `<div class="was">was <s>€${was}</s></div><div class="up">+${x.pay - was}</div>` : ''}</div>`; }).join('')}</div>`;
+  h += `<div class="steps">${s.slots.map((x, i) => `<div class="col">${x.steps.filter(st => st.k !== 'base').map(st => st.perk ? `<span class="st pk" style="${stepStyle(st.perk)}" data-tip="${PERKS[st.perk].name}: ${stepLabel(st)}">${stepLabel(st)}</span>` : `<span class="st${st.k === 'wasted' ? ' w' : ''}">${stepLabel(st)}</span>`).join('')}${s.extra.filter(e => e.slot === i).map(e => `<span class="st pk" style="${stepStyle(e.perk)}">+${e.amt} ${e.txt}</span>`).join('')}</div>`).join('')}</div>`;
+  h += `<div class="card3">YOUR LOYALTY CARD ${[0, 1, 2].map(k => loyaltyBox(perkIds[k])).join('')} <span style="color:var(--grey-l);font-weight:600;margin-left:6px">click tickets above to change</span></div></div>`;
+  // the receipt
+  let r = `<div class="rcpt"><div class="hd">RECEIPT · ${rowKey}</div>`;
+  s.slots.forEach((x, i) => {
+    r += `<div class="ln"><span>${i + 1} ${x.name}</span><span>€${x.pay}</span></div>`;
+    x.steps.filter(st => st.perk).forEach(st => { r += `<div class="ln sub pk" style="${stepStyle(st.perk)};padding:0 4px 0 14px"><span>${st.k === 'wasted' ? 'WASTED ' + PERKS[st.perk].name : PERKS[st.perk].name + (st.txt && st.txt !== PERKS[st.perk].short && st.txt !== PERKS[st.perk].name ? ' · ' + st.txt : '')}</span><span>${st.k === 'mult' ? '×' + st.f : st.k === 'wasted' ? '€0' : '+' + st.amt}</span></div>`; });
+    s.extra.filter(e => e.slot === i).forEach(e => { r += `<div class="ln sub pk" style="${stepStyle(e.perk)};padding:0 4px 0 14px"><span>${e.txt}</span><span>+${e.amt}</span></div>`; });
+  });
+  s.wasted.forEach(w => { r += `<div class="ln w"><span>WASTED ${PERKS[w.perk].name}: ${w.txt}</span><span>€0</span></div>`; });
+  const d = s.total - base.total;
+  r += `<hr><div class="ln"><span>Without perks</span><span>€${base.total}</span></div><div class="ln tot"><span>TOTAL</span><span>€${s.total}</span></div>`;
+  r += `<div class="delta">+€${d} from your card<small>${Math.round(d / QUOTA5 * 100)}% of shift 5's quota (€${QUOTA5}) · ${ROWS108[rowKey].name}${OPT.payoutOnly ? ' · payout only' : ''}</small></div></div>`;
+  return `<div class="beltwrap">${h}${r}</div>`;
+}
+function matrixHTML(dir) {
+  const ps = DIRS[dir].perks;
+  let h = `<table class="mx"><tr><th>Perk alone · what it adds</th>${ROWKEYS.map(rk => `<th>${rk} · ${ROWS108[rk].name}<br><span style="font-weight:600">without: €${score108(ROWS108[rk].ids, [], OPT).total}</span></th>`).join('')}</tr>`;
+  ps.forEach(id => {
+    const pk = PERKS[id], ds = ROWKEYS.map(rk => delta108(rk, id, OPT)), best = Math.max(...ds);
+    h += `<tr class="tier"><td><span class="tp">${pk.tier}</span><span class="sw" style="background:${FC[famOf(id)].col}"></span>${pk.name}</td>${ROWKEYS.map((rk, j) => { const w = score108(ROWS108[rk].ids, [id], OPT).wasted.length && !ds[j]; return `<td class="${w ? 'wz' : ds[j] === best && best > 0 ? 'best' : ''}">${w ? 'WASTED' : '+' + ds[j]}</td>`; }).join('')}</tr>`;
+  });
+  const today = ['T_CA','T_SL','T_CO'];
+  h += `<tr><td style="color:var(--grey-d)">Today, for comparison: ${today.map(id => PERKS[id].name).join(', ')}</td>${ROWKEYS.map(rk => `<td style="color:var(--grey-d)">${today.map(id => '+' + delta108(rk, id, OPT)).join(' / ')}</td>`).join('')}</tr>`;
+  return h + '</table>';
+}
+function renderDir() {
+  const d = DIRS[DIR];
+  document.querySelectorAll('#diropt .opt, #ctldir button').forEach(b => b.classList.toggle('on', b.dataset.v === DIR));
+  document.querySelectorAll('#ctlrow button').forEach(b => b.classList.toggle('on', b.dataset.v === ROW));
+  const shapes = d.shapes.map(([t, x]) => `<div class="shape"><div class="t">${t}</div>${rich(x.replace(/\{F\}/g, '{Produce}'))}</div>`).join('');
+  document.getElementById('dirbody').innerHTML = `
+    <div class="dirhead"><div><p class="lede" style="margin:0">${d.pitch}</p><div class="shapes">${shapes}</div></div>
+    <div class="panel proscons"><p style="margin:0 0 8px">${d.pros}</p><p style="margin:0">${d.cons}</p></div></div>
+    <div class="trow">${d.perks.map(id => ticket(PERKS[id], {pick:true, sel:SEL.includes(id)})).join('')}</div>
+    <div class="rowpick"><span style="font-weight:800;color:var(--mus-l);margin-right:4px">Example row:</span>${ROWKEYS.map(rk => `<button class="opt${rk === ROW ? ' on' : ''}" data-row="${rk}">${rk} · ${ROWS108[rk].name}</button>`).join('')}
+      <span class="chaintg"><span style="font-weight:800;color:var(--mus-l)">Perk bonuses feed the chain:</span><button class="opt${OPT.payoutOnly ? '' : ' on'}" data-chain="on">Yes (today's order)</button><button class="opt${OPT.payoutOnly ? ' on' : ''}" data-chain="off">No: payout only (Q1 B)</button></span>
+      <span class="small" style="margin-left:8px">7 cards (R5: 6), shift 5 (quota €${QUOTA5}); redraws left: 1</span></div>
+    ${beltHTML(ROW, SEL)}
+    ${matrixHTML(DIR)}
+    <p class="small" style="max-width:1100px">Highlighted: the row where a perk pays most. A family perk pays big on its own row and little elsewhere: on a mixed hand, Regulars with 3 of its family pays about +3 to +6. That is why the draw must read your deck (section 4e) and why the ticket's sticker also shows your best row this run (4a). Big basket and Rain check show little here because every row keeps 7 cards: Q3 A credits their real value on the receipt instead (4c). Shift 5's quota is €${QUOTA5}, and shift 8's is €${QUOTA8}.</p>`;
+  document.querySelectorAll('#dirbody .lt.pick').forEach(el => el.addEventListener('click', () => {
+    const id = el.dataset.perk;
+    if (SEL.includes(id)) SEL = SEL.filter(k => k !== id); else { SEL.push(id); if (SEL.length > 3) SEL.shift(); }
+    renderDir();
+  }));
+  document.querySelectorAll('#dirbody .rowpick .opt[data-row]').forEach(b => b.addEventListener('click', () => { ROW = b.dataset.row; renderDir(); }));
+  document.querySelectorAll('#dirbody .opt[data-chain]').forEach(b => b.addEventListener('click', () => { OPT = {payoutOnly: b.dataset.chain === 'off'}; renderDir(); }));
+}
+function setDir(v) { DIR = v; ROW = DIRS[v].show.row; SEL = DIRS[v].show.perks.slice(); renderDir(); }
+function buildDirs() {
+  const opt = document.getElementById('diropt');
+  opt.innerHTML = Object.entries(DIRS).map(([k, d]) => `<button class="opt" data-v="${k}">${k} · ${d.name}${d.rec ? '<span class="rec">RECOMMENDED</span>' : ''}</button>`).join('');
+  opt.querySelectorAll('.opt').forEach(b => b.addEventListener('click', () => setDir(b.dataset.v)));
+  const cd = document.getElementById('ctldir');
+  cd.innerHTML = Object.keys(DIRS).map(k => `<button data-v="${k}">${k}</button>`).join(' ');
+  cd.querySelectorAll('button').forEach(b => b.addEventListener('click', () => { setDir(b.dataset.v); document.getElementById('s-dir').scrollIntoView(); }));
+  const cr = document.getElementById('ctlrow');
+  cr.innerHTML = ROWKEYS.map(k => `<button data-v="${k}">${k}</button>`).join(' ');
+  cr.querySelectorAll('button').forEach(b => b.addEventListener('click', () => { ROW = b.dataset.v; renderDir(); document.getElementById('s-dir').scrollIntoView(); }));
+  renderDir();
+}
+
+// ---------- section 3: the ceiling ----------
+function buildCeiling() {
+  const L3 = [levelled('A_RP', 3), levelled('A_NP', 3)];
+  const ST = [
+    ['No perks', []],
+    ['Produce regulars (COMMON)', ['A_RP']],
+    ['Regulars + Produce aisle run', ['A_RP', 'A_NP']],
+    ['… + Banana stand (all three Produce perks)', ['A_RP', 'A_NP', 'A_BS']],
+    ['… + Lemon squeezer instead', ['A_RP', 'A_NP', 'C_LS']],
+    ['… + Bulk deal instead', ['A_RP', 'A_NP', 'C_BD']],
+    ['LV 3 Regulars (+3) + LV 3 Aisle run (×5) + Lemon squeezer (Q4 B)', [...L3, 'C_LS']],
+  ];
+  const cls = v => v >= 3 * QUOTA8 ? 'q3' : v >= 1.5 * QUOTA8 ? 'q2' : v >= QUOTA8 ? 'q1' : '';
+  const cell = (rk, ps, o) => { const v = score108(ROWS108[rk].ids, ps, o).total; return `<td class="${cls(v)}">€${v}<span style="color:var(--grey-d);font-weight:600"> · ${(v / QUOTA8).toFixed(1)}×</span></td>`; };
+  let h = `<table class="mx"><tr><th>A loyalty card (Produce stack)</th><th>R1 · Produce + Banana chain<br><span style="font-weight:600">perks feed the chain (today)</span></th><th>R1<br><span style="font-weight:600">payout only (Q1 B)</span></th><th>R5 · Six Bananas<br><span style="font-weight:600">perks feed the chain (today)</span></th><th>R5<br><span style="font-weight:600">payout only (Q1 B)</span></th></tr>`;
+  ST.forEach(([n, ps]) => { h += `<tr><td style="font-weight:800">${ps.length ? ps.map(id => `<span class="sw" style="background:${FC[famOf(id)].col}"></span>`).join('') : ''}${n}</td>${cell('R1', ps, {})}${cell('R1', ps, {payoutOnly:true})}${cell('R5', ps, {})}${cell('R5', ps, {payoutOnly:true})}</tr>`; });
+  const g6 = score108(REF108.G6.ids, []).total;
+  h += `<tr><td style="color:var(--grey-d)">For reference, today: six Golden Bananas, no perks (item tiers)</td><td colspan="4" style="text-align:left;color:var(--grey-d)">€${g6} (${(g6 / QUOTA8).toFixed(1)}× shift 8's quota). The item tiers already have no ceiling, but six GOLDEN copies take six or more upgrade picks.</td></tr></table>`;
+  h += `<p class="small" style="max-width:1100px">The figure after each total is that total divided by shift 8's quota (€${QUOTA8}). Shading: at least the quota, at least 1.5×, at least 3×. Payout only takes the compounding out of the chain (R5 with Bulk deal: €${score108(ROWS108.R5.ids, ['A_RP', 'A_NP', 'C_BD']).total} → €${score108(ROWS108.R5.ids, ['A_RP', 'A_NP', 'C_BD'], {payoutOnly:true}).total}), but not out of multipliers: Aisle run's ×3 on top of Lemon squeezer's ×2 still needs its numbers cut in the balance pass. Level-ups multiply everything again, so Q4 B only works with Q1 B or C.</p>`;
+  const O = [
+    ['A', 'No ceiling (Balatro style)', 'Keep today\'s order: perks feed the chain. The balance pass trims numbers only. A committed family run wins outright, and that is the fantasy.'],
+    ['B', 'About 1.5× the quota', 'Perks change the payout, not the price (one line in <code>_scan</code>), so Produce perks and Bananas still feed each other but no longer compound. The balance pass then aims a full 3-perk family stack on its best row at about 1.5× the quota of the shift where you could own it (about €110 at shift 5, €180 at shift 8).', true],
+    ['C', 'A hard cap', 'The card\'s perks add at most a set amount per row (the shift\'s quota, say), shown as CAPPED on the receipt. Simple to tune, but a capped win feels bad, and nothing else in the game caps.'],
+  ];
+  h += `<div class="qopts" style="max-width:1288px">${O.map(([l, t, x, rec]) => `<div class="qo${rec ? ' rec' : ''}"><div class="l">Q1 ${l} · ${t}${rec ? '<span class="r">RECOMMENDED</span>' : ''}</div>${x}</div>`).join('')}</div>`;
+  document.getElementById('ceil').innerHTML = h;
+}
+
+// ---------- section 4 ----------
+function lvLine(pk, lv) { return 'LV ' + pk.lv.map((x, k) => k === lv - 1 ? `<b>${x}</b>` : x).join(' › '); }
+function buildIdeas() {
+  const RUN = ['R1', 'R2', 'R3', 'R4'];   // a run's checkouts so far; R2 is the last one
+  const best = id => Math.max(...RUN.map(rk => delta108(rk, id)));
+  const lv2 = levelled('A_RP', 2), d1 = delta108('R1', 'A_RP'), d2 = delta108('R1', lv2);
+  // c: row R1 with Big basket's 8th card (Fruit salad) and Produce regulars; the 3rd Banana came from the extra redraw
+  const ids8 = ROWS108.R1.ids.concat(['fruit_salad']), rc = score108(ids8, ['A_RP']);
+  const recLines = rc.slots.map((x, i) => `<div class="ln"><span>${i + 1} ${x.name}</span><span>€${x.pay}</span></div>`
+    + x.steps.filter(st => st.perk).map(st => `<div class="ln pk" style="${stepStyle(st.perk)}"><span>&nbsp;+ Produce regulars</span><span>+${st.amt}</span></div>`).join('')
+    + (i === 7 ? `<div class="ln pk" style="${stepStyle('B_BB')}"><span>&nbsp;Big basket · slot 8</span><span>€${x.pay}</span></div>` : '')
+    + (i === 3 ? `<div class="ln pk" style="${stepStyle('B_RC')}"><span>&nbsp;Extra redraw · brought it</span><span>€${x.pay}</span></div>` : '')).join('');
+  const minis = ['banana', 'banana', 'strawberries', 'lemon', 'fruit_salad'];
+  const lab = t => `<div style="width:124px;min-height:30px;font:800 11px Atkinson;letter-spacing:1px;color:var(--mus-l);text-align:center;margin:0 0 30px">${t}</div>`;
+  const I = [
+    {h:'a · Show the win on the ticket: last row and best row', demo:['A_RP', 'A_MX', 'C_BD'].map(id => ticket(PERKS[id], {win:delta108('R2', id), best:best(id)})).join(''),
+     p:'Each LOYALTY ticket (and each UPGRADES ticket) carries a sticker computed by the real scorer with that perk added: <b>what it would have added to the row you just checked out, and to your best row this run</b>. Shown: a visit after row R2 (Breakfast), in a run that also checked out R1, R3 and R4. Produce regulars would be WASTED on R2 but is worth +€' + best('A_RP') + ' on R1, so a perk that would define your build is no longer hidden behind a WASTED sticker. <b>Default</b>, in any direction.'},
+    {h:'b · Level-ups: one rule, printed on the ticket (Q4 B)', demo:[ticket(PERKS.A_RP, {lv:lvLine(PERKS.A_RP, 1), win:d1, winLabel:'NOW, ON R1'}), `<div style="font:800 30px Atkinson;color:var(--mus);padding:0 0 90px">›</div>`, ticket(PERKS[lv2], {lv:lvLine(PERKS.A_RP, 2), win:d2, winLabel:'AT LV 2, ON R1'}), ticket(PERKS.A_NP, {lv:lvLine(PERKS.A_NP, 1)})].join(''),
+     p:`If Q4 picks level-ups, a LOYALTY pick on a BOOSTED visit can <b>level up a perk you own</b>. The rule: <b>each level steps the perk's number once, and the ticket prints every level</b> (Regulars +1 › +2 › +3, Aisle run ×3 › ×4 › ×5, Mixed basket +3 › +4 › +5). <b>The highest level is LV 3.</b> Jackpots and perks for any deck don't level. Row R1: +€${d1} at LV 1, +€${d2} at LV 2. Sub-choice: may STAMP DAY offer level-ups too? Default no. Level-ups multiply the stacking of section 3.`},
+    {h:'c · Every perk fires on the receipt, and Big basket and Extra redraw get credit (Q3 A)', demo:`<div class="minirc"><div style="text-align:center;font:400 15px Pixelify">RECEIPT · R1 + slot 8</div>${recLines}<div class="ln" style="border-top:2px dashed ${P.creamDk};margin-top:4px;padding-top:4px;font-weight:700"><span>TOTAL</span><span>€${rc.total}</span></div></div>`,
+     p:'No more silent perks: each one adds steps in the count-up, flying from its loyalty box in its family\'s colour, with a line on the receipt, and it can be WASTED with a reason (#45). <b>Big basket and Extra redraw need no new rule</b>: the receipt credits what they earned, the way Balatro shows a joker\'s value. Big basket\'s line is the 8th card\'s payout, and Extra redraw\'s is the payout of the cards its redraw brought in (here the third Banana). The credit lines are labels: the total counts each payout once. The count-up and the receipt already exist (#60, #61, #86).'},
+    {h:'d · UPGRADES and NEW ITEMS know your families', demo:[
+      prizeTicket(ART + 'items_v2/strawberries.png', 96, 96, 'NEW ITEMS', 'Strawberries', 'your 5th ' + 'Produce', 'C', `<span style="left:6px;top:24px">${glyph('Produce', 27)}</span>`),
+      prizeTicket(ART + 'items_v2/banana_golden.png', 96, 96, 'UPGRADE', 'Banana › GOLDEN', 'chain counts twice', 'R', `<span style="left:6px;top:24px">${glyph('Produce', 27)}</span>`),
+      prizeTicket(ART + 'items_v2/lemon_big.png', 96, 96, 'AISLE UPGRADE', 'Every Produce +1 step', '', 'L', `<div style="left:6px;top:96px;display:flex;gap:2px">${minis.map(m => `<img class="px" src="${ART}minis/${m}.png" width="14" height="14" style="position:static">`).join('')}</div><span style="left:6px;top:24px">${glyph('Produce', 27)}</span>`)].join(''),
+     p:'Prize tickets show the glyph of the family they feed, and NEW ITEMS say what you already have ("your 5th Produce"). The LEGENDARY UPGRADES prize becomes <b>AISLE UPGRADE</b>: every product of one family in your deck steps up once, on the tiers you know (plain › BIG, BIG › GOLDEN; a GOLDEN copy stays GOLDEN). Where SHELF UPGRADE stepped copies of one product, this is a family jackpot. It is the <b>only</b> family-wide step: the Golden family perk is gone, so the GOLDEN tier, an UPGRADE and a perk no longer do the same job.'},
+    {h:'e · The LOYALTY draw reads your deck', demo:`<div><div style="display:flex;gap:16px;align-items:flex-end">${[['YOUR TOP FAMILY', 'A_NP'], ['2ND FAMILY OR ANY DECK', 'A_RB'], ['OPEN', 'C_BD']].map(([t, id]) => `<div>${lab(t)}${ticket(PERKS[id])}</div>`).join('')}</div>
+      <div class="bar" style="width:540px;margin:16px 0 0">${[['Produce', 6], ['Breakfast', 4], ['Dairy', 2], ['Clearance', 1]].map(([f, n]) => `<span style="width:${n / 13 * 100}%;background:${FC[f].col};color:${FC[f].ink ? P.ink : P.paper}">${f} ${n}</span>`).join('')}</div><div class="small">An example deck's families (Food is quiet)</div></div>`,
+     p:'Today one ticket "fits your cart". With 20 perks over 7 families, the other two would mostly name families you don\'t play, and a choice with one real option isn\'t strategic. So the LOYALTY draw is weighted: <b>1 ticket from your top family, 1 from your second family or a perk for any deck</b> (Mixed basket, Bulk deal, Coupon engine), <b>and 1 open</b>. Families are counted with the one definition (section 5). If that still feels thin, the fallback is shapes for the 5 deepest families only (plain products: Clearance 16, Bakery 12, Breakfast 12, Produce 10, Dairy 8, Household 8, Snack 7, Frozen 2).'},
+  ];
+  document.getElementById('ideas').innerHTML = I.map((x, k) => `<div class="idea"><h3>${x.h}</h3><div class="demo"${k === 0 ? ' style="padding-bottom:78px"' : ''}>${x.demo}</div><p>${x.p}</p></div>`).join('');
+}
+
+// ---------- section 5 ----------
+function buildQs() {
+  const lvStack = score108(ROWS108.R1.ids, [levelled('A_RP', 3), levelled('A_NP', 3), 'C_LS']).total;
+  const QS = [
+    {q:'Q1', t:'How strong may a stack get? (section 3)', o:[['A', 'No ceiling (Balatro style)', 'Perks keep feeding the Banana chain; the balance pass trims numbers only. A committed family run can pay 3× the quota.'],
+      ['B', 'About 1.5× the quota', 'Perks change the payout, not the price (one line in <code>_scan</code>), and the balance pass aims a full 3-perk family stack at about 1.5× the quota of its shift.', true],
+      ['C', 'A hard cap', 'The card\'s perks add at most a set amount per row, shown as CAPPED. Easy to tune, but a capped win feels bad.']]},
+    {q:'Q2', t:'Direction for the loyalty perks (section 2)', o:[['A', 'Family loyalty + jackpots', 'Regulars (COMMON) and Aisle run (RARE) for each family; Mixed basket (reworked), Bulk deal (from C) and Coupon engine (from B) as RAREs for any deck; Banana stand, Lemon squeezer and Fire sale as LEGENDARY jackpots. No Golden family perk.', true],
+      ['B', 'Position and sequence engines', 'Today\'s engines reworked to fire, plus Pairs, Bookends and Encore. Smallest change, but no link to families, and Pairs and Encore overlap 2 for 1 and every deck.'],
+      ['C', 'Build-around jackpots alone', 'Each perk bends one product\'s rule. The most memorable moments, but the least consistent, and it overlaps the UPGRADES chute. A already takes its best three.']]},
+    {q:'Q3', t:'Extra redraw and Big basket', o:[['A', 'Keep them, credit their value', 'No new rule. The receipt and count-up credit what they earned: "Big basket · slot 8 +€X" (the 8th card\'s payout) and the payout of the cards an extra redraw brought in (section 4c).', true],
+      ['B', 'Rework them with new bonuses', 'Rain check: +1 redraw, and each redraw left pays +4 on the last product. Big basket: +1 slot, and the last product pays +1 per card before it. They fire, but the bonus is invented and small.'],
+      ['C', 'Cut them', 'Base redraws (2) and slots (7) stay. The COMMON tier is then only Regulars (A) or Bookends (B).']]},
+    {q:'Q4', t:'LOYALTY against STAMP DAY', o:[['A', 'Lower STAMP DAY\'s floor', 'STAMP DAY guarantees only your first perk (floors 1, 1, 1 instead of 1, 2, 3; data only). Boxes 2 and 3 come from LOYALTY picks on BOOSTED visits, against UPGRADES. The least code, and it adds no power.', true],
+      ['B', 'Level-ups', `A LOYALTY pick can level up a perk you own, up to LV 3, each level printed on the ticket (section 4b). Sub-choice: may STAMP DAY offer level-ups too (default no)? It stacks hard (LV 3 Produce stack on R1: €${lvStack}), so it needs Q1 B or C.`],
+      ['C', 'Both on BOOSTED visits', 'A BOOSTED visit gives a perk and an upgrade. No choice is left, so the decision moves to which ticket. The most power of the three.']]},
+  ];
+  document.getElementById('qs').innerHTML = QS.map(q => `<div class="qcard"><h3><span class="ql">${q.q}</span>${q.t}</h3><div class="qopts">${q.o.map(([l, t, x, rec]) => `<div class="qo${rec ? ' rec' : ''}"><div class="l">${l} · ${t}${rec ? '<span class="r">RECOMMENDED</span>' : ''}</div>${rich(x)}</div>`).join('')}</div></div>`).join('');
+  const D = [
+    ['What felt flat (was a question)', 'The prizes and the choice: the logs answer it (LOYALTY got 0 of 19 BOOSTED picks). The ceremony stays, since the machine was just reworked (#77, premium machine).'],
+    ['The machine stays', 'Premium visuals, the two-state machine, chutes, odds, prizes per visit and the BIG / GOLDEN item tiers are unchanged; STAMP DAY\'s floors change only with Q4 A. The LEGENDARY UPGRADES prize becomes AISLE UPGRADE (4d).'],
+    ['One family definition', 'A family is one of the 8 aisle families of <code>family_palette</code> (Bakery, Produce, Dairy, Frozen, Snack, Household, Breakfast, Clearance). <b>Food is quiet</b>: no perk names it or counts it (Mixed basket, Bookends and the draw all use this). Frozen (2 products) gets no perk; Snack perks join once Snack is in the stock. The one exception is C\'s Free range, which bends Eggs\' own Food rule.'],
+    ['Ticket colour = the family it boosts', 'Loyalty tickets, boxes and receipt lines take the colour and glyph of the family the perk works with (#105). Mixed basket gets a striped band, coupon perks the coupon look, and perks that name no family (Bulk deal, Slot engine, Rain check …) are <b>silver</b>: gold is Breakfast\'s.'],
+    ['Hover lights the family', 'Hovering a loyalty box or a LOYALTY ticket lights every item of its family on the belt, in the hand and in the Cart (highlight A from #105), and hovering a family glyph lights the box that boosts it.'],
+    ['The draw reads your deck', '1 ticket from your top family, 1 from your second family or a perk for any deck, 1 open (4e). It replaces "fits your cart".'],
+    ['Family perks read the game\'s context', 'They use <code>state.has_tag</code> and <code>products_before</code>, like the cards\' rules: Breakfast sticker and Clearance tag add to a family\'s count, and Bundle, 2 for 1 and Shelf swap extend an Aisle run. That is the link between coupons and families.'],
+    ['Every perk can fire or fizzle', 'Each perk has a receipt step, a WASTED reason (#45) and the sticker of 4a. The "every later" jackpots (Lemon squeezer, Fire sale, C\'s Breakfast club) use a new <b>unlimited</b> effect with no charge count, so they never print "95 charges unused"; they fizzle only when no product of their family follows.'],
+    ['Breakfast cuts across aisles', 'Breakfast is a tag on Dairy (Milk), Bakery (Bread) and other products, so Breakfast perks count more cards (Breakfast regulars +29 on R2, above every RARE). It stays, as Breakfast special\'s identity; its numbers are flagged for the balance pass.'],
+    ['Builds and #42\'s test (a scope change)', 'A makes one build per family possible. Default: #42\'s viability test keeps today\'s 5 builds (<code>build:&lt;id&gt;@sensible</code> at 2/3 of greedy on 4 of the 5), and family builds join the simulator only as extra rows. Say if you want the test set replaced: that changes #42\'s bar.'],
+    ['Balance at the end', 'All numbers here are proposals. One balance pass at the end of the rework, with no simulator run per step. Rule bender\'s file stays out of the pool.'],
+  ];
+  document.getElementById('defaults').innerHTML = D.map(([h, x]) => `<div class="dcard"><h3>${h}</h3>${x}</div>`).join('');
+  document.getElementById('gaps').innerHTML = [
+    '<b>The rows are scored by a copy, not the game:</b> <code>scorer.js</code> follows <code>core/scoring.gd</code>\'s order (card bonuses, effect bonuses, perk bonuses = the price; card and effect multipliers, Repeat\'s copy, perk multipliers) for 20 cards only. That order settles the old question: a perk\'s flat bonus on Repeat adds first, then the copy. Family perks read raw tags and raw adjacency in the copy, so it understates coupons that grant tags or link products.',
+    '<b>No simulator run</b> since v0.47, so win rates are unknown.',
+    '<b>New code the page assumes:</b> the unlimited effect; Banana stand (a second chain rule on every Produce, matching by tag); payout only (one line); credit lines for Big basket and Extra redraw (the game must remember which cards an extra redraw brought in); and, with Q4 B, a level mark on the loyalty box (the ticket\'s level line is only a sketch).',
+    '<b>Jackpots</b> exist only for Produce (Banana stand, Lemon squeezer) and Clearance (Fire sale). Bakery, Dairy, Breakfast, Household and Snack need one each, or the LEGENDARY draw leans on Produce.',
+    '<b>Not covered:</b> new coupons, and how the two remaining inspections (Spot check, Short belt) interact with each perk.',
+  ].map(x => `<li>${x}</li>`).join('');
+  document.getElementById('review').innerHTML = [
+    '<b>Changed:</b> a ceiling section and question (Q1), with the payout-only rule and a toggle in section 2; the Golden family perk is gone (it duplicated the GOLDEN tier and AISLE UPGRADE), replaced by family jackpots; the LOYALTY draw is weighted by your deck; B\'s Coupon engine becomes the Coupon perk in A (Coupon regulars is gone); C\'s Bulk deal joins A; family perks read context tags and adjacency.',
+    '<b>Also changed:</b> neutral perks are silver; one family definition (Food quiet); Mixed basket pays each product that brings a new family, not one lump; the text contradictions are fixed (Slot engine, Frozen, Coupon regulars\' +3, the pool size); the unlimited effect is specified; B\'s and C\'s overlaps are named; one level-up rule with LV 3 as the top; Q3 can credit Big basket and Extra redraw; the sticker shows your best row; the #42 test change is flagged; the old Q1 is a default.',
+    '<b>Skipped: C\'s Banana stand as written.</b> Its "each link twice" is the Golden Banana\'s rule, the same overlap that removed Golden family. A\'s Banana stand is "every Produce chains like a Banana" instead.',
+    '<b>Skipped: shrinking the shapes to 4 or 5 families.</b> The weighted draw fixes dead tickets with all 7 families; shrinking is the stated fallback (4e).',
+    '<b>Dropped options:</b> Q4\'s "raise the cap to 5" (the most extra stacking, which Q1 tries to limit) and Q3\'s "one-off prizes on Normal visits", to keep three options each. Q2\'s recommended option is A itself, now the hybrid, rather than a fourth option.',
+    '<b>Changed recommendation:</b> Q4 now recommends lowering STAMP DAY\'s floor, not level-ups, because level-ups multiply the stacking that Q1 limits. B and C are left as they were apart from their notes, since A is the recommendation.',
+  ].map(x => `<li>${x}</li>`).join('');
+}
+
+// ---------- tooltips ----------
+const tip = document.getElementById('hovertip');
+document.addEventListener('mouseover', e => { const t = e.target.closest('[data-tip]'); if (!t) { tip.style.display = 'none'; return; } tip.textContent = t.dataset.tip; tip.style.display = 'block'; });
+document.addEventListener('mousemove', e => { tip.style.left = (e.clientX + 12) + 'px'; tip.style.top = (e.clientY + 16) + 'px'; });
+
+buildToday(); buildDirs(); buildCeiling(); buildIdeas(); buildQs();
+if (Q.get('sec')) { document.body.classList.add('sec'); const s = document.getElementById(Q.get('sec')); if (s) s.classList.add('show'); }
+</script>
+</body>
+</html>

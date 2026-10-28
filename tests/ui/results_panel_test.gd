@@ -19,8 +19,9 @@ const LONG_UPGRADE := "res://data/upgrades/category_engine.tres"
 const LONG_INSPECTION := "res://data/inspections/short_belt.tres"
 const STARTING_UPGRADE := "res://data/upgrades/big_basket.tres"
 const SPOT_CHECK := "res://data/inspections/spot_check.tres"
+## The run's perks; the first at LV 3, so its box carries a level mark (v0.61, #108).
 const UPGRADES: Array[String] = [
-	"res://data/upgrades/coupon_engine.tres",
+	"res://data/upgrades/coupon_engine_lv3.tres",
 	"res://data/upgrades/category_engine.tres",
 	"res://data/upgrades/extra_redraw.tres",
 ]
@@ -224,8 +225,8 @@ func test_the_coins_and_their_duck_start_when_the_coin_lines_print() -> void:
 ## A won 8-shift run with the longest names, an upgrade and an inspection on every shift and a
 ## starting upgrade: the printed receipt fits 1280x720 below the top bar, unclipped; every line
 ## is inside the paper; no two lines overlap; the loyalty card (one box per upgrade shift plus
-## the starting upgrade's) is in the paper's top-right corner and covers no line; the coins are
-## at the bottom, above the buttons.
+## the starting upgrade's) is in the paper's top-right corner and covers no line, the LV 3 perk's
+## level mark inside its box; the coins are at the bottom, above the buttons.
 func test_a_full_receipt_fits_the_screen_with_the_card_and_the_coins() -> void:
 	var screen: ShiftScreen = await _screen()
 	_full_run(screen)
@@ -248,6 +249,17 @@ func test_a_full_receipt_fits_the_screen_with_the_card_and_the_coins() -> void:
 		screen.run.balance.machine.register_cap + 1
 	)
 	assert_str(results._loyalty_card.box_texts()[0]).is_equal("BiB")
+	assert_object(results._loyalty_card.level_mark(0)).is_null()
+	var mark: Control = results._loyalty_card.level_mark(1)
+	assert_object(mark).is_not_null()
+	assert_str((mark as Label).text).is_equal("3")
+	var in_box: Array[Rect2] = results._loyalty_card.level_mark_in_box(1)
+	(
+		assert_bool(in_box[1].grow(0.01).encloses(in_box[0]))
+		. override_failure_message(str(in_box))
+		. is_true()
+	)
+	assert_bool(card.encloses(mark.get_global_rect())).is_true()
 	var previous: Rect2 = Rect2()
 	for index: int in range(results._lines.size()):
 		var line: Label = results._lines[index]
@@ -348,7 +360,7 @@ func _full_run(screen: ShiftScreen) -> void:
 		if run.balance.inspection_shifts.has(shift):
 			record.inspection = load(LONG_INSPECTION)
 			var bonus: MachineVisit = MachineVisit.new(MachineVisit.Kind.BONUS, "short_belt")
-			bonus.chute = RewardMachine.Chute.REGISTER
+			bonus.chute = RewardMachine.Chute.UPGRADE
 			var register: MachinePrize = MachinePrize.new(
 				MachinePrize.Kind.REGISTER, MachinePrize.Rarity.COMMON, null, load(LONG_UPGRADE)
 			)

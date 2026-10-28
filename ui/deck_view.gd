@@ -415,7 +415,7 @@ func _upgrade_row(upgrade: UpgradeDefinition) -> HBoxContainer:
 	name_line.add_theme_constant_override("separation", 10)
 	text.add_child(name_line)
 	var upgrade_name: Label = UiKit.body_label(
-		upgrade.display_name, UPGRADE_NAME_SIZE, Palette.PAPER
+		LoyaltyCard.perk_name(upgrade), UPGRADE_NAME_SIZE, Palette.PAPER
 	)
 	upgrade_name.add_theme_font_override("font", ArtStyle.bold_font(UPGRADE_NAME_WEIGHT))
 	name_line.add_child(upgrade_name)

@@ -1,15 +1,16 @@
 class_name MachineOdds
 extends RefCounted
 ## The exact odds of a machine draw (#77, build spec 1.5): every possible draw of MachineDraw's
-## process enumerated with its probability (draw77 tree and stats), never touching an RNG and
-## keeping nothing between calls.
+## process enumerated with its probability (draw77 tree and stats, with #108's drop kinds, PREMIUM
+## floor and tier roll), never touching an RNG and keeping nothing between calls.
 ##
 ## The enumeration runs over equivalence classes rather than single prizes: prizes of one rarity
-## that the guarantee, REGISTER's type rule and the new-arrival hold treat alike are
+## and kind that the guarantee, the loyalty type rule and the new-arrival hold treat alike are
 ## interchangeable, so a class is drawn with the chance of any of its members still free, and
 ## each member's chance to be drawn is the class's expected count over its size. This keeps a
 ## large stock (the full collection) fast; tests compare it with a prize-by-prize enumeration
-## and with the forward draw.
+## and with the forward draw. The tier roll comes last and doesn't depend on the drop, so a
+## product with a chain splits its chance over its tiers by the tier weights.
 
 const NO_CLASS := -1
 
@@ -32,7 +33,9 @@ static func _notes(
 	var legendary: Array[MachinePrize] = chute_pools[MachinePrize.Rarity.LEGENDARY]
 	var rolls_legendary: bool = false
 	for drop: int in range(context.machine.prizes_per_visit):
-		var drop_weights: PackedInt32Array = MachineDraw.weights(context.machine, level, drop)
+		var drop_weights: PackedInt32Array = MachineDraw.weights(
+			context.machine, level, drop, context.min_rarity()
+		)
 		rolls_legendary = rolls_legendary or drop_weights[MachinePrize.Rarity.LEGENDARY] > 0
 	if legendary.is_empty() and rolls_legendary:
 		if chute == RewardMachine.Chute.NEW_ITEMS:
@@ -40,18 +43,17 @@ static func _notes(
 		else:
 			found.append(MachineOddsCard.NOTE_LEGENDARY_EMPTY)
 	var below_floor: float = 0.0
-	for tier: int in odds.first_drop_min_rarity:
+	for tier: int in maxi(odds.first_drop_min_rarity, odds.min_rarity):
 		below_floor += odds.first_share[tier]
+	for tier: int in odds.min_rarity:
+		below_floor += odds.all_share[tier]
 	if below_floor > 1e-12:
 		found.append(MachineOddsCard.NOTE_FLOOR_FALLS)
 	if odds.p_short > 1e-12:
 		found.append(MachineOddsCard.NOTE_SHORT_DRAW)
 	if chute == RewardMachine.Chute.NEW_ITEMS and context.holds_new_arrival():
 		found.append(MachineOddsCard.NOTE_NEW_ARRIVAL_HELD)
-	var adds_cards: bool = (
-		chute == RewardMachine.Chute.NEW_ITEMS or chute == RewardMachine.Chute.COUPONS
-	)
-	if adds_cards and context.balance != null:
+	if chute == RewardMachine.Chute.NEW_ITEMS and context.balance != null:
 		if context.deck.size() >= context.balance.deck_limit:
 			found.append(MachineOddsCard.NOTE_CART_FULL)
 	return found
@@ -65,9 +67,14 @@ class Enumeration:
 	var level: int = 0
 	var prizes: int = 0
 	var machine: MachineDefinition
-	## Per class: its rarity, its members (Array[MachinePrize]), whether they are in the
-	## guarantee set, their upgrade type (REGISTER; -1 otherwise).
+	## The PREMIUM rarity floor (0 on a CLASSIC visit) and the tier weights (plain, BIG, GOLDEN).
+	var floor_rarity: int = 0
+	var premium: bool = false
+	var tier_weights: PackedInt32Array = PackedInt32Array([1, 0, 0])
+	## Per class: its rarity, its kind (MachinePrize.Kind), its members (Array[MachinePrize]),
+	## whether they are in the guarantee set, their perk type (loyalty perks; -1 otherwise).
 	var rarity: PackedInt32Array = PackedInt32Array()
+	var kind: PackedInt32Array = PackedInt32Array()
 	var members: Array = []
 	var held: PackedByteArray = PackedByteArray()
 	var type: PackedInt32Array = PackedInt32Array()
@@ -88,6 +95,11 @@ class Enumeration:
 		level = draw_level
 		machine = context.machine
 		prizes = machine.prizes_per_visit
+		floor_rarity = context.min_rarity()
+		premium = context.premium
+		var odds_level: MachineOddsLevel = machine.odds_level(level)
+		if odds_level != null and chute == RewardMachine.Chute.NEW_ITEMS:
+			tier_weights = odds_level.tier_weights(context.min_tier())
 		var held_ids: Dictionary = context.guarantee(chute)
 		guarded = not held_ids.is_empty()
 		var arrival: CardDefinition = null
@@ -102,11 +114,13 @@ class Enumeration:
 					prize.upgrade.type if prize.kind == MachinePrize.Kind.REGISTER else -1
 				)
 				var signature: String = (
-					"%d|%s|%d|%s" % [prize.rarity, held_ids.has(prize.id()), prize_type, is_arrival]
+					"%d|%d|%s|%d|%s"
+					% [prize.rarity, prize.kind, held_ids.has(prize.id()), prize_type, is_arrival]
 				)
 				if not by_signature.has(signature):
 					by_signature[signature] = rarity.size()
 					rarity.append(prize.rarity)
+					kind.append(prize.kind)
 					var list: Array[MachinePrize] = []
 					members.append(list)
 					held.append(1 if held_ids.has(prize.id()) else 0)
@@ -128,24 +142,30 @@ class Enumeration:
 		var odds: MachineOddsCard = MachineOddsCard.new()
 		odds.chute = chute
 		odds.level = level
+		odds.premium = premium
+		odds.min_rarity = floor_rarity
 		odds.all_share = _normalised(all_share)
 		odds.first_share = _normalised(first_share)
 		odds.rest_share = _normalised(rest_share)
-		var floor_rarity: int = 0
+		var first_floor: int = 0
 		var odds_level: MachineOddsLevel = machine.odds_level(level)
 		if odds_level != null:
-			floor_rarity = odds_level.first_drop_min_rarity
-		odds.first_drop_min_rarity = floor_rarity
+			first_floor = odds_level.first_drop_min_rarity
+		odds.first_drop_min_rarity = first_floor
 		var rest_total: float = 0.0
 		for share: float in odds.rest_share:
 			rest_total += share
-		var by_rest: bool = floor_rarity > 0 and prizes > 1 and rest_total > 0.0
+		var by_rest: bool = first_floor > floor_rarity and prizes > 1 and rest_total > 0.0
 		odds.rarity_share = odds.rest_share if by_rest else odds.all_share
 		odds.p_rare_plus = p_rare_plus
 		odds.p_legendary = p_legendary
 		odds.p_short = p_short
 		odds.p_guarantee_held = p_held
 		odds.guarded = guarded
+		var tier_float: PackedFloat64Array = PackedFloat64Array()
+		for weight: int in tier_weights:
+			tier_float.append(maxi(weight, 0))
+		odds.tier_share = _normalised(tier_float)
 		for index: int in rarity.size():
 			var class_members: Array[MachinePrize] = members[index]
 			if held[index] == 1:
@@ -154,26 +174,44 @@ class Enumeration:
 			if expected[index] <= 0.0:
 				continue
 			for prize: MachinePrize in class_members:
-				odds.in_draw[prize.key()] = expected[index] / class_members.size()
+				_add_in_draw(odds, prize, expected[index] / class_members.size())
 		return odds
+
+	## A prize's chance in the draw, split over its tiers when it is a NEW ITEMS product with a
+	## chain (the tier roll doesn't depend on the drop).
+	func _add_in_draw(odds: MachineOddsCard, prize: MachinePrize, chance: float) -> void:
+		var chain: ItemUpgradeDefinition = null
+		if chute == RewardMachine.Chute.NEW_ITEMS:
+			chain = MachineDraw.chain_of(machine, prize)
+		if chain == null:
+			odds.in_draw[prize.key()] = chance
+			return
+		var tiers: Array[CardDefinition] = chain.tiers()
+		for tier: int in tiers.size():
+			var share: float = odds.tier_share[tier]
+			if share <= 0.0 or tiers[tier] == null:
+				continue
+			var tiered: MachinePrize = MachinePrize.new(prize.kind, prize.rarity, tiers[tier])
+			odds.in_draw[tiered.key()] = chance * share
 
 	## One drop of the tree (draw77 tree step), then the next.
 	func _step(drop: int, drawn: PackedInt32Array, used: PackedInt32Array, chance: float) -> void:
 		if drop >= prizes:
 			_finish(drawn, used, chance)
 			return
-		var drop_weights: PackedInt32Array = MachineDraw.weights(machine, level, drop)
+		var drop_weights: PackedInt32Array = MachineDraw.weights(machine, level, drop, floor_rarity)
 		var total: int = 0
 		for weight: int in drop_weights:
 			total += maxi(weight, 0)
 		if total <= 0:
 			_finish(drawn, used, chance)
 			return
+		var drop_kind: int = MachineDraw.drop_kind(chute, machine, drop)
 		for rolled: int in drop_weights.size():
 			if drop_weights[rolled] <= 0:
 				continue
 			var rolled_chance: float = chance * drop_weights[rolled] / total
-			var landed: PackedInt32Array = _land(rolled, drawn, used)
+			var landed: PackedInt32Array = _land(drop_kind, rolled, drawn, used)
 			if landed.is_empty():
 				_finish(drawn, used, rolled_chance)
 				continue
@@ -187,7 +225,8 @@ class Enumeration:
 				next_used[found] += 1
 				_step(drop + 1, next_drawn, next_used, rolled_chance * _free(found, used) / free)
 
-	## A finished draw: the guarantee swap's alternatives, then the new-arrival hold.
+	## A finished draw: the guarantee swap's alternatives (within the swapped drop's kind), then
+	## the new-arrival hold.
 	func _finish(drawn: PackedInt32Array, used: PackedInt32Array, chance: float) -> void:
 		var holds: bool = false
 		for found: int in drawn:
@@ -199,9 +238,9 @@ class Enumeration:
 			var swaps: PackedInt32Array = PackedInt32Array()
 			var free: int = 0
 			for other: int in rarity.size():
-				if rarity[other] != rarity[drawn[index]] or held[other] == 0:
+				if rarity[other] != rarity[drawn[index]] or kind[other] != kind[drawn[index]]:
 					continue
-				if _free(other, used) <= 0 or _type_taken(other, drawn, index):
+				if held[other] == 0 or _free(other, used) <= 0 or _type_taken(other, drawn, index):
 					continue
 				swaps.append(other)
 				free += _free(other, used)
@@ -245,7 +284,7 @@ class Enumeration:
 		if legendary:
 			p_legendary += chance
 
-	## MachineDraw.new_arrival_swap on classes.
+	## MachineDraw.new_arrival_swap on classes (product drops only).
 	func _with_new_arrival(drawn: PackedInt32Array, used: PackedInt32Array) -> PackedInt32Array:
 		if new_arrival == NO_CLASS or used[new_arrival] > 0:
 			return drawn
@@ -253,6 +292,8 @@ class Enumeration:
 		for found: int in drawn:
 			useful += held[found]
 		for index: int in range(drawn.size() - 1, -1, -1):
+			if kind[drawn[index]] != MachinePrize.Kind.PRODUCT:
+				continue
 			if useful == 1 and held[drawn[index]] == 1:
 				continue
 			var swapped: PackedInt32Array = drawn.duplicate()
@@ -260,24 +301,31 @@ class Enumeration:
 			return swapped
 		return drawn
 
-	## MachineDraw.land on classes: the classes with a free member of the rolled rarity, else
-	## below, then above.
-	func _land(rolled: int, drawn: PackedInt32Array, used: PackedInt32Array) -> PackedInt32Array:
-		for tried: int in MachineDraw.FALLBACK_ORDER[rolled]:
+	## MachineDraw.land on classes: the classes of the drop's kind with a free member of the
+	## rolled rarity, else of the rarities in MachineDraw.fallback_order; then any kind.
+	func _land(
+		drop_kind: int, rolled: int, drawn: PackedInt32Array, used: PackedInt32Array
+	) -> PackedInt32Array:
+		for tried: int in MachineDraw.fallback_order(rolled, floor_rarity):
 			var found: PackedInt32Array = PackedInt32Array()
 			for index: int in rarity.size():
-				if rarity[index] == tried and _free(index, used) > 0:
-					if not _type_taken(index, drawn, -1):
-						found.append(index)
+				if rarity[index] != tried or _free(index, used) <= 0:
+					continue
+				if drop_kind != MachineDraw.ANY_KIND and kind[index] != drop_kind:
+					continue
+				if not _type_taken(index, drawn, -1):
+					found.append(index)
 			if not found.is_empty():
 				return found
+		if drop_kind != MachineDraw.ANY_KIND:
+			return _land(MachineDraw.ANY_KIND, rolled, drawn, used)
 		return PackedInt32Array()
 
 	func _free(index: int, used: PackedInt32Array) -> int:
 		var class_members: Array[MachinePrize] = members[index]
 		return class_members.size() - used[index]
 
-	## REGISTER only: whether a drop other than `skip` has the class's upgrade type.
+	## Loyalty perks only: whether a drop other than `skip` has the class's perk type.
 	func _type_taken(index: int, drawn: PackedInt32Array, skip: int) -> bool:
 		if type[index] == -1:
 			return false

@@ -2,23 +2,23 @@ class_name MachineHead
 extends Control
 ## The machine's marquee (#77; redrawn front-on in v0.50, mock-up premium_machine_v1.html): the
 ## mustard sign over the cabinet with "RECEIPT REWARDS" (bold Atkinson 28, 2 px apart, a mustard
-## light shadow) and "ONE PRIZE PER RECEIPT", ringed by BULBS dark bulbs. On a BOOSTED visit the
+## light shadow) and "ONE PRIZE PER RECEIPT", ringed by BULBS dark bulbs. On a PREMIUM visit the
 ## same sign turns PREMIUM (MachineLook, dressing A): a white flash frame, then the dark night face
-## with a brass ring and lit gold "PREMIUM REWARDS" over "LOYALTY · UPGRADES", its bulbs coming on
+## with a brass ring and lit gold "PREMIUM REWARDS" over "RARE OR BETTER" (v0.61, #108: a PREMIUM
+## visit is a rarity boost), its bulbs coming on
 ## in turn, then chasing (one in four dark) and a hard shine band crossing it every 2.4 s, for the
 ## whole visit. The chase and the shine run on view.idle_time (still under reduced motion).
 ##
 ## The visit's head stamp: BONUS TICKET! (-4°, with the inspection passed, or "shift n" for a
-## bonus extra shift, under it) or STAMP DAY! (-5°), paper with a tomato-dark double border. A
-## stamp covers the title. It blinks in and lands from twice its size at the visit's start
-## (reduced motion: at rest), and lifts once the visit's landing is over (the BONUS stamp until the
-## punch's end + 0.6 s, the STAMP DAY stamp until its landing + 0.6 s).
+## bonus extra shift, under it), paper with a tomato-dark double border. A stamp covers the title.
+## It blinks in and lands from twice its size at the visit's start (reduced motion: at rest), and
+## lifts once the visit's landing is over (the punch's end + 0.6 s).
 
 const SIZE := Vector2(488, 56)
 const TITLE := "RECEIPT REWARDS"
 const SUB_LINE := "ONE PRIZE PER RECEIPT"
 const PREMIUM_TITLE := "PREMIUM REWARDS"
-const PREMIUM_SUB := "LOYALTY · UPGRADES"
+const PREMIUM_SUB := "RARE OR BETTER"
 const TITLE_SIZE := 28
 const TITLE_SPACING := 2
 const SUB_SIZE := 11
@@ -39,11 +39,10 @@ const STAMP_LINE := 26.0
 const UNDER_LINE := 12.0
 const STAMP_TOP := 2.0
 const BONUS_TILT := -4.0
-const STAMP_DAY_TILT := -5.0
 const BONUS_TEXT := "BONUS TICKET!"
 ## Look F's stamp motion: it lands from STAMP_FROM x its size in MachineTuning.head_stamp_land_ms,
 ## blinks (on every other tenth of a second) for head_stamp_blink_ms, and lifts
-## head_stamp_lift_ms after the punch's end (STAMP DAY: its landing).
+## head_stamp_lift_ms after the punch's end.
 const STAMP_FROM := 2.0
 ## A BONUS visit's stamp lands from this (machine v2), on a back ease (overshoot BACK_C).
 const BONUS_STAMP_FROM := 2.2
@@ -99,7 +98,7 @@ func _init() -> void:
 	set_stamp("", "")
 
 
-## The head stamp ("BONUS TICKET!", "STAMP DAY!", or "" for none) and the line under it.
+## The head stamp ("BONUS TICKET!", or "" for none) and the line under it.
 func set_stamp(text: String, under: String) -> void:
 	_stamp_text = text
 	_under_text = under
@@ -120,7 +119,7 @@ func set_stamp(text: String, under: String) -> void:
 	_stamp.size = stamp_size
 	_stamp.position = Vector2(roundf((SIZE.x - stamp_size.x) / 4.0) * 2.0, STAMP_TOP)
 	_stamp.pivot_offset = stamp_size / 2.0
-	_stamp.rotation_degrees = BONUS_TILT if text == BONUS_TEXT else STAMP_DAY_TILT
+	_stamp.rotation_degrees = BONUS_TILT
 	RewardMachineView.fit(
 		_stamp_label,
 		Rect2(Vector2(STAMP_RIM, STAMP_RIM), Vector2(stamp_size.x - 2.0 * STAMP_RIM, STAMP_LINE))
@@ -241,12 +240,9 @@ static func back_ease(p: float) -> float:
 	return 1.0 + (BACK_C + 1.0) * pow(p - 1.0, 3.0) + BACK_C * pow(p - 1.0, 2.0)
 
 
-## When the stamp lifts: head_stamp_lift_ms after the punch's end (STAMP DAY: its landing).
+## When the stamp lifts: head_stamp_lift_ms after the punch's end.
 static func lift_time(plan: MachinePlan) -> float:
-	var lift: float = MachineTuning.sec(plan.tuning.head_stamp_lift_ms)
-	if plan.kind == MachineVisit.Kind.STAMP_DAY:
-		return plan.land + lift
-	return plan.punch_end + lift
+	return plan.punch_end + MachineTuning.sec(plan.tuning.head_stamp_lift_ms)
 
 
 ## The sign's texts and colours: the classic face, or the night face (`night`).

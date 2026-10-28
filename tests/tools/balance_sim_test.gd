@@ -156,24 +156,25 @@ func test_skip_strategy_keeps_the_starting_deck() -> void:
 	var deck: Array = Array(record.final_deck)
 	deck.sort()
 	assert_array(deck).is_equal(["banana", "banana", "bread", "eggs", "milk", "repeat"])
+	# Every visit is binned (#108: both chutes can be).
 	for shift: Dictionary in record.shifts:
 		for visit: Dictionary in shift["visits"]:
-			if visit["chute"] == "new_items" or visit["chute"] == "coupons":
-				assert_bool(visit["binned"]).is_true()
+			assert_bool(visit["binned"]).is_true()
 
 
 func test_favour_strategy_takes_a_favoured_card_when_offered() -> void:
 	var record: SimRunRecord = _player("favour:multipack").play(9)
-	# The first COUPONS draw always holds the first-offer pool's only card, Multipack: the
+	# The first NEW ITEMS draw's coupon is always the first-offer pool's only card, Multipack: the
 	# favouring player chooses that chute from its odds card and takes it.
 	var visit: Dictionary = record.shifts[0]["visits"][0]
-	assert_str(visit["chute"]).is_equal("coupons")
+	assert_str(visit["chute"]).is_equal("new_items")
 	assert_str(visit["prizes"][int(visit["picked"])]["id"]).is_equal("multipack")
 
 
-## #77: the simulator plays every machine visit the run gets, the ticket's, the inspected
-## shift's BONUS and STAMP DAY's, through the real machine: each visit is picked or binned, the
-## register cap holds, and the record lists every visit (surviving the JSON merge).
+## #77: the simulator plays every machine visit the run gets, the ticket's and the inspected
+## shift's BONUS (no STAMP DAY since #108), through the real machine: each visit is picked or
+## binned, the register cap holds (a level-up stamps no new box), and the record lists every visit
+## (surviving the JSON merge).
 func test_the_player_plays_every_visit() -> void:
 	var kinds: Dictionary = {}
 	for strategy: String in ["greedy", "random", "skip"]:
@@ -189,17 +190,17 @@ func test_the_player_plays_every_visit() -> void:
 				for visit: Dictionary in visits:
 					kinds[visit["kind"]] = true
 					assert_bool(int(visit["picked"]) >= 0 or visit["binned"]).is_true()
-					var picked: int = int(visit["picked"])
-					if picked >= 0 and visit["prizes"][picked]["kind"] == "register":
+					if _new_perk(visit):
 						registers += 1
 			assert_int(registers).is_less_equal(3)
+			assert_int(record.registers).is_equal(registers)
 			var copy: SimRunRecord = SimRunRecord.from_dictionary(
 				JSON.parse_string(JSON.stringify(record.to_dictionary()))
 			)
 			assert_array(copy.shifts).is_equal(record.shifts)
 	assert_bool(kinds.has("ticket")).is_true()
 	assert_bool(kinds.has("bonus")).is_true()
-	assert_bool(kinds.has("stamp_day")).is_true()
+	assert_bool(kinds.has("stamp_day")).is_false()
 	var summary: SimSummary = SimSummary.new("test", PackedInt32Array([5, 8, 12]))
 	summary.add(_player("skip").play(3))
 	assert_int(summary.skips).is_greater(0)
@@ -224,6 +225,8 @@ func test_the_chute_choice_never_reads_the_drops() -> void:
 	assert_int(player._choose_chute(run, usage)).is_equal(chosen)
 	var best: int = -1
 	var best_value: float = -INF
+	# Valued as the choice values them: with the sensible player's rows.
+	player._choosing = true
 	for chute: int in RewardMachine.CHUTES:
 		var info: MachineChuteInfo = run.machine.chute_info(run, chute)
 		if info.state != RewardMachine.ChuteState.OPEN:
@@ -232,6 +235,7 @@ func test_the_chute_choice_never_reads_the_drops() -> void:
 		if value > best_value:
 			best_value = value
 			best = chute
+	player._choosing = false
 	assert_int(chosen).is_equal(best)
 	assert_float(best_value).is_greater_equal(0.0)
 
@@ -250,28 +254,26 @@ func test_expected_best_weights_the_best_drawn_prize() -> void:
 	assert_float(SimPlayer.expected_best(one, half)).is_equal_approx(4.0, 0.0001)
 
 
-## The record and the summary report the machine (S1): registers, BIG / GOLDEN copies, visits by
-## kind and by machine state (v0.47), and the bin rate. The simulator follows the lit chutes:
-## REGISTER and UPGRADES only on BOOSTED visits (registers otherwise from STAMP DAY), NEW ITEMS
-## and COUPONS only on Normal ones.
+## The record and the summary report the machine (S1): new perks, perk levels, BIG / GOLDEN
+## copies, visits by kind and by machine state (#108: classic, premium), UPGRADE picks and the bin
+## rate. Every visit draws from NEW ITEMS or UPGRADE, PREMIUM only after a premium shift (here
+## shift 2).
 func test_records_and_summary_report_the_machine() -> void:
-	var record: SimRunRecord = _player("greedy", [2]).play(2)
+	var player: SimPlayer = _player("greedy", [2])
+	MachineSteps.premium_on(player._balance, [2])
+	var record: SimRunRecord = player.play(2)
 	var registers: int = 0
-	var boosted: int = 0
+	var premium: int = 0
 	for shift: Dictionary in record.shifts:
 		for visit: Dictionary in shift["visits"]:
-			var picked: int = int(visit["picked"])
-			if picked >= 0 and visit["prizes"][picked]["kind"] == "register":
+			if _new_perk(visit):
 				registers += 1
-			var chute: String = visit["chute"]
-			var boosted_chute: bool = chute == "register" or chute == "upgrades"
-			if visit["kind"] == "stamp_day":
-				assert_str(chute).is_equal("register")
-			else:
-				assert_bool(boosted_chute).is_equal(bool(visit["boosted"]))
-			if visit["boosted"]:
-				boosted += 1
-				assert_bool([3, 5, 7].has(int(shift["shift"]))).is_true()
+			assert_bool(["new_items", "upgrade"].has(visit["chute"])).is_true()
+			assert_bool(visit.has("boosted")).is_false()
+			if visit["premium"]:
+				premium += 1
+				assert_int(int(shift["shift"])).is_equal(2)
+	assert_int(premium).is_greater(0)
 	assert_int(record.registers).is_equal(registers)
 	var copy: SimRunRecord = SimRunRecord.from_dictionary(
 		JSON.parse_string(JSON.stringify(record.to_dictionary()))
@@ -284,12 +286,16 @@ func test_records_and_summary_report_the_machine() -> void:
 	assert_str(text).contains("GOLDEN Milk per run: 2.00")
 	assert_str(text).contains("BIG / GOLDEN copies per run: milk_golden 2.00, banana_big 1.00")
 	assert_str(text).contains("Registers owned (runs): ")
-	assert_str(text).contains("Machine visits per run by state: normal ")
+	assert_str(text).contains("Machine visits per run by state: classic ")
 	assert_str(text).not_contains("Regular levels")
+	assert_str(text).not_contains("STAMP")
 	var states: Dictionary = summary.to_dictionary()["machine_visit_states"]
-	assert_int(int(states.get(RewardMachine.STATE_BOOSTED, 0))).is_equal(boosted)
+	assert_int(int(states.get(RewardMachine.STATE_PREMIUM, 0))).is_equal(premium)
 	assert_str(text).contains("Machine visits per run: ticket ")
 	assert_str(text).contains("Binned: ")
+	assert_str(text).contains("Perk levels at the end (runs): ")
+	assert_str(text).contains("UPGRADE picks: ")
+	assert_dict(summary.to_dictionary()["perk_levels"]).is_not_null()
 	assert_int(summary.to_dictionary()["registers_owned"][record.registers]).is_equal(1)
 
 
@@ -355,8 +361,8 @@ func _brute_force(
 			_brute_force(balance, hand, row + [card], result)
 
 
-## A 3-shift test balance with the live machine (#77; STAMP DAY after shift 2) and the live
-## register pool; `inspection_shifts` are inspected (a BONUS visit follows each).
+## A 3-shift test balance with the live machine (#77) and the live loyalty perk pool;
+## `inspection_shifts` are inspected (a BONUS visit follows each).
 func _player(strategy: String, inspection_shifts: Array = []) -> SimPlayer:
 	var balance: BalanceDefinition = _balance(7)
 	var live: BalanceDefinition = load("res://data/balance/balance.tres")
@@ -431,3 +437,12 @@ class SlotChangeRule:
 
 	func multiplier(state: ScoreState, slot: int) -> int:
 		return 2 if state.product_numbers[slot] == 6 + state.product_slot_change else 1
+
+
+## Whether the visit's pick was a new loyalty perk (a level-up stamps no new box).
+static func _new_perk(visit: Dictionary) -> bool:
+	var picked: int = int(visit["picked"])
+	if picked < 0:
+		return false
+	var prize: Dictionary = visit["prizes"][picked]
+	return prize["kind"] == "register" and int(prize.get("level", 1)) == 1

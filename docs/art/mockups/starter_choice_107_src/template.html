@@ -1,0 +1,1120 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Starter pack choice (#107)</title>
+<style>
+/*FONTS*/
+:root{
+  --ink:#2b2420;--ink-l:#4a3f38;--grey-d:#5e574d;--grey:#8a8172;--grey-l:#c7beab;
+  --cream-dk:#b39f78;--cream-sh:#ddcba5;--cream:#f3e9d2;--paper:#fbf7ee;
+  --teal-dk2:#1f3b3a;--teal-dk:#2a4d4b;--teal-sh:#3a7672;--teal:#4f9a94;--teal-l:#86c2b6;--teal-p:#c3e0d4;
+  --tom-dk:#a83a3c;--tom:#d9534f;--mus-dk2:#7a5a1c;--mus-dk:#b38425;--mus:#e2b33c;--mus-l:#f1d27a;--mus-p:#faecbc;
+  --grn-dk:#3d7a45;--grn:#5fae5a;--charcoal:#24221f;
+}
+*{box-sizing:border-box}
+html,body{font-variant-ligatures:none;font-synthesis:none;margin:0;background:var(--charcoal);color:var(--paper);font-family:Atkinson,sans-serif}
+img.px,.px{image-rendering:pixelated;image-rendering:crisp-edges}
+.page{max-width:1320px;margin:0 auto;padding:0 16px 80px}
+h1{font-family:Pixelify;font-weight:400;font-size:34px;margin:18px 0 6px;color:var(--mus-l)}
+h1 .iss{color:var(--grey-l);font-size:22px;margin-left:8px}
+h2{font-family:Pixelify;font-weight:400;font-size:24px;margin:0;color:var(--paper)}
+h2 .n{color:var(--mus);margin-right:10px}
+h2 .qtag{font:800 13px Atkinson;letter-spacing:1px;background:var(--mus);color:var(--ink);padding:3px 8px;border-radius:3px;vertical-align:5px;margin-left:10px}
+h2 .dtag{font:800 13px Atkinson;letter-spacing:1px;background:var(--grn-dk);color:var(--paper);padding:3px 8px;border-radius:3px;vertical-align:5px;margin-left:10px}
+.lede{font-size:16px;line-height:1.5;color:var(--cream);max-width:1060px;margin:0 0 8px}
+.small{font-size:13px;color:var(--grey-l);line-height:1.45;max-width:1120px}
+section{margin:34px 0 0;padding:20px 0 0;border-top:2px dashed var(--grey-d)}
+.q{font-size:16px;color:var(--cream);margin:8px 0 12px;max-width:1080px;line-height:1.45}
+.opts{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:0 0 12px}
+.opt{font-family:Atkinson;font-weight:800;font-size:15px;background:var(--paper);color:var(--ink);border:2px solid var(--ink);
+  border-radius:4px;padding:6px 12px;cursor:pointer;box-shadow:0 3px 0 var(--cream-dk)}
+.opt.on{background:var(--mus);box-shadow:0 3px 0 var(--mus-dk2)}
+.opt .rec{font-size:12px;letter-spacing:1px;color:var(--grn-dk);margin-left:6px}
+.opt .out{font-size:12px;letter-spacing:1px;color:var(--tom-dk);margin-left:6px}
+.optlist{margin:0 0 12px;padding:0;list-style:none;display:grid;gap:8px;max-width:1120px}
+.optlist li{font-size:15px;line-height:1.45;color:var(--cream)}
+.optlist b{color:var(--paper)}
+.optlist .pro{color:#a5d17e}.optlist .con{color:#ec8a6e}
+.recbox{display:inline-block;background:var(--grn-dk);color:var(--paper);font-weight:800;font-size:14px;padding:7px 11px;border-radius:3px;margin:4px 0 12px;max-width:1120px;line-height:1.45}
+.risk{background:#3b2a26;border:2px solid var(--tom-dk);border-radius:4px;padding:8px 12px;max-width:1120px;font-size:14px;line-height:1.5;color:var(--cream);margin:0 0 12px}
+.risk b{color:#ec8a6e}
+.risk ul{margin:4px 0 0;padding-left:20px}
+.asks{background:var(--mus-p);color:var(--ink);border:2px solid var(--ink);border-radius:4px;padding:12px 16px;max-width:1120px;font-size:15px;line-height:1.5;margin:12px 0 0}
+.asks h3{font-family:Pixelify;font-weight:400;margin:0 0 6px;font-size:22px}
+.asks ol{margin:0;padding-left:22px}.asks li{margin:4px 0}
+.asks a{color:var(--teal-dk);font-weight:800}
+.fit{position:relative;width:100%;overflow:hidden}
+.fit>.stage,.fit>.board{transform-origin:0 0;position:absolute;left:0;top:0}
+.stage{width:1280px;height:720px;position:relative;overflow:hidden;background:#000}
+.board{position:relative;overflow:hidden;background:var(--teal-dk2)}
+.stage div,.stage img,.board div,.board img,.abs div,.abs img{position:absolute}
+.stage .fl,.stage .fl div,.stage .fl img,.board .fl,.board .fl div,.board .fl img,.abs .fl,.abs .fl div,.abs .fl img{position:static}
+.fl img{vertical-align:-4px}
+.nw{white-space:nowrap}
+.cap{font-weight:800;font-size:14px;color:var(--mus-l);margin:12px 0 4px}
+.cap span{color:var(--grey-l);font-weight:600}
+.howto{font-size:13px;color:var(--teal-l);margin:6px 0 0;max-width:1120px;line-height:1.45}
+.howto kbd{font:700 12px JetBrains;background:var(--paper);color:var(--ink);border-radius:3px;padding:0 4px}
+.notes{font-size:14px;line-height:1.5;color:var(--cream);max-width:1080px}
+.notes li{margin:3px 0}.notes b{color:var(--paper)}
+.defaults{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:12px;max-width:1280px}
+.dcard{background:var(--paper);color:var(--ink);border:2px solid var(--ink);border-radius:4px;padding:10px 12px;font-size:14px;line-height:1.45}
+.dcard h3{font-family:Pixelify;font-weight:400;font-size:21px;margin:0 0 4px}
+.dcard ul{margin:4px 0 0;padding-left:18px}
+.packgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(400px,1fr));gap:14px;max-width:1290px}
+.packbox{background:var(--teal-dk2);border:2px solid var(--grey-d);border-radius:4px;padding:10px;position:relative}
+.packbox.alt{opacity:.62;border-style:dashed}
+.packbox .abs{position:relative;width:376px;height:338px}
+.packbox .txt{font-size:14px;line-height:1.45;color:var(--cream);margin-top:4px}
+.packbox .txt b{color:var(--paper)}
+.packbox .dep{color:var(--grey-l);font-size:13px}
+.minis3{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;max-width:1290px}
+.minis3 .cap{margin-top:6px;min-height:42px}
+.ctl{position:sticky;top:0;z-index:50;display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin:0 -16px 10px;padding:8px 16px;
+  font-size:13px;color:var(--grey-l);background:rgba(36,34,31,.96);border-bottom:2px solid var(--grey-d)}
+.ctl button{font:700 13px Atkinson;background:var(--teal-dk);color:var(--paper);border:1px solid var(--teal-l);border-radius:3px;padding:4px 9px;cursor:pointer}
+.ctl button.on{background:var(--mus);color:var(--ink);border-color:var(--mus-dk2)}
+.ctl .sep{width:1px;height:20px;background:var(--grey-d);margin:0 4px}
+.ctl .clock{font:700 13px JetBrains;color:var(--mus-l);min-width:64px}
+table.cmp{border-collapse:collapse;font-size:14px;color:var(--ink);background:var(--paper);border:2px solid var(--ink);max-width:1290px;margin:12px 0 0}
+table.cmp td,table.cmp th{border-top:1px solid var(--cream-sh);padding:6px 10px;text-align:left;vertical-align:top;line-height:1.4}
+table.cmp th{background:var(--ink);color:var(--paper);font-weight:800}
+table.cmp tr.alt td{color:var(--grey-d);font-style:italic}
+.rar{display:inline-block;font:800 11px/16px Atkinson;letter-spacing:.5px;padding:0 5px;border-radius:2px;margin-left:3px;vertical-align:1px}
+.rar.Common{background:#c7beab;color:#2b2420}.rar.Rare{background:#4f9a94;color:#fbf7ee}.rar.Legendary{background:#e2b33c;color:#2b2420}
+code{font-family:JetBrains;font-size:13px;color:var(--mus-l)}
+.dcard code,.asks code,table.cmp code{color:var(--teal-dk)}
+body.solo .page{display:none}
+body.solo{background:#000}
+#soloStage{display:none}
+body.solo #soloStage{display:block}
+body.sec section:not(.show),body.sec .hdr{display:none}
+body.sec section.show{border-top:0;margin-top:0}
+body.sec .ctl{display:none}
+</style>
+</head>
+<body>
+<div class="page">
+  <div class="ctl" id="ctl">
+    <b style="color:var(--mus-l)">#107</b><span class="sep"></span>
+    Today's 6 <button data-q2="A">Shown</button><button data-q2="B">Hidden</button>
+    <span class="sep"></span>
+    Banana pack <button data-q4="B">B · Banana split</button><button data-q4="A">A · Banana bunch</button>
+    <span class="sep"></span>
+    <button id="play">Pause</button><button id="slow">Slow motion</button>
+    <span class="sep"></span>
+    Jump <button data-beat="deal">Deal</button><button data-beat="stock">Stock hover</button><button data-beat="hover">Pack hover</button><button data-beat="raise">Raised</button><button data-beat="pick">Confirmed</button><button data-beat="flow">Into the cart</button><button data-beat="end">End</button>
+    <span class="clock" id="clock">0.0 s</span>
+  </div>
+
+  <div class="hdr">
+  <h1>Starter pack choice <span class="iss">#107 · decision page · 2026-10-25 · revised</span></h1>
+  <p class="lede">From your 2026-10-24 play feedback: <i>"add choices for the starting deck to encourage different strategies"</i>, with more freedom and choices that matter. The same play test had a first-time player who found the start overwhelming (there is no tutorial yet; that is phase 4), and on 2026-10-22 you found the starter deck repetitive. <b>Today</b> every run gets one random cart: your 4 staples (Banana, Banana, Milk, Eggs), 1 coupon and 8 products from today's stock, fair-dealt so shift 1 is winnable, then shown by the cart reveal. This page shows how to make that start a choice <b>without making it heavier</b>.</p>
+  <p class="small">Built on the current rules: 7 general slots and the Banana chain (#106, PR #109), the boost-coloured tickets and family glyphs (#105, <code>feature/readability</code>), shift 1's quota of €29. The loyalty stamps are being reworked in #108, so <b>no pack here leans on a stamp</b> (see section 4). Best at 100 % zoom in a window at least 1312 px wide. Everything moves, and you can <b>take over either stage with the mouse</b>. URL options: <code>q2=B</code> hides today's 6, <code>q4=A</code> the Banana bunch, <code>at=4.2</code> freezes the clock, <code>slow=1</code>, <code>solo=stage&amp;lay=A|B|C</code> one bare 1280×720 stage.</p>
+
+  <div class="asks">
+    <h3>4 questions (everything else is a stated default, <a href="#defaults">section 7</a>)</h3>
+    <ol>
+      <li><b>What do you choose between?</b> <b>A</b> three random carts · <b>B</b> three family-themed carts · <b>C</b> one shared cart + pick 1 of 3 <b>starter packs</b> (3 cards each). <b>Recommended: C</b> (<a href="#q1">section 1</a>).</li>
+      <li><b>Show today's 6 in the dispenser before you pick?</b> <b>A</b> yes, as pictures only (hover one for its rule) · <b>B</b> no, hidden until after the pick. <b>Recommended: A</b> (<a href="#q2">section 2</a>).</li>
+      <li><b>The very first run?</b> <b>A</b> Breakfast run is packed for you (always that pack), the choice starts on run 2 · <b>B</b> always choose, one pack marked "good first pick" · <b>C</b> always choose, nothing marked. <b>Recommended: A</b> (<a href="#q3">section 5</a>).</li>
+      <li><b>May the Banana pack go past the 2-copy limit?</b> <b>A</b> yes: the Banana bunch (2 for 1 + 2 Bananas, so 4 in the cart) · <b>B</b> no: the Banana split (2 for 1 + 2 Yogurt, playing your 2 staple Bananas). <b>Recommended: B</b>; A only if the final balance pass shows it isn't the pick that beats the others (<a href="#q4">section 6</a>).</li>
+    </ol>
+    <p style="margin:6px 0 0">Was a question, now a default: <b>where the choice happens</b> is a step inside the cart reveal (<a href="#where">section 3</a>), because of your 2026-10-22 decision "no pre-run screen".</p>
+  </div>
+  </div>
+
+  <section id="q1">
+    <h2><span class="n">1</span>What do you choose between?<span class="qtag">Q1</span></h2>
+    <p class="q">Three ways to turn the one random cart into a choice of three. The board deals each one at the same pace and counts the <b>cards you must read to compare</b> before shift 1. The 20-product fresh stock is small, so three random carts look alike, and A and B ask a new player to compare 39 cards.</p>
+    <div class="fit" data-w="1280" data-h="470"><div class="board" id="q1board" style="width:1280px;height:470px"></div></div>
+    <ul class="optlist" style="margin-top:12px">
+      <li><b>A · Three random carts.</b> Run today's dealer three times; each cart is fair-dealt. <span class="pro">No new data.</span> <span class="con">The carts share 4 staples and draw 8 of the same 20 products, so they differ by a card or two: a choice that barely matters, and the most to read (39 cards).</span></li>
+      <li><b>B · Three family-themed carts.</b> The dealer leans each cart toward one family (its family coupon, then products drawn 2 : 1 toward the theme). <span class="pro">Clear plans with a name and a colour.</span> <span class="con">Still 39 cards; new weighted draw logic; the Produce, Bakery and Snack themes are thin until capsule products join the draw (#90).</span></li>
+      <li><b>C · Shared cart + pick 1 of 3 starter packs.</b> Your 4 staples and 6 products from today's stock are the same whichever you pick; you choose one <b>pack of 3 cards</b> that work together. Still 13 cards. <span class="pro">9 cards to compare, each pack a named plan; it reuses the machine's "keep one of three" language; the reveal keeps its shape (the 9-slot picks row becomes 3 from the pack + 6 from the stock).</span> <span class="con">Six packs to author and balance (section 4); the offer and the pick go in the save.</span></li>
+    </ul>
+    <div class="recbox">Recommended: C. It is the only one that is both a real choice and lighter than today's reveal. Default: no reroll button (the offer is saved, so quitting doesn't reroll either).</div>
+  </section>
+
+  <section id="q2">
+    <h2><span class="n">2</span>Show today's 6 in the dispenser before you pick?<span class="qtag">Q2</span></h2>
+    <p class="q">The 6 products from today's stock are dealt once, before the choice, and are the same whichever pack you take (section 7). The question is only whether you <b>see</b> them while you choose. The stage is the default layout, the choice inside the cart reveal: the three packs drop under your staples; a click raises one; <b>CONFIRM</b> takes it.</p>
+    <div class="opts" id="q2opts">
+      <button class="opt" data-q2="A">A · Pictures in the window<span class="rec">RECOMMENDED</span></button>
+      <button class="opt" data-q2="B">B · Hidden until the pick</button>
+    </div>
+    <div class="fit" data-w="1280" data-h="720" id="mainfit"><div class="stage" id="main"></div></div>
+    <p class="howto"><b>Take over:</b> move the pointer onto the stage. Hover a pack (it opens in place to its 3 tickets) or an item in the TODAY'S STOCK window; click a pack to raise it, click another to change; the push bar (or <kbd>Enter</kbd>) confirms. <kbd>1</kbd> <kbd>2</kbd> <kbd>3</kbd> raise a pack. During the deal, a click, <kbd>Space</kbd>, <kbd>Enter</kbd> or <kbd>Esc</kbd> skips <b>to the choice</b>, never past it; during the choice a click off the packs, <kbd>Space</kbd> and <kbd>Esc</kbd> do nothing; after the confirm a tap skips to the summary, as today.</p>
+    <ul class="optlist" style="margin-top:12px">
+      <li><b>A · Pictures in the window.</b> The dispenser's window already shows its heap in the reveal; it now holds today's 6 from the start of the choice, unlabelled. Hovering one shows its ticket. <span class="pro">The pick can react to the cart (here Day-old buns and Reduced yogurt point to Bargain bin, Cereal beside Milk to Breakfast run); it costs no reading (pictures, the dispenser's own look) and no new art.</span> <span class="con">Six more things a curious player may hover.</span></li>
+      <li><b>B · Hidden until the pick.</b> A shutter closes the window ("TODAY'S 6 AFTER YOUR PICK"); it rolls up once the pack is confirmed, and the 6 drop as today. <span class="pro">The lightest choice, and today's surprise is kept.</span> <span class="con">The pick is blind to the rest of the cart, so it matters less; a shutter to draw.</span></li>
+    </ul>
+    <div class="recbox">Recommended: A. Pictures are the dispenser's existing look, they cost no reading, and they give the pick something to react to. On the first run there is no choice anyway (Q3 A).</div>
+  </section>
+
+  <section id="where">
+    <h2><span class="n">3</span>Where the choice happens<span class="dtag">DEFAULT</span></h2>
+    <p class="q"><b>Default: a step inside the cart reveal</b>, the stage in section 2. Your 2026-10-22 decision on the starter deck said <i>"no pre-run screen"</i> (with "picks (0–3) possibly later with #65"), which rules out C, and the reveal is already where the cart gets explained. The two other places are kept here only so you can see why they lost.</p>
+    <div class="opts" id="whereopts">
+      <button class="opt" data-where="B">B · Baskets on the counter<span class="out">RULED OUT</span></button>
+      <button class="opt" data-where="C">C · New run screen<span class="out">RULED OUT</span></button>
+    </div>
+    <div class="fit" data-w="1280" data-h="720" id="wherefit"><div class="stage" id="where"></div></div>
+    <ul class="optlist" style="margin-top:12px">
+      <li><b>B · Baskets on the counter.</b> Three hand baskets on the shift screen before the reveal; the confirmed one flies into the Cart button, then <b>the whole reveal plays</b>: two steps where A has one. <span class="con">The baskets already mean "your hand" on the shift screen, so it blurs what a basket is; the rules only show on hover anyway.</span></li>
+      <li><b>C · New run screen.</b> Three tall cards with their rules written out, START SHIFT 1 once you pick, then the reveal. <span class="con">A pre-run screen (the 2026-10-22 decision), and the heaviest one: 9 rules to read before the game starts.</span></li>
+    </ul>
+  </section>
+
+  <section id="packs">
+    <h2><span class="n">4</span>The starter packs<span class="dtag">DEFAULT</span></h2>
+    <p class="q">Six packs, three offered per run. Each is three cards from the <b>fresh stock</b> (no capsule products) with <b>one plan</b> of its own, so no two packs in an offer overlap. Every pack holds <b>exactly one Rare</b> and two Commons (the machine's rarities, <code>data/balance/machine.tres</code>) and <b>no Legendary</b>, so the machine keeps its Legendary reveal. The pack's colour is the family its cards boost, as on the tickets. No pack depends on a card it doesn't hold, and none holds Soup (its "pays nothing beside Frozen" is a trap for a first plan). These are a first draft; the card picks are yours to change.</p>
+    <div class="packgrid" id="packgrid"></div>
+    <table class="cmp" id="packtable"></table>
+    <p class="small" style="margin-top:10px"><b>Price is not the measure.</b> A coupon's price is €0, so the packs' price totals run from €1 (Coupon clipper, 2 coupons) to €10 (Deli counter, no coupon). The balance pass compares the packs by the sensible player's shift-1 totals and run win rates per pack, not by price. <b>Stamps wait for #108.</b> The first draft said which loyalty stamp each pack "fits at start". #108 is reworking the stamps (Coupon specialist was already cut down), so the packs are designed on scoring alone and the last column is only for #108: if it keeps build stamps, the offer rule becomes "never two packs that fit the same stamp" (Deli counter and Big shop would both only lean to Mixed basket, which about 97 % of today's carts fit anyway).</p>
+  </section>
+
+  <section id="q3">
+    <h2><span class="n">5</span>The very first run<span class="qtag">Q3</span></h2>
+    <p class="q">A first-time player already found the start overwhelming. The pack face is kept light on purpose (name, colour, 3 pictures, one line; the tickets open on hover), but it is still one more decision before they know what a coupon is. The plan already skips Basket Rush on the first run and in the web demo (<code>docs/FULL_BUILD_PLAN.md</code> §7.3); the same move works here.</p>
+    <div class="opts" id="q3opts">
+      <button class="opt on" data-q3="A">A · Packed for you on run 1<span class="rec">RECOMMENDED</span></button>
+      <button class="opt" data-q3="B">B · Always choose, one marked</button>
+      <button class="opt" data-q3="C">C · Always choose, none marked</button>
+    </div>
+    <div class="minis3">
+      <div><p class="cap">A · Run 1 <span>the given pack shows as a pack face: "your starter pack, choose one from your next run"</span></p><div class="fit q3fit" data-w="1280" data-h="720"><div class="stage" id="q3A"></div></div></div>
+      <div><p class="cap">B · Every run <span>"GOOD FIRST PICK" on Breakfast run, raised for you, until your first win</span></p><div class="fit q3fit" data-w="1280" data-h="720"><div class="stage" id="q3B"></div></div></div>
+      <div><p class="cap">C · Every run <span>three equal packs, nothing marked</span></p><div class="fit q3fit" data-w="1280" data-h="720"><div class="stage" id="q3C"></div></div></div>
+    </div>
+    <ul class="optlist" style="margin-top:12px">
+      <li><b>A · Packed for you on run 1.</b> Run 1 always gets <b>Breakfast run</b> (it never varies: it works with the Milk and Eggs already in the cart and has the plainest plan). It drops as a pack face labelled YOUR STARTER PACK with "choose one from your next run", then its cards fly into TODAY'S PICKS, so the idea of a pack is learned before it is a choice. The choice appears from run 2. The "first run" flag is a once-per-profile <code>ProfileState.seen</code> entry, the mechanism #67 uses for its run intro, set when run 1's reveal ends. <span class="pro">The first run is no heavier than today.</span> <span class="con">Freedom waits one run, and playtest friends usually play one or two runs, so the choice itself gets little playtest data (the playtest build could preset the flag; not planned).</span></li>
+      <li><b>B · Always choose, one marked.</b> The three packs every time; Breakfast run carries a "GOOD FIRST PICK" ribbon and is raised for you (one confirm to accept) until the first win. <span class="pro">Choice from the first second, and every playtest run logs a pick.</span> <span class="con">Still a decision the new player can't judge; the ribbon may read as "the right answer" later.</span></li>
+      <li><b>C · Always choose, none marked.</b> <span class="con">The full weight on the new player.</span></li>
+    </ul>
+    <div class="recbox">Recommended: A. It is the Basket Rush rule again: the first run teaches, the second run chooses. The pack face on run 1 teaches the word "pack" for free.</div>
+  </section>
+
+  <section id="q4">
+    <h2><span class="n">6</span>May the Banana pack go past the 2-copy limit?<span class="qtag">Q4</span></h2>
+    <p class="q">The dealer never puts a 3rd copy of a card in the cart (<code>copy_max</code> 2), and your staples already hold 2 Bananas. A pack is hand-made, so it could be the one exception: 4 Bananas make the longest chain at the start. The rows below follow the #106 rules on PR #109: a Banana right after a Banana adds that Banana's price; anything between them starts a new chain; a multiplier on a middle link pays once and never carries.</p>
+    <div class="opts" id="q4opts">
+      <button class="opt" data-q4="B">B · No, Banana split<span class="rec">RECOMMENDED</span></button>
+      <button class="opt" data-q4="A">A · Yes, Banana bunch</button>
+    </div>
+    <div class="fit" data-w="1280" data-h="350"><div class="board" id="q4board" style="width:1280px;height:350px"></div></div>
+    <p class="small" style="margin-top:8px">The totals are traced by hand from the rule (<code>core/rules/adjacent_match_bonus_rule.gd</code>) and its test rows in <code>tests/core/banana_chain_test.gd</code> (e.g. <code>banana, two_for_one, banana, banana</code> pays 2, 0, 8, 6: "2 for 1 links the first two (2 + 2) × 2 = 8; the next adds 4, not 8"); the engine has not computed these exact rows. The first draft's "€20 before 2 for 1 doubles one" was the 4 plain links; with 2 for 1 before the last Banana the row is €28.</p>
+    <ul class="optlist" style="margin-top:12px">
+      <li><b>B · No: the Banana split.</b> 2 for 1 + 2 Yogurt. It plays the 2 Bananas you already have: 2 for 1 links them, and a Yogurt pays +3 right after a Banana. <span class="pro">No rule exception; a Banana plan that is one plan among six, not the staples' own mechanic turned up.</span> <span class="con">No pack reaches Bulk buyer at the start (if #108 keeps that stamp).</span></li>
+      <li><b>A · Yes: the Banana bunch.</b> 2 for 1 + 2 Bananas: 4 Bananas in the cart, a chain of 2, 4, 6, then 2 for 1 doubles the 4th: €28 in 5 slots. <span class="pro">The loudest plan, and a 4-long chain no cart can reach at the start today.</span></li>
+    </ul>
+    <div class="risk"><b>Risks of A</b> (why it is not the recommendation)
+      <ul>
+        <li><b>It brings back the repetition you reported on 2026-10-22.</b> 4 Bananas, 2 for 1, Milk and Eggs are 7 cards: exactly the 7 general slots. A hand of 8 from 13 rarely holds all 7 (about 1 hand in 200 before redraws), but every hand pulls toward the same row, and the shared 6 barely matter to it.</li>
+        <li><b>It reads as the right answer.</b> Its plan is the staples' own mechanic, so it looks like the intended pick, and it is strong: Eggs ×2 on the first Banana seeds the chain at 4, so Eggs, 4 Bananas, 2 for 1 and Milk trace to about €44 (1 + 4 + 6 + 8 + 0 + 20 + 5) against shift 1's €29.</li>
+        <li><b>It reaches the jackpot early.</b> The Golden Banana row doubling (4, 12, 28, 60, kept on purpose as a rare jackpot) needs many Bananas; this pack starts with 4.</li>
+        <li><b>Code exceptions.</b> The dealer's <code>copy_max</code> and the run save's <code>could_deal</code> (both in <code>core/starting_deck.gd</code>) and the simulator's dealing all need a pack exception.</li>
+      </ul>
+    </div>
+    <div class="recbox">Recommended: B. Take A only if the final balance pass shows the Banana bunch isn't the pick that beats the other packs.</div>
+  </section>
+
+  <section id="defaults">
+    <h2><span class="n">7</span>Defaults (stated, not asked)<span class="dtag">DEFAULTS</span></h2>
+    <div class="defaults" style="margin-top:12px">
+      <div class="dcard"><h3>The offer</h3>Any 3 of the 6 packs (20 possible offers), drawn first on the run seed's <code>starting_deck</code> stream, so the same seed and profile give the same offer. A pack's cards come with the pack, like the staples, whatever today's stock holds. The deck stays 13/15: 4 staples + 3 from the pack + 6 shared. The shared 6 are products only, so the cart's coupons come from the pack (Deli counter's cart has none, Coupon clipper's has 2).</div>
+      <div class="dcard"><h3>Today's 6: one deal for all three</h3>The shared 6 are dealt once, after the offer and before the choice, and are the same whichever pack you take (Q2 only decides whether you see them). The 2-copy limit counts the staples plus the most copies <b>any offered pack</b> holds: no Banana while the Banana bunch is offered, at most 1 more Dented can beside Bargain bin, no Yogurt beside the Banana split.</div>
+      <div class="dcard"><h3>Fair deal, with a fallback</h3>Each of the three carts (staples + pack + shared 6) gets today's check (8 sampled hands, 1 must reach the quota).
+        <ul><li>A pack whose cart fails is <b>swapped</b> for an unoffered pack that passes with the same shared 6, so a weak pack never steers the shared 6 for the others.</li>
+        <li>Only if no unoffered pack passes are the shared 6 dealt again (at most <code>fair_deal_redeals</code>, 4) and the check starts over.</li>
+        <li>After that, the deal with the most passing carts (then hands) is kept, as today's dealer does. It always ends.</li></ul>
+        Three carts cost about 30 ms in a debug build. Since v0.56's 7 general slots every first deal passed on a new profile (200 seeds), so swaps should be rare: to re-check with packs in the balance pass.</div>
+      <div class="dcard"><h3>Raise, then confirm</h3>The pick lasts the whole run, so it takes two steps, as the machine's CONFIRM on the push bar (2026-10-23): a click raises a pack (another click changes it), the push bar or <kbd style="font:700 12px JetBrains">Enter</kbd> takes it; <kbd style="font:700 12px JetBrains">1</kbd>–<kbd style="font:700 12px JetBrains">3</kbd> raise. The reveal's skip (<code>TAP_KEYS</code> in <code>ui/cart_reveal/cart_reveal.gd</code>: any click, Space, Enter, Esc) changes during this step:
+        <ul><li>during the deal, a skip jumps to the choice, never to the summary;</li>
+        <li>during the choice, a click off the packs, Space and Esc do nothing;</li>
+        <li>only a confirmed pack ends the step; after it, a tap skips to the summary as today.</li></ul></div>
+      <div class="dcard"><h3>Saved before you choose</h3>The run, its offer and today's 6 are saved before the choice opens, in the <b>next run save format</b> (PR #109 is format 5 and <code>feature/readability</code> may bump it again, so the number is set when it merges): the three pack ids, the shared 6 and, once taken, the pick. Continue shows the same offer, and quitting can't reroll. No reroll button.</div>
+      <div class="dcard"><h3>Light faces, tickets on hover</h3>A pack face shows its name, family colour and glyph, 3 pictures (a coupon on a coupon slip) and one line. Hovering or raising a pack opens it <b>in place</b> to its three tickets (#105 style), so nothing covers the staples. The tickets also show in the Cart afterwards. Reduced motion: the packs appear in place, no drop.</div>
+      <div class="dcard"><h3>Telemetry and the simulator</h3>A <code>start_choice</code> event after <code>run_start</code> (the offered pack ids, the shared 6, the pick, decide_ms, swaps and re-deals); the checkout timer still starts after the reveal. The simulator gets a pick policy per strategy (greedy: best shift-1 total; random; <code>build:&lt;id&gt;</code>: the pack whose plan the build needs) and per-pack win rates, measured only in the final balance pass.</div>
+      <div class="dcard"><h3>What it is not</h3>Not an unlock system: all six packs from the first choice on. Not a deck builder: Basket Rush (§7.3, after launch) builds the whole starting deck and is skipped on the first run; "picks (0–3)" may come later with #65; family decks with their own staples stay #90. The plan's §7.2 and the changelog get a line when it ships.</div>
+      <div class="dcard"><h3>Names</h3>"Starter pack" in the UI (not "deck": the cart is the deck), pack names as on this page. The reveal's line becomes "4 staples + 3 from your pack + 6 from today's stock".</div>
+    </div>
+  </section>
+
+  <section id="real">
+    <h2><span class="n">8</span>What is real here</h2>
+    <ul class="notes">
+      <li><b>Real:</b> the item and coupon sprites, the padlock, the family glyphs (from <code>feature/readability</code>), the fonts, the ticket colours and short texts (#105, v3), Banana's chain sticker "+prev after Banana" (<code>feature/rule-tweaks</code>), the rarities (<code>machine.tres</code>), the shift 1 backdrop (a capture of the game), the reveal panel's geometry and its 9-slot picks row.</li>
+      <li><b>Painted over the capture:</b> the capture predates the €29 quota, so its SPEND, "to go", receipt and monitor numbers are painted over with €29, and the Cart chip counts up from 4/15 as cards land. The hand baskets are darkened (the capture's hand is another deal). The belt itself is the capture's (its slot 7 already looks like slots 1–6).</li>
+      <li><b>Approximated:</b> the TODAY'S STOCK dispenser and its shutter, the pack cards, the coupon slips, the push bar, the baskets' tags and the New run screen are flat CSS in the palette, not 9-slice art. Today's 6 (Cereal, Day-old buns, Reduced yogurt, Bread, Cheese, Batteries) are one hand-picked deal that respects the copy rule above, not a fair-dealt one.</li>
+      <li><b>Not checked:</b> whether each pack passes the fair-deal check and how the packs balance against each other; that is the final balance pass. The Banana rows in section 6 are traced by hand.</li>
+    </ul>
+  </section>
+</div>
+<div id="soloStage" class="stage"></div>
+
+<script>
+"use strict";
+addEventListener('error', e => { document.title += ' ERROR:' + e.message + '@' + e.lineno; });
+/*CARDS*/
+/*GLYPHS*/
+const ART = '../../../art/';
+const BACKDROP = 'cart_reveal_ref_shift1_planning.png';
+const Q = new URLSearchParams(location.search);
+const SHOT = Q.has('shot');
+const AT = Q.has('at') ? parseFloat(Q.get('at')) : null;
+const P = {ink:'#2b2420',inkL:'#4a3f38',greyD:'#5e574d',grey:'#8a8172',greyL:'#c7beab',creamDk:'#b39f78',creamSh:'#ddcba5',
+  cream:'#f3e9d2',paper:'#fbf7ee',white:'#ffffff',tealDk2:'#1f3b3a',tealDk:'#2a4d4b',tealSh:'#3a7672',teal:'#4f9a94',tealL:'#86c2b6',tealP:'#c3e0d4',
+  tomDk2:'#6e2630',tomDk:'#a83a3c',tom:'#d9534f',tomL:'#ec8a6e',musDk2:'#7a5a1c',musDk:'#b38425',mus:'#e2b33c',
+  musL:'#f1d27a',musP:'#faecbc',grnDk:'#3d7a45',grn:'#5fae5a',grnL:'#a5d17e',brDk2:'#4a3022',brDk:'#7a5232',br:'#a87a4e',
+  gold:'#ffcf3f',charcoal:'#24221f',steelHi:'#ecebe4',steelL:'#c7c3b8',steelP:'#a9a59b',steel:'#8d8a83'};
+const BY = Object.fromEntries(CARDS.map(c => [c.id, c]));
+// #106 (feature/rule-tweaks): Banana's sticker is "+{bonus} after {name}", and a chain bonus reads "prev" (CardText.PREVIOUS_PRICE)
+BY.banana.eff = '+prev after Banana';
+BY.banana.long = '+ the price of the Banana just before it (a chain: 4 Bananas pay 2, 4, 6, 8)';
+const QUOTA1 = 29;   // shift 1 (data/balance/balance.tres)
+// the machine's rarities (data/balance/machine.tres): anything not listed is Common
+const RARE = new Set(['milk', 'eggs', 'flickering_bulb', 'reduced_yogurt', 'cereal', 'butter', 'ham_ends', 'mixed_herbs', 'grapefruit', 'fruit_salad',
+  'wonky_carrot', 'baguette', 'broken_biscuit', 'pick_n_mix', 'bent_lolly', 'tea_bags', 'carrier_bag', 'repeat', 'two_for_one', 'multipack']);
+const LEGENDARY = new Set(['lemon', 'iced_bun', 'squashed_cake', 'opening_deal']);
+const rarity = id => LEGENDARY.has(id) ? 'Legendary' : RARE.has(id) ? 'Rare' : 'Common';
+const RAR_COL = {Common:[P.greyL, P.ink], Rare:[P.teal, P.paper], Legendary:[P.mus, P.ink]};
+
+// ---------- family colours (data/families/*.tres on feature/readability) and glyphs ----------
+const FC = {
+  Breakfast:{col:'#e2b33c', lt:'#f1d27a', dk:'#b38425', ink:true},
+  Bakery:   {col:'#d2a874', lt:'#ddcba5', dk:'#a87a4e', ink:true},
+  Produce:  {col:'#5fae5a', lt:'#a5d17e', dk:'#3d7a45', ink:true},
+  Dairy:    {col:'#4f9a94', lt:'#86c2b6', dk:'#3a7672', ink:true},
+  Frozen:   {col:'#c3e0d4', lt:'#fbf7ee', dk:'#86c2b6', ink:true},
+  Snack:    {col:'#7a5232', lt:'#a87a4e', dk:'#4a3022', ink:false},
+  Household:{col:'#5e574d', lt:'#8a8172', dk:'#4a3f38', ink:false},
+  Clearance:{col:'#a83a3c', lt:'#d9534f', dk:'#6e2630', ink:false},
+  Food:     {col:'#ec8a6e', lt:'#f5bfa0', dk:'#d9534f', ink:true},
+  Coupon:   {col:'#86c2b6', lt:'#c3e0d4', dk:'#3a7672', ink:true},   // the plain coupon ticket's teal (the Coupon family has no face colour)
+};
+const textOn = f => FC[f].ink ? P.ink : P.paper;
+const AISLE_GLYPH = {Food:'aisle_pantry', Produce:'aisle_fruit_and_veg', Bakery:'aisle_bakery', Frozen:'aisle_cold_cases', Snack:'aisle_snacks', Household:'aisle_household'};
+function glyphURL(name) {
+  if (GLYPH_DATA[name]) return GLYPH_DATA[name];
+  if (AISLE_GLYPH[name]) return ART + 'icons/' + AISLE_GLYPH[name] + '.png';
+  return ART + 'icons/padlock.png';
+}
+const GRIM = `drop-shadow(2px 0 0 ${P.paper}) drop-shadow(-2px 0 0 ${P.paper}) drop-shadow(0 2px 0 ${P.paper}) drop-shadow(0 -2px 0 ${P.paper})`;
+function glyph(name, k, style) {
+  k = k || 1; const h = (name === 'Staple' ? 20 : 18) * k;
+  return `<img class="px" title="${name}" src="${glyphURL(name)}" width="${18 * k}" height="${h}" alt="${name}"${style ? ` style="${style}"` : ''}>`;
+}
+function rich(str) { return str.replace(/((?:\S+ )?\d+ |\S+ )?\{(\w+)\}/g, (m, pre, t) => `<span class="nw">${pre || ''}${glyph(t)}</span>`); }
+
+// ---------- the packs: one coupon-or-product plan each, exactly one Rare, no Legendary ----------
+const PACKS = {
+  breakfast:{name:'Breakfast run', fam:'Breakfast', cards:['breakfast_sticker', 'coffee', 'tea_bags'],
+    hint:'Line up Breakfast items: Coffee and Tea bags boost the next one.', plan:'Breakfast line',
+    lean:'Breakfast special (10 Breakfast items): later, not at the start',
+    why:'Works with the Milk and Eggs in your staples (both Breakfast). The pack every first run gets (Q3 A).'},
+  clearance:{name:'Bargain bin', fam:'Clearance', cards:['clearance_tag', 'dented_can', 'flickering_bulb'],
+    hint:'Clearance in a row: Dented can pays +2 for each Clearance before it.', plan:'Clearance stack',
+    lean:'Clearance collector, at the start',
+    why:'Clearance tag turns the next product Clearance, so a staple can join the stack.'},
+  banana:{name:'Banana bunch', fam:'Produce', cards:['two_for_one', 'banana', 'banana'],
+    hint:'4 Bananas in a row pay 2, 4, 6, 8. 2 for 1 between two doubles the 2nd.', plan:'A 4-Banana chain',
+    lean:'Bulk buyer (4 copies), at the start',
+    why:'Past the 2-copy limit: 4 Bananas with your staples.'},
+  split:{name:'Banana split', fam:'Produce', cards:['two_for_one', 'yogurt', 'yogurt'],
+    hint:'2 for 1 links your 2 Bananas; a Yogurt right after a Banana pays +3.', plan:'Bananas, then Yogurt',
+    lean:'none',
+    why:'Plays your 2 staple Bananas without a 3rd.'},
+  coupons:{name:'Coupon clipper', fam:'Coupon', cards:['repeat', 'shelf_swap', 'scissors'],
+    hint:'Two coupons, then Scissors: +2 for each coupon before it.', plan:'Coupons, then Scissors',
+    lean:'Coupon specialist (2 coupons), at the start',
+    why:'The only cart with 2 coupons. Repeat copies the payout just before it.'},
+  deli:{name:'Deli counter', fam:'Bakery', cards:['bread', 'cheese', 'butter'],
+    hint:'Butter, Bread, Cheese in a row: +3 beside Bread, +4 right after it.', plan:'Bread in the middle',
+    lean:'Mixed basket (about 97 % of carts fit it anyway)',
+    why:'No coupon: three products. Bread\'s own ticket says "No rule"; it is the €5 anchor both others name.'},
+  bigshop:{name:'Big shop', fam:'Food', cards:['final_markdown', 'yogurt', 'carrier_bag'],
+    hint:'Food first, then Carrier bag: +5 for each Food before it.', plan:'Fill up, Carrier bag late',
+    lean:'Mixed basket (about 97 % of carts fit it anyway)',
+    why:'All 4 staples are Food, so Carrier bag pays from the first shift. Final markdown takes the last slot (+4).'},
+};
+let Q2 = Q.get('q2') === 'B' ? 'B' : 'A';
+let Q4 = Q.get('q4') === 'A' ? 'A' : 'B';
+const produceId = () => Q4 === 'A' ? 'banana' : 'split';
+const offer = () => ['clearance', 'breakfast', produceId()];   // the demo offer; the auto demo takes the middle one
+const STAPLES = ['banana', 'banana', 'milk', 'eggs'];
+// today's 6: products only; none is in the staples or the offered packs, so the copy rule holds for both Q4 answers
+const SHARED6 = ['cereal', 'day_old_buns', 'reduced_yogurt', 'bread', 'cheese', 'batteries'];
+
+// ---------- small pieces ----------
+const lerp = (a, b, u) => a + (b - a) * u;
+const clamp = u => Math.max(0, Math.min(1, u));
+const ease = u => { u = clamp(u); return u * u * (3 - 2 * u); };
+const back = u => { u = clamp(u); const c = 1.7; return 1 + (c + 1) * Math.pow(u - 1, 3) + c * Math.pow(u - 1, 2); };
+const r2 = v => Math.round(v / 2) * 2;
+const fx = v => (+v).toFixed(3);
+function sprite(id, x, y, k, style) {
+  const c = BY[id];
+  if (c.coupon) { const w = 20 * (k || 2) * 2, h = 14 * (k || 2) * 2;   // a coupon icon is 20x14 art: shown at 2x the item scale
+    return `<img class="px" src="${ART}icons/coupon_${id}_v2.png" width="${w}" height="${h}" style="left:${x + (48 * (k || 2) - w) / 2}px;top:${y + (48 * (k || 2) - h) / 2 + 4}px;${style || ''}">`; }
+  return `<img class="px" src="${ART}items_v2/${id}.png" width="${48 * (k || 2)}" height="${48 * (k || 2)}" style="left:${x}px;top:${y}px;${style || ''}">`;
+}
+function mini(id, x, y, k) {
+  const c = BY[id];
+  if (c.coupon) return `<img class="px" src="${ART}icons/coupon_${id}_v2.png" width="${20 * 2}" height="${14 * 2}" style="left:${x}px;top:${y}px">`;
+  return `<img class="px" src="${ART}minis/${id}.png" width="${7 * (k || 4)}" height="${7 * (k || 4)}" style="left:${x}px;top:${y}px">`;
+}
+const miniW = (id, k) => BY[id].coupon ? 40 : 7 * (k || 4);
+// a coupon on a pack face: the icon on a cream slip with a dashed cut line, so it reads as a coupon, not an item
+function couponSlipHTML(id, x, y) {
+  let h = `<div style="left:${x}px;top:${y}px;width:84px;height:82px">`;
+  h += `<div style="left:0;top:0;width:84px;height:82px;background:${P.ink}"></div><div style="left:2px;top:2px;width:80px;height:78px;background:${P.cream}"></div>`;
+  h += `<div style="left:2px;top:2px;width:80px;height:3px;background:${P.paper}"></div>`;
+  h += `<div style="left:7px;top:8px;width:70px;height:66px;border:2px dashed ${P.tomL}"></div>`;
+  h += `<div style="left:-2px;top:33px;width:8px;height:14px;background:${P.paper};border:2px solid ${P.ink};border-left:0"></div><div style="left:78px;top:33px;width:8px;height:14px;background:${P.paper};border:2px solid ${P.ink};border-right:0"></div>`;
+  h += `<img class="px" src="${ART}icons/coupon_${id}_v2.png" width="60" height="42" style="left:12px;top:14px">`;
+  h += `<div style="left:0;top:58px;width:84px;text-align:center;font:800 10px/12px Atkinson;letter-spacing:1.5px;color:${P.tomDk}">COUPON</div>`;
+  return h + '</div>';
+}
+
+// the v3 ticket (#105): one colour, glyphs top-left, the plain price tag top-right, short text under. w: 108 or 92
+function frame3URL(col, coupon, W) {
+  const key = 'f3' + col + (coupon ? 'c' : '') + W;
+  if (frame3URL[key]) return frame3URL[key];
+  const H = 32, c = document.createElement('canvas'); c.width = W; c.height = H; const g = c.getContext('2d'), f = FC[col];
+  for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+    if ((x === 0 || x === W - 1) && (y === 0 || y === H - 1)) continue;
+    let k;
+    if (x === 0 || y === 0 || x === W - 1 || y === H - 1) k = P.ink;
+    else { k = y === 1 ? f.lt : (y === H - 2 || x === W - 2) ? f.dk : f.col; if (coupon && (y === 1 || y === 2)) k = ((x - 1) % 3 < 2) ? f.dk : f.lt; }
+    g.fillStyle = k; g.fillRect(x, y, 1, 1);
+  }
+  return (frame3URL[key] = c.toDataURL());
+}
+function shelfTags(it) { const t = it.tags.filter(x => x !== 'Food'); return t.length ? t : it.tags.slice(0, 1); }
+function ticketHTML(id, x, y, name, w) {
+  w = w || 108;
+  const it = BY[id], coupon = !!it.coupon, neutral = it.col === 'Coupon', narrow = w < 100;
+  const tcol = neutral ? P.tealDk : textOn(it.col);
+  let h = `<div style="left:${x}px;top:${y}px;width:${w}px;height:${name ? 84 : 64}px">`;
+  h += neutral && !narrow ? `<img class="px" src="${ART}frames/ticket_coupon.png" width="108" height="64" style="left:0;top:0">`
+    : `<img class="px" src="${frame3URL(it.col, coupon, w / 2)}" width="${w}" height="64" style="left:0;top:0">`;
+  if (coupon) h += `<div style="left:8px;top:8px;height:18px;font:800 ${narrow ? 11 : 12}px/18px Atkinson;letter-spacing:1px;color:${tcol}">COUPON</div>`;
+  else shelfTags(it).forEach((f, j) => { h += glyph(f, 1, `left:${4 + j * 20}px;top:5px;filter:${GRIM}`); });
+  if (!coupon) h += `<div style="left:${w - 48}px;top:-4px;width:52px;height:26px;filter:drop-shadow(3px 3px 0 rgba(43,36,32,.42))"><img class="px" src="${ART}effects/pay_plain.png" width="52" height="26" style="left:0;top:0"><div style="left:0;top:0;width:52px;text-align:center;font:750 17px/26px Atkinson;color:${P.ink}">€${it.base}</div></div>`;
+  h += `<div style="left:6px;top:${coupon ? 28 : 27}px;width:${w - 10}px;height:34px;overflow:hidden"><div class="fl" style="font:800 ${narrow ? 12 : 13}px/${narrow ? 14 : 15}px Atkinson;color:${tcol}">${rich(it.eff)}</div></div>`;
+  if (name) h += `<div style="left:-6px;top:66px;width:${w + 12}px;text-align:center;font:800 ${narrow ? 11 : 13}px Atkinson;color:${name};white-space:nowrap">${it.name}</div>`;
+  return h + '</div>';
+}
+function rarityChipHTML(id, x, y, w) {
+  const r = rarity(id), [bg, fg] = RAR_COL[r];
+  return `<div style="left:${x + (w - 74) / 2}px;top:${y}px;width:74px;height:18px;background:${bg};border:2px solid ${P.ink};font:800 10px/14px Atkinson;letter-spacing:1px;text-align:center;color:${fg}">${r.toUpperCase()}</div>`;
+}
+
+// a reveal tile (the cart reveal's 104x120 slot): the sprite, the name, a badge
+function tileHTML(id, x, y, o) {
+  o = o || {};
+  const it = BY[id], coupon = !!it.coupon, fam = o.fam ? FC[o.fam] : null;
+  let h = `<div style="left:${x}px;top:${y}px;width:104px;height:120px;opacity:${fx(o.a === undefined ? 1 : o.a)};${o.tf ? 'transform:' + o.tf + ';' : ''}${o.z ? 'z-index:' + o.z : ''}">`;
+  h += `<div style="left:0;top:0;width:104px;height:120px;background:${P.ink}"></div>`;
+  h += `<div style="left:2px;top:2px;width:100px;height:116px;background:${fam ? fam.col : P.cream}"></div>`;
+  h += `<div style="left:${fam ? 6 : 4}px;top:${fam ? 6 : 4}px;width:${fam ? 92 : 96}px;height:${fam ? 108 : 112}px;background:${P.paper}"></div>`;
+  if (coupon) h += `<div style="left:10px;top:12px;width:84px;height:78px;border:2px dashed ${P.tomL}"></div>`;
+  h += sprite(id, 4, coupon ? 2 : 0, 2);
+  h += `<div style="left:0;top:${coupon ? 94 : 98}px;width:104px;text-align:center;font:800 ${it.name.length > 14 ? 11 : 12}px Atkinson;letter-spacing:${it.name.length > 14 ? -0.3 : 0}px;color:${P.ink}">${it.name}</div>`;
+  if (o.lock) h += `<div style="left:-8px;top:-8px;width:28px;height:28px;background:${P.mus};border:2px solid ${P.ink}"><img class="px" src="${ART}icons/padlock.png" width="18" height="20" style="left:3px;top:2px"></div>`;
+  if (o.plus) h += `<div style="left:80px;top:-8px;width:28px;height:28px;background:${P.teal};border:2px solid ${P.ink};font:800 22px/22px Atkinson;color:${P.paper};text-align:center">+</div>`;
+  if (o.fam) h += `<div style="left:-8px;top:-8px;width:28px;height:28px;background:${fam.col};border:2px solid ${P.ink}">${glyph(o.fam, 1, `left:3px;top:3px;filter:${GRIM}`)}</div>`;
+  return h + '</div>';
+}
+// the pixel cursor (2x art); press = the click frame
+const CUR = ['X..........', 'XX.........', 'XWX........', 'XWWX.......', 'XWWWX......', 'XWWWWX.....', 'XWWWWWX....', 'XWWWWWWX...',
+  'XWWWWWWWX..', 'XWWWWWXXXX.', 'XWWXWWX....', 'XWX.XWWX...', 'XX..XWWX...', 'X....XWWX..', '.....XWWX..', '......XX...'];
+function cursorURL() {
+  if (cursorURL.u) return cursorURL.u;
+  const c = document.createElement('canvas'); c.width = 11; c.height = 16; const g = c.getContext('2d');
+  CUR.forEach((row, y) => [...row].forEach((ch, x) => { if (ch === '.') return; g.fillStyle = ch === 'X' ? P.ink : P.paper; g.fillRect(x, y, 1, 1); }));
+  return (cursorURL.u = c.toDataURL());
+}
+function cursorHTML(x, y, press) {
+  return `<img class="px" src="${cursorURL()}" width="22" height="32" style="left:${r2(x)}px;top:${r2(y) + (press ? 2 : 0)}px;z-index:90;filter:drop-shadow(2px 2px 0 rgba(0,0,0,.35))">`
+    + (press ? `<div style="left:${r2(x) - 14}px;top:${r2(y) - 14}px;width:28px;height:28px;border:3px solid ${P.gold};border-radius:50%;opacity:.8;z-index:89"></div>` : '');
+}
+
+// ---------- the pack face ----------
+// light: name, colour, glyph, 3 pictures, one line. expand (hover or raised): the same card shows its 3 tickets in place.
+const CARD_W = 300, CARD_H = 196;
+function packFaceHTML(pid, x, y, o) {
+  o = o || {};
+  const pk = PACKS[pid], f = FC[pk.fam], tc = textOn(pk.fam);
+  const lift = o.sel ? -14 : o.hover ? -8 : 0;
+  let h = `<div style="left:${x}px;top:${y + lift + (o.dy || 0)}px;width:${CARD_W}px;height:${CARD_H}px;opacity:${fx(o.a === undefined ? 1 : o.a)}">`;
+  if (o.sel) h += `<div style="left:-7px;top:-7px;width:${CARD_W + 14}px;height:${CARD_H + 14}px;background:${P.gold};box-shadow:0 0 0 2px ${P.ink}"></div>`;
+  else if (o.hover) h += `<div style="left:-4px;top:-4px;width:${CARD_W + 8}px;height:${CARD_H + 8}px;background:${P.musL};box-shadow:0 0 0 2px ${P.ink}"></div>`;
+  h += `<div style="left:0;top:${6 - lift}px;width:${CARD_W}px;height:${CARD_H}px;background:rgba(0,0,0,.35)"></div>`;
+  h += `<div style="left:0;top:0;width:${CARD_W}px;height:${CARD_H}px;background:${P.ink}"></div>`;
+  h += `<div style="left:2px;top:2px;width:${CARD_W - 4}px;height:${CARD_H - 4}px;background:${f.col}"></div>`;
+  h += `<div style="left:2px;top:2px;width:${CARD_W - 4}px;height:2px;background:${f.lt}"></div>`;
+  h += glyph(pk.fam, 2, `left:10px;top:8px;filter:${GRIM}`);
+  h += `<div style="left:52px;top:7px;font:400 26px/36px Pixelify;color:${tc};white-space:nowrap">${pk.name}</div>`;
+  h += `<div style="left:6px;top:48px;width:${CARD_W - 12}px;height:${CARD_H - 54}px;background:${P.paper}"></div>`;
+  for (let i = 0; i < 36; i++) h += `<div style="left:${10 + i * 8}px;top:48px;width:4px;height:2px;background:${f.dk}"></div>`;
+  if (!o.hide) {
+    if (o.expand) pk.cards.forEach((id, j) => { h += ticketHTML(id, 8 + j * 96, 58, P.ink, 92); });
+    else pk.cards.forEach((id, j) => {
+      const cx = 12 + j * 94;
+      h += BY[id].coupon ? couponSlipHTML(id, cx + 6, 56)
+        : sprite(id, cx, 46, 2, o.hover && o.wig ? `transform:translateY(${Math.round(Math.sin(o.wig * 9 + j * 2) * 2) * 2}px)` : '');
+    });
+  }
+  h += `<div style="left:14px;top:${o.expand ? 146 : 148}px;width:${CARD_W - 28}px;font:700 ${o.expand ? 13 : 14}px/${o.expand ? 16 : 17}px Atkinson;color:${P.ink}">${pk.hint}</div>`;
+  if (o.sel) h += `<div style="left:${CARD_W - 40}px;top:8px;width:30px;height:30px;background:${P.gold};border:2px solid ${P.ink};font:800 20px/26px Atkinson;color:${P.ink};text-align:center">✓</div>`;
+  if (o.ribbon) h += `<div style="left:${CARD_W - 176}px;top:-18px;width:182px;height:26px;background:${P.grnDk};border:2px solid ${P.ink};font:800 12px/22px Atkinson;letter-spacing:1px;color:${P.paper};text-align:center">${o.ribbon}</div>`;
+  if (o.flash) h += `<div style="left:0;top:0;width:${CARD_W}px;height:${CARD_H}px;background:rgba(255,207,63,${fx(o.flash)})"></div>`;
+  return h + '</div>';
+}
+// the push bar that confirms (the machine's CONFIRM on PUSH, 2026-10-23)
+function pushBarHTML(bar, a, label, on, press) {
+  const d = press ? 4 : 0;
+  let h = `<div style="left:${bar.x}px;top:${bar.y + d}px;width:${bar.w}px;height:${bar.h}px;opacity:${fx(a)}">`;
+  h += `<div style="left:0;top:${6 - d}px;width:${bar.w}px;height:${bar.h}px;background:${P.ink}"></div>`;
+  h += `<div style="left:0;top:0;width:${bar.w}px;height:${bar.h}px;background:${P.ink}"></div>`;
+  h += `<div style="left:2px;top:2px;width:${bar.w - 4}px;height:${bar.h - 4}px;background:${on ? P.mus : P.steelP}"></div>`;
+  h += `<div style="left:2px;top:2px;width:${bar.w - 4}px;height:4px;background:${on ? P.musL : P.steelL}"></div>`;
+  h += `<div style="left:2px;top:${bar.h - 8}px;width:${bar.w - 4}px;height:6px;background:${on ? P.musDk : P.steel}"></div>`;
+  h += `<div style="left:10px;top:0;width:${bar.w - 20}px;text-align:center;font:800 17px/${bar.h}px Atkinson;letter-spacing:1px;color:${on ? P.ink : P.greyD};white-space:nowrap">${label}</div>`;
+  if (on) h += `<div style="left:${bar.w - 62}px;top:${(bar.h - 22) / 2}px;width:50px;height:22px;background:${P.paper};border:2px solid ${P.ink};font:700 11px/18px JetBrains;color:${P.ink};text-align:center">ENTER</div>`;
+  return h + '</div>';
+}
+
+// ---------- the hover popup (layout B only; A opens the pack in place) ----------
+function popupHTML(pid, cx, bottom, a) {
+  const pk = PACKS[pid], W = 384, H = 150;
+  let x = Math.round(cx - W / 2); x = Math.max(104, Math.min(1176 - W, x));
+  const y = bottom - H;
+  let h = `<div style="left:${x}px;top:${y}px;width:${W}px;height:${H}px;z-index:40;opacity:${fx(a)}">`;
+  h += `<div style="left:4px;top:4px;width:${W}px;height:${H}px;background:rgba(0,0,0,.35)"></div>`;
+  h += `<div style="left:0;top:0;width:${W}px;height:${H}px;background:${P.ink}"></div><div style="left:2px;top:2px;width:${W - 4}px;height:${H - 4}px;background:${P.paper}"></div>`;
+  h += `<div style="left:12px;top:8px;font:800 12px Atkinson;letter-spacing:1px;color:${P.grey}">IN THIS PACK</div>`;
+  pk.cards.forEach((id, j) => { h += ticketHTML(id, 12 + j * 122, 30, P.ink); });
+  h += `<div style="left:12px;top:${H - 26}px;width:${W - 24}px;font:700 13px/16px Atkinson;color:${P.ink}">Plan: <b>${pk.plan}</b></div>`;
+  const tx = Math.max(x + 20, Math.min(x + W - 40, cx - 10));
+  h += `</div><div style="left:${tx}px;top:${bottom - 2}px;width:0;height:0;border-left:10px solid transparent;border-right:10px solid transparent;border-top:12px solid ${P.ink};z-index:41;opacity:${fx(a)}"></div>`;
+  return h;
+}
+
+// ---------- the backdrop: the shift 1 capture, its stale numbers painted over ----------
+const PANEL = {x:96, y:66, w:1088, h:642};
+const STAPLE_X = i => 158 + 108 * i, STAPLE_Y = 194;
+const PICK_X = i => 158 + 108 * i, PICK_Y = 462;
+const HATCH = {x:852, y:330};
+function backdropHTML(dim) {
+  let h = `<img src="${BACKDROP}" width="1280" height="720" style="left:0;top:0">`;
+  // the capture predates shift 1's €29 (balance.tres): the receipt's short line and the monitor's SPEND
+  h += `<div style="left:52px;top:314px;width:92px;height:16px;background:${P.paper}"></div><div style="left:55px;top:312px;font:400 11px/19px JetBrains;color:${P.tom}">short €${QUOTA1}.00</div>`;
+  h += `<div style="left:770px;top:83px;width:132px;height:26px;background:${P.paper}"></div><div style="left:776px;top:80px;font:400 22px/32px Pixelify;color:${P.ink}">SPEND €${QUOTA1}+</div>`;
+  // the capture's hand is another deal (with Final markdown): darkened
+  h += `<div style="left:350px;top:520px;width:930px;height:180px;background:rgba(20,17,15,.94)"></div>`;
+  return h + `<div style="left:0;top:56px;width:1280px;height:664px;background:rgba(18,16,14,${dim})"></div>`;
+}
+// the top bar (never dimmed): SPEND €29+, "€29 to go", the Cart chip counting up as cards land
+function hudHTML(cart) {
+  let h = `<div style="left:203px;top:15px;width:58px;height:24px;background:${P.tealDk}"></div><div style="left:205px;top:11px;font:800 22px/32px Atkinson;color:${P.paper};white-space:nowrap">€${QUOTA1}+</div>`;
+  h += `<div style="left:770px;top:22px;width:76px;height:16px;background:${P.paper}"></div><div style="left:768px;top:19px;width:80px;text-align:center;font:800 13px/22px Atkinson;color:${P.tomDk}">€${QUOTA1} to go</div>`;
+  h += `<div style="left:1115px;top:13px;width:88px;height:30px;background:${P.teal}"></div><div style="left:1117px;top:12px;font:800 19px/32px Atkinson;color:${P.paper};white-space:nowrap">Cart ${cart}/15</div>`;
+  return h;
+}
+function panelHTML(a) {
+  return `<div style="left:${PANEL.x - 2}px;top:${PANEL.y - 2}px;width:${PANEL.w + 4}px;height:${PANEL.h + 4}px;background:${P.ink};opacity:${a}"></div>`
+    + `<div style="left:${PANEL.x}px;top:${PANEL.y}px;width:${PANEL.w}px;height:${PANEL.h}px;background:${P.paper};opacity:${a}"></div>`
+    + `<div style="left:${PANEL.x + 4}px;top:${PANEL.y + 4}px;width:${PANEL.w - 8}px;height:${PANEL.h - 8}px;background:${P.tealDk};opacity:${a}"></div>`;
+}
+function headHTML(x, y, title, count, sub, icon) {
+  let h = '';
+  if (icon) h += `<div style="left:${x - 8}px;top:${y - 2}px;width:30px;height:30px;background:${P.mus};border:2px solid ${P.ink}"><img class="px" src="${ART}icons/padlock.png" width="18" height="20" style="left:4px;top:3px"></div>`;
+  h += `<div style="left:${x + (icon ? 32 : 0)}px;top:${y - 4}px;font:800 23px/30px Atkinson;letter-spacing:1px;color:${P.musL};white-space:nowrap">${title}${count ? ` <span style="color:${P.tealL};margin-left:6px">${count}</span>` : ''}</div>`;
+  if (sub) h += `<div style="left:${x}px;top:${y + 30}px;width:640px;font:600 13px Atkinson;color:${P.cream}">${sub}</div>`;
+  return h;
+}
+// the TODAY'S STOCK dispenser: led = the LED line, stock = items still in the window, shut = the shutter (0 open, 1 closed), hov = hovered item
+const DISP = {x:780, y:80};
+const stockPos = i => [DISP.x + 38 + (i % 4) * 42, DISP.y + 130 - Math.floor(i / 4) * 34];
+function hitStock(x, y) {
+  for (let i = SHARED6.length - 1; i >= 0; i--) { const [sx, sy] = stockPos(i); if (x >= sx + 4 && x < sx + 44 && y >= sy + 4 && y < sy + 46) return i; }
+  return null;
+}
+function dispenserHTML(t, led, stock, jolt, shut, hov) {
+  const x = DISP.x, y = DISP.y;
+  let h = `<div style="left:${x}px;top:${y + (jolt || 0)}px;width:244px;height:320px">`;
+  h += `<div style="left:8px;top:40px;width:228px;height:278px;background:${P.ink}"></div><div style="left:10px;top:42px;width:224px;height:274px;background:#3b3632"></div><div style="left:10px;top:42px;width:8px;height:274px;background:#4a443f"></div>`;
+  h += `<div style="left:0;top:0;width:244px;height:44px;background:${P.ink}"></div><div style="left:2px;top:2px;width:240px;height:40px;background:${P.mus}"></div><div style="left:2px;top:2px;width:240px;height:3px;background:${P.musL}"></div>`;
+  for (let i = 0; i < 9; i++) { const on = (Math.floor(t * 6) + i) % 3 === 0; h += `<div style="left:${12 + i * 27}px;top:-5px;width:8px;height:8px;background:${on ? P.gold : P.musDk};border:2px solid ${P.ink}"></div><div style="left:${12 + i * 27}px;top:40px;width:8px;height:8px;background:${on ? P.musDk : P.gold};border:2px solid ${P.ink}"></div>`; }
+  h += `<div style="left:0;top:0;width:244px;text-align:center;font:800 19px/44px Atkinson;letter-spacing:1px;color:${P.ink}">TODAY'S STOCK</div>`;
+  h += `<div style="left:26px;top:56px;width:192px;height:132px;background:${P.ink}"></div><div style="left:30px;top:60px;width:184px;height:124px;background:${P.tealP};overflow:hidden">`;
+  const OUT = `drop-shadow(2px 0 0 ${P.gold}) drop-shadow(-2px 0 0 ${P.gold}) drop-shadow(0 2px 0 ${P.gold}) drop-shadow(0 -2px 0 ${P.gold})`;
+  stock.forEach((id, i) => { h += `<img class="px" src="${ART}items_v2/${id}.png" width="48" height="48" style="left:${8 + (i % 4) * 42}px;top:${70 - Math.floor(i / 4) * 34 - (hov === i ? 4 : 0)}px;${hov === i ? 'filter:' + OUT + ';z-index:3' : ''}">`; });
+  if (!stock.length) h += `<div style="left:22px;top:42px;width:140px;height:36px;border:3px solid ${P.tom};background:${P.paper};transform:rotate(-8deg);font:800 18px/30px Atkinson;letter-spacing:2px;color:${P.tom};text-align:center">SOLD OUT</div>`;
+  h += `<div style="left:120px;top:-10px;width:16px;height:160px;background:rgba(255,255,255,.35);transform:rotate(24deg)"></div>`;
+  if (shut > 0) {
+    const sh = Math.round(124 * shut);
+    h += `<div style="left:0;top:0;width:184px;height:${sh}px;background:repeating-linear-gradient(${P.steelL} 0 6px,${P.steelP} 6px 8px);z-index:5"></div><div style="left:0;top:${sh}px;width:184px;height:4px;background:${P.ink};z-index:5"></div>`;
+    if (shut > 0.8) h += `<div style="left:12px;top:38px;width:160px;height:44px;background:${P.paper};border:2px solid ${P.ink};font:800 12px/16px Atkinson;letter-spacing:1px;color:${P.ink};text-align:center;padding-top:4px;z-index:6">TODAY'S 6<br>AFTER YOUR PICK</div>`;
+  }
+  h += `</div>`;
+  h += `<div style="left:26px;top:202px;width:192px;height:30px;background:${P.ink};border:2px solid #5a524b;font:800 13px/26px Atkinson;letter-spacing:1px;color:${P.gold};text-align:center">${led}</div>`;
+  h += `<div style="left:46px;top:242px;width:152px;height:70px;background:${P.ink}"></div><div style="left:50px;top:246px;width:144px;height:14px;background:${P.steelL}"></div><div style="left:50px;top:262px;width:144px;height:46px;background:#141210"></div>`;
+  return h + '</div>';
+}
+// hovering an item in the window shows its ticket, beside the dispenser (between the staples and the window)
+function stockPopupHTML(i) {
+  const id = SHARED6[i], [, iy] = stockPos(i), W = 136, H = 114, x = 632, y = Math.max(72, iy - 34);
+  let h = `<div style="left:${x}px;top:${y}px;width:${W}px;height:${H}px;z-index:40">`;
+  h += `<div style="left:4px;top:4px;width:${W}px;height:${H}px;background:rgba(0,0,0,.35)"></div>`;
+  h += `<div style="left:0;top:0;width:${W}px;height:${H}px;background:${P.ink}"></div><div style="left:2px;top:2px;width:${W - 4}px;height:${H - 4}px;background:${P.paper}"></div>`;
+  h += `<div style="left:10px;top:5px;font:800 10px Atkinson;letter-spacing:1px;color:${P.grey}">TODAY'S STOCK</div>`;
+  h += ticketHTML(id, 14, 22, P.ink);
+  h += `</div><div style="left:${x + W}px;top:${iy + 14}px;width:0;height:0;border-top:10px solid transparent;border-bottom:10px solid transparent;border-left:12px solid ${P.ink};z-index:41"></div>`;
+  return h;
+}
+// the end line: CART 13/15 = 4 staples + 3 from the pack + 6 from today's stock
+function summaryHTML(pid, a) {
+  const pk = PACKS[pid], f = FC[pk.fam];
+  let h = `<div style="left:0;top:616px;width:1280px;height:44px;opacity:${fx(a)}"><div class="fl" style="text-align:center;font:800 19px/40px Atkinson;color:${P.paper}">`;
+  h += `<span style="display:inline-block;background:${P.mus};color:${P.ink};border:2px solid ${P.ink};padding:0 12px;font-size:22px;margin-right:12px">CART 13/15</span>= `;
+  h += `<span style="display:inline-block;background:${P.mus};border:2px solid ${P.ink};width:30px;height:30px;vertical-align:-8px;position:relative;margin:0 6px 0 8px"><img class="px" src="${ART}icons/padlock.png" width="18" height="20" style="position:absolute;left:4px;top:3px"></span>4 staples`;
+  h += ` <span style="color:${P.tealL};margin:0 8px">+</span><span style="display:inline-block;background:${f.col};border:2px solid ${P.ink};width:30px;height:30px;vertical-align:-8px;position:relative;margin-right:6px">${glyph(pk.fam, 1, `position:absolute;left:4px;top:4px;filter:${GRIM}`)}</span>3 from ${pk.name}`;
+  h += ` <span style="color:${P.tealL};margin:0 8px">+</span><span style="display:inline-block;background:${P.teal};border:2px solid ${P.ink};width:30px;height:30px;vertical-align:-8px;position:relative;margin-right:6px"><span style="position:absolute;left:0;top:0;width:26px;text-align:center;font:800 22px/26px Atkinson;color:${P.paper}">+</span></span>6 from today's stock`;
+  return h + '</div></div>';
+}
+function landed(t, T, pid) {
+  return {pack:PACKS[pid].cards.filter((_, j) => t >= T.pack + j * 0.12 + 0.42).length,
+    shared:SHARED6.filter((_, k) => t >= T.disp + k * 0.3 + 0.36).length};
+}
+// everything after the pick, shared by the three layouts.
+// T: {open (panel fades in, -1 = already open), stap (staples land), pack (pack tiles leave), packFrom (pack tile start positions or null = drop), disp, sum}
+function revealHTML(t, T, pid, o) {
+  o = o || {};
+  const pk = PACKS[pid];
+  let h = '';
+  const pa = T.open < 0 ? 1 : ease((t - T.open) / 0.25);
+  h += panelHTML(fx(pa));
+  if (T.open >= 0 && t < T.open) return h;
+  h += `<div style="left:0;top:0;width:1280px;height:720px;opacity:${fx(pa)}">`;
+  h += headHTML(158, 132, 'YOUR STAPLES', '4', "In every run's cart. Never a surprise.", true);
+  h += `<div style="left:146px;top:184px;width:452px;height:146px;background:${P.tealDk2};border:2px solid ${P.ink}"></div>`;
+  STAPLES.forEach((id, i) => {
+    const t0 = T.stap + i * 0.14, u = (t - t0) / 0.26;
+    if (u <= 0) return;
+    h += tileHTML(id, STAPLE_X(i), STAPLE_Y - Math.round((1 - ease(u)) * 30), {lock:true, a:ease(u)});
+  });
+  // the dispenser (Q2 B: its window shuttered until the pack is taken)
+  const nDisp = SHARED6.filter((_, k) => t >= T.disp + k * 0.3 + 0.05).length;
+  const led = t < T.pack ? (o.led || 'STOCKING…') : nDisp < 6 ? `DISPENSING ${nDisp}/6` : 'CART READY ✓';
+  const jolt = SHARED6.some((_, k) => { const d = t - (T.disp + k * 0.3); return d > 0 && d < 0.08; }) ? 2 : 0;
+  const shut = o.q2 === 'B' ? (t < T.pack ? 1 : 1 - ease((t - T.pack) / 0.4)) : 0;
+  h += dispenserHTML(t, led, SHARED6.slice(nDisp), jolt, shut, nDisp === 0 ? o.hov : null);
+  // picks: header (after the choice heading has gone), pack tiles, then the 6 from the dispenser
+  const hd = T.packFrom ? 0.3 : -0.2;
+  if (t >= T.pack + hd) {
+    const L = landed(t, T, pid);
+    const pha = T.packFrom ? ease((t - T.pack - hd) / 0.25) : 1;
+    h += `<div style="left:0;top:0;width:1280px;height:720px;opacity:${fx(pha)}">` + headHTML(158, 404, "TODAY'S PICKS", `${L.pack + L.shared}/9`, o.firstRun
+      ? `<span style="color:${P.mus}">FIRST RUN:</span> your <b>${pk.name}</b> pack + 6 from today's stock. From your next run you choose 1 of 3.`
+      : `3 from your <b>${pk.name}</b> pack + 6 from today's stock.`) + '</div>';
+  }
+  pk.cards.forEach((id, j) => {
+    const t0 = T.pack + j * 0.12, u = (t - t0) / 0.42;
+    if (u <= 0) return;
+    let x = PICK_X(j), y = PICK_Y, a = 1;
+    if (T.packFrom) { const fr = T.packFrom[j], e = ease(u); x = lerp(fr[0], x, e); y = lerp(fr[1], y, e) - Math.sin(Math.PI * clamp(u)) * 40; }
+    else { y -= Math.round((1 - ease(u)) * 34); a = ease(u); }
+    h += tileHTML(id, r2(x), r2(y), {fam:pk.fam, a, z:T.packFrom && u < 1 ? 30 : 0});
+  });
+  const ub = (t - (T.pack + 0.6)) / 0.3;
+  if (ub > 0) {
+    const f = FC[pk.fam], c = f.col === FC.Clearance.col ? P.tomL : f.col;
+    h += `<div style="left:158px;top:590px;width:320px;height:4px;background:${c};opacity:${fx(ease(ub))}"></div><div style="left:158px;top:584px;width:4px;height:10px;background:${c};opacity:${fx(ease(ub))}"></div><div style="left:474px;top:584px;width:4px;height:10px;background:${c};opacity:${fx(ease(ub))}"></div>`;
+    h += `<div style="left:158px;top:597px;width:320px;text-align:center;font:800 12px Atkinson;letter-spacing:1px;color:${c};opacity:${fx(ease(ub))}">${pk.name.toUpperCase()}</div>`;
+  }
+  SHARED6.forEach((id, k) => {
+    const t0 = T.disp + k * 0.3, u = (t - t0) / 0.36;
+    if (u <= 0) return;
+    const e = ease(u), x = lerp(HATCH.x, PICK_X(3 + k), e), y = lerp(HATCH.y, PICK_Y, e) - Math.sin(Math.PI * clamp(u)) * 60;
+    h += tileHTML(id, r2(x), r2(y), {plus:true, a:Math.min(1, u * 3), tf:`scale(${fx(lerp(0.5, 1, back(u)))})`});
+  });
+  if (t >= T.sum) h += summaryHTML(pid, ease((t - T.sum) / 0.3));
+  if (t >= T.sum + 0.4) h += `<div style="left:900px;top:670px;width:260px;text-align:right;font:800 14px Atkinson;letter-spacing:1px;color:${P.tealL};opacity:${fx(ease((t - T.sum - 0.4) / 0.3))}">TAP TO START SHIFT 1 ›</div>`;
+  return h + '</div>';
+}
+
+// ---------- layout A (the default): a step inside the reveal ----------
+const A = {
+  stap:0.25, deal:1.3, hov:2.4, click:7.1, conf:7.75, fly:8.0, disp:8.8, sum:10.8, end:13.6,
+  rect: i => ({x:146 + i * 330, y:418, w:CARD_W, h:CARD_H}),
+  bar: {x:346, y:634, w:560, h:46},
+  way:[[0, 700, 700], [2.2, 700, 700], [2.6, 884, 234], [3.5, 884, 234], [3.9, 300, 520], [4.6, 300, 520], [5.0, 628, 520], [5.7, 628, 520],
+    [6.1, 958, 520], [6.7, 958, 520], [7.0, 632, 516], [7.25, 632, 516], [7.55, 626, 658], [7.9, 626, 658], [8.4, 720, 720]],
+};
+function layA(t, S, o) {
+  o = o || {};
+  const q2 = o.q2 || Q2, auto = S.variant === 'auto';
+  const ids = auto ? [null, 'breakfast', null] : offer();
+  const pick = auto ? 1 : S.pick, pid = ids[pick], r = A.rect(pick);
+  // the pack's cards leave from where they show: its tickets when raised (open), its pictures on the run-1 face
+  const from = auto ? [0, 1, 2].map(j => [r.x + 12 + j * 94 - 4, r.y + 46 - 12])
+    : [0, 1, 2].map(j => [r.x + 8 + j * 96 - 6, r.y - 14 + 58 - 28]);
+  let h = backdropHTML(0.55);
+  const T = {open:-1, stap:A.stap, pack:A.fly, packFrom:from, disp:A.disp, sum:A.sum};
+  h += revealHTML(t, T, pid, {led:t < A.deal ? 'STOCKING…' : auto ? 'PACKING…' : 'PICK A PACK ↓', firstRun:auto, q2, hov:S.stockHover});
+  if (t >= A.deal - 0.1 && t < A.fly + 0.6) {
+    const ha = ease((t - A.deal + 0.1) / 0.3) * (1 - ease((t - (auto ? A.fly - 0.3 : A.conf)) / 0.25));
+    const sub = auto ? 'First run: Breakfast run is packed for you. From your next run you choose 1 of 3.'
+      : q2 === 'A' ? "Click a pack to raise it, then confirm. Hover a pack, or today's stock, to read it."
+      : "Click a pack to raise it, then confirm. Today's 6 drop in after your pick.";
+    if (ha > 0.001) h += `<div style="left:0;top:0;width:1280px;height:720px;opacity:${fx(ha)}">${headHTML(158, 352, auto ? 'YOUR STARTER PACK' : 'PICK A STARTER PACK', '', sub)}</div>`;
+    ids.forEach((id, i) => {
+      if (!id) return;
+      const rr = A.rect(i), t0 = A.deal + (auto ? 0.1 : i * 0.22), u = (t - t0) / 0.38;
+      if (u <= 0) return;
+      let dy = Math.round((1 - back(u)) * 60), a = Math.min(1, u * 2.5);
+      const done = t >= A.conf, picked = i === pick;
+      if (!auto && done && !picked) { const v = ease((t - A.conf - 0.05) / 0.4); dy += Math.round(v * 50); a *= 1 - v; }
+      if (picked) a *= 1 - ease((t - A.fly - 0.2) / 0.35);
+      if (a <= 0.001) return;
+      const sel = !auto && S.sel === i, hover = !auto && !done && S.hover === i && !sel;
+      h += packFaceHTML(id, rr.x, rr.y, {dy, a, hover, sel, expand:hover || sel, hide:picked && t >= A.fly,
+        flash:picked && done && !auto ? Math.max(0, 0.6 * (1 - (t - A.conf) / 0.3)) : 0,
+        ribbon:auto ? 'RUN 1 · PACKED FOR YOU' : S.pre === i ? 'GOOD FIRST PICK' : null, wig:t});
+    });
+    if (!auto) {
+      const ba = ease((t - A.deal - 0.5) / 0.3) * (1 - ease((t - A.conf - 0.15) / 0.25));
+      const on = S.sel !== null && S.sel !== undefined;
+      if (ba > 0.001) h += pushBarHTML(A.bar, ba, on ? `PUSH TO CONFIRM · ${PACKS[ids[S.sel]].name.toUpperCase()}` : 'RAISE A PACK, THEN CONFIRM', on, S.press && t >= A.conf - 0.15);
+    }
+  }
+  if (!auto && q2 === 'A' && S.stockHover !== null && S.stockHover !== undefined && t < A.conf) h += stockPopupHTML(S.stockHover);
+  const L = landed(t, T, pid);
+  return h + hudHTML(4 + L.pack + L.shared);
+}
+
+// ---------- layout B (ruled out): baskets on the counter ----------
+const B = {
+  deal:0.3, hov:1.7, click:5.3, conf:5.95, fly:6.15, open:7.0, stap:7.1, pack:7.7, disp:8.25, sum:10.25, end:13.0,
+  cx: i => 440 + i * 290,
+  rect: i => ({x:440 + i * 290 - 118, y:300, w:236, h:300}),
+  bar: {x:490, y:594, w:300, h:42},
+  way:[[0, 640, 700], [1.6, 640, 700], [2.05, 444, 430], [2.75, 444, 430], [3.15, 734, 430], [3.85, 734, 430], [4.25, 1024, 430], [4.95, 1024, 430],
+    [5.2, 734, 426], [5.5, 734, 426], [5.8, 640, 614], [6.1, 640, 614], [6.6, 720, 700]],
+};
+function basketHTML(pid, cx, y, o) {
+  const pk = PACKS[pid], f = FC[pk.fam], tc = textOn(pk.fam), x = cx - 108;
+  const col = o.sel ? P.gold : P.musL;
+  const OUT = `drop-shadow(3px 0 0 ${col}) drop-shadow(-3px 0 0 ${col}) drop-shadow(0 3px 0 ${col}) drop-shadow(0 -3px 0 ${col})`;
+  let h = `<div style="left:${x}px;top:${y + (o.dy || 0)}px;width:216px;height:260px;opacity:${fx(o.a === undefined ? 1 : o.a)};${o.tf ? 'transform-origin:108px 60px;transform:' + o.tf + ';' : ''}">`;
+  const lift = o.sel ? -14 : o.hover ? -8 : 0;
+  h += `<div style="left:0;top:0;width:216px;height:170px;${o.hover || o.sel ? 'filter:' + OUT : ''}">`;
+  h += `<img class="px" src="${ART}scenery/basket_back_left.png" width="216" height="22" style="left:0;top:${70 + lift}px">`;
+  pk.cards.forEach((id, j) => { h += sprite(id, 12 + j * 60, lift + (BY[id].coupon ? -6 : 0) + (j === 1 ? -8 : 0), 2); });
+  h += `<img class="px" src="${ART}scenery/basket_front.png" width="216" height="88" style="left:0;top:${78 + lift}px">`;
+  h += '</div>';
+  if (o.sel) h += `<div style="left:56px;top:${lift - 18}px;width:104px;height:22px;background:${P.ink};font:800 11px/22px Atkinson;letter-spacing:1px;color:${P.gold};text-align:center">RAISED ✓</div>`;
+  if (!o.noTag) {
+    h += `<div style="left:106px;top:174px;width:4px;height:12px;background:${P.steelL}"></div>`;
+    h += `<div style="left:-14px;top:184px;width:244px;height:44px;background:${P.ink}"><div style="left:2px;top:2px;width:240px;height:40px;background:${f.col}"></div><div style="left:2px;top:2px;width:240px;height:2px;background:${f.lt}"></div>${glyph(pk.fam, 2, `left:8px;top:4px;filter:${GRIM}`)}<div style="left:50px;top:4px;font:400 22px/34px Pixelify;color:${tc};white-space:nowrap">${pk.name}</div></div>`;
+    h += `<div style="left:-14px;top:232px;width:244px;height:44px;background:${P.tealDk2};border:2px solid ${P.ink}"></div>`;
+    h += `<div style="left:-8px;top:236px;width:232px;text-align:center;font:600 13px/17px Atkinson;color:${P.cream}">${pk.hint}</div>`;
+  }
+  return h + '</div>';
+}
+function layB(t, S) {
+  const pick = S.pick, ids = offer();
+  let h = backdropHTML(t < B.open ? 0.78 : 0.55);
+  if (t < B.open + 0.3) {
+    const fa = 1 - ease((t - B.open) / 0.3);
+    h += `<div style="left:0;top:0;width:1280px;height:720px;opacity:${fx(fa)}">`;
+    // the sign and its line (on a solid plate, gone before the basket flies)
+    const sa = 1 - ease((t - B.conf) / 0.2);
+    if (sa > 0.001) {
+      h += `<div style="left:0;top:0;width:1280px;height:200px;opacity:${fx(sa)}">`;
+      h += `<div style="left:390px;top:84px;width:500px;height:58px;background:${P.ink}"></div><div style="left:394px;top:88px;width:492px;height:50px;background:${P.mus}"></div><div style="left:394px;top:88px;width:492px;height:4px;background:${P.musL}"></div>`;
+      h += `<div style="left:390px;top:84px;width:500px;text-align:center;font:400 30px/58px Pixelify;color:${P.ink}">TAKE A STARTER BASKET</div>`;
+      h += `<div style="left:440px;top:66px;width:4px;height:20px;background:${P.steel}"></div><div style="left:836px;top:66px;width:4px;height:20px;background:${P.steel}"></div>`;
+      h += `<div style="left:330px;top:150px;width:620px;height:28px;background:${P.tealDk2};border:2px solid ${P.ink};text-align:center;font:600 14px/24px Atkinson;color:${P.cream}">Each basket starts a different plan. Your staples are already in the cart.</div>`;
+      h += '</div>';
+    }
+    const la = 1 - ease((t - B.conf - 0.1) / 0.3);
+    h += `<div style="left:320px;top:470px;width:820px;height:16px;opacity:${fx(la)}"><div style="left:0;top:0;width:820px;height:16px;background:${P.ink}"></div><div style="left:2px;top:2px;width:816px;height:6px;background:${P.steelHi}"></div><div style="left:2px;top:8px;width:816px;height:6px;background:${P.steelP}"></div></div>`;
+    ids.forEach((pid, i) => {
+      const t0 = B.deal + i * 0.22, u = (t - t0) / 0.4;
+      if (u <= 0) return;
+      let dy = Math.round((1 - back(u)) * 70), a = Math.min(1, u * 2.5), tf = '';
+      if (t >= B.conf && i !== pick) { const v = ease((t - B.conf - 0.05) / 0.4); dy += Math.round(v * 60); a *= 1 - v; }
+      let cx = B.cx(i), y = 312;
+      const flying = t >= B.fly && i === pick;
+      if (flying) {
+        const v = ease((t - B.fly) / 0.75);
+        cx = lerp(cx, 1142, v); y = lerp(y, -10, v) - Math.sin(Math.PI * v) * 60; tf = `scale(${fx(lerp(1, 0.16, v))})`; a *= 1 - ease((t - B.fly - 0.6) / 0.15);
+      }
+      const sel = S.sel === i && !flying, hover = S.hover === i && t < B.conf && !sel;
+      h += basketHTML(pid, Math.round(cx), Math.round(y) - 8, {dy, a, tf, hover, sel, noTag:flying});
+    });
+    const ba = ease((t - B.deal - 0.6) / 0.3) * (1 - ease((t - B.conf - 0.1) / 0.2));
+    const on = S.sel !== null && S.sel !== undefined;
+    if (ba > 0.001) h += pushBarHTML(B.bar, ba, on ? 'PUSH TO CONFIRM' : 'RAISE A BASKET', on, S.press && t >= B.conf - 0.15);
+    h += `<div style="left:0;top:652px;width:1280px"><div class="fl" style="text-align:center;font:700 14px Atkinson;color:${P.greyL}">Already in your cart: ${STAPLES.map(id => `<img class="px" src="${ART}minis/${id}.png" width="21" height="21" style="vertical-align:-5px;margin:0 2px">`).join('')} your 4 staples</div></div>`;
+    if (S.hover !== null && S.hover !== undefined && t < B.conf && S.sel !== S.hover) h += popupHTML(ids[S.hover], B.cx(S.hover), 296, 1);
+    h += '</div>';
+  }
+  // the Cart button bumps when the basket lands
+  const bu = (t - (B.fly + 0.72)) / 0.3;
+  if (bu > 0 && bu < 1) h += `<div style="left:1074px;top:6px;width:138px;height:44px;border:4px solid ${P.gold};opacity:${fx(1 - bu)};transform:scale(${fx(lerp(1, 1.15, bu))})"></div>`;
+  const T = {open:B.open, stap:B.stap, pack:B.pack, packFrom:null, disp:B.disp, sum:B.sum};
+  if (t >= B.open) h += revealHTML(t, T, ids[pick]);
+  if (t >= B.open && t < B.open + 1.6) h += `<div style="left:660px;top:410px;width:440px;opacity:${fx(ease((t - B.open - 0.2) / 0.3) * (1 - ease((t - B.open - 1.3) / 0.3)))}"><div class="fl" style="font:800 13px/18px Atkinson;letter-spacing:1px;color:${P.tom};background:${P.paper};border:2px solid ${P.ink};padding:4px 8px;display:inline-block">STEP 2 OF 2 · THE WHOLE REVEAL STILL PLAYS</div></div>`;
+  return h + hudHTML(4 + (t >= B.fly + 0.72 ? 3 : 0) + landed(t, T, ids[pick]).shared);
+}
+
+// ---------- layout C (ruled out): a New run screen ----------
+const C = {
+  deal:0.3, hov:1.7, click:5.5, conf:6.2, fade:6.4, open:6.8, stap:6.9, pack:7.4, disp:7.95, sum:9.9, end:12.6,
+  rect: i => ({x:128 + i * 352, y:186, w:320, h:384}),
+  bar: {x:490, y:598, w:300, h:64},
+  way:[[0, 640, 700], [1.6, 640, 700], [2.05, 288, 380], [2.85, 288, 380], [3.25, 640, 380], [3.95, 640, 380], [4.35, 992, 380], [5.05, 992, 380], [5.35, 644, 376], [5.75, 644, 376], [6.1, 640, 630], [6.4, 640, 630], [6.9, 720, 720]],
+};
+function tallCardHTML(pid, x, y, o) {
+  const pk = PACKS[pid], f = FC[pk.fam], tc = textOn(pk.fam), W = 320, H = 384;
+  let h = `<div style="left:${x}px;top:${y + (o.hover ? -10 : 0) + (o.dy || 0)}px;width:${W}px;height:${H}px;opacity:${fx(o.a === undefined ? 1 : o.a)}">`;
+  if (o.hover || o.sel) h += `<div style="left:-6px;top:-6px;width:${W + 12}px;height:${H + 12}px;background:${o.sel ? P.gold : P.musL};box-shadow:0 0 0 2px ${P.ink}"></div>`;
+  h += `<div style="left:0;top:${o.hover ? 16 : 8}px;width:${W}px;height:${H}px;background:rgba(0,0,0,.4)"></div>`;
+  h += `<div style="left:0;top:0;width:${W}px;height:${H}px;background:${P.ink}"></div><div style="left:2px;top:2px;width:${W - 4}px;height:${H - 4}px;background:${f.col}"></div>`;
+  h += `<div style="left:8px;top:8px;width:${W - 16}px;height:${H - 16}px;background:${P.paper}"></div>`;
+  const tw = 196;
+  h += `<div style="left:${(W - tw) / 2}px;top:-16px;width:${tw}px;height:30px;background:${P.ink}"><div style="left:2px;top:2px;width:${tw - 4}px;height:26px;background:${f.col}"></div>${glyph(pk.fam, 1, `left:10px;top:6px;filter:${GRIM}`)}<div style="left:34px;top:2px;width:${tw - 44}px;text-align:center;font:800 13px/26px Atkinson;letter-spacing:2px;color:${tc}">${pk.fam.toUpperCase()}</div></div>`;
+  h += `<div style="left:16px;top:24px;width:${W - 32}px;height:112px;background:${P.creamSh}"></div>`;
+  pk.cards.forEach((id, j) => { h += sprite(id, 16 + j * 96, 30, 2); });
+  h += `<div style="left:0;top:142px;width:${W}px;text-align:center;font:400 28px/34px Pixelify;color:${P.ink}">${pk.name}</div>`;
+  pk.cards.forEach((id, j) => {
+    const it = BY[id];
+    h += `<div style="left:20px;top:${186 + j * 30}px;width:${W - 40}px"><div class="fl" style="font:600 14px/18px Atkinson;color:${P.ink};white-space:nowrap"><b>${it.name}</b> · ${rich(it.eff)}</div></div>`;
+  });
+  h += `<div style="left:20px;top:284px;width:${W - 40}px;height:2px;background:${P.creamSh}"></div>`;
+  h += `<div style="left:20px;top:296px;width:${W - 40}px;font:700 13px/17px Atkinson;color:${P.inkL}">${pk.hint}</div>`;
+  h += `<div style="left:20px;top:340px;width:${W - 40}px;font:800 13px/17px Atkinson;color:${P.musDk2}">Plan: <span style="color:${P.ink}">${pk.plan}</span></div>`;
+  if (o.sel) h += `<div style="left:${(W - 104) / 2}px;top:-44px;width:104px;height:22px;background:${P.ink};font:800 11px/22px Atkinson;letter-spacing:1px;color:${P.gold};text-align:center">PICKED ✓</div>`;
+  return h + '</div>';
+}
+function layC(t, S) {
+  const pick = S.pick, ids = offer();
+  let h = '';
+  if (t < C.open) {
+    const fo = 1 - ease((t - C.fade) / 0.35);
+    h += `<div style="left:0;top:0;width:1280px;height:720px;background:${P.tealDk2};opacity:${fx(fo)}">`;
+    for (let i = 0; i < 20; i++) h += `<div style="left:0;top:${i * 36}px;width:1280px;height:18px;background:rgba(255,255,255,.018)"></div>`;
+    h += `<div style="left:0;top:24px;width:1280px;text-align:center;font:400 52px/60px Pixelify;color:${P.mus};text-shadow:4px 4px 0 ${P.ink}">NEXT CUSTOMER</div>`;
+    h += `<div style="left:0;top:96px;width:1280px;text-align:center;font:800 20px Atkinson;letter-spacing:2px;color:${P.musL}">NEW RUN · CHOOSE YOUR STARTER PACK</div>`;
+    h += `<div style="left:0;top:126px;width:1280px"><div class="fl" style="text-align:center;font:600 14px Atkinson;color:${P.cream}">Your 4 staples are always in the cart ${STAPLES.map(id => `<img class="px" src="${ART}minis/${id}.png" width="21" height="21" style="vertical-align:-5px;margin:0 2px">`).join('')}, and 6 products from today's stock join them.</div></div>`;
+    ids.forEach((pid, i) => {
+      const r = C.rect(i), t0 = C.deal + i * 0.22, u = (t - t0) / 0.4;
+      if (u <= 0) return;
+      const sel = S.sel === i;
+      let a = Math.min(1, u * 2.5);
+      if (S.sel !== null && S.sel !== undefined && !sel) a *= 0.55;
+      h += tallCardHTML(pid, r.x, r.y, {dy:Math.round((1 - back(u)) * 60), a, hover:S.hover === i && t < C.conf && !sel, sel});
+    });
+    const on = S.sel !== null && S.sel !== undefined, pressed = S.press && t >= C.conf - 0.15;
+    h += `<div style="left:490px;top:${598 + (pressed ? 4 : 0)}px;width:300px;height:64px">`;
+    h += `<div style="left:0;top:${pressed ? 2 : 6}px;width:300px;height:58px;background:${P.ink}"></div><div style="left:0;top:0;width:300px;height:58px;background:${P.ink}"></div>`;
+    h += `<div style="left:2px;top:2px;width:296px;height:54px;background:${on ? P.mus : P.steelP}"></div><div style="left:2px;top:2px;width:296px;height:4px;background:${on ? P.musL : P.steelL}"></div>`;
+    h += `<div style="left:0;top:0;width:300px;text-align:center;font:800 21px/58px Atkinson;letter-spacing:1px;color:${on ? P.ink : P.greyD}">${on ? 'START SHIFT 1 ›' : 'PICK A PACK FIRST'}</div></div>`;
+    h += `<div style="left:40px;top:676px;font:700 14px Atkinson;color:${P.tealL}">‹ Title</div>`;
+    h += `</div>`;
+    if (t >= C.fade) h += `<div style="left:0;top:0;width:1280px;height:720px;background:#000;opacity:${fx(ease((t - C.fade) / 0.35))}"></div>`;
+    return h;
+  }
+  h += backdropHTML(0.55);
+  const T = {open:C.open, stap:C.stap, pack:C.pack, packFrom:null, disp:C.disp, sum:C.sum};
+  h += revealHTML(t, T, ids[pick]);
+  const fi = 1 - ease((t - C.open) / 0.3);
+  if (fi > 0) h += `<div style="left:0;top:0;width:1280px;height:720px;background:#000;opacity:${fx(fi)}"></div>`;
+  const L = landed(t, T, ids[pick]);
+  return h + hudHTML(4 + L.pack + L.shared);
+}
+
+// ---------- stages: clock, auto cursor, mouse and key take-over ----------
+const LAY = {A:{L:A, f:layA}, B:{L:B, f:layB}, C:{L:C, f:layC}};
+let playing = true, slow = Q.has('slow'), active = null;
+function makeStage(el, fit, lay) { return {el, fit, lay, t:AT !== null ? AT : 0, M:{on:false, x:0, y:0, sel:null, pick:null}}; }
+function cursorAt(L, t) {
+  const w = L.way;
+  if (t >= w[w.length - 1][0]) return null;
+  for (let i = 0; i < w.length - 1; i++) {
+    const [t0, x0, y0] = w[i], [t1, x1, y1] = w[i + 1];
+    if (t >= t0 && t < t1) { const u = ease((t - t0) / (t1 - t0)); return [lerp(x0, x1, u), lerp(y0, y1, u)]; }
+  }
+  return null;
+}
+function hitPack(L, x, y) {
+  for (let i = 0; i < 3; i++) { const r = L.rect(i); if (x >= r.x && x < r.x + r.w && y >= r.y - 16 && y < r.y + r.h) return i; }
+  return null;
+}
+const hitBar = (L, x, y) => x >= L.bar.x && x < L.bar.x + L.bar.w && y >= L.bar.y && y < L.bar.y + L.bar.h + 6;
+function stageState(st) {
+  const L = LAY[st.lay].L, t = st.t, M = st.M;
+  const S = {hover:null, sel:null, pick:M.pick !== null ? M.pick : 1, cursor:null, press:false, stockHover:null, pre:null};
+  const choosing = t >= L.hov - 0.2 && t < L.conf;
+  const look = (x, y) => { S.hover = hitPack(L, x, y); if (st.lay === 'A' && Q2 === 'A') S.stockHover = hitStock(x, y); };
+  if (M.on) {
+    if (choosing) look(M.x, M.y);
+    S.sel = M.pick !== null ? M.pick : M.sel;
+  } else {
+    S.cursor = cursorAt(L, t);
+    if (S.cursor && choosing) look(S.cursor[0], S.cursor[1]);
+    S.sel = t >= L.click ? 1 : null;
+    S.press = (t >= L.click - 0.12 && t < L.click + 0.05) || (t >= L.conf - 0.12 && t < L.conf + 0.08);
+  }
+  return S;
+}
+function renderStage(st) {
+  const S = stageState(st);
+  let h = LAY[st.lay].f(st.t, S);
+  if (S.cursor) h += cursorHTML(S.cursor[0], S.cursor[1], S.press);
+  st.el.innerHTML = h;
+}
+function confirmPick(st) { st.M.pick = st.M.sel; st.t = LAY[st.lay].L.conf; playing = true; syncPlay(); }
+// one input on a stage: kind = 'click' (with x, y), 'enter' or 'key' (Space, Esc)
+function tap(st, kind, x, y) {
+  const L = LAY[st.lay].L, M = st.M;
+  if (st.t < L.hov - 0.2) { st.t = L.hov; return; }                  // during the deal: skip to the choice, never past it
+  if (st.t < L.conf && M.pick === null) {
+    if (kind === 'click') {
+      const i = hitPack(L, x, y);
+      if (i !== null) { M.sel = i; return; }
+      if (M.sel !== null && hitBar(L, x, y)) confirmPick(st);
+      return;                                                          // a click off the packs does nothing
+    }
+    if (kind === 'enter' && M.sel !== null) confirmPick(st);
+    return;                                                            // Space and Esc do nothing during the choice
+  }
+  if (st.t < L.sum) { st.t = L.sum; return; }                         // after the confirm: a tap skips to the summary, as today
+  st.t = 0; M.pick = null; M.sel = null;                              // at the end: play again
+}
+function hookStage(st) {
+  const xy = e => { const r = st.fit.getBoundingClientRect(), s = r.width / 1280; return [(e.clientX - r.left) / s, (e.clientY - r.top) / s]; };
+  st.fit.addEventListener('pointermove', e => { [st.M.x, st.M.y] = xy(e); st.M.on = true; active = st; });
+  st.fit.addEventListener('pointerleave', () => { if (st.M.pick === null && st.M.sel === null) st.M.on = false; if (active === st) active = null; });
+  st.fit.addEventListener('click', e => { const [x, y] = xy(e); st.M.x = x; st.M.y = y; st.M.on = true; active = st; tap(st, 'click', x, y); });
+}
+addEventListener('keydown', e => {
+  const st = active; if (!st) return;
+  const L = LAY[st.lay].L;
+  if (['1', '2', '3'].includes(e.key)) {
+    if (st.t < L.conf && st.M.pick === null) { st.M.sel = +e.key - 1; if (st.t < L.hov) st.t = L.hov; }
+    e.preventDefault(); return;
+  }
+  if (e.key === 'Enter') { tap(st, 'enter'); e.preventDefault(); }
+  else if (e.key === ' ' || e.key === 'Escape') { tap(st, 'key'); e.preventDefault(); }
+});
+
+// ---------- Q1 board: the three options dealt side by side ----------
+const Q1 = {
+  A:{title:'A · Three random carts', sub:"today's dealer, run 3 times", rows:[
+    {label:'Cart 1', cards:[...STAPLES, 'repeat', 'cheese', 'cereal', 'cereal', 'dented_can', 'scissors', 'soup', 'butter', 'coffee']},
+    {label:'Cart 2', cards:[...STAPLES, 'two_for_one', 'bread', 'yogurt', 'frozen_peas', 'crackers', 'batteries', 'eggs', 'tea_bags', 'day_old_buns']},
+    {label:'Cart 3', cards:[...STAPLES, 'shelf_swap', 'milk', 'cereal', 'reduced_yogurt', 'carrier_bag', 'flickering_bulb', 'bread', 'cheese', 'scissors']}], read:39},
+  B:{title:'B · Three themed carts', sub:'the dealer leans each cart to a family', rows:[
+    {label:'Breakfast cart', fam:'Breakfast', cards:[...STAPLES, 'breakfast_sticker', 'coffee', 'tea_bags', 'cereal', 'bread', 'yogurt', 'milk', 'cheese', 'batteries']},
+    {label:'Clearance cart', fam:'Clearance', cards:[...STAPLES, 'clearance_tag', 'dented_can', 'dented_can', 'reduced_yogurt', 'day_old_buns', 'flickering_bulb', 'soup', 'crackers', 'butter']},
+    {label:'Produce cart', fam:'Produce', cards:[...STAPLES, 'two_for_one', 'yogurt', 'yogurt', 'frozen_peas', 'frozen_peas', 'cereal', 'carrier_bag', 'scissors', 'coffee']}], read:39},
+  C:{title:'C · Starter packs', sub:'one shared cart + pick 1 of 3 packs', rows:null, read:9},
+};
+function q1HTML(t) {
+  const u = t % 7;
+  let h = '';
+  ['A', 'B', 'C'].forEach((k, ci) => {
+    const o = Q1[k], x0 = 16 + ci * 424, W = 408;
+    h += `<div style="left:${x0}px;top:14px;width:${W}px;height:442px;background:${P.tealDk};border:2px solid ${k === 'C' ? P.mus : P.ink}"></div>`;
+    if (k === 'C') h += `<div style="left:${x0 + W - 132}px;top:4px;width:128px;height:22px;background:${P.grnDk};border:2px solid ${P.ink};font:800 11px/18px Atkinson;letter-spacing:1px;text-align:center;color:${P.paper}">RECOMMENDED</div>`;
+    h += `<div style="left:${x0 + 14}px;top:24px;font:400 25px/32px Pixelify;color:${P.paper}">${o.title}</div>`;
+    h += `<div style="left:${x0 + 14}px;top:56px;font:600 13px Atkinson;color:${P.tealL}">${o.sub}</div>`;
+    let shown = 0;
+    const per = 3.0 / o.read, vis = n => u >= 0.3 + n * per;
+    if (o.rows) {
+      o.rows.forEach((r, ri) => {
+        const y = 84 + ri * 92;
+        if (r.fam) { const f = FC[r.fam]; h += `<div style="left:${x0 + 10}px;top:${y}px;width:${W - 20}px;height:26px;background:${f.col};border:2px solid ${P.ink}">${glyph(r.fam, 1, `left:4px;top:2px;filter:${GRIM}`)}<div style="left:28px;top:0;font:800 13px/22px Atkinson;color:${textOn(r.fam)}">${r.label}</div></div>`; }
+        else h += `<div style="left:${x0 + 12}px;top:${y + 4}px;font:800 13px Atkinson;color:${P.greyL}">${r.label}</div>`;
+        let x = x0 + 12;
+        r.cards.forEach((id, j) => {
+          const n = ri * 13 + j;
+          if (vis(n)) { h += mini(id, x, y + 36); shown++; if (j < 4) h += `<div style="left:${x + 18}px;top:${y + 58}px;width:10px;height:6px;background:${P.mus}"></div>`; }
+          x += miniW(id) + 2;
+        });
+      });
+      h += `<div style="left:${x0 + 12}px;top:${84 + 3 * 92 + 2}px;width:${W - 24}px;font:600 13px/17px Atkinson;color:${P.cream}">${k === 'A' ? 'Same 4 staples (gold marks), 8 of the same 20 products: the carts differ by a card or two.' : 'Clear themes, but every card still has to be read, and the thin families wait for capsule products (#90).'}</div>`;
+    } else {
+      const y = 84;
+      h += `<div style="left:${x0 + 12}px;top:${y + 2}px;font:800 13px Atkinson;color:${P.greyL}">Same whichever you pick <span style="color:${P.tealL};font-weight:600">· today's 6: ${Q2 === 'A' ? 'pictures (Q2 A)' : 'hidden (Q2 B)'}</span></div>`;
+      let x = x0 + 12;
+      STAPLES.forEach(id => { h += mini(id, x, y + 26); h += `<div style="left:${x + 18}px;top:${y + 48}px;width:10px;height:6px;background:${P.mus}"></div>`; x += 30; });
+      x += 8;
+      SHARED6.forEach(id => {
+        if (Q2 === 'A') h += `<div style="left:${x - 1}px;top:${y + 25}px;width:30px;height:30px;background:${P.tealP};opacity:.9"></div>` + mini(id, x, y + 26);
+        else h += `<div style="left:${x}px;top:${y + 26}px;width:28px;height:28px;border:2px dashed ${P.tealL};font:800 15px/24px Atkinson;text-align:center;color:${P.tealL}">?</div>`;
+        x += 32;
+      });
+      offer().forEach((pid, pi) => {
+        const pk = PACKS[pid], f = FC[pk.fam], yy = 146 + pi * 70;
+        h += `<div style="left:${x0 + 10}px;top:${yy}px;width:${W - 20}px;height:64px;background:${P.ink}"></div><div style="left:${x0 + 12}px;top:${yy + 2}px;width:${W - 24}px;height:60px;background:${f.col}"></div>`;
+        h += glyph(pk.fam, 1, `left:${x0 + 18}px;top:${yy + 8}px;filter:${GRIM}`);
+        h += `<div style="left:${x0 + 42}px;top:${yy + 3}px;font:400 21px/28px Pixelify;color:${textOn(pk.fam)}">${pk.name}</div>`;
+        h += `<div style="left:${x0 + 220}px;top:${yy + 6}px;width:180px;height:52px;background:${P.paper};border:2px solid ${P.ink}"></div>`;
+        pk.cards.forEach((id, j) => {
+          const n = pi * 3 + j;
+          if (vis(n)) { shown++; const c = BY[id];
+            h += c.coupon ? `<img class="px" src="${ART}icons/coupon_${id}_v2.png" width="40" height="28" style="left:${x0 + 226 + j * 58}px;top:${yy + 18}px">`
+              : `<img class="px" src="${ART}items_v2/${id}.png" width="48" height="48" style="left:${x0 + 222 + j * 58}px;top:${yy + 8}px">`; }
+        });
+        h += `<div style="left:${x0 + 18}px;top:${yy + 34}px;width:196px;font:700 12px/14px Atkinson;color:${textOn(pk.fam)}">Plan: ${pk.plan}</div>`;
+      });
+      h += `<div style="left:${x0 + 12}px;top:360px;width:${W - 24}px;font:600 13px/17px Atkinson;color:${P.cream}">Three named plans of 3 cards; their tickets open on hover. The shared 6 ${Q2 === 'A' ? 'are pictures to glance at, not to read.' : 'drop in after the pick.'}</div>`;
+    }
+    const cnt = Math.min(o.read, shown);
+    h += `<div style="left:${x0 + 12}px;top:404px;font:800 13px/16px Atkinson;letter-spacing:1px;color:${P.greyL}">CARDS TO READ<br>TO COMPARE</div>`;
+    h += `<div style="left:${x0 + 150}px;top:392px;font:400 44px/48px Pixelify;color:${k === 'C' ? P.grnL : P.tomL}">${cnt}</div>`;
+    h += `<div style="left:${x0 + 230}px;top:404px;width:160px;font:600 12px/15px Atkinson;color:${P.greyL}">${k === 'C' ? '(today\'s reveal: 13, all random)' : '3 carts × 13 cards'}</div>`;
+  });
+  return h;
+}
+
+// ---------- Q4 board: the best short row of each Banana pack, by the #106 rules ----------
+function q4HTML(t) {
+  let h = '';
+  [['B', 'split', 'B · Banana split (the limit stays)', ['banana', 'two_for_one', 'banana', 'yogurt'], [2, null, 8, 5], 'YOUR 2 STAPLE BANANAS + THE PACK',
+    '2 for 1 links your pair: (2 + 2) × 2 = 8. Yogurt right after it: 2 + 3 = 5.', 'Plays the staples you have; one plan among six'],
+   ['A', 'banana', 'A · Banana bunch (one exception)', ['banana', 'banana', 'banana', 'two_for_one', 'banana'], [2, 4, 6, null, 16], '2 STAPLES + 2 MORE BANANAS',
+    'Chain 2, 4, 6; 2 for 1 links the 4th: (2 + 6) × 2 = 16.', 'Past the limit: the longest chain at the start']].forEach(([k, pid, title, row, pays, label, how, line], ci) => {
+    const x0 = 16 + ci * 636, W = 620, on = Q4 === k;
+    h += `<div style="left:${x0}px;top:12px;width:${W}px;height:326px;background:${P.tealDk};border:2px solid ${on ? P.mus : P.ink}"></div>`;
+    if (k === 'B') h += `<div style="left:${x0 + W - 132}px;top:2px;width:128px;height:22px;background:${P.grnDk};border:2px solid ${P.ink};font:800 11px/18px Atkinson;letter-spacing:1px;text-align:center;color:${P.paper}">RECOMMENDED</div>`;
+    h += `<div style="left:${x0 + 14}px;top:20px;font:400 24px/30px Pixelify;color:${P.paper}">${title}</div>`;
+    h += packFaceHTML(pid, x0 + 14, 70, {});
+    h += `<div style="left:${x0 + 330}px;top:66px;font:800 12px Atkinson;letter-spacing:1px;color:${P.greyL}">${label}</div>`;
+    h += `<div style="left:${x0 + 326}px;top:170px;width:284px;height:12px;background:${P.ink}"></div><div style="left:${x0 + 328}px;top:170px;width:280px;height:6px;background:${P.steelL}"></div>`;
+    const u = (t % 5) / 5;
+    row.forEach((id, j) => {
+      const x = x0 + 330 + j * 56, lit = u * 7 > j;
+      if (BY[id].coupon) h += `<img class="px" src="${ART}icons/coupon_${id}_v2.png" width="40" height="28" style="left:${x + 6}px;top:136px">`;
+      else h += `<img class="px" src="${ART}items_v2/${id}.png" width="48" height="48" style="left:${x + 2}px;top:118px">`;
+      if (lit && pays[j] !== null) h += `<div style="left:${x}px;top:186px;width:52px;height:26px;filter:drop-shadow(2px 2px 0 rgba(0,0,0,.4))"><img class="px" src="${ART}effects/${pays[j] >= 8 ? 'pay_burst' : 'pay_plain'}.png" width="52" height="26" style="left:0;top:0"><div style="left:0;top:0;width:52px;text-align:center;font:750 16px/26px Atkinson;color:${P.ink}">€${pays[j]}</div></div>`;
+    });
+    const tot = pays.reduce((a, b) => a + (b || 0), 0);
+    h += `<div style="left:${x0 + 330}px;top:222px;width:280px;font:700 14px/18px Atkinson;color:${P.cream}">${how}</div>`;
+    h += `<div style="left:${x0 + 330}px;top:262px;width:280px;font:800 15px/19px Atkinson;color:${P.paper}">= <span style="color:${P.musL}">€${tot}</span> in ${row.length} slots <span style="color:${P.greyL};font-weight:600">(shift 1: €${QUOTA1} over 7)</span></div>`;
+    h += `<div style="left:${x0 + 330}px;top:290px;width:280px;font:800 13px/17px Atkinson;color:${k === 'B' ? P.grnL : P.tomL}">${line}</div>`;
+  });
+  return h;
+}
+
+// ---------- the packs section ----------
+function packsGrid() {
+  const ids = ['breakfast', 'clearance', produceId(), 'coupons', 'deli', 'bigshop'];
+  const alt = Q4 === 'A' ? 'split' : 'banana';
+  document.getElementById('packgrid').innerHTML = [...ids, alt].map(pid => {
+    const pk = PACKS[pid], isAlt = pid === alt;
+    let s = `<div class="packbox${isAlt ? ' alt' : ''}"><div class="abs">${packFaceHTML(pid, 38, 12, {})}`;
+    pk.cards.forEach((id, j) => { s += ticketHTML(id, 4 + j * 126, 226, P.paper) + rarityChipHTML(id, 4 + j * 126, 314, 108); });
+    s += `</div><div class="txt">${isAlt ? `<b style="color:var(--mus-l)">Only with Q4 ${Q4 === 'A' ? 'B' : 'A'}.</b> ` : ''}Plan: <b>${pk.plan}</b>. ${pk.why}<br><span class="dep">If #108 keeps build stamps: ${pk.lean}.</span></div></div>`;
+    return s;
+  }).join('');
+  const rows = ['breakfast', 'clearance', 'banana', 'split', 'coupons', 'deli', 'bigshop'];
+  let tb = '<tr><th>Pack</th><th>Cards (machine rarity)</th><th>Prices</th><th>Coupons in the cart</th><th>Plan</th><th>If #108 keeps build stamps</th></tr>';
+  rows.forEach(pid => {
+    const pk = PACKS[pid], isAlt = (pid === 'banana' && Q4 === 'B') || (pid === 'split' && Q4 === 'A');
+    const prices = pk.cards.map(id => BY[id].coupon ? 0 : BY[id].base);
+    tb += `<tr${isAlt ? ' class="alt"' : ''}><td><b>${pk.name}</b>${pid === 'banana' ? ' (Q4 A)' : pid === 'split' ? ' (Q4 B)' : ''}</td><td>${pk.cards.map(id => `${BY[id].name}<span class="rar ${rarity(id)}">${rarity(id)[0]}</span>`).join(', ')}</td>`
+      + `<td>€${prices.join(' + €')} = <b>€${prices.reduce((a, b) => a + b, 0)}</b></td><td>${pk.cards.filter(id => BY[id].coupon).length}</td><td>${pk.plan}</td><td>${pk.lean}</td></tr>`;
+  });
+  document.getElementById('packtable').innerHTML = tb;
+}
+
+// ---------- Q3 minis ----------
+function renderQ3() {
+  document.getElementById('q3A').innerHTML = layA(3.0, {variant:'auto', hover:null, sel:null, pick:1, stockHover:null});
+  document.getElementById('q3B').innerHTML = layA(3.2, {hover:null, sel:1, pick:1, pre:1, stockHover:null});
+  document.getElementById('q3C').innerHTML = layA(3.2, {hover:null, sel:null, pick:1, stockHover:null});
+}
+
+// ---------- fitting, controls, loop ----------
+const SOLO = Q.get('solo') === 'stage';
+if (SOLO) document.body.classList.add('solo');
+if (Q.get('sec')) { document.body.classList.add('sec'); const s = document.getElementById(Q.get('sec')); if (s) s.classList.add('show'); }
+const qlay = ['A', 'B', 'C'].includes(Q.get('lay')) ? Q.get('lay') : null;
+const stages = SOLO ? [makeStage(document.getElementById('soloStage'), document.getElementById('soloStage'), qlay || 'A')]
+  : [makeStage(document.getElementById('main'), document.getElementById('mainfit'), 'A'),
+     makeStage(document.getElementById('where'), document.getElementById('wherefit'), qlay === 'C' ? 'C' : 'B')];
+const mainSt = stages[0], whereSt = stages[1] || null;
+function fitAll() {
+  document.querySelectorAll('.fit').forEach(f => {
+    const W = +f.dataset.w, H = +f.dataset.h, s = Math.min(1, f.clientWidth / W);
+    f.style.height = Math.round(H * s) + 'px';
+    f.firstElementChild.style.transform = `scale(${s})`;
+  });
+}
+addEventListener('resize', fitAll);
+function syncPlay() { const b = document.getElementById('play'); if (b) b.textContent = playing ? 'Pause' : 'Play'; }
+function syncButtons() {
+  document.querySelectorAll('[data-q2]').forEach(b => b.classList.toggle('on', b.dataset.q2 === Q2));
+  document.querySelectorAll('[data-q4]').forEach(b => b.classList.toggle('on', b.dataset.q4 === Q4));
+  if (whereSt) document.querySelectorAll('[data-where]').forEach(b => b.classList.toggle('on', b.dataset.where === whereSt.lay));
+}
+document.querySelectorAll('[data-q2]').forEach(b => b.addEventListener('click', () => { Q2 = b.dataset.q2; syncButtons(); renderQ3(); }));
+document.querySelectorAll('[data-q4]').forEach(b => b.addEventListener('click', () => { Q4 = b.dataset.q4; syncButtons(); packsGrid(); renderQ3(); }));
+document.querySelectorAll('[data-where]').forEach(b => b.addEventListener('click', () => {
+  whereSt.lay = b.dataset.where; whereSt.t = 0; whereSt.M.pick = null; whereSt.M.sel = null; whereSt.M.on = false; syncButtons();
+}));
+document.getElementById('play').addEventListener('click', () => { playing = !playing; syncPlay(); });
+document.getElementById('slow').addEventListener('click', e => { slow = !slow; e.target.classList.toggle('on', slow); });
+document.querySelectorAll('[data-beat]').forEach(b => b.addEventListener('click', () => {
+  const m = {deal:A.deal + 0.5, stock:3.0, hover:5.3, raise:7.4, pick:A.conf + 0.15, flow:A.disp + 0.8, end:A.sum + 0.8};
+  mainSt.t = m[b.dataset.beat]; mainSt.M.on = false; mainSt.M.pick = null; mainSt.M.sel = null; playing = false; syncPlay();
+  document.getElementById('q2').scrollIntoView({behavior:'smooth', block:'start'});
+}));
+document.querySelectorAll('[data-q3]').forEach(b => b.addEventListener('click', () => {
+  document.querySelectorAll('[data-q3]').forEach(x => x.classList.toggle('on', x === b));
+  document.querySelectorAll('.q3fit').forEach((f, i) => { f.parentElement.style.outline = 'ABC'[i] === b.dataset.q3 ? `3px solid ${P.mus}` : 'none'; });
+}));
+stages.forEach(hookStage);
+let last = performance.now(), boardT = 0;
+function drawBoards() {
+  document.getElementById('q1board').innerHTML = q1HTML(boardT);
+  document.getElementById('q4board').innerHTML = q4HTML(boardT);
+  const ck = document.getElementById('clock'); if (ck) ck.textContent = mainSt.t.toFixed(1) + ' s';
+}
+function frame(now) {
+  const dt = Math.min(0.05, (now - last) / 1000) * (slow ? 0.25 : 1); last = now;
+  stages.forEach(st => {
+    const L = LAY[st.lay].L;
+    if (playing) {
+      const hold = st.M.on && st.M.pick === null && st.t >= L.hov;   // a taken-over stage waits at the choice for a confirm
+      if (!hold) st.t += dt;
+      if (st.t >= L.end) { st.t = 0; st.M.pick = null; st.M.sel = null; st.M.on = false; }
+    }
+    renderStage(st);
+  });
+  if (!SOLO) { boardT += dt; drawBoards(); }
+  requestAnimationFrame(frame);
+}
+if (!SOLO) { packsGrid(); renderQ3(); }
+syncButtons(); syncPlay();
+fitAll();
+if (SHOT) {
+  boardT = AT !== null ? AT : 4;
+  stages.forEach(renderStage);
+  if (!SOLO) drawBoards();
+  fitAll();
+} else requestAnimationFrame(frame);
+</script>
+</body>
+</html>

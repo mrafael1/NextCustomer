@@ -77,6 +77,8 @@ const COUPON_TITLE := "COUPON"
 ## A LOYALTY perk's title (show_upgrade), its name's size, its tag line and when it applies.
 const LOYALTY_TITLE := "LOYALTY"
 const LOYALTY_WHEN := "from the next shift"
+## A level-up's line about the level it replaces (#108, show_upgrade's `now_text`).
+const LOYALTY_NOW := "Now: %s"
 const NAME_SIZE := 20
 const TAG_HEIGHT := 16.0
 const TAG_SIZE := 12
@@ -186,11 +188,12 @@ func band_families() -> Array[FamilyStyle]:
 ## Fills the popup for a LOYALTY perk (v0.53, a prize ticket's hover): its name with LOYALTY in
 ## the coupon title's place, its type and when it applies as the tag line, its effect and its
 ## condition (when it has one) as the rule. Call it once the popup is in the tree, as show_card.
-func show_upgrade(upgrade: UpgradeDefinition) -> void:
+func show_upgrade(upgrade: UpgradeDefinition, now_text: String = "") -> void:
 	_clear_content()
 	_band.clear()
 	var y: float = PADDING
-	_build_title(upgrade.display_name, LOYALTY_TITLE, y)
+	var level: int = upgrade.level_number()
+	_build_title(upgrade.display_name, LOYALTY_TITLE if level <= 1 else "LV %d" % level, y)
 	y += HEADER_HEIGHT
 	var tag_label: Label = UiKit.body_label(
 		TAG_SEPARATOR.join([upgrade.type_label(), LOYALTY_WHEN]), TAG_SIZE, Palette.GREY_DARK
@@ -199,6 +202,8 @@ func show_upgrade(upgrade: UpgradeDefinition) -> void:
 	var rule: String = upgrade.effect_text
 	if not upgrade.condition_text.is_empty():
 		rule += "\n" + upgrade.condition_text
+	if not now_text.is_empty():
+		rule += "\n" + LOYALTY_NOW % now_text
 	_rule = UiKit.body_label(rule, RULE_SIZE, Palette.INK)
 	_rule.add_theme_constant_override("line_spacing", RULE_LINE_SPACING)
 	_rule.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART

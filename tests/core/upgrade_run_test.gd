@@ -22,17 +22,37 @@ func test_balance_upgrade_data_fits_the_run() -> void:
 		assert_array(ids)
 		. is_equal(
 			[
+				"bakery_aisle_run",
+				"bakery_regulars",
+				"banana_stand",
 				"big_basket",
+				"breakfast_aisle_run",
+				"breakfast_regulars",
+				"bulk_deal",
 				"category_engine",
+				"clearance_aisle_run",
+				"clearance_regulars",
 				"coupon_engine",
+				"dairy_aisle_run",
+				"dairy_regulars",
 				"extra_redraw",
+				"fire_sale",
+				"household_aisle_run",
+				"household_regulars",
+				"lemon_squeezer",
+				"mixed_basket",
+				"produce_aisle_run",
+				"produce_regulars",
 				"slot_engine",
+				"snack_aisle_run",
+				"snack_regulars",
 			]
 		)
 	)
-	# One per type (Extra coupon slot, the second Economy one, left in v0.56, #106); Rule bender
-	# left the pool in #42.
-	assert_int(types.size()).is_equal(5)
+	# One per type (Extra coupon slot, the second Economy one, left in v0.56, #106; Rule bender
+	# left the pool in #42), plus #108's family perks: Regulars and Aisle runs for 7 families,
+	# Mixed basket, Bulk deal and the jackpots.
+	assert_int(types.size()).is_equal(10)
 	# The loyalty card holds 3 machine registers (#77).
 	assert_int(balance.machine.register_cap).is_equal(3)
 
@@ -43,7 +63,7 @@ func test_losing_a_shift_ends_the_run_without_a_visit() -> void:
 	run.checkout()
 	assert_int(run.phase).is_equal(RunState.Phase.LOST)
 	assert_object(run.machine.current_visit()).is_null()
-	assert_bool(run.machine.choose(run, RewardMachine.Chute.REGISTER)).is_false()
+	assert_bool(run.machine.choose(run, RewardMachine.Chute.UPGRADE)).is_false()
 	assert_bool(run.history[-1].passed).is_false()
 	assert_array(run.history[-1].visits).is_empty()
 
@@ -105,16 +125,14 @@ func test_history_has_one_entry_per_played_shift() -> void:
 func test_extra_redraw_allows_a_third_redraw() -> void:
 	var extra: UpgradeDefinition = _upgrade("extra_redraw")
 	var run: RunState = null
-	# The seed whose REGISTER draw after shift 2 holds it.
+	# The seed whose UPGRADE draw after shift 2 holds it.
 	for seed_value: int in range(29, 129):
 		run = _run(seed_value)
 		assert_int(run.redraws_allowed).is_equal(2)
 		run.debug_skip_to_shift(1)
 		_pass(run)
-		MachineSteps.choose(run, RewardMachine.Chute.REGISTER)
-		if run.machine.prizes().any(
-			func(prize: MachinePrize) -> bool: return prize.upgrade == extra
-		):
+		MachineSteps.choose(run, RewardMachine.Chute.UPGRADE)
+		if MachineSteps.offers(run, extra):
 			break
 	assert_object(MachineSteps.take_register(run, extra)).is_same(extra)
 	# It applies from the next shift on.
@@ -161,12 +179,67 @@ func test_preview_and_checkout_use_the_run_upgrades() -> void:
 	assert_int(run.checkout().total).is_equal(13)
 
 
-## Quotas all 5 and no STAMP DAY (its forced register would add redraws of its own).
+## #108 piece 2: Extra redraw and Big basket print what they earned. A card a redraw past the base
+## redraws brought in gets a CREDIT step from Extra redraw's box ("redrawn in"), the card in the
+## slot Big basket added one from Big basket's ("slot 8"), each worth the card's payout and after
+## its PAYOUT; the total is the same as without credits. The extra redraw's cards are saved.
+func test_extra_redraw_and_big_basket_credit_what_they_earned() -> void:
+	var run: RunState = _run(40)
+	run.upgrades = [_upgrade("extra_redraw"), _upgrade("big_basket")]
+	run.start_shift()
+	assert_int(run.redraws_allowed).is_equal(3)
+	run.redraw_basket(0)
+	run.redraw_basket(1)
+	assert_array(Array(run.redrawn_in)).is_empty()
+	var swapped: Array[int] = run.redraw_basket(2)
+	assert_int(swapped.size()).is_greater(0)
+	var brought: CardInstance = run.hand_places()[swapped[0]]
+	assert_array(Array(run.redrawn_in)).contains([brought.instance_id])
+	assert_bool(run.place(brought, 0)).is_true()
+	while run.row.size() < 8:
+		run.place(run.debug_add_to_hand(load(BREAD)), run.row.size())
+	var result: ScoreResult = run.preview()
+	var credits: Array[ScoreStep] = []
+	for step: ScoreStep in result.steps:
+		if step.step_type == ScoreStep.StepType.CREDIT:
+			credits.append(step)
+	assert_int(credits.size()).is_equal(2)
+	assert_int(credits[0].slot).is_equal(0)
+	assert_int(credits[0].source_index).is_equal(0)
+	assert_str(credits[0].reason).is_equal("redrawn in")
+	assert_int(credits[0].value).is_equal(result.payouts[0])
+	assert_int(credits[1].slot).is_equal(7)
+	assert_int(credits[1].source_index).is_equal(1)
+	assert_str(credits[1].reason).is_equal("slot 8")
+	assert_int(credits[1].value).is_equal(result.payouts[7])
+	assert_int(result.total).is_equal(Scoring.score(run.row, run.upgrades).total)
+	# Each credit sits right after its slot's PAYOUT.
+	var payout_at: int = -1
+	for index: int in result.steps.size():
+		var step: ScoreStep = result.steps[index]
+		if step.step_type == ScoreStep.StepType.PAYOUT and step.slot == 7:
+			payout_at = index
+	assert_object(result.steps[payout_at + 1]).is_same(credits[1])
+	# The receipt words it as a label: the amount in its words, no amount column.
+	var names: PackedStringArray = PackedStringArray()
+	for card: CardInstance in run.row:
+		names.append(card.definition.display_name)
+	var text: PackedStringArray = ReceiptView.step_text(credits[1], names)
+	assert_str(text[0]).is_equal("  Big basket earned €%d.00 (slot 8)" % result.payouts[7])
+	assert_str(text[1]).is_empty()
+	# The extra redraw's cards are saved.
+	var saved: Dictionary = RunSave.to_dictionary(run, "id", 0)
+	var restored: RunSave = RunSave.from_dictionary(
+		JSON.parse_string(JSON.stringify(saved)), ContentLookup.new(run.balance)
+	)
+	assert_array(Array(restored.run.redrawn_in)).is_equal(Array(run.redrawn_in))
+
+
+## Quotas all 5.
 static func _low_quotas() -> BalanceDefinition:
 	var balance: BalanceDefinition = (load(BALANCE) as BalanceDefinition).duplicate()
 	balance.quotas = PackedInt32Array([5, 5, 5, 5, 5, 5, 5, 5])
-	# Registers are taken after shift 2 (v0.47: only a BOOSTED visit lights REGISTER).
-	return MachineSteps.boosted_on(MachineSteps.without_stamp_day(balance), [2])
+	return balance
 
 
 ## A run whose quotas are all 5, so two Breads (6) pass any shift.

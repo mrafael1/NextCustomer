@@ -34,7 +34,7 @@ func test_the_inspection_is_announced_at_the_previous_checkout() -> void:
 	assert_object(run.next_inspection).is_same(load(SPOT_CHECK))
 	assert_array(run.inspections).is_empty()
 	assert_int(run.phase).is_equal(RunState.Phase.MACHINE_CHOOSE)
-	MachineSteps.choose(run, RewardMachine.Chute.COUPONS)
+	MachineSteps.choose(run, RewardMachine.Chute.UPGRADE)
 	assert_object(run.next_inspection).is_same(load(SPOT_CHECK))
 	MachineSteps.pass_visits(run)
 	assert_object(run.next_inspection).is_same(load(SPOT_CHECK))
@@ -177,7 +177,6 @@ static func _two_inspection_run(seed_value: int, inspection_shifts: PackedInt32A
 static func _low_quotas() -> BalanceDefinition:
 	var balance: BalanceDefinition = (load(BALANCE) as BalanceDefinition).duplicate()
 	balance.quotas = PackedInt32Array([5, 5, 5, 5, 5, 5, 5, 5])
-	MachineSteps.without_stamp_day(balance)
 	var pool: Array[InspectionDefinition] = [load("res://data/inspections/spot_check.tres")]
 	balance.inspection_pool = pool
 	return balance

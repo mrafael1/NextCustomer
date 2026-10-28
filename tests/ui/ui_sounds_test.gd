@@ -217,6 +217,13 @@ func test_the_deck_view_and_machine_sounds() -> void:
 	assert_array(sfx.sound_names()).is_equal(
 		["fan", "ui_open", "ui_switch", "ui_switch", "ui_close"]
 	)
+	# Nothing to improve (no perk to offer, no item upgrade): UPGRADE is refused (v0.61, #108).
+	var run: RunState = screen.run
+	run.balance = run.balance.duplicate() as BalanceDefinition
+	run.balance.upgrade_pool = []
+	run.upgrades = []
+	run.machine.machine = run.machine.machine.duplicate() as MachineDefinition
+	run.machine.machine.item_upgrades = []
 	for id: String in ["milk", "multipack", "milk", "milk", "milk", "milk", "milk"]:
 		screen._on_hand_card_clicked(_view_for(screen, _add(screen, id)))
 		screen._on_slot_input(_left_click(), screen.run.row.size())
@@ -227,8 +234,7 @@ func test_the_deck_view_and_machine_sounds() -> void:
 	while not view.is_armed() and Time.get_ticks_msec() - start < 8000:
 		await get_tree().process_frame
 	sfx.clear()
-	# UPGRADES is padlocked after shift 1.
-	view.press_key(RewardMachine.Chute.UPGRADES)
+	view.press_key(RewardMachine.Chute.UPGRADE)
 	assert_bool(screen._machine._choose(RewardMachine.Chute.NEW_ITEMS)).is_true()
 	assert_array(sfx.sound_names()).is_equal(["denied", "print"])
 

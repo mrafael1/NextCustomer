@@ -9,12 +9,22 @@ var group: StringName = &""
 var source_slot: int = -1
 ## Receipt text for the steps this effect causes.
 var text: String = ""
+## An upgrade rule that reaches this effect past its own charges (#108: Lemon squeezer, Fire
+## sale), and that rule's upgrade index; null and -1 for none. Set when the effect is armed.
+var reach_rule: UpgradeRule
+var reach_upgrade: int = -1
 
 
 func _init(effect_source_slot: int, effect_text: String, effect_group: StringName = &"") -> void:
 	source_slot = effect_source_slot
 	text = effect_text
 	group = effect_group
+
+
+## Whether the last use this effect gave came from its reach (past its own charges), so the
+## step is the reaching upgrade's.
+func reached_last() -> bool:
+	return false
 
 
 ## The number shown when the effect is armed (its EFFECT_ARMED step's value): the flat bonus

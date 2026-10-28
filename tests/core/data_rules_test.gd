@@ -138,11 +138,39 @@ func test_every_upgrade_states_its_type_and_id() -> void:
 		assert_str(upgrade.effect_text).override_failure_message(file).is_not_empty()
 		for build: BuildDefinition in upgrade.builds:
 			assert_object(build).override_failure_message(file).is_not_null()
-		# Only Extra redraw supports any build (no build listed).
-		if upgrade.id != &"extra_redraw":
+		# Only Extra redraw (each level of it) supports any build (no build listed); a family perk
+		# or a jackpot (#108) fits by its family or its product instead.
+		var fits_by_family: bool = not upgrade.boosts_tag.is_empty() or upgrade.needs_card != null
+		if upgrade.family() != &"extra_redraw" and not fits_by_family:
 			assert_array(upgrade.builds).override_failure_message(file).is_not_empty()
-	# Extra coupon slot was removed in plan v0.46 (#106).
-	assert_int(ids.size()).is_equal(6)
+		_assert_level_chain(upgrade, file)
+	# Extra coupon slot was removed in plan v0.46 (#106); #108 added LV 2 and LV 3 of four perks,
+	# then (piece 2) 7 Regulars and 7 Aisle runs, Mixed basket and Bulk deal at 3 levels each and
+	# the 3 jackpots.
+	assert_int(ids.size()).is_equal(65)
+
+
+## A loyalty level (#108): LV 1 has no family id, a level file names its LV 1 file as family and
+## is LV 2 or 3, and each next level is one level up, of the same family, name, type and builds,
+## up to LV 3.
+func _assert_level_chain(upgrade: UpgradeDefinition, file: String) -> void:
+	if upgrade.level_number() == 1:
+		assert_str(String(upgrade.family_id)).override_failure_message(file).is_empty()
+	else:
+		assert_int(upgrade.level).override_failure_message(file).is_between(2, 3)
+		var first: UpgradeDefinition = load("%s/%s.tres" % [UPGRADE_DIR, upgrade.family_id])
+		assert_object(first).override_failure_message(file).is_not_null()
+	var next: UpgradeDefinition = upgrade.next_level
+	if next == null:
+		return
+	assert_int(next.level_number()).override_failure_message(file).is_equal(
+		upgrade.level_number() + 1
+	)
+	assert_int(next.level_number()).override_failure_message(file).is_less_equal(3)
+	assert_bool(next.same_perk(upgrade)).override_failure_message(file).is_true()
+	assert_str(next.display_name).override_failure_message(file).is_equal(upgrade.display_name)
+	assert_int(next.type).override_failure_message(file).is_equal(upgrade.type)
+	assert_array(next.builds).override_failure_message(file).is_equal(upgrade.builds)
 
 
 ## Plan section 5.2: like an upgrade's type, a build's measure has an UNSET default that no

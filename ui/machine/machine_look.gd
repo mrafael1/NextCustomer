@@ -1,13 +1,13 @@
 class_name MachineLook
 extends RefCounted
 ## The machine's dressing at one time of its visit (v0.50, mock-up premium_machine_v1.html,
-## dressing A "night sign + gold trim", approved): CLASSIC (RECEIPT REWARDS, the NEW ITEMS and
-## COUPONS keys), or PREMIUM on a BOOSTED visit, which the same machine turns into after its
-## receipt is read (MachinePlan.premium_at) and stays for the whole visit: the sign flashes to a
-## dark night face with lit gold PREMIUM REWARDS and its bulbs chase on, a 3 px gold trim runs down
-## both cabinet edges, the gold receipt stays in the slot, the tray goes gold, the key plate goes
-## dark, the classic keys sink and the gold LOYALTY / UPGRADES keys rise, and the stock window's
-## columns restock one by one. A STAMP DAY visit keeps the classic dressing with its LOYALTY key.
+## dressing A "night sign + gold trim", approved): CLASSIC (RECEIPT REWARDS), or PREMIUM on a
+## PREMIUM visit (since v0.61 a rarity boost, #108: the same two chutes, every ticket RARE or
+## better), which the same machine turns into after its receipt is read (MachinePlan.premium_at)
+## and stays for the whole visit: the sign flashes to a dark night face with lit gold PREMIUM
+## REWARDS and its bulbs chase on, a 3 px gold trim runs down both cabinet edges, the gold receipt
+## stays in the slot, the tray goes gold, the key plate goes dark, the keys sink and rise back, and
+## the stock window's columns restock one by one onto gold pedestals.
 ## at() reads only the plan and `t`, so every part shows the same transform; the times are the
 ## mock-up's (seconds into the transform), scaled to MachineTuning.premium_ms; under reduced
 ## motion the transform is a cut at its end.
@@ -38,11 +38,10 @@ const SHINE_PERIOD := 2.4
 const SHINE_LENGTH := 0.6
 
 ## Seconds into the transform on the mock-up's clock: CLASSIC (no transform, or before it), DONE
-## once over (and on a resumed BOOSTED visit).
+## once over (and on a resumed PREMIUM visit).
 var d: float = CLASSIC
-## A BOOSTED visit (it turns PREMIUM), a STAMP DAY visit (its loyalty key from the start).
+## A PREMIUM visit (it turns PREMIUM).
 var premium_visit: bool = false
-var stamp_day: bool = false
 
 
 ## The look of `plan` at `t` (null: the idle machine, classic).
@@ -51,7 +50,6 @@ static func at(plan: MachinePlan, t: float) -> MachineLook:
 	if plan == null:
 		return look
 	look.premium_visit = plan.premium
-	look.stamp_day = plan.kind == MachineVisit.Kind.STAMP_DAY
 	var since: float = plan.premium_progress(t)
 	if since < 0.0:
 		return look
@@ -101,23 +99,25 @@ func night_plate() -> bool:
 	return d >= PLATE_AT
 
 
-## How far up a key pair stands (1 up on the plate .. 0 sunk out of sight): the classic pair
-## until it sinks, the loyalty pair as it rises; a STAMP DAY visit shows its loyalty pair.
-func pair_up(loyalty: bool) -> float:
-	if stamp_day:
-		return 1.0 if loyalty else 0.0
+## How far up the keys stand (1 up on the plate .. 0 sunk out of sight): up, and on a PREMIUM
+## visit (v0.61, #108) they sink and rise back during the transform, gold (keys_gold).
+func keys_up() -> float:
 	if not premium_visit or d < 0.0:
-		return 0.0 if loyalty else 1.0
-	if loyalty:
-		return MachineArt.ease_back(MachineArt.seg(d, RISE_FROM, RISE_TO))
-	return 1.0 - MachineArt.seg(d, SINK_FROM, SINK_TO)
+		return 1.0
+	if d < RISE_FROM:
+		return 1.0 - MachineArt.seg(d, SINK_FROM, SINK_TO)
+	return MachineArt.ease_back(MachineArt.seg(d, RISE_FROM, RISE_TO))
+
+
+## Whether the keys are gold: once they rise back during the transform (a PREMIUM visit's keys,
+## v0.61), never on the classic machine.
+func keys_gold() -> bool:
+	return premium_visit and d >= RISE_FROM
 
 
 ## Window column `column_index` (0 left, 1 right) during the transform: [offset px (down: the
-## classic tickets leaving; up: the new ones rising), whether it shows the loyalty pair's chute].
+## classic tickets leaving; up: the new ones rising), whether it stands on gold pedestals].
 func column(column_index: int) -> Array:
-	if stamp_day:
-		return [0.0, true]
 	if not premium_visit or d < 0.0:
 		return [0.0, false]
 	var k0: float = WINDOW_FROM + column_index * WINDOW_STAGGER

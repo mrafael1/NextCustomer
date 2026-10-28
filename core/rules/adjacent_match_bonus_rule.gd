@@ -33,8 +33,11 @@ enum Position { NONE, IMMEDIATELY_AFTER, BESIDE }
 
 func flat_bonus(state: ScoreState, slot: int) -> int:
 	if bonus_is_previous_price:
-		var previous: int = _previous_match(state, slot)
-		return 0 if previous < 0 else _chain_price(state, previous) * bonus_factor
+		var previous: int = previous_match(state, slot)
+		if previous < 0:
+			return 0
+		state.chained[slot] = 1
+		return chain_price(state, previous) * bonus_factor
 	if not _has_match_at(state, slot, position):
 		return 0
 	return bonus_for(state.definition(slot).base)
@@ -46,6 +49,9 @@ func wasted_reason(state: ScoreState, slot: int) -> String:
 	if position == Position.NONE or match_by == Match.NONE:
 		return ""
 	if not _pays_on_match(state.definition(slot).base):
+		return ""
+	# A link a perk chained (Banana stand, #108) took its chain bonus.
+	if bonus_is_previous_price and state.chained[slot] == 1:
 		return ""
 	var fizzle_position: Position = _fizzle_position()
 	if _has_match_at(state, slot, fizzle_position):
@@ -68,15 +74,16 @@ func _pays_on_match(base: int) -> bool:
 	return bonus_factor != 0 if bonus_is_previous_price else bonus_for(base) != 0
 
 
-## The price a chain link passes on (`bonus_is_previous_price`): the chain's first product's
-## final payout, or a later link's value before multipliers (ScoreState.prices).
-func _chain_price(state: ScoreState, link: int) -> int:
-	return state.prices[link] if _previous_match(state, link) >= 0 else state.payouts[link]
+## The price a chain link passes on (#106): a link's value before multipliers (its price,
+## ScoreState.prices), or the chain's first product's final payout. A link is a slot that took a
+## chain bonus (ScoreState.chained: its own, or Banana stand's, #108).
+static func chain_price(state: ScoreState, link: int) -> int:
+	return state.prices[link] if state.chained[link] == 1 else state.payouts[link]
 
 
 ## The nearest already-scanned product matching the card in `slot` counted as just before it
 ## (`position`), or -1 for none.
-func _previous_match(state: ScoreState, slot: int) -> int:
+func previous_match(state: ScoreState, slot: int) -> int:
 	if position == Position.NONE or match_by == Match.NONE:
 		return -1
 	var neighbours: PackedInt32Array = (

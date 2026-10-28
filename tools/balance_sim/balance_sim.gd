@@ -603,7 +603,11 @@ func _cache_file() -> String:
 	if _starter.starting_upgrade != null:
 		upgrades.append(_starter.starting_upgrade)
 	for upgrade: UpgradeDefinition in upgrades:
-		context[upgrade.resource_path] = FileAccess.get_file_as_string(upgrade.resource_path)
+		# Every level above it too (#108: the machine offers level-ups).
+		var level: UpgradeDefinition = upgrade
+		while level != null:
+			context[level.resource_path] = FileAccess.get_file_as_string(level.resource_path)
+			level = level.next_level
 	for inspection: InspectionDefinition in _balance.inspection_pool:
 		context[inspection.resource_path] = FileAccess.get_file_as_string(inspection.resource_path)
 	context["limits"] = [_balance.slot_count]
@@ -792,9 +796,7 @@ func _key_offer_text(chances: Array[Dictionary]) -> String:
 		for id: String in _builds.ids():
 			line += " %18.1f%%" % (100.0 * chances[index]["chances"][id])
 		lines.append(line)
-	lines.append(
-		"Exact odds: a later NEW ITEMS or COUPONS draw at odds level 0, the higher of the two"
-	)
+	lines.append("Exact odds: a later NEW ITEMS draw (its products and its coupon) at odds level 0")
 	return "\n".join(lines)
 
 

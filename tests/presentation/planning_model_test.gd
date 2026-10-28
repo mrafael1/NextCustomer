@@ -439,7 +439,7 @@ func test_badge_initials() -> void:
 	assert_str(GiverBadge.initials_for(GiverBadge.Kind.LOYALTY, "Coupon engine")).is_equal(
 		LoyaltyCard.initials("Coupon engine")
 	)
-	assert_int(GiverBadge.initials_for(GiverBadge.Kind.LOYALTY, "A b c d e").length()).is_equal(3)
+	assert_str(GiverBadge.initials_for(GiverBadge.Kind.LOYALTY, "Dairy aisle run")).is_equal("DaA")
 	assert_str(GiverBadge.initials_for(GiverBadge.Kind.INSPECTION, "Spot check")).is_empty()
 	assert_str(GiverBadge.initials_for(GiverBadge.Kind.NONE, "Eggs")).is_empty()
 

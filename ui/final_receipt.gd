@@ -3,8 +3,8 @@ extends RefCounted
 ## The run's final receipt (#61; full build plan 6.2 and 7.1): its lines, top to bottom, that
 ## the results screen prints one by one. The headline ("RUN WON!" or "RUN OVER"), a rule, one
 ## line per played shift (its number, total against quota, pass or fail) with a dim line per
-## RECEIPT REWARDS visit after it (#77: "NEW ITEMS: Milk", "BONUS · UPGRADES: Eggs › GOLDEN",
-## "STAMP DAY: Category engine", "binned COUPONS") and one for the inspection it was played
+## RECEIPT REWARDS visit after it (#77: "NEW ITEMS: Milk", "BONUS · UPGRADE: Eggs › GOLDEN",
+## "UPGRADE: Coupon engine LV 2", "binned NEW ITEMS") and one for the inspection it was played
 ## under, the shortfall on a lost run, a rule, then the coins: the shifts passed, the overtime,
 ## the run's coins and the profile's total ("you have ?" when the profile couldn't be saved). It
 ## only lays out text; core computes the payout and the margin.
@@ -77,9 +77,9 @@ static func shift_texts(record: ShiftRecord) -> PackedStringArray:
 	return texts
 
 
-## One machine visit, as the final receipt words it: the kind ("BONUS · ", "STAMP DAY: "), the
-## chute and what it gave ("NEW ITEMS: Milk", "UPGRADES: Eggs › GOLDEN", "UPGRADES: SHELF Milk
-## ×3"), or "binned COUPONS".
+## One machine visit, as the final receipt words it: the kind ("BONUS · "), the chute and what it
+## gave ("NEW ITEMS: Milk", "UPGRADE: Eggs › GOLDEN", "UPGRADE: SHELF Milk ×3", "UPGRADE: Coupon
+## engine LV 2"), or "binned NEW ITEMS".
 static func visit_text(visit: MachineVisit) -> String:
 	var chute: String = CHUTE_WORDS[visit.chute] if visit.chute >= 0 else "?"
 	var prefix: String = "BONUS · " if visit.kind == MachineVisit.Kind.BONUS else ""
@@ -88,13 +88,11 @@ static func visit_text(visit: MachineVisit) -> String:
 	var prize: MachinePrize = visit.picked_prize()
 	var given: String = "—"
 	if prize != null and prize.kind == MachinePrize.Kind.REGISTER:
-		given = prize.upgrade.display_name
+		given = LoyaltyCard.perk_name(prize.upgrade)
 	elif prize != null and prize.kind == MachinePrize.Kind.UPGRADE:
 		given = _upgrade_text(prize, visit.upgraded.size())
 	elif prize != null:
 		given = prize.card.display_name
-	if visit.kind == MachineVisit.Kind.STAMP_DAY:
-		return "STAMP DAY: " + given
 	return "%s%s: %s" % [prefix, chute, given]
 
 

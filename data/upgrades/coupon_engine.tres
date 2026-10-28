@@ -5,6 +5,7 @@
 [ext_resource type="Script" path="res://core/upgrade_definition.gd" id="3_upgrade"]
 [ext_resource type="Script" path="res://core/build_definition.gd" id="4_build"]
 [ext_resource type="Resource" path="res://data/builds/coupon_specialist.tres" id="5_coupon_specialist"]
+[ext_resource type="Resource" path="res://data/upgrades/coupon_engine_lv2.tres" id="9_next_level"]
 
 [sub_resource type="Resource" id="Resource_first_coupon"]
 script = ExtResource("2_first_coupon")
@@ -21,3 +22,4 @@ effect_text = "The first coupon in the row pays ×2"
 condition_text = "Only the first coupon, and only if it pays something"
 builds = Array[ExtResource("4_build")]([ExtResource("5_coupon_specialist")])
 rules = Array[ExtResource("1_rule")]([SubResource("Resource_first_coupon")])
+next_level = ExtResource("9_next_level")

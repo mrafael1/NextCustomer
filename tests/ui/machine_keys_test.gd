@@ -2,14 +2,14 @@ extends GdUnitTestSuite
 ## The RECEIPT REWARDS machine's cabinet half (#77, look F; build spec 4.2-4.3, U1; v0.50 front-on
 ## redraw, mock-up premium_machine_v1.html): the head, the receipt slot, the display, the chute
 ## keys and the stock window, each shown from the visit's plan at a time `t` (frame(t),
-## view.show_at). The head's BONUS and STAMP DAY stamps blink in and land, then lift after the
-## landing; the slot's scan bar blinks while it reads and its lamp lights at the feed's end; the
-## keys light in turn (a BONUS visit's relight faster) and say why a chute is shut in words (a
-## PREMIUM visit stands LOYALTY and UPGRADES in the key bay, a Normal one NEW ITEMS and COUPONS);
-## the display plays the visit's lines between the wait points' messages; the stock window shows
-## sealed tickets over each lit chute's odds; a pressed key drops with its LED lit and the
-## display's CONFIRM ›; a BONUS visit says INSPECTION PASSED; a BOOSTED visit turns the machine
-## PREMIUM. Reduced motion keeps every state without the motion. Layout asserts on-screen geometry
+## view.show_at). The head's BONUS stamp blinks in and lands, then lifts after the landing; the
+## slot's scan bar blinks while it reads and its lamp lights at the feed's end; the two keys (NEW
+## ITEMS and UPGRADE on every visit since v0.61, #108) light in turn (a BONUS visit's relight
+## faster) and say why a chute is shut in words; the display plays the visit's lines between the
+## wait points' messages; the stock window shows sealed tickets over each lit chute's odds; a
+## pressed key drops with its LED lit and the tray's push bar; a BONUS visit says INSPECTION
+## PASSED; a PREMIUM visit (a rarity boost) turns the machine PREMIUM, its keys rising back gold.
+## Reduced motion keeps every state without the motion. Layout asserts on-screen geometry
 ## on a 1280x720 stage (memory: UI tests check layout). The views are driven directly (no screen,
 ## no input events).
 
@@ -39,8 +39,8 @@ func after_test() -> void:
 
 ## BONUS TICKET! blinks in once the ticket reaches the slot (machine v2), landing from 2.2x on a
 ## back ease, and covers the title (between the blinks too); at rest it carries the inspection
-## passed; it lifts 0.6 s after the landing's settle (`punch_end`), STAMP DAY's 0.6 s
-## after its landing. Reduced motion: at rest at once.
+## passed; it lifts 0.6 s after the landing's settle (`punch_end`). Reduced motion: at rest once
+## the ticket reaches the slot.
 func test_the_head_stamps_land_and_lift() -> void:
 	var view: RewardMachineView = auto_free(RewardMachineView.new())
 	var head: MachineHead = view.head
@@ -75,20 +75,10 @@ func test_the_head_stamps_land_and_lift() -> void:
 	head.frame(view.plan.punch_end + lift + 0.1)
 	assert_bool(head.stamp_shown()).is_false()
 	assert_bool(head.title_labels()[0].visible).is_true()
-	# STAMP DAY's lifts after its landing.
-	view.plan = MachinePlan.new(view.tuning, MachineVisit.Kind.STAMP_DAY, false)
-	view.plan.set_draw([0, 1, 2] as Array[int])
-	view.plan.set_landing(MachinePlan.Landing.REGISTER, 1, MachinePlan.NO_VISIT)
-	head.set_stamp("STAMP DAY!", "")
-	head.frame(view.plan.land + lift - 0.1)
-	assert_bool(head.stamp_shown()).is_true()
-	head.frame(view.plan.land + lift + 0.1)
-	assert_bool(head.stamp_shown()).is_false()
-	assert_bool(head.title_labels()[0].visible).is_true()
 	# Reduced motion: no blink, no scale.
-	view.plan = MachinePlan.new(view.tuning, MachineVisit.Kind.STAMP_DAY, true)
-	head.set_stamp("STAMP DAY!", "")
-	head.frame(0.15)
+	view.plan = MachinePlan.new(view.tuning, MachineVisit.Kind.BONUS, true)
+	head.set_stamp("BONUS TICKET!", "Spot check passed")
+	head.frame(view.plan.fly_end + 0.15)
 	assert_bool(head.stamp_shown()).is_true()
 	assert_float(head.stamp_scale()).is_equal(1.0)
 	head.set_stamp("", "")
@@ -121,31 +111,30 @@ func test_the_slot_reads_the_receipt() -> void:
 		slot.frame(plan.read_end)
 		assert_bool(slot.scan_bar_on()).is_false()
 		assert_bool(slot.lamp_on()).is_true()
-	# STAMP DAY has no feed: lit from its start.
-	view.plan = MachinePlan.new(view.tuning, MachineVisit.Kind.STAMP_DAY, false)
-	slot.frame(0.0)
-	assert_bool(slot.lamp_on()).is_true()
-	assert_bool(slot.scan_bar_on()).is_false()
 
 
-## The open keys light in turn (TICKET 0.14 s apart, BONUS 0.08 s, none lit before); a shut key
-## is never lit, sits sunk and says why in words; the chosen key sinks while the odds close
-## and a hovered lit key lifts while the chutes wait (neither under reduced motion).
+## The two keys (NEW ITEMS, UPGRADE; v0.61) light in turn (TICKET 0.14 s apart, BONUS 0.08 s,
+## none lit before); a shut key is never lit, sits sunk and says why in words; the chosen key
+## sinks while the odds close and a hovered lit key lifts while the chutes wait (neither under
+## reduced motion).
 func test_keys_light_in_turn_and_relight_on_a_bonus() -> void:
 	var view: RewardMachineView = auto_free(RewardMachineView.new())
 	var keys: Array[ChuteKey] = view.keys
-	for chute: int in range(3):
-		keys[chute].show_state(RewardMachine.ChuteState.OPEN, 0, true)
-	keys[3].show_state(RewardMachine.ChuteState.UNLIT, 3, true)
-	assert_bool(keys[3].has_padlock()).is_true()
-	assert_str(keys[3].sub_text()).is_equal("PREMIUM AFTER SHIFT 3")
-	assert_str(keys[3].shown_labels()[0].text).is_equal("UPGRADES\nPREMIUM AFTER SHIFT 3")
-	assert_str(ChuteKey.unlit_text(RewardMachine.Chute.REGISTER, 0, false)).is_equal(
-		"PREMIUM VISITS ONLY"
+	assert_int(keys.size()).is_equal(2)
+	(
+		assert_array(keys.map(func(key: ChuteKey) -> String: return key.name))
+		. is_equal(["ChuteKey0", "ChuteKey1"])
 	)
-	assert_str(ChuteKey.unlit_text(RewardMachine.Chute.COUPONS, 5, true)).is_equal(
-		"NORMAL\nVISITS ONLY"
-	)
+	keys[1].show_state(RewardMachine.ChuteState.EMPTY, true)
+	assert_bool(keys[1].has_padlock()).is_true()
+	assert_str(keys[1].sub_text()).is_equal("NOTHING TO IMPROVE")
+	assert_str(keys[1].shown_labels()[0].text).is_equal("UPGRADE\nNOTHING TO IMPROVE")
+	view.plan = MachinePlan.new(view.tuning, MachineVisit.Kind.TICKET, false)
+	_frame_keys(keys, view.plan.choose_at)
+	assert_bool(keys[1].looks_lit()).is_false()
+	assert_float(keys[1].face_offset()).is_equal(ChuteKey.SINK)
+	for chute: int in range(2):
+		keys[chute].show_state(RewardMachine.ChuteState.OPEN, true)
 	var kinds: Dictionary[int, int] = {
 		MachineVisit.Kind.TICKET: view.tuning.key_stagger_ms,
 		MachineVisit.Kind.BONUS: view.tuning.relight_stagger_ms,
@@ -156,17 +145,16 @@ func test_keys_light_in_turn_and_relight_on_a_bonus() -> void:
 		view.plan = MachinePlan.new(view.tuning, kind, false)
 		var stagger: float = MachineTuning.sec(kinds[kind])
 		_frame_keys(keys, 0.0)
-		assert_array(_lit(keys)).is_equal([false, false, false, false])
+		assert_array(_lit(keys)).is_equal([false, false])
 		_frame_keys(keys, view.plan.lights - EPSILON)
-		assert_array(_lit(keys)).is_equal([false, false, false, false])
-		# v0.50: the left keys (chutes 0 and 2) light first, the right ones a stagger later.
+		assert_array(_lit(keys)).is_equal([false, false])
+		# v0.50: the left key (NEW ITEMS) lights first, the right one a stagger later.
 		_frame_keys(keys, view.plan.lights + EPSILON)
-		assert_array(_lit(keys)).is_equal([true, false, true, false])
+		assert_array(_lit(keys)).is_equal([true, false])
 		_frame_keys(keys, view.plan.lights + stagger + EPSILON)
-		assert_array(_lit(keys)).is_equal([true, true, true, false])
+		assert_array(_lit(keys)).is_equal([true, true])
 		_frame_keys(keys, view.plan.choose_at)
-		assert_array(_lit(keys)).is_equal([true, true, true, false])
-		assert_float(keys[3].face_offset()).is_equal(ChuteKey.SINK)
+		assert_array(_lit(keys)).is_equal([true, true])
 		assert_float(keys[0].face_offset()).is_equal(0.0)
 	# Hovered while the chutes wait: lifted. Chosen (pressed): sunk through the draw, then up.
 	for rm: bool in [false, true]:
@@ -176,11 +164,11 @@ func test_keys_light_in_turn_and_relight_on_a_bonus() -> void:
 		assert_float(keys[1].face_offset()).is_equal(0.0 if rm else -ChuteKey.LIFT)
 		keys[1]._on_mouse_exited()
 		view.plan.set_draw([0, 0, 1] as Array[int])
-		for chute: int in range(3):
-			keys[chute].show_state(RewardMachine.ChuteState.OPEN, 0, chute == 1)
+		for chute: int in range(2):
+			keys[chute].show_state(RewardMachine.ChuteState.OPEN, chute == 1)
 		keys[1].set_pressed(true)  # Machine v2: the chosen key stays pressed through the draw.
 		_frame_keys(keys, view.plan.choose_at + EPSILON)
-		assert_array(_lit(keys)).is_equal([false, true, false, false])
+		assert_array(_lit(keys)).is_equal([false, true])
 		assert_float(keys[1].face_offset()).is_equal(ChuteKey.SINK)
 		assert_float(keys[0].face_offset()).is_equal(0.0)
 		_frame_keys(keys, view.plan.odds_close)
@@ -188,42 +176,45 @@ func test_keys_light_in_turn_and_relight_on_a_bonus() -> void:
 		keys[1].set_pressed(false)
 		_frame_keys(keys, view.plan.odds_close)
 		assert_float(keys[1].face_offset()).is_equal(0.0)
-		for chute: int in range(3):
-			keys[chute].show_state(RewardMachine.ChuteState.OPEN, 0, true)
+		for chute: int in range(2):
+			keys[chute].show_state(RewardMachine.ChuteState.OPEN, true)
 
 
-## CARD FULL shows the card's stamps and no padlock; NOTHING TO IMPROVE has a padlock. Every key's
-## lines fit their boxes, in every state.
+## A full loyalty card no longer shuts UPGRADE (v0.61: no CARD FULL key; its level-ups and item
+## upgrades still draw): both keys stand open. NOTHING TO IMPROVE (an UPGRADE chute with nothing
+## at all to draw) has a padlock. Every key's lines fit their boxes, in every state.
 func test_shut_keys_say_why_and_their_lines_fit() -> void:
 	var run: RunState = _passed_run(21)
 	for id: String in ["category_engine", "big_basket", "extra_redraw"]:
 		run.upgrades.append(load("res://data/upgrades/%s.tres" % id) as UpgradeDefinition)
+	assert_int(RewardMachine.registers_picked(run)).is_less_equal(run.upgrades.size())
 	var view: RewardMachineView = auto_free(RewardMachineView.new())
 	view.open_visit(run, null, null, false)
-	var register: ChuteKey = view.keys[RewardMachine.Chute.REGISTER]
-	register.show_state(RewardMachine.ChuteState.CARD_FULL, 0, true)
-	assert_bool(register.has_padlock()).is_false()
-	assert_str(register.sub_text()).is_equal("CARD FULL")
-	assert_bool(register.looks_lit()).is_false()
-	assert_int(register.get_node("Face/CardStamps").get_child_count()).is_equal(
-		mini(3, run.upgrades.size())
+	view.show_at(view.plan.choose_at)
+	var upgrade: ChuteKey = view.keys[RewardMachine.Chute.UPGRADE]
+	assert_int(upgrade.state).is_equal(RewardMachine.ChuteState.OPEN)
+	assert_bool(upgrade.has_padlock()).is_false()
+	assert_str(upgrade.sub_text()).is_equal("IMPROVE WHAT YOU OWN")
+	assert_object(upgrade.get_node_or_null("Face/CardStamps")).is_null()
+	upgrade.show_state(RewardMachine.ChuteState.EMPTY, true)
+	assert_bool(upgrade.has_padlock()).is_true()
+	assert_str(upgrade.sub_text()).is_equal("NOTHING TO IMPROVE")
+	assert_bool(upgrade.looks_lit()).is_false()
+	for state: int in [RewardMachine.ChuteState.OPEN, RewardMachine.ChuteState.EMPTY]:
+		for key: ChuteKey in view.keys:
+			key.show_state(state, true)
+			for label: Label in key.shown_labels():
+				_assert_fits(label)
+	# A real UPGRADE chute with nothing to improve: shut on its key, the chute wait still open.
+	var bare: RunState = _passed_run(21, _nothing_to_improve)
+	assert_int(bare.machine.chute_info(bare, RewardMachine.Chute.UPGRADE).state).is_equal(
+		RewardMachine.ChuteState.EMPTY
 	)
-	var upgrades: ChuteKey = view.keys[RewardMachine.Chute.UPGRADES]
-	upgrades.show_state(RewardMachine.ChuteState.EMPTY, 0, true)
-	assert_bool(upgrades.has_padlock()).is_true()
-	assert_str(upgrades.sub_text()).is_equal("NOTHING TO IMPROVE")
-	for state: int in [
-		RewardMachine.ChuteState.OPEN,
-		RewardMachine.ChuteState.UNLIT,
-		RewardMachine.ChuteState.CARD_FULL,
-		RewardMachine.ChuteState.EMPTY,
-	]:
-		# An UNLIT LOYALTY or UPGRADES key: "PREMIUM AFTER SHIFT n" and "PREMIUM VISITS ONLY".
-		for opens_after: int in [7, 0]:
-			for key: ChuteKey in view.keys:
-				key.show_state(state, opens_after, true)
-				for label: Label in key.shown_labels():
-					_assert_fits(label)
+	var bare_view: RewardMachineView = auto_free(RewardMachineView.new())
+	bare_view.open_visit(bare, null, null, false)
+	bare_view.show_at(bare_view.plan.choose_at)
+	assert_bool(bare_view.keys[RewardMachine.Chute.UPGRADE].has_padlock()).is_true()
+	assert_bool(bare_view.keys[RewardMachine.Chute.NEW_ITEMS].looks_lit()).is_true()
 	await _frames(2)  # Let the parts' queued frees run (no orphans).
 
 
@@ -291,12 +282,12 @@ func test_the_display_follows_the_visit() -> void:
 	assert_str(display.texts()[0]).is_equal("SEE YOU NEXT SHIFT")
 
 
-## A bin: BINNED ✕ through the landing (no Regular level since v0.47).
+## A bin: BINNED ✕ through the landing (no Regular level since v0.47), on UPGRADE too (v0.61).
 func test_the_display_shows_a_bin() -> void:
 	var run: RunState = _passed_run(23)
 	var view: RewardMachineView = auto_free(RewardMachineView.new())
 	view.open_visit(run, null, null, false)
-	assert_bool(run.machine.choose(run, RewardMachine.Chute.COUPONS)).is_true()
+	assert_bool(run.machine.choose(run, RewardMachine.Chute.UPGRADE)).is_true()
 	view.show_draw(run)
 	assert_bool(run.machine.bin(run)).is_true()
 	view.land(null)
@@ -336,8 +327,8 @@ func test_a_bonus_visit_says_its_inspection_passed() -> void:
 		assert_array(Array(view.display.texts())).is_equal(
 			[RewardMachineView.BONUS_TITLE, RewardMachineView.BONUS_SUB % why]
 		)
-		# A BONUS visit after a Normal shift is not PREMIUM: the classic face and keys (v0.53:
-		# after a boosted shift it is, reward_machine_layout_test).
+		# A BONUS visit after a classic shift is not PREMIUM: the classic face and keys (v0.53:
+		# after a premium shift it is, reward_machine_layout_test).
 		assert_bool(view.plan.premium).is_false()
 		assert_bool(view.head.premium_face()).is_false()
 		view._armed = true  # Headless: no mouse release arms it.
@@ -350,53 +341,64 @@ func test_a_bonus_visit_says_its_inspection_passed() -> void:
 	await _frames(2)  # Let the parts' queued frees run (no orphans).
 
 
-## STAMP DAY: its single-line head stamp, its free-stamp lines, "PICK 1 STAMP" at the pick; the
-## stock window lights LOYALTY's column with the odds the draw came from (v0.50).
-func test_stamp_day_shows_its_loyalty_odds_read_only() -> void:
-	var run: RunState = _passed_run(27, _with_stamp_day)
-	assert_bool(run.machine.choose(run, RewardMachine.Chute.NEW_ITEMS)).is_true()
-	assert_bool(run.machine.bin(run)).is_true()
-	assert_int(run.phase).is_equal(RunState.Phase.MACHINE_PICK)
-	assert_int(run.machine.current_visit().kind).is_equal(MachineVisit.Kind.STAMP_DAY)
+## An UPGRADE draw (v0.61: loyalty perks and item upgrades, binnable): the display offers BIN IT
+## with "or bin them all" at the pick; only UPGRADE's column stays lit, with the odds its draw came
+## from; a key press is read-only at a pick; the draw holds a loyalty perk and an item upgrade.
+func test_an_upgrade_draw_can_be_binned() -> void:
+	var run: RunState = _passed_run(27)
 	var view: RewardMachineView = auto_free(RewardMachineView.new())
 	view.open_visit(run, null, null, false)
-	assert_array(Array(view.head.stamp_texts())).is_equal(["STAMP DAY!", ""])
-	view.show_at(0.5)
-	assert_array(Array(view.display.texts())).is_equal(
-		["STAMP DAY! A FREE STAMP", "your card is behind after shift 1"]
+	var upgrade: int = RewardMachine.Chute.UPGRADE
+	var odds: PackedStringArray = PackedStringArray()
+	view.show_at(view.plan.choose_at)
+	odds = view.stock.odds_texts(upgrade)
+	assert_bool(run.machine.choose(run, upgrade)).is_true()
+	var kinds: Array = run.machine.prizes().map(func(p: MachinePrize) -> int: return p.kind)
+	(
+		assert_bool(kinds.has(MachinePrize.Kind.REGISTER))
+		. override_failure_message(str(kinds))
+		. is_true()
 	)
+	assert_bool(kinds.has(MachinePrize.Kind.UPGRADE)).override_failure_message(str(kinds)).is_true()
+	view.show_draw(run)
 	view.show_at(view.plan.pick_at)
-	assert_str(view.display.texts()[0]).is_equal("PICK 1 STAMP")
-	# v0.50: the LOYALTY pair is up and only LOYALTY's column is lit, with the odds its draw came
-	# from; a key press is read-only at a pick.
-	var register: int = RewardMachine.Chute.REGISTER
-	assert_bool(view.stock.column_lit(register)).is_true()
+	assert_array(Array(view.display.texts())).is_equal(
+		[RewardMachineView.pick_prompt(view.plan.n_prizes, run), "or bin them all"]
+	)
+	assert_bool(view.display.bin_button().visible).is_true()
+	assert_bool(view.stock.column_lit(upgrade)).is_true()
 	assert_bool(view.stock.column_lit(RewardMachine.Chute.NEW_ITEMS)).is_false()
-	assert_int(view.stock.odds_texts(register).size()).is_equal(3)
+	assert_array(Array(view.stock.odds_texts(upgrade))).is_equal(Array(odds))
 	view._armed = true  # Headless: no mouse release arms it.
-	view.press_key(register)
-	assert_int(view.pressed_chute()).is_equal(-1)
-	view.land(MachineSteps.take(run, 0))
-	view.show_at(view.clock)
+	view.press_key(RewardMachine.Chute.NEW_ITEMS)
+	assert_int(view.pressed_chute()).is_equal(upgrade)
+	var binned: Array[bool] = []
+	view.binned.connect(func() -> void: binned.append(true))
+	view.display.bin_button().pressed.emit()
+	assert_array(binned).is_equal([true])
+	assert_bool(run.machine.bin(run)).is_true()
+	view.land(null)
+	view.show_at(view.plan.press + EPSILON)
+	assert_str(view.display.texts()[0]).is_equal("BINNED ✕")
 	await _frames(2)  # Let the parts' queued frees run (no orphans).
 
 
 ## A refused key's reason shows for a moment, then the wait point's own lines come back.
 func test_a_refused_key_says_why_for_a_moment() -> void:
-	var run: RunState = _passed_run(28)
+	var run: RunState = _passed_run(28, _nothing_to_improve)
 	var view: RewardMachineView = auto_free(RewardMachineView.new())
 	view.open_visit(run, null, null, false)
 	view.fast_forward()
 	view._armed = true  # Headless: no mouse release arms it.
 	var rest: Array = Array(view.display.texts())
-	view.press_key(RewardMachine.Chute.UPGRADES)
+	view.press_key(RewardMachine.Chute.UPGRADE)
 	assert_int(view.pressed_chute()).is_equal(-1)
-	assert_array(Array(view.display.texts())).is_equal(["UPGRADES", "PREMIUM AFTER SHIFT 3"])
+	assert_array(Array(view.display.texts())).is_equal(["UPGRADE", "NOTHING TO IMPROVE"])
 	for label: Label in view.display.labels():
 		_assert_fits(label)
 	assert_array(Array(view.display.rest_texts())).is_equal(rest)
 	view.show_at(view.clock)
-	assert_str(view.display.texts()[0]).is_equal("UPGRADES")
+	assert_str(view.display.texts()[0]).is_equal("UPGRADE")
 	view.display._denied_at_ms -= MachineDisplay.DENIED_MS + 1
 	view.show_at(view.clock)
 	assert_array(Array(view.display.texts())).is_equal(rest)
@@ -428,11 +430,9 @@ func test_the_stock_window_shows_sealed_odds_above_its_key() -> void:
 	view._armed = true  # Headless: no mouse release arms it.
 	await _frames(2)
 	var window: Rect2 = view.stock.get_global_rect()
-	for shut: int in RewardMachine.BOOSTED_CHUTES:  # Not up until shift 3's PREMIUM visit.
-		assert_bool(view.stock.column_lit(shut)).is_false()
-		assert_array(Array(view.stock.odds_texts(shut))).is_empty()
-	for chute: int in RewardMachine.NORMAL_CHUTES:
+	for chute: int in RewardMachine.CHUTES:  # Both chutes on every visit (v0.61).
 		assert_bool(view.stock.column_lit(chute)).is_true()
+		assert_bool(view.stock.column_gold(chute)).is_false()
 		var shares: Array[float] = []
 		shares.assign(Array(run.machine.chute_info(run, chute).odds.rarity_share))
 		var texts: PackedStringArray = view.stock.odds_texts(chute)
@@ -440,7 +440,7 @@ func test_the_stock_window_shows_sealed_odds_above_its_key() -> void:
 		assert_int(_percent_sum(texts)).is_equal(100)
 		# The column stands right above its key.
 		var key: Rect2 = view.keys[chute].get_global_rect()
-		var column: float = window.position.x + window.size.x / 4.0 * (2 * (chute % 2) + 1)
+		var column: float = window.position.x + window.size.x / 4.0 * (2 * chute + 1)
 		assert_float(absf(column - key.get_center().x)).is_less(24.0)
 		assert_float(window.end.y).is_less_equal(key.position.y)
 		view.hover_key(chute)
@@ -450,10 +450,10 @@ func test_the_stock_window_shows_sealed_odds_above_its_key() -> void:
 			assert_bool(window.encloses(label.get_global_rect())).is_true()
 			_assert_fits(label)
 	# The draw: only the chosen chute's column stays lit.
-	assert_bool(run.machine.choose(run, RewardMachine.Chute.COUPONS)).is_true()
+	assert_bool(run.machine.choose(run, RewardMachine.Chute.UPGRADE)).is_true()
 	view.show_draw(run)
 	view.show_at(view.plan.choose_at + EPSILON)
-	assert_bool(view.stock.column_lit(RewardMachine.Chute.COUPONS)).is_true()
+	assert_bool(view.stock.column_lit(RewardMachine.Chute.UPGRADE)).is_true()
 	assert_bool(view.stock.column_lit(RewardMachine.Chute.NEW_ITEMS)).is_false()
 	view.close()
 	remove_child(view)
@@ -469,7 +469,7 @@ func test_the_stock_window_odds_rise_with_the_odds_level() -> void:
 	var context: MachineContext = MachineContext.from_run(run, machine, true, true)
 	var top: int = machine.max_level()
 	assert_int(top).is_greater(0)
-	for chute: int in RewardMachine.NORMAL_CHUTES:
+	for chute: int in RewardMachine.CHUTES:
 		var shown: Array[PackedStringArray] = []
 		for level: int in [0, top]:
 			var window: StockWindow = auto_free(StockWindow.new())
@@ -509,7 +509,7 @@ func test_a_pressed_key_drops_and_confirm_confirms() -> void:
 	var confirmed: Array[int] = []
 	view.chute_confirmed.connect(func(chute: int) -> void: confirmed.append(chute))
 	var new_items: ChuteKey = view.keys[RewardMachine.Chute.NEW_ITEMS]
-	var coupons: ChuteKey = view.keys[RewardMachine.Chute.COUPONS]
+	var upgrade: ChuteKey = view.keys[RewardMachine.Chute.UPGRADE]
 	var rest_y: float = new_items.face().global_position.y
 	view.press_key(RewardMachine.Chute.NEW_ITEMS)
 	view.show_at(view.clock)
@@ -518,7 +518,7 @@ func test_a_pressed_key_drops_and_confirm_confirms() -> void:
 	assert_bool(new_items.led_lit()).is_true()
 	assert_float(new_items.face().global_position.y - rest_y).is_equal_approx(ChuteKey.SINK, 0.01)
 	assert_bool(new_items.get_global_rect().encloses(new_items.led_global_rect())).is_true()
-	assert_bool(coupons.is_pressed() or coupons.led_lit()).is_false()
+	assert_bool(upgrade.is_pressed() or upgrade.led_lit()).is_false()
 	var display: MachineDisplay = view.display
 	assert_array(Array(display.texts())).is_equal(Array(display.rest_texts()))
 	var tray: MachineTray = view.tray
@@ -537,11 +537,15 @@ func test_a_pressed_key_drops_and_confirm_confirms() -> void:
 	var sub_text: float = MachineArt.text_width(tray.texts()[1], font, MachineTray.TAKE_SIZE)
 	assert_float(sub_text).is_less_equal(MachineTray.SIZE.x - 16.0)
 	# Another key moves the press; the same key lets it up.
-	view.press_key(RewardMachine.Chute.COUPONS)
+	view.press_key(RewardMachine.Chute.UPGRADE)
 	assert_bool(new_items.is_pressed()).is_false()
-	assert_bool(coupons.is_pressed()).is_true()
-	assert_str(tray.texts()[0]).is_equal("PUSH TO CONFIRM · COUPONS")
-	view.press_key(RewardMachine.Chute.COUPONS)
+	assert_bool(upgrade.is_pressed()).is_true()
+	assert_array(Array(tray.texts())).is_equal(
+		["PUSH TO CONFIRM · UPGRADE", "IMPROVE WHAT YOU OWN · 3 PRIZES, KEEP 1"]
+	)
+	var long_sub: float = MachineArt.text_width(tray.texts()[1], font, MachineTray.TAKE_SIZE)
+	assert_float(long_sub).is_less_equal(MachineTray.SIZE.x - 16.0)
+	view.press_key(RewardMachine.Chute.UPGRADE)
 	assert_int(view.pressed_chute()).is_equal(-1)
 	assert_bool(tray.confirm_offered()).is_false()
 	assert_int(tray.mouse_filter).is_equal(Control.MOUSE_FILTER_IGNORE)
@@ -594,9 +598,10 @@ func test_machine_lines_use_glyphs_their_fonts_have() -> void:
 		["NEW IN CART ✓", "1 swapped out · cart 15/15"],
 		["UPGRADED ✓", "cart stays 15/15"],
 		["STAMPED ✓", "Slot engine on your card"],
+		["LEVEL UP ✓", "Category engine LV 3 on your card"],
 		["READING…", "quota €99 met · Spot check passed"],
-		["SPEND €114 ✓ THANK YOU!", RewardMachineView.BOOSTED_SUB],
-		["SPEND €114 ✓ THANK YOU!", "quota €99 met" + MachineDisplay.BOOSTED_READ],
+		["SPEND €114 ✓ THANK YOU!", RewardMachineView.PREMIUM_SUB],
+		["SPEND €114 ✓ THANK YOU!", "quota €99 met" + MachineDisplay.PREMIUM_READ],
 		[RewardMachineView.BONUS_TITLE, RewardMachineView.BONUS_SUB % "inspection passed"],
 		["BANANA › GOLDEN ✓", "cart stays 15/15"],
 	]:
@@ -630,8 +635,9 @@ func test_long_display_lines_fit() -> void:
 		["PICK 1 · ONLY 2 IN STOCK", RewardMachineView.CART_FULL_TEXT, true],
 		[MachineDisplay.PACKING, "bonus ticket", false],
 		["SPEND €999 ✓ THANK YOU!", "quota €999 met · Coupon slot closed passed", false],
-		["SPEND €999 ✓ THANK YOU!", RewardMachineView.BOOSTED_SUB, false],
-		["SPEND €999 ✓ THANK YOU!", "quota €999 met" + MachineDisplay.BOOSTED_READ, false],
+		["SPEND €999 ✓ THANK YOU!", RewardMachineView.PREMIUM_SUB, false],
+		["SPEND €999 ✓ THANK YOU!", "quota €999 met" + MachineDisplay.PREMIUM_READ, false],
+		["LEVEL UP ✓", "Category engine LV 3 on your card", false],
 	]:
 		display.set_bin(line[2], false)
 		display.show_message(line[0], line[1])
@@ -640,23 +646,20 @@ func test_long_display_lines_fit() -> void:
 	display.set_bin(true, false)
 	display.show_message("PICK 1", "")
 	assert_bool(display.message_in_display_font()).is_true()
-	display.set_bin(false, false)
-	display.show_message("PICK 1 STAMP", "")
-	assert_bool(display.message_in_display_font()).is_true()
 
 
-## A BOOSTED visit turns the machine PREMIUM (v0.50, dressing A): the classic face until the
-## receipt is read (the read says PREMIUM RECEIPT), then the transform (premium_at ..
-## premium_end; the display blinks PREMIUM), after which the sign reads PREMIUM REWARDS over
-## LOYALTY · UPGRADES, the gold trim, the gold stub in the slot and the gold tray show for the
-## whole visit, and the LOYALTY / UPGRADES pair stands in the key bay (NEW ITEMS and COUPONS cream
-## and idle until they sink, never padlocked; a press on one still says NORMAL VISITS ONLY); a
-## pressed key's title says "premium"; every line fits.
-## A Normal visit keeps the classic face and says when LOYALTY and UPGRADES come next.
+## A PREMIUM visit (v0.61, #108: a rarity boost) turns the machine PREMIUM (v0.50, dressing A):
+## the classic face until the receipt is read (the read says PREMIUM RECEIPT), then the transform
+## (premium_at .. premium_end; the display blinks PREMIUM; the keys sink out of sight and rise
+## back gold), after which the sign reads PREMIUM REWARDS over RARE OR BETTER, the gold trim, the
+## gold stub in the slot and the gold tray show for the whole visit, both keys stand gold in the
+## key bay over gold pedestals with the premium odds (nothing below RARE); a pressed key's title
+## says "premium"; every line fits; the draw is RARE or better.
+## A classic visit keeps the classic face and cream keys.
 func test_a_premium_visit_turns_the_machine_gold() -> void:
 	for rm: bool in [false, true]:
-		var run: RunState = _passed_run(25, _boosted_after_shift_one)
-		assert_bool(run.machine.is_boosted()).is_true()
+		var run: RunState = _passed_run(25, _premium_after_shift_one)
+		assert_bool(run.machine.is_premium()).is_true()
 		var stage: Control = auto_free(Control.new())
 		stage.size = ShiftStage.SIZE
 		add_child(stage)
@@ -673,20 +676,33 @@ func test_a_premium_visit_turns_the_machine_gold() -> void:
 		assert_bool(plan.premium).is_true()
 		assert_array(Array(head.stamp_texts())).is_equal(["", ""])  # No stamp: the face says it.
 		view.show_at(plan.read_end - EPSILON)
-		assert_str(view.display.texts()[1]).ends_with(MachineDisplay.BOOSTED_READ)
+		assert_str(view.display.texts()[1]).ends_with(MachineDisplay.PREMIUM_READ)
 		assert_bool(head.premium_face()).is_false()
-		# Before the transform the classic pair stands cream and idle (never padlocked) over its
-		# stocked columns, as the mock-up's classic machine does until the keys sink.
-		for chute: int in RewardMachine.NORMAL_CHUTES:
+		# Before the transform both keys stand cream (never padlocked) over their stocked columns.
+		for chute: int in RewardMachine.CHUTES:
 			assert_bool(view.keys[chute].visible).is_true()
 			assert_bool(view.keys[chute].has_padlock()).is_false()
-			assert_bool(view.keys[chute].lit).is_false()
+			assert_bool(view.keys[chute].gold).is_false()
 			assert_bool(view.stock.column_lit(chute)).is_true()
+			assert_bool(view.stock.column_gold(chute)).is_false()
 		assert_float(view.cabinet.trim_shown()).is_equal(0.0)
 		assert_bool(view.tray.is_gold()).is_false()
 		if not rm:
 			view.show_at(plan.premium_at + EPSILON)
 			assert_array(["PREMIUM", ""]).contains([view.display.texts()[0]])
+			# Between the sink and the rise the keys are out of sight; they rise back gold.
+			var midway: float = (MachineLook.SINK_TO + MachineLook.RISE_FROM) / 2.0
+			var sunk: float = (
+				plan.premium_at + plan.premium_length() * midway / MachineLook.MOCK_LENGTH
+			)
+			view.show_at(sunk)
+			for key: ChuteKey in view.keys:
+				assert_bool(key.visible).is_false()
+			var rising: float = MachineLook.RISE_FROM + 0.05
+			view.show_at(plan.premium_at + plan.premium_length() * rising / MachineLook.MOCK_LENGTH)
+			for key: ChuteKey in view.keys:
+				assert_bool(key.visible).is_true()
+				assert_bool(key.gold).is_true()
 		view.show_at(plan.premium_end + EPSILON)
 		assert_bool(head.premium_face()).is_true()
 		assert_str(head.title_labels()[0].text).is_equal(MachineHead.PREMIUM_TITLE)
@@ -703,47 +719,55 @@ func test_a_premium_visit_turns_the_machine_gold() -> void:
 		assert_bool(view.tray.is_gold()).is_true()
 		view.show_at(plan.choose_at)
 		assert_array(Array(view.display.texts())).is_equal(
-			["SPEND €%d ✓ THANK YOU!" % run.history[-1].total, RewardMachineView.BOOSTED_SUB]
+			["SPEND €%d ✓ THANK YOU!" % run.history[-1].total, RewardMachineView.PREMIUM_SUB]
 		)
 		for label: Label in view.display.labels():
 			_assert_fits(label)
-		assert_array(_lit(view.keys)).is_equal([false, false, true, true])
+		assert_array(_lit(view.keys)).is_equal([true, true])
 		var bay: Rect2 = view.key_bay.get_global_rect()
-		for chute: int in RewardMachine.BOOSTED_CHUTES:
+		for chute: int in RewardMachine.CHUTES:
 			var key: ChuteKey = view.keys[chute]
 			assert_bool(key.visible).is_true()
+			assert_bool(key.gold).is_true()
+			assert_bool(key.has_padlock()).is_false()
 			assert_bool(bay.encloses(key.get_global_rect())).is_true()
 			assert_bool(view.stock.column_lit(chute)).is_true()
-		for chute: int in RewardMachine.NORMAL_CHUTES:  # Sunk out of sight, never padlocked.
-			var key: ChuteKey = view.keys[chute]
-			assert_bool(key.visible).is_false()
-			assert_bool(key.has_padlock()).is_false()
-			assert_bool(view.stock.column_lit(chute)).is_false()
-		# Still PREMIUM at the end of the visit.
-		assert_bool(run.machine.choose(run, RewardMachine.Chute.UPGRADES)).is_true()
+			assert_bool(view.stock.column_gold(chute)).is_true()
+			# The premium odds: nothing below RARE (the floor, MachineOdds).
+			var odds: MachineOddsCard = run.machine.chute_info(run, chute).odds
+			assert_bool(odds.premium).is_true()
+			assert_int(odds.min_rarity).is_equal(MachinePrize.Rarity.RARE)
+			var shares: Array[float] = []
+			shares.assign(Array(odds.rarity_share))
+			assert_array(Array(view.stock.odds_texts(chute))).is_equal(
+				Array(StockWindow.percent_texts(shares))
+			)
+		# The draw is RARE or better, and still PREMIUM at the end of the visit.
+		assert_bool(run.machine.choose(run, RewardMachine.Chute.UPGRADE)).is_true()
+		for prize: MachinePrize in run.machine.prizes():
+			assert_int(prize.rarity).is_greater_equal(MachinePrize.Rarity.RARE)
 		view.show_draw(run)
 		view.show_at(view.plan.pick_at)
 		assert_bool(head.premium_face()).is_true()
 		assert_bool(view.tray.is_gold()).is_true()
+		assert_bool(view.keys[RewardMachine.Chute.UPGRADE].gold).is_true()
 		view.close()
 		remove_child(view)
 		remove_child(stage)
-	# The title subs and a refused key on a PREMIUM visit.
-	var boosted: RunState = _passed_run(25, _boosted_after_shift_one)
+	# The title subs on a PREMIUM visit.
+	var premium: RunState = _passed_run(25, _premium_after_shift_one)
 	var titled: RewardMachineView = auto_free(RewardMachineView.new())
 	add_child(titled)
-	titled.open_visit(boosted, null, null, false)
+	titled.open_visit(premium, null, null, false)
 	titled.fast_forward()
 	titled._armed = true  # Headless: no mouse release arms it.
-	titled.press_key(RewardMachine.Chute.REGISTER)
+	titled.press_key(RewardMachine.Chute.UPGRADE)
 	assert_array(Array(titled.tray.texts())).is_equal(
-		["PUSH TO CONFIRM · LOYALTY", "PREMIUM · 3 PRIZES, KEEP 1"]
+		["PUSH TO CONFIRM · UPGRADE", "PREMIUM · 3 PRIZES, KEEP 1"]
 	)
-	titled.press_key(RewardMachine.Chute.NEW_ITEMS)  # Shut: refused.
-	assert_array(Array(titled.display.texts())).is_equal(["NEW ITEMS", "NORMAL VISITS ONLY"])
 	var bold: Font = ArtStyle.bold_font(MachineTray.BOLD_WEIGHT)
 	for chute: int in RewardMachine.CHUTES:
-		assert_str(titled.title_sub(chute)).contains(RewardMachineView.TITLE_BOOSTED)
+		assert_str(titled.title_sub(chute)).contains(RewardMachineView.TITLE_PREMIUM)
 		titled.tray.offer_confirm(ChuteKey.NAMES[chute], titled.title_sub(chute))
 		var lines: PackedStringArray = titled.tray.texts()
 		var room: float = MachineTray.FLAP_RECT.size.x - 2.0 * titled.tray._chevron_room()
@@ -752,20 +776,19 @@ func test_a_premium_visit_turns_the_machine_gold() -> void:
 		)
 	titled.close()
 	remove_child(titled)
-	# A Normal visit: the classic face; LOYALTY and UPGRADES say when they come next.
-	var normal: RunState = _passed_run(25)
-	var normal_view: RewardMachineView = auto_free(RewardMachineView.new())
-	normal_view.open_visit(normal, null, null, false)
-	assert_bool(normal_view.plan.premium).is_false()
-	normal_view.show_at(normal_view.plan.choose_at)
-	assert_bool(normal_view.head.premium_face()).is_false()
-	assert_str(normal_view.head.title_labels()[0].text).is_equal(MachineHead.TITLE)
-	assert_array(_lit(normal_view.keys)).is_equal([true, true, false, false])
-	for chute: int in RewardMachine.BOOSTED_CHUTES:
-		var key: ChuteKey = normal_view.keys[chute]
-		assert_bool(key.has_padlock()).is_true()
-		assert_bool(key.visible).is_false()
-		assert_str(key.sub_text()).is_equal("PREMIUM AFTER SHIFT 3")
+	# A classic visit: the classic face, both keys cream and lit.
+	var classic: RunState = _passed_run(25)
+	var classic_view: RewardMachineView = auto_free(RewardMachineView.new())
+	classic_view.open_visit(classic, null, null, false)
+	assert_bool(classic_view.plan.premium).is_false()
+	classic_view.show_at(classic_view.plan.choose_at)
+	assert_bool(classic_view.head.premium_face()).is_false()
+	assert_str(classic_view.head.title_labels()[0].text).is_equal(MachineHead.TITLE)
+	assert_array(_lit(classic_view.keys)).is_equal([true, true])
+	for key: ChuteKey in classic_view.keys:
+		assert_bool(key.visible).is_true()
+		assert_bool(key.gold).is_false()
+		assert_bool(key.has_padlock()).is_false()
 	await _frames(2)  # Let the parts' queued frees run (no orphans).
 
 
@@ -816,15 +839,22 @@ func test_the_cabinet_on_the_stage() -> void:
 				var touching: bool = rect.intersects(parts[other].get_global_rect())
 				assert_bool(touching).override_failure_message(tag).is_false()
 		var bay: Rect2 = view.key_bay.get_global_rect()
-		for chute: int in RewardMachine.NORMAL_CHUTES:
-			assert_bool(bay.encloses(view.keys[chute].get_global_rect())).is_true()
+		assert_int(view.keys.size()).is_equal(RewardMachine.CHUTES.size())
+		for chute: int in RewardMachine.CHUTES:
+			var key: ChuteKey = view.keys[chute]
+			assert_bool(key.visible).is_true()
+			assert_bool(bay.encloses(key.get_global_rect())).is_true()
+			assert_bool(key.has_padlock()).is_false()
+			for label: Label in key.shown_labels():
+				assert_bool(key.get_global_rect().encloses(label.get_global_rect())).is_true()
 		(
 			assert_bool(view.keys[0].get_global_rect().intersects(view.keys[1].get_global_rect()))
 			. is_false()
 		)
-		var upgrades: ChuteKey = view.keys[RewardMachine.Chute.UPGRADES]
-		assert_bool(upgrades.has_padlock()).is_true()
-		assert_str(upgrades.sub_text()).is_equal("PREMIUM AFTER SHIFT 3")
+		# NEW ITEMS stands left of UPGRADE.
+		assert_float(view.keys[0].get_global_rect().end.x).is_less_equal(
+			view.keys[1].get_global_rect().position.x
+		)
 		var mouth: Rect2 = view.slot_plate.mouth_global_rect()
 		assert_bool(machine.encloses(mouth)).is_true()
 		var dock: Rect2 = view.cabinet.dock_global_rect()
@@ -894,17 +924,20 @@ static func _bonus_run(seed_value: int, inspected: bool) -> RunState:
 	return run
 
 
-## The run's machine holds a STAMP DAY after shift 1.
-static func _with_stamp_day(run: RunState) -> void:
-	run.machine.machine = run.machine.machine.duplicate() as MachineDefinition
-	run.machine.machine.stamp_day_shifts = PackedInt32Array([1])
-	run.machine.machine.stamp_day_floor = PackedInt32Array([1])
+## The run's machine makes shift 1's ticket visit PREMIUM (v0.47; the data's are 3, 5 and 7).
+static func _premium_after_shift_one(run: RunState) -> void:
+	MachineSteps.premium_run(run, [1])
 
 
-## The run's machine makes shift 1's ticket visit BOOSTED (v0.47; the data's are 3, 5 and 7).
-static func _boosted_after_shift_one(run: RunState) -> void:
+## Nothing for UPGRADE to draw (its key shut: NOTHING TO IMPROVE): no perks in the pool, no
+## owned perk to level up, no item upgrades on the machine (copies, so the shared data is
+## untouched).
+static func _nothing_to_improve(run: RunState) -> void:
+	run.balance = run.balance.duplicate() as BalanceDefinition
+	run.balance.upgrade_pool = []
+	run.upgrades = []
 	run.machine.machine = run.machine.machine.duplicate() as MachineDefinition
-	run.machine.machine.boosted_shifts = PackedInt32Array([1])
+	run.machine.machine.item_upgrades = []
 
 
 ## The cart at the deck limit.

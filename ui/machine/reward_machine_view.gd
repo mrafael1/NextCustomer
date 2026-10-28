@@ -10,19 +10,20 @@ extends Control
 ## net scale of 1, and lights it (set_lit). Back to front: the cabinet (MachineCabinet: body, trim,
 ## window frame, key plate, kick panel with the bonus ticket's dock), the marquee (MachineHead), the
 ## display (MachineDisplay, with BIN IT) and the receipt slot (SlotPlate) on one strip, the stock
-## window (StockWindow: sealed tickets over each lit chute's odds), the chute keys on the key plate
-## (ChuteKey, in `key_bay`, only the visit's pair standing), the tray (MachineTray, its push bar
-## confirming the chosen chute), the dim veil (MachineDim); then MachineLayers': the receipt feed
-## (ReceiptFeed, with the bonus ticket) and the cart drawer (CartDrawer) on the hud under the top
-## bar, the prize row's veil (PrizeRow) and the prize's flight (MachineFlyer) over everything, and
-## the prize tickets (PrizeTicket) with KEEP ONE over all of them.
+## window (StockWindow: sealed tickets over each lit chute's odds), the two chute keys on the key
+## plate (ChuteKey, in `key_bay`: NEW ITEMS left, UPGRADE right), the tray (MachineTray, its push
+## bar confirming the chosen chute), the dim veil (MachineDim); then MachineLayers': the receipt
+## feed (ReceiptFeed, with the bonus ticket) and the cart drawer (CartDrawer) on the hud under the
+## top bar, the prize row's veil (PrizeRow) and the prize's flight (MachineFlyer) over everything,
+## and the prize tickets (PrizeTicket) with KEEP ONE over all of them.
 ##
-## CLASSIC AND PREMIUM (v0.50, dressing A): a Normal visit shows RECEIPT REWARDS with NEW ITEMS and
-## COUPONS; a BOOSTED visit (after shifts 3/5/7) turns the same machine PREMIUM after its receipt
-## is read (MachinePlan.premium_at, MachineLook) and it stays so for the visit: LOYALTY (the
-## REGISTER chute's name wherever the player sees it) and UPGRADES. The BONUS visit after it is
-## BOOSTED too (v0.53) and opens PREMIUM (MachinePlan.premium_held). A STAMP DAY visit shows its
-## LOYALTY key on the classic machine.
+## CLASSIC AND PREMIUM (v0.50, dressing A; v0.61, #108): every visit shows the two chutes, NEW ITEMS
+## (items and a coupon) and UPGRADE (loyalty perks and their level-ups, item upgrades). A PREMIUM
+## visit (after shifts 3/5/7) is a rarity boost: every ticket RARE or better, items BIG or better.
+## The same machine turns PREMIUM after its receipt is read (MachinePlan.premium_at, MachineLook):
+## night sign, gold trim and tray, its keys sink and rise back gold, its stock window restocks onto
+## gold pedestals with the premium odds; it stays so for the visit. The BONUS visit after it is
+## PREMIUM too (v0.53) and opens PREMIUM (MachinePlan.premium_held).
 ##
 ## It only displays what RunState and RewardMachine give it (chute_info, prizes, preview,
 ## can_bin, current_visit) and reports the player's choices: chute_confirmed, prize_picked and
@@ -57,7 +58,7 @@ extends Control
 ##   read it in frame(t), never Time or delta.
 ## - `beat(beat_name, t0)` fires once per beat of the plan as the clock passes it, `t0` being the
 ##   beat's plan time: glide, snap, feed, read, premium, lights, draw, packed, reveal_0..reveal_2,
-##   pick, land, bonus (a BONUS visit's start), stamp_day (STAMP DAY's start), plus armed. Beats
+##   pick, land, bonus (a BONUS visit's start), plus armed. Beats
 ##   before a resume's start never fire.
 ## - A tap (a click or Space, PressReader) during a non-interactive beat fast-forwards to the next
 ##   wait point (`skipped`, then fast_forward()): the beats on the way still fire, in order, with
@@ -95,8 +96,8 @@ const HEAD_POSITION := Vector2(-20, -56)
 const DISPLAY_POSITION := Vector2(20, 12)
 const SLOT_POSITION := Vector2(320, 12)
 const WINDOW_POSITION := Vector2(20, 76)
-## The key plate's inside, where the keys stand (it clips the pair that is sunk out of sight), and
-## each key's place in it: chutes 0 and 2 on the left, 1 and 3 on the right.
+## The key plate's inside, where the keys stand (it clips them while they sink out of sight in the
+## premium transform), and each chute's key's place in it: NEW ITEMS left, UPGRADE right.
 const KEY_BAY_RECT := Rect2(14, 298, 420, 108)
 const KEY_X: Array[float] = [10.0, 218.0]
 const KEY_Y := 6.0
@@ -107,16 +108,16 @@ const SPEND_LINE := "SPEND €%d ✓ THANK YOU!"
 ## The chute wait's sub line (build spec 4.3's resume table) and a BONUS visit's lines there
 ## (#77 machine v2: "BONUS TICKET" / "inspection passed · 1 more prize · pick a chute").
 const CHOOSE_SUB := "pick a chute"
-## A BOOSTED visit (v0.50: the PREMIUM machine): the chute wait's sub line.
-const BOOSTED_SUB := "premium · loyalty or upgrades · pick a chute"
+## A PREMIUM visit (v0.50: the PREMIUM machine; v0.61 a rarity boost): the chute wait's sub line.
+const PREMIUM_SUB := "premium · rare or better · pick a chute"
 const BONUS_TITLE := MachineDisplay.BONUS_TICKET
 const BONUS_SUB := "%s · 1 more prize · pick a chute"
-## A pressed key's title sub line: what the chute does (on a BONUS or BOOSTED visit the visit's
+## A pressed key's title sub line: what the chute does (on a BONUS or PREMIUM visit the visit's
 ## word in its place, v0.50: the strip beside CONFIRM is 160 px and the key already says it), the
 ## prizes.
 const TITLE_SUB := "%s · %d prizes, keep 1"
 const TITLE_BONUS := "bonus ticket"
-const TITLE_BOOSTED := "premium"
+const TITLE_PREMIUM := "premium"
 ## A pressed key's click.
 const PRESS_SOUND := "ui_click"
 ## A BONUS visit's head stamp under-line (an extra shift's: "shift n").
@@ -215,7 +216,7 @@ func _init() -> void:
 	key_bay.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(key_bay)
 	for chute: int in RewardMachine.CHUTES:
-		var at: Vector2 = Vector2(KEY_X[chute % 2], KEY_Y)
+		var at: Vector2 = Vector2(KEY_X[chute], KEY_Y)
 		var key: ChuteKey = _add(ChuteKey.new(chute), at, key_bay) as ChuteKey
 		key.hovered.connect(_on_key_hovered)
 		key.unhovered.connect(_on_key_unhovered)
@@ -262,10 +263,10 @@ func _process(delta: float) -> void:
 
 ## Opens the machine on `run_state`'s current visit, on `stage_control` (the receipt the visit was
 ## paid with is `receipt_source`'s): a new plan from 0, or `resumed` at its wait point (no
-## replay). A visit waiting for its chute shows its pair of keys (lit, or shut: CARD FULL or
-## NOTHING TO IMPROVE, from chute_info) and the lit chutes' odds in the stock window; one waiting
-## for its pick (a STAMP DAY, or a resume at MACHINE_PICK) shows its prizes too (show_draw). A
-## BOOSTED visit's plan turns the machine PREMIUM.
+## replay). A visit waiting for its chute shows its two keys (lit, or shut: NOTHING TO IMPROVE,
+## from chute_info) and the lit chutes' odds in the stock window; one waiting for its pick (a
+## resume at MACHINE_PICK) shows its prizes too (show_draw). A PREMIUM visit's plan turns the
+## machine PREMIUM.
 func open_visit(
 	run_state: RunState, receipt_source: Control, stage_control: Control, resumed: bool
 ) -> void:
@@ -290,7 +291,7 @@ func open_visit(
 		or (not run.history.is_empty() and run.history[-1].inspection != null)
 	)
 	var stub: bool = run.machine.pending_kinds().has(MachineVisit.Kind.BONUS)
-	var premium: bool = run.machine.is_boosted()
+	var premium: bool = run.machine.is_premium()
 	_start(
 		MachinePlan.new(
 			tuning, kind, reduced_motion.call(), inspected, stub, premium, _ticket_was_premium()
@@ -307,7 +308,7 @@ func open_visit(
 	if kind == MachineVisit.Kind.BONUS:
 		display.show_message(BONUS_TITLE, BONUS_SUB % display.why_words())
 	elif premium:
-		display.show_message(SPEND_LINE % run.history[-1].total, BOOSTED_SUB)
+		display.show_message(SPEND_LINE % run.history[-1].total, PREMIUM_SUB)
 	else:
 		display.show_message(SPEND_LINE % run.history[-1].total, CHOOSE_SUB)
 	_place()
@@ -334,7 +335,7 @@ func show_draw(run_state: RunState, resumed: bool = false) -> void:
 				reduced_motion.call(),
 				true,
 				false,
-				visit.boosted,
+				visit.premium,
 				_ticket_was_premium()
 			)
 		)
@@ -350,8 +351,8 @@ func show_draw(run_state: RunState, resumed: bool = false) -> void:
 		_resume(MachinePlan.WaitPoint.PICK)
 	_show_head(visit.kind, visit)
 	_show_keys(true)
-	# The chosen key stays down through the draw (none for STAMP DAY's own pick).
-	_press_only(visit.chute if visit.kind != MachineVisit.Kind.STAMP_DAY else -1)
+	# The chosen key stays down through the draw.
+	_press_only(visit.chute)
 	for index: int in range(prizes.size()):
 		var ticket: PrizeTicket = PrizeTicket.new(
 			index, prizes[index], run.machine.preview(run, index), run
@@ -374,8 +375,8 @@ func show_draw(run_state: RunState, resumed: bool = false) -> void:
 
 
 ## A pick's landing (`picked`, kept as `landing` for the parts), or the draw binned (null): the
-## landing's word ("NEW IN CART ✓", "UPGRADED ✓", "STAMPED ✓"); the clock runs to END, then
-## `finished`.
+## landing's word ("NEW IN CART ✓", "UPGRADED ✓", "STAMPED ✓", a level-up's "LEVEL UP ✓"); the
+## clock runs to END, then `finished`.
 func land(picked: MachineLanding) -> void:
 	_disarm()
 	_hide_odds()
@@ -485,8 +486,6 @@ func press_key(chute: int) -> void:
 	if info.state != RewardMachine.ChuteState.OPEN:
 		Sfx.play_at(self, "denied")
 		var why: String = keys[chute].sub_text()
-		if info.state == RewardMachine.ChuteState.UNLIT:  # A PREMIUM visit's classic keys show none.
-			why = ChuteKey.unlit_text(chute, info.opens_after_shift, false)
 		display.show_denied(ChuteKey.NAMES[chute], why)
 		return
 	if _pressed == chute:
@@ -523,14 +522,14 @@ func pressed_chute() -> int:
 
 
 ## A pressed key's line under the push bar: "<what it does> · 3 prizes, keep 1" (a BONUS visit:
-## "bonus ticket · 3 prizes, keep 1"; a BOOSTED one: "premium · 3 prizes, keep 1").
+## "bonus ticket · 3 prizes, keep 1"; a PREMIUM one: "premium · 3 prizes, keep 1").
 func title_sub(chute: int) -> String:
 	var visit: MachineVisit = run.machine.current_visit() if run != null else null
 	var lead: String = ChuteKey.SUBS[chute].to_lower()
 	if visit != null and visit.kind == MachineVisit.Kind.BONUS:
 		lead = TITLE_BONUS
-	elif visit != null and visit.boosted:
-		lead = TITLE_BOOSTED
+	elif visit != null and visit.premium:
+		lead = TITLE_PREMIUM
 	var prizes: int = run.machine.machine.prizes_per_visit if run != null else 3
 	return TITLE_SUB % [lead, prizes]
 
@@ -562,12 +561,8 @@ func can_scan() -> bool:
 	return false
 
 
-## The pick prompt: "PICK 1", or "PICK 1 · ONLY n IN STOCK" for a short draw; STAMP DAY's
-## "PICK 1 STAMP".
+## The pick prompt: "PICK 1", or "PICK 1 · ONLY n IN STOCK" for a short draw.
 static func pick_prompt(count: int, run_state: RunState) -> String:
-	var visit: MachineVisit = run_state.machine.current_visit()
-	if visit != null and visit.kind == MachineVisit.Kind.STAMP_DAY:
-		return "PICK 1 STAMP"
 	if count < run_state.machine.machine.prizes_per_visit:
 		return "PICK 1 · ONLY %d IN STOCK" % count
 	return "PICK 1"
@@ -625,13 +620,14 @@ func _frame() -> void:
 	_place()
 
 
-## Stands the visit's pair of keys on the plate (MachineLook: the classic pair, the loyalty pair,
-## or both moving through the premium transform); a pair sunk out of sight is hidden.
+## Stands the keys on the plate (MachineLook: up, or sinking and rising back gold through the
+## premium transform); a key sunk out of sight is hidden.
 func _place_keys(look: MachineLook) -> void:
+	var up: float = look.keys_up()
 	for key: ChuteKey in keys:
-		var up: float = look.pair_up(ChuteKey.is_gold(key.chute))
 		key.position.y = KEY_Y + MachineArt.snap((1.0 - up) * (ChuteKey.SIZE.y + KEY_Y * 2.0))
 		key.visible = up > 0.0
+		key.set_gold(look.keys_gold())
 
 
 ## The store around the visit at `t`: the camera's glide and the reduced-motion cut's fade, the
@@ -778,25 +774,24 @@ static func _landing_word(picked: MachineLanding) -> String:
 			var copy: CardInstance = (picked.upgraded[0] as Array)[1] as CardInstance
 			return "%s ✓" % UpgradeSwap.tier_line(copy.definition)
 		MachinePrize.Kind.REGISTER:
-			return "STAMPED ✓"
+			return "LEVEL UP ✓" if picked.level_up else "STAMPED ✓"
 	return "NEW IN CART ✓"
 
 
 func _pick_sub(run_state: RunState, can_bin: bool) -> String:
 	var visit: MachineVisit = run_state.machine.current_visit()
 	var fills: bool = visit.chute == RewardMachine.Chute.NEW_ITEMS
-	fills = fills or visit.chute == RewardMachine.Chute.COUPONS
 	if fills and run_state.deck_is_full():
 		return CART_FULL_TEXT
 	return "or bin them all" if can_bin else "you must pick one"
 
 
-## Whether the shift's visit before this one (a BONUS visit's ticket) was BOOSTED: the machine is
-## then PREMIUM already and a BOOSTED BONUS visit keeps it so from its start (v0.53).
+## Whether the shift's visit before this one (a BONUS visit's ticket) was PREMIUM: the machine is
+## then PREMIUM already and a PREMIUM BONUS visit keeps it so from its start (v0.53).
 func _ticket_was_premium() -> bool:
 	if run == null or run.history.is_empty() or run.history[-1].visits.is_empty():
 		return false
-	return run.history[-1].visits[-1].boosted
+	return run.history[-1].visits[-1].premium
 
 
 func _show_head(kind: int, visit: MachineVisit) -> void:
@@ -806,32 +801,21 @@ func _show_head(kind: int, visit: MachineVisit) -> void:
 			if visit.why.is_empty():
 				under = "shift %d" % run.history[-1].shift
 			head.set_stamp(MachineHead.BONUS_TEXT, under)
-		MachineVisit.Kind.STAMP_DAY:
-			head.set_stamp("STAMP DAY!", "")
 		_:
 			head.set_stamp("", "")
 
 
 ## The keys and the stock window from chute_info: once a chute is chosen (`picking`), only it is
-## lit. On a PREMIUM visit the classic keys are only seen before they sink in the transform: they
-## stand cream and idle (as at rest), never padlocked, so nothing reads "locked" just before the
-## machine turns premium.
+## lit.
 func _show_keys(picking: bool) -> void:
 	var visit: MachineVisit = run.machine.current_visit()
 	var infos: Array[MachineChuteInfo] = []
-	var premium: bool = plan != null and plan.premium
 	for chute: int in RewardMachine.CHUTES:
 		var info: MachineChuteInfo = run.machine.chute_info(run, chute)
 		infos.append(info)
 		var lit: bool = not picking or (visit != null and visit.chute == chute)
-		var sinking: bool = premium and not ChuteKey.is_gold(chute)
-		if sinking and info.state == RewardMachine.ChuteState.UNLIT:
-			keys[chute].show_state(RewardMachine.ChuteState.OPEN, 0, false)
-			continue
-		keys[chute].show_state(info.state, info.opens_after_shift, lit)
+		keys[chute].show_state(info.state, lit)
 	var chosen: int = visit.chute if picking and visit != null else -1
-	if picking and visit != null and visit.kind == MachineVisit.Kind.STAMP_DAY:
-		chosen = RewardMachine.Chute.REGISTER
 	stock.show_chutes(infos, chosen)
 
 
