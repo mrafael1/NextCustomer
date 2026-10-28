@@ -1,0 +1,16 @@
+; The fold chip's card-fan mark (#105 piece 3, mock-up readability v3 section 3, fold A): three
+; paper w cards with ink edges, fanned as the mock-up's (turned -18, 0 and 18 degrees, the side
+; ones a pixel lower), each drawn over the one on its left, so the right one is whole. It reads
+; as "more stickers held here" on the grey "+N" chip. 15x10, shown at 2x (30x20).
+@size 15x10
+@kind icon
+....######.....
+...##wwww###...
+###w#wwww#ww###
+#www#www#wwwww#
+#www#www#wwww#.
+#www#www#wwww#.
+.#ww#ww#wwwww#.
+.#ww#ww#wwww#..
+.#ww#####www#..
+..###....####..

@@ -1,6 +1,6 @@
 class_name NoticeLabel
 extends Label
-## A short red notice on the monitor's paper screen (ShiftStage.NOTICE_RECT; e.g. a product that
+## A short notice on the monitor's paper screen (MonitorView.NOTICE_RECT; e.g. a product that
 ## doesn't fit, plan section 3.1). It stays for SHOW_SECONDS, then fades. It only displays: the
 ## rules come from RowCapacity.
 ##

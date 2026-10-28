@@ -156,7 +156,7 @@ func test_hovering_a_card_shows_its_effect_after_the_hold() -> void:
 	reveal.hover_for(0.1)
 	assert_bool(reveal.popup().visible).is_true()
 	assert_object(reveal.popup_tile()).is_same(staple)
-	assert_str(reveal.popup().name_label().text).is_equal(staple.card.display_name)
+	assert_str(reveal.popup().name_text()).is_equal(staple.card.display_name)
 	assert_str(reveal.popup().rule_label().text).is_equal(staple.card.rule_text)
 	# Another tile starts its own hold; no tile closes the popup.
 	reveal.hover(panel.staple_tiles[2])

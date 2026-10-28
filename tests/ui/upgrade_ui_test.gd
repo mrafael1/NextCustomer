@@ -174,7 +174,8 @@ func test_upgrade_steps_play_from_the_loyalty_card() -> void:
 	assert_str(_scan_text(screen, 1)).contains("Category engine").contains("+€")
 
 	await Rush.checkout(screen)
-	assert_str(screen._led.digits_label().text).is_equal(str(preview.total))
+	assert_int(screen._led.amount()).is_equal(preview.total)
+	assert_int(screen._monitor.checkout().total_number().value()).is_equal(preview.total)
 	assert_str(_receipt_text(screen)).contains("Coupon engine").contains("Category engine")
 	for step: ScoreStep in upgrade_steps:
 		var box: Control = screen._loyalty_card.box(step.source_index)
@@ -461,16 +462,17 @@ static func _upgrade_steps(result: ScoreResult) -> Array[ScoreStep]:
 
 
 ## Scans the belt item in `slot` (the pointer on its sprite, its hover sent: headless runs never
-## move the mouse; then its hold ends, #80) and returns its scan popup's footer, one line each,
-## then ends the scan.
+## move the mouse; then its hold ends, #80) and returns the step lines the monitor's item column
+## gets for it (ScanController.item_lines: the column may fold the last into "+N more"), one
+## line each, then ends the scan.
 static func _scan_text(screen: ShiftScreen, slot: int) -> String:
 	var view: ItemView = screen._row_views[slot] as ItemView
 	var point: Vector2 = view.sprite().get_global_rect().get_center()
 	screen._scan.pointer = func() -> Vector2: return point
 	view.hovered.emit(view)
 	screen._scan._go_full()
-	# A belt item's scan shows on the hung monitor (#80).
-	var text: String = "\n".join(screen._monitor.scan_footer().texts())
+	# A belt item's scan shows on the hung monitor (#80; #105 piece 2: its item column).
+	var text: String = "\n".join(screen._scan.item_lines(slot).lines)
 	screen._scan.clear()
 	return text
 

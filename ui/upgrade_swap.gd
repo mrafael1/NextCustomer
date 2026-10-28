@@ -5,7 +5,7 @@ extends Control
 ## has an item on screen (in the hand's baskets or on the belt) shows its old art until its turn,
 ## then swaps to its new tier's art with a white flash masked to its sprite, a gold sunburst behind
 ## it, a pop, and a gold tag above it ("BANANA › GOLDEN") that rises in, holds and fades. Copies
-## not on screen are skipped (the monitor's brief still says "Banana is GOLDEN now": news_line).
+## not on screen are skipped.
 ## Several copies start PlanningTuning.swap_stagger_ms apart. Reduced motion: no flash, sunburst
 ## or pop; the tag shows at once. Every time is PlanningTuning's "Upgrade swap" group
 ## (data/balance/planning.tres).
@@ -54,12 +54,6 @@ func _init() -> void:
 static func tier_line(definition: CardDefinition) -> String:
 	var item: String = definition.product_card().display_name.to_upper()
 	return "%s › %s" % [item, CardDefinition.Tier.keys()[definition.tier]]
-
-
-## The monitor brief's line for an upgraded copy's `definition`: "Banana is GOLDEN now".
-static func news_line(definition: CardDefinition) -> String:
-	var item: String = definition.product_card().display_name
-	return "%s is %s now" % [item, CardDefinition.Tier.keys()[definition.tier]]
 
 
 ## `pairs` (MachineLanding.upgraded's [old, new] CardInstances, several landings in a row) with one

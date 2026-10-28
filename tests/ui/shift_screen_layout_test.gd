@@ -66,33 +66,31 @@ func test_the_stage_is_laid_out_without_overlaps() -> void:
 		assert_float(rect.end.y).is_less_equal(bar_bottom)
 	_assert_apart(top_parts)
 
-	# The monitor hangs under the top bar, the LED and the notices on its screen.
+	# The monitor hangs under the top bar; its one screen (#105 piece 2): the scanner bay, the item
+	# column and the checkout column side by side on the paper, apart, the checkout column's number
+	# clear of its caption and ladder, and the notice strip over the item column's step area.
 	var monitor: Rect2 = _on_stage(screen, ShiftStage.MONITOR_RECT)
 	var monitor_screen: Rect2 = _on_stage(screen, ShiftStage.MONITOR_SCREEN_RECT)
 	assert_that(screen._stage.monitor.get_global_rect()).is_equal(monitor)
 	assert_bool(monitor.encloses(monitor_screen)).is_true()
 	assert_float(monitor.position.y).is_greater_equal(bar_bottom)
-	var led: Rect2 = _on_stage(screen, ShiftStage.LED_RECT)
-	assert_that(screen._led.get_global_rect()).is_equal(led)
-	assert_bool(monitor_screen.encloses(led)).override_failure_message(str(led)).is_true()
-	for label: Control in _led_labels(screen):
-		var rect: Rect2 = label.get_global_rect()
-		assert_bool(led.encloses(rect)).override_failure_message(str(rect)).is_true()
-	_assert_digits_clear(screen)
-	assert_bool(ShiftStage.NOTICE_RECT.intersects(ShiftStage.LED_RECT)).is_false()
-	# In planning the store channel has the screen right of the scanner bay (the LED hidden at its
-	# place), and a notice takes the channel's place in the right part's middle.
-	assert_bool(screen._led.visible).is_false()
+	var paper: Rect2 = _on_stage(screen, MonitorView.PAPER_RECT)
+	assert_bool(monitor_screen.encloses(paper)).override_failure_message(str(paper)).is_true()
 	var bay: Rect2 = screen._monitor.bay().get_global_rect()
 	assert_that(bay).is_equal(_on_stage(screen, MonitorView.BAY_RECT))
-	var channel: Rect2 = screen._monitor.channel.get_global_rect()
-	assert_that(channel).is_equal(_on_stage(screen, MonitorView.CHANNEL_RECT))
-	assert_bool(monitor_screen.encloses(channel)).is_true()
-	assert_bool(channel.intersects(bay)).is_false()
+	var items: Rect2 = screen._monitor.item_column().get_global_rect()
+	assert_that(items).is_equal(_on_stage(screen, MonitorView.ITEM_RECT))
+	var checkout: Rect2 = screen._monitor.checkout().get_global_rect()
+	assert_that(checkout.position).is_equal(_on_stage(screen, MonitorView.CHECKOUT_RECT).position)
+	for part: Rect2 in [bay, items, checkout]:
+		assert_bool(paper.encloses(part)).override_failure_message(str(part)).is_true()
+	_assert_apart_rects([bay, items, _on_stage(screen, MonitorView.CHECKOUT_RECT)])
+	_assert_digits_clear(screen)
 	var notice: Rect2 = screen._notice_label.get_global_rect()
-	assert_that(notice).is_equal(_on_stage(screen, MonitorView.NOTICE_RECT))
-	assert_bool(monitor_screen.encloses(notice)).is_true()
+	assert_bool(_on_stage(screen, MonitorView.NOTICE_RECT).encloses(notice)).is_true()
+	assert_bool(paper.encloses(notice)).is_true()
 	assert_bool(notice.intersects(bay)).is_false()
+	assert_bool(notice.intersects(_on_stage(screen, MonitorView.CHECKOUT_RECT))).is_false()
 
 	# The register: the printer box on the counter top, the column under it; the receipt stands on
 	# the printer's slot.
@@ -406,9 +404,9 @@ func test_the_receipt_grows_up_from_the_printer() -> void:
 	assert_bool(rect.intersects(_on_stage(screen, ShiftStage.MONITOR_RECT))).is_false()
 
 
-## The longest notice on the monitor (planning's, at the channel's place), the LED's parts, and the
-## register stay on the stage, clear of the belt, the hand and the receipt where they must, on
-## shifts that close slots.
+## The longest notice on the monitor (planning's, on its strip), the checkout column's caption,
+## number and status line, and the register stay on the stage, clear of the belt, the hand and the
+## receipt where they must, on shifts that close slots.
 func test_the_status_line_and_the_register_stay_clear() -> void:
 	var screen: ShiftScreen = await _screen()
 	var run: RunState = screen.run
@@ -538,12 +536,19 @@ func test_the_wall_and_counter_cover_the_viewport() -> void:
 
 
 ## Text never goes through the sharp-pixel shader: no Label or Button text carries its material
-## or the pixel-art mark.
+## or the pixel-art mark (the gold number's own gold-bands shader aside).
 func test_no_text_carries_the_pixel_material() -> void:
 	var screen: ShiftScreen = await _rich_screen()
 	var texts: Array[Control] = _texts(screen)
 	assert_int(texts.size()).is_greater(20)
 	for text: Control in texts:
+		# The checkout column's gold number has its gold-bands shader (TotalNumber), no other.
+		var gold: bool = (
+			text.material is ShaderMaterial
+			and (text.material as ShaderMaterial).shader == TotalNumber.SHADER
+		)
+		if gold:
+			continue
 		(
 			assert_object(text.material)
 			. override_failure_message("%s has a material" % text.get_path())
@@ -554,8 +559,8 @@ func test_no_text_carries_the_pixel_material() -> void:
 
 
 ## Numbers and money use the number font: text on the stage or overlay without a font of its
-## own (the count-up's flying numbers), the shift and quota, the LED's digits and quota line
-## and the paid chips.
+## own (the count-up's flying numbers), the shift and quota, the checkout column's number and the
+## paid chips.
 func test_numbers_use_the_number_font() -> void:
 	var screen: ShiftScreen = await _rich_screen()
 	var number_font: Font = ArtStyle.number_font()
@@ -571,8 +576,7 @@ func test_numbers_use_the_number_font() -> void:
 	var numbers: Array[Label] = [
 		screen._shift_label,
 		screen._quota_label,
-		screen._led.digits_label(),
-		screen._led.quota_label(),
+		screen._monitor.checkout().total_number().slam_label(),
 		screen._deck_button.caption_label(),
 		screen._redraw_button.note_label(),
 	]
@@ -653,34 +657,37 @@ static func _look(item: CanvasItem, plain: Material) -> Material:
 	return plain
 
 
-## The LED's digits (their ink: the line box is taller than the ink) on the glass, clear of the
-## caption's and the quota line's text.
+## The checkout column's number (its ink, punched or not: the line box is taller than the ink)
+## inside the column, under its caption's text and above its ladder (#105 piece 2).
 func _assert_digits_clear(screen: ShiftScreen) -> void:
-	var led: LedDisplay = screen._led
-	var ink: Rect2 = led.digits_text_rect()
-	assert_bool(led.interior().encloses(ink)).override_failure_message(str(ink)).is_true()
-	assert_bool(ink.intersects(led.quota_label().get_global_rect())).is_false()
-	var caption: Label = led.caption_label()
+	var column: CheckoutColumn = screen._monitor.checkout()
+	var ink: Rect2 = column.total_number().ink_rect()
+	var room: Rect2 = _on_stage(screen, MonitorView.CHECKOUT_RECT)
+	assert_bool(room.encloses(ink)).override_failure_message("%s in %s" % [ink, room]).is_true()
+	var caption: Label = column.caption()
 	var font: Font = caption.get_theme_font("font")
-	var caption_ink: Vector2 = LedDisplay.ink_span(
-		led.caption_label().text, font, caption.get_theme_font_size("font_size")
-	)
-	var caption_line: float = (
-		(caption.size.y - font.get_height(caption.get_theme_font_size("font_size"))) / 2.0
-	)
+	var font_size: int = caption.get_theme_font_size("font_size")
+	var caption_ink: Vector2 = TotalNumber.ink_span(caption.text, font, font_size)
+	var caption_line: float = (caption.size.y - font.get_height(font_size)) / 2.0
 	var caption_bottom: float = (
 		caption.get_global_rect().position.y
 		+ caption_line
-		+ font.get_ascent(caption.get_theme_font_size("font_size"))
+		+ font.get_ascent(font_size)
 		+ caption_ink.y
 	)
 	assert_float(ink.position.y).is_greater_equal(caption_bottom)
+	assert_float(ink.end.y).is_less_equal(column.ladder().get_global_rect().position.y)
 
 
-## The LED's caption, digits and quota line.
-static func _led_labels(screen: ShiftScreen) -> Array[Control]:
-	var led: LedDisplay = screen._led
-	return [led.caption_label(), led.digits_label(), led.quota_label()]
+## Rects that must not overlap one another.
+func _assert_apart_rects(rects: Array[Rect2]) -> void:
+	for index: int in range(rects.size()):
+		for other: int in range(index + 1, rects.size()):
+			(
+				assert_bool(rects[index].intersects(rects[other]))
+				. override_failure_message("%s on %s" % [rects[index], rects[other]])
+				. is_false()
+			)
 
 
 ## A shift with a bit of everything: an inspection that closes a slot (its top-bar chip prints
@@ -716,8 +723,8 @@ func _assert_status_clear(screen: ShiftScreen) -> void:
 	var receipt: Rect2 = screen._receipt.get_global_rect()
 	var places: Dictionary[Control, Rect2] = {
 		screen._notice_label: MonitorView.NOTICE_RECT,
-		screen._led.digits_label(): ShiftStage.LED_RECT,
-		screen._led.quota_label(): ShiftStage.LED_RECT,
+		screen._monitor.checkout().caption(): MonitorView.CHECKOUT_RECT,
+		screen._monitor.checkout().status_label(): MonitorView.CHECKOUT_RECT,
 	}
 	for part: Control in places:
 		var rect: Rect2 = part.get_global_rect()

@@ -54,9 +54,12 @@ func test_a_shift_from_draw_to_next_shift() -> void:
 	var expected_total: int = run.preview().total
 
 	await Rush.checkout(screen)
-	# The LED shows the counted total under TOTAL (the bare number: the monitor's tank is the €).
-	assert_str(screen._led.digits_label().text).is_equal(str(expected_total))
-	assert_str(screen._led.caption_label().text).is_equal(LedDisplay.TOTAL_TEXT)
+	# The register reads the counted total, and the monitor's checkout column shows it under TOTAL.
+	assert_int(screen._led.amount()).is_equal(expected_total)
+	assert_int(screen._led.mode()).is_equal(LedDisplay.Mode.TOTAL)
+	var column: CheckoutColumn = screen._monitor.checkout()
+	assert_int(column.total_number().value()).is_equal(expected_total)
+	assert_str(column.caption().text).is_equal(MonitorText.TOTAL_CAPTION)
 	var passed: bool = expected_total >= run.quota()
 	# A pass opens the RECEIPT REWARDS machine (#77); a fail shows the results screen.
 	assert_bool(screen._machine.is_open()).is_equal(passed)

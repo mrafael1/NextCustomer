@@ -98,11 +98,8 @@ const HOVERED_HINT := "%s hovered"
 const SHORT_TEXT := "short %s"
 ## The count-up's footer, from its start to the TOTAL line.
 const COUNT_FOOTER_TEXT := "tap: skip · hold: fast"
-## A line still to print: an item's name then WAITING_DOTS, an open empty slot's number then
-## them, the TOTAL line's amount.
-const WAITING_DOTS := "·····"
+## An open empty slot on the planning receipt: its number, then dots.
 const EMPTY_SLOT_TEXT := "%d ·····"
-const TOTAL_WAITING := "•••••"
 ## The line closing an item whose lines don't add up to its payout (add_step): "= €3.00", at
 ## FOOTER_FONT_SIZE in ink (LineStyle.CLOSING), with no left side.
 const CLOSING_TEXT := "= "
@@ -269,20 +266,19 @@ func begin(header: PackedStringArray = PackedStringArray()) -> void:
 
 
 ## Starts the count-up's receipt (and a resumed checkout's, show_result): `header` and its dashed
-## rule (none without a header), each of `names`' items waiting greyed in scan order, the dashed
-## rule and "TOTAL •••••", then (with `footer`) "tap: skip · hold: fast".
+## rule (none without a header), then (with `footer`) "tap: skip · hold: fast". The items print
+## line by line as they scan (#61, #105 piece 2: the lines still to come are not printed yet),
+## each named from `names`, above the TOTAL line's dashed rule, which shows with the TOTAL at the
+## end (add_total).
 func begin_count(header: PackedStringArray, names: PackedStringArray, footer: bool = true) -> void:
 	begin(header)
 	if not header.is_empty():
 		_lines.add_child(ReceiptDecor.dashed_rule())
 	for slot: int in range(names.size()):
 		_item_names[slot] = names[slot]
-		var line: HBoxContainer = _add_item(slot, names[slot] + " " + WAITING_DOTS, "")
-		_set_waiting(line, true)
 	_total_rule = ReceiptDecor.dashed_rule()
+	_total_rule.visible = false
 	_lines.add_child(_total_rule)
-	_total_line = add_line(TOTAL_TEXT, TOTAL_WAITING, LineStyle.TOTAL) as HBoxContainer
-	_set_waiting(_total_line, true)
 	if footer:
 		_footer = add_line(COUNT_FOOTER_TEXT, "", LineStyle.WAITING)
 		(_footer.get_child(0) as Label).add_theme_font_size_override("font_size", FOOTER_FONT_SIZE)
@@ -448,7 +444,6 @@ func add_step(
 			var printed: int = _sums.get(step.slot, 0)
 			if step.step_type == ScoreStep.StepType.BASE or amount.text.is_empty():
 				amount.text = money(printed)
-			_set_waiting(item, false)
 			if step.step_type == ScoreStep.StepType.BASE:
 				_set_frame(item)
 				return item
@@ -476,6 +471,9 @@ func add_step(
 func _add_group_line(
 	slot: int, left: String, right: String, style: LineStyle = LineStyle.ITEM
 ) -> Control:
+	# A count prints an item's line as its first line does (its amount once its base lands).
+	if _item_line_of(slot) == null and _item_names.has(slot):
+		_item_line(slot, _item_names[slot])
 	var line: Control = add_line(left, right, style)
 	_lines.move_child(line, mini(_group_index(slot), _lines.get_child_count() - 1))
 	if not _closing.has(slot):
@@ -645,19 +643,16 @@ static func _cause(
 	return text
 
 
-## The TOTAL line: the pre-printed one filled in plainly ("TOTAL €22.00", begin_count), which
-## also ends the count-up's footer and frame; or a new one under a solid rule.
+## The TOTAL line ("TOTAL €22.00"): after a count's lines, under its dashed rule (begin_count),
+## which also ends the count-up's footer and frame; else a new one under a solid rule.
 func add_total(total: int) -> Control:
 	_set_frame(null)
 	if is_instance_valid(_footer):
 		_lines.remove_child(_footer)
 		_footer.queue_free()
 	_footer = null
-	if is_instance_valid(_total_line) and _total_line.get_parent() == _lines:
-		(_total_line.get_child(1) as Label).text = money(total)
-		_set_waiting(_total_line, false)
-		scroll_to_end()
-		return _total_line
+	if is_instance_valid(_total_rule):
+		_total_rule.visible = true
 	_total_line = add_line(TOTAL_TEXT, money(total), LineStyle.TOTAL) as HBoxContainer
 	return _total_line
 
@@ -848,10 +843,16 @@ static func _fizzle_count_text(fizzles: int) -> String:
 	return FIZZLES_TEXT % fizzles
 
 
-## A new item line for `slot` ("left", "right"), above the TOTAL line's rule.
+## A new item line for `slot` ("left", "right"), in scan order: above the group of the next slot
+## that has a line already (a tag or link on a later item prints before the earlier items' bases),
+## else above the TOTAL line's rule.
 func _add_item(slot: int, left: String, right: String) -> HBoxContainer:
 	var line: HBoxContainer = add_line(left, right, LineStyle.ITEM) as HBoxContainer
-	_lines.move_child(line, _end_index(line))
+	var after: int = -1
+	for other: int in _items:
+		if other > slot and _item_line_of(other) != null and (after == -1 or other < after):
+			after = other
+	_lines.move_child(line, _items[after].get_index() if after != -1 else _end_index(line))
 	_items[slot] = line
 	if not _last.has(slot):
 		_last[slot] = line
@@ -883,14 +884,6 @@ func _end_index(line: Control) -> int:
 	if is_instance_valid(_total_rule) and _total_rule.get_parent() == _lines:
 		return _total_rule.get_index()
 	return line.get_index()
-
-
-## A line's look while it waits to print (muted ink) or once printed (ink; the TOTAL line's).
-static func _set_waiting(line: HBoxContainer, waiting: bool) -> void:
-	for child: Node in line.get_children():
-		(child as Label).add_theme_color_override(
-			"font_color", Palette.MUTED_INK if waiting else Palette.INK
-		)
 
 
 ## The framed line, or null.

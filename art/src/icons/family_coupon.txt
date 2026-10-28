@@ -1,0 +1,15 @@
+; The coupon mark (#105, mock-up readability v2/v3, FAM.Coupon): open scissors, steel highlight
+; blades on a teal dark pivot and teal finger rings. Drawn inline in sticker text for "coupon"
+; (Scissors' "per earlier coupon"). 9x9: the mock-up's 7x7 shape with a 4-neighbour ink
+; outline, shown at 2x.
+@size 9x9
+@kind icon
+.#.....#.
+#A#...#A#
+.#A#.#A#.
+..#A#A#..
+.###2###.
+#444#444#
+#4#4#4#4#
+#444#444#
+.###.###.

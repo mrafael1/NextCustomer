@@ -1,0 +1,15 @@
+; Breakfast's family glyph (#105, mock-up readability v2/v3, FAM.Breakfast): a white mug of
+; coffee (brown dark) with a tomato band, a cream shade shadow on its right and grey light
+; steam. 9x9: the mock-up's 7x7 shape with a 4-neighbour ink outline. Shown alone at 2x on
+; tickets, the monitor and popups, with the family's name on hover.
+@size 9x9
+@kind icon
+..#.#....
+.#:#:#...
+.##:#:#..
+#fffff##.
+#wwwwwww#
+#RRRRRbw#
+#wwwwbww#
+.#wwwb##.
+..####...

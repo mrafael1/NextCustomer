@@ -127,8 +127,8 @@ func test_cells_lie_inside_the_belt_and_the_tray() -> void:
 
 
 ## No ticket covers another ticket or a sprite (lifted or not), and no planning part (#71, mock-up
-## h1: a sticker, a pay tag or a stamp; planning shows no corner mark) covers any ticket's base or
-## summary text: a pay tag may sit on a ticket's top band only.
+## h1: a sticker, a pay tag or a stamp; planning shows no corner mark) covers any ticket's struck
+## price or summary text: a pay tag may sit on a ticket's top band only.
 func test_stickers_never_cover_a_sticker_a_sprite_or_a_mark() -> void:
 	for scan: String in SCANS:
 		var screen: ShiftScreen = await _captured(scan)
@@ -140,7 +140,8 @@ func test_stickers_never_cover_a_sticker_a_sprite_or_a_mark() -> void:
 				var ticket: PriceSticker = view.sticker()
 				stickers.append(ticket.get_global_rect())
 				var to_global: Transform2D = ticket.get_global_transform()
-				texts.append(to_global * ticket.base_text_rect())
+				if ticket.is_struck():
+					texts.append(to_global * ticket.struck_rect())
 				if ticket.summary_text_rect().has_area():
 					texts.append(to_global * ticket.summary_text_rect())
 			others.append(view.sprite().get_global_rect())
@@ -168,7 +169,7 @@ func test_stickers_never_cover_a_sticker_a_sprite_or_a_mark() -> void:
 
 ## Planning shows no paid chip (#80, step 7: the receipt lists the payouts) and no corner mark
 ## (#71); each belt item wears one sticker per effect it receives in the preview's model (shown,
-## or folded into "…+N"), and the coupon's fizzles show as a "WASTED" sticker.
+## or folded into the "+N" chip), and the coupon's fizzles show as a "WASTED" sticker.
 func test_planning_shows_marks_and_no_paid_chips() -> void:
 	var screen: ShiftScreen = await _captured("")
 	var result: ScoreResult = screen.run.preview()
@@ -226,13 +227,24 @@ func test_every_printed_character_has_its_glyph() -> void:
 		assert_bool(printed.has(required)).override_failure_message(required).is_true()
 
 
-## No text goes through the sharp-pixel material (the monitor's scan included), and the sharp-pixel
-## switch (ArtStyle.set_sharp, the capture's S key) reaches every piece of art, items too.
+## No text goes through the sharp-pixel material (the monitor's scan included; the gold number's
+## own gold-bands shader aside), and the sharp-pixel switch (ArtStyle.set_sharp, the capture's S
+## key) reaches every piece of art, items too.
 func test_text_never_carries_the_pixel_material() -> void:
 	for scan: String in SCANS:
 		var screen: ShiftScreen = await _captured(scan)
 		for label: Label in _labels(screen):
-			assert_object(label.material).override_failure_message(str(label.get_path())).is_null()
+			# The checkout column's gold number has its gold-bands shader (TotalNumber), no other.
+			var gold: bool = (
+				label.material is ShaderMaterial
+				and (label.material as ShaderMaterial).shader == TotalNumber.SHADER
+			)
+			if not gold:
+				(
+					assert_object(label.material)
+					. override_failure_message(str(label.get_path()))
+					. is_null()
+				)
 			assert_bool(label.has_meta(ArtStyle.PIXEL_ART_META)).is_false()
 		var marked: Array[CanvasItem] = _pixel_art(screen)
 		assert_int(marked.size()).is_greater(60)

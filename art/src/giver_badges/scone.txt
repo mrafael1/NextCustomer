@@ -1,0 +1,18 @@
+; Readability v3 giver plate: 10x10 item, paper or GOLDEN rim, ink edge; shown at 2x.
+; Eggs, Lemon and Coffee match the approved mockup; other silhouettes expand their existing mini.
+@size 14x14
+@kind icon
+...#########..
+...#wwwwwww#..
+..##w#####w##.
+###ww#####ww##
+#www#wwRww#ww#
+#w##FwwwbbF#w#
+#w##FwwwbbF#w#
+#w##hFFFFFf#w#
+#w##YYYhhhF#w#
+#w##YYYhhhF#w#
+#w##YhhhFFF#w#
+#www#######ww#
+###wwwwwwwww##
+..###########.

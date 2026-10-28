@@ -5,19 +5,29 @@ extends RefCounted
 ## with play() and waits the beat's length; the motion here is fitted to that length and runs on
 ## the count-up's tweens (`make_tween`), so taps, holds and hit-stops apply. What the count owns
 ## stays CountUp's and is called back through the hooks CountUp.setup sets: step_landed
-## (landed), the hit-stops (land), the subtotal's roll (roll_subtotal) and the quota met.
+## (landed), the hit-stops (land), the total shown (set_total), a landing on it (landing) and the
+## quota met.
 ##
 ## Where things fly from (#86 v6): an item's flights and puffs start where the item is now, the
 ## rect CountUp.source_rect gives for its slot (the belt ride's: the scanner, or the bag's mouth
 ## once bagged), else the item view's centre. Items are never lifted or dropped in place: the
-## belt ride moves them. A payout's "+€N" flies from its item to its receipt line on a paper chip
-## (ReceiptFly), and the line, printed hidden at the beat's start, fades in as the chip lands.
+## belt ride moves them. A payout's line, printed hidden at the beat's start, fades in.
+##
+## The total (#105 piece 2, mock-up readability_v3.html): each landing beat (CountUpPlan's
+## landings: a base, a +N, a ×'s gain, a denial's fall) adds into the shown total fly_ms after the
+## beat starts, in at most ticks_per_landing whole-euro ticks tick_gap_ms apart. Each tick is one
+## callback on the count's tweens that sets the total and plays the tick sound, so the digits and
+## the sound never part, and taps, holds and hit-stops move both. The beat's note (and a ×'s stamp
+## sample) sounds on its first tick, `landing` tells the monitor and the beat's hit-stop freezes
+## that impact; the ding beat meets the quota on its crossing tick (the first at or over it), its
+## hold there. Under reduced motion the total jumps to the landing's value at its first tick; the
+## ticks still sound.
 ##
 ## The beats: a plain card's scan beep, note, base pop and payout in one short beat; bonuses
 ## flying in from the card (or upgrade box) that caused them; multiplier stamps; copies; Soup's
 ## and the inspections' "denied"; sticker and Bundle moments; an armed effect's glow (the belt
-## ride sends its sparks); fizzle puffs; three printer ticks per payout roll; a register rattle on
-## big payouts; the quota ding as the ding beat's roll ends.
+## ride sends its sparks); fizzle puffs; the total's ticks at each landing; a register rattle on
+## big payouts; the quota ding as the ding beat's last tick lands.
 
 ## Motion lengths at speed 1 (s), the longest each gets: a shorter beat shortens it (_motion).
 ## A plain card's scan before its payout lands, between these.
@@ -40,26 +50,25 @@ var sfx: Sfx
 ## The plan being played, set by begin().
 var plan: CountUpPlan
 ## CountUp's hooks for what the count owns (CountUp.setup sets them): step_landed for a beat's
-## steps (beat), the beat's hit-stop (beat), the subtotal's roll (to, seconds), a payout's landing
-## (payout, subtotal) and the quota met (with_ding).
+## steps (beat), the beat's hit-stop (beat), the total shown (amount), a landing on it (beat), a
+## payout's landing (payout, subtotal) and the quota met (with_ding).
 var landed: Callable
 var land: Callable
-var roll_subtotal: Callable
+var set_total: Callable
+var landing: Callable
 var payout_landed: Callable
 var meet_quota: Callable
+## The monitor total's tuning (CountUp sets it).
+var total_tuning: CountTotalTuning
 var _count: CountUp
 var _tuning: CountUpTuning
 var _overlay: Control
 var _receipt: ReceiptView
-## The register's LED: its digits punch as each payout lands (its GoldTank).
-var _led: LedDisplay
 var _fx: CountUpMotion
 ## Shaken on big payouts (the register rattle).
 var _rattle_target: Control
 ## Returns a new Tween that follows the count-up's speed.
 var _make_tween: Callable
-## The payouts' chips flying to the receipt.
-var _fly: ReceiptFly
 var _views: Array[CardView] = []
 var _names: PackedStringArray = PackedStringArray()
 var _steps: Array[ScoreStep] = []
@@ -80,7 +89,6 @@ func _init(
 	count_up: CountUp,
 	overlay: Control,
 	receipt: ReceiptView,
-	led: LedDisplay,
 	fx: CountUpMotion,
 	rattle_target: Control,
 	make_tween: Callable
@@ -88,11 +96,9 @@ func _init(
 	_count = count_up
 	_overlay = overlay
 	_receipt = receipt
-	_led = led
 	_fx = fx
 	_rattle_target = rattle_target
 	_make_tween = make_tween
-	_fly = ReceiptFly.new(overlay, make_tween)
 
 
 ## Starts a row: `plan` over `steps` on the row's card `views`, with the receipt's names of the
@@ -118,7 +124,6 @@ func begin(
 	_inspection_sources = inspection_sources
 	_inspection_names = inspection_names
 	_last_lines.clear()
-	_fly.reduced_motion = plan.reduced_motion
 
 
 ## Starts beat `index`'s motion and sound; the count-up waits its length.
@@ -148,6 +153,7 @@ func play(index: int) -> void:
 			_linked(beat, step)
 	if beat.kind not in [CountUpBeat.Kind.BONUS, CountUpBeat.Kind.STAMP, CountUpBeat.Kind.FIZZLE]:
 		landed.call(beat)
+	_land_total(beat)
 
 
 ## A step's receipt line (ReceiptView.step_line, "" for none), with the row's names.
@@ -287,9 +293,9 @@ func _merged(beat: CountUpBeat, base: ScoreStep, payout: ScoreStep) -> void:
 	if line != null:
 		line.modulate.a = 0.0
 	var view: CardView = _views[base.slot]
-	var scan: float = clampf(_motion(beat) - beat.roll_ms / 1000.0, SCAN_MIN, SCAN_MAX)
+	var scan: float = clampf(_motion(beat) - beat.fly_ms / 1000.0, SCAN_MIN, SCAN_MAX)
 	sfx.play("scan")
-	if beat.note >= 0:
+	if beat.note >= 0 and not CountUpPlan.is_landing(beat):
 		sfx.play_note(beat.note)
 	view.show_badge(base.value_after, true)
 	_fx.punch(view.badge, 1.3)
@@ -328,12 +334,12 @@ func _bonus(beat: CountUpBeat, step: ScoreStep) -> void:
 		_fx.fly_text(
 			text, above, above + Vector2(0, -40), Palette.MUSTARD, 30, OWN_BONUS_RISE, true
 		)
-	if beat.note >= 0:
+	if beat.note >= 0 and not CountUpPlan.is_landing(beat):
 		sfx.play_note(beat.note)
 	target.show_badge(step.value_after, true)
 	_fx.punch(target.badge, 1.3)
 	landed.call(beat)
-	land.call(beat)
+	_land_unless_total(beat)
 
 
 ## A multiplier lands like a stamp: big, rotated, slammed down, with a shake. An upgrade's
@@ -370,14 +376,15 @@ func _stamp(beat: CountUpBeat, step: ScoreStep) -> void:
 	slam.tween_property(stamp, "rotation", deg_to_rad(-8.0), slam_time)
 	slam.tween_property(stamp, "modulate:a", 1.0, slam_time * 0.6)
 	await slam.finished
-	sfx.play("stamp")
-	if beat.note >= 0:
-		sfx.play_note(beat.note, CountUp.STAMP_NOTE_DB)
+	if not CountUpPlan.is_landing(beat):
+		sfx.play("stamp")
+		if beat.note >= 0:
+			sfx.play_note(beat.note, CountUp.STAMP_NOTE_DB)
 	_fx.shake(target.body, 7.0)
 	target.show_badge(step.value_after, true)
 	_fx.punch(target.badge, 1.4)
 	landed.call(beat)
-	land.call(beat)
+	_land_unless_total(beat)
 	var fade: Tween = _tween()
 	fade.tween_interval(0.2)
 	fade.tween_property(stamp, "modulate:a", 0.0, 0.2)
@@ -421,7 +428,7 @@ func _denied(beat: CountUpBeat, step: ScoreStep) -> void:
 	sfx.play("denied")
 	_fx.shake(view.body, 10.0)
 	view.show_fizzle_badge(step.value_after)
-	land.call(beat)
+	_land_unless_total(beat)
 	var fade: Tween = _tween()
 	fade.tween_interval(0.25)
 	fade.tween_property(cross, "modulate:a", 0.0, 0.2)
@@ -436,41 +443,72 @@ func _payout(beat: CountUpBeat, step: ScoreStep) -> void:
 	_land_payout(beat, step, line)
 
 
-## The payout lands: its "+€N" flies from the item to its receipt line over the roll (the line
-## fades in as it lands; a payout that prints no line, its lines already adding up, flies to its
-## item's last line, left as it is), and the subtotal rolls up over the beat's roll with three
-## ticks, the printer sounding at its speed; a big payout rattles the register. As the roll ends
-## the payout lands (the monitor juice, mock-up monitor_juice_v2.html): the LED's digits punch
-## (GoldTank.punch, the € still; none under reduced motion), payout_landed tells the monitor, and
-## the ding beat meets the quota in that same frame.
-func _land_payout(beat: CountUpBeat, step: ScoreStep, line: Control) -> void:
-	var roll: float = beat.roll_ms / 1000.0
-	var flight: float = clampf(roll, ReceiptFly.FLIGHT_MIN, ReceiptFly.FLIGHT_MAX)
-	var target: Control = line if line != null else _last_lines.get(step.slot) as Control
-	var text: String = ReceiptFly.amount_text(beat.payout)
-	_fly.fly(text, _rect_of(step.slot), target, flight, line != null)
+## The payout lands: its receipt line fades in (a payout that prints no line leaves its item's
+## lines as they are), the printer sounds at its speed and a big payout rattles the register;
+## payout_landed tells the monitor. The total no longer rolls here (#105 piece 2): it counted in
+## at the item's landings, and a PAYOUT that moves it lands like one (_land_total).
+func _land_payout(beat: CountUpBeat, _step: ScoreStep, line: Control) -> void:
+	if line != null:
+		if plan.reduced_motion:
+			line.modulate.a = 1.0
+		else:
+			_tween().tween_property(line, "modulate:a", 1.0, CountUp.LINE_FADE)
 	sfx.play("print", print_pitch())
-	var punched: bool = beat.payout > 0 and roll > 0.0
-	if punched:
-		_ticks(roll)
-		if beat.rattle_px > 0.0:
-			_fx.shake(_rattle_target, beat.rattle_px)
-			play_rattle(beat.rattle_px)
-	roll_subtotal.call(step.subtotal, roll)
-	if roll > 0.0:
-		await _wait(roll)
-	if punched and not plan.reduced_motion:
-		var strength: float = (
-			CountUp.SUBTOTAL_PUNCH
-			+ minf(beat.payout / 25.0, CountUp.SUBTOTAL_PUNCH_MAX)
-			+ beat.punch_boost
-		)
-		_led.gold_tank.punch(strength, step.subtotal)
+	if beat.payout > 0 and beat.rattle_px > 0.0:
+		_fx.shake(_rattle_target, beat.rattle_px)
+		play_rattle(beat.rattle_px)
 	if beat.payout > 0 and payout_landed.is_valid():
-		payout_landed.call(beat.payout, step.subtotal)
-	if beat.ding:
+		payout_landed.call(beat.payout, beat.shown_to)
+	_land_unless_total(beat)
+
+
+## A beat's hit-stop, now, unless it lands on the total (_land_total plays it after its ticks).
+func _land_unless_total(beat: CountUpBeat) -> void:
+	if not CountUpPlan.is_landing(beat):
+		land.call(beat)
+
+
+## A landing beat's ticks on the total (see the class comment), fly_ms after the beat starts, on
+## the count's tweens.
+func _land_total(beat: CountUpBeat) -> void:
+	if not CountUpPlan.is_landing(beat) or beat.ticks.is_empty():
+		return
+	var gap: float = total_tuning.tick_gap_ms / 1000.0 if total_tuning != null else 0.0
+	var ticks: Tween = _tween()
+	ticks.tween_interval(beat.fly_ms / 1000.0)
+	for tick: int in range(beat.ticks.size()):
+		if tick > 0:
+			ticks.tween_interval(gap)
+		ticks.tween_callback(_tick.bind(beat, tick))
+
+
+## Tick `tick` of `beat`'s landing: the total and the tick sound in one callback; the first also
+## sounds the note (a ×'s stamp too), tells the monitor and plays the beat's hit-stop; on the ding
+## beat the crossing tick (ding_tick: the first at or over the quota, the first one under reduced
+## motion, where the total jumps) meets the quota, as the mock-up's climax starts on it, and plays
+## the hit-stop (the ding's hold) instead.
+func _tick(beat: CountUpBeat, tick: int) -> void:
+	if not plan.reduced_motion:
+		set_total.call(beat.ticks[tick])
+	elif tick == 0:
+		set_total.call(beat.shown_to)
+	sfx.play("tick", 1.0, total_tuning.tick_db if total_tuning != null else CountUp.TICK_DB)
+	if tick == 0:
+		if not beat.echo:
+			var stamped: bool = beat.land == CountUpBeat.Land.MUL
+			if stamped:
+				sfx.play("stamp")
+			if beat.note >= 0:
+				sfx.play_note(beat.note, CountUp.STAMP_NOTE_DB if stamped else 0.0)
+		if landing.is_valid():
+			landing.call(beat)
+	var crossing: int = 0 if plan.reduced_motion else maxi(0, beat.ding_tick)
+	if beat.ding and tick == crossing:
 		meet_quota.call(true)
-	land.call(beat)
+	# The hit-stop freezes the landing on its impact (the number punched): the first tick, the
+	# ding beat's crossing tick (the ding's hold).
+	if tick == (crossing if beat.ding else 0):
+		land.call(beat)
 
 
 ## An armed effect (Eggs' charges, Coffee, Multipack): the card glows and pulses and the current
@@ -486,15 +524,6 @@ func _armed(beat: CountUpBeat, step: ScoreStep) -> void:
 	if beat.targets.is_empty():
 		var start: Vector2 = _at(step.slot) + Vector2(0, -40)
 		_fx.fly_text(step.text, start, start + Vector2(0, -36), Palette.MUSTARD, 18, 0.45, true)
-
-
-## The printer's three ticks, spread over the payout's roll (D1).
-func _ticks(roll: float) -> void:
-	var ticks: Tween = _tween()
-	for tick: int in range(CountUp.TICKS_PER_ROLL):
-		if tick > 0:
-			ticks.tween_interval(roll / CountUp.TICKS_PER_ROLL)
-		ticks.tween_callback(sfx.play.bind("tick", 1.0, CountUp.TICK_DB))
 
 
 ## Prints a step's receipt line (or null: add_step), for every step, and keeps it as its slot's

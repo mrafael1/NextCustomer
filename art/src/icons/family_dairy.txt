@@ -1,0 +1,14 @@
+; Dairy's family glyph (#105, mock-up readability v2/v3, FAM.Dairy): a white milk bottle with a
+; teal dark cap, a teal label and a cream shade shadow on its right. 9x9: the mock-up's 7x7
+; shape with a 4-neighbour ink outline, shown at 2x.
+@size 9x9
+@kind icon
+...###...
+..#222#..
+..#wwb#..
+.#wwwwb#.
+#wwwwwwb#
+#4444444#
+#wwwwwwb#
+#wwwwwwb#
+.#######.

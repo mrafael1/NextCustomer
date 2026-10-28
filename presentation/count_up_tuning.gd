@@ -45,13 +45,6 @@ extends Resource
 ## The print sound's pitch follows the printer speed up to this (D3: min(printer speed, 1.26),
 ## at most +4 semitones).
 @export var print_pitch_max: float = 0.0
-## A payout's roll (D3) = (roll_min_ms + roll_extra_ms x min(1, payout / (roll_full_share x
-## best))) / printer speed.
-@export var roll_min_ms: int = 0
-## Roll time added for a payout of roll_full_share of the best or more (D3).
-@export var roll_extra_ms: int = 0
-## The share of the best at which a payout gets the whole roll_extra_ms (D3).
-@export var roll_full_share: float = 0.0
 ## A payout rattles (D3) when it is at least rattle_min_payout euros and at least
 ## rattle_min_share of the best, by min(rattle_max_px, rattle_base_px + rattle_per_best_px x
 ## payout / best) pixels.
@@ -67,8 +60,6 @@ extends Resource
 ## From the payout where the subtotal first passes the best so far, every payout rattles this
 ## much more (D3), on top of rattle_max_px.
 @export var passes_best_rattle_px: float = 0.0
-## From that payout on, the subtotal punches this much bigger (D3).
-@export var passes_best_punch: float = 0.0
 
 @export_group("Pause before the total")
 ## The held breath before a normal TOTAL line (D4), never sped up or shortened.
@@ -137,8 +128,7 @@ extends Resource
 @export var fit_gap_ms: int = 0
 ## Stage 2: the 2nd and later landings of one armed effect become echoes this long.
 @export var echo_ms: int = 0
-## Stage 3: payout rolls are cut to at most this.
-@export var fit_roll_max_ms: int = 0
+## Stage 3 (shorter payout rolls) is retired: a payout no longer rolls the total (#105 piece 2).
 ## Stage 4: fly-ins, tags and links run at this factor of their length.
 @export var fly_in_factor: float = 0.0
 ## Stage 4 never makes a fly-in, tag or link shorter than this.
@@ -199,104 +189,3 @@ extends Resource
 ## The last item's hop into the bag after the last beat: it overlaps the pause before the TOTAL
 ## line and adds nothing to the count.
 @export var bag_ms: int = 0
-
-@export_group("Monitor juice")
-## The count's monitor (the monitor juice, mock-up monitor_juice_v2.html, K1 "one tank", FILL A,
-## WIN B, FONT C; GoldTank and TankBurst). Times here are real seconds: the gold, the punch and
-## the win never follow the count's speed or its hit-stops.
-## The gold's level is the shown total / the quota (0 at the bottom of the group's ink, 1 at its
-## top), held under tank_hold until the payout that meets the quota lands; then its target is
-## tank_overfill (over the brim), the level reaching at most tank_overfill_max. Before the
-## quota the spring may pass the hold by tank_hold_slack.
-@export var tank_hold: float = 0.0
-@export var tank_overfill: float = 0.0
-@export var tank_overfill_max: float = 0.0
-@export var tank_hold_slack: float = 0.0
-## The level follows its target on a stiff spring (per second squared, and its damping per
-## second): a little slosh, no lag you can see.
-@export var tank_stiffness: float = 0.0
-@export var tank_damping: float = 0.0
-## The surface's waves (px), and a landing's kick added to them (px), dying away at
-## tank_kick_decay per second.
-@export var tank_wave_px: float = 0.0
-@export var tank_kick_px: float = 0.0
-@export var tank_kick_decay: float = 0.0
-## A landing's ripple from the group's middle both ways: tank_ripple_px deep, at
-## tank_ripple_speed px per second, tank_ripple_width wide (px squared), over tank_ripple_s.
-@export var tank_ripple_px: float = 0.0
-@export var tank_ripple_speed: float = 0.0
-@export var tank_ripple_width: float = 0.0
-@export var tank_ripple_s: float = 0.0
-## Droplets jumping off the surface on a landing, and on one after the quota.
-@export var tank_drops: int = 0
-@export var tank_drops_met: int = 0
-## Bubbles in the gold, once it is over tank_bubble_from: tank_bubble_rate per second plus
-## tank_bubble_rate_full more at full, rising tank_bubble_speed (px per second, from x to y) up to
-## tank_bubble_rise px.
-@export var tank_bubble_from: float = 0.0
-@export var tank_bubble_rate: float = 0.0
-@export var tank_bubble_rate_full: float = 0.0
-@export var tank_bubble_speed: Vector2 = Vector2.ZERO
-@export var tank_bubble_rise: float = 0.0
-## FONT C's shine: a band rising up the number and the € together over shine_s as money lands;
-## the total's landing sends a second one shine_second_s later. twinkles (twinkles_total on the
-## total) sparkle on the group's top, twinkle_stagger_s apart, each over twinkle_s.
-@export var shine_s: float = 0.0
-@export var shine_second_s: float = 0.0
-@export var twinkles: int = 0
-@export var twinkles_total: int = 0
-@export var twinkle_stagger_s: float = 0.0
-@export var twinkle_s: float = 0.0
-## The digits' punch (the € never moves or scales): a count punch of strength s punches them to
-## min(digits_punch_max, digits_punch_base + (s - 1) x digits_punch_share), its peak (with the
-## ease's overshoot) never past digits_punch_max; up over digits_punch_up_s, back over
-## digits_punch_down_s.
-@export var digits_punch_base: float = 0.0
-@export var digits_punch_share: float = 0.0
-@export var digits_punch_max: float = 0.0
-@export var digits_punch_up_s: float = 0.0
-@export var digits_punch_down_s: float = 0.0
-## WIN B, the coin fountain, on the landing that meets the quota: coins spray out of the whole
-## number and € for win_fountain_s at win_fountain_rate per second; each payout after it sprays
-## after_fountain_s at after_fountain_rate, at after_fountain_power of the speed.
-@export var win_fountain_s: float = 0.0
-@export var win_fountain_rate: float = 0.0
-@export var after_fountain_s: float = 0.0
-@export var after_fountain_rate: float = 0.0
-@export var after_fountain_power: float = 0.0
-## The win's sparks round the monitor (after_sparks on a later payout), its gold splashes on the
-## bezel (from win_splash_delay_s, for win_splash_s, at win_splash_rate per second), its shake
-## (px, s) and the paper's flash (alpha, fading over win_flash_s).
-@export var win_sparks: int = 0
-@export var after_sparks: int = 0
-@export var win_splash_delay_s: float = 0.0
-@export var win_splash_s: float = 0.0
-@export var win_splash_rate: float = 0.0
-@export var win_shake_px: float = 0.0
-@export var win_shake_s: float = 0.0
-@export var win_flash: float = 0.0
-@export var win_flash_s: float = 0.0
-## The win's own punch of the digits (a count punch strength, as digits_punch: the mock-up's 1.6,
-## so the landing that meets the quota punches them to digits_punch_max), from the scale they show.
-@export var win_punch: float = 0.0
-## The fountain's coins (TankBurst): their speed in art px per second sideways (x plus up to y)
-## and upwards (x plus up to y); those leaving from the group's left fountain_left share go left,
-## the rest right.
-@export var fountain_side: Vector2 = Vector2.ZERO
-@export var fountain_up: Vector2 = Vector2.ZERO
-@export var fountain_left: float = 0.0
-## The sunburst once met reaches sunburst_met_radius px (the monitor's), growing out to it over
-## sunburst_grow_s on a back-out ease as the win pops (the mock-up's).
-@export var sunburst_met_radius: float = 0.0
-@export var sunburst_grow_s: float = 0.0
-## FONT C's shine starts shine_below_px under the group's ink and rises shine_past_px past its top.
-@export var shine_below_px: float = 0.0
-@export var shine_past_px: float = 0.0
-
-
-## A count punch of `strength` on the digits: digits_punch_base + (strength - 1) x
-## digits_punch_share, at most digits_punch_max (`strength` itself when no cap is tuned).
-func digits_punch(strength: float) -> float:
-	if digits_punch_max <= 0.0:
-		return strength
-	return minf(digits_punch_max, digits_punch_base + (strength - 1.0) * digits_punch_share)

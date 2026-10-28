@@ -11,21 +11,26 @@ extends PanelContainer
 ## Products fill the shelves from the top left; the coupons stand at the right end of the last
 ## shelf, at least one empty column after the products, so a 15-card cart (up to 15 distinct
 ## cards) fits on two shelves unscrolled. A BIG or GOLDEN copy shows its tier tag under its sticker
-## (PriceSticker.tier_text), so a player never swaps one out unknowingly. The cart reveal's marks
-## (v0.51) stay for the whole run, on each item's art: a staple's product (one of the recipe's core
-## products, any tier) the mustard padlock, a dealt pick's product the teal "+" (the tomato token
-## for the coupon); an item can carry both (a staple dealt again). Marks go by product: a later
-## copy of a marked product shares its marks, since copies carry no origin in the save; only a
-## product that was not in the deal carries none. A legend beside the tag line names the marks.
+## (PriceSticker.tier_text), so a player never swaps one out unknowingly. The cart reveal's pick
+## marks (v0.51) stay for the whole run, on each item's art: a dealt pick's product the teal "+"
+## (the tomato token for the coupon). The staple padlock shows only on the cart reveal (#105).
+## Marks go by product: a later copy of a marked product shares its mark, since copies carry no
+## origin in the save; only a product that was not in the deal carries none. A legend beside the
+## tag line names the marks. The tickets' family glyphs show their names below the ticket on
+## hover (GlyphTips, mounted by the screen).
 ##
 ## The Run info page shows the owned upgrades (each with its LOYALTY stamp ring), this shift's and
 ## the next shift's inspections (a warning sign on an inspected one), and the run's stock: every
 ## item the RECEIPT REWARDS machine can offer, new arrivals with a NEW chip. Its shelves scroll.
 ##
 ## Hovering an item opens the scan popup (ScanPopup, as on the machine's prizes) beside it with
-## its rule text in full. In choosing mode (the machine's deck-full chooser, #77) only the Cart page
-## shows, a hovered item gets a gold ring, and clicking it chooses one of its copies (to remove it
-## from the deck); Close cancels the pick. It only displays RunState and DeckSummary.
+## its rule text in full. The mix highlight (#105 piece 3, MixModel; mock-up readability v3's Cart)
+## paints every cell of both pages: the hovered item lights the cells it works with (a broad "next
+## Food" match faint) and greys the rest, and `mix_family` (a family glyph's tooltip in the view,
+## PlanningEffects.watch_glyphs) lights that family's cells instead. Off in choosing mode. In
+## choosing mode (the machine's deck-full chooser, #77) only the Cart page shows, a hovered item
+## gets a gold ring, and clicking it chooses one of its copies (to remove it from the deck); Close
+## cancels the pick. It only displays RunState and DeckSummary.
 
 signal closed
 signal card_chosen(card: CardInstance)
@@ -68,11 +73,18 @@ const UPGRADE_NAME_WEIGHT := 750
 const ICON_TEXT_GAP := 8
 const LEGEND_SIZE := 14
 const LEGEND_CHIP := Vector2(18, 18)
-const STAPLE_LEGEND := "staple"
 const PICK_LEGEND := "start pick"
 const COUPON_LEGEND := "start coupon"
 const STOCK_HEADING := "STOCK  (every item the RECEIPT REWARDS machine can offer this run)"
 
+## The family whose glyph's tooltip shows in the view (#105 piece 3), or "": its cells light.
+var mix_family: String = "":
+	set(value):
+		if mix_family != value:
+			mix_family = value
+			_paint_mix()
+## The mix highlight's grey (PlanningTuning's).
+var tuning: PlanningTuning = load(PlanningEffects.TUNING_PATH) as PlanningTuning
 var _title: MixedLabel
 var _deck_tab: FramedButton
 var _info_tab: FramedButton
@@ -81,7 +93,7 @@ var _scroll: ScrollContainer
 var _deck_page: VBoxContainer
 var _info_page: VBoxContainer
 var _choosing: bool = false
-## The run's starting deck, for the staple and pick marks (null: no marks).
+## The run's starting deck, for the pick marks (null: no marks).
 var _starter: DeckDefinition
 var _balance: BalanceDefinition
 ## The scan popup's layer (top level, over the view), the popup, and the hovered cell.
@@ -207,13 +219,14 @@ func hover(cell: DeckCell) -> void:
 	item.lifted = true
 	cell.ringed = _choosing
 	_popup.visible = true
-	_popup.show_card(item.card.definition, item.aisle, item.tags())
+	_popup.show_card(item.card.definition, item.tags())
 	_popup.place_at(
 		item.get_global_transform() * Rect2(ItemView.TRAY_SPRITE, ItemView.SPRITE_SIZE),
 		item.below_rect(),
 		get_viewport_rect(),
 		_scroll.get_global_rect()
 	)
+	_paint_mix()
 
 
 func _header() -> HBoxContainer:
@@ -326,8 +339,7 @@ func _deck_cell(group: DeckSummary.Group) -> DeckCell:
 	var cell: DeckCell = _cell(group.copies[0], group.copies.size())
 	if _marks_shown():
 		var card: CardDefinition = group.card
-		var staple: bool = card.is_product() and _starter.core_cards.any(card.is_same_product)
-		cell.add_origin_marks(staple, StartingDeck.picks(_starter).any(card.is_same_product))
+		cell.add_origin_marks(StartingDeck.picks(_starter).any(card.is_same_product))
 	return cell
 
 
@@ -341,7 +353,6 @@ func _legend() -> HBoxContainer:
 	legend.name = "Legend"
 	legend.add_theme_constant_override("separation", 6)
 	var entries: Array[Array] = [
-		[Palette.MUSTARD, RevealTile.LOCK_ICON, STAPLE_LEGEND],
 		[Palette.TEAL_BRIGHT, RevealTile.PICK_ICON, PICK_LEGEND],
 		[Palette.TOMATO, RevealTile.COUPON_ICON, COUPON_LEGEND],
 	]
@@ -433,7 +444,7 @@ func _aisle_line(aisles: Array[AisleDefinition]) -> HBoxContainer:
 	row.add_child(UiKit.body_label("Aisles:", LINE_SIZE, Palette.PAPER))
 	for index: int in aisles.size():
 		var glyph: TextureRect = UiKit.sprite(load(ArtStyle.glyph_path(aisles[index])) as Texture2D)
-		glyph.custom_minimum_size = ScanPopup.GLYPH_SIZE
+		glyph.custom_minimum_size = Vector2.ONE * ArtStyle.FAMILY_GLYPH_SIZE
 		glyph.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 		row.add_child(glyph)
 		var comma: String = "," if index < aisles.size() - 1 else ""
@@ -504,6 +515,35 @@ func _unhover() -> void:
 	_hovered = null
 	if _popup != null:
 		_popup.visible = false
+	_paint_mix()
+
+
+## The mix highlight on every cell of both pages: `mix_family`'s, else the hovered cell's
+## matches, else none (and none in choosing mode).
+func _paint_mix() -> void:
+	if _deck_page == null or _info_page == null:
+		return
+	var painted: Array[DeckCell] = []
+	var entries: Array[MixModel.Entry] = []
+	var focus: MixModel.Entry = null
+	for page: Control in [_deck_page, _info_page]:
+		for found: Node in page.find_children("*", "DeckCell", true, false):
+			var cell: DeckCell = found as DeckCell
+			if cell.is_queued_for_deletion():
+				continue
+			var entry: MixModel.Entry = MixModel.Entry.new(cell.item().card, cell.item().tags())
+			painted.append(cell)
+			entries.append(entry)
+			if cell == _hovered:
+				focus = entry
+	var looks: Array[MixModel.Look] = []
+	if not _choosing and not mix_family.is_empty():
+		looks = MixModel.for_family(entries, mix_family)
+	elif not _choosing and focus != null:
+		looks = MixModel.for_card(entries, focus, null, FamilyPalette.shared().quiet_families)
+	for index: int in range(painted.size()):
+		painted[index].mix_greyness = Vector2(tuning.mix_brightness, tuning.mix_saturation)
+		painted[index].mix_look = looks[index] if index < looks.size() else MixModel.Look.NONE
 
 
 func _heading(text: String) -> MixedLabel:

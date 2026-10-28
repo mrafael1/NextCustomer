@@ -5,7 +5,7 @@ extends GdUnitTestSuite
 ## outside them to FILES.
 
 ## Subfolders are loaded too, so "res://data" covers data/cards, data/decks, data/balance,
-## data/upgrades, data/inspections, data/aisles and data/catalogue;
+## data/upgrades, data/inspections, data/aisles, data/catalogue and data/families (#105);
 ## test_every_data_folder_is_loaded checks that.
 const FOLDERS := [
 	"res://data",
@@ -51,10 +51,16 @@ func test_every_scene_and_resource_loads() -> void:
 			assert_object(resource).override_failure_message(path).is_instanceof(
 				ItemUpgradeDefinition
 			)
+		elif path.ends_with("/families/family_palette.tres"):
+			assert_object(resource).override_failure_message(path).is_instanceof(FamilyPalette)
+		elif path.contains("/families/"):
+			assert_object(resource).override_failure_message(path).is_instanceof(FamilyStyle)
 		elif path.contains("/aisles/"):
 			assert_object(resource).override_failure_message(path).is_instanceof(AisleDefinition)
 		elif path.ends_with("/balance/count_up.tres"):
 			assert_object(resource).override_failure_message(path).is_instanceof(CountUpTuning)
+		elif path.ends_with("/balance/count_total.tres"):
+			assert_object(resource).override_failure_message(path).is_instanceof(CountTotalTuning)
 		elif path.ends_with("/balance/scan.tres"):
 			assert_object(resource).override_failure_message(path).is_instanceof(ScanTuning)
 		elif path.ends_with("/balance/machine_tempo.tres"):
@@ -96,6 +102,7 @@ func test_every_data_folder_is_loaded() -> void:
 		"catalogue",
 		"builds",
 		"item_upgrades",
+		"families",
 	]:
 		var prefix: String = "res://data/%s/" % folder
 		var found: bool = files.any(func(path: String) -> bool: return path.begins_with(prefix))

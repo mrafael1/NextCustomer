@@ -4,13 +4,16 @@ extends Control
 ## its tray item (ItemView, TRAY: the sprite over its price sticker, a BIG or GOLDEN copy's tier
 ## tag under the sticker) and its name under it. Its other copies stand stacked behind the first,
 ## dimmed, and a cream price-gun label slapped on the art counts them ("×3"). On the Cart page the
-## cart reveal's marks (v0.51) sit on the art's top-left corner: the mustard padlock of a staple's
-## product, the teal "+" of a starting pick's (the tomato token for the coupon). In the stock a new
-## arrival carries a mustard NEW chip there instead. The name is the plain product's (the art and
-## the tier tag show the tier), stepped down to fit.
+## cart reveal's pick marks (v0.51) sit on the art's top-left corner: the teal "+" of a starting
+## pick's product (the tomato token for the coupon); the staple padlock shows only on the cart
+## reveal (#105). In the stock a new arrival carries a mustard NEW chip there instead. The name is
+## the plain product's (the art and the tier tag show the tier), stepped down to fit.
 ##
 ## Hover (the pointer on its sprite or sticker) lifts the art; `ringed` draws the chooser's gold
-## ring round it. It only displays its card: DeckView owns the clicks, the hover and the popup.
+## ring round it. The mix highlight (#105 piece 3, mock-up readability v3's Cart) greys the whole
+## cell for GREY and FAINT (`mix_look`; FAINT also draws a faint dashed outline round it,
+## FAINT_RECT, and never a check: the Cart has no order). It only displays its card: DeckView owns
+## the clicks, the hover, the highlight and the popup.
 
 const SIZE := Vector2(108, 200)
 ## The name's line under the sticker and the tier tag (PriceSticker.TIER_TAG_RECT reaches y 182).
@@ -37,11 +40,12 @@ const NEW_TEXT := "NEW"
 const RING_WIDTH := 4.0
 const RING_OUTSET := 4.0
 ## Node names (for tests).
-const STAPLE_MARK := "StapleMark"
 const PICK_MARK := "PickMark"
 const NEW_MARK := "NewMark"
 const COUNT_LABEL := "CountLabel"
 const NAME_LABEL := "NameLabel"
+## A faint match's dashed outline (mock-up readability v3: 112 wide from 2 px left of the cell).
+const FAINT_RECT := Rect2(-2, 2, 112, 196)
 
 var card: CardDefinition
 ## The chooser's gold ring round the item.
@@ -49,10 +53,19 @@ var ringed: bool = false:
 	set(value):
 		ringed = value
 		queue_redraw()
+## The mix highlight's look (#105 piece 3): GREY and FAINT grey every part (ArtStyle.set_mix_grey
+## to `mix_greyness`), FAINT adds its dashed outline. Set the greyness first.
+var mix_look: MixModel.Look = MixModel.Look.NONE:
+	set(value):
+		mix_look = value
+		_show_mix()
+## The calm grey's brightness (x) and saturation (y), PlanningTuning's.
+var mix_greyness: Vector2 = Vector2.ONE
 var _item: ItemView
 var _name: Label
 var _count: EffectSticker
 var _marks: Array[RevealChip] = []
+var _mix_mark: MixMark
 
 
 ## The cell of `instance` (its group's first copy) in `aisle`, with `copies` copies of it.
@@ -94,11 +107,9 @@ static func name_size(text: String) -> int:
 	return NAME_SIZES[-1]
 
 
-## Adds the cart reveal's marks (v0.51): the padlock of a staple, then the "+" of a starting pick
-## (the token of the starting coupon).
-func add_origin_marks(staple: bool, picked: bool) -> void:
-	if staple:
-		_add_mark(STAPLE_MARK, RevealChip.new(Palette.MUSTARD, MARK_SIZE, RevealTile.LOCK_ICON))
+## Adds the cart reveal's pick mark (v0.51): the "+" of a starting pick (the token of the
+## starting coupon). A staple carries no mark here: its padlock is the cart reveal's (#105).
+func add_origin_marks(picked: bool) -> void:
 	if picked:
 		var coupon: bool = card.is_coupon()
 		var chip: RevealChip = RevealChip.new(
@@ -149,6 +160,28 @@ func _add_mark(mark_name: String, chip: RevealChip) -> void:
 	add_child(chip)
 
 
+## The mix look on every part but the outline, and the outline (made at the first FAINT).
+func _show_mix() -> void:
+	var grey: float = 1.0 if MixModel.greys(mix_look) else 0.0
+	for child: Node in get_children():
+		if child != _mix_mark and child is CanvasItem:
+			ArtStyle.set_mix_grey(child as CanvasItem, grey, mix_greyness)
+	if _mix_mark == null and mix_look != MixModel.Look.FAINT:
+		return
+	if _mix_mark == null:
+		_mix_mark = MixMark.new()
+		add_child(_mix_mark)
+	var faint: bool = mix_look == MixModel.Look.FAINT
+	_mix_mark.show_look(
+		MixModel.Look.FAINT if faint else MixModel.Look.NONE, FAINT_RECT.grow(MixMark.INSET)
+	)
+
+
+## The faint outline (this cell's coordinates), or null before the first one.
+func mix_mark() -> MixMark:
+	return _mix_mark
+
+
 ## Up to STACK_MAX dimmed copies of the item's art behind it, farthest first.
 func _add_stack(copies: int) -> void:
 	var behind: int = mini(copies - 1, STACK_MAX)
@@ -156,7 +189,8 @@ func _add_stack(copies: int) -> void:
 		var copy: TextureRect = UiKit.sprite(_item.sprite().texture)
 		copy.size = ItemView.SPRITE_SIZE
 		copy.position = ItemView.TRAY_SPRITE + STACK_STEP * index
-		copy.modulate = STACK_TINT
+		# Its own tint (self_modulate), so the mix highlight's grey (the modulate) adds to it.
+		copy.self_modulate = STACK_TINT
 		add_child(copy)
 
 

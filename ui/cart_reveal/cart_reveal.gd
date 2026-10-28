@@ -62,8 +62,6 @@ var reduced_motion: bool = false
 ## How long the pointer stays on a tile before its popup opens (ms).
 var hover_hold_ms: int = 0
 var _panel: RevealPanel
-## The run's balance (the cards' aisles for the popup).
-var _balance: BalanceDefinition
 ## The scan popup, over the panel, and the tile it shows (null: hidden); the tile under the
 ## pointer and how long it has stayed there (s).
 var _popup: ScanPopup
@@ -120,7 +118,6 @@ func play(run: RunState, cart: Control, reduced: bool) -> bool:
 	if picks.is_empty():
 		return false
 	_cart = cart
-	_balance = run.balance
 	reduced_motion = reduced
 	_panel = RevealPanel.new(
 		run.starter.core_cards,
@@ -279,9 +276,8 @@ func hover_for(seconds: float) -> void:
 func show_popup(tile: RevealTile) -> void:
 	_hover_tile = tile
 	_shown_tile = tile
-	var aisle: AisleDefinition = _balance.aisle_of(tile.card) if _balance != null else null
 	_popup.visible = true
-	_popup.show_card(tile.card, aisle, tile.card.tags)
+	_popup.show_card(tile.card, tile.card.tags)
 	_place_popup()
 	Sfx.play_at(self, ScanController.HOVER_SOUND, ScanController.HOVER_DB)
 

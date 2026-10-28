@@ -73,7 +73,7 @@ func test_the_tag_says_how_far_the_quota_is() -> void:
 	assert_bool(meter.is_near()).is_true()
 	assert_that(meter.tag_label.get_theme_color("font_color")).is_equal(Palette.INK)
 	meter.show_projected(73, 73)
-	assert_str(meter.tag_label.text).is_equal(LedBeat.ON_QUOTA_TEXT)
+	assert_str(meter.tag_label.text).is_equal(QuotaMeter.ON_QUOTA_TEXT)
 	assert_bool(meter.is_near()).is_false()
 	meter.show_projected(117, 73)
 	assert_str(meter.tag_label.text).is_equal("+€44")

@@ -97,10 +97,11 @@ func test_the_game_deals_the_recipe_deck() -> void:
 	assert_int(view.card_views().size()).is_equal(_distinct(run.starter.cards))
 
 
-## v0.51: the Cart page keeps the cart reveal's marks for the run (#56: on the item's art): a
-## staple's padlock, then a starting pick's "+" (the coupon's token), both on a staple dealt
-## again; a card only the machine gave has none. The marks sit on the art's top left, inside the
-## cell, apart from each other and clear of the copies' count label; the legend names them.
+## v0.51: the Cart page keeps the cart reveal's pick marks for the run (#56: on the item's art):
+## a starting pick's "+" (the coupon's token); a staple and a card only the machine gave have
+## none (#105: the staple's padlock shows only on the cart reveal). The marks sit on the art's top
+## left, inside the cell, apart from each other and clear of the copies' count label; the legend
+## names them and has no staple entry.
 func test_the_cart_page_marks_staples_and_picks() -> void:
 	var screen: ShiftScreen = await _screen()
 	screen.start_new_run(20261014, false)
@@ -116,13 +117,11 @@ func test_the_cart_page_marks_staples_and_picks() -> void:
 	var seen: Dictionary[String, Array] = {}
 	for cell: DeckCell in view.cells():
 		var card: CardDefinition = cell.card
-		var staple: Node = cell.get_node_or_null(DeckCell.STAPLE_MARK)
+		var staple: Node = cell.find_child("*Staple*", true, false)
 		var pick: Node = cell.get_node_or_null(DeckCell.PICK_MARK)
 		var id: String = String(card.id)
 		seen[id] = [staple != null, pick != null]
-		assert_bool(staple != null).override_failure_message(id).is_equal(
-			card.is_product() and run.starter.core_cards.has(card)
-		)
+		assert_bool(staple != null).override_failure_message(id).is_false()
 		assert_bool(pick != null).override_failure_message(id).is_equal(picks.has(card))
 		var column: Rect2 = cell.get_global_rect()
 		var count: Control = cell.get_node_or_null(DeckCell.COUNT_LABEL)
@@ -142,17 +141,16 @@ func test_the_cart_page_marks_staples_and_picks() -> void:
 			for other: Rect2 in placed:
 				assert_bool(rect.intersects(other)).override_failure_message(id).is_false()
 			placed.append(rect)
-	# Banana: a staple only; Milk and Eggs: staples dealt again; the coupon: a pick (its token).
-	assert_array(seen["banana"]).is_equal([true, false])
-	assert_array(seen["milk"]).is_equal([true, true])
-	assert_array(seen["eggs"]).is_equal([true, true])
+	# Banana: a staple only (no mark); Milk and Eggs: staples dealt again; the coupon: a pick.
+	assert_array(seen["banana"]).is_equal([false, false])
+	assert_array(seen["milk"]).is_equal([false, true])
+	assert_array(seen["eggs"]).is_equal([false, true])
 	assert_array(seen["coffee"]).is_equal([false, false])
 	var coupon: CardDefinition = picks[0]
 	assert_bool(coupon.is_coupon()).is_true()
 	assert_array(seen[String(coupon.id)]).is_equal([false, true])
-	assert_array(Array(view.texts())).contains(
-		[DeckView.STAPLE_LEGEND, DeckView.PICK_LEGEND, DeckView.COUPON_LEGEND]
-	)
+	assert_array(Array(view.texts())).contains([DeckView.PICK_LEGEND, DeckView.COUPON_LEGEND])
+	assert_array(Array(view.texts())).not_contains(["staple"])
 
 
 ## #56: any dealt cart, and a full cart of 15 distinct cards with BIG and GOLDEN copies, fits the
@@ -503,6 +501,95 @@ func test_hovering_an_item_shows_its_effect() -> void:
 		assert_bool(cell.item().lifted).is_false()
 		assert_bool(cell.ringed).is_false()
 		view._close()
+
+
+## The mix highlight in the Cart (#105 piece 3, mock-up readability v3's Cart): hovering an item
+## lights the cells it works with and greys the whole of every other cell (a broad "next Food"
+## match greyed under a dashed outline round its cell, never a check); a family lights its cells;
+## leaving puts every cell back; in choosing mode nothing greys.
+func test_the_cart_lights_what_an_item_works_with() -> void:
+	var screen: ShiftScreen = await _screen()
+	var view: DeckView = screen._deck_view
+	view.open(screen.run, "Your cart", false)
+	await get_tree().create_timer(0.4).timeout
+	var cells: Array[DeckCell] = view.cells()
+	var milk: DeckCell = null
+	for cell: DeckCell in cells:
+		if cell.card.product_card().id == &"milk":
+			milk = cell
+	assert_object(milk).is_not_null()
+	milk.item().hovered.emit(milk.item())
+	var lit: int = 0
+	var greyed: int = 0
+	for cell: DeckCell in cells:
+		var hit: CardAffinity.Match = CardAffinity.between(
+			milk.card,
+			milk.card.tags,
+			cell.card,
+			cell.card.tags,
+			FamilyPalette.shared().quiet_families
+		)
+		var expected: MixModel.Look = MixModel.Look.GREY
+		if cell == milk:
+			expected = MixModel.Look.SELF
+		elif hit == CardAffinity.Match.YES:
+			expected = MixModel.Look.LIT
+		elif hit == CardAffinity.Match.WEAK:
+			expected = MixModel.Look.FAINT
+		assert_int(cell.mix_look).override_failure_message(cell.card.id).is_equal(expected)
+		var grey: bool = MixModel.greys(expected)
+		var brightness: float = view.tuning.mix_brightness if grey else 1.0
+		assert_float(cell.item().modulate.r).is_equal_approx(brightness, 0.001)
+		assert_float(cell.name_label().modulate.r).is_equal_approx(brightness, 0.001)
+		lit += 1 if expected == MixModel.Look.LIT else 0
+		greyed += 1 if grey else 0
+		var outline: bool = cell.mix_mark() != null and cell.mix_mark().visible
+		assert_bool(outline).is_equal(expected == MixModel.Look.FAINT)
+		if outline:
+			var drawn: Rect2 = cell.get_global_transform() * cell.mix_mark().mark_rect()
+			assert_bool(screen.get_global_rect().encloses(drawn)).is_true()
+	assert_int(lit).is_greater(0)
+	assert_int(greyed).is_greater(0)
+	milk.item().unhovered.emit(milk.item())
+	var stacked: int = 0
+	for cell: DeckCell in cells:
+		assert_int(cell.mix_look).is_equal(MixModel.Look.NONE)
+		assert_float(cell.item().modulate.r).is_equal(1.0)
+		# The copies stacked behind keep their dimmed tint through the hover and after it.
+		for copy: TextureRect in _stack_copies(cell):
+			assert_that(copy.self_modulate).is_equal(DeckCell.STACK_TINT)
+			assert_float(copy.modulate.r).is_equal(1.0)
+			stacked += 1
+	assert_int(stacked).is_greater(0)
+	# A family lights its cells.
+	view.mix_family = "Breakfast"
+	for cell: DeckCell in cells:
+		var in_family: bool = cell.item().tags().has("Breakfast")
+		var expected: MixModel.Look = MixModel.Look.LIT if in_family else MixModel.Look.GREY
+		assert_int(cell.mix_look).override_failure_message(cell.card.id).is_equal(expected)
+	view.mix_family = ""
+	view._close()
+	# Choosing mode: no highlight.
+	view.open(screen.run, "choose", true)
+	await get_tree().create_timer(0.4).timeout
+	var chooser: DeckCell = view.cells()[0]
+	chooser.item().hovered.emit(chooser.item())
+	view.mix_family = "Breakfast"
+	for cell: DeckCell in view.cells():
+		assert_int(cell.mix_look).is_equal(MixModel.Look.NONE)
+	view.mix_family = ""
+	view._close()
+
+
+## The copies stacked behind `cell`'s item (DeckCell._add_stack): its plain sprites tinted
+## STACK_TINT.
+func _stack_copies(cell: DeckCell) -> Array[TextureRect]:
+	var copies: Array[TextureRect] = []
+	for child: Node in cell.get_children():
+		var copy: TextureRect = child as TextureRect
+		if copy != null and copy.self_modulate == DeckCell.STACK_TINT:
+			copies.append(copy)
+	return copies
 
 
 ## #56: the title's and headings' numbers print in the number font (Pixelify's digits read poorly),

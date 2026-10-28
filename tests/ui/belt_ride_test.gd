@@ -10,9 +10,10 @@ extends GdUnitTestSuite
 ## landed step's sticker (punch, then a check on its corner), sends an armed giver's sparks to its
 ## targets' stickers, and ends with the belt empty and the bag holding the row; a resumed checkout
 ## shows that end at once, and the next shift's reset brings the row back and empties the bag.
-## No printed name goes into the bag, a bagged item's stickers stay hidden, and a folded stack
-## fires only for the steps it folded in. Every rect is checked on screen (headless runs use a
-## 1280x1280 window: the stage is centred, 280 px down). The real saves and logs are never touched.
+## No printed name goes into the bag, a bagged item's stickers stay hidden, and a folded stack's
+## chip counts down only for the steps it folded in. Every rect is checked on screen (headless runs
+## use a 1280x1280 window: the stage is centred, 280 px down). The real saves and logs are never
+## touched.
 
 const SCREEN := "res://ui/shift_screen.tscn"
 const ROW: Array[String] = ["milk", "bread", "eggs", "milk"]
@@ -158,8 +159,9 @@ func test_a_bagged_items_stickers_stay_hidden() -> void:
 		assert_bool(sticker.is_visible_in_tree()).is_false()
 
 
-## A folded stack ("…+N") fires for the steps it folded in, never for a step on its item with no
-## sticker (a denial, a repeated fizzle).
+## A folded stack's chip ("+N") fires for the steps it folded in, never for a step on its item with
+## no sticker (a denial, a repeated fizzle): it counts down by one for each, never gets a check,
+## and goes (alpha 0) after the last (#105 piece 3).
 func test_a_fold_fires_only_for_the_steps_it_folded() -> void:
 	var screen: ShiftScreen = await _screen()
 	await _full_row(screen)
@@ -188,6 +190,19 @@ func test_a_fold_fires_only_for_the_steps_it_folded() -> void:
 	for spec: StickerSpec in specs:
 		assert_object(ride._sticker_of(slot, spec.step_index)).is_same(fold)
 	assert_object(ride._sticker_of(slot, bare)).is_null()
+	assert_str(fold.text()).is_equal(StickerSpec.MORE_TEXT % specs.size())
+	ride._reduced = true
+	ride._on_step_landed(bare)
+	assert_str(fold.text()).is_equal(StickerSpec.MORE_TEXT % specs.size())
+	for index: int in range(specs.size()):
+		ride._on_step_landed(specs[index].step_index)
+		assert_bool(fold.is_fired()).is_true()
+		assert_bool(fold.has_check()).is_false()
+		var left: int = specs.size() - 1 - index
+		if left > 0:
+			assert_str(fold.text()).is_equal(StickerSpec.MORE_TEXT % left)
+			assert_float(fold.modulate.a).is_equal(1.0)
+	assert_float(fold.modulate.a).is_equal(0.0)
 
 
 ## Every ride, then the last (no item to scan): the belt ends empty with the row at rest, the
@@ -253,6 +268,9 @@ func test_a_checkout_rides_every_item_into_the_bag_and_fires_the_stickers() -> v
 	var charged: Array[bool] = [false]
 	var sparks: Array[int] = [0]
 	var failures: Array[String] = []
+	# The sparks draw over the stickers, under the hover's hot strips and the stack fan.
+	assert_object(ride.sparks().get_parent()).is_same(layer)
+	assert_int(ride.sparks().get_index()).is_equal(layer.fan().get_index() - 2)
 	screen._on_checkout_pressed()
 	assert_bool(screen._count_up.source_rect == Callable(ride, "source_rect")).is_true()
 	while screen._counting:

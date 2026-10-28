@@ -1,0 +1,11 @@
+; The glyph tooltip's tail (#105, mock-up readability v3, tipTail), pointing down at the glyph
+; from a tooltip opened above it (flip_v when it opens below a ticket). Its top row is drawn
+; over the tooltip's bottom outline, so the tail opens into the ink light face; the tip is the
+; single pixel at the bottom middle.
+@size 7x4
+@kind frame
+@scale 2
+#%%%%%#
+.#%%%#.
+..#%#..
+...#...

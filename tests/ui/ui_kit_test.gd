@@ -227,9 +227,10 @@ func test_shift_screen_frames() -> void:
 		LoyaltyCard.CARD_FRAME: Vector2i.ONE * 2 * LoyaltyCard.FRAME_MARGIN,
 		RegisterCabinet.COLUMN_FRAME: Vector2i.ONE * 2 * RegisterCabinet.COLUMN_MARGIN,
 		RegisterCabinet.DECK_FRAME: Vector2i.ONE * 2 * RegisterCabinet.DECK_MARGIN,
-		PriceSticker.FRAME:
+		PriceSticker.PLAIN_FRAME:
 		Vector2i(
-			2 * PriceSticker.FRAME_MARGIN, PriceSticker.FRAME_TOP_MARGIN + PriceSticker.FRAME_MARGIN
+			2 * PriceSticker.PLAIN_FRAME_MARGIN,
+			PriceSticker.PLAIN_FRAME_TOP_MARGIN + PriceSticker.PLAIN_FRAME_MARGIN
 		),
 	}
 	for kind: RegisterKey.Kind in RegisterKey.FRAMES:

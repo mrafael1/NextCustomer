@@ -115,6 +115,20 @@ var _reshow_queued: bool = false
 var _framed: bool = false
 
 
+## A belt item's payout and step lines for the monitor's item column (#105 piece 2): `payout` (-1
+## for a hand item), its `lines` (ReceiptView.step_line, after its "gives" line), each with
+## whether it is a fizzle and its giver's mini (null for none); the first `gives` lines are
+## "gives" lines.
+class ItemLines:
+	extends RefCounted
+
+	var payout: int = -1
+	var lines: PackedStringArray = PackedStringArray()
+	var fizzles: Array[bool] = []
+	var minis: Array[Texture2D] = []
+	var gives: int = 0
+
+
 func _ready() -> void:
 	set_process(false)
 	get_window().mouse_exited.connect(clear)
@@ -270,6 +284,51 @@ static func footer_steps(result: ScoreResult, slot: int) -> Array[ScoreStep]:
 				continue
 		steps.append(step)
 	return steps
+
+
+## Belt item `slot`'s payout and step lines as the monitor shows them (see ItemLines), from the
+## last set_result; a hand item's (payout -1, no lines) when there is no result for it.
+func item_lines(slot: int) -> ItemLines:
+	var shown: ItemLines = ItemLines.new()
+	if _result == null or slot < 0 or slot >= _result.payouts.size():
+		return shown
+	shown.payout = _result.payouts[slot]
+	var given: String = gives_line(_result, slot, _names)
+	if not given.is_empty():
+		shown.lines.append(given)
+		shown.fizzles.append(false)
+		shown.minis.append(null)
+		shown.gives = 1
+	for step: ScoreStep in footer_steps(_result, slot):
+		var fizzle: bool = step.step_type == ScoreStep.StepType.WASTED
+		# A WASTED line says why in the monitor's room (MonitorText.waste_line); the receipt's
+		# full wording stays on the receipt.
+		shown.lines.append(
+			(
+				MonitorText.waste_line(step)
+				if fizzle
+				else ReceiptView.step_line(step, _names, _upgrade_names, _inspection_names)
+			)
+		)
+		shown.fizzles.append(fizzle)
+		shown.minis.append(_giver_mini(step))
+	return shown
+
+
+## `step`'s receipt line (ReceiptView.step_line) with the names of the last set_result.
+func line_of(step: ScoreStep) -> String:
+	return ReceiptView.step_line(step, _names, _upgrade_names, _inspection_names)
+
+
+## The mini of the item that gave `step` (another item on the belt), or null.
+func _giver_mini(step: ScoreStep) -> Texture2D:
+	if step.source_kind != ScoreStep.SourceKind.CARD:
+		return null
+	var giver: int = step.source_slot
+	if giver < 0 or giver == step.slot or giver >= _row.size() or _row[giver] == null:
+		return null
+	var ref: String = _row[giver].card.definition.badge_mini_ref()
+	return load(ref) as Texture2D if not ref.is_empty() and ResourceLoader.exists(ref) else null
 
 
 ## The "gives" line of the belt item at `slot` in `result` (see GIVES_TEXT; `names` are the row's
@@ -431,22 +490,10 @@ func _show(view: ItemView) -> void:
 				docked.dock()
 		return
 	var definition: CardDefinition = view.card.definition
-	var lines: PackedStringArray = PackedStringArray()
-	var fizzles: Array[bool] = []
-	var payout: int = -1
 	var slot: int = _row.find(view)
-	var gives: int = 0
-	if view.form == ItemView.Form.BELT and _result != null and slot >= 0:
-		if slot < _result.payouts.size():
-			payout = _result.payouts[slot]
-		var given: String = gives_line(_result, slot, _names)
-		if not given.is_empty():
-			lines.append(given)
-			fizzles.append(false)
-			gives = 1
-		for step: ScoreStep in footer_steps(_result, slot):
-			lines.append(ReceiptView.step_line(step, _names, _upgrade_names, _inspection_names))
-			fizzles.append(step.step_type == ScoreStep.StepType.WASTED)
+	var shown: ItemLines = ItemLines.new()
+	if view.form == ItemView.Form.BELT and slot >= 0:
+		shown = item_lines(slot)
 	var offer: bool = _offers.has(view)
 	var marks: ScanOverlay = _offer_overlay if offer else _overlay
 	var other: ScanOverlay = _overlay if offer else _offer_overlay
@@ -459,7 +506,7 @@ func _show(view: ItemView) -> void:
 		# Over the offers, a click on the popup stops there (see the class comment).
 		_popup.mouse_filter = Control.MOUSE_FILTER_STOP
 		_popup.visible = true
-		_popup.show_card(definition, view.aisle, view.tags())
+		_popup.show_card(definition, view.tags())
 		_popup.place_at(
 			sprite, view.below_rect(), _stage.get_global_rect(), _offer_panel.get_global_rect()
 		)
@@ -467,7 +514,7 @@ func _show(view: ItemView) -> void:
 		_highlight(-1)
 	else:
 		_popup.visible = false
-		_monitor.show_scan(definition, view.aisle, view.tags(), payout, lines, fizzles, gives)
+		_monitor.show_scan(definition, view.tags(), shown)
 		_highlight(slot if view.form == ItemView.Form.BELT else -1)
 	marks.pose_hover(sprite)
 	if _wants_reduced_motion():

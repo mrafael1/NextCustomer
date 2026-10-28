@@ -12,10 +12,16 @@ extends Node
 ## The beats (CountUpBeats, which plays each kind): a plain card's scan beep, note, base pop and
 ## payout in one short beat; bonuses flying in from the card (or upgrade box) that caused them;
 ## multiplier stamps; copies; Soup's and the inspections' "denied"; sticker and Bundle moments;
-## an armed effect's glow; fizzle puffs; a payout's "+€N" flying to its receipt line
-## (ReceiptFly); a receipt printer that runs faster as the run goes on, with three ticks per
-## payout roll; a register rattle on big payouts; the quota ding (quota_met, held by its
-## hit-stop); then a held breath (longer and rattling for a large total) and the TOTAL line.
+## an armed effect's glow; fizzle puffs; a payout's receipt line fading in; a receipt printer that
+## runs faster as the run goes on; a register rattle on big payouts; the quota ding (quota_met,
+## held by its hit-stop); then a held breath (longer and rattling for a large total) and the TOTAL
+## line.
+##
+## The total (#105 piece 2, mock-up readability_v3.html): the LED (LedDisplay, the reading the
+## monitor's checkout column and the top bar both follow) counts in whole euros at each landing
+## (CountUpPlan's landings: a base, a +N, a ×'s gain, a denial's fall), in at most three ticks
+## per landing (CountTotalTuning, data/balance/count_total.tres), each tick sounding as the digits
+## change; `landing` tells the monitor (its punch, sparks, chips and ladder).
 ##
 ## The scan (#86 v6): the items come to the scanner one by one. Before the first beat of each
 ## item's scan group (CountUpPlan), the count emits `ride` and waits the plan's ride gap while the
@@ -29,7 +35,8 @@ extends Node
 ##
 ## Sound (D1, #62): gain beats climb the plan's note ladder (Sfx.play_note), an armed beat
 ## replays the current note quietly over its shimmer (`armed`) and a stamp plays its sample (3
-## takes in turn) with the note under it. Nothing follows the subtotal. A payout's register
+## takes in turn) with the note under it, each on its landing's first tick, and every tick of the
+## total plays the tick sound in the same callback that changes it. A payout's register
 ## rattle sounds with its shake, its take and volume following the shake's pixels (rattle_s,
 ## rattle_m, rattle_l); a large total rattles through the pause, and a huge one rings the
 ## register bell too. The next-shift notice prints with the printer's feed, then the light
@@ -57,8 +64,9 @@ extends Node
 ## frame is still a tap). The checkout click is ignored (a press still held at the start is
 ## ignored up to its release), so is the second click of a double-click on it (CHECKOUT fires on
 ## the first click's release), and a tap after the count-up does nothing. Reduced motion (the
-## context's) removes every shake and rattle, and the payouts' chips: their lines show at once;
-## the dessert's slam fades in at full size, unshaken.
+## context's) removes every shake and rattle; the payouts' lines show at once, the total jumps
+## to each landing's value (its ticks still sound); the dessert's slam fades in at full size,
+## unshaken.
 ##
 ## Steps caused by an upgrade (source_kind UPGRADE) come from that upgrade's loyalty-card box:
 ## bonuses and multipliers fly in from it, and its fizzles puff out of it. Steps caused by an
@@ -92,9 +100,12 @@ signal quota_met(pop: bool)
 ## The dessert stamped INSPECTION PASSED on the receipt (#77 machine v2: the monitor's DONE state
 ## says it too).
 signal inspection_passed
-## A payout of `payout` euros lands as its roll ends, the subtotal at `subtotal` (the monitor
-## juice: the gold sloshes and shines; emitted before quota_met when this landing meets the quota).
+## A payout of `payout` euros is paid, the subtotal at `subtotal`.
 signal payout_landed(payout: int, subtotal: int)
+## A landing beat's amount lands on the total (#105 piece 2), at its first tick (fly_ms after
+## the beat started): the monitor punches the number, throws its sparks and lights its lamp.
+## Emitted before quota_met (at the landing's crossing tick, CountUpBeat.ding_tick).
+signal landing(beat: CountUpBeat)
 ## The TOTAL line shows (the verdict; not in a resumed end state): the gold shines twice.
 signal total_landed
 
@@ -111,8 +122,7 @@ const DESSERT_SKIP := 30.0
 const CHECKOUT_DOUBLE_CLICK_MS := PressReader.CHECKOUT_DOUBLE_CLICK_MS
 ## The count-up's tuning, unless setup() is given another.
 const TUNING_PATH := "res://data/balance/count_up.tres"
-## The tick plays this many times per payout roll, evenly spaced from its start (D1).
-const TICKS_PER_ROLL := 3
+## The tick's level when no CountTotalTuning is set (its tick_db).
 const TICK_DB := -8.0
 ## An armed beat replays the current note this quietly (D1).
 const ARMED_NOTE_DB := -10.0
@@ -127,13 +137,8 @@ const RATTLE_MEDIUM_PX := 6.0
 const RATTLE_LARGE_PX := 10.0
 const RATTLE_FULL_PX := 12.0
 const RATTLE_QUIET_DB := -10.0
-## A line printed when a payout lands fades in over this (s; ReceiptFly, the dessert).
+## A line printed when a payout lands fades in over this (s; the dessert's too).
 const LINE_FADE := 0.15
-## The subtotal's punch on the TOTAL line (D11).
-const TOTAL_PUNCH := 1.5
-## A payout's subtotal punch: SUBTOTAL_PUNCH plus up to SUBTOTAL_PUNCH_MAX for bigger payouts.
-const SUBTOTAL_PUNCH := 1.1
-const SUBTOTAL_PUNCH_MAX := 0.5
 ## The dessert ducks the music (#62, Q6, #61) this far over DUCK_ATTACK_S as the pause before the
 ## total starts (the slam lands in near-silence); a dessert skip unducks it over SKIP_UNDUCK_S.
 const DESSERT_DUCK_DB := -24.0
@@ -152,6 +157,14 @@ var dessert_skipped: bool = false
 var plan: CountUpPlan
 ## The Music autoload the dessert ducks (#62), or null for none (the shift screen sets it).
 var music: MusicService
+## The monitor's total the dessert slams onto (#105 piece 2: the checkout column's TotalNumber,
+## MonitorView.follow sets it), or null: the slam is then left out.
+var total_target: TotalNumber
+## Returns true while the monitor's SPEND MET climax covers the total (#105 piece 2:
+## MonitorClimax.is_running, MonitorView.follow sets it), or unset: the dessert waits for it to end
+## before its slam, so the slam always lands on the column's number in sight (a quota met with
+## the TOTAL line, or by a late ding).
+var climax_running: Callable = Callable()
 ## Where item `slot` is now, a global Rect2 (#86 v6: the belt ride's source_rect, the scanner or
 ## the bag's mouth once bagged), for the flights and puffs that start from an item; unset, they
 ## start at the item view's centre.
@@ -164,6 +177,8 @@ var margin: ShiftMargin
 ## on a miss.
 var printer_feed_ms: int = -1
 var _tuning: CountUpTuning
+## The monitor total's tuning (CountUpPlan.TOTAL_TUNING_PATH unless setup() is given another).
+var _total_tuning: CountTotalTuning
 var _overlay: Control
 var _views: Array[CardView] = []
 var _names: PackedStringArray = PackedStringArray()
@@ -182,9 +197,6 @@ var _sfx: Sfx:
 ## Shaken on big payouts and before a large total (the register rattle).
 var _rattle_target: Control
 var _shown_subtotal: int = 0
-## The subtotal's running roll and where it ends.
-var _roll: Tween
-var _roll_to: int = 0
 var _playing: bool = false
 ## Reads the taps and holds while the count-up plays.
 var _presses: PressReader
@@ -215,31 +227,36 @@ func _init() -> void:
 	_presses.tapped.connect(_tap)
 
 
-## `rattle_target` is shaken by the register rattle; `tuning` defaults to TUNING_PATH. The LED's
-## beat (its gain chip) pops on the count-up's tweens.
+## `rattle_target` is shaken by the register rattle; `tuning` defaults to TUNING_PATH and
+## `count_total_tuning` to CountUpPlan.TOTAL_TUNING_PATH.
 func setup(
 	overlay: Control,
 	receipt: ReceiptView,
 	led: LedDisplay,
 	sfx: Sfx,
 	rattle_target: Control,
-	tuning: CountUpTuning = null
+	tuning: CountUpTuning = null,
+	count_total_tuning: CountTotalTuning = null
 ) -> void:
 	_overlay = overlay
 	_fx = CountUpMotion.new(overlay, _tween)
 	_receipt = receipt
 	_led = led
-	_led.beat().make_tween = _tween
 	_sfx = sfx
 	_rattle_target = rattle_target
 	_tuning = tuning if tuning != null else load(TUNING_PATH) as CountUpTuning
-	_dessert = CountUpDessert.new(overlay, receipt, led, sfx, _fx, rattle_target, _tween)
+	_total_tuning = count_total_tuning
+	if _total_tuning == null:
+		_total_tuning = load(CountUpPlan.TOTAL_TUNING_PATH) as CountTotalTuning
+	_dessert = CountUpDessert.new(overlay, receipt, sfx, _fx, rattle_target, _tween)
 	_dessert.inspection_stamped.connect(inspection_passed.emit)
-	_beats = CountUpBeats.new(self, overlay, receipt, led, _fx, rattle_target, _tween)
+	_beats = CountUpBeats.new(self, overlay, receipt, _fx, rattle_target, _tween)
 	_beats.sfx = sfx
+	_beats.total_tuning = _total_tuning
 	_beats.landed = _landed
 	_beats.land = _land
-	_beats.roll_subtotal = _roll_subtotal
+	_beats.set_total = _set_subtotal
+	_beats.landing = landing.emit
 	_beats.payout_landed = payout_landed.emit
 	_beats.meet_quota = _quota_met
 
@@ -264,7 +281,7 @@ func play(
 	_views = views
 	_names = names
 	_steps = result.steps
-	plan = CountUpPlan.build(result.steps, quota, context, _tuning)
+	plan = CountUpPlan.build(result.steps, quota, context, _tuning, _total_tuning)
 	_beats.begin(
 		plan,
 		_tuning,
@@ -281,10 +298,9 @@ func play(
 	printer_feed_ms = -1
 	_fx.reset(plan.reduced_motion)
 	_clear_row()
-	_led.start_count(quota, result.total)
+	_led.start_count(quota)
 	count_started.emit(_views)
 	_shown_subtotal = 0
-	_roll = null
 	_hit_stop_left_ms = 0.0
 	fast_forward_used = false
 	first_tap_ms = -1
@@ -294,9 +310,9 @@ func play(
 	_ducked = false
 	_presses.begin()
 	_playing = true
-	# The receipt starts over: the shift's header and every item's line waiting (#80).
+	# The receipt starts over: the shift's header (#80); each item's line prints as it scans.
 	_receipt.begin_count(context.receipt_header, _names)
-	_set_subtotal(0.0)
+	_set_subtotal(0)
 	for view: CardView in _views:
 		view.reset_motion()
 		view.hide_badge()
@@ -316,12 +332,10 @@ func play(
 		ride.emit(scanned, -1, plan.bag_ms)
 	_duck_for_dessert()
 	await _pause()
-	_finish_roll()
+	_set_subtotal(result.total)
 	_receipt.add_total(result.total)
 	_sfx.play("print", _beats.print_pitch())
 	_led.show_total()
-	if not plan.reduced_motion:
-		_led.gold_tank.punch(TOTAL_PUNCH)
 	if plan.chip_at_total:
 		_meet(true)
 	total_landed.emit()
@@ -331,6 +345,7 @@ func play(
 	margin = ShiftMargin.of(result.total, quota)
 	# The dessert plays the count-up's own Sfx (a test may swap it after setup()).
 	_dessert.sfx = _sfx
+	_dessert.target = total_target
 	_dessert.speed_setting = plan.speed_setting
 	_dessert.inspection = ", ".join(inspection_names)
 	# A bonus ticket follows (#77 machine v2, Q2 = 2): the dessert prints its gold stub.
@@ -339,6 +354,7 @@ func play(
 		if context.bonus_ticket
 		else ""
 	)
+	await _climax_ended()
 	await _dessert.play(
 		result.total, quota, notice, _tuning, intensity, plan.reduced_motion, _beats.print_pitch()
 	)
@@ -354,10 +370,10 @@ func play(
 ## at the total, met (quota_met without a pop) when the quota is met (D5). Sets `plan` and
 ## `intensity`; the receipt is the caller's (ReceiptView.show_result).
 func show_end_state(result: ScoreResult, quota: int, context: CountUpContext) -> void:
-	plan = CountUpPlan.build(result.steps, quota, context, _tuning)
+	plan = CountUpPlan.build(result.steps, quota, context, _tuning, _total_tuning)
 	intensity = CountUpIntensity.from_plan(plan)
 	_clear_row()
-	_led.start_count(quota, result.total)
+	_led.start_count(quota)
 	_set_subtotal(result.total)
 	_led.show_total()
 	if plan.quota_reached:
@@ -368,6 +384,19 @@ func show_end_state(result: ScoreResult, quota: int, context: CountUpContext) ->
 ## the hit-stops, taps and holds, like the count's own.
 func tween_maker() -> Callable:
 	return _tween
+
+
+## The monitor total's tuning (CountTotalTuning) this count-up plays with.
+func total_tuning() -> CountTotalTuning:
+	if _total_tuning == null:
+		_total_tuning = load(CountUpPlan.TOTAL_TUNING_PATH) as CountTotalTuning
+	return _total_tuning
+
+
+## How much faster a tap or a hold runs real-time motion now (1 for neither): the climax (#105
+## piece 2) follows it, never the hit-stops.
+func press_speed() -> float:
+	return _press_speed()
 
 
 func _process(_delta: float) -> void:
@@ -418,8 +447,8 @@ func _landed(beat: CountUpBeat) -> void:
 		step_landed.emit(index)
 
 
-## The ding beat's roll has ended (D5, CountUpBeats): the ding sounds and the quota is met; the
-## beat's hit-stop (the burst's hold) follows.
+## The ding beat's crossing tick (D5, CountUpBeats): the ding sounds and the quota is met; the
+## beat's hit-stop (the burst's hold) plays on that same tick.
 func _quota_met(with_ding: bool) -> void:
 	if with_ding:
 		_sfx.play("ding")
@@ -438,6 +467,13 @@ func _meet(pop: bool) -> void:
 func _clear_row() -> void:
 	_met = false
 	_led.reset_colour()
+
+
+## Waits while the monitor's climax runs (climax_running; real time, sped up only by a tap or a
+## hold, as the climax itself), so the dessert's slam never lands under it.
+func _climax_ended() -> void:
+	while climax_running.is_valid() and bool(climax_running.call()) and is_inside_tree():
+		await get_tree().process_frame
 
 
 ## The held breath before the TOTAL line (D4): pause_ms of real time, sped up only by a tap or
@@ -488,27 +524,9 @@ func _duck_for_dessert() -> void:
 		_ducked = true
 
 
-## Rolls the shown subtotal to `to` over `seconds` (at once for 0; CountUpBeats on a payout). A
-## roll still running ends at once first.
-func _roll_subtotal(to: int, seconds: float) -> void:
-	_finish_roll()
-	if seconds <= 0.0:
-		_set_subtotal(to)
-		return
-	_roll_to = to
-	_roll = _tween()
-	_roll.tween_method(_set_subtotal, float(_shown_subtotal), float(to), seconds)
-
-
-func _finish_roll() -> void:
-	if _roll != null and _roll.is_valid():
-		_roll.kill()
-		_set_subtotal(_roll_to)
-	_roll = null
-
-
-func _set_subtotal(value: float) -> void:
-	_shown_subtotal = roundi(value)
+## The total shown now: the LED's reading (the monitor's number, the top bar), met or not.
+func _set_subtotal(value: int) -> void:
+	_shown_subtotal = value
 	_led.show_subtotal(_shown_subtotal, _met)
 
 

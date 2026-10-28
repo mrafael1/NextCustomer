@@ -1,0 +1,13 @@
+[gd_resource type="Resource" script_class="FamilyStyle" format=3]
+
+[ext_resource type="Script" path="res://presentation/family_style.gd" id="1_style"]
+[ext_resource type="Texture2D" path="res://art/icons/family_breakfast.png" id="2_glyph"]
+
+[resource]
+script = ExtResource("1_style")
+id = "Breakfast"
+display_name = "Breakfast"
+glyph = ExtResource("2_glyph")
+face = Color(0.886275, 0.701961, 0.235294, 1)
+light = Color(0.945098, 0.823529, 0.478431, 1)
+shade = Color(0.701961, 0.517647, 0.145098, 1)

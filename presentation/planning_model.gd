@@ -11,13 +11,6 @@ enum Glyph { NONE, FIZZLE, WARNING }
 
 ## The pay tag's text.
 const PAY_TEXT := "€%d"
-## The monitor key's captions (section 7), by key entry.
-const OWN_CAPTION := "own rule"
-const ITEM_CAPTION := "from an item"
-const COUPON_CAPTION := "from a coupon"
-const LOYALTY_CAPTION := "loyalty"
-## The fizzle's caption: EffectLink.WASTED_WORD in the key's lower case (#45).
-const FIZZLE_CAPTION := "wasted"
 ## The links that make rail strips.
 const STRIP_KINDS: Array[EffectLink.Kind] = [
 	EffectLink.Kind.BONUS,
@@ -134,25 +127,6 @@ static func hot_lanes(
 	return lanes
 
 
-## The monitor key's entries (section 7): the first real sticker of each kind on the belt, in
-## the order own rule, from an item, from a coupon, loyalty, wasted. A fizzle is always
-## "wasted", whoever caused it.
-func key_entries() -> Array[StickerSpec]:
-	var firsts: Dictionary[String, StickerSpec] = {}
-	for slot: PlanningSlot in slots:
-		for sticker: StickerSpec in slot.stickers:
-			var caption: String = key_caption(sticker)
-			if not caption.is_empty() and not firsts.has(caption):
-				firsts[caption] = sticker
-	var entries: Array[StickerSpec] = []
-	for caption: String in [
-		OWN_CAPTION, ITEM_CAPTION, COUPON_CAPTION, LOYALTY_CAPTION, FIZZLE_CAPTION
-	]:
-		if firsts.has(caption):
-			entries.append(firsts[caption])
-	return entries
-
-
 ## The slots in focus when the item at `slot` is hovered (section 8.1): itself, the cards giving
 ## to it and the items it gives to, ascending.
 func related(slot: int) -> PackedInt32Array:
@@ -161,24 +135,6 @@ func related(slot: int) -> PackedInt32Array:
 	if index >= found.size() or found[index] != slot:
 		found.insert(index, slot)
 	return found
-
-
-## The monitor key's caption for `sticker`, or empty when it has no key entry (MORE, COPY's
-## own, an inspection's).
-static func key_caption(sticker: StickerSpec) -> String:
-	if sticker.kind == StickerSpec.Kind.FIZZLE:
-		return FIZZLE_CAPTION
-	match sticker.badge:
-		GiverBadge.Kind.NONE:
-			if sticker.kind == StickerSpec.Kind.ADD or sticker.kind == StickerSpec.Kind.MULTIPLY:
-				return OWN_CAPTION
-		GiverBadge.Kind.ITEM:
-			return ITEM_CAPTION
-		GiverBadge.Kind.COUPON:
-			return COUPON_CAPTION
-		GiverBadge.Kind.LOYALTY:
-			return LOYALTY_CAPTION
-	return ""
 
 
 static func _slot(

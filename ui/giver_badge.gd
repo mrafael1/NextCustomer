@@ -1,13 +1,11 @@
 class_name GiverBadge
 extends Control
-## The giver's mini badge on a planning sticker (#71, mock-up h1, H1_BUILD_SPEC.md section 2.5):
-## a token by the giver's kind (a product, a coupon or a loyalty upgrade) holding its initials,
-## or the inspection's warning icon. A product with a mini (CardDefinition.badge_mini_ref, sticker
-## minis) shows instead its hand-drawn 7x7 mini alone, die-cut, with only its own outline (ink,
-## gold for a GOLDEN giver): no token, no initials. The rail strip names the exact item or
-## coupon, and the hover rings the upgrade's box. Decor only: it takes no clicks. Drained
-## (another item hovered, or on a denied item) its token or mini greys (ArtStyle.Grey.DRAINED)
-## and its initials step back.
+## The giver's badge on a planning sticker (#105 readability v3): 28 px tokens for coupons and
+## loyalty perks, and die-cut product plates with a larger 10x10 drawing, a paper rim and an ink
+## edge (a GOLDEN giver has a gold rim). The card's existing 7x7 mini reference selects its plate
+## in art/giver_badges; that small mini is still used in monitor lines. A missing plate falls
+## back to the small mini; missing mini art falls back to initials. Inspection keeps its warning
+## icon. Decor only, with the same drained grey as the sticker.
 
 enum Kind { NONE, ITEM, COUPON, LOYALTY, INSPECTION }
 
@@ -15,18 +13,20 @@ enum Kind { NONE, ITEM, COUPON, LOYALTY, INSPECTION }
 const CARD_INITIALS := 2
 ## A loyalty badge holds the upgrade's initials (as its loyalty box), at most this many.
 const LOYALTY_INITIALS := 3
-## The token (9x9 art at 2x) and the inspection's warning icon (13x11 at 2x).
-const SIZE := Vector2(18, 18)
+## The token (14x14 art at 2x) and the inspection's warning icon (13x11 at 2x).
+const SIZE := Vector2(28, 28)
 const INSPECTION_SIZE := Vector2(26, 22)
-## A mini (7x7 art at 2x), centred in the badge's SIZE so the stack's layout stays as with a token.
+## The original 7x7 mini at 2x, retained for fallback and monitor lines.
 const MINI_SIZE := Vector2(14, 14)
+## Readability v3: a 10x10 drawing inside a 14x14 die-cut plate, shown at 2x.
+const PLATE_FOLDER := "res://art/giver_badges/"
 ## The initials: Pixelify, the largest of these sizes whose width fits INITIALS_WIDTH.
-const INITIALS_SIZES: Array[int] = [9, 8, 7]
-const INITIALS_WIDTH := 12.0
+const INITIALS_SIZES: Array[int] = [11, 10, 9]
+const INITIALS_WIDTH := 22.0
 
-const ITEM_TOKEN := preload("res://art/effects/badge_item.png")
-const COUPON_TOKEN := preload("res://art/effects/badge_coupon.png")
-const LOYALTY_TOKEN := preload("res://art/effects/badge_stamp.png")
+const ITEM_TOKEN := preload("res://art/effects/badge_item_polished.png")
+const COUPON_TOKEN := preload("res://art/effects/badge_coupon_polished.png")
+const LOYALTY_TOKEN := preload("res://art/effects/badge_stamp_polished.png")
 const WARNING := preload("res://art/icons/warning.png")
 
 var kind: Kind = Kind.NONE
@@ -48,10 +48,12 @@ func _init(badge_kind: Kind, badge_initials: String, mini_ref: String = "") -> v
 	custom_minimum_size = size
 	if kind == Kind.ITEM and not mini_ref.is_empty() and ResourceLoader.exists(mini_ref):
 		_mini = true
-		_token = UiKit.sprite(load(mini_ref) as Texture2D)
+		var plate: String = PLATE_FOLDER.path_join(mini_ref.get_file())
+		var framed: bool = ResourceLoader.exists(plate)
+		_token = UiKit.sprite(load(plate if framed else mini_ref) as Texture2D)
 		_token.name = "Mini"
-		_token.size = MINI_SIZE
-		_token.position = ((size - MINI_SIZE) / 2.0).floor()
+		_token.size = SIZE if framed else MINI_SIZE
+		_token.position = ((size - _token.size) / 2.0).floor()
 		add_child(_token)
 		return
 	var tokens: Dictionary[Kind, Texture2D] = {

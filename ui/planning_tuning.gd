@@ -20,10 +20,15 @@ extends Resource
 ## related items doesn't flicker).
 @export var unfocus_delay_s: float = 0.0
 
-## The sprite's alpha of an item unrelated to the hovered one.
-@export var dim_item_alpha: float = 0.0
+## The mix highlight's calm grey (#105 piece 3, mock-up readability v3's saturate(.2)
+## brightness(.78)) on an item unrelated to the hovered item, glyph or held card: its brightness and
+## the share of its colour it keeps (ArtStyle.set_mix_grey), faded in over mix_fade_s seconds (0
+## under reduced motion).
+@export var mix_brightness: float = 0.0
+@export var mix_saturation: float = 0.0
+@export var mix_fade_s: float = 0.0
 
-## The ticket's and pay tag's alpha of an item unrelated to the hovered one.
+## The pay tag's alpha of an item unrelated to the hovered one.
 @export var dim_ticket_alpha: float = 0.0
 
 ## A rail strip's alpha while an unrelated item is hovered.
@@ -38,10 +43,9 @@ extends Resource
 @export_group("Bonus notice")
 ## #77 machine v2: on an inspected shift whose pass earns the bonus ticket, planning's notice
 ## pulses once as the shift opens (none under reduced motion): the top bar's chip for
-## notice_pulse_ms, then the monitor's PASS IT plate for monitor_pulse_ms, each scaling by
-## 1 + notice_pulse_scale x sin(notice_pulse_rate x seconds). BonusNotice reads them.
+## notice_pulse_ms, scaling by 1 + notice_pulse_scale x sin(notice_pulse_rate x seconds).
+## BonusNotice reads them.
 @export var notice_pulse_ms: int = 0
-@export var monitor_pulse_ms: int = 0
 @export var notice_pulse_scale: float = 0.0
 @export var notice_pulse_rate: float = 0.0
 

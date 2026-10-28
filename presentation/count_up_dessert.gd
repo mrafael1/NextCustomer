@@ -5,29 +5,28 @@ extends RefCounted
 ## on the count-up's tweens (`make_tween`), so taps and holds speed it up like the count and
 ## never kill it: every line, sound and shake still happens.
 ##
-## The total slams onto the LED's digits on the hung monitor (#80: big numbers land on the monitor,
-## the receipt prints plainly), in the digits' colour (green on a pass), with `total` or `miss` and
-## a shake, a step bigger for a large total and another for a huge one, while the receipt's TOTAL
-## line shows "€total / €quota" at once (green on a pass, red on a miss). The margin line under it
-## counts "+€N OVER QUOTA", "SHORT €N" or a green "ON QUOTA" (ShiftMargin) while `pass` or `fail`
-## sounds; a pass gets the PAID stamp (`stamp_paid`) once the margin has counted, and an inspected
-## pass then INSPECTION PASSED under it (`stamp_notice`, #77); the receipt tears
+## The total slams onto the monitor's number (#80: big numbers land on the monitor, the receipt
+## prints plainly; #105 piece 2: the checkout column's TotalNumber, `target`), with `total` or
+## `miss` and a shake, a step bigger for a large total and another for a huge one, while the
+## receipt's TOTAL line shows "€total / €quota" at once (green on a pass, red on a miss). The margin
+## line under it counts "+€N OVER QUOTA", "SHORT €N" or a green "ON QUOTA" (ShiftMargin) while
+## `pass` or `fail` sounds; a pass gets the PAID stamp (`stamp_paid`) once the margin has counted,
+## and an inspected pass then INSPECTION PASSED under it (`stamp_notice`, #77); the receipt tears
 ## (`rip`), on a miss after `fail` has rung out; the next shift's notice prints in red with the
 ## printer's feed, then the clerk's stamp (`stamp_notice`). A pass ends at the printer feed, where
-## the RECEIPT REWARDS machine takes over (#77); a miss a little after the tear. A pass with a
-## bonus ticket to come (`bonus_stub`, #77 machine v2, Q2 = 2) prints the gold stub at the
-## receipt's foot after PAID (and INSPECTION PASSED), with `print` and "+1 BONUS TICKET" beside
-## the receipt, before the tear. Under reduced
-## motion the slam fades in at full size and nothing shakes (CountUpMotion); the small punches stay.
+## the RECEIPT REWARDS machine takes over (#77); a miss a little after the tear. A pass with a bonus
+## ticket to come (`bonus_stub`, #77 machine v2, Q2 = 2) prints the gold stub at the receipt's foot
+## after PAID (and INSPECTION PASSED), with `print` and "+1 BONUS TICKET" beside the receipt, before
+## the tear. Under reduced motion the slam fades in at full size and nothing shakes (CountUpMotion);
+## the small punches stay.
 
 ## The INSPECTION PASSED stamp landed on the receipt (CountUp passes it on).
 signal inspection_stamped
 
-## The slam starts this big (D11) and lands at 1 on the LED's digits.
+## The slam starts this big (D11) and lands at 1 on the monitor's number.
 const SLAM_SCALE := 3.2
-## The digits punch as the slam lands (a count punch strength: GoldTank.punch caps it in the count
-## layout); the PAID stamp lands from PAID_SLAM_SCALE over PAID_SLAM seconds.
-const VERDICT_PUNCH := 1.3
+## The PAID stamp lands from PAID_SLAM_SCALE over PAID_SLAM seconds (the number punches as the
+## slam lands: TotalNumber.punch_total).
 const PAID_SLAM_SCALE := 2.0
 const PAID_SLAM := 0.1
 ## The next-shift notice: the clerk's stamp lands this long after the printer feeds the line.
@@ -56,11 +55,12 @@ var bonus_stub: String = ""
 ## The banner beside the receipt while the stub prints (null before it and once it has faded),
 ## for tests.
 var banner: Label
+## The monitor's number the total slams onto (CountUp sets it before each dessert); null leaves
+## the slam out.
+var target: TotalNumber
 var _reduced_motion: bool = false
 var _overlay: Control
 var _receipt: ReceiptView
-## The LED whose digits the slam lands on.
-var _led: LedDisplay
 var _fx: CountUpMotion
 ## Shaken as the slam lands (the register rattle's target).
 var _rattle_target: Control
@@ -72,7 +72,6 @@ var _tuning: CountUpTuning
 func _init(
 	overlay: Control,
 	receipt: ReceiptView,
-	led: LedDisplay,
 	sounds: Sfx,
 	fx: CountUpMotion,
 	rattle_target: Control,
@@ -80,7 +79,6 @@ func _init(
 ) -> void:
 	_overlay = overlay
 	_receipt = receipt
-	_led = led
 	sfx = sounds
 	_fx = fx
 	_rattle_target = rattle_target
@@ -107,13 +105,8 @@ func play(
 	var verdict: Label = await _slam(total, quota, reduced_motion)
 	sfx.play("total" if passed else "miss")
 	_fx.shake(_rattle_target, shake_px(passed, intensity, _tuning))
-	if verdict != null and _led.layout() == LedDisplay.Layout.COUNT:
-		# The monitor juice: the digits alone punch, about their bottom right, within the gold
-		# tank's cap (digits_punch_max); the € stays put.
-		if not reduced_motion:
-			_led.gold_tank.punch(VERDICT_PUNCH)
-	elif verdict != null:
-		_fx.punch(verdict, VERDICT_PUNCH)
+	if verdict != null and is_instance_valid(target) and not reduced_motion:
+		target.punch_total()
 	var line: Control = _count_margin()
 	var sound_ms: int = mini(_tuning.dessert_verdict_sound_ms, _tuning.dessert_margin_ms)
 	await _wait_ms(sound_ms)
@@ -158,43 +151,27 @@ static func shake_px(passed: bool, intensity: CountUpIntensity, tuning: CountUpT
 
 
 ## The receipt's TOTAL line shows "€total / €quota" at once, plainly; the total slams from
-## SLAM_SCALE onto the LED's digits (under reduced motion it fades in there at full size), which
-## then show it. Returns the digits.
+## SLAM_SCALE onto the monitor's number (under reduced motion it fades in there at full size),
+## hidden under it until it lands. Returns the number's whole-group label (null without a target).
 func _slam(total: int, quota: int, reduced_motion: bool) -> Label:
 	_receipt.show_verdict(total, quota)
-	var target: Label = _led.digits_label()
-	# The digits alone hide under the slam (self_modulate): the € after them stays.
-	target.self_modulate.a = 0.0
-	var slam: Label = CountUpMotion.text_label(
-		target.text, target.get_theme_color("font_color"), target.get_theme_font_size("font_size")
-	)
-	slam.add_theme_font_override("font", target.get_theme_font("font"))
-	slam.horizontal_alignment = target.horizontal_alignment
-	slam.vertical_alignment = target.vertical_alignment
-	# The digits' outline (none in the count layout) and shadow (its mustard-light one, with no
-	# shadow outline) too, so the slam lands as them.
-	for color: String in ["font_outline_color", "font_shadow_color"]:
-		slam.add_theme_color_override(color, target.get_theme_color(color))
-	for constant: String in [
-		"outline_size", "shadow_outline_size", "shadow_offset_x", "shadow_offset_y"
-	]:
-		slam.add_theme_constant_override(constant, target.get_theme_constant(constant))
+	if not is_instance_valid(target) or not target.is_inside_tree():
+		await _wait_ms(_tuning.dessert_slam_ms)
+		return null
+	var whole: Label = target.slam_label()
+	target.hide_for_slam(true)
+	var slam: Label = whole.duplicate() as Label
+	slam.visible = true
 	slam.modulate.a = 0.0
 	_overlay.add_child(slam)
-	# Sized in the tree, where its font override is in effect (_place_slam keeps the pivot): as
-	# the digits' box, so its glyphs sit in it as theirs do.
-	slam.size = slam.get_minimum_size().max(target.size)
-	# The gold tank's fill (the monitor juice) in the count layout: a still copy mapped to the
-	# slam's own glyphs, so it lands as the digits' gold whatever its scale and place.
-	if target.material != null:
-		slam.material = _led.gold_tank.slam_material(slam)
+	slam.size = whole.size
 	if not reduced_motion:
 		slam.scale = Vector2(SLAM_SCALE, SLAM_SCALE)
-	_place_slam(0.0, slam, target)
+	_place_slam(0.0, slam, whole)
 	var seconds: float = _tuning.dessert_slam_ms / 1000.0
 	var tween: Tween = _tween().set_parallel().set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
-	# The landing spot follows the LED's digits (they may still be settling from the TOTAL punch).
-	tween.tween_method(_place_slam.bind(slam, target), 0.0, 1.0, seconds)
+	# The landing spot follows the monitor's number (it may still be settling from its punch).
+	tween.tween_method(_place_slam.bind(slam, whole), 0.0, 1.0, seconds)
 	if reduced_motion:
 		tween.tween_property(slam, "modulate:a", 1.0, seconds)
 	else:
@@ -202,17 +179,18 @@ func _slam(total: int, quota: int, reduced_motion: bool) -> Label:
 		tween.tween_property(slam, "modulate:a", 1.0, seconds * 0.6)
 	await tween.finished
 	slam.queue_free()
-	target.self_modulate.a = 1.0
-	return target
+	if is_instance_valid(target):
+		target.hide_for_slam(false)
+	return whole
 
 
 ## The slam over the digits, scaled around its centre and kept inside the overlay while it is
 ## big: it lands on them as it reaches full size.
-func _place_slam(_progress: float, slam: Label, target: Label) -> void:
+func _place_slam(_progress: float, slam: Label, landing: Label) -> void:
 	slam.pivot_offset = slam.size / 2.0
 	var half: Vector2 = slam.size * slam.scale / 2.0
 	var area: Rect2 = _overlay.get_global_rect()
-	var center: Vector2 = target.get_global_rect().get_center()
+	var center: Vector2 = landing.get_global_rect().get_center()
 	center = center.clamp(area.position + half, (area.end - half).max(area.position + half))
 	# Its position, not its global_position: drawn around the pivot, its centre is position plus
 	# half its size at any scale.

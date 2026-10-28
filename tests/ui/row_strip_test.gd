@@ -17,7 +17,7 @@ extends GdUnitTestSuite
 const CARDS := "res://data/cards"
 const BALANCE := "res://data/balance/balance.tres"
 const INSPECTIONS := "res://data/inspections"
-## The smallest a scaled row's sticker summary (PriceSticker.SUMMARY_SIZE) may print, in canvas
+## The smallest a scaled row's sticker summary (ArtStyle.TICKET_TEXT_SIZE) may print, in canvas
 ## pixels.
 const MIN_SUMMARY_PX := 10.0
 
@@ -278,9 +278,10 @@ func test_a_closed_cell_takes_no_drop() -> void:
 			assert_bool(RowStrip.drop_rect(panel).has_point(point)).is_false()
 
 
-## The tickets keep tomato for CLOSED alone (mock-up B2's colour rule): the product ticket's band
-## is mustard light, the coupon ticket's teal dashes, the empty ticket steel and paper, and the
-## CLOSED plate ink with a tomato band.
+## The slot tickets keep tomato for CLOSED alone (mock-up B2's colour rule): the plain product
+## ticket's band (a product with no family) is mustard light, the coupon ticket's teal dashes, the
+## empty ticket steel and paper, and the CLOSED plate ink with a tomato band. (#105's full-colour
+## tickets take their families' colours, FamilyPalette: price_sticker_test.)
 func test_only_the_closed_plate_is_tomato() -> void:
 	var tomato: Array[String] = [
 		Palette.TOMATO.to_html(false),
@@ -288,7 +289,7 @@ func test_only_the_closed_plate_is_tomato() -> void:
 		Palette.TOMATO_LIGHT.to_html(false),
 	]
 	var tickets: Dictionary[Texture2D, bool] = {
-		PriceSticker.FRAME: false,
+		PriceSticker.PLAIN_FRAME: false,
 		PriceSticker.COUPON_FRAME: false,
 		RowStrip.TICKET_EMPTY: false,
 		RowStrip.TICKET_CLOSED: true,
@@ -304,7 +305,7 @@ func test_only_the_closed_plate_is_tomato() -> void:
 		assert_bool(found).override_failure_message(texture.resource_path).is_equal(
 			tickets[texture]
 		)
-	var band: Color = PriceSticker.FRAME.get_image().get_pixel(8, 3)
+	var band: Color = PriceSticker.PLAIN_FRAME.get_image().get_pixel(8, 3)
 	assert_str(band.to_html(false)).is_equal(Palette.MUSTARD_LIGHT.to_html(false))
 
 
@@ -555,7 +556,7 @@ func test_wide_rows_close_their_gaps_then_scale() -> void:
 		var factor: float = strip.box.scale.x
 		var natural: float = RowStrip.row_width(count, RowStrip.WIDE_SEPARATION)
 		assert_float(factor).is_equal_approx(RowStrip.row_width(7) / natural, 0.001)
-		assert_float(PriceSticker.SUMMARY_SIZE * factor).is_greater_equal(MIN_SUMMARY_PX)
+		assert_float(ArtStyle.TICKET_TEXT_SIZE * factor).is_greater_equal(MIN_SUMMARY_PX)
 		var row: Array[CardInstance] = []
 		for slot: int in range(count):
 			row.append(_card("milk" if slot % 2 == 0 else "repeat", slot + 1))
@@ -593,11 +594,8 @@ func test_wide_rows_close_their_gaps_then_scale() -> void:
 			var face: Rect2 = (item.badge as PayoutPlaque).face().get_global_rect()
 			assert_float(face.position.x).is_greater_equal(cell.position.x - 0.01)
 			assert_float(face.end.x).is_less_equal(cell.end.x + 0.01)
-			var summary: Label = item.sticker().summary_label()
-			var shown: float = (
-				summary.get_theme_font_size("font_size")
-				* summary.get_global_transform().get_scale().y
-			)
+			var summary: GlyphLabel = item.sticker().summary()
+			var shown: float = summary.font_size() * summary.get_global_transform().get_scale().y
 			assert_float(shown).is_greater_equal(MIN_SUMMARY_PX)
 	var closed: RowStrip = await _strip(6, 1, "Closed")
 	assert_vector(closed.box.scale).is_equal(Vector2.ONE)
