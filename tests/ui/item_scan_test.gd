@@ -793,6 +793,7 @@ func _leave_to(point: Vector2, view: ItemView) -> void:
 func _screen() -> ShiftScreen:
 	var runner: GdUnitSceneRunner = scene_runner(SCREEN)
 	var screen: ShiftScreen = runner.scene()
+	screen._week.skip()  # The time card (v0.70) stays out of the way.
 	screen._scan.pointer = func() -> Vector2: return _point
 	screen._scan.now_ms = func() -> int: return _clock
 	await _frames(3)

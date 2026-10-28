@@ -95,6 +95,7 @@ func chute_info(run: RunState, chute: int) -> MachineChuteInfo:
 	info.state = _chute_state(run, chute)
 	info.odds = _odds(run, chute)
 	info.premium = is_premium()
+	info.week_odds = WeekSchedule.odds_delta(run.balance, _shift(run))
 	info.cart_full = chute == Chute.NEW_ITEMS and run.deck.size() >= run.balance.deck_limit
 	if _visit != null and _visit.kind == MachineVisit.Kind.BONUS:
 		_first_pick_changes(run, chute, info)
@@ -267,9 +268,13 @@ static func registers_picked(run: RunState) -> int:
 	return found
 
 
-## The odds level the visits after the last played shift draw at (0 before any checkout).
+## The odds level the visits after the last played shift draw at (0 before any checkout): the
+## machine's for that shift, raised by its week event's odds_level_delta (v0.70: Holiday rush +1,
+## WeekSchedule.odds_delta), clamped to the levels there are.
 func odds_level(run: RunState) -> int:
-	return machine.odds_level_after(_shift(run))
+	var shift: int = _shift(run)
+	var level: int = machine.odds_level_after(shift) + WeekSchedule.odds_delta(run.balance, shift)
+	return clampi(level, 0, machine.max_level())
 
 
 ## Whether the waiting visit is PREMIUM.

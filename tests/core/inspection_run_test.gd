@@ -34,7 +34,7 @@ func test_balance_inspection_data_fits_the_run() -> void:
 				"quiet_morning",
 				"extra_till",
 				"regulars_day",
-				"big_trolleys",
+				"fresh_delivery",
 				"free_samples",
 				"happy_hour",
 			]
@@ -114,28 +114,24 @@ func test_the_last_shift_announces_nothing() -> void:
 	assert_object(run.next_inspection).is_null()
 
 
-## #77: the draw is the checkout's, before the machine's visits draw their prizes: the run's
-## RNG makes the inspection draw first, and the machine waiting for its chute has drawn nothing.
-## With two inspections in the pool every draw uses the RNG.
-func test_the_inspection_is_drawn_at_checkout_before_the_machine() -> void:
+## v0.70: a week's day events are drawn as its first shift starts (shift 1's after its hand), so
+## two runs that differ only in their inspected shifts deal the same first hand, and a checkout
+## draws no event: the machine waiting for its chute has drawn nothing either.
+func test_the_week_is_drawn_as_it_starts_not_at_checkout() -> void:
 	var plain: RunState = _two_inspection_run(48, PackedInt32Array())
 	var inspected: RunState = _two_inspection_run(48, PackedInt32Array([3]))
-	var states: Array[int] = []
+	assert_array(_ids(inspected.hand())).is_equal(_ids(plain.hand()))
+	assert_array(plain.week.day(3)).is_empty()
+	assert_int(inspected.week.day(3).size()).is_equal(1)
 	for run: RunState in [plain, inspected]:
 		_pass(run)
 		MachineSteps.next_shift(run)
-		states.append(run.rng_state)
+		var state: int = run.rng_state
 		_pass(run)
-	assert_int(states[1]).is_equal(states[0])
+		assert_int(run.rng_state).is_equal(state)
+		assert_int(run.phase).is_equal(RunState.Phase.MACHINE_CHOOSE)
 	assert_object(plain.next_inspection).is_null()
-	assert_int(plain.rng_state).is_equal(states[0])
-	var rng: RandomNumberGenerator = RandomNumberGenerator.new()
-	rng.state = states[1]
-	assert_object(InspectionSchedule.draw(rng, inspected.balance)).is_same(
-		inspected.next_inspection
-	)
-	assert_int(inspected.rng_state).is_equal(rng.state)
-	assert_int(inspected.phase).is_equal(RunState.Phase.MACHINE_CHOOSE)
+	assert_object(inspected.next_inspection).is_same(inspected.week.day(3)[0])
 
 
 func test_the_same_seed_gives_the_same_run() -> void:

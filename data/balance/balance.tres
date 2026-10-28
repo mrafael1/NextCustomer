@@ -58,9 +58,13 @@
 [ext_resource type="Resource" path="res://data/inspections/quiet_morning.tres" id="b1_quiet_morning"]
 [ext_resource type="Resource" path="res://data/inspections/extra_till.tres" id="b2_extra_till"]
 [ext_resource type="Resource" path="res://data/inspections/regulars_day.tres" id="b3_regulars_day"]
-[ext_resource type="Resource" path="res://data/inspections/big_trolleys.tres" id="b4_big_trolleys"]
+[ext_resource type="Resource" path="res://data/inspections/fresh_delivery.tres" id="b4_fresh_delivery"]
 [ext_resource type="Resource" path="res://data/inspections/free_samples.tres" id="b5_free_samples"]
 [ext_resource type="Resource" path="res://data/inspections/happy_hour.tres" id="b6_happy_hour"]
+[ext_resource type="Script" path="res://core/week_event_definition.gd" id="w1_week"]
+[ext_resource type="Resource" path="res://data/weeks/training_week.tres" id="w2_training_week"]
+[ext_resource type="Resource" path="res://data/weeks/bakery_festival.tres" id="w3_bakery_festival"]
+[ext_resource type="Resource" path="res://data/weeks/holiday_rush.tres" id="w4_holiday_rush"]
 [ext_resource type="Resource" path="res://data/balance/machine.tres" id="m1_machine"]
 
 [resource]
@@ -86,7 +90,9 @@ inspection_pool = Array[ExtResource("i1_inspection")]([ExtResource("i2_spot_chec
 review_shifts = PackedInt32Array(4, 8, 12)
 review_inspection_count = 2
 boon_shifts = PackedInt32Array(2, 5, 6, 9, 10)
-boon_pool = Array[ExtResource("i1_inspection")]([ExtResource("b1_quiet_morning"), ExtResource("b2_extra_till"), ExtResource("b3_regulars_day"), ExtResource("b4_big_trolleys"), ExtResource("b5_free_samples"), ExtResource("b6_happy_hour")])
+boon_pool = Array[ExtResource("i1_inspection")]([ExtResource("b1_quiet_morning"), ExtResource("b2_extra_till"), ExtResource("b3_regulars_day"), ExtResource("b4_fresh_delivery"), ExtResource("b5_free_samples"), ExtResource("b6_happy_hour")])
+week_length = 4
+weeks = Array[ExtResource("w1_week")]([ExtResource("w2_training_week"), ExtResource("w3_bakery_festival"), ExtResource("w4_holiday_rush")])
 write_up_limit = 2
 write_up_last_shift = 4
 coins_by_shifts_passed = PackedInt32Array(0, 0, 0, 0, 1, 1, 1, 1, 2, 2, 2, 2, 3)

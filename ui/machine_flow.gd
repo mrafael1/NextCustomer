@@ -50,6 +50,10 @@ var shown_swaps: Array = []
 var swap: UpgradeSwap
 var notice: BonusNotice
 var announce: PremiumAnnounce
+## The time card (v0.70, WeekFlow): planning's notices wait while it holds planning, and a shift's
+## planning opening tells it.
+var week_holds: Callable
+var week_started: Callable
 var _screen: ShiftScreen
 var _log: EventLogService
 ## The visit on screen: its timeline, the odds cards opened (chutes, in order), the odds card of
@@ -127,6 +131,8 @@ func shift_started(printing: bool = true) -> void:
 	_notice_due = true
 	_shift_notice_due = true
 	_notice_wait = -1.0
+	if week_started.is_valid():
+		week_started.call()
 
 
 ## Something covers planning (the cart reveal, v0.51): no notice pulses until shift_started().
@@ -221,12 +227,18 @@ func is_settling() -> bool:
 	return is_gliding() or _swap_wait >= 0.0
 
 
+## Whether the upgrade swap is still playing on the items (the time card waits for it).
+func is_swapping() -> bool:
+	return swap != null and is_instance_valid(swap) and not swap.is_done()
+
+
 func _process(delta: float) -> void:
 	if _swap_wait >= 0.0:
 		_swap_wait += delta
 		if _swap_wait >= view.tuning.upgrade_after_ms / 1000.0:
 			play_swaps()
-	if _notice_due and _return_t < 0.0:
+	var held: bool = week_holds.is_valid() and week_holds.call()
+	if _notice_due and _return_t < 0.0 and not held:
 		_notice_due = false
 		_play_announce()
 		_notice_wait = announce.print_left()
@@ -434,8 +446,8 @@ func _show_receipt_lines(run: RunState) -> void:
 	view.receipt_names = CardInstance.names(run.row)
 	view.receipt_cards = ReceiptInk.cards_of(run.row)
 	view.receipt_upgrades = LoyaltyCard.names(run.upgrades)
-	view.receipt_inspections = InspectionTag.names(run.inspections)
-	view.receipt_boons = InspectionTag.names(InspectionDefinition.boons(run.inspections))
+	view.receipt_inspections = InspectionTag.names(WeekSchedule.shift_events(run))
+	view.receipt_boons = WeekFlow.helper_names(run)  # And the week event's (v0.70).
 	view.shift_total = run.last_result.total if run.last_result != null else 0
 	view.shift_quota = run.quota()
 	view.shift_notice = InspectionTag.next_notice(run.next_inspections)

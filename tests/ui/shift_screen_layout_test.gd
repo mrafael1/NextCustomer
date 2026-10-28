@@ -325,8 +325,11 @@ func test_the_top_bar_fits_its_longest_texts() -> void:
 		screen._led.show_subtotal(9999, true)
 		await _frames(2)
 		var top_bar: TopBar = screen._stage.top_bar
-		# Rush hour's and Quiet morning's quota percent (v0.69) change the quota shown.
-		var shown: int = ShiftLimits.with_percent(largest, inspection.quota_percent)
+		# Rush hour's and Quiet morning's quota percent (v0.69) change the quota shown, on top of
+		# the last week's (v0.70, Holiday rush's +15%).
+		var week: WeekEventDefinition = WeekSchedule.event_for(run.balance, last + 1)
+		var percent: int = inspection.quota_percent + week.quota_percent
+		var shown: int = ShiftLimits.with_percent(largest, percent)
 		assert_str(screen._quota_label.text).is_equal(QuotaMeter.QUOTA_AMOUNT % shown)
 		assert_str(top_bar.quota_meter.amount_label.text).is_equal("€9999")
 		assert_bool(top_bar.quota_meter.flag_shown()).is_true()
@@ -341,6 +344,7 @@ func test_the_top_bar_fits_its_longest_texts() -> void:
 		var parts: Array[Control] = [
 			screen._top_bar.get_child(0) as Control,
 			screen._top_bar.get_child(1) as Control,
+			top_bar.week_chip,
 			screen._inspection_tag,
 			screen._loyalty_card,
 			screen._deck_button,
@@ -807,6 +811,7 @@ static func _all_inspections() -> Array[InspectionDefinition]:
 func _screen() -> ShiftScreen:
 	var runner: GdUnitSceneRunner = scene_runner(SCREEN)
 	var screen: ShiftScreen = runner.scene()
+	screen._week.skip()  # The time card (v0.70) stays out of the way.
 	await _frames(3)
 	return screen
 

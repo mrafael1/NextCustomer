@@ -356,8 +356,10 @@ class CauseNames:
 				return GiverBadge.Kind.LOYALTY
 			ScoreStep.SourceKind.INSPECTION:
 				var index: int = link.cause_index
-				if index >= 0 and index < _inspections.size() and _inspections[index].is_boon():
-					return GiverBadge.Kind.BOON
+				if index >= 0 and index < _inspections.size():
+					# A week event (v0.70) helps like a boon: its coin badge.
+					if _inspections[index].is_boon() or _inspections[index].is_week():
+						return GiverBadge.Kind.BOON
 				return GiverBadge.Kind.INSPECTION
 		if link.cause_slot >= 0 and link.cause_slot < _row.size():
 			if _row[link.cause_slot].is_coupon():

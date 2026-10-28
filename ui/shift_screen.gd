@@ -126,6 +126,7 @@ var _effects: PlanningEffects
 ## The TOY MACHINES over the results (#63), made the first time they open.
 var _toys: ToyMachinesScreen
 var _cart_reveal: CartReveal
+var _week: WeekFlow  # The time card and the week and day chips (v0.70).
 var _start_choice: StartChoice  # The starter pack choice's part of a run's start (#107).
 var _glyph_tips: GlyphTips  # Family glyphs' tooltips (#105): none in a drag or the count.
 ## The basket redraw's targets and tags, and its motion.
@@ -564,8 +565,8 @@ func _on_checkout_pressed() -> void:
 		context,
 		_loyalty_card.stamped_boxes(),
 		LoyaltyCard.names(run.upgrades),
-		_inspection_tag.sources(run.inspections),
-		InspectionTag.names(run.inspections),
+		(_top_bar as TopBar).event_sources(WeekSchedule.shift_events(run)),
+		InspectionTag.names(WeekSchedule.shift_events(run)),
 		InspectionTag.next_notice(run.next_inspections)
 	)
 	var shift: int = run.shift_index + 1
@@ -604,7 +605,7 @@ func count_up_context() -> CountUpContext:
 	)
 	context.payday = context.bonus_ticket and run.machine.is_payday(run)
 	context.write_up = WriteUp.stamp_text(run)
-	context.boon_names = InspectionTag.names(InspectionDefinition.boons(run.inspections))
+	context.boon_names = WeekFlow.helper_names(run)
 	return context
 
 
@@ -707,7 +708,7 @@ func _refresh() -> void:
 func _refresh_bar() -> void:
 	_shift_label.text = "%d/%d" % [run.shift_index + 1, run.shift_count()]
 	_quota_label.text = QuotaMeter.QUOTA_AMOUNT % run.quota()
-	_inspection_tag.show_inspections(run.inspections)
+	_week.show_chips()
 	_inspection_tag.show_bonus(
 		InspectionTag.bonus_for(run, _counting, _inspection_tag.bonus_state())
 	)
@@ -822,7 +823,7 @@ func _show_planning(result: ScoreResult) -> void:
 func _show_checked_out(result: ScoreResult) -> void:
 	var cards: Array[CardDefinition] = ReceiptInk.cards_of(run.row)
 	var upgrade_names: PackedStringArray = LoyaltyCard.names(run.upgrades)
-	var inspections: PackedStringArray = InspectionTag.names(run.inspections)
+	var inspections: PackedStringArray = InspectionTag.names(WeekSchedule.shift_events(run))
 	var names: PackedStringArray = CardInstance.names(run.row)
 	_receipt.show_result(result, names, upgrade_names, inspections, receipt_header(), cards)
 	_show_belt(result, true)
@@ -832,7 +833,7 @@ func _show_checked_out(result: ScoreResult) -> void:
 ## marks or paid chips, and the result its scans read.
 func _show_belt(result: ScoreResult, paid: bool = false) -> void:
 	var upgrade_names: PackedStringArray = LoyaltyCard.names(run.upgrades)
-	var inspection_names: PackedStringArray = InspectionTag.names(run.inspections)
+	var inspection_names: PackedStringArray = InspectionTag.names(WeekSchedule.shift_events(run))
 	_scan.set_result(result, CardInstance.names(run.row), upgrade_names, inspection_names)
 	_belt_chips.show_all(_row_views)
 	if not paid:
@@ -975,6 +976,7 @@ func _build() -> void:
 	_cart_reveal = CartReveal.new()  # Over all but the debug panel (v0.51).
 	add_child(_cart_reveal)
 	_cart_reveal.finished.connect(_on_cart_reveal_finished)
+	_week = WeekFlow.new(self)
 	_glyph_tips = GlyphTips.new()
 	_glyph_tips.blocked = func() -> bool: return _counting or _drag.is_dragging()
 	_glyph_tips.reduced_motion = _monitor.reduced_motion
@@ -983,12 +985,12 @@ func _build() -> void:
 
 
 ## Scanning the counter's items is off while the shift is counted, an item is dragged, outside
-## planning (the machine or the results are up), while the deck view is open and in redraw mode
-## (armed, or its motion playing). The machine's prize items are scanned while it accepts clicks
-## (RewardMachineView.can_scan).
+## planning (the machine or the results are up), while the deck view or the time card is open and
+## in redraw mode (armed, or its motion playing). The machine's prize items are scanned while it
+## accepts clicks (RewardMachineView.can_scan).
 func _scan_blocked() -> bool:
 	var planning: bool = run != null and run.phase == RunState.Phase.PLANNING
-	var redrawing: bool = _redraw_mode or _redraw_busy
+	var redrawing: bool = _redraw_mode or _redraw_busy or _week.is_open()
 	return _busy() or _drag.is_dragging() or not planning or _deck_view.visible or redrawing
 
 

@@ -17,6 +17,9 @@ extends Control
 ## On a PREMIUM visit the columns restock one by one as the machine turns PREMIUM (MachineLook:
 ## the classic tickets drop out and the same chutes' rise onto gold pedestals, with the premium
 ## odds).
+##
+## A week event that raises the odds (v0.70: Holiday rush's +1 level, MachineChuteInfo.week_odds)
+## shows as a gold line along the window's top while a lit chute's odds include it: "WEEK ODDS +1".
 
 const SIZE := Vector2(408, 208)
 const COLUMNS := 2
@@ -54,6 +57,10 @@ const GLINT_X: Array[float] = [44.0, 256.0]
 const GLINT_ALPHA := 0.1
 const CONE_ALPHA := 0.07
 const CONE_HOVER_ALPHA := 0.16
+## The week event's odds line (v0.70): its text, size and top.
+const WEEK_ODDS_TEXT := "WEEK ODDS +%d"
+const WEEK_ODDS_SIZE := 13
+const WEEK_ODDS_BOX := Vector2(SIZE.x, 22)
 
 ## The machine this part belongs to (setup(), build spec 4.2).
 var view: RewardMachineView
@@ -71,6 +78,8 @@ var _odds: Array[Label] = []
 var _words: Array[Label] = []
 ## The sealed tickets' layer, drawn through the sharp-pixel material.
 var _tickets: Control
+## The week event's odds line (v0.70).
+var _week_odds: Label
 
 
 func _init() -> void:
@@ -99,6 +108,10 @@ func _init() -> void:
 			_place_label(word, Vector2(PLATE_SIZE.x, PLATE_SIZE.y - LED_HEIGHT))
 			word.name = "Word%d%d" % [column, rarity]
 			_words.append(word)
+	_week_odds = UiKit.number_label("", WEEK_ODDS_SIZE, false)
+	_week_odds.name = "WeekOdds"
+	_week_odds.add_theme_color_override("font_color", Palette.GOLD)
+	_place_label(_week_odds, WEEK_ODDS_BOX)
 
 
 ## Hooks this part to the machine: RewardMachineView calls it once, when it builds the part
@@ -162,6 +175,11 @@ static func plate_rect(column: int, rarity: int) -> Rect2:
 	return Rect2(Vector2(x, PLATE_TOP), PLATE_SIZE)
 
 
+## The week event's odds line (v0.70; for tests).
+func week_odds_label() -> Label:
+	return _week_odds
+
+
 ## The odds and rarity labels, for layout tests.
 func labels() -> Array[Label]:
 	var found: Array[Label] = []
@@ -213,6 +231,7 @@ static func percent_texts(shares: Array[float]) -> PackedStringArray:
 func frame(t: float) -> void:
 	var plan: MachinePlan = view.plan if view != null else null
 	var look: MachineLook = MachineLook.at(plan, t)
+	var week_odds: int = 0
 	for column: int in range(COLUMNS):
 		var shape: Array = look.column(column)
 		var gold: bool = shape[1]
@@ -224,6 +243,8 @@ func frame(t: float) -> void:
 		_column_lit[column] = lit
 		_column_offset[column] = shape[0]
 		_column_gold[column] = gold and look.premium()
+		if lit and info.week_odds > 0:
+			week_odds = info.week_odds
 		var texts: PackedStringArray = _column_texts(info) if lit else PackedStringArray()
 		for rarity: int in range(3):
 			var odds: Label = _odds[column * 3 + rarity]
@@ -236,6 +257,8 @@ func frame(t: float) -> void:
 			var plate: Rect2 = plate_rect(column, rarity)
 			odds.position = plate.position + Vector2(0, shape[0])
 			word.position = plate.position + Vector2(0, LED_HEIGHT + shape[0])
+	_week_odds.visible = week_odds > 0
+	_week_odds.text = WEEK_ODDS_TEXT % week_odds
 	queue_redraw()
 	_tickets.queue_redraw()
 

@@ -107,7 +107,12 @@ func test_odds_add_up_and_use_no_rng() -> void:
 		var reward_machine: RewardMachine = RewardMachine.new(machine, rng)
 		for chute: int in RewardMachine.CHUTES:
 			var odds: MachineOddsCard = reward_machine.chute_info(run, chute).odds
-			assert_int(odds.level).is_equal(machine.odds_level_after(shift_number))
+			# The week event's levels too (v0.70: Holiday rush +1, WeekSchedule.odds_delta).
+			var week: int = WeekSchedule.odds_delta(run.balance, shift_number)
+			var level: int = mini(
+				machine.odds_level_after(shift_number) + week, machine.max_level()
+			)
+			assert_int(odds.level).is_equal(level)
 	assert_int(rng.state).is_equal(state_before)
 
 

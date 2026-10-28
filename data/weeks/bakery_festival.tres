@@ -1,0 +1,21 @@
+[gd_resource type="Resource" script_class="WeekEventDefinition" format=3]
+
+[ext_resource type="Script" path="res://core/inspections/inspection_rule.gd" id="1_rule"]
+[ext_resource type="Script" path="res://core/inspections/tag_flat_bonus_rule.gd" id="2_tag_bonus"]
+[ext_resource type="Script" path="res://core/week_event_definition.gd" id="3_week"]
+
+[sub_resource type="Resource" id="Resource_tag_bonus"]
+script = ExtResource("2_tag_bonus")
+tag = "Bakery"
+bonus = 2
+receipt_text = "Bakery +€2"
+
+[resource]
+script = ExtResource("3_week")
+id = &"bakery_festival"
+display_name = "Bakery festival"
+tone = 2
+notice_text = "Bakery items +€2, quota +10%"
+chip_text = "BAKERY"
+rules = Array[ExtResource("1_rule")]([SubResource("Resource_tag_bonus")])
+quota_percent = 10

@@ -95,6 +95,16 @@ func test_training_is_over_waits_for_the_glide_back() -> void:
 		flow._process(STEP)
 		elapsed += STEP
 	assert_bool(flow.is_gliding()).is_false()
+	# Shift 5 opens week 2: its time card (v0.70) plays first, and the notice waits for it.
+	flow._process(STEP)
+	assert_bool(screen._notice_label.is_showing()).is_false()
+	screen._week._process(STEP)
+	var card: WeekCard = screen._week.card
+	assert_bool(card.is_open()).is_true()
+	card.finish()
+	card.advance(WeekCard.HOLD + 0.1)
+	card.advance(WeekCard.SHRINK)
+	assert_bool(card.is_open()).is_false()
 	flow._process(STEP)
 	assert_bool(screen._notice_label.is_showing()).is_true()
 	assert_str(screen._notice_label.text).is_equal(WriteUp.OVER_NOTICE)
@@ -202,13 +212,18 @@ func test_the_training_hint_in_the_shift_chip() -> void:
 	var screen: ShiftScreen = await _screen()
 	var bar: TopBar = screen._top_bar as TopBar
 	var hint: Label = bar.training_label
-	assert_bool(hint.is_visible_in_tree()).is_true()
-	assert_str(hint.text).is_equal("TRAINING WEEK · 2 SLIPS")
+	# The week chip and the day chip (v0.70) take room: the hint may show its short form.
 	await _frames(2)
+	assert_bool(hint.is_visible_in_tree()).is_true()
+	assert_str(WriteUp.hint_text(screen.run)).is_equal("TRAINING WEEK · 2 SLIPS")
+	assert_array(_hint_forms(screen)).contains([hint.text])
 	_assert_hint_layout(bar)
 	await _checkout_empty(screen)
+	# Shift 2's boon (drawn with week 1, v0.70) may need the room: a day without one has it.
+	screen._debug.set_inspection("")
 	await _frames(2)
-	assert_str(hint.text).is_equal("TRAINING WEEK · 1 SLIP")
+	assert_str(WriteUp.hint_text(screen.run)).is_equal("TRAINING WEEK · 1 SLIP")
+	assert_array(_hint_forms(screen)).contains([hint.text])
 	_assert_hint_layout(bar)
 	# Shift 3 is inspected: its chip shares the row with the hint.
 	screen._debug.skip_to_shift(3)
@@ -221,11 +236,13 @@ func test_the_training_hint_in_the_shift_chip() -> void:
 	assert_int(screen.run.inspections.size()).is_equal(2)
 	_assert_hint_shares_the_row(screen, bar)
 	screen._debug.skip_to_shift(5)
+	screen._week.skip()  # Week 2's time card (v0.70) is not what this checks.
 	await _frames(2)
 	assert_bool(hint.visible).is_false()
 	assert_str(screen._notice_label.text).is_equal(WriteUp.OVER_NOTICE)
-	# Counting hides the hint.
+	# Counting hides the hint (on a day without an event: the hint has room).
 	screen._debug.skip_to_shift(2)
+	screen._debug.set_inspection("")
 	await _frames(2)
 	assert_bool(hint.visible).is_true()
 	screen._on_checkout_pressed()
@@ -251,17 +268,25 @@ func test_resuming_after_a_slip_shows_the_notice() -> void:
 	assert_array(_errors).is_empty()
 
 
-## On an inspected shift the hint is shown (whole or short, the tooltip whole) and the inspection's
-## effects are not trimmed.
+## On an inspected shift the hint is shown whole or short, or gives way to the day's effects
+## (v0.70: the week and day chips take room), its tooltip whole; the inspection's effects are
+## trimmed only once the week chip's name and pips gave way too.
 func _assert_hint_shares_the_row(screen: ShiftScreen, bar: TopBar) -> void:
 	var hint: Label = bar.training_label
-	assert_bool(hint.visible).is_true()
 	var forms: Array[String] = [WriteUp.hint_text(screen.run), WriteUp.hint_text(screen.run, true)]
-	assert_array(forms).contains([hint.text])
 	var shift_chip: Control = bar.shift_label.get_parent().get_parent() as Control
 	assert_str(shift_chip.tooltip_text).is_equal(forms[0])
-	assert_bool(bar.inspection_tag.is_trimmed()).is_false()
-	_assert_hint_layout(bar)
+	if bar.inspection_tag.is_trimmed():
+		assert_bool(hint.visible).is_false()
+		assert_bool(bar.week_chip.name_shown() or bar.week_chip.pips_shown()).is_false()
+	if hint.visible:
+		assert_array(forms).contains([hint.text])
+		_assert_hint_layout(bar)
+
+
+## The hint's two forms: whole and short.
+static func _hint_forms(screen: ShiftScreen) -> Array[String]:
+	return [WriteUp.hint_text(screen.run), WriteUp.hint_text(screen.run, true)]
 
 
 func _assert_hint_layout(bar: TopBar) -> void:
@@ -310,6 +335,7 @@ func _screen() -> ShiftScreen:
 	var screen: ShiftScreen = auto_free(scene.instantiate())
 	screen.report_error = _record_error
 	scene_runner(screen)
+	screen._week.skip()  # The time card (v0.70) stays out of the way.
 	await _frames(4)
 	return screen
 

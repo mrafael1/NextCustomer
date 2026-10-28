@@ -8,6 +8,10 @@ extends PanelContainer
 ## inside an animation. Hovering it shows each event's name and notice. Hidden on shifts without
 ## an event. Day events never go on the loyalty card.
 ##
+## The day chip (v0.70, the time card): with a day (a balance with weeks) it leads with "D3" in
+## the number font and stays visible on a day without an event, grey with "Normal day"; a Manager's
+## review's chip is mustard. Tapping it reopens the time card in planning (`pressed`).
+##
 ## Planning effects (#71): hovering it reports hovered / unhovered (its tooltip stays);
 ## set_relation rings it in gold and, for an inspection that causes the hovered item's effect,
 ## prints that inspection's name instead of the effects (one tag shows every inspection). The
@@ -22,6 +26,8 @@ extends PanelContainer
 ## The pointer entered or left the tag.
 signal hovered
 signal unhovered
+## The chip was tapped (v0.70: the time card reopens).
+signal pressed
 
 ## The bonus ticket's pill: none, promised for a pass, or earned by the pass.
 enum Bonus { NONE, PROMISED, EARNED }
@@ -36,6 +42,10 @@ const NEXT_BOON_NOTICE := ReceiptView.BOON_NOTICE_PREFIX + "%s"
 ## The chip's caption: an inspected shift's, and a Manager's review's (several at once, v0.65).
 const CAPTION := "Inspection"
 const REVIEW_CAPTION := "Review"
+## The day chip's day (v0.70) and its text on a day without an event.
+const DAY_TEXT := "D%d"
+const DAY_FONT_SIZE := 20
+const NO_EVENT := WeekCardModel.NO_EVENT
 ## A boon's words on the chip and its notice (v0.69): "Today: Quiet morning — quota −10%".
 const TODAY_TEXT := "Today: %s"
 const BOON_TEXT := "%s — %s"
@@ -66,6 +76,9 @@ const TICKET := preload("res://art/icons/bonus_ticket.png")
 
 var _label: Label
 var _icon: TextureRect
+## "D3" (v0.70; hidden without a day).
+var _day_label: Label
+var _day: int = 0
 var _pill: PanelContainer
 var _pass_word: Label
 var _pill_label: Label
@@ -96,6 +109,12 @@ func _init() -> void:
 	row.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	row.add_theme_constant_override("separation", TopBar.CHIP_SEPARATION)
 	add_child(row)
+	_day_label = UiKit.number_label("", DAY_FONT_SIZE, false)
+	_day_label.name = "Day"
+	_day_label.add_theme_color_override("font_color", Palette.INK)
+	_day_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	_day_label.visible = false
+	row.add_child(_day_label)
 	_icon = UiKit.sprite(WARNING)
 	_icon.custom_minimum_size = ICON_SIZE
 	_icon.size_flags_vertical = Control.SIZE_SHRINK_CENTER
@@ -113,8 +132,14 @@ func _init() -> void:
 
 ## Shows the shift's day events by their effects (empty: hidden): the inspections' under their
 ## caption, then each boon's "Today: <name> — <effect>". Hovering shows each one's name and notice.
-func show_inspections(inspections: Array[InspectionDefinition]) -> void:
-	visible = not inspections.is_empty()
+## With a 1-based `day_number` (v0.70) the chip leads with "D<day>", shows "Normal day" without an
+## event and can be tapped.
+func show_inspections(inspections: Array[InspectionDefinition], day_number: int = 0) -> void:
+	_day = day_number
+	_day_label.text = DAY_TEXT % day_number
+	_day_label.visible = day_number > 0
+	mouse_default_cursor_shape = CURSOR_POINTING_HAND if day_number > 0 else CURSOR_ARROW
+	visible = not inspections.is_empty() or day_number > 0
 	_inspections = inspections.duplicate()
 	var tips: PackedStringArray = PackedStringArray()
 	for inspection: InspectionDefinition in inspections:
@@ -128,7 +153,7 @@ func show_inspections(inspections: Array[InspectionDefinition]) -> void:
 	var boons: Array[InspectionDefinition] = InspectionDefinition.boons(inspections)
 	if not boons.is_empty():
 		parts.append(TODAY_TEXT % ", ".join(boon_texts(boons)))
-	_effects_text = " · ".join(parts)
+	_effects_text = " · ".join(parts) if not parts.is_empty() else NO_EVENT
 	_shown_text = _effects_text
 	_label.text = _effects_text
 	custom_minimum_size.x = 0.0
@@ -182,6 +207,23 @@ func has_relation() -> bool:
 	return _ringed
 
 
+## The day shown ("D3"), 0 for none (for tests).
+func day() -> int:
+	return _day
+
+
+## The day's label (for layout tests).
+func day_label() -> Label:
+	return _day_label
+
+
+func _gui_input(event: InputEvent) -> void:
+	var press: InputEventMouseButton = event as InputEventMouseButton
+	if _day > 0 and press != null and press.pressed and press.button_index == MOUSE_BUTTON_LEFT:
+		accept_event()
+		pressed.emit()
+
+
 func _notification(what: int) -> void:
 	if what == NOTIFICATION_MOUSE_ENTER:
 		hovered.emit()
@@ -217,23 +259,23 @@ func fit_width(width: float) -> void:
 	if shown:
 		_shown_text = _effects_text
 		_label.text = _shown_text
-	if get_combined_minimum_size().x <= width:
+	if TopBar.fresh_width(self) <= width:
 		return
 	if _pass_word.visible:
 		_pass_hidden = true
 		_pass_word.visible = false
-		if get_combined_minimum_size().x <= width:
+		if TopBar.fresh_width(self) <= width:
 			return
 	if _pill.visible:
 		_pill_label.text = PILL_SHORT
-		if get_combined_minimum_size().x <= width:
+		if TopBar.fresh_width(self) <= width:
 			return
 	if shown and not _inspections.is_empty():
 		_shown_text = " · ".join(effects(_inspections))
 		_label.text = _shown_text
-		if get_combined_minimum_size().x <= width:
+		if TopBar.fresh_width(self) <= width:
 			return
-	var whole: float = get_combined_minimum_size().x
+	var whole: float = TopBar.fresh_width(self)
 	var text_width: float = _label.get_minimum_size().x
 	_label.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
 	_label.custom_minimum_size.x = maxf(0.0, text_width - (whole - width))
@@ -256,6 +298,7 @@ func _show_bonus_state() -> void:
 	_pass_word.visible = _bonus == Bonus.PROMISED and not _pass_hidden
 	var boon: bool = is_boon()
 	var icon: Texture2D = CHECK if earned else (BOON if boon else WARNING)
+	_icon.visible = earned or not _inspections.is_empty()
 	_icon.texture = icon
 	_icon.custom_minimum_size = icon.get_size() * 2.0 if earned or boon else ICON_SIZE
 	if earned:
@@ -265,9 +308,9 @@ func _show_bonus_state() -> void:
 		_label.text = _shown_text
 	# The paper chip tinted: teal pale once earned, green for a boon day, tomato pale for an
 	# inspection.
-	var pale: Color = Palette.TEAL_PALE if earned else Palette.TOMATO_PALE
-	if boon and not earned:
-		pale = Palette.GREEN_LIGHT
+	var pale: Color = tint_of(WeekCardModel.kind_of(_inspections))
+	if earned:
+		pale = Palette.TEAL_PALE
 	var paper: Color = Palette.PAPER
 	self_modulate = Color(pale.r / paper.r, pale.g / paper.g, pale.b / paper.b)
 	tooltip_text = _tips + ("\n\n" + PILL_TIP if _bonus == Bonus.PROMISED else "")
@@ -302,6 +345,19 @@ func _make_pill() -> PanelContainer:
 	row.add_child(_pill_label)
 	panel.visible = false
 	return panel
+
+
+## A day's tint (v0.70): green for a boon day, tomato pale for an inspection, mustard pale for a
+## Manager's review, grey light for a day without an event.
+static func tint_of(kind: WeekCardModel.Kind) -> Color:
+	match kind:
+		WeekCardModel.Kind.BOON:
+			return Palette.GREEN_LIGHT
+		WeekCardModel.Kind.REVIEW:
+			return Palette.MUSTARD_LIGHT
+		WeekCardModel.Kind.NONE:
+			return Palette.GREY_LIGHT
+	return Palette.TOMATO_PALE
 
 
 static func _pill_text_label(caption: String) -> Label:

@@ -207,6 +207,7 @@ func test_a_passed_shift_plays_the_dessert_then_opens_the_machine() -> void:
 	await Rush.checkout(screen)
 	screen._machine.debug_skip()
 	assert_int(run.shift_index).is_equal(1)
+	screen._debug.set_inspection("")  # Shift 2's boon (drawn with week 1, v0.70) adds nothing.
 	sfx.clear()
 	await _place(screen, PASSING_ROW)
 	await Rush.checkout(screen)
@@ -647,6 +648,7 @@ func _recording_sfx(screen: ShiftScreen) -> Sfx:
 func _screen() -> ShiftScreen:
 	var runner: GdUnitSceneRunner = scene_runner(SCREEN)
 	var screen: ShiftScreen = runner.scene()
+	screen._week.skip()  # The time card (v0.70) stays out of the way.
 	for frame: int in range(2):
 		await get_tree().process_frame
 	return screen

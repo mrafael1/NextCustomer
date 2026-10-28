@@ -38,7 +38,7 @@ static func _perk_win(run: RunState, upgrades: Array[UpgradeDefinition]) -> Priz
 	for index: int in run.history.size():
 		var record: ShiftRecord = run.history[index]
 		var row: Array[CardInstance] = _row(record.played)
-		var checks: Array[InspectionDefinition] = _checks(record)
+		var checks: Array[InspectionDefinition] = _checks(run, record)
 		var gain: int = maxi(
 			Scoring.total(row, upgrades, checks) - Scoring.total(row, run.upgrades, checks), 0
 		)
@@ -56,7 +56,7 @@ static func _upgrade_win(run: RunState, preview: MachinePreview) -> PrizeWin:
 	var found: PrizeWin = PrizeWin.new()
 	for index: int in run.history.size():
 		var record: ShiftRecord = run.history[index]
-		var checks: Array[InspectionDefinition] = _checks(record)
+		var checks: Array[InspectionDefinition] = _checks(run, record)
 		var before: int = Scoring.total(_row(record.played), run.upgrades, checks)
 		var gain: int = 0
 		if shelf:
@@ -83,9 +83,10 @@ static func _row(cards: Array[CardDefinition]) -> Array[CardInstance]:
 	return row
 
 
-## Every inspection the record's shift was played under (a Manager's review's two, v0.65).
-static func _checks(record: ShiftRecord) -> Array[InspectionDefinition]:
-	return record.inspections.duplicate()
+## Every event the record's shift was played under (a Manager's review's two inspections, v0.65;
+## its week event, v0.70).
+static func _checks(run: RunState, record: ShiftRecord) -> Array[InspectionDefinition]:
+	return WeekSchedule.events_for(run.balance, record.shift, record.inspections)
 
 
 func _add(gain: int, is_last: bool) -> void:

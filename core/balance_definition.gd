@@ -58,6 +58,12 @@ extends Resource
 ## The boon day events a boon day draws from (never an inspection: inspection_pool holds the
 ## maluses).
 @export var boon_pool: Array[InspectionDefinition] = []
+## Shifts per week (v0.70, WeekSchedule: the time card shows one week of day events at a time,
+## drawn when the week starts). 0: the whole run is one week.
+@export var week_length: int = 0
+## The fixed week events (v0.70), one per week in order (WeekSchedule.event_for): week 1's first.
+## A week past the list has none.
+@export var weeks: Array[WeekEventDefinition] = []
 ## Slips (v0.68, the training week; the code's write-ups since v0.65): the most missed quotas the
 ## run forgives, on shifts up to write_up_last_shift. A forgiven miss stamps SLIP n/limit, gets no
 ## ticket and the run goes on; the next miss ends the run. 0: every miss ends the run, as before

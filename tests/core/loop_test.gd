@@ -213,14 +213,19 @@ func test_a_single_draw_after_a_review_leaves_both_out() -> void:
 		assert_int(a.state).is_equal(b.state)
 
 
-## PrizeWin rescores a review's row with both of its inspections, as the checkout scored it.
+## PrizeWin rescores a review's row with both of its inspections and its week event (v0.70), as
+## the checkout scored it.
 func test_prize_win_rescores_a_review_with_both() -> void:
 	var run: RunState = _run(21)
 	run.debug_skip_to_shift(3)
 	_pass(run)
 	var record: ShiftRecord = run.history[-1]
 	assert_int(record.inspections.size()).is_equal(2)
-	assert_array(PrizeWin._checks(record)).is_equal(record.inspections)
+	var checks: Array[InspectionDefinition] = record.inspections.duplicate()
+	var week: WeekEventDefinition = WeekSchedule.event_for(run.balance, record.shift)
+	if week != null:
+		checks.append(week)
+	assert_array(PrizeWin._checks(run, record)).is_equal(checks)
 
 
 ## A run with a slip saves and resumes, at the next shift's planning and after the miss's
@@ -385,7 +390,8 @@ static func _old_save(run: RunState) -> Dictionary:
 	var data: Dictionary = _json(RunSave.to_dictionary(run, "old", 7))
 	data["format_version"] = RunSave.BEFORE_LOOP_VERSION
 	data["next_inspection"] = ""
-	data.erase("next_inspections")
+	data.erase("week")
+	data.erase("pre_week_shift")
 	for record: Dictionary in data["history"]:
 		var ids: Array = record["inspections"]
 		record.erase("inspections")

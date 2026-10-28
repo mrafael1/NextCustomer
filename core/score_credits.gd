@@ -15,12 +15,14 @@ var redrawn_in: PackedInt32Array = PackedInt32Array()
 
 
 ## The credits of the run's current shift: its slots without any upgrade's (the balance's and
-## the shift's inspections', as ShiftLimits counts them) and its extra redraws' cards.
+## the shift's events', as ShiftLimits counts them) and its extra redraws' cards.
 static func for_run(run: RunState) -> ScoreCredits:
 	var credits: ScoreCredits = ScoreCredits.new()
 	var bare: Array[UpgradeDefinition] = []
 	credits.base_slots = (
-		ShiftLimits.for_shift(run.balance, bare, run.shift_index, run.inspections).slot_count
+		ShiftLimits
+		. for_shift(run.balance, bare, run.shift_index, WeekSchedule.shift_events(run))
+		. slot_count
 	)
 	credits.redrawn_in = run.redrawn_in.duplicate()
 	return credits

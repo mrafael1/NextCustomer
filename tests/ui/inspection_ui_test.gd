@@ -36,14 +36,14 @@ func test_the_notice_comes_before_the_machine() -> void:
 	var screen: ShiftScreen = runner.scene()
 	_only_spot_check(screen)
 	var run: RunState = screen.run
-	assert_bool(screen._inspection_tag.visible).is_false()
+	assert_str(screen._inspection_tag.text()).is_equal(WeekCardModel.NO_EVENT)  # The day chip.
 
 	# Shift 2 is not inspected: no notice after shift 1.
 	await _pass_shift(screen)
 	assert_str(_receipt_text(screen)).not_contains("INSPECTION")
 	assert_str(_last_event("checkout")["next_inspection"]).is_empty()
 	screen._machine.debug_skip()
-	assert_bool(screen._inspection_tag.visible).is_false()
+	assert_str(screen._inspection_tag.text()).is_equal(WeekCardModel.NO_EVENT)  # The day chip.
 
 	# Shift 3 is: the notice prints in red under shift 2's dessert (after the tear, #61), on the
 	# receipt beside the machine, so the pick can take it into account.
@@ -150,7 +150,7 @@ func test_the_debug_panel_clears_the_inspection() -> void:
 	screen._debug.set_inspection("spot_check")
 	assert_array(_last_event("shift_start")["inspections"]).is_equal(["spot_check"])
 	screen._debug.set_inspection("")
-	assert_bool(screen._inspection_tag.visible).is_false()
+	assert_str(screen._inspection_tag.text()).is_equal(WeekCardModel.NO_EVENT)  # The day chip.
 	assert_array(screen.run.inspections).is_empty()
 	assert_array(_last_event("shift_start")["inspections"]).is_empty()
 	# An unknown id changes nothing.
@@ -180,10 +180,16 @@ func test_the_planning_notice_promises_and_earns_the_bonus_ticket() -> void:
 	assert_str(tag.tooltip_text).contains("PASS › +1 BONUS TICKET")
 	assert_str(tag.full_text()).contains("+1")
 	await _frames(3)
-	# The effect is never cut: something else gives way first (InspectionTag.fit_width).
+	# The effect is cut only once everything else gave way (InspectionTag.fit_width; since v0.70
+	# the week chip's name and pips too, TopBar.fit_inspection), and the tooltip keeps it whole.
 	var effect: String = (load(SPOT_CHECK) as InspectionDefinition).chip_text
-	assert_bool(tag.is_trimmed()).is_false()
-	assert_str(tag.label().text).contains(effect)
+	if tag.is_trimmed():
+		var week_chip: WeekChip = screen._stage.top_bar.week_chip
+		assert_bool(week_chip.name_shown() or week_chip.pips_shown()).is_false()
+		assert_bool(screen._stage.top_bar.training_label.visible).is_false()
+	else:
+		assert_str(tag.label().text).contains(effect)
+	assert_str(tag.tooltip_text).contains((load(SPOT_CHECK) as InspectionDefinition).display_name)
 	assert_str(tag.tooltip_text).contains(InspectionTag.PILL_TIP)
 	var chip: Rect2 = tag.get_global_rect()
 	var pill: Rect2 = tag.pill().get_global_rect()
@@ -236,7 +242,7 @@ func test_the_planning_notice_promises_and_earns_the_bonus_ticket() -> void:
 	# Shift 2 is not inspected: no pill.
 	assert_int(run.phase).is_equal(RunState.Phase.PLANNING)
 	assert_int(run.history[-1].shift).is_equal(1)
-	assert_bool(tag.visible).is_false()
+	assert_str(tag.text()).is_equal(WeekCardModel.NO_EVENT)  # The day chip (v0.70).
 	assert_int(tag.bonus_state()).is_equal(InspectionTag.Bonus.NONE)
 
 
@@ -338,6 +344,10 @@ static func _only_spot_check(screen: ShiftScreen) -> void:
 	balance.inspection_pool = pool
 	balance.boon_shifts = PackedInt32Array()
 	screen.run.balance = balance
+	# The week's days (v0.70) as this balance draws them.
+	screen.run.week = WeekSchedule.draw(RandomNumberGenerator.new(), balance, 1)
+	screen.run.inspections = screen.run.week.day(screen.run.shift_index + 1)
+	screen._week.skip()
 
 
 ## Short belt on the shift screen: 6 open slots plus a CLOSED panel after them, so the row keeps

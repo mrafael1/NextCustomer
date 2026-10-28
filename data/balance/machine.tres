@@ -132,10 +132,20 @@ plain_weight = 55
 big_weight = 33
 golden_weight = 12
 
+[sub_resource type="Resource" id="level_4"]
+script = ExtResource("2_odds_level")
+common_weight = 35
+rare_weight = 41
+legendary_weight = 24
+first_drop_min_rarity = 1
+plain_weight = 45
+big_weight = 39
+golden_weight = 16
+
 [resource]
 script = ExtResource("1_machine")
 prizes_per_visit = 3
-odds_levels = Array[ExtResource("2_odds_level")]([SubResource("level_0"), SubResource("level_1"), SubResource("level_2"), SubResource("level_3")])
+odds_levels = Array[ExtResource("2_odds_level")]([SubResource("level_0"), SubResource("level_1"), SubResource("level_2"), SubResource("level_3"), SubResource("level_4")])
 rare_products = Array[ExtResource("3_card")]([ExtResource("p_milk"), ExtResource("p_eggs"), ExtResource("p_flickering_bulb"), ExtResource("p_reduced_yogurt"), ExtResource("p_cereal"), ExtResource("p_butter"), ExtResource("p_ham_ends"), ExtResource("p_mixed_herbs"), ExtResource("p_grapefruit"), ExtResource("p_fruit_salad"), ExtResource("p_wonky_carrot"), ExtResource("p_baguette"), ExtResource("p_broken_biscuit"), ExtResource("p_pick_n_mix"), ExtResource("p_bent_lolly"), ExtResource("p_tea_bags"), ExtResource("p_carrier_bag")])
 legendary_products = Array[ExtResource("3_card")]([ExtResource("p_lemon"), ExtResource("p_iced_bun"), ExtResource("p_squashed_cake")])
 rare_coupons = Array[ExtResource("3_card")]([ExtResource("c_repeat"), ExtResource("c_two_for_one"), ExtResource("c_multipack")])

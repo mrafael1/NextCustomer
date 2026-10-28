@@ -5,6 +5,7 @@ extends GdUnitTestSuite
 const SPOT_CHECK := "res://data/inspections/spot_check.tres"
 const CARDS_DIR := "res://data/cards"
 const DAY := "res://data/inspections/%s.tres"
+const BALANCE := "res://data/balance/balance.tres"
 
 
 func test_the_placeholder_inspection_matches_the_plan() -> void:
@@ -48,7 +49,7 @@ func test_the_day_events_match_the_plan() -> void:
 		"quiet_morning": [true, 0, 0, 0, -10, 0],
 		"extra_till": [true, 1, 0, 0, 0, 0],
 		"regulars_day": [true, 0, 1, 0, 0, 0],
-		"big_trolleys": [true, 0, 0, 1, 0, 0],
+		"fresh_delivery": [true, 0, 0, 0, 0, 1],
 		"free_samples": [true, 0, 0, 0, 0, 1],
 		"happy_hour": [true, 0, 0, 0, 0, 1],
 	}
@@ -73,6 +74,55 @@ func test_the_day_events_match_the_plan() -> void:
 	assert_array([samples.product_number, samples.factor]).is_equal([1, 2])
 	var happy: LastCardBonusRule = (load(DAY % "happy_hour") as InspectionDefinition).rules[0]
 	assert_int(happy.bonus).is_equal(3)
+	var fresh: TagFlatBonusRule = (load(DAY % "fresh_delivery") as InspectionDefinition).rules[0]
+	assert_array([fresh.tag, fresh.bonus]).is_equal(["Produce", 1])
+
+
+## v0.70: Big trolleys left the boon pool for Fresh delivery, and no live day event deals a
+## larger hand (the generic hand_size_delta hook stays for Small baskets' −1).
+func test_no_live_day_event_grows_the_hand() -> void:
+	var balance: BalanceDefinition = load(BALANCE)
+	var ids: PackedStringArray = PackedStringArray()
+	for event: InspectionDefinition in balance.boon_pool + balance.inspection_pool:
+		ids.append(event.resource_path.get_file().get_basename())
+		assert_int(event.hand_size_delta).override_failure_message(ids[-1]).is_less_equal(0)
+	assert_bool(ids.has("fresh_delivery")).is_true()
+	assert_bool(ids.has("big_trolleys")).is_false()
+	assert_bool(FileAccess.file_exists(DAY % "big_trolleys")).is_false()
+
+
+## v0.70's fixed week events: the balance's week list in order (Training week, Bakery festival,
+## Holiday rush), four shifts a week, each a WEEK-tone event with the plan's numbers.
+func test_the_week_events_match_the_plan() -> void:
+	var balance: BalanceDefinition = load(BALANCE)
+	assert_int(balance.week_length).is_equal(4)
+	var ids: PackedStringArray = PackedStringArray()
+	for week: WeekEventDefinition in balance.weeks:
+		ids.append(week.resource_path.get_file().get_basename())
+		assert_bool(week.is_week()).override_failure_message(ids[-1]).is_true()
+		assert_bool(week.is_boon()).override_failure_message(ids[-1]).is_false()
+		assert_str(week.chip_text).override_failure_message(ids[-1]).is_not_empty()
+		assert_str(week.notice_text).override_failure_message(ids[-1]).is_not_empty()
+	assert_array(Array(ids)).is_equal(["training_week", "bakery_festival", "holiday_rush"])
+	# id: [forgives_slips, quota_percent, odds_level_delta, rules]
+	var cases: Dictionary = {
+		"training_week": [true, 0, 0, 0],
+		"bakery_festival": [false, 10, 0, 1],
+		"holiday_rush": [false, 15, 1, 0],
+	}
+	for week: WeekEventDefinition in balance.weeks:
+		var id: String = week.resource_path.get_file().get_basename()
+		var got: Array = [
+			week.forgives_slips, week.quota_percent, week.odds_level_delta, week.rules.size()
+		]
+		assert_array(got).override_failure_message(id).is_equal(cases[id])
+		var limits: Array = [week.extra_slots, week.extra_redraws, week.hand_size_delta]
+		assert_array(limits).override_failure_message(id).is_equal([0, 0, 0])
+	var bakery: TagFlatBonusRule = balance.weeks[1].rules[0]
+	assert_array([bakery.tag, bakery.bonus]).is_equal(["Bakery", 2])
+	# The training week's slips are the write-ups' (v0.68): forgiven up to its last shift.
+	assert_int(balance.write_up_last_shift).is_equal(balance.week_length)
+	assert_int(balance.write_up_limit).is_equal(2)
 
 
 ## The boons' rules on live cards: Free samples doubles the 1st product, Happy hour adds €3 to

@@ -10,10 +10,11 @@ const STARTER := "res://data/decks/starter.tres"
 const RARITY_TABLE := "res://docs/art/mockups/machine_77_src/product_rarity.json"
 ## R3b (decided with the user): these leave the Legendary list for the Rare one.
 const R3B_RARE: Array[String] = ["tea_bags", "carrier_bag"]
-## draw77.js ODDS, per Regular level (COMMON, RARE, LEGENDARY).
-const ODDS := [[75, 22, 3], [65, 28, 7], [55, 33, 12], [45, 37, 18]]
+## draw77.js ODDS, per Regular level (COMMON, RARE, LEGENDARY); level 4 (v0.70) only Holiday
+## rush's +1 reaches (the visits after shifts 9-11), one step past level 3.
+const ODDS := [[75, 22, 3], [65, 28, 7], [55, 33, 12], [45, 37, 18], [35, 41, 24]]
 ## The tier a NEW ITEMS product with a chain arrives at, per odds level (plain, BIG, GOLDEN; #108).
-const TIERS := [[85, 13, 2], [75, 20, 5], [65, 27, 8], [55, 33, 12]]
+const TIERS := [[85, 13, 2], [75, 20, 5], [65, 27, 8], [55, 33, 12], [45, 39, 16]]
 
 var _balance: BalanceDefinition
 var _machine: MachineDefinition
@@ -50,7 +51,7 @@ func test_the_balance_uses_the_machine_file() -> void:
 ## and a PREMIUM drop too; the tier weights rise with the level and PREMIUM leaves BIG and GOLDEN.
 func test_the_odds_levels_are_the_approved_ones() -> void:
 	assert_int(_machine.odds_levels.size()).is_equal(ODDS.size())
-	assert_int(_machine.max_level()).is_equal(3)
+	assert_int(_machine.max_level()).is_equal(4)
 	for index: int in _machine.odds_levels.size():
 		var level: MachineOddsLevel = _machine.odds_levels[index]
 		var weights: Array = [level.common_weight, level.rare_weight, level.legendary_weight]
@@ -59,7 +60,7 @@ func test_the_odds_levels_are_the_approved_ones() -> void:
 		for drop: int in _machine.prizes_per_visit:
 			var rolled: PackedInt32Array = level.weights(drop)
 			assert_int(rolled[0] + rolled[1] + rolled[2]).is_greater(0)
-		assert_int(level.first_drop_min_rarity).is_equal(1 if index == 3 else 0)
+		assert_int(level.first_drop_min_rarity).is_equal(1 if index >= 3 else 0)
 		var premium: PackedInt32Array = level.weights(0, _machine.premium_min_rarity)
 		assert_int(premium[1] + premium[2]).is_greater(0)
 		assert_array(Array(level.tier_weights())).is_equal(TIERS[index])

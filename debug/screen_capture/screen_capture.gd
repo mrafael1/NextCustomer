@@ -277,6 +277,7 @@ func _set_up_shift(
 	for card: CardInstance in cards.slice(HAND_IDS.size()):
 		run.place(card, run.row.size())
 	_screen.debug_show_shift()
+	_screen._week.skip()  # The capture shows planning, never the time card (v0.70).
 
 
 ## Stops the real pointer from driving the screen until the capture leaves the tree: a capture
@@ -695,6 +696,7 @@ func announce(seconds: float, shift_number: int = 0) -> void:
 		run.machine.machine = run.machine.machine.duplicate() as MachineDefinition
 		run.machine.machine.premium_shifts = PackedInt32Array([run.shift_index + 1])
 		_machine_part = ANNOUNCE_PREFIX % roundi(seconds * 10.0)
+	_screen._week.skip()  # The announce, not the time card (v0.70), is what is captured.
 	await get_tree().create_timer(seconds).timeout
 
 

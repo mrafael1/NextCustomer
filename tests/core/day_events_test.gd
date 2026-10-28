@@ -19,7 +19,7 @@ func test_the_limits_take_every_event() -> void:
 	var cases: Dictionary = {
 		"extra_till": [1, 0, 0, plain.quota],
 		"regulars_day": [0, 1, 0, plain.quota],
-		"big_trolleys": [0, 0, 1, plain.quota],
+		"fresh_delivery": [0, 0, 0, plain.quota],
 		"quiet_morning": [0, 0, 0, roundi(plain.quota * 0.9)],
 		"short_belt": [-1, 0, 0, plain.quota],
 		"till_jam": [0, -1, 0, plain.quota],
@@ -148,14 +148,14 @@ func test_a_boon_is_never_an_inspection() -> void:
 	assert_bool(run.machine.bonus_if_passed(run)).is_true()
 
 
-## A boon day deals its hand from the shift's limits (Big trolleys: one item more), and a redraw
-## a boon gave is the shift's own: no Extra redraw credit.
+## A day deals its hand from the shift's limits (Small baskets: one item fewer), and a redraw a
+## boon gave is the shift's own: no Extra redraw credit.
 func test_a_boon_day_deals_and_redraws_by_its_limits() -> void:
 	var balance: BalanceDefinition = (load(BALANCE) as BalanceDefinition).duplicate()
-	var trolleys: RunState = RunState.new(5, load(STARTER), balance, RunStock.starting(balance))
-	trolleys.inspections = [load(DIR % "big_trolleys")]
-	trolleys.start_shift()
-	assert_int(trolleys.hand().size()).is_equal(balance.hand_size + 1)
+	var small: RunState = RunState.new(5, load(STARTER), balance, RunStock.starting(balance))
+	small.inspections = [load(DIR % "small_baskets")]
+	small.start_shift()
+	assert_int(small.hand().size()).is_equal(balance.hand_size - 1)
 	var run: RunState = RunState.new(5, load(STARTER), balance, RunStock.starting(balance))
 	run.inspections = [load(DIR % "regulars_day")]
 	run.start_shift()
@@ -168,7 +168,8 @@ func test_a_boon_day_deals_and_redraws_by_its_limits() -> void:
 
 
 ## A version 8 save (before the boon days) taken after a checkout whose next shift is a boon day
-## gets its boon as it loads; a version 9 save keeps the boons it names.
+## gets its boon as it loads (and its week, v0.70, drawn on from there); a version 10 save keeps
+## the boons its week names.
 func test_an_older_save_gets_the_next_boon() -> void:
 	var lookup: ContentLookup = ContentLookup.new(load(BALANCE))
 	var balance: BalanceDefinition = lookup.balance
@@ -184,6 +185,8 @@ func test_an_older_save_gets_the_next_boon() -> void:
 	var kept: RunSave = RunSave.from_dictionary(saved, lookup)
 	assert_array(kept.run.next_inspections).is_equal(run.next_inspections)
 	saved["format_version"] = RunSave.BEFORE_DAY_EVENTS_VERSION
+	saved.erase("week")
+	saved.erase("pre_week_shift")
 	saved["next_inspections"] = []
 	var older: RunSave = RunSave.from_dictionary(saved, lookup)
 	assert_object(older).is_not_null()
@@ -200,6 +203,14 @@ func test_an_older_save_gets_the_next_boon() -> void:
 	assert_array(InspectionDefinition.boons(older.run.next_inspections)).is_equal(
 		InspectionDefinition.boons(drawn)
 	)
+	# Then the week's later days (shifts 3 and 4) are drawn on from there.
+	var last: Array[InspectionDefinition] = WeekSchedule.after(previous, older.run.next_inspections)
+	for shift_number: int in [3, 4]:
+		var day: Array[InspectionDefinition] = InspectionSchedule.draw_for(
+			rng, balance, shift_number, last
+		)
+		assert_array(older.run.week.day(shift_number)).is_equal(day)
+		last = WeekSchedule.after(last, day)
 	assert_int(older.run.rng_state).is_equal(rng.state)
 
 

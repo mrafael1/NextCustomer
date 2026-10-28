@@ -126,9 +126,10 @@ func test_a_run_never_repeats_an_inspection_back_to_back() -> void:
 		var run: RunState = _plain_run(seed_value)
 		var drawn: Array[InspectionDefinition] = []
 		while run.phase != RunState.Phase.WON and drawn.size() < 3:
+			var played: Array[InspectionDefinition] = InspectionDefinition.maluses(run.inspections)
+			if not played.is_empty():
+				drawn.append(played[0])
 			_pass(run)
-			if run.next_inspection != null:
-				drawn.append(run.next_inspection)
 			MachineSteps.next_shift(run)
 		assert_int(drawn.size()).override_failure_message("seed %d" % seed_value).is_equal(3)
 		assert_object(drawn[1]).is_not_same(drawn[0])
