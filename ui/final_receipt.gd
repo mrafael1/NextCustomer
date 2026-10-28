@@ -8,9 +8,10 @@ extends RefCounted
 ## under, the shortfall on a lost run, a rule, then the coins: the shifts passed, the overtime,
 ## the run's coins and the profile's total ("you have ?" when the profile couldn't be saved). It
 ## only lays out text; core computes the payout and the margin. A missed shift the run went on
-## after reads "write-up" (v0.65), the miss that ended it "fail". The compact receipt (a 12-shift
-## run's, when the full one can't fit the screen) folds each shift's inspection line into its
-## shift line ("inspected", or "review" for a Manager's review).
+## after reads "slip" (v0.68's training week; "write-up" in v0.65), the miss that ended it "fail".
+## A payday's second visit (v0.68) reads "PREMIUM · ", any other BONUS visit "BONUS · ". The
+## compact receipt (a 12-shift run's, when the full one can't fit the screen) folds each shift's
+## inspection line into its shift line ("inspected", or "review" for a Manager's review).
 
 enum Tone { HEADLINE, RULE, SHIFT, DETAIL, SHORTFALL, COINS, COINS_TOTAL }
 
@@ -69,9 +70,9 @@ static func lines(
 
 
 ## A shift's line ("  4  €30 / €22        pass") and its dim lines: one per machine visit
-## after it (visit_text), then the inspections it was played under. A miss reads "write-up" when
-## the run went on after it (`went_on`, v0.65). `compact` folds the inspections into the shift
-## line ("  4  €30 / €22        pass  review").
+## after it (visit_text), then the inspections it was played under. A miss reads "slip" when the
+## run went on after it (`went_on`; v0.65's "write-up"). `compact` folds the inspections into the
+## shift line ("  4  €30 / €22        pass  review").
 static func shift_texts(
 	record: ShiftRecord, compact: bool = false, went_on: bool = false
 ) -> PackedStringArray:
@@ -96,7 +97,9 @@ static func shift_texts(
 ## engine LV 2"), or "binned NEW ITEMS".
 static func visit_text(visit: MachineVisit) -> String:
 	var chute: String = CHUTE_WORDS[visit.chute] if visit.chute >= 0 else "?"
-	var prefix: String = "BONUS · " if visit.kind == MachineVisit.Kind.BONUS else ""
+	var prefix: String = ""
+	if visit.kind == MachineVisit.Kind.BONUS:
+		prefix = "PREMIUM · " if visit.premium else "BONUS · "
 	if visit.binned:
 		return prefix + "binned " + chute
 	var prize: MachinePrize = visit.picked_prize()
@@ -144,7 +147,7 @@ static func rule() -> String:
 static func _result(record: ShiftRecord, went_on: bool) -> String:
 	if record.passed:
 		return "pass"
-	return "write-up" if went_on else "fail"
+	return "slip" if went_on else "fail"
 
 
 static func _owned_text(coins_owned: int) -> String:

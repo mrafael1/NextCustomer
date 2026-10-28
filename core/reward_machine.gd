@@ -43,6 +43,10 @@ var new_items_first_done: bool = false
 ## The loyalty perks the last scored shift was played with (a copy of the run's upgrades at the
 ## checkout; a resume re-scores the row with them).
 var played_upgrades: Array[UpgradeDefinition] = []
+## A legacy save's (before v0.65) visit kept its PREMIUM flag by that save's premium shifts: the
+## shift's later visits (its queued BONUS one) take the same flag, not today's premium shifts.
+## Kept until the next checkout, and saved, so a save during the BONUS visit still fits.
+var keeps_legacy_premium: bool = false
 var _rng: RandomNumberGenerator
 var _visit: MachineVisit
 ## The visits still to come this shift after the current one (MachineVisit.Kind).
@@ -53,6 +57,8 @@ var _cards: Dictionary = {}
 ## The visit's draw was the run's first NEW ITEMS draw (it spent the first-draw flags): its odds
 ## card during PICK is still the first draw's (saved, so a resume shows it too).
 var _first_draw: bool = false
+## That flag (keeps_legacy_premium).
+var _legacy_premium: bool = false
 
 
 func _init(machine_definition: MachineDefinition, rng: RandomNumberGenerator) -> void:
@@ -284,6 +290,9 @@ static func state_for(premium: bool) -> String:
 
 ## The machine's state for the run save (RunSave).
 func to_dictionary() -> Dictionary:
+	var legacy_premium: Variant = null
+	if keeps_legacy_premium:
+		legacy_premium = _legacy_premium
 	return {
 		"coupons_first_done": coupons_first_done,
 		"new_items_first_done": new_items_first_done,
@@ -293,12 +302,13 @@ func to_dictionary() -> Dictionary:
 		"stage": STAGE_NAMES[stage],
 		"visit": _visit.to_dictionary() if _visit != null else {},
 		"first_draw": _first_draw,
+		"legacy_premium": legacy_premium,
 	}
 
 
 ## Puts back to_dictionary's state (as parsed from JSON). False, changing nothing, when a field
 ## is missing or wrong or the stage and the visit don't fit together.
-func restore_from(data: Dictionary, lookup: ContentLookup) -> bool:
+func restore_from(data: Dictionary, lookup: ContentLookup, legacy: bool = false) -> bool:
 	var reader: SaveReader = SaveReader.new(data, lookup)
 	var saved_stage: int = STAGE_NAMES.find(reader.text("stage"))
 	var saved_queue: Array[int] = []
@@ -324,7 +334,14 @@ func restore_from(data: Dictionary, lookup: ContentLookup) -> bool:
 	var played: Array[UpgradeDefinition] = reader.upgrades("played_upgrades")
 	# Left out by saves made before it was added: not a first draw.
 	var first_draw: Variant = data.get("first_draw", false)
-	if not valid or not reader.ok or not first_draw is bool:
+	# Left out (or null) unless a legacy save's visit set it.
+	var legacy_premium: Variant = data.get("legacy_premium")
+	if (
+		not valid
+		or not reader.ok
+		or not first_draw is bool
+		or not (legacy_premium == null or legacy_premium is bool)
+	):
 		return false
 	coupons_first_done = first_coupons
 	new_items_first_done = first_new_items
@@ -333,6 +350,14 @@ func restore_from(data: Dictionary, lookup: ContentLookup) -> bool:
 	stage = saved_stage as Stage
 	_visit = visit
 	_first_draw = first_draw and stage == Stage.PICK
+	keeps_legacy_premium = legacy_premium is bool
+	_legacy_premium = legacy_premium == true
+	# A legacy save's (before v0.65) visit under way: the shift's queued visits take its PREMIUM
+	# flag (that save's rules), not today's premium shifts. Kept only when it matters: a visit is
+	# queued, or this one is PREMIUM (a save during it must still fit).
+	if legacy and _visit != null and (not _queue.is_empty() or _visit.premium):
+		keeps_legacy_premium = true
+		_legacy_premium = _visit.premium
 	_clear_cache()
 	return true
 
@@ -340,6 +365,8 @@ func restore_from(data: Dictionary, lookup: ContentLookup) -> bool:
 ## Empties the queue and the current visit (debug jump).
 func clear_visits() -> void:
 	_queue = []
+	keeps_legacy_premium = false
+	_legacy_premium = false
 	_visit = null
 	_first_draw = false
 	stage = Stage.IDLE
@@ -417,9 +444,15 @@ func _next_visit(run: RunState) -> void:
 	while not _queue.is_empty():
 		var kind: int = _queue.pop_front()
 		var record: ShiftRecord = run.history[-1]
-		var why: String = String(record.inspection.id) if record.inspection != null else ""
+		# Every inspection the shift was played under (a Manager's review has several).
+		var ids: PackedStringArray = PackedStringArray()
+		for inspection: InspectionDefinition in record.inspections:
+			ids.append(String(inspection.id))
+		var why: String = ",".join(ids)
 		_visit = MachineVisit.new(kind as MachineVisit.Kind, why)
-		_visit.premium = machine.is_premium_shift(record.shift)
+		_visit.premium = (
+			_legacy_premium if keeps_legacy_premium else machine.is_premium_shift(record.shift)
+		)
 		stage = Stage.CHOOSE
 		if _can_draw_any(run):
 			return
@@ -446,6 +479,14 @@ func bonus_if_passed(run: RunState) -> bool:
 ## checkout. False on the last shift (no machine follows it).
 func premium_if_passed(run: RunState) -> bool:
 	return not run.is_last_shift() and machine.is_premium_shift(run.shift_index + 1)
+
+
+## Whether the current visit is a payday's (v0.68): a PREMIUM visit after a passed payday shift,
+## its ticket's or its BONUS one. The machine words both as one reward.
+func is_payday(run: RunState) -> bool:
+	if _visit == null or not _visit.premium or run.history.is_empty():
+		return false
+	return machine.is_payday_shift(run.history[-1].shift)
 
 
 ## Read-only, for the inspection chip (#77 machine v2): whether the shift just checked out was an

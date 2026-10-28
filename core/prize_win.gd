@@ -83,11 +83,9 @@ static func _row(cards: Array[CardDefinition]) -> Array[CardInstance]:
 	return row
 
 
+## Every inspection the record's shift was played under (a Manager's review's two, v0.65).
 static func _checks(record: ShiftRecord) -> Array[InspectionDefinition]:
-	var checks: Array[InspectionDefinition] = []
-	if record.inspection != null:
-		checks.append(record.inspection)
-	return checks
+	return record.inspections.duplicate()
 
 
 func _add(gain: int, is_last: bool) -> void:

@@ -13,6 +13,9 @@ extends Control
 ## flight, the bounce, the sunburst and the sparkles and keeps the tag still (no glint). Display
 ## only: the shift screen says when (show_tag, clear) and `active` says whether the tag still
 ## belongs on screen (planning, or the count-up).
+## A payday (v0.68, `payday`: passing the Manager's review pays two PREMIUM tickets) reads as one
+## announce: "PASS THE REVIEW", PAYDAY, "2 PREMIUM TICKETS" and "EVERY TICKET RARE+", and the tag
+## "PAYDAY NEXT" (Payday's texts); the inspection chip then promises no separate bonus ticket.
 ## Drawn in code on the screen's own coordinates, at the art's 2 px grid.
 
 ## The mock-up's times (s): the print, the flight to the tag.
@@ -66,6 +69,8 @@ const BOLD_WEIGHT := 800
 var reduced_motion: Callable = func() -> bool: return false
 ## Whether the tag still belongs on screen (the shift screen: planning, or the count-up).
 var active: Callable = func() -> bool: return true
+## The announce is a payday's (v0.68): show_tag sets it.
+var payday: bool = false
 var _monitor: Control
 var _bar: Control
 var _flag: Control
@@ -111,9 +116,11 @@ func setup(monitor: Control, gauge: Control, flag: Control = null) -> void:
 
 
 ## Shows the announce: printed from the start (`printing`, a shift that just started) or as the
-## hanging tag (a resumed run). Reduced motion always shows the tag.
-func show_tag(printing: bool) -> void:
+## hanging tag (a resumed run), as a payday's when `is_payday` (v0.68). Reduced motion always
+## shows the tag.
+func show_tag(printing: bool, is_payday: bool = false) -> void:
 	_shown = true
+	payday = is_payday
 	_time = 0.0 if printing and not reduced_motion.call() else FLY_TO + RING_LENGTH + SHINE_PERIOD
 	queue_redraw()
 
@@ -183,7 +190,21 @@ func monitor_screen() -> Rect2:
 
 ## The tag's text.
 func tag_text() -> String:
-	return TAG_TEXT
+	return Payday.TAG if payday else TAG_TEXT
+
+
+## The printed receipt's texts, top to bottom: the head, the title, the two boosts, the foot.
+func receipt_texts() -> PackedStringArray:
+	var boosts: Array[String] = Payday.ANNOUNCE_BOOSTS if payday else BOOST_TEXTS
+	return PackedStringArray(
+		[
+			Payday.ANNOUNCE_HEAD if payday else HEAD_TEXT,
+			Payday.ANNOUNCE_TITLE if payday else TITLE_TEXT,
+			boosts[0],
+			boosts[1],
+			FOOT_TEXT,
+		]
+	)
 
 
 func _process(delta: float) -> void:
@@ -274,25 +295,26 @@ func _draw_slip(area: Rect2) -> void:
 	var bold: Font = ArtStyle.bold_font(BOLD_WEIGHT)
 	var ink: Color = Palette.BRASS_DARKEST
 	var mid: float = face.get_center().x
-	_text_if(HEAD_TEXT, Vector2(mid, 17), mono, MONO_SIZE, ink, cut)
+	var texts: PackedStringArray = receipt_texts()
+	_text_if(texts[0], Vector2(mid, 17), mono, MONO_SIZE, ink, cut)
 	if cut >= 58.0:
 		MachineArt.centred_text(
-			self, TITLE_TEXT, Vector2(mid, 40), bold, TITLE_SIZE, ink, Palette.MUSTARD_PALE
+			self, texts[1], Vector2(mid, 40), bold, TITLE_SIZE, ink, Palette.MUSTARD_PALE
 		)
-		var half: float = MachineArt.text_width(TITLE_TEXT, bold, TITLE_SIZE) / 2.0
+		var half: float = MachineArt.text_width(texts[1], bold, TITLE_SIZE) / 2.0
 		_draw_star(Vector2(mid - half - 18.0, 40), ink)
 		_draw_star(Vector2(mid + half + 18.0, 40), ink)
 	if cut >= 60.0:
 		draw_rect(Rect2(24, 58, w - 48, 2), Palette.BRASS)
-	_text_if(BOOST_TEXTS[0], Vector2(mid, 80), bold, BOOST_SIZES[0], ink, cut)
+	_text_if(texts[2], Vector2(mid, 80), bold, BOOST_SIZES[0], ink, cut)
 	if cut >= 90.0:
-		var reach: float = MachineArt.text_width(BOOST_TEXTS[0], bold, BOOST_SIZES[0]) / 2.0
+		var reach: float = MachineArt.text_width(texts[2], bold, BOOST_SIZES[0]) / 2.0
 		_draw_grid(DIAMOND_GRID, Vector2(mid - reach - DIAMOND_GAP, 80), Palette.TEAL)
 		_draw_grid(DIAMOND_GRID, Vector2(mid + reach + DIAMOND_GAP, 80), Palette.TEAL)
-	_text_if(BOOST_TEXTS[1], Vector2(mid, 106), bold, BOOST_SIZES[1], ink, cut)
+	_text_if(texts[3], Vector2(mid, 106), bold, BOOST_SIZES[1], ink, cut)
 	if cut >= 126.0:
 		draw_rect(Rect2(24, 124, w - 48, 2), Palette.BRASS)
-	_text_if(FOOT_TEXT, Vector2(mid, 137), mono, SMALL_MONO_SIZE, ink, cut)
+	_text_if(texts[4], Vector2(mid, 137), mono, SMALL_MONO_SIZE, ink, cut)
 
 
 ## The pixel star (STAR_GRID, 2 px per cell) centred on `centre`, in `colour`.
@@ -334,8 +356,9 @@ func _draw_tag() -> void:
 	draw_rect(Rect2(rect.position + Vector2(6, 8), Vector2(6, 6)), Palette.BRASS_DARKEST)
 	var bold: Font = ArtStyle.bold_font(BOLD_WEIGHT)
 	var centre: Vector2 = rect.get_center() + Vector2(12, 0)
-	MachineArt.centred_text(self, TAG_TEXT, centre, bold, TAG_FONT_SIZE, Palette.BRASS_DARKEST)
-	var half: float = MachineArt.text_width(TAG_TEXT, bold, TAG_FONT_SIZE) / 2.0
+	var tag: String = tag_text()
+	MachineArt.centred_text(self, tag, centre, bold, TAG_FONT_SIZE, Palette.BRASS_DARKEST)
+	var half: float = MachineArt.text_width(tag, bold, TAG_FONT_SIZE) / 2.0
 	_draw_star(Vector2(centre.x - half - 10.0, centre.y), Palette.BRASS_DARKEST)
 	if reduced_motion.call():
 		return

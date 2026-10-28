@@ -330,8 +330,8 @@ func test_the_run_info_tab_shows_upgrades_inspections_and_stock() -> void:
 	assert_str(view.texts()[0]).starts_with("Tags: ")
 
 
-## Before an inspected shift the next one is announced as coming (it is drawn at checkout);
-## the last shift has no next shift.
+## Before an inspected shift the next one is announced as coming (it is drawn at checkout), a
+## Manager's review by its name; the last shift has no next shift.
 func test_run_info_announces_a_scheduled_inspection() -> void:
 	var screen: ShiftScreen = await _screen()
 	screen._debug.skip_to_shift(2)
@@ -340,6 +340,14 @@ func test_run_info_announces_a_scheduled_inspection() -> void:
 	view.show_page(true)
 	assert_array(Array(view.texts())).contains(
 		["This shift: no inspection.", "Next shift: inspected (announced at checkout)."]
+	)
+	view._close()
+	# Shift 3: the next one is the first Manager's review (v0.65).
+	screen._debug.skip_to_shift(3)
+	screen._on_deck_button_pressed()
+	view.show_page(true)
+	assert_array(Array(view.texts())).contains(
+		["Next shift: Manager's review (announced at checkout)."]
 	)
 	view._close()
 	screen._debug.skip_to_shift(screen.run.shift_count())
@@ -356,6 +364,7 @@ func test_run_info_announces_a_scheduled_inspection() -> void:
 	assert_int(screen.run.inspections.size()).is_equal(2)
 	var line: String = DeckView._inspection_line("This shift", screen.run.inspections)
 	assert_array(Array(texts)).contains([line])
+	assert_str(line).starts_with("This shift: Manager's review: ")
 	for inspection: InspectionDefinition in screen.run.inspections:
 		assert_str(line).contains(inspection.display_name)
 

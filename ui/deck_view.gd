@@ -476,6 +476,8 @@ static func _inspection_lines(run: RunState) -> PackedStringArray:
 	var next_shift: int = run.shift_index + 2
 	if not run.next_inspections.is_empty():
 		lines.append(_inspection_line("Next shift", run.next_inspections))
+	elif InspectionSchedule.is_review_shift(run.balance, next_shift):
+		lines.append("Next shift: Manager's review (announced at checkout).")
 	elif InspectionSchedule.is_inspection_shift(run.balance, next_shift):
 		lines.append("Next shift: inspected (announced at checkout).")
 	elif next_shift <= run.shift_count():
@@ -489,7 +491,9 @@ static func _inspection_line(when: String, inspections: Array[InspectionDefiniti
 	var notices: PackedStringArray = PackedStringArray()
 	for inspection: InspectionDefinition in inspections:
 		notices.append("%s, %s" % [inspection.display_name, inspection.notice_text])
-	return "%s: %s" % [when, "  ·  ".join(notices)]
+	# A Manager's review (several inspections) says so, then names every one of them.
+	var review: String = "Manager's review: " if inspections.size() > 1 else ""
+	return "%s: %s%s" % [when, review, "  ·  ".join(notices)]
 
 
 ## A cell for `card` with `copies` copies; its item's hover and clicks come to the view.

@@ -318,6 +318,26 @@ static func effects(inspections: Array[InspectionDefinition]) -> PackedStringArr
 	return result
 
 
+## The chip's bonus ticket for `run` (#77 machine v2): PROMISED in planning when passing the shift
+## earns it (RewardMachine.bonus_if_passed), EARNED at the machine once the count-up is over when
+## the pass earned it (bonus_earned); while `counting`, the chip keeps its `shown` state (as
+## planning left it). A payday's two PREMIUM tickets (v0.68) are the PREMIUM announce's and the
+## machine's banner: the chip shows no bonus pill for them.
+static func bonus_for(run: RunState, counting: bool, shown: Bonus) -> Bonus:
+	if run.machine == null:
+		return Bonus.NONE
+	if RunState.MACHINE_PHASES.has(run.phase):
+		if counting:
+			return shown
+		var payday: bool = run.machine.machine.is_payday_shift(run.history[-1].shift)
+		return Bonus.EARNED if run.machine.bonus_earned(run) and not payday else Bonus.NONE
+	if Payday.if_passed(run):
+		return Bonus.NONE
+	if run.phase == RunState.Phase.PLANNING and run.machine.bonus_if_passed(run):
+		return Bonus.PROMISED
+	return Bonus.NONE
+
+
 ## The notice for the next shift's inspections, or "" when it isn't inspected: a Manager's
 ## review's (several, v0.65) names them all.
 static func next_notice(next_inspections: Array[InspectionDefinition]) -> String:

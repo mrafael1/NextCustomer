@@ -82,7 +82,8 @@ static func run_abandon(run: RunState, run_ms: int) -> Dictionary:
 ## once RewardMachine.pick or bin has recorded `visit` (the run's last record holds it): the
 ## shift (1-based), the visit's index in the shift (0: the ticket), its kind (ticket, bonus; until
 ## v0.61 also stamp_day), its machine state (classic, premium; v0.61, #108: until then normal,
-## boosted, stamp_day), the inspection that earned a bonus ticket ("" otherwise), the chute
+## boosted, stamp_day), the inspections the bonus ticket's shift was played under (a BONUS
+## visit: their ids, comma-separated since v0.68, a Manager's review's two; "" otherwise), the chute
 ## (new_items, upgrade; until v0.61 new_items, coupons, register, upgrades), the odds shown
 ## (`odds`: the chosen chute's card: each rarity's % per drop, P(at least one RARE or better) and
 ## P(a LEGENDARY), in %), whether the draw held its guarantee, the card's fallback notes, the

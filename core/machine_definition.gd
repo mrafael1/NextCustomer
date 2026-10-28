@@ -52,9 +52,12 @@ extends Resource
 ## level), so a new item is worth its risk against UPGRADE (decided with the user on 2026-10-28).
 ## Its tier roll (MachineOddsLevel.tier_weights) stays at the visit's level.
 @export var new_items_rarity_levels: int = 0
-## A passed inspected shift gives a BONUS visit (the bonus ticket).
+## A passed inspected shift gives a BONUS visit (the bonus ticket). Off since v0.68's Payday: an
+## inspection is only a hurdle, and the reviews pay through bonus_extra_shifts.
 @export var bonus_after_inspection: bool = false
-## 1-based shifts that give a BONUS visit without an inspection (a balance lever; empty: none).
+## 1-based shifts whose pass gives a BONUS visit, inspected or not (empty: none). A shift that is
+## also in premium_shifts is a payday (v0.68, is_payday_shift): its two visits are both PREMIUM
+## and the game shows them as one reward ("REVIEW PASSED · 2 PREMIUM TICKETS").
 @export var bonus_extra_shifts: PackedInt32Array = PackedInt32Array()
 ## The run's first NEW ITEMS draw holds the stock's newest new arrival, at its own rarity.
 @export var new_arrival_first_visit: bool = false
@@ -94,6 +97,12 @@ func rarity_level(chute: int, level: int) -> int:
 ## Whether the visits after a 1-based shift are PREMIUM.
 func is_premium_shift(shift_number: int) -> bool:
 	return premium_shifts.has(shift_number)
+
+
+## Whether a passed 1-based shift is a payday (v0.68, the Manager's review's pay): PREMIUM, with a
+## BONUS visit of its own (bonus_extra_shifts), so it pays two PREMIUM tickets.
+func is_payday_shift(shift_number: int) -> bool:
+	return premium_shifts.has(shift_number) and bonus_extra_shifts.has(shift_number)
 
 
 ## The odds of an odds level, clamped to the levels there are; null with none.

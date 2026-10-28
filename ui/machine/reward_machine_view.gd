@@ -307,7 +307,9 @@ func open_visit(
 	if resumed:
 		_resume(MachinePlan.WaitPoint.CHOOSE)
 	display.set_bin(false, false)
-	if kind == MachineVisit.Kind.BONUS:
+	if kind == MachineVisit.Kind.BONUS and run.machine.is_payday(run):
+		display.show_message(Payday.TICKET_TITLE, Payday.CHUTE_SUB)
+	elif kind == MachineVisit.Kind.BONUS:
 		display.show_message(BONUS_TITLE, BONUS_SUB % display.why_words())
 	elif premium:
 		display.show_message(SPEND_LINE % run.history[-1].total, PREMIUM_SUB)
@@ -529,7 +531,7 @@ func title_sub(chute: int) -> String:
 	var visit: MachineVisit = run.machine.current_visit() if run != null else null
 	var lead: String = ChuteKey.SUBS[chute].to_lower()
 	if visit != null and visit.kind == MachineVisit.Kind.BONUS:
-		lead = TITLE_BONUS
+		lead = Payday.KEY_LEAD if run.machine.is_payday(run) else TITLE_BONUS
 	elif visit != null and visit.premium:
 		lead = TITLE_PREMIUM
 	var prizes: int = run.machine.machine.prizes_per_visit if run != null else 3
@@ -797,6 +799,10 @@ func _ticket_was_premium() -> bool:
 
 
 func _show_head(kind: int, visit: MachineVisit) -> void:
+	if run.machine.is_payday(run):
+		# Payday (v0.68): one banner over both of the review's PREMIUM visits.
+		head.set_stamp(Payday.STAMP, Payday.STAMP_UNDER)
+		return
 	match kind:
 		MachineVisit.Kind.BONUS:
 			var under: String = BONUS_UNDER

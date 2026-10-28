@@ -172,14 +172,15 @@ func test_favour_strategy_takes_a_favoured_card_when_offered() -> void:
 
 
 ## #77: the simulator plays every machine visit the run gets, the ticket's and the inspected
-## shift's BONUS (no STAMP DAY since #108), through the real machine: each visit is picked or
+## shift's BONUS (no STAMP DAY since #108; the machine before v0.68's Payday, whose inspected
+## passes earn it), through the real machine: each visit is picked or
 ## binned, the register cap holds (a level-up stamps no new box), and the record lists every visit
 ## (surviving the JSON merge).
 func test_the_player_plays_every_visit() -> void:
 	var kinds: Dictionary = {}
 	for strategy: String in ["greedy", "random", "skip"]:
 		for seed_value: int in range(1, 6):
-			var record: SimRunRecord = _player(strategy, [2]).play(seed_value)
+			var record: SimRunRecord = _player(strategy, [2], true).play(seed_value)
 			var registers: int = 0
 			for index: int in range(record.shifts.size()):
 				var shift: Dictionary = record.shifts[index]
@@ -363,10 +364,17 @@ func _brute_force(
 
 ## A 3-shift test balance with the live machine (#77) and the live loyalty perk pool;
 ## `inspection_shifts` are inspected (a BONUS visit follows each).
-func _player(strategy: String, inspection_shifts: Array = []) -> SimPlayer:
+## `inspected_bonus`: a passed inspection earns a BONUS visit (the machine before v0.68's Payday,
+## on a copy: the live one pays BONUS visits only after shifts 4 and 8, which a 3-shift run lacks).
+func _player(
+	strategy: String, inspection_shifts: Array = [], inspected_bonus: bool = false
+) -> SimPlayer:
 	var balance: BalanceDefinition = _balance(7)
 	var live: BalanceDefinition = load("res://data/balance/balance.tres")
 	balance.machine = live.machine
+	if inspected_bonus:
+		balance.machine = live.machine.duplicate() as MachineDefinition
+		balance.machine.bonus_after_inspection = true
 	balance.upgrade_pool = live.upgrade_pool.duplicate()
 	balance.inspection_shifts = PackedInt32Array(inspection_shifts)
 	if not inspection_shifts.is_empty():

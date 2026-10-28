@@ -320,6 +320,7 @@ func test_every_resume_frame() -> void:
 	await _assert_resume_frame(run, MachineVisit.Kind.TICKET, true)
 	run = _core_passed_run()
 	run.history[-1].inspection = load(SPOT_CHECK)
+	MachineSteps.bonus_after_inspection(run)
 	run.machine.begin_after_checkout(run)
 	assert_bool(MachineSteps.choose(run, RewardMachine.Chute.NEW_ITEMS)).is_true()
 	assert_object(MachineSteps.take(run, 0)).is_not_null()

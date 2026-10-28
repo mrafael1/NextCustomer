@@ -215,7 +215,16 @@ func _on_shift_started() -> void:
 	_log.log_event("shift_start", start)
 	_refresh()
 	_save_run()
-	_machine.shift_started()
+	_machine.shift_started()  # Shows the shift's notice once planning takes input.
+
+
+## The notice a shift opens with (v0.68's training week, WriteUp.shift_notice): after a slip, or
+## on the first shift after the training week. A resumed shift shows it again. MachineFlow shows
+## it once planning takes input: after the glide back and the premium announce's print.
+func show_shift_notice() -> void:
+	var notice: String = WriteUp.shift_notice(run)
+	if not notice.is_empty():
+		_notice_label.show_notice(notice)
 
 
 ## Continues a saved run where it stopped (full build plan section 4), under its run id and with
@@ -232,7 +241,8 @@ func _resume_run(saved: RunSave) -> void:
 	# A resume never plays a count-up (saves are taken at the click and the machine's visits).
 	_cabinet.set_total_down(false)
 	if run.phase == RunState.Phase.SCORED:
-		# The shift's last visit was done: the next shift starts.
+		# The shift's last visit was done, or a slip (v0.68): the next shift starts, with its
+		# notice (_on_shift_started).
 		run.next_shift()
 		_on_shift_started()
 		return
@@ -567,12 +577,11 @@ func _on_checkout_pressed() -> void:
 	if run.phase == RunState.Phase.MACHINE_CHOOSE:
 		_machine.open(false)
 	elif run.phase == RunState.Phase.SCORED:
-		# A write-up (v0.65), or a balance without a machine: no visit, the next shift starts.
-		var written_up: bool = not run.passed()
+		# A slip (v0.68), or a balance without a machine: no visit, the next shift starts (with
+		# the slip's notice, _on_shift_started) and the dessert's duck ends.
+		ShiftMusic.next_shift_started(_music)
 		run.next_shift()
 		_on_shift_started()
-		if written_up:
-			_notice_label.show_notice(WriteUp.notice_text(run))
 	else:
 		_show_results(result)
 
@@ -593,6 +602,7 @@ func count_up_context() -> CountUpContext:
 	context.bonus_ticket = (
 		run.machine != null and run.machine.pending_kinds().has(MachineVisit.Kind.BONUS)
 	)
+	context.payday = context.bonus_ticket and run.machine.is_payday(run)
 	context.write_up = WriteUp.stamp_text(run)
 	return context
 
@@ -697,29 +707,16 @@ func _refresh_bar() -> void:
 	_shift_label.text = "%d/%d" % [run.shift_index + 1, run.shift_count()]
 	_quota_label.text = QuotaMeter.QUOTA_AMOUNT % run.quota()
 	_inspection_tag.show_inspections(run.inspections)
-	_inspection_tag.show_bonus(_bonus_state())
+	_inspection_tag.show_bonus(
+		InspectionTag.bonus_for(run, _counting, _inspection_tag.bonus_state())
+	)
+	# The training week's hint, in planning only (v0.68).
+	var planning: bool = run.phase == RunState.Phase.PLANNING and not _counting
+	var hint: String = WriteUp.hint_text(run) if planning else ""
+	(_top_bar as TopBar).show_training(hint, WriteUp.hint_text(run, true) if planning else "")
 	_refresh_loyalty_card()
 	_deck_button.caption = "Cart %d/%d" % [run.deck.size(), run.balance.deck_limit]
 	(_top_bar as TopBar).fit_inspection()
-
-
-## The inspection chip's bonus ticket (#77 machine v2): PROMISED in planning when passing the
-## shift earns it (RewardMachine.bonus_if_passed), EARNED at the machine once the count-up is over
-## when the pass earned it (bonus_earned); the count-up keeps the chip as planning left it.
-func _bonus_state() -> InspectionTag.Bonus:
-	if run.machine == null:
-		return InspectionTag.Bonus.NONE
-	if RunState.MACHINE_PHASES.has(run.phase):
-		if _counting:
-			return _inspection_tag.bonus_state()
-		return (
-			InspectionTag.Bonus.EARNED
-			if run.machine.bonus_earned(run)
-			else InspectionTag.Bonus.NONE
-		)
-	if run.phase == RunState.Phase.PLANNING and run.machine.bonus_if_passed(run):
-		return InspectionTag.Bonus.PROMISED
-	return InspectionTag.Bonus.NONE
 
 
 ## The items on screen: the hand's baskets, then the belt's (the upgrade swap's, #77 machine v2).

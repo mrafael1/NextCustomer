@@ -76,6 +76,7 @@ inspection_pool = Array[ExtResource("i1_inspection")]([ExtResource("i2_spot_chec
 review_shifts = PackedInt32Array(4, 8, 12)
 review_inspection_count = 2
 write_up_limit = 2
+write_up_last_shift = 4
 coins_by_shifts_passed = PackedInt32Array(0, 0, 0, 0, 1, 1, 1, 1, 2, 2, 2, 2, 3)
 overtime_coin_euros = 923
 overtime_coin_max = 1

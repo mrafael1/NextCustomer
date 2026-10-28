@@ -36,13 +36,8 @@ static func draw_for(
 ) -> Array[InspectionDefinition]:
 	var drawn: Array[InspectionDefinition] = []
 	var count: int = count_for(balance, shift_number)
-	if count == 1:
-		var single: InspectionDefinition = draw(
-			rng, balance, previous[-1] if not previous.is_empty() else null
-		)
-		if single != null:
-			drawn.append(single)
-		return drawn
+	# One draw per inspection, every one of `previous` left out (after a review, both of its
+	# inspections): for a single previous inspection this draws as draw() does.
 	for index: int in range(count):
 		var fresh: Array[InspectionDefinition] = []
 		var others: Array[InspectionDefinition] = []
@@ -75,3 +70,16 @@ static func draw(
 	if candidates.is_empty():
 		return null
 	return candidates[rng.randi_range(0, candidates.size() - 1)]
+
+
+## A run's last inspections: its current shift's (`current`), else the last inspected record's
+## in `history` (no inspection twice in a row, draw_for).
+static func last_of(
+	current: Array[InspectionDefinition], history: Array[ShiftRecord]
+) -> Array[InspectionDefinition]:
+	if not current.is_empty():
+		return current.duplicate()
+	for index: int in range(history.size() - 1, -1, -1):
+		if not history[index].inspections.is_empty():
+			return history[index].inspections.duplicate()
+	return []

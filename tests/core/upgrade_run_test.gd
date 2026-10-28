@@ -57,9 +57,9 @@ func test_balance_upgrade_data_fits_the_run() -> void:
 	assert_int(balance.machine.register_cap).is_equal(3)
 
 
-## A missed shift gets no visit (v0.65): the first is a write-up the run goes on after, the
-## second ends the run.
-func test_a_missed_shift_gets_no_visit_and_the_second_ends_the_run() -> void:
+## A slip gets no visit and the run goes on (v0.65, v0.68's training week); a miss from shift 5
+## ends the run.
+func test_a_slip_gets_no_visit_and_a_miss_after_training_ends_the_run() -> void:
 	var run: RunState = _run(26)
 	run.debug_skip_to_shift(1)
 	run.checkout()
@@ -68,7 +68,8 @@ func test_a_missed_shift_gets_no_visit_and_the_second_ends_the_run() -> void:
 	assert_bool(run.machine.choose(run, RewardMachine.Chute.UPGRADE)).is_false()
 	assert_bool(run.history[-1].passed).is_false()
 	assert_array(run.history[-1].visits).is_empty()
-	assert_bool(run.next_shift()).is_true()
+	# Shift 5 is past the training week (v0.68): its miss ends the run, slips left or not.
+	run.debug_skip_to_shift(4)
 	run.checkout()
 	assert_int(run.phase).is_equal(RunState.Phase.LOST)
 	assert_object(run.machine.current_visit()).is_null()

@@ -20,6 +20,7 @@ func test_balance_matches_the_plan() -> void:
 	assert_array(Array(balance.review_shifts)).is_equal([4, 8, 12])
 	assert_int(balance.review_inspection_count).is_equal(2)
 	assert_int(balance.write_up_limit).is_equal(2)
+	assert_int(balance.write_up_last_shift).is_equal(4)
 	assert_int(balance.hand_size).is_equal(8)
 	assert_int(balance.basket_size).is_equal(2)
 	assert_int(balance.slot_count).is_equal(7)
@@ -117,20 +118,22 @@ func test_preview_matches_checkout() -> void:
 	assert_int(run.checkout().total).is_equal(preview)
 
 
-## An empty row scores 0 and misses the quota: since v0.65 the first miss is a write-up (no
-## machine visit, the next shift starts), and the second ends the run.
-func test_empty_row_checkout_scores_zero_and_is_written_up_then_fired() -> void:
+## An empty row scores 0 and misses the quota: in the training week (v0.68) a miss is a slip (no
+## machine visit, the next shift starts), 2 are forgiven and the 3rd ends the run.
+func test_empty_row_checkout_scores_zero_and_slips_twice_then_fired() -> void:
 	var run: RunState = _run(7)
-	assert_int(run.checkout().total).is_equal(0)
-	assert_bool(run.passed()).is_false()
-	assert_int(run.phase).is_equal(RunState.Phase.SCORED)
-	assert_int(run.write_ups).is_equal(1)
-	assert_array(run.history[0].visits).is_empty()
-	assert_bool(run.next_shift()).is_true()
-	assert_int(run.shift_index).is_equal(1)
+	# The training week (v0.68) forgives 2 slips: the 3rd miss ends the run.
+	for slip: int in range(1, 3):
+		assert_int(run.checkout().total).is_equal(0)
+		assert_bool(run.passed()).is_false()
+		assert_int(run.phase).is_equal(RunState.Phase.SCORED)
+		assert_int(run.write_ups).is_equal(slip)
+		assert_array(run.history[-1].visits).is_empty()
+		assert_bool(run.next_shift()).is_true()
+	assert_int(run.shift_index).is_equal(2)
 	assert_int(run.checkout().total).is_equal(0)
 	assert_int(run.phase).is_equal(RunState.Phase.LOST)
-	assert_int(run.write_ups).is_equal(2)
+	assert_int(run.write_ups).is_equal(3)
 	assert_bool(run.next_shift()).is_false()
 
 

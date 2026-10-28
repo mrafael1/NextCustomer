@@ -290,6 +290,8 @@ func _timed(plan: MachinePlan, t: float) -> PackedStringArray:
 func _intro_text(plan: MachinePlan, t: float) -> PackedStringArray:
 	if plan.kind == MachineVisit.Kind.BONUS:
 		if t < plan.feed_end:
+			if _payday():
+				return PackedStringArray([Payday.TICKET_TITLE, Payday.FEED_SUB])
 			return PackedStringArray([BONUS_TICKET, "%s · feeding in" % why_words()])
 		return PackedStringArray()
 	if t < plan.feed_end:
@@ -302,18 +304,19 @@ func _intro_text(plan: MachinePlan, t: float) -> PackedStringArray:
 	return _read_text() if t < plan.read_end else PackedStringArray()
 
 
-## The receipt read: the spend thanked, the quota met and the inspection passed; a PREMIUM visit
-## says PREMIUM RECEIPT in the inspection's place, so the line fits (the BONUS visit that follows
-## names the inspection).
+## The receipt read: the spend thanked, the quota met and the inspections passed; a PREMIUM visit
+## says PREMIUM RECEIPT in their place, so the line fits (a payday's: REVIEW PASSED, v0.68).
 func _read_text() -> PackedStringArray:
 	var record: ShiftRecord = _record()
 	if record == null:
 		return PackedStringArray()
 	var met: String = "quota €%d met" % record.quota
-	if view.run.machine.is_premium():
+	if _payday():
+		met += Payday.READ
+	elif view.run.machine.is_premium():
 		met += PREMIUM_READ
-	elif record.inspection != null:
-		met += " · %s passed" % record.inspection.display_name
+	elif not record.inspections.is_empty():
+		met += " · %s passed" % ", ".join(InspectionTag.names(record.inspections))
 	return PackedStringArray([RewardMachineView.SPEND_LINE % record.total, met])
 
 
@@ -323,7 +326,9 @@ func _draw_text(plan: MachinePlan, t: float) -> PackedStringArray:
 		var bonus: bool = plan.kind == MachineVisit.Kind.BONUS
 		var count: String = "1 PRIZE" if plan.n_prizes == 1 else "%d PRIZES" % plan.n_prizes
 		var from: String = "%s from %s" % [count.to_lower(), _chute_name().to_lower()]
-		return PackedStringArray([PACKING, "bonus ticket" if bonus else from])
+		if bonus:
+			from = "2nd premium ticket" if _payday() else "bonus ticket"
+		return PackedStringArray([PACKING, from])
 	var last: int = plan.n_prizes - 1
 	if t >= plan.reveal_at[last] + plan.reveal_length[last]:
 		return PackedStringArray()
@@ -370,6 +375,8 @@ func _toast() -> String:
 func _end_sub(plan: MachinePlan) -> String:
 	if plan.kind != MachineVisit.Kind.BONUS:
 		return ""
+	if _payday():
+		return Payday.END_SUB
 	return "2 prizes this shift · %s" % _why()
 
 
@@ -382,14 +389,28 @@ func why_words() -> String:
 	return "shift %d" % record.shift
 
 
-## Why a bonus ticket was given: "<inspection> passed", or "shift n" for a bonus extra shift.
+## Why a bonus ticket was given: "<inspections> passed" (every one of them, a Manager's review's
+## two), or "shift n" for a bonus extra shift.
 func _why() -> String:
 	var record: ShiftRecord = _record()
 	if record == null:
 		return ""
-	if record.inspection != null:
-		return "%s passed" % record.inspection.display_name
+	if not record.inspections.is_empty():
+		return "%s passed" % ", ".join(InspectionTag.names(record.inspections))
 	return "shift %d" % record.shift
+
+
+## Whether the visit on show is a payday's (v0.68, RewardMachine.is_payday). After its pick the
+## visit is in the record (the machine's current one is gone): its plan's PREMIUM flag says it,
+## so the landing's end line still words the payday.
+func _payday() -> bool:
+	if view == null or view.run == null:
+		return false
+	var machine: RewardMachine = view.run.machine
+	if machine.current_visit() != null or view.plan == null:
+		return machine.is_payday(view.run)
+	var record: ShiftRecord = _record()
+	return record != null and view.plan.premium and machine.machine.is_payday_shift(record.shift)
 
 
 func _record() -> ShiftRecord:
@@ -426,7 +447,7 @@ func _show(message: String, sub: String) -> void:
 		room = BIN_RECT.position.x - BIN_GAP - PAD
 	var font: Font = marked_font(0)
 	var width: float = font.get_string_size(message, HORIZONTAL_ALIGNMENT_LEFT, -1, MESSAGE_SIZE).x
-	_icon.visible = message == BONUS_TICKET
+	_icon.visible = message == BONUS_TICKET or message == Payday.TICKET_TITLE
 	if _icon.visible:
 		# The icon and the line centred together.
 		var pair: float = _icon.size.x + ICON_GAP + width

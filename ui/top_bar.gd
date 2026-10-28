@@ -6,7 +6,9 @@ extends HBoxContainer
 ## with the mustard warning sign and "Inspection · <effect>", the name in its hover text; hidden
 ## on shifts without one), the
 ## LOYALTY chip with its stamps, the Cart button with its trolley, and the menu button (three
-## drawn bars) whose menu holds Export log. Cart and the menu stay clickable behind every panel:
+## drawn bars) whose menu holds Export log. In the training week (v0.68) the SHIFT chip also holds
+## a small hint after the shift (training_label, "TRAINING WEEK · 2 SLIPS"; hidden when empty).
+## Cart and the menu stay clickable behind every panel:
 ## the shade starts under the band (ShiftScreen), and the menu opens in its own popup window.
 ##
 ## It only builds and lays out; ShiftStage passes the buttons' signals on and the screen fills
@@ -25,6 +27,8 @@ const FIT_MARGIN := 8.0
 const CHIP_PADDING := 12
 const CHIP_SEPARATION := 8
 const KEY_FONT_SIZE := 15
+## The training week's hint (v0.68): smaller than the key captions.
+const HINT_FONT_SIZE := 12
 const VALUE_FONT_SIZE := 20
 const BUTTON_FONT_SIZE := 16
 ## The key captions' letter spacing (B2's letter-spacing: 1px).
@@ -43,6 +47,8 @@ const CART_ICON := preload("res://art/icons/cart.png")
 const MENU_ICON := preload("res://art/icons/menu.png")
 
 var shift_label: Label
+## The training week's hint in the SHIFT chip (v0.68; show_training).
+var training_label: Label
 var quota_meter: QuotaMeter
 var quota_label: Label
 var inspection_tag: InspectionTag
@@ -53,6 +59,9 @@ var menu_button: FramedButton
 ## The menu's popup and its one entry.
 var menu: PopupPanel
 var export_button: FramedButton
+## The training week's hint and its short form (show_training).
+var _training_text: String = ""
+var _training_short: String = ""
 
 
 func _init() -> void:
@@ -66,6 +75,11 @@ func _init() -> void:
 	shift_row.add_child(key_label("SHIFT"))
 	shift_label = value_label(Palette.PAPER)
 	shift_row.add_child(shift_label)
+	training_label = key_label("")
+	training_label.name = "TrainingHint"
+	training_label.add_theme_font_size_override("font_size", HINT_FONT_SIZE)
+	training_label.visible = false
+	shift_row.add_child(training_label)
 	add_child(shift_chip)
 	var quota_chip: PanelContainer = chip(CHIP_FRAME)
 	quota_chip.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -95,9 +109,37 @@ func _init() -> void:
 		button.caption_label().add_theme_constant_override("outline_size", 0)
 
 
+## The training week's hint (v0.68, WriteUp.hint_text): `text` after the shift, hidden when empty;
+## fit_inspection shows `short_text` instead when the row has no room for `text`, and hides the
+## hint (its whole text kept in the SHIFT chip's tooltip) when it has none for either.
+func show_training(text: String, short_text: String = "") -> void:
+	_training_text = text
+	_training_short = short_text
+	training_label.text = text
+	training_label.visible = not text.is_empty()
+	(shift_label.get_parent().get_parent() as Control).tooltip_text = text
+
+
 ## Keeps the row inside ROW_SIZE.x less FIT_MARGIN: the inspection chip's text is trimmed when the
-## other chips and the bonus pill (#77 machine v2) leave it too little room.
+## other chips and the bonus pill (#77 machine v2) leave it too little room, after the training
+## week's hint has given way (its short form, then hidden: the inspection's effects come first).
 func fit_inspection() -> void:
+	if not _training_text.is_empty():
+		training_label.text = _training_text
+		training_label.visible = true
+	_fit_inspection_once()
+	if not inspection_tag.is_trimmed() or not training_label.visible:
+		return
+	if not _training_short.is_empty():
+		training_label.text = _training_short
+		_fit_inspection_once()
+		if not inspection_tag.is_trimmed():
+			return
+	training_label.visible = false
+	_fit_inspection_once()
+
+
+func _fit_inspection_once() -> void:
 	var used: float = 0.0
 	var shown: int = 0
 	for child: Node in get_children():

@@ -196,21 +196,25 @@ func test_run_start_and_run_end_fields() -> void:
 	assert_str(JSON.stringify(start)).contains(
 		'"listed_aisles":["cold_cases","pantry","household"]'
 	)
-	# Two misses: the first a write-up (v0.65), the second gets the cashier fired.
-	run.checkout()
-	run.next_shift()
+	# Three misses: two slips of the training week (v0.68), the third gets the cashier fired.
+	for _slip: int in range(2):
+		run.checkout()
+		run.next_shift()
 	run.checkout()
 	assert_int(run.phase).is_equal(RunState.Phase.LOST)
 	var end: Dictionary = RunEvents.run_end(run, 4321)
-	assert_dict(end).is_equal(
-		{
-			"result": "loss",
-			"shift_reached": 2,
-			"last_score": 0,
-			"run_ms": 4321,
-			"upgrades": [],
-			"write_ups": 2,
-		}
+	(
+		assert_dict(end)
+		. is_equal(
+			{
+				"result": "loss",
+				"shift_reached": 3,
+				"last_score": 0,
+				"run_ms": 4321,
+				"upgrades": [],
+				"write_ups": 3,
+			}
+		)
 	)
 
 
@@ -239,7 +243,7 @@ func test_redraw_event_fields() -> void:
 ## #77: the machine_visit event's fields, in order, from the visit just recorded (a loyalty perk
 ## picked from UPGRADE on a PREMIUM visit after shift 1), JSON-friendly, with its machine state
 ## (#108: classic or premium), the perks' levels and no Regular levels; a bin (shift 2, CLASSIC),
-## and the CLASSIC BONUS visit of the inspected shift 3 naming its inspection.
+## and the CLASSIC BONUS visit of the Manager's review on shift 4 naming both its inspections.
 func test_machine_visit_event_fields() -> void:
 	var run: RunState = _passed_run(81, [1])
 	run.machine.choose(run, RewardMachine.Chute.UPGRADE)
@@ -336,9 +340,17 @@ func test_machine_visit_event_fields() -> void:
 	assert_str(bin["state"]).is_equal("classic")
 	assert_dict(bin["odds_shown"]).is_empty()
 	assert_array(bin["fallback"]).is_empty()
-	# Shift 3 is inspected: its BONUS visit names the inspection.
+	# Shift 3 is inspected: only its ticket (v0.68, Payday).
 	run.next_shift()
 	assert_array(run.inspections).is_not_empty()
+	_pass(run)
+	MachineSteps.choose(run, RewardMachine.Chute.NEW_ITEMS)
+	run.machine.bin(run)
+	assert_int(run.phase).is_equal(RunState.Phase.SCORED)
+	# Shift 4 is the Manager's review: its BONUS visit (v0.68, bonus_extra_shifts; CLASSIC on this
+	# machine, PREMIUM only after shift 1) names both inspections.
+	run.next_shift()
+	assert_int(run.inspections.size()).is_equal(2)
 	_pass(run)
 	MachineSteps.choose(run, RewardMachine.Chute.NEW_ITEMS)
 	run.machine.bin(run)
@@ -351,7 +363,7 @@ func test_machine_visit_event_fields() -> void:
 	assert_str(bonus["kind"]).is_equal("bonus")
 	assert_str(bonus["state"]).is_equal("classic")
 	assert_int(bonus["visit_index"]).is_equal(1)
-	assert_str(bonus["inspection"]).is_equal(String(run.history[-1].inspection.id))
+	assert_str(bonus["inspection"]).is_equal(",".join(RunEvents.inspection_ids(run.inspections)))
 
 
 ## Plan sections 3.9 and 8: inspection ids as logged (shift_start, checkout), plain strings.

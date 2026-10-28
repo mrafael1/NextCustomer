@@ -43,7 +43,11 @@ extends RefCounted
 ## (v0.65, the loop rework): the next shift's inspections as a list (`next_inspections`, a
 ## Manager's review has several), each record's `inspections`, and records of missed shifts (the
 ## write-ups); a version 7 or 6 save names one next inspection and one per record and reads
-## into the 12-shift run as it is.
+## into the 12-shift run as a legacy save: its machine visit keeps its saved PREMIUM flag (the
+## premium shifts moved), and a save after a checkout draws the next shift's inspections again
+## by today's schedule when it names another count (a Manager's review it didn't know of).
+## v0.68 (Payday, the training week) keeps version 8: a version 8 save from before it reads as
+## it is (a BONUS visit after an inspected shift, or a slip after the training week, is kept).
 const FORMAT_VERSION := 8
 ## Version 7: version 8's form with one next inspection and one per record, read as it is.
 const BEFORE_LOOP_VERSION := 7
@@ -147,6 +151,8 @@ static func from_dictionary(saved: Dictionary, lookup: ContentLookup) -> RunSave
 	if data.is_empty():
 		return null
 	var rescored: bool = int(version) == BEFORE_BANANA_CHAIN_VERSION
+	# Saved before the loop rework (v0.65): another schedule of inspections and premium shifts.
+	var legacy: bool = int(version) < FORMAT_VERSION
 	var reader: SaveReader = SaveReader.new(data, lookup)
 	var starter: DeckDefinition = reader.deck("starter")
 	var starting_cards: Array[CardDefinition] = reader.cards("starting_deck")
@@ -199,7 +205,7 @@ static func from_dictionary(saved: Dictionary, lookup: ContentLookup) -> RunSave
 	var machine_data: Variant = data.get("machine")
 	var machine_ok: bool = (
 		machine_data is Dictionary
-		and restored.machine.restore_from(machine_data as Dictionary, lookup)
+		and restored.machine.restore_from(machine_data as Dictionary, lookup, legacy)
 	)
 	var retired: bool = _drop_retired_registers(restored)
 	# The limits the shift started with (its quota and slots): after the checkout, a register
@@ -220,10 +226,57 @@ static func from_dictionary(saved: Dictionary, lookup: ContentLookup) -> RunSave
 	if (
 		not ok
 		or restored.phase != SAVE_POINTS[phase_index]
-		or not _is_consistent(restored, retired, rescored)
+		or not _is_consistent(restored, retired, rescored, legacy)
 	):
 		return null
+	if legacy:
+		_redraw_next_inspections(restored)
 	return save
+
+
+## A legacy save (before v0.65) after a checkout the run goes on from: the next shift's
+## inspections by today's schedule when the saved ones are another count (a Manager's review the
+## save didn't know of, or an old inspected shift that no longer is), drawn with the run's RNG.
+## In planning, the current shift's the same way (_redraw_current_inspections).
+static func _redraw_next_inspections(restored: RunState) -> void:
+	if not _after_checkout(restored):
+		if restored.phase == RunState.Phase.PLANNING:
+			_redraw_current_inspections(restored)
+		return
+	var next_shift: int = restored.shift_index + 2
+	if next_shift > restored.shift_count():
+		return
+	var count: int = InspectionSchedule.count_for(restored.balance, next_shift)
+	if restored.next_inspections.size() == count:
+		return
+	var rng: RandomNumberGenerator = RandomNumberGenerator.new()
+	rng.state = restored.rng_state
+	restored.next_inspections = InspectionSchedule.draw_for(
+		rng,
+		restored.balance,
+		next_shift,
+		InspectionSchedule.last_of(restored.inspections, restored.history)
+	)
+	restored.rng_state = rng.state
+
+
+## A legacy save in planning: the current shift's inspections by today's schedule when the saved
+## ones are another count (a Manager's review the save didn't know of), drawn with the run's RNG;
+## the shift's limits follow them, and a row longer than its slots gives its last cards back.
+static func _redraw_current_inspections(restored: RunState) -> void:
+	var shift: int = restored.shift_index + 1
+	if restored.inspections.size() == InspectionSchedule.count_for(restored.balance, shift):
+		return
+	var rng: RandomNumberGenerator = RandomNumberGenerator.new()
+	rng.state = restored.rng_state
+	restored.inspections = InspectionSchedule.draw_for(
+		rng, restored.balance, shift, InspectionSchedule.last_of([], restored.history)
+	)
+	restored.rng_state = rng.state
+	restored.limits = ShiftLimits.for_shift(
+		restored.balance, _played_upgrades(restored), restored.shift_index, restored.inspections
+	)
+	_fit_row(restored)
 
 
 ## Drops the retired registers (inert stand-ins) from the run's registers, and from those owned at
@@ -374,10 +427,14 @@ static func _index(cards: Array[CardInstance], into: Dictionary[int, CardInstanc
 ## last record's total. `retired`: a retired register was dropped, so a row checked out with its
 ## slot is checked by its total only. `rescored`: a save from before the Banana chain
 ## (BEFORE_BANANA_CHAIN_VERSION), whose row may now total otherwise, so the total isn't checked.
-static func _is_consistent(restored: RunState, retired: bool, rescored: bool) -> bool:
+## `legacy`: a save from before the loop rework (v0.65), whose visit's PREMIUM flag followed the
+## old premium shifts.
+static func _is_consistent(
+	restored: RunState, retired: bool, rescored: bool, legacy: bool = false
+) -> bool:
 	if restored.shift_index >= restored.shift_count():
 		return false
-	var ok: bool = _history_fits(restored) and _phase_fits(restored)
+	var ok: bool = _history_fits(restored) and _phase_fits(restored, legacy)
 	# The row's limit, as place() keeps it: a save made before the balance's slots were lowered
 	# can't be resumed.
 	if not retired or restored.phase == RunState.Phase.PLANNING:
@@ -403,17 +460,19 @@ static func _is_consistent(restored: RunState, retired: bool, rescored: bool) ->
 	)
 	if rescored:
 		return true
-	# A missed shift saved after its checkout is a write-up the run went on after (v0.65).
-	var survived: bool = restored.passed() or restored.write_ups < restored.balance.write_up_limit
+	# A missed shift saved after its checkout is a slip the run went on after (v0.65; a save from
+	# before v0.68's training week may hold one after shift 4: it is kept).
+	var survived: bool = restored.passed() or restored.write_ups <= restored.balance.write_up_limit
 	return restored.last_result.total == restored.history[-1].total and survived
 
 
-## Every played shift was passed, but for fewer write-ups (missed shifts, v0.65) than the
-## balance's write_up_limit (the one that reaches it ends the run). One record per shift before
-## the current one, plus the current one after its checkout; a debug jump keeps only the last
-## record's shift number to check.
+## Every played shift was passed, but for at most the balance's write_up_limit slips (missed
+## shifts the run forgave, v0.65; the one past it ends the run). Which shifts they were on isn't
+## checked: a save from before v0.68's training week may hold one after shift 4. One record per
+## shift before the current one, plus the current one after its checkout; a debug jump keeps
+## only the last record's shift number to check.
 static func _history_fits(restored: RunState) -> bool:
-	var ok: bool = restored.write_ups < maxi(restored.balance.write_up_limit, 1)
+	var ok: bool = restored.write_ups <= restored.balance.write_up_limit
 	var after: bool = _after_checkout(restored)
 	if after:
 		ok = ok and not restored.history.is_empty()
@@ -427,7 +486,8 @@ static func _history_fits(restored: RunState) -> bool:
 
 
 ## The machine's state each save point has (RewardMachine.restore_from checked its own fields).
-static func _phase_fits(restored: RunState) -> bool:
+## `legacy` (a save from before v0.65): a PREMIUM visit after a shift that was premium then.
+static func _phase_fits(restored: RunState, legacy: bool = false) -> bool:
 	var machine: RewardMachine = restored.machine
 	var visit: MachineVisit = machine.current_visit()
 	var offer: StartOffer = restored.start_offer
@@ -462,13 +522,22 @@ static func _phase_fits(restored: RunState) -> bool:
 	if restored.phase == RunState.Phase.SCORED:
 		return ok and visit == null and machine.pending_kinds().is_empty()
 	if visit.kind == MachineVisit.Kind.BONUS:
+		# An inspected shift's BONUS visit is kept even with bonus_after_inspection off: a save
+		# from before v0.68's Payday earned it.
 		var extra: bool = machine.machine.bonus_extra_shifts.has(record.shift)
-		var inspected: bool = machine.machine.bonus_after_inspection and record.inspection != null
-		ok = ok and (inspected or extra) and not record.visits.is_empty()
+		ok = ok and (record.inspection != null or extra) and not record.visits.is_empty()
 	elif visit.kind == MachineVisit.Kind.TICKET:
 		ok = ok and record.visits.is_empty()
-	# A PREMIUM visit is a premium shift's ticket or BONUS visit.
-	return ok and (not visit.premium or machine.machine.is_premium_shift(record.shift))
+	# A PREMIUM visit is a premium shift's ticket or BONUS visit (a legacy save's: by its rules).
+	return (
+		ok
+		and (
+			not visit.premium
+			or legacy
+			or machine.keeps_legacy_premium
+			or machine.machine.is_premium_shift(record.shift)
+		)
+	)
 
 
 static func _after_checkout(restored: RunState) -> bool:

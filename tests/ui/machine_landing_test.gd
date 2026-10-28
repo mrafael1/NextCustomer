@@ -544,12 +544,12 @@ func test_every_rarity_sounds_different() -> void:
 	assert_int(legendary.size()).is_greater(rare.size())
 
 
-## An inspected pass (seed 5's shift 3) with its BONUS visit to come (#77 machine v2, Q2 = 2): the
-## dessert prints the gold stub (STUB form) as the receipt's last line above the tear, the
-## ticket's height, across the receipt's scroll area; at the machine the stub snaps off while the
-## paper's body stays on its anchor, and the bonus ticket leaves from the stub's rect and docks in
-## the slot plate's dock, whose caption then hides; the BONUS visit feeds it in, clipped at the
-## slot line.
+## A passed review (seed 5's shift 4, a payday since v0.68) with its BONUS visit to come (#77
+## machine v2, Q2 = 2): the dessert prints the gold stub (STUB form) as the receipt's last line
+## above the tear, the ticket's height, across the receipt's scroll area; at the machine the stub
+## snaps off while the paper's body stays on its anchor, and the bonus ticket leaves from the
+## stub's rect and docks in the slot plate's dock, whose caption then hides; the BONUS visit feeds
+## it in, clipped at the slot line.
 func test_the_bonus_stub_prints_on_the_receipt_and_snaps_into_the_dock() -> void:
 	var screen: ShiftScreen = await _screen()
 	screen.start_new_run(5)
@@ -569,7 +569,8 @@ func test_the_bonus_stub_prints_on_the_receipt_and_snaps_into_the_dock() -> void
 				docked = true
 				# One wording throughout: the dessert's stub, the fed copy's and the docked ticket.
 				var inspected: bool = run.history[-1].inspection != null
-				sub = BonusTicket.sub_line(inspected, run.history[-1].shift)
+				var payday: bool = run.machine.is_payday(run)
+				sub = BonusTicket.sub_line(inspected, run.history[-1].shift, payday)
 				assert_str(screen._receipt.stub.ticket.texts()[1]).is_equal(sub)
 				_assert_stub_on_the_receipt(screen._receipt)
 				assert_str(view.receipt_feed.paper.stub.ticket.texts()[1]).is_equal(sub)

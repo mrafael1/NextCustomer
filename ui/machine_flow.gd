@@ -78,6 +78,10 @@ var _announce_prints: bool = true
 ## goes first, so the PASS IT plate never pulses hidden under its receipt (shifts 3, 5 and 7 are
 ## both inspected and premium).
 var _notice_wait: float = -1.0
+## The shift's opening notice (v0.68's training week, ShiftScreen.show_shift_notice) waits with
+## the bonus notice: for the glide back to end and the announce to print, so it never shows on
+## the monitor behind the machine or under the PAYDAY receipt.
+var _shift_notice_due: bool = false
 
 
 ## Builds the machine on `screen` (a screen child over the shade, added at the screen's call).
@@ -121,6 +125,7 @@ func shift_started(printing: bool = true) -> void:
 	announce.clear()
 	_announce_prints = printing
 	_notice_due = true
+	_shift_notice_due = true
 	_notice_wait = -1.0
 
 
@@ -128,6 +133,7 @@ func shift_started(printing: bool = true) -> void:
 func hold_notice() -> void:
 	notice.stop()
 	_notice_due = false
+	_shift_notice_due = false
 
 
 ## A new run or a resume: no swap is due, none plays (a resume never replays one).
@@ -227,6 +233,7 @@ func _process(delta: float) -> void:
 	if _notice_wait >= 0.0:
 		_notice_wait -= delta
 		if _notice_wait < 0.0:
+			_play_shift_notice()
 			_play_notice()
 	if _return_t < 0.0:
 		return
@@ -516,13 +523,23 @@ func _end_return() -> void:
 	returned.emit()
 
 
+## The shift's opening notice, if it has one, once planning takes input.
+func _play_shift_notice() -> void:
+	if not _shift_notice_due:
+		return
+	_shift_notice_due = false
+	var run: RunState = _screen.run
+	if run != null and run.phase == RunState.Phase.PLANNING:
+		_screen.show_shift_notice()
+
+
 ## The planning notice's pulse, when passing the shift earns the bonus ticket.
 func _play_notice() -> void:
 	var run: RunState = _screen.run
 	if run == null or run.phase != RunState.Phase.PLANNING or run.machine == null:
 		return
-	if not run.machine.bonus_if_passed(run):
-		return
+	if not run.machine.bonus_if_passed(run) or Payday.if_passed(run):
+		return  # A payday's announce says it all (v0.68).
 	notice.play(_screen._inspection_tag, _reduced())
 
 
@@ -531,7 +548,7 @@ func _play_announce() -> void:
 	if run == null or run.phase != RunState.Phase.PLANNING or run.machine == null:
 		return
 	if run.machine.premium_if_passed(run):
-		announce.show_tag(_announce_prints)
+		announce.show_tag(_announce_prints, Payday.if_passed(run))
 
 
 func _reduced() -> bool:

@@ -29,9 +29,14 @@ func test_the_balance_uses_the_machine_file() -> void:
 	assert_int(_machine.prizes_per_visit).is_equal(3)
 	assert_int(_machine.register_cap).is_equal(3)
 	assert_int(_machine.shelf_min_copies).is_equal(2)
-	assert_bool(_machine.bonus_after_inspection).is_true()
+	# v0.68, Payday: an inspection is only a hurdle; a passed review (shifts 4 and 8) pays two
+	# PREMIUM tickets.
+	assert_bool(_machine.bonus_after_inspection).is_false()
 	assert_bool(_machine.new_arrival_first_visit).is_true()
-	assert_array(Array(_machine.bonus_extra_shifts)).is_empty()
+	assert_array(Array(_machine.bonus_extra_shifts)).is_equal([4, 8])
+	for shift_number: int in range(1, 13):
+		var payday: bool = [4, 8].has(shift_number)
+		assert_bool(_machine.is_payday_shift(shift_number)).is_equal(payday)
 	# #108: NEW ITEMS draws 1 coupon a draw; UPGRADE a loyalty perk and an item upgrade, then
 	# either. PREMIUM: RARE or better, BIG or better.
 	assert_int(_machine.coupons_per_draw).is_equal(1)

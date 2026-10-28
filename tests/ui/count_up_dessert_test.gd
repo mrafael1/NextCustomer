@@ -383,6 +383,37 @@ func test_a_bonus_ticket_prints_its_stub_before_the_tear() -> void:
 	assert_object(dessert.banner).is_null()
 
 
+## A payday (v0.68): the stub is the PREMIUM TICKET ("review passed · 2 of 2"), its title fitting
+## the ticket's title room, and the banner beside the receipt reads REVIEW PASSED / 2 PREMIUM
+## TICKETS, on screen and right of the receipt.
+func test_a_payday_prints_one_banner_and_a_premium_stub() -> void:
+	var screen: ShiftScreen = await _screen()
+	await _place(screen, PASSING_ROW)
+	var count_up: CountUp = screen._count_up
+	var context: CountUpContext = CountUpContext.new(4, 0)
+	context.bonus_ticket = true
+	context.payday = true
+	_play(screen, 34, "", context)
+	var dessert: CountUpDessert = count_up._dessert
+	var seen: String = ""
+	while count_up._playing:
+		await get_tree().process_frame
+		if dessert.banner != null and is_instance_valid(dessert.banner):
+			seen = dessert.banner.text
+			var box: Rect2 = dessert.banner.get_global_rect()
+			assert_bool(SCREEN_RECT.encloses(box)).override_failure_message(str(box)).is_true()
+			assert_float(box.position.x).is_greater_equal(screen._receipt.get_global_rect().end.x)
+	assert_str(seen).is_equal(Payday.BANNER)
+	var stub: ReceiptStub = screen._receipt.stub
+	assert_object(stub).is_not_null()
+	assert_array(Array(stub.ticket.texts())).is_equal([Payday.TICKET_TITLE, Payday.TICKET_SUB])
+	var title: Label = stub.ticket.labels()[0]
+	var font: Font = title.get_theme_font("font")
+	var font_size: int = title.get_theme_font_size("font_size")
+	var width: float = font.get_string_size(title.text, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size).x
+	assert_float(width).is_less_equal(BonusTicket.TITLE_RECT.size.x)
+
+
 # --- Helpers ---------------------------------------------------------------------------------
 
 

@@ -169,6 +169,8 @@ func test_the_planning_notice_promises_and_earns_the_bonus_ticket() -> void:
 	var runner: GdUnitSceneRunner = scene_runner(SCREEN)
 	var screen: ShiftScreen = runner.scene()
 	_only_spot_check(screen)
+	# The live machine gives an inspection no bonus since v0.68 (Payday): a copy that does.
+	MachineSteps.bonus_after_inspection(screen.run)
 	screen._debug.set_inspection("spot_check")
 	var run: RunState = screen.run
 	assert_bool(run.machine.bonus_if_passed(run)).is_true()

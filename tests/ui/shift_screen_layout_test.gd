@@ -349,6 +349,8 @@ func test_the_top_bar_fits_its_longest_texts() -> void:
 			assert_bool(rect.size.x >= needed.x and rect.size.y >= needed.y).is_true()
 			# Every text and icon in a chip lies inside it.
 			for inner: Control in _texts(part) + _icons(part):
+				if not inner.is_visible_in_tree():
+					continue  # E.g. the training week's hint, hidden on the last shift.
 				var inside: Rect2 = inner.get_global_rect()
 				(
 					assert_bool(rect.encloses(inside))

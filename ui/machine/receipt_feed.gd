@@ -245,7 +245,8 @@ func _frame_ticket(plan: MachinePlan, t: float) -> void:
 
 func _ticket_sub(plan: MachinePlan) -> String:
 	var shift: int = view.run.shift_index + 1 if view.run != null else 0
-	return BonusTicket.sub_line(plan.inspected, shift)
+	var payday: bool = view.run != null and view.run.machine.is_payday(view.run)
+	return BonusTicket.sub_line(plan.inspected, shift, payday)
 
 
 ## The slot plate's mouth in stage coordinates (it follows the camera).

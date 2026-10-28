@@ -35,6 +35,13 @@ static func rewards_shown(music: MusicService) -> void:
 	music.unduck(UNDUCK_S)
 
 
+## A slip (v0.68's training week) or a balance without a machine: no visit after the dessert, so
+## the music comes back over UNDUCK_S as the next shift starts.
+static func next_shift_started(music: MusicService) -> void:
+	if music.is_ducked():
+		music.unduck(UNDUCK_S)
+
+
 ## The win and lose screens: the music crossfades to the front loop, still ducked from the
 ## dessert. The final receipt ducks it for its coins (coins_printing).
 static func results_shown(music: MusicService) -> void:

@@ -353,10 +353,11 @@ func play(
 	_dessert.inspection = ", ".join(inspection_names)
 	# A bonus ticket follows (#77 machine v2, Q2 = 2): the dessert prints its gold stub.
 	_dessert.bonus_stub = (
-		BonusTicket.sub_line(not inspection_names.is_empty(), context.shift)
+		BonusTicket.sub_line(not inspection_names.is_empty(), context.shift, context.payday)
 		if context.bonus_ticket
 		else ""
 	)
+	_dessert.banner_text = Payday.BANNER if context.payday else CountUpDessert.BANNER_TEXT
 	_dessert.write_up = context.write_up
 	await _climax_ended()
 	await _dessert.play(

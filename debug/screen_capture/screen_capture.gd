@@ -656,6 +656,9 @@ func _check_out_machine_shift(run: RunState, options: PackedStringArray) -> bool
 		run.place(run.debug_add_to_hand(_card(card_id)), run.row.size())
 	run.checkout()
 	if options.has("bonus"):
+		# Live data gives an inspection no bonus ticket since v0.68 (Payday): a machine copy does.
+		run.machine.machine = run.machine.machine.duplicate() as MachineDefinition
+		run.machine.machine.bonus_after_inspection = true
 		run.history[-1].inspection = load("res://data/inspections/%s.tres" % BONUS_INSPECTION)
 		run.machine.begin_after_checkout(run)
 	if run.phase != RunState.Phase.MACHINE_CHOOSE:

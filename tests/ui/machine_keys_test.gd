@@ -915,6 +915,7 @@ static func _bonus_run(seed_value: int, inspected: bool) -> RunState:
 	var run: RunState = _passed_run(seed_value)
 	if inspected:
 		run.history[-1].inspection = load(SPOT_CHECK)
+		MachineSteps.bonus_after_inspection(run)
 	else:
 		run.machine.machine = run.machine.machine.duplicate() as MachineDefinition
 		run.machine.machine.bonus_extra_shifts = PackedInt32Array([1])
