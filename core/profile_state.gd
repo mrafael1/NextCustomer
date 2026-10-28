@@ -27,6 +27,8 @@ const REDUCED_MOTION_KEY := "reduced_motion"
 ## The count-up speed setting's two values: Normal and Fast.
 const COUNT_UP_NORMAL := 1.0
 const COUNT_UP_FAST := 1.5
+## The stats key of the runs won (#107).
+const RUNS_WON := &"runs_won"
 
 ## Coins from final receipts (full build plan 7.1); 1 coin = 1 capsule.
 var coins: int = 0
@@ -48,7 +50,7 @@ var coupon_uses: Dictionary[StringName, int] = {}
 var seen: Array[StringName] = []
 ## Unlocked achievements by id; their content comes later.
 var achievements: Array[StringName] = []
-## Lifetime numbers by name; their content comes later.
+## Lifetime numbers by name; their content comes later, but for RUNS_WON (#107).
 var stats: Dictionary[StringName, int] = {}
 ## The seed of the capsule draws' streams (#63), made outside core/ and set once
 ## (set_capsule_seed); saved as a decimal string, "" while there is none (has_capsule_seed).
@@ -121,8 +123,16 @@ func record_run(run: RunState, catalogue: CatalogueDefinition) -> Array[StringNa
 	var uses: Dictionary[StringName, int] = UnlockCheck.coupon_uses(run.history)
 	for id: StringName in uses:
 		coupon_uses[id] = coupon_uses.get(id, 0) + uses[id]
+	if run.phase == RunState.Phase.WON:
+		stats[RUNS_WON] = int(stats.get(RUNS_WON, 0)) + 1
 	run_count += 1
 	return unlocked_now
+
+
+## Whether a run of this profile was ever won (#107: until then, the starter pack offer raises its
+## good first pick).
+func has_won() -> bool:
+	return int(stats.get(RUNS_WON, 0)) > 0
 
 
 ## Sets the capsule seed if the profile has none yet, and the draw count to the unlocked item

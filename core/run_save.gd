@@ -37,8 +37,12 @@ extends RefCounted
 ## version 2, with the machine's Regular levels, before v0.47's two machine states; version 3,
 ## before v0.49's dealt starting deck) is refused, so SaveService keeps it as a .bad backup and a
 ## new run starts. Version 6 (v0.61, #108): one machine with two chutes, CLASSIC or PREMIUM, no
-## STAMP DAY, loyalty levels, and the machine's played upgrades as a list.
-const FORMAT_VERSION := 6
+## STAMP DAY, loyalty levels, and the machine's played upgrades as a list. Version 7 (v0.63,
+## #107): the starter pack offer (`start_offer`), the pack taken (`start_pack`) and the
+## choose_start save point; a version 6 save has none of them and reads as before.
+const FORMAT_VERSION := 7
+## Version 6: version 7's form without the starter pack fields, read as it is.
+const BEFORE_STARTER_PACKS_VERSION := 6
 ## Version 5: the machine before v0.61 (four chutes, STAMP DAY), converted by RunSaveMigration.
 const BEFORE_MACHINE_REWORK_VERSION := 5
 ## Version 4 has version 5's saved form, scored before v0.46's Banana chain (#106), and is still
@@ -48,13 +52,16 @@ const BEFORE_MACHINE_REWORK_VERSION := 5
 ## the current version.
 const BEFORE_BANANA_CHAIN_VERSION := 4
 ## The save points, and their names in the saved form (the run_resume event uses them too).
+## CHOOSE_START (#107): the starter pack offer waits for the pick, saved before the choice opens,
+## so quitting can't reroll it.
 const SAVE_POINTS: Array[RunState.Phase] = [
 	RunState.Phase.PLANNING,
 	RunState.Phase.MACHINE_CHOOSE,
 	RunState.Phase.MACHINE_PICK,
 	RunState.Phase.SCORED,
+	RunState.Phase.CHOOSE_START,
 ]
-const PHASE_NAMES: Array[String] = ["planning", "machine", "machine_pick", "scored"]
+const PHASE_NAMES: Array[String] = ["planning", "machine", "machine_pick", "scored", "choose_start"]
 
 var run: RunState
 ## The telemetry run id the run was logged under.
@@ -110,6 +117,8 @@ static func to_dictionary(saved_run: RunState, saved_run_id: String, played_ms: 
 			func(record: ShiftRecord) -> Dictionary: return record.to_dictionary()
 		),
 		"machine": saved_run.machine.to_dictionary(),
+		"start_offer": _offer_data(saved_run.start_offer),
+		"start_pack": _id(saved_run.starter.starter_pack),
 	}
 	# "listed_aisles" and "stock", the same as run_start logs.
 	data.merge(saved_run.stock.to_dictionary())
@@ -127,7 +136,7 @@ static func from_dictionary(saved: Dictionary, lookup: ContentLookup) -> RunSave
 	var data: Dictionary = saved
 	if RunSaveMigration.FROM_VERSIONS.has(int(version)):
 		data = RunSaveMigration.to_v6(saved)
-	elif int(version) != FORMAT_VERSION:
+	elif int(version) != FORMAT_VERSION and int(version) != BEFORE_STARTER_PACKS_VERSION:
 		return null
 	if data.is_empty():
 		return null
@@ -135,11 +144,26 @@ static func from_dictionary(saved: Dictionary, lookup: ContentLookup) -> RunSave
 	var reader: SaveReader = SaveReader.new(data, lookup)
 	var starter: DeckDefinition = reader.deck("starter")
 	var starting_cards: Array[CardDefinition] = reader.cards("starting_deck")
+	# A recipe with starter packs (#107): its offer and the pack taken ("" before the pick).
+	var offer: StartOffer = null
+	var pack: StarterPackDefinition = null
+	if starter != null and not starter.starter_packs.is_empty():
+		offer = _read_offer(starter, data.get("start_offer"))
+		var pack_id: Variant = data.get("start_pack")
+		if offer == null or not pack_id is String:
+			return null
+		if not (pack_id as String).is_empty():
+			pack = offer.pack(StringName(pack_id))
+			if pack == null:
+				return null
 	if starter != null and starter.is_recipe():
 		# A deal the recipe can't give (a damaged or edited save) is refused.
-		if not StartingDeck.could_deal(starter, starting_cards):
+		if not StartingDeck.could_deal(starter, starting_cards, pack):
 			return null
 		starter = StartingDeck.with_cards(starter, starting_cards)
+		starter.starter_pack = pack
+		if offer != null:
+			offer.shared = StartingDeck.shared_of(starter)
 	var stock: RunStock = RunStock.from_saved(
 		reader.cards("stock"),
 		reader.aisles("listed_aisles"),
@@ -150,6 +174,7 @@ static func from_dictionary(saved: Dictionary, lookup: ContentLookup) -> RunSave
 	if not reader.ok or phase_index == -1:
 		return null
 	var restored: RunState = RunState.new(reader.int64("seed"), starter, lookup.balance, stock)
+	restored.start_offer = offer
 	restored.rng_state = reader.int64("rng_state")
 	restored.phase = SAVE_POINTS[phase_index]
 	restored.shift_index = reader.whole("shift_index")
@@ -271,6 +296,60 @@ static func _restore_cards(restored: RunState, reader: SaveReader) -> bool:
 	return ok
 
 
+## The saved form of a starter pack offer (#107): the offered pack ids, the first pick's id ("" for
+## none), the swaps and the deals; {} without an offer. The shared products are the starting
+## deck's.
+static func _offer_data(offer: StartOffer) -> Dictionary:
+	if offer == null:
+		return {}
+	return {
+		"packs": _ids(offer.packs),
+		"first_pick": _id(offer.first_pick),
+		"swaps": offer.swaps,
+		"deals": offer.deals,
+	}
+
+
+## The offer `data` holds for `recipe` (as parsed from JSON), or null when it is missing or names
+## a pack the recipe doesn't have. Its shared products are set from the starting deck.
+static func _read_offer(recipe: DeckDefinition, data: Variant) -> StartOffer:
+	if not data is Dictionary:
+		return null
+	var saved: Dictionary = data
+	var ids: Variant = saved.get("packs")
+	var first: Variant = saved.get("first_pick")
+	var swaps: Variant = saved.get("swaps")
+	var deals: Variant = saved.get("deals")
+	if not ids is Array or not first is String:
+		return null
+	if not SaveReader.is_whole(swaps) or not SaveReader.is_whole(deals):
+		return null
+	var offer: StartOffer = StartOffer.new()
+	for id: Variant in ids:
+		var found: StarterPackDefinition = _recipe_pack(recipe, id)
+		if found == null or offer.packs.has(found):
+			return null
+		offer.packs.append(found)
+	if offer.packs.is_empty():
+		return null
+	if not (first as String).is_empty():
+		offer.first_pick = offer.pack(StringName(first))
+		if offer.first_pick == null:
+			return null
+	offer.swaps = int(swaps)
+	offer.deals = int(deals)
+	return offer
+
+
+static func _recipe_pack(recipe: DeckDefinition, id: Variant) -> StarterPackDefinition:
+	if not id is String:
+		return null
+	for pack: StarterPackDefinition in recipe.starter_packs:
+		if pack.id == StringName(id):
+			return pack
+	return null
+
+
 ## Adds each card by instance id; false when an id repeats.
 static func _index(cards: Array[CardInstance], into: Dictionary[int, CardInstance]) -> bool:
 	var ok: bool = true
@@ -341,6 +420,22 @@ static func _history_fits(restored: RunState) -> bool:
 static func _phase_fits(restored: RunState) -> bool:
 	var machine: RewardMachine = restored.machine
 	var visit: MachineVisit = machine.current_visit()
+	var offer: StartOffer = restored.start_offer
+	var pack: StarterPackDefinition = restored.starter.starter_pack
+	if restored.phase == RunState.Phase.CHOOSE_START:
+		# Before the first shift: an offer waiting for its pick, nothing played or owned yet.
+		return (
+			offer != null
+			and pack == null
+			and restored.shift_index == 0
+			and restored.history.is_empty()
+			and restored.row.is_empty()
+			and restored.deck.hand().is_empty()
+			and machine.stage == RewardMachine.Stage.IDLE
+		)
+	# A run with an offer has taken one of its packs.
+	if offer != null and (pack == null or not offer.packs.has(pack)):
+		return false
 	if restored.phase == RunState.Phase.PLANNING:
 		return machine.stage == RewardMachine.Stage.IDLE and restored.next_inspection == null
 	var record: ShiftRecord = restored.history[-1]
@@ -367,7 +462,9 @@ static func _phase_fits(restored: RunState) -> bool:
 
 
 static func _after_checkout(restored: RunState) -> bool:
-	return restored.phase != RunState.Phase.PLANNING
+	return (
+		restored.phase != RunState.Phase.PLANNING and restored.phase != RunState.Phase.CHOOSE_START
+	)
 
 
 ## The upgrades the current shift was played with: after the checkout, those owned at the

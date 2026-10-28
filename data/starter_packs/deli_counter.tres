@@ -1,0 +1,15 @@
+[gd_resource type="Resource" script_class="StarterPackDefinition" format=3]
+
+[ext_resource type="Script" path="res://core/starter_pack_definition.gd" id="1_pack"]
+[ext_resource type="Script" path="res://core/card_definition.gd" id="2_card"]
+[ext_resource type="Resource" path="res://data/cards/bread.tres" id="c_bread"]
+[ext_resource type="Resource" path="res://data/cards/cheese.tres" id="c_cheese"]
+[ext_resource type="Resource" path="res://data/cards/butter.tres" id="c_butter"]
+
+[resource]
+script = ExtResource("1_pack")
+id = &"deli_counter"
+display_name = "Deli counter"
+family = "Bakery"
+cards = Array[ExtResource("2_card")]([ExtResource("c_bread"), ExtResource("c_cheese"), ExtResource("c_butter")])
+hint_text = "Butter, Bread, Cheese in a row: +3 beside Bread, +4 right after it."

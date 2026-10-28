@@ -58,6 +58,9 @@ var upgrade_picks: Dictionary[String, int] = {}
 var tier_picks: Dictionary[String, int] = {}
 ## BIG and GOLDEN copies in the final decks, by card id (all runs together).
 var tier_copies: Dictionary[String, int] = {}
+## The starter packs taken (#107) and the runs won with each, by pack id.
+var pack_runs: Dictionary[String, int] = {}
+var pack_wins: Dictionary[String, int] = {}
 ## Registers taken (REGISTER and STAMP DAY picks), and how many of those runs were won.
 var upgrades_taken: Dictionary[String, int] = {}
 var upgrade_wins: Dictionary[String, int] = {}
@@ -113,6 +116,10 @@ func add(record: SimRunRecord) -> void:
 	for build: String in record.fitted_builds:
 		build_fits[build] = build_fits.get(build, 0) + 1
 	coins.append(record.coins)
+	if not record.start_pack.is_empty():
+		pack_runs[record.start_pack] = pack_runs.get(record.start_pack, 0) + 1
+		if record.won:
+			pack_wins[record.start_pack] = pack_wins.get(record.start_pack, 0) + 1
 	_add_machine(record)
 	if not record.won and record.shifts.size() == 2:
 		lost_on_shift_2 += 1
@@ -215,6 +222,16 @@ func _machine_lines() -> PackedStringArray:
 	var tiers: String = ", ".join(tier_texts) if not tier_texts.is_empty() else "none"
 	lines.append("BIG / GOLDEN copies per run: " + tiers)
 	lines.append("GOLDEN Milk per run: %.2f" % (tier_copies.get("milk_golden", 0) / per_run))
+	if not pack_runs.is_empty():
+		var pack_texts: PackedStringArray = PackedStringArray()
+		for id: String in _sorted_by_count(pack_runs):
+			pack_texts.append(
+				(
+					"%s %d (won %s)"
+					% [id, pack_runs[id], percent_text(pack_wins.get(id, 0), pack_runs[id])]
+				)
+			)
+		lines.append("Starter packs taken (#107): " + ", ".join(pack_texts))
 	return lines
 
 

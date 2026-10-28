@@ -52,6 +52,8 @@ const LED_RING := Palette.RUBBER
 var _body: Control
 var _window: Control
 var _heap: Array[TextureRect] = []
+## The heap's cards, in the order they leave.
+var _cards: Array[CardDefinition] = []
 var _heap_rest: Array[Vector2] = []
 var _led: Label
 var _sold_out: Control
@@ -67,6 +69,7 @@ var _jolt: float = 0.0
 ## first, from the front of the heap).
 func _init(cards: Array[CardDefinition]) -> void:
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_cards = cards.duplicate()
 	_body = Control.new()
 	_body.name = "Body"
 	_body.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -169,6 +172,26 @@ func led_text() -> String:
 ## The heap's art of every pick, in the order they were added (for tests).
 func heap_art() -> Array[TextureRect]:
 	return _heap
+
+
+## The card of the heap item under `point` (global), the front one first, or null (#107: today's
+## products show their popup on hover during the starter pack choice).
+func card_at(point: Vector2) -> CardDefinition:
+	var count: int = _heap.size()
+	for index: int in range(count - 1, -1, -1):
+		var art: TextureRect = _heap[index]
+		if art.is_visible_in_tree() and art.get_global_rect().has_point(point):
+			return _cards[count - 1 - index]
+	return null
+
+
+## The heap item showing `card` (the front one), or null.
+func art_of(card: CardDefinition) -> TextureRect:
+	var count: int = _heap.size()
+	for index: int in range(count - 1, -1, -1):
+		if _cards[count - 1 - index] == card:
+			return _heap[index]
+	return null
 
 
 ## The heap's items still in the window (for tests).

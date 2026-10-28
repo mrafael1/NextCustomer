@@ -1,0 +1,15 @@
+[gd_resource type="Resource" script_class="StarterPackDefinition" format=3]
+
+[ext_resource type="Script" path="res://core/starter_pack_definition.gd" id="1_pack"]
+[ext_resource type="Script" path="res://core/card_definition.gd" id="2_card"]
+[ext_resource type="Resource" path="res://data/cards/final_markdown.tres" id="c_final_markdown"]
+[ext_resource type="Resource" path="res://data/cards/yogurt.tres" id="c_yogurt"]
+[ext_resource type="Resource" path="res://data/cards/carrier_bag.tres" id="c_carrier_bag"]
+
+[resource]
+script = ExtResource("1_pack")
+id = &"big_shop"
+display_name = "Big shop"
+family = "Food"
+cards = Array[ExtResource("2_card")]([ExtResource("c_final_markdown"), ExtResource("c_yogurt"), ExtResource("c_carrier_bag")])
+hint_text = "Food first, then Carrier bag: +5 for each Food before it."

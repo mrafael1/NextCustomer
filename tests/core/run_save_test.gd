@@ -22,7 +22,9 @@ func before_test() -> void:
 	_lookup = ContentLookup.new(_balance)
 
 
-func test_only_the_four_stable_phases_are_saved() -> void:
+## The stable phases are saved: since #107 (v0.63) also CHOOSE_START, the offer waiting for its
+## pick.
+func test_only_the_stable_phases_are_saved() -> void:
 	var saved: Array[String] = []
 	for phase: RunState.Phase in RunState.Phase.values():
 		var run: RunState = _planning_run(1)
@@ -33,7 +35,7 @@ func test_only_the_four_stable_phases_are_saved() -> void:
 		else:
 			assert_dict(RunSave.to_dictionary(run, "id", 0)).is_empty()
 			assert_str(RunSave.phase_name(phase)).is_empty()
-	assert_array(saved).is_equal(["planning", "machine", "machine_pick", "scored"])
+	assert_array(saved).is_equal(["planning", "machine", "machine_pick", "scored", "choose_start"])
 
 
 func test_a_fresh_shift_round_trips() -> void:
@@ -250,7 +252,7 @@ func test_the_run_id_and_played_time_are_kept() -> void:
 	assert_str(save.run_id).is_equal("abc123")
 	assert_int(save.run_ms).is_equal(98765)
 	assert_int(int(data["format_version"])).is_equal(RunSave.FORMAT_VERSION)
-	assert_int(RunSave.FORMAT_VERSION).is_equal(6)
+	assert_int(RunSave.FORMAT_VERSION).is_equal(7)
 	# v0.47: the machine saves no Regular levels.
 	assert_bool((data["machine"] as Dictionary).has("levels")).is_false()
 
@@ -301,8 +303,8 @@ func test_a_save_that_cant_be_resumed_reads_as_null() -> void:
 		[planning, func(d: Dictionary) -> void: d["format_version"] = 2],
 		"version 3, before the dealt starting deck":
 		[planning, func(d: Dictionary) -> void: d["format_version"] = 3],
-		"newer format": [planning, func(d: Dictionary) -> void: d["format_version"] = 7],
-		"format as text": [planning, func(d: Dictionary) -> void: d["format_version"] = "6"],
+		"newer format": [planning, func(d: Dictionary) -> void: d["format_version"] = 8],
+		"format as text": [planning, func(d: Dictionary) -> void: d["format_version"] = "7"],
 		"version 5 without its upgrade count":
 		[planning, func(d: Dictionary) -> void: d["format_version"] = 5],
 		"starting deck missing": [planning, func(d: Dictionary) -> void: d.erase("starting_deck")],
