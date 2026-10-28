@@ -288,6 +288,8 @@ func test_the_best_so_far_leaves_out_the_shift_being_counted() -> void:
 	assert_int(screen.run.history[0].total).is_equal(109)
 	assert_int(screen._count_up.plan.best).is_equal(45)
 	screen._machine.debug_skip()
+	# Shift 2 misses: the run ends on it (no write-up, v0.65), so the screen stays on shift 2.
+	Rush.no_write_ups(screen)
 	await _place(screen, ["milk", "bread"])
 	screen._on_checkout_pressed()
 	await _frames(2)
@@ -740,7 +742,7 @@ func _played(screen: ShiftScreen) -> void:
 
 func _assert_full_receipt(screen: ShiftScreen) -> void:
 	var run: RunState = screen.run
-	var notice: String = InspectionTag.next_notice(run.next_inspection)
+	var notice: String = InspectionTag.next_notice(run.next_inspections)
 	await _assert_receipt_of(screen, run.last_result, run.quota(), notice)
 
 

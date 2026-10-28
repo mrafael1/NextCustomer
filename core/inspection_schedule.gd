@@ -1,12 +1,63 @@
 class_name InspectionSchedule
 extends RefCounted
-## Which shifts are inspected and which inspection each one gets (plan section 3.9), using only
-## the RNG passed in.
+## Which shifts are inspected, how many inspections each gets and which ones (plan section 3.9),
+## using only the RNG passed in. Since v0.65 a Manager's review (BalanceDefinition.review_shifts)
+## draws review_inspection_count different inspections at once.
 
 
 ## Whether the 1-based shift number is played under an inspection.
 static func is_inspection_shift(balance: BalanceDefinition, shift_number: int) -> bool:
-	return balance.inspection_shifts.has(shift_number)
+	return count_for(balance, shift_number) > 0
+
+
+## Whether the 1-based shift number is a Manager's review (v0.65).
+static func is_review_shift(balance: BalanceDefinition, shift_number: int) -> bool:
+	return balance.review_shifts.has(shift_number) and balance.review_inspection_count > 0
+
+
+## How many inspections the 1-based shift number is played under: a review's
+## review_inspection_count, 1 for an inspected shift, else 0.
+static func count_for(balance: BalanceDefinition, shift_number: int) -> int:
+	if is_review_shift(balance, shift_number):
+		return balance.review_inspection_count
+	return 1 if balance.inspection_shifts.has(shift_number) else 0
+
+
+## The inspections the 1-based shift number is played under (count_for of them), all different,
+## drawn from inspection_pool with the run's RNG. The run's last inspections (`previous`) are
+## left out while enough others remain, so no inspection comes twice in a row when it can be
+## helped. Fewer when the pool is smaller; empty when the shift isn't inspected (then no RNG is
+## used).
+static func draw_for(
+	rng: RandomNumberGenerator,
+	balance: BalanceDefinition,
+	shift_number: int,
+	previous: Array[InspectionDefinition] = []
+) -> Array[InspectionDefinition]:
+	var drawn: Array[InspectionDefinition] = []
+	var count: int = count_for(balance, shift_number)
+	if count == 1:
+		var single: InspectionDefinition = draw(
+			rng, balance, previous[-1] if not previous.is_empty() else null
+		)
+		if single != null:
+			drawn.append(single)
+		return drawn
+	for index: int in range(count):
+		var fresh: Array[InspectionDefinition] = []
+		var others: Array[InspectionDefinition] = []
+		for inspection: InspectionDefinition in balance.inspection_pool:
+			if drawn.has(inspection):
+				continue
+			if previous.has(inspection):
+				others.append(inspection)
+			else:
+				fresh.append(inspection)
+		var candidates: Array[InspectionDefinition] = fresh if not fresh.is_empty() else others
+		if candidates.is_empty():
+			break
+		drawn.append(candidates[rng.randi_range(0, candidates.size() - 1)])
+	return drawn
 
 
 ## One inspection drawn uniformly from inspection_pool with the run's RNG, never the same as

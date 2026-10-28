@@ -234,8 +234,19 @@ func test_a_full_receipt_fits_the_screen_with_the_card_and_the_coins() -> void:
 	screen._show_results(_last_result(screen))
 	results.skip_printing()
 	await _frames(15)
-	# 8 shift lines, 7 ticket visits, 3 bonus visits and 3 inspections.
-	assert_int(results.texts().size()).is_equal(2 + 8 + 7 + 3 + 3 + 1 + 3)
+	# 12 shift lines, 11 ticket visits and 3 bonus visits: too long for the screen even at the
+	# smallest fit, so compact (v0.65): the 3 inspections fold into their shift lines.
+	assert_int(results.texts().size()).is_equal(2 + 12 + 11 + 3 + 1 + 3)
+	(
+		assert_int(
+			(
+				Array(results.texts())
+				. filter(func(t: String) -> bool: return t.ends_with("inspected"))
+				. size()
+			)
+		)
+		. is_equal(3)
+	)
 	var paper: Rect2 = results.get_global_rect()
 	prints("#61 final receipt:", paper)
 	assert_bool(SCREEN_RECT.encloses(paper)).is_true()

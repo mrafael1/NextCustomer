@@ -20,6 +20,10 @@ var receipt_header: PackedStringArray = PackedStringArray()
 ## A BONUS visit follows this shift's TICKET visit (#77 machine v2, Q2 = 2: the dessert prints
 ## the gold stub that becomes the bonus ticket). The shift screen sets it after the checkout.
 var bonus_ticket: bool = false
+## A missed quota the run goes on after (v0.65): the write-up's stamp text ("WRITE-UP 1/2"),
+## else empty (a pass, or the miss that ends the run). The shift screen sets it after the
+## checkout.
+var write_up: String = ""
 
 
 func _init(

@@ -82,7 +82,15 @@ func test_the_screen_saves_at_every_save_point_and_deletes_the_save_at_the_end()
 	assert_str(_saved()["phase"]).is_equal("planning")
 	assert_array(_saved()["upgrades"]).is_equal([String(upgrade.id)])
 
-	# An empty row loses shift 3: the run ends at the click and its save is gone.
+	# An empty row misses shift 3: a write-up (v0.65), saved at the click after the checkout, and the
+	# run goes on to shift 4's planning, saved there.
+	screen._on_checkout_pressed()
+	assert_str(_saved()["phase"]).is_equal("scored")
+	await _count_up_end(screen)
+	assert_int(screen.run.write_ups).is_equal(1)
+	assert_str(_saved()["phase"]).is_equal("planning")
+	assert_int(int(_saved()["shift_index"])).is_equal(3)
+	# A second miss gets the cashier fired: the run ends at the click and its save is gone.
 	screen._on_checkout_pressed()
 	assert_int(screen.run.phase).is_equal(RunState.Phase.LOST)
 	assert_bool(FileAccess.file_exists(_run_file())).is_false()
@@ -378,9 +386,12 @@ func test_a_new_screen_resumes_a_bonus_visit() -> void:
 		first._machine.view.fast_forward()  # The landing plays to its end.
 		first._machine._end_return()  # No glide back (#77 machine v2).
 		var run: RunState = first.run
+		# The first PREMIUM bonus visit: after shift 4's Manager's review (v0.65; shift 3's bonus is
+		# CLASSIC since then).
 		if (
 			run.phase == RunState.Phase.MACHINE_CHOOSE
 			and run.machine.current_visit().kind == MachineVisit.Kind.BONUS
+			and run.machine.current_visit().premium
 		):
 			reached = true
 			break
@@ -466,6 +477,7 @@ func test_a_resumed_run_keeps_its_run_id_and_played_time() -> void:
 	var resume: Dictionary = _last_event("run_resume")
 	assert_str(resume["run_id"]).is_equal("feedc0de12345678")
 	assert_int(int(resume["run_ms"])).is_equal(600000)
+	Rush.no_write_ups(resumed)  # The empty row's miss ends the run (v0.65).
 	await Rush.checkout(resumed)
 	var run_end: Dictionary = _last_event("run_end")
 	assert_str(run_end["run_id"]).is_equal("feedc0de12345678")
@@ -501,6 +513,7 @@ func test_a_run_that_doesnt_save_leaves_the_run_save_untouched() -> void:
 	var screen: ShiftScreen = await _screen()
 	var kept: String = FileAccess.get_file_as_string(_run_file())
 	screen.start_new_run(77, false)
+	Rush.no_write_ups(screen)  # The miss below ends the run (v0.65).
 	_place_ids(screen, PASSING_ROW)
 	await Rush.checkout(screen)
 	screen._machine.debug_skip()

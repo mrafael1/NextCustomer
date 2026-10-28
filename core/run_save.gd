@@ -39,8 +39,14 @@ extends RefCounted
 ## new run starts. Version 6 (v0.61, #108): one machine with two chutes, CLASSIC or PREMIUM, no
 ## STAMP DAY, loyalty levels, and the machine's played upgrades as a list. Version 7 (v0.63,
 ## #107): the starter pack offer (`start_offer`), the pack taken (`start_pack`) and the
-## choose_start save point; a version 6 save has none of them and reads as before.
-const FORMAT_VERSION := 7
+## choose_start save point; a version 6 save has none of them and reads as before. Version 8
+## (v0.65, the loop rework): the next shift's inspections as a list (`next_inspections`, a
+## Manager's review has several), each record's `inspections`, and records of missed shifts (the
+## write-ups); a version 7 or 6 save names one next inspection and one per record and reads
+## into the 12-shift run as it is.
+const FORMAT_VERSION := 8
+## Version 7: version 8's form with one next inspection and one per record, read as it is.
+const BEFORE_LOOP_VERSION := 7
 ## Version 6: version 7's form without the starter pack fields, read as it is.
 const BEFORE_STARTER_PACKS_VERSION := 6
 ## Version 5: the machine before v0.61 (four chutes, STAMP DAY), converted by RunSaveMigration.
@@ -111,7 +117,7 @@ static func to_dictionary(saved_run: RunState, saved_run_id: String, played_ms: 
 		"redrawn_in": Array(saved_run.redrawn_in),
 		"upgrades": _ids(saved_run.upgrades),
 		"inspections": _ids(saved_run.inspections),
-		"next_inspection": _id(saved_run.next_inspection),
+		"next_inspections": _ids(saved_run.next_inspections),
 		"history":
 		saved_run.history.map(
 			func(record: ShiftRecord) -> Dictionary: return record.to_dictionary()
@@ -136,7 +142,7 @@ static func from_dictionary(saved: Dictionary, lookup: ContentLookup) -> RunSave
 	var data: Dictionary = saved
 	if RunSaveMigration.FROM_VERSIONS.has(int(version)):
 		data = RunSaveMigration.to_v6(saved)
-	elif int(version) != FORMAT_VERSION and int(version) != BEFORE_STARTER_PACKS_VERSION:
+	elif not [FORMAT_VERSION, BEFORE_LOOP_VERSION, BEFORE_STARTER_PACKS_VERSION].has(int(version)):
 		return null
 	if data.is_empty():
 		return null
@@ -186,7 +192,10 @@ static func from_dictionary(saved: Dictionary, lookup: ContentLookup) -> RunSave
 		restored.redrawn_in = PackedInt32Array(reader.wholes("redrawn_in", 1))
 	restored.upgrades = reader.upgrades("upgrades")
 	restored.inspections = reader.inspections("inspections")
-	restored.next_inspection = reader.inspection("next_inspection")
+	if data.has("next_inspections"):
+		restored.next_inspections = reader.inspections("next_inspections")
+	else:
+		restored.next_inspection = reader.inspection("next_inspection")
 	var machine_data: Variant = data.get("machine")
 	var machine_ok: bool = (
 		machine_data is Dictionary
@@ -394,16 +403,17 @@ static func _is_consistent(restored: RunState, retired: bool, rescored: bool) ->
 	)
 	if rescored:
 		return true
-	return restored.last_result.total == restored.history[-1].total and restored.passed()
+	# A missed shift saved after its checkout is a write-up the run went on after (v0.65).
+	var survived: bool = restored.passed() or restored.write_ups < restored.balance.write_up_limit
+	return restored.last_result.total == restored.history[-1].total and survived
 
 
-## Every played shift was passed (a lost shift ends the run). One record per shift before the
-## current one, plus the current one after its checkout; a debug jump keeps only the last
+## Every played shift was passed, but for fewer write-ups (missed shifts, v0.65) than the
+## balance's write_up_limit (the one that reaches it ends the run). One record per shift before
+## the current one, plus the current one after its checkout; a debug jump keeps only the last
 ## record's shift number to check.
 static func _history_fits(restored: RunState) -> bool:
-	var ok: bool = true
-	for record: ShiftRecord in restored.history:
-		ok = ok and record.passed
+	var ok: bool = restored.write_ups < maxi(restored.balance.write_up_limit, 1)
 	var after: bool = _after_checkout(restored)
 	if after:
 		ok = ok and not restored.history.is_empty()

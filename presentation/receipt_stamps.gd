@@ -40,6 +40,14 @@ static func stamp_paid(line: Control) -> Label:
 	return stamp
 
 
+## A write-up's `text` ("WRITE-UP 1/2", v0.65) is stamped on a missed shift's margin `line`, as
+## PAID is on a pass's. Returns the stamp's label.
+static func stamp_write_up(line: Control, text: String) -> Label:
+	var stamp: Label = stamp_paid(line)
+	stamp.text = text
+	return stamp
+
+
 ## INSPECTION PASSED with `inspection_name` under it, on a new line of `receipt` under the
 ## margin line (which keeps PAID): the stamp hangs on the line's left label (inspection_of()),
 ## which is as tall as the stamp, so the line keeps a receipt line's two labels. Returns the line.

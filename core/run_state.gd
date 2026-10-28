@@ -59,15 +59,32 @@ var last_result: ScoreResult
 ## Owned upgrades, in pick order (a starting deck's upgrade first). Scoring steps name them by
 ## index in this list.
 var upgrades: Array[UpgradeDefinition] = []
-## The current shift's inspections (plan section 3.9; empty or one). Scoring steps name them by
-## index in this list.
+## The current shift's inspections (plan section 3.9; empty, one, or a Manager's review's
+## several since v0.65). Scoring steps name them by index in this list.
 var inspections: Array[InspectionDefinition] = []
-## The inspection announced for the next shift: drawn at a passed checkout when the next shift
-## is inspected, kept through the machine's visits and moved to `inspections` by next_shift.
-## Null otherwise.
-var next_inspection: InspectionDefinition
+## The inspections announced for the next shift: drawn at a checkout the run survives when the
+## next shift is inspected (InspectionSchedule.draw_for), kept through the machine's visits and
+## moved to `inspections` by next_shift. Empty otherwise.
+var next_inspections: Array[InspectionDefinition] = []
+## The first announced inspection, or null (most callers name one): setting it announces that
+## one alone, null none.
+var next_inspection: InspectionDefinition:
+	get:
+		return next_inspections[0] if not next_inspections.is_empty() else null
+	set(value):
+		next_inspections = []
+		if value != null:
+			next_inspections.append(value)
 ## One entry per played shift, in order.
 var history: Array[ShiftRecord] = []
+## The run's write-ups (v0.65): its missed shifts. A run still going has fewer than the
+## balance's write_up_limit; a lost run's last miss is the one that got the cashier fired.
+var write_ups: int:
+	get:
+		var count: int = 0
+		for record: ShiftRecord in history:
+			count += 0 if record.passed else 1
+		return count
 ## True once the debug panel jumped to another shift, or restarted the current one after its
 ## checkout: the history then no longer holds one entry per shift before the current one
 ## (RunSave skips that check for such a run).
@@ -249,8 +266,11 @@ func preview(card: CardInstance = null, slot: int = 0) -> ScoreResult:
 
 ## Scores the row with the run's upgrades and the shift's inspections. Always allowed, even for
 ## an empty row (plan section 3.5). A pass that isn't the last shift draws the next shift's
-## inspection from the run's RNG when it is inspected (section 3.9), then opens the machine's
-## visits (#77); the prizes are drawn later, when a chute is chosen.
+## inspections from the run's RNG when it is inspected (section 3.9), then opens the machine's
+## visits (#77); the prizes are drawn later, when a chute is chosen. A miss (v0.65) is a
+## write-up while the run's write-ups stay under the balance's write_up_limit and it isn't the
+## last shift: the next shift's inspections are drawn the same way, and the shift gets no
+## machine visit (SCORED at once). Any other miss loses the run.
 func checkout() -> ScoreResult:
 	if phase != Phase.PLANNING:
 		return last_result
@@ -258,17 +278,17 @@ func checkout() -> ScoreResult:
 	var record: ShiftRecord = ShiftRecord.new(shift_index + 1, quota(), last_result.total)
 	for card: CardInstance in row:
 		record.played.append(card.definition)
-	if not inspections.is_empty():
-		record.inspection = inspections[0]
+	record.inspections = inspections.duplicate()
 	history.append(record)
-	if last_result.total < quota():
+	if not record.passed and (is_last_shift() or write_ups >= balance.write_up_limit):
 		phase = Phase.LOST
-	elif is_last_shift():
+	elif record.passed and is_last_shift():
 		phase = Phase.WON
 	else:
-		if InspectionSchedule.is_inspection_shift(balance, shift_index + 2):
-			next_inspection = InspectionSchedule.draw(_rng, balance, _last_inspection())
-		# A balance without a machine (a test's minimal data) has no visits.
+		next_inspections = InspectionSchedule.draw_for(
+			_rng, balance, shift_index + 2, _last_inspections()
+		)
+		# A balance without a machine (a test's minimal data) has no visits, nor has a write-up.
 		phase = Phase.SCORED
 		if balance.machine != null:
 			machine.begin_after_checkout(self)
@@ -292,10 +312,8 @@ func next_shift() -> bool:
 	if phase != Phase.SCORED:
 		return false
 	shift_index += 1
-	inspections = []
-	if next_inspection != null:
-		inspections.append(next_inspection)
-	next_inspection = null
+	inspections = next_inspections.duplicate()
+	next_inspections = []
 	start_shift()
 	return true
 
@@ -315,27 +333,22 @@ func debug_skip_to_shift(index: int) -> void:
 	if target != shift_index or history.size() != target:
 		debug_jumped = true
 	if target != shift_index:
-		var previous: InspectionDefinition = _last_inspection()
-		inspections = []
-		if InspectionSchedule.is_inspection_shift(balance, target + 1):
-			var drawn: InspectionDefinition = InspectionSchedule.draw(_rng, balance, previous)
-			if drawn != null:
-				inspections.append(drawn)
+		inspections = InspectionSchedule.draw_for(_rng, balance, target + 1, _last_inspections())
 	shift_index = target
 	machine.clear_visits()
-	next_inspection = null
+	next_inspections = []
 	start_shift()
 
 
-## The run's last inspection: the current shift's, else the last inspected shift's (no
-## inspection twice in a row, InspectionSchedule.draw).
-func _last_inspection() -> InspectionDefinition:
+## The run's last inspections: the current shift's, else the last inspected shift's (no
+## inspection twice in a row, InspectionSchedule.draw_for).
+func _last_inspections() -> Array[InspectionDefinition]:
 	if not inspections.is_empty():
-		return inspections[0]
+		return inspections.duplicate()
 	for index: int in range(history.size() - 1, -1, -1):
-		if history[index].inspection != null:
-			return history[index].inspection
-	return null
+		if not history[index].inspections.is_empty():
+			return history[index].inspections.duplicate()
+	return []
 
 
 ## The phase the machine's stage stands for while its visits run.

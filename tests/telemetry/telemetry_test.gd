@@ -196,11 +196,21 @@ func test_run_start_and_run_end_fields() -> void:
 	assert_str(JSON.stringify(start)).contains(
 		'"listed_aisles":["cold_cases","pantry","household"]'
 	)
+	# Two misses: the first a write-up (v0.65), the second gets the cashier fired.
+	run.checkout()
+	run.next_shift()
 	run.checkout()
 	assert_int(run.phase).is_equal(RunState.Phase.LOST)
 	var end: Dictionary = RunEvents.run_end(run, 4321)
 	assert_dict(end).is_equal(
-		{"result": "loss", "shift_reached": 1, "last_score": 0, "run_ms": 4321, "upgrades": []}
+		{
+			"result": "loss",
+			"shift_reached": 2,
+			"last_score": 0,
+			"run_ms": 4321,
+			"upgrades": [],
+			"write_ups": 2,
+		}
 	)
 
 

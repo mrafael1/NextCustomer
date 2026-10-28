@@ -45,6 +45,16 @@ extends Resource
 @export var inspection_shifts: PackedInt32Array = PackedInt32Array()
 ## Inspections that an inspected shift draws from.
 @export var inspection_pool: Array[InspectionDefinition] = []
+## The Manager's reviews (v0.65, the loop rework): 1-based shift numbers that end a week, each
+## played under review_inspection_count inspections at once instead of one. A review shift need
+## not be in inspection_shifts.
+@export var review_shifts: PackedInt32Array = PackedInt32Array()
+## How many different inspections a review shift draws (InspectionSchedule.count_for).
+@export var review_inspection_count: int = 0
+## Write-ups (v0.65): a missed quota writes the cashier up instead of ending the run, and the
+## write-up that reaches this count gets them fired (the run is lost). 0 or 1: every miss ends
+## the run, as before v0.65. A missed last shift always ends the run.
+@export var write_up_limit: int = 0
 ## Coins a run pays at its end (full build plan 7.1, CoinPayout), by the number of shifts
 ## passed: index 0 to the number of shifts (a won run). Shorter tables use their last entry.
 @export var coins_by_shifts_passed: PackedInt32Array = PackedInt32Array()

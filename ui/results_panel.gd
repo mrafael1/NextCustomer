@@ -34,6 +34,10 @@ const FITS: Array[Vector3i] = [
 	Vector3i(14, 11, 4),
 	Vector3i(13, 10, 2),
 ]
+## A 12-shift run's receipt (v0.65) may not fit even then: it is built again compact
+## (FinalReceipt.lines' `compact`, its inspection lines folded into the shift lines) through FITS,
+## then COMPACT_FITS, smaller still (a won run with every bonus visit is 34 lines).
+const COMPACT_FITS: Array[Vector3i] = [Vector3i(12, 9, 2), Vector3i(11, 8, 0), Vector3i(10, 8, 0)]
 ## The staple across the loyalty card's top edge.
 const STAPLE_SIZE := Vector2(20, 5)
 
@@ -130,7 +134,10 @@ func show_results(
 	var won: bool = run.phase == RunState.Phase.WON
 	_headline.add_theme_color_override("font_color", Palette.GOOD if won else Palette.TOMATO)
 	_loyalty_card.show_upgrades(LoyaltyCard.box_count(run), run.upgrades)
-	_lay_out(FinalReceipt.lines(run, result, coins_total))
+	_lay_out(
+		FinalReceipt.lines(run, result, coins_total),
+		FinalReceipt.lines(run, result, coins_total, true)
+	)
 	_coin_sounds = FinalReceipt.coin_sounds(CoinPayout.for_run(run).total())
 	_coins_s = 0.0
 	coins_started_ms = -1
@@ -196,13 +203,17 @@ func _on_toy_machines_pressed() -> void:
 	toy_machines_requested.emit()
 
 
-func _lay_out(lines: Array[FinalReceipt.Line]) -> void:
-	for fit: Vector3i in FITS:
-		_fit = fit
-		_column.add_theme_constant_override("separation", fit.z)
-		_build_lines(lines)
-		if get_combined_minimum_size().y <= _room():
-			return
+func _lay_out(lines: Array[FinalReceipt.Line], compact: Array[FinalReceipt.Line]) -> void:
+	for each: Array[FinalReceipt.Line] in [lines, compact]:
+		var fits: Array[Vector3i] = FITS.duplicate()
+		if each == compact:
+			fits.append_array(COMPACT_FITS)
+		for fit: Vector3i in fits:
+			_fit = fit
+			_column.add_theme_constant_override("separation", fit.z)
+			_build_lines(each)
+			if get_combined_minimum_size().y <= _room():
+				return
 
 
 ## The height the receipt may take: its parent's, less the top bar's height above and below.
