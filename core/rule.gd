@@ -24,6 +24,11 @@ func flat_bonus(_state: ScoreState, _slot: int) -> int:
 	return 0
 
 
+## Explain-only: the neighbouring card that enabled this own flat bonus, if there is one.
+func flat_support(_state: ScoreState, _slot: int) -> int:
+	return -1
+
+
 ## Value pass: a multiplier this card gives itself.
 func multiplier(_state: ScoreState, _slot: int) -> int:
 	return 1

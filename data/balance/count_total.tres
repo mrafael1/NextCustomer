@@ -4,8 +4,8 @@
 
 [resource]
 script = ExtResource("1_tuning")
-landing_fly_ms = 180
-landing_gap_ms = 300
+landing_fly_ms = 60
+landing_gap_ms = 180
 fit_landing_gap_ms = 180
 ticks_per_landing = 3
 tick_gap_ms = 60

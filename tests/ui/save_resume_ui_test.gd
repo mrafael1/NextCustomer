@@ -240,33 +240,17 @@ func test_quitting_during_the_count_up_resumes_on_the_machine() -> void:
 	assert_array(_errors).is_empty()
 
 
-## A resumed checkout's monitor (#86 v6; #105 piece 2): its end state at once, with no motion:
-## the checkout column's SPEND MET stamp and "+N€" tab on the paper, apart, its sunburst shown,
-## the bay's light green and its end state (ALL PAID, THANK YOU, DONE), the item column on the
-## count's last item at its payout (still 16.5), no climax, no rail light, the monitor at rest; it
-## stays that way.
+## A resumed checkout keeps the monitor on the final item and its complete explanation,
+## with a green bay, no climax or rail light, and the final register total without celebration.
 func _assert_monitor_end_state(resumed: ShiftScreen) -> void:
 	var monitor: MonitorView = resumed._monitor
 	var column: CheckoutColumn = monitor.checkout()
-	# Resumed at the machine, the camera is at 2x (#77 machine v2): the rects are read back in the
-	# world's frame (the stage's at 1x).
-	var to_world: Transform2D = resumed._stage.world.get_global_transform().affine_inverse()
-	var paper: Rect2 = MonitorView.PAPER_RECT
 	for frame: int in range(2):
-		var stamp: Label = column.stamp()
-		assert_bool(stamp.is_visible_in_tree()).is_true()
-		var stamp_rect: Rect2 = to_world * stamp.get_global_rect()
-		assert_bool(paper.encloses(stamp_rect)).override_failure_message(str(stamp_rect)).is_true()
-		var tab: Label = column.tab()
-		# The passing row is over the shift's quota.
 		var total: int = resumed.run.last_result.total
 		assert_int(total - resumed.run.quota()).is_greater(0)
-		assert_bool(tab.is_visible_in_tree()).is_true()
-		assert_str(tab.text).is_equal(MonitorText.over_tab(total, resumed.run.quota()))
-		var tab_rect: Rect2 = to_world * tab.get_global_rect()
-		assert_bool(paper.encloses(tab_rect)).override_failure_message(str(tab_rect)).is_true()
-		assert_bool(stamp_rect.intersects(tab_rect)).is_false()
-		assert_bool(column.sunburst().visible).is_true()
+		assert_bool(column.is_visible_in_tree()).is_false()
+		assert_int(resumed._register.total_display.amount()).is_equal(total)
+		assert_bool(resumed._register.total_display.is_celebrating()).is_false()
 		assert_bool(monitor.climax().is_running()).is_false()
 		assert_that(monitor.bay().light_colour()).is_equal(ScannerBay.LIGHT_MET_COLOR)
 		# The bay's end state (#86 round 7): the bed empty and idle on ALL PAID, THANK YOU, DONE.

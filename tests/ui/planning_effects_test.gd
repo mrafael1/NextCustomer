@@ -83,6 +83,9 @@ func test_every_item_shows_its_model() -> void:
 	assert_int(stamped.badge().kind).is_equal(GiverBadge.Kind.COUPON)
 	assert_bool(stamped.badge().shows_icon()).is_true()
 	assert_str(stamped.badge().initials()).is_empty()
+	assert_str(stamped.badge().icon_texture().resource_path).is_equal(
+		"res://art/icons/coupon_multipack_mini.png"
+	)
 	var stamp: DenyStamp = layer.stamp(2)
 	assert_str(stamp.amount()).is_equal("€0")
 	assert_str(stamp.caption()).is_equal(screen.run.inspections[0].display_name.to_upper())

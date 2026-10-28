@@ -1,15 +1,7 @@
 extends GdUnitTestSuite
-## The shift's dessert on the real shift screen (#61, CountUpDessert): after the verdict, the total
-## slams onto the LED's digits on the hung monitor (#80) with `total` or `miss` while the receipt's
-## TOTAL line shows "€total / €quota" plainly, the margin line counts (+€N.00 OVER QUOTA, SHORT
-## €N.00, ON QUOTA) with `pass` or `fail`, a pass is stamped PAID, the receipt tears with `rip`
-## (after `fail` has rung out on a miss), the next shift's notice prints under the tear, and a pass
-## ends at the printer feed. Checked: the order and timing of the sounds for a pass, a miss (at
-## Normal and Fast), a pass before an inspected shift, a passed shift opening the RECEIPT REWARDS
-## machine (#77), a pass with a bonus ticket's stub (#77 machine v2) and the last shift; the
-## right N; the speed setting without the auto speed-up; reduced motion; the slam and the new
-## lines on screen; and a skipped dessert leaving the same receipt and sounds. The real saves,
-## logs and Music bus level are never touched.
+## V3 keeps the register's paid total stable while the receipt finishes: verdict sounds,
+## margin, PAID stamp, bonus stub, tear, notice and printer feed retain their order and timing.
+## Covers passes, misses, Fast, reduced motion and skipping, with isolated saves and logs.
 
 const SCREEN := "res://ui/shift_screen.tscn"
 const RECORDING_SFX := preload("res://tests/presentation/recording_sfx.gd")
@@ -266,8 +258,7 @@ func test_a_skipped_dessert_leaves_the_same_receipt_and_sounds() -> void:
 			assert_float((line as CanvasItem).modulate.a).is_equal(1.0)
 
 
-## After the verdict the speed setting applies but not the auto speed-up: on shift 3 (auto
-## x1.25) the feed comes at 700 ms; with Fast (x1.5) at about 467.
+## The player speed setting applies to the receipt dessert. V3 has no automatic shift speed-up.
 func test_the_dessert_runs_at_the_speed_setting_without_the_auto_speed_up() -> void:
 	var screen: ShiftScreen = await _screen()
 	var sfx: Sfx = _recording_sfx(screen)
@@ -275,7 +266,7 @@ func test_the_dessert_runs_at_the_speed_setting_without_the_auto_speed_up() -> v
 	var count_up: CountUp = screen._count_up
 	_play(screen, 34, "", CountUpContext.new(3, 0))
 	await _played(screen)
-	assert_float(count_up.plan.base_speed).is_equal_approx(1.25, 0.001)
+	assert_float(count_up.plan.base_speed).is_equal_approx(1.0, 0.001)
 	_assert_ms(count_up.printer_feed_ms - count_up.total_shown_ms, count_up, _feed_ms(), "feed")
 	sfx.clear()
 	_play(screen, 34, "", CountUpContext.new(3, 0, 1.5))
@@ -307,29 +298,24 @@ func test_a_miss_at_fast_tears_after_the_fail_has_rung_out() -> void:
 	assert_int(Time.get_ticks_msec() - count_up.total_shown_ms).is_greater_equal(fail_end)
 
 
-## Reduced motion: the slam fades in at full size and nothing shakes; the sounds stay.
-func test_reduced_motion_slams_at_full_size_without_a_shake() -> void:
+## Reduced motion keeps the final register reading still and preserves the receipt sounds.
+func test_reduced_motion_keeps_the_register_still() -> void:
 	var screen: ShiftScreen = await _screen()
 	var sfx: Sfx = _recording_sfx(screen)
 	await _place(screen, PASSING_ROW)
 	var count_up: CountUp = screen._count_up
 	var rest: float = screen._register.position.x
 	_play(screen, 34, "", CountUpContext.new(1, 0, 1.0, true))
-	var slam_frames: int = 0
-	var moved: Array[String] = []
+	var frames: int = 0
 	while count_up._playing:
 		await get_tree().process_frame
 		if not count_up._verdict_shown:
 			continue
-		var slam: Label = _slam_label(screen)
-		if slam != null:
-			slam_frames += 1
-			if slam.scale != Vector2.ONE:
-				moved.append("slam at scale %s" % slam.scale)
-		if screen._register.position.x != rest:
-			moved.append("register at %s" % screen._register.position.x)
-	assert_int(slam_frames).is_greater(2)
-	assert_array(moved).override_failure_message("\n".join(moved)).is_empty()
+		frames += 1
+		assert_vector(screen._register.total_display.number_label().scale).is_equal(Vector2.ONE)
+		assert_int(screen._register.total_display.amount()).is_equal(ROW_TOTAL)
+		assert_float(screen._register.position.x).is_equal(rest)
+	assert_int(frames).is_greater(2)
 	assert_array(_names_of(_dessert_sounds(sfx, count_up))).is_equal(
 		["total", "pass", "stamp_paid", "rip"]
 	)
@@ -400,52 +386,19 @@ func test_a_bonus_ticket_prints_its_stub_before_the_tear() -> void:
 # --- Helpers ---------------------------------------------------------------------------------
 
 
-## Follows the dessert frame by frame until play() returns: the slam (as drawn, scaled) stays
-## inside the screen on every frame and lands on the checkout column's number (#80; #105 piece 2),
-## in its colour (never tomato) and drawn as it (#86 v6: its ink outline and its drop, which
-## carries the outline too), never on the receipt. Returns the failures.
+## The register stays at the real final total throughout the receipt dessert. No extra
+## flying total covers the monitor or receipt.
 func _watch_dessert(screen: ShiftScreen) -> Array[String]:
 	var count_up: CountUp = screen._count_up
 	var failures: Array[String] = []
-	var slam_seen: bool = false
-	var last_slam: Rect2 = Rect2()
-	var total: Rect2 = Rect2()
-	var colour: Color = Color()
-	var look: Dictionary = {}
 	while count_up._playing:
 		await get_tree().process_frame
-		var slam: Label = _slam_label(screen)
-		if slam == null:
+		if not count_up._verdict_shown:
 			continue
-		slam_seen = true
-		last_slam = _drawn_rect(slam)
-		colour = slam.get_theme_color("font_color")
-		look = _look(slam)
-		total = _number_label(screen).get_global_rect()
-		if not SCREEN_RECT.grow(1.0).encloses(last_slam):
-			failures.append("slam outside the screen at %s" % last_slam)
-	if not slam_seen:
-		failures.append("no slam")
-	if last_slam.get_center().distance_to(total.get_center()) > 4.0:
-		failures.append("slam landed at %s, the digits at %s" % [last_slam, total])
-	if last_slam.intersects(screen._receipt.get_global_rect()):
-		failures.append("slam landed on the receipt at %s" % last_slam)
-	if slam_seen and colour != _number_label(screen).get_theme_color("font_color"):
-		failures.append("slam in %s, not the digits' colour" % colour.to_html(false))
-	if colour in [Palette.TOMATO, Palette.TOMATO_DARK, Palette.TOMATO_LIGHT]:
-		failures.append("slam in tomato")
-	var digits: Label = _number_label(screen)
-	if slam_seen and look != _look(digits):
-		failures.append("slam drawn as %s, the digits as %s" % [look, _look(digits)])
-	# #86 v6: the TOTAL's digits carry an ink outline over a drop that covers it.
-	var digits_look: Dictionary = _look(digits)
-	var outlined: bool = (
-		int(digits_look["outline_size"]) == TotalNumber.OUTLINE
-		and int(digits_look["shadow_outline_size"]) == TotalNumber.OUTLINE
-		and int(digits_look["shadow_offset_y"]) == TotalNumber.DROP
-	)
-	if not outlined:
-		failures.append("the TOTAL's digits drawn without their outline: %s" % digits_look)
+		if screen._register.total_display.amount() != count_up.plan.total:
+			failures.append("register changed after the verdict")
+		if _slam_label(screen) != null:
+			failures.append("unexpected flying total")
 	return failures
 
 

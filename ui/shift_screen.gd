@@ -544,6 +544,7 @@ func _on_checkout_pressed() -> void:
 	_refresh()
 	_effects.show_count(result, _row_views, run)  # Only the stickers stay, to fire.
 	var context: CountUpContext = count_up_context()
+	_monitor.upgrades = run.upgrades.duplicate()
 	_ride.begin(result, _row_views, context.reduced_motion)
 	await _count_up.play(
 		result,
@@ -926,6 +927,7 @@ func _build() -> void:
 	add_child(_ride)
 	_ride.setup(_count_up, _stage)
 	_monitor.follow(_count_up)
+	_cabinet.follow_count(_count_up, _led)
 	_drag = CardDrag.new()
 	add_child(_drag)
 	_drag.setup(_overlay, _slots, _hand_box, _landing_slot)

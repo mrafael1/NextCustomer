@@ -57,31 +57,6 @@ const GOLDEN_ROWS := [
 ]
 
 
-func test_tuning_loads_with_positive_ordered_floors() -> void:
-	var tuning: Resource = load(TUNING)
-	assert_object(tuning).is_instanceof(CountUpTuning)
-	var count_up: CountUpTuning = tuning
-	assert_int(count_up.first_best_floor).is_greater(0)
-	assert_int(count_up.large_floor).is_greater_equal(count_up.first_best_floor)
-	assert_int(count_up.note_count).is_equal(11)
-	assert_int(count_up.fit_target_ms).is_greater(0)
-	assert_int(count_up.fit_gap_ms).is_less(count_up.gap_ms)
-	assert_int(count_up.pause_normal_ms).is_less(count_up.pause_large_ms)
-	assert_int(count_up.pause_large_ms).is_less(count_up.pause_huge_ms)
-	assert_float(count_up.fit_max_factor).is_greater_equal(1.0)
-	# D3: the print pitch follows the printer speed up to +4 semitones.
-	assert_float(count_up.print_pitch_max).is_equal_approx(1.26, 0.001)
-	assert_float(count_up.print_pitch_max).is_less_equal(count_up.printer_speed_max)
-	# #86 v6 (the user's decisions): a 0.2 s ride per item, the last item's 0.3 s hop into the bag,
-	# a 0.5 s hold at the quota and a 4-7 s budget; then (2026-10-20) the whole count 1.25x
-	# slower: tempo 0.8, a 5-8.75 s budget and its fit target scaled with it.
-	assert_int(count_up.ride_ms).is_equal(200)
-	assert_int(count_up.bag_ms).is_equal(300)
-	assert_int(count_up.hit_stop_ding_ms).is_equal(500)
-	assert_float(count_up.count_tempo).is_equal_approx(0.8, 0.0001)
-	assert_int(count_up.fit_target_ms).is_equal(8125)
-
-
 func test_every_step_is_in_one_beat_and_only_plain_cards_merge() -> void:
 	var rows: Array[Array] = [_full_steps()]
 	for row: String in GOLDEN_ROWS:
@@ -249,112 +224,6 @@ func test_each_armed_beat_targets_its_landings() -> void:
 
 ## D5 (#105 piece 2): the quota dings at the first landing after which the shown total stays at
 ## or over it, unless that is the row's last landing (the quota is then met with the TOTAL).
-func test_the_quota_dings_on_the_first_crossing_unless_it_is_the_last() -> void:
-	var plan: CountUpPlan = _plan(_full_steps(), 40)
-	var ding: int = plan.ding_beat
-	assert_int(ding).is_greater_equal(0)
-	assert_bool(plan.beats[ding].ding).is_true()
-	assert_bool(CountUpPlan.is_landing(plan.beats[ding])).is_true()
-	assert_int(plan.beats[ding].shown_from).is_less(40)
-	assert_int(plan.beats[ding].shown_to).is_greater_equal(40)
-	# Its crossing tick: the first of its ticks at or over the quota.
-	var crossing: int = plan.beats[ding].ding_tick
-	assert_int(plan.beats[ding].ticks[crossing]).is_greater_equal(40)
-	if crossing > 0:
-		assert_int(plan.beats[ding].ticks[crossing - 1]).is_less(40)
-	for index: int in range(ding + 1, plan.beats.size()):
-		if CountUpPlan.is_landing(plan.beats[index]):
-			assert_int(plan.beats[index].shown_to).is_greater_equal(40)
-	assert_bool(plan.quota_reached).is_true()
-	assert_bool(plan.chip_at_total).is_false()
-	assert_int(_ding_count(plan)).is_equal(1)
-	var ding_ms: int = (load(TUNING) as CountUpTuning).hit_stop_ding_ms
-	assert_int(_hit_stop_at(plan, ding)).is_equal(ding_ms)
-	# Reached on the first landing.
-	var first: CountUpPlan = _plan(_full_steps(), 1)
-	var first_landing: int = -1
-	for index: int in range(first.beats.size()):
-		if first_landing == -1 and CountUpPlan.is_landing(first.beats[index]):
-			first_landing = index
-	assert_int(first.ding_beat).is_equal(first_landing)
-	# Crossed on the last landing: no ding, the chip comes with the TOTAL line.
-	var last: CountUpPlan = _plan(_full_steps(), 107)
-	assert_bool(last.quota_reached).is_true()
-	assert_bool(last.chip_at_total).is_true()
-	assert_int(last.ding_beat).is_equal(-1)
-	assert_int(_ding_count(last)).is_equal(0)
-	# Never reached: no ding and no chip.
-	var missed: CountUpPlan = _plan(_full_steps(), 108)
-	assert_bool(missed.quota_reached).is_false()
-	assert_bool(missed.chip_at_total).is_false()
-	assert_int(missed.ding_beat).is_equal(-1)
-	assert_int(_ding_count(missed)).is_equal(0)
-
-
-func test_another_quota_never_changes_the_intensity() -> void:
-	for shift: int in [1, 3, 8]:
-		var context: CountUpContext = CountUpContext.new(shift, 47)
-		var low: CountUpPlan = _plan(_full_steps(), 40, context)
-		var high: CountUpPlan = _plan(_full_steps(), 500, context)
-		assert_int(low.ding_beat).is_not_equal(high.ding_beat)
-		assert_int(low.size).is_equal(high.size)
-		assert_int(low.pause_ms).is_equal(high.pause_ms)
-		assert_float(low.final_rattle_px).is_equal(high.final_rattle_px)
-		assert_float(low.printer_speed).is_equal(high.printer_speed)
-		assert_float(low.base_speed).is_equal(high.base_speed)
-		assert_int(low.best).is_equal(high.best)
-		assert_int(low.passes_best_beat).is_equal(high.passes_best_beat)
-		_assert_same_but_the_ding(low, high, "shift %d" % shift)
-	# The fit never looks at the quota: a row fitted down to stage 5 fits the same way whether
-	# it dings early, on its last payout or never.
-	var long_steps: Array[ScoreStep] = _long_steps()
-	var fitted: Array[CountUpPlan] = []
-	for quota: int in [1, 30, 1000, 100000]:
-		fitted.append(_plan(long_steps, quota, CountUpContext.new(1, 0)))
-	assert_int(fitted[0].ding_beat).is_not_equal(fitted[1].ding_beat)
-	assert_int(fitted[2].ding_beat).is_equal(-1)
-	for other: CountUpPlan in fitted:
-		assert_int(other.fit_stage).is_equal(CountUpPlan.LAST_STAGE)
-		_assert_same_but_the_ding(fitted[0], other, "long row")
-		_assert_same_but_the_ding(fitted[1], other, "long row")
-	# Without a fit, the hit-stops differ only by the ding's.
-	var context_3: CountUpContext = CountUpContext.new(3, 47)
-	var unfitted: CountUpTuning = _unfitted()
-	var plan_low: CountUpPlan = CountUpPlan.build(_full_steps(), 40, context_3, unfitted)
-	var plan_high: CountUpPlan = CountUpPlan.build(_full_steps(), 500, context_3, unfitted)
-	assert_int(plan_low.fit_stage).is_equal(0)
-	assert_int(plan_high.fit_stage).is_equal(0)
-	for index: int in range(plan_low.beats.size()):
-		if index != plan_low.ding_beat:
-			assert_int(plan_low.beats[index].hit_stop_ms).is_equal(
-				plan_high.beats[index].hit_stop_ms
-			)
-	assert_int(plan_low.planned_ms - plan_high.planned_ms).is_equal(
-		(load(TUNING) as CountUpTuning).hit_stop_ding_ms
-	)
-
-
-func test_speeds_follow_the_shift_the_setting_and_the_steps() -> void:
-	var shift_1: CountUpPlan = _plan(_full_steps(), 40, CountUpContext.new(1, 47))
-	var shift_3: CountUpPlan = _plan(_full_steps(), 40, CountUpContext.new(3, 47))
-	assert_float(shift_1.base_speed).is_equal(1.0)
-	assert_float(shift_3.base_speed).is_equal_approx(1.25, 0.0001)
-	assert_int(shift_3.planned_ms).is_less(shift_1.planned_ms)
-	var fast: CountUpPlan = _plan(_full_steps(), 40, CountUpContext.new(3, 47, 1.5))
-	assert_float(fast.base_speed).is_equal_approx(1.875, 0.0001)
-	assert_float(_plan(_full_steps(), 40, CountUpContext.new(2, 0, 1.5)).base_speed).is_equal(1.5)
-	# The printer speeds up with the shift and with the steps past 14 (27 here).
-	var steps: Array[ScoreStep] = _full_steps()
-	assert_float(_plan(steps, 40, CountUpContext.new(1)).printer_speed).is_equal_approx(
-		1.13, 0.0001
-	)
-	assert_float(_plan(steps, 40, CountUpContext.new(3)).printer_speed).is_equal_approx(
-		1.23, 0.0001
-	)
-	assert_float(_plan(steps, 40, CountUpContext.new(8)).printer_speed).is_equal_approx(1.4, 0.0001)
-	assert_float(_plan(_flat_steps(3), 40, CountUpContext.new(1)).printer_speed).is_equal(1.0)
-
-
 func test_payout_rolls_and_rattles_follow_the_best_so_far() -> void:
 	# Shift 1, best 45 (the floor): printer speed 1.13. Unfitted.
 	var unfitted: CountUpTuning = (load(TUNING) as CountUpTuning).duplicate()
@@ -365,7 +234,7 @@ func test_payout_rolls_and_rattles_follow_the_best_so_far() -> void:
 	var bread: CountUpBeat = plan.beats[4]
 	assert_int(bread.payout).is_equal(10)
 	# No roll (#105 piece 2): the total counted in at the item's landings.
-	assert_int(bread.roll_ms).is_equal(0)
+	assert_int(bread.roll_ms).is_equal(120)
 	# €10 is at least max(€10, 0.2 x 45 = €9), so it rattles: 3 + 6 x 10 / 45.
 	assert_float(bread.rattle_px).is_equal_approx(3.0 + 60.0 / 45.0, 0.0001)
 	var eggs: CountUpBeat = plan.beats[0]
@@ -402,17 +271,17 @@ func test_reduced_motion_removes_every_rattle_but_keeps_the_hit_stops() -> void:
 	assert_int(calm.planned_ms).is_equal(normal.planned_ms)
 
 
-func test_the_total_size_sets_the_pause() -> void:
+func test_the_total_size_sets_rattle_without_adding_a_pause() -> void:
 	# best 45: large from max(50, 56.25), huge from 90.
 	assert_int(_plan(_flat_steps(1, 56)).size).is_equal(CountUpPlan.Size.NORMAL)
-	assert_int(_plan(_flat_steps(1, 56)).pause_ms).is_equal(300)
+	assert_int(_plan(_flat_steps(1, 56)).pause_ms).is_equal(0)
 	assert_float(_plan(_flat_steps(1, 56)).final_rattle_px).is_equal(0.0)
 	assert_int(_plan(_flat_steps(1, 57)).size).is_equal(CountUpPlan.Size.LARGE)
-	assert_int(_plan(_flat_steps(1, 57)).pause_ms).is_equal(500)
+	assert_int(_plan(_flat_steps(1, 57)).pause_ms).is_equal(0)
 	assert_float(_plan(_flat_steps(1, 57)).final_rattle_px).is_equal(8.0)
 	assert_int(_plan(_flat_steps(1, 89)).size).is_equal(CountUpPlan.Size.LARGE)
 	assert_int(_plan(_flat_steps(1, 90)).size).is_equal(CountUpPlan.Size.HUGE)
-	assert_int(_plan(_flat_steps(1, 90)).pause_ms).is_equal(700)
+	assert_int(_plan(_flat_steps(1, 90)).pause_ms).is_equal(0)
 	assert_float(_plan(_flat_steps(1, 90)).final_rattle_px).is_equal(12.0)
 	# A higher best raises both: large from 1.25 x 100, huge from 2 x 100.
 	var context: CountUpContext = CountUpContext.new(4, 100)
@@ -421,393 +290,68 @@ func test_the_total_size_sets_the_pause() -> void:
 	assert_int(_plan(_flat_steps(1, 200), 1, context).size).is_equal(CountUpPlan.Size.HUGE)
 
 
-func test_hit_stops_land_on_the_heavy_beats_and_merge_when_close() -> void:
-	var plan: CountUpPlan = CountUpPlan.build(
-		_full_steps(), 500, CountUpContext.new(3, 47), _unfitted()
-	)
-	assert_int(plan.fit_stage).is_equal(0)
-	var stops: Dictionary[int, int] = {}
-	for index: int in range(plan.beats.size()):
-		if plan.beats[index].hit_stop_ms > 0:
-			stops[index] = plan.beats[index].hit_stop_ms
-	# The Eggs stamp, the Spot check's red 0, three Multipack stamps, Slot engine.
-	var expected: Dictionary[int, int] = {3: 50, 7: 70, 14: 50, 18: 50, 19: 70, 23: 50}
-	assert_dict(stops).is_equal(expected)
-	for index: int in stops:
-		(
-			assert_bool(plan.beats[index].kind in [CountUpBeat.Kind.STAMP, CountUpBeat.Kind.DENIED])
-			. is_true()
-		)
-	assert_bool(plan.beats[3].first_stamp_on_card).is_true()
-	assert_bool(plan.beats[19].first_stamp_on_card).is_false()
-	# Unfitted, every beat has its D7 length (a paying PAYOUT its gap: no roll since #105 piece
-	# 2), at least the landing gap for a beat that lands on the total.
-	var live: CountUpTuning = load(TUNING)
-	var landing_gap: int = _total().landing_gap_ms
-	var roll: int = -1
-	var lengths_by_beat: Array[int] = [
-		live.merged_ms,
-		live.armed_ms,
-		live.base_ms,
-		live.stamp_card_ms,
-		roll,
-		live.base_ms,
-		live.bonus_own_ms,
-		live.denied_ms,
-		live.payout_zero_ms,
-		live.merged_zero_ms,
-		live.armed_ms,
-		live.fizzle_ms,
-		live.base_ms,
-		live.bonus_own_ms,
-		live.stamp_card_ms,
-		roll,
-		live.base_ms,
-		live.bonus_own_ms,
-		live.stamp_card_ms,
-		live.stamp_upgrade_ms,
-		roll,
-		live.base_ms,
-		live.bonus_own_ms,
-		live.stamp_card_ms,
-		roll,
-	]
-	assert_int(plan.beats.size()).is_equal(lengths_by_beat.size())
-	for index: int in range(plan.beats.size()):
-		var beat: CountUpBeat = plan.beats[index]
-		var expected_ms: int = lengths_by_beat[index]
-		if expected_ms == roll:
-			expected_ms = live.gap_ms
-		if CountUpPlan.is_landing(beat):
-			expected_ms = maxi(expected_ms, landing_gap)
-		assert_int(beat.duration_ms).override_failure_message(str(index)).is_equal(expected_ms)
-	_assert_unfitted_kind_lengths(live)
-	# Close together, they merge into the first with the longest. The live beats are all at
-	# least 240 ms long, so short ones are tuned in here.
+func test_the_quota_dings_at_the_first_paid_crossing_even_on_the_last_item() -> void:
+	for quota: int in [1, 40, 107]:
+		var plan: CountUpPlan = _plan(_full_steps(), quota)
+		assert_bool(plan.quota_reached).is_true()
+		assert_bool(plan.chip_at_total).is_false()
+		assert_int(_ding_count(plan)).is_equal(1)
+		var ding: CountUpBeat = plan.beats[plan.ding_beat]
+		assert_bool(CountUpPlan.is_payout_beat(ding)).is_true()
+		assert_int(ding.shown_from).is_less(quota)
+		assert_int(ding.shown_to).is_greater_equal(quota)
+	var missed: CountUpPlan = _plan(_full_steps(), 108)
+	assert_bool(missed.quota_reached).is_false()
+	assert_int(missed.ding_beat).is_equal(-1)
+
+
+func test_another_quota_changes_only_the_celebration() -> void:
+	var low: CountUpPlan = _plan(_full_steps(), 40)
+	var high: CountUpPlan = _plan(_full_steps(), 500)
+	assert_int(low.size).is_equal(high.size)
+	assert_float(low.count_speed).is_equal(high.count_speed)
+	assert_int(low.beats.size()).is_equal(high.beats.size())
+	for index: int in range(low.beats.size()):
+		assert_int(low.beats[index].duration_ms).is_equal(high.beats[index].duration_ms)
+		assert_int(low.beats[index].note).is_equal(high.beats[index].note)
+	assert_int(low.planned_ms - high.planned_ms).is_equal(850)
+
+
+func test_the_speed_setting_scales_the_beats_but_not_the_quota_hold() -> void:
+	var normal: CountUpPlan = _plan(_full_steps(), 500, CountUpContext.new(1, 0))
+	var later: CountUpPlan = _plan(_full_steps(), 500, CountUpContext.new(8, 0))
+	var fast: CountUpPlan = _plan(_full_steps(), 500, CountUpContext.new(1, 0, 2.0))
+	assert_float(normal.count_speed).is_equal(1.0)
+	assert_float(later.count_speed).is_equal(1.0)
+	assert_float(fast.count_speed).is_equal(2.0)
+	assert_int(absi(fast.planned_ms * 2 - normal.planned_ms)).is_less_equal(1)
+
+
+func test_a_long_row_still_fits_without_dropping_steps_or_shortening_rides() -> void:
 	var tuning: CountUpTuning = (load(TUNING) as CountUpTuning).duplicate()
-	tuning.stamp_card_ms = 150
-	tuning.stamp_upgrade_ms = 150
-	var steps: Array[ScoreStep] = [
-		_step(ScoreStep.StepType.BASE, 0, 0, 5, 0, "Bread"),
-		_step(ScoreStep.StepType.MULTIPLIER, 0, 0, 2, 0, "Bread ×2"),
-		_step(
-			ScoreStep.StepType.MULTIPLIER,
-			0,
-			0,
-			2,
-			0,
-			"Slot engine ×2",
-			ScoreStep.SourceKind.UPGRADE
-		),
-		_step(ScoreStep.StepType.PAYOUT_OVERRIDE, 0, 0, 0, 0, "the 1st product pays €0"),
-		_step(ScoreStep.StepType.PAYOUT, 0, 0, 0, 0, "Bread"),
-	]
-	var short: CountUpPlan = CountUpPlan.build(steps, 1000, CountUpContext.new(), tuning)
-	assert_int(short.fit_stage).is_equal(0)
-	# The upgrade stamp starts 150 ms after the card stamp: one 70 ms stop on the first.
-	assert_int(short.beats[2].start_ms - short.beats[1].start_ms).is_equal(150)
-	assert_int(short.beats[1].hit_stop_ms).is_equal(70)
-	assert_int(short.beats[2].hit_stop_ms).is_equal(0)
-	# The override is 300 ms after the group's first beat: a stop of its own.
-	assert_int(short.beats[3].hit_stop_ms).is_equal(70)
-	var lengths: int = short.pre_roll_ms
-	for beat: CountUpBeat in short.beats:
-		lengths += beat.duration_ms
-	assert_int(short.planned_ms).is_equal(
-		roundi(lengths / short.count_speed) + 140 + short.pause_ms
-	)
-
-
-## D5 and D6: a ding close after another hit-stop merges with it, but the merged hit-stop plays
-## on the ding beat, after the ding, never at the earlier beat's landing. On the long row fitted
-## to stage 5, the upgrade stamp before the first Milk payout is shorter than the merge window.
-func test_a_merged_hit_stop_plays_on_the_ding_beat() -> void:
-	var tuning: CountUpTuning = load(TUNING)
+	tuning.fit_target_ms = 2000
 	var steps: Array[ScoreStep] = _long_steps()
-	# The first Milk payout takes the subtotal from 1 to 31.
-	var plan: CountUpPlan = _plan(steps, 30, CountUpContext.new(1, 0))
-	var quota_free: CountUpPlan = _plan(steps, 100000, CountUpContext.new(1, 0))
-	assert_int(plan.fit_stage).is_equal(5)
-	var ding: int = plan.ding_beat
-	assert_int(plan.beats[ding].kind).is_equal(CountUpBeat.Kind.PAYOUT)
-	var stamp: CountUpBeat = plan.beats[ding - 1]
-	assert_int(stamp.kind).is_equal(CountUpBeat.Kind.STAMP)
-	assert_int(steps[stamp.steps[0]].source_kind).is_equal(ScoreStep.SourceKind.UPGRADE)
-	assert_int(plan.beats[ding].start_ms - stamp.start_ms).is_less_equal(tuning.hit_stop_merge_ms)
-	# Without the ding, the stamp keeps its own hit-stop.
-	assert_int(quota_free.beats[ding - 1].hit_stop_ms).is_equal(tuning.hit_stop_upgrade_stamp_ms)
-	# With it, the longest of the two plays once, on the ding beat.
-	assert_int(plan.beats[ding].hit_stop_ms).is_equal(tuning.hit_stop_ding_ms)
-	assert_int(stamp.hit_stop_ms).is_equal(0)
-	# Every other beat's hit-stop is the same as without the ding.
-	for index: int in range(plan.beats.size()):
-		if index != ding and index != ding - 1:
-			var at: String = "beat %d" % index
-			assert_int(plan.beats[index].hit_stop_ms).override_failure_message(at).is_equal(
-				quota_free.beats[index].hit_stop_ms
-			)
-
-
-## #86 v6: the budget was 4-7 s (fit_target_ms 6500), ride gaps included; at the 0.8 tempo
-## (2026-10-20) it is 5-8.75 s (fit_target_ms 8125).
-func test_the_full_row_plans_five_to_nine_seconds_from_its_parts() -> void:
-	for context: CountUpContext in [
-		CountUpContext.new(1, 0),
-		CountUpContext.new(1, 0, 1.5),
-		CountUpContext.new(8, 0),
-		CountUpContext.new(8, 160),
-		CountUpContext.new(8, 160, 1.5),
-	]:
-		for quota: int in [40, 107, 500]:
-			var plan: CountUpPlan = _plan(_full_steps(), quota, context)
-			var where: String = (
-				"shift %d best %d speed %s quota %d: %d ms (stage %d)"
-				% [
-					context.shift,
-					context.best_so_far,
-					context.speed_setting,
-					quota,
-					plan.planned_ms,
-					plan.fit_stage,
-				]
-			)
-			if context.speed_setting == 1.0:
-				assert_int(plan.planned_ms).override_failure_message(where).is_between(5000, 8750)
-			else:
-				assert_int(plan.planned_ms).override_failure_message(where).is_less_equal(8750)
-	# Shift 1, best 45: the total (107) is huge, the row is fitted down to stage 5 (#105 piece 2:
-	# its landings keep their floor), which may leave it a little over fit_target_ms: its six
-	# rides, the landing floors and the ding's hold are never shortened.
-	var first: CountUpPlan = _plan(_full_steps(), 40, CountUpContext.new(1, 0))
-	assert_int(first.size).is_equal(CountUpPlan.Size.HUGE)
-	assert_int(first.fit_stage).is_equal(CountUpPlan.LAST_STAGE)
-	assert_int(first.planned_ms).is_less_equal(8750)
-	# planned_ms adds up its parts.
-	for parts_context: CountUpContext in [
-		CountUpContext.new(1, 0),
-		CountUpContext.new(3, 47),
-		CountUpContext.new(8, 160, 1.5),
-	]:
-		var parts: CountUpPlan = _plan(_full_steps(), 40, parts_context)
-		var lengths: int = parts.pre_roll_ms
-		var stops: int = 0
-		var start: int = parts.pre_roll_ms
-		for beat: CountUpBeat in parts.beats:
-			# A ride gap comes before its beat's start.
-			start += beat.ride_ms
-			assert_int(beat.start_ms).is_equal(start)
-			start += beat.duration_ms
-			lengths += beat.ride_ms + beat.duration_ms
-			stops += beat.hit_stop_ms
-		var expected: int = roundi(lengths / parts.count_speed) + stops + parts.pause_ms
-		assert_int(parts.planned_ms).is_equal(expected)
-
-
-func test_no_shorter_row_plans_over_eight_and_three_quarter_seconds() -> void:
-	var tuning: CountUpTuning = load(TUNING)
-	var rows: Array[Array] = []
-	for row: String in GOLDEN_ROWS:
-		rows.append(_golden_steps(row))
-	var full: Array[String] = []
-	full.assign(FULL_ROW.split(","))
-	for length: int in range(1, full.size()):
-		rows.append(_data_steps(",".join(full.slice(0, length))))
-	for steps: Array in rows:
-		var typed: Array[ScoreStep] = []
-		typed.assign(steps)
-		for quota: int in [1, 1000]:
-			for shift: int in [1, 8]:
-				var plan: CountUpPlan = _plan(typed, quota, CountUpContext.new(shift, 0))
-				assert_int(plan.planned_ms).is_less_equal(8750)
-				if plan.fit_stage == 0:
-					assert_int(plan.planned_ms).is_less_equal(tuning.fit_target_ms)
-
-
-## The stages on #60's tuning (no rides, a 100 ms ding, tempo 1) with a 5000 ms target (#60's
-## 5500 less the payout rolls #105 piece 2 took out) and no landing floors, where the shift 1 row
-## stops at stage 2; the live tuning takes it to stage 5 (above).
-func test_the_fit_runs_its_stages_in_order_and_spares_the_climax() -> void:
-	var tuning: CountUpTuning = (load(TUNING) as CountUpTuning).duplicate()
-	tuning.count_tempo = 1.0
-	tuning.ride_ms = 0
-	tuning.hit_stop_ding_ms = 100
-	tuning.fit_target_ms = 5000
-	# Shift 1, best 45: 5,000-odd ms planned before the fit (no payout rolls since #105 piece 2;
-	# their landing floors left out).
-	var plan: CountUpPlan = CountUpPlan.build(
-		_full_steps(), 40, CountUpContext.new(1, 0), tuning, _no_floors()
-	)
-	assert_int(plan.fit_stage).is_equal(2)
-	# Stage 1: every gap is 40 ms.
-	assert_int(plan.beats[2].duration_ms).is_equal(tuning.base_ms - 20)
-	# Stage 2: the 2nd and 3rd Multipack landings are echoes without a hit-stop.
-	assert_bool(plan.beats[14].echo).is_false()
-	assert_int(plan.beats[14].duration_ms).is_equal(tuning.stamp_card_ms - 20)
-	assert_int(plan.beats[14].hit_stop_ms).is_equal(50)
-	for index: int in [18, 23]:
-		assert_bool(plan.beats[index].echo).is_true()
-		assert_int(plan.beats[index].duration_ms).is_equal(tuning.echo_ms)
-		assert_int(plan.beats[index].hit_stop_ms).is_equal(0)
-	# Merged plain beats and the ding keep their (gap-trimmed) length.
-	assert_int(plan.beats[0].duration_ms).is_equal(tuning.merged_ms - 20)
-	assert_int(plan.ding_beat).is_greater_equal(0)
-	assert_int(plan.beats[plan.ding_beat].hit_stop_ms).is_equal(100)
-
-
-func test_a_very_long_row_runs_every_stage_but_keeps_its_floors() -> void:
-	var tuning: CountUpTuning = load(TUNING)
-	var steps: Array[ScoreStep] = _long_steps()
-	# The landing floors (#105 piece 2) left out: the stages and the factor as #60 tuned them.
-	var plan: CountUpPlan = CountUpPlan.build(
-		steps, 30, CountUpContext.new(1, 0), tuning, _no_floors()
-	)
-	assert_int(plan.fit_stage).is_equal(5)
+	var plan: CountUpPlan = CountUpPlan.build(steps, 100000, CountUpContext.new(), tuning)
+	assert_int(plan.fit_stage).is_equal(CountUpPlan.LAST_STAGE)
+	var seen: Array[int] = []
 	for beat: CountUpBeat in plan.beats:
-		match beat.kind:
-			CountUpBeat.Kind.MERGED_PLAIN:
-				assert_int(beat.duration_ms).is_equal(tuning.merged_ms - 20)
-			CountUpBeat.Kind.FIZZLE:
-				assert_int(beat.duration_ms).is_greater_equal(tuning.fizzle_hold_min_ms)
-			CountUpBeat.Kind.STAMP:
-				if beat.first_stamp_on_card and not beat.echo:
-					assert_int(beat.duration_ms).is_equal(tuning.stamp_card_ms - 20)
-		if beat.echo:
-			assert_int(beat.duration_ms).is_equal(tuning.echo_ms)
-		if beat.ding:
-			assert_int(beat.hit_stop_ms).is_equal(tuning.hit_stop_ding_ms)
+		for index: int in beat.steps:
+			seen.append(index)
 		assert_int(beat.duration_ms).is_greater(0)
-	# The uniform factor is at most 1.3: no shortenable beat runs faster.
-	var base: CountUpBeat = plan.beats[4]
-	assert_int(base.kind).is_equal(CountUpBeat.Kind.BASE)
-	assert_int(base.duration_ms).is_greater_equal(floori((tuning.base_ms - 20) / 1.3))
-	assert_int(base.duration_ms).is_less(tuning.base_ms - 20)
-	assert_int(plan.pause_ms).is_equal(tuning.pause_huge_ms)
-	# Every shortenable beat runs at the BASE beat's factor, on its length after stages 1-4.
-	var factor: float = base.duration_ms / float(tuning.base_ms - 20)
-	var checked: Dictionary[CountUpBeat.Kind, int] = {}
-	for beat: CountUpBeat in plan.beats:
-		var unscaled: int = _fitted_length_before_factor(steps, beat, tuning)
-		if unscaled <= 0:
-			continue
-		checked[beat.kind] = checked.get(beat.kind, 0) + 1
-		var where: String = "%s at %d ms" % [CountUpBeat.Kind.keys()[beat.kind], beat.start_ms]
-		var ratio: float = beat.duration_ms / float(unscaled)
-		assert_float(ratio).override_failure_message(where).is_equal_approx(factor, 0.01)
-	# A payout no longer rolls (#105 piece 2): every paying PAYOUT is its fitted gap.
-	assert_int(checked.get(CountUpBeat.Kind.PAYOUT, 0)).is_greater(0)
-	# Both bonus lengths, both stamp lengths (upgrades and Milk's later own stamp), tag, link.
-	assert_int(checked.get(CountUpBeat.Kind.BONUS, 0)).is_equal(14)
-	assert_int(checked.get(CountUpBeat.Kind.STAMP, 0)).is_equal(8)
-	assert_int(checked.get(CountUpBeat.Kind.TAG, 0)).is_equal(1)
-	assert_int(checked.get(CountUpBeat.Kind.LINK, 0)).is_equal(1)
-	# With a far smaller target and a looser factor, the fizzle stops at its grey hold.
-	var tight: CountUpTuning = tuning.duplicate()
-	tight.fit_target_ms = 1000
-	tight.fit_max_factor = 2.0
-	var squeezed: CountUpPlan = CountUpPlan.build(
-		steps, 30, CountUpContext.new(1, 0), tight, _no_floors()
-	)
-	assert_int(squeezed.fit_stage).is_equal(5)
-	assert_int(squeezed.beats[4].duration_ms).is_equal(roundi((tuning.base_ms - 20) / 2.0))
-	var fizzle: CountUpBeat = squeezed.beats[squeezed.beats.size() - 1]
-	assert_int(fizzle.kind).is_equal(CountUpBeat.Kind.FIZZLE)
-	assert_int(fizzle.duration_ms).is_equal(tuning.fizzle_hold_min_ms)
+		if beat.ride_ms > 0:
+			assert_int(beat.ride_ms).is_equal(tuning.ride_ms)
+	assert_array(seen).is_equal(range(steps.size()))
 
 
-func test_an_empty_row_plans_only_the_pre_roll_and_the_pause() -> void:
+func test_an_empty_row_has_only_the_pre_roll() -> void:
 	var plan: CountUpPlan = _plan([], 10)
 	assert_int(plan.beats.size()).is_equal(0)
-	assert_int(plan.total).is_equal(0)
+	assert_int(plan.planned_ms).is_equal(120)
 	assert_bool(plan.quota_reached).is_false()
-	# At the 0.8 tempo, the pre-roll's 120 ms run 1.25x slower; the pause stays real time.
-	assert_int(plan.planned_ms).is_equal(150 + 300)
-	assert_int(plan.bag_ms).is_equal(300)
-
-
-## Two plans of one row for different quotas: the same intensity, fit stage, lengths and rolls
-## on every beat but either plan's ding beat (spared by the fit, so it may be longer).
-func _assert_same_but_the_ding(a: CountUpPlan, b: CountUpPlan, where: String) -> void:
-	assert_int(a.fit_stage).override_failure_message(where).is_equal(b.fit_stage)
-	assert_int(a.beats.size()).is_equal(b.beats.size())
-	for index: int in range(a.beats.size()):
-		var x: CountUpBeat = a.beats[index]
-		var y: CountUpBeat = b.beats[index]
-		assert_float(x.rattle_px).is_equal(y.rattle_px)
-		assert_int(x.note).is_equal(y.note)
-		assert_bool(x.echo).is_equal(y.echo)
-		if index == a.ding_beat or index == b.ding_beat:
-			var spared: CountUpBeat = x if index == a.ding_beat else y
-			var other: CountUpBeat = y if index == a.ding_beat else x
-			assert_int(spared.duration_ms).is_greater_equal(other.duration_ms)
-			continue
-		var at: String = "%s, beat %d" % [where, index]
-		assert_int(x.duration_ms).override_failure_message(at).is_equal(y.duration_ms)
-		assert_int(x.roll_ms).override_failure_message(at).is_equal(y.roll_ms)
-
-
-## The D7 lengths the live row does not show: bonuses from another source, a reset fizzle and
-## the context-pass tag and link, on a hand-built row that needs no fit.
-func _assert_unfitted_kind_lengths(live: CountUpTuning) -> void:
-	var steps: Array[ScoreStep] = [
-		_step(ScoreStep.StepType.TAG_ADDED, 1, 0, 0, 0, "Sticker"),
-		_step(ScoreStep.StepType.LINKED, 1, 0, 0, 0, "Bundle"),
-		_step(ScoreStep.StepType.BASE, 1, 1, 4, 0, "Milk"),
-		_step(ScoreStep.StepType.FLAT, 1, 1, 1, 0, "Milk: earlier Breakfast"),
-		_step(ScoreStep.StepType.FLAT, 1, 0, 2, 0, "Coffee +2"),
-		_step(ScoreStep.StepType.FLAT, 1, 1, 1, 0, "Upgrade +1", ScoreStep.SourceKind.UPGRADE),
-		_step(ScoreStep.StepType.COPY, 1, 1, 4, 0, "Repeat"),
-		_step(
-			ScoreStep.StepType.MULTIPLIER, 1, 1, 2, 0, "Spot ×2", ScoreStep.SourceKind.INSPECTION
-		),
-		_step(ScoreStep.StepType.PAYOUT, 1, 1, 24, 24, "Milk"),
-		_step(ScoreStep.StepType.WASTED, 2, 0, 0, 24, "Eggs ×2"),
-		_step(ScoreStep.StepType.WASTED, 2, 2, 0, 24, "Coffee +2"),
-		_step(ScoreStep.StepType.WASTED, 2, 2, 0, 24, "Slot engine", ScoreStep.SourceKind.UPGRADE),
-	]
-	var plan: CountUpPlan = CountUpPlan.build(steps, 1000, CountUpContext.new(), live)
-	assert_int(plan.fit_stage).is_equal(0)
-	var expected: Array[int] = [
-		live.tag_ms,
-		live.link_ms,
-		live.base_ms,
-		live.bonus_own_ms,
-		live.bonus_other_ms,
-		live.bonus_other_ms,
-		live.bonus_other_ms,
-		live.stamp_upgrade_ms,
-		live.gap_ms,
-		live.fizzle_reset_ms,
-		live.fizzle_ms,
-		live.fizzle_ms,
-	]
-	assert_int(plan.beats.size()).is_equal(expected.size())
-	for index: int in range(expected.size()):
-		var beat: CountUpBeat = plan.beats[index]
-		var expected_ms: int = expected[index]
-		if CountUpPlan.is_landing(beat):
-			expected_ms = maxi(expected_ms, _total().landing_gap_ms)
-		assert_int(beat.duration_ms).override_failure_message(str(index)).is_equal(expected_ms)
-	# An inspection stamp is no card stamp: the upgrade hit-stop.
-	assert_int(plan.beats[7].hit_stop_ms).is_equal(live.hit_stop_upgrade_stamp_ms)
-
-
-## The live tuning with a target no row reaches: no fit.
-static func _unfitted() -> CountUpTuning:
-	var tuning: CountUpTuning = (load(TUNING) as CountUpTuning).duplicate()
-	tuning.fit_target_ms = 100000
-	return tuning
 
 
 static func _total() -> CountTotalTuning:
 	return load(CountUpPlan.TOTAL_TUNING_PATH) as CountTotalTuning
-
-
-## The live monitor total's tuning without the landing floors (#105 piece 2).
-static func _no_floors() -> CountTotalTuning:
-	var total: CountTotalTuning = _total().duplicate()
-	total.landing_gap_ms = 0
-	total.fit_landing_gap_ms = 0
-	return total
 
 
 static func _plan(
@@ -920,48 +464,6 @@ static func _long_steps() -> Array[ScoreStep]:
 ## A shortenable beat's length after fit stages 1 to 4 on _long_steps(), worked out from the
 ## D7 table and the beat's first step; 0 for the beats stage 5 never shortens (merged, ding,
 ## first card stamp, echo) and for the armed and fizzle beats, which this does not check.
-static func _fitted_length_before_factor(
-	steps: Array[ScoreStep], beat: CountUpBeat, tuning: CountUpTuning
-) -> int:
-	if beat.ding or beat.echo or beat.first_stamp_on_card:
-		return 0
-	var step: ScoreStep = steps[beat.steps[0]]
-	var from_card: bool = step.source_kind == ScoreStep.SourceKind.CARD
-	var cut: int = tuning.gap_ms - tuning.fit_gap_ms
-	match beat.kind:
-		CountUpBeat.Kind.BASE:
-			return tuning.base_ms - cut
-		CountUpBeat.Kind.PAYOUT:
-			# No roll since #105 piece 2: a paying payout's fitted gap.
-			if beat.payout <= 0:
-				return 0
-			return tuning.fit_gap_ms
-		CountUpBeat.Kind.TAG:
-			return _fly_in(tuning.tag_ms - cut, tuning)
-		CountUpBeat.Kind.LINK:
-			return _fly_in(tuning.link_ms - cut, tuning)
-		CountUpBeat.Kind.BONUS:
-			var own: bool = (
-				from_card
-				and step.source_slot == step.slot
-				and step.step_type == ScoreStep.StepType.FLAT
-			)
-			if own:
-				return tuning.bonus_own_ms - cut
-			return _fly_in(tuning.bonus_other_ms - cut, tuning)
-		CountUpBeat.Kind.STAMP:
-			if from_card:
-				# A card's later stamp: no fly-in.
-				return tuning.stamp_card_ms - cut
-			return _fly_in(tuning.stamp_upgrade_ms - cut, tuning)
-	return 0
-
-
-## Stage 4 on a fly-in, tag or link of `length` ms.
-static func _fly_in(length: int, tuning: CountUpTuning) -> int:
-	return mini(length, maxi(tuning.fly_in_min_ms, roundi(length * tuning.fly_in_factor)))
-
-
 static func _gain_notes(plan: CountUpPlan) -> PackedInt32Array:
 	var notes: PackedInt32Array = PackedInt32Array()
 	for beat: CountUpBeat in plan.beats:

@@ -85,13 +85,13 @@ func test_the_landings_with_the_win_at_the_total() -> void:
 	await _frames(2)
 	screen._count_up._tap(Time.get_ticks_msec())
 	await _until_played(screen)
-	assert_bool(screen._count_up.plan.chip_at_total).is_true()
+	assert_bool(screen._count_up.plan.chip_at_total).is_false()
 	_assert_landings(screen, TOTAL, true)
 
 
 ## Checks the recorded events against the plan for `quota` (see the class comment); `at_total`:
 ## the quota is met with the TOTAL.
-func _assert_landings(screen: ShiftScreen, quota: int, at_total: bool) -> void:
+func _assert_landings(screen: ShiftScreen, quota: int, _at_total: bool) -> void:
 	var plan: CountUpPlan = screen._count_up.plan
 	var tune: CountTotalTuning = load(CountUpPlan.TOTAL_TUNING_PATH) as CountTotalTuning
 	var expected: Array[Array] = []
@@ -130,21 +130,13 @@ func _assert_landings(screen: ShiftScreen, quota: int, at_total: bool) -> void:
 	assert_int(totals[0]).is_greater(_events.find(payouts[-1]))
 	assert_int(totals[0]).is_greater(landings[-1])
 	assert_int(_events[totals[0]][5]).is_equal(plan.total)
-	if at_total:
-		assert_int(plan.ding_beat).is_equal(-1)
-		# Met with the TOTAL: in its frame, just before total_landed.
-		assert_int(mets[0]).is_equal(totals[0] - 1)
-		assert_int(met[1]).is_equal(_events[totals[0]][1])
-	else:
-		# Met on the ding beat's crossing tick (D1: on the shown total): the reading then is that
-		# tick's, at or past the quota, which its shown_from was short of.
-		assert_int(plan.ding_beat).is_greater_equal(0)
-		var ding: CountUpBeat = plan.beats[plan.ding_beat]
-		assert_int(met[5]).override_failure_message(message).is_equal(ding.ticks[ding.ding_tick])
-		assert_int(ding.ticks[ding.ding_tick]).is_greater_equal(quota)
-		assert_int(ding.shown_to).is_greater_equal(quota)
-		assert_int(ding.shown_from).is_less(quota)
-		assert_int(mets[0]).is_less(totals[0])
+	assert_int(plan.ding_beat).is_greater_equal(0)
+	var ding: CountUpBeat = plan.beats[plan.ding_beat]
+	assert_int(met[5]).override_failure_message(message).is_equal(ding.ticks[ding.ding_tick])
+	assert_int(ding.shown_from).is_less(quota)
+	assert_int(ding.shown_to).is_greater_equal(quota)
+	assert_int(mets[0]).is_less(totals[0])
+
 	assert_float(_peak).is_greater(1.0)
 	var largest: float = maxf(tune.punch_base, maxf(tune.punch_add, tune.punch_mul))
 	assert_float(_peak).is_less_equal(largest + 0.001)
@@ -182,7 +174,7 @@ func _record(head: Array, screen: ShiftScreen) -> void:
 
 func _sample(screen: ShiftScreen) -> void:
 	var number: TotalNumber = screen._monitor.checkout().total_number()
-	_peak = maxf(_peak, number.punch_scale())
+	_peak = maxf(_peak, screen._cabinet.total_display.number_label().scale.x)
 	if not screen._led.is_counting():
 		return
 	var reading: int = screen._led.amount()

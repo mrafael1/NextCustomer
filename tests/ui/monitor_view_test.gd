@@ -1,20 +1,8 @@
 extends GdUnitTestSuite
-## The hung monitor (#80, step 4; one screen since #105 piece 2, mock-up readability_v3.html;
-## MonitorView). Its geometry on the real screen: hung under the top bar, on the stage, clear of
-## the belt, the receipt and the register; its three columns (the scanner bay, the item column and
-## the checkout column) side by side on the paper, apart, the notice strip over the item column's
-## steps, the chips and the climax over the paper. A scan's text fits the item column for every
-## card in data/cards, in the hand and on the belt (with the worst step lines, folded into "+N
-## more"), none of its parts overlapping. Its states on the real screen: belt slot 1's item in
-## planning (NEXT), the held item once a hover is held (SCAN, never on a plain hover), slot 1's
-## again when the scan ends, a notice on its strip (in ink, never tomato) with the scan kept; in
-## the count-up the bay and the item column show each beat's item and line, the checkout column
-## and the top bar read the register's same number on every frame; the TOTAL ends on the stamp and
-## the "+N€" tab, apart, on the paper. The landings' chips fly inside the paper and land on the
-## number (punch, lamp, the × gain box); the quota met runs the climax over the paper in real time
-## (still under reduced motion). ScreenShade leaves its hole unshaded. Planning's bay and the
-## number's sizes are in monitor_bay_test. Headless runs never move the mouse: the tests set the
-## scanner's pointer and clock. The real saves and logs are never touched.
+## The real monitor keeps its planning preview and opens a wider item column during COUNT.
+## Every live card's planning text fits. COUNT retains compact bonus lines, leaves the shared
+## total on the register and gauge, and keeps inspection status in the scanner bay footer.
+## Tests isolate saves and logs and drive the scanner pointer without moving the real mouse.
 
 const LiveCardCount := preload("res://tests/data/live_card_count.gd")
 const SCREEN := "res://ui/shift_screen.tscn"
@@ -91,9 +79,8 @@ func test_the_monitor_hangs_on_the_stage_clear_of_the_rest() -> void:
 	# The screen's parts, on its paper (inside its ink border).
 	var paper: Rect2 = _on_stage(screen, ShiftStage.MONITOR_SCREEN_RECT).grow(-MonitorView.OUTLINE)
 	assert_that(paper).is_equal(_on_stage(screen, MonitorView.PAPER_RECT))
-	var columns: Array[Rect2] = [
-		MonitorView.BAY_RECT, MonitorView.ITEM_RECT, MonitorView.CHECKOUT_RECT
-	]
+	# Checkout Rhythm v3: no spend objective on the monitor; the item column takes its room.
+	var columns: Array[Rect2] = [MonitorView.BAY_RECT, MonitorView.ITEM_RECT]
 	for index: int in range(columns.size()):
 		var column: Rect2 = columns[index]
 		(
@@ -107,30 +94,26 @@ func test_the_monitor_hangs_on_the_stage_clear_of_the_rest() -> void:
 	var notice: Rect2 = MonitorView.NOTICE_RECT
 	assert_bool(MonitorView.PAPER_RECT.encloses(notice)).is_true()
 	assert_bool(notice.intersects(MonitorView.BAY_RECT)).is_false()
-	assert_bool(notice.intersects(MonitorView.CHECKOUT_RECT)).is_false()
 	assert_float(notice.position.y).is_greater_equal(
 		MonitorView.ITEM_RECT.position.y + MonitorItemColumn.STEPS_TOP - 8.0
 	)
-	assert_bool(MonitorView.ITEM_RECT.encloses(MonitorView.INSPECTION_RECT)).is_true()
+	assert_bool(MonitorView.BAY_RECT.encloses(MonitorView.INSPECTION_RECT)).is_true()
 	# The parts where their rects say, the chips and the climax over the whole paper.
 	assert_that(monitor.bay().get_global_rect()).is_equal(_on_stage(screen, MonitorView.BAY_RECT))
 	assert_that(monitor.item_column().get_global_rect()).is_equal(
 		_on_stage(screen, MonitorView.ITEM_RECT)
 	)
-	assert_vector(monitor.checkout().get_global_rect().position).is_equal(
-		_on_stage(screen, MonitorView.CHECKOUT_RECT).position
-	)
+	assert_bool(monitor.checkout().is_visible_in_tree()).is_false()
 	assert_that(monitor.chips().get_global_rect()).is_equal(paper)
 	assert_bool(monitor.chips().clip_contents).is_true()
 	assert_that(monitor.climax().get_global_rect()).is_equal(paper)
 	assert_bool(monitor.climax().clip_contents).is_true()
-	# Planning: NEXT with belt slot 1's item, PLAN over the projected total; no clicks taken.
+	# Planning: NEXT with belt slot 1's item and no spend objective; no clicks taken.
 	assert_int(monitor.mode()).is_equal(MonitorView.Mode.NEXT)
 	assert_bool(monitor.bay().is_planning()).is_true()
 	assert_object(monitor.bay().bed().shown_definition()).is_same(screen.run.row[0].definition)
 	assert_object(monitor.item_column().shown_definition()).is_same(screen.run.row[0].definition)
-	assert_str(monitor.checkout().caption().text).is_equal(MonitorText.PLAN_CAPTION)
-	assert_int(monitor.checkout().total_number().value()).is_equal(screen.run.preview().total)
+	assert_bool(monitor.checkout().is_visible_in_tree()).is_false()
 	assert_int(monitor.mouse_filter).is_equal(Control.MOUSE_FILTER_IGNORE)
 	await _assert_layout(monitor, screen._stage.get_global_rect().position, "planning")
 
@@ -261,298 +244,61 @@ func test_a_held_scan_fills_the_monitor_then_it_goes_back() -> void:
 ## the monitor's parts stay inside their columns on every beat. At the end the TOTAL with the
 ## stamp and the "+N€" tab, apart, on the paper, met (quota_met once, with its pop, at the ding).
 ## The next shift's planning takes it all off.
-func test_the_count_up_shows_each_beat_on_the_monitor() -> void:
+func test_the_count_keeps_the_item_breakdown_visible_and_total_on_the_register() -> void:
 	var screen: ShiftScreen = await _screen()
 	await _place(screen, PASSING_ROW)
 	var monitor: MonitorView = screen._monitor
-	var led: LedDisplay = screen._led
-	var quota: int = screen.run.quota()
+	var count: CountUp = screen._count_up
 	var failures: Array[String] = []
-	var beats: Array[int] = []
-	var origin: Vector2 = screen._stage.get_global_rect().position
-	var record: Callable = func(
-		beat: CountUpBeat, step: ScoreStep, line: String, _view: CardView, _items: int
+	var observe: Callable = func(
+		_beat: CountUpBeat, _beat_step: ScoreStep, _line: String, _view: CardView, _size: int
 	) -> void:
-		beats.append(beat.slot)
-		var where: String = "beat on slot %d (%s)" % [beat.slot, CountUpBeat.Kind.keys()[beat.kind]]
-		if monitor.mode() != MonitorView.Mode.COUNT:
-			failures.append("%s: monitor in mode %d" % [where, monitor.mode()])
-		var bay: ScannerBay = monitor.bay()
-		if beat.scan_slot >= 0:
-			var scanned: CardDefinition = screen.run.row[beat.scan_slot].definition
-			if bay.bed().art() == null or bay.bed().art().texture != ArtStyle.item_sprite(scanned):
-				failures.append("%s: another item in the bay" % where)
-			if bay.chip().chip_text() != FamilyChip.item_text(scanned):
-				failures.append("%s: bay chip '%s'" % [where, bay.chip().chip_text()])
-		if line != ReceiptView.step_line(step, CardInstance.names(screen.run.row)):
-			failures.append("%s: line '%s'" % [where, line])
-		if monitor.checkout().caption().text != MonitorText.TOTAL_CAPTION:
-			failures.append("%s: caption '%s'" % [where, monitor.checkout().caption().text])
-		failures.append_array(_layout_failures(monitor, origin, where))
-	var frame_check: Callable = func() -> void: failures.append_array(_sync_failures(screen))
-	screen._count_up.beat_started.connect(record)
-	get_tree().process_frame.connect(frame_check)
-	var pops: Array[bool] = []
-	screen._count_up.quota_met.connect(func(pop: bool) -> void: pops.append(pop))
-	screen._on_checkout_pressed()
-	assert_int(monitor.mode()).is_equal(MonitorView.Mode.COUNT)
-	await _frames(2)
-	screen._count_up._tap(Time.get_ticks_msec())
-	screen._count_up._tap(Time.get_ticks_msec())
-	while screen._counting:
-		await get_tree().process_frame
-	screen._count_up.beat_started.disconnect(record)
-	get_tree().process_frame.disconnect(frame_check)
-	assert_array(failures).override_failure_message("\n".join(failures.slice(0, 12))).is_empty()
-	assert_int(beats.size()).is_equal(screen._count_up.plan.beats.size())
-	for slot: int in range(PASSING_ROW.size()):
-		assert_bool(beats.has(slot)).override_failure_message(str(slot)).is_true()
-	# The TOTAL: the total, met, every landing's lamp lit.
-	var total: int = screen.run.last_result.total
-	var column: CheckoutColumn = monitor.checkout()
-	assert_str(column.caption().text).is_equal(MonitorText.TOTAL_CAPTION)
-	assert_int(column.total_number().value()).is_equal(total)
-	assert_int(column.lit_lamps()).is_equal(screen._count_up.plan.lamp_count)
-	assert_array(pops).is_equal([true])
-	# The last item stays in the item column at its payout, with its last line (still 16.5).
-	var plan: CountUpPlan = screen._count_up.plan
-	var last_slot: int = -1
-	for beat: CountUpBeat in plan.beats:
-		if beat.scan_slot >= 0:
-			last_slot = beat.scan_slot
-	var items: MonitorItemColumn = monitor.item_column()
-	assert_object(items.shown_definition()).is_same(screen.run.row[last_slot].definition)
-	assert_int(items.shown_value()).is_equal(screen.run.last_result.payouts[last_slot])
-	# Met: the light green, the sunburst shown, the stamp and the "+N€" tab, apart on the paper.
-	# By now the visit may have begun gliding the camera to the machine (#77 machine v2), so the
-	# rects are read back in the world's frame (the stage's at 1x).
-	var to_world: Transform2D = screen._stage.world.get_global_transform().affine_inverse()
-	assert_that(monitor.bay().light_colour()).is_equal(ScannerBay.LIGHT_MET_COLOR)
-	assert_bool(column.sunburst().visible).is_true()
-	_assert_stamp_and_tab(column, total, quota, to_world)
-	# The next shift's planning: NEXT and PLAN, the reading blank, nothing of the met state left.
-	screen._machine.debug_skip()
-	await _frames(2)
-	assert_int(monitor.mode()).is_equal(MonitorView.Mode.NEXT)
-	assert_int(led.mode()).is_equal(LedDisplay.Mode.BLANK)
-	assert_str(column.caption().text).is_equal(MonitorText.PLAN_CAPTION)
-	assert_bool(column.stamp().visible).is_false()
-	assert_bool(column.tab().visible).is_false()
-	assert_bool(column.sunburst().visible).is_false()
-	assert_bool(monitor.bay().is_met()).is_false()
-	assert_bool(monitor.climax().is_running()).is_false()
-	assert_bool(screen._stage.rail_light.is_lit()).is_false()
+		if monitor.checkout().is_visible_in_tree():
+			failures.append("The old total column covered the item breakdown")
+		if monitor.climax().is_running():
+			failures.append("The monitor was covered by a quota celebration")
+		if not screen._cabinet.total_display.visible:
+			failures.append("The register display was hidden during the count")
+	count.beat_started.connect(observe)
+	var rush: Callable = func() -> void: count._tap(Time.get_ticks_msec())
+	rush.call_deferred()
+	await screen._on_checkout_pressed()
+	assert_array(failures).is_empty()
+	assert_int(screen._cabinet.total_display.amount()).is_equal(count.plan.total)
+	assert_int(monitor.item_column().step_texts().size()).is_greater(0)
 
 
-## A last payout crossing the quota (met with the TOTAL, D5): the stamp and the tab are not in
-## before the met; at the TOTAL they show, apart, on the paper, and stay through the dessert.
-func test_a_total_met_on_the_last_payout_shows_the_stamp_and_the_tab() -> void:
+func test_a_last_payment_starts_the_register_celebration_without_covering_the_monitor() -> void:
 	var screen: ShiftScreen = await _screen()
-	await _place(screen, PASSING_ROW)
-	var result: ScoreResult = screen.run.preview()
-	# A euro under the total: only the last payout reaches it, and the tab says "+1€".
-	var quota: int = result.total - 1
-	var count_up: CountUp = screen._count_up
-	var column: CheckoutColumn = screen._monitor.checkout()
-	count_up.play(
-		result,
-		screen._row_views,
-		CardInstance.names(screen.run.row),
-		quota,
-		CountUpContext.new(1, 0, 1.0, false, screen.receipt_header())
-	)
-	assert_bool(count_up.plan.chip_at_total).is_true()
-	var failures: Array[String] = []
-	while not count_up._met:
-		if column.stamp().visible or column.tab().visible:
-			failures.append("stamp or tab in at %d before the met" % screen._led.amount())
-		await get_tree().process_frame
-	assert_array(failures).override_failure_message("\n".join(failures)).is_empty()
-	# The climax starts with the TOTAL line; the dessert's slam waits for it to end, so it never
-	# lands under the climax's paper.
-	var climax: MonitorClimax = screen._monitor.climax()
-	assert_bool(climax.is_running()).is_true()
-	var number: TotalNumber = column.total_number()
-	var slammed: bool = false
-	while not column.stamp().visible and count_up._playing:
-		await get_tree().process_frame
-	var to_world: Transform2D = screen._stage.world.get_global_transform().affine_inverse()
-	_assert_stamp_and_tab(column, result.total, quota, to_world)
-	assert_str(column.tab().text).is_equal("+1€")
-	while count_up._playing:
-		if number._hidden:
-			slammed = true
-			if climax.is_running():
-				failures.append("the slam under the climax at q %.2f" % climax.progress())
-		await get_tree().process_frame
-	assert_bool(slammed).is_true()
-	assert_array(failures).override_failure_message("\n".join(failures)).is_empty()
-	to_world = screen._stage.world.get_global_transform().affine_inverse()
-	_assert_stamp_and_tab(column, result.total, quota, to_world)
+	var count: CountUp = screen._count_up
+	screen._led.start_count(73)
+	count.quota_met.emit(true)
+	assert_bool(screen._cabinet.total_display.is_celebrating()).is_true()
+	assert_bool(screen._monitor.climax().is_running()).is_false()
+	assert_bool(screen._monitor.item_column().visible).is_true()
 
 
-## The landings on a monitor alone (a count-up's signals emitted by hand): a base takes off from the
-## item column's price, a +N from its step line, each chip inside the paper, and at its landing the
-## number punches, its lamp lights and its sparks pop on the paper; a × lands with the gain box
-## ("×3 → +6€") inside the checkout column, its corners and coins; a DOWN lands grey with no lamp;
-## a WASTED drops a grey €0. Under reduced motion nothing flies, the states land all the same.
-func test_the_landings_fly_inside_the_paper() -> void:
-	var monitor: MonitorView = await _monitor()
-	var count_up: CountUp = _follow(monitor)
-	var milk: CardDefinition = load("%s/milk.tres" % CARDS) as CardDefinition
-	monitor.led.start_count(40)
-	var paper: Rect2 = MonitorView.PAPER_RECT
-	var column: CheckoutColumn = monitor.checkout()
-	var chips: CountChips = monitor.chips()
-	monitor.item_column().start_item(milk, milk.tags)
-	await _frames(1)
-	var opening: CountUpBeat = _landing(CountUpBeat.Kind.MERGED_PLAIN, CountUpBeat.Land.BASE, 2, 0)
-	opening.opens_slot = true
-	count_up.beat_started.emit(opening, _step(ScoreStep.StepType.BASE, 2), "", null, 1)
-	assert_int(chips.chips().size()).is_equal(1)
-	await _frames(2)
-	for chip: Control in chips.chips():
-		(
-			assert_bool(paper.encloses(chip.get_global_rect()))
-			. override_failure_message(str(chip.get_global_rect()))
-			. is_true()
-		)
-	count_up.landing.emit(opening)
-	monitor.led.show_subtotal(2, false)
-	assert_int(column.lit_lamps()).is_equal(1)
-	await _frames(1)
-	assert_float(column.total_number().punch_scale()).is_greater(1.0)
-	for point: Vector2 in chips.spark_points():
-		(
-			assert_bool(Rect2(Vector2.ZERO, paper.size).has_point(point))
-			. override_failure_message(str(point))
-			. is_true()
-		)
-	# A ×3 on it: the gain box, the corners and the coins.
-	var times: CountUpBeat = _landing(CountUpBeat.Kind.STAMP, CountUpBeat.Land.MUL, 4, 1)
-	times.factor_text = "×3"
-	var multiplier: ScoreStep = _step(ScoreStep.StepType.MULTIPLIER, 3)
-	multiplier.value_after = 6
-	count_up.beat_started.emit(times, multiplier, "× Multipack  ×3", null, 1)
-	count_up.landing.emit(times)
-	monitor.led.show_subtotal(6, false)
-	assert_bool(column.gain_box().visible).is_true()
-	assert_str(column.gain_box().text).contains("×3")
-	assert_str(column.gain_box().text).contains("+4€")
-	var gain_rect: Rect2 = column.gain_box().get_global_rect()
-	(
-		assert_bool(MonitorView.CHECKOUT_RECT.encloses(gain_rect))
-		. override_failure_message(str(gain_rect))
-		. is_true()
-	)
-	assert_bool(chips.has_corners()).is_true()
-	assert_bool(chips.has_coins()).is_true()
-	assert_int(column.lit_lamps()).is_equal(2)
-	assert_int(monitor.item_column().shown_value()).is_equal(6)
-	# A DOWN: no lamp.
-	var down: CountUpBeat = _landing(CountUpBeat.Kind.DENIED, CountUpBeat.Land.DOWN, -6, 2)
-	down.lamp = -1
-	var denied: ScoreStep = _step(ScoreStep.StepType.PAYOUT_OVERRIDE, 0)
-	count_up.beat_started.emit(down, denied, "Spot check: the 2nd product pays €0", null, 1)
-	count_up.landing.emit(down)
-	monitor.led.show_subtotal(0, false)
-	assert_int(column.lit_lamps()).is_equal(2)
-	# A WASTED drops on the item.
-	var waste: CountUpBeat = _landing(CountUpBeat.Kind.FIZZLE, CountUpBeat.Land.WASTE, 0, 3)
-	waste.lamp = -1
-	count_up.beat_started.emit(waste, _step(ScoreStep.StepType.WASTED, 0), "x  WASTED", null, 1)
-	assert_int(chips.chips().size()).is_greater(0)
-	# Reduced motion: nothing flies, nothing sparkles, no punch (the last one over first).
-	await get_tree().create_timer(0.5).timeout
-	chips.clear()
-	monitor.reduced_motion = func() -> bool: return true
-	var again: CountUpBeat = _landing(CountUpBeat.Kind.BONUS, CountUpBeat.Land.ADD, 3, 4)
-	again.lamp = 2
-	count_up.beat_started.emit(
-		again, _step(ScoreStep.StepType.FLAT, 3), "+€3 Eggs before it", null, 1
-	)
-	count_up.landing.emit(again)
-	assert_array(chips.chips()).is_empty()
-	assert_array(chips.spark_points()).is_empty()
-	assert_int(column.lit_lamps()).is_equal(3)
-	assert_float(column.total_number().punch_scale()).is_equal(1.0)
+func test_payment_landings_leave_the_monitor_clear() -> void:
+	var screen: ShiftScreen = await _screen()
+	screen._led.start_count(73)
+	var beat: CountUpBeat = _landing(CountUpBeat.Kind.PAYOUT, CountUpBeat.Land.ADD, 21, 0)
+	screen._count_up.landing.emit(beat)
+	assert_array(screen._monitor.chips().chips()).is_empty()
+	assert_bool(screen._monitor.chips().visible).is_false()
 
 
-## The quota met with its pop (CountUp's quota_met): the bay's light green and the climax over the
-## whole paper (clipped to it), its number reading the register (following it as it moves on),
-## its sunburst turning, the stamp and the tab in after their times, running in real time and
-## shrinking toward the checkout column's number at its end, then gone; the column's sunburst shows.
-## Without a pop (a resumed checkout) there is no climax; under reduced motion it cuts in still,
-## the states the same. A new count takes it off.
-func test_the_quota_met_runs_the_climax() -> void:
-	var monitor: MonitorView = await _monitor()
-	var count_up: CountUp = _follow(monitor)
-	var tuning: CountTotalTuning = load(CountUpPlan.TOTAL_TUNING_PATH) as CountTotalTuning
-	monitor.led.start_count(40)
-	monitor.led.show_subtotal(52, true)
-	count_up.quota_met.emit(true)
-	var climax: MonitorClimax = monitor.climax()
-	assert_bool(climax.is_running()).is_true()
-	assert_bool(monitor.bay().is_met()).is_true()
-	assert_that(monitor.bay().light_colour()).is_equal(ScannerBay.LIGHT_MET_COLOR)
-	assert_bool(monitor.checkout().sunburst().visible).is_true()
-	assert_that(climax.get_global_rect()).is_equal(MonitorView.PAPER_RECT)
-	assert_int(climax.number().value()).is_equal(52)
-	monitor.led.show_subtotal(60, true)
-	assert_int(climax.number().value()).is_equal(60)
-	assert_str(climax.tab().text).is_equal(MonitorText.over_tab(60, 40))
-	var stamp_seen: bool = false
-	var tab_seen: bool = false
-	var started: int = Time.get_ticks_msec()
-	var angle: float = climax.sunburst().angle()
-	var turned: bool = false
-	while climax.is_running() and Time.get_ticks_msec() - started < 4000:
-		await get_tree().process_frame
-		stamp_seen = stamp_seen or climax.stamp().visible
-		tab_seen = tab_seen or climax.tab().visible
-		turned = turned or climax.sunburst().angle() != angle
-		var number: Rect2 = climax.number().drawn_rect()
-		assert_bool(number.has_area()).is_true()
-	assert_bool(climax.is_running()).is_false()
-	assert_bool(stamp_seen).is_true()
-	assert_bool(tab_seen).is_true()
-	assert_bool(turned).is_true()
-	var took_ms: int = Time.get_ticks_msec() - started
-	var planned_ms: float = (tuning.climax_hold_s + tuning.climax_out_s) * 1000.0
-	assert_float(float(took_ms)).is_greater(planned_ms * 0.8)
-	# A new count: off. No pop: no climax.
-	monitor.led.start_count(40)
-	assert_bool(monitor.bay().is_met()).is_false()
-	monitor.led.show_subtotal(50, true)
-	count_up.quota_met.emit(false)
-	assert_bool(climax.is_running()).is_false()
-	assert_bool(monitor.bay().is_met()).is_true()
-	# Reduced motion: the climax cuts in still (nothing grows, turns or shines; the stamp and the
-	# tab in at once), the met state all the same; the end shows the stamp and tab.
-	monitor.led.start_count(40)
-	monitor.reduced_motion = func() -> bool: return true
-	monitor.led.show_subtotal(50, true)
-	count_up.quota_met.emit(true)
-	assert_bool(climax.is_running()).is_true()
-	assert_bool(climax.is_still()).is_true()
-	assert_bool(climax.stamp().visible).is_true()
-	assert_bool(climax.tab().visible).is_true()
-	await _frames(2)
-	assert_float(climax.number().drawn_rect().size.x).is_equal_approx(
-		climax.number().size.x + 2.0 * TotalNumber.OUTLINE, 0.5
-	)
-	assert_float(climax.sunburst().angle()).is_equal(0.0)
-	assert_bool(monitor.bay().is_met()).is_true()
-	count_up.total_landed.emit()
-	_assert_stamp_and_tab(monitor.checkout(), 50, 40, Transform2D.IDENTITY)
-	# The rebuilt digit cells go at the frame's end (no orphans).
-	await _frames(2)
+func test_a_resumed_quota_uses_a_quiet_end_state() -> void:
+	var screen: ShiftScreen = await _screen()
+	screen._led.start_count(73)
+	screen._led.show_subtotal(170, true)
+	screen._led.show_total()
+	screen._count_up.quota_met.emit(false)
+	assert_bool(screen._cabinet.total_display.visible).is_true()
+	assert_int(screen._cabinet.total_display.amount()).is_equal(170)
+	assert_bool(screen._cabinet.total_display.is_celebrating()).is_false()
+	assert_bool(screen._monitor.climax().is_running()).is_false()
 
 
-## An empty belt in planning: the bay's bare NEXT bed, the item column's muted hint alone (inside
-## the column), and PLAN 0€ with planning's "N€ to go", the top bar's words. A long WASTED reason
-## in the count takes 3 smaller lines rather than ending in an ellipsis, inside the column; the
-## resumed end keeps the last item with INSPECTION PASSED ✓ clear of its line.
 func test_the_empty_belt_hint_and_a_long_wasted_line_read_whole() -> void:
 	var monitor: MonitorView = await _monitor()
 	monitor.show_next(null, 6, 0)
@@ -588,7 +334,14 @@ func test_the_empty_belt_hint_and_a_long_wasted_line_read_whole() -> void:
 	var row: Control = items.step_rows()[0]
 	var text: Label = row.get_node("Text") as Label
 	assert_int(text.get_line_count()).is_less_equal(text.max_lines_visible)
-	assert_bool(MonitorView.ITEM_RECT.grow(0.5).encloses(row.get_global_rect())).is_true()
+	(
+		assert_bool(
+			Rect2(MonitorView.ITEM_RECT.position, MonitorItemColumn.COUNT_SIZE).grow(0.5).encloses(
+				row.get_global_rect()
+			)
+		)
+		. is_true()
+	)
 	var amount: Label = row.get_node("Amount") as Label
 	assert_bool(text.get_global_rect().intersects(amount.get_global_rect())).is_false()
 	# INSPECTION PASSED ✓ at the column's foot drops a line that reaches it.
@@ -596,7 +349,7 @@ func test_the_empty_belt_hint_and_a_long_wasted_line_read_whole() -> void:
 	await _frames(1)
 	var passed: Rect2 = monitor.inspection_passed_label.get_global_rect()
 	(
-		assert_bool(MonitorView.ITEM_RECT.grow(0.5).encloses(passed))
+		assert_bool(MonitorView.PAPER_RECT.grow(0.5).encloses(passed))
 		. override_failure_message(str(passed))
 		. is_true()
 	)

@@ -1,8 +1,9 @@
 class_name MonitorItemColumn
 extends Control
-## The monitor's item column (#105 piece 2, mock-up readability_v3.html, monitor b), between the
-## scanner bay and the checkout column (MonitorView.ITEM_RECT): the item in the bay, read in
-## full. From the top: its name (ItemName: Pixelify at 22 px, or the bold body font when too long)
+## The monitor's item column (#105 piece 2, mock-up readability_v3.html, monitor b), right of
+## the scanner bay across the rest of the paper (MonitorView.ITEM_RECT; the spend objective is
+## the register's and the top bar's since Checkout Rhythm v3): the item in the bay, read in full.
+## From the top: its name (ItemName: Pixelify at 22 px, or the bold body font when too long)
 ## with its family glyphs after it (FamilyPalette.shelf_families, their names on hover); its price
 ## top right in the monitor's "€N" tag style (PayTag: a gold burst over the struck old price once
 ## the price differs from the base, a cream tag at the base, a tomato €0 tag); its effect text
@@ -15,21 +16,26 @@ extends Control
 ## In planning (show_item) it shows belt slot 1's item or the held one with every step line; on an
 ## empty belt a muted hint (show_empty). In the count (start_item, set_value, show_step) the item
 ## comes in at its base price with no line; each of its landings moves the price (punching it) and
-## shows that step's line alone, bigger (a line too long for COUNT_STEP_SIZE's 2 lines takes 3 at
-## COUNT_STEP_SMALL_SIZE). The last item stays at the count's end.
+## retains its bonus lines in the wider column, folding only earlier overflow. The last item
+## stays at the count's end.
 ## When the item changes its parts fade in one after another (CountTotalTuning's part_delays and
 ## part_fade_s; at once under reduced motion). Display only: the prices and lines are the
 ## caller's (the score's).
 
-const SIZE := Vector2(178, 146)
+const SIZE := Vector2(270, 146)
+const COUNT_SIZE := Vector2(270, 146)
+const COUNT_RULE_TOP := 48.0
+const COUNT_STEPS_TOP := 54.0
+const COUNT_LINE_HEIGHT := 18.0
+const COUNT_ROWS := 5
 const NAME_HEIGHT := 26.0
 const NAME_GLYPH_GAP := 4.0
 const GLYPH_GAP := 3.0
 ## The price: a burst's or tag's right edge and its middle's height (a 32 px burst's top at 30),
 ## and the struck old price's right edge and top under it.
-const PRICE_RIGHT := 178.0
+const PRICE_RIGHT := 270.0
 const PRICE_MIDDLE := 46.0
-const STRUCK_RIGHT := 172.0
+const STRUCK_RIGHT := 264.0
 const STRUCK_TOP := 64.0
 ## The effect text, kept EFFECT_GAP clear of the price, on at most EFFECT_LINES lines at the first
 ## of EFFECT_TIERS (size, pitch) that fits.
@@ -40,12 +46,12 @@ const EFFECT_TIERS: Array[Vector2i] = [Vector2i(16, 19), Vector2i(14, 17), Vecto
 const EFFECT_BOTTOM := 82.0
 ## The dashed rule (DASH on, DASH off) and the step lines under it.
 const RULE_TOP := 84.0
-const RULE_WIDTH := 176.0
+const RULE_WIDTH := 268.0
 const RULE_HEIGHT := 2.0
 const DASH := 4.0
 const RULE_COLOR := Palette.CREAM_SHADE
 const STEPS_TOP := 90.0
-const STEPS_WIDTH := 176.0
+const STEPS_WIDTH := 268.0
 const STEP_GAP := 2.0
 const STEP_SIZE := 14
 const STEP_WEIGHT := 700
@@ -94,6 +100,7 @@ var _shown_value: int = -1
 var _fades: Array[Tween] = []
 var _punch: Tween
 var _counting: bool = false
+var _count_lines: Array[Dictionary] = []
 
 
 func _init(tuning: CountTotalTuning = null) -> void:
@@ -126,6 +133,7 @@ func show_item(
 	animate: bool = false
 ) -> void:
 	_counting = false
+	_layout_mode()
 	_build_head(definition, tags)
 	var base: int = _base_of(definition)
 	_set_price(payout if payout >= 0 else base, base, fizzles.has(true), false)
@@ -137,6 +145,7 @@ func show_item(
 ## fade in (`animate`) or show at once.
 func start_item(definition: CardDefinition, tags: PackedStringArray, animate: bool = true) -> void:
 	_counting = true
+	_layout_mode()
 	_build_head(definition, tags)
 	_set_price(_base_of(definition), _base_of(definition), false, false)
 	_clear_steps()
@@ -150,6 +159,7 @@ func show_empty(text: String) -> void:
 		return
 	clear()
 	_counting = false
+	_layout_mode()
 	var label: Label = MonitorKit.bold(text, HINT_SIZE, HINT_WEIGHT, HINT_COLOR, SIZE.y)
 	label.name = "Hint"
 	label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
@@ -187,40 +197,85 @@ func set_value(value: int, fizzled: bool = false) -> void:
 ## The count: the item's newest step `line` (a fizzle's, a "gives" line, with its giver's
 ## `giver_mini`) replaces the last, bigger, fading in.
 func show_step(
-	line: String, fizzle: bool, gives: bool = false, giver_mini: Texture2D = null
+	line: String,
+	fizzle: bool,
+	gives: bool = false,
+	giver_mini: Texture2D = null,
+	from_bag: bool = false
 ) -> void:
-	_clear_steps()
 	if line.is_empty():
 		return
-	var row: Control = _add_row(
-		line, fizzle, gives, giver_mini, COUNT_STEP_SIZE, COUNT_STEP_WEIGHT, 0.0
+	_count_lines.append(
+		{"line": line, "fizzle": fizzle, "gives": gives, "mini": giver_mini, "bag": from_bag}
 	)
-	if row != null and _overruns(row):
-		# Too long for 2 lines: smaller, on 3, so the reason (a WASTED line's "why") reads whole.
-		_clear_steps()
-		row = _add_row(
-			line,
-			fizzle,
-			gives,
-			giver_mini,
-			COUNT_STEP_SMALL_SIZE,
-			COUNT_STEP_WEIGHT,
-			0.0,
-			COUNT_STEP_SMALL_LINES
+	_clear_steps()
+	var first: int = (
+		maxi(0, _count_lines.size() - COUNT_ROWS + 1) if _count_lines.size() > COUNT_ROWS else 0
+	)
+	var top: float = 0.0
+	if first > 0:
+		var folded: Label = MonitorKit.bold(
+			"+%d earlier" % first, 12, 700, Palette.INK_LIGHT, COUNT_LINE_HEIGHT
 		)
-	if row == null:
+		folded.set_meta(&"line", folded.text)
+		folded.size = Vector2(_steps.size.x, COUNT_LINE_HEIGHT)
+		_steps.add_child(folded)
+		_rows.append(folded)
+		top += COUNT_LINE_HEIGHT
+	for index: int in range(first, _count_lines.size()):
+		var entry: Dictionary = _count_lines[index]
+		var row: Control = _add_row(
+			entry["line"],
+			entry["fizzle"],
+			entry["gives"],
+			entry["mini"] as Texture2D,
+			12 if bool(entry["fizzle"]) else 13,
+			800,
+			top,
+			1
+		)
+		if row == null:
+			continue
+		if bool(entry["bag"]):
+			var text: Label = row.get_node("Text") as Label
+			text.text += " · from the bag"
+		row.set_meta(&"from_bag", bool(entry["bag"]))
+		row.size.y = COUNT_LINE_HEIGHT
+		for child: Node in row.get_children():
+			var part: Control = child as Control
+			if part != null:
+				part.size.y = minf(part.size.y, COUNT_LINE_HEIGHT)
+		top += COUNT_LINE_HEIGHT
+	if _rows.is_empty():
 		return
-	if _reduced() or not is_inside_tree():
-		return
-	row.modulate.a = 0.0
-	var tween: Tween = _new_tween(true)
-	tween.tween_property(row, "modulate:a", 1.0, maxf(0.01, _tuning.step_fade_s))
-	_fades.append(tween)
+	var newest: Control = _rows[-1]
+	var highlight: ColorRect = ColorRect.new()
+	highlight.color = Palette.MUSTARD_PALE
+	highlight.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	highlight.size = newest.size
+	newest.add_child(highlight)
+	newest.move_child(highlight, 0)
+	var mark: Control = newest.get_node_or_null("Mark") as Control
+	if mark != null and giver_mini != null and not _reduced() and is_inside_tree():
+		mark.pivot_offset = mark.size / 2.0
+		var pulse: Tween = _new_tween(true)
+		pulse.tween_property(mark, "scale", Vector2.ONE * 1.35, 0.08)
+		pulse.tween_property(mark, "scale", Vector2.ONE, 0.16)
+		_fades.append(pulse)
+
+
+func _layout_mode() -> void:
+	size = COUNT_SIZE if _counting else SIZE
+	_rule.position.y = COUNT_RULE_TOP if _counting else RULE_TOP
+	_rule.size.x = size.x - 2.0
+	_steps.position.y = COUNT_STEPS_TOP if _counting else STEPS_TOP
+	_steps.size = Vector2(size.x - 2.0, size.y - _steps.position.y)
 
 
 ## Nothing shown (the bay between items, or empty).
 func clear() -> void:
 	_definition = null
+	_count_lines.clear()
 	_shown_value = -1
 	_stop_fades()
 	for child: Node in get_children():
@@ -348,7 +403,7 @@ func _build_head(definition: CardDefinition, tags: PackedStringArray) -> void:
 			+ _glyphs.size() * ArtStyle.FAMILY_GLYPH_SIZE
 			+ (_glyphs.size() - 1) * GLYPH_GAP
 		)
-	var room: float = SIZE.x - glyphs_width
+	var room: float = size.x - glyphs_width - (86.0 if _counting else 0.0)
 	_name = ItemName.make(definition.display_name, room, NAME_HEIGHT, Palette.INK)
 	add_child(_name)
 	_name.position = Vector2.ZERO
@@ -374,12 +429,13 @@ func _set_price(value: int, base: int, fizzled: bool, punch: bool) -> void:
 				glyph = PlanningModel.Glyph.FIZZLE if fizzled else PlanningModel.Glyph.WARNING
 			_price = PayTag.new(pay, text, glyph)
 			_price.position = Vector2(
-				PRICE_RIGHT - _price.size.x, roundf(PRICE_MIDDLE - _price.size.y / 2.0)
+				size.x - _price.size.x,
+				roundf((16.0 if _counting else PRICE_MIDDLE) - _price.size.y / 2.0)
 			)
 			# A punch grows it leftward from its right edge: it never leaves the column.
 			_price.pivot_offset = Vector2(_price.size.x, _price.size.y / 2.0)
 			_price_holder.add_child(_price)
-			if value != base:
+			if value != base and not _counting:
 				_struck = PriceSticker.StruckPrice.new(PriceSticker.price_text(base), false)
 				_struck.position = Vector2(STRUCK_RIGHT - _struck.size.x, STRUCK_TOP)
 				_price_holder.add_child(_struck)
@@ -403,6 +459,14 @@ func _lay_effect() -> void:
 	if text.is_empty():
 		text = _definition.rule_text
 	if text.is_empty():
+		return
+	if _counting:
+		_effect = GlyphLabel.new(
+			text, ArtStyle.bold_font(EFFECT_WEIGHT), 13, Palette.INK, 15, size.x - 2.0, 1
+		)
+		_effect.name = "Effect"
+		_effect.position = Vector2(0, 31)
+		add_child(_effect)
 		return
 	var price_left: float = _price.position.x if _price != null else SIZE.x
 	if _struck != null:
@@ -484,6 +548,11 @@ func _add_row(
 	if line.is_empty():
 		return null
 	var parts: PackedStringArray = MonitorText.step_parts(line)
+	if _counting and parts[0].begins_with("×"):
+		var gap: int = parts[0].find(" ")
+		if gap > 0:
+			parts[0] = parts[0].substr(gap + 1)
+
 	var colour: Color = Palette.INK
 	if fizzle:
 		colour = Palette.TOMATO_DARK
@@ -522,16 +591,16 @@ func _add_row(
 	text.vertical_alignment = VERTICAL_ALIGNMENT_TOP
 	row.add_child(text)
 	text.position = Vector2(indent, 0)
-	text.size = Vector2(STEPS_WIDTH - indent - amount_width, line_height)
+	text.size = Vector2(_steps.size.x - indent - amount_width, line_height)
 	var height: float = maxf(line_height, text.get_minimum_size().y)
 	text.size.y = height
 	mark.position = Vector2(0, roundf((line_height - mark.size.y) / 2.0))
 	if amount != null:
 		# On the line's first row, as the mock-up's baseline-aligned amounts stand.
-		amount.position = Vector2(STEPS_WIDTH - amount_width + AMOUNT_PAD, 0.0)
+		amount.position = Vector2(_steps.size.x - amount_width + AMOUNT_PAD, 0.0)
 		amount.size = Vector2(amount_width - AMOUNT_PAD, line_height)
 	row.position = Vector2(0, top)
-	row.size = Vector2(STEPS_WIDTH, height)
+	row.size = Vector2(_steps.size.x, height)
 	_rows.append(row)
 	return row
 
@@ -614,8 +683,8 @@ func _clear_steps() -> void:
 
 func _draw_rule() -> void:
 	var x: float = 0.0
-	while x < RULE_WIDTH:
-		_rule.draw_rect(Rect2(x, 0, minf(DASH, RULE_WIDTH - x), RULE_HEIGHT), RULE_COLOR)
+	while x < _rule.size.x:
+		_rule.draw_rect(Rect2(x, 0, minf(DASH, _rule.size.x - x), RULE_HEIGHT), RULE_COLOR)
 		x += DASH * 2.0
 
 

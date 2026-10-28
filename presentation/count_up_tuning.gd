@@ -189,3 +189,15 @@ extends Resource
 ## The last item's hop into the bag after the last beat: it overlaps the pause before the TOTAL
 ## line and adds nothing to the count.
 @export var bag_ms: int = 0
+
+@export_group("Checkout rhythm")
+## Payout holds at 1x; size thresholds and timings come from Checkout Rhythm v3.
+@export var payout_small_ms: int = 0
+@export var payout_medium_ms: int = 0
+@export var payout_large_ms: int = 0
+@export var payout_medium_from: int = 0
+@export var payout_large_from: int = 0
+@export var last_payout_extra_ms: int = 0
+## Each successive add on one scanned item runs at this share of the previous one's length.
+@export var add_pace_factor: float = 0.0
+@export var add_min_ms: int = 0

@@ -3,18 +3,18 @@ extends Control
 ## The hung monitor (#80, mock-up B2; ShiftStage.MONITOR_RECT): two rods from the ceiling, the
 ## shade under it, a rubber bezel with a little bevel and the paper screen, drawn flat in code.
 ## Since #105 piece 2 (mock-up readability_v3.html, monitor b, the user's pick of 2026-10-24) it
-## shows one screen in every mode, with no switching: three columns on the paper (PAPER_RECT).
+## shows one screen in every mode, with no switching: two columns on the paper (PAPER_RECT).
 ## - The scanner bay (ScannerBay, BAY_RECT): the item at the scanner, with the queue over it and
 ##   its family chip under it (FamilyChip: what the item works with, in its ticket's colour).
 ## - The item column (MonitorItemColumn, ITEM_RECT): that item read in full: its name and family
 ##   glyphs, its price ("€N", the struck old price under a changed one), its effect text, a dashed
 ##   rule and its step lines.
-## - The checkout column (CheckoutColumn, CHECKOUT_RECT): PLAN or TOTAL over the number ("26€"),
-##   the ladder, "SPEND 26€+" and the status line.
+## - The checkout column (CheckoutColumn, CHECKOUT_RECT) is kept for its readings but never shown:
+##   since Checkout Rhythm v3 the spend objective and the total are the register's and the top
+##   bar's, and the item column takes the paper's whole right side.
 ## In planning (mode() NEXT) the bay and the item column show belt slot 1's item with its lines
 ## (show_next, on every refresh; on an empty belt the item column's hint, MonitorText.EMPTY_BELT),
-## or SCAN a held item's (show_scan, until end_scan); the checkout
-## column shows the projected total, or a drag's would-be total (show_plan). In redraw mode (plan
+## or SCAN a held item's (show_scan, until end_scan). In redraw mode (plan
 ## section 3.8, show_redraw; mode() REDRAW) the redraw panel covers the whole paper. A notice
 ## (NoticeLabel: a full row, a closed slot) shows on a paper strip over the item column's step
 ## lines (NOTICE_RECT) while it lasts, never in the count.
@@ -43,19 +43,19 @@ enum Mode { NEXT, SCAN, COUNT, REDRAW }
 ## (inside the screen's ink border), the bay, the item column and the checkout column.
 const PAPER_RECT := Rect2(495, 77, 402, 154)
 const BAY_RECT := Rect2(499, 79, 112, 150)
-const ITEM_RECT := Rect2(619, 81, 178, 146)
+const ITEM_RECT := Rect2(619, 81, 270, 146)
 const CHECKOUT_RECT := Rect2(799, 77, 98, 154)
 ## A notice's paper strip over the item column's step lines, and its text inside it.
-const NOTICE_RECT := Rect2(617, 163, 182, 66)
+const NOTICE_RECT := Rect2(617, 163, 274, 66)
 const NOTICE_MARGIN := 4.0
 const NOTICE_SIZE := 14
 const NOTICE_WEIGHT := 800
 const NOTICE_COLOR := Palette.INK
 ## The DONE state's "INSPECTION PASSED ✓" at the item column's foot (#77 machine v2), as the
 ## dessert stamps it on the receipt (CountUp.inspection_passed).
-const INSPECTION_RECT := Rect2(619, 209, 178, 18)
+const INSPECTION_RECT := Rect2(499, 209, 112, 18)
 const INSPECTION_TEXT := "INSPECTION PASSED ✓"
-const INSPECTION_SIZE := 12
+const INSPECTION_SIZE := 9
 const INSPECTION_WEIGHT := 800
 ## Every part the monitor draws, rods and shade included (stage coordinates).
 const DRAWN_RECT := Rect2(484, 56, 424, 192)
@@ -71,6 +71,7 @@ const SCREEN_SHADOW_ALPHA := 0.12
 ## Returns true when the player asked for reduced motion. None means false.
 var reduced_motion: Callable = Callable()
 ## The register's reading (the model the checkout column and the top bar follow) and the notices.
+var upgrades: Array[UpgradeDefinition] = []
 var led: LedDisplay
 var notice_label: NoticeLabel
 ## The DONE state's "INSPECTION PASSED ✓" label, for checks (read only).
@@ -94,6 +95,8 @@ var _views: Array[CardView] = []
 var _steps: Dictionary[CountUpBeat, ScoreStep] = {}
 ## The slot in the bay in the count (-1 for none).
 var _scanned: int = -1
+var _bagged: Dictionary[int, bool] = {}
+var _step_at: Dictionary[int, ScoreStep] = {}
 var _met: bool = false
 ## Planning: belt slot 1's item and its lines, the belt's slots and filled ones, and the held
 ## item (null with no scan) with its lines.
@@ -278,11 +281,12 @@ func follow(count_up: CountUp) -> void:
 	_checkout.make_tween = maker
 	_chips.make_tween = maker
 	_climax.speed = count_up.press_speed
-	count_up.total_target = _checkout.total_number()
-	count_up.climax_running = _climax.is_running
+	count_up.total_target = null
+	count_up.climax_running = Callable()
 	count_up.count_started.connect(_on_count_started)
 	count_up.ride.connect(_on_ride)
 	count_up.beat_started.connect(_on_beat_started)
+	count_up.step_landed.connect(_on_step_landed)
 	count_up.landing.connect(_on_landing)
 	count_up.quota_met.connect(_on_quota_met)
 	count_up.total_landed.connect(_on_total_landed)
@@ -366,8 +370,10 @@ func _apply() -> void:
 	_redraw_panel.visible = redrawing
 	_bay.visible = not redrawing
 	_items.visible = not redrawing
-	_checkout.visible = not redrawing
-	_chips.visible = counting
+	# Checkout Rhythm v3: the spend objective is the register's and the top bar's, never the
+	# monitor's, so the checkout column stays hidden in every mode.
+	_checkout.visible = false
+	_chips.visible = false
 	if not counting:
 		_climax.stop()
 
@@ -382,6 +388,7 @@ func _update_planning() -> void:
 		return
 	var held: bool = _held != null
 	var shown: CardDefinition = _held if held else _next
+	_bay.chip().visible = true
 	_bay.show_planning(shown, held, _slots, _filled)
 	if shown == null:
 		_items.show_empty(MonitorText.EMPTY_BELT)
@@ -449,12 +456,15 @@ func _on_reading(amount: int, quota: int, _met_now: bool) -> void:
 ## planning left it in the bay).
 func _on_count_started(views: Array[CardView]) -> void:
 	_views = views
+	_bagged.clear()
+	_step_at.clear()
 	_met = false
 	_scanned = -1
 	_steps.clear()
 	var first: CardDefinition = null
 	if not views.is_empty() and views[0] != null:
 		first = views[0].card.definition
+	_bay.chip().visible = true
 	_bay.start(views.size(), first)
 	_items.clear()
 
@@ -462,6 +472,8 @@ func _on_count_started(views: Array[CardView]) -> void:
 ## CountUp.ride: item `scan_slot` rides in over `ride_ms` while `bag_slot` bags; after the last
 ## (-1) the item column keeps the last item and its line (the end state, mock-up still 16.5).
 func _on_ride(bag_slot: int, scan_slot: int, ride_ms: int) -> void:
+	if bag_slot >= 0:
+		_bagged[bag_slot] = true
 	var definition: CardDefinition = _definition_of(scan_slot)
 	_bay.ride(bag_slot, scan_slot, definition, ride_ms / 1000.0)
 	if scan_slot < 0:
@@ -474,6 +486,7 @@ func _on_ride(bag_slot: int, scan_slot: int, ride_ms: int) -> void:
 func _on_beat_started(
 	beat: CountUpBeat, step: ScoreStep, line: String, view: CardView, _items_count: int
 ) -> void:
+	_step_at[beat.steps[0]] = step
 	var definition: CardDefinition = view.card.definition if view != null else null
 	_bay.follow_beat(beat, step, definition)
 	if beat.opens_slot and beat.scan_slot >= 0:
@@ -481,42 +494,52 @@ func _on_beat_started(
 		var opened: CardDefinition = _definition_of(beat.scan_slot)
 		if opened != null:
 			_items.start_item(opened, _tags_of(beat.scan_slot))
-	if CountUpPlan.is_landing(beat):
-		_steps[beat] = step
+		if beat.kind == CountUpBeat.Kind.MERGED_PLAIN:
+			_items.show_step("No bonus on this item", false)
 	if step.slot != _scanned or _scanned < 0:
-		if CountUpPlan.is_landing(beat):
-			_chips.launch(beat, _chips_from_column(), _checkout.landing_point())
 		return
-	var base: bool = beat.land == CountUpBeat.Land.BASE
-	if not base and _shows_line(beat):
+	if _shows_line(beat) or beat.kind == CountUpBeat.Kind.ARMED:
 		var fizzle: bool = step.step_type == ScoreStep.StepType.WASTED
-		_items.show_step(_line_of(step, Callable(), line), fizzle, false, _giver_mini(step))
-	if beat.land == CountUpBeat.Land.WASTE:
-		_items.set_value(step.value_after, true)
-		_chips.launch(beat, _items.waste_point(), _checkout.landing_point())
-		_checkout.waste()
-	elif CountUpPlan.is_landing(beat):
-		var from: Vector2 = _items.price_point() if base else _items.step_point()
-		_chips.launch(beat, from, _checkout.landing_point())
+		var shown: String = _line_of(step, Callable(), line)
+		if shown.is_empty():
+			shown = step.text
+		var from_bag: bool = (
+			step.source_kind == ScoreStep.SourceKind.CARD and _bagged.has(step.card_giver_slot())
+		)
+		_items.show_step(
+			shown, fizzle, beat.kind == CountUpBeat.Kind.ARMED, _giver_mini(step), from_bag
+		)
+	if beat.kind == CountUpBeat.Kind.PAYOUT:
+		_items.show_step(ReceiptView.joined_line("Pays", "€%d" % beat.payout), false)
+
+
+func _on_step_landed(index: int) -> void:
+	var step: ScoreStep = _step_at.get(index, null)
+	if step == null or step.slot != _scanned:
+		return
+	if (
+		step.step_type
+		in [
+			ScoreStep.StepType.BASE,
+			ScoreStep.StepType.FLAT,
+			ScoreStep.StepType.COPY,
+			ScoreStep.StepType.MULTIPLIER,
+			ScoreStep.StepType.PAYOUT_OVERRIDE
+		]
+	):
+		_items.set_value(step.value_after, step.step_type == ScoreStep.StepType.PAYOUT_OVERRIDE)
 
 
 ## CountUp.landing: `beat` lands on the number (its punch, lamp and sparks) and on its item's price.
 func _on_landing(beat: CountUpBeat) -> void:
 	_checkout.land(beat)
-	var number: TotalNumber = _checkout.total_number()
-	_chips.land(beat, _checkout.number_centre(), number.size.x)
-	var step: ScoreStep = _steps.get(beat, null)
-	_steps.erase(beat)
-	if step != null and step.slot == _scanned and _scanned >= 0:
-		_items.set_value(step.value_after)
 
 
 ## CountUp.quota_met: the quota is met, with `pop` (the climax) or at once (a resumed checkout).
-func _on_quota_met(pop: bool) -> void:
+func _on_quota_met(_pop: bool) -> void:
 	_met = true
 	_bay.set_met(true)
-	if pop:
-		_climax.start(led.amount(), led.quota(), _checkout.number_centre())
+	# The register owns the quota celebration; the item breakdown stays visible.
 
 
 ## CountUp.total_landed: the TOTAL line: the checkout column's end (the stamp and the tab when met).
@@ -528,7 +551,7 @@ func _on_total_landed() -> void:
 ## step line of the last item reaching its place goes.
 func _show_inspection_passed() -> void:
 	_inspection_passed.visible = true
-	_items.drop_steps_past(_inspection_passed.get_global_rect().position.y)
+	_bay.chip().visible = false
 
 
 ## The resumed end's item column: the item at the scanner on `plan`'s last beat, at its payout,
@@ -548,10 +571,15 @@ func _show_last_item(plan: CountUpPlan, result: ScoreResult, line_of: Callable) 
 		var base: bool = beat.land == CountUpBeat.Land.BASE
 		if beat.scan_slot == slot and step.slot == slot and not base and _shows_line(beat):
 			last = step
+			_items.show_step(
+				_line_of(step, line_of),
+				step.step_type == ScoreStep.StepType.WASTED,
+				false,
+				_giver_mini(step),
+				step.source_kind == ScoreStep.SourceKind.CARD and step.card_giver_slot() < slot
+			)
 	var fizzled: bool = last != null and last.step_type == ScoreStep.StepType.WASTED
 	_items.set_value(result.payouts[slot], fizzled)
-	if last != null:
-		_items.show_step(_line_of(last, line_of), fizzled, false, _giver_mini(last))
 
 
 func _on_notice_showing(_showing: bool) -> void:
@@ -598,9 +626,14 @@ func _tags_of(slot: int) -> PackedStringArray:
 
 ## The mini of the item that gave `step` (another item of the count), or null.
 func _giver_mini(step: ScoreStep) -> Texture2D:
-	if step.source_kind != ScoreStep.SourceKind.CARD or step.source_slot == step.slot:
+	if step.source_kind == ScoreStep.SourceKind.UPGRADE:
+		if step.source_index >= 0 and step.source_index < upgrades.size():
+			var icon: String = upgrades[step.source_index].icon_ref
+			return load(icon) as Texture2D if not icon.is_empty() else null
 		return null
-	var giver: CardDefinition = _definition_of(step.source_slot)
+	if step.source_kind != ScoreStep.SourceKind.CARD or step.card_giver_slot() == step.slot:
+		return null
+	var giver: CardDefinition = _definition_of(step.card_giver_slot())
 	if giver == null:
 		return null
 	var ref: String = giver.badge_mini_ref()

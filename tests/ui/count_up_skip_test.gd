@@ -290,7 +290,7 @@ func test_a_tapped_or_held_count_plays_the_same_sounds() -> void:
 	_play(screen, result)
 	await _played(screen)
 	var untouched: Dictionary = _heard(sfx)
-	for sound: String in ["scan", "stamp", "armed", "denied", "ding", "register_bell", "rattle_l"]:
+	for sound: String in ["scan", "stamp", "armed", "denied", "ding", "coin", "rattle_l"]:
 		assert_int(int(untouched.get(sound, 0))).override_failure_message(sound).is_greater(0)
 	assert_int((untouched["notes"] as Array).size()).is_greater(5)
 

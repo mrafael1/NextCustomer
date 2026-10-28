@@ -481,6 +481,8 @@ func _climax_ended() -> void:
 ## a hold. The printer is silent; a large total rattles the register (a huge one also rings the
 ## register bell). The rattle and the bell sound under reduced motion too: only the shake goes.
 func _pause() -> void:
+	if plan.pause_ms <= 0:
+		return
 	if plan.size != CountUpPlan.Size.NORMAL:
 		var huge: bool = plan.size == CountUpPlan.Size.HUGE
 		if huge:

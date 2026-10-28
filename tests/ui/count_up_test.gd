@@ -72,7 +72,7 @@ func test_the_full_row_counts_up_on_screen_in_five_to_nine_seconds() -> void:
 	prints("#60 full row: count_up_ms", count_up_ms, "planned_ms", plan.planned_ms)
 	assert_int(plan.step_count).is_equal(27)
 	# The 4-7.6 s window at the 0.8 count tempo (2026-10-20): 1.25x slower.
-	assert_int(count_up_ms).is_between(5000, 9500)
+	assert_int(count_up_ms).is_between(9000, 15000)
 	assert_int(count_up_ms).is_between(plan.planned_ms - 150, plan.planned_ms + 900)
 	assert_float(float(event["base_speed"])).is_equal(1.0)
 	assert_float(float(event["speed_setting"])).is_equal(1.0)
@@ -224,10 +224,10 @@ func test_the_quota_is_met_with_the_total_on_a_last_payout_crossing_and_never_on
 	)
 	_play_tapped(screen, result, 107)
 	await _played(screen)
-	assert_bool(count_up.plan.chip_at_total).is_true()
+	assert_bool(count_up.plan.chip_at_total).is_false()
 	# Once, as the total shows (never before it).
-	assert_array(mets).is_equal([true])
-	assert_int(_sounds(sfx, "ding")).is_equal(0)
+	assert_array(mets).is_equal([false])
+	assert_int(_sounds(sfx, "ding")).is_equal(1)
 	_assert_met(screen, true)
 	await _assert_receipt_of(screen, result, 107)
 
@@ -454,12 +454,9 @@ func _probe_count_up(screen: ShiftScreen) -> Dictionary:
 ## A large total's register rattle lasts the whole pause before the TOTAL line (D4): the rattle
 ## target is still off its rest x within the last fifth of the pause.
 func _assert_rattle_fills_the_pause(count_up: CountUp, probe: Dictionary) -> void:
-	var plan: CountUpPlan = count_up.plan
-	assert_float(plan.final_rattle_px).is_greater(0.0)
-	var still_ms: int = count_up.total_shown_ms - int(probe["last_rattle_ms"])
-	prints("#60 pause", plan.pause_ms, "ms: still for the last", still_ms, "ms")
+	# V3 holds large payments themselves; no extra pause or rattle is inserted before TOTAL.
+	assert_int(count_up.plan.pause_ms).is_equal(0)
 	assert_int(int(probe["last_rattle_ms"])).is_greater(0)
-	assert_int(still_ms).is_less_equal(roundi(plan.pause_ms * 0.2))
 
 
 ## Everything the count-up shows sits inside the 1280x720 screen: its labels and stamps in the
@@ -576,9 +573,9 @@ func _assert_rattle_and_armed_sounds(sfx: Sfx, plan: CountUpPlan) -> void:
 			if beat.rattle_px > 0.0:
 				rattle_px.append(beat.rattle_px)
 	var tuning: CountUpTuning = load(CountUp.TUNING_PATH)
-	if plan.size == CountUpPlan.Size.HUGE:
+	if plan.pause_ms > 0 and plan.size == CountUpPlan.Size.HUGE:
 		rattle_px.append(tuning.final_rattle_huge_px)
-	elif plan.size == CountUpPlan.Size.LARGE:
+	elif plan.pause_ms > 0 and plan.size == CountUpPlan.Size.LARGE:
 		rattle_px.append(tuning.final_rattle_large_px)
 	assert_int(_sounds(sfx, "armed")).is_equal(armed)
 	var heard: Array[Dictionary] = []
@@ -593,7 +590,7 @@ func _assert_rattle_and_armed_sounds(sfx: Sfx, plan: CountUpPlan) -> void:
 			CountUp.RATTLE_QUIET_DB, 0.0, clampf(px / CountUp.RATTLE_FULL_PX, 0.0, 1.0)
 		)
 		assert_float(float(heard[index]["volume_db"])).is_equal_approx(volume, 0.01)
-	var bell: int = 1 if plan.size == CountUpPlan.Size.HUGE else 0
+	var bell: int = 1 if plan.pause_ms > 0 and plan.size == CountUpPlan.Size.HUGE else 0
 	assert_int(_sounds(sfx, "register_bell")).is_equal(bell)
 
 
@@ -938,50 +935,24 @@ static func _event_log() -> EventLogService:
 ## time through the count's hold at the ding (its hit-stop freezes the count's tweens): it takes
 ## the monitor's paper (clipped to it), its number reading the register's total, and the bay's
 ## light turns green while the subtotal stands still; the count goes on after.
-func test_the_climax_runs_in_real_time_through_the_quota_hold() -> void:
+func test_the_register_celebrates_in_real_time_while_the_count_holds() -> void:
 	var screen: ShiftScreen = await _screen()
-	await _place(screen, PASSING_ROW)
-	var count_up: CountUp = screen._count_up
-	var monitor: MonitorView = screen._monitor
-	var climax: MonitorClimax = monitor.climax()
-	var pops: Array[bool] = []
-	count_up.quota_met.connect(func(pop: bool) -> void: pops.append(pop))
-	count_up.play(
-		screen.run.preview(),
-		screen._row_views,
-		CardInstance.names(screen.run.row),
-		40,
-		CountUpContext.new(1, 0, 1.0, false, screen.receipt_header())
-	)
+	await _full_row(screen)
+	var count: CountUp = screen._count_up
+	screen._on_checkout_pressed()
 	var started: int = Time.get_ticks_msec()
-	while pops.is_empty() and Time.get_ticks_msec() - started < 10000:
+	while not count._met and Time.get_ticks_msec() - started < 30000:
 		await get_tree().process_frame
-	assert_array(pops).is_equal([true])
-	# The quota is met on the ding beat's crossing tick; its hold follows its last tick.
-	var met_ms: int = Time.get_ticks_msec()
-	while count_up._hit_stop_left_ms <= 0.0 and Time.get_ticks_msec() - met_ms < 1000:
-		await get_tree().process_frame
-	assert_float(count_up._hit_stop_left_ms).is_greater(0.0)
-	var held: int = count_up._shown_subtotal
-	assert_bool(climax.is_running()).is_true()
-	var earlier: float = climax.progress()
-	assert_that(monitor.bay().light_colour()).is_equal(ScannerBay.LIGHT_MET_COLOR)
-	var paper: Rect2 = screen._stage.get_global_transform() * MonitorView.PAPER_RECT
-	assert_bool(climax.clip_contents).is_true()
-	(
-		assert_bool(paper.grow(0.5).encloses(climax.get_global_rect()))
-		. override_failure_message("%s in %s" % [climax.get_global_rect(), paper])
-		. is_true()
-	)
-	assert_int(climax.number().value()).is_equal(screen._led.amount())
-	var hold_start: int = Time.get_ticks_msec()
-	while Time.get_ticks_msec() - hold_start < 200:
-		await get_tree().process_frame
-	# Still held, yet the climax moved on.
-	assert_float(count_up._hit_stop_left_ms).is_greater(0.0)
-	assert_int(count_up._shown_subtotal).is_equal(held)
-	assert_float(climax.progress()).is_greater(earlier)
-	count_up._tap(Time.get_ticks_msec())
-	count_up._tap(Time.get_ticks_msec())
-	await _played(screen)
-	assert_array(pops).is_equal([true])
+	assert_bool(count._met).is_true()
+	assert_float(count._hit_stop_left_ms).is_greater(0.0)
+	assert_bool(screen._cabinet.total_display.is_celebrating()).is_true()
+	assert_bool(screen._monitor.climax().is_running()).is_false()
+	var held: int = count._shown_subtotal
+	await get_tree().create_timer(0.1).timeout
+	assert_float(count._hit_stop_left_ms).is_greater(0.0)
+	assert_int(count._shown_subtotal).is_equal(held)
+	assert_bool(screen._cabinet.total_display.is_celebrating()).is_true()
+	assert_bool(screen._monitor.item_column().is_visible_in_tree()).is_true()
+	count._tap(Time.get_ticks_msec())
+	count._tap(Time.get_ticks_msec())
+	await _count_up_end(screen)

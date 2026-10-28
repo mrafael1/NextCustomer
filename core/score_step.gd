@@ -86,6 +86,14 @@ var reason: String = ""
 ## belt's corner disc) skip it. False for every other step.
 var row_wide: bool = false
 
+## A neighbouring card enabling an own flat bonus. Explain-only visual provenance: the rule's
+## source_kind/source_slot attribution and every scoring value stay unchanged.
+var support_slot: int = -1
+
+
+func card_giver_slot() -> int:
+	return support_slot if support_slot >= 0 else source_slot
+
 
 func to_dictionary() -> Dictionary:
 	return {

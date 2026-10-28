@@ -80,17 +80,16 @@ func test_the_stage_is_laid_out_without_overlaps() -> void:
 	assert_that(bay).is_equal(_on_stage(screen, MonitorView.BAY_RECT))
 	var items: Rect2 = screen._monitor.item_column().get_global_rect()
 	assert_that(items).is_equal(_on_stage(screen, MonitorView.ITEM_RECT))
-	var checkout: Rect2 = screen._monitor.checkout().get_global_rect()
-	assert_that(checkout.position).is_equal(_on_stage(screen, MonitorView.CHECKOUT_RECT).position)
-	for part: Rect2 in [bay, items, checkout]:
+	# Checkout Rhythm v3: the spend objective is the register's, never the monitor's.
+	assert_bool(screen._monitor.checkout().is_visible_in_tree()).is_false()
+	for part: Rect2 in [bay, items]:
 		assert_bool(paper.encloses(part)).override_failure_message(str(part)).is_true()
-	_assert_apart_rects([bay, items, _on_stage(screen, MonitorView.CHECKOUT_RECT)])
+	_assert_apart_rects([bay, items])
 	_assert_digits_clear(screen)
 	var notice: Rect2 = screen._notice_label.get_global_rect()
 	assert_bool(_on_stage(screen, MonitorView.NOTICE_RECT).encloses(notice)).is_true()
 	assert_bool(paper.encloses(notice)).is_true()
 	assert_bool(notice.intersects(bay)).is_false()
-	assert_bool(notice.intersects(_on_stage(screen, MonitorView.CHECKOUT_RECT))).is_false()
 
 	# The register: the printer box on the counter top, the column under it; the receipt stands on
 	# the printer's slot.
@@ -723,8 +722,6 @@ func _assert_status_clear(screen: ShiftScreen) -> void:
 	var receipt: Rect2 = screen._receipt.get_global_rect()
 	var places: Dictionary[Control, Rect2] = {
 		screen._notice_label: MonitorView.NOTICE_RECT,
-		screen._monitor.checkout().caption(): MonitorView.CHECKOUT_RECT,
-		screen._monitor.checkout().status_label(): MonitorView.CHECKOUT_RECT,
 	}
 	for part: Control in places:
 		var rect: Rect2 = part.get_global_rect()

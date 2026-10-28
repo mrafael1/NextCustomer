@@ -36,7 +36,7 @@ extends RefCounted
 enum Size { NORMAL, LARGE, HUGE }
 
 const LAST_STAGE := 5
-## The monitor total's tuning (#105 piece 2), unless build() is given another.
+## The shared subtotal roll's tuning, unless build() is given another.
 const TOTAL_TUNING_PATH := "res://data/balance/count_total.tres"
 
 var beats: Array[CountUpBeat] = []
@@ -74,16 +74,16 @@ var gain_count: int = 0
 var reduced_motion: bool = false
 ## The last fit stage applied (D7): 0 when the row fitted as planned, up to LAST_STAGE.
 var fit_stage: int = 0
-## The beat that dings the quota mid-row (D5), or -1.
+## The payment beat that celebrates the quota after its last tick, or -1.
 var ding_beat: int = -1
 ## Some payout reaches the quota.
 var quota_reached: bool = false
-## The quota is first reached on the last payout: it is met (CountUp.quota_met) with the TOTAL
-## line, with no ding and no hold (D5).
+## Fallback for a met quota without a positive payment crossing (for example a zero quota).
+## Ordinary crossings celebrate on their payment, including the last one.
 var chip_at_total: bool = false
 ## The payout beat where the subtotal first passes best (D3), or -1.
 var passes_best_beat: int = -1
-## The beats that land on the monitor's total (#105 piece 2), in order: not NONE or WASTE.
+## Payment beats that change the shared register and gauge subtotal.
 var landing_count: int = 0
 ## The landings that light a ladder lamp (BASE, ADD and MUL).
 var lamp_count: int = 0
@@ -155,8 +155,7 @@ static func build(
 	return CountUpPlan.new(steps, quota, context, tuning, total_tuning)
 
 
-## Landing beats move the monitor's total: BASE, ADD, MUL and DOWN (WASTE drops a grey €0 that
-## never lands).
+## Landing beats change the shared subtotal; item bonus beats stay on the monitor.
 static func is_landing(beat: CountUpBeat) -> bool:
 	return beat.land != CountUpBeat.Land.NONE and beat.land != CountUpBeat.Land.WASTE
 
@@ -250,65 +249,32 @@ static func _kind_of(step_type: ScoreStep.StepType) -> CountUpBeat.Kind:
 	return CountUpBeat.Kind.BASE
 
 
-## #105 piece 2: what each beat does to the monitor's total. The total shown is the payouts so far
-## plus the running value (ScoreStep.value_after) of every item not yet paid, so a base, a +N or a
-## × adds into it as it lands and a PAYOUT changes nothing; it equals the step's subtotal at every
-## PAYOUT (a PAYOUT that differs, which no rule gives today, lands the difference). Each landing
-## counts in at most ticks_per_landing whole-euro ticks. Display arithmetic only: every value is a
-## step's.
+## Checkout Rhythm v3: only PAYOUT (including a merged plain item's payment) advances the
+## shared register reading. The item's intermediate value remains on the monitor. Every shown
+## subtotal is read from a real payout step; the UI never scores the row.
 func _set_landings(steps: Array[ScoreStep]) -> void:
-	var paid: int = 0
-	var open: Dictionary[int, int] = {}
 	var shown: int = 0
 	for beat: CountUpBeat in beats:
 		beat.shown_from = shown
-		for index: int in beat.steps:
-			var step: ScoreStep = steps[index]
-			match step.step_type:
-				ScoreStep.StepType.PAYOUT:
-					paid = step.subtotal
-					open.erase(step.slot)
-				ScoreStep.StepType.BASE, ScoreStep.StepType.FLAT, ScoreStep.StepType.COPY:
-					open[step.slot] = step.value_after
-				ScoreStep.StepType.MULTIPLIER, ScoreStep.StepType.PAYOUT_OVERRIDE:
-					open[step.slot] = step.value_after
-		shown = paid
-		for value: int in open.values():
-			shown += value
+		if is_payout_beat(beat):
+			shown = steps[beat.steps[-1]].subtotal
 		beat.shown_to = shown
 		beat.gain = shown - beat.shown_from
-		beat.land = _land_of(beat, steps[beat.steps[0]])
-		if beat.land == CountUpBeat.Land.MUL:
-			beat.factor_text = "×%d" % steps[beat.steps[0]].value
-		if not is_landing(beat):
+		if beat.gain == 0:
 			continue
+		beat.land = CountUpBeat.Land.ADD if beat.gain > 0 else CountUpBeat.Land.DOWN
 		landing_count += 1
-		beat.fly_ms = _total_tuning.landing_fly_ms
-		if beat.land != CountUpBeat.Land.DOWN:
+		beat.fly_ms = (
+			_tuning.base_ms
+			if beat.kind == CountUpBeat.Kind.MERGED_PLAIN
+			else _total_tuning.landing_fly_ms
+		)
+		if beat.gain > 0:
 			beat.lamp = lamp_count
 			lamp_count += 1
 		var count: int = mini(maxi(1, _total_tuning.ticks_per_landing), absi(beat.gain))
 		for tick: int in range(1, count + 1):
 			beat.ticks.append(beat.shown_from + roundi(float(beat.gain * tick) / count))
-
-
-## How a beat lands on the total (see _set_landings): a base (BASE or a plain card's merged beat),
-## a +N (FLAT, COPY, an override or a PAYOUT that raises it), a × (MULTIPLIER), a DOWN when the
-## total falls, WASTE for a fizzle on the item at the scanner, else NONE (nothing moves).
-static func _land_of(beat: CountUpBeat, step: ScoreStep) -> CountUpBeat.Land:
-	if beat.kind == CountUpBeat.Kind.FIZZLE:
-		var scanned: bool = beat.scan_slot >= 0 and step.slot == beat.scan_slot
-		return CountUpBeat.Land.WASTE if scanned else CountUpBeat.Land.NONE
-	if beat.gain == 0:
-		return CountUpBeat.Land.NONE
-	if beat.gain < 0:
-		return CountUpBeat.Land.DOWN
-	match beat.kind:
-		CountUpBeat.Kind.MERGED_PLAIN, CountUpBeat.Kind.BASE:
-			return CountUpBeat.Land.BASE
-		CountUpBeat.Kind.STAMP:
-			return CountUpBeat.Land.MUL
-	return CountUpBeat.Land.ADD
 
 
 ## D8: an armed beat's landings are the later FLAT or MULTIPLIER steps from a card with the
@@ -329,8 +295,7 @@ func _link_armed(steps: Array[ScoreStep]) -> void:
 		beats[armed_index].targets.append(index)
 
 
-## Payouts and the payout rattle (D3). The total no longer rolls on a payout (#105 piece 2): it
-## counts in at each landing (_set_landings), so a PAYOUT beat is only its gap.
+## Payout amounts and rattle intensity. Their shared subtotal rolls are set in _set_landings.
 func _set_payouts(steps: Array[ScoreStep]) -> void:
 	for index: int in range(beats.size()):
 		var beat: CountUpBeat = beats[index]
@@ -372,35 +337,28 @@ func _set_notes() -> void:
 			beat.note_quiet = true
 
 
-## D5 (#105 piece 2): the quota dings at the first landing after which the shown total never
-## falls under it again (a later denial on the same item could take it back), unless that is the
-## row's last landing: the quota is then met with the TOTAL line, with no ding and no hold.
+## The quota dings on the first stable paid crossing, including the last payment.
 func _set_quota(quota: int) -> void:
 	quota_reached = total >= quota
 	if not quota_reached:
 		return
-	var last_landing: int = -1
 	var stable: int = -1
 	for index: int in range(beats.size()):
 		var beat: CountUpBeat = beats[index]
 		if not is_landing(beat):
 			continue
-		last_landing = index
 		if beat.shown_to < quota:
 			stable = -1
 		elif stable == -1:
 			stable = index
-	if stable == -1 or stable == last_landing:
+	if stable == -1:
 		chip_at_total = true
 		return
 	ding_beat = stable
 	var ding: CountUpBeat = beats[stable]
 	ding.ding = true
 	ding.ding_tick = ding.ticks.size() - 1
-	for tick: int in range(ding.ticks.size()):
-		if ding.ticks[tick] >= quota:
-			ding.ding_tick = tick
-			break
+	# Celebrate the completed payment, after its rolling digits reach the paid subtotal.
 
 
 ## D4: the size of the total against the best so far, the pause and its rattle.
@@ -424,6 +382,7 @@ func _set_size() -> void:
 ## D7's beat lengths before fitting, and which beats each fit stage may touch.
 func _set_raw_lengths(steps: Array[ScoreStep]) -> void:
 	var stamped: Dictionary[int, bool] = {}
+	var adds: Dictionary[int, int] = {}
 	for index: int in range(beats.size()):
 		var beat: CountUpBeat = beats[index]
 		var step: ScoreStep = steps[beat.steps[0]]
@@ -433,12 +392,17 @@ func _set_raw_lengths(steps: Array[ScoreStep]) -> void:
 		var length: int = 0
 		match beat.kind:
 			CountUpBeat.Kind.MERGED_PLAIN:
-				length = _tuning.merged_ms if beat.payout > 0 else _tuning.merged_zero_ms
+				length = _tuning.base_ms + _payout_hold(beat.payout)
 			CountUpBeat.Kind.BASE:
 				length = _tuning.base_ms
 			CountUpBeat.Kind.BONUS:
 				fly = not (own and step.step_type == ScoreStep.StepType.FLAT)
 				length = _tuning.bonus_other_ms if fly else _tuning.bonus_own_ms
+				var add_index: int = adds.get(beat.slot, 0)
+				length = maxi(
+					_tuning.add_min_ms, roundi(length * pow(_tuning.add_pace_factor, add_index))
+				)
+				adds[beat.slot] = add_index + 1
 			CountUpBeat.Kind.STAMP:
 				fly = not from_card
 				length = _tuning.stamp_card_ms if from_card else _tuning.stamp_upgrade_ms
@@ -448,7 +412,7 @@ func _set_raw_lengths(steps: Array[ScoreStep]) -> void:
 			CountUpBeat.Kind.DENIED:
 				length = _tuning.denied_ms
 			CountUpBeat.Kind.PAYOUT:
-				length = _tuning.gap_ms if beat.payout > 0 else _tuning.payout_zero_ms
+				length = _payout_hold(beat.payout)
 			CountUpBeat.Kind.ARMED:
 				length = _tuning.armed_ms
 			CountUpBeat.Kind.FIZZLE:
@@ -463,12 +427,29 @@ func _set_raw_lengths(steps: Array[ScoreStep]) -> void:
 			CountUpBeat.Kind.CREDIT:
 				fly = true
 				length = _tuning.tag_ms
-		if is_landing(beat):
-			length = maxi(length, _total_tuning.landing_gap_ms)
+		if is_payout_beat(beat) and beat.slot == _last_scan_slot():
+			length += _tuning.last_payout_extra_ms
 		_raw_ms.append(length)
 		_fly.append(fly)
 		_card_stamp.append(beat.kind == CountUpBeat.Kind.STAMP and from_card)
 		_repeat.append(beat.armed_from != -1 and beats[beat.armed_from].targets[0] != index)
+
+
+func _last_scan_slot() -> int:
+	for index: int in range(beats.size() - 1, -1, -1):
+		if beats[index].scan_slot >= 0:
+			return beats[index].scan_slot
+	return -1
+
+
+func _payout_hold(payout: int) -> int:
+	if payout <= 0:
+		return _tuning.payout_zero_ms
+	if payout >= _tuning.payout_large_from:
+		return _tuning.payout_large_ms
+	if payout >= _tuning.payout_medium_from:
+		return _tuning.payout_medium_ms
+	return _tuning.payout_small_ms
 
 
 func _fit() -> void:
@@ -540,9 +521,9 @@ func _apply(stage: int, factor: float, spares_ding: bool) -> int:
 			length = scaled
 		if is_landing(beat):
 			# A landing's ticks end before the next one lands: its floor, cut only by stage 5.
-			var floor_ms: int = _total_tuning.landing_gap_ms
-			if stage >= LAST_STAGE:
-				floor_ms = _total_tuning.fit_landing_gap_ms
+			var floor_ms: int = (
+				beat.fly_ms + maxi(0, beat.ticks.size() - 1) * _total_tuning.tick_gap_ms + 1
+			)
 			length = maxi(length, floor_ms)
 			beat.roll_ms = maxi(0, beat.ticks.size() - 1) * _total_tuning.tick_gap_ms
 		beat.duration_ms = length

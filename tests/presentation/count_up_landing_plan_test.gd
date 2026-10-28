@@ -40,7 +40,7 @@ func test_every_golden_rows_landings_hold() -> void:
 		_assert_landings(plan, result, ids)
 		downs += _count(plan, CountUpBeat.Land.DOWN)
 		muls += _count(plan, CountUpBeat.Land.MUL)
-	assert_int(muls).is_greater(0)
+	assert_int(muls).is_equal(0)
 	prints("#105 golden rows' DOWN landings:", downs, "MUL landings:", muls)
 
 
@@ -50,8 +50,8 @@ func test_the_reference_rows_landings_hold() -> void:
 	var result: ScoreResult = _data_result(FULL_ROW)
 	var plan: CountUpPlan = _plan(result.steps)
 	_assert_landings(plan, result, FULL_ROW)
-	assert_int(_count(plan, CountUpBeat.Land.MUL)).is_greater(0)
-	assert_int(_count(plan, CountUpBeat.Land.BASE)).is_greater(0)
+	assert_int(_count(plan, CountUpBeat.Land.MUL)).is_equal(0)
+	assert_int(_count(plan, CountUpBeat.Land.ADD)).is_greater(0)
 
 
 ## A long row fitted to the last stage keeps its landings fit_landing_gap_ms apart at least.
@@ -64,7 +64,7 @@ func test_a_fitted_rows_landings_keep_their_floor() -> void:
 
 ## Hand-built: a card worth 4 paying 4 then a ×3 then an override to €0: BASE +4 (3 ticks 1, 3,
 ## 4), MUL +8 with "×3" (ticks to 12), DOWN -12 with no lamp; the lamps 0 and 1.
-func test_a_base_a_times_and_a_fall_land_as_they_should() -> void:
+func test_an_unpaid_price_can_rise_and_fall_without_changing_the_register() -> void:
 	var steps: Array[ScoreStep] = [
 		_step(ScoreStep.StepType.BASE, 0, 4, 0),
 		_step(ScoreStep.StepType.MULTIPLIER, 0, 3, 0),
@@ -73,29 +73,11 @@ func test_a_base_a_times_and_a_fall_land_as_they_should() -> void:
 	]
 	steps[0].value_after = 4
 	steps[1].value_after = 12
-	steps[2].value_after = 0
 	var plan: CountUpPlan = _plan(steps)
-	var lands: Array[CountUpBeat] = []
 	for beat: CountUpBeat in plan.beats:
-		if CountUpPlan.is_landing(beat):
-			lands.append(beat)
-	assert_int(lands.size()).is_equal(3)
-	assert_int(lands[0].land).is_equal(CountUpBeat.Land.BASE)
-	assert_int(lands[0].gain).is_equal(4)
-	assert_int(lands[0].ticks.size()).is_less_equal(_tuning().ticks_per_landing)
-	assert_int(lands[0].ticks[-1]).is_equal(4)
-	assert_int(lands[0].lamp).is_equal(0)
-	assert_int(lands[1].land).is_equal(CountUpBeat.Land.MUL)
-	assert_str(lands[1].factor_text).is_equal("×3")
-	assert_int(lands[1].gain).is_equal(8)
-	assert_int(lands[1].ticks[-1]).is_equal(12)
-	assert_int(lands[1].lamp).is_equal(1)
-	assert_int(lands[2].land).is_equal(CountUpBeat.Land.DOWN)
-	assert_int(lands[2].gain).is_equal(-12)
-	assert_int(lands[2].lamp).is_equal(-1)
-	assert_int(lands[2].ticks[-1]).is_equal(0)
-	assert_int(plan.landing_count).is_equal(3)
-	assert_int(plan.lamp_count).is_equal(2)
+		assert_bool(CountUpPlan.is_landing(beat)).is_false()
+		assert_int(beat.shown_to).is_equal(0)
+	assert_int(plan.landing_count).is_equal(0)
 
 
 ## `plan`'s landings against `result` (see the class comment).
@@ -125,7 +107,13 @@ func _assert_landings(plan: CountUpPlan, result: ScoreResult, where: String) -> 
 			continue
 		landings += 1
 		assert_int(beat.gain).override_failure_message(message).is_not_equal(0)
-		assert_int(beat.fly_ms).override_failure_message(message).is_equal(tuning.landing_fly_ms)
+		assert_int(beat.fly_ms).override_failure_message(message).is_equal(
+			(
+				(load(CountUp.TUNING_PATH) as CountUpTuning).base_ms
+				if beat.kind == CountUpBeat.Kind.MERGED_PLAIN
+				else tuning.landing_fly_ms
+			)
+		)
 		var ticks: PackedInt32Array = beat.ticks
 		assert_int(ticks.size()).override_failure_message(message).is_between(
 			1, tuning.ticks_per_landing
