@@ -354,7 +354,7 @@ func test_every_pool_coupon_has_its_icon() -> void:
 
 ## Sticker minis: every plain product with its own sprite has a 7x7 giver-badge mini and its
 ## GOLDEN copy (mini_art_ref, mini_golden_art_ref), each its own; a product with no sprite yet,
-## a coupon and a BIG or GOLDEN tier set none, and a tier shows its plain card's (gold-outlined
+## a BIG or GOLDEN tier set none, and a tier shows its plain card's (gold-outlined
 ## for GOLDEN, the plain one for BIG).
 func test_every_product_with_a_sprite_has_its_mini() -> void:
 	var minis: Dictionary[String, StringName] = {}
@@ -365,6 +365,8 @@ func test_every_product_with_a_sprite_has_its_mini() -> void:
 			card.is_product() and card.variant_of == null and not card.art_ref.is_empty()
 		)
 		if not drawn:
+			if card.is_coupon():
+				continue
 			assert_str(card.mini_art_ref).override_failure_message(message).is_empty()
 			assert_str(card.mini_golden_art_ref).override_failure_message(message).is_empty()
 			continue

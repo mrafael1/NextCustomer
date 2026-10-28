@@ -5,7 +5,12 @@ extends Control
 ## edge (a GOLDEN giver has a gold rim). The card's existing 7x7 mini reference selects its plate
 ## in art/giver_badges; that small mini is still used in monitor lines. A missing plate falls
 ## back to the small mini; missing mini art falls back to initials. Inspection keeps its warning
-## icon. Decor only, with the same drained grey as the sticker.
+## icon. A coupon token holds its mini (up to 10x10). A loyalty perk's token holds its perk icon
+## (#108 follow-up: as its loyalty box,
+## LoyaltyCard.perk_icon) when one fits inside the stamp, else its initials, and an Aisle run's
+## badge wears the box's "×" tag at its top left (LoyaltyCard.make_run_tag), so a family's
+## Regulars and Aisle run tell apart on the stickers too. Decor only, with the same drained grey
+## as the sticker.
 
 enum Kind { NONE, ITEM, COUPON, LOYALTY, INSPECTION }
 
@@ -23,10 +28,15 @@ const PLATE_FOLDER := "res://art/giver_badges/"
 ## The initials: Pixelify, the largest of these sizes whose width fits INITIALS_WIDTH.
 const INITIALS_SIZES: Array[int] = [11, 10, 9]
 const INITIALS_WIDTH := 22.0
+## The room inside the loyalty icon token (LOYALTY_ICON_TOKEN) for a perk icon at the art scale:
+## its 10x10 middle inside the 14x14 token's rim.
+const LOYALTY_ICON_ROOM := 20.0
 
 const ITEM_TOKEN := preload("res://art/effects/badge_item_polished.png")
 const COUPON_TOKEN := preload("res://art/effects/badge_coupon_polished.png")
 const LOYALTY_TOKEN := preload("res://art/effects/badge_stamp_polished.png")
+## The loyalty token under a perk icon (polish pass): a thinner rim round a 10x10 middle.
+const LOYALTY_ICON_TOKEN := preload("res://art/effects/badge_stamp_icon.png")
 const WARNING := preload("res://art/icons/warning.png")
 
 var kind: Kind = Kind.NONE
@@ -34,13 +44,21 @@ var _token: TextureRect
 var _initials: Label
 var _drained: bool = false
 var _mini: bool = false
+var _icon: TextureRect
+var _run_tag: Control
+var _run_colour: Color = Color()
 
 
 ## A `badge_kind` badge holding `badge_initials` (none for an inspection), or for an ITEM with a
-## `mini_ref` (a texture path that exists), that mini instead. A missing path falls back to the
-## initials quietly: a stale `mini_art_ref` in the data is caught by live_cards_test (every
-## product's mini ref must load), not here.
-func _init(badge_kind: Kind, badge_initials: String, mini_ref: String = "") -> void:
+## `mini_ref` (a texture path that exists), that mini instead; for a LOYALTY badge, `mini_ref` is
+## the perk's icon (UpgradeDefinition.icon_ref); a COUPON mini stays on the teal token,
+## drawn instead of the initials
+## when it fits. A missing path falls back to the initials quietly: a stale `mini_art_ref` in the
+## data is caught by live_cards_test (every product's mini ref must load), not here. A LOYALTY
+## badge with a `run_colour` (LoyaltyCard.run_mark_colour, an Aisle run's) wears the run tag.
+func _init(
+	badge_kind: Kind, badge_initials: String, mini_ref: String = "", run_colour: Color = Color()
+) -> void:
 	kind = badge_kind
 	name = "GiverBadge"
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -66,6 +84,13 @@ func _init(badge_kind: Kind, badge_initials: String, mini_ref: String = "") -> v
 	_token.name = "Token"
 	_token.size = size
 	add_child(_token)
+	if kind == Kind.LOYALTY and run_colour != Color():
+		_run_colour = run_colour
+		_run_tag = LoyaltyCard.make_run_tag(run_colour)
+		_run_tag.name = "RunTag"
+	if kind in [Kind.COUPON, Kind.LOYALTY] and _add_icon(mini_ref):
+		_add_run_tag()
+		return
 	if kind == Kind.INSPECTION or badge_initials.is_empty():
 		return
 	_initials = UiKit.display_label(badge_initials, INITIALS_SIZES[-1], false)
@@ -76,6 +101,7 @@ func _init(badge_kind: Kind, badge_initials: String, mini_ref: String = "") -> v
 	_initials.size = size
 	add_child(_initials)
 	_colour_initials()
+	_add_run_tag()
 
 
 ## The initials a `badge_kind` badge shows for a giver named `display_name`: a card's first two
@@ -91,10 +117,16 @@ static func initials_for(badge_kind: Kind, display_name: String) -> String:
 	return ""
 
 
-## Greys the token and steps the initials back (`drained`), or puts the look back.
+## Greys the token, the perk icon and steps the initials back (`drained`), or puts the look back.
 func set_drained(drained: bool) -> void:
 	_drained = drained
-	ArtStyle.set_look(_token, ArtStyle.grey_material(ArtStyle.Grey.DRAINED) if drained else null)
+	var look: ShaderMaterial = ArtStyle.grey_material(ArtStyle.Grey.DRAINED) if drained else null
+	ArtStyle.set_look(_token, look)
+	if _icon != null:
+		ArtStyle.set_look(_icon, look)
+	if _run_tag != null:
+		# Drawn in code, so it greys by its colour, not the grey material.
+		LoyaltyCard.set_run_tag_face(_run_tag, Palette.GREY_LIGHT if drained else _run_colour)
 	_colour_initials()
 
 
@@ -105,6 +137,21 @@ func is_drained() -> bool:
 ## Whether it shows a product's mini (no token, no initials).
 func shows_mini() -> bool:
 	return _mini
+
+
+## The Aisle run tag on a loyalty badge, or null (for tests).
+func run_tag() -> Control:
+	return _run_tag
+
+
+## Whether a coupon or loyalty badge shows its icon on the token (no initials).
+func shows_icon() -> bool:
+	return _icon != null
+
+
+## The coupon or perk icon on its token, or null (for tests).
+func icon_texture() -> Texture2D:
+	return _icon.texture if _icon != null else null
 
 
 ## The drawn texture: the mini, the token or the warning icon (for tests).
@@ -120,6 +167,37 @@ func art_rect() -> Rect2:
 ## The initials shown, or empty (for tests).
 func initials() -> String:
 	return _initials.text if _initials != null else ""
+
+
+## Draws a coupon mini or perk icon at `icon_ref` centred on its token, when it exists and fits
+## LOYALTY_ICON_ROOM at the art scale. Whether it did.
+func _add_icon(icon_ref: String) -> bool:
+	if icon_ref.is_empty() or not ResourceLoader.exists(icon_ref):
+		return false
+	var art: Texture2D = load(icon_ref) as Texture2D
+	if art == null:
+		return false
+	var drawn: Vector2 = art.get_size() * ArtStyle.ART_SCALE
+	if drawn.x > LOYALTY_ICON_ROOM or drawn.y > LOYALTY_ICON_ROOM:
+		return false
+	if kind == Kind.LOYALTY:
+		_token.texture = LOYALTY_ICON_TOKEN
+	_icon = UiKit.sprite(art)
+	_icon.name = "Icon"
+	_icon.size = drawn
+	# Coupon drawings are trimmed and centred exactly. Odd native dimensions land on an
+	# integer screen pixel at 2x, so nearest filtering still keeps every texel sharp.
+	_icon.position = (size - drawn) / 2.0
+	if kind == Kind.LOYALTY:
+		_icon.position = (_icon.position / ArtStyle.ART_SCALE).floor() * ArtStyle.ART_SCALE
+	add_child(_icon)
+	return true
+
+
+## Adds the Aisle run tag, if any, over the token and the icon or initials.
+func _add_run_tag() -> void:
+	if _run_tag != null:
+		add_child(_run_tag)
 
 
 ## The initials' colour: ink on the cream item token, mustard pale on the stamp, paper on the

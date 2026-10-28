@@ -1,0 +1,13 @@
+; Coupon giver badge, PR #113: clearance tag.
+; Trimmed to the drawing so it centres exactly inside the teal token.
+@size 9x9
+@kind icon
+.#######.
+#yyyyyyy#
+#y#MM#Mm#
+#yMM#MMm#
+#yM#M#Mm#
+#y#MMM###
+#yMMMM#c#
+#mmmmm##.
+.#####...

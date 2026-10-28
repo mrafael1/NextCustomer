@@ -20,3 +20,4 @@ rules = Array[ExtResource("1_ru2h7")]([SubResource("Resource_w6vyg")])
 rule_text = "×3 to later products sharing a tag with the product just before it (not Food or Breakfast)"
 sticker_text = "×{factor} later with prior's tag"
 art_ref = "res://art/icons/coupon_multipack_v2.png"
+mini_art_ref = "res://art/icons/coupon_multipack_mini.png"

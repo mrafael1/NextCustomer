@@ -37,6 +37,10 @@ func test_the_reference_row_shows_its_stickers_in_step_order() -> void:
 	_assert_stickers(
 		model.slots[3], [[StickerSpec.Kind.FIZZLE, "WASTED", GiverBadge.Kind.LOYALTY, "CoE"]]
 	)
+	# Its badge carries the perk's icon, as its box (#108 follow-up).
+	assert_str(model.slots[3].stickers[0].badge_mini).is_equal(
+		"res://art/icons/perk_coupon_engine.png"
+	)
 	# Milks 5 to 7: their own bonus, then Multipack's ×3 (coupon badge); the Milk in slot 6 also
 	# gets Slot engine's ×2 last.
 	for slot: int in [4, 5, 6]:
@@ -394,8 +398,8 @@ func test_the_tuning_defaults_are_neutral_and_the_file_holds_the_values() -> voi
 
 
 ## Sticker minis: an ITEM badge carries its giver's mini (CardDefinition.badge_mini_ref: Golden
-## Eggs' gold-outlined one, plain Eggs' ink one, Mixed herbs' since v0.52), none for a coupon's or
-## a loyalty badge; the initials are kept for every badge (Mixed herbs keeps "Mi").
+## Eggs' gold-outlined one, plain Eggs' ink one, Mixed herbs' since v0.52); a coupon carries
+## its own mini and a loyalty badge its icon. Initials remain as a fallback.
 func test_item_badges_carry_the_givers_mini() -> void:
 	var row: Array[CardDefinition] = []
 	for card_id: String in MINI_ROW.split(","):
@@ -406,10 +410,21 @@ func test_item_badges_carry_the_givers_mini() -> void:
 	for slot: PlanningSlot in model.slots:
 		for sticker: StickerSpec in slot.stickers:
 			var message: String = "%s %s" % [sticker.text, sticker.badge_text]
+			if sticker.badge == GiverBadge.Kind.LOYALTY:
+				# A loyalty badge carries its perk's icon (#108 follow-up).
+				var perk: UpgradeDefinition = _upgrades()[sticker.cause_index]
+				assert_str(sticker.badge_mini).override_failure_message(message).is_equal(
+					perk.icon_ref
+				)
+				continue
+			if sticker.badge == GiverBadge.Kind.COUPON:
+				var coupon: CardDefinition = row[sticker.cause_slot]
+				assert_str(sticker.badge_mini).is_equal(coupon.mini_art_ref)
+				assert_str(sticker.badge_mini).is_not_empty()
+				seen["coupon"] = true
+				continue
 			if sticker.badge != GiverBadge.Kind.ITEM:
 				assert_str(sticker.badge_mini).override_failure_message(message).is_empty()
-				if sticker.badge == GiverBadge.Kind.COUPON:
-					seen["coupon"] = true
 				continue
 			var giver: CardDefinition = row[sticker.cause_slot]
 			assert_str(sticker.badge_mini).override_failure_message(message).is_equal(

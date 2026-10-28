@@ -19,3 +19,4 @@ rules = Array[ExtResource("1_ady5a")]([SubResource("Resource_w2t6e")])
 rule_text = "The product in the next slot gains the Breakfast tag"
 sticker_text = "Next gains {tag}"
 art_ref = "res://art/icons/coupon_breakfast_sticker_v2.png"
+mini_art_ref = "res://art/icons/coupon_breakfast_sticker_mini.png"

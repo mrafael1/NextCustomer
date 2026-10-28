@@ -3,7 +3,8 @@ extends PanelContainer
 ## The loyalty card (full build plan 5.2), in the pixel-art style (#55): the loyalty_card frame with
 ## one box per register the RECEIPT REWARDS machine can stamp (its register cap, #77; plus one for a
 ## starting deck's upgrade, 7.3), each an empty stamp ring until an upgrade is taken. A taken
-## upgrade stamps the next box with its initials (a placeholder for its perk icon until #59).
+## upgrade stamps the next box with its perk icon (`face_icon`), or its initials when it has none
+## that fits.
 ## Hovering a stamped box shows the upgrade's name, type, effect and condition, so nothing about an
 ## upgrade is shown only inside an animation.
 ##
@@ -11,8 +12,18 @@ extends PanelContainer
 ##
 ## The top bar's face (#80 step 10, mock-up B2; `chip`): the teal LOYALTY chip with B2's 13x13
 ## stamp rings at 2x, upright: a mustard ring around the teal panel for a stamp, a dashed ring
-## for an empty box. #59's 7x7 perk glyphs go in the rings; until then the initials stay, in
-## mustard pale, as large as fits inside the ring. The final receipt keeps the card face.
+## for an empty box. A perk's icon sits in its ring; a perk with none that fits keeps its
+## initials, in mustard pale, as large as fits inside the ring. The final receipt keeps the card
+## face.
+##
+## Perk icons (#108 follow-up, decided with the user on 2026-10-26): every perk whose icon fits
+## its box shows it at the art scale instead of its initials (a family perk its family glyph, a
+## jackpot its product's mini, the rest the icon their LOYALTY ticket shows). A family perk's
+## ring takes its family's colour (`family_ring`, as its tickets do since #105) between a thin ink
+## edge and a teal dark inside, so every family colour reads on the teal chip and the cream card
+## alike (none does on teal alone: Dairy's face is 1.0:1 against it); an Aisle run
+## also wears a small family-coloured "×" tag at the box's top left (`run_mark`), so a family's
+## Regulars and Aisle run tell apart.
 ##
 ## Planning effects (#71): hovering a stamped box reports box_hovered / box_unhovered (its
 ## tooltip stays); set_relation rings a box in gold (the hovered item's cause, or the hovered box
@@ -61,11 +72,37 @@ const LEVEL_MARK_NAME := "LevelMark"
 const LEVEL_SIZE := 12
 const LEVEL_PAD := 3.0
 const LEVEL_BORDER := 2
+## The chip face's smaller level badge (polish pass): the 26 px ring's full-size badge hid most of
+## the perk icon, so the chip's numeral is CHIP_LEVEL_SIZE with CHIP_LEVEL_PAD each side.
+const CHIP_LEVEL_SIZE := 9
+const CHIP_LEVEL_PAD := 1.0
+## The card face's upright level badge sits this far in from the box's corner (polish pass).
+const LEVEL_INSET := 2.0
+## The ring laid over a perk icon (polish pass), so the icon's corners tuck under the ring.
+const ICON_RIM_NAME := "Rim"
+## A perk icon's node in its box.
+const ICON_NAME := "Icon"
+## A family perk's ring (#108 follow-up), this wide on both faces (the chip's ring art is CHIP_RING
+## wide too): its outer FAMILY_EDGE px ink, the rest its family's colour, teal dark inside.
+const FAMILY_RING := 4
+const FAMILY_EDGE := 2
+const FAMILY_EDGE_NAME := "FamilyEdge"
+## An Aisle run's tag (#108 follow-up): 5x5 art pixels at 2x at the box's top left, an ink edge
+## around its family's face colour with an ink "×" (RUN_MARK_CROSS, art cells) in the middle;
+## small enough to stay clear of the level badge in the bottom right, even on the chip.
+const RUN_MARK_NAME := "RunMark"
+const RUN_MARK_SIZE := Vector2(10, 10)
+const RUN_MARK_FACE := &"run_mark_face"
+const RUN_MARK_CROSS: Array[Vector2i] = [
+	Vector2i(1, 1), Vector2i(3, 1), Vector2i(2, 2), Vector2i(1, 3), Vector2i(3, 3)
+]
 
 const CARD_FRAME := preload("res://art/frames/loyalty_card.png")
 const STAMP_EMPTY := preload("res://art/icons/stamp_empty.png")
 const RING := preload("res://art/icons/stamp_ring.png")
 const RING_EMPTY := preload("res://art/icons/stamp_ring_empty.png")
+## The chip ring's rim alone, laid over a perk icon so its square corners tuck under the ring.
+const RING_RIM := preload("res://art/icons/stamp_ring_rim.png")
 
 var _boxes: HBoxContainer
 var _box_count: int = 0
@@ -213,7 +250,8 @@ static func names(upgrades: Array[UpgradeDefinition]) -> PackedStringArray:
 	return result
 
 
-## Every box's text, empty for an empty box.
+## Every box's text: a stamped box's initials (empty when it shows its perk icon, box_icon), empty
+## for an empty box.
 func box_texts() -> PackedStringArray:
 	var texts: PackedStringArray = PackedStringArray()
 	for child: Node in _boxes.get_children():
@@ -265,9 +303,9 @@ func level_mark_in_box(index: int) -> Array[Rect2]:
 	return [to_box * Rect2(Vector2.ZERO, badge.size), Rect2(Vector2.ZERO, stamped.size)]
 
 
-## Placeholder for the perk icon: the first two letters of the first word, then the second
-## word's initial ("Coupon engine" CoE, "Category engine" CaE, #108's "Dairy aisle run" DaA), so
-## similar names stay apart and three letters fit the ring.
+## The stamp of a perk with no icon that fits: the first two letters of the first word, then the
+## second word's initial ("Coupon engine" CoE, "Category engine" CaE, #108's "Dairy aisle run"
+## DaA), so similar names stay apart and three letters fit the ring.
 static func initials(display_name: String) -> String:
 	var words: PackedStringArray = display_name.split(" ", false)
 	if words.is_empty():
@@ -314,41 +352,51 @@ func _make_box(upgrade: UpgradeDefinition) -> PanelContainer:
 		panel.add_theme_stylebox_override("panel", ring)
 		ArtStyle.use_pixel_material(panel)
 		panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	elif family_ring(upgrade) != Color():
+		panel.add_theme_stylebox_override("panel", _family_face(upgrade, BOX_SIZE))
 	else:
 		var style: StyleBoxFlat = StyleBoxFlat.new()
 		style.set_corner_radius_all(17)
 		style.set_border_width_all(STAMP_BORDER)
 		style.set_content_margin_all(0)
-		# The darker tomato keeps the paper initials readable (5.9:1 against 3.7:1).
-		style.bg_color = Palette.TOMATO_DARK
+		# The darker tomato keeps the paper initials readable (5.9:1 against 3.7:1); an icon
+		# sits on teal dark, as the mock-up's boxes (#108).
+		var icon: Texture2D = face_icon(upgrade, false)
+		style.bg_color = Palette.TEAL_DARK if icon != null else Palette.TOMATO_DARK
 		style.border_color = Palette.INK
 		panel.add_theme_stylebox_override("panel", style)
+	if upgrade != null:
 		# PASS, not IGNORE: a tooltip needs the mouse.
 		panel.mouse_filter = Control.MOUSE_FILTER_PASS
 		panel.tooltip_text = tooltip_for(upgrade)
 	# The number font (MSDF Atkinson) stays crisp at the tilt and tells l from I and C from D:
 	# paper with a thin ink outline.
-	var label: Label = UiKit.number_label(
-		initials(upgrade.display_name) if upgrade != null else "", INITIALS_SIZE, true
-	)
+	var label: Label = UiKit.number_label(stamp_text(upgrade, false), INITIALS_SIZE, true)
 	label.add_theme_constant_override("outline_size", INITIALS_OUTLINE)
 	label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	panel.add_child(label)
+	add_perk_icon(panel, upgrade, false)
+	add_family_edge(panel, upgrade, BOX_SIZE)
+	add_run_mark(panel, upgrade, false)
 	add_level_mark(panel, upgrade, BOX_SIZE)
 	return panel
 
 
-## The chip face's box: B2's ring (dashed when empty) at 2x, the initials in mustard pale at the
-## largest CHIP_INITIALS_SIZES size that fits inside the rings. The deck view's Run info shows it
-## beside each upgrade (#56).
+## The chip face's box: B2's ring (dashed when empty) at 2x, or a family perk's ring in its
+## family's colour, holding the perk's icon, else its initials in mustard pale at the largest
+## CHIP_INITIALS_SIZES size that fits inside the rings. The deck view's Run info shows it beside
+## each upgrade (#56).
 static func make_ring(upgrade: UpgradeDefinition) -> PanelContainer:
 	var panel: PanelContainer = PanelContainer.new()
 	panel.custom_minimum_size = CHIP_BOX_SIZE
-	var ring: StyleBoxTexture = StyleBoxTexture.new()
-	ring.texture = RING if upgrade != null else RING_EMPTY
-	ring.set_content_margin_all(0)
-	panel.add_theme_stylebox_override("panel", ring)
+	if family_ring(upgrade) != Color():
+		panel.add_theme_stylebox_override("panel", _family_face(upgrade, CHIP_BOX_SIZE))
+	else:
+		var ring: StyleBoxTexture = StyleBoxTexture.new()
+		ring.texture = RING if upgrade != null else RING_EMPTY
+		ring.set_content_margin_all(0)
+		panel.add_theme_stylebox_override("panel", ring)
 	ArtStyle.use_pixel_material(panel)
 	panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	var label: Label = UiKit.number_label("", CHIP_INITIALS_SIZES[0], false)
@@ -361,10 +409,218 @@ static func make_ring(upgrade: UpgradeDefinition) -> PanelContainer:
 	# PASS, not IGNORE: a tooltip needs the mouse.
 	panel.mouse_filter = Control.MOUSE_FILTER_PASS
 	panel.tooltip_text = tooltip_for(upgrade)
-	label.text = initials(upgrade.display_name)
+	label.text = stamp_text(upgrade, true)
 	label.add_theme_font_size_override("font_size", chip_initials_size(label.text))
+	add_perk_icon(panel, upgrade, true)
+	add_family_edge(panel, upgrade, CHIP_BOX_SIZE)
+	add_run_mark(panel, upgrade, true)
 	add_level_mark(panel, upgrade, CHIP_BOX_SIZE)
 	return panel
+
+
+## The perk icon of `upgrade` (UpgradeDefinition.icon_ref) when it loads and fits `inside` px
+## square at the art scale, else null (the box shows its initials).
+static func perk_icon(upgrade: UpgradeDefinition, inside: float) -> Texture2D:
+	if (
+		upgrade == null
+		or upgrade.icon_ref.is_empty()
+		or not ResourceLoader.exists(upgrade.icon_ref)
+	):
+		return null
+	var texture: Texture2D = load(upgrade.icon_ref) as Texture2D
+	if texture == null:
+		return null
+	var drawn: Vector2 = texture.get_size() * ArtStyle.ART_SCALE
+	return texture if drawn.x <= inside and drawn.y <= inside else null
+
+
+## The ring colour of a family perk (#108 follow-up): the face colour of the family it works with
+## (UpgradeDefinition.boosts_tag, FamilyPalette), or Color() for a perk with no family colour.
+static func family_ring(upgrade: UpgradeDefinition) -> Color:
+	var style: FamilyStyle = _family(upgrade)
+	return style.face if style != null else Color()
+
+
+## A family perk's round face in a `box_size` box: teal dark inside a FAMILY_RING ring in its
+## family's colour (add_family_edge inks the ring's outer edge).
+static func _family_face(upgrade: UpgradeDefinition, box_size: Vector2) -> StyleBoxFlat:
+	var style: StyleBoxFlat = StyleBoxFlat.new()
+	style.anti_aliasing = false
+	style.bg_color = Palette.TEAL_DARK
+	style.border_color = family_ring(upgrade)
+	style.set_border_width_all(FAMILY_RING)
+	style.set_corner_radius_all(int(box_size.x / 2.0))
+	style.set_content_margin_all(0)
+	return style
+
+
+## Inks the outer FAMILY_EDGE px of a family perk's ring in its box `stamped` (`box_size`): a
+## round ink line over the whole box. Other perks get none. The box's first child stays its label
+## (box_texts).
+static func add_family_edge(
+	stamped: PanelContainer, upgrade: UpgradeDefinition, box_size: Vector2
+) -> void:
+	if family_ring(upgrade) == Color():
+		return
+	var edge: Panel = Panel.new()
+	edge.name = FAMILY_EDGE_NAME
+	edge.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var line: StyleBoxFlat = StyleBoxFlat.new()
+	line.anti_aliasing = false
+	line.draw_center = false
+	line.border_color = Palette.INK
+	line.set_border_width_all(FAMILY_EDGE)
+	line.set_corner_radius_all(int(box_size.x / 2.0))
+	edge.add_theme_stylebox_override("panel", line)
+	stamped.add_child(edge)
+
+
+## The family look of `upgrade`'s boosts_tag, when it has ticket colours, else null.
+static func _family(upgrade: UpgradeDefinition) -> FamilyStyle:
+	if upgrade == null or upgrade.boosts_tag.is_empty():
+		return null
+	var style: FamilyStyle = FamilyPalette.shared().style(upgrade.boosts_tag)
+	return style if style != null and style.has_ticket_colours() else null
+
+
+## The icon `upgrade`'s box shows on the chip face (`chip`) or the card face: its perk icon when
+## it fits inside the box's ring (FAMILY_RING for a family perk, else the face's own ring), else
+## null. Every perk's icon fits both (#108 follow-up: Big basket's is a 9x9 "+1" ticket since).
+static func face_icon(upgrade: UpgradeDefinition, chip: bool) -> Texture2D:
+	var box_size: Vector2 = CHIP_BOX_SIZE if chip else BOX_SIZE
+	var ring: int = CHIP_RING if chip else STAMP_BORDER
+	if family_ring(upgrade) != Color():
+		ring = FAMILY_RING
+	return perk_icon(upgrade, box_size.x - 2.0 * ring)
+
+
+## A stamped box's text on the chip face (`chip`) or the card face: its initials when no icon
+## fits, else empty (empty for an empty box too).
+static func stamp_text(upgrade: UpgradeDefinition, chip: bool) -> String:
+	if upgrade == null or face_icon(upgrade, chip) != null:
+		return ""
+	return initials(upgrade.display_name)
+
+
+## Adds `upgrade`'s perk icon (face_icon) to its box `stamped` on the chip face (`chip`) or the
+## card face, centred at the art scale. The box's first child stays its label (box_texts).
+static func add_perk_icon(stamped: PanelContainer, upgrade: UpgradeDefinition, chip: bool) -> void:
+	var texture: Texture2D = face_icon(upgrade, chip)
+	if texture == null:
+		return
+	var box_size: Vector2 = CHIP_BOX_SIZE if chip else BOX_SIZE
+	var holder: Control = Control.new()
+	holder.name = ICON_NAME
+	holder.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	stamped.add_child(holder)
+	var sprite: TextureRect = UiKit.sprite(texture)
+	sprite.name = "Sprite"
+	sprite.size = texture.get_size() * ArtStyle.ART_SCALE
+	# On the art grid, so the icon's texels stay square.
+	sprite.position = (
+		((box_size - sprite.size) / 2.0 / ArtStyle.ART_SCALE).floor() * ArtStyle.ART_SCALE
+	)
+	if not chip:
+		# Upright inside the card's tilted stamp (polish pass): a round ring looks the same at any
+		# tilt, and pixel art turned 6 degrees goes soft and jagged.
+		sprite.pivot_offset = box_size / 2.0 - sprite.position
+		sprite.rotation = -deg_to_rad(STAMP_TILT)
+	holder.add_child(sprite)
+	holder.add_child(_icon_rim(upgrade, chip))
+
+
+## The ring laid over `upgrade`'s icon (polish pass), the same as the box's own ring under it: a
+## family perk's ring in its family's colour, else the chip's rim art or the card's ink ring.
+static func _icon_rim(upgrade: UpgradeDefinition, chip: bool) -> Control:
+	var box_size: Vector2 = CHIP_BOX_SIZE if chip else BOX_SIZE
+	if chip and family_ring(upgrade) == Color():
+		var rim: TextureRect = UiKit.sprite(RING_RIM)
+		rim.name = ICON_RIM_NAME
+		rim.size = box_size
+		return rim
+	var panel: Panel = Panel.new()
+	panel.name = ICON_RIM_NAME
+	panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	panel.size = box_size
+	var line: StyleBoxFlat = StyleBoxFlat.new()
+	line.anti_aliasing = false
+	line.draw_center = false
+	var family: Color = family_ring(upgrade)
+	line.border_color = family if family != Color() else Palette.INK
+	line.set_border_width_all(FAMILY_RING if family != Color() else STAMP_BORDER)
+	line.set_corner_radius_all(int(box_size.x / 2.0))
+	panel.add_theme_stylebox_override("panel", line)
+	return panel
+
+
+## The perk icon shown in the box of upgrade `index`, or null (its initials, or no such box).
+func box_icon(index: int) -> Texture2D:
+	var holder: Control = _part(index, ICON_NAME)
+	return (holder.get_child(0) as TextureRect).texture if holder != null else null
+
+
+## Adds an Aisle run's tag (#108 follow-up) to its box `stamped` on the chip face (`chip`) or the
+## card face: the RUN_MARK_SIZE "×" badge on its family's face colour at the box's top left,
+## upright on the card's tilted stamp (polish pass: drawn turned, its texels went jagged). Other
+## perks get none.
+static func add_run_mark(stamped: PanelContainer, upgrade: UpgradeDefinition, chip: bool) -> void:
+	var face: Color = run_mark_colour(upgrade)
+	if face == Color():
+		return
+	var holder: Control = Control.new()
+	holder.name = RUN_MARK_NAME
+	holder.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	stamped.add_child(holder)
+	var tag: Control = make_run_tag(face)
+	if not chip:
+		tag.pivot_offset = RUN_MARK_SIZE / 2.0
+		tag.rotation = -deg_to_rad(STAMP_TILT)
+	holder.add_child(tag)
+
+
+## The colour of `upgrade`'s Aisle run tag: its family's face for an Aisle run with a family
+## colour, else Color() (no tag).
+static func run_mark_colour(upgrade: UpgradeDefinition) -> Color:
+	var family: FamilyStyle = _family(upgrade)
+	if family == null or upgrade.type != UpgradeDefinition.Type.AISLE_RUN:
+		return Color()
+	return family.face
+
+
+## A RUN_MARK_SIZE Aisle run tag in `face`, at (0, 0): the loyalty box's and the planning
+## sticker's loyalty badge's (GiverBadge). Its colour is its RUN_MARK_FACE meta, so a drained
+## badge can repaint it grey (set_run_tag_face).
+static func make_run_tag(face: Color) -> Control:
+	var tag: Control = Control.new()
+	tag.name = "Tag"
+	tag.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	tag.size = RUN_MARK_SIZE
+	tag.position = Vector2.ZERO
+	tag.set_meta(RUN_MARK_FACE, face)
+	tag.draw.connect(func() -> void: _draw_run_mark(tag, tag.get_meta(RUN_MARK_FACE) as Color))
+	return tag
+
+
+## Repaints the run tag `tag` (make_run_tag) in `face`.
+static func set_run_tag_face(tag: Control, face: Color) -> void:
+	tag.set_meta(RUN_MARK_FACE, face)
+	tag.queue_redraw()
+
+
+## Draws the Aisle run tag on `tag`: ink, the family's `face` inside a one-texel edge, the ink
+## cross over it.
+static func _draw_run_mark(tag: Control, face: Color) -> void:
+	var texel: Vector2 = Vector2.ONE * ArtStyle.ART_SCALE
+	tag.draw_rect(Rect2(Vector2.ZERO, RUN_MARK_SIZE), Palette.INK)
+	tag.draw_rect(Rect2(texel, RUN_MARK_SIZE - texel * 2.0), face)
+	for cell: Vector2i in RUN_MARK_CROSS:
+		tag.draw_rect(Rect2(Vector2(cell) * texel, texel), Palette.INK)
+
+
+## The Aisle run tag on the box of upgrade `index` (null: none, another perk or no such box).
+func run_mark(index: int) -> Control:
+	var holder: Control = _part(index, RUN_MARK_NAME)
+	return holder.get_child(0) as Control if holder != null else null
 
 
 ## Adds `upgrade`'s level badge to its box `stamped` (`box_size`), past LV 1 only: a holder over
@@ -380,7 +636,10 @@ static func add_level_mark(
 	holder.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	stamped.add_child(holder)
 	var text: String = str(upgrade.level_number())
-	var badge: Label = UiKit.display_label(text, LEVEL_SIZE, false)
+	var chip: bool = box_size == CHIP_BOX_SIZE
+	var font_size: int = CHIP_LEVEL_SIZE if chip else LEVEL_SIZE
+	var pad: float = CHIP_LEVEL_PAD if chip else LEVEL_PAD
+	var badge: Label = UiKit.display_label(text, font_size, false)
 	badge.name = "Badge"
 	badge.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	badge.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
@@ -392,14 +651,18 @@ static func add_level_mark(
 	style.set_content_margin_all(0)
 	badge.add_theme_stylebox_override("normal", style)
 	var font: Font = ArtStyle.DISPLAY_FONT
-	var width: float = font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, LEVEL_SIZE).x
-	var side: Vector2 = Vector2(
-		width + 2.0 * (LEVEL_PAD + LEVEL_BORDER), font.get_height(LEVEL_SIZE)
-	)
+	var width: float = font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size).x
+	var side: Vector2 = Vector2(width + 2.0 * (pad + LEVEL_BORDER), font.get_height(font_size))
 	side = (side / 2.0).ceil() * 2.0  # On the 2 px grid.
 	badge.notification(Control.NOTIFICATION_THEME_CHANGED)
 	badge.size = side
 	badge.position = box_size - side
+	if not chip:
+		# Upright on the card's tilted stamp (polish pass: turned, its numeral went soft), moved in
+		# by LEVEL_INSET so its turned corners stay inside the box.
+		badge.position -= Vector2.ONE * LEVEL_INSET
+		badge.pivot_offset = side / 2.0
+		badge.rotation = -deg_to_rad(STAMP_TILT)
 	holder.add_child(badge)
 
 

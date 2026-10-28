@@ -33,7 +33,8 @@ enum Tier { PLAIN, BIG, GOLDEN }
 ## The giver-badge mini (sticker minis, art/minis/): the hand-drawn 7x7 product a planning sticker's
 ## badge shows for this product, and its GOLDEN copy with the gold outline. Set on the plain card
 ## only; a BIG or GOLDEN tier leaves them empty and uses its plain card's (badge_mini_ref).
-## Empty for a product with no sprite yet (its badge keeps the initials) and for a coupon.
+## Coupons use an icon up to 10x10 on their teal token; they have no GOLDEN mini.
+## Empty for a product with no sprite yet (its badge keeps the initials).
 @export var mini_art_ref: String = ""
 @export var mini_golden_art_ref: String = ""
 ## A card variant (full build plan section 7.3): the card it is a variant of, e.g. Organic

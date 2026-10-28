@@ -1,0 +1,13 @@
+; Coupon giver badge, PR #113: One tomato price tag with a paper down arrow and a punched hole.
+; Trimmed canvas, centred on the teal token at 2x.
+@size 10x9
+@kind icon
+...######.
+..#ooooRr#
+.#oRRwRRr#
+#R#RRwRRr#
+#RRRRwRRr#
+.#RRwwwRr#
+..#RRwRRr#
+...#rrrrq#
+....#####.

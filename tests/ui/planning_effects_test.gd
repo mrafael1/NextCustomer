@@ -71,8 +71,8 @@ func test_every_item_shows_its_model() -> void:
 		assert_object(_item(screen, slot)._mark).override_failure_message(str(slot)).is_null()
 	var layer: PlanningLayer = _layer(screen)
 	# Bread takes Eggs' ×2 with the item badge, Eggs' mini (sticker minis); Multipack's ×3 lands
-	# with the coupon badge "Mu"; the Milk in slot 2 is stamped by the Spot check and greys; a
-	# boosted Milk is raised.
+	# with the coupon badge showing Multipack's mini; the Milk in slot 2 is stamped by the Spot
+	# check and greys; a boosted Milk is raised.
 	var bread: EffectSticker = _sticker_with(layer.stack(1), "×2")
 	assert_object(bread).is_not_null()
 	assert_int(bread.badge().kind).is_equal(GiverBadge.Kind.ITEM)
@@ -81,7 +81,8 @@ func test_every_item_shows_its_model() -> void:
 	var stamped: EffectSticker = _sticker_with(layer.stack(4), "×3")
 	assert_object(stamped).is_not_null()
 	assert_int(stamped.badge().kind).is_equal(GiverBadge.Kind.COUPON)
-	assert_str(stamped.badge().initials()).is_equal("Mu")
+	assert_bool(stamped.badge().shows_icon()).is_true()
+	assert_str(stamped.badge().initials()).is_empty()
 	var stamp: DenyStamp = layer.stamp(2)
 	assert_str(stamp.amount()).is_equal("€0")
 	assert_str(stamp.caption()).is_equal(screen.run.inspections[0].display_name.to_upper())

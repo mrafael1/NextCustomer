@@ -43,10 +43,11 @@ func test_loyalty_boxes_report_hovers_and_take_rings() -> void:
 		assert_bool(drawn.encloses(box.get_global_rect())).is_true()
 		assert_bool(bar_rect.encloses(drawn)).override_failure_message(str(drawn)).is_true()
 		assert_int(ring.mouse_filter).is_equal(Control.MOUSE_FILTER_IGNORE)
-		# h1: no fizzle corner on the box.
-		assert_int(box.find_children("*", "TextureRect", true, false).size()).is_equal(0)
+		# h1: no fizzle corner on the box: its only art is its perk icon (#108 follow-up).
+		for art: Node in box.find_children("*", "TextureRect", true, false):
+			assert_str(art.get_parent().name).is_equal(LoyaltyCard.ICON_NAME)
 		assert_str((box.get_child(0) as Label).text).is_equal(
-			LoyaltyCard.initials(upgrades[index].display_name)
+			LoyaltyCard.stamp_text(upgrades[index], true)
 		)
 	card.set_relation(0, false)
 	assert_bool(card.has_relation(0)).is_false()

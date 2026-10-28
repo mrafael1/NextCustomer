@@ -18,3 +18,4 @@ rules = Array[ExtResource("1_rtnea")]([SubResource("Resource_ovbn1")])
 rule_text = "Copy the payout of the product just before it"
 sticker_text = "Copy prior payout"
 art_ref = "res://art/icons/coupon_repeat_v2.png"
+mini_art_ref = "res://art/icons/coupon_repeat_mini.png"

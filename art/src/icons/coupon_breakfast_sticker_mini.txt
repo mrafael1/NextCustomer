@@ -1,0 +1,13 @@
+; Coupon giver badge, PR #113: breakfast sticker.
+; Trimmed to the drawing so it centres exactly inside the teal token.
+@size 9x9
+@kind icon
+.#######.
+#5555555#
+#54www43#
+#4wMMww3#
+#4wyMww3#
+#44www###
+#44444#c#
+#33333##.
+.#####...

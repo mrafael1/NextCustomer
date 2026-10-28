@@ -1,0 +1,14 @@
+; Coupon giver badge, PR #113: a gold payout between two opposing return arrows.
+; Trimmed canvas, centred on the teal token at 2x.
+@size 10x10
+@kind icon
+.......R..
+.RRRRRRRR.
+.R.....R..
+.R.####...
+...#yn#...
+...#Mm#...
+...####.R.
+..R.....R.
+.RRRRRRRR.
+..R.......

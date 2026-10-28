@@ -1,0 +1,18 @@
+; stamp_ring's rim alone (#108 follow-up): its mustard light and mustard rings with a clear
+; middle, laid over a perk icon in the top bar's ring so an icon's square corners tuck under the
+; ring instead of covering it. 13x13, shown at 2x like stamp_ring.
+@size 13x13
+@kind icon
+....yyyyy....
+...yMMMMMy...
+..yM.....My..
+.yM.......My.
+yM.........My
+yM.........My
+yM.........My
+yM.........My
+yM.........My
+.yM.......My.
+..yM.....My..
+...yMMMMMy...
+....yyyyy....

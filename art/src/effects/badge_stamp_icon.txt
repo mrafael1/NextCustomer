@@ -1,0 +1,20 @@
+; The loyalty giver token for a perk icon (#108 follow-up polish): badge_stamp_polished's octagon
+; and ink edge with a one-texel rim (mustard light top left, mustard dark bottom right) round a
+; 10x10 teal dark middle, so a 9x9 perk icon at 2x sits inside the rim instead of over it (the
+; polished token's middle is 8 wide). 14x14 at 2x, drawn by GiverBadge under the icon.
+@size 14x14
+@kind icon
+..##########..
+.##yyyyyyyy##.
+##y22222222M##
+#y2222222222M#
+#y2222222222M#
+#y2222222222M#
+#y2222222222M#
+#y2222222222m#
+#y2222222222m#
+#y2222222222m#
+#y2222222222m#
+##M22222222m##
+.##mmmmmmmm##.
+..##########..
