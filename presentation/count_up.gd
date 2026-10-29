@@ -311,7 +311,10 @@ func play(
 	_presses.begin()
 	_playing = true
 	# The receipt starts over: the shift's header (#80); each item's line prints as it scans.
-	_receipt.begin_count(context.receipt_header, _names)
+	var cards: Array[CardDefinition] = []
+	for view: CardView in _views:
+		cards.append(view.card.definition if view.card != null else null)
+	_receipt.begin_count(context.receipt_header, _names, true, cards)
 	_set_subtotal(0)
 	for view: CardView in _views:
 		view.reset_motion()
@@ -481,6 +484,8 @@ func _climax_ended() -> void:
 ## a hold. The printer is silent; a large total rattles the register (a huge one also rings the
 ## register bell). The rattle and the bell sound under reduced motion too: only the shake goes.
 func _pause() -> void:
+	if plan.pause_ms <= 0:
+		return
 	if plan.size != CountUpPlan.Size.NORMAL:
 		var huge: bool = plan.size == CountUpPlan.Size.HUGE
 		if huge:

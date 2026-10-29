@@ -95,9 +95,10 @@ func test_the_scan_groups_follow_the_scanner_not_the_step_slot() -> void:
 ## shortens them: on the worst-case row fitted to stage 4 or 5, every item after the first rides
 ## for the whole ride_ms, at any speed; the last item's bag hop is never counted.
 func test_ride_gaps_count_in_the_plan_and_survive_the_fit() -> void:
-	var tuning: CountUpTuning = load(TUNING)
+	var tuning: CountUpTuning = (load(TUNING) as CountUpTuning).duplicate()
+	tuning.fit_target_ms = 2000
 	for context: CountUpContext in [CountUpContext.new(1, 0), CountUpContext.new(8, 0, 1.5)]:
-		var plan: CountUpPlan = PLAN._plan(PLAN._long_steps(), 30, context)
+		var plan: CountUpPlan = CountUpPlan.build(PLAN._long_steps(), 30, context, tuning)
 		assert_int(plan.fit_stage).is_greater_equal(4)
 		var rides: int = 0
 		var lengths: int = plan.pre_roll_ms

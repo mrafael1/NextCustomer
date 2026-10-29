@@ -4,8 +4,8 @@
 
 [resource]
 script = ExtResource("1_tuning")
-landing_fly_ms = 180
-landing_gap_ms = 300
+landing_fly_ms = 60
+landing_gap_ms = 180
 fit_landing_gap_ms = 180
 ticks_per_landing = 3
 tick_gap_ms = 60
@@ -53,6 +53,10 @@ step_fade_s = 0.1
 part_fade_s = 0.16
 part_delays = PackedFloat32Array(0, 0.08, 0.18, 0.26, 0.32)
 part_step_delay = 0.1
+page_interval_s = 2.5
+page_fade_s = 0.15
+step_line_at = 0.3
+step_value_at = 0.55
 climax_in_s = 0.12
 climax_settle_s = 0.25
 climax_from = 0.4

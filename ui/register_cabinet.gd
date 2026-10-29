@@ -45,6 +45,7 @@ const CHECKOUT_FONT_SIZE := 30
 const SEED_FONT_SIZE := 11
 const SEED_FONT_WEIGHT := 600
 
+var total_display: RegisterTotal
 var checkout_key: RegisterKey
 var redraw_key: RegisterKey
 ## Shown in redraw mode only (the screen shows it), over the keypad, which hides meanwhile.
@@ -53,6 +54,10 @@ var seed_label: Label
 var keypad: TextureRect
 ## CHECKOUT's "›", a child of its caption label (so it sinks and fades with it).
 var checkout_arrow: Label
+
+var _drawer: TextureRect
+var _drawer_motion: Tween
+var _count: CountUp
 
 
 func _init() -> void:
@@ -73,8 +78,13 @@ func _init() -> void:
 	_add(deck, local_rect(ShiftStage.DECK_RECT)).name = "Deck"
 	keypad = UiKit.sprite(KEYPAD)
 	_add(keypad, local_rect(ShiftStage.KEYPAD_RECT)).name = "Keypad"
-	_add(UiKit.sprite(DRAWER), local_rect(ShiftStage.DRAWER_RECT)).name = "Drawer"
+	_drawer = UiKit.sprite(DRAWER)
+	_add(_drawer, local_rect(ShiftStage.DRAWER_RECT)).name = "Drawer"
 	_build_keys()
+	total_display = RegisterTotal.new()
+	total_display.position = local_rect(ShiftStage.CHECKOUT_RECT).position + Vector2(4, 8)
+	add_child(total_display)
+	total_display.drawer_kicked.connect(_kick_drawer)
 
 
 func _ready() -> void:
@@ -170,3 +180,25 @@ func _add(node: Control, rect: Rect2) -> Control:
 	node.size = rect.size
 	add_child(node)
 	return node
+
+
+## The customer display reads the count's model, covering the held checkout key only in count.
+func follow_count(count_up: CountUp, reading: LedDisplay) -> void:
+	_count = count_up
+	total_display.follow(count_up, reading)
+	count_up.climax_running = total_display.is_celebrating
+
+
+func _kick_drawer(wide: bool) -> void:
+	if _count == null or _count.plan == null or _count.plan.reduced_motion:
+		return
+	if _drawer_motion != null and _drawer_motion.is_valid():
+		_drawer_motion.kill()
+	var rest: Vector2 = local_rect(ShiftStage.DRAWER_RECT).position
+	_drawer.position = rest
+	# The quota's kick follows real time so its hit-stop does not freeze the celebration.
+	_drawer_motion = create_tween() if wide else _count.tween_maker().call() as Tween
+	_drawer_motion.tween_property(_drawer, "position", rest + Vector2(0, 18 if wide else 4), 0.12)
+	if wide:
+		_drawer_motion.tween_interval(0.45)
+	_drawer_motion.tween_property(_drawer, "position", rest, 0.16)

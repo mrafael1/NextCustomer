@@ -107,9 +107,10 @@ static func _scan(state: ScoreState, slot: int, registers: Array, checks: Array)
 			if own_bonus != 0:
 				value += own_bonus
 				if explain:
-					state.add_step(
+					var step: ScoreStep = state.add_step(
 						ScoreStep.StepType.FLAT, slot, slot, own_bonus, value, rule.text_for(card)
 					)
+					step.support_slot = rule.flat_support(state, slot)
 	if gets_effects:
 		for effect: ScoreEffect in state.effects:
 			var effect_bonus: int = effect.flat_bonus(state, slot)

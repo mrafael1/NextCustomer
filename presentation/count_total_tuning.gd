@@ -105,6 +105,16 @@ extends Resource
 @export var part_fade_s: float = 0.0
 @export var part_delays: PackedFloat32Array = PackedFloat32Array()
 @export var part_step_delay: float = 0.0
+## Planning's step lines too many for the compact layout go on pages (Checkout Rhythm v3.1): the
+## next page shows every page_interval_s (0: no turning by itself), the pages crossfading over
+## page_fade_s (0, or reduced motion: at once).
+@export var page_interval_s: float = 0.0
+@export var page_fade_s: float = 0.0
+## A bonus or multiplier beat in the count (v3.1, the mock-up's doBeat): its monitor line shows
+## at step_line_at of the beat's length and its value lands on the item no earlier than
+## step_value_at of the beat's motion (the count's clock; reduced motion: the line at once).
+@export var step_line_at: float = 0.0
+@export var step_value_at: float = 0.0
 
 @export_group("Climax")
 ## SPEND MET's takeover of the whole screen (real time, sped up only by a tap or a hold): the

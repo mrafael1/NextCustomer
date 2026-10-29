@@ -163,7 +163,7 @@ func test_a_pass_ducks_the_dessert_and_comes_back_with_the_machine() -> void:
 	var ducked_ms: int = _first_ms(frames, func(f: Dictionary) -> bool: return f["ducked"])
 	var verdict_ms: int = _first_ms(frames, func(f: Dictionary) -> bool: return f["verdict"])
 	assert_int(ducked_ms).is_greater_equal(0)
-	assert_int(ducked_ms).is_less(verdict_ms)
+	assert_int(ducked_ms).is_less_equal(verdict_ms)
 	var duck_ms: int = _first_ms(
 		frames, func(f: Dictionary) -> bool: return f["bus"] < base - NEAR_DB
 	)

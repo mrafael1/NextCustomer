@@ -18,12 +18,25 @@ const HEADER: Array[String] = ["NEXT CUSTOMER · REG 3", "SHIFT 5/8 · 4 ITEMS"]
 const NAMES: Array[String] = ["Milk", "Bread", "Coffee"]
 
 var _receipt: ReceiptView
+var _folder: String = ""
 
 
 func before_test() -> void:
+	# Saves and logs go to a temporary folder, never the real user:// ones.
+	_folder = "user://test_receipt_stub_%d" % Time.get_ticks_usec()
+	_event_log().use_folder(_folder)
+	ProjectSettings.set_setting(SaveService.FOLDER_SETTING, _folder)
 	_receipt = auto_free(ReceiptView.new()) as ReceiptView
 	add_child(_receipt)
 	_receipt.size = RECEIPT_SIZE
+
+
+func after_test() -> void:
+	ProjectSettings.set_setting(SaveService.FOLDER_SETTING, null)
+	if DirAccess.dir_exists_absolute(_folder):
+		for file_name: String in DirAccess.get_files_at(_folder):
+			DirAccess.remove_absolute(_folder.path_join(file_name))
+		DirAccess.remove_absolute(_folder)
 
 
 func test_the_header_counts_the_shift_and_every_item() -> void:
@@ -46,10 +59,8 @@ func test_money_prints_cents() -> void:
 	assert_str(ReceiptView.margin_text(ShiftMargin.Kind.OVER, 11)).is_equal("+€11.00 OVER QUOTA")
 	assert_str(ReceiptView.margin_text(ShiftMargin.Kind.SHORT, 4)).is_equal("SHORT €4.00")
 	assert_str(ReceiptView.margin_text(ShiftMargin.Kind.ON, 0)).is_equal("ON QUOTA")
-
-
-## The receipt's font has every glyph its lines print (the dots, the bullets, € and ×).
-func test_the_font_has_the_receipts_glyphs() -> void:
+	# The receipt's font has every glyph its lines print (the dots, the bullets, € and ×; one test
+	# with the amounts' words, so the suite stays at gdlint's 20 public methods).
 	for text: String in [ReceiptView.HEADER_TEXT, "€×+="]:
 		for index: int in range(text.length()):
 			(
@@ -358,8 +369,9 @@ func test_the_count_up_prints_line_by_line() -> void:
 ## multiplier), the PAYOUT step closes the item with a small "= €payout" in ink with the mark
 ## column, framed, and returns its amount; a later line of the item prints above it. An
 ## override's "= €0.00" is the item's amount from then on, so its payout prints nothing more
-## (null), and a fizzled item at €0 that adds up gets no closing line. show_result prints the
-## same.
+## (null), and a fizzled item at €0 that adds up gets no closing line. An armed effect prints
+## its arm line after its item's payout (its words: the rule's text without its card). show_result
+## prints the same.
 func test_an_item_that_does_not_add_up_closes_with_its_payout() -> void:
 	var names: PackedStringArray = PackedStringArray(["Multipack", "Milk", "Soup"])
 	var none: PackedStringArray = PackedStringArray()
@@ -381,7 +393,8 @@ func test_an_item_that_does_not_add_up_closes_with_its_payout() -> void:
 	# Milk's override line closes it: its PAYOUT frames its line and returns nothing to fade in.
 	assert_object(returned[6]).is_null()
 	# The fizzled Soup adds up at €0: its PAYOUT frames its line and prints nothing.
-	assert_object(returned[9]).is_same(_receipt._items[2].get_child(1))
+	assert_object(returned[8]).is_same(_receipt._items[2].get_child(1))
+	assert_bool(ReceiptInk.is_arm(returned[9])).is_true()
 	_receipt.add_total(result.total)
 	var expected: Array[String] = [
 		"Multipack | €1.00",
@@ -391,6 +404,7 @@ func test_an_item_that_does_not_add_up_closes_with_its_payout() -> void:
 		"Milk | €2.00",
 		"Spot check: the 2nd product pays €0 | = €0.00",
 		"Soup | €0.00",
+		"arms Soup bonus | ",
 		"Soup bonus: no Frozen product after it | ",
 		"---",
 		"TOTAL | €3.00",
@@ -672,8 +686,8 @@ static func _closing_result() -> ScoreResult:
 		[1, ScoreStep.StepType.PAYOUT_OVERRIDE, 0, "the 2nd product pays €0"],
 		[1, ScoreStep.StepType.PAYOUT, 0, ""],
 		[2, ScoreStep.StepType.BASE, 0, ""],
-		[2, ScoreStep.StepType.EFFECT_ARMED, 3, "Soup bonus"],
 		[2, ScoreStep.StepType.PAYOUT, 0, ""],
+		[2, ScoreStep.StepType.EFFECT_ARMED, 3, "Soup bonus"],
 		[2, ScoreStep.StepType.WASTED, 0, "Soup bonus"],
 	]
 	for row: Array in rows:
@@ -732,7 +746,7 @@ static func _lines(receipt: ReceiptView) -> Array[String]:
 			continue
 		var texts: PackedStringArray = PackedStringArray()
 		for label: Node in line.get_children():
-			texts.append((label as Label).text)
+			texts.append(label.get_meta(ReceiptInk.WORDS_META, (label as Label).text))
 		lines.append(" | ".join(texts))
 	return lines
 
@@ -740,3 +754,7 @@ static func _lines(receipt: ReceiptView) -> Array[String]:
 func _frames(count: int) -> void:
 	for _index: int in range(count):
 		await get_tree().process_frame
+
+
+static func _event_log() -> EventLogService:
+	return (Engine.get_main_loop() as SceneTree).root.get_node("/root/EventLog")

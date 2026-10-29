@@ -307,7 +307,8 @@ func _print_receipt(rect: Rect2) -> void:
 			view.receipt_names,
 			view.receipt_upgrades,
 			view.receipt_inspections,
-			view.receipt_header
+			view.receipt_header,
+			view.receipt_cards
 		)
 	var sub: String = _ticket_sub(_plan) if _plan.stub else ""
 	paper.show_shift_end(

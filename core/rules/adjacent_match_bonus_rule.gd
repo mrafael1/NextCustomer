@@ -43,6 +43,18 @@ func flat_bonus(state: ScoreState, slot: int) -> int:
 	return bonus_for(state.definition(slot).base)
 
 
+func flat_support(state: ScoreState, slot: int) -> int:
+	if bonus_is_previous_price:
+		return previous_match(state, slot)
+	var neighbours: PackedInt32Array = (
+		state.products_beside(slot) if position == Position.BESIDE else state.products_before(slot)
+	)
+	for other: int in neighbours:
+		if _matches(state, state.definition(slot), other):
+			return other
+	return -1
+
+
 ## Explain path only (Scoring._report_fizzles). A rule paying nothing on a match (neutral
 ## numbers) never fizzles.
 func wasted_reason(state: ScoreState, slot: int) -> String:

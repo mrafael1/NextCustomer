@@ -378,6 +378,7 @@ func _on_binned() -> void:
 func _show_receipt_lines(run: RunState) -> void:
 	view.receipt_header = _screen.receipt_header()
 	view.receipt_names = CardInstance.names(run.row)
+	view.receipt_cards = ReceiptInk.cards_of(run.row)
 	view.receipt_upgrades = LoyaltyCard.names(run.upgrades)
 	view.receipt_inspections = InspectionTag.names(run.inspections)
 	view.shift_total = run.last_result.total if run.last_result != null else 0

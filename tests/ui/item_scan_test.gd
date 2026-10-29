@@ -487,6 +487,22 @@ func test_the_scans_hold_every_line_of_the_planning_receipt() -> void:
 		LoyaltyCard.names(screen.run.upgrades),
 		InspectionTag.names(screen.run.inspections)
 	)
+	# A WASTED line says why in the monitor's room (MonitorText.waste_line, ScanController): every
+	# line now shows (Checkout Rhythm v3.1's pages), so the receipt's wording maps to it.
+	for step: ScoreStep in result.steps:
+		if step.step_type != ScoreStep.StepType.WASTED or not expected.has(step.slot):
+			continue
+		var receipt_line: String = ReceiptView.step_line(
+			step,
+			CardInstance.names(screen.run.row),
+			LoyaltyCard.names(screen.run.upgrades),
+			InspectionTag.names(screen.run.inspections)
+		)
+		var want: PackedStringArray = expected[step.slot]
+		var at: int = want.find(receipt_line)
+		if at >= 0:
+			want[at] = MonitorText.waste_line(step)
+			expected[step.slot] = want
 	# A giver's scan opens with its "gives" line (#71): Eggs' ×2 to Bread, Multipack's ×3 to the
 	# three Milks after it, each with its targets' summed gain, before its receipt lines.
 	var names: PackedStringArray = CardInstance.names(screen.run.row)
@@ -511,21 +527,21 @@ func test_the_scans_hold_every_line_of_the_planning_receipt() -> void:
 		var column: MonitorItemColumn = screen._monitor.item_column()
 		var texts: PackedStringArray = column.step_texts()
 		var rows: Array[Control] = column.step_rows()
-		if not rows.is_empty() and rows[-1].name == "More":
-			# "+N more" folds the last N lines (#105 piece 2): the lines shown are the first ones.
-			var more: int = texts[-1].get_slice(" ", 0).to_int()
-			texts.resize(texts.size() - 1)
-			var full: PackedStringArray = expected.get(slot, PackedStringArray())
-			assert_int(texts.size() + more).is_equal(full.size())
-			expected[slot] = full.slice(0, texts.size())
+		# Every line is kept (on pages when they don't fit; Checkout Rhythm v3.1: no "+N more").
 		footers[slot] = texts
 		if gives.has(slot):
-			# The "gives" line comes first, in mustard darkest with the ✦ mark, its gain the
-			# line's amount.
+			# The "gives" line comes first, its words teal (Checkout Rhythm v3: amber means only
+			# ×) with the ✦ mark, its gain the line's amount, amber for a × and ink for a +.
 			var amount: String = MonitorText.step_parts(gives[slot])[1]
 			var row: Control = rows[0]
 			var text: Label = row.get_node("Text") as Label
-			assert_object(text.get_theme_color("font_color")).is_equal(Palette.MUSTARD_DARKEST)
+			assert_object(text.get_theme_color("font_color")).is_equal(Palette.TEAL_DARK)
+			var amount_colour: Color = (
+				Palette.MUSTARD_DARKEST if amount.begins_with("×") else Palette.INK
+			)
+			assert_object((row.get_node("Amount") as Label).get_theme_color("font_color")).is_equal(
+				amount_colour
+			)
 			var mark: Label = row.get_node("Mark") as Label
 			var marks: Array[String] = [
 				MonitorItemColumn.GIVE_MARK, MonitorItemColumn.GIVE_FALLBACK

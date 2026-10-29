@@ -3,21 +3,25 @@ extends Control
 ## The hung monitor (#80, mock-up B2; ShiftStage.MONITOR_RECT): two rods from the ceiling, the
 ## shade under it, a rubber bezel with a little bevel and the paper screen, drawn flat in code.
 ## Since #105 piece 2 (mock-up readability_v3.html, monitor b, the user's pick of 2026-10-24) it
-## shows one screen in every mode, with no switching: three columns on the paper (PAPER_RECT).
+## shows one screen in every mode, with no switching: two columns on the paper (PAPER_RECT).
 ## - The scanner bay (ScannerBay, BAY_RECT): the item at the scanner, with the queue over it and
 ##   its family chip under it (FamilyChip: what the item works with, in its ticket's colour).
 ## - The item column (MonitorItemColumn, ITEM_RECT): that item read in full: its name and family
 ##   glyphs, its price ("€N", the struck old price under a changed one), its effect text, a dashed
 ##   rule and its step lines.
-## - The checkout column (CheckoutColumn, CHECKOUT_RECT): PLAN or TOTAL over the number ("26€"),
-##   the ladder, "SPEND 26€+" and the status line.
+## - The checkout column (CheckoutColumn, CHECKOUT_RECT) is kept for its readings but never shown:
+##   since Checkout Rhythm v3 the spend objective and the total are the register's and the top
+##   bar's, and the item column takes the paper's whole right side.
 ## In planning (mode() NEXT) the bay and the item column show belt slot 1's item with its lines
 ## (show_next, on every refresh; on an empty belt the item column's hint, MonitorText.EMPTY_BELT),
-## or SCAN a held item's (show_scan, until end_scan); the checkout
-## column shows the projected total, or a drag's would-be total (show_plan). In redraw mode (plan
+## or SCAN a held item's (show_scan, until end_scan). In redraw mode (plan
 ## section 3.8, show_redraw; mode() REDRAW) the redraw panel covers the whole paper. A notice
 ## (NoticeLabel: a full row, a closed slot) shows on a paper strip over the item column's step
-## lines (NOTICE_RECT) while it lasts, never in the count.
+## lines (NOTICE_RECT) while it lasts, never in the count. When the item column's lines are on
+## pages (MonitorItemColumn.pages, Checkout Rhythm v3.1) the monitor takes the pointer: while it is
+## on the screen no page turns by itself, and the mouse wheel (or a touchpad's scroll) over it
+## turns them, one page a gesture (WHEEL_NOTCH, then still for WHEEL_QUIET_MS), taking the event
+## so nothing else scrolls. Otherwise (and in the count) it takes no pointer at all.
 ##
 ## The count (mode() COUNT, follow): the bay follows the rides and beats (ScannerBay); the item
 ## column shows the item in the bay coming in at its base price, its price moving at each of its
@@ -43,19 +47,19 @@ enum Mode { NEXT, SCAN, COUNT, REDRAW }
 ## (inside the screen's ink border), the bay, the item column and the checkout column.
 const PAPER_RECT := Rect2(495, 77, 402, 154)
 const BAY_RECT := Rect2(499, 79, 112, 150)
-const ITEM_RECT := Rect2(619, 81, 178, 146)
+const ITEM_RECT := Rect2(619, 81, 270, 146)
 const CHECKOUT_RECT := Rect2(799, 77, 98, 154)
 ## A notice's paper strip over the item column's step lines, and its text inside it.
-const NOTICE_RECT := Rect2(617, 163, 182, 66)
+const NOTICE_RECT := Rect2(617, 163, 274, 66)
 const NOTICE_MARGIN := 4.0
 const NOTICE_SIZE := 14
 const NOTICE_WEIGHT := 800
 const NOTICE_COLOR := Palette.INK
 ## The DONE state's "INSPECTION PASSED ✓" at the item column's foot (#77 machine v2), as the
 ## dessert stamps it on the receipt (CountUp.inspection_passed).
-const INSPECTION_RECT := Rect2(619, 209, 178, 18)
+const INSPECTION_RECT := Rect2(499, 209, 112, 18)
 const INSPECTION_TEXT := "INSPECTION PASSED ✓"
-const INSPECTION_SIZE := 12
+const INSPECTION_SIZE := 9
 const INSPECTION_WEIGHT := 800
 ## Every part the monitor draws, rods and shade included (stage coordinates).
 const DRAWN_RECT := Rect2(484, 56, 424, 192)
@@ -67,10 +71,21 @@ const BEVEL_DARK := Palette.RUBBER_DARK
 ## The screen's inner shadow under its top border.
 const SCREEN_SHADOW := 2
 const SCREEN_SHADOW_ALPHA := 0.12
+## The wheel: a page turns once the gesture's scroll adds up to WHEEL_NOTCH (a wheel's notch is
+## 1), then not again until the wheel has been still WHEEL_QUIET_MS.
+const WHEEL_NOTCH := 1.0
+const WHEEL_QUIET_MS := 200
+const WHEEL_BUTTONS: Array[MouseButton] = [
+	MOUSE_BUTTON_WHEEL_UP,
+	MOUSE_BUTTON_WHEEL_DOWN,
+	MOUSE_BUTTON_WHEEL_LEFT,
+	MOUSE_BUTTON_WHEEL_RIGHT
+]
 
 ## Returns true when the player asked for reduced motion. None means false.
 var reduced_motion: Callable = Callable()
 ## The register's reading (the model the checkout column and the top bar follow) and the notices.
+var upgrades: Array[UpgradeDefinition] = []
 var led: LedDisplay
 var notice_label: NoticeLabel
 ## The DONE state's "INSPECTION PASSED ✓" label, for checks (read only).
@@ -94,7 +109,13 @@ var _views: Array[CardView] = []
 var _steps: Dictionary[CountUpBeat, ScoreStep] = {}
 ## The slot in the bay in the count (-1 for none).
 var _scanned: int = -1
+var _bagged: Dictionary[int, bool] = {}
+var _step_at: Dictionary[int, ScoreStep] = {}
 var _met: bool = false
+## A bonus or multiplier's step line waiting for its moment in the beat (v3.1), on the count's
+## clock; it shows at once when its value lands first or the next beat starts.
+var _pending_line: Callable = Callable()
+var _pending_wait: Tween
 ## Planning: belt slot 1's item and its lines, the belt's slots and filled ones, and the held
 ## item (null with no scan) with its lines.
 var _next: CardDefinition
@@ -109,6 +130,12 @@ var _held_lines: ScanController.ItemLines
 var _shown_item: CardDefinition
 ## Each label's rect (local), set again once in the tree (a label never shrinks back by itself).
 var _rects: Dictionary[Label, Rect2] = {}
+## The pointer is on the monitor (while it takes it), and the wheel's gesture so far.
+var _hovered: bool = false
+var _wheel_sum: float = 0.0
+var _wheel_at: int = -WHEEL_QUIET_MS - 1
+var _wheel_locked: bool = false
+var _last_motion: InputEventMouseMotion
 
 
 func _init() -> void:
@@ -176,6 +203,8 @@ func _init() -> void:
 	add_child(_redraw_panel)
 	led.mode_changed.connect(_on_led_mode)
 	led.reading_changed.connect(_on_reading)
+	mouse_entered.connect(_on_pointer.bind(true))
+	mouse_exited.connect(_on_pointer.bind(false))
 	_apply()
 
 
@@ -278,11 +307,12 @@ func follow(count_up: CountUp) -> void:
 	_checkout.make_tween = maker
 	_chips.make_tween = maker
 	_climax.speed = count_up.press_speed
-	count_up.total_target = _checkout.total_number()
-	count_up.climax_running = _climax.is_running
+	count_up.total_target = null
+	count_up.climax_running = Callable()
 	count_up.count_started.connect(_on_count_started)
 	count_up.ride.connect(_on_ride)
 	count_up.beat_started.connect(_on_beat_started)
+	count_up.step_landed.connect(_on_step_landed)
 	count_up.landing.connect(_on_landing)
 	count_up.quota_met.connect(_on_quota_met)
 	count_up.total_landed.connect(_on_total_landed)
@@ -303,6 +333,7 @@ func show_end_state(
 	line_of: Callable = Callable()
 ) -> void:
 	_views = views
+	_drop_pending_line()
 	_bay.show_end_state(views.size(), _met)
 	_items.clear()
 	_chips.clear()
@@ -366,10 +397,103 @@ func _apply() -> void:
 	_redraw_panel.visible = redrawing
 	_bay.visible = not redrawing
 	_items.visible = not redrawing
-	_checkout.visible = not redrawing
-	_chips.visible = counting
+	# Checkout Rhythm v3: the spend objective is the register's and the top bar's, never the
+	# monitor's, so the checkout column stays hidden in every mode.
+	_checkout.visible = false
+	_chips.visible = false
 	if not counting:
 		_climax.stop()
+	_follow_pages()
+
+
+## Takes the pointer only while the item column's lines are on pages in planning (holding them
+## while it is on the screen).
+func _follow_pages() -> void:
+	var pages: MonitorStepPages = _paged()
+	mouse_filter = Control.MOUSE_FILTER_PASS if pages != null else Control.MOUSE_FILTER_IGNORE
+	if pages == null:
+		_hovered = false
+		_wheel_sum = 0.0
+		_wheel_locked = false
+		return
+	if not _hovered and _pointer_on_screen():
+		# A pointer already resting on the screen (no motion since) holds the pages too.
+		_hovered = true
+	pages.hold(_hovered)
+
+
+## The item column's pages when it shows more than one in planning, else null.
+func _paged() -> MonitorStepPages:
+	var pages: MonitorStepPages = _items.pages
+	if pages == null or pages.count() < 2 or _counting() or not _items.visible:
+		return null
+	return pages
+
+
+func _on_pointer(over: bool) -> void:
+	_hovered = over
+	var pages: MonitorStepPages = _paged()
+	if pages != null:
+		pages.hold(over)
+
+
+## Where the pointer last moved (any motion, seen here even while the screen ignores the mouse):
+## a pointer resting on the screen when its item starts paging holds the pages, and one that
+## leaves it lets them go even if the screen never had it as hovered.
+func _input(event: InputEvent) -> void:
+	var motion: InputEventMouseMotion = event as InputEventMouseMotion
+	if motion == null:
+		return
+	_last_motion = motion
+	if _hovered and not _pointer_on_screen() and _paged() != null:
+		_on_pointer(false)
+
+
+func _pointer_on_screen() -> bool:
+	if _last_motion == null or not is_visible_in_tree():
+		return false
+	var here: InputEventMouseMotion = make_input_local(_last_motion) as InputEventMouseMotion
+	return Rect2(Vector2.ZERO, size).has_point(here.position)
+
+
+## The wheel over the screen turns the pages (see the class comment) and goes no further.
+func _gui_input(event: InputEvent) -> void:
+	var pages: MonitorStepPages = _paged()
+	if pages == null:
+		return
+	var button: InputEventMouseButton = event as InputEventMouseButton
+	if button != null and WHEEL_BUTTONS.has(button.button_index):
+		if button.pressed:
+			var notch: float = button.factor if button.factor > 0.0 else 1.0
+			if button.button_index == MOUSE_BUTTON_WHEEL_UP:
+				_wheel(pages, -notch)
+			elif button.button_index == MOUSE_BUTTON_WHEEL_DOWN:
+				_wheel(pages, notch)
+		accept_event()
+		return
+	var pan: InputEventPanGesture = event as InputEventPanGesture
+	if pan != null:
+		_wheel(pages, pan.delta.y)
+		accept_event()
+
+
+## `amount` more of the wheel's gesture (down positive): a page once it adds up to a notch.
+func _wheel(pages: MonitorStepPages, amount: float) -> void:
+	var now: int = Time.get_ticks_msec()
+	var quiet: bool = now - _wheel_at > WHEEL_QUIET_MS
+	_wheel_at = now
+	if _wheel_locked and not quiet:
+		return
+	_wheel_locked = false
+	if quiet:
+		_wheel_sum = 0.0
+	_wheel_sum += amount
+	if absf(_wheel_sum) < WHEEL_NOTCH:
+		return
+	var direction: int = -1 if _wheel_sum < 0.0 else 1
+	_wheel_sum = 0.0
+	_wheel_locked = true
+	pages.turn(direction)
 
 
 func _counting() -> bool:
@@ -382,6 +506,7 @@ func _update_planning() -> void:
 		return
 	var held: bool = _held != null
 	var shown: CardDefinition = _held if held else _next
+	_bay.chip().visible = true
 	_bay.show_planning(shown, held, _slots, _filled)
 	if shown == null:
 		_items.show_empty(MonitorText.EMPTY_BELT)
@@ -449,12 +574,16 @@ func _on_reading(amount: int, quota: int, _met_now: bool) -> void:
 ## planning left it in the bay).
 func _on_count_started(views: Array[CardView]) -> void:
 	_views = views
+	_drop_pending_line()
+	_bagged.clear()
+	_step_at.clear()
 	_met = false
 	_scanned = -1
 	_steps.clear()
 	var first: CardDefinition = null
 	if not views.is_empty() and views[0] != null:
 		first = views[0].card.definition
+	_bay.chip().visible = true
 	_bay.start(views.size(), first)
 	_items.clear()
 
@@ -462,6 +591,8 @@ func _on_count_started(views: Array[CardView]) -> void:
 ## CountUp.ride: item `scan_slot` rides in over `ride_ms` while `bag_slot` bags; after the last
 ## (-1) the item column keeps the last item and its line (the end state, mock-up still 16.5).
 func _on_ride(bag_slot: int, scan_slot: int, ride_ms: int) -> void:
+	if bag_slot >= 0:
+		_bagged[bag_slot] = true
 	var definition: CardDefinition = _definition_of(scan_slot)
 	_bay.ride(bag_slot, scan_slot, definition, ride_ms / 1000.0)
 	if scan_slot < 0:
@@ -474,6 +605,8 @@ func _on_ride(bag_slot: int, scan_slot: int, ride_ms: int) -> void:
 func _on_beat_started(
 	beat: CountUpBeat, step: ScoreStep, line: String, view: CardView, _items_count: int
 ) -> void:
+	_show_pending_line()
+	_step_at[beat.steps[0]] = step
 	var definition: CardDefinition = view.card.definition if view != null else null
 	_bay.follow_beat(beat, step, definition)
 	if beat.opens_slot and beat.scan_slot >= 0:
@@ -481,42 +614,94 @@ func _on_beat_started(
 		var opened: CardDefinition = _definition_of(beat.scan_slot)
 		if opened != null:
 			_items.start_item(opened, _tags_of(beat.scan_slot))
-	if CountUpPlan.is_landing(beat):
-		_steps[beat] = step
+		if beat.kind == CountUpBeat.Kind.MERGED_PLAIN:
+			_items.show_paid("No bonus on this item")
 	if step.slot != _scanned or _scanned < 0:
-		if CountUpPlan.is_landing(beat):
-			_chips.launch(beat, _chips_from_column(), _checkout.landing_point())
 		return
-	var base: bool = beat.land == CountUpBeat.Land.BASE
-	if not base and _shows_line(beat):
+	if _shows_line(beat) or beat.kind == CountUpBeat.Kind.ARMED:
 		var fizzle: bool = step.step_type == ScoreStep.StepType.WASTED
-		_items.show_step(_line_of(step, Callable(), line), fizzle, false, _giver_mini(step))
-	if beat.land == CountUpBeat.Land.WASTE:
-		_items.set_value(step.value_after, true)
-		_chips.launch(beat, _items.waste_point(), _checkout.landing_point())
-		_checkout.waste()
-	elif CountUpPlan.is_landing(beat):
-		var from: Vector2 = _items.price_point() if base else _items.step_point()
-		_chips.launch(beat, from, _checkout.landing_point())
+		var shown: String = _line_of(step, Callable(), line)
+		if shown.is_empty():
+			shown = step.text
+		var from_bag: bool = (
+			step.source_kind == ScoreStep.SourceKind.CARD and _bagged.has(step.card_giver_slot())
+		)
+		var line_shown: Callable = _items.show_step.bind(
+			shown, fizzle, beat.kind == CountUpBeat.Kind.ARMED, _giver_mini(step), from_bag
+		)
+		_show_line_in_beat(beat, line_shown)
+	if beat.kind == CountUpBeat.Kind.PAYOUT:
+		# Under the named bonus lines: the payment equation when the steps multiply out to the
+		# payout, else what it pays.
+		_items.show_paid(ReceiptView.joined_line("Pays", "€%d" % beat.payout), beat.equation)
+
+
+func _on_step_landed(index: int) -> void:
+	var step: ScoreStep = _step_at.get(index, null)
+	if step == null or step.slot != _scanned:
+		return
+	# The line comes before its value.
+	_show_pending_line()
+	if (
+		step.step_type
+		in [
+			ScoreStep.StepType.BASE,
+			ScoreStep.StepType.FLAT,
+			ScoreStep.StepType.COPY,
+			ScoreStep.StepType.MULTIPLIER,
+			ScoreStep.StepType.PAYOUT_OVERRIDE
+		]
+	):
+		_items.set_value(step.value_after, step.step_type == ScoreStep.StepType.PAYOUT_OVERRIDE)
+
+
+## A bonus or multiplier beat's line (`line_shown`) waits for the tuning's step_line_at of the beat
+## (the mock-up's doBeat: giver, then line, then value); others, an echo, reduced motion or a
+## monitor without its count-up's clock show it at once.
+func _show_line_in_beat(beat: CountUpBeat, line_shown: Callable) -> void:
+	var tuning: CountTotalTuning = _count_up.total_tuning() if _count_up != null else null
+	var delay: float = tuning.step_line_at * beat.duration_ms / 1000.0 if tuning != null else 0.0
+	var timed: bool = beat.kind in [CountUpBeat.Kind.BONUS, CountUpBeat.Kind.STAMP]
+	if not timed or beat.echo or delay <= 0.0 or _wants_reduced_motion():
+		line_shown.call()
+		return
+	_pending_line = line_shown
+	_pending_wait = _count_up.tween_maker().call() as Tween
+	_pending_wait.tween_interval(delay)
+	_pending_wait.tween_callback(_on_line_due)
+
+
+func _show_pending_line() -> void:
+	if _pending_wait != null and _pending_wait.is_valid():
+		_pending_wait.kill()
+	_pending_wait = null
+	var due: Callable = _pending_line
+	_pending_line = Callable()
+	if due.is_valid():
+		due.call()
+
+
+## The pending line's moment came (its tween's own callback: the tween ends by itself).
+func _on_line_due() -> void:
+	_pending_wait = null
+	_show_pending_line()
+
+
+func _drop_pending_line() -> void:
+	_pending_line = Callable()
+	_show_pending_line()
 
 
 ## CountUp.landing: `beat` lands on the number (its punch, lamp and sparks) and on its item's price.
 func _on_landing(beat: CountUpBeat) -> void:
 	_checkout.land(beat)
-	var number: TotalNumber = _checkout.total_number()
-	_chips.land(beat, _checkout.number_centre(), number.size.x)
-	var step: ScoreStep = _steps.get(beat, null)
-	_steps.erase(beat)
-	if step != null and step.slot == _scanned and _scanned >= 0:
-		_items.set_value(step.value_after)
 
 
 ## CountUp.quota_met: the quota is met, with `pop` (the climax) or at once (a resumed checkout).
-func _on_quota_met(pop: bool) -> void:
+func _on_quota_met(_pop: bool) -> void:
 	_met = true
 	_bay.set_met(true)
-	if pop:
-		_climax.start(led.amount(), led.quota(), _checkout.number_centre())
+	# The register owns the quota celebration; the item breakdown stays visible.
 
 
 ## CountUp.total_landed: the TOTAL line: the checkout column's end (the stamp and the tab when met).
@@ -528,11 +713,12 @@ func _on_total_landed() -> void:
 ## step line of the last item reaching its place goes.
 func _show_inspection_passed() -> void:
 	_inspection_passed.visible = true
-	_items.drop_steps_past(_inspection_passed.get_global_rect().position.y)
+	_bay.chip().visible = false
 
 
 ## The resumed end's item column: the item at the scanner on `plan`'s last beat, at its payout,
-## with the last step line the count showed for it (see _on_beat_started).
+## with the step lines the count showed for it (see _on_beat_started) and its payment equation,
+## if it had one.
 func _show_last_item(plan: CountUpPlan, result: ScoreResult, line_of: Callable) -> void:
 	var slot: int = -1
 	for beat: CountUpBeat in plan.beats:
@@ -548,10 +734,18 @@ func _show_last_item(plan: CountUpPlan, result: ScoreResult, line_of: Callable) 
 		var base: bool = beat.land == CountUpBeat.Land.BASE
 		if beat.scan_slot == slot and step.slot == slot and not base and _shows_line(beat):
 			last = step
+			_items.show_step(
+				_line_of(step, line_of),
+				step.step_type == ScoreStep.StepType.WASTED,
+				false,
+				_giver_mini(step),
+				step.source_kind == ScoreStep.SourceKind.CARD and step.card_giver_slot() < slot
+			)
+	for beat: CountUpBeat in plan.beats:
+		if beat.slot == slot and beat.equation != null:
+			_items.show_paid("", beat.equation)
 	var fizzled: bool = last != null and last.step_type == ScoreStep.StepType.WASTED
 	_items.set_value(result.payouts[slot], fizzled)
-	if last != null:
-		_items.show_step(_line_of(last, line_of), fizzled, false, _giver_mini(last))
 
 
 func _on_notice_showing(_showing: bool) -> void:
@@ -598,9 +792,14 @@ func _tags_of(slot: int) -> PackedStringArray:
 
 ## The mini of the item that gave `step` (another item of the count), or null.
 func _giver_mini(step: ScoreStep) -> Texture2D:
-	if step.source_kind != ScoreStep.SourceKind.CARD or step.source_slot == step.slot:
+	if step.source_kind == ScoreStep.SourceKind.UPGRADE:
+		if step.source_index >= 0 and step.source_index < upgrades.size():
+			var icon: String = upgrades[step.source_index].icon_ref
+			return load(icon) as Texture2D if not icon.is_empty() else null
 		return null
-	var giver: CardDefinition = _definition_of(step.source_slot)
+	if step.source_kind != ScoreStep.SourceKind.CARD or step.card_giver_slot() == step.slot:
+		return null
+	var giver: CardDefinition = _definition_of(step.card_giver_slot())
 	if giver == null:
 		return null
 	var ref: String = giver.badge_mini_ref()

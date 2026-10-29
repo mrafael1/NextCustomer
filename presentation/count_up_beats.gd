@@ -330,24 +330,27 @@ func _bonus(beat: CountUpBeat, step: ScoreStep) -> void:
 	# caused it, unless it is the target's own rule.
 	var source: Control = null
 	var from: Vector2 = Vector2.ZERO
+	var waited: float = 0.0
 	if step.step_type == ScoreStep.StepType.COPY:
 		source = _views[step.linked_slot]
 		from = _at(step.linked_slot)
-	elif step.source_kind == ScoreStep.SourceKind.UPGRADE or step.source_slot != step.slot:
+	elif step.source_kind == ScoreStep.SourceKind.UPGRADE or step.card_giver_slot() != step.slot:
 		source = _source_control(step)
 		if source != null:
 			from = _source_point(step)
 	if source != null:
-		_fx.punch(_moving_part(source), 1.1)
+		_pulse_giver(source)
 		if step.step_type == ScoreStep.StepType.COPY:
 			sfx.play("copy")
 		var flight: float = minf(BONUS_FLIGHT, _motion(beat) * 0.75)
 		await _fx.fly_text(text, from, _at(step.slot), Palette.MUSTARD, 30, flight)
+		waited = flight
 	else:
 		var above: Vector2 = _at(step.slot) + Vector2(0, -20)
 		_fx.fly_text(
 			text, above, above + Vector2(0, -40), Palette.MUSTARD, 30, OWN_BONUS_RISE, true
 		)
+	await _hold_value(beat, waited)
 	if beat.note >= 0 and not CountUpPlan.is_landing(beat):
 		sfx.play_note(beat.note)
 	target.show_badge(step.value_after, true)
@@ -368,16 +371,20 @@ func _stamp(beat: CountUpBeat, step: ScoreStep) -> void:
 		return
 	var motion: float = _motion(beat)
 	var slam_time: float = minf(STAMP_SLAM, motion * 0.6)
+	var waited: float = 0.0
 	var upgrade_box: Control = _upgrade_box(step)
 	var source: CardView = _source_view(step)
 	if upgrade_box != null:
-		_fx.punch(upgrade_box, 1.3)
+		_pulse_giver(upgrade_box)
 		var flight: float = minf(UPGRADE_FLIGHT, motion * 0.45)
 		slam_time = minf(STAMP_SLAM, motion * 0.35)
 		await _fx.fly_text(factor, _center(upgrade_box), _at(step.slot), Palette.TOMATO, 26, flight)
+		waited = flight
 	elif source != null and step.source_slot != step.slot:
-		_fx.punch(source.body, 1.12)
+		_pulse_giver(source)
 		_fx.glow(source.body)
+	# The slam ends at the value's moment (its start waits for it).
+	await _hold_value(beat, waited + slam_time)
 	var stamp: Label = CountUpMotion.text_label(factor, Palette.TOMATO, 54)
 	_overlay.add_child(stamp)
 	stamp.global_position = _at(step.slot) - stamp.size / 2.0
@@ -403,6 +410,17 @@ func _stamp(beat: CountUpBeat, step: ScoreStep) -> void:
 	fade.tween_interval(0.2)
 	fade.tween_property(stamp, "modulate:a", 0.0, 0.2)
 	fade.tween_callback(stamp.queue_free)
+
+
+## A bonus or stamp's value lands on its item no earlier than the tuning's step_value_at of the
+## beat's motion (v3.1: after its monitor line, CountTotalTuning.step_line_at), `waited` seconds
+## of it already gone; reduced motion lands it at once.
+func _hold_value(beat: CountUpBeat, waited: float) -> void:
+	if total_tuning == null or plan.reduced_motion:
+		return
+	var left: float = total_tuning.step_value_at * _motion(beat) - waited
+	if left > 0.0:
+		await _wait(left)
 
 
 ## A repeat landing of an armed effect, played short (D7 stage 2): the arming card punches and
@@ -471,6 +489,8 @@ func _land_payout(beat: CountUpBeat, _step: ScoreStep, line: Control) -> void:
 	if beat.payout > 0 and beat.rattle_px > 0.0:
 		_fx.shake(_rattle_target, beat.rattle_px)
 		play_rattle(beat.rattle_px)
+	if beat.payout > 0:
+		sfx.play("coin", 1.0, -8.0)
 	if beat.payout > 0 and payout_landed.is_valid():
 		payout_landed.call(beat.payout, beat.shown_to)
 	_land_unless_total(beat)
@@ -527,9 +547,10 @@ func _tick(beat: CountUpBeat, tick: int) -> void:
 
 ## An armed effect (Eggs' charges, Coffee, Multipack): the card glows and pulses and the current
 ## note replays quietly (D8, D9; the belt ride sends its sparks to the targets). An effect with no
-## landing shows its name floating up. No receipt line.
+## landing shows its name floating up. Its receipt line ("arms ×3 …") prints.
 func _armed(beat: CountUpBeat, step: ScoreStep) -> void:
 	var view: CardView = _views[step.slot]
+	_print_step(step)
 	_fx.punch(view.body, 1.08)
 	_fx.glow(view.body)
 	sfx.play("armed")
@@ -565,7 +586,7 @@ func _at(slot: int) -> Vector2:
 ## where it is now.
 func _source_point(step: ScoreStep) -> Vector2:
 	if _upgrade_box(step) == null and _inspection_source(step) == null:
-		return _at(step.source_slot)
+		return _at(step.card_giver_slot())
 	return _center(_source_control(step))
 
 
@@ -574,7 +595,7 @@ func _source_point(step: ScoreStep) -> Vector2:
 func _source_view(step: ScoreStep) -> CardView:
 	if step.source_kind != ScoreStep.SourceKind.CARD:
 		return null
-	return _views[step.source_slot]
+	return _views[step.card_giver_slot()]
 
 
 ## The loyalty-card box of the upgrade that caused a step, or null when the step's source is
@@ -626,3 +647,20 @@ static func _moving_part(source: Control) -> Control:
 
 static func _center(control: Control) -> Vector2:
 	return control.get_global_rect().get_center()
+
+
+## Live belt givers hop; loyalty boxes flip. Bagged givers are represented on the monitor.
+func _pulse_giver(source: Control) -> void:
+	if plan.reduced_motion or not source.is_visible_in_tree():
+		return
+	var moving: Control = _moving_part(source)
+	var tween: Tween = _tween()
+	if source is CardView:
+		var rest: Vector2 = moving.position
+		tween.tween_property(moving, "position", rest - Vector2(0, 8), 0.08)
+		tween.tween_property(moving, "position", rest, 0.12)
+	else:
+		var rest: Vector2 = moving.scale
+		moving.pivot_offset = moving.size / 2.0
+		tween.tween_property(moving, "scale:x", 0.0, 0.08)
+		tween.tween_property(moving, "scale", rest, 0.16)

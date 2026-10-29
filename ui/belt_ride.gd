@@ -24,7 +24,7 @@ extends Node
 ## motion; the checks still show. The belt shows no paid chips in the count
 ## (ItemView.shows_paid_chip).
 ##
-## As a giver's effect pays (CountUp.landing of a step whose source is another item), the rail
+## As a giver's effect lands (CountUp.step_landed with another item as giver), the rail
 ## light (#86, kept by #105 piece 2: RailLight, ShiftStage.rail_light) runs gold along the price
 ## rail from the giver's ticket (the rail's left end once it is bagged) to the target's.
 ##
@@ -53,6 +53,7 @@ var _reduced: bool = false
 var _active: bool = false
 ## The slots hopped into the bag so far.
 var _bagged: Dictionary[int, bool] = {}
+var _count_tags: Array[PayTag] = []
 ## The slot at the scanner, or -1.
 var _scanning: int = -1
 var _slide: Tween
@@ -301,6 +302,15 @@ func _on_step_landed(index: int) -> void:
 	if not _active or _result == null or index < 0 or index >= _result.steps.size():
 		return
 	var step: ScoreStep = _result.steps[index]
+	if step.step_type == ScoreStep.StepType.PAYOUT:
+		_show_paid_ticket(step)
+	if (
+		step.step_type
+		in [ScoreStep.StepType.FLAT, ScoreStep.StepType.MULTIPLIER, ScoreStep.StepType.COPY]
+	):
+		_light_step(step)
+		if step.source_kind == ScoreStep.SourceKind.CARD and _bagged.has(step.card_giver_slot()):
+			_stage.bag.land(_reduced)
 	var sticker: EffectSticker = _sticker_of(step.slot, index)
 	if sticker != null:
 		sticker.fire(_reduced, _count.tween_maker())
@@ -381,19 +391,21 @@ func _on_finished() -> void:
 
 ## CountUp.landing: a giver's effect pays (a +N or a × from another item): the rail light runs
 ## from the giver's ticket (the rail's left end once it is bagged) to the target's.
-func _on_landing(beat: CountUpBeat) -> void:
+func _on_landing(_beat: CountUpBeat) -> void:
+	# Register landings are payouts; effect rails fire with their own sticker's step.
+	pass
+
+
+func _light_step(step: ScoreStep) -> void:
 	var light: RailLight = _stage.rail_light
-	if not _active or light == null or _result == null or beat.steps.is_empty():
+	if not _active or light == null:
 		return
-	if beat.land != CountUpBeat.Land.ADD and beat.land != CountUpBeat.Land.MUL:
-		return
-	var step: ScoreStep = _result.steps[beat.steps[0]]
 	if step.source_kind != ScoreStep.SourceKind.CARD:
 		return
-	if step.source_slot < 0 or step.source_slot == step.slot:
+	if step.card_giver_slot() < 0 or step.card_giver_slot() == step.slot:
 		return
 	var to_local: Transform2D = light.get_global_transform().affine_inverse()
-	var giver: Rect2 = _to(to_local, ticket_rect(step.source_slot))
+	var giver: Rect2 = _to(to_local, ticket_rect(step.card_giver_slot()))
 	var target: Rect2 = _to(to_local, ticket_rect(step.slot))
 	if not target.has_area():
 		return
@@ -411,6 +423,11 @@ static func _to(transform: Transform2D, rect: Rect2) -> Rect2:
 
 ## Stops the slide, the hops (their copies go) and the sparks, and clears the scanner.
 func _stop() -> void:
+	for tag: PayTag in _count_tags:
+		if is_instance_valid(tag):
+			tag.get_parent().remove_child(tag)
+			tag.queue_free()
+	_count_tags.clear()
 	if _slide != null and _slide.is_valid():
 		_slide.kill()
 	_slide = null
@@ -434,3 +451,32 @@ func _item(slot: int) -> ItemView:
 	if slot < 0 or slot >= _views.size() or not is_instance_valid(_views[slot]):
 		return null
 	return _views[slot] as ItemView
+
+
+## A paid item's final ticket stays legible until its cell drops off into the bag.
+func _show_paid_ticket(step: ScoreStep) -> void:
+	var item: ItemView = _item(step.slot)
+	if item == null or _bagged.has(step.slot):
+		return
+	var ticket: PriceSticker = item.sticker()
+	var pay: PlanningModel.Pay = (
+		PlanningModel.Pay.BOOSTED
+		if step.value > item.card.definition.base
+		else PlanningModel.Pay.LOWERED
+	)
+	if step.value == 0:
+		pay = PlanningModel.Pay.ZERO
+	var tag: PayTag = PayTag.new(
+		pay, PriceSticker.price_text(step.value), PlanningModel.Glyph.NONE, true
+	)
+	var rect: Rect2 = Rect2(Vector2.ZERO, PriceSticker.SIZE)
+	var at: Rect2 = tag.rect_on(rect, ticket, 1.0)
+	tag.position = at.position
+	ticket.set_pay(step.value != item.card.definition.base, at)
+	ticket.add_child(tag)
+	_count_tags.append(tag)
+	if not _reduced:
+		tag.pivot_offset = tag.size / 2.0
+		tag.scale = Vector2.ONE * 1.2
+		var pulse: Tween = _count.tween_maker().call() as Tween
+		pulse.tween_property(tag, "scale", Vector2.ONE, 0.18)

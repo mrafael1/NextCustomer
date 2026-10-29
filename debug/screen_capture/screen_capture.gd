@@ -198,6 +198,13 @@ func _ready() -> void:
 		await deck(deck_spec)
 	elif stack_spec != "" or OS.get_cmdline_user_args().has(STACK_ARGUMENT):
 		await stack(stack_spec == "fan")
+	elif OS.get_cmdline_user_args().has("--rhythm"):
+		_set_up_shift(
+			"",
+			["strawberries", "banana", "banana", "multipack", "banana", "banana"],
+			["produce_regulars", "produce_aisle_run", "slot_engine"]
+		)
+		_effects = true
 	elif effects_on or focus_id != "":
 		await effects(focus_id)
 	else:

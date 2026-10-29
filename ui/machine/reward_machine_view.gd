@@ -66,8 +66,9 @@ extends Control
 ## - Each part has setup(view), called once here as it is built (connect to `beat` there), and
 ##   frame(t). The screen's pieces a part may use: `receipt` (the stage's receipt), `stage`,
 ##   `loyalty_card`, `sfx`, `music`, set by MachineFlow, and the receipt's lines for a copy of it
-##   (`receipt_header`, `receipt_names`, `receipt_upgrades`, `receipt_inspections`; the shift
-##   end's `shift_total`, `shift_quota`, `shift_notice`; the ScoreResult is `run.last_result`).
+##   (`receipt_header`, `receipt_names`, `receipt_cards`, `receipt_upgrades`, `receipt_inspections`;
+##   the shift end's `shift_total`, `shift_quota`, `shift_notice`; the ScoreResult is
+##   `run.last_result`).
 ##   `reduced_motion` (a Callable) is read once per visit into `plan.reduced_motion`.
 ## - `landing` is the pick's MachineLanding while its landing plays (null otherwise, and for a
 ##   bin): the loyalty box (`box_index`), the cart counts (`cart_before`, `cart_after`), the copy
@@ -171,6 +172,7 @@ var reduced_motion: Callable = func() -> bool: return false
 ## The receipt's lines as the count-up printed them, for a copy of it (MachineFlow sets them).
 var receipt_header: PackedStringArray = PackedStringArray()
 var receipt_names: PackedStringArray = PackedStringArray()
+var receipt_cards: Array[CardDefinition] = []
 var receipt_upgrades: PackedStringArray = PackedStringArray()
 var receipt_inspections: PackedStringArray = PackedStringArray()
 var shift_total: int = 0
