@@ -13,6 +13,11 @@ extends Control
 ## The tag is the slot_talker 9-slice (badge_stamp's mustard ring around a teal dark face) over
 ## its hard shadow (ink at SHADOW_ALPHA at SHADOW_OFFSET), its parts on the 2 px art grid. Decor
 ## only: it takes no clicks, and its numbers are the rule's data (NthSlotMultiplierRule).
+##
+## An inspection's mark (2026-10-28, rule tweaks 2: Spot check's dead slot 3) is the same tag in
+## the €0 pay tag's tomato (slot_talker_inspection) with the warning sign and "€0" in paper, so
+## the slot reads as the wasted one before anything is put there; it fires when the inspection
+## zeroes the card there (NthSlotZeroPayoutRule).
 
 ## The tag's height, of which its top TUCKED px hide behind the ticket, and its insides: the
 ## frame's margin (art pixels), the padding from its left side to the icon (just inside the ring)
@@ -29,6 +34,9 @@ const TEXT_SIZE := 16
 const TEXT_FORMAT := "×%d"
 ## The text's colour on the teal face: the loyalty stamp's mustard pale.
 const TEXT_COLOR := Palette.MUSTARD_PALE
+## An inspection's mark: its text and the text's colour on the tomato face.
+const INSPECTION_TEXT := "€0"
+const INSPECTION_TEXT_COLOR := Palette.PAPER
 const SHADOW_OFFSET := Vector2(2, 2)
 const SHADOW_ALPHA := 0.42
 ## The fire: a punch to 1 + FIRE_PUNCH easing back over FIRE_S, flashed by EffectSticker.FLASH
@@ -45,11 +53,15 @@ const ICON_NAME := &"Icon"
 const TEXT_NAME := &"Factor"
 
 const TALKER := preload("res://art/effects/slot_talker.png")
+const INSPECTION_TALKER := preload("res://art/effects/slot_talker_inspection.png")
+const WARNING := preload("res://art/icons/warning.png")
 
-## The slot it marks (0-based), the upgrade's index in the run's upgrades and the rule's factor.
+## The slot it marks (0-based), the upgrade's index in the run's upgrades and the rule's factor;
+## for an inspection's mark, the inspection's index in the shift's inspections (else -1).
 var slot: int = -1
 var upgrade_index: int = -1
 var factor: int = 1
+var inspection_index: int = -1
 var _inner: Control
 var _icon: Control
 var _label: Label
@@ -58,19 +70,28 @@ var _fired: int = 0
 
 
 func _init(
-	mark_slot: int, mark_upgrade: int, mark_factor: int, upgrade: UpgradeDefinition = null
+	mark_slot: int,
+	mark_upgrade: int,
+	mark_factor: int,
+	upgrade: UpgradeDefinition = null,
+	mark_inspection: int = -1
 ) -> void:
 	slot = mark_slot
 	upgrade_index = mark_upgrade
 	factor = mark_factor
-	name = "SlotMark%d" % slot
+	inspection_index = mark_inspection
+	var inspected: bool = is_inspection()
+	name = ("InspectionMark%d" if inspected else "SlotMark%d") % slot
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_label = UiKit.display_label(TEXT_FORMAT % factor, TEXT_SIZE, false)
+	var caption: String = INSPECTION_TEXT if inspected else TEXT_FORMAT % factor
+	_label = UiKit.display_label(caption, TEXT_SIZE, false)
 	_label.name = TEXT_NAME
-	_label.add_theme_color_override("font_color", TEXT_COLOR)
+	_label.add_theme_color_override(
+		"font_color", INSPECTION_TEXT_COLOR if inspected else TEXT_COLOR
+	)
 	_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	_icon = _icon_for(upgrade)
+	_icon = _warning() if inspected else _icon_for(upgrade)
 	_icon.name = ICON_NAME
 	var text_width: float = ceilf(_label.get_minimum_size().x)
 	size = Vector2(width_for(_icon.size.x, text_width), HEIGHT)
@@ -82,13 +103,13 @@ func _init(
 	# It hangs from its hook, the top's middle: the punch and the swing turn about it.
 	_inner.pivot_offset = Vector2(size.x / 2.0, 0.0)
 	add_child(_inner)
-	var shadow: Panel = _frame()
+	var shadow: Panel = _frame(inspected)
 	shadow.name = SHADOW_NAME
 	shadow.position = SHADOW_OFFSET
 	shadow.size = size
 	shadow.self_modulate = Color(Palette.INK, SHADOW_ALPHA)
 	_inner.add_child(shadow)
-	var frame: Panel = _frame()
+	var frame: Panel = _frame(inspected)
 	frame.name = FRAME_NAME
 	frame.size = size
 	_inner.add_child(frame)
@@ -104,9 +125,12 @@ func _init(
 
 
 ## The marks of `upgrades` (the run's, in pick order): one for each rule that multiplies a fixed
-## slot (NthSlotMultiplierRule with a slot and a factor other than 1), on that slot.
-static func marks_for(upgrades: Array[UpgradeDefinition]) -> Array[SlotMark]:
-	var marks: Array[SlotMark] = []
+## slot (NthSlotMultiplierRule with a slot and a factor other than 1), on that slot; then the
+## shift's `inspections`' (inspection_marks).
+static func marks_for(
+	upgrades: Array[UpgradeDefinition], inspections: Array[InspectionDefinition] = []
+) -> Array[SlotMark]:
+	var marks: Array[SlotMark] = inspection_marks(inspections)
 	for index: int in range(upgrades.size()):
 		for rule: UpgradeRule in upgrades[index].rules:
 			var slot_rule: NthSlotMultiplierRule = rule as NthSlotMultiplierRule
@@ -116,6 +140,24 @@ static func marks_for(upgrades: Array[UpgradeDefinition]) -> Array[SlotMark]:
 				SlotMark.new(slot_rule.slot_number - 1, index, slot_rule.factor, upgrades[index])
 			)
 	return marks
+
+
+## The marks of the shift's `inspections`: one for each rule that zeroes a fixed slot
+## (NthSlotZeroPayoutRule with a slot), on that slot.
+static func inspection_marks(inspections: Array[InspectionDefinition]) -> Array[SlotMark]:
+	var marks: Array[SlotMark] = []
+	for index: int in range(inspections.size()):
+		for rule: InspectionRule in inspections[index].rules:
+			var slot_rule: NthSlotZeroPayoutRule = rule as NthSlotZeroPayoutRule
+			if slot_rule == null or slot_rule.slot_number <= 0:
+				continue
+			marks.append(SlotMark.new(slot_rule.slot_number - 1, -1, 1, null, index))
+	return marks
+
+
+## Whether it is an inspection's mark (the dead slot's), not a loyalty upgrade's.
+func is_inspection() -> bool:
+	return inspection_index >= 0
 
 
 ## The tag's width for an icon and a text this wide: the padding, the icon, the gap, the text
@@ -181,11 +223,12 @@ func _punch(progress: float) -> void:
 	_inner.modulate = Color(flash, flash, flash)
 
 
-## The tag's face: the slot_talker 9-slice.
-static func _frame() -> Panel:
+## The tag's face: the slot_talker 9-slice, or slot_talker_inspection's for an inspection.
+static func _frame(inspected: bool) -> Panel:
 	var panel: Panel = Panel.new()
 	panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	panel.add_theme_stylebox_override("panel", ArtStyle.frame_style(TALKER, FRAME_MARGIN))
+	var texture: Texture2D = INSPECTION_TALKER if inspected else TALKER
+	panel.add_theme_stylebox_override("panel", ArtStyle.frame_style(texture, FRAME_MARGIN))
 	ArtStyle.use_pixel_material(panel)
 	return panel
 
@@ -202,3 +245,10 @@ static func _icon_for(upgrade: UpgradeDefinition) -> Control:
 	return GiverBadge.new(
 		GiverBadge.Kind.LOYALTY, GiverBadge.initials_for(GiverBadge.Kind.LOYALTY, badge_name)
 	)
+
+
+## The inspection's warning sign at the art scale.
+static func _warning() -> Control:
+	var sprite: TextureRect = UiKit.sprite(WARNING)
+	sprite.size = WARNING.get_size() * ArtStyle.ART_SCALE
+	return sprite

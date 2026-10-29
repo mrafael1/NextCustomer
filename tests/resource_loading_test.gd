@@ -5,7 +5,8 @@ extends GdUnitTestSuite
 ## outside them to FILES.
 
 ## Subfolders are loaded too, so "res://data" covers data/cards, data/decks, data/balance,
-## data/upgrades, data/inspections, data/aisles, data/catalogue and data/families (#105);
+## data/upgrades, data/inspections, data/aisles, data/catalogue, data/families (#105) and
+## data/weeks (v0.70);
 ## test_every_data_folder_is_loaded checks that.
 const FOLDERS := [
 	"res://data",
@@ -42,6 +43,10 @@ func test_every_scene_and_resource_loads() -> void:
 		elif path.contains("/inspections/"):
 			assert_object(resource).override_failure_message(path).is_instanceof(
 				InspectionDefinition
+			)
+		elif path.contains("/weeks/"):
+			assert_object(resource).override_failure_message(path).is_instanceof(
+				WeekEventDefinition
 			)
 		elif path.contains("/catalogue/"):
 			assert_object(resource).override_failure_message(path).is_instanceof(
@@ -103,6 +108,7 @@ func test_every_data_folder_is_loaded() -> void:
 		"builds",
 		"item_upgrades",
 		"families",
+		"weeks",
 	]:
 		var prefix: String = "res://data/%s/" % folder
 		var found: bool = files.any(func(path: String) -> bool: return path.begins_with(prefix))

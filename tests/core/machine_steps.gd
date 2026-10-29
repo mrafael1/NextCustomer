@@ -100,3 +100,11 @@ static func premium_on(balance: BalanceDefinition, shifts: Array[int]) -> Balanc
 static func premium_run(run: RunState, shifts: Array[int]) -> void:
 	run.machine.machine = run.machine.machine.duplicate() as MachineDefinition
 	run.machine.machine.premium_shifts = PackedInt32Array(shifts)
+
+
+## `run`'s machine on its own definition copy that gives a passed inspection a BONUS visit, with no
+## bonus extra shifts (the machine before v0.68's Payday; the data's has neither).
+static func bonus_after_inspection(run: RunState) -> void:
+	run.machine.machine = run.machine.machine.duplicate() as MachineDefinition
+	run.machine.machine.bonus_after_inspection = true
+	run.machine.machine.bonus_extra_shifts = PackedInt32Array()

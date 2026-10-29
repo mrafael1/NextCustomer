@@ -20,10 +20,17 @@ var receipt_header: PackedStringArray = PackedStringArray()
 ## A BONUS visit follows this shift's TICKET visit (#77 machine v2, Q2 = 2: the dessert prints
 ## the gold stub that becomes the bonus ticket). The shift screen sets it after the checkout.
 var bonus_ticket: bool = false
-## A missed quota the run goes on after (v0.65): the write-up's stamp text ("WRITE-UP 1/2"),
+## The shift was a payday (v0.68, Payday): its two tickets are PREMIUM, so the stub and its banner
+## read as one reward (Payday.BANNER). The shift screen sets it after the checkout.
+var payday: bool = false
+## A missed quota the run goes on after (v0.68's training week): the slip's stamp ("SLIP 1/2"),
 ## else empty (a pass, or the miss that ends the run). The shift screen sets it after the
 ## checkout.
 var write_up: String = ""
+## The names of the shift's boon day events (v0.69): their steps' lines name them, but a boon is
+## never an inspection, so the dessert's INSPECTION PASSED leaves them out. The shift screen sets
+## it.
+var boon_names: PackedStringArray = PackedStringArray()
 
 
 func _init(

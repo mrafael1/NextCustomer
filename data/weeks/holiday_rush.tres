@@ -1,0 +1,13 @@
+[gd_resource type="Resource" script_class="WeekEventDefinition" format=3]
+
+[ext_resource type="Script" path="res://core/week_event_definition.gd" id="1_week"]
+
+[resource]
+script = ExtResource("1_week")
+odds_level_delta = 1
+id = &"holiday_rush"
+display_name = "Holiday rush"
+tone = 2
+notice_text = "Quota +15%, machine odds +1 level"
+chip_text = "HOLIDAY"
+quota_percent = 15

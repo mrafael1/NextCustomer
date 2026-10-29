@@ -447,6 +447,27 @@ func test_item_badges_carry_the_givers_mini() -> void:
 	)
 
 
+## A day event's badge follows its tone (v0.69): a boon wears its coin, an inspection the warning
+## sign.
+func test_a_day_events_badge_follows_its_tone() -> void:
+	var row: Array[CardDefinition] = []
+	var none: Array[UpgradeDefinition] = []
+	var events: Array[InspectionDefinition] = [
+		load(INSPECTION), load("res://data/inspections/happy_hour.tres")
+	]
+	var names: PlanningModel.CauseNames = PlanningModel.CauseNames.new(row, none, events)
+	var link: EffectLink = EffectLink.new()
+	link.cause_kind = ScoreStep.SourceKind.INSPECTION
+	link.cause_index = 0
+	assert_int(names.badge_of(link)).is_equal(GiverBadge.Kind.INSPECTION)
+	link.cause_index = 1
+	assert_int(names.badge_of(link)).is_equal(GiverBadge.Kind.BOON)
+	assert_str(GiverBadge.initials_for(GiverBadge.Kind.BOON, "Happy hour")).is_empty()
+	var badge: GiverBadge = auto_free(GiverBadge.new(GiverBadge.Kind.BOON, ""))
+	assert_object(badge.texture()).is_same(GiverBadge.BOON)
+	assert_that(badge.size).is_equal(GiverBadge.BOON_SIZE)
+
+
 func test_badge_initials() -> void:
 	assert_str(GiverBadge.initials_for(GiverBadge.Kind.ITEM, "Eggs")).is_equal("Eg")
 	assert_str(GiverBadge.initials_for(GiverBadge.Kind.ITEM, "Milk")).is_equal("Mi")

@@ -397,6 +397,7 @@ static func _receipt_lines(receipt: ReceiptView) -> Array[String]:
 func _screen() -> ShiftScreen:
 	var runner: GdUnitSceneRunner = scene_runner(SCREEN)
 	var screen: ShiftScreen = runner.scene()
+	screen._week.skip()  # The time card (v0.70) stays out of the way.
 	await _frames(3)
 	return screen
 

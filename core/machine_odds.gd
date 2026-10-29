@@ -34,7 +34,7 @@ static func _notes(
 	var rolls_legendary: bool = false
 	for drop: int in range(context.machine.prizes_per_visit):
 		var drop_weights: PackedInt32Array = MachineDraw.weights(
-			context.machine, level, drop, context.min_rarity()
+			context.machine, context.machine.rarity_level(chute, level), drop, context.min_rarity()
 		)
 		rolls_legendary = rolls_legendary or drop_weights[MachinePrize.Rarity.LEGENDARY] > 0
 	if legendary.is_empty() and rolls_legendary:
@@ -148,7 +148,7 @@ class Enumeration:
 		odds.first_share = _normalised(first_share)
 		odds.rest_share = _normalised(rest_share)
 		var first_floor: int = 0
-		var odds_level: MachineOddsLevel = machine.odds_level(level)
+		var odds_level: MachineOddsLevel = machine.odds_level(machine.rarity_level(chute, level))
 		if odds_level != null:
 			first_floor = odds_level.first_drop_min_rarity
 		odds.first_drop_min_rarity = first_floor
@@ -199,7 +199,9 @@ class Enumeration:
 		if drop >= prizes:
 			_finish(drawn, used, chance)
 			return
-		var drop_weights: PackedInt32Array = MachineDraw.weights(machine, level, drop, floor_rarity)
+		var drop_weights: PackedInt32Array = MachineDraw.weights(
+			machine, machine.rarity_level(chute, level), drop, floor_rarity
+		)
 		var total: int = 0
 		for weight: int in drop_weights:
 			total += maxi(weight, 0)

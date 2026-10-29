@@ -273,6 +273,7 @@ static func _run(seed_value: int) -> RunState:
 	balance.quotas = PackedInt32Array([1, 1, 1, 1, 1, 1, 1, 1])
 	# No inspected shifts: an inspection's slot changes would hide the upgrades' here.
 	balance.inspection_shifts = PackedInt32Array()
+	balance.boon_shifts = PackedInt32Array()
 	var deck: DeckDefinition = load(STARTER)
 	var run: RunState = RunState.new(seed_value, deck, balance, RunStock.starting(balance))
 	run.start_shift()

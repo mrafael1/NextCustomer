@@ -1,0 +1,386 @@
+<title>Pick, Skip and Cart</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Pixelify+Sans:wght@400;600;700&family=Atkinson+Hyperlegible:wght@400;700&display=swap">
+<style>
+/* Layout: the game screen (960×540, scaled to fit) first, its controls under it, then what to try and the notes.
+   One look on purpose: the game's own palette (ui/palette.gd), dark in both themes. */
+:root {
+  color-scheme: dark;
+  --wall: #1f3b3a; --panel: #2a4d4b; --teal: #4f9a94;
+  --paper: #fbf7ee; --cream: #f3e9d2; --cream-shade: #ddcba5;
+  --gold: #ffcf3f; --mustard: #e2b33c; --mustard-dark: #b38425;
+  --tomato: #d9534f; --tomato-dark: #a83a3c; --good: #5fae5a;
+  --ink: #2c2926; --ink-light: #4a3f38; --muted: #8a8172;
+  --steel: #8d8a83; --steel-light: #c7c3b8; --steel-dark: #57534c; --charcoal: #24221f;
+  --page: #171f1e; --text: #ece6d8; --text-dim: #a9a59b;
+  --f-game: "Pixelify Sans", "Courier New", monospace;
+  --f-body: "Atkinson Hyperlegible", "Segoe UI", system-ui, sans-serif;
+}
+* { box-sizing: border-box; }
+body { background: var(--page); color: var(--text); font-family: var(--f-body); font-size: 15px; line-height: 1.5;
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); padding-block: 20px 40px; }
+.wrap { max-width: 980px; margin: 0 auto; display: flex; flex-direction: column; gap: 18px; }
+h1 { font-family: var(--f-game); font-weight: 700; font-size: 26px; margin: 0; letter-spacing: .02em; text-wrap: balance; }
+.sub { color: var(--text-dim); margin: 0; max-width: 70ch; }
+
+/* ---------- stage ---------- */
+.frame { width: 100%; aspect-ratio: 16 / 9; max-width: 100%; position: relative; overflow: hidden; border-radius: 6px;
+  box-shadow: 0 0 0 3px var(--charcoal), 0 10px 30px rgba(0,0,0,.5); touch-action: none; user-select: none; }
+#stage { position: absolute; left: 0; top: 0; width: 960px; height: 540px; transform-origin: 0 0; font-family: var(--f-game);
+  background: linear-gradient(var(--wall), #183130); overflow: hidden; }
+.tiles { position: absolute; inset: 0; background-image:
+  linear-gradient(rgba(255,255,255,.035) 2px, transparent 2px), linear-gradient(90deg, rgba(255,255,255,.035) 2px, transparent 2px);
+  background-size: 48px 48px; }
+.cabinet { position: absolute; left: 150px; top: 14px; width: 660px; height: 500px; border-radius: 14px 14px 4px 4px;
+  background: linear-gradient(var(--steel-light), var(--steel) 60%, var(--steel-dark)); box-shadow: inset 0 -8px 0 rgba(0,0,0,.25), 0 8px 0 var(--charcoal); }
+.display { position: absolute; left: 280px; top: 30px; width: 400px; height: 54px; background: var(--charcoal); border-radius: 6px;
+  border: 3px solid var(--steel-dark); display: flex; align-items: center; justify-content: center; flex-direction: column;
+  color: var(--gold); text-shadow: 0 0 8px rgba(255,207,63,.55); letter-spacing: .06em; }
+.display .big { font-size: 20px; font-weight: 700; line-height: 1; }
+.display .small { font-size: 12px; color: var(--cream-shade); text-shadow: none; margin-top: 4px; }
+.display.warn .big { color: var(--tomato); text-shadow: 0 0 8px rgba(217,83,79,.6); }
+.tray { position: absolute; left: 190px; top: 100px; width: 580px; height: 250px; background: var(--steel-dark); border-radius: 8px;
+  box-shadow: inset 0 6px 0 rgba(0,0,0,.35); }
+
+/* ---------- tickets ---------- */
+.ticket { position: absolute; width: 150px; height: 210px; background: var(--paper); border-radius: 6px; color: var(--ink);
+  box-shadow: 0 5px 0 var(--cream-shade), 0 8px 14px rgba(0,0,0,.35); cursor: grab; display: flex; flex-direction: column;
+  align-items: center; padding: 10px 8px; gap: 6px; transition: left .32s cubic-bezier(.3,1.3,.5,1), top .32s cubic-bezier(.3,1.3,.5,1),
+  width .32s, height .32s, transform .25s, opacity .3s, filter .25s; }
+.ticket:hover { transform: translateY(-6px); }
+.ticket .tier { align-self: stretch; text-align: center; font-size: 11px; font-weight: 700; letter-spacing: .1em; padding: 2px 0; border-radius: 3px; color: var(--paper); }
+.ticket .art { width: 74px; height: 74px; border-radius: 50%; display: grid; place-items: center; font-size: 30px; font-weight: 700; color: var(--paper);
+  box-shadow: inset 0 -6px 0 rgba(0,0,0,.18); }
+.ticket .name { font-size: 17px; font-weight: 700; text-align: center; line-height: 1.05; }
+.ticket .kind { font-size: 11px; color: var(--muted); letter-spacing: .12em; }
+.ticket .price { margin-top: auto; background: var(--gold); color: var(--ink); font-weight: 700; font-size: 15px; padding: 1px 9px; border-radius: 3px;
+  transform: rotate(-4deg); box-shadow: 0 2px 0 var(--mustard-dark); }
+.ticket .shred { position: absolute; inset: 0; border-radius: 6px; pointer-events: none; opacity: 0; transition: opacity .15s;
+  background: repeating-linear-gradient(90deg, transparent 0 16px, rgba(168,58,60,.85) 16px 18px); }
+.ticket .shred::after { content: "✕"; position: absolute; inset: 0; display: grid; place-items: center; font-size: 64px; color: var(--tomato-dark);
+  text-shadow: 0 0 0 var(--paper), 2px 2px 0 var(--paper); }
+.ticket.held { transition: none; cursor: grabbing; z-index: 50; pointer-events: none; transform: rotate(-3deg) scale(1.04);
+  box-shadow: 0 0 0 3px var(--gold), 0 14px 24px rgba(0,0,0,.5); }
+.ticket.landing { z-index: 50; pointer-events: none; transition: left .28s ease-out, top .28s ease-out, width .28s, height .28s, transform .28s, opacity .2s; }
+.ticket.dim { filter: brightness(.45) saturate(.6); }
+.ticket.gone { opacity: 0; pointer-events: none; }
+#stage.binhover .ticket.in-tray { animation: shake .22s linear infinite; }
+#stage.binhover .ticket.in-tray .shred { opacity: 1; }
+@keyframes shake { 0%,100% { transform: translate(0,0) rotate(0); } 25% { transform: translate(-2px,1px) rotate(-1.4deg); } 75% { transform: translate(2px,-1px) rotate(1.4deg); } }
+
+/* ---------- skip bin ---------- */
+.skip { position: absolute; left: 444px; top: 362px; width: 72px; height: 96px; border: 0; background: none; cursor: pointer; padding: 0;
+  display: flex; flex-direction: column; align-items: center; gap: 4px; font-family: var(--f-game); transition: opacity .2s, transform .2s; }
+.skip:focus-visible { outline: 3px solid var(--gold); outline-offset: 4px; border-radius: 6px; }
+.bin { position: relative; width: 42px; height: 52px; }
+.bin .body { position: absolute; left: 3px; right: 3px; bottom: 0; height: 40px; background: linear-gradient(90deg, var(--steel-dark), var(--steel-light) 45%, var(--steel)); border-radius: 2px 2px 6px 6px;
+  box-shadow: inset 0 -4px 0 rgba(0,0,0,.25); }
+.bin .body::before { content: ""; position: absolute; left: 9px; right: 9px; top: 8px; bottom: 9px;
+  background: repeating-linear-gradient(90deg, rgba(0,0,0,.25) 0 2px, transparent 2px 7px); }
+.bin .lid { position: absolute; left: 0; right: 0; top: 6px; height: 7px; background: var(--steel-light); border-radius: 3px; transform-origin: 2px 7px;
+  transition: transform .18s cubic-bezier(.3,1.6,.5,1); box-shadow: 0 2px 0 var(--steel-dark); }
+.bin .lid::before { content: ""; position: absolute; left: 15px; top: -4px; width: 12px; height: 5px; border: 2px solid var(--steel-light); border-bottom: 0; border-radius: 3px 3px 0 0; }
+.bin .pedal { position: absolute; right: -4px; bottom: 2px; width: 10px; height: 4px; background: var(--charcoal); border-radius: 2px; }
+.skip .label { font-size: 13px; font-weight: 700; color: var(--cream); letter-spacing: .14em; }
+.skip .hint { font-size: 10px; color: var(--cream-shade); opacity: 0; transition: opacity .15s; white-space: nowrap; }
+.skip:hover .lid, .skip:focus-visible .lid, .skip.open .lid { transform: rotate(-38deg); }
+.skip:hover .label, .skip:focus-visible .label { color: var(--tomato); }
+.skip:hover .hint, .skip:focus-visible .hint { opacity: 1; }
+.skip.bump { animation: bump .3s; }
+@keyframes bump { 40% { transform: scale(1.15, .9); } 70% { transform: scale(.95, 1.06); } }
+.skip.hidden { opacity: 0; pointer-events: none; transform: translateY(12px); }
+
+/* ---------- cart drawer ---------- */
+.cart { position: absolute; left: 0; right: 0; bottom: 0; height: 262px; background: linear-gradient(#2f5a57, var(--panel));
+  border-top: 4px solid var(--teal); box-shadow: 0 -10px 24px rgba(0,0,0,.45); transform: translateY(105%);
+  transition: transform .3s cubic-bezier(.25,1.2,.5,1); z-index: 30; }
+.cart.open { transform: translateY(0); }
+.cart .head { position: absolute; left: 24px; right: 24px; top: 10px; display: flex; justify-content: space-between; align-items: center; }
+.cart .title { color: var(--cream); font-size: 18px; font-weight: 700; letter-spacing: .08em; }
+.cart .title b { color: var(--gold); }
+.cart .title.full b { color: var(--tomato); }
+.back { font-family: var(--f-game); font-size: 13px; font-weight: 700; letter-spacing: .1em; background: var(--cream); color: var(--ink); border: 0;
+  border-radius: 4px; padding: 5px 12px; box-shadow: 0 3px 0 var(--cream-shade); cursor: pointer; }
+.back.hot { background: var(--gold); box-shadow: 0 3px 0 var(--mustard-dark); }
+.grid { position: absolute; left: 0; right: 0; top: 46px; display: grid; grid-template-columns: repeat(7, 78px); gap: 12px 12px; justify-content: center; }
+.slot { width: 78px; height: 96px; border-radius: 5px; position: relative; }
+.slot.free { border: 3px dashed var(--teal); background: rgba(79,154,148,.12); }
+.cart.open.holding .slot.free { border-color: var(--gold); animation: pulse 1s ease-in-out infinite; }
+.slot.free.hot { background: rgba(255,207,63,.25); animation: none; transform: scale(1.06); }
+.slot.free::after { content: "+1"; position: absolute; inset: 0; display: grid; place-items: center; color: var(--gold); font-size: 22px; font-weight: 700; opacity: 0; }
+.slot.free.hot::after { opacity: 1; }
+@keyframes pulse { 50% { background: rgba(255,207,63,.18); } }
+.card { position: absolute; inset: 0; background: var(--cream); border-radius: 5px; color: var(--ink); display: flex; flex-direction: column; align-items: center;
+  padding: 6px 4px; gap: 3px; box-shadow: 0 3px 0 var(--cream-shade); transition: transform .15s, background .15s, box-shadow .15s; }
+.card .dot { width: 34px; height: 34px; border-radius: 50%; display: grid; place-items: center; color: var(--paper); font-size: 15px; font-weight: 700; }
+.card .n { font-size: 12px; font-weight: 700; text-align: center; line-height: 1; }
+.card .p { margin-top: auto; background: var(--gold); font-size: 11px; font-weight: 700; padding: 0 5px; border-radius: 2px; }
+.card .out { position: absolute; left: -4px; right: -4px; top: 34px; background: var(--tomato); color: var(--paper); font-size: 12px; font-weight: 700;
+  text-align: center; letter-spacing: .08em; transform: rotate(-8deg); opacity: 0; transition: opacity .1s; padding: 1px 0; box-shadow: 0 2px 0 var(--tomato-dark); }
+.card.hot { transform: translateY(-8px) rotate(2deg); background: #f2c9bd; box-shadow: 0 0 0 3px var(--tomato), 0 6px 0 var(--tomato-dark); }
+.card.hot .out { opacity: 1; }
+.card.leaving { animation: leave .55s cubic-bezier(.5,0,.9,.5) forwards; z-index: 40; }
+@keyframes leave { 0% { transform: translateY(-8px) rotate(2deg); } 25% { transform: translateY(-34px) rotate(-6deg); } 100% { transform: translate(60px, 260px) rotate(40deg); opacity: 0; } }
+.card.pop { animation: pop .35s cubic-bezier(.3,1.6,.5,1); }
+@keyframes pop { 0% { transform: scale(.6); } 100% { transform: scale(1); } }
+.card.new { box-shadow: 0 0 0 3px var(--gold), 0 3px 0 var(--mustard-dark); }
+
+.again { position: absolute; left: 50%; top: 382px; transform: translateX(-50%); font-family: var(--f-game); font-size: 16px; font-weight: 700; letter-spacing: .08em;
+  background: var(--gold); color: var(--ink); border: 0; border-radius: 5px; padding: 8px 18px; box-shadow: 0 4px 0 var(--mustard-dark); cursor: pointer; z-index: 60; }
+
+/* ---------- controls + notes ---------- */
+.controls { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+.controls button { font-family: var(--f-body); font-size: 14px; font-weight: 700; border: 2px solid var(--steel-dark); background: #222b2a; color: var(--text);
+  padding: 7px 14px; border-radius: 6px; cursor: pointer; }
+.controls button[aria-pressed="true"] { border-color: var(--gold); color: var(--gold); }
+.controls button:focus-visible { outline: 3px solid var(--gold); outline-offset: 2px; }
+.controls .status { color: var(--text-dim); font-size: 13px; margin-left: auto; min-width: 0; }
+.cols { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
+@media (max-width: 720px) { .cols { grid-template-columns: 1fr; } .controls .status { margin-left: 0; flex-basis: 100%; } }
+.cols > section { min-width: 0; }
+h2 { font-family: var(--f-game); font-size: 17px; letter-spacing: .06em; margin: 0 0 8px; color: var(--gold); }
+ul, ol { margin: 0; padding-left: 20px; display: flex; flex-direction: column; gap: 6px; }
+li { max-width: 62ch; }
+li b { color: var(--cream); }
+@media (prefers-reduced-motion: reduce) { #stage *, #stage *::before, #stage *::after { animation-duration: .01s !important; animation-iteration-count: 1 !important; transition-duration: .01s !important; } }
+</style>
+
+<div class="wrap">
+  <h1>Pick, Skip and Cart</h1>
+  <p class="sub">The machine's pick, live. You skip the whole draw with the small bin under the tickets. You place a ticket by dropping it in the cart: on an empty slot to add it, on a cart card to swap that card out. Drag, or click to pick up and click again to drop.</p>
+
+  <div class="frame" id="frame">
+    <div id="stage">
+      <div class="tiles"></div>
+      <div class="cabinet"></div>
+      <div class="display" id="display"><span class="big" id="dBig">PICK ONE</span><span class="small" id="dSmall">or skip the draw</span></div>
+      <div class="tray"></div>
+      <button class="skip" id="skip" type="button" aria-label="Skip: bin all three tickets">
+        <span class="bin"><span class="lid"></span><span class="body"></span><span class="pedal"></span></span>
+        <span class="label">SKIP</span>
+        <span class="hint">bins all 3</span>
+      </button>
+      <div class="cart" id="cart">
+        <div class="head"><span class="title" id="cartTitle">YOUR CART <b>11/13</b></span><button class="back" id="back" type="button">◀ BACK</button></div>
+        <div class="grid" id="grid"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="controls">
+    <button type="button" id="reset">New draw</button>
+    <button type="button" id="fullToggle" aria-pressed="false">Cart full (13/13)</button>
+    <span class="status" id="status">Hover SKIP, or pick up a ticket.</span>
+  </div>
+
+  <div class="cols">
+    <section>
+      <h2>What to try</h2>
+      <ol>
+        <li><b>Hover SKIP.</b> The lid opens and all three tickets shake with a shred mark. Click to bin the draw.</li>
+        <li><b>Drag a ticket</b> onto a gold slot (+1), or onto a cart card (it turns red with OUT ✕).</li>
+        <li><b>Click a ticket</b> without dragging: it sticks to the pointer. Click a slot or a card to drop it.</li>
+        <li><b>Change your mind:</b> drop it anywhere outside the cart, or on ◀ BACK. The ticket goes back and SKIP returns.</li>
+        <li><b>Cart full:</b> no free slots, so the only drop is a swap. The rule shows without a sign.</li>
+      </ol>
+    </section>
+    <section>
+      <h2>What this replaces</h2>
+      <ul>
+        <li>The display's <b>BIN IT ✕</b> and the ticket's <b>or bin them all ✕</b> become the one SKIP bin, shown only before a pick.</li>
+        <li><b>ADD TO CART</b> and <b>SWAP FOR…</b> go: where you drop the ticket is the choice.</li>
+        <li>The cart view never destroys the draw. Its worst misdrop is putting the ticket back.</li>
+        <li>Register and upgrade prizes (Boosted) don't go to the cart and keep their current pick.</li>
+      </ul>
+    </section>
+  </div>
+</div>
+
+<script>
+(() => {
+  const AISLE = { dairy: "#4f9a94", bakery: "#c98c4e", fruit: "#5fae5a", snack: "#d9534f", coupon: "#8a1f33", house: "#6f6b63" };
+  const OFFERS = [
+    { name: "Strawberries", kind: "PRODUCT", aisle: "fruit", price: "€4", tier: "RARE", tierCol: "#4f9a94", glyph: "S" },
+    { name: "2 for 1", kind: "COUPON", aisle: "coupon", price: "×2", tier: "COMMON", tierCol: "#8a8172", glyph: "%" },
+    { name: "Baguette", kind: "PRODUCT", aisle: "bakery", price: "€3", tier: "GOLDEN", tierCol: "#b38425", glyph: "B" },
+  ];
+  const CART = [
+    ["Milk", "dairy", "€2"], ["Milk", "dairy", "€2"], ["Bread", "bakery", "€2"], ["Apples", "fruit", "€1"], ["Eggs", "dairy", "€3"],
+    ["Cheese", "dairy", "€4"], ["Banana", "fruit", "€1"], ["Crisps", "snack", "€2"], ["Scissors", "house", "€3"],
+    ["Clearance", "coupon", "tag"], ["Opening deal", "coupon", "×3"], ["Croissant", "bakery", "€2"], ["Soap", "house", "€2"],
+  ];
+  const LIMIT = 13;
+  const TICKET_X = [215, 405, 595], TICKET_Y = 120, TW = 150, TH = 210;
+
+  const $ = id => document.getElementById(id);
+  const stage = $("stage"), frame = $("frame"), cart = $("cart"), grid = $("grid"), skip = $("skip"), back = $("back");
+  let full = false, state = "draw", tickets = [], held = null, hot = null, scale = 1, again = null;
+
+  function fit() { scale = frame.clientWidth / 960; stage.style.transform = `scale(${scale})`; }
+  new ResizeObserver(fit).observe(frame); fit();
+
+  const toStage = (cx, cy) => { const r = stage.getBoundingClientRect(); return { x: (cx - r.left) / scale, y: (cy - r.top) / scale }; };
+  const rectIn = el => { const r = el.getBoundingClientRect(), s = stage.getBoundingClientRect();
+    return { x: (r.left - s.left) / scale, y: (r.top - s.top) / scale, w: r.width / scale, h: r.height / scale }; };
+  const display = (big, small, warn) => { $("dBig").textContent = big; $("dSmall").textContent = small; $("display").classList.toggle("warn", !!warn); };
+  const status = t => { $("status").textContent = t; };
+
+  function cardEl(c) {
+    const d = document.createElement("div"); d.className = "card"; d.dataset.card = "1";
+    d.innerHTML = `<span class="dot" style="background:${AISLE[c[1]]}">${c[0][0]}</span><span class="n">${c[0]}</span><span class="p">${c[2]}</span><span class="out">OUT ✕</span>`;
+    return d;
+  }
+  function buildCart() {
+    grid.innerHTML = "";
+    const count = full ? LIMIT : 11;
+    for (let i = 0; i < LIMIT; i++) {
+      const s = document.createElement("div"); s.className = "slot"; s.dataset.slot = i;
+      if (i < count) s.appendChild(cardEl(CART[i])); else s.classList.add("free");
+      grid.appendChild(s);
+    }
+    updateTitle();
+  }
+  function cartCount() { return grid.querySelectorAll(".card:not(.leaving)").length; }
+  function updateTitle() {
+    const n = cartCount(), t = $("cartTitle");
+    t.classList.toggle("full", n >= LIMIT);
+    t.innerHTML = n >= LIMIT ? `CART FULL: <b>SWAP 1 OUT</b>` : `YOUR CART <b>${n}/${LIMIT}</b>`;
+  }
+
+  function buildTickets() {
+    tickets.forEach(t => t.el.remove()); tickets = [];
+    OFFERS.forEach((o, i) => {
+      const el = document.createElement("div"); el.className = "ticket in-tray";
+      el.innerHTML = `<span class="tier" style="background:${o.tierCol}">${o.tier}</span><span class="art" style="background:${AISLE[o.aisle]}">${o.glyph}</span>
+        <span class="name">${o.name}</span><span class="kind">${o.kind}</span><span class="price">${o.price}</span><span class="shred"></span>`;
+      place(el, TICKET_X[i], TICKET_Y, TW, TH);
+      el.addEventListener("pointerdown", e => pick(e, i));
+      stage.insertBefore(el, cart);
+      tickets.push({ el, offer: o, i });
+    });
+  }
+  function place(el, x, y, w, h) { el.style.left = x + "px"; el.style.top = y + "px"; el.style.width = w + "px"; el.style.height = h + "px"; }
+
+  function reset() {
+    state = "draw"; held = null; setHot(null);
+    if (again) { again.remove(); again = null; }
+    cart.classList.remove("open", "holding"); stage.classList.remove("binhover");
+    skip.classList.remove("hidden", "open");
+    buildCart(); buildTickets();
+    display("PICK ONE", full ? "cart full: a pick swaps 1 out" : "or skip the draw");
+    status("Hover SKIP, or pick up a ticket.");
+  }
+
+  // ---- skip ----
+  skip.addEventListener("pointerenter", () => { if (state === "draw") { stage.classList.add("binhover"); display("BIN ALL 3?", "the whole draw goes", true); } });
+  skip.addEventListener("pointerleave", () => { if (state === "draw") { stage.classList.remove("binhover"); display("PICK ONE", full ? "cart full: a pick swaps 1 out" : "or skip the draw"); } });
+  skip.addEventListener("focus", () => skip.dispatchEvent(new Event("pointerenter")));
+  skip.addEventListener("blur", () => skip.dispatchEvent(new Event("pointerleave")));
+  skip.addEventListener("click", () => {
+    if (state !== "draw") return;
+    state = "anim"; stage.classList.remove("binhover"); skip.classList.add("open");
+    tickets.forEach((t, k) => setTimeout(() => {
+      t.el.classList.add("landing"); t.el.classList.remove("in-tray");
+      place(t.el, 468, 380, 24, 34); t.el.style.transform = `rotate(${(k - 1) * 40}deg)`; t.el.style.opacity = "0";
+      setTimeout(() => { skip.classList.remove("bump"); void skip.offsetWidth; skip.classList.add("bump"); }, 260);
+    }, k * 110));
+    setTimeout(() => { skip.classList.remove("open"); display("DRAW BINNED", "nothing added"); status("Skipped. Click New draw to try again."); finish(); }, 750);
+  });
+
+  // ---- pick, hold, drop ----
+  function pick(e, i) {
+    if (state !== "draw") return;
+    e.preventDefault(); e.stopPropagation();
+    const t = tickets[i], p = toStage(e.clientX, e.clientY);
+    held = { t, start: p, moved: false, mode: "press", ox: p.x - TICKET_X[i], oy: p.y - TICKET_Y };
+    state = "held";
+    t.el.classList.add("held"); t.el.classList.remove("in-tray");
+    tickets.forEach(o => o !== t && o.el.classList.add("dim"));
+    stage.classList.remove("binhover"); skip.classList.add("hidden");
+    cart.classList.add("open", "holding");
+    const n = cartCount();
+    display(n >= LIMIT ? "SWAP 1 OUT" : "ADD OR SWAP", n >= LIMIT ? "drop on the card that goes" : "drop on a slot or on a card", n >= LIMIT);
+    status("Holding " + t.offer.name + ". Drop on a gold slot to add, on a card to swap, outside to go back.");
+    follow(e.clientX, e.clientY);
+  }
+  function follow(cx, cy) {
+    const p = toStage(cx, cy), w = TW * .8, h = TH * .8;
+    place(held.t.el, p.x - held.ox * .8, p.y - held.oy * .8, w, h);
+    setHot(targetAt(cx, cy));
+  }
+  function targetAt(cx, cy) {
+    const el = document.elementFromPoint(cx, cy); if (!el) return null;
+    const card = el.closest(".card:not(.leaving)"); if (card && grid.contains(card)) return { kind: "swap", el: card };
+    const slot = el.closest(".slot.free"); if (slot) return { kind: "add", el: slot };
+    if (el.closest("#back")) return { kind: "back", el: back };
+    return null;
+  }
+  function setHot(tg) {
+    if (hot) hot.el.classList.remove("hot");
+    hot = tg; if (hot) hot.el.classList.add("hot");
+  }
+  document.addEventListener("pointermove", e => {
+    if (state !== "held") return;
+    const p = toStage(e.clientX, e.clientY);
+    if (!held.moved && Math.hypot(p.x - held.start.x, p.y - held.start.y) > 6) held.moved = true;
+    follow(e.clientX, e.clientY);
+  });
+  document.addEventListener("pointerup", e => {
+    if (state !== "held") return;
+    if (held.mode === "press") {
+      if (held.moved) drop(e.clientX, e.clientY);
+      else { held.mode = "click"; status("Picked up " + held.t.offer.name + ". Click a gold slot or a card, or anywhere else to put it back."); }
+    }
+  });
+  document.addEventListener("pointerdown", e => { if (state === "held" && held.mode === "click") { e.preventDefault(); drop(e.clientX, e.clientY); } });
+
+  function drop(cx, cy) {
+    const tg = targetAt(cx, cy); setHot(null);
+    const t = held.t; held = null;
+    t.el.classList.remove("held"); t.el.classList.add("landing"); cart.classList.remove("holding");
+    if (!tg || tg.kind === "back") return putBack(t);
+    state = "anim";
+    const slotEl = tg.kind === "add" ? tg.el : tg.el.parentElement, r = rectIn(slotEl);
+    let outName = null;
+    if (tg.kind === "swap") { outName = tg.el.querySelector(".n").textContent; tg.el.classList.remove("hot"); tg.el.classList.add("leaving"); }
+    t.el.style.transform = "rotate(0deg)";
+    place(t.el, r.x, r.y, r.w, r.h);
+    setTimeout(() => {
+      t.el.classList.add("gone");
+      if (tg.kind === "swap") tg.el.remove();
+      slotEl.classList.remove("free");
+      const o = t.offer, c = cardEl([o.name, o.aisle, o.price]); c.classList.add("pop", "new");
+      slotEl.appendChild(c); updateTitle();
+      tickets.forEach(x => { if (x !== t) { x.el.classList.add("landing"); x.el.style.opacity = "0"; x.el.style.transform = "translateY(30px)"; } });
+      const n = cartCount();
+      if (tg.kind === "add") { display("ADDED", `${o.name} · cart ${n}/${LIMIT}`); status(`${o.name} added. The other two tickets go.`); }
+      else { display("SWAPPED", `${outName} out · ${o.name} in`); status(`${outName} swapped out for ${o.name}.`); }
+      finish();
+    }, 300);
+  }
+  function putBack(t) {
+    state = "anim";
+    cart.classList.remove("open");
+    t.el.style.transform = "";
+    place(t.el, TICKET_X[t.i], TICKET_Y, TW, TH);
+    setTimeout(() => {
+      t.el.classList.remove("landing"); t.el.classList.add("in-tray");
+      tickets.forEach(o => o.el.classList.remove("dim"));
+      skip.classList.remove("hidden"); state = "draw";
+      display("PICK ONE", full ? "cart full: a pick swaps 1 out" : "or skip the draw");
+      status("Put back. SKIP is there again.");
+    }, 330);
+  }
+  function finish() {
+    state = "done";
+    again = document.createElement("button"); again.type = "button"; again.className = "again"; again.textContent = "NEXT DRAW";
+    again.addEventListener("click", reset);
+    setTimeout(() => { cart.classList.remove("open"); stage.appendChild(again); }, 900);
+  }
+
+  $("reset").addEventListener("click", reset);
+  $("fullToggle").addEventListener("click", e => { full = !full; e.currentTarget.setAttribute("aria-pressed", String(full)); reset(); });
+  reset();
+})();
+</script>

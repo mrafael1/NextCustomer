@@ -3,8 +3,10 @@ extends Node
 ## The RECEIPT REWARDS machine's visits on the shift screen (#77; build spec 4.2): it opens the
 ## machine (RewardMachineView) at the dessert's printer feed, chooses the chute the player
 ## confirms (RewardMachine.choose, then the run is saved at MACHINE_PICK), shows the prizes,
-## takes the pick (through the deck-full chooser when the cart is full: DeckView in choosing mode,
-## whose cancel goes back to the prizes with nothing picked or saved) or the bin, logs the
+## takes the pick (an item or a coupon through the cart: DeckView's placing mode, 2026-10-29,
+## where it is dropped on a free spot to add it or on an item to swap that out, a full cart having
+## no free spot; going back returns to the prizes with nothing picked or saved) or the bin (the
+## SKIP bin under the prizes), logs the
 ## machine_visit event, saves (the next visit's save point, or SCORED after the shift's last
 ## visit) and lands the prize; at the landing's beat the top bar shows what changed (the Cart
 ## count, the loyalty card, with the plain stamp while view.plain_landing); once the landing is
@@ -50,11 +52,15 @@ var shown_swaps: Array = []
 var swap: UpgradeSwap
 var notice: BonusNotice
 var announce: PremiumAnnounce
+## The time card (v0.70, WeekFlow): planning's notices wait while it holds planning, and a shift's
+## planning opening tells it.
+var week_holds: Callable
+var week_started: Callable
 var _screen: ShiftScreen
 var _log: EventLogService
 ## The visit on screen: its timeline, the odds cards opened (chutes, in order), the odds card of
 ## the chute chosen (as shown before the draw), whether the cart was full when it was chosen,
-## whether it was resumed from a save, and a pick waiting for the deck-full chooser (-1: none).
+## whether it was resumed from a save, and a pick being placed in the cart (-1: none).
 var _timeline: OfferTimeline = OfferTimeline.new()
 var _viewed: Array[int] = []
 var _odds: MachineOddsCard
@@ -76,6 +82,10 @@ var _announce_prints: bool = true
 ## goes first, so the PASS IT plate never pulses hidden under its receipt (shifts 3, 5 and 7 are
 ## both inspected and premium).
 var _notice_wait: float = -1.0
+## The shift's opening notice (v0.68's training week, ShiftScreen.show_shift_notice) waits with
+## the bonus notice: for the glide back to end and the announce to print, so it never shows on
+## the monitor behind the machine or under the PAYDAY receipt.
+var _shift_notice_due: bool = false
 
 
 ## Builds the machine on `screen` (a screen child over the shade, added at the screen's call).
@@ -117,13 +127,17 @@ func shift_started(printing: bool = true) -> void:
 	announce.clear()
 	_announce_prints = printing
 	_notice_due = true
+	_shift_notice_due = true
 	_notice_wait = -1.0
+	if week_started.is_valid():
+		week_started.call()
 
 
 ## Something covers planning (the cart reveal, v0.51): no notice pulses until shift_started().
 func hold_notice() -> void:
 	notice.stop()
 	_notice_due = false
+	_shift_notice_due = false
 
 
 ## A new run or a resume: no swap is due, none plays (a resume never replays one).
@@ -209,18 +223,25 @@ func is_settling() -> bool:
 	return is_gliding() or _swap_wait >= 0.0
 
 
+## Whether the upgrade swap is still playing on the items (the time card waits for it).
+func is_swapping() -> bool:
+	return swap != null and is_instance_valid(swap) and not swap.is_done()
+
+
 func _process(delta: float) -> void:
 	if _swap_wait >= 0.0:
 		_swap_wait += delta
 		if _swap_wait >= view.tuning.upgrade_after_ms / 1000.0:
 			play_swaps()
-	if _notice_due and _return_t < 0.0:
+	var held: bool = week_holds.is_valid() and week_holds.call()
+	if _notice_due and _return_t < 0.0 and not held:
 		_notice_due = false
 		_play_announce()
 		_notice_wait = announce.print_left()
 	if _notice_wait >= 0.0:
 		_notice_wait -= delta
 		if _notice_wait < 0.0:
+			_play_shift_notice()
 			_play_notice()
 	if _return_t < 0.0:
 		return
@@ -243,7 +264,7 @@ func show_deck() -> void:
 	)
 
 
-## The deck view closed without a choice: the chooser's cancel returns to the prizes, nothing
+## The deck view closed without a choice: placing's way back returns to the prizes, nothing
 ## picked or saved; the plain deck view gives the machine back.
 func on_deck_closed() -> void:
 	_pending = -1
@@ -252,12 +273,21 @@ func on_deck_closed() -> void:
 		view.visible = true
 
 
-## The deck-full chooser's card: the waiting pick swaps it out.
+## The cart's item the placed pick was dropped on: the pick swaps it out.
 func on_deck_card_chosen(card: CardInstance) -> void:
 	if _pending >= 0:
 		var index: int = _pending
 		_pending = -1
 		_take(index, card)
+
+
+## The placed pick was dropped on a free spot: it is added (never past the deck limit, where a
+## pick must swap one out).
+func on_deck_added() -> void:
+	if _pending >= 0 and not _screen.run.machine.needs_replace(_screen.run, _pending):
+		var index: int = _pending
+		_pending = -1
+		_take(index, null)
 
 
 ## Debug panel and tests: a landing under way ends at once; then every waiting visit chooses NEW
@@ -324,23 +354,29 @@ func _choose(chute: int) -> bool:
 	return true
 
 
+## A card prize goes through the cart (placing mode): dropped on a free spot it is added, on an
+## item it swaps that out (plan section 2: at the deck limit there is no free spot, so taking a
+## card means choosing one to remove); a perk or an upgrade is taken at once.
 func _on_prize_picked(index: int) -> void:
 	var run: RunState = _screen.run
-	if not run.machine.needs_replace(run, index):
+	var prize: MachinePrize = run.machine.prizes()[index]
+	if not prize.adds_card():
 		_take(index, null)
 		return
-	# Plan section 2: at the deck limit, taking a card means choosing one to remove.
-	var prize: MachinePrize = run.machine.prizes()[index]
+	var full: bool = run.machine.needs_replace(run, index)
+	var room: int = 0 if full else maxi(1, run.balance.deck_limit - run.deck.size())
 	_pending = index
 	view.visible = false
-	_screen._deck_view.open(
-		run,
-		(
-			"Cart full (%d/%d): choose an item to remove for %s"
-			% [run.deck.size(), run.balance.deck_limit, prize.card.display_name]
-		),
-		true
-	)
+	_screen._deck_view.open_placing(run, placing_title(run, prize, full), prize.card, room)
+
+
+## The cart's title while `prize` is placed: what a drop does.
+static func placing_title(run: RunState, prize: MachinePrize, full: bool) -> String:
+	var count: String = "%d/%d" % [run.deck.size(), run.balance.deck_limit]
+	var item: String = prize.card.display_name
+	if full:
+		return "Cart full %s: drop %s on the item to swap out" % [count, item]
+	return "Cart %s: drop %s on +1, or on an item to swap" % [count, item]
 
 
 ## Takes the prize, logs the visit, saves and lands it (the next visit or shift follows the
@@ -380,7 +416,8 @@ func _show_receipt_lines(run: RunState) -> void:
 	view.receipt_names = CardInstance.names(run.row)
 	view.receipt_cards = ReceiptInk.cards_of(run.row)
 	view.receipt_upgrades = LoyaltyCard.names(run.upgrades)
-	view.receipt_inspections = InspectionTag.names(run.inspections)
+	view.receipt_inspections = InspectionTag.names(WeekSchedule.shift_events(run))
+	view.receipt_boons = WeekFlow.helper_names(run)  # And the week event's (v0.70).
 	view.shift_total = run.last_result.total if run.last_result != null else 0
 	view.shift_quota = run.quota()
 	view.shift_notice = InspectionTag.next_notice(run.next_inspections)
@@ -469,13 +506,23 @@ func _end_return() -> void:
 	returned.emit()
 
 
+## The shift's opening notice, if it has one, once planning takes input.
+func _play_shift_notice() -> void:
+	if not _shift_notice_due:
+		return
+	_shift_notice_due = false
+	var run: RunState = _screen.run
+	if run != null and run.phase == RunState.Phase.PLANNING:
+		_screen.show_shift_notice()
+
+
 ## The planning notice's pulse, when passing the shift earns the bonus ticket.
 func _play_notice() -> void:
 	var run: RunState = _screen.run
 	if run == null or run.phase != RunState.Phase.PLANNING or run.machine == null:
 		return
-	if not run.machine.bonus_if_passed(run):
-		return
+	if not run.machine.bonus_if_passed(run) or Payday.if_passed(run):
+		return  # A payday's announce says it all (v0.68).
 	notice.play(_screen._inspection_tag, _reduced())
 
 
@@ -484,7 +531,7 @@ func _play_announce() -> void:
 	if run == null or run.phase != RunState.Phase.PLANNING or run.machine == null:
 		return
 	if run.machine.premium_if_passed(run):
-		announce.show_tag(_announce_prints)
+		announce.show_tag(_announce_prints, Payday.if_passed(run))
 
 
 func _reduced() -> bool:

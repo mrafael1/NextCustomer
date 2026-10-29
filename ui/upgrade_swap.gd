@@ -123,6 +123,11 @@ func play(pairs: Array, views: Array[ItemView], reduced: bool, sfx: Sfx = null) 
 	return _plays.size()
 
 
+## Whether the swap has finished (every tag gone), or never had a copy to play.
+func is_done() -> bool:
+	return _done
+
+
 ## How many copies play.
 func count() -> int:
 	return _plays.size()

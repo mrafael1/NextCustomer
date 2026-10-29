@@ -51,6 +51,20 @@
 [ext_resource type="Script" path="res://core/inspection_definition.gd" id="i1_inspection"]
 [ext_resource type="Resource" path="res://data/inspections/spot_check.tres" id="i2_spot_check"]
 [ext_resource type="Resource" path="res://data/inspections/short_belt.tres" id="i3_short_belt"]
+[ext_resource type="Resource" path="res://data/inspections/till_jam.tres" id="i4_till_jam"]
+[ext_resource type="Resource" path="res://data/inspections/small_baskets.tres" id="i5_small_baskets"]
+[ext_resource type="Resource" path="res://data/inspections/rush_hour.tres" id="i6_rush_hour"]
+[ext_resource type="Resource" path="res://data/inspections/late_delivery.tres" id="i7_late_delivery"]
+[ext_resource type="Resource" path="res://data/inspections/quiet_morning.tres" id="b1_quiet_morning"]
+[ext_resource type="Resource" path="res://data/inspections/extra_till.tres" id="b2_extra_till"]
+[ext_resource type="Resource" path="res://data/inspections/regulars_day.tres" id="b3_regulars_day"]
+[ext_resource type="Resource" path="res://data/inspections/fresh_delivery.tres" id="b4_fresh_delivery"]
+[ext_resource type="Resource" path="res://data/inspections/free_samples.tres" id="b5_free_samples"]
+[ext_resource type="Resource" path="res://data/inspections/happy_hour.tres" id="b6_happy_hour"]
+[ext_resource type="Script" path="res://core/week_event_definition.gd" id="w1_week"]
+[ext_resource type="Resource" path="res://data/weeks/training_week.tres" id="w2_training_week"]
+[ext_resource type="Resource" path="res://data/weeks/bakery_festival.tres" id="w3_bakery_festival"]
+[ext_resource type="Resource" path="res://data/weeks/holiday_rush.tres" id="w4_holiday_rush"]
 [ext_resource type="Resource" path="res://data/balance/machine.tres" id="m1_machine"]
 
 [resource]
@@ -72,10 +86,15 @@ end_cap_window_runs = 3
 first_offer_pool = Array[ExtResource("2_card")]([ExtResource("c14_breakfast_sticker"), ExtResource("c15_multipack"), ExtResource("c16_two_for_one")])
 upgrade_pool = Array[ExtResource("u1_upgrade")]([ExtResource("u2_coupon_engine"), ExtResource("u3_category_engine"), ExtResource("u4_extra_redraw"), ExtResource("u6_slot_engine"), ExtResource("u8_big_basket"), ExtResource("u_bakery_regulars"), ExtResource("u_produce_regulars"), ExtResource("u_dairy_regulars"), ExtResource("u_snack_regulars"), ExtResource("u_household_regulars"), ExtResource("u_breakfast_regulars"), ExtResource("u_clearance_regulars"), ExtResource("u_bakery_aisle_run"), ExtResource("u_produce_aisle_run"), ExtResource("u_dairy_aisle_run"), ExtResource("u_snack_aisle_run"), ExtResource("u_household_aisle_run"), ExtResource("u_breakfast_aisle_run"), ExtResource("u_clearance_aisle_run"), ExtResource("u_mixed_basket"), ExtResource("u_bulk_deal"), ExtResource("u_banana_stand"), ExtResource("u_lemon_squeezer"), ExtResource("u_fire_sale")])
 inspection_shifts = PackedInt32Array(3, 7, 11)
-inspection_pool = Array[ExtResource("i1_inspection")]([ExtResource("i2_spot_check"), ExtResource("i3_short_belt")])
+inspection_pool = Array[ExtResource("i1_inspection")]([ExtResource("i2_spot_check"), ExtResource("i3_short_belt"), ExtResource("i4_till_jam"), ExtResource("i5_small_baskets"), ExtResource("i6_rush_hour"), ExtResource("i7_late_delivery")])
 review_shifts = PackedInt32Array(4, 8, 12)
 review_inspection_count = 2
+boon_shifts = PackedInt32Array(2, 5, 6, 9, 10)
+boon_pool = Array[ExtResource("i1_inspection")]([ExtResource("b1_quiet_morning"), ExtResource("b2_extra_till"), ExtResource("b3_regulars_day"), ExtResource("b4_fresh_delivery"), ExtResource("b5_free_samples"), ExtResource("b6_happy_hour")])
+week_length = 4
+weeks = Array[ExtResource("w1_week")]([ExtResource("w2_training_week"), ExtResource("w3_bakery_festival"), ExtResource("w4_holiday_rush")])
 write_up_limit = 2
+write_up_last_shift = 4
 coins_by_shifts_passed = PackedInt32Array(0, 0, 0, 0, 1, 1, 1, 1, 2, 2, 2, 2, 3)
 overtime_coin_euros = 923
 overtime_coin_max = 1

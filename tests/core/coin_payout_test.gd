@@ -46,6 +46,26 @@ func test_overtime_sums_the_passed_margins() -> void:
 	assert_int(CoinPayout.for_run(run).overtime).is_equal(5 + 15)
 
 
+## A won run pays the table's last entry, whatever its slips (v0.68): a run with a slip on shift
+## 2 that wins passes 7 shifts but is paid as a win, more than a run lost after 7 passes.
+func test_a_won_run_with_a_slip_pays_the_last_entry() -> void:
+	var balance: BalanceDefinition = _balance([0, 0, 1, 1, 1, 1, 1, 2, 3], 0, 0)
+	balance.write_up_limit = 2
+	balance.write_up_last_shift = 4
+	var run: RunState = _run(balance, 10)
+	_pass_and_continue(run, [BREAD, BREAD])
+	_check_out(run, [])
+	assert_int(run.phase).is_equal(RunState.Phase.SCORED)
+	run.next_shift()
+	for shift: int in range(5):
+		_pass_and_continue(run, [BREAD, BREAD])
+	_check_out(run, [BREAD, BREAD])
+	assert_int(run.phase).is_equal(RunState.Phase.WON)
+	var payout: CoinPayout = CoinPayout.for_run(run)
+	assert_int(payout.shifts_passed).is_equal(7)
+	assert_int(payout.shift_coins).is_equal(3)
+
+
 func test_overtime_coins_have_a_step_and_a_cap() -> void:
 	# Two passes with overtime 5 and 15 = 20.
 	assert_int(_overtime_coins(_balance([0], 20, 1))).is_equal(1)
@@ -107,7 +127,8 @@ static func _balance(table: Array, euros: int, cap: int) -> BalanceDefinition:
 	balance.overtime_coin_max = cap
 	balance.inspection_shifts = PackedInt32Array()
 	balance.review_shifts = PackedInt32Array()
-	# A miss ends the run (no write-ups, v0.65): these runs end where the test misses.
+	balance.boon_shifts = PackedInt32Array()
+	# A miss ends the run (no slips, v0.68): these runs end where the test misses.
 	balance.write_up_limit = 0
 	return balance
 

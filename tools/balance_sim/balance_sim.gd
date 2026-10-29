@@ -579,8 +579,8 @@ func _merge(paths: PackedStringArray, search: SimRowSearch) -> bool:
 ## everything a cached best row depends on: core's scripts, the search script, the files of the
 ## deck, the cards (every card a stock or the orphan check can hold: the deck's, every aisle's
 ## base and capsule cards, the coupon pools and the machine's item upgrade chains with their BIG
-## and GOLDEN cards), upgrades (the deck's starting upgrade too) and inspections in play and the
-## row limits.
+## and GOLDEN cards), upgrades (the deck's starting upgrade too), day events in play (inspections
+## and boons, v0.69) and the row limits.
 func _cache_file() -> String:
 	if _options["cache"] == "none":
 		return ""
@@ -613,7 +613,7 @@ func _cache_file() -> String:
 		while level != null:
 			context[level.resource_path] = FileAccess.get_file_as_string(level.resource_path)
 			level = level.next_level
-	for inspection: InspectionDefinition in _balance.inspection_pool:
+	for inspection: InspectionDefinition in _balance.inspection_pool + _balance.boon_pool:
 		context[inspection.resource_path] = FileAccess.get_file_as_string(inspection.resource_path)
 	context["limits"] = [_balance.slot_count]
 	var keys: Array = context.keys()
@@ -688,6 +688,12 @@ func _report(summaries: Array[SimSummary], seconds: float) -> String:
 		(
 			"Inspections on shifts %s, drawn from %s"
 			% [Array(_balance.inspection_shifts), inspection_ids]
+		)
+	)
+	report.append(
+		(
+			"Boons on shifts %s, drawn from %s"
+			% [Array(_balance.boon_shifts), RunEvents.inspection_ids(_balance.boon_pool)]
 		)
 	)
 	var gate: bool = _is_gate()

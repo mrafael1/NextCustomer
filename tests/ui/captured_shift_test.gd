@@ -68,7 +68,7 @@ func test_everything_lies_inside_the_stage() -> void:
 			)
 
 
-## The top bar's chips and buttons (SHIFT, QUOTA, the inspection when there is one, LOYALTY,
+## The top bar's chips and buttons (SHIFT, QUOTA, the week chip, the day chip, LOYALTY,
 ## Cart and the menu): apart, under the stage's top edge and above the belt.
 func test_the_top_bar_parts_are_apart_above_the_belt() -> void:
 	for scan: String in SCANS:
@@ -78,8 +78,9 @@ func test_the_top_bar_parts_are_apart_above_the_belt() -> void:
 			var part: Control = child as Control
 			if part != null and part.visible and part.size.x > 0.0:
 				parts.append(part.get_global_rect())
-		var inspected: int = 1 if screen._inspection_tag.visible else 0
-		assert_int(parts.size()).is_equal(5 + inspected)
+		# The week chip and the day chip (v0.70) are always shown.
+		assert_bool(screen._inspection_tag.visible).is_true()
+		assert_int(parts.size()).is_equal(7)
 		var bottom: float = _y(screen, ShiftStage.TOP_BAR_BOTTOM)
 		for rect: Rect2 in parts:
 			assert_float(rect.end.y).override_failure_message(str(rect)).is_less_equal(bottom)
@@ -221,7 +222,11 @@ func test_every_printed_character_has_its_glyph() -> void:
 	# The basket items show no stickers (#80, step 8), and the counter no hint lines (step 12):
 	# only the belt's tickets print item text.
 	assert_int(checked).is_greater(1000)
-	var chip: String = "Inspection · %s" % load("res://data/inspections/short_belt.tres").chip_text
+	# The day chip (v0.70) leaves out the "Inspection ·" caption when the bar is tight.
+	var effect: String = load("res://data/inspections/short_belt.tres").chip_text
+	var chip: String = "Inspection · " + effect
+	if not printed.has(chip):
+		chip = effect
 	var caption: String = RowStrip.CLOSED_CAPTION_TEXT
 	for required: String in [RowStrip.CLOSED_TEXT, "COUPON", caption, chip, "5", "6", "Multipack"]:
 		assert_bool(printed.has(required)).override_failure_message(required).is_true()

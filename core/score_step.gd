@@ -4,16 +4,17 @@ extends RefCounted
 ## read the same steps, so they can never disagree.
 ##
 ## Order: context-pass steps (TAG_ADDED, LINKED, and WASTED for stickers or connectors that
-## did nothing) come first. Then each slot in turn: BASE, FLAT (the card's own, effects, then
-## upgrades), MULTIPLIER (the card's own, then effects), COPY, MULTIPLIER (upgrades),
-## PAYOUT_OVERRIDE (the card's own, then inspections, plan section 3.9), PAYOUT, then one
-## EFFECT_ARMED for each effect the card arms for later cards, then any WASTED step for that
-## card's own rules, then WASTED steps for upgrades that had nothing to multiply there (plan
-## section 3.8). An effect that replaces an earlier one (an
+## did nothing) come first. Then each slot in turn: BASE, FLAT (the card's own, effects,
+## upgrades, then the shift's day events, v0.69), MULTIPLIER (the card's own, then effects), COPY,
+## MULTIPLIER (upgrades, then day events), PAYOUT_OVERRIDE (the card's own, then inspections, plan
+## section 3.9), PAYOUT, then one EFFECT_ARMED for each effect the card arms for later cards, then
+## any WASTED step for that card's own rules, then WASTED steps for upgrades, then day events,
+## that had nothing to multiply there (plan section 3.8). An effect that replaces an earlier one (an
 ## Egg reset) is armed first, then the replaced effect's WASTED step follows at once. WASTED
 ## steps for effects that never found a target (a lost Coffee bonus, unused Egg charges) come
 ## next, then one WASTED step for each upgrade whose condition the row never met (#45: no coupon
-## for the Coupon engine, too few cards for the Slot engine), on the row's last slot, last.
+## for the Coupon engine, too few cards for the Slot engine), on the row's last slot, then one for
+## each day event that found nothing to boost (v0.69: Free samples with no product), last.
 ## An armed effect that later fizzles keeps its EFFECT_ARMED step.
 ##
 ## Every step has a source: a card (SourceKind.CARD, the card in source_slot), a register

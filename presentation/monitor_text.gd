@@ -33,13 +33,19 @@ const ARROW := "→"
 const ARROW_FALLBACK := "›"
 ## What separates a step line's text from its amount (ReceiptView.joined_line).
 const AMOUNT_SEPARATOR := "  "
-## A step line's amount kept at its start ("+€1 Eggs before it", "×2 Eggs").
-const LEADING_AMOUNT := ["+€", "×"]
+## A step line's amount kept at its start ("+€1 Eggs before it", "×2 Eggs", "−€2 Late delivery").
+const LEADING_AMOUNT := ["+€", "×", "−€"]
 
 
 ## A whole-euro amount with the € after it: "26€".
 static func euros(amount: int) -> String:
 	return EUROS % amount
+
+
+## A whole-euro amount with its sign, as a step line starts: "+€3", or "−€2" for a fall (v0.69:
+## Late delivery's).
+static func signed_euros(amount: int) -> String:
+	return "+€%d" % amount if amount >= 0 else "−€%d" % -amount
 
 
 ## A landing's chip: "+N€" for a gain, "−N€" for a fall.
@@ -102,7 +108,7 @@ static func step_parts(line: String) -> PackedStringArray:
 	var at: int = line.rfind(AMOUNT_SEPARATOR)
 	if at >= 0:
 		return PackedStringArray([line.left(at), line.substr(at + AMOUNT_SEPARATOR.length())])
-	if line.begins_with(LEADING_AMOUNT[0]):
+	if line.begins_with(LEADING_AMOUNT[0]) or line.begins_with(LEADING_AMOUNT[2]):
 		var space: int = line.find(" ")
 		if space > 0:
 			return PackedStringArray([line.substr(space + 1), line.left(space)])

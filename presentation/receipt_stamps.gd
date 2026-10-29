@@ -40,8 +40,8 @@ static func stamp_paid(line: Control) -> Label:
 	return stamp
 
 
-## A write-up's `text` ("WRITE-UP 1/2", v0.65) is stamped on a missed shift's margin `line`, as
-## PAID is on a pass's. Returns the stamp's label.
+## A slip's `text` ("SLIP 1/2", v0.68; a write-up in v0.65) is stamped on a missed shift's
+## margin `line`, as PAID is on a pass's. Returns the stamp's label.
 static func stamp_write_up(line: Control, text: String) -> Label:
 	var stamp: Label = stamp_paid(line)
 	stamp.text = text

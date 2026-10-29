@@ -322,6 +322,14 @@ func _on_step_landed(index: int) -> void:
 		var mark: SlotMark = _stage.row_strip.slot_mark(step.slot, step.source_index)
 		if mark != null:
 			mark.fire(_reduced, _count.tween_maker())
+	# An inspection zeroing its marked slot (Spot check's slot 3) fires that mark.
+	if (
+		step.step_type == ScoreStep.StepType.PAYOUT_OVERRIDE
+		and step.source_kind == ScoreStep.SourceKind.INSPECTION
+	):
+		var dead: SlotMark = _stage.row_strip.inspection_mark(step.slot, step.source_index)
+		if dead != null:
+			dead.fire(_reduced, _count.tween_maker())
 
 
 ## A beat starts (CountUp.beat_started): an armed giver's beat sends its sparks from the scanner

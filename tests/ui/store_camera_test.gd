@@ -399,6 +399,7 @@ func _screen() -> ShiftScreen:
 	var scene: PackedScene = load(SCREEN)
 	var screen: ShiftScreen = auto_free(scene.instantiate())
 	scene_runner(screen)
+	screen._week.skip()  # The time card (v0.70) stays out of the way.
 	await _frames(4)
 	return screen
 

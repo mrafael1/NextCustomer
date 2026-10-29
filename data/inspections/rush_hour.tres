@@ -1,0 +1,12 @@
+[gd_resource type="Resource" script_class="InspectionDefinition" format=3]
+
+[ext_resource type="Script" path="res://core/inspection_definition.gd" id="1_inspection"]
+
+[resource]
+script = ExtResource("1_inspection")
+id = &"rush_hour"
+display_name = "Rush hour"
+notice_text = "The quota is 10% higher"
+chip_text = "Quota +10%"
+icon_ref = "res://art/icons/up_arrow.png"
+quota_percent = 10

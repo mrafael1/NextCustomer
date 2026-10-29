@@ -58,7 +58,9 @@ static func armed_of_waste(steps: Array[ScoreStep], index: int) -> int:
 	return -1
 
 
-## What a landing does, on its token or chip: "×3" for a multiplier, "+3" otherwise.
+## What a landing does, on its token or chip: "×3" for a multiplier, "+3" otherwise ("−2" for a
+## fall: Late delivery's, v0.69).
 static func token_text(step: ScoreStep) -> String:
-	var multiplies: bool = step.step_type == ScoreStep.StepType.MULTIPLIER
-	return ("×%d" if multiplies else "+%d") % step.value
+	if step.step_type == ScoreStep.StepType.MULTIPLIER:
+		return "×%d" % step.value
+	return "+%d" % step.value if step.value >= 0 else "−%d" % -step.value

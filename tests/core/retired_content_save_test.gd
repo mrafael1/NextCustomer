@@ -38,6 +38,10 @@ func test_retired_ids_resolve_to_inert_stand_ins() -> void:
 	assert_int(inspection.extra_slots).is_equal(0)
 	assert_array(inspection.rules).is_empty()
 	assert_object(_lookup.upgrade("coupon_slot_closed")).is_null()
+	# A retired boon (Big trolleys, v0.70) keeps the BOON tone.
+	var boon: InspectionDefinition = _lookup.inspection("big_trolleys")
+	assert_bool(ContentLookup.is_retired(boon)).is_true()
+	assert_bool(boon.is_boon()).is_true()
 	assert_object(_lookup.upgrade("never_existed")).is_null()
 	assert_bool(ContentLookup.is_retired(_lookup.upgrade("big_basket"))).is_false()
 
@@ -68,7 +72,7 @@ func test_a_machine_save_with_retired_content_resumes() -> void:
 	var data: Dictionary = _json(_save(run))
 	data["upgrades"] = ["extra_coupon_slot"]
 	data["machine"]["played_upgrades"] = ["extra_coupon_slot"]
-	data["next_inspections"] = ["coupon_slot_closed"]
+	data["week"]["days"][2] = ["coupon_slot_closed"]
 	data["history"][0]["inspections"] = ["coupon_slot_closed"]
 	var save: RunSave = RunSave.from_dictionary(data, _lookup)
 	assert_object(save).is_not_null()
@@ -151,6 +155,44 @@ func test_a_save_from_before_the_banana_chain_skips_the_total_check() -> void:
 	assert_int(save.run.last_result.total).is_equal(run.last_result.total)
 	var again: Dictionary = _json(_save(save.run))
 	assert_int(int(again["format_version"])).is_equal(RunSave.FORMAT_VERSION)
+
+
+## A planning save on a boon day whose boon is Big trolleys (retired in v0.70) with the larger
+## hand it dealt resumes: the stand-in is a boon with no effect, and the hand keeps every item.
+func test_a_planning_save_with_big_trolleys_keeps_its_hand() -> void:
+	var balance: BalanceDefinition = (load(BALANCE) as BalanceDefinition).duplicate()
+	var quotas: PackedInt32Array = PackedInt32Array()
+	for _shift: int in range(balance.quotas.size()):
+		quotas.append(1)
+	balance.quotas = quotas
+	var lookup: ContentLookup = ContentLookup.new(balance)
+	var deck: DeckDefinition = load(STARTER)
+	var run: RunState = RunState.new(32, deck, balance, RunStock.starting(balance))
+	run.start_shift()
+	_fill(run)
+	run.checkout()
+	assert_bool(MachineSteps.next_shift(run)).is_true()
+	assert_bool(InspectionSchedule.is_boon_shift(balance, 2)).is_true()
+	var extra: CardDefinition = run.hand()[0].definition
+	run.debug_add_to_hand(extra)
+	var dealt: int = run.hand().size()
+	assert_int(dealt).is_greater(balance.hand_size)
+	var data: Dictionary = _json(_save(run))
+	var events: Array = []
+	for event: InspectionDefinition in run.inspections:
+		events.append("big_trolleys" if event.is_boon() else String(event.id))
+	data["inspections"] = events
+	data["week"]["days"][1] = events.duplicate()
+	var save: RunSave = RunSave.from_dictionary(data, lookup)
+	assert_object(save).is_not_null()
+	var boons: Array[InspectionDefinition] = InspectionDefinition.boons(save.run.inspections)
+	assert_int(boons.size()).is_equal(1)
+	assert_bool(ContentLookup.is_retired(boons[0])).is_true()
+	assert_int(InspectionDefinition.maluses(save.run.inspections).size()).is_equal(
+		InspectionSchedule.count_for(balance, 2)
+	)
+	assert_int(save.run.hand().size()).is_equal(dealt)
+	assert_int(save.run.limits.hand_size).is_greater_equal(dealt)
 
 
 ## Shift 1, planning.

@@ -10,8 +10,8 @@ const SPOT_CHECK := "res://data/inspections/spot_check.tres"
 const SHORT_BELT := "res://data/inspections/short_belt.tres"
 ## Checkouts rush their count (one tap): the suite tests what follows it.
 const Rush := preload("res://tests/ui/count_up_rush.gd")
-const NOTICE := "INSPECTION NEXT SHIFT: The 3rd product pays €0"
-const RECEIPT_LINE := "Spot check: the 3rd product pays €0"
+const NOTICE := "INSPECTION NEXT SHIFT: Slot 3 pays €0"
+const RECEIPT_LINE := "Spot check: slot 3 pays €0"
 
 var _folder: String = ""
 
@@ -36,14 +36,14 @@ func test_the_notice_comes_before_the_machine() -> void:
 	var screen: ShiftScreen = runner.scene()
 	_only_spot_check(screen)
 	var run: RunState = screen.run
-	assert_bool(screen._inspection_tag.visible).is_false()
+	assert_str(screen._inspection_tag.text()).is_equal(WeekCardModel.NO_EVENT)  # The day chip.
 
 	# Shift 2 is not inspected: no notice after shift 1.
 	await _pass_shift(screen)
 	assert_str(_receipt_text(screen)).not_contains("INSPECTION")
 	assert_str(_last_event("checkout")["next_inspection"]).is_empty()
 	screen._machine.debug_skip()
-	assert_bool(screen._inspection_tag.visible).is_false()
+	assert_str(screen._inspection_tag.text()).is_equal(WeekCardModel.NO_EVENT)  # The day chip.
 
 	# Shift 3 is: the notice prints in red under shift 2's dessert (after the tear, #61), on the
 	# receipt beside the machine, so the pick can take it into account.
@@ -84,9 +84,9 @@ func test_the_notice_comes_before_the_machine() -> void:
 	assert_int(run.shift_index).is_equal(2)
 	assert_bool(screen._inspection_tag.visible).is_true()
 	# The bonus pill's chip may drop "Inspection · " to fit the bar (#77 machine v2).
-	assert_str(screen._inspection_tag.text()).ends_with("3rd product pays €0")
+	assert_str(screen._inspection_tag.text()).ends_with("Slot 3 pays €0")
 	assert_str(screen._inspection_tag.tooltip_text).contains("Spot check")
-	assert_str(screen._inspection_tag.tooltip_text).contains("The 3rd product pays €0")
+	assert_str(screen._inspection_tag.tooltip_text).contains("Slot 3 pays €0")
 	assert_bool(screen._loyalty_card.is_ancestor_of(screen._inspection_tag)).is_false()
 	assert_int(screen._loyalty_card.stamped_boxes().size()).is_equal(run.upgrades.size())
 	assert_array(_last_event("shift_start")["inspections"]).is_equal(["spot_check"])
@@ -119,6 +119,12 @@ func test_inspection_steps_print_and_play_from_the_tag() -> void:
 	screen._debug.set_inspection("spot_check")
 	assert_bool(screen._inspection_tag.visible).is_true()
 	assert_str(_last_event("debug")["action"]).is_equal("set_inspection")
+	# Slot 3 wears the inspection's "€0" mark on the empty belt already (2026-10-28).
+	var dead: SlotMark = screen._row_strip.inspection_mark(2, 0)
+	assert_object(dead).is_not_null()
+	assert_bool(dead.is_visible_in_tree()).is_true()
+	assert_str(dead.text()).is_equal(SlotMark.INSPECTION_TEXT)
+	assert_object(screen._row_strip.inspection_mark(1)).is_null()
 	_place_ids(screen, ["bread", "bread", "bread", "bread"])
 	# The live preview already pays the 3rd Bread 0, and scanning it names the inspection (#75:
 	# the planning receipt is a stub, its lines are read on the items).
@@ -134,6 +140,7 @@ func test_inspection_steps_print_and_play_from_the_tag() -> void:
 	assert_object(screen._count_up._beats._source_control(steps[0])).is_same(screen._inspection_tag)
 	assert_str(_receipt_text(screen)).contains(RECEIPT_LINE)
 	assert_object(screen.run.history[0].inspection).is_not_null()
+	assert_int(dead.fired_count()).is_equal(1)
 
 
 func test_the_debug_panel_clears_the_inspection() -> void:
@@ -143,7 +150,7 @@ func test_the_debug_panel_clears_the_inspection() -> void:
 	screen._debug.set_inspection("spot_check")
 	assert_array(_last_event("shift_start")["inspections"]).is_equal(["spot_check"])
 	screen._debug.set_inspection("")
-	assert_bool(screen._inspection_tag.visible).is_false()
+	assert_str(screen._inspection_tag.text()).is_equal(WeekCardModel.NO_EVENT)  # The day chip.
 	assert_array(screen.run.inspections).is_empty()
 	assert_array(_last_event("shift_start")["inspections"]).is_empty()
 	# An unknown id changes nothing.
@@ -162,6 +169,8 @@ func test_the_planning_notice_promises_and_earns_the_bonus_ticket() -> void:
 	var runner: GdUnitSceneRunner = scene_runner(SCREEN)
 	var screen: ShiftScreen = runner.scene()
 	_only_spot_check(screen)
+	# The live machine gives an inspection no bonus since v0.68 (Payday): a copy that does.
+	MachineSteps.bonus_after_inspection(screen.run)
 	screen._debug.set_inspection("spot_check")
 	var run: RunState = screen.run
 	assert_bool(run.machine.bonus_if_passed(run)).is_true()
@@ -171,10 +180,16 @@ func test_the_planning_notice_promises_and_earns_the_bonus_ticket() -> void:
 	assert_str(tag.tooltip_text).contains("PASS › +1 BONUS TICKET")
 	assert_str(tag.full_text()).contains("+1")
 	await _frames(3)
-	# The effect is never cut: something else gives way first (InspectionTag.fit_width).
+	# The effect is cut only once everything else gave way (InspectionTag.fit_width; since v0.70
+	# the week chip's name and pips too, TopBar.fit_inspection), and the tooltip keeps it whole.
 	var effect: String = (load(SPOT_CHECK) as InspectionDefinition).chip_text
-	assert_bool(tag.is_trimmed()).is_false()
-	assert_str(tag.label().text).contains(effect)
+	if tag.is_trimmed():
+		var week_chip: WeekChip = screen._stage.top_bar.week_chip
+		assert_bool(week_chip.name_shown() or week_chip.pips_shown()).is_false()
+		assert_bool(screen._stage.top_bar.training_label.visible).is_false()
+	else:
+		assert_str(tag.label().text).contains(effect)
+	assert_str(tag.tooltip_text).contains((load(SPOT_CHECK) as InspectionDefinition).display_name)
 	assert_str(tag.tooltip_text).contains(InspectionTag.PILL_TIP)
 	var chip: Rect2 = tag.get_global_rect()
 	var pill: Rect2 = tag.pill().get_global_rect()
@@ -218,12 +233,16 @@ func test_the_planning_notice_promises_and_earns_the_bonus_ticket() -> void:
 	assert_int(tag.bonus_state()).is_equal(InspectionTag.Bonus.EARNED)
 	assert_str(tag.label().text).is_equal("Spot check passed")
 	assert_str(tag.full_text()).starts_with("Spot check passed +1")
-	assert_bool(tag.self_modulate == Color.WHITE).is_false()
+	# EARNED tints the paper frame teal pale (unearned, it is tomato pale).
+	var pale: Color = Palette.TEAL_PALE
+	var paper: Color = Palette.PAPER
+	var earned_tint: Color = Color(pale.r / paper.r, pale.g / paper.g, pale.b / paper.b)
+	assert_bool(tag.self_modulate.is_equal_approx(earned_tint)).is_true()
 	screen._machine.debug_skip()  # The ticket's visit and the bonus ticket's.
 	# Shift 2 is not inspected: no pill.
 	assert_int(run.phase).is_equal(RunState.Phase.PLANNING)
 	assert_int(run.history[-1].shift).is_equal(1)
-	assert_bool(tag.visible).is_false()
+	assert_str(tag.text()).is_equal(WeekCardModel.NO_EVENT)  # The day chip (v0.70).
 	assert_int(tag.bonus_state()).is_equal(InspectionTag.Bonus.NONE)
 
 
@@ -317,13 +336,18 @@ static func _event_log() -> EventLogService:
 	return (Engine.get_main_loop() as SceneTree).root.get_node("/root/EventLog")
 
 
-## These tests follow Spot check through the screen: the run draws from a pool holding only it
-## (a copy of the balance data, so the shared resource is untouched).
+## These tests follow Spot check through the screen: the run draws from a pool holding only it,
+## with no boon days (v0.69; a copy of the balance data, so the shared resource is untouched).
 static func _only_spot_check(screen: ShiftScreen) -> void:
 	var balance: BalanceDefinition = screen.run.balance.duplicate()
 	var pool: Array[InspectionDefinition] = [load(SPOT_CHECK)]
 	balance.inspection_pool = pool
+	balance.boon_shifts = PackedInt32Array()
 	screen.run.balance = balance
+	# The week's days (v0.70) as this balance draws them.
+	screen.run.week = WeekSchedule.draw(RandomNumberGenerator.new(), balance, 1)
+	screen.run.inspections = screen.run.week.day(screen.run.shift_index + 1)
+	screen._week.skip()
 
 
 ## Short belt on the shift screen: 6 open slots plus a CLOSED panel after them, so the row keeps

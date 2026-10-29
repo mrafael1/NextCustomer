@@ -24,10 +24,14 @@ const DECKS_FOLDER := "decks"
 const RETIRED_UPGRADES: Dictionary[StringName, String] = {
 	&"extra_coupon_slot": "Extra coupon slot",
 }
-## Inspections removed from data/, by id: their names (plan v0.46, #106).
+## Inspections (day events) removed from data/, by id: their names (plan v0.46, #106; Big
+## trolleys, a boon, v0.70: its 9-item hand overlapped).
 const RETIRED_INSPECTIONS: Dictionary[StringName, String] = {
 	&"coupon_slot_closed": "Coupon slot closed",
+	&"big_trolleys": "Big trolleys",
 }
+## The retired day events that were boons: their stand-ins keep the BOON tone.
+const RETIRED_BOONS: Array[StringName] = [&"big_trolleys"]
 ## The effect text of a retired stand-in.
 const RETIRED_TEXT := "Retired: no effect"
 
@@ -120,6 +124,8 @@ func _retired(folder: String, id: StringName) -> Resource:
 		inspection_stand_in.display_name = RETIRED_INSPECTIONS[id]
 		inspection_stand_in.notice_text = RETIRED_TEXT
 		inspection_stand_in.chip_text = "no effect"
+		if RETIRED_BOONS.has(id):
+			inspection_stand_in.tone = InspectionDefinition.Tone.BOON
 		stand_in = inspection_stand_in
 	if stand_in != null:
 		add(stand_in)

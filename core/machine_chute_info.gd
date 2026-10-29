@@ -15,3 +15,6 @@ var cart_full: bool = false
 ## that draw spent the run's first-visit coupon.
 var first_pick_kept: bool = false
 var first_pick_spent_coupon: bool = false
+## The odds levels the week event raised this visit's draw by (v0.70: Holiday rush's +1,
+## WeekSchedule.odds_delta): the stock window says so ("ODDS +1"). 0: none.
+var week_odds: int = 0

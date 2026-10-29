@@ -23,6 +23,34 @@ func test_coupons_are_not_counted() -> void:
 	assert_int(_inspection_steps(result)[0].slot).is_equal(3)
 
 
+## Spot check since 2026-10-28 (NthSlotZeroPayoutRule): slot 3 of the belt pays 0, coupons
+## counted, so the slot never moves with the row's coupons.
+func test_slot_three_pays_zero_counting_coupons() -> void:
+	# Banana, Repeat (copies Banana), Bread in slot 3, Milk (3 + 2 for Bread).
+	var result: ScoreResult = _score(["banana", "repeat", "bread", "milk"], [_slot_three()])
+	assert_array(Array(result.payouts)).is_equal([2, 2, 0, 5])
+	assert_int(_inspection_steps(result).size()).is_equal(1)
+	assert_int(_inspection_steps(result)[0].slot).is_equal(2)
+
+
+func test_a_coupon_in_slot_three_pays_zero_and_still_works() -> void:
+	# Repeat in slot 3 copies Bread's 3 and is zeroed; Milk after it still gets its +2.
+	var result: ScoreResult = _score(["banana", "bread", "repeat", "milk"], [_slot_three()])
+	assert_array(Array(result.payouts)).is_equal([2, 3, 0, 5])
+	var plain: ScoreResult = _score(["banana", "bread", "repeat", "milk"], [])
+	assert_int(result.total).is_equal(plain.total - plain.payouts[2])
+
+
+func test_a_row_shorter_than_the_slot_changes_nothing() -> void:
+	for ids: Array in [["bread", "banana"], ["coffee"], []]:
+		var plain: Array = _as_data(_score(ids, []))
+		(
+			assert_array(_as_data(_score(ids, [_slot_three()])))
+			. override_failure_message(str(ids))
+			. is_equal(plain)
+		)
+
+
 func test_fewer_than_three_products_change_nothing() -> void:
 	for ids: Array in [["bread", "repeat", "repeat"], ["coffee", "final_markdown", "bread"], []]:
 		var plain: Array = _as_data(_score(ids, []))
@@ -178,6 +206,13 @@ func _third() -> InspectionDefinition:
 	var rule: NthProductZeroPayoutRule = NthProductZeroPayoutRule.new()
 	rule.product_number = 3
 	rule.receipt_text = RECEIPT
+	return _inspection("Spot check", rule)
+
+
+func _slot_three() -> InspectionDefinition:
+	var rule: NthSlotZeroPayoutRule = NthSlotZeroPayoutRule.new()
+	rule.slot_number = 3
+	rule.receipt_text = "slot 3 pays €0"
 	return _inspection("Spot check", rule)
 
 

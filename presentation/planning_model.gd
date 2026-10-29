@@ -348,12 +348,18 @@ class CauseNames:
 			return Color()
 		return LoyaltyCard.run_mark_colour(_upgrades[link.cause_index])
 
-	## The badge of `link`'s cause.
+	## The badge of `link`'s cause: a day event's by its tone (a boon's coin, an inspection's
+	## warning sign).
 	func badge_of(link: EffectLink) -> GiverBadge.Kind:
 		match link.cause_kind:
 			ScoreStep.SourceKind.UPGRADE:
 				return GiverBadge.Kind.LOYALTY
 			ScoreStep.SourceKind.INSPECTION:
+				var index: int = link.cause_index
+				if index >= 0 and index < _inspections.size():
+					# A week event (v0.70) helps like a boon: its coin badge.
+					if _inspections[index].is_boon() or _inspections[index].is_week():
+						return GiverBadge.Kind.BOON
 				return GiverBadge.Kind.INSPECTION
 		if link.cause_slot >= 0 and link.cause_slot < _row.size():
 			if _row[link.cause_slot].is_coupon():

@@ -82,7 +82,8 @@ static func run_abandon(run: RunState, run_ms: int) -> Dictionary:
 ## once RewardMachine.pick or bin has recorded `visit` (the run's last record holds it): the
 ## shift (1-based), the visit's index in the shift (0: the ticket), its kind (ticket, bonus; until
 ## v0.61 also stamp_day), its machine state (classic, premium; v0.61, #108: until then normal,
-## boosted, stamp_day), the inspection that earned a bonus ticket ("" otherwise), the chute
+## boosted, stamp_day), the inspections the bonus ticket's shift was played under (a BONUS
+## visit: their ids, comma-separated since v0.68, a Manager's review's two; "" otherwise), the chute
 ## (new_items, upgrade; until v0.61 new_items, coupons, register, upgrades), the odds shown
 ## (`odds`: the chosen chute's card: each rarity's % per drop, P(at least one RARE or better) and
 ## P(a LEGENDARY), in %), whether the draw held its guarantee, the card's fallback notes, the
@@ -295,3 +296,10 @@ static func inspection_ids(inspections: Array[InspectionDefinition]) -> Array:
 ## One inspection's id, or "" for none (`next_inspection` in `checkout`).
 static func inspection_id(inspection: InspectionDefinition) -> String:
 	return String(inspection.id) if inspection != null else ""
+
+
+## The id of the first inspection (a malus) among a shift's day events, or "" when it has none:
+## `next_inspection` in `checkout` never names a boon (v0.69; `next_inspections` lists them all).
+static func first_inspection_id(events: Array[InspectionDefinition]) -> String:
+	var found: Array[InspectionDefinition] = InspectionDefinition.maluses(events)
+	return inspection_id(found[0] if not found.is_empty() else null)

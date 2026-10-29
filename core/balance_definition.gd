@@ -43,7 +43,7 @@ extends Resource
 ## 1-based shift numbers played under an inspection (plan section 3.9). Each is announced on
 ## the previous shift's receipt, so each is a shift of the run and never shift 1.
 @export var inspection_shifts: PackedInt32Array = PackedInt32Array()
-## Inspections that an inspected shift draws from.
+## Inspections (MALUS day events) that an inspected shift and a review draw from.
 @export var inspection_pool: Array[InspectionDefinition] = []
 ## The Manager's reviews (v0.65, the loop rework): 1-based shift numbers that end a week, each
 ## played under review_inspection_count inspections at once instead of one. A review shift need
@@ -51,12 +51,30 @@ extends Resource
 @export var review_shifts: PackedInt32Array = PackedInt32Array()
 ## How many different inspections a review shift draws (InspectionSchedule.count_for).
 @export var review_inspection_count: int = 0
-## Write-ups (v0.65): a missed quota writes the cashier up instead of ending the run, and the
-## write-up that reaches this count gets them fired (the run is lost). 0 or 1: every miss ends
-## the run, as before v0.65. A missed last shift always ends the run.
+## The boon days (v0.69, day events): 1-based shift numbers that each draw one boon day event from
+## boon_pool (InspectionDefinition.Tone.BOON), announced on the previous shift's receipt like an
+## inspection. Shift 1 never gets one (nothing announces it).
+@export var boon_shifts: PackedInt32Array = PackedInt32Array()
+## The boon day events a boon day draws from (never an inspection: inspection_pool holds the
+## maluses).
+@export var boon_pool: Array[InspectionDefinition] = []
+## Shifts per week (v0.70, WeekSchedule: the time card shows one week of day events at a time,
+## drawn when the week starts). 0: the whole run is one week.
+@export var week_length: int = 0
+## The fixed week events (v0.70), one per week in order (WeekSchedule.event_for): week 1's first.
+## A week past the list has none.
+@export var weeks: Array[WeekEventDefinition] = []
+## Slips (v0.68, the training week; the code's write-ups since v0.65): the most missed quotas the
+## run forgives, on shifts up to write_up_last_shift. A forgiven miss stamps SLIP n/limit, gets no
+## ticket and the run goes on; the next miss ends the run. 0: every miss ends the run, as before
+## v0.65. A missed last shift always ends the run.
 @export var write_up_limit: int = 0
+## The last 1-based shift whose miss can be forgiven (v0.68: the training week's, 4); a miss after
+## it ends the run. 0: any shift but the last.
+@export var write_up_last_shift: int = 0
 ## Coins a run pays at its end (full build plan 7.1, CoinPayout), by the number of shifts
-## passed: index 0 to the number of shifts (a won run). Shorter tables use their last entry.
+## passed: index 0 to the number of shifts. A won run pays the last entry, whatever its slips
+## (v0.68). Shorter tables use their last entry.
 @export var coins_by_shifts_passed: PackedInt32Array = PackedInt32Array()
 ## Overtime coins: one per this many euros over quota, summed over the passed shifts (0: none).
 @export var overtime_coin_euros: int = 0

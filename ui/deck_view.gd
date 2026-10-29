@@ -28,12 +28,17 @@ extends PanelContainer
 ## paints every cell of both pages: the hovered item lights the cells it works with (a broad "next
 ## Food" match faint) and greys the rest, and `mix_family` (a family glyph's tooltip in the view,
 ## PlanningEffects.watch_glyphs) lights that family's cells instead. Off in choosing mode. In
-## choosing mode (the machine's deck-full chooser, #77) only the Cart page shows, a hovered item
-## gets a gold ring, and clicking it chooses one of its copies (to remove it from the deck); Close
-## cancels the pick. It only displays RunState and DeckSummary.
+## choosing mode (#77) only the Cart page shows, a hovered item gets a gold ring, and clicking it
+## chooses one of its copies (to remove it from the deck); Close cancels the pick. The machine's
+## pick opens it in placing mode (2026-10-29, open_placing, CartPlacing): the prize's item rides on
+## the pointer, the cart's free places show as gold RoomSpots in empty shelf spots, and the drop
+## adds it (`added`), swaps an item's copy out (`card_chosen`) or goes back (`closed`). It only
+## displays RunState and DeckSummary.
 
 signal closed
 signal card_chosen(card: CardInstance)
+## Placing mode: the prize was dropped on a free spot.
+signal added
 
 const COLUMNS := 10
 const GAP := 10.0
@@ -93,6 +98,10 @@ var _scroll: ScrollContainer
 var _deck_page: VBoxContainer
 var _info_page: VBoxContainer
 var _choosing: bool = false
+## Placing mode's held prize, and the Cart page's shelves with the slots its cells take.
+var _placing: CartPlacing
+var _shelves: Array[DeckShelf] = []
+var _used_slots: Array[int] = []
 ## The run's starting deck, for the pick marks (null: no marks).
 var _starter: DeckDefinition
 var _balance: BalanceDefinition
@@ -137,11 +146,23 @@ func _init() -> void:
 	_popup.name = "ScanPopup"
 	_popup.visible = false
 	_popup_layer.add_child(_popup)
+	_placing = CartPlacing.new()
+	add_child(_placing)
+	_placing.added.connect(_on_placed_added)
+	_placing.swapped.connect(_on_placed_swapped)
+	_placing.cancelled.connect(_close)
+	_placing.visible = false
+	visibility_changed.connect(
+		func() -> void:
+			if not visible:
+				_placing.end()
+	)
 	visible = false
 
 
 ## `choosing`: only the deck shows, and clicking an item chooses a copy of it (to remove it).
 func open(run: RunState, title: String, choosing: bool) -> void:
+	_placing.end()
 	_choosing = choosing
 	_title.set_text(title)
 	_starter = run.starter
@@ -155,6 +176,25 @@ func open(run: RunState, title: String, choosing: bool) -> void:
 	# The items fan out as the panel pops in (#62).
 	Sfx.play_at(self, "fan")
 	UiKit.pop_in(self)
+
+
+## Placing mode (the machine's pick): the cart with `room` free spots (at most the empty shelf
+## spots) and `prize`'s item on the pointer (CartPlacing).
+func open_placing(run: RunState, title: String, prize: CardDefinition, room: int) -> void:
+	open(run, title, true)
+	var spots: Array[RoomSpot] = _add_room_spots(room)
+	var held: CardInstance = CardInstance.new(prize, -1)
+	var shown: Callable = func(cell: DeckCell) -> void:
+		if cell != null:
+			hover(cell)
+		else:
+			_unhover()
+	_placing.begin(held, _balance.aisle_of(prize), cells(), spots, _close_button, shown)
+
+
+## The placing mode's held prize (for tests).
+func placing() -> CartPlacing:
+	return _placing
 
 
 ## Shows the Run info tab, or the Cart tab.
@@ -217,7 +257,7 @@ func hover(cell: DeckCell) -> void:
 	_hovered = cell
 	var item: ItemView = cell.item()
 	item.lifted = true
-	cell.ringed = _choosing
+	cell.ringed = _choosing and not _placing.is_holding()
 	_popup.visible = true
 	_popup.show_card(item.card.definition, item.tags())
 	_popup.place_at(
@@ -303,6 +343,8 @@ func _fill_deck_page(cards: Array[CardInstance]) -> void:
 	for _shelf: int in range(maxi(MIN_SHELVES, floori(last_slot / float(COLUMNS)) + 1)):
 		shelves.append(DeckShelf.new(COLUMNS, GAP, true))
 		_deck_page.add_child(shelves[-1])
+	_shelves = shelves
+	_used_slots = slots
 	var groups: Array[DeckSummary.Group] = products + coupons
 	for index: int in groups.size():
 		var slot: int = slots[index]
@@ -333,6 +375,20 @@ func _heading_text(heading: String, groups: Array[DeckSummary.Group]) -> String:
 	for group: DeckSummary.Group in groups:
 		copies += group.copies.size()
 	return "%s  (%d)" % [heading, copies]
+
+
+## Up to `room` free spots in the Cart page's empty shelf spots, the first ones first.
+func _add_room_spots(room: int) -> Array[RoomSpot]:
+	var spots: Array[RoomSpot] = []
+	for slot: int in range(_shelves.size() * COLUMNS):
+		if spots.size() >= room:
+			break
+		if _used_slots.has(slot):
+			continue
+		var spot: RoomSpot = RoomSpot.new()
+		_shelves[floori(slot / float(COLUMNS))].put_spot(spot, slot % COLUMNS)
+		spots.append(spot)
+	return spots
 
 
 func _deck_cell(group: DeckSummary.Group) -> DeckCell:
@@ -378,8 +434,9 @@ func _fill_info_page(run: RunState) -> void:
 	for upgrade: UpgradeDefinition in run.upgrades:
 		_info_page.add_child(_upgrade_row(upgrade))
 	_info_page.add_child(_heading("INSPECTIONS"))
-	for line: String in _inspection_lines(run):
-		var row: HBoxContainer = _icon_row(not line.ends_with("no inspection."))
+	var lines: Dictionary = _inspection_lines(run)
+	for line: String in lines:
+		var row: HBoxContainer = _icon_row(lines[line])
 		row.add_child(_line(line, Palette.CREAM))
 		_info_page.add_child(row)
 	_info_page.add_child(_heading(STOCK_HEADING))
@@ -465,22 +522,33 @@ func _icon_row(warned: bool) -> HBoxContainer:
 	return row
 
 
-## While planning: this shift's inspections. After a checkout,
-## run.inspections still holds the shift just played, so only the next shift shows. The next
-## shift's inspection is drawn at the previous passed checkout: before that, a scheduled one is
-## announced as coming. The last shift has no next shift.
-static func _inspection_lines(run: RunState) -> PackedStringArray:
-	var lines: PackedStringArray = PackedStringArray()
+## While planning: this shift's inspections. After a checkout, run.inspections still holds the
+## shift just played, so only the next shift shows. The next shift's inspection is drawn at the
+## previous passed checkout: before that, a scheduled one is announced as coming. The last shift
+## has no next shift. Each line maps to whether it wears the warning sign: one that names or
+## announces an inspection, never a boon day's alone (v0.69).
+static func _inspection_lines(run: RunState) -> Dictionary:
+	var lines: Dictionary = {}
 	if run.phase == RunState.Phase.PLANNING:
-		lines.append(_inspection_line("This shift", run.inspections))
+		lines[_inspection_line("This shift", run.inspections)] = _has_malus(run.inspections)
 	var next_shift: int = run.shift_index + 2
 	if not run.next_inspections.is_empty():
-		lines.append(_inspection_line("Next shift", run.next_inspections))
+		lines[_inspection_line("Next shift", run.next_inspections)] = (_has_malus(
+			run.next_inspections
+		))
+	elif InspectionSchedule.is_review_shift(run.balance, next_shift):
+		lines["Next shift: Manager's review (announced at checkout)."] = true
 	elif InspectionSchedule.is_inspection_shift(run.balance, next_shift):
-		lines.append("Next shift: inspected (announced at checkout).")
+		lines["Next shift: inspected (announced at checkout)."] = true
+	elif InspectionSchedule.is_boon_shift(run.balance, next_shift):
+		lines["Next shift: a good day (announced at checkout)."] = false
 	elif next_shift <= run.shift_count():
-		lines.append(_inspection_line("Next shift", []))
+		lines[_inspection_line("Next shift", [])] = false
 	return lines
+
+
+static func _has_malus(events: Array[InspectionDefinition]) -> bool:
+	return not InspectionDefinition.maluses(events).is_empty()
 
 
 static func _inspection_line(when: String, inspections: Array[InspectionDefinition]) -> String:
@@ -489,7 +557,11 @@ static func _inspection_line(when: String, inspections: Array[InspectionDefiniti
 	var notices: PackedStringArray = PackedStringArray()
 	for inspection: InspectionDefinition in inspections:
 		notices.append("%s, %s" % [inspection.display_name, inspection.notice_text])
-	return "%s: %s" % [when, "  ·  ".join(notices)]
+	# A Manager's review (several inspections) says so, then names every one of them (a boon day's
+	# event too, v0.69).
+	var maluses: int = InspectionDefinition.maluses(inspections).size()
+	var review: String = "Manager's review: " if maluses > 1 else ""
+	return "%s: %s%s" % [when, review, "  ·  ".join(notices)]
 
 
 ## A cell for `card` with `copies` copies; its item's hover and clicks come to the view.
@@ -596,13 +668,26 @@ static func _clear(page: Control) -> void:
 
 
 func _on_card_clicked(view: CardView) -> void:
-	if _choosing:
+	if _choosing and not _placing.is_holding():
 		_unhover()
 		visible = false
 		card_chosen.emit(view.card)
 
 
+func _on_placed_added() -> void:
+	_unhover()
+	visible = false
+	added.emit()
+
+
+func _on_placed_swapped(card: CardInstance) -> void:
+	_unhover()
+	visible = false
+	card_chosen.emit(card)
+
+
 func _close() -> void:
+	_placing.end()
 	_unhover()
 	visible = false
 	closed.emit()

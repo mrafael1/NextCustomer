@@ -781,6 +781,7 @@ static func _bonus_run(
 		prepare = _premium
 	var run: RunState = _passed_run(seed_value, prepare, full)
 	run.history[-1].inspection = load(SPOT_CHECK)
+	MachineSteps.bonus_after_inspection(run)
 	run.machine.begin_after_checkout(run)
 	var first: int = RewardMachine.Chute.NEW_ITEMS
 	if premium:

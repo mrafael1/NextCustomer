@@ -10,10 +10,12 @@ extends Control
 ## the plain product's (the art and the tier tag show the tier), stepped down to fit.
 ##
 ## Hover (the pointer on its sprite or sticker) lifts the art; `ringed` draws the chooser's gold
-## ring round it. The mix highlight (#105 piece 3, mock-up readability v3's Cart) greys the whole
-## cell for GREY and FAINT (`mix_look`; FAINT also draws a faint dashed outline round it,
-## FAINT_RECT, and never a check: the Cart has no order). It only displays its card: DeckView owns
-## the clicks, the hover, the highlight and the popup.
+## ring round it, and `out_marked` (a held prize over it, CartPlacing: dropping swaps it out)
+## a tomato ring, a tomato tint and a tilted OUT ✕ tag over the art. The mix highlight (#105
+## piece 3, mock-up readability v3's Cart) greys the whole cell for GREY and FAINT (`mix_look`;
+## FAINT also draws a faint dashed outline round it, FAINT_RECT, and never a check: the Cart has
+## no order). It only displays its card: DeckView owns the clicks, the hover, the highlight and
+## the popup.
 
 const SIZE := Vector2(108, 200)
 ## The name's line under the sticker and the tier tag (PriceSticker.TIER_TAG_RECT reaches y 182).
@@ -39,7 +41,16 @@ const NEW_TEXT := "NEW"
 ## The chooser's ring round the item's column (sprite and sticker), outside it by RING_OUTSET.
 const RING_WIDTH := 4.0
 const RING_OUTSET := 4.0
+## The OUT ✕ tag over the art's top (clear of the held item, which shrinks over the pointer):
+## its rect, tilt and text; the art's tint while marked.
+const OUT_RECT := Rect2(-6, -6, 120, 26)
+const OUT_TINT := Palette.TOMATO_PALE
+const OUT_TILT := -8.0
+const OUT_TEXT := "OUT ✕"
+const OUT_SIZE := 16
+const OUT_WEIGHT := 800
 ## Node names (for tests).
+const OUT_TAG := "OutTag"
 const PICK_MARK := "PickMark"
 const NEW_MARK := "NewMark"
 const COUNT_LABEL := "CountLabel"
@@ -53,6 +64,11 @@ var ringed: bool = false:
 	set(value):
 		ringed = value
 		queue_redraw()
+## A held prize is over it (CartPlacing): the tomato ring and the OUT ✕ tag; the art lifts.
+var out_marked: bool = false:
+	set(value):
+		out_marked = value
+		_show_out()
 ## The mix highlight's look (#105 piece 3): GREY and FAINT grey every part (ArtStyle.set_mix_grey
 ## to `mix_greyness`), FAINT adds its dashed outline. Set the greyness first.
 var mix_look: MixModel.Look = MixModel.Look.NONE:
@@ -66,6 +82,7 @@ var _name: Label
 var _count: EffectSticker
 var _marks: Array[RevealChip] = []
 var _mix_mark: MixMark
+var _out: Label
 
 
 ## The cell of `instance` (its group's first copy) in `aisle`, with `copies` copies of it.
@@ -194,8 +211,42 @@ func _add_stack(copies: int) -> void:
 		add_child(copy)
 
 
+func _show_out() -> void:
+	if out_marked and _out == null:
+		_out = UiKit.body_label(OUT_TEXT, OUT_SIZE, Palette.PAPER)
+		_out.name = OUT_TAG
+		_out.add_theme_font_override("font", MachineDisplay.marked_font(OUT_WEIGHT))
+		_out.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		_out.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+		var tag: StyleBoxFlat = StyleBoxFlat.new()
+		tag.bg_color = Palette.TOMATO
+		tag.border_color = Palette.INK
+		tag.set_border_width_all(2)
+		tag.border_width_bottom = 4
+		_out.add_theme_stylebox_override("normal", tag)
+		_out.position = OUT_RECT.position
+		_out.size = OUT_RECT.size
+		_out.pivot_offset = OUT_RECT.size / 2.0
+		_out.rotation_degrees = OUT_TILT
+		add_child(_out)
+	if _out != null:
+		_out.visible = out_marked
+	_item.lifted = out_marked
+	_item.set_push_tint(OUT_TINT if out_marked else Color.WHITE)
+	queue_redraw()
+
+
+## The OUT ✕ tag (null until first marked; for tests).
+func out_tag() -> Label:
+	return _out
+
+
 func _draw() -> void:
-	if ringed:
+	if out_marked:
+		var out: Rect2 = column_rect().grow(RING_OUTSET)
+		draw_rect(out.grow(RING_WIDTH / 2.0 + 1.0), Palette.INK, false, 2.0)
+		draw_rect(out, Palette.TOMATO, false, RING_WIDTH)
+	elif ringed:
 		var ring: Rect2 = column_rect().grow(RING_OUTSET)
 		draw_rect(ring.grow(RING_WIDTH / 2.0 + 1.0), Palette.INK, false, 2.0)
 		draw_rect(ring, Palette.GOLD, false, RING_WIDTH)

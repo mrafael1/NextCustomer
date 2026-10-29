@@ -131,6 +131,7 @@ func test_the_wall_covers_the_window_at_every_size() -> void:
 func test_decor_takes_no_clicks_and_sits_behind_the_stage() -> void:
 	var runner: GdUnitSceneRunner = scene_runner(SCREEN)
 	var screen: ShiftScreen = runner.scene()
+	screen._week.skip()  # The time card (v0.70) stays out of the way.
 	await _frames(3)
 	var stage: ShiftStage = screen._stage
 	var wall: Control = screen._wall

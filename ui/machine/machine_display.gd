@@ -3,8 +3,8 @@ extends Panel
 ## The machine's char display (#77, look F; build spec 4.2-4.3; v0.50: the LED strip left of the
 ## receipt slot, 292 px wide, mock-up premium_machine_v1.html): the message in Pixelify 24
 ## (mustard light; bold Atkinson 17, then 15, 13 or 12, when it doesn't fit) with its sub line (bold
-## Atkinson 11, grey light), and the BIN IT ✕ button at the right (RewardMachine.can_bin: both
-## chutes since v0.61; shown from the last reveal's end until the pick or the bin, as look F).
+## Atkinson 11, grey light). Its BIN IT ✕ button went to the SKIP bin under the prize row
+## (2026-10-29, SkipBin).
 ## Pixelify and Atkinson have no ✓ or ✕: the display's fonts fall back to JetBrains Mono
 ## (ArtStyle.MONO_FONT) for them, the same on desktop and on the web build (marked_font).
 ##
@@ -20,12 +20,10 @@ extends Panel
 ## until then a title mode with a CONFIRM › key took the strip). A BONUS visit's feed reads the
 ## ticket icon and "BONUS TICKET" / "inspection passed · feeding in".
 
-signal bin_pressed
-
 const SIZE := Vector2(292, 52)
 const MESSAGE_SIZE := 24
 ## The message's size in bold Atkinson when Pixelify 24 doesn't fit (look F's 17 px), then the
-## smaller steps when that doesn't fit either (v0.50: the strip is 292 px, 180 px beside BIN IT).
+## smaller steps when that doesn't fit either (v0.50: the strip is 292 px).
 const FALLBACK_STEPS: Array[int] = [17, 15, 13, 12]
 ## The sub line's smaller sizes when 11 doesn't fit.
 const SUB_STEPS: Array[int] = [11, 10, 9]
@@ -35,10 +33,6 @@ const MESSAGE_TOP := 2.0
 const MESSAGE_HEIGHT := 28.0
 const SUB_TOP := 30.0
 const SUB_HEIGHT := 16.0
-const BIN_RECT := Rect2(196, 13, 88, 26)
-const BIN_GAP := 6.0
-const BIN_TEXT := "BIN IT ✕"
-const BIN_SIZE := 12
 ## A BONUS visit's feed: the ticket icon (2x) left of BONUS TICKET.
 const BONUS_TICKET := "BONUS TICKET"
 const TICKET_ICON := preload("res://art/icons/bonus_ticket.png")
@@ -64,8 +58,6 @@ static var _marked: Dictionary[int, FontVariation] = {}
 var view: RewardMachineView
 var _message: Label
 var _sub: Label
-var _bin: Button
-var _bin_shown: bool = false
 var _icon: TextureRect
 ## The wait point's message and sub line (show_message), shown when the plan has no line of its
 ## own at the time.
@@ -99,13 +91,6 @@ func _init() -> void:
 	_sub.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	_sub.clip_text = true
 	add_child(_sub)
-	# Silent: MachineSounds plays the bin's ui_back when the landing is planned.
-	_bin = UiKit.button(self, BIN_TEXT, func() -> void: bin_pressed.emit(), BIN_SIZE, "")
-	_bin.name = "BinButton"
-	_bin.add_theme_font_override("font", marked_font(0))
-	_style_bin()
-	RewardMachineView.fit(_bin, BIN_RECT)
-	_bin.visible = false
 	_icon = UiKit.sprite(TICKET_ICON)
 	_icon.name = "TicketIcon"
 	_icon.size = TICKET_ICON.get_size() * ICON_SCALE
@@ -168,24 +153,6 @@ func labels() -> Array[Label]:
 	return [_message, _sub]
 
 
-## Offers BIN IT on this draw or not (it shows at the times frame(t) gives), and whether it can
-## be pressed yet.
-func set_bin(shown: bool, enabled: bool) -> void:
-	_bin_shown = shown
-	_bin.disabled = not enabled
-	_bin.visible = _bin_at(view.clock if view != null else 0.0)
-	_show(_message.text, _sub.text)
-
-
-## Whether this draw offers BIN IT (set_bin), shown yet or not.
-func bin_offered() -> bool:
-	return _bin_shown
-
-
-func bin_button() -> Button:
-	return _bin
-
-
 ## Hooks this part to the machine: RewardMachineView calls it once, when it builds the part
 ## (build spec 4.2).
 func setup(machine: RewardMachineView) -> void:
@@ -193,13 +160,9 @@ func setup(machine: RewardMachineView) -> void:
 
 
 ## The display at time `t` (seconds) of view.plan: a refused key's lines for a moment, else the
-## plan's own line at `t`, else the wait point's; BIN IT from the last reveal's end until the
-## pick or the bin is made.
+## plan's own line at `t`, else the wait point's.
 func frame(t: float) -> void:
 	var plan: MachinePlan = view.plan if view != null else null
-	var bin_now: bool = _bin_at(t)
-	var moved: bool = bin_now != _bin.visible
-	_bin.visible = bin_now
 	var timed: PackedStringArray = _timed(plan, t)
 	var shown: PackedStringArray = timed if not timed.is_empty() else _rest
 	if not _denied.is_empty():
@@ -207,24 +170,8 @@ func frame(t: float) -> void:
 			shown = _denied
 		else:
 			_denied = PackedStringArray()
-	if moved or shown[0] != _message.text or shown[1] != _sub.text:
+	if shown[0] != _message.text or shown[1] != _sub.text:
 		_show(shown[0], shown[1])
-
-
-## Whether BIN IT shows at `t`: offered, the draw's last reveal over, the pick not yet made (no
-## plan: whenever offered).
-func _bin_at(t: float) -> bool:
-	if not _bin_shown:
-		return false
-	var plan: MachinePlan = view.plan if view != null else null
-	if plan == null:
-		return true
-	if not plan.has_draw or plan.n_prizes <= 0:
-		return false
-	var last: int = plan.n_prizes - 1
-	if t < plan.reveal_at[last] + plan.reveal_length[last]:
-		return false
-	return not (plan.has_landing and t >= plan.press)
 
 
 ## The plan's own line at `t`, or none (empty: the wait point's).
@@ -243,6 +190,8 @@ func _timed(plan: MachinePlan, t: float) -> PackedStringArray:
 func _intro_text(plan: MachinePlan, t: float) -> PackedStringArray:
 	if plan.kind == MachineVisit.Kind.BONUS:
 		if t < plan.feed_end:
+			if _payday():
+				return PackedStringArray([Payday.TICKET_TITLE, Payday.FEED_SUB])
 			return PackedStringArray([BONUS_TICKET, "%s · feeding in" % why_words()])
 		return PackedStringArray()
 	if t < plan.feed_end:
@@ -255,18 +204,20 @@ func _intro_text(plan: MachinePlan, t: float) -> PackedStringArray:
 	return _read_text() if t < plan.read_end else PackedStringArray()
 
 
-## The receipt read: the spend thanked, the quota met and the inspection passed; a PREMIUM visit
-## says PREMIUM RECEIPT in the inspection's place, so the line fits (the BONUS visit that follows
-## names the inspection).
+## The receipt read: the spend thanked, the quota met and the inspections passed; a PREMIUM visit
+## says PREMIUM RECEIPT in their place, so the line fits (a payday's: REVIEW PASSED, v0.68).
 func _read_text() -> PackedStringArray:
 	var record: ShiftRecord = _record()
 	if record == null:
 		return PackedStringArray()
 	var met: String = "quota €%d met" % record.quota
-	if view.run.machine.is_premium():
+	if _payday():
+		met += Payday.READ
+	elif view.run.machine.is_premium():
 		met += PREMIUM_READ
 	elif record.inspection != null:
-		met += " · %s passed" % record.inspection.display_name
+		var passed: Array[InspectionDefinition] = InspectionDefinition.maluses(record.inspections)
+		met += " · %s passed" % ", ".join(InspectionTag.names(passed))
 	return PackedStringArray([RewardMachineView.SPEND_LINE % record.total, met])
 
 
@@ -276,7 +227,9 @@ func _draw_text(plan: MachinePlan, t: float) -> PackedStringArray:
 		var bonus: bool = plan.kind == MachineVisit.Kind.BONUS
 		var count: String = "1 PRIZE" if plan.n_prizes == 1 else "%d PRIZES" % plan.n_prizes
 		var from: String = "%s from %s" % [count.to_lower(), _chute_name().to_lower()]
-		return PackedStringArray([PACKING, "bonus ticket" if bonus else from])
+		if bonus:
+			from = "2nd premium ticket" if _payday() else "bonus ticket"
+		return PackedStringArray([PACKING, from])
 	var last: int = plan.n_prizes - 1
 	if t >= plan.reveal_at[last] + plan.reveal_length[last]:
 		return PackedStringArray()
@@ -323,6 +276,8 @@ func _toast() -> String:
 func _end_sub(plan: MachinePlan) -> String:
 	if plan.kind != MachineVisit.Kind.BONUS:
 		return ""
+	if _payday():
+		return Payday.END_SUB
 	return "2 prizes this shift · %s" % _why()
 
 
@@ -335,14 +290,29 @@ func why_words() -> String:
 	return "shift %d" % record.shift
 
 
-## Why a bonus ticket was given: "<inspection> passed", or "shift n" for a bonus extra shift.
+## Why a bonus ticket was given: "<inspections> passed" (every one of them, a Manager's review's
+## two), or "shift n" for a bonus extra shift.
 func _why() -> String:
 	var record: ShiftRecord = _record()
 	if record == null:
 		return ""
 	if record.inspection != null:
-		return "%s passed" % record.inspection.display_name
+		var passed: Array[InspectionDefinition] = InspectionDefinition.maluses(record.inspections)
+		return "%s passed" % ", ".join(InspectionTag.names(passed))
 	return "shift %d" % record.shift
+
+
+## Whether the visit on show is a payday's (v0.68, RewardMachine.is_payday). After its pick the
+## visit is in the record (the machine's current one is gone): its plan's PREMIUM flag says it,
+## so the landing's end line still words the payday.
+func _payday() -> bool:
+	if view == null or view.run == null:
+		return false
+	var machine: RewardMachine = view.run.machine
+	if machine.current_visit() != null or view.plan == null:
+		return machine.is_payday(view.run)
+	var record: ShiftRecord = _record()
+	return record != null and view.plan.premium and machine.machine.is_payday_shift(record.shift)
 
 
 func _record() -> ShiftRecord:
@@ -367,19 +337,17 @@ func _prize_name(index: int) -> String:
 	return prize.card.display_name if prize.card != null else ""
 
 
-## Shows the two lines: the message in Pixelify 24 if it fits the room left of BIN IT (else bold
-## Atkinson 17), both centred in that room; a lone message centred in the display. BONUS TICKET
+## Shows the two lines: the message in Pixelify 24 if it fits the strip (else bold Atkinson 17),
+## both centred in it; a lone message centred in the display. BONUS TICKET
 ## gets the ticket icon before it.
 func _show(message: String, sub: String) -> void:
 	_message.text = message
 	_sub.text = sub
 	var left: float = PAD
 	var room: float = SIZE.x - 2.0 * PAD
-	if _bin.visible:
-		room = BIN_RECT.position.x - BIN_GAP - PAD
 	var font: Font = marked_font(0)
 	var width: float = font.get_string_size(message, HORIZONTAL_ALIGNMENT_LEFT, -1, MESSAGE_SIZE).x
-	_icon.visible = message == BONUS_TICKET
+	_icon.visible = message == BONUS_TICKET or message == Payday.TICKET_TITLE
 	if _icon.visible:
 		# The icon and the line centred together.
 		var pair: float = _icon.size.x + ICON_GAP + width
@@ -414,21 +382,3 @@ func _step(text: String, weight: int, steps: Array[int], room: float) -> int:
 		if font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size).x <= room:
 			return font_size
 	return steps[-1]
-
-
-func _style_bin() -> void:
-	var looks: Dictionary[String, Color] = {
-		"normal": Palette.STEEL_LIGHT,
-		"hover": Palette.STEEL_HIGHLIGHT,
-		"pressed": Palette.STEEL_PALE,
-		"disabled": Palette.STEEL_PALE,
-	}
-	for state: String in looks:
-		var style: StyleBoxFlat = StyleBoxFlat.new()
-		style.bg_color = looks[state]
-		style.border_color = Palette.INK
-		style.set_border_width_all(2)
-		_bin.add_theme_stylebox_override(state, style)
-	for colour: String in ["font_color", "font_hover_color", "font_pressed_color"]:
-		_bin.add_theme_color_override(colour, Palette.INK)
-	_bin.add_theme_color_override("font_disabled_color", Palette.GREY_DARK)

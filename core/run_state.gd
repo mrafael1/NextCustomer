@@ -52,33 +52,45 @@ var limits: ShiftLimits
 var redraws_used: int = 0
 var redraws_allowed: int = 0
 ## The instance ids of the cards this shift's extra redraws brought into the hand (#108 piece 2:
-## the redraws past the balance's base_redraws are Extra redraw's), for the receipt's credit
-## (ScoreCredits).
+## the redraws past the shift's own, ShiftLimits.own_redraws, are Extra redraw's), for the
+## receipt's credit (ScoreCredits).
 var redrawn_in: PackedInt32Array = PackedInt32Array()
 var last_result: ScoreResult
 ## Owned upgrades, in pick order (a starting deck's upgrade first). Scoring steps name them by
 ## index in this list.
 var upgrades: Array[UpgradeDefinition] = []
-## The current shift's inspections (plan section 3.9; empty, one, or a Manager's review's
-## several since v0.65). Scoring steps name them by index in this list.
+## The current shift's day events (plan section 3.9; empty, one, or a Manager's review's several
+## since v0.65; a boon day's boon since v0.69): inspections (maluses) first, then boons. Its week
+## event (v0.70) is not in it: WeekSchedule.shift_events adds it for scoring and the limits, and
+## scoring steps name the events by index in that list.
 var inspections: Array[InspectionDefinition] = []
-## The inspections announced for the next shift: drawn at a checkout the run survives when the
-## next shift is inspected (InspectionSchedule.draw_for), kept through the machine's visits and
-## moved to `inspections` by next_shift. Empty otherwise.
-var next_inspections: Array[InspectionDefinition] = []
-## The first announced inspection, or null (most callers name one): setting it announces that
-## one alone, null none.
+## The current week's day events (v0.70, the time card): drawn with the run's RNG when the week's
+## first shift starts (WeekSchedule.draw), so every day of the week is known ahead; next_shift
+## takes each day's from it. Null before the first shift starts.
+var week: WeekPlan
+## The day events announced for the next shift: after a checkout the run goes on from, the week
+## plan's for the next shift when it is in the same week (a new week's are drawn as it starts,
+## and its time card shows them). Empty otherwise. Read only.
+var next_inspections: Array[InspectionDefinition]:
+	get:
+		var none: Array[InspectionDefinition] = []
+		if week == null or _phase in [Phase.PLANNING, Phase.CHOOSE_START, Phase.WON, Phase.LOST]:
+			return none
+		return week.day(shift_index + 2)
+## The first announced inspection, or null (most callers name one).
 var next_inspection: InspectionDefinition:
 	get:
-		return next_inspections[0] if not next_inspections.is_empty() else null
-	set(value):
-		next_inspections = []
-		if value != null:
-			next_inspections.append(value)
+		var found: Array[InspectionDefinition] = InspectionDefinition.maluses(next_inspections)
+		return found[0] if not found.is_empty() else null
+## A save from before v0.70 (the week events) restored on this 1-based shift: it was planned, and
+## maybe checked out, without its week event, so it is scored and limited without it
+## (WeekSchedule.shift_events). 0: none.
+var pre_week_shift: int = 0
 ## One entry per played shift, in order.
 var history: Array[ShiftRecord] = []
-## The run's write-ups (v0.65): its missed shifts. A run still going has fewer than the
-## balance's write_up_limit; a lost run's last miss is the one that got the cashier fired.
+## The run's write-ups (v0.65; slips to the player since v0.68): its missed shifts. A run still
+## going has at most the balance's write_up_limit; a lost run's last miss is the one that got the
+## cashier fired.
 var write_ups: int:
 	get:
 		var count: int = 0
@@ -142,12 +154,15 @@ func is_last_shift() -> bool:
 	return shift_index == shift_count() - 1
 
 
-## Starts the current shift: draws a fresh hand from the whole deck and empties the row. The
-## shift's limits read the upgrades owned now, so a register picked from the machine applies from
-## here.
+## Starts the current shift: draws a fresh hand (the limits' hand_size: a day event can change
+## it) from the whole deck and empties the row. The shift's limits read the upgrades owned now, so
+## a register picked from the machine applies from here, and its events (the day's and the week's,
+## WeekSchedule.shift_events). The run's first shift draws week 1's day events after its hand
+## (v0.70; the first shift has no day event of its own, so its hand is dealt as before).
 func start_shift() -> void:
-	limits = ShiftLimits.for_shift(balance, upgrades, shift_index, inspections)
-	deck.draw_hand(balance.hand_size)
+	limits = ShiftLimits.for_shift(balance, upgrades, shift_index, WeekSchedule.shift_events(self))
+	deck.draw_hand(limits.hand_size)
+	_plan_week()
 	row = []
 	redraws_used = 0
 	redraws_allowed = limits.redraws
@@ -206,7 +221,7 @@ func redraw_basket(basket: int) -> Array[int]:
 	if not can_redraw_basket(basket):
 		return swapped
 	swapped = deck.redraw_places(basket_places(basket))
-	if redraws_used >= balance.base_redraws:
+	if redraws_used >= limits.own_redraws:
 		var by_place: Array[CardInstance] = deck.hand()
 		for spot: int in swapped:
 			redrawn_in.append(by_place[spot].instance_id)
@@ -257,37 +272,35 @@ func remove(card: CardInstance) -> bool:
 ## be placed gives the plain preview. (One method rather than two keeps RunState within gdlint's
 ## 20 public methods.)
 func preview(card: CardInstance = null, slot: int = 0) -> ScoreResult:
+	var events: Array[InspectionDefinition] = WeekSchedule.shift_events(self)
 	if card == null or not can_place(card):
-		return Scoring.score(row, upgrades, inspections, ScoreCredits.for_run(self))
+		return Scoring.score(row, upgrades, events, ScoreCredits.for_run(self))
 	var placed: Array[CardInstance] = row.duplicate()
 	placed.insert(clampi(slot, 0, placed.size()), card)
-	return Scoring.score(placed, upgrades, inspections, ScoreCredits.for_run(self))
+	return Scoring.score(placed, upgrades, events, ScoreCredits.for_run(self))
 
 
-## Scores the row with the run's upgrades and the shift's inspections. Always allowed, even for
-## an empty row (plan section 3.5). A pass that isn't the last shift draws the next shift's
-## inspections from the run's RNG when it is inspected (section 3.9), then opens the machine's
-## visits (#77); the prizes are drawn later, when a chute is chosen. A miss (v0.65) is a
-## write-up while the run's write-ups stay under the balance's write_up_limit and it isn't the
-## last shift: the next shift's inspections are drawn the same way, and the shift gets no
-## machine visit (SCORED at once). Any other miss loses the run.
+## Scores the row with the run's upgrades and the shift's events (its day events and its week
+## event, v0.70). Always allowed, even for an empty row (plan section 3.5). A pass that isn't the
+## last shift opens the machine's visits (#77); the prizes are drawn later, when a chute is
+## chosen. A miss the run forgives (TrainingWeek.forgives_miss: a slip of the training week, v0.68)
+## gets no machine visit (SCORED at once). Any other miss loses the run. The next shift's day
+## events were drawn with its week (next_inspections).
 func checkout() -> ScoreResult:
 	if phase != Phase.PLANNING:
 		return last_result
-	last_result = Scoring.score(row, upgrades, inspections, ScoreCredits.for_run(self))
+	var events: Array[InspectionDefinition] = WeekSchedule.shift_events(self)
+	last_result = Scoring.score(row, upgrades, events, ScoreCredits.for_run(self))
 	var record: ShiftRecord = ShiftRecord.new(shift_index + 1, quota(), last_result.total)
 	for card: CardInstance in row:
 		record.played.append(card.definition)
 	record.inspections = inspections.duplicate()
 	history.append(record)
-	if not record.passed and (is_last_shift() or write_ups >= balance.write_up_limit):
+	if not record.passed and not TrainingWeek.forgives_miss(self):
 		phase = Phase.LOST
 	elif record.passed and is_last_shift():
 		phase = Phase.WON
 	else:
-		next_inspections = InspectionSchedule.draw_for(
-			_rng, balance, shift_index + 2, _last_inspections()
-		)
 		# A balance without a machine (a test's minimal data) has no visits, nor has a write-up.
 		phase = Phase.SCORED
 		if balance.machine != null:
@@ -306,14 +319,14 @@ func deck_is_full() -> bool:
 	return deck.size() >= balance.deck_limit
 
 
-## Starts the next shift. Only from SCORED: after the machine's last visit. The announced
-## inspection, if any, applies to it.
+## Starts the next shift. Only from SCORED: after the machine's last visit. Its day events are its
+## week plan's: a new week's are drawn first (v0.70, with the run's RNG, before the hand).
 func next_shift() -> bool:
 	if phase != Phase.SCORED:
 		return false
 	shift_index += 1
-	inspections = next_inspections.duplicate()
-	next_inspections = []
+	_plan_week()
+	inspections = week.day(shift_index + 1)
 	start_shift()
 	return true
 
@@ -323,9 +336,10 @@ func debug_add_to_hand(card_definition: CardDefinition) -> CardInstance:
 	return deck.add_to_hand(card_definition)
 
 
-## Debug panel only: jumps to a shift and starts it. Jumping to another shift draws that
-## shift's inspection if it is inspected; restarting the current shift keeps its inspections.
-## The machine's waiting visits are dropped. Not once the run is over.
+## Debug panel only: jumps to a shift and starts it. Jumping to another shift takes that shift's
+## day events from its week (drawn when it is another week); restarting the current shift keeps
+## its inspections (its week's day takes them: the time card and the save agree). The machine's
+## waiting visits are dropped. Not once the run is over.
 func debug_skip_to_shift(index: int) -> void:
 	if phase == Phase.WON or phase == Phase.LOST:
 		return
@@ -333,22 +347,27 @@ func debug_skip_to_shift(index: int) -> void:
 	if target != shift_index or history.size() != target:
 		debug_jumped = true
 	if target != shift_index:
-		inspections = InspectionSchedule.draw_for(_rng, balance, target + 1, _last_inspections())
+		var previous: Array[InspectionDefinition] = _last_inspections()
+		if week == null or not week.covers(target + 1):
+			week = WeekSchedule.draw(_rng, balance, target + 1, previous)
+		inspections = week.day(target + 1)
+	elif week != null:
+		week.set_day(target + 1, inspections)  # The debug panel's events are the day's own.
 	shift_index = target
 	machine.clear_visits()
-	next_inspections = []
 	start_shift()
+
+
+## Draws the current shift's week (v0.70, WeekSchedule.draw) unless the plan already covers it.
+func _plan_week() -> void:
+	if week == null or not week.covers(shift_index + 1):
+		week = WeekSchedule.draw(_rng, balance, shift_index + 1, _last_inspections())
 
 
 ## The run's last inspections: the current shift's, else the last inspected shift's (no
 ## inspection twice in a row, InspectionSchedule.draw_for).
 func _last_inspections() -> Array[InspectionDefinition]:
-	if not inspections.is_empty():
-		return inspections.duplicate()
-	for index: int in range(history.size() - 1, -1, -1):
-		if not history[index].inspections.is_empty():
-			return history[index].inspections.duplicate()
-	return []
+	return InspectionSchedule.last_of(inspections, history)
 
 
 ## The phase the machine's stage stands for while its visits run.

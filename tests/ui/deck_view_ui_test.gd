@@ -280,7 +280,8 @@ func test_the_run_info_tab_shows_upgrades_inspections_and_stock() -> void:
 				"UPGRADES",
 				"None yet.",
 				"This shift: no inspection.",
-				"Next shift: no inspection.",
+				# Shift 2 is a boon day (v0.69).
+				"Next shift: a good day (announced at checkout).",
 				"Aisles:",
 				"Cold cases,",
 				"Pantry,",
@@ -310,7 +311,7 @@ func test_the_run_info_tab_shows_upgrades_inspections_and_stock() -> void:
 					"+3 for each different tag among your products  ·  Paid on the last product"
 					+ " in the row"
 				),
-				"This shift: Spot check, The 3rd product pays €0",
+				"This shift: Spot check, Slot 3 pays €0",
 			]
 		)
 	)
@@ -330,16 +331,28 @@ func test_the_run_info_tab_shows_upgrades_inspections_and_stock() -> void:
 	assert_str(view.texts()[0]).starts_with("Tags: ")
 
 
-## Before an inspected shift the next one is announced as coming (it is drawn at checkout);
-## the last shift has no next shift.
+## Before an inspected shift the next one is announced as coming (it is drawn at checkout), a
+## Manager's review by its name; the last shift has no next shift.
 func test_run_info_announces_a_scheduled_inspection() -> void:
 	var screen: ShiftScreen = await _screen()
 	screen._debug.skip_to_shift(2)
+	# Shift 2 is a boon day (v0.69): its boon is this shift's event, never an inspection.
+	var boons: Array[InspectionDefinition] = InspectionDefinition.boons(screen.run.inspections)
+	assert_int(boons.size()).is_equal(1)
 	screen._on_deck_button_pressed()
 	var view: DeckView = screen._deck_view
 	view.show_page(true)
+	var this_shift: String = "This shift: %s, %s" % [boons[0].display_name, boons[0].notice_text]
 	assert_array(Array(view.texts())).contains(
-		["This shift: no inspection.", "Next shift: inspected (announced at checkout)."]
+		[this_shift, "Next shift: inspected (announced at checkout)."]
+	)
+	view._close()
+	# Shift 3: the next one is the first Manager's review (v0.65).
+	screen._debug.skip_to_shift(3)
+	screen._on_deck_button_pressed()
+	view.show_page(true)
+	assert_array(Array(view.texts())).contains(
+		["Next shift: Manager's review (announced at checkout)."]
 	)
 	view._close()
 	screen._debug.skip_to_shift(screen.run.shift_count())
@@ -356,6 +369,7 @@ func test_run_info_announces_a_scheduled_inspection() -> void:
 	assert_int(screen.run.inspections.size()).is_equal(2)
 	var line: String = DeckView._inspection_line("This shift", screen.run.inspections)
 	assert_array(Array(texts)).contains([line])
+	assert_str(line).starts_with("This shift: Manager's review: ")
 	for inspection: InspectionDefinition in screen.run.inspections:
 		assert_str(line).contains(inspection.display_name)
 
@@ -423,8 +437,8 @@ func test_the_chooser_shows_only_the_deck_and_picks_a_copy() -> void:
 	assert_bool(view.visible).is_false()
 
 
-## The real flow: a NEW ITEMS prize picked at the deck limit opens the chooser, and clicking the
-## grouped Banana removes one Banana copy.
+## The real flow: a NEW ITEMS prize picked at the deck limit opens the cart with no free spot, and
+## dropping it on the grouped Banana removes one Banana copy.
 func test_a_prize_at_the_deck_limit_removes_one_copy_of_a_grouped_card() -> void:
 	var screen: ShiftScreen = await _screen()
 	var run: RunState = screen.run
@@ -439,11 +453,14 @@ func test_a_prize_at_the_deck_limit_removes_one_copy_of_a_grouped_card() -> void
 	assert_bool(screen._machine._choose(RewardMachine.Chute.NEW_ITEMS)).is_true()
 	await _until_machine_armed(screen)
 	screen._machine.view.pick(0)
-	screen._machine.view.fast_forward()  # The landing plays to its end.
 	var view: DeckView = screen._deck_view
 	assert_bool(view.visible).is_true()
 	assert_bool(view._info_tab.visible).is_false()
-	view._on_card_clicked(view.card_views()[0])
+	assert_array(view.placing().spots()).is_empty()
+	screen._machine.on_deck_added()  # No free spot: nothing is added.
+	assert_int(run.deck.size()).is_equal(run.balance.deck_limit)
+	await get_tree().process_frame
+	view.placing().drop_at(view.cells()[0].get_global_rect().get_center())
 	screen._machine.view.fast_forward()  # The landing plays to its end.
 	assert_int(run.phase).is_not_equal(RunState.Phase.MACHINE_PICK)
 	assert_int(run.deck.size()).is_equal(run.balance.deck_limit)

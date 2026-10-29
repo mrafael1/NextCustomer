@@ -1,0 +1,21 @@
+[gd_resource type="Resource" script_class="InspectionDefinition" format=3]
+
+[ext_resource type="Script" path="res://core/inspections/inspection_rule.gd" id="1_rule"]
+[ext_resource type="Script" path="res://core/inspections/tag_flat_bonus_rule.gd" id="2_tag_bonus"]
+[ext_resource type="Script" path="res://core/inspection_definition.gd" id="3_inspection"]
+
+[sub_resource type="Resource" id="Resource_tag_bonus"]
+script = ExtResource("2_tag_bonus")
+tag = "Produce"
+bonus = 1
+receipt_text = "Fruit & veg +€1"
+
+[resource]
+script = ExtResource("3_inspection")
+id = &"fresh_delivery"
+display_name = "Fresh delivery"
+tone = 1
+notice_text = "Fruit & veg items pay +€1"
+chip_text = "Fruit & veg +€1"
+icon_ref = "res://art/icons/aisle_fruit_and_veg.png"
+rules = Array[ExtResource("1_rule")]([SubResource("Resource_tag_bonus")])

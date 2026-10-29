@@ -42,6 +42,7 @@ class Checkout:
 	## The player's row.
 	var row: Array[CardDefinition] = []
 	var upgrades: Array[UpgradeDefinition] = []
+	## The shift's logged day events (evaluate adds the week event).
 	var inspections: Array[InspectionDefinition] = []
 	var logged_score: int = 0
 
@@ -75,24 +76,19 @@ func evaluate(balance: BalanceDefinition, search: SimRowSearch) -> Array[PackedI
 		var hand: Array[CardInstance] = []
 		for index: int in range(checkout.hand.size()):
 			hand.append(CardInstance.new(checkout.hand[index], index + 1))
-		var limits: ShiftLimits = ShiftLimits.for_shift(
-			balance, checkout.upgrades, 0, checkout.inspections
+		# The log holds the day events only: the week event (v0.70) comes from the shift number,
+		# as PrizeWin._checks adds it.
+		var events: Array[InspectionDefinition] = WeekSchedule.events_for(
+			balance, checkout.shift, checkout.inspections
 		)
+		var limits: ShiftLimits = ShiftLimits.for_shift(balance, checkout.upgrades, 0, events)
 		var totals: PackedInt32Array = PackedInt32Array()
-		totals.append(
-			(
-				Scoring
-				. score(_row_from(hand, checkout.row), checkout.upgrades, checkout.inspections)
-				. total
-			)
-		)
-		totals.append(search.search(hand, checkout.upgrades, checkout.inspections).score)
+		totals.append(Scoring.score(_row_from(hand, checkout.row), checkout.upgrades, events).total)
+		totals.append(search.search(hand, checkout.upgrades, events).score)
 		for variant: Array in VARIANTS:
 			var climber: SimHillClimb = SimHillClimb.new()
 			climber.max_changes = variant[1]
-			totals.append(
-				climber.climb(hand, limits, checkout.upgrades, checkout.inspections).score
-			)
+			totals.append(climber.climb(hand, limits, checkout.upgrades, events).score)
 		results.append(totals)
 	return results
 

@@ -245,7 +245,8 @@ func _frame_ticket(plan: MachinePlan, t: float) -> void:
 
 func _ticket_sub(plan: MachinePlan) -> String:
 	var shift: int = view.run.shift_index + 1 if view.run != null else 0
-	return BonusTicket.sub_line(plan.inspected, shift)
+	var payday: bool = view.run != null and view.run.machine.is_payday(view.run)
+	return BonusTicket.sub_line(plan.inspected, shift, payday)
 
 
 ## The slot plate's mouth in stage coordinates (it follows the camera).
@@ -311,12 +312,13 @@ func _print_receipt(rect: Rect2) -> void:
 			view.receipt_cards
 		)
 	var sub: String = _ticket_sub(_plan) if _plan.stub else ""
+	# INSPECTION PASSED names the inspections, never a boon day's event (v0.69).
+	var passed: PackedStringArray = PackedStringArray()
+	for inspection_name: String in view.receipt_inspections:
+		if not view.receipt_boons.has(inspection_name):
+			passed.append(inspection_name)
 	paper.show_shift_end(
-		view.shift_total,
-		view.shift_quota,
-		view.shift_notice,
-		", ".join(view.receipt_inspections),
-		sub
+		view.shift_total, view.shift_quota, view.shift_notice, ", ".join(passed), sub
 	)
 	paper.fit_height()
 

@@ -3,7 +3,8 @@ extends Control
 ## The CART drawer a NEW ITEMS, COUPONS or UPGRADES pick lands in (#77, look F; build spec 4.2),
 ## on the machine's stage layer, right edge ShiftStage.CART_DRAWER_RIGHT (#77 machine v2: left of
 ## the machine at 2x; a drawer too wide for that keeps CART_DRAWER_LEFT), top CART_DRAWER_TOP: a
-## teal light drawer with "YOUR CART", a note ("+1 card", "full: swap 1 out", "same count") and
+## teal light drawer with "YOUR CART", a note ("+1 card", "full: swap 1 out", "swap 1 out",
+## "same count") and
 ## the count chip "n/<deck_limit>" (balance.deck_limit, never a hard-coded 15), a line saying how
 ## many of the landing product the cart holds, one 100x122 slot per copy of it (its sprite and its
 ## PLAIN / BIG / GOLDEN band), and for a new card a dashed "NEW" slot it lands in. An upgrade's
@@ -341,7 +342,10 @@ func _frame_new(t: float, plan: MachinePlan) -> void:
 	count_label.text = _count_text(landing.cart_after if landed else landing.cart_before)
 	note_label.text = ""
 	if landed:
-		note_label.text = "full: swap 1 out" if landing.replaced != null else "+1 card"
+		note_label.text = "+1 card"
+		if landing.replaced != null:
+			var full: bool = landing.cart_before >= view.run.balance.deck_limit
+			note_label.text = "full: swap 1 out" if full else "swap 1 out"
 	var glow: bool = landed and t < plan.land + CHIP_GLOW
 	_chip.add_theme_stylebox_override("panel", _chip_styles[1 if glow else 0])
 

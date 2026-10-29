@@ -18,7 +18,8 @@ const NO_CHUTE := -1
 var kind: Kind = Kind.TICKET
 ## RewardMachine.Chute, or NO_CHUTE before the choice.
 var chute: int = NO_CHUTE
-## BONUS: the inspection id it was earned by, or "" for a bonus extra shift.
+## The ids of the inspections its shift was played under, comma-separated (a Manager's review has
+## two, v0.68), or "" for an uninspected shift. A BONUS visit's; a TICKET visit's is "".
 var why: String = ""
 ## A PREMIUM visit (#108: every drop at least RARE, products at least BIG), decided when it starts:
 ## the ticket's and the BONUS visit after a premium shift.

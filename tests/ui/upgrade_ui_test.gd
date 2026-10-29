@@ -62,6 +62,7 @@ func test_a_register_from_the_machine_stamps_the_loyalty_card() -> void:
 	# A click before the machine is armed does nothing.
 	screen._machine.view._armed = false
 	screen._machine.view.pick(0)
+	screen._machine.on_deck_added()
 	screen._machine.view.fast_forward()  # The landing plays to its end.
 	assert_int(run.phase).is_equal(RunState.Phase.MACHINE_PICK)
 	await _until_armed(screen)
@@ -75,6 +76,7 @@ func test_a_register_from_the_machine_stamps_the_loyalty_card() -> void:
 	assert_int(run.phase).is_equal(RunState.Phase.MACHINE_PICK)
 	var picked: UpgradeDefinition = prizes[index].upgrade
 	screen._machine.view.pick(index)
+	screen._machine.on_deck_added()
 	screen._machine.view.fast_forward()  # The landing plays to its end.
 
 	assert_array(run.upgrades).contains_exactly([picked])
@@ -467,7 +469,9 @@ func test_the_results_screen_lists_the_run_history() -> void:
 	var texts: PackedStringArray = screen._results.texts()
 	assert_str(texts[2]).is_equal("  1  €109 / €29     pass")
 	assert_str(texts[3]).is_equal("     binned NEW ITEMS")
-	assert_str(texts[4]).is_equal("  2  €0 / €35       fail")
+	# Shift 2's quota is its record's: a boon day can change it (v0.69).
+	var quota: String = "€0 / €%d" % screen.run.history[1].quota
+	assert_str(texts[4]).is_equal("  2  %-13s  fail" % quota)
 	# The full 12-shift receipt's layout: tests/ui/results_panel_test.gd.
 
 

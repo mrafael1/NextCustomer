@@ -3,11 +3,11 @@ extends GdUnitTestSuite
 ## opens it inside the stage, over the shade, with the register column left unshaded; its keys
 ## are lit or padlocked from the run (NEW ITEMS and UPGRADE on every visit since v0.61, #108); a
 ## confirmed chute draws its prizes; a pick lands (the card in the deck, a perk stamped on the
-## loyalty card, a level-up re-stamped in its own box at the cap) and the next shift starts; BIN IT
-## bins, on either chute; every visit is logged as machine_visit with its timeline; every resume
-## frame of build spec 4.3 shows as its table says (a PREMIUM visit's keys gold). Clicks are sent
-## to the handlers, because headless runs don't deliver input
-## events. The deck-full chooser: shift_screen_test; the resumed picks: save_resume_ui_test.
+## loyalty card, a level-up re-stamped in its own box at the cap) and the next shift starts; SKIP
+## bins, on either chute; a card is placed in the cart; every visit is logged as machine_visit
+## with its timeline; every resume frame of build spec 4.3 shows as its table says (a PREMIUM
+## visit's keys gold). Clicks are sent to the handlers, because headless runs don't deliver input
+## events. Placing in a full cart: shift_screen_test; the resumed picks: save_resume_ui_test.
 
 const SCREEN := "res://ui/shift_screen.tscn"
 const BALANCE := "res://data/balance/balance.tres"
@@ -106,6 +106,7 @@ func test_choose_and_pick_a_prize() -> void:
 	assert_bool(view.can_scan()).is_false()
 	var card: CardDefinition = prizes[1].card
 	view.pick(1)
+	screen._machine.on_deck_added()
 	view.fast_forward()  # The landing plays to its end.
 	assert_int(screen.run.deck.size()).is_equal(14)
 	assert_array(screen.run.history[0].cards_added()).is_equal([card])
@@ -125,17 +126,112 @@ func test_choose_and_pick_a_prize() -> void:
 	assert_bool(visit["resumed"]).is_false()
 
 
-## BIN IT bins the draw (an UPGRADE draw can be binned since v0.61): the deck and the loyalty card
-## are kept, the visit logged as binned, the next shift starts.
+## A picked product or coupon is placed in the cart (2026-10-29, mock-up pick_skip_cart.html):
+## the machine hides and the cart opens in placing mode, the prize's item on the pointer, one gold
+## free spot per place left (in empty shelf spots, inside the view, clear of every item); over an
+## item it shrinks and the item turns OUT ✕, over a free spot the spot shows +1. Dropped outside,
+## it goes back: the machine shows again with nothing picked. Dropped on an item, that item is
+## swapped out and the cart keeps its size.
+func test_a_card_pick_is_placed_in_the_cart() -> void:
+	var screen: ShiftScreen = await _passed_screen()
+	var view: RewardMachineView = screen._machine.view
+	assert_bool(screen._machine._choose(RewardMachine.Chute.NEW_ITEMS)).is_true()
+	await _until_armed(screen)
+	var run: RunState = screen.run
+	var size: int = run.deck.size()
+	var card: CardDefinition = run.machine.prizes()[0].card
+	view.pick(0)
+	var deck_view: DeckView = screen._deck_view
+	var placing: CartPlacing = deck_view.placing()
+	assert_bool(deck_view.visible).is_true()
+	assert_bool(view.visible).is_false()
+	assert_bool(placing.is_holding()).is_true()
+	assert_str(deck_view.title_text()).contains(card.display_name)
+	assert_int(run.deck.size()).is_equal(size)
+	await _frames(2)
+	assert_int(placing.spots().size()).is_equal(run.balance.deck_limit - size)
+	var page: Rect2 = deck_view.get_global_rect()
+	for spot: RoomSpot in placing.spots():
+		var rect: Rect2 = spot.get_global_rect()
+		assert_bool(page.encloses(rect)).override_failure_message(str(rect)).is_true()
+		for cell: DeckCell in deck_view.cells():
+			assert_bool(rect.intersects(cell.get_global_rect())).is_false()
+	var target: DeckCell = deck_view.cells()[0]
+	placing.move_to(target.get_global_rect().get_center())
+	assert_bool(target.out_marked).is_true()
+	assert_bool(target.out_tag().visible).is_true()
+	assert_float(placing.held().scale.x).is_equal_approx(CartPlacing.HOT_SCALE, 0.001)
+	var spot: RoomSpot = placing.spots()[0]
+	placing.move_to(spot.get_global_rect().get_center())
+	assert_bool(target.out_marked).is_false()
+	assert_bool(spot.hot).is_true()
+	# Dropped outside the cart: back to the machine, nothing picked or saved.
+	placing.drop_at(page.position - Vector2(4, 4))
+	assert_bool(deck_view.visible).is_false()
+	assert_bool(view.visible).is_true()
+	assert_int(run.phase).is_equal(RunState.Phase.MACHINE_PICK)
+	assert_int(run.deck.size()).is_equal(size)
+	# Picked again and dropped on an item: it leaves, the prize comes in, the cart keeps its size.
+	view.pick(0)
+	await _frames(2)
+	target = deck_view.cells()[0]
+	var out: CardInstance = target.item().card
+	placing.drop_at(target.get_global_rect().get_center())
+	view.fast_forward()
+	assert_int(run.deck.size()).is_equal(size)
+	assert_bool(run.deck.cards.has(out)).is_false()
+	assert_array(run.history[0].cards_added()).is_equal([card])
+
+
+## Dropped on a free spot, the picked item is added to the cart.
+func test_a_card_dropped_on_a_free_spot_is_added() -> void:
+	var screen: ShiftScreen = await _passed_screen()
+	var view: RewardMachineView = screen._machine.view
+	assert_bool(screen._machine._choose(RewardMachine.Chute.NEW_ITEMS)).is_true()
+	await _until_armed(screen)
+	var size: int = screen.run.deck.size()
+	var card: CardDefinition = screen.run.machine.prizes()[1].card
+	view.pick(1)
+	await _frames(2)
+	var placing: CartPlacing = screen._deck_view.placing()
+	placing.drop_at(placing.spots()[0].get_global_rect().get_center())
+	view.fast_forward()
+	assert_int(screen.run.deck.size()).is_equal(size + 1)
+	assert_array(screen.run.history[0].cards_added()).is_equal([card])
+
+
+## The SKIP bin bins the draw (an UPGRADE draw can be binned since v0.61): it shows under the prize
+## row once the reveals end, inside the screen and clear of the tickets; hovered, every ticket is
+## doomed (shaking under its shred mark) and the display asks BIN ALL 3?; left, the pick prompt
+## comes back. Pressed: the deck and the loyalty card are kept, the visit logged as binned, the
+## next shift starts.
 func test_bin_it_bins_the_draw() -> void:
 	var screen: ShiftScreen = await _passed_screen()
 	var view: RewardMachineView = screen._machine.view
 	var owned: Array[UpgradeDefinition] = screen.run.upgrades.duplicate()
 	assert_bool(screen._machine._choose(RewardMachine.Chute.UPGRADE)).is_true()
-	assert_bool(view.display.bin_button().visible).is_false()  # Shown once the reveals end.
+	assert_bool(view.skip_bin.visible).is_false()  # Shown once the reveals end.
 	await _until_armed(screen)
-	assert_bool(view.display.bin_button().visible).is_true()
-	view._on_bin_pressed()
+	assert_bool(view.skip_bin.visible).is_true()
+	assert_bool(view.skip_bin.disabled).is_false()
+	var bin: Rect2 = view.skip_bin.get_global_rect()
+	(
+		assert_bool(screen.get_viewport_rect().encloses(bin))
+		. override_failure_message(str(bin))
+		. is_true()
+	)
+	for ticket: PrizeTicket in view.tickets:
+		assert_bool(bin.intersects(ticket.get_global_rect())).is_false()
+	view.skip_bin.grab_focus()
+	assert_bool(view.skip_bin.is_over()).is_true()
+	for ticket: PrizeTicket in view.tickets:
+		assert_bool(ticket.doomed).is_true()
+	var asked: String = RewardMachineView.BIN_ALL % view.tickets.size()
+	assert_str(view.display.texts()[0]).is_equal(asked)
+	view.skip_bin.release_focus()
+	assert_bool(view.tickets[0].doomed).is_false()
+	assert_str(view.display.texts()[0]).is_not_equal(asked)
+	view.skip_bin.pressed.emit()
 	view.fast_forward()  # The landing plays to its end.
 	assert_int(screen.run.deck.size()).is_equal(13)
 	assert_array(screen.run.upgrades).is_equal(owned)
@@ -161,6 +257,7 @@ func test_an_upgrade_pick_stamps_the_loyalty_card() -> void:
 	assert_bool(PerkLevels.is_level_up(perk)).is_false()
 	await _until_armed(screen)
 	view.pick(index)
+	screen._machine.on_deck_added()
 	assert_str(view.display.rest_texts()[0]).is_equal("STAMPED ✓")
 	view.fast_forward()  # The landing plays to its end.
 	assert_int(run.upgrades.size()).is_equal(owned_before + 1)
@@ -201,6 +298,7 @@ func test_a_level_up_at_the_cap_restamps_its_own_box() -> void:
 	await _until_armed(screen)
 	assert_str(view.tickets[index].face_texts()[0]).is_equal("LEVEL UP · LV 2")
 	view.pick(index)
+	screen._machine.on_deck_added()
 	assert_str(view.display.rest_texts()[0]).is_equal("LEVEL UP ✓")
 	assert_int(view.landing.box_index).is_equal(box)
 	view.fast_forward()  # The landing plays to its end.
@@ -241,6 +339,7 @@ func test_a_pick_before_another_visit_keeps_the_belt_and_counts_the_cart() -> vo
 	await _until_armed(screen)
 	var size_before: int = run.deck.size()
 	screen._machine.view.pick(0)
+	screen._machine.on_deck_added()
 	screen._machine.view.fast_forward()  # The landing plays to its end.
 	assert_int(run.machine.current_visit().kind).is_equal(MachineVisit.Kind.BONUS)
 	assert_int(run.deck.size()).is_equal(size_before + 1)
@@ -255,6 +354,7 @@ func test_a_pick_before_another_visit_keeps_the_belt_and_counts_the_cart() -> vo
 	assert_bool(screen._machine._choose(RewardMachine.Chute.NEW_ITEMS)).is_true()
 	await _until_armed(screen)
 	screen._machine.view.pick(0)
+	screen._machine.on_deck_added()
 	screen._machine.view.fast_forward()  # The landing plays to its end.
 	assert_bool(_last_event("machine_visit")["presentation_skipped"]).is_false()
 
@@ -273,6 +373,7 @@ func test_every_resume_frame() -> void:
 	await _assert_resume_frame(run, MachineVisit.Kind.TICKET, true)
 	run = _core_passed_run()
 	run.history[-1].inspection = load(SPOT_CHECK)
+	MachineSteps.bonus_after_inspection(run)
 	run.machine.begin_after_checkout(run)
 	assert_bool(MachineSteps.choose(run, RewardMachine.Chute.NEW_ITEMS)).is_true()
 	assert_object(MachineSteps.take(run, 0)).is_not_null()

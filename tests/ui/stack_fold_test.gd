@@ -481,6 +481,7 @@ static func _folded_slot(screen: ShiftScreen) -> int:
 func _shift() -> ShiftScreen:
 	var runner: GdUnitSceneRunner = scene_runner(SCREEN)
 	var screen: ShiftScreen = runner.scene()
+	screen._week.skip()  # The time card (v0.70) stays out of the way.
 	await _frames(2)
 	for upgrade: String in STRESS_UPGRADES:
 		screen._debug.give_upgrade(upgrade)

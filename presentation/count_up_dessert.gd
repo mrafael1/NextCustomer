@@ -52,10 +52,13 @@ var speed_setting: float = 1.0
 ## The bonus stub's small line (#77 machine v2): a pass prints the stub with it (none when
 ## empty: no bonus ticket follows). CountUp sets it before each dessert.
 var bonus_stub: String = ""
-## A write-up's stamp text (v0.65, "WRITE-UP 1/2"): a miss the run goes on after stamps it on the
-## margin line and, like a pass, prints the next shift's notice; empty for a pass or the miss that
-## ends the run. CountUp sets it before each dessert.
+## A slip's stamp text (v0.68's training week, "SLIP 1/2"): a miss the run goes on after stamps
+## it on the margin line, prints WriteUp.NO_TICKET under it and, like a pass, the next shift's
+## notice; empty for a pass or the miss that ends the run. CountUp sets it before each dessert.
 var write_up: String = ""
+## The banner beside the receipt while the bonus stub prints: BANNER_TEXT, or a payday's
+## (v0.68, Payday.BANNER). CountUp sets it before each dessert.
+var banner_text: String = BANNER_TEXT
 ## The banner beside the receipt while the stub prints (null before it and once it has faded),
 ## for tests.
 var banner: Label
@@ -133,6 +136,8 @@ func play(
 		await _wait(maxf(sfx.sound_length("fail") * speed_setting - heard, 0.0))
 		if not write_up.is_empty():
 			_stamp_write_up(line)
+			await _wait_ms(_tuning.dessert_paid_ms)
+			_fade_in(_receipt.add_notice(WriteUp.NO_TICKET))
 	await _wait_ms(_tuning.dessert_tear_ms)
 	_tear()
 	if not passed and write_up.is_empty():
@@ -228,7 +233,8 @@ func _stamp_paid(line: Control) -> void:
 	slam.tween_property(stamp, "scale", Vector2.ONE, PAID_SLAM)
 
 
-## A write-up (v0.65) lands on a miss's margin line, as PAID does on a pass's.
+## A slip (v0.68's training week; a write-up in v0.65) lands on a miss's margin line, as PAID
+## does on a pass's.
 func _stamp_write_up(line: Control) -> void:
 	var stamp: Label = ReceiptStamps.stamp_write_up(line, write_up)
 	sfx.play("stamp_notice")
@@ -271,7 +277,7 @@ func _print_stub(print_pitch: float) -> void:
 func _show_banner() -> void:
 	if is_instance_valid(banner):
 		_free_banner(banner)
-	banner = UiKit.display_label(BANNER_TEXT, BANNER_SIZE, false)
+	banner = UiKit.display_label(banner_text, BANNER_SIZE, false)
 	banner.name = "BonusBanner"
 	banner.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	banner.add_theme_color_override("font_color", Palette.GOLD)

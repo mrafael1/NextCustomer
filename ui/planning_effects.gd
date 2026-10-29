@@ -79,6 +79,8 @@ var _model: PlanningModel = PlanningModel.new()
 var _total: int = 0
 var _quota: int = 0
 var _run: RunState
+## The top bar's week chip (v0.70): rung, not the day chip, when the cause is the week event.
+var _week_chip: WeekChip
 var _views: Array[CardView] = []
 ## The hand's items (#105 piece 3: the mix highlight lights and greys them too).
 var _hand: Array[Control] = []
@@ -121,6 +123,7 @@ var _grey_tween: Tween
 func setup(stage: ShiftStage, drag: CardDrag) -> void:
 	_loyalty = stage.loyalty_card
 	_tag = stage.inspection_tag
+	_week_chip = stage.top_bar.week_chip
 	_quota_meter = stage.top_bar.quota_meter
 	_drag = drag
 	_layer = stage.planning_layer
@@ -171,14 +174,16 @@ func show_all(
 	_apply_focus(false)
 
 
-## The model of `result` for the cards `row` under `run`'s upgrades and inspections.
+## The model of `result` for the cards `row` under `run`'s upgrades and events (its day events
+## and its week event, v0.70: WeekSchedule.shift_events, as the result was scored).
 static func model_of(
 	result: ScoreResult, row: Array[CardInstance], run: RunState, planning: PlanningTuning
 ) -> PlanningModel:
 	var cards: Array[CardDefinition] = []
 	for card: CardInstance in row:
 		cards.append(card.definition)
-	return PlanningModel.build(result, cards, run.upgrades, run.inspections, planning)
+	var events: Array[InspectionDefinition] = WeekSchedule.shift_events(run)
+	return PlanningModel.build(result, cards, run.upgrades, events, planning)
 
 
 ## A drag's landing: `model` (the preview with the dragged card at `landing`) on the belt items
@@ -264,6 +269,7 @@ func clear() -> void:
 	_paint_items({}, Callable(), PackedInt32Array(), -1, 0.0)
 	_loyalty.clear_relations()
 	_tag.set_relation(false)
+	_week_chip.set_relation(false)
 
 
 ## The CHECKOUT click (#86 v6), after the refresh that rebuilt the belt items `views`: everything
@@ -338,8 +344,10 @@ func _apply_focus(fade: bool) -> void:
 						and spec.cause_index == index
 					)
 		Focus.INSPECTION:
+			# The day chip's own events only: the week event's (after them) are the week chip's.
+			var days: int = _run.inspections.size() if _run != null else 0
 			for link: EffectLink in graph.links:
-				if link.cause_kind == ScoreStep.SourceKind.INSPECTION:
+				if link.cause_kind == ScoreStep.SourceKind.INSPECTION and link.cause_index < days:
 					_add_slot(related, link.target_slot)
 			cause[0] = -1
 			if not related.is_empty():
@@ -552,11 +560,14 @@ static func _add_slot(slots: PackedInt32Array, slot: int) -> void:
 
 
 ## Rings the loyalty boxes in `boxes` (and only those) and, for a `cause` of -1 or more, the
-## inspection chip (naming inspection `cause` when it is one).
+## inspection chip (naming inspection `cause` when it is one), or the week chip when `cause` is
+## the week event (v0.70: after the day events in WeekSchedule.shift_events).
 func _ring(boxes: Dictionary[int, bool], cause: int) -> void:
 	for index: int in range(_loyalty.stamped_boxes().size()):
 		_loyalty.set_relation(index, boxes.has(index))
-	_tag.set_relation(cause >= -1, cause)
+	var week: bool = _run != null and cause >= 0 and cause >= _run.inspections.size()
+	_week_chip.set_relation(week)
+	_tag.set_relation(cause >= -1 and not week, cause)
 
 
 func _on_item_hovered(view: ItemView) -> void:

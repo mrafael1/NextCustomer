@@ -206,6 +206,7 @@ func set_inspection(inspection_id: String) -> void:
 		run.inspections.append(load(path))
 	run.debug_skip_to_shift(run.shift_index)  # Restarting the shift keeps its inspections.
 	_screen._on_shift_started()
+	_screen._week.drop()  # Changing today's event never replays the time card (v0.70).
 
 
 ## Jumps to a shift (1-based) and starts it; a machine visit on screen closes

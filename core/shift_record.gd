@@ -10,13 +10,15 @@ var shift: int = 0
 var quota: int = 0
 var total: int = 0
 var passed: bool = false
-## The inspections this shift was played under (several on a Manager's review, v0.65).
+## The day events this shift was played under (several inspections on a Manager's review, v0.65;
+## a boon day's boon, v0.69): inspections first, then boons.
 var inspections: Array[InspectionDefinition] = []
-## The first inspection this shift was played under, or null: setting it makes that one the
-## shift's only inspection (null: none).
+## The first inspection (a MALUS: a boon is never one) this shift was played under, or null:
+## setting it makes that one the shift's only event (null: none).
 var inspection: InspectionDefinition:
 	get:
-		return inspections[0] if not inspections.is_empty() else null
+		var found: Array[InspectionDefinition] = InspectionDefinition.maluses(inspections)
+		return found[0] if not found.is_empty() else null
 	set(value):
 		inspections = []
 		if value != null:

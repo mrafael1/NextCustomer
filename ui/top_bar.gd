@@ -2,11 +2,15 @@ class_name TopBar
 extends HBoxContainer
 ## The shift screen's top bar (#80 step 10, mock-up B2): one row of teal chips on the dark teal
 ## band, GAP apart: SHIFT n/m, the SPEND chip (QuotaMeter: the quota, a bar and the projected
-## total, then the subtotal while counting; it takes the room left), the inspection chip (paper,
+## total, then the subtotal while counting; it takes the room left), the week chip (v0.70,
+## WeekChip: "W2", the week's name, its day pips), the inspection chip (the day chip since v0.70:
+## "D6" and the day's events, paper,
 ## with the mustard warning sign and "Inspection · <effect>", the name in its hover text; hidden
 ## on shifts without one), the
 ## LOYALTY chip with its stamps, the Cart button with its trolley, and the menu button (three
-## drawn bars) whose menu holds Export log. Cart and the menu stay clickable behind every panel:
+## drawn bars) whose menu holds Export log. In the training week (v0.68) the SHIFT chip also holds
+## a small hint after the shift (training_label, "TRAINING WEEK · 2 SLIPS"; hidden when empty).
+## Cart and the menu stay clickable behind every panel:
 ## the shade starts under the band (ShiftScreen), and the menu opens in its own popup window.
 ##
 ## It only builds and lays out; ShiftStage passes the buttons' signals on and the screen fills
@@ -25,6 +29,8 @@ const FIT_MARGIN := 8.0
 const CHIP_PADDING := 12
 const CHIP_SEPARATION := 8
 const KEY_FONT_SIZE := 15
+## The training week's hint (v0.68): smaller than the key captions.
+const HINT_FONT_SIZE := 12
 const VALUE_FONT_SIZE := 20
 const BUTTON_FONT_SIZE := 16
 ## The key captions' letter spacing (B2's letter-spacing: 1px).
@@ -43,8 +49,12 @@ const CART_ICON := preload("res://art/icons/cart.png")
 const MENU_ICON := preload("res://art/icons/menu.png")
 
 var shift_label: Label
+## The training week's hint in the SHIFT chip (v0.68; show_training).
+var training_label: Label
 var quota_meter: QuotaMeter
 var quota_label: Label
+## The week chip (v0.70; hidden for a balance without weeks).
+var week_chip: WeekChip
 var inspection_tag: InspectionTag
 var loyalty_card: LoyaltyCard
 ## The Cart button (the deck: "Cart" in player strings only, default 1).
@@ -53,6 +63,9 @@ var menu_button: FramedButton
 ## The menu's popup and its one entry.
 var menu: PopupPanel
 var export_button: FramedButton
+## The training week's hint and its short form (show_training).
+var _training_text: String = ""
+var _training_short: String = ""
 
 
 func _init() -> void:
@@ -66,6 +79,11 @@ func _init() -> void:
 	shift_row.add_child(key_label("SHIFT"))
 	shift_label = value_label(Palette.PAPER)
 	shift_row.add_child(shift_label)
+	training_label = key_label("")
+	training_label.name = "TrainingHint"
+	training_label.add_theme_font_size_override("font_size", HINT_FONT_SIZE)
+	training_label.visible = false
+	shift_row.add_child(training_label)
 	add_child(shift_chip)
 	var quota_chip: PanelContainer = chip(CHIP_FRAME)
 	quota_chip.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -73,6 +91,8 @@ func _init() -> void:
 	quota_chip.add_child(quota_meter)
 	quota_label = quota_meter.quota_label
 	add_child(quota_chip)
+	week_chip = WeekChip.new()
+	add_child(week_chip)
 	inspection_tag = InspectionTag.new()
 	add_child(inspection_tag)
 	loyalty_card = LoyaltyCard.new(true)
@@ -95,16 +115,79 @@ func _init() -> void:
 		button.caption_label().add_theme_constant_override("outline_size", 0)
 
 
+## The training week's hint (v0.68, WriteUp.hint_text): `text` after the shift, hidden when empty;
+## fit_inspection shows `short_text` instead when the row has no room for `text`, and hides the
+## hint (its whole text kept in the SHIFT chip's tooltip) when it has none for either.
+func show_training(text: String, short_text: String = "") -> void:
+	_training_text = text
+	_training_short = short_text
+	training_label.text = text
+	training_label.visible = not text.is_empty()
+	(shift_label.get_parent().get_parent() as Control).tooltip_text = text
+
+
 ## Keeps the row inside ROW_SIZE.x less FIT_MARGIN: the inspection chip's text is trimmed when the
-## other chips and the bonus pill (#77 machine v2) leave it too little room.
+## other chips and the bonus pill (#77 machine v2) leave it too little room, after the training
+## week's hint and the week chip's name have given way (the hint's short form, then the week's
+## name, then the hint hidden, then the week's pips: the day's effects come first).
 func fit_inspection() -> void:
+	if not _training_text.is_empty():
+		training_label.text = _training_text
+		training_label.visible = true
+	week_chip.show_name(true)
+	week_chip.show_pips(true)
+	_fit_inspection_once()
+	if not inspection_tag.is_trimmed():
+		return
+	if training_label.visible and not _training_short.is_empty():
+		training_label.text = _training_short
+		_fit_inspection_once()
+		if not inspection_tag.is_trimmed():
+			return
+	if week_chip.name_shown():
+		week_chip.show_name(false)
+		_fit_inspection_once()
+		if not inspection_tag.is_trimmed():
+			return
+	if training_label.visible:
+		training_label.visible = false
+		_fit_inspection_once()
+		if not inspection_tag.is_trimmed():
+			return
+	week_chip.show_pips(false)
+	_fit_inspection_once()
+
+
+## Where each of a shift's events (WeekSchedule.shift_events: the day's, then the week's) is shown,
+## indexed like a step's source_index, for the count-up: the week event on the week chip, the day
+## events on the day chip.
+func event_sources(events: Array[InspectionDefinition]) -> Array[Control]:
+	var controls: Array[Control] = []
+	for event: InspectionDefinition in events:
+		var source: Control = inspection_tag
+		if event.is_week():
+			source = week_chip
+		controls.append(source)
+	return controls
+
+
+## The minimum width `control` needs now: a container learns of a child's new text or visibility
+## only on the next idle frame, so every cached minimum under it is dropped first.
+static func fresh_width(control: Control) -> float:
+	for child: Node in control.find_children("*", "Control", true, false):
+		(child as Control).update_minimum_size()
+	control.update_minimum_size()
+	return control.get_combined_minimum_size().x
+
+
+func _fit_inspection_once() -> void:
 	var used: float = 0.0
 	var shown: int = 0
 	for child: Node in get_children():
 		var control: Control = child as Control
 		if control == null or not control.visible or control == inspection_tag:
 			continue
-		used += control.get_combined_minimum_size().x
+		used += fresh_width(control)
 		shown += 1
 	used += GAP * shown
 	inspection_tag.fit_width(ROW_SIZE.x - FIT_MARGIN - used)

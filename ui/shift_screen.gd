@@ -126,6 +126,7 @@ var _effects: PlanningEffects
 ## The TOY MACHINES over the results (#63), made the first time they open.
 var _toys: ToyMachinesScreen
 var _cart_reveal: CartReveal
+var _week: WeekFlow  # The time card and the week and day chips (v0.70).
 var _start_choice: StartChoice  # The starter pack choice's part of a run's start (#107).
 var _glyph_tips: GlyphTips  # Family glyphs' tooltips (#105): none in a drag or the count.
 ## The basket redraw's targets and tags, and its motion.
@@ -215,7 +216,15 @@ func _on_shift_started() -> void:
 	_log.log_event("shift_start", start)
 	_refresh()
 	_save_run()
-	_machine.shift_started()
+	_machine.shift_started()  # Shows the shift's notice once planning takes input.
+
+
+## The notice a shift opens with (v0.68, WriteUp.shift_notice): after a slip, or on the first
+## shift after the training week (a resume shows it again), once planning takes input.
+func show_shift_notice() -> void:
+	var notice: String = WriteUp.shift_notice(run)
+	if not notice.is_empty():
+		_notice_label.show_notice(notice)
 
 
 ## Continues a saved run where it stopped (full build plan section 4), under its run id and with
@@ -232,7 +241,8 @@ func _resume_run(saved: RunSave) -> void:
 	# A resume never plays a count-up (saves are taken at the click and the machine's visits).
 	_cabinet.set_total_down(false)
 	if run.phase == RunState.Phase.SCORED:
-		# The shift's last visit was done: the next shift starts.
+		# The shift's last visit was done, or a slip (v0.68): the next shift starts, with its
+		# notice (_on_shift_started).
 		run.next_shift()
 		_on_shift_started()
 		return
@@ -252,7 +262,7 @@ func _resume_run(saved: RunSave) -> void:
 		run.last_result.total,
 		run.quota(),
 		InspectionTag.next_notice(run.next_inspections),
-		", ".join(InspectionTag.names(run.inspections))
+		", ".join(InspectionTag.names(InspectionDefinition.maluses(run.inspections)))
 	)
 	_count_up.show_end_state(run.last_result, run.quota(), count_up_context())
 	var record: ShiftRecord = run.history[-1]
@@ -524,7 +534,7 @@ func _on_checkout_pressed() -> void:
 		"score": result.total,
 		"quota": run.quota(),
 		"passed": run.passed(),
-		"next_inspection": RunEvents.inspection_id(run.next_inspection),
+		"next_inspection": RunEvents.first_inspection_id(run.next_inspections),
 		"next_inspections": RunEvents.inspection_ids(run.next_inspections),
 		"write_ups": run.write_ups,
 	}
@@ -554,8 +564,8 @@ func _on_checkout_pressed() -> void:
 		context,
 		_loyalty_card.stamped_boxes(),
 		LoyaltyCard.names(run.upgrades),
-		_inspection_tag.sources(run.inspections),
-		InspectionTag.names(run.inspections),
+		(_top_bar as TopBar).event_sources(WeekSchedule.shift_events(run)),
+		InspectionTag.names(WeekSchedule.shift_events(run)),
 		InspectionTag.next_notice(run.next_inspections)
 	)
 	var shift: int = run.shift_index + 1
@@ -564,15 +574,15 @@ func _on_checkout_pressed() -> void:
 	_refresh_bar()  # The inspection chip's EARNED (#77 machine v2).
 	_cabinet.set_total_down(false)
 	_stage.dim_hand(false)
+	await _week.stamp_day()  # The time card stamps the day PAID or SLIP (v0.72).
 	if run.phase == RunState.Phase.MACHINE_CHOOSE:
 		_machine.open(false)
 	elif run.phase == RunState.Phase.SCORED:
-		# A write-up (v0.65), or a balance without a machine: no visit, the next shift starts.
-		var written_up: bool = not run.passed()
+		# A slip (v0.68), or a balance without a machine: no visit, the next shift starts (with
+		# the slip's notice, _on_shift_started) and the dessert's duck ends.
+		ShiftMusic.next_shift_started(_music)
 		run.next_shift()
 		_on_shift_started()
-		if written_up:
-			_notice_label.show_notice(WriteUp.notice_text(run))
 	else:
 		_show_results(result)
 
@@ -593,7 +603,9 @@ func count_up_context() -> CountUpContext:
 	context.bonus_ticket = (
 		run.machine != null and run.machine.pending_kinds().has(MachineVisit.Kind.BONUS)
 	)
+	context.payday = context.bonus_ticket and run.machine.is_payday(run)
 	context.write_up = WriteUp.stamp_text(run)
+	context.boon_names = WeekFlow.helper_names(run)
 	return context
 
 
@@ -696,30 +708,17 @@ func _refresh() -> void:
 func _refresh_bar() -> void:
 	_shift_label.text = "%d/%d" % [run.shift_index + 1, run.shift_count()]
 	_quota_label.text = QuotaMeter.QUOTA_AMOUNT % run.quota()
-	_inspection_tag.show_inspections(run.inspections)
-	_inspection_tag.show_bonus(_bonus_state())
+	_week.show_chips()
+	_inspection_tag.show_bonus(
+		InspectionTag.bonus_for(run, _counting, _inspection_tag.bonus_state())
+	)
+	# The training week's hint, in planning only (v0.68).
+	var planning: bool = run.phase == RunState.Phase.PLANNING and not _counting
+	var hint: String = WriteUp.hint_text(run) if planning else ""
+	(_top_bar as TopBar).show_training(hint, WriteUp.hint_text(run, true) if planning else "")
 	_refresh_loyalty_card()
 	_deck_button.caption = "Cart %d/%d" % [run.deck.size(), run.balance.deck_limit]
 	(_top_bar as TopBar).fit_inspection()
-
-
-## The inspection chip's bonus ticket (#77 machine v2): PROMISED in planning when passing the
-## shift earns it (RewardMachine.bonus_if_passed), EARNED at the machine once the count-up is over
-## when the pass earned it (bonus_earned); the count-up keeps the chip as planning left it.
-func _bonus_state() -> InspectionTag.Bonus:
-	if run.machine == null:
-		return InspectionTag.Bonus.NONE
-	if RunState.MACHINE_PHASES.has(run.phase):
-		if _counting:
-			return _inspection_tag.bonus_state()
-		return (
-			InspectionTag.Bonus.EARNED
-			if run.machine.bonus_earned(run)
-			else InspectionTag.Bonus.NONE
-		)
-	if run.phase == RunState.Phase.PLANNING and run.machine.bonus_if_passed(run):
-		return InspectionTag.Bonus.PROMISED
-	return InspectionTag.Bonus.NONE
 
 
 ## The items on screen: the hand's baskets, then the belt's (the upgrade swap's, #77 machine v2).
@@ -736,12 +735,11 @@ func item_views() -> Array[ItemView]:
 
 ## One slot per card the shift allows (upgrades can add slots), then the row's cards, standing
 ## on the belt as belt items with their tickets on the rail (RowStrip.show_cards), and the
-## loyalty upgrades' slot marks (RowStrip.show_slot_marks).
+## loyalty upgrades' and inspections' slot marks (RowStrip.show_slot_marks).
 func _refresh_row() -> void:
 	var closed: int = run.limits.closed_slots
-	var reason: String = (
-		"Closed by the inspection: %s" % ", ".join(InspectionTag.names(run.inspections))
-	)
+	var closing: Array[InspectionDefinition] = InspectionDefinition.maluses(run.inspections)
+	var reason: String = "Closed by the inspection: %s" % ", ".join(InspectionTag.names(closing))
 	_row_strip.set_slot_count(
 		RowCapacity.card_limit(run.limits), closed, reason, RowStrip.closed_caption(run.inspections)
 	)
@@ -749,12 +747,12 @@ func _refresh_row() -> void:
 	_row_views = _row_strip.show_cards(
 		run.row, run.row.size() if placeable else -1, _on_row_card_clicked, run.balance
 	)
-	# The slots a loyalty upgrade acts on (the Slot engine's slot 6) wear its mark.
-	_row_strip.show_slot_marks(SlotMark.marks_for(run.upgrades))
+	# The Slot engine's slot 6 wears its mark, Spot check's dead slot 3 its "€0" mark.
+	_row_strip.show_slot_marks(SlotMark.marks_for(run.upgrades, run.inspections))
 
 
 func _refresh_hand() -> void:
-	_hand_box.reset(run.balance.hand_size)
+	_hand_box.reset(run.limits.hand_size)
 	var places: Array[CardInstance] = run.hand_places()
 	for place: int in range(places.size()):
 		var card: CardInstance = places[place]
@@ -825,7 +823,7 @@ func _show_planning(result: ScoreResult) -> void:
 func _show_checked_out(result: ScoreResult) -> void:
 	var cards: Array[CardDefinition] = ReceiptInk.cards_of(run.row)
 	var upgrade_names: PackedStringArray = LoyaltyCard.names(run.upgrades)
-	var inspections: PackedStringArray = InspectionTag.names(run.inspections)
+	var inspections: PackedStringArray = InspectionTag.names(WeekSchedule.shift_events(run))
 	var names: PackedStringArray = CardInstance.names(run.row)
 	_receipt.show_result(result, names, upgrade_names, inspections, receipt_header(), cards)
 	_show_belt(result, true)
@@ -835,7 +833,7 @@ func _show_checked_out(result: ScoreResult) -> void:
 ## marks or paid chips, and the result its scans read.
 func _show_belt(result: ScoreResult, paid: bool = false) -> void:
 	var upgrade_names: PackedStringArray = LoyaltyCard.names(run.upgrades)
-	var inspection_names: PackedStringArray = InspectionTag.names(run.inspections)
+	var inspection_names: PackedStringArray = InspectionTag.names(WeekSchedule.shift_events(run))
 	_scan.set_result(result, CardInstance.names(run.row), upgrade_names, inspection_names)
 	_belt_chips.show_all(_row_views)
 	if not paid:
@@ -974,10 +972,12 @@ func _build() -> void:
 	_deck_view = DeckView.new()
 	add_child(_deck_view)
 	_deck_view.card_chosen.connect(_on_deck_card_chosen)
+	_deck_view.added.connect(func() -> void: _machine.on_deck_added())
 	_deck_view.closed.connect(_on_deck_closed)
 	_cart_reveal = CartReveal.new()  # Over all but the debug panel (v0.51).
 	add_child(_cart_reveal)
 	_cart_reveal.finished.connect(_on_cart_reveal_finished)
+	_week = WeekFlow.new(self)
 	_glyph_tips = GlyphTips.new()
 	_glyph_tips.blocked = func() -> bool: return _counting or _drag.is_dragging()
 	_glyph_tips.reduced_motion = _monitor.reduced_motion
@@ -986,12 +986,12 @@ func _build() -> void:
 
 
 ## Scanning the counter's items is off while the shift is counted, an item is dragged, outside
-## planning (the machine or the results are up), while the deck view is open and in redraw mode
-## (armed, or its motion playing). The machine's prize items are scanned while it accepts clicks
-## (RewardMachineView.can_scan).
+## planning (the machine or the results are up), while the deck view or the time card is open and
+## in redraw mode (armed, or its motion playing). The machine's prize items are scanned while it
+## accepts clicks (RewardMachineView.can_scan).
 func _scan_blocked() -> bool:
 	var planning: bool = run != null and run.phase == RunState.Phase.PLANNING
-	var redrawing: bool = _redraw_mode or _redraw_busy
+	var redrawing: bool = _redraw_mode or _redraw_busy or _week.is_open()
 	return _busy() or _drag.is_dragging() or not planning or _deck_view.visible or redrawing
 
 

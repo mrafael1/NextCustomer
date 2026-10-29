@@ -325,14 +325,26 @@ func test_the_top_bar_fits_its_longest_texts() -> void:
 		screen._led.show_subtotal(9999, true)
 		await _frames(2)
 		var top_bar: TopBar = screen._stage.top_bar
-		assert_str(screen._quota_label.text).is_equal(QuotaMeter.QUOTA_AMOUNT % largest)
+		# Rush hour's and Quiet morning's quota percent (v0.69) change the quota shown, on top of
+		# the last week's (v0.70, Holiday rush's +15%).
+		var week: WeekEventDefinition = WeekSchedule.event_for(run.balance, last + 1)
+		var percent: int = inspection.quota_percent + week.quota_percent
+		var shown: int = ShiftLimits.with_percent(largest, percent)
+		assert_str(screen._quota_label.text).is_equal(QuotaMeter.QUOTA_AMOUNT % shown)
 		assert_str(top_bar.quota_meter.amount_label.text).is_equal("€9999")
 		assert_bool(top_bar.quota_meter.flag_shown()).is_true()
 		assert_int(screen._loyalty_card.box_texts().size()).is_equal(4)
-		assert_str(screen._inspection_tag.text()).is_equal("Inspection · %s" % inspection.chip_text)
+		# A boon's chip (v0.69) reads "Today: name — effect".
+		var chip_text: String = (
+			"Today: %s — %s" % [inspection.display_name, inspection.chip_text]
+			if inspection.is_boon()
+			else "Inspection · %s" % inspection.chip_text
+		)
+		assert_str(screen._inspection_tag.text()).is_equal(chip_text)
 		var parts: Array[Control] = [
 			screen._top_bar.get_child(0) as Control,
 			screen._top_bar.get_child(1) as Control,
+			top_bar.week_chip,
 			screen._inspection_tag,
 			screen._loyalty_card,
 			screen._deck_button,
@@ -349,6 +361,8 @@ func test_the_top_bar_fits_its_longest_texts() -> void:
 			assert_bool(rect.size.x >= needed.x and rect.size.y >= needed.y).is_true()
 			# Every text and icon in a chip lies inside it.
 			for inner: Control in _texts(part) + _icons(part):
+				if not inner.is_visible_in_tree():
+					continue  # E.g. the training week's hint, hidden on the last shift.
 				var inside: Rect2 = inner.get_global_rect()
 				(
 					assert_bool(rect.encloses(inside))
@@ -797,6 +811,7 @@ static func _all_inspections() -> Array[InspectionDefinition]:
 func _screen() -> ShiftScreen:
 	var runner: GdUnitSceneRunner = scene_runner(SCREEN)
 	var screen: ShiftScreen = runner.scene()
+	screen._week.skip()  # The time card (v0.70) stays out of the way.
 	await _frames(3)
 	return screen
 

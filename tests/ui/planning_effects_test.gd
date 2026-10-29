@@ -383,6 +383,40 @@ func test_the_top_bar_relates_both_ways() -> void:
 			assert_bool(sticker.is_drained()).is_true()
 
 
+## In a Bakery festival week with no day event (shift 7), hovering Bread rings the week chip (not
+## the day chip); hovering the "Normal day" day chip relates no item, since the Bakery step is the
+## week event's; the CHECKOUT click takes the week chip's ring off.
+func test_the_week_chip_owns_the_week_event_items() -> void:
+	var screen: ShiftScreen = await _screen()
+	screen._week.skip()
+	screen._debug.skip_to_shift(7)
+	screen._debug.set_inspection("")
+	screen._week.skip()
+	assert_array(screen.run.inspections).is_empty()
+	await _place(screen, ["bread", "milk"])
+	var effects: PlanningEffects = screen._effects
+	var tag: InspectionTag = screen._inspection_tag
+	var week_chip: WeekChip = screen._stage.top_bar.week_chip
+	var bread: ItemView = _item(screen, 0)
+	bread.hovered.emit(bread)
+	assert_bool(week_chip.has_relation()).is_true()
+	assert_bool(tag.has_relation()).is_false()
+	effects.unfocus()
+	assert_bool(week_chip.has_relation()).is_false()
+	tag.hovered.emit()
+	for slot: int in range(screen._row_views.size()):
+		var relation: ItemView.Relation = _item(screen, slot).relation
+		assert_int(relation).override_failure_message(str(slot)).is_not_equal(
+			ItemView.Relation.RELATED
+		)
+	effects.unfocus()
+	bread.hovered.emit(bread)
+	assert_bool(week_chip.has_relation()).is_true()
+	screen._on_checkout_pressed()
+	await _frames(2)
+	assert_bool(week_chip.has_relation()).is_false()
+
+
 ## Hovering Multipack (as mock-up h1's hover): its own rail strip turns hot, drawn again on top in
 ## lane 0 with each Milk's gain; its calm copy hides and Eggs' strip dims; its ticket is ringed,
 ## the Milks' tickets get the "got" face; the receipt frames its line, puts "×3" on each Milk's

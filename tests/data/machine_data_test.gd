@@ -10,10 +10,11 @@ const STARTER := "res://data/decks/starter.tres"
 const RARITY_TABLE := "res://docs/art/mockups/machine_77_src/product_rarity.json"
 ## R3b (decided with the user): these leave the Legendary list for the Rare one.
 const R3B_RARE: Array[String] = ["tea_bags", "carrier_bag"]
-## draw77.js ODDS, per Regular level (COMMON, RARE, LEGENDARY).
-const ODDS := [[75, 22, 3], [65, 28, 7], [55, 33, 12], [45, 37, 18]]
+## draw77.js ODDS, per Regular level (COMMON, RARE, LEGENDARY); level 4 (v0.70) only Holiday
+## rush's +1 reaches (the visits after shifts 9-11), one step past level 3.
+const ODDS := [[75, 22, 3], [65, 28, 7], [55, 33, 12], [45, 37, 18], [35, 41, 24]]
 ## The tier a NEW ITEMS product with a chain arrives at, per odds level (plain, BIG, GOLDEN; #108).
-const TIERS := [[85, 13, 2], [75, 20, 5], [65, 27, 8], [55, 33, 12]]
+const TIERS := [[85, 13, 2], [75, 20, 5], [65, 27, 8], [55, 33, 12], [45, 39, 16]]
 
 var _balance: BalanceDefinition
 var _machine: MachineDefinition
@@ -29,9 +30,14 @@ func test_the_balance_uses_the_machine_file() -> void:
 	assert_int(_machine.prizes_per_visit).is_equal(3)
 	assert_int(_machine.register_cap).is_equal(3)
 	assert_int(_machine.shelf_min_copies).is_equal(2)
-	assert_bool(_machine.bonus_after_inspection).is_true()
+	# v0.68, Payday: an inspection is only a hurdle; a passed review (shifts 4 and 8) pays two
+	# PREMIUM tickets.
+	assert_bool(_machine.bonus_after_inspection).is_false()
 	assert_bool(_machine.new_arrival_first_visit).is_true()
-	assert_array(Array(_machine.bonus_extra_shifts)).is_empty()
+	assert_array(Array(_machine.bonus_extra_shifts)).is_equal([4, 8])
+	for shift_number: int in range(1, 13):
+		var payday: bool = [4, 8].has(shift_number)
+		assert_bool(_machine.is_payday_shift(shift_number)).is_equal(payday)
 	# #108: NEW ITEMS draws 1 coupon a draw; UPGRADE a loyalty perk and an item upgrade, then
 	# either. PREMIUM: RARE or better, BIG or better.
 	assert_int(_machine.coupons_per_draw).is_equal(1)
@@ -45,7 +51,7 @@ func test_the_balance_uses_the_machine_file() -> void:
 ## and a PREMIUM drop too; the tier weights rise with the level and PREMIUM leaves BIG and GOLDEN.
 func test_the_odds_levels_are_the_approved_ones() -> void:
 	assert_int(_machine.odds_levels.size()).is_equal(ODDS.size())
-	assert_int(_machine.max_level()).is_equal(3)
+	assert_int(_machine.max_level()).is_equal(4)
 	for index: int in _machine.odds_levels.size():
 		var level: MachineOddsLevel = _machine.odds_levels[index]
 		var weights: Array = [level.common_weight, level.rare_weight, level.legendary_weight]
@@ -54,7 +60,7 @@ func test_the_odds_levels_are_the_approved_ones() -> void:
 		for drop: int in _machine.prizes_per_visit:
 			var rolled: PackedInt32Array = level.weights(drop)
 			assert_int(rolled[0] + rolled[1] + rolled[2]).is_greater(0)
-		assert_int(level.first_drop_min_rarity).is_equal(1 if index == 3 else 0)
+		assert_int(level.first_drop_min_rarity).is_equal(1 if index >= 3 else 0)
 		var premium: PackedInt32Array = level.weights(0, _machine.premium_min_rarity)
 		assert_int(premium[1] + premium[2]).is_greater(0)
 		assert_array(Array(level.tier_weights())).is_equal(TIERS[index])
@@ -66,6 +72,23 @@ func test_the_odds_levels_are_the_approved_ones() -> void:
 ## Every listed product is a plain stockable product (a staple or an aisle item), every listed
 ## coupon is in the coupon pool, every listed upgrade in the upgrade pool, and nothing is in two
 ## lists.
+## NEW ITEMS rolls its rarities one odds level above UPGRADE (decided with the user on
+## 2026-10-28), up to the top level; its tier roll stays at the visit's level.
+func test_new_items_roll_rarities_one_level_up() -> void:
+	var new_items: int = RewardMachine.Chute.NEW_ITEMS
+	var upgrade: int = RewardMachine.Chute.UPGRADE
+	assert_int(_machine.new_items_rarity_levels).is_equal(1)
+	for level: int in range(_machine.max_level() + 1):
+		assert_int(_machine.rarity_level(upgrade, level)).is_equal(level)
+		var up: int = mini(level + 1, _machine.max_level())
+		assert_int(_machine.rarity_level(new_items, level)).is_equal(up)
+	# Shift 1's NEW ITEMS draw rolls level 1's rarities (65/28/7), not level 0's.
+	var weights: PackedInt32Array = MachineDraw.weights(
+		_machine, _machine.rarity_level(new_items, _machine.odds_level_after(1)), 1
+	)
+	assert_array(Array(weights)).is_equal(ODDS[1])
+
+
 func test_the_rarity_lists_hold_the_right_kinds() -> void:
 	var stockable: Array[CardDefinition] = RunStock.staples(_balance)
 	for aisle: AisleDefinition in _balance.aisles:

@@ -243,31 +243,31 @@ func test_the_display_follows_the_visit() -> void:
 	view.show_draw(run)
 	plan = view.plan
 	# v0.50: PACKING… while the tray packs and the tickets fly out, then each landed ticket's
-	# rarity and prize until its effect ends; BIN IT from the last effect's end.
+	# rarity and prize until its effect ends; the SKIP bin from the last effect's end.
 	view.show_at(plan.choose_at + EPSILON)
 	var from: String = "%d prizes from new items" % plan.n_prizes
 	assert_array(Array(display.texts())).is_equal([MachineDisplay.PACKING, from])
-	assert_bool(display.bin_button().visible).is_false()
+	assert_bool(view.skip_bin.visible).is_false()
 	view.show_at(plan.reveal_at[0] - EPSILON)
 	assert_array(Array(display.texts())).is_equal([MachineDisplay.PACKING, from])
 	assert_bool(display.message_in_display_font()).is_true()
-	assert_bool(display.bin_button().visible).is_false()
+	assert_bool(view.skip_bin.visible).is_false()
 	var last: int = plan.n_prizes - 1
 	view.show_at(plan.reveal_at[last] + EPSILON)
 	var prize: MachinePrize = run.machine.prizes()[last]
 	assert_array(Array(display.texts())).is_equal(
 		[MachineDisplay.RARITY_WORDS[prize.rarity], prize.card.display_name]
 	)
-	assert_bool(display.bin_button().visible).is_false()
+	assert_bool(view.skip_bin.visible).is_false()
 	view.show_at(plan.reveal_at[last] + plan.reveal_length[last] + EPSILON)
-	assert_bool(display.bin_button().visible).is_true()
+	assert_bool(view.skip_bin.visible).is_true()
 	view.show_at(plan.pick_at)
 	assert_str(display.texts()[0]).is_equal(RewardMachineView.pick_prompt(plan.n_prizes, run))
-	assert_bool(display.bin_button().visible).is_true()
+	assert_bool(view.skip_bin.visible).is_true()
 	var landing: MachineLanding = MachineSteps.take(run, 0)
 	view.land(landing)
 	plan = view.plan
-	assert_bool(display.bin_button().visible).is_false()
+	assert_bool(view.skip_bin.visible).is_false()
 	view.show_at(plan.land - EPSILON)
 	assert_str(display.texts()[0]).is_equal("ENJOY!")
 	view.show_at(plan.land + EPSILON)
@@ -294,7 +294,7 @@ func test_the_display_shows_a_bin() -> void:
 	var plan: MachinePlan = view.plan
 	view.show_at(plan.press + EPSILON)
 	assert_str(view.display.texts()[0]).is_equal("BINNED ✕")
-	assert_bool(view.display.bin_button().visible).is_false()
+	assert_bool(view.skip_bin.visible).is_false()
 	view.show_at(plan.punch + EPSILON)
 	assert_str(view.display.texts()[0]).is_equal("BINNED ✕")
 
@@ -342,7 +342,7 @@ func test_a_bonus_visit_says_its_inspection_passed() -> void:
 
 
 ## An UPGRADE draw (v0.61: loyalty perks and item upgrades, binnable): the display offers BIN IT
-## with "or bin them all" at the pick; only UPGRADE's column stays lit, with the odds its draw came
+## with "or skip the draw" at the pick; only UPGRADE's column stays lit, with the odds its draw came
 ## from; a key press is read-only at a pick; the draw holds a loyalty perk and an item upgrade.
 func test_an_upgrade_draw_can_be_binned() -> void:
 	var run: RunState = _passed_run(27)
@@ -363,9 +363,9 @@ func test_an_upgrade_draw_can_be_binned() -> void:
 	view.show_draw(run)
 	view.show_at(view.plan.pick_at)
 	assert_array(Array(view.display.texts())).is_equal(
-		[RewardMachineView.pick_prompt(view.plan.n_prizes, run), "or bin them all"]
+		[RewardMachineView.pick_prompt(view.plan.n_prizes, run), RewardMachineView.SKIP_SUB]
 	)
-	assert_bool(view.display.bin_button().visible).is_true()
+	assert_bool(view.skip_bin.visible).is_true()
 	assert_bool(view.stock.column_lit(upgrade)).is_true()
 	assert_bool(view.stock.column_lit(RewardMachine.Chute.NEW_ITEMS)).is_false()
 	assert_array(Array(view.stock.odds_texts(upgrade))).is_equal(Array(odds))
@@ -374,7 +374,7 @@ func test_an_upgrade_draw_can_be_binned() -> void:
 	assert_int(view.pressed_chute()).is_equal(upgrade)
 	var binned: Array[bool] = []
 	view.binned.connect(func() -> void: binned.append(true))
-	view.display.bin_button().pressed.emit()
+	view.skip_bin.pressed.emit()
 	assert_array(binned).is_equal([true])
 	assert_bool(run.machine.bin(run)).is_true()
 	view.land(null)
@@ -584,15 +584,14 @@ func test_a_full_cart_pick_says_swap_one_out() -> void:
 
 
 ## Every machine line is printed with glyphs its font has (Pixelify and Atkinson have no ✓ or ✕:
-## the display falls back to JetBrains Mono for them, on desktop and the web alike); BIN IT is
-## silent itself (MachineSounds plays the bin's sound).
+## the display falls back to JetBrains Mono for them, on desktop and the web alike); the SKIP bin
+## is silent itself (MachineSounds plays the bin's sound): its press goes to the view alone.
 func test_machine_lines_use_glyphs_their_fonts_have() -> void:
 	var view: RewardMachineView = auto_free(RewardMachineView.new())
 	var display: MachineDisplay = view.display
-	display.set_bin(true, true)
-	assert_int(display.bin_button().pressed.get_connections().size()).is_equal(1)
-	_assert_glyphs(display.bin_button().text, display.bin_button().get_theme_font("font"))
+	assert_int(view.skip_bin.pressed.get_connections().size()).is_equal(1)
 	for line: Array in [
+		[RewardMachineView.BIN_ALL % 3, RewardMachineView.BIN_ALL_SUB],
 		["SPEND €114 ✓ THANK YOU!", RewardMachineView.CHOOSE_SUB],
 		["BINNED ✕", "no prize this time"],
 		["NEW IN CART ✓", "1 swapped out · cart 15/15"],
@@ -625,25 +624,23 @@ func test_machine_lines_use_glyphs_their_fonts_have() -> void:
 		_assert_glyphs(label.text, label.get_theme_font("font"))
 
 
-## The display's longest lines fit: Pixelify 24 when it fits beside BIN IT, else bold Atkinson.
+## The display's longest lines fit: Pixelify 24 when it fits the strip, else bold Atkinson.
 func test_long_display_lines_fit() -> void:
 	var view: RewardMachineView = auto_free(RewardMachineView.new())
 	var display: MachineDisplay = view.display
-	# BIN IT shows beside the pick prompts only (from the last reveal to the pick).
 	for line: Array in [
-		["PICK 1", "or bin them all", true],
-		["PICK 1 · ONLY 2 IN STOCK", RewardMachineView.CART_FULL_TEXT, true],
-		[MachineDisplay.PACKING, "bonus ticket", false],
-		["SPEND €999 ✓ THANK YOU!", "quota €999 met · Coupon slot closed passed", false],
-		["SPEND €999 ✓ THANK YOU!", RewardMachineView.PREMIUM_SUB, false],
-		["SPEND €999 ✓ THANK YOU!", "quota €999 met" + MachineDisplay.PREMIUM_READ, false],
-		["LEVEL UP ✓", "Category engine LV 3 on your card", false],
+		["PICK 1", RewardMachineView.SKIP_SUB],
+		["PICK 1 · ONLY 2 IN STOCK", RewardMachineView.CART_FULL_TEXT],
+		[RewardMachineView.BIN_ALL % 3, RewardMachineView.BIN_ALL_SUB],
+		[MachineDisplay.PACKING, "bonus ticket"],
+		["SPEND €999 ✓ THANK YOU!", "quota €999 met · Coupon slot closed passed"],
+		["SPEND €999 ✓ THANK YOU!", RewardMachineView.PREMIUM_SUB],
+		["SPEND €999 ✓ THANK YOU!", "quota €999 met" + MachineDisplay.PREMIUM_READ],
+		["LEVEL UP ✓", "Category engine LV 3 on your card"],
 	]:
-		display.set_bin(line[2], false)
 		display.show_message(line[0], line[1])
 		for label: Label in display.labels():
 			_assert_fits(label)
-	display.set_bin(true, false)
 	display.show_message("PICK 1", "")
 	assert_bool(display.message_in_display_font()).is_true()
 
@@ -915,6 +912,7 @@ static func _bonus_run(seed_value: int, inspected: bool) -> RunState:
 	var run: RunState = _passed_run(seed_value)
 	if inspected:
 		run.history[-1].inspection = load(SPOT_CHECK)
+		MachineSteps.bonus_after_inspection(run)
 	else:
 		run.machine.machine = run.machine.machine.duplicate() as MachineDefinition
 		run.machine.machine.bonus_extra_shifts = PackedInt32Array([1])

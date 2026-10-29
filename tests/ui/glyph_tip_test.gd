@@ -213,6 +213,7 @@ func test_a_tickets_colour_tips_below_it_and_a_clipped_ticket_shows_none() -> vo
 func test_a_belt_glyph_tips_and_keeps_its_item() -> void:
 	var runner: GdUnitSceneRunner = scene_runner(SCREEN)
 	var screen: ShiftScreen = runner.scene()
+	screen._week.skip()  # The time card (v0.70) stays out of the way.
 	await _frames(3)
 	var run: RunState = screen.run
 	var milk: CardInstance = run.debug_add_to_hand(_card("milk"))

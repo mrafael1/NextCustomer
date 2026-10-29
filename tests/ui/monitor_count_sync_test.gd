@@ -109,6 +109,7 @@ func _frame_sfx(screen: ShiftScreen) -> FrameSfx:
 func _screen() -> ShiftScreen:
 	_runner = scene_runner(SCREEN)
 	var screen: ShiftScreen = _runner.scene()
+	screen._week.skip()  # The time card (v0.70) stays out of the way.
 	await _frames(2)
 	return screen
 

@@ -25,7 +25,11 @@ static func for_run(run: RunState) -> CoinPayout:
 			payout.overtime += record.total - record.quota
 	var table: PackedInt32Array = run.balance.coins_by_shifts_passed
 	if not table.is_empty():
-		payout.shift_coins = table[mini(payout.shifts_passed, table.size() - 1)]
+		# A won run pays the table's last entry, whatever its slips (v0.68).
+		var index: int = payout.shifts_passed
+		if run.phase == RunState.Phase.WON:
+			index = table.size() - 1
+		payout.shift_coins = table[mini(index, table.size() - 1)]
 	if run.balance.overtime_coin_euros > 0:
 		payout.overtime_coins = mini(
 			floori(float(payout.overtime) / run.balance.overtime_coin_euros),

@@ -872,6 +872,7 @@ func test_the_rides_wait_on_the_count_and_move_nothing_themselves() -> void:
 func _screen() -> ShiftScreen:
 	_runner = scene_runner(SCREEN)
 	var screen: ShiftScreen = _runner.scene()
+	screen._week.skip()  # The time card (v0.70) stays out of the way.
 	await _frames(2)
 	return screen
 

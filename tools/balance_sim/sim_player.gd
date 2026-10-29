@@ -236,9 +236,9 @@ func _play_shift(
 	run: RunState, record: SimRunRecord, usage: Dictionary[CardDefinition, int]
 ) -> void:
 	var no_row: Array[CardInstance] = []
-	var played: SimHandBest = _play_row(
-		run.hand(), run.upgrades, run.inspections, run.limits, no_row
-	)
+	# The day events plus the week event, as RunState.checkout scores the row.
+	var events: Array[InspectionDefinition] = WeekSchedule.shift_events(run)
+	var played: SimHandBest = _play_row(run.hand(), run.upgrades, events, run.limits, no_row)
 	while run.redraws_used < run.redraws_allowed and not _search.stopped:
 		# As a player does: the row goes on the belt, a basket of the cards left is redrawn
 		# (row cards are never swapped), then the row is taken back to be played again.
@@ -251,10 +251,10 @@ func _play_shift(
 		if not swapped:
 			break
 		record.redraws += 1
-		played = _play_row(run.hand(), run.upgrades, run.inspections, run.limits, played.row)
+		played = _play_row(run.hand(), run.upgrades, events, run.limits, played.row)
 	var best: SimHandBest = played
 	if _sensible and not _search.stopped:
-		best = _search.search(run.hand(), run.upgrades, run.inspections)
+		best = _search.search(run.hand(), run.upgrades, events)
 	# The time limit stopped the search: the run is dropped, so the shift isn't played.
 	if _search.stopped:
 		return

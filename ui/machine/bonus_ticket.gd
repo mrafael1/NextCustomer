@@ -1,12 +1,13 @@
 class_name BonusTicket
 extends Control
 ## The gold BONUS TICKET (#77 machine v2, Q2 = 2; docs/art/mockups/machine_77_v2.html): drawn,
-## with its icon (art/icons/bonus_ticket.png, 2x), "BONUS TICKET" (Pixelify 24) and a small line
-## (bold Atkinson 11: "inspection passed · keep me"). Its gold body has a 2 px ink border. As the
-## STUB (printed at the receipt's foot, ReceiptStub) its top edge is a 3 px dashed ink
-## perforation; as the TICKET (snapped off, flying to the slot plate's dock, docked and fed in for
-## the bonus visit; ReceiptFeed) it has stepped half-circle notches at its left and right middles
-## on the 2 px grid and a dashed mustard dark line at NOTCH_LINE_X.
+## with its icon (art/icons/bonus_ticket.png, 2x), "BONUS TICKET" (Pixelify 24; a payday's second
+## ticket, v0.68: "PREMIUM TICKET", smaller if it must) and a small line (bold Atkinson 11:
+## "inspection passed · keep me", a payday's "review passed · 2 of 2"). Its gold body has a 2 px
+## ink border. As the STUB (printed at the receipt's foot, ReceiptStub) its top edge is a 3 px
+## dashed ink perforation; as the TICKET (snapped off, flying to the slot plate's dock, docked
+## and fed in for the bonus visit; ReceiptFeed) it has stepped half-circle notches at its left
+## and right middles on the 2 px grid and a dashed mustard dark line at NOTCH_LINE_X.
 ##
 ## Its art is SIZE high and as wide as the control; the control clips it, so a shorter control
 ## shows its top part (the stub printing, or snapping off). `shine` sweeps a glint across it (the
@@ -66,7 +67,8 @@ func _init(ticket_form: int = Form.STUB, sub: String = INSPECTED_SUB) -> void:
 	_icon.position = ICON_POSITION
 	_icon.size = Vector2(ICON.get_size()) * ICON_SCALE
 	_art.add_child(_icon)
-	_title = UiKit.display_label(TITLE, TITLE_SIZE, false)
+	var title: String = title_for(sub)
+	_title = UiKit.display_label(title, _title_size(title), false)
 	_title.name = "Title"
 	_title.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	RewardMachineView.fit(_title, TITLE_RECT)
@@ -82,9 +84,34 @@ func _init(ticket_form: int = Form.STUB, sub: String = INSPECTED_SUB) -> void:
 	set_form(ticket_form)
 
 
-## The small line under the title: an inspection's pass, or a bonus extra shift's number.
-static func sub_line(inspected: bool, shift: int) -> String:
+## The small line under the title: a payday's second PREMIUM ticket (v0.68, Payday.TICKET_SUB),
+## an inspection's pass, or a bonus extra shift's number.
+static func sub_line(inspected: bool, shift: int, payday: bool = false) -> String:
+	if payday:
+		return Payday.TICKET_SUB
 	return INSPECTED_SUB if inspected else EXTRA_SUB % shift
+
+
+## The title for a ticket with the small line `sub`: a payday's (Payday.TICKET_SUB) is the
+## PREMIUM TICKET (v0.68), any other the BONUS TICKET.
+static func title_for(sub: String) -> String:
+	return Payday.TICKET_TITLE if sub == Payday.TICKET_SUB else TITLE
+
+
+## The title's size: TITLE_SIZE, or smaller until `title` fits TITLE_RECT's width (a payday's
+## PREMIUM TICKET).
+static func _title_size(title: String) -> int:
+	var font: Font = ArtStyle.DISPLAY_FONT
+	var title_size: int = TITLE_SIZE
+	while (
+		title_size > SUB_SIZE
+		and (
+			font.get_string_size(title, HORIZONTAL_ALIGNMENT_LEFT, -1, title_size).x
+			> TITLE_RECT.size.x
+		)
+	):
+		title_size -= 2
+	return title_size
 
 
 ## The stub (perforated top) or the ticket (notches, dashed line).
