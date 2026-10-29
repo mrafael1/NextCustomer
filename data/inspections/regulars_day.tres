@@ -9,4 +9,5 @@ display_name = "Regulars' day"
 tone = 1
 notice_text = "One redraw more"
 chip_text = "+1 redraw"
+icon_ref = "res://art/icons/redraw_arrow_hot.png"
 extra_redraws = 1

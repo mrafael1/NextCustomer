@@ -5,13 +5,17 @@ extends Node
 ## (shifts 1, 5 and 9; a resume on one plays it again, a resume mid-week never does), once
 ## planning can take input: after the cart reveal, the glide back from the machine and the count.
 ## The machine's planning notices (MachineFlow) wait for it (holds_planning). Tapping the week
-## chip or the day chip reopens it in planning; tapping the card closes it.
+## chip or the day chip reopens it in planning; tapping the card closes it. After each shift's
+## verdict the card stamps the day PAID or SLIP (v0.72, stamp_day) before the machine or the
+## next shift.
 
 var card: WeekCard
 var _screen: ShiftScreen
 var _bar: TopBar
 ## The card waits to play (a week's first shift opened).
 var _due: bool = false
+## The card stays out of the way (skip(): the screen capture, tests): no day stamps either.
+var _quiet: bool = false
 
 
 ## Builds the card over `screen` (added last, over the cart reveal) and wires the chips.
@@ -35,10 +39,31 @@ func shift_started() -> void:
 	_due = run != null and has_weeks(run) and WeekCardModel.opens_at(run)
 
 
-## Drops the card, due or open, with no signal (the screen capture, tests).
+## Drops the card, due or open, with no signal, and stamps no day from now on (the screen
+## capture, tests).
 func skip() -> void:
+	_quiet = true
+	drop()
+
+
+## Drops the card, due or open, with no signal (the debug panel changing today's event).
+func drop() -> void:
 	_due = false
 	card.clear()
+
+
+## Stamps the shift just checked out on the time card (v0.72: PAID, or a training week's SLIP)
+## and waits for the card to fly back: on every shift of a run with weeks that goes on (a won or
+## lost run goes to its results), unless skipped. A card cleared meanwhile (a new run) ends it.
+func stamp_day() -> void:
+	var run: RunState = _screen.run
+	if _quiet or run == null or not has_weeks(run):
+		return
+	if run.phase == RunState.Phase.WON or run.phase == RunState.Phase.LOST:
+		return
+	card.stamp_day(WeekCardModel.of(run), _bar.week_chip, _screen.profile.reduced_motion())
+	while card.is_open():
+		await get_tree().process_frame
 
 
 ## Whether planning's notices wait for the card: due, or open.

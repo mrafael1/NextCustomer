@@ -222,7 +222,7 @@ func test_picking_a_prize_adds_it_to_the_deck_and_logs_it() -> void:
 	var offered: CardDefinition = screen.run.machine.prizes()[0].card
 	await _until_armed(screen)
 	screen._machine.view.pick(0)
-	screen._machine._on_add_pressed()
+	screen._machine.on_deck_added()
 	screen._machine.view.fast_forward()  # The landing plays to its end.
 	assert_int(screen.run.deck.size()).is_equal(14)
 	assert_int(screen.run.shift_index).is_equal(1)
@@ -237,8 +237,8 @@ func test_picking_a_prize_adds_it_to_the_deck_and_logs_it() -> void:
 	assert_bool(visit["resumed"]).is_false()
 
 
-## At the deck limit a picked prize opens the chooser; its cancel goes back to the prizes with
-## nothing taken; a chosen card is swapped out and logged as replaced.
+## At the deck limit a picked prize opens the cart to swap one out; going back returns to the
+## prizes with nothing taken; a chosen card is swapped out and logged as replaced.
 func test_a_full_deck_asks_which_card_to_remove() -> void:
 	var runner: GdUnitSceneRunner = scene_runner(SCREEN)
 	var screen: ShiftScreen = runner.scene()
@@ -249,8 +249,6 @@ func test_a_full_deck_asks_which_card_to_remove() -> void:
 	assert_bool(screen._machine._choose(RewardMachine.Chute.NEW_ITEMS)).is_true()
 	await _until_armed(screen)
 	screen._machine.view.pick(1)
-	screen._machine._on_add_pressed()
-	screen._machine.view.fast_forward()  # The landing plays to its end.
 	assert_bool(screen._deck_view.visible).is_true()
 	assert_int(screen.run.phase).is_equal(RunState.Phase.MACHINE_PICK)
 	# Closing the deck view goes back to the prizes without taking anything.
@@ -258,8 +256,6 @@ func test_a_full_deck_asks_which_card_to_remove() -> void:
 	assert_bool(screen._machine.is_open()).is_true()
 	assert_int(screen.run.phase).is_equal(RunState.Phase.MACHINE_PICK)
 	screen._machine.view.pick(1)
-	screen._machine._on_add_pressed()
-	screen._machine.view.fast_forward()  # The landing plays to its end.
 	var removed: CardInstance = screen.run.deck.cards[0]
 	screen._on_deck_card_chosen(removed)
 	assert_int(screen.run.deck.size()).is_equal(screen.run.balance.deck_limit)
@@ -341,12 +337,12 @@ func test_the_machine_ignores_clicks_until_armed() -> void:
 	assert_bool(screen._machine._choose(RewardMachine.Chute.NEW_ITEMS)).is_true()
 	assert_bool(view.is_armed()).is_false()
 	view.pick(0)
-	screen._machine._on_add_pressed()
+	screen._machine.on_deck_added()
 	view.fast_forward()  # The landing plays to its end.
 	assert_int(screen.run.phase).is_equal(RunState.Phase.MACHINE_PICK)
 	await _until_armed(screen)
 	view.pick(0)
-	screen._machine._on_add_pressed()
+	screen._machine.on_deck_added()
 	view.fast_forward()  # The landing plays to its end.
 	assert_int(screen.run.shift_index).is_equal(1)
 

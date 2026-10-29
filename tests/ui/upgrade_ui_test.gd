@@ -62,7 +62,7 @@ func test_a_register_from_the_machine_stamps_the_loyalty_card() -> void:
 	# A click before the machine is armed does nothing.
 	screen._machine.view._armed = false
 	screen._machine.view.pick(0)
-	screen._machine._on_add_pressed()
+	screen._machine.on_deck_added()
 	screen._machine.view.fast_forward()  # The landing plays to its end.
 	assert_int(run.phase).is_equal(RunState.Phase.MACHINE_PICK)
 	await _until_armed(screen)
@@ -76,7 +76,7 @@ func test_a_register_from_the_machine_stamps_the_loyalty_card() -> void:
 	assert_int(run.phase).is_equal(RunState.Phase.MACHINE_PICK)
 	var picked: UpgradeDefinition = prizes[index].upgrade
 	screen._machine.view.pick(index)
-	screen._machine._on_add_pressed()
+	screen._machine.on_deck_added()
 	screen._machine.view.fast_forward()  # The landing plays to its end.
 
 	assert_array(run.upgrades).contains_exactly([picked])

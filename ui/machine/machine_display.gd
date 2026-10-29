@@ -3,8 +3,8 @@ extends Panel
 ## The machine's char display (#77, look F; build spec 4.2-4.3; v0.50: the LED strip left of the
 ## receipt slot, 292 px wide, mock-up premium_machine_v1.html): the message in Pixelify 24
 ## (mustard light; bold Atkinson 17, then 15, 13 or 12, when it doesn't fit) with its sub line (bold
-## Atkinson 11, grey light), and the BIN IT ✕ button at the right (RewardMachine.can_bin: both
-## chutes since v0.61; shown from the last reveal's end until the pick or the bin, as look F).
+## Atkinson 11, grey light). Its BIN IT ✕ button went to the SKIP bin under the prize row
+## (2026-10-29, SkipBin).
 ## Pixelify and Atkinson have no ✓ or ✕: the display's fonts fall back to JetBrains Mono
 ## (ArtStyle.MONO_FONT) for them, the same on desktop and on the web build (marked_font).
 ##
@@ -19,19 +19,11 @@ extends Panel
 ## A pressed key no longer changes the display (v0.53: the tray's push bar confirms, MachineTray;
 ## until then a title mode with a CONFIRM › key took the strip). A BONUS visit's feed reads the
 ## ticket icon and "BONUS TICKET" / "inspection passed · feeding in".
-##
-## A product or coupon picked below the deck limit (2026-10-28: "even when deck isn't full, you can
-## replace an item instead of taking a new slot") is offered as ADD or SWAP… (offer_swap): the
-## left of the strip reads "MILK · ADD OR SWAP?" over the two keys, BIN IT ✕ still at the right.
-
-signal bin_pressed
-signal add_pressed
-signal swap_pressed
 
 const SIZE := Vector2(292, 52)
 const MESSAGE_SIZE := 24
 ## The message's size in bold Atkinson when Pixelify 24 doesn't fit (look F's 17 px), then the
-## smaller steps when that doesn't fit either (v0.50: the strip is 292 px, 180 px beside BIN IT).
+## smaller steps when that doesn't fit either (v0.50: the strip is 292 px).
 const FALLBACK_STEPS: Array[int] = [17, 15, 13, 12]
 ## The sub line's smaller sizes when 11 doesn't fit.
 const SUB_STEPS: Array[int] = [11, 10, 9]
@@ -41,18 +33,6 @@ const MESSAGE_TOP := 2.0
 const MESSAGE_HEIGHT := 28.0
 const SUB_TOP := 30.0
 const SUB_HEIGHT := 16.0
-const BIN_RECT := Rect2(196, 13, 88, 26)
-const BIN_GAP := 6.0
-const BIN_TEXT := "BIN IT ✕"
-const BIN_SIZE := 12
-## The swap offer: its line over the ADD and SWAP… keys, left of BIN IT.
-const OFFER_FORMAT := "%s · ADD OR SWAP?"
-const OFFER_RECT := Rect2(10, 0, 176, 23)
-const OFFER_SIZE := 11
-const ADD_TEXT := "ADD"
-const ADD_RECT := Rect2(10, 23, 84, 27)
-const SWAP_TEXT := "SWAP…"
-const SWAP_RECT := Rect2(100, 23, 84, 27)
 ## A BONUS visit's feed: the ticket icon (2x) left of BONUS TICKET.
 const BONUS_TICKET := "BONUS TICKET"
 const TICKET_ICON := preload("res://art/icons/bonus_ticket.png")
@@ -78,11 +58,6 @@ static var _marked: Dictionary[int, FontVariation] = {}
 var view: RewardMachineView
 var _message: Label
 var _sub: Label
-var _bin: Button
-var _bin_shown: bool = false
-var _add: Button
-var _swap: Button
-var _offer: Label
 var _icon: TextureRect
 ## The wait point's message and sub line (show_message), shown when the plan has no line of its
 ## own at the time.
@@ -116,27 +91,6 @@ func _init() -> void:
 	_sub.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	_sub.clip_text = true
 	add_child(_sub)
-	# Silent: MachineSounds plays the bin's ui_back when the landing is planned.
-	_bin = UiKit.button(self, BIN_TEXT, func() -> void: bin_pressed.emit(), BIN_SIZE, "")
-	_bin.name = "BinButton"
-	_bin.add_theme_font_override("font", marked_font(0))
-	_style_key(_bin)
-	RewardMachineView.fit(_bin, BIN_RECT)
-	_bin.visible = false
-	_add = _offer_key("AddButton", ADD_TEXT, ADD_RECT, func() -> void: add_pressed.emit())
-	# ADD is the plain take: gold like the push bar, so it never reads as disabled.
-	_style_key(_add, Palette.GOLD, Palette.MUSTARD_PALE)
-	_swap = _offer_key("SwapButton", SWAP_TEXT, SWAP_RECT, func() -> void: swap_pressed.emit())
-	_offer = UiKit.body_label("", OFFER_SIZE, Palette.MUSTARD_LIGHT)
-	_offer.name = "Offer"
-	_offer.add_theme_font_override("font", marked_font(BOLD_WEIGHT))
-	_offer.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	_offer.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	_offer.clip_text = true
-	_offer.position = OFFER_RECT.position
-	_offer.size = OFFER_RECT.size
-	_offer.visible = false
-	add_child(_offer)
 	_icon = UiKit.sprite(TICKET_ICON)
 	_icon.name = "TicketIcon"
 	_icon.size = TICKET_ICON.get_size() * ICON_SCALE
@@ -199,40 +153,6 @@ func labels() -> Array[Label]:
 	return [_message, _sub]
 
 
-## Offers BIN IT on this draw or not (it shows at the times frame(t) gives), and whether it can
-## be pressed yet.
-func set_bin(shown: bool, enabled: bool) -> void:
-	_bin_shown = shown
-	_bin.disabled = not enabled
-	_bin.visible = _bin_at(view.clock if view != null else 0.0)
-	_show(_message.text, _sub.text)
-
-
-## Offers the picked `item_name` as ADD or SWAP… ("" takes the offer off).
-func offer_swap(item_name: String) -> void:
-	_offer.text = OFFER_FORMAT % item_name.to_upper() if not item_name.is_empty() else ""
-	_show(_message.text, _sub.text)
-
-
-## Whether ADD and SWAP… are offered.
-func swap_offered() -> bool:
-	return not _offer.text.is_empty()
-
-
-## The swap offer's ADD and SWAP… keys and its line, for tests.
-func offer_parts() -> Array[Control]:
-	return [_add, _swap, _offer]
-
-
-## Whether this draw offers BIN IT (set_bin), shown yet or not.
-func bin_offered() -> bool:
-	return _bin_shown
-
-
-func bin_button() -> Button:
-	return _bin
-
-
 ## Hooks this part to the machine: RewardMachineView calls it once, when it builds the part
 ## (build spec 4.2).
 func setup(machine: RewardMachineView) -> void:
@@ -240,13 +160,9 @@ func setup(machine: RewardMachineView) -> void:
 
 
 ## The display at time `t` (seconds) of view.plan: a refused key's lines for a moment, else the
-## plan's own line at `t`, else the wait point's; BIN IT from the last reveal's end until the
-## pick or the bin is made.
+## plan's own line at `t`, else the wait point's.
 func frame(t: float) -> void:
 	var plan: MachinePlan = view.plan if view != null else null
-	var bin_now: bool = _bin_at(t)
-	var moved: bool = bin_now != _bin.visible
-	_bin.visible = bin_now
 	var timed: PackedStringArray = _timed(plan, t)
 	var shown: PackedStringArray = timed if not timed.is_empty() else _rest
 	if not _denied.is_empty():
@@ -254,24 +170,8 @@ func frame(t: float) -> void:
 			shown = _denied
 		else:
 			_denied = PackedStringArray()
-	if moved or shown[0] != _message.text or shown[1] != _sub.text:
+	if shown[0] != _message.text or shown[1] != _sub.text:
 		_show(shown[0], shown[1])
-
-
-## Whether BIN IT shows at `t`: offered, the draw's last reveal over, the pick not yet made (no
-## plan: whenever offered).
-func _bin_at(t: float) -> bool:
-	if not _bin_shown:
-		return false
-	var plan: MachinePlan = view.plan if view != null else null
-	if plan == null:
-		return true
-	if not plan.has_draw or plan.n_prizes <= 0:
-		return false
-	var last: int = plan.n_prizes - 1
-	if t < plan.reveal_at[last] + plan.reveal_length[last]:
-		return false
-	return not (plan.has_landing and t >= plan.press)
 
 
 ## The plan's own line at `t`, or none (empty: the wait point's).
@@ -437,16 +337,14 @@ func _prize_name(index: int) -> String:
 	return prize.card.display_name if prize.card != null else ""
 
 
-## Shows the two lines: the message in Pixelify 24 if it fits the room left of BIN IT (else bold
-## Atkinson 17), both centred in that room; a lone message centred in the display. BONUS TICKET
+## Shows the two lines: the message in Pixelify 24 if it fits the strip (else bold Atkinson 17),
+## both centred in it; a lone message centred in the display. BONUS TICKET
 ## gets the ticket icon before it.
 func _show(message: String, sub: String) -> void:
 	_message.text = message
 	_sub.text = sub
 	var left: float = PAD
 	var room: float = SIZE.x - 2.0 * PAD
-	if _bin.visible:
-		room = BIN_RECT.position.x - BIN_GAP - PAD
 	var font: Font = marked_font(0)
 	var width: float = font.get_string_size(message, HORIZONTAL_ALIGNMENT_LEFT, -1, MESSAGE_SIZE).x
 	_icon.visible = message == BONUS_TICKET or message == Payday.TICKET_TITLE
@@ -473,12 +371,7 @@ func _show(message: String, sub: String) -> void:
 	var sub_left: float = left if not _icon.visible else PAD
 	_sub.position = Vector2(sub_left, SUB_TOP)
 	_sub.size = Vector2(sub_room, SUB_HEIGHT)
-	# The swap offer takes the message's room.
-	var offered: bool = swap_offered()
-	_message.visible = not offered
-	_sub.visible = not sub.is_empty() and not offered
-	for part: Control in offer_parts():
-		part.visible = offered
+	_sub.visible = not sub.is_empty()
 
 
 ## The first of `steps` (font sizes, largest first) at which `text` in the marked font of
@@ -489,34 +382,3 @@ func _step(text: String, weight: int, steps: Array[int], room: float) -> int:
 		if font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size).x <= room:
 			return font_size
 	return steps[-1]
-
-
-## A swap offer key: styled as BIN IT, at `rect`, hidden until offered.
-func _offer_key(key_name: String, text: String, rect: Rect2, on_pressed: Callable) -> Button:
-	var key: Button = UiKit.button(self, text, on_pressed, BIN_SIZE)
-	key.name = key_name
-	key.add_theme_font_override("font", marked_font(0))
-	_style_key(key)
-	RewardMachineView.fit(key, rect)
-	key.visible = false
-	return key
-
-
-func _style_key(
-	key: Button, face: Color = Palette.STEEL_LIGHT, hover: Color = Palette.STEEL_HIGHLIGHT
-) -> void:
-	var looks: Dictionary[String, Color] = {
-		"normal": face,
-		"hover": hover,
-		"pressed": Palette.STEEL_PALE,
-		"disabled": Palette.STEEL_PALE,
-	}
-	for state: String in looks:
-		var style: StyleBoxFlat = StyleBoxFlat.new()
-		style.bg_color = looks[state]
-		style.border_color = Palette.INK
-		style.set_border_width_all(2)
-		key.add_theme_stylebox_override(state, style)
-	for colour: String in ["font_color", "font_hover_color", "font_pressed_color"]:
-		key.add_theme_color_override(colour, Palette.INK)
-	key.add_theme_color_override("font_disabled_color", Palette.GREY_DARK)

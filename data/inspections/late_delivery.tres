@@ -16,4 +16,5 @@ id = &"late_delivery"
 display_name = "Late delivery"
 notice_text = "Dairy items pay €2 less"
 chip_text = "Dairy −€2"
+icon_ref = "res://art/icons/family_dairy.png"
 rules = Array[ExtResource("1_rule")]([SubResource("Resource_tag_bonus")])

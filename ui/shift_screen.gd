@@ -575,6 +575,7 @@ func _on_checkout_pressed() -> void:
 	_refresh_bar()  # The inspection chip's EARNED (#77 machine v2).
 	_cabinet.set_total_down(false)
 	_stage.dim_hand(false)
+	await _week.stamp_day()  # The time card stamps the day PAID or SLIP (v0.72).
 	if run.phase == RunState.Phase.MACHINE_CHOOSE:
 		_machine.open(false)
 	elif run.phase == RunState.Phase.SCORED:
@@ -972,6 +973,7 @@ func _build() -> void:
 	_deck_view = DeckView.new()
 	add_child(_deck_view)
 	_deck_view.card_chosen.connect(_on_deck_card_chosen)
+	_deck_view.added.connect(func() -> void: _machine.on_deck_added())
 	_deck_view.closed.connect(_on_deck_closed)
 	_cart_reveal = CartReveal.new()  # Over all but the debug panel (v0.51).
 	add_child(_cart_reveal)

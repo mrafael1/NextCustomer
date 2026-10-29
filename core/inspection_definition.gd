@@ -24,6 +24,11 @@ enum Tone { MALUS, BOON, WEEK }
 ## The effect in a few words, for the top bar's chip ("Inspection · −1 slot", mock-up B2; a boon's
 ## "Today: Quiet morning — quota −10%"); the chip's hover text gives the name and the notice.
 @export var chip_text: String = ""
+## The event's icon on the time card (v0.70, mock-up rota_card_v1.html), a res:// path drawn at
+## 2x; empty: the boon or warning icon. `icon_flipped` draws it upside down (Quiet morning's down
+## arrow).
+@export_file("*.png") var icon_ref: String = ""
+@export var icon_flipped: bool = false
 ## Scoring rules, asked about every slot by the scoring loop (never attached to a card).
 @export var rules: Array[InspectionRule] = []
 ## Shift modifiers (ShiftLimits), added to the run's limits for this shift only: slots (Short

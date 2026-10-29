@@ -8,4 +8,5 @@ id = &"small_baskets"
 display_name = "Small baskets"
 notice_text = "One item fewer in the hand"
 chip_text = "−1 hand item"
+icon_ref = "res://art/icons/cart.png"
 hand_size_delta = -1

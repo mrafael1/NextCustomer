@@ -17,4 +17,5 @@ display_name = "Free samples"
 tone = 1
 notice_text = "The 1st product pays ×2"
 chip_text = "1st product ×2"
+icon_ref = "res://art/icons/coin.png"
 rules = Array[ExtResource("1_rule")]([SubResource("Resource_nth_product")])

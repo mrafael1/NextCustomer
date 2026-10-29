@@ -125,6 +125,10 @@ const PRESS_SOUND := "ui_click"
 const BONUS_UNDER := "INSPECTION PASSED"
 ## The pick wait's sub line when the cart is full (a pick swaps a card out).
 const CART_FULL_TEXT := "CART FULL: SWAP 1 OUT"
+## The display while the SKIP bin is hovered, and the pick wait's sub line when it can be binned.
+const BIN_ALL := "BIN ALL %d?"
+const BIN_ALL_SUB := "the whole draw goes"
+const SKIP_SUB := "or skip the draw"
 
 var cabinet: MachineCabinet
 var head: MachineHead
@@ -138,6 +142,8 @@ var keys: Array[ChuteKey] = []
 var tickets: Array[PrizeTicket] = []
 ## The hovered prize's popup, on the card layer (PrizePopup).
 var popup: PrizePopup
+## The SKIP bin under the prize row (2026-10-29), on the card layer: it bins the whole draw.
+var skip_bin: SkipBin
 ## MachineLayers': the feed layer (on the hud), the stage layer and the card layer.
 var feed_layer: Control
 var stage_layer: Control
@@ -209,7 +215,6 @@ func _init() -> void:
 	cabinet = _add(MachineCabinet.new(), Vector2.ZERO) as MachineCabinet
 	head = _add(MachineHead.new(), HEAD_POSITION) as MachineHead
 	display = _add(MachineDisplay.new(), DISPLAY_POSITION) as MachineDisplay
-	display.bin_pressed.connect(_on_bin_pressed)
 	slot_plate = _add(SlotPlate.new(), SLOT_POSITION) as SlotPlate
 	stock = _add(StockWindow.new(), WINDOW_POSITION) as StockWindow
 	key_bay = Control.new()
@@ -246,6 +251,11 @@ func _init() -> void:
 	prize_row.place_keep()
 	popup = PrizePopup.new()
 	card_layer.add_child(popup)
+	skip_bin = SkipBin.new()
+	skip_bin.setup(self)
+	card_layer.add_child(skip_bin)
+	skip_bin.pressed.connect(_on_bin_pressed)
+	skip_bin.hover_changed.connect(_on_bin_hovered)
 	MachineDim.idle_mouse(self, true)
 	set_lit(0.0)
 	_place_keys(MachineLook.new())
@@ -308,7 +318,7 @@ func open_visit(
 		return
 	if resumed:
 		_resume(MachinePlan.WaitPoint.CHOOSE)
-	display.set_bin(false, false)
+	skip_bin.set_offered(false, false)
 	if kind == MachineVisit.Kind.BONUS and run.machine.is_payday(run):
 		display.show_message(Payday.TICKET_TITLE, Payday.CHUTE_SUB)
 	elif kind == MachineVisit.Kind.BONUS:
@@ -373,7 +383,7 @@ func show_draw(run_state: RunState, resumed: bool = false) -> void:
 		card_layer.add_child(ticket)
 		tickets.append(ticket)
 	var can_bin: bool = run.machine.can_bin()
-	display.set_bin(can_bin, false)
+	skip_bin.set_offered(can_bin, false)
 	display.show_message(pick_prompt(prizes.size(), run), _pick_sub(run, can_bin))
 	items_shown.emit()
 	_read_presses()
@@ -621,6 +631,7 @@ func _frame() -> void:
 	receipt_feed.frame(t)
 	cart_drawer.frame(t)
 	prize_row.frame(t)
+	skip_bin.frame(t)
 	flyer.frame(t)
 	_set_shake(MachineLayers.legendary_shake(plan, t))
 	_place()
@@ -749,7 +760,7 @@ func _arm_when_released() -> void:
 	if Input.is_mouse_button_pressed(MOUSE_BUTTON_LEFT):
 		return
 	_armed = true
-	display.set_bin(display.bin_offered(), true)
+	skip_bin.set_offered(skip_bin.offered(), true)
 	beat.emit(&"armed", clock)
 	for key: ChuteKey in keys:
 		if key.is_hovered() and key.visible:
@@ -789,7 +800,7 @@ func _pick_sub(run_state: RunState, can_bin: bool) -> String:
 	var fills: bool = visit.chute == RewardMachine.Chute.NEW_ITEMS
 	if fills and run_state.deck_is_full():
 		return CART_FULL_TEXT
-	return "or bin them all" if can_bin else "you must pick one"
+	return SKIP_SUB if can_bin else "you must pick one"
 
 
 ## Whether the shift's visit before this one (a BONUS visit's ticket) was PREMIUM: the machine is
@@ -849,7 +860,7 @@ func _release() -> void:
 
 func _disarm() -> void:
 	_armed = false
-	display.set_bin(display.bin_offered(), false)
+	skip_bin.set_offered(skip_bin.offered(), false)
 
 
 func _clear_tickets() -> void:
@@ -880,7 +891,23 @@ func _on_confirmed() -> void:
 
 func _on_bin_pressed() -> void:
 	if _armed and run != null and run.machine.can_bin():
+		_on_bin_hovered(false)
 		binned.emit()
+
+
+## The SKIP bin hovered: every ticket shakes under its shred mark and the display asks; left, the
+## pick prompt comes back.
+func _on_bin_hovered(over: bool) -> void:
+	for ticket: PrizeTicket in tickets:
+		ticket.doomed = over
+		ticket.frame(clock)
+	if run == null or run.phase != RunState.Phase.MACHINE_PICK:
+		return
+	if over:
+		display.show_message(BIN_ALL % tickets.size(), BIN_ALL_SUB)
+	else:
+		var can_bin: bool = run.machine.can_bin()
+		display.show_message(pick_prompt(tickets.size(), run), _pick_sub(run, can_bin))
 
 
 func _on_ticket_hovered(index: int) -> void:

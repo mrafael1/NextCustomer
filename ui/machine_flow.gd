@@ -3,8 +3,10 @@ extends Node
 ## The RECEIPT REWARDS machine's visits on the shift screen (#77; build spec 4.2): it opens the
 ## machine (RewardMachineView) at the dessert's printer feed, chooses the chute the player
 ## confirms (RewardMachine.choose, then the run is saved at MACHINE_PICK), shows the prizes,
-## takes the pick (through the deck-full chooser when the cart is full: DeckView in choosing mode,
-## whose cancel goes back to the prizes with nothing picked or saved) or the bin, logs the
+## takes the pick (an item or a coupon through the cart: DeckView's placing mode, 2026-10-29,
+## where it is dropped on a free spot to add it or on an item to swap that out, a full cart having
+## no free spot; going back returns to the prizes with nothing picked or saved) or the bin (the
+## SKIP bin under the prizes), logs the
 ## machine_visit event, saves (the next visit's save point, or SCORED after the shift's last
 ## visit) and lands the prize; at the landing's beat the top bar shows what changed (the Cart
 ## count, the loyalty card, with the plain stamp while view.plain_landing); once the landing is
@@ -58,14 +60,12 @@ var _screen: ShiftScreen
 var _log: EventLogService
 ## The visit on screen: its timeline, the odds cards opened (chutes, in order), the odds card of
 ## the chute chosen (as shown before the draw), whether the cart was full when it was chosen,
-## whether it was resumed from a save, a pick waiting for the deck chooser (-1: none) and a pick
-## offered as ADD or SWAP… below the deck limit (-1: none).
+## whether it was resumed from a save, and a pick being placed in the cart (-1: none).
 var _timeline: OfferTimeline = OfferTimeline.new()
 var _viewed: Array[int] = []
 var _odds: MachineOddsCard
 var _resumed: bool = false
 var _pending: int = -1
-var _offered: int = -1
 ## The landing under way (null: none, or a bin).
 var _landing: MachineLanding
 ## Seconds into the glide back to the store, or -1 while there is none; its reduced motion is read
@@ -101,8 +101,6 @@ func setup(screen: ShiftScreen, event_log: EventLogService) -> RewardMachineView
 	view.chute_confirmed.connect(_on_chute_confirmed)
 	view.prize_picked.connect(_on_prize_picked)
 	view.binned.connect(_on_binned)
-	view.display.add_pressed.connect(_on_add_pressed)
-	view.display.swap_pressed.connect(_on_swap_pressed)
 	view.odds_opened.connect(func(chute: int) -> void: _viewed.append(chute))
 	view.beat.connect(_on_beat)
 	view.finished.connect(_on_finished)
@@ -174,7 +172,6 @@ func open(resumed: bool) -> void:
 	_resumed = resumed
 	_viewed = []
 	_pending = -1
-	_offer(-1)
 	_odds = null
 	var count: CountUp = _screen._count_up
 	var feed_ms: int = count.printer_feed_ms
@@ -204,7 +201,6 @@ func open(resumed: bool) -> void:
 ## after a shift's last visit (_on_finished).
 func close() -> void:
 	_pending = -1
-	_offer(-1)
 	_return_t = -1.0
 	_presses.end()
 	view.show_idle(_screen.run)
@@ -268,7 +264,7 @@ func show_deck() -> void:
 	)
 
 
-## The deck view closed without a choice: the chooser's cancel returns to the prizes, nothing
+## The deck view closed without a choice: placing's way back returns to the prizes, nothing
 ## picked or saved; the plain deck view gives the machine back.
 func on_deck_closed() -> void:
 	_pending = -1
@@ -277,12 +273,21 @@ func on_deck_closed() -> void:
 		view.visible = true
 
 
-## The deck-full chooser's card: the waiting pick swaps it out.
+## The cart's item the placed pick was dropped on: the pick swaps it out.
 func on_deck_card_chosen(card: CardInstance) -> void:
 	if _pending >= 0:
 		var index: int = _pending
 		_pending = -1
 		_take(index, card)
+
+
+## The placed pick was dropped on a free spot: it is added (never past the deck limit, where a
+## pick must swap one out).
+func on_deck_added() -> void:
+	if _pending >= 0 and not _screen.run.machine.needs_replace(_screen.run, _pending):
+		var index: int = _pending
+		_pending = -1
+		_take(index, null)
 
 
 ## Debug panel and tests: a landing under way ends at once; then every waiting visit chooses NEW
@@ -349,62 +354,29 @@ func _choose(chute: int) -> bool:
 	return true
 
 
+## A card prize goes through the cart (placing mode): dropped on a free spot it is added, on an
+## item it swaps that out (plan section 2: at the deck limit there is no free spot, so taking a
+## card means choosing one to remove); a perk or an upgrade is taken at once.
 func _on_prize_picked(index: int) -> void:
 	var run: RunState = _screen.run
 	var prize: MachinePrize = run.machine.prizes()[index]
-	if not run.machine.needs_replace(run, index):
-		# Below the deck limit a card can be added or swapped for one in the cart (2026-10-28).
-		if prize.adds_card():
-			_offer(index)
-		else:
-			_take(index, null)
+	if not prize.adds_card():
+		_take(index, null)
 		return
-	# Plan section 2: at the deck limit, taking a card means choosing one to remove.
+	var full: bool = run.machine.needs_replace(run, index)
+	var room: int = 0 if full else maxi(1, run.balance.deck_limit - run.deck.size())
 	_pending = index
 	view.visible = false
-	_screen._deck_view.open(
-		run,
-		(
-			"Cart full (%d/%d): choose an item to remove for %s"
-			% [run.deck.size(), run.balance.deck_limit, prize.card.display_name]
-		),
-		true
-	)
+	_screen._deck_view.open_placing(run, placing_title(run, prize, full), prize.card, room)
 
 
-## Offers pick `index` as ADD or SWAP… on the display (-1: takes the offer off).
-func _offer(index: int) -> void:
-	_offered = index
-	var item_name: String = ""
-	if index >= 0:
-		item_name = _screen.run.machine.prizes()[index].card.display_name
-	view.display.offer_swap(item_name)
-
-
-func _on_add_pressed() -> void:
-	if _offered >= 0:
-		_take(_offered, null)
-
-
-## SWAP…: the deck chooser picks the card the offered prize replaces; closed, the offer stays.
-func _on_swap_pressed() -> void:
-	if _offered < 0:
-		return
-	var run: RunState = _screen.run
-	_pending = _offered
-	view.visible = false
-	_screen._deck_view.open(
-		run,
-		(
-			"Your cart (%d/%d): choose an item to swap out for %s"
-			% [
-				run.deck.size(),
-				run.balance.deck_limit,
-				run.machine.prizes()[_offered].card.display_name
-			]
-		),
-		true
-	)
+## The cart's title while `prize` is placed: what a drop does.
+static func placing_title(run: RunState, prize: MachinePrize, full: bool) -> String:
+	var count: String = "%d/%d" % [run.deck.size(), run.balance.deck_limit]
+	var item: String = prize.card.display_name
+	if full:
+		return "Cart full %s: drop %s on the item to swap out" % [count, item]
+	return "Cart %s: drop %s on +1, or on an item to swap" % [count, item]
 
 
 ## Takes the prize, logs the visit, saves and lands it (the next visit or shift follows the
@@ -416,7 +388,6 @@ func _take(index: int, replaced: CardInstance) -> void:
 	var landing: MachineLanding = run.machine.pick(run, index, replaced)
 	if landing == null:
 		return
-	_offer(-1)
 	_log_visit(cart_full, timing)
 	_screen._deck_view.visible = false
 	view.visible = true
@@ -432,7 +403,6 @@ func _on_binned() -> void:
 	var cart_full: bool = run.deck_is_full()
 	if not run.machine.bin(run):
 		return
-	_offer(-1)
 	_log_visit(cart_full, timing)
 	_landing = null
 	_screen._save_run()

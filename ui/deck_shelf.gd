@@ -46,6 +46,12 @@ func put(cell: DeckCell, column: int) -> void:
 	add_child(cell)
 
 
+## Puts a free spot of the cart (CartPlacing's RoomSpot) in `column`.
+func put_spot(spot: Control, column: int) -> void:
+	spot.position = Vector2(column * (DeckCell.SIZE.x + _gap), _band)
+	add_child(spot)
+
+
 ## Prints `text` in the heading band above `column`.
 func heading(text: String, column: int) -> MixedLabel:
 	var label: MixedLabel = MixedLabel.new(text, HEADING_SIZE, false, Palette.MUSTARD)

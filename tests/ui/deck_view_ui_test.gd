@@ -437,8 +437,8 @@ func test_the_chooser_shows_only_the_deck_and_picks_a_copy() -> void:
 	assert_bool(view.visible).is_false()
 
 
-## The real flow: a NEW ITEMS prize picked at the deck limit opens the chooser, and clicking the
-## grouped Banana removes one Banana copy.
+## The real flow: a NEW ITEMS prize picked at the deck limit opens the cart with no free spot, and
+## dropping it on the grouped Banana removes one Banana copy.
 func test_a_prize_at_the_deck_limit_removes_one_copy_of_a_grouped_card() -> void:
 	var screen: ShiftScreen = await _screen()
 	var run: RunState = screen.run
@@ -453,12 +453,14 @@ func test_a_prize_at_the_deck_limit_removes_one_copy_of_a_grouped_card() -> void
 	assert_bool(screen._machine._choose(RewardMachine.Chute.NEW_ITEMS)).is_true()
 	await _until_machine_armed(screen)
 	screen._machine.view.pick(0)
-	screen._machine._on_add_pressed()
-	screen._machine.view.fast_forward()  # The landing plays to its end.
 	var view: DeckView = screen._deck_view
 	assert_bool(view.visible).is_true()
 	assert_bool(view._info_tab.visible).is_false()
-	view._on_card_clicked(view.card_views()[0])
+	assert_array(view.placing().spots()).is_empty()
+	screen._machine.on_deck_added()  # No free spot: nothing is added.
+	assert_int(run.deck.size()).is_equal(run.balance.deck_limit)
+	await get_tree().process_frame
+	view.placing().drop_at(view.cells()[0].get_global_rect().get_center())
 	screen._machine.view.fast_forward()  # The landing plays to its end.
 	assert_int(run.phase).is_not_equal(RunState.Phase.MACHINE_PICK)
 	assert_int(run.deck.size()).is_equal(run.balance.deck_limit)

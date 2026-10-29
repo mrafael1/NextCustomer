@@ -75,6 +75,6 @@ static func rest_parts(view: RewardMachineView, _run_state: RunState) -> void:
 	for key: ChuteKey in view.keys:
 		key.show_state(RewardMachine.ChuteState.OPEN, false)
 		key.set_pressed(false)
-	view.display.set_bin(false, false)
+	view.skip_bin.set_offered(false, false)
 	view.display.show_message("", "")
 	view.stock.show_chutes([], -1)

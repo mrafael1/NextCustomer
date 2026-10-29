@@ -103,6 +103,15 @@ const ORBIT_SPARKLES := 8
 const PICK_LIFT := 10.0
 const FALL := 24.0
 const FALL_S := 0.3
+## Doomed (the SKIP bin hovered): the shake's size and rates, and the shred mark's strips (their
+## pitch and width) and cross.
+const SHAKE := Vector2(2, 1)
+const SHAKE_RATE := Vector2(55, 47)
+const SHRED_PITCH := 24.0
+const SHRED_WIDTH := 2.0
+const SHRED_ALPHA := 0.55
+const CROSS_SIZE := 44.0
+const CROSS_WIDTH := 8.0
 ## The win sticker (#108, mock-up machine_loyalty_108.html section 4a): a gold label stuck over the
 ## face's bottom edge, WIN_TILT degrees, a line per row: the last row and, from shift 2, the best
 ## row this run. A line is grey and reads WASTED when it would have won nothing.
@@ -121,6 +130,8 @@ const WIN_SHADOW := Vector2(3, 3)
 
 var index: int = 0
 var prize: MachinePrize
+## The SKIP bin is hovered (SkipBin): it shakes under a shred mark (before any landing).
+var doomed: bool = false
 ## The machine this part belongs to (setup(), build spec 4.2).
 var view: RewardMachineView
 var tab: RarityTab
@@ -132,6 +143,7 @@ var _preview: MachinePreview
 var _card: Control
 var _fx_back: Control
 var _fx_front: Control
+var _shred: Control
 var _burst: ColorRect
 var _band: Label
 ## The name: a MixedLabel (Pixelify) or, too long for it, a bold Label.
@@ -195,6 +207,9 @@ func _init(
 	chip.draw.connect(func() -> void: art.draw_chip(chip, ART_RECT.position))
 	_fx_front = _layer("FxFront")
 	_fx_front.draw.connect(_draw_front)
+	_shred = _layer("Shred")
+	_shred.draw.connect(_draw_shred)
+	_shred.visible = false
 	tab = RarityTab.new(prize.rarity)
 	tab.position = MachineArt.snap_point(TAB_MIDDLE - tab.size / 2.0)
 	add_child(tab)
@@ -313,7 +328,10 @@ func frame(t: float) -> void:
 	scale = Vector2.ONE * (lerpf(FLY_SCALE, 1.0, k) if flight < 1.0 else 1.0)
 	_te = t - plan.reveal_at[index]
 	var bump: float = BUMP if _te >= 0.0 and _te < BUMP_S and not _rm else 0.0
-	modulate.a = 1.0
+	var shaking: bool = doomed and not plan.has_landing
+	_shred.visible = shaking
+	if shaking and not _rm:
+		at += Vector2(sin(_idle * SHAKE_RATE.x), cos(_idle * SHAKE_RATE.y)) * SHAKE
 	if plan.has_landing and t >= plan.press:
 		at += _after_pick(plan, t)
 	position = MachineArt.snap_point(at + Vector2(0, bump))
@@ -655,6 +673,23 @@ func _draw_pips() -> void:
 					origin + Vector2(pip * 6 + cell % 5, floori(cell / 5.0)) * PIP_PIXEL
 				)
 				_card.draw_rect(Rect2(at, Vector2(PIP_PIXEL, PIP_PIXEL)), PIP_INKS[prize.rarity])
+
+
+## The shred mark of a doomed ticket: tomato strips down the face and a cross on the art.
+func _draw_shred() -> void:
+	var x: float = SHRED_PITCH
+	while x < SIZE.x - SHRED_WIDTH:
+		_shred.draw_rect(
+			Rect2(x, 4.0, SHRED_WIDTH, SIZE.y - 8.0), Color(Palette.TOMATO_DARK, SHRED_ALPHA)
+		)
+		x += SHRED_PITCH
+	var middle: Vector2 = ART_RECT.get_center()
+	var half: float = CROSS_SIZE / 2.0
+	for line: int in range(2):
+		var from: Vector2 = middle + Vector2(-half, -half if line == 0 else half)
+		var to: Vector2 = middle + Vector2(half, half if line == 0 else -half)
+		_shred.draw_line(from, to, Palette.INK, CROSS_WIDTH + 4.0)
+		_shred.draw_line(from, to, Palette.TOMATO, CROSS_WIDTH)
 
 
 ## Behind the ticket: a RARE ticket's teal glow ring.

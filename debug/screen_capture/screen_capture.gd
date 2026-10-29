@@ -62,6 +62,10 @@ extends Control
 ## basket's 8 slots (Squashed cake wears 6 stickers, so its stack folds into the "+N" chip), and
 ## the file is shift_screen_stack_<width>x<height>.png; `--stack=fan` also hovers that stack,
 ## fanning it out (shift_screen_stack_fan_<width>x<height>.png).
+## With `--week` (v0.70) the time card of the fixed shift's week (week 2) lies open in full over
+## the shift, as a tapped week chip opens it; the file is shift_screen_week_<width>x<height>.png.
+## `--week=paid` or `--week=slip` first records the shift as passed or missed and shows the card
+## as the verdict stamps it (v0.72; shift_screen_week_paid_<width>x<height>.png).
 
 const SCREEN := preload("res://ui/shift_screen.tscn")
 const SEED := 20261014
@@ -97,6 +101,8 @@ const DECK_ARGUMENT := "--deck="
 const TIP_ARGUMENT := "--tip="
 ## --stack's shift: planning_layout_test's stress row, with the upgrades it needs.
 const STACK_ARGUMENT := "--stack"
+const WEEK_ARGUMENT := "--week"
+const WEEK_PREFIX := "week_"
 const STACK_UPGRADE_IDS: Array[String] = ["coupon_engine", "big_basket", "category_engine"]
 const STACK_ROW_IDS: Array[String] = [
 	"bread",
@@ -171,6 +177,8 @@ var _reveal_part: String = ""
 var _tip_part: String = ""
 ## Since stack(): the file name part (stack_ or stack_fan_).
 var _stack_part: String = ""
+## A --week capture's file name part.
+var _week_part: String = ""
 ## Since hold_pointer(): the real pointer drives no hover, tooltip or click.
 var _holding_pointer: bool = false
 
@@ -207,6 +215,8 @@ func _ready() -> void:
 		_effects = true
 	elif effects_on or focus_id != "":
 		await effects(focus_id)
+	elif OS.get_cmdline_user_args().has(WEEK_ARGUMENT) or _argument(WEEK_ARGUMENT + "=") != "":
+		week(_argument(WEEK_ARGUMENT + "="))
 	else:
 		_set_up_shift(INSPECTION, ROW_IDS)
 	if capture_folder != "":
@@ -278,6 +288,22 @@ func _set_up_shift(
 		run.place(card, run.row.size())
 	_screen.debug_show_shift()
 	_screen._week.skip()  # The capture shows planning, never the time card (v0.70).
+
+
+## Opens the fixed shift's time card in full; `result` "paid" or "slip" records the shift as
+## passed or missed first and stamps it (reduced motion: the stamp lies there at once).
+func week(result: String) -> void:
+	_set_up_shift(INSPECTION, ROW_IDS)
+	var run: RunState = _screen.run
+	_week_part = WEEK_PREFIX
+	if result == "":
+		_screen._week.card.reopen(WeekCardModel.of(run), null, true)
+		return
+	var quota: int = run.quota()
+	var total: int = quota if result == "paid" else quota - 1
+	run.history.append(ShiftRecord.new(run.shift_index + 1, quota, total))
+	_screen._week.card.stamp_day(WeekCardModel.of(run), null, true)
+	_week_part += result + "_"
 
 
 ## Stops the real pointer from driving the screen until the capture leaves the tree: a capture
@@ -388,7 +414,7 @@ func capture(folder: String) -> void:
 		prefix = FOCUS_PREFIX if _focused else EFFECTS_PREFIX
 	if _checkout_s >= 0.0:
 		prefix += CHECKOUT_PREFIX % roundi(_checkout_s * 10.0)
-	prefix += _machine_part + _reveal_part + _tip_part + _stack_part
+	prefix += _machine_part + _reveal_part + _tip_part + _stack_part + _week_part
 	var path: String = folder.path_join(FILE_NAME % [prefix, window.x, window.y])
 	var image: Image = (
 		grab_image.call() as Image
@@ -579,7 +605,12 @@ func _fill_cart(run: RunState) -> void:
 ##   an UPGRADE draw's perks are level-ups (Coupon engine LV 3);
 ## - draw=<letters>: the draw's rarities, c, r or l per prize (a debug draw: the prizes drawn,
 ##   relabelled), shown rarest last;
-## - pick=<i>: once the prizes are armed, prize i is picked (its landing plays);
+## - pick=<i>: once the prizes are armed, prize i is picked (a perk or an upgrade lands; an item
+##   or a coupon opens the cart to be placed, 2026-10-29);
+## - over=<n> (with pick): the held item rests over the cart's cell n (OUT ✕), `over=spot` over
+##   its first free spot (+1);
+## - skip: once the prizes are armed, the SKIP bin shows hovered (its lid open, the tickets
+##   doomed);
 ## - hover=<i> (v0.53): once the prizes are armed, the pointer rests on prize i (its popup opens);
 ## - premium (v0.50; v0.61 a rarity boost): the shift's ticket visit is PREMIUM, so the machine
 ##   turns PREMIUM;
@@ -629,10 +660,14 @@ func machine(spec: String) -> void:
 	if hover != "":
 		await _machine_armed(flow.view)
 		flow.view.popup.open_for(flow.view.tickets[hover.to_int()])
+	if options.has("skip"):
+		await _machine_armed(flow.view)
+		flow.view.skip_bin.grab_focus()  # Its hover look: lid open, the tickets doomed.
 	var pick: String = _option_value(options, "pick=")
 	if pick != "":
 		await _machine_armed(flow.view)
 		flow.view.pick(pick.to_int())
+		_hold_over(_option_value(options, "over="))
 	var named: String = "_".join(options).replace("=", "")
 	_machine_part = MACHINE_PREFIX % [named + "_" if named != "" else "", roundi(seconds * 10.0)]
 	await get_tree().create_timer(seconds).timeout
@@ -733,6 +768,20 @@ static func _machine_chute(options: PackedStringArray) -> int:
 		if options.has(MachineVisit.CHUTE_NAMES[chute]):
 			return chute
 	return -1
+
+
+## --machine's over=: the held item rests over cell `target` of the cart, or its first free spot.
+func _hold_over(target: String) -> void:
+	var placing: CartPlacing = _screen._deck_view.placing()
+	if target == "" or not placing.is_holding():
+		return
+	var over: Control = null
+	if target == "spot" and not placing.spots().is_empty():
+		over = placing.spots()[0]
+	elif target != "spot":
+		over = _screen._deck_view.cells()[target.to_int()]
+	if over != null:
+		placing.move_to(over.get_global_rect().get_center())
 
 
 ## The value of the option `prefix` (e.g. "pick=") in `options`, or "".

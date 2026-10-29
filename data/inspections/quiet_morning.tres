@@ -9,4 +9,6 @@ display_name = "Quiet morning"
 tone = 1
 notice_text = "The quota is 10% lower"
 chip_text = "quota −10%"
+icon_ref = "res://art/icons/up_arrow.png"
+icon_flipped = true
 quota_percent = -10

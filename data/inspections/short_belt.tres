@@ -8,4 +8,5 @@ id = &"short_belt"
 display_name = "Short belt"
 notice_text = "One slot fewer"
 chip_text = "−1 slot"
+icon_ref = "res://art/icons/warning.png"
 extra_slots = -1

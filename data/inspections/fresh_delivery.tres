@@ -17,4 +17,5 @@ display_name = "Fresh delivery"
 tone = 1
 notice_text = "Fruit & veg items pay +€1"
 chip_text = "Fruit & veg +€1"
+icon_ref = "res://art/icons/aisle_fruit_and_veg.png"
 rules = Array[ExtResource("1_rule")]([SubResource("Resource_tag_bonus")])

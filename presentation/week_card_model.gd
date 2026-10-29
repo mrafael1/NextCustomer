@@ -5,13 +5,16 @@ extends RefCounted
 ## and every day of the week in full (the week plan, RunState.week, drawn as the week started): its
 ## day events, whether it is a Manager's review (its two maluses, then "REVIEW PASSED · 2 PREMIUM
 ## TICKETS", or on the run's last shift "PASS = RUN WON"), and whether it is punched in (played,
-## or today's). Pure: built from the run, read by WeekCard, WeekChip and InspectionTag.
+## or today's), and how a played day ended (v0.72: PAID, or a training week's SLIP 1/2). Pure:
+## built from the run, read by WeekCard, WeekChip and InspectionTag.
 
 ## A day's kind, its chip's tint: grey (no event), green (a boon), tomato (an inspection),
 ## mustard (a Manager's review).
 enum Kind { NONE, BOON, MALUS, REVIEW }
 ## A week chip pip: a day to come, a played one, today's.
 enum Pip { TODO, DONE, NOW }
+## How a day ended (v0.72), its stamp on the card: not played yet, passed, or a forgiven miss.
+enum Result { NONE, PAID, SLIP }
 
 const WEEK_HEAD := "WEEK %d OF %d"
 const WEEK_TITLE := "WEEK %d"
@@ -26,6 +29,9 @@ const NO_EVENT_EFFECT := "No event"
 ## The training week's slips (v0.68), counted on its banner.
 const SLIPS := "%d SLIPS"
 const SLIPS_ONE := "1 SLIP"
+## A played day's stamp (v0.72): a pass, and a training week's forgiven miss with its count.
+const PAID_STAMP := "PAID"
+const SLIP_STAMP := "SLIP %d/%d"
 
 ## The 1-based week, and how many the run has.
 var week_number: int = 1
@@ -53,6 +59,19 @@ class WeekDay:
 	## Played already (punched in), or today's (punched in as the card opens).
 	var punched: bool = false
 	var today: bool = false
+	## How it ended (v0.72), and for a SLIP the misses so far and the training week's limit.
+	var result: Result = Result.NONE
+	var slip_number: int = 0
+	var slip_limit: int = 0
+
+	## The day's stamp ("PAID", "SLIP 1/2"), or "" before it is played.
+	func stamp() -> String:
+		match result:
+			Result.PAID:
+				return PAID_STAMP
+			Result.SLIP:
+				return SLIP_STAMP % [slip_number, slip_limit]
+		return ""
 
 	## The review's head line ("MANAGER'S REVIEW · 2 MALUSES"), or "" for another day.
 	func head() -> String:
@@ -100,8 +119,23 @@ static func of(run: RunState) -> WeekCardModel:
 		)
 		day.today = day_shift == shift
 		day.punched = day_shift <= shift
+		_add_result(day, run)
 		model.days.append(day)
 	return model
+
+
+## `day`'s result from `run`'s history (v0.72): PAID for a passed shift, SLIP for a missed one
+## (counted with the misses before it), none for a day not played.
+static func _add_result(day: WeekDay, run: RunState) -> void:
+	var misses: int = 0
+	for record: ShiftRecord in run.history:
+		if not record.passed and record.shift <= day.shift:
+			misses += 1
+		if record.shift == day.shift:
+			day.result = Result.PAID if record.passed else Result.SLIP
+	if day.result == Result.SLIP:
+		day.slip_number = misses
+		day.slip_limit = run.balance.write_up_limit
 
 
 ## The tint of a day with `events`: REVIEW for several inspections, MALUS for one, BOON for a boon

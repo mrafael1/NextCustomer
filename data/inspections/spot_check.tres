@@ -15,4 +15,5 @@ id = &"spot_check"
 display_name = "Spot check"
 notice_text = "Slot 3 pays €0"
 chip_text = "Slot 3 pays €0"
+icon_ref = "res://art/icons/padlock.png"
 rules = Array[ExtResource("1_rule")]([SubResource("Resource_nth_slot")])

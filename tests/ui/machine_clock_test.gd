@@ -81,7 +81,7 @@ func test_a_visit_fires_every_beat_once_and_finishes_once() -> void:
 	assert_bool(view.is_armed()).is_true()
 	var plan: MachinePlan = view.plan
 	view.pick(0)
-	screen._machine._on_add_pressed()
+	screen._machine.on_deck_added()
 	assert_int(screen.run.phase).is_equal(RunState.Phase.SCORED)
 	assert_bool(view.is_armed()).is_false()
 	assert_array(finished).is_empty()
@@ -132,7 +132,7 @@ func test_a_tap_fast_forwards_and_is_logged() -> void:
 	assert_bool(screen._machine._choose(RewardMachine.Chute.NEW_ITEMS)).is_true()
 	await _until(func() -> bool: return view.is_armed(), 15000)
 	view.pick(0)
-	screen._machine._on_add_pressed()
+	screen._machine.on_deck_added()
 	view.fast_forward()
 	assert_bool(_last_event("machine_visit")["presentation_skipped"]).is_true()
 
@@ -224,7 +224,7 @@ func test_a_tap_during_the_landing_is_logged() -> void:
 	view.fast_forward()
 	await _until(func() -> bool: return view.is_armed(), 5000)
 	view.pick(0)
-	screen._machine._on_add_pressed()
+	screen._machine.on_deck_added()
 	assert_object(view.landing).is_not_null()
 	assert_int(view.landing.cart_after).is_equal(view.landing.cart_before + 1)
 	var plan: MachinePlan = view.plan
@@ -302,7 +302,7 @@ func test_show_at_holds_at_the_wait_point_and_finishes_at_end() -> void:
 	var finished: Array[int] = []
 	view.finished.connect(func() -> void: finished.append(1))
 	view.pick(0)
-	screen._machine._on_add_pressed()
+	screen._machine.on_deck_added()
 	view.show_at(view.plan.end_at + 20.0)
 	assert_array(finished).is_equal([1])
 	assert_int(screen.run.shift_index).is_equal(1)

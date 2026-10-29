@@ -5,7 +5,8 @@ extends GdUnitTestSuite
 ## lists a review's maluses and reward, and flies into the week chip; the chips lie in the top bar
 ## between the QUOTA and LOYALTY chips, apart, with their texts and pips; tapping a chip reopens
 ## the card and tapping the card closes it; a resume mid-week never replays the card; and Bakery
-## festival's +€2 plays in the count-up from the week chip. Clicks are sent to the handlers,
+## festival's +€2 plays in the count-up from the week chip; after each verdict the card stamps the
+## day PAID or SLIP (v0.72). Clicks are sent to the handlers,
 ## because headless runs don't deliver input events.
 
 const SCREEN := "res://ui/shift_screen.tscn"
@@ -62,7 +63,9 @@ func test_the_card_plays_at_the_week_start_and_flies_into_the_chip() -> void:
 	assert_array(punched).is_equal([true, false, false, false])
 	var review: String = _texts(rows[3])
 	assert_str(review).contains("MANAGER'S REVIEW · 2 MALUSES")
-	assert_str(review).contains(Payday.BANNER_LINE)
+	# The reward reads on two lines (v0.72): "REVIEW PASSED", "2 PREMIUM TICKETS".
+	for part: String in Payday.BANNER_LINE.split(" · "):
+		assert_str(review).contains(part)
 	for event: InspectionDefinition in screen.run.week.day(4):
 		assert_str(review).contains(event.display_name)
 	assert_str(_texts(card.banner())).contains("TRAINING WEEK")
@@ -325,6 +328,91 @@ func test_the_card_waits_for_the_upgrade_swap() -> void:
 		assert_bool(screen.get_global_rect().encloses(screen._week.card.card().get_global_rect()))
 		. is_true()
 	)
+
+
+## Played days carry their result (v0.72) from the run's history: a passed shift PAID, a missed one
+## SLIP with the misses so far over the training week's limit; a day not played none.
+func test_played_days_carry_their_stamps() -> void:
+	var run: RunState = _started_run()
+	var quota: int = run.quota()
+	run.history.append(ShiftRecord.new(1, quota, quota))
+	run.history.append(ShiftRecord.new(2, quota, quota - 1))
+	var days: Array[WeekCardModel.WeekDay] = WeekCardModel.of(run).days
+	assert_int(days[0].result).is_equal(WeekCardModel.Result.PAID)
+	assert_str(days[0].stamp()).is_equal("PAID")
+	assert_int(days[1].result).is_equal(WeekCardModel.Result.SLIP)
+	assert_str(days[1].stamp()).is_equal("SLIP 1/%d" % run.balance.write_up_limit)
+	assert_int(days[2].result).is_equal(WeekCardModel.Result.NONE)
+	assert_str(days[2].stamp()).is_empty()
+
+
+## stamp_day (v0.72): the whole card pops in, today's stamp is hidden until it lands, then lies
+## inside today's row, right of the punch column, with PAID's sound (a SLIP's denied); the card
+## holds and flies back, then closes.
+func test_stamp_day_stamps_today_then_flies_back() -> void:
+	for passed: bool in [true, false]:
+		var host: Control = _card_host()
+		var sfx: RecordingSfx = RecordingSfx.new()
+		host.add_child(sfx)
+		var card: WeekCard = WeekCard.new()
+		host.add_child(card)
+		card.size = host.size
+		var run: RunState = _started_run()
+		var quota: int = run.quota()
+		run.history.append(ShiftRecord.new(1, quota, quota if passed else quota - 1))
+		card.stamp_day(WeekCardModel.of(run), host, false)
+		await _frames(2)
+		var stamp: Label = card.stamps()[0]
+		assert_object(stamp).is_not_null()
+		assert_float(stamp.modulate.a).is_equal(0.0)
+		for index: int in range(1, 4):
+			assert_object(card.stamps()[index]).is_null()
+		card.advance(WeekCard.DAY_STAMP_AT + WeekCard.STAMP_LENGTH)
+		await _frames(2)
+		assert_float(stamp.modulate.a).is_equal(1.0)
+		assert_vector(stamp.scale).is_equal_approx(Vector2.ONE, Vector2(0.01, 0.01))
+		assert_str(stamp.text).is_equal("PAID" if passed else "SLIP 1/2")
+		var row: Rect2 = card.rows()[0].get_global_rect()
+		var rect: Rect2 = stamp.get_global_rect()
+		assert_bool(row.encloses(rect)).override_failure_message(str(rect)).is_true()
+		var punch: Rect2 = card.punches()[0].get_global_rect()
+		assert_float(rect.position.x).is_greater(punch.end.x)
+		assert_array(_sounds(sfx)).contains(["stamp_paid" if passed else "denied"])
+		assert_bool(card.is_open()).is_true()
+		card.advance(WeekCard.HOLD)
+		assert_bool(card.is_shrinking()).is_true()
+		card.advance(WeekCard.SHRINK)
+		assert_bool(card.is_open()).is_false()
+
+
+## On the real screen the stamp comes between the verdict and what follows: when the count-up ends
+## the card is stamping today's PAID and the machine waits; once the card has flown back, the shift
+## goes on.
+func test_the_verdict_stamps_the_day_before_the_machine() -> void:
+	var runner: GdUnitSceneRunner = scene_runner(SCREEN)
+	var screen: ShiftScreen = runner.scene()
+	await _frames(3)
+	screen._week.card.finish()
+	screen._week.card.advance(WeekCard.HOLD)
+	screen._week.card.advance(WeekCard.SHRINK)
+	await _frames(2)
+	assert_bool(screen._week.is_open()).is_false()
+	_place_ids(screen, ["milk", "multipack", "milk", "milk", "milk", "milk", "milk"])
+	assert_bool(screen.run.preview().total >= screen.run.quota()).is_true()
+	Rush.checkout(screen)
+	var start: int = Time.get_ticks_msec()
+	while screen._counting and Time.get_ticks_msec() - start < Rush.MAX_WAIT_MS:
+		await _frames(1)
+	await _frames(2)
+	var card: WeekCard = screen._week.card
+	assert_bool(card.is_open()).is_true()
+	assert_str(card.stamps()[0].text).is_equal("PAID")
+	assert_bool(screen._machine.is_open()).is_false()
+	card.advance(WeekCard.DAY_STAMP_AT + WeekCard.STAMP_LENGTH + WeekCard.HOLD)
+	card.advance(WeekCard.SHRINK)
+	await _frames(3)
+	assert_bool(card.is_open()).is_false()
+	assert_bool(screen._machine.is_open() or screen.run.phase == RunState.Phase.PLANNING).is_true()
 
 
 func _card_host() -> Control:

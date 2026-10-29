@@ -8,4 +8,5 @@ id = &"rush_hour"
 display_name = "Rush hour"
 notice_text = "The quota is 10% higher"
 chip_text = "Quota +10%"
+icon_ref = "res://art/icons/up_arrow.png"
 quota_percent = 10

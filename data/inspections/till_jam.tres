@@ -8,4 +8,5 @@ id = &"till_jam"
 display_name = "Till jam"
 notice_text = "One redraw fewer"
 chip_text = "−1 redraw"
+icon_ref = "res://art/icons/redraw_arrow_hot.png"
 extra_redraws = -1

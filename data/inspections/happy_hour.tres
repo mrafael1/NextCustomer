@@ -16,4 +16,5 @@ display_name = "Happy hour"
 tone = 1
 notice_text = "The last filled slot pays +€3"
 chip_text = "last slot +€3"
+icon_ref = "res://art/icons/coin.png"
 rules = Array[ExtResource("1_rule")]([SubResource("Resource_last_card")])
