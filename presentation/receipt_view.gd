@@ -698,8 +698,7 @@ func add_total(total: int) -> Control:
 	return _total_line
 
 
-## A red notice under the total (plan section 3.9: the next shift's inspection; a boon day's in
-## green, v0.69).
+## A notice under the total (plan section 3.9): the next inspection in red, a boon day's green.
 func add_notice(text: String) -> Control:
 	return add_line(text, "", LineStyle.NOTICE)
 

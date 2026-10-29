@@ -219,9 +219,8 @@ func _on_shift_started() -> void:
 	_machine.shift_started()  # Shows the shift's notice once planning takes input.
 
 
-## The notice a shift opens with (v0.68's training week, WriteUp.shift_notice): after a slip, or
-## on the first shift after the training week. A resumed shift shows it again. MachineFlow shows
-## it once planning takes input: after the glide back and the premium announce's print.
+## The notice a shift opens with (v0.68, WriteUp.shift_notice): after a slip, or on the first
+## shift after the training week (a resume shows it again), once planning takes input.
 func show_shift_notice() -> void:
 	var notice: String = WriteUp.shift_notice(run)
 	if not notice.is_empty():
