@@ -814,19 +814,20 @@ func _show_projected(result: ScoreResult) -> void:
 ## The preview: the itemised planning receipt (#80) and the belt's tags and marks.
 func _show_planning(result: ScoreResult) -> void:
 	var slots: int = RowCapacity.card_limit(run.limits)
+	var cards: Array[CardDefinition] = ReceiptInk.cards_of(run.row)
 	_receipt.show_planning(
-		receipt_header(), result, CardInstance.names(run.row), slots, run.quota()
+		receipt_header(), result, CardInstance.names(run.row), slots, run.quota(), cards
 	)
 	_show_belt(result)
 
 
-## A resumed checkout's: the whole receipt as the count-up printed it, under the same header, and
-## the belt's tags (BeltRide.show_end_state empties it, as the count-up left it).
+## A resumed checkout's receipt as the count-up printed it, and the belt's tags (then emptied).
 func _show_checked_out(result: ScoreResult) -> void:
+	var cards: Array[CardDefinition] = ReceiptInk.cards_of(run.row)
 	var upgrade_names: PackedStringArray = LoyaltyCard.names(run.upgrades)
-	var inspection_names: PackedStringArray = InspectionTag.names(run.inspections)
+	var inspections: PackedStringArray = InspectionTag.names(run.inspections)
 	var names: PackedStringArray = CardInstance.names(run.row)
-	_receipt.show_result(result, names, upgrade_names, inspection_names, receipt_header())
+	_receipt.show_result(result, names, upgrade_names, inspections, receipt_header(), cards)
 	_show_belt(result, true)
 
 

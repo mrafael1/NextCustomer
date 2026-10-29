@@ -100,3 +100,6 @@ var ticks: PackedInt32Array = PackedInt32Array()
 var lamp: int = -1
 ## From the beat's start to its landing, at speed 1 (0 for a beat that does not land).
 var fly_ms: int = 0
+## PAYOUT: the item's payment equation the monitor shows at its payout (PaymentEquation.of), or
+## null for none. Always null on other beats.
+var equation: PaymentEquation = null

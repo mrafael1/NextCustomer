@@ -28,7 +28,10 @@ extends PanelContainer
 ## then prints the verdict on it, the margin (PAID on a pass), the BONUS stub (#77 machine v2,
 ## `stub`), the tear and the next shift's notice under it, scrolled to the newest line. A resumed
 ## checkout prints it all at once (show_result), through the same lines. Every line another
-## source boosts (a combo, is_combo) is marked with a faint gold band, a gold bar and a diamond.
+## source boosts (a combo, is_combo) is marked with a faint gold band (a loyalty perk's pale teal),
+## a bar and a diamond. Each item line holds its card's mini before its name, × amounts print in
+## dark amber, each item's final payout in bold, and an armed effect prints its "arms" sub line
+## when it arms (ReceiptInk: `cards` passed to show_planning, begin_count and show_result).
 ##
 ## On the shift screen it stands on the printer's slot and grows up (fit_up, #80): as tall as its
 ## lines, up to ShiftStage.RECEIPT_TOP. An indented step line hangs (#55): wrapped, it starts past
@@ -74,9 +77,6 @@ const PAID_TEXT := ReceiptStamps.PAID_TEXT
 ## The torn edge: this pattern repeated, clipped to the receipt's width.
 const TEAR_PATTERN := "/\\"
 const TEAR_REPEAT := 60
-## A step line's marker after its leading spaces (hang_parts()): it is printed beside the first
-## row, and the wrapped rows hang under the text after it.
-const HANG_MARKERS: Array[String] = ["+ ", "× "]
 ## The receipt's header (#75, style frame v2): the shop and the register, then the shift and how
 ## many items are on the belt (coupons count as items), ITEM_TEXT for just one.
 const HEADER_TEXT := "NEXT CUSTOMER · REG 3"
@@ -153,6 +153,10 @@ var _item_names: Dictionary[int, String] = {}
 ## amount and the lines after it), and its closing line.
 var _sums: Dictionary[int, int] = {}
 var _closing: Dictionary[int, Control] = {}
+## Each slot's printed label whose amount is its printed sum (its base's, an override's), and
+## each slot's card (ReceiptInk: minis and arm words; none when not given).
+var _figures: Dictionary[int, Label] = {}
+var _cards: Array[CardDefinition] = []
 ## The framed line (the counted step's, or the scanned item's in planning), or null.
 var _framed: Control
 ## The receipt shows planning's lines (show_planning): highlight_slot frames them.
@@ -252,6 +256,8 @@ func clear() -> void:
 	_item_names.clear()
 	_sums.clear()
 	_closing.clear()
+	_figures.clear()
+	_cards = []
 	_inset.queue_redraw()
 	for line: Node in _lines.get_children():
 		_lines.remove_child(line)
@@ -269,9 +275,15 @@ func begin(header: PackedStringArray = PackedStringArray()) -> void:
 ## rule (none without a header), then (with `footer`) "tap: skip · hold: fast". The items print
 ## line by line as they scan (#61, #105 piece 2: the lines still to come are not printed yet),
 ## each named from `names`, above the TOTAL line's dashed rule, which shows with the TOTAL at the
-## end (add_total).
-func begin_count(header: PackedStringArray, names: PackedStringArray, footer: bool = true) -> void:
+## end (add_total). `cards` are the items' cards (their minis and arm words).
+func begin_count(
+	header: PackedStringArray,
+	names: PackedStringArray,
+	footer: bool = true,
+	cards: Array[CardDefinition] = []
+) -> void:
 	begin(header)
+	_cards = cards
 	if not header.is_empty():
 		_lines.add_child(ReceiptDecor.dashed_rule())
 	for slot: int in range(names.size()):
@@ -288,20 +300,24 @@ func begin_count(header: PackedStringArray, names: PackedStringArray, footer: bo
 ## order) its name, its payout in `result` and its mark (slot_mark()); "n ·····" for each open
 ## slot past them up to `open_slots`; a dashed rule and "PROJECTED €total", against `quota` (none
 ## when negative): green with the met mark at or over it, red under it; then the footer: the
-## shortfall ("short €12.00", its own row) and the fizzles (each none without it).
+## shortfall ("short €12.00", its own row) and the fizzles (each none without it). Each item's
+## payout prints bold, its mini from `cards`.
 func show_planning(
 	header: PackedStringArray,
 	result: ScoreResult,
 	names: PackedStringArray,
 	open_slots: int,
-	quota: int = -1
+	quota: int = -1,
+	cards: Array[CardDefinition] = []
 ) -> void:
 	begin(header)
 	_planning = true
+	_cards = cards
 	_lines.add_child(ReceiptDecor.dashed_rule())
 	for slot: int in range(names.size()):
 		var payout: int = result.payouts[slot] if slot < result.payouts.size() else 0
 		var line: HBoxContainer = _add_item(slot, names[slot], money(payout))
+		ReceiptInk.embolden(line.get_child(1) as Label)
 		ReceiptDecor.mark(line, slot_mark(result, slot))
 	for slot: int in range(names.size(), open_slots):
 		add_line(EMPTY_SLOT_TEXT % (slot + 1), "", LineStyle.WAITING)
@@ -314,7 +330,7 @@ func show_planning(
 			add_line(short, "", LineStyle.FOOTER)
 	var fizzles: int = fizzle_count(result)
 	if fizzles > 0:
-		_footer = add_line(_fizzle_count_text(fizzles), HINT_TEXT % DEFAULT_HINT, LineStyle.FOOTER)
+		_footer = add_line(FIZZLES_TEXT % fizzles, HINT_TEXT % DEFAULT_HINT, LineStyle.FOOTER)
 
 
 ## Planning only: frames `slot`'s item line (the belt item being scanned), or none for -1 (or a
@@ -397,15 +413,17 @@ static func slot_mark(result: ScoreResult, slot: int) -> Mark:
 ## The whole receipt at once, under `header` (header_lines(); none when empty): a resumed
 ## checkout's, as the count-up printed it (begin_count without its footer, then every step and
 ## the total), and the tests' expected receipts. `upgrade_names` are the run's upgrades' names in
-## pick order and `inspection_names` the shift's inspections' names, for the lines they cause.
+## pick order and `inspection_names` the shift's inspections' names, for the lines they cause;
+## `cards` the items' cards (begin_count).
 func show_result(
 	result: ScoreResult,
 	names: PackedStringArray,
 	upgrade_names: PackedStringArray = PackedStringArray(),
 	inspection_names: PackedStringArray = PackedStringArray(),
-	header: PackedStringArray = PackedStringArray()
+	header: PackedStringArray = PackedStringArray(),
+	cards: Array[CardDefinition] = []
 ) -> void:
-	begin_count(header, names, false)
+	begin_count(header, names, false, cards)
 	for step: ScoreStep in result.steps:
 		add_step(step, names, upgrade_names, inspection_names)
 	add_total(result.total)
@@ -421,13 +439,19 @@ func show_result(
 ## its line under its item's earlier lines (above its closing line, which stays last) and
 ## returns it. The printed or filled line is framed (the item's line when a PAYOUT step prints
 ## nothing). Returns null for a step that prints no line. An item with no line yet (no
-## begin_count) gets one, at the end.
+## begin_count) gets one, at the end. The item's payout figure prints bold (for an item whose
+## + lines add up to it, the last + amount, which completes it), a × amount amber, and an
+## EFFECT_ARMED step its "arms" sub line (ReceiptInk.arm_line; no amount).
 func add_step(
 	step: ScoreStep,
 	names: PackedStringArray,
 	upgrade_names: PackedStringArray = PackedStringArray(),
 	inspection_names: PackedStringArray = PackedStringArray()
 ) -> Control:
+	if step.step_type == ScoreStep.StepType.EFFECT_ARMED:
+		var card: CardDefinition = _cards[step.slot] if step.slot < _cards.size() else null
+		var words: String = "  " + ReceiptInk.arm_words(step, card)
+		return ReceiptInk.arm_line(_add_group_line(step.slot, words, "", LineStyle.DETAIL))
 	var text: PackedStringArray = step_text(step, names, upgrade_names, inspection_names)
 	if text.is_empty():
 		return null
@@ -444,16 +468,20 @@ func add_step(
 			var printed: int = _sums.get(step.slot, 0)
 			if step.step_type == ScoreStep.StepType.BASE or amount.text.is_empty():
 				amount.text = money(printed)
+				_figures[step.slot] = amount
 			if step.step_type == ScoreStep.StepType.BASE:
 				_set_frame(item)
 				return item
 			if printed == step.value:
 				_set_frame(item)
+				if _figures.has(step.slot):
+					ReceiptInk.embolden(_figures[step.slot])
 				return amount if _last.get(step.slot) == item else null
 			var closing: Control = _add_group_line(
 				step.slot, "", CLOSING_TEXT + text[1], LineStyle.CLOSING
 			)
 			_closing[step.slot] = closing
+			ReceiptInk.embolden(closing.get_child(1) as Label)
 			return closing.get_child(1) as Label
 		ScoreStep.StepType.FLAT, ScoreStep.StepType.COPY:
 			var so_far: int = _sums.get(step.slot, 0)
@@ -461,8 +489,15 @@ func add_step(
 		ScoreStep.StepType.PAYOUT_OVERRIDE:
 			_sums[step.slot] = step.value
 	var line: Control = _add_group_line(step.slot, text[0], text[1], step_style(step))
-	if step.step_type == ScoreStep.StepType.WASTED:
-		ReceiptDecor.mark(line as HBoxContainer, Mark.FIZZLED)
+	match step.step_type:
+		ScoreStep.StepType.WASTED:
+			ReceiptDecor.mark(line as HBoxContainer, Mark.FIZZLED)
+		ScoreStep.StepType.MULTIPLIER:
+			ReceiptInk.amber(line.get_child(1) as Label)
+		ScoreStep.StepType.PAYOUT_OVERRIDE, ScoreStep.StepType.FLAT, ScoreStep.StepType.COPY:
+			_figures[step.slot] = line.get_child(1) as Label
+	if step.source_kind == ScoreStep.SourceKind.UPGRADE and step_style(step) == LineStyle.COMBO:
+		ReceiptDecor.perk(line)
 	return line
 
 
@@ -520,8 +555,7 @@ static func step_text(
 			left = "  " + cause
 			right = "= " + money(step.value)
 		ScoreStep.StepType.EFFECT_ARMED:
-			# No line: the receipt stays a straight list of payouts and explanations. What the
-			# effect does is printed where it lands (its FLAT or MULTIPLIER line, or a fizzle).
+			# No words: add_step prints its arm line (ReceiptInk), not a step line.
 			return PackedStringArray()
 		ScoreStep.StepType.CREDIT:
 			# A label, not an addend (#108 piece 2): the amount is in its words, already counted
@@ -693,8 +727,8 @@ static func verdict_text(total: int, quota: int) -> String:
 
 
 ## Shows the verdict on the TOTAL line at once: its right side reads "€total / €quota" at
-## VERDICT_FONT_SIZE across the mark column (smaller when it would not fit beside TOTAL,
-## verdict_font_size), green on a pass and red on a miss. Returns that label (null when no
+## VERDICT_FONT_SIZE across the mark column (down to VERDICT_MIN_FONT_SIZE when it would not
+## fit beside TOTAL), green on a pass and red on a miss. Returns that label (null when no
 ## TOTAL line was printed).
 func show_verdict(total: int, quota: int) -> Label:
 	var label: Label = total_label()
@@ -711,20 +745,14 @@ func show_verdict(total: int, quota: int) -> Label:
 			- text_width(caption.text, MONO_FONT, CAPTION_FONT_SIZE)
 			- _total_line.get_theme_constant("separation")
 		)
-	label.add_theme_font_size_override("font_size", verdict_font_size(label.text, room))
+	label.add_theme_font_size_override(
+		"font_size",
+		ReceiptInk.fit_font_size(label.text, room, VERDICT_FONT_SIZE, VERDICT_MIN_FONT_SIZE)
+	)
 	label.add_theme_color_override(
 		"font_color", Palette.GOOD if ShiftMargin.of(total, quota).passed() else Palette.TOMATO
 	)
 	return label
-
-
-## The verdict's font size: VERDICT_FONT_SIZE, or the largest down to VERDICT_MIN_FONT_SIZE at
-## which `text` fits in `room` pixels.
-static func verdict_font_size(text: String, room: float) -> int:
-	var font_size: int = VERDICT_FONT_SIZE
-	while font_size > VERDICT_MIN_FONT_SIZE and text_width(text, MONO_FONT, font_size) > room:
-		font_size -= 1
-	return font_size
 
 
 ## The TOTAL line's right-hand label (the total, then the verdict), or null before a total.
@@ -825,26 +853,8 @@ static func has_mark_column(style: LineStyle) -> bool:
 	return style not in [LineStyle.FOOTER, LineStyle.MARGIN, LineStyle.NOTICE, LineStyle.TEAR]
 
 
-## A step line's text split for a hanging indent: its leading spaces, its marker ("+ " or "× ",
-## only after leading spaces) and the rest.
-static func hang_parts(text: String) -> PackedStringArray:
-	var rest: String = text.lstrip(" ")
-	var lead: String = text.substr(0, text.length() - rest.length())
-	var marker: String = ""
-	for candidate: String in HANG_MARKERS:
-		if not lead.is_empty() and rest.begins_with(candidate):
-			marker = candidate
-			rest = rest.substr(candidate.length())
-			break
-	return PackedStringArray([lead, marker, rest])
-
-
 static func text_width(text: String, font: Font, font_size: int) -> float:
 	return font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size).x
-
-
-static func _fizzle_count_text(fizzles: int) -> String:
-	return FIZZLES_TEXT % fizzles
 
 
 ## A new item line for `slot` ("left", "right"), in scan order: above the group of the next slot
@@ -852,6 +862,8 @@ static func _fizzle_count_text(fizzles: int) -> String:
 ## else above the TOTAL line's rule.
 func _add_item(slot: int, left: String, right: String) -> HBoxContainer:
 	var line: HBoxContainer = add_line(left, right, LineStyle.ITEM) as HBoxContainer
+	var card: CardDefinition = _cards[slot] if slot < _cards.size() else null
+	ReceiptInk.add_item_mini(line.get_child(0) as Label, ReceiptInk.item_art(card))
 	var after: int = -1
 	for other: int in _items:
 		if other > slot and _item_line_of(other) != null and (after == -1 or other < after):
@@ -980,16 +992,6 @@ func _scroll_to_end() -> void:
 		_scroll.scroll_vertical = _scroll_target()
 
 
-## Where the scroll goes: the least scroll that shows the framed line whole (with its frame), or
-## the end when no line is framed.
+## Where the scroll goes (ReceiptDecor.scroll_target).
 func _scroll_target() -> int:
-	var end: int = int(_scroll.get_v_scroll_bar().max_value)
-	var line: Control = _framed_line()
-	if line == null or line.get_parent() != _lines:
-		return end
-	# In the scroll's content: the inset's own position moves with the scroll.
-	var top: float = _lines.position.y + line.position.y - FRAME_GROW
-	var bottom: float = top + line.size.y + 2.0 * FRAME_GROW
-	var view: float = _scroll.size.y
-	var scroll: float = clampf(float(_scroll.scroll_vertical), bottom - view, top)
-	return clampi(roundi(scroll), 0, maxi(end, 0))
+	return ReceiptDecor.scroll_target(_scroll, _lines, _framed_line())

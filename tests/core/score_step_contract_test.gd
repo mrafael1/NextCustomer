@@ -5,6 +5,23 @@ extends GdUnitTestSuite
 
 const FIXTURE_DIR := "res://tests/fixtures/cards_v0_4"
 
+var _folder: String = ""
+
+
+func before_test() -> void:
+	# Saves and logs go to a temporary folder, never the real user:// ones.
+	_folder = "user://test_score_step_contract_%d" % Time.get_ticks_usec()
+	_event_log().use_folder(_folder)
+	ProjectSettings.set_setting(SaveService.FOLDER_SETTING, _folder)
+
+
+func after_test() -> void:
+	ProjectSettings.set_setting(SaveService.FOLDER_SETTING, null)
+	if DirAccess.dir_exists_absolute(_folder):
+		for file_name: String in DirAccess.get_files_at(_folder):
+			DirAccess.remove_absolute(_folder.path_join(file_name))
+		DirAccess.remove_absolute(_folder)
+
 
 ## Each arming card gets exactly one EFFECT_ARMED step, right after its own PAYOUT, carrying
 ## its effect's number from the rule's data and its receipt text, with values unchanged.
@@ -182,16 +199,19 @@ func test_to_dictionary_carries_the_source_fields() -> void:
 	assert_int(int(upgrade_data["source_index"])).is_equal(2)
 
 
-## The receipt prints no line for an armed effect: it stays a list of payouts and
-## explanations.
-func test_receipt_prints_no_line_for_armed_steps() -> void:
+## An armed effect has no step words (ReceiptView.step_text, the scans' and monitor's lines), and
+## the receipt prints it as its arm line only (Checkout Rhythm v3.1): its words, no amount.
+func test_receipt_prints_only_an_arm_line_for_armed_steps() -> void:
 	var receipt: ReceiptView = auto_free(ReceiptView.new())
 	var names: PackedStringArray = ["Coffee", "Eggs", "Multipack", "Bread"]
 	var result: ScoreResult = Scoring.score(_row("coffee,eggs,multipack,bread"))
 	var armed: Array[int] = _armed_indices(result)
 	assert_array(armed).has_size(3)
 	for index: int in armed:
-		assert_object(receipt.add_step(result.steps[index], names)).is_null()
+		assert_array(Array(ReceiptView.step_text(result.steps[index], names))).is_empty()
+		var line: Control = receipt.add_step(result.steps[index], names)
+		assert_bool(ReceiptInk.is_arm(line)).is_true()
+		assert_str((line.get_child(1) as Label).text).is_empty()
 
 
 static func _armed_indices(result: ScoreResult) -> Array[int]:
@@ -208,3 +228,7 @@ static func _row(ids: String) -> Array[CardInstance]:
 		var definition: CardDefinition = load("%s/%s.tres" % [FIXTURE_DIR, card_id])
 		row.append(CardInstance.new(definition, row.size() + 1))
 	return row
+
+
+static func _event_log() -> EventLogService:
+	return (Engine.get_main_loop() as SceneTree).root.get_node("/root/EventLog")

@@ -106,7 +106,7 @@ func after_test() -> void:
 
 ## The exact test on every golden row, each scored with its frozen fixture: the receipt printed
 ## for the row and the monitor filled as ScanController fills it for a belt item hold the same
-## lines per slot (the folded ones counted by "+N more").
+## lines per slot (the scans whose lines go on pages counted).
 func test_the_scans_hold_every_line_of_each_golden_rows_receipt() -> void:
 	var receipt: ReceiptView = auto_free(ReceiptView.new())
 	receipt.size = Vector2(276, 0)
@@ -140,21 +140,16 @@ func test_the_scans_hold_every_line_of_each_golden_rows_receipt() -> void:
 				monitor.show_scan(row[slot].definition, result.tags[slot], shown)
 				var column: MonitorItemColumn = monitor.item_column()
 				var texts: PackedStringArray = column.step_texts()
-				var rows_shown: Array[Control] = column.step_rows()
-				if not rows_shown.is_empty() and rows_shown[-1].name == "More":
-					# "+N more" folds the last N lines: the lines shown are the first ones.
-					var more: int = texts[-1].get_slice(" ", 0).to_int()
-					texts.resize(texts.size() - 1)
-					assert_int(texts.size() + more).is_equal(shown.lines.size())
-					var full: PackedStringArray = expected.get(slot, PackedStringArray())
-					expected[slot] = full.slice(0, texts.size())
+				# Every line kept: on pages when they don't fit (Checkout Rhythm v3.1).
+				assert_int(texts.size()).is_equal(shown.lines.size())
+				if column.pages != null and column.pages.count() > 1:
 					folded += 1
 				footers[slot] = texts
 			failures.append_array(ReceiptFooters.failures(expected, footers, row_ids))
 			rows += 1
 			# The lines the receipt and the monitor let go of are freed at the frame's end.
 			await get_tree().process_frame
-	prints('#105 golden rows\' scans folding lines into "+N more":', folded)
+	prints("#105 golden rows' scans with their lines on pages:", folded)
 	assert_array(failures).override_failure_message("\n".join(failures)).is_empty()
 	assert_int(rows).is_equal(66)
 

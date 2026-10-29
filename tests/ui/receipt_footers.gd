@@ -19,7 +19,7 @@ static func printed(receipt: ReceiptView) -> Array[String]:
 ## The steps of `result` that print a receipt line, in order: each item's BASE (its item's line),
 ## its PAYOUT when the item's base, bonus and copy amounts (an override's amount replacing
 ## them) don't add up to it (its closing "= €3.00" line), and every other step that prints a
-## line of its own.
+## line of its own (an EFFECT_ARMED step its arm line, ReceiptInk.arm_line).
 static func printing_steps(result: ScoreResult) -> Array[ScoreStep]:
 	var names: PackedStringArray = PackedStringArray()
 	for slot: int in range(result.payouts.size()):
@@ -40,7 +40,9 @@ static func printing_steps(result: ScoreResult) -> Array[ScoreStep]:
 				if so_far != step.value:
 					steps.append(step)
 				continue
-		if not ReceiptView.step_text(step, names).is_empty():
+		if step.step_type == ScoreStep.StepType.EFFECT_ARMED:
+			steps.append(step)
+		elif not ReceiptView.step_text(step, names).is_empty():
 			steps.append(step)
 	return steps
 
@@ -70,7 +72,7 @@ static func by_slot(
 			continue
 		var group: Array = groups.get(step.slot, [])
 		var at: int = used.get(step.slot, 0)
-		var printed_as: String = "%s|%s" % [ReceiptView.hang_parts(text[0])[2], text[1]]
+		var printed_as: String = "%s|%s" % [ReceiptDecor.hang_parts(text[0])[2], text[1]]
 		if at >= group.size() or group[at] != printed_as:
 			continue
 		used[step.slot] = at + 1
@@ -81,14 +83,15 @@ static func by_slot(
 
 
 ## The receipt's step lines under each item's line ("left|right", the left label's text without
-## its hung lead and marker), by slot, up to the TOTAL line.
+## its hung lead and marker), by slot, up to the TOTAL line. Arm lines (no step line of their
+## own: ReceiptInk.arm_line) are left out.
 static func _groups(receipt: ReceiptView) -> Dictionary[int, Array]:
 	var groups: Dictionary[int, Array] = {}
 	var slot: int = -1
 	for line: Node in receipt._lines.get_children():
 		if line == receipt._total_line:
 			break
-		if not line is HBoxContainer:
+		if not line is HBoxContainer or ReceiptInk.is_arm(line):
 			continue
 		var item: int = receipt._items.find_key(line) if receipt._items.values().has(line) else -1
 		if item >= 0:
@@ -106,7 +109,8 @@ static func line_text(line: HBoxContainer) -> String:
 	var left: Label = line.get_child(0) as Label
 	var right: Label = line.get_child(1) as Label
 	var marker: Label = left.get_node_or_null("Marker") as Label
-	var text: String = left.text if marker == null else "%s %s" % [marker.text, left.text]
+	var words: String = left.get_meta(ReceiptInk.WORDS_META, left.text)
+	var text: String = words if marker == null else "%s %s" % [marker.text, words]
 	return ReceiptView.joined_line(text, right.text)
 
 

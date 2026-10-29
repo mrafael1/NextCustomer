@@ -264,6 +264,25 @@ func _assert_monitor_end_state(resumed: ShiftScreen) -> void:
 		var items: MonitorItemColumn = monitor.item_column()
 		assert_object(items.shown_definition()).is_same(resumed.run.row[last].definition)
 		assert_int(items.shown_value()).is_equal(resumed.run.last_result.payouts[last])
+		# The last item's payment equation (the last Milk under Multipack's ×3 has one), as the
+		# count showed it: the newest row, inside the item column, below the line above it.
+		var equation: PaymentEquation = PaymentEquation.of(resumed.run.last_result.steps, last)
+		assert_object(equation).override_failure_message("PASSING_ROW's last Milk").is_not_null()
+		var rows: Array[Control] = items.step_rows()
+		var equations: Array[String] = []
+		for row: Control in rows:
+			if row.has_meta(&"equation"):
+				equations.append(String(row.get_meta(&"line")))
+		assert_array(equations).is_equal([equation.text(MonitorItemColumn._arrow())])
+		assert_bool(rows[-1].has_meta(&"equation")).is_true()
+		var shown: Rect2 = rows[-1].get_global_rect()
+		(
+			assert_bool(items.get_global_rect().grow(0.5).encloses(shown))
+			. override_failure_message("%s outside %s" % [shown, items.get_global_rect()])
+			. is_true()
+		)
+		assert_int(rows.size()).is_greater(1)
+		assert_float(shown.position.y).is_greater_equal(rows[-2].get_global_rect().end.y - 0.5)
 		assert_bool(resumed._stage.rail_light.is_lit()).is_false()
 		assert_vector(monitor.position).is_equal(ShiftStage.MONITOR_RECT.position)
 		await _frames(5)

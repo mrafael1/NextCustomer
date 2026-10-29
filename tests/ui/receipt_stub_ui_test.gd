@@ -172,7 +172,8 @@ func test_the_count_up_receipt_fills_in_as_it_counts() -> void:
 		CardInstance.names(run.row),
 		LoyaltyCard.names(run.upgrades),
 		InspectionTag.names(run.inspections),
-		header
+		header,
+		ReceiptInk.cards_of(run.row)
 	)
 	var full: Array[String] = _step_lines(expected)
 	var combos: int = 0
@@ -386,7 +387,8 @@ static func _receipt_lines(receipt: ReceiptView) -> Array[String]:
 			continue  # The BONUS stub (#77 machine v2), checked on its own.
 		var left: Label = line.get_child(0) as Label
 		var marker: Label = left.get_node_or_null("Marker") as Label
-		var text: String = left.text if marker == null else "%s %s" % [marker.text, left.text]
+		var words: String = left.get_meta(ReceiptInk.WORDS_META, left.text)
+		var text: String = words if marker == null else "%s %s" % [marker.text, words]
 		lines.append("%s | %s" % [text, (line.get_child(1) as Label).text])
 	return lines
 

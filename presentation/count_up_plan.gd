@@ -190,6 +190,8 @@ func _make_beats(steps: Array[ScoreStep]) -> void:
 			index += 1
 		else:
 			beat.kind = _kind_of(step.step_type)
+			if beat.kind == CountUpBeat.Kind.PAYOUT:
+				beat.equation = PaymentEquation.of(steps, step.slot)
 		beats.append(beat)
 		index += 1
 

@@ -330,6 +330,7 @@ func _bonus(beat: CountUpBeat, step: ScoreStep) -> void:
 	# caused it, unless it is the target's own rule.
 	var source: Control = null
 	var from: Vector2 = Vector2.ZERO
+	var waited: float = 0.0
 	if step.step_type == ScoreStep.StepType.COPY:
 		source = _views[step.linked_slot]
 		from = _at(step.linked_slot)
@@ -343,11 +344,13 @@ func _bonus(beat: CountUpBeat, step: ScoreStep) -> void:
 			sfx.play("copy")
 		var flight: float = minf(BONUS_FLIGHT, _motion(beat) * 0.75)
 		await _fx.fly_text(text, from, _at(step.slot), Palette.MUSTARD, 30, flight)
+		waited = flight
 	else:
 		var above: Vector2 = _at(step.slot) + Vector2(0, -20)
 		_fx.fly_text(
 			text, above, above + Vector2(0, -40), Palette.MUSTARD, 30, OWN_BONUS_RISE, true
 		)
+	await _hold_value(beat, waited)
 	if beat.note >= 0 and not CountUpPlan.is_landing(beat):
 		sfx.play_note(beat.note)
 	target.show_badge(step.value_after, true)
@@ -368,6 +371,7 @@ func _stamp(beat: CountUpBeat, step: ScoreStep) -> void:
 		return
 	var motion: float = _motion(beat)
 	var slam_time: float = minf(STAMP_SLAM, motion * 0.6)
+	var waited: float = 0.0
 	var upgrade_box: Control = _upgrade_box(step)
 	var source: CardView = _source_view(step)
 	if upgrade_box != null:
@@ -375,9 +379,12 @@ func _stamp(beat: CountUpBeat, step: ScoreStep) -> void:
 		var flight: float = minf(UPGRADE_FLIGHT, motion * 0.45)
 		slam_time = minf(STAMP_SLAM, motion * 0.35)
 		await _fx.fly_text(factor, _center(upgrade_box), _at(step.slot), Palette.TOMATO, 26, flight)
+		waited = flight
 	elif source != null and step.source_slot != step.slot:
 		_pulse_giver(source)
 		_fx.glow(source.body)
+	# The slam ends at the value's moment (its start waits for it).
+	await _hold_value(beat, waited + slam_time)
 	var stamp: Label = CountUpMotion.text_label(factor, Palette.TOMATO, 54)
 	_overlay.add_child(stamp)
 	stamp.global_position = _at(step.slot) - stamp.size / 2.0
@@ -403,6 +410,17 @@ func _stamp(beat: CountUpBeat, step: ScoreStep) -> void:
 	fade.tween_interval(0.2)
 	fade.tween_property(stamp, "modulate:a", 0.0, 0.2)
 	fade.tween_callback(stamp.queue_free)
+
+
+## A bonus or stamp's value lands on its item no earlier than the tuning's step_value_at of the
+## beat's motion (v3.1: after its monitor line, CountTotalTuning.step_line_at), `waited` seconds
+## of it already gone; reduced motion lands it at once.
+func _hold_value(beat: CountUpBeat, waited: float) -> void:
+	if total_tuning == null or plan.reduced_motion:
+		return
+	var left: float = total_tuning.step_value_at * _motion(beat) - waited
+	if left > 0.0:
+		await _wait(left)
 
 
 ## A repeat landing of an armed effect, played short (D7 stage 2): the arming card punches and
@@ -529,9 +547,10 @@ func _tick(beat: CountUpBeat, tick: int) -> void:
 
 ## An armed effect (Eggs' charges, Coffee, Multipack): the card glows and pulses and the current
 ## note replays quietly (D8, D9; the belt ride sends its sparks to the targets). An effect with no
-## landing shows its name floating up. No receipt line.
+## landing shows its name floating up. Its receipt line ("arms ×3 …") prints.
 func _armed(beat: CountUpBeat, step: ScoreStep) -> void:
 	var view: CardView = _views[step.slot]
+	_print_step(step)
 	_fx.punch(view.body, 1.08)
 	_fx.glow(view.body)
 	sfx.play("armed")

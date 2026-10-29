@@ -121,7 +121,9 @@ func test_the_monitor_hangs_on_the_stage_clear_of_the_rest() -> void:
 ## Every card in data/cards, scanned in the hand (no lines), on the belt with two lines, then with
 ## the worst lines: its art in the bay's bed and its chip; its name, glyphs, price, effect and
 ## lines inside the item column, none overlapping, every text label inside its column, the effect
-## whole; the two lines both shown, the worst ones folded into "+N more" at the column's foot.
+## whole; the two lines both shown; the worst ones in the compact layout (the effect on one line,
+## cut with an ellipsis when it must) on pages of whole lines, every line kept (Checkout Rhythm
+## v3.1: never "+N more").
 func test_every_card_scan_fits_the_screen() -> void:
 	var monitor: MonitorView = await _monitor()
 	monitor.reduced_motion = func() -> bool: return true
@@ -158,9 +160,10 @@ func test_every_card_scan_fits_the_screen() -> void:
 		_assert_scan_fits(monitor, definition, "%s, worst lines" % definition.id)
 		await _assert_layout(monitor, Vector2.ZERO, "%s, worst lines" % definition.id)
 		texts = monitor.item_column().step_texts()
-		var shown: int = texts.size() - 1
-		assert_int(shown).override_failure_message(definition.id).is_greater_equal(1)
-		assert_str(texts[shown]).is_equal(MonitorItemColumn.MORE_TEXT % (WORST_LINES - shown))
+		assert_bool(texts == worst.lines).override_failure_message(str(texts)).is_true()
+		var pages: MonitorStepPages = monitor.item_column().pages
+		assert_int(pages.count()).override_failure_message(definition.id).is_equal(3)
+		assert_str(pages.marker().text).is_equal("1/3")
 	prints("#105 item column effect sizes:", effect_sizes)
 
 
@@ -266,6 +269,113 @@ func test_the_count_keeps_the_item_breakdown_visible_and_total_on_the_register()
 	assert_array(failures).is_empty()
 	assert_int(screen._cabinet.total_display.amount()).is_equal(count.plan.total)
 	assert_int(monitor.item_column().step_texts().size()).is_greater(0)
+
+
+## Checkout Rhythm v3: on the real screen, under reduced motion and tap-skip, each payout with
+## multipliers (the Milks under Multipack's ×3) shows its payment equation at its own beat, the
+## steps' own numbers, as the newest line: on one line inside the item column, clear of the lines
+## above, the factor amber and the rest ink, never covered by the register's SPEND MET. The
+## multiplier lines keep their × and fit their row. The row meets its quota, so SPEND MET runs.
+func test_payouts_show_their_equation_inside_the_column_and_clear_of_spend_met() -> void:
+	var screen: ShiftScreen = await _screen()
+	await _place(screen, PASSING_ROW)
+	var monitor: MonitorView = screen._monitor
+	monitor.reduced_motion = func() -> bool: return true
+	var count: CountUp = screen._count_up
+	var items: MonitorItemColumn = monitor.item_column()
+	var failures: Array[String] = []
+	var shown: Array[String] = []
+	var observe: Callable = func(
+		beat: CountUpBeat, _beat_step: ScoreStep, _line: String, _view: CardView, _size: int
+	) -> void:
+		var rows: Array[Control] = items.step_rows()
+		if beat.kind == CountUpBeat.Kind.STAMP and not rows.is_empty():
+			var text: Label = rows[-1].get_node_or_null("Text") as Label
+			if text != null and not text.text.begins_with("× "):
+				failures.append("A multiplier line lost its ×: " + text.text)
+			if text != null and text.get_line_count() > text.max_lines_visible:
+				failures.append("A multiplier line did not fit: " + text.text)
+		if beat.equation == null:
+			return
+		var row: Control = rows[-1]
+		shown.append(String(row.get_meta(&"line", "")))
+		if String(row.get_meta(&"line", "")) != beat.equation.text(MonitorItemColumn._arrow()):
+			failures.append("The equation row read " + String(row.get_meta(&"line", "")))
+		var rect: Rect2 = row.get_global_rect()
+		if not items.get_global_rect().grow(0.5).encloses(rect):
+			failures.append("The equation ran outside the item column")
+		for other: Control in rows.slice(0, rows.size() - 1):
+			if other.get_global_rect().intersection(rect).get_area() > 0.5:
+				failures.append("The equation overlapped the line above it")
+		var parts: Array[Control] = []
+		for part_name: String in ["Text", "Factor", "Arrow", "Amount"]:
+			var part: Label = row.get_node(part_name) as Label
+			parts.append(part)
+			if not rect.grow(0.5).encloses(part.get_global_rect()):
+				failures.append("The equation's %s ran outside its row" % part_name)
+		for index: int in range(parts.size() - 1):
+			if parts[index].get_global_rect().end.x > parts[index + 1].get_global_rect().position.x:
+				failures.append("The equation's parts overlapped")
+		var factor: Label = row.get_node("Factor") as Label
+		if factor.get_theme_color("font_color") != Palette.MUSTARD_DARKEST:
+			failures.append("The equation's factor was not amber")
+		if (row.get_node("Amount") as Label).get_theme_color("font_color") != Palette.INK:
+			failures.append("The equation's payout was not ink")
+		if screen._cabinet.total_display.get_global_rect().intersects(rect):
+			failures.append("The register's SPEND MET sat over the equation")
+	count.beat_started.connect(observe)
+	var met: Array[bool] = []
+	var celebrating: Callable = func(_pop: bool) -> void:
+		met.append(true)
+		var rows: Array[Control] = items.step_rows()
+		if rows.is_empty() or not items.is_visible_in_tree():
+			failures.append("SPEND MET hid the item column")
+		elif screen._cabinet.total_display.get_global_rect().intersects(rows[-1].get_global_rect()):
+			failures.append("SPEND MET covered the newest line")
+	count.quota_met.connect(celebrating)
+	var rush: Callable = func() -> void: count._tap(Time.get_ticks_msec())
+	rush.call_deferred()
+	await screen._on_checkout_pressed()
+	assert_array(failures).is_empty()
+	assert_array(met).override_failure_message("The row never met its quota").is_not_empty()
+	assert_int(shown.size()).is_greater(0)
+	assert_str(shown[0]).contains(" × 3 ")
+
+
+## Checkout Rhythm v3.1 (the mock-up's doBeat: giver, then line, then value): on the real
+## screen with motion, a bonus or multiplier beat's monitor line is not there yet when its beat
+## starts and is there (the newest line) when its value lands on the item.
+func test_a_step_line_shows_inside_its_beat_before_its_value_lands() -> void:
+	var screen: ShiftScreen = await _screen()
+	await _place(screen, PASSING_ROW)
+	var monitor: MonitorView = screen._monitor
+	monitor.reduced_motion = func() -> bool: return false
+	var count: CountUp = screen._count_up
+	var items: MonitorItemColumn = monitor.item_column()
+	var waiting: Dictionary[int, int] = {}
+	var checked: Array[int] = []
+	var failures: Array[String] = []
+	var on_start: Callable = func(
+		beat: CountUpBeat, step: ScoreStep, _line: String, _view: CardView, _size: int
+	) -> void:
+		var timed: bool = beat.kind in [CountUpBeat.Kind.BONUS, CountUpBeat.Kind.STAMP]
+		if timed and not beat.echo and step.slot == monitor._scanned:
+			waiting[beat.steps[0]] = items.step_texts().size()
+	var on_landed: Callable = func(index: int) -> void:
+		if not waiting.has(index):
+			return
+		if items.step_texts().size() != waiting[index] + 1:
+			failures.append("Step %d's line was not shown just before its value" % index)
+		waiting.erase(index)
+		checked.append(index)
+	count.beat_started.connect(on_start)
+	count.step_landed.connect(on_landed)
+	var rush: Callable = func() -> void: count._tap(Time.get_ticks_msec())
+	rush.call_deferred()
+	await screen._on_checkout_pressed()
+	assert_array(failures).is_empty()
+	assert_array(checked).override_failure_message("No timed step was checked").is_not_empty()
+	assert_dict(waiting).is_empty()
 
 
 func test_a_last_payment_starts_the_register_celebration_without_covering_the_monitor() -> void:
@@ -460,6 +570,18 @@ func _assert_scan_fits(monitor: MonitorView, definition: CardDefinition, message
 	var text: String = _scan_text(definition)
 	if text.is_empty():
 		assert_object(effect).override_failure_message(message).is_null()
+		return
+	if column.pages != null:
+		# The compact layout's one line, cut with an ellipsis when the text is longer.
+		assert_int(effect.line_count()).override_failure_message(message).is_equal(1)
+		assert_bool(effect.fits()).override_failure_message(message).is_true()
+		if effect.text != text:
+			var cut: String = effect.text.trim_suffix(MonitorItemColumn.ELLIPSIS)
+			(
+				assert_bool(cut != effect.text and text.begins_with(cut))
+				. override_failure_message("%s: %s" % [message, effect.text])
+				. is_true()
+			)
 		return
 	assert_str(effect.text).is_equal(text)
 	assert_bool(effect.fits()).override_failure_message(message).is_true()

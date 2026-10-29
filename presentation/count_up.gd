@@ -311,7 +311,10 @@ func play(
 	_presses.begin()
 	_playing = true
 	# The receipt starts over: the shift's header (#80); each item's line prints as it scans.
-	_receipt.begin_count(context.receipt_header, _names)
+	var cards: Array[CardDefinition] = []
+	for view: CardView in _views:
+		cards.append(view.card.definition if view.card != null else null)
+	_receipt.begin_count(context.receipt_header, _names, true, cards)
 	_set_subtotal(0)
 	for view: CardView in _views:
 		view.reset_motion()

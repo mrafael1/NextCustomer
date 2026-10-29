@@ -12,9 +12,14 @@ const RECEIPT_SIZE := Vector2(ShiftStage.RECEIPT_WIDTH, 400)
 const TOLERANCE := 1.0
 
 var _receipt: ReceiptView
+var _folder: String = ""
 
 
 func before_test() -> void:
+	# Saves and logs go to a temporary folder, never the real user:// ones.
+	_folder = "user://test_receipt_hang_%d" % Time.get_ticks_usec()
+	_event_log().use_folder(_folder)
+	ProjectSettings.set_setting(SaveService.FOLDER_SETTING, _folder)
 	_receipt = auto_free(ReceiptView.new()) as ReceiptView
 	# The shift screen's paper margins (ShiftStage._build_register), so the lines are as wide.
 	var paper: StyleBoxFlat = StyleBoxFlat.new()
@@ -26,17 +31,27 @@ func before_test() -> void:
 	_receipt.size = RECEIPT_SIZE
 
 
+func after_test() -> void:
+	ProjectSettings.set_setting(SaveService.FOLDER_SETTING, null)
+	if DirAccess.dir_exists_absolute(_folder):
+		for file_name: String in DirAccess.get_files_at(_folder):
+			DirAccess.remove_absolute(_folder.path_join(file_name))
+		DirAccess.remove_absolute(_folder)
+
+
 func test_hang_parts_splits_the_lead_the_marker_and_the_rest() -> void:
-	assert_array(Array(ReceiptView.hang_parts("  + Strawberries beside Produce"))).is_equal(
+	assert_array(Array(ReceiptDecor.hang_parts("  + Strawberries beside Produce"))).is_equal(
 		["  ", "+ ", "Strawberries beside Produce"]
 	)
-	assert_array(Array(ReceiptView.hang_parts("  × Multipack"))).is_equal(["  ", "× ", "Multipack"])
-	assert_array(Array(ReceiptView.hang_parts("  Coupon engine: no coupon"))).is_equal(
+	assert_array(Array(ReceiptDecor.hang_parts("  × Multipack"))).is_equal(
+		["  ", "× ", "Multipack"]
+	)
+	assert_array(Array(ReceiptDecor.hang_parts("  Coupon engine: no coupon"))).is_equal(
 		["  ", "", "Coupon engine: no coupon"]
 	)
 	# A marker only counts after leading spaces.
-	assert_array(Array(ReceiptView.hang_parts("+ MILK"))).is_equal(["", "", "+ MILK"])
-	assert_array(Array(ReceiptView.hang_parts("MILK"))).is_equal(["", "", "MILK"])
+	assert_array(Array(ReceiptDecor.hang_parts("+ MILK"))).is_equal(["", "", "+ MILK"])
+	assert_array(Array(ReceiptDecor.hang_parts("MILK"))).is_equal(["", "", "MILK"])
 
 
 ## A wrapped fizzle: every row starts at the indent (the lead's width), on at most two rows: no
@@ -101,8 +116,8 @@ func test_a_flat_line_prints_its_marker_beside_the_indent() -> void:
 	assert_float(left.get_character_bounds(0).position.x).is_equal_approx(indent, TOLERANCE)
 
 
-## Lines without leading spaces keep their text and get no indent; their amounts sit on their
-## last row too.
+## Lines without leading spaces keep their text and get no indent (an item line only its mini's
+## two-character slot, ReceiptInk); their amounts sit on their last row too.
 func test_lines_without_a_lead_are_not_hung() -> void:
 	var item: Control = _receipt.add_step(
 		_step(ScoreStep.StepType.BASE, "Milk"), PackedStringArray(["Milk"])
@@ -112,7 +127,11 @@ func test_lines_without_a_lead_are_not_hung() -> void:
 	await _frames(2)
 	for line: Control in [item, total, margin]:
 		var left: Label = line.get_child(0) as Label
-		assert_bool(left.has_theme_stylebox_override("normal")).is_false()
+		if line == item:
+			var slot: float = left.get_theme_stylebox("normal").content_margin_left
+			assert_float(slot).is_equal_approx(_width(left, ReceiptInk.ICON_SLOT), 0.01)
+		else:
+			assert_bool(left.has_theme_stylebox_override("normal")).is_false()
 		assert_object(left.get_node_or_null("Marker")).is_null()
 		var right: Label = line.get_child(1) as Label
 		assert_int(right.vertical_alignment).is_equal(VERTICAL_ALIGNMENT_BOTTOM)
@@ -150,3 +169,7 @@ static func _second_row_start(label: Label) -> int:
 func _frames(count: int) -> void:
 	for _index: int in range(count):
 		await get_tree().process_frame
+
+
+static func _event_log() -> EventLogService:
+	return (Engine.get_main_loop() as SceneTree).root.get_node("/root/EventLog")

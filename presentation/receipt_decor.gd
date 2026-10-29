@@ -7,6 +7,11 @@ extends RefCounted
 
 ## A combo line's band behind it, at this alpha (ReceiptView.COMBO_* place its bar and diamond).
 const COMBO_BAND_ALPHA := 0.25
+## A loyalty perk's combo line (perk()): its band is pale teal, not gold.
+const PERK_META := "perk"
+## A step line's marker after its leading spaces (hang_parts()): it is printed beside the first
+## row, and the wrapped rows hang under the text after it.
+const HANG_MARKERS: Array[String] = ["+ ", "× "]
 ## A mark, from the line's right end (the end of its mark column, ReceiptView.MARK_COLUMN),
 ## centred on the line's first row.
 const MARK_RECT := Rect2(-14, -7, 14, 14)
@@ -43,7 +48,7 @@ const CHECK_DISC := preload("res://art/icons/mark_check.png")
 ## that is set (a combo line's COMBO_INDENT, whose diamond takes the marker's place: without
 ## `with_marker` the marker is dropped). A line without leading spaces is left as it is.
 static func hang(label: Label, lead_width: float = -1.0, with_marker: bool = true) -> void:
-	var parts: PackedStringArray = ReceiptView.hang_parts(label.text)
+	var parts: PackedStringArray = hang_parts(label.text)
 	if parts[0].is_empty():
 		return
 	if not with_marker:
@@ -80,6 +85,12 @@ static func combo(line: HBoxContainer, left: Label) -> void:
 	diamond.position = ReceiptView.COMBO_ICON_RECT.position
 	diamond.size = ReceiptView.COMBO_ICON_RECT.size
 	left.add_child(diamond)
+
+
+## Marks a combo `line` as a loyalty perk's (an upgrade's): its band turns pale teal (#116 v3.1).
+static func perk(line: Control) -> void:
+	line.set_meta(PERK_META, true)
+	line.queue_redraw()
 
 
 ## Puts `kind` on `line`: a "Mark" inside its right label, at MARK_RECT in the line's mark
@@ -201,6 +212,34 @@ static func draw_frame(inset: Control, lines: Control, line: Control) -> void:
 	inset.draw_rect(Rect2(rect.end.x - width, rect.position.y, width, rect.size.y), Palette.MUSTARD)
 
 
+## A step line's text split for a hanging indent: its leading spaces, its marker ("+ " or "× ",
+## only after leading spaces) and the rest.
+static func hang_parts(text: String) -> PackedStringArray:
+	var rest: String = text.lstrip(" ")
+	var lead: String = text.substr(0, text.length() - rest.length())
+	var marker: String = ""
+	for candidate: String in HANG_MARKERS:
+		if not lead.is_empty() and rest.begins_with(candidate):
+			marker = candidate
+			rest = rest.substr(candidate.length())
+			break
+	return PackedStringArray([lead, marker, rest])
+
+
+## The receipt's scroll (`scroll`, over `lines`) that shows the framed `line` whole (with its
+## frame), the least move from where it is, or its end when no line is framed.
+static func scroll_target(scroll: ScrollContainer, lines: Control, line: Control) -> int:
+	var end: int = int(scroll.get_v_scroll_bar().max_value)
+	if line == null or line.get_parent() != lines:
+		return end
+	# In the scroll's content: the inset's own position moves with the scroll.
+	var top: float = lines.position.y + line.position.y - ReceiptView.FRAME_GROW
+	var bottom: float = top + line.size.y + 2.0 * ReceiptView.FRAME_GROW
+	var view: float = scroll.size.y
+	var at: float = clampf(float(scroll.scroll_vertical), bottom - view, top)
+	return clampi(roundi(at), 0, maxi(end, 0))
+
+
 static func _icon(texture: Texture2D) -> TextureRect:
 	var icon: TextureRect = TextureRect.new()
 	icon.texture = texture
@@ -211,12 +250,18 @@ static func _icon(texture: Texture2D) -> TextureRect:
 	return icon
 
 
-## The band and bar, unless the line is framed (ReceiptView: its "framed" meta).
+## The band and bar, unless the line is framed (ReceiptView: its "framed" meta): gold, or a
+## loyalty perk's pale teal band and teal bar (its "perk" meta, perk()).
 static func _draw_combo_band(line: HBoxContainer) -> void:
 	if line.get_meta("framed", false):
 		return
-	line.draw_rect(Rect2(Vector2.ZERO, line.size), Color(Palette.GOLD, COMBO_BAND_ALPHA))
-	line.draw_rect(Rect2(0, 0, ReceiptView.COMBO_BAR, line.size.y), Palette.GOLD)
+	var band: Color = Color(Palette.GOLD, COMBO_BAND_ALPHA)
+	var bar: Color = Palette.GOLD
+	if line.get_meta(PERK_META, false):
+		band = Color(Palette.TEAL_PALE, ReceiptInk.PERK_BAND_ALPHA)
+		bar = Palette.TEAL
+	line.draw_rect(Rect2(Vector2.ZERO, line.size), band)
+	line.draw_rect(Rect2(0, 0, ReceiptView.COMBO_BAR, line.size.y), bar)
 
 
 ## A related line's mustard-pale fill (relate), behind its text.

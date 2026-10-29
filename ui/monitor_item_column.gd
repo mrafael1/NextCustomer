@@ -10,14 +10,17 @@ extends Control
 ## (the sticker summary, or the rule text: GlyphLabel, bold at EFFECT_SIZE on EFFECT_PITCH, kept
 ## clear of the price); a dashed rule; and its step lines (STEPS_TOP down), each with its mark (the
 ## fizzle icon, a giver's mini, ✦ for a "gives" line, ✓ for its own), its text, and its amount in
-## one right-aligned column (AMOUNT_MIN wide) level with the text's first line; lines that don't
-## fit fold into "+N more".
+## one right-aligned column (AMOUNT_MIN wide) level with the text's first line.
 ##
 ## In planning (show_item) it shows belt slot 1's item or the held one with every step line; on an
-## empty belt a muted hint (show_empty). In the count (start_item, set_value, show_step) the item
-## comes in at its base price with no line; each of its landings moves the price (punching it) and
-## retains its bonus lines in the wider column, folding only earlier overflow. The last item
-## stays at the count's end.
+## empty belt a muted hint (show_empty). When the lines don't all fit under the full effect (where
+## "+N more" folded them until Checkout Rhythm v3.1), the layout turns compact, as the count's:
+## the price (and the struck base) in the name row, the effect on one line at the smallest of
+## EFFECT_TIERS (cut with an ellipsis), the rule and the lines moved up, one line each; still too
+## many go on pages of whole lines (MonitorStepPages, `pages`), turning by themselves.
+## In the count (start_item, set_value, show_step) the item comes in at its base price with no
+## line; each of its landings moves the price (punching it) and retains its bonus lines in the
+## wider column, folding only earlier overflow. The last item stays at the count's end.
 ## When the item changes its parts fade in one after another (CountTotalTuning's part_delays and
 ## part_fade_s; at once under reduced motion). Display only: the prices and lines are the
 ## caller's (the score's).
@@ -29,6 +32,8 @@ const COUNT_STEPS_TOP := 54.0
 const COUNT_LINE_HEIGHT := 18.0
 const COUNT_ROWS := 5
 const NAME_HEIGHT := 26.0
+## The count's (and the compact layout's) room kept right of the name for the price.
+const COUNT_NAME_RESERVE := 86.0
 const NAME_GLYPH_GAP := 4.0
 const GLYPH_GAP := 3.0
 ## The price: a burst's or tag's right edge and its middle's height (a 32 px burst's top at 30),
@@ -44,6 +49,8 @@ const EFFECT_GAP := 4.0
 const EFFECT_WEIGHT := 800
 const EFFECT_TIERS: Array[Vector2i] = [Vector2i(16, 19), Vector2i(14, 17), Vector2i(13, 15)]
 const EFFECT_BOTTOM := 82.0
+## The count's and the compact layout's one-line effect: its top.
+const COMPACT_EFFECT_TOP := 31.0
 ## The dashed rule (DASH on, DASH off) and the step lines under it.
 const RULE_TOP := 84.0
 const RULE_WIDTH := 268.0
@@ -69,7 +76,27 @@ const MARK_GAP := 4.0
 const CHECK_MARK := "✓"
 const GIVE_MARK := "✦"
 const GIVE_FALLBACK := "›"
-const MORE_TEXT := "+%d more"
+## The compact layout's struck base: its gap to the price on its left.
+const STRUCK_GAP := 4.0
+## The compact layout's cut effect ends in this (ELLIPSIS_FALLBACK when the font lacks it).
+const ELLIPSIS := "…"
+const ELLIPSIS_FALLBACK := "..."
+## A step line's words (a giver's name, a "gives" line), teal so amber means only a × (Checkout
+## Rhythm v3); a payment's are ink.
+const STEP_TEXT_COLOR := Palette.TEAL_DARK
+## The count's note after a line whose giver is in the bag: its words, size and weight (teal).
+const FROM_BAG_TEXT := " · from the bag"
+const FROM_BAG_SIZE := 11
+const FROM_BAG_WEIGHT := 700
+## The payout's equation row: the ink rule along its top (over the text's top padding), the gap
+## between its parts and their size, on a line EQUATION_HEIGHT tall (the count's last row, so it
+## takes the step area's 2 px under COUNT_ROWS lines: the size's text is 20 px tall).
+const EQUATION_RULE := 2.0
+const EQUATION_GAP := 4.0
+const EQUATION_SIZE := 15
+const EQUATION_HEIGHT := 20.0
+## The full layout keeps its lines only while this much would still fit under each (the room of
+## v3's "+N more" row); otherwise the layout turns compact.
 const MORE_HEIGHT := 18.0
 ## A step line wraps to at most this many lines; the rest ends in an ellipsis (its whole line stays
 ## its meta "line").
@@ -84,6 +111,10 @@ const HINT_COLOR := Palette.INK_LIGHT
 var make_tween: Callable = Callable()
 ## Returns true when the player asked for reduced motion. None means false.
 var reduced_motion: Callable = Callable()
+## Planning's pages of step lines in the compact layout (null with none): one page when they fit.
+var pages: MonitorStepPages:
+	get:
+		return _pages
 
 var _tuning: CountTotalTuning
 var _definition: CardDefinition
@@ -101,6 +132,10 @@ var _fades: Array[Tween] = []
 var _punch: Tween
 var _counting: bool = false
 var _count_lines: Array[Dictionary] = []
+var _compact: bool = false
+var _pages: MonitorStepPages
+## What planning shows now (show_item's arguments): the same again keeps the page and its wait.
+var _shown_key: Array = []
 
 
 func _init(tuning: CountTotalTuning = null) -> void:
@@ -132,12 +167,29 @@ func show_item(
 	minis: Array[Texture2D] = [],
 	animate: bool = false
 ) -> void:
+	var key: Array = [definition, tags, payout, lines, fizzles, gives, minis]
+	if not _counting and _definition == definition and key == _shown_key:
+		return
 	_counting = false
-	_layout_mode()
-	_build_head(definition, tags)
 	var base: int = _base_of(definition)
-	_set_price(payout if payout >= 0 else base, base, fizzles.has(true), false)
-	_fill_steps(lines, fizzles, gives, minis)
+	var value: int = payout if payout >= 0 else base
+	for compact: bool in [false, true]:
+		_compact = compact
+		_layout_mode()
+		var reserve: float = 0.0
+		if compact:
+			reserve = COUNT_NAME_RESERVE
+			if value != base:
+				reserve += (
+					ceilf(PriceSticker.StruckPrice.text_width(_struck_text(base))) + STRUCK_GAP
+				)
+		_build_head(definition, tags, reserve)
+		_set_price(value, base, fizzles.has(true), false)
+		if compact:
+			_fill_pages(lines, fizzles, gives, minis)
+		elif _fill_steps(lines, fizzles, gives, minis):
+			break
+	_shown_key = key
 	_fade_in(animate)
 
 
@@ -145,6 +197,7 @@ func show_item(
 ## fade in (`animate`) or show at once.
 func start_item(definition: CardDefinition, tags: PackedStringArray, animate: bool = true) -> void:
 	_counting = true
+	_compact = false
 	_layout_mode()
 	_build_head(definition, tags)
 	_set_price(_base_of(definition), _base_of(definition), false, false)
@@ -159,6 +212,7 @@ func show_empty(text: String) -> void:
 		return
 	clear()
 	_counting = false
+	_compact = false
 	_layout_mode()
 	var label: Label = MonitorKit.bold(text, HINT_SIZE, HINT_WEIGHT, HINT_COLOR, SIZE.y)
 	label.name = "Hint"
@@ -177,16 +231,6 @@ func _hint() -> Label:
 	return get_node_or_null("Hint") as Label
 
 
-## The step lines whose bottom runs past `bottom` (global) go (the end state's INSPECTION PASSED
-## line under them).
-func drop_steps_past(bottom: float) -> void:
-	for row: Control in _rows.duplicate():
-		if row.get_global_rect().end.y > bottom + 0.5:
-			_rows.erase(row)
-			_steps.remove_child(row)
-			row.queue_free()
-
-
 ## The count: the item's price is now `value` (a landing on it), punching when it changed.
 func set_value(value: int, fizzled: bool = false) -> void:
 	if _definition == null:
@@ -195,7 +239,8 @@ func set_value(value: int, fizzled: bool = false) -> void:
 
 
 ## The count: the item's newest step `line` (a fizzle's, a "gives" line, with its giver's
-## `giver_mini`) replaces the last, bigger, fading in.
+## `giver_mini`; `from_bag`: its giver is already in the bag, said after it in teal) joins the
+## lines, the newest highlighted; only earlier overflow folds into "+N earlier".
 func show_step(
 	line: String,
 	fizzle: bool,
@@ -208,6 +253,24 @@ func show_step(
 	_count_lines.append(
 		{"line": line, "fizzle": fizzle, "gives": gives, "mini": giver_mini, "bag": from_bag}
 	)
+	_show_count_lines()
+
+
+## The count: the item's payout lands: its payment `equation` ("€X × N → €Y" under a rule, the
+## factor amber) or, with none, `line` ("Pays  €N", "No bonus on this item") in ink.
+func show_paid(line: String, equation: PaymentEquation = null) -> void:
+	if line.is_empty() and equation == null:
+		return
+	var shown: String = equation.text(_arrow()) if equation != null else line
+	var entry: Dictionary = {"line": shown, "fizzle": false, "gives": false, "mini": null}
+	entry.merge({"bag": false, "ink": true, "equation": equation})
+	_count_lines.append(entry)
+	_show_count_lines()
+
+
+## The count's lines: the newest COUNT_ROWS (the earlier ones folding into "+N earlier"), the
+## newest highlighted and its giver's mini pulsing.
+func _show_count_lines() -> void:
 	_clear_steps()
 	var first: int = (
 		maxi(0, _count_lines.size() - COUNT_ROWS + 1) if _count_lines.size() > COUNT_ROWS else 0
@@ -223,23 +286,12 @@ func show_step(
 		_rows.append(folded)
 		top += COUNT_LINE_HEIGHT
 	for index: int in range(first, _count_lines.size()):
-		var entry: Dictionary = _count_lines[index]
-		var row: Control = _add_row(
-			entry["line"],
-			entry["fizzle"],
-			entry["gives"],
-			entry["mini"] as Texture2D,
-			12 if bool(entry["fizzle"]) else 13,
-			800,
-			top,
-			1
-		)
+		var row: Control = _add_count_row(_count_lines[index], top)
 		if row == null:
 			continue
-		if bool(entry["bag"]):
-			var text: Label = row.get_node("Text") as Label
-			text.text += " · from the bag"
-		row.set_meta(&"from_bag", bool(entry["bag"]))
+		if row.has_meta(&"equation"):
+			top += EQUATION_HEIGHT
+			continue
 		row.size.y = COUNT_LINE_HEIGHT
 		for child: Node in row.get_children():
 			var part: Control = child as Control
@@ -255,6 +307,7 @@ func show_step(
 	highlight.size = newest.size
 	newest.add_child(highlight)
 	newest.move_child(highlight, 0)
+	var giver_mini: Texture2D = _count_lines[-1]["mini"] as Texture2D
 	var mark: Control = newest.get_node_or_null("Mark") as Control
 	if mark != null and giver_mini != null and not _reduced() and is_inside_tree():
 		mark.pivot_offset = mark.size / 2.0
@@ -264,17 +317,118 @@ func show_step(
 		_fades.append(pulse)
 
 
+## One count line (`entry`, see show_step and show_paid) at `top`, or null for none.
+func _add_count_row(entry: Dictionary, top: float) -> Control:
+	var equation: PaymentEquation = entry.get("equation", null) as PaymentEquation
+	if equation != null:
+		return _add_equation_row(equation, top)
+	var row: Control = _add_row(
+		entry["line"],
+		entry["fizzle"],
+		entry["gives"],
+		entry["mini"] as Texture2D,
+		12 if bool(entry["fizzle"]) else 13,
+		800,
+		top,
+		1,
+		bool(entry.get("ink", false))
+	)
+	if row != null:
+		if bool(entry["bag"]):
+			_add_from_bag(row)
+		row.set_meta(&"from_bag", bool(entry["bag"]))
+	return row
+
+
+## FROM_BAG_TEXT after `row`'s text, smaller and teal (the mock-up's note), the text making room.
+func _add_from_bag(row: Control) -> void:
+	var text: Label = row.get_node("Text") as Label
+	var note: Label = MonitorKit.bold(
+		FROM_BAG_TEXT, FROM_BAG_SIZE, FROM_BAG_WEIGHT, Palette.TEAL_DARK, text.size.y
+	)
+	note.name = "FromBag"
+	row.add_child(note)
+	var note_width: float = _text_width(note)
+	text.size.x = minf(_text_width(text), maxf(0.0, text.size.x - note_width))
+	note.position = Vector2(text.position.x + text.size.x, text.position.y)
+	note.size = Vector2(note_width, text.size.y)
+
+
+## The payout's equation row at `top`: an EQUATION_RULE px ink rule along its top, then "€X", the
+## amber "× N" and the arrow, with the payout "€Y" in the amount column, on one line.
+func _add_equation_row(equation: PaymentEquation, top: float) -> Control:
+	var row: Control = Control.new()
+	row.name = "Step%d" % _rows.size()
+	row.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	row.set_meta(&"line", equation.text(_arrow()))
+	row.set_meta(&"equation", true)
+	_steps.add_child(row)
+	var line_height: float = EQUATION_HEIGHT
+	var rule: ColorRect = ColorRect.new()
+	rule.name = "Rule"
+	rule.color = Palette.INK
+	rule.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	rule.size = Vector2(_steps.size.x, EQUATION_RULE)
+	row.add_child(rule)
+	var x: float = MARK_SIZE.x + MARK_GAP
+	var parts: Array[Array] = [
+		["Text", equation.start_text(), Palette.INK],
+		["Factor", equation.factor_text(), Palette.MUSTARD_DARKEST],
+		["Arrow", _arrow(), Palette.INK_LIGHT],
+	]
+	for part: Array in parts:
+		var label: Label = MonitorKit.bold(
+			String(part[1]), EQUATION_SIZE, 800, part[2] as Color, line_height
+		)
+		label.name = String(part[0])
+		row.add_child(label)
+		var width: float = _text_width(label)
+		label.position = Vector2(x, 0)
+		label.size = Vector2(width, line_height)
+		x += width + EQUATION_GAP
+	var amount: Label = MonitorKit.bold(
+		equation.payout_text(), EQUATION_SIZE, AMOUNT_WEIGHT, Palette.INK, line_height
+	)
+	amount.name = "Amount"
+	amount.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	row.add_child(amount)
+	var amount_width: float = maxf(AMOUNT_MIN, _text_width(amount))
+	amount.position = Vector2(_steps.size.x - amount_width, 0)
+	amount.size = Vector2(amount_width, line_height)
+	row.position = Vector2(0, top)
+	row.size = Vector2(_steps.size.x, EQUATION_HEIGHT)
+	_rows.append(row)
+	return row
+
+
+## The arrow the monitor's bold font has (→), else MonitorText's fallback.
+static func _arrow() -> String:
+	var font: Font = ArtStyle.bold_font(800)
+	if font.has_char(MonitorText.ARROW.unicode_at(0)):
+		return MonitorText.ARROW
+	return MonitorText.ARROW_FALLBACK
+
+
+## `label`'s text width on one line, in its own font and size.
+static func _text_width(label: Label) -> float:
+	var font: Font = label.get_theme_font("font")
+	var font_size: int = label.get_theme_font_size("font_size")
+	return ceilf(font.get_string_size(label.text, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size).x)
+
+
 func _layout_mode() -> void:
+	var compact: bool = _counting or _compact
 	size = COUNT_SIZE if _counting else SIZE
-	_rule.position.y = COUNT_RULE_TOP if _counting else RULE_TOP
+	_rule.position.y = COUNT_RULE_TOP if compact else RULE_TOP
 	_rule.size.x = size.x - 2.0
-	_steps.position.y = COUNT_STEPS_TOP if _counting else STEPS_TOP
+	_steps.position.y = COUNT_STEPS_TOP if compact else STEPS_TOP
 	_steps.size = Vector2(size.x - 2.0, size.y - _steps.position.y)
 
 
 ## Nothing shown (the bay between items, or empty).
 func clear() -> void:
 	_definition = null
+	_shown_key = []
 	_count_lines.clear()
 	_shown_value = -1
 	_stop_fades()
@@ -320,14 +474,15 @@ func effect() -> GlyphLabel:
 	return _effect
 
 
-## The step lines shown (each row: its mark, text and amount), and their texts.
+## The step lines shown (each row: its mark, text and amount; on pages, the page shown's), and
+## every line's text (on pages, every page's).
 func step_rows() -> Array[Control]:
 	return _rows
 
 
 func step_texts() -> PackedStringArray:
 	var texts: PackedStringArray = PackedStringArray()
-	for row: Control in _rows:
+	for row: Control in _pages.all_rows() if _pages != null else _rows:
 		texts.append(String(row.get_meta(&"line", "")))
 	return texts
 
@@ -381,10 +536,13 @@ func part_rects() -> Dictionary[String, Rect2]:
 		)
 	for index: int in range(_rows.size()):
 		rects["step%d" % index] = _rows[index].get_global_rect()
+	if _pages != null and _pages.marker() != null:
+		rects["pager"] = _pages.marker().get_global_rect()
 	return rects
 
 
-func _build_head(definition: CardDefinition, tags: PackedStringArray) -> void:
+## The name (`reserve` px kept right of it for the price; the count keeps its own) and its glyphs.
+func _build_head(definition: CardDefinition, tags: PackedStringArray, reserve: float = 0.0) -> void:
 	clear()
 	_definition = definition
 	_rule.visible = true
@@ -403,7 +561,7 @@ func _build_head(definition: CardDefinition, tags: PackedStringArray) -> void:
 			+ _glyphs.size() * ArtStyle.FAMILY_GLYPH_SIZE
 			+ (_glyphs.size() - 1) * GLYPH_GAP
 		)
-	var room: float = size.x - glyphs_width - (86.0 if _counting else 0.0)
+	var room: float = size.x - glyphs_width - (COUNT_NAME_RESERVE if _counting else reserve)
 	_name = ItemName.make(definition.display_name, room, NAME_HEIGHT, Palette.INK)
 	add_child(_name)
 	_name.position = Vector2.ZERO
@@ -428,16 +586,23 @@ func _set_price(value: int, base: int, fizzled: bool, punch: bool) -> void:
 			if pay == PlanningModel.Pay.ZERO:
 				glyph = PlanningModel.Glyph.FIZZLE if fizzled else PlanningModel.Glyph.WARNING
 			_price = PayTag.new(pay, text, glyph)
-			_price.position = Vector2(
-				size.x - _price.size.x,
-				roundf((16.0 if _counting else PRICE_MIDDLE) - _price.size.y / 2.0)
-			)
+			var middle: float = 16.0 if _counting else PRICE_MIDDLE
+			if _compact:
+				# The name row's middle, the tag's top never above the column's.
+				middle = maxf(16.0, PayTag.size_for(pay, text).y / 2.0)
+			_price.position = Vector2(size.x - _price.size.x, roundf(middle - _price.size.y / 2.0))
 			# A punch grows it leftward from its right edge: it never leaves the column.
 			_price.pivot_offset = Vector2(_price.size.x, _price.size.y / 2.0)
 			_price_holder.add_child(_price)
 			if value != base and not _counting:
-				_struck = PriceSticker.StruckPrice.new(PriceSticker.price_text(base), false)
+				_struck = PriceSticker.StruckPrice.new(_struck_text(base), false)
 				_struck.position = Vector2(STRUCK_RIGHT - _struck.size.x, STRUCK_TOP)
+				if _compact:
+					# In the name row, left of the price (the mock-up's compact head).
+					_struck.position = Vector2(
+						_price.position.x - STRUCK_GAP - _struck.size.x,
+						roundf(middle - _struck.size.y / 2.0)
+					)
 				_price_holder.add_child(_struck)
 		_lay_effect()
 	if punch and _price != null and not _reduced() and is_inside_tree():
@@ -460,12 +625,14 @@ func _lay_effect() -> void:
 		text = _definition.rule_text
 	if text.is_empty():
 		return
-	if _counting:
-		_effect = GlyphLabel.new(
-			text, ArtStyle.bold_font(EFFECT_WEIGHT), 13, Palette.INK, 15, size.x - 2.0, 1
-		)
+	if _counting or _compact:
+		var room: float = size.x - 2.0
+		if _compact and _price != null and _price.position.y + _price.size.y > COMPACT_EFFECT_TOP:
+			# Clear of a price taller than the name row.
+			room = _price.position.x - EFFECT_GAP
+		_effect = _one_line_effect(text, not _counting, room)
 		_effect.name = "Effect"
-		_effect.position = Vector2(0, 31)
+		_effect.position = Vector2(0, COMPACT_EFFECT_TOP)
 		add_child(_effect)
 		return
 	var price_left: float = _price.position.x if _price != null else SIZE.x
@@ -488,10 +655,32 @@ func _lay_effect() -> void:
 			return
 
 
-## Every line of `lines` from the top of the steps, folding what doesn't fit into "+N more".
+## The effect on one line `width` wide at the smallest of EFFECT_TIERS; `cut`: words that don't
+## fit end in an ellipsis (the compact planning layout), else they are left off (the count's).
+func _one_line_effect(text: String, cut: bool, width: float) -> GlyphLabel:
+	var sizes: Vector2i = EFFECT_TIERS[-1]
+	var font: Font = ArtStyle.bold_font(EFFECT_WEIGHT)
+	var label: GlyphLabel = GlyphLabel.new(text, font, sizes.x, Palette.INK, sizes.y, width, 1)
+	if not cut or label.fits():
+		return label
+	var ellipsis: String = ELLIPSIS if font.has_char(ELLIPSIS.unicode_at(0)) else ELLIPSIS_FALLBACK
+	var words: PackedStringArray = text.split(" ", false)
+	while words.size() > 1:
+		words.resize(words.size() - 1)
+		label.free()
+		label = GlyphLabel.new(
+			" ".join(words) + ellipsis, font, sizes.x, Palette.INK, sizes.y, width, 1
+		)
+		if label.fits():
+			break
+	return label
+
+
+## Every line of `lines` from the top of the steps, while each leaves room for a MORE_HEIGHT row
+## under it (or is the last). Returns false when one doesn't (the compact layout takes over).
 func _fill_steps(
 	lines: PackedStringArray, fizzles: Array[bool], gives: int, minis: Array[Texture2D]
-) -> void:
+) -> bool:
 	_clear_steps()
 	var room: float = _steps.size.y
 	var top: float = 0.0
@@ -514,24 +703,60 @@ func _fill_steps(
 				lines[index], fizzle, index < gives, giver_mini, STEP_SIZE, STEP_WEIGHT, top, 1
 			)
 		if row.position.y + row.size.y + reserve > room:
-			_rows.erase(row)
-			_steps.remove_child(row)
-			row.queue_free()
-			var more: Label = MonitorKit.bold(
-				MORE_TEXT % (lines.size() - index),
-				STEP_SIZE,
-				STEP_WEIGHT,
-				Palette.INK_LIGHT,
-				MORE_HEIGHT
-			)
-			more.name = "More"
-			more.set_meta(&"line", more.text)
-			_steps.add_child(more)
-			more.position = Vector2(0, top)
-			more.size = Vector2(STEPS_WIDTH, MORE_HEIGHT)
-			_rows.append(more)
-			return
+			return false
 		top = row.position.y + row.size.y + STEP_GAP
+	return true
+
+
+## The compact layout's lines, one line each from the top of the steps: all of them when they
+## fit, else whole lines on pages, room left for the pager's marker under them.
+func _fill_pages(
+	lines: PackedStringArray, fizzles: Array[bool], gives: int, minis: Array[Texture2D]
+) -> void:
+	_clear_steps()
+	var built: Array[Control] = []
+	for index: int in range(lines.size()):
+		var giver_mini: Texture2D = minis[index] if index < minis.size() else null
+		var fizzle: bool = fizzles[index] if index < fizzles.size() else false
+		var row: Control = _add_row(
+			lines[index], fizzle, index < gives, giver_mini, STEP_SIZE, STEP_WEIGHT, 0.0, 1
+		)
+		if row != null:
+			# One line each on the mock-up's 18 px pitch (the count's rows keep theirs too).
+			row.size.y = roundf(STEP_SIZE * 1.3)
+			_steps.remove_child(row)
+			built.append(row)
+	_rows.clear()
+	var paged: Array[Array] = _paged(built, _steps.size.y)
+	if paged.size() > 1:
+		paged = _paged(built, _steps.size.y - MonitorStepPages.MARKER_HEIGHT)
+	_pages = MonitorStepPages.new(paged, _steps.size, _tuning.page_interval_s, _tuning.page_fade_s)
+	_pages.reduced_motion = reduced_motion
+	_pages.turned.connect(_on_page_turned)
+	_steps.add_child(_pages)
+	_rows = _pages.rows()
+
+
+## `rows` on pages `room` px tall, each placed under the one before it on its page.
+static func _paged(rows: Array[Control], room: float) -> Array[Array]:
+	var paged: Array[Array] = [[]]
+	var top: float = 0.0
+	for row: Control in rows:
+		if top + row.size.y > room and not paged[-1].is_empty():
+			paged.append([])
+			top = 0.0
+		row.position = Vector2(0, top)
+		paged[-1].append(row)
+		top += row.size.y + STEP_GAP
+	return paged
+
+
+func _on_page_turned(_page: int) -> void:
+	_rows = _pages.rows()
+
+
+static func _struck_text(base: int) -> String:
+	return PriceSticker.price_text(base)
 
 
 ## One step line at `top` (see the class comment). Returns it, or null for an empty line.
@@ -543,21 +768,21 @@ func _add_row(
 	font_size: int,
 	weight: int,
 	top: float,
-	max_lines: int = STEP_MAX_LINES
+	max_lines: int = STEP_MAX_LINES,
+	ink: bool = false
 ) -> Control:
 	if line.is_empty():
 		return null
 	var parts: PackedStringArray = MonitorText.step_parts(line)
 	if _counting and parts[0].begins_with("×"):
+		# The count keeps the receipt's ×, its factor said once, in the amount: "× Multipack".
 		var gap: int = parts[0].find(" ")
 		if gap > 0:
-			parts[0] = parts[0].substr(gap + 1)
-
-	var colour: Color = Palette.INK
+			parts[0] = "× " + parts[0].substr(gap + 1)
+	# Amber means only ×: a line's words (its giver's, a "gives" line's) are teal, a payment's ink.
+	var colour: Color = Palette.INK if ink else STEP_TEXT_COLOR
 	if fizzle:
 		colour = Palette.TOMATO_DARK
-	elif gives:
-		colour = Palette.MUSTARD_DARKEST
 	var row: Control = Control.new()
 	row.name = "Step%d" % _rows.size()
 	row.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -575,7 +800,7 @@ func _add_row(
 			parts[1],
 			font_size + (0 if fizzle else 1),
 			AMOUNT_WEIGHT,
-			Palette.TOMATO_DARK if fizzle else Palette.MUSTARD_DARKEST,
+			_amount_colour(parts[1], fizzle),
 			line_height
 		)
 		amount.name = "Amount"
@@ -603,6 +828,14 @@ func _add_row(
 	row.size = Vector2(_steps.size.x, height)
 	_rows.append(row)
 	return row
+
+
+## An amount's colour: a fizzle's tomato, a factor's ("×3") amber, any other (a "+€1", a payment)
+## ink.
+static func _amount_colour(amount: String, fizzle: bool) -> Color:
+	if fizzle:
+		return Palette.TOMATO_DARK
+	return Palette.MUSTARD_DARKEST if amount.begins_with("×") else Palette.INK
 
 
 ## Whether `row`'s text needs more lines than it shows (it ends in an ellipsis).
@@ -675,6 +908,9 @@ func _clear_price() -> void:
 
 
 func _clear_steps() -> void:
+	if _pages != null:
+		_pages.stop()
+		_pages = null
 	for child: Node in _steps.get_children():
 		_steps.remove_child(child)
 		child.queue_free()
