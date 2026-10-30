@@ -72,6 +72,9 @@ extends Control
 ## `hover=` hovers that aisle's machine; `car=<seconds>` (v0.79) catches a car that passed the
 ## doors that long ago, `lamp` the street lamp's flicker. The file is
 ## shift_screen_toys_<state>_[<aisle>_][car<tenths>_][lamp_]<width>x<height>.png.
+## With `--cheer` (#120) the fixed shift is checked out and frozen mid-count with a crowd of
+## CHEER_TIERS' standees (mixed sizes, the newest still cheering) behind the counter; the file is
+## shift_screen_cheer_<width>x<height>.png.
 
 const SCREEN := preload("res://ui/shift_screen.tscn")
 const SEED := 20261014
@@ -114,6 +117,15 @@ const TOYS_ARGUMENT := "--toys="
 const TOYS_OWNED: Dictionary[StringName, int] = {
 	&"cold_cases": 1, &"pantry": 2, &"household": 1, &"fruit_and_veg": 3, &"bakery": 2
 }
+const CHEER_ARGUMENT := "--cheer"
+const CHEER_PREFIX := "cheer_"
+## --cheer's crowd: the cheer tiers popped in turn (their tuning's counts: 1+3+2+1+1 standees).
+const CHEER_TIERS: Array[int] = [1, 3, 2, 1, 1]
+## --cheer: the count runs this long before it freezes; the pops are this far apart, and the
+## capture follows the last one this soon (its arms still up).
+const CHEER_COUNT_S := 1.2
+const CHEER_POP_GAP_S := 0.3
+const CHEER_LAST_S := 0.16
 const STACK_UPGRADE_IDS: Array[String] = ["coupon_engine", "big_basket", "category_engine"]
 const STACK_ROW_IDS: Array[String] = [
 	"bread",
@@ -192,6 +204,8 @@ var _stack_part: String = ""
 var _week_part: String = ""
 ## A --toys capture's file name part: toys_<state>_[<aisle>_].
 var _toys_part: String = ""
+## A --cheer capture's file name part.
+var _cheer_part: String = ""
 ## Since hold_pointer(): the real pointer drives no hover, tooltip or click.
 var _holding_pointer: bool = false
 
@@ -245,6 +259,8 @@ func _ready() -> void:
 		var machine_spec: String = _argument(MACHINE_ARGUMENT)
 		if machine_spec != "":
 			await machine(machine_spec)
+		if OS.get_cmdline_user_args().has(CHEER_ARGUMENT):
+			await cheer()
 		var tip_spec: String = _argument(TIP_ARGUMENT)
 		if tip_spec != "":
 			await tip(tip_spec)
@@ -456,6 +472,26 @@ func checkout(seconds: float) -> void:
 	await get_tree().create_timer(seconds).timeout
 
 
+## Checks the fixed shift out and freezes the count after CHEER_COUNT_S (the count-up stops
+## processing: its beats and the monitor's motion hold), then pops CHEER_TIERS' standees on the
+## crowd's own tweens, the last one CHEER_LAST_S before the capture.
+func cheer() -> void:
+	await checkout(CHEER_COUNT_S)
+	_checkout_s = -1.0
+	_cheer_part = CHEER_PREFIX
+	_screen._count_up.process_mode = Node.PROCESS_MODE_DISABLED
+	var crowd: CheckoutCrowd = _screen._stage.crowd
+	crowd.begin(SEED, false)
+	crowd.make_tween = crowd.create_tween
+	var tuning: CountUpTuning = load(CountUp.TUNING_PATH) as CountUpTuning
+	for index: int in range(CHEER_TIERS.size()):
+		if index > 0:
+			await get_tree().create_timer(CHEER_POP_GAP_S).timeout
+		var tier: int = CHEER_TIERS[index]
+		crowd.pop(tier, tuning.cheer_counts[tier - 1])
+	await get_tree().create_timer(CHEER_LAST_S).timeout
+
+
 ## Saves the screen into `folder` as shift_screen_<w>x<h>.png (shift_screen_scan_<w>x<h>.png
 ## after scan(), shift_screen_effects_[focus_]<w>x<h>.png after effects()) once it has settled. A
 ## failed save goes to report_error.
@@ -473,7 +509,9 @@ func capture(folder: String) -> void:
 		prefix = FOCUS_PREFIX if _focused else EFFECTS_PREFIX
 	if _checkout_s >= 0.0:
 		prefix += CHECKOUT_PREFIX % roundi(_checkout_s * 10.0)
-	prefix += _machine_part + _reveal_part + _tip_part + _stack_part + _week_part + _toys_part
+	prefix += (
+		_machine_part + _reveal_part + _tip_part + _stack_part + _week_part + _toys_part + _cheer_part
+	)
 	var path: String = folder.path_join(FILE_NAME % [prefix, window.x, window.y])
 	var image: Image = (
 		grab_image.call() as Image

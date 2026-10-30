@@ -12,7 +12,8 @@ extends Control
 ## visits (the fore drops out of frame: set_fore_drop). The stage keeps the `hud`, which never
 ## zooms: the top bar, the scan layer and the popup layer. Every Rect2 below is in stage coordinates
 ## (the world's at 1x), except the MACHINE_* rects the camera puts on screen.  On the stage, back to
-## front: the hung monitor (MonitorView: two rods, its bezel and paper screen, with the scanner bay,
+## front: the checkout cheering's standees (CheckoutCrowd, #120)
+## on the back wall, the hung monitor (MonitorView: two rods, its bezel and paper screen, with the scanner bay,
 ## the item column, the checkout column and the notices on it), the register (RegisterCabinet, the
 ## count-up's rattle target: the printer box on the counter top and the register column under it,
 ## with the key deck and its keys, Cancel, Redraw and CHECKOUT, the keypad, the seed line under
@@ -165,6 +166,8 @@ var world: Control
 var fore: Control
 ## The RECEIPT REWARDS machine on the wall (add_machine), or null.
 var machine: Control
+## The checkout cheering's cardboard standees (#120): over the machine, under the monitor.
+var crowd: CheckoutCrowd
 var top_bar: TopBar
 var shift_label: Label
 var quota_label: Label
@@ -234,6 +237,8 @@ func _init(slot_count: int) -> void:
 	world.offset_bottom = SIZE.y / 2.0
 	add_child(world)
 	fore = _layer("Fore")
+	crowd = CheckoutCrowd.new()
+	world.add_child(crowd)
 	_build_monitor()
 	world.add_child(fore)
 	_build_register()
@@ -248,7 +253,7 @@ func _init(slot_count: int) -> void:
 func add_machine(view: Control) -> void:
 	machine = view
 	world.add_child(view)
-	world.move_child(view, fore.get_index())
+	world.move_child(view, crowd.get_index())
 	view.position = MACHINE_WALL_RECT.position
 	view.scale = Vector2.ONE * MACHINE_WALL_SCALE
 

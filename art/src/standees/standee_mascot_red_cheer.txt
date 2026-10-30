@@ -1,0 +1,2 @@
+; Checkout cheering (#120): the store mascot recoloured: a red shirt; its arms-up cheer frame.
+@derive standee_mascot_cheer golden=keys M=R m=r y=o

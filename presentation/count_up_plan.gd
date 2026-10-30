@@ -36,6 +36,8 @@ extends RefCounted
 enum Size { NORMAL, LARGE, HUGE }
 
 const LAST_STAGE := 5
+## The highest cheer tier (#120): huge.
+const CHEER_TOP_TIER := 3
 ## The shared subtotal roll's tuning, unless build() is given another.
 const TOTAL_TUNING_PATH := "res://data/balance/count_total.tres"
 
@@ -175,6 +177,20 @@ static func is_gain_beat(beat: CountUpBeat) -> bool:
 	return false
 
 
+## A combo the cheering counts (#120): ReceiptView.is_combo, but only one that lifts the payout
+## (a bonus above 0, a factor above 1, a copy), so a day event's penalty (Late delivery's -€2)
+## never cheers more.
+static func is_cheer_combo(step: ScoreStep) -> bool:
+	if not ReceiptView.is_combo(step):
+		return false
+	match step.step_type:
+		ScoreStep.StepType.FLAT:
+			return step.value > 0
+		ScoreStep.StepType.MULTIPLIER:
+			return step.value > 1
+	return true
+
+
 func _make_beats(steps: Array[ScoreStep]) -> void:
 	var index: int = 0
 	while index < steps.size():
@@ -308,6 +324,7 @@ func _set_payouts(steps: Array[ScoreStep]) -> void:
 			passes_best_beat = index
 		var rattle: float = 0.0
 		var threshold: float = maxf(_tuning.rattle_min_payout, _tuning.rattle_min_share * best)
+		_set_cheer(steps, beat, threshold)
 		if beat.payout > 0 and beat.payout >= threshold:
 			rattle = minf(
 				_tuning.rattle_max_px,
@@ -316,6 +333,28 @@ func _set_payouts(steps: Array[ScoreStep]) -> void:
 		if passes_best_beat != -1 and beat.payout > 0:
 			rattle += _tuning.passes_best_rattle_px
 		beat.rattle_px = 0.0 if reduced_motion else rattle
+
+
+## Checkout cheering (#120): a paid item's tier (small, big from `big`, huge from the tuning's
+## cheer_huge_share of the best), one more for a combo, and the standees it pops. Decided before
+## and whatever the reduced motion (it only makes them appear at once).
+func _set_cheer(steps: Array[ScoreStep], beat: CountUpBeat, big: float) -> void:
+	if beat.payout <= 0:
+		return
+	var tier: int = 1
+	if beat.payout >= maxf(big, _tuning.cheer_huge_share * best):
+		tier = CHEER_TOP_TIER
+	elif beat.payout >= big:
+		tier = 2
+	var paid_at: int = beat.steps[beat.steps.size() - 1]
+	for index: int in range(paid_at):
+		if steps[index].slot == beat.slot and is_cheer_combo(steps[index]):
+			beat.cheer_combo = true
+	if beat.cheer_combo:
+		tier = mini(tier + 1, CHEER_TOP_TIER)
+	beat.cheer_tier = tier
+	var counts: PackedInt32Array = _tuning.cheer_counts
+	beat.cheer_count = counts[mini(tier, counts.size()) - 1] if not counts.is_empty() else 1
 
 
 ## D1: gain beats climb the ladder, fitted to the row so the last gain lands on the top note
