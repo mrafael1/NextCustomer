@@ -89,6 +89,12 @@ const STRUCK_PRICE_SIZE := 15
 const PIXEL_TEXT_SIZE := 11
 ## Its capitals are this many font pixels tall.
 const PIXEL_CAP_HEIGHT := 7
+## Hard pixel digits (#121, the toy machines in direction C+): the number font rasterised the same
+## way at PIXEL_NUMBER_SIZE px and PIXEL_NUMBER_WEIGHT (a step lighter than NUMBER_WEIGHT, so the
+## counters of 6, 8 and 9 stay open at this size), drawn 2x so they sit on the words' grid on
+## the words' baseline (PixelLine).
+const PIXEL_NUMBER_SIZE := 12
+const PIXEL_NUMBER_WEIGHT := 700
 ## A glyph tooltip's text: the body font at TIP_TEXT_WEIGHT, TIP_TEXT_SIZE px.
 const TIP_TEXT_WEIGHT := 800
 const TIP_TEXT_SIZE := 13
@@ -102,6 +108,7 @@ static var _number_font: FontVariation
 static var _bold_fonts: Dictionary[int, FontVariation] = {}
 static var _spaced_display_fonts: Dictionary[int, FontVariation] = {}
 static var _pixel_display_font: FontFile
+static var _pixel_number_font: FontVariation
 static var _rim_materials: Dictionary[String, ShaderMaterial] = {}
 
 
@@ -306,6 +313,25 @@ static func pixel_display_font() -> Font:
 		_pixel_display_font.keep_rounding_remainders = false
 		_pixel_display_font.generate_mipmaps = false
 	return _pixel_display_font
+
+
+## The number font as hard pixels, for PIXEL_NUMBER_SIZE (#121): a raster FontFile on the body
+## font's data, like pixel_display_font, at PIXEL_NUMBER_WEIGHT.
+static func pixel_number_font() -> Font:
+	if _pixel_number_font == null:
+		var raster: FontFile = FontFile.new()
+		raster.data = BODY_FONT.data
+		raster.antialiasing = TextServer.FONT_ANTIALIASING_NONE
+		raster.multichannel_signed_distance_field = false
+		raster.hinting = TextServer.HINTING_NONE
+		raster.subpixel_positioning = TextServer.SUBPIXEL_POSITIONING_DISABLED
+		raster.keep_rounding_remainders = false
+		raster.generate_mipmaps = false
+		_pixel_number_font = FontVariation.new()
+		_pixel_number_font.base_font = raster
+		var weight: int = TextServerManager.get_primary_interface().name_to_tag("wght")
+		_pixel_number_font.variation_opentype = {weight: PIXEL_NUMBER_WEIGHT}
+	return _pixel_number_font
 
 
 ## The glyph texture's path for an aisle.

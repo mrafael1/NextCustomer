@@ -1,15 +1,17 @@
 extends GdUnitTestSuite
-## The TOY MACHINES' layout (#63, look A; memory: UI tests check on-screen geometry): with six
-## machines every machine is inside the 1280x720 window and none overlaps another, each sign's
-## glyph and name fit its 144 px board, each floor label is inside the screen under its machine,
-## and the chips, the board, the hint or notice and both buttons are inside and clear of the
-## machines; three machines centre in 0..1000. Every state shows by more than colour: OK (price,
-## pointing hand), EMPTY (the ALL COLLECTED rosette, no price, no click), BROKE (0 coins: dimmed,
-## arrow cursor, the notice), OFF (OUT OF ORDER paper, COINS ?, the notice); the full collection's
-## banner and hint; a fresh profile. No player-facing text says "gacha". Saves and logs go to a
+## The TOY MACHINES' layout (#121, mock-up toy_machines_121_v2.html; memory: UI tests check
+## on-screen geometry): with six machines every machine, its sign, its figurine and its floor
+## plate are inside the 1280x720 window, no machine's click area overlaps another's, every
+## plate's text fits its plate, the figurines stand over their signs clear of the board and the
+## LEDs, and the LEDs, the board, the LED strip and both buttons are inside and clear of the
+## machines; the strip sits between the floor plates and the buttons. A hovered machine's lineup
+## is inside the screen, left of the doors, clear of every machine's click area and of the LEDs,
+## and takes the board's place. Three machines centre in 0..1000. Saves and logs go to a
 ## temporary folder.
 
 const Kit := preload("res://tests/ui/toy_test_kit.gd")
+## The doors' left edge (ToyExitArt.DOORS_RECT less its frame, in canvas px).
+const DOORS_LEFT := 1040.0
 
 var _folder: String = ""
 var _window_size: Vector2i
@@ -30,79 +32,179 @@ func after_test() -> void:
 
 
 func test_six_machines_fit_the_screen_without_overlaps() -> void:
-	var profile: ProfileState = Kit.profile(
-		2, 4, {&"cold_cases": 1, &"pantry": 2, &"household": 1, &"fruit_and_veg": 3}
-	)
-	var screen: ToyMachinesScreen = await _open(profile)
+	var screen: ToyMachinesScreen = await _open(Kit.profile(2, 4, _partial()))
 	var machines: Array[ToyMachineView] = screen.machines()
 	assert_int(machines.size()).is_equal(6)
-	var rects: Array[Rect2] = []
+	var hits: Array[Rect2] = []
 	for machine: ToyMachineView in machines:
 		var rect: Rect2 = Rect2(machine.global_position, ToyMachineView.SIZE)
-		assert_bool(Kit.SCREEN_RECT.encloses(rect)).override_failure_message(str(rect)).is_true()
-		for other: Rect2 in rects:
-			assert_bool(rect.intersects(other)).is_false()
-		rects.append(rect)
-		# The glyph and the name fit the board, inside its band.
+		_assert_inside(rect, "machine")
+		var hit: Rect2 = machine.hit_rect()
+		_assert_inside(hit, "click area")
+		for other: Rect2 in hits:
+			assert_bool(hit.intersects(other)).is_false()
+		hits.append(hit)
+		# The sign, the figurine and the floor plate are inside the click area's column.
 		var sign_rect: Rect2 = machine.sign_rect()
-		var name_rect: Rect2 = Kit.rect(machine.sign_label())
+		_assert_inside(sign_rect, "sign")
+		_assert_fits(machine.part("sign_text") as PixelLine, machine.part("sign") as ToyPlate)
+		var topper: Rect2 = machine.part("topper").get_global_rect()
+		_assert_inside(topper, "topper")
+		assert_bool(machine.part("topper").visible).is_true()
+		assert_bool(hit.encloses(topper)).override_failure_message(str(topper)).is_true()
+		assert_float(topper.end.y).is_less_equal(sign_rect.position.y)
+		var plinth: Rect2 = machine.part("plinth").get_global_rect()
+		assert_float(plinth.end.y).is_equal_approx(sign_rect.position.y, 0.5)
+		var floor_plate: ToyPlate = machine.part("floor") as ToyPlate
+		var floor_rect: Rect2 = floor_plate.get_global_rect()
+		_assert_inside(floor_rect, "floor plate")
+		assert_float(floor_rect.position.y).is_greater_equal(rect.end.y)
+		assert_float(absf(floor_rect.get_center().x - rect.get_center().x)).is_less(4.0)
+		_assert_fits(machine.part("floor_text") as PixelLine, floor_plate)
+		# The parts above stay clear of the board and the LEDs.
+		for part: Rect2 in [_board_rect(screen), _chip_rects(screen)[0], _chip_rects(screen)[1]]:
+			assert_bool(topper.intersects(part)).override_failure_message(str(part)).is_false()
+	assert_str(machines[0].floor_text()).is_equal("1 OF 2 LEFT")
+	assert_str(machines[1].floor_text()).is_equal(ToyMachineView.COLLECTED_TEXT)
+	assert_str(machines[3].floor_text()).is_equal("5 OF 8 LEFT")
+	assert_str((machines[3].part("sign_text") as PixelLine).text()).is_equal("FRUIT & VEG")
+	# LEDs, board, strip and buttons: inside, clear of the machines' click areas.
+	var parts: Array[Rect2] = _chip_rects(screen)
+	(
+		parts
+		. append_array(
+			[
+				_board_rect(screen),
+				screen.strip().get_global_rect(),
+				Kit.rect(screen.shelf_button()),
+				Kit.rect(screen.done_button()),
+			]
+		)
+	)
+	for part: Rect2 in parts:
+		_assert_inside(part, str(part))
+		for hit: Rect2 in hits:
+			assert_bool(part.intersects(hit)).override_failure_message(str(part)).is_false()
+	assert_bool(parts[0].intersects(parts[1])).is_false()
+	assert_bool(parts[4].intersects(parts[5])).is_false()
+	assert_str(screen.coins_text()).is_equal("2")
+	assert_str(screen.figurines_text()).is_equal("9/30")
+	# The machines stand left of the doors.
+	assert_float(hits[-1].end.x).is_less_equal(DOORS_LEFT)
+
+
+## The strip sits between the floor plates and the buttons, inside the screen; its rows fit it.
+func test_the_led_strip_sits_between_the_floor_plates_and_the_buttons() -> void:
+	var profiles: Array[ProfileState] = [
+		Kit.profile(2, 4, _partial()), Kit.profile(0, 4), Kit.profile(5, 9, Kit.full_counts())
+	]
+	var kinds: Array[ToyMachinesScreen.Strip] = [
+		ToyMachinesScreen.Strip.HINT,
+		ToyMachinesScreen.Strip.BROKE,
+		ToyMachinesScreen.Strip.COMPLETE
+	]
+	for index: int in profiles.size():
+		var screen: ToyMachinesScreen = await _open(profiles[index])
+		assert_int(screen.strip_kind()).is_equal(kinds[index])
+		var strip: Rect2 = screen.strip().get_global_rect()
+		_assert_inside(strip, "strip")
+		var floor_bottom: float = 0.0
+		for machine: ToyMachineView in screen.machines():
+			floor_bottom = maxf(floor_bottom, machine.part("floor").get_global_rect().end.y)
+		assert_float(strip.position.y).is_greater_equal(floor_bottom)
+		var buttons_top: float = minf(
+			Kit.rect(screen.shelf_button()).position.y, Kit.rect(screen.done_button()).position.y
+		)
+		assert_float(strip.end.y).is_less_equal(buttons_top)
+		assert_float(absf(strip.get_center().x - Kit.SCREEN_RECT.size.x / 2.0)).is_less(4.0)
+		for row: PixelLine in screen.strip().rows():
+			var row_rect: Rect2 = Rect2(row.global_position, row.size)
+			assert_bool(strip.encloses(row_rect)).override_failure_message(str(row_rect)).is_true()
+
+
+## The buttons' captions fit their plates; DONE's chevron stays on the plate.
+func test_the_buttons_captions_fit_their_plates() -> void:
+	var screen: ToyMachinesScreen = await _open(Kit.profile(1, 1))
+	for plate: MenuPlate in [screen.shelf_button(), screen.done_button()] as Array[MenuPlate]:
+		var face: Rect2 = Rect2(plate.global_position, plate.face_size())
+		var caption: Label = plate.caption_label()
+		var text: Rect2 = _caption_ink(caption)
 		(
-			assert_bool(sign_rect.grow(0.5).encloses(name_rect))
-			. override_failure_message(
-				"%s %s in %s" % [machine.sign_label().text, name_rect, sign_rect]
-			)
+			assert_bool(face.encloses(text))
+			. override_failure_message("%s %s in %s" % [caption.text, text, face])
 			. is_true()
 		)
-		var text_width: float = machine.sign_label().get_minimum_size().x
-		(
-			assert_float(text_width + ToyMachineView.GLYPH_SIZE.x + ToyMachineView.SIGN_GAP)
-			. is_less_equal(ToyMachineView.SIZE.x - 2.0 * ToyMachineView.SIGN_PADDING)
-		)
-	# Floor labels: inside the screen, under their machine, centred on it.
-	var floor_labels: Array[Label] = screen.floor_labels()
-	for index: int in range(machines.size()):
-		var label_rect: Rect2 = (floor_labels[index].get_parent() as Control).get_global_rect()
-		assert_bool(Kit.SCREEN_RECT.encloses(label_rect)).is_true()
-		assert_float(label_rect.position.y).is_greater_equal(rects[index].end.y)
-		assert_float(absf(label_rect.get_center().x - rects[index].get_center().x)).is_less(1.5)
-		for other: Rect2 in rects:
-			assert_bool(label_rect.intersects(other)).is_false()
-	assert_str(floor_labels[0].text).is_equal("1 of 2 left")
-	assert_str(floor_labels[1].text).is_equal("All 2 collected")
-	assert_str(floor_labels[3].text).is_equal("5 of 8 left")
-	# Chips, board, hint and buttons: inside, clear of the machines.
-	var parts: Array[Rect2] = [
-		screen.coins_chip().get_global_rect(),
-		(screen.figurines_label().get_parent().get_parent() as Control).get_global_rect(),
-		Kit.rect(screen.hint_label()),
-		Kit.rect(screen.shelf_button()),
-		Kit.rect(screen.done_button()),
-	]
-	assert_bool(screen.hint_label().visible).is_true()
-	assert_bool(screen.notice_panel().visible).is_false()
-	assert_str(screen.hint_label().text).is_equal("Pick a machine: 1 coin a capsule.")
-	for part: Rect2 in parts:
-		assert_bool(Kit.SCREEN_RECT.encloses(part)).override_failure_message(str(part)).is_true()
-		for machine: Rect2 in rects:
-			assert_bool(part.intersects(machine)).override_failure_message(str(part)).is_false()
-	assert_bool(parts[3].intersects(parts[4])).is_false()
-	assert_bool(parts[0].intersects(parts[1])).is_false()
-	assert_str(screen.coins_label().text).is_equal("2")
-	assert_str(screen.figurines_label().text).is_equal("7 / 30")
-	# The machines stand left of the doors.
-	assert_float(rects[-1].end.x).is_less_equal(1006.0)
+		for child: Node in caption.get_children():
+			var chevron: Control = child as Control
+			assert_bool(face.encloses(chevron.get_global_rect())).is_true()
+	assert_str(screen.done_button().caption).is_equal(ToyMachinesScreen.DONE_TEXT)
 
 
-## The FIGURINES chip counts the capsule items held; the globe holds one capsule per item left,
-## eight at most.
-func test_the_globe_shows_the_capsules_left() -> void:
-	var screen: ToyMachinesScreen = await _open(Kit.profile(1, 1, {&"bakery": 1}))
-	var by_id: Dictionary = {}
+## Hovering a machine puts its lineup in the board's place: inside the screen, left of the doors,
+## clear of every machine's click area and the LEDs, its minis on its plate (owned in colour).
+## An OUT OF ORDER machine shows none; nor does the reveal.
+func test_the_lineup_takes_the_boards_place() -> void:
+	var profile: ProfileState = Kit.profile(3, 4, _partial())
+	var screen: ToyMachinesScreen = await _open(profile)
+	var hits: Array[Rect2] = []
 	for machine: ToyMachineView in screen.machines():
-		by_id[machine.aisle().id] = machine.capsule_count()
-	assert_int(by_id[&"cold_cases"]).is_equal(2)
-	assert_int(by_id[&"bakery"]).is_equal(7)
-	assert_int(by_id[&"fruit_and_veg"]).is_equal(8)
+		hits.append(machine.hit_rect())
+	for machine: ToyMachineView in screen.machines():
+		machine._on_hover(true)
+		var lineup: ToyLineup = screen.lineup()
+		var aisle: AisleDefinition = machine.aisle()
+		assert_bool(lineup.visible).is_true()
+		assert_bool(screen.board().visible).is_false()
+		var strip: Rect2 = lineup.strip_rect()
+		_assert_inside(strip, "lineup")
+		assert_float(strip.end.x).is_less_equal(DOORS_LEFT)
+		for hit: Rect2 in hits:
+			assert_bool(strip.intersects(hit)).override_failure_message(str(strip)).is_false()
+		for chip: Rect2 in _chip_rects(screen):
+			assert_bool(strip.intersects(chip)).is_false()
+		_assert_fits(lineup.title_line(), lineup.plate())
+		assert_str(lineup.title_line().text()).is_equal(
+			ToyLineup.TITLE_TEXT % aisle.display_name.to_upper()
+		)
+		var face: Rect2 = lineup.plate().get_global_rect()
+		assert_int(lineup.minis().size()).is_equal(aisle.capsule_cards.size())
+		var owned: int = 0
+		for index: int in lineup.minis().size():
+			assert_bool(face.encloses(lineup.minis()[index].get_global_rect())).is_true()
+			owned += 1 if lineup.is_owned(index) else 0
+		assert_int(owned).is_equal(_partial().get(aisle.id, 0))
+		machine._on_hover(false)
+		assert_bool(lineup.visible).is_false()
+		assert_bool(screen.board().visible).is_true()
+	# The reveal hides it.
+	screen.machines()[0]._on_hover(true)
+	screen.machines()[0]._gui_input(Kit.left_click())
+	assert_bool(screen.reveal().visible).is_true()
+	assert_bool(screen.lineup().visible).is_false()
+	await await_idle_frame()
+
+
+## The row holds FULL_ROW machines at most (a seventh would stand on the doors): the live
+## balance keeps within it.
+func test_the_balance_fits_one_row() -> void:
+	assert_int(Kit.balance().aisles.size()).is_less_equal(ToyMachinesScreen.FULL_ROW)
+	var last: float = (
+		ToyMachinesScreen.row_x0(ToyMachinesScreen.FULL_ROW)
+		+ (ToyMachinesScreen.FULL_ROW - 1) * ToyMachinesScreen.MACHINE_PITCH
+		+ ToyMachineView.SIZE.x
+	)
+	assert_float(last).is_less_equal(DOORS_LEFT)
+
+
+## The buttons' hover tick sits the mock-up's 7 art px left of the plate at rest.
+func test_the_buttons_tick_sits_left_of_the_plate() -> void:
+	var screen: ToyMachinesScreen = await _open(Kit.profile(1, 1))
+	for plate: MenuPlate in [screen.shelf_button(), screen.done_button()] as Array[MenuPlate]:
+		plate.marked = true
+		await await_idle_frame()
+		assert_bool(plate.tick().visible).is_true()
+		assert_float(plate.tick().position.x).is_equal(-ToyMachinesScreen.BUTTON_TICK_LEFT)
+		assert_float(plate.tick().get_global_rect().position.x).is_greater_equal(0.0)
 
 
 func test_three_machines_centre_left_of_the_doors() -> void:
@@ -112,104 +214,17 @@ func test_three_machines_centre_left_of_the_doors() -> void:
 	assert_int(machines.size()).is_equal(3)
 	var left: float = machines[0].global_position.x
 	var right: float = machines[2].global_position.x + ToyMachineView.SIZE.x
-	assert_float((left + right) / 2.0).is_equal_approx(500.0, 1.0)
+	assert_float((left + right) / 2.0).is_equal_approx(500.0, 2.0)
+	assert_float(fmod(left, 2.0)).is_equal(0.0)
 	assert_float(machines[1].global_position.x - left).is_equal(ToyMachinesScreen.MACHINE_PITCH)
-	assert_str(screen.figurines_label().text).is_equal("0 / 7")
-
-
-func test_ok_and_empty_machines() -> void:
-	var screen: ToyMachinesScreen = await _open(Kit.profile(3, 2, {&"pantry": 2}))
-	var ok: ToyMachineView = _machine(screen, &"cold_cases")
-	assert_int(ok.state()).is_equal(CapsuleCounter.State.OK)
-	assert_bool(ok.price_label().visible).is_true()
-	assert_int(ok.mouse_default_cursor_shape).is_equal(Control.CURSOR_POINTING_HAND)
-	(
-		assert_bool(
-			Rect2(ok.global_position, ToyMachineView.SIZE).encloses(
-				ok.price_label().get_global_rect()
-			)
+	assert_str(screen.figurines_text()).is_equal("0/7")
+	# One lamp over each machine.
+	assert_int(screen.lamps().size()).is_equal(3)
+	for index: int in machines.size():
+		var lamp: Rect2 = screen.lamps()[index].get_global_rect()
+		assert_float(lamp.get_center().x).is_equal_approx(
+			machines[index].global_position.x + ToyMachineView.SIZE.x / 2.0, 0.5
 		)
-		. is_true()
-	)
-	var empty: ToyMachineView = _machine(screen, &"pantry")
-	assert_int(empty.state()).is_equal(CapsuleCounter.State.EMPTY)
-	assert_bool(empty.rosette().visible).is_true()
-	assert_bool(empty.price_label().visible).is_false()
-	assert_int(empty.capsule_count()).is_equal(0)
-	assert_int(empty.mouse_default_cursor_shape).is_equal(Control.CURSOR_ARROW)
-	var picks: Array[int] = [0]
-	empty.picked.connect(func(_aisle: AisleDefinition) -> void: picks[0] += 1)
-	empty._gui_input(Kit.left_click())
-	assert_int(picks[0]).is_equal(0)
-	assert_int(screen.counter().profile.coins).is_equal(3)
-	# Hover lifts an OK machine only.
-	ok._on_hover(true)
-	assert_bool(ok.is_lifted()).is_true()
-	empty._on_hover(true)
-	assert_bool(empty.is_lifted()).is_false()
-
-
-func test_zero_coins_dims_the_machines_and_shows_the_notice() -> void:
-	var screen: ToyMachinesScreen = await _open(Kit.profile(0, 3, {&"snacks": 1}))
-	for machine: ToyMachineView in screen.machines():
-		assert_int(machine.state()).is_equal(CapsuleCounter.State.BROKE)
-		assert_int(machine.mouse_default_cursor_shape).is_equal(Control.CURSOR_ARROW)
-		assert_float(machine._art.modulate.r).is_less(1.0)
-		assert_bool(machine.price_label().visible).is_true()
-	assert_bool(screen.notice_panel().visible).is_true()
-	assert_str(screen.notice_label().text).is_equal(ToyMachinesScreen.BROKE_NOTICE)
-	assert_bool(screen.hint_label().visible).is_false()
-	_assert_notice_on_screen(screen)
-
-
-func test_cant_save_switches_every_machine_off() -> void:
-	var profile: ProfileState = Kit.profile(4, 3, {&"cold_cases": 2})
-	var counter: CapsuleCounter = CapsuleCounter.new(
-		profile, SaveService.new(_folder), Kit.balance(), Kit.event_log(), false, false
-	)
-	var screen: ToyMachinesScreen = await _open_counter(counter, Kit.balance())
-	for machine: ToyMachineView in screen.machines():
-		assert_int(machine.state()).is_equal(CapsuleCounter.State.OFF)
-		assert_bool(machine.paper().visible).is_true()
-		assert_bool(machine.price_label().visible).is_false()
-		(
-			assert_bool(
-				Rect2(machine.global_position, ToyMachineView.SIZE).encloses(
-					machine.paper().get_child(0).get_global_rect()
-				)
-			)
-			. is_true()
-		)
-	assert_str(screen.coins_label().text).is_equal("?")
-	assert_str(screen.notice_label().text).is_equal(ToyMachinesScreen.OFF_NOTICE)
-	assert_str(screen.figurines_label().text).is_equal("2 / 30")
-	_assert_notice_on_screen(screen)
-
-
-func test_the_full_collection() -> void:
-	var screen: ToyMachinesScreen = await _open(Kit.profile(5, 9, Kit.full_counts()))
-	for machine: ToyMachineView in screen.machines():
-		assert_int(machine.state()).is_equal(CapsuleCounter.State.EMPTY)
-		assert_bool(machine.rosette().visible).is_true()
-	assert_str(screen.banner_label().text).is_equal(ToyMachinesScreen.FULL_BANNER)
-	assert_bool(Kit.SCREEN_RECT.encloses(Kit.rect(screen.banner_label()))).is_true()
-	assert_float(screen.banner_label().get_minimum_size().x).is_less_equal(
-		ToyMachinesScreen.BANNER_RECT.size.x
-	)
-	assert_str(screen.hint_label().text).is_equal(ToyMachinesScreen.FULL_HINT)
-	assert_bool(screen.notice_panel().visible).is_false()
-	assert_str(screen.figurines_label().text).is_equal("30 / 30")
-	assert_str(screen.floor_labels()[3].text).is_equal("All 8 collected")
-	assert_bool(screen.shelf_button().visible).is_true()
-	assert_bool(screen.done_button().visible).is_true()
-
-
-func test_a_fresh_profile() -> void:
-	var screen: ToyMachinesScreen = await _open(Kit.profile(1, 1))
-	for machine: ToyMachineView in screen.machines():
-		assert_int(machine.state()).is_equal(CapsuleCounter.State.OK)
-	assert_str(screen.figurines_label().text).is_equal("0 / 30")
-	assert_str(screen.banner_label().text).is_empty()
 
 
 ## No player-facing text says "gacha", in the copy or in any label in any state.
@@ -220,28 +235,66 @@ func test_no_gacha_anywhere() -> void:
 	for coins: int in [0, 2]:
 		for collected: Dictionary in counts:
 			var screen: ToyMachinesScreen = await _open(Kit.profile(coins, 2, collected))
+			screen.machines()[0]._on_hover(true)
 			screen._open_shelf()
 			for label: Label in Kit.labels(screen):
 				assert_bool(label.text.to_lower().contains("gacha")).is_false()
 
 
-func _assert_notice_on_screen(screen: ToyMachinesScreen) -> void:
-	var notice: Rect2 = screen.notice_panel().get_global_rect()
-	assert_bool(Kit.SCREEN_RECT.encloses(notice)).is_true()
-	for machine: ToyMachineView in screen.machines():
-		(
-			assert_bool(notice.intersects(Rect2(machine.global_position, ToyMachineView.SIZE)))
-			. is_false()
+## The mock-up's partial collection: 9 of the 30 figurines.
+static func _partial() -> Dictionary:
+	return {&"cold_cases": 1, &"pantry": 2, &"household": 1, &"fruit_and_veg": 3, &"bakery": 2}
+
+
+func _assert_inside(rect: Rect2, what: String) -> void:
+	(
+		assert_bool(Kit.SCREEN_RECT.encloses(rect))
+		. override_failure_message("%s %s" % [what, rect])
+		. is_true()
+	)
+
+
+## The line's words lie on the plate's face, above its ledge and right of its stripe.
+func _assert_fits(line: PixelLine, plate: ToyPlate) -> void:
+	var art: float = ArtStyle.ART_SCALE
+	var face: Rect2 = plate.get_global_rect()
+	face = Rect2(
+		face.position + Vector2(ToyPlate.STRIPE_AT.x + 3, 1) * art,
+		face.size - Vector2(ToyPlate.STRIPE_AT.x + 4, ToyPlate.LEDGE_ROWS + 1) * art
+	)
+	var text: Rect2 = Rect2(line.global_position, line.size)
+	(
+		assert_bool(face.encloses(text))
+		. override_failure_message("%s %s in %s" % [line.text(), text, face])
+		. is_true()
+	)
+
+
+## A pixel caption's capitals on screen: from its ink's left (past Pixelify's left bearing),
+## its words' width, from its cap top down the capitals' height.
+func _caption_ink(caption: Label) -> Rect2:
+	var font: Font = ArtStyle.pixel_display_font()
+	var cap_top: float = font.get_ascent(ArtStyle.PIXEL_TEXT_SIZE) - ArtStyle.PIXEL_CAP_HEIGHT
+	var text_scale: float = caption.scale.x
+	var art: float = ArtStyle.ART_SCALE
+	return Rect2(
+		caption.global_position + Vector2(PixelLine.LEFT_BEARING, cap_top) * text_scale,
+		Vector2(
+			PixelLine.word_width(caption.text, roundi(text_scale / art)),
+			ArtStyle.PIXEL_CAP_HEIGHT * text_scale
 		)
-	assert_bool(notice.intersects(Kit.rect(screen.shelf_button()))).is_false()
-	assert_bool(notice.intersects(Kit.rect(screen.done_button()))).is_false()
+	)
 
 
-func _machine(screen: ToyMachinesScreen, id: StringName) -> ToyMachineView:
-	for machine: ToyMachineView in screen.machines():
-		if machine.aisle().id == id:
-			return machine
-	return null
+func _board_rect(screen: ToyMachinesScreen) -> Rect2:
+	var board: Rect2 = screen.board().get_global_rect()
+	var art: float = ArtStyle.ART_SCALE
+	var top: float = ToyExitArt.BOARD_RECT.position.y - ToyExitArt.BOARD_LAYER.position.y
+	return Rect2(board.position + Vector2(0, top * art), board.size - Vector2(0, top * art))
+
+
+func _chip_rects(screen: ToyMachinesScreen) -> Array[Rect2]:
+	return [screen.coins_chip().get_global_rect(), screen.figurines_chip().get_global_rect()]
 
 
 func _open(profile: ProfileState, balance: BalanceDefinition = null) -> ToyMachinesScreen:
@@ -249,14 +302,10 @@ func _open(profile: ProfileState, balance: BalanceDefinition = null) -> ToyMachi
 	var counter: CapsuleCounter = CapsuleCounter.new(
 		profile, SaveService.new(_folder), used, Kit.event_log(), false, true
 	)
-	return await _open_counter(counter, used)
-
-
-func _open_counter(counter: CapsuleCounter, balance: BalanceDefinition) -> ToyMachinesScreen:
 	var screen: ToyMachinesScreen = ToyMachinesScreen.new()
 	add_child(screen)
 	auto_free(screen)
-	screen.open(counter, balance)
+	screen.open(counter, used)
 	for frame: int in range(3):
 		await await_idle_frame()
 	return screen

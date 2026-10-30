@@ -1,0 +1,3 @@
+; The Fruit & veg cabinet top (#121) in the off tone (TONE_MAPS off: lights out, desaturated; out
+; of order).
+@derive toy_cabinet_fruit_and_veg tone=off

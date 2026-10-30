@@ -1,0 +1,10 @@
+; The Pantry topper's plinth (#121): a 4 px block in the aisle colour on a 1 px wider contact
+; shadow. 36x6 art px at machine art (18,-6).
+@size 36x6
+@kind scenery
+..################################..
+..#yyyyyyyyyyyyyyyyyyyyyyyyyyyyyy#..
+..#MMMMMMMMMMMMMMMMMMMMMMMMMMMMMM#..
+..#mmmmmmmmmmmmmmmmmmmmmmmmmmmmmm#..
+..################################..
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%

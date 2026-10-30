@@ -1,0 +1,2 @@
+; The coin in the dim tone (#121: the COINS chip when the coins can't be read; TONE_MAPS dim).
+@derive coin tone=dim

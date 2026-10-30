@@ -795,6 +795,71 @@ class AisleDeriveTest(TempTestCase):
         self.assertEqual(sorted(ids), sorted(pa.AISLE_MAPS))
 
 
+def tone_source(base: str, tone: str, aisle: str = "") -> str:
+    recolour = f" aisle={aisle}" if aisle else ""
+    return f"; a tone\n@derive {base}{recolour} tone={tone}\n"
+
+
+class ToneDeriveTest(TempTestCase):
+    """#121's @derive <source> [aisle=<id>] tone=<dim|off>: a fixed key-for-key map."""
+
+    def setUp(self) -> None:
+        super().setUp()
+        palette = pa.DEFAULT_SRC / pa.PALETTE_FILE
+        (self.ws.src / pa.PALETTE_FILE).write_text(palette.read_text(encoding="utf-8"),
+                                                   encoding="utf-8")
+
+    def test_a_tone_derive_builds_through_its_map_and_checks_clean(self) -> None:
+        self.ws.add("toys/machine", TEAL_SCENERY)
+        self.ws.add("toys/machine_dim", tone_source("machine", "dim"))
+        self.ws.add("toys/machine_off", tone_source("machine", "off"))
+        project = self.ws.load()
+        self.assertEqual(project.errors, [])
+        dim = next(s for s in project.sprites if s.name == "toys/machine_dim")
+        self.assertEqual((dim.width, dim.height, dim.kind, dim.scale), (6, 4, "scenery", 2))
+        # Two steps down each ramp: 5 4 3 2 become 3 2 1 8, glass p becomes 3, ink stays.
+        self.assertEqual(dim.rows, ["######", "#3322#", "#1188#", "#33..#"])
+        off = next(s for s in project.sprites if s.name == "toys/machine_off")
+        self.assertEqual(off.rows, ["NNNNNN", "NDDEEN", "NIIssN", "NCC..N"])
+        written = pa.build(project)
+        self.assertIn(self.ws.out / "toys" / "machine_dim.png", written)
+        self.assertEqual(pa.check(self.ws.load()), [])
+
+    def test_an_aisle_tone_recolours_the_aisle_first(self) -> None:
+        self.ws.add("toys/machine", TEAL_SCENERY)
+        self.ws.add("toys/machine_pantry_dim", tone_source("machine", "dim", "pantry"))
+        project = self.ws.load()
+        self.assertEqual(project.errors, [])
+        derived = next(s for s in project.sprites if s.name == "toys/machine_pantry_dim")
+        # 5 4 3 2 become y M m m (pantry), then m u u u (dim).
+        self.assertEqual(derived.rows, ["######", "#mmuu#", "#uuuu#", "#33..#"])
+
+    def test_bad_tones_are_errors(self) -> None:
+        self.ws.add("toys/machine", TEAL_SCENERY)
+        cases = {
+            "unknown tone": "@derive machine tone=haze\n",
+            "tone before aisle": "@derive machine tone=dim aisle=pantry\n",
+            "tone twice": "@derive machine tone=dim tone=off\n",
+            "golden and tone": "@derive machine golden=rank tone=dim\n",
+            "extra word": "@derive machine aisle=pantry tone=dim glint\n",
+        }
+        for label, text in cases.items():
+            with self.subTest(label):
+                self.ws.add("toys/bad", text)
+                project = self.ws.load()
+                self.assertNotIn("toys/bad", [s.name for s in project.sprites])
+                self.assertTrue(project.errors, label)
+
+    def test_every_tone_maps_every_palette_key_into_the_palette(self) -> None:
+        palette = pa.parse_palette(pa.DEFAULT_SRC / pa.PALETTE_FILE)
+        keys = set(palette.keys) - {pa.TRANSPARENT}
+        for tone, mapping in pa.TONE_MAPS.items():
+            with self.subTest(tone):
+                self.assertEqual(set(mapping), keys)
+                self.assertTrue(set(mapping.values()) <= keys)
+        self.assertEqual(pa.TONE_MAPS["dim"][pa.INK], pa.INK)
+
+
 class CommittedArtTest(unittest.TestCase):
     def test_the_repo_art_is_clean_and_up_to_date(self) -> None:
         project = pa.load_project(pa.DEFAULT_SRC, pa.DEFAULT_OUT)

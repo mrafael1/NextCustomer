@@ -1,0 +1,3 @@
+; The plain teal coin base (#121) in the dim tone (TONE_MAPS dim: two steps down each ramp): the
+; fallback base of an aisle with no cabinet, out of coins or collected.
+@derive toy_base tone=dim

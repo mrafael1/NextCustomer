@@ -1,0 +1,2 @@
+; The padlock in the dim tone (#121: the price LED of a machine out of coins; TONE_MAPS dim).
+@derive padlock tone=dim

@@ -1,0 +1,18 @@
+; A closed capsule in the Cold cases cabinet (#121): the aisle colour all round, a cream
+; highlight, an ink seam over a cream band and a '?' on the top half (paper on a dark aisle
+; colour, ink on a light one). 13x13 art px; one per item left, on the cabinet's slots.
+@size 13x13
+@kind scenery
+....#####....
+..#44ww444#..
+.#45444w444#.
+#45444w44434#
+#44444444434#
+#44444w44444#
+#############
+#ccccccccccc#
+#33333333333#
+#33333333333#
+.#333333333#.
+..#3333333#..
+....#####....

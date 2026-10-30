@@ -1,0 +1,18 @@
+; A closed capsule in the Bakery cabinet (#121): the aisle colour all round, a cream highlight, an
+; ink seam over a cream band and a '?' on the top half (paper on a dark aisle colour, ink on a
+; light one). 13x13 art px; one per item left, on the cabinet's slots.
+@size 13x13
+@kind scenery
+....#####....
+..#hh##hhh#..
+.#hbhhh#hhh#.
+#hbhhh#hhhFh#
+#hhhhhhhhhFh#
+#hhhhh#hhhhh#
+#############
+#ccccccccccc#
+#FFFFFFFFFFF#
+#FFFFFFFFFFF#
+.#FFFFFFFFF#.
+..#FFFFFFF#..
+....#####....

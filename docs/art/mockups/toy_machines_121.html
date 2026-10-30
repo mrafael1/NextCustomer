@@ -1,0 +1,509 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Toy machines redraw</title>
+<!-- #121 (2026-10-30, revised after the glance, style and feasibility critiques): three directions for redrawing
+     the six exit TOY MACHINES so each machine's prize reads at a glance. Mock-up only, not game code. Sprites come
+     from toy_machines_121/build.py: the repo's real 48x48 items, the real 7x7 minis (at 2x in A's card and C's
+     windows), the toy machine art, and an off/ palette swap of every sprite for BROKE and OUT OF ORDER. No item cuts.
+     Rules are untouched: 1 coin = 1 capsule, key item first, then random.
+     URL parameters (all optional):
+       locked=shown|sil|q          how items you have not won yet show (default sil)
+       state=partial|broke|complete  partial collection with 5 coins (default), 0 coins, or every figurine owned
+       hover=<aisle id>            force the hover look on one machine (stills)
+       cap=stage&d=A|B|C           only that direction's 1280x720 screen (stills)
+       cap=zoom&d=A|B|C            only that direction's zoom card (stills)
+       zoom=<aisle id>             the machine shown in the zoom (default fruit_and_veg)
+       still=1                     freeze idle motion (stills) -->
+<script src="toy_machines_121/data.js"></script>
+<style>
+@font-face { font-family: Pixelify; src: url(../../../fonts/PixelifySans-Variable.ttf); }
+@font-face { font-family: Atkinson; src: url(../../../fonts/AtkinsonHyperlegibleNext-Variable.ttf); font-weight: 200 800; }
+:root {
+  --ink: #2b2420; --ink-light: #4a3f38; --muted: #8a8172; --paper: #fbf7ee; --cream: #f3e9d2; --cream-shade: #ddcba5;
+  --cream-dark: #b39f78; --mustard: #e2b33c; --mustard-light: #f1d27a; --gold: #ffcf3f; --tomato: #d9534f;
+  --tomato-dark: #a83a3c; --teal: #4f9a94; --teal-light: #86c2b6; --teal-mid: #3a7672; --teal-panel: #2a4d4b;
+  --teal-dark: #1f3b3a; --teal-black: #172c2b; --good: #3d7a45; --good-light: #5fae5a;
+  --page: #172c2b; --page-text: #f3e9d2; --page-muted: #c7beab; --card: #1f3b3a; --card-line: #3a7672;
+}
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme="dark"]) { --page: #f3e9d2; --page-text: #2b2420; --page-muted: #5e574d; --card: #fbf7ee; --card-line: #ddcba5; }
+}
+:root[data-theme="light"] { --page: #f3e9d2; --page-text: #2b2420; --page-muted: #5e574d; --card: #fbf7ee; --card-line: #ddcba5; }
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { background: var(--page); color: var(--page-text); font: 16px/1.5 Atkinson, system-ui, sans-serif; }
+img { image-rendering: pixelated; display: block; }
+.page { max-width: 1340px; margin: 0 auto; padding: 24px 16px 64px; }
+h1 { font: 400 34px/1.1 Pixelify; letter-spacing: 1px; }
+h2 { font: 400 26px/1.15 Pixelify; margin: 0 0 6px; }
+h3 { font: 700 15px Atkinson; text-transform: uppercase; letter-spacing: .08em; color: var(--page-muted); margin: 18px 0 8px; }
+.lede { color: var(--page-muted); max-width: 920px; margin: 8px 0 16px; }
+.bar { position: sticky; top: 0; z-index: 40; display: flex; flex-wrap: wrap; gap: 10px 22px; align-items: center;
+  padding: 10px 16px; margin: 0 -16px 18px; background: var(--page); border-bottom: 2px solid var(--card-line); }
+.seg { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.seg b { font: 700 13px Atkinson; text-transform: uppercase; letter-spacing: .06em; color: var(--page-muted); margin-right: 4px; }
+.seg button { font: 700 14px Atkinson; padding: 6px 12px; border: 2px solid var(--card-line); background: var(--card);
+  color: var(--page-text); cursor: pointer; border-radius: 0; }
+.seg button[aria-pressed="true"] { background: var(--teal); border-color: var(--ink); color: #fbf7ee; }
+.seg button:focus-visible { outline: 3px solid var(--gold); outline-offset: 2px; }
+section.dir { margin: 0 0 56px; }
+.dirhead { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 14px; }
+.tag { font: 400 18px Pixelify; background: var(--teal); color: #fbf7ee; padding: 0 10px 2px; border: 2px solid var(--ink); }
+.summary { color: var(--page-muted); max-width: 980px; margin: 4px 0 12px; }
+.wrap { position: relative; width: 100%; overflow: hidden; border: 3px solid var(--ink); background: var(--teal-black); }
+.lower { display: grid; grid-template-columns: minmax(0, auto) minmax(260px, 1fr); gap: 24px; margin-top: 18px; align-items: start; }
+@media (max-width: 900px) { .lower { grid-template-columns: 1fr; } }
+.zoomcard { background: var(--card); border: 2px solid var(--card-line); padding: 14px; }
+.zoomrow { display: flex; gap: 24px; align-items: flex-start; flex-wrap: wrap; }
+.zoomcap { font: 600 13px Atkinson; color: var(--page-muted); margin-top: 8px; max-width: 432px; }
+.modes { display: flex; gap: 14px; align-items: flex-end; flex-wrap: wrap; }
+.modes figure { display: flex; flex-direction: column; align-items: center; gap: 6px; }
+.modes figcaption { font: 700 13px Atkinson; color: var(--page-muted); }
+.changes { background: var(--card); border: 2px solid var(--card-line); padding: 14px 18px; }
+.changes ul { padding-left: 18px; }
+.changes li { margin: 4px 0; }
+.effort { display: inline-block; font: 400 16px Pixelify; padding: 0 8px; border: 2px solid var(--ink); background: var(--mustard); color: var(--ink); }
+.qs { background: var(--card); border: 2px solid var(--card-line); padding: 14px 18px; max-width: 980px; }
+.qs li { margin: 6px 0 6px 18px; }
+code { font: 13px ui-monospace, Consolas, monospace; }
+
+/* ---------- the 1280x720 game screen ---------- */
+.stage { position: absolute; left: 0; top: 0; width: 1280px; height: 720px; overflow: hidden; transform-origin: 0 0;
+  font-family: Atkinson, sans-serif; color: var(--ink); user-select: none; }
+.abs { position: absolute; }
+.bg { position: absolute; left: 0; top: 0; width: 1280px; height: 720px; }
+.chip { position: absolute; display: flex; align-items: center; gap: 10px; height: 44px; padding: 0 16px 2px 12px;
+  border: 6px solid transparent; border-image: url(toy_machines_121/assets/top_button.png) 6 fill / 6px stretch; color: #fbf7ee;
+  font: 750 22px Atkinson; white-space: nowrap; }
+.chip .lab { font: 400 17px Pixelify; letter-spacing: 1px; color: var(--cream); }
+.chip img { width: 24px; height: 24px; }
+.chain { position: absolute; width: 4px; background: repeating-linear-gradient(#57534c 0 6px, transparent 6px 10px); }
+.board { position: absolute; left: 330px; top: 70px; width: 360px; height: 64px; background: var(--teal); border: 4px solid var(--ink);
+  box-shadow: inset 0 4px 0 #86c2b6, inset 0 -4px 0 #3a7672; display: flex; align-items: center; justify-content: center;
+  font: 400 34px Pixelify; color: #fbf7ee; letter-spacing: 2px; }
+.ol { text-shadow: 3px 0 0 var(--ink), -3px 0 0 var(--ink), 0 3px 0 var(--ink), 0 -3px 0 var(--ink),
+  2px 2px 0 var(--ink), -2px 2px 0 var(--ink), 2px -2px 0 var(--ink), -2px -2px 0 var(--ink); }
+.ol2 { text-shadow: 2px 0 0 var(--ink), -2px 0 0 var(--ink), 0 2px 0 var(--ink), 0 -2px 0 var(--ink),
+  1px 1px 0 var(--ink), -1px 1px 0 var(--ink), 1px -1px 0 var(--ink), -1px -1px 0 var(--ink); }
+.exit { position: absolute; left: 1086px; top: 20px; width: 108px; height: 36px; display: flex; align-items: center; justify-content: center;
+  font: 400 20px Pixelify; color: #fbf7ee; }
+/* floor plates: each state has its own shape, not only its own words */
+.floor { position: absolute; top: 538px; height: 34px; display: flex; align-items: center; justify-content: center; gap: 6px; padding: 0 12px 2px;
+  background: var(--paper); border: 3px solid var(--ink); box-shadow: 3px 3px 0 rgba(43,36,32,.3); font: 750 15px Atkinson; white-space: nowrap; }
+.floor.done { background: var(--teal-dark); color: var(--cream); box-shadow: none; padding-left: 6px; }
+.floor.done .tk { width: 22px; height: 22px; background: var(--good-light); border: 2px solid var(--ink); display: flex; align-items: center; justify-content: center; }
+.floor.done .tk img { width: 12px; height: 12px; }
+.floor.fresh { background: var(--gold); border-width: 3px; box-shadow: 3px 3px 0 var(--ink); padding-left: 4px; }
+.floor.fresh .nw { font: 400 13px Pixelify; letter-spacing: 1px; background: var(--tomato); color: #fbf7ee; padding: 0 5px 1px; border: 2px solid var(--ink); }
+.hint { position: absolute; top: 596px; left: 0; width: 1280px; text-align: center; font: 600 15px Atkinson; color: var(--ink-light); }
+.banner { position: absolute; top: 588px; left: 0; width: 1280px; display: flex; justify-content: center; }
+.banner span { background: var(--gold); border: 3px solid var(--ink); padding: 2px 14px 4px; font: 400 18px Pixelify; letter-spacing: 1px; color: var(--ink); box-shadow: 3px 3px 0 var(--ink); }
+/* BROKE: a panel next to the coins chip, where the eye goes for "can I play" */
+.notice { position: absolute; left: 20px; top: 66px; width: 300px; display: flex; gap: 10px; align-items: flex-start; padding: 6px 10px 8px;
+  background: var(--paper); border: 3px solid var(--tomato-dark); box-shadow: 3px 3px 0 var(--ink); font: 700 14px/1.25 Atkinson; color: var(--ink); }
+.notice img { width: 26px; height: 22px; flex: none; margin-top: 2px; }
+.notice b { display: block; color: var(--tomato-dark); font: 400 17px Pixelify; letter-spacing: 1px; }
+.fbtn { position: absolute; display: flex; align-items: center; justify-content: center; padding: 0 24px 4px; font: 400 26px Pixelify;
+  color: #fbf7ee; white-space: nowrap; }
+.fbtn.primary { border: 6px solid transparent; border-image: url(toy_machines_121/assets/button.png) 6 fill / 6px stretch; }
+.fbtn.secondary { border: 6px solid transparent; border-image: url(toy_machines_121/assets/sign.png) 6 fill / 6px stretch; padding-bottom: 2px; }
+
+/* one machine: 144x280 like ToyMachineView.SIZE; every sprite at 2x. B's topper overflows above (y < 0). */
+.machine { position: absolute; width: 144px; height: 280px; cursor: pointer; }
+.machine .lift { position: absolute; left: 0; top: 0; width: 144px; height: 280px; transition: transform .06s steps(1); }
+.machine .art { position: absolute; left: 0; top: 0; }
+.machine .lay { position: absolute; }
+.machine.hover .lift { transform: translateY(-4px); }
+.machine.broke, .machine.off, .machine.done { cursor: default; }
+.shadow { position: absolute; left: 30px; top: 266px; width: 108px; height: 16px; background: rgba(43,36,32,.22); border-radius: 50%; }
+/* hover: corner brackets (shape, not brightness) */
+.brk { position: absolute; display: none; pointer-events: none; z-index: 6; }
+.machine.hover .brk { display: block; }
+.brk i { position: absolute; width: 16px; height: 16px; border: 4px solid var(--gold); box-shadow: 0 0 0 2px var(--ink), inset 0 0 0 2px var(--ink); }
+.brk i:nth-child(1) { left: 0; top: 0; border-right: 0; border-bottom: 0; }
+.brk i:nth-child(2) { right: 0; top: 0; border-left: 0; border-bottom: 0; }
+.brk i:nth-child(3) { left: 0; bottom: 0; border-right: 0; border-top: 0; }
+.brk i:nth-child(4) { right: 0; bottom: 0; border-left: 0; border-top: 0; }
+.signtxt { position: absolute; left: 0; top: 6px; width: 144px; height: 26px; display: flex; align-items: center; justify-content: center;
+  gap: 6px; font: 400 16px Pixelify; color: #fbf7ee; white-space: nowrap; pointer-events: none; }
+.signtxt img { width: 18px; height: 18px; }
+.price { position: absolute; left: 64px; top: 50px; display: flex; align-items: center; gap: 5px; height: 30px; padding: 0 9px 2px 7px;
+  border: 6px solid transparent; border-image: url(toy_machines_121/assets/sticker_label.png) 6 fill / 6px stretch;
+  font: 750 14px Atkinson; color: var(--ink); white-space: nowrap; transform: rotate(9deg); z-index: 3; }
+.price img { width: 16px; height: 16px; }
+.price.no { border-image-source: url(toy_machines_121/assets/off/sticker_label.png); color: var(--ink-light); }
+.price.no span { text-decoration: line-through 2px var(--tomato-dark); }
+/* C: a small coin badge stuck right of the chute, clear of the window and the seam */
+.cprice { position: absolute; left: 96px; top: 226px; height: 28px; display: flex; align-items: center; gap: 2px; padding: 0 6px 1px 3px;
+  border: 6px solid transparent; border-image: url(toy_machines_121/assets/sticker_label.png) 6 fill / 6px stretch; margin: -6px;
+  font: 800 14px Atkinson; color: var(--ink); z-index: 3; }
+.cprice img { width: 16px; height: 16px; }
+.cprice.no { border-image-source: url(toy_machines_121/assets/off/sticker_label.png); color: var(--ink-light); }
+.cprice.no span { text-decoration: line-through 2px var(--tomato-dark); }
+.count { position: absolute; z-index: 3; font: 400 15px Pixelify; letter-spacing: 1px; background: var(--paper); color: var(--ink);
+  border: 3px solid var(--ink); padding: 0 6px 1px; transform: rotate(-5deg); white-space: nowrap; }
+.rosette { position: absolute; left: 10px; top: 70px; width: 124px; height: 68px; display: flex; align-items: center; justify-content: center;
+  text-align: center; background: url(toy_machines_121/assets/sticker_burst.png) center / 100% 100% no-repeat; image-rendering: pixelated;
+  font: 800 14px/1.05 Atkinson; color: var(--ink); transform: rotate(-8deg); z-index: 3; }
+.paper { position: absolute; left: 30px; top: 78px; width: 84px; padding: 6px 0 7px; background: var(--paper); border: 3px solid var(--ink);
+  font: 800 16px/1.05 Atkinson; text-align: center; color: var(--ink); transform: rotate(-4deg); z-index: 3; }
+.paper::before { content: ''; position: absolute; left: 28px; top: -9px; width: 22px; height: 10px; background: rgba(241,210,122,.85); }
+.tick { position: absolute; }
+.donetick { position: absolute; width: 28px; height: 28px; background: var(--good-light); border: 3px solid var(--ink); display: flex; align-items: center; justify-content: center; z-index: 4; }
+.donetick img { width: 14px; height: 14px; }
+.more { position: absolute; z-index: 3; font: 800 12px Atkinson; background: var(--mustard); border: 2px solid var(--ink); padding: 0 4px; color: var(--ink); }
+.cursor { position: absolute; width: 28px; height: 32px; z-index: 30; pointer-events: none; }
+
+/* A: the lineup panel, in the empty band above the signs (y 136..248), never over another machine */
+.lineup { position: absolute; z-index: 25; top: 134px; background: var(--paper); border: 4px solid var(--ink); box-shadow: 4px 4px 0 rgba(43,36,32,.35);
+  pointer-events: none; animation: reveal .15s steps(3) both; }
+.lineup .hd { display: flex; align-items: center; gap: 8px; height: 22px; padding: 0 10px 2px; font: 400 16px Pixelify; color: #fbf7ee; border-bottom: 3px solid var(--ink); white-space: nowrap; }
+.lineup .hd img { width: 18px; height: 18px; }
+.lineup .hd .r { margin-left: auto; font: 700 12px Atkinson; color: var(--cream); }
+.lineup .grid { display: flex; gap: 4px; padding: 2px 6px 2px; }
+.lineup .cell { position: relative; width: 64px; display: flex; flex-direction: column; align-items: center; }
+.lineup .cell .nm { font: 750 10px/1.1 Atkinson; text-align: center; height: 22px; color: var(--ink); margin-top: 1px; }
+.lineup .cell .nm.lock { color: var(--muted); letter-spacing: 1px; }
+.lineup .nx { position: absolute; left: 0; top: 0; font: 800 9px Atkinson; letter-spacing: .04em; background: var(--tomato); color: #fbf7ee; padding: 0 3px; border: 1px solid var(--ink); }
+@keyframes reveal { 0% { clip-path: inset(100% 0 0 0); } 100% { clip-path: inset(0 0 0 0); } }
+
+/* motion: one small touch per direction; still=1 freezes */
+@keyframes jig { 0%, 100% { transform: translate(0, 0); } 25% { transform: translate(-2px, -2px); } 50% { transform: translate(0, -4px); } 75% { transform: translate(2px, -2px); } }
+.machine.hover .cap { animation: jig .36s steps(4) infinite; }
+.machine.hover .cap:nth-child(2n) { animation-delay: -.18s; }
+@keyframes bob { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-2px); } }
+.topper { position: absolute; animation: bob 1.6s steps(2) infinite; }
+.machine.broke .topper, .machine.off .topper, .machine.done .topper { animation: none; }
+.machine.hover .topper { animation: hop .5s steps(5) infinite; }
+@keyframes hop { 0%, 100% { transform: translateY(0); } 40% { transform: translateY(-8px); } 60% { transform: translateY(-6px); } }
+.drum { position: absolute; }
+.machine.hover .drum { animation: tumble 1.2s steps(4) infinite; }
+@keyframes tumble { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+.glow { position: absolute; background: #ec8a6e; mix-blend-mode: multiply; animation: glow 2.4s steps(3) infinite; pointer-events: none; }
+@keyframes glow { 0%, 100% { opacity: 0; } 50% { opacity: .22; } }
+.frost { position: absolute; width: 2px; height: 2px; background: #fbf7ee; animation: twinkle 2s steps(2) infinite; }
+@keyframes twinkle { 0%, 100% { opacity: 0; } 50% { opacity: 1; } }
+.machine.hover .bounce { animation: jig .4s steps(4) infinite; }
+.still *, .still *::before { animation: none !important; }
+@media (prefers-reduced-motion: reduce) { .stage * { animation: none !important; } }
+
+/* capture modes */
+body.cap { background: #172c2b; }
+body.cap .page { padding: 0; max-width: none; }
+body.cap-stage .wrap { border: 0; }
+</style>
+</head>
+<body>
+<div class="page" id="page"></div>
+<script>
+'use strict';
+const Q = new URLSearchParams(location.search);
+const OPT = {
+  locked: Q.get('locked') || 'sil', state: Q.get('state') || 'partial', hover: Q.get('hover'),
+  cap: Q.get('cap'), d: Q.get('d'), zoom: Q.get('zoom') || 'fruit_and_veg', still: Q.get('still') === '1',
+};
+const AS = 'toy_machines_121/assets/';
+// a believable partial collection: key item first in every owned list (the draw order rule)
+const PARTIAL = { cold_cases: ['cream'], pantry: ['sugar_cubes', 'mixed_herbs'], household: ['egg_timer'],
+  fruit_and_veg: ['fruit_salad', 'strawberries', 'grapefruit'], bakery: ['baguette', 'scone'], snacks: [] };
+const ALL = Object.fromEntries(TM.aisles.map((a) => [a.id, a.items.slice()]));
+const owned = () => (OPT.state === 'complete' ? ALL : PARTIAL);
+const TOTAL = TM.aisles.reduce((n, a) => n + a.items.length, 0);
+const COIN = AS + 'coin.png';
+const TICK = 'data:image/svg+xml,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 7 6" shape-rendering="crispEdges"><path fill="#2b2420" d="M6 0h1v2H6v1H5v1H4v1H3v1H2V5H1V4H0V2h1v1h1v1h1V3h1V2h1V1h1z"/></svg>');
+const HAND = 'data:image/svg+xml,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 14 16" shape-rendering="crispEdges"><path fill="#2b2420" d="M4 0h2v1h1v5h2v1h2v1h2v1h1v5h-1v2H4v-1H3v-1H2v-1H1v-1H0V8h1V7h2v1h0V1h1z"/><path fill="#fbf7ee" d="M4 1h2v6h1V6h2v2h0V7h2v2h0V8h2v5h-1v2H5v-1H4v-1H3v-1H2v-1H1V8h2v2h1z"/><path fill="#ddcba5" d="M12 9h1v4h-1v2H6v-1h5v-1h1z"/></svg>');
+
+const DIRS = {
+  A: { name: 'Lineup card', summary: 'Keep the globe. The machine\'s front becomes a printed card with the next three figurines you could win, as the real minis at 2x (the rest as a "+N" tag; owned ones with a tick once the aisle is done). Hover opens the full lineup with names in the empty band above the signs, using the real 48x48 sprites.',
+    motion: 'Hover: corner brackets, a 4 px lift, the lineup panel wipes in from the bottom; capsules jiggle.',
+    changes: [
+      ['Art', '<code>toy_machine.txt</code>: a new body front (full-width card, smaller coin slot, crank and chute) that all six <code>@derive</code>s inherit; <code>toy_machine_bare.txt</code> (hand copy, not a derive) and <code>toy_machine_mini.txt</code> re-cut by hand with a blank card. <code>toy_capsule</code> unchanged (the peek through the glass could not be seen at 13x13, so it is gone).'],
+      ['Code', '<code>ToyMachineView</code>: three card cells (minis at 2x, from <code>CapsuleDraw.items_left</code>) and a "+N" tag. The lineup panel belongs to <code>ToyMachinesScreen</code>, driven by hover signals, <code>MOUSE_FILTER_IGNORE</code>, placed in the band above the signs; a layout test checks it meets no machine\'s hit rect.'],
+      ['Reuses', 'The real 7x7 minis (card, at 2x) and 48x48 items (panel, at 1x). No new item art.'],
+      ['Effort', '<span class="effort">M</span> about 1 day: one redraw plus two hand re-cuts, one panel.'],
+    ] },
+  B: { name: 'Topper', summary: 'Keep today\'s machine and capsules. Each machine gets one emblem item from its aisle standing on a plinth on its sign, the real 48x48 sprite at its usual in-game size: ham, sugar cubes, socks, strawberries, croissant, crisps. The emblem is chosen per aisle for how fast it says the aisle, not because it is the key item. A finished aisle greys its emblem and adds a tick; BROKE greys it and shuts the coin slot.',
+    motion: 'Idle: the emblem bobs. Hover: corner brackets, a 4 px lift, the emblem hops, the capsules jiggle.',
+    changes: [
+      ['Art', 'One 36x6 plinth (a derive per aisle). No machine or capsule redraw: the six <code>@derive</code>s, <code>toy_machine_bare</code> and the REWARDS mini stay as they are.'],
+      ['Code', '<code>ToyMachineView</code>: a topper sprite drawn as overflow above <code>SIZE</code> (so the row, floor labels and shadow keep their positions), a <code>topper_rect()</code> added to the window and overlap tests, and to the BROKE / OFF / EMPTY state assertions. The emblem id lives on the aisle resource (data, not script). The COLLECTION COMPLETE banner moves from y 150 into the floor band (<code>HINT_Y</code>), as the "complete" toggle shows.'],
+      ['Reuses', 'The real items_v2 sprites.'],
+      ['Effort', '<span class="effort">S</span> about half a day; with A\'s hover panel added, about 1 day.'],
+    ] },
+  C: { name: 'Distinct cabinets', summary: 'Each aisle gets its own cabinet over the shared coin slot, crank and chute: a display fridge (Cold cases), a storage jar (Pantry), a front-loader (Household), a market stall (Fruit & veg), a brick oven (Bakery) and a vending tower (Snacks). The outline says the aisle before you read anything; the window holds one figurine per item left, as the real minis at 2x, in a fixed grid with room for every item.',
+    motion: 'Hover: corner brackets, a 4 px lift; the porthole tumbles, the oven glows, the crate items bounce; the fridge frost twinkles.',
+    changes: [
+      ['Art', 'Six hand-drawn tops (no <code>@derive</code>; each fits the body width + 4 art px, starts 3 rows below the sign) over the shared, still-derived body. The title\'s <code>toy_machine_bare</code> and the REWARDS mini keep the old globe machine (or need a new idea).'],
+      ['Code', 'A per-aisle layout in <code>data/</code>: window slots (8 for Fruit & veg and Bakery, all fit), price badge, rosette and paper anchors, hit rects. <code>capsule_count()</code> becomes "figurines in the window". Layout tests: price, rosette and paper stay inside each cabinet.'],
+      ['Reuses', 'The real 7x7 minis at 2x (a build may want 14 px redraws: 2x minis are chunkier than the 2x scenery around them).'],
+      ['Effort', '<span class="effort">L</span> about 1.5 to 2 days of art and code, plus an art review.'],
+    ] },
+};
+
+function el(tag, cls, parent, html) { const e = document.createElement(tag); if (cls) e.className = cls; if (html !== undefined) e.innerHTML = html; if (parent) parent.appendChild(e); return e; }
+function img(src, x, y, w, h, cls, parent) { const i = el('img', cls || 'lay', parent); i.src = src; i.style.left = x + 'px'; i.style.top = y + 'px'; i.style.width = w + 'px'; i.style.height = h + 'px'; i.alt = ''; return i; }
+function leftOf(a, own) { return a.items.filter((i) => !own[a.id].includes(i)); }
+// what a not-yet-won item looks like in each mode; dim = the off/ palette swap
+function lockedSrc(kind, aisle, item, dim) {
+  const m = OPT.locked, p = AS + (dim ? 'off/' : '');
+  if (kind === 'mini') return p + (m === 'q' ? `q7_${aisle}.png` : m === 'sil' ? `minis_${item}.png` : `mini_${item}.png`);
+  if (kind === 'big') return p + (m === 'q' ? `q48_${aisle}.png` : m === 'sil' ? `item48s_${item}.png` : `item48_${item}.png`);
+}
+
+// ---------- one machine ----------
+// opts: hover, broke, off (out of order), own (collection override), noPanel
+function machine(dir, a, parent, x, y, opts = {}) {
+  const own = opts.own || owned();
+  const L = leftOf(a, own);
+  const done = L.length === 0;
+  const dim = !!(opts.broke || opts.off) && !done;
+  const S = (n, d = dim) => AS + (d ? 'off/' : '') + n;
+  const m = el('div', 'machine', parent);
+  m.style.left = x + 'px'; m.style.top = y + 'px';
+  m.dataset.aisle = a.id;
+  if (dim) m.classList.add(opts.off ? 'off' : 'broke');
+  if (done) m.classList.add('done');
+  el('div', 'shadow', m);
+  const lift = el('div', 'lift', m);
+  const topH = dir === 'B' ? 108 : 0;
+  const brk = el('div', 'brk', lift, '<i></i><i></i><i></i><i></i>');
+  Object.assign(brk.style, { left: '-6px', top: (-4 - topH) + 'px', width: '156px', height: (290 + topH) + 'px' });
+  if (dir === 'B') {
+    const it = TM.toppers[a.id], pad = TM.topperPad[a.id];
+    const greyed = dim || done;
+    img(S(`plinth_${a.id}.png`, greyed), 36, -12, 72, 12, 'lay plinth', lift);
+    img(S(`item48_${it}.png`, greyed), 24, -12 - 96 + pad * 2, 96, 96, 'topper', lift);
+    if (done) { const t = el('div', 'donetick', lift, `<img src="${TICK}" alt="">`); t.style.left = '96px'; t.style.top = '-46px'; }
+  }
+  img(S(`machine_${dir.toLowerCase()}_${a.id}.png`), 0, 0, 144, 280, 'art', lift);
+  const cont = el('div', 'lay', lift); cont.style.left = '0'; cont.style.top = '0';
+  if (dir === 'A' || dir === 'B') {
+    TM.globeSlots.slice(0, Math.min(L.length, 8)).forEach(([cx, cy], k) => {
+      const s = img(S(`capA_${a.id}.png`), (cx - 6) * 2, (cy - 6) * 2, 26, 26, 'lay cap', cont);
+      s.style.animationDelay = (-k * 0.09) + 's';
+    });
+  }
+  if (dir === 'A') {
+    const show = done ? own[a.id].slice(0, 3) : L.slice(0, 3);
+    show.forEach((it, k) => {
+      const [cx, cy] = TM.aCells[k];
+      img(done ? S(`mini_${it}.png`) : lockedSrc('mini', a.id, it, dim), cx * 2, cy * 2, 28, 28, 'lay', cont);
+      if (done) img(TICK, cx * 2 + 18, cy * 2 + 18, 14, 12, 'lay tick', cont);
+    });
+    if (L.length > 3) { const t = el('div', 'more', lift, `+${L.length - 3}`); t.style.left = '104px'; t.style.top = '214px'; }
+    img(S(`badge_${a.id}.png`), 60, 154, 22, 22, 'lay', lift);
+  } else {
+    img(S(`badge_${a.id}.png`), 22, 230, 22, 22, 'lay', lift);
+  }
+  if (dir === 'C') cabinetLayers(a, cont, L, S, dim);
+  const sign = el('div', 'signtxt ol2', lift);
+  sign.innerHTML = `<img src="${AS}glyph_${a.id}.png" alt="">${a.name}`;
+  if (done) {
+    const r = el('div', 'rosette', lift, 'ALL<br>COLLECTED');
+    if (dir === 'C') r.style.top = '76px';
+  } else if (opts.off) {
+    const p = el('div', 'paper', lift, 'OUT OF<br>ORDER');
+    if (dir === 'C') p.style.top = '84px';
+  } else if (dir === 'C') {
+    el('div', 'cprice' + (dim ? ' no' : ''), lift, `<img src="${S('coin.png')}" alt=""><span>1</span>`);
+  } else {
+    el('div', 'price' + (dim ? ' no' : ''), lift, `<img src="${S('coin.png')}" alt=""><span>1 coin</span>`);
+  }
+  // C: a nearly empty window reads as "broken"; the last figurine gets a sticker on the window's bottom edge
+  if (dir === 'C' && !done && !opts.off && L.length === 1) {
+    const w = TM.extrasC[a.id].window;
+    const c = el('div', 'count', lift, 'LAST ONE');
+    c.style.left = (w[0] * 2 + 4) + 'px'; c.style.top = ((w[1] + w[3]) * 2 - 14) + 'px';
+  }
+  const playable = !dim && !done && !opts.off;
+  const enter = () => { if (!playable) return; m.classList.add('hover'); if (dir === 'A' && !opts.noPanel) lineupPanel(a, parent, x, own); };
+  if (opts.hover) enter();
+  m.addEventListener('mouseenter', enter);
+  m.addEventListener('mouseleave', () => { if (opts.hover) return; m.classList.remove('hover'); parent.querySelectorAll('.lineup').forEach((p) => p.remove()); });
+  return m;
+}
+
+function cabinetLayers(a, cont, L, S, dim) {
+  const slots = TM.slotsC[a.id], ex = TM.extrasC[a.id];
+  const shown = L.slice(0, slots.length);
+  if (a.id === 'household') {
+    const [cx, cy] = ex.porthole;
+    const drum = el('div', 'drum', cont);
+    drum.style.left = (cx - 17) * 2 + 'px'; drum.style.top = (cy - 17) * 2 + 'px';
+    drum.style.width = drum.style.height = 68 + 'px'; drum.style.transformOrigin = '34px 34px';
+    shown.forEach((it, k) => { const [sx, sy] = slots[k]; img(lockedSrc('mini', a.id, it, dim), (sx - cx + 17) * 2, (sy - cy + 17) * 2, 28, 28, 'lay', drum); });
+    return;
+  }
+  shown.forEach((it, k) => {
+    const [sx, sy] = slots[k];
+    const i = img(lockedSrc('mini', a.id, it, dim), sx * 2, sy * 2, 28, 28, 'lay' + (a.id === 'fruit_and_veg' ? ' bounce' : ''), cont);
+    i.style.animationDelay = (-k * 0.1) + 's';
+  });
+  if (a.id === 'snacks') ex.coils.forEach(([gx, gy, gw, gh]) => img(S('coil_0.png'), gx * 2, gy * 2, gw * 2, gh * 2, 'lay', cont));
+  if (a.id === 'fruit_and_veg') ex.lips.forEach(([lx, ly, lw, lh]) => img(S('crate_lip.png'), lx * 2, ly * 2, lw * 2, lh * 2, 'lay', cont));
+  if (a.id === 'bakery' && !dim) { const [mx, my, mw, mh] = ex.mouth; const g = el('div', 'glow', cont); Object.assign(g.style, { left: mx * 2 + 'px', top: (my + 10) * 2 + 'px', width: mw * 2 + 'px', height: (mh - 10) * 2 + 'px' }); }
+  if (a.id === 'cold_cases' && !dim) [[12, 31], [58, 76], [30, 47], [44, 64]].forEach(([fx, fy], k) => { const f = el('div', 'frost', cont); f.style.left = fx * 2 + 'px'; f.style.top = fy * 2 + 'px'; f.style.animationDelay = (-k * 0.5) + 's'; });
+}
+
+// A: the full lineup, real 48x48 sprites at 1x, in the band between the title board (ends y 134) and the signs (y 246 lifted)
+function lineupPanel(a, parent, mx, own) {
+  parent.querySelectorAll('.lineup').forEach((p) => p.remove());
+  const n = a.items.length, w = n * 64 + (n - 1) * 4 + 12 + 8;
+  const p = el('div', 'lineup', parent);
+  const pw = parent.clientWidth || 1280;
+  p.style.left = Math.max(8, Math.min(pw - w - 8, mx + 72 - w / 2)) + 'px'; p.style.width = w + 'px';
+  const hd = el('div', 'hd ol2', p, `<img src="${AS}glyph_${a.id}.png" alt="">${a.name} lineup<span class="r">${own[a.id].length} of ${n} on your shelf</span>`);
+  hd.style.background = a.ramp[2];
+  const g = el('div', 'grid', p);
+  a.items.forEach((it, k) => {
+    const have = own[a.id].includes(it);
+    const c = el('div', 'cell', g);
+    const box = el('div', '', c); box.style.position = 'relative'; box.style.width = '48px'; box.style.height = '48px';
+    img(have ? AS + `item48_${it}.png` : lockedSrc('big', a.id, it), 0, 0, 48, 48, 'lay', box);
+    if (have) img(TICK, 36, 38, 14, 12, 'lay tick', box);
+    const open = have || OPT.locked === 'shown';
+    el('div', 'nm' + (open ? '' : ' lock'), c, open ? a.names[k] : '???');
+    if (!have && k === a.items.findIndex((i) => !own[a.id].includes(i))) el('span', 'nx', box, 'NEXT');
+  });
+}
+
+// ---------- the TOY MACHINES screen ----------
+function stage(dir, parent, opts = {}) {
+  const broke = OPT.state === 'broke', complete = OPT.state === 'complete';
+  const own = owned();
+  const s = el('div', 'stage', parent);
+  if (OPT.still) s.classList.add('still');
+  img(AS + 'exit_vestibule.png', 0, 0, 1280, 720, 'bg', s);
+  [372, 644].forEach((cx) => { const c = el('div', 'chain', s); c.style.left = cx + 'px'; c.style.top = '12px'; c.style.height = '60px'; });
+  const coins = el('div', 'chip', s, `<img src="${COIN}" alt=""><span class="lab">COINS</span><span>${broke ? 0 : 5}</span>`);
+  coins.style.left = '20px'; coins.style.top = '14px';
+  const nOwn = Object.values(own).reduce((k, l) => k + l.length, 0);
+  const figs = el('div', 'chip', s, `<span class="lab">FIGURINES</span><span>${nOwn} / ${TOTAL}</span>`);
+  figs.style.left = '206px'; figs.style.top = '14px';
+  el('div', 'board ol', s, 'TOY MACHINES');
+  el('div', 'exit ol2', s, 'EXIT ›');
+  TM.aisles.forEach((a, i) => {
+    const x = 40 + i * 160;
+    const L = leftOf(a, own);
+    machine(dir, a, s, x, 250, { broke, hover: opts.hover === a.id });
+    let f;
+    if (!L.length) f = el('div', 'floor done', s, `<span class="tk"><img src="${TICK}" alt=""></span>All ${a.items.length} collected`);
+    else if (!own[a.id].length) f = el('div', 'floor fresh', s, `<span class="nw">NEW</span>${L.length} of ${a.items.length} left`);
+    else f = el('div', 'floor', s, `${L.length} of ${a.items.length} left`);
+    f.style.left = (x + 72) + 'px'; f.style.transform = 'translateX(-50%)';
+  });
+  if (complete) el('div', 'banner', s, '<span>COLLECTION COMPLETE · every figurine is on your shelf</span>');
+  else if (broke) el('div', 'notice', s, `<img src="${AS}warning.png" alt=""><div><b>NO COINS</b>Runs that pass shift 4 pay coins on the final receipt.</div>`);
+  else el('div', 'hint', s, 'Pick a machine: 1 coin a capsule.');
+  const sh = el('div', 'fbtn secondary ol2', s, 'Figurine shelf'); Object.assign(sh.style, { left: '40px', top: '640px', width: '230px', height: '56px' });
+  const dn = el('div', 'fbtn primary ol2', s, 'Done ›'); Object.assign(dn.style, { left: '1080px', top: '640px', width: '160px', height: '56px' });
+  if (opts.hover) {
+    const i = TM.aisles.findIndex((a) => a.id === opts.hover);
+    img(HAND, 40 + i * 160 + 96, 250 + 200, 28, 32, 'cursor', s);
+  }
+  s.style.cursor = `url("${HAND}") 8 0, pointer`;
+  return s;
+}
+
+function fitStage(wrap, s) {
+  const fit = () => { const k = Math.min(1, wrap.clientWidth / 1280); s.style.transform = `scale(${k})`; wrap.style.height = Math.round(720 * k) + 'px'; };
+  fit(); new ResizeObserver(fit).observe(wrap);
+}
+
+// ---------- zoom: one machine at 3x, its states at 1x, and (A, C) the three locked looks ----------
+function zoomCard(dir, parent) {
+  const a = TM.aisles.find((x) => x.id === OPT.zoom);
+  const card = el('div', 'zoomcard', parent);
+  const row = el('div', 'zoomrow', card);
+  const top = dir === 'B' ? 116 : 8;
+  const bigBox = el('div', '', row);
+  const big = el('div', '', bigBox); big.style.position = 'relative'; big.style.width = 144 * 3 + 'px'; big.style.height = (280 + top) * 3 + 'px';
+  const inner = el('div', '', big); Object.assign(inner.style, { position: 'absolute', left: 0, top: 0, width: '144px', height: (280 + top) + 'px', transform: 'scale(3)', transformOrigin: '0 0' });
+  machine(dir, a, inner, 0, top, { noPanel: true });
+  el('div', 'zoomcap', bigBox, `${a.name} at 3x (1 art px = 6 screen px). Locked items: ${{ sil: 'silhouette', shown: 'shown', q: '"?"' }[OPT.locked]}.`);
+  const side = el('div', '', row);
+  const fig = (box, label, opts) => {
+    const f = el('figure', '', box);
+    const b = el('div', '', f); Object.assign(b.style, { position: 'relative', width: '144px', height: (280 + top) + 'px' });
+    machine(dir, a, b, 0, top, Object.assign({ noPanel: true }, opts));
+    el('figcaption', '', f, label);
+  };
+  el('h3', '', side, 'States (1x)');
+  const st = el('div', 'modes', side);
+  const allOwn = Object.assign({}, PARTIAL, { [a.id]: a.items.slice() });
+  fig(st, 'Ready', {}); fig(st, 'BROKE (0 coins)', { broke: true }); fig(st, 'OUT OF ORDER', { off: true }); fig(st, 'All collected', { own: allOwn });
+  if (dir !== 'B') {
+    el('h3', '', side, 'Locked items, three ways (1x)');
+    const modes = el('div', 'modes', side);
+    const keep = OPT.locked;
+    [['shown', 'Shown'], ['sil', 'Silhouette'], ['q', '"?"']].forEach(([m, label]) => { OPT.locked = m; fig(modes, label, {}); });
+    OPT.locked = keep;
+  }
+  if (dir === 'A') {
+    el('h3', '', side, 'Hover: the lineup panel (1x)');
+    const hp = el('div', '', side); Object.assign(hp.style, { position: 'relative', height: '116px', width: (a.items.length * 68 + 24) + 'px' });
+    lineupPanel(a, hp, 0, owned());
+    Object.assign(hp.querySelector('.lineup').style, { left: '0px', top: '0px' });
+  }
+  return card;
+}
+
+// ---------- page ----------
+function build() {
+  const page = document.getElementById('page');
+  page.innerHTML = '';
+  if (OPT.cap === 'stage') {
+    document.body.classList.add('cap', 'cap-stage');
+    const w = el('div', 'wrap', page); w.style.width = '1280px'; w.style.height = '720px';
+    stage(OPT.d, w, { hover: OPT.hover });
+    return;
+  }
+  if (OPT.cap === 'zoom') {
+    document.body.classList.add('cap');
+    const w = el('div', '', page); w.style.display = 'inline-block';
+    zoomCard(OPT.d, w).style.border = '0';
+    return;
+  }
+  const own = owned();
+  const nOwn = Object.values(own).reduce((k, l) => k + l.length, 0);
+  el('h1', '', page, 'TOY MACHINES · redraw #121');
+  el('p', 'lede', page, `Three ways to make each exit toy machine say what's inside: its aisle's figurines. Same screen, same rules (1 coin = 1 capsule, key item first, then random), same states. Every item drawn here is the game's own sprite: the 48x48 items or the 7x7 minis. BROKE and OUT OF ORDER use a palette swap and a shut coin slot, not a brightness filter; hover uses corner brackets. The collection: ${nOwn} of ${TOTAL} figurines${OPT.state === 'complete' ? ' (everything)' : ', Pantry all collected, Snacks untouched'}. Hover a machine to see its motion.`);
+  const bar = el('div', 'bar', page);
+  const seg = (label, key, opts) => {
+    const g = el('div', 'seg', bar, `<b>${label}</b>`);
+    opts.forEach(([v, t]) => { const b = el('button', '', g, t); b.setAttribute('aria-pressed', String(OPT[key] === v)); b.onclick = () => { OPT[key] = v; const u = new URL(location); u.searchParams.set(key, v); history.replaceState(null, '', u); build(); }; });
+  };
+  seg('Locked items', 'locked', [['sil', 'Silhouette'], ['shown', 'Shown'], ['q', '"?"']]);
+  seg('Coins', 'state', [['partial', '5 coins'], ['broke', '0 coins (BROKE)'], ['complete', 'All collected']]);
+  seg('Zoom on', 'zoom', TM.aisles.map((a) => [a.id, a.name]));
+  for (const d of ['A', 'B', 'C']) {
+    const D = DIRS[d];
+    const sec = el('section', 'dir', page);
+    el('div', 'dirhead', sec, `<span class="tag">${d}</span><h2>${D.name}</h2>`);
+    el('p', 'summary', sec, D.summary + ' <b>Motion:</b> ' + D.motion);
+    const w = el('div', 'wrap', sec);
+    fitStage(w, stage(d, w, { hover: OPT.hover }));
+    const low = el('div', 'lower', sec);
+    const zw = el('div', '', low); zw.style.overflowX = 'auto';
+    zoomCard(d, zw);
+    const ch = el('div', 'changes', low);
+    el('h3', '', ch, 'What changes in the build');
+    const ul = el('ul', '', ch);
+    D.changes.forEach(([k, v]) => el('li', '', ul, `<b>${k}:</b> ${v}`));
+  }
+  const qs = el('section', 'dir', page);
+  el('h2', '', qs, 'Decisions for you');
+  const box = el('div', 'qs', qs);
+  box.innerHTML = `<ol>
+    <li><b>Which direction?</b> Recommended: <b>B, plus A's hover lineup panel</b>. B names each machine's prize in about a second and touches no machine art, the title or the REWARDS mini; the panel answers "what exactly is in here" on hover. C is the most charming but costs 3 to 4 times as much and leaves the title machine behind.</li>
+    <li><b>How do figurines you haven't won show?</b> #63 decided the figurine shelf hides locked items (no space, silhouette or name). A's card and panel and C's window show exactly those items, so "Shown" overrides #63 and a silhouette partly does. Recommended: <b>silhouette on the machines only</b> (shape and count, a tease), with the shelf still hiding them; "?" is fully safe but adds nothing to the "n of m left" plate. B's emblem is a fixed aisle sign, so it is shown either way.</li>
+    <li><b>The title screen.</b> With B (or A) the title's bare machine and the REWARDS card mini can stay as they are (B) or get a blank card (A). With C they would show the old globe machine. Recommended: <b>keep them unchanged</b>.</li>
+    <li><b>Extra: the lineup on the reveal?</b> After a capsule opens, the reveal could show the aisle's lineup with the new figurine ticking in. It is extra scope; recommended: <b>not now</b>, keep it as an idea for the end-of-phase polish.</li>
+  </ol>`;
+}
+build();
+</script>
+</body>
+</html>

@@ -1,0 +1,11 @@
+[gd_resource type="Resource" script_class="ToyCabinet" format=3]
+
+[ext_resource type="Script" path="res://presentation/toy_cabinet.gd" id="1_cabinet"]
+[ext_resource type="Resource" path="res://data/cards/crisps.tres" id="2_topper"]
+
+[resource]
+script = ExtResource("1_cabinet")
+art_id = &"snacks"
+topper = ExtResource("2_topper")
+slots = Array[Vector2i]([Vector2i(11, 58), Vector2i(24, 58), Vector2i(37, 58), Vector2i(11, 45), Vector2i(24, 45), Vector2i(37, 45), Vector2i(11, 32), Vector2i(24, 32), Vector2i(37, 32)])
+window = Rect2i(11, 32, 41, 42)

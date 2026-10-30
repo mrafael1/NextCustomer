@@ -1,0 +1,3 @@
+; The shared coin base for the Bakery aisle (#121): the teal body ramp swapped for the aisle's
+; (tools/pixel_art.py AISLE_MAPS).
+@derive toy_base aisle=bakery
