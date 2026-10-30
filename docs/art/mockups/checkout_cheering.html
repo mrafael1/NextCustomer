@@ -1,0 +1,823 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Checkout Cheering</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Pixelify+Sans:wght@400;600;700&family=Atkinson+Hyperlegible:wght@400;700&display=swap">
+<style>
+/* #120 Checkout cheering. Layout: the real 1280x720 shift screen capture on a canvas (1:1, scrolls sideways when narrower), the
+   simulated count-up on top of it, the cardboard standees drawn on the 2 px art grid, then the controls,
+   one tab group per question, and the notes. One look on purpose: the game's palette, dark. */
+:root {
+  color-scheme: dark;
+  --wall: #1f3b3a; --panel: #2a4d4b; --panel2: #213f3d; --teal: #4f9a94;
+  --paper: #fbf7ee; --cream: #f3e9d2; --cream-shade: #ddcba5;
+  --gold: #ffcf3f; --mustard: #e2b33c; --mustard-dark: #b38425;
+  --tomato: #d9534f; --tomato-dark: #a83a3c; --good: #5fae5a;
+  --ink: #2c2926; --muted: #8a8172;
+  --steel: #8d8a83; --steel-light: #c7c3b8; --steel-dark: #57534c; --charcoal: #24221f;
+  --page: #171f1e; --text: #ece6d8; --text-dim: #a9a59b;
+  --f-game: "Pixelify Sans", "Courier New", monospace;
+  --f-body: "Atkinson Hyperlegible", "Segoe UI", system-ui, sans-serif;
+}
+* { box-sizing: border-box; }
+html, body { background: var(--page); }
+body { color: var(--text); font-family: var(--f-body); font-size: 15px; line-height: 1.5; margin: 0;
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); padding-block: 20px 40px; }
+.wrap { max-width: 1280px; margin: 0 auto; display: flex; flex-direction: column; gap: 18px; min-width: 0; }
+h1 { font-family: var(--f-body); font-weight: 700; font-size: 28px; margin: 0; letter-spacing: .02em; text-wrap: balance; }
+.sub { color: var(--text-dim); margin: 0; max-width: 78ch; }
+.frame { width: 100%; max-width: 1280px; position: relative; overflow-x: auto; overflow-y: hidden; overscroll-behavior-x: contain; border-radius: 6px; overflow: hidden; box-shadow: 0 0 0 3px var(--charcoal), 0 10px 30px rgba(0,0,0,.5);
+  touch-action: manipulation; user-select: none; -webkit-user-select: none; cursor: pointer; background: #000; }
+/* 1:1 by default (an integer scale keeps every pixel row of the art and the digits); "Fit width" scales it down */
+#stage { display: block; width: 1280px; height: 720px; max-width: none; image-rendering: pixelated; image-rendering: crisp-edges; }
+body.fit #stage { width: 100%; height: auto; aspect-ratio: 16 / 9; }
+.hint { display: none; color: var(--text-dim); font-size: 13px; margin: -10px 0 0; }
+@media (max-width: 1311px) { body:not(.fit):not(.bare) .hint { display: block; } }
+.controls { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.controls .grp { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.controls .lbl { color: var(--text-dim); font-size: 13px; margin-right: 2px; }
+.controls button, .mini { font-family: var(--f-body); font-size: 14px; font-weight: 700; border: 2px solid var(--steel-dark); background: #222b2a; color: var(--text);
+  padding: 6px 12px; border-radius: 6px; cursor: pointer; }
+.controls button[aria-pressed="true"], .mini[aria-pressed="true"] { border-color: var(--gold); color: var(--gold); }
+.controls button:focus-visible, .tab:focus-visible, .mini:focus-visible { outline: 3px solid var(--gold); outline-offset: 2px; }
+.controls .sep { width: 1px; height: 24px; background: var(--steel-dark); margin: 0 4px; }
+.status { color: var(--text-dim); font-size: 13px; min-height: 1.5em; margin: -8px 0 0; font-variant-numeric: tabular-nums; }
+.status b { color: var(--cream); }
+.q { border-top: 2px solid var(--panel); padding-top: 14px; min-width: 0; }
+.q h2 { font-family: var(--f-body); font-size: 19px; letter-spacing: .01em; margin: 0 0 4px; color: var(--gold); }
+.q p.ask { margin: 0 0 8px; color: var(--text-dim); max-width: 80ch; }
+.tabs { display: grid; grid-template-columns: repeat(var(--n, 2), minmax(0, 1fr)); gap: 8px; margin: 6px 0 10px; }
+.tab { text-align: left; background: var(--panel2); color: var(--text); border: 2px solid var(--panel); padding: 9px 12px; cursor: pointer; font: inherit; border-radius: 4px; min-width: 0; }
+.tab b { display: block; font-family: var(--f-body); font-weight: 700; font-size: 17px; line-height: 1.2; }
+.tab span { display: block; font-size: 13.5px; color: var(--text-dim); margin-top: 4px; }
+.tab[aria-selected="true"] { border-color: var(--gold); background: var(--panel); }
+.tab[aria-selected="true"] b { color: var(--gold); }
+.rec { display: inline-block; font-size: 11px; color: #2b2420; background: var(--gold); padding: 0 6px; margin-left: 6px; vertical-align: middle;
+  font-family: var(--f-body); font-weight: 700; font-style: normal; border-radius: 2px; letter-spacing: .03em; }
+.detail { font-size: 14px; color: var(--text-dim); }
+.detail b { color: var(--cream); }
+.tbl { width: 100%; border-collapse: collapse; font-size: 14px; margin-top: 6px; font-variant-numeric: tabular-nums; }
+.tbl th, .tbl td { text-align: left; padding: 4px 8px; border-bottom: 1px solid #2a3533; }
+.tbl th { color: var(--text-dim); font-weight: 400; font-size: 13px; }
+.tbl td.num { text-align: right; }
+.k { display: inline-block; padding: 0 6px; border-radius: 3px; font-size: 12px; font-weight: 700; }
+.k.small { background: #2a3533; color: var(--text-dim); }
+.k.big { background: var(--mustard); color: var(--ink); }
+.k.huge { background: var(--gold); color: var(--ink); box-shadow: 0 0 0 2px var(--tomato); }
+.k.zero { background: var(--tomato-dark); color: var(--paper); }
+.tblwrap { overflow-x: auto; max-width: 100%; }
+.tblcap { font-size: 13px; color: var(--text-dim); margin: 6px 0 0; }
+.minis { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin-top: 4px; }
+.minis .mini { font-size: 13px; padding: 3px 9px; }
+.cols { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 24px; border-top: 2px solid var(--panel); padding-top: 16px; }
+.cols > section { min-width: 0; }
+.cols h2 { font-family: var(--f-body); font-size: 18px; letter-spacing: .01em; margin: 0 0 8px; color: var(--gold); }
+ul, ol { margin: 0; padding-left: 20px; display: flex; flex-direction: column; gap: 6px; }
+li b { color: var(--cream); }
+@media (max-width: 860px) { .cols { grid-template-columns: 1fr; } }
+/* ?bare=1: the stage alone at 1:1, for stills */
+body.bare { padding: 0; } body.bare .wrap { max-width: none; gap: 0; } body.bare .wrap > :not(.frame) { display: none; }
+body.bare .frame { border-radius: 0; box-shadow: none; width: 1280px; overflow: hidden; }
+@media (max-width: 640px) { .tabs { grid-template-columns: minmax(0, 1fr); } h1 { font-size: 22px; } }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Checkout Cheering</h1>
+  <p class="sub">Issue #120. Cardboard promo standees pop up behind the counter after big item payouts and grow into a small crowd during a streak. They stay behind the action and clear of the monitor, the receipt and the payout flights. The backdrop is the real 1280x720 shift screen; the count-up on it is simulated. Pick a preset, then switch the answer tabs below and watch the same checkout again.</p>
+
+  <div class="frame" id="frame"><canvas id="stage" width="1280" height="720" aria-label="Shift screen with the simulated count-up and the cheering standees"></canvas></div>
+
+  <div class="controls">
+    <button type="button" id="replay">Replay</button>
+    <span class="sep"></span>
+    <span class="grp" id="presets">
+      <button type="button" data-p="p1" aria-pressed="true">One big item</button>
+      <button type="button" data-p="p2" aria-pressed="false">Three bigs + a WASTED</button>
+      <button type="button" data-p="p3" aria-pressed="false">Huge item</button>
+      <button type="button" data-p="p4" aria-pressed="false">Quota missed</button>
+    </span>
+    <span class="sep"></span>
+    <span class="grp"><span class="lbl">Speed</span>
+      <button type="button" data-s="1" aria-pressed="true">1.0</button>
+      <button type="button" data-s="1.5" aria-pressed="false">1.5</button>
+    </span>
+    <span class="sep"></span>
+    <button type="button" id="rm" aria-pressed="false">Reduced motion</button>
+    <button type="button" id="ov" aria-pressed="false">Show keep-clear zones</button>
+    <button type="button" id="snd" aria-pressed="true">Sound</button>
+    <span class="sep"></span>
+    <button type="button" id="fit" aria-pressed="false">Fit width</button>
+  </div>
+  <p class="hint">The stage is shown 1:1 so no pixel rows drop out; it opens on the crowd. Swipe or scroll it sideways, or press <b>Fit width</b>.</p>
+  <p class="status" id="status">Tap the stage to fast-forward (x12 until the verdict); hold it for x5.</p>
+
+  <section class="q" id="q1">
+    <h2>Q1 What counts as a big payout?</h2>
+    <p class="ask">The test runs on each item's payout (all its gains added up) once the item has scored.</p>
+    <div class="tabs" role="tablist" aria-label="Q1 threshold">
+      <button class="tab" role="tab" data-q="q1" data-v="best" aria-selected="true"><b>Best-relative <i class="rec">RECOMMENDED</i></b><span>Big = max(€10, 20% of best); huge = max(€25, 50% of best). Best = max(€45, your best earlier checkout). Grows with the run, the same in every shift. At best €90: big €18, huge €45.</span></button>
+      <button class="tab" role="tab" data-q="q1" data-v="quota" aria-selected="false"><b>Quota-share</b><span>Big = 15% of the shift's quota; huge = 40%. At this €80 quota: big €12, huge €32. Early quotas are smaller still, so early shifts cheer at almost everything.</span></button>
+    </div>
+    <div class="detail" id="q1detail"></div>
+  </section>
+
+  <section class="q" id="q2">
+    <h2>Q2 Where do they stand?</h2>
+    <div class="tabs" role="tablist" aria-label="Q2 placement">
+      <button class="tab" role="tab" data-q="q2" data-v="right" aria-selected="true"><b>Right gap only <i class="rec">RECOMMENDED</i></b><span>Two standees in full and a third peeking over their shoulders (48 px cards), between the reward machine and the screen edge, in front of the cold cases, feet behind the belt.</span></button>
+      <button class="tab" role="tab" data-q="q2" data-v="both" aria-selected="false"><b>Both gaps</b><span>Adds two smaller head-and-arms fans peeking over the fruit &amp; veg stand's crate, under its green sign. They join with the 2nd and 3rd standee.</span></button>
+    </div>
+  </section>
+
+  <section class="q" id="q3">
+    <h2>Q3 How does the streak build and break?</h2>
+    <div class="tabs" role="tablist" aria-label="Q3 streak" style="--n:3">
+      <button class="tab" role="tab" data-q="q3" data-v="soft" aria-selected="true"><b>Soft <i class="rec">RECOMMENDED</i></b><span>Each big pops the next standee (max 3); a huge pops two. Small payouts hold. A €0 (WASTED, denied) drops the newest one.</span></button>
+      <button class="tab" role="tab" data-q="q3" data-v="strict" aria-selected="false"><b>Strict</b><span>Same build-up, but any small or €0 payout sends the whole crowd down.</span></button>
+      <button class="tab" role="tab" data-q="q3" data-v="peek" aria-selected="false"><b>Soft + passed-shift peek</b><span>As soft; after 3 passed shifts in a row one standee is already peeking (half up) when the checkout starts.</span></button>
+    </div>
+  </section>
+
+  <section class="q" id="q4">
+    <h2>Q4 What do they sound like?</h2>
+    <p class="ask">Click anything on the page once so the browser lets it play sound.</p>
+    <div class="tabs" role="tablist" aria-label="Q4 sound">
+      <button class="tab" role="tab" data-q="q4" data-v="thunk" aria-selected="true"><b>Cardboard thunks <i class="rec">RECOMMENDED</i></b><span>A short dull thunk per standee as it pops, pitched 0.9 + 0.08 x its index; a softer one when one drops.</span></button>
+      <button class="tab" role="tab" data-q="q4" data-v="yay" aria-selected="false"><b>Thunks + a short "yay"</b><span>Adds a synthesised crowd "yay" at the ding and on a pass.</span></button>
+    </div>
+  </section>
+
+  <div class="cols">
+    <section>
+      <h2>What to try</h2>
+      <ol>
+        <li><b>One big item</b>: at best €90 only the Croissant (€34) is big, so one standee pops. Switch Q1 to quota-share: at €80 the bar is €12 and every item cheers.</li>
+        <li><b>Three bigs + a WASTED</b>: watch the crowd grow, the WASTED coupon slump the newest standee, then compare <b>Strict</b>.</li>
+        <li><b>Huge item</b>: two pop 0.08 s apart, then the next huge fills the row; the ding freezes everything for 0.85 s, then all hop once.</li>
+        <li><b>Quota missed</b>: the verdict sinks the crowd.</li>
+        <li>Turn on <b>Show keep-clear zones</b>: the green crowd zones never touch the red ones.</li>
+        <li>Watch the end: they fold down before the printer feed, and the 2x glide to the reward machine shows the gap empty.</li>
+      </ol>
+    </section>
+    <section>
+      <h2>Recommendation</h2>
+      <ul>
+        <li><b>Best-relative threshold</b>: the cheer means "good for you, this run", and it does not fire on every item in shift 1.</li>
+        <li><b>Right gap only</b>: the fans in gap A sit close to the receipt and the cashier, and the eye already goes left for the receipt.</li>
+        <li><b>Soft streak</b>: a WASTED item costs one standee, which reads as a small "aww" rather than a punishment.</li>
+        <li><b>Cardboard thunks</b>; the count-up's ladder and the ding already carry the joy, a "yay" on top crowds the mix.</li>
+      </ul>
+    </section>
+    <section>
+      <h2>Open questions</h2>
+      <ul>
+        <li>Should the passed-shift peek count across days, or reset each week?</li>
+        <li>All presets use the €80 quota on screen. The best earlier checkout defaults to €90 (a run that has passed €80 shifts before); at €60 the bars drop to €12 / €30 and more items cheer.</li>
+        <li>The three promo looks (SALE burst, milk carton, store-apron mascot) are placeholders: keep these, or tie them to the shift's aisles?</li>
+        <li>Hop height uses the count-up's note (0..10); should a register multiplier add to it?</li>
+      </ul>
+    </section>
+  </div>
+</div>
+
+<script>
+"use strict";
+// ---------------------------------------------------------------- palette (art/src/palette.txt)
+const PAL = { "#": "#2b2420", "%": "#4a3f38", "=": "#5e574d", "-": "#8a8172", ":": "#c7beab", a: "#b39f78", b: "#ddcba5", c: "#f3e9d2", w: "#fbf7ee",
+  1: "#1f3b3a", 2: "#2a4d4b", 3: "#3a7672", 4: "#4f9a94", 5: "#86c2b6", 6: "#c3e0d4", q: "#6e2630", r: "#a83a3c", R: "#d9534f", o: "#ec8a6e", O: "#f5bfa0",
+  u: "#7a5a1c", m: "#b38425", M: "#e2b33c", y: "#f1d27a", Y: "#faecbc", g: "#3d7a45", G: "#5fae5a", z: "#a5d17e", e: "#4a3022", f: "#7a5232", F: "#a87a4e", h: "#d2a874",
+  n: "#ffcf3f", T: "#6e4524", U: "#3e2614", S: "#a8703a", Q: "#c98c4e", P: "#ddb07a", 9: "#e2b48c", 0: "#c38f6a", N: "#24221f", t: "#222a29", s: "#2c3533", 7: "#5fb0a8", 8: "#172c2b" };
+
+// ---------------------------------------------------------------- stage geometry (stage px)
+const SLOT_X = [[368, 488], [496, 616], [624, 744], [752, 860]];
+const CELL_Y = [425, 487];
+const MON = { x: 499, y: 79, w: 398, h: 152 };
+const RCPT = { x: 48, y: 96, w: 230, h: 240 };
+const BELT_Y = 316, STAND_Y = 216;
+const TOTAL_AT = { x: 698, y: 150 };
+const LAND = { x: 698, y: 248 }; // payout flights end on the under-strip, below the monitor frame, never over the number
+const TAGS = [[427, 418, 56, 30], [555, 418, 56, 30], [672, 413, 70, 42], [806, 416, 62, 34]]; // slot tags, cover the capture's own
+
+// ---------------------------------------------------------------- standee sprites (art px, drawn at 2x)
+// Each card: the figure in 2-3 tones per material (light from the top left), a promo element, a light cardboard rim on the
+// top-left, a darker cut edge on the right (the board's thickness), a 1 px ink outline, and a separate drop-shadow mask.
+const SW = 24, PADT = 6, SH = 70; // 6 rows of headroom for a product held up; the bottom rows (legs, easel) stay hidden
+function finishCard(g, W, H) {
+  const fig = (x, y) => x >= 0 && x < W && y >= 0 && y < H && g[y][x] !== null;
+  const a = g.map((row) => row.slice());
+  for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+    if (g[y][x] !== null) continue;
+    if (fig(x + 1, y) || fig(x, y + 1)) a[y][x] = "h";            // rim, lit side
+    else if (fig(x - 1, y) || fig(x, y - 1)) a[y][x] = "Q";       // rim, shade side
+  }
+  const s1 = (x, y) => x >= 0 && x < W && y >= 0 && y < H && a[y][x] !== null;
+  const b = a.map((row) => row.slice());
+  for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) if (a[y][x] === null && s1(x - 1, y)) b[y][x] = s1(x - 1, y - 1) ? "S" : "T"; // cut edge
+  const s2 = (x, y) => x >= 0 && x < W && y >= 0 && y < H && b[y][x] !== null;
+  const fin = b.map((row) => row.slice());
+  for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) if (b[y][x] === null && (s2(x - 1, y) || s2(x + 1, y) || s2(x, y - 1) || s2(x, y + 1))) fin[y][x] = "#";
+  const mk = (shadow) => {
+    const cv = document.createElement("canvas"); cv.width = W; cv.height = H;
+    const x2 = cv.getContext("2d"); const img = x2.createImageData(W, H);
+    const HZ = [214, 212, 194], HA = 0.08; // light haze: the standees live on the back layer
+    for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+      const k = fin[y][x]; if (k === null) continue; const i = (y * W + x) * 4;
+      if (shadow) { img.data[i] = 23; img.data[i + 1] = 44; img.data[i + 2] = 43; img.data[i + 3] = 150; continue; }
+      const hex = PAL[k];
+      for (let j = 0; j < 3; j++) img.data[i + j] = Math.round(parseInt(hex.substr(1 + 2 * j, 2), 16) * (1 - HA) + HZ[j] * HA);
+      img.data[i + 3] = 255;
+    }
+    x2.putImageData(img, 0, 0); return cv;
+  };
+  let top = H; for (let y = 0; y < H && top === H; y++) if (fin[y].some((k) => k !== null)) top = y;
+  return { cv: mk(false), sh: mk(true), top, H, W };
+}
+function grid(W, H, oy) {
+  const g = Array.from({ length: H }, () => Array(W).fill(null));
+  const set = (x, y, k) => { y += oy; if (x >= 0 && x < W && y >= 0 && y < H) g[y][x] = k; };
+  const rect = (x0, y0, x1, y1, k) => { for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++) set(x, y, k); };
+  return { g, set, rect };
+}
+function makeFigure(c, cheer) {
+  const { g, set, rect } = grid(SW, SH, PADT);
+  const [sh, shS, shL] = c.shirt, [sk, skS, skL] = c.skin, [hr, hrS, hrL] = c.hair;
+  const L = SH - PADT - 1;
+  // legs and trousers (hidden behind the belt; they give the hop its headroom)
+  rect(6, 41, 15, L, c.pants[0]); rect(14, 41, 15, L, c.pants[1]); rect(10, 50, 11, L, null);
+  // torso: light column on the left, shade on the right
+  rect(6, 17, 15, 17, sh); rect(5, 18, 16, 39, sh); rect(5, 18, 5, 39, shL); rect(6, 17, 7, 17, shL); rect(15, 18, 16, 39, shS); rect(5, 40, 16, 40, c.belt);
+  set(9, 17, "w"); set(12, 17, "w"); set(10, 17, sk); set(11, 17, sk); set(10, 18, sk); set(11, 18, skS); // collar
+  // neck and head
+  rect(10, 16, 11, 16, skS);
+  const rows = { 5: [9, 12], 6: [8, 13], 15: [8, 13] };
+  for (let y = 5; y <= 15; y++) { const [a, b] = rows[y] || [7, 14]; rect(a, y, b, y, sk); }
+  for (let y = 8; y <= 14; y++) set(14, y, skS);
+  set(13, 15, skS); rect(8, 9, 8, 12, skL);
+  // hair: base, shade on the right, one light streak
+  for (let y = 5; y <= 7; y++) { const [a, b] = rows[y] || [7, 14]; rect(a, y, b, y, hr); }
+  rect(7, 8, 14, 8, hr); set(14, 7, hrS); set(14, 8, hrS); set(13, 5, hrS); set(13, 6, hrS); rect(9, 6, 11, 6, hrL);
+  if (c.style === "bob") { rect(7, 9, 7, 14, hr); rect(14, 9, 14, 14, hrS); rect(6, 10, 6, 14, hr); rect(15, 10, 15, 14, hrS); set(6, 10, hrL); }
+  if (c.style === "short") { set(7, 9, hr); set(8, 9, hr); set(14, 9, hrS); }
+  // face: 2-row eyes, brows up when cheering, blush, mouth
+  rect(9, 10, 9, 11, "#"); rect(12, 10, 12, 11, "#"); set(8, 12, "o"); set(13, 12, "o");
+  if (cheer) { set(9, 9, hrS); set(12, 9, hrS); rect(10, 13, 11, 13, "q"); rect(10, 14, 11, 14, "r"); }
+  else { set(9, 13, "%"); set(12, 13, "%"); rect(10, 14, 11, 14, "%"); }
+  // arms
+  if (!cheer) {
+    rect(2, 18, 3, 23, sh); rect(2, 18, 2, 23, shL); rect(2, 24, 3, 33, sk); rect(2, 24, 2, 33, skL); rect(2, 34, 3, 35, skS);
+    rect(18, 18, 19, 23, shS); rect(18, 24, 19, 35, skS);
+  } else {
+    for (let r = 2; r <= 18; r++) {
+      const x = r <= 8 ? 2 : r <= 13 ? 3 : 4, isShirt = r > 12;
+      set(x, r, isShirt ? shL : skL); set(x + 1, r, isShirt ? sh : sk); set(21 - x, r, isShirt ? shS : skS); set(20 - x, r, isShirt ? shS : skS);
+    }
+    set(4, 2, sk); set(17, 2, skS); // open hands
+  }
+  // promo element
+  if (c.promo === "burst") { // a yellow SALE burst with a red % on the chest
+    const rowsB = { 22: [10, 10], 23: [9, 11], 24: [7, 13], 25: [8, 12], 26: [7, 13], 27: [8, 12], 28: [7, 13], 29: [9, 11], 30: [10, 10] };
+    for (const y in rowsB) rect(rowsB[y][0], +y, rowsB[y][1], +y, "n");
+    set(13, 26, "M"); set(13, 28, "M"); set(12, 27, "M"); set(11, 29, "M"); set(10, 30, "m"); set(9, 23, "Y"); set(8, 24, "Y");
+    set(8, 25, "r"); set(12, 28, "r"); set(11, 25, "r"); set(10, 26, "r"); set(9, 27, "r"); // the %
+  }
+  if (c.promo === "milk") { // a milk carton: held at the hip, or up above the head when cheering
+    const [cx, cy] = cheer ? [2, -5] : [3, 28];
+    rect(cx, cy + 2, cx + 4, cy + 8, "w"); rect(cx + 4, cy + 2, cx + 4, cy + 8, "c"); rect(cx, cy + 4, cx + 4, cy + 5, "4");
+    set(cx + 4, cy + 4, "3"); set(cx + 4, cy + 5, "3"); rect(cx + 1, cy + 1, cx + 3, cy + 1, "c"); set(cx + 2, cy, "w"); set(cx + 2, cy + 7, "b");
+  }
+  if (c.promo === "apron") { // store mascot: teal apron with the cart logo, teal cap
+    rect(8, 17, 8, 21, "4"); rect(13, 17, 13, 21, "3"); rect(7, 22, 14, 39, "4"); rect(7, 22, 7, 39, "5"); rect(14, 22, 14, 39, "3");
+    set(8, 26, "w"); rect(9, 27, 13, 27, "w"); rect(10, 28, 12, 28, "w"); set(10, 29, "w"); set(12, 29, "w"); rect(8, 34, 13, 34, "3");
+    rect(8, 4, 13, 6, "4"); rect(9, 4, 10, 4, "5"); rect(7, 7, 15, 7, "3"); set(13, 5, "3");
+  }
+  return finishCard(g, SW, SH);
+}
+// gap A fans: smaller (a 7 px head instead of 8, narrower shoulders), head and arms only
+const FW = 21, FH = 30, FPAD = 4;
+function makeFan(c, cheer) {
+  const { g, set, rect } = grid(FW, FH, FPAD);
+  const [sh, shS, shL] = c.shirt, [sk, skS, skL] = c.skin, [hr, hrS, hrL] = c.hair;
+  rect(5, 14, 15, 25, sh); rect(5, 14, 5, 25, shL); rect(14, 14, 15, 25, shS); rect(9, 14, 11, 14, sk);
+  rect(9, 13, 11, 13, skS);
+  rect(7, 6, 13, 12, sk); rect(8, 5, 12, 5, sk); rect(13, 7, 13, 12, skS); rect(7, 8, 7, 10, skL);
+  rect(7, 4, 13, 6, hr); rect(8, 3, 12, 3, hr); rect(12, 3, 13, 6, hrS); rect(9, 4, 10, 4, hrL); set(7, 7, hr);
+  set(9, 8, "#"); set(11, 8, "#"); set(8, 10, "o"); set(12, 10, "o");
+  if (cheer) { set(10, 10, "q"); set(10, 11, "r"); } else { set(9, 10, "%"); set(10, 11, "%"); set(11, 10, "%"); }
+  if (cheer) { for (let r = 2; r <= 15; r++) { const x = r <= 8 ? 3 : 4; set(x, r, r > 11 ? shL : skL); set(x + 1, r, r > 11 ? sh : sk); set(19 - x, r, r > 11 ? shS : skS); set(20 - x, r, r > 11 ? shS : skS); } }
+  else { rect(3, 15, 4, 25, sh); rect(16, 15, 17, 25, shS); }
+  return finishCard(g, FW, FH);
+}
+const LOOKS = [
+  { shirt: ["R", "r", "o"], pants: ["2", "1"], hair: ["f", "e", "F"], style: "bob", skin: ["9", "0", "O"], belt: "U", promo: "burst" },
+  { shirt: ["4", "3", "5"], pants: ["=", "%"], hair: ["M", "m", "y"], style: "short", skin: ["O", "0", "c"], belt: "%", promo: "milk" },
+  { shirt: ["M", "m", "y"], pants: ["T", "U"], hair: ["%", "#", "="], style: "short", skin: ["h", "F", "P"], belt: "U", promo: "apron" },
+];
+const SPR = LOOKS.map((c) => ({ rest: makeFigure(c, false), cheer: makeFigure(c, true) }));
+const FAN_LOOKS = [ { ...LOOKS[1], shirt: ["G", "g", "z"] }, { ...LOOKS[0], shirt: ["5", "3", "6"], hair: ["%", "#", "="] } ];
+const FSPR = FAN_LOOKS.map((c) => ({ rest: makeFan(c, false), cheer: makeFan(c, true) }));
+
+// slots: x, visible top (y of the first ink row at rest), base line that hides them. The right gap (x 1182-1280) holds
+// two full cards and S3 peeking over their shoulders, all inside the stage edge, shadow included.
+const SLOTS = [
+  { x: 1226, vis: 214, base: BELT_Y, spr: SPR[0], pitch: 0 },  // S1, front right
+  { x: 1184, vis: 208, base: BELT_Y, spr: SPR[1], pitch: 1 },  // S2, front left
+  { x: 1205, vis: 178, base: BELT_Y, spr: SPR[2], pitch: 2 },  // S3, behind, peeks over the shoulders
+  { x: 372, vis: 196, base: STAND_Y, spr: FSPR[0], fan: true }, // gap A fans: the crate hides them from the chin down
+  { x: 408, vis: 198, base: STAND_Y, spr: FSPR[1], fan: true },
+];
+for (const s of SLOTS) { s.y = s.vis - 2 * s.spr.rest.top; s.drop = s.base + 2 - s.vis; }
+
+// ---------------------------------------------------------------- presets
+const ITEMS = ["Cheese", "Strawberries", "Croissant", "Coupon x3"];
+const PRESETS = {
+  p1: { quota: 80, items: [[4, 6, 5], [3, 5, 8], [22, 12], [6, 11]], note: "quota €80" },
+  p2: { quota: 80, items: [[5, 7, 9], [3, 6, 11], null, [14, 28]], note: "quota €80" },
+  p3: { quota: 80, items: [[3, 4], [2, 3], [22, 10, 14], [15, 30]], note: "quota €80" },
+  p4: { quota: 80, items: [[3, 4, 6], [2, 3], [19, 2], null], note: "quota €80" },
+};
+
+// ---------------------------------------------------------------- options + URL
+const Q = new URLSearchParams(location.search);
+if (Q.get("bare") === "1") document.body.classList.add("bare");
+const opt = { preset: "p1", q1: "best", q2: "right", q3: "soft", q4: "thunk", best: 90, speed: 1, rm: false, overlay: false, sound: true, fit: false };
+if (matchMedia("(prefers-reduced-motion: reduce)").matches) opt.rm = true;
+const TABV = { q1: ["best", "quota"], q2: ["right", "both"], q3: ["soft", "strict", "peek"], q4: ["thunk", "yay"] };
+for (const k of ["preset", "q1", "q2", "q3", "q4"]) if (Q.get(k)) opt[k] = Q.get(k);
+for (const tb of (Q.get("tab") || "").split(",")) { const m = /^(q[1-4])([a-c])$/.exec(tb); if (m) opt[m[1]] = TABV[m[1]][m[2].charCodeAt(0) - 97] || opt[m[1]]; }
+if (Q.get("best")) opt.best = +Q.get("best");
+if (Q.get("overlay") === "1") opt.overlay = true;
+if (Q.get("rm") === "1") opt.rm = true;
+if (Q.get("speed")) opt.speed = +Q.get("speed");
+if (Q.get("fit") === "1") opt.fit = true;
+
+// ---------------------------------------------------------------- timeline (anim seconds; the ding's hit-stop is added in wallToAnim)
+const HITSTOP = 0.85, POP = 0.22, HOP = 0.22, CHEER = 0.24, STAGGER = 0.05, FOLD = 0.22;
+function thresholds(q, quota, best) {
+  if (q === "quota") return { big: 0.15 * quota, huge: 0.4 * quota };
+  const b = Math.max(45, best);
+  return { big: Math.max(10, 0.2 * b), huge: Math.max(25, 0.5 * b) };
+}
+function classify(pay, th) { return pay === 0 ? "zero" : pay >= th.huge ? "huge" : pay >= th.big ? "big" : "small"; }
+
+function build() {
+  const P = PRESETS[opt.preset];
+  const th = thresholds(opt.q1, P.quota, opt.best);
+  const ev = SLOTS.map(() => []);   // per standee: {t, type, ...}
+  const sfx = [];                    // {t, kind, pitch}
+  const chips = [], wasted = [], lines = [], cells = [], log = [];
+  const up = [];                     // indices of the right-gap standees that are up, oldest first
+  let t = 0.7, total = 0, note = 0, gainN = 0, ding = null, dingDone = false;
+  const peek = opt.q3 === "peek";
+  let half = peek; // S1 peeks half up; the first pop raises it
+  if (peek) up.push(0);
+  const hopH = () => (opt.rm ? 0 : 4 + 2 * Math.floor(note / 3));
+  const pop = (i, at) => { ev[i].push({ t: at, type: "pop" }); sfx.push({ t: at, kind: "thunk", pitch: 0.9 + 0.08 * SLOTS[i].pitch }); };
+  const hopAll = (at) => {
+    up.forEach((i, n) => {
+      if (half && i === 0) return;
+      const t2 = at + n * STAGGER;
+      const busy = ev[i].some((e) => (e.type === "pop" && e.t > at - POP && e.t <= at + POP) || (e.type === "hop" && Math.abs(e.t - t2) < HOP));
+      if (!busy) ev[i].push({ t: t2, type: "hop", h: hopH() }); // one hop per standee per beat
+    });
+  };
+  const sinkAll = (at, why) => { half = false; up.forEach((i, n) => { ev[i].push({ t: at + n * 0.03, type: "sink" }); }); if (up.length) sfx.push({ t: at, kind: "drop" }); up.length = 0; };
+  const react = (pay, at, name) => {
+    const c = classify(pay, th);
+    if (c === "big" || c === "huge") {
+      const want = c === "huge" ? 2 : 1;
+      let popped = 0;
+      for (let k = 0; k < want && (half || up.length < 3); k++) {
+        if (half) { half = false; pop(0, at + k * 0.08); popped++; continue; }
+        const i = [0, 1, 2].find((j) => !up.includes(j)); up.push(i); pop(i, at + k * 0.08); popped++;
+      }
+      if (popped < want) hopAll(at + popped * 0.08);
+    } else if (c === "zero") {
+      if (opt.q3 === "strict") sinkAll(at);
+      else if (up.length) { const i = up.pop(); if (i === 0) half = false; ev[i].push({ t: at, type: "slump" }); sfx.push({ t: at, kind: "drop" }); }
+    } else if (opt.q3 === "strict") sinkAll(at);
+    log.push({ t: at, text: `<b>${name}</b> paid €${pay}: ${c === "zero" ? "€0, WASTED" : c}${c === "small" ? (opt.q3 === "strict" ? ", the crowd goes down" : ", the crowd holds") : ""}` });
+  };
+  P.items.forEach((gains, si) => {
+    const start = t; let evalT;
+    if (!gains) {
+      wasted.push({ t: start, slot: si }); evalT = start + 0.3; t = start + 0.75;
+      lines.push({ t: evalT, name: ITEMS[si], amt: 0 });
+      react(0, evalT, ITEMS[si]);
+    } else {
+      let sum = 0;
+      gains.forEach((g, k) => {
+        const land = t + 0.45;
+        chips.push({ t0: t, t1: land, amt: g, slot: si });
+        const before = total; total += g; sum += g; note = Math.min(10, gainN); gainN++;
+        if (ding === null && before < P.quota && total >= P.quota) ding = land;
+        evalT = land; t += 0.34;
+      });
+      lines.push({ t: evalT, name: ITEMS[si], amt: sum });
+      // the ding is handled first: it lands at D, on or before this item's evaluation (time order)
+      if (ding !== null && !dingDone && ding <= evalT) {
+        dingDone = true;
+        // ding: top up to at least one, everyone hops (starts after the hit-stop)
+        const D = ding;
+        if (up.length === 0) { up.push(0); pop(0, D); } else if (half) { half = false; pop(0, D); }
+        hopAll(D + 0.001);
+        sfx.push({ t: D, kind: "yay", atDing: true });
+        log.push({ t: D, ding: true, text: "<b>Ding</b>: SPEND MET. 0.85 s hit-stop, then the crowd tops up to at least 1 and everyone hops" });
+      }
+      react(sum, evalT, ITEMS[si]);
+      t = evalT + 0.4;
+    }
+    cells.push({ slot: si, t0: start, t1: evalT + 0.25 });
+  });
+  const V = t + 0.35, pass = ding !== null;
+  if (pass) { hopAll(V); sfx.push({ t: V, kind: "yay" }); }
+  else sinkAll(V);
+  const foldT = V + 0.34, feed = V + 0.8, glide = V + 1.15, end = V + 3.0;
+  for (let i = 0; i < SLOTS.length; i++) { ev[i].push({ t: foldT + i * 0.03, type: "fold" }); ev[i].push({ t: feed, type: "hide" }); }
+  if (pass && up.length) sfx.push({ t: foldT, kind: "fold" });
+  log.push({ t: V, text: pass ? "<b>Verdict: PAID</b>. All hop, then fold down before the printer feed" : `<b>Verdict: SHORT</b> by €${P.quota - total}. The crowd sinks` });
+  log.push({ t: feed, text: "<b>Printer feed</b>: standees hard-hidden" });
+  log.push({ t: glide, text: "<b>Glide to the reward machine</b> (2x): the right gap is empty" });
+  // fans mirror S2 and S3, 0.03 s later
+  if (opt.q2 === "both") { ev[3] = ev[3].concat(ev[1].filter((e) => e.type !== "fold" && e.type !== "hide").map((e) => ({ ...e, t: e.t + 0.03 })));
+    ev[4] = ev[4].concat(ev[2].filter((e) => e.type !== "fold" && e.type !== "hide").map((e) => ({ ...e, t: e.t + 0.03 }))); }
+  for (const e of ev) e.sort((a, b) => a.t - b.t);
+  // sounds run on the wall clock: anything at or after the ding plays after the hit-stop, with its visual (the ding's own yay plays at the freeze)
+  for (const x of sfx) x.w = ding !== null && x.t >= ding && !x.atDing ? x.t + HITSTOP : x.t;
+  sfx.sort((a, b) => a.w - b.w); log.sort((a, b) => a.t - b.t);
+  return { P, th, ev, sfx, chips, wasted, lines, cells, log, ding, V, pass, total, foldT, feed, glide, end, peek };
+}
+
+let TL = build();
+const wallEnd = () => TL.end + (TL.ding !== null ? HITSTOP : 0);
+function wallToAnim(w) {
+  if (TL.ding === null || w < TL.ding) return w;
+  if (w < TL.ding + HITSTOP) return TL.ding;
+  return w - HITSTOP;
+}
+
+// ---------------------------------------------------------------- standee pose
+const backOut = (u) => { const s = 1.70158; u -= 1; return 1 + (s + 1) * u * u * u + s * u * u; };
+const easeIn = (u) => u * u;
+const easeInOut = (u) => (u < 0.5 ? 2 * u * u : 1 - Math.pow(-2 * u + 2, 2) / 2);
+const clamp01 = (u) => Math.max(0, Math.min(1, u));
+const snap2 = (v) => 2 * Math.round(v / 2);
+function pose(i, T) {
+  const s = SLOTS[i], list = TL.ev[i], rm = opt.rm;
+  let lvl0 = TL.peek && i === 0 ? 0.5 : 0;
+  if (TL.peek && i === 3 && opt.q2 === "both") lvl0 = 0; // the peek is S1 only
+  let m = null; // current level motion
+  const lvlAt = (T2) => {
+    if (!m) return lvl0;
+    if (rm || T2 >= m.t0 + m.dur) return m.to;
+    const u = clamp01((T2 - m.t0) / m.dur);
+    return m.from + (m.to - m.from) * m.ease(u);
+  };
+  let hopY = 0, cheer = false, fold = 1, hidden = false;
+  for (const e of list) {
+    if (e.t > T) break;
+    const at = e.t;
+    if (e.type === "pop") { m = { t0: at, from: lvlAt(at), to: 1, dur: POP, ease: backOut }; if (T < at + CHEER) cheer = true; }
+    else if (e.type === "sink") { m = { t0: at, from: lvlAt(at), to: 0, dur: 0.28, ease: easeIn }; }
+    else if (e.type === "slump") { // the 'aww': sag 8 px, a beat, then sink
+      const l0 = lvlAt(at), sag = l0 - 8 / s.drop;
+      m = T < at + 0.14 ? { t0: at, from: l0, to: sag, dur: 0.08, ease: (u) => 1 - (1 - u) * (1 - u) } : { t0: at + 0.14, from: sag, to: 0, dur: 0.26, ease: easeIn }; }
+    else if (e.type === "hop") { if (T < at + HOP) { const u = (T - at) / HOP; hopY = rm ? 0 : e.h * 4 * u * (1 - u); cheer = true; } }
+    else if (e.type === "fold") { fold = rm ? 0 : 1 - clamp01((T - at) / FOLD); }
+    else if (e.type === "hide") hidden = true;
+  }
+  const lvl = lvlAt(T);
+  return { lvl, hopY: lvl > 0.01 ? hopY : 0, cheer, fold, hidden }; // a sunk standee never hops
+}
+
+// ---------------------------------------------------------------- drawing
+const cv = document.getElementById("stage"), ctx = cv.getContext("2d");
+ctx.imageSmoothingEnabled = false;
+const bg = new Image(); bg.src = "cheering_120/shift_screen_1280x720.png";
+const fg = new Image(); fg.src = "cheering_120/foreground_1280x720.png";
+const FONT = (px, w = 700) => `${w} ${px}px "Pixelify Sans", "Courier New", monospace`;
+function rr(x, y, w, h, r) { ctx.beginPath(); ctx.moveTo(x + r, y); ctx.arcTo(x + w, y, x + w, y + h, r); ctx.arcTo(x + w, y + h, x, y + h, r); ctx.arcTo(x, y + h, x, y, r); ctx.arcTo(x, y, x + w, y, r); ctx.closePath(); }
+const eur = (v) => "€" + v.toFixed(2);
+// Pixelify Sans' euro sign reads as a zero, and its 3, 5, 7 and 8 blur together at these sizes: draw the euro sign and
+// every number in Atkinson Hyperlegible, the words in the pixel font
+const NUM = /(€|\d(?:[\d.,]*\d)?)/;
+function txt(str, x, y) {
+  str = String(str);
+  if (!NUM.test(str)) return ctx.fillText(str, x, y);
+  const f = ctx.font, m = /(\d+)px/.exec(f), px = m ? +m[1] : 16, ef = `700 ${Math.round(px * 0.95)}px "Atkinson Hyperlegible", sans-serif`;
+  const isN = (q) => q.replace(NUM, "") === "";
+  const parts = str.split(NUM).filter(Boolean), al = ctx.textAlign;
+  const ws = parts.map((q) => { ctx.font = isN(q) ? ef : f; return ctx.measureText(q).width + (q === "€" ? 1 : 0); });
+  const W = ws.reduce((a, b) => a + b, 0);
+  let cx = al === "center" ? x - W / 2 : al === "right" ? x - W : x;
+  ctx.textAlign = "left";
+  parts.forEach((q, i) => { ctx.font = isN(q) ? ef : f; ctx.fillText(q, Math.round(cx), y); cx += ws[i]; });
+  ctx.font = f; ctx.textAlign = al;
+}
+
+function totalAt(T) { let s = 0; for (const c of TL.chips) if (T >= c.t1) s += c.t1 === TL.ding || opt.rm ? c.amt : c.amt * clamp01((T - c.t1) / 0.15); return Math.round(s); }
+
+function drawMonitor(T) {
+  const P = TL.P, tot = totalAt(T), met = TL.ding !== null && T >= TL.ding;
+  ctx.fillStyle = PAL.t; ctx.fillRect(MON.x, MON.y, MON.w, MON.h);
+  ctx.fillStyle = PAL[8]; for (let y = MON.y; y < MON.y + MON.h; y += 4) ctx.fillRect(MON.x, y, MON.w, 2);
+  ctx.textBaseline = "alphabetic";
+  ctx.font = FONT(14, 600); ctx.fillStyle = PAL[5]; ctx.textAlign = "left"; txt("CHECKOUT · SHIFT 5/12", MON.x + 16, MON.y + 22);
+  ctx.textAlign = "right"; txt(`SPEND €${P.quota}+`, MON.x + MON.w - 16, MON.y + 22);
+  // landing flash
+  const lastLand = TL.chips.filter((c) => c.t1 <= T).pop();
+  const flash = lastLand && T - lastLand.t1 < 0.12 ? 1 - (T - lastLand.t1) / 0.12 : 0;
+  ctx.textAlign = "center"; ctx.font = FONT(58); ctx.fillStyle = met ? PAL.n : PAL.y;
+  if (flash > 0) { ctx.fillStyle = PAL.w; }
+  txt(`€${tot}`, TOTAL_AT.x, MON.y + 98);
+  // fill bar
+  const bx = MON.x + 30, bw = MON.w - 60, by = MON.y + 112;
+  ctx.fillStyle = PAL[8]; ctx.fillRect(bx, by, bw, 12); ctx.fillStyle = met ? PAL.n : PAL.M; ctx.fillRect(bx, by, Math.round(bw * Math.min(1, tot / P.quota) / 2) * 2, 12);
+  ctx.strokeStyle = PAL[3]; ctx.lineWidth = 2; ctx.strokeRect(bx - 1, by - 1, bw + 2, 14);
+  ctx.font = FONT(15, 700);
+  if (T >= TL.V && !TL.pass) { ctx.fillStyle = PAL.R; txt(`SHORT €${P.quota - TL.total}`, TOTAL_AT.x, MON.y + 144); }
+  else if (met) { const on = T >= TL.V || Math.floor((T - TL.ding) / 0.12) % 2 === 0; ctx.fillStyle = on ? PAL.n : PAL.y; txt(T >= TL.V ? "PAID ✓" : "★ SPEND MET ★", TOTAL_AT.x, MON.y + 144); }
+  else { ctx.fillStyle = PAL[6]; txt(`€${Math.max(0, P.quota - tot)} to go`, TOTAL_AT.x, MON.y + 144); }
+}
+
+function drawReceipt(T) {
+  ctx.save(); ctx.beginPath(); ctx.rect(RCPT.x, RCPT.y, RCPT.w, RCPT.h); ctx.clip();
+  ctx.fillStyle = PAL.w; ctx.fillRect(RCPT.x, RCPT.y, RCPT.w, RCPT.h);
+  const feedU = T >= TL.feed ? clamp01((T - TL.feed) / 0.35) : 0;
+  ctx.translate(0, -snap2(220 * easeIn(feedU)));
+  const L = RCPT.x + 8, R = RCPT.x + RCPT.w - 10;
+  ctx.fillStyle = PAL["#"]; ctx.font = FONT(13, 600); ctx.textAlign = "left";
+  txt("NEXT CUSTOMER · REG 3", L, RCPT.y + 20); txt("SHIFT 5/12 · 4 ITEMS", L, RCPT.y + 38);
+  ctx.fillStyle = PAL[":"]; for (let x = L; x < R; x += 6) ctx.fillRect(x, RCPT.y + 46, 3, 2);
+  TL.lines.forEach((ln, k) => {
+    if (T < ln.t) return;
+    const u = opt.rm ? 1 : clamp01((T - ln.t) / 0.1), y = RCPT.y + 66 + k * 20 + snap2((1 - u) * 6);
+    ctx.globalAlpha = u; ctx.font = FONT(14, 600); ctx.textAlign = "left"; ctx.fillStyle = PAL["#"]; txt(ln.name, L, y);
+    ctx.textAlign = "right"; ctx.fillStyle = ln.amt === 0 ? PAL.r : PAL["#"]; txt(ln.amt === 0 ? "WASTED €0.00" : eur(ln.amt), R, y);
+    ctx.globalAlpha = 1;
+  });
+  ctx.fillStyle = PAL[":"]; for (let x = L; x < R; x += 6) ctx.fillRect(x, RCPT.y + 152, 3, 2);
+  ctx.font = FONT(15, 700); ctx.textAlign = "left"; ctx.fillStyle = PAL["#"]; txt("TOTAL", L, RCPT.y + 176);
+  ctx.textAlign = "right"; ctx.fillStyle = PAL.r; ctx.font = FONT(22, 700); txt(eur(totalAt(T)), R, RCPT.y + 178);
+  ctx.font = FONT(13, 600); ctx.textAlign = "left"; ctx.fillStyle = PAL["-"]; txt(`spend €${TL.P.quota}+`, L, RCPT.y + 198);
+  if (T >= TL.V) {
+    const u = opt.rm ? 1 : clamp01((T - TL.V) / 0.12), sc = 1.6 - 0.6 * u;
+    ctx.save(); ctx.translate(RCPT.x + RCPT.w / 2, RCPT.y + 222); ctx.rotate(-0.08); ctx.scale(sc, sc);
+    ctx.strokeStyle = TL.pass ? PAL[3] : PAL.r; ctx.fillStyle = ctx.strokeStyle; ctx.lineWidth = 3; ctx.globalAlpha = u;
+    ctx.strokeRect(-56, -16, 112, 30); ctx.font = FONT(20, 700); ctx.textAlign = "center"; txt(TL.pass ? "PAID" : "SHORT", 0, 7);
+    ctx.restore();
+  }
+  ctx.restore();
+}
+
+function drawTopBar(T) {
+  const tot = totalAt(T), P = TL.P;
+  ctx.fillStyle = "#2a4d4b"; ctx.fillRect(158, 14, 114, 28); ctx.fillRect(388, 12, 62, 32);
+  ctx.font = FONT(13, 700); ctx.textAlign = "left"; ctx.fillStyle = PAL.c; txt("SPEND", 162, 34);
+  ctx.font = FONT(18, 700); txt(`€${P.quota}+`, 210, 35);
+  ctx.font = FONT(21, 700); ctx.fillStyle = PAL.M; txt(`€${tot}`, 394, 35);
+  // the spend gauge: paint over the capture's (and its stray pixels), then fill it from the simulated total; gold once met
+  ctx.fillStyle = "#2a4d4b"; ctx.fillRect(273, 13, 116, 30);
+  const gx = 276, gy = 19, gw = 110, gh = 18, met = tot >= P.quota;
+  ctx.fillStyle = PAL.N; ctx.fillRect(gx, gy, gw, gh);
+  const fw = Math.round((gw - 4) * Math.min(1, tot / P.quota) / 2) * 2;
+  if (fw > 0) { ctx.fillStyle = met ? PAL.n : PAL.R; ctx.fillRect(gx + 2, gy + 2, fw, gh - 4); ctx.fillStyle = met ? PAL.Y : PAL.o; ctx.fillRect(gx + 2, gy + 2, fw, 4); ctx.fillStyle = met ? PAL.m : PAL.r; ctx.fillRect(gx + 2, gy + gh - 6, fw, 4); }
+  ctx.fillStyle = PAL.w; ctx.fillRect(490, 20, 80, 18);
+  ctx.font = FONT(13, 700); ctx.textAlign = "center"; ctx.fillStyle = tot >= P.quota ? PAL[3] : PAL.r;
+  txt(tot >= P.quota ? "SPEND MET" : `€${P.quota - tot} to go`, 530, 34);
+}
+
+function drawTags(T) {
+  TL.P.items.forEach((g, si) => {
+    const pay = g ? g.reduce((a, b) => a + b, 0) : 0, ln = TL.lines.find((l) => l.name === ITEMS[si]);
+    const done = ln && T >= ln.t, c = classify(pay, TL.th), [x, y, w, h] = TAGS[si];
+    const u = done && !opt.rm ? clamp01((T - ln.t) / 0.16) : 1, sc = done ? 1 + 0.25 * Math.sin(Math.PI * u) : 1;
+    ctx.save(); ctx.translate(x + w / 2, y + h / 2); ctx.scale(sc, sc);
+    rr(-w / 2, -h / 2, w, h, 4);
+    ctx.fillStyle = !done ? PAL.w : c === "zero" ? PAL.R : c === "big" || c === "huge" ? PAL.n : PAL.w; ctx.fill();
+    ctx.lineWidth = 3; ctx.strokeStyle = PAL["#"]; ctx.stroke();
+    ctx.font = FONT(20, 700); ctx.textAlign = "center"; ctx.fillStyle = done && c === "zero" ? PAL.w : PAL["#"]; txt(`€${pay}`, 0, 8);
+    ctx.restore();
+  });
+}
+
+function drawCells(T) {
+  for (const c of TL.cells) {
+    if (T < c.t0 || T > c.t1) continue;
+    const [x0, x1] = SLOT_X[c.slot];
+    ctx.strokeStyle = PAL.n; ctx.lineWidth = 4; ctx.strokeRect(x0 - 2, CELL_Y[0] - 2, x1 - x0 + 4, CELL_Y[1] - CELL_Y[0] + 4);
+  }
+}
+
+function drawChips(T) {
+  for (const c of TL.chips) {
+    if (T < c.t0 || T >= c.t1) continue;
+    const [x0, x1] = SLOT_X[c.slot], sx = (x0 + x1) / 2, sy = CELL_Y[0] - 4;
+    const u = (T - c.t0) / (c.t1 - c.t0);
+    let x, y, sc;
+    if (u < 0.25) { const p = u / 0.25; x = sx; y = sy - 18 * backOut(p); sc = 0.6 + 0.5 * backOut(p); }
+    else { const p = easeIn((u - 0.25) / 0.75); x = sx + (LAND.x - sx) * p; y = (sy - 18) + (LAND.y - (sy - 18)) * p - 46 * Math.sin(Math.PI * p); sc = 1.1 - 0.4 * p; }
+    x = snap2(x); y = snap2(y);
+    ctx.save(); ctx.translate(x, y); ctx.scale(sc, sc);
+    if (u > 0.8) ctx.globalAlpha = 1 - (u - 0.8) / 0.2; // fades into the under-strip; the total ticks on the frame it lands
+    const label = `+€${c.amt}`; ctx.font = FONT(20, 700); const w = Math.ceil(ctx.measureText(label).width) + 18;
+    rr(-w / 2, -16, w, 30, 4); ctx.fillStyle = PAL.c; ctx.fill(); ctx.lineWidth = 3; ctx.strokeStyle = PAL["#"]; ctx.stroke();
+    ctx.fillStyle = PAL["#"]; ctx.textAlign = "center"; txt(label, 0, 7);
+    ctx.restore();
+  }
+  for (const w of TL.wasted) {
+    if (T < w.t || T > w.t + 0.7) continue;
+    const [x0, x1] = SLOT_X[w.slot], u = clamp01((T - w.t) / 0.18);
+    const y = snap2(CELL_Y[0] - 8 - 14 * backOut(u));
+    ctx.save(); ctx.translate((x0 + x1) / 2, y); ctx.rotate(-0.06);
+    rr(-58, -15, 116, 28, 3); ctx.fillStyle = PAL.c; ctx.fill(); ctx.lineWidth = 3; ctx.strokeStyle = PAL["#"]; ctx.stroke();
+    ctx.fillStyle = PAL.R; ctx.fillRect(-50, 8, 100, 3);
+    ctx.font = FONT(18, 700); ctx.textAlign = "center"; ctx.fillStyle = PAL["#"]; txt("WASTED €0", 0, 5);
+    ctx.restore();
+  }
+}
+
+function drawStandee(i, T, shadow) {
+  const s = SLOTS[i];
+  if (s.fan && opt.q2 !== "both") return;
+  const p = pose(i, T);
+  if (p.hidden || p.fold <= 0) return;
+  const spr = p.cheer ? s.spr.cheer : s.spr.rest;
+  const off = snap2((1 - p.lvl) * s.drop) - snap2(p.hopY);
+  if (off >= s.drop) return;
+  const x = s.x, y = s.y + off, h = spr.H * 2, w = spr.W * 2;
+  ctx.save(); ctx.beginPath(); ctx.rect(0, 0, 1280, s.base); ctx.clip();
+  if (shadow) { if (p.fold >= 1) ctx.drawImage(spr.sh, 0, 0, spr.W, spr.H, x + 4, y + 2, w, h); } // 2 art px drop shadow on the wall
+  else if (p.fold < 1) {
+    // fold back: the card tips away, its height squashes onto the base line
+    const dy = snap2(s.base - (s.base - y) * p.fold), dh = Math.max(2, snap2(h * p.fold));
+    ctx.filter = `brightness(${(1 - 0.45 * (1 - p.fold)).toFixed(2)})`; // the card turns its face away from the light
+    ctx.drawImage(spr.cv, 0, 0, spr.W, spr.H, x, dy, w, dh);
+    ctx.filter = "none";
+  } else ctx.drawImage(spr.cv, 0, 0, spr.W, spr.H, x, y, w, h);
+  ctx.restore();
+}
+
+function drawOverlay() {
+  ctx.save(); ctx.lineWidth = 2;
+  const red = (x, y, w, h, label) => { ctx.fillStyle = "rgba(217,83,79,.28)"; ctx.fillRect(x, y, w, h); ctx.strokeStyle = PAL.R; ctx.strokeRect(x, y, w, h); tag(label, x + 4, y + 4, PAL.R); };
+  const green = (x, y, w, h, label) => { ctx.fillStyle = "rgba(95,174,90,.32)"; ctx.fillRect(x, y, w, h); ctx.strokeStyle = PAL.G; ctx.strokeRect(x, y, w, h); tag(label, x + 2, y - 20, PAL.g); };
+  function tag(t, x, y, col) { ctx.font = FONT(13, 700); const w = ctx.measureText(t).width + 8; ctx.fillStyle = col; ctx.fillRect(x, y, w, 18); ctx.fillStyle = PAL.w; ctx.textAlign = "left"; txt(t, x + 4, y + 14); }
+  red(486, 66, 420, 196, "MONITOR + UNDER-STRIP");
+  red(46, 94, 236, 300, "RECEIPT COLUMN");
+  red(948, 62, 234, 254, "REWARD MACHINE");
+  ctx.beginPath(); ctx.moveTo(368, 412); ctx.lineTo(860, 412); ctx.lineTo(906, 262); ctx.lineTo(486, 262); ctx.closePath();
+  ctx.fillStyle = "rgba(217,83,79,.18)"; ctx.fill(); ctx.setLineDash([6, 4]); ctx.strokeStyle = PAL.R; ctx.stroke(); ctx.setLineDash([]);
+  tag("PAYOUT FLIGHTS", 560, 340, PAL.R);
+  green(1184, 168, 94, 148, "CROWD");
+  if (opt.q2 === "both") green(368, 166, 84, 50, "GAP A");
+  ctx.restore();
+}
+
+function drawBadge() {
+  if (!TL.peek) return;
+  const x = 1188, y = 146; ctx.font = FONT(12, 700);
+  rr(x, y, 88, 32, 3); ctx.fillStyle = PAL.n; ctx.fill(); ctx.lineWidth = 2; ctx.strokeStyle = PAL["#"]; ctx.stroke();
+  ctx.fillStyle = PAL["#"]; ctx.textAlign = "center"; txt("PASSED IN", x + 44, y + 13); txt("A ROW: 3", x + 44, y + 27);
+}
+
+function render(W) {
+  const T = wallToAnim(W);
+  ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.imageSmoothingEnabled = false;
+  ctx.fillStyle = "#000"; ctx.fillRect(0, 0, 1280, 720);
+  // the 2x glide to the reward machine after the printer feed
+  const gu = T >= TL.glide ? (opt.rm ? 1 : easeInOut(clamp01((T - TL.glide) / 0.6))) : 0;
+  // centred on the machine as far as the stage edge allows (at 2x the view's left edge stops at x 640; machine centre x 1065, y 189)
+  if (gu > 0) { const s = 1280 / (1280 - 640 * gu); ctx.setTransform(s, 0, 0, s, -640 * gu * s, -9 * gu * s); }
+  if (bg.complete && bg.naturalWidth) ctx.drawImage(bg, 0, 0);
+  drawTopBar(T); drawMonitor(T); drawReceipt(T); drawTags(T); drawCells(T);
+  const ORDER = [2, 1, 0, 3, 4]; // S3 is furthest back
+  ORDER.forEach((i) => drawStandee(i, T, true)); ORDER.forEach((i) => drawStandee(i, T, false));
+  if (fg.complete && fg.naturalWidth) ctx.drawImage(fg, 0, 0);
+  drawChips(T);
+  if (!(T >= TL.feed)) drawBadge();
+  if (opt.overlay && gu === 0) drawOverlay();
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+  if (gu > 0.95) { ctx.fillStyle = PAL.N; ctx.fillRect(0, 676, 1280, 44); ctx.fillStyle = PAL.n; ctx.fillRect(0, 676, 1280, 2); ctx.font = FONT(22, 700); ctx.textAlign = "center"; txt("Reward machine (2x glide): the crowd is gone", 640, 706); }
+  if (W >= TL.ding && TL.ding !== null && W < TL.ding + HITSTOP) { ctx.font = FONT(16, 700); ctx.fillStyle = "rgba(36,34,31,.85)"; ctx.fillRect(1100, 680, 164, 28); ctx.fillStyle = PAL.y; ctx.textAlign = "center"; txt("HIT-STOP 0.85 s", 1182, 700); }
+  updateStatus(T, W);
+}
+
+// ---------------------------------------------------------------- status + Q1 detail
+const statusEl = document.getElementById("status");
+let lastStatus = "";
+function updateStatus(T, W) {
+  const cur = TL.log.filter((l) => l.t <= T).pop();
+  const up = [0, 1, 2].filter((i) => { const p = pose(i, T); return !p.hidden && p.fold > 0 && p.lvl > 0.3; }).length;
+  const s = `t ${W.toFixed(2)} s` + (Math.abs(W - T) > 0.004 ? ` (anim ${T.toFixed(2)} s, the hit-stop is ${HITSTOP} s)` : "") + ` · crowd ${up}/3 · ` + (cur ? cur.text : "count-up starting") + (boost === 12 ? " · <b>x12</b>" : boost === 5 ? " · <b>x5</b>" : "");
+  if (s !== lastStatus) { statusEl.innerHTML = s; lastStatus = s; }
+}
+function renderQ1() {
+  const P = TL.P, a = thresholds("best", P.quota, opt.best), b = thresholds("quota", P.quota, opt.best);
+  const kk = (c) => `<span class="k ${c}">${c === "zero" ? "€0" : c}</span>`;
+  const rows = P.items.map((g, i) => { const pay = g ? g.reduce((x, y) => x + y, 0) : 0;
+    return `<tr><td>${i + 1}. ${ITEMS[i]}</td><td class="num">${g ? g.map((x) => "+" + x).join(" ") : "WASTED"}</td><td class="num"><b>€${pay}</b></td><td>${kk(classify(pay, a))}</td><td>${kk(classify(pay, b))}</td></tr>`; }).join("");
+  document.getElementById("q1detail").innerHTML =
+    `<div class="minis"><span>Best earlier checkout:</span>${[45, 60, 90, 120].map((v) => `<button type="button" class="mini" data-best="${v}" aria-pressed="${opt.best === v}">€${v}</button>`).join("")}<span>· this preset: ${P.note}</span></div>
+     <div class="tblwrap"><table class="tbl"><thead><tr><th>Item</th><th class="num">Gains</th><th class="num">Payout</th><th>Best-rel.</th><th>Quota-share</th></tr></thead><tbody>${rows}</tbody></table></div>
+     <p class="tblcap">Best-relative at best €${opt.best}: big ≥ €${+a.big.toFixed(1)}, huge ≥ €${+a.huge.toFixed(1)}. Quota-share at quota €${P.quota}: big ≥ €${+b.big.toFixed(1)}, huge ≥ €${+b.huge.toFixed(1)}.</p>`;
+  document.querySelectorAll("[data-best]").forEach((el) => el.addEventListener("click", () => { opt.best = +el.dataset.best; restart(); }));
+}
+
+// ---------------------------------------------------------------- sound (WebAudio, synthesised)
+let AC = null;
+function audio() { if (!AC) { try { AC = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) { AC = null; } } if (AC && AC.state === "suspended") AC.resume(); return AC; }
+function thunk(pitch, soft) {
+  const a = AC; if (!a) return; const t = a.currentTime;
+  const o = a.createOscillator(), g = a.createGain(); o.type = "triangle";
+  o.frequency.setValueAtTime(170 * pitch, t); o.frequency.exponentialRampToValueAtTime(70 * pitch, t + 0.09);
+  g.gain.setValueAtTime(soft ? 0.18 : 0.32, t); g.gain.exponentialRampToValueAtTime(0.001, t + 0.12);
+  o.connect(g).connect(a.destination); o.start(t); o.stop(t + 0.13);
+  const len = Math.floor(a.sampleRate * 0.05), buf = a.createBuffer(1, len, a.sampleRate), d = buf.getChannelData(0);
+  for (let i = 0; i < len; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / len, 3);
+  const n = a.createBufferSource(), f = a.createBiquadFilter(), ng = a.createGain(); n.buffer = buf; f.type = "lowpass"; f.frequency.value = 900 * pitch; ng.gain.value = soft ? 0.25 : 0.45;
+  n.connect(f).connect(ng).connect(a.destination); n.start(t);
+}
+function yay() {
+  const a = AC; if (!a) return; const t = a.currentTime;
+  [0, 1, 2, 3].forEach((v) => {
+    const o = a.createOscillator(), f = a.createBiquadFilter(), g = a.createGain(); o.type = "sawtooth";
+    const base = 300 + v * 47; o.frequency.setValueAtTime(base, t + v * 0.015); o.frequency.linearRampToValueAtTime(base * 1.35, t + 0.18); o.frequency.linearRampToValueAtTime(base * 1.2, t + 0.42);
+    f.type = "bandpass"; f.Q.value = 3; f.frequency.setValueAtTime(700, t); f.frequency.linearRampToValueAtTime(1300, t + 0.2);
+    g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(0.06, t + 0.04 + v * 0.015); g.gain.exponentialRampToValueAtTime(0.0001, t + 0.45);
+    o.connect(f).connect(g).connect(a.destination); o.start(t); o.stop(t + 0.5);
+  });
+}
+function playSfx(from, to) { // wall-clock seconds
+  if (!opt.sound || !AC || to <= from) return;
+  for (const s of TL.sfx) {
+    if (s.w <= from || s.w > to) continue;
+    if (s.kind === "thunk") thunk(s.pitch, false);
+    else if (s.kind === "drop") thunk(0.75, true);
+    else if (s.kind === "fold") thunk(0.8, true);
+    else if (s.kind === "yay" && opt.q4 === "yay") yay();
+  }
+}
+
+// ---------------------------------------------------------------- clock
+let wall = 0, playing = true, boost = 1, tapBoost = false, holding = false, lastNow = null, holdTimer = null;
+const still = Q.has("t");
+if (still) { wall = +Q.get("t"); playing = false; }
+function restart() { TL = build(); wall = 0; playing = true; tapBoost = false; renderQ1(); syncButtons(); }
+function frame(now) {
+  if (lastNow === null) lastNow = now;
+  const dt = Math.min(0.1, (now - lastNow) / 1000); lastNow = now;
+  if (playing) {
+    const animNow = wallToAnim(wall);
+    if (tapBoost && animNow >= TL.V) tapBoost = false;
+    boost = tapBoost ? 12 : holding ? 5 : 1;
+    const prevW = wall;
+    wall = Math.min(wallEnd(), wall + dt * opt.speed * boost);
+    playSfx(prevW, wall);
+    if (wall >= wallEnd()) playing = false;
+  } else boost = 1;
+  render(wall);
+  requestAnimationFrame(frame);
+}
+
+// ---------------------------------------------------------------- controls
+function syncButtons() {
+  document.querySelectorAll("#presets button").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.p === opt.preset)));
+  document.querySelectorAll("[data-s]").forEach((b) => b.setAttribute("aria-pressed", String(+b.dataset.s === opt.speed)));
+  document.querySelectorAll(".tab").forEach((b) => b.setAttribute("aria-selected", String(opt[b.dataset.q] === b.dataset.v)));
+  document.getElementById("rm").setAttribute("aria-pressed", String(opt.rm));
+  document.getElementById("ov").setAttribute("aria-pressed", String(opt.overlay));
+  document.getElementById("snd").setAttribute("aria-pressed", String(opt.sound));
+  document.getElementById("fit").setAttribute("aria-pressed", String(opt.fit));
+  document.body.classList.toggle("fit", opt.fit);
+}
+// any user activation unlocks sound: pointer, or the keyboard (Enter/Space on the tabs, Replay, Sound)
+for (const evn of ["pointerdown", "keydown", "click"]) document.addEventListener(evn, () => audio(), { capture: true });
+document.getElementById("replay").addEventListener("click", restart);
+document.querySelectorAll("#presets button").forEach((b) => b.addEventListener("click", () => { opt.preset = b.dataset.p; restart(); }));
+document.querySelectorAll("[data-s]").forEach((b) => b.addEventListener("click", () => { opt.speed = +b.dataset.s; syncButtons(); }));
+document.querySelectorAll(".tab").forEach((b) => b.addEventListener("click", () => { opt[b.dataset.q] = b.dataset.v; restart(); }));
+document.getElementById("rm").addEventListener("click", () => { opt.rm = !opt.rm; restart(); });
+document.getElementById("ov").addEventListener("click", () => { opt.overlay = !opt.overlay; syncButtons(); });
+document.getElementById("snd").addEventListener("click", () => { opt.sound = !opt.sound; syncButtons(); });
+document.getElementById("fit").addEventListener("click", () => { opt.fit = !opt.fit; syncButtons(); toCrowd(); });
+// narrower than the 1:1 stage: open on the crowd (the right gap)
+function toCrowd() { const f = document.getElementById("frame"); if (!opt.fit && f.clientWidth < 1280) f.scrollLeft = 1280 - f.clientWidth; }
+const frameEl = document.getElementById("frame");
+let downAt = 0;
+frameEl.addEventListener("pointerdown", (e) => { downAt = performance.now(); if (!playing && wall >= wallEnd()) { restart(); return; }
+  playing = true; clearTimeout(holdTimer); holdTimer = setTimeout(() => { holding = true; }, 220); });
+const release = () => { clearTimeout(holdTimer); if (holding) { holding = false; return; } if (performance.now() - downAt < 220 && wallToAnim(wall) < TL.V) tapBoost = true; };
+frameEl.addEventListener("pointerup", release);
+frameEl.addEventListener("pointercancel", () => { clearTimeout(holdTimer); holding = false; });
+frameEl.addEventListener("pointerleave", () => { clearTimeout(holdTimer); holding = false; });
+
+renderQ1(); syncButtons(); toCrowd();
+const go = () => requestAnimationFrame(frame);
+Promise.race([Promise.all([document.fonts.load(FONT(16)), document.fonts.load('700 16px "Atkinson Hyperlegible"'), new Promise((r) => { bg.complete ? r() : (bg.onload = r); }), new Promise((r) => { fg.complete ? r() : (fg.onload = r); })]), new Promise((r) => setTimeout(r, 1500))]).then(go);
+</script>
+</body>
+</html>
