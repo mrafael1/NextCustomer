@@ -11,8 +11,9 @@ extends RefCounted
 ## A day's kind, its chip's tint: grey (no event), green (a boon), tomato (an inspection),
 ## mustard (a Manager's review).
 enum Kind { NONE, BOON, MALUS, REVIEW }
-## A week chip pip: a day to come, a played one, today's.
-enum Pip { TODO, DONE, NOW }
+## A week chip pip: a day to come, a played one with no result, today's, and a played one by
+## its result (v0.75, #119: a green check for PAID, a red cross for a SLIP).
+enum Pip { TODO, DONE, NOW, PAID, SLIP }
 ## How a day ended (v0.72), its stamp on the card: not played yet, passed, or a forgiven miss.
 enum Result { NONE, PAID, SLIP }
 
@@ -32,6 +33,8 @@ const SLIPS_ONE := "1 SLIP"
 ## A played day's stamp (v0.72): a pass, and a training week's forgiven miss with its count.
 const PAID_STAMP := "PAID"
 const SLIP_STAMP := "SLIP %d/%d"
+## Today's tab on the card (#119).
+const TODAY_TAB := "TODAY"
 
 ## The 1-based week, and how many the run has.
 var week_number: int = 1
@@ -176,11 +179,16 @@ func chip_name() -> String:
 	return event.chip_text if event != null else ""
 
 
-## The week chip's pips, one per day: played, today's, to come.
+## The week chip's pips, one per day: a played day's result (today's too, once checked out),
+## today's, played, to come.
 func pips() -> Array[Pip]:
 	var found: Array[Pip] = []
 	for day: WeekDay in days:
-		if day.today:
+		if day.result == Result.PAID:
+			found.append(Pip.PAID)
+		elif day.result == Result.SLIP:
+			found.append(Pip.SLIP)
+		elif day.today:
 			found.append(Pip.NOW)
 		else:
 			found.append(Pip.DONE if day.punched else Pip.TODO)

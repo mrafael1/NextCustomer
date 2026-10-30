@@ -574,7 +574,7 @@ func _on_checkout_pressed() -> void:
 	_refresh_bar()  # The inspection chip's EARNED (#77 machine v2).
 	_cabinet.set_total_down(false)
 	_stage.dim_hand(false)
-	await _week.stamp_day()  # The time card stamps the day PAID or SLIP (v0.72).
+	await _week.light_day()  # The week chip lights the day's check or cross (#119).
 	if run.phase == RunState.Phase.MACHINE_CHOOSE:
 		_machine.open(false)
 	elif run.phase == RunState.Phase.SCORED:
