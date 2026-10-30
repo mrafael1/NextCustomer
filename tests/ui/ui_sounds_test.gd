@@ -248,7 +248,8 @@ func test_the_coins_clink_one_by_one() -> void:
 	assert_int(FinalReceipt.coin_sounds(-3)).is_equal(0)
 
 
-## The title has its own Sfx (its scene's): the start click and the log export sound on it.
+## The title has its own Sfx (its scene's): the log export, the start click and the start's
+## bell sound on it.
 func test_the_title_has_its_own_sfx() -> void:
 	var runner: GdUnitSceneRunner = scene_runner(TITLE)
 	var title: TitleScreen = runner.scene()
@@ -262,13 +263,11 @@ func test_the_title_has_its_own_sfx() -> void:
 	var logs: String = _folder.path_join("logs")
 	_event_log().use_folder(logs)
 	_event_log().opens_export_folder = false
-	for button: Button in title.find_children("*", "Button", true, false):
-		if button.text == "Export log":
-			button.pressed.emit()
-	title._on_background_input(_left_click())
-	title._on_background_input(_left_click())
+	title.export_button().pressed.emit()
+	title.skip_intro()
+	title.menu().plate(TitleMenu.Entry.PRIMARY).pressed.emit()
 	assert_bool(title._starting).is_true()
-	assert_array(sfx.sound_names()).is_equal(["ui_confirm", "ui_click"])
+	assert_array(sfx.sound_names()).is_equal(["ui_confirm", "ui_click", TitleScreen.START_SOUND])
 	_remove_folder(logs)
 
 

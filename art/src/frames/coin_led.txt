@@ -1,0 +1,9 @@
+; The REWARDS menu's coin LED (#56, mock-up title_premium_directions.html): a slate dark face
+; in a teal black rim. A 9-slice with 1 art px margins; the middle 2x2 stretches.
+@size 4x4
+@kind frame
+@scale 2
+8888
+8tt8
+8tt8
+8888

@@ -1,0 +1,16 @@
+; A title menu plate (#56, mock-up title_premium_directions.html, menu_plate), normal: a cream
+; shelf label with a 3 art px teal aisle stripe on its left, a paper top row, a cream shade
+; bottom row and a 2-row brass ledge under it, in an ink outline with rounded corners. A
+; 9-slice with 4 art px margins on every side (the middle pixel stretches).
+@size 9x9
+@kind frame
+@scale 2
+.#######.
+#wwwwwww#
+#444cccc#
+#444cccc#
+#444cccc#
+#bbbbbbb#
+#LLLLLLL#
+#lllllll#
+.#######.

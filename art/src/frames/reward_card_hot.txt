@@ -1,0 +1,29 @@
+; A REWARDS menu card (#56, mock-up title_premium_directions.html, rewardCard), under the mouse or the keyboard marker: the normal card in a 1 art px gold ring.
+; A 9-slice with 3 art px left and right, 18 on top (the ring, the outline and the header band) and 4 at the bottom; the middle 2x2 stretches.
+@size 8x24
+@kind frame
+@scale 2
+nnnnnnnn
+nn####nn
+n#5555#n
+n#4444#n
+n#4444#n
+n#4444#n
+n#4444#n
+n#4444#n
+n#4444#n
+n#4444#n
+n#4444#n
+n#4444#n
+n#4444#n
+n#4444#n
+n#4444#n
+n#4444#n
+n#4444#n
+n#4444#n
+n#cccc#n
+n#cccc#n
+n#bbbb#n
+n#bbbb#n
+nn####nn
+nnnnnnnn

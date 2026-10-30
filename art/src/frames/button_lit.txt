@@ -1,0 +1,17 @@
+; button.png lit (#56, the title's primary menu plate under the mouse or the keyboard marker,
+; mock-up title_premium_directions.html): the tomato face one step lighter, a paper top row
+; and a tomato pale left column. The same 9-slice as button.png (3 art px margins at the top
+; and sides, the bottom carries the 2-pixel ledge).
+@size 10x10
+@kind frame
+@scale 2
+.########.
+#wwwwwwww#
+#Ooooooor#
+#Ooooooor#
+#Ooooooor#
+#Ooooooor#
+#Ooooooor#
+#rrrrrrrr#
+#qqqqqqqq#
+.########.

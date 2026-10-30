@@ -96,3 +96,8 @@ const TEAL_DARK := Color("2a4d4b")
 ## (art/src/palette.txt's brown and brown light).
 const BROWN := Color("a87a4e")
 const BROWN_LIGHT := Color("d2a874")
+## The title's storefront (#56, C+ Storefront at night): the brick's dark bricks
+## (art/src/palette.txt's brown darkest) and the locked Loyalty poster's dim card (cream
+## darkest).
+const BROWN_DARKEST := Color("4a3022")
+const CREAM_DARKEST := Color("b39f78")

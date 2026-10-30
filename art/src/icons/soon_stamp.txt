@@ -1,0 +1,21 @@
+; The SOON rubber stamp (#56, mock-up title_premium_directions.html, REWARDS): a tomato
+; frame round a cream field with SOON in the till letters, on a locked reward (Loyalty,
+; until it ships). 44x16, shown at 2x.
+@size 44x16
+@kind icon
+RRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRR
+RRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRR
+RRccccccccccccccccccccccccccccccccccccccccRR
+RRccccccccccccccccccccccccccccccccccccccccRR
+RRccccccccccccccccccccccccccccccccccccccccRR
+RRccccccccccccccRRccRcccRccRRcccccccccccccRR
+RRcccccccccccccRcccRcRcRcRcRcRccccccccccccRR
+RRccccccccccccccRccRcRcRcRcRcRccccccccccccRR
+RRcccccccccccccccRcRcRcRcRcRcRccccccccccccRR
+RRcccccccccccccRRcccRcccRccRcRccccccccccccRR
+RRccccccccccccccccccccccccccccccccccccccccRR
+RRccccccccccccccccccccccccccccccccccccccccRR
+RRccccccccccccccccccccccccccccccccccccccccRR
+RRccccccccccccccccccccccccccccccccccccccccRR
+RRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRR
+RRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRR

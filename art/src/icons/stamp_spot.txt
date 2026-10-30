@@ -1,0 +1,21 @@
+; An empty stamp spot on the REWARDS menu's locked LOYALTY card (#56, mock-up
+; title_premium_directions.html): a cream disc pressed into a cream darkest ring. 16x16, shown
+; at 2x.
+@size 16x16
+@kind icon
+.....aaaaaa.....
+...aaaaaaaaaa...
+..aaaaccccaaaa..
+.aaaccccccccaaa.
+.aaccccccccccaa.
+aaaccccccccccaaa
+aaccccccccccccaa
+aaccccccccccccaa
+aaccccccccccccaa
+aaccccccccccccaa
+aaaccccccccccaaa
+.aaccccccccccaa.
+.aaaccccccccaaa.
+..aaaaccccaaaa..
+...aaaaaaaaaa...
+.....aaaaaa.....
