@@ -143,3 +143,62 @@ func test_the_lit_sign_stutters_and_swings() -> void:
 	assert_bool(neon.is_blinking()).is_true()
 	neon._process(NeonSign.BLINK)
 	assert_bool(neon.is_blinking()).is_false()
+
+
+## v0.80: the sign's fascia and rail end left of the REWARDS bay; the sign stays on the fascia.
+func test_the_fascia_clears_the_bay() -> void:
+	var front: Storefront = _front()
+	var fascia: Rect2i = StorefrontArt.FASCIA_RECT
+	var rail_end: int = fascia.end.x + 2
+	assert_int(rail_end).is_less(StorefrontArt.BAY_RECT.position.x)
+	var on_fascia: Rect2 = Rect2(
+		Vector2(fascia.position) * ArtStyle.ART_SCALE, Vector2(fascia.size) * ArtStyle.ART_SCALE
+	)
+	assert_bool(on_fascia.encloses(front.sign_rect())).is_true()
+
+
+## v0.80: both windows show the store lit like the doors (warm plaster, not night glass), and
+## no two shelves of the left window hold the same minis.
+func test_the_windows_show_the_lit_store() -> void:
+	var image: Image = StorefrontArt.backdrop(Vector4i.ZERO).get_image()
+	for window: Rect2i in [StorefrontArt.LEFT_WINDOW_RECT, StorefrontArt.TUBE_WINDOW_RECT]:
+		var warm: int = 0
+		for y: int in range(window.position.y + 4, window.position.y + 80):
+			var colour: Color = image.get_pixel(window.position.x + 3, y)
+			if colour in StorefrontArt.STORE_BANDS or colour == Palette.PLASTER_DARK:
+				warm += 1
+		assert_int(warm).override_failure_message(str(window)).is_greater(20)
+	var shelves: Dictionary[String, bool] = {}
+	var minis: Dictionary[String, bool] = {}
+	for shelf: String in StorefrontArt.WINDOW_SHELVES:
+		shelves[shelf] = true
+		for mini_name: String in shelf.split(" "):
+			assert_bool(minis.has(mini_name)).override_failure_message(mini_name).is_false()
+			minis[mini_name] = true
+	assert_int(shelves.size()).is_equal(4)
+
+
+## v0.80: now and then a star twinkles and a shooting star crosses the sky above the cornice;
+## `still` holds both.
+func test_the_sky_twinkles_and_a_star_shoots() -> void:
+	var front: Storefront = _front()
+	var twinkled: bool = false
+	var heads: Array[Vector2i] = []
+	for step: int in roundi((Storefront.SHOOTING_FIRST + 1.0) / 0.02):
+		front._process(0.02)
+		for star: Vector2i in front.twinkles():
+			twinkled = true
+			assert_int(star.y).is_less(StorefrontArt.CORNICE.x - 1)
+		var head: Vector2i = front.shooting_star()
+		if head.x >= 0:
+			heads.append(head)
+			assert_int(head.y + 1).is_less(StorefrontArt.CORNICE.x)
+	assert_bool(twinkled).is_true()
+	assert_int(heads.size()).is_greater(4)
+	assert_int(heads.back().x).is_less(heads.front().x)
+	assert_int(heads.back().y).is_greater(heads.front().y)
+	front.still = true
+	for step: int in roundi(Storefront.SHOOTING_GAP.y * 2 / 0.1):
+		front._process(0.1)
+		assert_int(front.twinkles().size()).is_equal(0)
+		assert_int(front.shooting_star().x).is_equal(-1)
