@@ -1,6 +1,7 @@
 class_name UnlockCondition
 extends Resource
-## What unlocks a deck or a card variant (full build plan section 7.3), as data. Checked when a
+## What unlocks a deck, a card variant or a badge pin (full build plan sections 7.3 and 7.4),
+## as data. Checked when a
 ## run ends by UnlockCheck. A deck or variant without a condition is available from the start.
 ##
 ## Every exported value defaults to a neutral value, because Godot doesn't write a value that
@@ -9,13 +10,15 @@ extends Resource
 
 ## WIN_WITH_CARD: win a run whose final deck holds `card`. SCORE_IN_ONE_CHECKOUT: score at least
 ## `amount` in one checkout. USE_COUPON_TIMES: check out the coupon `card` `amount` times in
-## all (every copy in a checked-out row counts once).
-enum Kind { UNSET, WIN_WITH_CARD, SCORE_IN_ONE_CHECKOUT, USE_COUPON_TIMES }
+## all (every copy in a checked-out row counts once). WIN_RUNS (#122): win `amount` runs in all,
+## this one counting (added last: the kinds' numbers are kept).
+enum Kind { UNSET, WIN_WITH_CARD, SCORE_IN_ONE_CHECKOUT, USE_COUPON_TIMES, WIN_RUNS }
 
 @export var kind: Kind = Kind.UNSET
 ## WIN_WITH_CARD: the card; USE_COUPON_TIMES: the coupon.
 @export var card: CardDefinition
-## SCORE_IN_ONE_CHECKOUT: the checkout total; USE_COUPON_TIMES: how many uses.
+## SCORE_IN_ONE_CHECKOUT: the checkout total; USE_COUPON_TIMES: how many uses; WIN_RUNS: how
+## many wins.
 @export var amount: int = 0
 
 
@@ -28,6 +31,8 @@ func summary() -> String:
 			return "Score €%d in one checkout" % amount
 		Kind.USE_COUPON_TIMES:
 			return "Use %s %d times" % [_card_name(), amount]
+		Kind.WIN_RUNS:
+			return "Win a run" if amount == 1 else "Win %d runs" % amount
 	return ""
 
 
@@ -48,6 +53,9 @@ func problems() -> PackedStringArray:
 				found.append("USE_COUPON_TIMES needs a coupon")
 			if amount <= 0:
 				found.append("USE_COUPON_TIMES needs an amount above 0")
+		Kind.WIN_RUNS:
+			if amount <= 0:
+				found.append("WIN_RUNS needs an amount above 0")
 	return found
 
 

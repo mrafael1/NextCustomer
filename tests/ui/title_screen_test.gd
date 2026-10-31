@@ -4,7 +4,7 @@ extends GdUnitTestSuite
 ## CONTINUE, NEW RUN and REWARDS (full build plan section 4), laid out on the brick, clear of the
 ## doors, the sign and the bay, inside the window; the doors start, the bay opens REWARDS; NEW
 ## RUN asks first, and only ABANDON gives the save up (logged as run_abandon under its run id);
-## REWARDS opens the toy machines (#63) and keeps LOYALTY locked; the keys walk the menu; the
+## REWARDS opens the toy machines (#63) and the badge pins (#122); the keys walk the menu; the
 ## profile's reduced motion holds every loop and slide. The title never changes the test
 ## runner's scene.
 
@@ -265,10 +265,10 @@ func test_the_mouse_on_the_doors_and_the_bay() -> void:
 
 
 ## REWARDS: the bay's glass slides, then the menu opens with the profile's coins on its LED;
-## LOYALTY only says no; TOY MACHINES opens the machines over it, where nothing starts a run;
+## TOY MACHINES opens the machines over it, where nothing starts a run;
 ## Done closes them and the coins follow the draw on the plate and the LED; BACK and Esc close
 ## REWARDS.
-func test_rewards_opens_the_toy_machines_and_keeps_loyalty_locked() -> void:
+func test_rewards_opens_the_toy_machines() -> void:
 	var profile: ProfileState = ProfileState.new()
 	profile.coins = 2
 	profile.run_count = 3
@@ -280,10 +280,7 @@ func test_rewards_opens_the_toy_machines_and_keeps_loyalty_locked() -> void:
 	var rewards: RewardsMenu = await _open_rewards(title)
 	assert_str(rewards.coin_label().text).is_equal("2")
 	assert_bool(title.get_viewport_rect().encloses(rewards.sheet().get_global_rect())).is_true()
-	rewards.loyalty_card().pressed.emit()
-	assert_bool(rewards.is_open()).is_true()
-	assert_bool(title.toy_machines_open()).is_false()
-	assert_array(sfx.call("sound_names")).is_equal(["ui_click", "ui_open", "denied"])
+	assert_array(sfx.call("sound_names")).is_equal(["ui_click", "ui_open"])
 	rewards.toy_machines_card().pressed.emit()
 	await _frames(2)
 	assert_bool(title.toy_machines_open()).is_true()
@@ -379,10 +376,14 @@ func test_the_keys_walk_the_menu() -> void:
 	title._unhandled_key_input(_key(KEY_RIGHT))
 	assert_bool(rewards.toy_machines_card().marked).is_true()
 	title._unhandled_key_input(_key(KEY_RIGHT))
-	assert_bool(rewards.loyalty_card().marked).is_true()
+	assert_bool(rewards.badge_card().marked).is_true()
 	title._unhandled_key_input(_key(KEY_ENTER))
 	assert_bool(rewards.is_open()).is_true()
+	assert_bool(title.badge_screen().is_open()).is_true()
 	assert_bool(title.toy_machines_open()).is_false()
+	title._unhandled_key_input(_key(KEY_ESCAPE))
+	assert_bool(title.badge_screen().is_open()).is_false()
+	assert_bool(rewards.is_open()).is_true()
 	title._unhandled_key_input(_key(KEY_ESCAPE))
 	assert_bool(rewards.is_open()).is_false()
 	assert_bool(title._starting).is_false()
@@ -472,6 +473,49 @@ func _title(skip: bool = true) -> TitleScreen:
 
 
 ## Presses REWARDS and waits for the bay's glass and the menu's step in.
+## #122: BADGE PINS opens the badge screen over REWARDS on the saved profile. Pressing an owned
+## pin wears it and saves; a locked one says no; UNLOCK A RANDOM PIN spends the price and
+## unlocks the last locked pin (saved, with a capsule seed made for it); the REWARDS card and
+## the coins follow.
+func test_badge_pins_wear_and_buy_from_rewards() -> void:
+	var profile: ProfileState = ProfileState.new()
+	profile.coins = 14
+	assert_bool(SaveService.new(_folder).save_profile(profile)).is_true()
+	var title: TitleScreen = await _title()
+	var rewards: RewardsMenu = await _open_rewards(title)
+	assert_str(rewards.pins_line().text).is_equal("1 OF 2 PINS")
+	rewards.badge_card().pressed.emit()
+	var badge: BadgeScreen = title.badge_screen()
+	assert_bool(badge.is_open()).is_true()
+	assert_int(badge.get_index()).is_greater(rewards.get_index())
+	var rows: Array[PinRow] = badge.rows()
+	assert_int(rows[0].state()).is_equal(PinRow.State.OWNED)
+	assert_int(rows[1].state()).is_equal(PinRow.State.LOCKED)
+	assert_bool(title.get_viewport_rect().encloses(badge.sheet().get_global_rect())).is_true()
+	var sheet: Rect2 = badge.sheet().get_global_rect()
+	for control: Control in [badge.badge(), rows[0], rows[1], badge.buy_plate()] as Array[Control]:
+		assert_bool(sheet.encloses(control.get_global_rect())).is_true()
+	assert_bool(rows[0].get_global_rect().intersects(rows[1].get_global_rect())).is_false()
+	rows[1].pressed.emit()
+	assert_array(SaveService.new(_folder).load_profile().worn_pins).is_empty()
+	rows[0].pressed.emit()
+	assert_int(rows[0].state()).is_equal(PinRow.State.WORN)
+	assert_array(SaveService.new(_folder).load_profile().worn_pins).is_equal([rows[0].pin.id])
+	assert_str(rewards.badge().slot_faces()[0].letters()).is_equal(rows[0].pin.face_text)
+	badge.buy_plate().pressed.emit()
+	var saved: ProfileState = SaveService.new(_folder).load_profile()
+	assert_int(saved.coins).is_equal(2)
+	assert_array(saved.unlocked_pins).is_equal([rows[1].pin.id])
+	assert_bool(saved.has_capsule_seed).is_true()
+	assert_int(rows[1].state()).is_equal(PinRow.State.OWNED)
+	assert_bool(badge.buy_plate().disabled).is_true()
+	assert_str(rewards.coin_label().text).is_equal("2")
+	assert_str(rewards.pins_line().text).is_equal("2 OF 2 PINS")
+	badge.back_plate().pressed.emit()
+	assert_bool(badge.is_open()).is_false()
+	assert_bool(rewards.is_open()).is_true()
+
+
 func _open_rewards(title: TitleScreen) -> RewardsMenu:
 	title.menu().plate(TitleMenu.Entry.REWARDS).pressed.emit()
 	assert_bool(title._rewards_pending).is_true()

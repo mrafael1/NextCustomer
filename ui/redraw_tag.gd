@@ -6,7 +6,8 @@ extends Control
 ## the round redraw arrow (art/src/icons/redraw_arrow.txt, shown at 2x) and the word in paper with
 ## a teal dark shadow. Hovered (set_hot), it names how many items go ("REDRAW 2" / "REDRAW 1"),
 ## turns teal light with ink text and an ink arrow, and wears a RING px gold ring. It sizes itself
-## to its text; BasketTags centres it on its basket. Display only: it takes no clicks.
+## to its text; BasketTags centres it on its basket. Display only: it takes no clicks. The full
+## redraw's tag (#122) says "REDRAW ALL" (set_word).
 
 const TAG_HEIGHT := 30.0
 const BORDER := 2.0
@@ -24,6 +25,7 @@ const ARROW := preload("res://art/icons/redraw_arrow.png")
 const ARROW_HOT := preload("res://art/icons/redraw_arrow_hot.png")
 
 var _hot: bool = false
+var _word: String = WORD
 var _arrow: TextureRect
 var _label: Label
 
@@ -52,12 +54,18 @@ func _init() -> void:
 ## Hovered (`hot`, naming `count` items: "REDRAW 2" or "REDRAW 1"), or at rest ("REDRAW").
 func set_hot(hot: bool, count: int) -> void:
 	_hot = hot
-	_label.text = "%s %d" % [WORD, count] if hot and count > 0 else WORD
+	_label.text = "%s %d" % [_word, count] if hot and count > 0 else _word
 	_arrow.texture = ARROW_HOT if hot else ARROW
 	_label.add_theme_color_override("font_color", Palette.INK if hot else Palette.PAPER)
 	var shadow: Color = Color(Palette.TEAL_DARK, 0.0 if hot else 1.0)
 	_label.add_theme_color_override("font_shadow_color", shadow)
 	_lay_out()
+
+
+## The tag's word in place of "REDRAW" (the full redraw's "REDRAW ALL"), shown at rest.
+func set_word(word: String) -> void:
+	_word = word
+	set_hot(false, 0)
 
 
 func is_hot() -> bool:
