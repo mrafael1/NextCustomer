@@ -85,3 +85,11 @@ The source is `machine_loyalty_108_src/` (Python with Pillow): `python build.py`
 ### Re-generating
 
 The source is `ambiance_123_src/` (standard library Python and Playwright): `python build.py` writes the page from `template.html`, embedding the game's fonts and the capture (so its canvas can read the pixels from file://), and `node stills.js` writes every still (`CHROMIUM_PATH` picks the browser).
+
+## Clean shift scene (#123, 2026-10-31)
+
+The user turned down the ambiance page above (a lighting pass over today's layout) and asked for a truly clean, premium scene, with the composition reworked (the belt closer to the baskets, for one) after a look at other games. `scene_123.html` is that proposal. It recomposes the planning capture: every piece of UI is cut from the capture and keyed off its background (the capture draws its scenery hazed, so off-palette colours are scenery), and only the store and the counter around it are new. The belt comes down 34 px onto the baskets, one charcoal laminate replaces the brown wood under the belt and the register, one ledge runs the full width, and the cashier, the bag, the produce stand, the cold case and the rewards machine leave the planning view. **A, store at dusk** (recommended) paints the store as flat, unoutlined planes on the 640x360 art grid: storefront glass with the evening outside, a run of shelving, warm pendants whose pools are lit or unlit with a dithered edge, and hanging aisle signs. **B, spotlit counter** reduces the store to a silhouette under one lamp. The page explains the changes, lists what Balatro, Papers, Please, Inscryption, VA-11 Hall-A and Coffee Talk, Slay the Spire, and Unpacking and A Short Hike do with a work surface (from knowledge: the environment could not load screenshots), sets six rules for the scene and asks five questions. Stills: `scene_123_now.png`, `scene_123_a.png`, `scene_123_b.png`, `scene_123_layout.png`.
+
+### Re-generating
+
+`python docs/art/mockups/scene_123_src/build.py` (Python 3 with Pillow) writes the four stills and the page (`template.html` with the fonts and stills embedded).

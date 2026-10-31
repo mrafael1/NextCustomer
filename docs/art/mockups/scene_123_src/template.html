@@ -1,0 +1,176 @@
+<meta charset="utf-8">
+<title>Clean Shift Scene</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<style>
+/*FONTS*/
+/* Layout: one stage at the top (the scene is the point), then why, then the references, then the questions. */
+:root {
+  --bg: #172c2b; --panel: #1f3b3a; --panel2: #2a4d4b; --line: #3a7672;
+  --text: #f3e9d2; --muted: #c7beab; --teal: #86c2b6; --gold: #ffcf3f; --paper: #fbf7ee; --stage: #0d1818;
+  --display: Pixelify, "Courier New", monospace; --body: Atkinson, system-ui, sans-serif; --mono: JetBrains, Consolas, monospace;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--text); font-family: var(--body); font-size: 16px; line-height: 1.5; }
+main { max-width: 1312px; margin: 0 auto; padding-block: 24px 64px; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+h1, h2, h3 { font-family: var(--display); font-weight: 600; line-height: 1.15; margin: 0 0 8px; text-wrap: balance; }
+h1 { font-size: 40px; color: var(--paper); }
+h1 small { display: block; font-size: 20px; color: var(--teal); font-weight: 500; margin-top: 4px; }
+h2 { font-size: 24px; color: var(--gold); margin-top: 40px; }
+h3 { font-size: 20px; color: var(--teal); }
+p { margin: 0 0 12px; max-width: 72ch; }
+.muted { color: var(--muted); }
+.tabs { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; margin: 16px 0 10px; }
+.tab { text-align: left; background: var(--panel); color: var(--text); border: 2px solid var(--panel2); padding: 10px 12px; cursor: pointer; font: inherit; }
+.tab b { display: block; font-family: var(--display); font-weight: 600; font-size: 19px; line-height: 1.1; }
+.tab span { display: block; font-size: 14px; color: var(--muted); margin-top: 4px; }
+.tab[aria-selected="true"] { border-color: var(--gold); background: var(--panel2); }
+.tab[aria-selected="true"] b { color: var(--gold); }
+.tab:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
+.stagewrap { position: relative; background: var(--stage); border: 2px solid var(--panel2); line-height: 0; -webkit-touch-callout: none; user-select: none; -webkit-user-select: none; }
+.stagewrap img { width: 100%; max-width: 100%; height: auto; aspect-ratio: 16 / 9; image-rendering: pixelated; display: block; }
+.stagewrap img[hidden] { display: none !important; }
+.badge { position: absolute; left: 10px; top: 10px; line-height: 1.2; font-family: var(--display); font-size: 15px; background: var(--panel); color: var(--gold); border: 2px solid var(--line); padding: 2px 8px; pointer-events: none; }
+.hint { font-size: 14px; color: var(--muted); margin-top: 8px; }
+.grid2 { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+.grid3 { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; }
+.grid2 > *, .grid3 > * { min-width: 0; }
+.card { background: var(--panel); border: 2px solid var(--panel2); padding: 14px 16px; }
+.card p { font-size: 15px; }
+.card .take { color: var(--paper); margin: 0; }
+.card .take b { color: var(--gold); font-weight: 600; }
+.tag { display: inline-block; font-size: 12px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--teal); margin-bottom: 4px; }
+ul, ol { margin: 0; padding-left: 22px; }
+li { margin: 0 0 8px; max-width: 72ch; }
+.reco { border-left: 4px solid var(--gold); background: var(--panel); padding: 12px 16px; }
+code { font-family: var(--mono); font-size: 14px; color: var(--teal); overflow-wrap: anywhere; }
+.rules { counter-reset: r; list-style: none; padding: 0; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px 24px; }
+.rules li { counter-increment: r; padding-left: 40px; position: relative; margin: 0; }
+.rules li::before { content: counter(r); position: absolute; left: 0; top: -2px; font-family: var(--display); font-size: 26px; color: var(--gold); }
+@media (max-width: 760px) {
+  h1 { font-size: 30px; }
+  h1 small { font-size: 17px; }
+  .tabs { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .tab b { font-size: 17px; }
+  .tab span { font-size: 13px; }
+  .grid2, .grid3, .rules { grid-template-columns: minmax(0, 1fr); }
+}
+@media (prefers-reduced-motion: no-preference) { .stagewrap img { transition: none; } }
+</style>
+<main>
+  <h1>Next Customer: a clean shift scene <small>#123 · recomposed after a look at how other games stage a work surface</small></h1>
+
+  <div class="tabs" role="tablist" aria-label="Scene">
+    <button class="tab" role="tab" id="tab-now" data-v="now"><b>Today</b><span>The game's planning screen.</span></button>
+    <button class="tab" role="tab" id="tab-a" data-v="a" aria-selected="true"><b>A · Store at dusk</b><span>Recommended. Flat lit planes, glass, warm pendants.</span></button>
+    <button class="tab" role="tab" id="tab-b" data-v="b"><b>B · Spotlit counter</b><span>One lamp, the store a silhouette.</span></button>
+    <button class="tab" role="tab" id="tab-layout" data-v="layout"><b>Composition</b><span>Three zones, nothing between them.</span></button>
+  </div>
+  <div class="stagewrap" id="stage">
+    <img id="img-now" alt="Today's shift screen" src="/*NOW*/" hidden>
+    <img id="img-a" alt="Direction A, the store at dusk" src="/*A*/">
+    <img id="img-b" alt="Direction B, the spotlit counter" src="/*B*/" hidden>
+    <img id="img-layout" alt="The composition: world, work and info zones" src="/*LAYOUT*/" hidden>
+    <span class="badge" id="badge">A · Store at dusk</span>
+  </div>
+  <p class="hint">Press and hold the picture to see today's screen. Every piece of UI is cut from the game's capture, so it is pixel for pixel the game; only the background and the counter around it are new.</p>
+
+  <h2>What changed</h2>
+  <div class="grid3">
+    <div class="card">
+      <span class="tag">The counter</span>
+      <h3>Belt onto the baskets</h3>
+      <p>The belt comes down 34 px and the baskets 12 px, so the tickets end just above the basket items. The brown wood band is gone: the belt frame, the counter face and the register cabinet are one charcoal laminate, and one steel ledge runs the full width at the bottom. The counter reads as one piece of furniture.</p>
+    </div>
+    <div class="card">
+      <span class="tag">The store</span>
+      <h3>Flat planes, no outlines</h3>
+      <p>The store is three flat layers: the storefront glass with the evening outside, a run of shelving, and hanging lamps and aisle signs. It has no ink outlines and only two values per layer, lit or unlit, with a dithered band at each lamp pool's edge. Ink outlines belong to things you can touch, so the items, stickers and tickets come forward on their own.</p>
+    </div>
+    <div class="card">
+      <span class="tag">The clutter</span>
+      <h3>Less on screen</h3>
+      <p>The cashier, the paper bag, the produce stand, the cold case and the rewards machine leave the planning view. The machine already has its own camera position (the game pans to it), so it appears when it is used, not while the player plans. That leaves three zones: info on the left, the world above, and the work below.</p>
+    </div>
+  </div>
+
+  <h2>What the references do</h2>
+  <p class="muted">The lessons below come from these games' screens as I know them. This environment can't load images from Steam, wikis or itch.io, so the page shows no screenshots of them.</p>
+  <div class="grid3">
+    <div class="card">
+      <span class="tag">Balatro</span>
+      <p>All the run's numbers live in one left column (the blind, the score, hands, discards, money, the ante). The table is an empty field with a slow, low-contrast swirl that never competes with the cards. Jokers sit in a row on top, the played hand in the middle and your hand at the bottom.</p>
+      <p class="take"><b>We take:</b> one info column (receipt, keys) and a background that stays quiet.</p>
+    </div>
+    <div class="card">
+      <span class="tag">Papers, Please</span>
+      <p>The world is a thin, desaturated strip at the top (the queue, the booth) and the desk takes most of the screen. A hard horizontal edge separates where you look from where you work.</p>
+      <p class="take"><b>We take:</b> two planes, world over work, split by the counter's edge.</p>
+    </div>
+    <div class="card">
+      <span class="tag">Inscryption</span>
+      <p>Act 1 is lit by a single lamp over the table, with near-black everywhere else. Whatever matters sits in the pool of light, so focus is never in doubt.</p>
+      <p class="take"><b>We take:</b> direction B, and in A the lamps that pool on the shelves, never on the work.</p>
+    </div>
+    <div class="card">
+      <span class="tag">VA-11 Hall-A · Coffee Talk</span>
+      <p>The counter is the foreground band. Behind it is a softly lit room with a window to the city (Coffee Talk's rain), a few warm practical lights and low contrast. The room sets the mood and never asks to be read.</p>
+      <p class="take"><b>We take:</b> the storefront glass, the warm pendants and a room seen at low contrast.</p>
+    </div>
+    <div class="card">
+      <span class="tag">Slay the Spire</span>
+      <p>The painted backdrop sits a value step under the UI, the top bar is compact, and the hand fans along one floor line at the bottom.</p>
+      <p class="take"><b>We take:</b> a backdrop a step darker than anything playable, and one bottom line (the ledge).</p>
+    </div>
+    <div class="card">
+      <span class="tag">Unpacking · A Short Hike</span>
+      <p>Clean pixel art comes from big flat shapes, a small palette per area and outlines kept for objects. They add detail where the eye rests and nowhere else.</p>
+      <p class="take"><b>We take:</b> no outlines in the background, shelves as flat blocks of stock, detail only on items.</p>
+    </div>
+  </div>
+
+  <h2>The rules for the scene</h2>
+  <ol class="rules">
+    <li><b>Three zones, nothing between them.</b> Info (left column), world (above the counter), work (belt and baskets). No prop floats in the gaps.</li>
+    <li><b>The work is one surface.</b> Belt, ticket rail and baskets touch. No brown band, no empty strip.</li>
+    <li><b>The background is a value step under the UI</b> and has no ink outlines. Outlines mean "you can touch this".</li>
+    <li><b>Light lands on the world, never on the work.</b> Lamp pools on the shelves; the belt, receipt and monitor keep their own flat light.</li>
+    <li><b>Show a thing when it is used.</b> The rewards machine, the cashier and the bag belong to the moments that use them.</li>
+    <li><b>One bottom line, one top line.</b> The ledge across the whole width, the top bar's edge. Everything sits between them.</li>
+  </ol>
+
+  <h2>Recommendation</h2>
+  <div class="reco">
+    <p><b>Direction A, with the counter recomposed as shown.</b> A keeps the store (the game's subject) but as a quiet stage set, and the glass gives the scene a time and a mood without clutter. B is cleaner still but loses the supermarket. It would suit the Manager's review night, or the moment the count-up runs.</p>
+    <p>In the game this is scenery work only. The belt, the hand and the column move by their stage rects (<code>BELT_RECT</code>, <code>ROW_POSITION</code>, <code>HAND_RECT</code>, <code>DECK_RECT</code>), and the store becomes a new backdrop painted as pixel-art sources. The rules and the UI stay as they are.</p>
+  </div>
+
+  <h2>To decide</h2>
+  <ol>
+    <li><b>A or B</b>, or A for shifts and B for the review night.</li>
+    <li><b>The cashier:</b> gone from planning (the player is the cashier), or back as a small figure behind the receipt?</li>
+    <li><b>The rewards machine:</b> only on its own camera stop, as shown, or a small glimpse at the right edge so players know it is there?</li>
+    <li><b>Closer still?</b> The belt could overlap the basket rims if the chips under the tickets (the warning and ×2 marks) moved onto the tickets. That gains about 30 px for the store.</li>
+    <li><b>The checkout crowd (#120)</b> would stand in the shelving band between the lamps, drawn flat like the store, and step forward only when it cheers.</li>
+  </ol>
+  <p class="hint">A mock-up recomposed from the game's capture: tiny specks of the old wall may show near the stickers, and the monitor keeps its old place. Source: <code>docs/art/mockups/scene_123_src/</code>.</p>
+</main>
+<script>
+"use strict";
+const NAMES = { now: "Today", a: "A · Store at dusk", b: "B · Spotlit counter", layout: "Composition" };
+let current = "a";
+function show(v) {
+  for (const k of Object.keys(NAMES)) document.getElementById("img-" + k).hidden = k !== v;
+  document.getElementById("badge").textContent = NAMES[v];
+}
+function select(v) {
+  current = v;
+  document.querySelectorAll(".tab").forEach((t) => t.setAttribute("aria-selected", String(t.dataset.v === v)));
+  show(v);
+}
+document.querySelectorAll(".tab").forEach((t) => t.addEventListener("click", () => select(t.dataset.v)));
+const stage = document.getElementById("stage");
+stage.addEventListener("pointerdown", () => show("now"));
+stage.addEventListener("contextmenu", (e) => e.preventDefault());
+for (const ev of ["pointerup", "pointercancel", "pointerleave"]) stage.addEventListener(ev, () => show(current));
+</script>
