@@ -73,6 +73,15 @@ static func hovered(
 	return notice
 
 
+## The full redraw's tag hovered (#122, a badge pin): every hand item `items` (left first) with
+## `pile` cards left to draw, for 1 redraw.
+static func all_hovered(redraws_left: int, items: Array[CardDefinition], pile: int) -> RedrawNotice:
+	var notice: RedrawNotice = hovered(0, redraws_left, items, pile)
+	notice.title = "REDRAW ALL BASKETS"
+	notice.key = "BADGE PIN · ONCE A SHIFT"
+	return notice
+
+
 ## The redraw playing: `going` out, `coming` in.
 static func redrawing(
 	redraws_left: int, going_items: Array[CardDefinition], coming_items: Array[CardDefinition]

@@ -5,7 +5,11 @@
 [ext_resource type="Resource" path="res://data/decks/starter.tres" id="3_starter"]
 [ext_resource type="Resource" path="res://data/decks/random_starter.tres" id="4_random_starter"]
 [ext_resource type="Resource" path="res://data/decks/pack_starter.tres" id="5_pack_starter"]
+[ext_resource type="Script" path="res://core/pin_definition.gd" id="6_pin"]
+[ext_resource type="Resource" path="res://data/pins/two_for_one_pair.tres" id="7_pin_pair"]
+[ext_resource type="Resource" path="res://data/pins/full_redraw.tres" id="8_pin_redraw"]
 
 [resource]
 script = ExtResource("1_catalogue")
 decks = Array[ExtResource("2_deck")]([ExtResource("3_starter"), ExtResource("4_random_starter"), ExtResource("5_pack_starter")])
+pins = Array[ExtResource("6_pin")]([ExtResource("7_pin_pair"), ExtResource("8_pin_redraw")])

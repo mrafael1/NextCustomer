@@ -1,12 +1,12 @@
 class_name ContentLookup
 extends RefCounted
 ## Resolves the ids a save holds (full build plan section 4) to the content they name: cards,
-## upgrades, inspections and starting decks by file (<root>/<folder>/<id>.tres), aisles from
-## the balance. An id resolves only to a resource of the right type whose own id equals it (a
-## data test checks that every file's id equals its file name), so a renamed or removed file
-## makes a save unreadable instead of loading the wrong thing. Nothing here prints an error:
-## a file is checked with ResourceLoader.exists before it is loaded, and an id that isn't a
-## plain name (empty, or a path such as "../balance/balance") is never looked up.
+## upgrades, inspections, starting decks and badge pins by file (<root>/<folder>/<id>.tres),
+## aisles from the balance. An id resolves only to a resource of the right type whose own id
+## equals it (a data test checks that every file's id equals its file name), so a renamed or
+## removed file makes a save unreadable instead of loading the wrong thing. Nothing here prints
+## an error: a file is checked with ResourceLoader.exists before it is loaded, and an id that
+## isn't a plain name (empty, or a path such as "../balance/balance") is never looked up.
 ##
 ## A retired id (content removed from data/ by a rule change, RETIRED_UPGRADES and
 ## RETIRED_INSPECTIONS) resolves to an inert stand-in with that id and name and no effect, so a
@@ -20,6 +20,7 @@ const CARDS_FOLDER := "cards"
 const UPGRADES_FOLDER := "upgrades"
 const INSPECTIONS_FOLDER := "inspections"
 const DECKS_FOLDER := "decks"
+const PINS_FOLDER := "pins"
 ## Upgrades removed from data/, by id: their names (plan v0.46, #106: every slot is general).
 const RETIRED_UPGRADES: Dictionary[StringName, String] = {
 	&"extra_coupon_slot": "Extra coupon slot",
@@ -62,6 +63,10 @@ func inspection(id: String) -> InspectionDefinition:
 
 func deck(id: String) -> DeckDefinition:
 	return _resolve(DECKS_FOLDER, id) as DeckDefinition
+
+
+func pin(id: String) -> PinDefinition:
+	return _resolve(PINS_FOLDER, id) as PinDefinition
 
 
 ## One of the balance's aisles, or null.
@@ -142,4 +147,6 @@ static func _folder_of(resource: Resource) -> String:
 		return INSPECTIONS_FOLDER
 	if resource is DeckDefinition:
 		return DECKS_FOLDER
+	if resource is PinDefinition:
+		return PINS_FOLDER
 	return ""

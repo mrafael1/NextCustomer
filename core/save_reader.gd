@@ -146,6 +146,13 @@ func inspection(key: String) -> InspectionDefinition:
 	return _resolve_optional(key, _lookup.inspection) as InspectionDefinition
 
 
+## Badge pin ids (#122), each resolved.
+func pins(key: String) -> Array[PinDefinition]:
+	var found: Array[PinDefinition] = []
+	found.assign(_resolve_all(key, _lookup.pin))
+	return found
+
+
 ## A starting deck's id (required).
 func deck(key: String) -> DeckDefinition:
 	var found: DeckDefinition = _resolve_optional(key, _lookup.deck) as DeckDefinition

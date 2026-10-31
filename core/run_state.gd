@@ -12,6 +12,10 @@ extends RefCounted
 ## shift earned: the UI chooses chutes and picks or bins prizes through `machine`, and the phase
 ## follows the machine's stage (MACHINE_CHOOSE, MACHINE_PICK, then SCORED when no visit is left).
 
+## The badge pins worn when the run started (#122, `pins`, RunPins.wear) are the run's own:
+## their starting cards join the deck once it is final (at once, or after the starter pack), and
+## a full-redraw pin lets each shift redraw every basket at once for one redraw (RunPins).
+
 ## A run whose recipe has starter packs (#107, v0.63) starts in CHOOSE_START: its offer
 ## (`start_offer`) waits for the player's pick (take_pack), which makes the deck; the first shift
 ## starts after it.
@@ -55,6 +59,10 @@ var redraws_allowed: int = 0
 ## the redraws past the shift's own, ShiftLimits.own_redraws, are Extra redraw's), for the
 ## receipt's credit (ScoreCredits).
 var redrawn_in: PackedInt32Array = PackedInt32Array()
+## The badge pins the run was started with (#122), in slot order.
+var pins: Array[PinDefinition] = []
+## This shift's full redraw was used (a full-redraw pin's, RunPins.redraw_all).
+var full_redraw_used: bool = false
 var last_result: ScoreResult
 ## Owned upgrades, in pick order (a starting deck's upgrade first). Scoring steps name them by
 ## index in this list.
@@ -167,6 +175,7 @@ func start_shift() -> void:
 	redraws_used = 0
 	redraws_allowed = limits.redraws
 	redrawn_in = PackedInt32Array()
+	full_redraw_used = false
 	last_result = null
 	phase = Phase.PLANNING
 
@@ -237,6 +246,7 @@ func take_pack(pack: StarterPackDefinition) -> bool:
 		return false
 	starter = StartingDeck.with_pack(starter, pack, start_offer.shared)
 	deck = Deck.from_definition(starter, _rng)
+	RunPins.add_cards(self)
 	phase = Phase.PLANNING
 	return true
 

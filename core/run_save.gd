@@ -140,6 +140,8 @@ static func to_dictionary(saved_run: RunState, saved_run_id: String, played_ms: 
 		"redraws_used": saved_run.redraws_used,
 		"redraws_allowed": saved_run.redraws_allowed,
 		"redrawn_in": Array(saved_run.redrawn_in),
+		"pins": _ids(saved_run.pins),
+		"full_redraw_used": saved_run.full_redraw_used,
 		"upgrades": _ids(saved_run.upgrades),
 		"inspections": _ids(saved_run.inspections),
 		"week": _week_data(saved_run.week),
@@ -218,6 +220,11 @@ static func from_dictionary(saved: Dictionary, lookup: ContentLookup) -> RunSave
 	# Left out by format 6 saves made before #108 piece 2: no card came from an extra redraw.
 	if data.has("redrawn_in"):
 		restored.redrawn_in = PackedInt32Array(reader.wholes("redrawn_in", 1))
+	# Left out by saves made before #122's badge pins: no pin worn.
+	if data.has("pins"):
+		restored.pins = reader.pins("pins")
+	if data.has("full_redraw_used"):
+		restored.full_redraw_used = reader.flag("full_redraw_used")
 	restored.upgrades = reader.upgrades("upgrades")
 	restored.inspections = reader.inspections("inspections")
 	# Before v0.70 a save named the next shift's events (one inspection before v0.65), not the week.
