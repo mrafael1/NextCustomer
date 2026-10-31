@@ -6,7 +6,9 @@ extends Control
 ## on past it (StorefrontArt.backdrop, painted once per window size), so a wider or taller window
 ## shows more street, never a letterbox gap.
 ##
-## On the stage, back to front: the backdrop's fixed parts; the sconce's light wedge over the
+## On the stage, back to front: the backdrop's fixed parts; the sky's idle (v0.80: now and then
+## a star twinkles, a cross of light for TWINKLE_TIME, and every SHOOTING_GAP seconds a shooting
+## star crosses the sky in art px steps); the sconce's light wedge over the
 ## menu and the sidewalk's neon reflections (both once the sign is lit); the right window's tube,
 ## which flickers; the doors' warm light spill on the sidewalk; the doors' two sliding leaves; the
 ## REWARDS bay (a glass annex with the REWARDS vinyl, the locked Loyalty poster and the sign-free
@@ -23,7 +25,8 @@ extends Control
 ## control's coordinates; the scene itself takes no clicks.
 ##
 ## `still` (the profile's reduced motion) holds every loop and slide: the tube stays lit, the sign
-## lights at once and never stutters, swings or breathes, no scrap blows, the machine doesn't
+## lights at once and never stutters, swings or breathes, no star twinkles or shoots, no scrap
+## blows, the machine doesn't
 ## jiggle, the doors and the bay glass don't slide (a start only floods, in steps).
 
 ## The sign is fully lit (after light_up()).
@@ -64,6 +67,24 @@ const SCRAP_Y := 318
 const SCRAP_BOUNCE := 6.0
 const SCRAP_WAVES := 18.0
 const SCRAP_SIZE := Vector2i(5, 4)
+## The twinkles: every TWINKLE_EVERY-th star (the backdrop's, on the stage) flashes a cross of
+## light for TWINKLE_TIME once every TWINKLE_PERIOD seconds, each star at its own phase,
+## TWINKLE_PHASE seconds after the one before.
+const TWINKLE_EVERY := 4
+const TWINKLE_PERIOD := 5.0
+const TWINKLE_PHASE := 1.3
+const TWINKLE_TIME := 0.24
+## The shooting star: from SHOOTING_FROM (x min, x max, at row SHOOTING_TOP) it falls SHOOTING_STEP
+## art px a step (left and down) every SHOOTING_STEP_TIME for SHOOTING_STEPS steps, its tail
+## SHOOTING_TAIL px; the first SHOOTING_FIRST seconds in, then every SHOOTING_GAP (min, max).
+const SHOOTING_FROM := Vector2i(160, 600)
+const SHOOTING_TOP := 4
+const SHOOTING_STEP := Vector2i(-3, 1)
+const SHOOTING_STEP_TIME := 0.04
+const SHOOTING_STEPS := 14
+const SHOOTING_TAIL := 10
+const SHOOTING_FIRST := 6.0
+const SHOOTING_GAP := Vector2(14.0, 24.0)
 
 ## Holds every loop and slide (the profile's reduced motion).
 var still: bool = false:
@@ -107,6 +128,7 @@ var _machine: BareToyMachine
 var _glass: TextureRect
 var _sign: NeonSign
 var _scrap: Control
+var _sky: Control
 var _flood: ColorRect
 ## How far apart the door leaves stand, in art px.
 var _door_open: int = 0
@@ -114,6 +136,9 @@ var _jiggle_at: float = -1.0
 var _glass_at: float = -1.0
 ## The scrap's next start on the clock.
 var _scrap_at: float = 0.0
+## The shooting star's start on the clock and its first column.
+var _shooting_at: float = SHOOTING_FIRST
+var _shooting_x: int = 0
 
 
 func _init() -> void:
@@ -125,6 +150,11 @@ func _init() -> void:
 	_stage.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_stage.size = STAGE_SIZE
 	add_child(_stage)
+	_sky = Control.new()
+	_sky.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_sky.size = STAGE_SIZE
+	_sky.draw.connect(_draw_sky)
+	_stage.add_child(_sky)
 	_wedge = _add_layer("wedge")
 	_tube = _add_layer("tube_on")
 	_reflections = _add_layer("reflections")
@@ -154,6 +184,7 @@ func _init() -> void:
 	_flood.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	add_child(_flood)
 	_scrap_at = _rng.randf_range(SCRAP_GAP.x, SCRAP_GAP.y)
+	_shooting_x = _rng.randi_range(SHOOTING_FROM.x, SHOOTING_FROM.y)
 	resized.connect(_lay_out)
 	_lay_out()
 	_update_live()
@@ -250,8 +281,8 @@ func backdrop_extend() -> Vector4i:
 	return _extend
 
 
-## A live layer, for tests: "wedge", "tube_on", "reflections", "spill", "bay_lit", "glass" or
-## "scrap" (null for any other id).
+## A live layer, for tests: "wedge", "tube_on", "reflections", "spill", "bay_lit", "glass",
+## "scrap" or "sky" (null for any other id).
 func layer(id: String) -> CanvasItem:
 	var layers: Dictionary[String, CanvasItem] = {
 		"wedge": _wedge,
@@ -261,6 +292,7 @@ func layer(id: String) -> CanvasItem:
 		"bay_lit": _bay_lit,
 		"glass": _glass,
 		"scrap": _scrap,
+		"sky": _sky,
 	}
 	return layers.get(id, null)
 
@@ -287,6 +319,35 @@ func _update_live() -> void:
 	if is_lit() and not still and _clock >= _scrap_at + SCRAP_TIME:
 		_scrap_at = _clock + _rng.randf_range(SCRAP_GAP.x, SCRAP_GAP.y)
 	_scrap.queue_redraw()
+	if _clock >= _shooting_at + SHOOTING_STEPS * SHOOTING_STEP_TIME:
+		_shooting_at = _clock + _rng.randf_range(SHOOTING_GAP.x, SHOOTING_GAP.y)
+		_shooting_x = _rng.randi_range(SHOOTING_FROM.x, SHOOTING_FROM.y)
+	_sky.queue_redraw()
+
+
+## The stars twinkling now (their stage art px), none when `still`.
+func twinkles() -> Array[Vector2i]:
+	var shown: Array[Vector2i] = []
+	if still:
+		return shown
+	var star: int = 0
+	for i: int in StorefrontArt.STARS:
+		if i % StorefrontArt.STAR_HIDDEN_EVERY == 0 or i % TWINKLE_EVERY:
+			continue
+		var at: float = fmod(_clock + star * TWINKLE_PHASE, TWINKLE_PERIOD)
+		star += 1
+		if at < TWINKLE_TIME:
+			shown.append(StorefrontArt.star_at(i))
+	return shown
+
+
+## The shooting star's head now (stage art px), or (-1, -1) when none is crossing.
+func shooting_star() -> Vector2i:
+	var since: float = _clock - _shooting_at
+	if still or since < 0.0 or since >= SHOOTING_STEPS * SHOOTING_STEP_TIME:
+		return Vector2i(-1, -1)
+	var step: int = int(since / SHOOTING_STEP_TIME)
+	return Vector2i(_shooting_x, SHOOTING_TOP) + SHOOTING_STEP * step
 
 
 func _tube_lit() -> bool:
@@ -380,6 +441,25 @@ func _draw_doors() -> void:
 		)
 	var doorway: Vector2i = StorefrontArt.DOORS_RECT.size
 	_doors.draw_rect(Rect2(-2, doorway.y - 2, doorway.x + 4, 2), Palette.STEEL_DARK)
+
+
+## The twinkling stars' crosses and the shooting star with its fading tail.
+func _draw_sky() -> void:
+	_sky.draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE * ArtStyle.ART_SCALE)
+	for star: Vector2i in twinkles():
+		_sky.draw_rect(Rect2(star, Vector2.ONE), Palette.PAPER)
+		for arm: Vector2i in [Vector2i.LEFT, Vector2i.RIGHT, Vector2i.UP, Vector2i.DOWN]:
+			_sky.draw_rect(Rect2(star + arm, Vector2.ONE), Palette.TEAL_LIGHT)
+	var head: Vector2i = shooting_star()
+	if head.x < 0:
+		return
+	var run: int = absi(SHOOTING_STEP.x)
+	for i: int in range(SHOOTING_TAIL, -1, -1):
+		var colour: Color = Palette.PAPER
+		if i > 0:
+			colour = Palette.TEAL_LIGHT if i * 2 <= SHOOTING_TAIL else Palette.TEAL_SHADE
+		var back: Vector2i = Vector2i(-signi(SHOOTING_STEP.x) * i, -floori(float(i) / run))
+		_sky.draw_rect(Rect2(head + back, Vector2.ONE), colour)
 
 
 ## The receipt scrap on its way along the sidewalk, from the window's left edge to its right.
