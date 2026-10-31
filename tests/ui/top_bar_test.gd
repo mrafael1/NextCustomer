@@ -139,8 +139,9 @@ func test_the_decor_takes_no_clicks() -> void:
 		assert_int((node as Control).mouse_filter).is_equal(Control.MOUSE_FILTER_IGNORE)
 
 
-## The quota gauge keeps its width through a count: the readout after it has room for four digits
-## and the widest tag, so the gauge never jumps while its fill moves.
+## The quota gauge keeps its width through a count: the readout after it has room for three digits
+## and the widest tag, and a longer amount shrinks the tag, so the gauge never jumps while its fill
+## moves.
 func test_the_quota_bar_keeps_its_width_through_a_count() -> void:
 	var led: LedDisplay = auto_free(LedDisplay.new())
 	add_child(led)
@@ -176,8 +177,9 @@ func test_the_quota_bar_keeps_its_width_through_a_count() -> void:
 
 
 ## A drag's would-be total and change (#71) keep the bar's width too: the amount's reserve holds
-## "› €" and four digits with the change ("(+6)" to "(-999)") in place of the tag, so nothing in the
-## meter moves or grows as the drag crosses the slots and ends; both texts lie inside the meter.
+## "› €" and three digits with the change ("(+6)" to "(-99)") in place of the tag, a longer one
+## shrinking the change, so nothing in the meter moves or grows as the drag crosses the slots and
+## ends; both texts lie inside the meter.
 func test_the_quota_bar_keeps_its_width_through_a_drag() -> void:
 	var meter: QuotaMeter = auto_free(QuotaMeter.new())
 	# Layout only: no punch scaling the amount over the tag's slot (#86).

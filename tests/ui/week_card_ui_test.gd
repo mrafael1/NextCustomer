@@ -425,24 +425,45 @@ func test_the_pips_are_whole_and_inside_the_chip() -> void:
 	var run: RunState = _started_run()
 	var quota: int = run.quota()
 	run.history.append(ShiftRecord.new(1, quota, quota))
+	run.history.append(ShiftRecord.new(2, quota, quota - 1))
 	chip.show_week(WeekCardModel.of(run))
-	await _frames(3)
-	var view: Control = chip.pips_view()
-	var rects: Array[Rect2] = []
-	for index: int in range(chip.pips().size()):
-		var local: Rect2 = chip.pip_rect(index)
-		var rect: Rect2 = Rect2(view.get_global_rect().position + local.position, local.size)
-		assert_float(rect.size.x).is_equal(WeekChip.PIP_SIZE)
-		assert_vector(rect.position).is_equal(rect.position.round())
-		(
-			assert_bool(chip.get_global_rect().encloses(rect))
-			. override_failure_message(str(rect))
-			. is_true()
-		)
-		if not rects.is_empty():
-			assert_bool(rects[-1].intersects(rect)).is_false()
-		rects.append(rect)
-	assert_float(rects[0].size.y).is_greater_equal(9.0)
+	# The 1920x1080 window's stretch (1.5x), on the chip itself: the pips' corners still land on
+	# whole pixels of the screen.
+	for scale: float in [1.0, 1.5]:
+		chip.scale = Vector2(scale, scale)
+		await _frames(3)
+		var view: Control = chip.pips_view()
+		var screen: Transform2D = WeekChip.screen_transform(view)
+		var chip_rect: Rect2 = WeekChip.screen_transform(chip) * Rect2(Vector2.ZERO, chip.size)
+		var rects: Array[Rect2] = []
+		for index: int in range(chip.pips().size()):
+			var local: Rect2 = chip.pip_rect(index)
+			var rect: Rect2 = screen * local
+			var message: String = "pip %d at %sx: %s" % [index, scale, rect]
+			assert_float(local.size.x).is_equal(WeekChip.PIP_SIZE)
+			assert_vector(rect.position).override_failure_message(message).is_equal_approx(
+				rect.position.round(), Vector2(0.01, 0.01)
+			)
+			assert_bool(chip_rect.encloses(rect)).override_failure_message(message).is_true()
+			if not rects.is_empty():
+				assert_bool(rects[-1].intersects(rect)).is_false()
+			rects.append(rect)
+			# A result's glyph lies inside its pip, clear of its edge (a pixel all round).
+			for pixel: Vector2i in WeekChip.glyph_pixels(chip.pips()[index]):
+				var dot: Rect2 = Rect2(local.position + Vector2(pixel), Vector2.ONE)
+				(
+					assert_bool(local.grow(-1.0).encloses(dot))
+					. override_failure_message(message)
+					. is_true()
+				)
+		assert_float(rects[0].size.y).is_greater_equal(9.0 * scale)
+	# Both glyphs show: the PAID day's check and the missed one's cross, apart.
+	assert_int(chip.pips()[0]).is_equal(WeekCardModel.Pip.PAID)
+	assert_int(chip.pips()[1]).is_equal(WeekCardModel.Pip.SLIP)
+	var check: Array[Vector2i] = WeekChip.glyph_pixels(WeekCardModel.Pip.PAID)
+	var cross: Array[Vector2i] = WeekChip.glyph_pixels(WeekCardModel.Pip.SLIP)
+	assert_bool(check.is_empty() or cross.is_empty()).is_false()
+	assert_array(check).is_not_equal(cross)
 
 
 ## A played day's pip shows its result (#119), today's too once checked out; flash() lights today's

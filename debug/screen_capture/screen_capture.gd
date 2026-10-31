@@ -75,6 +75,9 @@ extends Control
 ## With `--cheer` (#120) the fixed shift is checked out and frozen mid-count with a crowd of
 ## CHEER_TIERS' standees (mixed sizes, the newest still cheering) behind the counter; the file is
 ## shift_screen_cheer_<width>x<height>.png.
+## With `--day=<inspection id>[+<id>...]` (2026-10-31) the fixed shift runs under those day events
+## (data/inspections) in place of Short belt, so their slot marks show (Happy hour's "+€3" on the
+## last filled slot, Extra till's EXTRA slot); the file name gets day_<ids>_ (ids joined by "+").
 
 const SCREEN := preload("res://ui/shift_screen.tscn")
 const SEED := 20261014
@@ -118,6 +121,7 @@ const TOYS_OWNED: Dictionary[StringName, int] = {
 	&"cold_cases": 1, &"pantry": 2, &"household": 1, &"fruit_and_veg": 3, &"bakery": 2
 }
 const CHEER_ARGUMENT := "--cheer"
+const DAY_ARGUMENT := "--day="
 const CHEER_PREFIX := "cheer_"
 ## --cheer's crowd: the cheer tiers popped in turn (their tuning's counts: 1+3+2+1+1 standees).
 const CHEER_TIERS: Array[int] = [1, 3, 2, 1, 1]
@@ -206,6 +210,8 @@ var _week_part: String = ""
 var _toys_part: String = ""
 ## A --cheer capture's file name part.
 var _cheer_part: String = ""
+## A --day capture's file name part.
+var _day_part: String = ""
 ## Since hold_pointer(): the real pointer drives no hover, tooltip or click.
 var _holding_pointer: bool = false
 
@@ -244,6 +250,9 @@ func _ready() -> void:
 		await effects(focus_id)
 	elif OS.get_cmdline_user_args().has(WEEK_ARGUMENT) or _argument(WEEK_ARGUMENT + "=") != "":
 		week(_argument(WEEK_ARGUMENT + "="))
+	elif _argument(DAY_ARGUMENT) != "":
+		_day_part = "day_%s_" % _argument(DAY_ARGUMENT)
+		_set_up_shift(_argument(DAY_ARGUMENT), ROW_IDS)
 	else:
 		_set_up_shift(INSPECTION, ROW_IDS)
 	var toys_spec: String = _argument(TOYS_ARGUMENT)
@@ -291,8 +300,8 @@ func _unhandled_key_input(event: InputEvent) -> void:
 	get_viewport().set_input_as_handled()
 
 
-## Sets up the fixed shift under the inspection `inspection_id` (none when empty) and the upgrades
-## `upgrade_ids` with the cards `row_ids` on the belt.
+## Sets up the fixed shift under the inspection `inspection_id` (none when empty; several joined
+## by "+") and the upgrades `upgrade_ids` with the cards `row_ids` on the belt.
 func _set_up_shift(
 	inspection_id: String, row_ids: Array[String], upgrade_ids: Array[String] = UPGRADE_IDS
 ) -> void:
@@ -307,9 +316,10 @@ func _set_up_shift(
 	run.upgrades = upgrades
 	run.debug_skip_to_shift(SHIFT - 1)
 	# The same shift again: it keeps the inspection set here.
-	run.inspections = []
-	if inspection_id != "":
-		run.inspections = [load("res://data/inspections/%s.tres" % inspection_id)]
+	var events: Array[InspectionDefinition] = []
+	for event_id: String in inspection_id.split("+", false):
+		events.append(load("res://data/inspections/%s.tres" % event_id) as InspectionDefinition)
+	run.inspections = events
 	run.debug_skip_to_shift(SHIFT - 1)
 	# The fixed hand replaces the dealt one, which is set aside for the shift.
 	run.deck.restore(run.deck.cards, [], run.deck.draw_pile(), run.deck.next_instance_id())
@@ -517,6 +527,7 @@ func capture(folder: String) -> void:
 		+ _week_part
 		+ _toys_part
 		+ _cheer_part
+		+ _day_part
 	)
 	var path: String = folder.path_join(FILE_NAME % [prefix, window.x, window.y])
 	var image: Image = (

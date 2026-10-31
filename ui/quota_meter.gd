@@ -58,12 +58,15 @@ const GLOW_WIDTH := 3.0
 const GLOW_SECONDS := 0.7
 ## The amount's reserved digits: the readout has room for this many of the widest digit after
 ## "€" (a count) and after a drag's "› €", so the gauge keeps its width while the subtotal gains
-## digits and a drag shows its total.
-const AMOUNT_DIGITS := 4
+## digits and a drag shows its total. A longer amount (a big lap's €1000) leaves the tag or the
+## change less room: they shrink to fit (_fit_readout), down to TAG_MIN_FONT_SIZE and
+## DELTA_MIN_FONT_SIZE.
+const AMOUNT_DIGITS := 3
 ## The room between the amount and what follows it in the readout (a drag's change, the tag).
 const READOUT_GAP := 6
 ## The change's reserved digits after its sign, in brackets (after the amount, for the tag).
-const DELTA_DIGITS := 3
+const DELTA_DIGITS := 2
+const DELTA_MIN_FONT_SIZE := 12
 ## The tag's reserved digits (its widest text is "€N to go" with this many).
 const TAG_DIGITS := 3
 ## A drag's would-be total and its change from the projected one (#71), and the two read together
@@ -74,6 +77,7 @@ const HYPOTHETICAL_TEXT := HYPOTHETICAL_AMOUNT + " " + HYPOTHETICAL_DELTA
 ## The tag (mock-up TA's): its text in bold at TAG_FONT_SIZE, an ink border, TAG_PADDING in, half
 ## the row tall; the sticker fits its text (v0.83).
 const TAG_FONT_SIZE := 12
+const TAG_MIN_FONT_SIZE := 9
 const TAG_WEIGHT := 750
 const TAG_BORDER := 2
 const TAG_PADDING := 2
@@ -257,6 +261,7 @@ func show_hypothetical(amount: int, delta: int, quota: int) -> void:
 	delta_label.text = HYPOTHETICAL_DELTA % delta
 	delta_label.visible = true
 	tag_label.visible = false
+	_fit_readout()
 	_bar.queue_redraw()
 
 
@@ -313,11 +318,18 @@ func is_near() -> bool:
 
 ## The readout's reserved width: the wider of a count's amount ("€" and AMOUNT_DIGITS of the
 ## widest digit) with the widest tag, and a drag's amount (amount_width) with its widest change,
-## READOUT_GAP apart.
+## READOUT_GAP apart. Longer texts fit it by shrinking the tag or the change (_fit_readout).
 static func readout_width() -> float:
 	var count: float = _text_width("€") + AMOUNT_DIGITS * _digit_width() + tag_width()
 	var drag: float = amount_width() + delta_width()
 	return ceilf(maxf(count, drag) + READOUT_GAP)
+
+
+## The tag's width for `text` at font `font_size`: the text, its padding and border.
+static func tag_text_width(text: String, font_size: int = TAG_FONT_SIZE) -> float:
+	var font: Font = ArtStyle.bold_font(TAG_WEIGHT)
+	var width: float = font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size).x
+	return ceilf(width + 2.0 * (TAG_PADDING + TAG_BORDER))
 
 
 ## A drag's amount's reserved width: its "› €" and AMOUNT_DIGITS of the widest digit, in the value
@@ -442,12 +454,35 @@ func _set_lap(lap: int) -> void:
 	_lap = lap
 
 
+## Fits the readout's tag, or a drag's change, in the room the amount leaves of readout_width:
+## at its own size when it fits, else the largest size down to TAG_MIN_FONT_SIZE (the change's
+## DELTA_MIN_FONT_SIZE) that fits.
+func _fit_readout() -> void:
+	var room: float = readout_width() - READOUT_GAP - _text_width(amount_label.text)
+	var tag_size: int = TAG_FONT_SIZE
+	while tag_size > TAG_MIN_FONT_SIZE and tag_text_width(tag_label.text, tag_size) > room:
+		tag_size -= 1
+	tag_label.add_theme_font_size_override("font_size", tag_size)
+	var delta_size: int = TopBar.VALUE_FONT_SIZE
+	var font: Font = ArtStyle.number_font()
+	while (
+		delta_size > DELTA_MIN_FONT_SIZE
+		and (
+			font.get_string_size(delta_label.text, HORIZONTAL_ALIGNMENT_LEFT, -1, delta_size).x
+			> room
+		)
+	):
+		delta_size -= 1
+	delta_label.add_theme_font_size_override("font_size", delta_size)
+
+
 func _show_tag(amount: int, quota: int) -> void:
 	if _lap > 0:
 		tag_label.text = LAP_TAG_TEXT % [(_lap + 1) * quota - amount, _lap + 1]
 		tag_label.visible = true
 		_tag_style.bg_color = Palette.MUSTARD
 		tag_label.add_theme_color_override("font_color", Palette.INK)
+		_fit_readout()
 		return
 	var margin: ShiftMargin = ShiftMargin.of(amount, quota)
 	tag_label.text = to_go_text(margin)
@@ -456,6 +491,7 @@ func _show_tag(amount: int, quota: int) -> void:
 	_tag_style.bg_color = Palette.PAPER if short else Palette.MUSTARD
 	var colour: Color = FIZZLE_COLOR if short and not is_near() else Palette.INK
 	tag_label.add_theme_color_override("font_color", colour)
+	_fit_readout()
 
 
 func _on_reading(amount: int, quota: int, met: bool) -> void:

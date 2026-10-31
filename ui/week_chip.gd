@@ -248,12 +248,35 @@ func _draw() -> void:
 		draw_rect(ring, Palette.GOLD, false, RING_WIDTH)
 
 
-## Pip `index`'s square in the pips view, moved onto whole pixels (the row centres the view,
-## which can leave it on a half pixel).
+## Pip `index`'s square in the pips view, its corner moved onto a whole pixel of the screen (the
+## row centres the view, which can leave it on a half pixel, and the window's stretch scales the
+## canvas: 1.5x at 1920x1080).
 func pip_rect(index: int) -> Rect2:
-	var at: Vector2 = _pips_view.get_global_rect().position
-	var snap: Vector2 = at.round() - at
-	return Rect2(Vector2(index * (PIP_SIZE + PIP_GAP), 0.0) + snap, Vector2(PIP_SIZE, PIP_SIZE))
+	var local: Vector2 = Vector2(index * (PIP_SIZE + PIP_GAP), 0.0)
+	var corner: Vector2 = local
+	if _pips_view.is_inside_tree():
+		var screen: Transform2D = screen_transform(_pips_view)
+		corner = screen.affine_inverse() * (screen * local).round()
+	return Rect2(corner, Vector2(PIP_SIZE, PIP_SIZE))
+
+
+## `item`'s transform to the window's pixels: its canvas's, then the stretch's. A window smaller
+## than the canvas (its pixels coarser than the canvas's) keeps the canvas's pixels.
+static func screen_transform(item: CanvasItem) -> Transform2D:
+	var canvas: Transform2D = item.get_global_transform_with_canvas()
+	var stretch: Transform2D = item.get_viewport().get_final_transform()
+	return stretch * canvas if stretch.get_scale().x >= 1.0 else canvas
+
+
+## The pixels of `pip`'s glyph on its 9x9 square: the check for PAID, the cross for SLIP, none
+## for the others.
+static func glyph_pixels(pip: WeekCardModel.Pip) -> Array[Vector2i]:
+	match pip:
+		WeekCardModel.Pip.PAID:
+			return CHECK_PIXELS
+		WeekCardModel.Pip.SLIP:
+			return CROSS_PIXELS
+	return []
 
 
 func _draw_pips() -> void:
@@ -297,7 +320,7 @@ func _draw_result(at: Rect2, pip: WeekCardModel.Pip, step: int) -> void:
 	var paid: bool = pip == WeekCardModel.Pip.PAID
 	_pips_view.draw_rect(at, _light_of(pip))
 	var ink: Color = Palette.INK if paid else Palette.PAPER
-	for pixel: Vector2i in CHECK_PIXELS if paid else CROSS_PIXELS:
+	for pixel: Vector2i in glyph_pixels(pip):
 		_pips_view.draw_rect(Rect2(at.position + Vector2(pixel) * step, Vector2(step, step)), ink)
 
 

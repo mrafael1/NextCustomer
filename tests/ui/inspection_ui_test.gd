@@ -8,6 +8,8 @@ extends GdUnitTestSuite
 const SCREEN := "res://ui/shift_screen.tscn"
 const SPOT_CHECK := "res://data/inspections/spot_check.tres"
 const SHORT_BELT := "res://data/inspections/short_belt.tres"
+const HAPPY_HOUR := "res://data/inspections/happy_hour.tres"
+const EXTRA_TILL := "res://data/inspections/extra_till.tres"
 ## Checkouts rush their count (one tap): the suite tests what follows it.
 const Rush := preload("res://tests/ui/count_up_rush.gd")
 const NOTICE := "INSPECTION NEXT SHIFT: Slot 3 pays €0"
@@ -424,3 +426,73 @@ func test_a_full_row_explains_why_a_card_does_not_fit() -> void:
 	assert_str(caption.text).is_equal("inspection")
 	assert_str(screen._row_strip.closed[0].tooltip_text).contains("Short belt")
 	assert_str(screen._inspection_tag.text()).is_equal("Inspection · −1 slot")
+
+
+## Day events aimed at a slot wear its mark (2026-10-31: "day event that impact a specific slot
+## should be shown visually on slot"): Happy hour's green "+€3" on the row's last filled slot (slot
+## 1 on the empty belt), moving as cards are placed, and Extra till's EXTRA on the slot it adds;
+## each hangs under its own slot's ticket, on screen, and Happy hour's fires on its step.
+func test_slot_day_events_mark_their_slots() -> void:
+	var runner: GdUnitSceneRunner = scene_runner(SCREEN)
+	var screen: ShiftScreen = runner.scene()
+	Rush.no_write_ups(screen)
+	var run: RunState = screen.run
+	run.inspections = [load(HAPPY_HOUR), load(EXTRA_TILL)]
+	run.debug_skip_to_shift(run.shift_index)
+	screen._on_shift_started()
+	screen._week.drop()
+	await _frames(3)
+	var open: int = RowCapacity.card_limit(run.limits)
+	assert_int(screen._slots.size()).is_equal(open)
+	var happy: SlotMark = screen._row_strip.inspection_mark(0, 0)
+	assert_object(happy).is_not_null()
+	assert_str(happy.text()).is_equal("+€3")
+	assert_bool(happy.boon).is_true()
+	var extra: SlotMark = screen._row_strip.inspection_mark(open - 1, 1)
+	assert_object(extra).is_not_null()
+	assert_str(extra.text()).is_equal(SlotMark.EXTRA_TEXT)
+	assert_object(screen._row_strip.inspection_mark(open - 2)).is_null()
+	_assert_on_slot(screen, happy, 0)
+	_assert_on_slot(screen, extra, open - 1)
+	_place_ids(screen, ["bread", "milk", "bread"])
+	await _frames(3)
+	assert_object(screen._row_strip.inspection_mark(0, 0)).is_null()
+	happy = screen._row_strip.inspection_mark(2, 0)
+	assert_object(happy).is_not_null()
+	_assert_on_slot(screen, happy, 2)
+	extra = screen._row_strip.inspection_mark(open - 1, 1)
+	_assert_on_slot(screen, extra, open - 1)
+	# The emptied row after the checkout moves the mark away: count its fires as it leaves.
+	var fired: Array[int] = []
+	var happy_mark: SlotMark = happy
+	happy.tree_exiting.connect(func() -> void: fired.append(happy_mark.fired_count()))
+	var extra_fired: Array[int] = []
+	extra.tree_exiting.connect(func() -> void: extra_fired.append(extra.fired_count()))
+	await Rush.checkout(screen)
+	var happy_fires: int = fired[0] if not fired.is_empty() else happy.fired_count()
+	assert_int(happy_fires).is_equal(1)
+	assert_int(extra_fired[0] if not extra_fired.is_empty() else extra.fired_count()).is_equal(0)
+
+
+## `mark` hangs on slot `slot`: across its cell's width, under its ticket and inside the screen.
+func _assert_on_slot(screen: ShiftScreen, mark: SlotMark, slot: int) -> void:
+	assert_bool(mark.is_visible_in_tree()).is_true()
+	var panel: PanelContainer = screen._slots[slot]
+	var cell: Rect2 = panel.get_global_transform() * Rect2(Vector2.ZERO, panel.size)
+	var rect: Rect2 = mark.get_global_transform() * Rect2(Vector2.ZERO, mark.size)
+	var message: String = "%s on %s" % [rect, cell]
+	assert_float(rect.position.x).override_failure_message(message).is_greater_equal(
+		cell.position.x
+	)
+	assert_float(rect.end.x).override_failure_message(message).is_less_equal(cell.end.x + 0.5)
+	assert_float(rect.position.y).override_failure_message(message).is_greater(cell.position.y)
+	var screen_rect: Rect2 = screen.get_viewport_rect()
+	assert_bool(screen_rect.encloses(rect)).override_failure_message(message).is_true()
+	for other: int in range(screen._slots.size()):
+		if other == slot:
+			continue
+		var other_panel: PanelContainer = screen._slots[other]
+		var other_cell: Rect2 = (
+			other_panel.get_global_transform() * Rect2(Vector2.ZERO, other_panel.size)
+		)
+		assert_bool(other_cell.intersects(rect)).override_failure_message(message).is_false()
