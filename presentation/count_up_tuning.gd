@@ -252,5 +252,9 @@ extends Resource
 @export var cheer_pitch_base: float = 0.0
 @export var cheer_pitch_step: float = 0.0
 @export var cheer_db: float = 0.0
+## Each standee's ground shadow (CheerShadow) stays on the ground as it hops: at a hop of
+## cheer_shadow_lift_px (or higher) it keeps cheer_shadow_lift_share of its width and darkness.
+@export var cheer_shadow_lift_px: int = 16
+@export var cheer_shadow_lift_share: float = 0.5
 ## The most standees one checkout shows (a safety cap for performance, not a design limit).
 @export var cheer_max: int = 0

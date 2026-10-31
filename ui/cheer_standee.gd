@@ -5,7 +5,8 @@ extends Control
 ## hidden under the crowd's foot line. Its pose is three numbers the crowd's tweens move: `level`
 ## (0 out of sight under the foot line, 1 standing), `hop` (pixels up) and `fold` (1 upright, 0
 ## folded flat onto its foot). Every pose lands on the 2 px art grid, and the ink never rises
-## above `min_top` (the crowd's limit under the monitor). It takes no clicks.
+## above `min_top` (the crowd's limit under the monitor). Its ground shadow (`shadow`, in the
+## crowd's shadow layer) follows the pose on the ground line `ground_y`. It takes no clicks.
 
 ## The art grid every position snaps to.
 const GRID := 2.0
@@ -27,6 +28,14 @@ var down_y: float = 0.0
 var foot_y: float = 0.0
 ## The ink's top never goes above this crowd-local y (-INF: no limit).
 var min_top: float = -INF
+## Where its shadow lies: the visible ground under it (crowd-local y; CheckoutCrowd sets it).
+var ground_y: float = 0.0
+## Its ground shadow (CheckoutCrowd adds it behind the standees and frees it with this one).
+var shadow: CheerShadow = CheerShadow.new()
+## The hop (px) at which its shadow is at its smallest and lightest, and the share of its width
+## and darkness the shadow keeps there (CountUpTuning's cheer_shadow_*; CheckoutCrowd sets them).
+var shadow_lift_px: float = 16.0
+var shadow_lift_share: float = 0.5
 var level: float = 0.0:
 	set(value):
 		level = value
@@ -98,6 +107,11 @@ func end_pop() -> void:
 	popping = false
 
 
+## Re-poses it and its shadow (after the crowd moved it sideways).
+func refresh() -> void:
+	_apply()
+
+
 func _apply() -> void:
 	var y: float = lerpf(down_y, up_y, level) - hop
 	var ink_top: float = ink.position.y * art_scale
@@ -108,3 +122,17 @@ func _apply() -> void:
 	scale = Vector2(1.0, clampf(fold, 0.0, 1.0))
 	pivot_offset.x = size.x / 2.0
 	rotation = deg_to_rad(lean)
+	_pose_shadow()
+
+
+## The shadow stays on the ground: a hop narrows and lightens it, the rise and the sink fade it,
+## a fold or a topple narrows and fades it.
+func _pose_shadow() -> void:
+	var lift: float = 0.0
+	if shadow_lift_px > 0.0:
+		lift = clampf(hop / shadow_lift_px, 0.0, 1.0)
+	var keep: float = lerpf(1.0, shadow_lift_share, lift)
+	var upright: float = clampf(fold, 0.0, 1.0)
+	var center: float = position.x + (ink.position.x + ink.size.x / 2.0) * art_scale
+	var dark: float = keep * clampf(level, 0.0, 1.0) * upright
+	shadow.set_pose(center, ground_y, ink.size.x * art_scale * keep * upright, dark)

@@ -355,6 +355,8 @@ func _build_belt(slot_count: int) -> void:
 	row_strip = RowStrip.new()
 	belt.add_child(row_strip)
 	row_strip.set_slot_count(slot_count)
+	# The standees' shadows fall forward onto the guard's lit face, under the row's items (#120).
+	crowd.lay_shadows(belt, Rect2(Vector2.ZERO, BeltPanel.TOP_RECT.size), row_strip.get_index())
 	row_strip.minimum_size_changed.connect(_place_row)
 	_place_row()
 	# Over the items and their tickets, under the top bar, the hand and the scan layers (#71).

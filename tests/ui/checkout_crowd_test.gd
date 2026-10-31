@@ -8,9 +8,12 @@ extends GdUnitTestSuite
 ## payout of 0 slumps the newest standee, a coupon paying nothing of its own slumps none, meeting
 ## the quota pops cheer_quota_count more, and a missed verdict topples them all; reduced motion
 ## makes no tween; a resumed checkout shows none. Alone: a hop never kills a running pop, the
-## lifecycle's tweens replace each other, placement is seeded, fills the gaps before overlapping,
-## prefers ink that shows (not behind the receipt or the bag) and spans a wider window. The real
-## saves and logs are never touched.
+## lifecycle's tweens replace each other, placement is seeded, fills the gaps before overlapping
+## and spans a wider window. On the real screen at 1920x1080 and 1280x720 no standee's ink reaches
+## the receipt, the printer, the monitor, the bag or its shelf, even at its highest hop. Each
+## standee's ground shadow lies on the belt's guard under it (the stage lays the shadow layer on
+## the belt, under the row), stays there through a hop (narrower and lighter), narrows as it folds
+## and goes with it. The real saves and logs are never touched.
 
 const SCREEN := "res://ui/shift_screen.tscn"
 ## Milk, Multipack, Milk x5 = 109.
@@ -19,11 +22,11 @@ const QUOTA := 40
 ## A quota the row misses.
 const MISSED_QUOTA := 1000
 const MAX_WAIT_MS := 60000
-## Of a checkout's first standees, at least a third of each one's ink shows past the receipt and
-## the bag.
-const MOST_HIDDEN := 2.0 / 3.0
+## The window sizes the layout is checked at.
+const WINDOWS: Array[Vector2i] = [Vector2i(1920, 1080), Vector2i(1280, 720)]
 
 var _folder: String = ""
+var _window_size: Vector2i = Vector2i.ZERO
 var _runner: GdUnitSceneRunner
 ## Frames where a standee was out of its band or over the monitor.
 var _bad: Array[String] = []
@@ -48,6 +51,7 @@ var _tweens: Array[Tween] = []
 
 func before_test() -> void:
 	_folder = "user://test_checkout_crowd_%d" % Time.get_ticks_usec()
+	_window_size = get_tree().root.size
 	_event_log().use_folder(_folder)
 	ProjectSettings.set_setting(SaveService.FOLDER_SETTING, _folder)
 	_bad.clear()
@@ -64,6 +68,7 @@ func before_test() -> void:
 
 
 func after_test() -> void:
+	get_tree().root.size = _window_size
 	ProjectSettings.set_setting(SaveService.FOLDER_SETTING, null)
 	if DirAccess.dir_exists_absolute(_folder):
 		for file_name: String in DirAccess.get_files_at(_folder):
@@ -167,6 +172,10 @@ func test_the_crowd_draws_between_the_machine_and_the_monitor_and_takes_no_click
 	assert_int(stage.get_index()).is_greater(screen._camera.get_index())
 	assert_int(screen._overlay.get_index()).is_greater(stage.get_index())
 	assert_int(crowd.mouse_filter).is_equal(Control.MOUSE_FILTER_IGNORE)
+	# The shadows lie on the belt's guard, under the row's items.
+	assert_object(crowd.shadow_layer.get_parent()).is_same(stage.belt)
+	assert_int(crowd.shadow_layer.get_index()).is_less(stage.row_strip.get_index())
+	assert_int(crowd.shadow_layer.mouse_filter).is_equal(Control.MOUSE_FILTER_IGNORE)
 	crowd.begin(7, true)
 	crowd.pop(3, 3)
 	for standee: CheerStandee in crowd.standees():
@@ -301,22 +310,73 @@ func test_a_passed_verdict_folds_everyone_and_a_missed_one_topples_them() -> voi
 	await _frames(1)
 
 
-func test_the_first_standees_show_clear_of_the_receipt_and_the_bag() -> void:
-	for seed_value: int in [1, 2, 3, 42, 20261030]:
-		var crowd: CheckoutCrowd = auto_free(CheckoutCrowd.new()) as CheckoutCrowd
-		crowd.view_width = func() -> float: return ShiftStage.SIZE.x
-		add_child(crowd)
-		crowd.begin(seed_value, true)
-		for index: int in range(6):
-			crowd.pop(1 + index % 3, 1)
-		for standee: CheerStandee in crowd.standees():
-			var share: float = crowd.hidden_share(standee.visible_rect())
-			var rect: Rect2 = standee.visible_rect()
-			(
-				assert_float(share)
-				. override_failure_message("seed %d: %s %.2f hidden" % [seed_value, rect, share])
-				. is_less(MOST_HIDDEN)
-			)
+func test_the_crowd_stays_clear_of_the_receipt_the_monitor_and_the_bag_at_1920x1080() -> void:
+	await _check_clear_at(WINDOWS[0])
+
+
+func test_the_crowd_stays_clear_of_the_receipt_the_monitor_and_the_bag_at_1280x720() -> void:
+	await _check_clear_at(WINDOWS[1])
+
+
+func test_each_standee_casts_a_shadow_that_stays_on_the_ground_and_goes_with_it() -> void:
+	var tuning: CountUpTuning = load(CountUp.TUNING_PATH)
+	var crowd: CheckoutCrowd = _bare(12)
+	crowd.pop(1, 1)
+	crowd.pop(3, 2)
+	var standees: Array[CheerStandee] = crowd.standees()
+	for standee: CheerStandee in standees:
+		_finish(standee.tween)
+		var shadow: CheerShadow = standee.shadow
+		assert_object(shadow.get_parent()).is_same(crowd.shadow_layer)
+		assert_bool(shadow.visible).is_true()
+		assert_bool(shadow.cells().is_empty()).is_false()
+		# On the guard's lit face under the belt's top (every open column is over the belt).
+		var belt_top: float = ShiftStage.BELT_RECT.position.y - crowd.position.y
+		assert_float(standee.ground_y).is_equal(belt_top)
+		var rest: Rect2 = shadow.ground_rect()
+		var face: float = belt_top + CheerShadow.DROP_ROWS * CheerShadow.GRID
+		assert_float(rest.position.y).is_equal(face)
+		assert_float(fmod(rest.position.x, CheerShadow.GRID)).is_equal(0.0)
+		var ink: Rect2 = standee.visible_rect()
+		var near: float = CheerShadow.GRID * 2.0
+		assert_float(rest.get_center().x).is_equal_approx(ink.get_center().x, near)
+		# A hop: the shadow stays on the ground, narrower and lighter.
+		standee.hop = tuning.cheer_shadow_lift_px
+		var lifted: Rect2 = shadow.ground_rect()
+		assert_float(lifted.position.y).is_equal(rest.position.y)
+		assert_float(lifted.end.y).is_equal(rest.end.y)
+		assert_float(lifted.size.x).is_less(rest.size.x)
+		assert_float(shadow.strength).is_equal_approx(tuning.cheer_shadow_lift_share, 0.01)
+		standee.hop = 0.0
+		assert_bool(shadow.ground_rect() == rest).is_true()
+		# A fold narrows it; folded flat, it is gone.
+		standee.fold = 0.5
+		assert_float(shadow.ground_rect().size.x).is_less(rest.size.x)
+		standee.fold = 0.0
+		assert_bool(shadow.visible).is_false()
+		standee.fold = 1.0
+	# A hop run by the crowd keeps it on the ground on every step.
+	var hopper: CheerStandee = standees[0]
+	var ground: float = hopper.shadow.ground_rect().position.y
+	crowd.hop_all()
+	var lowest_strength: float = 1.0
+	for _step: int in range(40):
+		hopper.tween.custom_step(0.01)
+		if hopper.shadow.visible:
+			assert_float(hopper.shadow.ground_rect().position.y).is_equal(ground)
+		lowest_strength = minf(lowest_strength, hopper.shadow.strength)
+	assert_float(lowest_strength).is_less(1.0)
+	# It goes with its standee: a slump, then the rest at once.
+	var newest: CheerStandee = crowd.standees()[-1]
+	var shadow_of_newest: CheerShadow = newest.shadow
+	crowd.slump()
+	_finish(newest.tween)
+	assert_bool(shadow_of_newest.is_queued_for_deletion()).is_true()
+	assert_object(shadow_of_newest.get_parent()).is_null()
+	crowd.clear()
+	assert_int(crowd.shadow_layer.get_child_count()).is_equal(0)
+	assert_bool(crowd.shadow_layer.visible).is_false()
+	await _frames(1)
 
 
 func test_a_wider_window_spreads_the_crowd_and_a_resize_keeps_the_standees_up() -> void:
@@ -360,6 +420,48 @@ func test_the_placement_is_seeded() -> void:
 			positions.append(standee.position.y)
 		lefts.append(positions)
 	assert_array(lefts[0]).is_equal(lefts[1])
+
+
+## On the real screen in a `window` sized window: a full crowd's ink (at its highest hop) never
+## reaches the receipt, the printer, the monitor, the bag or its shelf (their global rects), and
+## each shadow lies on the guard under the belt's top.
+func _check_clear_at(window: Vector2i) -> void:
+	get_tree().root.size = window
+	var screen: ShiftScreen = await _screen()
+	var stage: ShiftStage = screen._stage
+	var crowd: CheckoutCrowd = stage.crowd
+	var tuning: CountUpTuning = load(CountUp.TUNING_PATH)
+	var parts: Dictionary[String, Rect2] = {
+		"receipt": stage.receipt.get_global_rect(),
+		"printer lip": stage.printer_lip.get_global_rect(),
+		"monitor": stage.monitor.get_global_rect(),
+		"bag": stage.bag.get_global_rect(),
+		"shelf": stage.get_global_transform() * ShiftStage.BAGGING_SHELF_RECT,
+	}
+	assert_float(parts["receipt"].size.y).is_greater(0.0)
+	var belt_top: float = stage.belt.get_global_rect().position.y
+	for seed_value: int in [1, 42, 20261030]:
+		crowd.begin(seed_value, true)
+		for index: int in range(tuning.cheer_max):
+			crowd.pop(1 + index % 3, 1)
+		for standee: CheerStandee in crowd.standees():
+			standee.level = 1.0
+			standee.hop = crowd.max_hop(standee.tier)
+			var ink: Rect2 = crowd.get_global_transform() * standee.visible_rect()
+			for part: String in parts:
+				var message: String = (
+					"%s, seed %d: %s over the %s %s" % [window, seed_value, ink, part, parts[part]]
+				)
+				(
+					assert_bool(ink.intersects(parts[part]))
+					. override_failure_message(message)
+					. is_false()
+				)
+			standee.hop = 0.0
+			var shadow: Rect2 = standee.shadow.get_global_rect()
+			var face: float = belt_top + CheerShadow.DROP_ROWS * CheerShadow.GRID
+			assert_float(shadow.position.y).is_equal_approx(face, 0.01)
+		crowd.clear()
 
 
 ## Every standee's ink inside the band and off the monitor, else a line in _bad.

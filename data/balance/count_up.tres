@@ -110,4 +110,6 @@ cheer_fold_ms = 220
 cheer_pitch_base = 0.9
 cheer_pitch_step = 0.08
 cheer_db = -4.0
+cheer_shadow_lift_px = 16
+cheer_shadow_lift_share = 0.5
 cheer_max = 40
