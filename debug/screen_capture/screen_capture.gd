@@ -78,6 +78,10 @@ extends Control
 ## With `--day=<inspection id>[+<id>...]` (2026-10-31) the fixed shift runs under those day events
 ## (data/inspections) in place of Short belt, so their slot marks show (Happy hour's "+€3" on the
 ## last filled slot, Extra till's EXTRA slot); the file name gets day_<ids>_ (ids joined by "+").
+## With `--slip[=<inspection id>|none]` (2026-10-31) the day chip's slip (DaySlip: today's events
+## and where they touch the belt) hangs under the chip on the fixed shift, under that day event
+## (default the fixed shift's, `none` a plain day); the file is
+## shift_screen_slip_<id>_<width>x<height>.png.
 
 const SCREEN := preload("res://ui/shift_screen.tscn")
 const SEED := 20261014
@@ -122,6 +126,9 @@ const TOYS_OWNED: Dictionary[StringName, int] = {
 }
 const CHEER_ARGUMENT := "--cheer"
 const DAY_ARGUMENT := "--day="
+const SLIP_ARGUMENT := "--slip"
+const SLIP_PREFIX := "slip_%s_"
+const SLIP_PLAIN := "none"
 const CHEER_PREFIX := "cheer_"
 ## --cheer's crowd: the cheer tiers popped in turn (their tuning's counts: 1+3+2+1+1 standees).
 const CHEER_TIERS: Array[int] = [1, 3, 2, 1, 1]
@@ -212,6 +219,8 @@ var _toys_part: String = ""
 var _cheer_part: String = ""
 ## A --day capture's file name part.
 var _day_part: String = ""
+## A --slip capture's file name part.
+var _slip_part: String = ""
 ## Since hold_pointer(): the real pointer drives no hover, tooltip or click.
 var _holding_pointer: bool = false
 
@@ -253,6 +262,8 @@ func _ready() -> void:
 	elif _argument(DAY_ARGUMENT) != "":
 		_day_part = "day_%s_" % _argument(DAY_ARGUMENT)
 		_set_up_shift(_argument(DAY_ARGUMENT), ROW_IDS)
+	elif OS.get_cmdline_user_args().has(SLIP_ARGUMENT) or _argument(SLIP_ARGUMENT + "=") != "":
+		await slip(_argument(SLIP_ARGUMENT + "="))
 	else:
 		_set_up_shift(INSPECTION, ROW_IDS)
 	var toys_spec: String = _argument(TOYS_ARGUMENT)
@@ -347,6 +358,18 @@ func week(result: String) -> void:
 	_screen._week.show_chips()  # Today's result pip (#119).
 	_screen._week.card.reopen(WeekCardModel.of(run), null, true)
 	_week_part += result + "_"
+
+
+## Hangs the day chip's slip on the fixed shift under the day event `inspection_id` (empty: the
+## fixed shift's; SLIP_PLAIN: none), settled.
+func slip(inspection_id: String) -> void:
+	var shown: String = INSPECTION if inspection_id.is_empty() else inspection_id
+	_set_up_shift("" if shown == SLIP_PLAIN else shown, ROW_IDS)
+	_slip_part = SLIP_PREFIX % shown
+	_screen._week.toggle_slip()
+	_screen._week.slip.settle()
+	for frame: int in range(3):
+		await get_tree().process_frame  # The slip follows the chip as the top bar lays out.
 
 
 ## Opens the TOY MACHINES over the shift (#121): `spec` is "<state>[,hover=<aisle id>]" (see
@@ -528,6 +551,7 @@ func capture(folder: String) -> void:
 		+ _toys_part
 		+ _cheer_part
 		+ _day_part
+		+ _slip_part
 	)
 	var path: String = folder.path_join(FILE_NAME % [prefix, window.x, window.y])
 	var image: Image = (
