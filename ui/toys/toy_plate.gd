@@ -11,7 +11,8 @@ extends Control
 enum Mode { NORMAL, LIT, OFF }
 
 const LEDGE_ROWS := 3
-## The frames (normal, lit, off): 9-slices with MenuPlate.PLATE_MARGIN art px margins.
+const FRAME_MARGIN := 4
+## The frames (normal, lit, off): 9-slices with FRAME_MARGIN art px margins.
 const FRAMES: Array[Texture2D] = [
 	preload("res://art/frames/toy_plate.png"),
 	preload("res://art/frames/toy_plate_lit.png"),
@@ -34,7 +35,7 @@ func _init(plate_size: Vector2i) -> void:
 	var art: float = ArtStyle.ART_SCALE
 	size = Vector2(plate_size.x, plate_size.y + LEDGE_ROWS) * art
 	for frame: Texture2D in FRAMES:
-		_styles.append(ArtStyle.frame_style(frame, MenuPlate.PLATE_MARGIN))
+		_styles.append(ArtStyle.frame_style(frame, FRAME_MARGIN))
 	_face = Panel.new()
 	_face.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_face.size = size
