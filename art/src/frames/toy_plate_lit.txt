@@ -1,0 +1,15 @@
+; A TOY MACHINES shelf label (#121 polish, v0.78), lit (the hovered machine's sign and floor
+; plate, the lineup card's body): menu_plate_lit without its stripe, a paper face and the
+; ledge's top row gold over brass. A 9-slice with 4 art px margins on every side.
+@size 9x9
+@kind frame
+@scale 2
+.#######.
+#wwwwwww#
+#wwwwwww#
+#wwwwwww#
+#wwwwwww#
+#bbbbbbb#
+#nnnnnnn#
+#LLLLLLL#
+.#######.

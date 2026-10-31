@@ -155,6 +155,15 @@ func show_coins(count: int) -> void:
 	_place_count()
 
 
+## Swaps the plate's frames (normal, lit; 9-slices with FRAME_MARGIN art px margins) for
+## `frames`: the TOY MACHINES' FIGURINE SHELF is a primary plate in teal (v0.78).
+func use_frames(frames: Array[Texture2D]) -> void:
+	_styles = []
+	for frame: Texture2D in frames:
+		_styles.append(ArtStyle.frame_style(frame, FRAME_MARGIN))
+	_show_plate(get_draw_mode())
+
+
 ## Centres the caption on the face (right of a shelf label's stripe, above the ledge), its font
 ## pixels `text_scale` canvas px (PLATE_TEXT_SCALE or PRIMARY_TEXT_SCALE; 0 keeps the variant's):
 ## a popup's keys (ABANDON, KEEP) are centred, where the menu's entries start at the left.

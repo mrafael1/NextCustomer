@@ -1,3 +1,0 @@
-; The ham_ends figurine in the dim tone (#121's TOY MACHINES topper when its machine is out of
-; coins or out of order; TONE_MAPS dim).
-@derive ham_ends tone=dim

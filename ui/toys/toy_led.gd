@@ -1,20 +1,19 @@
 class_name ToyLed
 extends Control
-## An LED at the TOY MACHINES (#121): the title's coin LED face (RewardsMenu.LED_FRAME, a
-## teal-black rim round a slate-dark face) sized round its rows of pixel lettering (PixelLine).
-## The COINS and FIGURINES chips are one-row LEDs; the strip over the floor holds the hint, the
-## notices and COLLECTION COMPLETE. Every row is centred between the paddings; the LED is as wide
-## as its widest row and the paddings. Sizes are in art px.
+## An LED at the TOY MACHINES (#121): a wall-mounted readout (v0.78, ToyExitArt.housing: a
+## screwed steel rim round a slate face dotted like an LED matrix) sized round its rows of pixel
+## lettering (PixelLine). The COINS and FIGURINES readouts are one-row LEDs; the strip over the
+## floor holds the hint, the notices and COLLECTION COMPLETE. Every row is centred between the
+## paddings; the LED is as wide as its widest row and the paddings. Sizes are in art px.
 
-var _frame: PanelContainer
+var _housing: TextureRect
 var _rows: Array[PixelLine] = []
 
 
 func _init() -> void:
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_frame = UiKit.frame_panel(RewardsMenu.LED_FRAME, 1)
-	_frame.set_anchors_preset(Control.PRESET_FULL_RECT)
-	add_child(_frame)
+	_housing = UiKit.sprite(null)
+	add_child(_housing)
 
 
 ## Shows `lines` (one PixelLine per row, their cap tops at `cap_tops` art px from the LED's top),
@@ -31,8 +30,10 @@ func show_rows(
 	var widest: float = 0.0
 	for row: PixelLine in lines:
 		widest = maxf(widest, row.width())
-	var width: float = widest + (padding.x + padding.y) * art
+	var width: float = ceilf(widest / art) * art + (padding.x + padding.y) * art
 	size = Vector2(width, height * art)
+	_housing.texture = ToyExitArt.housing(Vector2i(roundi(width / art), height))
+	_housing.size = size
 	for index: int in lines.size():
 		var row: PixelLine = lines[index]
 		var left: float = padding.x * art + floorf((widest - row.width()) / 2.0 / art) * art

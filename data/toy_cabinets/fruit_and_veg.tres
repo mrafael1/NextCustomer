@@ -1,11 +1,9 @@
 [gd_resource type="Resource" script_class="ToyCabinet" format=3]
 
 [ext_resource type="Script" path="res://presentation/toy_cabinet.gd" id="1_cabinet"]
-[ext_resource type="Resource" path="res://data/cards/strawberries.tres" id="2_topper"]
 
 [resource]
 script = ExtResource("1_cabinet")
 art_id = &"fruit_and_veg"
-topper = ExtResource("2_topper")
 slots = Array[Vector2i]([Vector2i(11, 60), Vector2i(23, 60), Vector2i(35, 60), Vector2i(47, 60), Vector2i(11, 41), Vector2i(23, 41), Vector2i(35, 41), Vector2i(47, 41)])
 window = Rect2i(10, 31, 52, 44)

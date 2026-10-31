@@ -8,6 +8,7 @@ extends PanelContainer
 ## (`pressed`); hovering shows the week event's name and effect. A played day's pip shows its
 ## result (v0.75, #119): a green check for PAID, a red cross for a SLIP; after a shift's verdict
 ## flash() lights today's: the pip pops from 3x with a glow and the chip rings in its colour.
+## Until then (hold_result, v0.78) today's pip stays gold, so the checkout doesn't spoil the light.
 ## The count-up plays a week event's steps from it (TopBar.event_sources), and the planning
 ## effects ring it when the hovered item's effect is the week event's (set_relation).
 
@@ -45,6 +46,9 @@ const CROSS_PIXELS: Array[Vector2i] = [
 	Vector2i(4, 4)
 ]
 const CHIP_FRAME := preload("res://art/frames/chip_warn.png")
+
+## Today's result waits for flash(): its pip shows as today's (WeekFlow.show_chips, counting).
+var hold_result: bool = false
 
 var _number: Label
 var _name: Label
@@ -96,6 +100,8 @@ func show_week(model: WeekCardModel) -> void:
 	_name.text = model.chip_name()
 	_name.visible = not _name.text.is_empty()
 	_pips = model.pips()
+	if hold_result:
+		_hold_last_result()
 	_pips_view.custom_minimum_size = Vector2(
 		_pips.size() * PIP_SIZE + maxi(_pips.size() - 1, 0) * PIP_GAP, PIP_SIZE
 	)
@@ -141,6 +147,14 @@ func pips_view() -> Control:
 ## The pips shown, in order.
 func pips() -> Array[WeekCardModel.Pip]:
 	return _pips.duplicate()
+
+
+## Shows the last result pip, today's, as today's until flash() lights it.
+func _hold_last_result() -> void:
+	for index: int in range(_pips.size() - 1, -1, -1):
+		if _pips[index] == WeekCardModel.Pip.PAID or _pips[index] == WeekCardModel.Pip.SLIP:
+			_pips[index] = WeekCardModel.Pip.NOW
+			return
 
 
 ## Lights today's result pip (a shift's verdict, #119) with its sound: PAID's, or a SLIP's

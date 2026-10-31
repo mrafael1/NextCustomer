@@ -1,3 +1,0 @@
-; The Household topper's plinth (#121) in the dim tone (TONE_MAPS dim: two steps down each ramp;
-; out of coins, collected).
-@derive toy_plinth_household tone=dim

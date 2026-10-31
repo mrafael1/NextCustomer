@@ -44,28 +44,23 @@ func test_six_machines_fit_the_screen_without_overlaps() -> void:
 		for other: Rect2 in hits:
 			assert_bool(hit.intersects(other)).is_false()
 		hits.append(hit)
-		# The sign, the figurine and the floor plate are inside the click area's column.
+		# The sign and the floor plate are inside the click area's column; no figurine on top.
 		var sign_rect: Rect2 = machine.sign_rect()
 		_assert_inside(sign_rect, "sign")
 		_assert_fits(machine.part("sign_text") as PixelLine, machine.part("sign") as ToyPlate)
-		var topper: Rect2 = machine.part("topper").get_global_rect()
-		_assert_inside(topper, "topper")
-		assert_bool(machine.part("topper").visible).is_true()
-		assert_bool(hit.encloses(topper)).override_failure_message(str(topper)).is_true()
-		assert_float(topper.end.y).is_less_equal(sign_rect.position.y)
-		var plinth: Rect2 = machine.part("plinth").get_global_rect()
-		assert_float(plinth.end.y).is_equal_approx(sign_rect.position.y, 0.5)
+		assert_float(hit.position.y).is_equal_approx(sign_rect.position.y, 0.5)
+		assert_object(machine.part("topper")).is_null()
 		var floor_plate: ToyPlate = machine.part("floor") as ToyPlate
 		var floor_rect: Rect2 = floor_plate.get_global_rect()
 		_assert_inside(floor_rect, "floor plate")
 		assert_float(floor_rect.position.y).is_greater_equal(rect.end.y)
 		assert_float(absf(floor_rect.get_center().x - rect.get_center().x)).is_less(4.0)
 		_assert_fits(machine.part("floor_text") as PixelLine, floor_plate)
-		# The parts above stay clear of the board and the LEDs.
+		# The board and the LEDs stay clear of the signs.
 		for part: Rect2 in [_board_rect(screen), _chip_rects(screen)[0], _chip_rects(screen)[1]]:
-			assert_bool(topper.intersects(part)).override_failure_message(str(part)).is_false()
+			assert_bool(sign_rect.intersects(part)).override_failure_message(str(part)).is_false()
 	assert_str(machines[0].floor_text()).is_equal("1 OF 2 LEFT")
-	assert_str(machines[1].floor_text()).is_equal(ToyMachineView.COLLECTED_TEXT)
+	assert_str(machines[1].floor_text()).is_equal(ToyMachineView.SOLD_OUT_TEXT)
 	assert_str(machines[3].floor_text()).is_equal("5 OF 8 LEFT")
 	assert_str((machines[3].part("sign_text") as PixelLine).text()).is_equal("FRUIT & VEG")
 	# LEDs, board, strip and buttons: inside, clear of the machines' click areas.
@@ -162,11 +157,17 @@ func test_the_lineup_takes_the_boards_place() -> void:
 			assert_bool(strip.intersects(hit)).override_failure_message(str(strip)).is_false()
 		for chip: Rect2 in _chip_rects(screen):
 			assert_bool(strip.intersects(chip)).is_false()
-		_assert_fits(lineup.title_line(), lineup.plate())
+		var face: Rect2 = Rect2(lineup.global_position, lineup.size)
+		# The title on the card's tomato band, the minis under it.
+		var band: Rect2 = Rect2(
+			face.position + Vector2(1, 1) * ArtStyle.ART_SCALE,
+			Vector2(face.size.x - 2 * ArtStyle.ART_SCALE, ToyExitArt.CARD_BAND * ArtStyle.ART_SCALE)
+		)
+		var title: Rect2 = Rect2(lineup.title_line().global_position, lineup.title_line().size)
+		assert_bool(band.encloses(title)).override_failure_message(str(title)).is_true()
 		assert_str(lineup.title_line().text()).is_equal(
 			ToyLineup.TITLE_TEXT % aisle.display_name.to_upper()
 		)
-		var face: Rect2 = lineup.plate().get_global_rect()
 		assert_int(lineup.minis().size()).is_equal(aisle.capsule_cards.size())
 		var owned: int = 0
 		for index: int in lineup.minis().size():
@@ -254,13 +255,12 @@ func _assert_inside(rect: Rect2, what: String) -> void:
 	)
 
 
-## The line's words lie on the plate's face, above its ledge and right of its stripe.
+## The line's words lie on the plate's face, above its ledge, inside its outline.
 func _assert_fits(line: PixelLine, plate: ToyPlate) -> void:
 	var art: float = ArtStyle.ART_SCALE
 	var face: Rect2 = plate.get_global_rect()
 	face = Rect2(
-		face.position + Vector2(ToyPlate.STRIPE_AT.x + 3, 1) * art,
-		face.size - Vector2(ToyPlate.STRIPE_AT.x + 4, ToyPlate.LEDGE_ROWS + 1) * art
+		face.position + Vector2(2, 1) * art, face.size - Vector2(4, ToyPlate.LEDGE_ROWS + 1) * art
 	)
 	var text: Rect2 = Rect2(line.global_position, line.size)
 	(

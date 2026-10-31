@@ -16,14 +16,17 @@ extends Control
 ## (TitleScreen), which build the CapsuleCounter: it knows the profile, the stock line and
 ## whether saves work.
 ##
-## The COINS and FIGURINES LEDs hang at the top left, the TOY MACHINES board between two chains.
+## The COINS and FIGURINES readouts (steel LED housings, ToyLed) hang at the top left, the TOY
+## MACHINES board between two chains.
 ## Only a playable machine's lamp is on; the hovered one's burns hotter. Hovering a machine, or
 ## picking it with the Left and Right keys (Escape lets go), puts its lineup (ToyLineup) in the
 ## board's place (but an OUT OF ORDER one's). The hint and the
 ## notices are on one LED strip over the floor. States, never by colour alone: COINS ? and
 ## every machine OUT OF ORDER with a notice when the profile can't be saved; every machine
-## COLLECTED and COLLECTION COMPLETE on the strip once the collection is complete; the lids
+## SOLD OUT and COLLECTION COMPLETE on the strip once the collection is complete; the lids
 ## shut, padlocks on the price LEDs, a tomato 0 and a notice with 0 coins; otherwise the hint.
+## FIGURINE SHELF is DONE's button in teal (v0.78: store fixtures, no plain boxes). Through the
+## doors the street idles (ToyStreet, v0.79): a car's headlights now and then, the lamp's flicker.
 
 signal closed
 
@@ -68,14 +71,14 @@ const MACHINE_CENTRE := 36
 ## icon's top over it, their paddings and the gap between a row's tokens.
 const CHIP_AT := Vector2i(10, 6)
 const CHIP_GAP := 6
-const CHIP_HEIGHT := 18
-const CHIP_CAP_TOP := 6
+const CHIP_HEIGHT := 20
+const CHIP_CAP_TOP := 7
 const CHIP_ICON_TOP := -3
-const CHIP_PADDING := Vector2i(5, 6)
+const CHIP_PADDING := Vector2i(8, 8)
 const CHIP_TOKEN_GAP := 4
 ## The board's words: 2x pixel words centred on BOARD_TEXT_X, their cap top BOARD_TEXT_TOP.
 const BOARD_TEXT_X := 255
-const BOARD_TEXT_TOP := 41
+const BOARD_TEXT_TOP := 77
 ## The EXIT lightbox's word, centred on EXIT_TEXT_X.
 const EXIT_TEXT_X := 576
 const EXIT_TEXT_TOP := 14
@@ -83,25 +86,26 @@ const EXIT_TEXT_TOP := 14
 ## COLLECTION COMPLETE at 2x over its line (COMPLETE_TOP, COMPLETE_HEIGHT).
 const STRIP_CENTRE := 320
 const STRIP_TOP := 294
-const STRIP_HEIGHT := 19
-const STRIP_CAP_TOP := 6
-const COMPLETE_TOP := 292
-const COMPLETE_HEIGHT := 33
-const COMPLETE_CAP_TOPS: Array[int] = [4, 23]
-const STRIP_PADDING := Vector2i(10, 10)
-## FIGURINE SHELF (a 120x21 shelf label) and DONE (the 80x28 primary plate), in canvas px.
-const SHELF_BUTTON_RECT := Rect2(40, 664, 240, 42)
+const STRIP_HEIGHT := 21
+const STRIP_CAP_TOP := 7
+const COMPLETE_TOP := 289
+const COMPLETE_HEIGHT := 38
+const COMPLETE_CAP_TOPS: Array[int] = [6, 25]
+const STRIP_PADDING := Vector2i(12, 12)
+## FIGURINE SHELF (the 120x28 primary plate in teal) and DONE (the 80x28 primary plate), in
+## canvas px.
+const SHELF_BUTTON_RECT := Rect2(40, 656, 240, 56)
+const SHELF_FRAMES: Array[Texture2D] = [
+	preload("res://art/frames/button_teal.png"),
+	preload("res://art/frames/button_teal_lit.png"),
+]
 const DONE_BUTTON_RECT := Rect2(1080, 656, 160, 56)
 ## Their hover tick's left edge, canvas px left of the plate at rest (the mock-up's: 7 art px).
 const BUTTON_TICK_LEFT := 14.0
-## The captions' left edges (the mock-up's): FIGURINE SHELF's centred in the shelf label's
-## SHELF_TEXT_ROOM art px from SHELF_TEXT_LEFT; DONE and its chevron (CHEVRON_GAP font px after
-## the word, CHEVRON_ROWS rows of a 2 px stroke, CHEVRON_WIDTH wide) centred on the plate.
-const SHELF_TEXT_LEFT := 9
-## Their cap tops, art px under the plates' tops.
-const SHELF_TEXT_TOP := 6
+## DONE's caption: its left edge with its chevron (CHEVRON_GAP font px after the word,
+## CHEVRON_ROWS rows of a 2 px stroke, CHEVRON_WIDTH wide) centred on the plate, its cap top
+## DONE_TEXT_TOP art px under the plate's top.
 const DONE_TEXT_TOP := 7
-const SHELF_TEXT_ROOM := 108
 const CHEVRON_GAP := 2
 const CHEVRON_ROWS := 4
 const CHEVRON_WIDTH := 5
@@ -119,6 +123,7 @@ var _machines_layer: Control
 var _machines: Array[ToyMachineView] = []
 var _lamps: Array[TextureRect] = []
 var _board: TextureRect
+var _street: ToyStreet
 var _board_title: PixelLine
 var _coins_chip: ToyLed
 var _coins_line: PixelLine
@@ -162,10 +167,13 @@ func _init() -> void:
 	var backdrop: TextureRect = UiKit.sprite(ToyExitArt.backdrop())
 	backdrop.size = STAGE
 	_machines_layer.add_child(backdrop)
+	_street = ToyStreet.new()
+	_machines_layer.add_child(_street)
 	_build_header()
 	_build_footer()
 	_lineup = ToyLineup.new()
 	_machines_layer.add_child(_lineup)
+	_machines_layer.move_child(_lineup, _board.get_index() + 1)  # Its chains pass behind the LEDs.
 	_reveal = ToyReveal.new()
 	_reveal.dismissed.connect(_refresh)
 	_stage.add_child(_reveal)
@@ -187,6 +195,8 @@ func open(capsules: CapsuleCounter, balance: BalanceDefinition) -> void:
 	_shelf.visible = false
 	_machines_layer.visible = true
 	_shown_coins = -1
+	_street.still = _reduced_motion()
+	_street.restart()
 	visible = true
 	_refresh()
 
@@ -234,6 +244,10 @@ func coins_text() -> String:
 ## The FIGURINES LED's count ("9/30").
 func figurines_text() -> String:
 	return _figurines_line.text().get_slice(" ", 0)
+
+
+func street() -> ToyStreet:
+	return _street
 
 
 func board() -> TextureRect:
@@ -286,7 +300,8 @@ static func copy() -> PackedStringArray:
 			CapsuleCounter.NEXT_RUN_LINE,
 			CapsuleCounter.AFTER_SAVED_RUN_LINE,
 			ToyMachineView.LEFT_TEXT,
-			ToyMachineView.COLLECTED_TEXT,
+			ToyMachineView.SOLD_OUT_TEXT,
+			ToyExitArt.SOLD_OUT_WORDS,
 			ToyMachineView.PRICE_TEXT,
 			ToyMachineView.PRICE_TEXT_PLURAL,
 			ToyLineup.TITLE_TEXT,
@@ -364,8 +379,9 @@ func _build_header() -> void:
 func _build_footer() -> void:
 	_strip = ToyLed.new()
 	_machines_layer.add_child(_strip)
-	_shelf_button = MenuPlate.new(SHELF_TEXT, MenuPlate.Kind.PLATE, SHELF_BUTTON_RECT.size)
-	_shelf_button.centre_caption()
+	_shelf_button = MenuPlate.new(SHELF_TEXT, MenuPlate.Kind.PRIMARY, SHELF_BUTTON_RECT.size)
+	_shelf_button.use_frames(SHELF_FRAMES)
+	_shelf_button.centre_caption(MenuPlate.PLATE_TEXT_SCALE)
 	_shelf_button.position = SHELF_BUTTON_RECT.position
 	_shelf_button.pressed.connect(func() -> void: Sfx.play_at(self, UiKit.CLICK_SOUND))
 	_shelf_button.pressed.connect(_open_shelf)
@@ -382,20 +398,11 @@ func _build_footer() -> void:
 	_place_captions()
 
 
-## DONE's chevron: drawn on its caption (so it moves with it), the pair centred on the plate;
-## FIGURINE SHELF's caption centred right of its stripe.
+## DONE's chevron: drawn on its caption (so it moves with it), the pair centred on the plate.
 func _place_captions() -> void:
 	var art: float = ArtStyle.ART_SCALE
-	var shelf_caption: Label = _shelf_button.caption_label()
-	var shelf_ink: float = PixelLine.word_width(SHELF_TEXT) / art
-	var shelf_left: float = SHELF_TEXT_LEFT + floorf((SHELF_TEXT_ROOM - shelf_ink) / 2.0)
-	shelf_caption.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
 	var font: Font = ArtStyle.pixel_display_font()
 	var cap_top: float = font.get_ascent(ArtStyle.PIXEL_TEXT_SIZE) - ArtStyle.PIXEL_CAP_HEIGHT
-	shelf_caption.position = Vector2(
-		(shelf_left - PixelLine.LEFT_BEARING) * art,
-		SHELF_TEXT_TOP * art - cap_top * shelf_caption.scale.y
-	)
 	var caption: Label = _done_button.caption_label()
 	var word: float = PixelLine.word_width(DONE_TEXT) / art
 	var pair: float = word * 2.0 + DONE_SLACK
@@ -446,7 +453,6 @@ func _build_machines() -> void:
 		machine.position = Vector2(x, MACHINE_TOP)
 		machine.picked.connect(_on_machine_picked)
 		machine.hover_changed.connect(_on_machine_hover)
-		machine.reduced_motion = _reduced_motion
 		_machines_layer.add_child(machine)
 		_machines_layer.move_child(machine, _board.get_index())
 		_machines.append(machine)
@@ -476,9 +482,7 @@ func _refresh() -> void:
 			_counter.items_left(aisle),
 			aisle.capsule_cards.size(),
 			_counter.machine_state(aisle),
-			_counter.price(),
-			can_save and all_empty,
-			can_save and coins < _counter.price()
+			_counter.price()
 		)
 	_show_chips(can_save, coins, owned)
 	if spent and not _reduced_motion():

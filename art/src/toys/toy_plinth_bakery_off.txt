@@ -1,3 +1,0 @@
-; The Bakery topper's plinth (#121) in the off tone (TONE_MAPS off: lights out, desaturated; out
-; of order).
-@derive toy_plinth_bakery tone=off

@@ -1,3 +1,0 @@
-; The Fruit & veg topper's plinth (#121) in the dim tone (TONE_MAPS dim: two steps down each ramp;
-; out of coins, collected).
-@derive toy_plinth_fruit_and_veg tone=dim

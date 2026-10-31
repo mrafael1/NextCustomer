@@ -44,21 +44,20 @@ func test_ok_and_empty_machines() -> void:
 	assert_object((ok.part("cabinet") as TextureRect).texture).is_same(
 		cabinet.art("cabinet", ToyCabinet.Tone.LIT)
 	)
-	assert_object((ok.part("topper") as TextureRect).texture).is_same(cabinet.topper_art(false))
+	assert_bool(ok.part("sold_out").visible).is_false()
 	var machine_rect: Rect2 = Rect2(ok.global_position, ToyMachineView.SIZE)
 	assert_bool(machine_rect.encloses(ok.price_label().get_global_rect())).is_true()
 	var empty: ToyMachineView = _machine(screen, &"pantry")
 	assert_int(empty.state()).is_equal(CapsuleCounter.State.EMPTY)
 	assert_int(empty.tone()).is_equal(ToyCabinet.Tone.DIM)
-	assert_bool(empty.part("tag").visible).is_true()
+	assert_bool(empty.part("sold_out").visible).is_true()
+	var empty_rect: Rect2 = Rect2(empty.global_position, ToyMachineView.SIZE)
+	assert_bool(empty_rect.encloses(empty.part("sold_out").get_global_rect())).is_true()
 	assert_bool(empty.price_label().visible).is_false()
 	assert_int(empty.capsule_count()).is_equal(0)
 	assert_int(empty.mouse_default_cursor_shape).is_equal(Control.CURSOR_ARROW)
 	assert_object(_lamp(screen, empty).texture).is_same(ToyExitArt.lamp("off"))
-	# The trophy: the collected aisle's figurine stays in colour.
-	var trophy: Texture2D = empty.cabinet().topper_art(false)
-	assert_object((empty.part("topper") as TextureRect).texture).is_same(trophy)
-	assert_str(empty.floor_text()).is_equal(ToyMachineView.COLLECTED_TEXT)
+	assert_str(empty.floor_text()).is_equal(ToyMachineView.SOLD_OUT_TEXT)
 	assert_int((empty.part("floor") as ToyPlate).mode()).is_equal(ToyPlate.Mode.OFF)
 	assert_int((empty.part("sign") as ToyPlate).mode()).is_equal(ToyPlate.Mode.OFF)
 	var picks: Array[int] = [0]
@@ -73,7 +72,7 @@ func test_ok_and_empty_machines() -> void:
 	assert_int((ok.part("sign") as ToyPlate).mode()).is_equal(ToyPlate.Mode.LIT)
 	assert_bool((ok.part("floor") as ToyPlate).tick().visible).is_true()
 	assert_object(_lamp(screen, ok).texture).is_same(ToyExitArt.lamp("hot"))
-	# The sign never moves; the figurine rises with the machine.
+	# The sign never moves.
 	assert_float(ok.sign_rect().position.y).is_equal(ToyMachinesScreen.MACHINE_TOP)
 	ok._on_hover(false)
 	assert_bool(ok.is_lifted()).is_false()
@@ -106,9 +105,6 @@ func test_zero_coins_shuts_the_slots_and_shows_the_notice() -> void:
 		assert_object(_lamp(screen, machine).texture).is_same(ToyExitArt.lamp("off"))
 		assert_int(machine.mouse_default_cursor_shape).is_equal(Control.CURSOR_ARROW)
 		assert_int(machine.tone()).is_equal(ToyCabinet.Tone.DIM)
-		# Nothing may look playable: every figurine is dimmed, the collected one's too.
-		var dimmed: Texture2D = machine.cabinet().topper_art(true)
-		assert_object((machine.part("topper") as TextureRect).texture).is_same(dimmed)
 		if machine.state() == CapsuleCounter.State.EMPTY:
 			continue
 		assert_int(machine.state()).is_equal(CapsuleCounter.State.BROKE)
@@ -116,9 +112,6 @@ func test_zero_coins_shuts_the_slots_and_shows_the_notice() -> void:
 		assert_bool(machine.part("padlock").visible).is_true()
 		assert_bool(machine.part("coin").visible).is_false()
 		assert_bool(machine.price_label().visible).is_true()
-	assert_object(_machine(screen, &"pantry").cabinet().topper_art(true)).is_not_same(
-		_machine(screen, &"pantry").cabinet().topper_art(false)
-	)
 	assert_int(screen.strip_kind()).is_equal(ToyMachinesScreen.Strip.BROKE)
 	assert_str(screen.strip().text()).is_equal(
 		" ".join(PixelLine.split(ToyMachinesScreen.BROKE_NOTICE))
@@ -158,10 +151,8 @@ func test_the_full_collection() -> void:
 	var screen: ToyMachinesScreen = await _open(Kit.profile(5, 9, Kit.full_counts()))
 	for machine: ToyMachineView in screen.machines():
 		assert_int(machine.state()).is_equal(CapsuleCounter.State.EMPTY)
-		assert_bool(machine.part("tag").visible).is_false()
-		assert_str(machine.floor_text()).is_equal(ToyMachineView.COLLECTED_TEXT)
-		var trophy: Texture2D = machine.cabinet().topper_art(false)
-		assert_object((machine.part("topper") as TextureRect).texture).is_same(trophy)
+		assert_bool(machine.part("sold_out").visible).is_true()
+		assert_str(machine.floor_text()).is_equal(ToyMachineView.SOLD_OUT_TEXT)
 	assert_int(screen.strip_kind()).is_equal(ToyMachinesScreen.Strip.COMPLETE)
 	var rows: Array[PixelLine] = screen.strip().rows()
 	assert_str(rows[0].text()).is_equal(ToyMachinesScreen.FULL_BANNER)
@@ -182,18 +173,16 @@ func test_a_fresh_profile() -> void:
 
 
 ## Every aisle has a cabinet in data/toy_cabinets/: its art set in every tone, its slots inside
-## the cabinet art, and a figurine of its own aisle with a dimmed twin.
+## the cabinet art.
 func test_every_aisle_has_a_cabinet() -> void:
 	for aisle: AisleDefinition in Kit.balance().aisles:
 		var path: String = ToyCabinet.PATH % aisle.id
 		assert_bool(ResourceLoader.exists(path)).override_failure_message(path).is_true()
 		var cabinet: ToyCabinet = ToyCabinet.for_aisle(aisle.id)
 		assert_str(str(cabinet.art_id)).is_equal(str(aisle.id))
-		for part: String in ["cabinet", "base", "capsule_window", "plinth"]:
+		for part: String in ["cabinet", "base", "capsule_window"]:
 			for tone: ToyCabinet.Tone in ToyCabinet.Tone.values():
 				assert_object(cabinet.art(part, tone)).override_failure_message(part).is_not_null()
-		assert_bool(cabinet.topper != null and aisle.capsule_cards.has(cabinet.topper)).is_true()
-		assert_object(cabinet.topper_art(true)).is_not_same(cabinet.topper_art(false))
 		assert_int(cabinet.slots.size()).is_greater(0)
 		var art_rect: Rect2i = ToyMachineView.CABINET_RECT
 		for slot: Vector2i in cabinet.slots:
@@ -203,7 +192,7 @@ func test_every_aisle_has_a_cabinet() -> void:
 
 
 ## An aisle with no cabinet file falls back cleanly: the plain base, no cabinet top, no
-## capsules, no figurine, the tape still across the machine.
+## capsules, the tape still across the machine.
 func test_an_aisle_without_a_cabinet_falls_back() -> void:
 	var aisle: AisleDefinition = Kit.balance().aisles[0].duplicate() as AisleDefinition
 	aisle.id = &"no_such_aisle"
@@ -217,8 +206,6 @@ func test_an_aisle_without_a_cabinet_falls_back() -> void:
 	)
 	assert_bool(machine.part("cabinet").visible).is_false()
 	assert_bool(machine.part("front").visible).is_false()
-	assert_bool(machine.part("topper").visible).is_false()
-	assert_bool(machine.part("plinth").visible).is_false()
 	assert_int(machine.capsule_count()).is_equal(0)
 	assert_bool(machine.paper().visible).is_true()
 	(
@@ -236,11 +223,6 @@ func test_an_aisle_without_a_cabinet_falls_back() -> void:
 	assert_object((machine.part("base") as TextureRect).texture).is_same(
 		ToyMachineView.BASE_FALLBACK
 	)
-	# A topper whose sprite is missing shows no plinth and no art-pending box.
-	var cabinet: ToyCabinet = ToyCabinet.new()
-	cabinet.topper = CardDefinition.new()
-	assert_object(cabinet.topper_art(false)).is_null()
-	assert_object(cabinet.topper_art(true)).is_null()
 	# Bakery has no front overlay: none is shown.
 	var bakery: AisleDefinition = Kit.aisle(Kit.balance(), &"bakery")
 	machine.set_machine(bakery, 8, 8, CapsuleCounter.State.OK, 1)
@@ -298,8 +280,8 @@ func test_a_draw_cools_the_picked_machine() -> void:
 	await await_idle_frame()
 
 
-## The real pointer: a motion over the figurine (above the control's rect) hovers the machine and
-## a click on its floor plate picks it.
+## The real pointer: a motion over the sign hovers the machine and a click on its floor plate
+## picks it.
 func test_the_pointer_hovers_and_picks_through_the_viewport() -> void:
 	var screen: ToyMachinesScreen = await _open(Kit.profile(3, 2))
 	var machine: ToyMachineView = screen.machines()[1]
@@ -309,11 +291,9 @@ func test_the_pointer_hovers_and_picks_through_the_viewport() -> void:
 	)
 	var picks: Array[AisleDefinition] = []
 	machine.picked.connect(func(aisle: AisleDefinition) -> void: picks.append(aisle))
-	var art: float = ArtStyle.ART_SCALE
-	var figurine: Vector2 = machine.global_position + Vector2(36, -30) * art
-	assert_float(figurine.y).is_less(machine.global_position.y)
-	assert_bool(machine.hit_rect().has_point(figurine)).is_true()
-	await _move(figurine)
+	var sign_point: Vector2 = machine.sign_rect().get_center()
+	assert_bool(machine.hit_rect().has_point(sign_point)).is_true()
+	await _move(sign_point)
 	assert_array(hovers).contains_exactly([true])
 	assert_bool(machine.is_hot()).is_true()
 	var floor_point: Vector2 = machine.part("floor").get_global_rect().get_center()
@@ -349,27 +329,6 @@ func test_the_arrow_keys_pick_a_machine() -> void:
 		assert_bool(machine.is_hot()).is_false()
 	assert_bool(screen.lineup().visible).is_false()
 	assert_bool(screen.board().visible).is_true()
-
-
-## The hot machine's figurine hops on one frame in four; never under reduced motion.
-func test_the_hot_figurine_hops() -> void:
-	for reduced: bool in [false, true]:
-		var profile: ProfileState = Kit.profile(3, 2)
-		profile.set_reduced_motion(reduced)
-		var screen: ToyMachinesScreen = await _open(profile)
-		var machine: ToyMachineView = screen.machines()[0]
-		machine._on_hover(true)
-		var seen: Dictionary[float, bool] = {}
-		var started: int = Time.get_ticks_msec()
-		while Time.get_ticks_msec() - started < 800:
-			seen[machine.topper_hop()] = true
-			await get_tree().process_frame
-		if reduced:
-			assert_array(seen.keys()).contains_exactly([0.0])
-		else:
-			assert_array(seen.keys()).contains_exactly_in_any_order([0.0, ToyMachineView.HOP])
-		machine._on_hover(false)
-		assert_float(machine.topper_hop()).is_equal(0.0)
 
 
 func _move(at: Vector2) -> void:

@@ -9,8 +9,11 @@ extends RefCounted
 ## the wainscot panels, the skirting, the dark tiled floor, the glass exit doors on the street at
 ## night and the unlit EXIT lightbox (its word is a label). The live parts are their own images:
 ## a machine's recessed lamp (off, on with its cone and floor pool, or hot under the hover), the
-## hanging TOY MACHINES board with its chains, the OUT OF ORDER tape, and an unwon figurine's
-## grey shape for the lineup.
+## hanging TOY MACHINES board with its chains, the OUT OF ORDER tape, a sold-out machine's SOLD
+## OUT card, the LED housings (the COINS and FIGURINES readouts, the strip over the floor), the
+## lineup's hanging price card and an unwon figurine's grey shape for the lineup (v0.78: store
+## fixtures instead of plain boxes), and the doors again with a passing car's headlights on the
+## street or the street lamp off, for the doors' idle (ToyStreet, v0.79).
 
 ## The stage in art px.
 const STAGE := Vector2i(640, 360)
@@ -26,21 +29,43 @@ const CONE_BOTTOM := 262
 const CONE_WIDTHS := Vector2(10, 56)
 const CONE_CHECKER := 0.3
 const CONE_CHECKER_HOT := 0.55
-## The hanging board (stage art px) and its two chains' x, CHAIN_LENGTH rows down from the top.
-const BOARD_RECT := Rect2i(165, 35, 180, 32)
+## The hanging board (stage art px) and its two chains' x, CHAIN_LENGTH rows down from the top
+## (v0.78: lower, in the wall the figurines on top of the machines left free).
+const BOARD_RECT := Rect2i(165, 71, 180, 32)
 const CHAIN_XS: Array[int] = [186, 322]
-const CHAIN_LENGTH := 36
+const CHAIN_LENGTH := 72
 ## The board layer's rect: the chains and the board.
-const BOARD_LAYER := Rect2i(165, 0, 180, 67)
+const BOARD_LAYER := Rect2i(165, 0, 180, 103)
 ## The doors (stage art px) and the EXIT lightbox.
 const DOORS_RECT := Rect2i(524, 34, 104, 212)
 const EXIT_RECT := Rect2i(556, 10, 40, 15)
+## The doors with their frame (stage art px): what the doors' variants hold.
+const DOORS_LAYER := Rect2i(520, 30, 112, 216)
+## The headlights light the street low, from HEADLIGHT_TOP (art px under the doors' top; the
+## fringe's from HEADLIGHT_LOW) down to the kerb, whose lit rows end at KERB_BOTTOM.
+const HEADLIGHT_TOP := 176
+const HEADLIGHT_LOW := 184
+const KERB_TOP := 194
+const KERB_BOTTOM := 204
+## The street lamp's head and its pool (stage art px), what its flicker covers.
+const STREET_LAMP_RECT := Rect2i(588, 100, 44, 128)
 ## The OUT OF ORDER tape (art px): its size and its till lines' tops.
 const TAPE_SIZE := Vector2i(68, 15)
 const TAPE_LINES: Array[int] = [2, 8]
 const TAPE_WORDS: Array[String] = ["OUT OF", "ORDER"]
 ## The hazard stripes at both ends of the tape: HAZARD_COLUMNS px wide.
 const HAZARD_COLUMNS := 6
+## The SOLD OUT card (art px): the card hung on a string from a nail STRING_ROWS rows above it,
+## its till words on SOLD_OUT_LINE.
+const SOLD_OUT_SIZE := Vector2i(42, 20)
+const SOLD_OUT_CARD_TOP := 7
+const SOLD_OUT_LINE := 11
+const SOLD_OUT_WORDS := "SOLD OUT"
+## An LED housing's steel rim (art px, inside the ink outline) round the dotted face.
+const HOUSING_RIM := 3
+## The price card: its tomato band's rows under the outline, and its chains' x from each end.
+const CARD_BAND := 12
+const CARD_CHAIN_INSET := 8
 
 static var _backdrop: ImageTexture
 static var _layers: Dictionary[String, ImageTexture] = {}
@@ -56,6 +81,18 @@ static func backdrop() -> ImageTexture:
 		_paint_exit(art)
 		_backdrop = ImageTexture.create_from_image(art.image)
 	return _backdrop
+
+
+## The doors (DOORS_LAYER) with the street lit by a passing car's headlights ("core", the beam's
+## middle, or "fringe", its edges) or with the street lamp off ("lamp_off"). Everything outside
+## the glass matches the backdrop, so a window onto one shows the light behind the frames only.
+static func doors(kind: String) -> ImageTexture:
+	var key: String = "doors_" + kind
+	if not _layers.has(key):
+		var art: StorefrontArt = StorefrontArt.new(DOORS_LAYER.size, -DOORS_LAYER.position)
+		_paint_doors(art, kind)
+		_layers[key] = ImageTexture.create_from_image(art.image)
+	return _layers[key]
 
 
 ## A machine's lamp (LAMP_WIDTH x the lamp's height, its centre in the middle): "off", "on" (its
@@ -119,6 +156,90 @@ static func tape() -> ImageTexture:
 			art.till(TAPE_WORDS[line], floori(w / 2.0), TAPE_LINES[line], Palette.TOMATO_DARK, "c")
 		_layers["tape"] = ImageTexture.create_from_image(art.image)
 	return _layers["tape"]
+
+
+## A sold-out machine's card (SOLD_OUT_SIZE): a nail, its string, and a paper card ringed in
+## tomato with SOLD OUT in till letters.
+static func sold_out() -> ImageTexture:
+	if not _layers.has("sold_out"):
+		var art: StorefrontArt = StorefrontArt.new(SOLD_OUT_SIZE, Vector2i.ZERO)
+		var w: int = SOLD_OUT_SIZE.x
+		var h: int = SOLD_OUT_SIZE.y
+		var top: int = SOLD_OUT_CARD_TOP
+		var centre: int = floori(w / 2.0)
+		for step: int in range(top - 1):
+			var spread: int = roundi(float(step) * (centre - 6) / float(top - 2))
+			art.px(centre - 1 - spread, 1 + step, Palette.INK_LIGHT)
+			art.px(centre + spread, 1 + step, Palette.INK_LIGHT)
+		art.rect(Rect2i(centre - 1, 0, 2, 2), Palette.STEEL_LIGHT)
+		art.px(centre, 1, Palette.STEEL_DARKEST)
+		art.rect(Rect2i(1, top, w - 2, h - top), Palette.INK)
+		art.rect(Rect2i(0, top + 1, w, h - top - 2), Palette.INK)
+		art.rect(Rect2i(1, top + 1, w - 2, h - top - 2), Palette.PAPER)
+		art.rect(Rect2i(2, top + 2, w - 4, h - top - 4), Palette.TOMATO)
+		art.rect(Rect2i(3, top + 3, w - 6, h - top - 6), Palette.PAPER)
+		art.rect(Rect2i(3, h - 4, w - 6, 1), Palette.CREAM)
+		art.rect(Rect2i(5, top + 2, 2, 1), Palette.PAPER)
+		art.rect(Rect2i(w - 7, top + 2, 2, 1), Palette.PAPER)
+		art.till(SOLD_OUT_WORDS, centre, SOLD_OUT_LINE, Palette.TOMATO_DARK, "c")
+		_layers["sold_out"] = ImageTexture.create_from_image(art.image)
+	return _layers["sold_out"]
+
+
+## An LED housing `area` art px: a steel rim with a screw in each corner, lit from the top left,
+## round a slate face dotted like an LED matrix, in an ink outline.
+static func housing(area: Vector2i) -> ImageTexture:
+	var key: String = "housing_%d_%d" % [area.x, area.y]
+	if not _layers.has(key):
+		var art: StorefrontArt = StorefrontArt.new(area, Vector2i.ZERO)
+		var w: int = area.x
+		var h: int = area.y
+		var rim: int = HOUSING_RIM
+		art.rect(Rect2i(1, 0, w - 2, h), Palette.INK)
+		art.rect(Rect2i(0, 1, w, h - 2), Palette.INK)
+		art.rect(Rect2i(1, 1, w - 2, h - 2), Palette.STEEL_DARK)
+		art.rect(Rect2i(1, 1, w - 2, 1), Palette.STEEL_SHADE)
+		art.rect(Rect2i(1, 1, 1, h - 2), Palette.STEEL_SHADE)
+		art.rect(Rect2i(1, h - 2, w - 2, 1), Palette.STEEL_DARKEST)
+		for corner: Vector2i in [
+			Vector2i(2, 2), Vector2i(w - 3, 2), Vector2i(2, h - 3), Vector2i(w - 3, h - 3)
+		]:
+			art.px(corner.x, corner.y, Palette.STEEL_PALE)
+		var face: Rect2i = Rect2i(rim + 1, rim + 1, w - 2 * rim - 2, h - 2 * rim - 2)
+		art.rect(face.grow(1), Palette.INK)
+		art.rect(face, Palette.SLATE_DARK)
+		for y: int in range(face.position.y + 1, face.end.y, 2):
+			for x: int in range(face.position.x + 1, face.end.x, 2):
+				art.px(x, y, Palette.SLATE)
+		art.rect(Rect2i(face.position.x, face.end.y, face.size.x, 1), Palette.STEEL_SHADE)
+		_layers[key] = ImageTexture.create_from_image(art.image)
+	return _layers[key]
+
+
+## The lineup's price card `area` art px, hung from the ceiling `drop` rows above it: two chains
+## like the board's, a tomato band (CARD_BAND rows) over a paper body, a cream shade foot.
+static func price_card(area: Vector2i, drop: int) -> ImageTexture:
+	var key: String = "card_%d_%d_%d" % [area.x, area.y, drop]
+	if not _layers.has(key):
+		var art: StorefrontArt = StorefrontArt.new(Vector2i(area.x, area.y + drop), Vector2i.ZERO)
+		var w: int = area.x
+		var h: int = area.y
+		for x: int in [CARD_CHAIN_INSET, w - CARD_CHAIN_INSET - 2]:
+			for y: int in range(0, drop, 4):
+				art.rect(Rect2i(x, y, 2, 3), Palette.STEEL_DARK)
+				art.rect(Rect2i(x, y + 3, 2, 1), Palette.STEEL_DARKEST)
+		var top: int = drop
+		art.rect(Rect2i(1, top, w - 2, h), Palette.INK)
+		art.rect(Rect2i(0, top + 1, w, h - 2), Palette.INK)
+		art.rect(Rect2i(1, top + 1, w - 2, h - 2), Palette.PAPER)
+		art.rect(Rect2i(1, top + 1, w - 2, CARD_BAND), Palette.TOMATO)
+		art.rect(Rect2i(1, top + 1, w - 2, 1), Palette.TOMATO_LIGHT)
+		art.rect(Rect2i(1, top + CARD_BAND, w - 2, 1), Palette.TOMATO_DARK)
+		art.rect(Rect2i(1, top + h - 2, w - 2, 1), Palette.CREAM_SHADE)
+		for x: int in [CARD_CHAIN_INSET, w - CARD_CHAIN_INSET - 2]:
+			art.rect(Rect2i(x, top + 2, 2, 2), Palette.TOMATO_DARKEST)
+		_layers[key] = ImageTexture.create_from_image(art.image)
+	return _layers[key]
 
 
 ## An unwon figurine's shape for the lineup (the mock-up's silhouette): grey dark, a grey light
@@ -200,8 +321,10 @@ static func _paint_wall(art: StorefrontArt) -> void:
 
 
 ## The glass exit doors: flat dark glass, the street as solid shapes (roofs with a few lit
-## windows, a lamp post and its pool, the kerb), two leaves with glare lines and the mat.
-static func _paint_doors(art: StorefrontArt) -> void:
+## windows, a lamp post and its pool, the kerb), two leaves with glare lines and the mat;
+## `light` adds a car's headlights on the street ("core" or "fringe") or turns the lamp off
+## ("lamp_off").
+static func _paint_doors(art: StorefrontArt, light: String = "") -> void:
 	var x: int = DOORS_RECT.position.x
 	var y: int = DOORS_RECT.position.y
 	var w: int = DOORS_RECT.size.x
@@ -218,10 +341,18 @@ static func _paint_doors(art: StorefrontArt) -> void:
 		art.rect(Rect2i(x + spot.x, y + spot.y, 4, 4), Palette.MUSTARD_DARKEST)
 	art.rect(Rect2i(x + 86, y + 70, 2, 124), Palette.CHARCOAL)
 	art.rect(Rect2i(x + 81, y + 66, 12, 4), Palette.CHARCOAL)
-	art.rect(Rect2i(x + 83, y + 70, 8, 1), Palette.MUSTARD_LIGHT)
-	art.dither(Rect2i(x + 72, y + 186, 30, 8), Palette.MUSTARD_DARKEST, 2)
-	art.dither(Rect2i(x + 64, y + 182, 46, 4), Palette.MUSTARD_DARKEST, 1)
+	if light != "lamp_off":
+		art.rect(Rect2i(x + 83, y + 70, 8, 1), Palette.MUSTARD_LIGHT)
+		art.dither(Rect2i(x + 72, y + 186, 30, 8), Palette.MUSTARD_DARKEST, 2)
+		art.dither(Rect2i(x + 64, y + 182, w - 64, 4), Palette.MUSTARD_DARKEST, 1)
 	art.rect(Rect2i(x, y + 194, w, 18), Palette.SLATE_DARK)
+	if light in ["core", "fringe"]:
+		var core: bool = light == "core"
+		var top: int = HEADLIGHT_TOP if core else HEADLIGHT_LOW
+		var street: Rect2i = Rect2i(x, y + top, w, KERB_TOP - top)
+		art.dither(street, Palette.MUSTARD_DARKEST, 2 if core else 1)
+		var kerb: Rect2i = Rect2i(x, y + KERB_TOP, w, KERB_BOTTOM - KERB_TOP)
+		art.dither(kerb, Palette.MUSTARD_DARK if core else Palette.MUSTARD_DARKEST, 2)
 	for leaf_x: int in [x, x + 52]:
 		var lw: int = 52
 		art.rect(Rect2i(leaf_x, y, lw, 3), Palette.STEEL_SHADE)

@@ -69,8 +69,9 @@ extends Control
 ## With `--toys=<state>[,hover=<aisle id>]` (#121) the TOY MACHINES open over the shift on a
 ## profile with 9 of the 30 figurines (the mock-up's partial collection): `normal` (5 coins),
 ## `broke` (0 coins), `off` (the profile can't be saved) or `complete` (every figurine, 5 coins);
-## `hover=` hovers that aisle's machine. The file is
-## shift_screen_toys_<state>_[<aisle>_]<width>x<height>.png.
+## `hover=` hovers that aisle's machine; `car=<seconds>` (v0.79) catches a car that passed the
+## doors that long ago, `lamp` the street lamp's flicker. The file is
+## shift_screen_toys_<state>_[<aisle>_][car<tenths>_][lamp_]<width>x<height>.png.
 
 const SCREEN := preload("res://ui/shift_screen.tscn")
 const SEED := 20261014
@@ -344,7 +345,16 @@ func toys(spec: String) -> void:
 	add_child(toys_screen)
 	toys_screen.open(counter, balance)
 	_toys_part = "toys_%s_" % state
+	toys_screen.street().set_process(false)  # The capture keeps the moment asked for.
 	for part: String in parts.slice(1):
+		if part.begins_with("car="):
+			var seconds: float = part.trim_prefix("car=").to_float()
+			toys_screen.street().pass_car(1)
+			toys_screen.street()._process(seconds)
+			_toys_part += "car%d_" % roundi(seconds * 10.0)
+		if part == "lamp":
+			toys_screen.street()._process(ToyStreet.LAMP_FRAME * (ToyStreet.LAMP_OFF[0] + 0.5))
+			_toys_part += "lamp_"
 		if not part.begins_with("hover="):
 			continue
 		var aisle_id: String = part.trim_prefix("hover=")

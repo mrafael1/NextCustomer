@@ -1,0 +1,15 @@
+; A TOY MACHINES shelf label (#121 polish, v0.78), off (a machine sold out, out of coins or out
+; of order): menu_plate_off without its stripe, a cream shade face over a brass dark ledge. A
+; 9-slice with 4 art px margins on every side.
+@size 9x9
+@kind frame
+@scale 2
+.#######.
+#ccccccc#
+#bbbbbbb#
+#bbbbbbb#
+#bbbbbbb#
+#aaaaaaa#
+#lllllll#
+#kkkkkkk#
+.#######.

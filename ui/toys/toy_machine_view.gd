@@ -3,21 +3,19 @@ extends Control
 ## One TOY MACHINE (#121, mock-up toy_machines_121_v2.html, the title's direction C+; full build
 ## plan 7.1): the aisle's own cabinet (ToyCabinet, data/toy_cabinets/: a fridge, a jar, a washer,
 ## a market stall, an oven or a vending cabinet) on the shared coin base, 144x280 (72x140 art at
-## 2x), with its figurine on a plinth above a shelf-label sign and a floor plate under it. The
-## window shows one capsule per item left (as many as the cabinet has slots), the price LED on
-## the base a coin and the price.
+## 2x), under a shelf-label sign and over a floor plate (no figurine on top since v0.78: the
+## cabinet and the sign tell the aisle). The window shows one capsule per item left (as many as
+## the cabinet has slots), the price LED on the base a coin and the price.
 ##
 ## Its state (CapsuleCounter.State) always shows by more than colour, in one of the cabinet's art
 ## tones (ToyCabinet.Tone: no haze): OK is lit and takes clicks (a pointing hand; the hovered one
-## lights its sign, rises LIFT px with its figurine, whose hop repeats, and marks its floor plate
-## with the price-gun tick; the screen's arrow keys pick a machine to the same look); BROKE (out
-## of coins) is dim with the slot's lid shut and a padlock on the LED; EMPTY (collected) is dim
-## with a tick tag over the slot (none once the whole collection is complete), keeps its
-## figurine in colour as a trophy (unless the coins are out) and its floor plate reads
-## COLLECTED in a green stripe; OFF (the profile can't be saved) is grey with the OUT OF ORDER
-## tape over its window and the slot's lid shut. Only OK takes clicks. The sign and the floor
-## plate never move but the hovered floor plate, which steps right like a lit menu plate. The
-## screen draws the lamps.
+## lights its sign, rises LIFT px and marks its floor plate with the price-gun tick; the
+## screen's arrow keys pick a machine to the same look); BROKE (out of coins) is dim with the
+## slot's lid shut and a padlock on the LED; EMPTY (collected) is dim with a SOLD OUT card hung
+## over its window and its floor plate reads SOLD OUT (v0.78); OFF (the profile can't be saved)
+## is grey with the OUT OF ORDER tape over its window and the slot's lid shut. Only OK takes
+## clicks. The sign and the floor plate never move but the hovered floor plate, which steps
+## right like a lit menu plate. The screen draws the lamps.
 
 signal picked(aisle: AisleDefinition)
 ## The pointer entered (true) or left (false) the machine, whatever its state (the screen shows
@@ -38,69 +36,49 @@ const BASE_FALLBACKS: Array[Texture2D] = [
 const COIN := preload("res://art/icons/coin.png")
 const PADLOCK := preload("res://art/icons/padlock_dim.png")
 const LID := preload("res://art/toys/toy_slot_lid.png")
-const TAG := preload("res://art/toys/toy_tag.png")
 ## The art's pieces, in machine art px (0,0 the machine's top left): the cabinet top (and the
 ## front over its capsules) and the base under it.
 const CABINET_RECT := Rect2i(0, 0, 72, 76)
 const BASE_RECT := Rect2i(0, 76, 72, 64)
-## The slot's lid (out of coins) and the collected tick tag.
+## The slot's lid (out of coins).
 const LID_AT := Vector2i(17, 88)
-const TAG_AT := Vector2i(14, 81)
 ## The price LED's coin or padlock and its number's cap top.
 const COIN_AT := Vector2i(14, 109)
 const PADLOCK_AT := Vector2i(15, 110)
 const PRICE_NUMBER_AT := Vector2i(28, 111)
-## The OUT OF ORDER tape: PAPER_LEFT art px in, its top TAPE_RISE rows over the window's middle
-## (a window-less cabinet uses FALLBACK_WINDOW, on the base: with no cabinet art the tape crosses
-## the base, never the empty air above it).
+## The OUT OF ORDER tape: PAPER_LEFT art px in, its top TAPE_RISE rows over the window's middle;
+## the SOLD OUT card centred on the window, its nail SOLD_OUT_RISE rows over the window's middle
+## (a window-less cabinet uses FALLBACK_WINDOW, on the base: with no cabinet art the tape or the
+## card crosses the base, never the empty air above it).
 const PAPER_LEFT := 2
 const TAPE_RISE := 7
+const SOLD_OUT_RISE := 13
 const FALLBACK_WINDOW := Rect2i(10, 80, 52, 40)
-## The plinth (PLINTH_SIZE) and the topper (48x48) over the sign: the topper's foot on the
-## plinth, so its top is TOPPER_TOP rows up plus the sprite's empty bottom rows.
-const PLINTH_AT := Vector2i(18, -6)
-const PLINTH_SIZE := Vector2i(36, 6)
-const TOPPER_LEFT := 12
-const TOPPER_TOP := -54
-const TOPPER_ART := 48
 ## The sign: a 76x15 shelf label from SIGN_AT, its name centred on SIGN_TEXT_X (machine art px),
 ## its cap top SIGN_TEXT_TOP rows down.
 const SIGN_AT := Vector2i(-2, 0)
 const SIGN_SIZE := Vector2i(76, 15)
-const SIGN_TEXT_X := 39
+const SIGN_TEXT_X := 36
 const SIGN_TEXT_TOP := 4
-## The floor plate: 74x14 from FLOOR_AT, its count centred on FLOOR_TEXT_X; COLLECTED is centred
-## right of the green stripe (COLLECTED_LEFT, COLLECTED_ROOM wide).
+## The floor plate: 74x14 from FLOOR_AT, its words centred on FLOOR_TEXT_X (plate art px).
 const FLOOR_AT := Vector2i(-1, 144)
 const FLOOR_SIZE := Vector2i(74, 14)
-const FLOOR_TEXT_X := 39
+const FLOOR_TEXT_X := 37
 const FLOOR_TEXT_TOP := 4
-const COLLECTED_LEFT := 10
-const COLLECTED_ROOM := 63
-const COLLECTED_STRIPE := 8
 ## The contact shadow on the floor under the foot.
 const SHADOW_RECT := Rect2i(12, 139, 48, 2)
-## The clickable area: the figurine, the sign, the machine and the floor plate (art px).
-const HIT_RECT := Rect2i(0, -56, 72, 218)
-## How far the hovered machine and its figurine rise, and its floor plate steps right (canvas px).
+## The clickable area: the sign, the machine and the floor plate (art px).
+const HIT_RECT := Rect2i(0, 0, 72, 162)
+## How far the hovered machine rises, and its floor plate steps right (canvas px).
 const LIFT := 4.0
 const FLOOR_STEP := 4.0
-## The hot machine's figurine hops HOP px more on one HOP_FRAME of every HOP_CYCLE (the
-## mock-up's; none under reduced motion).
-const HOP := 4.0
-const HOP_FRAME := 0.16
-const HOP_CYCLE := 4
 const LEFT_TEXT := "%d OF %d LEFT"
-const COLLECTED_TEXT := "COLLECTED"
+const SOLD_OUT_TEXT := "SOLD OUT"
 const PRICE_TEXT := "%d COIN"
 const PRICE_TEXT_PLURAL := "%d COINS"
 ## The machine's name for screen readers.
 const ACCESSIBLE_TEXT := "%s, %d OF %d LEFT"
 
-static var _topper_pads: Dictionary[Texture2D, int] = {}
-
-## Whether the player asked for reduced motion (no hop); unset: motion.
-var reduced_motion: Callable = Callable()
 var _aisle: AisleDefinition
 var _cabinet: ToyCabinet
 var _state: CapsuleCounter.State = CapsuleCounter.State.OK
@@ -108,26 +86,21 @@ var _tone: ToyCabinet.Tone = ToyCabinet.Tone.LIT
 var _hovered: bool = false
 ## Picked with the arrow keys (the screen): hot like the hovered one.
 var _selected: bool = false
-var _hop_time: float = 0.0
-## The topper's resting top (canvas px), its hop added on top.
-var _topper_top: float = 0.0
 var _left: int = 0
 var _total: int = 0
-## Everything that rises on hover: the art, its overlays, the plinth and the topper.
+## Everything that rises on hover: the art and its overlays.
 var _lift: Control
 var _cabinet_art: TextureRect
 var _base: TextureRect
 var _capsules: Control
 var _front: TextureRect
 var _lid: TextureRect
-var _tag: TextureRect
+var _sold_out: TextureRect
 var _tape: TextureRect
 var _price: Control
 var _coin: TextureRect
 var _padlock: TextureRect
 var _price_number: PixelLine
-var _plinth: TextureRect
-var _topper: TextureRect
 var _sign: ToyPlate
 var _sign_line: PixelLine
 var _floor: ToyPlate
@@ -154,11 +127,9 @@ func _init() -> void:
 	_lift.add_child(_capsules)
 	_front = _sprite(CABINET_RECT.position, CABINET_RECT.size)
 	_lid = _sprite(LID_AT, LID.get_size(), LID)
-	_tag = _sprite(TAG_AT, TAG.get_size(), TAG)
+	_sold_out = _sprite(Vector2i.ZERO, ToyExitArt.SOLD_OUT_SIZE, ToyExitArt.sold_out())
 	_tape = _sprite(Vector2i.ZERO, ToyExitArt.TAPE_SIZE, ToyExitArt.tape())
 	_build_price()
-	_plinth = _sprite(PLINTH_AT, PLINTH_SIZE)
-	_topper = _sprite(Vector2i(TOPPER_LEFT, TOPPER_TOP), Vector2i.ONE * TOPPER_ART)
 	_sign = ToyPlate.new(SIGN_SIZE)
 	_sign.position = Vector2(SIGN_AT) * ArtStyle.ART_SCALE
 	add_child(_sign)
@@ -170,20 +141,12 @@ func _init() -> void:
 	_floor.content().add_child(_floor_line)
 	mouse_entered.connect(_on_hover.bind(true))
 	mouse_exited.connect(_on_hover.bind(false))
-	set_process(false)
 
 
 ## Shows the `shown` aisle's machine with `left` of its `total` items still in it, in
-## `shown_state`, a capsule costing `price` coins; `all_collected`: the whole collection is
-## complete (no tick tags); `coins_out`: the profile has no coins (no figurine in colour).
+## `shown_state`, a capsule costing `price` coins.
 func set_machine(
-	shown: AisleDefinition,
-	left: int,
-	total: int,
-	shown_state: CapsuleCounter.State,
-	price: int,
-	all_collected: bool = false,
-	coins_out: bool = false
+	shown: AisleDefinition, left: int, total: int, shown_state: CapsuleCounter.State, price: int
 ) -> void:
 	_aisle = shown
 	_cabinet = ToyCabinet.for_aisle(shown.id)
@@ -207,28 +170,22 @@ func set_machine(
 	_front.visible = _front.texture != null
 	_place_capsules(_cabinet.art("capsule_window", _tone), mini(left, _cabinet.slots.size()))
 	_lid.visible = broke or off
-	_tag.visible = empty and not all_collected
+	_sold_out.visible = empty
 	_tape.visible = off
 	var has_window: bool = _cabinet_art.visible and _cabinet.window.has_area()
 	var window: Rect2i = _cabinet.window if has_window else FALLBACK_WINDOW
-	var tape_top: int = window.position.y + floori(window.size.y / 2.0) - TAPE_RISE
-	_tape.position = Vector2(PAPER_LEFT, tape_top) * ArtStyle.ART_SCALE
+	var middle: int = window.position.y + floori(window.size.y / 2.0)
+	_tape.position = Vector2(PAPER_LEFT, middle - TAPE_RISE) * ArtStyle.ART_SCALE
+	var spare: int = window.size.x - ToyExitArt.SOLD_OUT_SIZE.x
+	var card_at: Vector2i = Vector2i(
+		window.position.x + floori(spare / 2.0), middle - SOLD_OUT_RISE
+	)
+	_sold_out.position = Vector2(card_at) * ArtStyle.ART_SCALE
 	_coin.visible = ok
 	_padlock.visible = broke
 	_price.visible = ok or broke
 	var price_colour: Color = Palette.GOLD if ok else Palette.GREY_DARK
 	_price_number.show_tokens([str(price)], price_colour, price_colour)
-	var trophy: bool = ok or (empty and not coins_out)
-	var plinth_tone: ToyCabinet.Tone = ToyCabinet.Tone.LIT if trophy else ToyCabinet.Tone.DIM
-	_plinth.texture = _cabinet.art("plinth", ToyCabinet.Tone.OFF if off else plinth_tone)
-	_topper.texture = _cabinet.topper_art(not trophy)
-	_plinth.visible = _topper.texture != null and _plinth.texture != null
-	_topper.visible = _topper.texture != null
-	if _topper.visible:
-		var top: int = TOPPER_TOP + _topper_pad(_topper.texture)
-		_topper_top = top * ArtStyle.ART_SCALE
-		_topper.position = Vector2(TOPPER_LEFT * ArtStyle.ART_SCALE, _topper_top)
-	_sign.set_stripe(shown.sign_color)
 	var sign_colour: Color = Palette.INK if ok else Palette.GREY_DARK
 	_sign_line.show_tokens([shown.display_name.to_upper()], sign_colour, sign_colour)
 	_centre(_sign_line, SIGN_TEXT_X - SIGN_AT.x, SIGN_TEXT_TOP)
@@ -284,32 +241,25 @@ func is_hot() -> bool:
 	return _hovered or (_selected and _state == CapsuleCounter.State.OK)
 
 
-## The figurine's hop above its resting top (canvas px): 0 or HOP.
-func topper_hop() -> float:
-	return _topper_top - _topper.position.y
-
-
 func is_lifted() -> bool:
 	return _lift.position.y < 0.0
 
 
-## A piece, for the screen and the tests, by name: "cabinet", "base", "front", "lid", "tag",
-## "tape", "price", "coin", "padlock", "price_number", "plinth", "topper", "sign", "sign_text",
-## "floor" or "floor_text".
+## A piece, for the screen and the tests, by name: "cabinet", "base", "front", "lid",
+## "sold_out", "tape", "price", "coin", "padlock", "price_number", "sign", "sign_text", "floor"
+## or "floor_text".
 func part(piece: String) -> Control:
 	var parts: Dictionary[String, Control] = {
 		"cabinet": _cabinet_art,
 		"base": _base,
 		"front": _front,
 		"lid": _lid,
-		"tag": _tag,
+		"sold_out": _sold_out,
 		"tape": _tape,
 		"price": _price,
 		"coin": _coin,
 		"padlock": _padlock,
 		"price_number": _price_number,
-		"plinth": _plinth,
-		"topper": _topper,
 		"sign": _sign,
 		"sign_text": _sign_line,
 		"floor": _floor,
@@ -322,7 +272,7 @@ func sign_rect() -> Rect2:
 	return _sign.get_global_rect()
 
 
-## The floor plate's words: "5 OF 8 LEFT" or "COLLECTED".
+## The floor plate's words: "5 OF 8 LEFT" or "SOLD OUT".
 func floor_text() -> String:
 	return _floor_line.text()
 
@@ -385,9 +335,6 @@ func _on_hover(inside: bool) -> void:
 func _show_look() -> void:
 	var hot: bool = is_hot()
 	_lift.position.y = -LIFT if hot else 0.0
-	_hop_time = 0.0
-	_topper.position.y = _topper_top
-	set_process(hot and not _reduced())
 	var ok: bool = _state == CapsuleCounter.State.OK
 	var sign_mode: ToyPlate.Mode = ToyPlate.Mode.OFF
 	if ok:
@@ -397,31 +344,15 @@ func _show_look() -> void:
 	_floor.position = Vector2(FLOOR_AT) * art + Vector2(FLOOR_STEP if hot else 0.0, 0.0)
 	_floor.show_tick(hot)
 	var colour: Color = Palette.INK if ok else Palette.GREY_DARK
+	var words: String = LEFT_TEXT % [_left, _total]
 	if _left == 0:
+		words = SOLD_OUT_TEXT
+		colour = Palette.TOMATO_DARK
 		_floor.set_mode(ToyPlate.Mode.OFF)
-		_floor.set_stripe(Palette.GREEN_DARK, COLLECTED_STRIPE)
-		_floor.show_check(true)
-		_floor_line.show_tokens([COLLECTED_TEXT], Palette.GREY_DARK, Palette.GREY_DARK)
-		var spare: float = COLLECTED_ROOM * art - _floor_line.width()
-		var left: float = COLLECTED_LEFT * art + floorf(spare / 2.0 / art) * art
-		_floor_line.position = Vector2(left, FLOOR_TEXT_TOP * art)
-		return
-	_floor.set_mode(sign_mode)
-	_floor.set_stripe(Color(0, 0, 0, 0))
-	_floor.show_check(false)
-	_floor_line.show_tokens(PixelLine.split(LEFT_TEXT % [_left, _total]), colour, colour)
+	else:
+		_floor.set_mode(sign_mode)
+	_floor_line.show_tokens(PixelLine.split(words), colour, colour)
 	_centre(_floor_line, FLOOR_TEXT_X, FLOOR_TEXT_TOP)
-
-
-## The hot machine's figurine hop: up HOP px on frame 1 of every HOP_CYCLE frames of HOP_FRAME s.
-func _process(delta: float) -> void:
-	_hop_time += delta
-	var frame: int = floori(_hop_time / HOP_FRAME) % HOP_CYCLE
-	_topper.position.y = _topper_top - (HOP if frame == 1 else 0.0)
-
-
-func _reduced() -> bool:
-	return reduced_motion.is_valid() and bool(reduced_motion.call())
 
 
 func _build_price() -> void:
@@ -470,14 +401,3 @@ static func _centre(line: PixelLine, centre_x: int, top: int) -> void:
 static func _put(control: Control, at: Vector2i, art_size: Vector2i) -> void:
 	control.position = Vector2(at) * ArtStyle.ART_SCALE
 	control.size = Vector2(art_size) * ArtStyle.ART_SCALE
-
-
-## The topper sprite's empty bottom rows (its foot stands on the plinth).
-static func _topper_pad(texture: Texture2D) -> int:
-	if not _topper_pads.has(texture):
-		var image: Image = texture.get_image()
-		if image.is_compressed():
-			image.decompress()
-		var used: Rect2i = image.get_used_rect()
-		_topper_pads[texture] = image.get_height() - used.end.y if used.has_area() else 0
-	return _topper_pads[texture]
