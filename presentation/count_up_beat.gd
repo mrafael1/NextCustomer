@@ -111,3 +111,7 @@ var cheer_tier: int = 0
 var cheer_count: int = 0
 ## The payout includes a bonus or a multiplier another source caused (ReceiptView.is_combo).
 var cheer_combo: bool = false
+## A payout of 0 that failed (CountUpPlan's _set_cheer): the item's own condition fizzled (a WASTED
+## step it caused) or an inspection denied it. Only such a payout slumps a standee; a coupon that
+## pays nothing of its own does not.
+var cheer_failed: bool = false

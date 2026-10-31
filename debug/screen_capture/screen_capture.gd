@@ -510,7 +510,13 @@ func capture(folder: String) -> void:
 	if _checkout_s >= 0.0:
 		prefix += CHECKOUT_PREFIX % roundi(_checkout_s * 10.0)
 	prefix += (
-		_machine_part + _reveal_part + _tip_part + _stack_part + _week_part + _toys_part + _cheer_part
+		_machine_part
+		+ _reveal_part
+		+ _tip_part
+		+ _stack_part
+		+ _week_part
+		+ _toys_part
+		+ _cheer_part
 	)
 	var path: String = folder.path_join(FILE_NAME % [prefix, window.x, window.y])
 	var image: Image = (

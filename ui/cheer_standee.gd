@@ -39,6 +39,11 @@ var fold: float = 1.0:
 	set(value):
 		fold = value
 		_apply()
+## Degrees it leans about its foot (a missed verdict's wilt), 0 upright.
+var lean: float = 0.0:
+	set(value):
+		lean = value
+		_apply()
 var _rest: Texture2D
 var _cheer: Texture2D
 var _sprite: TextureRect
@@ -101,3 +106,5 @@ func _apply() -> void:
 	position.y = ceilf(y / GRID) * GRID
 	pivot_offset = Vector2(0.0, foot_y - position.y)
 	scale = Vector2(1.0, clampf(fold, 0.0, 1.0))
+	pivot_offset.x = size.x / 2.0
+	rotation = deg_to_rad(lean)

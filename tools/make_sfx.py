@@ -83,7 +83,7 @@ GAINS = {
     "scan": 0.45, "print": 0.5, "tick": 0.3,
     "stamp_1": 0.9, "stamp_2": 0.9, "stamp_3": 0.9, "stamp_paid": 0.95, "stamp_loyalty": 0.85,
     "stamp_notice": 0.6,
-    "rattle_s": 0.5, "rattle_m": 0.65, "rattle_l": 0.8, "register_bell": 0.7,
+    "rattle_s": 0.5, "rattle_m": 0.65, "rattle_l": 0.8, "register_bell": 0.7, "kaching": 0.75,
     "ding": 0.55, "tag": 0.5, "link": 0.45, "copy": 0.45, "fizzle": 0.4, "denied": 0.5,
     "total": 0.85, "miss": 0.6, "pass": 0.7, "fail": 0.55, "rip": 0.65, "armed": 0.3,
     "card_place_1": 0.5, "card_place_2": 0.5, "card_place_3": 0.5, "card_place_4": 0.5,
@@ -444,6 +444,15 @@ def register_bell() -> list[float]:
     return finish(tail(x, 0.3, 0.9))
 
 
+def kaching() -> list[float]:
+    """The quota crossing's "ka-ching": the antique register's drawer chunk, then its bell rung
+    30 ms later at G6 (as register_bell), one-off and apart from the note ladder."""
+    shift = 12 * math.log2(note_hz("G6") / 1720.6)
+    chunk = align(highpass(src("freesound/452572_drawer_chunk.wav"), 60.0))
+    bell = tail(highpass(align(src("freesound/452572_bell.wav", shift)), 200.0), 0.3, 0.9)
+    return finish(mix((chunk, 0.0, -5.0), (bell, 0.03, 0.0)))
+
+
 def ding() -> list[float]:
     """Quota reached: a soft C6 glockenspiel with a C6 hand chime under it for warmth and the
     first 40 ms of a desk bell for the "service bell" read; rings out by 1.2 s."""
@@ -590,7 +599,7 @@ def recipes() -> dict:
     out["rattle_s"] = lambda: rattle("s", 0.18, 0.06)
     out["rattle_m"] = lambda: rattle("m", 0.3, 0.1)
     out["rattle_l"] = lambda: rattle("l", 0.5, 0.15)
-    out.update({"register_bell": register_bell, "ding": ding, "tag": tag, "link": link,
+    out.update({"register_bell": register_bell, "kaching": kaching, "ding": ding, "tag": tag, "link": link,
                 "copy": copy, "denied": denied, "total": total, "miss": miss, "pass": pass_,
                 "fail": fail, "rip": rip, "armed": armed, "checkout": checkout})
     for take in (1, 2, 3, 4):

@@ -147,7 +147,7 @@ func shine(index: int) -> Sunburst:
 
 
 func view(index: int) -> ItemView:
-	return _plays[index]["view"] as ItemView
+	return _view_of(_plays[index])
 
 
 ## The whole swap's length (s): the last copy's tag gone.
@@ -175,9 +175,9 @@ func _process(delta: float) -> void:
 
 ## One copy `local` seconds into its own swap.
 func _frame(shown: Dictionary, local: float) -> void:
-	var item: ItemView = shown["view"] as ItemView
+	var item: ItemView = _view_of(shown)
 	var label: Label = shown["tag"] as Label
-	if not is_instance_valid(item):
+	if item == null:
 		label.visible = false
 		return
 	if local < 0.0:
@@ -300,18 +300,30 @@ func _make_tag(text: String) -> Label:
 func _finish() -> void:
 	_done = true
 	for shown: Dictionary in _plays:
-		var item: ItemView = shown["view"] as ItemView
-		if not is_instance_valid(item):
+		var item: ItemView = _view_of(shown)
+		if item == null:
 			continue
 		item.sprite().scale = Vector2.ONE
 		for key: String in ["flash", "shine"]:
-			var part: Node = shown.get(key) as Node
-			if is_instance_valid(part):
+			var raw: Variant = shown.get(key)
+			if not is_instance_valid(raw):
+				continue
+			var part: Node = raw as Node
+			if part.get_parent() != null:
 				part.get_parent().remove_child(part)
-				part.queue_free()
+			part.queue_free()
 	finished.emit()
 	if is_inside_tree():
 		queue_free()
+
+
+## A copy's item, or null once it is freed (placed, moved or redrawn mid-swap: its tag goes). A
+## freed view can't be cast, so it is checked first.
+static func _view_of(shown: Dictionary) -> ItemView:
+	var item: Variant = shown["view"]
+	if not is_instance_valid(item):
+		return null
+	return item as ItemView
 
 
 static func _sec(ms: int) -> float:

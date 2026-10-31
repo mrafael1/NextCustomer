@@ -220,8 +220,26 @@ extends Resource
 @export var cheer_frame_ms: int = 0
 @export var cheer_hop_ms: int = 0
 @export var cheer_stagger_ms: int = 0
-## A payout of 0 slumps the newest standee: it sags cheer_slump_px over cheer_slump_ms, then
-## sinks out of sight over cheer_sink_ms (a missed quota sinks the whole crowd).
+## Meeting the quota (the ding) pops cheer_quota_count more standees, the first at
+## cheer_quota_tier's scale and hop (v0.82).
+@export var cheer_quota_count: int = 0
+@export var cheer_quota_tier: int = 1
+## A passed verdict's final yay throws this many pieces of confetti from each standee's head.
+@export var cheer_confetti_count: int = 0
+## A missed verdict (v0.82): the crowd wilts, each standee leaning up to cheer_lean_deg, then
+## keels over flat in a wave over cheer_topple_ms each, cheer_topple_stagger_ms apart (the wave at
+## most cheer_topple_spread_ms long), each thud pitched from cheer_sad_pitch_from down to
+## cheer_sad_pitch_to along the wave, with cheer_dust_count pieces of dust.
+@export var cheer_lean_deg: float = 0.0
+@export var cheer_topple_ms: int = 0
+@export var cheer_topple_stagger_ms: int = 0
+@export var cheer_topple_spread_ms: int = 0
+@export var cheer_sad_pitch_from: float = 1.0
+@export var cheer_sad_pitch_to: float = 1.0
+@export var cheer_dust_count: int = 0
+## A failed payout of 0 (CountUpBeat.cheer_failed) slumps the newest standee: it sags
+## cheer_slump_px over cheer_slump_ms, then sinks out of sight over cheer_sink_ms (a missed quota
+## topples the whole crowd instead).
 @export var cheer_slump_px: int = 0
 @export var cheer_slump_ms: int = 0
 @export var cheer_sink_ms: int = 0

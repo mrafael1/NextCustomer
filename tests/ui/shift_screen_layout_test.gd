@@ -301,7 +301,8 @@ func test_the_shade_leaves_the_top_bar_uncovered() -> void:
 ## The top bar with its longest texts (#80 step 10): the last shift's quota with a 4-digit
 ## subtotal and the quota check, a 4-box loyalty chip, each inspection's chip (the longest name
 ## included), a full cart and a 10-digit seed. The chips stay on the stage above the shade line,
-## apart and in B2's order (SHIFT, QUOTA, inspection, LOYALTY, Cart, menu), each holding its text
+## apart and in B2's order (QUOTA, week, day, LOYALTY, Cart, menu; no SHIFT chip with weeks since
+## v0.82), each holding its text
 ## and icons; the quota bar keeps its room; the seed and build label stay under Redraw, clear of
 ## the hand, the keys and the receipt.
 func test_the_top_bar_fits_its_longest_texts() -> void:
@@ -345,8 +346,9 @@ func test_the_top_bar_fits_its_longest_texts() -> void:
 			else "Inspection · %s" % inspection.chip_text
 		)
 		assert_str(screen._inspection_tag.text()).is_equal(chip_text)
+		# With weeks the SHIFT chip is gone past the training week (v0.82).
+		assert_bool(top_bar.shift_chip.visible).is_false()
 		var parts: Array[Control] = [
-			screen._top_bar.get_child(0) as Control,
 			screen._top_bar.get_child(1) as Control,
 			top_bar.week_chip,
 			screen._inspection_tag,

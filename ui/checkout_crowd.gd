@@ -20,11 +20,13 @@ extends Control
 ## When: every paid item pops cheer_count standees (one more and bigger as the payout is bigger
 ## or a combo, CountUpTuning's cheer_*), the first at its tier's scale, with card_place pitched
 ## up per standee and tier, each rising into a hop as high as its tier and the ladder's note
-## (a crowd-wide hop leaves a standee alone while its pop runs); a payout of 0 (WASTED, denied)
-## slumps the newest one (card_return); the ding makes everyone hop; a passed verdict hops them
-## all, then folds them down before the printer feed; a missed one sinks them. The printer feed
-## and the count's end hard-hide the crowd, a new count clears it, and a resumed checkout
-## (CountUp.show_end_state) shows none.
+## (a crowd-wide hop leaves a standee alone while its pop runs); a payout of 0 that failed (its
+## own condition WASTED, or denied; CountUpBeat.cheer_failed: a coupon paying nothing of its own
+## does not) slumps the newest one (card_return); the ding makes everyone hop and pops
+## cheer_quota_count more (v0.82), on the crowd's own clock so the ding's hold doesn't freeze
+## them; a passed verdict hops them all, then folds them down before the printer feed; a missed
+## one topples them. The printer feed and the count's end hard-hide the crowd, a new count clears
+## it, and a resumed checkout (CountUp.show_end_state) shows none.
 ##
 ## Motion runs on the count-up's tweens (tween_maker: the ding's hit-stop freezes it, taps and
 ## holds speed it up), one tween per standee, killed and replaced, never stacked; reduced motion
@@ -83,6 +85,8 @@ var view_width: Callable
 ## Makes the standees' tweens (CountUp.tween_maker once it follows a count-up).
 var make_tween: Callable
 var reduced_motion: bool = false
+## The confetti the final yay throws (ShiftStage sets it: over the crowd, unclipped), or null.
+var confetti: CheerConfetti
 var _tuning: CountUpTuning
 var _count_up: CountUp
 ## The standees up, oldest first.
@@ -146,8 +150,9 @@ func begin(seed_value: int, reduced: bool) -> void:
 
 
 ## Pops `count` standees for a payout of `tier` (the first at its tier's scale), each hopping
-## for the ladder's `note` (-1: the latest gain beat's).
-func pop(tier: int, count: int, note: int = -1) -> void:
+## for the ladder's `note` (-1: the latest gain beat's); `own_clock`: on the crowd's own tweens
+## (the quota's pop, during the ding's hold), not the count's.
+func pop(tier: int, count: int, note: int = -1, own_clock: bool = false) -> void:
 	_fit_band()
 	var hop_px: float = _hop_px(tier, note if note >= 0 else _note)
 	for index: int in range(count):
@@ -169,7 +174,7 @@ func pop(tier: int, count: int, note: int = -1) -> void:
 			standee.level = 1.0
 			_play("card_place", pitch)
 			continue
-		var tween: Tween = _restart(standee)
+		var tween: Tween = _restart(standee, own_clock)
 		standee.popping = true
 		tween.tween_interval(index * _tuning.cheer_stagger_ms / 1000.0)
 		tween.tween_callback(_play.bind("card_place", pitch))
@@ -184,7 +189,7 @@ func pop(tier: int, count: int, note: int = -1) -> void:
 		tween.tween_callback(standee.end_pop)
 
 
-## A payout of 0: the newest standee sags, then sinks out of sight (an "aww").
+## A failed payout of 0: the newest standee sags, then sinks out of sight (an "aww").
 func slump() -> void:
 	if _standees.is_empty():
 		return
@@ -209,23 +214,49 @@ func hop_all() -> void:
 			_hop(_restart(standee), standee, _hop_px(standee.tier, _note))
 
 
-## A missed verdict: the whole crowd sinks.
-func sink_all() -> void:
-	if not _standees.is_empty():
-		_play("card_return", 1.0)
-	for standee: CheerStandee in _standees.duplicate():
-		_standees.erase(standee)
+## A missed verdict, the yay's sad mirror (v0.82): arms down, the whole crowd sags with an "aww"
+## (card_return) and wilts, each leaning up to cheer_lean_deg; then, in a wave from the register
+## side, each keels over flat onto its foot (cheer_topple_ms, cheer_topple_stagger_ms apart, the
+## wave at most cheer_topple_spread_ms long) with a thud pitched lower down the wave and a puff of
+## dust (`confetti`), and goes. Reduced motion: they go at once, with the "aww" alone.
+func topple_all() -> void:
+	if _standees.is_empty():
+		return
+	_play("card_return", _tuning.cheer_sad_pitch_from)
+	var wave: Array[CheerStandee] = _standees.duplicate()
+	wave.sort_custom(
+		func(a: CheerStandee, b: CheerStandee) -> bool: return a.position.x < b.position.x
+	)
+	_standees.clear()
+	var count: int = wave.size()
+	var step_ms: float = _tuning.cheer_topple_stagger_ms
+	if count > 1:
+		step_ms = minf(step_ms, _tuning.cheer_topple_spread_ms / float(count - 1))
+	for index: int in range(count):
+		var standee: CheerStandee = wave[index]
 		if reduced_motion:
 			_drop(standee)
-		else:
-			_sink(_restart(standee), standee)
+			continue
+		var share: float = 0.0 if count < 2 else float(index) / (count - 1)
+		var pitch: float = lerpf(_tuning.cheer_sad_pitch_from, _tuning.cheer_sad_pitch_to, share)
+		var lean: float = _tuning.cheer_lean_deg * (1.0 if _rng.randf() < 0.5 else -1.0)
+		_topple(_restart(standee), standee, index * step_ms / 1000.0, pitch, lean)
 
 
-## A passed verdict: everyone hops, then folds down cheer_fold_delay_ms later.
+## A passed verdict: everyone hops, throwing cheer_confetti_count pieces of confetti from its head
+## (`confetti`, when set), then folds down cheer_fold_delay_ms later.
 func cheer_and_fold() -> void:
 	if reduced_motion:
 		return
 	for standee: CheerStandee in _standees:
+		if confetti != null:
+			var rect: Rect2 = standee.visible_rect()
+			var head: Vector2 = position + Vector2(rect.get_center().x, rect.position.y)
+			var local: Vector2 = (
+				confetti.get_global_transform().affine_inverse()
+				* (get_global_transform() * (head - position))
+			)
+			confetti.burst(local, _tuning.cheer_confetti_count, _rng.randi())
 		var tween: Tween = _restart(standee)
 		_hop(tween, standee, _hop_px(standee.tier, _note))
 		var waited: float = _tuning.cheer_fold_delay_ms / 1000.0 - _hop_s()
@@ -275,6 +306,7 @@ func _on_count_started() -> void:
 
 func _on_quota_met(with_pop: bool) -> void:
 	if with_pop:
+		pop(_tuning.cheer_quota_tier, _tuning.cheer_quota_count, -1, true)
 		hop_all()
 
 
@@ -287,7 +319,7 @@ func _on_beat_started(
 		return
 	if beat.cheer_count > 0:
 		_pending = beat
-	else:
+	elif beat.cheer_failed:
 		slump()
 
 
@@ -301,7 +333,7 @@ func _on_total_landed() -> void:
 	if _count_up.plan.quota_reached:
 		cheer_and_fold()
 	else:
-		sink_all()
+		topple_all()
 
 
 ## Places `standee` (x seeded, standing height, the peek under `avoid`) out of sight.
@@ -426,6 +458,40 @@ func _hop_s() -> float:
 	return maxi(_tuning.cheer_hop_ms, _tuning.cheer_frame_ms) / 1000.0
 
 
+## One standee's miss: sag and wilt, wait `delay` s, then keel over with a thud at `pitch` and a
+## puff of dust, and go.
+func _topple(tween: Tween, standee: CheerStandee, delay: float, pitch: float, lean: float) -> void:
+	standee.set_cheering(false)
+	var sag_s: float = _tuning.cheer_slump_ms / 1000.0
+	tween.set_parallel(true)
+	tween.tween_property(standee, "hop", -_tuning.cheer_slump_px, sag_s).set_ease(Tween.EASE_OUT)
+	tween.tween_property(standee, "lean", lean, sag_s * 2.0).set_ease(Tween.EASE_OUT)
+	tween.set_parallel(false)
+	# After the wilt (the parallel steps, the lean's the longest), the wave's delay.
+	tween.tween_interval(maxf(delay, 0.001))
+	(
+		tween
+		. tween_property(standee, "fold", 0.0, _tuning.cheer_topple_ms / 1000.0)
+		. set_ease(Tween.EASE_IN)
+		. set_trans(Tween.TRANS_QUAD)
+	)
+	tween.tween_callback(_play.bind("card_place", pitch))
+	tween.tween_callback(_puff.bind(standee))
+	tween.tween_callback(_drop.bind(standee))
+
+
+## A puff of dust where `standee` hit the counter top.
+func _puff(standee: CheerStandee) -> void:
+	if confetti == null:
+		return
+	var rect: Rect2 = standee.visible_rect()
+	var foot: Vector2 = Vector2(rect.get_center().x, size.y - CheerConfetti.PIECE_HEIGHT)
+	var at: Vector2 = (
+		confetti.get_global_transform().affine_inverse() * (get_global_transform() * foot)
+	)
+	confetti.dust(at, _tuning.cheer_dust_count, _rng.randi())
+
+
 func _sink(tween: Tween, standee: CheerStandee) -> void:
 	(
 		tween
@@ -450,9 +516,9 @@ func _scale_of(tier: int) -> int:
 
 
 ## Kills `standee`'s tween and makes a new one bound to it (it dies with the standee).
-func _restart(standee: CheerStandee) -> Tween:
+func _restart(standee: CheerStandee, own_clock: bool = false) -> Tween:
 	standee.stop()
-	var tween: Tween = make_tween.call() as Tween
+	var tween: Tween = create_tween() if own_clock else make_tween.call() as Tween
 	tween.bind_node(standee)
 	standee.tween = tween
 	return tween

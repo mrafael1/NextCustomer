@@ -340,6 +340,7 @@ func _set_payouts(steps: Array[ScoreStep]) -> void:
 ## and whatever the reduced motion (it only makes them appear at once).
 func _set_cheer(steps: Array[ScoreStep], beat: CountUpBeat, big: float) -> void:
 	if beat.payout <= 0:
+		beat.cheer_failed = _failed(steps, beat)
 		return
 	var tier: int = 1
 	if beat.payout >= maxf(big, _tuning.cheer_huge_share * best):
@@ -355,6 +356,25 @@ func _set_cheer(steps: Array[ScoreStep], beat: CountUpBeat, big: float) -> void:
 	beat.cheer_tier = tier
 	var counts: PackedInt32Array = _tuning.cheer_counts
 	beat.cheer_count = counts[mini(tier, counts.size()) - 1] if not counts.is_empty() else 1
+
+
+## Whether the item of `beat` (a payout of 0) failed before its payout: a WASTED step it caused
+## itself, or an override (an inspection's denial).
+static func _failed(steps: Array[ScoreStep], beat: CountUpBeat) -> bool:
+	var paid_at: int = beat.steps[beat.steps.size() - 1]
+	for index: int in range(paid_at):
+		var step: ScoreStep = steps[index]
+		if step.slot != beat.slot:
+			continue
+		if step.step_type == ScoreStep.StepType.PAYOUT_OVERRIDE:
+			return true
+		if (
+			step.step_type == ScoreStep.StepType.WASTED
+			and step.source_kind == ScoreStep.SourceKind.CARD
+			and step.source_slot == beat.slot
+		):
+			return true
+	return false
 
 
 ## D1: gain beats climb the ladder, fitted to the row so the last gain lands on the top note

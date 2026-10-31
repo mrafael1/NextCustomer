@@ -29,7 +29,7 @@ COMMITTED = Path(__file__).resolve().parent.parent / "audio" / "sfx"
 ROUND_ROBIN = {"stamp": 3, "card_place": 4, "card_pickup": 3, "card_return": 2, "ui_click": 3,
                "coin": 3}
 SINGLE = ["scan", "print", "tick", "stamp_paid", "stamp_loyalty", "stamp_notice", "rattle_s",
-          "rattle_m", "rattle_l", "register_bell", "ding", "tag", "link", "copy", "fizzle",
+          "rattle_m", "rattle_l", "register_bell", "kaching", "ding", "tag", "link", "copy", "fizzle",
           "denied", "total", "miss", "pass", "fail", "rip", "armed", "slot_tick", "shuffle", "fan",
           "checkout", "ui_open", "ui_close", "ui_back", "ui_confirm", "ui_switch"]
 LADDER = ["G4", "A4", "C5", "D5", "E5", "G5", "A5", "C6", "D6", "E6", "G6"]

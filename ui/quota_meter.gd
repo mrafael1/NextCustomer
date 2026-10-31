@@ -16,7 +16,14 @@ extends HBoxContainer
 ## ding, or a projected total reaching it) a flag (QuotaFlag, with a drawn ✓) is planted at the
 ## quota, and the gauge re-scales to the amount, so the flag slides back and the gold carries on
 ## past it. Each gain sloshes its front and sprays droplets; bubbles drift and a shine sweeps
-## through the liquid; meeting the quota flashes it. The chip glows from NEAR_SHARE of the quota
+## through the liquid; meeting the quota flashes it.
+##
+## Laps (the quota crossing's E, docs/art/mockups/quota_crossing.html, approved by the user on
+## 2026-10-31): only while counting, once the amount reaches twice the quota the gauge stops
+## re-scaling. It flashes, banks in gold (BANKED_RAMP) and a new lap pours in over it toward the
+## next multiple (LAP_RAMP), the flag moves to the gauge's end naming it ("×3") and the tag reads
+## "€N to ×3"; each later multiple laps the same way. Every new lap emits lap_reached (the quota
+## crossing stamps it). The chip glows from NEAR_SHARE of the quota
 ## while short, and the amount punches on each gain. Reduced motion (`reduced_motion`) keeps the
 ## level, the flag and the glow (steady) and drops the slosh, the spray, the bubbles, the shine, the
 ## flag's planting and flapping and the punch.
@@ -27,6 +34,9 @@ extends HBoxContainer
 ## new stretch (paler green for a gain, a dark stretch for a loss). Both keep reserved widths, so
 ## the gauge never moves while a drag crosses the slots. Display only: the amounts are the
 ## screen's preview and the LED's.
+
+## The count's amount reached `lap` times the quota (2 or more): the gauge laps.
+signal lap_reached(lap: int)
 
 const SEPARATION := 8
 ## The gauge: at least this wide, 9 art pixels tall, with a 1 art pixel ink border; it draws in art
@@ -98,6 +108,14 @@ const NEAR_RAMP: Array[Color] = [Palette.MUSTARD, Palette.BRASS, Palette.BRASS_D
 const MET_RAMP: Array[Color] = [Palette.GREEN_LIGHT, Palette.GOOD, Palette.GREEN_DARK]
 const PAST_RAMP: Array[Color] = [Palette.MUSTARD_PALE, Palette.MUSTARD_LIGHT, Palette.MUSTARD]
 const STATUS_EASE_RATE := 6.0
+## Laps: the banked laps under the new one, and the new lap's liquid.
+const BANKED_RAMP: Array[Color] = [Palette.MUSTARD, Palette.MUSTARD_DARK, Palette.MUSTARD_DARKEST]
+const LAP_RAMP: Array[Color] = [Palette.MUSTARD_PALE, Palette.GOLD, Palette.MUSTARD_LIGHT]
+## The first lap: the amount at twice the quota.
+const FIRST_LAP := 2
+## The flag and the tag in laps: the next multiple and how far it is ("€12 to ×3").
+const LAP_FLAG_TEXT := "×%d"
+const LAP_TAG_TEXT := "€%d to ×%d"
 const BUBBLE_COLOR := Palette.PAPER
 ## A drag's preview: the stretch a drop would add (the ramp's top, see-through) and the one it
 ## would lose (its bottom).
@@ -133,6 +151,8 @@ var _blank: bool = true
 ## The quota is met: the count-up's ding while counting, the projected total reaching it in
 ## planning.
 var _met: bool = false
+## The lap shown (FIRST_LAP or more), 0 outside laps.
+var _lap: int = 0
 var _led: LedDisplay
 ## The amount drawn, eased (EASE_RATE).
 var _shown: float = 0.0
@@ -253,6 +273,19 @@ func fill() -> float:
 	return 0.0 if _blank else fill_fraction(_amount, _quota)
 
 
+## The lap shown (FIRST_LAP or more while counting at twice the quota or past it), else 0.
+func shown_lap() -> int:
+	return _lap
+
+
+## The laps the amount has made of the quota (whole multiples), 0 for a quota of 0. Display
+## arithmetic only.
+static func lap_of(amount: int, quota: int) -> int:
+	if quota <= 0:
+		return 0
+	return floori(float(maxi(amount, 0)) / quota)
+
+
 ## Whether the flag stands at the quota (the quota met).
 func flag_shown() -> bool:
 	return _flag.visible
@@ -282,8 +315,11 @@ static func delta_width() -> float:
 ## border.
 static func tag_width() -> float:
 	var font: Font = ArtStyle.bold_font(TAG_WEIGHT)
-	var text: String = TO_GO_TEXT % 0
-	var width: float = font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, TAG_FONT_SIZE).x
+	var width: float = 0.0
+	for text: String in [TO_GO_TEXT % 0, LAP_TAG_TEXT % [0, 99]]:
+		width = maxf(
+			width, font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, TAG_FONT_SIZE).x
+		)
 	var digit: float = font.get_string_size("0", HORIZONTAL_ALIGNMENT_LEFT, -1, TAG_FONT_SIZE).x
 	return ceilf(width + (TAG_DIGITS - 1) * digit + 2.0 * (TAG_PADDING + TAG_BORDER))
 
@@ -334,8 +370,9 @@ func _draw() -> void:
 
 
 ## Shows `amount` against `quota`, `met` or not: a gain sloshes and sprays, meeting the quota
-## plants the flag and flashes, a lower amount (a new count) empties the gauge at once.
-func _show(amount: int, quota: int, met: bool) -> void:
+## plants the flag and flashes, a lower amount (a new count) empties the gauge at once. While
+## `counting`, twice the quota and each multiple past it lap the gauge.
+func _show(amount: int, quota: int, met: bool, counting: bool = false) -> void:
 	var gain: int = amount - _amount
 	if _blank or gain < 0:
 		_shown = float(amount)
@@ -353,6 +390,7 @@ func _show(amount: int, quota: int, met: bool) -> void:
 	elif not met:
 		_flag.visible = false
 	_met = met
+	_set_lap(lap_of(amount, quota) if met and counting else 0)
 	amount_label.text = "€%d" % amount
 	delta_label.text = ""
 	_show_tag(amount, quota)
@@ -363,7 +401,29 @@ func _show(amount: int, quota: int, met: bool) -> void:
 	queue_redraw()
 
 
+## Laps from `lap` (under FIRST_LAP: none): a new lap flashes, plants the flag at the end naming
+## the next multiple and emits lap_reached.
+func _set_lap(lap: int) -> void:
+	if lap < FIRST_LAP:
+		lap = 0
+	if lap > _lap:
+		_flash = 1.0
+		_flag.lap_text = LAP_FLAG_TEXT % (lap + 1)
+		_flag.plant()
+		_lap = lap
+		lap_reached.emit(lap)
+	elif lap == 0:
+		_flag.lap_text = ""
+	_lap = lap
+
+
 func _show_tag(amount: int, quota: int) -> void:
+	if _lap > 0:
+		tag_label.text = LAP_TAG_TEXT % [(_lap + 1) * quota - amount, _lap + 1]
+		tag_label.visible = true
+		_tag_style.bg_color = Palette.MUSTARD
+		tag_label.add_theme_color_override("font_color", Palette.INK)
+		return
 	var margin: ShiftMargin = ShiftMargin.of(amount, quota)
 	tag_label.text = to_go_text(margin)
 	tag_label.visible = true
@@ -375,7 +435,8 @@ func _show_tag(amount: int, quota: int) -> void:
 
 func _on_reading(amount: int, quota: int, met: bool) -> void:
 	_hypothetical = -1
-	_show(amount, quota, met and _led != null and _counting(_led.mode()))
+	var counting: bool = _led != null and _counting(_led.mode())
+	_show(amount, quota, met and counting, counting)
 
 
 func _on_mode(mode: LedDisplay.Mode) -> void:
@@ -387,6 +448,8 @@ func _on_mode(mode: LedDisplay.Mode) -> void:
 		tag_label.text = ""
 		tag_label.visible = false
 		_met = false
+		_lap = 0
+		_flag.lap_text = ""
 		_flag.visible = false
 		_drops.clear()
 	_bar.queue_redraw()
@@ -422,6 +485,8 @@ func ramp() -> Array[Color]:
 ## The gauge's scale now: the quota while short, the larger of it and what shows once met.
 func _scale() -> float:
 	var top: float = float(_quota)
+	if _lap > 0:
+		return maxf(top, 1.0)
 	if _met:
 		top = maxf(top, _shown)
 		if _hypothetical >= 0:
@@ -438,7 +503,7 @@ func _place_flag() -> void:
 	if not _flag.visible:
 		return
 	var inner: float = _art_size().x - 2.0
-	var x: float = 1.0 + inner * minf(1.0, _quota / _scale())
+	var x: float = 1.0 + inner * (1.0 if _lap > 0 else minf(1.0, _quota / _scale()))
 	_flag.position = Vector2(roundf(x) * ArtStyle.ART_SCALE, 0.0)
 	_flag.set_pole(_bar.size.y)
 
@@ -481,6 +546,8 @@ func _move_drops(delta: float) -> void:
 ## The liquid's front, in art pixels from the gauge's left.
 func _front() -> float:
 	var inner: float = _art_size().x - 2.0
+	if _lap > 0:
+		return 1.0 + inner * clampf((_shown - _lap * _quota) / _scale(), 0.0, 1.0)
 	return 1.0 + inner * minf(_shown, _scale()) / _scale()
 
 
@@ -495,7 +562,7 @@ func _draw_bar() -> void:
 	var reduced: bool = _reduced()
 	var inner: float = art.x - 2.0
 	var front: float = _front()
-	var flag_x: float = 1.0 + inner * minf(1.0, _quota / _scale()) if _met else INF
+	var flag_x: float = 1.0 + inner * minf(1.0, _quota / _scale()) if _met and _lap == 0 else INF
 	var preview_x: float = -1.0
 	if _hypothetical >= 0:
 		preview_x = 1.0 + inner * minf(float(_hypothetical), _scale()) / _scale()
@@ -505,6 +572,10 @@ func _draw_bar() -> void:
 			wobble = _slosh * sin(y * 0.9 + _time * 14.0) + RIPPLE * sin(y * 0.5 - _time * 6.0)
 		var end: float = clampf(front + wobble, 1.0, art.x - 1.0)
 		var row: int = 0 if y < 3 else (2 if y >= art.y - 3 else 1)
+		if _lap > 0:
+			_span(1.0, art.x - 1.0, y, BANKED_RAMP[row])
+			_span(1.0, end, y, LAP_RAMP[row])
+			continue
 		_span(1.0, minf(end, flag_x), y, _ramp[row])
 		if end > flag_x:
 			_span(flag_x, end, y, PAST_RAMP[row])

@@ -1,11 +1,12 @@
 extends GdUnitTestSuite
 ## The checkout cheering (#120, CheckoutCrowd) on the real shift screen and alone: every paid item
 ## pops its plan's standees; on every frame of the count each standee's ink stays inside the crowd's
-## band and never reaches the hung monitor (its rods and under-strip included, hops too); the
-## crowd draws over the back wall and the RECEIPT REWARDS machine and under the monitor and the
-## fore (the belt, the items, the receipt), the hud (the top bar) and the overlay (the payout
-## flights), taking no clicks; a passed verdict folds it down before the printer feed, which hides
-## it; a payout of 0 slumps the newest standee and a missed verdict sinks them all; reduced motion
+## band and never reaches the hung monitor (its rods and under-strip included, hops too); the crowd
+## draws over the back wall and the RECEIPT REWARDS machine and under the monitor and the fore (the
+## belt, the items, the receipt), the hud (the top bar) and the overlay (the payout flights), taking
+## no clicks; a passed verdict folds it down before the printer feed, which hides it; a failed
+## payout of 0 slumps the newest standee, a coupon paying nothing of its own slumps none, meeting
+## the quota pops cheer_quota_count more, and a missed verdict topples them all; reduced motion
 ## makes no tween; a resumed checkout shows none. Alone: a hop never kills a running pop, the
 ## lifecycle's tweens replace each other, placement is seeded, fills the gaps before overlapping,
 ## prefers ink that shows (not behind the receipt or the bag) and spans a wider window. The real
@@ -30,9 +31,15 @@ var _peak: int = 0
 var _tweened: bool = false
 ## Just before the crowd's own printer feed handler: [visible, standees up, folds not yet 0].
 var _at_feed: Array = []
-## Standees up at the last payout landed, and each slump seen as [before, after].
+## Standees up at the last payout landed, and each slump seen as [before, after]; each payout of
+## 0 that didn't fail (a coupon's) as [before, after].
 var _last_up: int = 0
 var _slumps: Array[Array] = []
+var _kept: Array[Array] = []
+## At the quota's pop: [standees before, after].
+var _at_quota: Array[int] = []
+## The confetti's pieces at the printer feed (the final yay threw them).
+var _confetti_at_feed: int = -1
 ## Standees up just after the total landed.
 var _at_total: int = -1
 ## Tweens made by a bare crowd (_recording).
@@ -49,6 +56,9 @@ func before_test() -> void:
 	_at_feed = []
 	_last_up = 0
 	_slumps.clear()
+	_kept.clear()
+	_at_quota.clear()
+	_confetti_at_feed = -1
 	_at_total = -1
 	_tweens.clear()
 
@@ -73,14 +83,25 @@ func test_the_crowd_grows_clear_of_the_monitor_and_is_gone_at_the_printer_feed()
 		if beat.payout > 0:
 			assert_int(beat.cheer_count).is_greater(0)
 			expected += beat.cheer_count
-	assert_int(crowd._popped).is_equal(expected)
 	assert_int(_peak).is_greater(1)
 	assert_bool(_tweened).is_true()
+	# Meeting the quota popped cheer_quota_count more (v0.82).
+	var tuning: CountUpTuning = load(CountUp.TUNING_PATH) as CountUpTuning
+	assert_int(_at_quota.size()).is_equal(2)
+	assert_int(_at_quota[1] - _at_quota[0]).is_equal(tuning.cheer_quota_count)
+	expected += tuning.cheer_quota_count
+	# Multipack (a coupon) pays nothing of its own: no slump.
+	assert_int(_kept.size()).is_greater(0)
+	for kept: Array in _kept:
+		assert_int(kept[1]).is_equal(kept[0])
+	assert_int(crowd._popped).is_equal(expected)
 	# The passed verdict folded the whole crowd down before the printer feed...
 	assert_int(_at_feed.size()).is_equal(3)
 	assert_bool(_at_feed[0]).is_true()
 	assert_int(_at_feed[1]).is_greater(0)
 	assert_int(_at_feed[2]).is_equal(0)
+	# The final yay threw confetti, still flying at the feed.
+	assert_int(_confetti_at_feed).is_greater(0)
 	# ...which hid it, before the camera's glide to the machine.
 	assert_bool(crowd.visible).is_false()
 	assert_int(_shown(crowd)).is_equal(0)
@@ -114,6 +135,7 @@ func test_reduced_motion_makes_no_tween() -> void:
 	assert_array(_bad).override_failure_message("\n".join(_bad)).is_empty()
 	assert_int(_peak).is_greater(1)
 	assert_bool(_tweened).is_false()
+	assert_int(crowd.confetti.pieces()).is_equal(0)
 	assert_bool(crowd.visible).is_false()
 
 
@@ -242,7 +264,7 @@ func test_a_pop_hops_higher_for_a_bigger_payout() -> void:
 	assert_float(peaks[1]).is_greater(peaks[0])
 
 
-func test_a_passed_verdict_folds_everyone_and_a_missed_one_sinks_them() -> void:
+func test_a_passed_verdict_folds_everyone_and_a_missed_one_topples_them() -> void:
 	var tuning: CountUpTuning = load(CountUp.TUNING_PATH)
 	var crowd: CheckoutCrowd = _bare(8)
 	crowd.pop(2, 3)
@@ -255,12 +277,25 @@ func test_a_passed_verdict_folds_everyone_and_a_missed_one_sinks_them() -> void:
 		assert_float(standee.fold).is_equal(0.0)
 	crowd.begin(9, false)
 	assert_int(_shown(crowd)).is_equal(0)
+	var confetti: CheerConfetti = auto_free(CheerConfetti.new())
+	add_child(confetti)
+	crowd.confetti = confetti
 	crowd.pop(1, 4)
+	for standee: CheerStandee in crowd.standees():
+		_finish(standee.tween)
 	var sunk: Array[CheerStandee] = crowd.standees()
-	crowd.sink_all()
+	crowd.topple_all()
 	assert_int(crowd.standees().size()).is_equal(0)
+	# The miss (v0.82): arms down, each wilts with a lean, then keels over flat with a dust puff.
+	var wilt_s: float = tuning.cheer_slump_ms * 2.0 / 1000.0
+	for standee: CheerStandee in sunk:
+		assert_bool(standee.is_cheering()).is_false()
+		standee.tween.custom_step(wilt_s + 0.001)
+		assert_float(absf(standee.lean)).is_equal_approx(tuning.cheer_lean_deg, 0.01)
+		assert_float(standee.fold).is_equal(1.0)
 	for standee: CheerStandee in sunk:
 		_finish(standee.tween)
+	assert_int(confetti.pieces()).is_greater_equal(tuning.cheer_dust_count)
 	assert_int(_shown(crowd)).is_equal(0)
 	# The dropped standees free at the frame's end.
 	await _frames(1)
@@ -354,6 +389,17 @@ func _play(screen: ShiftScreen, reduced: bool, quota: int = QUOTA) -> void:
 	)
 	count_up.beat_started.connect(_on_beat.bind(crowd))
 	count_up.total_landed.connect(func() -> void: _at_total = crowd.standees().size())
+	# The standees just before and just after the crowd's own quota handler.
+	var ahead: Callable = func(with_pop: bool) -> void:
+		if with_pop:
+			_at_quota.append(crowd.standees().size())
+	var behind: Callable = func(with_pop: bool) -> void:
+		if with_pop:
+			_at_quota.append(crowd.standees().size())
+	count_up.quota_met.disconnect(crowd._on_quota_met)
+	count_up.quota_met.connect(ahead)
+	count_up.quota_met.connect(crowd._on_quota_met)
+	count_up.quota_met.connect(behind)
 	get_tree().process_frame.connect(_sample.bind(crowd))
 	count_up.play(
 		screen.run.preview(),
@@ -370,6 +416,7 @@ func _on_feed(crowd: CheckoutCrowd) -> void:
 		if standee.fold > 0.0:
 			unfolded += 1
 	_at_feed = [crowd.visible, crowd.standees().size(), unfolded]
+	_confetti_at_feed = crowd.confetti.pieces() if crowd.confetti != null else -1
 
 
 ## After the crowd's handler (connected first): a payout beat of 0 has slumped the newest.
@@ -382,7 +429,11 @@ func _on_beat(
 	crowd: CheckoutCrowd
 ) -> void:
 	if CountUpPlan.is_payout_beat(beat) and beat.cheer_count == 0 and _last_up > 0:
-		_slumps.append([_last_up, crowd.standees().size()])
+		var pair: Array = [_last_up, crowd.standees().size()]
+		if beat.cheer_failed:
+			_slumps.append(pair)
+		else:
+			_kept.append(pair)
 		_last_up = crowd.standees().size()
 
 

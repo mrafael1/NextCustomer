@@ -12,26 +12,27 @@ extends Control
 ## visits (the fore drops out of frame: set_fore_drop). The stage keeps the `hud`, which never
 ## zooms: the top bar, the scan layer and the popup layer. Every Rect2 below is in stage coordinates
 ## (the world's at 1x), except the MACHINE_* rects the camera puts on screen.  On the stage, back to
-## front: the checkout cheering's standees (CheckoutCrowd, #120)
-## on the back wall, the hung monitor (MonitorView: two rods, its bezel and paper screen, with the scanner bay,
-## the item column, the checkout column and the notices on it), the register (RegisterCabinet, the
-## count-up's rattle target: the printer box on the counter top and the register column under it,
-## with the key deck and its keys, Cancel, Redraw and CHECKOUT, the keypad, the seed line under
-## Redraw and the cash drawer), the receipt rising from the printer's slot, the bagging shelf behind
-## the belt's first cell with the store's kraft bag on it (PaperBag, #86 v6 and #123: the counted
-## items go in), the belt (BeltPanel: the steel guard, the rubber top face, the lip, the apron and
-## the price rail, then the row of items standing on the belt with their tickets on the rail), the
-## planning layer (PlanningLayer: #71's stickers, stamps and pay tags over the items), the top bar
-## (TopBar: the SHIFT, QUOTA, inspection and LOYALTY chips, Cart and the menu with Export log, all
-## above PANEL_TOP), the hand's baskets on the steel ledge (HandBaskets: their backs, the hand in
-## them, the basket redraw's pop layer, their fronts, and the redraw's targets and tags,
-## BasketTags), the shade that darkens them while counting and the redraw layer (the basket redraw's
-## flights into the Cart and its sparks, over the top bar). Over the fore's parts the count's rail
-## light (RailLight, #86 kept by #105 piece 2: the price rail lit gold from a giver's ticket to its
-## target's). Over them all the scan layer (ScanOverlay: the scan's brackets and beam) and the popup
-## layer, all taking no clicks. A belt or hand item's scan shows on the monitor (#80); the popup
-## layer only parks the hidden scan popup, which opens over the offers alone, in the layer an
-## offer's scan moves it to (ScanController.cover_offers).  The receipt stands on the printer's slot
+## front: the checkout cheering's standees (CheckoutCrowd, #120) on the back wall, the hung monitor
+## (MonitorView: two rods, its bezel and paper screen, with the scanner bay, the item column, the
+## checkout column and the notices on it), the register (RegisterCabinet, the count-up's rattle
+## target: the printer box on the counter top and the register column under it, with the key deck
+## and its keys, Cancel, Redraw and CHECKOUT, the keypad, the seed line under Redraw and the cash
+## drawer), the receipt rising from the printer's slot, the bagging shelf behind the belt's first
+## cell with the store's kraft bag on it (PaperBag, #86 v6 and #123: the counted items go in), the
+## belt (BeltPanel: the steel guard, the rubber top face, the lip, the apron and the price rail,
+## then the row of items standing on the belt with their tickets on the rail), the planning layer
+## (PlanningLayer: #71's stickers, stamps and pay tags over the items), the top bar (TopBar: the
+## SHIFT, QUOTA, inspection and LOYALTY chips, Cart and the menu with Export log, all above
+## PANEL_TOP), the hand's baskets on the steel ledge (HandBaskets: their backs, the hand in them,
+## the basket redraw's pop layer, their fronts, and the redraw's targets and tags, BasketTags), the
+## shade that darkens them while counting and the redraw layer (the basket redraw's flights into the
+## Cart and its sparks, over the top bar). Over the fore's parts the quota crossing's bonus lights
+## (BonusLights) and the count's rail light (RailLight, #86 kept by #105 piece 2: the price rail lit
+## gold from a giver's ticket to its target's). Over them all the quota crossing (QuotaCrossing: its
+## flag, streak and lap stamps), the scan layer (ScanOverlay: the scan's brackets and beam) and the
+## popup layer, all taking no clicks. A belt or hand item's scan shows on the monitor (#80); the
+## popup layer only parks the hidden scan popup, which opens over the offers alone, in the layer an
+## offer's scan moves it to (ScanController.cover_offers). The receipt stands on the printer's slot
 ## and grows up as its lines print, up to under the top bar; past that it scrolls to its newest
 ## line.  It only builds and lays out: the screen fills the controls, and its buttons emit the
 ## signals below. Its controls are public on purpose: the stage is ShiftScreen's layout part (as
@@ -198,6 +199,10 @@ var bag: PaperBag
 ## popup opens in.
 ## The count's rail light over the price rail (#105 piece 2), last in the fore.
 var rail_light: RailLight
+## The quota crossing (A, B and E over the stage) and its bonus lights on the rail (D, in the fore
+## under the rail light).
+var quota_crossing: QuotaCrossing
+var bonus_lights: BonusLights
 var scan_layer: ScanOverlay
 var popup_layer: Control
 var notice_label: NoticeLabel
@@ -239,6 +244,9 @@ func _init(slot_count: int) -> void:
 	fore = _layer("Fore")
 	crowd = CheckoutCrowd.new()
 	world.add_child(crowd)
+	crowd.confetti = CheerConfetti.new()
+	crowd.confetti.size = SIZE
+	world.add_child(crowd.confetti)
 	_build_monitor()
 	world.add_child(fore)
 	_build_register()
@@ -247,6 +255,12 @@ func _init(slot_count: int) -> void:
 	_build_counter()
 	_build_keys()
 	_build_scan_layers()
+
+
+## Follows `count_up`'s checkouts: the checkout cheering's standees (#120) and the quota crossing.
+func follow_count(count_up: CountUp) -> void:
+	crowd.follow(count_up)
+	quota_crossing.follow(count_up, top_bar.quota_meter, bonus_lights)
 
 
 ## Puts the machine in the store right of the stage, behind the fore, at half size.
@@ -404,12 +418,18 @@ func _build_keys() -> void:
 	seed_label = cabinet.seed_label
 
 
-## The rail light (last in the fore), then the scan layer and the popup layer (where the hidden
-## scan popup waits) over the whole stage.
+## The bonus lights and the rail light (last in the fore), then the quota crossing, the scan layer
+## and the popup layer (where the hidden scan popup waits) over the whole stage.
 func _build_scan_layers() -> void:
+	bonus_lights = BonusLights.new()
+	bonus_lights.size = SIZE
+	fore.add_child(bonus_lights)
 	rail_light = RailLight.new()
 	rail_light.size = SIZE
 	fore.add_child(rail_light)
+	quota_crossing = QuotaCrossing.new()
+	quota_crossing.size = SIZE
+	add_child(quota_crossing)
 	scan_layer = ScanOverlay.new()
 	scan_layer.name = "ScanLayer"
 	scan_layer.size = SIZE
