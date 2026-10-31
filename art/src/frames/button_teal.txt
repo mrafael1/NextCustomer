@@ -1,0 +1,16 @@
+; The primary button (button) in teal (#121 polish, v0.78: the TOY MACHINES' FIGURINE SHELF,
+; DONE's family): a pale top row, a light left edge, a teal face, a shade right edge and bottom
+; row and a dark ledge, in an ink outline. A 9-slice like button.
+@size 10x10
+@kind frame
+@scale 2
+.########.
+#66666666#
+#54444443#
+#54444443#
+#54444443#
+#54444443#
+#54444443#
+#33333333#
+#22222222#
+.########.

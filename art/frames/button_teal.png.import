@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://rkdjrl85snqr"
-path="res://.godot/imported/menu_plate_lit.png-d0abf5e805fadca2daa146ba3512cbee.ctex"
+uid="uid://bctf5hrjx5jed"
+path="res://.godot/imported/button_teal.png-96933e444f9cdd2ddf0b022fb555c815.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://art/frames/menu_plate_lit.png"
-dest_files=["res://.godot/imported/menu_plate_lit.png-d0abf5e805fadca2daa146ba3512cbee.ctex"]
+source_file="res://art/frames/button_teal.png"
+dest_files=["res://.godot/imported/button_teal.png-96933e444f9cdd2ddf0b022fb555c815.ctex"]
 
 [params]
 

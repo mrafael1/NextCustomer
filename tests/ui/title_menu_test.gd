@@ -38,6 +38,12 @@ func test_the_plates_stand_on_the_brick() -> void:
 	var plates: Array[MenuPlate] = [primary, menu.plate(TitleMenu.Entry.NEW_RUN), rewards]
 	for i: int in plates.size() - 1:
 		assert_float(plates[i + 1].position.y).is_greater_equal(plates[i].get_rect().end.y)
+	# NEW RUN and REWARDS are the teal plate (v0.80: the primary's family, no aisle stripe).
+	for plate: MenuPlate in [plates[1], rewards]:
+		var style: StyleBoxTexture = plate.face().get_theme_stylebox("panel") as StyleBoxTexture
+		assert_object(style.texture).is_same(MenuPlate.PLATE_FRAME)
+		var ink: Color = plate.caption_label().get_theme_color("font_color")
+		assert_object(ink).is_equal(Palette.PAPER)
 	var fresh: TitleMenu = auto_free(TitleMenu.new(false, "12 SHIFTS", 0))
 	assert_array(fresh.entries()).is_equal([TitleMenu.Entry.PRIMARY, TitleMenu.Entry.REWARDS])
 	assert_str(fresh.plate(TitleMenu.Entry.PRIMARY).caption).is_equal("START RUN")

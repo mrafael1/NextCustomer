@@ -2,14 +2,15 @@ class_name StorefrontArt
 extends RefCounted
 ## The title's storefront at night (#56, mock-up title_premium_directions.html, direction C+),
 ## painted once into images on the 640x360 art grid (one art px = ArtStyle.ART_SCALE canvas px)
-## and shown with nearest filtering by Storefront. Every colour is the palette's; the only
-## blends are the night haze on the window's shelf minis (drawn in code, as the art's haze
-## always is). The painting follows the mock-up's canvas code rect for rect, in stage art
-## coordinates (the 640x360 stage's top left is 0,0).
+## and shown with nearest filtering by Storefront. Every colour is the palette's. The painting
+## follows the mock-up's canvas code rect for rect, in stage art coordinates (the 640x360
+## stage's top left is 0,0).
 ##
 ## The backdrop holds everything that never changes: the sky and its stars, the cornice, the
-## brick, the fascia with its teal and tomato stripe and brass rail, the sconce, the left window's
-## shelves, the doors' warm inside (the leaves are a layer), the right window with its tube off,
+## brick, the fascia with its teal and tomato stripe and brass rail (since v0.80 it ends left of
+## the REWARDS bay), the sconce, the left window's shelves, the doors' warm inside (the leaves are
+## a layer), the right window with its tube off (the store's light dimmed; since v0.80 both
+## windows show the same warm store as the doors, the left one's shelves stocked row by row),
 ## the sidewalk and the street. It is painted as wide and tall as the window needs (`extend`), so
 ## the sky, the brick and the street run on past the stage with no letterbox gap. The live parts
 ## are separate layers, each painted at its own rect: the sconce's light wedge, the right window
@@ -69,11 +70,26 @@ const STAR_GOLD_EVERY := 3
 const STAR_HIDDEN_EVERY := 9
 ## The sky above a tall window's stage repeats the stars in bands this many rows high.
 const STAR_BAND := 40
-## The shelf minis' night haze behind the left window's glass (the mock-up's teal black at 35 %).
-const SHELF_HAZE := 0.35
+## The fascia (stage art px): centred over the doors, clear of the REWARDS bay.
+const FASCIA_RECT := Rect2i(140, 48, 360, 68)
 const MINI_PATH := "res://art/minis/%s.png"
-const WINDOW_MINIS: Array[String] = ["milk", "banana", "bread", "butter"]
-const DOOR_MINIS: Array[String] = ["milk", "bread", "banana", "butter"]
+## The left window's four shelves, top to bottom, each its own aisle (v0.80: no shelf repeats
+## another); a shelf of five sits its minis WINDOW_GAPS[1] apart, one of four WINDOW_GAPS[0].
+const WINDOW_SHELVES: Array[String] = [
+	"milk cheese eggs yogurt butter",
+	"banana lemon strawberries potatoes",
+	"bread croissant baguette scone iced_bun",
+	"coffee tea_bags soup cereal",
+]
+const WINDOW_GAPS: Array[int] = [13, 11]
+## The doors' aisles: the left one's two shelves, then the right one's (two minis a shelf).
+const DOOR_MINIS: Array[String] = [
+	"milk", "cheese", "bread", "croissant", "banana", "lemon", "coffee", "cereal"
+]
+## The store's lit back wall in 20-row bands, top down (the doors' and the windows').
+const STORE_BANDS: Array[Color] = [
+	Palette.MUSTARD_LIGHT, Palette.MUSTARD_PALE, Palette.PLASTER_LIGHT, Palette.PLASTER
+]
 ## The till letters (3x5) of the props' small lettering: the bay's REWARDS vinyl, the poster's
 ## LOYAL and SOON, the doors' OPEN, register 3's number and the sign's € tag.
 const TILL: Dictionary[String, String] = {
@@ -286,6 +302,11 @@ func _stars(span: Vector2i) -> void:
 				px(x, y, Palette.TEAL_LIGHT if i % STAR_GOLD_EVERY else Palette.MUSTARD_PALE)
 
 
+## Star `i`'s place on the stage (art px), as _stars paints it.
+static func star_at(i: int) -> Vector2i:
+	return Vector2i((i * STAR_STEP) % STAGE.x, (i * STAR_ROW_STEP) % STAR_ROWS + 2)
+
+
 ## The brick between rows `rows` (top, bottom) across `span` (left, width): the velvet mortar,
 ## the bricks in rows, every other row half a brick over, then the night's one-in-four dither.
 func _brick(span: Vector2i, rows: Vector2i) -> void:
@@ -308,13 +329,15 @@ func _brick(span: Vector2i, rows: Vector2i) -> void:
 ## The fascia: an ink frame round the teal black board, its top shadow, the teal and tomato
 ## stripe along its foot and the brass rail under it (the neon sign is a layer).
 func _fascia() -> void:
-	rect(Rect2i(112, 48, 416, 68), Palette.INK)
-	rect(Rect2i(113, 49, 414, 66), Palette.TEAL_BLACK)
-	rect(Rect2i(115, 51, 410, 2), Palette.BACKGROUND)
-	rect(Rect2i(113, 105, 414, 2), Palette.TEAL_SHADE)
-	rect(Rect2i(113, 107, 414, 3), Palette.TOMATO_DARK)
-	rect(Rect2i(110, 114, 420, 2), Palette.BRASS)
-	rect(Rect2i(110, 116, 420, 1), Palette.BRASS_DARK)
+	var x: int = FASCIA_RECT.position.x
+	var w: int = FASCIA_RECT.size.x
+	rect(FASCIA_RECT, Palette.INK)
+	rect(FASCIA_RECT.grow(-1), Palette.TEAL_BLACK)
+	rect(Rect2i(x + 3, 51, w - 6, 2), Palette.BACKGROUND)
+	rect(Rect2i(x + 1, 105, w - 2, 2), Palette.TEAL_SHADE)
+	rect(Rect2i(x + 1, 107, w - 2, 3), Palette.TOMATO_DARK)
+	rect(Rect2i(x - 2, 114, w + 4, 2), Palette.BRASS)
+	rect(Rect2i(x - 2, 116, w + 4, 1), Palette.BRASS_DARK)
 
 
 ## A window's steel frame round its dark glass.
@@ -332,30 +355,44 @@ func _glints(area: Rect2i) -> void:
 	rect(Rect2i(area.position.x, area.end.y - 4, area.size.x, 4), Palette.STEEL_DARK)
 
 
-## The left window: four shelves of minis, hazed, behind dithered glass.
+## The left window: the lit store behind the glass and four shelves of minis, one aisle each.
 func _window_shelves(area: Rect2i) -> void:
 	_pane(area)
-	dither(area.grow(-2), Palette.BACKGROUND, 2)
+	_store_wall(area.grow(-2), true)
 	var x: int = area.position.x
-	for row: int in 4:
+	for row: int in WINDOW_SHELVES.size():
 		var shelf_y: int = area.position.y + 34 + row * 34
-		rect(Rect2i(x + 4, shelf_y, area.size.x - 8, 2), Palette.STEEL_DARK)
-		for i: int in WINDOW_MINIS.size():
-			var shelf_mini: Texture2D = load(MINI_PATH % WINDOW_MINIS[i]) as Texture2D
-			blit(shelf_mini, x + 7 + i * 13 + (row % 2) * 4, shelf_y - 7, SHELF_HAZE)
+		rect(Rect2i(x + 4, shelf_y, area.size.x - 8, 2), Palette.BROWN)
+		var names: PackedStringArray = WINDOW_SHELVES[row].split(" ")
+		var five: bool = names.size() > 4
+		var gap: int = WINDOW_GAPS[1] if five else WINDOW_GAPS[0]
+		var left: int = x + (5 if five else 7 + (row % 2) * 4)
+		for i: int in names.size():
+			blit(load(MINI_PATH % names[i]) as Texture2D, left + i * gap, shelf_y - 7)
 	_glints(area)
 
 
-## The right window: register 3 in silhouette under its tube, lit (`lit`: the tube glows over
-## dithered light, the monitor's glass is slate) or off.
+## The store's lit inside over `area`: STORE_BANDS down from its top, the plaster shade under
+## them; `glass` dithers the window's pale glass over it.
+func _store_wall(area: Rect2i, glass: bool) -> void:
+	rect(area, Palette.PLASTER_SHADE)
+	for i: int in STORE_BANDS.size():
+		rect(Rect2i(area.position.x, area.position.y + i * 20, area.size.x, 20), STORE_BANDS[i])
+	if glass:
+		dither(area, Palette.TEAL_PALE, 1)
+
+
+## The right window: register 3 in silhouette against the lit store under its tube, lit (`lit`:
+## the tube glows, the monitor's glass is slate) or off (the tube dark, the store's light dimmed
+## by a plaster-dark dither).
 func _window_register(area: Rect2i, lit: bool) -> void:
 	_pane(area)
 	var x: int = area.position.x
 	var y: int = area.position.y
+	_store_wall(area.grow(-2), true)
+	if not lit:
+		dither(area.grow(-2), Palette.PLASTER_DARK, 2)
 	rect(Rect2i(x + 20, y + 12, 84, 3), Palette.GLASS_GLOW if lit else Palette.TEAL_SHADE)
-	if lit:
-		dither(Rect2i(x + 4, y + 15, area.size.x - 8, 40), Palette.TEAL_SHADE, 2)
-		dither(Rect2i(x + 4, y + 55, area.size.x - 8, 50), Palette.TEAL_SHADE, 1)
 	rect(Rect2i(x + 30, y + 78, 30, 20), Palette.CHARCOAL)
 	rect(Rect2i(x + 32, y + 80, 26, 14), Palette.SLATE if lit else Palette.SLATE_DARK)
 	rect(Rect2i(x + 43, y + 98, 4, 22), Palette.CHARCOAL)
@@ -374,12 +411,7 @@ func _doors_inside(area: Rect2i) -> void:
 	var w: int = area.size.x
 	rect(Rect2i(x - 2, y - 4, w + 4, area.size.y + 4), Palette.STEEL_DARKEST)
 	rect(Rect2i(x - 2, y - 4, w + 4, 2), Palette.STEEL_SHADE)
-	var bands: Array[Color] = [
-		Palette.MUSTARD_LIGHT, Palette.MUSTARD_PALE, Palette.PLASTER_LIGHT, Palette.PLASTER
-	]
-	for i: int in bands.size():
-		rect(Rect2i(x, y + i * 20, w, 20), bands[i])
-	rect(Rect2i(x, y + 80, w, 80), Palette.PLASTER_SHADE)
+	_store_wall(area, false)
 	for tile_y: int in range(y + 100, area.end.y, 8):
 		var start: int = x if floori(tile_y / 8.0) % 2 else x + 8
 		for tile_x: int in range(start, area.end.x, 16):
@@ -390,9 +422,10 @@ func _doors_inside(area: Rect2i) -> void:
 			rect(Rect2i(x + side, y + 44 + row * 16, 26, 2), Palette.BROWN)
 	for i: int in DOOR_MINIS.size():
 		var aisle_mini: Texture2D = load(MINI_PATH % DOOR_MINIS[i]) as Texture2D
-		var row: int = floori(i / 2.0)
-		blit(aisle_mini, x + 8 + (i % 2) * 11, y + 37 + row * 16)
-		blit(aisle_mini, x + 75 + (i % 2) * 11, y + 53 + row * 16)
+		var right: bool = i >= 4
+		var row: int = floori((i % 4) / 2.0)
+		var left: int = x + (75 if right else 8) + (i % 2) * 11
+		blit(aisle_mini, left, y + (53 if right else 37) + row * 16)
 	rect(Rect2i(x + 40, y + 50, 24, 4), Palette.TEAL)
 	till("OPEN", x + 52, y + 46, Palette.TOMATO, "c")
 
