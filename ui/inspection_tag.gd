@@ -10,7 +10,8 @@ extends PanelContainer
 ##
 ## The day chip (v0.70, the time card): with a day (a balance with weeks) it leads with "D3" in
 ## the number font and stays visible on a day without an event, grey with "Normal day"; a Manager's
-## review's chip is mustard. Tapping it reopens the time card in planning (`pressed`).
+## review's chip is mustard. Tapping it drops today's slip under it in planning (`pressed`,
+## DaySlip; 2026-10-31, the week chip keeps the time card).
 ##
 ## Planning effects (#71): hovering it reports hovered / unhovered (its tooltip stays);
 ## set_relation rings it in gold and, for an inspection that causes the hovered item's effect,
@@ -26,7 +27,7 @@ extends PanelContainer
 ## The pointer entered or left the tag.
 signal hovered
 signal unhovered
-## The chip was tapped (v0.70: the time card reopens).
+## The chip was tapped (today's slip drops, DaySlip).
 signal pressed
 
 ## The bonus ticket's pill: none, promised for a pass, or earned by the pass.

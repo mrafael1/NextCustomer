@@ -117,8 +117,8 @@ func test_the_chips_lay_out_in_the_top_bar() -> void:
 	_assert_chips_fit(screen)
 
 
-## Tapping the week chip, or the day chip, reopens the whole card in planning (open until
-## tapped); tapping the card flies it back into the chip.
+## Tapping the week chip reopens the whole card in planning (open until tapped); tapping the card
+## flies it back into the chip. The day chip drops today's slip instead (DaySlip, day_slip_test).
 func test_a_chip_tap_reopens_the_card_and_a_tap_closes_it() -> void:
 	var runner: GdUnitSceneRunner = scene_runner(SCREEN)
 	var screen: ShiftScreen = runner.scene()
@@ -126,7 +126,10 @@ func test_a_chip_tap_reopens_the_card_and_a_tap_closes_it() -> void:
 	await _frames(2)
 	var card: WeekCard = screen._week.card
 	var bar: TopBar = screen._stage.top_bar
-	for chip: Control in [bar.week_chip, bar.inspection_tag]:
+	bar.inspection_tag.call("_gui_input", _left_click())
+	assert_bool(card.is_open()).override_failure_message("the day chip").is_false()
+	screen._week.slip.clear()
+	for chip: Control in [bar.week_chip]:
 		assert_bool(card.is_open()).is_false()
 		chip.call("_gui_input", _left_click())
 		assert_bool(card.is_open()).override_failure_message(chip.name).is_true()

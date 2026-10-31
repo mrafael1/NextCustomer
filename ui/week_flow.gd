@@ -5,11 +5,16 @@ extends Node
 ## (shifts 1, 5 and 9; a resume on one plays it again, a resume mid-week never does), once
 ## planning can take input: after the cart reveal, the glide back from the machine and the count.
 ## The machine's planning notices (MachineFlow) wait for it (holds_planning). Tapping the week
-## chip or the day chip reopens it in planning; tapping the card closes it. After each shift's
-## verdict the week chip lights today's pip, a green check or a red cross (v0.75, #119,
-## light_day), before the machine or the next shift; the card keeps the day's PAID or SLIP stamp.
+## chip reopens it in planning; tapping the card closes it. Tapping the day chip drops today's
+## slip under it instead (DaySlip, 2026-10-31: today's events and where they touch the belt);
+## the card and the slip never show together, and the slip shows only when the card could. After
+## each shift's verdict the week chip lights today's pip, a green check or a red cross (v0.75,
+## #119, light_day), before the machine or the next shift; the card keeps the day's PAID or SLIP
+## stamp.
 
 var card: WeekCard
+## Today's slip under the day chip.
+var slip: DaySlip
 var _screen: ShiftScreen
 var _bar: TopBar
 ## The card waits to play (a week's first shift opened).
@@ -24,10 +29,12 @@ func _init(screen: ShiftScreen) -> void:
 	_screen = screen
 	_bar = screen._top_bar as TopBar
 	screen.add_child(self)
+	slip = DaySlip.new()
+	screen.add_child(slip)
 	card = WeekCard.new()
 	screen.add_child(card)
 	_bar.week_chip.pressed.connect(reopen)
-	_bar.inspection_tag.pressed.connect(reopen)
+	_bar.inspection_tag.pressed.connect(toggle_slip)
 	screen._machine.week_holds = holds_planning
 	screen._machine.week_started = shift_started
 
@@ -35,6 +42,7 @@ func _init(screen: ShiftScreen) -> void:
 ## A shift's planning opened (MachineFlow.shift_started): the card is due on a week's first shift.
 func shift_started() -> void:
 	card.clear()
+	slip.clear()
 	var run: RunState = _screen.run
 	_due = run != null and has_weeks(run) and WeekCardModel.opens_at(run)
 
@@ -50,6 +58,7 @@ func skip() -> void:
 func drop() -> void:
 	_due = false
 	card.clear()
+	slip.clear()
 
 
 ## Lights the shift just checked out on the week chip (v0.75, #119: a green check for PAID, a red
@@ -83,7 +92,23 @@ func reopen() -> void:
 	var run: RunState = _screen.run
 	if run == null or not has_weeks(run) or card.is_open() or not _can_show():
 		return
+	slip.clear()
 	card.reopen(WeekCardModel.of(run), _bar.week_chip, _screen.profile.reduced_motion())
+
+
+## Drops today's slip under the day chip (the chip tapped), or closes it when it is open; only
+## when the card could show (planning takes input), never over the card.
+func toggle_slip() -> void:
+	if slip.is_open():
+		slip.close()
+		return
+	var run: RunState = _screen.run
+	if run == null or not has_weeks(run) or card.is_open() or not _can_show():
+		return
+	var tag: InspectionTag = _bar.inspection_tag
+	if tag.day() <= 0:
+		return
+	slip.open(tag.day(), run.inspections, run.limits, tag, _screen.profile.reduced_motion())
 
 
 ## The top bar's week chip and day chip for the run's current shift. While the shift is counted
@@ -114,8 +139,11 @@ static func helper_names(run: RunState) -> PackedStringArray:
 
 
 func _process(_delta: float) -> void:
+	if slip.visible and not _can_show():
+		slip.clear()  # The count, the machine or the cart reveal took over.
 	if _due and _can_show():
 		_due = false
+		slip.clear()
 		var run: RunState = _screen.run
 		card.play(WeekCardModel.of(run), _bar.week_chip, _screen.profile.reduced_motion())
 
