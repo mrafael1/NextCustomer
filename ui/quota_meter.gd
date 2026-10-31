@@ -30,15 +30,19 @@ extends HBoxContainer
 ##
 ## While an item is dragged over a landing slot (#71, decision 4A) it shows the total that drop
 ## would give and its change, e.g. "› €52 (+6)" (show_hypothetical; the fonts have no →), until
-## the drag ends: the amount in its label, the change in the tag's slot; the gauge previews the
-## new stretch (paler green for a gain, a dark stretch for a loss). Both keep reserved widths, so
-## the gauge never moves while a drag crosses the slots. Display only: the amounts are the
+## the drag ends: the amount in its label, the change after it in place of the tag; the gauge
+## previews the new stretch (paler green for a gain, a dark stretch for a loss).
+##
+## The amount, a drag's change and the tag share one readout after the gauge (v0.83): the amount on
+## the left, the tag (a sticker fitted to its text) on the right. The readout is reserved for the
+## widest pair either can show (readout_width), so the gauge never moves through a count or while
+## a drag crosses the slots, and keeps the rest of the chip. Display only: the amounts are the
 ## screen's preview and the LED's.
 
 ## The count's amount reached `lap` times the quota (2 or more): the gauge laps.
 signal lap_reached(lap: int)
 
-const SEPARATION := 8
+const SEPARATION := 6
 ## The gauge: at least this wide, 9 art pixels tall, with a 1 art pixel ink border; it draws in art
 ## pixels (ArtStyle.ART_SCALE screen pixels each).
 const BAR_MIN_WIDTH := 80.0
@@ -52,11 +56,13 @@ const NEAR_SHARE := 0.8
 ## The glow: a mustard-light ring GLOW_WIDTH px round the chip, pulsing every GLOW_SECONDS.
 const GLOW_WIDTH := 3.0
 const GLOW_SECONDS := 0.7
-## The amount's reserved digits: its label is at least as wide as this many of the widest digit
-## after a drag's "› €", so the gauge keeps its width while the subtotal gains digits and a drag
-## shows its total.
+## The amount's reserved digits: the readout has room for this many of the widest digit after
+## "€" (a count) and after a drag's "› €", so the gauge keeps its width while the subtotal gains
+## digits and a drag shows its total.
 const AMOUNT_DIGITS := 4
-## The change's reserved digits after its sign, in brackets (in the tag's slot).
+## The room between the amount and what follows it in the readout (a drag's change, the tag).
+const READOUT_GAP := 6
+## The change's reserved digits after its sign, in brackets (after the amount, for the tag).
 const DELTA_DIGITS := 3
 ## The tag's reserved digits (its widest text is "€N to go" with this many).
 const TAG_DIGITS := 3
@@ -65,11 +71,13 @@ const TAG_DIGITS := 3
 const HYPOTHETICAL_AMOUNT := "› €%d"
 const HYPOTHETICAL_DELTA := "(%+d)"
 const HYPOTHETICAL_TEXT := HYPOTHETICAL_AMOUNT + " " + HYPOTHETICAL_DELTA
-## The tag (mock-up TA's): its text in bold at TAG_FONT_SIZE, an ink border, TAG_PADDING in.
-const TAG_FONT_SIZE := 13
+## The tag (mock-up TA's): its text in bold at TAG_FONT_SIZE, an ink border, TAG_PADDING in, half
+## the row tall; the sticker fits its text (v0.83).
+const TAG_FONT_SIZE := 12
 const TAG_WEIGHT := 750
 const TAG_BORDER := 2
-const TAG_PADDING := 4
+const TAG_PADDING := 2
+const TAG_HEIGHT := TopBar.ROW_SIZE.y / 2.0
 ## The amount punches from AMOUNT_PUNCH back to 1 over AMOUNT_PUNCH_SECONDS on each gain.
 const AMOUNT_PUNCH := 1.22
 const AMOUNT_PUNCH_SECONDS := 0.28
@@ -136,11 +144,11 @@ var quota_label: Label
 var amount_label: Label
 ## How far the quota is (to_go_text); hidden while a drag shows its change.
 var tag_label: Label
-## A drag's change, in the tag's slot; empty otherwise.
+## A drag's change, after the amount; empty and hidden otherwise.
 var delta_label: Label
 var _bar: Control
-## The tag's slot, shared with the change.
-var _tail: Control
+## The amount, a drag's change and the tag (readout_width wide).
+var _readout: HBoxContainer
 var _tag_style: StyleBoxFlat
 var _flag: QuotaFlag
 var _amount: int = 0
@@ -185,17 +193,26 @@ func _init() -> void:
 	_flag = QuotaFlag.new()
 	_flag.reduced_motion = _reduced
 	_bar.add_child(_flag)
+	# The readout is reserved for the widest amount with its tag or a drag's change, so the gauge
+	# does not jump when either shows.
+	_readout = HBoxContainer.new()
+	_readout.name = "Readout"
+	_readout.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_readout.add_theme_constant_override("separation", 0)
+	_readout.custom_minimum_size.x = readout_width()
+	add_child(_readout)
 	amount_label = TopBar.value_label(Palette.MUSTARD_LIGHT)
-	amount_label.custom_minimum_size.x = amount_width()
-	add_child(amount_label)
-	# The tag's slot is reserved for its widest text and a drag's change, so the gauge does not
-	# jump when either shows.
-	_tail = Control.new()
-	_tail.name = "Tail"
-	_tail.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_tail.custom_minimum_size = Vector2(maxf(tag_width(), delta_width()), TopBar.ROW_SIZE.y / 2.0)
-	_tail.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-	add_child(_tail)
+	var gap: StyleBoxEmpty = StyleBoxEmpty.new()
+	gap.content_margin_right = READOUT_GAP
+	amount_label.add_theme_stylebox_override("normal", gap)
+	_readout.add_child(amount_label)
+	delta_label = TopBar.value_label(Palette.MUSTARD_LIGHT)
+	delta_label.visible = false
+	_readout.add_child(delta_label)
+	var spacer: Control = Control.new()
+	spacer.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	spacer.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_readout.add_child(spacer)
 	tag_label = UiKit.body_label("", TAG_FONT_SIZE, FIZZLE_COLOR)
 	tag_label.add_theme_font_override("font", ArtStyle.bold_font(TAG_WEIGHT))
 	tag_label.add_theme_constant_override("outline_size", 0)
@@ -208,12 +225,9 @@ func _init() -> void:
 	_tag_style.content_margin_left = TAG_PADDING + TAG_BORDER
 	_tag_style.content_margin_right = TAG_PADDING + TAG_BORDER
 	tag_label.add_theme_stylebox_override("normal", _tag_style)
-	tag_label.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	_tail.add_child(tag_label)
-	delta_label = TopBar.value_label(Palette.MUSTARD_LIGHT)
-	delta_label.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	delta_label.grow_vertical = Control.GROW_DIRECTION_BOTH
-	_tail.add_child(delta_label)
+	tag_label.custom_minimum_size.y = TAG_HEIGHT
+	tag_label.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	_readout.add_child(tag_label)
 	_random.seed = RANDOM_SEED
 	for _index: int in range(BUBBLES):
 		_bubbles.append(Vector3(_random.randf(), _random.randf(), _random.randf_range(6.0, 16.0)))
@@ -241,6 +255,7 @@ func show_hypothetical(amount: int, delta: int, quota: int) -> void:
 	_hypothetical = amount
 	amount_label.text = HYPOTHETICAL_AMOUNT % amount
 	delta_label.text = HYPOTHETICAL_DELTA % delta
+	delta_label.visible = true
 	tag_label.visible = false
 	_bar.queue_redraw()
 
@@ -296,14 +311,23 @@ func is_near() -> bool:
 	return not _blank and not _met and _quota > 0 and _amount >= _quota * NEAR_SHARE
 
 
-## The amount label's reserved width: a drag's "› €" and AMOUNT_DIGITS of the widest digit, in
-## the value font (measured with the font: the label is not in the tree yet).
+## The readout's reserved width: the wider of a count's amount ("€" and AMOUNT_DIGITS of the
+## widest digit) with the widest tag, and a drag's amount (amount_width) with its widest change,
+## READOUT_GAP apart.
+static func readout_width() -> float:
+	var count: float = _text_width("€") + AMOUNT_DIGITS * _digit_width() + tag_width()
+	var drag: float = amount_width() + delta_width()
+	return ceilf(maxf(count, drag) + READOUT_GAP)
+
+
+## A drag's amount's reserved width: its "› €" and AMOUNT_DIGITS of the widest digit, in the value
+## font (measured with the font: the label is not in the tree yet).
 static func amount_width() -> float:
 	var prefix: String = HYPOTHETICAL_AMOUNT % 0
 	return ceilf(_text_width(prefix.left(-1)) + AMOUNT_DIGITS * _digit_width())
 
 
-## The tag slot's reserved width for a drag's change: the brackets, the wider sign and
+## The readout's reserved width for a drag's change: the brackets, the wider sign and
 ## DELTA_DIGITS of the widest digit.
 static func delta_width() -> float:
 	var brackets: float = _text_width(HYPOTHETICAL_DELTA.replace("%+d", ""))
@@ -393,6 +417,7 @@ func _show(amount: int, quota: int, met: bool, counting: bool = false) -> void:
 	_set_lap(lap_of(amount, quota) if met and counting else 0)
 	amount_label.text = "€%d" % amount
 	delta_label.text = ""
+	delta_label.visible = false
 	_show_tag(amount, quota)
 	if _reduced():
 		_shown = float(amount)
@@ -445,6 +470,7 @@ func _on_mode(mode: LedDisplay.Mode) -> void:
 		_hypothetical = -1
 		amount_label.text = ""
 		delta_label.text = ""
+		delta_label.visible = false
 		tag_label.text = ""
 		tag_label.visible = false
 		_met = false

@@ -609,7 +609,8 @@ func _event_row(event: InspectionDefinition) -> Control:
 		icon.name = "Icon"
 		icon.custom_minimum_size = texture.get_size() * ICON_SCALE
 		icon.flip_v = event.icon_flipped
-		icon.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
+		# Centred on the row (v0.83), beside the name and the effect.
+		icon.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 		row.add_child(icon)
 	var text: VBoxContainer = _column(0)
 	text.size_flags_horizontal = Control.SIZE_EXPAND_FILL

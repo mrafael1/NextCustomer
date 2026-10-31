@@ -17,9 +17,10 @@ signal pressed
 const WEEK_TEXT := "W%d"
 const NUMBER_SIZE := 20
 const NAME_SIZE := 13
-## The pips: 6 px squares, 2 px apart (the mock-up's); today's has an ink ring. The chip's
-## padding is narrower than the other chips' (PADDING): the bar has little room left.
-const PIP_SIZE := 6.0
+## The pips: 9 px squares (v0.83: 1.5x the mock-up's 6 px, easier to read), 2 px apart, on whole
+## pixels; today's has an ink ring. The chip's padding is narrower than the other chips'
+## (PADDING): the bar has little room left.
+const PIP_SIZE := 9.0
 const PIP_GAP := 2.0
 const PADDING := 8
 const SEPARATION := 6
@@ -31,19 +32,40 @@ const FLASH := 0.8
 const FLASH_SCALE := 3
 const GLOW_REACH := 12.0
 const GLOW_ALPHA := 0.6
-## A result pip's glyph, pixels on the 6x6 pip: the check and the cross.
+## A result pip's glyph, pixels on the 9x9 pip: the check (a two-pixel stroke) and the cross
+## (corner to corner, two pixels at its middle row).
 const CHECK_PIXELS: Array[Vector2i] = [
-	Vector2i(1, 2), Vector2i(2, 3), Vector2i(3, 2), Vector2i(4, 1)
+	Vector2i(7, 2),
+	Vector2i(6, 3),
+	Vector2i(7, 3),
+	Vector2i(1, 4),
+	Vector2i(5, 4),
+	Vector2i(6, 4),
+	Vector2i(1, 5),
+	Vector2i(2, 5),
+	Vector2i(4, 5),
+	Vector2i(5, 5),
+	Vector2i(2, 6),
+	Vector2i(3, 6),
+	Vector2i(4, 6),
+	Vector2i(3, 7)
 ]
 const CROSS_PIXELS: Array[Vector2i] = [
-	Vector2i(1, 1),
-	Vector2i(4, 1),
 	Vector2i(2, 2),
-	Vector2i(3, 2),
+	Vector2i(6, 2),
 	Vector2i(2, 3),
 	Vector2i(3, 3),
-	Vector2i(1, 4),
-	Vector2i(4, 4)
+	Vector2i(5, 3),
+	Vector2i(6, 3),
+	Vector2i(3, 4),
+	Vector2i(4, 4),
+	Vector2i(5, 4),
+	Vector2i(2, 5),
+	Vector2i(3, 5),
+	Vector2i(5, 5),
+	Vector2i(6, 5),
+	Vector2i(2, 6),
+	Vector2i(6, 6)
 ]
 const CHIP_FRAME := preload("res://art/frames/chip_warn.png")
 
@@ -226,11 +248,17 @@ func _draw() -> void:
 		draw_rect(ring, Palette.GOLD, false, RING_WIDTH)
 
 
+## Pip `index`'s square in the pips view, moved onto whole pixels (the row centres the view,
+## which can leave it on a half pixel).
+func pip_rect(index: int) -> Rect2:
+	var at: Vector2 = _pips_view.get_global_rect().position
+	var snap: Vector2 = at.round() - at
+	return Rect2(Vector2(index * (PIP_SIZE + PIP_GAP), 0.0) + snap, Vector2(PIP_SIZE, PIP_SIZE))
+
+
 func _draw_pips() -> void:
 	for index: int in range(_pips.size()):
-		var at: Rect2 = Rect2(
-			Vector2(index * (PIP_SIZE + PIP_GAP), 0.0), Vector2(PIP_SIZE, PIP_SIZE)
-		)
+		var at: Rect2 = pip_rect(index)
 		match _pips[index]:
 			WeekCardModel.Pip.DONE:
 				_pips_view.draw_rect(at, Palette.PAPER)
@@ -251,9 +279,7 @@ func _draw_pips() -> void:
 ## steps.
 func _draw_light() -> void:
 	var k: float = _flash_t / FLASH
-	var centre: Vector2 = Vector2(
-		_flash_index * (PIP_SIZE + PIP_GAP) + PIP_SIZE / 2.0, PIP_SIZE / 2.0
-	)
+	var centre: Vector2 = pip_rect(_flash_index).get_center()
 	var reach: float = roundf(GLOW_REACH * k)
 	var glow: Color = Color(_light_of(_pips[_flash_index]), GLOW_ALPHA * (1.0 - k))
 	var half: float = PIP_SIZE / 2.0 + reach

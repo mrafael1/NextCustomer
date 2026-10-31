@@ -386,6 +386,65 @@ func test_the_rows_tell_today_past_and_upcoming() -> void:
 	assert_object(card.today_tab()).is_null()
 
 
+## Every icon on the card (a day event's, the review's tickets) is centred on its row's height
+## (v0.83), not hung at its top.
+func test_the_row_icons_are_centred() -> void:
+	var host: Control = _card_host()
+	var card: WeekCard = WeekCard.new()
+	host.add_child(card)
+	card.size = host.size
+	var run: RunState = _started_run()
+	run.debug_skip_to_shift(4)
+	card.reopen(WeekCardModel.of(run), null, true)
+	await _frames(3)
+	# The card's only sprites are its rows' icons.
+	var icons: Array[Node] = card.find_children("*", "TextureRect", true, false)
+	var rewards: int = 0
+	for node: Node in icons:
+		var icon: TextureRect = node as TextureRect
+		var row: Control = icon.get_parent() as Control
+		var centre: float = icon.get_global_rect().get_center().y
+		(
+			assert_float(centre)
+			. override_failure_message("%s: %.1f" % [icon.get_path(), centre])
+			. is_equal_approx(row.get_global_rect().get_center().y, 1.0)
+		)
+		assert_bool(row.get_global_rect().encloses(icon.get_global_rect())).is_true()
+		if row.get_parent() is WeekCard.ShadowPanel:
+			rewards += 1
+	assert_int(icons.size()).is_greater(rewards)
+	assert_int(rewards).is_greater(0)
+
+
+## The chip's pips (v0.83: 9 px, 1.5x the mock-up's) lie on whole pixels inside the chip, apart.
+func test_the_pips_are_whole_and_inside_the_chip() -> void:
+	var host: Control = _card_host()
+	var chip: WeekChip = WeekChip.new()
+	host.add_child(chip)
+	chip.position = Vector2(100.0, 9.0)
+	var run: RunState = _started_run()
+	var quota: int = run.quota()
+	run.history.append(ShiftRecord.new(1, quota, quota))
+	chip.show_week(WeekCardModel.of(run))
+	await _frames(3)
+	var view: Control = chip.pips_view()
+	var rects: Array[Rect2] = []
+	for index: int in range(chip.pips().size()):
+		var local: Rect2 = chip.pip_rect(index)
+		var rect: Rect2 = Rect2(view.get_global_rect().position + local.position, local.size)
+		assert_float(rect.size.x).is_equal(WeekChip.PIP_SIZE)
+		assert_vector(rect.position).is_equal(rect.position.round())
+		(
+			assert_bool(chip.get_global_rect().encloses(rect))
+			. override_failure_message(str(rect))
+			. is_true()
+		)
+		if not rects.is_empty():
+			assert_bool(rects[-1].intersects(rect)).is_false()
+		rects.append(rect)
+	assert_float(rects[0].size.y).is_greater_equal(9.0)
+
+
 ## A played day's pip shows its result (#119), today's too once checked out; flash() lights today's
 ## with PAID's sound (a SLIP's denied), rings the chip while it lasts, then ends; with reduced
 ## motion only the sound plays.

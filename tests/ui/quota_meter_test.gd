@@ -101,6 +101,40 @@ func test_the_tag_fits_its_slot() -> void:
 		assert_float(width).is_equal(widths[0])
 
 
+## The tag is a sticker fitted to its text (v0.83), at the readout's end, and the readout shares
+## its room between the amount and the tag (or a drag's change), so it is narrower than an amount's
+## and a tag's reserves side by side: the gauge gets the rest.
+func test_the_tag_fits_its_text_and_the_gauge_gets_the_room() -> void:
+	var meter: QuotaMeter = await _meter()
+	var bar_width: float = meter.bar().size.x
+	for amount: int in [0, 72, 73, 900]:
+		meter.show_projected(amount, 999)
+		await _frames(2)
+		var tag: Label = meter.tag_label
+		assert_float(tag.size.x).is_equal_approx(tag.get_minimum_size().x, 0.5)
+		assert_float(tag.size.y).is_equal_approx(tag.get_combined_minimum_size().y, 0.5)
+		assert_float(tag.size.y).is_greater_equal(QuotaMeter.TAG_HEIGHT)
+		var rect: Rect2 = tag.get_global_rect()
+		var middle: float = meter.get_global_rect().get_center().y
+		assert_float(rect.get_center().y).is_equal_approx(middle, 1.0)
+		(
+			assert_bool(meter.get_global_rect().encloses(rect))
+			. override_failure_message(str(rect))
+			. is_true()
+		)
+		assert_float(meter.bar().size.x).is_equal(bar_width)
+	var side_by_side: float = (
+		QuotaMeter.amount_width()
+		+ maxf(QuotaMeter.tag_width(), QuotaMeter.delta_width())
+		+ QuotaMeter.SEPARATION
+	)
+	assert_float(QuotaMeter.readout_width()).is_less(side_by_side)
+	# The widest lap tag ("€999 to ×99") fits its reserve.
+	meter.show_projected(0, 999)
+	meter.tag_label.text = QuotaMeter.LAP_TAG_TEXT % [999, 99]
+	assert_float(meter.tag_label.get_minimum_size().x).is_less_equal(QuotaMeter.tag_width())
+
+
 ## The liquid's colour follows the status (the user's idea, 2026-10-19): red while short, orange
 ## from NEAR_SHARE of the quota (and past it before the ding), green once met; gold past the flag.
 func test_the_liquid_colour_follows_the_status() -> void:

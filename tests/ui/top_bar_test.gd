@@ -139,8 +139,8 @@ func test_the_decor_takes_no_clicks() -> void:
 		assert_int((node as Control).mouse_filter).is_equal(Control.MOUSE_FILTER_IGNORE)
 
 
-## The quota gauge keeps its width through a count: the amount has room for four digits and the
-## tag's slot is reserved, so the gauge never jumps while its fill moves.
+## The quota gauge keeps its width through a count: the readout after it has room for four digits
+## and the widest tag, so the gauge never jumps while its fill moves.
 func test_the_quota_bar_keeps_its_width_through_a_count() -> void:
 	var led: LedDisplay = auto_free(LedDisplay.new())
 	add_child(led)
@@ -167,16 +167,16 @@ func test_the_quota_bar_keeps_its_width_through_a_count() -> void:
 		assert_float(meter.amount_label.size.x).is_greater_equal(
 			meter.amount_label.get_minimum_size().x
 		)
-	# The tag, shown, sits in its slot inside the meter, after the amount.
-	var meter_rect: Rect2 = meter.get_global_rect()
-	assert_bool(meter_rect.encloses(meter.tag_label.get_global_rect())).is_true()
-	assert_float(meter.tag_label.get_global_rect().position.x).is_greater_equal(
-		meter.amount_label.get_global_rect().end.x
-	)
+		# The tag (up to "€N to ×12" here) sits inside the meter, after the amount, at its end.
+		var meter_rect: Rect2 = meter.get_global_rect()
+		var tag: Rect2 = meter.tag_label.get_global_rect()
+		assert_bool(meter_rect.encloses(tag)).override_failure_message(str(tag)).is_true()
+		assert_float(tag.position.x).is_greater_equal(meter.amount_label.get_global_rect().end.x)
+		assert_float(tag.end.x).is_equal_approx(meter_rect.end.x, 1.0)
 
 
 ## A drag's would-be total and change (#71) keep the bar's width too: the amount's reserve holds
-## "› €" and four digits, the change ("(+6)" to "(-999)") takes the tag's slot, so nothing in the
+## "› €" and four digits with the change ("(+6)" to "(-999)") in place of the tag, so nothing in the
 ## meter moves or grows as the drag crosses the slots and ends; both texts lie inside the meter.
 func test_the_quota_bar_keeps_its_width_through_a_drag() -> void:
 	var meter: QuotaMeter = auto_free(QuotaMeter.new())
