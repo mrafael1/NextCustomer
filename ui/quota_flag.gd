@@ -5,12 +5,17 @@ extends Control
 ## its foot, and a green cloth with a drawn ✓ (the fonts lack it) at the pole's top. QuotaMeter
 ## plants it at the quota when the amount meets it and slides it back as the gauge re-scales. It is
 ## planted with a drop and a bounce, then the cloth flaps; reduced motion (`reduced_motion`) shows
-## it standing still. Decor only: it takes no clicks.
+## it standing still. Past twice the quota (the gauge's laps, the quota crossing's E) it stands at
+## the gauge's end on a wider mustard cloth naming the next lap ("×3", `lap_text`). Decor only: it
+## takes no clicks.
 
 const POLE_WIDTH := 4.0
 const POLE_ABOVE := 14.0
 const POLE_BELOW := 2.0
 const CLOTH_SIZE := Vector2(18, 14)
+## A lap's cloth: wider for its "×N", in the number font at LAP_FONT_SIZE.
+const LAP_CLOTH_SIZE := Vector2(26, 14)
+const LAP_FONT_SIZE := 11
 const BORDER := 2.0
 ## The plant: from PLANT_DROP px up, turned PLANT_TURN degrees, to its place over PLANT_SECONDS
 ## with an overshoot.
@@ -23,6 +28,8 @@ const FLAP_SECONDS := 0.9
 
 ## Returns whether to reduce motion (the profile's setting); an empty Callable means no.
 var reduced_motion: Callable = Callable()
+## The next lap the flag names ("×3"), or empty for the quota's ✓.
+var lap_text: String = ""
 
 ## The pole's length below the flag's origin (the gauge's height).
 var _pole: float = 0.0
@@ -58,9 +65,11 @@ func is_planting() -> bool:
 ## The flag's rect as drawn at rest (local): the pole and the cloth.
 func rest_rect() -> Rect2:
 	var top: float = -POLE_ABOVE
-	return Rect2(
-		-POLE_WIDTH / 2.0, top, POLE_WIDTH / 2.0 + CLOTH_SIZE.x, _pole + POLE_ABOVE + POLE_BELOW
-	)
+	var height: float = _pole + POLE_ABOVE + POLE_BELOW
+	if not lap_text.is_empty():
+		var left: float = POLE_WIDTH / 2.0 - LAP_CLOTH_SIZE.x - POLE_WIDTH
+		return Rect2(left, top, POLE_WIDTH - left, height)
+	return Rect2(-POLE_WIDTH / 2.0, top, POLE_WIDTH / 2.0 + CLOTH_SIZE.x, height)
 
 
 func _process(delta: float) -> void:
@@ -97,6 +106,10 @@ func _draw() -> void:
 	var cloth_origin: Vector2 = Vector2(POLE_WIDTH / 2.0, -POLE_ABOVE + roundf(drop))
 	var transform: Transform2D = Transform2D(deg_to_rad(turn), Vector2.ONE, skew, cloth_origin)
 	draw_set_transform_matrix(transform)
+	if not lap_text.is_empty():
+		_draw_lap_cloth()
+		draw_set_transform_matrix(Transform2D.IDENTITY)
+		return
 	var cloth: Rect2 = Rect2(Vector2.ZERO, CLOTH_SIZE)
 	draw_rect(cloth, Palette.INK)
 	draw_rect(cloth.grow(-BORDER), Palette.GOOD)
@@ -105,6 +118,29 @@ func _draw() -> void:
 	)
 	draw_polyline(check, Palette.PAPER, 2.0)
 	draw_set_transform_matrix(Transform2D.IDENTITY)
+
+
+## A lap's cloth (the transform set): it hangs left of the pole, at the gauge's end, so it stays
+## on the bar.
+func _draw_lap_cloth() -> void:
+	var cloth: Rect2 = Rect2(Vector2(-LAP_CLOTH_SIZE.x - POLE_WIDTH, 0.0), LAP_CLOTH_SIZE)
+	draw_rect(cloth, Palette.INK)
+	draw_rect(cloth.grow(-BORDER), Palette.MUSTARD)
+	draw_rect(
+		Rect2(cloth.position + Vector2(BORDER, BORDER), Vector2(cloth.size.x - 4.0, 2.0)),
+		Palette.MUSTARD_LIGHT
+	)
+	var font: Font = ArtStyle.number_font()
+	var width: float = (
+		font.get_string_size(lap_text, HORIZONTAL_ALIGNMENT_LEFT, -1, LAP_FONT_SIZE).x
+	)
+	var baseline: float = (
+		(cloth.size.y + font.get_ascent(LAP_FONT_SIZE) - font.get_descent(LAP_FONT_SIZE)) / 2.0
+	)
+	var at: Vector2 = (
+		cloth.position + Vector2(roundf((cloth.size.x - width) / 2.0), roundf(baseline))
+	)
+	draw_string(font, at, lap_text, HORIZONTAL_ALIGNMENT_LEFT, -1, LAP_FONT_SIZE, Palette.INK)
 
 
 func _reduced() -> bool:

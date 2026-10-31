@@ -4,8 +4,8 @@ extends GdUnitTestSuite
 ## it (the count's ding, or a projected total reaching it), sliding back as the gauge re-scales to
 ## the amount; the liquid's colour by status; the tag's text and colours from core's ShiftMargin;
 ## the chip's glow from NEAR_SHARE of the quota while short; a drag's preview keeps the tag's slot
-## for its change; reduced motion plants the flag standing still. Drawn checks: the flag stands on
-## the gauge.
+## for its change; reduced motion plants the flag standing still; from twice the quota the count
+## laps the gauge (the quota crossing's E). Drawn checks: the flag stands on the gauge.
 
 
 func test_the_words_are_spend_and_the_quota_plus() -> void:
@@ -32,10 +32,10 @@ func test_the_flag_anchors_the_quota() -> void:
 	assert_bool(meter.flag_shown()).is_true()
 	await _frames(2)
 	_assert_flag_at(meter, QuotaMeter.flag_fraction(80, 73))
-	# It slides back as the amount climbs.
-	led.show_subtotal(146, true)
+	# It slides back as the amount climbs (short of twice the quota, where the laps start).
+	led.show_subtotal(130, true)
 	await _frames(2)
-	_assert_flag_at(meter, 0.5)
+	_assert_flag_at(meter, QuotaMeter.flag_fraction(130, 73))
 	led.show_total()
 	assert_bool(meter.flag_shown()).is_true()
 	# The next count frees it.
@@ -137,6 +137,56 @@ func test_reduced_motion_plants_the_flag_still() -> void:
 
 
 ## A meter in a 560 px chip-sized box, with reduced motion unless `reduced` is false.
+## The quota crossing's E: twice the quota laps the gauge once, while counting only: the flag
+## moves to the end naming the next multiple, the tag says how far it is, and each new multiple
+## emits lap_reached once; the next count ends the laps.
+func test_twice_the_quota_laps_the_gauge() -> void:
+	var meter: QuotaMeter = await _meter()
+	var led: LedDisplay = auto_free(LedDisplay.new())
+	add_child(led)
+	meter.follow(led)
+	var laps: Array[int] = []
+	meter.lap_reached.connect(func(lap: int) -> void: laps.append(lap))
+	led.start_count(40)
+	led.show_subtotal(79, true)
+	assert_int(meter.shown_lap()).is_equal(0)
+	assert_str(meter.flag().lap_text).is_empty()
+	led.show_subtotal(80, true)
+	assert_int(meter.shown_lap()).is_equal(2)
+	assert_array(laps).is_equal([2])
+	assert_str(meter.flag().lap_text).is_equal("×3")
+	assert_str(meter.tag_label.text).is_equal("€40 to ×3")
+	await _frames(2)
+	_assert_flag_at(meter, 1.0)
+	led.show_subtotal(95, true)
+	assert_array(laps).is_equal([2])
+	assert_str(meter.tag_label.text).is_equal("€25 to ×3")
+	led.show_subtotal(121, true)
+	assert_array(laps).is_equal([2, 3])
+	assert_str(meter.tag_label.text).is_equal("€39 to ×4")
+	led.start_count(40)
+	assert_int(meter.shown_lap()).is_equal(0)
+	assert_str(meter.flag().lap_text).is_empty()
+
+
+## In planning a projected total at twice the quota keeps re-scaling: no laps.
+func test_the_projected_total_never_laps() -> void:
+	var meter: QuotaMeter = await _meter()
+	var laps: Array[int] = []
+	meter.lap_reached.connect(func(lap: int) -> void: laps.append(lap))
+	meter.show_projected(100, 40)
+	assert_int(meter.shown_lap()).is_equal(0)
+	assert_array(laps).is_empty()
+	assert_str(meter.tag_label.text).is_equal("+€60")
+
+
+func test_lap_of() -> void:
+	assert_int(QuotaMeter.lap_of(79, 40)).is_equal(1)
+	assert_int(QuotaMeter.lap_of(80, 40)).is_equal(2)
+	assert_int(QuotaMeter.lap_of(-5, 40)).is_equal(0)
+	assert_int(QuotaMeter.lap_of(80, 0)).is_equal(0)
+
+
 func _meter(reduced: bool = true) -> QuotaMeter:
 	var meter: QuotaMeter = auto_free(QuotaMeter.new())
 	if reduced:

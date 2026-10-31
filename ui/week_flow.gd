@@ -94,7 +94,7 @@ func show_chips() -> void:
 	_bar.week_chip.hold_result = _screen._counting
 	if weeks:
 		_bar.week_chip.show_week(WeekCardModel.of(run))
-	_bar.week_chip.visible = weeks
+	_bar.show_weeks(weeks)
 	_bar.inspection_tag.show_inspections(run.inspections, run.shift_index + 1 if weeks else 0)
 
 

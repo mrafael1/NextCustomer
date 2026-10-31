@@ -10,6 +10,8 @@ extends HBoxContainer
 ## LOYALTY chip with its stamps, the Cart button with its trolley, and the menu button (three
 ## drawn bars) whose menu holds Export log. In the training week (v0.68) the SHIFT chip also holds
 ## a small hint after the shift (training_label, "TRAINING WEEK · 2 SLIPS"; hidden when empty).
+## With weeks (show_weeks, v0.82: the week and day chips say where the run is) the SHIFT chip
+## drops "SHIFT n/m", so the row breathes; it shows only to hold the training week's hint.
 ## Cart and the menu stay clickable behind every panel:
 ## the shade starts under the band (ShiftScreen), and the menu opens in its own popup window.
 ##
@@ -49,6 +51,8 @@ const CART_ICON := preload("res://art/icons/cart.png")
 const MENU_ICON := preload("res://art/icons/menu.png")
 
 var shift_label: Label
+## The SHIFT chip (only for the training hint with weeks: show_weeks).
+var shift_chip: PanelContainer
 ## The training week's hint in the SHIFT chip (v0.68; show_training).
 var training_label: Label
 var quota_meter: QuotaMeter
@@ -66,6 +70,9 @@ var export_button: FramedButton
 ## The training week's hint and its short form (show_training).
 var _training_text: String = ""
 var _training_short: String = ""
+var _weeks: bool = false
+## The SHIFT chip's key caption (hidden with weeks).
+var _shift_key: Label
 
 
 func _init() -> void:
@@ -74,9 +81,10 @@ func _init() -> void:
 	add_theme_constant_override("separation", GAP)
 	position = POSITION
 	size = ROW_SIZE
-	var shift_chip: PanelContainer = chip(CHIP_FRAME)
+	shift_chip = chip(CHIP_FRAME)
 	var shift_row: HBoxContainer = _row(shift_chip)
-	shift_row.add_child(key_label("SHIFT"))
+	_shift_key = key_label("SHIFT")
+	shift_row.add_child(_shift_key)
 	shift_label = value_label(Palette.PAPER)
 	shift_row.add_child(shift_label)
 	training_label = key_label("")
@@ -115,6 +123,22 @@ func _init() -> void:
 		button.caption_label().add_theme_constant_override("outline_size", 0)
 
 
+## Whether the run has weeks (WeekFlow.has_weeks): the week chip shows, and the SHIFT chip only
+## holds the training week's hint.
+func show_weeks(shown: bool) -> void:
+	_weeks = shown
+	week_chip.visible = shown
+	_refresh_shift_chip()
+
+
+## The SHIFT chip's parts for the weeks and the hint now: "SHIFT n/m" without weeks; with them,
+## the chip only while the hint shows.
+func _refresh_shift_chip() -> void:
+	_shift_key.visible = not _weeks
+	shift_label.visible = not _weeks
+	shift_chip.visible = not _weeks or training_label.visible
+
+
 ## The training week's hint (v0.68, WriteUp.hint_text): `text` after the shift, hidden when empty;
 ## fit_inspection shows `short_text` instead when the row has no room for `text`, and hides the
 ## hint (its whole text kept in the SHIFT chip's tooltip) when it has none for either.
@@ -123,7 +147,8 @@ func show_training(text: String, short_text: String = "") -> void:
 	_training_short = short_text
 	training_label.text = text
 	training_label.visible = not text.is_empty()
-	(shift_label.get_parent().get_parent() as Control).tooltip_text = text
+	shift_chip.tooltip_text = text
+	_refresh_shift_chip()
 
 
 ## Keeps the row inside ROW_SIZE.x less FIT_MARGIN: the inspection chip's text is trimmed when the
@@ -181,6 +206,7 @@ static func fresh_width(control: Control) -> float:
 
 
 func _fit_inspection_once() -> void:
+	_refresh_shift_chip()
 	var used: float = 0.0
 	var shown: int = 0
 	for child: Node in get_children():

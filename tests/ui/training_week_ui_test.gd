@@ -297,8 +297,10 @@ func _assert_hint_layout(bar: TopBar) -> void:
 	assert_bool(hint.has_area()).is_true()
 	assert_bool(chip.encloses(hint)).override_failure_message("%s in %s" % [hint, chip]).is_true()
 	assert_float(chip.position.x).is_greater_equal(row.position.x)
-	var shift: Rect2 = bar.shift_label.get_global_rect()
-	assert_float(hint.position.x).is_greater_equal(shift.end.x)
+	# With weeks (v0.82) the chip holds the hint alone; without them it follows "SHIFT n/m".
+	if bar.shift_label.visible:
+		var shift: Rect2 = bar.shift_label.get_global_rect()
+		assert_float(hint.position.x).is_greater_equal(shift.end.x)
 	var quota_chip: Rect2 = (bar.quota_meter.get_parent() as Control).get_global_rect()
 	# The hint doesn't make the SHIFT chip taller than its neighbour.
 	var heights: String = "%s beside %s" % [chip, quota_chip]

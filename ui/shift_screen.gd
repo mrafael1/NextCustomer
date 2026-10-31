@@ -70,7 +70,6 @@ var _redraw_busy: bool = false
 var _counting: bool = false
 var _run_started_ms: int = 0
 var _run_ended_ms: int = -1
-
 ## The 1280x720 stage, centred in the window (its hud; its world is in the camera).
 var _stage: ShiftStage
 ## The store's camera (#77 machine v2) and the wall in it, which takes the background clicks.
@@ -809,9 +808,9 @@ func _show_projected(result: ScoreResult) -> void:
 	_monitor.show_next(first, slots, run.row.size(), tags, _scan.item_lines(0))
 
 
-## The preview: the itemised planning receipt (#80) and the belt's tags and marks.
+## The preview: the planning receipt (#80; only the next open slot, v0.82) and the belt's marks.
 func _show_planning(result: ScoreResult) -> void:
-	var slots: int = RowCapacity.card_limit(run.limits)
+	var slots: int = mini(run.row.size() + 1, RowCapacity.card_limit(run.limits))
 	var cards: Array[CardDefinition] = ReceiptInk.cards_of(run.row)
 	_receipt.show_planning(
 		receipt_header(), result, CardInstance.names(run.row), slots, run.quota(), cards
@@ -926,6 +925,7 @@ func _build() -> void:
 	add_child(_ride)
 	_ride.setup(_count_up, _stage)
 	_monitor.follow(_count_up)
+	_stage.follow_count(_count_up)  # The standees (#120) and the quota crossing.
 	_cabinet.follow_count(_count_up, _led)
 	_drag = CardDrag.new()
 	add_child(_drag)

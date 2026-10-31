@@ -39,6 +39,7 @@ const SOUNDS: Array[String] = [
 	"rattle_m",
 	"rattle_l",
 	"register_bell",
+	"kaching",
 	"ding",
 	"tag",
 	"link",
