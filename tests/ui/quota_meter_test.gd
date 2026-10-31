@@ -62,8 +62,8 @@ func test_flag_fraction() -> void:
 	assert_float(QuotaMeter.flag_fraction(10, 0)).is_equal(1.0)
 
 
-## The tag, printed in the gauge: "€N to go" in light tomato on the well, mustard once near; "Spot
-## on" and "+€N" over the full gauge's liquid in ink.
+## The tag, printed in the gauge: "€N to go" in light tomato on the well, mustard once near; none
+## once the quota is met (on it or past it).
 func test_the_tag_says_how_far_the_quota_is() -> void:
 	var meter: QuotaMeter = await _meter()
 	meter.show_projected(22, 73)
@@ -74,12 +74,10 @@ func test_the_tag_says_how_far_the_quota_is() -> void:
 	assert_bool(meter.is_near()).is_true()
 	assert_that(_tag_color(meter)).is_equal(QuotaMeter.NEAR_TAG_COLOR)
 	meter.show_projected(73, 73)
-	assert_str(meter.tag_label.text).is_equal(QuotaMeter.ON_QUOTA_TEXT)
+	assert_bool(meter.tag_label.visible).is_false()
 	assert_bool(meter.is_near()).is_false()
-	assert_that(_tag_color(meter)).is_equal(QuotaMeter.TAG_OVER_LIQUID)
 	meter.show_projected(117, 73)
-	assert_str(meter.tag_label.text).is_equal("+€44")
-	assert_that(_tag_color(meter)).is_equal(QuotaMeter.TAG_OVER_LIQUID)
+	assert_bool(meter.tag_label.visible).is_false()
 	# A drag shows its change in the tag's place instead, green for a gain, tomato for a loss.
 	meter.show_projected(10, 73)
 	meter.show_hypothetical(16, 6, 73)
@@ -202,7 +200,7 @@ func test_the_projected_total_never_laps() -> void:
 	meter.show_projected(100, 40)
 	assert_int(meter.shown_lap()).is_equal(0)
 	assert_array(laps).is_empty()
-	assert_str(meter.tag_label.text).is_equal("+€60")
+	assert_bool(meter.tag_label.visible).is_false()
 
 
 func test_lap_of() -> void:

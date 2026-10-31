@@ -3,8 +3,8 @@ extends HBoxContainer
 ## The top bar's quota chip contents (#80 step 10, mock-up B2; #86 gauge TA of mock-up
 ## count_up_86_v4_live.html): the word SPEND and the shift's quota as "€N+" (#86: players read
 ## the quota as an amount to spend; code and data keep "quota"), a liquid gauge, the amount in
-## mustard and a tag saying how far the quota is ("€N to go" on paper, "Spot on" or "+€N" on
-## mustard; to_go_text). In planning the amount is the projected total, which the shift
+## mustard and a tag saying how far the quota is ("€N to go" while short, nothing once it is met:
+## the flag says it; to_go_text). In planning the amount is the projected total, which the shift
 ## screen hands it from its preview (show_projected), as the monitor's checkout column shows it
 ## (#105 piece 2). During the count it mirrors the register's reading (LedDisplay, follow), as the
 ## monitor's number does: the running total, so the gauge never shows the final total early and
@@ -126,12 +126,10 @@ const BUBBLE_COLOR := Palette.PAPER
 const GAIN_PREVIEW_ALPHA := 0.55
 const LOSS_PREVIEW_ALPHA := 0.8
 ## The tag's words for core's ShiftMargin of the shown amount against the quota (to_go_text):
-## "€N to go" short of it, "Spot on" on it, "+€N" past it. On the well: light tomato while short,
-## mustard from the near share on (and in laps); a drag's gain light green, a loss light tomato;
-## ink over the liquid (TAG_OVER_LIQUID).
+## "€N to go" short of it, none on it or past it (the user's call of 2026-11-01: the flag and the
+## green liquid say it). On the well: light tomato while short, mustard from the near share on (and
+## in laps); a drag's gain light green, a loss light tomato; ink over the liquid (TAG_OVER_LIQUID).
 const TO_GO_TEXT := "€%d to go"
-const ON_QUOTA_TEXT := "Spot on"
-const OVER_TEXT := "+€%d"
 const SHORT_TAG_COLOR := Palette.TOMATO_LIGHT
 const NEAR_TAG_COLOR := Palette.MUSTARD_LIGHT
 const GAIN_TAG_COLOR := Palette.GREEN_LIGHT
@@ -455,6 +453,7 @@ func _show_tag(amount: int, quota: int) -> void:
 	else:
 		var margin: ShiftMargin = ShiftMargin.of(amount, quota)
 		tag_label.text = to_go_text(margin)
+		tag_label.visible = not tag_label.text.is_empty()
 		var far: bool = margin.kind() == ShiftMargin.Kind.SHORT and not is_near()
 		_tag_color = SHORT_TAG_COLOR if far else NEAR_TAG_COLOR
 	_fit_readout()
@@ -674,11 +673,8 @@ static func _counting(mode: LedDisplay.Mode) -> bool:
 	return mode == LedDisplay.Mode.SUBTOTAL or mode == LedDisplay.Mode.TOTAL
 
 
-## The tag's text for `margin` (see TO_GO_TEXT).
+## The tag's text for `margin` (see TO_GO_TEXT): empty once the quota is met.
 static func to_go_text(margin: ShiftMargin) -> String:
-	match margin.kind():
-		ShiftMargin.Kind.SHORT:
-			return TO_GO_TEXT % margin.amount()
-		ShiftMargin.Kind.ON:
-			return ON_QUOTA_TEXT
-	return OVER_TEXT % margin.amount()
+	if margin.kind() == ShiftMargin.Kind.SHORT:
+		return TO_GO_TEXT % margin.amount()
+	return ""
