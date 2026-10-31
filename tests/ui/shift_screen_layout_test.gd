@@ -15,7 +15,7 @@ extends GdUnitTestSuite
 const SCREEN := "res://ui/shift_screen.tscn"
 ## The top bar's gauge before v0.83 (base 1280x720 px), and how much longer it is since.
 const BAR_WIDTH_V082 := 96.0
-const BAR_GAIN := 30.0
+const BAR_GAIN := 24.0
 const SHORT_BELT := preload("res://data/inspections/short_belt.tres")
 
 var _folder: String = ""
@@ -218,10 +218,8 @@ func test_the_quota_gauge_gained_its_room() -> void:
 		BAR_WIDTH_V082 + BAR_GAIN
 	)
 	var chip: Rect2 = (meter.get_parent() as Control).get_global_rect()
-	assert_bool(chip.encloses(meter.tag_label.get_global_rect())).is_true()
-	assert_float(meter.tag_label.get_global_rect().position.x).is_greater_equal(
-		meter.amount_label.get_global_rect().end.x
-	)
+	assert_bool(meter.bar().get_global_rect().encloses(meter.tag_label.get_global_rect())).is_true()
+	assert_bool(chip.encloses(meter.amount_label.get_global_rect())).is_true()
 
 
 ## The store's kraft bag (#86 v6, #123) stands at BAG_RECT on the bagging shelf behind the belt's

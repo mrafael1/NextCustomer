@@ -62,77 +62,68 @@ func test_flag_fraction() -> void:
 	assert_float(QuotaMeter.flag_fraction(10, 0)).is_equal(1.0)
 
 
-## The tag: "€N to go" in dark tomato on paper, in ink once near; "Spot on" and "+€N" on mustard.
+## The tag, printed in the gauge: "€N to go" in light tomato on the well, mustard once near; "Spot
+## on" and "+€N" over the full gauge's liquid in ink.
 func test_the_tag_says_how_far_the_quota_is() -> void:
 	var meter: QuotaMeter = await _meter()
 	meter.show_projected(22, 73)
 	assert_str(meter.tag_label.text).is_equal("€51 to go")
-	assert_that(meter.tag_label.get_theme_color("font_color")).is_equal(Palette.TOMATO_DARK)
+	assert_that(_tag_color(meter)).is_equal(QuotaMeter.SHORT_TAG_COLOR)
 	assert_bool(meter.is_near()).is_false()
 	meter.show_projected(60, 73)
 	assert_bool(meter.is_near()).is_true()
-	assert_that(meter.tag_label.get_theme_color("font_color")).is_equal(Palette.INK)
+	assert_that(_tag_color(meter)).is_equal(QuotaMeter.NEAR_TAG_COLOR)
 	meter.show_projected(73, 73)
 	assert_str(meter.tag_label.text).is_equal(QuotaMeter.ON_QUOTA_TEXT)
 	assert_bool(meter.is_near()).is_false()
+	assert_that(_tag_color(meter)).is_equal(QuotaMeter.TAG_OVER_LIQUID)
 	meter.show_projected(117, 73)
 	assert_str(meter.tag_label.text).is_equal("+€44")
-	var style: StyleBoxFlat = meter.tag_label.get_theme_stylebox("normal") as StyleBoxFlat
-	assert_that(style.bg_color).is_equal(Palette.MUSTARD)
-	# A drag shows its change in the tag's slot instead.
-	meter.show_hypothetical(52, 6, 73)
+	assert_that(_tag_color(meter)).is_equal(QuotaMeter.TAG_OVER_LIQUID)
+	# A drag shows its change in the tag's place instead, green for a gain, tomato for a loss.
+	meter.show_projected(10, 73)
+	meter.show_hypothetical(16, 6, 73)
 	assert_bool(meter.tag_label.visible).is_false()
-	assert_str(meter.shown_text()).is_equal(QuotaMeter.HYPOTHETICAL_TEXT % [52, 6])
+	assert_str(meter.shown_text()).is_equal(QuotaMeter.HYPOTHETICAL_TEXT % [16, 6])
+	assert_that(_color(meter.delta_label)).is_equal(QuotaMeter.GAIN_TAG_COLOR)
+	meter.show_hypothetical(4, -6, 73)
+	assert_that(_color(meter.delta_label)).is_equal(QuotaMeter.SHORT_TAG_COLOR)
 	meter.show_projected(46, 73)
 	assert_bool(meter.tag_label.visible).is_true()
 
 
-## The widest tag fits its slot, and the slot keeps the gauge's width through a count.
-func test_the_tag_fits_its_slot() -> void:
+## The gauge keeps its width through a count: only the amount's reserve follows it.
+func test_the_gauge_keeps_its_width() -> void:
 	var meter: QuotaMeter = await _meter()
 	var widths: Array[float] = []
-	for amount: int in [0, 9, 72, 73, 900]:
+	for amount: int in [0, 9, 72, 73, 900, 1500]:
 		meter.show_projected(amount, 999)
 		await _frames(1)
-		var tag: Label = meter.tag_label
-		assert_float(tag.get_minimum_size().x).is_less_equal(QuotaMeter.tag_width())
 		widths.append(meter.bar().size.x)
 	for width: float in widths:
 		assert_float(width).is_equal(widths[0])
 
 
-## The tag is a sticker fitted to its text (v0.83), at the readout's end, and the readout shares
-## its room between the amount and the tag (or a drag's change), so it is narrower than an amount's
-## and a tag's reserves side by side: the gauge gets the rest.
-func test_the_tag_fits_its_text_and_the_gauge_gets_the_room() -> void:
+## The tag is printed inside the gauge (v0.83, the user's choice of 2026-11-01): at its inside's
+## right end, centred on its height, its whole text inside the gauge, and the amount right after
+## the gauge with no reserve but its three digits. The widest lap tag fits too.
+func test_the_tag_is_printed_inside_the_gauge() -> void:
 	var meter: QuotaMeter = await _meter()
-	var bar_width: float = meter.bar().size.x
 	for amount: int in [0, 72, 73, 900]:
 		meter.show_projected(amount, 999)
 		await _frames(2)
-		var tag: Label = meter.tag_label
-		assert_float(tag.size.x).is_equal_approx(tag.get_minimum_size().x, 0.5)
-		assert_float(tag.size.y).is_equal_approx(tag.get_combined_minimum_size().y, 0.5)
-		assert_float(tag.size.y).is_greater_equal(QuotaMeter.TAG_HEIGHT)
-		var rect: Rect2 = tag.get_global_rect()
-		var middle: float = meter.get_global_rect().get_center().y
-		assert_float(rect.get_center().y).is_equal_approx(middle, 1.0)
-		(
-			assert_bool(meter.get_global_rect().encloses(rect))
-			. override_failure_message(str(rect))
-			. is_true()
-		)
-		assert_float(meter.bar().size.x).is_equal(bar_width)
-	var side_by_side: float = (
-		QuotaMeter.amount_width()
-		+ maxf(QuotaMeter.tag_width(), QuotaMeter.delta_width())
-		+ QuotaMeter.SEPARATION
-	)
-	assert_float(QuotaMeter.readout_width()).is_less(side_by_side)
-	# The widest lap tag ("€999 to ×99") fits its reserve.
+		_assert_inside_the_gauge(meter, meter.tag_label)
 	meter.show_projected(0, 999)
 	meter.tag_label.text = QuotaMeter.LAP_TAG_TEXT % [999, 99]
-	assert_float(meter.tag_label.get_minimum_size().x).is_less_equal(QuotaMeter.tag_width())
+	meter.call("_fit_readout")
+	_assert_inside_the_gauge(meter, meter.tag_label)
+	meter.show_hypothetical(152, 120, 999)
+	await _frames(2)
+	_assert_inside_the_gauge(meter, meter.delta_label)
+	var bar: Rect2 = meter.bar().get_global_rect()
+	var amount_rect: Rect2 = meter.amount_label.get_global_rect()
+	assert_float(amount_rect.position.x - bar.end.x).is_less_equal(QuotaMeter.SEPARATION + 1.0)
+	assert_float(amount_rect.size.x).is_equal_approx(QuotaMeter.readout_width(), 1.0)
 
 
 ## The liquid's colour follows the status (the user's idea, 2026-10-19): red while short, orange
@@ -219,6 +210,27 @@ func test_lap_of() -> void:
 	assert_int(QuotaMeter.lap_of(80, 40)).is_equal(2)
 	assert_int(QuotaMeter.lap_of(-5, 40)).is_equal(0)
 	assert_int(QuotaMeter.lap_of(80, 0)).is_equal(0)
+
+
+func _assert_inside_the_gauge(meter: QuotaMeter, label: Label) -> void:
+	var bar: Rect2 = meter.bar().get_global_rect()
+	var font: Font = label.get_theme_font("font")
+	var font_size: int = label.get_theme_font_size("font_size")
+	var drawn: float = font.get_string_size(label.text, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size).x
+	var rect: Rect2 = label.get_global_rect()
+	var ink: Rect2 = Rect2(rect.end.x - drawn, rect.position.y, drawn, rect.size.y)
+	assert_bool(bar.encloses(ink)).override_failure_message("%s in %s" % [ink, bar]).is_true()
+	assert_float(bar.end.x - rect.end.x).is_equal_approx(QuotaMeter.TAG_INSET, 1.0)
+	assert_float(rect.get_center().y).is_equal_approx(bar.get_center().y, 1.0)
+
+
+static func _tag_color(meter: QuotaMeter) -> Color:
+	meter.call("_place_tags")
+	return _color(meter.tag_label)
+
+
+static func _color(label: Label) -> Color:
+	return label.get_theme_color("font_color")
 
 
 func _meter(reduced: bool = true) -> QuotaMeter:

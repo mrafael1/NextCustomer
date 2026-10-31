@@ -168,12 +168,10 @@ func test_the_quota_bar_keeps_its_width_through_a_count() -> void:
 		assert_float(meter.amount_label.size.x).is_greater_equal(
 			meter.amount_label.get_minimum_size().x
 		)
-		# The tag (up to "€N to ×12" here) sits inside the meter, after the amount, at its end.
-		var meter_rect: Rect2 = meter.get_global_rect()
+		# The tag (up to "€N to ×12" here) is printed inside the gauge, at its right end.
+		var bar_rect: Rect2 = meter.bar().get_global_rect()
 		var tag: Rect2 = meter.tag_label.get_global_rect()
-		assert_bool(meter_rect.encloses(tag)).override_failure_message(str(tag)).is_true()
-		assert_float(tag.position.x).is_greater_equal(meter.amount_label.get_global_rect().end.x)
-		assert_float(tag.end.x).is_equal_approx(meter_rect.end.x, 1.0)
+		assert_bool(bar_rect.encloses(tag)).override_failure_message(str(tag)).is_true()
 
 
 ## A drag's would-be total and change (#71) keep the bar's width too: the amount's reserve holds
@@ -211,8 +209,12 @@ func test_the_quota_bar_keeps_its_width_through_a_drag() -> void:
 			var ink: Rect2 = Rect2(at, Vector2(drawn, label.size.y))
 			assert_bool(meter_rect.encloses(ink)).override_failure_message(text).is_true()
 			assert_float(drawn).override_failure_message(text).is_less_equal(label.size.x)
-		assert_float(meter.delta_label.get_global_rect().position.x).is_greater_equal(
-			meter.amount_label.get_global_rect().end.x
+		# The change is printed inside the gauge.
+		var change: Rect2 = meter.delta_label.get_global_rect()
+		(
+			assert_bool(meter.bar().get_global_rect().encloses(change))
+			. override_failure_message(text)
+			. is_true()
 		)
 	meter.show_projected(46, 900)
 	await _frames(2)

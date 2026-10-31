@@ -33,11 +33,12 @@ extends HBoxContainer
 ## the drag ends: the amount in its label, the change after it in place of the tag; the gauge
 ## previews the new stretch (paler green for a gain, a dark stretch for a loss).
 ##
-## The amount, a drag's change and the tag share one readout after the gauge (v0.83): the amount on
-## the left, the tag (a sticker fitted to its text) on the right. The readout is reserved for the
-## widest pair either can show (readout_width), so the gauge never moves through a count or while
-## a drag crosses the slots, and keeps the rest of the chip. Display only: the amounts are the
-## screen's preview and the LED's.
+## The amount follows the gauge, in a readout reserved for "€" and AMOUNT_DIGITS digits
+## (readout_width; a longer amount, or a drag's "› €N", shrinks to fit), so the gauge never moves
+## through a count or while a drag crosses the slots. The tag and a drag's change are printed inside
+## the gauge's empty right end (v0.83, the user's choice of 2026-11-01): in their own colour on the
+## well, in ink once the liquid reaches them. Display only: the amounts are the screen's preview and
+## the LED's.
 
 ## The count's amount reached `lap` times the quota (2 or more): the gauge laps.
 signal lap_reached(lap: int)
@@ -56,32 +57,23 @@ const NEAR_SHARE := 0.8
 ## The glow: a mustard-light ring GLOW_WIDTH px round the chip, pulsing every GLOW_SECONDS.
 const GLOW_WIDTH := 3.0
 const GLOW_SECONDS := 0.7
-## The amount's reserved digits: the readout has room for this many of the widest digit after
-## "€" (a count) and after a drag's "› €", so the gauge keeps its width while the subtotal gains
-## digits and a drag shows its total. A longer amount (a big lap's €1000) leaves the tag or the
-## change less room: they shrink to fit (_fit_readout), down to TAG_MIN_FONT_SIZE and
-## DELTA_MIN_FONT_SIZE.
+## The amount's reserved digits: the readout has room for "€" and this many of the widest digit,
+## so the gauge keeps its width while the subtotal gains digits. A longer text (a big lap's €1000,
+## a drag's "› €152") shrinks to fit, down to AMOUNT_MIN_FONT_SIZE.
 const AMOUNT_DIGITS := 3
-## The room between the amount and what follows it in the readout (a drag's change, the tag).
-const READOUT_GAP := 6
-## The change's reserved digits after its sign, in brackets (after the amount, for the tag).
-const DELTA_DIGITS := 2
-const DELTA_MIN_FONT_SIZE := 12
-## The tag's reserved digits (its widest text is "€N to go" with this many).
-const TAG_DIGITS := 3
+const AMOUNT_MIN_FONT_SIZE := 12
 ## A drag's would-be total and its change from the projected one (#71), and the two read together
 ## (shown_text).
 const HYPOTHETICAL_AMOUNT := "› €%d"
 const HYPOTHETICAL_DELTA := "(%+d)"
 const HYPOTHETICAL_TEXT := HYPOTHETICAL_AMOUNT + " " + HYPOTHETICAL_DELTA
-## The tag (mock-up TA's): its text in bold at TAG_FONT_SIZE, an ink border, TAG_PADDING in, half
-## the row tall; the sticker fits its text (v0.83).
-const TAG_FONT_SIZE := 12
-const TAG_MIN_FONT_SIZE := 9
+## The tag and a drag's change, printed in the gauge: bold at TAG_FONT_SIZE (down to
+## TAG_MIN_FONT_SIZE to fit), TAG_INSET px from its inside's right end (clear of a flag planted
+## there), centred on its height.
+const TAG_FONT_SIZE := 11
+const TAG_MIN_FONT_SIZE := 8
 const TAG_WEIGHT := 750
-const TAG_BORDER := 2
-const TAG_PADDING := 2
-const TAG_HEIGHT := TopBar.ROW_SIZE.y / 2.0
+const TAG_INSET := 6.0
 ## The amount punches from AMOUNT_PUNCH back to 1 over AMOUNT_PUNCH_SECONDS on each gain.
 const AMOUNT_PUNCH := 1.22
 const AMOUNT_PUNCH_SECONDS := 0.28
@@ -134,26 +126,30 @@ const BUBBLE_COLOR := Palette.PAPER
 const GAIN_PREVIEW_ALPHA := 0.55
 const LOSS_PREVIEW_ALPHA := 0.8
 ## The tag's words for core's ShiftMargin of the shown amount against the quota (to_go_text):
-## "€N to go" short of it, "Spot on" on it, "+€N" past it; dark tomato while short (tomato is only
-## for fizzles, CHECKOUT and CLOSED), ink from the near share on.
+## "€N to go" short of it, "Spot on" on it, "+€N" past it. On the well: light tomato while short,
+## mustard from the near share on (and in laps); a drag's gain light green, a loss light tomato;
+## ink over the liquid (TAG_OVER_LIQUID).
 const TO_GO_TEXT := "€%d to go"
 const ON_QUOTA_TEXT := "Spot on"
 const OVER_TEXT := "+€%d"
-const FIZZLE_COLOR := Palette.TOMATO_DARK
+const SHORT_TAG_COLOR := Palette.TOMATO_LIGHT
+const NEAR_TAG_COLOR := Palette.MUSTARD_LIGHT
+const GAIN_TAG_COLOR := Palette.GREEN_LIGHT
+const TAG_OVER_LIQUID := Palette.INK
 
 ## Returns whether to reduce motion (the profile's setting); an empty Callable means no.
 var reduced_motion: Callable = Callable()
 
 var quota_label: Label
 var amount_label: Label
-## How far the quota is (to_go_text); hidden while a drag shows its change.
+## How far the quota is (to_go_text), in the gauge; hidden while a drag shows its change.
 var tag_label: Label
-## A drag's change, after the amount; empty and hidden otherwise.
+## A drag's change, in the gauge in the tag's place; empty and hidden otherwise.
 var delta_label: Label
 var _bar: Control
-## The amount, a drag's change and the tag (readout_width wide).
-var _readout: HBoxContainer
-var _tag_style: StyleBoxFlat
+## The tag's and the change's colours on the well (ink over the liquid, _place_tags).
+var _tag_color: Color = SHORT_TAG_COLOR
+var _delta_color: Color = GAIN_TAG_COLOR
 var _flag: QuotaFlag
 var _amount: int = 0
 var _quota: int = 0
@@ -197,41 +193,15 @@ func _init() -> void:
 	_flag = QuotaFlag.new()
 	_flag.reduced_motion = _reduced
 	_bar.add_child(_flag)
-	# The readout is reserved for the widest amount with its tag or a drag's change, so the gauge
-	# does not jump when either shows.
-	_readout = HBoxContainer.new()
-	_readout.name = "Readout"
-	_readout.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_readout.add_theme_constant_override("separation", 0)
-	_readout.custom_minimum_size.x = readout_width()
-	add_child(_readout)
-	amount_label = TopBar.value_label(Palette.MUSTARD_LIGHT)
-	var gap: StyleBoxEmpty = StyleBoxEmpty.new()
-	gap.content_margin_right = READOUT_GAP
-	amount_label.add_theme_stylebox_override("normal", gap)
-	_readout.add_child(amount_label)
-	delta_label = TopBar.value_label(Palette.MUSTARD_LIGHT)
+	# The tag and a drag's change are printed in the gauge, over its liquid.
+	tag_label = _gauge_label()
+	delta_label = _gauge_label()
 	delta_label.visible = false
-	_readout.add_child(delta_label)
-	var spacer: Control = Control.new()
-	spacer.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	spacer.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	_readout.add_child(spacer)
-	tag_label = UiKit.body_label("", TAG_FONT_SIZE, FIZZLE_COLOR)
-	tag_label.add_theme_font_override("font", ArtStyle.bold_font(TAG_WEIGHT))
-	tag_label.add_theme_constant_override("outline_size", 0)
-	tag_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	tag_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	_tag_style = StyleBoxFlat.new()
-	_tag_style.bg_color = Palette.PAPER
-	_tag_style.border_color = Palette.INK
-	_tag_style.set_border_width_all(TAG_BORDER)
-	_tag_style.content_margin_left = TAG_PADDING + TAG_BORDER
-	_tag_style.content_margin_right = TAG_PADDING + TAG_BORDER
-	tag_label.add_theme_stylebox_override("normal", _tag_style)
-	tag_label.custom_minimum_size.y = TAG_HEIGHT
-	tag_label.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-	_readout.add_child(tag_label)
+	_bar.resized.connect(_fit_readout)
+	# The amount's readout is reserved for three digits, so the gauge does not jump in a count.
+	amount_label = TopBar.value_label(Palette.MUSTARD_LIGHT)
+	amount_label.custom_minimum_size.x = readout_width()
+	add_child(amount_label)
 	_random.seed = RANDOM_SEED
 	for _index: int in range(BUBBLES):
 		_bubbles.append(Vector3(_random.randf(), _random.randf(), _random.randf_range(6.0, 16.0)))
@@ -260,6 +230,7 @@ func show_hypothetical(amount: int, delta: int, quota: int) -> void:
 	amount_label.text = HYPOTHETICAL_AMOUNT % amount
 	delta_label.text = HYPOTHETICAL_DELTA % delta
 	delta_label.visible = true
+	_delta_color = GAIN_TAG_COLOR if delta >= 0 else SHORT_TAG_COLOR
 	tag_label.visible = false
 	_fit_readout()
 	_bar.queue_redraw()
@@ -316,52 +287,31 @@ func is_near() -> bool:
 	return not _blank and not _met and _quota > 0 and _amount >= _quota * NEAR_SHARE
 
 
-## The readout's reserved width: the wider of a count's amount ("€" and AMOUNT_DIGITS of the
-## widest digit) with the widest tag, and a drag's amount (amount_width) with its widest change,
-## READOUT_GAP apart. Longer texts fit it by shrinking the tag or the change (_fit_readout).
+## The amount's reserved width: "€" and AMOUNT_DIGITS of the widest digit. Longer texts shrink to
+## fit it (_fit_readout).
 static func readout_width() -> float:
-	var count: float = _text_width("€") + AMOUNT_DIGITS * _digit_width() + tag_width()
-	var drag: float = amount_width() + delta_width()
-	return ceilf(maxf(count, drag) + READOUT_GAP)
+	return ceilf(_text_width("€") + AMOUNT_DIGITS * _digit_width())
 
 
-## The tag's width for `text` at font `font_size`: the text, its padding and border.
+## The tag's (or a drag's change's) printed width for `text` at font `font_size`.
 static func tag_text_width(text: String, font_size: int = TAG_FONT_SIZE) -> float:
 	var font: Font = ArtStyle.bold_font(TAG_WEIGHT)
-	var width: float = font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size).x
-	return ceilf(width + 2.0 * (TAG_PADDING + TAG_BORDER))
-
-
-## A drag's amount's reserved width: its "› €" and AMOUNT_DIGITS of the widest digit, in the value
-## font (measured with the font: the label is not in the tree yet).
-static func amount_width() -> float:
-	var prefix: String = HYPOTHETICAL_AMOUNT % 0
-	return ceilf(_text_width(prefix.left(-1)) + AMOUNT_DIGITS * _digit_width())
-
-
-## The readout's reserved width for a drag's change: the brackets, the wider sign and
-## DELTA_DIGITS of the widest digit.
-static func delta_width() -> float:
-	var brackets: float = _text_width(HYPOTHETICAL_DELTA.replace("%+d", ""))
-	var sign_width: float = maxf(_text_width("+"), _text_width("-"))
-	return ceilf(brackets + sign_width + DELTA_DIGITS * _digit_width())
-
-
-## The tag's reserved width: "€N to go" with TAG_DIGITS of the widest digit, its padding and
-## border.
-static func tag_width() -> float:
-	var font: Font = ArtStyle.bold_font(TAG_WEIGHT)
-	var width: float = 0.0
-	for text: String in [TO_GO_TEXT % 0, LAP_TAG_TEXT % [0, 99]]:
-		width = maxf(
-			width, font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, TAG_FONT_SIZE).x
-		)
-	var digit: float = font.get_string_size("0", HORIZONTAL_ALIGNMENT_LEFT, -1, TAG_FONT_SIZE).x
-	return ceilf(width + (TAG_DIGITS - 1) * digit + 2.0 * (TAG_PADDING + TAG_BORDER))
+	return ceilf(font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size).x)
 
 
 func bar() -> Control:
 	return _bar
+
+
+## A label printed in the gauge (the tag, a drag's change): bold, no outline, takes no clicks.
+func _gauge_label() -> Label:
+	var label: Label = UiKit.body_label("", TAG_FONT_SIZE, SHORT_TAG_COLOR)
+	label.add_theme_font_override("font", ArtStyle.bold_font(TAG_WEIGHT))
+	label.add_theme_constant_override("outline_size", 0)
+	label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_bar.add_child(label)
+	return label
 
 
 func flag() -> QuotaFlag:
@@ -388,6 +338,7 @@ func _process(delta: float) -> void:
 		_slosh *= exp(-delta * SLOSH_DECAY)
 		_move_drops(delta)
 	_place_flag()
+	_place_tags()
 	_bar.queue_redraw()
 	queue_redraw()
 
@@ -454,43 +405,58 @@ func _set_lap(lap: int) -> void:
 	_lap = lap
 
 
-## Fits the readout's tag, or a drag's change, in the room the amount leaves of readout_width:
-## at its own size when it fits, else the largest size down to TAG_MIN_FONT_SIZE (the change's
-## DELTA_MIN_FONT_SIZE) that fits.
+## Fits the amount in readout_width (from the value font's size down to AMOUNT_MIN_FONT_SIZE),
+## and the tag and a drag's change in the gauge (down to TAG_MIN_FONT_SIZE), then places them.
 func _fit_readout() -> void:
-	var room: float = readout_width() - READOUT_GAP - _text_width(amount_label.text)
-	var tag_size: int = TAG_FONT_SIZE
-	while tag_size > TAG_MIN_FONT_SIZE and tag_text_width(tag_label.text, tag_size) > room:
-		tag_size -= 1
-	tag_label.add_theme_font_size_override("font_size", tag_size)
-	var delta_size: int = TopBar.VALUE_FONT_SIZE
+	var amount_size: int = TopBar.VALUE_FONT_SIZE
 	var font: Font = ArtStyle.number_font()
 	while (
-		delta_size > DELTA_MIN_FONT_SIZE
+		amount_size > AMOUNT_MIN_FONT_SIZE
 		and (
-			font.get_string_size(delta_label.text, HORIZONTAL_ALIGNMENT_LEFT, -1, delta_size).x
-			> room
+			font.get_string_size(amount_label.text, HORIZONTAL_ALIGNMENT_LEFT, -1, amount_size).x
+			> readout_width()
 		)
 	):
-		delta_size -= 1
-	delta_label.add_theme_font_size_override("font_size", delta_size)
+		amount_size -= 1
+	amount_label.add_theme_font_size_override("font_size", amount_size)
+	var room: float = _bar.size.x - 2.0 * TAG_INSET
+	for label: Label in [tag_label, delta_label]:
+		var tag_size: int = TAG_FONT_SIZE
+		while tag_size > TAG_MIN_FONT_SIZE and tag_text_width(label.text, tag_size) > room:
+			tag_size -= 1
+		label.add_theme_font_size_override("font_size", tag_size)
+	_place_tags()
+
+
+## Prints the tag and a drag's change at the gauge's inside's right end, centred on its height: in
+## their colour on the well, in ink (TAG_OVER_LIQUID) once the liquid (or a drag's gain) reaches
+## their middle.
+func _place_tags() -> void:
+	var liquid: float = _front()
+	if _hypothetical >= 0 and _art_size().x > 2:
+		var inner: float = _art_size().x - 2.0
+		liquid = maxf(liquid, 1.0 + inner * minf(float(_hypothetical), _scale()) / _scale())
+	liquid *= ArtStyle.ART_SCALE
+	for label: Label in [tag_label, delta_label]:
+		label.size = label.get_minimum_size()
+		var x: float = _bar.size.x - TAG_INSET - label.size.x
+		label.position = Vector2(x, (_bar.size.y - label.size.y) / 2.0).round()
+		var own: Color = _tag_color if label == tag_label else _delta_color
+		var colour: Color = TAG_OVER_LIQUID if liquid >= x + label.size.x / 2.0 else own
+		if label.get_theme_color("font_color") != colour:
+			label.add_theme_color_override("font_color", colour)
 
 
 func _show_tag(amount: int, quota: int) -> void:
+	tag_label.visible = true
 	if _lap > 0:
 		tag_label.text = LAP_TAG_TEXT % [(_lap + 1) * quota - amount, _lap + 1]
-		tag_label.visible = true
-		_tag_style.bg_color = Palette.MUSTARD
-		tag_label.add_theme_color_override("font_color", Palette.INK)
-		_fit_readout()
-		return
-	var margin: ShiftMargin = ShiftMargin.of(amount, quota)
-	tag_label.text = to_go_text(margin)
-	tag_label.visible = true
-	var short: bool = margin.kind() == ShiftMargin.Kind.SHORT
-	_tag_style.bg_color = Palette.PAPER if short else Palette.MUSTARD
-	var colour: Color = FIZZLE_COLOR if short and not is_near() else Palette.INK
-	tag_label.add_theme_color_override("font_color", colour)
+		_tag_color = NEAR_TAG_COLOR
+	else:
+		var margin: ShiftMargin = ShiftMargin.of(amount, quota)
+		tag_label.text = to_go_text(margin)
+		var far: bool = margin.kind() == ShiftMargin.Kind.SHORT and not is_near()
+		_tag_color = SHORT_TAG_COLOR if far else NEAR_TAG_COLOR
 	_fit_readout()
 
 
