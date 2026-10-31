@@ -21,9 +21,10 @@ extends Control
 ## most room wins, so new standees fill the gaps before they overlap, and later ones layer over
 ## the earlier.
 ##
-## When: every paid item pops cheer_count standees (one more and bigger as the payout is bigger
-## or a combo, CountUpTuning's cheer_*), the first at its tier's scale, with card_place pitched
-## up per standee and tier, each rising into a hop as high as its tier and the ladder's note
+## When: each bonus line of an item pops one standee as it lands (CountUp.step_landed; up to
+## cheer_line_cap per item, 2026-11-01), at its item's tier's scale (bigger as the payout is bigger
+## or a combo, CountUpTuning's cheer_*), with card_place pitched up per standee and tier, each
+## rising into a hop as high as its tier and the ladder's note
 ## (a crowd-wide hop leaves a standee alone while its pop runs); a payout of 0 that failed (its
 ## own condition WASTED, or denied; CountUpBeat.cheer_failed: a coupon paying nothing of its own
 ## does not) slumps the newest one (card_return); the ding makes everyone hop and pops
@@ -95,8 +96,6 @@ var _tuning: CountUpTuning
 var _count_up: CountUp
 ## The standees up, oldest first.
 var _standees: Array[CheerStandee] = []
-## The payout beat that started last and pays above 0 (it pops at payout_landed).
-var _pending: CountUpBeat
 ## The ladder's note of the latest gain beat.
 var _note: int = 0
 ## Standees popped this checkout (they take the designs in turn).
@@ -146,7 +145,7 @@ func follow(count_up: CountUp) -> void:
 	make_tween = count_up.tween_maker()
 	count_up.count_started.connect(func(_views: Array[CardView]) -> void: _on_count_started())
 	count_up.beat_started.connect(_on_beat_started)
-	count_up.payout_landed.connect(_on_payout_landed)
+	count_up.step_landed.connect(_on_step_landed)
 	count_up.quota_met.connect(_on_quota_met)
 	count_up.total_landed.connect(_on_total_landed)
 	count_up.printer_feed.connect(clear)
@@ -311,7 +310,6 @@ func clear() -> void:
 		shadow_layer.remove_child(shadow)
 		shadow.queue_free()
 	shadow_layer.visible = false
-	_pending = null
 	visible = false
 
 
@@ -354,16 +352,16 @@ func _on_beat_started(
 		_note = beat.note
 	if not CountUpPlan.is_payout_beat(beat):
 		return
-	if beat.cheer_count > 0:
-		_pending = beat
-	elif beat.cheer_failed:
+	if beat.cheer_failed:
 		slump()
 
 
-func _on_payout_landed(_payout: int, _subtotal: int) -> void:
-	if _pending != null:
-		pop(_pending.cheer_tier, _pending.cheer_count, _note)
-	_pending = null
+## A step lands on its item (its sticker fires): a bonus line's beat pops its standee.
+func _on_step_landed(index: int) -> void:
+	for beat: CountUpBeat in _count_up.plan.beats:
+		if beat.steps[0] == index and beat.cheer_count > 0:
+			pop(beat.cheer_tier, beat.cheer_count, beat.note if beat.note >= 0 else _note)
+			return
 
 
 func _on_total_landed() -> void:

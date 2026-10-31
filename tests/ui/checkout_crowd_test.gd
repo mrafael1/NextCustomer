@@ -34,8 +34,8 @@ var _peak: int = 0
 var _tweened: bool = false
 ## Just before the crowd's own printer feed handler: [visible, standees up, folds not yet 0].
 var _at_feed: Array = []
-## Standees up at the last payout landed, and each slump seen as [before, after]; each payout of
-## 0 that didn't fail (a coupon's) as [before, after].
+## Standees up at the last step or payout landed, and each slump seen as [before, after]; each
+## payout of 0 that didn't fail (a coupon's) as [before, after].
 var _last_up: int = 0
 var _slumps: Array[Array] = []
 var _kept: Array[Array] = []
@@ -84,10 +84,10 @@ func test_the_crowd_grows_clear_of_the_monitor_and_is_gone_at_the_printer_feed()
 	assert_array(_bad).override_failure_message("\n".join(_bad)).is_empty()
 	var plan: CountUpPlan = screen._count_up.plan
 	var expected: int = 0
+	# One standee per bonus line as it lands (2026-11-01), none for a payout of its own.
 	for beat: CountUpBeat in plan.beats:
-		if beat.payout > 0:
-			assert_int(beat.cheer_count).is_greater(0)
-			expected += beat.cheer_count
+		expected += beat.cheer_count
+	assert_int(expected).is_greater(0)
 	assert_int(_peak).is_greater(1)
 	assert_bool(_tweened).is_true()
 	# Meeting the quota popped cheer_quota_count more (v0.82).
@@ -489,6 +489,7 @@ func _play(screen: ShiftScreen, reduced: bool, quota: int = QUOTA) -> void:
 	count_up.payout_landed.connect(
 		func(_payout: int, _subtotal: int) -> void: _last_up = crowd.standees().size()
 	)
+	count_up.step_landed.connect(func(_index: int) -> void: _last_up = crowd.standees().size())
 	count_up.beat_started.connect(_on_beat.bind(crowd))
 	count_up.total_landed.connect(func() -> void: _at_total = crowd.standees().size())
 	# The standees just before and just after the crowd's own quota handler.
@@ -530,7 +531,9 @@ func _on_beat(
 	_items: int,
 	crowd: CheckoutCrowd
 ) -> void:
-	if CountUpPlan.is_payout_beat(beat) and beat.cheer_count == 0 and _last_up > 0:
+	# A slump needs a standee up; a kept coupon counts even on an empty crowd.
+	var counted: bool = _last_up > 0 or not beat.cheer_failed
+	if CountUpPlan.is_payout_beat(beat) and beat.payout <= 0 and counted:
 		var pair: Array = [_last_up, crowd.standees().size()]
 		if beat.cheer_failed:
 			_slumps.append(pair)

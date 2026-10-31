@@ -130,8 +130,9 @@ const SLIP_ARGUMENT := "--slip"
 const SLIP_PREFIX := "slip_%s_"
 const SLIP_PLAIN := "none"
 const CHEER_PREFIX := "cheer_"
-## --cheer's crowd: the cheer tiers popped in turn (their tuning's counts: 1+3+2+1+1 standees).
+## --cheer's crowd: items of these cheer tiers with CHEER_LINES bonus lines each, popped in turn.
 const CHEER_TIERS: Array[int] = [1, 3, 2, 1, 1]
+const CHEER_LINES: Array[int] = [1, 3, 2, 1, 1]
 ## --cheer: the count runs this long before it freezes; the pops are this far apart, and the
 ## capture follows the last one this soon (its arms still up).
 const CHEER_COUNT_S := 1.2
@@ -516,12 +517,10 @@ func cheer() -> void:
 	var crowd: CheckoutCrowd = _screen._stage.crowd
 	crowd.begin(SEED, false)
 	crowd.make_tween = crowd.create_tween
-	var tuning: CountUpTuning = load(CountUp.TUNING_PATH) as CountUpTuning
 	for index: int in range(CHEER_TIERS.size()):
 		if index > 0:
 			await get_tree().create_timer(CHEER_POP_GAP_S).timeout
-		var tier: int = CHEER_TIERS[index]
-		crowd.pop(tier, tuning.cheer_counts[tier - 1])
+		crowd.pop(CHEER_TIERS[index], CHEER_LINES[index])
 	await get_tree().create_timer(CHEER_LAST_S).timeout
 
 
