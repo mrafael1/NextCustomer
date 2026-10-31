@@ -1,21 +1,23 @@
 class_name PaperBag
 extends Control
 ## The paper bag on the counter (#86 v6, mock-up count_up_86_v6_scan.html): the counted items go
-## into it, one by one, as the belt ride bags them. It stands between the receipt and the belt
-## (ShiftStage.BAG_RECT), in three layers: the back wall of its open top (bag_back), then the
-## contents (the bagged items peeking out of its mouth at 1x art, and the item hopping in), then
-## its front (bag_front, THANK YOU baked into the art: no text is printed on the counter). The
-## bag squashes about its foot as an item lands in it (land), unless motion is reduced.
+## into it, one by one, as the belt ride bags them. Since #123 it is the store's kraft bag on the
+## bagging shelf behind the scanner (ShiftStage.BAG_RECT), in three layers: the back wall of its
+## open top (bag_back), then the contents (the bagged items peeking out of its mouth at 1x art, and
+## the item hopping in), then its front (bag_front, the store's band and price-tag logo baked into
+## the art: no text is printed on the counter). The bag squashes about its foot as an item lands in
+## it (land), unless motion is reduced.
 ##
 ## The ride hops a copy of the item's art (art_of) into `contents`, toward next_peek_rect(), then
 ## hands it over (add_art); a resumed checkout shows the bagged items at once (show_items); clear()
 ## empties the bag for the next shift. Decor only: it takes no clicks.
 
-## The bag's size: its art's (32x42 art px at 2x), its foot on the counter.
-const SIZE := Vector2(64, 84)
-## Its mouth (bag coordinates): the open top above the front's top edge, between the back wall's
-## ends, where the items go in and where a bagged item's effects start from.
-const MOUTH_RECT := Rect2(4, 0, 56, 12)
+## The bag's size: its art's (36x46 art px at 2x, the store's kraft bag of #123), its foot on the
+## bagging shelf.
+const SIZE := Vector2(72, 92)
+## Its mouth (bag coordinates): the open top above the front's serrated top edge, between the back
+## wall's ends, where the items go in and where a bagged item's effects start from.
+const MOUTH_RECT := Rect2(4, 0, 64, 16)
 ## A bagged item peeks out at 1x art: half its belt sprite's size (2x art), so its texels stay
 ## whole.
 const ITEM_SCALE := 0.5
@@ -24,15 +26,15 @@ const ITEM_SIZE := ItemView.SPRITE_SIZE * ITEM_SCALE
 ## the 2 px art grid, wrapping after the last: inside the bag's width, their tops over the mouth
 ## so the upper part of each shows above the front.
 const PEEKS: Array[Vector2] = [
-	Vector2(0, -14),
-	Vector2(16, -10),
-	Vector2(8, -18),
-	Vector2(14, -16),
-	Vector2(2, -10),
-	Vector2(10, -12),
-	Vector2(4, -18),
-	Vector2(16, -14),
-	Vector2(6, -8),
+	Vector2(2, -8),
+	Vector2(22, -4),
+	Vector2(12, -12),
+	Vector2(20, -10),
+	Vector2(4, -4),
+	Vector2(14, -6),
+	Vector2(6, -12),
+	Vector2(22, -8),
+	Vector2(8, -2),
 ]
 ## The landing's squash (the mock-up's): a wobble decaying over SQUASH_S, SQUASH_RATE radians a
 ## second, widening by SQUASH_X and lowering by SQUASH_Y of the bag's size at its peak.

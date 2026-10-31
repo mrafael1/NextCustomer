@@ -199,13 +199,13 @@ func test_the_stage_is_laid_out_without_overlaps() -> void:
 	assert_str(screen._seed_label.text).contains("Seed %d" % screen.run.run_seed)
 
 
-## The paper bag (#86 v6) stands on the counter between the receipt and the belt at BAG_RECT,
-## its foot on the counter line, under the top bar and clear of the monitor and the register's
-## keys; on the stage it is drawn over the belt and the planning layer and under the top bar. It
-## prints no text (not even an art-pending item's or an icon-less coupon's name) and takes no
-## click, and a full bag's items peek out inside its width, on the stage, clear of the receipt and
-## the belt.
-func test_the_paper_bag_stands_between_the_receipt_and_the_belt() -> void:
+## The store's kraft bag (#86 v6, #123) stands at BAG_RECT on the bagging shelf behind the belt's
+## first cell, right of the receipt and above the belt, its foot on the shelf, under the top bar
+## and clear of the monitor and the register's keys; on the stage the shelf and the bag are drawn
+## under the belt (the scanner's item stands in front) and under the top bar. It prints no text
+## (not even an art-pending item's or an icon-less coupon's name) and takes no click, and a full
+## bag's items peek out inside its width, on the stage, clear of the receipt and the belt.
+func test_the_kraft_bag_stands_on_its_shelf_behind_the_belt() -> void:
 	var screen: ShiftScreen = await _screen()
 	var stage: Rect2 = screen._stage.get_global_rect()
 	var bag: PaperBag = screen._stage.bag
@@ -216,17 +216,21 @@ func test_the_paper_bag_stands_between_the_receipt_and_the_belt() -> void:
 	var receipt: Rect2 = screen._receipt.get_global_rect()
 	var belt: Rect2 = screen._stage.belt.get_global_rect()
 	assert_float(rect.position.x).is_greater_equal(receipt.end.x)
-	assert_float(rect.end.x).is_less_equal(belt.position.x)
-	assert_float(rect.end.y).is_equal(stage.position.y + ShiftStage.PRINTER_RECT.position.y)
+	assert_float(rect.end.y).is_less_equal(belt.position.y)
+	assert_float(rect.end.y).is_equal(stage.position.y + ShiftStage.BAGGING_SHELF_RECT.position.y)
+	var shelf: Control = screen._stage.fore.get_node("BaggingShelf") as Control
+	assert_that(shelf.get_global_rect()).is_equal(_on_stage(screen, ShiftStage.BAGGING_SHELF_RECT))
+	assert_float(rect.position.x).is_greater_equal(shelf.get_global_rect().position.x)
+	assert_float(rect.end.x).is_less_equal(shelf.get_global_rect().end.x)
 	assert_float(rect.position.y).is_greater_equal(stage.position.y + ShiftStage.TOP_BAR_BOTTOM)
 	assert_bool(rect.intersects(_on_stage(screen, ShiftStage.MONITOR_RECT))).is_false()
 	assert_bool(rect.intersects(_on_stage(screen, ShiftStage.COLUMN_RECT))).is_false()
-	# In the stage's fore (#77 machine v2: it drops out of frame at the machine), over the belt
-	# and the planning layer; the top bar is on the hud, over the whole world.
+	# In the stage's fore (#77 machine v2: it drops out of frame at the machine), over its shelf
+	# and under the belt; the top bar is on the hud, over the whole world.
 	var index: int = bag.get_index()
 	assert_object(bag.get_parent()).is_same(screen._stage.fore)
-	assert_int(index).is_greater(screen._stage.belt.get_index())
-	assert_int(index).is_greater(screen._stage.planning_layer.get_index())
+	assert_int(index).is_greater(shelf.get_index())
+	assert_int(index).is_less(screen._stage.belt.get_index())
 	assert_object(screen._top_bar.get_parent()).is_same(screen._stage)
 	assert_int(screen._camera.get_index()).is_less(screen._stage.get_index())
 	var products: Array[CardDefinition] = []

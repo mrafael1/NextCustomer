@@ -15,10 +15,10 @@ signal basket_clicked(basket: int)
 ## The hovered basket changed (-1: none).
 signal hovered_changed(basket: int)
 
-const HIT_TOP_Y := 500.0
-const HIT_BOTTOM_Y := 680.0
+const HIT_TOP_Y := 534.0
+const HIT_BOTTOM_Y := 692.0
 const TAG_CENTRE_X := 104.0
-const TAG_TOP_Y := 620.0
+const TAG_TOP_Y := 632.0
 
 var _hits: Array[Control] = []
 var _tags: Array[RedrawTag] = []

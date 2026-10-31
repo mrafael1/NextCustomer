@@ -1,0 +1,13 @@
+; The bagging shelf (#123, mock-up docs/art/mockups/scene_123.html), 98x6 @2 drawn at
+; ShiftStage.BAGGING_SHELF_RECT: a steel plank on the belt's back-left edge, behind the scanner,
+; that the store's kraft bag stands on. Its lit top face, its front in two steel steps, an ink
+; outline.
+@size 98x6
+@kind scenery
+@scale 2
+##################################################################################################
+#ABBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB#
+#BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB#
+#DDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDD#
+#EEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEE#
+##################################################################################################

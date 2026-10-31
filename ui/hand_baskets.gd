@@ -20,15 +20,15 @@ enum Layer { BACK, FRONT }
 
 ## The basket's rows (stage y): the rim's back edge and front edge, the lip's foot, and the face's
 ## foot (its feet stand 4 px lower, on the ledge's top face).
-const RIM_BACK_Y := 576.0
-const RIM_FRONT_Y := 592.0
-const LIP_BOTTOM_Y := 604.0
-const FACE_FOOT_Y := 672.0
+const RIM_BACK_Y := 588.0
+const RIM_FRONT_Y := 604.0
+const LIP_BOTTOM_Y := 616.0
+const FACE_FOOT_Y := 684.0
 ## The face narrows TAPER px on each side from the lip to its foot.
 const TAPER := 8.0
 ## The art, from a basket's left edge at the rim: its back and its front.
-const BACK_OFFSET := Vector2(-4, 574)
-const FRONT_OFFSET := Vector2(-4, 590)
+const BACK_OFFSET := Vector2(-4, 586)
+const FRONT_OFFSET := Vector2(-4, 602)
 ## The ledge's 3-slice margins (art px) and its shadow on the floor under it, 2 px in from each
 ## end.
 const LEDGE_MARGIN := 4
@@ -42,12 +42,12 @@ const LEDGE_SHADOW_ALPHA := 0.45
 ## A basket's shadow on the counter front: a strip SHADOW_WIDTH wide right of the basket (it
 ## stands out from the counter, the light is top left), from under the rim down to the ledge.
 const SHADOW_WIDTH := 6.0
-const SHADOW_TOP_Y := 580.0
+const SHADOW_TOP_Y := 592.0
 const SHADOW_ALPHA := 0.32
 ## Its contact shadow on the ledge's top face, from its left edge.
-const CONTACT_SHADOW := Rect2(16, 668, 204, 12)
+const CONTACT_SHADOW := Rect2(16, 680, 204, 12)
 ## The inside darkens the items toward the rim in two flat steps (from the basket's left edge).
-const INSIDE_STEPS: Array[Rect2] = [Rect2(4, 584, 200, 4), Rect2(4, 588, 200, 4)]
+const INSIDE_STEPS: Array[Rect2] = [Rect2(4, 596, 200, 4), Rect2(4, 600, 200, 4)]
 const INSIDE_ALPHAS: Array[float] = [0.14, 0.28]
 const BACK_NAME := &"BasketBack"
 const FRONT_NAME := &"BasketFront"

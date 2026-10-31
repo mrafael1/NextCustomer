@@ -1,19 +1,19 @@
 class_name RegisterCabinet
 extends Control
-## The shift screen's cash register (#80, mock-up B2): the printer box on the counter top that
-## the receipt rises from (pixel art, step 5; the slot's lip over the paper is the stage's
-## ShiftStage.printer_lip, drawn above the receipt), and under it the register column (step 9):
-## its wooden front, the charcoal key deck with the keys on it (CHECKOUT's bar key, Redraw, and
+## The shift screen's cash register (#80, mock-up B2): the printer box on the counter top that the
+## receipt rises from (pixel art, step 5; the slot's lip over the paper is the stage's
+## ShiftStage.printer_lip, drawn above the receipt), and under it the register column (step 9): its
+## charcoal front (#123), the charcoal key deck with the keys on it (CHECKOUT's bar key, Redraw, and
 ## Cancel in redraw mode, all RegisterKeys), the quiet keypad, the seed line under Redraw, and the
 ## cash drawer, static and slightly ajar so its coin tray shows. It stands at
 ## ShiftStage.REGISTER_RECT and is the count-up's rattle target, so the keys shake with it; its
-## parts are placed in its own coordinates (the stage rects less its position). Only the keys
-## take clicks: the stage connects them to its signals.
+## parts are placed in its own coordinates (the stage rects less its position). Only the keys take
+## clicks: the stage connects them to its signals.
 
 ## The printer box (art/src/scenery/printer_box.txt), drawn 1:1 at ShiftStage.PRINTER_RECT with
 ## its paper slot at ShiftStage.PRINTER_SLOT_RECT.
 const PRINTER_BOX := preload("res://art/scenery/printer_box.png")
-## The column's wooden front and the key deck, 9-slices with COLUMN_MARGIN and DECK_MARGIN art px.
+## The column's charcoal front and the key deck, 9-slices with COLUMN_MARGIN and DECK_MARGIN art px.
 const COLUMN_FRAME := preload("res://art/frames/register_column.png")
 const COLUMN_MARGIN := 4
 const DECK_FRAME := preload("res://art/frames/register_deck.png")
