@@ -65,7 +65,7 @@ func test_a_failed_profile_save_opens_the_machines_switched_off() -> void:
 	await _frames(2)
 	for machine: ToyMachineView in screen._toys.machines():
 		assert_int(machine.state()).is_equal(CapsuleCounter.State.OFF)
-	assert_str(screen._toys.notice_label().text).is_equal(ToyMachinesScreen.OFF_NOTICE)
+	assert_int(screen._toys.strip_kind()).is_equal(ToyMachinesScreen.Strip.OFF)
 
 
 ## A shift screen whose run just ended, its results up: the profile has 2 coins after 1 run,

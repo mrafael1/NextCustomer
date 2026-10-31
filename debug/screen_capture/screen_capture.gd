@@ -66,6 +66,12 @@ extends Control
 ## the shift, as a tapped week chip opens it; the file is shift_screen_week_<width>x<height>.png.
 ## `--week=paid` or `--week=slip` first records the shift as passed or missed and shows the card
 ## as the verdict stamps it (v0.72; shift_screen_week_paid_<width>x<height>.png).
+## With `--toys=<state>[,hover=<aisle id>]` (#121) the TOY MACHINES open over the shift on a
+## profile with 9 of the 30 figurines (the mock-up's partial collection): `normal` (5 coins),
+## `broke` (0 coins), `off` (the profile can't be saved) or `complete` (every figurine, 5 coins);
+## `hover=` hovers that aisle's machine; `car=<seconds>` (v0.79) catches a car that passed the
+## doors that long ago, `lamp` the street lamp's flicker. The file is
+## shift_screen_toys_<state>_[<aisle>_][car<tenths>_][lamp_]<width>x<height>.png.
 
 const SCREEN := preload("res://ui/shift_screen.tscn")
 const SEED := 20261014
@@ -103,6 +109,11 @@ const TIP_ARGUMENT := "--tip="
 const STACK_ARGUMENT := "--stack"
 const WEEK_ARGUMENT := "--week"
 const WEEK_PREFIX := "week_"
+const TOYS_ARGUMENT := "--toys="
+## --toys' partial collection: the first items of each aisle owned (the mock-up's).
+const TOYS_OWNED: Dictionary[StringName, int] = {
+	&"cold_cases": 1, &"pantry": 2, &"household": 1, &"fruit_and_veg": 3, &"bakery": 2
+}
 const STACK_UPGRADE_IDS: Array[String] = ["coupon_engine", "big_basket", "category_engine"]
 const STACK_ROW_IDS: Array[String] = [
 	"bread",
@@ -179,6 +190,8 @@ var _tip_part: String = ""
 var _stack_part: String = ""
 ## A --week capture's file name part.
 var _week_part: String = ""
+## A --toys capture's file name part: toys_<state>_[<aisle>_].
+var _toys_part: String = ""
 ## Since hold_pointer(): the real pointer drives no hover, tooltip or click.
 var _holding_pointer: bool = false
 
@@ -219,6 +232,9 @@ func _ready() -> void:
 		week(_argument(WEEK_ARGUMENT + "="))
 	else:
 		_set_up_shift(INSPECTION, ROW_IDS)
+	var toys_spec: String = _argument(TOYS_ARGUMENT)
+	if toys_spec != "":
+		await toys(toys_spec)
 	if capture_folder != "":
 		var scan_id: String = _argument(SCAN_ARGUMENT)
 		if scan_id != "":
@@ -302,8 +318,51 @@ func week(result: String) -> void:
 	var quota: int = run.quota()
 	var total: int = quota if result == "paid" else quota - 1
 	run.history.append(ShiftRecord.new(run.shift_index + 1, quota, total))
-	_screen._week.card.stamp_day(WeekCardModel.of(run), null, true)
+	_screen._week.show_chips()  # Today's result pip (#119).
+	_screen._week.card.reopen(WeekCardModel.of(run), null, true)
 	_week_part += result + "_"
+
+
+## Opens the TOY MACHINES over the shift (#121): `spec` is "<state>[,hover=<aisle id>]" (see
+## --toys); the profile is a fresh one in the temporary folder.
+func toys(spec: String) -> void:
+	var parts: PackedStringArray = spec.split(",")
+	var state: String = parts[0]
+	var balance: BalanceDefinition = _screen.run.balance
+	var profile: ProfileState = ProfileState.new()
+	profile.coins = 0 if state == "broke" else 5
+	profile.run_count = 4
+	for aisle: AisleDefinition in balance.aisles:
+		var count: int = TOYS_OWNED.get(aisle.id, 0)
+		if state == "complete":
+			count = aisle.capsule_cards.size()
+		for card: CardDefinition in aisle.capsule_cards.slice(0, count):
+			profile.unlocked_items[card.id] = 0
+	var counter: CapsuleCounter = CapsuleCounter.new(
+		profile, SaveService.new(_folder), balance, _event_log(), false, state != "off"
+	)
+	var toys_screen: ToyMachinesScreen = ToyMachinesScreen.new()
+	add_child(toys_screen)
+	toys_screen.open(counter, balance)
+	_toys_part = "toys_%s_" % state
+	toys_screen.street().set_process(false)  # The capture keeps the moment asked for.
+	for part: String in parts.slice(1):
+		if part.begins_with("car="):
+			var seconds: float = part.trim_prefix("car=").to_float()
+			toys_screen.street().pass_car(1)
+			toys_screen.street()._process(seconds)
+			_toys_part += "car%d_" % roundi(seconds * 10.0)
+		if part == "lamp":
+			toys_screen.street()._process(ToyStreet.LAMP_FRAME * (ToyStreet.LAMP_OFF[0] + 0.5))
+			_toys_part += "lamp_"
+		if not part.begins_with("hover="):
+			continue
+		var aisle_id: String = part.trim_prefix("hover=")
+		for view: ToyMachineView in toys_screen.machines():
+			if view.aisle().id == StringName(aisle_id):
+				view._on_hover(true)
+		_toys_part += aisle_id + "_"
+	await get_tree().process_frame
 
 
 ## Stops the real pointer from driving the screen until the capture leaves the tree: a capture
@@ -414,7 +473,7 @@ func capture(folder: String) -> void:
 		prefix = FOCUS_PREFIX if _focused else EFFECTS_PREFIX
 	if _checkout_s >= 0.0:
 		prefix += CHECKOUT_PREFIX % roundi(_checkout_s * 10.0)
-	prefix += _machine_part + _reveal_part + _tip_part + _stack_part + _week_part
+	prefix += _machine_part + _reveal_part + _tip_part + _stack_part + _week_part + _toys_part
 	var path: String = folder.path_join(FILE_NAME % [prefix, window.x, window.y])
 	var image: Image = (
 		grab_image.call() as Image

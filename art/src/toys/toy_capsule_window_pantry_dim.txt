@@ -1,0 +1,3 @@
+; A closed Pantry window capsule (#121) in the dim tone (TONE_MAPS dim: two steps down each ramp;
+; out of coins, collected).
+@derive toy_capsule_window_pantry tone=dim

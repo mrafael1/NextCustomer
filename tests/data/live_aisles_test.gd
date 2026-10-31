@@ -273,13 +273,15 @@ func test_a_capsule_costs_at_least_one_coin() -> void:
 	assert_int(balance.capsule_price).is_equal(1)
 
 
-## Every aisle of the balance has its TOY MACHINE, its capsule and its shelf sign (#63, built from
+## Every aisle of the balance has its TOY MACHINE (#121's cabinet and base; #63's globe machine
+## is retired from the screen), its capsule (the title's machine) and its shelf sign (built from
 ## art/src by the aisle derives).
 func test_every_aisle_has_its_toy_machine_art() -> void:
 	var balance: BalanceDefinition = load(BALANCE)
 	for aisle: AisleDefinition in balance.aisles:
 		for path: String in [
-			"res://art/scenery/toy_machine_%s.png" % aisle.id,
+			"res://art/toys/toy_cabinet_%s.png" % aisle.id,
+			"res://art/toys/toy_base_%s.png" % aisle.id,
 			"res://art/scenery/toy_capsule_%s.png" % aisle.id,
 			"res://art/frames/aisle_sign_%s.png" % aisle.id,
 		]:

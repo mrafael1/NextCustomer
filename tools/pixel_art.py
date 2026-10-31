@@ -59,13 +59,26 @@ A derived source can instead hold
 
     @derive <source> aisle=<id>
 
-which recolours another source for one aisle (#63's TOY MACHINES: art/src/scenery/
-toy_machine_pantry.txt holds "@derive toy_machine aisle=pantry"). The base source draws its
+which recolours another source for one aisle (#121's TOY MACHINES: art/src/toys/
+toy_base_pantry.txt holds "@derive toy_base aisle=pantry"). The base source draws its
 body and sign in the teal ramp AISLE_BODY_RAMP (keys 2 3 4 5: dark, shade, base, light) and
 uses those keys for nothing else; AISLE_MAPS[id] gives the aisle's four keys for them, its base
 key being the aisle's sign_color (data/aisles/<id>.tres). Every other key passes through, and
 nothing is re-inked. A derived source is linted, built, checked (missing or stale) and
 previewed like any other.
+
+A derived source can also take a tone (#121's TOY MACHINES), alone or after an aisle:
+
+    @derive <source> tone=<dim|off>
+    @derive <source> aisle=<id> tone=<dim|off>
+
+which renders every pixel (after the aisle's recolour, if any) through TONE_MAPS[tone], a fixed
+key-for-key map over the whole palette, so a machine that can't be used stays inside the
+palette (no modulate haze). Ported from the approved mock-up docs/art/mockups/
+toy_machines_121_v2/ (cabinets.py DIM_MAP, build.py OFF_MAP):
+    dim     every colour two steps down its own ramp (out of coins, collected)
+    off     desaturated and darker, each colour snapped to its nearest palette key (out of order)
+Nothing is re-inked.
 
 art/src/palette.txt lists the palette, one colour per line: a single-character key, a hex
 colour and a name. The key '.' is transparent. The PNGs are indexed (PLTE + tRNS) and hold the
@@ -175,6 +188,35 @@ AISLE_MAPS = {
     "snacks": ("e", "e", "f", "F"),
 }
 AISLE_BASE_INDEX = 2
+# Tones (#121's TOY MACHINES; art data, not game balance), frozen from the approved mock-up
+# docs/art/mockups/toy_machines_121_v2/: dim (cabinets.py DIM_MAP, two steps down each ramp) and
+# off (build.py OFF_MAP, each colour desaturated to 30 %, darkened to 74 % and snapped to the
+# nearest key). Each maps every palette key but the transparent one.
+TONE_PREFIX = "tone="
+TONE_MAPS = {
+    "dim": {
+        "#": "#", "%": "#", ":": "-", "-": "=", "=": "%",
+        "w": "a", "c": "a", "b": "-", "a": "=",
+        "6": "4", "5": "3", "7": "3", "4": "2", "3": "1", "2": "8", "1": "8", "8": "8",
+        "O": "R", "o": "r", "R": "r", "r": "q", "q": "v",
+        "Y": "m", "y": "m", "M": "u", "m": "u", "u": "k", "n": "L", "L": "l", "l": "k", "k": "U",
+        "z": "g", "G": "g", "g": "1", "h": "F", "F": "f", "f": "e", "e": "U",
+        "v": "v", "V": "v", "x": "V", "X": "x",
+        "A": "D", "B": "E", "C": "E", "D": "H", "E": "I", "H": "I", "I": "N", "J": "K", "K": "N",
+        "N": "N", "P": "S", "Q": "T", "S": "T", "T": "U", "U": "N", "W": "i", "Z": "i", "d": "-",
+        "i": "=", "j": "4", "p": "3", "s": "t", "t": "N", "9": "0", "0": "f",
+    },
+    "off": {
+        "#": "N", "%": "s", "=": "I", "-": "E", ":": "D", "a": "-", "b": "D", "c": "C", "w": ":",
+        "1": "t", "2": "s", "3": "I", "4": "E", "5": "D", "6": "C", "q": "K", "r": "%", "R": "=",
+        "o": "-", "O": "D", "u": "%", "m": "=", "M": "-", "y": "C", "Y": "C", "g": "I", "G": "E",
+        "z": "D", "e": "K", "f": "%", "F": "=", "h": "-", "k": "#", "l": "%", "L": "E", "n": "a",
+        "v": "v", "V": "N", "x": "e", "X": "%", "A": "C", "B": "D", "C": "-", "D": "E", "E": "H",
+        "H": "J", "I": "s", "J": "K", "K": "N", "N": "N", "P": "D", "Q": "E", "S": "=", "T": "J",
+        "U": "N", "W": "C", "Z": "C", "d": "D", "i": "-", "j": ":", "p": "C", "s": "t", "t": "N",
+        "7": "E", "8": "N", "9": "D", "0": "E",
+    },
+}
 
 RGBA = tuple[int, int, int, int]
 Grid = list[list[str]]
@@ -210,8 +252,9 @@ class Sprite:
 
 @dataclass
 class Derivation:
-    """A derived source: another source's pixels through a GOLDEN map or an aisle's recolour
-    (no grid of its own). Exactly one of golden and aisle is set."""
+    """A derived source: another source's pixels through a GOLDEN map, or an aisle's recolour
+    and/or a tone (no grid of its own). Either golden is set, or one or both of aisle and
+    tone."""
     source: Path
     name: str
     base: str
@@ -219,6 +262,7 @@ class Derivation:
     keys: dict[str, str] = field(default_factory=dict)
     flags: frozenset[str] = frozenset()
     aisle: str = ""
+    tone: str = ""
 
     def base_name(self) -> str:
         """The base source's name, relative to the derived source's folder."""
@@ -293,7 +337,7 @@ def parse_source(path: Path, src_root: Path) -> tuple[Sprite | Derivation | None
     kind = ""
     scale = 1
     rows: list[str] = []
-    derive: tuple[str, str, dict[str, str], frozenset[str], str] | None = None
+    derive: tuple[str, str, dict[str, str], frozenset[str], str, str] | None = None
     derived = False
     other_directives = False
     for number, line in enumerate(lines, 1):
@@ -318,15 +362,16 @@ def parse_source(path: Path, src_root: Path) -> tuple[Sprite | Derivation | None
                     if problem:
                         errors.append(f"{name}:{number}: {problem}")
                     else:
-                        derive = (args[0], golden, keys, flags, "")
-                elif (len(args) == 2 and args[1].startswith(AISLE_PREFIX)
-                        and args[1].removeprefix(AISLE_PREFIX) in AISLE_MAPS):
-                    derive = (args[0], "", {}, frozenset(), args[1].removeprefix(AISLE_PREFIX))
+                        derive = (args[0], golden, keys, flags, "", "")
+                elif (recolour := parse_recolour(args[1:])) is not None:
+                    derive = (args[0], "", {}, frozenset(), recolour[0], recolour[1])
                 else:
                     errors.append(f"{name}:{number}: {DERIVE_DIRECTIVE} takes <source> "
-                                  f"golden=<map> (maps: {', '.join(derive_map_names())}) or "
+                                  f"golden=<map> (maps: {', '.join(derive_map_names())}), "
                                   f"<source> aisle=<id> (aisles: "
-                                  f"{', '.join(sorted(AISLE_MAPS))}), got {stripped!r}")
+                                  f"{', '.join(sorted(AISLE_MAPS))}), <source> tone=<tone> "
+                                  f"or <source> aisle=<id> tone=<tone> (tones: "
+                                  f"{', '.join(sorted(TONE_MAPS))}), got {stripped!r}")
                 derived = True
             elif directive == "@size" and len(args) == 1:
                 size = parse_size(args[0])
@@ -354,7 +399,7 @@ def parse_source(path: Path, src_root: Path) -> tuple[Sprite | Derivation | None
         if errors or derive is None:
             return None, errors
         return Derivation(path, name, derive[0], derive[1], derive[2], derive[3],
-                          derive[4]), []
+                          derive[4], derive[5]), []
     if size is None:
         errors.append(f"{name}: missing @size")
     if not kind:
@@ -370,6 +415,26 @@ def parse_source(path: Path, src_root: Path) -> tuple[Sprite | Derivation | None
     if errors:
         return None, errors
     return Sprite(path, name, width, height, kind, scale, rows), []
+
+
+def parse_recolour(args: list[str]) -> tuple[str, str] | None:
+    """(aisle, tone) from [aisle=<id>], [tone=<tone>] or [aisle=<id>, tone=<tone>]; None if the
+    arguments are anything else."""
+    aisle = ""
+    tone = ""
+    if args and args[0].startswith(AISLE_PREFIX):
+        aisle = args[0].removeprefix(AISLE_PREFIX)
+        if aisle not in AISLE_MAPS:
+            return None
+        args = args[1:]
+    if args and args[0].startswith(TONE_PREFIX):
+        tone = args[0].removeprefix(TONE_PREFIX)
+        if tone not in TONE_MAPS:
+            return None
+        args = args[1:]
+    if args or not (aisle or tone):
+        return None
+    return aisle, tone
 
 
 def parse_golden_keys(golden: str, args: list[str]) -> tuple[dict[str, str], frozenset[str], str]:
@@ -629,10 +694,18 @@ def aisle_recolour(rows: Grid, aisle: str) -> Grid:
     return [[mapping.get(key, key) for key in row] for row in rows]
 
 
+def tone_recolour(rows: Grid, tone: str) -> Grid:
+    """Every key through TONE_MAPS[tone] (transparent and unmapped keys pass); nothing re-inked."""
+    mapping = TONE_MAPS[tone]
+    return [[mapping.get(key, key) for key in row] for row in rows]
+
+
 def derive_sprite(derivation: Derivation, base: Sprite, palette: Palette) -> Sprite:
     grid = [list(row) for row in base.rows]
-    if derivation.aisle:
-        rows = aisle_recolour(grid, derivation.aisle)
+    if derivation.aisle or derivation.tone:
+        rows = aisle_recolour(grid, derivation.aisle) if derivation.aisle else grid
+        if derivation.tone:
+            rows = tone_recolour(rows, derivation.tone)
     elif derivation.golden == GOLDEN_KEYS_MAP:
         rows = golden_keys(grid, derivation.keys, derivation.flags)
     else:

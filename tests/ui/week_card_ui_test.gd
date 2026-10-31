@@ -346,49 +346,76 @@ func test_played_days_carry_their_stamps() -> void:
 	assert_str(days[2].stamp()).is_empty()
 
 
-## stamp_day (v0.72): the whole card pops in, today's stamp is hidden until it lands, then lies
-## inside today's row, right of the punch column, with PAID's sound (a SLIP's denied); the card
-## holds and flies back, then closes.
-func test_stamp_day_stamps_today_then_flies_back() -> void:
+## The rows read by time (#119): today's is ringed with a TODAY tab inside its row, right of the
+## punch column; a played day fades under its whole stamp (no TODAY tab once today is played);
+## the days to come are dimmed.
+func test_the_rows_tell_today_past_and_upcoming() -> void:
+	var host: Control = _card_host()
+	var card: WeekCard = WeekCard.new()
+	host.add_child(card)
+	card.size = host.size
+	var run: RunState = _started_run()
+	run.debug_skip_to_shift(1)
+	var quota: int = run.quota()
+	run.history.append(ShiftRecord.new(1, quota, quota))
+	card.reopen(WeekCardModel.of(run), null, true)
+	await _frames(3)
+	var rows: Array[Control] = card.rows()
+	var tab: Label = card.today_tab()
+	assert_object(tab).is_not_null()
+	assert_str(tab.text).is_equal(WeekCardModel.TODAY_TAB)
+	var rect: Rect2 = tab.get_global_rect()
+	(
+		assert_bool(rows[1].get_global_rect().encloses(rect))
+		. override_failure_message(str(rect))
+		. is_true()
+	)
+	assert_float(rect.position.x).is_greater(card.punches()[1].get_global_rect().end.x)
+	assert_object(rows[1].find_child("TodayRing", false, false)).is_null()
+	assert_float((rows[1].get_child(0) as Control).modulate.a).is_equal(1.0)
+	var past: Control = rows[0].get_child(0) as Control
+	assert_float(past.modulate.a).is_equal_approx(WeekCard.PAST_ALPHA, 0.01)
+	assert_float(card.stamps()[0].modulate.a).is_equal(1.0)
+	assert_float((rows[2].get_child(0) as Control).modulate.a).is_equal_approx(
+		WeekCard.UPCOMING_ALPHA, 0.01
+	)
+	assert_float((rows[1].get_child(0) as Control).modulate.a).is_equal(1.0)
+	run.history.append(ShiftRecord.new(2, quota, quota))
+	card.reopen(WeekCardModel.of(run), null, true)
+	await _frames(2)
+	assert_object(card.today_tab()).is_null()
+
+
+## A played day's pip shows its result (#119), today's too once checked out; flash() lights today's
+## with PAID's sound (a SLIP's denied), rings the chip while it lasts, then ends; with reduced
+## motion only the sound plays.
+func test_the_chip_lights_the_day_result() -> void:
 	for passed: bool in [true, false]:
 		var host: Control = _card_host()
 		var sfx: RecordingSfx = RecordingSfx.new()
 		host.add_child(sfx)
-		var card: WeekCard = WeekCard.new()
-		host.add_child(card)
-		card.size = host.size
+		var chip: WeekChip = WeekChip.new()
+		host.add_child(chip)
 		var run: RunState = _started_run()
 		var quota: int = run.quota()
 		run.history.append(ShiftRecord.new(1, quota, quota if passed else quota - 1))
-		card.stamp_day(WeekCardModel.of(run), host, false)
-		await _frames(2)
-		var stamp: Label = card.stamps()[0]
-		assert_object(stamp).is_not_null()
-		assert_float(stamp.modulate.a).is_equal(0.0)
-		for index: int in range(1, 4):
-			assert_object(card.stamps()[index]).is_null()
-		card.advance(WeekCard.DAY_STAMP_AT + WeekCard.STAMP_LENGTH)
-		await _frames(2)
-		assert_float(stamp.modulate.a).is_equal(1.0)
-		assert_vector(stamp.scale).is_equal_approx(Vector2.ONE, Vector2(0.01, 0.01))
-		assert_str(stamp.text).is_equal("PAID" if passed else "SLIP 1/2")
-		var row: Rect2 = card.rows()[0].get_global_rect()
-		var rect: Rect2 = stamp.get_global_rect()
-		assert_bool(row.encloses(rect)).override_failure_message(str(rect)).is_true()
-		var punch: Rect2 = card.punches()[0].get_global_rect()
-		assert_float(rect.position.x).is_greater(punch.end.x)
+		chip.show_week(WeekCardModel.of(run))
+		var lit: WeekCardModel.Pip = WeekCardModel.Pip.PAID if passed else WeekCardModel.Pip.SLIP
+		assert_int(chip.pips()[0]).is_equal(lit)
+		assert_int(chip.pips()[1]).is_equal(WeekCardModel.Pip.TODO)
+		chip.flash(false)
+		assert_bool(chip.is_flashing()).is_true()
 		assert_array(_sounds(sfx)).contains(["stamp_paid" if passed else "denied"])
-		assert_bool(card.is_open()).is_true()
-		card.advance(WeekCard.HOLD)
-		assert_bool(card.is_shrinking()).is_true()
-		card.advance(WeekCard.SHRINK)
-		assert_bool(card.is_open()).is_false()
+		chip.advance(WeekChip.FLASH)
+		assert_bool(chip.is_flashing()).is_false()
+		chip.flash(true)
+		assert_bool(chip.is_flashing()).is_false()
 
 
-## On the real screen the stamp comes between the verdict and what follows: when the count-up ends
-## the card is stamping today's PAID and the machine waits; once the card has flown back, the shift
-## goes on.
-func test_the_verdict_stamps_the_day_before_the_machine() -> void:
+## On the real screen the light comes between the verdict and what follows: during the count-up
+## today's pip stays gold (v0.78); when the count-up ends the chip lights today's check, no time
+## card opens, and the machine waits; once the light ends, the shift goes on.
+func test_the_verdict_lights_the_day_before_the_machine() -> void:
 	var runner: GdUnitSceneRunner = scene_runner(SCREEN)
 	var screen: ShiftScreen = runner.scene()
 	await _frames(3)
@@ -400,18 +427,21 @@ func test_the_verdict_stamps_the_day_before_the_machine() -> void:
 	_place_ids(screen, ["milk", "multipack", "milk", "milk", "milk", "milk", "milk"])
 	assert_bool(screen.run.preview().total >= screen.run.quota()).is_true()
 	Rush.checkout(screen)
+	var chip: WeekChip = screen._stage.top_bar.week_chip
+	await _frames(2)
+	assert_bool(screen._counting).is_true()
+	# The check waits for the light.
+	assert_int(chip.pips()[0]).is_equal(WeekCardModel.Pip.NOW)
 	var start: int = Time.get_ticks_msec()
 	while screen._counting and Time.get_ticks_msec() - start < Rush.MAX_WAIT_MS:
 		await _frames(1)
 	await _frames(2)
-	var card: WeekCard = screen._week.card
-	assert_bool(card.is_open()).is_true()
-	assert_str(card.stamps()[0].text).is_equal("PAID")
+	assert_bool(chip.is_flashing()).is_true()
+	assert_int(chip.pips()[0]).is_equal(WeekCardModel.Pip.PAID)
+	assert_bool(screen._week.card.is_open()).is_false()
 	assert_bool(screen._machine.is_open()).is_false()
-	card.advance(WeekCard.DAY_STAMP_AT + WeekCard.STAMP_LENGTH + WeekCard.HOLD)
-	card.advance(WeekCard.SHRINK)
+	chip.finish_flash()
 	await _frames(3)
-	assert_bool(card.is_open()).is_false()
 	assert_bool(screen._machine.is_open() or screen.run.phase == RunState.Phase.PLANNING).is_true()
 
 

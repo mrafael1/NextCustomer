@@ -1,0 +1,3 @@
+; The shared coin base for the Pantry aisle (#121) in the off tone (TONE_MAPS off: lights out,
+; desaturated; out of order).
+@derive toy_base aisle=pantry tone=off

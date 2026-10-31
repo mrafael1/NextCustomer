@@ -1,0 +1,678 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Toy Machines v2</title>
+<!-- #121 v2.1 (2026-10-30): the exit TOY MACHINES screen in the title's C+ art direction, revised after
+     three critiques (title art direction, machine identity, read at a glance). One 640x360 art canvas shown
+     at 2x with nearest filtering; everything, digits included, is drawn on that art grid.
+     Sprites: toy_machines_121_v2/assets (v1's build.py output, copied) and assets/v2 (cabinets.py).
+     URL parameters (all optional):
+       state=normal|hover|broke|off|complete   which screen state (default normal)
+       hover=<aisle id>                         the hovered machine for state=hover (default fruit_and_veg)
+       cap=stage|zoom                           only the 1280x720 screen, or only the zoom card (stills)
+       zoom=<aisle id>                          the machine in the zoom (default fruit_and_veg) -->
+<script src="toy_machines_121_v2/data.js"></script>
+<script src="toy_machines_121_v2/data_v2.js"></script>
+<style>
+@font-face { font-family: PixLocal; src: url(../../../fonts/PixelifySans-Variable.ttf); font-weight: 400 700; }
+@font-face { font-family: AtkLocal; src: url(../../../fonts/AtkinsonHyperlegibleNext-Variable.ttf); font-weight: 200 800; }
+:root {
+  --bg: #172c2b; --panel: #1f3b3a; --panel2: #2a4d4b; --line: #3a7672;
+  --text: #f3e9d2; --muted: #c7beab; --teal: #86c2b6; --gold: #ffcf3f;
+}
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme="dark"]) { --bg: #f3e9d2; --panel: #fbf7ee; --panel2: #ddcba5; --line: #b39f78; --text: #2b2420; --muted: #5e574d; --teal: #3a7672; --gold: #b38425; }
+}
+:root[data-theme="dark"] { --bg: #172c2b; --panel: #1f3b3a; --panel2: #2a4d4b; --line: #3a7672; --text: #f3e9d2; --muted: #c7beab; --teal: #86c2b6; --gold: #ffcf3f; }
+:root[data-theme="light"] { --bg: #f3e9d2; --panel: #fbf7ee; --panel2: #ddcba5; --line: #b39f78; --text: #2b2420; --muted: #5e574d; --teal: #3a7672; --gold: #b38425; }
+* { box-sizing: border-box; }
+html, body { margin: 0; background: var(--bg); color: var(--text); }
+body { font: 16px/1.5 AtkLocal, system-ui, sans-serif; }
+main { max-width: 1312px; margin: 0 auto; padding: 24px 16px 64px; }
+h1, h2, h3 { font-family: PixLocal, monospace; font-weight: 600; line-height: 1.15; margin: 0 0 8px; }
+h1 { font-size: 40px; }
+h2 { font-size: 24px; color: var(--gold); margin-top: 32px; }
+h3 { font-size: 20px; color: var(--teal); }
+p { margin: 0 0 12px; max-width: 76ch; }
+.lede { color: var(--muted); }
+.controls { display: flex; flex-wrap: wrap; gap: 10px 18px; align-items: center; margin: 16px 0 10px; }
+.seg { display: inline-flex; flex-wrap: wrap; border: 2px solid var(--panel2); }
+.seg b { font-size: 13px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); padding: 6px 10px; }
+.seg button { background: var(--panel); color: var(--text); border: 0; padding: 6px 12px; font: inherit; font-size: 15px; cursor: pointer; }
+.seg button[aria-pressed="true"] { background: var(--line); color: #fbf7ee; }
+.seg button:focus-visible { outline: 3px solid var(--gold); outline-offset: -3px; }
+.stagewrap { width: 100%; max-width: 1280px; border: 2px solid var(--panel2); background: #172c2b; line-height: 0; }
+#stage { display: block; width: 100%; height: auto; aspect-ratio: 16 / 9; image-rendering: pixelated; }
+#stage:focus-visible { outline: 3px solid var(--gold); outline-offset: -3px; }
+.hint { font-size: 14px; color: var(--muted); margin-top: 8px; }
+.cols { display: grid; grid-template-columns: minmax(0, auto) minmax(0, 1fr); gap: 24px; margin-top: 24px; align-items: start; }
+.card { background: var(--panel); border: 2px solid var(--panel2); padding: 14px 16px; }
+#zoom { display: block; width: 252px; height: auto; image-rendering: pixelated; max-width: 100%; }
+ul, ol { margin: 0; padding-left: 20px; }
+li { margin: 0 0 8px; }
+code { font-family: Consolas, ui-monospace, monospace; font-size: 14px; color: var(--teal); overflow-wrap: anywhere; }
+table { border-collapse: collapse; width: 100%; font-size: 15px; table-layout: fixed; }
+th:first-child { width: 24%; }
+td, li, p { overflow-wrap: anywhere; }
+th, td { border-bottom: 1px solid var(--panel2); padding: 6px 8px; text-align: left; vertical-align: top; }
+/* Phones: the stage stays on whole art pixels (1 art px = 1 CSS px) in a box that scrolls sideways. */
+@media (max-width: 760px) {
+  .cols { grid-template-columns: minmax(0, 1fr); }
+  h1 { font-size: 30px; }
+  #zoom { width: 168px; }
+  .stagewrap { overflow-x: auto; }
+  #stage { width: 640px; height: 360px; aspect-ratio: auto; }
+}
+/* stills: only the screen or only the zoom, at 1:1 */
+body.cap main > :not(.capkeep) { display: none; }
+body.cap main { padding: 0; max-width: none; }
+body.cap .stagewrap { width: 1280px; max-width: none; border: 0; }
+body.cap #stage { width: 1280px; height: 720px; }
+body.capzoom .cols { display: block; margin: 0; }
+body.capzoom .stagewrap { display: none; }
+body.capzoom .cols > :not(.zoomcard) { display: none; }
+body.capzoom .zoomcard { border: 0; padding: 0; background: #172c2b; display: inline-block; }
+body.capzoom .zoomcard > :not(#zoom) { display: none; }
+body.capzoom #zoom { width: auto; }
+</style>
+</head>
+<body>
+<main>
+  <h1>Toy machines v2: title art direction</h1>
+  <p class="lede">Issue #121, revised after three reviews. The exit toy machines screen in the title's C+ pixel art: one 640x360 art scene at 2x, the store after closing, hard Pixelify words, number-font digits on the same pixel grid, shelf-label plates with brass ledges, palette colours only. Each aisle has its own cabinet on one shared base, with its figurine standing on a plinth above it. Point at a machine (or tap it, or use the arrow keys on the scene) to see that aisle's lineup.</p>
+
+  <div class="controls">
+    <span class="seg" role="group" aria-label="Screen state"><b>State</b>
+      <button data-state="normal">Partial collection</button>
+      <button data-state="hover">Hover</button>
+      <button data-state="broke">Out of coins</button>
+      <button data-state="off">Out of order</button>
+      <button data-state="complete">All collected</button>
+    </span>
+  </div>
+  <div class="stagewrap capkeep" id="wrap">
+    <canvas id="stage" width="640" height="360" tabindex="0" aria-label="Toy machines screen mock-up. Arrow keys pick a machine and show its lineup; Escape clears."></canvas>
+  </div>
+  <p class="hint">Point at a machine or a button. On a touch screen, tap a machine to show its lineup. The Hover state pins Fruit &amp; veg so it can be compared.</p>
+
+  <div class="cols capkeep">
+    <div class="card zoomcard">
+      <h3>One machine at 3x</h3>
+      <canvas id="zoom" width="504" height="1344" aria-label="One machine at 3x"></canvas>
+      <p class="hint">1 art px = 6 screen px. The cabinet top changes per aisle; the collar, body, coin slot, dial, price LED, chute and foot are the same on all six.</p>
+    </div>
+    <div class="card">
+      <h3>What changed after the reviews</h3>
+      <ul>
+        <li><b>Lit means you can play it.</b> A machine you can buy from has its lamp on, a lit-on-hover sign and full colour. Out of coins, collected and out of order machines lose the lamp, take the off plates, and switch to a palette map two steps down each ramp (no haze blend, so every pixel is a palette colour).</li>
+        <li><b>Every word sits on something.</b> The hint, the notices and COLLECTION COMPLETE sit on one LED strip (the title's coin-LED look) between the floor plates and the buttons. Digits are the number font sampled onto the same 2 px grid as the letters.</li>
+        <li><b>Quieter shared body.</b> Smaller steel-shade dial, no glyph badge. The price is a small coin LED on the body, inside the 72 px footprint. Out of coins it shows a padlock and the slot gets its lid.</li>
+        <li><b>Capsules read as capsules.</b> One shape everywhere: the aisle colour, an ink seam with a cream band, a paper "?". Each cabinet places them its own way: fridge shelves, a jar on a shelf, a tumbled drum, crates, oven trays, one per vending coil.</li>
+        <li><b>Stronger cabinets.</b> The washer is cream enamel with suds in a teal drum. The jar has a gingham cap, a pantry label and a shelf. The fridge is white enamel with a cold light, wire shelves and frost. The vending box has one calm stripe, and the crisps stand on a dark plinth.</li>
+        <li><b>Hover like the title.</b> The sign row stays still: the hovered sign lights, the cabinet and figurine rise 2 px, the lamp burns hotter and the floor plate takes the tick. There's no rim. A machine you can't play shows the lineup only. The lineup uses the real minis at 2x, and the floor plate carries the only count.</li>
+        <li><b>Removed:</b> the Day scene, the clickable EXIT (now an unlit lightbox; DONE is the only way out), the unexplained NEW sticker and the ALL COLLECTED stamps. A collected machine has a green tick tag over its slot instead.</li>
+      </ul>
+    </div>
+  </div>
+
+  <h2>States at a glance</h2>
+  <table>
+    <thead><tr><th>State</th><th>What shows (besides colour)</th></tr></thead>
+    <tbody>
+      <tr><td>Can play</td><td>Lamp on, capsules in the window, a coin and 1 on the price LED, the floor plate reads n OF m LEFT.</td></tr>
+      <tr><td>Out of coins</td><td>Lamps off, slot lid shut, a padlock on the price LED, off plates, a tomato 0 on the COINS LED and a warning icon on the strip.</td></tr>
+      <tr><td>Collected</td><td>Lamp off, empty window, a tick tag over the slot, the floor plate reads COLLECTED with a tick in a green stripe. The figurine stays in colour as a trophy.</td></tr>
+      <tr><td>Out of order</td><td>OUT OF ORDER tape, slot lid shut, grey palette, lamps off, the COINS LED shows ? as the title's REWARDS LED does when coins can't be read.</td></tr>
+      <tr><td>Whole collection</td><td>All six collected, plus COLLECTION COMPLETE on the LED strip at 2x.</td></tr>
+    </tbody>
+  </table>
+
+  <h2>Open questions</h2>
+  <ol>
+    <li><b>Should a collected machine keep its figurine in colour?</b> I recommend yes: the topper becomes a trophy over a dark machine. The alternative dims it with the rest, which makes a finished aisle look like an empty one.</li>
+    <li><b>Ham ends or Cream for Cold cases?</b> One review read the ham as a ball at a glance. The fridge cabinet now says Cold cases by itself, so I recommend keeping Ham ends, as you chose. Cream is the only other Cold cases item and read as a spray bottle in v1.</li>
+  </ol>
+
+  <h2>Build estimate for the game: about 3 days with the art</h2>
+  <table>
+    <thead><tr><th>Area</th><th>Changes</th></tr></thead>
+    <tbody>
+      <tr><td>Art (<code>art/src/</code>)</td><td>One shared body source plus six cabinet tops (<code>toy_machine_&lt;aisle&gt;.txt</code>), composed in <code>tools/pixel_art.py</code>. Front overlays (crate lips, glare, frost) and the window capsule <code>toy_capsule_window.txt</code> with aisle derives. A new <code>dim</code> derive map (two steps down each ramp) beside the off map, with lid and tag variants. <code>toy_plinth</code> with derives. Night backdrop: <code>exit_vestibule_night.txt</code> (640x360) or drawn in code like <code>StorefrontArt</code>.</td></tr>
+      <tr><td>Code (<code>ui/toys/</code>)</td><td><code>toy_machine_view.gd</code>: slot lists from the aisle resource, the front overlay, topper and plinth, the price LED (coin, padlock or empty), tape and tag, three art sets (lit, dim, off) by state, and a hover that lifts only the cabinet and topper. <code>toy_machines_screen.gd</code>: night backdrop with one lamp and pool per machine (on only when playable), LED chips laid out like <code>RewardsMenu</code>, the LED strip for hints and notices, and the lineup strip of minis. Signs, floor plates and FIGURINE SHELF are <code>MenuPlate</code>s; its 9-slice frames already stretch, so the 76 and 74 art px plates need only a size option, not new frames. DONE is the primary plate.</td></tr>
+      <tr><td>Data (<code>data/</code>)</td><td>Per aisle: the topper item id and the window slots as <code>@export</code>s. No rule changes.</td></tr>
+      <tr><td>Tests</td><td><code>toy_machines_layout_test.gd</code>: the topper, the strip (no overlap with the chips, signs or the neighbour's figurine) and the LED strip between the floor plates and buttons. <code>toy_machines_draw_test.gd</code>: states by node (lamp, lid, padlock, tag, tape, plate frame), not modulate. <code>toy_test_kit.gd</code>: plate helpers. The resource-loading test covers the new <code>.tres</code> fields.</td></tr>
+    </tbody>
+  </table>
+</main>
+
+<script>
+"use strict";
+// ---------------------------------------------------------------------------------------------
+// Palette (art/src/palette.txt).
+const C = {
+  ink: "#2b2420", inkL: "#4a3f38", greyD: "#5e574d", grey: "#8a8172", greyL: "#c7beab",
+  creamDk: "#b39f78", creamSh: "#ddcba5", cream: "#f3e9d2", paper: "#fbf7ee",
+  t1: "#1f3b3a", t2: "#2a4d4b", t3: "#3a7672", t4: "#4f9a94", t5: "#86c2b6", t6: "#c3e0d4",
+  t7: "#5fb0a8", t8: "#172c2b", tq: "#6e2630", tr: "#a83a3c", tR: "#d9534f", to: "#ec8a6e",
+  tO: "#f5bfa0", mu: "#7a5a1c", md: "#b38425", M: "#e2b33c", my: "#f1d27a", mY: "#faecbc",
+  gD: "#3d7a45", G: "#5fae5a", gL: "#a5d17e", bK: "#4a3022", bD: "#7a5232", bF: "#a87a4e", bL: "#d2a874",
+  k: "#4a3010", l: "#8a5d1a", L: "#c8932b", gold: "#ffcf3f",
+  stHi: "#ecebe4", stL: "#c7c3b8", stP: "#a9a59b", st: "#8d8a83", stS: "#6f6b63", stD: "#57534c",
+  stK: "#45423d", rub: "#3d3a36", rubD: "#2c2926", char: "#24221f",
+  wP: "#ddb07a", wL: "#c98c4e", w: "#a8703a", wD: "#6e4524", wK: "#3e2614",
+  glow: "#e4f6f3", glass: "#bfe2dd", slate: "#2c3533", slateD: "#222a29",
+};
+const A = "toy_machines_121_v2/assets/";
+const V = A + "v2/";
+const AISLES = TM.aisles;
+const STRIPE = { cold_cases: C.t4, pantry: C.M, household: C.grey, fruit_and_veg: C.gD, bakery: C.bL, snacks: C.bD };
+const OWN_PARTIAL = {
+  cold_cases: ["cream"], pantry: ["sugar_cubes", "mixed_herbs"], household: ["egg_timer"],
+  fruit_and_veg: ["fruit_salad", "strawberries", "grapefruit"], bakery: ["baguette", "scone"], snacks: [],
+};
+
+// ---------------------------------------------------------------------------------------------
+// The one canvas: the 640x360 art grid.
+const cv = document.getElementById("stage"), g = cv.getContext("2d");
+g.imageSmoothingEnabled = false;
+function mk(w, h) { const c = document.createElement("canvas"); c.width = w; c.height = h; const x = c.getContext("2d", { willReadFrequently: true }); x.imageSmoothingEnabled = false; return [c, x]; }
+function R(x, y, w, h, c) { g.fillStyle = c; g.fillRect(Math.round(x), Math.round(y), Math.round(w), Math.round(h)); }
+function px(x, y, c) { R(x, y, 1, 1, c); }
+const patCache = {};
+function pattern(c, level, phase) {
+  const key = c + level + (phase || 0);
+  if (patCache[key]) return patCache[key];
+  const [cn, x] = mk(2, 2); x.fillStyle = c;
+  const cells = level === 1 ? [[0, 0]] : level === 2 ? [[0, 0], [1, 1]] : [[0, 0], [1, 1], [1, 0]];
+  for (const [a, b] of cells) x.fillRect((a + (phase || 0)) % 2, b, 1, 1);
+  return (patCache[key] = g.createPattern(cn, "repeat"));
+}
+function D(x, y, w, h, c, level, phase) { g.fillStyle = pattern(c, level, phase); g.fillRect(Math.round(x), Math.round(y), Math.round(w), Math.round(h)); }
+function tinted(src, c) {
+  const [cn, x] = mk(src.width, src.height);
+  x.drawImage(src, 0, 0);
+  x.globalCompositeOperation = "source-in";
+  x.fillStyle = c; x.fillRect(0, 0, cn.width, cn.height);
+  return cn;
+}
+
+// Pixelify as hard pixels, like the game: one font pixel per art pixel, sampled from the outline at 10x
+// on Pixelify's own grid (1000 / 11 units a pixel). Mask rows: 0 = cap top, 6 = baseline row, 7..9 below.
+const FONT = "PixLocal";
+const maskCache = {};
+const U = 1000 / 11;
+function textMask(str) {
+  if (maskCache[str]) return maskCache[str];
+  const big = 110, k = big / 1000, base = 100;
+  const [m, x] = mk(big * 2, 140);
+  x.font = "400 " + big + "px " + FONT; x.textBaseline = "alphabetic"; x.fillStyle = "#fff";
+  const on = []; let pen = 0;
+  for (const ch of str) {
+    const adv = Math.round(x.measureText(ch).width / 10);
+    if (ch !== " ") {
+      x.clearRect(0, 0, m.width, m.height);
+      x.fillText(ch, 20, base);
+      const d = x.getImageData(0, 0, m.width, m.height).data;
+      for (let j = 0; j < 10; j++) {
+        const row = 6 - j;
+        const yy = Math.floor(base - (-12 + (row + 0.5) * U) * k);
+        for (let c = 0; c < adv + 2; c++) {
+          const xx = Math.floor(20 + (60 + (c + 0.5) * U) * k);
+          if (xx < m.width && d[(yy * m.width + xx) * 4 + 3] > 127) on.push([pen + c, j]);
+        }
+      }
+    }
+    pen += adv;
+  }
+  let x0 = 1e9, x1 = -1;
+  for (const [i] of on) { if (i < x0) x0 = i; if (i > x1) x1 = i; }
+  if (x1 < 0) { x0 = 0; x1 = 1; }
+  const [c, cx] = mk(x1 - x0 + 1, 10);
+  cx.fillStyle = "#fff";
+  for (const [i, j] of on) cx.fillRect(i - x0, j, 1, 1);
+  return (maskCache[str] = c);
+}
+const tintCache = {};
+function tmask(str, c, num) { const k = (num || "") + str + "|" + c; return tintCache[k] || (tintCache[k] = tinted(num ? numMask(str, num) : textMask(str), c)); }
+function textW(str, sc) { return textMask(str).width * (sc || 1); }
+// Pixel words with their cap top at (x, y); sc 1 = 1 font px per art px, 2 for headings.
+function T(str, x, y, c, sc, align) {
+  sc = sc || 1;
+  const m = tmask(str, c);
+  const w = m.width * sc;
+  x = align === "c" ? Math.round(x - w / 2) : align === "r" ? x - w : x;
+  g.drawImage(m, 0, 0, m.width, m.height, x, y, w, m.height * sc);
+  return w;
+}
+
+// The number font (Atkinson Hyperlegible Next) on the art grid: rendered at 10x and sampled at the
+// art pixels by coverage, so the digits are hard pixels on the same 2 px grid as the words (the game's
+// raster import of the number font at a size whose stems land on whole art pixels). f = the font size in
+// art px; the mask starts at the digits' cap top.
+const numCache = {};
+// One glyph at a fixed sampling phase (so a digit looks the same wherever it falls in a number): an art
+// pixel is on when the glyph covers at least 45 % of it. Sampled at weight 600: at 750 the counters of
+// the 6, 8 and 9 close up at this size. Rows from the digits' cap top to the baseline.
+function numGlyph(ch, f) {
+  const key = ch + "@" + f;
+  if (numCache[key]) return numCache[key];
+  const big = f * 10, base = Math.round(big * 1.05);
+  const [m, x] = mk(big + 40, Math.round(big * 1.4));
+  x.font = "600 " + big + "px AtkLocal"; x.textBaseline = "alphabetic"; x.fillStyle = "#fff";
+  const cols = Math.floor(m.width / 10), rows = Math.floor(m.height / 10);
+  const sample = (s) => {
+    x.clearRect(0, 0, m.width, m.height); x.fillText(s, 5, base);
+    const d = x.getImageData(0, 0, m.width, m.height).data, on = [];
+    for (let j = 0; j < rows; j++) for (let i = 0; i < cols; i++) {
+      let t = 0; for (let b = 0; b < 10; b++) for (let a = 0; a < 10; a++) t += d[((j * 10 + b) * m.width + i * 10 + a) * 4 + 3];
+      if (t / 25500 > 0.45) on.push([i, j]);
+    }
+    return on;
+  };
+  if (numCache["cap@" + f] == null) numCache["cap@" + f] = Math.min(...sample("0").map((p) => p[1]));
+  const top = numCache["cap@" + f], bot = Math.floor(base / 10) + 1;
+  const on = sample(ch).filter((p) => p[1] >= top && p[1] < bot);
+  let i0 = 1e9, i1 = -1;
+  for (const [i] of on) { i0 = Math.min(i0, i); i1 = Math.max(i1, i); }
+  if (i1 < 0) { i0 = 0; i1 = 1; }
+  const [c, cx] = mk(i1 - i0 + 1, bot - top);
+  cx.fillStyle = "#fff";
+  for (const [i, j] of on) cx.fillRect(i - i0, j - top, 1, 1);
+  return (numCache[key] = c);
+}
+// A number: its glyphs one art px apart.
+function numMask(str, f) {
+  const key = "s:" + str + "@" + f;
+  if (numCache[key]) return numCache[key];
+  const gl = [...str].map((ch) => numGlyph(ch, f));
+  const w = gl.reduce((s, c) => s + c.width, 0) + gl.length - 1, h = gl[0].height;
+  const [c, cx] = mk(w, h); let x = 0;
+  for (const k of gl) { cx.drawImage(k, x, 0); x += k.width + 1; }
+  return (numCache[key] = c);
+}
+function numW(s, f) { return numMask(s, f).width; }
+function N(s, x, y, c, f, align) {
+  const m = tmask(s, c, f);
+  x = align === "c" ? Math.round(x - m.width / 2) : align === "r" ? x - m.width : x;
+  g.drawImage(m, x, y);
+  return m.width;
+}
+// A line of pixel words, number-font digits and icons with its cap top at y; tokens are strings or {img}.
+const isNum = (s) => typeof s === "string" && /^[0-9/?]+$/.test(s);
+const NUM_F = 12;
+function lineW(tokens, gap, f) { let w = 0; tokens.forEach((t, i) => { w += (i ? gap : 0) + (t.img ? t.img.width : isNum(t) ? numW(t, f) : textW(t)); }); return w; }
+function line(tokens, x, y, c, opt) {
+  opt = opt || {}; const gap = opt.gap == null ? 3 : opt.gap, f = opt.f || NUM_F;
+  const w = lineW(tokens, gap, f);
+  if (opt.align === "c") x = Math.round(x - w / 2); else if (opt.align === "r") x -= w;
+  for (const t of tokens) {
+    if (t.img) { g.drawImage(t.img, x, y + Math.round((7 - t.img.height) / 2)); x += t.img.width + gap; }
+    else if (isNum(t)) { x += N(t, x, y + 7 - numMask(t, f).height, opt.numC || c, f) + gap; } // baselines meet
+    else { x += T(t, x, y, c) + gap; }
+  }
+  return w;
+}
+
+// The till font (3x5) for lettering painted on props (the OUT OF ORDER tape).
+const TILL = {
+  A: "010101111101101", B: "110101110101110", C: "011100100100011", D: "110101101101110",
+  E: "111100110100111", F: "111100110100100", G: "011100101101011", H: "101101111101101",
+  I: "111010010010111", N: "110101101101101", O: "010101101101010", R: "110101110101101",
+  T: "111010010010010", U: "101101101101111", " ": "000000000000000",
+};
+function tillW(s) { return s.length * 4 - 1; }
+function till(s, x, y, c, align) {
+  if (align === "c") x -= Math.floor(tillW(s) / 2);
+  g.fillStyle = c;
+  for (const ch of s) {
+    const b = TILL[ch] || TILL[" "];
+    for (let i = 0; i < 15; i++) if (b[i] === "1") g.fillRect(x + (i % 3), y + ((i / 3) | 0), 1, 1);
+    x += 4;
+  }
+}
+
+// ---------------------------------------------------------------------------------------------
+// Plates: the title's menu_plate 9-slice (art/frames/menu_plate[_lit|_off].png): cut ink corners, a paper
+// top row, the face with a 3 px stripe, a cream-shade row, a two-row brass ledge, ink. Total height h + 3.
+function plate(x, y, w, h, mode, stripe, stripeW) {
+  const lit = mode === "lit", off = mode === "off";
+  R(x + 1, y, w - 2, h + 3, C.ink); R(x, y + 1, w, h + 1, C.ink);
+  R(x + 1, y + 1, w - 2, h - 1, off ? C.creamSh : lit ? C.paper : C.cream);
+  R(x + 1, y + 1, w - 2, 1, off ? C.cream : C.paper);
+  R(x + 1, y + h - 1, w - 2, 1, off ? C.creamDk : C.creamSh);
+  R(x + 1, y + 2, stripeW == null ? 3 : stripeW, h - 3, stripe ? stripe : off ? C.grey : lit ? C.t7 : C.t4);
+  R(x + 1, y + h, w - 2, 1, off ? C.l : lit ? C.gold : C.L);
+  R(x + 1, y + h + 1, w - 2, 1, off ? C.k : lit ? C.L : C.l);
+}
+function primary(x, y, w, h, lit) {
+  R(x + 2, y + h, w - 4, 2, C.t8);
+  R(x + 1, y, w - 2, h, C.ink); R(x, y + 1, w, h - 2, C.ink);
+  R(x + 1, y + 1, w - 2, h - 2, lit ? C.to : C.tR);
+  R(x + 1, y + 1, w - 2, 1, lit ? C.paper : C.tO);
+  R(x + 1, y + 2, 1, h - 5, lit ? C.tO : C.to);
+  R(x + w - 2, y + 2, 1, h - 5, C.tr);
+  R(x + 1, y + h - 3, w - 2, 1, C.tr); R(x + 1, y + h - 2, w - 2, 1, C.tq);
+}
+// The title's price-gun tick (art/icons/tick_marker.png, 5x7).
+function tick(x, y) { const rows = ["#R...", "#RR..", "#RRR.", "#RRRR", "#RRR.", "#RR..", "#R..."]; rows.forEach((r, j) => { for (let i = 0; i < 5; i++) if (r[i] !== ".") px(x + i, y + j, r[i] === "#" ? C.ink : C.tR); }); }
+function chevron(x, y, c, sc) { sc = sc || 1; for (let i = 0; i < 4; i++) { R(x + i * sc, y + i * sc, sc * 2, sc, c); R(x + i * sc, y + (6 - i) * sc, sc * 2, sc, c); } }
+function checkGlyph(x, y, c) { const rows = ["......#", ".....##", "#...##.", "##.##..", ".###..."]; rows.forEach((r, j) => { for (let i = 0; i < r.length; i++) if (r[i] === "#") px(x + i, y + j, c); }); }
+// The title's coin LED (art/frames/coin_led.png): a teal-black rim, a slate-dark face.
+function led(x, y, w, h) { R(x, y, w, h, C.t8); R(x + 1, y + 1, w - 2, h - 2, C.slateD); }
+
+// ---------------------------------------------------------------------------------------------
+// Images.
+const IMG = {};
+function load(key, src) { return new Promise((res) => { const im = new Image(); im.onload = () => { IMG[key] = im; res(); }; im.onerror = () => res(); im.src = src; }); }
+function loadAll() {
+  const jobs = [load("coin", V + "coin.png"), load("coinDim", V + "dim/coin.png"), load("padlock", V + "dim/padlock.png"),
+    load("warning", A + "warning.png")];
+  for (const a of AISLES) {
+    for (const [k, p] of [["cab", "cab_"], ["front", "front_"], ["cap", "capW_"], ["plinth", "plinth_"]]) {
+      jobs.push(load(k + "_lit_" + a.id, V + p + a.id + ".png"), load(k + "_dim_" + a.id, V + "dim/" + p + a.id + ".png"), load(k + "_off_" + a.id, V + "off/" + p + a.id + ".png"));
+    }
+    jobs.push(load("cabLid_" + a.id, V + "dim/cabLid_" + a.id + ".png"), load("cabTag_" + a.id, V + "dim/cabTag_" + a.id + ".png"));
+    const top = TM.toppers[a.id];
+    jobs.push(load("top_lit_" + a.id, A + "item48_" + top + ".png"), load("top_dim_" + a.id, V + "dim/item48_" + top + ".png"));
+    for (const it of a.items) jobs.push(load("mini_" + it, A + "mini_" + it + ".png"), load("minis_" + it, A + "minis_" + it + ".png"));
+  }
+  return Promise.all(jobs);
+}
+
+// ---------------------------------------------------------------------------------------------
+// State.
+const Q = new URLSearchParams(location.search);
+const S = {
+  state: Q.get("state") || "normal", pinHover: Q.get("hover") || "fruit_and_veg",
+  mouse: null, sel: null, btn: null, targets: [], zoom: Q.get("zoom") || "fruit_and_veg",
+};
+function owned(a) { return S.state === "complete" ? a.items.slice() : OWN_PARTIAL[a.id]; }
+// ok: can play; broke: figurines left but no coins; empty: collected; off: out of order.
+function machineState(a) {
+  if (S.state === "off") return "off";
+  if (a.items.length - owned(a).length === 0) return "empty";
+  if (S.state === "broke") return "broke";
+  return "ok";
+}
+function hovered() { return S.mouse || S.sel || (S.state === "hover" ? S.pinHover : null); }
+const X0 = 20, PITCH = 80, TOP = 125, FLOOR_Y = 269;
+
+// ---------------------------------------------------------------------------------------------
+// Scene: the exit after closing. Teal-black wall, wainscot with a brass rail, dark tiled floor.
+function backdrop() {
+  R(0, 0, 640, 20, C.char); D(0, 0, 640, 20, C.t8, 2); R(0, 18, 640, 1, C.stK); R(0, 19, 640, 1, C.stD);
+  R(0, 20, 640, 228, C.t8); D(0, 20, 640, 174, C.t1, 1);
+  for (let x = 40; x < 520; x += 80) R(x, 20, 1, 174, C.t1);
+  R(0, 194, 640, 2, C.l); R(0, 194, 640, 1, C.L); R(0, 196, 640, 1, C.k);
+  R(0, 197, 640, 49, C.t1);
+  for (let x = 0; x < 520; x += 40) { R(x + 4, 203, 32, 38, C.t2); R(x + 4, 203, 32, 1, C.t8); R(x + 4, 203, 1, 38, C.t8); R(x + 5, 240, 31, 1, C.t3); }
+  R(0, 246, 640, 4, C.wK); R(0, 246, 640, 1, C.wD);
+  R(0, 250, 640, 110, C.t1);
+  for (let y = 250, r = 0; y < 360; y += 10, r++) for (let x = (r % 2) * 20; x < 640; x += 40) R(x, y, 20, 10, C.t2);
+  D(0, 250, 640, 110, C.t8, 1);
+  D(0, 310, 640, 50, C.t8, 2);
+}
+// The glass exit doors: flat teal-darkest glass, the street as solid shapes, two glare lines a leaf and
+// one dithered pool under the street lamp (the title's glass recipe).
+function doors() {
+  const x = 524, y = 34, w = 104, h = 212;
+  R(x - 4, y - 4, w + 8, h + 4, C.stK); R(x - 4, y - 4, w + 8, 1, C.stS);
+  R(x, y, w, h, C.t1);
+  // the street: far roofs with a few lit windows, the lamp post, the kerb
+  R(x, y + 112, 34, 82, C.t8); R(x + 34, y + 96, 30, 98, C.slateD); R(x + 64, y + 122, 40, 72, C.t8);
+  for (const [a, b] of [[8, 124], [42, 106], [50, 122], [76, 134]]) R(x + a, y + b, 4, 4, C.mu);
+  R(x + 86, y + 70, 2, 124, C.char); R(x + 81, y + 66, 12, 4, C.char); R(x + 83, y + 70, 8, 1, C.my);
+  D(x + 72, y + 186, 30, 8, C.mu, 2); D(x + 64, y + 182, 46, 4, C.mu, 1);
+  R(x, y + 194, w, 18, C.slateD);
+  for (const lx of [x, x + 52]) {
+    const lw = 52;
+    R(lx, y, lw, 3, C.stS); R(lx, y + h - 8, lw, 8, C.stS); R(lx, y, 3, h, C.stS); R(lx + lw - 3, y, 3, h, C.stS);
+    R(lx, y, lw, 1, C.st); R(lx, y, 1, h, C.st);
+    R(lx + 3, y + 104, lw - 6, 3, C.st); R(lx + 3, y + 104, lw - 6, 1, C.stP);
+    for (let i = 0; i < 12; i++) px(lx + 8 + i, y + 36 - i, C.t3);
+    for (let i = 0; i < 6; i++) px(lx + 8 + i, y + 46 - i, C.t3);
+  }
+  R(x + 52, y, 1, h, C.stK);
+  R(x - 10, 250, w + 20, 12, C.char); for (let xx = x - 8; xx < x + w + 10; xx += 4) R(xx, 252, 2, 8, C.rubD);
+  R(x - 10, 250, w + 20, 1, C.rub);
+}
+// EXIT: an unlit wall lightbox above the doors (scenery, not a button: DONE is the way out).
+function exitSign() {
+  const w = 40, h = 15, x = 576 - w / 2, y = 10;
+  R(x + 1, y, w - 2, h, C.ink); R(x, y + 1, w, h - 2, C.ink);
+  R(x + 1, y + 1, w - 2, h - 2, C.t8); R(x + 1, y + 1, w - 2, 1, C.t2);
+  T("EXIT", 576, y + 4, C.G, 1, "c");
+  R(x + 6, y + h - 3, w - 12, 1, C.gD);
+}
+// A recessed lamp; its cone stays inside its own machine's pitch and ends in its own pool on the floor.
+function lamp(cx, on) { R(cx - 6, 17, 12, 3, C.stK); R(cx - 5, 20, 10, 2, C.stD); R(cx - 3, 22, 6, 1, on ? C.my : C.stS); }
+function cone(cx, hot) {
+  const c = hot ? C.md : C.mu, y0 = 23, y1 = 262;
+  for (let y = y0; y < y1; y += 2) {
+    const f = (y - y0) / (y1 - y0), w = Math.round((10 + 46 * f) / 2) * 2;
+    D(cx - w / 2, y, w, 2, c, f < (hot ? 0.55 : 0.3) ? 2 : 1);
+  }
+  D(cx - 22, 262, 44, 4, c, 2); D(cx - 34, 262, 12, 4, c, 1); D(cx + 22, 262, 12, 4, c, 1);
+  D(cx - 26, 266, 52, 2, c, 1);
+}
+
+// ---------------------------------------------------------------------------------------------
+// One machine. The art is 72x140 from (x, TOP); the sign plate covers rows 0..17, the topper and plinth
+// stand above it. Three art sets: lit (can play), dim (out of coins, collected) and off (out of order).
+function lightPass(a, i) {
+  const st = machineState(a), hot = hovered() === a.id && st === "ok";
+  const x = X0 + i * PITCH;
+  lamp(x + 36, st === "ok");
+  if (st === "ok") cone(x + 36, hot);
+  R(x + 12, TOP + 139, 48, 2, C.char);
+}
+function machine(a, i) {
+  const st = machineState(a), hot = hovered() === a.id && st === "ok";
+  const x = X0 + i * PITCH, lift = hot ? 2 : 0, y = TOP - lift;
+  const set = st === "ok" ? "lit" : st === "off" ? "off" : "dim";
+  const left = a.items.length - owned(a).length;
+  // Cabinet (dim ones: lid shut when out of coins, the tick tag when collected, plain in the complete state).
+  let cab = IMG["cab_" + set + "_" + a.id];
+  if (st === "broke") cab = IMG["cabLid_" + a.id];
+  if (st === "empty" && S.state !== "complete") cab = IMG["cabTag_" + a.id];
+  g.drawImage(cab, x, y);
+  const slots = TM2.slots[a.id], cap = IMG["cap_" + set + "_" + a.id];
+  for (let k = 0; k < Math.min(left, slots.length); k++) g.drawImage(cap, x + slots[k][0], y + slots[k][1]);
+  g.drawImage(IMG["front_" + set + "_" + a.id], x, y);
+  const [wx, wy, ww, wh] = TM2.win[a.id];
+  if (st === "off") tape(x, y + wy + Math.floor(wh / 2) - 7);
+  // Price LED on the body: the coin and 1 (can play), a padlock (out of coins), dark otherwise.
+  const [dx, dy] = TM2.decal;
+  if (st === "ok") { g.drawImage(IMG.coin, x + dx + 2, y + dy + 2); N("1", x + dx + 16, y + dy + 3, C.gold, NUM_F); }
+  else if (st === "broke") { g.drawImage(IMG.padlock, x + dx + 3, y + dy + 3); N("1", x + dx + 16, y + dy + 3, C.greyD, NUM_F); }
+  // Sign: lit on hover only when playable, off when it can't be played. It never moves.
+  const signMode = st !== "ok" ? "off" : hot ? "lit" : "";
+  plate(x - 2, TOP, 76, 15, signMode, STRIPE[a.id], 3);
+  T(a.name.toUpperCase(), x + 39, TOP + 4, st === "ok" ? C.ink : C.greyD, 1, "c");
+  // Plinth and topper: rise with the cabinet on hover; dimmed when out of coins or out of order. A
+  // collected machine keeps its figurine in colour, as a trophy, except when the coins are out (then
+  // nothing on screen may look playable).
+  const topSet = st === "ok" || (st === "empty" && S.state !== "broke") ? "lit" : "dim";
+  const pad = TM.topperPad[a.id];
+  const hop = hot && S.anim ? (Math.floor(performance.now() / 160) % 4 === 1 ? 2 : 0) : 0;
+  g.drawImage(IMG["plinth_" + (st === "off" ? "off" : topSet) + "_" + a.id], x + 18, TOP - 6 - lift);
+  g.drawImage(IMG["top_" + topSet + "_" + a.id], x + 12, TOP - 54 + pad - lift - hop);
+  // Floor plate: n OF m LEFT, or COLLECTED with a tick in a green stripe; the tick marker on hover.
+  const fx = x - 1 + (hot ? 2 : 0), fy = FLOOR_Y;
+  if (left === 0) {
+    plate(fx, fy, 74, 14, "off", C.gD, 8);
+    checkGlyph(fx + 1, fy + 5, C.paper);
+    T("COLLECTED", fx + 10 + Math.floor((63 - textW("COLLECTED")) / 2), fy + 4, C.greyD);
+  } else {
+    plate(fx, fy, 74, 14, st === "ok" ? (hot ? "lit" : "") : "off", null, 3);
+    line([String(left), "OF", String(a.items.length), "LEFT"], fx + 39, fy + 4, st === "ok" ? C.ink : C.greyD, { align: "c" });
+  }
+  if (hot) tick(fx - 7, fy + 4);
+  S.targets.push({ id: a.id, x, y: TOP - 56, w: 72, h: 196 + 30, machine: true });
+}
+function tape(x, y) { // OUT OF ORDER tape across the window, hazard ends, whole pixels
+  const w = 68, h = 15, x0 = x + 2;
+  R(x0, y, w, h, C.ink); R(x0 + 1, y + 1, w - 2, h - 2, C.cream); R(x0 + 1, y + 1, w - 2, 1, C.paper); R(x0 + 1, y + h - 2, w - 2, 1, C.creamSh);
+  for (let yy = 1; yy < h - 1; yy++) for (let xx = 1; xx < 7; xx++) if ((xx + yy) % 4 < 2) { px(x0 + xx, y + yy, C.tR); px(x0 + w - 1 - xx, y + yy, C.tR); }
+  till("OUT OF", x0 + w / 2, y + 2, C.tr, "c");
+  till("ORDER", x0 + w / 2, y + 8, C.tr, "c");
+}
+
+// ---------------------------------------------------------------------------------------------
+// Header: the COINS and FIGURINES LEDs (laid out like the title's RewardsMenu LED: the coin, the count in
+// gold in the number font, the word in mustard dark), the hanging TOY MACHINES board.
+function chip(x, y, num, word, icon, numC) {
+  const f = 12, nw = numW(num, f);
+  const w = 5 + (icon ? icon.width + 4 : 0) + nw + 4 + textW(word) + 6, h = 18;
+  led(x, y, w, h);
+  let cx = x + 5;
+  if (icon) { g.drawImage(icon, cx, y + 3); cx += icon.width + 4; }
+  cx += N(num, cx, y + 13 - numMask(num, f).height, numC || C.gold, f) + 4;
+  T(word, cx, y + 6, C.md);
+  return w;
+}
+function header() {
+  const st = S.state;
+  const coins = st === "broke" ? "0" : st === "off" ? "?" : "5";
+  const figs = st === "complete" ? "30/30" : "9/30";
+  const h = hovered(), ha = AISLES.find((a) => a.id === h);
+  const lineupUp = ha && machineState(ha) !== "off";
+  if (!lineupUp) for (const cx of [186, 322]) for (let y = 0; y < 36; y += 4) { R(cx, y, 2, 3, C.stD); R(cx, y + 3, 2, 1, C.stK); }
+  const w1 = chip(10, 6, coins, "COINS", st === "off" ? IMG.coinDim : IMG.coin, coins === "0" ? C.tR : C.gold);
+  chip(10 + w1 + 6, 6, figs, "FIGURINES", null, C.gold);
+  if (lineupUp) return;
+  const bx = 165, by = 35, bw = 180, bh = 32;
+  R(bx + 1, by, bw - 2, bh, C.ink); R(bx, by + 1, bw, bh - 2, C.ink);
+  R(bx + 1, by + 1, bw - 2, bh - 2, C.stK); R(bx + 1, by + 1, bw - 2, 1, C.stS);
+  R(bx + 3, by + 3, bw - 6, bh - 8, C.t8);
+  R(bx + 3, by + bh - 5, bw - 6, 1, C.t3); R(bx + 3, by + bh - 4, bw - 6, 2, C.tr);
+  T("TOY MACHINES", bx + bw / 2, by + 6, C.paper, 2, "c");
+}
+
+// ---------------------------------------------------------------------------------------------
+// Floor band: one LED strip for the hint, the notices and COLLECTION COMPLETE; then the buttons.
+function floorBand() {
+  const st = S.state, cx = 320;
+  if (st === "complete") {
+    const t1 = "COLLECTION COMPLETE", t2 = "EVERY FIGURINE IS ON YOUR SHELF. YOUR COINS KEEP ADDING UP ON THE FINAL RECEIPT.";
+    const w = Math.max(textW(t1, 2), textW(t2)) + 20;
+    led(cx - w / 2, 292, w, 33);
+    T(t1, cx, 296, C.gold, 2, "c");
+    T(t2, cx, 315, C.creamSh, 1, "c");
+  } else {
+    let tokens, c = C.creamSh, numC = C.gold;
+    if (st === "broke") tokens = [{ img: IMG.warning }, "NO COINS LEFT. RUNS THAT PASS SHIFT", "4", "PAY COINS ON THE FINAL RECEIPT."];
+    else if (st === "off") tokens = [{ img: IMG.warning }, "YOUR COLLECTION CAN'T BE SAVED RIGHT NOW, SO THE TOY MACHINES ARE SWITCHED OFF."];
+    else tokens = ["PICK A MACHINE:", { img: IMG.coin }, "1", "COIN A CAPSULE."];
+    const w = lineW(tokens, 3, NUM_F) + 20;
+    led(cx - w / 2, 294, w, 19);
+    line(tokens, cx, 300, c, { align: "c", numC });
+  }
+  // FIGURINE SHELF (a 120x21 shelf label) and DONE (the primary plate), each with the tick on hover.
+  const hs = S.btn === "shelf", hd = S.btn === "done";
+  const sx = 20 + (hs ? 2 : 0);
+  plate(sx, 332, 120, 18, hs ? "lit" : "", null, 3);
+  T("FIGURINE SHELF", sx + 9 + Math.floor((108 - textW("FIGURINE SHELF")) / 2), 338, C.ink);
+  if (hs) tick(sx - 9, 338);
+  S.targets.push({ id: "shelf", x: 20, y: 332, w: 124, h: 21 });
+  const dx = 540 + (hd ? 2 : 0);
+  primary(dx, 328, 80, 28, hd);
+  const dw = textW("DONE") * 2;
+  T("DONE", dx + Math.floor((80 - dw - 10) / 2), 335, C.paper, 2);
+  chevron(dx + Math.floor((80 - dw - 10) / 2) + dw + 4, 335, C.paper, 2);
+  if (hd) tick(dx - 9, 338);
+  S.targets.push({ id: "done", x: 540, y: 328, w: 84, h: 30 });
+}
+
+// ---------------------------------------------------------------------------------------------
+// Hover lineup strip: a lit shelf label in the board's place, its stripe in the aisle's sign colour; the
+// aisle's minis at 2x on the art grid, owned in colour, unwon as grey shapes. No count: the floor plate
+// carries the only one.
+function lineup(a, i) {
+  const n = a.items.length, own = owned(a), cell = 16, title = a.name.toUpperCase() + " LINEUP";
+  const w = Math.max(textW(title) + 16, 10 + n * cell + 4), h = 31;
+  const mx = X0 + i * PITCH + 36;
+  const x = Math.max(8, Math.min(512 - w, Math.round(mx - w / 2))), y = 30;
+  plate(x, y, w, h, "lit", STRIPE[a.id], 3);
+  T(title, x + 8, y + 4, C.ink);
+  a.items.forEach((it, k) => {
+    const im = own.includes(it) ? IMG["mini_" + it] : IMG["minis_" + it];
+    if (im) g.drawImage(im, x + 8 + k * cell, y + 14, 14, 14);
+  });
+  // pointer down to the hovered figurine
+  for (let k = 0; k < 4; k++) { R(mx - 3 + k, y + h + 3 + k, 7 - k * 2, 1, C.L); px(mx - 4 + k, y + h + 3 + k, C.ink); px(mx + 4 - k, y + h + 3 + k, C.ink); }
+}
+
+// ---------------------------------------------------------------------------------------------
+function draw() {
+  S.targets = [];
+  g.setTransform(1, 0, 0, 1, 0, 0); g.imageSmoothingEnabled = false;
+  backdrop(); doors(); exitSign();
+  AISLES.forEach((a, i) => lightPass(a, i));
+  AISLES.forEach((a, i) => { if (hovered() !== a.id) machine(a, i); });
+  AISLES.forEach((a, i) => { if (hovered() === a.id) machine(a, i); });
+  header();
+  floorBand();
+  const hi = AISLES.findIndex((a) => a.id === hovered());
+  if (hi >= 0 && machineState(AISLES[hi]) !== "off") lineup(AISLES[hi], hi);
+  drawZoom();
+}
+function drawZoom() {
+  const zc = document.getElementById("zoom"), z = zc.getContext("2d");
+  const i = AISLES.findIndex((a) => a.id === S.zoom);
+  const x = X0 + i * PITCH - 6, y = 66, w = 84, h = 224;
+  z.imageSmoothingEnabled = false;
+  z.fillStyle = C.t8; z.fillRect(0, 0, zc.width, zc.height);
+  z.drawImage(cv, x, y, w, h, 0, 0, w * 6, h * 6);
+}
+
+// ---------------------------------------------------------------------------------------------
+// Controls: mouse hover, tap to pick a machine on touch, arrow keys on the focused scene.
+function syncButtons() {
+  document.querySelectorAll("[data-state]").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.state === S.state)));
+}
+document.querySelectorAll("[data-state]").forEach((b) => b.addEventListener("click", () => { S.state = b.dataset.state; S.mouse = null; S.sel = null; syncButtons(); draw(); }));
+function hit(e) {
+  const r = cv.getBoundingClientRect();
+  const ax = (e.clientX - r.left) * 640 / r.width, ay = (e.clientY - r.top) * 360 / r.height;
+  return S.targets.find((t) => ax >= t.x && ax < t.x + t.w && ay >= t.y && ay < t.y + t.h);
+}
+cv.addEventListener("pointermove", (e) => {
+  if (e.pointerType !== "mouse") return;
+  const t = hit(e), m = t && t.machine ? t.id : null, b = t && !t.machine ? t.id : null;
+  if (m !== S.mouse || b !== S.btn) { S.mouse = m; S.btn = b; cv.style.cursor = t ? "pointer" : "default"; draw(); }
+});
+cv.addEventListener("pointerleave", () => { S.mouse = null; S.btn = null; draw(); });
+cv.addEventListener("pointerup", (e) => {
+  if (e.pointerType === "mouse") return;
+  const t = hit(e);
+  S.sel = t && t.machine ? (S.sel === t.id ? null : t.id) : null;
+  draw();
+});
+cv.addEventListener("keydown", (e) => {
+  const ids = AISLES.map((a) => a.id), cur = ids.indexOf(hovered());
+  if (e.key === "ArrowRight" || e.key === "ArrowLeft") {
+    e.preventDefault();
+    const d = e.key === "ArrowRight" ? 1 : -1;
+    S.sel = ids[cur < 0 ? (d > 0 ? 0 : ids.length - 1) : (cur + d + ids.length) % ids.length];
+    S.mouse = null; draw();
+  } else if (e.key === "Escape") { S.sel = null; draw(); }
+});
+
+(async function start() {
+  const cap = Q.get("cap");
+  if (cap) { document.body.classList.add("cap"); if (cap === "zoom") document.body.classList.add("capzoom"); }
+  try { await Promise.all([document.fonts.load("400 11px PixLocal"), document.fonts.load("750 20px AtkLocal")]); } catch (e) { /* fall back */ }
+  await loadAll();
+  syncButtons();
+  draw();
+  if (!cap && !matchMedia("(prefers-reduced-motion: reduce)").matches) {
+    S.anim = true;
+    setInterval(() => { if (hovered()) draw(); }, 160);
+  }
+})();
+</script>
+</body>
+</html>

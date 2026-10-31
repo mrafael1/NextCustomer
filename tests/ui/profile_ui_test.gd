@@ -119,8 +119,8 @@ func test_coin_receipt_lines_align_and_show_an_unknown_total() -> void:
 	assert_str(FinalReceipt.coin_lines(payout, -1)[2]).ends_with("you have ?")
 
 
-## The title screen shows the run's length from balance data and the profile's coins, read
-## without reporting or backing up an unreadable save.
+## The title screen shows the run's length from balance data (under START RUN) and the
+## profile's coins (on REWARDS), read without reporting or backing up an unreadable save.
 func test_the_title_shows_the_shift_count_and_the_coins() -> void:
 	var saved: ProfileState = ProfileState.new()
 	saved.coins = 9
@@ -129,19 +129,19 @@ func test_the_title_shows_the_shift_count_and_the_coins() -> void:
 	var title: TitleScreen = runner.scene()
 	title.changes_scene = false
 	var shifts: int = (load("res://data/balance/balance.tres") as BalanceDefinition).quotas.size()
-	assert_str(title._subtitle.text).contains("all %d shifts" % shifts)
-	assert_str(title._coins.text).is_equal("Coins: 9")
+	var primary: MenuPlate = title.menu().plate(TitleMenu.Entry.PRIMARY)
+	assert_str(primary.sub_line).starts_with("%d SHIFTS" % shifts)
+	var rewards: MenuPlate = title.menu().plate(TitleMenu.Entry.REWARDS)
+	assert_str(rewards.count_label().text).is_equal("9")
 	var file: FileAccess = FileAccess.open(
 		_folder.path_join(SaveService.PROFILE_FILE), FileAccess.WRITE
 	)
 	file.store_string("{broken")
 	file.close()
-	assert_str(TitleScreen.coins_text(SaveService.new(_folder))).is_equal("Coins: ?")
+	assert_int(TitleScreen.peek_coins(SaveService.new(_folder))).is_equal(-1)
 	var backup: String = _folder.path_join(SaveService.PROFILE_FILE + SaveService.BACKUP_SUFFIX)
 	assert_bool(FileAccess.file_exists(backup)).is_false()
-	assert_str(TitleScreen.coins_text(SaveService.new(_folder.path_join("none")))).is_equal(
-		"Coins: 0"
-	)
+	assert_int(TitleScreen.peek_coins(SaveService.new(_folder.path_join("none")))).is_equal(0)
 
 
 func test_without_a_save_the_screen_starts_a_fresh_profile() -> void:

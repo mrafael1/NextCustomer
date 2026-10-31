@@ -1,0 +1,3 @@
+; The Fruit & veg cabinet top (#121) in the dim tone (TONE_MAPS dim: two steps down each ramp; out
+; of coins, collected).
+@derive toy_cabinet_fruit_and_veg tone=dim

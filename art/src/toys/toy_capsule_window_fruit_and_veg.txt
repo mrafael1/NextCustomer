@@ -1,0 +1,18 @@
+; A closed capsule in the Fruit & veg cabinet (#121): the aisle colour all round, a cream
+; highlight, an ink seam over a cream band and a '?' on the top half (paper on a dark aisle
+; colour, ink on a light one). 13x13 art px; one per item left, on the cabinet's slots.
+@size 13x13
+@kind scenery
+....#####....
+..#ggwwggg#..
+.#gGgggwggg#.
+#gGgggwggg1g#
+#ggggggggg1g#
+#gggggwggggg#
+#############
+#ccccccccccc#
+#11111111111#
+#11111111111#
+.#111111111#.
+..#1111111#..
+....#####....

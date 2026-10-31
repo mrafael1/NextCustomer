@@ -1,0 +1,3 @@
+; The shared coin base for the Household aisle (#121) in the dim tone (TONE_MAPS dim: two steps
+; down each ramp; out of coins, collected).
+@derive toy_base aisle=household tone=dim

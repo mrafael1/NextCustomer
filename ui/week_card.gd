@@ -15,9 +15,11 @@ extends Control
 ## until tapped. Tapping the card closes it (it shrinks into the chip; at once with reduced
 ## motion), then `closed`. A timeline in seconds (advance, finish), so tests drive it frame-free.
 ##
-## stamp_day() (v0.72): after a shift's verdict the whole card pops in, today's row is stamped
-## PAID (green) or, in the training week, SLIP 1/2 (tomato), the card holds and flies back into
-## the week chip. Every played day keeps its stamp whenever the card shows.
+## Every played day keeps its stamp whenever the card shows (v0.72): PAID (green) or, in the
+## training week, SLIP 1/2 (tomato); since v0.75 (#119) the week chip lights the result after
+## the verdict, and the card no longer pops in to stamp it. The rows read by time (#119): today's
+## has a TODAY tab (no ring since v0.78), played days fade under their stamp, and the days to come
+## are dimmed.
 
 signal closed
 
@@ -33,12 +35,13 @@ const REVIEW_STEP := 0.82
 const ROW_POP := 0.34
 const HOLD := 1.5
 const SHRINK := 0.6
-## stamp_day(): the day's stamp lands this long after the card pops in.
-const DAY_STAMP_AT := 0.3
 ## A day's stamp: its size, its tilt, and how far its right edge sits from the row's.
 const DAY_STAMP_SIZE := 16
 const DAY_STAMP_DEGREES := -10.0
 const DAY_STAMP_INSET := 20.0
+## The rows by time (#119): a played day's and a day to come's opacity (its stamp stays whole).
+const PAST_ALPHA := 0.55
+const UPCOMING_ALPHA := 0.7
 ## The banner's stamp: from 2.3x turned -9 degrees to 1x turned -2.
 const STAMP_SCALE := 2.3
 const STAMP_FROM_DEGREES := -9.0
@@ -103,9 +106,8 @@ var _rows: Array[Control] = []
 var _punches: Array[Label] = []
 ## Each row's day stamp (v0.72), or null for a day not played.
 var _stamps: Array[Label] = []
-## The row stamp_day() stamps (-1: none), and whether its sound has played.
-var _stamping: int = -1
-var _stamp_sounded: bool = false
+## Today's TODAY tab (#119), or null.
+var _today_tab: Label
 var _model: WeekCardModel
 ## Each row's start on the timeline.
 var _row_at: Array[float] = []
@@ -162,22 +164,6 @@ func reopen(model: WeekCardModel, target: Control, reduced: bool) -> void:
 	if reduced:
 		Sfx.play_at(self, "ui_open")
 	else:
-		UiKit.pop_in(_card)  # Its open sound too.
-
-
-## Stamps today's row (a shift's verdict, v0.72): the whole card pops in, today's stamp lands
-## (PAID, or SLIP 1/2), the card holds, then flies into `target` (with reduced motion: the stamp at
-## once, then the card closes at once after the hold), then `closed`. Tapping closes it sooner.
-func stamp_day(model: WeekCardModel, target: Control, reduced: bool) -> void:
-	_open(model, target, reduced)
-	_stays = false
-	_t = _intro_end()
-	_sounded = _rows.size() + 2
-	for index: int in range(model.days.size()):
-		if model.days[index].today and _stamps[index] != null:
-			_stamping = index
-	_render()
-	if not reduced:
 		UiKit.pop_in(_card)  # Its open sound too.
 
 
@@ -273,6 +259,11 @@ func stamps() -> Array[Label]:
 	return _stamps.duplicate()
 
 
+## Today's TODAY tab (#119), or null for a week without today.
+func today_tab() -> Label:
+	return _today_tab
+
+
 func _process(delta: float) -> void:
 	advance(delta)
 
@@ -336,7 +327,6 @@ func _render() -> void:
 		row.modulate.a = pop
 		row.scale = Vector2.ONE * lerpf(ROW_FROM_SCALE, 1.0, _ease_out_back(pop))
 	_sound(intro)
-	_render_day_stamp(intro)
 	if _shrink_t >= 0.0:
 		_render_shrink(clampf(_shrink_t / SHRINK, 0.0, 1.0))
 
@@ -355,24 +345,6 @@ func _sound(intro: float) -> void:
 			var day: WeekCardModel.WeekDay = _model.days[_sounded - 2]
 			Sfx.play_at(self, "stamp_1" if day.today else "tick")
 		_sounded += 1
-
-
-## stamp_day()'s stamp: today's lands from 2.3x at DAY_STAMP_AT after the card opens (at once with
-## reduced motion), with its sound: PAID's, or a SLIP's denied.
-func _render_day_stamp(intro: float) -> void:
-	if _stamping < 0:
-		return
-	var label: Label = _stamps[_stamping]
-	var k: float = 1.0
-	if not reduced_motion:
-		k = clampf((intro - _intro_end() - DAY_STAMP_AT) / STAMP_LENGTH, 0.0, 1.0)
-	label.pivot_offset = label.size / 2.0
-	label.modulate.a = 1.0 if k > 0.0 else 0.0
-	label.scale = Vector2.ONE * lerpf(STAMP_SCALE, 1.0, _ease_out_back(k))
-	if k > 0.0 and not _stamp_sounded:
-		_stamp_sounded = true
-		var paid: bool = _model.days[_stamping].result == WeekCardModel.Result.PAID
-		Sfx.play_at(self, "stamp_paid" if paid else "denied")
 
 
 ## The flight into the chip: the card moves to the chip's centre, shrinks and fades, as the dim.
@@ -413,8 +385,7 @@ func _build(model: WeekCardModel) -> void:
 	_punches.clear()
 	_stamps.clear()
 	_row_at.clear()
-	_stamping = -1
-	_stamp_sounded = false
+	_today_tab = null
 	_card = ShadowPanel.new(
 		_box(Palette.MUSTARD_PALE, Palette.INK, CARD_BORDER, CARD_PADDING), CARD_SHADOW
 	)
@@ -560,7 +531,14 @@ func _day_row(day: WeekCardModel.WeekDay) -> Control:
 		events.add_child(_event_row(event))
 	if not day.reward().is_empty():
 		events.add_child(_reward_row(day))
+	if not day.today:  # Today stays whole; its TODAY tab marks it.
+		if day.result != WeekCardModel.Result.NONE:
+			columns.modulate.a = PAST_ALPHA
+		elif not day.punched:
+			columns.modulate.a = UPCOMING_ALPHA
 	_stamps.append(_day_stamp(row, day))
+	if day.today and day.result == WeekCardModel.Result.NONE:
+		_today_tab = _tag(row, WeekCardModel.TODAY_TAB, Palette.INK, Palette.MUSTARD, 0.0)
 	return row
 
 
@@ -572,18 +550,27 @@ func _day_stamp(row: Control, day: WeekCardModel.WeekDay) -> Label:
 		return null
 	var paid: bool = day.result == WeekCardModel.Result.PAID
 	var ink: Color = Palette.GREEN_DARK if paid else Palette.TOMATO_DARK
+	var label: Label = _tag(row, day.stamp(), ink, Color(Palette.PAPER, 0.85), DAY_STAMP_DEGREES)
+	label.name = "Stamp"
+	return label
+
+
+## A framed tag over the right of `row` (a day's stamp, today's TODAY tab): `text` in `ink`, on
+## `fill`, framed in `ink`, turned `degrees`. Held in a plain Control, so the row's layout leaves
+## its tilt and scale alone.
+static func _tag(row: Control, text: String, ink: Color, fill: Color, degrees: float) -> Label:
 	var layer: Control = Control.new()
-	layer.name = "StampLayer"
+	layer.name = "TagLayer"
 	layer.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	row.add_child(layer)
-	var label: Label = UiKit.display_label(day.stamp(), DAY_STAMP_SIZE, false)
-	label.name = "Stamp"
+	var label: Label = UiKit.display_label(text, DAY_STAMP_SIZE, false)
+	label.name = "Tag"
 	label.add_theme_color_override("font_color", ink)
-	var frame: StyleBoxFlat = _box(Color(Palette.PAPER, 0.85), ink, 2, 3)
+	var frame: StyleBoxFlat = _box(fill, ink, 2, 3)
 	frame.content_margin_left = 7
 	frame.content_margin_right = 7
 	label.add_theme_stylebox_override("normal", frame)
-	label.rotation_degrees = DAY_STAMP_DEGREES
+	label.rotation_degrees = degrees
 	layer.add_child(label)
 	label.set_anchors_and_offsets_preset(Control.PRESET_CENTER_RIGHT, Control.PRESET_MODE_MINSIZE)
 	label.position.x -= DAY_STAMP_INSET
