@@ -108,9 +108,9 @@ const CANCEL_RECT := Rect2(232, 518, 84, 54)
 ## picked basket item rises over the counter face, up to the rail.
 const LEDGE_RECT := Rect2(346, 674, 924, 34)
 const HAND_RECT := Rect2(362, 526, 892, ItemView.BASKET_SIZE.y)
-## Where the hand is: from the counter under the rail down to the stage's foot, right of the
-## register.
-const HAND_AREA := Rect2(336, 526, 944, 194)
+## Where the hand is: from as high as a scanned basket item rises (ItemView.BASKET_LIFT over the
+## cells' top, over the rail's foot since #123) down to the stage's foot, right of the register.
+const HAND_AREA := Rect2(336, 512, 944, 208)
 ## While the shift is counted a shade darkens the hand and its baskets (ink at this alpha, mock-up
 ## B2's count-up), so the belt reads first.
 const COUNTING_SHADE_RECT := Rect2(336, 526, 944, 186)
