@@ -302,7 +302,8 @@ func week(result: String) -> void:
 	var quota: int = run.quota()
 	var total: int = quota if result == "paid" else quota - 1
 	run.history.append(ShiftRecord.new(run.shift_index + 1, quota, total))
-	_screen._week.card.stamp_day(WeekCardModel.of(run), null, true)
+	_screen._week.show_chips()  # Today's result pip (#119).
+	_screen._week.card.reopen(WeekCardModel.of(run), null, true)
 	_week_part += result + "_"
 
 

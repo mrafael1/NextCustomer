@@ -6,8 +6,8 @@ extends Node
 ## planning can take input: after the cart reveal, the glide back from the machine and the count.
 ## The machine's planning notices (MachineFlow) wait for it (holds_planning). Tapping the week
 ## chip or the day chip reopens it in planning; tapping the card closes it. After each shift's
-## verdict the card stamps the day PAID or SLIP (v0.72, stamp_day) before the machine or the
-## next shift.
+## verdict the week chip lights today's pip, a green check or a red cross (v0.75, #119,
+## light_day), before the machine or the next shift; the card keeps the day's PAID or SLIP stamp.
 
 var card: WeekCard
 var _screen: ShiftScreen
@@ -52,17 +52,20 @@ func drop() -> void:
 	card.clear()
 
 
-## Stamps the shift just checked out on the time card (v0.72: PAID, or a training week's SLIP)
-## and waits for the card to fly back: on every shift of a run with weeks that goes on (a won or
-## lost run goes to its results), unless skipped. A card cleared meanwhile (a new run) ends it.
-func stamp_day() -> void:
+## Lights the shift just checked out on the week chip (v0.75, #119: a green check for PAID, a red
+## cross for a training week's SLIP; until then the time card popped in and stamped it) and waits
+## for the light: on every shift of a run with weeks that goes on (a won or lost run goes to its
+## results), unless skipped.
+func light_day() -> void:
 	var run: RunState = _screen.run
 	if _quiet or run == null or not has_weeks(run):
 		return
 	if run.phase == RunState.Phase.WON or run.phase == RunState.Phase.LOST:
 		return
-	card.stamp_day(WeekCardModel.of(run), _bar.week_chip, _screen.profile.reduced_motion())
-	while card.is_open():
+	var chip: WeekChip = _bar.week_chip
+	chip.show_week(WeekCardModel.of(run))
+	chip.flash(_screen.profile.reduced_motion())
+	while chip.is_flashing():
 		await get_tree().process_frame
 
 

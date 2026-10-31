@@ -582,15 +582,13 @@ func _assert_on_screen(screen: ShiftScreen, panel: Control) -> void:
 	assert_bool(screen.get_global_rect().encloses(rect)).is_true()
 
 
-## Waits for the screen's checkout to end, the count rushed (one tap, Rush), and plays the time
-## card's day stamp (v0.72) to its end: call it only once what needs the count still running has
-## been checked.
+## Waits for the screen's checkout to end, the count rushed (one tap, Rush), and ends the week
+## chip's light on the day (#119): call it only once what needs the count still running has been
+## checked.
 func _count_up_end(screen: ShiftScreen) -> void:
 	await Rush.finish(screen)
-	var card: WeekCard = screen._week.card
-	if card.is_open():
-		card.advance(WeekCard.DAY_STAMP_AT + WeekCard.STAMP_LENGTH + WeekCard.HOLD)
-		card.advance(WeekCard.SHRINK)  # The flight starts, then ends.
+	await _frames(1)
+	screen._stage.top_bar.week_chip.finish_flash()
 	await _frames(2)
 
 
