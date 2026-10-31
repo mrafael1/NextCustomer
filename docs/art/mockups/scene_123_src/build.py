@@ -227,11 +227,120 @@ def lamp_light(variant):
     return light
 
 
-def build(variant, cap):
+# The checkout crowd (#120, feature/checkout-cheering; its art copied to standees/): standees
+# stand on the counter's top, which comes down with the belt, so the band they fill grows.
+FOOT_Y = 326 + BELT_DY
+STAND_ROW = 56  # The art row on the foot line (CheckoutCrowd.STAND_ROW).
+# A cheering crowd for the still: (design, cheering, x, art scale, rows lower).
+CROWD = [
+    ("standee_milk", True, 918, 3, 0), ("standee_sale", False, 986, 2, 2), ("standee_mascot", True, 1040, 3, 1),
+    ("standee_milk_green", False, 1110, 2, 0), ("standee_mascot_red", True, 1162, 2, 3),
+    ("standee_sale", True, 1218, 3, 0), ("standee_milk", False, 420, 2, 1), ("standee_mascot", False, 700, 2, 0),
+]
+# The bagging shelf behind the scanner and the bag on it (canvas px; the bag's foot on the shelf).
+SHELF = (290, FOOT_Y - 22, 196, 12)
+BAG_POS = (300, FOOT_Y - 22)  # Bottom left of the bag.
+
+
+def standee_img(design, cheering, scale):
+    im = Image.open(HERE / "standees" / f"{design}{'_cheer' if cheering else ''}.png").convert("RGBA")
+    return im.resize((im.width * scale, im.height * scale), Image.NEAREST)
+
+
+def draw_crowd(canvas, crowd):
+    """Standees with a flat shadow on the shelving behind, clipped at the foot line."""
+    layer = Image.new("RGBA", canvas.size, (0, 0, 0, 0))
+    for design, cheering, x, scale, lower in crowd:
+        im = standee_img(design, cheering, scale)
+        top = FOOT_Y - STAND_ROW * scale + lower * 2
+        shadow = Image.new("RGBA", im.size, hexc("172c2b"))
+        shadow.putalpha(im.getchannel("A"))
+        layer.alpha_composite(shadow, (x + 3 * scale, top + 2 * scale))
+        layer.alpha_composite(im, (x, top))
+    clip = Image.new("L", canvas.size, 0)
+    ImageDraw.Draw(clip).rectangle([0, 58, 1279, FOOT_Y - 1], fill=255)
+    canvas.paste(layer, (0, 0), Image.composite(layer.getchannel("A"), Image.new("L", canvas.size, 0), clip))
+
+
+def bag_art(kind):
+    """The bag on the bagging shelf, on the 2 px art grid: the store's kraft grocery bag (a
+    serrated top, a teal band with the price-tag logo of the title's sign) or a teal tote."""
+    w, h = 36, 46
+    a = Image.new("RGBA", (w, h), (0, 0, 0, 0))
+    d = ImageDraw.Draw(a)
+    ink = hexc("2b2420")
+    if kind == "kraft":
+        body, lit, shade, crease, inside = "d2a874", "e2b48c", "a87a4e", "c38f6a", "7a5232"
+    else:
+        body, lit, shade, crease, inside = "4f9a94", "86c2b6", "3a7672", "3a7672", "1f3b3a"
+    top = 6
+    # The back wall of the open mouth, a row higher than the front.
+    d.rectangle([2, top - 2, w - 3, top + 1], fill=ink)
+    d.rectangle([3, top - 1, w - 4, top + 1], fill=hexc(inside))
+    # The body, lit from the upper left, its right gusset in shade.
+    d.rectangle([0, top, w - 1, h - 1], fill=ink)
+    d.rectangle([1, top + 1, w - 2, h - 2], fill=hexc(body))
+    d.rectangle([1, top + 1, 3, h - 2], fill=hexc(lit))
+    d.rectangle([27, top + 1, w - 2, h - 2], fill=hexc(shade))
+    d.rectangle([27, top + 1, 27, h - 2], fill=hexc(crease))
+    if kind == "kraft":
+        # The serrated top edge: every other column a pixel lower, so the cut reads.
+        for x in range(0, w, 2):
+            d.point((x, top), fill=(0, 0, 0, 0))
+            d.point((x, top + 1), fill=ink)
+        # The store's band and the price-tag logo: a cream tag with its hole and a tomato euro.
+        d.rectangle([1, 18, w - 2, 28], fill=hexc("3a7672"))
+        d.rectangle([1, 18, w - 2, 18], fill=hexc("4f9a94"))
+        d.rectangle([1, 28, w - 2, 28], fill=hexc("2a4d4b"))
+        d.rectangle([27, 19, w - 2, 27], fill=hexc("2a4d4b"))
+        d.polygon([(6, 23), (9, 20), (20, 20), (20, 26), (9, 26)], fill=hexc("f3e9d2"))
+        d.rectangle([9, 26, 20, 26], fill=hexc("ddcba5"))
+        d.point((8, 23), fill=hexc("3a7672"))
+        for px, py in ((13, 21), (14, 21), (15, 21), (12, 22), (11, 23), (12, 23), (13, 23), (14, 23),
+                       (12, 24), (13, 25), (14, 25), (15, 25)):
+            d.point((px + 1, py), fill=hexc("d9534f"))
+        for cx in (6, 18, 23):
+            d.rectangle([cx, 33, cx, 40], fill=hexc(crease))
+        d.rectangle([1, h - 3, w - 2, h - 2], fill=hexc(shade))
+    else:
+        for cx in (9, 26):
+            d.rectangle([cx - 3, 0, cx + 3, top], fill=ink)
+            d.rectangle([cx - 2, 1, cx + 2, top], fill=hexc("2a4d4b"))
+            d.rectangle([cx - 1, 2, cx + 1, top], fill=(0, 0, 0, 0))
+        cart = Image.open(ICONS / "cart.png").convert("RGBA")
+        tint = Image.new("RGBA", cart.size, hexc("f3e9d2"))
+        tint.putalpha(cart.getchannel("A"))
+        a.alpha_composite(tint, (9, 21))
+        d.rectangle([1, h - 4, w - 2, h - 2], fill=hexc("2a4d4b"))
+    return a.resize((w * 2, h * 2), Image.NEAREST)
+
+
+def draw_bag(canvas, kind, items):
+    """The bagging shelf at the belt's back-left edge, the bag on it and the bagged items peeking out."""
+    d = ImageDraw.Draw(canvas)
+    x, y, w, h = SHELF
+    d.rectangle([x, y, x + w - 1, y + h - 1], fill=hexc("2b2420"))
+    d.rectangle([x + 2, y + 2, x + w - 3, y + 5], fill=hexc("c7c3b8"))
+    d.rectangle([x + 2, y + 6, x + w - 3, y + h - 3], fill=hexc("8d8a83"))
+    d.rectangle([x + 4, y + h, x + 9, FOOT_Y + 4], fill=hexc("45423d"))
+    bag = bag_art(kind)
+    bx, by = BAG_POS[0], BAG_POS[1] - bag.height
+    # Contact shadow on the shelf.
+    d.rectangle([bx + 4, BAG_POS[1], bx + bag.width + 6, BAG_POS[1] + 3], fill=hexc("57534c"))
+    # The bagged items stand behind the bag's front, their tops over the mouth (PaperBag.PEEKS).
+    for i, name in enumerate(items):
+        it = Image.open(REPO / "art" / "items_v2" / f"{name}.png").convert("RGBA")
+        canvas.alpha_composite(it, (bx + 2 + i * 16, by - 18 + (i % 2) * 8))
+    canvas.alpha_composite(bag, (bx, by))
+
+
+def build(variant, cap, crowd=None, bag=None, bag_items=()):
     art = paint_store(Art(), variant)
     world = art.combine(lamp_light(variant)).resize((1280, 720), Image.NEAREST)
     canvas = Image.new("RGBA", (1280, 720), hexc("24221f"))
     canvas.alpha_composite(world.crop((0, 56, 1280, 360)), (0, 56))
+    if crowd:
+        draw_crowd(canvas, crowd)
 
     # The counter face: one charcoal laminate under the belt, panel seams, the ticket rail's shadow.
     d = ImageDraw.Draw(canvas)
@@ -268,6 +377,8 @@ def build(variant, cap):
         for y in range(0, 44):
             for x in range(x0, x1):
                 bp[x, y] = (0, 0, 0, 0)
+    if bag:
+        draw_bag(canvas, bag, bag_items)
     canvas.alpha_composite(belt, (348, 256 + BELT_DY))
 
     # The left column: receipt and printer (the paper kept whole: its text is anti-aliased), then the keys.
@@ -343,7 +454,10 @@ def page(stills):
 def main():
     cap = Image.open(CAPTURE).convert("RGB")
     a = build("a", cap)
-    stills = {"NOW": cap, "A": a, "B": build("b", cap), "LAYOUT": layout(a)}
+    stills = {"NOW": cap, "A": a, "B": build("b", cap), "LAYOUT": layout(a),
+              "BAG": build("a", cap, bag="kraft"),
+              "CROWD": build("a", cap, crowd=CROWD, bag="kraft", bag_items=("baguette", "milk", "cheese")),
+              "TOTE": build("a", cap, bag="tote", bag_items=("banana", "milk"))}
     for key, img in stills.items():
         img.convert("RGB").save(OUT / f"scene_123_{key.lower()}.png")
     page(stills)
