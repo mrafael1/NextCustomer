@@ -4,26 +4,23 @@ extends Control
 ## 1280x720 stage that ShiftScreen centres in the window over the store's bands that fill it
 ## (StoreBackdrop.screen_parts()). Every position is a stage constant taken from the mirrored B2
 ## mock-up: the register, the printer with its receipt and the cashier stand at the left, so the
-## belt runs toward them and slot 1 is the slot next to the register. The stage itself never
-## scales.
-##
+## belt runs toward them and slot 1 is the slot next to the register. The stage itself never scales.
 ## Machine v2 (#77, Q1 = A): the stage is two layers. `world` holds the store (the monitor, the
-## RECEIPT REWARDS machine on the back wall at MACHINE_WALL_RECT, half size, and the `fore`: the
+## RECEIPT REWARDS machine in the store at MACHINE_WALL_RECT, half size, and the `fore`: the
 ## register, the receipt, the belt with its row, the planning layer, the bag, the hand and its
-## baskets). ShiftScreen hands it to the StoreCamera, which zooms it to 2x on the machine during
-## its visits (the fore drops out of frame: set_fore_drop). The stage keeps the `hud`, which never
-## zooms: the top bar, the scan layer and the popup layer. Every Rect2 below is
-## in stage coordinates (the world's at 1x), except the MACHINE_* rects the camera puts on screen.
-##
-## On the stage, back to front: the hung monitor (MonitorView: two rods, its bezel and paper screen,
-## with the scanner bay, the item column, the checkout column and the notices on it), the register
-## (RegisterCabinet, the count-up's rattle target: the printer box on the counter top and the
-## register column under it, with the key deck and its keys, Cancel, Redraw and CHECKOUT, the
-## keypad, the seed line under Redraw and the cash drawer), the receipt rising from the printer's
-## slot, the belt (BeltPanel: the steel guard, the rubber top face, the lip, the apron and the price
-## rail, then the row of items standing on the belt with their tickets on the rail), the planning
-## layer (PlanningLayer: #71's stickers, stamps and pay tags over the items), the paper bag on the
-## counter between the receipt and the belt (PaperBag, #86 v6: the counted items go in), the top bar
+## baskets). ShiftScreen hands it to the StoreCamera, which zooms it to 2x on the machine during its
+## visits (the fore drops out of frame: set_fore_drop). The stage keeps the `hud`, which never
+## zooms: the top bar, the scan layer and the popup layer. Every Rect2 below is in stage coordinates
+## (the world's at 1x), except the MACHINE_* rects the camera puts on screen.  On the stage, back to
+## front: the hung monitor (MonitorView: two rods, its bezel and paper screen, with the scanner bay,
+## the item column, the checkout column and the notices on it), the register (RegisterCabinet, the
+## count-up's rattle target: the printer box on the counter top and the register column under it,
+## with the key deck and its keys, Cancel, Redraw and CHECKOUT, the keypad, the seed line under
+## Redraw and the cash drawer), the receipt rising from the printer's slot, the bagging shelf behind
+## the belt's first cell with the store's kraft bag on it (PaperBag, #86 v6 and #123: the counted
+## items go in), the belt (BeltPanel: the steel guard, the rubber top face, the lip, the apron and
+## the price rail, then the row of items standing on the belt with their tickets on the rail), the
+## planning layer (PlanningLayer: #71's stickers, stamps and pay tags over the items), the top bar
 ## (TopBar: the SHIFT, QUOTA, inspection and LOYALTY chips, Cart and the menu with Export log, all
 ## above PANEL_TOP), the hand's baskets on the steel ledge (HandBaskets: their backs, the hand in
 ## them, the basket redraw's pop layer, their fronts, and the redraw's targets and tags,
@@ -33,18 +30,13 @@ extends Control
 ## target's). Over them all the scan layer (ScanOverlay: the scan's brackets and beam) and the popup
 ## layer, all taking no clicks. A belt or hand item's scan shows on the monitor (#80); the popup
 ## layer only parks the hidden scan popup, which opens over the offers alone, in the layer an
-## offer's scan moves it to (ScanController.cover_offers).
-##
-## The receipt stands on the printer's slot and grows up as its lines print, up to under the top
-## bar; past that it scrolls to its newest line.
-##
-## It only builds and lays out: the screen fills the controls, and its buttons emit the signals
-## below. Its controls are public on purpose: the stage is ShiftScreen's layout part (as
-## ShiftDebug is its debug part), built and owned by the screen alone, so the screen fills
-## them directly instead of through a setter each. No other scene reaches into it.
-##
-## The receipt never shakes with the register, so the dessert's slam lands on a still TOTAL
-## line.
+## offer's scan moves it to (ScanController.cover_offers).  The receipt stands on the printer's slot
+## and grows up as its lines print, up to under the top bar; past that it scrolls to its newest
+## line.  It only builds and lays out: the screen fills the controls, and its buttons emit the
+## signals below. Its controls are public on purpose: the stage is ShiftScreen's layout part (as
+## ShiftDebug is its debug part), built and owned by the screen alone, so the screen fills them
+## directly instead of through a setter each. No other scene reaches into it.  The receipt never
+## shakes with the register, so the dessert's slam lands on a still TOTAL line.
 
 signal checkout_pressed
 signal redraw_pressed
@@ -56,23 +48,29 @@ const SIZE := Vector2(1280, 720)
 ## The top bar's band foot (TopBar's chips stand in it): the wall starts under it, and a scan
 ## popup never reaches it.
 const TOP_BAR_BOTTOM := 56.0
-## Where the wall meets the belt's back: the counter is below it.
-const COUNTER_TOP := 326.0
-## The floor under the counter and the register.
-const FLOOR_TOP := 700.0
+## Where the store meets the belt's back: the counter is below it. The clean scene (#123, mock-up
+## docs/art/mockups/scene_123.html, direction A) brings the belt 34 px down onto the baskets, so
+## the counter reads as one surface and the store above it gets the room.
+const COUNTER_TOP := 360.0
+## The floor under the counter and the register: the basket ledge's foot.
+const FLOOR_TOP := 708.0
 ## The belt, from its steel guard down to the price rail's shadow (BeltPanel draws its bands).
-const BELT_RECT := Rect2(348, 314, 918, 180)
+const BELT_RECT := Rect2(348, 348, 918, 180)
 ## Where the 7-slot row starts: each cell (ItemView.BELT_SIZE) stands its item on the belt's top
 ## face and clips its ticket on the rail. Every row rests on ROW_BOTTOM: a scaled 8-slot row
 ## too.
-const ROW_POSITION := Vector2(364, 258)
+const ROW_POSITION := Vector2(364, 292)
 const ROW_BOTTOM := ROW_POSITION.y + ItemView.BELT_SIZE.y
 ## The band the row's cells stand in: across the belt's top face, from the plaques over the items
 ## down to the rail's foot.
 const ROW_AREA := Rect2(354, ROW_POSITION.y, 904, ItemView.BELT_SIZE.y)
-## The paper bag (#86 v6) standing on the counter (its foot at y 330): right of the receipt,
-## left of the belt, in front of the cashier's lower half.
-const BAG_RECT := Rect2(284, 246, 64, 84)
+## The store's kraft bag (#86 v6, redrawn for #123) on the bagging shelf at the belt's back-left
+## edge, behind the scanner (its foot on the shelf, BAGGING_SHELF_RECT's top): the counted items
+## hop up from the scanner into it.
+const BAG_RECT := Rect2(300, 246, 72, 92)
+## The steel bagging shelf the bag stands on, behind the belt's first cell (StoreBackdrop's
+## counter piece, in the fore under the belt).
+const BAGGING_SHELF_RECT := Rect2(290, 338, 196, 12)
 ## The monitor hung from the ceiling on two rods, its bezel and paper screen, and the shade under
 ## it (MonitorView draws them): its one screen (#105 piece 2) holds the scanner bay, the item
 ## column, the checkout column and the notices.
@@ -105,35 +103,37 @@ const REDRAW_RECT := Rect2(20, 518, 198, 54)
 const CANCEL_RECT := Rect2(232, 518, 84, 54)
 ## The steel ledge in front of the counter (its art, ink outline included) and the hand in its
 ## baskets on it (HandRow: ItemView.BASKET_SIZE cells, from the first basket's left edge to the
-## last one's right edge at the natural pitch; the baskets' rims are HandBaskets'). The hand
-## starts 20 px under the rail's shadow: a scanned or picked basket item rises into that gap.
-const LEDGE_RECT := Rect2(346, 662, 924, 34)
-const HAND_RECT := Rect2(362, 514, 892, ItemView.BASKET_SIZE.y)
-## Where the hand is: from the counter under the rail down to the stage's foot, right of the
-## register.
-const HAND_AREA := Rect2(336, 494, 944, 226)
+## last one's right edge at the natural pitch; the baskets' rims are HandBaskets'). Since the belt
+## came down onto the baskets (#123) the hand's cells start at the rail's shadow: a scanned or
+## picked basket item rises over the counter face, up to the rail.
+const LEDGE_RECT := Rect2(346, 674, 924, 34)
+const HAND_RECT := Rect2(362, 526, 892, ItemView.BASKET_SIZE.y)
+## Where the hand is: from as high as a scanned basket item rises (ItemView.BASKET_LIFT over the
+## cells' top, over the rail's foot since #123) down to the stage's foot, right of the register.
+const HAND_AREA := Rect2(336, 512, 944, 208)
 ## While the shift is counted a shade darkens the hand and its baskets (ink at this alpha, mock-up
 ## B2's count-up), so the belt reads first.
-const COUNTING_SHADE_RECT := Rect2(336, 496, 944, 204)
+const COUNTING_SHADE_RECT := Rect2(336, 526, 944, 186)
 const COUNTING_SHADE_ALPHA := 0.4
 const SEED_RECT := Rect2(20, 586, 198, 18)
 ## Screen panels (the deck view, the results) and their shade stay below this line, under the top
 ## bar, so Cart and the menu stay reachable.
 const PANEL_TOP := 64.0
-## The RECEIPT REWARDS machine on the back wall (#77 machine v2, Q1 = A; redrawn front-on in
-## v0.50, mock-up premium_machine_v1.html): the 448x568 cabinet at MACHINE_WALL_SCALE, right of
-## the monitor, its foot behind the belt. Shown all run, dimmed between its visits. Its marquee
-## and bulbs stand above the rect, its plinth and shadow below it.
-const MACHINE_WALL_RECT := Rect2(949, 94, 224, 284)
+## The RECEIPT REWARDS machine in the store (#77 machine v2, Q1 = A; redrawn front-on in v0.50,
+## mock-up premium_machine_v1.html): the 448x568 cabinet at MACHINE_WALL_SCALE. Since the clean
+## scene (#123) it stands right of the stage, out of the planning view: the camera glides to it for
+## its visits, and a window wider than 16:9 shows it at the right edge. Shown all run, dimmed
+## between its visits. Its marquee and bulbs stand above the rect, its plinth and shadow below it.
+const MACHINE_WALL_RECT := Rect2(1330, 94, 224, 284)
 const MACHINE_WALL_SCALE := 0.5
 ## The camera at the machine (StoreCamera): CAMERA_ZOOM, and the offset (whole pixels) that puts
 ## the machine at MACHINE_RECT on screen, at a net scale of 1 (crisp: 0.5 x 2).
 const CAMERA_ZOOM := 2.0
 ## (MACHINE_RECT.position - CAMERA_ZOOM x MACHINE_WALL_RECT.position).
-const CAMERA_OFFSET := Vector2(-1482, -64)
-## The world (the wall's and the counter's bands, the store sections) runs to here on the stage:
-## the camera at the machine shows stage x 741 .. 1381.
-const WORLD_RIGHT := 1420.0
+const CAMERA_OFFSET := Vector2(-2244, -64)
+## The world (the store, the counter's and the floor's bands) runs to here on the stage: the camera
+## at the machine shows stage x 1122 .. 1762.
+const WORLD_RIGHT := 1800.0
 ## Where the camera puts the machine's cabinet on screen (stage coordinates of the unzoomed
 ## layers: the hud and the machine's overlay), under the top bar: the marquee's bulbs reach up to
 ## y 58 and the plinth's shadow down to y 714, inside the screen (v0.50: the old framing cut the
@@ -156,6 +156,9 @@ const RECEIPT_PAPER := preload("res://art/frames/receipt_paper.png")
 ## The printer slot's steel lip with its tear teeth (art/src/scenery/printer_lip.txt), drawn 1:1
 ## at PRINTER_SLOT_RECT over the receipt's foot, so the paper seems to come out of the slot.
 const PRINTER_LIP := preload("res://art/scenery/printer_lip.png")
+## The bagging shelf the bag stands on (art/src/scenery/bagging_shelf.txt), 1:1 at
+## BAGGING_SHELF_RECT.
+const BAGGING_SHELF := preload("res://art/scenery/bagging_shelf.png")
 
 ## The zoomed layer (StoreCamera adopts it) and, in it, the part that drops out during the glide.
 var world: Control
@@ -186,7 +189,7 @@ var row_strip: RowStrip
 ## The planning effects over the belt (#71, PlanningLayer): the items' stickers, stamps and pay
 ## tags, over the items and tickets and under the top bar.
 var planning_layer: PlanningLayer
-## The paper bag the counted items go into (#86 v6), over the planning layer, under the top bar.
+## The kraft bag the counted items go into (#86 v6, #123), on its shelf behind the belt.
 var bag: PaperBag
 ## Over everything on the stage, taking no clicks: the scan's marks, and the layer the scan
 ## popup opens in.
@@ -241,8 +244,7 @@ func _init(slot_count: int) -> void:
 	_build_scan_layers()
 
 
-## Puts the machine on the back wall, behind the fore (its foot hides behind the belt), at half
-## size.
+## Puts the machine in the store right of the stage, behind the fore, at half size.
 func add_machine(view: Control) -> void:
 	machine = view
 	world.add_child(view)
@@ -317,6 +319,15 @@ func dim_hand(counting: bool) -> void:
 
 
 func _build_belt(slot_count: int) -> void:
+	# The bagging shelf and the bag on it stand behind the belt: the scanner's item is in front.
+	var shelf: TextureRect = UiKit.sprite(BAGGING_SHELF)
+	shelf.name = "BaggingShelf"
+	shelf.position = BAGGING_SHELF_RECT.position
+	shelf.size = BAGGING_SHELF_RECT.size
+	fore.add_child(shelf)
+	bag = PaperBag.new()
+	bag.position = BAG_RECT.position
+	fore.add_child(bag)
 	belt = BeltPanel.new()
 	belt.position = BELT_RECT.position
 	belt.size = BELT_RECT.size
@@ -330,9 +341,6 @@ func _build_belt(slot_count: int) -> void:
 	# Over the items and their tickets, under the top bar, the hand and the scan layers (#71).
 	planning_layer = PlanningLayer.new()
 	fore.add_child(planning_layer)
-	bag = PaperBag.new()
-	bag.position = BAG_RECT.position
-	fore.add_child(bag)
 
 
 ## Rests the row on ROW_BOTTOM: a scaled row is shorter, so it starts lower. The scanner's plate

@@ -14,7 +14,7 @@ extends GdUnitTestSuite
 const SCREEN := "res://ui/shift_screen.tscn"
 const SHORT_BELT := preload("res://data/inspections/short_belt.tres")
 ## Mock-up B2's first cell and the cells' pitch, on the stage.
-const CELL_ORIGIN := Vector2(364, 258)
+const CELL_ORIGIN := Vector2(364, 292)
 const CELL_PITCH := 128.0
 ## The smallest a scaled row's sticker summary may print, in canvas pixels.
 const MIN_SUMMARY_PX := 10.0

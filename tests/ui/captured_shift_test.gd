@@ -46,8 +46,13 @@ func test_everything_lies_inside_the_stage() -> void:
 		var controls: Array[Control] = _controls(screen._stage)
 		controls.append_array(_controls(screen._stage.world))
 		assert_int(controls.size()).is_greater(150)
+		var machine: Control = screen._stage.machine
 		for control: Control in controls:
 			var rect: Rect2 = control.get_global_rect()
+			# The machine stands right of the stage, out of the planning view (#123).
+			if machine != null and (control == machine or machine.is_ancestor_of(control)):
+				assert_float(rect.position.x).is_greater_equal(stage.end.x)
+				continue
 			(
 				assert_bool(stage.encloses(rect))
 				. override_failure_message("%s: %s %s" % [scan, control.get_path(), rect])

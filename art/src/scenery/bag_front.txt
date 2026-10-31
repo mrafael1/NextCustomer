@@ -1,49 +1,54 @@
-; The paper bag's front (#86 v6, mock-up count_up_86_v6_scan.html), 32x42 @2 drawn at
-; ShiftStage.BAG_RECT over the bagged items: kraft (brown light) with its lit left edge and
-; shaded right side, the folded top band's stripes over its shade, a shaded base, and
-; THANK YOU in two lines baked in (no Label on the counter). Laid out with a scratch script.
-@size 32x42
+; The store's kraft bag, front (#123, mock-up docs/art/mockups/scene_123.html), 36x46 @2 drawn at
+; ShiftStage.BAG_RECT over the bagged items: kraft (brown light) lit at its left edge (skin), its
+; right gusset in shade behind a crease, the serrated cut along its top, the folded band under it,
+; the store's teal band with the price-tag logo of the title's sign (a cream tag, a tomato euro)
+; and creases near its foot. Laid out with a scratch script.
+@size 36x46
 @kind scenery
 @scale 2
-................................
-................................
-................................
-................................
-................................
-################################
-#hhPPPhhhPPPhhhPPPhhhPPPhhhPPPh#
-#hhPPPhhhPPPhhhPPPhhhPPPhhhPPPh#
-#FFFFFFFFFFFFFFFFFFFFFFFFFFFFFF#
-#PPhhhhhhhhhhhhhhhhhhhhhhhhhFFF#
-#PPhhhhhhhhhhhhhhhhhhhhhhhhhFFF#
-#PPhhhhhhhhhhhhhhhhhhhhhhhhhFFF#
-#PPhhhhhhhhhhhhhhhhhhhhhhhhhFFF#
-#PPhhhhhhhhhhhhhhhhhhhhhhhhhFFF#
-#PPhhhhhhhhhhhhhhhhhhhhhhhhhFFF#
-#PPhhhhhhhhhhhhhhhhhhhhhhhhhFFF#
-#PPhhhFFFhFhFhhFhhFhFhFhFhhhFFF#
-#PPhhhhFhhFhFhFhFhFFFhFhFhhhFFF#
-#PPhhhhFhhFFFhFFFhFFFhFFhhhhFFF#
-#PPhhhhFhhFhFhFhFhFFFhFhFhhhFFF#
-#PPhhhhFhhFhFhFhFhFhFhFhFhhhFFF#
-#PPhhhhhhhhhhhhhhhhhhhhhhhhhFFF#
-#PPhhhhhhhhhhhhhhhhhhhhhhhhhFFF#
-#PPhhhhhhhFhFhhFhhFhFhhhhhhhFFF#
-#PPhhhhhhhFhFhFhFhFhFhhhhhhhFFF#
-#PPhhhhhhhhFhhFhFhFhFhhhhhhhFFF#
-#PPhhhhhhhhFhhFhFhFhFhhhhhhhFFF#
-#PPhhhhhhhhFhhhFhhFFFhhhhhhhFFF#
-#PPhhhhhhhhhhhhhhhhhhhhhhhhhFFF#
-#PPhhhhhhhhhhhhhhhhhhhhhhhhhFFF#
-#PPhhhhhhhhhhhhhhhhhhhhhhhhhFFF#
-#PPhhhhhhhhhhhhhhhhhhhhhhhhhFFF#
-#PPhhhhhhhhhhhhhhhhhhhhhhhhhFFF#
-#PPhhhhhhhhhhhhhhhhhhhhhhhhhFFF#
-#PPhhhhhhhhhhhhhhhhhhhhhhhhhFFF#
-#PPhhhhhhhhhhhhhhhhhhhhhhhhhFFF#
-#PPhhhhhhhhhhhhhhhhhhhhhhhhhFFF#
-#PPhhhhhhhhhhhhhhhhhhhhhhhhhFFF#
-#PPhhhhhhhhhhhhhhhhhhhhhhhhhFFF#
-#PPhhhhhhhhhhhhhhhhhhhhhhhhhFFF#
-#FFFFFFFFFFFFFFFFFFFFFFFFFFFFFF#
-################################
+....................................
+....................................
+....................................
+....................................
+....................................
+....................................
+....................................
+....................................
+.#.#.#.#.#.#.#.#.#.#.#.#.#.#.#.#.#.#
+####################################
+#99999999999999999999999999hhhhhhhh#
+#FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF#
+#999hhhhhhhhhhhhhhhhhhhhhhh0FFFFFFF#
+#999hhhhhhhhhhhhhhhhhhhhhhh0FFFFFFF#
+#999hhhhhhhhhhhhhhhhhhhhhhh0FFFFFFF#
+#999hhhhhhhhhhhhhhhhhhhhhhh0FFFFFFF#
+#999hhhhhhhhhhhhhhhhhhhhhhh0FFFFFFF#
+#999hhhhhhhhhhhhhhhhhhhhhhh0FFFFFFF#
+#999hhhhhhhhhhhhhhhhhhhhhhh0FFFFFFF#
+#999hhhhhhhhhhhhhhhhhhhhhhh0FFFFFFF#
+#4444444444444444444444444444444444#
+#3333333333333333333333333332222222#
+#33333333cccccccccccc33333332222222#
+#3333333ccccccRRRcccc33333332222222#
+#333333c3ccccRccccccc33333332222222#
+#33333cc3cccRRRRccccc33333332222222#
+#333333ccccccRccccccc33333332222222#
+#3333333ccccccRRRcccc33333332222222#
+#33333333bbbbbbbbbbbb33333332222222#
+#3333333333333333333333333332222222#
+#2222222222222222222222222222222222#
+#999hhhhhhhhhhhhhhhhhhhhhhh0FFFFFFF#
+#999hhhhhhhhhhhhhhhhhhhhhhh0FFFFFFF#
+#999hhhhhhhhhhhhhhhhhhhhhhh0FFFFFFF#
+#999hhhhhhhhhhhhhhhhhhhhhhh0FFFFFFF#
+#999hh0hhhhhhhhhhh0hhhh0hhh0FFFFFFF#
+#999hh0hhhhhhhhhhh0hhhh0hhh0FFFFFFF#
+#999hh0hhhhhhhhhhh0hhhh0hhh0FFFFFFF#
+#999hh0hhhhhhhhhhh0hhhh0hhh0FFFFFFF#
+#999hh0hhhhhhhhhhh0hhhh0hhh0FFFFFFF#
+#999hh0hhhhhhhhhhh0hhhh0hhh0FFFFFFF#
+#999hh0hhhhhhhhhhh0hhhh0hhh0FFFFFFF#
+#999hhhhhhhhhhhhhhhhhhhhhhh0FFFFFFF#
+#FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF#
+#FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF#
+####################################

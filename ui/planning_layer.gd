@@ -46,7 +46,7 @@ extends Control
 ## sticker from the bottom: slapped, not aligned; a burst STACK_BURST_SHIFT and a WASTED label
 ## STACK_FIZZLE_SHIFT more, so their wider frames sit over the shoulder too; the fold chip on the
 ## edge itself).
-const STACK_BOTTOM_Y := 374.0
+const STACK_BOTTOM_Y := ShiftStage.BELT_RECT.position.y + 60.0
 const STACK_LEFT := 72.0
 const STACK_NUDGE := 4.0
 const STACK_BURST_SHIFT := -8.0
