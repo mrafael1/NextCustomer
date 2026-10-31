@@ -91,17 +91,21 @@ const STORE_BANDS: Array[Color] = [
 	Palette.MUSTARD_LIGHT, Palette.MUSTARD_PALE, Palette.PLASTER_LIGHT, Palette.PLASTER
 ]
 ## The till letters (3x5) of the props' small lettering: the bay's REWARDS vinyl, the poster's
-## LOYAL and SOON, the doors' OPEN, register 3's number and the sign's € tag.
+## LOYAL and SOON, the doors' OPEN, register 3's number and the sign's € tag; the toy
+## machines' OUT OF ORDER tape (ToyExitArt, #121).
 const TILL: Dictionary[String, String] = {
 	"A": "010101111101101",
 	"D": "110101101101110",
 	"E": "111100110100111",
+	"F": "111100110100100",
 	"L": "100100100100111",
 	"N": "110101101101101",
 	"O": "010101101101010",
 	"P": "110101110100100",
 	"R": "110101110101101",
 	"S": "011100010001110",
+	"T": "111010010010010",
+	"U": "101101101101111",
 	"W": "101101111111101",
 	"Y": "101101010010010",
 	"3": "110001010001110",

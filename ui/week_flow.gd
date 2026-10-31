@@ -86,10 +86,12 @@ func reopen() -> void:
 	card.reopen(WeekCardModel.of(run), _bar.week_chip, _screen.profile.reduced_motion())
 
 
-## The top bar's week chip and day chip for the run's current shift.
+## The top bar's week chip and day chip for the run's current shift. While the shift is counted
+## today's pip stays today's (v0.78): its check or cross waits for light_day().
 func show_chips() -> void:
 	var run: RunState = _screen.run
 	var weeks: bool = has_weeks(run)
+	_bar.week_chip.hold_result = _screen._counting
 	if weeks:
 		_bar.week_chip.show_week(WeekCardModel.of(run))
 	_bar.week_chip.visible = weeks

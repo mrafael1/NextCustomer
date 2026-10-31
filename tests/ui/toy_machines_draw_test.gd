@@ -40,9 +40,9 @@ func test_a_click_draws_the_key_item_and_reveals_it() -> void:
 	assert_bool(profile.unlocked_items.has(&"baguette")).is_true()
 	assert_int(profile.unlocked_items[&"baguette"]).is_equal(2)
 	assert_int(profile.coins).is_equal(1)
-	assert_str(screen.coins_label().text).is_equal("1")
-	assert_str(screen.floor_labels()[4].text).is_equal("7 of 8 left")
-	assert_str(screen.figurines_label().text).is_equal("1 / 30")
+	assert_str(screen.coins_text()).is_equal("1")
+	assert_str(screen.machines()[4].floor_text()).is_equal("7 OF 8 LEFT")
+	assert_str(screen.figurines_text()).is_equal("1/30")
 	assert_int(bakery.capsule_count()).is_equal(7)
 	# Saved at once.
 	var saved: ProfileState = SaveService.new(_folder).load_profile()
@@ -119,7 +119,7 @@ func test_a_title_draw_with_a_saved_run() -> void:
 	assert_str(screen.reveal().stock_label().text).is_equal(CapsuleCounter.AFTER_SAVED_RUN_LINE)
 	# The last coin spent: the machines go dim with the notice under them.
 	assert_int(_machine(screen, &"cold_cases").state()).is_equal(CapsuleCounter.State.BROKE)
-	assert_str(screen.notice_label().text).is_equal(ToyMachinesScreen.BROKE_NOTICE)
+	assert_int(screen.strip_kind()).is_equal(ToyMachinesScreen.Strip.BROKE)
 
 
 func test_a_failed_save_switches_every_machine_off() -> void:
@@ -140,14 +140,13 @@ func test_a_failed_save_switches_every_machine_off() -> void:
 	for machine: ToyMachineView in screen.machines():
 		assert_int(machine.state()).is_equal(CapsuleCounter.State.OFF)
 		assert_bool(machine.paper().visible).is_true()
-	assert_bool(screen.notice_panel().visible).is_true()
-	assert_str(screen.notice_label().text).is_equal(ToyMachinesScreen.OFF_NOTICE)
-	assert_str(screen.coins_label().text).is_equal("?")
+	assert_int(screen.strip_kind()).is_equal(ToyMachinesScreen.Strip.OFF)
+	assert_str(screen.coins_text()).is_equal("?")
 	assert_int(_errors.size()).is_equal(1)
 	assert_array(Kit.events(_folder, "capsule")).is_empty()
 
 
-## The shelf: Figurine shelf hides the machines and shows the drawn figurine; Back returns.
+## The shelf: FIGURINE SHELF hides the machines and shows the drawn figurine; Back returns.
 func test_the_shelf_opens_and_comes_back() -> void:
 	var profile: ProfileState = Kit.profile(2, 2)
 	var screen: ToyMachinesScreen = await _open(profile, false)

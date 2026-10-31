@@ -1,0 +1,18 @@
+; A closed capsule in the Pantry cabinet (#121): the aisle colour all round, a cream highlight, an
+; ink seam over a cream band and a '?' on the top half (paper on a dark aisle colour, ink on a
+; light one). 13x13 art px; one per item left, on the cabinet's slots.
+@size 13x13
+@kind scenery
+....#####....
+..#MM##MMM#..
+.#MyMMM#MMM#.
+#MyMMM#MMMmM#
+#MMMMMMMMMmM#
+#MMMMM#MMMMM#
+#############
+#ccccccccccc#
+#mmmmmmmmmmm#
+#mmmmmmmmmmm#
+.#mmmmmmmmm#.
+..#mmmmmmm#..
+....#####....

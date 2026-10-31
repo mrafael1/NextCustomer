@@ -1,0 +1,3 @@
+; The shared coin base for the Cold cases aisle (#121) in the dim tone (TONE_MAPS dim: two steps
+; down each ramp; out of coins, collected).
+@derive toy_base aisle=cold_cases tone=dim

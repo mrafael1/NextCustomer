@@ -371,7 +371,8 @@ func test_the_rows_tell_today_past_and_upcoming() -> void:
 		. is_true()
 	)
 	assert_float(rect.position.x).is_greater(card.punches()[1].get_global_rect().end.x)
-	assert_object(rows[1].find_child("TodayRing", false, false)).is_not_null()
+	assert_object(rows[1].find_child("TodayRing", false, false)).is_null()
+	assert_float((rows[1].get_child(0) as Control).modulate.a).is_equal(1.0)
 	var past: Control = rows[0].get_child(0) as Control
 	assert_float(past.modulate.a).is_equal_approx(WeekCard.PAST_ALPHA, 0.01)
 	assert_float(card.stamps()[0].modulate.a).is_equal(1.0)
@@ -411,9 +412,9 @@ func test_the_chip_lights_the_day_result() -> void:
 		assert_bool(chip.is_flashing()).is_false()
 
 
-## On the real screen the light comes between the verdict and what follows: when the count-up ends
-## the chip lights today's check, no time card opens, and the machine waits; once the light ends,
-## the shift goes on.
+## On the real screen the light comes between the verdict and what follows: during the count-up
+## today's pip stays gold (v0.78); when the count-up ends the chip lights today's check, no time
+## card opens, and the machine waits; once the light ends, the shift goes on.
 func test_the_verdict_lights_the_day_before_the_machine() -> void:
 	var runner: GdUnitSceneRunner = scene_runner(SCREEN)
 	var screen: ShiftScreen = runner.scene()
@@ -426,11 +427,15 @@ func test_the_verdict_lights_the_day_before_the_machine() -> void:
 	_place_ids(screen, ["milk", "multipack", "milk", "milk", "milk", "milk", "milk"])
 	assert_bool(screen.run.preview().total >= screen.run.quota()).is_true()
 	Rush.checkout(screen)
+	var chip: WeekChip = screen._stage.top_bar.week_chip
+	await _frames(2)
+	assert_bool(screen._counting).is_true()
+	# The check waits for the light.
+	assert_int(chip.pips()[0]).is_equal(WeekCardModel.Pip.NOW)
 	var start: int = Time.get_ticks_msec()
 	while screen._counting and Time.get_ticks_msec() - start < Rush.MAX_WAIT_MS:
 		await _frames(1)
 	await _frames(2)
-	var chip: WeekChip = screen._stage.top_bar.week_chip
 	assert_bool(chip.is_flashing()).is_true()
 	assert_int(chip.pips()[0]).is_equal(WeekCardModel.Pip.PAID)
 	assert_bool(screen._week.card.is_open()).is_false()

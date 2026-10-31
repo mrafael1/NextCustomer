@@ -18,7 +18,7 @@ extends Control
 ## Every played day keeps its stamp whenever the card shows (v0.72): PAID (green) or, in the
 ## training week, SLIP 1/2 (tomato); since v0.75 (#119) the week chip lights the result after
 ## the verdict, and the card no longer pops in to stamp it. The rows read by time (#119): today's
-## is ringed in mustard with a TODAY tab, played days fade under their stamp, and the days to come
+## has a TODAY tab (no ring since v0.78), played days fade under their stamp, and the days to come
 ## are dimmed.
 
 signal closed
@@ -39,11 +39,9 @@ const SHRINK := 0.6
 const DAY_STAMP_SIZE := 16
 const DAY_STAMP_DEGREES := -10.0
 const DAY_STAMP_INSET := 20.0
-## The rows by time (#119): a played day's and a day to come's opacity (its stamp stays whole),
-## and today's ring.
+## The rows by time (#119): a played day's and a day to come's opacity (its stamp stays whole).
 const PAST_ALPHA := 0.55
 const UPCOMING_ALPHA := 0.7
-const TODAY_RING := 3
 ## The banner's stamp: from 2.3x turned -9 degrees to 1x turned -2.
 const STAMP_SCALE := 2.3
 const STAMP_FROM_DEGREES := -9.0
@@ -533,27 +531,15 @@ func _day_row(day: WeekCardModel.WeekDay) -> Control:
 		events.add_child(_event_row(event))
 	if not day.reward().is_empty():
 		events.add_child(_reward_row(day))
-	if day.today:
-		row.add_child(_today_ring())
-	elif day.result != WeekCardModel.Result.NONE:
-		columns.modulate.a = PAST_ALPHA
-	elif not day.punched:
-		columns.modulate.a = UPCOMING_ALPHA
+	if not day.today:  # Today stays whole; its TODAY tab marks it.
+		if day.result != WeekCardModel.Result.NONE:
+			columns.modulate.a = PAST_ALPHA
+		elif not day.punched:
+			columns.modulate.a = UPCOMING_ALPHA
 	_stamps.append(_day_stamp(row, day))
 	if day.today and day.result == WeekCardModel.Result.NONE:
 		_today_tab = _tag(row, WeekCardModel.TODAY_TAB, Palette.INK, Palette.MUSTARD, 0.0)
 	return row
-
-
-## Today's ring (#119): a mustard frame over the row, filling it.
-static func _today_ring() -> Panel:
-	var ring: Panel = Panel.new()
-	ring.name = "TodayRing"
-	ring.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	var frame: StyleBoxFlat = _box(Color.TRANSPARENT, Palette.MUSTARD_DARK, TODAY_RING, 0)
-	frame.draw_center = false
-	ring.add_theme_stylebox_override("panel", frame)
-	return ring
 
 
 ## A played day's stamp (v0.72) over the right of its row, tilted: "PAID" in green, a training

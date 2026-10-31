@@ -1,0 +1,3 @@
+; The Pantry cabinet's front overlay (#121) in the off tone (TONE_MAPS off: lights out,
+; desaturated; out of order).
+@derive toy_front_pantry tone=off

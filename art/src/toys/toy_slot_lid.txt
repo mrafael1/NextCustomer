@@ -1,0 +1,19 @@
+; A shut coin-slot lid (#121, mock-up build.py shutter()): a steel plate with a tomato bar across,
+; so out of coins and out of order show by shape. 9x14 art px over the coin slot at machine art
+; (17,88); the same on the dim and off sets.
+@size 9x14
+@kind scenery
+#########
+#BBBBBBB#
+#DDDDDDD#
+#DDDDDDD#
+#DDDDDDD#
+#DDDDDDD#
+#rrrrrrr#
+#rrrrrrr#
+#DDDDDDD#
+#DDDDDDD#
+#DDDDDDD#
+#DDDDDDD#
+#DDDDDDD#
+#########

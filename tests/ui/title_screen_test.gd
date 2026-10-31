@@ -289,7 +289,7 @@ func test_rewards_opens_the_toy_machines_and_keeps_loyalty_locked() -> void:
 	assert_bool(title.toy_machines_open()).is_true()
 	var toys: ToyMachinesScreen = title._toys
 	assert_int(toys.get_index()).is_greater(rewards.get_index())
-	assert_str(toys.coins_label().text).is_equal("2")
+	assert_str(toys.coins_text()).is_equal("2")
 	title._on_scene_input(_click_at(title, title.storefront().doors_rect().get_center()))
 	title._unhandled_key_input(_key(KEY_ENTER))
 	title._unhandled_key_input(_key(KEY_SPACE))
@@ -351,7 +351,7 @@ func test_an_unreadable_profile_opens_the_machines_switched_off() -> void:
 	await _frames(2)
 	for machine: ToyMachineView in title._toys.machines():
 		assert_int(machine.state()).is_equal(CapsuleCounter.State.OFF)
-	assert_str(title._toys.coins_label().text).is_equal("?")
+	assert_str(title._toys.coins_text()).is_equal("?")
 	assert_str(FileAccess.get_file_as_string(path)).is_equal("{broken")
 
 
