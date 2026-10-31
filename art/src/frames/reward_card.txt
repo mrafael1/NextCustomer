@@ -1,0 +1,27 @@
+; A REWARDS menu card (#56, mock-up title_premium_directions.html, rewardCard), normal: a teal header band (its top row teal light) over a cream face, two cream shade rows and the ink outline at the bottom.
+; A 9-slice with 2 art px left and right, 17 on top (the outline and the header band) and 3 at the bottom; the middle 2x2 stretches.
+@size 6x22
+@kind frame
+@scale 2
+.####.
+#5555#
+#4444#
+#4444#
+#4444#
+#4444#
+#4444#
+#4444#
+#4444#
+#4444#
+#4444#
+#4444#
+#4444#
+#4444#
+#4444#
+#4444#
+#4444#
+#cccc#
+#cccc#
+#bbbb#
+#bbbb#
+.####.

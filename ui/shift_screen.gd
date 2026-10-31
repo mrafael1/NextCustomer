@@ -963,7 +963,7 @@ func _build() -> void:
 	add_child(_machine)
 	_stage.add_machine(_machine.setup(self, _log))
 	_scan.cover_offers(_machine.view)
-	_results = ResultsPanel.new()
+	_results = ResultsPanel.new(null, _scan.reduced_motion)
 	add_child(_results)
 	_results.new_run_requested.connect(_on_new_run_pressed)
 	_results.export_requested.connect(_on_export_pressed)

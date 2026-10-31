@@ -1,0 +1,449 @@
+<title>Title and Results 56</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Pixelify+Sans:wght@400;600;700&family=JetBrains+Mono:wght@400;700&family=Atkinson+Hyperlegible:wght@400;700&display=swap">
+<style>
+/* Layout: page header, then the title stage (1280x720, scaled) with its backdrop and juice controls,
+   then the results stage with its backdrop controls, then the questions. One look on purpose: the
+   game's palette (ui/palette.gd), dark in both themes. */
+:root {
+  color-scheme: dark;
+  --teal-black: #172c2b; --wall: #1f3b3a; --panel: #2a4d4b; --teal: #4f9a94; --teal-light: #7fc0b8;
+  --paper: #fbf7ee; --cream: #f3e9d2; --cream-shade: #ddcba5;
+  --gold: #ffcf3f; --mustard: #e2b33c; --mustard-dark: #b38425; --brass: #c8932b;
+  --tomato: #d9534f; --tomato-dark: #a83a3c; --good: #5fae5a; --green-dark: #3d7a3a;
+  --ink: #2c2926; --muted: #8a8172; --steel: #8d8a83; --steel-light: #c7c3b8; --steel-dark: #57534c; --charcoal: #24221f;
+  --wood: #6b4226; --wood-light: #8a5a35;
+  --page: #121a19; --text: #ece6d8; --text-dim: #a9a59b;
+  --f-game: "Pixelify Sans", "Courier New", monospace;
+  --f-mono: "JetBrains Mono", "Consolas", monospace;
+  --f-body: "Atkinson Hyperlegible", "Segoe UI", system-ui, sans-serif;
+}
+* { box-sizing: border-box; }
+body { background: var(--page); color: var(--text); font-family: var(--f-body); font-size: 15px; line-height: 1.5; margin: 0;
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); padding-block: 20px 48px; }
+.wrap { max-width: 1100px; margin: 0 auto; display: flex; flex-direction: column; gap: 18px; }
+h1 { font-family: var(--f-game); font-size: 28px; margin: 0; text-wrap: balance; }
+h2 { font-family: var(--f-game); font-size: 21px; margin: 18px 0 0; color: var(--gold); letter-spacing: .03em; }
+p { margin: 0; max-width: 72ch; }
+.dim { color: var(--text-dim); }
+.frame { width: 100%; aspect-ratio: 16 / 9; max-width: 100%; position: relative; overflow: hidden; border-radius: 6px;
+  box-shadow: 0 0 0 3px var(--charcoal), 0 10px 30px rgba(0,0,0,.5); user-select: none; }
+.stage { position: absolute; left: 0; top: 0; width: 1280px; height: 720px; transform-origin: 0 0; overflow: hidden; background: var(--wall); }
+.controls { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.controls .lbl { font-weight: 700; color: var(--text-dim); font-size: 13px; letter-spacing: .06em; text-transform: uppercase; margin-right: 4px; }
+.controls button, .controls label { font-family: var(--f-body); font-size: 14px; font-weight: 700; border: 2px solid var(--steel-dark); background: #1e2726; color: var(--text);
+  padding: 6px 12px; border-radius: 6px; cursor: pointer; display: inline-flex; gap: 6px; align-items: center; }
+.controls button[aria-pressed="true"] { border-color: var(--gold); color: var(--gold); }
+.controls label:has(input:checked) { border-color: var(--teal-light); }
+.controls button:focus-visible, .controls label:focus-within { outline: 3px solid var(--gold); outline-offset: 2px; }
+.controls input { accent-color: var(--teal); margin: 0; }
+.desc { color: var(--text-dim); font-size: 14px; min-height: 1.5em; }
+
+/* ================= TITLE ================= */
+.bd { position: absolute; inset: 0; opacity: 0; transition: opacity .35s; pointer-events: none; }
+.bd.on { opacity: 1; }
+/* A: closing time, the store behind */
+.bd-a { background: linear-gradient(#1b3534 0 62%, var(--wood) 62% 64%, #4a2e1b 64%); }
+.bd-a .tube { position: absolute; top: 34px; width: 220px; height: 10px; background: #e8f4ef; border-radius: 3px; box-shadow: 0 0 24px 8px rgba(232,244,239,.25); }
+.bd-a .tube.t1 { left: 80px; } .bd-a .tube.t2 { left: 980px; animation: flicker 5s steps(1) infinite; }
+@keyframes flicker { 0%, 61%, 64%, 66%, 100% { opacity: 1; } 62%, 65% { opacity: .2; } }
+.shelf { position: absolute; width: 330px; height: 300px; top: 110px; background: #23403e; border: 4px solid #132625; }
+.shelf.l { left: 30px; } .shelf.r { right: 30px; }
+.shelf i { position: absolute; left: 10px; right: 10px; height: 8px; background: #132625; }
+.shelf b { position: absolute; width: 26px; border: 2px solid #0e1c1b; }
+.bd-a .counter { position: absolute; left: 0; right: 0; top: 446px; height: 30px; background: linear-gradient(var(--wood-light), var(--wood)); border-top: 4px solid #3a2414; }
+.bd-a .belt { position: absolute; left: 0; right: 0; top: 476px; height: 60px; background: repeating-linear-gradient(90deg, #2c2926 0 46px, #353130 46px 50px); animation: belt 6s linear infinite; opacity: .9; }
+.bd-a .belt.still { animation: none; }
+@keyframes belt { to { background-position: -400px 0; } }
+.bd-a .dark { position: absolute; inset: 0; background: radial-gradient(ellipse 520px 480px at 640px 360px, transparent 0 40%, rgba(10,20,19,.72) 100%); }
+/* B: the belt runs under the receipt, groceries ride past */
+.bd-b { background: radial-gradient(ellipse at 50% 30%, #24403f, #132625 70%); }
+.bd-b .beltband { position: absolute; left: -20px; right: -20px; top: 520px; height: 150px; background: #2a2724; border-top: 8px solid var(--steel); border-bottom: 8px solid var(--steel-dark); }
+.bd-b .beltband::before { content: ""; position: absolute; inset: 0; background: repeating-linear-gradient(90deg, transparent 0 60px, rgba(255,255,255,.05) 60px 64px); animation: belt 3s linear infinite; }
+.rider { position: absolute; bottom: 166px; animation: ride 14s linear infinite; }
+@keyframes ride { from { transform: translateX(-160px); } to { transform: translateX(1460px); } }
+.bd-b.still .rider, .bd-b.still .beltband::before { animation-play-state: paused; }
+/* C: spotlight on the counter */
+.bd-c { background: #2a1a10; }
+.bd-c .wood { position: absolute; inset: 0; background: repeating-linear-gradient(0deg, #4a2e1b 0 38px, #432918 38px 40px); }
+.bd-c .spot { position: absolute; inset: 0; background: radial-gradient(ellipse 470px 560px at 640px 330px, rgba(255,214,140,.30), rgba(255,214,140,.06) 55%, rgba(10,6,3,.78) 100%); }
+.bd-c .mote { position: absolute; width: 4px; height: 4px; background: rgba(255,230,180,.6); animation: mote 9s linear infinite; }
+@keyframes mote { from { transform: translate(0, 40px); opacity: 0; } 20% { opacity: 1; } 80% { opacity: .8; } to { transform: translate(30px, -260px); opacity: 0; } }
+.scatter { position: absolute; background: var(--paper); box-shadow: 4px 4px 0 rgba(0,0,0,.35); font-family: var(--f-game); font-weight: 700; color: var(--ink); display: grid; place-items: center; text-align: center; }
+
+/* the printer and the receipt */
+.printer { position: absolute; left: 408px; top: -6px; width: 464px; height: 40px; background: #3a3633; border: 4px solid var(--ink); border-top: 0; z-index: 5; }
+.printer::before { content: ""; position: absolute; left: 16px; top: 10px; width: 14px; height: 9px; background: var(--good); box-shadow: 22px 0 0 var(--steel-light); }
+.printer::after { content: ""; position: absolute; left: 30px; right: 30px; bottom: -4px; height: 6px; background: #161412; }
+.rc-clip { position: absolute; left: 438px; top: 30px; width: 404px; height: 690px; overflow: hidden; z-index: 3; }
+.rc-swing { position: absolute; inset: 0; transform-origin: 50% 0; }
+.rc-swing.sway { animation: sway 5.5s ease-in-out infinite; }
+@keyframes sway { 0%, 100% { transform: rotate(-.5deg); } 50% { transform: rotate(.5deg); } }
+.receipt { position: absolute; left: 0; top: 0; width: 404px; height: 676px; background: var(--paper); color: var(--ink);
+  box-shadow: 8px 0 0 rgba(0,0,0,.18); padding: 26px 28px 0; display: flex; flex-direction: column; align-items: center; gap: 10px; }
+.receipt::after { content: ""; position: absolute; left: 0; right: 0; bottom: -14px; height: 14px;
+  background: linear-gradient(-45deg, transparent 7px, var(--paper) 0) 0 0 / 14px 14px repeat-x, linear-gradient(45deg, transparent 7px, var(--paper) 0) 0 0 / 14px 14px repeat-x; }
+.r-head { font-family: var(--f-mono); font-size: 14px; letter-spacing: .14em; }
+.logo { font-family: var(--f-game); font-weight: 700; line-height: .9; text-align: center; position: relative; }
+.logo .w1 { font-size: 92px; letter-spacing: .08em; display: block; }
+.logo .w2 { font-size: 64px; letter-spacing: .04em; display: block; }
+.logo span.ch { display: inline-block; }
+.rule { align-self: stretch; border-top: 3px dashed var(--cream-shade); }
+.sub { font-family: var(--f-mono); font-size: 15px; text-align: center; line-height: 1.55; }
+.burst { position: relative; width: 210px; height: 92px; display: grid; place-items: center; margin: 4px 0; }
+.burst svg { position: absolute; inset: 0; }
+.burst span { position: relative; font-family: var(--f-game); font-weight: 700; font-size: 24px; transform: rotate(-6deg); color: var(--ink); }
+.btn { width: 100%; height: 54px; background: var(--tomato); color: var(--paper); font-family: var(--f-game); font-weight: 700; font-size: 25px;
+  border: 3px solid var(--ink); border-bottom-width: 7px; display: grid; place-items: center; cursor: pointer; transition: transform .12s; text-shadow: 0 2px 0 var(--ink); }
+.btn .num { font-family: var(--f-body); font-weight: 700; font-size: 21px; }
+.btn:hover { transform: translateY(-3px) rotate(-.6deg); background: #e26a5d; }
+.btn.alt { background: var(--cream); color: var(--ink); text-shadow: none; }
+.btn.alt:hover { background: var(--paper); }
+.barcode { position: relative; width: 300px; height: 44px; margin-top: 2px;
+  background: repeating-linear-gradient(90deg, var(--ink) 0 3px, transparent 3px 5px, var(--ink) 5px 6px, transparent 6px 9px, var(--ink) 9px 13px, transparent 13px 15px); }
+.laser { position: absolute; left: -12px; right: -12px; height: 3px; background: #ff3b30; box-shadow: 0 0 10px 3px rgba(255,59,48,.7); opacity: 0; pointer-events: none; z-index: 2; }
+.laser.go { animation: laser 1.1s ease-in-out; }
+@keyframes laser { 0% { top: 0; opacity: 0; } 10% { opacity: 1; } 90% { opacity: 1; } 100% { top: 100%; opacity: 0; } }
+.beep { position: absolute; right: -76px; top: 6px; font-family: var(--f-game); font-weight: 700; font-size: 18px; color: #ff3b30; opacity: 0; }
+.beep.go { animation: beep .7s ease-out; }
+@keyframes beep { 0% { opacity: 0; transform: translateY(6px); } 30% { opacity: 1; } 100% { opacity: 0; transform: translateY(-14px); } }
+.card { position: absolute; left: 852px; top: 50px; width: 230px; height: 140px; background: var(--cream); border: 3px solid var(--ink); transform: rotate(7deg);
+  box-shadow: 6px 6px 0 rgba(0,0,0,.35); z-index: 4; }
+.card .band { height: 32px; background: var(--teal); border-bottom: 3px solid var(--ink); font-family: var(--f-game); font-weight: 700; font-size: 18px; color: var(--paper); text-align: right; padding: 3px 10px; }
+.card .rings { display: flex; gap: 14px; padding: 18px 16px; }
+.card .rings i { width: 46px; height: 46px; border-radius: 50%; border: 3px dashed var(--muted); }
+.card .staple { position: absolute; left: -10px; top: 46px; width: 26px; height: 6px; background: var(--steel-light); border: 2px solid var(--steel-dark); transform: rotate(-80deg); }
+.toy { position: absolute; left: 1052px; top: 300px; width: 176px; display: flex; flex-direction: column; align-items: center; gap: 10px; z-index: 4; }
+.toy .globe { width: 104px; height: 104px; border-radius: 50%; background: radial-gradient(circle at 35% 30%, #fff, #d8efe9 40%, #a7d3c9); border: 4px solid var(--ink); position: relative; overflow: hidden; }
+.toy .globe i { position: absolute; width: 26px; height: 26px; border-radius: 50%; border: 3px solid var(--ink); }
+.toy .body { width: 112px; height: 100px; background: var(--teal); border: 4px solid var(--ink); margin-top: -14px; display: grid; place-items: center; }
+.toy .body b { width: 40px; height: 28px; background: var(--charcoal); border: 3px solid var(--steel-light); }
+.toy .tbtn { font-family: var(--f-game); font-weight: 700; font-size: 20px; background: var(--charcoal); color: var(--paper); border: 3px solid var(--ink); padding: 8px 14px; }
+.corner { position: absolute; bottom: 18px; font-family: var(--f-game); font-weight: 700; z-index: 4; }
+.corner.l { left: 20px; background: var(--teal); color: var(--paper); border: 3px solid var(--ink); padding: 6px 12px; font-size: 18px; }
+.corner.r { right: 20px; color: var(--text-dim); font-family: var(--f-body); font-size: 14px; }
+.tear-flash { position: absolute; inset: 0; background: var(--paper); opacity: 0; pointer-events: none; z-index: 9; }
+
+/* intro states */
+.intro .receipt { transform: translateY(-100%); }
+.intro .card, .intro .toy, .intro .corner { opacity: 0; }
+.receipt.printing { animation: feed 1.4s steps(18) forwards; }
+@keyframes feed { from { transform: translateY(-100%); } to { transform: translateY(0); } }
+.ch.drop { animation: drop .42s cubic-bezier(.3,1.6,.5,1) both; }
+@keyframes drop { 0% { transform: translateY(-70px) scale(1, 1.3); opacity: 0; } 60% { transform: translateY(4px) scale(1.15, .85); opacity: 1; } 100% { transform: none; } }
+.w2.stamp { animation: stamp .35s cubic-bezier(.2,1.5,.5,1) both; }
+@keyframes stamp { 0% { transform: scale(2.2) rotate(-6deg); opacity: 0; } 100% { transform: none; opacity: 1; } }
+.burst.slap { animation: slap .4s cubic-bezier(.2,1.7,.5,1) both; }
+@keyframes slap { 0% { transform: scale(2.4) rotate(25deg); opacity: 0; } 100% { transform: rotate(-3deg); opacity: 1; } }
+.burst.idle svg { animation: spinb 12s linear infinite; }
+@keyframes spinb { to { transform: rotate(360deg); } }
+.pop { animation: popin .35s cubic-bezier(.2,1.6,.5,1) both; }
+@keyframes popin { 0% { transform: scale(.6); opacity: 0; } 100% { transform: none; opacity: 1; } }
+.fadein { animation: fadein .5s both; }
+@keyframes fadein { from { opacity: 0; } to { opacity: 1; } }
+.shake { animation: shake .25s linear; }
+@keyframes shake { 25% { transform: translate(3px, -2px); } 50% { transform: translate(-3px, 2px); } 75% { transform: translate(2px, 1px); } }
+.rc-clip.tearing .rc-swing { animation: tearoff .7s cubic-bezier(.5,0,.8,.4) forwards; }
+@keyframes tearoff { 0% { transform: rotate(0); } 25% { transform: translateY(14px) rotate(-3deg); } 100% { transform: translate(140px, 900px) rotate(24deg); } }
+
+/* ================= RESULTS ================= */
+.store { position: absolute; inset: 0; background: url("screens56_store_bg.png") 0 0 / 1280px 720px no-repeat; transition: filter .4s, opacity .4s; }
+.shade { position: absolute; inset: 0; background: rgba(12,22,21,.0); transition: background .4s; }
+.shutter { position: absolute; left: 0; right: 0; top: 56px; height: 0; background: repeating-linear-gradient(#8d8a83 0 18px, #6f6b63 18px 21px, #a9a59b 21px 24px); border-bottom: 8px solid #45423d; transition: height .9s cubic-bezier(.5,0,.3,1); }
+.closed-sign { position: absolute; left: 76px; top: 120px; background: var(--tomato); color: var(--paper); font-family: var(--f-game); font-weight: 700; font-size: 34px; padding: 6px 20px; border: 4px solid var(--ink); transform: rotate(-6deg); opacity: 0; transition: opacity .3s .6s; }
+.topbar { position: absolute; left: 0; right: 0; top: 0; height: 56px; transition: opacity .4s, filter .4s; background: url("screens56_store_bg.png") 0 0 / 1280px 720px no-repeat; }
+.res .lamp { position: absolute; left: 0; right: 0; top: 0; height: 720px; background: radial-gradient(ellipse 430px 520px at 640px 380px, rgba(255,214,140,.22), transparent 70%); opacity: 0; transition: opacity .4s; }
+.till { position: absolute; left: 430px; top: 70px; width: 420px; height: 636px; background: var(--paper); color: var(--ink); padding: 22px 26px; font-family: var(--f-mono); font-size: 15px; line-height: 1.6;
+  box-shadow: 10px 10px 0 rgba(0,0,0,.4); transition: transform .5s; }
+.till h3 { font-family: var(--f-game); font-size: 40px; margin: 0 0 4px; color: var(--green-dark); }
+.till .rl { border-top: 2px dashed var(--cream-shade); margin: 8px 0; }
+.till .row { display: flex; justify-content: space-between; white-space: pre; }
+.till .row.d { color: var(--muted); padding-left: 16px; font-size: 13px; line-height: 1.5; }
+.till .row.bad { color: var(--tomato-dark); }
+.till .coins { color: var(--teal); font-weight: 700; }
+.till .acts { display: flex; gap: 8px; margin-top: 12px; }
+.till .acts span { font-family: var(--f-game); font-weight: 700; font-size: 17px; background: var(--charcoal); color: var(--paper); padding: 6px 10px; border: 2px solid var(--ink); }
+.res.m-dim .store { filter: blur(3px) saturate(.5) brightness(.55); }
+.res.m-dim .topbar { opacity: 0; }
+.res.m-closed .store { filter: saturate(.25) brightness(.35); }
+.res.m-closed .shutter { height: 520px; }
+.res.m-closed .closed-sign { opacity: 1; }
+.res.m-closed .topbar { opacity: 0; }
+.res.m-closed .lamp { opacity: 1; }
+.res.m-counter .store { opacity: 0; }
+.res.m-counter .topbar { opacity: 0; }
+.res.m-counter .lamp { opacity: 1; }
+.res.m-counter .till { transform: rotate(-2deg); }
+.res .counterwood { position: absolute; inset: 0; background: repeating-linear-gradient(0deg, #4a2e1b 0 38px, #432918 38px 40px); opacity: 0; transition: opacity .4s; }
+.res.m-counter .counterwood { opacity: 1; }
+.res.m-counter .props { opacity: 1; }
+.res .props { opacity: 0; transition: opacity .4s; }
+
+.qs { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+@media (max-width: 760px) { .qs { grid-template-columns: 1fr; } }
+.qs section { min-width: 0; background: #19211f; border: 2px solid #26302e; border-radius: 8px; padding: 14px 16px; }
+.qs h3 { margin: 0 0 6px; font-family: var(--f-game); font-size: 17px; color: var(--teal-light); }
+.qs ul { margin: 0; padding-left: 18px; display: flex; flex-direction: column; gap: 4px; }
+@media (prefers-reduced-motion: reduce) { .stage *, .stage *::before, .stage *::after { animation-duration: .01s !important; animation-iteration-count: 1 !important; transition-duration: .01s !important; } }
+</style>
+
+<div class="wrap">
+  <h1>Title and Results (#56)</h1>
+  <p class="dim">Title B, the giant receipt, with more juice and a better backdrop, and the results screen without the shift's store reading behind it. Both are live: pick a backdrop, toggle the juice, replay.</p>
+
+  <h2>Title: backdrop</h2>
+  <div class="controls" id="bdCtl">
+    <span class="lbl">Backdrop</span>
+    <button type="button" data-bd="a" aria-pressed="true">A · Closing time</button>
+    <button type="button" data-bd="b" aria-pressed="false">B · Belt rolling</button>
+    <button type="button" data-bd="c" aria-pressed="false">C · Spotlight on the counter</button>
+  </div>
+  <p class="desc" id="bdDesc"></p>
+  <div class="frame" id="titleFrame">
+    <div class="stage" id="title">
+      <div class="bd bd-a on" id="bd-a">
+        <div class="shelf l" id="shelfL"></div><div class="shelf r" id="shelfR"></div>
+        <div class="tube t1"></div><div class="tube t2"></div>
+        <div class="counter"></div><div class="belt" id="beltA"></div>
+        <div class="dark"></div>
+      </div>
+      <div class="bd bd-b" id="bd-b"><div class="beltband"></div><div id="riders"></div></div>
+      <div class="bd bd-c" id="bd-c"><div class="wood"></div><div id="scatter"></div><div class="spot"></div><div id="motes"></div></div>
+
+      <div class="printer"></div>
+      <div class="rc-clip" id="clip">
+        <div class="rc-swing" id="swing">
+          <div class="receipt" id="receipt">
+            <div class="r-head">NEXT CUSTOMER · REG 3</div>
+            <div class="logo" id="logo"><span class="w1" id="w1">NEXT</span><span class="w2" id="w2">CUSTOMER</span></div>
+            <div class="rule"></div>
+            <div class="sub">Scan groceries and coupons in the best order. Meet the quota on all 12 shifts.</div>
+            <div class="rule"></div>
+            <div class="burst" id="burst">
+              <svg viewBox="0 0 210 92" aria-hidden="true"><polygon points="105,2 124,22 158,8 156,32 204,30 176,48 206,66 160,64 166,88 128,72 105,90 84,72 46,88 52,64 4,66 34,48 6,30 54,32 52,8 86,22" fill="#ffcf3f" stroke="#2c2926" stroke-width="4" stroke-linejoin="round"/></svg>
+              <span>COINS 55</span>
+            </div>
+            <div class="btn" id="cont">Continue <span class="num">&nbsp;· shift 1 / 12</span></div>
+            <div class="btn alt" id="newrun">New run</div>
+            <div class="barcode" id="barcode"><div class="laser" id="laser"></div><div class="beep" id="beep">BEEP!</div></div>
+          </div>
+        </div>
+      </div>
+      <div class="card" id="card"><div class="band">LOYALTY</div><div class="rings"><i></i><i></i><i></i></div><div class="staple"></div></div>
+      <div class="toy" id="toy"><div class="globe" id="globe"></div><div class="body"><b></b></div><div class="tbtn">TOY MACHINES ›</div></div>
+      <div class="corner l">Export log</div>
+      <div class="corner r">fb-p3</div>
+      <div class="tear-flash" id="flash"></div>
+    </div>
+  </div>
+  <div class="controls" id="juice">
+    <span class="lbl">Juice</span>
+    <label><input type="checkbox" id="j-print" checked> Receipt prints in</label>
+    <label><input type="checkbox" id="j-logo" checked> Logo drops and stamps</label>
+    <label><input type="checkbox" id="j-coin" checked> Coins slap on</label>
+    <label><input type="checkbox" id="j-sway" checked> Receipt sways</label>
+    <label><input type="checkbox" id="j-laser" checked> Scanner sweeps the barcode</label>
+    <label><input type="checkbox" id="j-ambient" checked> Ambient motion</label>
+    <button type="button" id="replay">Replay intro</button>
+    <button type="button" id="tear">Click Continue (tear-off)</button>
+  </div>
+
+  <h2>Results: what's behind the till report</h2>
+  <div class="controls" id="resCtl">
+    <span class="lbl">Behind it</span>
+    <button type="button" data-m="dim" aria-pressed="true">1 · Dimmed and blurred</button>
+    <button type="button" data-m="closed" aria-pressed="false">2 · Store closed</button>
+    <button type="button" data-m="counter" aria-pressed="false">3 · On the counter</button>
+    <button type="button" data-m="now" aria-pressed="false">Today (for comparison)</button>
+  </div>
+  <p class="desc" id="resDesc"></p>
+  <div class="frame" id="resFrame">
+    <div class="stage res m-dim" id="res">
+      <div class="counterwood"></div>
+      <div class="store"></div>
+      <div class="shade"></div>
+      <div class="shutter"></div>
+      <div class="closed-sign">CLOSED</div>
+      <div class="topbar"></div>
+      <div class="lamp"></div>
+      <div class="props" id="props"></div>
+      <div class="till" id="till"></div>
+    </div>
+  </div>
+
+  <h2>Questions</h2>
+  <div class="qs">
+    <section>
+      <h3>Title</h3>
+      <ul>
+        <li>Which backdrop: A, B or C?</li>
+        <li>Which juice stays? All six are on by default.</li>
+        <li>Should the Continue click tear the receipt off before the shift starts?</li>
+      </ul>
+    </section>
+    <section>
+      <h3>Results</h3>
+      <ul>
+        <li>Which background: 1, 2 or 3?</li>
+        <li>The top bar goes in all three. Is that OK? Coins and the run's last shift are on the till report anyway.</li>
+      </ul>
+    </section>
+  </div>
+</div>
+
+<script>
+(() => {
+  const $ = id => document.getElementById(id);
+  // scale both stages to their frames
+  const fits = [["titleFrame", "title"], ["resFrame", "res"]];
+  function fit() { for (const [f, s] of fits) $(s).style.transform = `scale(${$(f).clientWidth / 1280})`; }
+  new ResizeObserver(fit).observe($("titleFrame")); fit();
+
+  // ---------- backdrop details ----------
+  const STOCK = ["#e2b33c", "#d9534f", "#4f9a94", "#f3e9d2", "#5fae5a", "#c98c4e"];
+  for (const id of ["shelfL", "shelfR"]) {
+    const s = $(id);
+    for (let r = 0; r < 3; r++) {
+      const plank = document.createElement("i"); plank.style.top = (88 + r * 96) + "px"; s.appendChild(plank);
+      for (let k = 0; k < 9; k++) {
+        const b = document.createElement("b"); const h = 30 + ((k * 7 + r * 5) % 4) * 10;
+        b.style.left = (14 + k * 34) + "px"; b.style.top = (88 + r * 96 - h) + "px"; b.style.height = h + "px";
+        b.style.background = STOCK[(k + r * 2) % STOCK.length]; b.style.opacity = .55; s.appendChild(b);
+      }
+    }
+  }
+  const RIDE = [["#f3e9d2", 44, 70, "MILK"], ["#e2b33c", 70, 30, ""], ["#d9534f", 40, 54, ""], ["#c98c4e", 76, 40, ""], ["#5fae5a", 48, 48, ""], ["#4f9a94", 38, 64, ""]];
+  RIDE.forEach((r, i) => {
+    const d = document.createElement("div"); d.className = "rider";
+    d.style.cssText += `width:${r[1]}px;height:${r[2]}px;background:${r[0]};border:4px solid #2c2926;animation-delay:${-i * 2.35}s;font:700 12px var(--f-game);display:grid;place-items:center;color:#2c2926`;
+    d.textContent = r[3]; $("riders").appendChild(d);
+  });
+  const SC = [[80, 120, 150, 70, -12, "2 FOR 1", "#ffcf3f"], [150, 470, 130, 90, 8, "×3", "#fbf7ee"], [990, 520, 160, 74, -6, "CLEARANCE", "#ec8a6e"], [1060, 110, 120, 120, 14, "€3", "#fbf7ee"]];
+  SC.forEach(s => {
+    const d = document.createElement("div"); d.className = "scatter";
+    d.style.cssText += `left:${s[0]}px;top:${s[1]}px;width:${s[2]}px;height:${s[3]}px;transform:rotate(${s[4]}deg);background:${s[6]};font-size:22px;border:3px solid #2c2926`;
+    d.textContent = s[5]; $("scatter").appendChild(d);
+  });
+  for (let i = 0; i < 18; i++) {
+    const m = document.createElement("div"); m.className = "mote";
+    m.style.left = (440 + (i * 53) % 420) + "px"; m.style.top = (260 + (i * 97) % 360) + "px"; m.style.animationDelay = (-i * .55) + "s";
+    $("motes").appendChild(m);
+  }
+  const CAPS = ["#d9534f", "#ffcf3f", "#4f9a94", "#5fae5a", "#ec8a6e"];
+  CAPS.forEach((c, i) => { const b = document.createElement("i"); b.style.cssText = `left:${8 + (i * 23) % 70}px;top:${40 + (i * 17) % 46}px;background:${c}`; $("globe").appendChild(b); });
+
+  const BD = {
+    a: "A · Closing time: the store at night behind the receipt, shelves in shadow, one tube flickering, the belt creeping. The receipt is the only bright thing.",
+    b: "B · Belt rolling: a dark store and the belt across the bottom with groceries riding past, as if the next customer is already coming.",
+    c: "C · Spotlight on the counter: a warm lamp on the wood counter, coupons and price tags scattered round it, dust in the light.",
+  };
+  function setBd(k) {
+    for (const x of "abc") $("bd-" + x).classList.toggle("on", x === k);
+    document.querySelectorAll("#bdCtl button").forEach(b => b.setAttribute("aria-pressed", String(b.dataset.bd === k)));
+    $("bdDesc").textContent = BD[k];
+  }
+  $("bdCtl").addEventListener("click", e => { const b = e.target.closest("button[data-bd]"); if (b) setBd(b.dataset.bd); });
+  setBd("a");
+
+  // ---------- title juice ----------
+  const on = id => $("j-" + id).checked;
+  const split = (el) => { el.innerHTML = [...el.textContent].map(c => `<span class="ch">${c}</span>`).join(""); };
+  split($("w1"));
+  let timers = [];
+  const later = (ms, f) => timers.push(setTimeout(f, ms));
+  function clearAll() {
+    timers.forEach(clearTimeout); timers = [];
+    const t = $("title");
+    t.classList.remove("intro");
+    $("clip").classList.remove("tearing");
+    ["receipt"].forEach(id => $(id).classList.remove("printing"));
+    $("w2").classList.remove("stamp"); $("burst").classList.remove("slap", "idle");
+    document.querySelectorAll("#w1 .ch").forEach(c => { c.classList.remove("drop"); c.style.animationDelay = ""; });
+    ["card", "toy", "cont", "newrun"].forEach(id => $(id).classList.remove("pop"));
+    document.querySelectorAll(".corner").forEach(c => c.classList.remove("fadein"));
+    $("flash").style.transition = "none"; $("flash").style.opacity = 0;
+  }
+  function intro() {
+    clearAll();
+    const t = $("title"); void t.offsetWidth;
+    let at = 150;
+    if (on("print")) { t.classList.add("intro"); later(at, () => { t.classList.remove("intro"); $("receipt").classList.add("printing"); }); at += 1450; }
+    if (on("logo")) {
+      document.querySelectorAll("#w1 .ch").forEach((c, i) => { c.style.animationDelay = (i * .09) + "s"; c.classList.add("drop"); c.style.animationPlayState = "paused"; });
+      $("w2").style.opacity = 0;
+      later(at, () => document.querySelectorAll("#w1 .ch").forEach(c => c.style.animationPlayState = "running"));
+      later(at + 480, () => { $("w2").style.opacity = ""; $("w2").classList.add("stamp"); $("receipt").classList.remove("shake"); void $("receipt").offsetWidth; $("receipt").classList.add("shake"); });
+      at += 820;
+    }
+    if (on("coin")) { $("burst").style.opacity = 0; later(at, () => { $("burst").style.opacity = ""; $("burst").classList.add("slap"); }); at += 380; }
+    later(at, () => { ["cont", "newrun", "card", "toy"].forEach((id, i) => setTimeout(() => $(id).classList.add("pop"), i * 90)); document.querySelectorAll(".corner").forEach(c => c.classList.add("fadein")); });
+    later(at + 500, () => { if (on("coin")) $("burst").classList.add("idle"); });
+    applyIdle();
+  }
+  function applyIdle() {
+    $("swing").classList.toggle("sway", on("sway"));
+    const amb = on("ambient");
+    $("beltA").classList.toggle("still", !amb); $("bd-b").classList.toggle("still", !amb);
+    document.querySelector(".bd-a .t2").style.animationPlayState = amb ? "running" : "paused";
+    document.querySelectorAll(".mote").forEach(m => m.style.animationPlayState = amb ? "running" : "paused");
+  }
+  function sweep() {
+    if (!on("laser")) return;
+    const l = $("laser"), b = $("beep");
+    l.classList.remove("go"); b.classList.remove("go"); void l.offsetWidth;
+    l.classList.add("go"); setTimeout(() => b.classList.add("go"), 900);
+  }
+  setInterval(sweep, 4200);
+  $("juice").addEventListener("change", applyIdle);
+  $("replay").addEventListener("click", intro);
+  function tear() {
+    $("clip").classList.add("tearing");
+    const f = $("flash");
+    setTimeout(() => { f.style.transition = "opacity .25s"; f.style.opacity = .9; }, 450);
+    setTimeout(() => { f.style.opacity = 0; }, 800);
+    setTimeout(intro, 1500);
+  }
+  $("tear").addEventListener("click", tear);
+  $("cont").addEventListener("click", tear);
+  intro();
+
+  // ---------- results ----------
+  const LINES = [
+    ["h", "RUN WON!"], ["r"],
+    ["s", "W1 Shift 1   €58 / €34", "pass"], ["d", "NEW ITEMS: Strawberries"],
+    ["s", "   Shift 2   €71 / €45", "pass"], ["d", "UPGRADE: Milk › BIG"],
+    ["s", "   Shift 3   €64 / €58", "pass"], ["s", "   Shift 4   €49 / €61", "slip", true],
+    ["s", "W2 Shift 5   €92 / €80", "pass"], ["d", "PREMIUM · NEW ITEMS: Croissant"],
+    ["s", "   Shift 6  €104 / €93", "pass"], ["s", "   Shift 7  €119 / €108", "pass"], ["s", "   Shift 8  €140 / €121", "review"],
+    ["s", "W3 Shift 9  €151 / €138", "pass"], ["s", "   Shift 10 €166 / €152", "pass"], ["s", "   Shift 11 €181 / €170", "pass"], ["s", "   Shift 12 €214 / €190", "pass"],
+    ["r"], ["c", "Shifts passed 11", "+11"], ["c", "Overtime €92", "+4"], ["k", "COINS +15", "you have 70"],
+  ];
+  const till = $("till");
+  till.innerHTML = LINES.map(l => {
+    if (l[0] === "h") return `<h3>${l[1]}</h3>`;
+    if (l[0] === "r") return `<div class="rl"></div>`;
+    if (l[0] === "d") return `<div class="row d">${l[1]}</div>`;
+    if (l[0] === "s") return `<div class="row${l[3] ? " bad" : ""}"><span>${l[1]}</span><span>${l[2]}</span></div>`;
+    return `<div class="row${l[0] === "k" ? " coins" : ""}"><span>${l[1]}</span><span>${l[2]}</span></div>`;
+  }).join("") + `<div class="acts"><span>New run</span><span>Toy machines ›</span><span>Export log</span></div>`;
+  [[150, 140, 120, 64, -10, "THANK YOU", "#ddcba5"], [1000, 180, 150, 70, 9, "PAID", "#5fae5a"], [180, 520, 140, 80, 6, "€214", "#ffcf3f"], [1010, 520, 130, 62, -8, "12 / 12", "#fbf7ee"]].forEach(s => {
+    const d = document.createElement("div"); d.className = "scatter";
+    d.style.cssText += `left:${s[0]}px;top:${s[1]}px;width:${s[2]}px;height:${s[3]}px;transform:rotate(${s[4]}deg);background:${s[6]};font-size:24px;border:3px solid #2c2926`;
+    d.textContent = s[5]; $("props").appendChild(d);
+  });
+  const RES = {
+    dim: "1 · Dimmed and blurred: the shift screen stays behind, darkened and blurred, with the top bar gone so it can't read as shift 12. The cheapest option.",
+    closed: "2 · Store closed: the lights go down, the shutter rolls over the store and a CLOSED sign hangs, with a lamp on the till report. The run is over and the store shut.",
+    counter: "3 · On the counter: the store goes and the till report lies on the wood counter under the lamp, with the run's stamps and stickers round it.",
+    now: "Today: the shift screen as the run left it, top bar and belt included, behind the receipt.",
+  };
+  function setRes(m) {
+    const r = $("res"); r.className = "stage res m-" + m;
+    document.querySelectorAll("#resCtl button").forEach(b => b.setAttribute("aria-pressed", String(b.dataset.m === m)));
+    $("resDesc").textContent = RES[m];
+  }
+  $("resCtl").addEventListener("click", e => { const b = e.target.closest("button[data-m]"); if (b) setRes(b.dataset.m); });
+  setRes("dim");
+})();
+</script>

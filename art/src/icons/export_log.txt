@@ -1,0 +1,17 @@
+; The title's Export log button (#56, mock-up title_premium_directions.html): a teal
+; tile with a cream log sheet, two grey lines and a tomato arrow out of its corner, at
+; rest.
+@size 12x12
+@kind icon
+############
+#3333333333#
+#33cccccc33#
+#33cccccc33#
+#33c----c33#
+#33cccccc33#
+#33c----R33#
+#33ccccRRR3#
+#33ccccRRR3#
+#33ccccRRR3#
+#3333333333#
+############

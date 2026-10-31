@@ -10,6 +10,11 @@ extends PanelContainer
 ## Toy machines (#63: the TOY MACHINES, where coins buy capsules) can be clicked mid-print, once
 ## armed; Toy machines first prints the rest at once (a skip), so nothing keeps printing, nor
 ## reading presses, behind the full-screen machines.
+##
+## Behind the receipt the store closes (#56, results option 2): StoreClosed covers the whole
+## window, the top bar too, so the receipt no longer reads as the last shift's screen. It takes no
+## clicks (the shift screen's shade under it does, below the top bar), so Cart and ☰ stay
+## clickable. The profile's reduced motion (`reduced_motion`) shows the store closed at once.
 
 signal new_run_requested
 signal export_requested
@@ -60,16 +65,21 @@ var _print_started_ms: int = 0
 var _coin_sounds: int = 0
 var _coins_s: float = 0.0
 var _reader: PressReader
-var _new_run_button: Button
-var _toy_machines_button: Button
+var _new_run_button: FramedButton
+var _toy_machines_button: FramedButton
 var _column: VBoxContainer
 ## The FITS entry the receipt is laid out with.
 var _fit: Vector3i = FITS[0]
 var _armed_ms: int = 0
+var _closed: StoreClosed
+## Returns the profile's reduced motion (the shift screen's), or is unset: full motion.
+var _reduced_motion: Callable
 
 
-func _init(tuning: CountUpTuning = null) -> void:
+## `reduced_motion` returns the profile's reduced motion (unset: full motion).
+func _init(tuning: CountUpTuning = null, reduced_motion: Callable = Callable()) -> void:
 	_tuning = tuning if tuning != null else load(CountUp.TUNING_PATH) as CountUpTuning
+	_reduced_motion = reduced_motion
 	var style: StyleBoxFlat = StyleBoxFlat.new()
 	style.bg_color = Palette.PAPER
 	style.border_color = Palette.INK
@@ -84,7 +94,7 @@ func _init(tuning: CountUpTuning = null) -> void:
 	var top: HBoxContainer = HBoxContainer.new()
 	top.add_theme_constant_override("separation", 24)
 	column.add_child(top)
-	_headline = UiKit.label("", HEADLINE_SIZE, Palette.INK)
+	_headline = UiKit.display_label("", HEADLINE_SIZE, false)
 	_headline.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_headline.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	top.add_child(_headline)
@@ -99,17 +109,49 @@ func _init(tuning: CountUpTuning = null) -> void:
 	buttons.alignment = BoxContainer.ALIGNMENT_CENTER
 	buttons.add_theme_constant_override("separation", 16)
 	column.add_child(buttons)
-	_new_run_button = UiKit.button(buttons, "New run", func() -> void: new_run_requested.emit(), 22)
-	_toy_machines_button = UiKit.button(buttons, TOY_MACHINES_TEXT, _on_toy_machines_pressed, 20)
+	# The game's pixel buttons (#56): New run in the red frame, the others in the top bar's teal.
+	_new_run_button = UiKit.framed_button(
+		buttons, "New run", func() -> void: new_run_requested.emit(), 22
+	)
+	_toy_machines_button = UiKit.framed_button(
+		buttons, TOY_MACHINES_TEXT, _on_toy_machines_pressed, 20, TopBar.BUTTON_FRAME
+	)
 	# The export confirms itself once done (ShiftScreen).
-	UiKit.button(buttons, "Export log", func() -> void: export_requested.emit(), 18, "")
+	UiKit.framed_button(
+		buttons,
+		"Export log",
+		func() -> void: export_requested.emit(),
+		18,
+		TopBar.BUTTON_FRAME,
+		Vector2.ZERO,
+		""
+	)
 	_reader = PressReader.new()
 	add_child(_reader)
 	_reader.tapped.connect(func(_now_ms: int) -> void: skip_printing())
+	_closed = StoreClosed.new()
+	_closed.set_anchors_preset(Control.PRESET_FULL_RECT)
 	visible = false
 
 
+## The closed store goes in the panel's parent (the shift screen, over the whole window), just
+## behind the panel, once the parent has finished setting up its children.
+func _ready() -> void:
+	_place_closed.call_deferred()
+
+
+func _place_closed() -> void:
+	get_parent().add_child(_closed)
+	get_parent().move_child(_closed, get_index())
+	_closed.visible = visible
+
+
 func _notification(what: int) -> void:
+	# Freed before the closed store was placed: it would be left orphaned.
+	if what == NOTIFICATION_PREDELETE and _closed != null and not _closed.is_inside_tree():
+		_closed.free()
+	if what == NOTIFICATION_VISIBILITY_CHANGED and _closed != null:
+		_closed.visible = visible
 	if what == NOTIFICATION_VISIBILITY_CHANGED and not visible and _reader != null:
 		_reader.end()
 
@@ -117,6 +159,7 @@ func _notification(what: int) -> void:
 func _process(_delta: float) -> void:
 	if not visible:
 		return
+	_closed.focus = get_global_rect()
 	_print_due()
 	if not _new_run_button.disabled or Time.get_ticks_msec() < _armed_ms:
 		return
@@ -146,6 +189,7 @@ func show_results(
 	_toy_machines_button.disabled = true
 	_armed_ms = Time.get_ticks_msec() + ARM_MS
 	UiKit.pop_in(self)
+	_closed.close_store(_reduced_motion.is_valid() and bool(_reduced_motion.call()))
 	_print_started_ms = Time.get_ticks_msec()
 	_reader.begin()
 	_print_due()
@@ -170,12 +214,17 @@ func coins_seconds() -> float:
 	return _coins_s
 
 
+## The closed store behind the receipt (for tests).
+func store_closed() -> StoreClosed:
+	return _closed
+
+
 ## New run and Toy machines (for tests and layout checks).
-func new_run_button() -> Button:
+func new_run_button() -> FramedButton:
 	return _new_run_button
 
 
-func toy_machines_button() -> Button:
+func toy_machines_button() -> FramedButton:
 	return _toy_machines_button
 
 

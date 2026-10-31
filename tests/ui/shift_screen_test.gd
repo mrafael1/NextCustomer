@@ -283,7 +283,13 @@ func test_title_screen_starts_the_game() -> void:
 	var runner: GdUnitSceneRunner = scene_runner("res://ui/title_screen.tscn")
 	var title: TitleScreen = runner.scene()
 	title.changes_scene = false
-	title._on_background_input(_left_click())
+	# A click while the sign is still dark only ends the intro (#56); the doors then start.
+	var click: InputEventMouseButton = _left_click()
+	var doors: Vector2 = title.storefront().doors_rect().get_center()
+	click.position = title.scene_hit().get_global_transform().affine_inverse() * doors
+	title._on_scene_input(click)
+	assert_bool(title._starting).is_false()
+	title._on_scene_input(click)
 	assert_bool(title._starting).is_true()
 
 

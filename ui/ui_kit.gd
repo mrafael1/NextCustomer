@@ -160,6 +160,51 @@ static func display_label(text: String, font_size: int, light: bool) -> Label:
 	return result
 
 
+## Hard pixel words (#56, the title's direction C+) in `color`: the display font's whole-pixel
+## raster (ArtStyle.pixel_display_font) drawn `scale_factor` times larger (2: one font pixel is
+## one art pixel; 4 for a heading). Its size is in font pixels: place it with
+## place_pixel_label, on even canvas coordinates. Words only: Pixelify never prints numbers.
+static func pixel_label(text: String, scale_factor: int, color: Color) -> Label:
+	var result: Label = _text_label(text, ArtStyle.DISPLAY_FONT, ArtStyle.PIXEL_TEXT_SIZE)
+	result.add_theme_constant_override("line_spacing", 0)
+	use_pixel_text(result, scale_factor)
+	result.add_theme_color_override("font_color", color)
+	return result
+
+
+## Turns `text_label` into hard pixel words drawn `scale_factor` times larger (pixel_label), with no
+## outline; it keeps its colour.
+static func use_pixel_text(text_label: Label, scale_factor: int) -> void:
+	text_label.add_theme_font_override("font", ArtStyle.pixel_display_font())
+	text_label.add_theme_font_size_override("font_size", ArtStyle.PIXEL_TEXT_SIZE)
+	text_label.add_theme_constant_override("outline_size", 0)
+	text_label.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	text_label.scale = Vector2.ONE * scale_factor
+
+
+## Puts a pixel_label at `rect`, in its parent's canvas px, its width the rect's (in font px).
+## `centred`: its capitals centred on the rect's height, on the 2 px grid (the label's own
+## vertical alignment would centre its whole line, descender room and all, off the grid); else
+## its top at the rect's top.
+static func place_pixel_label(pixel: Label, rect: Rect2, centred: bool = false) -> void:
+	pixel.set_anchors_preset(Control.PRESET_TOP_LEFT)
+	pixel.vertical_alignment = VERTICAL_ALIGNMENT_TOP
+	var text_scale: float = pixel.scale.y
+	var top: float = rect.position.y
+	if centred:
+		var font: Font = ArtStyle.pixel_display_font()
+		var cap_top: float = font.get_ascent(ArtStyle.PIXEL_TEXT_SIZE) - ArtStyle.PIXEL_CAP_HEIGHT
+		var spare: float = rect.size.y - ArtStyle.PIXEL_CAP_HEIGHT * text_scale
+		top += 2.0 * floorf(spare / 4.0) - cap_top * text_scale
+	pixel.position = Vector2(rect.position.x, top)
+	pixel.size = Vector2(floorf(rect.size.x / text_scale), 0)
+
+
+## A pixel_label's text size on screen, in canvas px.
+static func pixel_text_size(pixel: Label) -> Vector2:
+	return pixel.get_minimum_size() * pixel.scale
+
+
 ## Numbers and money: the number font, light with an ink outline or plain ink.
 static func number_label(text: String, font_size: int, light: bool) -> Label:
 	var result: Label = display_label(text, font_size, light)

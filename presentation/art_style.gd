@@ -81,6 +81,14 @@ const TICKET_TEXT_LINES := 2
 const BURST_PRICE_SIZE := 22
 const BURST_PRICE_SIZE_3 := 21
 const STRUCK_PRICE_SIZE := 15
+## Hard pixel words (#56, the title's direction C+): Pixelify Sans rasterised at PIXEL_TEXT_SIZE
+## px with no anti-aliasing, hinting or subpixel positioning, so every glyph is whole screen
+## pixels on whole-pixel places (Pixelify's 7-pixel capitals are 640 of its 1000 units: at 11 px
+## one font pixel is one screen pixel). UiKit.pixel_label draws it 2x (one font pixel = one art
+## pixel) or 4x with nearest filtering, so the words sit on the art's 2 px grid.
+const PIXEL_TEXT_SIZE := 11
+## Its capitals are this many font pixels tall.
+const PIXEL_CAP_HEIGHT := 7
 ## A glyph tooltip's text: the body font at TIP_TEXT_WEIGHT, TIP_TEXT_SIZE px.
 const TIP_TEXT_WEIGHT := 800
 const TIP_TEXT_SIZE := 13
@@ -93,6 +101,7 @@ static var _halo_materials: Dictionary[int, ShaderMaterial] = {}
 static var _number_font: FontVariation
 static var _bold_fonts: Dictionary[int, FontVariation] = {}
 static var _spaced_display_fonts: Dictionary[int, FontVariation] = {}
+static var _pixel_display_font: FontFile
 static var _rim_materials: Dictionary[String, ShaderMaterial] = {}
 
 
@@ -282,6 +291,21 @@ static func spaced_display_font(spacing: int) -> Font:
 		font.spacing_glyph = spacing
 		_spaced_display_fonts[spacing] = font
 	return _spaced_display_fonts[spacing]
+
+
+## The display font (Pixelify Sans) as hard pixels, for PIXEL_TEXT_SIZE: its own FontFile on the
+## same font data, without the MSDF import's blended edges.
+static func pixel_display_font() -> Font:
+	if _pixel_display_font == null:
+		_pixel_display_font = FontFile.new()
+		_pixel_display_font.data = DISPLAY_FONT.data
+		_pixel_display_font.antialiasing = TextServer.FONT_ANTIALIASING_NONE
+		_pixel_display_font.multichannel_signed_distance_field = false
+		_pixel_display_font.hinting = TextServer.HINTING_NONE
+		_pixel_display_font.subpixel_positioning = TextServer.SUBPIXEL_POSITIONING_DISABLED
+		_pixel_display_font.keep_rounding_remainders = false
+		_pixel_display_font.generate_mipmaps = false
+	return _pixel_display_font
 
 
 ## The glyph texture's path for an aisle.

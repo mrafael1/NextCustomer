@@ -83,7 +83,7 @@ func test_the_title_starts_the_front_loop_on_its_first_press() -> void:
 	assert_bool(TitleScreen.is_audio_gesture(InputEventMouseMotion.new())).is_false()
 
 
-## A first press that starts the run (a background click without a save) starts no front loop:
+## A first press that starts the run (a click on the doors without a save) starts no front loop:
 ## the shift screen starts its own loop next.
 func test_a_first_press_that_starts_the_run_leaves_the_title_silent() -> void:
 	var runner: GdUnitSceneRunner = scene_runner(TITLE)
@@ -93,15 +93,21 @@ func test_a_first_press_that_starts_the_run_leaves_the_title_silent() -> void:
 	title._music = music
 	await _frames(3)
 	assert_object(title._saved_run).is_null()
-	title._input(_left_click())
-	title._on_background_input(_left_click())
+	title.skip_intro()
+	var on_doors: InputEventMouseButton = _left_click()
+	on_doors.position = title.storefront().doors_rect().get_center()
+	title._input(on_doors)
+	on_doors.position = (
+		title.scene_hit().get_global_transform().affine_inverse() * on_doors.position
+	)
+	title._on_scene_input(on_doors)
 	assert_bool(title._starting).is_true()
 	await _frames(2)
 	assert_str(str(music.current_track())).is_equal("")
 	assert_int(music.track_starts).is_equal(0)
 
 
-## With a run save, a first mouse press on Continue starts no front loop (the button starts the
+## With a run save, a first mouse press on CONTINUE starts no front loop (the plate starts the
 ## run on release); a first press elsewhere still starts it.
 func test_a_first_press_on_continue_leaves_the_title_silent() -> void:
 	DirAccess.make_dir_recursive_absolute(_folder)
@@ -117,8 +123,10 @@ func test_a_first_press_on_continue_leaves_the_title_silent() -> void:
 	title._music = music
 	await _frames(3)
 	assert_object(title._saved_run).is_not_null()
+	title.skip_intro()
 	var on_continue: InputEventMouseButton = _left_click()
-	on_continue.position = title._continue_button.get_global_rect().get_center()
+	var primary: MenuPlate = title.menu().plate(TitleMenu.Entry.PRIMARY)
+	on_continue.position = primary.get_global_rect().get_center()
 	title._input(on_continue)
 	await _frames(1)
 	assert_int(music.track_starts).is_equal(0)

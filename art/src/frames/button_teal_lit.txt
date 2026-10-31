@@ -1,0 +1,15 @@
+; The teal button (button_teal) lit (#121 polish, v0.78), like button_lit: a paper top row and a
+; light face. A 9-slice like button.
+@size 10x10
+@kind frame
+@scale 2
+.########.
+#wwwwwwww#
+#65555553#
+#65555553#
+#65555553#
+#65555553#
+#65555553#
+#33333333#
+#22222222#
+.########.

@@ -250,7 +250,7 @@ func test_a_full_receipt_fits_the_screen_with_the_card_and_the_coins() -> void:
 	var paper: Rect2 = results.get_global_rect()
 	prints("#61 final receipt:", paper)
 	assert_bool(SCREEN_RECT.encloses(paper)).is_true()
-	# Below the top bar (64 px), which keeps Export log and Deck reachable.
+	# Below the top bar's height (64 px), the closed store's shutter showing above it.
 	assert_float(paper.position.y).is_greater_equal(64.0)
 	var card: Rect2 = results._loyalty_card.get_global_rect()
 	assert_bool(paper.encloses(card)).is_true()
@@ -291,6 +291,47 @@ func test_a_full_receipt_fits_the_screen_with_the_card_and_the_coins() -> void:
 	assert_str(results.texts()[-1]).starts_with("COINS +")
 
 
+## #56: the store closes behind the receipt: the closed store covers the whole window, the top
+## bar too, and sits just behind the receipt; it takes no clicks (the shade under it takes them
+## below the top bar, so Cart and ☰ stay clickable); the shutter rolls down in SHUTTER_S.
+func test_the_store_closes_behind_the_receipt() -> void:
+	var screen: ShiftScreen = await _screen()
+	_full_run(screen)
+	var results: ResultsPanel = screen._results
+	screen._show_results(_last_result(screen))
+	await _frames(2)
+	var closed: StoreClosed = results.store_closed()
+	assert_bool(closed.is_visible_in_tree()).is_true()
+	assert_bool(closed.get_global_rect().encloses(SCREEN_RECT)).is_true()
+	assert_int(closed.mouse_filter).is_equal(Control.MOUSE_FILTER_IGNORE)
+	assert_bool(screen._shade.visible).is_true()
+	assert_int(screen._shade.mouse_filter).is_equal(Control.MOUSE_FILTER_STOP)
+	assert_float(screen._shade.get_global_rect().position.y).is_equal(ShiftStage.PANEL_TOP)
+	assert_object(closed.get_parent()).is_same(results.get_parent())
+	assert_int(closed.get_index()).is_equal(results.get_index() - 1)
+	assert_float(closed.shutter()).is_less(1.0)
+	await get_tree().create_timer(StoreClosed.SHUTTER_S + SLACK_S).timeout
+	assert_float(closed.shutter()).is_equal(1.0)
+	assert_float(closed.shutter_foot()).is_equal_approx(
+		SCREEN_RECT.size.y * StoreClosed.SHUTTER_STOP, 0.5
+	)
+	assert_bool(closed.focus.is_equal_approx(results.get_global_rect())).is_true()
+
+
+## #56: under the profile's reduced motion the store is closed at once: the shutter down, the
+## lights out.
+func test_reduced_motion_closes_the_store_at_once() -> void:
+	var screen: ShiftScreen = await _screen()
+	screen.profile.set_reduced_motion(true)
+	_full_run(screen)
+	screen._show_results(_last_result(screen))
+	var closed: StoreClosed = screen._results.store_closed()
+	assert_float(closed.shutter()).is_equal(1.0)
+	assert_float(closed.shutter_foot()).is_equal_approx(
+		closed.size.y * StoreClosed.SHUTTER_STOP, 0.5
+	)
+
+
 ## #63: "Toy machines ›" sits beside New run inside the receipt and arms with it.
 func test_toy_machines_sits_beside_new_run_and_arms_with_it() -> void:
 	var screen: ShiftScreen = await _screen()
@@ -299,9 +340,9 @@ func test_toy_machines_sits_beside_new_run_and_arms_with_it() -> void:
 	screen._show_results(_last_result(screen))
 	results.skip_printing()
 	await _frames(3)
-	var toys: Button = results.toy_machines_button()
-	var new_run: Button = results.new_run_button()
-	assert_str(toys.text).is_equal("Toy machines ›")
+	var toys: FramedButton = results.toy_machines_button()
+	var new_run: FramedButton = results.new_run_button()
+	assert_str(toys.caption).is_equal("Toy machines ›")
 	assert_bool(toys.disabled).is_true()
 	assert_bool(new_run.disabled).is_true()
 	await await_millis(ResultsPanel.ARM_MS + 100)

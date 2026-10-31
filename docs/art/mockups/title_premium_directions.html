@@ -1,0 +1,1068 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Premium Title Directions</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:wght@400;700&family=Pixelify+Sans:wght@400..700&display=swap" rel="stylesheet">
+<style>
+/* Local copies of the game's fonts, used when Google Fonts is unreachable. */
+@font-face { font-family: PixLocal; src: url(../../../fonts/PixelifySans-Variable.ttf); font-weight: 400 700; }
+@font-face { font-family: AtkLocal; src: url(../../../fonts/AtkinsonHyperlegibleNext-Variable.ttf); font-weight: 200 800; }
+:root {
+  --bg: #172c2b; --panel: #1f3b3a; --panel2: #2a4d4b; --line: #3a7672;
+  --text: #f3e9d2; --muted: #c7beab; --teal: #86c2b6; --tomato: #ec8a6e; --gold: #ffcf3f;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; background: var(--bg); color: var(--text); }
+body { font-family: "Atkinson Hyperlegible", AtkLocal, system-ui, sans-serif; font-size: 16px; line-height: 1.5; }
+main { max-width: 1312px; margin: 0 auto; padding: 24px 16px 64px; }
+h1, h2, h3 { font-family: "Pixelify Sans", PixLocal, monospace; font-weight: 600; line-height: 1.15; margin: 0 0 8px; }
+h1 { font-size: 44px; color: var(--paper, #fbf7ee); }
+h1 small { display: block; font-size: 22px; color: var(--teal); font-weight: 500; }
+h2 { font-size: 22px; color: var(--gold); margin-top: 32px; }
+p { margin: 0 0 12px; max-width: 72ch; }
+.intro { color: var(--muted); }
+.tabs { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; margin: 20px 0 12px; }
+.tab { text-align: left; background: var(--panel); color: var(--text); border: 2px solid var(--panel2); padding: 10px 12px; cursor: pointer; font: inherit; }
+.tab b { display: block; font-family: "Pixelify Sans", PixLocal, monospace; font-weight: 600; font-size: 22px; line-height: 1.1; }
+.tab span { display: block; font-size: 14px; color: var(--muted); margin-top: 4px; }
+.tab[aria-selected="true"] { border-color: var(--gold); background: var(--panel2); }
+.tab[aria-selected="true"] b { color: var(--gold); }
+.tab .rec { display: inline-block; font-size: 12px; color: #2b2420; background: var(--gold); padding: 0 6px; margin-left: 6px; vertical-align: middle; font-family: "Atkinson Hyperlegible", AtkLocal, sans-serif; font-weight: 700; }
+.controls { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin: 0 0 10px; font-size: 14px; color: var(--muted); }
+.seg { display: inline-flex; border: 2px solid var(--panel2); }
+.seg button, .ctl { background: var(--panel); color: var(--text); border: 0; padding: 6px 12px; font: inherit; cursor: pointer; }
+.ctl { border: 2px solid var(--panel2); }
+.seg button[aria-pressed="true"] { background: var(--line); color: #fbf7ee; }
+.stagewrap { background: #0d1818; border: 2px solid var(--panel2); line-height: 0; }
+canvas#stage { width: 100%; height: auto; aspect-ratio: 16 / 9; display: block; image-rendering: pixelated; image-rendering: crisp-edges; cursor: default; }
+.hint { font-size: 14px; color: var(--muted); margin-top: 8px; }
+.cols { display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr); gap: 24px; margin-top: 8px; }
+.card { background: var(--panel); border: 2px solid var(--panel2); padding: 14px 16px; }
+.card h3 { font-size: 22px; color: var(--teal); }
+ul { margin: 0; padding-left: 20px; }
+li { margin: 0 0 6px; }
+.score { width: 100%; border-collapse: collapse; font-size: 14px; }
+.score th, .score td { border-bottom: 1px solid var(--panel2); padding: 4px 6px; text-align: center; }
+.score th:first-child, .score td:first-child { text-align: left; }
+.score tr.on td { color: var(--gold); }
+.reco { border-left: 4px solid var(--gold); background: var(--panel); padding: 12px 16px; }
+ol { padding-left: 22px; margin: 0; }
+ol li { margin-bottom: 10px; }
+code { font-family: "JetBrains Mono", Consolas, monospace; font-size: 14px; color: var(--teal); }
+kbd { font-family: inherit; border: 1px solid var(--line); padding: 0 4px; font-size: 13px; }
+@media (max-width: 760px) {
+  .tabs { grid-template-columns: minmax(0, 1fr); }
+  .cols { grid-template-columns: minmax(0, 1fr); }
+  h1 { font-size: 32px; }
+}
+</style>
+</head>
+<body>
+<main>
+  <h1>Next Customer: a premium title <small>Three refined directions, live mock-ups</small></h1>
+  <p class="intro">Feedback on the current title: it should be pixel art all the way through (like the toy machines and items), it does not feel premium, the toy machine needs no sign, and Toy machines and Loyalty must be reachable from it. Each tab below is the 1280x720 title, drawn on the 640x360 art grid (1 art pixel = 2 screen pixels) with the game's real sprites and palette. The receipt, the starburst and "Click anywhere to start" are gone in all three. Hover, click and use the keyboard (<kbd>Up</kbd> <kbd>Down</kbd> <kbd>Enter</kbd> <kbd>Esc</kbd>); REWARDS opens the shared Toy machines + Loyalty menu.</p>
+
+  <div class="tabs" role="tablist" aria-label="Title directions">
+    <button class="tab" role="tab" data-dir="A" aria-selected="false"><b>A+ Closing Time</b><span>The night store interior, a left-hand menu column and a shelf-tag logo. The cheapest; reuses the night store work.</span></button>
+    <button class="tab" role="tab" data-dir="B" aria-selected="false"><b>B+ Night Register</b><span>The checkout counter is the menu: a lightbox sign, the LED monitor and two register keys.</span></button>
+    <button class="tab" role="tab" data-dir="C" aria-selected="true"><b>C+ Storefront at night <i class="rec">RECOMMENDED</i></b><span>The store seen from the street: a neon sign, the doors start the run, the glass bay holds REWARDS.</span></button>
+  </div>
+
+  <div class="controls">
+    <span class="seg" role="group" aria-label="Save state">
+      <button id="saveOn" aria-pressed="true">With save</button>
+      <button id="saveOff" aria-pressed="false">No save</button>
+    </span>
+    <button class="ctl" id="replay">Replay intro</button>
+    <button class="ctl" id="openRewards">Open REWARDS</button>
+    <span id="rm"></span>
+  </div>
+  <div class="stagewrap"><canvas id="stage" width="1280" height="720" tabindex="0" aria-label="Title screen mock-up"></canvas></div>
+  <p class="hint" id="hint"></p>
+
+  <div class="cols">
+    <div class="card" id="notes"></div>
+    <div class="card">
+      <h3>Scores</h3>
+      <table class="score">
+        <thead><tr><th>Direction</th><th>Prem.</th><th>Pixel</th><th>Clar.</th><th>Ident.</th><th>Meta</th><th>Cost</th><th>Total</th></tr></thead>
+        <tbody>
+          <tr data-row="A"><td>A Closing Time</td><td>4</td><td>4</td><td>5</td><td>3</td><td>4</td><td>4</td><td>24</td></tr>
+          <tr data-row="B"><td>B Night Register</td><td>4</td><td>4</td><td>3</td><td>5</td><td>4</td><td>2</td><td>22</td></tr>
+          <tr data-row="C"><td>C Storefront</td><td>5</td><td>5</td><td>4</td><td>4</td><td>5</td><td>2</td><td>25</td></tr>
+        </tbody>
+      </table>
+      <p class="hint">1 to 5; for build cost, 5 is cheapest and safest. Scored before the refinements.</p>
+    </div>
+  </div>
+
+  <h2>Recommendation</h2>
+  <div class="reco">
+    <p><b>C+, built in an order that keeps A+ as the fallback.</b> C+ is the only direction that looks like an authored title scene rather than the game dimmed behind a menu, which is the premium gap in the current title. A storefront is a place you arrive at, the way Stardew's farm sky or Celeste's mountain are.</p>
+    <p>Build order: first the shared pieces (the logo, the till digit font, the <code>menu_plate</code> frames and the tick marker, <code>toy_machine_bare</code> and its aisle derives, the REWARDS screen), then the storefront scene (<code>storefront_night.txt</code>, 640x360). If the facade art stalls, the shared pieces drop onto the A+ interior with no work wasted.</p>
+    <p><b>Toy machines and Loyalty share one entry, REWARDS.</b> Both are store rewards paid in coins, so the coin count is shown once, where coins are spent. The top level stays at three entries (like Balatro's Collection or Slay the Spire's Compendium), and Loyalty arrives later without a new title button. In C+ the glass bay is the same entry drawn as a place, not a second button. Other names to offer: BACK ROOM, PRIZE COUNTER.</p>
+  </div>
+
+  <h2>Open questions</h2>
+  <ol>
+    <li><b>Which scene?</b> The storefront from the street (C+, recommended, more art) or the dark store interior (A+, cheaper, reuses the night store work)?</li>
+    <li><b>One entry?</b> Is one REWARDS entry right, and is "REWARDS" the name (or BACK ROOM, or PRIZE COUNTER)?</li>
+    <li><b>Loyalty until it is built:</b> show it locked ("SOON") inside REWARDS, as in this mock-up, or hide it completely?</li>
+    <li><b>Old work and QUIT:</b> should the uncommitted night-store and receipt files be shelved or deleted? And do you want a QUIT entry on Windows (hidden on the web build)?</li>
+  </ol>
+</main>
+
+<script>
+"use strict";
+// ---------------------------------------------------------------------------------------------
+// Palette (ui/palette.gd and art/src/palette.txt).
+const C = {
+  ink: "#2b2420", inkL: "#4a3f38", greyD: "#5e574d", grey: "#8a8172", greyL: "#c7beab",
+  creamDk: "#b39f78", creamSh: "#ddcba5", cream: "#f3e9d2", paper: "#fbf7ee",
+  t1: "#1f3b3a", t2: "#2a4d4b", t3: "#3a7672", t4: "#4f9a94", t5: "#86c2b6", t6: "#c3e0d4",
+  t7: "#5fb0a8", t8: "#172c2b", tq: "#6e2630", tr: "#a83a3c", tR: "#d9534f", to: "#ec8a6e",
+  tO: "#f5bfa0", mu: "#7a5a1c", md: "#b38425", M: "#e2b33c", my: "#f1d27a", mY: "#faecbc",
+  gD: "#3d7a45", G: "#5fae5a", bK: "#4a3022", bD: "#7a5232", bF: "#a87a4e", bL: "#d2a874",
+  k: "#4a3010", l: "#8a5d1a", L: "#c8932b", gold: "#ffcf3f",
+  v0: "#2a0e14", v1: "#561327", v2: "#8a1f33", v3: "#b23a55",
+  stHi: "#ecebe4", stL: "#c7c3b8", stP: "#a9a59b", st: "#8d8a83", stS: "#6f6b63", stD: "#57534c",
+  stK: "#45423d", rub: "#3d3a36", rubD: "#2c2926", char: "#24221f",
+  wP: "#ddb07a", wL: "#c98c4e", w: "#a8703a", wD: "#6e4524", wK: "#3e2614",
+  plL: "#ece0c6", pl: "#e4d6b9", plS: "#cdbb98", plD: "#b9a47c",
+  glow: "#e4f6f3", glass: "#bfe2dd", slate: "#2c3533", slateD: "#222a29",
+};
+const ART = "../../../art/";
+const SPRITES = {
+  machine: "scenery/toy_machine.png",
+  capT: "scenery/toy_capsule.png",
+  capSnacks: "scenery/toy_capsule_snacks.png",
+  capBakery: "scenery/toy_capsule_bakery.png",
+  capCold: "scenery/toy_capsule_cold_cases.png",
+  capFruit: "scenery/toy_capsule_fruit_and_veg.png",
+  capHouse: "scenery/toy_capsule_household.png",
+  capPantry: "scenery/toy_capsule_pantry.png",
+  clock: "scenery/wall_clock.png",
+  lamp: "scenery/ceiling_lamp.png",
+  juice: "scenery/juice_bottles.png",
+  yoghurt: "scenery/yoghurt_pots.png",
+  boule: "scenery/bread_boule.png",
+  coin: "icons/coin.png",
+  padlock: "icons/padlock.png",
+  cart: "icons/cart.png",
+  milk: "items_v2/milk.png",
+  banana: "items_v2/banana.png",
+  bread: "items_v2/bread.png",
+  butter: "items_v2/butter.png",
+  cheese: "items_v2/cheese.png",
+  mMilk: "minis/milk.png",
+  mBanana: "minis/banana.png",
+  mBread: "minis/bread.png",
+  mButter: "minis/butter.png",
+  mBaguette: "minis/baguette.png",
+  mBatteries: "minis/batteries.png",
+};
+const IMG = {};
+const reduced = matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+// ---------------------------------------------------------------------------------------------
+// Canvas and art-pixel drawing. Everything is drawn on the 640x360 art grid (transform x2).
+const cv = document.getElementById("stage");
+const g = cv.getContext("2d");
+g.imageSmoothingEnabled = false;
+function art() { g.setTransform(2, 0, 0, 2, 0, 0); g.imageSmoothingEnabled = false; }
+function R(x, y, w, h, c) { g.fillStyle = c; g.fillRect(Math.round(x), Math.round(y), Math.round(w), Math.round(h)); }
+function px(x, y, c) { R(x, y, 1, 1, c); }
+function mk(w, h) { const c = document.createElement("canvas"); c.width = w; c.height = h; const x = c.getContext("2d"); x.imageSmoothingEnabled = false; return [c, x]; }
+
+// Dither patterns: level 1 = 25 %, 2 = 50 % (checker), 3 = 75 %.
+const patCache = {};
+function pattern(c, level, phase) {
+  const key = c + level + (phase || 0);
+  if (patCache[key]) return patCache[key];
+  const [cn, x] = mk(2, 2);
+  x.fillStyle = c;
+  const cells = level === 1 ? [[0, 0]] : level === 2 ? [[0, 0], [1, 1]] : [[0, 0], [1, 1], [1, 0]];
+  for (const [a, b] of cells) x.fillRect((a + (phase || 0)) % 2, b, 1, 1);
+  return (patCache[key] = g.createPattern(cn, "repeat"));
+}
+function D(x, y, w, h, c, level, phase) { g.fillStyle = pattern(c, level, phase); g.fillRect(Math.round(x), Math.round(y), Math.round(w), Math.round(h)); }
+
+// Recolours a sprite or mask with source-atop/source-in (never reads pixels, so file:// works).
+function tinted(src, c, mode, alpha) {
+  const [cn, x] = mk(src.width, src.height);
+  x.drawImage(src, 0, 0);
+  x.globalCompositeOperation = mode || "source-in";
+  x.globalAlpha = alpha == null ? 1 : alpha;
+  x.fillStyle = c; x.fillRect(0, 0, cn.width, cn.height);
+  return cn;
+}
+function night(src, a) { return tinted(src, C.t8, "source-atop", a == null ? 0.42 : a); }
+
+// Pixelify text, thresholded to hard pixels and cropped to its ink box.
+const FONT = '"Pixelify Sans", PixLocal, monospace';
+const maskCache = {};
+function textMask(str, size, weight, sub) {
+  sub = sub || 0;
+  const key = str + "|" + size + "|" + weight + "|" + sub;
+  if (maskCache[key]) return maskCache[key];
+  const [m, x] = mk(Math.ceil(size * str.length * 1.2) + 8, Math.ceil(size * 1.6) + 4);
+  x.font = (weight || 600) + " " + size + "px " + FONT;
+  x.textBaseline = "alphabetic"; x.fillStyle = "#fff";
+  x.fillText(str, 2 + sub, Math.ceil(size * 1.2));
+  const d = x.getImageData(0, 0, m.width, m.height); const a = d.data;
+  let x0 = m.width, y0 = m.height, x1 = -1, y1 = -1;
+  for (let i = 0; i < a.length; i += 4) {
+    const on = a[i + 3] > 120; a[i] = a[i + 1] = a[i + 2] = 255; a[i + 3] = on ? 255 : 0;
+    if (on) { const p = i / 4, xx = p % m.width, yy = (p / m.width) | 0; if (xx < x0) x0 = xx; if (xx > x1) x1 = xx; if (yy < y0) y0 = yy; if (yy > y1) y1 = yy; }
+  }
+  x.putImageData(d, 0, 0);
+  if (x1 < 0) { x0 = y0 = 0; x1 = y1 = 1; }
+  const [o, ox] = mk(x1 - x0 + 1, y1 - y0 + 1);
+  ox.drawImage(m, -x0, -y0);
+  return (maskCache[key] = o);
+}
+const tintCache = {};
+function tm(str, size, weight, c) {
+  const key = str + "|" + size + "|" + weight + "|" + c;
+  return tintCache[key] || (tintCache[key] = tinted(textMask(str, size, weight), c));
+}
+function openC(size, weight) {
+  let best = null;
+  for (const sub of [0, 0.25, 0.5, 0.75, 0.33, 0.66]) {
+    const m = textMask("C", size, weight, sub);
+    const d = m.getContext("2d").getImageData(0, 0, m.width, m.height).data;
+    const row = Math.floor(m.height / 2), xr = m.width - 1;
+    const open = d[(row * m.width + xr) * 4 + 3] === 0 && d[(row * m.width + xr - 1) * 4 + 3] === 0;
+    if (open) return m;
+    best = best || m;
+  }
+  return best;
+}
+// Draws text with its ink box's top left at (x, y); align "c" centres on x, "r" right-aligns.
+function T(str, x, y, size, c, opt) {
+  opt = opt || {};
+  const m = textMask(str, size, opt.weight);
+  let ox = opt.align === "c" ? Math.round(x - m.width / 2) : opt.align === "r" ? x - m.width : x;
+  if (opt.outline) { const o = tm(str, size, opt.weight, opt.outline); for (const [a, b] of [[-1, 0], [1, 0], [0, -1], [0, 1], [-1, -1], [1, -1], [-1, 1], [1, 1]]) g.drawImage(o, ox + a, y + b); }
+  if (opt.shadow) g.drawImage(tm(str, size, opt.weight, opt.shadow), ox + (opt.sx || 1), y + (opt.sy || 1));
+  g.drawImage(tm(str, size, opt.weight, c), ox, y);
+  return m.width;
+}
+
+// The till font: a drawn 3x5 digit-and-capital font for every number and small label.
+const TILL = {
+  A: "010101111101101", B: "110101110101110", C: "011100100100011", D: "110101101101110",
+  E: "111100110100111", F: "111100110100100", G: "011100101101011", H: "101101111101101",
+  I: "111010010010111", J: "001001001101010", K: "101101110101101", L: "100100100100111",
+  M: "101111111101101", N: "110101101101101", O: "010101101101010", P: "110101110100100",
+  Q: "010101101110011", R: "110101110101101", S: "011100010001110", T: "111010010010010",
+  U: "101101101101111", V: "101101101101010", W: "101101111111101", X: "101101010101101",
+  Y: "101101010010010", Z: "111001010100111",
+  "0": "111101101101111", "1": "010110010010111", "2": "110001010100111", "3": "110001010001110",
+  "4": "101101111001001", "5": "111100110001110", "6": "011100111101111", "7": "111001010010010",
+  "8": "111101111101111", "9": "111101111001110", "/": "001001010100100", "·": "000000010000000",
+  ":": "000010000010000", "-": "000000111000000", ".": "000000000000010", "€": "011100111100011",
+  "?": "110001010000010", "!": "010010010000010", "+": "000010111010000", " ": "000000000000000",
+};
+function tillW(s, sc) { return s.length * 4 * (sc || 1) - (sc || 1); }
+function till(s, x, y, c, sc, align) {
+  sc = sc || 1;
+  if (align === "r") x -= tillW(s, sc); else if (align === "c") x -= Math.floor(tillW(s, sc) / 2);
+  g.fillStyle = c;
+  for (const ch of s) {
+    const b = TILL[ch] || TILL[" "];
+    for (let i = 0; i < 15; i++) if (b[i] === "1") g.fillRect(x + (i % 3) * sc, y + ((i / 3) | 0) * sc, sc, sc);
+    x += 4 * sc;
+  }
+}
+
+// A filled pixel circle (diameter d) with an ink outline; the capsule O of the logos.
+function disc(x, y, d, fill) {
+  const r = d / 2;
+  for (let j = 0; j < d; j++) {
+    const dy = j + 0.5 - r; const hw = Math.round(Math.sqrt(Math.max(0, r * r - dy * dy)));
+    R(x + r - hw, y + j, hw * 2, 1, typeof fill === "function" ? fill(j) : fill);
+  }
+}
+function capsuleO(x, y, d, top, bot, lit) {
+  disc(x - 1, y - 1, d + 2, C.ink);
+  disc(x, y, d, (j) => (j < d / 2 - 1 ? top : j < d / 2 + 1 ? C.ink : bot));
+  if (lit !== false) { R(x + Math.round(d * 0.25), y + Math.round(d * 0.18), 2, 1, C.paper); R(x + Math.round(d * 0.2), y + Math.round(d * 0.18) + 1, 1, 2, C.paper); }
+}
+
+// ---------------------------------------------------------------------------------------------
+// Frames: the button.png look (primary), the new menu_plate (cream shelf label, brass ledge).
+function primary(x, y, w, h, lit, down) {
+  if (down) y += 2;
+  R(x + 1, y, w - 2, h, C.ink); R(x, y + 1, w, h - 2, C.ink);
+  R(x + 1, y + 1, w - 2, h - 2, lit ? C.to : C.tR);
+  R(x + 1, y + 1, w - 2, 1, lit ? C.paper : C.tO);
+  R(x + 1, y + 2, 1, h - 5, lit ? C.tO : C.to);
+  R(x + w - 2, y + 2, 1, h - 5, C.tr);
+  R(x + 1, y + h - 3, w - 2, 1, C.tr); R(x + 1, y + h - 2, w - 2, 1, C.tq);
+  if (!down) R(x + 2, y + h, w - 4, 2, "rgba(10,20,20,0.5)");
+}
+function plate(x, y, w, h, lit, down, off) {
+  if (down) y += 1;
+  const face = off ? C.creamSh : lit ? C.paper : C.cream;
+  R(x + 1, y, w - 2, h + 3, C.ink); R(x, y + 1, w, h + 1, C.ink);
+  R(x + 1, y + 1, w - 2, h - 1, face);
+  R(x + 1, y + 1, w - 2, 1, lit ? C.paper : C.paper);
+  R(x + 1, y + h - 1, w - 2, 1, C.creamSh);
+  R(x + 1, y + 2, 3, h - 3, lit ? C.t7 : C.t4);           // the aisle stripe of a shelf label
+  R(x + 1, y + h, w - 2, 1, lit ? C.gold : C.L);          // the brass ledge
+  R(x + 1, y + h + 1, w - 2, 1, lit ? C.L : C.l);
+}
+function tick(x, y, c) { // the price-gun tick marker, pointing right, 7 px tall
+  for (let i = 0; i < 4; i++) R(x + i, y + i, 1, 7 - i * 2, c);
+  R(x - 1, y, 1, 7, C.ink);
+}
+function popupFrame(x, y, w, h) {
+  R(x + 1, y, w - 2, h, C.ink); R(x, y + 1, w, h - 2, C.ink);
+  R(x + 1, y + 1, w - 2, h - 2, C.paper);
+  R(x + 2, y + 2, w - 4, 1, C.gold); R(x + 2, y + 2, 1, h - 4, C.gold);
+  R(x + w - 3, y + 2, 1, h - 4, C.L); R(x + 2, y + h - 3, w - 4, 1, C.L);
+  R(x + 3, y + 3, w - 6, h - 6, C.paper);
+}
+
+// The bare toy machine (toy_machine_bare): the sign board and hanger rods cut off.
+const BARE_CUT = 22;
+let bare, bareNight, bareRim, bareLit;
+function makeBare() {
+  const src = IMG.machine;
+  const [c, x] = mk(72, 140 - BARE_CUT);
+  if (src) {
+    x.drawImage(src, 0, BARE_CUT, 72, 140 - BARE_CUT, 0, 0, 72, 140 - BARE_CUT);
+    x.clearRect(18, 0, 3, 6); x.clearRect(51, 0, 3, 6);
+    const caps = [IMG.capSnacks, IMG.capBakery, IMG.capFruit, IMG.capCold, IMG.capPantry, IMG.capHouse];
+    const at = [[17, 38], [29, 40], [41, 38], [23, 28], [36, 29], [30, 18]];
+    caps.forEach((cap, i) => cap && x.drawImage(cap, at[i][0], at[i][1]));
+  } else { x.fillStyle = C.t4; x.fillRect(10, 0, 52, 118); }
+  bare = c; bareNight = night(c, 0.32); bareLit = night(c, 0.08); bareRim = tinted(c, C.gold);
+}
+function drawMachine(x, y, mode) { // mode: "night", "lit", "rim"
+  if (mode === "rim") for (const [a, b] of [[-1, 0], [1, 0], [0, -1], [0, 1]]) g.drawImage(bareRim, x + a, y + b);
+  g.drawImage(mode === "night" ? bareNight : bareLit, x, y);
+}
+const nightCache = {};
+function N(name, a) { const k = name + (a || ""); if (!nightCache[k] && IMG[name]) nightCache[k] = night(IMG[name], a); return nightCache[k]; }
+function spr(name, x, y, nightA) { const im = nightA != null ? N(name, nightA) : IMG[name]; if (im) g.drawImage(im, Math.round(x), Math.round(y)); }
+// An items_v2 sprite at its native 48 screen px (24 art px), as the game draws it on the belt.
+function item(name, x, y, nightA) {
+  const im = nightA != null ? N(name, nightA) : IMG[name]; if (!im) return;
+  g.setTransform(1, 0, 0, 1, 0, 0); g.drawImage(im, Math.round(x) * 2, Math.round(y) * 2); art();
+}
+
+// ---------------------------------------------------------------------------------------------
+// State.
+const S = {
+  dir: "C", save: true, hover: null, focus: -1, overlay: null, ovHover: null,
+  introAt: 0, lit: false, press: null, toast: null, scanAt: -1e9, monitorEgg: -1e9, coins: 59,
+  targets: [], machineGlow: 0,
+};
+function now() { return performance.now(); }
+function menuIds() { return S.save ? ["continue", "newrun", "rewards"] : ["start", "rewards"]; }
+function label(id) { return { continue: "CONTINUE", start: "START RUN", newrun: "NEW RUN", rewards: "REWARDS" }[id]; }
+function subline() { return S.save ? "SHIFT 5/12 · WEEK 2" : "12 SHIFTS · 3 WEEKS"; }
+function isHot(id) { return S.hover === id || (S.focus >= 0 && menuIds()[S.focus] === id && !S.hover); }
+function pressed(id) { return S.press && S.press.id === id && now() - S.press.at < 140; }
+function since(t) { return now() - t; }
+function stepFrac(t, dur, steps) { return Math.min(1, Math.floor(Math.min(1, t / dur) * steps) / steps); }
+
+// ---------------------------------------------------------------------------------------------
+// Shared bits: the export icon, the build label, the coin count.
+function exportIcon(x, y, hot) {
+  R(x, y, 12, 12, C.ink); R(x + 1, y + 1, 10, 10, hot ? C.t5 : C.t3);
+  R(x + 3, y + 2, 6, 8, C.cream); R(x + 4, y + 4, 4, 1, C.grey); R(x + 4, y + 6, 4, 1, C.grey);
+  R(x + 7, y + 7, 3, 3, C.tR); R(x + 8, y + 6, 1, 1, C.tR);
+  S.targets.push({ id: "export", x, y, w: 12, h: 12, tip: "Export log" });
+}
+function buildLabel(x, y, c) { till("FB-P3", x, y, c || C.grey, 1, "r"); }
+function coinCount(x, y, c, sc) { spr("coin", x, y - 3); till(String(S.coins), x + 14, y, c || C.gold, sc || 1); }
+
+// The menu column used by A+ and C+: primary plate plus small plates; returns nothing, pushes targets.
+function menuColumn(x, y, opt) {
+  const ids = menuIds(); let yy = y;
+  ids.forEach((id, i) => {
+    const slide = opt.slide ? opt.slide(i) : 0;
+    const hot = isHot(id), down = pressed(id);
+    const dx = (hot ? 2 : 0) + slide;
+    if (i === 0) {
+      const w = opt.pw, h = 32;
+      primary(x + dx, yy, w, h, hot, down);
+      const dy = down ? 2 : 0;
+      T(label(id), x + dx + 8, yy + 3 + dy, 24, C.paper, { weight: 700 });
+      till(subline(), x + dx + 9, yy + 23 + dy, hot ? C.paper : C.tO);
+      if (hot) tick(x - 10 + slide, yy + 12, C.tR);
+      S.targets.push({ id, x, y: yy, w: w + 4, h: h + 2 });
+      yy += h + opt.gap;
+    } else {
+      const w = opt.sw, h = 18;
+      plate(x + dx, yy, w, h, hot, down);
+      const dy = down ? 1 : 0;
+      till(label(id), x + dx + 9, yy + 4 + dy, C.ink, 2);
+      if (id === "rewards") coinCount(x + dx + w - 30, yy + 7 + dy, C.md);
+      if (hot) tick(x - 10 + slide, yy + 6, C.tR);
+      S.targets.push({ id, x, y: yy, w: w + 4, h: h + 3 });
+      yy += h + opt.gap + 2;
+    }
+  });
+}
+
+// ---------------------------------------------------------------------------------------------
+// A+. Closing Time, interior.
+function drawA(t) {
+  const it = reduced ? 1e9 : since(S.introAt);
+  // Back wall, ceiling, floor in the night palette.
+  R(0, 0, 640, 360, C.t1);
+  R(0, 0, 640, 22, C.t8); R(0, 22, 640, 2, C.slateD);
+  R(0, 120, 640, 2, C.wK); R(0, 122, 640, 70, C.t2); for (let x = 0; x < 640; x += 20) R(x, 122, 1, 70, C.t1);
+  R(0, 192, 640, 3, C.wK);
+  for (let y = 195; y < 360; y += 10) for (let x = (y / 10) % 2 ? 0 : 16; x < 640; x += 32) R(x, y, 16, 10, C.t2);
+  // Shelves on the right, night-derived.
+  for (const sx of [300, 420]) {
+    R(sx, 60, 110, 132, C.t8); R(sx + 2, 62, 106, 128, C.slate);
+    for (let r = 0; r < 3; r++) { const sy = 92 + r * 32; R(sx + 2, sy, 106, 3, C.stD); R(sx + 2, sy + 3, 106, 1, C.char); }
+    spr("juice", sx + 8, 52 + 0, 0.5); spr("yoghurt", sx + 12, 118 - 34 + 22, 0.5); spr("boule", sx + 60, 141, 0.5); spr("boule", sx + 26, 141, 0.5);
+    ["mMilk", "mBanana", "mBread", "mButter", "mBaguette", "mBatteries"].forEach((n, i) => spr(n, sx + 6 + i * 16, 178, 0.5));
+  }
+  // Wall clock with a ticking second hand.
+  const cx = 452, cy = 30;
+  spr("clock", cx, cy, 0.35);
+  const sec = reduced ? 0 : Math.floor(t / 1000) % 60; const ang = sec / 60 * Math.PI * 2 - Math.PI / 2;
+  for (let r = 0; r < 14; r++) px(Math.round(cx + 22 + Math.cos(ang) * r), Math.round(cy + 22 + Math.sin(ang) * r), C.tr);
+  // Tube light top right (flickers).
+  const fl = reduced ? true : !(Math.floor(t / 90) % 41 === 3 || Math.floor(t / 90) % 41 === 5);
+  spr("lamp", 540, 0, fl ? null : 0.6);
+  if (fl) cone(577, 20, 190, 34, 150, C.t3);
+  // Belt and counter.
+  R(290, 236, 290, 4, C.stP); R(290, 240, 290, 18, C.rub); R(290, 258, 290, 3, C.stS);
+  const off = reduced ? 0 : Math.floor(t / 120) % 12;
+  for (let x = 292 - off; x < 578; x += 12) if (x > 290) { R(x, 246, 1, 6, C.rubD); px(x + 1, 247, C.rubD); px(x + 1, 250, C.rubD); }
+  R(286, 261, 298, 40, C.wD); R(286, 261, 298, 2, C.wL); for (let x = 300; x < 584; x += 28) R(x, 265, 1, 36, C.wK);
+  // One belt item every 9 s, from the right to the scanner at the left.
+  if (!reduced) { const p = (t % 9000) / 9000; const names = ["milk", "banana", "bread", "butter"]; const nm = names[Math.floor(t / 9000) % 4]; const x = 560 - Math.floor(p * 260 / 2) * 2; if (p < 0.98) item(nm, x, 222, 0.3); }
+  else item("milk", 420, 222, 0.3);
+  // The left zone: four dither bands, darkest at the edge.
+  R(0, 0, 70, 360, C.t8);
+  D(70, 0, 70, 360, C.t8, 3); D(140, 0, 70, 360, C.t8, 2); D(210, 0, 70, 360, C.t8, 1);
+  // Toy machine (bare), feet on the floor at y 300.
+  drawMachine(548, 182, S.hover === "rewards" || (S.focus >= 0 && menuIds()[S.focus] === "rewards") ? "rim" : "night");
+  S.targets.push({ id: "rewards", x: 548, y: 182, w: 72, h: 118, scene: true });
+  // Logo: drops 16 px with one bounce.
+  let ly = 26;
+  if (it < 400) ly = 26 - 16 + Math.round(16 * Math.min(1, it / 260)) - (it > 260 ? (it < 330 ? 2 : 0) : 0);
+  if (it < 140) ly = -200;
+  logoA(28, ly, t);
+  // Menu: plates slide in 60 ms apart.
+  menuColumn(28, 136, { pw: 160, sw: 136, gap: 6, slide: (i) => { const s = it - 300 - i * 60; return s >= 180 ? 0 : s < 0 ? -220 : -Math.round((1 - s / 180) * 40 / 4) * 4; } });
+  exportIcon(10, 336, S.hover === "export");
+  buildLabel(630, 340);
+  // Intro: a four-step fade from black.
+  if (it < 400) { const f = 1 - stepFrac(it, 400, 4); if (f > 0) { g.globalAlpha = f; R(0, 0, 640, 360, "#0b1414"); g.globalAlpha = 1; } }
+}
+function logoA(x, y, t) {
+  const m = textMask("NEXT", 44, 700);
+  // Extrusion, outline and face.
+  for (let i = 4; i >= 1; i--) g.drawImage(tm("NEXT", 44, 700, i > 2 ? C.tq : C.tr), x + i, y + i);
+  for (const [a, b] of [[-1, 0], [1, 0], [0, -1], [0, 1]]) g.drawImage(tm("NEXT", 44, 700, C.ink), x + a, y + b);
+  g.drawImage(tm("NEXT", 44, 700, C.cream), x, y);
+  // Shine sweep every 7 s, clipped to the letters.
+  const sp = reduced ? -1 : (t % 7000) / 900;
+  if (sp >= 0 && sp < 1) {
+    const [c, cx] = mk(m.width, m.height);
+    const sx = Math.round(sp * (m.width + m.height)) - m.height;
+    cx.fillStyle = C.paper; for (let j = 0; j < m.height; j++) cx.fillRect(sx + (m.height - j), j, 4, 1);
+    cx.globalCompositeOperation = "destination-in"; cx.drawImage(m, 0, 0);
+    g.drawImage(c, x, y);
+  }
+  // The laser line through the X.
+  const xpos = x + Math.round(m.width * 0.6); const ly = y + Math.round(m.height / 2);
+  D(xpos - 6, ly - 1, 36, 3, C.tR, 2); R(xpos - 6, ly, 36, 1, C.tR); R(xpos + 2, ly, 20, 1, C.to);
+  // CUSTOMER on a teal shelf-tag strip with a punched hole and a string.
+  const sy = y + m.height + 10, sw = 210, sh = 34;
+  R(x - 4, sy - 2, 1, 1, C.greyL);
+  for (let i = 0; i < 10; i++) px(x + 4 - Math.round(i * 0.8), sy + 6 - i * 2, C.greyL);
+  R(x + 1, sy, sw - 2, sh, C.ink); R(x, sy + 1, sw, sh - 2, C.ink);
+  R(x + 1, sy + 1, sw - 2, sh - 2, C.t4); R(x + 1, sy + 1, sw - 2, 2, C.t5); R(x + 1, sy + sh - 3, sw - 2, 2, C.t3);
+  disc(x + 4, sy + 13, 7, C.ink); disc(x + 5, sy + 14, 5, C.t8);
+  customerWord(x + 16, sy + 6, 24, C.paper, null, (cx, cy, d) => capsuleO(cx, cy, d, C.tR, C.glass));
+}
+// Lays out "CUST" + capsule + "MER" and returns the width.
+function customerWord(x, y, size, c, shadow, capFn, weight) {
+  weight = weight || 700;
+  const a = textMask("CUST", size, weight), b = textMask("MER", size, weight);
+  const d = a.height;
+  // Pixelify's C has a narrow mouth that thresholding can close: pick a sub-pixel offset that keeps it open.
+  const cm = openC(size, weight), ust = textMask("UST", size, weight);
+  g.drawImage(tinted(cm, c), x, y + (a.height - cm.height));
+  T("UST", x + a.width - ust.width, y + (a.height - ust.height), size, c, { weight });
+  capFn(x + a.width + 3, y, d);
+  T("MER", x + a.width + d + 6, y, size, c, { weight, shadow, sx: 1, sy: 1 });
+  return a.width + d + 6 + b.width;
+}
+
+// ---------------------------------------------------------------------------------------------
+// B+. Night Register.
+function drawB(t) {
+  const it = reduced ? 1e9 : since(S.introAt);
+  const lampOn = it > 380 || (it > 120 && Math.floor(it / 50) % 2 === 0);
+  // Back of the store.
+  R(0, 0, 640, 360, C.t8);
+  R(0, 0, 640, 12, C.slateD);
+  for (const sx of [20, 140, 420, 540]) { R(sx, 70, 90, 150, C.t1); for (let r = 0; r < 4; r++) R(sx + 2, 100 + r * 30, 86, 2, C.t2); }
+  D(0, 200, 640, 40, C.t1, 2);
+  // Lamp over the register and its dithered pool.
+  spr("lamp", 283, 0, lampOn ? 0.1 : 0.6);
+  if (lampOn) {
+    cone(320, 20, 232, 44, 230, C.mu, 1);
+    if (!reduced) for (let k = 0; k < 7; k++) { const ph = (t / 40 + k * 97) % 200; px(260 + ((k * 53) % 120) + Math.round(Math.sin((t / 900) + k) * 3), 40 + ph, C.mY); }
+  }
+  // Belt on the counter top, crawling.
+  const off = reduced ? 0 : Math.floor(t / 260) % 10;
+  R(0, 214, 240, 18, C.rub); R(0, 212, 240, 2, C.stP);
+  for (let x = -off; x < 240; x += 10) if (x >= 0) R(x, 219, 1, 8, C.rubD);
+  item("cheese", 120 + (reduced ? 0 : -Math.floor((t % 12000) / 12000 * 60)), 194, 0.35);
+  // Counter band.
+  R(0, 232, 640, 128, C.wK); R(0, 232, 640, 3, C.wD); R(0, 235, 640, 6, C.w);
+  for (let x = 0; x < 640; x += 32) R(x, 248, 1, 112, C.bK);
+  if (lampOn) D(200, 241, 240, 119, C.wD, 2);
+  // Drawer pop on start.
+  if (S.press && (S.press.id === "continue" || S.press.id === "start")) {
+    const d = Math.min(20, Math.floor(since(S.press.at) / 40) * 4);
+    R(240, 300, 160, 4 + d, C.stK); R(242, 300 + d, 156, 4, C.stS);
+    for (let i = 0; i < 5; i++) R(250 + i * 30, 302, 24, d, C.char);
+    for (let i = 0; i < 5; i++) if (d > 8) spr("coin", 256 + i * 30, 300 + d - 12);
+  }
+  // Monitor on its pole.
+  R(316, 170, 8, 62, C.stK); R(318, 170, 2, 62, C.stS);
+  R(272, 138, 96, 32, C.stK); R(273, 139, 94, 30, C.char); R(276, 142, 88, 24, C.slateD);
+  if (it > 900) {
+    const egg = since(S.monitorEgg) < 1600;
+    const msg = egg ? "€0.99" : S.save ? "SHIFT 05/12" : "OPEN";
+    D(276, 142, 88, 24, C.slate, 2);
+    till(msg, 320, 148, C.gold, 2, "c");
+    if (!egg) till(S.save ? "WEEK 2" : "12 SHIFTS", 320, 160, C.md, 1, "c");
+  } else if (it > 700) { till("BOOT", 320, 148, C.md, 2, "c"); }
+  // Lightbox sign on chains.
+  for (const cx of [214, 424]) for (let y = 0; y < 14; y += 3) R(cx, y, 2, 2, y % 6 ? C.stS : C.stP);
+  lightbox(196, 14, t, it);
+  // CONTINUE / START key and NEW RUN key.
+  const ids = menuIds();
+  const k1 = ids[0];
+  keyBig(260, 186, 96, 30, k1);
+  if (S.save) keySmall(272, 240, 72, 22, "newrun");
+  // Rewards corner: machine, loyalty stand, plate.
+  const hotR = isHot("rewards");
+  if (hotR) D(504, 124, 136, 132, C.gold, 1);
+  drawMachine(512, 132, hotR ? "rim" : "night");
+  loyaltyStand(586, 198, hotR);
+  plate(520, 258, 100, 18, hotR, pressed("rewards"));
+  till("REWARDS", 529, 262, C.ink, 2);
+  coinCount(520 + 70, 265, C.md);
+  if (hotR) tick(509, 264, C.tR);
+  S.targets.push({ id: "rewards", x: 504, y: 128, w: 136, h: 152 });
+  exportIcon(6, 342, S.hover === "export");
+  buildLabel(632, 350, C.creamDk);
+  if (it < 300) { const f = 1 - stepFrac(it, 300, 3); g.globalAlpha = f; R(0, 0, 640, 360, "#050909"); g.globalAlpha = 1; }
+}
+function keyBig(x, y, w, h, id) {
+  const hot = isHot(id), down = pressed(id);
+  const dy = down ? 2 : 0;
+  R(x + 1, y + h, w - 2, 4, C.ink); R(x + 2, y + h, w - 4, 3, C.tq);
+  primary(x, y + dy, w, h, hot, false);
+  till(label(id), x + w / 2, y + 5 + dy, C.paper, 2, "c");
+  till(S.save ? "SHIFT 5/12" : "12 SHIFTS", x + w / 2, y + 19 + dy, hot ? C.paper : C.tO, 1, "c");
+  if (hot) tick(x - 10, y + 11, C.tR);
+  S.targets.push({ id, x, y, w, h: h + 4 });
+}
+function keySmall(x, y, w, h, id) {
+  const hot = isHot(id), down = pressed(id);
+  const dy = down ? 2 : 0;
+  R(x + 1, y + h, w - 2, 4, C.ink); R(x + 2, y + h, w - 4, 3, C.creamDk);
+  R(x + 1, y + dy, w - 2, h, C.ink); R(x, y + 1 + dy, w, h - 2, C.ink);
+  R(x + 1, y + 1 + dy, w - 2, h - 2, hot ? C.paper : C.cream); R(x + 1, y + 1 + dy, w - 2, 1, C.paper);
+  R(x + 1, y + h - 3 + dy, w - 2, 2, C.creamSh);
+  till(label(id), x + w / 2, y + 6 + dy, C.ink, 2, "c");
+  if (hot) tick(x - 10, y + 7, C.tR);
+  S.targets.push({ id, x, y, w, h: h + 4 });
+}
+function loyaltyStand(x, y, hot) {
+  R(x + 18, y + 40, 4, 12, C.stK); R(x + 10, y + 50, 20, 2, C.stK);
+  R(x + 1, y, 38, 42, C.ink); R(x, y + 1, 40, 40, C.ink);
+  R(x + 1, y + 1, 38, 10, hot ? C.t5 : C.t3); R(x + 1, y + 11, 38, 30, hot ? C.cream : C.creamDk);
+  till("LOYAL", x + 20, y + 4, hot ? C.ink : C.t8, 1, "c");
+  for (let i = 0; i < 6; i++) { const cx = x + 5 + (i % 3) * 11, cy = y + 16 + Math.floor(i / 3) * 11; disc(cx, cy, 8, hot ? C.creamSh : C.grey); disc(cx + 1, cy + 1, 6, hot ? C.cream : C.creamDk); }
+  if (IMG.padlock) g.drawImage(hot ? IMG.padlock : N("padlock", 0.3), x + 30, y + 30);
+}
+function lightbox(x, y, t, it) {
+  const w = 248, h = 72;
+  R(x - 2, y - 2, w + 4, h + 4, C.k); R(x - 1, y - 1, w + 2, h + 2, C.l); R(x, y, w, h, C.L); R(x + 3, y + 3, w - 6, h - 6, C.k);
+  R(x + 4, y + 4, w - 8, h - 8, C.t8);
+  // Letters light one by one during the intro.
+  const n = reduced ? 99 : Math.floor((it - 420) / 70);
+  const litC = C.glow, offC = C.t2;
+  // NEXT with a crosshair X.
+  const nx = x + 74, ny = y + 9;
+  const ne = textMask("NE", 16, 700);
+  const lit = (i) => n > i;
+  T("N", nx, ny, 16, lit(0) ? C.t7 : offC, { weight: 700 });
+  T("E", nx + textMask("N", 16, 700).width + 2, ny, 16, lit(1) ? C.t7 : offC, { weight: 700 });
+  const xx = nx + ne.width + 4, hh = ne.height;
+  const cc = lit(2) ? C.tR : offC;
+  disc(xx, ny, hh, cc); disc(xx + 2, ny + 2, hh - 4, C.t8);
+  R(xx + Math.floor(hh / 2), ny - 2, 1, hh + 4, cc); R(xx - 2, ny + Math.floor(hh / 2), hh + 4, 1, cc);
+  T("T", xx + hh + 4, ny, 16, lit(3) ? C.t7 : offC, { weight: 700 });
+  // CUSTOMER in glass-glow with the capsule O.
+  const allLit = n > 6;
+  customerWord(x + 28, y + 37, 24, allLit ? litC : offC, null, (cx, cy, d) => capsuleO(cx, cy, d, allLit ? C.tR : C.tq, allLit ? C.glass : C.t2, allLit));
+  // Scan band every 8 s.
+  const sp = reduced ? -1 : ((t % 8000) / 1200);
+  const egg = since(S.scanAt) < 700 ? since(S.scanAt) / 700 : -1;
+  const p = egg >= 0 ? egg : sp;
+  if (p >= 0 && p < 1 && allLit) { const bx = x + 4 + Math.floor(p * (w - 8) / 2) * 2; D(bx - 3, y + 4, 7, h - 8, C.tR, 2); R(bx, y + 4, 1, h - 8, C.tR); }
+  S.targets.push({ id: "logo", x, y, w, h, scene: true });
+}
+
+// ---------------------------------------------------------------------------------------------
+// C+. Storefront at night (recommended).
+function drawC(t) {
+  const it = S.lit ? (reduced ? 1e9 : since(S.introAt)) : -1;
+  const signN = it < 0 ? 0 : reduced ? 99 : Math.floor(it / 50);
+  const signOn = signN >= 12;
+  const pressStart = S.press && (S.press.id === "continue" || S.press.id === "start" || S.press.id === "doors") ? since(S.press.at) : -1;
+  const hotGo = isHot(menuIds()[0]) || S.hover === "doors";
+  const hotR = isHot("rewards") || S.hover === "bay";
+  // Sky and stars.
+  R(0, 0, 640, 48, C.t8); D(0, 28, 640, 12, C.v0, 1); D(0, 40, 640, 8, C.v0, 2);
+  for (let i = 0; i < 26; i++) { const sx = (i * 137) % 640, sy = (i * 53) % 34 + 2; const tw = reduced ? 0 : (Math.floor(t / 600) + i) % 9; if (tw) px(sx, sy, i % 3 ? C.t5 : C.mY); }
+  R(560, 14, 8, 1, C.t3); // a far roof antenna
+  // Cornice and upper wall.
+  R(0, 40, 640, 8, C.stK); R(0, 40, 640, 1, C.stS); R(0, 47, 640, 1, C.char);
+  brick(0, 48, 640, 68);
+  // Fascia with the teal and tomato stripe and the brass rail.
+  R(112, 48, 416, 68, C.ink); R(113, 49, 414, 66, C.t8); R(115, 51, 410, 2, C.t1);
+  R(113, 105, 414, 2, C.t3); R(113, 107, 414, 3, C.tr);
+  R(110, 114, 420, 2, C.L); R(110, 116, 420, 1, C.l);
+  // Neon sign.
+  neon(196, 52, t, signN, signOn);
+  S.targets.push({ id: "logo", x: 196, y: 52, w: 248, h: 54, scene: true });
+  // Wall below the fascia.
+  brick(0, 116, 640, 180);
+  // Sconce and its wedge of light over the menu.
+  R(92, 120, 10, 6, C.ink); R(93, 121, 8, 4, C.L); R(94, 126, 6, 2, C.my);
+  if (signOn || reduced) cone(97, 128, 296, 14, 170, C.mu, 1);
+  // Left window.
+  windowPane(200, 128, 64, 164, t, "shelves");
+  // Doors with the warm interior.
+  doors(268, 132, t, hotGo, pressStart);
+  R(312, 122, 10, 6, C.char); px(320, 124, (reduced || Math.floor(t / 700) % 2) ? C.tR : C.tq);
+  // Right window with register 3 and the tube.
+  windowPane(376, 128, 124, 164, t, "register");
+  // REWARDS bay.
+  bay(504, 108, t, hotR);
+  // Sidewalk, curb, street, reflections.
+  R(0, 296, 640, 38, C.stK); for (let x = 0; x < 640; x += 32) R(x, 296, 1, 38, C.stD); R(0, 314, 640, 1, C.stD);
+  R(0, 334, 640, 2, C.stS); R(0, 336, 640, 24, C.char);
+  for (let x = 8; x < 640; x += 48) R(x, 348, 20, 2, C.mu);
+  if (signOn) { for (let i = 0; i < 14; i++) D(206 + i * 17, 300 + (i % 3) * 3, 3, 28 - (i % 3) * 6, i < 4 ? C.t3 : C.tr, 1, i % 2); }
+  // Door spill on the sidewalk.
+  cone(320, 296, 334, 104, 136, hotGo ? C.md : C.mu, 1);
+  // A receipt scrap every 25 s.
+  if (!reduced && signOn) { const p = (t % 25000) / 4000; if (p < 1) { const sx = Math.round(-10 + p * 660); const sy = 318 - Math.abs(Math.round(Math.sin(p * 18) * 6)); R(sx, sy, 5, 4, C.cream); R(sx, sy + 3, 5, 1, C.creamSh); } }
+  // Menu on the brick, stepping in after the sign.
+  if (signOn || reduced) {
+    const base = 12 * 50;
+    menuColumn(36, 160, { pw: 144, sw: 120, gap: 8, slide: (i) => { if (reduced) return 0; const s = it - base - i * 70; return s >= 160 ? 0 : s < 0 ? -240 : -Math.round((1 - s / 160) * 24 / 4) * 4; } });
+  }
+  exportIcon(8, 340, S.hover === "export");
+  buildLabel(632, 344, C.grey);
+  S.targets.push({ id: "doors", x: 268, y: 132, w: 104, h: 160, scene: true });
+  S.targets.push({ id: "bay", x: 504, y: 108, w: 128, h: 184, scene: true });
+  // Start-run transition: doors open, light floods, stepped fade.
+  if (pressStart > 350) { const f = stepFrac(pressStart - 350, 200, 3); g.globalAlpha = f; R(0, 0, 640, 360, C.mY); g.globalAlpha = 1; }
+}
+function brick(x, y, w, h) {
+  R(x, y, w, h, C.v0);
+  for (let r = 0; r * 5 < h; r++) {
+    const off = r % 2 ? 6 : 0;
+    for (let bx = -off; bx < w; bx += 12) R(x + Math.max(0, bx), y + r * 5, Math.min(11, 11 + Math.min(0, bx)), 4, (r * 7 + bx) % 5 === 0 ? C.bK : C.v1);
+  }
+  D(x, y, w, h, C.t8, 1);
+}
+function windowPane(x, y, w, h, t, kind) {
+  R(x, y, w, h, C.stK); R(x + 2, y + 2, w - 4, h - 4, C.t8);
+  if (kind === "shelves") {
+    D(x + 2, y + 2, w - 4, h - 4, C.t1, 2);
+    for (let r = 0; r < 4; r++) { const sy = y + 34 + r * 34; R(x + 4, sy, w - 8, 2, C.stD); ["mMilk", "mBanana", "mBread", "mButter", "mBaguette"].slice(0, 4).forEach((n, i) => spr(n, x + 7 + i * 13 + (r % 2) * 4, sy - 7, 0.35)); }
+  } else {
+    const fl = reduced ? true : !(Math.floor(t / 80) % 37 === 2 || Math.floor(t / 80) % 37 === 4 || Math.floor(t / 80) % 53 === 9);
+    R(x + 20, y + 12, 84, 3, fl ? C.glow : C.t3);
+    if (fl) { D(x + 4, y + 15, w - 8, 40, C.t3, 2); D(x + 4, y + 55, w - 8, 50, C.t3, 1); }
+    // Register 3 in silhouette: monitor, counter, belt.
+    R(x + 30, y + 78, 30, 20, C.char); R(x + 32, y + 80, 26, 14, fl ? C.slate : C.slateD); R(x + 43, y + 98, 4, 22, C.char);
+    till("3", x + 46, y + 84, C.md, 1, "c");
+    R(x + 2, y + 120, w - 4, 42, C.char); R(x + 2, y + 118, w - 4, 2, C.stD); R(x + 70, y + 106, 50, 12, C.rubD);
+  }
+  // Glass glints.
+  for (let i = 0; i < 10; i++) px(x + 6 + i, y + 20 - i, C.t3);
+  for (let i = 0; i < 6; i++) px(x + 6 + i, y + 30 - i, C.t2);
+  R(x, y + h - 4, w, 4, C.stD);
+}
+function doors(x, y, t, hot, pressStart) {
+  const w = 104, h = 160;
+  R(x - 2, y - 4, w + 4, h + 4, C.stK); R(x - 2, y - 4, w + 4, 2, C.stS);
+  // Warm interior.
+  const bands = [C.my, C.mY, C.plL, C.pl];
+  for (let i = 0; i < 4; i++) R(x, y + i * 20, w, 20, bands[i]);
+  R(x, y + 80, w, 80, C.plS);
+  for (let yy = y + 100; yy < y + h; yy += 8) for (let xx = x + ((yy / 8) % 2 ? 0 : 8); xx < x + w; xx += 16) R(xx, yy, 8, 8, C.pl);
+  // Aisle shelves in perspective.
+  R(x + 6, y + 30, 26, 74, C.creamSh); R(x + 72, y + 30, 26, 74, C.creamSh);
+  for (let r = 0; r < 4; r++) { R(x + 6, y + 44 + r * 16, 26, 2, C.bF); R(x + 72, y + 44 + r * 16, 26, 2, C.bF); }
+  ["mMilk", "mBread", "mBanana", "mButter"].forEach((n, i) => { spr(n, x + 8 + (i % 2) * 11, y + 37 + Math.floor(i / 2) * 16); spr(n, x + 75 + (i % 2) * 11, y + 53 + Math.floor(i / 2) * 16); });
+  R(x + 40, y + 50, 24, 4, C.t4); till("OPEN", x + 52, y + 46, C.tR, 1, "c");
+  // Leaves slide apart: 2 px on hover, fully on start (4-px steps over 0.35 s).
+  let open = hot ? 2 : 0;
+  if (pressStart >= 0) open = Math.min(52, Math.floor(Math.min(1, pressStart / 350) * 13) * 4);
+  leaf(x - open, y, 52, h, x, w);
+  leaf(x + 52 + open, y, 52, h, x, w);
+  R(x - 2, y + h - 2, w + 4, 2, C.stD);
+}
+function leaf(lx, y, w, h, fx, fw) {
+  const x0 = Math.max(lx, fx), x1 = Math.min(lx + w, fx + fw); if (x1 <= x0) return;
+  g.save(); g.beginPath(); g.rect(x0, y, x1 - x0, h); g.clip();
+  D(lx + 3, y + 3, w - 6, h - 6, C.t6, 1);
+  R(lx, y, w, 3, C.stL); R(lx, y + h - 6, w, 6, C.stL); R(lx, y, 3, h, C.stL); R(lx + w - 3, y, 3, h, C.stL);
+  R(lx, y + 3, w, 1, C.stP); R(lx + 3, y + 80, w - 6, 3, C.st);
+  for (let i = 0; i < 12; i++) px(lx + 8 + i, y + 30 - i, C.glow);
+  g.restore();
+}
+function bay(x, y, t, hot) {
+  const w = 128, h = 184;
+  R(x, y, w, h, C.stK); R(x + 2, y + 2, w - 4, h - 4, hot ? C.t2 : C.t8);
+  if (hot) D(x + 2, y + 2, w - 4, h - 4, C.t3, 2); else D(x + 2, y + 2, w - 4, h - 4, C.t1, 2);
+  // REWARDS vinyl lettering.
+  till("REWARDS", x + 64, y + 10, hot ? C.paper : C.creamSh, 1, "c");
+  R(x + 34, y + 17, 60, 1, hot ? C.gold : C.L);
+  // Loyalty poster.
+  const px0 = x + 6, py0 = y + 32;
+  R(px0, py0, 24, 32, C.ink); R(px0 + 1, py0 + 1, 22, 30, hot ? C.cream : C.creamDk);
+  R(px0 + 1, py0 + 1, 22, 7, hot ? C.t4 : C.t3); till("LOYAL", px0 + 12, py0 + 2, C.paper, 1, "c");
+  for (let i = 0; i < 6; i++) { const cx = px0 + 3 + (i % 3) * 6, cy = py0 + 11 + Math.floor(i / 3) * 7; disc(cx, cy, 5, C.grey); }
+  till("SOON", px0 + 12, py0 + 25, C.tR, 1, "c");
+  // Machine with a jiggle on hover.
+  const jig = hot && !reduced && since(S.hoverAt) < 300 ? (Math.floor(since(S.hoverAt) / 60) % 2 ? 1 : -1) : 0;
+  drawMachine(x + 28 + jig, y + 62, hot ? "lit" : "night");
+  // Glass glints and frame bars.
+  for (let i = 0; i < 16; i++) px(x + 90 + i, y + 60 - i, hot ? C.glow : C.t3);
+  R(x + 2, y + 24, w - 4, 2, C.stK);
+  R(x, y + h - 4, w, 4, C.stD);
+  // The glass slides when REWARDS opens.
+  if (S.ovSlide && since(S.ovSlide) < 300) { const d = Math.floor(since(S.ovSlide) / 60) * 12; D(x + 2 + d, y + 26, w - 4, h - 30, C.t6, 1); }
+}
+function neon(x, y, t, n, on) {
+  const w = 248;
+  // NEXT small teal, CUSTOMER large tomato with a capsule-coloured price-tag O.
+  const nm = textMask("NEXT", 16, 700);
+  const nx = x + Math.round((w - nm.width) / 2), ny = y;
+  const stutter = !reduced && on && (Math.floor(t / 100) % 120 === 7 || Math.floor(t / 100) % 120 === 9);
+  const nextLit = n >= 4;
+  const letters = ["N", "E", "X", "T"]; let lx = nx;
+  for (let i = 0; i < 4; i++) {
+    const L = letters[i]; const lit = n > i && !(i === 2 && stutter);
+    neonText(L, lx, ny, 16, lit ? C.t7 : C.t2, lit ? C.glow : null, lit ? C.t3 : null);
+    lx += textMask(L, 16, 700).width + 3;
+  }
+  // CUSTOMER.
+  const cy = y + nm.height + 6, size = 30;
+  const a = textMask("CUST", size, 700), b = textMask("MER", size, 700);
+  const d = a.height, total = a.width + d + 8 + b.width;
+  const cx = x + Math.round((w - total) / 2);
+  const custLit = n >= 6;
+  neonText("CUST", cx, cy, size, custLit ? C.tR : C.tq, custLit ? C.tO : null, custLit ? C.tr : null);
+  // The O: a capsule price tag (round tag with a hole and a string).
+  const ox = cx + a.width + 4;
+  if (n >= 8) { D(ox - 3, cy - 3, d + 6, d + 6, C.my, 1); }
+  capsuleO(ox, cy, d, n >= 8 ? C.M : C.mu, n >= 8 ? C.glass : C.t2, n >= 8);
+  disc(ox + Math.floor(d / 2) - 1, cy + 2, 3, C.t8);
+  neonText("MER", ox + d + 4, cy, size, custLit ? C.tR : C.tq, custLit ? C.tO : null, custLit ? C.tr : null);
+  // The € tag swinging from the fascia's right end.
+  const sw = reduced ? 0 : [0, 1, 0, -1][Math.floor(t / 2000) % 4];
+  const tx = x + w - 12 + sw, ty = y + 18;
+  for (let i = 0; i < 8; i++) px(x + w - 12 + Math.round(sw * i / 8), y + 10 + i, C.greyL);
+  R(tx - 1, ty, 12, 9, C.ink); R(tx, ty + 1, 10, 7, on ? C.my : C.md); till("€", tx + 4, ty + 3, C.ink);
+  // The scan-line easter egg.
+  const e = since(S.scanAt);
+  if (e < 600) { const bx = x - 10 + Math.floor(e / 600 * (w + 20) / 2) * 2; D(bx - 3, y - 2, 7, 56, C.tR, 2); R(bx, y - 2, 1, 56, C.tR); }
+  if (e > 600 && e < 760) D(x, y, w, 54, C.t8, 2);
+}
+// Neon tubes: dithered halo, tube colour, lighter core (the letters eroded by one pixel).
+const neonCache = {};
+function neonText(str, x, y, size, tube, core, halo) {
+  const key = [str, size, tube, core, halo].join("|");
+  let c = neonCache[key];
+  if (!c) {
+    const m = textMask(str, size, 700);
+    const [cn, cx] = mk(m.width + 8, m.height + 8);
+    if (halo) {
+      const hm = tinted(m, halo);
+      for (let a = -3; a <= 3; a++) for (let b = -3; b <= 3; b++) if (a * a + b * b <= 10) cx.drawImage(hm, 4 + a, 4 + b);
+      const [pc, pcx] = mk(cn.width, cn.height); pcx.fillStyle = "#000";
+      for (let j = 0; j < cn.height; j++) for (let i = (j % 2); i < cn.width; i += 2) pcx.fillRect(i, j, 1, 1);
+      cx.globalCompositeOperation = "destination-in"; cx.drawImage(pc, 0, 0); cx.globalCompositeOperation = "source-over";
+    }
+    cx.drawImage(tinted(m, tube), 4, 4);
+    if (core) {
+      const [er, ex] = mk(m.width, m.height);
+      ex.drawImage(tinted(m, core), 0, 0);
+      ex.globalCompositeOperation = "destination-in";
+      for (const [a, b] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) ex.drawImage(m, a, b);
+      cx.drawImage(er, 4, 4);
+    }
+    c = neonCache[key] = cn;
+  }
+  g.drawImage(c, x - 4, y - 4);
+}
+
+// ---------------------------------------------------------------------------------------------
+// Overlays: REWARDS (toy machines + loyalty) and the abandon confirmation.
+// A dithered cone of light, widening smoothly from w0 at y0 to w1 at y1, centred on cx.
+function cone(cx, y0, y1, w0, w1, c, level) {
+  for (let y = y0; y < y1; y += 2) {
+    const f = (y - y0) / (y1 - y0); const w = Math.round((w0 + (w1 - w0) * f) / 2) * 2;
+    D(cx - w / 2, y, w, 2, c, level || (f < 0.25 ? 2 : 1));
+  }
+}
+function dim() { g.globalAlpha *= 0.78; R(0, 0, 640, 360, "#0b1414"); g.globalAlpha /= 0.78; }
+function drawRewards() {
+  const o = since(S.overlayAt);
+  const f = reduced ? 1 : stepFrac(o, 180, 3);
+  if (f < 1) { g.globalAlpha = f; }
+  dim();
+  const x = 150, y = 70 + (reduced ? 0 : Math.round((1 - f) * 8)), w = 340, h = 220;
+  popupFrame(x, y, w, h);
+  T("REWARDS", x + 12, y + 10, 24, C.ink, { weight: 700 });
+  R(x + 220, y + 10, 108, 18, C.t8); R(x + 221, y + 11, 106, 16, C.slateD);
+  spr("coin", x + 226, y + 13); till(String(S.coins), x + 242, y + 14, C.gold, 2); till("COINS", x + 268, y + 16, C.md);
+  till("SPEND COINS AT THE STORE", x + 13, y + 36, C.grey);
+  // Card 1: toy machines.
+  const hot1 = S.ovHover === "machines", hot2 = S.ovHover === "loyalty";
+  rewardCard(x + 12, y + 50, 154, 128, hot1, false);
+  till("TOY MACHINES", x + 20, y + 54 - (hot1 ? 2 : 0), C.paper, 2);
+  ["capSnacks", "capBakery", "capFruit", "capCold", "capPantry", "capHouse"].forEach((n, i) => spr(n, x + 22 + (i % 3) * 20 + (i >= 3 ? 10 : 0), y + 78 + (i >= 3 ? 14 : 0) - (hot1 ? 2 : 0)));
+  g.drawImage(bareLit, 0, 0, 72, 118, x + 100, y + 70 - (hot1 ? 2 : 0), 36 * 1, 59 * 1);
+  till("6 MACHINES · 30 CAPSULES", x + 20, y + 140 - (hot1 ? 2 : 0), C.inkL);
+  till("UNLOCK NEW ITEMS", x + 20, y + 148 - (hot1 ? 2 : 0), C.grey);
+  if (hot1) till("OPEN", x + 152, y + 164, C.tR, 1, "r");
+  S.targets.push({ id: "machines", x: x + 12, y: y + 50, w: 154, h: 128, ov: true });
+  // Card 2: loyalty (locked until it ships).
+  rewardCard(x + 174, y + 50, 154, 128, hot2, true);
+  till("LOYALTY", x + 182, y + 54 - (hot2 ? 2 : 0), C.paper, 2);
+  for (let i = 0; i < 10; i++) { const cx = x + 186 + (i % 5) * 26, cy = y + 76 + Math.floor(i / 5) * 22 - (hot2 ? 2 : 0); disc(cx, cy, 16, C.creamDk); disc(cx + 2, cy + 2, 12, C.cream); }
+  if (IMG.padlock) { g.drawImage(IMG.padlock, x + 186, y + 126 - (hot2 ? 2 : 0)); }
+  // SOON rubber stamp.
+  const sx = x + 200, sy = y + 123 - (hot2 ? 2 : 0);
+  R(sx, sy, 44, 16, C.tR); R(sx + 2, sy + 2, 40, 12, C.cream); till("SOON", sx + 22, sy + 4, C.tR, 1, "c");
+  till("STAMP CARD · COMING LATER", x + 182, y + 148 - (hot2 ? 2 : 0), C.inkL);
+  S.targets.push({ id: "loyalty", x: x + 174, y: y + 50, w: 154, h: 128, ov: true });
+  // BACK.
+  const hb = S.ovHover === "back";
+  plate(x + 12, y + 190, 64, 18, hb, false);
+  till("BACK", x + 22, y + 194, C.ink, 2);
+  if (hb) tick(x + 2, y + 196, C.tR);
+  till("ESC", x + 84, y + 197, C.grey);
+  S.targets.push({ id: "back", x: x + 12, y: y + 190, w: 64, h: 21, ov: true });
+  g.globalAlpha = 1;
+}
+function rewardCard(x, y, w, h, hot, locked) {
+  if (hot) y -= 2;
+  if (hot) { R(x - 1, y - 1, w + 2, h + 2, C.gold); }
+  R(x + 1, y, w - 2, h, C.ink); R(x, y + 1, w, h - 2, C.ink);
+  R(x + 1, y + 1, w - 2, 16, locked ? C.grey : C.t4); R(x + 1, y + 1, w - 2, 1, locked ? C.greyL : C.t5);
+  R(x + 1, y + 17, w - 2, h - 18, locked ? C.creamSh : C.cream); R(x + 1, y + h - 3, w - 2, 2, C.creamSh);
+  if (!hot) R(x + 2, y + h, w - 4, 2, "rgba(10,20,20,0.35)");
+}
+function drawConfirm() {
+  dim();
+  const x = 210, y = 120, w = 220, h = 96;
+  popupFrame(x, y, w, h);
+  till("ABANDON THIS RUN?", x + w / 2, y + 12, C.ink, 2, "c");
+  till("SHIFT 5/12 WILL BE LOST", x + w / 2, y + 30, C.grey, 1, "c");
+  const ha = S.ovHover === "abandon", hk = S.ovHover === "keep";
+  primary(x + 18, y + 50, 88, 28, ha, false);
+  till("ABANDON", x + 62, y + 59, C.paper, 2, "c");
+  plate(x + 116, y + 52, 86, 22, hk, false);
+  till("KEEP", x + 159, y + 59, C.ink, 2, "c");
+  S.targets.push({ id: "abandon", x: x + 18, y: y + 50, w: 88, h: 30, ov: true });
+  S.targets.push({ id: "keep", x: x + 116, y: y + 52, w: 86, h: 26, ov: true });
+}
+function drawToast() {
+  if (!S.toast || since(S.toast.at) > 1800) return;
+  const m = S.toast.text; const w = tillW(m, 1) + 16;
+  const x = 320 - Math.floor(w / 2), y = 20;
+  R(x, y, w, 15, C.ink); R(x + 1, y + 1, w - 2, 13, C.t1); till(m, 320, y + 5, C.paper, 1, "c");
+}
+// The start-run card shown after a press transition.
+function drawRunCard() {
+  const e = since(S.runAt);
+  if (e < 0 || e > 1400) return;
+  R(0, 0, 640, 360, C.t8);
+  till(S.save ? "SHIFT 5 · WEEK 2" : "SHIFT 1 · WEEK 1", 320, 160, C.gold, 3, "c");
+  till("(THE RUN WOULD START HERE)", 320, 188, C.grey, 1, "c");
+}
+
+// ---------------------------------------------------------------------------------------------
+// Loop, input and page wiring.
+function frame() {
+  const t = now();
+  art();
+  S.targets = [];
+  if (S.dir === "A") drawA(t); else if (S.dir === "B") drawB(t); else drawC(t);
+  if (S.overlay === "rewards") { S.targets = []; drawRewards(); }
+  else if (S.overlay === "confirm") { S.targets = []; drawConfirm(); }
+  // A/B start transition: stepped fade to dark.
+  if (S.press && (S.press.id === "continue" || S.press.id === "start") && S.dir !== "C") {
+    const e = since(S.press.at) - (S.dir === "B" ? 220 : 120);
+    if (e > 0) { g.globalAlpha = stepFrac(e, 240, S.dir === "B" ? 3 : 4); R(0, 0, 640, 360, "#060b0b"); g.globalAlpha = 1; }
+  }
+  drawRunCard();
+  drawToast();
+  requestAnimationFrame(frame);
+}
+function hitAt(ev) {
+  const r = cv.getBoundingClientRect();
+  const x = (ev.clientX - r.left) / r.width * 640, y = (ev.clientY - r.top) / r.height * 360;
+  for (let i = S.targets.length - 1; i >= 0; i--) { const q = S.targets[i]; if (x >= q.x && x < q.x + q.w && y >= q.y && y < q.y + q.h) return q.id; }
+  return null;
+}
+function toast(text) { S.toast = { text, at: now() }; }
+function activate(id) {
+  if (!id) return;
+  if (S.press && since(S.press.at) < 700) return;
+  const goId = menuIds()[0];
+  if (id === "doors") id = goId;
+  if (id === "bay") id = "rewards";
+  if (id === "continue" || id === "start") {
+    S.press = { id, at: now() };
+    const dur = S.dir === "C" ? 560 : S.dir === "B" ? 520 : 400;
+    S.runAt = now() + (reduced ? 0 : dur);
+    setTimeout(() => { S.press = null; }, (reduced ? 0 : dur) + 1400);
+    return;
+  }
+  if (id === "newrun") { S.press = { id, at: now() }; S.overlay = "confirm"; S.ovHover = null; return; }
+  if (id === "rewards") { S.press = { id, at: now() }; S.ovSlide = now(); setTimeout(() => { S.overlay = "rewards"; S.overlayAt = now(); S.ovHover = null; S.press = null; }, reduced || S.dir !== "C" ? 0 : 260); return; }
+  if (id === "logo") { S.scanAt = now(); S.monitorEgg = now(); toast("BEEP · €0.99"); return; }
+  if (id === "export") { toast("LOG EXPORTED"); return; }
+  if (id === "machines") { toast("OPENS THE TOY MACHINES SCREEN"); return; }
+  if (id === "loyalty") { toast("LOYALTY · COMING LATER"); return; }
+  if (id === "back" || id === "keep") { S.overlay = null; return; }
+  if (id === "abandon") { S.overlay = null; S.save = false; syncSave(); toast("RUN ABANDONED"); return; }
+}
+cv.addEventListener("mousemove", (ev) => {
+  const id = hitAt(ev);
+  if (S.overlay) { S.ovHover = id; }
+  else { if (id !== S.hover) { S.hover = id; S.hoverAt = now(); } if (id) S.focus = -1; }
+  cv.style.cursor = id ? "pointer" : "default";
+});
+cv.addEventListener("mouseleave", () => { S.hover = null; S.ovHover = null; });
+cv.addEventListener("click", (ev) => {
+  cv.focus();
+  if (S.dir === "C" && !S.lit) { lightSign(); return; }
+  activate(hitAt(ev));
+});
+cv.addEventListener("keydown", (ev) => {
+  if (S.dir === "C" && !S.lit) { lightSign(); ev.preventDefault(); return; }
+  if (S.overlay) {
+    const ids = S.overlay === "rewards" ? ["machines", "loyalty", "back"] : ["abandon", "keep"];
+    if (ev.key === "Escape") { S.overlay = null; ev.preventDefault(); return; }
+    if (["ArrowDown", "ArrowRight", "ArrowUp", "ArrowLeft"].includes(ev.key)) {
+      const i = ids.indexOf(S.ovHover); const dir = ev.key === "ArrowDown" || ev.key === "ArrowRight" ? 1 : -1;
+      S.ovHover = ids[(i + dir + ids.length) % ids.length]; ev.preventDefault();
+    } else if ((ev.key === "Enter" || ev.key === " ") && S.ovHover) { activate(S.ovHover); ev.preventDefault(); }
+    return;
+  }
+  const ids = menuIds();
+  if (ev.key === "ArrowDown") { S.hover = null; S.focus = (S.focus + 1) % ids.length; S.hoverAt = now(); ev.preventDefault(); }
+  else if (ev.key === "ArrowUp") { S.hover = null; S.focus = (S.focus - 1 + ids.length) % ids.length; S.hoverAt = now(); ev.preventDefault(); }
+  else if ((ev.key === "Enter" || ev.key === " ") && S.focus >= 0) { activate(ids[S.focus]); ev.preventDefault(); }
+});
+function lightSign() { S.lit = true; S.introAt = now(); }
+
+const NOTES = {
+  A: ["A+ Closing Time, interior", [
+    "The scene gets a real night palette (a <code>@derive night</code> map), not a dark overlay, and a left zone shaded in four dither bands.",
+    "Logo: NEXT in cream block capitals with a tomato extrusion and a red laser line through the X; CUSTOMER on a teal shelf-tag strip with a punched hole and string; the O is a toy capsule. A shine sweeps across every 7 s.",
+    "Menu column: a tomato primary plate with the save line in the till font, then <code>menu_plate</code> shelf labels. Hover moves a plate 2 art px right, lights it and shows the tick marker; hovering REWARDS rim-lights the toy machine.",
+    "Only three ambient loops: the tube flicker, the clock's second hand, one belt item every 9 s.",
+    "Intro: a 4-step fade, the logo drops with one bounce, plates slide in 60 ms apart. Start: a stepped fade.",
+  ]],
+  B: ["B+ Night Register, simplified", [
+    "The counter is the menu: CONTINUE is a big tomato register key, NEW RUN a cream key set into the counter lip. Keys sink 2 art px on press.",
+    "The lightbox sign hangs on chains: brass frame, glass-glow letters, a scanner crosshair for the X, a capsule O. A red scan band sweeps it every 8 s; clicking it scans, and the monitor shows €0.99.",
+    "The LED monitor shows SHIFT 05/12, or OPEN with no save.",
+    "The rewards corner (bare toy machine, loyalty stand and a REWARDS plate with the coin count) is one hotspot with a gold rim on hover.",
+    "Intro \"lights on\" (about 1.2 s): the lamp flickers on, the sign lights letter by letter, the monitor boots. Start: the cash drawer pops, then a 3-step fade.",
+  ]],
+  C: ["C+ Storefront at night (recommended)", [
+    "A new 640x360 scene seen from the street: the fascia with the store's teal and tomato stripe, brick, two windows, the sliding doors with the warm store inside, and a glass REWARDS bay holding the bare toy machine and a Loyalty poster.",
+    "The neon sign: NEXT small in teal, CUSTOMER large in tomato with a capsule-coloured price-tag O. Tubes have a lighter core and a baked dither halo. The X stutters now and then; a € tag swings.",
+    "The sign stays dark until the first click or key (also the web audio gesture), then lights letter by letter, the reflections light with it, and the plates step in.",
+    "Clicking the doors starts the run and clicking the bay opens REWARDS: the same targets as the plates, not extra entries. Hovering CONTINUE cracks the doors open and brightens the spill; hovering REWARDS lights the bay and jiggles the machine.",
+    "Start: the doors slide open in 4-px steps over 0.35 s, light floods out, then a stepped fade.",
+  ]],
+};
+function setDir(d) {
+  S.dir = d; S.overlay = null; S.hover = null; S.focus = -1; S.press = null; S.runAt = -1e9;
+  S.lit = d !== "C" || reduced; S.introAt = now();
+  if (d === "C" && !reduced) setTimeout(() => { if (S.dir === "C" && !S.lit) lightSign(); }, 2500);
+  document.querySelectorAll(".tab").forEach((b) => b.setAttribute("aria-selected", String(b.dataset.dir === d)));
+  document.querySelectorAll("tr[data-row]").forEach((r) => r.classList.toggle("on", r.dataset.row === d));
+  const [title, list] = NOTES[d];
+  document.getElementById("notes").innerHTML = "<h3>" + title + "</h3><ul>" + list.map((x) => "<li>" + x + "</li>").join("") + "</ul>";
+  document.getElementById("hint").textContent = d === "C"
+    ? "The sign is dark until you click the stage or press a key (it lights by itself after 2.5 s in this mock-up). Click the sign for the hidden scan."
+    : d === "B" ? "Click the lightbox sign for the hidden scan; the monitor shows the price." : "Click CONTINUE for the start transition, REWARDS for the shared meta menu.";
+}
+function syncSave() {
+  document.getElementById("saveOn").setAttribute("aria-pressed", String(S.save));
+  document.getElementById("saveOff").setAttribute("aria-pressed", String(!S.save));
+}
+document.querySelectorAll(".tab").forEach((b) => b.addEventListener("click", () => setDir(b.dataset.dir)));
+document.getElementById("saveOn").addEventListener("click", () => { S.save = true; syncSave(); });
+document.getElementById("saveOff").addEventListener("click", () => { S.save = false; syncSave(); });
+document.getElementById("replay").addEventListener("click", () => setDir(S.dir));
+document.getElementById("openRewards").addEventListener("click", () => { S.lit = true; S.introAt = now() - 1e5; activate("rewards"); });
+document.getElementById("rm").textContent = reduced ? "Reduced motion is on: no idle loops, no slides, fades only." : "";
+
+// Hash parameters for captures: #dir=C&save=0&ov=rewards&hover=continue&lit=1
+function applyHash() {
+  const p = new URLSearchParams(location.hash.slice(1));
+  setDir(p.get("dir") || "C");
+  if (p.get("save") === "0") { S.save = false; }
+  syncSave();
+  if (p.get("lit") === "1") { S.lit = true; S.introAt = now() - 1e5; }
+  if (p.get("hover")) { S.hover = p.get("hover"); S.hoverAt = now() - 1000; }
+  if (p.get("ov")) { S.overlay = p.get("ov"); S.overlayAt = now() - 1e5; S.ovHover = p.get("ovhover"); }
+}
+
+function load(name, path) {
+  return new Promise((res) => { const im = new Image(); im.onload = () => { IMG[name] = im; res(); }; im.onerror = () => { console.warn("missing sprite", path); res(); }; im.src = ART + path; });
+}
+const fontsReady = Promise.all([
+  document.fonts.load('700 16px "Pixelify Sans"'), document.fonts.load("700 16px PixLocal"),
+  document.fonts.load('600 16px "Pixelify Sans"'), document.fonts.load("600 16px PixLocal"),
+]).catch(() => null);
+Promise.all([fontsReady, ...Object.entries(SPRITES).map(([n, p]) => load(n, p))]).then(() => {
+  makeBare();
+  applyHash();
+  window.addEventListener("hashchange", applyHash);
+  requestAnimationFrame(frame);
+});
+</script>
+</body>
+</html>

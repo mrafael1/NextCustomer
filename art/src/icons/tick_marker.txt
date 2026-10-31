@@ -1,0 +1,12 @@
+; The price-gun tick marker (#56, mock-up title_premium_directions.html): a tomato wedge
+; pointing right with an ink back edge, shown left of the menu plate the mouse or the
+; keyboard marker is on. 5x7, shown at 2x.
+@size 5x7
+@kind icon
+#R...
+#RR..
+#RRR.
+#RRRR
+#RRR.
+#RR..
+#R...
