@@ -54,7 +54,7 @@ body.solo .stage-wrap { border: 0; outline: 0; width: 1280px; max-width: none; }
 <body>
 <main>
 <h1>RECEIPT REWARDS · redraw</h1>
-<p class="lede">The receipt machine redrawn in the art direction the title, the toy machines and the new shift scene (PR #126, #123) share: palette colours only, pixel art on the 640×360 art grid, hard pixel lettering, steel housings with a screw in each corner, lamp light as a dithered pool, and an outline only on what the player touches. It stands at its camera stop to the right of the stage, in front of PR #126's store. Mock-up only: no rule or flow changes. The visit is the one in plan section 5.4 (v0.61 and later): two keys, three tickets, pick one or skip.</p>
+<p class="lede">The receipt machine redrawn in the art direction the title, the toy machines and the new shift scene (PR #126, #123) share: palette colours only, pixel art on the 640×360 art grid, hard pixel lettering, steel housings with a screw in each corner, lamp light as a dithered pool, and an outline only on what the player touches. It stands at its camera stop to the right of the stage, in front of PR #126's store, under the top bar from the newest shift-scene branch (<code>feature/crowd-shadow-top-bar</code>, v0.84; its store and the machine's stop are unchanged from PR #126). Mock-up only: no rule or flow changes. The visit is the one in plan section 5.4 (v0.61 and later): two keys, three tickets, pick one or skip.</p>
 
 <div class="stage-wrap"><canvas class="stage" id="stage" width="1280" height="720" aria-label="The redrawn receipt machine at its camera stop"></canvas></div>
 <div class="bar">
@@ -116,6 +116,7 @@ const IMG_SRC = {
   grapefruit_big: '__ASSET:art/items_v2/grapefruit_big.png__',
   fruit_salad_big: '__ASSET:art/items_v2/fruit_salad_big.png__',
   banana_golden: '__ASSET:art/items_v2/banana_golden.png__',
+  top_bar: '__ASSET:docs/art/mockups/receipt_machine_da_src/top_bar_v084.png__',
 };
 const img = {};
 const Q = new URLSearchParams(location.search);
@@ -146,7 +147,11 @@ function render(canvas, s, t, scale, crop) {
   tg.drawImage(t2, 0, 0);
   g.clearRect(0, 0, canvas.width, canvas.height);
   if (crop) g.drawImage(tmp, crop[0], crop[1], crop[2], crop[3], 0, 0, crop[2] * scale, crop[3] * scale);
-  else g.drawImage(tmp, 0, 0, W * scale, H * scale);
+  else {
+    g.drawImage(tmp, 0, 0, W * scale, H * scale);
+    // the game's top bar (feature/crowd-shadow-top-bar, v0.84): it stays on screen at the machine's stop
+    if (img.top_bar && img.top_bar.naturalWidth) g.drawImage(img.top_bar, 0, 0, W * scale, 28 * scale);
+  }
 }
 
 const stage = document.getElementById('stage');
