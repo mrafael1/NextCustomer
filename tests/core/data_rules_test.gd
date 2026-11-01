@@ -18,9 +18,11 @@ const NEUTRAL_SCRIPTS := [
 	"res://core/unlock_condition.gd",
 	"res://core/aisle_definition.gd",
 	"res://core/catalogue_definition.gd",
+	"res://core/pin_definition.gd",
 ]
 const RULE_DIRS := ["res://core/rules", "res://core/upgrades", "res://core/inspections"]
 const UPGRADE_DIR := "res://data/upgrades"
+const CATALOGUE := "res://data/catalogue/catalogue.tres"
 const INSPECTION_DIR := "res://data/inspections"
 
 
@@ -218,7 +220,7 @@ func test_every_inspection_states_its_id_and_notice() -> void:
 ## so the end-of-run unlock check sees them all. Item tiers (#77) are variants too, but they are
 ## run upgrades, not unlocks: the catalogue never lists them.
 func test_the_catalogue_lists_every_deck_and_variant() -> void:
-	var catalogue: CatalogueDefinition = load("res://data/catalogue/catalogue.tres")
+	var catalogue: CatalogueDefinition = load(CATALOGUE)
 	var decks: Array[DeckDefinition] = []
 	for file: String in DirAccess.get_files_at("res://data/decks"):
 		if file.ends_with(".tres"):
@@ -234,6 +236,37 @@ func test_the_catalogue_lists_every_deck_and_variant() -> void:
 			variants.append(card)
 	assert_int(catalogue.variants.size()).is_equal(variants.size())
 	assert_array(catalogue.variants).contains_exactly_in_any_order(variants)
+
+
+## Full build plan 7.4 (#122): the catalogue lists every badge pin file, each once, and every pin
+## has an id matching its file, a name, a rule, a face and something it does; a milestone can
+## work.
+func test_the_catalogue_lists_every_well_formed_pin() -> void:
+	var catalogue: CatalogueDefinition = load(CATALOGUE)
+	var pins: Array[PinDefinition] = []
+	for file: String in DirAccess.get_files_at("res://data/pins"):
+		if not file.ends_with(".tres"):
+			continue
+		var pin: PinDefinition = load("res://data/pins/" + file)
+		pins.append(pin)
+		assert_str(String(pin.id)).override_failure_message(file).is_equal(file.get_basename())
+		assert_str(pin.display_name).override_failure_message(file).is_not_empty()
+		assert_str(pin.rule_text).override_failure_message(file).is_not_empty()
+		assert_str(pin.face_text).override_failure_message(file).is_not_empty()
+		# The letters fit inside the smallest face's rim (the name badge's).
+		var inner: float = NameBadge.PIN_SIZE - 2.0 * PinFace.RIM * PinFace.PX
+		var font: Font = ArtStyle.number_font()
+		var width: float = (
+			font.get_string_size(pin.face_text, HORIZONTAL_ALIGNMENT_LEFT, -1, PinFace.FONT_SIZE).x
+		)
+		assert_float(width).override_failure_message(file).is_less_equal(inner)
+		var does: bool = not pin.starting_cards.is_empty() or pin.repack
+		assert_bool(does).override_failure_message(file).is_true()
+		if pin.unlock_condition != null:
+			assert_array(pin.unlock_condition.problems()).override_failure_message(file).is_empty()
+	assert_int(pins.size()).is_greater(1)
+	assert_int(catalogue.pins.size()).is_equal(pins.size())
+	assert_array(catalogue.pins).contains_exactly_in_any_order(pins)
 
 
 ## Full build plan 7.3: every deck has an id matching its file, a name and a description; a

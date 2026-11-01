@@ -118,12 +118,9 @@ var _focus: FocusWatch
 var _scan: ScanController
 ## Takes the belt items' marks and paid chips off (#80; #86 v6: the stickers and the bag say it).
 var _belt_chips: BeltChips = BeltChips.new()
-## The belt in the count (#86 v6): the items ride to the scanner and into the bag.
-var _ride: BeltRide
-## The planning effects (#71, mock-up h1): the belt's stickers, the hover's relations, the drag's.
-var _effects: PlanningEffects
-## The TOY MACHINES over the results (#63), made the first time they open.
-var _toys: ToyMachinesScreen
+var _ride: BeltRide  # The belt in the count (#86 v6): items ride to the scanner and bag.
+var _effects: PlanningEffects  # The planning effects (#71, mock-up h1).
+var _toys: ToyMachinesScreen  # The TOY MACHINES over the results (#63), made when first opened.
 var _cart_reveal: CartReveal
 var _week: WeekFlow  # The time card and the week and day chips (v0.70).
 var _start_choice: StartChoice  # The starter pack choice's part of a run's start (#107).
@@ -131,6 +128,7 @@ var _glyph_tips: GlyphTips  # Family glyphs' tooltips (#105): none in a drag or 
 ## The basket redraw's targets and tags, and its motion.
 var _basket_tags: BasketTags
 var _basket_redraw: BasketRedraw
+var _repack: RepackFlow  # A badge pin's repack (#122).
 ## The EventLog autoload, typed. Fetched from the tree because standalone script checks
 ## don't know autoload names.
 @onready var _log: EventLogService = get_node("/root/EventLog")
@@ -148,6 +146,7 @@ func _ready() -> void:
 	ShiftMusic.screen_opened(_music)
 	_debug = ShiftDebug.new(self, _log)
 	_start_choice = StartChoice.new(self, _log)
+	_repack = RepackFlow.new(self, _log)
 	_debug.add_panel(_balance.quotas.size())
 	if _debug.wants_demo_row():
 		_debug.play_demo_row()  # A new run that leaves the run save as it is.
@@ -699,6 +698,7 @@ func _refresh() -> void:
 	if not _counting and run.phase == RunState.Phase.PLANNING:
 		_refresh_preview()
 	_refresh_redraw()
+	_repack.refresh()
 	_scan.watch(_row_views, _hand_box.cards())
 
 

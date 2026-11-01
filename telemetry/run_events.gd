@@ -257,6 +257,21 @@ static func redraw(
 	}
 
 
+## The `repack` event (#122, a badge pin): the hand places (0-based) the item moved from and to,
+## its card id, and the card it swapped places with (`swapped`; `from_belt` when that card is on
+## the belt, so only its empty place moved).
+static func repack(
+	from: int, to: int, card: CardInstance, other: CardInstance, on_belt: bool
+) -> Dictionary:
+	return {
+		"from": from,
+		"to": to,
+		"card": String(card.definition.id),
+		"swapped": String(other.definition.id),
+		"from_belt": on_belt,
+	}
+
+
 ## Card ids in order, as logged (`cards_drawn`, `final_order`, redraws).
 static func card_ids(cards: Array[CardInstance]) -> Array:
 	var ids: Array = []

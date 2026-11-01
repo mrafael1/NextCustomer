@@ -1,0 +1,18 @@
+[gd_resource type="Resource" script_class="PinDefinition" format=3]
+
+[ext_resource type="Script" path="res://core/pin_definition.gd" id="1_pin"]
+[ext_resource type="Script" path="res://core/unlock_condition.gd" id="2_condition"]
+
+[sub_resource type="Resource" id="Resource_win"]
+script = ExtResource("2_condition")
+kind = 4
+amount = 1
+
+[resource]
+script = ExtResource("1_pin")
+id = &"repack"
+display_name = "Repack"
+rule_text = "Move items between baskets while planning"
+face_text = "MIX"
+unlock_condition = SubResource("Resource_win")
+repack = true

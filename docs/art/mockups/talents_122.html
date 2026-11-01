@@ -1,0 +1,193 @@
+<title>Meta Talents #122</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Pixelify+Sans:wght@500;700&family=Atkinson+Hyperlegible:ital,wght@0,400;0,700;1,400&display=swap">
+<style>
+/* Layout: one reading column of decision cards on the night storefront's colours; each question
+   pairs its options with a small drawing of what it changes in the game. */
+:root {
+  --bg: #f3ecdc;          /* receipt cream */
+  --panel: #fbf7ee;       /* paper */
+  --ink: #1d2a2a;         /* teal black ink */
+  --muted: #5b6a66;
+  --line: #d9cfb8;
+  --teal: #2f8f84;
+  --teal-dark: #1e5f58;
+  --tomato: #d9534a;
+  --mustard: #c9952c;
+  --gold-soft: #f1d27a;
+  --rec: #2f8f84;
+  --display: "Pixelify Sans", "Courier New", monospace;
+  --body: "Atkinson Hyperlegible", "Segoe UI", system-ui, sans-serif;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #142020; --panel: #1b2b2a; --ink: #ece4d2; --muted: #9fb0aa; --line: #2c3f3d;
+  --teal: #5fbfb0; --teal-dark: #86d4c6; --tomato: #ef7a6f; --mustard: #e2b33c; --gold-soft: #7a5a1c;
+  --rec: #5fbfb0; color-scheme: dark } }
+:root[data-theme="dark"] {
+  --bg: #142020; --panel: #1b2b2a; --ink: #ece4d2; --muted: #9fb0aa; --line: #2c3f3d;
+  --teal: #5fbfb0; --teal-dark: #86d4c6; --tomato: #ef7a6f; --mustard: #e2b33c; --gold-soft: #7a5a1c;
+  --rec: #5fbfb0; color-scheme: dark }
+body { background: var(--bg); color: var(--ink); font-family: var(--body); font-size: 16px; line-height: 1.55;
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: 32px 64px; }
+main { max-width: 860px; margin: 0 auto; display: grid; gap: 28px; }
+h1, h2, h3 { font-family: var(--display); font-weight: 700; text-wrap: balance; margin: 0; letter-spacing: .02em; }
+h1 { font-size: clamp(30px, 6vw, 44px); line-height: 1.05; }
+h2 { font-size: 24px; }
+h3 { font-size: 18px; }
+p { margin: 0; max-width: 68ch; }
+.eyebrow { font-family: var(--display); text-transform: uppercase; letter-spacing: .12em; font-size: 13px; color: var(--tomato); }
+header { display: grid; gap: 12px; }
+.lede { color: var(--muted); }
+.q { background: var(--panel); border: 2px solid var(--ink); box-shadow: 4px 4px 0 var(--ink); padding: 22px; display: grid; gap: 16px; }
+.q-head { display: flex; gap: 12px; align-items: baseline; flex-wrap: wrap; }
+.q-tag { font-family: var(--display); background: var(--ink); color: var(--panel); padding: 2px 8px; font-size: 14px; }
+.opts { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; }
+.opt { border: 2px solid var(--line); padding: 14px; display: grid; gap: 6px; align-content: start; min-width: 0; }
+.opt.rec { border-color: var(--rec); }
+.opt b { font-family: var(--display); font-size: 17px; font-weight: 700; }
+.rec-chip { justify-self: start; font-family: var(--display); font-size: 12px; text-transform: uppercase; letter-spacing: .1em;
+  color: var(--panel); background: var(--rec); padding: 1px 6px; }
+.opt p { font-size: 15px; }
+.why { font-size: 15px; color: var(--muted); border-left: 3px solid var(--mustard); padding-left: 12px; }
+.fig { display: flex; gap: 18px; flex-wrap: wrap; align-items: flex-end; }
+.fig figure { margin: 0; display: grid; gap: 6px; justify-items: center; }
+.fig figcaption { font-size: 13px; color: var(--muted); text-align: center; max-width: 24ch; }
+/* The name badge with its pin spots (drawn, pixel corners). */
+.badge { width: 220px; max-width: 100%; background: #fbf7ee; border: 3px solid #1d2a2a; box-shadow: 3px 3px 0 #1d2a2a; padding: 10px 12px; display: grid; gap: 8px; color: #1d2a2a; }
+.badge .stripe { height: 8px; background: #2f8f84; margin: -10px -12px 0; }
+.badge .name { font-family: var(--display); font-size: 22px; line-height: 1; }
+.badge .role { font-size: 11px; letter-spacing: .14em; text-transform: uppercase; color: #5b6a66; }
+.pins { display: flex; gap: 10px; }
+.pin { width: 30px; height: 30px; border: 3px solid #1d2a2a; display: grid; place-items: center; font-family: var(--display); font-size: 14px; }
+.pin.on { background: #e2b33c; }
+.pin.empty { background: repeating-linear-gradient(45deg, #ece0c6 0 4px, #e4d6b9 4px 8px); }
+.pin.locked { background: #cdbb98; color: #5b6a66; }
+.card { width: 180px; background: #f3ecdc; border: 3px solid #1d2a2a; padding: 8px; display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; color: #1d2a2a; }
+.card .hd { grid-column: 1 / -1; font-family: var(--display); font-size: 13px; background: #2f8f84; color: #fbf7ee; padding: 1px 6px; }
+.stamp { aspect-ratio: 1; border-radius: 50%; border: 2px dashed #7a5a1c; }
+.stamp.on { background: #d9534a; border-style: solid; border-color: #8f2f28; }
+/* Belt rows for Double checkout. */
+.rows { display: grid; gap: 6px; }
+.row { display: flex; gap: 4px; align-items: center; }
+.row .lab { font-family: var(--display); font-size: 12px; width: 52px; color: var(--muted); }
+.slot { width: 22px; height: 22px; border: 2px solid var(--ink); background: var(--panel); }
+.slot.f { background: var(--gold-soft); }
+.slot.c { background: var(--tomato); }
+.sum { font-family: var(--display); font-size: 13px; color: var(--teal-dark); }
+table { border-collapse: collapse; width: 100%; font-size: 15px; }
+.tablewrap { overflow-x: auto; }
+th, td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--line); vertical-align: top; }
+th { font-family: var(--display); font-weight: 700; font-size: 14px; }
+td:first-child { white-space: nowrap; font-weight: 700; }
+.defaults ul { margin: 0; padding-left: 20px; display: grid; gap: 8px; max-width: 72ch; }
+.flag { color: var(--tomato); font-weight: 700; }
+code { font-size: .92em; }
+</style>
+
+<main>
+<header>
+  <span class="eyebrow">Issue #122 · decide page · nothing built yet</span>
+  <h1>Meta talents: what to decide before the prototype</h1>
+  <p class="lede">Persistent talents equipped before a run, starting with one slot and at most three, and three first talents to test: two starting coupons, a full-basket redraw and Double checkout. Four questions below need your answer; everything after them is a default you can change.</p>
+</header>
+
+<section class="q" aria-labelledby="q1">
+  <div class="q-head"><span class="q-tag">Q1</span><h2 id="q1">When does it get built?</h2></div>
+  <p>The plan has no talents: phase 3 ends at a content freeze (#69), and decks and variants wait for after launch. Talents would be a new system.</p>
+  <div class="opts">
+    <div class="opt rec"><span class="rec-chip">Recommended</span><b>Phase 3 prototype</b><p>Build one slot and the three talents now, behind the decisions below, and judge them in play before the content freeze. Slots 2 and 3 only if the prototype earns them.</p></div>
+    <div class="opt"><b>After launch</b><p>Write the design into the plan and keep phase 3 on #123 and the freeze. Talents arrive with the post-launch decks.</p></div>
+  </div>
+  <p class="why">The prototype is small (one slot, three talents) and the balance pass is still ahead, so it can be measured with the rest.</p>
+</section>
+
+<section class="q" aria-labelledby="q2">
+  <div class="q-head"><span class="q-tag">Q2</span><h2 id="q2">What are they called, and how do they look?</h2></div>
+  <p>"Loyalty" already names the in-run perks (the loyalty card, the LOYALTY drops). Talents need their own name and their own object, so nobody confuses the two.</p>
+  <div class="fig">
+    <figure>
+      <div class="badge" aria-label="Name badge with one pin equipped, one empty spot and one locked spot">
+        <div class="stripe"></div>
+        <div class="role">Cashier</div>
+        <div class="name">Till 3</div>
+        <div class="pins"><div class="pin on">2×1</div><div class="pin empty"></div><div class="pin locked">🔒</div></div>
+      </div>
+      <figcaption>Talents: pins on your name badge, kept between runs.</figcaption>
+    </figure>
+    <figure>
+      <div class="card" aria-label="Loyalty card with stamps">
+        <div class="hd">LOYALTY</div>
+        <div class="stamp on"></div><div class="stamp on"></div><div class="stamp"></div>
+      </div>
+      <figcaption>In-run perks stay stamps on the loyalty card.</figcaption>
+    </figure>
+  </div>
+  <div class="opts">
+    <div class="opt rec"><span class="rec-chip">Recommended</span><b>Badge pins</b><p>The cashier's name badge holds 1 to 3 pins. Round metal pins, gold when equipped, so they never read as a stamp.</p></div>
+    <div class="opt"><b>Staff perks</b><p>Plain and clear, but "perk" is already the loyalty card's word in the code and the plan.</p></div>
+    <div class="opt"><b>Training certificates</b><p>Framed certificates on the staff-room wall. Fits "new ways to play", but it's a heavier object to show on screen.</p></div>
+  </div>
+</section>
+
+<section class="q" aria-labelledby="q3">
+  <div class="q-head"><span class="q-tag">Q3</span><h2 id="q3">How do you unlock them?</h2></div>
+  <p>Coins already pay for the toy machines, and the plan's unlock rule is "options, not raw power".</p>
+  <div class="opts">
+    <div class="opt rec"><span class="rec-chip">Recommended</span><b>Milestones only</b><p>Each pin and each extra slot unlocks from a milestone, using the unlock conditions the game already checks at a run's end: win with a card, score €Y in one checkout, use a coupon N times. Phase 4 mirrors them as Steam achievements.</p></div>
+    <div class="opt"><b>Coins</b><p>Pins cost coins like capsules. Gives coins a use after the collection, but it competes with the toy machines and turns pins into a shop.</p></div>
+    <div class="opt"><b>Both</b><p>A milestone shows the pin; coins buy it. Two steps for one unlock.</p></div>
+  </div>
+  <div class="tablewrap"><table>
+    <thead><tr><th>Unlock</th><th>Proposed milestone (an existing condition kind)</th></tr></thead>
+    <tbody>
+      <tr><td>Slot 1</td><td>Open from the start, with one pin owned (the 2 for 1 pair).</td></tr>
+      <tr><td>Full-basket redraw</td><td>Win a run (any deck).</td></tr>
+      <tr><td>Double checkout</td><td>Score €150 or more in one checkout.</td></tr>
+      <tr><td>Slot 2</td><td>Win 3 runs (needs a run-count condition, a small new kind).</td></tr>
+      <tr><td>Slot 3</td><td>Complete one aisle's toy machine.</td></tr>
+    </tbody>
+  </table></div>
+</section>
+
+<section class="q" aria-labelledby="q4">
+  <div class="q-head"><span class="q-tag">Q4</span><h2 id="q4">What is Double checkout?</h2></div>
+  <p>The riskiest talent: it touches the refill, the chains, the quota, inspections and the count-up. The shape decides most of those rules.</p>
+  <div class="opts">
+    <div class="opt rec"><span class="rec-chip">Recommended</span><b>Two short rows</b>
+      <div class="rows" aria-label="Two rows of 4 slots each">
+        <div class="row"><span class="lab">Row 1</span><span class="slot f"></span><span class="slot c"></span><span class="slot f"></span><span class="slot f"></span></div>
+        <div class="row"><span class="lab">refill</span><span class="sum">hand back up to 8</span></div>
+        <div class="row"><span class="lab">Row 2</span><span class="slot f"></span><span class="slot f"></span><span class="slot c"></span><span class="slot f"></span></div>
+        <div class="row"><span class="lab"></span><span class="sum">Row 1 + Row 2 → quota</span></div>
+      </div>
+      <p>Every shift has two checkouts of 4 slots instead of one of 7. The hand refills between them, and both totals count toward the quota. Combos must fit 4 slots, and the refill brings fresh options. About the same number of slots (8 against 7).</p></div>
+    <div class="opt"><b>Second wind</b>
+      <div class="rows" aria-label="One full row then an optional second full row">
+        <div class="row"><span class="lab">Row 1</span><span class="slot f"></span><span class="slot f"></span><span class="slot c"></span><span class="slot f"></span><span class="slot f"></span><span class="slot f"></span><span class="slot f"></span></div>
+        <div class="row"><span class="lab">Row 2</span><span class="slot f"></span><span class="slot f"></span><span class="slot f"></span><span class="slot"></span><span class="slot"></span><span class="slot"></span><span class="slot"></span></div>
+      </div>
+      <p>Once per shift, after a checkout that misses the quota, refill and play a second full row, but the quota rises 50%. A rescue tool more than a new way to play.</p></div>
+    <div class="opt"><b>Split hand</b>
+      <div class="rows" aria-label="Two rows of 4 from one hand">
+        <div class="row"><span class="lab">Row 1</span><span class="slot f"></span><span class="slot f"></span><span class="slot c"></span><span class="slot f"></span></div>
+        <div class="row"><span class="lab">Row 2</span><span class="slot f"></span><span class="slot f"></span><span class="slot f"></span><span class="slot f"></span></div>
+      </div>
+      <p>Two rows of 4 from one hand of 8, no refill. The simplest rules, but you plan both rows at once, so it plays like one row with a gap.</p></div>
+  </div>
+</section>
+
+<section class="q defaults" aria-labelledby="d">
+  <div class="q-head"><span class="q-tag">Defaults</span><h2 id="d">Everything else, unless you say otherwise</h2></div>
+  <ul>
+    <li><b>Where you equip:</b> the title's REWARDS menu, in place of the locked LOYALTY (SOON) card, and the REWARDS bay's poster becomes the badge. The cart reveal shows the equipped pin at a run's start. Changing pins mid-run is not allowed.</li>
+    <li><b>Slots and talents:</b> one slot at first, three at most; there are always more pins than slots, so equipping is a choice.</li>
+    <li><b>"Two starting Bundles":</b> <span class="flag">read as two 2 for 1 coupons</span> in the starting deck (Bundle became 2 for 1 after the prototype; the old Bundle card is out of every pool). Say so if you meant the old connector.</li>
+    <li><b>Full-basket redraw:</b> once per shift, redraw all four baskets at once. It costs one redraw and works only while you have one left.</li>
+    <li><b>Double checkout (two short rows):</b> row 1's cards are spent; the refill draws from the deck back up to 8, and redraws are shared across the shift. Chains and adjacency reset between rows. Inspections apply to each row (Spot check zeroes each row's 3rd slot; Short belt takes a slot from row 2). Slot-numbered rules count across both rows (Slot engine's slot 6 is row 2's 2nd; Opening deal is each row's first). The count-up plays row 1, then row 2, on one receipt, with one dessert at the end. The game saves after row 1, so quitting never replays it. Both rows count toward the quota and the bonus.</li>
+    <li><b>Simulator:</b> <code>--talents=&lt;ids&gt;</code> runs with pins equipped, like <code>--profile</code>, for the end-of-phase balance pass.</li>
+    <li><b>The toy-machine loot idea</b> (a capsule after a complete aisle turns an item GOLDEN for good): <span class="flag">not now</span>. It breaks the plan's rule "no permanent payout increases". A cosmetic alternative fits the rule: a complete aisle's machine sells gold figurines for the shelf.</li>
+  </ul>
+</section>
+</main>

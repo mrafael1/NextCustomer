@@ -11,13 +11,20 @@ extends RefCounted
 ## capsule_draws)); the seed is made outside core/ and set once with set_capsule_seed, and the
 ## caller saves the profile right after each draw, so quitting can't reroll a capsule.
 ##
+## Badge pins (#122, full build plan 7.4): a pin is owned when it has no unlock condition or its
+## milestone was met (record_run), or when it was bought at random (ProfilePins.buy_random, on
+## its own derived stream of capsule_seed, PIN_STREAM). The worn pins (`worn_pins`, at most the
+## balance's pin_slots, ProfilePins) are copied into a run when it starts; changing them never
+## touches a run.
+##
 ## to_dictionary and from_dictionary give the saved form: JSON types only, with
 ## FORMAT_VERSION. Pure: no file access here.
 
 ## The profile save's format version, written from the first save. Raise it when the saved
 ## form changes, and read the older versions in from_dictionary. 2 since #63 (capsule_seed and
-## capsule_draws); version 1 saves still read, with no seed and 0 draws.
-const FORMAT_VERSION := 2
+## capsule_draws); version 1 saves still read, with no seed and 0 draws. 3 since #122
+## (unlocked_pins and worn_pins); version 2 saves still read, with no pin unlocked or worn.
+const FORMAT_VERSION := 3
 ## The settings key of the count-up's speed (full build plan 6.2): COUNT_UP_NORMAL or
 ## COUNT_UP_FAST, read with count_up_speed().
 const COUNT_UP_SPEED_KEY := "count_up_speed"
@@ -29,6 +36,9 @@ const COUNT_UP_NORMAL := 1.0
 const COUNT_UP_FAST := 1.5
 ## The stats key of the runs won (#107).
 const RUNS_WON := &"runs_won"
+## The derived stream name of a random pin purchase (#122), with the purchase's index:
+## EventLogService.derived_stream(capsule_seed, PIN_STREAM % pins_bought).
+const PIN_STREAM := "pin_%d"
 
 ## Coins from final receipts (full build plan 7.1); 1 coin = 1 capsule.
 var coins: int = 0
@@ -43,6 +53,13 @@ var last_list: Array[StringName] = []
 ## available from the start and never listed here.
 var unlocked_decks: Array[StringName] = []
 var unlocked_variants: Array[StringName] = []
+## Badge pins unlocked by their milestone or bought (#122), in unlock order. One without a
+## condition is owned from the start and never listed here.
+var unlocked_pins: Array[StringName] = []
+## The pins worn on the badge (#122), at most the balance's pin_slots, in slot order.
+var worn_pins: Array[StringName] = []
+## Random pins bought with coins (#122): the next purchase's stream index.
+var pins_bought: int = 0
 ## Coupon uses in ended runs, by card id (USE_COUPON_TIMES unlocks: UnlockCheck's
 ## earlier_uses).
 var coupon_uses: Dictionary[StringName, int] = {}
@@ -74,6 +91,11 @@ func has_variant(variant: CardDefinition) -> bool:
 	return variant.unlock_condition == null or unlocked_variants.has(variant.id)
 
 
+## Whether the badge pin is owned: no unlock condition, or unlocked (#122).
+func has_pin(pin: PinDefinition) -> bool:
+	return pin.unlock_condition == null or unlocked_pins.has(pin.id)
+
+
 ## The count-up speed setting: COUNT_UP_FAST when set so, else COUNT_UP_NORMAL (also for a
 ## missing, wrong-typed or unknown value, such as an old save's).
 func count_up_speed() -> float:
@@ -101,9 +123,10 @@ func set_reduced_motion(on: bool) -> void:
 
 
 ## Records a run that ended (won or lost; anything else is ignored and returns nothing):
-## checks every locked deck's and variant's condition with the coupon uses from before this
-## run, then adds the run's coins (CoinPayout) and coupon uses and counts the run. Returns the
-## ids unlocked now, decks first, each in catalogue order.
+## checks every locked deck's, variant's and badge pin's condition with the coupon uses and wins
+## from before this run, then adds the run's coins (CoinPayout) and coupon uses and counts the
+## run. Returns the ids unlocked now, decks first, then variants and pins, each in catalogue
+## order.
 func record_run(run: RunState, catalogue: CatalogueDefinition) -> Array[StringName]:
 	var unlocked_now: Array[StringName] = []
 	if run.phase != RunState.Phase.WON and run.phase != RunState.Phase.LOST:
@@ -119,6 +142,11 @@ func record_run(run: RunState, catalogue: CatalogueDefinition) -> Array[StringNa
 		):
 			unlocked_variants.append(variant.id)
 			unlocked_now.append(variant.id)
+	var wins: int = int(stats.get(RUNS_WON, 0))
+	for pin: PinDefinition in catalogue.pins:
+		if not has_pin(pin) and UnlockCheck.is_met(pin.unlock_condition, run, coupon_uses, wins):
+			unlocked_pins.append(pin.id)
+			unlocked_now.append(pin.id)
 	coins += CoinPayout.for_run(run).total()
 	var uses: Dictionary[StringName, int] = UnlockCheck.coupon_uses(run.history)
 	for id: StringName in uses:
@@ -232,13 +260,17 @@ func to_dictionary() -> Dictionary:
 		"settings": settings.duplicate(true),
 		"capsule_seed": str(capsule_seed) if has_capsule_seed else "",
 		"capsule_draws": capsule_draws,
+		"unlocked_pins": _strings(unlocked_pins),
+		"worn_pins": _strings(worn_pins),
+		"pins_bought": pins_bought,
 	}
 
 
 ## Reads the saved form (as parsed from JSON: numbers may be floats). Returns null when it
 ## isn't a profile this version can read: a missing or newer format version, or a field of
 ## the wrong type (a capsule seed that isn't "" or a decimal of 0 or more). Version 1 reads
-## with no capsule seed and 0 draws. Unknown fields are ignored; missing fields keep their defaults.
+## with no capsule seed and 0 draws, version 2 with no pins. Unknown fields are ignored;
+## missing fields keep their defaults.
 static func from_dictionary(data: Dictionary) -> ProfileState:
 	var version: Variant = data.get("format_version")
 	if not _is_whole(version) or int(version) < 1 or int(version) > FORMAT_VERSION:
@@ -257,6 +289,9 @@ static func from_dictionary(data: Dictionary) -> ProfileState:
 	ok = ok and _read_counts(data.get("stats", {}), profile.stats)
 	ok = ok and _read_int(data, "capsule_draws", profile, "capsule_draws")
 	ok = ok and _read_seed(data.get("capsule_seed", ""), profile)
+	ok = ok and _read_names(data.get("unlocked_pins", []), profile.unlocked_pins)
+	ok = ok and _read_names(data.get("worn_pins", []), profile.worn_pins)
+	ok = ok and _read_int(data, "pins_bought", profile, "pins_bought")
 	var settings_value: Variant = data.get("settings", {})
 	if not settings_value is Dictionary:
 		return null

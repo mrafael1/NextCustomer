@@ -1,0 +1,13 @@
+[gd_resource type="Resource" script_class="PinDefinition" format=3]
+
+[ext_resource type="Script" path="res://core/pin_definition.gd" id="1_pin"]
+[ext_resource type="Script" path="res://core/card_definition.gd" id="2_card"]
+[ext_resource type="Resource" path="res://data/cards/two_for_one.tres" id="3_two_for_one"]
+
+[resource]
+script = ExtResource("1_pin")
+id = &"two_for_one_pair"
+display_name = "Two for one pair"
+rule_text = "Start every run with two 2 for 1 coupons"
+face_text = "2×1"
+starting_cards = Array[ExtResource("2_card")]([ExtResource("3_two_for_one"), ExtResource("3_two_for_one")])

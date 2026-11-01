@@ -99,4 +99,6 @@ coins_by_shifts_passed = PackedInt32Array(0, 0, 0, 0, 1, 1, 1, 1, 2, 2, 2, 2, 3)
 overtime_coin_euros = 923
 overtime_coin_max = 1
 capsule_price = 1
+pin_slots = 1
+pin_coin_price = 12
 machine = ExtResource("m1_machine")
