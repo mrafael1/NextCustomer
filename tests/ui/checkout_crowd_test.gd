@@ -13,7 +13,8 @@ extends GdUnitTestSuite
 ## the receipt, the printer, the monitor, the bag or its shelf, even at its highest hop. Each
 ## standee's ground shadow lies on the belt's guard under it (the stage lays the shadow layer on
 ## the belt, under the row), stays there through a hop (narrower and lighter), narrows as it folds
-## and goes with it. The real saves and logs are never touched.
+## and goes with it; beside the belt it falls on the floor, never over the belt's end cap. The real
+## saves and logs are never touched.
 
 const SCREEN := "res://ui/shift_screen.tscn"
 ## Milk, Multipack, Milk x5 = 109.
@@ -376,6 +377,51 @@ func test_each_standee_casts_a_shadow_that_stays_on_the_ground_and_goes_with_it(
 	crowd.clear()
 	assert_int(crowd.shadow_layer.get_child_count()).is_equal(0)
 	assert_bool(crowd.shadow_layer.visible).is_false()
+	await _frames(1)
+
+
+## A shadow falls on the ground under each of its columns (2026-11-01): on the guard's lit face over
+## the guard, on the floor beside the belt (past its end, a wider window's extra wall), never over
+## the belt's end cap; a standee over the belt's end splits it between the guard and the floor.
+func test_a_shadow_beside_the_belt_falls_on_the_floor() -> void:
+	var crowd: CheckoutCrowd = _bare(5)
+	crowd.view_width = func() -> float: return ShiftStage.SIZE.x + 400.0
+	crowd.pop(1, 1)
+	var standee: CheerStandee = crowd.standees()[0]
+	_finish(standee.tween)
+	var belt: Rect2 = ShiftStage.BELT_RECT
+	var guard_end: float = belt.position.x + BeltPanel.GUARD_FACE.end.x
+	var cap_end: float = belt.position.x + BeltPanel.FOOT_SPAN.y
+	var face: float = belt.position.y + BeltPanel.GUARD_FACE.position.y
+	var floor_rows: float = CheerShadow.ROWS * CheerShadow.GRID
+	# Over the belt's end, then past it in the extra wall: the ink's middle at these stage x.
+	for middle: float in [guard_end, ShiftStage.SIZE.x + 100.0]:
+		var over_belt: bool = middle < cap_end
+		var ink_middle: float = (
+			(standee.ink.position.x + standee.ink.size.x / 2.0) * standee.art_scale
+		)
+		standee.position.x = middle - crowd.position.x - ink_middle
+		standee.ground_y = (
+			(belt.position.y if over_belt else ShiftStage.COUNTER_TOP) - crowd.position.y
+		)
+		standee.refresh()
+		var shadow: CheerShadow = standee.shadow
+		var guard_cells: Array[Rect2] = shadow.guard_cells()
+		var floor_cells: Array[Rect2] = shadow.floor_cells()
+		assert_bool(floor_cells.is_empty()).override_failure_message(str(middle)).is_false()
+		assert_bool(guard_cells.is_empty()).is_equal(not over_belt)
+		var to_stage: Vector2 = crowd.position + shadow.position - shadow.origin
+		for cell: Rect2 in guard_cells:
+			var at: Rect2 = Rect2(cell.position + to_stage, cell.size)
+			assert_float(at.end.x).is_less_equal(guard_end)
+			assert_float(at.position.y).is_greater_equal(face)
+			assert_float(at.end.y).is_less_equal(face + BeltPanel.GUARD_FACE.size.y)
+		for cell: Rect2 in floor_cells:
+			var at: Rect2 = Rect2(cell.position + to_stage, cell.size)
+			assert_float(at.position.x).is_greater_equal(cap_end)
+			assert_float(at.position.y).is_greater_equal(ShiftStage.COUNTER_TOP)
+			assert_float(at.end.y).is_less_equal(ShiftStage.COUNTER_TOP + floor_rows)
+	crowd.clear()
 	await _frames(1)
 
 

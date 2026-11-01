@@ -11,6 +11,15 @@ extends Control
 ## with its `fold` (a fold, a topple), and CheckoutCrowd frees it with its standee. It lives in
 ## the crowd's shadow layer (CheckoutCrowd.shadow_layer, which the stage lays on the belt under
 ## the row), and takes no clicks.
+##
+## Each column falls on its own ground (2026-11-01, `ground_at`): the guard's lit face over the
+## guard, the dark floor beside the belt (FLOOR_COLOR, at `floor_y`: a standee past the belt's end
+## or in a wide window's extra wall), and nothing where the belt's end cap stands in front of the
+## floor. A standee over the belt's end splits its shadow between the guard and the floor.
+
+## What a column of the shadow falls on: the guard's lit face, the floor beside the belt, or
+## nothing (the belt's end cap stands in front of the floor there).
+enum Ground { GUARD, FLOOR, NONE }
 
 ## The art grid every cell lands on (the store's: StoreArt at ArtStyle.ART_SCALE).
 const GRID := CheerStandee.GRID
@@ -25,6 +34,8 @@ const EDGE_DENSITY := 0.35
 const BAYER: Array[int] = [0, 8, 2, 10, 12, 4, 14, 6, 3, 11, 1, 9, 15, 7, 13, 5]
 ## The guard's face in shade (its own steel ramp, a step under the lit face).
 const COLOR := Palette.STEEL_SHADE
+## The floor beside the belt (rubber dark) in shade: the next darker neutral.
+const FLOOR_COLOR := Palette.CHARCOAL
 
 ## Where the crowd's origin is in this shadow's parent (the shadow layer): its poses are given in
 ## the crowd's coordinates.
@@ -35,6 +46,10 @@ var center_x: float = 0.0
 ## Its full width (px, on the grid) and darkness (0 gone, 1 at rest).
 var width: float = 0.0
 var strength: float = 0.0
+## The ground under a column (crowd-local x of its middle -> Ground); empty: the guard everywhere.
+var ground_at: Callable = Callable()
+## The floor's top line beside the belt (crowd-local y): a floor column's cells start on it.
+var floor_y: float = 0.0
 
 
 func _init() -> void:
@@ -61,28 +76,60 @@ func ground_rect() -> Rect2:
 	return Rect2(position - origin, size if visible else Vector2.ZERO)
 
 
-## The cells it draws (local px rects), for its _draw and the tests.
+## The cells it draws (local px rects), on the guard and on the floor, for the tests.
 func cells() -> Array[Rect2]:
+	var drawn: Array[Rect2] = guard_cells()
+	drawn.append_array(floor_cells())
+	return drawn
+
+
+## The cells on the guard's lit face.
+func guard_cells() -> Array[Rect2]:
+	return _cells_on(Ground.GUARD)
+
+
+## The cells on the floor beside the belt.
+func floor_cells() -> Array[Rect2]:
+	return _cells_on(Ground.FLOOR)
+
+
+## The ground under the column `column` (from its left).
+func ground_of(column: int) -> Ground:
+	if not ground_at.is_valid():
+		return Ground.GUARD
+	var x: float = position.x - origin.x + (column + 0.5) * GRID
+	return ground_at.call(x) as Ground
+
+
+func _cells_on(ground: Ground) -> Array[Rect2]:
 	var drawn: Array[Rect2] = []
 	if not visible:
 		return drawn
 	var columns: int = int(width / GRID)
-	for row: int in range(ROWS):
-		# The ellipse's centre line is just behind the face: row 0 is nearest it.
-		var v: float = (row + 0.5) / (ROWS + 1)
-		for column: int in range(columns):
-			var u: float = (column + 0.5) / columns * 2.0 - 1.0
+	# A floor cell's rows start on the floor line, a guard cell's on the shadow's own.
+	var top: float = 0.0
+	if ground == Ground.FLOOR:
+		top = snappedf(floor_y - (position.y - origin.y), GRID)
+	for column: int in range(columns):
+		if ground_of(column) != ground:
+			continue
+		var u: float = (column + 0.5) / columns * 2.0 - 1.0
+		for row: int in range(ROWS):
+			# The ellipse's centre line is just behind the ground's edge: row 0 is nearest it.
+			var v: float = (row + 0.5) / (ROWS + 1)
 			var reach: float = u * u + v * v
 			if reach > 1.0:
 				continue
 			var density: float = lerpf(CORE_DENSITY, EDGE_DENSITY, reach) * strength
 			var art_x: int = int(roundf((position.x - origin.x) / GRID)) + column
-			var art_y: int = int(roundf((position.y - origin.y) / GRID)) + row
+			var art_y: int = int(roundf((position.y - origin.y + top) / GRID)) + row
 			if BAYER[posmod(art_y, 4) * 4 + posmod(art_x, 4)] < density * BAYER.size():
-				drawn.append(Rect2(column * GRID, row * GRID, GRID, GRID))
+				drawn.append(Rect2(column * GRID, top + row * GRID, GRID, GRID))
 	return drawn
 
 
 func _draw() -> void:
-	for cell: Rect2 in cells():
+	for cell: Rect2 in guard_cells():
 		draw_rect(cell, COLOR)
+	for cell: Rect2 in floor_cells():
+		draw_rect(cell, FLOOR_COLOR)

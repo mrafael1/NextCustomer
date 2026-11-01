@@ -16,7 +16,8 @@ extends Control
 ## signs with their cords): a standee there only peeks below it, its head and shoulders
 ## (MIN_PEEK_ROWS) above the belt's top, and its ink never reaches it, hops included. Each
 ## standee casts a ground shadow (CheerShadow) forward onto the visible ground under it (the
-## stage lays the shadow layer on the belt's guard). Placement is seeded per checkout (from its
+## stage lays the shadow layer on the belt's guard): the guard's lit face, or beside the belt the
+## floor (2026-11-01, ground_at). Placement is seeded per checkout (from its
 ## plan, never the global RNG): of CANDIDATES x positions in the open columns the one with the
 ## most room wins, so new standees fill the gaps before they overlap, and later ones layer over
 ## the earlier.
@@ -169,14 +170,14 @@ func begin(seed_value: int, reduced: bool) -> void:
 	_fit_band()
 
 
-## Lays the shadow layer in `ground` (in front of the crowd, e.g. the belt) at `area` there,
-## clipped to it, as its child at `index`: the shadows show only on that ground.
+## Lays the shadow layer in `ground` (in front of the crowd, e.g. the belt) at `area` there, as
+## its child at `index`. It does not clip: each shadow column picks its ground (ground_at), the
+## floor beside the belt included.
 func lay_shadows(ground: Control, area: Rect2, index: int) -> void:
 	if shadow_layer.get_parent() != null:
 		shadow_layer.get_parent().remove_child(shadow_layer)
 	ground.add_child(shadow_layer)
 	ground.move_child(shadow_layer, index)
-	shadow_layer.clip_contents = true
 	shadow_layer.position = area.position
 	shadow_layer.size = area.size
 
@@ -201,6 +202,8 @@ func pop(tier: int, count: int, note: int = -1, own_clock: bool = false) -> void
 		standee.shadow_lift_px = _tuning.cheer_shadow_lift_px
 		standee.shadow_lift_share = _tuning.cheer_shadow_lift_share
 		standee.shadow.origin = _shadow_origin
+		standee.shadow.ground_at = ground_at
+		standee.shadow.floor_y = size.y
 		shadow_layer.add_child(standee.shadow)
 		add_child(standee)
 		_place(standee)
@@ -482,6 +485,19 @@ func _floor_at(ink_left: float, width: float) -> float:
 	if ink_left < left + BELT_RECT.size.x and ink_left + width > left:
 		return minf(size.y, BELT_RECT.position.y - position.y)
 	return size.y
+
+
+## The ground a shadow's column at crowd-local `x` falls on (CheerShadow.Ground): the guard's
+## lit face over the guard, nothing where the belt's end caps stand in front of the floor, else
+## the floor beside the belt.
+func ground_at(x: float) -> CheerShadow.Ground:
+	var belt_x: float = x + position.x - BELT_RECT.position.x
+	var guard: Rect2 = BeltPanel.GUARD_FACE
+	if belt_x >= guard.position.x and belt_x < guard.end.x:
+		return CheerShadow.Ground.GUARD
+	if belt_x >= BeltPanel.FOOT_SPAN.x and belt_x < BeltPanel.FOOT_SPAN.y:
+		return CheerShadow.Ground.NONE
+	return CheerShadow.Ground.FLOOR
 
 
 ## Fits the band to the visible width (centred on the stage, on the art grid); the standees up
