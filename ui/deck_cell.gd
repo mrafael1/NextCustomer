@@ -18,7 +18,7 @@ extends Control
 ## the popup.
 
 const SIZE := Vector2(108, 200)
-## The name's line under the sticker and the tier tag (PriceSticker.TIER_TAG_RECT reaches y 182).
+## The name's line under the sticker.
 const NAME_TOP := 184.0
 const NAME_HEIGHT := 16.0
 const NAME_SIZES: Array[int] = [14, 13, 12, 11]

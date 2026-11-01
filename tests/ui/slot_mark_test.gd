@@ -85,21 +85,6 @@ func test_no_mark_without_slot_engine() -> void:
 	assert_object(screen._row_strip.slot_mark(SLOT_6)).is_null()
 
 
-## The talker clears a tier tag (BIG) hanging under the left end of slot 6's item's ticket by at
-## least one art pixel, so their ink borders never merge.
-func test_the_mark_clears_a_tier_tag() -> void:
-	var screen: ShiftScreen = await _screen()
-	await _set_run(screen, ["slot_engine"], "")
-	await _place(screen, ["bread", "eggs", "milk", "bread", "cheese", "milk_big"])
-	var item: ItemView = screen._row_views[SLOT_6] as ItemView
-	var tier: Label = item.sticker().tier_tag()
-	assert_object(tier).is_not_null()
-	assert_bool(tier.is_visible_in_tree()).is_true()
-	var mark: Rect2 = screen._row_strip.slot_mark(SLOT_6).get_global_rect()
-	var clearance: float = ArtStyle.ART_SCALE * screen._row_strip.box.scale.x
-	assert_bool(tier.get_global_rect().grow(clearance).intersects(mark)).is_false()
-
-
 ## A fire punches the talker and swings it about its hook (its top's middle), then it settles
 ## back at rest; under reduced motion it stays at rest.
 func test_a_fire_punches_and_swings_the_mark() -> void:
