@@ -11,7 +11,7 @@ const PALETTE_SIZE := 67
 ## LedDisplay), the scan pieces #75 moves out of style frame v2 (PriceSticker,
 ## ScanPopup, ScanOverlay), the items, their marks and their cells (ItemView, EffectMark,
 ## PayoutPlaque, RowStrip), which take their colours from Palette, and the hung monitor's pieces
-## #80 adds (MonitorView) and the back of the store (StoreShelves, step 11):
+## #80 adds (MonitorView) and the back of the store (StoreShelves, step 11; StoreArt, #123):
 ## style frame v2's palette check, kept for the screen that replaced it (#75, step 9), and the
 ## planning effects' pieces (#71, mock-up h1: PlanningLayer, RailStrip, EffectSticker, GiverBadge,
 ## PayTag, DenyStamp), the count-up's paper bag (PaperBag, which declares no colour: its art is
@@ -40,6 +40,7 @@ const SCRIPTS: Array[String] = [
 	"res://ui/row_strip.gd",
 	"res://ui/monitor_view.gd",
 	"res://ui/store_shelves.gd",
+	"res://ui/store_art.gd",
 	"res://ui/planning_layer.gd",
 	"res://ui/rail_strip.gd",
 	"res://ui/effect_sticker.gd",

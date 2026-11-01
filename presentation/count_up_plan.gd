@@ -36,6 +36,8 @@ extends RefCounted
 enum Size { NORMAL, LARGE, HUGE }
 
 const LAST_STAGE := 5
+## The highest cheer tier (#120): huge.
+const CHEER_TOP_TIER := 3
 ## The shared subtotal roll's tuning, unless build() is given another.
 const TOTAL_TUNING_PATH := "res://data/balance/count_total.tres"
 
@@ -136,6 +138,7 @@ func _init(
 	_link_armed(steps)
 	_set_landings(steps)
 	_set_payouts(steps)
+	_set_cheer_lines(steps)
 	_set_notes()
 	_set_quota(quota)
 	_set_size()
@@ -173,6 +176,32 @@ static func is_gain_beat(beat: CountUpBeat) -> bool:
 		CountUpBeat.Kind.BONUS, CountUpBeat.Kind.STAMP:
 			return true
 	return false
+
+
+## A bonus line the cheering counts (one standee each): a bonus above 0, a factor above 1, a copy.
+static func is_cheer_line(step: ScoreStep) -> bool:
+	match step.step_type:
+		ScoreStep.StepType.FLAT:
+			return step.value > 0
+		ScoreStep.StepType.MULTIPLIER:
+			return step.value > 1
+		ScoreStep.StepType.COPY:
+			return true
+	return false
+
+
+## A combo the cheering counts (#120): ReceiptView.is_combo, but only one that lifts the payout
+## (a bonus above 0, a factor above 1, a copy), so a day event's penalty (Late delivery's -€2)
+## never cheers more.
+static func is_cheer_combo(step: ScoreStep) -> bool:
+	if not ReceiptView.is_combo(step):
+		return false
+	match step.step_type:
+		ScoreStep.StepType.FLAT:
+			return step.value > 0
+		ScoreStep.StepType.MULTIPLIER:
+			return step.value > 1
+	return true
 
 
 func _make_beats(steps: Array[ScoreStep]) -> void:
@@ -308,6 +337,7 @@ func _set_payouts(steps: Array[ScoreStep]) -> void:
 			passes_best_beat = index
 		var rattle: float = 0.0
 		var threshold: float = maxf(_tuning.rattle_min_payout, _tuning.rattle_min_share * best)
+		_set_cheer(steps, beat, threshold)
 		if beat.payout > 0 and beat.payout >= threshold:
 			rattle = minf(
 				_tuning.rattle_max_px,
@@ -316,6 +346,72 @@ func _set_payouts(steps: Array[ScoreStep]) -> void:
 		if passes_best_beat != -1 and beat.payout > 0:
 			rattle += _tuning.passes_best_rattle_px
 		beat.rattle_px = 0.0 if reduced_motion else rattle
+
+
+## Checkout cheering (#120): a paid item's tier (small, big from `big`, huge from the tuning's
+## cheer_huge_share of the best), one more for a combo, and the standees it pops. Decided before
+## and whatever the reduced motion (it only makes them appear at once).
+func _set_cheer(steps: Array[ScoreStep], beat: CountUpBeat, big: float) -> void:
+	if beat.payout <= 0:
+		beat.cheer_failed = _failed(steps, beat)
+		return
+	var tier: int = 1
+	if beat.payout >= maxf(big, _tuning.cheer_huge_share * best):
+		tier = CHEER_TOP_TIER
+	elif beat.payout >= big:
+		tier = 2
+	var paid_at: int = beat.steps[beat.steps.size() - 1]
+	for index: int in range(paid_at):
+		if steps[index].slot == beat.slot and is_cheer_combo(steps[index]):
+			beat.cheer_combo = true
+	if beat.cheer_combo:
+		tier = mini(tier + 1, CHEER_TOP_TIER)
+	beat.cheer_tier = tier
+
+
+## One standee per bonus line (the user's calls of 2026-11-01): each BONUS or STAMP beat on an item
+## that lifts its value (is_cheer_line) pops one standee at the item's cheer tier when it lands,
+## up to the tuning's cheer_line_cap per item; a paid item with no line pops one at its payout. A
+## line on an item that ends paying nothing still pops, at the small tier.
+func _set_cheer_lines(steps: Array[ScoreStep]) -> void:
+	var lines: Dictionary[int, int] = {}
+	var tiers: Dictionary[int, int] = {}
+	for beat: CountUpBeat in beats:
+		if is_payout_beat(beat):
+			tiers[beat.slot] = maxi(beat.cheer_tier, 1)
+	for beat: CountUpBeat in beats:
+		if beat.kind != CountUpBeat.Kind.BONUS and beat.kind != CountUpBeat.Kind.STAMP:
+			continue
+		if not is_cheer_line(steps[beat.steps[0]]):
+			continue
+		var count: int = lines.get(beat.slot, 0)
+		if count >= _tuning.cheer_line_cap:
+			continue
+		lines[beat.slot] = count + 1
+		beat.cheer_tier = tiers.get(beat.slot, 1)
+		beat.cheer_count = 1
+	for beat: CountUpBeat in beats:
+		if is_payout_beat(beat) and beat.payout > 0 and not lines.has(beat.slot):
+			beat.cheer_count = 1
+
+
+## Whether the item of `beat` (a payout of 0) failed before its payout: a WASTED step it caused
+## itself, or an override (an inspection's denial).
+static func _failed(steps: Array[ScoreStep], beat: CountUpBeat) -> bool:
+	var paid_at: int = beat.steps[beat.steps.size() - 1]
+	for index: int in range(paid_at):
+		var step: ScoreStep = steps[index]
+		if step.slot != beat.slot:
+			continue
+		if step.step_type == ScoreStep.StepType.PAYOUT_OVERRIDE:
+			return true
+		if (
+			step.step_type == ScoreStep.StepType.WASTED
+			and step.source_kind == ScoreStep.SourceKind.CARD
+			and step.source_slot == beat.slot
+		):
+			return true
+	return false
 
 
 ## D1: gain beats climb the ladder, fitted to the row so the last gain lands on the top note

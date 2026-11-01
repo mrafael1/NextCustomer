@@ -13,6 +13,9 @@ extends GdUnitTestSuite
 ## and on. The real saves and logs are never touched.
 
 const SCREEN := "res://ui/shift_screen.tscn"
+## The top bar's gauge before v0.83 (base 1280x720 px), and how much longer it is since.
+const BAR_WIDTH_V082 := 96.0
+const BAR_GAIN := 24.0
 const SHORT_BELT := preload("res://data/inspections/short_belt.tres")
 
 var _folder: String = ""
@@ -199,13 +202,33 @@ func test_the_stage_is_laid_out_without_overlaps() -> void:
 	assert_str(screen._seed_label.text).contains("Seed %d" % screen.run.run_seed)
 
 
-## The paper bag (#86 v6) stands on the counter between the receipt and the belt at BAG_RECT,
-## its foot on the counter line, under the top bar and clear of the monitor and the register's
-## keys; on the stage it is drawn over the belt and the planning layer and under the top bar. It
-## prints no text (not even an art-pending item's or an icon-less coupon's name) and takes no
-## click, and a full bag's items peek out inside its width, on the stage, clear of the receipt and
-## the belt.
-func test_the_paper_bag_stands_between_the_receipt_and_the_belt() -> void:
+## The quota gauge (v0.83) is longer than v0.82's (BAR_WIDTH_V082) by at least BAR_GAIN on a usual
+## shift (the capture's: Short belt's chip, week 2), the readout after it fitting its texts.
+func test_the_quota_gauge_gained_its_room() -> void:
+	var screen: ShiftScreen = await _screen()
+	var run: RunState = screen.run
+	run.inspections = [SHORT_BELT]
+	run.debug_skip_to_shift(4)
+	screen._on_shift_started()
+	screen._week.skip()
+	await _frames(2)
+	var meter: QuotaMeter = screen._stage.top_bar.quota_meter
+	var width: float = meter.bar().size.x
+	assert_float(width).override_failure_message("bar %s" % width).is_greater_equal(
+		BAR_WIDTH_V082 + BAR_GAIN
+	)
+	var chip: Rect2 = (meter.get_parent() as Control).get_global_rect()
+	assert_bool(meter.bar().get_global_rect().encloses(meter.tag_label.get_global_rect())).is_true()
+	assert_bool(chip.encloses(meter.amount_label.get_global_rect())).is_true()
+
+
+## The store's kraft bag (#86 v6, #123) stands at BAG_RECT on the bagging shelf behind the belt's
+## first cell, right of the receipt and above the belt, its foot on the shelf, under the top bar
+## and clear of the monitor and the register's keys; on the stage the shelf and the bag are drawn
+## under the belt (the scanner's item stands in front) and under the top bar. It prints no text
+## (not even an art-pending item's or an icon-less coupon's name) and takes no click, and a full
+## bag's items peek out inside its width, on the stage, clear of the receipt and the belt.
+func test_the_kraft_bag_stands_on_its_shelf_behind_the_belt() -> void:
 	var screen: ShiftScreen = await _screen()
 	var stage: Rect2 = screen._stage.get_global_rect()
 	var bag: PaperBag = screen._stage.bag
@@ -216,17 +239,21 @@ func test_the_paper_bag_stands_between_the_receipt_and_the_belt() -> void:
 	var receipt: Rect2 = screen._receipt.get_global_rect()
 	var belt: Rect2 = screen._stage.belt.get_global_rect()
 	assert_float(rect.position.x).is_greater_equal(receipt.end.x)
-	assert_float(rect.end.x).is_less_equal(belt.position.x)
-	assert_float(rect.end.y).is_equal(stage.position.y + ShiftStage.PRINTER_RECT.position.y)
+	assert_float(rect.end.y).is_less_equal(belt.position.y)
+	assert_float(rect.end.y).is_equal(stage.position.y + ShiftStage.BAGGING_SHELF_RECT.position.y)
+	var shelf: Control = screen._stage.fore.get_node("BaggingShelf") as Control
+	assert_that(shelf.get_global_rect()).is_equal(_on_stage(screen, ShiftStage.BAGGING_SHELF_RECT))
+	assert_float(rect.position.x).is_greater_equal(shelf.get_global_rect().position.x)
+	assert_float(rect.end.x).is_less_equal(shelf.get_global_rect().end.x)
 	assert_float(rect.position.y).is_greater_equal(stage.position.y + ShiftStage.TOP_BAR_BOTTOM)
 	assert_bool(rect.intersects(_on_stage(screen, ShiftStage.MONITOR_RECT))).is_false()
 	assert_bool(rect.intersects(_on_stage(screen, ShiftStage.COLUMN_RECT))).is_false()
-	# In the stage's fore (#77 machine v2: it drops out of frame at the machine), over the belt
-	# and the planning layer; the top bar is on the hud, over the whole world.
+	# In the stage's fore (#77 machine v2: it drops out of frame at the machine), over its shelf
+	# and under the belt; the top bar is on the hud, over the whole world.
 	var index: int = bag.get_index()
 	assert_object(bag.get_parent()).is_same(screen._stage.fore)
-	assert_int(index).is_greater(screen._stage.belt.get_index())
-	assert_int(index).is_greater(screen._stage.planning_layer.get_index())
+	assert_int(index).is_greater(shelf.get_index())
+	assert_int(index).is_less(screen._stage.belt.get_index())
 	assert_object(screen._top_bar.get_parent()).is_same(screen._stage)
 	assert_int(screen._camera.get_index()).is_less(screen._stage.get_index())
 	var products: Array[CardDefinition] = []
@@ -297,7 +324,8 @@ func test_the_shade_leaves_the_top_bar_uncovered() -> void:
 ## The top bar with its longest texts (#80 step 10): the last shift's quota with a 4-digit
 ## subtotal and the quota check, a 4-box loyalty chip, each inspection's chip (the longest name
 ## included), a full cart and a 10-digit seed. The chips stay on the stage above the shade line,
-## apart and in B2's order (SHIFT, QUOTA, inspection, LOYALTY, Cart, menu), each holding its text
+## apart and in B2's order (QUOTA, week, day, LOYALTY, Cart, menu; no SHIFT chip with weeks since
+## v0.82), each holding its text
 ## and icons; the quota bar keeps its room; the seed and build label stay under Redraw, clear of
 ## the hand, the keys and the receipt.
 func test_the_top_bar_fits_its_longest_texts() -> void:
@@ -336,13 +364,14 @@ func test_the_top_bar_fits_its_longest_texts() -> void:
 		assert_int(screen._loyalty_card.box_texts().size()).is_equal(4)
 		# A boon's chip (v0.69) reads "Today: name — effect".
 		var chip_text: String = (
-			"Today: %s — %s" % [inspection.display_name, inspection.chip_text]
+			"Today: %s (%s)" % [inspection.display_name, inspection.chip_text]
 			if inspection.is_boon()
 			else "Inspection · %s" % inspection.chip_text
 		)
 		assert_str(screen._inspection_tag.text()).is_equal(chip_text)
+		# With weeks the SHIFT chip is gone past the training week (v0.82).
+		assert_bool(top_bar.shift_chip.visible).is_false()
 		var parts: Array[Control] = [
-			screen._top_bar.get_child(0) as Control,
 			screen._top_bar.get_child(1) as Control,
 			top_bar.week_chip,
 			screen._inspection_tag,

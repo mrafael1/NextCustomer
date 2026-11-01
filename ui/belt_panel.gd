@@ -30,6 +30,11 @@ const APRON := Rect2(4, 100, 910, 8)
 const RAIL := Rect2(4, 108, 910, 68)
 const RAIL_SHADOW := Rect2(6, 176, 910, 4)
 const RAIL_SHADOW_ALPHA := 0.35
+## The guard's lit face (belt_top's rows 4 to 7, where a standee's shadow lies, CheerShadow),
+## and the columns the belt's art covers on the counter's top line (ShiftStage.COUNTER_TOP), its
+## end caps included: a shadow beside the guard but over them has no floor to fall on.
+const GUARD_FACE := Rect2(12, 4, 880, 4)
+const FOOT_SPAN := Vector2(10, 896)
 ## The art: the top face over the guard's top to the lip, and the front from the lip down.
 const TOP_RECT := Rect2(0, 0, 918, 86)
 const FRONT_RECT := Rect2(0, 86, 918, 90)

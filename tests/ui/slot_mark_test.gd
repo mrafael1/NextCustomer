@@ -1,12 +1,12 @@
 extends GdUnitTestSuite
-## The Slot engine's mark on the belt (2026-10-24, #106 follow-up: the upgrade always acts on
-## slot 6, and slot 6 shows it): on the real shift screen, a run that owns Slot engine shows one
+## The Slot engine's mark on the belt (2026-10-24, #106 follow-up: the upgrade always acts on slot
+## 6, and slot 6 shows it): on the real shift screen, a run that owns Slot engine shows one
 ## SlotMark, a loyalty talker hanging under the right end of slot 6's ticket, whatever the row's
 ## slots (6 on a Short belt shift, 7, 8 with Big basket), empty or filled; a run without it shows
-## none. Every rect is checked on screen (headless runs use a 1280x1280 window): the talker stays
-## in slot 6's column, its top tucked behind the ticket, clear of the next tickets, a tier tag and
-## the hand, and on screen. In the count it fires (a punch and a swing about its hook) when the
-## upgrade's ×2 lands on slot 6. The real saves and logs are never touched.
+## none. Every rect is checked on screen (headless runs use a 1280x1280 window): the talker stays in
+## slot 6's column, its top tucked behind the ticket, clear of the next tickets and the
+## baskets (above their rims, #123), and on screen. In the count it fires (a punch and a swing about
+## its hook) when the upgrade's ×2 lands on slot 6. The real saves and logs are never touched.
 
 const SCREEN := "res://ui/shift_screen.tscn"
 const SLOT_6 := 5
@@ -85,21 +85,6 @@ func test_no_mark_without_slot_engine() -> void:
 	assert_object(screen._row_strip.slot_mark(SLOT_6)).is_null()
 
 
-## The talker clears a tier tag (BIG) hanging under the left end of slot 6's item's ticket by at
-## least one art pixel, so their ink borders never merge.
-func test_the_mark_clears_a_tier_tag() -> void:
-	var screen: ShiftScreen = await _screen()
-	await _set_run(screen, ["slot_engine"], "")
-	await _place(screen, ["bread", "eggs", "milk", "bread", "cheese", "milk_big"])
-	var item: ItemView = screen._row_views[SLOT_6] as ItemView
-	var tier: Label = item.sticker().tier_tag()
-	assert_object(tier).is_not_null()
-	assert_bool(tier.is_visible_in_tree()).is_true()
-	var mark: Rect2 = screen._row_strip.slot_mark(SLOT_6).get_global_rect()
-	var clearance: float = ArtStyle.ART_SCALE * screen._row_strip.box.scale.x
-	assert_bool(tier.get_global_rect().grow(clearance).intersects(mark)).is_false()
-
-
 ## A fire punches the talker and swings it about its hook (its top's middle), then it settles
 ## back at rest; under reduced motion it stays at rest.
 func test_a_fire_punches_and_swings_the_mark() -> void:
@@ -154,8 +139,8 @@ func test_a_checkout_fires_the_mark_when_the_x2_lands() -> void:
 	assert_array(fired_at).is_equal([SLOT_6])
 
 
-## The mark under a ticket at `ticket` (global): in slot 6's column, its top TUCKED (scaled)
-## behind the ticket's foot, the rest under it, clear of the other slots' tickets and of the hand,
+## The mark under a ticket at `ticket` (global): in slot 6's column, its top TUCKED (scaled) behind
+## the ticket's foot, the rest under it, clear of the other slots' tickets, above the baskets' rims,
 ## and on screen.
 func _assert_mark_in_place(screen: ShiftScreen, ticket: Rect2) -> void:
 	var strip: RowStrip = screen._row_strip
@@ -174,7 +159,9 @@ func _assert_mark_in_place(screen: ShiftScreen, ticket: Rect2) -> void:
 		if slot != SLOT_6:
 			var other: Rect2 = RowStrip.mat(strip.slots[slot]).get_global_rect()
 			assert_bool(rect.intersects(other)).override_failure_message(str(slot)).is_false()
-	assert_bool(rect.intersects(screen._hand_box.get_global_rect())).is_false()
+	# Over the counter face, above the baskets' rims (#123: the belt sits on the baskets).
+	var rims: float = screen._stage.get_global_rect().position.y + HandBaskets.RIM_BACK_Y
+	assert_float(rect.end.y).is_less_equal(rims)
 	assert_bool(screen.get_viewport_rect().encloses(rect)).is_true()
 	assert_bool(screen._stage.get_global_rect().encloses(rect)).is_true()
 

@@ -8,15 +8,12 @@ extends RefCounted
 const STAMP := "SLIP %d/%d"
 ## Printed on the receipt under a slip's stamp: the forgiven shift pays no ticket.
 const NO_TICKET := "NO TICKET · TRAINING WEEK"
-const NOTICE := "Slip %d/%d — training week"
+const NOTICE := "Training week: slip %d/%d"
 ## The notice once the last slip is used: the next miss ends the run.
-const LAST_NOTICE := "Slip %d/%d — training week: the next miss ends the run"
+const LAST_NOTICE := "Training week: slip %d/%d. The next miss ends the run"
 ## The planning hint (top bar, week 1): the slips the training week still forgives.
 const HINT := "TRAINING WEEK · %d SLIPS"
 const HINT_ONE := "TRAINING WEEK · 1 SLIP"
-## The hint's short form, for a top bar with no room for the whole one (TopBar.fit_inspection).
-const HINT_SHORT := "%d SLIPS"
-const HINT_SHORT_ONE := "1 SLIP"
 ## The notice the first shift after the training week opens with.
 const OVER_NOTICE := "Training is over: from now on, any miss ends the run"
 
@@ -36,13 +33,11 @@ static func notice_text(run: RunState) -> String:
 
 
 ## The planning hint for `run`'s current shift: "TRAINING WEEK · 2 SLIPS" in the training week
-## (TrainingWeek.covers; `short`: "2 SLIPS"), else "".
-static func hint_text(run: RunState, short: bool = false) -> String:
+## (TrainingWeek.covers), else "".
+static func hint_text(run: RunState) -> String:
 	if not TrainingWeek.covers(run.balance, run.shift_index + 1):
 		return ""
 	var left: int = TrainingWeek.slips_left(run)
-	if short:
-		return HINT_SHORT_ONE if left == 1 else HINT_SHORT % left
 	return HINT_ONE if left == 1 else HINT % left
 
 

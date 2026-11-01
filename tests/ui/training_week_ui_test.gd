@@ -53,8 +53,8 @@ func test_slips_then_fired() -> void:
 		await _frames(2)  # The notice shows once planning takes input (MachineFlow).
 		assert_bool(screen._notice_label.is_showing()).is_true()
 		assert_str(screen._notice_label.text).is_equal(WriteUp.notice_text(screen.run))
-		assert_str(screen._notice_label.text).starts_with("Slip %d/2" % slip)
-	assert_str(screen._notice_label.text).contains("the next miss ends the run")
+		assert_str(screen._notice_label.text).starts_with("Training week: slip %d/2" % slip)
+	assert_str(screen._notice_label.text).contains("The next miss ends the run")
 	await _checkout_empty(screen)
 	assert_int(screen.run.phase).is_equal(RunState.Phase.LOST)
 	assert_bool(screen._results.visible).is_true()
@@ -139,7 +139,7 @@ func test_a_slip_notice_waits_for_the_payday_announce() -> void:
 	assert_float(shown_at).is_greater_equal(
 		PremiumAnnounce.FLY_TO + PremiumAnnounce.RING_LENGTH - 2.0 * STEP
 	)
-	assert_str(screen._notice_label.text).starts_with("Slip 1/2")
+	assert_str(screen._notice_label.text).starts_with("Training week: slip 1/2")
 	assert_array(_errors).is_empty()
 
 
@@ -205,49 +205,15 @@ static func _left_click() -> InputEventMouseButton:
 	return click
 
 
-## The hint sits in the SHIFT chip, which keeps its height (the quota chip's), clear of the quota
-## chip, and the row's chips stay inside the row's width on an inspected shift too; it counts the
-## slips left and is gone on shift 5, which opens with "Training is over".
-func test_the_training_hint_in_the_shift_chip() -> void:
+## The training week's slips show only as the week chip's crosses (v0.84): no sign hangs under
+## the week chip, and the SHIFT chip stays hidden.
+func test_no_slip_sign_under_the_week_chip() -> void:
 	var screen: ShiftScreen = await _screen()
 	var bar: TopBar = screen._top_bar as TopBar
-	var hint: Label = bar.training_label
-	# The week chip and the day chip (v0.70) take room: the hint may show its short form.
-	await _frames(2)
-	assert_bool(hint.is_visible_in_tree()).is_true()
-	assert_str(WriteUp.hint_text(screen.run)).is_equal("TRAINING WEEK · 2 SLIPS")
-	assert_array(_hint_forms(screen)).contains([hint.text])
-	_assert_hint_layout(bar)
 	await _checkout_empty(screen)
-	# Shift 2's boon (drawn with week 1, v0.70) may need the room: a day without one has it.
-	screen._debug.set_inspection("")
 	await _frames(2)
-	assert_str(WriteUp.hint_text(screen.run)).is_equal("TRAINING WEEK · 1 SLIP")
-	assert_array(_hint_forms(screen)).contains([hint.text])
-	_assert_hint_layout(bar)
-	# Shift 3 is inspected: its chip shares the row with the hint.
-	screen._debug.skip_to_shift(3)
-	await _frames(2)
-	assert_bool(bar.inspection_tag.is_visible_in_tree()).is_true()
-	_assert_hint_shares_the_row(screen, bar)
-	# Shift 4 is the review: two inspections in its chip, beside the hint.
-	screen._debug.skip_to_shift(4)
-	await _frames(2)
-	assert_int(screen.run.inspections.size()).is_equal(2)
-	_assert_hint_shares_the_row(screen, bar)
-	screen._debug.skip_to_shift(5)
-	screen._week.skip()  # Week 2's time card (v0.70) is not what this checks.
-	await _frames(2)
-	assert_bool(hint.visible).is_false()
-	assert_str(screen._notice_label.text).is_equal(WriteUp.OVER_NOTICE)
-	# Counting hides the hint (on a day without an event: the hint has room).
-	screen._debug.skip_to_shift(2)
-	screen._debug.set_inspection("")
-	await _frames(2)
-	assert_bool(hint.visible).is_true()
-	screen._on_checkout_pressed()
-	assert_bool(hint.visible).is_false()
-	await Rush.finish(screen)
+	assert_bool(bar.shift_chip.visible).is_false()
+	assert_array(bar.find_children("*", "SlipSign", true, false)).is_empty()
 	assert_array(_errors).is_empty()
 
 
@@ -261,56 +227,11 @@ func test_resuming_after_a_slip_shows_the_notice() -> void:
 	assert_int(resumed.run.shift_index).is_equal(1)
 	assert_int(resumed.run.phase).is_equal(RunState.Phase.PLANNING)
 	assert_bool(resumed._notice_label.is_showing()).is_true()
-	assert_str(resumed._notice_label.text).is_equal("Slip 1/2 — training week")
+	assert_str(resumed._notice_label.text).is_equal("Training week: slip 1/2")
 	var again: ShiftScreen = await _screen()
 	assert_int(again.run.shift_index).is_equal(1)
-	assert_str(again._notice_label.text).is_equal("Slip 1/2 — training week")
+	assert_str(again._notice_label.text).is_equal("Training week: slip 1/2")
 	assert_array(_errors).is_empty()
-
-
-## On an inspected shift the hint is shown whole or short, or gives way to the day's effects
-## (v0.70: the week and day chips take room), its tooltip whole; the inspection's effects are
-## trimmed only once the week chip's name and pips gave way too.
-func _assert_hint_shares_the_row(screen: ShiftScreen, bar: TopBar) -> void:
-	var hint: Label = bar.training_label
-	var forms: Array[String] = [WriteUp.hint_text(screen.run), WriteUp.hint_text(screen.run, true)]
-	var shift_chip: Control = bar.shift_label.get_parent().get_parent() as Control
-	assert_str(shift_chip.tooltip_text).is_equal(forms[0])
-	if bar.inspection_tag.is_trimmed():
-		assert_bool(hint.visible).is_false()
-		assert_bool(bar.week_chip.name_shown() or bar.week_chip.pips_shown()).is_false()
-	if hint.visible:
-		assert_array(forms).contains([hint.text])
-		_assert_hint_layout(bar)
-
-
-## The hint's two forms: whole and short.
-static func _hint_forms(screen: ShiftScreen) -> Array[String]:
-	return [WriteUp.hint_text(screen.run), WriteUp.hint_text(screen.run, true)]
-
-
-func _assert_hint_layout(bar: TopBar) -> void:
-	var hint: Rect2 = bar.training_label.get_global_rect()
-	var shift_chip: Control = bar.shift_label.get_parent().get_parent() as Control
-	var chip: Rect2 = shift_chip.get_global_rect()
-	var row: Rect2 = Rect2(bar.global_position, TopBar.ROW_SIZE)
-	assert_bool(hint.has_area()).is_true()
-	assert_bool(chip.encloses(hint)).override_failure_message("%s in %s" % [hint, chip]).is_true()
-	assert_float(chip.position.x).is_greater_equal(row.position.x)
-	var shift: Rect2 = bar.shift_label.get_global_rect()
-	assert_float(hint.position.x).is_greater_equal(shift.end.x)
-	var quota_chip: Rect2 = (bar.quota_meter.get_parent() as Control).get_global_rect()
-	# The hint doesn't make the SHIFT chip taller than its neighbour.
-	var heights: String = "%s beside %s" % [chip, quota_chip]
-	assert_float(chip.size.y).override_failure_message(heights).is_equal(quota_chip.size.y)
-	assert_float(chip.position.y).override_failure_message(heights).is_equal(quota_chip.position.y)
-	assert_bool(quota_chip.intersects(hint)).is_false()
-	assert_float(quota_chip.size.x).is_greater(0.0)
-	for child: Node in bar.get_children():
-		var control: Control = child as Control
-		if control != null and control.visible:
-			var rect: Rect2 = control.get_global_rect()
-			assert_float(rect.end.x).override_failure_message(control.name).is_less_equal(row.end.x)
 
 
 ## Checks out the current (empty) row, rushed, and returns every receipt text printed while it

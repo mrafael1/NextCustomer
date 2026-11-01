@@ -103,3 +103,17 @@ var fly_ms: int = 0
 ## PAYOUT: the item's payment equation the monitor shows at its payout (PaymentEquation.of), or
 ## null for none. Always null on other beats.
 var equation: PaymentEquation = null
+## Checkout cheering (#120, CountUpPlan's _set_cheers): a paid item's cheer tier, 0 for none (a
+## payout of 0 or less, or not a payout beat), else 1 small, 2 big (the rattle's threshold), 3
+## huge (the tuning's cheer_huge_share of the best); a combo cheers one tier more, at most 3.
+var cheer_tier: int = 0
+## How many cardboard standees the beat pops when it lands: 1 on a bonus line (BONUS or STAMP
+## lifting its item, up to cheer_line_cap per item; CountUpPlan's _set_cheer_lines) and on the
+## payout of a paid item with no line, else 0. A line's cheer_tier is its item's.
+var cheer_count: int = 0
+## The payout includes a bonus or a multiplier another source caused (ReceiptView.is_combo).
+var cheer_combo: bool = false
+## A payout of 0 that failed (CountUpPlan's _set_cheer): the item's own condition fizzled (a WASTED
+## step it caused) or an inspection denied it. Only such a payout slumps a standee; a coupon that
+## pays nothing of its own does not.
+var cheer_failed: bool = false

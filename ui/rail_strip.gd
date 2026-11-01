@@ -24,11 +24,14 @@ extends Control
 
 ## The lanes' bodies (stage px): lane 0 is the belt lip, lane 1 the top face's front edge under
 ## the items' contact shadows.
-const LANE_RECTS: Array[Rect2] = [Rect2(348, 400, 918, 14), Rect2(348, 386, 918, 14)]
+const LANE_RECTS: Array[Rect2] = [
+	Rect2(348, ShiftStage.BELT_RECT.position.y + 86.0, 918, 14),
+	Rect2(348, ShiftStage.BELT_RECT.position.y + 72.0, 918, 14),
+]
 ## Where every gain badge, notch, plate, plug and cap lies (from the lane-1 gains' tops down to the
 ## natural row's tickets' tops). The stems and drops reach on down to their tickets, which stand
 ## lower on a scaled row.
-const LIP_BAND := Rect2(348, 380, 918, 44)
+const LIP_BAND := Rect2(348, ShiftStage.BELT_RECT.position.y + 66.0, 918, 44)
 ## The plug's x from the giver's ticket, and each lane's target centre (its notch or drop, and its
 ## gain badge) from a target's ticket (both times the row's scale, on the 2 px grid).
 const PLUG_OFFSET := 6.0

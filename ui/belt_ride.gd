@@ -322,9 +322,10 @@ func _on_step_landed(index: int) -> void:
 		var mark: SlotMark = _stage.row_strip.slot_mark(step.slot, step.source_index)
 		if mark != null:
 			mark.fire(_reduced, _count.tween_maker())
-	# An inspection zeroing its marked slot (Spot check's slot 3) fires that mark.
+	# A day event's step on its marked slot (Spot check zeroing slot 3, Happy hour's bonus on the
+	# last one) fires that mark.
 	if (
-		step.step_type == ScoreStep.StepType.PAYOUT_OVERRIDE
+		step.step_type in [ScoreStep.StepType.PAYOUT_OVERRIDE, ScoreStep.StepType.FLAT]
 		and step.source_kind == ScoreStep.SourceKind.INSPECTION
 	):
 		var dead: SlotMark = _stage.row_strip.inspection_mark(step.slot, step.source_index)

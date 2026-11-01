@@ -23,11 +23,11 @@ signal all_clicked
 ## The REDRAW ALL tag's hover changed (#122).
 signal all_hovered(hot: bool)
 
-const HIT_TOP_Y := 500.0
-const HIT_BOTTOM_Y := 680.0
+const HIT_TOP_Y := 534.0
+const HIT_BOTTOM_Y := 692.0
 const TAG_CENTRE_X := 104.0
-const TAG_TOP_Y := 620.0
-const ALL_TOP_Y := 494.0
+const TAG_TOP_Y := 632.0
+const ALL_TOP_Y := 528.0
 const ALL_WORD := "REDRAW ALL"
 
 var _hits: Array[Control] = []

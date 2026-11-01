@@ -27,8 +27,8 @@ extends Control
 ## set_got rings a hovered giver's target in gold inside its outline. Neither changes a number.
 ## The staple padlock is never on a ticket (only on the cart reveal).
 ##
-## An item tier (#77): a BIG or GOLDEN copy's sticker carries its tier tag (tier_text) under its
-## left end: a cream "BIG" price-gun label, or a gold "GOLDEN" one. It only reads the card's tier.
+## An item tier (#77) is named by tier_text ("BIG", "GOLDEN") for the machine's prizes and the deck
+## view; the ticket itself carries no tier tag since 2026-11-01 (the user's call).
 
 
 ## The struck old price (#105): its text, right-aligned in its rect, and the strike low across it.
@@ -170,11 +170,6 @@ const SUMMARY_NAME := "Summary"
 const GOT_RING_NAME := "GotRing"
 const COUPON_TITLE_NAME := "CouponTitle"
 const COLOUR_SPOT_NAME := "ColourSpot"
-## The tier tag (#77): under the ticket's left end, bold Atkinson.
-const TIER_TAG_NAME := "TierTag"
-const TIER_TAG_RECT := Rect2(4, 62, 60, 16)
-const TIER_TAG_SIZE := 11
-const TIER_TAG_WEIGHT := 700
 const TIER_TEXTS: Array[String] = ["", "BIG", "GOLDEN"]
 
 ## The plain coupon slip, and a product's face when it has no family colours.
@@ -254,8 +249,6 @@ func _init(definition: CardDefinition, palette: FamilyPalette = null) -> void:
 	add_child(_summary)
 	_got_ring = GotRing.new()
 	add_child(_got_ring)
-	if not tier_text(definition).is_empty():
-		_add_tier_tag(definition)
 
 
 ## "€N": a price as tickets print it.
@@ -409,11 +402,6 @@ static func tier_text(definition: CardDefinition) -> String:
 	return TIER_TEXTS[definition.tier] if definition != null else ""
 
 
-## The tier tag, or null for a plain card.
-func tier_tag() -> Label:
-	return get_node_or_null(TIER_TAG_NAME) as Label
-
-
 ## COUPON's font: the body font at COUPON_TITLE_WEIGHT, `spacing` px letter-spaced.
 static func coupon_font(spacing: int = COUPON_TITLE_SPACING) -> Font:
 	if not _coupon_fonts.has(spacing):
@@ -507,20 +495,3 @@ func _touches(cut: Rect2) -> bool:
 		if glyph.rim_rect().intersects(cut):
 			return true
 	return false
-
-
-func _add_tier_tag(definition: CardDefinition) -> void:
-	var golden: bool = definition.tier == CardDefinition.Tier.GOLDEN
-	var tag: Label = UiKit.body_label(tier_text(definition), TIER_TAG_SIZE, Palette.INK)
-	tag.name = TIER_TAG_NAME
-	tag.add_theme_font_override("font", ArtStyle.bold_font(TIER_TAG_WEIGHT))
-	tag.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	tag.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	var style: StyleBoxFlat = StyleBoxFlat.new()
-	style.bg_color = Palette.GOLD if golden else Palette.CREAM
-	style.border_color = Palette.INK
-	style.set_border_width_all(2)
-	tag.add_theme_stylebox_override("normal", style)
-	tag.position = TIER_TAG_RECT.position
-	tag.size = TIER_TAG_RECT.size
-	add_child(tag)

@@ -260,8 +260,8 @@ func test_the_count_keeps_the_item_breakdown_visible_and_total_on_the_register()
 			failures.append("The old total column covered the item breakdown")
 		if monitor.climax().is_running():
 			failures.append("The monitor was covered by a quota celebration")
-		if not screen._cabinet.total_display.visible:
-			failures.append("The register display was hidden during the count")
+		if not screen._cabinet.total_display.is_counting():
+			failures.append("The register's follower missed the count")
 	count.beat_started.connect(observe)
 	var rush: Callable = func() -> void: count._tap(Time.get_ticks_msec())
 	rush.call_deferred()
@@ -274,8 +274,8 @@ func test_the_count_keeps_the_item_breakdown_visible_and_total_on_the_register()
 ## Checkout Rhythm v3: on the real screen, under reduced motion and tap-skip, each payout with
 ## multipliers (the Milks under Multipack's ×3) shows its payment equation at its own beat, the
 ## steps' own numbers, as the newest line: on one line inside the item column, clear of the lines
-## above, the factor amber and the rest ink, never covered by the register's SPEND MET. The
-## multiplier lines keep their × and fit their row. The row meets its quota, so SPEND MET runs.
+## above, the factor amber and the rest ink. The multiplier lines keep their × and fit their row.
+## The row meets its quota, so the quota's hold runs and the item column stays.
 func test_payouts_show_their_equation_inside_the_column_and_clear_of_spend_met() -> void:
 	var screen: ShiftScreen = await _screen()
 	await _place(screen, PASSING_ROW)
@@ -321,8 +321,6 @@ func test_payouts_show_their_equation_inside_the_column_and_clear_of_spend_met()
 			failures.append("The equation's factor was not amber")
 		if (row.get_node("Amount") as Label).get_theme_color("font_color") != Palette.INK:
 			failures.append("The equation's payout was not ink")
-		if screen._cabinet.total_display.get_global_rect().intersects(rect):
-			failures.append("The register's SPEND MET sat over the equation")
 	count.beat_started.connect(observe)
 	var met: Array[bool] = []
 	var celebrating: Callable = func(_pop: bool) -> void:
@@ -330,8 +328,6 @@ func test_payouts_show_their_equation_inside_the_column_and_clear_of_spend_met()
 		var rows: Array[Control] = items.step_rows()
 		if rows.is_empty() or not items.is_visible_in_tree():
 			failures.append("SPEND MET hid the item column")
-		elif screen._cabinet.total_display.get_global_rect().intersects(rows[-1].get_global_rect()):
-			failures.append("SPEND MET covered the newest line")
 	count.quota_met.connect(celebrating)
 	var rush: Callable = func() -> void: count._tap(Time.get_ticks_msec())
 	rush.call_deferred()
@@ -403,7 +399,7 @@ func test_a_resumed_quota_uses_a_quiet_end_state() -> void:
 	screen._led.show_subtotal(170, true)
 	screen._led.show_total()
 	screen._count_up.quota_met.emit(false)
-	assert_bool(screen._cabinet.total_display.visible).is_true()
+	assert_bool(screen._cabinet.total_display.is_counting()).is_true()
 	assert_int(screen._cabinet.total_display.amount()).is_equal(170)
 	assert_bool(screen._cabinet.total_display.is_celebrating()).is_false()
 	assert_bool(screen._monitor.climax().is_running()).is_false()

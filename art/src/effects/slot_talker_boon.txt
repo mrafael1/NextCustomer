@@ -1,0 +1,17 @@
+; A boon day event's slot talker (2026-10-31: "day event that impact a specific slot should be
+; shown visually on slot"): slot_talker's shape in the boon chip's greens, hanging under the slot
+; the event aims at (Happy hour's last filled slot, Extra till's extra one) with the boon coin and
+; its text in paper (code-drawn). Green G lit along the top and left, around a green dark g face,
+; rounded two-texel corners in an ink outline. 9-slice 9x9 @2 (margin 3).
+@size 9x9
+@kind frame
+@scale 2
+..#####..
+.#GGGGG#.
+#Gggggg%#
+#Gggggg%#
+#Gggggg%#
+#Gggggg%#
+#Gggggg%#
+.#%%%%%#.
+..#####..

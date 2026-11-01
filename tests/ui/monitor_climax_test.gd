@@ -97,9 +97,6 @@ func _watch(screen: ShiftScreen, tap: bool) -> Dictionary:
 		assert_bool(screen._monitor.climax().is_running()).is_false()
 		assert_bool(screen._monitor.item_column().is_visible_in_tree()).is_true()
 		assert_int(display.amount()).is_equal(readings[0])
-		if count_up.plan.reduced_motion:
-			assert_bool(display._met_label.visible).is_true()
-			assert_vector(display.number_label().scale).is_equal(Vector2.ONE)
 		await get_tree().process_frame
 	var took_ms: int = Time.get_ticks_msec() - started[0]
 	count_up._tap(Time.get_ticks_msec())

@@ -2,12 +2,12 @@ class_name WeekCard
 extends Control
 ## The punch-clock time card (v0.70, mock-up docs/art/mockups/rota_card_v1.html, layout C): a
 ## mustard card over a dim, "TIME CARD" and "CASHIER · TILL 4 / WEEK 2 OF 3" over the week's
-## banner (its colour, colour_of: "WEEK 2 OF 3", the week event's name, its effect, the training
-## week's "2 SLIPS"), then a table with one row per day: the day's number with its "IN" punch on
-## the left (played days and today), and on the right every day event by name and effect (a
-## day without one: "Normal day · No event"); a Manager's review's row is mustard, headed
-## "MANAGER'S REVIEW · 2 MALUSES" and closed by its reward ("REVIEW PASSED · 2 PREMIUM TICKETS",
-## or day 12's "PASS = RUN WON").
+## banner (its colour, colour_of: "WEEK 2 OF 3", the week event's name, its effect (the training
+## week's "THIS WEEK ALLOWS 2 MISSES")), then a table with one row per day: the day's number
+## with its "IN" punch on the left (played days and today), and on the right every day event by
+## name and effect (a day without one: "Normal day · No event"); a Manager's review's row is
+## mustard, headed "MANAGER'S REVIEW · 2 MALUSES" and closed by its reward ("REVIEW PASSED · 2
+## PREMIUM TICKETS", or day 12's "PASS = RUN WON").
 ##
 ## play(): the card arrives (print), the banner stamps, the rows fill in one by one (today's
 ## punch), the card holds HOLD seconds and shrinks into the week chip. reopen(): the whole card at
@@ -444,8 +444,7 @@ func _head(model: WeekCardModel) -> Control:
 	return head
 
 
-## The week's banner, in its colour: "WEEK 2 OF 3", the event's name, its effect, and the
-## training week's slips.
+## The week's banner, in its colour: "WEEK 2 OF 3", the event's name and its effect.
 func _make_banner(model: WeekCardModel) -> ShadowPanel:
 	var panel: ShadowPanel = ShadowPanel.new(
 		_box(colour_of(model.week_number), Palette.INK, BANNER_BORDER, BANNER_PADDING),
@@ -460,10 +459,10 @@ func _make_banner(model: WeekCardModel) -> ShadowPanel:
 	var title: Label = UiKit.display_label(model.title(), BANNER_TITLE_SIZE, true)
 	title.name = "WeekTitle"
 	column.add_child(title)
-	var effect: String = model.effect()
-	var slips: String = model.slips_text()
-	if not slips.is_empty():
-		effect = "%s · %s" % [effect, slips] if not effect.is_empty() else slips
+	var misses: String = model.misses_text()
+	if not misses.is_empty():
+		column.add_child(_misses_line(misses))
+	var effect: String = "" if not misses.is_empty() else model.effect()
 	var line: Label = _bold(effect, BANNER_EFFECT_SIZE, Palette.PAPER)
 	line.name = "Effect"
 	line.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
@@ -476,6 +475,27 @@ func _make_banner(model: WeekCardModel) -> ShadowPanel:
 	return panel
 
 
+## The training week's line: "THIS WEEK ALLOWS" in paper, then the misses on a red tag.
+func _misses_line(misses: String) -> Control:
+	var row: HBoxContainer = HBoxContainer.new()
+	row.name = "Misses"
+	row.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	row.alignment = BoxContainer.ALIGNMENT_CENTER
+	row.add_theme_constant_override("separation", 6)
+	var lead: Label = _bold(WeekCardModel.ALLOWS_LEAD, BANNER_EFFECT_SIZE, Palette.PAPER)
+	lead.name = "Lead"
+	lead.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	row.add_child(lead)
+	var tag: Label = _bold(misses, BANNER_EFFECT_SIZE, Palette.PAPER)
+	tag.name = "MissesTag"
+	var box: StyleBoxFlat = _box(Palette.TOMATO, Palette.INK, 2, 1)
+	box.content_margin_left = 6
+	box.content_margin_right = 6
+	tag.add_theme_stylebox_override("normal", box)
+	row.add_child(tag)
+	return row
+
+
 ## A day's row: the punch column (its number and "IN"), then its events.
 func _day_row(day: WeekCardModel.WeekDay) -> Control:
 	var row: PanelContainer = PanelContainer.new()
@@ -483,6 +503,8 @@ func _day_row(day: WeekCardModel.WeekDay) -> Control:
 	row.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	var line: StyleBoxFlat = _box(Color.TRANSPARENT, Palette.INK, 0, 0)
 	line.border_width_bottom = 2
+	# Room for the line under the columns, so it runs under the punch column's paper too (v0.84).
+	line.content_margin_bottom = 2
 	row.add_theme_stylebox_override("panel", line)
 	var columns: HBoxContainer = HBoxContainer.new()
 	columns.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -609,7 +631,8 @@ func _event_row(event: InspectionDefinition) -> Control:
 		icon.name = "Icon"
 		icon.custom_minimum_size = texture.get_size() * ICON_SCALE
 		icon.flip_v = event.icon_flipped
-		icon.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
+		# Centred on the row (v0.83), beside the name and the effect.
+		icon.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 		row.add_child(icon)
 	var text: VBoxContainer = _column(0)
 	text.size_flags_horizontal = Control.SIZE_EXPAND_FILL

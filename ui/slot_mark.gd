@@ -18,6 +18,13 @@ extends Control
 ## the €0 pay tag's tomato (slot_talker_inspection) with the warning sign and "€0" in paper, so
 ## the slot reads as the wasted one before anything is put there; it fires when the inspection
 ## zeroes the card there (NthSlotZeroPayoutRule).
+##
+## Every day event aimed at a slot wears one (2026-10-31: "day event that impact a specific slot
+## should be shown visually on slot"): Happy hour's "+€3" rides on the row's last filled slot (on
+## slot 1 while the belt is empty: the next card is the last), and Extra till's slot more says
+## EXTRA. A boon's mark is the tag in green (slot_talker_boon) with the boon coin and its text in
+## paper; a malus's is the tomato one with the warning sign. It fires when the event's step lands
+## on its slot.
 
 ## The tag's height, of which its top TUCKED px hide behind the ticket, and its insides: the
 ## frame's margin (art pixels), the padding from its left side to the icon (just inside the ring)
@@ -37,6 +44,11 @@ const TEXT_COLOR := Palette.MUSTARD_PALE
 ## An inspection's mark: its text and the text's colour on the tomato face.
 const INSPECTION_TEXT := "€0"
 const INSPECTION_TEXT_COLOR := Palette.PAPER
+## A day event's flat bonus on its slot (Happy hour: LastCardBonusRule), with its sign; and the
+## mark of an event's extra slot (Extra till).
+const BONUS_FORMAT := "+€%d"
+const MALUS_FORMAT := "−€%d"
+const EXTRA_TEXT := "EXTRA"
 const SHADOW_OFFSET := Vector2(2, 2)
 const SHADOW_ALPHA := 0.42
 ## The fire: a punch to 1 + FIRE_PUNCH easing back over FIRE_S, flashed by EffectSticker.FLASH
@@ -54,14 +66,18 @@ const TEXT_NAME := &"Factor"
 
 const TALKER := preload("res://art/effects/slot_talker.png")
 const INSPECTION_TALKER := preload("res://art/effects/slot_talker_inspection.png")
+const BOON_TALKER := preload("res://art/effects/slot_talker_boon.png")
 const WARNING := preload("res://art/icons/warning.png")
+const BOON_ICON := preload("res://art/icons/boon.png")
 
 ## The slot it marks (0-based), the upgrade's index in the run's upgrades and the rule's factor;
-## for an inspection's mark, the inspection's index in the shift's inspections (else -1).
+## for an inspection's mark, the inspection's index in the shift's inspections (else -1), and
+## whether the day event is a boon (the green tag).
 var slot: int = -1
 var upgrade_index: int = -1
 var factor: int = 1
 var inspection_index: int = -1
+var boon: bool = false
 var _inner: Control
 var _icon: Control
 var _label: Label
@@ -74,16 +90,19 @@ func _init(
 	mark_upgrade: int,
 	mark_factor: int,
 	upgrade: UpgradeDefinition = null,
-	mark_inspection: int = -1
+	mark_inspection: int = -1,
+	mark_text: String = INSPECTION_TEXT,
+	mark_boon: bool = false
 ) -> void:
 	slot = mark_slot
 	upgrade_index = mark_upgrade
 	factor = mark_factor
 	inspection_index = mark_inspection
 	var inspected: bool = is_inspection()
+	boon = inspected and mark_boon
 	name = ("InspectionMark%d" if inspected else "SlotMark%d") % slot
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
-	var caption: String = INSPECTION_TEXT if inspected else TEXT_FORMAT % factor
+	var caption: String = mark_text if inspected else TEXT_FORMAT % factor
 	_label = UiKit.display_label(caption, TEXT_SIZE, false)
 	_label.name = TEXT_NAME
 	_label.add_theme_color_override(
@@ -91,7 +110,7 @@ func _init(
 	)
 	_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	_icon = _warning() if inspected else _icon_for(upgrade)
+	_icon = _day_icon(boon) if inspected else _icon_for(upgrade)
 	_icon.name = ICON_NAME
 	var text_width: float = ceilf(_label.get_minimum_size().x)
 	size = Vector2(width_for(_icon.size.x, text_width), HEIGHT)
@@ -103,13 +122,13 @@ func _init(
 	# It hangs from its hook, the top's middle: the punch and the swing turn about it.
 	_inner.pivot_offset = Vector2(size.x / 2.0, 0.0)
 	add_child(_inner)
-	var shadow: Panel = _frame(inspected)
+	var shadow: Panel = _frame(inspected, boon)
 	shadow.name = SHADOW_NAME
 	shadow.position = SHADOW_OFFSET
 	shadow.size = size
 	shadow.self_modulate = Color(Palette.INK, SHADOW_ALPHA)
 	_inner.add_child(shadow)
-	var frame: Panel = _frame(inspected)
+	var frame: Panel = _frame(inspected, boon)
 	frame.name = FRAME_NAME
 	frame.size = size
 	_inner.add_child(frame)
@@ -124,13 +143,23 @@ func _init(
 	_inner.add_child(_label)
 
 
+## The marks of `run`'s shift: its upgrades' and its day events' on its row (marks_for).
+static func run_marks(run: RunState) -> Array[SlotMark]:
+	var open: int = RowCapacity.card_limit(run.limits)
+	return marks_for(run.upgrades, run.inspections, run.row.size(), open)
+
+
 ## The marks of `upgrades` (the run's, in pick order): one for each rule that multiplies a fixed
-## slot (NthSlotMultiplierRule with a slot and a factor other than 1), on that slot; then the
-## shift's `inspections`' (inspection_marks).
+## slot (NthSlotMultiplierRule with a slot and a factor other than 1), on that slot; and the
+## shift's `inspections`' (inspection_marks, for a row of `row_size` cards in `slot_count` open
+## slots), first.
 static func marks_for(
-	upgrades: Array[UpgradeDefinition], inspections: Array[InspectionDefinition] = []
+	upgrades: Array[UpgradeDefinition],
+	inspections: Array[InspectionDefinition] = [],
+	row_size: int = 0,
+	slot_count: int = 0
 ) -> Array[SlotMark]:
-	var marks: Array[SlotMark] = inspection_marks(inspections)
+	var marks: Array[SlotMark] = inspection_marks(inspections, row_size, slot_count)
 	for index: int in range(upgrades.size()):
 		for rule: UpgradeRule in upgrades[index].rules:
 			var slot_rule: NthSlotMultiplierRule = rule as NthSlotMultiplierRule
@@ -142,16 +171,36 @@ static func marks_for(
 	return marks
 
 
-## The marks of the shift's `inspections`: one for each rule that zeroes a fixed slot
-## (NthSlotZeroPayoutRule with a slot), on that slot.
-static func inspection_marks(inspections: Array[InspectionDefinition]) -> Array[SlotMark]:
+## The marks of the shift's day events `inspections` (2026-10-31), in order: on its slot, each
+## rule that zeroes a fixed slot (NthSlotZeroPayoutRule: "€0"); on the row's last filled slot
+## (slot 1 for an empty row of `row_size` 0), each last card bonus (LastCardBonusRule: "+€3"); and
+## on each slot an event adds, the last of the `slot_count` open slots, EXTRA. A row of
+## `slot_count` 0 (unknown) gets no EXTRA marks.
+static func inspection_marks(
+	inspections: Array[InspectionDefinition], row_size: int = 0, slot_count: int = 0
+) -> Array[SlotMark]:
 	var marks: Array[SlotMark] = []
+	var last_slot: int = maxi(row_size - 1, 0)
+	var extra: int = 0
 	for index: int in range(inspections.size()):
-		for rule: InspectionRule in inspections[index].rules:
-			var slot_rule: NthSlotZeroPayoutRule = rule as NthSlotZeroPayoutRule
-			if slot_rule == null or slot_rule.slot_number <= 0:
-				continue
-			marks.append(SlotMark.new(slot_rule.slot_number - 1, -1, 1, null, index))
+		var event: InspectionDefinition = inspections[index]
+		var good: bool = event.is_boon()
+		for rule: InspectionRule in event.rules:
+			var zero_rule: NthSlotZeroPayoutRule = rule as NthSlotZeroPayoutRule
+			if zero_rule != null and zero_rule.slot_number > 0:
+				marks.append(SlotMark.new(zero_rule.slot_number - 1, -1, 1, null, index))
+			var last_rule: LastCardBonusRule = rule as LastCardBonusRule
+			if last_rule != null and last_rule.bonus != 0:
+				var amount: int = absi(last_rule.bonus)
+				var caption: String = (
+					BONUS_FORMAT % amount if last_rule.bonus > 0 else MALUS_FORMAT % amount
+				)
+				marks.append(SlotMark.new(last_slot, -1, 1, null, index, caption, good))
+		for _added: int in range(maxi(event.extra_slots, 0)):
+			var extra_slot: int = slot_count - 1 - extra
+			extra += 1
+			if slot_count > 0 and extra_slot >= 0:
+				marks.append(SlotMark.new(extra_slot, -1, 1, null, index, EXTRA_TEXT, good))
 	return marks
 
 
@@ -223,11 +272,14 @@ func _punch(progress: float) -> void:
 	_inner.modulate = Color(flash, flash, flash)
 
 
-## The tag's face: the slot_talker 9-slice, or slot_talker_inspection's for an inspection.
-static func _frame(inspected: bool) -> Panel:
+## The tag's face: the slot_talker 9-slice, slot_talker_inspection's for an inspection (a malus),
+## or slot_talker_boon's for a boon.
+static func _frame(inspected: bool, good: bool = false) -> Panel:
 	var panel: Panel = Panel.new()
 	panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	var texture: Texture2D = INSPECTION_TALKER if inspected else TALKER
+	var texture: Texture2D = TALKER
+	if inspected:
+		texture = BOON_TALKER if good else INSPECTION_TALKER
 	panel.add_theme_stylebox_override("panel", ArtStyle.frame_style(texture, FRAME_MARGIN))
 	ArtStyle.use_pixel_material(panel)
 	return panel
@@ -247,8 +299,9 @@ static func _icon_for(upgrade: UpgradeDefinition) -> Control:
 	)
 
 
-## The inspection's warning sign at the art scale.
-static func _warning() -> Control:
-	var sprite: TextureRect = UiKit.sprite(WARNING)
-	sprite.size = WARNING.get_size() * ArtStyle.ART_SCALE
+## A day event's icon at the art scale: the boon coin for a boon, else the warning sign.
+static func _day_icon(good: bool) -> Control:
+	var texture: Texture2D = BOON_ICON if good else WARNING
+	var sprite: TextureRect = UiKit.sprite(texture)
+	sprite.size = texture.get_size() * ArtStyle.ART_SCALE
 	return sprite

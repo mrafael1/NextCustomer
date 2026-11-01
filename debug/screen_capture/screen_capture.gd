@@ -72,6 +72,16 @@ extends Control
 ## `hover=` hovers that aisle's machine; `car=<seconds>` (v0.79) catches a car that passed the
 ## doors that long ago, `lamp` the street lamp's flicker. The file is
 ## shift_screen_toys_<state>_[<aisle>_][car<tenths>_][lamp_]<width>x<height>.png.
+## With `--cheer` (#120) the fixed shift is checked out and frozen mid-count with a crowd of
+## CHEER_TIERS' standees (mixed sizes, the newest still cheering) behind the counter; the file is
+## shift_screen_cheer_<width>x<height>.png.
+## With `--day=<inspection id>[+<id>...]` (2026-10-31) the fixed shift runs under those day events
+## (data/inspections) in place of Short belt, so their slot marks show (Happy hour's "+€3" on the
+## last filled slot, Extra till's EXTRA slot); the file name gets day_<ids>_ (ids joined by "+").
+## With `--slip[=<inspection id>|none]` (2026-10-31) the day chip's slip (DaySlip: today's events
+## and where they touch the belt) hangs under the chip on the fixed shift, under that day event
+## (default the fixed shift's, `none` a plain day); the file is
+## shift_screen_slip_<id>_<width>x<height>.png.
 
 const SCREEN := preload("res://ui/shift_screen.tscn")
 const SEED := 20261014
@@ -114,6 +124,20 @@ const TOYS_ARGUMENT := "--toys="
 const TOYS_OWNED: Dictionary[StringName, int] = {
 	&"cold_cases": 1, &"pantry": 2, &"household": 1, &"fruit_and_veg": 3, &"bakery": 2
 }
+const CHEER_ARGUMENT := "--cheer"
+const DAY_ARGUMENT := "--day="
+const SLIP_ARGUMENT := "--slip"
+const SLIP_PREFIX := "slip_%s_"
+const SLIP_PLAIN := "none"
+const CHEER_PREFIX := "cheer_"
+## --cheer's crowd: items of these cheer tiers with CHEER_LINES bonus lines each, popped in turn.
+const CHEER_TIERS: Array[int] = [1, 3, 2, 1, 1]
+const CHEER_LINES: Array[int] = [1, 3, 2, 1, 1]
+## --cheer: the count runs this long before it freezes; the pops are this far apart, and the
+## capture follows the last one this soon (its arms still up).
+const CHEER_COUNT_S := 1.2
+const CHEER_POP_GAP_S := 0.3
+const CHEER_LAST_S := 0.16
 const STACK_UPGRADE_IDS: Array[String] = ["coupon_engine", "big_basket", "category_engine"]
 const STACK_ROW_IDS: Array[String] = [
 	"bread",
@@ -192,6 +216,12 @@ var _stack_part: String = ""
 var _week_part: String = ""
 ## A --toys capture's file name part: toys_<state>_[<aisle>_].
 var _toys_part: String = ""
+## A --cheer capture's file name part.
+var _cheer_part: String = ""
+## A --day capture's file name part.
+var _day_part: String = ""
+## A --slip capture's file name part.
+var _slip_part: String = ""
 ## Since hold_pointer(): the real pointer drives no hover, tooltip or click.
 var _holding_pointer: bool = false
 
@@ -230,6 +260,11 @@ func _ready() -> void:
 		await effects(focus_id)
 	elif OS.get_cmdline_user_args().has(WEEK_ARGUMENT) or _argument(WEEK_ARGUMENT + "=") != "":
 		week(_argument(WEEK_ARGUMENT + "="))
+	elif _argument(DAY_ARGUMENT) != "":
+		_day_part = "day_%s_" % _argument(DAY_ARGUMENT)
+		_set_up_shift(_argument(DAY_ARGUMENT), ROW_IDS)
+	elif OS.get_cmdline_user_args().has(SLIP_ARGUMENT) or _argument(SLIP_ARGUMENT + "=") != "":
+		await slip(_argument(SLIP_ARGUMENT + "="))
 	else:
 		_set_up_shift(INSPECTION, ROW_IDS)
 	var toys_spec: String = _argument(TOYS_ARGUMENT)
@@ -245,6 +280,8 @@ func _ready() -> void:
 		var machine_spec: String = _argument(MACHINE_ARGUMENT)
 		if machine_spec != "":
 			await machine(machine_spec)
+		if OS.get_cmdline_user_args().has(CHEER_ARGUMENT):
+			await cheer()
 		var tip_spec: String = _argument(TIP_ARGUMENT)
 		if tip_spec != "":
 			await tip(tip_spec)
@@ -275,8 +312,8 @@ func _unhandled_key_input(event: InputEvent) -> void:
 	get_viewport().set_input_as_handled()
 
 
-## Sets up the fixed shift under the inspection `inspection_id` (none when empty) and the upgrades
-## `upgrade_ids` with the cards `row_ids` on the belt.
+## Sets up the fixed shift under the inspection `inspection_id` (none when empty; several joined
+## by "+") and the upgrades `upgrade_ids` with the cards `row_ids` on the belt.
 func _set_up_shift(
 	inspection_id: String, row_ids: Array[String], upgrade_ids: Array[String] = UPGRADE_IDS
 ) -> void:
@@ -291,9 +328,10 @@ func _set_up_shift(
 	run.upgrades = upgrades
 	run.debug_skip_to_shift(SHIFT - 1)
 	# The same shift again: it keeps the inspection set here.
-	run.inspections = []
-	if inspection_id != "":
-		run.inspections = [load("res://data/inspections/%s.tres" % inspection_id)]
+	var events: Array[InspectionDefinition] = []
+	for event_id: String in inspection_id.split("+", false):
+		events.append(load("res://data/inspections/%s.tres" % event_id) as InspectionDefinition)
+	run.inspections = events
 	run.debug_skip_to_shift(SHIFT - 1)
 	# The fixed hand replaces the dealt one, which is set aside for the shift.
 	run.deck.restore(run.deck.cards, [], run.deck.draw_pile(), run.deck.next_instance_id())
@@ -321,6 +359,18 @@ func week(result: String) -> void:
 	_screen._week.show_chips()  # Today's result pip (#119).
 	_screen._week.card.reopen(WeekCardModel.of(run), null, true)
 	_week_part += result + "_"
+
+
+## Hangs the day chip's slip on the fixed shift under the day event `inspection_id` (empty: the
+## fixed shift's; SLIP_PLAIN: none), settled.
+func slip(inspection_id: String) -> void:
+	var shown: String = INSPECTION if inspection_id.is_empty() else inspection_id
+	_set_up_shift("" if shown == SLIP_PLAIN else shown, ROW_IDS)
+	_slip_part = SLIP_PREFIX % shown
+	_screen._week.toggle_slip()
+	_screen._week.slip.settle()
+	for frame: int in range(3):
+		await get_tree().process_frame  # The slip follows the chip as the top bar lays out.
 
 
 ## Opens the TOY MACHINES over the shift (#121): `spec` is "<state>[,hover=<aisle id>]" (see
@@ -456,6 +506,24 @@ func checkout(seconds: float) -> void:
 	await get_tree().create_timer(seconds).timeout
 
 
+## Checks the fixed shift out and freezes the count after CHEER_COUNT_S (the count-up stops
+## processing: its beats and the monitor's motion hold), then pops CHEER_TIERS' standees on the
+## crowd's own tweens, the last one CHEER_LAST_S before the capture.
+func cheer() -> void:
+	await checkout(CHEER_COUNT_S)
+	_checkout_s = -1.0
+	_cheer_part = CHEER_PREFIX
+	_screen._count_up.process_mode = Node.PROCESS_MODE_DISABLED
+	var crowd: CheckoutCrowd = _screen._stage.crowd
+	crowd.begin(SEED, false)
+	crowd.make_tween = crowd.create_tween
+	for index: int in range(CHEER_TIERS.size()):
+		if index > 0:
+			await get_tree().create_timer(CHEER_POP_GAP_S).timeout
+		crowd.pop(CHEER_TIERS[index], CHEER_LINES[index])
+	await get_tree().create_timer(CHEER_LAST_S).timeout
+
+
 ## Saves the screen into `folder` as shift_screen_<w>x<h>.png (shift_screen_scan_<w>x<h>.png
 ## after scan(), shift_screen_effects_[focus_]<w>x<h>.png after effects()) once it has settled. A
 ## failed save goes to report_error.
@@ -473,7 +541,17 @@ func capture(folder: String) -> void:
 		prefix = FOCUS_PREFIX if _focused else EFFECTS_PREFIX
 	if _checkout_s >= 0.0:
 		prefix += CHECKOUT_PREFIX % roundi(_checkout_s * 10.0)
-	prefix += _machine_part + _reveal_part + _tip_part + _stack_part + _week_part + _toys_part
+	prefix += (
+		_machine_part
+		+ _reveal_part
+		+ _tip_part
+		+ _stack_part
+		+ _week_part
+		+ _toys_part
+		+ _cheer_part
+		+ _day_part
+		+ _slip_part
+	)
 	var path: String = folder.path_join(FILE_NAME % [prefix, window.x, window.y])
 	var image: Image = (
 		grab_image.call() as Image

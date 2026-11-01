@@ -3,16 +3,24 @@ extends Control
 ## #86's rail light, kept by #105 piece 2 (mock-up readability_v3.html's railLightHTML): as a
 ## giver's effect pays in the count, the price rail's top strip (RAIL_Y, RAIL_HEIGHT px, between
 ## its ink lines) lights gold from the giver's ticket to the target's over rail_run_s (its head a
-## paper block with two sparks), the giver's ticket gets a gold edge at once and the target's once
+## paper tip with a spark), the giver's ticket gets a gold edge at once and the target's once
 ## the light reaches it; the light holds to rail_hold_s and fades over rail_fade_s
 ## (CountTotalTuning). A giver already in the bag lights from the rail's left end. It runs on
 ## `make_tween` (the count's clock). Under reduced motion it shows no run: the light and both edges
 ## show at once and fade the same. Stage coordinates (the layer covers the stage). Decor only.
+## The light fills the belt's apron band exactly (BeltPanel.APRON, inside the rail's ends): its top
+## SHADE rows a darker gold under the lip, as the steel band is, and the belt's bolts and chevrons
+## drawn back over it, so it reads as the band lighting up.
 
-const RAIL_Y := 414.0
-const RAIL_HEIGHT := 6.0
+const RAIL_Y := ShiftStage.BELT_RECT.position.y + BeltPanel.APRON.position.y
+const RAIL_HEIGHT := BeltPanel.APRON.size.y
+const RAIL_LEFT := ShiftStage.BELT_RECT.position.x + BeltPanel.APRON.position.x
+const RAIL_RIGHT := RAIL_LEFT + BeltPanel.APRON.size.x
+const SHADE := 2.0
+const SHADE_COLOR := Palette.MUSTARD_DARK
 const HIGHLIGHT := 2.0
-const HEAD_WIDTH := 8.0
+const HEAD_WIDTH := 6.0
+const HEAD_TIP := 2.0
 const EDGE := 2.0
 const GRID := 2.0
 const FROM_COLOR := Palette.MUSTARD
@@ -83,30 +91,53 @@ func _draw_run(lit: Dictionary) -> void:
 	var alpha_now: float = _alpha(lit)
 	if alpha_now <= 0.0:
 		return
-	var from_x: float = lit["from"]
-	var head: float = _head(lit)
+	var from_x: float = clampf(lit["from"], RAIL_LEFT, RAIL_RIGHT)
+	var head: float = clampf(_head(lit), RAIL_LEFT, RAIL_RIGHT)
 	var left: float = minf(from_x, head)
 	var width: float = absf(head - from_x)
+	var body_y: float = RAIL_Y + SHADE
+	var body_height: float = RAIL_HEIGHT - SHADE
 	var column: float = 0.0
 	while column < width:
 		var share: float = column / maxf(1.0, width)
 		var colour: Color = FROM_COLOR.lerp(TO_COLOR, share)
 		colour.a = alpha_now
-		draw_rect(Rect2(left + column, RAIL_Y, minf(GRID, width - column), RAIL_HEIGHT), colour)
+		draw_rect(Rect2(left + column, body_y, minf(GRID, width - column), body_height), colour)
 		column += GRID
 	if width > 0.0:
-		draw_rect(Rect2(left, RAIL_Y, width, HIGHLIGHT), Color(HIGHLIGHT_COLOR, alpha_now))
+		draw_rect(Rect2(left, RAIL_Y, width, SHADE), Color(SHADE_COLOR, alpha_now))
+		draw_rect(Rect2(left, body_y, width, HIGHLIGHT), Color(HIGHLIGHT_COLOR, alpha_now))
+		draw_hardware(self, left, left + width, alpha_now)
 	var arrived: bool = float(lit["q"]) >= _tuning.rail_run_s
-	if not arrived:
-		draw_rect(Rect2(head - HEAD_WIDTH / 2.0, RAIL_Y, HEAD_WIDTH, RAIL_HEIGHT), Palette.PAPER)
-		_spark(Vector2(head - 6.0, RAIL_Y - 6.0), Palette.PAPER)
-		_spark(Vector2(head - 10.0, RAIL_Y + 6.0), Palette.MUSTARD_LIGHT)
+	if not arrived and width > 0.0:
+		var ahead: float = signf(float(lit["to"]) - float(lit["from"]))
+		var tip_x: float = head - HEAD_TIP if ahead > 0.0 else head
+		var back_x: float = head - HEAD_WIDTH if ahead > 0.0 else head
+		draw_rect(Rect2(back_x, body_y, HEAD_WIDTH, body_height), Palette.MUSTARD_PALE)
+		draw_rect(Rect2(tip_x, body_y, HEAD_TIP, body_height), Palette.PAPER)
+		_spark(Vector2(head - ahead * 4.0, RAIL_Y + RAIL_HEIGHT / 2.0 - 1.0), Palette.PAPER)
 	var giver: Rect2 = lit["giver"]
 	if giver.has_area():
 		_edge(giver, alpha_now)
 	var target: Rect2 = lit["target"]
 	if arrived and target.has_area():
 		_edge(target, alpha_now)
+
+
+## The belt's bolts and chevrons that fall between `left` and `right` (stage x), drawn on
+## `canvas` at `alpha_now`, back over a light on the apron band (this one, or BonusLights).
+static func draw_hardware(canvas: CanvasItem, left: float, right: float, alpha_now: float) -> void:
+	var tint: Color = Color(Color.WHITE, alpha_now)
+	for index: int in range(BeltPanel.BOLT_COUNT):
+		var step: Vector2 = ShiftStage.BELT_RECT.position + Vector2(index * BeltPanel.BOLT_PITCH, 0)
+		for part: Array in [
+			[BeltPanel.BELT_BOLT, BeltPanel.BOLT_FIRST],
+			[BeltPanel.BELT_CHEVRONS, BeltPanel.CHEVRONS_FIRST]
+		]:
+			var texture: Texture2D = part[0]
+			var at: Vector2 = step + (part[1] as Vector2)
+			if at.x + texture.get_width() > left and at.x < right:
+				canvas.draw_texture(texture, at, tint)
 
 
 ## A plus of gold cells round a centre of `centre_colour`.

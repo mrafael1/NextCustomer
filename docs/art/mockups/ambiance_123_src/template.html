@@ -1,0 +1,415 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Shift Scene Ambiance</title>
+<style>
+/*FONTS*/
+:root {
+  --bg: #172c2b; --panel: #1f3b3a; --panel2: #2a4d4b; --line: #3a7672;
+  --text: #f3e9d2; --muted: #c7beab; --teal: #86c2b6; --tomato: #ec8a6e; --gold: #ffcf3f;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; background: var(--bg); color: var(--text); }
+body { font-family: Atkinson, system-ui, sans-serif; font-size: 16px; line-height: 1.5; }
+main { max-width: 1312px; margin: 0 auto; padding: 24px 16px 64px; }
+h1, h2, h3 { font-family: Pixelify, monospace; font-weight: 600; line-height: 1.15; margin: 0 0 8px; }
+h1 { font-size: 44px; color: #fbf7ee; }
+h1 small { display: block; font-size: 22px; color: var(--teal); font-weight: 500; }
+h2 { font-size: 22px; color: var(--gold); margin-top: 32px; }
+p { margin: 0 0 12px; max-width: 76ch; }
+.intro { color: var(--muted); }
+.tabs { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 8px; margin: 20px 0 12px; }
+.tab { text-align: left; background: var(--panel); color: var(--text); border: 2px solid var(--panel2); padding: 10px 12px; cursor: pointer; font: inherit; }
+.tab b { display: block; font-family: Pixelify, monospace; font-weight: 600; font-size: 20px; line-height: 1.1; }
+.tab span { display: block; font-size: 14px; color: var(--muted); margin-top: 4px; }
+.tab[aria-selected="true"] { border-color: var(--gold); background: var(--panel2); }
+.tab[aria-selected="true"] b { color: var(--gold); }
+.controls { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin: 0 0 10px; font-size: 14px; color: var(--muted); }
+.ctl { background: var(--panel); color: var(--text); border: 2px solid var(--panel2); padding: 6px 12px; font: inherit; cursor: pointer; }
+.ctl[aria-pressed="true"] { background: var(--line); color: #fbf7ee; }
+.stagewrap { background: #0d1818; border: 2px solid var(--panel2); line-height: 0; }
+canvas#stage { width: 100%; height: auto; aspect-ratio: 16 / 9; display: block; image-rendering: pixelated; }
+.hint { font-size: 14px; color: var(--muted); margin-top: 8px; }
+.cols { display: grid; grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr); gap: 24px; margin-top: 8px; }
+.card { background: var(--panel); border: 2px solid var(--panel2); padding: 14px 16px; }
+.card h3 { font-size: 22px; color: var(--teal); }
+ul { margin: 0; padding-left: 20px; }
+li { margin: 0 0 6px; }
+ol { padding-left: 22px; margin: 0; }
+ol li { margin-bottom: 10px; }
+.reco { border-left: 4px solid var(--gold); background: var(--panel); padding: 12px 16px; }
+code { font-family: JetBrains, Consolas, monospace; font-size: 14px; color: var(--teal); }
+body.solo main > :not(.stagewrap) { display: none; }
+body.solo main { padding: 0; max-width: none; }
+body.solo .stagewrap { border: 0; }
+@media (max-width: 760px) {
+  .tabs, .cols { grid-template-columns: minmax(0, 1fr); }
+  h1 { font-size: 32px; }
+}
+</style>
+</head>
+<body>
+<main>
+  <h1>Next Customer: shift scene ambiance <small>#123 · a mock-up of the lighting direction, on a real game capture</small></h1>
+  <p class="intro">The shift scene is lit flat: the wall, the props and the work all sit at the same brightness, so nothing says where to look and nothing says when it is. This page takes the title's C+ storefront language (a light story, dither bands instead of gradients, a time of day) into the shift scene. It paints over the game's planning capture (<code>docs/art/rule_tweaks_2/shift_screen_effects_1280x720.png</code>), so every pixel of the UI is the game's. Only the light changes.</p>
+
+  <div class="tabs" role="tablist" aria-label="Time of day">
+    <button class="tab" role="tab" data-tod="game"><b>Today</b><span>The game as it is: flat light, no time of day.</span></button>
+    <button class="tab" role="tab" data-tod="morning"><b>1 · Morning</b><span>The week's first shift. Cool wall, pale sky, low sun shafts through a high window.</span></button>
+    <button class="tab" role="tab" data-tod="midday"><b>2 · Midday</b><span>Second shift. The calmest light, with just the focus falloff.</span></button>
+    <button class="tab" role="tab" data-tod="dusk"><b>3 · Dusk</b><span>Third shift. A warm raking light, the lamps on, a long shadow on the wall.</span></button>
+    <button class="tab" role="tab" data-tod="night"><b>4 · Night</b><span>The Manager's review. The store dark around the till, lit like the title.</span></button>
+  </div>
+  <div class="controls">
+    <button class="ctl" id="zones" aria-pressed="false">Show the clear zones</button>
+    <button class="ctl" id="snap" aria-pressed="true">Snap to the palette</button>
+    <button class="ctl" id="cycle" aria-pressed="false">Play the week (1 → 4)</button>
+    <span>Hold <b>Space</b> or press on the stage to see the game as it is.</span>
+  </div>
+  <div class="stagewrap"><canvas id="stage" width="1280" height="720"></canvas></div>
+  <p class="hint" id="hint"></p>
+
+  <div class="cols">
+    <div class="card" id="notes"></div>
+    <div class="card">
+      <h3>The rules every time of day keeps</h3>
+      <ul>
+        <li><b>The work is always lit.</b> The monitor, the receipt and its printer, the belt and its tickets and stickers, the hand baskets, the keys and the top bar get no shade at all, at any time of day. Light only falls off around them, on the wall, the props and the floor. <b>Show the clear zones</b> draws them.</li>
+        <li><b>No light on the work either.</b> Sun shafts and lamp pools stop at the clear zones too, so a highlight can never hide a ticket colour, a sticker or a receipt line.</li>
+        <li><b>One key light, upper left,</b> as in the art bible. A high window is added on the back wall, between the receipt and the monitor. It is the only new prop, and it shows the sky.</li>
+        <li><b>Pixel art all the way through.</b> Light works on the 640×360 art grid in four dither steps (25, 50 and 75 %) and snaps every colour to the palette, the way the title's night palette does. No soft gradients, no blur.</li>
+        <li><b>The props recede, the work comes forward.</b> The cashier, the produce stand, the sign, the rewards machine and the cold cases take the shade, darkest at the edges and the ceiling.</li>
+      </ul>
+    </div>
+  </div>
+
+  <h2>Recommendation</h2>
+  <div class="reco">
+    <p><b>Tie the time of day to the shift within the week:</b> morning, midday, dusk, then night for the Manager's review. The week (#119) then reads in the scene itself, the review shift feels like the late, high-stakes one, and the night look comes back to the title's storefront. The clear zones make it safe: the scene changes, the work never does.</p>
+    <p><b>Build it as data, not as art per time of day.</b> One shade field (base, edge falloff, ceiling) and a light list (window shafts, lamp pools, cold-case glow) per time of day in a <code>.tres</code>, applied by one shader on the scenery layer under the UI. The window's sky is its own small layer. The clear zones come from the scene's own rects (the monitor, the receipt column, the belt, the baskets, the column), as the crowd's <code>avoid</code> and <code>cover</code> do.</p>
+  </div>
+
+  <h2>To decide</h2>
+  <ol>
+    <li><b>Which time-of-day story?</b> (A) The four shifts of a week run morning to night, as shown (recommended). (B) One fixed look all run (pick a tab). (C) It follows the run: day for week 1, dusk for week 2, night for week 3.</li>
+    <li><b>How dark may the night get?</b> As shown (the props almost gone, like the title), or a step lighter so the cashier and the stand still read.</li>
+    <li><b>The high window:</b> keep it (the only place the sky shows, so the time of day reads at a glance), or no window and only the light colour changes.</li>
+    <li><b>Small life, later or now?</b> A ceiling tube that flickers now and then at night, the sun shafts drifting slowly through a shift, dust motes in the shafts. Each is cheap, but each is motion on the screen while the player plans.</li>
+    <li><b>The checkout crowd (#120):</b> the standees stand in the shaded wall band between the receipt and the monitor, so in this look they would be drawn in the scene's shade (a darker ramp at dusk and night) and lit only when they cheer. Re-place their zone once the window is placed.</li>
+  </ol>
+  <p class="hint">Rebuild: <code>python docs/art/mockups/ambiance_123_src/build.py</code>. Stills: <code>node docs/art/mockups/ambiance_123_src/stills.js</code>. URL options: <code>tod=game|morning|midday|dusk|night</code>, <code>zones=1</code>, <code>snap=0</code>, <code>solo=1</code> (the bare 1280×720 stage).</p>
+</main>
+<script>
+"use strict";
+const BASE_SRC = "/*BASE*/";
+
+// The game's palette (art/src/palette.txt), without the v2 boutique brass and velvet, which the
+// B2 store never uses: shaded browns would otherwise snap to velvet.
+const PALETTE = ("2b2420 4a3f38 5e574d 8a8172 c7beab b39f78 ddcba5 f3e9d2 fbf7ee 1f3b3a 2a4d4b 3a7672 4f9a94 86c2b6 c3e0d4 "
+  + "6e2630 a83a3c d9534f ec8a6e f5bfa0 7a5a1c b38425 e2b33c f1d27a faecbc 3d7a45 5fae5a a5d17e 4a3022 7a5232 a87a4e d2a874 "
+  + "ecebe4 c7c3b8 a9a59b 8d8a83 6f6b63 57534c 45423d 3d3a36 2c2926 "
+  + "24221f ddb07a").split(" ").map((h) => [parseInt(h.slice(0, 2), 16), parseInt(h.slice(2, 4), 16), parseInt(h.slice(4, 6), 16)]);
+
+// Clear zones, in canvas px (x, y, w, h) on the 1280x720 capture: never shaded, never lit.
+const ZONES = [
+  { name: "top bar", r: [0, 0, 1280, 58] },
+  { name: "receipt + printer", r: [30, 88, 262, 306] },
+  { name: "monitor", r: [482, 62, 430, 186] },
+  { name: "belt + tickets", r: [350, 294, 916, 218] },
+  { name: "stickers", r: [890, 264, 376, 34] },
+  { name: "hand baskets", r: [352, 528, 912, 172] },
+  { name: "checkout + redraw", r: [10, 408, 320, 202] },
+];
+// Props that may take a little shade (cap, in dither steps) but no more: they are read now and then.
+const SOFT = [
+  { name: "rewards machine", r: [936, 64, 252, 248], cap: 1.0 },
+];
+// The cold cases: a light source of their own at dusk and night.
+const COLD = [1186, 86, 94, 236];
+// The high window on the back wall, in art px (640x360 grid).
+const WIN = { x: 150, y: 34, w: 86, h: 24 };
+const LAMP = { x: 105, y: 34 };
+// The falloff around a clear zone, in art px, and the share of each step that is dithered.
+const FEATHER = 9;
+const DITHER_BAND = 0.34;
+
+// One look per time of day. Shade is measured in dither steps (0 = untouched, 1 step = one ramp
+// darker); tint is what one step multiplies a colour by.
+const LOOKS = {
+  morning: {
+    title: "1 · Morning",
+    base: 0.55, edge: 1.1, ceiling: 0.7, floor: 0.9,
+    tint: [0.86, 0.91, 0.97], warm: [26, 20, 4],
+    shafts: { slope: 0.55, reach: 120, strength: 1.6 }, lamp: 0, cold: 0.4,
+    sky: ["c3e0d4", "c3e0d4", "faecbc", "fbf7ee"], stars: 0,
+    notes: ["Cool wall (a blue-grey step), the props a step darker than today.",
+      "Low morning sun through the high window: three pale shafts across the cashier, the produce stand and the sign, stopping at the receipt and the monitor.",
+      "Sky: teal pale above, mustard pale at the horizon.",
+      "Edges and ceiling one step down: the eye goes to the belt."],
+  },
+  midday: {
+    title: "2 · Midday",
+    base: 0.35, edge: 0.95, ceiling: 0.6, floor: 0.8,
+    tint: [0.9, 0.9, 0.88], warm: [20, 18, 10],
+    shafts: { slope: 0.2, reach: 40, strength: 0.9 }, lamp: 0, cold: 0.3,
+    sky: ["86c2b6", "86c2b6", "c3e0d4", "c3e0d4"], stars: 0,
+    notes: ["The closest to today: neutral light, no tint.",
+      "Only the focus falloff: edges, ceiling and the floor under the column a step or two down.",
+      "The sun is high, so the window drops only a short pool under itself."],
+  },
+  dusk: {
+    title: "3 · Dusk",
+    base: 1.15, edge: 1.0, ceiling: 0.9, floor: 1.0,
+    tint: [0.88, 0.76, 0.74], warm: [44, 16, -8],
+    shafts: { slope: 1.25, reach: 130, strength: 2.0 }, lamp: 1.5, cold: 0.9,
+    sky: ["3a7672", "ec8a6e", "f5bfa0", "f1d27a"], stars: 0,
+    notes: ["Warm, a step and a bit down: the wall goes rose, the props brown.",
+      "Long raking sun shafts in tomato light, across the wall toward the monitor.",
+      "The lamp over the receipt is on, so the cashier keeps a step more light than the wall (the receipt hides most of its pool).",
+      "The cold cases start to glow."],
+  },
+  night: {
+    title: "4 · Night (the Manager's review)",
+    base: 2.4, edge: 1.0, ceiling: 1.0, floor: 1.0,
+    tint: [0.74, 0.8, 0.9], warm: [40, 30, 0],
+    shafts: null, lamp: 2.6, cold: 2.2,
+    sky: ["1f3b3a", "1f3b3a", "2a4d4b", "2a4d4b"], stars: 1,
+    notes: ["The title's night: teal-dark wall, the props two or three steps down.",
+      "The work floats in its own light: every clear zone gets a lit halo that falls off in dither steps.",
+      "The cold cases glow on the right, like the title's lit windows. The lamp over the receipt keeps the cashier a step lighter than the wall.",
+      "Stars in the high window. The store feels closed around the till, which is when the Manager reviews."],
+  },
+};
+
+const BAYER = [0, 8, 2, 10, 12, 4, 14, 6, 3, 11, 1, 9, 15, 7, 13, 5].map((v) => (v + 0.5) / 16);
+const cv = document.getElementById("stage");
+const g = cv.getContext("2d", { willReadFrequently: true });
+g.imageSmoothingEnabled = false;
+const q = new URLSearchParams(location.search);
+const state = { tod: q.get("tod") || "night", zones: q.get("zones") === "1", snap: q.get("snap") !== "0", peek: false };
+if (q.get("solo") === "1") document.body.classList.add("solo");
+let base = null;
+const cache = {};
+
+function clamp(v, a, b) { return v < a ? a : v > b ? b : v; }
+function rectDist(ax, ay, r) {
+  // Distance in art px from art point (ax, ay) to a canvas-px rect.
+  const x0 = r[0] / 2, y0 = r[1] / 2, x1 = (r[0] + r[2]) / 2, y1 = (r[1] + r[3]) / 2;
+  const dx = Math.max(x0 - ax, 0, ax - x1), dy = Math.max(y0 - ay, 0, ay - y1);
+  return Math.hypot(dx, dy);
+}
+function smooth(t) { t = clamp(t, 0, 1); return t * t * (3 - 2 * t); }
+
+const snapCache = new Map();
+function nearest(r, gg, b) {
+  const key = (r << 16) | (gg << 8) | b;
+  let hit = snapCache.get(key);
+  if (hit) return hit;
+  let best = PALETTE[0], bd = 1e9;
+  for (const p of PALETTE) {
+    const dr = p[0] - r, dg = p[1] - gg, db = p[2] - b;
+    const d = 2 * dr * dr + 4 * dg * dg + 3 * db * db;
+    if (d < bd) { bd = d; best = p; }
+  }
+  snapCache.set(key, best);
+  return best;
+}
+
+// The shade field at an art px: positive = darker steps, negative = lit steps.
+function field(look, ax, ay) {
+  let s = look.base;
+  const hx = Math.abs(ax - 402) / 402;
+  s += look.edge * hx * hx * 1.6;
+  if (ay < 140) s += look.ceiling * Math.pow(1 - ay / 140, 2) * 1.4;
+  if (ay > 300 && ax < 168) s += look.floor * (ay - 300) / 50;
+  if (ay > 345) s += look.floor * 0.8;
+  let light = 0;
+  const sh = look.shafts;
+  if (sh && ay > WIN.y + WIN.h) {
+    const dy = ay - (WIN.y + WIN.h);
+    const sx = ax - dy * sh.slope;
+    // Three panes, two mullions.
+    const rel = (sx - WIN.x) / WIN.w;
+    if (rel > 0.02 && rel < 0.98) {
+      const pane = rel * 3 - Math.floor(rel * 3);
+      if (pane > 0.1 && pane < 0.9) light = Math.max(light, sh.strength * (1 - dy / sh.reach));
+    }
+  }
+  if (look.lamp) {
+    const dy = ay - LAMP.y;
+    if (dy > 0) {
+      const half = 10 + dy * 0.55;
+      const t = Math.abs(ax - LAMP.x) / half;
+      if (t < 1) light = Math.max(light, look.lamp * (1 - t * t) * (1 - dy / 260));
+    }
+  }
+  if (look.cold) {
+    const d = rectDist(ax, ay, COLD);
+    if (d < 30) light = Math.max(light, look.cold * (1 - d / 30));
+  }
+  return s - light;
+}
+
+function shadeLevel(look, ax, ay) {
+  let s = field(look, ax, ay);
+  // Clear zones: shade and light both fade to nothing near the work.
+  let f = 1;
+  for (const z of ZONES) f = Math.min(f, smooth(rectDist(ax, ay, z.r) / FEATHER));
+  s *= f;
+  for (const z of SOFT) {
+    if (rectDist(ax, ay, z.r) === 0 && s > z.cap) s = z.cap;
+  }
+  // Flat steps with a dithered band only at each step's edge, like the title's dither bands.
+  const a = Math.abs(s), whole = Math.floor(a), frac = a - whole;
+  const mix = clamp((frac - (0.5 - DITHER_BAND / 2)) / DITHER_BAND, 0, 1);
+  const t = BAYER[(ay & 3) * 4 + (ax & 3)];
+  const step = whole + (mix > t ? 1 : 0);
+  return s >= 0 ? step : -step;
+}
+
+function render(tod) {
+  if (tod === "game") return base;
+  if (cache[tod + state.snap]) return cache[tod + state.snap];
+  const look = LOOKS[tod];
+  const out = new ImageData(new Uint8ClampedArray(base.data), 1280, 720);
+  const d = out.data;
+  const levels = new Int8Array(640 * 360);
+  for (let ay = 0; ay < 360; ay++) for (let ax = 0; ax < 640; ax++) levels[ay * 640 + ax] = shadeLevel(look, ax, ay);
+  for (let y = 0; y < 720; y++) {
+    for (let x = 0; x < 1280; x++) {
+      const L = levels[(y >> 1) * 640 + (x >> 1)];
+      if (L === 0) continue;
+      const i = (y * 1280 + x) * 4;
+      let r = d[i], gg = d[i + 1], b = d[i + 2];
+      if (L > 0) {
+        const k = Math.min(L, 5);
+        r *= Math.pow(look.tint[0], k) * Math.pow(0.9, k);
+        gg *= Math.pow(look.tint[1], k) * Math.pow(0.9, k);
+        b *= Math.pow(look.tint[2], k) * Math.pow(0.9, k);
+      } else {
+        const k = Math.min(-L, 3);
+        r += look.warm[0] * k; gg += look.warm[1] * k; b += look.warm[2] * k;
+      }
+      r = clamp(Math.round(r), 0, 255); gg = clamp(Math.round(gg), 0, 255); b = clamp(Math.round(b), 0, 255);
+      if (state.snap) [r, gg, b] = nearest(r, gg, b);
+      d[i] = r; d[i + 1] = gg; d[i + 2] = b;
+    }
+  }
+  drawWindow(out, look);
+  cache[tod + state.snap] = out;
+  return out;
+}
+
+function hex(h) { return [parseInt(h.slice(0, 2), 16), parseInt(h.slice(2, 4), 16), parseInt(h.slice(4, 6), 16)]; }
+function put(img, ax, ay, c) {
+  for (let j = 0; j < 2; j++) for (let i = 0; i < 2; i++) {
+    const k = ((ay * 2 + j) * 1280 + ax * 2 + i) * 4;
+    img.data[k] = c[0]; img.data[k + 1] = c[1]; img.data[k + 2] = c[2];
+  }
+}
+
+// The high window: a steel frame with an ink outline, three panes, sky in four dithered bands.
+function drawWindow(img, look) {
+  const ink = hex("2b2420"), steel = hex(look === LOOKS.night ? "45423d" : "8d8a83"), steelHi = hex(look === LOOKS.night ? "57534c" : "c7c3b8");
+  const sill = hex(look === LOOKS.night ? "3d3a36" : "a9a59b");
+  const { x, y, w, h } = WIN;
+  const sky = look.sky.map(hex);
+  for (let j = -2; j < h + 3; j++) for (let i = -2; i < w + 2; i++) {
+    const ax = x + i, ay = y + j;
+    const edge = i === -2 || i === w + 1 || j === -2 || j === h + 2;
+    const frame = i === -1 || i === w || j === -1 || j === h || j === h + 1;
+    const mull = i === Math.round(w / 3) || i === Math.round(2 * w / 3);
+    if (edge) put(img, ax, ay, ink);
+    else if (j === h + 1) put(img, ax, ay, sill);
+    else if (frame || mull) put(img, ax, ay, (j === -1 || i === -1) ? steelHi : steel);
+    else {
+      const band = (j / h) * 3;
+      const b0 = Math.floor(band), frac = band - b0;
+      const t = BAYER[(ay & 3) * 4 + (ax & 3)];
+      put(img, ax, ay, sky[frac > t * 0.9 + 0.55 ? Math.min(b0 + 1, 3) : b0]);
+    }
+  }
+  if (look.stars) {
+    const star = hex("f3e9d2"), gold = hex("f1d27a");
+    const pts = [[6, 4], [19, 9], [27, 3], [38, 13], [47, 6], [58, 11], [66, 4], [75, 15], [81, 8], [12, 16], [52, 17]];
+    pts.forEach(([i, j], n) => { if (i % 29 !== 0 && i !== Math.round(w / 3) && i !== Math.round(2 * w / 3)) put(img, x + i, y + j, n % 3 ? star : gold); });
+    // A crescent moon in the right pane.
+    const moon = hex("faecbc");
+    for (const [i, j] of [[70, 5], [71, 4], [72, 4], [69, 6], [69, 7], [69, 8], [70, 9], [71, 10], [72, 10]]) put(img, x + i, y + j, moon);
+  } else if (look === LOOKS.dusk) {
+    // A low sun, half set, in the left pane.
+    const sun = hex("faecbc");
+    for (let i = -4; i <= 4; i++) for (let j = -4; j <= 0; j++) if (i * i + j * j <= 17) put(img, x + 14 + i, y + h - 2 + j, sun);
+  }
+}
+
+function drawZones() {
+  g.save();
+  g.lineWidth = 2;
+  g.setLineDash([8, 6]);
+  g.font = "600 16px Pixelify, monospace";
+  for (const z of ZONES.concat(SOFT)) {
+    const [x, y, w, h] = z.r;
+    g.strokeStyle = z.cap ? "#f1d27a" : "#86c2b6";
+    g.strokeRect(x + 1, y + 1, w - 2, h - 2);
+    const label = z.cap ? z.name + " (1 step max)" : z.name;
+    const tw = g.measureText(label).width;
+    g.fillStyle = "rgba(31,59,58,0.92)";
+    g.fillRect(x + 4, y + 4, tw + 12, 22);
+    g.fillStyle = z.cap ? "#f1d27a" : "#c3e0d4";
+    g.fillText(label, x + 10, y + 21);
+  }
+  g.restore();
+}
+
+function draw() {
+  if (!base) return;
+  const tod = state.peek ? "game" : state.tod;
+  g.putImageData(render(tod), 0, 0);
+  if (state.zones) drawZones();
+  document.querySelectorAll(".tab").forEach((t) => t.setAttribute("aria-selected", String(t.dataset.tod === state.tod)));
+  document.getElementById("zones").setAttribute("aria-pressed", String(state.zones));
+  document.getElementById("snap").setAttribute("aria-pressed", String(state.snap));
+  const look = LOOKS[state.tod];
+  document.getElementById("notes").innerHTML = look
+    ? "<h3>" + look.title + "</h3><ul>" + look.notes.map((n) => "<li>" + n + "</li>").join("") + "</ul>"
+    : "<h3>Today</h3><ul><li>The game's capture, untouched: shift 5 of 12, planning, Multipack's stickers up.</li><li>One flat light. The wall, the props and the work are all at full brightness, and there is no time of day.</li></ul>";
+  document.getElementById("hint").textContent = state.peek ? "Showing the game as it is." : "Showing: " + (look ? look.title : "today's game") + (state.snap ? "" : " (not snapped to the palette)") + ".";
+}
+
+document.querySelectorAll(".tab").forEach((t) => t.addEventListener("click", () => { state.tod = t.dataset.tod; stopCycle(); draw(); }));
+document.getElementById("zones").addEventListener("click", () => { state.zones = !state.zones; draw(); });
+document.getElementById("snap").addEventListener("click", () => { state.snap = !state.snap; draw(); });
+let timer = 0;
+function stopCycle() { clearInterval(timer); timer = 0; document.getElementById("cycle").setAttribute("aria-pressed", "false"); }
+document.getElementById("cycle").addEventListener("click", () => {
+  if (timer) { stopCycle(); return; }
+  const order = ["morning", "midday", "dusk", "night"];
+  document.getElementById("cycle").setAttribute("aria-pressed", "true");
+  state.tod = "morning"; draw();
+  timer = setInterval(() => { state.tod = order[(order.indexOf(state.tod) + 1) % 4]; draw(); }, 1600);
+});
+function peek(on) { if (state.peek !== on) { state.peek = on; draw(); } }
+addEventListener("keydown", (e) => { if (e.code === "Space" && e.target === document.body) { e.preventDefault(); peek(true); } });
+addEventListener("keyup", (e) => { if (e.code === "Space") peek(false); });
+cv.addEventListener("pointerdown", () => peek(true));
+addEventListener("pointerup", () => peek(false));
+
+const img = new Image();
+img.onload = () => {
+  const [c, x] = [document.createElement("canvas"), null];
+  c.width = 1280; c.height = 720;
+  const cx = c.getContext("2d");
+  cx.drawImage(img, 0, 0);
+  base = cx.getImageData(0, 0, 1280, 720);
+  draw();
+  document.title = document.title.replace(/^ERROR: /, "");
+  document.body.dataset.ready = "1";
+};
+img.src = BASE_SRC;
+addEventListener("error", (e) => { document.title = "ERROR: " + e.message; });
+</script>
+</body>
+</html>
