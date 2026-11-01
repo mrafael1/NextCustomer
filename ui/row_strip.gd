@@ -30,7 +30,9 @@ extends Control
 ## slots; its tooltip says why. It is never a drop target, and the row keeps the run's usual
 ## cell count, so an inspection never rescales it.
 ##
-## A slot an inspection zeroes (Spot check's slot 3) wears its tomato "€0" SlotMark the same way.
+## A slot an inspection zeroes (Spot check's slot 3) wears its tomato "€0" SlotMark the same way,
+## and so does a slot any day event aims at (Happy hour's last filled slot, Extra till's extra
+## one: SlotMark.inspection_marks); a slot's second mark hangs left of its first.
 ## A slot a loyalty upgrade acts on wears that upgrade's SlotMark (show_slot_marks): the Slot
 ## engine's talker hangs under the right end of slot 6's ticket (2026-10-24), as an item tier's
 ## tag hangs under its left end, on the cell's talker layer, its first child: behind the ticket,
@@ -94,6 +96,8 @@ const CLOSED_PLATE_MARGIN := 3
 ## (past the ticket's, clear of a tier tag under the ticket's left end).
 const SLOT_MARK_TOP := TICKET_RECT.end.y - SlotMark.TUCKED
 const SLOT_MARK_RIGHT := CELL_SIZE.x
+## The gap between two marks on one slot (Happy hour's beside the Slot engine's).
+const SLOT_MARK_GAP := 2.0
 const CLOSED_TEXT := "CLOSED"
 const CLOSED_SIZE := 18
 const CLOSED_CAPTION_TEXT := "inspection"
@@ -228,32 +232,36 @@ func show_slot_marks(marks: Array[SlotMark]) -> void:
 		for child: Node in layer.get_children():
 			layer.remove_child(child)
 			child.queue_free()
+	# Marks on the same slot hang side by side, the first one rightmost.
+	var taken: Dictionary[int, float] = {}
 	for mark: SlotMark in marks:
 		if mark.slot < 0 or mark.slot >= slots.size():
 			mark.free()
 			continue
-		var rect: Rect2 = slot_mark_rect(mark.size.x)
+		var rect: Rect2 = slot_mark_rect(mark.size.x, taken.get(mark.slot, 0.0) as float)
+		taken[mark.slot] = SLOT_MARK_RIGHT - rect.position.x + SLOT_MARK_GAP
 		mark.position = rect.position
 		_talkers(slots[mark.slot]).add_child(mark)
 
 
-## A SlotMark `width` wide in its cell: right-aligned to SLOT_MARK_RIGHT on the art grid, from
-## SLOT_MARK_TOP.
-static func slot_mark_rect(width: float) -> Rect2:
-	var left: float = snappedf(SLOT_MARK_RIGHT - width, ArtStyle.ART_SCALE)
+## A SlotMark `width` wide in its cell: right-aligned to SLOT_MARK_RIGHT (less `taken` px, the
+## width the slot's earlier marks hang in) on the art grid, from SLOT_MARK_TOP.
+static func slot_mark_rect(width: float, taken: float = 0.0) -> Rect2:
+	var left: float = snappedf(SLOT_MARK_RIGHT - taken - width, ArtStyle.ART_SCALE)
 	return Rect2(left, SLOT_MARK_TOP, width, SlotMark.HEIGHT)
 
 
 ## Whether `shown` are the marks `marks` would show: the same slot, upgrade and factor, in order
 ## (a mark for a slot the row doesn't have shows nowhere).
 func _same_marks(shown: Array[SlotMark], marks: Array[SlotMark]) -> bool:
+	# Slot by slot, each slot's in their order, as show_slot_marks hangs them.
 	var placed: Array[SlotMark] = []
-	for mark: SlotMark in marks:
-		if mark.slot >= 0 and mark.slot < slots.size():
-			placed.append(mark)
+	for slot: int in range(slots.size()):
+		for mark: SlotMark in marks:
+			if mark.slot == slot:
+				placed.append(mark)
 	if placed.size() != shown.size():
 		return false
-	placed.sort_custom(func(a: SlotMark, b: SlotMark) -> bool: return a.slot < b.slot)
 	for index: int in range(placed.size()):
 		var mark: SlotMark = placed[index]
 		var old: SlotMark = shown[index]
@@ -262,6 +270,7 @@ func _same_marks(shown: Array[SlotMark], marks: Array[SlotMark]) -> bool:
 			or mark.upgrade_index != old.upgrade_index
 			or mark.factor != old.factor
 			or mark.inspection_index != old.inspection_index
+			or mark.text() != old.text()
 		):
 			return false
 	return true

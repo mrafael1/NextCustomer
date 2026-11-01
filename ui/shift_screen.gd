@@ -711,10 +711,6 @@ func _refresh_bar() -> void:
 	_inspection_tag.show_bonus(
 		InspectionTag.bonus_for(run, _counting, _inspection_tag.bonus_state())
 	)
-	# The training week's hint, in planning only (v0.68).
-	var planning: bool = run.phase == RunState.Phase.PLANNING and not _counting
-	var hint: String = WriteUp.hint_text(run) if planning else ""
-	(_top_bar as TopBar).show_training(hint, WriteUp.hint_text(run, true) if planning else "")
 	_refresh_loyalty_card()
 	_deck_button.caption = "Cart %d/%d" % [run.deck.size(), run.balance.deck_limit]
 	(_top_bar as TopBar).fit_inspection()
@@ -746,8 +742,8 @@ func _refresh_row() -> void:
 	_row_views = _row_strip.show_cards(
 		run.row, run.row.size() if placeable else -1, _on_row_card_clicked, run.balance
 	)
-	# The Slot engine's slot 6 wears its mark, Spot check's dead slot 3 its "€0" mark.
-	_row_strip.show_slot_marks(SlotMark.marks_for(run.upgrades, run.inspections))
+	# The Slot engine's slot 6 wears its mark; the day events their slots' (Spot check's "€0").
+	_row_strip.show_slot_marks(SlotMark.run_marks(run))
 
 
 func _refresh_hand() -> void:

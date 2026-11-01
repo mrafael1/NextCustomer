@@ -937,6 +937,28 @@ static func _event_log() -> EventLogService:
 ## time through the count's hold at the ding (its hit-stop freezes the count's tweens): it takes
 ## the monitor's paper (clipped to it), its number reading the register's total, and the bay's
 ## light turns green while the subtotal stands still; the count goes on after.
+## A paid item's coins arc into the cash drawer (v0.84): it opens while they fly, shuts after
+## the last one, and no coin or spark is left once the count ends.
+func test_paid_items_throw_coins_into_the_drawer() -> void:
+	var screen: ShiftScreen = await _screen()
+	await _full_row(screen)
+	var drawer: CashDrawer = screen._cabinet.drawer
+	screen._on_checkout_pressed()
+	var opened: bool = false
+	var flew: bool = false
+	var started: int = Time.get_ticks_msec()
+	while screen._counting and Time.get_ticks_msec() - started < 30000:
+		opened = opened or drawer.opening() > 0.0
+		flew = flew or drawer.coins_in_flight() > 0
+		await get_tree().process_frame
+	assert_bool(opened).is_true()
+	assert_bool(flew).is_true()
+	await get_tree().create_timer(1.0).timeout
+	assert_float(drawer.opening()).is_equal(0.0)
+	assert_int(drawer.coins_in_flight()).is_equal(0)
+	assert_array(drawer.coin_layer.get_children()).is_empty()
+
+
 func test_the_register_celebrates_in_real_time_while_the_count_holds() -> void:
 	var screen: ShiftScreen = await _screen()
 	await _full_row(screen)

@@ -90,7 +90,7 @@ func test_a_slip_announces_the_next_inspection() -> void:
 	assert_str(WriteUp.stamp_text(run)).is_equal("SLIP 1/2")
 	assert_bool(run.next_shift()).is_true()
 	assert_int(run.inspections.size()).is_equal(1)
-	assert_str(WriteUp.shift_notice(run)).is_equal("Slip 1/2 — training week")
+	assert_str(WriteUp.shift_notice(run)).is_equal("Training week: slip 1/2")
 
 
 ## The training week: misses on shifts 1-4 are slips, at most 2 (the 2nd's notice warns); the 3rd
@@ -105,7 +105,7 @@ func test_the_training_week_forgives_two_slips() -> void:
 	run.checkout()
 	assert_str(WriteUp.stamp_text(run)).is_equal("SLIP 2/2")
 	run.next_shift()
-	assert_str(WriteUp.shift_notice(run)).contains("the next miss ends the run")
+	assert_str(WriteUp.shift_notice(run)).contains("The next miss ends the run")
 	assert_str(WriteUp.hint_text(run)).is_equal("TRAINING WEEK · 0 SLIPS")
 	assert_bool(TrainingWeek.forgives_miss(run)).is_false()
 	run.checkout()

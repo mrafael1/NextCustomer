@@ -13,6 +13,9 @@ extends GdUnitTestSuite
 ## and on. The real saves and logs are never touched.
 
 const SCREEN := "res://ui/shift_screen.tscn"
+## The top bar's gauge before v0.83 (base 1280x720 px), and how much longer it is since.
+const BAR_WIDTH_V082 := 96.0
+const BAR_GAIN := 24.0
 const SHORT_BELT := preload("res://data/inspections/short_belt.tres")
 
 var _folder: String = ""
@@ -199,6 +202,26 @@ func test_the_stage_is_laid_out_without_overlaps() -> void:
 	assert_str(screen._seed_label.text).contains("Seed %d" % screen.run.run_seed)
 
 
+## The quota gauge (v0.83) is longer than v0.82's (BAR_WIDTH_V082) by at least BAR_GAIN on a usual
+## shift (the capture's: Short belt's chip, week 2), the readout after it fitting its texts.
+func test_the_quota_gauge_gained_its_room() -> void:
+	var screen: ShiftScreen = await _screen()
+	var run: RunState = screen.run
+	run.inspections = [SHORT_BELT]
+	run.debug_skip_to_shift(4)
+	screen._on_shift_started()
+	screen._week.skip()
+	await _frames(2)
+	var meter: QuotaMeter = screen._stage.top_bar.quota_meter
+	var width: float = meter.bar().size.x
+	assert_float(width).override_failure_message("bar %s" % width).is_greater_equal(
+		BAR_WIDTH_V082 + BAR_GAIN
+	)
+	var chip: Rect2 = (meter.get_parent() as Control).get_global_rect()
+	assert_bool(meter.bar().get_global_rect().encloses(meter.tag_label.get_global_rect())).is_true()
+	assert_bool(chip.encloses(meter.amount_label.get_global_rect())).is_true()
+
+
 ## The store's kraft bag (#86 v6, #123) stands at BAG_RECT on the bagging shelf behind the belt's
 ## first cell, right of the receipt and above the belt, its foot on the shelf, under the top bar
 ## and clear of the monitor and the register's keys; on the stage the shelf and the bag are drawn
@@ -341,7 +364,7 @@ func test_the_top_bar_fits_its_longest_texts() -> void:
 		assert_int(screen._loyalty_card.box_texts().size()).is_equal(4)
 		# A boon's chip (v0.69) reads "Today: name — effect".
 		var chip_text: String = (
-			"Today: %s — %s" % [inspection.display_name, inspection.chip_text]
+			"Today: %s (%s)" % [inspection.display_name, inspection.chip_text]
 			if inspection.is_boon()
 			else "Inspection · %s" % inspection.chip_text
 		)

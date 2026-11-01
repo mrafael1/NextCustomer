@@ -138,6 +138,7 @@ func _init(
 	_link_armed(steps)
 	_set_landings(steps)
 	_set_payouts(steps)
+	_set_cheer_lines(steps)
 	_set_notes()
 	_set_quota(quota)
 	_set_size()
@@ -173,6 +174,18 @@ static func is_gain_beat(beat: CountUpBeat) -> bool:
 		CountUpBeat.Kind.MERGED_PLAIN:
 			return beat.payout > 0
 		CountUpBeat.Kind.BONUS, CountUpBeat.Kind.STAMP:
+			return true
+	return false
+
+
+## A bonus line the cheering counts (one standee each): a bonus above 0, a factor above 1, a copy.
+static func is_cheer_line(step: ScoreStep) -> bool:
+	match step.step_type:
+		ScoreStep.StepType.FLAT:
+			return step.value > 0
+		ScoreStep.StepType.MULTIPLIER:
+			return step.value > 1
+		ScoreStep.StepType.COPY:
 			return true
 	return false
 
@@ -354,8 +367,32 @@ func _set_cheer(steps: Array[ScoreStep], beat: CountUpBeat, big: float) -> void:
 	if beat.cheer_combo:
 		tier = mini(tier + 1, CHEER_TOP_TIER)
 	beat.cheer_tier = tier
-	var counts: PackedInt32Array = _tuning.cheer_counts
-	beat.cheer_count = counts[mini(tier, counts.size()) - 1] if not counts.is_empty() else 1
+
+
+## One standee per bonus line (the user's calls of 2026-11-01): each BONUS or STAMP beat on an item
+## that lifts its value (is_cheer_line) pops one standee at the item's cheer tier when it lands,
+## up to the tuning's cheer_line_cap per item; a paid item with no line pops one at its payout. A
+## line on an item that ends paying nothing still pops, at the small tier.
+func _set_cheer_lines(steps: Array[ScoreStep]) -> void:
+	var lines: Dictionary[int, int] = {}
+	var tiers: Dictionary[int, int] = {}
+	for beat: CountUpBeat in beats:
+		if is_payout_beat(beat):
+			tiers[beat.slot] = maxi(beat.cheer_tier, 1)
+	for beat: CountUpBeat in beats:
+		if beat.kind != CountUpBeat.Kind.BONUS and beat.kind != CountUpBeat.Kind.STAMP:
+			continue
+		if not is_cheer_line(steps[beat.steps[0]]):
+			continue
+		var count: int = lines.get(beat.slot, 0)
+		if count >= _tuning.cheer_line_cap:
+			continue
+		lines[beat.slot] = count + 1
+		beat.cheer_tier = tiers.get(beat.slot, 1)
+		beat.cheer_count = 1
+	for beat: CountUpBeat in beats:
+		if is_payout_beat(beat) and beat.payout > 0 and not lines.has(beat.slot):
+			beat.cheer_count = 1
 
 
 ## Whether the item of `beat` (a payout of 0) failed before its payout: a WASTED step it caused

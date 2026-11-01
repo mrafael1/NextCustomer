@@ -207,9 +207,9 @@ extends Resource
 ## item is small, big from the rattle's threshold (rattle_min_payout, rattle_min_share) and huge
 ## from this share of the best so far; a combo cheers one tier more.
 @export var cheer_huge_share: float = 0.0
-## Per tier (small, big, huge): the standees a payout pops, the integer scale of the first of
-## them (the others stand at the small tier's scale) and its hop in pixels.
-@export var cheer_counts: PackedInt32Array = PackedInt32Array()
+## Each bonus line pops one standee as it lands, at most this many per item (2026-11-01).
+@export var cheer_line_cap: int = 0
+## Per tier (small, big, huge): a standee's integer scale and its hop in pixels.
 @export var cheer_scales: PackedInt32Array = PackedInt32Array()
 @export var cheer_hop_px: PackedInt32Array = PackedInt32Array()
 ## Each note up the ladder (CountUpBeat.note) adds this to a hop, in pixels.
@@ -252,5 +252,9 @@ extends Resource
 @export var cheer_pitch_base: float = 0.0
 @export var cheer_pitch_step: float = 0.0
 @export var cheer_db: float = 0.0
+## Each standee's ground shadow (CheerShadow) stays on the ground as it hops: at a hop of
+## cheer_shadow_lift_px (or higher) it keeps cheer_shadow_lift_share of its width and darkness.
+@export var cheer_shadow_lift_px: int = 16
+@export var cheer_shadow_lift_share: float = 0.5
 ## The most standees one checkout shows (a safety cap for performance, not a design limit).
 @export var cheer_max: int = 0

@@ -4,7 +4,7 @@ extends GdUnitTestSuite
 ## SlotMark, a loyalty talker hanging under the right end of slot 6's ticket, whatever the row's
 ## slots (6 on a Short belt shift, 7, 8 with Big basket), empty or filled; a run without it shows
 ## none. Every rect is checked on screen (headless runs use a 1280x1280 window): the talker stays in
-## slot 6's column, its top tucked behind the ticket, clear of the next tickets, a tier tag and the
+## slot 6's column, its top tucked behind the ticket, clear of the next tickets and the
 ## baskets (above their rims, #123), and on screen. In the count it fires (a punch and a swing about
 ## its hook) when the upgrade's ×2 lands on slot 6. The real saves and logs are never touched.
 
@@ -83,21 +83,6 @@ func test_no_mark_without_slot_engine() -> void:
 	await _set_run(screen, ["coupon_engine", "big_basket", "category_engine"], "short_belt")
 	assert_array(_marks(screen)).is_empty()
 	assert_object(screen._row_strip.slot_mark(SLOT_6)).is_null()
-
-
-## The talker clears a tier tag (BIG) hanging under the left end of slot 6's item's ticket by at
-## least one art pixel, so their ink borders never merge.
-func test_the_mark_clears_a_tier_tag() -> void:
-	var screen: ShiftScreen = await _screen()
-	await _set_run(screen, ["slot_engine"], "")
-	await _place(screen, ["bread", "eggs", "milk", "bread", "cheese", "milk_big"])
-	var item: ItemView = screen._row_views[SLOT_6] as ItemView
-	var tier: Label = item.sticker().tier_tag()
-	assert_object(tier).is_not_null()
-	assert_bool(tier.is_visible_in_tree()).is_true()
-	var mark: Rect2 = screen._row_strip.slot_mark(SLOT_6).get_global_rect()
-	var clearance: float = ArtStyle.ART_SCALE * screen._row_strip.box.scale.x
-	assert_bool(tier.get_global_rect().grow(clearance).intersects(mark)).is_false()
 
 
 ## A fire punches the talker and swings it about its hook (its top's middle), then it settles

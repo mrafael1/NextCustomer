@@ -17,9 +17,10 @@ signal pressed
 const WEEK_TEXT := "W%d"
 const NUMBER_SIZE := 20
 const NAME_SIZE := 13
-## The pips: 6 px squares, 2 px apart (the mock-up's); today's has an ink ring. The chip's
-## padding is narrower than the other chips' (PADDING): the bar has little room left.
-const PIP_SIZE := 6.0
+## The pips: 9 px squares (v0.83: 1.5x the mock-up's 6 px, easier to read), 2 px apart, on whole
+## pixels; today's has an ink ring. The chip's padding is narrower than the other chips'
+## (PADDING): the bar has little room left.
+const PIP_SIZE := 9.0
 const PIP_GAP := 2.0
 const PADDING := 8
 const SEPARATION := 6
@@ -31,19 +32,40 @@ const FLASH := 0.8
 const FLASH_SCALE := 3
 const GLOW_REACH := 12.0
 const GLOW_ALPHA := 0.6
-## A result pip's glyph, pixels on the 6x6 pip: the check and the cross.
+## A result pip's glyph, pixels on the 9x9 pip: the check (a two-pixel stroke) and the cross
+## (corner to corner, two pixels at its middle row).
 const CHECK_PIXELS: Array[Vector2i] = [
-	Vector2i(1, 2), Vector2i(2, 3), Vector2i(3, 2), Vector2i(4, 1)
+	Vector2i(7, 2),
+	Vector2i(6, 3),
+	Vector2i(7, 3),
+	Vector2i(1, 4),
+	Vector2i(5, 4),
+	Vector2i(6, 4),
+	Vector2i(1, 5),
+	Vector2i(2, 5),
+	Vector2i(4, 5),
+	Vector2i(5, 5),
+	Vector2i(2, 6),
+	Vector2i(3, 6),
+	Vector2i(4, 6),
+	Vector2i(3, 7)
 ]
 const CROSS_PIXELS: Array[Vector2i] = [
-	Vector2i(1, 1),
-	Vector2i(4, 1),
 	Vector2i(2, 2),
-	Vector2i(3, 2),
+	Vector2i(6, 2),
 	Vector2i(2, 3),
 	Vector2i(3, 3),
-	Vector2i(1, 4),
-	Vector2i(4, 4)
+	Vector2i(5, 3),
+	Vector2i(6, 3),
+	Vector2i(3, 4),
+	Vector2i(4, 4),
+	Vector2i(5, 4),
+	Vector2i(2, 5),
+	Vector2i(3, 5),
+	Vector2i(5, 5),
+	Vector2i(6, 5),
+	Vector2i(2, 6),
+	Vector2i(6, 6)
 ]
 const CHIP_FRAME := preload("res://art/frames/chip_warn.png")
 
@@ -226,11 +248,40 @@ func _draw() -> void:
 		draw_rect(ring, Palette.GOLD, false, RING_WIDTH)
 
 
+## Pip `index`'s square in the pips view, its corner moved onto a whole pixel of the screen (the
+## row centres the view, which can leave it on a half pixel, and the window's stretch scales the
+## canvas: 1.5x at 1920x1080).
+func pip_rect(index: int) -> Rect2:
+	var local: Vector2 = Vector2(index * (PIP_SIZE + PIP_GAP), 0.0)
+	var corner: Vector2 = local
+	if _pips_view.is_inside_tree():
+		var screen: Transform2D = screen_transform(_pips_view)
+		corner = screen.affine_inverse() * (screen * local).round()
+	return Rect2(corner, Vector2(PIP_SIZE, PIP_SIZE))
+
+
+## `item`'s transform to the window's pixels: its canvas's, then the stretch's. A window smaller
+## than the canvas (its pixels coarser than the canvas's) keeps the canvas's pixels.
+static func screen_transform(item: CanvasItem) -> Transform2D:
+	var canvas: Transform2D = item.get_global_transform_with_canvas()
+	var stretch: Transform2D = item.get_viewport().get_final_transform()
+	return stretch * canvas if stretch.get_scale().x >= 1.0 else canvas
+
+
+## The pixels of `pip`'s glyph on its 9x9 square: the check for PAID, the cross for SLIP, none
+## for the others.
+static func glyph_pixels(pip: WeekCardModel.Pip) -> Array[Vector2i]:
+	match pip:
+		WeekCardModel.Pip.PAID:
+			return CHECK_PIXELS
+		WeekCardModel.Pip.SLIP:
+			return CROSS_PIXELS
+	return []
+
+
 func _draw_pips() -> void:
 	for index: int in range(_pips.size()):
-		var at: Rect2 = Rect2(
-			Vector2(index * (PIP_SIZE + PIP_GAP), 0.0), Vector2(PIP_SIZE, PIP_SIZE)
-		)
+		var at: Rect2 = pip_rect(index)
 		match _pips[index]:
 			WeekCardModel.Pip.DONE:
 				_pips_view.draw_rect(at, Palette.PAPER)
@@ -251,9 +302,7 @@ func _draw_pips() -> void:
 ## steps.
 func _draw_light() -> void:
 	var k: float = _flash_t / FLASH
-	var centre: Vector2 = Vector2(
-		_flash_index * (PIP_SIZE + PIP_GAP) + PIP_SIZE / 2.0, PIP_SIZE / 2.0
-	)
+	var centre: Vector2 = pip_rect(_flash_index).get_center()
 	var reach: float = roundf(GLOW_REACH * k)
 	var glow: Color = Color(_light_of(_pips[_flash_index]), GLOW_ALPHA * (1.0 - k))
 	var half: float = PIP_SIZE / 2.0 + reach
@@ -271,7 +320,7 @@ func _draw_result(at: Rect2, pip: WeekCardModel.Pip, step: int) -> void:
 	var paid: bool = pip == WeekCardModel.Pip.PAID
 	_pips_view.draw_rect(at, _light_of(pip))
 	var ink: Color = Palette.INK if paid else Palette.PAPER
-	for pixel: Vector2i in CHECK_PIXELS if paid else CROSS_PIXELS:
+	for pixel: Vector2i in glyph_pixels(pip):
 		_pips_view.draw_rect(Rect2(at.position + Vector2(pixel) * step, Vector2(step, step)), ink)
 
 

@@ -22,6 +22,8 @@ extends RefCounted
 
 ## The INSPECTION PASSED stamp landed on the receipt (CountUp passes it on).
 signal inspection_stamped
+## A slip's SLIP n/limit stamp landed on the receipt (CountUp passes it on).
+signal write_up_stamped
 
 ## The slam starts this big (D11) and lands at 1 on the monitor's number.
 const SLAM_SCALE := 3.2
@@ -238,6 +240,7 @@ func _stamp_paid(line: Control) -> void:
 func _stamp_write_up(line: Control) -> void:
 	var stamp: Label = ReceiptStamps.stamp_write_up(line, write_up)
 	sfx.play("stamp_notice")
+	write_up_stamped.emit()
 	stamp.scale = Vector2(PAID_SLAM_SCALE, PAID_SLAM_SCALE)
 	var slam: Tween = _fx.scale_tween(stamp).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
 	slam.tween_property(stamp, "scale", Vector2.ONE, PAID_SLAM)

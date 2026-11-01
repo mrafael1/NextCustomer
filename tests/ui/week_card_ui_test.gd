@@ -69,7 +69,12 @@ func test_the_card_plays_at_the_week_start_and_flies_into_the_chip() -> void:
 	for event: InspectionDefinition in screen.run.week.day(4):
 		assert_str(review).contains(event.display_name)
 	assert_str(_texts(card.banner())).contains("TRAINING WEEK")
-	assert_str(_texts(card.banner())).contains("2 SLIPS")
+	# The misses stand on a red tag after "THIS WEEK ALLOWS" (v0.84).
+	assert_str(_texts(card.banner())).contains(WeekCardModel.ALLOWS_LEAD)
+	var misses: Label = card.banner().find_child("MissesTag", true, false) as Label
+	assert_str(misses.text).is_equal("2 MISSES")
+	var tag_box: StyleBoxFlat = misses.get_theme_stylebox("normal") as StyleBoxFlat
+	assert_that(tag_box.bg_color).is_equal(Palette.TOMATO)
 	card.advance(WeekCard.HOLD + 0.01)
 	assert_bool(card.is_shrinking()).is_true()
 	card.advance(WeekCard.SHRINK)
@@ -117,8 +122,8 @@ func test_the_chips_lay_out_in_the_top_bar() -> void:
 	_assert_chips_fit(screen)
 
 
-## Tapping the week chip, or the day chip, reopens the whole card in planning (open until
-## tapped); tapping the card flies it back into the chip.
+## Tapping the week chip reopens the whole card in planning (open until tapped); tapping the card
+## flies it back into the chip. The day chip drops today's slip instead (DaySlip, day_slip_test).
 func test_a_chip_tap_reopens_the_card_and_a_tap_closes_it() -> void:
 	var runner: GdUnitSceneRunner = scene_runner(SCREEN)
 	var screen: ShiftScreen = runner.scene()
@@ -126,7 +131,10 @@ func test_a_chip_tap_reopens_the_card_and_a_tap_closes_it() -> void:
 	await _frames(2)
 	var card: WeekCard = screen._week.card
 	var bar: TopBar = screen._stage.top_bar
-	for chip: Control in [bar.week_chip, bar.inspection_tag]:
+	bar.inspection_tag.call("_gui_input", _left_click())
+	assert_bool(card.is_open()).override_failure_message("the day chip").is_false()
+	screen._week.slip.clear()
+	for chip: Control in [bar.week_chip]:
 		assert_bool(card.is_open()).is_false()
 		chip.call("_gui_input", _left_click())
 		assert_bool(card.is_open()).override_failure_message(chip.name).is_true()
@@ -384,6 +392,86 @@ func test_the_rows_tell_today_past_and_upcoming() -> void:
 	card.reopen(WeekCardModel.of(run), null, true)
 	await _frames(2)
 	assert_object(card.today_tab()).is_null()
+
+
+## Every icon on the card (a day event's, the review's tickets) is centred on its row's height
+## (v0.83), not hung at its top.
+func test_the_row_icons_are_centred() -> void:
+	var host: Control = _card_host()
+	var card: WeekCard = WeekCard.new()
+	host.add_child(card)
+	card.size = host.size
+	var run: RunState = _started_run()
+	run.debug_skip_to_shift(4)
+	card.reopen(WeekCardModel.of(run), null, true)
+	await _frames(3)
+	# The card's only sprites are its rows' icons.
+	var icons: Array[Node] = card.find_children("*", "TextureRect", true, false)
+	var rewards: int = 0
+	for node: Node in icons:
+		var icon: TextureRect = node as TextureRect
+		var row: Control = icon.get_parent() as Control
+		var centre: float = icon.get_global_rect().get_center().y
+		(
+			assert_float(centre)
+			. override_failure_message("%s: %.1f" % [icon.get_path(), centre])
+			. is_equal_approx(row.get_global_rect().get_center().y, 1.0)
+		)
+		assert_bool(row.get_global_rect().encloses(icon.get_global_rect())).is_true()
+		if row.get_parent() is WeekCard.ShadowPanel:
+			rewards += 1
+	assert_int(icons.size()).is_greater(rewards)
+	assert_int(rewards).is_greater(0)
+
+
+## The chip's pips (v0.83: 9 px, 1.5x the mock-up's) lie on whole pixels inside the chip, apart.
+func test_the_pips_are_whole_and_inside_the_chip() -> void:
+	var host: Control = _card_host()
+	var chip: WeekChip = WeekChip.new()
+	host.add_child(chip)
+	chip.position = Vector2(100.0, 9.0)
+	var run: RunState = _started_run()
+	var quota: int = run.quota()
+	run.history.append(ShiftRecord.new(1, quota, quota))
+	run.history.append(ShiftRecord.new(2, quota, quota - 1))
+	chip.show_week(WeekCardModel.of(run))
+	# The 1920x1080 window's stretch (1.5x), on the chip itself: the pips' corners still land on
+	# whole pixels of the screen.
+	for scale: float in [1.0, 1.5]:
+		chip.scale = Vector2(scale, scale)
+		await _frames(3)
+		var view: Control = chip.pips_view()
+		var screen: Transform2D = WeekChip.screen_transform(view)
+		var chip_rect: Rect2 = WeekChip.screen_transform(chip) * Rect2(Vector2.ZERO, chip.size)
+		var rects: Array[Rect2] = []
+		for index: int in range(chip.pips().size()):
+			var local: Rect2 = chip.pip_rect(index)
+			var rect: Rect2 = screen * local
+			var message: String = "pip %d at %sx: %s" % [index, scale, rect]
+			assert_float(local.size.x).is_equal(WeekChip.PIP_SIZE)
+			assert_vector(rect.position).override_failure_message(message).is_equal_approx(
+				rect.position.round(), Vector2(0.01, 0.01)
+			)
+			assert_bool(chip_rect.encloses(rect)).override_failure_message(message).is_true()
+			if not rects.is_empty():
+				assert_bool(rects[-1].intersects(rect)).is_false()
+			rects.append(rect)
+			# A result's glyph lies inside its pip, clear of its edge (a pixel all round).
+			for pixel: Vector2i in WeekChip.glyph_pixels(chip.pips()[index]):
+				var dot: Rect2 = Rect2(local.position + Vector2(pixel), Vector2.ONE)
+				(
+					assert_bool(local.grow(-1.0).encloses(dot))
+					. override_failure_message(message)
+					. is_true()
+				)
+		assert_float(rects[0].size.y).is_greater_equal(9.0 * scale)
+	# Both glyphs show: the PAID day's check and the missed one's cross, apart.
+	assert_int(chip.pips()[0]).is_equal(WeekCardModel.Pip.PAID)
+	assert_int(chip.pips()[1]).is_equal(WeekCardModel.Pip.SLIP)
+	var check: Array[Vector2i] = WeekChip.glyph_pixels(WeekCardModel.Pip.PAID)
+	var cross: Array[Vector2i] = WeekChip.glyph_pixels(WeekCardModel.Pip.SLIP)
+	assert_bool(check.is_empty() or cross.is_empty()).is_false()
+	assert_array(check).is_not_equal(cross)
 
 
 ## A played day's pip shows its result (#119), today's too once checked out; flash() lights today's

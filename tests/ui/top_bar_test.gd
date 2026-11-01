@@ -139,8 +139,9 @@ func test_the_decor_takes_no_clicks() -> void:
 		assert_int((node as Control).mouse_filter).is_equal(Control.MOUSE_FILTER_IGNORE)
 
 
-## The quota gauge keeps its width through a count: the amount has room for four digits and the
-## tag's slot is reserved, so the gauge never jumps while its fill moves.
+## The quota gauge keeps its width through a count: the readout after it has room for three digits
+## and the widest tag, and a longer amount shrinks the tag, so the gauge never jumps while its fill
+## moves.
 func test_the_quota_bar_keeps_its_width_through_a_count() -> void:
 	var led: LedDisplay = auto_free(LedDisplay.new())
 	add_child(led)
@@ -167,17 +168,16 @@ func test_the_quota_bar_keeps_its_width_through_a_count() -> void:
 		assert_float(meter.amount_label.size.x).is_greater_equal(
 			meter.amount_label.get_minimum_size().x
 		)
-	# The tag, shown, sits in its slot inside the meter, after the amount.
-	var meter_rect: Rect2 = meter.get_global_rect()
-	assert_bool(meter_rect.encloses(meter.tag_label.get_global_rect())).is_true()
-	assert_float(meter.tag_label.get_global_rect().position.x).is_greater_equal(
-		meter.amount_label.get_global_rect().end.x
-	)
+		# The tag (up to "€N to ×12" here) is printed inside the gauge, at its right end.
+		var bar_rect: Rect2 = meter.bar().get_global_rect()
+		var tag: Rect2 = meter.tag_label.get_global_rect()
+		assert_bool(bar_rect.encloses(tag)).override_failure_message(str(tag)).is_true()
 
 
 ## A drag's would-be total and change (#71) keep the bar's width too: the amount's reserve holds
-## "› €" and four digits, the change ("(+6)" to "(-999)") takes the tag's slot, so nothing in the
-## meter moves or grows as the drag crosses the slots and ends; both texts lie inside the meter.
+## "› €" and three digits with the change ("(+6)" to "(-99)") in place of the tag, a longer one
+## shrinking the change, so nothing in the meter moves or grows as the drag crosses the slots and
+## ends; both texts lie inside the meter.
 func test_the_quota_bar_keeps_its_width_through_a_drag() -> void:
 	var meter: QuotaMeter = auto_free(QuotaMeter.new())
 	# Layout only: no punch scaling the amount over the tag's slot (#86).
@@ -209,8 +209,12 @@ func test_the_quota_bar_keeps_its_width_through_a_drag() -> void:
 			var ink: Rect2 = Rect2(at, Vector2(drawn, label.size.y))
 			assert_bool(meter_rect.encloses(ink)).override_failure_message(text).is_true()
 			assert_float(drawn).override_failure_message(text).is_less_equal(label.size.x)
-		assert_float(meter.delta_label.get_global_rect().position.x).is_greater_equal(
-			meter.amount_label.get_global_rect().end.x
+		# The change is printed inside the gauge.
+		var change: Rect2 = meter.delta_label.get_global_rect()
+		(
+			assert_bool(meter.bar().get_global_rect().encloses(change))
+			. override_failure_message(text)
+			. is_true()
 		)
 	meter.show_projected(46, 900)
 	await _frames(2)

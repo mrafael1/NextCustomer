@@ -6,20 +6,27 @@ extends Control
 ## beat's cheer tier and count, CountUpPlan) and never scores.
 ##
 ## Where (ShiftStage builds it in the world, over the back wall, the store sections and the
-## RECEIPT REWARDS machine, under the monitor and the fore): anywhere in the band from the top
-## bar's foot down to the counter's top (FOOT_Y, where it clips, so the standees' legs and easel
-## stay hidden behind the belt and the counter), across the whole visible width, the extra wall
-## of a window wider than 16:9 included (refitted at every pop, so a resized window keeps it).
-## Never in front of `avoid` (the hung monitor with its rods and under-strip): a standee there
-## only peeks below it, down to the belt's top, and its ink never reaches it, hops included.
-## Placement is seeded per checkout (from its plan, never the global RNG): of CANDIDATES x
-## positions the one with the most room wins, so new standees fill the gaps before they overlap,
-## and later ones layer over the earlier; ink hidden behind `cover` (the receipt column, the bag)
-## costs room, so open wall wins until it is crowded, but no spot is off-limits.
+## RECEIPT REWARDS machine, under the monitor and the fore): in the band from the top bar's foot
+## down to the counter's top (FOOT_Y, where it clips, so the standees' legs and easel stay hidden
+## behind the belt and the counter), across the visible width, the extra wall of a window wider
+## than 16:9 included (refitted at every pop, so a resized window keeps it), but never in the
+## columns of `blocked` (the register with its printer and receipt, the kraft bag and its shelf:
+## since the clean scene of #123 the open wall is right of the bagging shelf, over the belt).
+## Never in front of `avoid` (the hung monitor with its rods and under-strip, the hanging aisle
+## signs with their cords): a standee there only peeks below it, its head and shoulders
+## (MIN_PEEK_ROWS) above the belt's top, and its ink never reaches it, hops included. Each
+## standee casts a ground shadow (CheerShadow) forward onto the visible ground under it (the
+## stage lays the shadow layer on the belt's guard): the guard's lit face, or beside the belt the
+## floor (2026-11-01, ground_at). Placement is seeded per checkout (from its
+## plan, never the global RNG): of CANDIDATES x positions in the open columns the one with the
+## most room wins, so new standees fill the gaps before they overlap, and later ones layer over
+## the earlier.
 ##
-## When: every paid item pops cheer_count standees (one more and bigger as the payout is bigger
-## or a combo, CountUpTuning's cheer_*), the first at its tier's scale, with card_place pitched
-## up per standee and tier, each rising into a hop as high as its tier and the ladder's note
+## When: each bonus line of an item pops one standee as it lands (CountUp.step_landed; up to
+## cheer_line_cap per item, 2026-11-01), a paid item with no line pops one at its payout, at its
+## item's tier's scale (bigger as the payout is bigger
+## or a combo, CountUpTuning's cheer_*), with card_place pitched up per standee and tier, each
+## rising into a hop as high as its tier and the ladder's note
 ## (a crowd-wide hop leaves a standee alone while its pop runs); a payout of 0 that failed (its
 ## own condition WASTED, or denied; CountUpBeat.cheer_failed: a coupon paying nothing of its own
 ## does not) slumps the newest one (card_return); the ding makes everyone hop and pops
@@ -55,8 +62,9 @@ const FOOT_Y := ShiftStage.COUNTER_TOP
 const STAND_ROW := 56
 ## A standee stands up to this many art rows lower (seeded), for depth.
 const STAND_JITTER_ROWS := 4
-## Under `avoid` a standee only peeks; where it would show less than this it goes elsewhere.
-const MIN_PEEK_PX := 40.0
+## Under `avoid` a standee only peeks; where it would show fewer art rows than this (its head and
+## shoulders with the arms' tops, the art's rows 13 to 33) above the ground, it goes elsewhere.
+const MIN_PEEK_ROWS := 20
 ## Over the belt's columns the belt and the row in front hide the crowd below the belt's top
 ## (stage px): a peek is measured to it.
 const BELT_RECT := ShiftStage.BELT_RECT
@@ -64,22 +72,18 @@ const BELT_RECT := ShiftStage.BELT_RECT
 const OVERSHOOT_PX := 8.0
 ## Candidate x positions tried per standee.
 const CANDIDATES := 16
-## A candidate's room counts its sinking under `avoid` this many times over: a standee peeks under
-## the monitor only when the open wall is crowded (a big one would hide its size there).
-const SINK_COST := 2.0
-## A candidate's room shrinks with the square of the share of its standing ink that shows past
-## `cover` (half hidden keeps a quarter of its room), and loses this many px more for all of it
-## hidden (a share of it for a share): a hidden spot wins only when every open one overlaps a
-## standee by more than that (a crowded wall).
-const COVER_COST_PX := 48.0
+## A candidate's room loses this share of its sinking under `avoid`: the open wall right of the
+## monitor wins while it has room, but since the clean scene (#123) the peek under the monitor is
+## half the open columns, so a standee takes it before it overlaps another.
+const SINK_COST := 0.5
 const GRID := CheerStandee.GRID
 
 ## The rects no standee's ink may reach (stage px): the hung monitor, its rods and under-strip
 ## (set in _init; a redrawn scene may change them).
 var avoid: Array[Rect2] = []
-## The foreground in front of the crowd (stage px): the receipt column at its full height and the
-## paper bag (set in _init). Placement prefers ink that shows; a spot behind them is still open.
-var cover: Array[Rect2] = []
+## The fore's parts whose columns no standee's ink may share (stage px): the register with its
+## printer and the receipt at its full height, the kraft bag with its shelf (set in _init).
+var blocked: Array[Rect2] = []
 ## The visible width (stage px), read at every pop: the viewport's by default.
 var view_width: Callable
 ## Makes the standees' tweens (CountUp.tween_maker once it follows a count-up).
@@ -87,18 +91,23 @@ var make_tween: Callable
 var reduced_motion: bool = false
 ## The confetti the final yay throws (ShiftStage sets it: over the crowd, unclipped), or null.
 var confetti: CheerConfetti
+## The standees' ground shadows (CheerShadow): the crowd's own child until the stage lays it on
+## the ground in front of the crowd (lay_shadows: the belt's guard, under the row).
+var shadow_layer: Control
 var _tuning: CountUpTuning
 var _count_up: CountUp
 ## The standees up, oldest first.
 var _standees: Array[CheerStandee] = []
-## The payout beat that started last and pays above 0 (it pops at payout_landed).
-var _pending: CountUpBeat
 ## The ladder's note of the latest gain beat.
 var _note: int = 0
+## A plain paid item's payout beat that started last (it pops at payout_landed).
+var _pending: CountUpBeat
 ## Standees popped this checkout (they take the designs in turn).
 var _popped: int = 0
 var _design_offset: int = 0
 var _rng: RandomNumberGenerator = RandomNumberGenerator.new()
+## The crowd's origin in the shadow layer.
+var _shadow_origin: Vector2 = Vector2.ZERO
 
 
 func _init(tuning: CountUpTuning = null) -> void:
@@ -111,13 +120,23 @@ func _init(tuning: CountUpTuning = null) -> void:
 	for rod: Rect2 in ShiftStage.ROD_RECTS:
 		monitor = monitor.merge(rod)
 	avoid = [monitor]
+	for board: Rect2 in StoreShelves.SIGN_RECTS.values():
+		# The sign with its cords, from the top bar's foot.
+		avoid.append(Rect2(board.position.x, TOP_Y, board.size.x, board.end.y - TOP_Y))
 	var receipt := Rect2(
 		ShiftStage.RECEIPT_X,
 		ShiftStage.RECEIPT_TOP,
 		ShiftStage.RECEIPT_WIDTH,
 		ShiftStage.RECEIPT_BOTTOM - ShiftStage.RECEIPT_TOP
 	)
-	cover = [receipt, ShiftStage.BAG_RECT]
+	blocked = [
+		receipt.merge(ShiftStage.PRINTER_RECT).merge(ShiftStage.REGISTER_RECT),
+		ShiftStage.BAG_RECT.merge(ShiftStage.BAGGING_SHELF_RECT),
+	]
+	shadow_layer = Control.new()
+	shadow_layer.name = "Shadows"
+	shadow_layer.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	add_child(shadow_layer)
 	view_width = func() -> float: return get_viewport_rect().size.x
 	_tuning = tuning if tuning != null else load(CountUp.TUNING_PATH) as CountUpTuning
 	position = Vector2(0.0, TOP_Y)
@@ -130,6 +149,7 @@ func follow(count_up: CountUp) -> void:
 	make_tween = count_up.tween_maker()
 	count_up.count_started.connect(func(_views: Array[CardView]) -> void: _on_count_started())
 	count_up.beat_started.connect(_on_beat_started)
+	count_up.step_landed.connect(_on_step_landed)
 	count_up.payout_landed.connect(_on_payout_landed)
 	count_up.quota_met.connect(_on_quota_met)
 	count_up.total_landed.connect(_on_total_landed)
@@ -146,7 +166,20 @@ func begin(seed_value: int, reduced: bool) -> void:
 	_note = 0
 	_popped = 0
 	_design_offset = _rng.randi_range(0, REST_FRAMES.size() - 1)
+	shadow_layer.visible = true
 	_fit_band()
+
+
+## Lays the shadow layer in `ground` (in front of the crowd, e.g. the belt) at `area` there, as
+## its child at `index`. It does not clip: each shadow column picks its ground (ground_at), the
+## floor beside the belt included.
+func lay_shadows(ground: Control, area: Rect2, index: int) -> void:
+	if shadow_layer.get_parent() != null:
+		shadow_layer.get_parent().remove_child(shadow_layer)
+	ground.add_child(shadow_layer)
+	ground.move_child(shadow_layer, index)
+	shadow_layer.position = area.position
+	shadow_layer.size = area.size
 
 
 ## Pops `count` standees for a payout of `tier` (the first at its tier's scale), each hopping
@@ -166,6 +199,12 @@ func pop(tier: int, count: int, note: int = -1, own_clock: bool = false) -> void
 			REST_FRAMES[design], CHEER_FRAMES[design], scale_factor, tier
 		)
 		standee.foot_y = size.y
+		standee.shadow_lift_px = _tuning.cheer_shadow_lift_px
+		standee.shadow_lift_share = _tuning.cheer_shadow_lift_share
+		standee.shadow.origin = _shadow_origin
+		standee.shadow.ground_at = ground_at
+		standee.shadow.floor_y = size.y
+		shadow_layer.add_child(standee.shadow)
 		add_child(standee)
 		_place(standee)
 		_standees.append(standee)
@@ -274,6 +313,10 @@ func clear() -> void:
 	for child: Node in get_children():
 		if child is CheerStandee:
 			_drop(child as CheerStandee)
+	for shadow: Node in shadow_layer.get_children():
+		shadow_layer.remove_child(shadow)
+		shadow.queue_free()
+	shadow_layer.visible = false
 	_pending = null
 	visible = false
 
@@ -329,6 +372,16 @@ func _on_payout_landed(_payout: int, _subtotal: int) -> void:
 	_pending = null
 
 
+## A step lands on its item (its sticker fires): a bonus line's beat pops its standee.
+func _on_step_landed(index: int) -> void:
+	for beat: CountUpBeat in _count_up.plan.beats:
+		if CountUpPlan.is_payout_beat(beat):
+			continue  # A plain item's standee pops at its payout.
+		if beat.steps[0] == index and beat.cheer_count > 0:
+			pop(beat.cheer_tier, beat.cheer_count, beat.note if beat.note >= 0 else _note)
+			return
+
+
 func _on_total_landed() -> void:
 	if _count_up.plan.quota_reached:
 		cheer_and_fold()
@@ -346,22 +399,21 @@ func _place(standee: CheerStandee) -> void:
 	var best_top: float = 0.0
 	var best_limit: float = -INF
 	var hop_room: float = max_hop(standee.tier) + OVERSHOOT_PX
-	for _try: int in range(CANDIDATES):
-		var left: float = _rng.randf_range(GRID, size.x - width - GRID) - ink_x
-		var ink_left: float = snappedf(left, GRID) + ink_x
+	var spans: Array[Vector2] = _open_lefts(ink_x, width)
+	var open_px: float = 0.0
+	for span: Vector2 in spans:
+		open_px += span.y - span.x
+	for _try: int in range(CANDIDATES if not spans.is_empty() else 0):
+		var ink_left: float = _pick_left(spans, open_px) + ink_x
 		var jitter: int = _rng.randi_range(0, STAND_JITTER_ROWS)
 		var standing: float = size.y - (STAND_ROW - standee.ink.position.y - jitter) * s
 		var top: float = standing
 		var limit: float = _limit_under_avoid(ink_left, width)
 		if limit > -INF:
 			top = maxf(top, ceilf((limit + hop_room) / GRID) * GRID)
-			if _floor_at(ink_left, width) - top < MIN_PEEK_PX:
+			if _floor_at(ink_left, width) - top < MIN_PEEK_ROWS * s:
 				continue
 		var room: float = minf(_room(ink_left, width), size.x) - SINK_COST * (top - standing)
-		var share: float = hidden_share(Rect2(ink_left, top, width, size.y - top))
-		if room > 0.0:
-			room *= (1.0 - share) * (1.0 - share)
-		room -= COVER_COST_PX * share
 		if room > best_room:
 			best_room = room
 			best_x = ink_left
@@ -369,8 +421,11 @@ func _place(standee: CheerStandee) -> void:
 			best_limit = limit
 	if best_room == -INF:
 		best_top = size.y - (STAND_ROW - standee.ink.position.y) * s
+		if not spans.is_empty():
+			best_x = spans[-1].y + ink_x
 	standee.position.x = best_x - ink_x
 	standee.min_top = best_limit
+	standee.ground_y = _floor_at(best_x, width)
 	standee.up_y = best_top - standee.ink.position.y * s
 	standee.down_y = size.y + GRID - standee.ink.position.y * s
 	standee.level = 0.0
@@ -387,16 +442,40 @@ func _limit_under_avoid(ink_left: float, width: float) -> float:
 	return limit
 
 
-## The share (0 to 1) of a crowd-local ink rect hidden behind `cover`.
-func hidden_share(rect: Rect2) -> float:
-	var area: float = rect.get_area()
-	if area <= 0.0:
-		return 0.0
-	var stage_rect := Rect2(rect.position + position, rect.size)
-	var covered: float = 0.0
-	for rect_in_front: Rect2 in cover:
-		covered += stage_rect.intersection(rect_in_front).get_area()
-	return minf(1.0, covered / area)
+## The open ranges (x: from, y: to; crowd-local, on the art grid) of a standee's left edge whose
+## ink (`ink_x` in from it, `width` wide) stays in the band, GRID in from its ends, and out of the
+## columns of `blocked`.
+func _open_lefts(ink_x: float, width: float) -> Array[Vector2]:
+	var spans: Array[Vector2] = [Vector2(GRID - ink_x, size.x - GRID - width - ink_x)]
+	for rect: Rect2 in blocked:
+		# A left edge clears the rect's columns when it is up to `from` or from `to` on.
+		var from: float = rect.position.x - position.x - width - ink_x
+		var to: float = rect.end.x - position.x - ink_x
+		var cut: Array[Vector2] = []
+		for span: Vector2 in spans:
+			if span.x < from:
+				cut.append(Vector2(span.x, minf(span.y, from)))
+			if span.y > to:
+				cut.append(Vector2(maxf(span.x, to), span.y))
+		spans = cut
+	var grid_spans: Array[Vector2] = []
+	for span: Vector2 in spans:
+		var low: float = ceilf(span.x / GRID) * GRID
+		var high: float = floorf(span.y / GRID) * GRID
+		if low <= high:
+			grid_spans.append(Vector2(low, high))
+	return grid_spans
+
+
+## A seeded left edge in `spans` (`open_px` long in all), on the art grid.
+func _pick_left(spans: Array[Vector2], open_px: float) -> float:
+	var at: float = _rng.randf_range(0.0, open_px)
+	for span: Vector2 in spans:
+		var length: float = span.y - span.x
+		if at <= length:
+			return clampf(snappedf(span.x + at, GRID), span.x, span.y)
+		at -= length
+	return spans[-1].y
 
 
 ## The crowd-local y below which an ink from `ink_left`, `width` wide can't show: the belt's top
@@ -406,6 +485,19 @@ func _floor_at(ink_left: float, width: float) -> float:
 	if ink_left < left + BELT_RECT.size.x and ink_left + width > left:
 		return minf(size.y, BELT_RECT.position.y - position.y)
 	return size.y
+
+
+## The ground a shadow's column at crowd-local `x` falls on (CheerShadow.Ground): the guard's
+## lit face over the guard, nothing where the belt's end caps stand in front of the floor, else
+## the floor beside the belt.
+func ground_at(x: float) -> CheerShadow.Ground:
+	var belt_x: float = x + position.x - BELT_RECT.position.x
+	var guard: Rect2 = BeltPanel.GUARD_FACE
+	if belt_x >= guard.position.x and belt_x < guard.end.x:
+		return CheerShadow.Ground.GUARD
+	if belt_x >= BeltPanel.FOOT_SPAN.x and belt_x < BeltPanel.FOOT_SPAN.y:
+		return CheerShadow.Ground.NONE
+	return CheerShadow.Ground.FLOOR
 
 
 ## Fits the band to the visible width (centred on the stage, on the art grid); the standees up
@@ -419,6 +511,17 @@ func _fit_band() -> void:
 			(child as CheerStandee).position.x += shift
 	position = Vector2(-extra, TOP_Y)
 	size = Vector2(ShiftStage.SIZE.x + 2.0 * extra, FOOT_Y - TOP_Y)
+	# The crowd's origin in the shadow layer (laid elsewhere: through the global transforms).
+	var origin: Vector2 = Vector2.ZERO
+	if shadow_layer.get_parent() == self:
+		shadow_layer.size = size
+	elif is_inside_tree() and shadow_layer.is_inside_tree():
+		origin = shadow_layer.get_global_transform().affine_inverse() * global_position
+	_shadow_origin = origin
+	for child: Node in get_children():
+		if child is CheerStandee:
+			(child as CheerStandee).shadow.origin = origin
+			(child as CheerStandee).refresh()
 
 
 ## How much room an ink from `ink_left`, `width` wide has: its gap to the nearest standee's ink
@@ -485,7 +588,7 @@ func _puff(standee: CheerStandee) -> void:
 	if confetti == null:
 		return
 	var rect: Rect2 = standee.visible_rect()
-	var foot: Vector2 = Vector2(rect.get_center().x, size.y - CheerConfetti.PIECE_HEIGHT)
+	var foot: Vector2 = Vector2(rect.get_center().x, standee.ground_y - CheerConfetti.PIECE_HEIGHT)
 	var at: Vector2 = (
 		confetti.get_global_transform().affine_inverse() * (get_global_transform() * foot)
 	)
@@ -529,6 +632,9 @@ func _drop(standee: CheerStandee) -> void:
 	_standees.erase(standee)
 	if standee.get_parent() == self:
 		remove_child(standee)
+	if standee.shadow.get_parent() == shadow_layer:
+		shadow_layer.remove_child(standee.shadow)
+	standee.shadow.queue_free()
 	standee.queue_free()
 
 

@@ -71,8 +71,10 @@ const ROW_AREA := Rect2(354, ROW_POSITION.y, 904, ItemView.BELT_SIZE.y)
 ## hop up from the scanner into it.
 const BAG_RECT := Rect2(300, 246, 72, 92)
 ## The steel bagging shelf the bag stands on, behind the belt's first cell (StoreBackdrop's
-## counter piece, in the fore under the belt).
-const BAGGING_SHELF_RECT := Rect2(290, 338, 196, 12)
+## counter piece, in the fore under the belt), right of the receipt printer: its 12 px plank, just
+## long enough for the bag, on a steel side panel between the printer's end and the belt's frame
+## (2026-11-01).
+const BAGGING_SHELF_RECT := Rect2(298, 338, 88, 62)
 ## The monitor hung from the ceiling on two rods, its bezel and paper screen, and the shade under
 ## it (MonitorView draws them): its one screen (#105 piece 2) holds the scanner bay, the item
 ## column, the checkout column and the notices.
@@ -257,7 +259,8 @@ func _init(slot_count: int) -> void:
 	_build_scan_layers()
 
 
-## Follows `count_up`'s checkouts: the checkout cheering's standees (#120) and the quota crossing.
+## Follows `count_up`'s checkouts: the checkout cheering's standees (#120) and the quota
+## crossing.
 func follow_count(count_up: CountUp) -> void:
 	crowd.follow(count_up)
 	quota_crossing.follow(count_up, top_bar.quota_meter, bonus_lights)
@@ -355,6 +358,8 @@ func _build_belt(slot_count: int) -> void:
 	row_strip = RowStrip.new()
 	belt.add_child(row_strip)
 	row_strip.set_slot_count(slot_count)
+	# The standees' shadows fall forward onto the guard's lit face, under the row's items (#120).
+	crowd.lay_shadows(belt, Rect2(Vector2.ZERO, BeltPanel.TOP_RECT.size), row_strip.get_index())
 	row_strip.minimum_size_changed.connect(_place_row)
 	_place_row()
 	# Over the items and their tickets, under the top bar, the hand and the scan layers (#71).

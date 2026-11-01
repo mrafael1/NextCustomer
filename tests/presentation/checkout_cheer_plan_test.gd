@@ -1,13 +1,15 @@
 extends GdUnitTestSuite
-## The checkout cheering's plan data (#120, CountUpPlan's _set_cheer): every paid item cheers, a
-## bigger payout or a combo cheers more, a payout of 0 doesn't, all from the tuning in
-## data/balance/count_up.tres. Pure data: hand-built steps and rows scored with Scoring.score().
+## The checkout cheering's plan data (#120, CountUpPlan's _set_cheer and _set_cheer_lines): every
+## paid item has a tier, bigger for a bigger payout or a combo; each bonus line pops one standee
+## at its item's tier, up to cheer_line_cap per item, and a payout pops none of its own, all from
+## the tuning in data/balance/count_up.tres. Pure data: hand-built steps and rows scored with
+## Scoring.score().
 
 const TUNING := "res://data/balance/count_up.tres"
 const CARDS := "res://data/cards/%s.tres"
 
 
-func test_every_paid_item_cheers_and_a_bigger_payout_cheers_more() -> void:
+func test_every_paid_item_has_a_tier_and_a_plain_one_pops_one() -> void:
 	var tuning: CountUpTuning = load(TUNING)
 	# The best so far is the tuning's floor (45): big from max(10, 0.2 x 45) = 10, huge from 22.5.
 	var plan: CountUpPlan = _plan(_plain([3, 10, 30, 0]))
@@ -18,11 +20,45 @@ func test_every_paid_item_cheers_and_a_bigger_payout_cheers_more() -> void:
 		counts.append(beat.cheer_count)
 		assert_bool(beat.cheer_combo).is_false()
 	assert_array(tiers).is_equal([1, 2, 3, 0])
-	assert_array(counts).is_equal(
-		[tuning.cheer_counts[0], tuning.cheer_counts[1], tuning.cheer_counts[2], 0]
-	)
-	assert_int(tuning.cheer_counts[2]).is_greater(tuning.cheer_counts[0])
+	assert_array(counts).is_equal([1, 1, 1, 0])
 	assert_int(tuning.cheer_scales[2]).is_greater(tuning.cheer_scales[0])
+
+
+## Each bonus line (a +N above 0, a x above 1, a copy) pops one standee at its item's tier; a
+## penalty or a x1 pops none; an item pops at most cheer_line_cap, and its payout none.
+func test_each_bonus_line_pops_one_standee_up_to_the_cap() -> void:
+	var tuning: CountUpTuning = load(TUNING)
+	var steps: Array[ScoreStep] = []
+	# Slot 0: +2, -1, x1, x2: two lines, paying 30 (huge).
+	steps.append(_step(ScoreStep.StepType.BASE, 0, 14, 14))
+	steps.append(_step(ScoreStep.StepType.FLAT, 0, 2, 16))
+	steps.append(_step(ScoreStep.StepType.FLAT, 0, -1, 15))
+	steps.append(_step(ScoreStep.StepType.MULTIPLIER, 0, 1, 15))
+	steps.append(_step(ScoreStep.StepType.MULTIPLIER, 0, 2, 30))
+	steps.append(_step(ScoreStep.StepType.PAYOUT, 0, 30, 30))
+	# Slot 1: cap + 2 lines of +1, paying small.
+	var subtotal: int = 31
+	steps.append(_step(ScoreStep.StepType.BASE, 1, 1, subtotal))
+	for _line: int in range(tuning.cheer_line_cap + 2):
+		subtotal += 1
+		steps.append(_step(ScoreStep.StepType.FLAT, 1, 1, subtotal))
+	var paid: int = subtotal - 30
+	steps.append(_step(ScoreStep.StepType.PAYOUT, 1, paid, subtotal))
+	var plan: CountUpPlan = _plan(steps)
+	var popped: Dictionary[int, int] = {}
+	for beat: CountUpBeat in plan.beats:
+		if CountUpPlan.is_payout_beat(beat):
+			assert_int(beat.cheer_count).is_equal(0)
+			continue
+		if beat.cheer_count == 0:
+			continue
+		assert_int(beat.cheer_count).is_equal(1)
+		var payout: CountUpBeat = _payouts(plan)[beat.slot]
+		assert_int(beat.cheer_tier).is_equal(payout.cheer_tier)
+		popped[beat.slot] = popped.get(beat.slot, 0) + 1
+	assert_int(popped.get(0, 0)).is_equal(2)
+	assert_int(popped.get(1, 0)).is_equal(tuning.cheer_line_cap)
+	assert_int(tuning.cheer_line_cap).is_equal(6)
 
 
 func test_the_tiers_follow_the_best_so_far() -> void:
@@ -92,22 +128,33 @@ func test_reduced_motion_keeps_the_cheers() -> void:
 	assert_float(plan.beats[1].rattle_px).is_equal(0.0)
 
 
-func test_a_scored_row_cheers_on_every_paid_item_and_a_copy_is_a_combo() -> void:
+func test_a_scored_row_cheers_on_its_lines_and_a_copy_is_a_combo() -> void:
 	var result: ScoreResult = Scoring.score(_row("bread,repeat,eggs,banana,banana"))
 	var plan: CountUpPlan = _plan(result.steps)
 	var copies: int = 0
+	var lines: int = 0
 	for beat: CountUpBeat in plan.beats:
 		if not CountUpPlan.is_payout_beat(beat):
-			assert_int(beat.cheer_tier).is_equal(0)
-			assert_int(beat.cheer_count).is_equal(0)
+			var line: bool = CountUpPlan.is_cheer_line(result.steps[beat.steps[0]])
+			var lifts: bool = (
+				beat.kind == CountUpBeat.Kind.BONUS or beat.kind == CountUpBeat.Kind.STAMP
+			)
+			assert_int(beat.cheer_count).is_equal(1 if line and lifts else 0)
+			lines += beat.cheer_count
 			continue
-		assert_bool(beat.cheer_count > 0).is_equal(beat.payout > 0)
+		assert_bool(beat.cheer_tier > 0).is_equal(beat.payout > 0)
+		var has_line: bool = false
+		for other: CountUpBeat in plan.beats:
+			if other.slot == beat.slot and not CountUpPlan.is_payout_beat(other):
+				has_line = has_line or other.cheer_count > 0
+		assert_int(beat.cheer_count).is_equal(1 if beat.payout > 0 and not has_line else 0)
 		for index: int in range(beat.steps[-1]):
 			var step: ScoreStep = result.steps[index]
 			if step.slot == beat.slot and step.step_type == ScoreStep.StepType.COPY:
 				copies += 1
 				assert_bool(beat.cheer_combo).is_true()
 	assert_int(copies).is_greater(0)
+	assert_int(lines).is_greater(0)
 
 
 static func _plan(steps: Array[ScoreStep], context: CountUpContext = null) -> CountUpPlan:

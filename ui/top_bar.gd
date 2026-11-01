@@ -8,10 +8,9 @@ extends HBoxContainer
 ## with the mustard warning sign and "Inspection · <effect>", the name in its hover text; hidden
 ## on shifts without one), the
 ## LOYALTY chip with its stamps, the Cart button with its trolley, and the menu button (three
-## drawn bars) whose menu holds Export log. In the training week (v0.68) the SHIFT chip also holds
-## a small hint after the shift (training_label, "TRAINING WEEK · 2 SLIPS"; hidden when empty).
-## With weeks (show_weeks, v0.82: the week and day chips say where the run is) the SHIFT chip
-## drops "SHIFT n/m", so the row breathes; it shows only to hold the training week's hint.
+## drawn bars) whose menu holds Export log. With weeks (show_weeks, v0.82: the week and day chips
+## say where the run is) the SHIFT chip hides, so the row breathes; the training week's slips show
+## as the week chip's crosses (v0.84 retired the slip sign under it).
 ## Cart and the menu stay clickable behind every panel:
 ## the shade starts under the band (ShiftScreen), and the menu opens in its own popup window.
 ##
@@ -31,8 +30,6 @@ const FIT_MARGIN := 8.0
 const CHIP_PADDING := 12
 const CHIP_SEPARATION := 8
 const KEY_FONT_SIZE := 15
-## The training week's hint (v0.68): smaller than the key captions.
-const HINT_FONT_SIZE := 12
 const VALUE_FONT_SIZE := 20
 const BUTTON_FONT_SIZE := 16
 ## The key captions' letter spacing (B2's letter-spacing: 1px).
@@ -51,10 +48,8 @@ const CART_ICON := preload("res://art/icons/cart.png")
 const MENU_ICON := preload("res://art/icons/menu.png")
 
 var shift_label: Label
-## The SHIFT chip (only for the training hint with weeks: show_weeks).
+## The SHIFT chip ("SHIFT n/m"; hidden with weeks: show_weeks).
 var shift_chip: PanelContainer
-## The training week's hint in the SHIFT chip (v0.68; show_training).
-var training_label: Label
 var quota_meter: QuotaMeter
 var quota_label: Label
 ## The week chip (v0.70; hidden for a balance without weeks).
@@ -67,9 +62,6 @@ var menu_button: FramedButton
 ## The menu's popup and its one entry.
 var menu: PopupPanel
 var export_button: FramedButton
-## The training week's hint and its short form (show_training).
-var _training_text: String = ""
-var _training_short: String = ""
 var _weeks: bool = false
 ## The SHIFT chip's key caption (hidden with weeks).
 var _shift_key: Label
@@ -87,11 +79,6 @@ func _init() -> void:
 	shift_row.add_child(_shift_key)
 	shift_label = value_label(Palette.PAPER)
 	shift_row.add_child(shift_label)
-	training_label = key_label("")
-	training_label.name = "TrainingHint"
-	training_label.add_theme_font_size_override("font_size", HINT_FONT_SIZE)
-	training_label.visible = false
-	shift_row.add_child(training_label)
 	add_child(shift_chip)
 	var quota_chip: PanelContainer = chip(CHIP_FRAME)
 	quota_chip.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -123,59 +110,29 @@ func _init() -> void:
 		button.caption_label().add_theme_constant_override("outline_size", 0)
 
 
-## Whether the run has weeks (WeekFlow.has_weeks): the week chip shows, and the SHIFT chip only
-## holds the training week's hint.
+## Whether the run has weeks (WeekFlow.has_weeks): the week chip shows, the SHIFT chip hides.
 func show_weeks(shown: bool) -> void:
 	_weeks = shown
 	week_chip.visible = shown
 	_refresh_shift_chip()
 
 
-## The SHIFT chip's parts for the weeks and the hint now: "SHIFT n/m" without weeks; with them,
-## the chip only while the hint shows.
+## The SHIFT chip: "SHIFT n/m" without weeks, hidden with them.
 func _refresh_shift_chip() -> void:
-	_shift_key.visible = not _weeks
-	shift_label.visible = not _weeks
-	shift_chip.visible = not _weeks or training_label.visible
-
-
-## The training week's hint (v0.68, WriteUp.hint_text): `text` after the shift, hidden when empty;
-## fit_inspection shows `short_text` instead when the row has no room for `text`, and hides the
-## hint (its whole text kept in the SHIFT chip's tooltip) when it has none for either.
-func show_training(text: String, short_text: String = "") -> void:
-	_training_text = text
-	_training_short = short_text
-	training_label.text = text
-	training_label.visible = not text.is_empty()
-	shift_chip.tooltip_text = text
-	_refresh_shift_chip()
+	shift_chip.visible = not _weeks
 
 
 ## Keeps the row inside ROW_SIZE.x less FIT_MARGIN: the inspection chip's text is trimmed when the
-## other chips and the bonus pill (#77 machine v2) leave it too little room, after the training
-## week's hint and the week chip's name have given way (the hint's short form, then the week's
-## name, then the hint hidden, then the week's pips: the day's effects come first).
+## other chips and the bonus pill (#77 machine v2) leave it too little room, after the week chip's
+## name, then its pips, have given way (the day's effects come first).
 func fit_inspection() -> void:
-	if not _training_text.is_empty():
-		training_label.text = _training_text
-		training_label.visible = true
 	week_chip.show_name(true)
 	week_chip.show_pips(true)
 	_fit_inspection_once()
 	if not inspection_tag.is_trimmed():
 		return
-	if training_label.visible and not _training_short.is_empty():
-		training_label.text = _training_short
-		_fit_inspection_once()
-		if not inspection_tag.is_trimmed():
-			return
 	if week_chip.name_shown():
 		week_chip.show_name(false)
-		_fit_inspection_once()
-		if not inspection_tag.is_trimmed():
-			return
-	if training_label.visible:
-		training_label.visible = false
 		_fit_inspection_once()
 		if not inspection_tag.is_trimmed():
 			return

@@ -81,7 +81,10 @@ func test_a_pass_slams_counts_stamps_tears_and_feeds() -> void:
 	var feed_ms: int = count_up.printer_feed_ms - count_up.total_shown_ms
 	prints("#61 pass: total", _ms_of(heard[0], count_up), "feed", feed_ms)
 	_assert_ms(feed_ms, count_up, tear + _tuning.dessert_feed_ms, "printer feed")
-	assert_array(feeds).is_equal([count_up.printer_feed_ms])
+	# Once, at printer_feed_ms (the crowd's clear, on the same signal before this one, takes a ms
+	# or two).
+	assert_int(feeds.size()).is_equal(1)
+	assert_int(feeds[0] - count_up.printer_feed_ms).is_between(0, 20)
 	assert_int(count_up.margin.kind()).is_equal(ShiftMargin.Kind.OVER)
 	var lines: Array[String] = _lines(screen._receipt)
 	assert_array(lines.slice(-3)).is_equal(
@@ -489,12 +492,13 @@ static func _slam_label(screen: ShiftScreen) -> Label:
 	return null
 
 
-## The sounds played after the verdict, in order, but the UI's and the coins' (the results).
+## The sounds played after the verdict, in order, but the UI's, the coins' (the results) and the
+## checkout crowd's standees (card_place, card_return: CheckoutCrowd's own tests hear them).
 static func _dessert_sounds(sfx: Sfx, count_up: CountUp) -> Array[Dictionary]:
 	var heard: Array[Dictionary] = []
 	for entry: Dictionary in sfx.get("sounds"):
 		var sound: String = String(entry["sound"])
-		if sound.begins_with("ui_") or sound.begins_with("coin"):
+		if sound.begins_with("ui_") or sound.begins_with("coin") or sound.begins_with("card_"):
 			continue
 		if floori(int(entry["usec"]) / 1000.0) > count_up.total_shown_ms:
 			heard.append(entry)
