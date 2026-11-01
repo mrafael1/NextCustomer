@@ -316,7 +316,6 @@ func test_reduced_motion_keeps_the_register_still() -> void:
 		if not count_up._verdict_shown:
 			continue
 		frames += 1
-		assert_vector(screen._register.total_display.number_label().scale).is_equal(Vector2.ONE)
 		assert_int(screen._register.total_display.amount()).is_equal(ROW_TOTAL)
 		assert_float(screen._register.position.x).is_equal(rest)
 	assert_int(frames).is_greater(2)

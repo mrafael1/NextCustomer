@@ -15,7 +15,9 @@ const RAIL_HEIGHT := RailLight.RAIL_HEIGHT
 const LEFT := ShiftStage.BELT_RECT.position.x + 4.0
 const WIDTH := ShiftStage.BELT_RECT.size.x - 8.0
 const BULBS := 38
-## A bulb: BULB_SIZE px, on the strip's lower rows.
+## The strip's top SHADE rows a darker gold under the lip (as RailLight's), the bolts and chevrons
+## drawn back over it. A bulb: BULB_SIZE px, on the strip's lower rows.
+const SHADE := RailLight.SHADE
 const BULB_SIZE := Vector2(10, 4)
 const BASE_COLOR := Palette.MUSTARD_DARKEST
 const LIT_COLOR := Palette.GOLD
@@ -89,6 +91,7 @@ func _draw() -> void:
 	var reduced: bool = reduced_motion.is_valid() and bool(reduced_motion.call())
 	var on: float = 1.0 if reduced else minf(1.0, _since / (ON_SECONDS * 0.8))
 	draw_rect(Rect2(LEFT, RAIL_Y, WIDTH, RAIL_HEIGHT), Color(BASE_COLOR, 0.9 * on * alpha))
+	draw_rect(Rect2(LEFT, RAIL_Y, WIDTH, SHADE), Color(Palette.INK, 0.5 * on * alpha))
 	var step: float = WIDTH / BULBS
 	var phase: int = 0 if reduced else floori(_since / CHASE_STEP_SECONDS)
 	for index: int in range(BULBS):
@@ -98,3 +101,4 @@ func _draw() -> void:
 		var x: float = snappedf(LEFT + index * step + (step - BULB_SIZE.x) / 2.0, GRID)
 		var bulb := Rect2(x, RAIL_Y + RAIL_HEIGHT - BULB_SIZE.y, BULB_SIZE.x, BULB_SIZE.y)
 		draw_rect(bulb, Color(LIT_COLOR if lit else UNLIT_COLOR, alpha))
+	RailLight.draw_hardware(self, LEFT, LEFT + WIDTH, on * alpha)

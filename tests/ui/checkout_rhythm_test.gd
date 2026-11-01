@@ -121,8 +121,9 @@ func test_multipliers_keep_their_symbol_and_the_payout_shows_its_equation() -> v
 	await get_tree().process_frame
 
 
-## The register's display is a tally (v0.84): bonus lines, WASTED and items paid, never the total
-## the gauge shows. It follows the reading's met (its gold frame) and clears for planning.
+## The register's follower keeps a tally (v0.84): bonus lines, WASTED and items paid, never the
+## total the gauge shows. Its display is gone (2026-11-01): it shows nothing and has no labels.
+## It follows the reading's met and clears for planning.
 func test_the_register_tallies_and_clears_for_planning() -> void:
 	var count: CountUp = auto_free(CountUp.new())
 	var led: LedDisplay = auto_free(LedDisplay.new())
@@ -131,23 +132,22 @@ func test_the_register_tallies_and_clears_for_planning() -> void:
 	add_child(display)
 	display.follow(count, led)
 	led.start_count(73)
-	assert_bool(display.visible).is_true()
+	assert_bool(display.is_counting()).is_true()
+	assert_bool(display.visible).is_false()
 	assert_that(display.tally()).is_equal(Vector3i.ZERO)
 	for slot: int in [0, 0, 1]:  # Two beats of item 0, then item 1.
 		var beat: CountUpBeat = CountUpBeat.new()
 		beat.scan_slot = slot
 		count.beat_started.emit(beat, ScoreStep.new(), "", null, 2)
 	assert_that(display.tally()).is_equal(Vector3i(0, 0, 2))
-	assert_str(display.number_label().text).is_equal("2/2")
 	led.show_subtotal(21, false)
 	assert_int(display.amount()).is_equal(21)
 	assert_bool(display.is_met()).is_false()
 	led.show_subtotal(170, true)
 	assert_bool(display.is_met()).is_true()
-	for label: Node in display.find_children("*", "Label", true, false):
-		assert_str((label as Label).text).not_contains("€")
+	assert_int(display.find_children("*", "Label", true, false).size()).is_equal(0)
 	led.clear()
-	assert_bool(display.visible).is_false()
+	assert_bool(display.is_counting()).is_false()
 	assert_that(display.tally()).is_equal(Vector3i.ZERO)
 
 
