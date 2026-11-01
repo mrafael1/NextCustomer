@@ -26,12 +26,12 @@ const TUNING_PATH := "res://data/balance/redraw.tres"
 ## wobble) and its right corner (the tip).
 const CENTRE_X := 104.0
 const CORNER_X := 206.0
-const PIVOT_Y := 676.0
+const PIVOT_Y := 688.0
 ## The sparks: their cell, their colours, where they start (the rim, an item's centre) and how
 ## the mock-up spreads them (x and y factors of their speed).
 const SPARK_SIZE := 8.0
 const SPARK_COLORS: Array[Color] = [Palette.GOLD, Palette.PAPER, Palette.TEAL_LIGHT]
-const SPARK_Y := 592.0
+const SPARK_Y := 604.0
 const SPARK_SPREAD := Vector2(0.6, 0.7)
 ## A tipped basket's shadows are gone by this angle (degrees).
 const SHADOW_FADE_DEG := 6.0

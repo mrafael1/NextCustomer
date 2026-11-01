@@ -1,0 +1,2 @@
+; Checkout cheering (#120): the milk shopper recoloured: a green shirt and brown hair; its arms-up cheer frame.
+@derive standee_milk_cheer golden=keys 4=G 3=g 5=z M=f m=e y=F

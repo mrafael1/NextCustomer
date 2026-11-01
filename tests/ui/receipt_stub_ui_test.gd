@@ -331,8 +331,9 @@ static func _planning(
 	for slot: int in range(run.row.size()):
 		var payout: String = ReceiptView.money(result.payouts[slot])
 		lines.append("%s | %s" % [run.row[slot].definition.display_name, payout])
-	for slot: int in range(run.row.size(), RowCapacity.card_limit(run.limits)):
-		lines.append("%d ····· | " % (slot + 1))
+	# Only the next open slot (v0.82: the receipt starts small and grows with the belt).
+	if run.row.size() < RowCapacity.card_limit(run.limits):
+		lines.append("%d ····· | " % (run.row.size() + 1))
 	lines.append("---")
 	lines.append("PROJECTED | " + ReceiptView.money(result.total))
 	if result.total < run.quota():

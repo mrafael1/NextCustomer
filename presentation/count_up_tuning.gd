@@ -201,3 +201,56 @@ extends Resource
 ## Each successive add on one scanned item runs at this share of the previous one's length.
 @export var add_pace_factor: float = 0.0
 @export var add_min_ms: int = 0
+
+@export_group("Checkout cheering")
+## Cardboard promo standees pop behind the counter as items pay (#120, CheckoutCrowd). A paid
+## item is small, big from the rattle's threshold (rattle_min_payout, rattle_min_share) and huge
+## from this share of the best so far; a combo cheers one tier more.
+@export var cheer_huge_share: float = 0.0
+## Per tier (small, big, huge): the standees a payout pops, the integer scale of the first of
+## them (the others stand at the small tier's scale) and its hop in pixels.
+@export var cheer_counts: PackedInt32Array = PackedInt32Array()
+@export var cheer_scales: PackedInt32Array = PackedInt32Array()
+@export var cheer_hop_px: PackedInt32Array = PackedInt32Array()
+## Each note up the ladder (CountUpBeat.note) adds this to a hop, in pixels.
+@export var cheer_hop_per_note_px: float = 0.0
+## A standee pops up over cheer_pop_ms (a back ease), its arms up for cheer_frame_ms; a hop lasts
+## cheer_hop_ms; the standees of one payout start cheer_stagger_ms apart.
+@export var cheer_pop_ms: int = 0
+@export var cheer_frame_ms: int = 0
+@export var cheer_hop_ms: int = 0
+@export var cheer_stagger_ms: int = 0
+## Meeting the quota (the ding) pops cheer_quota_count more standees, the first at
+## cheer_quota_tier's scale and hop (v0.82).
+@export var cheer_quota_count: int = 0
+@export var cheer_quota_tier: int = 1
+## A passed verdict's final yay throws this many pieces of confetti from each standee's head.
+@export var cheer_confetti_count: int = 0
+## A missed verdict (v0.82): the crowd wilts, each standee leaning up to cheer_lean_deg, then
+## keels over flat in a wave over cheer_topple_ms each, cheer_topple_stagger_ms apart (the wave at
+## most cheer_topple_spread_ms long), each thud pitched from cheer_sad_pitch_from down to
+## cheer_sad_pitch_to along the wave, with cheer_dust_count pieces of dust.
+@export var cheer_lean_deg: float = 0.0
+@export var cheer_topple_ms: int = 0
+@export var cheer_topple_stagger_ms: int = 0
+@export var cheer_topple_spread_ms: int = 0
+@export var cheer_sad_pitch_from: float = 1.0
+@export var cheer_sad_pitch_to: float = 1.0
+@export var cheer_dust_count: int = 0
+## A failed payout of 0 (CountUpBeat.cheer_failed) slumps the newest standee: it sags
+## cheer_slump_px over cheer_slump_ms, then sinks out of sight over cheer_sink_ms (a missed quota
+## topples the whole crowd instead).
+@export var cheer_slump_px: int = 0
+@export var cheer_slump_ms: int = 0
+@export var cheer_sink_ms: int = 0
+## After a passed verdict the crowd folds down cheer_fold_delay_ms later, over cheer_fold_ms,
+## before the printer feed.
+@export var cheer_fold_delay_ms: int = 0
+@export var cheer_fold_ms: int = 0
+## The pop's card_place pitch: cheer_pitch_base, plus cheer_pitch_step per standee popped before
+## it in its payout and per tier above small.
+@export var cheer_pitch_base: float = 0.0
+@export var cheer_pitch_step: float = 0.0
+@export var cheer_db: float = 0.0
+## The most standees one checkout shows (a safety cap for performance, not a design limit).
+@export var cheer_max: int = 0

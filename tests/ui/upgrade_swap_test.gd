@@ -155,6 +155,33 @@ func test_an_upgraded_item_on_screen_swaps_in_place() -> void:
 	await _frames(2)
 
 
+## Placing the item mid-swap frees its view: its tag goes at once, no error is printed, and the
+## swap still finishes (the time card waits for it).
+func test_placing_the_item_mid_swap_drops_its_tag() -> void:
+	var runner: GdUnitSceneRunner = scene_runner(SCREEN)
+	var screen: ShiftScreen = runner.scene()
+	screen.profile.set_reduced_motion(false)
+	var banana: CardInstance = screen.run.debug_add_to_hand(load(BANANA))
+	screen._refresh()
+	var golden: CardDefinition = _step(banana.definition, 2)
+	var flow: MachineFlow = screen._machine
+	flow.shown_swaps = [[banana, CardInstance.new(golden, banana.instance_id)]]
+	screen._refresh()
+	flow.play_swaps()
+	var swap: UpgradeSwap = flow.swap
+	var tag: Label = swap.tag(0)
+	await _frames(10)
+	assert_bool(tag.visible).is_true()
+	screen._on_hand_card_clicked(_item_of(screen, banana))
+	screen._on_slot_input(_left_click(), screen.run.row.size())
+	await _frames(3)
+	assert_object(swap.view(0)).is_null()
+	assert_bool(tag.visible).is_false()
+	await get_tree().create_timer(swap.length() + 0.3).timeout
+	assert_bool(is_instance_valid(swap)).is_false()
+	assert_bool(flow.is_swapping()).is_false()
+
+
 ## Reduced motion: no flash, sunburst or pop; the tag shows at once, held, then gone.
 func test_reduced_motion_shows_only_the_tag() -> void:
 	var runner: GdUnitSceneRunner = scene_runner(SCREEN)
@@ -193,6 +220,13 @@ static func _item_of(screen: ShiftScreen, card: CardInstance) -> ItemView:
 		if view.card.instance_id == card.instance_id:
 			return view
 	return null
+
+
+static func _left_click() -> InputEventMouseButton:
+	var click: InputEventMouseButton = InputEventMouseButton.new()
+	click.button_index = MOUSE_BUTTON_LEFT
+	click.pressed = true
+	return click
 
 
 func _frames(count: int) -> void:

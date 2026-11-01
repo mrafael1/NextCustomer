@@ -9,7 +9,7 @@ extends Control
 ## `make_tween` (the count's clock). Under reduced motion it shows no run: the light and both edges
 ## show at once and fade the same. Stage coordinates (the layer covers the stage). Decor only.
 
-const RAIL_Y := 414.0
+const RAIL_Y := ShiftStage.BELT_RECT.position.y + 100.0
 const RAIL_HEIGHT := 6.0
 const HIGHLIGHT := 2.0
 const HEAD_WIDTH := 8.0
