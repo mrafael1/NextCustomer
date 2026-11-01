@@ -188,7 +188,6 @@ func test_the_planning_notice_promises_and_earns_the_bonus_ticket() -> void:
 	if tag.is_trimmed():
 		var week_chip: WeekChip = screen._stage.top_bar.week_chip
 		assert_bool(week_chip.name_shown() or week_chip.pips_shown()).is_false()
-		assert_bool(screen._stage.top_bar.training_label.visible).is_false()
 	else:
 		assert_str(tag.label().text).contains(effect)
 	assert_str(tag.tooltip_text).contains((load(SPOT_CHECK) as InspectionDefinition).display_name)
