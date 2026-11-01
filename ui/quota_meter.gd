@@ -128,12 +128,16 @@ const LOSS_PREVIEW_ALPHA := 0.8
 ## The tag's words for core's ShiftMargin of the shown amount against the quota (to_go_text):
 ## "€N to go" short of it, none on it or past it (the user's call of 2026-11-01: the flag and the
 ## green liquid say it). On the well: light tomato while short, mustard from the near share on (and
-## in laps); a drag's gain light green, a loss light tomato; ink over the liquid (TAG_OVER_LIQUID).
+## in laps); a drag's gain light green, a loss light tomato. The text is split at the liquid's
+## front (2026-11-01: red on red and ink on the well were unreadable): what lies over the liquid
+## is reprinted in paper on the short (red) liquid, else in ink (WET_SHORT_TAG_COLOR,
+## WET_TAG_COLOR).
 const TO_GO_TEXT := "€%d to go"
 const SHORT_TAG_COLOR := Palette.TOMATO_LIGHT
 const NEAR_TAG_COLOR := Palette.MUSTARD_LIGHT
 const GAIN_TAG_COLOR := Palette.GREEN_LIGHT
-const TAG_OVER_LIQUID := Palette.INK
+const WET_SHORT_TAG_COLOR := Palette.PAPER
+const WET_TAG_COLOR := Palette.INK
 
 ## Returns whether to reduce motion (the profile's setting); an empty Callable means no.
 var reduced_motion: Callable = Callable()
@@ -145,7 +149,13 @@ var tag_label: Label
 ## A drag's change, in the gauge in the tag's place; empty and hidden otherwise.
 var delta_label: Label
 var _bar: Control
-## The tag's and the change's colours on the well (ink over the liquid, _place_tags).
+## The gauge's text split at the liquid's front: the dry part (over the well, tag_label and
+## delta_label) and the wet part (over the liquid, their twins), each clipped to its side.
+var _dry: Control
+var _wet: Control
+var _tag_wet: Label
+var _delta_wet: Label
+## The tag's and the change's colours on the well (_place_tags).
 var _tag_color: Color = SHORT_TAG_COLOR
 var _delta_color: Color = GAIN_TAG_COLOR
 var _flag: QuotaFlag
@@ -192,9 +202,13 @@ func _init() -> void:
 	_flag.reduced_motion = _reduced
 	_bar.add_child(_flag)
 	# The tag and a drag's change are printed in the gauge, over its liquid.
-	tag_label = _gauge_label()
-	delta_label = _gauge_label()
+	_dry = _gauge_side("Dry")
+	_wet = _gauge_side("Wet")
+	tag_label = _gauge_label(_dry)
+	delta_label = _gauge_label(_dry)
 	delta_label.visible = false
+	_tag_wet = _gauge_label(_wet)
+	_delta_wet = _gauge_label(_wet)
 	_bar.resized.connect(_fit_readout)
 	# The amount's readout is reserved for three digits, so the gauge does not jump in a count.
 	amount_label = TopBar.value_label(Palette.MUSTARD_LIGHT)
@@ -301,15 +315,36 @@ func bar() -> Control:
 	return _bar
 
 
-## A label printed in the gauge (the tag, a drag's change): bold, no outline, takes no clicks.
-func _gauge_label() -> Label:
+## One side of the gauge's split text: a clipping box over the gauge (_place_tags sizes it).
+func _gauge_side(side: String) -> Control:
+	var box: Control = Control.new()
+	box.name = side
+	box.clip_contents = true
+	box.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_bar.add_child(box)
+	return box
+
+
+## A label printed in the gauge (the tag, a drag's change, or a twin): bold, no outline, takes no
+## clicks.
+func _gauge_label(side: Control) -> Label:
 	var label: Label = UiKit.body_label("", TAG_FONT_SIZE, SHORT_TAG_COLOR)
 	label.add_theme_font_override("font", ArtStyle.bold_font(TAG_WEIGHT))
 	label.add_theme_constant_override("outline_size", 0)
 	label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	label.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_bar.add_child(label)
+	side.add_child(label)
 	return label
+
+
+## The share of the gauge's text over the liquid, in px from its left (for tests).
+func wet_width() -> float:
+	return _wet.size.x
+
+
+## The twin of `label` printed over the liquid (for tests).
+func wet_twin(label: Label) -> Label:
+	return _tag_wet if label == tag_label else _delta_wet
 
 
 func flag() -> QuotaFlag:
@@ -426,23 +461,41 @@ func _fit_readout() -> void:
 	_place_tags()
 
 
-## Prints the tag and a drag's change at the gauge's inside's right end, centred on its height: in
-## their colour on the well, in ink (TAG_OVER_LIQUID) once the liquid (or a drag's gain) reaches
-## their middle.
+## Prints the tag and a drag's change at the gauge's inside's right end, centred on its height,
+## split at the liquid's front (or a drag's gain's): their own colour on the well, their twins
+## over the liquid in paper on the short liquid, else ink.
 func _place_tags() -> void:
 	var liquid: float = _front()
 	if _hypothetical >= 0 and _art_size().x > 2:
 		var inner: float = _art_size().x - 2.0
 		liquid = maxf(liquid, 1.0 + inner * minf(float(_hypothetical), _scale()) / _scale())
-	liquid *= ArtStyle.ART_SCALE
+	liquid = clampf(roundf(liquid * ArtStyle.ART_SCALE), 0.0, _bar.size.x)
+	_wet.position = Vector2.ZERO
+	_wet.size = Vector2(liquid, _bar.size.y)
+	_dry.position = Vector2(liquid, 0.0)
+	_dry.size = Vector2(_bar.size.x - liquid, _bar.size.y)
+	var red: bool = _lap == 0 and _status_ramp() == SHORT_RAMP
+	var wet_colour: Color = WET_SHORT_TAG_COLOR if red else WET_TAG_COLOR
 	for label: Label in [tag_label, delta_label]:
+		var twin: Label = wet_twin(label)
 		label.size = label.get_minimum_size()
-		var x: float = _bar.size.x - TAG_INSET - label.size.x
-		label.position = Vector2(x, (_bar.size.y - label.size.y) / 2.0).round()
-		var own: Color = _tag_color if label == tag_label else _delta_color
-		var colour: Color = TAG_OVER_LIQUID if liquid >= x + label.size.x / 2.0 else own
-		if label.get_theme_color("font_color") != colour:
-			label.add_theme_color_override("font_color", colour)
+		var at: Vector2 = (
+			Vector2(_bar.size.x - TAG_INSET - label.size.x, (_bar.size.y - label.size.y) / 2.0)
+			. round()
+		)
+		label.position = at - _dry.position
+		_set_colour(label, _tag_color if label == tag_label else _delta_color)
+		twin.text = label.text
+		twin.visible = label.visible
+		twin.add_theme_font_size_override("font_size", label.get_theme_font_size("font_size"))
+		twin.size = label.size
+		twin.position = at
+		_set_colour(twin, wet_colour)
+
+
+static func _set_colour(label: Label, colour: Color) -> void:
+	if label.get_theme_color("font_color") != colour:
+		label.add_theme_color_override("font_color", colour)
 
 
 func _show_tag(amount: int, quota: int) -> void:

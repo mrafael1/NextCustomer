@@ -90,6 +90,31 @@ func test_the_tag_says_how_far_the_quota_is() -> void:
 	assert_bool(meter.tag_label.visible).is_true()
 
 
+## The tag is split at the liquid's front (2026-11-01): the part over the well keeps its colour,
+## its twin over the liquid reads in paper on the short (red) liquid and in ink once near; each
+## side is clipped to its share of the gauge, so the two never overlap.
+func test_the_tag_splits_at_the_liquid() -> void:
+	var meter: QuotaMeter = await _meter()
+	var bar: Rect2 = meter.bar().get_global_rect()
+	for amount: int in [10, 70, 96]:
+		meter.show_projected(amount, 100)
+		await _frames(2)
+		meter.call("_place_tags")
+		var twin: Label = meter.wet_twin(meter.tag_label)
+		assert_str(twin.text).is_equal(meter.tag_label.text)
+		assert_that(twin.get_global_rect()).is_equal(meter.tag_label.get_global_rect())
+		var front: float = bar.size.x * amount / 100.0
+		assert_float(meter.wet_width()).is_equal_approx(front, 6.0)
+		var wet: Color = (
+			QuotaMeter.WET_SHORT_TAG_COLOR if not meter.is_near() else QuotaMeter.WET_TAG_COLOR
+		)
+		assert_that(_color(twin)).is_equal(wet)
+		var dry: Color = (
+			QuotaMeter.SHORT_TAG_COLOR if not meter.is_near() else QuotaMeter.NEAR_TAG_COLOR
+		)
+		assert_that(_color(meter.tag_label)).is_equal(dry)
+
+
 ## The gauge keeps its width through a count: only the amount's reserve follows it.
 func test_the_gauge_keeps_its_width() -> void:
 	var meter: QuotaMeter = await _meter()
