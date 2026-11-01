@@ -105,10 +105,7 @@ func test_the_tag_splits_at_the_liquid() -> void:
 		assert_that(twin.get_global_rect()).is_equal(meter.tag_label.get_global_rect())
 		var front: float = bar.size.x * amount / 100.0
 		assert_float(meter.wet_width()).is_equal_approx(front, 6.0)
-		var wet: Color = (
-			QuotaMeter.WET_SHORT_TAG_COLOR if not meter.is_near() else QuotaMeter.WET_TAG_COLOR
-		)
-		assert_that(_color(twin)).is_equal(wet)
+		assert_that(_color(twin)).is_equal(QuotaMeter.WET_TAG_COLOR)
 		var dry: Color = (
 			QuotaMeter.SHORT_TAG_COLOR if not meter.is_near() else QuotaMeter.NEAR_TAG_COLOR
 		)

@@ -130,14 +130,13 @@ const LOSS_PREVIEW_ALPHA := 0.8
 ## green liquid say it). On the well: light tomato while short, mustard from the near share on (and
 ## in laps); a drag's gain light green, a loss light tomato. The text is split at the liquid's
 ## front (2026-11-01: red on red and ink on the well were unreadable): what lies over the liquid
-## is reprinted in paper on the short (red) liquid, else in ink (WET_SHORT_TAG_COLOR,
-## WET_TAG_COLOR).
+## is reprinted in paper, whatever the liquid's colour (WET_TAG_COLOR, the user's call of
+## 2026-11-01).
 const TO_GO_TEXT := "€%d to go"
 const SHORT_TAG_COLOR := Palette.TOMATO_LIGHT
 const NEAR_TAG_COLOR := Palette.MUSTARD_LIGHT
 const GAIN_TAG_COLOR := Palette.GREEN_LIGHT
-const WET_SHORT_TAG_COLOR := Palette.PAPER
-const WET_TAG_COLOR := Palette.INK
+const WET_TAG_COLOR := Palette.PAPER
 
 ## Returns whether to reduce motion (the profile's setting); an empty Callable means no.
 var reduced_motion: Callable = Callable()
@@ -474,8 +473,6 @@ func _place_tags() -> void:
 	_wet.size = Vector2(liquid, _bar.size.y)
 	_dry.position = Vector2(liquid, 0.0)
 	_dry.size = Vector2(_bar.size.x - liquid, _bar.size.y)
-	var red: bool = _lap == 0 and _status_ramp() == SHORT_RAMP
-	var wet_colour: Color = WET_SHORT_TAG_COLOR if red else WET_TAG_COLOR
 	for label: Label in [tag_label, delta_label]:
 		var twin: Label = wet_twin(label)
 		label.size = label.get_minimum_size()
@@ -489,7 +486,7 @@ func _place_tags() -> void:
 		twin.add_theme_font_size_override("font_size", label.get_theme_font_size("font_size"))
 		twin.size = label.size
 		twin.position = at
-		_set_colour(twin, wet_colour)
+		_set_colour(twin, WET_TAG_COLOR)
 
 
 static func _set_colour(label: Label, colour: Color) -> void:
