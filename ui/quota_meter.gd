@@ -68,8 +68,8 @@ const HYPOTHETICAL_AMOUNT := "› €%d"
 const HYPOTHETICAL_DELTA := "(%+d)"
 const HYPOTHETICAL_TEXT := HYPOTHETICAL_AMOUNT + " " + HYPOTHETICAL_DELTA
 ## The tag and a drag's change, printed in the gauge: bold at TAG_FONT_SIZE (down to
-## TAG_MIN_FONT_SIZE to fit), TAG_INSET px from its inside's right end (clear of a flag planted
-## there), centred on its height.
+## TAG_MIN_FONT_SIZE to fit), centred in the gauge (2026-11-01; the liquid's front splits it in
+## two colours), at least TAG_INSET px from its inside's ends.
 const TAG_FONT_SIZE := 11
 const TAG_MIN_FONT_SIZE := 8
 const TAG_WEIGHT := 750
@@ -480,8 +480,7 @@ func _place_tags() -> void:
 		var twin: Label = wet_twin(label)
 		label.size = label.get_minimum_size()
 		var at: Vector2 = (
-			Vector2(_bar.size.x - TAG_INSET - label.size.x, (_bar.size.y - label.size.y) / 2.0)
-			. round()
+			Vector2((_bar.size.x - label.size.x) / 2.0, (_bar.size.y - label.size.y) / 2.0).round()
 		)
 		label.position = at - _dry.position
 		_set_colour(label, _tag_color if label == tag_label else _delta_color)

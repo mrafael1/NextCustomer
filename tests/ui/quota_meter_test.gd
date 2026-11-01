@@ -127,9 +127,9 @@ func test_the_gauge_keeps_its_width() -> void:
 		assert_float(width).is_equal(widths[0])
 
 
-## The tag is printed inside the gauge (v0.83, the user's choice of 2026-11-01): at its inside's
-## right end, centred on its height, its whole text inside the gauge, and the amount right after
-## the gauge with no reserve but its three digits. The widest lap tag fits too.
+## The tag is printed inside the gauge (v0.83, the user's choice of 2026-11-01): centred in it
+## (2026-11-01) and on its height, its whole text inside the gauge, and the amount right after the
+## gauge with no reserve but its three digits. The widest lap tag fits too.
 func test_the_tag_is_printed_inside_the_gauge() -> void:
 	var meter: QuotaMeter = await _meter()
 	for amount: int in [0, 72, 73, 900]:
@@ -241,9 +241,12 @@ func _assert_inside_the_gauge(meter: QuotaMeter, label: Label) -> void:
 	var font_size: int = label.get_theme_font_size("font_size")
 	var drawn: float = font.get_string_size(label.text, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size).x
 	var rect: Rect2 = label.get_global_rect()
-	var ink: Rect2 = Rect2(rect.end.x - drawn, rect.position.y, drawn, rect.size.y)
-	assert_bool(bar.encloses(ink)).override_failure_message("%s in %s" % [ink, bar]).is_true()
-	assert_float(bar.end.x - rect.end.x).is_equal_approx(QuotaMeter.TAG_INSET, 1.0)
+	var ink: Rect2 = Rect2(rect.get_center().x - drawn / 2.0, rect.position.y, drawn, rect.size.y)
+	var room: Rect2 = bar.grow_individual(
+		-QuotaMeter.TAG_INSET + 1.0, 0.0, -QuotaMeter.TAG_INSET + 1.0, 0.0
+	)
+	assert_bool(room.encloses(ink)).override_failure_message("%s in %s" % [ink, room]).is_true()
+	assert_float(rect.get_center().x).is_equal_approx(bar.get_center().x, 1.0)
 	assert_float(rect.get_center().y).is_equal_approx(bar.get_center().y, 1.0)
 
 
