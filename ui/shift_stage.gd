@@ -258,9 +258,11 @@ func _init(slot_count: int) -> void:
 	_build_scan_layers()
 
 
-## Follows `count_up`'s checkouts: the checkout cheering's standees (#120) and the quota crossing.
+## Follows `count_up`'s checkouts: the checkout cheering's standees (#120), the quota crossing
+## and the slip sign.
 func follow_count(count_up: CountUp) -> void:
 	crowd.follow(count_up)
+	top_bar.follow_count(count_up)
 	quota_crossing.follow(count_up, top_bar.quota_meter, bonus_lights)
 
 

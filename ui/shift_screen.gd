@@ -711,10 +711,10 @@ func _refresh_bar() -> void:
 	_inspection_tag.show_bonus(
 		InspectionTag.bonus_for(run, _counting, _inspection_tag.bonus_state())
 	)
-	# The training week's hint, in planning only (v0.68).
-	var planning: bool = run.phase == RunState.Phase.PLANNING and not _counting
-	var hint: String = WriteUp.hint_text(run) if planning else ""
-	(_top_bar as TopBar).show_training(hint, WriteUp.hint_text(run, true) if planning else "")
+	# The training week's slip sign (v0.68), through the count too, held until its SLIP stamp.
+	var hint: String = WriteUp.hint_text(run) if run.phase == RunState.Phase.PLANNING else ""
+	var held: String = WriteUp.hint_text(run, true, true) if _counting else ""
+	(_top_bar as TopBar).show_training(hint, WriteUp.hint_text(run, true), held)
 	_refresh_loyalty_card()
 	_deck_button.caption = "Cart %d/%d" % [run.deck.size(), run.balance.deck_limit]
 	(_top_bar as TopBar).fit_inspection()

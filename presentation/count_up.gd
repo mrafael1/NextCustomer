@@ -100,6 +100,8 @@ signal quota_met(pop: bool)
 ## The dessert stamped INSPECTION PASSED on the receipt (#77 machine v2: the monitor's DONE state
 ## says it too).
 signal inspection_passed
+## The dessert stamped a slip's SLIP n/limit on the receipt: the slip sign counts up.
+signal slip_stamped
 ## A payout of `payout` euros is paid, the subtotal at `subtotal`.
 signal payout_landed(payout: int, subtotal: int)
 ## A landing beat's amount lands on the total (#105 piece 2), at its first tick (fly_ms after
@@ -250,6 +252,7 @@ func setup(
 		_total_tuning = load(CountUpPlan.TOTAL_TUNING_PATH) as CountTotalTuning
 	_dessert = CountUpDessert.new(overlay, receipt, sfx, _fx, rattle_target, _tween)
 	_dessert.inspection_stamped.connect(inspection_passed.emit)
+	_dessert.write_up_stamped.connect(slip_stamped.emit)
 	_beats = CountUpBeats.new(self, overlay, receipt, _fx, rattle_target, _tween)
 	_beats.sfx = sfx
 	_beats.total_tuning = _total_tuning

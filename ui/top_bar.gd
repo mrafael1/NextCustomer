@@ -51,7 +51,7 @@ const MENU_ICON := preload("res://art/icons/menu.png")
 var shift_label: Label
 ## The SHIFT chip ("SHIFT n/m"; hidden with weeks: show_weeks).
 var shift_chip: PanelContainer
-## The training week's slips left, on a sign under the week chip (2026-11-01; show_training).
+## The training week's slips used, on a sign under the week chip (2026-11-01; show_training).
 var slip_sign: SlipSign
 var quota_meter: QuotaMeter
 var quota_label: Label
@@ -65,6 +65,9 @@ var menu_button: FramedButton
 ## The menu's popup and its one entry.
 var menu: PopupPanel
 var export_button: FramedButton
+## The slip sign's count (show_training), and whether this count-up's SLIP stamp has landed.
+var _slip_text: String = ""
+var _slip_stamped: bool = false
 var _weeks: bool = false
 ## The SHIFT chip's key caption (hidden with weeks).
 var _shift_key: Label
@@ -131,9 +134,24 @@ func _refresh_shift_chip() -> void:
 
 
 ## The training week's slips used (WriteUp.hint_text) on the sign under the week chip: its
-## `short_text` ("SLIPS 0/2"), else `text`; hidden when empty.
-func show_training(text: String, short_text: String = "") -> void:
-	slip_sign.show_text(short_text if not short_text.is_empty() else text)
+## `short_text` ("SLIPS 0/2"), else `text`; hidden when empty (with a fall: SlipSign). While a
+## count-up runs, `held_text` (the count before the shift's miss) shows until the miss's SLIP
+## stamp lands (follow_count), then the sign counts up to `short_text`.
+func show_training(text: String, short_text: String = "", held_text: String = "") -> void:
+	_slip_text = short_text if not short_text.is_empty() else text
+	if held_text.is_empty():
+		_slip_stamped = false
+	slip_sign.show_text(held_text if not held_text.is_empty() and not _slip_stamped else _slip_text)
+
+
+## Follows `count_up`: a slip's SLIP stamp counts the sign up.
+func follow_count(count_up: CountUp) -> void:
+	count_up.slip_stamped.connect(_on_slip_stamped)
+
+
+func _on_slip_stamped() -> void:
+	_slip_stamped = true
+	slip_sign.show_text(_slip_text)
 
 
 ## Keeps the row inside ROW_SIZE.x less FIT_MARGIN: the inspection chip's text is trimmed when the

@@ -36,12 +36,18 @@ static func notice_text(run: RunState) -> String:
 
 
 ## The planning hint for `run`'s current shift: "TRAINING WEEK · 2 SLIPS" in the training week
-## (TrainingWeek.covers; `short`: the slips used, "SLIPS 0/2"), else "".
-static func hint_text(run: RunState, short: bool = false) -> String:
+## (TrainingWeek.covers; `short`: the slips used, "SLIPS 0/2", at most the limit;
+## `before_miss`: without the shift just checked out when it missed, for the count-up before its
+## SLIP stamp), else "".
+static func hint_text(run: RunState, short: bool = false, before_miss: bool = false) -> String:
 	if not TrainingWeek.covers(run.balance, run.shift_index + 1):
 		return ""
 	if short:
-		return HINT_SHORT % [run.write_ups, run.balance.write_up_limit]
+		var used: int = run.write_ups
+		if before_miss and not run.history.is_empty() and not run.history[-1].passed:
+			used -= 1
+		var limit: int = run.balance.write_up_limit
+		return HINT_SHORT % [mini(used, limit), limit]
 	var left: int = TrainingWeek.slips_left(run)
 	return HINT_ONE if left == 1 else HINT % left
 
