@@ -81,6 +81,19 @@ func redraw_places(places: Array[int]) -> Array[int]:
 	return swapped
 
 
+## Swaps the cards at two hand places (a badge pin's repack, RunPins.repack). False, changing
+## nothing, for a place outside the hand or the same place twice.
+func swap_places(first: int, second: int) -> bool:
+	if first == second or first < 0 or second < 0:
+		return false
+	if first >= _hand.size() or second >= _hand.size():
+		return false
+	var card: CardInstance = _hand[first]
+	_hand[first] = _hand[second]
+	_hand[second] = card
+	return true
+
+
 func hand() -> Array[CardInstance]:
 	return _hand.duplicate()
 

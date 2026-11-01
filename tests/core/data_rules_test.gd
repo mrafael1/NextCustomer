@@ -253,7 +253,14 @@ func test_the_catalogue_lists_every_well_formed_pin() -> void:
 		assert_str(pin.display_name).override_failure_message(file).is_not_empty()
 		assert_str(pin.rule_text).override_failure_message(file).is_not_empty()
 		assert_str(pin.face_text).override_failure_message(file).is_not_empty()
-		var does: bool = not pin.starting_cards.is_empty() or pin.full_redraw
+		# The letters fit inside the smallest face's rim (the name badge's).
+		var inner: float = NameBadge.PIN_SIZE - 2.0 * PinFace.RIM * PinFace.PX
+		var font: Font = ArtStyle.number_font()
+		var width: float = (
+			font.get_string_size(pin.face_text, HORIZONTAL_ALIGNMENT_LEFT, -1, PinFace.FONT_SIZE).x
+		)
+		assert_float(width).override_failure_message(file).is_less_equal(inner)
+		var does: bool = not pin.starting_cards.is_empty() or pin.repack
 		assert_bool(does).override_failure_message(file).is_true()
 		if pin.unlock_condition != null:
 			assert_array(pin.unlock_condition.problems()).override_failure_message(file).is_empty()

@@ -17,6 +17,10 @@ extends Node
 ## Planning effects (#71): `landing_changed` reports each new landing slot during a drag, so the
 ## shift screen can show the effects of dropping there (on the ghost too); the drag's end
 ## reports a null card.
+##
+## Hand places (#122, a badge pin's repack): with a place target set (set_place_target), a drag
+## off the row reports the hand place under the mouse that would take the card (`place_changed`),
+## and a drop there `place_dropped` instead of `released`.
 
 ## The button was released: after a drag (`dragged`, `slot` the row slot under the mouse or
 ## -1), or without one on a card armed to let go on a click.
@@ -24,6 +28,10 @@ signal released(card: CardInstance, slot: int, dragged: bool)
 ## During a drag, the landing slot changed to `slot` (-1: none); a null `card` when the drag
 ## ended (dropped, let go or cancelled), before `released`.
 signal landing_changed(card: CardInstance, slot: int)
+## During a drag off the row, the hand place that would take the card changed (-1: none).
+signal place_changed(card: CardInstance, place: int)
+## A drag was dropped on a hand place that takes the card (set_place_target).
+signal place_dropped(card: CardInstance, place: int)
 
 ## How far the mouse moves with the button held before a pick becomes a drag, in pixels.
 const DRAG_THRESHOLD := 8.0
@@ -48,6 +56,9 @@ var _lets_go_on_click: bool = false
 var _ghost: ItemView
 var _dimmed: ItemView
 var _hovered: int = -1
+## (card, screen position) -> the hand place there that takes the card, or -1; unset: none.
+var _place_at: Callable
+var _place: int = -1
 ## Time.get_ticks_msec() of the last slot_tick.
 var _slot_tick_ms: int = -SLOT_TICK_MS
 
@@ -59,6 +70,17 @@ func setup(
 	_slots = slots
 	_hand_box = hand_box
 	_landing_slot = landing_slot
+
+
+## Lets a drag off the row drop on hand places: `place_at` (card, screen position) names the
+## place under the mouse that takes the card, or -1.
+func set_place_target(place_at: Callable) -> void:
+	_place_at = place_at
+
+
+## The hand place shown under the drag (for tests), or -1.
+func hovered_place() -> int:
+	return _place
 
 
 ## Called on a press on `card`, now picked up: it becomes a drag if the mouse moves far enough
@@ -92,6 +114,7 @@ func cancel() -> void:
 	_dragging = false
 	_lets_go_on_click = false
 	_set_hovered(-1)
+	_set_place(-1)
 	if _ghost != null:
 		_ghost.queue_free()
 		_ghost = null
@@ -126,8 +149,11 @@ func _finish(slot: int, seen: bool) -> void:
 	var card: CardInstance = _card
 	var dragged: bool = _dragging
 	var report: bool = (dragged and seen) or (not dragged and _lets_go_on_click)
+	var place: int = _place if dragged and seen and slot < 0 else -1
 	cancel()
-	if report:
+	if place >= 0:
+		place_dropped.emit(card, place)
+	elif report:
 		released.emit(card, slot if dragged else -1, dragged)
 
 
@@ -160,6 +186,19 @@ func _follow(mouse_position: Vector2) -> void:
 	_ghost.position = mouse_position - ItemView.SPRITE_SIZE / 2.0
 	var slot: int = _slot_at(mouse_position)
 	_set_hovered(-1 if slot < 0 else _landing_slot.call(_card, slot))
+	var place: int = -1
+	if slot < 0 and _place_at.is_valid():
+		place = _place_at.call(_card, mouse_position)
+	_set_place(place)
+
+
+func _set_place(place: int) -> void:
+	if place == _place:
+		return
+	_place = place
+	if _place >= 0:
+		_tick()
+	place_changed.emit(_card, _place)
 
 
 ## The carried card's own item (in the hand, where a picked card waits) fades its sprite while it

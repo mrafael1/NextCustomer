@@ -128,7 +128,7 @@ var _glyph_tips: GlyphTips  # Family glyphs' tooltips (#105): none in a drag or 
 ## The basket redraw's targets and tags, and its motion.
 var _basket_tags: BasketTags
 var _basket_redraw: BasketRedraw
-var _full_redraw: FullRedrawFlow  # A badge pin's REDRAW ALL (#122).
+var _repack: RepackFlow  # A badge pin's repack (#122).
 ## The EventLog autoload, typed. Fetched from the tree because standalone script checks
 ## don't know autoload names.
 @onready var _log: EventLogService = get_node("/root/EventLog")
@@ -146,7 +146,7 @@ func _ready() -> void:
 	ShiftMusic.screen_opened(_music)
 	_debug = ShiftDebug.new(self, _log)
 	_start_choice = StartChoice.new(self, _log)
-	_full_redraw = FullRedrawFlow.new(self, _log)
+	_repack = RepackFlow.new(self, _log)
 	_debug.add_panel(_balance.quotas.size())
 	if _debug.wants_demo_row():
 		_debug.play_demo_row()  # A new run that leaves the run save as it is.
@@ -474,7 +474,7 @@ func _on_basket_clicked(basket: int) -> void:
 
 ## The redraw's motion ended: clicks come back, and the monitor goes back to planning.
 func _on_redraw_finished() -> void:
-	if not _redraw_busy or _full_redraw.play_next():  # #122: a full redraw's next basket.
+	if not _redraw_busy:
 		return
 	_redraw_busy = false
 	_monitor.show_redraw(null)
@@ -504,7 +504,6 @@ func _refresh_redraw() -> void:
 		swaps.append(mini(count, pile) if run.can_redraw_basket(basket) else 0)
 	_basket_tags.show_tags(lefts, swaps)
 	_monitor.show_redraw(RedrawNotice.of_run(run, _basket_tags.hovered()))
-	_full_redraw.show_tag()
 
 
 func _on_checkout_pressed() -> void:
@@ -699,6 +698,7 @@ func _refresh() -> void:
 	if not _counting and run.phase == RunState.Phase.PLANNING:
 		_refresh_preview()
 	_refresh_redraw()
+	_repack.refresh()
 	_scan.watch(_row_views, _hand_box.cards())
 
 

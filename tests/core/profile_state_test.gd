@@ -102,7 +102,7 @@ func test_the_saved_form_round_trips_through_json() -> void:
 	assert_int(read.unlocked_items[&"apple"]).is_equal(4)
 	assert_dict(read.coupon_uses).is_equal({&"repeat": 7})
 	assert_dict(read.settings).is_equal({"volume": 0.5, "reduced_motion": true})
-	assert_array(read.worn_pins).is_equal([&"full_redraw"])
+	assert_array(read.worn_pins).is_equal([&"repack"])
 	assert_int(read.pins_bought).is_equal(1)
 
 
@@ -215,7 +215,7 @@ func test_unreadable_forms_are_rejected() -> void:
 		{"format_version": 2, "capsule_draws": -1},
 		{"format_version": 2, "unlocked_items": [["apple", -2]]},
 		{"format_version": 3, "worn_pins": [1]},
-		{"format_version": 3, "unlocked_pins": "full_redraw"},
+		{"format_version": 3, "unlocked_pins": "repack"},
 		{"format_version": 3, "pins_bought": -1},
 	]
 	for data: Dictionary in bad:
@@ -392,8 +392,8 @@ static func _full_profile() -> ProfileState:
 	profile.achievements.append(&"first_win")
 	profile.stats[&"best_checkout"] = 88
 	profile.settings = {"volume": 0.5, "reduced_motion": true}
-	profile.unlocked_pins.append(&"full_redraw")
-	profile.worn_pins.append(&"full_redraw")
+	profile.unlocked_pins.append(&"repack")
+	profile.worn_pins.append(&"repack")
 	profile.pins_bought = 1
 	return profile
 

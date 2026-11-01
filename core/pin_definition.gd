@@ -21,5 +21,6 @@ extends Resource
 @export var unlock_condition: UnlockCondition
 ## Cards added to the run's starting deck (after the starter pack is taken).
 @export var starting_cards: Array[CardDefinition] = []
-## Once per shift the player may redraw every basket at once, for one redraw.
-@export var full_redraw: bool = false
+## While planning, the player may move hand items between baskets (RunPins.repack), so lone
+## items can share one basket and go in one redraw.
+@export var repack: bool = false

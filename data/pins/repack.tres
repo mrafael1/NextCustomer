@@ -10,9 +10,9 @@ amount = 1
 
 [resource]
 script = ExtResource("1_pin")
-id = &"full_redraw"
-display_name = "Clean sweep"
-rule_text = "Once a shift, redraw every basket for one redraw"
-face_text = "ALL"
+id = &"repack"
+display_name = "Repack"
+rule_text = "Move items between baskets while planning"
+face_text = "MIX"
 unlock_condition = SubResource("Resource_win")
-full_redraw = true
+repack = true

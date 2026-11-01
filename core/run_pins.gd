@@ -1,8 +1,8 @@
 class_name RunPins
 extends RefCounted
 ## A run's badge pins (#122, full build plan 7.4): wearing them when the run starts, their
-## starting cards and the full redraw. The pins and the full redraw's use live on the run
-## (RunState.pins, full_redraw_used), so they are saved with it.
+## starting cards and the repack. The pins live on the run (RunState.pins), so they are saved
+## with it; a repack changes the hand's places, which the run save keeps too.
 
 
 ## Wears the badge pins for a new run: kept in `run.pins`, their starting cards added to the deck
@@ -21,46 +21,37 @@ static func add_cards(run: RunState) -> void:
 			run.deck.add_card(card)
 
 
-## Whether a worn pin gives the full redraw.
-static func has_full_redraw(run: RunState) -> bool:
+## Whether a worn pin gives the repack.
+static func has_repack(run: RunState) -> bool:
 	for pin: PinDefinition in run.pins:
-		if pin.full_redraw:
+		if pin.repack:
 			return true
 	return false
 
 
-## The full redraw needs a full-redraw pin, planning, a redraw left, this shift's full redraw
-## unused, a hand card and a card to draw.
-static func can_redraw_all(run: RunState) -> bool:
-	if not has_full_redraw(run) or run.full_redraw_used:
+## A repack needs a repack pin, planning, a hand card (not a row card) at `from` and a place `to`
+## in another basket of the hand. The place may hold a hand card (the two swap) or be empty, its
+## card on the belt (the item moves there, and that row card's place becomes `from`).
+static func can_repack(run: RunState, from: int, to: int) -> bool:
+	if not has_repack(run) or run.phase != RunState.Phase.PLANNING:
 		return false
-	if run.phase != RunState.Phase.PLANNING or run.redraws_used >= run.redraws_allowed:
-		return false
-	return not hand_places(run).is_empty() and not run.deck.draw_pile().is_empty()
-
-
-## Redraws every basket's hand cards at once, as one redraw (RunState.redraw_basket's rules for
-## each card: row cards stay, a short draw pile swaps the left ones), once per shift. Returns the
-## places swapped (empty when it isn't allowed).
-static func redraw_all(run: RunState) -> Array[int]:
-	var swapped: Array[int] = []
-	if not can_redraw_all(run):
-		return swapped
-	swapped = run.deck.redraw_places(hand_places(run))
-	if run.redraws_used >= run.limits.own_redraws:
-		var by_place: Array[CardInstance] = run.deck.hand()
-		for spot: int in swapped:
-			run.redrawn_in.append(by_place[spot].instance_id)
-	run.redraws_used += 1
-	run.full_redraw_used = true
-	return swapped
-
-
-## The places of the hand that hold hand cards (not row cards), ascending.
-static func hand_places(run: RunState) -> Array[int]:
-	var places: Array[int] = []
 	var by_place: Array[CardInstance] = run.hand_places()
-	for index: int in by_place.size():
-		if by_place[index] != null:
-			places.append(index)
-	return places
+	if from < 0 or from >= by_place.size() or to < 0 or to >= by_place.size():
+		return false
+	if by_place[from] == null:
+		return false
+	return basket_of(run, from) != basket_of(run, to)
+
+
+## Moves the hand card at `from` to place `to` in another basket, swapping the two places' cards
+## (a hand card or a row card's empty place), for free and as often as planning likes, so lone
+## items can share a basket and go in one redraw. False, changing nothing, when not allowed.
+static func repack(run: RunState, from: int, to: int) -> bool:
+	if not can_repack(run, from, to):
+		return false
+	return run.deck.swap_places(from, to)
+
+
+## The basket of hand place `place` (balance.basket_size places each, from place 0).
+static func basket_of(run: RunState, place: int) -> int:
+	return floori(float(place) / maxi(run.balance.basket_size, 1))
