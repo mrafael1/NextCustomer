@@ -1,0 +1,331 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Family Identities 128</title>
+<style>
+@font-face { font-family: Pixelify; src: url(__ASSET:fonts/PixelifySans-Variable.ttf__) format('truetype'); }
+@font-face { font-family: Atkinson; src: url(__ASSET:fonts/AtkinsonHyperlegibleNext-Variable.ttf__) format('truetype'); font-weight: 200 800; }
+:root {
+  --bg: #172c2b; --panel: #1f3b3a; --panel2: #2a4d4b; --ink: #f3e9d2; --muted: #86c2b6; --line: #3a7672;
+  --mustard: #e2b33c; --tomato: #d9534f; --paper: #fbf7ee; --cream: #f3e9d2; --paper-ink: #2b2420; --green: #5fae5a;
+}
+:root:not([data-theme="light"]) { color-scheme: dark; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --bg: #172c2b; } }
+:root[data-theme="dark"] { --bg: #172c2b; }
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--ink); font: 16px/1.5 Atkinson, system-ui, sans-serif; }
+main { max-width: 1240px; margin: 0 auto; padding: 24px 16px 72px; }
+h1 { font: 400 40px/1.1 Pixelify, monospace; margin: 8px 0 6px; color: var(--mustard); }
+h2 { font: 400 27px/1.2 Pixelify, monospace; margin: 44px 0 6px; }
+h2 small { font: 15px Atkinson, sans-serif; color: var(--muted); margin-left: 8px; }
+h3 { font: 400 20px/1.2 Pixelify, monospace; margin: 0; }
+p { margin: 8px 0; max-width: 920px; }
+.lede { color: var(--muted); max-width: 980px; }
+code { font: 14px/1.4 ui-monospace, monospace; background: var(--panel2); padding: 1px 5px; border-radius: 3px; }
+b.k { color: var(--mustard); font-weight: 700; }
+img.px { image-rendering: pixelated; }
+/* tickets */
+.tickets { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 12px; }
+.tk { width: 176px; background: var(--paper); color: var(--paper-ink); border: 2px solid #2b2420; box-shadow: 0 3px 0 #b39f78; padding: 8px 10px 10px; position: relative; }
+.tk .art { display: block; margin: 0 auto 4px; width: 96px; height: 96px; }
+.tk .nm { font: 400 18px/1.1 Pixelify, monospace; }
+.tk .rule { font-size: 14px; line-height: 1.3; margin-top: 4px; min-height: 36px; }
+.tk .glyph { position: absolute; top: 8px; right: 8px; width: 18px; height: 18px; }
+.tk .stat { margin-top: 6px; font-size: 13px; color: #6e2630; font-weight: 700; }
+.tk.now .stat { color: #6e2630; } .tk.next .stat { color: #3d7a45; }
+.tk.next { box-shadow: 0 3px 0 #3d7a45; }
+.pair { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.pair .arrow { font: 400 28px Pixelify, monospace; color: var(--mustard); }
+.verb { display: inline-block; font: 400 13px/1 Pixelify, monospace; background: var(--mustard); color: var(--paper-ink); padding: 3px 6px 4px; margin-top: 6px; }
+/* families */
+.fam { display: grid; grid-template-columns: 300px 1fr; gap: 16px; background: var(--panel); border: 2px solid var(--line); border-left-width: 8px; padding: 14px 16px; margin: 12px 0; }
+.fam .who { display: flex; gap: 8px; align-items: center; }
+.fam .who img { width: 27px; height: 27px; }
+.fam > * { min-width: 0; }
+.fam .ask { font-size: 15px; margin: 6px 0; }
+.fam ul { margin: 6px 0 0; padding-left: 18px; font-size: 14px; } .fam li { margin: 2px 0; }
+.fam .tag { font-size: 12px; font-weight: 700; padding: 1px 6px; border-radius: 2px; margin-right: 4px; color: var(--paper-ink); }
+.belt { overflow-x: auto; padding-bottom: 4px; }
+.row { display: flex; gap: 6px; align-items: flex-end; min-width: max-content; }
+.slot { width: 100px; text-align: center; position: relative; cursor: default; }
+.slot img.it { width: 96px; height: 96px; display: block; margin: 0 auto -6px; }
+.slot .pay { background: var(--paper); color: var(--paper-ink); border: 2px solid #2b2420; padding: 3px 4px 4px; }
+.slot .pay b { font: 800 20px/1 Atkinson, sans-serif; display: block; }
+.slot .pay span { font-size: 12px; line-height: 1.2; display: block; min-height: 29px; }
+.slot .pay.hot { background: #faecbc; box-shadow: inset 0 -3px 0 #e2b33c; }
+.slot .pay.miss { background: #f5bfa0; }
+.slot .n { position: absolute; top: 0; left: 4px; font: 400 14px Pixelify, monospace; color: var(--muted); }
+.slot.sel .pay { outline: 3px solid var(--mustard); outline-offset: 1px; }
+.slot.swap { cursor: pointer; }
+.slot.swap:hover img.it { transform: translateY(-4px); }
+.mark { position: absolute; left: -6px; right: -6px; top: 6px; height: 0; border-top: 3px dotted var(--mustard); }
+.total { font: 400 22px Pixelify, monospace; margin-top: 8px; display: flex; gap: 18px; flex-wrap: wrap; align-items: baseline; }
+.total .now { color: var(--muted); font-size: 18px; }
+.total .up { color: var(--green); } .total .down { color: var(--tomato); }
+/* lab */
+.lab { background: var(--panel); border: 2px solid var(--line); padding: 14px 16px; margin-top: 12px; }
+.bar { display: flex; flex-wrap: wrap; gap: 6px 14px; align-items: center; margin: 4px 0 10px; }
+.bar .g { display: flex; gap: 4px; flex-wrap: wrap; align-items: center; } .bar .g > span { color: var(--muted); font-size: 14px; margin-right: 4px; }
+button { font: 15px/1 Pixelify, monospace; color: var(--paper-ink); background: var(--cream); border: 2px solid #2b2420; box-shadow: inset 0 -3px 0 #ddcba5; padding: 7px 10px 9px; cursor: pointer; }
+button[aria-pressed="true"] { background: var(--mustard); box-shadow: inset 0 -3px 0 #b38425; }
+button:focus-visible { outline: 2px solid var(--mustard); outline-offset: 2px; }
+.hint { color: var(--muted); font-size: 14px; }
+/* study */
+table { border-collapse: collapse; width: 100%; font-size: 14px; margin-top: 8px; }
+th, td { text-align: left; padding: 6px 8px; border-bottom: 1px solid var(--line); vertical-align: middle; }
+th { color: var(--muted); font-weight: 700; font-size: 13px; }
+td.num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.sb { display: flex; height: 14px; width: 220px; border: 1px solid #2b2420; background: var(--panel2); }
+.sb i { display: block; height: 100%; }
+.sb .l { background: #d9534f; } .sb .p { background: #5fae5a; } .sb .a { background: #8a8172; }
+.legend { display: flex; gap: 14px; flex-wrap: wrap; font-size: 13px; color: var(--muted); margin-top: 6px; }
+.legend i { display: inline-block; width: 12px; height: 12px; margin-right: 4px; vertical-align: -1px; border: 1px solid #2b2420; }
+.wrap { overflow-x: auto; }
+.find { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 12px; margin-top: 10px; }
+.find div { background: var(--panel); border-top: 4px solid var(--mustard); padding: 10px 14px; font-size: 15px; }
+.find div.warn { border-top-color: var(--tomato); }
+.find b { display: block; font: 400 17px Pixelify, monospace; margin-bottom: 2px; }
+.q { background: var(--panel); border-left: 4px solid var(--mustard); padding: 12px 16px; margin: 10px 0; }
+.q > b:first-child { color: var(--mustard); }
+.q ol, .q ul { margin: 6px 0 0; }
+ul.plain { padding-left: 20px; } ul.plain li { margin: 3px 0; }
+@media (max-width: 760px) { .fam { grid-template-columns: 1fr; } h1 { font-size: 30px; } .sb { width: 140px; } }
+</style>
+</head>
+<body>
+<main>
+<h1>Family identities · #128</h1>
+<p class="lede">A decision page for #128, "Prototype distinct gameplay identities for item families". It proposes one belt decision per family, redesigns the five unlocks that repeat Milk's count, and scores every example on this page with a small copy of the game's scoring order. Everything here is a <b>candidate, not an agreed rule</b>. Nothing in the game changes until the questions at the bottom are answered.</p>
+
+<h2>1 · The repeat <small>five unlocks play like Milk</small></h2>
+<p>Milk counts earlier Breakfast products. Five capsule unlocks give the same rule to another family. The plan each one asks for is the same: draft that family and put this item late. The red line under each ticket is measured in section 4: the share of family-leaning hands where <b>putting it in the last slot, in any order, already earns its best bonus</b>.</p>
+<div class="tickets" id="repeat"></div>
+
+<h2>2 · Six families, six decisions <small>candidates</small></h2>
+<p>Each family is defined by the question it asks while you arrange the belt, not by a number. Families keep some simple items, more than one build each, and bridge items with two tags. Each belt below is scored with the candidate rules on. The highlighted tickets are the family's signature.</p>
+<div id="families"></div>
+
+<h2>3 · First prototype: Produce <small>recommended</small></h2>
+<p>Produce is the strongest first family. Its anchor, the Banana chain, is in every starting cart, so all three redesigned unlocks work from the first visit with no later unlock. It also sets two ways to play against each other: the <b>chain</b> (the same fruit, growing) and the <b>bowl</b> (different fruits). Three unlocks, three new possibilities:</p>
+<div id="produce"></div>
+<div class="lab">
+  <div class="bar">
+    <div class="g" id="presets"><span>Belt</span></div>
+    <div class="g" id="rules"><span>Rules</span></div>
+    <div class="g"><button id="bestBtn">Best order</button><button id="resetBtn">Reset</button></div>
+  </div>
+  <div class="belt"><div class="row" id="lab"></div></div>
+  <div class="total" id="labTotal"></div>
+  <p class="hint">Click two products to swap them. The line under each price says where its bonus came from. "Best order" tries all 720 orders.</p>
+</div>
+
+<h2>4 · Measured: does the order still matter? <small>this page's scorer, seeded hands</small></h2>
+<p>For each redesigned item, 120 hands of 6: the item plus 5 products drawn from the pool, with products of the item's family three times as likely. Every order of every hand is scored with today's rule (<b>now</b>) and with the candidate (<b>next</b>). The bar splits the hands by the item's own bonus:</p>
+<div class="legend"><span><i style="background:#d9534f"></i>last is enough: every order with it last earns its best bonus</span><span><i style="background:#5fae5a"></i>needs a plan: its best bonus depends on what goes where</span><span><i style="background:#8a8172"></i>never varies: the same bonus in every order</span></div>
+<div class="bar" style="margin-top:10px"><div class="g" id="pools"><span>Pool</span></div></div>
+<div class="wrap"><table id="study"></table></div>
+<p class="hint"><b>Best bonus</b> is the item's own bonus at its best, averaged over hands. <b>Item pay</b> and <b>best row</b> are averages in the best order: these are the power check, and a redesign should change the plan without raising them much. Fresh pool: the 20 products a new profile stocks. Expanded: those plus every capsule unlock on this page (today's rules). These are hypotheses checked on a 6-slot toy scorer with no coupons, perks or inspections. The balance simulator (plan section 8) is the real measurement.</p>
+
+<h2>5 · What the numbers say</h2>
+<div class="find" id="findings"></div>
+
+<h2>6 · Decide with the user</h2>
+<div class="q"><b>Q1 · The six decisions.</b> Are these the families' signature questions? <b>Breakfast</b>: prepare a big late payout (unchanged, keeping Milk). <b>Produce</b>: one fruit growing, or many different fruits. <b>Bakery</b>: an unbroken batch, ended on purpose. <b>Snacks</b>: small treats spread through the belt, never touching (the opposite of Bakery). <b>Household</b>: tools that serve other families, and pairs. <b>Clearance</b>: turn missed conditions into a limited payout.</div>
+<div class="q"><b>Q2 · First family to prototype.</b> <b>A · Produce (recommended):</b> the anchor is in the starting cart, and the chain and the bowl give a real choice. <b>B · Bakery and Snacks together:</b> clump against spread, the clearest contrast, but no Snack is stocked on a fresh profile. <b>C · Clearance:</b> salvage is the most novel verb, but it rewards bad rows and needs the most tuning.</div>
+<div class="q"><b>Q3 · The Produce set.</b> <b>Default:</b> Fruit salad (variety), Strawberries (chain into a new fruit), Wonky carrot (chains pass through it). The other Produce unlocks (Grapefruit, Lemon, Bruised apples, Soft tomatoes, Potatoes) stay as they are for the prototype.</div>
+<div class="q"><b>Q4 · How we judge it, agreed before building.</b> Default criteria:
+  <ol>
+    <li>After two runs, a player can say in one sentence how Produce changes what they draft or where they put things. Your verdict from a playtest.</li>
+    <li>Each redesigned ordering item is "last is enough" in at most 30% of hands, on this page's study and in the balance simulator's rows. Fruit salad is judged on drafting instead.</li>
+    <li>No power creep: in the simulator's greedy rows, the best-row average stays within ±10% of today's at the same quota. Measured, not assumed.</li>
+    <li>Each one works from a fresh profile: it earns its bonus in at least half of fresh-pool hands, with no other unlock needed.</li>
+    <li>Collection health: on a fresh and on a full collection, the NEW ITEMS draw offers a usable item for the deck as often as today (<code>--list-gate</code>, the offer guarantee), and unlocking a Produce item never lowers a run's simulated win rate.</li>
+  </ol>
+</div>
+<div class="q"><b>Out of scope here</b> (separate issues): badge pins and equipped-pin limits, Double checkout, optional first-trial replacements and named assortments. No wholesale content redesign: section 2's other families are a map for later, not work for this prototype.</div>
+
+<h2>Real and approximated</h2>
+<ul class="plain">
+  <li><b>Real:</b> today's card rules, bases and tags (<code>data/cards</code>), the fresh stock and the capsule lineups (<code>data/aisles</code>), the item sprites (<code>art/items_v2</code>), the family glyphs and colours (<code>data/families</code>).</li>
+  <li><b>Candidate:</b> every rule marked <b>next</b>, with placeholder numbers.</li>
+  <li><b>Approximated:</b> the scorer (<code>family_identities_128_src/scorer.js</code>, checked by <code>node scorer_test.js</code>) follows the game's order for products only: no coupons, perks, item tiers or day events, and 6 slots.</li>
+</ul>
+<p class="hint">Source: <code>docs/art/mockups/family_identities_128_src/</code>. <code>python build.py</code> writes this page, <code>node stills.js</code> its stills. URL options: <code>sec=&lt;section number&gt;</code> shows one section, <code>preset=chain|bowl|carrot</code>, <code>rules=now|next</code>.</p>
+</main>
+
+<script>
+__SCORER_JS__
+</script>
+<script>
+const SPRITES = __SPRITES__;
+const GLYPHS = __GLYPHS__;
+const STUDY = __STUDY__;
+const FAM = {
+  Breakfast: {face: '#e2b33c', light: '#f1d27a', ink: '#2b2420'}, Produce: {face: '#5fae5a', light: '#a5d17e', ink: '#2b2420'},
+  Bakery: {face: '#d2a874', light: '#ddcba5', ink: '#2b2420'}, Snack: {face: '#7a5232', light: '#a87a4e', ink: '#fbf7ee'},
+  Household: {face: '#5e574d', light: '#8a8172', ink: '#fbf7ee'}, Clearance: {face: '#a83a3c', light: '#d9534f', ink: '#fbf7ee'},
+  Dairy: {face: '#4f9a94', light: '#86c2b6', ink: '#2b2420'}, Frozen: {face: '#c3e0d4', light: '#fbf7ee', ink: '#2b2420'},
+};
+const FAMILY_OF = {fruit_salad: 'Produce', strawberries: 'Produce', wonky_carrot: 'Produce', baguette: 'Bakery', odd_socks: 'Household', pick_n_mix: 'Snack', dusty_toffees: 'Clearance', milk: 'Breakfast', dented_can: 'Clearance'};
+const Q = new URLSearchParams(location.search);
+const el = (tag, cls, html) => { const e = document.createElement(tag); if (cls) e.className = cls; if (html != null) e.innerHTML = html; return e; };
+const pct = v => Math.round(v * 100) + '%';
+const sprite = id => SPRITES[id] || '';
+const glyph = fam => GLYPHS[fam] || '';
+
+function ticket(id, which, stat) {
+  const c = CARDS[id], fam = FAMILY_OF[id];
+  const text = which === 'next' && c.next ? c.next.text : c.text;
+  const t = el('div', 'tk ' + (which || 'now'));
+  t.innerHTML = `<img class="glyph px" src="${glyph(fam)}" alt="${fam}"><img class="art px" src="${sprite(id)}" alt=""><div class="nm">${c.name}</div><div class="rule">${text}</div>` +
+    (which === 'next' && c.next ? `<span class="verb">${c.next.verb.toUpperCase()}</span>` : '') + (stat ? `<div class="stat">${stat}</div>` : '');
+  return t;
+}
+
+// ---- 1 · the repeat
+(() => {
+  const box = document.getElementById('repeat');
+  const fresh = STUDY.fresh, exp = STUDY.expanded;
+  const milk = ticket('milk', 'now', 'Breakfast · starting cart');
+  box.appendChild(milk);
+  ['fruit_salad', 'baguette', 'odd_socks', 'pick_n_mix', 'dusty_toffees'].forEach(id => {
+    const s = exp[id].now;
+    box.appendChild(ticket(id, 'now', `last is enough: ${pct(s.wantsLast)} of hands`));
+  });
+})();
+
+// ---- belts
+function belt(ids, mode, opt) {
+  opt = opt || {};
+  const s = score(ids, mode), row = el('div', 'row');
+  const showMiss = mode !== 'now' && ids.includes('dusty_toffees');
+  ids.forEach((id, i) => {
+    const c = CARDS[id], d = el('div', 'slot' + (opt.swap ? ' swap' : '') + (opt.sel === i ? ' sel' : ''));
+    const st = s.steps[i];
+    const why = st.length ? st.map(x => x.zero ? '€0 ' + x.txt : x.f ? '×' + x.f + ' ' + x.txt : '+' + x.amt + ' ' + x.txt).join(' · ') : (s.fizzled[i] && showMiss ? 'missed' : c.rule.t === 'none' ? 'no rule' : '');
+    const hot = opt.hot && opt.hot.includes(id);
+    d.innerHTML = `<span class="n">${i + 1}</span><img class="it px" src="${sprite(id)}" alt="${c.name}" title="${c.name}: ${ruleOf(id, mode).text}"><div class="pay${hot ? ' hot' : ''}${s.fizzled[i] && showMiss ? ' miss' : ''}"><b>€${s.pays[i]}</b><span>${why}</span></div>`;
+    if (opt.swap) d.onclick = () => opt.swap(i);
+    row.appendChild(d);
+  });
+  return {row, total: s.total};
+}
+
+// ---- 2 · families
+const FAMILIES = [
+  {fam: 'Breakfast', verb: 'Prepare a big late payout', q: 'What do I set up early, and which one product cashes it?', ids: ['bread', 'coffee', 'cereal', 'eggs', 'tea_bags', 'milk'], hot: ['coffee', 'tea_bags', 'milk'],
+    keep: ['Milk stays the family counter, unchanged', 'Coffee +3 and Tea bags ×4 to the next Breakfast are the setups'], cand: ['No redesign: Breakfast is the template the others move away from'], bridges: ['Croissant (Bakery)', 'Grapefruit (Produce)', 'Cereal bar (Snack)', 'Egg timer (Household)']},
+  {fam: 'Produce', verb: 'One fruit growing, or many fruits', q: 'Do I stack the same fruit into a chain, or draft a bowl of different ones?', ids: ['banana', 'banana', 'wonky_carrot', 'banana', 'strawberries', 'fruit_salad'], hot: ['fruit_salad', 'strawberries', 'wonky_carrot'],
+    keep: ['Banana chain (starting cart) is the anchor', 'Grapefruit +3 and Lemon ×2 to the next Produce'], cand: ['Fruit salad: +3 per different Produce before it', 'Strawberries: chain into a new fruit', 'Wonky carrot: chains pass through it'], bridges: ['Grapefruit (Breakfast)', 'Wonky carrot (Clearance)', 'Frozen peas (Frozen)']},
+  {fam: 'Bakery', verb: 'Bake a batch, end it on purpose', q: 'How long an unbroken run can I make, and what ends it?', ids: ['soup', 'crackers', 'bread', 'croissant', 'baguette', 'cheese'], hot: ['baguette'],
+    keep: ['Croissant +2 beside Bakery, Iced bun ×2 next Bakery inside the batch', 'Butter and Cheese sit at the batch\'s edges'], cand: ['Baguette: +3 per Bakery in the unbroken run just before it'], bridges: ['Bread and Croissant (Breakfast)', 'Day-old buns (Clearance)', 'Birthday candles (Household)']},
+  {fam: 'Snack', verb: 'Spread small treats out', q: 'Where can each Snack sit so none touches another, and what does each pair with?', ids: ['crisps', 'bread', 'pick_n_mix', 'soup', 'breadsticks', 'milk'], hot: ['pick_n_mix'],
+    keep: ['Crisps beside Bread, Breadsticks after Soup: each Snack pairs with another family'], cand: ['Pick \'n\' mix: +3 per Snack with no Snack beside it (itself too)'], bridges: ['Cereal bar (Breakfast)', 'Dusty toffees and Bent lolly (Clearance)']},
+  {fam: 'Household', verb: 'Tools and pairs', q: 'Which tool serves the row, and can I make a matched pair?', ids: ['coffee', 'chipped_mug', 'odd_socks', 'milk', 'carrier_bag', 'batteries'], hot: ['odd_socks', 'chipped_mug', 'batteries'],
+    keep: ['Tools serve others: Scissors (coupons), Batteries (last slot), Egg timer (Eggs), Birthday candles (Bakery)'], cand: ['Odd socks: +6 with exactly one Household beside it (a pair, not a run)'], bridges: ['Chipped mug and Flickering bulb (Clearance)', 'Egg timer (Breakfast)']},
+  {fam: 'Clearance', verb: 'Turn misses into a payout', q: 'Which awkward products can I afford to let miss, and who collects?', ids: ['scissors', 'cereal', 'frozen_peas', 'dented_can', 'dusty_toffees', 'bread'], hot: ['dusty_toffees'],
+    keep: ['Dented can stays the family counter (fresh stock)', 'Flickering bulb +3 and Squashed cake ×2 to the next Clearance'], cand: ['Dusty toffees: +3 per earlier product whose rule paid nothing (up to 3)'], bridges: ['Wonky carrot (Produce)', 'Day-old buns (Bakery)', 'Chipped mug (Household)']},
+];
+(() => {
+  const box = document.getElementById('families');
+  FAMILIES.forEach(f => {
+    const st = FAM[f.fam], d = el('section', 'fam');
+    d.style.borderLeftColor = st.face;
+    const now = score(f.ids, 'now').total, b = belt(f.ids, 'next', {hot: f.hot});
+    const delta = b.total - now;
+    d.innerHTML = `<div><div class="who"><img class="px" src="${glyph(f.fam)}" alt=""><h3>${f.fam}</h3></div>
+      <div style="font:400 17px Pixelify,monospace;color:${st.light};margin-top:6px">${f.verb}</div>
+      <p class="ask">${f.q}</p>
+      <ul>${f.cand.map(x => `<li><span class="tag" style="background:#e2b33c">next</span>${x}</li>`).join('')}${f.keep.map(x => `<li><span class="tag" style="background:#c7beab">keep</span>${x}</li>`).join('')}<li><span class="tag" style="background:#86c2b6">bridge</span>${f.bridges.join(', ')}</li></ul></div>`;
+    const right = el('div');
+    const bw = el('div', 'belt'); bw.appendChild(b.row); right.appendChild(bw);
+    right.appendChild(el('div', 'total', `€${b.total}<span class="now">today's rules: €${now} <span class="${delta > 0 ? 'up' : delta < 0 ? 'down' : ''}">(${delta >= 0 ? '+' : ''}${delta})</span></span>`));
+    d.appendChild(right);
+    box.appendChild(d);
+  });
+})();
+
+// ---- 3 · Produce: the three unlocks and the lab
+(() => {
+  const box = document.getElementById('produce');
+  ['fruit_salad', 'strawberries', 'wonky_carrot'].forEach(id => {
+    const p = el('div', 'pair'); p.style.margin = '10px 0';
+    p.appendChild(ticket(id, 'now')); p.appendChild(el('span', 'arrow', '›')); p.appendChild(ticket(id, 'next'));
+    const why = {
+      fruit_salad: 'A drafting decision: a fourth Banana adds nothing to it, but a Frozen peas or a Strawberries does. It is still a "put it late" card, and it should say so.',
+      strawberries: 'Ends a Banana chain on a new fruit and keeps its price: put it after your best-priced Produce. It does not carry the chain on, so it is the bowl\'s way into the chain.',
+      wonky_carrot: 'Pays only its base, but lets a different fruit sit inside a chain: Banana, carrot, Banana still chains. It adds Clearance\'s tag to a Produce row (the bridge).',
+    }[id];
+    p.appendChild(el('p', '', why)).style.maxWidth = '380px';
+    box.appendChild(p);
+  });
+  const PRESETS = {
+    chain: {label: 'Chain', ids: ['banana', 'banana', 'banana', 'strawberries', 'fruit_salad', 'milk']},
+    bowl: {label: 'Bowl', ids: ['banana', 'frozen_peas', 'grapefruit', 'strawberries', 'wonky_carrot', 'fruit_salad']},
+    carrot: {label: 'Through the carrot', ids: ['banana', 'banana', 'wonky_carrot', 'banana', 'strawberries', 'fruit_salad']},
+  };
+  let cur = Q.get('preset') && PRESETS[Q.get('preset')] ? Q.get('preset') : 'carrot';
+  let ids = PRESETS[cur].ids.slice(), mode = Q.get('rules') === 'now' ? 'now' : 'next', sel = null;
+  const pBox = document.getElementById('presets'), rBox = document.getElementById('rules');
+  Object.keys(PRESETS).forEach(k => { const b = el('button', '', PRESETS[k].label); b.dataset.k = k; b.onclick = () => { cur = k; ids = PRESETS[k].ids.slice(); sel = null; draw(); }; pBox.appendChild(b); });
+  [['now', 'Today'], ['next', 'Candidates']].forEach(([k, l]) => { const b = el('button', '', l); b.dataset.k = k; b.onclick = () => { mode = k; draw(); }; rBox.appendChild(b); });
+  document.getElementById('bestBtn').onclick = () => { ids = best(ids, mode).rows[0].slice(); sel = null; draw(); };
+  document.getElementById('resetBtn').onclick = () => { ids = PRESETS[cur].ids.slice(); sel = null; draw(); };
+  function draw() {
+    pBox.querySelectorAll('button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.k === cur)));
+    rBox.querySelectorAll('button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.k === mode)));
+    const lab = document.getElementById('lab'); lab.innerHTML = '';
+    const b = belt(ids, mode, {sel, hot: mode === 'next' ? ['fruit_salad', 'strawberries', 'wonky_carrot'] : [], swap: i => {
+      if (sel === null) sel = i; else { if (sel !== i) [ids[sel], ids[i]] = [ids[i], ids[sel]]; sel = null; }
+      draw();
+    }});
+    b.row.childNodes.forEach(n => lab.appendChild(n.cloneNode(true)));
+    lab.querySelectorAll('.slot').forEach((n, i) => { n.onclick = () => { if (sel === null) sel = i; else { if (sel !== i) [ids[sel], ids[i]] = [ids[i], ids[sel]]; sel = null; } draw(); }; });
+    const other = score(ids, mode === 'next' ? 'now' : 'next').total, bestT = best(ids, mode).total;
+    document.getElementById('labTotal').innerHTML = `€${b.total}<span class="now">best order €${bestT} · same belt with ${mode === 'next' ? "today's rules" : 'the candidates'}: €${other}</span>`;
+  }
+  draw();
+})();
+
+// ---- 4 · the study table
+(() => {
+  let pool = 'fresh';
+  const pBox = document.getElementById('pools');
+  [['fresh', 'Fresh profile'], ['expanded', 'Expanded collection']].forEach(([k, l]) => { const b = el('button', '', l); b.dataset.k = k; b.onclick = () => { pool = k; draw(); }; pBox.appendChild(b); });
+  const bar = s => `<div class="sb" title="last is enough ${pct(s.wantsLast)} · needs a plan ${pct(s.wantsElse)} · never varies ${pct(s.anywhere)}"><i class="l" style="width:${s.wantsLast * 100}%"></i><i class="p" style="width:${s.wantsElse * 100}%"></i><i class="a" style="width:${s.anywhere * 100}%"></i></div>`;
+  function draw() {
+    pBox.querySelectorAll('button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.k === pool)));
+    const t = document.getElementById('study');
+    let h = '<tr><th>Item</th><th>Rule</th><th>Own bonus over the hands</th><th class="num">Last is enough</th><th class="num">Best bonus</th><th class="num">Item pay</th><th class="num">Best row</th></tr>';
+    REDESIGNED.forEach(id => {
+      const r = STUDY[pool][id];
+      ['now', 'next'].forEach(m => {
+        const s = r[m];
+        h += `<tr><td>${m === 'now' ? `<img class="px" src="${sprite(id)}" width="48" height="48" alt="" style="vertical-align:middle;margin-right:6px">${CARDS[id].name}` : ''}</td><td>${m === 'now' ? 'now · ' + CARDS[id].text : '<b style="color:#a5d17e">next</b> · ' + CARDS[id].next.text}</td><td>${bar(s)}</td><td class="num">${pct(s.wantsLast)}</td><td class="num">€${s.own.toFixed(1)}</td><td class="num">€${s.itemPay.toFixed(1)}</td><td class="num">€${s.bestTotal.toFixed(1)}</td></tr>`;
+      });
+    });
+    t.innerHTML = h;
+  }
+  draw();
+})();
+
+// ---- 5 · findings (read from the study, so the words and the table agree)
+(() => {
+  const F = STUDY.fresh, X = STUDY.expanded, box = document.getElementById('findings');
+  const add = (cls, title, html) => { const d = el('div', cls); d.innerHTML = `<b>${title}</b>${html}`; box.appendChild(d); };
+  add('', 'Four of five counters now need a plan', `Baguette, Odd socks, Pick 'n' mix and Dusty toffees go from "last is enough" (${pct(X.baguette.now.wantsLast)}, ${pct(X.odd_socks.now.wantsLast)}, ${pct(X.pick_n_mix.now.wantsLast)}, ${pct(X.dusty_toffees.now.wantsLast)}) to ${pct(X.baguette.next.wantsLast)}, ${pct(X.odd_socks.next.wantsLast)}, ${pct(X.pick_n_mix.next.wantsLast)} and ${pct(X.dusty_toffees.next.wantsLast)} on the expanded pool.`);
+  add('warn', 'Fruit salad is still a counter', `Variety changes what you draft, not where it goes: "last is enough" stays at ${pct(X.fruit_salad.next.wantsLast)}. A fresh profile stocks only two kinds of Produce (Banana, Frozen peas), so its candidate tops out at +6 until other fruit is unlocked. Keep it as the bowl's payoff, or give the ordering job to Strawberries alone.`);
+  add('warn', 'No Snack in the fresh stock', `With fresh stock, today's Pick 'n' mix never earns its bonus (missed in ${pct(F.pick_n_mix.now.fizzle)} of hands). The candidate pays +3 on its own from the first run, and asks for spacing once other Snacks arrive. Any Snack-counting rule fails the "works without later unlocks" criterion.`);
+  add('warn', 'Dusty toffees is the big jump', `Salvage raises the item's pay from €${X.dusty_toffees.now.itemPay.toFixed(1)} to €${X.dusty_toffees.next.itemPay.toFixed(1)} on average, and it still says "last is enough" in ${pct(X.dusty_toffees.next.wantsLast)} of hands. Try +2 per miss, or count only misses directly before it, before it reaches the simulator.`);
+  add('', 'Wonky carrot is an enabler', `Its own bonus never varies (${pct(X.wonky_carrot.next.anywhere)} of hands): it pays its base and earns through the chain it keeps alive. Judge it by the Banana that follows it, as in the lab's "Through the carrot" belt, not by its own ticket.`);
+  const ups = REDESIGNED.map(id => X[id].next.bestTotal - X[id].now.bestTotal);
+  add('', 'Power rises a little', `Across the seven items, the best row moves by €${Math.min(...ups).toFixed(1)} to €${Math.max(...ups).toFixed(1)} on the expanded pool (Baguette €${X.baguette.now.bestTotal.toFixed(1)} → €${X.baguette.next.bestTotal.toFixed(1)}, Odd socks €${X.odd_socks.now.bestTotal.toFixed(1)} → €${X.odd_socks.next.bestTotal.toFixed(1)}). Most of that comes from stronger new rules rather than better plans, so trim the numbers before playtesting, and let criterion 3 decide in the simulator.`);
+})();
+
+if (Q.get('sec')) { const n = +Q.get('sec'); const hs = [...document.querySelectorAll('main > h2')]; hs.forEach((h, i) => { let e = h; const keep = i + 1 === n; while (e && (e === h || e.tagName !== 'H2')) { if (!keep) e.style.display = 'none'; e = e.nextElementSibling; } }); document.querySelectorAll('main > h1, main > .lede').forEach(e => e.style.display = 'none'); }
+window.addEventListener('error', e => { document.title = 'ERROR: ' + e.message; });
+</script>
+</body>
+</html>

@@ -1,0 +1,217 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Receipt Machine Redraw</title>
+<style>
+@font-face { font-family: Pixelify; src: url(__ASSET:fonts/PixelifySans-Variable.ttf__) format('truetype'); }
+@font-face { font-family: Atkinson; src: url(__ASSET:fonts/AtkinsonHyperlegibleNext-Variable.ttf__) format('truetype'); font-weight: 200 800; }
+:root {
+  --bg: #172c2b; --panel: #1f3b3a; --panel2: #2a4d4b; --ink: #f3e9d2; --muted: #86c2b6; --line: #3a7672;
+  --mustard: #e2b33c; --tomato: #d9534f; --paper: #fbf7ee; --paper-ink: #2b2420;
+}
+:root:not([data-theme="light"]) { color-scheme: dark; }
+:root[data-theme="dark"] { --bg: #172c2b; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --bg: #172c2b; } }
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--ink); font: 16px/1.5 Atkinson, system-ui, sans-serif; }
+main { max-width: 1312px; margin: 0 auto; padding: 24px 16px 64px; }
+h1 { font: 400 40px/1.1 Pixelify, monospace; letter-spacing: 1px; margin: 8px 0 4px; color: var(--mustard); }
+h2 { font: 400 26px/1.2 Pixelify, monospace; margin: 40px 0 8px; color: var(--ink); }
+h3 { font: 700 17px/1.3 Atkinson, sans-serif; margin: 0 0 4px; color: var(--mustard); }
+p { margin: 8px 0; max-width: 900px; }
+.lede { color: var(--muted); max-width: 980px; }
+code { font: 14px/1.4 ui-monospace, monospace; background: var(--panel2); padding: 1px 5px; border-radius: 3px; }
+.stage-wrap { position: relative; width: 100%; max-width: 1280px; aspect-ratio: 16 / 9; background: #000; border: 2px solid #2b2420; outline: 2px solid var(--line); }
+canvas.stage { width: 100%; height: 100%; display: block; image-rendering: pixelated; cursor: default; }
+.bar { display: flex; flex-wrap: wrap; gap: 8px 16px; align-items: center; margin: 12px 0 0; }
+.group { display: flex; flex-wrap: wrap; gap: 4px; align-items: center; }
+.group > span { color: var(--muted); font-size: 14px; margin-right: 4px; }
+button { font: 15px/1 Pixelify, monospace; color: var(--paper-ink); background: var(--ink); border: 2px solid #2b2420; box-shadow: inset 0 -3px 0 #ddcba5; padding: 7px 10px 9px; cursor: pointer; }
+button[aria-pressed="true"] { background: var(--mustard); box-shadow: inset 0 -3px 0 #b38425; }
+button:focus-visible { outline: 2px solid var(--mustard); outline-offset: 2px; }
+.hint { color: var(--muted); font-size: 14px; margin-top: 8px; }
+.grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 12px; margin-top: 12px; }
+.card { background: var(--panel); border: 2px solid var(--line); padding: 14px 16px; }
+.card p { margin: 4px 0; font-size: 15px; }
+.card .ref { color: var(--muted); font-size: 13px; }
+.cmp { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 12px; }
+.cmp figure { margin: 0; }
+.cmp img, .cmp canvas { width: 100%; display: block; image-rendering: pixelated; border: 2px solid #2b2420; }
+.cmp figcaption { color: var(--muted); font-size: 14px; margin-top: 4px; }
+.zoom { display: flex; gap: 16px; flex-wrap: wrap; align-items: flex-start; margin-top: 12px; }
+.zoom canvas { image-rendering: pixelated; border: 2px solid #2b2420; max-width: 100%; }
+.q { background: var(--panel); border-left: 4px solid var(--mustard); padding: 12px 16px; margin: 10px 0; }
+.q b { color: var(--mustard); }
+ul { margin: 6px 0; padding-left: 20px; } li { margin: 3px 0; }
+@media (max-width: 720px) { .cmp { grid-template-columns: 1fr; } h1 { font-size: 30px; } }
+body.solo main > *:not(.stage-wrap) { display: none; }
+body.solo main { padding: 0; max-width: none; }
+body.solo .stage-wrap { border: 0; outline: 0; width: 1280px; max-width: none; }
+</style>
+</head>
+<body>
+<main>
+<h1>RECEIPT REWARDS · redraw</h1>
+<p class="lede">The receipt machine redrawn in the art direction the title, the toy machines and the new shift scene (PR #126, #123) share: palette colours only, pixel art on the 640×360 art grid, hard pixel lettering, steel housings with a screw in each corner, lamp light as a dithered pool, and an outline only on what the player touches. It stands at its camera stop to the right of the stage, in front of PR #126's store. Mock-up only: no rule or flow changes. The visit is the one in plan section 5.4 (v0.61 and later): two keys, three tickets, pick one or skip.</p>
+
+<div class="stage-wrap"><canvas class="stage" id="stage" width="1280" height="720" aria-label="The redrawn receipt machine at its camera stop"></canvas></div>
+<div class="bar">
+  <div class="group" id="stages"><span>Visit</span></div>
+  <div class="group" id="bodies"><span>Body</span></div>
+  <div class="group"><span>Face</span><button id="premium" aria-pressed="false">PREMIUM</button></div>
+  <div class="group"><button id="play" aria-pressed="true">Auto-play</button></div>
+</div>
+<p class="hint">Hover the keys on <b>Choose</b> for their odds on the display; hover a prize or the SKIP bin on <b>Pick</b>. Clicking a key runs the draw. Auto-play steps through the visit.</p>
+
+<h2>What each part borrows</h2>
+<div class="grid">
+  <div class="card"><h3>Neon head sign</h3><p>"RECEIPT" in teal and "REWARDS" in mustard neon: a pale core, a 1 px tube and a dithered halo, like the title's NEXT CUSTOMER sign. It hangs from two rods like the TOY MACHINES board, in a steel frame with four screws. The neon blinks off for a frame now and then.</p><p class="ref">title_screen, toy_plate (#118, #121)</p></div>
+  <div class="card"><h3>Receipt slot and LED</h3><p>The receipt goes into a steel-lipped slot. The message moves to an amber dot-matrix LED in a steel housing with a screw in each corner, like the COINS and FIGURINES counters. The odds show there as three rarity bars while a key is hovered.</p><p class="ref">capsule_counter (#121 v0.78)</p></div>
+  <div class="card"><h3>Stockroom window</h3><p>The three sealed tickets (the game's own sprites) stand on pedestals behind glass. A lamp in the window lights them with a stepped Bayer pool, the store's lamp light in small. The glass has two reflection stairs.</p><p class="ref">StoreArt light_at (PR #126), sealed_ticket_*.png</p></div>
+  <div class="card"><h3>Two chunky keys</h3><p>NEW ITEMS is cream and UPGRADE is teal: raised caps with a visible depth, which press down when chosen. A ring of indicator lamps blinks round each lit key and holds steady on hover. Unlit keys go steel grey, and grey is never their only sign: the ring is off too.</p><p class="ref">key_cream, button_teal frames</p></div>
+  <div class="card"><h3>Prize tray</h3><p>The tickets ride down into three bays and open there, rarest last, each over a rarity tab (COMMON steel, RARE! teal, LEGENDARY!! gold). A hovered prize lifts 3 px inside a gold frame. "TAKE YOUR PRIZE" becomes "PICK ONE PRIZE".</p><p class="ref">plan 5.4 visit, rarity_tab</p></div>
+  <div class="card"><h3>Plinth and SKIP bin</h3><p>The cabinet stands on the toy machines' steel coin base, widened, with vents and feet. The SKIP pedal bin stands on the floor beside it. Hovering it tips the lid open, shakes the prizes under tomato shred marks, and the LED asks "BIN ALL 3?".</p><p class="ref">skip_bin (v0.73), toy coin base</p></div>
+</div>
+
+<h2>Now and redrawn</h2>
+<div class="cmp">
+  <figure><img src="__ASSET:docs/art/mockups/premium_machine_ref_normal_2_reading.png__" alt="The machine as built before the rework"><figcaption>Now: a flat teal panel with UI boxes. This capture is from before the two-key rework (v0.61) and before the #123 store.</figcaption></figure>
+  <figure><canvas id="cmp" width="1280" height="720"></canvas><figcaption>Redrawn: the same visit beat (reading the receipt), as a store fixture.</figcaption></figure>
+</div>
+
+<h2>Close up (4×)</h2>
+<div class="zoom"><canvas id="zoomA" width="704" height="640"></canvas><canvas id="zoomB" width="704" height="640"></canvas></div>
+<p class="hint">Left: classic face, Choose, NEW ITEMS hovered. Right: PREMIUM face, Pick, the LEGENDARY prize hovered.</p>
+
+<h2>Questions</h2>
+<div class="q"><b>Q1 · Body colour.</b> <b>Cream enamel (default)</b> stands out against the dark teal store and matches the household washer cabinet. Teal blends into the store; tomato breaks the rule that tomato means a fizzle, CHECKOUT or CLOSED. Try them with the Body buttons.</div>
+<div class="q"><b>Q2 · Pixel size at the stop.</b> PR #126 draws the machine at half scale and zooms the camera 2×, so the store behind it shows 4-px pixels while the machine shows 1-px pixels. <b>Default:</b> draw the machine on the 640×360 grid like everything else, and make the stop a pan at zoom 1. Every pixel on screen is then 2 px, as on the title and the toy screen. The machine is a foreground fixture in front of the counter, about 7 items tall.</div>
+<div class="q"><b>Q3 · Odds.</b> <b>Default:</b> the hovered key's odds show on the LED as three bars, and the exact odds card (MachineOdds) opens on a click or a long hover, as it does now. The alternative is a cream price card hanging on two chains beside the machine, like the toy screen's lineup.</div>
+<div class="q"><b>Q4 · PREMIUM dressing.</b> <b>Default:</b> the same cabinet with a velvet-black sign, gold neon "PREMIUM REWARDS", chasing bulbs, a gold trim, a gold receipt stub, gold indicator rings and RARE-or-better tickets in the window. Toggle PREMIUM to see it.</div>
+
+<h2>Real and approximated</h2>
+<ul>
+  <li><b>Real:</b> the palette (<code>art/src/palette.txt</code>); the store behind the machine, ported from PR #126's <code>StoreArt</code> (sky bands, roofs, mullions, shelving, Bayer-dithered lamp pools); the sealed ticket, item and icon sprites; Pixelify for words, rasterised hard at 11 px as <code>UiKit.pixel_label</code> does.</li>
+  <li><b>Approximated:</b> the digits and the 3×5 small print are hand-drawn bitmap faces standing in for the number font and the body font. The machine is painted in code for the mock-up. In the game it would be <code>art/src/machine/*.txt</code> sources built by <code>tools/pixel_art.py</code>, with the lit and dim states made by <code>@derive tone=dim|off</code>.</li>
+  <li>The prizes shown are examples (Strawberries, a BIG Croissant, Lemon; on PREMIUM a BIG Grapefruit, a BIG Fruit salad, a GOLDEN Banana), and the odds are level 0's NEW ITEMS (65/28/7) and UPGRADE (75/22/3).</li>
+</ul>
+<p class="hint">Source: <code>docs/art/mockups/receipt_machine_da_src/</code> (<code>python build.py</code> writes this page, <code>node stills.js</code> its stills). URL options: <code>stage=insert|reading|choose|draw|reveal</code>, <code>hover=new|up|p0|p1|p2|bin</code>, <code>body=cream|teal|tomato</code>, <code>premium=1</code>, <code>t=&lt;s&gt;</code> (freeze the clock), <code>solo=1</code> (the bare 1280×720 stage).</p>
+</main>
+
+<script>
+__MACHINE_JS__
+</script>
+<script>
+const IMG_SRC = {
+  ticket_common: '__ASSET:art/machine/sealed_ticket_common.png__',
+  ticket_rare: '__ASSET:art/machine/sealed_ticket_rare.png__',
+  ticket_legendary: '__ASSET:art/machine/sealed_ticket_legendary.png__',
+  cart: '__ASSET:art/icons/cart.png__',
+  up: '__ASSET:art/icons/up_arrow.png__',
+  strawberries: '__ASSET:art/items_v2/strawberries.png__',
+  croissant_big: '__ASSET:art/items_v2/croissant_big.png__',
+  lemon: '__ASSET:art/items_v2/lemon.png__',
+  grapefruit_big: '__ASSET:art/items_v2/grapefruit_big.png__',
+  fruit_salad_big: '__ASSET:art/items_v2/fruit_salad_big.png__',
+  banana_golden: '__ASSET:art/items_v2/banana_golden.png__',
+};
+const img = {};
+const Q = new URLSearchParams(location.search);
+if (Q.get('solo')) document.body.classList.add('solo');
+const STAGES = [['insert', '1 Insert'], ['reading', '2 Reading'], ['choose', '3 Choose'], ['draw', '4 Draw'], ['reveal', '5 Pick']];
+const st = {
+  stage: Q.get('stage') || 'insert', hover: Q.get('hover') || null, chosen: Q.get('chosen') || 'new',
+  body: Q.get('body') || 'cream', premium: Q.get('premium') === '1', flicker: true,
+};
+let play = !Q.get('stage') && !Q.get('t');
+const frozen = Q.get('t') != null ? parseFloat(Q.get('t')) : null;
+let t0 = performance.now(), stageT0 = t0;
+
+function render(canvas, s, t, scale, crop) {
+  const buf = new Buf(W, H);
+  paintStore(buf, {});
+  paintMachine(buf, s, t);
+  const top = new Buf(W, H);
+  const g = canvas.getContext('2d');
+  g.imageSmoothingEnabled = false;
+  const tmp = document.createElement('canvas'); tmp.width = W; tmp.height = H;
+  const tg = tmp.getContext('2d');
+  // compose at 1x on tmp (base, sprites, overlay), then scale up once
+  tg.putImageData(new ImageData(buf.d, W, H), 0, 0);
+  drawSprites(tg, img, s, t, 1, top);
+  const t2 = document.createElement('canvas'); t2.width = W; t2.height = H;
+  t2.getContext('2d').putImageData(new ImageData(top.d, W, H), 0, 0);
+  tg.drawImage(t2, 0, 0);
+  g.clearRect(0, 0, canvas.width, canvas.height);
+  if (crop) g.drawImage(tmp, crop[0], crop[1], crop[2], crop[3], 0, 0, crop[2] * scale, crop[3] * scale);
+  else g.drawImage(tmp, 0, 0, W * scale, H * scale);
+}
+
+const stage = document.getElementById('stage');
+function frame(now) {
+  const t = frozen != null ? frozen : (now - t0) / 1000;
+  if (play) autoStep(now);
+  const ts = frozen != null ? frozen : (now - stageT0) / 1000;
+  render(stage, st, st.stage === 'draw' || st.stage === 'reading' ? ts : t, 2);
+  if (frozen == null) requestAnimationFrame(frame);
+}
+// auto-play: a visit, beat by beat (hover moves over the keys and the prizes)
+const SCRIPT = [
+  ['insert', null, 1.6], ['reading', null, 2.0], ['choose', null, 1.2], ['choose', 'up', 1.2], ['choose', 'new', 1.6],
+  ['draw', null, 2.4], ['reveal', null, 0.8], ['reveal', 'p0', 0.8], ['reveal', 'p1', 0.8], ['reveal', 'p2', 1.4], ['reveal', 'bin', 1.4],
+];
+let si = 0, siT = performance.now();
+function autoStep(now) {
+  const beat = SCRIPT[si];
+  if ((now - siT) / 1000 > beat[2]) {
+    si = (si + 1) % SCRIPT.length; siT = now;
+    if (si === 0) st.premium = !st.premium;
+    const b = SCRIPT[si];
+    if (b[0] !== st.stage) stageT0 = now;
+    st.stage = b[0]; st.hover = b[1]; st.chosen = 'new';
+    sync();
+  }
+}
+
+// controls
+const sBox = document.getElementById('stages'), bBox = document.getElementById('bodies');
+STAGES.forEach(([id, label]) => { const b = document.createElement('button'); b.textContent = label; b.dataset.stage = id; b.onclick = () => { play = false; st.stage = id; st.hover = null; stageT0 = performance.now(); sync(); }; sBox.appendChild(b); });
+Object.keys(BODY).forEach(id => { const b = document.createElement('button'); b.textContent = id[0].toUpperCase() + id.slice(1); b.dataset.body = id; b.onclick = () => { st.body = id; sync(); }; bBox.appendChild(b); });
+document.getElementById('premium').onclick = () => { st.premium = !st.premium; sync(); };
+document.getElementById('play').onclick = () => { play = !play; if (play) { si = 0; siT = performance.now(); } sync(); };
+function sync() {
+  sBox.querySelectorAll('button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.stage === st.stage)));
+  bBox.querySelectorAll('button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.body === st.body)));
+  document.getElementById('premium').setAttribute('aria-pressed', String(st.premium));
+  document.getElementById('play').setAttribute('aria-pressed', String(play));
+}
+// hover and click on the stage (art px)
+function hit(e) {
+  const r = stage.getBoundingClientRect();
+  const x = (e.clientX - r.left) / r.width * W, y = (e.clientY - r.top) / r.height * H;
+  const inside = (o) => x >= o.x && x < o.x + o.w && y >= o.y && y < o.y + o.h;
+  if (st.stage === 'choose') { const k = KEYS.find(inside); return k ? k.id : null; }
+  if (st.stage === 'reveal') { const i = BAYS.findIndex(inside); if (i >= 0) return 'p' + i; if (inside({x: BIN.x - 4, y: BIN.y - 6, w: BIN.w + 8, h: BIN.h + 6})) return 'bin'; }
+  return null;
+}
+stage.addEventListener('mousemove', e => { if (frozen != null) return; const h = hit(e); if (h !== null || !play) { if (h !== null) play = false; st.hover = h; stage.style.cursor = h ? 'pointer' : 'default'; sync(); } });
+stage.addEventListener('click', e => {
+  const h = hit(e);
+  if (st.stage === 'choose' && (h === 'new' || h === 'up')) { st.chosen = h; st.stage = 'draw'; st.hover = null; stageT0 = performance.now(); sync(); setTimeout(() => { if (st.stage === 'draw') { st.stage = 'reveal'; sync(); } }, 2400); }
+});
+
+Promise.all([document.fonts.load('11px Pixelify'), document.fonts.load('16px Atkinson'), ...Object.keys(IMG_SRC).map(k => new Promise(res => { const im = new Image(); im.onload = im.onerror = res; im.src = IMG_SRC[k]; img[k] = im; }))]).then(() => {
+  sync();
+  render(document.getElementById('cmp'), {stage: 'reading', hover: null, chosen: 'new', body: 'cream', premium: false}, 1.0, 2);
+  const crop = [M.x - 8, M.headY - 6, 176, 160];
+  render(document.getElementById('zoomA'), {stage: 'choose', hover: 'new', chosen: 'new', body: st.body, premium: false}, 0.2, 4, [M.x - 4, M.headY - 4, 176, 160]);
+  render(document.getElementById('zoomB'), {stage: 'reveal', hover: 'p2', chosen: 'new', body: st.body, premium: true}, 0.2, 4, [M.x - 4, 186, 176, 160]);
+  requestAnimationFrame(frame);
+  document.title = document.title.replace(/^ERROR: /, '');
+}).catch(e => { document.title = 'ERROR: ' + e; });
+window.addEventListener('error', e => { document.title = 'ERROR: ' + e.message; });
+</script>
+</body>
+</html>

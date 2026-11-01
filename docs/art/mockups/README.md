@@ -77,3 +77,15 @@ The source is `starter_choice_107_src/` (standard library Python, plus Pillow fo
 ### Re-generating
 
 The source is `machine_loyalty_108_src/` (Python with Pillow): `python build.py` writes the page from `template.html` and `scorer.js`, `sh stills.sh` writes every still through headless Chrome (`CHROME=<path>` picks the browser), `sh cap.sh <out.png> "<query>" [w] [h]` takes one still, and `sh dom.sh "<query>"` prints the page title, which carries `ERROR:` after a script error.
+
+## Family identities (#128, 2026-11-01)
+
+`family_identities_128.html` is the decision page for #128. It proposes one belt decision per family (Breakfast: prepare a late payout; Produce: one fruit growing or many fruits; Bakery: an unbroken batch, ended on purpose; Snacks: spread out, never touching; Household: tools and pairs; Clearance: turn misses into a payout). It redesigns the five unlocks that repeat Milk's count (Fruit salad, Baguette, Odd socks, Pick 'n' mix, Dusty toffees), and recommends Produce as the first prototype with Fruit salad, Strawberries and Wonky carrot. Section 3 is a belt lab; section 4 is an ordering study (120 seeded hands per item, fresh and expanded pools): it asks whether putting the item last, in any order, already earns its best bonus, and it shows item pay and the best row as a power check. All rules marked "next" are candidates. The scorer (`family_identities_128_src/scorer.js`) is a small copy of the game's scoring order for products only; `node scorer_test.js` checks it. Stills are in `family_identities_128/`.
+
+Re-generating: `python docs/art/mockups/family_identities_128_src/build.py` (runs `study_dump.js` with node), then `node docs/art/mockups/family_identities_128_src/stills.js`. URL options: `sec=<n>`, `preset=chain|bowl|carrot`, `rules=now|next`.
+
+## Receipt machine redraw (2026-11-01)
+
+`receipt_machine_da.html` redraws the RECEIPT REWARDS machine in the art direction of the title, the toy machines (#121) and the clean shift scene (#123, PR #126): pixel art on the 640x360 grid in palette colours, at its camera stop in front of PR #126's store (`StoreArt`, ported). Its parts: a neon head sign, a receipt slot, an amber LED in a screwed steel housing, a lit stockroom window with the real sealed tickets, two chunky keys with indicator rings, a three-bay prize tray with rarity tabs, a coin-base plinth and the SKIP pedal bin. It plays a whole visit, with a PREMIUM face and three body colours, and asks four questions. Mock-up only. Stills are in `receipt_machine_da/`.
+
+Re-generating: `python docs/art/mockups/receipt_machine_da_src/build.py`, then `node docs/art/mockups/receipt_machine_da_src/stills.js`. URL options: `stage=insert|reading|choose|draw|reveal`, `hover=new|up|p0|p1|p2|bin`, `body=cream|teal|tomato`, `premium=1`, `t=<s>`, `solo=1`.
