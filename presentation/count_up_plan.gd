@@ -369,10 +369,10 @@ func _set_cheer(steps: Array[ScoreStep], beat: CountUpBeat, big: float) -> void:
 	beat.cheer_tier = tier
 
 
-## One standee per bonus line (the user's call of 2026-11-01): each BONUS or STAMP beat on an item
+## One standee per bonus line (the user's calls of 2026-11-01): each BONUS or STAMP beat on an item
 ## that lifts its value (is_cheer_line) pops one standee at the item's cheer tier when it lands,
-## up to the tuning's cheer_line_cap per item; a payout pops none of its own. A line on an item
-## that ends paying nothing still pops, at the small tier.
+## up to the tuning's cheer_line_cap per item; a paid item with no line pops one at its payout. A
+## line on an item that ends paying nothing still pops, at the small tier.
 func _set_cheer_lines(steps: Array[ScoreStep]) -> void:
 	var lines: Dictionary[int, int] = {}
 	var tiers: Dictionary[int, int] = {}
@@ -390,6 +390,9 @@ func _set_cheer_lines(steps: Array[ScoreStep]) -> void:
 		lines[beat.slot] = count + 1
 		beat.cheer_tier = tiers.get(beat.slot, 1)
 		beat.cheer_count = 1
+	for beat: CountUpBeat in beats:
+		if is_payout_beat(beat) and beat.payout > 0 and not lines.has(beat.slot):
+			beat.cheer_count = 1
 
 
 ## Whether the item of `beat` (a payout of 0) failed before its payout: a WASTED step it caused

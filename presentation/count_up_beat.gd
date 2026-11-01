@@ -108,8 +108,8 @@ var equation: PaymentEquation = null
 ## huge (the tuning's cheer_huge_share of the best); a combo cheers one tier more, at most 3.
 var cheer_tier: int = 0
 ## How many cardboard standees the beat pops when it lands: 1 on a bonus line (BONUS or STAMP
-## lifting its item, up to cheer_line_cap per item; CountUpPlan's _set_cheer_lines), else 0. A
-## line's cheer_tier is its item's.
+## lifting its item, up to cheer_line_cap per item; CountUpPlan's _set_cheer_lines) and on the
+## payout of a paid item with no line, else 0. A line's cheer_tier is its item's.
 var cheer_count: int = 0
 ## The payout includes a bonus or a multiplier another source caused (ReceiptView.is_combo).
 var cheer_combo: bool = false

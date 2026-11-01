@@ -9,21 +9,23 @@ const TUNING := "res://data/balance/count_up.tres"
 const CARDS := "res://data/cards/%s.tres"
 
 
-func test_every_paid_item_has_a_tier_and_a_plain_one_pops_nothing() -> void:
+func test_every_paid_item_has_a_tier_and_a_plain_one_pops_one() -> void:
 	var tuning: CountUpTuning = load(TUNING)
 	# The best so far is the tuning's floor (45): big from max(10, 0.2 x 45) = 10, huge from 22.5.
 	var plan: CountUpPlan = _plan(_plain([3, 10, 30, 0]))
 	var tiers: Array[int] = []
+	var counts: Array[int] = []
 	for beat: CountUpBeat in plan.beats:
 		tiers.append(beat.cheer_tier)
-		assert_int(beat.cheer_count).is_equal(0)
+		counts.append(beat.cheer_count)
 		assert_bool(beat.cheer_combo).is_false()
 	assert_array(tiers).is_equal([1, 2, 3, 0])
+	assert_array(counts).is_equal([1, 1, 1, 0])
 	assert_int(tuning.cheer_scales[2]).is_greater(tuning.cheer_scales[0])
 
 
 ## Each bonus line (a +N above 0, a x above 1, a copy) pops one standee at its item's tier; a
-## penalty or a x1 pops none; an item pops at most cheer_line_cap.
+## penalty or a x1 pops none; an item pops at most cheer_line_cap, and its payout none.
 func test_each_bonus_line_pops_one_standee_up_to_the_cap() -> void:
 	var tuning: CountUpTuning = load(TUNING)
 	var steps: Array[ScoreStep] = []
@@ -140,8 +142,12 @@ func test_a_scored_row_cheers_on_its_lines_and_a_copy_is_a_combo() -> void:
 			assert_int(beat.cheer_count).is_equal(1 if line and lifts else 0)
 			lines += beat.cheer_count
 			continue
-		assert_int(beat.cheer_count).is_equal(0)
 		assert_bool(beat.cheer_tier > 0).is_equal(beat.payout > 0)
+		var has_line: bool = false
+		for other: CountUpBeat in plan.beats:
+			if other.slot == beat.slot and not CountUpPlan.is_payout_beat(other):
+				has_line = has_line or other.cheer_count > 0
+		assert_int(beat.cheer_count).is_equal(1 if beat.payout > 0 and not has_line else 0)
 		for index: int in range(beat.steps[-1]):
 			var step: ScoreStep = result.steps[index]
 			if step.slot == beat.slot and step.step_type == ScoreStep.StepType.COPY:

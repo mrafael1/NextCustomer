@@ -22,7 +22,8 @@ extends Control
 ## the earlier.
 ##
 ## When: each bonus line of an item pops one standee as it lands (CountUp.step_landed; up to
-## cheer_line_cap per item, 2026-11-01), at its item's tier's scale (bigger as the payout is bigger
+## cheer_line_cap per item, 2026-11-01), a paid item with no line pops one at its payout, at its
+## item's tier's scale (bigger as the payout is bigger
 ## or a combo, CountUpTuning's cheer_*), with card_place pitched up per standee and tier, each
 ## rising into a hop as high as its tier and the ladder's note
 ## (a crowd-wide hop leaves a standee alone while its pop runs); a payout of 0 that failed (its
@@ -98,6 +99,8 @@ var _count_up: CountUp
 var _standees: Array[CheerStandee] = []
 ## The ladder's note of the latest gain beat.
 var _note: int = 0
+## A plain paid item's payout beat that started last (it pops at payout_landed).
+var _pending: CountUpBeat
 ## Standees popped this checkout (they take the designs in turn).
 var _popped: int = 0
 var _design_offset: int = 0
@@ -146,6 +149,7 @@ func follow(count_up: CountUp) -> void:
 	count_up.count_started.connect(func(_views: Array[CardView]) -> void: _on_count_started())
 	count_up.beat_started.connect(_on_beat_started)
 	count_up.step_landed.connect(_on_step_landed)
+	count_up.payout_landed.connect(_on_payout_landed)
 	count_up.quota_met.connect(_on_quota_met)
 	count_up.total_landed.connect(_on_total_landed)
 	count_up.printer_feed.connect(clear)
@@ -310,6 +314,7 @@ func clear() -> void:
 		shadow_layer.remove_child(shadow)
 		shadow.queue_free()
 	shadow_layer.visible = false
+	_pending = null
 	visible = false
 
 
@@ -352,13 +357,23 @@ func _on_beat_started(
 		_note = beat.note
 	if not CountUpPlan.is_payout_beat(beat):
 		return
-	if beat.cheer_failed:
+	if beat.cheer_count > 0:
+		_pending = beat
+	elif beat.cheer_failed:
 		slump()
+
+
+func _on_payout_landed(_payout: int, _subtotal: int) -> void:
+	if _pending != null:
+		pop(_pending.cheer_tier, _pending.cheer_count, _note)
+	_pending = null
 
 
 ## A step lands on its item (its sticker fires): a bonus line's beat pops its standee.
 func _on_step_landed(index: int) -> void:
 	for beat: CountUpBeat in _count_up.plan.beats:
+		if CountUpPlan.is_payout_beat(beat):
+			continue  # A plain item's standee pops at its payout.
 		if beat.steps[0] == index and beat.cheer_count > 0:
 			pop(beat.cheer_tier, beat.cheer_count, beat.note if beat.note >= 0 else _note)
 			return
