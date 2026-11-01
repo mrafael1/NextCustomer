@@ -71,8 +71,9 @@ const ROW_AREA := Rect2(354, ROW_POSITION.y, 904, ItemView.BELT_SIZE.y)
 ## hop up from the scanner into it.
 const BAG_RECT := Rect2(300, 246, 72, 92)
 ## The steel bagging shelf the bag stands on, behind the belt's first cell (StoreBackdrop's
-## counter piece, in the fore under the belt).
-const BAGGING_SHELF_RECT := Rect2(290, 338, 196, 12)
+## counter piece, in the fore under the belt): its 12 px plank on a steel side panel that bridges
+## the register's side and the belt's frame (2026-11-01).
+const BAGGING_SHELF_RECT := Rect2(290, 338, 196, 62)
 ## The monitor hung from the ceiling on two rods, its bezel and paper screen, and the shade under
 ## it (MonitorView draws them): its one screen (#105 piece 2) holds the scanner bay, the item
 ## column, the checkout column and the notices.
