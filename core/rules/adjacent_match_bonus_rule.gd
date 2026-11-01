@@ -8,7 +8,8 @@ extends Rule
 ## that names what was missing, the total unchanged. A pair rule (one matching its own product,
 ## SAME_CARD: the Banana and its tiers) fizzles only when no match is on EITHER side, so the
 ## pair's first Banana never shows WASTED: only a lone one does ("no Banana beside it"). Its
-## bonus still needs the match just before it.
+## bonus still needs the match just before it. With `per_match` (Carrier bag, #128) the bonus
+## counts once for each matching product in the position (+8 for each Food product beside it).
 
 enum Match { NONE, SAME_CARD, CARD_ID, TAG }
 enum Position { NONE, IMMEDIATELY_AFTER, BESIDE }
@@ -29,6 +30,10 @@ enum Position { NONE, IMMEDIATELY_AFTER, BESIDE }
 ## reaching the middle of a chain pays once and never carries to the next link. Meant for a
 ## same-product IMMEDIATELY_AFTER rule; anything between two matches starts a new chain.
 @export var bonus_is_previous_price: bool = false
+## If true (Carrier bag, #128), the bonus counts once for each matching product in `position`
+## (a product counted beside it twice, by a link, counts once). Not with
+## `bonus_is_previous_price`.
+@export var per_match: bool = false
 
 
 func flat_bonus(state: ScoreState, slot: int) -> int:
@@ -38,6 +43,8 @@ func flat_bonus(state: ScoreState, slot: int) -> int:
 			return 0
 		state.chained[slot] = 1
 		return chain_price(state, previous) * bonus_factor
+	if per_match:
+		return _match_count(state, slot) * bonus_for(state.definition(slot).base)
 	if not _has_match_at(state, slot, position):
 		return 0
 	return bonus_for(state.definition(slot).base)
@@ -127,6 +134,21 @@ func _has_match_at(state: ScoreState, slot: int, where: Position) -> bool:
 		if _matches(state, card, other):
 			return true
 	return false
+
+
+## How many different products matching the card in `slot` are in `position`.
+func _match_count(state: ScoreState, slot: int) -> int:
+	if position == Position.NONE or match_by == Match.NONE:
+		return 0
+	var neighbours: PackedInt32Array = (
+		state.products_beside(slot) if position == Position.BESIDE else state.products_before(slot)
+	)
+	var card: CardDefinition = state.definition(slot)
+	var counted: Dictionary[int, bool] = {}
+	for other: int in neighbours:
+		if _matches(state, card, other):
+			counted[other] = true
+	return counted.size()
 
 
 ## What a match is, for the fizzle's reason: "Banana" (the same product), "Bread" (a card id,

@@ -11,6 +11,8 @@ enum Glyph { NONE, FIZZLE, WARNING }
 
 ## The pay tag's text.
 const PAY_TEXT := "€%d"
+## A wrong job's tooltip (#128): WASTED, then its step's reason, capitalised.
+const WRONG_JOB_TIP := "%s · %s"
 ## The links that make rail strips.
 const STRIP_KINDS: Array[EffectLink.Kind] = [
 	EffectLink.Kind.BONUS,
@@ -24,6 +26,15 @@ var graph: EffectGraph
 var slots: Array[PlanningSlot] = []
 ## One per giver slot with cross-item links, in giver order, with lanes assigned.
 var strips: Array[RailStripSpec] = []
+## The batches the belt frames while planning (#128, the Bound strip): the score's batches
+## (ScoreResult.batches, each in slot order) that hold a batch card (CardText.names_batch: a
+## Bakery job card); a batch of plain Bakery only (Bread, Bread) is not framed.
+var batches: Array[PackedInt32Array] = []
+## The belt's batch frames (#128): each framed batch split into runs (runs_of) where a product
+## outside it sits between two of its products (a coupon's link that skips products), each run
+## one frame round its tickets; run_batch holds each run's index in `batches`.
+var runs: Array[PackedInt32Array] = []
+var run_batch: PackedInt32Array = PackedInt32Array()
 
 
 ## The model of `result` for `row` (the cards in slot order) under the run's `upgrades` and the
@@ -48,7 +59,73 @@ static func build(
 		names.append(card.display_name)
 	model.strips = _strips(model.graph, names)
 	assign_lanes(model.strips)
+	model.batches = framed_batches(result, row)
+	for index: int in range(model.batches.size()):
+		for run: PackedInt32Array in runs_of(model.batches[index], row):
+			model.runs.append(run)
+			model.run_batch.append(index)
+	for slot: int in range(model.slots.size()):
+		model.slots[slot].wrong_job = wrong_job(result, slot, row[slot])
 	return model
+
+
+## The batches of `result` (for `row`, the cards in slot order) the belt frames (#128): each
+## that holds a batch card (CardText.names_batch).
+static func framed_batches(
+	result: ScoreResult, row: Array[CardDefinition]
+) -> Array[PackedInt32Array]:
+	var framed: Array[PackedInt32Array] = []
+	if result == null:
+		return framed
+	for batch: PackedInt32Array in result.batches:
+		for slot: int in batch:
+			if slot < row.size() and CardText.names_batch(row[slot]):
+				framed.append(batch)
+				break
+	return framed
+
+
+## `batch` (slots in order) in runs a frame can bind: a new run starts where a product outside the
+## batch (`row`: the cards in slot order) sits between two of its products, so a coupon's link
+## that skips products never frames them; a coupon between two of them stays inside the run.
+static func runs_of(batch: PackedInt32Array, row: Array[CardDefinition]) -> Array[PackedInt32Array]:
+	var found: Array[PackedInt32Array] = []
+	var run: PackedInt32Array = PackedInt32Array()
+	for slot: int in batch:
+		if not run.is_empty():
+			for between: int in range(run[-1] + 1, slot):
+				if between < row.size() and row[between].is_product():
+					found.append(run)
+					run = PackedInt32Array()
+					break
+		run.append(slot)
+	if not run.is_empty():
+		found.append(run)
+	return found
+
+
+## The wrong job's tooltip of `card` at `slot` in `result` (#128): a batch card whose own rule
+## has a WASTED step there (its batch line did nothing at its place: "WASTED · Not first in its
+## Bakery batch"), else "". A row-wide upgrade's or an event's waste is not the card's.
+static func wrong_job(result: ScoreResult, slot: int, card: CardDefinition) -> String:
+	if result == null or not CardText.names_batch(card):
+		return ""
+	for step: ScoreStep in result.steps:
+		if (
+			step.step_type != ScoreStep.StepType.WASTED
+			or step.source_kind != ScoreStep.SourceKind.CARD
+			or step.slot != slot
+			or step.source_slot != slot
+			or step.row_wide
+		):
+			continue
+		var reason: String = step.reason.strip_edges()
+		if reason.is_empty():
+			reason = step.text
+		return (
+			WRONG_JOB_TIP % [EffectLink.WASTED_WORD, reason.left(1).to_upper() + reason.substr(1)]
+		)
+	return ""
 
 
 ## The rail strip of the item at `slot` in `result` (what it gives the other items), or null when

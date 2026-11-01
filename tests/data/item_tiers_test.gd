@@ -67,9 +67,14 @@ const CHAINED: Array[StringName] = [
 ## BIG's base and doubles the bonus (`bonus`, `bonus_each`, or `bonus_factor` when the bonus is the
 ## base), a charged multiplier gains 1 charge instead, and a card with no bonus (Bread, Soup,
 ## Potatoes) adds `TIER_BASE_STEP` to the base again. HAND_SET lists the GOLDEN rule values set by
-## hand instead (plan section 7.2): Carrier bag's +5 per earlier Food would double to +10 each.
+## hand instead: GOLDEN Batteries pays ×3 just after (#128, the user's call of 2026-11-01), as a
+## charge it gains would never be used (only the product just after it can take one); GOLDEN Iced
+## bun glazes ×3 (#128 v3), as a glaze has no charge to gain.
 const TIER_BASE_STEP := 2
-const HAND_SET: Dictionary[StringName, Dictionary] = {&"carrier_bag": {"bonus_each": 7}}
+const HAND_SET: Dictionary[StringName, Dictionary] = {
+	&"batteries": {"factor": 3, "charges": 1},
+	&"iced_bun": {"factor": 3},
+}
 const DOUBLED_FIELDS: Array[String] = ["bonus", "bonus_each"]
 
 
@@ -176,11 +181,11 @@ func test_every_chain_follows_the_tier_rule() -> void:
 					plain_rule.get(key)
 				)
 				var expected: Variant = _golden_value(big_rule, key)
-				if expected != big_rule.get(key):
-					bonuses += 1
 				var hand_set: Dictionary = HAND_SET.get(plain.id, {})
 				if hand_set.has(key):
 					expected = hand_set[key]
+				if expected != big_rule.get(key):
+					bonuses += 1
 				assert_that(golden_rule.get(key)).override_failure_message(message).is_equal(
 					expected
 				)
@@ -266,18 +271,23 @@ func test_tier_values_and_stickers(
 		["dented_can_golden", 4, "+4 per earlier Clearance"],
 		["day_old_buns_big", 4, "+3 after Clearance"],
 		["day_old_buns_golden", 4, "+6 after Clearance"],
-		["carrier_bag_big", 3, "+5 per earlier Food"],
-		["carrier_bag_golden", 3, "+7 per earlier Food"],
+		["carrier_bag_big", 3, "+8 per Food beside"],
+		["carrier_bag_golden", 3, "+16 per Food beside"],
 		["scissors_big", 3, "+2 per earlier coupon"],
 		["scissors_golden", 3, "+4 per earlier coupon"],
-		["batteries_big", 3, "+4 in last slot"],
-		["batteries_golden", 3, "+8 in last slot"],
+		["batteries_big", 3, "×2 Household just after"],
+		["batteries_golden", 3, "×3 Household just after"],
 		["flickering_bulb_big", 3, "+3 next Clearance"],
 		["flickering_bulb_golden", 3, "+6 next Clearance"],
 		# A few of the capsule products' (v0.52): the charged multipliers and the flat Potatoes.
 		["lemon_big", 3, "×2 next Produce"],
 		["lemon_golden", 3, "×2 next 2 Produce"],
-		["iced_bun_golden", 3, "×2 next 2 Bakery"],
+		["iced_bun_big", 3, "BATCH ×2 the last"],
+		["iced_bun_golden", 3, "BATCH ×3 the last"],
+		["croissant_golden", 4, "BATCH 1st: +4 to the rest"],
+		["baguette_golden", 4, "BATCH +8 per earlier"],
+		["stale_doughnut_golden", 3, "BATCH last: +6 each"],
+		["birthday_candles_golden", 3, "+6 each, next BATCH of 3+"],
 		["squashed_cake_golden", 4, "×2 next 2 Clearance"],
 		["potatoes_big", 5, ""],
 		["potatoes_golden", 7, ""],
@@ -311,9 +321,9 @@ func test_changed_fields_from_the_tier_below(
 		["crackers", PackedStringArray(["base"]), PackedStringArray(["bonus"])],
 		["dented_can", PackedStringArray(["base"]), PackedStringArray(["bonus_each"])],
 		["day_old_buns", PackedStringArray(["base"]), PackedStringArray(["bonus"])],
-		["carrier_bag", PackedStringArray(["base"]), PackedStringArray(["bonus_each"])],
+		["carrier_bag", PackedStringArray(["base"]), PackedStringArray(["bonus"])],
 		["scissors", PackedStringArray(["base"]), PackedStringArray(["bonus_each"])],
-		["batteries", PackedStringArray(["base"]), PackedStringArray(["bonus"])],
+		["batteries", PackedStringArray(["base"]), PackedStringArray(["factor"])],
 		["flickering_bulb", PackedStringArray(["base"]), PackedStringArray(["bonus"])],
 		["lemon", PackedStringArray(["base"]), PackedStringArray(["charges"])],
 		["potatoes", PackedStringArray(["base"]), PackedStringArray(["base"])],
@@ -356,8 +366,8 @@ func test_tiers_score_as_their_product(
 		["frozen_peas,frozen_peas_golden", [6, 15]],
 		# Golden Tea bags: ×4 on the next 2 Breakfast payouts (Bread 5).
 		["tea_bags_golden,bread,bread,bread", [3, 20, 20, 5]],
-		# Golden Carrier bag 3 + 7 per earlier Food (hand-set).
-		["bread,soup,carrier_bag_golden", [5, 5, 17]],
+		# Golden Carrier bag 3 + 16 for Soup beside it (Bread is not beside it).
+		["bread,soup,carrier_bag_golden", [5, 5, 19]],
 		# Golden Soup still pays 0 beside a Frozen product.
 		["soup_golden,frozen_peas", [0, 3]],
 	]

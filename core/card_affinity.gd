@@ -91,6 +91,12 @@ static func family_of(rule: Rule) -> String:
 		return (rule as GrantNextTagBonusRule).tag
 	if rule is GrantChargedMultiplierRule:
 		return (rule as GrantChargedMultiplierRule).tag
+	if rule is PairBonusRule:
+		return (rule as PairBonusRule).tag
+	if rule is BatchRoleRule:
+		return (rule as BatchRoleRule).tag
+	if rule is BakedBatchBonusRule:
+		return (rule as BakedBatchBonusRule).tag
 	return ""
 
 

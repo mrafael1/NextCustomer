@@ -23,14 +23,16 @@ const READINGS: Dictionary[String, String] = {
 	"tea_bags": "×N next Breakfast",
 	# The Banana chain (#106) replaced v2's "+N after Banana".
 	"banana": "+prev after Banana",
-	"batteries": "+N in last slot",
+	"batteries": "×N Household just after",
 	"two_for_one": "Same both sides: 2nd ×N",
 	"crisps": "+N beside Bread",
 	"coffee": "+N next Breakfast",
 	"milk": "+N per earlier Breakfast",
 	"cheese": "+N after Bread",
 	"strawberries": "+N beside Produce",
-	"croissant": "+N beside Bakery",
+	# The Bakery batch roles (#128 v3) replaced Croissant's "+N beside Bakery"; its BATCH keyword
+	# is a chip since the Bound strip.
+	"croissant": "BATCH 1st: +N to the rest",
 	"multipack": "×N later with prior's tag",
 }
 ## The pay tags' rects on a ticket (mock-up v3, ticketHTML): the burst, the wide burst (and where
@@ -301,7 +303,8 @@ func test_the_colour_says_what_it_means() -> void:
 		"cereal": "Dairy colour · works with Milk",
 		"banana": "Produce colour · works with another Banana",
 		"breakfast_sticker": "Breakfast colour · gives Breakfast",
-		"batteries": "Household colour · its own family",
+		"batteries": "Household colour · works with Household",
+		"scissors": "Household colour · its own family",
 		"multipack": "Plain coupon: works with whatever is beside it",
 	}
 	for id: String in expected:

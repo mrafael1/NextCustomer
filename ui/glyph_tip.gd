@@ -6,6 +6,10 @@ extends Control
 ## to even), with a hard ink drop shadow, and a tail pointing at the glyph. place() is the pure
 ## placement rule: below a rail or shelf ticket (its tail up), else above the glyph (its tail
 ## down). It pops in about its tail's tip (GlyphTips).
+##
+## A text wider than MAX_WIDTH (a keyword's meaning, #128) wraps at it: the box grows down in
+## lines of the text's height, WRAP_PADDING over and under them, and an above tip grows upward
+## from where a one-line tip would end, so its tail stays on the glyph.
 
 const HEIGHT := 26.0
 ## The text's room: the frame's 2 art px border and PADDING on each side.
@@ -27,6 +31,9 @@ const TAIL_ABOVE_Y := 24.0
 const TAIL_INSET := 4.0
 ## The least room from the screen's edges.
 const SCREEN_MARGIN := 16.0
+## The widest a tip grows: a longer text wraps.
+const MAX_WIDTH := 340.0
+const WRAP_PADDING := 6.0
 
 const FRAME := preload("res://art/frames/glyph_tip.png")
 const TAIL := preload("res://art/frames/glyph_tip_tail.png")
@@ -62,13 +69,37 @@ func _init() -> void:
 	add_child(_tail)
 
 
-## The tip's width for `text`: its text's width plus TEXT_ROOM, rounded up to even.
+## The tip's width for `text`: its text's width plus TEXT_ROOM, rounded up to even, at most
+## MAX_WIDTH.
 static func width_for(text: String) -> float:
 	var font: Font = ArtStyle.bold_font(ArtStyle.TIP_TEXT_WEIGHT)
 	var width: float = (
 		font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, ArtStyle.TIP_TEXT_SIZE).x
 	)
-	return ceilf((width + TEXT_ROOM) / 2.0) * 2.0
+	return minf(ceilf((width + TEXT_ROOM) / 2.0) * 2.0, MAX_WIDTH)
+
+
+## Whether `text` wraps (wider than MAX_WIDTH on one line).
+static func wraps(text: String) -> bool:
+	var font: Font = ArtStyle.bold_font(ArtStyle.TIP_TEXT_WEIGHT)
+	var width: float = (
+		font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, ArtStyle.TIP_TEXT_SIZE).x
+	)
+	return ceilf((width + TEXT_ROOM) / 2.0) * 2.0 > MAX_WIDTH
+
+
+## The tip's size for `text`: HEIGHT tall on one line; a wrapping text's lines plus WRAP_PADDING
+## over and under them (rounded up to even).
+static func size_for(text: String) -> Vector2:
+	var width: float = width_for(text)
+	if not wraps(text):
+		return Vector2(width, HEIGHT)
+	var font: Font = ArtStyle.bold_font(ArtStyle.TIP_TEXT_WEIGHT)
+	var lines: Vector2 = font.get_multiline_string_size(
+		text, HORIZONTAL_ALIGNMENT_LEFT, width - TEXT_ROOM, ArtStyle.TIP_TEXT_SIZE
+	)
+	var height: float = maxf(HEIGHT, ceilf((lines.y + WRAP_PADDING * 2.0) / 2.0) * 2.0)
+	return Vector2(width, height)
 
 
 ## The tip's box for a glyph at `glyph_rect` on a ticket at `anchor_rect` (opening `below` it, else
@@ -86,7 +117,8 @@ static func place(
 		if at.y + tip_size.y > screen.end.y - SCREEN_MARGIN:
 			opens_below = false
 	if not opens_below:
-		at = Vector2(roundf(cx - tip_size.x / 2.0), glyph_rect.position.y - ABOVE_GAP)
+		var grown: float = tip_size.y - HEIGHT
+		at = Vector2(roundf(cx - tip_size.x / 2.0), glyph_rect.position.y - ABOVE_GAP - grown)
 	at.x = clampf(
 		at.x, screen.position.x + SCREEN_MARGIN, screen.end.x - SCREEN_MARGIN - tip_size.x
 	)
@@ -112,18 +144,25 @@ func show_for(
 	text: String, glyph_rect: Rect2, anchor_rect: Rect2, opens_below: bool, screen: Rect2
 ) -> void:
 	_label.text = text
-	var tip_size: Vector2 = Vector2(width_for(text), HEIGHT)
+	var wrapped: bool = wraps(text)
+	_label.autowrap_mode = (TextServer.AUTOWRAP_WORD_SMART if wrapped else TextServer.AUTOWRAP_OFF)
+	_label.horizontal_alignment = (
+		HORIZONTAL_ALIGNMENT_LEFT if wrapped else HORIZONTAL_ALIGNMENT_CENTER
+	)
+	var tip_size: Vector2 = size_for(text)
 	var box: Rect2 = place(glyph_rect, anchor_rect, opens_below, tip_size, screen)
 	below = is_below(box, glyph_rect)
 	position = box.position
 	size = box.size
 	_shadow.size = size
 	_face.size = size
-	_label.position = Vector2.ZERO
-	_label.size = size
+	var inset: float = (TEXT_ROOM / 2.0) if wrapped else 0.0
+	_label.position = Vector2(inset, 0.0)
+	_label.size = Vector2(size.x - inset * 2.0, size.y)
 	_tail.flip_v = below
-	_tail.position = Vector2(tail_x(box, glyph_rect), TAIL_BELOW_Y if below else TAIL_ABOVE_Y)
-	pivot_offset = Vector2(_tail.position.x + TAIL_SIZE.x / 2.0, 0.0 if below else HEIGHT)
+	var tail_y: float = TAIL_BELOW_Y if below else size.y - HEIGHT + TAIL_ABOVE_Y
+	_tail.position = Vector2(tail_x(box, glyph_rect), tail_y)
+	pivot_offset = Vector2(_tail.position.x + TAIL_SIZE.x / 2.0, 0.0 if below else size.y)
 
 
 func tip_text() -> String:

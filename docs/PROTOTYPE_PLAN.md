@@ -495,12 +495,12 @@ The step contract (v0.11):
 | Golden Dented can | 4 | +4 for each earlier Clearance product |
 | Big Day-old buns | 4 | As Day-old buns: +3 if immediately after a Clearance product |
 | Golden Day-old buns | 4 | +6 if immediately after a Clearance product |
-| Big Carrier bag | 3 | As Carrier bag: +5 for each earlier Food product |
-| Golden Carrier bag | 3 | +7 for each earlier Food product (set by hand: doubling would give +10 each) |
+| Big Carrier bag | 3 | As Carrier bag: +8 for each Food product beside it |
+| Golden Carrier bag | 3 | +16 for each Food product beside it |
 | Big Scissors | 3 | As Scissors: +2 for each earlier coupon |
 | Golden Scissors | 3 | +4 for each earlier coupon |
-| Big Batteries | 3 | As Batteries: +4 if in the last slot |
-| Golden Batteries | 3 | +8 if in the last slot |
+| Big Batteries | 3 | As Batteries: the Household product just after it pays ×2 |
+| Golden Batteries | 3 | The Household product just after it pays ×3 (set by hand: a second charge could never be used) |
 | Big Flickering bulb | 3 | As Flickering bulb: +3 to the next Clearance product |
 | Golden Flickering bulb | 3 | +6 to the next Clearance product |
 
@@ -508,14 +508,14 @@ The step contract (v0.11):
 
 | Product (plain) | BIG base | GOLDEN base | GOLDEN rule |
 |---|---|---|---|
-| Baguette (2; +2 for each earlier Bakery product) | 4 | 4 | +4 for each earlier Bakery product |
+| Baguette (2; +4 for each earlier product of its batch, up to 2) | 4 | 4 | +8 for each earlier product of its batch, up to 2 |
 | Scone (2; +3 if beside a Dairy product) | 4 | 4 | +6 if beside a Dairy product |
-| Croissant (2; +2 if beside a Bakery product) | 4 | 4 | +4 if beside a Bakery product |
+| Croissant (2; first of a batch: +2 to every later product of it) | 4 | 4 | First of a batch: +4 to every later product of it |
 | Broken biscuit (2; +3 if immediately after a Bakery product) | 4 | 4 | +6 if immediately after a Bakery product |
-| Iced bun (1; Double the next Bakery payout) | 3 | 3 | Double the next 2 Bakery payouts |
-| Birthday candles (1; +3 to the next Bakery product) | 3 | 3 | +6 to the next Bakery product |
+| Iced bun (1; ×2 the last product of its batch) | 3 | 3 | ×3 the last product of its batch (set by hand: a glaze has no charge to gain) |
+| Birthday candles (1; +3 to each product of a batch of 3+ just after it) | 3 | 3 | +6 to each product of a batch of 3+ just after it |
 | Squashed cake (2; Double the next Clearance payout) | 4 | 4 | Double the next 2 Clearance payouts |
-| Stale doughnut (1; +3 if in the last slot) | 3 | 3 | +6 if in the last slot |
+| Stale doughnut (1; last of a batch: +3 for each product of it) | 3 | 3 | Last of a batch: +6 for each product of it |
 | Cream (2; +2 to the next Dairy product) | 4 | 4 | +4 to the next Dairy product |
 | Ham ends (2; +3 if immediately after a Dairy product) | 4 | 4 | +6 if immediately after a Dairy product |
 | Fruit salad (2; +2 for each earlier Produce product) | 4 | 4 | +4 for each earlier Produce product |
@@ -528,7 +528,7 @@ The step contract (v0.11):
 | Potatoes (3; no rule) | 5 | 7 | No rule |
 | Egg timer (1; +4 if immediately after Eggs) | 3 | 3 | +8 if immediately after Eggs |
 | Chipped mug (1; +3 if beside Coffee) | 3 | 3 | +6 if beside Coffee |
-| Odd socks (1; +2 for each earlier Household product) | 3 | 3 | +4 for each earlier Household product |
+| Odd socks (1; +5 in an exact Household pair) | 3 | 3 | +10 in an exact Household pair |
 | Sugar cubes (2; +4 if immediately after Coffee) | 4 | 4 | +8 if immediately after Coffee |
 | Mixed herbs (1; +3 to the next Food product) | 3 | 3 | +6 to the next Food product |
 | Crisps (2; +3 if beside Bread) | 4 | 4 | +6 if beside Bread |
@@ -555,9 +555,9 @@ Decided with the user (issue #34). The 3 base aisles are open from the start (`d
 | Crackers | Pantry | 2 | +3 if beside Soup | |
 | Dented can | Pantry | 2 | +2 for each earlier Clearance product | |
 | Day-old buns | Pantry | 2 | +3 if immediately after a Clearance product | |
-| Carrier bag | Household (grey) | 1 | +5 for each earlier Food product (+1 until v0.29) | yes |
+| Carrier bag | Household (grey) | 1 | +8 for each Food product beside it (+5 for each earlier Food product until v0.55; +1 until v0.29) | yes |
 | Scissors | Household | 1 | +2 for each earlier coupon | |
-| Batteries | Household | 1 | +4 if in the last slot | |
+| Batteries | Household | 1 | The Household product just after it pays ×2: one charge, only the product just after it can take it, else WASTED at the row's end (+4 if in the last slot until v0.55) | |
 | Flickering bulb | Household | 1 | +3 to the next Clearance product | yes (v0.29) |
 
 - **Scissors** counts every coupon before it in the row, whether or not that coupon did anything (decided with the user), and none after it. With no earlier coupon it fizzles ("no coupon before it", section 3.5). It counts any coupon, not only coupons in the coupon-only slot.
@@ -577,7 +577,7 @@ Decided with the user (issue #35). Each aisle's machine (`docs/FULL_BUILD_PLAN.m
 | Mixed herbs | Pantry | 1 | +3 to the next Food product | yes |
 | **Egg timer** (key) | Household | 1 | +4 if immediately after Eggs | |
 | Chipped mug | Household | 1 | +3 if beside Coffee | |
-| Odd socks | Household | 1 | +2 for each earlier Household product | |
+| Odd socks | Household | 1 | +5 in a pair: one Household product beside it, with no other Household product beside that one (a run of 3 pays none of its ends; +2 for each earlier Household product until v0.55) | |
 | **Fruit salad** (key) | Fruit & veg | 2 | +2 for each earlier Produce product | |
 | Strawberries | Fruit & veg | 2 | +3 if beside a Produce product | yes |
 | Grapefruit | Fruit & veg | 2 | +3 to the next Produce product | |
@@ -586,14 +586,14 @@ Decided with the user (issue #35). Each aisle's machine (`docs/FULL_BUILD_PLAN.m
 | Bruised apples | Fruit & veg | 2 | +3 if beside a Clearance product | |
 | Soft tomatoes | Fruit & veg | 2 | +2 if beside Soup | |
 | Potatoes | Fruit & veg | 3 | No rule | |
-| **Baguette** (key) | Bakery | 2 | +2 for each earlier Bakery product | |
+| **Baguette** (key) | Bakery | 2 | BODY: +4 for each earlier product of its Bakery batch, up to 2 (+2 for each earlier Bakery product until v0.55) || |
 | Scone | Bakery | 2 | +3 if beside a Dairy product | yes |
-| Croissant | Bakery | 2 | +2 if beside a Bakery product | |
+| Croissant | Bakery | 2 | OPENER: first of a Bakery batch, +2 to every later product of the batch (+2 if beside a Bakery product until v0.55) || |
 | Broken biscuit | Bakery | 2 | +3 if immediately after a Bakery product | |
-| Iced bun | Bakery | 1 | Double the next Bakery payout | |
-| Birthday candles | Bakery | 1 | +3 to the next Bakery product | |
+| Iced bun | Bakery | 1 | GLAZE: ×2 the last product of its Bakery batch, wherever the bun sits in it (double the next Bakery payout until v0.55) || |
+| Birthday candles | Bakery | 1 | PARTY: +3 to each product of a batch of 3 or more Bakery products that starts just after it (+3 to the next Bakery product until v0.55) || |
 | Squashed cake | Bakery | 2 | Double the next Clearance payout | |
-| Stale doughnut | Bakery | 1 | +3 if in the last slot | |
+| Stale doughnut | Bakery | 1 | CLOSER: last of a Bakery batch, +3 for each product of the batch (+3 if in the last slot until v0.55) || |
 | **Crisps** (key) | Snacks | 2 | +3 if beside Bread | yes |
 | Cereal bar | Snacks | 2 | +2 if beside a Snack product | |
 | Bent lolly | Snacks | 2 | +3 if immediately after a Snack product | |
@@ -602,9 +602,10 @@ Decided with the user (issue #35). Each aisle's machine (`docs/FULL_BUILD_PLAN.m
 | Breadsticks | Snacks | 2 | +2 if immediately after Soup | |
 | Dusty toffees | Snacks | 1 | +2 for each earlier Clearance product | |
 
-- **Givers** (Cream, Mixed herbs, Grapefruit, Birthday candles, Stale popcorn) work like Coffee: the bonus goes once to the next product with the tag anywhere later, and fizzles when there is none ("no Dairy product after it").
-- **Doublers** (Lemon, Iced bun, Squashed cake) work like Tea bags: one charge for the next payout with the tag, in their own charge groups (they never reset Eggs, Tea bags or each other), fizzling with "1 charge unused". Each prints the tag it doubles, so a second copy always spends the first one's charge.
-- **Stale doughnut** fizzles like Batteries ("not in the last slot"). The other conditional items pay no bonus when their condition fails; since v0.37 (issue #45) each one fizzles then (section 3.5).
+- **Bakery batches** (v0.55, #128): a batch is 2 or more Bakery products beside each other (a coupon's link counts, as everywhere in section 3.4), in slot order; Bread, Scone, Broken biscuit and Squashed cake are Bakery, so they fill batches too (`CardBatch`). Each role (`BatchRoleRule`, Birthday candles' `BakedBatchBonusRule`) fizzles out of place: "no Bakery product beside it", "not first in its Bakery batch", "first in its batch: nothing before it", "not last in its Bakery batch", "it closes its batch: nothing to glaze", "no batch of 3 Bakery just after it". Two glazes on one batch stack on its closer.
+- **Givers** (Cream, Mixed herbs, Grapefruit, Stale popcorn) work like Coffee: the bonus goes once to the next product with the tag anywhere later, and fizzles when there is none ("no Dairy product after it").
+- **Doublers** (Lemon, Squashed cake) work like Tea bags: one charge for the next payout with the tag, in their own charge groups (they never reset Eggs, Tea bags or each other), fizzling with "1 charge unused". Each prints the tag it doubles, so a second copy always spends the first one's charge.
+- The other conditional items pay no bonus when their condition fails; since v0.37 (issue #45) each one fizzles then (section 3.5).
 - **Egg timer** prints Breakfast (decided with the user), so Coffee's bonus and Milk's count reach it; it isn't Food, so Egg charges pass over it. **Sugar cubes** isn't Breakfast: Coffee's +3 passes over it to the next Breakfast product.
 - **Wonky carrot** and **Broken biscuit** are singular so their titles fit the card on one line (decided with the user).
 - **Organic label** (the next product gains Produce) stays held: every Produce reader is in Fruit & veg, so it would do nothing in a fresh profile and in the lists without that aisle.
@@ -891,3 +892,4 @@ Rules for iterating: **one major variable per round**, card values tweaked only 
 | v0.52 | 2026-10-28 | Payday and the training week (full build phase 3; `docs/FULL_BUILD_PLAN.md` v0.68 section 5.3), decided with the user on 2026-10-28 after playing the 12-shift loop · **rule change** · a passed inspected shift no longer earns the BONUS ticket; a passed Manager's review on shift 4 or 8 pays two PREMIUM visits · a missed quota on shifts 1–4 is a slip, at most 2 forgiven (no visit), and any other miss ends the run · a single inspection after a review leaves out both of the review's (section 3.9) · telemetry: `machine_visit.inspection` may hold comma-separated ids · scoring unchanged: the golden rows stand · no balance pass (one at the end) |
 | v0.53 | 2026-10-28 | Day events (full build phase 3; `docs/FULL_BUILD_PLAN.md` v0.69 section 5.3), built while the user was away, wording and numbers to be confirmed · **rule change** · inspections are the MALUS events; BOONs on shifts 2, 5, 6, 9, 10 · `ShiftLimits` gains redraws, hand size and quota percent · three new rules (section 3.9) with steps of the event's · telemetry: the `inspections` and `next_inspections` fields list every event id, boons included; `next_inspection` stays the next shift's first inspection, never a boon · scoring with no events unchanged: the golden rows stand · run save format 9 · no balance pass (one at the end) |
 | v0.54 | 2026-10-28 | Week events (full build phase 3; `docs/FULL_BUILD_PLAN.md` v0.70 section 5.3) · **rule change** · a fixed week event per 4 shifts, stacking with the day events: Training week (the slips), Bakery festival (Bakery +€2, quota +10%), Holiday rush (quota +15%, odds +1 level) · a week's day events drawn as it starts · the boon Big trolleys replaced by Fresh delivery (Fruit & veg +€1) · scoring with no events unchanged: the golden rows stand · run save format 10 · no balance pass (one at the end) |
+| v0.55 | 2026-11-01 | Household and Bakery family identities (#128, `docs/art/mockups/family_identities_128.html` v2 for Household, `family_identities_128_v3.html` for Bakery), decided with the user on 2026-11-01 · **Bakery batches** (v3, section 5): a batch is 2 or more Bakery products beside each other (`CardBatch`); Croissant opens it (first: +2 to every later product of it), Baguette fills it (+4 per earlier product of it, up to 2), Stale doughnut closes it (last: +3 per product of it), Iced bun glazes it (×2 its last product; GOLDEN ×3, set by hand), Birthday candles party (+3 to each product of a batch of 3 or more just after them); each fizzles out of place (new `BatchRoleRule`, `BakedBatchBonusRule`, `SlotsBonusEffect`) · **rule change** · Carrier bag: +8 for each Food product beside it (`AdjacentMatchBonusRule.per_match`), GOLDEN +16 · Batteries: the Household product just after it pays ×2 (`GrantChargedMultiplierRule.just_after`: only a product counted just after it takes the charge, an unused one is WASTED at the row's end), BIG ×2, GOLDEN ×3 (set by hand) · Odd socks: +5 in an exact Household pair (new `PairBonusRule`: one Household product beside it, with no other Household product beside that one; WASTED with no pair, two beside it, or 3 in a row), GOLDEN +10 · Big shop's hint follows Carrier bag · scoring of every other card unchanged: the golden rows stand · no balance pass (one at the end) |

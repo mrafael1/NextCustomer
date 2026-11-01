@@ -1,14 +1,17 @@
 [gd_resource type="Resource" script_class="CardDefinition" format=3]
 
 [ext_resource type="Script" path="res://core/rule.gd" id="1_rule"]
-[ext_resource type="Script" path="res://core/rules/count_earlier_tag_bonus_rule.gd" id="2_carrier_bag"]
+[ext_resource type="Script" path="res://core/rules/adjacent_match_bonus_rule.gd" id="2_carrier_bag"]
 [ext_resource type="Script" path="res://core/card_definition.gd" id="3_card"]
 
 [sub_resource type="Resource" id="Resource_carrier_bag"]
 script = ExtResource("2_carrier_bag")
-tag = "Food"
-bonus_each = 5
-receipt_text = "Carrier bag: earlier Food"
+match_by = 3
+match_value = "Food"
+position = 2
+bonus = 8
+per_match = true
+receipt_text = "Carrier bag: Food beside"
 
 [resource]
 script = ExtResource("3_card")
@@ -18,8 +21,8 @@ kind = 1
 tags = PackedStringArray("Household")
 base = 1
 rules = Array[ExtResource("1_rule")]([SubResource("Resource_carrier_bag")])
-rule_text = "+5 for each earlier Food product"
-sticker_text = "+{bonus_each} per earlier {tag}"
+rule_text = "+8 for each Food product beside it"
+sticker_text = "+{bonus} per {match_value} beside"
 generally_useful = true
 art_ref = "res://art/items_v2/carrier_bag.png"
 mini_art_ref = "res://art/minis/carrier_bag.png"

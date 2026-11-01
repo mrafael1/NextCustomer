@@ -1,0 +1,276 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Bakery Batch Readability</title>
+<style>
+/* Layout: one real 1920x1080 capture scaled to the column, with the proposal drawn over it in
+   stage pixels; controls above it, decisions below. */
+@font-face { font-family: Pixelify; src: url(../../../fonts/PixelifySans-Variable.ttf) format('truetype'); }
+@font-face { font-family: Atkinson; src: url(../../../fonts/AtkinsonHyperlegibleNext-Variable.ttf) format('truetype'); font-weight: 200 800; }
+:root {
+  --ink: #2b2420; --paper: #fbf7ee; --cream: #f3e9d2; --mustard: #e2b33c; --mustard-dark: #b38425;
+  --tomato: #d9534f; --bake: #d2a874; --bake-light: #ddcba5; --bake-shade: #a87a4e;
+  --bg: #1f2a2c; --panel: #26363a; --text: #f3e9d2; --muted: #b9c2bd;
+  --display: Pixelify, "Courier New", monospace; --body: Atkinson, "Segoe UI", system-ui, sans-serif;
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--text); font: 16px/1.5 var(--body); }
+main { max-width: 1240px; margin: 0 auto; padding-block: 28px 64px; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); display: grid; gap: 22px; }
+h1 { font: 700 34px/1.1 var(--display); letter-spacing: .02em; margin: 0; color: var(--mustard); }
+h2 { font: 600 22px/1.2 var(--display); margin: 0 0 8px; color: var(--cream); }
+p { margin: 0; max-width: 72ch; }
+.lede { color: var(--muted); }
+.bar { display: flex; flex-wrap: wrap; gap: 10px 22px; align-items: center; }
+.seg { display: inline-flex; flex-wrap: wrap; max-width: 100%; border: 2px solid var(--ink); border-radius: 4px; overflow: hidden; background: var(--panel); }
+.seg button { font: 600 15px var(--body); color: var(--text); background: none; border: 0; padding: 8px 14px; cursor: pointer; }
+.seg button[aria-pressed="true"] { background: var(--mustard); color: var(--ink); }
+.seg button:focus-visible { outline: 3px solid var(--paper); outline-offset: -3px; }
+.grp { display: inline-flex; flex-wrap: wrap; gap: 8px 10px; align-items: center; max-width: 100%; }
+.lab { font: 14px var(--display); color: var(--muted); letter-spacing: .06em; text-transform: uppercase; }
+.frame { width: 100%; aspect-ratio: 16 / 9; max-width: 100%; position: relative; overflow: hidden; border: 2px solid var(--ink); border-radius: 6px; background: #000; }
+.stage { position: absolute; left: 0; top: 0; width: 1920px; height: 1080px; transform-origin: 0 0; }
+.stage > img { position: absolute; inset: 0; width: 1920px; height: 1080px; image-rendering: pixelated; }
+.cap { color: var(--muted); font-size: 14px; }
+/* Proposal layer, stage px */
+.layer { position: absolute; inset: 0; }
+.cover { position: absolute; background: var(--bake); }
+.txt { position: absolute; font: 700 19px/22px var(--body); color: var(--ink); white-space: nowrap; }
+.kw { display: inline-block; font: 400 15px/18px var(--display); letter-spacing: .04em; color: var(--ink); background: var(--bake-light); border: 2px solid var(--ink); border-radius: 3px; padding: 0 4px; margin-right: 4px; cursor: help; vertical-align: 1px; }
+.kw:hover, .kw.lit { background: var(--mustard); }
+.bracket { position: absolute; height: 14px; border: 3px solid var(--mustard); border-top: 0; border-radius: 0 0 4px 4px; filter: drop-shadow(0 2px 0 var(--ink)); transition: border-color .15s; }
+.bracket.lit { border-color: #ffcf3f; filter: drop-shadow(0 0 6px rgba(255, 207, 63, .7)) drop-shadow(0 2px 0 var(--ink)); }
+.role { position: absolute; height: 30px; transform: translateX(-50%); font: 400 21px/26px var(--display); letter-spacing: .05em; padding: 0 8px; color: var(--ink); background: var(--bake-light); border: 2px solid var(--ink); border-radius: 3px; white-space: nowrap; cursor: help; }
+.role.job { background: var(--mustard); }
+.role.bad { background: var(--tomato); color: var(--paper); }
+.tip { position: absolute; z-index: 3; width: 420px; background: var(--paper); color: var(--ink); border: 3px solid var(--ink); border-radius: 4px; padding: 10px 14px; font: 600 19px/1.35 var(--body); box-shadow: 0 6px 0 rgba(0,0,0,.35); pointer-events: none; }
+.tip b { font: 400 20px var(--display); letter-spacing: .05em; display: block; margin-bottom: 4px; }
+.tip.bad b { color: var(--tomato); }
+.notes { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 14px; }
+.note { background: var(--panel); border: 2px solid var(--ink); border-radius: 6px; padding: 14px 16px; min-width: 0; }
+.note h3 { font: 600 17px var(--display); margin: 0 0 6px; color: var(--mustard); letter-spacing: .03em; }
+.note p, .note li { font-size: 15px; color: var(--text); }
+.note ul { margin: 0; padding-left: 18px; }
+code { font-size: 14px; color: var(--bake-light); }
+@media (prefers-reduced-motion: reduce) { .bracket, .kw { transition: none; } }
+</style>
+</head>
+<body>
+<main>
+  <header style="display:grid;gap:8px">
+    <h1>Bakery batches, readable</h1>
+    <p class="lede">#128 · round 3. Last round's verdict: a strip can work if it is clearer, and the job words (OPENS, FILLS, GLAZES…) were too much. So the batch now reads as <b>one joined strip of tickets</b>, with <b>no job words</b>: the tickets' own lines say what each card does. A card out of place shows on its <b>BATCH</b> chip, in tomato with a cross, before checkout. Three strip takes, with <b>Channel</b> and <b>Bracket</b> from earlier rounds kept for comparison. Drawn over two real captures of the build; hover a <b>BATCH</b> chip.</p>
+  </header>
+
+  <div class="bar">
+    <span class="grp"><span class="lab">Belt</span>
+    <div class="seg" id="rowSeg">
+      <button type="button" id="row-bad" aria-pressed="true">Bread first</button>
+      <button type="button" id="row-good" aria-pressed="false">Croissant first</button>
+    </div></span>
+    <span class="grp"><span class="lab">Show</span>
+    <div class="seg" id="viewSeg">
+      <button type="button" id="view-now" aria-pressed="false">Today</button>
+      <button type="button" id="view-new" aria-pressed="true">Proposal</button>
+    </div></span>
+    <span class="grp"><span class="lab">Batch</span>
+    <div class="seg" id="varSeg"></div></span>
+  </div>
+
+  <div class="frame" id="frame">
+    <div class="stage" id="stage">
+      <img id="shot" src="bakery_batch_128_src/row_bread_first.png" alt="The shift screen while planning: Bread, Croissant, Baguette, Iced bun, Stale doughnut and Banana on the belt, with their tickets below.">
+      <div class="layer" id="layer"></div>
+    </div>
+  </div>
+  <p class="cap" id="caption"></p>
+
+  <section class="notes">
+    <div class="note">
+      <h3>BATCH, the keyword</h3>
+      <p>Every Bakery job card prints <b>BATCH</b> as a chip where the sticker used to say "of Bakery batch". Hovering it opens the keyword's line, the same tooltip as a family glyph's, and lights the batch it belongs to. The monitor's NEXT line prints the same chip. Kept in every variant.</p>
+    </div>
+    <div class="note">
+      <h3>The batch while planning</h3>
+      <ul>
+        <li>Each batch that holds a Bakery job card is drawn as one strip; a run of only Bread stays plain.</li>
+        <li>No job words: the strip shows where the batch starts and ends, and each ticket's line already says where its card works.</li>
+        <li>A card out of place turns its <b>BATCH</b> chip tomato with a pixel cross; hovering it gives the same reason as its WASTED step.</li>
+        <li>Hovering any other <b>BATCH</b> chip lights the strip. Planning only: the count-up stays as it is.</li>
+      </ul>
+    </div>
+    <div class="note" id="varNote">
+      <h3 id="varNoteTitle"></h3>
+      <p id="varNoteText"></p>
+    </div>
+    <div class="note">
+      <h3>New sticker lines</h3>
+      <ul>
+        <li>Croissant: <b>BATCH</b> 1st: +2 to the rest</li>
+        <li>Baguette: <b>BATCH</b> +4 per earlier</li>
+        <li>Iced bun: <b>BATCH</b> ×2 the last</li>
+        <li>Stale doughnut: <b>BATCH</b> last: +3 each</li>
+        <li>Birthday candles: +3 each, next <b>BATCH</b> of 3+</li>
+      </ul>
+    </div>
+  </section>
+</main>
+
+<script src="bakery_batch_128_src/variant_band.js"></script>
+<script src="bakery_batch_128_src/variant_stripa.js"></script>
+<script src="bakery_batch_128_src/variant_stripb.js"></script>
+<script src="bakery_batch_128_src/variant_stripc.js"></script>
+<!-- Earlier takes, unlisted (files kept): variant_ticket.js ('Ticket strip'), variant_tray.js ('Baking tray'). -->
+<script>
+// Stage px, measured on the captures: ticket i's face spans x 555+192i .. 708+192i; its text
+// block y 728..777; the dark counter band under the tickets y 786..824.
+const PITCH = 192, FACE_X = 555, FACE_W = 154;
+const center = i => FACE_X + PITCH * i + FACE_W / 2;
+const KEYWORD = 'BATCH · 2 or more Bakery side by side make one batch. Each card\'s line says where in its batch it works.';
+const ROWS = {
+  bad: {
+    shot: 'bakery_batch_128_src/row_bread_first.png',
+    caption: 'Bread first: Bread starts the batch, so Croissant (2nd) does nothing. Today the only hint is its WASTED sticker; with the proposal, its BATCH chip turns tomato before you check out.',
+    batch: [0, 4],
+    items: [
+      { text: null, role: 'IN', tip: ['BREAD', 'Bread is Bakery: it counts in the batch but has no rule.'] },
+      { text: ['1st: +2 to the rest'], role: 'OPENS', bad: true, tip: ['WASTED · NOT 1ST', 'Croissant works only as the 1st of its batch. Bread is 1st here, so its +2 is WASTED.'] },
+      { text: ['+4 per earlier'], role: 'FILLS', tip: ['2 BEFORE IT', '+4 for each item before it in the batch, up to 2: +8 here.'] },
+      { text: ['×2 the last'], role: 'GLAZES', tip: ['×2 THE LAST', 'Doubles the batch\'s last item: Stale doughnut.'] },
+      { text: ['last: +3 each'], role: 'CLOSES', tip: ['LAST · 5 ITEMS', 'Last of the batch: +3 for each of its 5 items, then ×2 from Iced bun.'] },
+    ],
+  },
+  good: {
+    shot: 'bakery_batch_128_src/row_croissant_first.png',
+    caption: 'Croissant first: every Bakery card sits where its line asks, so the strip has no red.',
+    batch: [0, 4],
+    items: [
+      { text: ['1st: +2 to the rest'], role: 'OPENS', tip: ['1ST OF THE BATCH', '1st of the batch: +2 to each of the 4 items after it.'] },
+      { text: null, role: 'IN', tip: ['BREAD', 'Bread is Bakery: it counts in the batch but has no rule.'] },
+      { text: ['+4 per earlier'], role: 'FILLS', tip: ['2 BEFORE IT', '+4 for each item before it in the batch, up to 2: +8 here.'] },
+      { text: ['×2 the last'], role: 'GLAZES', tip: ['×2 THE LAST', 'Doubles the batch\'s last item: Stale doughnut.'] },
+      { text: ['last: +3 each'], role: 'CLOSES', tip: ['LAST · 5 ITEMS', 'Last of the batch: +3 for each of its 5 items, then ×2 from Iced bun.'] },
+    ],
+  },
+};
+let row = 'bad', proposal = true;
+const stage = document.getElementById('stage'), frame = document.getElementById('frame');
+const layer = document.getElementById('layer'), shot = document.getElementById('shot');
+const caption = document.getElementById('caption');
+
+function fit() { stage.style.transform = `scale(${frame.clientWidth / 1920})`; }
+new ResizeObserver(fit).observe(frame);
+
+function el(tag, cls, style) {
+  const d = document.createElement(tag); if (cls) d.className = cls; Object.assign(d.style, style || {}); return d;
+}
+let tipEl = null;
+function showTip(anchorX, top, title, body, bad) {
+  hideTip();
+  tipEl = el('div', 'tip' + (bad ? ' bad' : ''));
+  tipEl.innerHTML = `<b>${title}</b>${body}`;
+  layer.appendChild(tipEl);
+  const left = Math.max(540, Math.min(1900 - 420, anchorX - 210));
+  Object.assign(tipEl.style, { left: left + 'px', top: (top - tipEl.offsetHeight - 10) + 'px' });
+}
+function hideTip() { if (tipEl) { tipEl.remove(); tipEl = null; } }
+
+// The batch indicators. Each variant draws the batch marker from ctx and pushes what a BATCH
+// chip's hover should light into ctx.bracketTargets; the tickets' BATCH chip and text are shared
+// and drawn by render() before the variant runs. Host hook for the variants: each chip carries
+// data-index (its item's index in row.items), and the chip of a job out of place has class 'bad'
+// and shows that item's WASTED tip on hover; a variant only restyles it. Round 3's strip takes
+// (stripa, stripb, stripc) and round 2's Channel live in bakery_batch_128_src/. The tips carry no
+// job words; it.role is kept only for the earlier Channel and Bracket.
+const VARIANTS = window.BATCH_VARIANTS = window.BATCH_VARIANTS || {};
+VARIANTS.bracket = {
+  label: 'Bracket',
+  note: 'Round 1, kept for comparison: a gold bracket in the counter band under the batch\'s tickets, with a job tag (OPENS, FILLS, GLAZES, CLOSES, IN) hanging from it under each ticket. The tags spill past the band over the baskets, and the user found the line not clean.',
+  render(ctx) {
+    const { layer, row: r, FACE_X, PITCH, FACE_W, center, el, showTip, hideTip } = ctx;
+    const [first, last] = r.batch;
+    const bracket = el('div', 'bracket', { left: (FACE_X + PITCH * first - 2) + 'px', width: (PITCH * (last - first) + FACE_W + 4) + 'px', top: '784px' });
+    layer.appendChild(bracket);
+    ctx.bracketTargets.push(bracket);
+    r.items.forEach((it, i) => {
+      const role = el('div', 'role' + (it.bad ? ' bad' : it.role === 'IN' ? '' : ' job'), { left: center(i) + 'px', top: '796px' });
+      role.textContent = it.role + (it.bad ? ' ✗' : '');
+      role.tabIndex = 0;
+      const on = () => showTip(center(i), 796, it.tip[0], it.tip[1], it.bad);
+      role.addEventListener('mouseenter', on); role.addEventListener('mouseleave', hideTip);
+      role.addEventListener('focus', on); role.addEventListener('blur', hideTip);
+      layer.appendChild(role);
+    });
+  },
+};
+// Segmented control order and short button names; a variant whose script failed to load is left out.
+const ORDER = [['stripb', 'Bound'], ['stripa', 'Backed'], ['stripc', 'Stapled'], ['band', 'Channel'], ['bracket', 'Bracket']]
+  .filter(([k]) => VARIANTS[k]);
+const DEFAULT_V = 'stripb';
+const params = new URLSearchParams(location.search);
+let variant = ORDER.some(([k]) => k === params.get('v')) ? params.get('v') : (VARIANTS[DEFAULT_V] ? DEFAULT_V : 'bracket');
+if (params.get('row') === 'good') row = 'good';
+if (params.get('view') === 'now') proposal = false;
+const varNoteTitle = document.getElementById('varNoteTitle'), varNoteText = document.getElementById('varNoteText');
+
+// Shared: the tickets' new text with the BATCH chip; its hover lights the variant's targets.
+function drawTickets(r, ctx) {
+  r.items.forEach((it, i) => {
+    if (!it.text) return;
+    const x = FACE_X + PITCH * i;
+    layer.appendChild(el('div', 'cover', { left: (x + 2) + 'px', top: '727px', width: (FACE_W - 6) + 'px', height: '50px' }));
+    const t = el('div', 'txt', { left: (x + 6) + 'px', top: '729px' });
+    const kw = el('span', 'kw' + (it.bad ? ' bad' : '')); kw.textContent = 'BATCH'; kw.tabIndex = 0;
+    kw.dataset.index = String(i);
+    // A job out of place: the chip tells its WASTED reason instead of the keyword's line.
+    const tip = it.bad ? [it.tip[0], it.tip[1]] : ['BATCH', KEYWORD.replace('BATCH · ', '')];
+    kw.setAttribute('aria-label', tip[0] + '. ' + tip[1]);
+    const on = () => { ctx.bracketTargets.forEach(d => d.classList.add('lit')); kw.classList.add('lit'); showTip(x + 40, 727, tip[0], tip[1], !!it.bad); };
+    const off = () => { ctx.bracketTargets.forEach(d => d.classList.remove('lit')); kw.classList.remove('lit'); hideTip(); };
+    kw.addEventListener('mouseenter', on); kw.addEventListener('mouseleave', off);
+    kw.addEventListener('focus', on); kw.addEventListener('blur', off);
+    t.appendChild(kw);
+    const words = it.text[0].split(' ');
+    // Keyword and the first word on line 1, the rest on line 2, as the ticket wraps.
+    t.appendChild(document.createTextNode(words.slice(0, 1).join(' ')));
+    t.appendChild(document.createElement('br'));
+    t.appendChild(document.createTextNode(words.slice(1).join(' ')));
+    layer.appendChild(t);
+  });
+}
+
+function render() {
+  const r = ROWS[row], v = VARIANTS[variant];
+  shot.src = r.shot;
+  caption.textContent = proposal ? r.caption : 'Today: the tickets say "batch", but nothing on the belt shows where a batch starts or ends.';
+  varNoteTitle.textContent = 'This variant: ' + v.label;
+  varNoteText.textContent = v.note;
+  layer.innerHTML = '';
+  tipEl = null;
+  if (!proposal) return;
+  const ctx = { layer, row: r, FACE_X, PITCH, FACE_W, center, el, showTip, hideTip, bracketTargets: [] };
+  drawTickets(r, ctx);
+  v.render(ctx);
+}
+function syncUrl() {
+  const q = new URLSearchParams({ v: variant, row, view: proposal ? 'new' : 'now' });
+  try { history.replaceState(null, '', '?' + q); } catch (e) { /* file:// may refuse; the page still works */ }
+}
+function press(seg, id) { for (const b of document.getElementById(seg).children) b.setAttribute('aria-pressed', String(b.id === id)); }
+const varSeg = document.getElementById('varSeg');
+for (const [k, name] of ORDER) {
+  const b = document.createElement('button');
+  b.type = 'button'; b.id = 'var-' + k; b.textContent = name; b.title = VARIANTS[k].label;
+  b.onclick = () => { variant = k; press('varSeg', b.id); syncUrl(); render(); };
+  varSeg.appendChild(b);
+}
+document.getElementById('row-bad').onclick = () => { row = 'bad'; press('rowSeg', 'row-bad'); syncUrl(); render(); };
+document.getElementById('row-good').onclick = () => { row = 'good'; press('rowSeg', 'row-good'); syncUrl(); render(); };
+document.getElementById('view-now').onclick = () => { proposal = false; press('viewSeg', 'view-now'); syncUrl(); render(); };
+document.getElementById('view-new').onclick = () => { proposal = true; press('viewSeg', 'view-new'); syncUrl(); render(); };
+press('rowSeg', 'row-' + row); press('viewSeg', proposal ? 'view-new' : 'view-now'); press('varSeg', 'var-' + variant);
+fit(); render();
+</script>
+</body>
+</html>

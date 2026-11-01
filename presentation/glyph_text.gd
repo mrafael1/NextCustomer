@@ -11,9 +11,24 @@ extends RefCounted
 ## inside a piece (pieces()): a glyph is glued to the word before it, and to the word before
 ## that too when that word is a count ("next 2 Food" wraps as one piece), so a glyph never
 ## starts a line alone.
+##
+## A keyword (#128: CardText.BATCH_WORD, from a template's `{batch}`) is a keyword run, {"text":
+## word, "family": "", "keyword": word}, that a label draws as a boxed chip with its tooltip
+## (KEYWORD_TIPS). It is glued to the plain word after it ("BATCH 1st:" wraps as one piece), so a
+## chip never ends a line alone.
 
-## Punctuation that may follow a family's name and stays text after its glyph.
-const TRAILING := ",.:;!?)"
+## Punctuation that may follow a family's name (or a keyword) and stays text after its glyph (or
+## chip); the ellipsis of a line the monitor cuts short (MonitorItemColumn) too.
+const TRAILING := ",.:;!?)…"
+## Each keyword's tooltip (#128, the approved Bound strip mock-up): the keyword, then what it
+## means; keyword_tip() fills in its numbers (BATCH: CardBatch.MIN_SIZE).
+const KEYWORD_TIPS: Dictionary[String, String] = {
+	CardText.BATCH_WORD:
+	(
+		"BATCH · %d or more Bakery side by side make one batch. "
+		+ "Each card's line says where in its batch it works."
+	),
+}
 
 
 ## The text's unbreakable pieces, in order, each an Array of runs; a line may break between
@@ -21,9 +36,23 @@ const TRAILING := ",.:;!?)"
 ## 2 "), so the glyph follows it on the line.
 static func pieces(text: String, palette: FamilyPalette) -> Array[Array]:
 	var found: Array[Array] = []
+	var after_keyword: bool = false
 	for word: String in text.split(" ", false):
 		var stem: String = word.rstrip(TRAILING)
+		if KEYWORD_TIPS.has(stem):
+			var keyword: Array = [keyword_run(stem)]
+			if stem.length() < word.length():
+				keyword.append(text_run(word.substr(stem.length())))
+			found.append(keyword)
+			after_keyword = stem.length() == word.length()
+			continue
 		var family: String = palette.family_for_word(stem) if not stem.is_empty() else ""
+		if family.is_empty() and after_keyword:
+			# The word after a keyword joins its piece.
+			found[found.size() - 1].append(text_run(" " + word))
+			after_keyword = false
+			continue
+		after_keyword = false
 		if family.is_empty():
 			found.append([text_run(word)])
 			continue
@@ -54,6 +83,22 @@ static func runs(text: String, palette: FamilyPalette) -> Array[Dictionary]:
 	return found
 
 
+## The tooltip of `keyword` (a KEYWORD_TIPS key), or "".
+static func keyword_tip(keyword: String) -> String:
+	if keyword == CardText.BATCH_WORD:
+		return KEYWORD_TIPS[keyword] % CardBatch.MIN_SIZE
+	return KEYWORD_TIPS.get(keyword, "")
+
+
+## The keywords the text draws as chips, in order (repeats kept).
+static func keywords(text: String, palette: FamilyPalette) -> PackedStringArray:
+	var found: PackedStringArray = PackedStringArray()
+	for run: Dictionary in runs(text, palette):
+		if is_keyword(run):
+			found.append(str(run["keyword"]))
+	return found
+
+
 ## The families the text draws as glyphs, in order (repeats kept).
 static func families(text: String, palette: FamilyPalette) -> PackedStringArray:
 	var found: PackedStringArray = PackedStringArray()
@@ -72,8 +117,22 @@ static func glyph_run(family: String, word: String = "") -> Dictionary:
 	return {"text": word if not word.is_empty() else family, "family": family}
 
 
+## A keyword run for `word` (a KEYWORD_TIPS key), drawn as a chip.
+static func keyword_run(word: String) -> Dictionary:
+	return {"text": word, "family": "", "keyword": word}
+
+
 static func is_glyph(run: Dictionary) -> bool:
 	return not str(run["family"]).is_empty()
+
+
+static func is_keyword(run: Dictionary) -> bool:
+	return run.has("keyword")
+
+
+## Whether a run is plain text (neither a glyph nor a keyword).
+static func is_text(run: Dictionary) -> bool:
+	return not is_glyph(run) and not is_keyword(run)
 
 
 ## Whether a word is a count: digits only ("2", never "+2" or "×2").
@@ -86,7 +145,7 @@ static func _is_plain(found: Array[Array]) -> bool:
 	if found.is_empty():
 		return false
 	var last: Array = found[found.size() - 1]
-	return last.size() == 1 and not is_glyph(last[0] as Dictionary)
+	return last.size() == 1 and is_text(last[0] as Dictionary)
 
 
 static func _pop_text(found: Array[Array]) -> String:
@@ -95,7 +154,7 @@ static func _pop_text(found: Array[Array]) -> String:
 
 
 static func _append(found: Array[Dictionary], run: Dictionary) -> void:
-	if not found.is_empty() and not is_glyph(run) and not is_glyph(found[found.size() - 1]):
+	if not found.is_empty() and is_text(run) and is_text(found[found.size() - 1]):
 		found[found.size() - 1] = text_run(str(found[found.size() - 1]["text"]) + str(run["text"]))
 	else:
 		found.append(run)

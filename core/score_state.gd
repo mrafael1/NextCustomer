@@ -26,6 +26,9 @@ var credits: ScoreCredits
 ## Effects left by scanned cards for later products.
 var effects: Array[ScoreEffect] = []
 var steps: Array[ScoreStep] = []
+## The batches (CardBatch, #128) the rules read, each in slot order, once each; kept only when
+## `explain` (the planning belt shows them; no rule reads them back).
+var batches: Array[PackedInt32Array] = []
 var subtotal: int = 0
 ## Slots the shift has more (+) or fewer (-) than the balance data's, from the run's
 ## upgrades and the shift's inspections (Big basket +1, Short belt -1). Set by Scoring.score().
@@ -278,6 +281,7 @@ func to_result() -> ScoreResult:
 	result.payouts = payouts
 	result.tags = tags
 	result.steps = steps
+	result.batches = batches
 	return result
 
 

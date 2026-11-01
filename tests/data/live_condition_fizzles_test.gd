@@ -18,11 +18,13 @@ func test_every_conditional_card_fizzles_alone() -> void:
 		assert_int(fizzles[0].value).is_equal(0)
 		assert_int(result.total).override_failure_message(card.id).is_equal(card.base)
 		checked += 1
-	# Every card on those two rules today: 32 plain cards and their 64 item tiers (#77: Banana
-	# and Milk; v0.48: Cheese, Frozen peas, Butter, Yogurt, Reduced yogurt, Cereal, Crackers,
-	# Day-old buns, Dented can and Carrier bag; v0.52: the 20 conditional capsule products, BIG
-	# and GOLDEN fizzle like their base).
-	assert_int(checked).is_equal(96)
+	# Every card on those three rules today (Odd socks' pair rule since #128): 32 plain cards
+	# and their 64 item tiers (#77: Banana and Milk; v0.48: Cheese, Frozen peas, Butter, Yogurt,
+	# Reduced yogurt, Cereal, Crackers, Day-old buns, Dented can and Carrier bag; v0.52: the 20
+	# conditional capsule products, BIG and GOLDEN fizzle like their base).
+	# Croissant and Baguette left for the Bakery batch roles (#128 v3; their fizzles are in
+	# tests/core/bakery_batch_test.gd): 30 plain cards and 60 tiers.
+	assert_int(checked).is_equal(90)
 
 
 func test_no_fizzle_once_the_condition_is_met() -> void:
@@ -132,6 +134,8 @@ static func _partner(card: CardDefinition, cards: Array[CardDefinition]) -> Card
 			AdjacentMatchBonusRule.Match.CARD_ID:
 				return load("%s/%s.tres" % [CARDS_DIR, adjacent.match_value])
 		tag = adjacent.match_value
+	elif card.rules[0] is PairBonusRule:
+		tag = (card.rules[0] as PairBonusRule).tag
 	else:
 		tag = (card.rules[0] as CountEarlierTagBonusRule).tag
 	for other: CardDefinition in cards:
@@ -145,7 +149,12 @@ static func _conditional_cards() -> Array[CardDefinition]:
 	for card: CardDefinition in _all_cards():
 		if card.rules.is_empty():
 			continue
-		if card.rules[0] is AdjacentMatchBonusRule or card.rules[0] is CountEarlierTagBonusRule:
+		var rule: Rule = card.rules[0]
+		if (
+			rule is AdjacentMatchBonusRule
+			or rule is CountEarlierTagBonusRule
+			or rule is PairBonusRule
+		):
 			conditional.append(card)
 	return conditional
 

@@ -77,10 +77,13 @@ const LIVE: Dictionary[String, Array] = {
 ## core/rules fails test_every_rule_is_classified until it is added to one of them.
 const FAMILY_RULES := [
 	"adjacent_match_bonus_rule.gd",
+	"baked_batch_bonus_rule.gd",
+	"batch_role_rule.gd",
 	"count_earlier_tag_bonus_rule.gd",
 	"grant_charged_multiplier_rule.gd",
 	"grant_next_tag_bonus_rule.gd",
 	"grant_tag_to_next_slot_rule.gd",
+	"pair_bonus_rule.gd",
 ]
 const NO_FAMILY_RULES := [
 	"connector_bridge_rule.gd",
@@ -282,7 +285,8 @@ func test_the_colour_reason_names_what_the_card_works_with() -> void:
 		"cheese": [CardFamilies.Reason.CARD, "Bread"],
 		"banana": [CardFamilies.Reason.SAME, "Banana"],
 		"banana_golden": [CardFamilies.Reason.SAME, "Banana"],
-		"batteries": [CardFamilies.Reason.OWN, ""],
+		"batteries": [CardFamilies.Reason.FAMILY, "Household"],
+		"odd_socks": [CardFamilies.Reason.FAMILY, "Household"],
 		"soup": [CardFamilies.Reason.OWN, ""],
 		"final_markdown": [CardFamilies.Reason.OVERRIDE, ""],
 		"multipack": [CardFamilies.Reason.NONE, ""],

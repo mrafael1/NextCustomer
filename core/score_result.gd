@@ -7,3 +7,6 @@ var total: int = 0
 var payouts: PackedInt32Array = PackedInt32Array()
 var tags: Array[PackedStringArray] = []
 var steps: Array[ScoreStep] = []
+## The batches the rules read (CardBatch, #128 Bakery batches), each in slot order: what the
+## planning belt's batch brackets show. Empty for a total-only score.
+var batches: Array[PackedInt32Array] = []

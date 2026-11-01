@@ -22,6 +22,9 @@ var denied: bool = false
 var stamp_amount: String = ""
 ## The denial stamp's caption: the denier's name in uppercase ("SPOT CHECK", "SOUP").
 var stamp_caption: String = ""
+## A batch card's wrong job (#128): its BATCH line's WASTED tooltip ("WASTED · Not first in its
+## Bakery batch"), or "" when it works (or is no batch card).
+var wrong_job: String = ""
 
 
 ## Whether the slot has a denial stamp.

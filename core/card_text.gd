@@ -13,13 +13,30 @@ extends RefCounted
 ##   card's base when that rule's bonus is its base (Banana), counted `bonus_factor` times
 ##   (Golden Banana, #77). A chain bonus (the Banana, #106) reads PREVIOUS_PRICE, after its
 ##   factor when that is not 1 ("prev", "2× prev"). `charges` names a charged multiplier's
-##   charges (Golden Eggs, #77).
+##   charges (Golden Eggs, #77). `min_size` is a baked batch's least size (Birthday candles, #128);
+## - `batch`: the BATCH keyword (BATCH_WORD, #128), which the ticket draws as a chip with its
+##   tooltip (GlyphText's keyword runs): it names the Bakery batch the card works in, so a batch
+##   card's template names it instead of "{tag} batch".
 ## Any other `{key}` (e.g. `{match_by}`) is left unformatted, braces and all, so the live-data
 ## test rejects it.
 const STICKER_KEYS: Array[String] = [
-	"base", "name", "bonus", "bonus_each", "factor", "charges", "tag", "match_value"
+	"base",
+	"name",
+	"bonus",
+	"bonus_each",
+	"factor",
+	"charges",
+	"tag",
+	"match_value",
+	"min_size",
+	"batch",
 ]
-const RULE_KEYS: Array[String] = ["bonus", "bonus_each", "factor", "charges", "tag", "match_value"]
+const RULE_KEYS: Array[String] = [
+	"bonus", "bonus_each", "factor", "charges", "tag", "match_value", "min_size"
+]
+## The BATCH keyword's word (#128): `{batch}` in a template.
+const BATCH_KEY := "batch"
+const BATCH_WORD := "BATCH"
 ## What a chain bonus's `{bonus}` reads: the previous product's price.
 const PREVIOUS_PRICE := "prev"
 
@@ -42,6 +59,7 @@ static func sticker_values(definition: CardDefinition) -> Dictionary:
 	var values: Dictionary = {
 		"base": definition.base,
 		"name": definition.product_card().display_name,
+		BATCH_KEY: BATCH_WORD,
 	}
 	for rule: Rule in definition.rules:
 		for property: Dictionary in rule.get_property_list():
@@ -55,6 +73,12 @@ static func sticker_values(definition: CardDefinition) -> Dictionary:
 		elif adjacent != null and (adjacent.bonus_is_base or adjacent.bonus_factor != 1):
 			values["bonus"] = adjacent.bonus_for(definition.base)
 	return values
+
+
+## Whether the card's template names the BATCH keyword (`{batch}`, #128): a batch card, whose
+## ticket shows the BATCH chip (and the belt frames its batch while planning).
+static func names_batch(definition: CardDefinition) -> bool:
+	return definition != null and sticker_template(definition).contains("{%s}" % BATCH_KEY)
 
 
 ## A chain bonus's `{bonus}`: PREVIOUS_PRICE, counted `factor` times ("prev", "2× prev").

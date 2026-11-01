@@ -73,8 +73,24 @@ func test_other_keys_are_left_unformatted() -> void:
 	card.sticker_text = "{match_by} {position} {bonus_is_base} {id} {receipt_text}"
 	assert_str(card.sticker_summary()).is_equal(card.sticker_text)
 	assert_array(CardText.sticker_values(card).keys()).contains_exactly_in_any_order(
-		["base", "name", "bonus", "match_value"]
+		["base", "name", "bonus", "match_value", CardText.BATCH_KEY]
 	)
+
+
+## The BATCH keyword (#128) is a sticker key: `{batch}` reads BATCH_WORD, which a ticket draws as a
+## chip, and names_batch says a card's template names it; a baked batch's least size is a key too.
+func test_fills_the_batch_keyword_and_min_size() -> void:
+	var candles: BakedBatchBonusRule = BakedBatchBonusRule.new()
+	candles.tag = "Bakery"
+	candles.bonus = 3
+	candles.min_size = 3
+	var card: CardDefinition = _card("Birthday candles", 1, candles)
+	card.sticker_text = "+{bonus} each, next {batch} of {min_size}+"
+	assert_str(card.sticker_summary()).is_equal("+3 each, next BATCH of 3+")
+	assert_bool(CardText.names_batch(card)).is_true()
+	card.sticker_text = "+{bonus} next {tag}"
+	assert_bool(CardText.names_batch(card)).is_false()
+	assert_bool(CardText.names_batch(null)).is_false()
 
 
 ## A charged multiplier's charges are a sticker key (Golden Eggs, #77).
