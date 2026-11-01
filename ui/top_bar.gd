@@ -9,9 +9,8 @@ extends HBoxContainer
 ## on shifts without one), the
 ## LOYALTY chip with its stamps, the Cart button with its trolley, and the menu button (three
 ## drawn bars) whose menu holds Export log. With weeks (show_weeks, v0.82: the week and day chips
-## say where the run is) the SHIFT chip hides, so the row breathes; in the training week a small
-## sign swings under the week chip with the slips left (SlipSign, 2026-11-01; it replaced v0.68's
-## hint in the SHIFT chip).
+## say where the run is) the SHIFT chip hides, so the row breathes; the training week's slips show
+## as the week chip's crosses (v0.84 retired the slip sign under it).
 ## Cart and the menu stay clickable behind every panel:
 ## the shade starts under the band (ShiftScreen), and the menu opens in its own popup window.
 ##
@@ -51,8 +50,6 @@ const MENU_ICON := preload("res://art/icons/menu.png")
 var shift_label: Label
 ## The SHIFT chip ("SHIFT n/m"; hidden with weeks: show_weeks).
 var shift_chip: PanelContainer
-## The training week's slips used, on a sign under the week chip (2026-11-01; show_training).
-var slip_sign: SlipSign
 var quota_meter: QuotaMeter
 var quota_label: Label
 ## The week chip (v0.70; hidden for a balance without weeks).
@@ -65,9 +62,6 @@ var menu_button: FramedButton
 ## The menu's popup and its one entry.
 var menu: PopupPanel
 var export_button: FramedButton
-## The slip sign's count (show_training), and whether this count-up's SLIP stamp has landed.
-var _slip_text: String = ""
-var _slip_stamped: bool = false
 var _weeks: bool = false
 ## The SHIFT chip's key caption (hidden with weeks).
 var _shift_key: Label
@@ -94,11 +88,6 @@ func _init() -> void:
 	add_child(quota_chip)
 	week_chip = WeekChip.new()
 	add_child(week_chip)
-	slip_sign = SlipSign.new()
-	slip_sign.follow(week_chip)
-	slip_sign.reduced_motion = func() -> bool:
-		return quota_meter.reduced_motion.is_valid() and bool(quota_meter.reduced_motion.call())
-	add_child(slip_sign)
 	inspection_tag = InspectionTag.new()
 	add_child(inspection_tag)
 	loyalty_card = LoyaltyCard.new(true)
@@ -131,27 +120,6 @@ func show_weeks(shown: bool) -> void:
 ## The SHIFT chip: "SHIFT n/m" without weeks, hidden with them.
 func _refresh_shift_chip() -> void:
 	shift_chip.visible = not _weeks
-
-
-## The training week's slips used (WriteUp.hint_text) on the sign under the week chip: its
-## `short_text` ("SLIPS 0/2"), else `text`; hidden when empty (with a fall: SlipSign). While a
-## count-up runs, `held_text` (the count before the shift's miss) shows until the miss's SLIP
-## stamp lands (follow_count), then the sign counts up to `short_text`.
-func show_training(text: String, short_text: String = "", held_text: String = "") -> void:
-	_slip_text = short_text if not short_text.is_empty() else text
-	if held_text.is_empty():
-		_slip_stamped = false
-	slip_sign.show_text(held_text if not held_text.is_empty() and not _slip_stamped else _slip_text)
-
-
-## Follows `count_up`: a slip's SLIP stamp counts the sign up.
-func follow_count(count_up: CountUp) -> void:
-	count_up.slip_stamped.connect(_on_slip_stamped)
-
-
-func _on_slip_stamped() -> void:
-	_slip_stamped = true
-	slip_sign.show_text(_slip_text)
 
 
 ## Keeps the row inside ROW_SIZE.x less FIT_MARGIN: the inspection chip's text is trimmed when the

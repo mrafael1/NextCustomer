@@ -5,7 +5,8 @@ extends Control
 ## ShiftStage.printer_lip, drawn above the receipt), and under it the register column (step 9): its
 ## charcoal front (#123), the charcoal key deck with the keys on it (CHECKOUT's bar key, Redraw, and
 ## Cancel in redraw mode, all RegisterKeys), the quiet keypad, the seed line under Redraw, and the
-## cash drawer, static and slightly ajar so its coin tray shows. It stands at
+## cash drawer (CashDrawer, v0.84: each paid item's coins arc into it, on a layer over the keys
+## and the display). It stands at
 ## ShiftStage.REGISTER_RECT and is the count-up's rattle target, so the keys shake with it; its
 ## parts are placed in its own coordinates (the stage rects less its position). Only the keys take
 ## clicks: the stage connects them to its signals.
@@ -26,7 +27,6 @@ const DECK_SHADOW_SHORTER := 2.0
 const DECK_SHADOW_ALPHA := 0.4
 ## The keypad and the drawer, drawn 1:1 at ShiftStage.KEYPAD_RECT and ShiftStage.DRAWER_RECT.
 const KEYPAD := preload("res://art/scenery/register_keypad.png")
-const DRAWER := preload("res://art/scenery/cash_drawer.png")
 ## CHECKOUT's caption as B2 sets it: the word in the display font, its glyphs CHECKOUT_SPACING
 ## px apart, then CHECKOUT_ARROW_GAP px on a smaller "›" (CHECKOUT_ARROW_SIZE), the pair centred.
 const CHECKOUT_TEXT := "CHECKOUT"
@@ -55,8 +55,7 @@ var keypad: TextureRect
 ## CHECKOUT's "›", a child of its caption label (so it sinks and fades with it).
 var checkout_arrow: Label
 
-var _drawer: TextureRect
-var _drawer_motion: Tween
+var drawer: CashDrawer
 var _count: CountUp
 
 
@@ -78,13 +77,18 @@ func _init() -> void:
 	_add(deck, local_rect(ShiftStage.DECK_RECT)).name = "Deck"
 	keypad = UiKit.sprite(KEYPAD)
 	_add(keypad, local_rect(ShiftStage.KEYPAD_RECT)).name = "Keypad"
-	_drawer = UiKit.sprite(DRAWER)
-	_add(_drawer, local_rect(ShiftStage.DRAWER_RECT)).name = "Drawer"
+	drawer = CashDrawer.new()
+	_add(drawer, local_rect(ShiftStage.DRAWER_RECT))
 	_build_keys()
 	total_display = RegisterTotal.new()
 	total_display.position = local_rect(ShiftStage.CHECKOUT_RECT).position + Vector2(4, 8)
 	add_child(total_display)
-	total_display.drawer_kicked.connect(_kick_drawer)
+	total_display.drawer_kicked.connect(func(_wide: bool) -> void: drawer.kick())
+	total_display.coins_paid.connect(drawer.throw_coins)
+	var coins: Control = Control.new()
+	coins.name = "Coins"
+	_add(coins, Rect2(Vector2.ZERO, size))
+	drawer.coin_layer = coins
 
 
 func _ready() -> void:
@@ -187,18 +191,4 @@ func follow_count(count_up: CountUp, reading: LedDisplay) -> void:
 	_count = count_up
 	total_display.follow(count_up, reading)
 	count_up.climax_running = total_display.is_celebrating
-
-
-func _kick_drawer(wide: bool) -> void:
-	if _count == null or _count.plan == null or _count.plan.reduced_motion:
-		return
-	if _drawer_motion != null and _drawer_motion.is_valid():
-		_drawer_motion.kill()
-	var rest: Vector2 = local_rect(ShiftStage.DRAWER_RECT).position
-	_drawer.position = rest
-	# The quota's kick follows real time so its hit-stop does not freeze the celebration.
-	_drawer_motion = create_tween() if wide else _count.tween_maker().call() as Tween
-	_drawer_motion.tween_property(_drawer, "position", rest + Vector2(0, 18 if wide else 4), 0.12)
-	if wide:
-		_drawer_motion.tween_interval(0.45)
-	_drawer_motion.tween_property(_drawer, "position", rest, 0.16)
+	drawer.follow(count_up)

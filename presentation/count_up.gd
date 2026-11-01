@@ -100,7 +100,7 @@ signal quota_met(pop: bool)
 ## The dessert stamped INSPECTION PASSED on the receipt (#77 machine v2: the monitor's DONE state
 ## says it too).
 signal inspection_passed
-## The dessert stamped a slip's SLIP n/limit on the receipt: the slip sign counts up.
+## The dessert stamped a slip's SLIP n/limit on the receipt.
 signal slip_stamped
 ## A payout of `payout` euros is paid, the subtotal at `subtotal`.
 signal payout_landed(payout: int, subtotal: int)

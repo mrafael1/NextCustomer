@@ -27,9 +27,12 @@ const FINAL_REWARD := "PASS = RUN WON"
 const PUNCH := "IN"
 const NO_EVENT := "Normal day"
 const NO_EVENT_EFFECT := "No event"
-## The training week's slips (v0.68), counted on its banner.
-const SLIPS := "%d SLIPS"
-const SLIPS_ONE := "1 SLIP"
+## The training week's banner line (v0.84, in place of v0.68's notice and slips left): the misses
+## it forgives.
+## On the card the misses are a red tag after the lead (misses_text).
+const ALLOWS_LEAD := "THIS WEEK ALLOWS"
+const MISSES := "%d MISSES"
+const MISSES_ONE := "1 MISS"
 ## A played day's stamp (v0.72): a pass, and a training week's forgiven miss with its count.
 const PAID_STAMP := "PAID"
 const SLIP_STAMP := "SLIP %d/%d"
@@ -41,8 +44,8 @@ var week_number: int = 1
 var week_count: int = 1
 ## The week's fixed event, or null.
 var event: WeekEventDefinition
-## The slips the training week still forgives (0 outside it, or with a balance without slips).
-var slips: int = 0
+## The misses the training week forgives in all (0 outside it, or with a balance without slips).
+var allowed_misses: int = 0
 ## The week's days, in order.
 var days: Array[WeekDay] = []
 
@@ -104,7 +107,7 @@ static func of(run: RunState) -> WeekCardModel:
 	if shift == run.pre_week_shift and model.event != null and not model.event.forgives_slips:
 		model.event = null
 	if model.event != null and model.event.forgives_slips:
-		model.slips = TrainingWeek.slips_left(run)
+		model.allowed_misses = run.balance.write_up_limit
 	var plan: WeekPlan = run.week
 	var first: int = WeekSchedule.first_shift(balance, shift)
 	for day_shift: int in range(first, first + WeekSchedule.days_in(balance, shift)):
@@ -162,16 +165,21 @@ func title() -> String:
 	return event.display_name.to_upper() if event != null else WEEK_TITLE % week_number
 
 
-## The banner's effect line: the week event's notice, or "".
+## The banner's effect line: the week event's notice, the training week's "THIS WEEK ALLOWS 2
+## MISSES", or "".
 func effect() -> String:
-	return event.notice_text if event != null else ""
+	if event == null:
+		return ""
+	if event.forgives_slips:
+		return "%s %s" % [ALLOWS_LEAD, misses_text()]
+	return event.notice_text
 
 
-## The training week's slips line ("2 SLIPS"), or "" outside it.
-func slips_text() -> String:
+## The training week's misses ("2 MISSES", the red tag on its banner), or "" outside it.
+func misses_text() -> String:
 	if event == null or not event.forgives_slips:
 		return ""
-	return SLIPS_ONE if slips == 1 else SLIPS % slips
+	return MISSES_ONE if allowed_misses == 1 else MISSES % allowed_misses
 
 
 ## The week chip's short name (the week event's chip_text, "BAKERY"), or "".

@@ -69,7 +69,12 @@ func test_the_card_plays_at_the_week_start_and_flies_into_the_chip() -> void:
 	for event: InspectionDefinition in screen.run.week.day(4):
 		assert_str(review).contains(event.display_name)
 	assert_str(_texts(card.banner())).contains("TRAINING WEEK")
-	assert_str(_texts(card.banner())).contains("2 SLIPS")
+	# The misses stand on a red tag after "THIS WEEK ALLOWS" (v0.84).
+	assert_str(_texts(card.banner())).contains(WeekCardModel.ALLOWS_LEAD)
+	var misses: Label = card.banner().find_child("MissesTag", true, false) as Label
+	assert_str(misses.text).is_equal("2 MISSES")
+	var tag_box: StyleBoxFlat = misses.get_theme_stylebox("normal") as StyleBoxFlat
+	assert_that(tag_box.bg_color).is_equal(Palette.TOMATO)
 	card.advance(WeekCard.HOLD + 0.01)
 	assert_bool(card.is_shrinking()).is_true()
 	card.advance(WeekCard.SHRINK)

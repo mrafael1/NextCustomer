@@ -14,9 +14,6 @@ const LAST_NOTICE := "Training week: slip %d/%d. The next miss ends the run"
 ## The planning hint (top bar, week 1): the slips the training week still forgives.
 const HINT := "TRAINING WEEK · %d SLIPS"
 const HINT_ONE := "TRAINING WEEK · 1 SLIP"
-## The hint's short form, on the slip sign under the week chip (SlipSign): the slips used of the
-## limit.
-const HINT_SHORT := "SLIPS %d/%d"
 ## The notice the first shift after the training week opens with.
 const OVER_NOTICE := "Training is over: from now on, any miss ends the run"
 
@@ -36,18 +33,10 @@ static func notice_text(run: RunState) -> String:
 
 
 ## The planning hint for `run`'s current shift: "TRAINING WEEK · 2 SLIPS" in the training week
-## (TrainingWeek.covers; `short`: the slips used, "SLIPS 0/2", at most the limit;
-## `before_miss`: without the shift just checked out when it missed, for the count-up before its
-## SLIP stamp), else "".
-static func hint_text(run: RunState, short: bool = false, before_miss: bool = false) -> String:
+## (TrainingWeek.covers), else "".
+static func hint_text(run: RunState) -> String:
 	if not TrainingWeek.covers(run.balance, run.shift_index + 1):
 		return ""
-	if short:
-		var used: int = run.write_ups
-		if before_miss and not run.history.is_empty() and not run.history[-1].passed:
-			used -= 1
-		var limit: int = run.balance.write_up_limit
-		return HINT_SHORT % [mini(used, limit), limit]
 	var left: int = TrainingWeek.slips_left(run)
 	return HINT_ONE if left == 1 else HINT % left
 

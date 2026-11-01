@@ -227,7 +227,7 @@ func test_the_register_cabinet() -> void:
 	var arts: Dictionary[String, Texture2D] = {
 		"Printer": RegisterCabinet.PRINTER_BOX,
 		"Keypad": RegisterCabinet.KEYPAD,
-		"Drawer": RegisterCabinet.DRAWER,
+		"Drawer/Front": CashDrawer.DRAWER,
 	}
 	for part_name: String in arts:
 		var sprite: TextureRect = cabinet.get_node(part_name) as TextureRect

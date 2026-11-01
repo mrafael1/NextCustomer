@@ -205,52 +205,15 @@ static func _left_click() -> InputEventMouseButton:
 	return click
 
 
-## The slips used hang on a sign under the week chip (2026-11-01), not in the top bar's row: it
-## counts up after a slip, stays on inspected days, sits under the week chip and above the
-## monitor, inside the screen, clear of the quota chip; the SHIFT chip stays hidden. It stays
-## through a count, holding its count until the miss's SLIP stamp, then counting up. On shift 5,
-## which opens with "Training is over", it falls away.
-func test_the_slip_sign_under_the_week_chip() -> void:
+## The training week's slips show only as the week chip's crosses (v0.84): no sign hangs under
+## the week chip, and the SHIFT chip stays hidden.
+func test_no_slip_sign_under_the_week_chip() -> void:
 	var screen: ShiftScreen = await _screen()
 	var bar: TopBar = screen._top_bar as TopBar
-	var board: SlipSign = bar.slip_sign
-	await _frames(2)
-	assert_bool(board.is_visible_in_tree()).is_true()
-	assert_str(board.text).is_equal(WriteUp.hint_text(screen.run, true))
-	assert_str(board.text).is_equal("SLIPS 0/2")
-	assert_bool(bar.shift_chip.visible).is_false()
-	_assert_sign_layout(screen, bar)
 	await _checkout_empty(screen)
-	screen._debug.set_inspection("")
 	await _frames(2)
-	assert_str(board.text).is_equal("SLIPS 1/2")
-	_assert_sign_layout(screen, bar)
-	# Inspected days and the review keep it.
-	screen._debug.skip_to_shift(3)
-	await _frames(2)
-	assert_bool(board.is_visible_in_tree()).is_true()
-	_assert_sign_layout(screen, bar)
-	screen._debug.skip_to_shift(4)
-	await _frames(2)
-	assert_bool(board.is_visible_in_tree()).is_true()
-	# Counting keeps it, at its count before the miss until the SLIP stamp lands.
-	var held: String = board.text
-	screen._on_checkout_pressed()
-	await _frames(1)
-	assert_bool(board.is_visible_in_tree()).is_true()
-	assert_str(board.text).is_equal(held)
-	assert_str(WriteUp.hint_text(screen.run, true)).is_not_equal(held)
-	var stamped: Array[String] = []
-	screen._count_up.slip_stamped.connect(func() -> void: stamped.append(board.text))
-	await Rush.finish(screen)
-	assert_array(stamped).contains_exactly(["SLIPS 2/2"])
-	# Shift 5 (the run goes on to it): the sign falls away.
-	assert_int(screen.run.shift_index).is_equal(4)
-	assert_bool(board.is_falling() or not board.visible).is_true()
-	screen._week.skip()  # Week 2's time card (v0.70) is not what this checks.
-	await get_tree().create_timer(SlipSign.FALL_SECONDS + 0.2).timeout
-	assert_bool(board.visible).is_false()
-	assert_str(screen._notice_label.text).is_equal(WriteUp.OVER_NOTICE)
+	assert_bool(bar.shift_chip.visible).is_false()
+	assert_array(bar.find_children("*", "SlipSign", true, false)).is_empty()
 	assert_array(_errors).is_empty()
 
 
@@ -269,29 +232,6 @@ func test_resuming_after_a_slip_shows_the_notice() -> void:
 	assert_int(again.run.shift_index).is_equal(1)
 	assert_str(again._notice_label.text).is_equal("Training week: slip 1/2")
 	assert_array(_errors).is_empty()
-
-
-## The sign hangs under the week chip's left part, below the top bar's row and above the monitor's
-## screen, inside the screen and clear of the quota chip and the day chip.
-func _assert_sign_layout(screen: ShiftScreen, bar: TopBar) -> void:
-	var board: Rect2 = bar.slip_sign.sign_rect()
-	var week: Rect2 = bar.week_chip.get_global_rect()
-	var row: Rect2 = Rect2(bar.global_position, TopBar.ROW_SIZE)
-	var detail: String = "%s under %s" % [board, week]
-	assert_bool(board.has_area()).override_failure_message(detail).is_true()
-	assert_float(board.position.y).override_failure_message(detail).is_greater_equal(week.end.y)
-	assert_float(board.position.y).is_greater_equal(row.end.y)
-	assert_float(board.position.x).override_failure_message(detail).is_greater_equal(
-		week.position.x
-	)
-	assert_float(board.position.x).is_less(week.end.x)
-	var monitor: Rect2 = screen._stage.get_global_transform() * ShiftStage.MONITOR_SCREEN_RECT
-	assert_float(board.end.y).override_failure_message(detail).is_less_equal(monitor.position.y)
-	var screen_rect: Rect2 = screen.get_viewport().get_visible_rect()
-	assert_bool(screen_rect.encloses(board)).override_failure_message(detail).is_true()
-	var quota_chip: Rect2 = (bar.quota_meter.get_parent() as Control).get_global_rect()
-	assert_bool(quota_chip.intersects(board)).is_false()
-	assert_bool(bar.inspection_tag.get_global_rect().intersects(board)).is_false()
 
 
 ## Checks out the current (empty) row, rushed, and returns every receipt text printed while it
@@ -348,32 +288,3 @@ static func _receipt_texts(screen: ShiftScreen) -> PackedStringArray:
 
 static func _event_log() -> EventLogService:
 	return (Engine.get_main_loop() as SceneTree).root.get_node("/root/EventLog")
-
-
-## A new count rolls in, then punches; emptied, the sign falls, then hides; reduced motion
-## changes it at once and hides it at once.
-func test_the_slip_sign_rolls_its_count_and_falls_away() -> void:
-	var chip: Control = auto_free(Control.new()) as Control
-	chip.size = Vector2(120, 40)
-	add_child(chip)
-	var board: SlipSign = auto_free(SlipSign.new()) as SlipSign
-	board.follow(chip)
-	add_child(board)
-	board.show_text("SLIPS 0/2")
-	assert_bool(board.is_rolling()).is_false()
-	board.show_text("SLIPS 1/2")
-	assert_bool(board.is_rolling()).is_true()
-	assert_str(board.text).is_equal("SLIPS 1/2")
-	await get_tree().create_timer(SlipSign.ROLL_SECONDS + 0.1).timeout
-	assert_bool(board.is_rolling()).is_false()
-	board.show_text("")
-	assert_bool(board.is_falling()).is_true()
-	assert_bool(board.visible).is_true()
-	await get_tree().create_timer(SlipSign.FALL_SECONDS + 0.1).timeout
-	assert_bool(board.visible).is_false()
-	board.reduced_motion = func() -> bool: return true
-	board.show_text("SLIPS 1/2")
-	board.show_text("SLIPS 2/2")
-	assert_bool(board.is_rolling()).is_false()
-	board.show_text("")
-	assert_bool(board.visible).is_false()

@@ -1,17 +1,18 @@
 ; The register column's front (mock-up B2, #80 step 9; the counter's charcoal laminate since the
 ; clean scene of #123, so the column and the counter read as one piece), a 9-slice (margins 4 art
 ; px) stretched to ShiftStage.COLUMN_RECT: a steel darkest top edge where it meets the counter
-; top, the rubber dark face, and a charcoal line 3 art px in from its lit left edge.
+; top and the rubber dark face. No line down its left (v0.84): the cabinet runs off the screen's
+; left edge, as the belt runs off its right.
 @size 10x10
 @kind frame
 @scale 2
 IIIIIIIIII
-KKKNKKKKKK
-KKKNKKKKKK
-KKKNKKKKKK
-KKKNKKKKKK
-KKKNKKKKKK
-KKKNKKKKKK
-KKKNKKKKKK
-KKKNKKKKKK
-KKKNKKKKKK
+KKKKKKKKKK
+KKKKKKKKKK
+KKKKKKKKKK
+KKKKKKKKKK
+KKKKKKKKKK
+KKKKKKKKKK
+KKKKKKKKKK
+KKKKKKKKKK
+KKKKKKKKKK
