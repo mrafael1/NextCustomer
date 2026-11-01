@@ -186,7 +186,7 @@ func _add(node: Control, rect: Rect2) -> Control:
 	return node
 
 
-## The customer display reads the count's model, covering the held checkout key only in count.
+## The count follower (RegisterTotal, no display since 2026-11-01) reads the count's model.
 func follow_count(count_up: CountUp, reading: LedDisplay) -> void:
 	_count = count_up
 	total_display.follow(count_up, reading)

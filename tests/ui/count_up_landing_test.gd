@@ -174,7 +174,7 @@ func _record(head: Array, screen: ShiftScreen) -> void:
 
 func _sample(screen: ShiftScreen) -> void:
 	var number: TotalNumber = screen._monitor.checkout().total_number()
-	_peak = maxf(_peak, screen._cabinet.total_display.number_label().scale.x)
+	_peak = maxf(_peak, number.punch_scale())
 	if not screen._led.is_counting():
 		return
 	var reading: int = screen._led.amount()

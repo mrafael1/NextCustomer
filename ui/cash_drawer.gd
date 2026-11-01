@@ -45,9 +45,14 @@ const SHUT_AFTER_S := 0.12
 const SHUT_S := 0.07
 const FLASH_S := 0.26
 const FLASH_RECTS: Array[Rect2] = [Rect2(282, 33, 12, 17), Rect2(100, 36, 112, 6)]
-## The tray's dark mouth the open drawer shows, and its dividers' spacing.
+## The tray's dark mouth the open drawer shows. Its dividers continue the art's tray dividers
+## (art/src/scenery/cash_drawer.txt: 2 px steel shade, the first at MOUTH_DIVIDER_FIRST px, then
+## every MOUTH_DIVIDER_STEP px), and its sides are the art's MOUTH_SIDE px ink outline.
 const MOUTH_HEIGHT := 22.0
-const MOUTH_DIVIDER_STEP := 52.0
+const MOUTH_DIVIDER_FIRST := 22.0
+const MOUTH_DIVIDER_STEP := 54.0
+const MOUTH_DIVIDER_WIDTH := 2.0
+const MOUTH_SIDE := 2.0
 
 ## Where the coins fly (a layer over the register; this drawer when unset).
 var coin_layer: Control
@@ -248,23 +253,29 @@ func _shut() -> void:
 	_motion.tween_property(_flash, "modulate:a", 0.0, FLASH_S)
 
 
-## The dark tray mouth the open drawer shows: charcoal, with steel dividers.
+## The dark tray mouth the open drawer shows: charcoal in ink sides, with the tray's dividers.
 static func _mouth(width: float) -> Control:
 	var mouth: ColorRect = ColorRect.new()
 	mouth.name = "Mouth"
 	mouth.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	mouth.color = Palette.CHARCOAL
 	mouth.size = Vector2(width, MOUTH_HEIGHT)
-	var x: float = MOUTH_DIVIDER_STEP
-	while x < width:
-		var divider: ColorRect = ColorRect.new()
-		divider.color = Palette.STEEL_DARK
-		divider.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		divider.position = Vector2(x, 0)
-		divider.size = Vector2(2, MOUTH_HEIGHT)
-		mouth.add_child(divider)
+	for side_x: float in [0.0, width - MOUTH_SIDE]:
+		_mouth_bar(mouth, side_x, MOUTH_SIDE, ArtStyle.INK)
+	var x: float = MOUTH_DIVIDER_FIRST
+	while x + MOUTH_DIVIDER_WIDTH <= width - MOUTH_SIDE:
+		_mouth_bar(mouth, x, MOUTH_DIVIDER_WIDTH, Palette.STEEL_SHADE)
 		x += MOUTH_DIVIDER_STEP
 	return mouth
+
+
+static func _mouth_bar(mouth: ColorRect, x: float, width: float, colour: Color) -> void:
+	var bar: ColorRect = ColorRect.new()
+	bar.color = colour
+	bar.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	bar.position = Vector2(x, 0)
+	bar.size = Vector2(width, MOUTH_HEIGHT)
+	mouth.add_child(bar)
 
 
 ## The gold flash over the €  and the handle (FLASH_RECTS), clear until the drawer slams shut.
