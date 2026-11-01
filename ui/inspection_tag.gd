@@ -3,8 +3,8 @@ extends PanelContainer
 ## The current shift's day events in the top bar (plan section 3.9; #80 step 10, mock-up B2): an
 ## inspection's (a MALUS) chip is tomato pale with the mustard warning sign and "Inspection ·
 ## <effect>" in the body font (each inspection's chip_text, from data, e.g. "Inspection · −1
-## slot"); a boon day's (v0.69) is green with the boon coin and "Today: <name> — <effect>" ("Today:
-## Quiet morning — quota −10%"). Visible for the whole shift, so the change is never shown only
+## slot"); a boon day's (v0.69) is green with the boon coin and "Today: <name> (<effect>)" ("Today:
+## Quiet morning (quota −10%)"). Visible for the whole shift, so the change is never shown only
 ## inside an animation. Hovering it shows each event's name and notice. Hidden on shifts without
 ## an event. Day events never go on the loyalty card.
 ##
@@ -38,7 +38,7 @@ const NEXT_NOTICE := "INSPECTION NEXT SHIFT: %s"
 ## A Manager's review's notice (v0.65): its several inspections at once, their notices joined.
 const NEXT_REVIEW_NOTICE := "MANAGER'S REVIEW NEXT SHIFT: %s"
 ## A boon day's notice (v0.69), in green (ReceiptView.BOON_NOTICE_PREFIX): "TOMORROW: Quiet
-## morning — quota −10%".
+## morning (quota −10%)".
 const NEXT_BOON_NOTICE := ReceiptView.BOON_NOTICE_PREFIX + "%s"
 ## The chip's caption: an inspected shift's, and a Manager's review's (several at once, v0.65).
 const CAPTION := "Inspection"
@@ -47,9 +47,9 @@ const REVIEW_CAPTION := "Review"
 const DAY_TEXT := "D%d"
 const DAY_FONT_SIZE := 20
 const NO_EVENT := WeekCardModel.NO_EVENT
-## A boon's words on the chip and its notice (v0.69): "Today: Quiet morning — quota −10%".
+## A boon's words on the chip and its notice (v0.69): "Today: Quiet morning (quota −10%)".
 const TODAY_TEXT := "Today: %s"
-const BOON_TEXT := "%s — %s"
+const BOON_TEXT := "%s (%s)"
 const FONT_SIZE := 14
 const FONT_WEIGHT := 700
 ## The warning sign (13x11 art) at 2x.
@@ -132,7 +132,7 @@ func _init() -> void:
 
 
 ## Shows the shift's day events by their effects (empty: hidden): the inspections' under their
-## caption, then each boon's "Today: <name> — <effect>". Hovering shows each one's name and notice.
+## caption, then each boon's "Today: <name> (<effect>)". Hovering shows each one's name and notice.
 ## With a 1-based `day_number` (v0.70) the chip leads with "D<day>", shows "Normal day" without an
 ## event and can be tapped.
 func show_inspections(inspections: Array[InspectionDefinition], day_number: int = 0) -> void:
@@ -422,7 +422,7 @@ static func bonus_for(run: RunState, counting: bool, shown: Bonus) -> Bonus:
 
 ## The notice for the next shift's day events, or "" when it has none: its inspections' (a
 ## Manager's review's several, v0.65, named all), then its boon's (v0.69: "TOMORROW: Quiet
-## morning — quota −10%", in green when it is the only event).
+## morning (quota −10%)", in green when it is the only event).
 static func next_notice(next_inspections: Array[InspectionDefinition]) -> String:
 	var parts: PackedStringArray = PackedStringArray()
 	var maluses: Array[InspectionDefinition] = InspectionDefinition.maluses(next_inspections)
@@ -438,7 +438,7 @@ static func next_notice(next_inspections: Array[InspectionDefinition]) -> String
 	return " · ".join(parts)
 
 
-## Each boon's "<name> — <effect>" (its chip_text; the name alone without one).
+## Each boon's "<name> (<effect>)" (its chip_text; the name alone without one).
 static func boon_texts(boons: Array[InspectionDefinition]) -> PackedStringArray:
 	var texts: PackedStringArray = PackedStringArray()
 	for boon: InspectionDefinition in boons:

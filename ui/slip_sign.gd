@@ -2,8 +2,8 @@ class_name SlipSign
 extends Node2D
 ## The training week's slip counter (2026-11-01, in place of v0.68's hint in the SHIFT chip): a
 ## small paper sign hanging on two cords under the week chip's right end (under its day pips, clear
-## of the PREMIUM NEXT tag that hangs from the gauge's end), reading the slips the
-## training week still forgives ("2 SLIPS", WriteUp.hint_text's short form). It swings gently
+## of the PREMIUM NEXT tag that hangs from the gauge's end), reading the slips the training week
+## has used of its limit ("SLIPS 0/2", WriteUp.hint_text's short form). It swings gently
 ## (SWING_DEG each way every SWING_SECONDS) and punches when its count changes; reduced motion
 ## (`reduced_motion`) keeps it still. A Node2D, so the top bar's row never lays it out; decor only,
 ## it takes no clicks.

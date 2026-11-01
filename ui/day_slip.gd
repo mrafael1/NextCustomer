@@ -37,7 +37,8 @@ const HEAD_SIZE := 18
 const NAME_SIZE := 24
 const EFFECT_SIZE := 15
 const WHERE_SIZE := 16
-const ICON_SCALE := 2.0
+## The event icon, at this scale, centred on the left of its block (2026-11-01).
+const ICON_SCALE := 3.0
 const EVENT_GAP := 8
 ## The drop: from DROP_RISE px higher and turned DROP_DEGREES about its hook, settling in DROP
 ## seconds; the close's fade.
@@ -323,7 +324,7 @@ func _event_block(event: InspectionDefinition, limits: ShiftLimits) -> Control:
 		icon.name = "Icon"
 		icon.custom_minimum_size = texture.get_size() * ICON_SCALE
 		icon.flip_v = event.icon_flipped
-		icon.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
+		icon.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 		row.add_child(icon)
 		text_width -= icon.custom_minimum_size.x + 8.0
 	var words: VBoxContainer = _column(2)

@@ -130,8 +130,8 @@ func _refresh_shift_chip() -> void:
 	shift_chip.visible = not _weeks
 
 
-## The training week's slips left (WriteUp.hint_text) on the sign under the week chip: its
-## `short_text` ("2 SLIPS"), else `text`; hidden when empty.
+## The training week's slips used (WriteUp.hint_text) on the sign under the week chip: its
+## `short_text` ("SLIPS 0/2"), else `text`; hidden when empty.
 func show_training(text: String, short_text: String = "") -> void:
 	slip_sign.show_text(short_text if not short_text.is_empty() else text)
 

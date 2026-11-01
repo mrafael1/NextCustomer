@@ -1,6 +1,6 @@
 extends GdUnitTestSuite
 ## Day events on the real shift screen (v0.69, plan section 3.9): a boon day's green chip in the
-## top bar ("Today: Quiet morning — quota −10%", the boon coin) lies inside the chip, the bar and
+## top bar ("Today: Quiet morning (quota −10%)", the boon coin) lies inside the chip, the bar and
 ## the stage between the QUOTA and LOYALTY chips, and the quota reads the boon's; the next shift's
 ## boon prints in green on the receipt ("TOMORROW: ..."), on screen; a boon day's pass earns no
 ## INSPECTION PASSED; and a boon's steps play in the count-up from its chip (Happy hour's +€3,
@@ -36,7 +36,7 @@ func test_a_boon_chip_lays_out_in_the_top_bar() -> void:
 	var tag: InspectionTag = screen._inspection_tag
 	assert_bool(tag.visible).is_true()
 	assert_bool(tag.is_boon()).is_true()
-	assert_str(tag.text()).is_equal("Today: Quiet morning — quota −10%")
+	assert_str(tag.text()).is_equal("Today: Quiet morning (quota −10%)")
 	assert_str(tag.tooltip_text).contains("TODAY: Quiet morning")
 	# Green, never the inspection's tomato pale; the boon coin, not the warning sign.
 	assert_float(tag.self_modulate.g).is_greater(tag.self_modulate.r)
@@ -75,7 +75,7 @@ func test_the_next_boon_prints_in_green_and_earns_no_stamp() -> void:
 	var boons: Array[InspectionDefinition] = InspectionDefinition.boons(run.next_inspections)
 	assert_int(boons.size()).is_equal(1)
 	var notice_text: String = InspectionTag.next_notice(run.next_inspections)
-	assert_str(notice_text).starts_with("TOMORROW: %s — " % boons[0].display_name)
+	assert_str(notice_text).starts_with("TOMORROW: %s (" % boons[0].display_name)
 	var notice: Label = _receipt_label(screen, notice_text)
 	assert_object(notice).is_not_null()
 	assert_bool(notice.get_theme_color("font_color") == Palette.GREEN_DARK).is_true()

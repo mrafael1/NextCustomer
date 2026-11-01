@@ -364,7 +364,7 @@ func test_the_top_bar_fits_its_longest_texts() -> void:
 		assert_int(screen._loyalty_card.box_texts().size()).is_equal(4)
 		# A boon's chip (v0.69) reads "Today: name — effect".
 		var chip_text: String = (
-			"Today: %s — %s" % [inspection.display_name, inspection.chip_text]
+			"Today: %s (%s)" % [inspection.display_name, inspection.chip_text]
 			if inspection.is_boon()
 			else "Inspection · %s" % inspection.chip_text
 		)

@@ -4,7 +4,8 @@ extends GdUnitTestSuite
 ## day event's name, effect and where it touches the belt (Short belt's closed slot, Spot check's
 ## €0 slot, none on a plain day); a second tap, a click elsewhere or Esc closes it; the week chip
 ## still opens the time card, which closes the slip, and the day chip no longer does. Clicks are
-## sent to the handlers, because headless runs don't deliver input events.
+## sent to the handlers, because headless runs don't deliver input events. The event's icon sits
+## on the left of its block, centred on its height (2026-11-01).
 
 const SCREEN := "res://ui/shift_screen.tscn"
 const INSPECTIONS := "res://data/inspections/%s.tres"
@@ -86,6 +87,13 @@ func test_the_slip_hangs_under_the_day_chip_inside_the_screen() -> void:
 			assert_float(rect.size.x).is_greater_equal(label.get_minimum_size().x - 0.5)
 			assert_float(rect.position.y).is_greater_equal(previous)
 			previous = rect.end.y
+		# The event icon: at ICON_SCALE, on the left of its block, centred on the block's height.
+		var icon: TextureRect = slip.paper().find_child("Icon", true, false) as TextureRect
+		var icon_rect: Rect2 = icon.get_global_rect()
+		var block: Rect2 = (icon.get_parent() as Control).get_global_rect()
+		assert_float(icon_rect.size.x).is_equal(icon.texture.get_width() * DaySlip.ICON_SCALE)
+		assert_float(icon_rect.position.x).is_equal_approx(block.position.x, 1.0)
+		assert_float(icon_rect.get_center().y).is_equal_approx(block.get_center().y, 1.0)
 		var text: String = slip.slip_text()
 		assert_str(text).contains(DaySlip.HEAD % SHIFT)
 		assert_str(text).contains("Short belt")

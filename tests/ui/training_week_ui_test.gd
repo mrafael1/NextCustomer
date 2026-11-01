@@ -53,8 +53,8 @@ func test_slips_then_fired() -> void:
 		await _frames(2)  # The notice shows once planning takes input (MachineFlow).
 		assert_bool(screen._notice_label.is_showing()).is_true()
 		assert_str(screen._notice_label.text).is_equal(WriteUp.notice_text(screen.run))
-		assert_str(screen._notice_label.text).starts_with("Slip %d/2" % slip)
-	assert_str(screen._notice_label.text).contains("the next miss ends the run")
+		assert_str(screen._notice_label.text).starts_with("Training week: slip %d/2" % slip)
+	assert_str(screen._notice_label.text).contains("The next miss ends the run")
 	await _checkout_empty(screen)
 	assert_int(screen.run.phase).is_equal(RunState.Phase.LOST)
 	assert_bool(screen._results.visible).is_true()
@@ -139,7 +139,7 @@ func test_a_slip_notice_waits_for_the_payday_announce() -> void:
 	assert_float(shown_at).is_greater_equal(
 		PremiumAnnounce.FLY_TO + PremiumAnnounce.RING_LENGTH - 2.0 * STEP
 	)
-	assert_str(screen._notice_label.text).starts_with("Slip 1/2")
+	assert_str(screen._notice_label.text).starts_with("Training week: slip 1/2")
 	assert_array(_errors).is_empty()
 
 
@@ -205,8 +205,8 @@ static func _left_click() -> InputEventMouseButton:
 	return click
 
 
-## The slips left hang on a sign under the week chip (2026-11-01), not in the top bar's row: it
-## counts down after a slip, stays on inspected days, sits under the week chip and above the
+## The slips used hang on a sign under the week chip (2026-11-01), not in the top bar's row: it
+## counts up after a slip, stays on inspected days, sits under the week chip and above the
 ## monitor, inside the screen, clear of the quota chip; the SHIFT chip stays hidden. It is gone on
 ## shift 5, which opens with "Training is over", and while counting.
 func test_the_slip_sign_under_the_week_chip() -> void:
@@ -216,13 +216,13 @@ func test_the_slip_sign_under_the_week_chip() -> void:
 	await _frames(2)
 	assert_bool(board.is_visible_in_tree()).is_true()
 	assert_str(board.text).is_equal(WriteUp.hint_text(screen.run, true))
-	assert_str(board.text).is_equal("2 SLIPS")
+	assert_str(board.text).is_equal("SLIPS 0/2")
 	assert_bool(bar.shift_chip.visible).is_false()
 	_assert_sign_layout(screen, bar)
 	await _checkout_empty(screen)
 	screen._debug.set_inspection("")
 	await _frames(2)
-	assert_str(board.text).is_equal("1 SLIP")
+	assert_str(board.text).is_equal("SLIPS 1/2")
 	_assert_sign_layout(screen, bar)
 	# Inspected days and the review keep it.
 	screen._debug.skip_to_shift(3)
@@ -258,10 +258,10 @@ func test_resuming_after_a_slip_shows_the_notice() -> void:
 	assert_int(resumed.run.shift_index).is_equal(1)
 	assert_int(resumed.run.phase).is_equal(RunState.Phase.PLANNING)
 	assert_bool(resumed._notice_label.is_showing()).is_true()
-	assert_str(resumed._notice_label.text).is_equal("Slip 1/2 — training week")
+	assert_str(resumed._notice_label.text).is_equal("Training week: slip 1/2")
 	var again: ShiftScreen = await _screen()
 	assert_int(again.run.shift_index).is_equal(1)
-	assert_str(again._notice_label.text).is_equal("Slip 1/2 — training week")
+	assert_str(again._notice_label.text).is_equal("Training week: slip 1/2")
 	assert_array(_errors).is_empty()
 
 

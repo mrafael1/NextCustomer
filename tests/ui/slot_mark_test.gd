@@ -4,7 +4,7 @@ extends GdUnitTestSuite
 ## SlotMark, a loyalty talker hanging under the right end of slot 6's ticket, whatever the row's
 ## slots (6 on a Short belt shift, 7, 8 with Big basket), empty or filled; a run without it shows
 ## none. Every rect is checked on screen (headless runs use a 1280x1280 window): the talker stays in
-## slot 6's column, its top tucked behind the ticket, clear of the next tickets, a tier tag and the
+## slot 6's column, its top tucked behind the ticket, clear of the next tickets and the
 ## baskets (above their rims, #123), and on screen. In the count it fires (a punch and a swing about
 ## its hook) when the upgrade's ×2 lands on slot 6. The real saves and logs are never touched.
 
