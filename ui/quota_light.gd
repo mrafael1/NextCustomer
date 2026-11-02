@@ -9,7 +9,8 @@ extends Control
 ## the final one early. Display arithmetic only (QuotaMeter.fill_fraction); it never scores.
 ##
 ## Its colours are the gauge's statuses: tomato while short, mustard from QuotaMeter.NEAR_SHARE of
-## the quota, gold once full. A band of SHADE rows under the lip, a HIGHLIGHT row under them, then
+## the quota, gold once full (at once at the crossing: no easing to full, so the bonus lights come
+## on over a full band). A band of SHADE rows under the lip, a HIGHLIGHT row under them, then
 ## the body (as RailLight's light), the belt's bolts and chevrons drawn back over it; a paper head
 ## marks the front, and the far end's steel cap with its unlit mustard mark stands for the goal
 ## until the band is full. No flash, sweep or glow. The level eases to each reading (EASE_RATE, the
@@ -116,11 +117,41 @@ func ramp() -> Array[Color]:
 	return NEAR_RAMP if _shown >= NEAR_SHARE else SHORT_RAMP
 
 
+## Whether the band at stage `x` is lit mustard or gold (where a gold giver run needs its
+## contrasting look, RailLight.Under).
+func is_warm_at(x: float) -> bool:
+	return _on and _shown >= NEAR_SHARE and x >= LEFT and x < LEFT + _lit_width()
+
+
+## The colour drawn at stage `at` (the cap, the band's rows or the head; transparent off the
+## band or when dark), the bolts and chevrons left out, for checks.
+func colour_at(at: Vector2) -> Color:
+	var band: Rect2 = band_rect()
+	if not _on or not band.has_point(at):
+		return Color.TRANSPARENT
+	var width: float = _lit_width()
+	var full: bool = _shown >= 1.0
+	if at.x >= LEFT + width:
+		if full or at.x < band.end.x - CAP_WIDTH:
+			return Color.TRANSPARENT
+		var mark := Rect2(
+			Vector2(band.end.x - CAP_WIDTH, RAIL_Y) + CAP_MARK.position, CAP_MARK.size
+		)
+		return CAP_MARK_COLOR if mark.has_point(at) else CAP_COLOR
+	if not full and at.x >= LEFT + maxf(0.0, width - HEAD_WIDTH):
+		return HEAD_COLOR
+	var rows: Array[Color] = ramp()
+	if at.y < RAIL_Y + SHADE:
+		return rows[2]
+	return rows[0] if at.y < RAIL_Y + SHADE + HIGHLIGHT else rows[1]
+
+
 func _on_reading(amount: int, quota: int, _met: bool) -> void:
 	if _led == null or not _led.is_counting():
 		return
 	var level: float = QuotaMeter.fill_fraction(amount, quota)
-	if not _on or level < _shown or _reduced():
+	# The quota met: full and gold at once, before the crossing's bonus lights come on over it.
+	if not _on or level < _shown or level >= 1.0 or _reduced():
 		_shown = level
 	_on = true
 	_target = level

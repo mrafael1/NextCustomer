@@ -43,11 +43,9 @@ var belt_cut: float = 0.0:
 		belt_cut = value
 		queue_redraw()
 
-## Over the quota light's gold band (QuotaLight): no base, paper and mustard bulbs.
-var on_fill: bool = false:
-	set(value):
-		on_fill = value
-		queue_redraw()
+## Returns true while the quota light's band under them is full and gold (QuotaLight.is_full):
+## then no base, paper and mustard bulbs. None means their own base.
+var on_fill: Callable = Callable()
 
 ## Seconds since the lights came on, -1 while off.
 var _since: float = -1.0
@@ -88,6 +86,30 @@ func is_lit() -> bool:
 	return _since >= 0.0
 
 
+## Whether they draw over the quota light's full band now (on_fill).
+func is_on_fill() -> bool:
+	return on_fill.is_valid() and bool(on_fill.call())
+
+
+## The bulbs drawn now (stage coordinates) and whether each is lit, for checks: [rect, lit].
+func bulbs() -> Array[Array]:
+	var shown: Array[Array] = []
+	if _since < 0.0:
+		return shown
+	var reduced: bool = reduced_motion.is_valid() and bool(reduced_motion.call())
+	var width: float = WIDTH - belt_cut
+	var count: int = roundi(BULBS * width / WIDTH)
+	var step: float = width / count
+	var phase: int = 0 if reduced else floori(_since / CHASE_STEP_SECONDS)
+	for index: int in range(count):
+		if not reduced and float(index) / count > _since / ON_SECONDS:
+			continue
+		var lit: bool = (index % 2 == 0) if reduced else posmod(index + phase, CHASE_PERIOD) == 0
+		var x: float = snappedf(LEFT + index * step + (step - BULB_SIZE.x) / 2.0, GRID)
+		shown.append([Rect2(x, RAIL_Y + RAIL_HEIGHT - BULB_SIZE.y, BULB_SIZE.x, BULB_SIZE.y), lit])
+	return shown
+
+
 func _process(delta: float) -> void:
 	# Godot turns processing on when the node is ready: off until light().
 	if _since < 0.0:
@@ -109,19 +131,12 @@ func _draw() -> void:
 	var reduced: bool = reduced_motion.is_valid() and bool(reduced_motion.call())
 	var on: float = 1.0 if reduced else minf(1.0, _since / (ON_SECONDS * 0.8))
 	var width: float = WIDTH - belt_cut
-	var bulbs: int = roundi(BULBS * width / WIDTH)
-	if not on_fill:
+	var over_fill: bool = is_on_fill()
+	if not over_fill:
 		draw_rect(Rect2(LEFT, RAIL_Y, width, RAIL_HEIGHT), Color(BASE_COLOR, 0.9 * on * alpha))
 		draw_rect(Rect2(LEFT, RAIL_Y, width, SHADE), Color(Palette.INK, 0.5 * on * alpha))
-	var lit_color: Color = FILL_LIT_COLOR if on_fill else LIT_COLOR
-	var unlit_color: Color = FILL_UNLIT_COLOR if on_fill else UNLIT_COLOR
-	var step: float = width / bulbs
-	var phase: int = 0 if reduced else floori(_since / CHASE_STEP_SECONDS)
-	for index: int in range(bulbs):
-		if not reduced and float(index) / bulbs > _since / ON_SECONDS:
-			continue
-		var lit: bool = (index % 2 == 0) if reduced else posmod(index + phase, CHASE_PERIOD) == 0
-		var x: float = snappedf(LEFT + index * step + (step - BULB_SIZE.x) / 2.0, GRID)
-		var bulb := Rect2(x, RAIL_Y + RAIL_HEIGHT - BULB_SIZE.y, BULB_SIZE.x, BULB_SIZE.y)
-		draw_rect(bulb, Color(lit_color if lit else unlit_color, alpha))
+	var lit_color: Color = FILL_LIT_COLOR if over_fill else LIT_COLOR
+	var unlit_color: Color = FILL_UNLIT_COLOR if over_fill else UNLIT_COLOR
+	for bulb: Array in bulbs():
+		draw_rect(bulb[0] as Rect2, Color(lit_color if bulb[1] else unlit_color, alpha))
 	RailLight.draw_hardware(self, LEFT, LEFT + width, on * alpha)

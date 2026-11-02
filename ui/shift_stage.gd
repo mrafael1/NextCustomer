@@ -450,12 +450,13 @@ func _build_scan_layers() -> void:
 	quota_light.follow(led)
 	fore.add_child(quota_light)
 	bonus_lights = BonusLights.new()
-	bonus_lights.on_fill = true
+	bonus_lights.on_fill = quota_light.is_full
 	bonus_lights.size = SIZE
 	bonus_lights.belt_cut = belt.cut()
 	fore.add_child(bonus_lights)
 	rail_light = RailLight.new()
 	rail_light.size = SIZE
+	rail_light.under = _band_under
 	fore.add_child(rail_light)
 	quota_crossing = QuotaCrossing.new()
 	quota_crossing.size = SIZE
@@ -469,6 +470,13 @@ func _build_scan_layers() -> void:
 	popup_layer.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	popup_layer.size = SIZE
 	add_child(popup_layer)
+
+
+## What the apron band shows at stage `x` under a giver's run (RailLight.Under).
+func _band_under(x: float) -> RailLight.Under:
+	if not quota_light.is_warm_at(x):
+		return RailLight.Under.STEEL
+	return RailLight.Under.LIT_CHASE if bonus_lights.is_lit() else RailLight.Under.LIT
 
 
 func _layer(layer_name: String) -> Control:
