@@ -85,6 +85,50 @@ func test_no_mark_without_slot_engine() -> void:
 	assert_object(screen._row_strip.slot_mark(SLOT_6)).is_null()
 
 
+## One owner per fact (2026-11-02): only a zero slot's mark (Spot check's, its hover tip naming
+## the cause) shrinks to the cause-only chip, the warning sign with no text at the chip art's
+## size, its hook at its top's middle; it grows back to the full "⚠ €0" talker. A day event's
+## or a loyalty upgrade's mark never shrinks.
+func test_only_a_zero_slot_mark_shrinks_to_its_chip() -> void:
+	var spot_check: InspectionDefinition = load("res://data/inspections/spot_check.tres")
+	var happy_hour: InspectionDefinition = load("res://data/inspections/happy_hour.tres")
+	var upgrades: Array[UpgradeDefinition] = [_upgrade("slot_engine")]
+	var marks: Array[SlotMark] = SlotMark.marks_for(upgrades, [spot_check, happy_hour], 4, 7)
+	assert_int(marks.size()).is_equal(3)
+	for mark: SlotMark in marks:
+		auto_free(mark)
+	var zero: SlotMark = marks[0]
+	assert_bool(zero.zero_slot).is_true()
+	assert_str(zero.tooltip_text).is_equal(
+		"%s: this slot pays %s" % [spot_check.display_name, SlotMark.INSPECTION_TEXT]
+	)
+	var full: Vector2 = zero.size
+	zero.set_compact(true)
+	assert_bool(zero.is_compact()).is_true()
+	assert_bool(zero.shows_text()).is_false()
+	assert_bool(zero.icon().visible).is_false()
+	assert_vector(zero.size).is_equal(SlotMark.CHIP.get_size() * ArtStyle.ART_SCALE)
+	assert_vector(zero.inner().size).is_equal(zero.size)
+	assert_vector(zero.inner().pivot_offset).is_equal(Vector2(zero.size.x / 2.0, 0.0))
+	assert_bool(zero.inner().get_node(NodePath(SlotMark.CHIP_NAME)).visible).is_true()
+	assert_bool(zero.inner().get_node(NodePath(SlotMark.FRAME_NAME)).visible).is_false()
+	assert_float(zero.visible_rect().size.y).is_equal(zero.size.y - SlotMark.TUCKED)
+	zero.set_compact(false)
+	assert_bool(zero.is_compact()).is_false()
+	assert_bool(zero.shows_text()).is_true()
+	assert_bool(zero.icon().visible).is_true()
+	assert_vector(zero.size).is_equal(full)
+	assert_bool(zero.inner().get_node(NodePath(SlotMark.CHIP_NAME)).visible).is_false()
+	for other: SlotMark in [marks[1], marks[2]]:
+		var other_size: Vector2 = other.size
+		other.set_compact(true)
+		assert_bool(other.zero_slot).is_false()
+		assert_bool(other.is_compact()).is_false()
+		assert_bool(other.shows_text()).is_true()
+		assert_vector(other.size).is_equal(other_size)
+		assert_str(other.tooltip_text).is_empty()
+
+
 ## A fire punches the talker and swings it about its hook (its top's middle), then it settles
 ## back at rest; under reduced motion it stays at rest.
 func test_a_fire_punches_and_swings_the_mark() -> void:

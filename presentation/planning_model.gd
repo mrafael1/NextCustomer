@@ -276,6 +276,10 @@ static func _slot(
 		planning.stamp_caption = names.of_cause(denial).to_upper()
 		planning.denied = denial.value == 0
 	_pay(planning, card, payout, denial, fizzled)
+	# One owner per fact (2026-11-02): a slot an inspection pays €0 wears that inspection's
+	# talker, now the cause-only chip with the warning sign, so its ticket's €0 tag shows none.
+	if planning.glyph == Glyph.WARNING and names.zeroes_slot(denial, slot):
+		planning.glyph = Glyph.NONE
 	if planning.pay == Pay.BOOSTED:
 		planning.rings = _rings(payout, card.base, tuning)
 	return planning
@@ -426,6 +430,19 @@ class CauseNames:
 				if link.cause_index >= 0 and link.cause_index < _inspections.size():
 					return _inspections[link.cause_index].display_name
 		return ""
+
+	## Whether `link`'s cause is an inspection that pays `slot` €0 by its place
+	## (NthSlotZeroPayoutRule): the slot wears its mark (SlotMark.inspection_marks).
+	func zeroes_slot(link: EffectLink, slot: int) -> bool:
+		if link == null or link.cause_kind != ScoreStep.SourceKind.INSPECTION:
+			return false
+		if link.cause_index < 0 or link.cause_index >= _inspections.size():
+			return false
+		for rule: InspectionRule in _inspections[link.cause_index].rules:
+			var zero_rule: NthSlotZeroPayoutRule = rule as NthSlotZeroPayoutRule
+			if zero_rule != null and zero_rule.slot_number - 1 == slot:
+				return true
+		return false
 
 	## The giver-badge mini of `link`'s cause (CardDefinition.badge_mini_ref) for a card cause,
 	## or empty.

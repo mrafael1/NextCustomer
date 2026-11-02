@@ -86,10 +86,11 @@ func test_the_reference_row_shows_its_pays_halos_and_stamp() -> void:
 		assert_int(planning.rings).is_equal(_expected_rings(result.payouts[slot], row[slot].base))
 		assert_bool(planning.denied).is_false()
 		assert_bool(planning.has_stamp()).is_false()
-	# The Spot check denies Milk 3: stamp, grey sprite, €0 tag with the warning glyph.
+	# The Spot check denies Milk 3: stamp, grey sprite, €0 tag with no glyph (2026-11-02: the
+	# slot's talker, the cause-only chip, shows the warning sign).
 	var milk: PlanningSlot = model.slots[2]
 	assert_int(milk.pay).is_equal(PlanningModel.Pay.DENIED)
-	assert_int(milk.glyph).is_equal(PlanningModel.Glyph.WARNING)
+	assert_int(milk.glyph).is_equal(PlanningModel.Glyph.NONE)
 	assert_str(milk.pay_text).is_equal("€0")
 	assert_bool(milk.struck).is_true()
 	assert_bool(milk.denied).is_true()
@@ -188,7 +189,8 @@ func test_the_five_pay_states() -> void:
 	assert_bool(lowered.struck).is_true()
 	assert_bool(lowered.denied).is_false()
 	assert_str(lowered.stamp_amount).is_equal("€2")
-	# DENIED by an inspection (warning glyph) and by the card itself (fizzle glyph).
+	# DENIED by an inspection (warning glyph: Spot check zeroes slot 3, not this slot 1, so no
+	# talker shows it) and by the card itself (fizzle glyph).
 	var inspected: PlanningSlot = _one(
 		product, [_override(0, 0, ScoreStep.SourceKind.INSPECTION, 0)], 0, tuning
 	)

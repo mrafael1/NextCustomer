@@ -10,7 +10,8 @@ var stickers: Array[StickerSpec] = []
 var pay: PlanningModel.Pay = PlanningModel.Pay.PLAIN
 ## The pay tag's text ("€21", "€0"); empty for PLAIN.
 var pay_text: String = ""
-## The €0 tag's glyph (DENIED and ZERO).
+## The €0 tag's glyph (DENIED and ZERO); none on a slot an inspection pays €0 by its place, whose
+## talker (SlotMark's cause-only chip) shows the warning sign.
 var glyph: PlanningModel.Glyph = PlanningModel.Glyph.NONE
 ## The ticket's base price is struck through (a product whose pay differs from its base).
 var struck: bool = false

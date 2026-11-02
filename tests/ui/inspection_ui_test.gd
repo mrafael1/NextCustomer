@@ -15,10 +15,15 @@ const Rush := preload("res://tests/ui/count_up_rush.gd")
 const NOTICE := "INSPECTION NEXT SHIFT: Slot 3 pays €0"
 const RECEIPT_LINE := "Spot check: slot 3 pays €0"
 
+## The windows the €0 slot is checked at: the game's and a larger one the layout scales to.
+const WINDOWS: Array[Vector2i] = [Vector2i(1280, 720), Vector2i(1600, 1000)]
+
 var _folder: String = ""
+var _window: Vector2i = Vector2i.ZERO
 
 
 func before_test() -> void:
+	_window = get_tree().root.size
 	_folder = "user://test_logs_%d" % Time.get_ticks_usec()
 	_event_log().use_folder(_folder)
 	# The profile save goes there too, never to the real user:// profile.
@@ -26,6 +31,7 @@ func before_test() -> void:
 
 
 func after_test() -> void:
+	get_tree().root.size = _window
 	ProjectSettings.set_setting(SaveService.FOLDER_SETTING, null)
 	if DirAccess.dir_exists_absolute(_folder):
 		for file_name: String in DirAccess.get_files_at(_folder):
@@ -143,6 +149,95 @@ func test_inspection_steps_print_and_play_from_the_tag() -> void:
 	assert_str(_receipt_text(screen)).contains(RECEIPT_LINE)
 	assert_object(screen.run.history[0].inspection).is_not_null()
 	assert_int(dead.fired_count()).is_equal(1)
+
+
+## One owner per fact (2026-11-02, shift scene polish v2 ticket brief section 3): with a card on
+## Spot check's slot 3 the ticket's pay tag shows the €0 with no warning sign, and the slot's
+## talker is the cause-only chip (the warning sign, no text, its hover tip naming the cause),
+## centred under the ticket, inside the window and clear of its neighbours, so exactly one "€0"
+## shows on the ticket and the talker; the empty slot keeps the full "⚠ €0" talker. At the game's
+## window and a larger one. The count still fires the chip on the €0 beat.
+func test_a_carded_zero_slot_shows_its_zero_once() -> void:
+	await _assert_zero_once(WINDOWS[0])
+
+
+func test_a_carded_zero_slot_shows_its_zero_once_in_a_larger_window() -> void:
+	await _assert_zero_once(WINDOWS[1])
+
+
+func _assert_zero_once(window: Vector2i) -> void:
+	get_tree().root.size = window
+	var runner: GdUnitSceneRunner = scene_runner(SCREEN)
+	var screen: ShiftScreen = runner.scene()
+	Rush.no_write_ups(screen)
+	_only_spot_check(screen)
+	screen._debug.set_inspection("spot_check")
+	await _frames(3)
+	var case: String = str(window)
+	var dead: SlotMark = screen._row_strip.inspection_mark(2, 0)
+	assert_object(dead).override_failure_message(case).is_not_null()
+	# Empty: the full talker, its warning and "€0", the only €0 on the slot.
+	assert_bool(dead.is_compact()).override_failure_message(case).is_false()
+	assert_bool(dead.shows_text()).override_failure_message(case).is_true()
+	assert_bool(dead.icon().is_visible_in_tree()).override_failure_message(case).is_true()
+	assert_str(dead.text()).is_equal(SlotMark.INSPECTION_TEXT)
+	var tip: String = "Spot check: this slot pays %s" % SlotMark.INSPECTION_TEXT
+	assert_str(dead.tooltip_text).is_equal(tip)
+	assert_int(dead.mouse_filter).is_equal(Control.MOUSE_FILTER_PASS)
+	_assert_on_slot(screen, dead, 2)
+	_place_ids(screen, ["bread", "bread", "bread", "bread"])
+	await _frames(3)
+	assert_object(screen._row_strip.inspection_mark(2, 0)).is_same(dead)
+	# Carded: the cause-only chip, the warning alone and the tip kept.
+	assert_bool(dead.is_compact()).override_failure_message(case).is_true()
+	assert_bool(dead.shows_text()).override_failure_message(case).is_false()
+	assert_bool(dead.icon().is_visible_in_tree()).override_failure_message(case).is_false()
+	var chip: TextureRect = dead.inner().get_node(NodePath(SlotMark.CHIP_NAME)) as TextureRect
+	assert_bool(chip.is_visible_in_tree()).override_failure_message(case).is_true()
+	assert_str(chip.texture.resource_path).is_equal(SlotMark.CHIP.resource_path)
+	assert_vector(dead.size).is_equal(SlotMark.CHIP.get_size() * ArtStyle.ART_SCALE)
+	assert_str(dead.tooltip_text).is_equal(tip)
+	_assert_on_slot(screen, dead, 2)
+	# Under its ticket, centred on it (within an art pixel), its top tucked behind the foot.
+	var ticket: Rect2 = (screen._row_views[2] as ItemView).sticker().get_global_rect()
+	var rect: Rect2 = dead.get_global_rect()
+	var message: String = "%s: chip %s under ticket %s" % [case, rect, ticket]
+	var scale: float = dead.get_global_transform().get_scale().x
+	var off_centre: float = absf(rect.get_center().x - ticket.get_center().x)
+	assert_float(off_centre).override_failure_message(message).is_less_equal(
+		ArtStyle.ART_SCALE * scale
+	)
+	assert_float(rect.position.y).override_failure_message(message).is_less(ticket.end.y)
+	assert_float(rect.end.y).override_failure_message(message).is_greater(ticket.end.y)
+	# The ticket's pay tag owns the amount: "€0" with no warning sign.
+	var pay: PayTag = screen._stage.planning_layer.pay_tag(2)
+	assert_str(pay.text()).is_equal("€0")
+	assert_int(pay.glyph).is_equal(PlanningModel.Glyph.NONE)
+	assert_object(pay.get_node_or_null(^"Glyph")).is_null()
+	assert_bool(pay.label().get_global_rect().encloses(_text_rect(pay.label()))).is_true()
+	# Exactly one "€0" shows on the ticket and the talker.
+	var band: Rect2 = Rect2(ticket.position.x, ticket.position.y, ticket.size.x, 0.0)
+	band = band.expand(Vector2(ticket.position.x, pay.get_global_rect().position.y))
+	band = band.expand(rect.end)
+	var zeros: int = 0
+	for label: Node in screen.find_children("*", "Label", true, false):
+		var shown: Label = label as Label
+		if shown.is_visible_in_tree() and shown.text.contains("€0"):
+			if shown.get_global_rect().intersects(band):
+				zeros += 1
+	assert_int(zeros).override_failure_message(message).is_equal(1)
+	# The other slots' marks: none (Spot check marks slot 3 only).
+	assert_object(screen._row_strip.inspection_mark(3)).is_null()
+	# The count still plays the €0 beat on it: the chip fires.
+	await Rush.checkout(screen)
+	assert_int(dead.fired_count()).override_failure_message(case).is_equal(1)
+
+
+## The part of `label` its text takes, centred as it is drawn.
+static func _text_rect(label: Label) -> Rect2:
+	var rect: Rect2 = label.get_global_rect()
+	var text_size: Vector2 = label.get_minimum_size() * label.get_global_transform().get_scale()
+	return Rect2(rect.get_center() - text_size / 2.0, text_size)
 
 
 func test_the_debug_panel_clears_the_inspection() -> void:
