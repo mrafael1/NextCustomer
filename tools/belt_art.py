@@ -29,6 +29,11 @@ px. Back to front:
 The frame's and the guard's ends follow the receding outer edges; past them the art is
 transparent, so the counter behind shows. Every receding x is snapped to the 2 px grid per art
 row, so the edges step cleanly. Tests: python tools/belt_art_test.py
+
+Shorter belts (#122, a Double checkout's rows): the same art for a row of SHORT_CELLS cells,
+its right end CELL_PITCH px in for each cell under the 7-slot row's (the source stays as wide,
+transparent past its end, so BeltPanel only swaps the texture): belt_top_c<n>.txt and its
+frames in belt_top_c<n>_scroll/.
 """
 
 from __future__ import annotations
@@ -69,6 +74,10 @@ HOOD_SHADOW = (338, 340)
 RUBBER_SPLIT = 366
 SLAT_START = RUBBER_LEFT + 12
 SLAT_PITCH = 20
+# The 7-slot row's cells, a cell's pitch on the belt, and the shorter rows baked (#122).
+FULL_CELLS = 7
+CELL_PITCH = 128
+SHORT_CELLS = (4, 5, 6)
 # One frame per 2 px step of the slats: after FRAMES steps they are back on frame 0.
 FRAMES = SLAT_PITCH // 2
 
@@ -171,9 +180,9 @@ class Grid:
         return ["".join(row) for row in self.rows]
 
 
-def _draw_frame(grid: Grid, row_y: int, shift: int) -> None:
-    left, right = edges(FRAME_LEFT, FRAME_RIGHT, row_y)
-    rubber_left, rubber_right = edges(RUBBER_LEFT, RUBBER_RIGHT, row_y)
+def _draw_frame(grid: Grid, row_y: int, shift: int, cut: int = 0) -> None:
+    left, right = edges(FRAME_LEFT, FRAME_RIGHT - cut, row_y)
+    rubber_left, rubber_right = edges(RUBBER_LEFT, RUBBER_RIGHT - cut, row_y)
     if row_y < HOOD_FRONT[1]:
         grid.span(row_y, left, right, STEEL_DARKEST)
     elif row_y < HOOD_SHADOW[1]:
@@ -186,7 +195,7 @@ def _draw_frame(grid: Grid, row_y: int, shift: int) -> None:
         inside = (rubber_left + INNER_WALL, rubber_right - INNER_WALL)
         band = RUBBER_DARK if row_y < RUBBER_SPLIT else RUBBER
         grid.span(row_y, inside[0], inside[1], band)
-        for front_x in range(SLAT_START - shift, RUBBER_RIGHT, SLAT_PITCH):
+        for front_x in range(SLAT_START - shift, RUBBER_RIGHT - cut, SLAT_PITCH):
             x = snap(recede(front_x, row_y + SCALE / 2))
             for offset, key in ((0, CHARCOAL), (SCALE, STEEL_DARKEST)):
                 if inside[0] <= x + offset < inside[1]:
@@ -195,25 +204,26 @@ def _draw_frame(grid: Grid, row_y: int, shift: int) -> None:
     grid.span(row_y, right, right + SCALE, INK)
 
 
-def _draw_guard(grid: Grid) -> None:
-    left, right = edges(FRAME_LEFT, FRAME_RIGHT, GUARD_TOP - SCALE)
+def _draw_guard(grid: Grid, cut: int = 0) -> None:
+    frame_right = FRAME_RIGHT - cut
+    left, right = edges(FRAME_LEFT, frame_right, GUARD_TOP - SCALE)
     grid.span(GUARD_TOP - SCALE, left, right, INK)
     for row_y in range(GUARD_TOP, GUARD_FOOT, SCALE):
-        left, right = edges(FRAME_LEFT, FRAME_RIGHT, row_y)
+        left, right = edges(FRAME_LEFT, frame_right, row_y)
         grid.span(row_y, left, right, guard_key(row_y))
         grid.span(row_y, left - SCALE, left, INK)
         grid.span(row_y, right, right + SCALE, INK)
-    left, right = edges(FRAME_LEFT, FRAME_RIGHT, GUARD_FOOT)
+    left, right = edges(FRAME_LEFT, frame_right, GUARD_FOOT)
     grid.span(GUARD_FOOT, left - SCALE, right + SCALE, INK)
-    left, right = edges(FRAME_LEFT, FRAME_RIGHT, GUARD_FOOT + SCALE)
+    left, right = edges(FRAME_LEFT, frame_right, GUARD_FOOT + SCALE)
     grid.span(GUARD_FOOT + SCALE, left, right, STEEL_DARKEST)
     grid.span(GUARD_FOOT + SCALE, left - SCALE, left, INK)
     grid.span(GUARD_FOOT + SCALE, right, right + SCALE, INK)
 
 
-def _draw_caps(grid: Grid) -> None:
+def _draw_caps(grid: Grid, cut: int = 0) -> None:
     for row_y in range(CAP_TOP - SCALE, GUARD_FOOT, SCALE):
-        left, right = edges(FRAME_LEFT, FRAME_RIGHT, row_y)
+        left, right = edges(FRAME_LEFT, FRAME_RIGHT - cut, row_y)
         for start in (left, right - CAP_WIDTH):
             if row_y < CAP_TOP:
                 grid.span(row_y, start, start + CAP_WIDTH, INK)
@@ -228,29 +238,41 @@ def shift_of(frame: int) -> int:
     return SCALE * (frame % FRAMES)
 
 
-def generate(frame: int = 0) -> list[str]:
-    """Frame `frame`'s pixel rows, top to bottom (frame 0: the still belt)."""
+def cut_of(cells: int) -> int:
+    """How far in (stage px) a row of `cells` cells' belt ends, from the 7-slot row's end."""
+    return (FULL_CELLS - cells) * CELL_PITCH
+
+
+def generate(frame: int = 0, cells: int = FULL_CELLS) -> list[str]:
+    """Frame `frame`'s pixel rows, top to bottom (frame 0: the still belt), for a row of
+    `cells` cells (#122: shorter belts end further in)."""
     grid = Grid()
+    cut = cut_of(cells)
     for row_y in range(HOOD_FRONT[0], FRONT_Y, SCALE):
-        _draw_frame(grid, row_y, shift_of(frame))
-    _draw_guard(grid)
-    _draw_caps(grid)
+        _draw_frame(grid, row_y, shift_of(frame), cut)
+    _draw_guard(grid, cut)
+    _draw_caps(grid, cut)
     return grid.text()
 
 
-def source_text(frame: int = 0) -> str:
+def source_text(frame: int = 0, cells: int = FULL_CELLS) -> str:
     """Frame `frame`'s whole source file: the header, then the rows."""
     note = ""
+    if cells != FULL_CELLS:
+        note += f"; A row of {cells} cells (#122): its end {cut_of(cells)} px in.\n"
     if frame != 0:
-        note = f"; Scroll frame {frame}: its slats {shift_of(frame)} px left of frame 0's.\n"
-    return HEADER.format(w=WIDTH, h=HEIGHT, frame=note) + "\n".join(generate(frame)) + "\n"
+        note += f"; Scroll frame {frame}: its slats {shift_of(frame)} px left of frame 0's.\n"
+    rows = "\n".join(generate(frame, cells))
+    return HEADER.format(w=WIDTH, h=HEIGHT, frame=note) + rows + "\n"
 
 
-def frame_path(root: Path, frame: int) -> Path:
+def frame_path(root: Path, frame: int, cells: int = FULL_CELLS) -> Path:
     """Where frame `frame`'s source goes under `root` (the scenery sources' folder)."""
+    stem = "belt_top" if cells == FULL_CELLS else f"belt_top_c{cells}"
     if frame == 0:
-        return root / OUTPUT.name
-    return root / SCROLL_FOLDER / f"belt_top_{shift_of(frame):02d}.txt"
+        return root / f"{stem}.txt"
+    folder = SCROLL_FOLDER if cells == FULL_CELLS else f"{stem}_scroll"
+    return root / folder / f"{stem}_{shift_of(frame):02d}.txt"
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -261,9 +283,9 @@ def main(argv: list[str] | None = None) -> int:
     )
     args = parser.parse_args(argv)
     stale = False
-    for frame in range(FRAMES):
-        path = frame_path(args.root, frame)
-        text = source_text(frame)
+    for cells, frame in [(c, f) for c in (FULL_CELLS, *SHORT_CELLS) for f in range(FRAMES)]:
+        path = frame_path(args.root, frame, cells)
+        text = source_text(frame, cells)
         if args.check:
             current = path.read_text(encoding="utf-8") if path.exists() else ""
             if current != text:

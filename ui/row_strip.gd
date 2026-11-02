@@ -32,7 +32,11 @@ extends Control
 ##
 ## A slot an inspection zeroes (Spot check's slot 3) wears its tomato "€0" SlotMark the same way,
 ## and so does a slot any day event aims at (Happy hour's last filled slot, Extra till's extra
-## one: SlotMark.inspection_marks); a slot's second mark hangs left of its first.
+## one: SlotMark.inspection_marks); a slot's second mark hangs left of its first. A slot an
+## ends mark is on (Express lane's, SlotMark.ends) is marked itself too: its SlotLane (the green
+## plate round its ticket and the lane painted on its belt patch) lies on its talker layer, under
+## its marks (#132); while that slot is empty the lane stands alone, with no dashed footprint,
+## blank ticket or number (the user's call of 2026-11-02).
 ## A slot a loyalty upgrade acts on wears that upgrade's SlotMark (show_slot_marks): the Slot
 ## engine's talker hangs under the right end of slot 6's ticket (2026-10-24), as an item tier's
 ## tag hangs under its left end, on the cell's talker layer, its first child: behind the ticket,
@@ -50,6 +54,8 @@ extends Control
 signal slot_input(event: InputEvent, slot: int)
 ## A click on a closed slot, so the screen can say why it is closed.
 signal closed_clicked
+## The row's cells (open and closed) changed: set_slot_count rebuilt it (#122: the belt fits).
+signal cells_changed(cells: int)
 
 ## The width of the 7 slots the screen was laid out for: wider rows are scaled to it.
 const LAID_OUT_SLOTS := 7
@@ -173,6 +179,7 @@ func set_slot_count(
 	box.scale = Vector2(factor, factor)
 	box.size = natural
 	custom_minimum_size = natural * factor
+	cells_changed.emit(cells)
 
 
 ## Fills the slots: a belt item for each row card (clicks go to `on_clicked`; `balance` gives
@@ -196,8 +203,10 @@ func show_cards(
 				panel.remove_child(child)
 				child.queue_free()
 		var empty: bool = slot >= row.size()
-		_show_empty(panel, empty)
-		if not empty:
+		_show_empty(panel, empty and _lane_in(panel) == null)
+		if empty:
+			ticket_shadow(panel).visible = false
+		else:
 			var card: CardInstance = row[slot]
 			var aisle: AisleDefinition = (
 				balance.aisle_of(card.definition) if balance != null else null
@@ -232,6 +241,10 @@ func show_slot_marks(marks: Array[SlotMark]) -> void:
 		for child: Node in layer.get_children():
 			layer.remove_child(child)
 			child.queue_free()
+	# An ends mark's slot gets its lane first: under the marks.
+	for mark: SlotMark in marks:
+		if mark.ends and mark.slot >= 0 and mark.slot < slots.size() and lane(mark.slot) == null:
+			_talkers(slots[mark.slot]).add_child(SlotLane.new(mark.slot))
 	# Marks on the same slot hang side by side, the first one rightmost.
 	var taken: Dictionary[int, float] = {}
 	for mark: SlotMark in marks:
@@ -242,6 +255,12 @@ func show_slot_marks(marks: Array[SlotMark]) -> void:
 		taken[mark.slot] = SLOT_MARK_RIGHT - rect.position.x + SLOT_MARK_GAP
 		mark.position = rect.position
 		_talkers(slots[mark.slot]).add_child(mark)
+	# An empty slot with a lane shows the lane alone (the user's call of 2026-11-02): no dashed
+	# footprint, blank ticket or number under it.
+	for panel: PanelContainer in slots:
+		if not _holds_card(panel):
+			_show_empty(panel, _lane_in(panel) == null)
+			ticket_shadow(panel).visible = false
 
 
 ## A SlotMark `width` wide in its cell: right-aligned to SLOT_MARK_RIGHT (less `taken` px, the
@@ -292,6 +311,21 @@ func inspection_mark(slot: int, inspection_index: int = -1) -> SlotMark:
 			and (inspection_index < 0 or mark.inspection_index == inspection_index)
 		):
 			return mark
+	return null
+
+
+## The express lane on `slot` (an ends mark's slot), or null.
+func lane(slot: int) -> SlotLane:
+	if slot < 0 or slot >= slots.size():
+		return null
+	return _lane_in(slots[slot])
+
+
+static func _lane_in(panel: PanelContainer) -> SlotLane:
+	for child: Node in _talkers(panel).get_children():
+		var found: SlotLane = child as SlotLane
+		if found != null and not found.is_queued_for_deletion():
+			return found
 	return null
 
 
@@ -616,7 +650,8 @@ static func _nine_patch(texture: Texture2D, margin: int) -> NinePatchRect:
 
 
 ## Shows a slot's footprint, blank ticket and number when `empty`; an item covers them
-## otherwise, its ticket over the ticket's shadow.
+## otherwise, its ticket over the ticket's shadow (an empty slot with an express lane passes
+## false too, and shows no shadow: show_cards and show_slot_marks set it).
 static func _show_empty(panel: PanelContainer, empty: bool) -> void:
 	footprint(panel).visible = empty
 	mat(panel).visible = empty

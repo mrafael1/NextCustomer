@@ -28,6 +28,8 @@ var played: Array[CardDefinition] = []
 ## The RECEIPT REWARDS machine's visits after this shift (#77), in order: the ticket, the bonus
 ## ticket. Empty after a missed (a write-up, v0.65) or the last shift.
 var visits: Array[MachineVisit] = []
+## A Day off pin's skipped shift (#132): passed on its quota with nothing played.
+var day_off: bool = false
 
 
 func _init(shift_number: int, shift_quota: int, shift_total: int) -> void:
@@ -88,6 +90,8 @@ func to_dictionary() -> Dictionary:
 		"played": played.map(func(card: CardDefinition) -> String: return String(card.id)),
 		"visits": visits.map(func(visit: MachineVisit) -> Dictionary: return visit.to_dictionary()),
 	}
+	if day_off:
+		data["day_off"] = true
 	return data
 
 
@@ -108,6 +112,7 @@ static func from_dictionary(data: Dictionary, lookup: ContentLookup) -> ShiftRec
 	else:
 		record.inspection = reader.inspection("inspection")
 	record.played = reader.cards("played")
+	record.day_off = data.has("day_off") and reader.flag("day_off")
 	for visit_data: Dictionary in reader.dictionaries("visits"):
 		var visit: MachineVisit = MachineVisit.from_dictionary(visit_data, lookup)
 		if visit == null:

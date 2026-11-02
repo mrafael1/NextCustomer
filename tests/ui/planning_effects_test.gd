@@ -464,7 +464,7 @@ func test_a_hovered_giver_lights_its_strip_and_explains_it() -> void:
 	)
 	assert_bool(layer.ticket_ring().encloses(ticket)).is_true()
 	for slot: int in range(screen._row_views.size()):
-		assert_bool(_item(screen, slot).sticker().is_got()).is_equal(slot in [4, 5, 6])
+		assert_bool(_item(screen, slot).sticker().got_ring().visible).is_equal(slot in [4, 5, 6])
 	assert_object(receipt._framed_line()).is_same(receipt._items[3])
 	for slot: int in [4, 5, 6]:
 		assert_str(ReceiptDecor.relation_chip(receipt._items[slot]).text).is_equal("×3")
@@ -484,7 +484,7 @@ func test_a_hovered_giver_lights_its_strip_and_explains_it() -> void:
 	assert_int(hot.size()).is_equal(1)
 	assert_array(Array(hot[0].gain_texts())).is_equal([RailStrip.GAIN_TEXT % spec.gains[1]])
 	assert_bool(layer.strips()[0].is_dimmed()).is_true()
-	assert_bool(_item(screen, 4).sticker().is_got()).is_false()
+	assert_bool(_item(screen, 4).sticker().got_ring().visible).is_false()
 	assert_str(receipt._footer.get_child(1).text).is_equal(
 		ReceiptView.HINT_TEXT % (ReceiptView.HOVERED_HINT % "Milk")
 	)
@@ -506,7 +506,7 @@ func test_a_hovered_giver_lights_its_strip_and_explains_it() -> void:
 		assert_bool(strip.is_dimmed()).is_false()
 	_assert_strips_shown(screen, effects.committed_model())
 	for slot: int in range(screen._row_views.size()):
-		assert_bool(_item(screen, slot).sticker().is_got()).is_false()
+		assert_bool(_item(screen, slot).sticker().got_ring().visible).is_false()
 		assert_object(ReceiptDecor.relation_chip(receipt._items[slot])).is_null()
 	assert_str(receipt._footer.get_child(1).text).is_equal(
 		ReceiptView.HINT_TEXT % ReceiptView.DEFAULT_HINT

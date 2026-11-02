@@ -357,6 +357,7 @@ func _build_belt(slot_count: int) -> void:
 	# 7 slots fit the belt beside the register (plan section 3.1); a wider row scales to them.
 	row_strip = RowStrip.new()
 	belt.add_child(row_strip)
+	row_strip.cells_changed.connect(_fit_belt)
 	row_strip.set_slot_count(slot_count)
 	# The standees' shadows fall forward onto the guard's lit face, under the row's items (#120).
 	crowd.lay_shadows(belt, Rect2(Vector2.ZERO, BeltPanel.TOP_RECT.size), row_strip.get_index())
@@ -365,6 +366,14 @@ func _build_belt(slot_count: int) -> void:
 	# Over the items and their tickets, under the top bar, the hand and the scan layers (#71).
 	planning_layer = PlanningLayer.new()
 	fore.add_child(planning_layer)
+
+
+## Fits the belt to the row's `cells` (#122: a Double checkout's short rows get a short belt).
+func _fit_belt(cells: int) -> void:
+	belt.set_cells(cells)
+	crowd.belt_cut = belt.cut()
+	if bonus_lights != null:
+		bonus_lights.belt_cut = belt.cut()
 
 
 ## Rests the row on ROW_BOTTOM: a scaled row is shorter, so it starts lower. The scanner's plate
@@ -428,6 +437,7 @@ func _build_keys() -> void:
 func _build_scan_layers() -> void:
 	bonus_lights = BonusLights.new()
 	bonus_lights.size = SIZE
+	bonus_lights.belt_cut = belt.cut()
 	fore.add_child(bonus_lights)
 	rail_light = RailLight.new()
 	rail_light.size = SIZE

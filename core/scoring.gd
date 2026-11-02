@@ -16,17 +16,27 @@ extends RefCounted
 ## in this list. `inspections` are the shift's inspections; an inspection step's source_index
 ## is its index in that list. `credits` (#108 piece 2) names what Big basket and Extra redraw
 ## earned: a CREDIT step after each credited slot's PAYOUT, which never changes the total.
+##
+## A Double checkout shift's rows (#122) are scored one by one: `slot_offset` is the belt slots
+## before this row (row 1's for row 2), which only the upgrades' slot numbers count
+## (NthSlotMultiplierRule), and `more_rows` says another row follows (row 1), so no upgrade fizzles
+## for a slot that row may still reach.
 static func score(
 	row: Array[CardInstance],
 	upgrades: Array[UpgradeDefinition] = [],
 	inspections: Array[InspectionDefinition] = [],
-	credits: ScoreCredits = null
+	credits: ScoreCredits = null,
+	slot_offset: int = 0,
+	more_rows: bool = false
 ) -> ScoreResult:
 	var state: ScoreState = ScoreState.new(row)
 	state.credits = credits
 	if credits != null:
+		_relabel(state, credits.relabels)  # A Price gun's families (#132).
 		state.cards_redrawn = credits.cards_redrawn
 		state.redraws_left = credits.redraws_left
+	state.slot_offset = slot_offset
+	state.more_rows = more_rows
 	return _run(state, upgrades, inspections).to_result()
 
 
@@ -45,6 +55,18 @@ static func total(
 	state.cards_redrawn = cards_redrawn
 	state.redraws_left = redraws_left
 	return _run(state, upgrades, inspections).subtotal
+
+
+## A Price gun's relabels (#132, ScoreCredits.relabels: instance id to family): each relabelled
+## product in the row gains its family before any rule reads the tags. No step: the item's tags
+## show it.
+static func _relabel(state: ScoreState, relabels: Dictionary[int, String]) -> void:
+	for slot: int in range(state.size()):
+		var tag: String = relabels.get(state.row[slot].instance_id, "")
+		if not tag.is_empty() and state.is_product(slot) and not state.has_tag(slot, tag):
+			var slot_tags: PackedStringArray = state.tags[slot].duplicate()
+			slot_tags.append(tag)
+			state.tags[slot] = slot_tags
 
 
 static func _run(

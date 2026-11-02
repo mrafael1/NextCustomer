@@ -58,6 +58,8 @@ extends Control
 ## the file name gets tip_<what>_<n>_ (tip_<what>_colour_). `--tip=<card id>,batch` (#128) shows
 ## the tooltip of the BATCH chip on that card's first belt ticket (its batch's frame lit), the
 ## file name tip_<what>_batch_.
+## With `--double`, `--pin=<id>` and `--gun=<state>` (#122, #132) the fixed shift wears badge
+## pins (see CapturePins).
 ## With `--deck=<page>[,<option>...]` (#56) a new run opens the deck view (see deck() for the pages
 ## and options), and the file is shift_screen_deck_<page>[_<options>]_<width>x<height>.png.
 ## With `--stack` (#105 piece 3) the belt holds the planning layout test's stress row on Big
@@ -338,11 +340,14 @@ func _set_up_shift(
 	for upgrade_id: String in upgrade_ids:
 		upgrades.append(_upgrade(upgrade_id))
 	run.upgrades = upgrades
+	CapturePins.wear(run)  # --double, --pin= (CapturePins).
 	run.debug_skip_to_shift(SHIFT - 1)
 	# The same shift again: it keeps the inspection set here.
 	var events: Array[InspectionDefinition] = []
 	for event_id: String in inspection_id.split("+", false):
 		events.append(load("res://data/inspections/%s.tres" % event_id) as InspectionDefinition)
+	if CapturePins.day_off():
+		events = []  # A day off is never taken on an inspection day.
 	run.inspections = events
 	run.debug_skip_to_shift(SHIFT - 1)
 	# The fixed hand replaces the dealt one, which is set aside for the shift.
@@ -352,8 +357,10 @@ func _set_up_shift(
 	var cards: Array[CardInstance] = run.hand()
 	for card: CardInstance in cards.slice(HAND_IDS.size()):
 		run.place(card, run.row.size())
+	CapturePins.relabel(run)
 	_screen.debug_show_shift()
 	_screen._week.skip()  # The capture shows planning, never the time card (v0.70).
+	CapturePins.arm_gun(run, _screen._pins)  # --gun= (CapturePins).
 
 
 ## Opens the fixed shift's time card in full; `result` "paid" or "slip" records the shift as
@@ -563,6 +570,7 @@ func capture(folder: String) -> void:
 		+ _cheer_part
 		+ _day_part
 		+ _slip_part
+		+ CapturePins.file_part()
 	)
 	var path: String = folder.path_join(FILE_NAME % [prefix, window.x, window.y])
 	var image: Image = (

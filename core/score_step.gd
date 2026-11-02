@@ -131,6 +131,21 @@ func card_giver_slot() -> int:
 	return support_slot if support_slot >= 0 else source_slot
 
 
+## A copy with every slot `slots` further on (a slot of -1 stays -1) and the subtotal `add`
+## higher (ScoreResult.joined and continued, #122).
+func moved(slots: int, add: int) -> ScoreStep:
+	var copy: ScoreStep = ScoreStep.new()
+	for property: Dictionary in get_property_list():
+		if property["usage"] & PROPERTY_USAGE_SCRIPT_VARIABLE:
+			copy.set(property["name"], get(property["name"]))
+	for key: String in ["slot", "source_slot", "linked_slot", "support_slot"]:
+		var at: int = get(key)
+		if at >= 0:
+			copy.set(key, at + slots)
+	copy.subtotal = subtotal + add
+	return copy
+
+
 func to_dictionary() -> Dictionary:
 	var found: Dictionary = {
 		"step_type": StepType.keys()[step_type],

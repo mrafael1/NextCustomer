@@ -5,7 +5,17 @@
 [ext_resource type="Resource" path="res://data/decks/starter.tres" id="3_starter"]
 [ext_resource type="Resource" path="res://data/decks/random_starter.tres" id="4_random_starter"]
 [ext_resource type="Resource" path="res://data/decks/pack_starter.tres" id="5_pack_starter"]
+[ext_resource type="Script" path="res://core/pin_definition.gd" id="6_pin"]
+[ext_resource type="Resource" path="res://data/pins/recycle.tres" id="7_pin_recycle"]
+[ext_resource type="Resource" path="res://data/pins/repack.tres" id="8_pin_redraw"]
+[ext_resource type="Resource" path="res://data/pins/double_checkout.tres" id="9_pin_double"]
+[ext_resource type="Resource" path="res://data/pins/stock_list.tres" id="9_pin_stock"]
+[ext_resource type="Resource" path="res://data/pins/day_off.tres" id="9_pin_day_off"]
+[ext_resource type="Resource" path="res://data/pins/golden_basket.tres" id="9_pin_golden"]
+[ext_resource type="Resource" path="res://data/pins/price_gun.tres" id="9_pin_gun"]
+[ext_resource type="Resource" path="res://data/pins/express_lane.tres" id="9_pin_express"]
 
 [resource]
 script = ExtResource("1_catalogue")
 decks = Array[ExtResource("2_deck")]([ExtResource("3_starter"), ExtResource("4_random_starter"), ExtResource("5_pack_starter")])
+pins = Array[ExtResource("6_pin")]([ExtResource("7_pin_recycle"), ExtResource("8_pin_redraw"), ExtResource("9_pin_double"), ExtResource("9_pin_stock"), ExtResource("9_pin_day_off"), ExtResource("9_pin_golden"), ExtResource("9_pin_gun"), ExtResource("9_pin_express")])

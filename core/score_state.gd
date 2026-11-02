@@ -67,6 +67,10 @@ var first_coupon: int = -1
 ## scratch step that nothing reads), and `row` and each slot's tags are the caller's and the
 ## definitions' own arrays until add_tag copies them. Totals never depend on the steps.
 var explain: bool = true
+## A Double checkout shift's row (#122): the belt slots before it, which the upgrades' slot
+## numbers count, and whether a later row follows (Scoring.score).
+var slot_offset: int = 0
+var more_rows: bool = false
 ## Which slots have been scanned (their payout is final).
 var _scanned: PackedByteArray = PackedByteArray()
 ## For each slot, the products counted as just before / just after it (plan section 3.4). A

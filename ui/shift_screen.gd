@@ -1,18 +1,18 @@
 class_name ShiftScreen
 extends Control
-## The shift screen (plan section 2): draw, redraw, click-to-place into the row, the live
-## projected total and receipt, checkout with the count-up, the RECEIPT REWARDS machine's visits
-## after a passed shift (#77, MachineFlow) and the loyalty card (plan section 3.8), the shift's
-## inspection and the next one's notice (plan section 3.9), the deck view, and the run's results
-## with its history. It only displays RunState and ScoreResult; every rule lives in core/. The
-## run is saved at every stable point and resumed when the screen opens (full build plan section
-## 4); the debug tools live in ShiftDebug.
+## The shift screen (plan section 2): draw, redraw, click-to-place into the row, the live projected
+## total and receipt, checkout with the count-up, the RECEIPT REWARDS machine's visits after a
+## passed shift (#77, MachineFlow) and the loyalty card (plan section 3.8), the shift's inspection
+## and the next one's notice (plan section 3.9), the deck view, and the run's results with its
+## history. It only displays RunState and ScoreResult; every rule lives in core/. The run is saved
+## at every stable point and resumed when the screen opens (full build plan section 4); the debug
+## tools live in ShiftDebug.
 ##
-## Click-to-place: click a hand card to pick it up, then click a slot to put it there (a
-## filled slot pushes the cards from there to the right). Click a row card to pick it back up.
-## Drag-and-drop does the same (CardDrag): drop on a slot to place, anywhere else to let go.
-## Hand items keep their places (plan section 3.8): one placed on the belt leaves its place empty
-## and one taken back returns to it.
+## Click-to-place: click a hand card to pick it up, then click a slot to put it there (a filled slot
+## pushes the cards from there to the right). Click a row card to pick it back up. Drag-and-drop
+## does the same (CardDrag): drop on a slot to place, anywhere else to let go. Hand items keep their
+## places (plan section 3.8): one placed on the belt leaves its place empty and one taken back
+## returns to it.
 ##
 ## The basket redraw (plan section 3.8; mock-up redraw_basket_v1.html): the Redraw key arms redraw
 ## mode ("Pick a basket", with Cancel), each basket that can be redrawn shows a REDRAW tag
@@ -20,20 +20,20 @@ extends Control
 ## saved) and BasketRedraw plays the motion, every click blocked until it ends. Redraw mode ends
 ## with the click.
 ##
-## The row has slot_count general slots (plan section 3.1, v0.46): any card fits any free slot.
-## The row is compacted, so its slots alone show the capacity, and RowCapacity enforces it.
+## The row has slot_count general slots (plan section 3.1, v0.46): any card fits any free slot. The
+## row is compacted, so its slots alone show the capacity, and RowCapacity enforces it.
 ##
 ## The layout (#55; full build plan section 6.1) is ShiftStage's: a 1280x720 stage centred in the
 ## window over a wall and a counter that fill it. The screen keeps its own names for the stage's
-## controls and fills them. Machine v2 (#77, Q1 = A): the store (the backdrop and the stage's
-## world, with the machine on the back wall) is in the StoreCamera, which glides to the machine at
-## 2x for its visits and back after the last one (MachineFlow); the top band and the stage's hud
-## (the top bar, the scan and popup layers) never zoom. Planning input waits for the glide back.
+## controls and fills them. Machine v2 (#77, Q1 = A): the store (the backdrop and the stage's world,
+## with the machine on the back wall) is in the StoreCamera, which glides to the machine at 2x for
+## its visits and back after the last one (MachineFlow); the top band and the stage's hud (the top
+## bar, the scan and popup layers) never zoom. Planning input waits for the glide back.
 ##
-## Sounds (#62) play on the screen's own Sfx, warmed up when it opens: cards picked up, placed
-## and let go, refusals, the redraw, CHECKOUT and the log export here, a prize in MachineFlow;
-## buttons and panels in UiKit, drag slot ticks in CardDrag, music in ShiftMusic. The only hover
-## sound is the scanner's beep (#75, ScanController), played once a hover on an item is held.
+## Sounds (#62) play on the screen's own Sfx, warmed up when it opens: cards picked up, placed and
+## let go, refusals, the redraw, CHECKOUT and the log export here, a prize in MachineFlow; buttons
+## and panels in UiKit, drag slot ticks in CardDrag, music in ShiftMusic. The only hover sound is
+## the scanner's beep (#75, ScanController), played once a hover on an item is held.
 
 ## The game's starting deck: a recipe (v0.49) dealt from each run's stock (StartingDeck).
 const STARTER_DECK := "res://data/decks/pack_starter.tres"
@@ -41,8 +41,6 @@ const BALANCE := "res://data/balance/balance.tres"
 const CATALOGUE := "res://data/catalogue/catalogue.tres"
 ## A refused card or a closed slot plays `denied` this much softer than the count-up does.
 const REFUSED_DB := -6.0
-## The Redraw key's caption while redraw mode is armed.
-const PICK_CAPTION := "Pick a basket"
 var run: RunState
 ## Where the save errors go (push_error by default). Tests set it before the screen enters the
 ## tree, so an unreadable save they write on purpose prints nothing.
@@ -118,12 +116,9 @@ var _focus: FocusWatch
 var _scan: ScanController
 ## Takes the belt items' marks and paid chips off (#80; #86 v6: the stickers and the bag say it).
 var _belt_chips: BeltChips = BeltChips.new()
-## The belt in the count (#86 v6): the items ride to the scanner and into the bag.
-var _ride: BeltRide
-## The planning effects (#71, mock-up h1): the belt's stickers, the hover's relations, the drag's.
-var _effects: PlanningEffects
-## The TOY MACHINES over the results (#63), made the first time they open.
-var _toys: ToyMachinesScreen
+var _ride: BeltRide  # The belt in the count (#86 v6): items ride to the scanner and bag.
+var _effects: PlanningEffects  # The planning effects (#71, mock-up h1).
+var _toys: ToyMachinesScreen  # The TOY MACHINES over the results (#63), made when first opened.
 var _cart_reveal: CartReveal
 var _week: WeekFlow  # The time card and the week and day chips (v0.70).
 var _start_choice: StartChoice  # The starter pack choice's part of a run's start (#107).
@@ -131,6 +126,7 @@ var _glyph_tips: GlyphTips  # Family glyphs' tooltips (#105): none in a drag or 
 ## The basket redraw's targets and tags, and its motion.
 var _basket_tags: BasketTags
 var _basket_redraw: BasketRedraw
+var _pins: PinFlow  # The badge pins' parts: #132's, Repack's and Double checkout's (#122).
 ## The EventLog autoload, typed. Fetched from the tree because standalone script checks
 ## don't know autoload names.
 @onready var _log: EventLogService = get_node("/root/EventLog")
@@ -148,6 +144,7 @@ func _ready() -> void:
 	ShiftMusic.screen_opened(_music)
 	_debug = ShiftDebug.new(self, _log)
 	_start_choice = StartChoice.new(self, _log)
+	_pins = PinFlow.new(self, _log)
 	_debug.add_panel(_balance.quotas.size())
 	if _debug.wants_demo_row():
 		_debug.play_demo_row()  # A new run that leaves the run save as it is.
@@ -223,7 +220,7 @@ func _on_shift_started() -> void:
 func show_shift_notice() -> void:
 	var notice: String = WriteUp.shift_notice(run)
 	if not notice.is_empty():
-		_notice_label.show_notice(notice)
+		_notice_label.show_next(notice)  # After a notice the player raised (#132's gun).
 
 
 ## Continues a saved run where it stopped (full build plan section 4), under its run id and with
@@ -240,8 +237,7 @@ func _resume_run(saved: RunSave) -> void:
 	# A resume never plays a count-up (saves are taken at the click and the machine's visits).
 	_cabinet.set_total_down(false)
 	if run.phase == RunState.Phase.SCORED:
-		# The shift's last visit was done, or a slip (v0.68): the next shift starts, with its
-		# notice (_on_shift_started).
+		# The last visit was done, or a slip (v0.68): the next shift starts, with its notice.
 		run.next_shift()
 		_on_shift_started()
 		return
@@ -255,18 +251,19 @@ func _resume_run(saved: RunSave) -> void:
 	# After the checkout: the row, its receipt (ended as the dessert left it, with the next
 	# shift's inspection notice) and the LED's TOTAL, met or not, as the count-up left them
 	# (CHECKOUT up: nothing is being counted).
-	_show_checked_out(run.last_result)
+	var shown: ScoreResult = DoubleCheckoutFlow.counted(run)
+	_show_checked_out(shown)
 	_ride.show_end_state(_row_views)
 	_receipt.show_shift_end(
-		run.last_result.total,
+		shown.total,
 		run.quota(),
 		InspectionTag.next_notice(run.next_inspections),
 		", ".join(InspectionTag.names(InspectionDefinition.maluses(run.inspections)))
 	)
-	_count_up.show_end_state(run.last_result, run.quota(), count_up_context())
+	_count_up.show_end_state(shown, run.quota(), count_up_context())
 	var record: ShiftRecord = run.history[-1]
 	var passed: bool = record.passed and record.inspection != null
-	_monitor.show_end_state(_count_up.plan, _row_views, passed, run.last_result, _scan.line_of)
+	_monitor.show_end_state(_count_up.plan, _row_views, passed, shown, _scan.line_of)
 	_machine.open(true)  # No dessert: the visit shows as it waits, on a new timeline.
 
 
@@ -307,7 +304,8 @@ func _close_overlays() -> void:
 
 
 func _on_hand_card_clicked(view: CardView) -> void:
-	if _busy() or _redraw_mode or _redraw_busy or run.phase != RunState.Phase.PLANNING:
+	var planning: bool = run.phase == RunState.Phase.PLANNING and not _busy()
+	if not planning or _redraw_mode or _redraw_busy or _pins.take_click(view.card):  # #132 gun
 		return
 	if _picked == view.card:
 		# Let go on the release, unless the press becomes a drag of the picked card.
@@ -321,7 +319,8 @@ func _on_hand_card_clicked(view: CardView) -> void:
 
 
 func _on_row_card_clicked(view: CardView) -> void:
-	if _busy() or _redraw_mode or _redraw_busy or run.phase != RunState.Phase.PLANNING:
+	var planning: bool = run.phase == RunState.Phase.PLANNING and not _busy()
+	if not planning or _redraw_mode or _redraw_busy or _pins.take_click(view.card):  # #132 gun
 		return
 	var slot: int = run.row.find(view.card)
 	# A hand card that fits nowhere (the notice says to take a product out) is let go, so this
@@ -464,10 +463,9 @@ func _on_basket_clicked(basket: int) -> void:
 	_sfx.play("shuffle")
 	_sfx.play_series("card_place", received.size(), tuning.pop_start(1, reduced) - first, first)
 	_refresh()
-	var left: int = run.redraws_allowed - run.redraws_used
 	_monitor.show_redraw(
 		RedrawNotice.redrawing(
-			left, RedrawNotice.definitions(replaced), RedrawNotice.definitions(received)
+			run, RedrawNotice.definitions(replaced), RedrawNotice.definitions(received)
 		)
 	)
 	_basket_redraw.play(basket, places, old_views, new_views)
@@ -510,10 +508,11 @@ func _refresh_redraw() -> void:
 func _on_checkout_pressed() -> void:
 	if _busy() or _redraw_busy or run.phase != RunState.Phase.PLANNING:
 		return
+	if await _pins.take_day_off():  # #132: a Day off's pile on the belt: CHECKOUT takes it.
+		return
 	_sfx.play("checkout")
 	_counting = true
-	# CHECKOUT stays held while the shift is counted, to the dessert's end, and the hand
-	# fades so the belt reads first.
+	# CHECKOUT stays held through the count and the dessert; the hand fades: the belt reads first.
 	_cabinet.set_total_down(true)
 	_stage.dim_hand(true)
 	_scan.clear()
@@ -526,10 +525,12 @@ func _on_checkout_pressed() -> void:
 	tracker.on_checkout(_click_ms)
 	var committed: Array[CardInstance] = run.row.duplicate()
 	var result: ScoreResult = run.checkout()
+	if await _pins.count_row_one(committed):  # #122: a Double checkout's row 1 counts alone.
+		return
 	# Logged at the click, so closing the game during the count-up loses nothing.
 	var checkout_data: Dictionary = {
 		"shift": run.shift_index + 1,
-		"final_order": RunEvents.card_ids(committed),
+		"final_order": RunEvents.card_ids(run.first_row + committed),
 		"score": result.total,
 		"quota": run.quota(),
 		"passed": run.passed(),
@@ -551,12 +552,13 @@ func _on_checkout_pressed() -> void:
 		# The machine waits: quitting during the count-up resumes on it.
 		_save_run()
 	_refresh()
-	_effects.show_count(result, _row_views, run)  # Only the stickers stay, to fire.
+	var counted: ScoreResult = DoubleCheckoutFlow.counted(run)  # #122: row 2 counts on.
+	_effects.show_count(counted, _row_views, run)  # Only the stickers stay, to fire.
 	var context: CountUpContext = count_up_context()
 	_monitor.upgrades = run.upgrades.duplicate()
-	_ride.begin(result, _row_views, context.reduced_motion)
+	_ride.begin(counted, _row_views, context.reduced_motion)
 	await _count_up.play(
-		result,
+		counted,
 		_row_views,
 		CardInstance.names(committed),
 		run.quota(),
@@ -574,11 +576,11 @@ func _on_checkout_pressed() -> void:
 	_cabinet.set_total_down(false)
 	_stage.dim_hand(false)
 	await _week.light_day()  # The week chip lights the day's check or cross (#119).
+	await _pins.keep_items()  # A Golden basket's keep panel (#132).
 	if run.phase == RunState.Phase.MACHINE_CHOOSE:
 		_machine.open(false)
 	elif run.phase == RunState.Phase.SCORED:
-		# A slip (v0.68), or a balance without a machine: no visit, the next shift starts (with
-		# the slip's notice, _on_shift_started) and the dessert's duck ends.
+		# A slip (v0.68), or no machine: no visit; the next shift starts, the dessert's duck ends.
 		ShiftMusic.next_shift_started(_music)
 		run.next_shift()
 		_on_shift_started()
@@ -605,13 +607,14 @@ func count_up_context() -> CountUpContext:
 	context.payday = context.bonus_ticket and run.machine.is_payday(run)
 	context.write_up = WriteUp.stamp_text(run)
 	context.boon_names = WeekFlow.helper_names(run)
+	DoubleCheckoutFlow.dress(run, context)  # #122: row 1 stops early, row 2 counts on.
 	return context
 
 
 ## The receipt's header for the shift on screen (#75): the shift, and the belt's items with its
 ## coupons. The planning stub, the count-up and a resumed checkout all print it.
 func receipt_header() -> PackedStringArray:
-	return ReceiptView.header_lines(run.shift_index + 1, run.shift_count(), run.row.size())
+	return DoubleCheckoutFlow.header(run)  # #122: with its row line on a Double checkout.
 
 
 ## Results screen: New run.
@@ -699,11 +702,11 @@ func _refresh() -> void:
 	if not _counting and run.phase == RunState.Phase.PLANNING:
 		_refresh_preview()
 	_refresh_redraw()
+	_pins.refresh()  # The badge pins' parts, Double checkout's last.
 	_scan.watch(_row_views, _hand_box.cards())
 
 
-## The top bar: the shift, the quota, the inspection, the loyalty card and the Cart's count
-## (n/deck_limit), which a machine pick changes.
+## The top bar: shift, quota, inspection, loyalty card, the Cart's count (a pick changes it).
 func _refresh_bar() -> void:
 	_shift_label.text = "%d/%d" % [run.shift_index + 1, run.shift_count()]
 	_quota_label.text = QuotaMeter.QUOTA_AMOUNT % run.quota()
@@ -773,22 +776,11 @@ func _refresh_buttons() -> void:
 	_redraw_button.disabled = not planning or left <= 0 or not to_draw
 	_cancel_button.visible = _redraw_mode
 	_redraw_button.lit = _redraw_mode
-	# Mock-up B2's "Redraw  N left": the count is a note beside the word; screen readers hear what
-	# a redraw takes.
-	if _redraw_mode:
-		_redraw_button.show_caption(
-			PICK_CAPTION, "%d left" % left, "Pick a basket (%d left)" % left
-		)
-	elif left <= 0:
-		_redraw_button.show_caption("Redraw used")
-	elif not to_draw:
-		_redraw_button.show_caption("Redraw", "none to draw", "Redraw: no items left to draw")
-	else:
-		_redraw_button.show_caption("Redraw", "%d left" % left, "Redraw a basket (%d left)" % left)
+	RedrawNotice.caption_key(_redraw_button, _redraw_mode, left, to_draw)
 
 
 func _refresh_preview() -> void:
-	var result: ScoreResult = run.preview()
+	var result: ScoreResult = DoubleCheckoutFlow.on_from_row_one(run, run.preview())
 	tracker.on_preview(run.row.size(), result.total)
 	_show_planning(result)
 	_show_projected(result)

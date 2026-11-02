@@ -25,6 +25,14 @@ extends Control
 ## EXTRA. A boon's mark is the tag in green (slot_talker_boon) with the boon coin and its text in
 ## paper; a malus's is the tomato one with the warning sign. It fires when the event's step lands
 ## on its slot.
+##
+## A worn pin's event marks its slots the same way (#132): Express lane's ends
+## (EndSlotsMultiplierRule) wear its "×2" on the row's first and last open slots, which stay
+## put as the row fills (the user's call of 2026-11-02: slot 5 of 5, not the last item). An
+## ends mark (is_ends) is the express tag (slot_talker_express's light green with the
+## express chevrons and its factor in ink), and RowStrip marks the slot
+## itself too (SlotLane: a green plate round its ticket and a painted lane on its belt patch).
+## A Double checkout's rows are planned one at a time on the belt, so each row gets its own.
 
 ## The tag's height, of which its top TUCKED px hide behind the ticket, and its insides: the
 ## frame's margin (art pixels), the padding from its left side to the icon (just inside the ring)
@@ -67,17 +75,23 @@ const TEXT_NAME := &"Factor"
 const TALKER := preload("res://art/effects/slot_talker.png")
 const INSPECTION_TALKER := preload("res://art/effects/slot_talker_inspection.png")
 const BOON_TALKER := preload("res://art/effects/slot_talker_boon.png")
+const EXPRESS_TALKER := preload("res://art/effects/slot_talker_express.png")
 const WARNING := preload("res://art/icons/warning.png")
 const BOON_ICON := preload("res://art/icons/boon.png")
+const EXPRESS_ICON := preload("res://art/icons/express.png")
+## An ends mark's text colour on the light green face.
+const EXPRESS_TEXT_COLOR := Palette.INK
 
 ## The slot it marks (0-based), the upgrade's index in the run's upgrades and the rule's factor;
 ## for an inspection's mark, the inspection's index in the shift's inspections (else -1), and
-## whether the day event is a boon (the green tag).
+## whether the day event is a boon (the green tag), and whether it marks the row's ends (the
+## express tag, Express lane's).
 var slot: int = -1
 var upgrade_index: int = -1
 var factor: int = 1
 var inspection_index: int = -1
 var boon: bool = false
+var ends: bool = false
 var _inner: Control
 var _icon: Control
 var _label: Label
@@ -92,7 +106,8 @@ func _init(
 	upgrade: UpgradeDefinition = null,
 	mark_inspection: int = -1,
 	mark_text: String = INSPECTION_TEXT,
-	mark_boon: bool = false
+	mark_boon: bool = false,
+	mark_ends: bool = false
 ) -> void:
 	slot = mark_slot
 	upgrade_index = mark_upgrade
@@ -100,17 +115,17 @@ func _init(
 	inspection_index = mark_inspection
 	var inspected: bool = is_inspection()
 	boon = inspected and mark_boon
+	ends = inspected and mark_ends
 	name = ("InspectionMark%d" if inspected else "SlotMark%d") % slot
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
 	var caption: String = mark_text if inspected else TEXT_FORMAT % factor
 	_label = UiKit.display_label(caption, TEXT_SIZE, false)
 	_label.name = TEXT_NAME
-	_label.add_theme_color_override(
-		"font_color", INSPECTION_TEXT_COLOR if inspected else TEXT_COLOR
-	)
+	var text_color: Color = INSPECTION_TEXT_COLOR if inspected else TEXT_COLOR
+	_label.add_theme_color_override("font_color", EXPRESS_TEXT_COLOR if ends else text_color)
 	_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	_icon = _day_icon(boon) if inspected else _icon_for(upgrade)
+	_icon = _day_icon(boon, ends) if inspected else _icon_for(upgrade)
 	_icon.name = ICON_NAME
 	var text_width: float = ceilf(_label.get_minimum_size().x)
 	size = Vector2(width_for(_icon.size.x, text_width), HEIGHT)
@@ -122,13 +137,13 @@ func _init(
 	# It hangs from its hook, the top's middle: the punch and the swing turn about it.
 	_inner.pivot_offset = Vector2(size.x / 2.0, 0.0)
 	add_child(_inner)
-	var shadow: Panel = _frame(inspected, boon)
+	var shadow: Panel = _frame(inspected, boon, ends)
 	shadow.name = SHADOW_NAME
 	shadow.position = SHADOW_OFFSET
 	shadow.size = size
 	shadow.self_modulate = Color(Palette.INK, SHADOW_ALPHA)
 	_inner.add_child(shadow)
-	var frame: Panel = _frame(inspected, boon)
+	var frame: Panel = _frame(inspected, boon, ends)
 	frame.name = FRAME_NAME
 	frame.size = size
 	_inner.add_child(frame)
@@ -143,10 +158,13 @@ func _init(
 	_inner.add_child(_label)
 
 
-## The marks of `run`'s shift: its upgrades' and its day events' on its row (marks_for).
+## The marks of `run`'s shift: its upgrades' and its events' on its row (marks_for). The events
+## are scoring's (WeekSchedule.shift_events: the day's, the week's, the worn pins'), so a mark's
+## inspection_index is its steps' source_index.
 static func run_marks(run: RunState) -> Array[SlotMark]:
 	var open: int = RowCapacity.card_limit(run.limits)
-	return marks_for(run.upgrades, run.inspections, run.row.size(), open)
+	var events: Array[InspectionDefinition] = WeekSchedule.shift_events(run)
+	return marks_for(run.upgrades, events, run.row.size(), open)
 
 
 ## The marks of `upgrades` (the run's, in pick order): one for each rule that multiplies a fixed
@@ -173,9 +191,11 @@ static func marks_for(
 
 ## The marks of the shift's day events `inspections` (2026-10-31), in order: on its slot, each
 ## rule that zeroes a fixed slot (NthSlotZeroPayoutRule: "€0"); on the row's last filled slot
-## (slot 1 for an empty row of `row_size` 0), each last card bonus (LastCardBonusRule: "+€3"); and
-## on each slot an event adds, the last of the `slot_count` open slots, EXTRA. A row of
-## `slot_count` 0 (unknown) gets no EXTRA marks.
+## (slot 1 for an empty row of `row_size` 0), each last card bonus (LastCardBonusRule: "+€3");
+## on the row's first and last of its `slot_count` open slots (the last filled one when
+## `slot_count` is 0, unknown), each ends multiplier (EndSlotsMultiplierRule: "×2",
+## #132); and on each slot an event adds, the last of
+## the `slot_count` open slots, EXTRA. A row of `slot_count` 0 (unknown) gets no EXTRA marks.
 static func inspection_marks(
 	inspections: Array[InspectionDefinition], row_size: int = 0, slot_count: int = 0
 ) -> Array[SlotMark]:
@@ -196,6 +216,16 @@ static func inspection_marks(
 					BONUS_FORMAT % amount if last_rule.bonus > 0 else MALUS_FORMAT % amount
 				)
 				marks.append(SlotMark.new(last_slot, -1, 1, null, index, caption, good))
+			var ends_rule: EndSlotsMultiplierRule = rule as EndSlotsMultiplierRule
+			if ends_rule != null and ends_rule.factor != 1:
+				var ends_text: String = TEXT_FORMAT % ends_rule.factor
+				var end: int = slot_count - 1 if slot_count > 0 else last_slot
+				for end_slot: int in [0] if end == 0 else [0, end]:
+					marks.append(
+						SlotMark.new(
+							end_slot, -1, ends_rule.factor, null, index, ends_text, good, true
+						)
+					)
 		for _added: int in range(maxi(event.extra_slots, 0)):
 			var extra_slot: int = slot_count - 1 - extra
 			extra += 1
@@ -273,13 +303,15 @@ func _punch(progress: float) -> void:
 
 
 ## The tag's face: the slot_talker 9-slice, slot_talker_inspection's for an inspection (a malus),
-## or slot_talker_boon's for a boon.
-static func _frame(inspected: bool, good: bool = false) -> Panel:
+## slot_talker_boon's for a boon, or slot_talker_express's for the row's ends (`at_ends`).
+static func _frame(inspected: bool, good: bool = false, at_ends: bool = false) -> Panel:
 	var panel: Panel = Panel.new()
 	panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	var texture: Texture2D = TALKER
 	if inspected:
 		texture = BOON_TALKER if good else INSPECTION_TALKER
+		if at_ends:
+			texture = EXPRESS_TALKER
 	panel.add_theme_stylebox_override("panel", ArtStyle.frame_style(texture, FRAME_MARGIN))
 	ArtStyle.use_pixel_material(panel)
 	return panel
@@ -299,9 +331,12 @@ static func _icon_for(upgrade: UpgradeDefinition) -> Control:
 	)
 
 
-## A day event's icon at the art scale: the boon coin for a boon, else the warning sign.
-static func _day_icon(good: bool) -> Control:
+## A day event's icon at the art scale: the express chevrons for the row's ends (`at_ends`), the
+## boon coin for a boon, else the warning sign.
+static func _day_icon(good: bool, at_ends: bool = false) -> Control:
 	var texture: Texture2D = BOON_ICON if good else WARNING
+	if at_ends:
+		texture = EXPRESS_ICON
 	var sprite: TextureRect = UiKit.sprite(texture)
 	sprite.size = texture.get_size() * ArtStyle.ART_SCALE
 	return sprite

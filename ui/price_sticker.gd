@@ -186,6 +186,8 @@ const WRONG_RING_WIDTH := 3.0
 ## Node names (for tests).
 const FACE_NAME := "Face"
 const PLAIN_TAG_NAME := "PlainTag"
+## The name of a Price gun's gained glyph (show_gained), by family.
+const GAINED_NAME := "Gained%s"
 const STRUCK_NAME := "Struck"
 const SUMMARY_NAME := "Summary"
 const GOT_RING_NAME := "GotRing"
@@ -228,6 +230,8 @@ var _wrong_ring: WrongRing
 var _struck: bool = false
 var _got: bool = false
 var _squeezed: bool = false
+## The family a Price gun gave the item (#132), its glyph last in the row; null for none.
+var _gained: FamilyGlyph
 var _definition: CardDefinition
 
 
@@ -376,11 +380,8 @@ func set_got(got: bool) -> void:
 	_got_ring.queue_redraw()
 
 
-func is_got() -> bool:
-	return _got
-
-
-## The ring of a hovered giver's target.
+## The ring of a hovered giver's target (visible while ringed: no is_got(), so the class stays at
+## gdlint's 20 public methods).
 func got_ring() -> Control:
 	return _got_ring
 
@@ -403,6 +404,27 @@ func face() -> Control:
 ## The family glyphs in its glyph row (none on a coupon), left to right.
 func glyphs() -> Array[FamilyGlyph]:
 	return _glyphs
+
+
+## Shows the family `family` a Price gun gave the item this shift (#132) as one more glyph at the
+## end of the glyph row; "" takes it off. Products only (none for a family it has).
+func show_gained(family: String) -> void:
+	if _plain_tag == null:
+		return
+	var style: FamilyStyle = FamilyPalette.shared().style(family)
+	if _gained != null and (style == null or _gained.name != GAINED_NAME % family):
+		_glyphs.erase(_gained)
+		remove_child(_gained)
+		_gained.queue_free()
+		_gained = null
+	if _gained == null and style != null and style.glyph != null and not _families.has(family):
+		_gained = FamilyGlyph.new(style, true)
+		_gained.name = GAINED_NAME % family
+		_gained.tip_below = true
+		_gained.tip_anchor = self
+		add_child(_gained)
+		_glyphs.append(_gained)
+	_lay_out_glyphs(_squeezed)
 
 
 ## Whether the glyph row is squeezed for a wide pay burst.

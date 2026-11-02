@@ -31,6 +31,11 @@ var write_up: String = ""
 ## never an inspection, so the dessert's INSPECTION PASSED leaves them out. The shift screen sets
 ## it.
 var boon_names: PackedStringArray = PackedStringArray()
+## A Double checkout shift (#122, DoubleCheckoutFlow.dress): row 1's count stops after its last
+## item (`more_rows`: no total, no verdict, no dessert); row 2's counts on from row 1's total
+## (`start_total`, its steps' subtotals already past it: ScoreResult.continued).
+var more_rows: bool = false
+var start_total: int = 0
 
 
 func _init(

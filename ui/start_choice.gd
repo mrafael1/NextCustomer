@@ -25,8 +25,15 @@ func _init(screen: ShiftScreen, event_log: EventLogService) -> void:
 
 
 ## A new run for `seed_value` with `recipe` as its starting deck: its stock from the profile, its
-## deck dealt (a recipe with packs: its offer, the run waiting for its pick).
+## deck dealt (a recipe with packs: its offer, the run waiting for its pick), wearing the
+## profile's badge pins (#122).
 func new_run(seed_value: int, balance: BalanceDefinition, recipe: DeckDefinition) -> RunState:
+	var run: RunState = _dealt_run(seed_value, balance, recipe)
+	RunPins.wear(run, ProfilePins.worn(_screen.profile, _screen._catalogue))
+	return run
+
+
+func _dealt_run(seed_value: int, balance: BalanceDefinition, recipe: DeckDefinition) -> RunState:
 	var profile: ProfileState = _screen.profile
 	var listed: Array[StringName] = []
 	if RunStock.needs_list(balance, profile.unlocked_items):

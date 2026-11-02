@@ -94,6 +94,8 @@ var confetti: CheerConfetti
 ## The standees' ground shadows (CheerShadow): the crowd's own child until the stage lays it on
 ## the ground in front of the crowd (lay_shadows: the belt's guard, under the row).
 var shadow_layer: Control
+## How far in (px) the belt's right end is (BeltPanel.cut, #122): no guard to fall on past it.
+var belt_cut: float = 0.0
 var _tuning: CountUpTuning
 var _count_up: CountUp
 ## The standees up, oldest first.
@@ -493,9 +495,9 @@ func _floor_at(ink_left: float, width: float) -> float:
 func ground_at(x: float) -> CheerShadow.Ground:
 	var belt_x: float = x + position.x - BELT_RECT.position.x
 	var guard: Rect2 = BeltPanel.GUARD_FACE
-	if belt_x >= guard.position.x and belt_x < guard.end.x:
+	if belt_x >= guard.position.x and belt_x < guard.end.x - belt_cut:
 		return CheerShadow.Ground.GUARD
-	if belt_x >= BeltPanel.FOOT_SPAN.x and belt_x < BeltPanel.FOOT_SPAN.y:
+	if belt_x >= BeltPanel.FOOT_SPAN.x and belt_x < BeltPanel.FOOT_SPAN.y - belt_cut:
 		return CheerShadow.Ground.NONE
 	return CheerShadow.Ground.FLOOR
 

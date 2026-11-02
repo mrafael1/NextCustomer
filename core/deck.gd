@@ -55,10 +55,16 @@ func size() -> int:
 
 
 ## Starts a shift: shuffles the whole deck and draws `count` cards (fewer if the deck is smaller).
-func draw_hand(count: int) -> Array[CardInstance]:
+## `first` (a Golden basket pin's kept items, #132: deck cards) take the first places, in order,
+## and are not in the draw pile; the rest of the hand is drawn after them.
+func draw_hand(count: int, first: Array[CardInstance] = []) -> Array[CardInstance]:
 	_draw_pile = cards.duplicate()
-	_shuffle(_draw_pile)
 	_hand = []
+	for card: CardInstance in first:
+		if _hand.size() < count and _draw_pile.has(card):
+			_draw_pile.erase(card)
+			_hand.append(card)
+	_shuffle(_draw_pile)
 	while _hand.size() < count and not _draw_pile.is_empty():
 		_hand.append(_draw_pile.pop_back())
 	return _hand.duplicate()
@@ -67,18 +73,61 @@ func draw_hand(count: int) -> Array[CardInstance]:
 ## Replaces the cards at the given hand places, in the given order, with new ones from the draw
 ## pile, each new card in the place of the card it replaced (a basket redraw, plan section 3.8:
 ## the caller passes one basket's places, left first). Replaced cards are set aside for the rest
-## of the shift. A place outside the hand is skipped, and the redraw stops when the pile is empty,
-## so a short pile swaps the first places only. Returns the places swapped.
-func redraw_places(places: Array[int]) -> Array[int]:
+## of the shift; with `recycle` (a Recycle pin, #122) they are shuffled back into the draw pile
+## once every place is swapped, so this redraw never draws them back but a later one can. A place
+## outside the hand is skipped, and the redraw stops when the pile is empty, so a short pile swaps
+## the first places only. Returns the places swapped.
+func redraw_places(places: Array[int], recycle: bool = false) -> Array[int]:
 	var swapped: Array[int] = []
+	var replaced: Array[CardInstance] = []
 	for place: int in places:
 		if place < 0 or place >= _hand.size() or swapped.has(place):
 			continue
 		if _draw_pile.is_empty():
 			break
+		replaced.append(_hand[place])
 		_hand[place] = _draw_pile.pop_back()
 		swapped.append(place)
+	if recycle:
+		for card: CardInstance in replaced:
+			_draw_pile.insert(_rng.randi_range(0, _draw_pile.size()), card)
 	return swapped
+
+
+## Spends the cards at the given hand places (a Double checkout's row 1, #122) and fills those
+## places, in ascending order, with new cards from the draw pile. The spent cards are set aside
+## for the rest of the shift, as a redraw's are. A short pile fills the first places only, and the
+## places left over leave the hand, so the later places move down. Returns the places filled.
+func refill_places(places: Array[int]) -> Array[int]:
+	var filled: Array[int] = []
+	var ordered: Array[int] = places.duplicate()
+	ordered.sort()
+	var empty: Array[int] = []
+	for place: int in ordered:
+		if place < 0 or place >= _hand.size() or filled.has(place) or empty.has(place):
+			continue
+		if _draw_pile.is_empty():
+			empty.append(place)
+			continue
+		_hand[place] = _draw_pile.pop_back()
+		filled.append(place)
+	empty.reverse()
+	for place: int in empty:
+		_hand.remove_at(place)
+	return filled
+
+
+## Swaps the cards at two hand places (a badge pin's repack, RunPins.repack). False, changing
+## nothing, for a place outside the hand or the same place twice.
+func swap_places(first: int, second: int) -> bool:
+	if first == second or first < 0 or second < 0:
+		return false
+	if first >= _hand.size() or second >= _hand.size():
+		return false
+	var card: CardInstance = _hand[first]
+	_hand[first] = _hand[second]
+	_hand[second] = card
+	return true
 
 
 func hand() -> Array[CardInstance]:

@@ -12,6 +12,12 @@ extends RefCounted
 var base_slots: int = -1
 ## The instance ids of the cards an extra redraw brought in this shift.
 var redrawn_in: PackedInt32Array = PackedInt32Array()
+## A Price gun's relabels this shift (#132, RunState.relabels): instance id to the family the
+## item gains (ScoreState adds it to the item's tags).
+var relabels: Dictionary[int, String] = {}
+## The row's open slots this shift (ShiftLimits.slot_count; 0: unknown): Express lane's last slot
+## (EndSlotsMultiplierRule, #132).
+var row_slots: int = 0
 ## The hand cards this shift's redraws replaced, every redraw's (#128 v3, the redraw tension:
 ## scoring context, ScoreState.cards_redrawn): each redraw is a basket of the balance's
 ## basket_size cards.
@@ -26,12 +32,15 @@ var redraws_left: int = 0
 static func for_run(run: RunState) -> ScoreCredits:
 	var credits: ScoreCredits = ScoreCredits.new()
 	var bare: Array[UpgradeDefinition] = []
+	var events: Array[InspectionDefinition] = WeekSchedule.shift_events(run)
+	var pin_slots: int = RunPins.base_slots(run)
 	credits.base_slots = (
-		ShiftLimits
-		. for_shift(run.balance, bare, run.shift_index, WeekSchedule.shift_events(run))
-		. slot_count
+		ShiftLimits.for_shift(run.balance, bare, run.shift_index, events, pin_slots).slot_count
 	)
 	credits.redrawn_in = run.redrawn_in.duplicate()
+	credits.relabels = run.relabels.duplicate()
+	if run.limits != null:
+		credits.row_slots = RowCapacity.card_limit(run.limits)
 	credits.cards_redrawn = run.redraws_used * run.balance.basket_size
 	credits.redraws_left = maxi(run.redraws_allowed - run.redraws_used, 0)
 	return credits

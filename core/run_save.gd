@@ -137,9 +137,15 @@ static func to_dictionary(saved_run: RunState, saved_run_id: String, played_ms: 
 		"hand": _pairs(saved_run.deck.hand()),
 		"draw_pile": _instance_ids(saved_run.deck.draw_pile()) if planning else [],
 		"row": _instance_ids(saved_run.row),
+		# A Double checkout shift's row 1, spent at its checkout (#122); [] otherwise.
+		"first_row": _instance_ids(saved_run.first_row),
 		"redraws_used": saved_run.redraws_used,
 		"redraws_allowed": saved_run.redraws_allowed,
 		"redrawn_in": Array(saved_run.redrawn_in),
+		# A Golden basket's kept items and a Price gun's relabels (#132); [] and {} otherwise.
+		"kept": Array(saved_run.kept),
+		"relabels": _relabels_data(saved_run.relabels),
+		"pins": _ids(saved_run.pins),
 		"upgrades": _ids(saved_run.upgrades),
 		"inspections": _ids(saved_run.inspections),
 		"week": _week_data(saved_run.week),
@@ -218,6 +224,12 @@ static func from_dictionary(saved: Dictionary, lookup: ContentLookup) -> RunSave
 	# Left out by format 6 saves made before #108 piece 2: no card came from an extra redraw.
 	if data.has("redrawn_in"):
 		restored.redrawn_in = PackedInt32Array(reader.wholes("redrawn_in", 1))
+	if data.has("kept"):
+		restored.kept = PackedInt32Array(reader.wholes("kept", 1))
+	var relabels_ok: bool = _read_relabels(restored, data.get("relabels", {}))
+	# Left out by saves made before #122's badge pins: no pin worn.
+	if data.has("pins"):
+		restored.pins = reader.pins("pins")
 	restored.upgrades = reader.upgrades("upgrades")
 	restored.inspections = reader.inspections("inspections")
 	# Before v0.70 a save named the next shift's events (one inspection before v0.65), not the week.
@@ -244,7 +256,7 @@ static func from_dictionary(saved: Dictionary, lookup: ContentLookup) -> RunSave
 	if restored.shift_index < restored.shift_count():
 		restored.limits = _limits(restored)
 	var history_ok: bool = _restore_history(restored, reader.dictionaries("history"), lookup)
-	var cards_ok: bool = _restore_cards(restored, reader)
+	var cards_ok: bool = _restore_cards(restored, reader, data.has("first_row"))
 	# A hand dealt larger than today's events give (a retired boon's, Big trolleys before v0.70)
 	# keeps its items.
 	if restored.phase == RunState.Phase.PLANNING and restored.limits != null:
@@ -255,7 +267,7 @@ static func from_dictionary(saved: Dictionary, lookup: ContentLookup) -> RunSave
 	save.run = restored
 	save.run_id = reader.text("run_id")
 	save.run_ms = reader.whole("run_ms")
-	var ok: bool = reader.ok and machine_ok and history_ok and cards_ok
+	var ok: bool = reader.ok and machine_ok and history_ok and cards_ok and relabels_ok
 	if (
 		not ok
 		or restored.phase != SAVE_POINTS[phase_index]
@@ -279,8 +291,30 @@ static func _limits(restored: RunState) -> ShiftLimits:
 		restored.balance,
 		_played_upgrades(restored),
 		restored.shift_index,
-		WeekSchedule.shift_events(restored)
+		WeekSchedule.shift_events(restored),
+		RunPins.base_slots(restored),
+		RunPins.extra_redraws(restored)
 	)
+
+
+## The saved form of a Price gun's relabels (#132): instance id (as text, JSON's keys) to family.
+static func _relabels_data(relabels: Dictionary[int, String]) -> Dictionary:
+	var data: Dictionary = {}
+	for id: int in relabels:
+		data[str(id)] = relabels[id]
+	return data
+
+
+## Reads _relabels_data's form into `restored`; false for a malformed one.
+static func _read_relabels(restored: RunState, data: Variant) -> bool:
+	if not data is Dictionary:
+		return false
+	for key: Variant in data as Dictionary:
+		var tag: Variant = (data as Dictionary)[key]
+		if not key is String or not (key as String).is_valid_int() or not tag is String:
+			return false
+		restored.relabels[(key as String).to_int()] = tag as String
+	return true
 
 
 ## The saved form of a week plan (v0.70): its first shift and each day's event ids; {} for none.
@@ -519,7 +553,7 @@ static func _restore_history(
 ## isn't a deck card (or is in the hand), a row card isn't in the hand, or the next instance id
 ## isn't above every id. A hand card whose deck copy was upgraded by the machine (a higher tier
 ## of the same product) keeps its saved card, as it was checked out.
-static func _restore_cards(restored: RunState, reader: SaveReader) -> bool:
+static func _restore_cards(restored: RunState, reader: SaveReader, with_first_row: bool) -> bool:
 	var deck_cards: Array[CardInstance] = reader.instances("deck")
 	var saved_hand: Array[CardInstance] = reader.instances("hand")
 	var pile_ids: Array[int] = reader.wholes("draw_pile", 1)
@@ -548,6 +582,14 @@ static func _restore_cards(restored: RunState, reader: SaveReader) -> bool:
 		ok = ok and hand_by_id.has(id) and row_ids.count(id) == 1
 		if hand_by_id.has(id):
 			restored.row.append(hand_by_id[id])
+	# A Double checkout's row 1 (#122; saves before it have none): spent deck cards, neither in
+	# the hand nor in the draw pile.
+	var first_ids: Array[int] = reader.wholes("first_row", 1) if with_first_row else []
+	for id: int in first_ids:
+		ok = ok and deck_by_id.has(id) and not hand_by_id.has(id) and not pile_ids.has(id)
+		ok = ok and first_ids.count(id) == 1
+		if deck_by_id.has(id):
+			restored.first_row.append(deck_by_id[id])
 	for id: int in deck_by_id.keys() + hand_by_id.keys():
 		ok = ok and id < next_id
 	restored.deck.restore(deck_cards, hand, pile, next_id)
@@ -648,12 +690,18 @@ static func _is_consistent(
 				== restored.upgrades.find(upgrade)
 			)
 		)
+	# A Double checkout's row 1 (#122) needs its pin and fits its row's slots.
+	if not restored.first_row.is_empty():
+		ok = ok and RunPins.row_slots(restored) > 0
+		ok = ok and RowCapacity.row_fits(restored.limits, restored.first_row)
+	var played: Array[UpgradeDefinition] = _played_upgrades(restored)
+	RunPins.restore_first_row(restored, played)
 	if not ok or not _after_checkout(restored):
 		return ok
-	var played: Array[UpgradeDefinition] = _played_upgrades(restored)
-	restored.last_result = Scoring.score(
-		restored.row, played, WeekSchedule.shift_events(restored), ScoreCredits.for_run(restored)
-	)
+	restored.last_result = RunPins.score_rows(restored, played)
+	if restored.history[-1].day_off:  # A Day off pin's skipped shift (#132) played nothing.
+		restored.last_result = PinPlay.day_off_result(restored)
+		return ok and restored.row.is_empty() and restored.history[-1].passed
 	if rescored:
 		return true
 	# A missed shift saved after its checkout is a slip the run went on after (v0.65; a save from

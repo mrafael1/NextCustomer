@@ -61,13 +61,17 @@ static func events_for(
 	return events
 
 
-## Every event `run`'s current shift is played under (events_for). A shift a save from before
-## v0.70 was on (RunState.pre_week_shift) keeps playing without its week event.
+## Every event `run`'s current shift is played under (events_for), then its worn pins' (#132).
+## A shift a save from before v0.70 was on (RunState.pre_week_shift) keeps playing without its
+## week event.
 static func shift_events(run: RunState) -> Array[InspectionDefinition]:
 	var shift_number: int = run.shift_index + 1
-	if shift_number == run.pre_week_shift:
-		return run.inspections.duplicate()
-	return events_for(run.balance, shift_number, run.inspections)
+	var events: Array[InspectionDefinition] = run.inspections.duplicate()
+	if shift_number != run.pre_week_shift:
+		events = events_for(run.balance, shift_number, run.inspections)
+	# A worn pin's events (#132: Express lane) come last, after the week event.
+	events.append_array(RunPins.pin_events(run))
+	return events
 
 
 ## The machine odds levels the visits after the 1-based `shift_number` draw above their own: its

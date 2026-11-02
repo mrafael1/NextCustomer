@@ -221,7 +221,7 @@ func test_coupons_show_coupon_on_their_face() -> void:
 		)
 		assert_int(font_size).is_greater_equal(PriceSticker.COUPON_TITLE_FITS[-1].x)
 	plain.set_got(true)
-	assert_bool(plain.is_got()).is_false()
+	assert_bool(plain.got_ring().visible).is_false()
 	plain.set_pay(false, Rect2())
 	assert_bool(title.visible).is_true()
 	assert_int(title.get_theme_font_size("font_size")).is_equal(12)
@@ -324,7 +324,7 @@ func test_got_rings_a_products_ticket() -> void:
 	var milk: PriceSticker = auto_free(PriceSticker.new(_card("milk")))
 	var face: Texture2D = (milk.face() as TextureRect).texture
 	milk.set_got(true)
-	assert_bool(milk.is_got()).is_true()
+	assert_bool(milk.got_ring().visible).is_true()
 	assert_bool(milk.got_ring().visible).is_true()
 	assert_object((milk.face() as TextureRect).texture).is_same(face)
 	milk.set_got(false)

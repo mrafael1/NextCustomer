@@ -102,12 +102,14 @@ func test_the_saved_form_round_trips_through_json() -> void:
 	assert_int(read.unlocked_items[&"apple"]).is_equal(4)
 	assert_dict(read.coupon_uses).is_equal({&"repeat": 7})
 	assert_dict(read.settings).is_equal({"volume": 0.5, "reduced_motion": true})
+	assert_array(read.worn_pins).is_equal([&"repack"])
+	assert_int(read.pins_bought).is_equal(1)
 
 
 func test_the_saved_form_states_its_format_version() -> void:
 	var data: Dictionary = ProfileState.new().to_dictionary()
 	assert_int(data["format_version"]).is_equal(ProfileState.FORMAT_VERSION)
-	assert_int(ProfileState.FORMAT_VERSION).is_equal(2)
+	assert_int(ProfileState.FORMAT_VERSION).is_equal(3)
 
 
 func test_missing_fields_keep_defaults_and_unknown_ones_are_ignored() -> void:
@@ -212,7 +214,9 @@ func test_unreadable_forms_are_rejected() -> void:
 		{"format_version": 2, "capsule_seed": "-3"},
 		{"format_version": 2, "capsule_draws": -1},
 		{"format_version": 2, "unlocked_items": [["apple", -2]]},
-		{"format_version": 3},
+		{"format_version": 3, "worn_pins": [1]},
+		{"format_version": 3, "unlocked_pins": "repack"},
+		{"format_version": 3, "pins_bought": -1},
 	]
 	for data: Dictionary in bad:
 		(
@@ -232,7 +236,7 @@ func test_a_version_1_profile_reads_without_a_capsule_seed() -> void:
 	assert_int(read.capsule_draws).is_equal(0)
 	assert_int(read.coins).is_equal(3)
 	assert_str(read.to_dictionary()["capsule_seed"]).is_equal("")
-	assert_int(read.to_dictionary()["format_version"]).is_equal(2)
+	assert_int(read.to_dictionary()["format_version"]).is_equal(3)
 
 
 ## The seed is a decimal string, so one past 2^31 (and any 64-bit one) survives JSON.
@@ -388,6 +392,9 @@ static func _full_profile() -> ProfileState:
 	profile.achievements.append(&"first_win")
 	profile.stats[&"best_checkout"] = 88
 	profile.settings = {"volume": 0.5, "reduced_motion": true}
+	profile.unlocked_pins.append(&"repack")
+	profile.worn_pins.append(&"repack")
+	profile.pins_bought = 1
 	return profile
 
 
