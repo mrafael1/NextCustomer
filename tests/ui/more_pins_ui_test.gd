@@ -397,6 +397,32 @@ func test_express_lane_end_item_rings_no_chip() -> void:
 	screen._effects.unfocus()
 
 
+## A day event on an Express lane end still rings the day chip: with Happy hour (the last filled
+## slot +€3) and a full row, the last item is caused by both, and the day's event wins over the
+## run-wide pin's.
+func test_a_day_event_on_an_express_lane_end_still_rings_the_day_chip() -> void:
+	var screen: ShiftScreen = await _screen([EXPRESS_LANE], true)
+	var run: RunState = screen.run
+	run.inspections = [load("res://data/inspections/happy_hour.tres") as InspectionDefinition]
+	screen._refresh()
+	await _frames(2)
+	var slots: int = RowCapacity.card_limit(run.limits)
+	assert_int((await _place(screen, slots)).size()).is_equal(slots)
+	var events: Array[InspectionDefinition] = WeekSchedule.shift_events(run)
+	var pin_event: InspectionDefinition = (load(EXPRESS_LANE) as PinDefinition).events[0]
+	var kinds: Dictionary[String, bool] = {}
+	var last: int = slots - 1
+	for link: EffectLink in screen._effects.committed_model().graph.incoming(last):
+		if link.cause_kind == ScoreStep.SourceKind.INSPECTION:
+			kinds["pin" if events[link.cause_index] == pin_event else "day"] = true
+	assert_dict(kinds).is_equal({"pin": true, "day": true})
+	var item: ItemView = screen._row_views[last] as ItemView
+	item.hovered.emit(item)
+	assert_bool(screen._inspection_tag.has_relation()).is_true()
+	assert_bool(screen._stage.top_bar.week_chip.has_relation()).is_false()
+	screen._effects.unfocus()
+
+
 ## The count-up's step sources: a worn pin's event maps to no chip (null, so its steps fly from the
 ## item), the day's to the day chip and the week event to the week chip.
 func test_express_lane_steps_have_no_chip_source() -> void:

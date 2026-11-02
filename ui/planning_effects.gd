@@ -327,7 +327,7 @@ func _apply_focus(fade: bool) -> void:
 				_focus_card = null
 			elif focused >= 0:
 				related = _model.related(focused)
-				_card_causes(graph, focused, boxes, cause)
+				_card_causes(graph, focused, boxes, cause, _pin_events_from())
 				var stickered: bool = (
 					focused < _model.slots.size() and not _model.slots[focused].stickers.is_empty()
 				)
@@ -545,16 +545,32 @@ static func _relate(
 
 
 ## Fills `boxes` (the upgrades to ring) and `cause` (its first entry: the inspection to name, -2
-## not to ring the chip) with the upgrades and inspections causing the effects on `slot`.
+## not to ring the chip) with the upgrades and inspections causing the effects on `slot`. A worn
+## pin's event (an index from `pin_from` on) is the cause only when no day or week event acts on
+## the slot too, so Happy hour on an Express lane end still rings the day chip.
 static func _card_causes(
-	graph: EffectGraph, slot: int, boxes: Dictionary[int, bool], cause: Array[int]
+	graph: EffectGraph,
+	slot: int,
+	boxes: Dictionary[int, bool],
+	cause: Array[int],
+	pin_from: int = -1
 ) -> void:
 	for link: EffectLink in graph.incoming(slot):
 		match link.cause_kind:
 			ScoreStep.SourceKind.UPGRADE:
 				boxes[link.cause_index] = true
 			ScoreStep.SourceKind.INSPECTION:
-				cause[0] = link.cause_index
+				var is_pin: bool = pin_from >= 0 and link.cause_index >= pin_from
+				var had_day: bool = cause[0] >= 0 and (pin_from < 0 or cause[0] < pin_from)
+				if not (is_pin and had_day):
+					cause[0] = link.cause_index
+
+
+## The index of the run's first worn-pin event in WeekSchedule.shift_events (-1: no run).
+func _pin_events_from() -> int:
+	if _run == null:
+		return -1
+	return WeekSchedule.shift_events(_run).size() - RunPins.pin_events(_run).size()
 
 
 ## Adds `slot` to the ascending `slots` unless it is there.
