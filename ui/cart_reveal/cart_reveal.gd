@@ -11,8 +11,8 @@ extends Control
 ## (data/balance/cart_reveal.tres). With reduced motion it opens on the summary and the tap
 ## closes it at once.
 ##
-## Who opens it: a new run the player starts (the title's New run or first start, the results'
-## New run, the debug panel's new run with a seed). The title asks for it with request() before
+## Who opens it: a new run the player starts (the title's New run or first start, the debug
+## panel's new run with a seed). The title asks for it with request() before
 ## it opens the shift screen, whose reveal takes the request when it is made (`requested`), so a
 ## screen opened any other way (the tests, the captures) starts its new run without it, and a
 ## resumed run drops it.

@@ -118,8 +118,9 @@ func test_play_crossfades_and_never_restarts_the_same_track() -> void:
 	assert_array(_errors).is_empty()
 
 
-## A New run click inside the results crossfade asks for the shift loop while it still fades
-## out: it fades back up from its gain on the same player instead of restarting from silence.
+## A new run started inside the results crossfade (the debug panel's replay) asks for the shift
+## loop while it still fades out: it fades back up from its gain on the same player instead of
+## restarting from silence.
 func test_a_track_still_fading_out_fades_back_up() -> void:
 	var music: MusicService = await _music()
 	music.play(&"shift")

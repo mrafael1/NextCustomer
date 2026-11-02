@@ -39,12 +39,15 @@ extends Control
 const STARTER_DECK := "res://data/decks/pack_starter.tres"
 const BALANCE := "res://data/balance/balance.tres"
 const CATALOGUE := "res://data/catalogue/catalogue.tres"
+const TITLE_SCREEN := "res://ui/title_screen.tscn"  # The results' Return to menu goes here.
 ## A refused card or a closed slot plays `denied` this much softer than the count-up does.
 const REFUSED_DB := -6.0
 var run: RunState
 ## Where the save errors go (push_error by default). Tests set it before the screen enters the
 ## tree, so an unreadable save they write on purpose prints nothing.
 var report_error: Callable = Callable()
+## Tests turn this off so Return to menu doesn't replace the test runner's scene.
+var changes_scene: bool = true
 ## The meta progress (full build plan section 4): loaded at start, recorded and saved when a
 ## run ends. A run restarted before its end records nothing.
 var profile: ProfileState
@@ -118,7 +121,6 @@ var _scan: ScanController
 var _belt_chips: BeltChips = BeltChips.new()
 var _ride: BeltRide  # The belt in the count (#86 v6): items ride to the scanner and bag.
 var _effects: PlanningEffects  # The planning effects (#71, mock-up h1).
-var _toys: ToyMachinesScreen  # The TOY MACHINES over the results (#63), made when first opened.
 var _cart_reveal: CartReveal
 var _week: WeekFlow  # The time card and the week and day chips (v0.70).
 var _start_choice: StartChoice  # The starter pack choice's part of a run's start (#107).
@@ -617,26 +619,15 @@ func receipt_header() -> PackedStringArray:
 	return DoubleCheckoutFlow.header(run)  # #122: with its row line on a Double checkout.
 
 
-## Results screen: New run.
-func _on_new_run_pressed() -> void:
-	_log.log_event(
-		"restart", {"since_run_end_ms": Time.get_ticks_msec() - _run_ended_ms, "screen": "results"}
-	)
-	start_new_run(_log.new_run_seed(), true, true)
-
-
-## Results: the TOY MACHINES (#63) open over the results, below the debug panel. A draw here is
-## a results draw (its item rides the next 3 runs); the machines are off when the run's profile
-## save failed or the profile can't be saved. Done leaves the results as they were (the receipt's
-## coin total is the run's record and isn't reprinted).
-func _open_toy_machines() -> void:
-	if _toys == null:
-		_toys = ToyMachinesScreen.new()
-		add_child(_toys)
-		if _debug.panel != null:
-			move_child(_toys, _debug.panel.get_index())
-	var can_save: bool = _profile_saved and _saves.can_save_profile()
-	_toys.open(CapsuleCounter.new(profile, _saves, _balance, _log, false, can_save), _balance)
+## Results: Return to menu. The run was recorded and its save deleted at its end, so nothing is
+## lost; the title opens with its sign lit (no intro), the TOY MACHINES under its REWARDS (#63).
+func _on_menu_pressed() -> void:
+	var since_ms: int = Time.get_ticks_msec() - _run_ended_ms
+	_log.log_event("results_exit", {"since_run_end_ms": since_ms, "screen": "results"})
+	TitleScreen.request_lit()
+	if changes_scene:
+		_sfx.outlive_scene()  # The click finishes over the title.
+		get_tree().change_scene_to_file(TITLE_SCREEN)
 
 
 # --- Deck view and the loyalty card --------------------------------------------------------
@@ -956,9 +947,8 @@ func _build() -> void:
 	_scan.cover_offers(_machine.view)
 	_results = ResultsPanel.new(null, _scan.reduced_motion)
 	add_child(_results)
-	_results.new_run_requested.connect(_on_new_run_pressed)
+	_results.menu_requested.connect(_on_menu_pressed)
 	_results.export_requested.connect(_on_export_pressed)
-	_results.toy_machines_requested.connect(_open_toy_machines)
 	# Added last, so the deck view sits above the machine and the results.
 	_deck_view = DeckView.new()
 	add_child(_deck_view)

@@ -532,7 +532,7 @@ func test_a_run_that_doesnt_save_leaves_the_run_save_untouched() -> void:
 	assert_int(screen.run.phase).is_equal(RunState.Phase.LOST)
 	await _count_up_end(screen)
 	assert_str(FileAccess.get_file_as_string(_run_file())).is_equal(kept)
-	screen._on_new_run_pressed()
+	screen.start_new_run(_event_log().new_run_seed(), true, true)
 	assert_str(_saved()["run_id"]).is_equal(_event_log().run_id)
 	assert_str(FileAccess.get_file_as_string(_run_file())).is_not_equal(kept)
 	assert_array(_errors).is_empty()
