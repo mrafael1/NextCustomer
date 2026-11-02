@@ -435,27 +435,39 @@ func test_extra_redraw_gives_a_third_redraw() -> void:
 	var runner: GdUnitSceneRunner = scene_runner(SCREEN)
 	var screen: ShiftScreen = runner.scene()
 	assert_str(screen._redraw_button.caption).is_equal("Redraw")
-	assert_str(screen._redraw_button.note()).is_equal("2 left")
+	assert_str(screen._redraw_button.note()).is_equal("2")
 	assert_str(screen._redraw_button.accessibility_name).is_equal("Redraw a basket (2 left)")
+	_assert_note_color(screen, Palette.GREEN_DARK)
 	screen._debug.give_upgrade("extra_redraw")
 	assert_int(screen.run.redraws_allowed).is_equal(3)
-	assert_str(screen._redraw_button.note()).is_equal("3 left")
+	assert_str(screen._redraw_button.note()).is_equal("3")
+	_assert_note_color(screen, Palette.GREEN_DARK)
 	assert_str(screen._loyalty_card.box_icon(0).resource_path).is_equal(
 		"res://art/icons/redraw_arrow.png"
 	)
 	_redraw_first_card(screen)
 	assert_int(screen.run.redraws_used).is_equal(1)
-	assert_str(screen._redraw_button.note()).is_equal("2 left")
+	assert_str(screen._redraw_button.note()).is_equal("2")
 	_redraw_first_card(screen)
 	assert_int(screen.run.redraws_used).is_equal(2)
-	assert_str(screen._redraw_button.note()).is_equal("1 left")
+	assert_str(screen._redraw_button.note()).is_equal("1")
+	_assert_note_color(screen, Palette.MUSTARD_DARKEST)
 	assert_bool(screen._redraw_button.disabled).is_false()
 	_redraw_first_card(screen)
 	assert_int(screen.run.redraws_used).is_equal(3)
-	assert_str(screen._redraw_button.caption).is_equal("Redraw used")
-	assert_str(screen._redraw_button.note()).is_empty()
-	assert_str(screen._redraw_button.accessibility_name).is_equal("Redraw used")
+	assert_str(screen._redraw_button.caption).is_equal("Redraw")
+	assert_str(screen._redraw_button.note()).is_equal("0")
+	assert_str(screen._redraw_button.accessibility_name).is_equal("Redraw (0 left)")
 	assert_bool(screen._redraw_button.disabled).is_true()
+	_assert_note_color(screen, Palette.TOMATO_DARK)
+
+
+## The Redraw key's count note is in `color`, outlined in it (a heavier digit).
+func _assert_note_color(screen: ShiftScreen, color: Color) -> void:
+	var note: Label = screen._redraw_button.note_label()
+	assert_object(note.get_theme_color("font_color")).is_equal(color)
+	assert_object(note.get_theme_color("font_outline_color")).is_equal(color)
+	assert_int(note.get_theme_constant("outline_size")).is_equal(RegisterKey.COUNT_OUTLINE)
 
 
 func test_the_results_screen_lists_the_run_history() -> void:

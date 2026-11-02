@@ -123,21 +123,34 @@ static func names(items: Array[CardDefinition]) -> String:
 	return " and ".join(parts)
 
 
+## The colour of a redraw count `redraws_left` (the Redraw key's note, the redraw panel's
+## heading): green for 2 or more, amber for 1, red for none, each dark enough to read on the cream
+## key and the paper.
+static func count_color(redraws_left: int) -> Color:
+	if redraws_left >= 2:
+		return Palette.GREEN_DARK
+	if redraws_left == 1:
+		return Palette.MUSTARD_DARKEST
+	return Palette.TOMATO_DARK
+
+
 ## Captions the shift screen's Redraw `redraw_key`: redraw mode `is_armed`, the redraws
-## `redraws_left` and whether any item is left `to_draw`. Mock-up B2's "Redraw  N left": a note
-## beside the word; screen readers hear what it takes.
+## `redraws_left` and whether any item is left `to_draw`. "Redraw" (or "Pick a basket") with the
+## bare count beside it in count_color; the red "0" stays at full strength on the disabled key.
+## Screen readers hear "(N left)".
 static func caption_key(
 	redraw_key: RegisterKey, is_armed: bool, redraws_left: int, to_draw: bool
 ) -> void:
+	var count: String = "%d" % redraws_left
+	var color: Color = count_color(redraws_left)
 	if is_armed:
-		redraw_key.show_caption(
-			PICK_CAPTION, "%d left" % redraws_left, "Pick a basket (%d left)" % redraws_left
-		)
+		var picking: String = "Pick a basket (%d left)" % redraws_left
+		redraw_key.show_caption(PICK_CAPTION, count, picking, color, RegisterKey.NoteLook.COUNT)
 	elif redraws_left <= 0:
-		redraw_key.show_caption("Redraw used")
+		var used: String = "Redraw (0 left)"
+		redraw_key.show_caption("Redraw", "0", used, color, RegisterKey.NoteLook.ALERT)
 	elif not to_draw:
 		redraw_key.show_caption("Redraw", "none to draw", "Redraw: no items left to draw")
 	else:
-		redraw_key.show_caption(
-			"Redraw", "%d left" % redraws_left, "Redraw a basket (%d left)" % redraws_left
-		)
+		var spoken: String = "Redraw a basket (%d left)" % redraws_left
+		redraw_key.show_caption("Redraw", count, spoken, color, RegisterKey.NoteLook.COUNT)

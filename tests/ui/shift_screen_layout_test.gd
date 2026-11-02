@@ -465,9 +465,10 @@ func test_the_status_line_and_the_register_stay_clear() -> void:
 
 
 ## Every Redraw caption the run can show fits REDRAW_RECT without growing it, with every upgrade
-## that adds redraws: "Redraw" with its "M left" note for each M, "Redraw used", "Redraw" with
-## "none to draw" (an empty draw pile) and, in redraw mode (plan section 3.8), "Pick a basket"
-## with its "M left" note, held lit, for each M. The note sits beside the caption, on the
+## that adds redraws: "Redraw" with its bare count M for each M (2 or more green, 1 amber, 0 red
+## and at full strength on the faded disabled key), "Redraw" with "none to draw" (an empty draw
+## pile, ink light) and, in redraw mode (plan section 3.8), "Pick a basket" with its count M, held
+## lit, for each M. The note sits beside the caption, on the
 ## key's face, smaller; Redraw keeps its rect on the register column, clear of Cancel and
 ## CHECKOUT.
 func test_every_redraw_caption_fits() -> void:
@@ -488,8 +489,10 @@ func test_every_redraw_caption_fits() -> void:
 		screen._refresh_buttons()
 		captions.append("%s %s" % [screen._redraw_button.caption, screen._redraw_button.note()])
 		await _assert_redraw_in_place(screen)
-	assert_str(";".join(captions)).contains("Redraw %d left" % run.redraws_allowed)
-	assert_str(";".join(captions)).contains("Redraw used")
+		_assert_redraw_count(screen, run.redraws_allowed - used)
+	assert_str(";".join(captions)).contains("Redraw %d" % run.redraws_allowed)
+	assert_str(";".join(captions)).contains("Redraw 0")
+	assert_str(";".join(captions)).not_contains("left")
 	for used: int in range(run.redraws_allowed):
 		run.redraws_used = used
 		screen._refresh()
@@ -499,8 +502,9 @@ func test_every_redraw_caption_fits() -> void:
 		assert_int(screen._redraw_button.look()).is_equal(RegisterKey.Look.LIT)
 		captions.append("%s %s" % [screen._redraw_button.caption, screen._redraw_button.note()])
 		await _assert_redraw_in_place(screen)
+		_assert_redraw_count(screen, run.redraws_allowed - used)
 		screen._on_cancel_pressed()
-	assert_str(";".join(captions)).contains("Pick a basket %d left" % run.redraws_allowed)
+	assert_str(";".join(captions)).contains("Pick a basket %d" % run.redraws_allowed)
 	assert_int(screen._redraw_button.look()).is_not_equal(RegisterKey.Look.LIT)
 	# An empty draw pile: nothing to draw.
 	run.redraws_used = 0
@@ -509,7 +513,38 @@ func test_every_redraw_caption_fits() -> void:
 	screen._refresh_buttons()
 	assert_str(screen._redraw_button.note()).is_equal("none to draw")
 	assert_bool(screen._redraw_button.disabled).is_true()
+	var word: Label = screen._redraw_button.note_label()
+	assert_object(word.get_theme_color("font_color")).is_equal(Palette.INK_LIGHT)
+	assert_int(word.get_theme_constant("outline_size")).is_equal(0)
+	assert_int(word.get_theme_font_size("font_size")).is_equal(RegisterKey.NOTE_FONT_SIZE)
+	assert_float(word.modulate.a).is_equal_approx(RegisterKey.OFF_CAPTION_ALPHA, 0.001)
 	await _assert_redraw_in_place(screen)
+
+
+## The Redraw key shows `left` as a bare digit beside its caption, larger and heavier than a word
+## note, in RedrawNotice.count_color (2 or more green, 1 amber, 0 red); the red 0 keeps its full
+## strength while the disabled key's caption fades. Screen readers still hear "(N left)".
+func _assert_redraw_count(screen: ShiftScreen, left: int) -> void:
+	var button: RegisterKey = screen._redraw_button
+	var note: Label = button.note_label()
+	var color: Color = Palette.GREEN_DARK
+	if left == 1:
+		color = Palette.MUSTARD_DARKEST
+	elif left <= 0:
+		color = Palette.TOMATO_DARK
+	assert_str(button.note()).is_equal("%d" % left)
+	assert_object(note.get_theme_color("font_color")).is_equal(color)
+	assert_object(note.get_theme_color("font_outline_color")).is_equal(color)
+	assert_int(note.get_theme_constant("outline_size")).is_equal(RegisterKey.COUNT_OUTLINE)
+	assert_int(note.get_theme_font_size("font_size")).is_equal(RegisterKey.COUNT_FONT_SIZE)
+	assert_int(RegisterKey.COUNT_FONT_SIZE).is_greater(RegisterKey.NOTE_FONT_SIZE)
+	assert_str(button.accessibility_name).contains("(%d left)" % left)
+	assert_float(note.modulate.a).is_equal(1.0)
+	if left <= 0:
+		assert_bool(button.disabled).is_true()
+		assert_float(button.caption_label().modulate.a).is_equal_approx(
+			RegisterKey.OFF_CAPTION_ALPHA, 0.001
+		)
 
 
 func _assert_redraw_in_place(screen: ShiftScreen) -> void:
