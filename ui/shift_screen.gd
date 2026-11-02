@@ -565,7 +565,9 @@ func _on_checkout_pressed() -> void:
 		context,
 		_loyalty_card.stamped_boxes(),
 		LoyaltyCard.names(run.upgrades),
-		(_top_bar as TopBar).event_sources(WeekSchedule.shift_events(run)),
+		(_top_bar as TopBar).event_sources(
+			WeekSchedule.shift_events(run), RunPins.pin_events(run).size()
+		),
 		InspectionTag.names(WeekSchedule.shift_events(run)),
 		InspectionTag.next_notice(run.next_inspections)
 	)

@@ -140,14 +140,17 @@ func fit_inspection() -> void:
 	_fit_inspection_once()
 
 
-## Where each of a shift's events (WeekSchedule.shift_events: the day's, then the week's) is shown,
-## indexed like a step's source_index, for the count-up: the week event on the week chip, the day
-## events on the day chip.
-func event_sources(events: Array[InspectionDefinition]) -> Array[Control]:
+## Where each of a shift's events (WeekSchedule.shift_events: the day's, then the week's, then
+## the `pin_count` worn pins' last) is shown, indexed like a step's source_index, for the
+## count-up: the week event on the week chip, the day events on the day chip, a pin's on no chip
+## (null: its steps fly from the item, CountUpBeats).
+func event_sources(events: Array[InspectionDefinition], pin_count: int = 0) -> Array[Control]:
 	var controls: Array[Control] = []
-	for event: InspectionDefinition in events:
+	for index: int in range(events.size()):
 		var source: Control = inspection_tag
-		if event.is_week():
+		if index >= events.size() - pin_count:
+			source = null
+		elif events[index].is_week():
 			source = week_chip
 		controls.append(source)
 	return controls

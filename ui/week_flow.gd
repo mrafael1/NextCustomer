@@ -123,21 +123,27 @@ func show_chips() -> void:
 	_bar.inspection_tag.show_inspections(day_events(run), run.shift_index + 1 if weeks else 0)
 
 
-## The events the day chip shows: the day's (run.inspections), then the worn pins' (#132: Express
-## lane's "Ends ×2" every shift); the week event is the week chip's.
+## The events the day chip shows: the day's only (run.inspections). A worn pin's events (#132:
+## Express lane's) are run-wide, not the day's, so the chip leaves them out (the belt's end marks
+## show Express lane); the week event is the week chip's.
 static func day_events(run: RunState) -> Array[InspectionDefinition]:
-	var events: Array[InspectionDefinition] = run.inspections.duplicate()
-	events.append_array(RunPins.pin_events(run))
-	return events
+	return run.inspections.duplicate()
 
 
 ## Where the shift's event `index` (WeekSchedule.shift_events) is on the day chip (day_events), -1
-## when it isn't there (the week event, or no event).
+## when it isn't there (the week event, a worn pin's event, or no event).
 static func day_index(run: RunState, index: int) -> int:
 	var events: Array[InspectionDefinition] = WeekSchedule.shift_events(run)
-	if index < 0 or index >= events.size() or events[index].is_week():
+	if index < 0 or index >= events.size() or events[index].is_week() or is_pin_event(run, index):
 		return -1
 	return day_events(run).find(events[index])
+
+
+## Whether the shift's event `index` (WeekSchedule.shift_events) is a worn pin's (#132: they come
+## last, after the day's and the week's).
+static func is_pin_event(run: RunState, index: int) -> bool:
+	var count: int = WeekSchedule.shift_events(run).size()
+	return index >= count - RunPins.pin_events(run).size() and index < count
 
 
 ## Whether `run`'s balance has weeks (a week list or a week length).
