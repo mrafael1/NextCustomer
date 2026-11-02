@@ -168,7 +168,9 @@ static func count_row_one(screen: ShiftScreen, committed: Array[CardInstance]) -
 		context,
 		screen._loyalty_card.stamped_boxes(),
 		LoyaltyCard.names(run.upgrades),
-		(screen._top_bar as TopBar).event_sources(WeekSchedule.shift_events(run)),
+		(screen._top_bar as TopBar).event_sources(
+			WeekSchedule.shift_events(run), RunPins.pin_events(run).size()
+		),
 		InspectionTag.names(WeekSchedule.shift_events(run))
 	))
 	screen._counting = false

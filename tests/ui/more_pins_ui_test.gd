@@ -350,17 +350,97 @@ func _assert_picker_layout(screen: ShiftScreen, picker: PriceGunPicker, view: It
 	assert_int(rows.size()).is_equal(ceili(chips.size() / float(PriceGunPicker.CHIP_COLUMNS)))
 
 
-## Express lane: the day chip names its "Ends ×2" every shift, a normal day's or an inspection's.
-func test_express_lane_shows_on_the_day_chip() -> void:
+## Express lane is a run-wide pin, not a daily event: a normal day with it worn reads "Normal
+## day" in the plain day's grey, its tooltip and an inspection day's effects leave it out (the
+## belt's end marks show it), and the chip stays inside the window.
+func test_express_lane_stays_off_the_day_chip() -> void:
 	var screen: ShiftScreen = await _screen([EXPRESS_LANE], true)
 	var chip: InspectionTag = screen._inspection_tag
-	assert_str(chip._label.text).is_equal("Today: Express lane (Ends ×2)")
-	assert_str(chip._tips).contains("Express lane")
+	assert_str(chip._label.text).is_equal("Normal day")
+	assert_str(chip._tips).not_contains("Express lane")
+	var grey: Color = InspectionTag.tint_of(WeekCardModel.Kind.NONE)
+	var paper: Color = Palette.PAPER
+	var tint: Color = Color(grey.r / paper.r, grey.g / paper.g, grey.b / paper.b)
+	assert_bool(chip.self_modulate.is_equal_approx(tint)).is_true()
+	assert_bool(chip.is_boon()).is_false()
 	screen.run.inspections = [load("res://data/inspections/spot_check.tres")]
 	screen._refresh()
 	await _frames(2)
-	assert_str(chip._effects_text).contains("Ends ×2")
+	assert_str(chip._effects_text).not_contains("Ends ×2")
+	assert_str(chip._effects_text).not_contains("Express lane")
+	assert_str(chip._label.text).not_contains("Express lane")
+	assert_str(chip._tips).not_contains("Express lane")
 	assert_bool(screen.get_viewport_rect().encloses(chip.get_global_rect())).is_true()
+
+
+## Hovering an item Express lane doubles (the row's first end) rings neither the day chip nor the
+## week chip: the pin is run-wide (WeekFlow.day_index is -1 for its event).
+func test_express_lane_end_item_rings_no_chip() -> void:
+	var screen: ShiftScreen = await _screen([EXPRESS_LANE], true)
+	var run: RunState = screen.run
+	var event: InspectionDefinition = (load(EXPRESS_LANE) as PinDefinition).events[0]
+	var index: int = WeekSchedule.shift_events(run).find(event)
+	assert_bool(WeekFlow.is_pin_event(run, index)).is_true()
+	assert_int(WeekFlow.day_index(run, index)).is_equal(-1)
+	assert_int((await _place(screen, 3)).size()).is_equal(3)
+	var caused: bool = false
+	for link: EffectLink in screen._effects.committed_model().graph.incoming(0):
+		caused = (
+			caused
+			or (link.cause_kind == ScoreStep.SourceKind.INSPECTION and link.cause_index == index)
+		)
+	assert_bool(caused).is_true()
+	var item: ItemView = screen._row_views[0] as ItemView
+	item.hovered.emit(item)
+	assert_bool(screen._inspection_tag.has_relation()).is_false()
+	assert_bool(screen._stage.top_bar.week_chip.has_relation()).is_false()
+	screen._effects.unfocus()
+
+
+## A day event on an Express lane end still rings the day chip: with Happy hour (the last filled
+## slot +€3) and a full row, the last item is caused by both, and the day's event wins over the
+## run-wide pin's.
+func test_a_day_event_on_an_express_lane_end_still_rings_the_day_chip() -> void:
+	var screen: ShiftScreen = await _screen([EXPRESS_LANE], true)
+	var run: RunState = screen.run
+	run.inspections = [load("res://data/inspections/happy_hour.tres") as InspectionDefinition]
+	screen._refresh()
+	await _frames(2)
+	var slots: int = RowCapacity.card_limit(run.limits)
+	assert_int((await _place(screen, slots)).size()).is_equal(slots)
+	var events: Array[InspectionDefinition] = WeekSchedule.shift_events(run)
+	var pin_event: InspectionDefinition = (load(EXPRESS_LANE) as PinDefinition).events[0]
+	var kinds: Dictionary[String, bool] = {}
+	var last: int = slots - 1
+	for link: EffectLink in screen._effects.committed_model().graph.incoming(last):
+		if link.cause_kind == ScoreStep.SourceKind.INSPECTION:
+			kinds["pin" if events[link.cause_index] == pin_event else "day"] = true
+	assert_dict(kinds).is_equal({"pin": true, "day": true})
+	var item: ItemView = screen._row_views[last] as ItemView
+	item.hovered.emit(item)
+	assert_bool(screen._inspection_tag.has_relation()).is_true()
+	assert_bool(screen._stage.top_bar.week_chip.has_relation()).is_false()
+	screen._effects.unfocus()
+
+
+## The count-up's step sources: a worn pin's event maps to no chip (null, so its steps fly from the
+## item), the day's to the day chip and the week event to the week chip.
+func test_express_lane_steps_have_no_chip_source() -> void:
+	var screen: ShiftScreen = await _screen([EXPRESS_LANE])
+	var run: RunState = screen.run
+	var bar: TopBar = screen._stage.top_bar
+	var events: Array[InspectionDefinition] = WeekSchedule.shift_events(run)
+	var sources: Array[Control] = bar.event_sources(events, RunPins.pin_events(run).size())
+	assert_int(sources.size()).is_equal(events.size())
+	var event: InspectionDefinition = (load(EXPRESS_LANE) as PinDefinition).events[0]
+	assert_object(sources[events.find(event)]).is_null()
+	for at: int in range(events.size()):
+		if events[at] == event:
+			continue
+		var chip: Control = bar.inspection_tag
+		if events[at].is_week():
+			chip = bar.week_chip
+		assert_object(sources[at]).is_same(chip)
 
 
 ## Express lane on the belt: the row's ends wear its express tag ("×N", the rule's factor) and
