@@ -13,19 +13,19 @@ func test_fizzles(
 	expected: Array,
 	_test_parameters := [
 		["clearance_tag,bread,day_old_buns", []],
-		["bread,clearance_tag", [[1, "Clearance tag", "no product in the next slot"]]],
+		["bread,clearance_tag", [[1, "Clearance tag", "no item in the next slot"]]],
 		[
 			"clearance_tag,day_old_buns,day_old_buns",
 			[
 				[0, "Clearance tag", "already Clearance"],
-				[1, "Day-old buns after Clearance", "no Clearance product just before it"],
+				[1, "Day-old buns after Clearance", "no Clearance item right before it"],
 			],
 		],
 		[
 			"clearance_tag,repeat,bread",
 			[
-				[0, "Clearance tag", "no product in the next slot"],
-				[1, "Repeat", "no product just before it to copy"],
+				[0, "Clearance tag", "no item in the next slot"],
+				[1, "Repeat", "no item right before it to copy"],
 			]
 		],
 		["opening_deal,soup,bread", []],
@@ -34,15 +34,15 @@ func test_fizzles(
 		[
 			"opening_deal,repeat",
 			[
-				[0, "Opening deal ×3", "no product after it"],
-				[1, "Repeat", "no product just before it to copy"],
+				[0, "Opening deal ×3", "no item after it"],
+				[1, "Repeat", "no item right before it to copy"],
 			]
 		],
-		["opening_deal", [[0, "Opening deal ×3", "no product after it"]]],
+		["opening_deal", [[0, "Opening deal ×3", "no item after it"]]],
 		[
 			"clearance_tag,opening_deal,bread",
 			[
-				[0, "Clearance tag", "no product in the next slot"],
+				[0, "Clearance tag", "no item in the next slot"],
 				[1, "Opening deal ×3", "not in the first slot"],
 			]
 		],

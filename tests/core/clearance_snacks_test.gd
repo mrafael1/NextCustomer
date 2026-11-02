@@ -71,8 +71,8 @@ func test_fizzles(
 	left: int,
 	wasted: Array,
 	_test_parameters := [
-		["bread,dusty_toffees", 0, [[1, "no WASTED product before it"]]],
-		["bread,flickering_bulb", 0, [[1, "the product just before it was not WASTED"]]],
+		["bread,dusty_toffees", 0, [[1, "no WASTED item before it"]]],
+		["bread,flickering_bulb", 0, [[1, "the item right before it was not WASTED"]]],
 		["dented_can", 2, [[0, "no card redrawn this shift"]]],
 		["crisps", 0, [[0, "no redraw left this shift"]]],
 		[
@@ -82,7 +82,7 @@ func test_fizzles(
 		],
 		["crisps,pick_n_mix", 1, [[1, "no lone Snack in the row"]]],
 		["bent_lolly,bread", 0, [[0, "no other Snack in the row"]]],
-		["bent_lolly,crisps", 1, [[0, "no product between it and the next Snack"]]],
+		["bent_lolly,crisps", 1, [[0, "no item between it and the next Snack"]]],
 	]
 ) -> void:
 	var result: ScoreResult = Scoring.score(_row(row), [], [], _credits(0, left))

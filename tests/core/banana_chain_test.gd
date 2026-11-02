@@ -23,7 +23,7 @@ func test_chain_rows(
 		# A coupon between them breaks it too: the lone Banana pays its base.
 		["banana,banana,coupon,banana", [2, 4, 0, 2]],
 		# Golden Eggs ×2 on the next 2 Food: the second Banana (2 + 4) × 2 = 12 pays it, but
-		# the third adds its price before the multiplier, 6: 2 + 6 = 8, not 2 + 12.
+		# the third adds its prev the multiplier, 6: 2 + 6 = 8, not 2 + 12.
 		["golden_eggs,banana,banana,banana", [3, 4, 12, 8]],
 		# 2 for 1 links the first two (2 + 2) × 2 = 8; the next adds 4, not 8.
 		["banana,two_for_one,banana,banana", [2, 0, 8, 6]],

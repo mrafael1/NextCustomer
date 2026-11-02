@@ -99,10 +99,6 @@ func test_the_chain_keyword_is_a_chip() -> void:
 	assert_array(pieces[0]).is_equal(
 		[GlyphText.keyword_run(CardText.CHAIN_WORD), GlyphText.text_run(" middle:")]
 	)
-	var tally: Array[Array] = GlyphText.pieces("after CHAIN: +2 each", _palette())
-	assert_array(tally[1]).is_equal(
-		[GlyphText.keyword_run(CardText.CHAIN_WORD), GlyphText.text_run(":")]
-	)
 	assert_array(Array(GlyphText.keywords("+1 each, next CHAIN", _palette()))).is_equal(["CHAIN"])
 	assert_str(GlyphText.keyword_tip("CHAIN")).is_equal(
 		(

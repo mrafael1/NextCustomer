@@ -29,9 +29,9 @@ func multiplier(state: ScoreState, slot: int) -> int:
 
 func wasted_reason(state: ScoreState, slot: int) -> String:
 	if bonus_each != 0 and _count(state, slot) == 0:
-		return "no WASTED product before it"
+		return "no WASTED item before it"
 	if factor != 1 and not _just_before_wasted(state, slot):
-		return "the product just before it was not WASTED"
+		return "the item right before it was not WASTED"
 	return ""
 
 

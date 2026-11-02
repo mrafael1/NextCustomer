@@ -10,6 +10,8 @@ extends Rule
 ## pair's first Banana never shows WASTED: only a lone one does ("no Banana beside it"). Its
 ## bonus still needs the match just before it. With `per_match` (Carrier bag, #128) the bonus
 ## counts once for each matching product in the position (+8 for each Food product beside it).
+## With `pair` (#128, Dairy's PAIR) a match beside it makes the product PAIRED (CardPairs), which
+## Cream counts; its sticker names the PAIR keyword.
 
 enum Match { NONE, SAME_CARD, CARD_ID, TAG }
 enum Position { NONE, IMMEDIATELY_AFTER, BESIDE }
@@ -36,6 +38,8 @@ enum Position { NONE, IMMEDIATELY_AFTER, BESIDE }
 ## (a product counted beside it twice, by a link, counts once). Not with
 ## `bonus_is_previous_price`.
 @export var per_match: bool = false
+## If true (#128 Dairy), a match in `position` makes this product PAIRED (CardPairs).
+@export var pair: bool = false
 
 
 func flat_bonus(state: ScoreState, slot: int) -> int:
@@ -64,6 +68,11 @@ func flat_support(state: ScoreState, slot: int) -> int:
 	return -1
 
 
+## Whether the product in `slot` has its partner in `position` (a PAIR when `pair`, #128).
+func is_paired(state: ScoreState, slot: int) -> bool:
+	return _has_match_at(state, slot, position)
+
+
 ## Explain path only (Scoring._report_fizzles). A rule paying nothing on a match (neutral
 ## numbers) never fizzles.
 func wasted_reason(state: ScoreState, slot: int) -> String:
@@ -78,7 +87,7 @@ func wasted_reason(state: ScoreState, slot: int) -> String:
 	if _has_match_at(state, slot, fizzle_position):
 		return ""
 	var where: String = (
-		"just before it" if fizzle_position == Position.IMMEDIATELY_AFTER else "beside it"
+		"right before it" if fizzle_position == Position.IMMEDIATELY_AFTER else "beside it"
 	)
 	return "no %s %s" % [_match_name(state, slot), where]
 
@@ -175,7 +184,7 @@ func _match_name(state: ScoreState, slot: int) -> String:
 			return state.definition(slot).product_card().display_name
 		Match.CARD_ID:
 			return match_value.capitalize()
-	return "%s product" % match_value
+	return "%s item" % match_value
 
 
 ## Whether the product in `other` matches `card` (the card in the slot looking for a match).

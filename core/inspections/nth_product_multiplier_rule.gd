@@ -25,4 +25,4 @@ func row_wasted_reason(state: ScoreState) -> String:
 	for slot: int in range(state.size()):
 		if state.product_numbers[slot] == product_number:
 			return ""
-	return "no product %d in the row" % product_number
+	return "no item %d in the row" % product_number

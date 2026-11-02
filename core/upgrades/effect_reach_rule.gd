@@ -26,7 +26,7 @@ func row_wasted_reason(state: ScoreState) -> String:
 		return "no %s in the row" % card.display_name
 	if state.reach_uses.get(self, 0) > 0:
 		return ""
-	return "no more %s products after the %s" % [_tag(), card.display_name]
+	return "no more %s items after the %s" % [_tag(), card.display_name]
 
 
 ## The tag the card's charged multiplier reaches ("" for none).

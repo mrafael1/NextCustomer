@@ -73,7 +73,7 @@ func test_a_row_without_the_product_wastes_the_boon_on_its_last_slot() -> void:
 	assert_int(waste.step_type).is_equal(ScoreStep.StepType.WASTED)
 	assert_int(waste.slot).is_equal(1)
 	assert_bool(waste.row_wide).is_true()
-	assert_str(waste.reason).is_equal("no product 1 in the row")
+	assert_str(waste.reason).is_equal("no item 1 in the row")
 	# An empty row has no last slot: no step.
 	assert_array(_score([], [_samples()]).steps).is_empty()
 

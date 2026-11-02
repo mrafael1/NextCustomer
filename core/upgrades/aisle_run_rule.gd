@@ -32,7 +32,7 @@ func row_wasted_reason(state: ScoreState) -> String:
 	for slot: int in range(state.size()):
 		if _in_family(state, slot) and run_length(state, slot) >= min_run:
 			return ""
-	return "no %d %s products in a row" % [min_run, tag]
+	return "no %d %s items in a row" % [min_run, tag]
 
 
 ## The longest run of the family's products ending at `slot` (0 when it isn't one of them).

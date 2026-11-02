@@ -1,14 +1,13 @@
 [gd_resource type="Resource" script_class="CardDefinition" format=3]
 
 [ext_resource type="Script" path="res://core/rule.gd" id="1_rule"]
-[ext_resource type="Script" path="res://core/rules/grant_next_tag_bonus_rule.gd" id="2_cream"]
+[ext_resource type="Script" path="res://core/rules/pair_count_rule.gd" id="2_cream"]
 [ext_resource type="Script" path="res://core/card_definition.gd" id="3_card"]
 
 [sub_resource type="Resource" id="Resource_cream"]
 script = ExtResource("2_cream")
-tag = "Dairy"
-bonus = 2
-receipt_text = "Cream bonus"
+bonus_each = 2
+receipt_text = "Cream: PAIRs"
 
 [resource]
 script = ExtResource("3_card")
@@ -18,8 +17,8 @@ kind = 1
 tags = PackedStringArray("Food", "Dairy")
 base = 2
 rules = Array[ExtResource("1_rule")]([SubResource("Resource_cream")])
-rule_text = "+2 to the next Dairy product"
-sticker_text = "+{bonus} next {tag}"
+rule_text = "+2 for each PAIR in the row"
+sticker_text = "+{bonus_each} per {pair}"
 art_ref = "res://art/items_v2/cream.png"
 mini_art_ref = "res://art/minis/cream.png"
 mini_golden_art_ref = "res://art/minis/cream_golden.png"

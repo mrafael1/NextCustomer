@@ -169,7 +169,7 @@ func test_category_engine_bonus_on_soup_is_spent() -> void:
 func test_category_engine_without_products_fizzles_once() -> void:
 	for ids: String in ["repeat,final_markdown", "breakfast_sticker", "multipack,repeat"]:
 		var result: ScoreResult = _score(ids, [_category_engine()])
-		_assert_one_row_fizzle(result, _score(ids, []), ids, "no product in the row")
+		_assert_one_row_fizzle(result, _score(ids, []), ids, "no item in the row")
 
 
 # --- Stacking and sources ------------------------------------------------------------------

@@ -126,7 +126,7 @@ static func runs_of(batch: PackedInt32Array, row: Array[CardDefinition]) -> Arra
 
 ## The wrong job's tooltip of `card` at `slot` in `result` (#128): a batch or chain card (its
 ## template names BATCH or CHAIN) whose own rule has a WASTED step there (its line did nothing at
-## its place: "WASTED · Not first in its Bakery batch", "WASTED · No CHAIN just after it"), else
+## its place: "WASTED · Not first in its Bakery batch", "WASTED · No CHAIN right after it"), else
 ## "". A row-wide upgrade's or an event's waste is not the card's.
 static func wrong_job(result: ScoreResult, slot: int, card: CardDefinition) -> String:
 	if result == null or not (CardText.names_batch(card) or CardText.names_chain(card)):

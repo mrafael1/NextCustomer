@@ -23,7 +23,7 @@ func on_scanned(state: ScoreState, slot: int) -> void:
 func wasted_reason(state: ScoreState, slot: int) -> String:
 	if tag.is_empty() or bonus == 0 or not _targets(state, slot, false).is_empty():
 		return ""
-	return "no batch of %d %s just after it" % [maxi(min_size, 2), tag]
+	return "no batch of %d %s right after it" % [maxi(min_size, 2), tag]
 
 
 ## The products of every batch of `min_size` or more that starts just after `slot`; with

@@ -50,21 +50,21 @@ func test_misplaced_roles_fizzle(
 			"croissant,banana,baguette",
 			[2, 2, 2],
 			[
-				[0, "no Bakery product beside it"],
+				[0, "no Bakery item beside it"],
 				[1, "no Banana beside it"],
-				[2, "no Bakery product beside it"],
+				[2, "no Bakery item beside it"],
 			]
 		],
 		["baguette,bread", [2, 5], [[0, "first in its batch: nothing before it"]]],
 		["stale_doughnut,bread", [1, 5], [[0, "not last in its Bakery batch"]]],
 		["bread,iced_bun", [5, 1], [[1, "it closes its batch: nothing to glaze"]]],
-		["birthday_candles,bread,bread", [1, 5, 5], [[0, "no batch of 3 Bakery just after it"]]],
+		["birthday_candles,bread,bread", [1, 5, 5], [[0, "no batch of 3 Bakery right after it"]]],
 		# The candles must open the batch: one after a batch of 3 has none after it.
 		[
 			"bread,bread,bread,birthday_candles",
 			[5, 5, 5, 1],
 			[
-				[3, "no batch of 3 Bakery just after it"],
+				[3, "no batch of 3 Bakery right after it"],
 			]
 		],
 	]

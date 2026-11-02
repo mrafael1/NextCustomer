@@ -36,8 +36,18 @@ const KEYWORD_TIPS: Dictionary[String, String] = {
 	),
 	CardText.WASTED_WORD:
 	(
-		"WASTED · A product whose own line did nothing where it stands. "
-		+ "Clearance cards turn WASTED products before them into money."
+		"WASTED · An item whose rule did nothing where it stands. "
+		+ "Some Clearance items pay for WASTED items."
+	),
+	CardText.PAIR_WORD:
+	(
+		"PAIR · A PAIR item beside the partner its line names (Cheese beside Bread). "
+		+ "Cream pays for each PAIR in the row."
+	),
+	CardText.MORNING_WORD:
+	(
+		"MORNING · The row's opening run of Breakfast items, from the first item "
+		+ "until one without Breakfast. Coupons don't end it."
 	),
 }
 ## The least size each keyword's tooltip names (its `%d`).

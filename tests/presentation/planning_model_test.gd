@@ -540,7 +540,7 @@ func test_chains_wrong_jobs_and_focus() -> void:
 				"WASTED · Not inside a CHAIN",
 				"",
 				"",
-				"WASTED · No CHAIN just after it",
+				"WASTED · No CHAIN right after it",
 				"",
 				"WASTED · No Banana beside it",
 			]

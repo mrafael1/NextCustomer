@@ -9,9 +9,10 @@
 script = ExtResource("2_qw2ll")
 match_by = 2
 match_value = "bread"
-position = 1
+position = 2
 bonus = 8
-receipt_text = "Cheese after Bread"
+pair = true
+receipt_text = "Cheese PAIR with Bread"
 
 [resource]
 script = ExtResource("3_im5n1")
@@ -21,7 +22,7 @@ kind = 1
 tags = PackedStringArray("Food", "Dairy")
 base = 5
 rules = Array[ExtResource("1_jvkti")]([SubResource("Resource_2sfbs")])
-rule_text = "+8 if immediately after Bread"
+rule_text = "PAIR: +8 if beside Bread"
 art_ref = "res://art/items_v2/cheese_golden.png"
 variant_of = ExtResource("9_plain")
 tier = 2
