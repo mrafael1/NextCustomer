@@ -23,16 +23,21 @@ var quota: int = 0
 
 
 ## The limits of the 0-based `shift_index` with these owned upgrades and the shift's day events.
+## `base_slots` (a Double checkout pin's row, #122: RunPins.row_slots) replaces the balance's
+## slot_count when above 0; the upgrades and events change it as they change a whole row.
+## `pin_redraws` (a worn pin's, RunPins.extra_redraws) count as the shift's own redraws.
 static func for_shift(
 	balance: BalanceDefinition,
 	upgrades: Array[UpgradeDefinition],
 	shift_index: int,
-	inspections: Array[InspectionDefinition] = []
+	inspections: Array[InspectionDefinition] = [],
+	base_slots: int = 0,
+	pin_redraws: int = 0
 ) -> ShiftLimits:
 	var limits: ShiftLimits = ShiftLimits.new()
-	limits.slot_count = balance.slot_count
-	limits.redraws = balance.base_redraws
-	limits.own_redraws = balance.base_redraws
+	limits.slot_count = base_slots if base_slots > 0 else balance.slot_count
+	limits.redraws = balance.base_redraws + pin_redraws
+	limits.own_redraws = balance.base_redraws + pin_redraws
 	limits.hand_size = balance.hand_size
 	for upgrade: UpgradeDefinition in upgrades:
 		limits.slot_count += upgrade.extra_slots

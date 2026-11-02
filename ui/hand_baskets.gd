@@ -15,6 +15,11 @@ extends Control
 ## Each basket's art (its back, or its front with the inside's darkening) sits in a holder of its
 ## own, so the basket redraw (plan section 3.8, BasketRedraw) can lift, squash and tip one basket
 ## (set_pose); its shadow on the counter front and its contact shadow fade as it tips.
+##
+## A basket can be lit (set_lit, #122: the repack's baskets that take the held item, the user's
+## call of 2026-11-02): its art a little brighter, pulsing gently between LIT_LOW and LIT_HIGH
+## every LIT_PERIOD seconds (steady at LIT_HIGH with reduced motion), and the one under a dragged
+## item at HOVER_LIT.
 
 enum Layer { BACK, FRONT }
 
@@ -55,6 +60,12 @@ const LEDGE_NAME := &"Ledge"
 const HOLDER_NAME := &"Pose"
 const INSIDE_NAME := &"Inside"
 
+## The lit baskets' brightness (a modulate over 1), and the pulse's period.
+const LIT_LOW := 1.18
+const LIT_HIGH := 1.42
+const HOVER_LIT := 1.62
+const LIT_PERIOD := 1.1
+
 const BACK_LEFT := preload("res://art/scenery/basket_back_left.png")
 const BACK_RIGHT := preload("res://art/scenery/basket_back_right.png")
 const FRONT := preload("res://art/scenery/basket_front.png")
@@ -69,9 +80,14 @@ var _lefts: Array[float] = []
 var _holders: Array[Control] = []
 var _contacts: Array[Control] = []
 var _fades: Array[float] = []
+## The lit baskets (set_lit), the one lit most (-1: none), and the pulse's clock (-1: steady).
+var _lit: Array[int] = []
+var _hovered: int = -1
+var _pulse_time: float = -1.0
 
 
 func _init(basket_layer: Layer, hand: HandRow) -> void:
+	set_process(false)
 	layer = basket_layer
 	_hand = hand
 	name = "Baskets" if layer == Layer.BACK else "BasketFronts"
@@ -127,6 +143,42 @@ func set_pose(index: int, pose: Transform2D, shadow: float = 1.0) -> void:
 		queue_redraw()
 
 
+## Lights the baskets `indices` (none: every basket back to plain), `hovered` the most;
+## `pulse` makes the others pulse gently.
+func set_lit(indices: Array[int], hovered: int = -1, pulse: bool = true) -> void:
+	_lit = indices.duplicate()
+	_hovered = hovered if indices.has(hovered) else -1
+	_pulse_time = 0.0 if pulse and not indices.is_empty() else -1.0
+	set_process(_pulse_time >= 0.0)
+	_show_lit()
+
+
+## Basket `index`'s brightness now (1: plain).
+func lit_level(index: int) -> float:
+	if not _lit.has(index):
+		return 1.0
+	if index == _hovered:
+		return HOVER_LIT
+	if _pulse_time < 0.0:
+		return LIT_HIGH
+	var wave: float = 0.5 - 0.5 * cos(TAU * _pulse_time / LIT_PERIOD)
+	return lerpf(LIT_LOW, LIT_HIGH, wave)
+
+
+func _process(delta: float) -> void:
+	if _pulse_time < 0.0:
+		set_process(false)
+		return
+	_pulse_time += delta
+	_show_lit()
+
+
+func _show_lit() -> void:
+	for index: int in range(_holders.size()):
+		var level: float = lit_level(index)
+		_holders[index].modulate = Color(level, level, level)
+
+
 func _rebuild() -> void:
 	_lefts = []
 	for left: float in _hand.basket_lefts():
@@ -155,6 +207,7 @@ func _rebuild() -> void:
 	for index: int in range(_lefts.size()):
 		_holders.append(_basket_holder(index, _lefts[index]))
 		_fades.append(1.0)
+	_show_lit()
 	queue_redraw()
 
 

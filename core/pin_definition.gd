@@ -24,3 +24,13 @@ extends Resource
 ## While planning, the player may move hand items between baskets (RunPins.repack), so lone
 ## items can share one basket and go in one redraw.
 @export var repack: bool = false
+## Double checkout (#122 part 2): each shift checks out two rows of this many slots (0: one row of
+## the balance's slot_count). Row 1 is scored and spent at its checkout and the hand refills to
+## its size; both rows' totals count toward the quota.
+@export var row_slots: int = 0
+## Recycle (#122, the user's call of 2026-11-02): the items a redraw replaces go back into the draw
+## pile, shuffled in, so a later redraw can draw them again (instead of being set aside for the
+## rest of the shift).
+@export var recycle: bool = false
+## Redraws added to every shift's own (ShiftLimits.for_shift's `pin_redraws`).
+@export var extra_redraws: int = 0

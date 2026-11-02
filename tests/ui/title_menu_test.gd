@@ -155,7 +155,7 @@ func test_rewards_shows_the_coins_and_its_two_cards_on_the_sheet() -> void:
 	assert_bool(badge_card.encloses(line)).is_true()
 	assert_float(badge.position.y).is_greater_equal(title_end)
 	assert_float(line.position.y).is_greater_equal(badge.end.y)
-	var pins: Array[PinDefinition] = [load("res://data/pins/two_for_one_pair.tres")]
+	var pins: Array[PinDefinition] = [load("res://data/pins/recycle.tres")]
 	rewards.show_badge(pins, 1, [0], 1, 2)
 	assert_str(rewards.pins_line().text).is_equal("1 OF 2 PINS")
 	assert_str(rewards.badge().slot_faces()[0].letters()).is_equal(pins[0].face_text)

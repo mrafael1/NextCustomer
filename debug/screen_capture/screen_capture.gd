@@ -56,6 +56,7 @@ extends Control
 ## belt ticket shows (below the ticket), `--tip=<card id>,colour` its colour's tooltip, and
 ## `--tip=monitor[,<n>]` that of the monitor scan's glyph n (above it; with --effects=<card id>);
 ## the file name gets tip_<what>_<n>_ (tip_<what>_colour_).
+## With `--double` (#122) the fixed shift wears the Double checkout pin.
 ## With `--deck=<page>[,<option>...]` (#56) a new run opens the deck view (see deck() for the pages
 ## and options), and the file is shift_screen_deck_<page>[_<options>]_<width>x<height>.png.
 ## With `--stack` (#105 piece 3) the belt holds the planning layout test's stress row on Big
@@ -127,6 +128,8 @@ const TOYS_OWNED: Dictionary[StringName, int] = {
 const CHEER_ARGUMENT := "--cheer"
 const DAY_ARGUMENT := "--day="
 const SLIP_ARGUMENT := "--slip"
+## #122: the fixed shift wears the Double checkout pin (two rows of 4); the file gets double_.
+const DOUBLE_ARGUMENT := "--double"
 const SLIP_PREFIX := "slip_%s_"
 const SLIP_PLAIN := "none"
 const CHEER_PREFIX := "cheer_"
@@ -326,6 +329,8 @@ func _set_up_shift(
 	for upgrade_id: String in upgrade_ids:
 		upgrades.append(_upgrade(upgrade_id))
 	run.upgrades = upgrades
+	if OS.get_cmdline_user_args().has(DOUBLE_ARGUMENT):
+		RunPins.wear(run, [load("res://data/pins/double_checkout.tres") as PinDefinition])
 	run.debug_skip_to_shift(SHIFT - 1)
 	# The same shift again: it keeps the inspection set here.
 	var events: Array[InspectionDefinition] = []
@@ -551,6 +556,7 @@ func capture(folder: String) -> void:
 		+ _cheer_part
 		+ _day_part
 		+ _slip_part
+		+ ("double_" if OS.get_cmdline_user_args().has(DOUBLE_ARGUMENT) else "")
 	)
 	var path: String = folder.path_join(FILE_NAME % [prefix, window.x, window.y])
 	var image: Image = (

@@ -19,10 +19,10 @@ var redrawn_in: PackedInt32Array = PackedInt32Array()
 static func for_run(run: RunState) -> ScoreCredits:
 	var credits: ScoreCredits = ScoreCredits.new()
 	var bare: Array[UpgradeDefinition] = []
+	var events: Array[InspectionDefinition] = WeekSchedule.shift_events(run)
+	var row_slots: int = RunPins.row_slots(run)
 	credits.base_slots = (
-		ShiftLimits
-		. for_shift(run.balance, bare, run.shift_index, WeekSchedule.shift_events(run))
-		. slot_count
+		ShiftLimits.for_shift(run.balance, bare, run.shift_index, events, row_slots).slot_count
 	)
 	credits.redrawn_in = run.redrawn_in.duplicate()
 	return credits

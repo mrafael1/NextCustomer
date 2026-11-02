@@ -56,6 +56,9 @@ var printer_speed: float = 1.0
 var best: int = 0
 ## The row's final subtotal.
 var total: int = 0
+## The subtotal the count starts from (#122: a Double checkout's row 2 counts on from row 1's
+## total, CountUpContext.start_total); 0 otherwise.
+var start_total: int = 0
 var size: Size = Size.NORMAL
 ## The held breath before the TOTAL line (D4), real ms.
 var pause_ms: int = 0
@@ -116,6 +119,7 @@ func _init(
 		_total_tuning = load(TOTAL_TUNING_PATH) as CountTotalTuning
 	step_count = steps.size()
 	reduced_motion = context.reduced_motion
+	start_total = context.start_total
 	best = maxi(tuning.first_best_floor, context.best_so_far)
 	var auto: float = tuning.auto_speed if context.shift >= tuning.auto_speed_from_shift else 1.0
 	base_speed = auto * context.speed_setting
@@ -132,7 +136,7 @@ func _init(
 	)
 	pre_roll_ms = tuning.pre_roll_ms
 	bag_ms = tuning.bag_ms
-	total = steps[steps.size() - 1].subtotal if not steps.is_empty() else 0
+	total = steps[steps.size() - 1].subtotal if not steps.is_empty() else start_total
 	_make_beats(steps)
 	_set_scan_groups()
 	_link_armed(steps)
@@ -284,7 +288,7 @@ static func _kind_of(step_type: ScoreStep.StepType) -> CountUpBeat.Kind:
 ## shared register reading. The item's intermediate value remains on the monitor. Every shown
 ## subtotal is read from a real payout step; the UI never scores the row.
 func _set_landings(steps: Array[ScoreStep]) -> void:
-	var shown: int = 0
+	var shown: int = start_total
 	for beat: CountUpBeat in beats:
 		beat.shown_from = shown
 		if is_payout_beat(beat):
@@ -438,7 +442,8 @@ func _set_notes() -> void:
 ## The quota dings on the first stable paid crossing, including the last payment.
 func _set_quota(quota: int) -> void:
 	quota_reached = total >= quota
-	if not quota_reached:
+	# Met before the count started (#122: by a Double checkout's row 1): no ding again.
+	if not quota_reached or (quota > 0 and start_total >= quota):
 		return
 	var stable: int = -1
 	for index: int in range(beats.size()):

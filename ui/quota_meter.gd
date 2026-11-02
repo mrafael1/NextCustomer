@@ -147,6 +147,8 @@ var amount_label: Label
 var tag_label: Label
 ## A drag's change, in the gauge in the tag's place; empty and hidden otherwise.
 var delta_label: Label
+## A Double checkout's rows, after the quota (#122; hidden on a shift of one row).
+var row_pips: RowPips
 var _bar: Control
 ## The gauge's text split at the liquid's front: the dry part (over the well, tag_label and
 ## delta_label) and the wet part (over the liquid, their twins), each clipped to its side.
@@ -188,6 +190,9 @@ func _init() -> void:
 	add_child(TopBar.key_label(QUOTA_WORD))
 	quota_label = TopBar.value_label(Palette.PAPER)
 	add_child(quota_label)
+	row_pips = RowPips.new()
+	row_pips.reduced_motion = _reduced
+	add_child(row_pips)
 	_bar = Control.new()
 	_bar.name = "Bar"
 	_bar.mouse_filter = Control.MOUSE_FILTER_IGNORE

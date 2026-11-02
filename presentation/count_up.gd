@@ -303,7 +303,7 @@ func play(
 	_clear_row()
 	_led.start_count(quota)
 	count_started.emit(_views)
-	_shown_subtotal = 0
+	_shown_subtotal = plan.start_total
 	_hit_stop_left_ms = 0.0
 	fast_forward_used = false
 	first_tap_ms = -1
@@ -318,7 +318,9 @@ func play(
 	for view: CardView in _views:
 		cards.append(view.card.definition if view.card != null else null)
 	_receipt.begin_count(context.receipt_header, _names, true, cards)
-	_set_subtotal(0)
+	_set_subtotal(plan.start_total)
+	if plan.start_total > 0 and plan.start_total >= quota:
+		_meet(false)  # #122: a Double checkout's row 1 met it.
 	for view: CardView in _views:
 		view.reset_motion()
 		view.hide_badge()
@@ -336,6 +338,13 @@ func play(
 	# The last item bags as the held breath starts: it adds nothing.
 	if scanned >= 0:
 		ride.emit(scanned, -1, plan.bag_ms)
+	if context.more_rows:
+		# #122: a Double checkout's row 1 stops here, before the total; row 2 counts on.
+		await _wait_ms(plan.bag_ms)
+		_playing = false
+		_presses.end()
+		finished.emit()
+		return
 	_duck_for_dessert()
 	await _pause()
 	_set_subtotal(result.total)

@@ -4,8 +4,10 @@ extends GdUnitTestSuite
 ## its place's item cell, inside its basket and the stage; a click on a mark moves the item there
 ## (logged as repack, saved). Marks draw nothing (no highlighted zone). A drag can drop on any
 ## place of another basket: an item there swaps; a place in the item's own basket takes nothing.
-## Without the pin, or for an item picked from the belt, nothing is marked. The real saves and logs
-## are never touched.
+## The baskets that take the held item light up a little (both basket layers), the one under a
+## dragged item most; none once it is let go. Without the pin nothing is marked or lit. An item
+## taken back from the belt can go to another basket too. The real saves and logs are never
+## touched.
 
 const SCREEN := "res://ui/shift_screen.tscn"
 const REPACK := "res://data/pins/repack.tres"
@@ -35,6 +37,7 @@ func test_no_pin_no_marks() -> void:
 	assert_object(screen._picked).is_not_null()
 	assert_array(screen._repack.marks()).is_empty()
 	assert_int(screen._repack._place_at(screen._picked, _centre(screen, 0))).is_equal(-1)
+	_assert_lit(screen, [])
 
 
 ## Basket 0's empty place (its item on the belt) is marked for the item at place 3, on its cell;
@@ -61,6 +64,8 @@ func test_a_click_on_a_mark_moves_the_item() -> void:
 	var basket: Rect2 = _on_stage(screen, screen._stage.baskets.basket_rect(0))
 	assert_float(mark.get_global_rect().get_center().x).is_between(basket.position.x, basket.end.x)
 	assert_bool(screen._stage.get_global_rect().encloses(mark.get_global_rect())).is_true()
+	assert_array(screen._repack.lit_baskets()).is_equal([0])
+	_assert_lit(screen, [0])
 	var press: InputEventMouseButton = InputEventMouseButton.new()
 	press.button_index = MOUSE_BUTTON_LEFT
 	press.pressed = true
@@ -71,6 +76,7 @@ func test_a_click_on_a_mark_moves_the_item() -> void:
 	assert_array(run.row).is_equal([belt])
 	assert_object(screen._picked).is_null()
 	assert_array(screen._repack.marks()).is_empty()
+	_assert_lit(screen, [])
 	var event: Dictionary = _last_event("repack")
 	assert_int(int(event["from"])).is_equal(3)
 	assert_int(int(event["to"])).is_equal(0)
@@ -92,6 +98,12 @@ func test_a_drag_swaps_with_another_baskets_item() -> void:
 	var flow: RepackFlow = screen._repack
 	assert_int(flow._place_at(picked, _centre(screen, 2))).is_equal(-1)
 	assert_int(flow._place_at(picked, _centre(screen, 5))).is_equal(5)
+	# Hovering basket 2's item (place 5) lights that basket most.
+	screen._drag.place_changed.emit(picked, 5)
+	var fronts: HandBaskets = screen._stage.basket_fronts
+	assert_float(fronts.lit_level(2)).is_equal(HandBaskets.HOVER_LIT)
+	assert_float(fronts.holder(2).modulate.r).is_equal_approx(HandBaskets.HOVER_LIT, 0.001)
+	assert_float(fronts.lit_level(1)).is_equal(1.0)
 	screen._drag.place_dropped.emit(picked, 5)
 	await _frames(2)
 	assert_object(run.hand_places()[5]).is_same(picked)
@@ -100,16 +112,34 @@ func test_a_drag_swaps_with_another_baskets_item() -> void:
 	assert_bool(_last_event("repack")["from_belt"]).is_false()
 
 
-## An item taken back from the belt is picked from the row: it marks nothing.
-func test_a_belt_item_marks_nothing() -> void:
+## An item taken back from the belt (back at its own place 0) marks basket 1's empty place 3
+## (its item on the belt too) and lights that basket; a drop there leaves it in the hand at place
+## 3, and place 3's item, still on the belt, comes home to place 0.
+func test_a_belt_item_goes_to_another_basket() -> void:
 	var screen: ShiftScreen = await _screen()
-	RunPins.wear(screen.run, [load(REPACK)])
-	await _belt_first(screen)
-	var row_view: CardView = screen._row_views[0]
-	screen._on_row_card_clicked(row_view)
+	var run: RunState = screen.run
+	RunPins.wear(run, [load(REPACK)])
+	var taken: CardInstance = await _belt_first(screen)
+	var other: CardInstance = run.hand_places()[3]
+	run.place(other, 1)
+	screen._refresh()
+	await _frames(2)
+	screen._on_row_card_clicked(screen._row_views[0])
 	await _frames(2)
 	assert_bool(screen._picked_from_row).is_true()
-	assert_array(screen._repack.marks()).is_empty()
+	var marks: Array[RepackMark] = screen._repack.marks()
+	assert_int(marks.size()).is_equal(1)
+	assert_int(marks[0].place).is_equal(3)
+	_assert_lit(screen, [1])
+	assert_int(screen._repack._place_at(taken, _centre(screen, 3))).is_equal(3)
+	screen._drag.place_dropped.emit(taken, 3)
+	await _frames(2)
+	assert_object(run.hand_places()[3]).is_same(taken)
+	assert_array(run.row).is_equal([other])
+	assert_int(run.deck.hand().find(other)).is_equal(0)
+	assert_object(screen._picked).is_null()
+	assert_bool(screen._picked_from_row).is_false()
+	_assert_lit(screen, [])
 
 
 func _screen() -> ShiftScreen:
@@ -126,6 +156,17 @@ func _belt_first(screen: ShiftScreen) -> CardInstance:
 	screen._refresh()
 	await _frames(2)
 	return card
+
+
+## Exactly the baskets `lit` are brighter than plain, in both basket layers.
+func _assert_lit(screen: ShiftScreen, lit: Array) -> void:
+	for layer: HandBaskets in [screen._stage.baskets, screen._stage.basket_fronts]:
+		for index: int in range(layer.basket_lefts().size()):
+			var level: float = layer.holder(index).modulate.r
+			if lit.has(index):
+				assert_float(level).is_greater_equal(HandBaskets.LIT_LOW)
+			else:
+				assert_float(level).is_equal(1.0)
 
 
 static func _pick(screen: ShiftScreen, place: int) -> void:

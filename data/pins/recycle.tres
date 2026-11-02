@@ -1,0 +1,19 @@
+[gd_resource type="Resource" script_class="PinDefinition" format=3]
+
+[ext_resource type="Script" path="res://core/pin_definition.gd" id="1_pin"]
+[ext_resource type="Script" path="res://core/unlock_condition.gd" id="2_condition"]
+
+[sub_resource type="Resource" id="Resource_finish"]
+script = ExtResource("2_condition")
+kind = 5
+amount = 1
+
+[resource]
+script = ExtResource("1_pin")
+id = &"recycle"
+display_name = "Recycle"
+rule_text = "Redrawn items go back in the pile; +1 redraw a shift"
+face_text = "RE"
+unlock_condition = SubResource("Resource_finish")
+recycle = true
+extra_redraws = 1

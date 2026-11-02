@@ -31,6 +31,13 @@ const GRID := 2.0
 ## Returns true when the player asked for reduced motion. None means false.
 var reduced_motion: Callable = Callable()
 
+## How far in (px) the belt's right end is (BeltPanel.cut, #122: a shorter belt's strip ends
+## with it).
+var belt_cut: float = 0.0:
+	set(value):
+		belt_cut = value
+		queue_redraw()
+
 ## Seconds since the lights came on, -1 while off.
 var _since: float = -1.0
 ## Seconds left of the fade out, -1 while not fading.
@@ -90,15 +97,17 @@ func _draw() -> void:
 	var alpha: float = 1.0 if _fade_left < 0.0 else _fade_left / FADE_SECONDS
 	var reduced: bool = reduced_motion.is_valid() and bool(reduced_motion.call())
 	var on: float = 1.0 if reduced else minf(1.0, _since / (ON_SECONDS * 0.8))
-	draw_rect(Rect2(LEFT, RAIL_Y, WIDTH, RAIL_HEIGHT), Color(BASE_COLOR, 0.9 * on * alpha))
-	draw_rect(Rect2(LEFT, RAIL_Y, WIDTH, SHADE), Color(Palette.INK, 0.5 * on * alpha))
-	var step: float = WIDTH / BULBS
+	var width: float = WIDTH - belt_cut
+	var bulbs: int = roundi(BULBS * width / WIDTH)
+	draw_rect(Rect2(LEFT, RAIL_Y, width, RAIL_HEIGHT), Color(BASE_COLOR, 0.9 * on * alpha))
+	draw_rect(Rect2(LEFT, RAIL_Y, width, SHADE), Color(Palette.INK, 0.5 * on * alpha))
+	var step: float = width / bulbs
 	var phase: int = 0 if reduced else floori(_since / CHASE_STEP_SECONDS)
-	for index: int in range(BULBS):
-		if not reduced and float(index) / BULBS > _since / ON_SECONDS:
+	for index: int in range(bulbs):
+		if not reduced and float(index) / bulbs > _since / ON_SECONDS:
 			continue
 		var lit: bool = (index % 2 == 0) if reduced else posmod(index + phase, CHASE_PERIOD) == 0
 		var x: float = snappedf(LEFT + index * step + (step - BULB_SIZE.x) / 2.0, GRID)
 		var bulb := Rect2(x, RAIL_Y + RAIL_HEIGHT - BULB_SIZE.y, BULB_SIZE.x, BULB_SIZE.y)
 		draw_rect(bulb, Color(LIT_COLOR if lit else UNLIT_COLOR, alpha))
-	RailLight.draw_hardware(self, LEFT, LEFT + WIDTH, on * alpha)
+	RailLight.draw_hardware(self, LEFT, LEFT + width, on * alpha)

@@ -144,7 +144,8 @@ func record_run(run: RunState, catalogue: CatalogueDefinition) -> Array[StringNa
 			unlocked_now.append(variant.id)
 	var wins: int = int(stats.get(RUNS_WON, 0))
 	for pin: PinDefinition in catalogue.pins:
-		if not has_pin(pin) and UnlockCheck.is_met(pin.unlock_condition, run, coupon_uses, wins):
+		var condition: UnlockCondition = pin.unlock_condition
+		if not has_pin(pin) and UnlockCheck.is_met(condition, run, coupon_uses, wins, run_count):
 			unlocked_pins.append(pin.id)
 			unlocked_now.append(pin.id)
 	coins += CoinPayout.for_run(run).total()

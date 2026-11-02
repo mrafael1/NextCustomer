@@ -7,12 +7,14 @@ extends RefCounted
 
 ## Whether `condition` is met by the run that just ended. `earlier_uses` maps a coupon id to
 ## how many times it was used in earlier runs (USE_COUPON_TIMES counts across runs);
-## `earlier_wins` is the runs won before this one (WIN_RUNS).
+## `earlier_wins` is the runs won before this one (WIN_RUNS), `earlier_runs` the runs finished
+## before it (FINISH_RUNS).
 static func is_met(
 	condition: UnlockCondition,
 	run: RunState,
 	earlier_uses: Dictionary[StringName, int] = {},
-	earlier_wins: int = 0
+	earlier_wins: int = 0,
+	earlier_runs: int = 0
 ) -> bool:
 	match condition.kind:
 		UnlockCondition.Kind.WIN_WITH_CARD:
@@ -31,6 +33,9 @@ static func is_met(
 		UnlockCondition.Kind.WIN_RUNS:
 			var won: bool = run.phase == RunState.Phase.WON
 			return won and earlier_wins + 1 >= condition.amount
+		UnlockCondition.Kind.FINISH_RUNS:
+			var ended: bool = run.phase == RunState.Phase.WON or run.phase == RunState.Phase.LOST
+			return ended and earlier_runs + 1 >= condition.amount
 	return false
 
 

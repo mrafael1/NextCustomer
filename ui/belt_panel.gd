@@ -18,6 +18,11 @@ extends Control
 ## ride moves its slats on (scroll) as the row slides one cell toward the scanner, and the top
 ## face shows the matching baked frame (TOP_FRAMES, one per 2 px step, wrapping after
 ## SLAT_PITCH). In planning it stands on the frame it stopped on.
+##
+## A shorter row (#122, a Double checkout's rows of 4) gets a shorter belt (set_cells): its
+## right end, end cap and roller come CELL_PITCH px in for each cell under the 7-slot row's
+## (the short art tools/belt_art.py bakes, belt_top_c<n>), with the front, the rail's shadow,
+## the bolts and the chevrons cut to match; the counter shows past it.
 
 ## The vanishing point far above the stage's centre (stage pixels).
 const VANISHING_POINT := Vector2(640, -1600)
@@ -44,6 +49,11 @@ const FRONT_MARGIN := 3
 const BOLT_FIRST := Vector2(8, 102)
 const BOLT_PITCH := 128.0
 const BOLT_COUNT := 7
+## The 7-slot row's cells, and the shortest belt baked (a shorter row keeps it).
+const FULL_CELLS := 7
+const MIN_CELLS := 4
+const SHORT_TOP := "res://art/scenery/belt_top_c%d.png"
+const SHORT_FRAME := "res://art/scenery/belt_top_c%d_scroll/belt_top_c%d_%02d.png"
 ## The belt's direction cue (the mirrored mock-up B2): three light-steel chevrons pointing left,
 ## centred under each ticket of the 7-slot row, on the apron, at the bolts' pitch.
 const CHEVRONS_FIRST := Vector2(64, 102)
@@ -88,6 +98,10 @@ var _top: TextureRect
 ## How far the slats have run left since frame 0 (px along the front edge, within SLAT_PITCH).
 var _scrolled: float = 0.0
 var _scanner: TextureRect
+var _front: NinePatchRect
+## The top face's frames for the belt's length (TOP_FRAMES on the full belt).
+var _frames: Array[Texture2D] = TOP_FRAMES
+var _cells: int = FULL_CELLS
 
 
 func _init() -> void:
@@ -95,14 +109,14 @@ func _init() -> void:
 	_top = UiKit.sprite(BELT_TOP)
 	_top.name = TOP_NAME
 	_place(_top, TOP_RECT)
-	var front: NinePatchRect = NinePatchRect.new()
-	front.name = FRONT_NAME
-	front.texture = BELT_FRONT
-	front.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	front.patch_margin_left = FRONT_MARGIN * ArtStyle.ART_SCALE
-	front.patch_margin_right = FRONT_MARGIN * ArtStyle.ART_SCALE
-	ArtStyle.use_pixel_material(front)
-	_place(front, FRONT_RECT)
+	_front = NinePatchRect.new()
+	_front.name = FRONT_NAME
+	_front.texture = BELT_FRONT
+	_front.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_front.patch_margin_left = FRONT_MARGIN * ArtStyle.ART_SCALE
+	_front.patch_margin_right = FRONT_MARGIN * ArtStyle.ART_SCALE
+	ArtStyle.use_pixel_material(_front)
+	_place(_front, FRONT_RECT)
 	for index: int in range(BOLT_COUNT):
 		var bolt: TextureRect = UiKit.sprite(BELT_BOLT)
 		bolt.name = "Bolt%d" % index
@@ -117,13 +131,53 @@ func _init() -> void:
 
 
 func _draw() -> void:
-	draw_rect(RAIL_SHADOW, Color(Palette.INK, RAIL_SHADOW_ALPHA))
+	var shadow: Rect2 = RAIL_SHADOW
+	shadow.size.x -= cut()
+	draw_rect(shadow, Color(Palette.INK, RAIL_SHADOW_ALPHA))
+
+
+## Fits the belt to a row of `cells` cells (at least MIN_CELLS, at most FULL_CELLS): the short
+## art, the front, the rail's shadow, and the bolts and chevrons under its tickets only.
+func set_cells(cells: int) -> void:
+	var fitted: int = clampi(cells, MIN_CELLS, FULL_CELLS)
+	if fitted == _cells:
+		return
+	_cells = fitted
+	_frames = TOP_FRAMES if fitted == FULL_CELLS else short_frames(fitted)
+	_top.texture = _frames[frame()]
+	_front.size.x = FRONT_RECT.size.x - cut()
+	for index: int in range(BOLT_COUNT):
+		(get_node("Bolt%d" % index) as CanvasItem).visible = index < fitted
+		(get_node("Chevrons%d" % index) as CanvasItem).visible = index < fitted
+	queue_redraw()
+
+
+## The cells the belt is fitted to (set_cells).
+func cell_count() -> int:
+	return _cells
+
+
+## How far in (px) the belt's right end is from the full belt's.
+func cut() -> float:
+	return cut_of(_cells)
+
+
+static func cut_of(cells: int) -> float:
+	return (FULL_CELLS - clampi(cells, MIN_CELLS, FULL_CELLS)) * BOLT_PITCH
+
+
+## The short belt's top face frames for a row of `cells` cells (tools/belt_art.py).
+static func short_frames(cells: int) -> Array[Texture2D]:
+	var frames: Array[Texture2D] = [load(SHORT_TOP % cells) as Texture2D]
+	for index: int in range(1, TOP_FRAMES.size()):
+		frames.append(load(SHORT_FRAME % [cells, cells, index * ArtStyle.ART_SCALE]) as Texture2D)
+	return frames
 
 
 ## Runs the slats `px` further left (at most MAX_STEP_PX; never back) and shows their frame.
 func scroll(px: float) -> void:
 	_scrolled = fposmod(_scrolled + clampf(px, 0.0, MAX_STEP_PX), SLAT_PITCH)
-	_top.texture = TOP_FRAMES[slat_frame(_scrolled)]
+	_top.texture = _frames[slat_frame(_scrolled)]
 
 
 ## The top face's frame (an index into TOP_FRAMES): 0 on a belt that never ran.
@@ -139,12 +193,12 @@ static func slat_frame(scrolled_px: float) -> int:
 
 ## The rubber top face the items stand on, in the belt's coordinates.
 func top_face() -> Rect2:
-	return TOP_FACE
+	return Rect2(TOP_FACE.position, TOP_FACE.size - Vector2(cut(), 0))
 
 
 ## The price rail the tickets clip onto, in the belt's coordinates.
 func rail() -> Rect2:
-	return RAIL
+	return Rect2(RAIL.position, RAIL.size - Vector2(cut(), 0))
 
 
 ## Puts the scanner's plate under the row's first cell, whose middle is at `cell_center_x` (the

@@ -11,8 +11,9 @@ extends Resource
 ## WIN_WITH_CARD: win a run whose final deck holds `card`. SCORE_IN_ONE_CHECKOUT: score at least
 ## `amount` in one checkout. USE_COUPON_TIMES: check out the coupon `card` `amount` times in
 ## all (every copy in a checked-out row counts once). WIN_RUNS (#122): win `amount` runs in all,
-## this one counting (added last: the kinds' numbers are kept).
-enum Kind { UNSET, WIN_WITH_CARD, SCORE_IN_ONE_CHECKOUT, USE_COUPON_TIMES, WIN_RUNS }
+## this one counting. FINISH_RUNS (#122, Recycle): finish `amount` runs in all, won or lost,
+## this one counting. (Kinds are added last: their numbers are kept.)
+enum Kind { UNSET, WIN_WITH_CARD, SCORE_IN_ONE_CHECKOUT, USE_COUPON_TIMES, WIN_RUNS, FINISH_RUNS }
 
 @export var kind: Kind = Kind.UNSET
 ## WIN_WITH_CARD: the card; USE_COUPON_TIMES: the coupon.
@@ -33,6 +34,8 @@ func summary() -> String:
 			return "Use %s %d times" % [_card_name(), amount]
 		Kind.WIN_RUNS:
 			return "Win a run" if amount == 1 else "Win %d runs" % amount
+		Kind.FINISH_RUNS:
+			return "Finish a run" if amount == 1 else "Finish %d runs" % amount
 	return ""
 
 
@@ -56,6 +59,9 @@ func problems() -> PackedStringArray:
 		Kind.WIN_RUNS:
 			if amount <= 0:
 				found.append("WIN_RUNS needs an amount above 0")
+		Kind.FINISH_RUNS:
+			if amount <= 0:
+				found.append("FINISH_RUNS needs an amount above 0")
 	return found
 
 

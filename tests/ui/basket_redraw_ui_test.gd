@@ -333,3 +333,17 @@ func _frames(count: int) -> void:
 
 static func _event_log() -> EventLogService:
 	return (Engine.get_main_loop() as SceneTree).root.get_node("/root/EventLog")
+
+
+## With a Recycle pin (#122) the redraw panel says the old items go back in the pile, never that
+## they are set aside.
+func test_recycle_says_the_items_go_back_in_the_pile() -> void:
+	var milk: CardDefinition = load("res://data/cards/milk.tres")
+	var items: Array[CardDefinition] = [milk]
+	var plain: RedrawNotice = RedrawNotice.hovered(0, 1, items, 5)
+	assert_str(plain.line).contains("Set aside")
+	for notice: RedrawNotice in [
+		RedrawNotice.armed(1, true), RedrawNotice.hovered(0, 1, items, 5, true)
+	]:
+		assert_str(notice.line + notice.foot).contains("back in the pile")
+		assert_str((notice.line + notice.foot).to_lower()).not_contains("set aside")

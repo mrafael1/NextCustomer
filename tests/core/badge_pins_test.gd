@@ -1,7 +1,9 @@
 extends GdUnitTestSuite
-## Badge pins (#122, full build plan 7.4): the WIN_RUNS milestone, owning, wearing and buying
-## pins on the profile (ProfilePins), and a run wearing them (RunPins): the starting cards, the
-## repack and the run save. Uses the live pins, starter deck and balance with
+## Badge pins (#122, full build plan 7.4): the WIN_RUNS and FINISH_RUNS milestones, owning, wearing
+## and buying pins on the profile (ProfilePins), and a run wearing them (RunPins): the starting
+## cards, Recycle's redraws, the repack and the run save. A made-up pin owned from the start, with
+## two 2 for 1 coupons (_pair, the first prototype pin until 2026-11-02), stands in where a test
+## needs one: every live pin has a milestone. Uses the live pins, starter deck and balance with
 ## every quota at 5 (the run before v0.65's loop rework).
 
 const STARTER := "res://data/decks/starter.tres"
@@ -9,7 +11,7 @@ const BALANCE := "res://data/balance/balance.tres"
 const RECIPE := "res://data/decks/pack_starter.tres"
 const BREAD := "res://data/cards/bread.tres"
 const TWO_FOR_ONE := "res://data/cards/two_for_one.tres"
-const PAIR := "res://data/pins/two_for_one_pair.tres"
+const RECYCLE := "res://data/pins/recycle.tres"
 const REPACK := "res://data/pins/repack.tres"
 
 var _balance: BalanceDefinition
@@ -40,21 +42,62 @@ func test_win_runs_counts_the_earlier_wins_and_this_one() -> void:
 
 
 ## A pin without a condition is owned from the start; the repack unlocks on the first win
-## and is listed after the decks and variants.
+## and is listed after the decks and variants; Recycle unlocks when the first run ends, even lost.
 func test_a_pin_unlocks_on_its_milestone() -> void:
 	var profile: ProfileState = ProfileState.new()
 	var catalogue: CatalogueDefinition = _catalogue()
-	var pair: PinDefinition = load(PAIR)
+	var pair: PinDefinition = _pair()
 	var full: PinDefinition = load(REPACK)
 	assert_bool(profile.has_pin(pair)).is_true()
 	assert_bool(profile.has_pin(full)).is_false()
+	catalogue.pins.append(load(RECYCLE))
 	var lost: RunState = _run(3)
 	_check_out(lost, [])
-	assert_array(profile.record_run(lost, catalogue)).is_empty()
+	assert_array(profile.record_run(lost, catalogue)).is_equal([&"recycle"])
 	assert_array(profile.record_run(_won_run(4), catalogue)).is_equal([&"repack"])
 	assert_bool(profile.has_pin(full)).is_true()
 	assert_array(profile.record_run(_won_run(5), catalogue)).is_empty()
-	assert_array(profile.unlocked_pins).is_equal([&"repack"])
+	assert_array(profile.unlocked_pins).is_equal([&"recycle", &"repack"])
+
+
+func test_finish_runs_counts_every_ended_run() -> void:
+	var condition: UnlockCondition = UnlockCondition.new()
+	condition.kind = UnlockCondition.Kind.FINISH_RUNS
+	condition.amount = 2
+	assert_str(condition.summary()).is_equal("Finish 2 runs")
+	assert_array(condition.problems()).is_empty()
+	var lost: RunState = _run(3)
+	_check_out(lost, [])
+	assert_bool(UnlockCheck.is_met(condition, lost, {}, 0, 0)).is_false()
+	assert_bool(UnlockCheck.is_met(condition, lost, {}, 0, 1)).is_true()
+	assert_bool(UnlockCheck.is_met(condition, _run(4), {}, 0, 5)).is_false()  # Still running.
+	condition.amount = 1
+	assert_str(condition.summary()).is_equal("Finish a run")
+	condition.amount = 0
+	assert_array(condition.problems()).is_not_empty()
+
+
+## Recycle: one more redraw every shift (one of the shift's own), and the items a redraw replaces
+## go back into the draw pile, never drawn by that same redraw; without it they are set aside.
+func test_recycle_puts_redrawn_items_back_and_adds_a_redraw() -> void:
+	var plain: RunState = _run(8)
+	var run: RunState = RunState.new(8, load(STARTER), _balance, RunStock.starting(_balance))
+	RunPins.wear(run, [load(RECYCLE)])
+	run.start_shift()
+	assert_int(run.redraws_allowed).is_equal(plain.redraws_allowed + 1)
+	assert_int(run.limits.own_redraws).is_equal(plain.limits.own_redraws + 1)
+	for recycled: bool in [false, true]:
+		var shift: RunState = run if recycled else plain
+		var held: Array[CardInstance] = shift.deck.hand()
+		var pile_size: int = shift.deck.draw_pile().size()
+		var swapped: Array[int] = shift.redraw_basket(0)
+		assert_array(swapped).is_not_empty()
+		for place: int in swapped:
+			var old: CardInstance = held[place]
+			assert_bool(shift.deck.hand().has(old)).is_false()
+			assert_bool(shift.deck.draw_pile().has(old)).is_equal(recycled)
+		var expected: int = pile_size if recycled else pile_size - swapped.size()
+		assert_int(shift.deck.draw_pile().size()).is_equal(expected)
 
 
 ## One slot: wearing another pin swaps them. A pin not owned, already worn or with no slot isn't
@@ -62,7 +105,7 @@ func test_a_pin_unlocks_on_its_milestone() -> void:
 func test_wearing_and_taking_off_pins() -> void:
 	var profile: ProfileState = ProfileState.new()
 	var catalogue: CatalogueDefinition = _catalogue()
-	var pair: PinDefinition = load(PAIR)
+	var pair: PinDefinition = _pair()
 	var full: PinDefinition = load(REPACK)
 	assert_bool(ProfilePins.wear(profile, full, 1)).is_false()
 	assert_bool(ProfilePins.wear(profile, pair, 0)).is_false()
@@ -101,7 +144,7 @@ func test_buying_a_random_locked_pin() -> void:
 
 ## A worn pin's starting cards join the deck: at once, or after the starter pack is taken.
 func test_a_pin_adds_its_starting_cards() -> void:
-	var pair: PinDefinition = load(PAIR)
+	var pair: PinDefinition = _pair()
 	var run: RunState = RunState.new(6, load(STARTER), _balance, RunStock.starting(_balance))
 	var size: int = run.deck.size()
 	RunPins.wear(run, [pair])
@@ -202,9 +245,18 @@ static func _check_out(run: RunState, paths: Array) -> void:
 	run.checkout()
 
 
+## A pin owned from the start (no milestone) with two 2 for 1 coupons.
+static func _pair() -> PinDefinition:
+	var pin: PinDefinition = PinDefinition.new()
+	pin.id = &"pair"
+	pin.display_name = "Pair"
+	pin.starting_cards.assign([load(TWO_FOR_ONE), load(TWO_FOR_ONE)])
+	return pin
+
+
 static func _catalogue() -> CatalogueDefinition:
 	var catalogue: CatalogueDefinition = CatalogueDefinition.new()
-	catalogue.pins.assign([load(PAIR), load(REPACK)])
+	catalogue.pins.assign([_pair(), load(REPACK)])
 	return catalogue
 
 

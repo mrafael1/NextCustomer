@@ -475,27 +475,34 @@ func _title(skip: bool = true) -> TitleScreen:
 ## Presses REWARDS and waits for the bay's glass and the menu's step in.
 ## #122: BADGE PINS opens the badge screen over REWARDS on the saved profile. Pressing an owned
 ## pin wears it and saves; a locked one says no; UNLOCK A RANDOM PIN spends the price and
-## unlocks the last locked pin (saved, with a capsule seed made for it); the REWARDS card and
-## the coins follow.
+## unlocks one locked pin (saved, with a capsule seed made for it); the REWARDS card and the coins
+## follow. Every row fits the sheet without overlapping the next.
 func test_badge_pins_wear_and_buy_from_rewards() -> void:
 	var profile: ProfileState = ProfileState.new()
 	profile.coins = 14
+	profile.unlocked_pins.append(&"recycle")  # Its milestone: the first run finished.
 	assert_bool(SaveService.new(_folder).save_profile(profile)).is_true()
 	var title: TitleScreen = await _title()
 	var rewards: RewardsMenu = await _open_rewards(title)
-	assert_str(rewards.pins_line().text).is_equal("1 OF 2 PINS")
+	var count: int = (load(TitleScreen.CATALOGUE) as CatalogueDefinition).pins.size()
+	assert_str(rewards.pins_line().text).is_equal("1 OF %d PINS" % count)
 	rewards.badge_card().pressed.emit()
 	var badge: BadgeScreen = title.badge_screen()
 	assert_bool(badge.is_open()).is_true()
 	assert_int(badge.get_index()).is_greater(rewards.get_index())
 	var rows: Array[PinRow] = badge.rows()
+	assert_int(rows.size()).is_equal(count)
 	assert_int(rows[0].state()).is_equal(PinRow.State.OWNED)
 	assert_int(rows[1].state()).is_equal(PinRow.State.LOCKED)
 	assert_bool(title.get_viewport_rect().encloses(badge.sheet().get_global_rect())).is_true()
 	var sheet: Rect2 = badge.sheet().get_global_rect()
-	for control: Control in [badge.badge(), rows[0], rows[1], badge.buy_plate()] as Array[Control]:
+	var controls: Array[Control] = [badge.badge(), badge.buy_plate()]
+	controls.append_array(rows)
+	for control: Control in controls:
 		assert_bool(sheet.encloses(control.get_global_rect())).is_true()
-	assert_bool(rows[0].get_global_rect().intersects(rows[1].get_global_rect())).is_false()
+	for index: int in range(1, rows.size()):
+		var above: Rect2 = rows[index - 1].get_global_rect()
+		assert_bool(above.intersects(rows[index].get_global_rect())).is_false()
 	rows[1].pressed.emit()
 	assert_array(SaveService.new(_folder).load_profile().worn_pins).is_empty()
 	rows[0].pressed.emit()
@@ -505,12 +512,14 @@ func test_badge_pins_wear_and_buy_from_rewards() -> void:
 	badge.buy_plate().pressed.emit()
 	var saved: ProfileState = SaveService.new(_folder).load_profile()
 	assert_int(saved.coins).is_equal(2)
-	assert_array(saved.unlocked_pins).is_equal([rows[1].pin.id])
+	assert_int(saved.unlocked_pins.size()).is_equal(2)
 	assert_bool(saved.has_capsule_seed).is_true()
-	assert_int(rows[1].state()).is_equal(PinRow.State.OWNED)
-	assert_bool(badge.buy_plate().disabled).is_true()
+	for row: PinRow in rows:
+		if row.pin.id == saved.unlocked_pins[1]:
+			assert_int(row.state()).is_equal(PinRow.State.OWNED)
+	assert_bool(badge.buy_plate().disabled).is_true()  # 2 coins left: under the price.
 	assert_str(rewards.coin_label().text).is_equal("2")
-	assert_str(rewards.pins_line().text).is_equal("2 OF 2 PINS")
+	assert_str(rewards.pins_line().text).is_equal("2 OF %d PINS" % count)
 	badge.back_plate().pressed.emit()
 	assert_bool(badge.is_open()).is_false()
 	assert_bool(rewards.is_open()).is_true()

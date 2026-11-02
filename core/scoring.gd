@@ -16,14 +16,23 @@ extends RefCounted
 ## in this list. `inspections` are the shift's inspections; an inspection step's source_index
 ## is its index in that list. `credits` (#108 piece 2) names what Big basket and Extra redraw
 ## earned: a CREDIT step after each credited slot's PAYOUT, which never changes the total.
+##
+## A Double checkout shift's rows (#122) are scored one by one: `slot_offset` is the belt slots
+## before this row (row 1's for row 2), which only the upgrades' slot numbers count
+## (NthSlotMultiplierRule), and `more_rows` says another row follows (row 1), so no upgrade fizzles
+## for a slot that row may still reach.
 static func score(
 	row: Array[CardInstance],
 	upgrades: Array[UpgradeDefinition] = [],
 	inspections: Array[InspectionDefinition] = [],
-	credits: ScoreCredits = null
+	credits: ScoreCredits = null,
+	slot_offset: int = 0,
+	more_rows: bool = false
 ) -> ScoreResult:
 	var state: ScoreState = ScoreState.new(row)
 	state.credits = credits
+	state.slot_offset = slot_offset
+	state.more_rows = more_rows
 	return _run(state, upgrades, inspections).to_result()
 
 

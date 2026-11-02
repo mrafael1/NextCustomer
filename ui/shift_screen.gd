@@ -239,8 +239,7 @@ func _resume_run(saved: RunSave) -> void:
 	# A resume never plays a count-up (saves are taken at the click and the machine's visits).
 	_cabinet.set_total_down(false)
 	if run.phase == RunState.Phase.SCORED:
-		# The shift's last visit was done, or a slip (v0.68): the next shift starts, with its
-		# notice (_on_shift_started).
+		# The last visit was done, or a slip (v0.68): the next shift starts, with its notice.
 		run.next_shift()
 		_on_shift_started()
 		return
@@ -254,18 +253,19 @@ func _resume_run(saved: RunSave) -> void:
 	# After the checkout: the row, its receipt (ended as the dessert left it, with the next
 	# shift's inspection notice) and the LED's TOTAL, met or not, as the count-up left them
 	# (CHECKOUT up: nothing is being counted).
-	_show_checked_out(run.last_result)
+	var shown: ScoreResult = DoubleCheckoutFlow.counted(run)
+	_show_checked_out(shown)
 	_ride.show_end_state(_row_views)
 	_receipt.show_shift_end(
-		run.last_result.total,
+		shown.total,
 		run.quota(),
 		InspectionTag.next_notice(run.next_inspections),
 		", ".join(InspectionTag.names(InspectionDefinition.maluses(run.inspections)))
 	)
-	_count_up.show_end_state(run.last_result, run.quota(), count_up_context())
+	_count_up.show_end_state(shown, run.quota(), count_up_context())
 	var record: ShiftRecord = run.history[-1]
 	var passed: bool = record.passed and record.inspection != null
-	_monitor.show_end_state(_count_up.plan, _row_views, passed, run.last_result, _scan.line_of)
+	_monitor.show_end_state(_count_up.plan, _row_views, passed, shown, _scan.line_of)
 	_machine.open(true)  # No dessert: the visit shows as it waits, on a new timeline.
 
 
@@ -463,10 +463,9 @@ func _on_basket_clicked(basket: int) -> void:
 	_sfx.play("shuffle")
 	_sfx.play_series("card_place", received.size(), tuning.pop_start(1, reduced) - first, first)
 	_refresh()
-	var left: int = run.redraws_allowed - run.redraws_used
 	_monitor.show_redraw(
 		RedrawNotice.redrawing(
-			left, RedrawNotice.definitions(replaced), RedrawNotice.definitions(received)
+			run, RedrawNotice.definitions(replaced), RedrawNotice.definitions(received)
 		)
 	)
 	_basket_redraw.play(basket, places, old_views, new_views)
@@ -525,10 +524,13 @@ func _on_checkout_pressed() -> void:
 	tracker.on_checkout(_click_ms)
 	var committed: Array[CardInstance] = run.row.duplicate()
 	var result: ScoreResult = run.checkout()
+	if run.phase == RunState.Phase.PLANNING:  # #122: a Double checkout's row 1 counts alone.
+		await DoubleCheckoutFlow.count_row_one(self, committed)
+		return
 	# Logged at the click, so closing the game during the count-up loses nothing.
 	var checkout_data: Dictionary = {
 		"shift": run.shift_index + 1,
-		"final_order": RunEvents.card_ids(committed),
+		"final_order": RunEvents.card_ids(run.first_row + committed),
 		"score": result.total,
 		"quota": run.quota(),
 		"passed": run.passed(),
@@ -550,12 +552,13 @@ func _on_checkout_pressed() -> void:
 		# The machine waits: quitting during the count-up resumes on it.
 		_save_run()
 	_refresh()
-	_effects.show_count(result, _row_views, run)  # Only the stickers stay, to fire.
+	var counted: ScoreResult = DoubleCheckoutFlow.counted(run)  # #122: row 2 counts on.
+	_effects.show_count(counted, _row_views, run)  # Only the stickers stay, to fire.
 	var context: CountUpContext = count_up_context()
 	_monitor.upgrades = run.upgrades.duplicate()
-	_ride.begin(result, _row_views, context.reduced_motion)
+	_ride.begin(counted, _row_views, context.reduced_motion)
 	await _count_up.play(
-		result,
+		counted,
 		_row_views,
 		CardInstance.names(committed),
 		run.quota(),
@@ -576,8 +579,7 @@ func _on_checkout_pressed() -> void:
 	if run.phase == RunState.Phase.MACHINE_CHOOSE:
 		_machine.open(false)
 	elif run.phase == RunState.Phase.SCORED:
-		# A slip (v0.68), or a balance without a machine: no visit, the next shift starts (with
-		# the slip's notice, _on_shift_started) and the dessert's duck ends.
+		# A slip (v0.68), or no machine: no visit; the next shift starts, the dessert's duck ends.
 		ShiftMusic.next_shift_started(_music)
 		run.next_shift()
 		_on_shift_started()
@@ -604,13 +606,14 @@ func count_up_context() -> CountUpContext:
 	context.payday = context.bonus_ticket and run.machine.is_payday(run)
 	context.write_up = WriteUp.stamp_text(run)
 	context.boon_names = WeekFlow.helper_names(run)
+	DoubleCheckoutFlow.dress(run, context)  # #122: row 1 stops early, row 2 counts on.
 	return context
 
 
 ## The receipt's header for the shift on screen (#75): the shift, and the belt's items with its
 ## coupons. The planning stub, the count-up and a resumed checkout all print it.
 func receipt_header() -> PackedStringArray:
-	return ReceiptView.header_lines(run.shift_index + 1, run.shift_count(), run.row.size())
+	return DoubleCheckoutFlow.header(run)  # #122: with its row line on a Double checkout.
 
 
 ## Results screen: New run.
@@ -699,11 +702,11 @@ func _refresh() -> void:
 		_refresh_preview()
 	_refresh_redraw()
 	_repack.refresh()
+	DoubleCheckoutFlow.refresh(self)
 	_scan.watch(_row_views, _hand_box.cards())
 
 
-## The top bar: the shift, the quota, the inspection, the loyalty card and the Cart's count
-## (n/deck_limit), which a machine pick changes.
+## The top bar: shift, quota, inspection, loyalty card, the Cart's count (a pick changes it).
 func _refresh_bar() -> void:
 	_shift_label.text = "%d/%d" % [run.shift_index + 1, run.shift_count()]
 	_quota_label.text = QuotaMeter.QUOTA_AMOUNT % run.quota()
@@ -785,7 +788,7 @@ func _refresh_buttons() -> void:
 
 
 func _refresh_preview() -> void:
-	var result: ScoreResult = run.preview()
+	var result: ScoreResult = DoubleCheckoutFlow.on_from_row_one(run, run.preview())
 	tracker.on_preview(run.row.size(), result.total)
 	_show_planning(result)
 	_show_projected(result)

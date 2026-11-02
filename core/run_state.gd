@@ -61,7 +61,16 @@ var redraws_allowed: int = 0
 var redrawn_in: PackedInt32Array = PackedInt32Array()
 ## The badge pins the run was started with (#122), in slot order.
 var pins: Array[PinDefinition] = []
+## The shift's whole result, set at its (last) checkout: on a Double checkout shift (#122) both
+## rows joined (ScoreResult.joined), its slots row 1's then row 2's.
 var last_result: ScoreResult
+## A Double checkout pin's shift (#122, RunPins.check_out_first_row): row 1's cards, spent at its
+## checkout, and its result; empty and null before it (and on a shift of one row).
+var first_row: Array[CardInstance] = []
+var first_result: ScoreResult
+## The result of the row checked out last on its own: row 1's after its checkout, row 2's (its
+## slots from 0) after the shift's; the whole shift's on a shift of one row. The count-up plays it.
+var row_result: ScoreResult
 ## Owned upgrades, in pick order (a starting deck's upgrade first). Scoring steps name them by
 ## index in this list.
 var upgrades: Array[UpgradeDefinition] = []
@@ -166,7 +175,14 @@ func is_last_shift() -> bool:
 ## WeekSchedule.shift_events). The run's first shift draws week 1's day events after its hand
 ## (v0.70; the first shift has no day event of its own, so its hand is dealt as before).
 func start_shift() -> void:
-	limits = ShiftLimits.for_shift(balance, upgrades, shift_index, WeekSchedule.shift_events(self))
+	limits = ShiftLimits.for_shift(
+		balance,
+		upgrades,
+		shift_index,
+		WeekSchedule.shift_events(self),
+		RunPins.row_slots(self),
+		RunPins.extra_redraws(self)
+	)
 	deck.draw_hand(limits.hand_size)
 	_plan_week()
 	row = []
@@ -174,6 +190,9 @@ func start_shift() -> void:
 	redraws_allowed = limits.redraws
 	redrawn_in = PackedInt32Array()
 	last_result = null
+	first_row = []
+	first_result = null
+	row_result = null
 	phase = Phase.PLANNING
 
 
@@ -217,16 +236,17 @@ func can_redraw_basket(basket: int) -> bool:
 	return not basket_places(basket).is_empty() and not deck.draw_pile().is_empty()
 
 
-## Plan section 3.8: replaces one basket's hand cards (not row cards), left place first, with
-## new cards in the same places, up to redraws_allowed times per shift. A short draw pile swaps
-## the left ones and the redraw still costs 1. Cards replaced by any redraw are set aside for the
-## rest of the shift. Returns the places swapped (empty when the redraw isn't allowed); the
-## caller reads the old cards before and deck.hand() after.
+## Plan section 3.8: replaces one basket's hand cards (not row cards), left place first, with new
+## cards in the same places, up to redraws_allowed times per shift. A short draw pile swaps the left
+## ones and the redraw still costs 1. Cards replaced by any redraw are set aside for the rest of the
+## shift, or shuffled back into the draw pile with a Recycle pin (RunPins.recycles). Returns the
+## places swapped (empty when the redraw isn't allowed); the caller reads the old cards before and
+## deck.hand() after.
 func redraw_basket(basket: int) -> Array[int]:
 	var swapped: Array[int] = []
 	if not can_redraw_basket(basket):
 		return swapped
-	swapped = deck.redraw_places(basket_places(basket))
+	swapped = deck.redraw_places(basket_places(basket), RunPins.recycles(self))
 	if redraws_used >= limits.own_redraws:
 		var by_place: Array[CardInstance] = deck.hand()
 		for spot: int in swapped:
@@ -280,11 +300,13 @@ func remove(card: CardInstance) -> bool:
 ## 20 public methods.)
 func preview(card: CardInstance = null, slot: int = 0) -> ScoreResult:
 	var events: Array[InspectionDefinition] = WeekSchedule.shift_events(self)
-	if card == null or not can_place(card):
-		return Scoring.score(row, upgrades, events, ScoreCredits.for_run(self))
 	var placed: Array[CardInstance] = row.duplicate()
-	placed.insert(clampi(slot, 0, placed.size()), card)
-	return Scoring.score(placed, upgrades, events, ScoreCredits.for_run(self))
+	if card != null and can_place(card):
+		placed.insert(clampi(slot, 0, placed.size()), card)
+	# A Double checkout shift's row (#122) scores as its checkout will (RunPins.row_offset).
+	var more: bool = RunPins.row_slots(self) > 0 and first_result == null
+	var credits: ScoreCredits = ScoreCredits.for_run(self)
+	return Scoring.score(placed, upgrades, events, credits, RunPins.row_offset(self), more)
 
 
 ## Scores the row with the run's upgrades and the shift's events (its day events and its week
@@ -293,13 +315,18 @@ func preview(card: CardInstance = null, slot: int = 0) -> ScoreResult:
 ## chosen. A miss the run forgives (TrainingWeek.forgives_miss: a slip of the training week, v0.68)
 ## gets no machine visit (SCORED at once). Any other miss loses the run. The next shift's day
 ## events were drawn with its week (next_inspections).
+##
+## A Double checkout pin's shift (#122) checks out twice: the first checkout only scores row 1 and
+## refills the hand (RunPins.check_out_first_row, returning row 1's result, still PLANNING); the
+## second scores row 2 and ends the shift on both rows' total (RunPins.score_rows).
 func checkout() -> ScoreResult:
 	if phase != Phase.PLANNING:
 		return last_result
-	var events: Array[InspectionDefinition] = WeekSchedule.shift_events(self)
-	last_result = Scoring.score(row, upgrades, events, ScoreCredits.for_run(self))
+	if RunPins.row_slots(self) > 0 and first_result == null:
+		return RunPins.check_out_first_row(self)
+	last_result = RunPins.score_rows(self, upgrades)
 	var record: ShiftRecord = ShiftRecord.new(shift_index + 1, quota(), last_result.total)
-	for card: CardInstance in row:
+	for card: CardInstance in first_row + row:
 		record.played.append(card.definition)
 	record.inspections = inspections.duplicate()
 	history.append(record)

@@ -138,11 +138,6 @@ func _set_checkout_caption(caption: Label) -> void:
 		. x
 	)
 	caption.offset_right = -(CHECKOUT_ARROW_GAP + arrow_width)
-	var word_width: float = (
-		word_font
-		. get_string_size(CHECKOUT_TEXT, HORIZONTAL_ALIGNMENT_LEFT, -1, CHECKOUT_FONT_SIZE)
-		. x
-	)
 	checkout_arrow = UiKit.display_label(CHECKOUT_ARROW, CHECKOUT_ARROW_SIZE, false)
 	checkout_arrow.name = "Arrow"
 	checkout_arrow.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -152,9 +147,42 @@ func _set_checkout_caption(caption: Label) -> void:
 	checkout_arrow.anchor_left = 0.5
 	checkout_arrow.anchor_right = 0.5
 	checkout_arrow.anchor_bottom = 1.0
+	caption.add_child(checkout_arrow)
+	_place_arrow(CHECKOUT_TEXT)
+
+
+## CHECKOUT's caption with a Double checkout's row after the word (#122: "CHECKOUT 1/2"; ""
+## for none).
+func set_checkout_row(row_text: String) -> void:
+	var text: String = CHECKOUT_TEXT
+	var spoken: String = CHECKOUT_NAME
+	if not row_text.is_empty():
+		text = "%s %s" % [CHECKOUT_TEXT, row_text]
+		spoken = "%s, row %s" % [CHECKOUT_NAME, row_text]
+	if checkout_key.caption_label().text == text:
+		return
+	checkout_key.show_caption(text, "", spoken)
+	_place_arrow(text)
+
+
+## The "›" after CHECKOUT's caption `text`, the caption centred on the key.
+func _place_arrow(text: String) -> void:
+	var word_width: float = (
+		ArtStyle
+		. spaced_display_font(CHECKOUT_SPACING)
+		. get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, CHECKOUT_FONT_SIZE)
+		. x
+	)
+	var arrow_width: float = checkout_arrow.offset_right - checkout_arrow.offset_left
+	if arrow_width <= 0.0:
+		arrow_width = (
+			ArtStyle
+			. DISPLAY_FONT
+			. get_string_size(CHECKOUT_ARROW, HORIZONTAL_ALIGNMENT_LEFT, -1, CHECKOUT_ARROW_SIZE)
+			. x
+		)
 	checkout_arrow.offset_left = word_width / 2.0 + CHECKOUT_ARROW_GAP
 	checkout_arrow.offset_right = checkout_arrow.offset_left + arrow_width
-	caption.add_child(checkout_arrow)
 
 
 ## A key of `kind` captioned `text` at the stage rect `rect` in `font_size` (CHECKOUT's always in

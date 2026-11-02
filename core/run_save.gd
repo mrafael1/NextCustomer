@@ -137,6 +137,8 @@ static func to_dictionary(saved_run: RunState, saved_run_id: String, played_ms: 
 		"hand": _pairs(saved_run.deck.hand()),
 		"draw_pile": _instance_ids(saved_run.deck.draw_pile()) if planning else [],
 		"row": _instance_ids(saved_run.row),
+		# A Double checkout shift's row 1, spent at its checkout (#122); [] otherwise.
+		"first_row": _instance_ids(saved_run.first_row),
 		"redraws_used": saved_run.redraws_used,
 		"redraws_allowed": saved_run.redraws_allowed,
 		"redrawn_in": Array(saved_run.redrawn_in),
@@ -248,7 +250,7 @@ static func from_dictionary(saved: Dictionary, lookup: ContentLookup) -> RunSave
 	if restored.shift_index < restored.shift_count():
 		restored.limits = _limits(restored)
 	var history_ok: bool = _restore_history(restored, reader.dictionaries("history"), lookup)
-	var cards_ok: bool = _restore_cards(restored, reader)
+	var cards_ok: bool = _restore_cards(restored, reader, data.has("first_row"))
 	# A hand dealt larger than today's events give (a retired boon's, Big trolleys before v0.70)
 	# keeps its items.
 	if restored.phase == RunState.Phase.PLANNING and restored.limits != null:
@@ -283,7 +285,9 @@ static func _limits(restored: RunState) -> ShiftLimits:
 		restored.balance,
 		_played_upgrades(restored),
 		restored.shift_index,
-		WeekSchedule.shift_events(restored)
+		WeekSchedule.shift_events(restored),
+		RunPins.row_slots(restored),
+		RunPins.extra_redraws(restored)
 	)
 
 
@@ -523,7 +527,7 @@ static func _restore_history(
 ## isn't a deck card (or is in the hand), a row card isn't in the hand, or the next instance id
 ## isn't above every id. A hand card whose deck copy was upgraded by the machine (a higher tier
 ## of the same product) keeps its saved card, as it was checked out.
-static func _restore_cards(restored: RunState, reader: SaveReader) -> bool:
+static func _restore_cards(restored: RunState, reader: SaveReader, with_first_row: bool) -> bool:
 	var deck_cards: Array[CardInstance] = reader.instances("deck")
 	var saved_hand: Array[CardInstance] = reader.instances("hand")
 	var pile_ids: Array[int] = reader.wholes("draw_pile", 1)
@@ -552,6 +556,14 @@ static func _restore_cards(restored: RunState, reader: SaveReader) -> bool:
 		ok = ok and hand_by_id.has(id) and row_ids.count(id) == 1
 		if hand_by_id.has(id):
 			restored.row.append(hand_by_id[id])
+	# A Double checkout's row 1 (#122; saves before it have none): spent deck cards, neither in
+	# the hand nor in the draw pile.
+	var first_ids: Array[int] = reader.wholes("first_row", 1) if with_first_row else []
+	for id: int in first_ids:
+		ok = ok and deck_by_id.has(id) and not hand_by_id.has(id) and not pile_ids.has(id)
+		ok = ok and first_ids.count(id) == 1
+		if deck_by_id.has(id):
+			restored.first_row.append(deck_by_id[id])
 	for id: int in deck_by_id.keys() + hand_by_id.keys():
 		ok = ok and id < next_id
 	restored.deck.restore(deck_cards, hand, pile, next_id)
@@ -652,12 +664,15 @@ static func _is_consistent(
 				== restored.upgrades.find(upgrade)
 			)
 		)
+	# A Double checkout's row 1 (#122) needs its pin and fits its row's slots.
+	if not restored.first_row.is_empty():
+		ok = ok and RunPins.row_slots(restored) > 0
+		ok = ok and RowCapacity.row_fits(restored.limits, restored.first_row)
+	var played: Array[UpgradeDefinition] = _played_upgrades(restored)
+	RunPins.restore_first_row(restored, played)
 	if not ok or not _after_checkout(restored):
 		return ok
-	var played: Array[UpgradeDefinition] = _played_upgrades(restored)
-	restored.last_result = Scoring.score(
-		restored.row, played, WeekSchedule.shift_events(restored), ScoreCredits.for_run(restored)
-	)
+	restored.last_result = RunPins.score_rows(restored, played)
 	if rescored:
 		return true
 	# A missed shift saved after its checkout is a slip the run went on after (v0.65; a save from

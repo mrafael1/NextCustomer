@@ -50,6 +50,8 @@ extends Control
 signal slot_input(event: InputEvent, slot: int)
 ## A click on a closed slot, so the screen can say why it is closed.
 signal closed_clicked
+## The row's cells (open and closed) changed: set_slot_count rebuilt it (#122: the belt fits).
+signal cells_changed(cells: int)
 
 ## The width of the 7 slots the screen was laid out for: wider rows are scaled to it.
 const LAID_OUT_SLOTS := 7
@@ -173,6 +175,7 @@ func set_slot_count(
 	box.scale = Vector2(factor, factor)
 	box.size = natural
 	custom_minimum_size = natural * factor
+	cells_changed.emit(cells)
 
 
 ## Fills the slots: a belt item for each row card (clicks go to `on_clicked`; `balance` gives
