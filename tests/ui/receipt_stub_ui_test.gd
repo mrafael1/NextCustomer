@@ -73,9 +73,10 @@ func test_the_planning_receipt_lists_the_items_and_the_fizzles() -> void:
 
 
 ## PROJECTED against the shift's quota on the real screen at 1280x720 (#71's play test): a short
-## row's total is red with "short €N.00" on the row under it; a total exactly on the quota, and one
-## over it, is green with no mark (the receipt has no checkmarks) and no shortfall; the colours are
-## Palette's; the footer stays inside the paper, on one line even with a long hover hint.
+## row's total is red with "€N.00 short" on the row under it; a total exactly on the quota, and one
+## over it, is green with no mark (the receipt has no checkmarks) and "on target" or "+€N.00 over
+## target" under it; the colours are Palette's; the footer stays inside the paper, on one line even
+## with a long hover hint.
 func test_the_projected_total_is_coloured_by_the_quota() -> void:
 	var screen: ShiftScreen = await _screen()
 	_place(screen, ["bread", "milk"])
@@ -85,8 +86,9 @@ func test_the_projected_total_is_coloured_by_the_quota() -> void:
 	assert_int(result.total).is_less(run.quota())
 	var receipt: ReceiptView = screen._receipt
 	assert_that(_projected_color(receipt)).is_equal(Palette.TOMATO)
-	var short: String = ReceiptView.SHORT_TEXT % ReceiptView.money(run.quota() - result.total)
-	assert_str(_lines(screen)[-1]).is_equal(short + " | ")
+	var short: String = ReceiptTarget.against_text(result.total, run.quota())
+	assert_str(short).is_equal(ReceiptView.money(run.quota() - result.total) + " short")
+	assert_str(_lines(screen)[-1]).is_equal(" | " + short)
 	screen._effects.pointer = func() -> Vector2: return Vector2(-500, -500)
 	var milk: ItemView = screen._row_views[1] as ItemView
 	milk.hovered.emit(milk)
@@ -102,7 +104,10 @@ func test_the_projected_total_is_coloured_by_the_quota() -> void:
 		receipt.show_planning(screen.receipt_header(), result, names, slots, quota)
 		await _frames(2)
 		assert_that(_projected_color(receipt)).is_equal(Palette.GOOD)
-		assert_str(_lines(screen)[-1]).is_equal("PROJECTED | " + ReceiptView.money(result.total))
+		assert_str(_lines(screen)[-2]).is_equal("PROJECTED | " + ReceiptView.money(result.total))
+		assert_str(_lines(screen)[-1]).is_equal(
+			" | " + ReceiptTarget.against_text(result.total, quota)
+		)
 		# A met total is green with no mark (the receipt draws no check).
 		assert_int(_projected_marks(receipt)).is_equal(0)
 		_assert_planning_on_screen(screen, false)
@@ -347,9 +352,7 @@ static func _planning(
 		lines.append("%d ····· | " % (run.row.size() + 1))
 	lines.append("---")
 	lines.append("PROJECTED | " + ReceiptView.money(result.total))
-	if result.total < run.quota():
-		var short: String = ReceiptView.money(run.quota() - result.total)
-		lines.append((ReceiptView.SHORT_TEXT % short) + " | ")
+	lines.append(" | " + ReceiptTarget.against_text(result.total, run.quota()))
 	if not fizzles.is_empty():
 		lines.append(fizzles + " |  · hover an item")
 	return lines

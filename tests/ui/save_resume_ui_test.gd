@@ -130,17 +130,17 @@ func test_a_new_screen_resumes_the_hand_the_row_and_the_redraws() -> void:
 	assert_int(_hand_views(resumed).size()).is_equal(resumed.run.hand().size())
 	assert_bool(resumed._machine.is_open()).is_false()
 	# The monitor's one screen in planning (#105 piece 2): belt slot 1's item and PLAN over the
-	# projected total, which the QUOTA chip shows too.
+	# projected total, which the quota gauge shows too.
 	assert_int(resumed._monitor.mode()).is_equal(MonitorView.Mode.NEXT)
 	var plan_column: CheckoutColumn = resumed._monitor.checkout()
 	assert_str(plan_column.caption().text).is_equal(MonitorText.PLAN_CAPTION)
 	assert_int(plan_column.total_number().value()).is_equal(first.run.preview().total)
-	var projected: String = "€%d" % first.run.preview().total
-	assert_str(resumed._quota_meter.amount_label.text).is_equal(projected)
+	assert_int(resumed._quota_meter.amount()).is_equal(first.run.preview().total)
 	assert_bool(resumed._cabinet.checkout_key.held).is_false()
 	# The receipt is the itemised planning receipt (#80): the header, the items and PROJECTED.
 	var stub: PackedStringArray = _receipt_lines(resumed)
 	assert_array(stub).is_equal(_receipt_lines(first))
+	assert_int(resumed._receipt.target.shown_quota()).is_equal(resumed.run.quota())
 	# A line's left text, then its (empty) right text.
 	var shift_line: String = ReceiptView.SHIFT_TEXT % [1, resumed.run.shift_count(), 2]
 	assert_array(Array(stub.slice(0, 4))).is_equal([ReceiptView.HEADER_TEXT, "", shift_line, ""])
@@ -214,6 +214,8 @@ func test_quitting_during_the_count_up_resumes_on_the_machine() -> void:
 	assert_str(_receipt_lines(resumed)[0]).is_equal(ReceiptView.HEADER_TEXT)
 	assert_bool(_receipt_lines(resumed).has(ReceiptView.PROJECTED_TEXT)).is_false()
 	assert_array(_receipt_lines(resumed)).is_equal(_receipt_lines(first))
+	# It keeps TODAY'S TARGET pinned at its top (the shift scene polish).
+	assert_int(resumed._receipt.target.shown_quota()).is_equal(first.run.quota())
 	_assert_same_led(resumed, first)
 	assert_bool(first._cabinet.checkout_key.held).is_false()
 	assert_bool(first._count_up._met).is_true()
@@ -627,10 +629,11 @@ func _saved() -> Dictionary:
 	return json.data
 
 
-## The receipt's labels in order (a line's left text, then its right text).
+## The receipt's labels in order (a line's left text, then its right text), under its pinned
+## TODAY'S TARGET (the shift scene polish), left out.
 static func _receipt_lines(screen: ShiftScreen) -> PackedStringArray:
 	var texts: PackedStringArray = PackedStringArray()
-	for label: Node in screen._receipt.find_children("*", "Label", true, false):
+	for label: Node in screen._receipt._lines.find_children("*", "Label", true, false):
 		if not label.is_queued_for_deletion() and not label.get_parent().is_queued_for_deletion():
 			texts.append((label as Label).text)
 	return texts

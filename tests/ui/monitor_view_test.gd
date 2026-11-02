@@ -652,9 +652,9 @@ static func _sync_failures(screen: ShiftScreen) -> Array[String]:
 		return failures
 	var reading: int = screen._led.amount()
 	var frame: int = Engine.get_process_frames()
-	var top: String = screen._quota_meter.amount_label.text
-	if top != "€%d" % reading:
-		failures.append("frame %d: the top bar %s, the reading %d" % [frame, top, reading])
+	var top: int = screen._quota_meter.amount()
+	if top != reading:
+		failures.append("frame %d: the gauge %d, the reading %d" % [frame, top, reading])
 	var number: int = screen._monitor.checkout().total_number().value()
 	if number != reading:
 		failures.append("frame %d: the column %d, the reading %d" % [frame, number, reading])

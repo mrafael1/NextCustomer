@@ -1,13 +1,13 @@
 class_name QuotaFlag
 extends Control
-## The flag that anchors the quota on the top bar's gauge (#86, TA's flag in mock-up
-## count_up_86_v4_live.html): a paper pole with an ink edge, from POLE_ABOVE px above the gauge to
-## its foot, and a green cloth with a drawn ✓ (the fonts lack it) at the pole's top. QuotaMeter
-## plants it at the quota when the amount meets it and slides it back as the gauge re-scales. It is
-## planted with a drop and a bounce, then the cloth flaps; reduced motion (`reduced_motion`) shows
-## it standing still. Past twice the quota (the gauge's laps, the quota crossing's E) it stands at
-## the gauge's end on a wider mustard cloth naming the next lap ("×3", `lap_text`). Decor only: it
-## takes no clicks.
+## The flag that says the quota is met on the gauge (#86, TA's flag in mock-up
+## count_up_86_v4_live.html): a paper pole with an ink edge, from `pole_above` px above its origin
+## to its foot, and a green cloth with a drawn ✓ (the fonts lack it) at the pole's top. QuotaMeter
+## (the tube beside the receipt since the shift scene polish) plants it on the tube's top when the
+## amount meets the quota. It is planted with a drop and a bounce, then the cloth flaps; reduced
+## motion (`reduced_motion`) shows it standing still. Past twice the quota (the gauge's laps, the
+## quota crossing's E) it flies a wider mustard cloth naming the next lap ("×3", `lap_text`), left
+## of the pole, or right of it with `lap_cloth_left` off. Decor only: it takes no clicks.
 
 const POLE_WIDTH := 4.0
 const POLE_ABOVE := 14.0
@@ -30,6 +30,9 @@ const FLAP_SECONDS := 0.9
 var reduced_motion: Callable = Callable()
 ## The next lap the flag names ("×3"), or empty for the quota's ✓.
 var lap_text: String = ""
+## How far the pole reaches above the flag's origin, and the side a lap's cloth hangs on.
+var pole_above: float = POLE_ABOVE
+var lap_cloth_left: bool = true
 
 ## The pole's length below the flag's origin (the gauge's height).
 var _pole: float = 0.0
@@ -64,9 +67,11 @@ func is_planting() -> bool:
 
 ## The flag's rect as drawn at rest (local): the pole and the cloth.
 func rest_rect() -> Rect2:
-	var top: float = -POLE_ABOVE
-	var height: float = _pole + POLE_ABOVE + POLE_BELOW
+	var top: float = -pole_above
+	var height: float = _pole + pole_above + POLE_BELOW
 	if not lap_text.is_empty():
+		if not lap_cloth_left:
+			return Rect2(-POLE_WIDTH / 2.0, top, POLE_WIDTH / 2.0 + LAP_CLOTH_SIZE.x, height)
 		var left: float = POLE_WIDTH / 2.0 - LAP_CLOTH_SIZE.x - POLE_WIDTH
 		return Rect2(left, top, POLE_WIDTH - left, height)
 	return Rect2(-POLE_WIDTH / 2.0, top, POLE_WIDTH / 2.0 + CLOTH_SIZE.x, height)
@@ -97,13 +102,13 @@ func _draw() -> void:
 			turn = lerpf(3.0, 0.0, e)
 	var foot: float = _pole + POLE_BELOW
 	draw_set_transform(Vector2(0.0, roundf(drop)), deg_to_rad(turn), Vector2.ONE)
-	var pole: Rect2 = Rect2(-POLE_WIDTH / 2.0, -POLE_ABOVE, POLE_WIDTH, foot + POLE_ABOVE)
+	var pole: Rect2 = Rect2(-POLE_WIDTH / 2.0, -pole_above, POLE_WIDTH, foot + pole_above)
 	draw_rect(pole.grow(1.0), Palette.INK)
 	draw_rect(pole, Palette.PAPER)
 	var skew: float = 0.0
 	if not reduced and _since_plant >= PLANT_SECONDS:
 		skew = -deg_to_rad(FLAP_SKEW) * (0.5 - 0.5 * cos(TAU * _time / FLAP_SECONDS))
-	var cloth_origin: Vector2 = Vector2(POLE_WIDTH / 2.0, -POLE_ABOVE + roundf(drop))
+	var cloth_origin: Vector2 = Vector2(POLE_WIDTH / 2.0, -pole_above + roundf(drop))
 	var transform: Transform2D = Transform2D(deg_to_rad(turn), Vector2.ONE, skew, cloth_origin)
 	draw_set_transform_matrix(transform)
 	if not lap_text.is_empty():
@@ -120,10 +125,10 @@ func _draw() -> void:
 	draw_set_transform_matrix(Transform2D.IDENTITY)
 
 
-## A lap's cloth (the transform set): it hangs left of the pole, at the gauge's end, so it stays
-## on the bar.
+## A lap's cloth (the transform set): it hangs left of the pole (right with lap_cloth_left off).
 func _draw_lap_cloth() -> void:
-	var cloth: Rect2 = Rect2(Vector2(-LAP_CLOTH_SIZE.x - POLE_WIDTH, 0.0), LAP_CLOTH_SIZE)
+	var left: float = -LAP_CLOTH_SIZE.x - POLE_WIDTH if lap_cloth_left else 0.0
+	var cloth: Rect2 = Rect2(Vector2(left, 0.0), LAP_CLOTH_SIZE)
 	draw_rect(cloth, Palette.INK)
 	draw_rect(cloth.grow(-BORDER), Palette.MUSTARD)
 	draw_rect(

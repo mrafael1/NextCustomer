@@ -78,7 +78,6 @@ var _camera: StoreCamera
 var _wall: ColorRect
 var _top_bar: HBoxContainer
 var _shift_label: Label
-var _quota_label: Label
 var _inspection_tag: InspectionTag
 var _loyalty_card: LoyaltyCard
 var _deck_button: FramedButton
@@ -108,7 +107,8 @@ var _cabinet: RegisterCabinet
 var _monitor: MonitorView
 ## The monitor's LED: blank in planning, the count-up's subtotal and total.
 var _led: LedDisplay
-## The top bar's SPEND chip: the projected total in planning (fed here), the LED's while counting.
+## The quota gauge (the tube beside the receipt): the projected total in planning (fed here), the
+## LED's while counting.
 var _quota_meter: QuotaMeter
 var _overlay: Control
 var _count_up: CountUp
@@ -699,10 +699,11 @@ func _refresh() -> void:
 	_scan.watch(_row_views, _hand_box.cards())
 
 
-## The top bar: shift, quota, inspection, loyalty card, the Cart's count (a pick changes it).
+## The top bar (shift, inspection, loyalty card, the Cart's count: a pick changes it) and the
+## receipt's target.
 func _refresh_bar() -> void:
 	_shift_label.text = "%d/%d" % [run.shift_index + 1, run.shift_count()]
-	_quota_label.text = QuotaMeter.QUOTA_AMOUNT % run.quota()
+	_receipt.target.show_quota(run.quota())
 	_week.show_chips()
 	_inspection_tag.show_bonus(
 		InspectionTag.bonus_for(run, _counting, _inspection_tag.bonus_state())
@@ -779,8 +780,8 @@ func _refresh_preview() -> void:
 	_show_projected(result)
 
 
-## Planning's monitor and SPEND chip (#105 piece 2): the LED goes blank; the monitor shows belt
-## slot 1's item with its lines and, like the SPEND chip, the projected total of `result`.
+## Planning's monitor and quota gauge (#105 piece 2): the LED goes blank; the monitor shows belt
+## slot 1's item with its lines and, like the gauge, the projected total of `result`.
 func _show_projected(result: ScoreResult) -> void:
 	if _led.mode() != LedDisplay.Mode.BLANK:
 		_led.clear()
@@ -856,7 +857,7 @@ func _build() -> void:
 	# stamps and verdict) uses the number font. The theme stays off the screen's root, so the
 	# panels #56 restyles and ShiftDebug's panel keep the plain default font.
 	_stage.apply_theme(UiKit.screen_theme())
-	StoreBackdrop.top_parts(self)
+	_stage.top_cap = StoreBackdrop.top_parts(self)
 	add_child(_stage)
 	_camera.adopt(_stage.world)
 	_stage.checkout_pressed.connect(_on_checkout_pressed)
@@ -866,7 +867,6 @@ func _build() -> void:
 	_stage.export_pressed.connect(_on_export_pressed)
 	_top_bar = _stage.top_bar
 	_shift_label = _stage.shift_label
-	_quota_label = _stage.quota_label
 	_loyalty_card = _stage.loyalty_card
 	_inspection_tag = _stage.inspection_tag
 	_deck_button = _stage.deck_button
@@ -876,7 +876,7 @@ func _build() -> void:
 	_monitor = _stage.monitor
 	_monitor.reduced_motion = func() -> bool: return profile.reduced_motion()
 	_led = _stage.led
-	_quota_meter = _stage.top_bar.quota_meter
+	_quota_meter = _stage.quota_meter
 	_quota_meter.reduced_motion = _monitor.reduced_motion
 	_receipt = _stage.receipt
 	_row_strip = _stage.row_strip

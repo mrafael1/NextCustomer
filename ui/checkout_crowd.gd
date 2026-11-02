@@ -132,7 +132,9 @@ func _init(tuning: CountUpTuning = null) -> void:
 		ShiftStage.RECEIPT_BOTTOM - ShiftStage.RECEIPT_TOP
 	)
 	blocked = [
-		receipt.merge(ShiftStage.PRINTER_RECT).merge(ShiftStage.REGISTER_RECT),
+		receipt.merge(ShiftStage.PRINTER_RECT).merge(ShiftStage.REGISTER_RECT).merge(
+			ShiftStage.TOWER_RECT
+		),
 		ShiftStage.BAG_RECT.merge(ShiftStage.BAGGING_SHELF_RECT),
 	]
 	shadow_layer = Control.new()

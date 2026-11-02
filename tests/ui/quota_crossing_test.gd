@@ -115,7 +115,7 @@ func test_an_idle_screen_stays_dark() -> void:
 ## Alone: a gauge's lap stamps only between a count's start and its end.
 func test_a_lap_stamps_only_while_counting() -> void:
 	var meter: QuotaMeter = auto_free(QuotaMeter.new())
-	meter.size = Vector2(560, TopBar.ROW_SIZE.y)
+	meter.size = ShiftStage.TUBE_RECT.size
 	add_child(meter)
 	var lights: BonusLights = auto_free(BonusLights.new())
 	add_child(lights)
@@ -140,11 +140,9 @@ func _play(screen: ShiftScreen, reduced: bool) -> void:
 	var crossing: QuotaCrossing = screen._stage.quota_crossing
 	_rest = screen.get_viewport().canvas_transform.origin
 	count_up.quota_met.connect(_on_quota_met.bind(screen))
-	screen._stage.top_bar.quota_meter.lap_reached.connect(
+	screen._stage.quota_meter.lap_reached.connect(
 		func(lap: int) -> void:
-			var bar: Rect2 = crossing._local_rect(
-				screen._stage.top_bar.quota_meter.bar().get_global_rect()
-			)
+			var bar: Rect2 = crossing._local_rect(screen._stage.quota_meter.bar().get_global_rect())
 			_at_laps.append([lap, crossing.stamp_shown(), crossing._gauge, bar])
 	)
 	get_tree().process_frame.connect(_sample.bind(screen))

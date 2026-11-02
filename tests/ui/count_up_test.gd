@@ -327,7 +327,7 @@ func test_the_led_and_checkout_follow_a_passed_shift() -> void:
 	assert_int(screen._monitor.mode()).is_equal(MonitorView.Mode.NEXT)
 	assert_str(column.caption().text).is_equal(MonitorText.PLAN_CAPTION)
 	assert_int(column.total_number().value()).is_equal(total)
-	assert_str(screen._quota_meter.amount_label.text).is_equal("€%d" % total)
+	assert_int(screen._quota_meter.amount()).is_equal(total)
 	assert_bool(checkout.held).is_false()
 	assert_int(checkout.look()).is_equal(RegisterKey.Look.NORMAL)
 	screen._on_checkout_pressed()

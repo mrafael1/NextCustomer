@@ -6,7 +6,8 @@ extends Control
 ## (presentation/dither_burst.gdshader; "NEXT RECEIPT", PREMIUM between two pixel stars, the
 ## rarity boost it gives, v0.61 #108: "EVERY TICKET RARE+" between two RARE diamonds and "ITEMS BIG
 ## OR BETTER", then "MEET THIS SHIFT'S QUOTA"), then shrinks and flies up to
-## hang, on a string from the quota mark (the flag once the quota is met, else the gauge's end),
+## hang, on a string from the quota mark (the target line on the gauge's top, the tube beside the
+## receipt),
 ## as a gold "PREMIUM NEXT" tag with a pixel star on the monitor's top bezel, clear of the brief's
 ## text, that glints every SHINE_PERIOD for the rest of the shift's planning and its count-up.
 ## A resumed run shows the tag at once; reduced motion (`reduced_motion`) skips the print, the
@@ -73,7 +74,6 @@ var active: Callable = func() -> bool: return true
 var payday: bool = false
 var _monitor: Control
 var _bar: Control
-var _flag: Control
 var _shown: bool = false
 ## Seconds on the announce's clock (FLY_TO and later: the tag hangs).
 var _time: float = 0.0
@@ -107,12 +107,10 @@ func _init() -> void:
 	_burst_clip.add_child(_burst)
 
 
-## The monitor the receipt prints on, the quota gauge and its flag (the quota mark once met) the
-## tag hangs from.
-func setup(monitor: Control, gauge: Control, flag: Control = null) -> void:
+## The monitor the receipt prints on and the quota gauge the tag hangs from.
+func setup(monitor: Control, gauge: Control) -> void:
 	_monitor = monitor
 	_bar = gauge
-	_flag = flag
 
 
 ## Shows the announce: printed from the start (`printing`, a shift that just started) or as the
@@ -151,7 +149,7 @@ func print_left() -> float:
 
 ## The tag's rect on screen (bounce included): right of the quota mark, on the monitor's top
 ## bezel, reaching TAG_INTO into its screen and never lower (its bounce only lifts it), kept
-## TAG_MARGIN inside the screen's right edge.
+## TAG_MARGIN inside the screen's edges.
 func tag_rect() -> Rect2:
 	var anchor: Vector2 = _anchor()
 	var screen: Rect2 = monitor_screen()
@@ -159,7 +157,9 @@ func tag_rect() -> Rect2:
 	if not reduced_motion.call():
 		var k: float = maxf(0.0, _time - FLY_TO)
 		bounce = -absf(sin(k * BOUNCE_RATE) * BOUNCE_HEIGHT * exp(-k * BOUNCE_DECAY))
-	var x: float = minf(anchor.x + TAG_RIGHT, screen.end.x - TAG_MARGIN - TAG_SIZE.x)
+	var x: float = clampf(
+		anchor.x + TAG_RIGHT, screen.position.x + TAG_MARGIN, screen.end.x - TAG_MARGIN - TAG_SIZE.x
+	)
 	var y: float = screen.position.y + TAG_INTO - TAG_SIZE.y + bounce
 	return Rect2(Vector2(floorf(x / 2.0), floorf(y / 2.0)) * 2.0, TAG_SIZE)
 
@@ -375,13 +375,11 @@ func _draw_tag() -> void:
 			MachineArt.sparkle(self, spot, 1.0, 1.0 - k / RING_LENGTH)
 
 
-## Where the string hangs from: the quota mark, half way down the gauge: the flag once the quota
-## is met (it stands at quota / spend), else the gauge's end.
+## Where the string hangs from: the quota mark, the target line on the gauge's top (the tube
+## beside the receipt since the shift scene polish), at its right end.
 func _anchor() -> Vector2:
 	var bar: Rect2 = _bar_rect()
-	if _flag != null and _flag.is_visible_in_tree():
-		return Vector2(_screen_rect(_flag).get_center().x, bar.get_center().y)
-	return Vector2(bar.end.x, bar.get_center().y)
+	return Vector2(bar.end.x, bar.position.y)
 
 
 func _bar_rect() -> Rect2:

@@ -68,7 +68,7 @@ static func header(run: RunState) -> PackedStringArray:
 ## then row 2, both pips gold once the shift is checked out.
 static func refresh(screen: ShiftScreen) -> void:
 	var run: RunState = screen.run
-	var pips: RowPips = (screen._top_bar as TopBar).quota_meter.row_pips
+	var pips: RowPips = screen._stage.tower.row_pips
 	if RunPins.row_slots(run) <= 0:
 		screen._cabinet.set_checkout_row("")
 		pips.show_rows(0, 0)

@@ -1,18 +1,18 @@
 class_name TopBar
 extends HBoxContainer
 ## The shift screen's top bar (#80 step 10, mock-up B2): one row of teal chips on the dark teal
-## band, GAP apart: SHIFT n/m, the SPEND chip (QuotaMeter: the quota, a bar and the projected
-## total, then the subtotal while counting; it takes the room left), the week chip (v0.70,
+## band, GAP apart, right of the register's tower (the shift scene polish, mock-up
+## shift_scene_polish_v2.html section 2, A2: the SPEND chip is gone; the quota is the receipt's
+## TODAY'S TARGET and its gauge a tube beside the receipt): SHIFT n/m, the week chip (v0.70,
 ## WeekChip: "W2", the week's name, its day pips), the inspection chip (the day chip since v0.70:
-## "D6" and the day's events, paper,
-## with the mustard warning sign and "Inspection · <effect>", the name in its hover text; hidden
-## on shifts without one), the
-## LOYALTY chip with its stamps, the Cart button with its trolley, and the menu button (three
+## "D6" and the day's events, paper, with the mustard warning sign and "Inspection · <effect>", the
+## name in its hover text; hidden on shifts without one), the LOYALTY chip with its stamps, then
+## (pushed to the row's end by a spacer) the Cart button with its trolley and the menu button (three
 ## drawn bars) whose menu holds Export log. With weeks (show_weeks, v0.82: the week and day chips
 ## say where the run is) the SHIFT chip hides, so the row breathes; the training week's slips show
-## as the week chip's crosses (v0.84 retired the slip sign under it).
-## Cart and the menu stay clickable behind every panel:
-## the shade starts under the band (ShiftScreen), and the menu opens in its own popup window.
+## as the week chip's crosses (v0.84 retired the slip sign under it). Cart and the menu stay
+## clickable behind every panel: the shade starts under the band (ShiftScreen), and the menu opens
+## in its own popup window.
 ##
 ## It only builds and lays out; ShiftStage passes the buttons' signals on and the screen fills
 ## the chips. Its controls are public for the same reason as ShiftStage's.
@@ -20,9 +20,10 @@ extends HBoxContainer
 signal deck_pressed
 signal export_pressed
 
-## B2's row: 16 px in, 9 px down, 38 px tall, the chips 12 px apart.
-const POSITION := Vector2(16, 9)
-const ROW_SIZE := Vector2(1248, 38)
+## B2's row: 9 px down, 38 px tall, the chips 12 px apart, from over the belt's left end (right of
+## the register's tower) to 16 px short of the stage's right edge.
+const POSITION := Vector2(348, 9)
+const ROW_SIZE := Vector2(916, 38)
 const GAP := 12
 ## The room fit_inspection keeps free at the row's end.
 const FIT_MARGIN := 8.0
@@ -50,8 +51,6 @@ const MENU_ICON := preload("res://art/icons/menu.png")
 var shift_label: Label
 ## The SHIFT chip ("SHIFT n/m"; hidden with weeks: show_weeks).
 var shift_chip: PanelContainer
-var quota_meter: QuotaMeter
-var quota_label: Label
 ## The week chip (v0.70; hidden for a balance without weeks).
 var week_chip: WeekChip
 var inspection_tag: InspectionTag
@@ -80,18 +79,17 @@ func _init() -> void:
 	shift_label = value_label(Palette.PAPER)
 	shift_row.add_child(shift_label)
 	add_child(shift_chip)
-	var quota_chip: PanelContainer = chip(CHIP_FRAME)
-	quota_chip.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	quota_meter = QuotaMeter.new()
-	quota_chip.add_child(quota_meter)
-	quota_label = quota_meter.quota_label
-	add_child(quota_chip)
 	week_chip = WeekChip.new()
 	add_child(week_chip)
 	inspection_tag = InspectionTag.new()
 	add_child(inspection_tag)
 	loyalty_card = LoyaltyCard.new(true)
 	add_child(loyalty_card)
+	var spacer: Control = Control.new()
+	spacer.name = "Spacer"
+	spacer.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	spacer.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	add_child(spacer)
 	# The deck view and the export sound themselves.
 	deck_button = UiKit.framed_button(
 		self, "", deck_pressed.emit, BUTTON_FONT_SIZE, BUTTON_FRAME, Vector2(0, ROW_SIZE.y), ""
@@ -188,7 +186,7 @@ static func chip(frame: Texture2D) -> PanelContainer:
 	return panel
 
 
-## A chip's key caption (SHIFT, QUOTA, LOYALTY): the letter-spaced display font in mustard pale.
+## A chip's key caption (SHIFT, LOYALTY): the letter-spaced display font in mustard pale.
 static func key_label(text: String) -> Label:
 	var label: Label = UiKit.display_label(text, KEY_FONT_SIZE, false)
 	label.add_theme_font_override("font", ArtStyle.spaced_display_font(KEY_SPACING))
@@ -197,7 +195,7 @@ static func key_label(text: String) -> Label:
 	return label
 
 
-## A chip's value (5/8, €73): the number font, no outline on the teal.
+## A chip's value (5/8): the number font, no outline on the teal.
 static func value_label(color: Color) -> Label:
 	var label: Label = UiKit.number_label("", VALUE_FONT_SIZE, false)
 	label.add_theme_color_override("font_color", color)

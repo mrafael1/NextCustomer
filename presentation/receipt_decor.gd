@@ -107,18 +107,23 @@ static func mark(line: HBoxContainer, kind: ReceiptView.Mark) -> void:
 	line.get_child(1).add_child(icon)
 
 
-## Colours the PROJECTED `line`'s amount by the shown `total` against `quota` (a display difference,
-## as QuotaMeter's delta): GOOD at or over it, TOMATO under it. Returns the shortfall's row
-## ("short €12.00", so a short total never relies on colour alone), empty when met.
-static func against_quota(line: HBoxContainer, total: int, quota: int) -> String:
-	var margin: ShiftMargin = ShiftMargin.of(total, quota)
+## Colours the PROJECTED `line`'s amount by the shown `total` against `quota` (a display
+## difference): GOOD at or over it, TOMATO under it; and prints how far it is on the `against` line
+## under it, at the footer's size, right-aligned under the amount (the shift scene polish:
+## "+€67.00 over target" in green dark, "€56.00 short" in tomato: ReceiptTarget.against_text), so
+## the status never relies on colour alone.
+static func against_quota(line: HBoxContainer, against: Control, total: int, quota: int) -> void:
+	var passed: bool = ShiftMargin.of(total, quota).passed()
 	var amount: Label = line.get_child(1) as Label
-	amount.add_theme_color_override(
-		"font_color", Palette.GOOD if margin.passed() else Palette.TOMATO
+	amount.add_theme_color_override("font_color", Palette.GOOD if passed else Palette.TOMATO)
+	against.name = "Against"
+	(against.get_child(0) as Label).add_theme_font_size_override(
+		"font_size", ReceiptView.FOOTER_FONT_SIZE
 	)
-	if margin.passed():
-		return ""
-	return ReceiptView.SHORT_TEXT % ReceiptView.money(margin.amount())
+	var words: Label = against.get_child(1) as Label
+	words.text = ReceiptTarget.against_text(total, quota)
+	words.add_theme_font_size_override("font_size", ReceiptView.FOOTER_FONT_SIZE)
+	words.add_theme_color_override("font_color", ReceiptTarget.against_color(total, quota))
 
 
 ## Marks `line` as a hovered item's target getting `token` (a mustard-pale fill behind it and the

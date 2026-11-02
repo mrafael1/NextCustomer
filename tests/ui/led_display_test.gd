@@ -101,7 +101,7 @@ func test_the_screen_reads_core_totals() -> void:
 	assert_int(led.mode()).is_equal(LedDisplay.Mode.TOTAL)
 	assert_int(led.amount()).is_equal(result.total)
 	assert_int(screen._stage.monitor.checkout().total_number().value()).is_equal(result.total)
-	assert_str(screen._quota_meter.shown_text()).contains("%d" % result.total)
+	assert_int(screen._quota_meter.amount()).is_equal(result.total)
 
 
 func _frames(count: int) -> void:

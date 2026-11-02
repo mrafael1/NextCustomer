@@ -573,15 +573,8 @@ func test_a_drag_previews_each_landing() -> void:
 		for part: Control in _layer(screen).parts():
 			assert_bool(part is RailStrip).override_failure_message(part.name).is_false()
 		assert_int(column.total_number().value()).is_equal(result.total)
-		var expected: String = QuotaMeter.HYPOTHETICAL_TEXT % [result.total, result.total - total]
-		assert_str(screen._quota_meter.shown_text()).is_equal(expected)
-		var font: Font = screen._quota_meter.amount_label.get_theme_font("font")
-		for character: String in expected.replace(" ", ""):
-			(
-				assert_bool(font.has_char(character.unicode_at(0)))
-				. override_failure_message(character)
-				. is_true()
-			)
+		assert_int(screen._quota_meter.hypothetical()).is_equal(result.total)
+		assert_int(screen._quota_meter.amount()).is_equal(total)
 		assert_array(screen.run.row).is_equal(committed)
 	# At the end Eggs' charges have nothing after them: the ghost wears its own "WASTED".
 	var carried: ItemView = screen._drag.ghost()
@@ -594,7 +587,8 @@ func test_a_drag_previews_each_landing() -> void:
 	assert_object(carried.get_node_or_null("PlanningParts")).is_null()
 	assert_int(carried.boost_rings).is_equal(0)
 	assert_bool(carried.denied).is_false()
-	assert_str(screen._quota_meter.amount_label.text).is_equal("€%d" % total)
+	assert_int(screen._quota_meter.amount()).is_equal(total)
+	assert_int(screen._quota_meter.hypothetical()).is_equal(-1)
 	assert_int(column.total_number().value()).is_equal(total)
 	_move(screen, _slot_center(screen, 0))
 	_release(screen, _slot_center(screen, 0))
@@ -606,7 +600,7 @@ func test_a_drag_previews_each_landing() -> void:
 	)
 	_assert_model_shown(screen, placed, _views(screen))
 	_assert_strips_shown(screen, placed)
-	assert_str(screen._quota_meter.amount_label.text).is_equal("€%d" % landed.total)
+	assert_int(screen._quota_meter.amount()).is_equal(landed.total)
 
 
 ## The CHECKOUT click (#86 v6, show_count) keeps only the stickers, unslapped, and the denied item's

@@ -60,7 +60,7 @@ func test_the_notice_comes_before_the_machine() -> void:
 			[
 				"TOTAL",
 				ReceiptView.verdict_text(109, quota),
-				ReceiptView.margin_text(ShiftMargin.Kind.OVER, 109 - quota),
+				ReceiptTarget.margin_text(ShiftMargin.Kind.OVER, 109 - quota),
 				ReceiptView.PAID_TEXT,
 				ReceiptView.TEAR_PATTERN.repeat(ReceiptView.TEAR_REPEAT),
 				"",

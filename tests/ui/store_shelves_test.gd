@@ -13,8 +13,10 @@ const BALANCE := "res://data/balance/balance.tres"
 const PALETTE_FILE := "res://art/src/palette.txt"
 const WINDOWS: Array[Vector2] = [Vector2(1280, 720), Vector2(1920, 1080), Vector2(1600, 720)]
 ## The backdrop's parts, back to front (the top band is StoreBackdrop.top_parts', over the camera
-## since #77 machine v2).
-const ORDER: Array[String] = ["Wall", "StoreShelves", "Counter", "Floor"]
+## since #77 machine v2; the register tower's charcoal since the shift scene polish).
+const ORDER: Array[String] = [
+	"Wall", "StoreShelves", "Tower", "TowerTop", "TowerBand", "TowerEdge", "Counter", "Floor"
+]
 ## Points on the stage over decor only: the storefront glass, the shelving under the hung sign, a
 ## pendant lamp, the shelving between the receipt and the monitor, the ceiling over the receipt
 ## and the store under the monitor (above the slots' drop targets, which reach up over a standing

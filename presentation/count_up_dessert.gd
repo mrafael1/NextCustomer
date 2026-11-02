@@ -9,7 +9,7 @@ extends RefCounted
 ## prints plainly; #105 piece 2: the checkout column's TotalNumber, `target`), with `total` or
 ## `miss` and a shake, a step bigger for a large total and another for a huge one, while the
 ## receipt's TOTAL line shows "€total / €quota" at once (green on a pass, red on a miss). The margin
-## line under it counts "+€N OVER QUOTA", "SHORT €N" or a green "ON QUOTA" (ShiftMargin) while
+## line under it counts "+€N OVER TARGET", "SHORT €N" or a green "ON TARGET" (ShiftMargin) while
 ## `pass` or `fail` sounds; a pass gets the PAID stamp (`stamp_paid`) once the margin has counted,
 ## and an inspected pass then INSPECTION PASSED under it (`stamp_notice`, #77); the receipt tears
 ## (`rip`), on a miss after `fail` has rung out; the next shift's notice prints in red with the
@@ -121,7 +121,7 @@ func play(
 	await _wait_ms(sound_ms)
 	sfx.play("pass" if passed else "fail")
 	await _wait_ms(_tuning.dessert_margin_ms - sound_ms)
-	ReceiptView.show_margin(line, margin.kind(), margin.amount())
+	ReceiptTarget.show_margin(line, margin.kind(), margin.amount())
 	if passed:
 		await _wait_ms(_tuning.dessert_paid_ms)
 		_stamp_paid(line)
@@ -214,7 +214,7 @@ func _place_slam(_progress: float, slam: Label, landing: Label) -> void:
 ## Returns the line.
 func _count_margin() -> Control:
 	var line: Control = _receipt.add_margin(margin)
-	ReceiptView.show_margin(line, margin.kind(), 0)
+	ReceiptTarget.show_margin(line, margin.kind(), 0)
 	_fade_in(line)
 	if margin.amount() > 0:
 		var seconds: float = _tuning.dessert_margin_ms / 1000.0
@@ -223,7 +223,7 @@ func _count_margin() -> Control:
 
 
 func _show_margin(euros: float, line: Control) -> void:
-	ReceiptView.show_margin(line, margin.kind(), roundi(euros))
+	ReceiptTarget.show_margin(line, margin.kind(), roundi(euros))
 
 
 ## PAID lands on the margin line with its stamp.

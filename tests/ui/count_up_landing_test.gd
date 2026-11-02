@@ -178,10 +178,10 @@ func _sample(screen: ShiftScreen) -> void:
 	if not screen._led.is_counting():
 		return
 	var reading: int = screen._led.amount()
-	var top: String = screen._quota_meter.amount_label.text
+	var top: int = screen._quota_meter.amount()
 	var frame: int = Engine.get_process_frames()
-	if top != "€%d" % reading:
-		_out_of_sync.append("frame %d: the top bar %s, the reading %d" % [frame, top, reading])
+	if top != reading:
+		_out_of_sync.append("frame %d: the gauge %d, the reading %d" % [frame, top, reading])
 	if number.value() != reading:
 		_out_of_sync.append(
 			"frame %d: the column %d, the reading %d" % [frame, number.value(), reading]

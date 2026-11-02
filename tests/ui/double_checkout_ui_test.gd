@@ -39,7 +39,7 @@ func test_two_rows_make_one_shift() -> void:
 	assert_int(stage.belt.cell_count()).is_equal(4)
 	assert_float(stage.bonus_lights.belt_cut).is_equal(BeltPanel.cut_of(4))
 	assert_str(_checkout_caption(screen)).is_equal("CHECKOUT 1/2")
-	var pips: RowPips = (screen._top_bar as TopBar).quota_meter.row_pips
+	var pips: RowPips = screen._stage.tower.row_pips
 	assert_bool(pips.is_visible_in_tree()).is_true()
 	assert_int(pips.done_count()).is_equal(0)
 	var row_one: Array[CardInstance] = await _place(screen, 4)

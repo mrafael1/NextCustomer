@@ -55,11 +55,23 @@ func test_the_backdrop_fits_each_window() -> void:
 		assert_float(wall_rect.end.y).is_equal(bounds.end.y)
 		assert_float(wall_rect.end.x).is_equal(bounds.end.x + StoreBackdrop.WORLD_EXTRA)
 		assert_int(wall.mouse_filter).is_equal(Control.MOUSE_FILTER_STOP)
-		var top_band: Rect2 = _band(window, "TopBand", bounds)
+		# The top band from the register tower's edge (the shift scene polish) to the window's
+		# right; left of it the tower's charcoal reaches the window's left and top.
+		var tower_edge: float = stage_rect.position.x + ShiftStage.TOWER_RECT.end.x
+		var top_band: Rect2 = _right_band(window, "TopBand", bounds, tower_edge)
 		assert_float(top_band.position.y).is_less_equal(bounds.position.y)
 		assert_float(top_band.end.y).is_equal(stage_rect.position.y + ShiftStage.TOP_BAR_BOTTOM)
+		var tower: Rect2 = (window.get_node("Tower") as Control).get_global_rect()
+		assert_float(tower.position.x).is_less_equal(bounds.position.x)
+		assert_float(tower.position.y).is_less_equal(bounds.position.y)
+		assert_float(tower.end.x).is_equal_approx(stage_rect.position.x, 0.5)
+		assert_float(tower.end.y).is_equal(stage_rect.position.y + ShiftStage.COUNTER_TOP)
+		var tower_top: Rect2 = (window.get_node("TowerTop") as Control).get_global_rect()
+		assert_float(tower_top.position.y).is_less_equal(bounds.position.y)
+		assert_float(tower_top.end.y).is_equal(stage_rect.position.y)
+		assert_float(tower_top.end.x).is_equal_approx(tower_edge, 0.5)
 		# B2's ink line along the band's foot, inside it.
-		var edge: Rect2 = _band(window, "TopEdge", bounds)
+		var edge: Rect2 = _right_band(window, "TopEdge", bounds, tower_edge)
 		assert_float(edge.end.y).is_equal(top_band.end.y)
 		assert_float(edge.size.y).is_equal(StoreBackdrop.TOP_EDGE)
 		assert_object((window.get_node("TopEdge") as ColorRect).color).is_equal(Palette.INK)
@@ -393,6 +405,16 @@ func test_the_hand_is_basket_items_under_a_shade_while_counting() -> void:
 	assert_bool(shade.visible).is_false()
 	for part: Control in [stage.baskets, stage.hand, stage.basket_fronts]:
 		assert_float(part.modulate.a).is_equal(1.0)
+
+
+## `window`'s band `part` from `left` to the window's right edge, taking no click. Returns its rect.
+func _right_band(window: Control, part: String, bounds: Rect2, left: float) -> Rect2:
+	var band: Control = window.get_node(part) as Control
+	var shown: Rect2 = band.get_global_rect()
+	assert_float(shown.position.x).is_equal_approx(left, 0.5)
+	assert_float(shown.end.x).is_greater_equal(bounds.end.x)
+	assert_int(band.mouse_filter).is_equal(Control.MOUSE_FILTER_IGNORE)
+	return shown
 
 
 ## `window`'s band `part`: spanning the window and taking no click. Returns its rect.

@@ -2,8 +2,8 @@ class_name QuotaCrossing
 extends Control
 ## The quota crossing (mock-up docs/art/mockups/quota_crossing.html, approved by the user on
 ## 2026-10-31): with one checkout a shift, the moment the count meets the quota must land.
-## Decor only: it follows the count-up (quota_met with a pop) and the top bar's gauge
-## (QuotaMeter.lap_reached), and never scores.
+## Decor only: it follows the count-up (quota_met with a pop) and the quota gauge (QuotaMeter, the
+## tube beside the receipt since the shift scene polish: lap_reached), and never scores.
 ##
 ## At the crossing, on top of the count-up's ding and its hit-stop (the ding's hold) and the
 ## monitor's SPEND MET:
@@ -11,11 +11,13 @@ extends Control
 ##   on it, a mustard pennant reading SPEND MET with a ✓ badge on the pole; it flaps, then folds
 ##   away as the item goes on to the bag (FLAG_SECONDS).
 ## - B, hit-stop + streak: the picture dips (DIP) under a warm flash, and a gold spark flies from
-##   the item to the quota on the gauge, which pulses with a ring as it lands.
+##   the item to the quota on the gauge (the target line on the tube's top), which pulses with a
+##   ring as it lands.
 ## - C, ka-ching: the register's drawer and bell (Sfx "kaching"), one-off, apart from the ladder.
 ## - D, bonus lights: BonusLights light the belt's rail for the rest of the count.
 ## - E, laps: from twice the quota on, the gauge laps (QuotaMeter); each new lap slams a ×N stamp
-##   under the gauge with sparkles and the ka-ching, shrinking away as the flag names the next.
+##   beside the tube's top with sparkles and the ka-ching, shrinking away as the flag names the
+##   next.
 ##
 ## Real time (the ding's hit-stop freezes the count, not these). Reduced motion keeps the sound,
 ## the lights and the flag and the stamp standing still for their time, with no dip, flash,
@@ -49,10 +51,12 @@ const BURST_RADIUS := 26.0
 const BURST_SECONDS := 0.35
 ## C: the ka-ching's volume.
 const KACHING_DB := 0.0
-## E: the stamp under the gauge (STAMP_SIZE at scale 1), slammed from STAMP_SLAM_SCALE over
-## STAMP_SLAM_SECONDS, settling, then fading over its last STAMP_FADE_SECONDS.
+## E: the stamp beside the tube's top, STAMP_BESIDE_PX right of it and STAMP_DOWN_PX under its
+## top (STAMP_SIZE at scale 1), slammed from STAMP_SLAM_SCALE over STAMP_SLAM_SECONDS, settling,
+## then fading over its last STAMP_FADE_SECONDS.
 const STAMP_SIZE := Vector2(70, 40)
-const STAMP_BELOW_PX := 24.0
+const STAMP_BESIDE_PX := 12.0
+const STAMP_DOWN_PX := 8.0
 const STAMP_SLAM_SCALE := 2.6
 const STAMP_SLAM_SECONDS := 0.15
 const STAMP_SECONDS := 0.75
@@ -149,7 +153,7 @@ func cross() -> void:
 	var rect: Rect2 = _local_rect(_item())
 	_foot = _snap(Vector2(rect.get_center().x - 6.0, rect.get_center().y + 6.0))
 	_gauge = _gauge_rect()
-	_mark = Vector2(_gauge.end.x - GRID, _gauge.get_center().y)
+	_mark = _quota_mark()
 	_play_kaching()
 	if lights != null:
 		lights.light()
@@ -338,7 +342,10 @@ func _draw_stamp() -> void:
 	var fade_from: float = STAMP_SECONDS - STAMP_FADE_SECONDS
 	if t > fade_from:
 		alpha = 1.0 - _ease((t - fade_from) / STAMP_FADE_SECONDS)
-	var centre: Vector2 = Vector2(_gauge.get_center().x, _gauge.end.y + STAMP_BELOW_PX)
+	var centre: Vector2 = Vector2(
+		_gauge.end.x + STAMP_BESIDE_PX + STAMP_SIZE.x / 2.0,
+		_gauge.position.y + STAMP_DOWN_PX + STAMP_SIZE.y / 2.0
+	)
 	var box: Vector2 = (STAMP_SIZE * scale_now / GRID).round() * GRID
 	var rect: Rect2 = Rect2(_snap(centre - box / 2.0), box)
 	draw_rect(rect.grow(3.0), Color(Palette.INK, alpha))
@@ -375,7 +382,7 @@ func _draw_stamp() -> void:
 	draw_set_transform_matrix(Transform2D.IDENTITY)
 	if not reduced_motion:
 		_burst(centre, t / (STAMP_SECONDS * 0.7))
-		_burst(Vector2(_gauge.end.x - 4.0, _gauge.get_center().y), (t - 0.1) / 0.4)
+		_burst(Vector2(_gauge.get_center().x, _gauge.position.y), (t - 0.1) / 0.4)
 
 
 ## BURST_DOTS sparkles round `at`, `k` from 0 to 1 (none outside).
@@ -485,11 +492,18 @@ func _source_rect(slot: int) -> Rect2:
 	return _count_up.source_rect.call(slot) as Rect2
 
 
-## The gauge's rect in this layer, or a stand-in at the top bar's left.
+## The gauge's rect in this layer, or a stand-in at the tube's place.
 func _gauge_rect() -> Rect2:
 	if meter == null or not meter.is_inside_tree():
-		return Rect2(276, 18, 96, 20)
+		return ShiftStage.TUBE_RECT
 	return _local_rect(meter.bar().get_global_rect())
+
+
+## Where the quota stands on the gauge, in this layer (the streak's end).
+func _quota_mark() -> Vector2:
+	if meter == null or not meter.is_inside_tree():
+		return Vector2(_gauge.get_center().x, _gauge.position.y)
+	return get_global_transform().affine_inverse() * meter.quota_mark()
 
 
 func _local_rect(rect: Rect2) -> Rect2:

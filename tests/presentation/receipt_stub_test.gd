@@ -3,7 +3,8 @@ extends GdUnitTestSuite
 ## (show_planning) is itemised: the header, a dashed rule, one line per item (name, payout with
 ## cents, its mark: the fizzle icon when it fizzles, no check), "n ·····" per open empty slot, a
 ## dashed rule, "PROJECTED €N.00" (given the quota: green at or over it, no mark, red under it,
-## the shortfall "short €1.00" on its own row under it), then the fizzle footer
+## with how far it is on its own row under it: "+€3.00 over target", "€1.00 short"), then the
+## fizzle footer
 ## ("2 WASTED · hover an item", none without fizzles); highlight_slot frames a line (planning only).
 ## The count-up (begin_count) prints the header and its footer only; the steps print line by line
 ## (#105 piece 2): an item's line with its base, then its lines under it, the newest framed; an item
@@ -56,9 +57,9 @@ func test_money_prints_cents() -> void:
 	assert_str(ReceiptView.money(15, true)).is_equal("+€15.00")
 	assert_str(ReceiptView.money(0)).is_equal("€0.00")
 	assert_str(ReceiptView.verdict_text(51, 40)).is_equal("€51.00 / €40.00")
-	assert_str(ReceiptView.margin_text(ShiftMargin.Kind.OVER, 11)).is_equal("+€11.00 OVER QUOTA")
-	assert_str(ReceiptView.margin_text(ShiftMargin.Kind.SHORT, 4)).is_equal("SHORT €4.00")
-	assert_str(ReceiptView.margin_text(ShiftMargin.Kind.ON, 0)).is_equal("ON QUOTA")
+	assert_str(ReceiptTarget.margin_text(ShiftMargin.Kind.OVER, 11)).is_equal("+€11.00 OVER TARGET")
+	assert_str(ReceiptTarget.margin_text(ShiftMargin.Kind.SHORT, 4)).is_equal("SHORT €4.00")
+	assert_str(ReceiptTarget.margin_text(ShiftMargin.Kind.ON, 0)).is_equal("ON TARGET")
 	# The receipt's font has every glyph its lines print (the dots, the bullets, € and ×; one test
 	# with the amounts' words, so the suite stays at gdlint's 20 public methods).
 	for text: String in [ReceiptView.HEADER_TEXT, "€×+="]:
@@ -187,11 +188,12 @@ func test_the_planning_receipt_is_itemised() -> void:
 	await _frames(1)
 
 
-## Against the quota (#71's play test): PROJECTED's amount is Palette.GOOD at the quota and over
-## it, with no mark (no check) and no footer for a clean row; under it, Palette.TOMATO with no
-## mark and the shortfall ("short €1.00", dark tomato) on the footer's first row, before the
-## fizzle footer; without a quota it stays ink. Every footer row stays one line inside the stub's
-## width, even with a long hover hint.
+## Against the quota (#71's play test; the target since the shift scene polish): PROJECTED's
+## amount is Palette.GOOD at the quota and over it, with no mark (no check), and the row under it
+## says how far over ("+€3.00 over target", "on target", green dark) with no footer for a clean
+## row; under it, Palette.TOMATO with no mark and the shortfall ("€1.00 short", tomato) on the row
+## under it, before the fizzle footer; without a quota it stays ink, with no such row. Every row
+## under it stays one line inside the stub's width, even with a long hover hint.
 func test_the_projected_total_reads_against_the_quota() -> void:
 	var clean: ScoreResult = _result()
 	clean.steps = clean.steps.filter(
@@ -207,10 +209,19 @@ func test_the_projected_total_reads_against_the_quota() -> void:
 		assert_int(projected.get_child(1).get_child_count()).is_equal(0)
 		var amount: Rect2 = (projected.get_child(1) as Control).get_global_rect()
 		assert_bool(paper.encloses(amount)).override_failure_message(str(amount)).is_true()
-		assert_str(_lines(_receipt)[-1]).is_equal("PROJECTED | €8.00")
+		assert_str(_lines(_receipt)[-2]).is_equal("PROJECTED | €8.00")
+		assert_str(_lines(_receipt)[-1]).is_equal(" | " + ReceiptTarget.against_text(8, quota))
+		var against: HBoxContainer = _receipt._lines.get_children()[-1] as HBoxContainer
+		assert_that(_color(against, 1)).is_equal(Palette.GREEN_DARK)
+		var words: Rect2 = (against.get_child(1) as Control).get_global_rect()
+		assert_bool(paper.encloses(words)).override_failure_message(str(words)).is_true()
+		# Right-aligned under the amount.
+		assert_float(words.end.x).is_greater_equal(amount.end.x - 0.5)
+	assert_str(ReceiptTarget.against_text(8, 8)).is_equal("on target")
+	assert_str(ReceiptTarget.against_text(8, 5)).is_equal("+€3.00 over target")
 	var cases: Array[Array] = [
-		[_result(), 9, ["short €1.00 | ", "1 WASTED |  · hover an item"]],
-		[clean, 20, ["short €12.00 | "]],
+		[_result(), 9, [" | €1.00 short", "1 WASTED |  · hover an item"]],
+		[clean, 20, [" | €12.00 short"]],
 	]
 	for case: Array in cases:
 		var result: ScoreResult = case[0] as ScoreResult
@@ -233,8 +244,12 @@ func test_the_projected_total_reads_against_the_quota() -> void:
 		assert_int(rows.size()).is_equal(tail.size())
 		for row: Node in rows:
 			var footer: HBoxContainer = row as HBoxContainer
-			assert_that(_color(footer, 0)).is_equal(Palette.TOMATO_DARK)
-			assert_int((footer.get_child(0) as Label).get_line_count()).is_equal(1)
+			var against: bool = footer.name == "Against"
+			var words: int = 1 if against else 0
+			assert_that(_color(footer, words)).is_equal(
+				Palette.TOMATO if against else Palette.TOMATO_DARK
+			)
+			assert_int((footer.get_child(words) as Label).get_line_count()).is_equal(1)
 			assert_float(footer.get_combined_minimum_size().x).is_less_equal(_receipt._lines.size.x)
 			assert_float(footer.get_rect().end.x).is_less_equal(_receipt._lines.size.x + 0.5)
 			for label: Node in footer.get_children():
@@ -410,8 +425,8 @@ func test_an_item_that_does_not_add_up_closes_with_its_payout() -> void:
 
 
 ## A late-run verdict ("€1118.00 / €120.00", the simulator's largest total on shift 8's
-## quota) shrinks to stay on the TOTAL line: the caption on one row, the line inside the lines'
-## width; a short one keeps VERDICT_FONT_SIZE.
+## quota) stays on the TOTAL line, shrinking when it must (a 5-digit one does): the caption on
+## one row, the line inside the lines' width; a short one keeps VERDICT_FONT_SIZE.
 func test_a_four_digit_verdict_stays_on_the_total_line() -> void:
 	for pair: Array in [[109, 34], [1118, 120], [10000, 120]]:
 		_receipt.begin_count(PackedStringArray(HEADER), PackedStringArray(NAMES))
@@ -426,8 +441,11 @@ func test_a_four_digit_verdict_stays_on_the_total_line() -> void:
 		var font_size: int = label.get_theme_font_size("font_size")
 		if pair[0] == 109:
 			assert_int(font_size).is_equal(ReceiptView.VERDICT_FONT_SIZE)
-		else:
+		elif pair[0] == 10000:
 			assert_int(font_size).is_less(ReceiptView.VERDICT_FONT_SIZE)
+		else:
+			# The shift scene polish's wider receipt may fit it whole.
+			assert_int(font_size).is_less_equal(ReceiptView.VERDICT_FONT_SIZE)
 
 
 ## show_result prints the count-up's receipt at once (no footer); without a header it prints

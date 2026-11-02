@@ -7,12 +7,12 @@ extends PanelContainer
 ## In planning (show_planning, #80) it is itemised: the header and a dashed rule, one line per
 ## belt item in scan order (its name, its payout, then its mark: the fizzle icon when one of its
 ## effects fizzles, the warning icon when an inspection denies it), a muted "5 ·····" for each
-## open empty slot, a dashed rule, "PROJECTED €22.00" (against the quota: green when met, or red
-## with "short €N.00" under it), and
-## the fizzle footer ("2 WASTED · hover an item", none without fizzles). The belt
-## item being scanned frames its line (highlight_slot). A hovered belt item (#71) frames its line
-## too, marks its targets' lines with a mustard-pale fill and the token it gives them
-## (show_relations), and the footer names it (set_footer_hint: "2 WASTED · Multipack hovered").
+## open empty slot, a dashed rule, "PROJECTED €22.00" (green when met, red under it) over a line
+## against the quota ("+€N.00 over target", "€N.00 short": ReceiptTarget.against_text), and the
+## fizzle footer ("2 WASTED · hover an item", none without fizzles). The belt item being scanned
+## frames its line (highlight_slot). A hovered belt item (#71) frames its line too, marks its
+## targets' lines with a mustard-pale fill and the token it gives them (show_relations), and the
+## footer names it (set_footer_hint: "2 WASTED · Multipack hovered").
 ##
 ## The count-up (begin_count) pre-prints the header, every item's line greyed ("Multipack
 ## ·····"), the dashed rule, "TOTAL •••••" and the footer "tap: skip · hold: fast". Each step
@@ -33,12 +33,14 @@ extends PanelContainer
 ## dark amber, each item's final payout in bold, and an armed effect prints its "arms" sub line
 ## when it arms (ReceiptInk: `cards` passed to show_planning, begin_count and show_result).
 ##
-## On the shift screen it stands on the printer's slot and grows up (fit_up, #80): as tall as its
+## Its `target` block (ReceiptTarget, the shift scene polish: TODAY'S TARGET and the quota as a
+## big number) is pinned at its top, outside the scroll area, once the screen shows the quota. On
+## the shift screen it stands on the printer's slot and grows up (fit_up, #80): as tall as its
 ## lines, up to ShiftStage.RECEIPT_TOP. An indented step line hangs (#55): wrapped, it starts past
-## its lead and marker on every row, and its amount sits on its last row (a fizzle's line has
-## none: its mark says it, on its first row). The lines
-## sit in an inset (FRAME_OUT on the left, FRAME_PAD on the right) that holds the frame, inside
-## the scroll area; most lines keep B2's mark column (MARK_COLUMN) at their right end.
+## its lead and marker on every row, and its amount sits on its last row (a fizzle's line has none:
+## its mark says it, on its first row). The lines sit in an inset (FRAME_OUT on the left, FRAME_PAD
+## on the right) that holds the frame, inside the scroll area; most lines keep B2's mark column
+## (MARK_COLUMN) at their right end.
 
 enum LineStyle {
 	DETAIL,
@@ -95,8 +97,6 @@ const FIZZLES_TEXT := "%d " + EffectLink.WASTED_WORD
 const HINT_TEXT := " · %s"
 const DEFAULT_HINT := "hover an item"
 const HOVERED_HINT := "%s hovered"
-## A projected total under the quota prints its shortfall on the footer's first row (ReceiptDecor).
-const SHORT_TEXT := "short %s"
 ## The count-up's footer, from its start to the TOTAL line.
 const COUNT_FOOTER_TEXT := "tap: skip · hold: fast"
 ## An open empty slot on the planning receipt: its number, then dots.
@@ -136,6 +136,8 @@ var stub: ReceiptStub:
 		if value != null:
 			_lines.add_child(value)
 			scroll_to_end()
+## TODAY'S TARGET, pinned at the top (hidden until its show_quota).
+var target: ReceiptTarget
 var _lines: VBoxContainer
 ## Holds the lines inside the scroll area, with room for the frame and the marks; draws the frame.
 var _inset: MarginContainer
@@ -180,10 +182,18 @@ func _init() -> void:
 	style.content_margin_left = 12 - FRAME_OUT
 	style.content_margin_right = 12 - FRAME_OUT
 	add_theme_stylebox_override("panel", style)
+	var column: VBoxContainer = VBoxContainer.new()
+	column.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	column.add_theme_constant_override("separation", 0)
+	add_child(column)
+	target = ReceiptTarget.new()
+	column.add_child(target)
 	_scroll = ScrollContainer.new()
 	_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	_scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	_scroll.sort_children.connect(_on_scroll_sorted)
-	add_child(_scroll)
+	column.add_child(_scroll)
+	target.minimum_size_changed.connect(_queue_fit)
 	_inset = MarginContainer.new()
 	_inset.name = "Inset"
 	_inset.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -234,10 +244,13 @@ func fit_height() -> void:
 	scroll_to_end()
 
 
-## The lines' natural height plus the paper's frame: how tall the receipt is when nothing stops
-## it. (A ScrollContainer reports no content height: the inset's own minimum is the content.)
+## The lines' natural height plus the target's and the paper's frame: how tall the receipt is when
+## nothing stops it. (A ScrollContainer reports no content height: the inset's own minimum is the
+## content.)
 func natural_height() -> float:
-	return _inset.get_combined_minimum_size().y + get_theme_stylebox("panel").get_minimum_size().y
+	var pinned: float = target.get_combined_minimum_size().y if target.visible else 0.0
+	var frame: float = get_theme_stylebox("panel").get_minimum_size().y
+	return _inset.get_combined_minimum_size().y + pinned + frame
 
 
 ## Shows the newest line (or the framed one): scrolls once the new lines are laid out.
@@ -300,9 +313,9 @@ func begin_count(
 ## The planning receipt (#80): `header` and a dashed rule; for each belt item (`names`, in scan
 ## order) its name, its payout in `result` and its mark (slot_mark()); "n ·····" for each open
 ## slot past them up to `open_slots`; a dashed rule and "PROJECTED €total", against `quota` (none
-## when negative): green at or over it, red under it; then the footer: the
-## shortfall ("short €12.00", its own row) and the fizzles (each none without it). Each item's
-## payout prints bold, its mini from `cards`.
+## when negative): green at or over it, red under it, with how far it is on its own row under it
+## (ReceiptDecor.against_quota); then the fizzle footer (none without fizzles). Each item's payout
+## prints bold, its mini from `cards`.
 func show_planning(
 	header: PackedStringArray,
 	result: ScoreResult,
@@ -324,11 +337,8 @@ func show_planning(
 		add_line(EMPTY_SLOT_TEXT % (slot + 1), "", LineStyle.WAITING)
 	var projected: Control = add_line(PROJECTED_TEXT, money(result.total), LineStyle.PROJECTED)
 	if quota >= 0:
-		var short: String = ReceiptDecor.against_quota(
-			projected as HBoxContainer, result.total, quota
-		)
-		if not short.is_empty():
-			add_line(short, "", LineStyle.FOOTER)
+		var against: Control = add_line("", "", LineStyle.MARGIN)
+		ReceiptDecor.against_quota(projected as HBoxContainer, against, result.total, quota)
 	var fizzles: int = fizzle_count(result)
 	if fizzles > 0:
 		_footer = add_line(FIZZLES_TEXT % fizzles, HINT_TEXT % DEFAULT_HINT, LineStyle.FOOTER)
@@ -758,28 +768,15 @@ func total_label() -> Label:
 	return _total_line.get_child(1) as Label
 
 
-## The margin line under the total, showing the whole margin: "+€N.00 OVER QUOTA", "SHORT €N.00"
-## (red) or "ON QUOTA" (green). The dessert counts it up with show_margin.
+## The margin line under the total, showing the whole margin (ReceiptTarget.margin_text), red when
+## short, else green. The dessert counts it up with ReceiptTarget.show_margin.
 func add_margin(margin: ShiftMargin) -> Control:
-	var line: Control = add_line(margin_text(margin.kind(), margin.amount()), "", LineStyle.MARGIN)
+	var text: String = ReceiptTarget.margin_text(margin.kind(), margin.amount())
+	var line: Control = add_line(text, "", LineStyle.MARGIN)
 	var color: Color = Palette.TOMATO if margin.kind() == ShiftMargin.Kind.SHORT else Palette.GOOD
 	for label: Node in line.get_children():
 		(label as Label).add_theme_color_override("font_color", color)
 	return line
-
-
-## Shows `euros` on a margin `line` of `kind`, as its count passes them.
-static func show_margin(line: Control, kind: ShiftMargin.Kind, euros: int) -> void:
-	(line.get_child(0) as Label).text = margin_text(kind, euros)
-
-
-static func margin_text(kind: ShiftMargin.Kind, euros: int) -> String:
-	match kind:
-		ShiftMargin.Kind.OVER:
-			return "%s OVER QUOTA" % money(euros, true)
-		ShiftMargin.Kind.SHORT:
-			return "SHORT %s" % money(euros)
-	return "ON QUOTA"
 
 
 ## The receipt tears off under the shift's lines: a torn edge, clipped to the receipt's width.

@@ -57,6 +57,15 @@ func test_a_long_receipt_stops_under_the_top_bar_and_scrolls_to_its_end() -> voi
 	assert_float(receipt.position.y + receipt.size.y).is_equal(ShiftStage.RECEIPT_BOTTOM)
 	assert_bool(receipt._scroll.get_v_scroll_bar().visible).is_false()
 	_assert_newest_in_view(receipt)
+	# TODAY'S TARGET (the shift scene polish) stays pinned at the paper's top, above the scrolled
+	# lines, with the shift's quota.
+	var target: ReceiptTarget = receipt.target
+	assert_bool(target.visible).is_true()
+	assert_int(target.shown_quota()).is_equal(screen.run.quota())
+	var block: Rect2 = target.get_global_rect()
+	assert_bool(receipt.get_global_rect().encloses(block)).is_true()
+	assert_float(block.end.y).is_less_equal(receipt._scroll.get_global_rect().position.y)
+	assert_float(block.position.y - receipt.get_global_rect().position.y).is_less(24.0)
 	# The wheel scrolls the area: back at the top, the first line shows and stays.
 	receipt._scroll.scroll_vertical = 0
 	await _frames(3)

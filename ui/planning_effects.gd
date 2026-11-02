@@ -128,7 +128,7 @@ func setup(stage: ShiftStage, drag: CardDrag) -> void:
 	_loyalty = stage.loyalty_card
 	_tag = stage.inspection_tag
 	_week_chip = stage.top_bar.week_chip
-	_quota_meter = stage.top_bar.quota_meter
+	_quota_meter = stage.quota_meter
 	_drag = drag
 	_layer = stage.planning_layer
 	_layer.tuning = tuning

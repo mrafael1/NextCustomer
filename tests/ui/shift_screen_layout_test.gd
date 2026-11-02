@@ -13,9 +13,6 @@ extends GdUnitTestSuite
 ## and on. The real saves and logs are never touched.
 
 const SCREEN := "res://ui/shift_screen.tscn"
-## The top bar's gauge before v0.83 (base 1280x720 px), and how much longer it is since.
-const BAR_WIDTH_V082 := 96.0
-const BAR_GAIN := 24.0
 const SHORT_BELT := preload("res://data/inspections/short_belt.tres")
 
 var _folder: String = ""
@@ -119,7 +116,7 @@ func test_the_stage_is_laid_out_without_overlaps() -> void:
 	assert_float(lip.position.y).is_less(receipt.end.y)
 	assert_float(lip.end.y).is_greater(receipt.end.y)
 	assert_int(screen._stage.printer_lip.get_index()).is_greater(screen._receipt.get_index())
-	assert_float(receipt.position.y).is_greater_equal(bar_bottom)
+	assert_float(receipt.position.y).is_greater_equal(stage.position.y + ShiftStage.RECEIPT_TOP)
 	assert_bool(receipt.intersects(monitor)).is_false()
 
 	# The belt, right of the register, with the row's cells on it: each item on the top face, each
@@ -200,26 +197,6 @@ func test_the_stage_is_laid_out_without_overlaps() -> void:
 		assert_bool(seed_rect.intersects(part.get_global_rect())).is_false()
 	assert_bool(seed_rect.intersects(_on_stage(screen, ShiftStage.DRAWER_RECT))).is_false()
 	assert_str(screen._seed_label.text).contains("Seed %d" % screen.run.run_seed)
-
-
-## The quota gauge (v0.83) is longer than v0.82's (BAR_WIDTH_V082) by at least BAR_GAIN on a usual
-## shift (the capture's: Short belt's chip, week 2), the readout after it fitting its texts.
-func test_the_quota_gauge_gained_its_room() -> void:
-	var screen: ShiftScreen = await _screen()
-	var run: RunState = screen.run
-	run.inspections = [SHORT_BELT]
-	run.debug_skip_to_shift(4)
-	screen._on_shift_started()
-	screen._week.skip()
-	await _frames(2)
-	var meter: QuotaMeter = screen._stage.top_bar.quota_meter
-	var width: float = meter.bar().size.x
-	assert_float(width).override_failure_message("bar %s" % width).is_greater_equal(
-		BAR_WIDTH_V082 + BAR_GAIN
-	)
-	var chip: Rect2 = (meter.get_parent() as Control).get_global_rect()
-	assert_bool(meter.bar().get_global_rect().encloses(meter.tag_label.get_global_rect())).is_true()
-	assert_bool(chip.encloses(meter.amount_label.get_global_rect())).is_true()
 
 
 ## The store's kraft bag (#86 v6, #123) stands at BAG_RECT on the bagging shelf behind the belt's
@@ -348,7 +325,7 @@ func test_the_top_bar_fits_its_longest_texts() -> void:
 		screen._on_shift_started()
 		var deck_limit: int = run.balance.deck_limit
 		screen._deck_button.caption = "Cart %d/%d" % [deck_limit, deck_limit]
-		# The widest quota chip: a 4-digit subtotal past the quota, with its flag.
+		# The gauge's flag: a 4-digit subtotal past the quota.
 		screen._led.start_count(largest)
 		screen._led.show_subtotal(9999, true)
 		await _frames(2)
@@ -358,9 +335,9 @@ func test_the_top_bar_fits_its_longest_texts() -> void:
 		var week: WeekEventDefinition = WeekSchedule.event_for(run.balance, last + 1)
 		var percent: int = inspection.quota_percent + week.quota_percent
 		var shown: int = ShiftLimits.with_percent(largest, percent)
-		assert_str(screen._quota_label.text).is_equal(QuotaMeter.QUOTA_AMOUNT % shown)
-		assert_str(top_bar.quota_meter.amount_label.text).is_equal("€9999")
-		assert_bool(top_bar.quota_meter.flag_shown()).is_true()
+		assert_str(screen._receipt.target.amount.text).is_equal("%d" % shown)
+		assert_int(screen._quota_meter.amount()).is_equal(9999)
+		assert_bool(screen._quota_meter.flag_shown()).is_true()
 		assert_int(screen._loyalty_card.box_texts().size()).is_equal(4)
 		# A boon's chip (v0.69) reads "Today: name — effect".
 		var chip_text: String = (
@@ -372,7 +349,6 @@ func test_the_top_bar_fits_its_longest_texts() -> void:
 		# With weeks the SHIFT chip is gone past the training week (v0.82).
 		assert_bool(top_bar.shift_chip.visible).is_false()
 		var parts: Array[Control] = [
-			screen._top_bar.get_child(1) as Control,
 			top_bar.week_chip,
 			screen._inspection_tag,
 			screen._loyalty_card,
@@ -403,8 +379,9 @@ func test_the_top_bar_fits_its_longest_texts() -> void:
 			assert_float(parts[index].get_global_rect().position.x).is_greater(
 				parts[index - 1].get_global_rect().end.x
 			)
-		var meter_bar: Control = top_bar.quota_meter.bar()
-		assert_float(meter_bar.size.x).is_greater_equal(QuotaMeter.BAR_MIN_WIDTH)
+		assert_float(top_bar.week_chip.get_global_rect().position.x).is_greater_equal(
+			stage.position.x + ShiftStage.TOWER_RECT.end.x
+		)
 
 	var seed_line: Rect2 = screen._seed_label.get_global_rect()
 	assert_str(screen._seed_label.text).contains("4294967295")
@@ -442,7 +419,8 @@ func test_the_receipt_grows_up_from_the_printer() -> void:
 	var rect: Rect2 = receipt.get_global_rect()
 	assert_float(rect.end.y).is_equal(bottom)
 	assert_float(rect.position.y).is_equal(stage.position.y + ShiftStage.RECEIPT_TOP)
-	assert_float(rect.position.y).is_greater_equal(stage.position.y + ShiftStage.TOP_BAR_BOTTOM)
+	# Since the shift scene polish it rises above the top bar's foot, in the tower left of the bar.
+	assert_float(rect.end.x).is_less_equal(screen._stage.top_bar.get_global_rect().position.x)
 	assert_bool(rect.intersects(_on_stage(screen, ShiftStage.MONITOR_RECT))).is_false()
 
 
@@ -599,11 +577,22 @@ func test_the_wall_and_counter_cover_the_viewport() -> void:
 	var wall: Rect2 = screen._wall.get_global_rect()
 	var counter: Rect2 = (content.get_node("Counter") as Control).get_global_rect()
 	assert_bool(wall.encloses(window)).is_true()
-	var bands: Array[Control] = [screen.get_node("TopBand"), content.get_node("Floor")]
-	for band_control: Control in bands:
-		var band: Rect2 = band_control.get_global_rect()
-		assert_float(band.position.x).is_less_equal(window.position.x)
-		assert_float(band.end.x).is_greater_equal(window.end.x)
+	var floor_band: Rect2 = (content.get_node("Floor") as Control).get_global_rect()
+	assert_float(floor_band.position.x).is_less_equal(window.position.x)
+	assert_float(floor_band.end.x).is_greater_equal(window.end.x)
+	# The top band runs from the register tower's edge (the shift scene polish) to the window's
+	# right; left of it the tower's charcoal reaches the window's left and top.
+	var stage_rect: Rect2 = screen._stage.get_global_rect()
+	var tower_edge: float = stage_rect.position.x + ShiftStage.TOWER_RECT.end.x
+	var top_band: Rect2 = (screen.get_node("TopBand") as Control).get_global_rect()
+	assert_float(top_band.position.x).is_equal_approx(tower_edge, 0.5)
+	assert_float(top_band.end.x).is_greater_equal(window.end.x)
+	var tower_left: Rect2 = (content.get_node("Tower") as Control).get_global_rect()
+	assert_float(tower_left.position.x).is_less_equal(window.position.x)
+	assert_float(tower_left.end.x).is_equal_approx(stage_rect.position.x, 0.5)
+	var tower_top: Rect2 = (content.get_node("TowerTop") as Control).get_global_rect()
+	assert_float(tower_top.position.y).is_less_equal(window.position.y)
+	assert_float(tower_top.end.x).is_equal_approx(tower_edge, 0.5)
 	assert_float(counter.position.x).is_less_equal(window.position.x)
 	assert_float(counter.end.x).is_greater_equal(window.end.x)
 	assert_float(counter.end.y).is_greater_equal(window.end.y)
@@ -652,7 +641,6 @@ func test_numbers_use_the_number_font() -> void:
 	plain.queue_free()
 	var numbers: Array[Label] = [
 		screen._shift_label,
-		screen._quota_label,
 		screen._monitor.checkout().total_number().slam_label(),
 		screen._deck_button.caption_label(),
 		screen._redraw_button.note_label(),
@@ -668,6 +656,13 @@ func test_numbers_use_the_number_font() -> void:
 			. override_failure_message("%s: %s" % [label.get_path(), label.text])
 			. is_same(number_font)
 		)
+	# The receipt's TODAY'S TARGET (the shift scene polish) prints the quota in the display font's
+	# hard pixels, like every pixel label.
+	var pixel: Label = UiKit.pixel_label("0", 1, Palette.INK)
+	assert_object(screen._receipt.target.amount.get_theme_font("font")).is_same(
+		pixel.get_theme_font("font")
+	)
+	pixel.free()
 
 
 ## Every character the screen prints is in the font that prints it, including "−" (U+2212) on
