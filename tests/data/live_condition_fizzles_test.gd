@@ -91,7 +91,7 @@ func test_a_mixed_tier_banana_pair_never_fizzles() -> void:
 	assert_int(paid.payouts[1]).is_equal(golden.base + 2 * banana.base)
 
 
-## Every other "just before" adjacency card still fizzles with its partner right after it: only
+## Every other "right before" adjacency card still fizzles with its partner right after it: only
 ## the pair rule looks on both sides for its fizzle.
 func test_other_after_cards_fizzle_with_the_partner_after() -> void:
 	var cards: Array[CardDefinition] = _all_cards()
@@ -108,7 +108,7 @@ func test_other_after_cards_fizzle_with_the_partner_after() -> void:
 			if step.slot == 0:
 				own.append(step)
 		assert_int(own.size()).override_failure_message(card.id).is_equal(1)
-		assert_str(own[0].reason).override_failure_message(card.id).ends_with("just before it")
+		assert_str(own[0].reason).override_failure_message(card.id).ends_with("right before it")
 		checked += 1
 	assert_int(checked).is_greater(0)
 

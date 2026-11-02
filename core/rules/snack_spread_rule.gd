@@ -36,7 +36,7 @@ func wasted_reason(state: ScoreState, slot: int) -> String:
 		if gap < 0:
 			return "no other %s in the row" % tag
 		if gap == 0:
-			return "no product between it and the next %s" % tag
+			return "no item between it and the next %s" % tag
 	return ""
 
 

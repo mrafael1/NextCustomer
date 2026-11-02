@@ -64,13 +64,13 @@ func wasted_reason(state: ScoreState, slot: int) -> String:
 	match role:
 		Role.FEED when bonus != 0:
 			if CardChain.starting_after(state, slot).is_empty():
-				return "no %s just after it" % CardText.CHAIN_WORD
+				return "no %s right after it" % CardText.CHAIN_WORD
 		Role.KNOT when factor > 1:
 			if not CardChain.is_knot(state, slot) and not _spared(state, slot):
 				return "not inside a %s" % CardText.CHAIN_WORD
 		Role.TALLY when bonus != 0:
 			if CardChain.ending_before(state, slot).is_empty():
-				return "no %s just before it" % CardText.CHAIN_WORD
+				return "no %s right before it" % CardText.CHAIN_WORD
 	return ""
 
 

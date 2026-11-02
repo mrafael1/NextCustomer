@@ -42,11 +42,14 @@ const CROSS_RUNS: Array[Vector3i] = [
 ]
 const CALM_FACE := Palette.CREAM_SHADE
 ## Each keyword's calm face, its family's light colour (#128): BATCH the Bakery's cream, CHAIN the
-## Produce green, WASTED (v3 Clearance) the pale tomato; any other keyword CALM_FACE.
+## Produce green, WASTED (v3 Clearance) the pale tomato, PAIR the Dairy teal, MORNING the
+## Breakfast mustard; any other keyword CALM_FACE.
 const CALM_FACES: Dictionary[String, Color] = {
 	CardText.BATCH_WORD: Palette.CREAM_SHADE,
 	CardText.CHAIN_WORD: Palette.GREEN_LIGHT,
 	CardText.WASTED_WORD: Palette.TOMATO_PALE,
+	CardText.PAIR_WORD: Palette.TEAL_LIGHT,
+	CardText.MORNING_WORD: Palette.MUSTARD_LIGHT,
 }
 ## A live value chip's calm face (#128 v3: Stale popcorn's ×N, a multiplier's gold).
 const LIVE_FACE := Palette.GOLD

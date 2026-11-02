@@ -83,6 +83,7 @@ const FAMILY_RULES := [
 	"grant_charged_multiplier_rule.gd",
 	"grant_next_tag_bonus_rule.gd",
 	"grant_tag_to_next_slot_rule.gd",
+	"morning_count_rule.gd",
 	"pair_bonus_rule.gd",
 	"snack_spread_rule.gd",
 ]
@@ -95,6 +96,7 @@ const NO_FAMILY_RULES := [
 	"first_slot_multiplier_rule.gd",
 	"grant_shared_tag_multiplier_rule.gd",
 	"last_slot_bonus_rule.gd",
+	"pair_count_rule.gd",
 	"redraw_bonus_rule.gd",
 	"two_for_one_rule.gd",
 	"wasted_before_rule.gd",

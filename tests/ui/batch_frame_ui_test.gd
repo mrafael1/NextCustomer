@@ -109,10 +109,7 @@ func test_a_job_card_out_of_place_has_a_wrong_job(
 		["croissant,bread", ["", ""]],
 		["stale_doughnut,bread", ["WASTED · Not last in its Bakery batch", ""]],
 		# A lone Banana is a CHAIN card out of place (#128 Produce links): its wrong job too.
-		[
-			"croissant,banana",
-			["WASTED · No Bakery product beside it", "WASTED · No Banana beside it"]
-		],
+		["croissant,banana", ["WASTED · No Bakery item beside it", "WASTED · No Banana beside it"]],
 		["bread,iced_bun", ["", "WASTED · It closes its batch: nothing to glaze"]],
 	]
 ) -> void:

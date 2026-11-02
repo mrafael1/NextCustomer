@@ -34,6 +34,7 @@ const NAMES_NONE: Array[String] = [
 	"GrantSharedTagMultiplierRule",
 	"RedrawBonusRule",
 	"WastedBeforeRule",
+	"PairCountRule",
 ]
 
 
@@ -109,6 +110,8 @@ static func family_of(rule: Rule) -> String:
 		return (rule as BakedBatchBonusRule).tag
 	if rule is SnackSpreadRule:
 		return (rule as SnackSpreadRule).tag
+	if rule is MorningCountRule:
+		return (rule as MorningCountRule).tag
 	return ""
 
 

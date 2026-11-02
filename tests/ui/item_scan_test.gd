@@ -91,7 +91,7 @@ func test_a_held_hand_item_shows_on_the_monitor() -> void:
 ## Coffee's (nothing after it).
 func test_a_held_belt_item_lists_its_fizzles_on_the_monitor() -> void:
 	var screen: ShiftScreen = await _screen()
-	_place(screen, ["milk", "bread", "coffee"])
+	_place(screen, ["milk", "bread", "tea_bags"])
 	var view: ItemView = screen._row_views[2] as ItemView
 	await _hover(screen, view)
 	await _hold(screen)
@@ -109,7 +109,7 @@ func test_a_held_belt_item_lists_its_fizzles_on_the_monitor() -> void:
 		else:
 			expected.append(ReceiptView.step_line(step, CardInstance.names(screen.run.row)))
 	assert_int(fizzles).is_equal(1)
-	assert_str(expected[expected.size() - 1]).is_equal("No Breakfast product after it  WASTED")
+	assert_str(expected[expected.size() - 1]).is_equal("No MORNING item after it  WASTED")
 	var texts: PackedStringArray = monitor.item_column().step_texts()
 	(
 		assert_bool(texts == expected)

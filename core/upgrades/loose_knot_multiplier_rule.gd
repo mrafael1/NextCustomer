@@ -50,7 +50,7 @@ func row_wasted_reason(state: ScoreState) -> String:
 		return "no %s in the row" % card.display_name
 	if not loose:
 		return "every %s is inside a %s" % [card.display_name, CardText.CHAIN_WORD]
-	return "no more %s products after the %s" % [tag, card.display_name]
+	return "no more %s items after the %s" % [tag, card.display_name]
 
 
 ## The loose `card` whose next product with the tag is `slot` (the nearest earlier product with the

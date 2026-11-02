@@ -10,7 +10,7 @@ var charges: int = 0
 var factor_percent: int = 0
 ## The last use came from a reaching upgrade (past the charges).
 var _reached: bool = false
-## Whether only `_targets` can take a charge (Batteries' just after, #128), and the waste's
+## Whether only `_targets` can take a charge (Tea bags' MORNING end, #128), and the waste's
 ## reason when they don't.
 var _limited: bool = false
 var _targets: PackedInt32Array = PackedInt32Array()

@@ -9,9 +9,10 @@
 script = ExtResource("2_yogurt")
 match_by = 2
 match_value = "banana"
-position = 1
+position = 2
 bonus = 3
-receipt_text = "Yogurt after Banana"
+pair = true
+receipt_text = "Yogurt PAIR with Banana"
 
 [resource]
 script = ExtResource("3_card")
@@ -21,7 +22,7 @@ kind = 1
 tags = PackedStringArray("Food", "Dairy", "Breakfast")
 base = 4
 rules = Array[ExtResource("1_rule")]([SubResource("Resource_yogurt")])
-rule_text = "+3 if immediately after Banana"
+rule_text = "PAIR: +3 if beside a Banana"
 art_ref = "res://art/items_v2/yogurt_big.png"
 variant_of = ExtResource("9_plain")
 tier = 1

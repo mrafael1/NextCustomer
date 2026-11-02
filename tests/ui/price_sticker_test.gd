@@ -20,22 +20,22 @@ const NUMBER := "\\d+(?!st|nd|rd|th)"
 ## as N.
 const READINGS: Dictionary[String, String] = {
 	"eggs": "×N next Food",
-	"tea_bags": "×N next Breakfast",
+	"tea_bags": "×N last MORNING",
 	# The Banana chain (#106) replaced v2's "+N after Banana"; its CHAIN keyword (#128 Produce
 	# links) is a chip.
 	"banana": "CHAIN +prev",
-	"batteries": "×N Household just after",
+	"batteries": "×N next Household",
 	"two_for_one": "Same both sides: 2nd ×N",
 	"crisps": "+N per redraw left",
-	"coffee": "+N next Breakfast",
+	"coffee": "+N per MORNING",
 	"milk": "+N per earlier Breakfast",
-	"cheese": "+N after Bread",
+	"cheese": "+N PAIR with Bread",
 	# Produce links (#128): Strawberries feed the chain just after them.
 	"strawberries": "+N each, next CHAIN",
 	# The Bakery batch roles (#128 v3) replaced Croissant's "+N beside Bakery"; its BATCH keyword
 	# is a chip since the Bound strip.
 	"croissant": "BATCH 1st: +N to the rest",
-	"multipack": "×N later with prior's tag",
+	"multipack": "×N later of the family before",
 }
 ## The pay tags' rects on a ticket (mock-up v3, ticketHTML): the burst, the wide burst (and where
 ## it moves over a two-glyph row) and a plain or €0 tag.

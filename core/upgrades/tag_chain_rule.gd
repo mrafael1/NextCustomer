@@ -36,7 +36,7 @@ func row_wasted_reason(state: ScoreState) -> String:
 	for slot: int in range(state.size()):
 		if _has_tag(state, slot) and _previous(state, slot) >= 0:
 			return ""
-	return "no two %s products side by side" % tag
+	return "no two %s items side by side" % tag
 
 
 ## The nearest product with the tag counted as just before `slot`, or -1.

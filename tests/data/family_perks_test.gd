@@ -43,14 +43,16 @@ const TOTALS: Dictionary[String, Dictionary] = {
 		"produce_aisle_run_lv3": 74,  # was 88
 	},
 	"R2":
+	# #128 Dairy + Breakfast (Coffee +1 per MORNING product, Tea bags ×4 the last MORNING
+	# product, Cheese PAIR with Bread): was 57, 57, 86, 77, 69, 69, 57.
 	{
-		"": 57,
-		"produce_regulars": 57,
-		"breakfast_regulars": 86,
-		"breakfast_aisle_run": 77,
-		"mixed_basket": 69,
-		"bulk_deal": 69,
-		"banana_stand": 57,
+		"": 69,
+		"produce_regulars": 69,
+		"breakfast_regulars": 119,
+		"breakfast_aisle_run": 149,
+		"mixed_basket": 99,
+		"bulk_deal": 72,
+		"banana_stand": 69,
 	},
 	"R3":
 	{
@@ -143,7 +145,7 @@ func test_banana_stand_chains_every_produce() -> void:
 	assert_array(_wasted(plain, 1)).is_not_empty()
 	# No two Produce side by side: the stand fizzles on the row's last slot.
 	var lone: ScoreResult = Scoring.score(_row("banana,bread"), stand)
-	assert_array(_row_wasted(lone)).is_equal(["no two Produce products side by side"])
+	assert_array(_row_wasted(lone)).is_equal(["no two Produce items side by side"])
 
 
 ## Lemon squeezer (#128, Produce links): a Lemon outside a CHAIN (no knot) still doubles the next
@@ -189,9 +191,9 @@ func test_fire_sale_reaches_every_later_clearance() -> void:
 func test_family_perks_fizzle_with_their_reasons() -> void:
 	var row: Array[CardInstance] = _row("banana,bread")
 	var cases: Dictionary[String, String] = {
-		"produce_regulars": "fewer than two Produce products",
-		"produce_aisle_run": "no 3 Produce products in a row",
-		"bulk_deal": "no product with a copy before it",
+		"produce_regulars": "fewer than two Produce items",
+		"produce_aisle_run": "no 3 Produce items in a row",
+		"bulk_deal": "no item with a copy before it",
 	}
 	for perk_id: String in cases:
 		var perks: Array[UpgradeDefinition] = [_upgrade(perk_id)]
@@ -201,13 +203,13 @@ func test_family_perks_fizzle_with_their_reasons() -> void:
 		)
 	var mixed: Array[UpgradeDefinition] = [_upgrade("mixed_basket")]
 	assert_array(_row_wasted(Scoring.score(_row("repeat"), mixed))).is_equal(
-		["no family on the products"]
+		["no family on the items"]
 	)
 	var run: Array[UpgradeDefinition] = [_upgrade("produce_aisle_run")]
 	var broken: ScoreResult = Scoring.score(
 		_row("banana,strawberries,final_markdown,fruit_salad"), run
 	)
-	assert_array(_row_wasted(broken)).is_equal(["no 3 Produce products in a row"])
+	assert_array(_row_wasted(broken)).is_equal(["no 3 Produce items in a row"])
 	var whole: ScoreResult = Scoring.score(_row("banana,strawberries,fruit_salad,bread"), run)
 	assert_array(_row_wasted(whole)).is_empty()
 	var tripled: Array[ScoreStep] = _upgrade_steps(whole, ScoreStep.StepType.MULTIPLIER)
