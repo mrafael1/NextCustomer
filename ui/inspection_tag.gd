@@ -23,10 +23,17 @@ extends PanelContainer
 ## icon, "+1 BONUS TICKET" (bold Atkinson PILL_SIZE, a 2 px ink border). Once the shift has passed
 ## and earned it (EARNED), the chip turns teal pale with the check mark and "<name> passed", the
 ## pill keeping the icon and "+1 BONUS TICKET". BonusNotice pulses the chip once as planning opens.
+##
+## A Day off pin (#132, the user's call of 2026-11-02: the skip is on the day chip): while today
+## can be taken off (show_skip), a teal "SKIP ›" tag ends the chip; a tap on it says
+## `skip_pressed` (not `pressed`: the slip stays up), and armed (the day off's pile on the belt)
+## it reads "UNDO ‹".
 
 ## The pointer entered or left the tag.
 signal hovered
 signal unhovered
+## The SKIP tag was tapped (#132, a Day off pin: PinFlow arms, then takes the day off).
+signal skip_pressed
 ## The chip was tapped (today's slip drops, DaySlip).
 signal pressed
 
@@ -65,6 +72,8 @@ const PILL_SHORT := "+1"
 const PILL_TIP := "PASS › +1 BONUS TICKET"
 const EARNED_TEXT := "%s passed"
 const PILL_SIZE := 12
+const SKIP_TEXT := "SKIP ›"
+const SKIP_ARMED_TEXT := "UNDO ‹"
 const PILL_WEIGHT := 800
 const PILL_PAD := Vector2(6, 1)
 const PILL_GAP := 4
@@ -83,6 +92,8 @@ var _day: int = 0
 var _pill: PanelContainer
 var _pass_word: Label
 var _pill_label: Label
+var _skip: PanelContainer
+var _skip_label: Label
 var _bonus: Bonus = Bonus.NONE
 var _inspections: Array[InspectionDefinition] = []
 ## The effects' text (show_inspections), printed while no cause is named.
@@ -128,6 +139,8 @@ func _init() -> void:
 	row.add_child(_label)
 	_pill = _make_pill()
 	row.add_child(_pill)
+	_skip = _make_skip()
+	row.add_child(_skip)
 	visible = false
 
 
@@ -171,6 +184,19 @@ func show_bonus(state: Bonus) -> void:
 
 func bonus_state() -> Bonus:
 	return _bonus
+
+
+## Shows the SKIP tag (#132: today can be taken off), "UNDO ‹" while `armed`, or hides it.
+func show_skip(shown: bool, armed: bool = false) -> void:
+	_skip.visible = shown
+	_skip_label.text = SKIP_ARMED_TEXT if armed else SKIP_TEXT
+	var style: StyleBoxFlat = _skip.get_theme_stylebox("panel") as StyleBoxFlat
+	style.bg_color = Palette.MUSTARD if armed else Palette.TEAL_LIGHT
+
+
+## The SKIP tag (for layout tests).
+func skip_tag() -> Control:
+	return _skip
 
 
 ## The pill (for layout tests and the pulse).
@@ -222,7 +248,10 @@ func _gui_input(event: InputEvent) -> void:
 	var press: InputEventMouseButton = event as InputEventMouseButton
 	if _day > 0 and press != null and press.pressed and press.button_index == MOUSE_BUTTON_LEFT:
 		accept_event()
-		pressed.emit()
+		if _skip.visible and _skip.get_global_rect().grow(2.0).has_point(press.global_position):
+			skip_pressed.emit()
+		else:
+			pressed.emit()
 
 
 func _notification(what: int) -> void:
@@ -344,6 +373,31 @@ func _make_pill() -> PanelContainer:
 	row.add_child(ticket)
 	_pill_label = _pill_text_label(PILL_TEXT)
 	row.add_child(_pill_label)
+	panel.visible = false
+	return panel
+
+
+## The SKIP tag (#132): teal light (mustard armed), a 2 px ink border, bold Atkinson PILL_SIZE.
+func _make_skip() -> PanelContainer:
+	var panel: PanelContainer = PanelContainer.new()
+	panel.name = "SkipTag"
+	panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	panel.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	var style: StyleBoxFlat = StyleBoxFlat.new()
+	style.bg_color = Palette.TEAL_LIGHT
+	style.border_color = Palette.INK
+	style.set_border_width_all(2)
+	style.content_margin_left = PILL_PAD.x
+	style.content_margin_right = PILL_PAD.x
+	style.content_margin_top = PILL_PAD.y
+	style.content_margin_bottom = PILL_PAD.y
+	panel.add_theme_stylebox_override("panel", style)
+	# As wide as "SURE? ›" from the start, so arming it never moves the top bar.
+	_skip_label = _pill_text_label(SKIP_ARMED_TEXT)
+	_skip_label.custom_minimum_size.x = _skip_label.get_minimum_size().x
+	_skip_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_skip_label.text = SKIP_TEXT
+	panel.add_child(_skip_label)
 	panel.visible = false
 	return panel
 

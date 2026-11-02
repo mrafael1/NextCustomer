@@ -120,7 +120,24 @@ func show_chips() -> void:
 	if weeks:
 		_bar.week_chip.show_week(WeekCardModel.of(run))
 	_bar.show_weeks(weeks)
-	_bar.inspection_tag.show_inspections(run.inspections, run.shift_index + 1 if weeks else 0)
+	_bar.inspection_tag.show_inspections(day_events(run), run.shift_index + 1 if weeks else 0)
+
+
+## The events the day chip shows: the day's (run.inspections), then the worn pins' (#132: Express
+## lane's "Ends ×2" every shift); the week event is the week chip's.
+static func day_events(run: RunState) -> Array[InspectionDefinition]:
+	var events: Array[InspectionDefinition] = run.inspections.duplicate()
+	events.append_array(RunPins.pin_events(run))
+	return events
+
+
+## Where the shift's event `index` (WeekSchedule.shift_events) is on the day chip (day_events), -1
+## when it isn't there (the week event, or no event).
+static func day_index(run: RunState, index: int) -> int:
+	var events: Array[InspectionDefinition] = WeekSchedule.shift_events(run)
+	if index < 0 or index >= events.size() or events[index].is_week():
+		return -1
+	return day_events(run).find(events[index])
 
 
 ## Whether `run`'s balance has weeks (a week list or a week length).

@@ -22,7 +22,6 @@ static func add_cards(run: RunState) -> void:
 			run.deck.add_card(card)
 
 
-## Whether a worn pin gives the repack.
 ## Whether a worn pin puts the items a redraw replaces back into the draw pile (Recycle).
 static func recycles(run: RunState) -> bool:
 	for pin: PinDefinition in run.pins:
@@ -39,6 +38,7 @@ static func extra_redraws(run: RunState) -> int:
 	return total
 
 
+## Whether a worn pin gives the repack.
 static func has_repack(run: RunState) -> bool:
 	for pin: PinDefinition in run.pins:
 		if pin.repack:
@@ -134,3 +134,37 @@ static func restore_first_row(run: RunState, upgrades: Array[UpgradeDefinition])
 		run.first_row, upgrades, events, ScoreCredits.for_run(run), 0, true
 	)
 	run.row_result = run.first_result
+
+
+## The row's slots the worn pins set before the upgrades and day events (ShiftLimits.for_shift's
+## base slots): a Double checkout's row, or the balance's, plus every pin's slot_delta (#132:
+## Express lane's −2), at least 1; 0 (the balance's slots) when no pin changes them.
+static func base_slots(run: RunState) -> int:
+	var delta: int = 0
+	for pin: PinDefinition in run.pins:
+		delta += pin.slot_delta
+	var rows: int = row_slots(run)
+	if rows <= 0 and delta == 0:
+		return 0
+	return maxi((rows if rows > 0 else run.balance.slot_count) + delta, 1)
+
+
+## The events the worn pins add to every shift (#132: Express lane's), in pin order.
+static func pin_events(run: RunState) -> Array[InspectionDefinition]:
+	var found: Array[InspectionDefinition] = []
+	for pin: PinDefinition in run.pins:
+		found.append_array(pin.events)
+	return found
+
+
+## Deals the shift's hand (RunState.start_shift): a Golden basket's kept items still in the deck
+## first (#132, PinPlay.keep: by instance id, so an item the machine upgraded comes as its new
+## tier, one it took out of the deck is gone), then the draw. The kept list is emptied.
+static func deal(run: RunState) -> void:
+	var first: Array[CardInstance] = []
+	for id: int in run.kept:
+		for card: CardInstance in run.deck.cards:
+			if card.instance_id == id and not first.has(card):
+				first.append(card)
+	run.kept = PackedInt32Array()
+	run.deck.draw_hand(run.limits.hand_size, first)

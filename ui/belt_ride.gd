@@ -323,14 +323,25 @@ func _on_step_landed(index: int) -> void:
 		if mark != null:
 			mark.fire(_reduced, _count.tween_maker())
 	# A day event's step on its marked slot (Spot check zeroing slot 3, Happy hour's bonus on the
-	# last one) fires that mark.
+	# last one, Express lane's ×2 on the ends) fires that mark.
 	if (
-		step.step_type in [ScoreStep.StepType.PAYOUT_OVERRIDE, ScoreStep.StepType.FLAT]
+		(
+			step.step_type
+			in [
+				ScoreStep.StepType.PAYOUT_OVERRIDE,
+				ScoreStep.StepType.FLAT,
+				ScoreStep.StepType.MULTIPLIER,
+			]
+		)
 		and step.source_kind == ScoreStep.SourceKind.INSPECTION
 	):
 		var dead: SlotMark = _stage.row_strip.inspection_mark(step.slot, step.source_index)
 		if dead != null:
 			dead.fire(_reduced, _count.tween_maker())
+			# Express lane's ×2 flashes its slot's lane too.
+			var lane: SlotLane = _stage.row_strip.lane(step.slot) if dead.ends else null
+			if lane != null:
+				lane.fire(_reduced, _count.tween_maker())
 
 
 ## A beat starts (CountUp.beat_started): an armed giver's beat sends its sparks from the scanner

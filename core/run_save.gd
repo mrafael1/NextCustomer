@@ -142,6 +142,9 @@ static func to_dictionary(saved_run: RunState, saved_run_id: String, played_ms: 
 		"redraws_used": saved_run.redraws_used,
 		"redraws_allowed": saved_run.redraws_allowed,
 		"redrawn_in": Array(saved_run.redrawn_in),
+		# A Golden basket's kept items and a Price gun's relabels (#132); [] and {} otherwise.
+		"kept": Array(saved_run.kept),
+		"relabels": _relabels_data(saved_run.relabels),
 		"pins": _ids(saved_run.pins),
 		"upgrades": _ids(saved_run.upgrades),
 		"inspections": _ids(saved_run.inspections),
@@ -221,6 +224,9 @@ static func from_dictionary(saved: Dictionary, lookup: ContentLookup) -> RunSave
 	# Left out by format 6 saves made before #108 piece 2: no card came from an extra redraw.
 	if data.has("redrawn_in"):
 		restored.redrawn_in = PackedInt32Array(reader.wholes("redrawn_in", 1))
+	if data.has("kept"):
+		restored.kept = PackedInt32Array(reader.wholes("kept", 1))
+	var relabels_ok: bool = _read_relabels(restored, data.get("relabels", {}))
 	# Left out by saves made before #122's badge pins: no pin worn.
 	if data.has("pins"):
 		restored.pins = reader.pins("pins")
@@ -261,7 +267,7 @@ static func from_dictionary(saved: Dictionary, lookup: ContentLookup) -> RunSave
 	save.run = restored
 	save.run_id = reader.text("run_id")
 	save.run_ms = reader.whole("run_ms")
-	var ok: bool = reader.ok and machine_ok and history_ok and cards_ok
+	var ok: bool = reader.ok and machine_ok and history_ok and cards_ok and relabels_ok
 	if (
 		not ok
 		or restored.phase != SAVE_POINTS[phase_index]
@@ -286,9 +292,29 @@ static func _limits(restored: RunState) -> ShiftLimits:
 		_played_upgrades(restored),
 		restored.shift_index,
 		WeekSchedule.shift_events(restored),
-		RunPins.row_slots(restored),
+		RunPins.base_slots(restored),
 		RunPins.extra_redraws(restored)
 	)
+
+
+## The saved form of a Price gun's relabels (#132): instance id (as text, JSON's keys) to family.
+static func _relabels_data(relabels: Dictionary[int, String]) -> Dictionary:
+	var data: Dictionary = {}
+	for id: int in relabels:
+		data[str(id)] = relabels[id]
+	return data
+
+
+## Reads _relabels_data's form into `restored`; false for a malformed one.
+static func _read_relabels(restored: RunState, data: Variant) -> bool:
+	if not data is Dictionary:
+		return false
+	for key: Variant in data as Dictionary:
+		var tag: Variant = (data as Dictionary)[key]
+		if not key is String or not (key as String).is_valid_int() or not tag is String:
+			return false
+		restored.relabels[(key as String).to_int()] = tag as String
+	return true
 
 
 ## The saved form of a week plan (v0.70): its first shift and each day's event ids; {} for none.
@@ -673,6 +699,9 @@ static func _is_consistent(
 	if not ok or not _after_checkout(restored):
 		return ok
 	restored.last_result = RunPins.score_rows(restored, played)
+	if restored.history[-1].day_off:  # A Day off pin's skipped shift (#132) played nothing.
+		restored.last_result = PinPlay.day_off_result(restored)
+		return ok and restored.row.is_empty() and restored.history[-1].passed
 	if rescored:
 		return true
 	# A missed shift saved after its checkout is a slip the run went on after (v0.65; a save from

@@ -31,6 +31,8 @@ static func score(
 ) -> ScoreResult:
 	var state: ScoreState = ScoreState.new(row)
 	state.credits = credits
+	if credits != null:
+		_relabel(state, credits.relabels)  # A Price gun's families (#132).
 	state.slot_offset = slot_offset
 	state.more_rows = more_rows
 	return _run(state, upgrades, inspections).to_result()
@@ -44,6 +46,18 @@ static func total(
 	inspections: Array[InspectionDefinition] = []
 ) -> int:
 	return _run(ScoreState.new(row, false), upgrades, inspections).subtotal
+
+
+## A Price gun's relabels (#132, ScoreCredits.relabels: instance id to family): each relabelled
+## product in the row gains its family before any rule reads the tags. No step: the item's tags
+## show it.
+static func _relabel(state: ScoreState, relabels: Dictionary[int, String]) -> void:
+	for slot: int in range(state.size()):
+		var tag: String = relabels.get(state.row[slot].instance_id, "")
+		if not tag.is_empty() and state.is_product(slot) and not state.has_tag(slot, tag):
+			var slot_tags: PackedStringArray = state.tags[slot].duplicate()
+			slot_tags.append(tag)
+			state.tags[slot] = slot_tags
 
 
 static func _run(

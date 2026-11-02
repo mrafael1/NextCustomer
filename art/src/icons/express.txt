@@ -1,0 +1,13 @@
+; Express lane's end-slot mark (#132, the 2026-11-02 review: "on the slot, not only the item"):
+; two ink chevrons pointing down the belt to the scanner, so the end slots' tag reads "express",
+; not Happy hour's boon coin. Line glyph on the express talker's light green face, no outline of
+; its own. 10x7, shown at 2x in the tag before its "×2".
+@size 10x7
+@kind icon
+...##...##
+..##...##.
+.##...##..
+##...##...
+.##...##..
+..##...##.
+...##...##

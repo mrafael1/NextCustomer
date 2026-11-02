@@ -128,7 +128,7 @@ var _glyph_tips: GlyphTips  # Family glyphs' tooltips (#105): none in a drag or 
 ## The basket redraw's targets and tags, and its motion.
 var _basket_tags: BasketTags
 var _basket_redraw: BasketRedraw
-var _repack: RepackFlow  # A badge pin's repack (#122).
+var _pins: PinFlow  # The badge pins' parts: #132's, Repack's and Double checkout's (#122).
 ## The EventLog autoload, typed. Fetched from the tree because standalone script checks
 ## don't know autoload names.
 @onready var _log: EventLogService = get_node("/root/EventLog")
@@ -146,7 +146,7 @@ func _ready() -> void:
 	ShiftMusic.screen_opened(_music)
 	_debug = ShiftDebug.new(self, _log)
 	_start_choice = StartChoice.new(self, _log)
-	_repack = RepackFlow.new(self, _log)
+	_pins = PinFlow.new(self, _log)
 	_debug.add_panel(_balance.quotas.size())
 	if _debug.wants_demo_row():
 		_debug.play_demo_row()  # A new run that leaves the run save as it is.
@@ -222,7 +222,7 @@ func _on_shift_started() -> void:
 func show_shift_notice() -> void:
 	var notice: String = WriteUp.shift_notice(run)
 	if not notice.is_empty():
-		_notice_label.show_notice(notice)
+		_notice_label.show_next(notice)  # After a notice the player raised (#132's gun).
 
 
 ## Continues a saved run where it stopped (full build plan section 4), under its run id and with
@@ -306,7 +306,8 @@ func _close_overlays() -> void:
 
 
 func _on_hand_card_clicked(view: CardView) -> void:
-	if _busy() or _redraw_mode or _redraw_busy or run.phase != RunState.Phase.PLANNING:
+	var planning: bool = run.phase == RunState.Phase.PLANNING and not _busy()
+	if not planning or _redraw_mode or _redraw_busy or _pins.take_click(view.card):  # #132 gun
 		return
 	if _picked == view.card:
 		# Let go on the release, unless the press becomes a drag of the picked card.
@@ -320,7 +321,8 @@ func _on_hand_card_clicked(view: CardView) -> void:
 
 
 func _on_row_card_clicked(view: CardView) -> void:
-	if _busy() or _redraw_mode or _redraw_busy or run.phase != RunState.Phase.PLANNING:
+	var planning: bool = run.phase == RunState.Phase.PLANNING and not _busy()
+	if not planning or _redraw_mode or _redraw_busy or _pins.take_click(view.card):  # #132 gun
 		return
 	var slot: int = run.row.find(view.card)
 	# A hand card that fits nowhere (the notice says to take a product out) is let go, so this
@@ -508,10 +510,11 @@ func _refresh_redraw() -> void:
 func _on_checkout_pressed() -> void:
 	if _busy() or _redraw_busy or run.phase != RunState.Phase.PLANNING:
 		return
+	if await _pins.take_day_off():  # #132: a Day off's pile on the belt: CHECKOUT takes it.
+		return
 	_sfx.play("checkout")
 	_counting = true
-	# CHECKOUT stays held while the shift is counted, to the dessert's end, and the hand
-	# fades so the belt reads first.
+	# CHECKOUT stays held through the count and the dessert; the hand fades: the belt reads first.
 	_cabinet.set_total_down(true)
 	_stage.dim_hand(true)
 	_scan.clear()
@@ -524,8 +527,7 @@ func _on_checkout_pressed() -> void:
 	tracker.on_checkout(_click_ms)
 	var committed: Array[CardInstance] = run.row.duplicate()
 	var result: ScoreResult = run.checkout()
-	if run.phase == RunState.Phase.PLANNING:  # #122: a Double checkout's row 1 counts alone.
-		await DoubleCheckoutFlow.count_row_one(self, committed)
+	if await _pins.count_row_one(committed):  # #122: a Double checkout's row 1 counts alone.
 		return
 	# Logged at the click, so closing the game during the count-up loses nothing.
 	var checkout_data: Dictionary = {
@@ -576,6 +578,7 @@ func _on_checkout_pressed() -> void:
 	_cabinet.set_total_down(false)
 	_stage.dim_hand(false)
 	await _week.light_day()  # The week chip lights the day's check or cross (#119).
+	await _pins.keep_items()  # A Golden basket's keep panel (#132).
 	if run.phase == RunState.Phase.MACHINE_CHOOSE:
 		_machine.open(false)
 	elif run.phase == RunState.Phase.SCORED:
@@ -701,8 +704,7 @@ func _refresh() -> void:
 	if not _counting and run.phase == RunState.Phase.PLANNING:
 		_refresh_preview()
 	_refresh_redraw()
-	_repack.refresh()
-	DoubleCheckoutFlow.refresh(self)
+	_pins.refresh()  # The badge pins' parts, Double checkout's last.
 	_scan.watch(_row_views, _hand_box.cards())
 
 
@@ -773,8 +775,7 @@ func _refresh_buttons() -> void:
 	_redraw_button.disabled = not planning or left <= 0 or not to_draw
 	_cancel_button.visible = _redraw_mode
 	_redraw_button.lit = _redraw_mode
-	# Mock-up B2's "Redraw  N left": the count is a note beside the word; screen readers hear what
-	# a redraw takes.
+	# Mock-up B2's "Redraw  N left": a note beside the word; screen readers hear what it takes.
 	if _redraw_mode:
 		_redraw_button.show_caption(
 			PICK_CAPTION, "%d left" % left, "Pick a basket (%d left)" % left
