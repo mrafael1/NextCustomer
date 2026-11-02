@@ -313,8 +313,9 @@ func test_the_store_closes_behind_the_receipt() -> void:
 	assert_float(closed.shutter()).is_less(1.0)
 	await get_tree().create_timer(StoreClosed.SHUTTER_S + SLACK_S).timeout
 	assert_float(closed.shutter()).is_equal(1.0)
-	assert_float(closed.shutter_foot()).is_equal_approx(
-		SCREEN_RECT.size.y * StoreClosed.SHUTTER_STOP, 0.5
+	assert_float(closed.shutter_foot()).is_equal_approx(closed.size.y, 0.5)
+	assert_float(closed.global_position.y + closed.shutter_foot()).is_equal_approx(
+		SCREEN_RECT.end.y, 0.5
 	)
 	assert_bool(closed.focus.is_equal_approx(results.get_global_rect())).is_true()
 
@@ -328,9 +329,21 @@ func test_reduced_motion_closes_the_store_at_once() -> void:
 	screen._show_results(_last_result(screen))
 	var closed: StoreClosed = screen._results.store_closed()
 	assert_float(closed.shutter()).is_equal(1.0)
-	assert_float(closed.shutter_foot()).is_equal_approx(
-		closed.size.y * StoreClosed.SHUTTER_STOP, 0.5
-	)
+	assert_float(closed.shutter_foot()).is_equal_approx(closed.size.y, 0.5)
+
+
+## The closed store's shutter reaches the window's bottom edge, so it covers the whole visible
+## window; the CLOSED sign stays near the top, fully on screen, and clear of the receipt.
+func test_the_closed_shutter_covers_the_whole_window() -> void:
+	await _assert_the_closed_store_covers(Vector2i(SCREEN_RECT.size))
+
+
+## The same in a larger window (more of the store shows under the expand stretch): the shutter
+## still reaches the bottom edge and the sign still hangs near the top.
+func test_the_closed_shutter_covers_a_larger_window() -> void:
+	var visible_rect: Rect2 = await _assert_the_closed_store_covers(Vector2i(1600, 1000))
+	# The larger window shows more of the store: taller than the 720 design height.
+	assert_float(visible_rect.size.y).is_greater(SCREEN_RECT.size.y)
 
 
 ## The results' actions: Return to menu, the one primary (red-framed) button, then Export log
@@ -438,6 +451,34 @@ func _full_run(screen: ShiftScreen) -> void:
 	run.history = history
 	run.shift_index = run.shift_count() - 1
 	run.phase = RunState.Phase.WON
+
+
+## The store closed (at once) behind the final receipt in a `window` sized window: the shutter
+## encloses the visible window and its foot is the window's bottom edge; the sign is on screen,
+## below the top bar, in the window's top half, and off the receipt. Returns the visible window.
+func _assert_the_closed_store_covers(window: Vector2i) -> Rect2:
+	get_tree().root.size = window
+	var screen: ShiftScreen = await _screen()
+	screen.profile.set_reduced_motion(true)
+	_full_run(screen)
+	var results: ResultsPanel = screen._results
+	screen._show_results(_last_result(screen))
+	results.skip_printing()
+	await _frames(3)
+	var visible_rect: Rect2 = get_tree().root.get_visible_rect()
+	var closed: StoreClosed = results.store_closed()
+	assert_float(closed.shutter()).is_equal(1.0)
+	var shutter: Rect2 = Rect2(
+		closed.global_position, Vector2(closed.size.x, closed.shutter_foot())
+	)
+	assert_bool(shutter.grow(0.5).encloses(visible_rect)).is_true()
+	assert_float(shutter.end.y).is_equal_approx(visible_rect.end.y, 0.5)
+	var sign_rect: Rect2 = closed.sign_rect()
+	assert_bool(visible_rect.encloses(sign_rect)).is_true()
+	assert_float(sign_rect.position.y).is_greater_equal(ShiftStage.PANEL_TOP)
+	assert_float(sign_rect.end.y).is_less(visible_rect.get_center().y)
+	assert_bool(sign_rect.intersects(results.get_global_rect())).is_false()
+	return visible_rect
 
 
 func _last_result(screen: ShiftScreen) -> ScoreResult:
