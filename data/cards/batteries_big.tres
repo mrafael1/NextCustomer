@@ -11,7 +11,6 @@ tag = "Household"
 factor = 2
 charges = 1
 group = &"battery_charges"
-just_after = true
 receipt_text = "Batteries charge"
 
 [resource]
@@ -22,7 +21,7 @@ kind = 1
 tags = PackedStringArray("Household")
 base = 3
 rules = Array[ExtResource("1_rule")]([SubResource("Resource_batteries")])
-rule_text = "The Household product just after it pays ×2"
+rule_text = "The next Household item pays ×2 (a second Batteries replaces this, they don't add up)"
 art_ref = "res://art/items_v2/batteries_big.png"
 variant_of = ExtResource("9_plain")
 tier = 1

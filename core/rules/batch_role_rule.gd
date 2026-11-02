@@ -58,7 +58,7 @@ func wasted_reason(state: ScoreState, slot: int) -> String:
 		return ""
 	var batch: PackedInt32Array = CardBatch.members(state, slot, tag)
 	if batch.is_empty():
-		return "no %s product beside it" % tag
+		return "no %s item beside it" % tag
 	return _misplaced_reason(batch, slot)
 
 

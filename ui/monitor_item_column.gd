@@ -111,6 +111,8 @@ const HINT_COLOR := Palette.INK_LIGHT
 var make_tween: Callable = Callable()
 ## Returns true when the player asked for reduced motion. None means false.
 var reduced_motion: Callable = Callable()
+## The shift's redraws left, for a live factor in the effect text (-1: the rule's own).
+var redraws_left: int = -1
 ## Planning's pages of step lines in the compact layout (null with none): one page when they fit.
 var pages: MonitorStepPages:
 	get:
@@ -167,7 +169,7 @@ func show_item(
 	minis: Array[Texture2D] = [],
 	animate: bool = false
 ) -> void:
-	var key: Array = [definition, tags, payout, lines, fizzles, gives, minis]
+	var key: Array = [definition, tags, payout, lines, fizzles, gives, minis, redraws_left]
 	if not _counting and _definition == definition and key == _shown_key:
 		return
 	_counting = false
@@ -620,7 +622,7 @@ func _lay_effect() -> void:
 		remove_child(_effect)
 		_effect.queue_free()
 		_effect = null
-	var text: String = _definition.sticker_summary()
+	var text: String = CardText.sticker_summary(_definition, redraws_left)
 	if text.is_empty():
 		text = _definition.rule_text
 	if text.is_empty():
@@ -632,6 +634,7 @@ func _lay_effect() -> void:
 			room = _price.position.x - EFFECT_GAP
 		_effect = _one_line_effect(text, not _counting, room)
 		_effect.name = "Effect"
+		_effect.set_live(_effect.text, CardText.live_tips(_definition, redraws_left))
 		_effect.position = Vector2(0, COMPACT_EFFECT_TOP)
 		add_child(_effect)
 		return
@@ -649,6 +652,7 @@ func _lay_effect() -> void:
 			text, ArtStyle.bold_font(EFFECT_WEIGHT), sizes.x, Palette.INK, sizes.y, width, lines
 		)
 		_effect.name = "Effect"
+		_effect.set_live(_effect.text, CardText.live_tips(_definition, redraws_left))
 		_effect.position = Vector2(0, EFFECT_TOP)
 		add_child(_effect)
 		if _effect.fits():

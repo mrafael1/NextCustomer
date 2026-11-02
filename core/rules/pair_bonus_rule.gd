@@ -23,9 +23,9 @@ func wasted_reason(state: ScoreState, slot: int) -> String:
 		return ""
 	var beside: PackedInt32Array = _tagged_beside(state, slot, -1)
 	if beside.is_empty():
-		return "no %s product beside it" % tag
+		return "no %s item beside it" % tag
 	if beside.size() > 1:
-		return "two %s products beside it" % tag
+		return "two %s items beside it" % tag
 	return "3 in a row is not a pair"
 
 

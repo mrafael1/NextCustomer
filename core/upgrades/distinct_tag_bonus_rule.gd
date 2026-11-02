@@ -18,8 +18,8 @@ func row_wasted_reason(state: ScoreState) -> String:
 	if bonus_per_tag == 0:
 		return ""
 	if state.last_product < 0:
-		return "no product in the row"
-	return "no tag on the products" if _distinct_tags(state) == 0 else ""
+		return "no item in the row"
+	return "no family on the items" if _distinct_tags(state) == 0 else ""
 
 
 static func _distinct_tags(state: ScoreState) -> int:

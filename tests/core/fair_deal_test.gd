@@ -68,7 +68,9 @@ func test_a_failed_deal_is_dealt_again_within_the_limit() -> void:
 			assert_array(_ids(dealt.deck.cards)).is_equal(_ids(first.cards))
 		else:
 			redealt.append(seed_value)
-			assert_array(_ids(dealt.deck.cards)).is_not_equal(_ids(first.cards))
+			# A deal that failed every time keeps its best deal, which may be the first.
+			if dealt.deals <= strict.fair_deal_redeals:
+				assert_array(_ids(dealt.deck.cards)).is_not_equal(_ids(first.cards))
 		assert_bool(StartingDeck.could_deal(_recipe, dealt.deck.cards)).is_true()
 	assert_array(redealt).is_not_empty()
 

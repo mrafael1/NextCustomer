@@ -6,9 +6,11 @@ extends ScoreEffect
 var tag: String = ""
 var factor: int = 1
 var charges: int = 0
+## A fractional factor in percent (#128 v3, Stale popcorn), or 0: see ScoreEffect.percent.
+var factor_percent: int = 0
 ## The last use came from a reaching upgrade (past the charges).
 var _reached: bool = false
-## Whether only `_targets` can take a charge (Batteries' just after, #128), and the waste's
+## Whether only `_targets` can take a charge (Tea bags' MORNING end, #128), and the waste's
 ## reason when they don't.
 var _limited: bool = false
 var _targets: PackedInt32Array = PackedInt32Array()
@@ -38,6 +40,10 @@ func limit_to(targets: PackedInt32Array, reason: String) -> void:
 
 func armed_value() -> int:
 	return factor
+
+
+func percent() -> int:
+	return factor_percent
 
 
 ## With a reaching upgrade (#108), every later product with the tag takes the factor once the

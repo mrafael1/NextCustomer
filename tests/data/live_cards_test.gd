@@ -49,15 +49,16 @@ func test_phase_2_cards_score_the_design_examples(
 		# Breakfast (#42); Milk (4 + 1 x 2 earlier Breakfast) x3 Multipack = 18; 1 + 4 + 18.
 		["eggs,yogurt,multipack,milk", 23],
 		# Bulb 1; buns 2 + 3 after Clearance + 3 from the bulb; can 2 + 2 x 2 earlier Clearance.
-		["flickering_bulb,day_old_buns,dented_can", 15],
+		# #128 v3 (redraw tension, no redraw made or left here): was 15, 33, 33 and 22.
+		["flickering_bulb,day_old_buns,dented_can", 8],
 		# Repeat copies Bread's 5; Scissors 1 + 2 for Repeat; Batteries 1, its charge unused (no
-		# product just after it, #128).
+		# Household product after it, #128).
 		["bread,repeat,scissors,batteries", 14],
 		# Butter 5, Bread 5, Crackers 5, Soup 5, Cereal 5, Milk 4 + 1 x 2 (Bread, Cereal) = 6.
 		["butter,bread,crackers,soup,cereal,milk", 31],
 		# Banana 2, Yogurt 5, Carrier bag 1 + 8 x 2 Food beside it (#128), Reduced yogurt 5,
 		# Dented can 4.
-		["banana,yogurt,carrier_bag,reduced_yogurt,dented_can", 33],
+		["banana,yogurt,carrier_bag,reduced_yogurt,dented_can", 31],
 		# Tea bags isn't Food: Eggs skips it. Tea bags x4 on Bread: 1 + 20.
 		["tea_bags,bread", 21],
 		# 2 for 1 links the Bananas: the pair bonus applies, then ×2 (2 + 0 + 8).
@@ -68,36 +69,40 @@ func test_phase_2_cards_score_the_design_examples(
 		["clearance_tag,bread,day_old_buns", 10],
 		# Opening deal in the first slot: Soup pays 5 x5 (0 + 25 + 5).
 		["opening_deal,soup,bread", 30],
-		# Fruit & veg: Grapefruit 2; Banana 2 + 3; Lemon 1; Strawberries (2 + 3) x2; Wonky
-		# carrot 2 + 3; Fruit salad 2 + 2 x 5 earlier Produce.
-		["grapefruit,banana,lemon,strawberries,wonky_carrot,fruit_salad", 35],
+		# Fruit & veg since the Produce links (#128): Grapefruit 2; a lone Banana 2 + 3; the
+		# Lemon, Strawberries and Wonky carrot out of place (1, 2, 2); Fruit salad 2 + 3 x 5
+		# kinds. Then the helpers in place: Grapefruit 2; Strawberries 2 + 3 (Grapefruit); Banana
+		# 2 + 1; the Lemon knot 1; Banana 2 + 3 x 2 + 1; Wonky carrot 2 + 2 x 2; Fruit salad
+		# 2 + 3 x 5 kinds.
+		["grapefruit,banana,lemon,strawberries,wonky_carrot,fruit_salad", 29],
+		["grapefruit,strawberries,banana,lemon,banana,wonky_carrot,fruit_salad", 43],
 		# Bakery, a batch of 4 after Birthday candles (#128 v3): candles 1; Croissant 2 + 3;
 		# Baguette 2 + 4 + 2 + 3; Iced bun 1 + 2 + 3; Stale doughnut (1 + 3 x 4 + 2 + 3) x2.
 		["birthday_candles,croissant,baguette,iced_bun,stale_doughnut", 59],
 		# Snacks: Bread 5; Crisps 5; Stale popcorn 2; Cereal bar 2 + 2 + 3; Bent lolly 5; Pick 'n'
 		# mix 1 + 2 x 4 earlier Snack.
-		["bread,crisps,stale_popcorn,cereal_bar,bent_lolly,pick_n_mix", 33],
+		["bread,crisps,stale_popcorn,cereal_bar,bent_lolly,pick_n_mix", 16],
 		# Clearance: Ham ends 2; Squashed cake 2; Reduced yogurt (2 + 3) x2; Dented can 2 + 2 x 3.
-		["ham_ends,squashed_cake,reduced_yogurt,dented_can", 22],
+		["ham_ends,squashed_cake,reduced_yogurt,dented_can", 16],
 		# Key items: Egg timer 1 + 4 after Eggs; Bread 5 x2 takes Eggs' one charge; Milk 4 + 1 x 3
 		# earlier Breakfast.
 		["eggs,egg_timer,bread,milk", 23],
-		# Cream x2 = 4 (Eggs' one charge) and +2 to Milk: 3 + 2 + 2; Ham ends 2 + 3; Reduced
-		# yogurt 2 + 3.
-		["eggs,cream,milk,ham_ends,reduced_yogurt", 22],
-		# Sugar cubes 2 + 4 after Coffee, not Breakfast: Coffee's +3 and Milk's count pass over
-		# it. Milk 3 + 2 x 1 earlier Breakfast + 3 from Coffee (18 if Sugar cubes were Breakfast).
-		["coffee,sugar_cubes,milk", 16],
-		# Coffee 2; Chipped mug 1 + 3 beside Coffee; Egg timer 1 + Coffee's 3 (it is Breakfast);
+		# Cream (2 + 2 for the one PAIR: Reduced yogurt beside Ham ends) x2 = 8 (Eggs' one charge);
+		# Milk 3 + 2; Ham ends 2 + 3; Reduced yogurt 2 + 3 (#128 Dairy).
+		["eggs,cream,milk,ham_ends,reduced_yogurt", 24],
+		# Sugar cubes 2 + 4 after Coffee, not Breakfast: it ends the MORNING (Coffee 2 + 1) and
+		# Milk's count passes over it. Milk 3 + 2 x 1 earlier Breakfast (#128 Breakfast).
+		["coffee,sugar_cubes,milk", 14],
+		# Coffee 2 + 1 (the MORNING is Coffee alone); Chipped mug 1 + 3 beside Coffee; Egg timer 1;
 		# Odd socks 1: Egg timer beside it has Chipped mug beside it too, 3 in a row, no pair (#128).
-		["coffee,chipped_mug,egg_timer,odd_socks", 11],
-		# Household (#128). Batteries 1; Odd socks (1 + 5 in an exact pair) x2 just after it.
+		["coffee,chipped_mug,egg_timer,odd_socks", 9],
+		# Household (#128). Batteries 1; Odd socks (1 + 5 in an exact pair) x2, the next Household.
 		["batteries,odd_socks", 13],
-		# Golden Batteries 3; Odd socks (1 + 5) x3.
-		["batteries_golden,odd_socks", 21],
-		# Bread just after Batteries isn't Household: the charge is unused; Odd socks has no
-		# Household beside it: 1 + 5 + 1.
-		["batteries,bread,odd_socks", 7],
+		# Golden Batteries 3 (x2 on the next 2 Household); Odd socks (1 + 5) x2.
+		["batteries_golden,odd_socks", 15],
+		# Like Eggs, Batteries skip Bread (not Household) for the next Household: Odd socks has no
+		# Household beside it, 1 x2: 1 + 5 + 2.
+		["batteries,bread,odd_socks", 8],
 		# A run of 3 is no pair: neither end nor the middle pays.
 		["odd_socks,odd_socks,odd_socks", 3],
 		# Carrier bag 1 + 8 x 2 (Eggs and Bread beside it); Eggs' x2 skips it (not Food): Bread 10.
@@ -108,47 +113,50 @@ func test_phase_2_cards_score_the_design_examples(
 
 
 ## The base products' fizzles: Scissors with no earlier coupon, an unused Tea bags charge, a
-## Flickering bulb with no Clearance product after it, Batteries with no Household product just
-## after it, Odd socks with no exact pair, Carrier bag with no Food beside it (#128).
+## Flickering bulb with no Clearance product after it, Batteries with no Household product after
+## it, Odd socks with no exact pair, Carrier bag with no Food beside it (#128).
 func test_base_products_fizzle(
 	row: String,
 	expected: Array,
 	_test_parameters := [
 		["scissors", [[0, "Scissors: earlier coupons", "no coupon before it"]]],
 		["bread,scissors", [[1, "Scissors: earlier coupons", "no coupon before it"]]],
-		["repeat,scissors", [[0, "Repeat", "no product just before it to copy"]]],
-		["tea_bags,soup", [[0, "Tea bags ×4", "1 charge unused"]]],
-		["flickering_bulb,bread", [[0, "Flickering bulb bonus", "no Clearance product after it"]]],
-		["batteries,bread", [[0, "Batteries charge", "no Household product just after it"]]],
-		["batteries", [[0, "Batteries charge", "no Household product just after it"]]],
+		["repeat,scissors", [[0, "Repeat", "no item right before it to copy"]]],
+		["tea_bags,soup", [[0, "Tea bags ×4", "no MORNING item after it"]]],
+		[
+			"flickering_bulb,bread",
+			[[0, "Flickering bulb after WASTED", "the item right before it was not WASTED"]],
+		],
+		["batteries,bread", [[0, "Batteries charge", "1 charge unused"]]],
+		["batteries", [[0, "Batteries charge", "1 charge unused"]]],
 		["batteries,odd_socks", []],
 		[
 			"scissors,odd_socks,batteries",
 			[
 				[0, "Scissors: earlier coupons", "no coupon before it"],
-				[1, "Odd socks pair", "two Household products beside it"],
-				[2, "Batteries charge", "no Household product just after it"]
+				[1, "Odd socks pair", "two Household items beside it"],
+				[2, "Batteries charge", "1 charge unused"]
 			]
 		],
 		[
 			"odd_socks,egg_timer,batteries",
 			[
 				[0, "Odd socks pair", "3 in a row is not a pair"],
-				[1, "Egg timer after Eggs", "no Eggs just before it"],
-				[2, "Batteries charge", "no Household product just after it"]
+				[1, "Egg timer after Eggs", "no Eggs right before it"],
+				[2, "Batteries charge", "1 charge unused"]
 			]
 		],
 		["bread,carrier_bag", []],
 		[
 			"carrier_bag,batteries",
 			[
-				[0, "Carrier bag: Food beside", "no Food product beside it"],
-				[1, "Batteries charge", "no Household product just after it"]
+				[0, "Carrier bag: Food beside", "no Food item beside it"],
+				[1, "Batteries charge", "1 charge unused"]
 			]
 		],
 		# The capsule items reuse these rules' fizzles (#35).
-		["lemon,bread", [[0, "Lemon ×2", "1 charge unused"]]],
-		["cream,bread", [[0, "Cream bonus", "no Dairy product after it"]]],
+		["lemon,bread", [[0, "Lemon knot", "not inside a CHAIN"]]],
+		["cream,bread", [[0, "Cream: PAIRs", "no PAIR in the row"]]],
 		[
 			"stale_doughnut,bread",
 			[[0, "Stale doughnut closes batch", "not last in its Bakery batch"]]
@@ -157,7 +165,7 @@ func test_base_products_fizzle(
 		# Coffee is only Breakfast, which Multipack ignores (#42).
 		[
 			"coffee,multipack,milk",
-			[[1, "Multipack ×3", "the product just before it has no tag but Food or Breakfast"]]
+			[[1, "Multipack ×3", "the item right before it has no family but Food or Breakfast"]]
 		],
 	]
 ) -> void:
@@ -260,6 +268,13 @@ func test_stickers_show_every_rule_value() -> void:
 					match adjacent.match_by:
 						AdjacentMatchBonusRule.Match.TAG:
 							assert_bool(shows).override_failure_message(message).is_true()
+						AdjacentMatchBonusRule.Match.SAME_CARD when (
+							adjacent.bonus_is_previous_price
+						):
+							# A chain names its product through the CHAIN keyword (#128).
+							assert_str(template).override_failure_message(message).contains(
+								"{%s}" % CardText.CHAIN_KEY
+							)
 						AdjacentMatchBonusRule.Match.SAME_CARD:
 							assert_str(template).override_failure_message(message).contains(
 								"{name}"
@@ -269,22 +284,31 @@ func test_stickers_show_every_rule_value() -> void:
 							assert_str(card.sticker_summary()).contains(named.display_name)
 							assert_bool(shows).override_failure_message(message).is_false()
 							named_products += 1
+				elif key == "tag" and _reads_morning(rule):
+					# A MORNING rule's tag is the morning's: the MORNING keyword names it (#128).
+					assert_str(template).override_failure_message(message).contains(
+						"{%s}" % CardText.MORNING_KEY
+					)
 				elif key == "tag" and _reads_batches(rule):
 					# A batch rule's tag is its batch's: the BATCH keyword names it (#128).
 					assert_str(template).override_failure_message(message).contains(
 						"{%s}" % CardText.BATCH_KEY
 					)
+				elif key == "percent" and rule == CardText.live_rule(card):
+					# A live factor's percent shows through {factor} (#128 v3: Stale popcorn).
+					assert_str(template).override_failure_message(message).contains("{factor}")
 				elif _is_set(key, rule.get(key)):
 					assert_bool(shows).override_failure_message(message + " " + key).is_true()
 	# Cheese, Crisps, Breadsticks, Cereal, Chipped mug, Crackers, Egg timer, Soft tomatoes, Sugar
 	# cubes and Yogurt, plus their BIG and GOLDEN tiers (Cheese, Cereal, Crackers and Yogurt in
-	# v0.48, the six capsule products in v0.52).
-	assert_int(named_products).is_equal(30)
+	# v0.48, the six capsule products in v0.52). Crisps left in #128 v3 (IMPULSE, no Bread).
+	assert_int(named_products).is_equal(27)
 
 
 ## A charged multiplier's sticker says "next": with one charge that is the next product, so the
 ## sticker names no count; one with more charges (Golden Eggs, #77; Golden Tea bags, v0.48;
-## Golden Squashed cake and Lemon, v0.52) names `{charges}`. Iced bun glazes since #128.
+## Golden Squashed cake, v0.52) names `{charges}`. Iced bun glazes since #128, and Lemon is a
+## CHAIN knot since #128's Produce links.
 func test_charged_multipliers_with_more_charges_name_them() -> void:
 	var several: int = 0
 	for card: CardDefinition in _all_cards():
@@ -473,8 +497,8 @@ static func _all_cards() -> Array[CardDefinition]:
 
 ## A sticker key's value read straight from the data (not through CardText): the card's base,
 ## its product's name, or the first rule's field; a match bonus is the one the rule pays for this
-## base (the base or its flat bonus, times its factor), or a chain's "prev" (#106), as CardText
-## shows it.
+## base (the base or its flat bonus, times its factor), or a chain's "prev" (#106), as
+## CardText shows it.
 static func _data_value(card: CardDefinition, key: String) -> Variant:
 	if key == "base":
 		return card.base
@@ -494,6 +518,11 @@ static func _data_value(card: CardDefinition, key: String) -> Variant:
 ## Whether a rule field holds a value that changes what the rule does (not its neutral default).
 ## One charge is the plain "next" the sticker already says, like a factor of 1.
 ## Whether `rule` reads Bakery batches (#128), whose tickets name them with the BATCH keyword.
+static func _reads_morning(rule: Rule) -> bool:
+	var charged: GrantChargedMultiplierRule = rule as GrantChargedMultiplierRule
+	return rule is MorningCountRule or (charged != null and charged.morning_end)
+
+
 static func _reads_batches(rule: Rule) -> bool:
 	return rule is BatchRoleRule or rule is BakedBatchBonusRule
 

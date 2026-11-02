@@ -28,7 +28,7 @@ func flat_bonus(state: ScoreState, slot: int) -> int:
 
 
 func waste_reason() -> String:
-	return "" if _used else "no %s product after it" % tag
+	return "" if _used else "no %s item after it" % tag
 
 
 func is_spent() -> bool:

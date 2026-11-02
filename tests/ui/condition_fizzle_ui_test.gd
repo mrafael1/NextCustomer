@@ -31,12 +31,13 @@ func after_test() -> void:
 		DirAccess.remove_absolute(_folder)
 
 
-## A conditional card whose condition fails fizzles like an effect (#45): Cheese with no Bread
-## just before it gets a FIZZLE beat, puffs "WASTED" over its own item and prints its reason as a
-## fizzle line on the receipt, on screen inside the receipt; the total is its plain payouts.
+## A conditional card whose condition fails fizzles like an effect (#45): Sugar cubes with no
+## Coffee just before it (Cheese with no Bread until #128 Dairy's PAIR) gets a FIZZLE beat, puffs
+## "WASTED" over its own item and prints its reason as a fizzle line on the receipt, on screen
+## inside the receipt; the total is its plain payouts.
 func test_a_failed_condition_fizzles_in_the_count_up_and_on_the_receipt() -> void:
 	var screen: ShiftScreen = await _screen()
-	await _place(screen, ["cheese", "bread"])
+	await _place(screen, ["sugar_cubes", "bread"])
 	var count_up: CountUp = screen._count_up
 	var rect_of: Callable = func(slot: int) -> Rect2:
 		return Rect2(Vector2(300.0 + 40.0 * slot, 200.0), Vector2(40, 40))
@@ -50,9 +51,9 @@ func test_a_failed_condition_fizzles_in_the_count_up_and_on_the_receipt() -> voi
 			record.call_deferred(node)
 	screen._overlay.child_entered_tree.connect(on_added)
 	var result: ScoreResult = screen.run.preview()
-	var cheese: CardDefinition = screen.run.row[0].definition
+	var cubes: CardDefinition = screen.run.row[0].definition
 	var bread: CardDefinition = screen.run.row[1].definition
-	assert_int(result.total).is_equal(cheese.base + bread.base)
+	assert_int(result.total).is_equal(cubes.base + bread.base)
 	_play_tapped(screen, result, 500)
 	await _played(screen)
 	screen._overlay.child_entered_tree.disconnect(on_added)
@@ -63,10 +64,10 @@ func test_a_failed_condition_fizzles_in_the_count_up_and_on_the_receipt() -> voi
 			fizzle_beats.append(beat.slot)
 	assert_array(fizzle_beats).is_equal([0])
 	assert_int(puffs.size()).is_equal(1)
-	var over_cheese: Vector2 = (rect_of.call(0) as Rect2).get_center() + Vector2(0, -30)
-	assert_float(puffs[0].distance_to(over_cheese)).is_less(1.0)
+	var over_cubes: Vector2 = (rect_of.call(0) as Rect2).get_center() + Vector2(0, -30)
+	assert_float(puffs[0].distance_to(over_cubes)).is_less(1.0)
 	await _assert_receipt_of(screen, result, 500)
-	var wanted: String = "Cheese after Bread: no Bread just before it"
+	var wanted: String = "Sugar cubes after Coffee: no Coffee right before it"
 	var found: Control = null
 	for line: Node in screen._receipt._lines.get_children():
 		if line is HSeparator:

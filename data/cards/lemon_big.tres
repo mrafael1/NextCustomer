@@ -1,17 +1,15 @@
 [gd_resource type="Resource" script_class="CardDefinition" format=3]
 
 [ext_resource type="Script" path="res://core/rule.gd" id="1_rule"]
-[ext_resource type="Script" path="res://core/rules/grant_charged_multiplier_rule.gd" id="2_lemon"]
+[ext_resource type="Script" path="res://core/rules/chain_role_rule.gd" id="2_lemon"]
 [ext_resource type="Script" path="res://core/card_definition.gd" id="3_card"]
 [ext_resource type="Resource" path="res://data/cards/lemon.tres" id="9_plain"]
 
 [sub_resource type="Resource" id="Resource_lemon"]
 script = ExtResource("2_lemon")
-tag = "Produce"
+role = 2
 factor = 2
-charges = 1
-group = &"lemon_charges"
-receipt_text = "Lemon ×2"
+receipt_text = "Lemon knot"
 
 [resource]
 script = ExtResource("3_card")
@@ -21,7 +19,7 @@ kind = 1
 tags = PackedStringArray("Food", "Produce")
 base = 3
 rules = Array[ExtResource("1_rule")]([SubResource("Resource_lemon")])
-rule_text = "Double the next Produce payout"
+rule_text = "Between two Bananas: ties them into one chain, and the Banana after it adds twice the price of the one before it"
 art_ref = "res://art/items_v2/lemon_big.png"
 variant_of = ExtResource("9_plain")
 tier = 1

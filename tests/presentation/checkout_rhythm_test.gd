@@ -56,15 +56,16 @@ func test_multiplier_beats_are_heavier_than_adds() -> void:
 
 
 func test_adjacent_bonus_steps_identify_their_real_visual_giver_without_changing_scores() -> void:
-	var row: Array[CardInstance] = _row("strawberries,banana,banana")
+	# The Banana chain's link names the Banana before it, Wonky carrot (#128) the chain's last.
+	var row: Array[CardInstance] = _row("banana,banana,wonky_carrot")
 	var result: ScoreResult = Scoring.score(row)
 	assert_int(Scoring.total(row)).is_equal(result.total)
 	var found: int = 0
 	for step: ScoreStep in result.steps:
 		if step.step_type != ScoreStep.StepType.FLAT:
 			continue
-		if step.slot == 0:
-			assert_int(step.support_slot).is_equal(1)
+		if step.slot == 1:
+			assert_int(step.support_slot).is_equal(0)
 			found += 1
 		elif step.slot == 2:
 			assert_int(step.support_slot).is_equal(1)

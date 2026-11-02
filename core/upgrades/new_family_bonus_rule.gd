@@ -34,4 +34,4 @@ func row_wasted_reason(state: ScoreState) -> String:
 		for family: String in families:
 			if state.has_tag(slot, family):
 				return ""
-	return "no family on the products"
+	return "no family on the items"

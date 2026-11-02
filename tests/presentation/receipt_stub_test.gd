@@ -349,7 +349,7 @@ func test_the_count_up_prints_line_by_line() -> void:
 				"Bread | €3.00",
 				"Coffee bonus | +€2.00",
 				"Coffee | €1.00",
-				"Coffee bonus: no Breakfast product after it | ",
+				"Coffee bonus: no Breakfast item after it | ",
 				"---",
 				"TOTAL | €8.00",
 			]
@@ -405,7 +405,7 @@ func test_an_item_that_does_not_add_up_closes_with_its_payout() -> void:
 		"Spot check: the 2nd product pays €0 | = €0.00",
 		"Soup | €0.00",
 		"arms Soup bonus | ",
-		"Soup bonus: no Frozen product after it | ",
+		"Soup bonus: no Frozen item after it | ",
 		"---",
 		"TOTAL | €3.00",
 	]
@@ -513,9 +513,9 @@ func test_step_lines_word_bonuses_amount_first() -> void:
 	copy.linked_slot = 1
 	assert_str(ReceiptView.step_line(copy, names)).is_equal("+€2 Repeat: copy of Bread")
 	var wasted: ScoreStep = _step(ScoreStep.StepType.WASTED, "Coffee bonus")
-	wasted.reason = "no Breakfast product after it"
+	wasted.reason = "no Breakfast item after it"
 	assert_str(ReceiptView.step_line(wasted, names)).is_equal(
-		"Coffee bonus: no Breakfast product after it  WASTED"
+		"Coffee bonus: no Breakfast item after it  WASTED"
 	)
 	assert_str(ReceiptView.step_line(_step(ScoreStep.StepType.BASE, ""), names)).is_equal("MILK  2")
 	assert_str(ReceiptView.step_line(_step(ScoreStep.StepType.PAYOUT, ""), names)).is_equal("€2")
@@ -667,7 +667,7 @@ static func _result() -> ScoreResult:
 		step.value = row[2] as int
 		result.steps.append(step)
 	result.steps[3].source_slot = 0
-	result.steps[7].reason = "no Breakfast product after it"
+	result.steps[7].reason = "no Breakfast item after it"
 	result.payouts = PackedInt32Array([2, 5, 1])
 	result.total = 8
 	return result
@@ -699,7 +699,7 @@ static func _closing_result() -> ScoreResult:
 	result.steps[3].reason = "nothing to multiply after it"
 	result.steps[5].source_kind = ScoreStep.SourceKind.INSPECTION
 	result.steps[5].source_index = 0
-	result.steps[10].reason = "no Frozen product after it"
+	result.steps[10].reason = "no Frozen item after it"
 	result.payouts = PackedInt32Array([3, 0, 0])
 	result.total = 3
 	return result

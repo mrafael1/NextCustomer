@@ -29,16 +29,11 @@ func test_upgrade_condition_fizzles(
 		# Coupons count as cards: Final markdown in slot 6, 6 x 2.
 		["bread,bread,bread,repeat,bread,final_markdown", ["slot"], [], 6],
 		["bread,repeat,bread,final_markdown,bread", ["slot"], [[0, "fewer than 6 cards"]], 0],
-		["final_markdown", ["category"], [[0, "no product in the row"]], 0],
+		["final_markdown", ["category"], [[0, "no item in the row"]], 0],
 		# Food, Produce: +3 each.
 		["banana", ["category"], [], 6],
 		# Several upgrades fizzle in pick order.
-		[
-			"repeat",
-			["category", "slot"],
-			[[0, "no product in the row"], [1, "fewer than 6 cards"]],
-			0
-		],
+		["repeat", ["category", "slot"], [[0, "no item in the row"], [1, "fewer than 6 cards"]], 0],
 		[
 			"bread,milk",
 			["coupon", "slot"],
@@ -143,7 +138,7 @@ func test_the_category_engine_fizzles_with_no_tag() -> void:
 	var waste: ScoreStep = result.steps[-1]
 	assert_int(waste.step_type).is_equal(ScoreStep.StepType.WASTED)
 	assert_int(waste.source_kind).is_equal(ScoreStep.SourceKind.UPGRADE)
-	assert_str(waste.reason).is_equal("no tag on the products")
+	assert_str(waste.reason).is_equal("no family on the items")
 	assert_bool(waste.row_wide).is_true()
 	assert_int(result.total).is_equal(2)
 
