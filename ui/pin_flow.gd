@@ -16,6 +16,7 @@ extends RefCounted
 ##   glyph while relabelled.
 ## - Golden basket: the first basket is gold; after the count-up, before the machine, the keep
 ##   screen (KeepScreen) shows the golden basket and the checked-out items to drag into it.
+## - Every worn pin: on the name badge's lanyard from the monitor (PinLanyard), its card on hover.
 ## It also holds the #122 pins' parts the screen refreshes with them: Repack's (RepackFlow,
 ## `repack`) and Double checkout's (DoubleCheckoutFlow.refresh, count_row_one).
 
@@ -53,6 +54,7 @@ func _init(screen: ShiftScreen, event_log: EventLogService) -> void:
 	_log = event_log
 	repack = RepackFlow.new(screen, event_log)
 	_screen._inspection_tag.skip_pressed.connect(press_day_off)
+	_screen._stage.pin_lanyard.reduced_motion = _reduced
 
 
 ## Shows the pins' parts for the run as it is now (call after the hand and belt are shown):
@@ -76,6 +78,7 @@ func _show_pins() -> void:
 	_show_gun(planning)
 	_show_skip(planning)
 	_show_tags()
+	_screen._stage.pin_lanyard.show_run(run)
 	if not planning:
 		_close_picker()
 	if run.phase == RunState.Phase.PLANNING and not run.day_off_pending and _pile != null:
@@ -248,8 +251,7 @@ func _show_gun(planning: bool) -> void:
 
 ## The relabels left this shift.
 func _left() -> int:
-	var run: RunState = _screen.run
-	return maxi(PinPlay.relabels_per_shift(run) - run.relabels.size(), 0)
+	return PinPlay.relabels_left(_screen.run)
 
 
 ## The labeller on the counter, in the stage's fore (it drops with the counter) under the belt: it

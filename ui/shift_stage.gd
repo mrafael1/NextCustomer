@@ -14,7 +14,8 @@ extends Control
 ## (the world's at 1x), except the MACHINE_* rects the camera puts on screen.  On the stage, back to
 ## front: the checkout cheering's standees (CheckoutCrowd, #120) on the back wall, the hung monitor
 ## (MonitorView: two rods, its bezel and paper screen, with the scanner bay, the item column, the
-## checkout column and the notices on it), the register (RegisterCabinet, the count-up's rattle
+## checkout column and the notices on it), the badge pins' lanyard hung from it (PinLanyard), the
+## register (RegisterCabinet, the count-up's rattle
 ## target: the printer box on the counter top and the register column under it, with the key deck
 ## and its keys, Cancel, Redraw and CHECKOUT, the keypad, the seed line under Redraw and the cash
 ## drawer), the receipt rising from the printer's slot, the bagging shelf behind the belt's first
@@ -181,6 +182,9 @@ var export_button: FramedButton
 ## The hung monitor: its rods, bezel and screen, with the register's reading (the LED) and the
 ## notices on it.
 var monitor: MonitorView
+## The run's badge pins on their name badge, hung on a lanyard from the monitor's left side
+## (PinLanyard, mock-up shift_scene_polish_v2 section 3 C): in the world after the monitor.
+var pin_lanyard: PinLanyard
 ## The register: the count-up's rattle target (the same node as `cabinet`).
 var register: Control
 var cabinet: RegisterCabinet
@@ -310,6 +314,8 @@ func _build_monitor() -> void:
 	world.add_child(monitor)
 	led = monitor.led
 	notice_label = monitor.notice_label
+	pin_lanyard = PinLanyard.new()
+	world.add_child(pin_lanyard)
 
 
 func _build_register() -> void:

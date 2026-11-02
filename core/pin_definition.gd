@@ -20,6 +20,9 @@ extends Resource
 ## The face's colour, counted from 1 in the badge screen's pin colours (PinFace.COLOURS: 1 tomato,
 ## 2 teal, 3 mustard, 4 velvet, 5 green, 6 gold, 7 brown, 8 slate); 0 goes by catalogue place.
 @export var face_colour: int = 0
+## The icon on the pin's face (PinFace), on the art's 2 px grid; none yet: the face shows
+## face_text. Display only.
+@export var icon: Texture2D
 ## The milestone that unlocks it (UnlockCheck); none: owned from the start.
 @export var unlock_condition: UnlockCondition
 ## Cards added to the run's starting deck (after the starter pack is taken).
