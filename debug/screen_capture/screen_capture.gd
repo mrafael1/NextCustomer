@@ -55,7 +55,9 @@ extends Control
 ## With `--tip=<card id>[,<n>]` (#105) the glyph tooltip of glyph n (from 0) on that card's first
 ## belt ticket shows (below the ticket), `--tip=<card id>,colour` its colour's tooltip, and
 ## `--tip=monitor[,<n>]` that of the monitor scan's glyph n (above it; with --effects=<card id>);
-## the file name gets tip_<what>_<n>_ (tip_<what>_colour_).
+## the file name gets tip_<what>_<n>_ (tip_<what>_colour_). `--tip=<card id>,batch` (#128) shows
+## the tooltip of the BATCH chip on that card's first belt ticket (its batch's frame lit), the
+## file name tip_<what>_batch_.
 ## With `--deck=<page>[,<option>...]` (#56) a new run opens the deck view (see deck() for the pages
 ## and options), and the file is shift_screen_deck_<page>[_<options>]_<width>x<height>.png.
 ## With `--stack` (#105 piece 3) the belt holds the planning layout test's stress row on Big
@@ -117,6 +119,9 @@ const DECK_ARGUMENT := "--deck="
 const TIP_ARGUMENT := "--tip="
 ## --stack's shift: planning_layout_test's stress row, with the upgrades it needs.
 const STACK_ARGUMENT := "--stack"
+## `--row=<card id>,...` (#128): the fixed shift with these cards on the belt (no inspection),
+## the file shift_screen_row_<width>x<height>.png.
+const ROW_ARGUMENT := "--row="
 const WEEK_ARGUMENT := "--week"
 const WEEK_PREFIX := "week_"
 const TOYS_ARGUMENT := "--toys="
@@ -153,6 +158,8 @@ const STACK_PREFIX := "stack_"
 const STACK_FAN_PREFIX := "stack_fan_"
 const TIP_PREFIX := "tip_%s_%d_"
 const TIP_COLOUR_PREFIX := "tip_%s_colour_"
+const TIP_BATCH_PREFIX := "tip_%s_batch_"
+const BATCH_TIP := "batch"
 const COLOUR_TIP := "colour"
 ## --deck's full cart: the first copies upgraded to these tiers, and this coupon added.
 const FULL_TIERS: Dictionary[String, String] = {"banana": "banana_golden", "milk": "milk_big"}
@@ -247,6 +254,11 @@ func _ready() -> void:
 		reveal(reveal_spec)
 	elif deck_spec != "":
 		await deck(deck_spec)
+	elif _argument(ROW_ARGUMENT) != "":
+		var row_ids: Array[String] = []
+		row_ids.assign(_argument(ROW_ARGUMENT).split(","))
+		_set_up_shift("", row_ids)
+		_stack_part = "row_"
 	elif stack_spec != "" or OS.get_cmdline_user_args().has(STACK_ARGUMENT):
 		await stack(stack_spec == "fan")
 	elif OS.get_cmdline_user_args().has("--rhythm"):
@@ -572,7 +584,8 @@ func tip(spec: String) -> void:
 	var parts: PackedStringArray = spec.split(",", false)
 	var what: String = parts[0] if not parts.is_empty() else ""
 	var colour: bool = parts.size() > 1 and parts[1] == COLOUR_TIP
-	var index: int = parts[1].to_int() if parts.size() > 1 and not colour else 0
+	var batch: bool = parts.size() > 1 and parts[1] == BATCH_TIP
+	var index: int = parts[1].to_int() if parts.size() > 1 and not colour and not batch else 0
 	var targets: Array[TipTarget] = []
 	if what == "monitor":
 		for found: Node in _screen._monitor.find_children("*", "FamilyGlyph", true, false):
@@ -585,6 +598,8 @@ func tip(spec: String) -> void:
 					targets.append(
 						item.sticker().get_node(PriceSticker.COLOUR_SPOT_NAME) as TipTarget
 					)
+				elif batch:
+					targets.append_array(item.sticker().summary().keywords())
 				else:
 					targets.append_array(item.sticker().glyphs())
 				break
@@ -599,6 +614,8 @@ func tip(spec: String) -> void:
 	_screen._glyph_tips.point_at(at)
 	_screen._glyph_tips.show_tip(target)
 	_tip_part = (TIP_COLOUR_PREFIX % what) if colour else (TIP_PREFIX % [what, index])
+	if batch:
+		_tip_part = TIP_BATCH_PREFIX % what
 
 
 ## Starts a new run (SEED, or `seed=<seed>`) on the cart reveal (v0.51), frozen at `spec`'s seconds

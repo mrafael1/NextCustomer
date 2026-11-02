@@ -25,9 +25,9 @@ func wasted_reason(state: ScoreState, slot: int) -> String:
 	if factor == 1:
 		return ""
 	if not state.is_product(slot - 1):
-		return "no product just before it"
+		return "no item right before it"
 	if not ignored_tags.is_empty() and _shared_tags(state, slot - 1).is_empty():
-		return "the product just before it has no tag but %s" % " or ".join(ignored_tags)
+		return "the item right before it has no family but %s" % " or ".join(ignored_tags)
 	return ""
 
 

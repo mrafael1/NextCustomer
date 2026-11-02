@@ -174,7 +174,7 @@ func test_the_count_prints_inks_and_the_arm_line() -> void:
 	assert_float(counted.natural_height()).is_equal(at_once.natural_height())
 
 
-## Multipack's words ("arms ×3 later with prior's tag") don't fit on one row even at
+## Multipack's words ("arms ×3 later of the family before") don't fit on one row even at
 ## ARM_MIN_FONT_SIZE: they wrap at the step lines' fizzle size, hung, never cut, the "×3" amber
 ## on the first row, the line inside the receipt.
 func test_a_long_arm_line_wraps_whole() -> void:

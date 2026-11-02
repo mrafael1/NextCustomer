@@ -27,6 +27,11 @@ extends Control
 ## set_got rings a hovered giver's target in gold inside its outline. Neither changes a number.
 ## The staple padlock is never on a ticket (only on the cart reveal).
 ##
+## A batch card's text (#128) prints the BATCH keyword as a chip (GlyphLabel's KeywordChip, its
+## tooltip below the ticket). Its wrong job (set_wrong_job: its batch line is WASTED in the
+## planned row) turns the chip tomato with a cross, its tooltip the WASTED reason, and rings the
+## ticket WRONG_RING_WIDTH px of tomato just inside its outline, under its glyphs, text and tag.
+##
 ## An item tier (#77) is named by tier_text ("BIG", "GOLDEN") for the machine's prizes and the deck
 ## view; the ticket itself carries no tier tag since 2026-11-01 (the user's call).
 
@@ -101,6 +106,21 @@ class ColourSpot:
 		size = SIZE
 
 
+## The tomato ring of a wrong job (#128), inside the ticket's outline.
+class WrongRing:
+	extends Control
+
+	func _init() -> void:
+		name = WRONG_RING_NAME
+		mouse_filter = Control.MOUSE_FILTER_IGNORE
+		size = SIZE
+		visible = false
+
+	func _draw() -> void:
+		for side: Rect2 in PriceSticker.wrong_ring_sides():
+			draw_rect(side, Palette.TOMATO)
+
+
 ## The gold ring of a hovered giver's target (#71), inside the ticket's outline.
 class GotRing:
 	extends Control
@@ -162,12 +182,14 @@ const COUPON_TITLE_FITS: Array[Vector2i] = [
 ]
 const COUPON_TAG_GAP := 2.0
 const GOT_RING_WIDTH := 2.0
+const WRONG_RING_WIDTH := 3.0
 ## Node names (for tests).
 const FACE_NAME := "Face"
 const PLAIN_TAG_NAME := "PlainTag"
 const STRUCK_NAME := "Struck"
 const SUMMARY_NAME := "Summary"
 const GOT_RING_NAME := "GotRing"
+const WRONG_RING_NAME := "WrongRing"
 const COUPON_TITLE_NAME := "CouponTitle"
 const COLOUR_SPOT_NAME := "ColourSpot"
 const TIER_TEXTS: Array[String] = ["", "BIG", "GOLDEN"]
@@ -176,10 +198,23 @@ const TIER_TEXTS: Array[String] = ["", "BIG", "GOLDEN"]
 const COUPON_FRAME := preload("res://art/frames/ticket_coupon.png")
 const PLAIN_FRAME := preload("res://art/frames/ticket_product.png")
 const PLAIN_FRAME_MARGIN := 3
+## The balance whose base redraws a live factor shows off the shift (#128 v3: the Cart, the deck).
+const BALANCE := "res://data/balance/balance.tres"
 const PLAIN_FRAME_TOP_MARGIN := 4
 
 ## COUPON's fonts, by letter spacing.
 static var _coupon_fonts: Dictionary[int, FontVariation] = {}
+
+## The shift's redraws left a live factor shows (#128 v3: Stale popcorn's ×N): set it and the
+## sticker reads "×1.5 next Snack", its gold ×N chip's tooltip saying how it grows. A card with
+## no live factor ignores it.
+var redraws_left: int = -1:
+	set(value):
+		if CardText.live_rule(_definition) == null or value == redraws_left:
+			return
+		redraws_left = value
+		if _summary != null:
+			_summary.set_live(CardText.sticker_summary(_definition, value), _live_tips())
 
 var _families: PackedStringArray = PackedStringArray()
 var _text_color: Color = Palette.INK
@@ -189,9 +224,11 @@ var _plain_tag: PayTag
 var _struck_price: StruckPrice
 var _summary: GlyphLabel
 var _got_ring: GotRing
+var _wrong_ring: WrongRing
 var _struck: bool = false
 var _got: bool = false
 var _squeezed: bool = false
+var _definition: CardDefinition
 
 
 ## The ticket of `definition`, in the game's family colours (`palette`: the game's when null).
@@ -207,6 +244,8 @@ func _init(definition: CardDefinition, palette: FamilyPalette = null) -> void:
 			styles.append(style)
 	_text_color = families.text_color(_families) if not styles.is_empty() else Palette.INK
 	_add_face(definition, styles)
+	_wrong_ring = WrongRing.new()
+	add_child(_wrong_ring)
 	add_child(ColourSpot.new(families.colour_tip(definition), self))
 	var coupon: bool = definition.is_coupon()
 	if coupon:
@@ -229,9 +268,12 @@ func _init(definition: CardDefinition, palette: FamilyPalette = null) -> void:
 		_struck_price = StruckPrice.new(price_text(definition.base), _text_color == Palette.PAPER)
 		_struck_price.visible = false
 		add_child(_struck_price)
+	_definition = definition
+	if CardText.live_rule(definition) != null:
+		redraws_left = (load(BALANCE) as BalanceDefinition).base_redraws
 	var font: Font = ArtStyle.bold_font(ArtStyle.TICKET_TEXT_WEIGHT)
 	_summary = GlyphLabel.new(
-		definition.sticker_summary(),
+		CardText.sticker_summary(definition, redraws_left),
 		font,
 		ArtStyle.TICKET_TEXT_SIZE,
 		_text_color,
@@ -246,9 +288,14 @@ func _init(definition: CardDefinition, palette: FamilyPalette = null) -> void:
 		SUMMARY_RECT.position.x, COUPON_SUMMARY_TOP if coupon else SUMMARY_RECT.position.y
 	)
 	_summary.set_tip(true, self)
+	_summary.set_live(_summary.text, _live_tips())
 	add_child(_summary)
 	_got_ring = GotRing.new()
 	add_child(_got_ring)
+
+
+func _live_tips() -> Dictionary:
+	return CardText.live_tips(_definition, redraws_left)
 
 
 ## "€N": a price as tickets print it.
@@ -289,6 +336,31 @@ func set_pay(struck: bool, tag_rect: Rect2) -> void:
 	if product:
 		# Under a pinned tag the tag draws it (PayTag.show_struck), over the tag's shadow.
 		_struck_price.visible = _struck and not tagged
+
+
+## The ticket's wrong job (#128): `reason` (the WASTED step's tooltip text) turns its keyword
+## chips tomato and rings it in tomato; "" puts it back. A wider chip may move the text, so
+## PlanningLayer sets it before set_pay. The chips are summary().keywords(), the ring the child
+## WRONG_RING_NAME, the reason summary().keyword_wasted().
+func set_wrong_job(reason: String) -> void:
+	_wrong_ring.visible = not reason.is_empty()
+	_summary.set_keyword_wasted(reason)
+
+
+## The ring's sides (`width` wide) just inside `rect`, in its coordinates: top, bottom, left, right.
+static func ring_sides(rect: Rect2, width: float) -> Array[Rect2]:
+	return [
+		Rect2(rect.position, Vector2(rect.size.x, width)),
+		Rect2(rect.position.x, rect.end.y - width, rect.size.x, width),
+		Rect2(rect.position.x, rect.position.y + width, width, rect.size.y - 2.0 * width),
+		Rect2(rect.end.x - width, rect.position.y + width, width, rect.size.y - 2.0 * width),
+	]
+
+
+## A wrong job's tomato ring's sides in the ticket's coordinates: WRONG_RING_WIDTH just inside
+## its outline (BatchFrame redraws the parts its foot covers).
+static func wrong_ring_sides() -> Array[Rect2]:
+	return ring_sides(Rect2(Vector2.ZERO, SIZE).grow(-OUTLINE), WRONG_RING_WIDTH)
 
 
 ## Whether the old price is struck (#71).

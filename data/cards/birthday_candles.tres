@@ -1,14 +1,15 @@
 [gd_resource type="Resource" script_class="CardDefinition" format=3]
 
 [ext_resource type="Script" path="res://core/rule.gd" id="1_rule"]
-[ext_resource type="Script" path="res://core/rules/grant_next_tag_bonus_rule.gd" id="2_birthday_candles"]
+[ext_resource type="Script" path="res://core/rules/baked_batch_bonus_rule.gd" id="2_birthday_candles"]
 [ext_resource type="Script" path="res://core/card_definition.gd" id="3_card"]
 
 [sub_resource type="Resource" id="Resource_birthday_candles"]
 script = ExtResource("2_birthday_candles")
 tag = "Bakery"
 bonus = 3
-receipt_text = "Birthday candles bonus"
+min_size = 3
+receipt_text = "Birthday candles party"
 
 [resource]
 script = ExtResource("3_card")
@@ -18,8 +19,8 @@ kind = 1
 tags = PackedStringArray("Household")
 base = 1
 rules = Array[ExtResource("1_rule")]([SubResource("Resource_birthday_candles")])
-rule_text = "+3 to the next Bakery product"
-sticker_text = "+{bonus} next {tag}"
+rule_text = "+3 to each item of a batch of 3+ Bakery right after it"
+sticker_text = "+{bonus} each, next {batch} of {min_size}+"
 art_ref = "res://art/items_v2/birthday_candles.png"
 mini_art_ref = "res://art/minis/birthday_candles.png"
 mini_golden_art_ref = "res://art/minis/birthday_candles_golden.png"

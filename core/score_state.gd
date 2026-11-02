@@ -16,7 +16,7 @@ var prices: PackedInt32Array = PackedInt32Array()
 ## its payout (AdjacentMatchBonusRule.chain_price).
 var chained: PackedByteArray = PackedByteArray()
 ## The run's upgrade rules and each one's upgrade index (set by Scoring): add_effect asks them
-## whether they reach a card's effect further (UpgradeRule.reaches, #108's Lemon squeezer).
+## whether they reach a card's effect further (UpgradeRule.reaches, #108's Fire sale).
 var upgrade_rules: Array[UpgradeRule] = []
 var rule_upgrades: PackedInt32Array = PackedInt32Array()
 ## How many uses past an effect's own charges each reaching rule gave (by rule; Scoring counts).
@@ -26,7 +26,32 @@ var credits: ScoreCredits
 ## Effects left by scanned cards for later products.
 var effects: Array[ScoreEffect] = []
 var steps: Array[ScoreStep] = []
+## The batches (CardBatch, #128) the rules read, each in slot order, once each; kept only when
+## `explain` (the planning belt shows them; no rule reads them back).
+var batches: Array[PackedInt32Array] = []
+## The chains (CardChain, #128 Produce links), each in slot order with its knots, once each; kept
+## only when `explain` (the planning belt frames them; no rule reads them back).
+var chains: Array[PackedInt32Array] = []
+## The knots' factors by knot slot (slot: factor), and by chain its FEED and TALLY helpers at
+## their places (-1: none), recorded with `chains` (CardChain.record_all) for the belt; kept only
+## when `explain`.
+var knot_factors: Dictionary[int, int] = {}
+var chain_feeds: PackedInt32Array = PackedInt32Array()
+var chain_tallies: PackedInt32Array = PackedInt32Array()
+## Chain-only links (#128, the Lemon knot: ChainKnots), or null while no knot ties anything. They
+## are never adjacency (products_before), so no rule but the chain sees across a knot.
+var knots: ChainKnots
 var subtotal: int = 0
+## The hand cards this shift's redraws replaced (#128 v3, the redraw tension: Dented can, Crisps,
+## Stale popcorn), passed into scoring as context like the shift's events. 0 for a bare score.
+var cards_redrawn: int = 0
+## The redraws this shift has left (#128 v3: Crisps, Stale popcorn), context like cards_redrawn.
+var redraws_left: int = 0
+## 1 for each scanned slot one of whose card's own rules was WASTED (#128 v3, Clearance: Dusty
+## toffees, Flickering bulb). Kept for a total-only score too when a rule of the row reads it
+## (`tracks_waste`, Rule.reads_waste), so Scoring.total stays the total of Scoring.score.
+var wasted: PackedByteArray = PackedByteArray()
+var tracks_waste: bool = false
 ## Slots the shift has more (+) or fewer (-) than the balance data's, from the run's
 ## upgrades and the shift's inspections (Big basket +1, Short belt -1). Set by Scoring.score().
 ## No live rule reads it since the Slot engine keeps to slot 6 (2026-10-24, #106 follow-up); a
@@ -65,6 +90,7 @@ func _init(row_cards: Array[CardInstance], explained: bool = true) -> void:
 	payouts.resize(count)
 	prices.resize(count)
 	chained.resize(count)
+	wasted.resize(count)
 	_scanned.resize(count)
 	_products.resize(count)
 	_coupons.resize(count)
@@ -92,6 +118,10 @@ func _init(row_cards: Array[CardInstance], explained: bool = true) -> void:
 			if first_coupon < 0:
 				first_coupon = slot
 		tags[slot] = card.tags.duplicate() if explained else card.tags
+		if not tracks_waste:
+			for rule: Rule in card.rules:
+				if rule.reads_waste():
+					tracks_waste = true
 
 
 func size() -> int:
@@ -176,7 +206,7 @@ func add_effect(effect: ScoreEffect) -> void:
 	var source: int = effect.source_slot
 	if explain:
 		var running: int = payouts[source] if _scanned[source] else 0
-		add_step(
+		var armed: ScoreStep = add_step(
 			ScoreStep.StepType.EFFECT_ARMED,
 			source,
 			source,
@@ -184,6 +214,7 @@ func add_effect(effect: ScoreEffect) -> void:
 			running,
 			effect.text
 		)
+		armed.percent = effect.percent()
 	_reach(effect)
 	if effect.group != &"":
 		var kept: Array[ScoreEffect] = []
@@ -278,6 +309,11 @@ func to_result() -> ScoreResult:
 	result.payouts = payouts
 	result.tags = tags
 	result.steps = steps
+	result.batches = batches
+	result.chains = chains
+	result.knot_factors = knot_factors
+	result.chain_feeds = chain_feeds
+	result.chain_tallies = chain_tallies
 	return result
 
 

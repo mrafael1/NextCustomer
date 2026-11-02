@@ -24,5 +24,5 @@ static func _problem(state: ScoreState, slot: int) -> String:
 	if slot != 0:
 		return "not in the first slot"
 	if state.first_product() < 0:
-		return "no product after it"
+		return "no item after it"
 	return ""

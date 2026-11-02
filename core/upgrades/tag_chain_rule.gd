@@ -6,9 +6,12 @@ extends UpgradeRule
 ## Banana's twice), else once. A card whose own chain already matched (a Banana after a Banana)
 ## takes only its own bonus. The bonus is a flat bonus of the upgrade, so it is part of the price
 ## the next link passes on. With no two products of the tag side by side it fizzles (#45), once,
-## on the row's last slot.
+## on the row's last slot. With `skips_chain_helpers` (#128, Produce links) a card with a chain
+## job (ChainRoleRule: Strawberries, Lemon, Wonky carrot) neither takes nor passes on a stand
+## link: the helpers keep their own place by the Banana chain.
 
 @export var tag: String = ""
+@export var skips_chain_helpers: bool = false
 
 
 func flat_bonus(state: ScoreState, slot: int) -> int:
@@ -33,7 +36,7 @@ func row_wasted_reason(state: ScoreState) -> String:
 	for slot: int in range(state.size()):
 		if _has_tag(state, slot) and _previous(state, slot) >= 0:
 			return ""
-	return "no two %s products side by side" % tag
+	return "no two %s items side by side" % tag
 
 
 ## The nearest product with the tag counted as just before `slot`, or -1.
@@ -46,7 +49,9 @@ func _previous(state: ScoreState, slot: int) -> int:
 
 
 func _has_tag(state: ScoreState, slot: int) -> bool:
-	return state.is_product(slot) and state.has_tag(slot, tag)
+	if not state.is_product(slot) or not state.has_tag(slot, tag):
+		return false
+	return not skips_chain_helpers or not _is_chain_helper(state.definition(slot))
 
 
 ## The card's own chain rule (the Banana's), or null.
@@ -56,3 +61,12 @@ static func _own_chain(card: CardDefinition) -> AdjacentMatchBonusRule:
 		if match_rule != null and match_rule.bonus_is_previous_price:
 			return match_rule
 	return null
+
+
+## Whether the card has a chain job (a ChainRoleRule with a role).
+static func _is_chain_helper(card: CardDefinition) -> bool:
+	for rule: Rule in card.rules:
+		var role: ChainRoleRule = rule as ChainRoleRule
+		if role != null and role.role != ChainRoleRule.Role.NONE:
+			return true
+	return false

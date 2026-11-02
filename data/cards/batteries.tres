@@ -1,13 +1,16 @@
 [gd_resource type="Resource" script_class="CardDefinition" format=3]
 
 [ext_resource type="Script" path="res://core/rule.gd" id="1_rule"]
-[ext_resource type="Script" path="res://core/rules/last_slot_bonus_rule.gd" id="2_batteries"]
+[ext_resource type="Script" path="res://core/rules/grant_charged_multiplier_rule.gd" id="2_batteries"]
 [ext_resource type="Script" path="res://core/card_definition.gd" id="3_card"]
 
 [sub_resource type="Resource" id="Resource_batteries"]
 script = ExtResource("2_batteries")
-bonus = 4
-receipt_text = "Batteries last"
+tag = "Household"
+factor = 2
+charges = 1
+group = &"battery_charges"
+receipt_text = "Batteries charge"
 
 [resource]
 script = ExtResource("3_card")
@@ -17,8 +20,8 @@ kind = 1
 tags = PackedStringArray("Household")
 base = 1
 rules = Array[ExtResource("1_rule")]([SubResource("Resource_batteries")])
-rule_text = "+4 if in the last slot"
-sticker_text = "+{bonus} in last slot"
+rule_text = "The next Household item pays ×2 (a second Batteries replaces this, they don't add up)"
+sticker_text = "×{factor} next {tag}"
 art_ref = "res://art/items_v2/batteries.png"
 mini_art_ref = "res://art/minis/batteries.png"
 mini_golden_art_ref = "res://art/minis/batteries_golden.png"

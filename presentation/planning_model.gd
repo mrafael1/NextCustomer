@@ -11,6 +11,8 @@ enum Glyph { NONE, FIZZLE, WARNING }
 
 ## The pay tag's text.
 const PAY_TEXT := "€%d"
+## A wrong job's tooltip (#128): WASTED, then its step's reason, capitalised.
+const WRONG_JOB_TIP := "%s · %s"
 ## The links that make rail strips.
 const STRIP_KINDS: Array[EffectLink.Kind] = [
 	EffectLink.Kind.BONUS,
@@ -24,6 +26,27 @@ var graph: EffectGraph
 var slots: Array[PlanningSlot] = []
 ## One per giver slot with cross-item links, in giver order, with lanes assigned.
 var strips: Array[RailStripSpec] = []
+## The batches the belt frames while planning (#128, the Bound strip): the score's batches
+## (ScoreResult.batches, each in slot order) that hold a batch card (CardText.names_batch: a
+## Bakery job card); a batch of plain Bakery only (Bread, Bread) is not framed.
+var batches: Array[PackedInt32Array] = []
+## The belt's batch frames (#128): each framed batch split into runs (runs_of) where a product
+## outside it sits between two of its products (a coupon's link that skips products), each run
+## one frame round its tickets; run_batch holds each run's index in `batches`.
+var runs: Array[PackedInt32Array] = []
+var run_batch: PackedInt32Array = PackedInt32Array()
+## The chains the belt frames while planning (#128, Produce links): every chain of the score
+## (ScoreResult.chains, each in slot order with any Lemon knot inside it), plain Banana pairs too.
+var chains: Array[PackedInt32Array] = []
+## The belt's chain frames (#128, the approved Linked frame): each chain split into runs
+## (runs_of) like a batch, run_chain holding each run's index in `chains`; each chain's FEED and
+## TALLY helpers at their places by it (-1: none; a clasp on its frame's left or right side), and
+## its knots' factors (knot slot: factor, the "×2" plate under the Lemon), all from the score.
+var chain_runs: Array[PackedInt32Array] = []
+var run_chain: PackedInt32Array = PackedInt32Array()
+var chain_feeds: PackedInt32Array = PackedInt32Array()
+var chain_tallies: PackedInt32Array = PackedInt32Array()
+var knot_factors: Dictionary[int, int] = {}
 
 
 ## The model of `result` for `row` (the cards in slot order) under the run's `upgrades` and the
@@ -48,7 +71,82 @@ static func build(
 		names.append(card.display_name)
 	model.strips = _strips(model.graph, names)
 	assign_lanes(model.strips)
+	model.batches = framed_batches(result, row)
+	for index: int in range(model.batches.size()):
+		for run: PackedInt32Array in runs_of(model.batches[index], row):
+			model.runs.append(run)
+			model.run_batch.append(index)
+	model.chains = result.chains.duplicate()
+	for index: int in range(model.chains.size()):
+		for run: PackedInt32Array in runs_of(model.chains[index], row):
+			model.chain_runs.append(run)
+			model.run_chain.append(index)
+	model.chain_feeds = result.chain_feeds.duplicate()
+	model.chain_tallies = result.chain_tallies.duplicate()
+	model.knot_factors = result.knot_factors.duplicate()
+	for slot: int in range(model.slots.size()):
+		model.slots[slot].wrong_job = wrong_job(result, slot, row[slot])
 	return model
+
+
+## The batches of `result` (for `row`, the cards in slot order) the belt frames (#128): each
+## that holds a batch card (CardText.names_batch).
+static func framed_batches(
+	result: ScoreResult, row: Array[CardDefinition]
+) -> Array[PackedInt32Array]:
+	var framed: Array[PackedInt32Array] = []
+	if result == null:
+		return framed
+	for batch: PackedInt32Array in result.batches:
+		for slot: int in batch:
+			if slot < row.size() and CardText.names_batch(row[slot]):
+				framed.append(batch)
+				break
+	return framed
+
+
+## `batch` (slots in order) in runs a frame can bind: a new run starts where a product outside the
+## batch (`row`: the cards in slot order) sits between two of its products, so a coupon's link
+## that skips products never frames them; a coupon between two of them stays inside the run.
+static func runs_of(batch: PackedInt32Array, row: Array[CardDefinition]) -> Array[PackedInt32Array]:
+	var found: Array[PackedInt32Array] = []
+	var run: PackedInt32Array = PackedInt32Array()
+	for slot: int in batch:
+		if not run.is_empty():
+			for between: int in range(run[-1] + 1, slot):
+				if between < row.size() and row[between].is_product():
+					found.append(run)
+					run = PackedInt32Array()
+					break
+		run.append(slot)
+	if not run.is_empty():
+		found.append(run)
+	return found
+
+
+## The wrong job's tooltip of `card` at `slot` in `result` (#128): a batch or chain card (its
+## template names BATCH or CHAIN) whose own rule has a WASTED step there (its line did nothing at
+## its place: "WASTED · Not first in its Bakery batch", "WASTED · No CHAIN right after it"), else
+## "". A row-wide upgrade's or an event's waste is not the card's.
+static func wrong_job(result: ScoreResult, slot: int, card: CardDefinition) -> String:
+	if result == null or not (CardText.names_batch(card) or CardText.names_chain(card)):
+		return ""
+	for step: ScoreStep in result.steps:
+		if (
+			step.step_type != ScoreStep.StepType.WASTED
+			or step.source_kind != ScoreStep.SourceKind.CARD
+			or step.slot != slot
+			or step.source_slot != slot
+			or step.row_wide
+		):
+			continue
+		var reason: String = step.reason.strip_edges()
+		if reason.is_empty():
+			reason = step.text
+		return (
+			WRONG_JOB_TIP % [EffectLink.WASTED_WORD, reason.left(1).to_upper() + reason.substr(1)]
+		)
+	return ""
 
 
 ## The rail strip of the item at `slot` in `result` (what it gives the other items), or null when
@@ -128,9 +226,17 @@ static func hot_lanes(
 
 
 ## The slots in focus when the item at `slot` is hovered (section 8.1): itself, the cards giving
-## to it and the items it gives to, ascending.
+## to it and the items it gives to, and, for a slot in a chain (#128), the rest of that chain,
+## ascending.
 func related(slot: int) -> PackedInt32Array:
 	var found: PackedInt32Array = graph.related_slots(slot) if graph != null else PackedInt32Array()
+	for chain: PackedInt32Array in chains:
+		if not chain.has(slot):
+			continue
+		for member: int in chain:
+			var at: int = found.bsearch(member)
+			if at >= found.size() or found[at] != member:
+				found.insert(at, member)
 	var index: int = found.bsearch(slot)
 	if index >= found.size() or found[index] != slot:
 		found.insert(index, slot)

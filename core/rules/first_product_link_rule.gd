@@ -17,7 +17,7 @@ func wasted_reason(state: ScoreState, slot: int) -> String:
 
 static func _problem(state: ScoreState, slot: int) -> String:
 	if not state.is_product(slot + 1):
-		return "no product in the next slot"
+		return "no item in the next slot"
 	if state.first_product() == slot + 1:
-		return "no product before it"
+		return "no item before it"
 	return ""

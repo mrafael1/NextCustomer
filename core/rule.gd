@@ -19,6 +19,12 @@ func modify_context(_state: ScoreState, _slot: int) -> void:
 	pass
 
 
+## Chain context (#128), after every card's and upgrade's context changes, so every adjacency
+## link is in place: tie chain-only links (CardChain.tie, the Lemon knot).
+func modify_chain(_state: ScoreState, _slot: int) -> void:
+	pass
+
+
 ## Value pass: a flat bonus this card gives itself.
 func flat_bonus(_state: ScoreState, _slot: int) -> int:
 	return 0
@@ -56,6 +62,12 @@ func wasted_reason(_state: ScoreState, _slot: int) -> String:
 ## which records an EFFECT_ARMED step for each one.
 func on_scanned(_state: ScoreState, _slot: int) -> void:
 	pass
+
+
+## True for a rule that reads ScoreState.wasted (#128 v3: Dusty toffees, Flickering bulb), so a
+## total-only score still records which earlier products were WASTED.
+func reads_waste() -> bool:
+	return false
 
 
 func text_for(card: CardDefinition) -> String:

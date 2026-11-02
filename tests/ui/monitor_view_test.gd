@@ -173,7 +173,7 @@ func test_every_card_scan_fits_the_screen() -> void:
 ## kept, then goes; leaving the item brings slot 1's item back. A hand item shows no step lines.
 func test_a_held_scan_fills_the_monitor_then_it_goes_back() -> void:
 	var screen: ShiftScreen = await _screen()
-	await _place(screen, ["milk", "bread", "coffee"])
+	await _place(screen, ["milk", "bread", "tea_bags"])
 	var monitor: MonitorView = screen._monitor
 	# The held item in the bay at once (monitor_bay_test covers the swaps' motion).
 	monitor.reduced_motion = func() -> bool: return true
@@ -204,7 +204,7 @@ func test_a_held_scan_fills_the_monitor_then_it_goes_back() -> void:
 			expected.append(MonitorText.waste_line(step))
 		else:
 			expected.append(ReceiptView.step_line(step, CardInstance.names(screen.run.row)))
-	assert_bool(expected.has("No Breakfast product after it  WASTED")).is_true()
+	assert_bool(expected.has("No MORNING item after it  WASTED")).is_true()
 	var texts: PackedStringArray = column.step_texts()
 	assert_bool(texts == expected).override_failure_message(str(texts)).is_true()
 	assert_str(column.price_tag().text()).is_equal(PriceSticker.price_text(result.payouts[2]))

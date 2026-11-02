@@ -1,14 +1,16 @@
 [gd_resource type="Resource" script_class="CardDefinition" format=3]
 
 [ext_resource type="Script" path="res://core/rule.gd" id="1_rule"]
-[ext_resource type="Script" path="res://core/rules/count_earlier_tag_bonus_rule.gd" id="2_baguette"]
+[ext_resource type="Script" path="res://core/rules/batch_role_rule.gd" id="2_baguette"]
 [ext_resource type="Script" path="res://core/card_definition.gd" id="3_card"]
 
 [sub_resource type="Resource" id="Resource_baguette"]
 script = ExtResource("2_baguette")
 tag = "Bakery"
-bonus_each = 2
-receipt_text = "Baguette: earlier Bakery"
+role = 2
+bonus = 4
+max_count = 2
+receipt_text = "Baguette fills batch"
 
 [resource]
 script = ExtResource("3_card")
@@ -18,8 +20,8 @@ kind = 1
 tags = PackedStringArray("Food", "Bakery")
 base = 2
 rules = Array[ExtResource("1_rule")]([SubResource("Resource_baguette")])
-rule_text = "+2 for each earlier Bakery product"
-sticker_text = "+{bonus_each} per earlier {tag}"
+rule_text = "+4 for each earlier item in its Bakery batch, up to 2"
+sticker_text = "{batch} +{bonus} per earlier"
 art_ref = "res://art/items_v2/baguette.png"
 mini_art_ref = "res://art/minis/baguette.png"
 mini_golden_art_ref = "res://art/minis/baguette_golden.png"

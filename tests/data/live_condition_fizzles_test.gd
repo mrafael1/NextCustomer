@@ -18,11 +18,17 @@ func test_every_conditional_card_fizzles_alone() -> void:
 		assert_int(fizzles[0].value).is_equal(0)
 		assert_int(result.total).override_failure_message(card.id).is_equal(card.base)
 		checked += 1
-	# Every card on those two rules today: 32 plain cards and their 64 item tiers (#77: Banana
-	# and Milk; v0.48: Cheese, Frozen peas, Butter, Yogurt, Reduced yogurt, Cereal, Crackers,
-	# Day-old buns, Dented can and Carrier bag; v0.52: the 20 conditional capsule products, BIG
-	# and GOLDEN fizzle like their base).
-	assert_int(checked).is_equal(96)
+	# Every card on those three rules today (Odd socks' pair rule since #128): 32 plain cards
+	# and their 64 item tiers (#77: Banana and Milk; v0.48: Cheese, Frozen peas, Butter, Yogurt,
+	# Reduced yogurt, Cereal, Crackers, Day-old buns, Dented can and Carrier bag; v0.52: the 20
+	# conditional capsule products, BIG and GOLDEN fizzle like their base).
+	# Croissant and Baguette left for the Bakery batch roles (#128 v3; their fizzles are in
+	# tests/core/bakery_batch_test.gd): 30 plain cards and 60 tiers. Strawberries and Wonky
+	# carrot left for the Produce chain roles (#128 Produce links; their fizzles are in
+	# tests/core/produce_chain_test.gd): 28 plain cards and 56 tiers. Dented can, Dusty
+	# toffees, Crisps, Bent lolly and Pick 'n' mix left for the redraw tension (#128 v3; their
+	# fizzles are in tests/core/clearance_snacks_test.gd): 23 plain cards and 46 tiers.
+	assert_int(checked).is_equal(69)
 
 
 func test_no_fizzle_once_the_condition_is_met() -> void:
@@ -85,7 +91,7 @@ func test_a_mixed_tier_banana_pair_never_fizzles() -> void:
 	assert_int(paid.payouts[1]).is_equal(golden.base + 2 * banana.base)
 
 
-## Every other "just before" adjacency card still fizzles with its partner right after it: only
+## Every other "right before" adjacency card still fizzles with its partner right after it: only
 ## the pair rule looks on both sides for its fizzle.
 func test_other_after_cards_fizzle_with_the_partner_after() -> void:
 	var cards: Array[CardDefinition] = _all_cards()
@@ -102,7 +108,7 @@ func test_other_after_cards_fizzle_with_the_partner_after() -> void:
 			if step.slot == 0:
 				own.append(step)
 		assert_int(own.size()).override_failure_message(card.id).is_equal(1)
-		assert_str(own[0].reason).override_failure_message(card.id).ends_with("just before it")
+		assert_str(own[0].reason).override_failure_message(card.id).ends_with("right before it")
 		checked += 1
 	assert_int(checked).is_greater(0)
 
@@ -132,6 +138,8 @@ static func _partner(card: CardDefinition, cards: Array[CardDefinition]) -> Card
 			AdjacentMatchBonusRule.Match.CARD_ID:
 				return load("%s/%s.tres" % [CARDS_DIR, adjacent.match_value])
 		tag = adjacent.match_value
+	elif card.rules[0] is PairBonusRule:
+		tag = (card.rules[0] as PairBonusRule).tag
 	else:
 		tag = (card.rules[0] as CountEarlierTagBonusRule).tag
 	for other: CardDefinition in cards:
@@ -145,7 +153,12 @@ static func _conditional_cards() -> Array[CardDefinition]:
 	for card: CardDefinition in _all_cards():
 		if card.rules.is_empty():
 			continue
-		if card.rules[0] is AdjacentMatchBonusRule or card.rules[0] is CountEarlierTagBonusRule:
+		var rule: Rule = card.rules[0]
+		if (
+			rule is AdjacentMatchBonusRule
+			or rule is CountEarlierTagBonusRule
+			or rule is PairBonusRule
+		):
 			conditional.append(card)
 	return conditional
 

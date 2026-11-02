@@ -29,4 +29,4 @@ func multiplier(state: ScoreState, slot: int) -> int:
 
 
 func waste_reason() -> String:
-	return "" if _applied else "no later product shared a tag"
+	return "" if _applied else "no later item shared a family"

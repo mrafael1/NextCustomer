@@ -6,12 +6,15 @@ extends RefCounted
 ## factors and Y its payout. All flat bonuses come before all multipliers (PROTOTYPE_PLAN 3.8), so
 ## an item with a multiplier reads as one product; any other shape (a plain or flat-only item, a
 ## €0 payout, a copy such as Repeat, a payout override, a flat after a multiplier, or numbers
-## that don't multiply out) has none. Pure: every number is the steps'.
+## that don't multiply out) has none. A fractional factor (#128 v3, Stale popcorn's ×1.5:
+## ScoreStep.percent) reads "× 1.5" when it is the item's only multiplier, its payout rounded as
+## scoring rounds it (ScoreStep.times_percent); with other multipliers it has none. Pure: every
+## number is the steps'.
 
 ## The equation's parts: the start, the factor ("× N", amber on the monitor), the arrow and the
 ## payout.
 const START := "€%d"
-const FACTOR := "× %d"
+const FACTOR := "× %s"
 const PAYOUT := "€%d"
 const TEXT := "%s %s %s %s"
 
@@ -19,12 +22,15 @@ const TEXT := "%s %s %s %s"
 var start: int = 0
 var factor: int = 1
 var payout: int = 0
+## The fractional factor in percent (ScoreStep.percent), or 0 for a whole `factor`.
+var percent: int = 0
 
 
-func _init(start_value: int, product: int, paid: int) -> void:
+func _init(start_value: int, product: int, paid: int, factor_percent: int = 0) -> void:
 	start = start_value
 	factor = product
 	payout = paid
+	percent = factor_percent
 
 
 ## `slot`'s equation from `steps` (ScoreResult.steps), or null when it has none (see the class
@@ -34,6 +40,7 @@ static func of(steps: Array[ScoreStep], slot: int) -> PaymentEquation:
 	var before: int = -1
 	var product: int = 1
 	var multipliers: int = 0
+	var fraction: int = 0
 	var paid: int = -1
 	for step: ScoreStep in steps:
 		if step.slot != slot:
@@ -53,6 +60,12 @@ static func of(steps: Array[ScoreStep], slot: int) -> PaymentEquation:
 				return null
 			multipliers += 1
 			product *= step.value
+			if step.percent > 0:
+				fraction = step.percent
+	if fraction > 0:
+		if multipliers != 1 or paid <= 0 or ScoreStep.times_percent(before, fraction) != paid:
+			return null
+		return PaymentEquation.new(before, product, paid, fraction)
 	if multipliers == 0 or paid <= 0 or before * product != paid:
 		return null
 	return PaymentEquation.new(before, product, paid)
@@ -65,7 +78,7 @@ func start_text() -> String:
 
 ## The factor's words: "× 6".
 func factor_text() -> String:
-	return FACTOR % factor
+	return FACTOR % (ScoreStep.percent_text(percent) if percent > 0 else str(factor))
 
 
 ## The payout's words: "€72".
