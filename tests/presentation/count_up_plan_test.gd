@@ -6,6 +6,7 @@ extends GdUnitTestSuite
 
 const TUNING := "res://data/balance/count_up.tres"
 const CARDS := "res://data/cards"
+const SPOT_CHECK := "res://data/inspections/spot_check.tres"
 const FIXTURE_DIR := "res://tests/fixtures/cards_v0_4"
 ## The full reference row of the #60 decisions: Eggs and Multipack arm effects, the Spot check
 ## zeroes the 3rd product, Coupon engine fizzles on Multipack, Slot engine stamps slot 6 (the
@@ -350,6 +351,66 @@ func test_an_empty_row_has_only_the_pre_roll() -> void:
 	assert_bool(plan.quota_reached).is_false()
 
 
+## The monitor's harmful lines (CountUpPlan.is_harmful, on the steps' recorded values): Late
+## delivery's −€2 and the Spot check's €0 on the live data are harmful, and their beats say so; the
+## base, a good bonus and a factor above ×1 are not; a factor below ×1 (×0.5, ×0) is; an override
+## is only when it lowers the item's running value.
+func test_harmful_steps_are_the_ones_that_lower_their_item() -> void:
+	var inspections: Array[InspectionDefinition] = [
+		load("res://data/inspections/late_delivery.tres"),
+		load(SPOT_CHECK),
+	]
+	var upgrades: Array[UpgradeDefinition] = []
+	var steps: Array[ScoreStep] = (
+		Scoring.score(_row("milk,bread,milk,milk", CARDS), upgrades, inspections).steps
+	)
+	var harmful: Array[String] = []
+	for index: int in range(steps.size()):
+		var step: ScoreStep = steps[index]
+		if CountUpPlan.is_harmful(steps, index):
+			harmful.append(
+				"%s %d %d" % [ScoreStep.StepType.keys()[step.step_type], step.slot, step.value]
+			)
+		elif step.step_type in [ScoreStep.StepType.FLAT, ScoreStep.StepType.MULTIPLIER]:
+			assert_bool(step.value > 0 and (step.percent == 0 or step.percent > 100)).is_true()
+	# Every Milk pays €2 less; slot 3 (the 2nd Milk, €2 by then) pays €0; Bread is untouched.
+	assert_array(harmful).contains_exactly_in_any_order(
+		["FLAT 0 -2", "FLAT 2 -2", "PAYOUT_OVERRIDE 2 0", "FLAT 3 -2"]
+	)
+	var plan: CountUpPlan = _plan(steps)
+	var flagged: int = 0
+	for beat: CountUpBeat in plan.beats:
+		assert_bool(beat.harmful).is_equal(CountUpPlan.is_harmful(steps, beat.steps[0]))
+		flagged += 1 if beat.harmful else 0
+	assert_int(flagged).is_equal(4)
+	var made: Array[ScoreStep] = [
+		_step(ScoreStep.StepType.BASE, 0, 0, 4, 0, "Card"),
+		_step(ScoreStep.StepType.MULTIPLIER, 0, 0, 1, 0, "half"),
+		_step(ScoreStep.StepType.MULTIPLIER, 0, 0, 2, 0, "double"),
+		_step(ScoreStep.StepType.MULTIPLIER, 0, 0, 2, 0, "and a half"),
+		_step(ScoreStep.StepType.MULTIPLIER, 0, 0, 0, 0, "none"),
+		_step(ScoreStep.StepType.PAYOUT_OVERRIDE, 0, 0, 6, 0, "raised"),
+		_step(ScoreStep.StepType.PAYOUT_OVERRIDE, 0, 0, 0, 0, "zeroed"),
+	]
+	made[0].value_after = 4
+	made[1].percent = 50
+	made[1].value_after = 2
+	made[2].value_after = 4
+	made[3].percent = 150
+	made[3].value_after = 6
+	made[4].value_after = 0
+	made[5].value_after = 6
+	made[6].value_after = 0
+	# The raised override (6 after the ×0's 0) is not harmful; the zeroed one after it (6) is.
+	var expected: Array[bool] = [false, true, false, false, true, false, true]
+	for index: int in range(made.size()):
+		(
+			assert_bool(CountUpPlan.is_harmful(made, index))
+			. override_failure_message(made[index].text)
+			. is_equal(expected[index])
+		)
+
+
 static func _total() -> CountTotalTuning:
 	return load(CountUpPlan.TOTAL_TUNING_PATH) as CountTotalTuning
 
@@ -372,7 +433,7 @@ static func _data_steps(ids: String) -> Array[ScoreStep]:
 		load("res://data/upgrades/coupon_engine.tres"),
 		load("res://data/upgrades/slot_engine.tres"),
 	]
-	var inspections: Array[InspectionDefinition] = [load("res://data/inspections/spot_check.tres")]
+	var inspections: Array[InspectionDefinition] = [load(SPOT_CHECK)]
 	return Scoring.score(_row(ids, CARDS), upgrades, inspections).steps
 
 

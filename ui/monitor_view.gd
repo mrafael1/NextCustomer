@@ -532,7 +532,8 @@ func _update_planning() -> void:
 			lines.fizzles,
 			lines.gives,
 			lines.minis,
-			animate
+			animate,
+			lines.harms
 		)
 	_apply()
 
@@ -634,7 +635,12 @@ func _on_beat_started(
 			step.source_kind == ScoreStep.SourceKind.CARD and _bagged.has(step.card_giver_slot())
 		)
 		var line_shown: Callable = _items.show_step.bind(
-			shown, fizzle, beat.kind == CountUpBeat.Kind.ARMED, _giver_mini(step), from_bag
+			shown,
+			fizzle,
+			beat.kind == CountUpBeat.Kind.ARMED,
+			_giver_mini(step),
+			from_bag,
+			beat.harmful
 		)
 		_show_line_in_beat(beat, line_shown)
 	if beat.kind == CountUpBeat.Kind.PAYOUT:
@@ -746,7 +752,8 @@ func _show_last_item(plan: CountUpPlan, result: ScoreResult, line_of: Callable) 
 				step.step_type == ScoreStep.StepType.WASTED,
 				false,
 				_giver_mini(step),
-				step.source_kind == ScoreStep.SourceKind.CARD and step.card_giver_slot() < slot
+				step.source_kind == ScoreStep.SourceKind.CARD and step.card_giver_slot() < slot,
+				beat.harmful
 			)
 	for beat: CountUpBeat in plan.beats:
 		if beat.slot == slot and beat.equation != null:

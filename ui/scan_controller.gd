@@ -117,14 +117,15 @@ var _framed: bool = false
 
 ## A belt item's payout and step lines for the monitor's item column (#105 piece 2): `payout` (-1
 ## for a hand item), its `lines` (ReceiptView.step_line, after its "gives" line), each with
-## whether it is a fizzle and its giver's mini (null for none); the first `gives` lines are
-## "gives" lines.
+## whether it is a fizzle, whether it is harmful (CountUpPlan.is_harmful) and its giver's mini
+## (null for none); the first `gives` lines are "gives" lines.
 class ItemLines:
 	extends RefCounted
 
 	var payout: int = -1
 	var lines: PackedStringArray = PackedStringArray()
 	var fizzles: Array[bool] = []
+	var harms: Array[bool] = []
 	var minis: Array[Texture2D] = []
 	var gives: int = 0
 
@@ -297,6 +298,7 @@ func item_lines(slot: int) -> ItemLines:
 	if not given.is_empty():
 		shown.lines.append(given)
 		shown.fizzles.append(false)
+		shown.harms.append(false)
 		shown.minis.append(null)
 		shown.gives = 1
 	for step: ScoreStep in footer_steps(_result, slot):
@@ -311,6 +313,7 @@ func item_lines(slot: int) -> ItemLines:
 			)
 		)
 		shown.fizzles.append(fizzle)
+		shown.harms.append(CountUpPlan.is_harmful(_result.steps, _result.steps.find(step)))
 		shown.minis.append(_giver_mini(step))
 	return shown
 
