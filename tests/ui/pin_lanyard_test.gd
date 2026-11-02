@@ -79,6 +79,29 @@ func test_one_and_two_pins_are_laid_out_clear() -> void:
 				. is_false()
 			)
 			assert_bool(shadowed.intersects(_on_stage(screen, ShiftStage.BAG_RECT))).is_false()
+			# The name badge's words (the mock-up's drawBadge): NEXT CUSTOMER on the band,
+			# CASHIER on the face, above the pins.
+			var band: Rect2 = _global(lanyard, PinLanyard._on_badge(PinLanyard.BAND))
+			var band_label: Label = lanyard.band_label()
+			assert_str(band_label.text).is_equal(PinLanyard.BAND_TEXT)
+			var band_words: Rect2 = _caps(band_label)
+			assert_float(band_words.size.x).is_less_equal(band.size.x)
+			assert_float(band_words.get_center().x).is_equal_approx(band.get_center().x, 2.0)
+			assert_bool(band.encloses(band_words)).override_failure_message(where).is_true()
+			var face_label: Label = lanyard.face_label()
+			assert_str(face_label.text).is_equal(PinLanyard.FACE_TEXT)
+			var paper: Rect2 = _global(lanyard, PinLanyard._on_badge(PinLanyard.FACE))
+			var words: Rect2 = Rect2(
+				face_label.get_global_rect().position, face_label.get_minimum_size()
+			)
+			assert_bool(paper.encloses(words)).override_failure_message(where).is_true()
+			for face_control: PinFace in lanyard.faces():
+				var pin_box: Rect2 = face_control.get_global_rect()
+				assert_bool(words.intersects(pin_box)).is_false()
+				assert_bool(paper.encloses(pin_box)).is_true()
+			var plate: TextureRect = lanyard.get_node("Badge") as TextureRect
+			assert_object(plate.texture).is_same(PinLanyard.BADGE_ART)
+			assert_bool(plate.get_global_rect() == badge).is_true()
 			var hook: Rect2 = _global(lanyard, PinLanyard.HOOK)
 			assert_bool(hook.intersects(_on_stage(screen, ShiftStage.MONITOR_RECT))).is_true()
 			var faces: Array[PinFace] = lanyard.faces()
@@ -112,48 +135,75 @@ func test_hovering_a_pin_shows_its_card_in_a_larger_window() -> void:
 
 
 func _check_hover(window: Vector2i) -> void:
-	if true:
-		get_tree().root.size = window
-		var screen: ShiftScreen = await _screen([PRICE_GUN, DAY_OFF], true)
-		var lanyard: PinLanyard = screen._stage.pin_lanyard
-		var view: Rect2 = screen.get_viewport_rect()
-		var monitor_screen: Rect2 = _on_stage(screen, ShiftStage.MONITOR_SCREEN_RECT)
-		for index: int in 2:
-			var face: Rect2 = lanyard.faces()[index].get_global_rect()
-			_move_to(face.get_center())
-			await _frames(3)
-			assert_object(screen.get_viewport().gui_get_hovered_control()).is_same(
-				lanyard.hits()[index]
-			)
-			var card: PinTip = lanyard.card()
-			assert_int(lanyard.shown_pin()).is_equal(index)
-			assert_bool(card.is_visible_in_tree()).is_true()
-			var pin: PinDefinition = screen.run.pins[index]
-			assert_str(card.pin_name()).is_equal(pin.display_name.to_upper())
-			assert_str(card.rule_text()).is_equal(pin.rule_text)
-			assert_str(card.foot_text()).is_equal(PinTip.FOOT_HINT)
-			await get_tree().create_timer(PinLanyard.POP_S + 0.05).timeout
-			var box: Rect2 = card.get_global_rect()
-			assert_bool(view.encloses(box)).override_failure_message(str(window)).is_true()
-			assert_bool(box.intersects(monitor_screen)).is_false()
-			assert_float(box.position.y).is_greater(face.end.y)
-			assert_bool(card.face().get_global_rect().intersects(box)).is_true()
-			var tail: Rect2 = card.get_node("Tail").get_global_rect()
-			assert_float(tail.get_center().x).is_equal_approx(face.get_center().x, 2.0)
-			for label: String in ["Rule", "Charges", "Foot"]:
-				var text: Label = card.get_node(label) as Label
-				if text.visible:
-					assert_bool(box.encloses(text.get_global_rect())).is_true()
-		assert_str(lanyard.card().charges_text()).is_equal("1 day off left this week")
-		var gun: PinDefinition = screen.run.pins[0]
-		assert_str(PinLanyard.charges_for(gun, screen.run)).is_equal("1 relabel left this shift")
-		screen.run.relabels[screen.run.hand()[0].instance_id] = "Snack"
-		assert_str(PinLanyard.charges_for(gun, screen.run)).is_equal("0 relabels left this shift")
-		screen.run.relabels.clear()
-		_move_to(view.position + Vector2(4, view.size.y - 4))
+	get_tree().root.size = window
+	var screen: ShiftScreen = await _screen([PRICE_GUN, DAY_OFF], true)
+	var lanyard: PinLanyard = screen._stage.pin_lanyard
+	var view: Rect2 = screen.get_viewport_rect()
+	var monitor_screen: Rect2 = _on_stage(screen, ShiftStage.MONITOR_SCREEN_RECT)
+	for index: int in 2:
+		var face: Rect2 = lanyard.faces()[index].get_global_rect()
+		_move_to(face.get_center())
 		await _frames(3)
-		assert_int(lanyard.shown_pin()).is_equal(-1)
-		assert_bool(lanyard.card().visible).is_false()
+		assert_object(screen.get_viewport().gui_get_hovered_control()).is_same(
+			lanyard.hits()[index]
+		)
+		var card: PinTip = lanyard.card()
+		assert_int(lanyard.shown_pin()).is_equal(index)
+		assert_bool(card.is_visible_in_tree()).is_true()
+		var pin: PinDefinition = screen.run.pins[index]
+		assert_str(card.pin_name()).is_equal(pin.display_name)
+		assert_str(card.rule_text()).is_equal(pin.rule_text)
+		assert_str(card.foot_text()).is_equal(PinTip.FOOT_HINT)
+		await get_tree().create_timer(PinLanyard.POP_S + 0.05).timeout
+		var where: String = "%s, pin %d" % [window, index]
+		var box: Rect2 = card.get_global_rect()
+		var shadowed: Rect2 = card.get_node("Shadow").get_global_rect().merge(box)
+		assert_bool(view.encloses(shadowed)).override_failure_message(where).is_true()
+		assert_bool(shadowed.intersects(monitor_screen)).override_failure_message(where).is_false()
+		var receipt: Rect2 = screen._receipt.get_global_rect()
+		assert_bool(shadowed.intersects(receipt)).override_failure_message(where).is_false()
+		var top_bar: Rect2 = screen._stage.top_bar.get_global_rect()
+		assert_bool(shadowed.intersects(top_bar)).override_failure_message(where).is_false()
+		# The shown pin lifts one art px inside its ring; its hit area stays.
+		var hit: Rect2 = lanyard.hits()[index].get_global_rect()
+		var lifted: Rect2 = lanyard.faces()[index].get_global_rect()
+		assert_float(lifted.position.y).is_equal(hit.position.y - PinLanyard.LIFT)
+		assert_float(box.position.y).is_greater(hit.end.y)
+		# The paper card's look (the mock-up's drawPinTip): its 9-slice, ink words on paper.
+		var paper: Panel = card.get_node("Card") as Panel
+		var frame: StyleBoxTexture = paper.get_theme_stylebox("panel") as StyleBoxTexture
+		assert_object(frame.texture).is_same(PinTip.FRAME)
+		assert_bool(paper.get_global_rect() == box).is_true()
+		var name_label: Label = card.get_node("PinName") as Label
+		assert_object(name_label.get_theme_color("font_color")).is_equal(Palette.INK)
+		var rule: Label = card.get_node("Rule") as Label
+		assert_object(rule.get_theme_color("font_color")).is_equal(Palette.INK)
+		var name_box: Rect2 = Rect2(
+			name_label.get_global_rect().position, UiKit.pixel_text_size(name_label)
+		)
+		assert_bool(box.encloses(name_box)).override_failure_message(where).is_true()
+		assert_bool(box.encloses(card.face().get_global_rect())).is_true()
+		var tail: Rect2 = card.get_node("Tail").get_global_rect()
+		assert_float(tail.get_center().x).is_equal_approx(hit.get_center().x, 2.0)
+		assert_float(tail.end.y).is_equal(box.position.y + 2.0)
+		for label: String in ["Rule", "Charges", "Foot"]:
+			var text: Label = card.get_node(label) as Label
+			if text.visible:
+				(
+					assert_bool(box.encloses(text.get_global_rect()))
+					. override_failure_message("%s %s" % [where, label])
+					. is_true()
+				)
+	assert_str(lanyard.card().charges_text()).is_equal("1 day off left this week")
+	var gun: PinDefinition = screen.run.pins[0]
+	assert_str(PinLanyard.charges_for(gun, screen.run)).is_equal("1 relabel left this shift")
+	screen.run.relabels[screen.run.hand()[0].instance_id] = "Snack"
+	assert_str(PinLanyard.charges_for(gun, screen.run)).is_equal("0 relabels left this shift")
+	screen.run.relabels.clear()
+	_move_to(view.position + Vector2(4, view.size.y - 4))
+	await _frames(3)
+	assert_int(lanyard.shown_pin()).is_equal(-1)
+	assert_bool(lanyard.card().visible).is_false()
 
 
 ## A click on a pin keeps its card open after the pointer leaves; a click elsewhere closes it, and
@@ -234,6 +284,70 @@ func test_the_badge_follows_the_run() -> void:
 	assert_int(lanyard.faces().size()).is_equal(2)
 
 
+## A kept card closes when the count starts (the receipt prints where it opens), and outside
+## planning or while the screen is busy no hover or click opens one; back in planning it opens
+## again.
+func test_the_card_closes_outside_planning() -> void:
+	var screen: ShiftScreen = await _screen([PRICE_GUN])
+	var lanyard: PinLanyard = screen._stage.pin_lanyard
+	lanyard.press_pin(0)
+	assert_int(lanyard.shown_pin()).is_equal(0)
+	screen._counting = true  # The count and the dessert (ShiftScreen._busy).
+	await _frames(2)
+	assert_int(lanyard.kept_pin()).is_equal(-1)
+	assert_bool(lanyard.card().visible).is_false()
+	lanyard.hover_pin(0, true)
+	assert_int(lanyard.shown_pin()).is_equal(-1)
+	lanyard.press_pin(0)
+	assert_int(lanyard.kept_pin()).is_equal(-1)
+	assert_bool(lanyard.card().visible).is_false()
+	screen._counting = false
+	lanyard.hover_pin(0, false)
+	lanyard.press_pin(0)
+	assert_int(lanyard.shown_pin()).is_equal(0)
+	# The deck view over the stage closes it too.
+	screen._deck_view.visible = true
+	await _frames(2)
+	assert_bool(lanyard.card().visible).is_false()
+	screen._deck_view.visible = false
+	# Outside planning (the machine, the results): the refresh closes it, and nothing opens it.
+	lanyard.press_pin(0)
+	assert_int(lanyard.shown_pin()).is_equal(0)
+	for phase: RunState.Phase in [RunState.Phase.MACHINE_CHOOSE, RunState.Phase.WON]:
+		screen.run.phase = phase
+		lanyard.show_run(screen.run)
+		assert_int(lanyard.kept_pin()).is_equal(-1)
+		assert_bool(lanyard.card().visible).is_false()
+		lanyard.hover_pin(0, true)
+		assert_bool(lanyard.card().visible).is_false()
+		lanyard.hover_pin(0, false)
+		screen.run.phase = RunState.Phase.PLANNING
+		lanyard.press_pin(0)
+		assert_int(lanyard.shown_pin()).is_equal(0)
+
+
+## The mouse wheel (scrolling the receipt) keeps a kept card open; a right click away closes it.
+func test_the_wheel_keeps_a_kept_card() -> void:
+	var screen: ShiftScreen = await _screen([PRICE_GUN])
+	var lanyard: PinLanyard = screen._stage.pin_lanyard
+	_move_to(lanyard.faces()[0].get_global_rect().get_center())
+	await _frames(3)
+	_runner.simulate_mouse_button_pressed(MOUSE_BUTTON_LEFT)
+	await _frames(3)
+	assert_int(lanyard.kept_pin()).is_equal(0)
+	_move_to(screen._receipt.get_global_rect().get_center())
+	await _frames(3)
+	for wheel: MouseButton in [MOUSE_BUTTON_WHEEL_DOWN, MOUSE_BUTTON_WHEEL_UP]:
+		_runner.simulate_mouse_button_pressed(wheel)
+		await _frames(2)
+		assert_int(lanyard.kept_pin()).is_equal(0)
+		assert_int(lanyard.shown_pin()).is_equal(0)
+	_runner.simulate_mouse_button_pressed(MOUSE_BUTTON_RIGHT)
+	await _frames(2)
+	assert_int(lanyard.kept_pin()).is_equal(-1)
+	assert_bool(lanyard.card().visible).is_false()
+
+
 func _screen(pins: Array, normal: bool = false) -> ShiftScreen:
 	_runner = scene_runner(SCREEN)
 	var screen: ShiftScreen = _runner.scene()
@@ -255,6 +369,18 @@ func _screen(pins: Array, normal: bool = false) -> ShiftScreen:
 ## Moves the pointer to `at` (canvas coordinates: the window's stretch scales them).
 func _move_to(at: Vector2) -> void:
 	_runner.simulate_mouse_move(get_tree().root.get_final_transform() * at)
+
+
+## A centred pixel label's capitals on screen: its text's width centred in its box (in font px,
+## scaled), from its cap top down PIXEL_CAP_HEIGHT.
+static func _caps(label: Label) -> Rect2:
+	var text: Vector2 = UiKit.pixel_text_size(label)
+	var box: Rect2 = label.get_global_rect()
+	var font: Font = ArtStyle.pixel_display_font()
+	var cap_top: float = font.get_ascent(ArtStyle.PIXEL_TEXT_SIZE) - ArtStyle.PIXEL_CAP_HEIGHT
+	var left: float = box.position.x + (label.size.x * label.scale.x - text.x) / 2.0
+	var top: float = box.position.y + cap_top * label.scale.y
+	return Rect2(left, top, text.x, ArtStyle.PIXEL_CAP_HEIGHT * label.scale.y)
 
 
 static func _on_stage(screen: ShiftScreen, rect: Rect2) -> Rect2:

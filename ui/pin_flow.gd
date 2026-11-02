@@ -16,7 +16,8 @@ extends RefCounted
 ##   glyph while relabelled.
 ## - Golden basket: the first basket is gold; after the count-up, before the machine, the keep
 ##   screen (KeepScreen) shows the golden basket and the checked-out items to drag into it.
-## - Every worn pin: on the name badge's lanyard from the monitor (PinLanyard), its card on hover.
+## - Every worn pin: on the name badge's lanyard from the monitor (PinLanyard), its card on hover
+##   (or kept by a click) in planning only (_pin_card_blocked).
 ## It also holds the #122 pins' parts the screen refreshes with them: Repack's (RepackFlow,
 ## `repack`) and Double checkout's (DoubleCheckoutFlow.refresh, count_row_one).
 
@@ -55,6 +56,7 @@ func _init(screen: ShiftScreen, event_log: EventLogService) -> void:
 	repack = RepackFlow.new(screen, event_log)
 	_screen._inspection_tag.skip_pressed.connect(press_day_off)
 	_screen._stage.pin_lanyard.reduced_motion = _reduced
+	_screen._stage.pin_lanyard.blocked = _pin_card_blocked
 
 
 ## Shows the pins' parts for the run as it is now (call after the hand and belt are shown):
@@ -267,6 +269,15 @@ func _build_gun() -> void:
 
 func _reduced() -> bool:
 	return _screen.profile != null and _screen.profile.reduced_motion()
+
+
+## No pin card outside planning: during the count and the dessert (the receipt prints under where
+## the card opens), the machine, the results, and while the deck view is open.
+func _pin_card_blocked() -> bool:
+	var run: RunState = _screen.run
+	if run == null or run.phase != RunState.Phase.PLANNING:
+		return true
+	return _screen._busy() or _screen._deck_view.visible
 
 
 ## The day chip's SKIP tag: while today can be taken off, in planning, outside redraw mode.

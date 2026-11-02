@@ -1,0 +1,15 @@
+; A worn badge pin's card on the shift screen (shift_scene_polish_v2 section 3, variant C,
+; drawPinTip; approved 2026-11-02): a 9-slice with 3 art px margins (the middle pixel
+; stretches): an ink outline with square corners round a paper face, its foot two art px of
+; cream shade. The pin, its name, rule, charges and hint are drawn on it in ink by code, and
+; its 2,2 ink drop shadow too.
+@size 7x7
+@kind frame
+@scale 2
+#######
+#wwwww#
+#wwwww#
+#wwwww#
+#bbbbb#
+#bbbbb#
+#######
