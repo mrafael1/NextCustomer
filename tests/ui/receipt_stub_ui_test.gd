@@ -2,7 +2,7 @@ extends GdUnitTestSuite
 ## The receipt on the real shift screen (#75, #80). In planning it is itemised: "NEXT CUSTOMER ·
 ## REG 3", "SHIFT n/m · k ITEMS" (coupons counted), a dashed rule, each belt item's name and
 ## payout (cents, from the preview), "n ·····" for each open empty slot, a dashed rule,
-## "PROJECTED €N.00" (green with the met mark at or over the shift's quota, red with "short
+## "PROJECTED €N.00" (green, with no mark, at or over the shift's quota, red with "short
 ## €N.00" on its own row under it) and the fizzle footer ("1 WASTED · hover an item", none
 ## without); it follows every place and remove, stands on the printer's slot inside
 ## the register column and the 1280x720 screen, every line on one row and in view, every mark
@@ -74,8 +74,8 @@ func test_the_planning_receipt_lists_the_items_and_the_fizzles() -> void:
 
 ## PROJECTED against the shift's quota on the real screen at 1280x720 (#71's play test): a short
 ## row's total is red with "short €N.00" on the row under it; a total exactly on the quota, and one
-## over it, is green with the met mark and no shortfall; the colours are Palette's; the footer and
-## the mark stay inside the paper, the footer on one line even with a long hover hint.
+## over it, is green with no mark (the receipt has no checkmarks) and no shortfall; the colours are
+## Palette's; the footer stays inside the paper, on one line even with a long hover hint.
 func test_the_projected_total_is_coloured_by_the_quota() -> void:
 	var screen: ShiftScreen = await _screen()
 	_place(screen, ["bread", "milk"])
