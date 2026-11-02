@@ -31,8 +31,9 @@ extends Control
 ## BasketTags), the shade that darkens them while counting and the redraw layer (the basket redraw's
 ## flights into the Cart and its sparks, over the top bar). Over the fore's parts the quota
 ## crossing's bonus lights (BonusLights, over the count's quota light, QuotaLight: the band filling
-## toward the belt's far end with the running total against the quota) and the count's rail light (RailLight, #86 kept by #105
-## piece 2: the price rail lit gold from a giver's ticket to its target's). Over them all the quota
+## toward the belt's far end with the running total against the quota) and the count's rail
+## light (RailLight, #86 kept by #105 piece 2: the price rail lit gold from a giver's ticket to its
+## target's). Over them all the quota
 ## crossing (QuotaCrossing: its flag, streak and lap stamps), the scan layer (ScanOverlay: the
 ## scan's brackets and beam) and the popup layer, all taking no clicks. A belt or hand item's scan
 ## shows on the monitor (#80); the popup layer only parks the hidden scan popup, which opens over
