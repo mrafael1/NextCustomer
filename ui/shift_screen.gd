@@ -799,6 +799,7 @@ func _show_planning(result: ScoreResult) -> void:
 	_receipt.show_planning(
 		receipt_header(), result, CardInstance.names(run.row), slots, run.quota(), cards
 	)
+	_cabinet.printer_roll.print_burst()
 	_show_belt(result)
 
 
@@ -911,6 +912,7 @@ func _build() -> void:
 	_monitor.follow(_count_up)
 	_stage.follow_count(_count_up)  # The standees (#120) and the quota crossing.
 	_cabinet.follow_count(_count_up, _led)
+	_cabinet.printer_roll.reduced_motion = _monitor.reduced_motion
 	_drag = CardDrag.new()
 	add_child(_drag)
 	_drag.setup(_overlay, _slots, _hand_box, _landing_slot)
