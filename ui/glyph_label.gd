@@ -41,6 +41,8 @@ var _glyphs: Array[FamilyGlyph] = []
 var _chips: Array[KeywordChip] = []
 ## The keyword chips' wasted tooltip (set_keyword_wasted), or "" for calm chips.
 var _keyword_wasted: String = ""
+## Live words and their tooltips (set_live, #128 v3: Stale popcorn's ×N), drawn as value chips.
+var _live: Dictionary = {}
 var _tip_below: bool = false
 var _tip_anchor: Control
 
@@ -102,6 +104,16 @@ func set_keyword_wasted(reason: String) -> void:
 
 func keyword_wasted() -> String:
 	return _keyword_wasted
+
+
+## Shows `line` with its `live` words (word: tooltip, GlyphText.pieces) as value chips, laying
+## the text out again when either changes (#128 v3: Stale popcorn's ×N as the redraws go).
+func set_live(line: String, live: Dictionary) -> void:
+	if line == text and live == _live:
+		return
+	text = line
+	_live = live.duplicate()
+	_lay_out()
 
 
 ## The keyword chips drawn in the text, in order.
@@ -193,7 +205,7 @@ func _lay_out() -> void:
 	var lines: Array[Array] = []
 	var line: Array = []
 	var x: float = 0.0
-	for piece: Array in GlyphText.pieces(text, _palette):
+	for piece: Array in GlyphText.pieces(text, _palette, _live):
 		var piece_width: float = _piece_width(piece)
 		var room: float = _width - (_first_inset if lines.is_empty() else 0.0)
 		var start: float = x + (space if not line.is_empty() else 0.0)
@@ -249,7 +261,8 @@ func _add_glyphs() -> void:
 
 
 func _add_chip(run: Dictionary, line: int) -> void:
-	var chip: KeywordChip = KeywordChip.new(str(run["keyword"]), _keyword_wasted)
+	var live_tip: String = GlyphText.run_tip(run) if GlyphText.is_live(run) else ""
+	var chip: KeywordChip = KeywordChip.new(str(run["keyword"]), _keyword_wasted, live_tip)
 	var top: float = line * _pitch + floorf((_pitch - KeywordChip.HEIGHT) / 2.0)
 	chip.position = Vector2(float(run["x"]) + CHIP_MARGIN, top)
 	chip.tip_below = _tip_below
@@ -274,8 +287,9 @@ func _piece_width(piece: Array) -> float:
 
 func _run_width(run: Dictionary) -> float:
 	if GlyphText.is_keyword(run):
-		var wasted: bool = not _keyword_wasted.is_empty()
-		return KeywordChip.width_for(str(run["keyword"]), wasted) + 2.0 * CHIP_MARGIN
+		var live: bool = GlyphText.is_live(run)
+		var wasted: bool = not _keyword_wasted.is_empty() and not live
+		return KeywordChip.width_for(str(run["keyword"]), wasted, live) + 2.0 * CHIP_MARGIN
 	if str(run["family"]).is_empty():
 		return _text_width(str(run["text"]))
 	return ArtStyle.FAMILY_GLYPH_SIZE + 2.0 * GLYPH_MARGIN

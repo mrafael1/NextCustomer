@@ -198,10 +198,23 @@ const TIER_TEXTS: Array[String] = ["", "BIG", "GOLDEN"]
 const COUPON_FRAME := preload("res://art/frames/ticket_coupon.png")
 const PLAIN_FRAME := preload("res://art/frames/ticket_product.png")
 const PLAIN_FRAME_MARGIN := 3
+## The balance whose base redraws a live factor shows off the shift (#128 v3: the Cart, the deck).
+const BALANCE := "res://data/balance/balance.tres"
 const PLAIN_FRAME_TOP_MARGIN := 4
 
 ## COUPON's fonts, by letter spacing.
 static var _coupon_fonts: Dictionary[int, FontVariation] = {}
+
+## The shift's redraws left a live factor shows (#128 v3: Stale popcorn's ×N): set it and the
+## sticker reads "×1.5 next Snack", its gold ×N chip's tooltip saying how it grows. A card with
+## no live factor ignores it.
+var redraws_left: int = -1:
+	set(value):
+		if CardText.live_rule(_definition) == null or value == redraws_left:
+			return
+		redraws_left = value
+		if _summary != null:
+			_summary.set_live(CardText.sticker_summary(_definition, value), _live_tips())
 
 var _families: PackedStringArray = PackedStringArray()
 var _text_color: Color = Palette.INK
@@ -215,6 +228,7 @@ var _wrong_ring: WrongRing
 var _struck: bool = false
 var _got: bool = false
 var _squeezed: bool = false
+var _definition: CardDefinition
 
 
 ## The ticket of `definition`, in the game's family colours (`palette`: the game's when null).
@@ -254,9 +268,12 @@ func _init(definition: CardDefinition, palette: FamilyPalette = null) -> void:
 		_struck_price = StruckPrice.new(price_text(definition.base), _text_color == Palette.PAPER)
 		_struck_price.visible = false
 		add_child(_struck_price)
+	_definition = definition
+	if CardText.live_rule(definition) != null:
+		redraws_left = (load(BALANCE) as BalanceDefinition).base_redraws
 	var font: Font = ArtStyle.bold_font(ArtStyle.TICKET_TEXT_WEIGHT)
 	_summary = GlyphLabel.new(
-		definition.sticker_summary(),
+		CardText.sticker_summary(definition, redraws_left),
 		font,
 		ArtStyle.TICKET_TEXT_SIZE,
 		_text_color,
@@ -271,9 +288,14 @@ func _init(definition: CardDefinition, palette: FamilyPalette = null) -> void:
 		SUMMARY_RECT.position.x, COUPON_SUMMARY_TOP if coupon else SUMMARY_RECT.position.y
 	)
 	_summary.set_tip(true, self)
+	_summary.set_live(_summary.text, _live_tips())
 	add_child(_summary)
 	_got_ring = GotRing.new()
 	add_child(_got_ring)
+
+
+func _live_tips() -> Dictionary:
+	return CardText.live_tips(_definition, redraws_left)
 
 
 ## "€N": a price as tickets print it.

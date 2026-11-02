@@ -368,7 +368,7 @@ func _bonus(beat: CountUpBeat, step: ScoreStep) -> void:
 func _stamp(beat: CountUpBeat, step: ScoreStep) -> void:
 	_print_step(step)
 	var target: CardView = _views[step.slot]
-	var factor: String = "×%d" % step.value
+	var factor: String = step.times_text()
 	if beat.echo:
 		_echo(beat, step, factor, Palette.TOMATO)
 		return

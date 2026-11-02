@@ -53,7 +53,8 @@ func test_a_tag_grant_names_the_cards_its_tag_feeds() -> void:
 		)
 	assert_int(_between(sticker, _live("batteries"))).is_equal(CardAffinity.Match.NONE)
 	var clearance: CardDefinition = _live("clearance_tag")
-	for id: String in ["dented_can", "flickering_bulb"]:
+	# #128 v3: Dented can and Flickering bulb read redraws and WASTED now, not the Clearance tag.
+	for id: String in ["day_old_buns"]:
 		assert_int(_between(clearance, _live(id))).override_failure_message(id).is_equal(
 			CardAffinity.Match.YES
 		)

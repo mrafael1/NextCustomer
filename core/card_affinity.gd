@@ -12,7 +12,9 @@ extends RefCounted
 ## (Scissors) names every coupon; a tag grant (Breakfast sticker, Clearance tag) names every card
 ## whose rule counts, boosts or pairs with the tag it grants (WEAKly for a broad one), and a card
 ## zeroed beside it as a PENALTY. The rules in NAMES_NONE name no other card (slot rules, links,
-## copies, 2 for 1, the shared multiplier, the connector).
+## copies, 2 for 1, the shared multiplier, the connector, and #128's redraw and WASTED readers,
+## which count redraws or any WASTED product, not a card). A spread rule (#128: Pick 'n' mix, Bent
+## lolly) names its tag's products.
 ##
 ## Presentation only, like CardFamilies: no rule reads it and it never scores. Which pairs pay in
 ## the current order is the score's (EffectGraph), not this.
@@ -30,6 +32,9 @@ const NAMES_NONE: Array[String] = [
 	"FirstSlotMultiplierRule",
 	"LastSlotBonusRule",
 	"GrantSharedTagMultiplierRule",
+	"RedrawBonusRule",
+	"WastedBeforeRule",
+	"PairCountRule",
 ]
 
 
@@ -103,6 +108,10 @@ static func family_of(rule: Rule) -> String:
 		return (rule as BatchRoleRule).tag
 	if rule is BakedBatchBonusRule:
 		return (rule as BakedBatchBonusRule).tag
+	if rule is SnackSpreadRule:
+		return (rule as SnackSpreadRule).tag
+	if rule is MorningCountRule:
+		return (rule as MorningCountRule).tag
 	return ""
 
 

@@ -24,17 +24,27 @@ static func score(
 ) -> ScoreResult:
 	var state: ScoreState = ScoreState.new(row)
 	state.credits = credits
+	if credits != null:
+		state.cards_redrawn = credits.cards_redrawn
+		state.redraws_left = credits.redraws_left
 	return _run(state, upgrades, inspections).to_result()
 
 
 ## The total score() would give, without the steps that explain it (the balance simulator's
-## searches score millions of rows and read only the total).
+## searches score millions of rows and read only the total). `cards_redrawn` is the shift's
+## redrawn cards and `redraws_left` its redraws left (ScoreCredits.cards_redrawn and
+## redraws_left, #128 v3).
 static func total(
 	row: Array[CardInstance],
 	upgrades: Array[UpgradeDefinition] = [],
-	inspections: Array[InspectionDefinition] = []
+	inspections: Array[InspectionDefinition] = [],
+	cards_redrawn: int = 0,
+	redraws_left: int = 0
 ) -> int:
-	return _run(ScoreState.new(row, false), upgrades, inspections).subtotal
+	var state: ScoreState = ScoreState.new(row, false)
+	state.cards_redrawn = cards_redrawn
+	state.redraws_left = redraws_left
+	return _run(state, upgrades, inspections).subtotal
 
 
 static func _run(
@@ -161,11 +171,16 @@ static func _scan(state: ScoreState, slot: int, registers: Array, checks: Array)
 		for effect: ScoreEffect in state.effects:
 			var effect_factor: int = effect.multiplier(state, slot)
 			if effect_factor != 1:
-				value *= effect_factor
+				# A fractional factor (#128 v3: Stale popcorn's ×1.5) multiplies in percent.
+				var effect_percent: int = effect.percent()
+				if effect_percent > 0:
+					value = ScoreStep.times_percent(value, effect_percent)
+				else:
+					value *= effect_factor
 				if effect.reached_last():
 					_reached_step(state, slot, effect, effect_factor, value, registers)
 				elif explain:
-					state.add_step(
+					var effect_step: ScoreStep = state.add_step(
 						ScoreStep.StepType.MULTIPLIER,
 						slot,
 						effect.source_slot,
@@ -173,6 +188,7 @@ static func _scan(state: ScoreState, slot: int, registers: Array, checks: Array)
 						value,
 						effect.text
 					)
+					effect_step.percent = effect_percent
 
 	# Copies (Repeat) come after the card and effect multipliers, so a copy is never multiplied
 	# again by them. A copy always gets its step, even of a 0 payout, so the receipt can
@@ -235,6 +251,11 @@ static func _scan(state: ScoreState, slot: int, registers: Array, checks: Array)
 			)
 			var rules_of_checks: Array[InspectionRule] = checks[1]
 			waste.reason = rules_of_checks[at].wasted_reason(state, slot)
+	elif state.tracks_waste and has_rules:
+		# A total-only score still records the WASTED products (Dusty toffees reads them).
+		for rule: Rule in rules:
+			if not rule.wasted_reason(state, slot).is_empty():
+				state.wasted[slot] = 1
 	if not state.effects.is_empty():
 		state.drop_spent_effects()
 
@@ -285,6 +306,7 @@ static func _report_fizzles(
 	for rule: Rule in card.rules:
 		var reason: String = rule.wasted_reason(state, slot)
 		if not reason.is_empty():
+			state.wasted[slot] = 1
 			state.add_waste(slot, rule.text_for(card), reason)
 	for fizzle: Vector2i in upgrade_fizzles:
 		var upgrade: UpgradeDefinition = upgrades[fizzle.x]

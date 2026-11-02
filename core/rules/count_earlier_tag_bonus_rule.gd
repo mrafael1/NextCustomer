@@ -17,7 +17,7 @@ func flat_bonus(state: ScoreState, slot: int) -> int:
 func wasted_reason(state: ScoreState, slot: int) -> String:
 	if tag.is_empty() or bonus_each == 0 or _earlier_count(state, slot) > 0:
 		return ""
-	return "no %s product before it" % tag
+	return "no %s item before it" % tag
 
 
 func _earlier_count(state: ScoreState, slot: int) -> int:

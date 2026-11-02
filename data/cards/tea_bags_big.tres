@@ -11,6 +11,7 @@ tag = "Breakfast"
 factor = 4
 charges = 1
 group = &"tea_charges"
+morning_end = true
 receipt_text = "Tea bags ×4"
 
 [resource]
@@ -21,7 +22,7 @@ kind = 1
 tags = PackedStringArray("Breakfast")
 base = 3
 rules = Array[ExtResource("1_rule")]([SubResource("Resource_tea_bags")])
-rule_text = "×4 to the next Breakfast payout"
+rule_text = "×4 to the last MORNING item after it"
 art_ref = "res://art/items_v2/tea_bags_big.png"
 variant_of = ExtResource("9_plain")
 tier = 1

@@ -44,8 +44,8 @@ func test_bonus_is_base_reads_the_base() -> void:
 	assert_str(banana.sticker_summary()).is_equal("+2 or +2 after Banana")
 
 
-## The Banana chain (#106): `{bonus}` reads "prev", after its factor when that is not 1, and a
-## tier counting it twice shows as a changed bonus.
+## The Banana chain (#106): `{bonus}` reads "prev", after its factor when that is not 1,
+## and a tier counting it twice shows as a changed bonus.
 func test_chain_bonus_reads_prev() -> void:
 	var rule: AdjacentMatchBonusRule = AdjacentMatchBonusRule.new()
 	rule.match_by = AdjacentMatchBonusRule.Match.SAME_CARD
@@ -72,8 +72,21 @@ func test_other_keys_are_left_unformatted() -> void:
 	var card: CardDefinition = _card("Frozen peas", 3, rule)
 	card.sticker_text = "{match_by} {position} {bonus_is_base} {id} {receipt_text}"
 	assert_str(card.sticker_summary()).is_equal(card.sticker_text)
-	assert_array(CardText.sticker_values(card).keys()).contains_exactly_in_any_order(
-		["base", "name", "bonus", "match_value", CardText.BATCH_KEY, CardText.CHAIN_KEY]
+	(
+		assert_array(CardText.sticker_values(card).keys())
+		. contains_exactly_in_any_order(
+			[
+				"base",
+				"name",
+				"bonus",
+				"match_value",
+				CardText.BATCH_KEY,
+				CardText.CHAIN_KEY,
+				CardText.WASTED_KEY,
+				CardText.PAIR_KEY,
+				CardText.MORNING_KEY,
+			]
+		)
 	)
 
 
@@ -166,10 +179,11 @@ func test_changed_fields_between_tiers() -> void:
 		PackedStringArray(["base", "charges"])
 	)
 	assert_array(CardText.changed_fields(golden, golden)).is_empty()
-	# A card with no rule against one with a rule: every key the rule has differs.
+	# A card with no rule against one with a rule: every key the rule has differs (its `percent`,
+	# Stale popcorn's since #128 v3, too).
 	var bread: CardDefinition = _card("Bread", 1, null)
 	assert_array(CardText.changed_fields(bread, plain)).is_equal(
-		PackedStringArray(["factor", "charges", "tag"])
+		PackedStringArray(["factor", "charges", "tag", "percent"])
 	)
 
 

@@ -26,6 +26,11 @@ var cache_hits: int = 0
 ## meaningless and never cached: the run or sample asking for it must be dropped.
 var stop_at_msec: int = 0
 var stopped: bool = false
+## The shift's redrawn cards and redraws left (#128 v3, ScoreCredits.cards_redrawn and
+## redraws_left), set by the player before a
+## search: scoring context, so it joins the cache key when not 0.
+var cards_redrawn: int = 0
+var redraws_left: int = 0
 var _balance: BalanceDefinition
 ## Key -> [best total, best order as card ids] for a multiset, or [best total, best order, best
 ## total without each card id (in sorted id order)] for a hand.
@@ -69,6 +74,8 @@ func search(
 	var upgrade_key: String = (
 		_upgrade_key(upgrades) + _inspection_key(inspections) + _slot_key(upgrades, inspections)
 	)
+	if cards_redrawn != 0 or redraws_left != 0:
+		upgrade_key += " r%d,%d" % [cards_redrawn, redraws_left]
 	# A hand's best also depends on the row limits, which upgrades can raise (ShiftLimits; the
 	# quota doesn't matter here).
 	var row_limits: ShiftLimits = ShiftLimits.for_shift(_balance, upgrades, 0, inspections)
@@ -231,7 +238,7 @@ func _best_order(
 			var rank: int = order[slot]
 			row[slot] = pools[rank][used[rank]]
 			used[rank] += 1
-		var total: int = Scoring.total(row, upgrades, inspections)
+		var total: int = Scoring.total(row, upgrades, inspections, cards_redrawn, redraws_left)
 		rows_scored += 1
 		if rows_scored % STOP_CHECK_ROWS == 0 and _past_stop():
 			return [0, PackedStringArray()]

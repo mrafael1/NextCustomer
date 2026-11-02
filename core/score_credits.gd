@@ -12,6 +12,13 @@ extends RefCounted
 var base_slots: int = -1
 ## The instance ids of the cards an extra redraw brought in this shift.
 var redrawn_in: PackedInt32Array = PackedInt32Array()
+## The hand cards this shift's redraws replaced, every redraw's (#128 v3, the redraw tension:
+## scoring context, ScoreState.cards_redrawn): each redraw is a basket of the balance's
+## basket_size cards.
+var cards_redrawn: int = 0
+## The redraws this shift has left (#128 v3: Crisps, Stale popcorn): its allowed redraws, extra
+## ones included, less the ones used.
+var redraws_left: int = 0
 
 
 ## The credits of the run's current shift: its slots without any upgrade's (the balance's and
@@ -25,6 +32,8 @@ static func for_run(run: RunState) -> ScoreCredits:
 		. slot_count
 	)
 	credits.redrawn_in = run.redrawn_in.duplicate()
+	credits.cards_redrawn = run.redraws_used * run.balance.basket_size
+	credits.redraws_left = maxi(run.redraws_allowed - run.redraws_used, 0)
 	return credits
 
 

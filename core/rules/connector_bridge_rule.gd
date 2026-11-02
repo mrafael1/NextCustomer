@@ -20,6 +20,4 @@ func modify_context(state: ScoreState, slot: int) -> void:
 		return
 	# Nothing to bridge: every connector of the run fizzles.
 	for connector: int in range(slot, run_end + 1):
-		state.add_waste(
-			connector, text_for(state.definition(connector)), "no product on both sides"
-		)
+		state.add_waste(connector, text_for(state.definition(connector)), "no item on both sides")

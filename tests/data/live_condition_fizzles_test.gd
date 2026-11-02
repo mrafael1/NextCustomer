@@ -25,8 +25,10 @@ func test_every_conditional_card_fizzles_alone() -> void:
 	# Croissant and Baguette left for the Bakery batch roles (#128 v3; their fizzles are in
 	# tests/core/bakery_batch_test.gd): 30 plain cards and 60 tiers. Strawberries and Wonky
 	# carrot left for the Produce chain roles (#128 Produce links; their fizzles are in
-	# tests/core/produce_chain_test.gd): 28 plain cards and 56 tiers.
-	assert_int(checked).is_equal(84)
+	# tests/core/produce_chain_test.gd): 28 plain cards and 56 tiers. Dented can, Dusty
+	# toffees, Crisps, Bent lolly and Pick 'n' mix left for the redraw tension (#128 v3; their
+	# fizzles are in tests/core/clearance_snacks_test.gd): 23 plain cards and 46 tiers.
+	assert_int(checked).is_equal(69)
 
 
 func test_no_fizzle_once_the_condition_is_met() -> void:
@@ -89,7 +91,7 @@ func test_a_mixed_tier_banana_pair_never_fizzles() -> void:
 	assert_int(paid.payouts[1]).is_equal(golden.base + 2 * banana.base)
 
 
-## Every other "just before" adjacency card still fizzles with its partner right after it: only
+## Every other "right before" adjacency card still fizzles with its partner right after it: only
 ## the pair rule looks on both sides for its fizzle.
 func test_other_after_cards_fizzle_with_the_partner_after() -> void:
 	var cards: Array[CardDefinition] = _all_cards()
@@ -106,7 +108,7 @@ func test_other_after_cards_fizzle_with_the_partner_after() -> void:
 			if step.slot == 0:
 				own.append(step)
 		assert_int(own.size()).override_failure_message(card.id).is_equal(1)
-		assert_str(own[0].reason).override_failure_message(card.id).ends_with("just before it")
+		assert_str(own[0].reason).override_failure_message(card.id).ends_with("right before it")
 		checked += 1
 	assert_int(checked).is_greater(0)
 

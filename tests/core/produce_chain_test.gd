@@ -68,13 +68,13 @@ func test_misplaced_helpers_fizzle(
 		[
 			"lemon,banana,banana,strawberries",
 			[1, 2, 4, 2],
-			[[0, "not inside a CHAIN"], [3, "no CHAIN just after it"]],
+			[[0, "not inside a CHAIN"], [3, "no CHAIN right after it"]],
 		],
 		# Strawberries before a lone Banana: no chain just after it, and the Banana is lone.
 		[
 			"strawberries,banana",
 			[2, 2],
-			[[0, "no CHAIN just after it"], [1, "no Banana beside it"]],
+			[[0, "no CHAIN right after it"], [1, "no Banana beside it"]],
 		],
 		# Strawberries between a lone Banana and a chain still feed the chain after them.
 		[
@@ -86,9 +86,9 @@ func test_misplaced_helpers_fizzle(
 		[
 			"banana,wonky_carrot",
 			[2, 2],
-			[[0, "no Banana beside it"], [1, "no CHAIN just before it"]],
+			[[0, "no Banana beside it"], [1, "no CHAIN right before it"]],
 		],
-		["potatoes,wonky_carrot", [3, 2], [[1, "no CHAIN just before it"]]],
+		["potatoes,wonky_carrot", [3, 2], [[1, "no CHAIN right before it"]]],
 		# Two Lemons side by side tie nothing: both fizzle, and each Banana is lone.
 		[
 			"banana,lemon,lemon,banana",
@@ -110,7 +110,7 @@ func test_misplaced_helpers_fizzle(
 		[
 			"fruit_salad,banana",
 			[2, 2],
-			[[0, "no Produce product before it"], [1, "no Banana beside it"]]
+			[[0, "no Produce item before it"], [1, "no Banana beside it"]]
 		],
 	]
 ) -> void:
@@ -231,7 +231,7 @@ func test_lemon_squeezer_doubles_after_a_loose_lemon() -> void:
 		["no Lemon in the row"]
 	)
 	assert_array(_row_wasted(Scoring.score(_row("bread,lemon"), squeezer))).is_equal(
-		["no more Produce products after the Lemon"]
+		["no more Produce items after the Lemon"]
 	)
 
 

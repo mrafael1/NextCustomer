@@ -12,6 +12,10 @@ extends TipTarget
 ## planned row; the chip turns tomato with paper text and a crisp pixel cross after the word, and
 ## its tooltip gives the same reason as its WASTED step instead. It takes no clicks: the item
 ## under it keeps its hover, drag and clicks.
+##
+## Live (#128 v3: Stale popcorn's ×N): a gold value chip whose number is drawn in the ticket's
+## own bold text font (live_font, the way Eggs' "×2" reads), not the pixel display font, whose
+## small digits blur (its 3 reads as an 8).
 
 const HEIGHT := 15.0
 const BORDER := 2.0
@@ -38,11 +42,17 @@ const CROSS_RUNS: Array[Vector3i] = [
 ]
 const CALM_FACE := Palette.CREAM_SHADE
 ## Each keyword's calm face, its family's light colour (#128): BATCH the Bakery's cream, CHAIN the
-## Produce green; any other keyword CALM_FACE.
+## Produce green, WASTED (v3 Clearance) the pale tomato, PAIR the Dairy teal, MORNING the
+## Breakfast mustard; any other keyword CALM_FACE.
 const CALM_FACES: Dictionary[String, Color] = {
 	CardText.BATCH_WORD: Palette.CREAM_SHADE,
 	CardText.CHAIN_WORD: Palette.GREEN_LIGHT,
+	CardText.WASTED_WORD: Palette.TOMATO_PALE,
+	CardText.PAIR_WORD: Palette.TEAL_LIGHT,
+	CardText.MORNING_WORD: Palette.MUSTARD_LIGHT,
 }
+## A live value chip's calm face (#128 v3: Stale popcorn's ×N, a multiplier's gold).
+const LIVE_FACE := Palette.GOLD
 const LIT_FACE := Palette.MUSTARD
 const WASTED_FACE := Palette.TOMATO
 
@@ -50,22 +60,31 @@ const WASTED_FACE := Palette.TOMATO
 var keyword: String = ""
 var _lit: bool = false
 var _wasted: bool = false
+## A live value chip (#128 v3: Stale popcorn's ×N), with its own tooltip.
+var _live: bool = false
 
 
 ## The chip of `word`, wasted (`wasted_tip`: its tooltip, the WASTED step's reason) when not empty.
-func _init(word: String, wasted_tip: String = "") -> void:
+## A live value chip (`live_tip` not empty: Stale popcorn's ×N) shows that tooltip, gold when calm.
+func _init(word: String, wasted_tip: String = "", live_tip: String = "") -> void:
 	super()
 	keyword = word
 	name = "Keyword%s" % word.capitalize()
-	_wasted = not wasted_tip.is_empty()
-	tip_text = wasted_tip if _wasted else GlyphText.keyword_tip(word)
-	size = Vector2(width_for(word, _wasted), HEIGHT)
+	_live = not live_tip.is_empty()
+	_wasted = not wasted_tip.is_empty() and not _live
+	if _wasted:
+		tip_text = wasted_tip
+	else:
+		tip_text = live_tip if _live else GlyphText.keyword_tip(word)
+	size = Vector2(width_for(word, _wasted, _live), HEIGHT)
 	custom_minimum_size = size
 
 
 ## A chip's width for `word` (wider by its cross when `wasted`), on the 2 px grid.
-static func width_for(word: String, wasted: bool) -> float:
-	var text: float = font().get_string_size(word, HORIZONTAL_ALIGNMENT_LEFT, -1, text_size()).x
+static func width_for(word: String, wasted: bool, live: bool = false) -> float:
+	var shown: Font = live_font() if live else font()
+	var shown_size: int = ArtStyle.TICKET_TEXT_SIZE if live else text_size()
+	var text: float = shown.get_string_size(word, HORIZONTAL_ALIGNMENT_LEFT, -1, shown_size).x
 	var width: float = BORDER * 2.0 + PADDING_X * 2.0 + ceilf(text)
 	if wasted:
 		width += CROSS_GAP + CROSS_CELLS
@@ -74,6 +93,11 @@ static func width_for(word: String, wasted: bool) -> float:
 
 static func font() -> Font:
 	return ArtStyle.pixel_display_font()
+
+
+## A live chip's number font: the ticket's bold text font (at ArtStyle.TICKET_TEXT_SIZE).
+static func live_font() -> Font:
+	return ArtStyle.bold_font(ArtStyle.TICKET_TEXT_WEIGHT)
 
 
 static func text_size() -> int:
@@ -101,7 +125,14 @@ func is_wasted() -> bool:
 func face_color() -> Color:
 	if _wasted:
 		return WASTED_FACE
-	return LIT_FACE if _lit else calm_face(keyword)
+	if _lit:
+		return LIT_FACE
+	return LIVE_FACE if _live else calm_face(keyword)
+
+
+## Whether it is a live value chip (its own tooltip, gold when calm).
+func is_live() -> bool:
+	return _live
 
 
 ## The calm face of `word`'s chip (CALM_FACES, else CALM_FACE).
@@ -134,14 +165,22 @@ func _draw() -> void:
 	draw_rect(Rect2(0, 1, rect.size.x, rect.size.y - 2), Palette.INK)
 	draw_rect(rect.grow(-BORDER), face_color())
 	var text_font: Font = font()
+	var shown_size: int = text_size()
 	var baseline: float = CAP_TOP + ArtStyle.PIXEL_CAP_HEIGHT
+	if _live:
+		text_font = live_font()
+		shown_size = ArtStyle.TICKET_TEXT_SIZE
+		# The digits centred: their height is about the font's ascent less its descent.
+		var ascent: float = text_font.get_ascent(shown_size)
+		var descent: float = text_font.get_descent(shown_size)
+		baseline = roundf((size.y + ascent - descent) / 2.0)
 	draw_string(
 		text_font,
 		Vector2(BORDER + PADDING_X, baseline),
 		keyword,
 		HORIZONTAL_ALIGNMENT_LEFT,
 		-1,
-		text_size(),
+		shown_size,
 		ink_color()
 	)
 	var cross: Rect2 = cross_rect()

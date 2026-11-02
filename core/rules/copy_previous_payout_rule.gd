@@ -10,4 +10,4 @@ func copied_from(state: ScoreState, slot: int) -> int:
 
 
 func wasted_reason(state: ScoreState, slot: int) -> String:
-	return "" if state.is_product(slot - 1) else "no product just before it to copy"
+	return "" if state.is_product(slot - 1) else "no item right before it to copy"

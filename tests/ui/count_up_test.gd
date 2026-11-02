@@ -241,12 +241,12 @@ func test_the_quota_is_met_with_the_total_on_a_last_payout_crossing_and_never_on
 
 
 ## Puffs start where the item is now (#86 v6, source_rect: the belt ride gives the scanner, or
-## the bag's mouth once an item is bagged): the lost Coffee bonus (a trailing fizzle on the
-## long-scanned Coffee; Potatoes and Soup have no condition to fizzle, #45) puffs from Coffee's
-## rect. The payouts fly no chip over the screen since #105 piece 2 (D8: the monitor's chips).
+## the bag's mouth once an item is bagged): Cream's lost bonus (no PAIR in the row, #128 Dairy;
+## Potatoes and Soup have no condition to fizzle, #45) puffs from Cream's rect. The payouts fly
+## no chip over the screen since #105 piece 2 (D8: the monitor's chips).
 func test_puffs_start_where_the_item_is_now() -> void:
 	var screen: ShiftScreen = await _screen()
-	await _place(screen, ["coffee", "potatoes", "soup"])
+	await _place(screen, ["cream", "potatoes", "soup"])
 	var count_up: CountUp = screen._count_up
 	var rect_of: Callable = func(slot: int) -> Rect2:
 		return Rect2(Vector2(300.0 + 40.0 * slot, 200.0), Vector2(40, 40))
@@ -267,10 +267,10 @@ func test_puffs_start_where_the_item_is_now() -> void:
 	await _played(screen)
 	screen._overlay.child_entered_tree.disconnect(on_added)
 	count_up.source_rect = Callable()
-	# One lost bonus, one puff, 30 px over Coffee's rect.
+	# One lost bonus, one puff, 30 px over Cream's rect.
 	assert_int(puffs.size()).is_equal(1)
-	var coffee: Vector2 = (rect_of.call(0) as Rect2).get_center() + Vector2(0, -30)
-	assert_float(puffs[0].distance_to(coffee)).is_less(1.0)
+	var cream: Vector2 = (rect_of.call(0) as Rect2).get_center() + Vector2(0, -30)
+	assert_float(puffs[0].distance_to(cream)).is_less(1.0)
 
 
 ## The count-up's best so far is the best total of the run's earlier shifts, never the shift

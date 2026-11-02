@@ -17,14 +17,14 @@ func test_fizzles(
 		[
 			"bread,two_for_one,cheese",
 			[
-				[1, "2 for 1 ×2", "not the same product on both sides"],
-				[2, "Cheese after Bread", "no Bread just before it"],
+				[1, "2 for 1 ×2", "not the same item on both sides"],
+				[2, "Cheese after Bread", "no Bread right before it"],
 			]
 		],
 		[
 			"two_for_one,banana",
 			[
-				[0, "2 for 1 ×2", "no product on both sides"],
+				[0, "2 for 1 ×2", "no item on both sides"],
 				[1, "Banana pair", "no Banana beside it"],
 			]
 		],
@@ -32,33 +32,33 @@ func test_fizzles(
 			"banana,two_for_one",
 			[
 				[0, "Banana pair", "no Banana beside it"],
-				[1, "2 for 1 ×2", "no product on both sides"],
+				[1, "2 for 1 ×2", "no item on both sides"],
 			]
 		],
 		[
 			"banana,two_for_one,two_for_one,banana",
 			[
 				[0, "Banana pair", "no Banana beside it"],
-				[1, "2 for 1 ×2", "no product on both sides"],
-				[2, "2 for 1 ×2", "no product on both sides"],
+				[1, "2 for 1 ×2", "no item on both sides"],
+				[2, "2 for 1 ×2", "no item on both sides"],
 				[3, "Banana pair", "no Banana beside it"],
 			]
 		],
 		["bread,banana,shelf_swap,cheese", [[1, "Banana pair", "no Banana beside it"]]],
-		["bread,shelf_swap", [[1, "Shelf swap", "no product in the next slot"]]],
+		["bread,shelf_swap", [[1, "Shelf swap", "no item in the next slot"]]],
 		[
 			"bread,shelf_swap,repeat",
 			[
-				[1, "Shelf swap", "no product in the next slot"],
-				[2, "Repeat", "no product just before it to copy"],
+				[1, "Shelf swap", "no item in the next slot"],
+				[2, "Repeat", "no item right before it to copy"],
 			]
 		],
-		["shelf_swap,bread", [[0, "Shelf swap", "no product before it"]]],
+		["shelf_swap,bread", [[0, "Shelf swap", "no item before it"]]],
 		[
 			"repeat,shelf_swap,bread",
 			[
-				[0, "Repeat", "no product just before it to copy"],
-				[1, "Shelf swap", "no product before it"],
+				[0, "Repeat", "no item right before it to copy"],
+				[1, "Shelf swap", "no item before it"],
 			]
 		],
 	]
@@ -119,7 +119,7 @@ func test_a_variant_is_the_same_product_as_its_base() -> void:
 	# Banana, 2 for 1, Organic banana: linked, the pair bonus applies, then ×2.
 	var paired: ScoreResult = Scoring.score(_cards([banana, two_for_one, organic_banana]))
 	assert_array(Array(paired.payouts)).is_equal([2, 0, 8])
-	# Organic bread, Cheese: Cheese's "+4 if immediately after Bread" applies.
+	# Organic bread, Cheese: Cheese's "+4 beside Bread" applies.
 	assert_array(Array(Scoring.score(_cards([organic_bread, cheese])).payouts)).is_equal([3, 7])
 
 

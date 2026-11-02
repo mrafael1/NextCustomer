@@ -42,6 +42,16 @@ var chain_tallies: PackedInt32Array = PackedInt32Array()
 ## are never adjacency (products_before), so no rule but the chain sees across a knot.
 var knots: ChainKnots
 var subtotal: int = 0
+## The hand cards this shift's redraws replaced (#128 v3, the redraw tension: Dented can, Crisps,
+## Stale popcorn), passed into scoring as context like the shift's events. 0 for a bare score.
+var cards_redrawn: int = 0
+## The redraws this shift has left (#128 v3: Crisps, Stale popcorn), context like cards_redrawn.
+var redraws_left: int = 0
+## 1 for each scanned slot one of whose card's own rules was WASTED (#128 v3, Clearance: Dusty
+## toffees, Flickering bulb). Kept for a total-only score too when a rule of the row reads it
+## (`tracks_waste`, Rule.reads_waste), so Scoring.total stays the total of Scoring.score.
+var wasted: PackedByteArray = PackedByteArray()
+var tracks_waste: bool = false
 ## Slots the shift has more (+) or fewer (-) than the balance data's, from the run's
 ## upgrades and the shift's inspections (Big basket +1, Short belt -1). Set by Scoring.score().
 ## No live rule reads it since the Slot engine keeps to slot 6 (2026-10-24, #106 follow-up); a
@@ -80,6 +90,7 @@ func _init(row_cards: Array[CardInstance], explained: bool = true) -> void:
 	payouts.resize(count)
 	prices.resize(count)
 	chained.resize(count)
+	wasted.resize(count)
 	_scanned.resize(count)
 	_products.resize(count)
 	_coupons.resize(count)
@@ -107,6 +118,10 @@ func _init(row_cards: Array[CardInstance], explained: bool = true) -> void:
 			if first_coupon < 0:
 				first_coupon = slot
 		tags[slot] = card.tags.duplicate() if explained else card.tags
+		if not tracks_waste:
+			for rule: Rule in card.rules:
+				if rule.reads_waste():
+					tracks_waste = true
 
 
 func size() -> int:
@@ -191,7 +206,7 @@ func add_effect(effect: ScoreEffect) -> void:
 	var source: int = effect.source_slot
 	if explain:
 		var running: int = payouts[source] if _scanned[source] else 0
-		add_step(
+		var armed: ScoreStep = add_step(
 			ScoreStep.StepType.EFFECT_ARMED,
 			source,
 			source,
@@ -199,6 +214,7 @@ func add_effect(effect: ScoreEffect) -> void:
 			running,
 			effect.text
 		)
+		armed.percent = effect.percent()
 	_reach(effect)
 	if effect.group != &"":
 		var kept: Array[ScoreEffect] = []

@@ -62,5 +62,5 @@ static func armed_of_waste(steps: Array[ScoreStep], index: int) -> int:
 ## fall: Late delivery's, v0.69).
 static func token_text(step: ScoreStep) -> String:
 	if step.step_type == ScoreStep.StepType.MULTIPLIER:
-		return "×%d" % step.value
+		return step.times_text()
 	return "+%d" % step.value if step.value >= 0 else "−%d" % -step.value
