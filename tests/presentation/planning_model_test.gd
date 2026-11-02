@@ -517,6 +517,47 @@ func test_the_halo_and_grey_materials() -> void:
 	assert_object(sprite.material).is_null()
 
 
+## Produce links (#128): the model holds every chain of the score (plain pairs too, a knot inside
+## its chain); a chain card out of place (a helper, or a lone Banana) has its WASTED reason as
+## its wrong job; hovering a chain's slot brings the rest of the chain into focus.
+func test_chains_wrong_jobs_and_focus() -> void:
+	var good: PlanningModel = _live_model("strawberries,banana,lemon,banana,wonky_carrot,bread")
+	assert_int(good.chains.size()).is_equal(1)
+	assert_array(Array(good.chains[0])).is_equal([1, 2, 3])
+	for slot: PlanningSlot in good.slots:
+		assert_str(slot.wrong_job).is_empty()
+	assert_array(Array(good.related(1))).contains([1, 2, 3])
+	assert_array(Array(good.related(5))).not_contains([1, 3])
+	var bad: PlanningModel = _live_model("lemon,banana,banana,strawberries,bread,banana")
+	assert_array(Array(bad.chains[0])).is_equal([1, 2])
+	var shown: Array = []
+	for slot: PlanningSlot in bad.slots:
+		shown.append(slot.wrong_job)
+	(
+		assert_array(shown)
+		. is_equal(
+			[
+				"WASTED · Not inside a CHAIN",
+				"",
+				"",
+				"WASTED · No CHAIN just after it",
+				"",
+				"WASTED · No Banana beside it",
+			]
+		)
+	)
+
+
+static func _live_model(ids: String) -> PlanningModel:
+	var instances: Array[CardInstance] = []
+	var row: Array[CardDefinition] = []
+	for id: String in ids.split(","):
+		var card: CardDefinition = load("res://data/cards/%s.tres" % id)
+		instances.append(CardInstance.new(card, instances.size() + 1))
+		row.append(card)
+	return PlanningModel.build(Scoring.score(instances), row, [], [], load(TUNING))
+
+
 static func _reference_row() -> Array[CardDefinition]:
 	var row: Array[CardDefinition] = []
 	for instance: CardInstance in PlanTest._row(PlanTest.FULL_ROW, PlanTest.CARDS):

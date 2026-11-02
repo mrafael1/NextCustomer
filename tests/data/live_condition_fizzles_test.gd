@@ -23,8 +23,10 @@ func test_every_conditional_card_fizzles_alone() -> void:
 	# Reduced yogurt, Cereal, Crackers, Day-old buns, Dented can and Carrier bag; v0.52: the 20
 	# conditional capsule products, BIG and GOLDEN fizzle like their base).
 	# Croissant and Baguette left for the Bakery batch roles (#128 v3; their fizzles are in
-	# tests/core/bakery_batch_test.gd): 30 plain cards and 60 tiers.
-	assert_int(checked).is_equal(90)
+	# tests/core/bakery_batch_test.gd): 30 plain cards and 60 tiers. Strawberries and Wonky
+	# carrot left for the Produce chain roles (#128 Produce links; their fizzles are in
+	# tests/core/produce_chain_test.gd): 28 plain cards and 56 tiers.
+	assert_int(checked).is_equal(84)
 
 
 func test_no_fizzle_once_the_condition_is_met() -> void:

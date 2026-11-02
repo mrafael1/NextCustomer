@@ -87,6 +87,7 @@ const FAMILY_RULES := [
 ]
 const NO_FAMILY_RULES := [
 	"connector_bridge_rule.gd",
+	"chain_role_rule.gd",
 	"copy_previous_payout_rule.gd",
 	"count_earlier_coupon_bonus_rule.gd",
 	"first_product_link_rule.gd",

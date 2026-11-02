@@ -7,6 +7,7 @@ extends RefCounted
 ## Frozen") names every product with that tag, but a broad family (Food, which nearly every product
 ## has: FamilyPalette.quiet_families, passed in) names it only WEAKly; a product rule (Cereal
 ## beside Milk) names that product, its tiers included; a pair rule (Banana) names its own product;
+## a chain helper (#128: Strawberries, Lemon, Wonky carrot) names the chain's product (the Banana);
 ## a penalty (Soup's €0 beside Frozen) names the tag's products as a PENALTY; coupon counting
 ## (Scissors) names every coupon; a tag grant (Breakfast sticker, Clearance tag) names every card
 ## whose rule counts, boosts or pairs with the tag it grants (WEAKly for a broad one), and a card
@@ -78,6 +79,11 @@ static func rule_names(
 	elif rule is ZeroPayoutBesideTagRule:
 		if _tag_match((rule as ZeroPayoutBesideTagRule).tag, tags, broad) != Match.NONE:
 			found = Match.PENALTY
+	elif rule is ChainRoleRule:
+		# A chain helper (#128) works by the Banana chain: it names the chain's product.
+		if (rule as ChainRoleRule).role != ChainRoleRule.Role.NONE:
+			if CardChain.chain_rule(other) != null:
+				found = Match.YES
 	else:
 		found = _tag_match(family_of(rule), tags, broad)
 	return found
@@ -126,6 +132,7 @@ static func reads(rule: Rule) -> bool:
 		or rule is GrantTagToNextSlotRule
 		or rule is AdjacentMatchBonusRule
 		or rule is ZeroPayoutBesideTagRule
+		or rule is ChainRoleRule
 		or not family_of(rule).is_empty()
 	)
 

@@ -16,7 +16,7 @@ var prices: PackedInt32Array = PackedInt32Array()
 ## its payout (AdjacentMatchBonusRule.chain_price).
 var chained: PackedByteArray = PackedByteArray()
 ## The run's upgrade rules and each one's upgrade index (set by Scoring): add_effect asks them
-## whether they reach a card's effect further (UpgradeRule.reaches, #108's Lemon squeezer).
+## whether they reach a card's effect further (UpgradeRule.reaches, #108's Fire sale).
 var upgrade_rules: Array[UpgradeRule] = []
 var rule_upgrades: PackedInt32Array = PackedInt32Array()
 ## How many uses past an effect's own charges each reaching rule gave (by rule; Scoring counts).
@@ -29,6 +29,18 @@ var steps: Array[ScoreStep] = []
 ## The batches (CardBatch, #128) the rules read, each in slot order, once each; kept only when
 ## `explain` (the planning belt shows them; no rule reads them back).
 var batches: Array[PackedInt32Array] = []
+## The chains (CardChain, #128 Produce links), each in slot order with its knots, once each; kept
+## only when `explain` (the planning belt frames them; no rule reads them back).
+var chains: Array[PackedInt32Array] = []
+## The knots' factors by knot slot (slot: factor), and by chain its FEED and TALLY helpers at
+## their places (-1: none), recorded with `chains` (CardChain.record_all) for the belt; kept only
+## when `explain`.
+var knot_factors: Dictionary[int, int] = {}
+var chain_feeds: PackedInt32Array = PackedInt32Array()
+var chain_tallies: PackedInt32Array = PackedInt32Array()
+## Chain-only links (#128, the Lemon knot: ChainKnots), or null while no knot ties anything. They
+## are never adjacency (products_before), so no rule but the chain sees across a knot.
+var knots: ChainKnots
 var subtotal: int = 0
 ## Slots the shift has more (+) or fewer (-) than the balance data's, from the run's
 ## upgrades and the shift's inspections (Big basket +1, Short belt -1). Set by Scoring.score().
@@ -282,6 +294,10 @@ func to_result() -> ScoreResult:
 	result.tags = tags
 	result.steps = steps
 	result.batches = batches
+	result.chains = chains
+	result.knot_factors = knot_factors
+	result.chain_feeds = chain_feeds
+	result.chain_tallies = chain_tallies
 	return result
 
 

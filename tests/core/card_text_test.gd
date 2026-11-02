@@ -73,7 +73,7 @@ func test_other_keys_are_left_unformatted() -> void:
 	card.sticker_text = "{match_by} {position} {bonus_is_base} {id} {receipt_text}"
 	assert_str(card.sticker_summary()).is_equal(card.sticker_text)
 	assert_array(CardText.sticker_values(card).keys()).contains_exactly_in_any_order(
-		["base", "name", "bonus", "match_value", CardText.BATCH_KEY]
+		["base", "name", "bonus", "match_value", CardText.BATCH_KEY, CardText.CHAIN_KEY]
 	)
 
 
@@ -91,6 +91,28 @@ func test_fills_the_batch_keyword_and_min_size() -> void:
 	card.sticker_text = "+{bonus} next {tag}"
 	assert_bool(CardText.names_batch(card)).is_false()
 	assert_bool(CardText.names_batch(null)).is_false()
+
+
+## The CHAIN keyword (#128, Produce links) is a sticker key like BATCH: `{chain}` reads CHAIN_WORD,
+## and names_chain says a card's template names it; a chain role's factor and bonus are keys.
+func test_fills_the_chain_keyword() -> void:
+	var knot: ChainRoleRule = ChainRoleRule.new()
+	knot.role = ChainRoleRule.Role.KNOT
+	knot.factor = 3
+	var lemon: CardDefinition = _card("Golden lemon", 3, knot)
+	lemon.sticker_text = "{chain} middle: ×{factor} prev"
+	assert_str(lemon.sticker_summary()).is_equal("CHAIN middle: ×3 prev")
+	assert_bool(CardText.names_chain(lemon)).is_true()
+	assert_bool(CardText.names_batch(lemon)).is_false()
+	var feed: ChainRoleRule = ChainRoleRule.new()
+	feed.role = ChainRoleRule.Role.FEED
+	feed.bonus = 1
+	var berries: CardDefinition = _card("Strawberries", 2, feed)
+	berries.sticker_text = "+{bonus} each, next {chain}"
+	assert_str(berries.sticker_summary()).is_equal("+1 each, next CHAIN")
+	berries.sticker_text = "+{bonus} next {tag}"
+	assert_bool(CardText.names_chain(berries)).is_false()
+	assert_bool(CardText.names_chain(null)).is_false()
 
 
 ## A charged multiplier's charges are a sticker key (Golden Eggs, #77).

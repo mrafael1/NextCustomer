@@ -7,8 +7,9 @@
 [sub_resource type="Resource" id="Resource_fruit_salad"]
 script = ExtResource("2_fruit_salad")
 tag = "Produce"
-bonus_each = 2
-receipt_text = "Fruit salad: earlier Produce"
+bonus_each = 3
+distinct_cards = true
+receipt_text = "Fruit salad: Produce kinds"
 
 [resource]
 script = ExtResource("3_card")
@@ -18,8 +19,8 @@ kind = 1
 tags = PackedStringArray("Food", "Produce")
 base = 2
 rules = Array[ExtResource("1_rule")]([SubResource("Resource_fruit_salad")])
-rule_text = "+2 for each earlier Produce product"
-sticker_text = "+{bonus_each} per earlier {tag}"
+rule_text = "+3 for each different Produce product before it"
+sticker_text = "+{bonus_each} per {tag} kind before"
 art_ref = "res://art/items_v2/fruit_salad.png"
 mini_art_ref = "res://art/minis/fruit_salad.png"
 mini_golden_art_ref = "res://art/minis/fruit_salad_golden.png"

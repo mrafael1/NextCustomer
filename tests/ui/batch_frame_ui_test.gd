@@ -108,7 +108,11 @@ func test_a_job_card_out_of_place_has_a_wrong_job(
 		["bread,croissant", ["", "WASTED · Not first in its Bakery batch"]],
 		["croissant,bread", ["", ""]],
 		["stale_doughnut,bread", ["WASTED · Not last in its Bakery batch", ""]],
-		["croissant,banana", ["WASTED · No Bakery product beside it", ""]],
+		# A lone Banana is a CHAIN card out of place (#128 Produce links): its wrong job too.
+		[
+			"croissant,banana",
+			["WASTED · No Bakery product beside it", "WASTED · No Banana beside it"]
+		],
 		["bread,iced_bun", ["", "WASTED · It closes its batch: nothing to glaze"]],
 	]
 ) -> void:
@@ -144,6 +148,16 @@ func test_a_batch_cards_ticket_prints_the_batch_chip() -> void:
 	for id: String in ["bread", "milk", "eggs"]:
 		var plain: PriceSticker = auto_free(PriceSticker.new(_card(id)))
 		assert_array(plain.summary().keywords()).is_empty()
+	# The Produce chain cards (#128 Produce links) print a CHAIN chip, Produce green when calm.
+	for id: String in ["banana", "strawberries", "lemon", "wonky_carrot"]:
+		var chain: PriceSticker = auto_free(PriceSticker.new(_card(id)))
+		add_child(chain)
+		var chain_chips: Array[KeywordChip] = chain.summary().keywords()
+		assert_int(chain_chips.size()).override_failure_message(id).is_equal(1)
+		assert_str(chain_chips[0].keyword).is_equal(CardText.CHAIN_WORD)
+		assert_str(chain_chips[0].tip_text).starts_with("CHAIN · 2 or more Bananas")
+		assert_that(chain_chips[0].face_color()).is_equal(Palette.GREEN_LIGHT)
+		assert_bool(chain.summary().fits()).override_failure_message(id).is_true()
 
 
 ## The chip's text and the next words share no pixels: the word after BATCH starts after the chip.
@@ -210,7 +224,7 @@ func test_the_frame_binds_exactly_the_batch() -> void:
 	var screen: ShiftScreen = await _screen()
 	await _place(screen, WRONG_ROW)
 	var layer: PlanningLayer = _layer(screen)
-	var frames: Array[BatchFrame] = layer.batch_frames()
+	var frames: Array[BatchFrame] = layer.frames()
 	assert_int(frames.size()).is_equal(1)
 	var frame: BatchFrame = frames[0]
 	assert_array(Array(frame.slots)).is_equal([0, 1, 2, 3, 4])
@@ -261,14 +275,15 @@ func _assert_ring_closed(screen: ShiftScreen, frame: BatchFrame, wrong: PriceSti
 	assert_float(tomato).is_equal_approx(covered, 0.01)
 
 
-## In their places (Croissant first) no job is wrong, and the frame binds the same tickets.
+## In their places (Croissant first) no job is wrong, and the frame binds the same tickets. (The
+## lone Banana closing the row is a CHAIN card out of place since #128's Produce links.)
 func test_the_good_row_has_no_wrong_job() -> void:
 	var screen: ShiftScreen = await _screen()
 	await _place(screen, GOOD_ROW)
-	var frames: Array[BatchFrame] = _layer(screen).batch_frames()
+	var frames: Array[BatchFrame] = _layer(screen).frames()
 	assert_int(frames.size()).is_equal(1)
 	_assert_frame_geometry(screen, frames[0])
-	for slot: int in range(GOOD_ROW.size()):
+	for slot: int in range(GOOD_ROW.size() - 1):
 		var sticker: PriceSticker = _item(screen, slot).sticker()
 		assert_bool(sticker.get_node(PriceSticker.WRONG_RING_NAME).visible).is_false()
 		for chip: KeywordChip in sticker.summary().keywords():
@@ -344,7 +359,7 @@ func _assert_one_chip(column: MonitorItemColumn, what: String) -> void:
 func test_two_batches_get_two_frames() -> void:
 	var screen: ShiftScreen = await _screen()
 	await _place(screen, ["croissant", "bread", "banana", "baguette", "stale_doughnut"])
-	var frames: Array[BatchFrame] = _layer(screen).batch_frames()
+	var frames: Array[BatchFrame] = _layer(screen).frames()
 	assert_int(frames.size()).is_equal(2)
 	assert_array(Array(frames[0].slots)).is_equal([0, 1])
 	assert_array(Array(frames[1].slots)).is_equal([3, 4])
@@ -359,7 +374,7 @@ func test_two_batches_get_two_frames() -> void:
 func test_a_linked_batch_frames_its_own_tickets() -> void:
 	var screen: ShiftScreen = await _screen()
 	await _place(screen, ["bread", "banana", "shelf_swap", "croissant"])
-	var frames: Array[BatchFrame] = _layer(screen).batch_frames()
+	var frames: Array[BatchFrame] = _layer(screen).frames()
 	assert_int(frames.size()).is_equal(2)
 	assert_array(Array(frames[0].slots)).is_equal([0])
 	assert_array(Array(frames[1].slots)).is_equal([3])
@@ -384,7 +399,7 @@ func test_hovering_a_batch_chip_lights_its_frame() -> void:
 	var screen: ShiftScreen = await _screen()
 	await _place(screen, WRONG_ROW)
 	var tips: GlyphTips = screen._glyph_tips
-	var frame: BatchFrame = _layer(screen).batch_frames()[0]
+	var frame: BatchFrame = _layer(screen).frames()[0]
 	var chip: KeywordChip = _item(screen, 2).sticker().summary().keywords()[0]
 	tips.point_at(chip.get_global_rect().get_center())
 	tips.show_tip(chip)
@@ -414,7 +429,7 @@ func test_hovering_a_batch_chip_lights_its_frame() -> void:
 func test_a_drag_lays_out_the_frames_for_its_landing() -> void:
 	var screen: ShiftScreen = await _screen()
 	await _place(screen, ["croissant", "bread", "banana"])
-	assert_int(_layer(screen).batch_frames().size()).is_equal(1)
+	assert_int(_layer(screen).frames().size()).is_equal(1)
 	screen._debug.add_card("baguette")
 	var baguette: CardInstance = screen.run.hand()[-1]
 	screen._on_hand_card_clicked(_view_for(screen, baguette))
@@ -427,7 +442,7 @@ func test_a_drag_lays_out_the_frames_for_its_landing() -> void:
 		_move(screen, _slot_center(screen, landing))
 		await _frames(2)
 		assert_int(screen._drag.hovered_slot()).is_equal(landing)
-		var joined: Array[BatchFrame] = _layer(screen).batch_frames()
+		var joined: Array[BatchFrame] = _layer(screen).frames()
 		assert_int(joined.size()).is_equal(1)
 		assert_array(Array(joined[0].slots)).is_equal([0, 1, 2])
 		assert_bool(joined[0].visible).override_failure_message(str(landing)).is_true()
@@ -441,7 +456,7 @@ func test_a_drag_lays_out_the_frames_for_its_landing() -> void:
 	_move(screen, _slot_center(screen, 3))
 	await _frames(2)
 	assert_int(screen._drag.hovered_slot()).is_equal(3)
-	var kept: Array[BatchFrame] = _layer(screen).batch_frames()
+	var kept: Array[BatchFrame] = _layer(screen).frames()
 	assert_int(kept.size()).is_equal(1)
 	assert_array(Array(kept[0].slots)).is_equal([0, 1])
 	assert_bool(kept[0].visible).is_true()
@@ -452,10 +467,10 @@ func test_a_drag_lays_out_the_frames_for_its_landing() -> void:
 func test_the_count_shows_no_frame() -> void:
 	var screen: ShiftScreen = await _screen()
 	await _place(screen, WRONG_ROW)
-	assert_array(_layer(screen).batch_frames()).is_not_empty()
+	assert_array(_layer(screen).frames()).is_not_empty()
 	screen._on_checkout_pressed()
 	await _frames(2)
-	assert_array(_layer(screen).batch_frames()).is_empty()
+	assert_array(_layer(screen).frames()).is_empty()
 	for part: Control in _layer(screen).parts():
 		assert_bool(part is BatchFrame).is_false()
 	for view: CardView in screen._row_views:

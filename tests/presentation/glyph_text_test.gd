@@ -92,6 +92,28 @@ func test_the_batch_keyword_is_a_chip_glued_to_the_next_word() -> void:
 	)
 
 
+## The CHAIN keyword (#128 Produce links) is a chip like BATCH, glued to the word after it, with
+## its own tooltip.
+func test_the_chain_keyword_is_a_chip() -> void:
+	var pieces: Array[Array] = GlyphText.pieces("CHAIN middle: ×2 prev", _palette())
+	assert_array(pieces[0]).is_equal(
+		[GlyphText.keyword_run(CardText.CHAIN_WORD), GlyphText.text_run(" middle:")]
+	)
+	var tally: Array[Array] = GlyphText.pieces("after CHAIN: +2 each", _palette())
+	assert_array(tally[1]).is_equal(
+		[GlyphText.keyword_run(CardText.CHAIN_WORD), GlyphText.text_run(":")]
+	)
+	assert_array(Array(GlyphText.keywords("+1 each, next CHAIN", _palette()))).is_equal(["CHAIN"])
+	assert_str(GlyphText.keyword_tip("CHAIN")).is_equal(
+		(
+			"CHAIN · 2 or more Bananas linked one after another. "
+			+ "Each Banana adds the price of the one before it. "
+			+ "Each card's line says where by the chain it works."
+		)
+	)
+	assert_str(GlyphText.keyword_tip("NOPE")).is_empty()
+
+
 func test_every_live_summary_splits_cleanly() -> void:
 	var palette: FamilyPalette = _palette()
 	var checked: int = 0

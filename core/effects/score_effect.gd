@@ -9,8 +9,9 @@ var group: StringName = &""
 var source_slot: int = -1
 ## Receipt text for the steps this effect causes.
 var text: String = ""
-## An upgrade rule that reaches this effect past its own charges (#108: Lemon squeezer, Fire
-## sale), and that rule's upgrade index; null and -1 for none. Set when the effect is armed.
+## An upgrade rule that reaches this effect past its own charges (#108: Fire sale; Lemon
+## squeezer until v0.56 / #128), and that rule's upgrade index; null and -1 for none. Set when
+## the effect is armed.
 var reach_rule: UpgradeRule
 var reach_upgrade: int = -1
 

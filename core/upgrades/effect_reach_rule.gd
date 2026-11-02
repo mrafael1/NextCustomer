@@ -1,11 +1,11 @@
 class_name EffectReachRule
 extends UpgradeRule
-## Upgrade (#108, a jackpot: Lemon squeezer, Fire sale): the charged multiplier `card` arms (a
-## BIG or GOLDEN copy too) reaches every later product with its tag, with no charge count. The
-## card's own charges stay the card's; every use past them is this upgrade's MULTIPLIER step
-## (ScoreState.add_effect, Scoring). Lemon squeezer: Lemon's x2 reaches every later Produce.
-## With no `card` in the row, or no product its reach gave the factor, it fizzles (#45), once,
-## on the row's last slot.
+## Upgrade (#108, a jackpot: Fire sale; Lemon squeezer until v0.56 / #128): the charged
+## multiplier `card` arms (a BIG or GOLDEN copy too) reaches every later product with its tag,
+## with no charge count. The card's own charges stay the card's; every use past them is this
+## upgrade's MULTIPLIER step (ScoreState.add_effect, Scoring). Fire sale: Squashed cake's x2
+## reaches every later Clearance product. With no `card` in the row, or no product its reach
+## gave the factor, it fizzles (#45), once, on the row's last slot.
 
 @export var card: CardDefinition
 

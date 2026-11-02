@@ -12,6 +12,9 @@ extends Control
 ## pinned pay tag covers the frame where it hangs over it; a ticket's plain tag (the sticker's,
 ## under the layer) is left open in the frame along its own outline, so the frame still reads as
 ## passing behind it. Decor only: it takes no clicks.
+##
+## ChainFrames (#128 Produce links) is this box for the chains' frames: it makes ChainFrames
+## instead (show_chains) and lights the chain a CHAIN chip names (_names); the layout is shared.
 
 ## The frames' foot at most: the counter edge, where the price rail ends.
 const FOOT_Y := ShiftStage.BELT_RECT.position.y + BeltPanel.RAIL.end.y
@@ -35,9 +38,7 @@ func show_batches(runs: Array[PackedInt32Array], batches: Array[PackedInt32Array
 		if runs[index].is_empty():
 			continue
 		var batch: PackedInt32Array = batches[index] if index < batches.size() else runs[index]
-		var frame: BatchFrame = BatchFrame.new(runs[index], batch)
-		add_child(frame)
-		_frames.append(frame)
+		_adopt(BatchFrame.new(runs[index], batch))
 	_paint()
 
 
@@ -95,17 +96,20 @@ func lay_out(
 ) -> void:
 	for frame: BatchFrame in frames():
 		var rects: Array[Rect2] = []
+		var shown: PackedInt32Array = PackedInt32Array()
 		var cuts: Array[Rect2] = []
 		for slot: int in range(frame.slots[0], frame.slots[-1] + 1):
 			if skipped.has(slot):
 				continue
 			if not tickets.has(slot):
 				rects.clear()
+				shown.clear()
 				break
 			rects.append(tickets[slot])
+			shown.append(slot)
 			if cutouts.has(slot):
 				cuts.append(cutouts[slot])
-		frame.lay_out(rects, cuts, FOOT_Y, rings)
+		frame.lay_out(rects, cuts, FOOT_Y, rings, shown, skipped)
 
 
 ## Lights the frame of every batch `slot`'s BATCH chip names (the batch holding it, or for a card
@@ -124,7 +128,19 @@ func frames() -> Array[BatchFrame]:
 	return shown
 
 
+## Adds `frame` to the frames shown.
+func _adopt(frame: BatchFrame) -> void:
+	add_child(frame)
+	_frames.append(frame)
+
+
+## Lights each frame a chip of `_lit_slot` names (_names), puts the others back.
 func _paint() -> void:
 	for frame: BatchFrame in frames():
-		var holds: bool = frame.batch.has(_lit_slot) or frame.batch[0] == _lit_slot + 1
-		frame.set_lit(_lit_slot >= 0 and holds)
+		frame.set_lit(_lit_slot >= 0 and _names(frame, _lit_slot))
+
+
+## Whether `slot`'s BATCH chip names `frame`'s batch: the batch holds it, or (a card that names the
+## batch after it, Birthday candles) the batch starts just after it.
+func _names(frame: BatchFrame, slot: int) -> bool:
+	return frame.batch.has(slot) or frame.batch[0] == slot + 1

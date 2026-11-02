@@ -2,15 +2,16 @@ class_name KeywordChip
 extends TipTarget
 ## A keyword on a sticker line (#128, the approved Bound strip mock-up): the word ("BATCH") boxed
 ## like a family glyph's chip, in the display font as hard pixels (ArtStyle.pixel_display_font at
-## its native PIXEL_TEXT_SIZE), ink on the Bakery's light cream (Palette.CREAM_SHADE) in a BORDER
-## px ink box with its corner pixels cut. Resting the pointer on it shows the keyword's tooltip
-## (GlyphText.keyword_tip, through GlyphTips) and lights it mustard while the tip shows (and
-## PlanningEffects lights its batch's frame on the belt).
+## its native PIXEL_TEXT_SIZE), ink on its family's light colour (CALM_FACES: BATCH the Bakery's
+## cream, CHAIN the Produce green, #128) in a BORDER px ink box with its corner pixels cut.
+## Resting the pointer on it shows the keyword's tooltip (GlyphText.keyword_tip, through
+## GlyphTips) and lights it mustard while the tip shows (and PlanningEffects lights a BATCH chip's
+## batch frame on the belt).
 ##
-## Wasted (set_wasted, #128 "wrong job"): the card's batch line did nothing in the planned row; the
-## chip turns tomato with paper text and a crisp pixel cross after the word, and its tooltip gives
-## the same reason as its WASTED step instead. It takes no clicks: the item under it keeps its
-## hover, drag and clicks.
+## Wasted (set_wasted, #128 "wrong job"): the card's BATCH or CHAIN line did nothing in the
+## planned row; the chip turns tomato with paper text and a crisp pixel cross after the word, and
+## its tooltip gives the same reason as its WASTED step instead. It takes no clicks: the item
+## under it keeps its hover, drag and clicks.
 
 const HEIGHT := 15.0
 const BORDER := 2.0
@@ -36,6 +37,12 @@ const CROSS_RUNS: Array[Vector3i] = [
 	Vector3i(4, 5, 2),
 ]
 const CALM_FACE := Palette.CREAM_SHADE
+## Each keyword's calm face, its family's light colour (#128): BATCH the Bakery's cream, CHAIN the
+## Produce green; any other keyword CALM_FACE.
+const CALM_FACES: Dictionary[String, Color] = {
+	CardText.BATCH_WORD: Palette.CREAM_SHADE,
+	CardText.CHAIN_WORD: Palette.GREEN_LIGHT,
+}
 const LIT_FACE := Palette.MUSTARD
 const WASTED_FACE := Palette.TOMATO
 
@@ -90,11 +97,16 @@ func is_wasted() -> bool:
 	return _wasted
 
 
-## Its face's colour now: calm cream, lit mustard, or tomato when wasted.
+## Its face's colour now: calm (its keyword's, calm_face), lit mustard, or tomato when wasted.
 func face_color() -> Color:
 	if _wasted:
 		return WASTED_FACE
-	return LIT_FACE if _lit else CALM_FACE
+	return LIT_FACE if _lit else calm_face(keyword)
+
+
+## The calm face of `word`'s chip (CALM_FACES, else CALM_FACE).
+static func calm_face(word: String) -> Color:
+	return CALM_FACES.get(word, CALM_FACE)
 
 
 ## Its word's (and cross's) colour: ink, paper on a wasted chip.

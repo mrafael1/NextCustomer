@@ -70,6 +70,12 @@ static func _run(
 			rule.modify_context(state, slot)
 	if not upgrade_rules.is_empty():
 		_upgrade_context(state, upgrades, upgrade_rules, rule_upgrades)
+	# Chain context (#128): knots tie Bananas once every adjacency link is in place; the belt
+	# frames the row's chains.
+	for slot: int in range(count):
+		for rule: Rule in state.definition(slot).rules:
+			rule.modify_chain(state, slot)
+	CardChain.record_all(state)
 	# Value pass, left to right, for every card, product or coupon.
 	var registers: Array = [upgrades, upgrade_rules, rule_upgrades, rule_numbers]
 	var checks: Array = [inspections, inspection_rules, rule_inspections]
@@ -233,7 +239,7 @@ static func _scan(state: ScoreState, slot: int, registers: Array, checks: Array)
 		state.drop_spent_effects()
 
 
-## A use an upgrade's reach gave past a card effect's own charges (#108: Lemon squeezer): counted
+## A use an upgrade's reach gave past a card effect's own charges (#108: Fire sale): counted
 ## for the upgrade's row fizzle, and its MULTIPLIER step is the upgrade's (from its box).
 static func _reached_step(
 	state: ScoreState, slot: int, effect: ScoreEffect, factor: int, value: int, registers: Array

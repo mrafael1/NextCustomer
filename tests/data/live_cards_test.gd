@@ -68,9 +68,13 @@ func test_phase_2_cards_score_the_design_examples(
 		["clearance_tag,bread,day_old_buns", 10],
 		# Opening deal in the first slot: Soup pays 5 x5 (0 + 25 + 5).
 		["opening_deal,soup,bread", 30],
-		# Fruit & veg: Grapefruit 2; Banana 2 + 3; Lemon 1; Strawberries (2 + 3) x2; Wonky
-		# carrot 2 + 3; Fruit salad 2 + 2 x 5 earlier Produce.
-		["grapefruit,banana,lemon,strawberries,wonky_carrot,fruit_salad", 35],
+		# Fruit & veg since the Produce links (#128): Grapefruit 2; a lone Banana 2 + 3; the
+		# Lemon, Strawberries and Wonky carrot out of place (1, 2, 2); Fruit salad 2 + 3 x 5
+		# kinds. Then the helpers in place: Grapefruit 2; Strawberries 2 + 3 (Grapefruit); Banana
+		# 2 + 1; the Lemon knot 1; Banana 2 + 3 x 2 + 1; Wonky carrot 2 + 2 x 2; Fruit salad
+		# 2 + 3 x 5 kinds.
+		["grapefruit,banana,lemon,strawberries,wonky_carrot,fruit_salad", 29],
+		["grapefruit,strawberries,banana,lemon,banana,wonky_carrot,fruit_salad", 43],
 		# Bakery, a batch of 4 after Birthday candles (#128 v3): candles 1; Croissant 2 + 3;
 		# Baguette 2 + 4 + 2 + 3; Iced bun 1 + 2 + 3; Stale doughnut (1 + 3 x 4 + 2 + 3) x2.
 		["birthday_candles,croissant,baguette,iced_bun,stale_doughnut", 59],
@@ -147,7 +151,7 @@ func test_base_products_fizzle(
 			]
 		],
 		# The capsule items reuse these rules' fizzles (#35).
-		["lemon,bread", [[0, "Lemon ×2", "1 charge unused"]]],
+		["lemon,bread", [[0, "Lemon knot", "not inside a CHAIN"]]],
 		["cream,bread", [[0, "Cream bonus", "no Dairy product after it"]]],
 		[
 			"stale_doughnut,bread",
@@ -260,6 +264,13 @@ func test_stickers_show_every_rule_value() -> void:
 					match adjacent.match_by:
 						AdjacentMatchBonusRule.Match.TAG:
 							assert_bool(shows).override_failure_message(message).is_true()
+						AdjacentMatchBonusRule.Match.SAME_CARD when (
+							adjacent.bonus_is_previous_price
+						):
+							# A chain names its product through the CHAIN keyword (#128).
+							assert_str(template).override_failure_message(message).contains(
+								"{%s}" % CardText.CHAIN_KEY
+							)
 						AdjacentMatchBonusRule.Match.SAME_CARD:
 							assert_str(template).override_failure_message(message).contains(
 								"{name}"
@@ -284,7 +295,8 @@ func test_stickers_show_every_rule_value() -> void:
 
 ## A charged multiplier's sticker says "next": with one charge that is the next product, so the
 ## sticker names no count; one with more charges (Golden Eggs, #77; Golden Tea bags, v0.48;
-## Golden Squashed cake and Lemon, v0.52) names `{charges}`. Iced bun glazes since #128.
+## Golden Squashed cake, v0.52) names `{charges}`. Iced bun glazes since #128, and Lemon is a
+## CHAIN knot since #128's Produce links.
 func test_charged_multipliers_with_more_charges_name_them() -> void:
 	var several: int = 0
 	for card: CardDefinition in _all_cards():
@@ -298,7 +310,7 @@ func test_charged_multipliers_with_more_charges_name_them() -> void:
 			if charged.charges > 1:
 				assert_str(template).override_failure_message(message).contains("{charges}")
 				several += 1
-	assert_int(several).is_equal(4)
+	assert_int(several).is_equal(3)
 
 
 ## Every art_ref names art drawn for an item (#75, decision 3A: 48x48 at 2x everywhere): a

@@ -35,6 +35,18 @@ var batches: Array[PackedInt32Array] = []
 ## one frame round its tickets; run_batch holds each run's index in `batches`.
 var runs: Array[PackedInt32Array] = []
 var run_batch: PackedInt32Array = PackedInt32Array()
+## The chains the belt frames while planning (#128, Produce links): every chain of the score
+## (ScoreResult.chains, each in slot order with any Lemon knot inside it), plain Banana pairs too.
+var chains: Array[PackedInt32Array] = []
+## The belt's chain frames (#128, the approved Linked frame): each chain split into runs
+## (runs_of) like a batch, run_chain holding each run's index in `chains`; each chain's FEED and
+## TALLY helpers at their places by it (-1: none; a clasp on its frame's left or right side), and
+## its knots' factors (knot slot: factor, the "×2" plate under the Lemon), all from the score.
+var chain_runs: Array[PackedInt32Array] = []
+var run_chain: PackedInt32Array = PackedInt32Array()
+var chain_feeds: PackedInt32Array = PackedInt32Array()
+var chain_tallies: PackedInt32Array = PackedInt32Array()
+var knot_factors: Dictionary[int, int] = {}
 
 
 ## The model of `result` for `row` (the cards in slot order) under the run's `upgrades` and the
@@ -64,6 +76,14 @@ static func build(
 		for run: PackedInt32Array in runs_of(model.batches[index], row):
 			model.runs.append(run)
 			model.run_batch.append(index)
+	model.chains = result.chains.duplicate()
+	for index: int in range(model.chains.size()):
+		for run: PackedInt32Array in runs_of(model.chains[index], row):
+			model.chain_runs.append(run)
+			model.run_chain.append(index)
+	model.chain_feeds = result.chain_feeds.duplicate()
+	model.chain_tallies = result.chain_tallies.duplicate()
+	model.knot_factors = result.knot_factors.duplicate()
 	for slot: int in range(model.slots.size()):
 		model.slots[slot].wrong_job = wrong_job(result, slot, row[slot])
 	return model
@@ -104,11 +124,12 @@ static func runs_of(batch: PackedInt32Array, row: Array[CardDefinition]) -> Arra
 	return found
 
 
-## The wrong job's tooltip of `card` at `slot` in `result` (#128): a batch card whose own rule
-## has a WASTED step there (its batch line did nothing at its place: "WASTED · Not first in its
-## Bakery batch"), else "". A row-wide upgrade's or an event's waste is not the card's.
+## The wrong job's tooltip of `card` at `slot` in `result` (#128): a batch or chain card (its
+## template names BATCH or CHAIN) whose own rule has a WASTED step there (its line did nothing at
+## its place: "WASTED · Not first in its Bakery batch", "WASTED · No CHAIN just after it"), else
+## "". A row-wide upgrade's or an event's waste is not the card's.
 static func wrong_job(result: ScoreResult, slot: int, card: CardDefinition) -> String:
-	if result == null or not CardText.names_batch(card):
+	if result == null or not (CardText.names_batch(card) or CardText.names_chain(card)):
 		return ""
 	for step: ScoreStep in result.steps:
 		if (
@@ -205,9 +226,17 @@ static func hot_lanes(
 
 
 ## The slots in focus when the item at `slot` is hovered (section 8.1): itself, the cards giving
-## to it and the items it gives to, ascending.
+## to it and the items it gives to, and, for a slot in a chain (#128), the rest of that chain,
+## ascending.
 func related(slot: int) -> PackedInt32Array:
 	var found: PackedInt32Array = graph.related_slots(slot) if graph != null else PackedInt32Array()
+	for chain: PackedInt32Array in chains:
+		if not chain.has(slot):
+			continue
+		for member: int in chain:
+			var at: int = found.bsearch(member)
+			if at >= found.size() or found[at] != member:
+				found.insert(at, member)
 	var index: int = found.bsearch(slot)
 	if index >= found.size() or found[index] != slot:
 		found.insert(index, slot)

@@ -16,7 +16,9 @@ extends RefCounted
 ##   charges (Golden Eggs, #77). `min_size` is a baked batch's least size (Birthday candles, #128);
 ## - `batch`: the BATCH keyword (BATCH_WORD, #128), which the ticket draws as a chip with its
 ##   tooltip (GlyphText's keyword runs): it names the Bakery batch the card works in, so a batch
-##   card's template names it instead of "{tag} batch".
+##   card's template names it instead of "{tag} batch";
+## - `chain`: the CHAIN keyword (CHAIN_WORD, #128 Produce links), a chip likewise: it names the
+##   Banana chain the card works by (CardChain), so a chain card's ticket shows the CHAIN chip.
 ## Any other `{key}` (e.g. `{match_by}`) is left unformatted, braces and all, so the live-data
 ## test rejects it.
 const STICKER_KEYS: Array[String] = [
@@ -30,6 +32,7 @@ const STICKER_KEYS: Array[String] = [
 	"match_value",
 	"min_size",
 	"batch",
+	"chain",
 ]
 const RULE_KEYS: Array[String] = [
 	"bonus", "bonus_each", "factor", "charges", "tag", "match_value", "min_size"
@@ -37,6 +40,9 @@ const RULE_KEYS: Array[String] = [
 ## The BATCH keyword's word (#128): `{batch}` in a template.
 const BATCH_KEY := "batch"
 const BATCH_WORD := "BATCH"
+## The CHAIN keyword's word (#128, Produce links): `{chain}` in a template.
+const CHAIN_KEY := "chain"
+const CHAIN_WORD := "CHAIN"
 ## What a chain bonus's `{bonus}` reads: the previous product's price.
 const PREVIOUS_PRICE := "prev"
 
@@ -60,6 +66,7 @@ static func sticker_values(definition: CardDefinition) -> Dictionary:
 		"base": definition.base,
 		"name": definition.product_card().display_name,
 		BATCH_KEY: BATCH_WORD,
+		CHAIN_KEY: CHAIN_WORD,
 	}
 	for rule: Rule in definition.rules:
 		for property: Dictionary in rule.get_property_list():
@@ -79,6 +86,12 @@ static func sticker_values(definition: CardDefinition) -> Dictionary:
 ## ticket shows the BATCH chip (and the belt frames its batch while planning).
 static func names_batch(definition: CardDefinition) -> bool:
 	return definition != null and sticker_template(definition).contains("{%s}" % BATCH_KEY)
+
+
+## Whether the card's template names the CHAIN keyword (`{chain}`, #128 Produce links): a chain
+## card (the Banana or a helper with a place by the chain), whose ticket shows the CHAIN chip.
+static func names_chain(definition: CardDefinition) -> bool:
+	return definition != null and sticker_template(definition).contains("{%s}" % CHAIN_KEY)
 
 
 ## A chain bonus's `{bonus}`: PREVIOUS_PRICE, counted `factor` times ("prev", "2× prev").

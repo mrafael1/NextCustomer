@@ -12,22 +12,33 @@ extends RefCounted
 ## that too when that word is a count ("next 2 Food" wraps as one piece), so a glyph never
 ## starts a line alone.
 ##
-## A keyword (#128: CardText.BATCH_WORD, from a template's `{batch}`) is a keyword run, {"text":
-## word, "family": "", "keyword": word}, that a label draws as a boxed chip with its tooltip
-## (KEYWORD_TIPS). It is glued to the plain word after it ("BATCH 1st:" wraps as one piece), so a
-## chip never ends a line alone.
+## A keyword (#128: CardText.BATCH_WORD and CHAIN_WORD, from a template's `{batch}` or `{chain}`)
+## is a keyword run, {"text": word, "family": "", "keyword": word}, that a label draws as a boxed
+## chip with its tooltip (KEYWORD_TIPS). It is glued to the plain word after it ("BATCH 1st:"
+## wraps as one piece), so a chip never ends a line alone.
 
 ## Punctuation that may follow a family's name (or a keyword) and stays text after its glyph (or
 ## chip); the ellipsis of a line the monitor cuts short (MonitorItemColumn) too.
 const TRAILING := ",.:;!?)…"
 ## Each keyword's tooltip (#128, the approved Bound strip mock-up): the keyword, then what it
-## means; keyword_tip() fills in its numbers (BATCH: CardBatch.MIN_SIZE).
+## means; keyword_tip() fills in its least size (KEYWORD_SIZES).
 const KEYWORD_TIPS: Dictionary[String, String] = {
 	CardText.BATCH_WORD:
 	(
 		"BATCH · %d or more Bakery side by side make one batch. "
 		+ "Each card's line says where in its batch it works."
 	),
+	CardText.CHAIN_WORD:
+	(
+		"CHAIN · %d or more Bananas linked one after another. "
+		+ "Each Banana adds the price of the one before it. "
+		+ "Each card's line says where by the chain it works."
+	),
+}
+## The least size each keyword's tooltip names (its `%d`).
+const KEYWORD_SIZES: Dictionary[String, int] = {
+	CardText.BATCH_WORD: CardBatch.MIN_SIZE,
+	CardText.CHAIN_WORD: CardChain.MIN_SIZE,
 }
 
 
@@ -85,9 +96,11 @@ static func runs(text: String, palette: FamilyPalette) -> Array[Dictionary]:
 
 ## The tooltip of `keyword` (a KEYWORD_TIPS key), or "".
 static func keyword_tip(keyword: String) -> String:
-	if keyword == CardText.BATCH_WORD:
-		return KEYWORD_TIPS[keyword] % CardBatch.MIN_SIZE
-	return KEYWORD_TIPS.get(keyword, "")
+	if not KEYWORD_TIPS.has(keyword):
+		return ""
+	if KEYWORD_SIZES.has(keyword):
+		return KEYWORD_TIPS[keyword] % KEYWORD_SIZES[keyword]
+	return KEYWORD_TIPS[keyword]
 
 
 ## The keywords the text draws as chips, in order (repeats kept).

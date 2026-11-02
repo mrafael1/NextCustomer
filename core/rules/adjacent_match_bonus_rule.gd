@@ -28,7 +28,9 @@ enum Position { NONE, IMMEDIATELY_AFTER, BESIDE }
 ## chain's first product's final payout, multipliers included, or, further down the chain (a
 ## product that itself has a match just before it), its value before multipliers: a multiplier
 ## reaching the middle of a chain pays once and never carries to the next link. Meant for a
-## same-product IMMEDIATELY_AFTER rule; anything between two matches starts a new chain.
+## same-product IMMEDIATELY_AFTER rule; anything between two matches starts a new chain, except a
+## knot (#128, the Lemon: ChainRoleRule KNOT), which ties the Banana before it to the one after it
+## for the chain only and multiplies that link's bonus by its factor (a flat bonus, so it carries).
 @export var bonus_is_previous_price: bool = false
 ## If true (Carrier bag, #128), the bonus counts once for each matching product in `position`
 ## (a product counted beside it twice, by a link, counts once). Not with
@@ -42,7 +44,7 @@ func flat_bonus(state: ScoreState, slot: int) -> int:
 		if previous < 0:
 			return 0
 		state.chained[slot] = 1
-		return chain_price(state, previous) * bonus_factor
+		return chain_price(state, previous) * bonus_factor * knot_factor(state, previous, slot)
 	if per_match:
 		return _match_count(state, slot) * bonus_for(state.definition(slot).base)
 	if not _has_match_at(state, slot, position):
@@ -100,14 +102,20 @@ static func chain_price(state: ScoreState, link: int) -> int:
 	return state.prices[link] if state.chained[link] == 1 else state.payouts[link]
 
 
+## The factor a knot multiplies the chain bonus by (#128, the Lemon knot: ×2, Golden ×3) when
+## `previous` is tied to `slot` by one only (CardChain.knot_between), else 1.
+static func knot_factor(state: ScoreState, previous: int, slot: int) -> int:
+	var knot: int = CardChain.knot_between(state, previous, slot)
+	return state.knots.factor_of(knot) if knot >= 0 else 1
+
+
 ## The nearest already-scanned product matching the card in `slot` counted as just before it
-## (`position`), or -1 for none.
+## (`position`), or -1 for none. A chain (`bonus_is_previous_price`) also counts a product a knot
+## ties to it (CardChain.linked_before, #128).
 func previous_match(state: ScoreState, slot: int) -> int:
 	if position == Position.NONE or match_by == Match.NONE:
 		return -1
-	var neighbours: PackedInt32Array = (
-		state.products_beside(slot) if position == Position.BESIDE else state.products_before(slot)
-	)
+	var neighbours: PackedInt32Array = _neighbours(state, slot, position)
 	var card: CardDefinition = state.definition(slot)
 	var found: int = -1
 	for other: int in neighbours:
@@ -126,14 +134,22 @@ func _fizzle_position() -> Position:
 func _has_match_at(state: ScoreState, slot: int, where: Position) -> bool:
 	if where == Position.NONE or match_by == Match.NONE:
 		return false
-	var neighbours: PackedInt32Array = (
-		state.products_beside(slot) if where == Position.BESIDE else state.products_before(slot)
-	)
+	var neighbours: PackedInt32Array = _neighbours(state, slot, where)
 	var card: CardDefinition = state.definition(slot)
 	for other: int in neighbours:
 		if _matches(state, card, other):
 			return true
 	return false
+
+
+## The products counted as just before `slot` or beside it (`where`); a chain's
+## (`bonus_is_previous_price`) also count the products a knot ties to it (#128).
+func _neighbours(state: ScoreState, slot: int, where: Position) -> PackedInt32Array:
+	if bonus_is_previous_price:
+		if where == Position.BESIDE:
+			return CardChain.linked_before(state, slot) + CardChain.linked_after(state, slot)
+		return CardChain.linked_before(state, slot)
+	return state.products_beside(slot) if where == Position.BESIDE else state.products_before(slot)
 
 
 ## How many different products matching the card in `slot` are in `position`.

@@ -3,6 +3,9 @@ extends GdUnitTestSuite
 ## 3.8). The example rows' totals are the decision page's (docs/art/mockups/
 ## machine_loyalty_108.html, its scorer machine_loyalty_108_src/scorer.js on the same card
 ## numbers), so the game scores what the user chose from. Updated when perk numbers are tuned.
+## R1's totals changed by design with #128's Produce links (2026-11-02): its Lemon (no Banana
+## before it) and Strawberries (no chain after them) are now out of place and WASTED, Fruit salad
+## counts kinds (+3 per kind), and Banana stand and Lemon squeezer skip the chain helpers.
 
 const UPGRADE_DIR := "res://data/upgrades"
 const CARDS_DIR := "res://data/cards"
@@ -19,24 +22,25 @@ const ROWS: Dictionary[String, String] = {
 	),
 	"R5": "banana,banana,banana,banana,banana,banana",
 }
-## Each row's total with no perk, then with each perk alone (scorer.js).
+## Each row's total with no perk, then with each perk alone (scorer.js; R1 since #128, its old
+## totals in the comments).
 const TOTALS: Dictionary[String, Dictionary] = {
 	"R1":
 	{
-		"": 40,
-		"produce_regulars": 62,
-		"breakfast_regulars": 40,
-		"clearance_regulars": 40,
-		"produce_aisle_run": 64,
-		"breakfast_aisle_run": 40,
-		"clearance_aisle_run": 40,
-		"mixed_basket": 46,
-		"bulk_deal": 52,
-		"banana_stand": 59,
-		"lemon_squeezer": 71,
-		"fire_sale": 40,
-		"produce_regulars_lv3": 106,
-		"produce_aisle_run_lv3": 88,
+		"": 30,  # was 40
+		"produce_regulars": 49,  # was 62
+		"breakfast_regulars": 30,  # was 40
+		"clearance_regulars": 30,  # was 40
+		"produce_aisle_run": 52,  # was 64
+		"breakfast_aisle_run": 30,  # was 40
+		"clearance_aisle_run": 30,  # was 40
+		"mixed_basket": 36,  # was 46
+		"bulk_deal": 42,  # was 52
+		"banana_stand": 30,  # was 59
+		"lemon_squeezer": 36,  # was 71
+		"fire_sale": 30,  # was 40
+		"produce_regulars_lv3": 87,  # was 106
+		"produce_aisle_run_lv3": 74,  # was 88
 	},
 	"R2":
 	{
@@ -103,7 +107,7 @@ func test_perks_feed_the_banana_chain() -> void:
 	var stack: Array[UpgradeDefinition] = [
 		_upgrade("produce_regulars"), _upgrade("produce_aisle_run"), _upgrade("banana_stand")
 	]
-	assert_int(Scoring.score(_row(ROWS["R1"]), stack).total).is_equal(173)
+	assert_int(Scoring.score(_row(ROWS["R1"]), stack).total).is_equal(81)
 	assert_int(Scoring.score(_row(ROWS["R5"]), stack).total).is_equal(131)
 	# Three Bananas with Produce regulars: 2; 2 + 2 + 1 = 5; 2 + 5 + 2 = 9 (the second link's
 	# +1 is in the price the third adds).
@@ -112,58 +116,56 @@ func test_perks_feed_the_banana_chain() -> void:
 	assert_array(Array(result.payouts)).is_equal([2, 5, 9])
 
 
-## Banana stand: every Produce chains like a Banana, a Golden Banana's chain counting twice; a
-## Banana chained by the stand has no WASTED step for its own lone chain; the stand's bonus is its
-## step (from its loyalty box).
+## Banana stand: every Produce but the CHAIN helpers (#128: Strawberries, Lemon, Wonky carrot)
+## chains like a Banana, a Golden Banana's chain counting twice; a Banana chained by the stand has
+## no WASTED step for its own lone chain; the stand's bonus is its step (from its loyalty box).
 func test_banana_stand_chains_every_produce() -> void:
 	var stand: Array[UpgradeDefinition] = [_upgrade("banana_stand")]
-	# Strawberries (2 + 3 beside a Produce) = 5, then the Banana + 5.
-	var result: ScoreResult = Scoring.score(_row("strawberries,banana"), stand)
-	assert_array(Array(result.payouts)).is_equal([5, 7])
+	# Grapefruit 2 (+3 to the next Produce), then the Banana 2 + 3 + the Grapefruit's 2.
+	var result: ScoreResult = Scoring.score(_row("grapefruit,banana"), stand)
+	assert_array(Array(result.payouts)).is_equal([2, 7])
 	assert_array(_wasted(result, 1)).is_empty()
 	var bonus: ScoreStep = _upgrade_steps(result, ScoreStep.StepType.FLAT)[0]
 	assert_int(bonus.slot).is_equal(1)
-	assert_int(bonus.value).is_equal(5)
+	assert_int(bonus.value).is_equal(2)
 	assert_str(bonus.text).is_equal("Banana stand")
-	# A Golden Banana (base 4) adds it twice.
-	assert_array(Array(Scoring.score(_row("strawberries,banana_golden"), stand).payouts)).is_equal(
-		[5, 14]
+	# A Golden Banana (base 4) adds it twice: 4 + 3 + 2 x 2.
+	assert_array(Array(Scoring.score(_row("grapefruit,banana_golden"), stand).payouts)).is_equal(
+		[2, 11]
 	)
 	# Without the stand the Banana is alone.
-	var plain: ScoreResult = Scoring.score(_row("strawberries,banana"))
-	assert_array(Array(plain.payouts)).is_equal([5, 2])
+	var plain: ScoreResult = Scoring.score(_row("grapefruit,banana"))
+	assert_array(Array(plain.payouts)).is_equal([2, 5])
+	# A CHAIN helper neither takes nor passes on a stand link: the Strawberries keep their place.
+	assert_array(Array(Scoring.score(_row("strawberries,banana"), stand).payouts)).is_equal([2, 2])
 	assert_array(_wasted(plain, 1)).is_not_empty()
 	# No two Produce side by side: the stand fizzles on the row's last slot.
 	var lone: ScoreResult = Scoring.score(_row("banana,bread"), stand)
 	assert_array(_row_wasted(lone)).is_equal(["no two Produce products side by side"])
 
 
-## Lemon squeezer: the Lemon's own charge stays the Lemon's; every later Produce past it takes x2
-## as the perk's MULTIPLIER step, and the effect never reports unused charges.
-func test_lemon_squeezer_reaches_every_later_produce() -> void:
+## Lemon squeezer (#128, Produce links): a Lemon outside a CHAIN (no knot) still doubles the next
+## Produce, as the perk's MULTIPLIER step; a Lemon tying a chain doesn't.
+func test_lemon_squeezer_doubles_after_a_loose_lemon() -> void:
 	var squeezer: Array[UpgradeDefinition] = [_upgrade("lemon_squeezer")]
 	var result: ScoreResult = Scoring.score(_row("lemon,bread,banana,strawberries"), squeezer)
-	# Lemon 1, Bread 5, Banana 2 x2 (the Lemon's charge), Strawberries (2 + 3) x2 (the perk).
-	assert_array(Array(result.payouts)).is_equal([1, 5, 4, 10])
-	var reached: Array[ScoreStep] = _upgrade_steps(result, ScoreStep.StepType.MULTIPLIER)
-	assert_int(reached.size()).is_equal(1)
-	assert_int(reached[0].slot).is_equal(3)
-	assert_int(reached[0].value).is_equal(2)
-	assert_str(reached[0].text).is_equal("Lemon squeezer")
+	# Lemon 1, Bread 5, Banana 2 x2 (the next Produce), Strawberries 2 (out of place).
+	assert_array(Array(result.payouts)).is_equal([1, 5, 4, 2])
+	var doubled: Array[ScoreStep] = _upgrade_steps(result, ScoreStep.StepType.MULTIPLIER)
+	assert_int(doubled.size()).is_equal(1)
+	assert_int(doubled[0].slot).is_equal(2)
+	assert_int(doubled[0].value).is_equal(2)
+	assert_str(doubled[0].text).is_equal("Lemon squeezer")
 	assert_array(_row_wasted(result)).is_empty()
-	# The Lemon's effect never reports unused charges.
+	# The loose Lemon does the perk's job, so it reports no "not inside a CHAIN".
 	assert_array(_wasted(result, 0)).is_empty()
-	# Only the Lemon's own charge used: the perk fizzles.
-	var one: ScoreResult = Scoring.score(_row("lemon,banana"), squeezer)
-	assert_array(_row_wasted(one)).is_equal(["no more Produce products after the Lemon"])
-	# No Lemon: it fizzles too.
+	# No Lemon: it fizzles.
 	var none: ScoreResult = Scoring.score(_row("banana,banana"), squeezer)
 	assert_array(_row_wasted(none)).is_equal(["no Lemon in the row"])
-	# A second Lemon (a Produce itself, so the first one's reach doubles it) resets the reach: it
-	# starts again from the new Lemon.
+	# The first Lemon is loose (x2 on the first Banana, whose payout seeds the chain); the second
+	# is a knot (2 + 4 x 2), so it doubles nothing: 1, 4, 1, 10, 12.
 	var two: ScoreResult = Scoring.score(_row("lemon,banana,lemon,banana,banana"), squeezer)
-	# The last Banana: 2 + the previous Banana's payout 4 (a chain's first link), then x2.
-	assert_array(Array(two.payouts)).is_equal([1, 4, 2, 4, 12])
+	assert_array(Array(two.payouts)).is_equal([1, 4, 1, 10, 12])
 
 
 ## Fire sale: Squashed cake's x2 reaches every later Clearance product.
