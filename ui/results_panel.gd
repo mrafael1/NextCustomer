@@ -12,7 +12,8 @@ extends PanelContainer
 ## reading presses, behind the full-screen machines.
 ##
 ## Behind the receipt the store closes (#56, results option 2): StoreClosed covers the whole
-## window, the top bar too, so the receipt no longer reads as the last shift's screen. It takes no
+## window, the top bar too, its shutter down to the window's bottom edge, so the receipt no longer
+## reads as the last shift's screen. It takes no
 ## clicks (the shift screen's shade under it does, below the top bar), so Cart and ☰ stay
 ## clickable. The profile's reduced motion (`reduced_motion`) shows the store closed at once.
 
