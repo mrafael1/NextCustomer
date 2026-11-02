@@ -103,7 +103,18 @@ func test_the_projected_total_is_coloured_by_the_quota() -> void:
 		await _frames(2)
 		assert_that(_projected_color(receipt)).is_equal(Palette.GOOD)
 		assert_str(_lines(screen)[-1]).is_equal("PROJECTED | " + ReceiptView.money(result.total))
-		_assert_planning_on_screen(screen)
+		# A met total is green with no mark (the receipt draws no check).
+		assert_int(_projected_marks(receipt)).is_equal(0)
+		_assert_planning_on_screen(screen, false)
+
+
+## The PROJECTED amount's marks (none: the receipt draws no check), -1 without a PROJECTED line.
+static func _projected_marks(receipt: ReceiptView) -> int:
+	for line: Node in receipt._lines.get_children():
+		if line is HBoxContainer:
+			if (line.get_child(0) as Label).text == ReceiptView.PROJECTED_TEXT:
+				return line.get_child(1).get_child_count()
+	return -1
 
 
 ## The PROJECTED amount's colour.

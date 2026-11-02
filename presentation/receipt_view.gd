@@ -5,10 +5,10 @@ extends PanelContainer
 ## values stay whole euros.
 ##
 ## In planning (show_planning, #80) it is itemised: the header and a dashed rule, one line per
-## belt item in scan order (its name, its payout, then its mark: a green check when its payout is
-## above its base, the fizzle icon when one of its effects fizzles, the warning icon when an
-## inspection denies it), a muted "5 ·····" for each open empty slot, a dashed rule, "PROJECTED
-## €22.00" (against the quota: green with the met mark, or red with "short €N.00" under it), and
+## belt item in scan order (its name, its payout, then its mark: the fizzle icon when one of its
+## effects fizzles, the warning icon when an inspection denies it), a muted "5 ·····" for each
+## open empty slot, a dashed rule, "PROJECTED €22.00" (against the quota: green when met, or red
+## with "short €N.00" under it), and
 ## the fizzle footer ("2 WASTED · hover an item", none without fizzles). The belt
 ## item being scanned frames its line (highlight_slot). A hovered belt item (#71) frames its line
 ## too, marks its targets' lines with a mustard-pale fill and the token it gives them
@@ -56,9 +56,8 @@ enum LineStyle {
 	CLOSING,
 }
 
-## An item line's mark in planning: none, raised (its payout is above its base), fizzled, or
-## denied by an inspection; and the PROJECTED line's met (the total reaches the quota).
-enum Mark { NONE, RAISED, FIZZLED, DENIED, MET }
+## An item line's mark in planning: none, fizzled, or denied by an inspection.
+enum Mark { NONE, FIZZLED, DENIED }
 
 ## How a boon day's notice starts (v0.69: a shift is a day): its NOTICE line prints in green.
 const BOON_NOTICE_PREFIX := "TOMORROW: "
@@ -301,7 +300,7 @@ func begin_count(
 ## The planning receipt (#80): `header` and a dashed rule; for each belt item (`names`, in scan
 ## order) its name, its payout in `result` and its mark (slot_mark()); "n ·····" for each open
 ## slot past them up to `open_slots`; a dashed rule and "PROJECTED €total", against `quota` (none
-## when negative): green with the met mark at or over it, red under it; then the footer: the
+## when negative): green at or over it, red under it; then the footer: the
 ## shortfall ("short €12.00", its own row) and the fizzles (each none without it). Each item's
 ## payout prints bold, its mini from `cards`.
 func show_planning(
@@ -387,13 +386,11 @@ static func fizzle_count(result: ScoreResult) -> int:
 
 
 ## `slot`'s mark in `result`, read from its recorded amounts: DENIED when an inspection's
-## PAYOUT_OVERRIDE is on it, else RAISED when its payout is above its BASE step's value (even with
-## a fizzle of its own, as its belt ticket shows BOOSTED: since #45 an unpaired Banana or Cheese
-## that another card boosts fizzles too), else FIZZLED when a WASTED step of its own is on it
-## (an upgrade's row-wide fizzle on the last slot is not the item's: ScoreStep.row_wide), else
-## NONE.
+## PAYOUT_OVERRIDE is on it, else FIZZLED when a WASTED step of its own is on it (even when
+## another card raises its payout: since #45 an unpaired Banana or Cheese that another card boosts
+## fizzles too; an upgrade's row-wide fizzle on the last slot is not the item's:
+## ScoreStep.row_wide), else NONE.
 static func slot_mark(result: ScoreResult, slot: int) -> Mark:
-	var base: int = -1
 	var fizzled: bool = false
 	for step: ScoreStep in result.steps:
 		if step.slot != slot:
@@ -404,10 +401,6 @@ static func slot_mark(result: ScoreResult, slot: int) -> Mark:
 		):
 			return Mark.DENIED
 		fizzled = fizzled or (step.step_type == ScoreStep.StepType.WASTED and not step.row_wide)
-		if step.step_type == ScoreStep.StepType.BASE:
-			base = step.value
-	if base >= 0 and slot < result.payouts.size() and result.payouts[slot] > base:
-		return Mark.RAISED
 	if fizzled:
 		return Mark.FIZZLED
 	return Mark.NONE
