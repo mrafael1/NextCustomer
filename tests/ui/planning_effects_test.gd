@@ -90,7 +90,8 @@ func test_every_item_shows_its_model() -> void:
 	assert_str(stamp.amount()).is_equal("€0")
 	assert_str(stamp.caption()).is_equal(screen.run.inspections[0].display_name.to_upper())
 	assert_bool(_item(screen, 2).denied).is_true()
-	assert_int(layer.pay_tag(2).glyph).is_equal(PlanningModel.Glyph.WARNING)
+	# Its slot's talker (the cause-only chip) shows the warning sign, so its €0 tag shows none.
+	assert_int(layer.pay_tag(2).glyph).is_equal(PlanningModel.Glyph.NONE)
 	# Every own sticker has no badge.
 	for slot: int in range(screen._row_views.size()):
 		for sticker: EffectSticker in layer.stack(slot):

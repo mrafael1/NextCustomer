@@ -3,13 +3,14 @@ extends Control
 ## The real pay on a planning item's ticket (#71, mock-up h1, H1_BUILD_SPEC.md section 4.5): a gold
 ## burst for a boosted pay (a wide one from WIDE_CHARS characters), a cream tag for a lowered one,
 ## and a punched tomato "€0" tag with the warning glyph (an inspection's denial) or the paper fizzle
-## glyph (a card's own denial, or a pay wiped by fizzles). Its shadow is the same art in ink at
-## SHADOW_ALPHA, SHADOW_OFFSET down and right. PlanningLayer pins it on the ticket's top-right
-## corner (rect_on; #105, mock-up readability v3: the stacked price, the struck old price under it,
-## PriceSticker), die-cut out of the ticket's colour (`cut`: a paper art pixel, then an ink one,
-## round its art, ArtStyle.cut_material). Dimmed (an unrelated item while another is hovered) it
-## fades to `dimmed_alpha`. Decor only: every number is a payout from the score. A ticket's own
-## plain tag at rest (PriceSticker) is the LOWERED tag's look.
+## glyph (a card's own denial, or a pay wiped by fizzles); none, the text centred, on a slot whose
+## talker shows the warning sign (SlotMark.set_compact, PlanningModel). Its shadow is the same
+## art in ink at SHADOW_ALPHA, SHADOW_OFFSET down and right. PlanningLayer pins it on the
+## ticket's top-right corner (rect_on; #105, mock-up readability v3: the stacked price, the
+## struck old price under it, PriceSticker), die-cut out of the ticket's colour (`cut`: a paper
+## art pixel, then an ink one, round its art, ArtStyle.cut_material). Dimmed (an unrelated item
+## while another is hovered) it fades to `dimmed_alpha`. Decor only: every number is a payout from
+## the score. A ticket's own plain tag at rest (PriceSticker) is the LOWERED tag's look.
 
 ## A boosted pay this long or longer takes the wide burst.
 const WIDE_CHARS := 4

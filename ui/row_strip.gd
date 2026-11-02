@@ -32,7 +32,10 @@ extends Control
 ##
 ## A slot an inspection zeroes (Spot check's slot 3) wears its tomato "€0" SlotMark the same way,
 ## and so does a slot any day event aims at (Happy hour's last filled slot, Extra till's extra
-## one: SlotMark.inspection_marks); a slot's second mark hangs left of its first. A slot an
+## one: SlotMark.inspection_marks); a slot's second mark hangs left of its first. While a card
+## stands on a slot an inspection pays €0, its mark is the cause-only chip (SlotMark.set_compact:
+## the ticket's pay tag owns the "€0"), centred under the ticket when it is the slot's only mark
+## (_hang_marks). A slot an
 ## ends mark is on (Express lane's, SlotMark.ends) is marked itself too: its SlotLane (the green
 ## plate round its ticket and the lane painted on its belt patch) lies on its talker layer, under
 ## its marks (#132); while that slot is empty the lane stands alone, with no dashed footprint,
@@ -204,6 +207,7 @@ func show_cards(
 				child.queue_free()
 		var empty: bool = slot >= row.size()
 		_show_empty(panel, empty and _lane_in(panel) == null)
+		_hang_marks(panel, not empty)
 		if empty:
 			ticket_shadow(panel).visible = false
 		else:
@@ -245,19 +249,15 @@ func show_slot_marks(marks: Array[SlotMark]) -> void:
 	for mark: SlotMark in marks:
 		if mark.ends and mark.slot >= 0 and mark.slot < slots.size() and lane(mark.slot) == null:
 			_talkers(slots[mark.slot]).add_child(SlotLane.new(mark.slot))
-	# Marks on the same slot hang side by side, the first one rightmost.
-	var taken: Dictionary[int, float] = {}
 	for mark: SlotMark in marks:
 		if mark.slot < 0 or mark.slot >= slots.size():
 			mark.free()
 			continue
-		var rect: Rect2 = slot_mark_rect(mark.size.x, taken.get(mark.slot, 0.0) as float)
-		taken[mark.slot] = SLOT_MARK_RIGHT - rect.position.x + SLOT_MARK_GAP
-		mark.position = rect.position
 		_talkers(slots[mark.slot]).add_child(mark)
 	# An empty slot with a lane shows the lane alone (the user's call of 2026-11-02): no dashed
 	# footprint, blank ticket or number under it.
 	for panel: PanelContainer in slots:
+		_hang_marks(panel, _holds_card(panel))
 		if not _holds_card(panel):
 			_show_empty(panel, _lane_in(panel) == null)
 			ticket_shadow(panel).visible = false
@@ -268,6 +268,27 @@ func show_slot_marks(marks: Array[SlotMark]) -> void:
 static func slot_mark_rect(width: float, taken: float = 0.0) -> Rect2:
 	var left: float = snappedf(SLOT_MARK_RIGHT - taken - width, ArtStyle.ART_SCALE)
 	return Rect2(left, SLOT_MARK_TOP, width, SlotMark.HEIGHT)
+
+
+## Hangs the marks of `panel`'s slot under its ticket, a zero slot's mark as the cause-only chip
+## while the slot is `filled`: side by side from the cell's right end, the first one rightmost
+## (slot_mark_rect), or a lone chip centred under the ticket on the art grid.
+static func _hang_marks(panel: PanelContainer, filled: bool) -> void:
+	var marks: Array[SlotMark] = []
+	for child: Node in _talkers(panel).get_children():
+		var mark: SlotMark = child as SlotMark
+		if mark != null and not mark.is_queued_for_deletion():
+			mark.set_compact(filled)
+			marks.append(mark)
+	if marks.size() == 1 and marks[0].is_compact():
+		var left: float = TICKET_RECT.get_center().x - marks[0].size.x / 2.0
+		marks[0].position = Vector2(snappedf(left, ArtStyle.ART_SCALE), SLOT_MARK_TOP)
+		return
+	var taken: float = 0.0
+	for mark: SlotMark in marks:
+		var rect: Rect2 = slot_mark_rect(mark.size.x, taken)
+		taken = SLOT_MARK_RIGHT - rect.position.x + SLOT_MARK_GAP
+		mark.position = rect.position
 
 
 ## Whether `shown` are the marks `marks` would show: the same slot, upgrade and factor, in order
