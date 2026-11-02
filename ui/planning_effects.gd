@@ -344,10 +344,11 @@ func _apply_focus(fade: bool) -> void:
 						and spec.cause_index == index
 					)
 		Focus.INSPECTION:
-			# The day chip's own events only: the week event's (after them) are the week chip's.
-			var days: int = _run.inspections.size() if _run != null else 0
+			# The day chip's own events only (and the worn pins'): the week event's is the week chip's.
 			for link: EffectLink in graph.links:
-				if link.cause_kind == ScoreStep.SourceKind.INSPECTION and link.cause_index < days:
+				if link.cause_kind != ScoreStep.SourceKind.INSPECTION or _run == null:
+					continue
+				if WeekFlow.day_index(_run, link.cause_index) >= 0:
 					_add_slot(related, link.target_slot)
 			cause[0] = -1
 			if not related.is_empty():
@@ -561,13 +562,15 @@ static func _add_slot(slots: PackedInt32Array, slot: int) -> void:
 
 ## Rings the loyalty boxes in `boxes` (and only those) and, for a `cause` of -1 or more, the
 ## inspection chip (naming inspection `cause` when it is one), or the week chip when `cause` is
-## the week event (v0.70: after the day events in WeekSchedule.shift_events).
+## the week event (v0.70: after the day events in WeekSchedule.shift_events; a worn pin's events
+## come after it and are the day chip's, WeekFlow.day_index).
 func _ring(boxes: Dictionary[int, bool], cause: int) -> void:
 	for index: int in range(_loyalty.stamped_boxes().size()):
 		_loyalty.set_relation(index, boxes.has(index))
-	var week: bool = _run != null and cause >= 0 and cause >= _run.inspections.size()
+	var named: int = WeekFlow.day_index(_run, cause) if _run != null else cause
+	var week: bool = cause >= 0 and named < 0
 	_week_chip.set_relation(week)
-	_tag.set_relation(cause >= -1 and not week, cause)
+	_tag.set_relation(cause >= -1 and not week, named)
 
 
 func _on_item_hovered(view: ItemView) -> void:

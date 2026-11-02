@@ -484,8 +484,12 @@ func test_badge_pins_wear_and_buy_from_rewards() -> void:
 	assert_bool(SaveService.new(_folder).save_profile(profile)).is_true()
 	var title: TitleScreen = await _title()
 	var rewards: RewardsMenu = await _open_rewards(title)
-	var count: int = (load(TitleScreen.CATALOGUE) as CatalogueDefinition).pins.size()
-	assert_str(rewards.pins_line().text).is_equal("1 OF %d PINS" % count)
+	var catalogue: CatalogueDefinition = load(TitleScreen.CATALOGUE)
+	var count: int = catalogue.pins.size()
+	var owned: int = 0
+	for pin: PinDefinition in catalogue.pins:
+		owned += 1 if profile.has_pin(pin) else 0
+	assert_str(rewards.pins_line().text).is_equal("%d OF %d PINS" % [owned, count])
 	rewards.badge_card().pressed.emit()
 	var badge: BadgeScreen = title.badge_screen()
 	assert_bool(badge.is_open()).is_true()
@@ -496,13 +500,24 @@ func test_badge_pins_wear_and_buy_from_rewards() -> void:
 	assert_int(rows[1].state()).is_equal(PinRow.State.LOCKED)
 	assert_bool(title.get_viewport_rect().encloses(badge.sheet().get_global_rect())).is_true()
 	var sheet: Rect2 = badge.sheet().get_global_rect()
-	var controls: Array[Control] = [badge.badge(), badge.buy_plate()]
-	controls.append_array(rows)
-	for control: Control in controls:
-		assert_bool(sheet.encloses(control.get_global_rect())).is_true()
-	for index: int in range(1, rows.size()):
-		var above: Rect2 = rows[index - 1].get_global_rect()
-		assert_bool(above.intersects(rows[index].get_global_rect())).is_false()
+	# #132: the rows show BadgeScreen.PAGE_ROWS at a time; every page's rows fit the sheet.
+	assert_int(badge.page_count()).is_equal(ceili(float(count) / BadgeScreen.PAGE_ROWS))
+	for page: int in range(badge.page_count()):
+		badge.show_page(page)
+		var shown: Array[Control] = [badge.badge(), badge.buy_plate()]
+		for child: Node in badge.sheet().find_children("*PrevPage*", "", true, false):
+			shown.append(child as Control)
+		for row: PinRow in rows:
+			if row.visible:
+				shown.append(row)
+		assert_int(shown.size()).is_between(3, 3 + BadgeScreen.PAGE_ROWS)
+		for control: Control in shown:
+			assert_bool(sheet.encloses(control.get_global_rect())).is_true()
+		for index: int in range(1, shown.size()):
+			for other: int in range(index):
+				var rect: Rect2 = shown[other].get_global_rect()
+				assert_bool(rect.intersects(shown[index].get_global_rect())).is_false()
+	badge.show_page(0)
 	rows[1].pressed.emit()
 	assert_array(SaveService.new(_folder).load_profile().worn_pins).is_empty()
 	rows[0].pressed.emit()
@@ -519,7 +534,7 @@ func test_badge_pins_wear_and_buy_from_rewards() -> void:
 			assert_int(row.state()).is_equal(PinRow.State.OWNED)
 	assert_bool(badge.buy_plate().disabled).is_true()  # 2 coins left: under the price.
 	assert_str(rewards.coin_label().text).is_equal("2")
-	assert_str(rewards.pins_line().text).is_equal("2 OF %d PINS" % count)
+	assert_str(rewards.pins_line().text).is_equal("%d OF %d PINS" % [owned + 1, count])
 	badge.back_plate().pressed.emit()
 	assert_bool(badge.is_open()).is_false()
 	assert_bool(rewards.is_open()).is_true()

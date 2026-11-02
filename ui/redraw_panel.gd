@@ -103,8 +103,8 @@ func notice() -> RedrawNotice:
 	return _notice
 
 
-## The going items' icons, a ">", then the coming items' icons or "N new items drawn" and the
-## cost chip at the right.
+## The going items' icons, a ">", then the coming items' icons (a redraw playing, or a Stock
+## list's hovered basket) or "N new items drawn", and the cost chip at the right when it costs.
 func _add_row(shown: RedrawNotice, y: float, width: float) -> void:
 	var x: float = PADDING.x
 	for item: CardDefinition in shown.going:
@@ -116,15 +116,10 @@ func _add_row(shown: RedrawNotice, y: float, width: float) -> void:
 	x += ARROW_MARGIN
 	_add(arrow, Rect2(x, y, arrow.get_minimum_size().x, ICON))
 	x += arrow.size.x + ARROW_MARGIN + ICON_GAP
-	if not shown.coming.is_empty():
-		for item: CardDefinition in shown.coming:
-			x = _add_icon(item, x, y)
+	for item: CardDefinition in shown.coming:
+		x = _add_icon(item, x, y)
+	if not shown.coming.is_empty() and not shown.cost:
 		return
-	var word: String = "item" if shown.drawn == 1 else "items"
-	var drawn: RichTextLabel = _rich(
-		"[b]%d new[/b] %s drawn" % [shown.drawn, word], LINE_SIZE, Palette.INK
-	)
-	drawn.name = "Drawn"
 	var chip_width: float = 0.0
 	if shown.cost:
 		var chip: Label = UiKit.display_label(CHIP_TEXT, CHIP_SIZE, true)
@@ -138,6 +133,13 @@ func _add_row(shown: RedrawNotice, y: float, width: float) -> void:
 		_chip_rect = Rect2(chip_x, y + (ICON - CHIP_HEIGHT) / 2.0, chip_width, CHIP_HEIGHT)
 		chip.position = _chip_rect.position
 		chip.size = _chip_rect.size
+	if not shown.coming.is_empty():
+		return  # A Stock list's coming icons (#132) say what is drawn.
+	var word: String = "item" if shown.drawn == 1 else "items"
+	var drawn: RichTextLabel = _rich(
+		"[b]%d new[/b] %s drawn" % [shown.drawn, word], LINE_SIZE, Palette.INK
+	)
+	drawn.name = "Drawn"
 	var text_width: float = PADDING.x + width - chip_width - ICON_GAP - x
 	_add(drawn, Rect2(x, y + (ICON - LINE_SIZE - 6.0) / 2.0, text_width, LINE_SIZE + 6.0))
 

@@ -7,6 +7,10 @@ extends Label
 ## It fades by `modulate` and clears by emptying its text, so `visible` never changes. Nothing on
 ## the stage hides to make room for it; showing_changed is kept for callers and tests that follow
 ## whether a notice shows.
+##
+## A notice that should not cut in (the shift's opening notice, which plays a moment after the
+## shift starts) waits with show_next for one the player's own action raised (an armed Price
+## gun's, #132) to fade or be ended (end_notice); clear_notice drops it.
 
 ## Emitted when a notice starts showing (true) and when it has faded or been cleared (false).
 signal showing_changed(showing: bool)
@@ -18,6 +22,8 @@ const FADE_SECONDS := 0.4
 
 var _tween: Tween
 var _showing: bool = false
+## The notice waiting for the shown one to go (show_next), or "".
+var _next: String = ""
 
 
 func _init() -> void:
@@ -36,6 +42,22 @@ func show_notice(notice: String) -> void:
 	_tween.tween_property(self, "modulate", Color(1, 1, 1, 0), FADE_SECONDS)
 	_tween.tween_callback(_on_faded)
 	_set_showing(true)
+
+
+## Shows `notice` now, or, while another notice shows, once that one has faded or been ended.
+func show_next(notice: String) -> void:
+	if _showing:
+		_next = notice
+	else:
+		show_notice(notice)
+
+
+## Ends the shown notice; the one waiting (show_next) shows instead.
+func end_notice() -> void:
+	var waiting: String = _next
+	clear_notice()
+	if not waiting.is_empty():
+		show_notice(waiting)
 
 
 ## True from show_notice until the notice has faded or been cleared.
@@ -57,7 +79,9 @@ func explain_refusal(limits: ShiftLimits, row: Array[CardInstance]) -> bool:
 	return true
 
 
+## Clears the shown notice and drops the one waiting.
 func clear_notice() -> void:
+	_next = ""
 	if _tween != null:
 		_tween.kill()
 		_tween = null
@@ -69,6 +93,10 @@ func clear_notice() -> void:
 func _on_faded() -> void:
 	_tween = null
 	_set_showing(false)
+	if not _next.is_empty():
+		var waiting: String = _next
+		_next = ""
+		show_notice(waiting)
 
 
 func _set_showing(showing: bool) -> void:

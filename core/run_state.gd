@@ -61,6 +61,15 @@ var redraws_allowed: int = 0
 var redrawn_in: PackedInt32Array = PackedInt32Array()
 ## The badge pins the run was started with (#122), in slot order.
 var pins: Array[PinDefinition] = []
+## A Golden basket pin's kept items (#132, PinPlay.keep): instance ids chosen after a checkout,
+## dealt into the next shift's first basket (RunPins.deal), then cleared.
+var kept: PackedInt32Array = PackedInt32Array()
+## A Price gun pin's relabels this shift (#132, PinPlay.relabel): instance id to the family the
+## item gains; cleared when a shift starts.
+var relabels: Dictionary[int, String] = {}
+## A Day off pin's pile waits on the belt (#132, PinPlay.set_day_off): the row is empty and takes
+## no card, and the preview is the day off's (the quota). Not saved: a resumed shift has none.
+var day_off_pending: bool = false
 ## The shift's whole result, set at its (last) checkout: on a Double checkout shift (#122) both
 ## rows joined (ScoreResult.joined), its slots row 1's then row 2's.
 var last_result: ScoreResult
@@ -180,15 +189,17 @@ func start_shift() -> void:
 		upgrades,
 		shift_index,
 		WeekSchedule.shift_events(self),
-		RunPins.row_slots(self),
+		RunPins.base_slots(self),
 		RunPins.extra_redraws(self)
 	)
-	deck.draw_hand(limits.hand_size)
+	RunPins.deal(self)
 	_plan_week()
 	row = []
 	redraws_used = 0
 	redraws_allowed = limits.redraws
 	redrawn_in = PackedInt32Array()
+	relabels = {}
+	day_off_pending = false
 	last_result = null
 	first_row = []
 	first_result = null
@@ -270,7 +281,7 @@ func take_pack(pack: StarterPackDefinition) -> bool:
 
 ## Plan section 3.1: the row's slots (RowCapacity); any card fits any free slot.
 func can_place(card: CardInstance) -> bool:
-	if phase != Phase.PLANNING or not hand().has(card):
+	if phase != Phase.PLANNING or not hand().has(card) or day_off_pending:
 		return false
 	return RowCapacity.fits(limits, row)
 
@@ -299,6 +310,8 @@ func remove(card: CardInstance) -> bool:
 ## be placed gives the plain preview. (One method rather than two keeps RunState within gdlint's
 ## 20 public methods.)
 func preview(card: CardInstance = null, slot: int = 0) -> ScoreResult:
+	if day_off_pending:
+		return PinPlay.day_off_result(self)
 	var events: Array[InspectionDefinition] = WeekSchedule.shift_events(self)
 	var placed: Array[CardInstance] = row.duplicate()
 	if card != null and can_place(card):
@@ -319,13 +332,24 @@ func preview(card: CardInstance = null, slot: int = 0) -> ScoreResult:
 ## A Double checkout pin's shift (#122) checks out twice: the first checkout only scores row 1 and
 ## refills the hand (RunPins.check_out_first_row, returning row 1's result, still PLANNING); the
 ## second scores row 2 and ends the shift on both rows' total (RunPins.score_rows).
-func checkout() -> ScoreResult:
+##
+## With `day_off` (a Day off pin, #132: PinPlay.can_take_day_off) the shift is skipped instead: the
+## row goes back to the hand and the shift passes exactly on its quota (PinPlay.day_off_result),
+## as a checkout would; null, changing nothing, when no day off is allowed.
+func checkout(day_off: bool = false) -> ScoreResult:
 	if phase != Phase.PLANNING:
 		return last_result
-	if RunPins.row_slots(self) > 0 and first_result == null:
+	if day_off and not PinPlay.can_take_day_off(self):
+		return null
+	if day_off:
+		row = []
+		last_result = PinPlay.day_off_result(self)
+	elif RunPins.row_slots(self) > 0 and first_result == null:
 		return RunPins.check_out_first_row(self)
-	last_result = RunPins.score_rows(self, upgrades)
+	else:
+		last_result = RunPins.score_rows(self, upgrades)
 	var record: ShiftRecord = ShiftRecord.new(shift_index + 1, quota(), last_result.total)
+	record.day_off = day_off
 	for card: CardInstance in first_row + row:
 		record.played.append(card.definition)
 	record.inspections = inspections.duplicate()

@@ -1,0 +1,17 @@
+; Express lane's end-slot talker (#132, the 2026-11-02 review): slot_talker's shape in the boon's
+; light green, so the row's ends read at 1x on the dark rail and differ from Happy hour's dark
+; green boon tag. Paper w lit along the top and left, green G on the right and bottom, around a
+; green light z face that holds the express chevrons and the factor in ink (code-drawn), rounded
+; two-texel corners in an ink outline. 9-slice 9x9 @2 (margin 3).
+@size 9x9
+@kind frame
+@scale 2
+..#####..
+.#wwwww#.
+#wzzzzzG#
+#wzzzzzG#
+#wzzzzzG#
+#wzzzzzG#
+#wzzzzzG#
+.#GGGGG#.
+..#####..

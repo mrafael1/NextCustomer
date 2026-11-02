@@ -130,6 +130,14 @@ const DAY_ARGUMENT := "--day="
 const SLIP_ARGUMENT := "--slip"
 ## #122: the fixed shift wears the Double checkout pin (two rows of 4); the file gets double_.
 const DOUBLE_ARGUMENT := "--double"
+## #132: `--pin=<pin id>` wears that pin on the fixed shift (Price gun's relabels the belt's first
+## product as Snack); the file gets pin_<id>_.
+const PIN_ARGUMENT := "--pin="
+## With --pin=price_gun, `--gun=<planning|armed|picker|retag>` leaves the belt untagged and shows
+## the labeller lying there, picked up, or picked up with the family picker open on the belt's
+## first product (retag: that product tagged Snack first, so the picker offers Remove tag); the
+## file gets gun_<state>_.
+const GUN_ARGUMENT := "--gun="
 const SLIP_PREFIX := "slip_%s_"
 const SLIP_PLAIN := "none"
 const CHEER_PREFIX := "cheer_"
@@ -331,11 +339,16 @@ func _set_up_shift(
 	run.upgrades = upgrades
 	if OS.get_cmdline_user_args().has(DOUBLE_ARGUMENT):
 		RunPins.wear(run, [load("res://data/pins/double_checkout.tres") as PinDefinition])
+	if not _argument(PIN_ARGUMENT).is_empty():
+		var pin: String = "res://data/pins/%s.tres" % _argument(PIN_ARGUMENT)
+		RunPins.wear(run, [load(pin) as PinDefinition])
 	run.debug_skip_to_shift(SHIFT - 1)
 	# The same shift again: it keeps the inspection set here.
 	var events: Array[InspectionDefinition] = []
 	for event_id: String in inspection_id.split("+", false):
 		events.append(load("res://data/inspections/%s.tres" % event_id) as InspectionDefinition)
+	if _argument(PIN_ARGUMENT) == "day_off":
+		events = []  # A day off is never taken on an inspection day.
 	run.inspections = events
 	run.debug_skip_to_shift(SHIFT - 1)
 	# The fixed hand replaces the dealt one, which is set aside for the shift.
@@ -345,8 +358,18 @@ func _set_up_shift(
 	var cards: Array[CardInstance] = run.hand()
 	for card: CardInstance in cards.slice(HAND_IDS.size()):
 		run.place(card, run.row.size())
+	var gun: String = _argument(GUN_ARGUMENT)
+	if _argument(PIN_ARGUMENT) == "price_gun" and (gun.is_empty() or gun == "retag"):
+		PinPlay.relabel(run, run.row[0], "Snack")
 	_screen.debug_show_shift()
 	_screen._week.skip()  # The capture shows planning, never the time card (v0.70).
+	if gun in ["armed", "picker", "retag"]:
+		_screen._pins.press_gun()
+	if gun == "picker" or gun == "retag":
+		for card: CardInstance in run.row:
+			if card.definition.is_product():
+				_screen._pins.take_click(card)
+				break
 
 
 ## Opens the fixed shift's time card in full; `result` "paid" or "slip" records the shift as
@@ -557,6 +580,8 @@ func capture(folder: String) -> void:
 		+ _day_part
 		+ _slip_part
 		+ ("double_" if OS.get_cmdline_user_args().has(DOUBLE_ARGUMENT) else "")
+		+ ("" if _argument(PIN_ARGUMENT).is_empty() else "pin_%s_" % _argument(PIN_ARGUMENT))
+		+ ("" if _argument(GUN_ARGUMENT).is_empty() else "gun_%s_" % _argument(GUN_ARGUMENT))
 	)
 	var path: String = folder.path_join(FILE_NAME % [prefix, window.x, window.y])
 	var image: Image = (

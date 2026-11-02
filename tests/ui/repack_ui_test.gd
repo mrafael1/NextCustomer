@@ -35,8 +35,8 @@ func test_no_pin_no_marks() -> void:
 	_pick(screen, 3)
 	await _frames(2)
 	assert_object(screen._picked).is_not_null()
-	assert_array(screen._repack.marks()).is_empty()
-	assert_int(screen._repack._place_at(screen._picked, _centre(screen, 0))).is_equal(-1)
+	assert_array(screen._pins.repack.marks()).is_empty()
+	assert_int(screen._pins.repack._place_at(screen._picked, _centre(screen, 0))).is_equal(-1)
 	_assert_lit(screen, [])
 
 
@@ -50,7 +50,7 @@ func test_a_click_on_a_mark_moves_the_item() -> void:
 	var lone: CardInstance = run.hand_places()[3]
 	_pick(screen, 3)
 	await _frames(2)
-	var marks: Array[RepackMark] = screen._repack.marks()
+	var marks: Array[RepackMark] = screen._pins.repack.marks()
 	assert_int(marks.size()).is_equal(1)
 	var mark: RepackMark = marks[0]
 	assert_int(mark.place).is_equal(0)
@@ -64,7 +64,7 @@ func test_a_click_on_a_mark_moves_the_item() -> void:
 	var basket: Rect2 = _on_stage(screen, screen._stage.baskets.basket_rect(0))
 	assert_float(mark.get_global_rect().get_center().x).is_between(basket.position.x, basket.end.x)
 	assert_bool(screen._stage.get_global_rect().encloses(mark.get_global_rect())).is_true()
-	assert_array(screen._repack.lit_baskets()).is_equal([0])
+	assert_array(screen._pins.repack.lit_baskets()).is_equal([0])
 	_assert_lit(screen, [0])
 	var press: InputEventMouseButton = InputEventMouseButton.new()
 	press.button_index = MOUSE_BUTTON_LEFT
@@ -75,7 +75,7 @@ func test_a_click_on_a_mark_moves_the_item() -> void:
 	assert_object(run.hand_places()[3]).is_null()
 	assert_array(run.row).is_equal([belt])
 	assert_object(screen._picked).is_null()
-	assert_array(screen._repack.marks()).is_empty()
+	assert_array(screen._pins.repack.marks()).is_empty()
 	_assert_lit(screen, [])
 	var event: Dictionary = _last_event("repack")
 	assert_int(int(event["from"])).is_equal(3)
@@ -95,7 +95,7 @@ func test_a_drag_swaps_with_another_baskets_item() -> void:
 	var other: CardInstance = run.hand_places()[5]
 	_pick(screen, 3)
 	await _frames(2)
-	var flow: RepackFlow = screen._repack
+	var flow: RepackFlow = screen._pins.repack
 	assert_int(flow._place_at(picked, _centre(screen, 2))).is_equal(-1)
 	assert_int(flow._place_at(picked, _centre(screen, 5))).is_equal(5)
 	# Hovering basket 2's item (place 5) lights that basket most.
@@ -127,11 +127,11 @@ func test_a_belt_item_goes_to_another_basket() -> void:
 	screen._on_row_card_clicked(screen._row_views[0])
 	await _frames(2)
 	assert_bool(screen._picked_from_row).is_true()
-	var marks: Array[RepackMark] = screen._repack.marks()
+	var marks: Array[RepackMark] = screen._pins.repack.marks()
 	assert_int(marks.size()).is_equal(1)
 	assert_int(marks[0].place).is_equal(3)
 	_assert_lit(screen, [1])
-	assert_int(screen._repack._place_at(taken, _centre(screen, 3))).is_equal(3)
+	assert_int(screen._pins.repack._place_at(taken, _centre(screen, 3))).is_equal(3)
 	screen._drag.place_dropped.emit(taken, 3)
 	await _frames(2)
 	assert_object(run.hand_places()[3]).is_same(taken)

@@ -55,10 +55,16 @@ func size() -> int:
 
 
 ## Starts a shift: shuffles the whole deck and draws `count` cards (fewer if the deck is smaller).
-func draw_hand(count: int) -> Array[CardInstance]:
+## `first` (a Golden basket pin's kept items, #132: deck cards) take the first places, in order,
+## and are not in the draw pile; the rest of the hand is drawn after them.
+func draw_hand(count: int, first: Array[CardInstance] = []) -> Array[CardInstance]:
 	_draw_pile = cards.duplicate()
-	_shuffle(_draw_pile)
 	_hand = []
+	for card: CardInstance in first:
+		if _hand.size() < count and _draw_pile.has(card):
+			_draw_pile.erase(card)
+			_hand.append(card)
+	_shuffle(_draw_pile)
 	while _hand.size() < count and not _draw_pile.is_empty():
 		_hand.append(_draw_pile.pop_back())
 	return _hand.duplicate()

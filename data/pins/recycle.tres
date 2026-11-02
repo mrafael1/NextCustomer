@@ -14,6 +14,7 @@ id = &"recycle"
 display_name = "Recycle"
 rule_text = "Redrawn items go back in the pile; +1 redraw a shift"
 face_text = "RE"
+face_colour = 5
 unlock_condition = SubResource("Resource_finish")
 recycle = true
 extra_redraws = 1

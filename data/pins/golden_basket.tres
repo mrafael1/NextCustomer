@@ -1,0 +1,12 @@
+[gd_resource type="Resource" script_class="PinDefinition" format=3]
+
+[ext_resource type="Script" path="res://core/pin_definition.gd" id="1_pin"]
+
+[resource]
+script = ExtResource("1_pin")
+id = &"golden_basket"
+display_name = "Golden basket"
+rule_text = "Keep 2 checked-out items for the next shift's first basket"
+face_text = "GLD"
+face_colour = 6
+keep_count = 2

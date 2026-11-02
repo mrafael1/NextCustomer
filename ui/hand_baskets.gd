@@ -70,6 +70,10 @@ const BACK_LEFT := preload("res://art/scenery/basket_back_left.png")
 const BACK_RIGHT := preload("res://art/scenery/basket_back_right.png")
 const FRONT := preload("res://art/scenery/basket_front.png")
 const LEDGE := preload("res://art/scenery/basket_ledge.png")
+## A golden basket's art (set_gold, #132), derived from the plain art through the GOLDEN rank map.
+const BACK_LEFT_GOLDEN := preload("res://art/scenery/basket_back_left_golden.png")
+const BACK_RIGHT_GOLDEN := preload("res://art/scenery/basket_back_right_golden.png")
+const FRONT_GOLDEN := preload("res://art/scenery/basket_front_golden.png")
 
 var layer: Layer
 var _hand: HandRow
@@ -84,6 +88,8 @@ var _fades: Array[float] = []
 var _lit: Array[int] = []
 var _hovered: int = -1
 var _pulse_time: float = -1.0
+## The golden baskets (set_gold, #132: a Golden basket pin's first basket), drawn in gold.
+var _gold: Array[int] = []
 
 
 func _init(basket_layer: Layer, hand: HandRow) -> void:
@@ -151,6 +157,14 @@ func set_lit(indices: Array[int], hovered: int = -1, pulse: bool = true) -> void
 	_pulse_time = 0.0 if pulse and not indices.is_empty() else -1.0
 	set_process(_pulse_time >= 0.0)
 	_show_lit()
+
+
+## Draws the baskets `indices` in gold (#132: a Golden basket pin's first one); none: all plain.
+func set_gold(indices: Array[int]) -> void:
+	if indices == _gold:
+		return
+	_gold = indices.duplicate()
+	_rebuild()
 
 
 ## Basket `index`'s brightness now (1: plain).
@@ -228,6 +242,8 @@ func _basket_holder(index: int, left: float) -> Control:
 			inside.size = INSIDE_STEPS[step].size
 			basket.add_child(inside)
 	var texture: Texture2D = FRONT if front else _back_for(left)
+	if _gold.has(index):
+		texture = FRONT_GOLDEN if front else _golden_back_for(left)
 	var art: TextureRect = UiKit.sprite(texture)
 	art.name = "%s%d" % [FRONT_NAME if front else BACK_NAME, index]
 	art.position = Vector2(left, 0) + (FRONT_OFFSET if front else BACK_OFFSET)
@@ -240,6 +256,11 @@ func _basket_holder(index: int, left: float) -> Control:
 static func _back_for(left: float) -> Texture2D:
 	var centre: float = left + HandRow.BASKET_WIDTH / 2.0
 	return BACK_LEFT if centre < ShiftStage.SIZE.x / 2.0 else BACK_RIGHT
+
+
+## The golden back for a basket at `left` (as _back_for).
+static func _golden_back_for(left: float) -> Texture2D:
+	return BACK_LEFT_GOLDEN if _back_for(left) == BACK_LEFT else BACK_RIGHT_GOLDEN
 
 
 ## How far the face is in from the rim's ends at row `y` (stage), stepped every 2 px.

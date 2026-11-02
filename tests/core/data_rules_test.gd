@@ -239,11 +239,12 @@ func test_the_catalogue_lists_every_deck_and_variant() -> void:
 
 
 ## Full build plan 7.4 (#122): the catalogue lists every badge pin file, each once, and every pin
-## has an id matching its file, a name, a rule, a face and something it does; a milestone can
-## work.
+## has an id matching its file, a name, a rule, a face of its own colour and something it does;
+## a milestone can work.
 func test_the_catalogue_lists_every_well_formed_pin() -> void:
 	var catalogue: CatalogueDefinition = load(CATALOGUE)
 	var pins: Array[PinDefinition] = []
+	var colours: Dictionary[int, bool] = {}
 	for file: String in DirAccess.get_files_at("res://data/pins"):
 		if not file.ends_with(".tres"):
 			continue
@@ -260,12 +261,24 @@ func test_the_catalogue_lists_every_well_formed_pin() -> void:
 			font.get_string_size(pin.face_text, HORIZONTAL_ALIGNMENT_LEFT, -1, PinFace.FONT_SIZE).x
 		)
 		assert_float(width).override_failure_message(file).is_less_equal(inner)
+		# Its own face colour, no other pin's (#132 check: no two pins alike).
+		assert_int(pin.face_colour).override_failure_message(file).is_between(
+			1, PinFace.COLOURS.size()
+		)
+		assert_bool(colours.has(pin.face_colour)).override_failure_message(file).is_false()
+		colours[pin.face_colour] = true
 		var does: bool = (
 			not pin.starting_cards.is_empty()
 			or pin.repack
 			or pin.row_slots > 0
 			or pin.recycle
 			or pin.extra_redraws > 0
+			or pin.peek_count > 0
+			or pin.days_off_per_week > 0
+			or pin.keep_count > 0
+			or (pin.relabels_per_shift > 0 and not pin.relabel_tags.is_empty())
+			or pin.slot_delta != 0
+			or not pin.events.is_empty()
 		)
 		assert_bool(does).override_failure_message(file).is_true()
 		if pin.unlock_condition != null:

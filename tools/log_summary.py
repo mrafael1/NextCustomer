@@ -48,7 +48,7 @@ KIND_COUPON = 2
 
 KNOWN_TYPES = frozenset({
     "run_start", "shift_start", "redraw", "repack", "row_checkout", "checkout", "count_up",
-    "reward", "upgrade",
+    "day_off", "golden_basket", "price_gun", "reward", "upgrade",
     "machine_visit", "machine_landing_skipped", "run_end", "run_resume", "run_abandon", "restart",
     "log_export", "debug", "capsule",
 })

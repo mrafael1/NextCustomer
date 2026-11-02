@@ -11,6 +11,8 @@ extends TitlePopup
 ## toy machines do. A save that fails rolls the change back. Worn pins ride from the next run
 ## started: a run copies them at its start (RunPins) and never reads the profile again.
 ## BACK and Esc close it. The mouse and the keys share one marker (TitlePopup).
+## The rows show PAGE_ROWS at a time (#132: more pins than fit the sheet); ‹ and › beside the
+## tagline turn the pages, and the keys' marker turns to the page of the row it lands on.
 
 ## The profile changed and was saved (a pin worn, taken off or bought): the title follows its
 ## coins.
@@ -35,6 +37,11 @@ const BACK_SIZE := Vector2(128, 42)
 const ESC_AT := Vector2(168, 404)
 const NOTE_RECT := Rect2(296, 404, 360, 42)
 const NOTE_SIZE := 13
+const PAGE_ROWS := 3
+const PREV_AT := Vector2(500, 56)
+const NEXT_AT := Vector2(620, 56)
+const ARROW_SIZE := Vector2(36, 34)
+const PAGE_RECT := Rect2(536, 56, 84, 34)
 const OPEN_SOUND := "ui_open"
 const BACK_SOUND := "ui_back"
 const DENIED_SOUND := "denied"
@@ -55,6 +62,10 @@ var _rows: Array[PinRow] = []
 var _buy: MenuPlate
 var _back: MenuPlate
 var _note: Label
+var _page: int = 0
+var _prev: MenuPlate
+var _next: MenuPlate
+var _page_label: Label
 
 
 ## The screen for `catalogue`'s pins (the rows, in data order) and `balance`'s slots and price.
@@ -86,9 +97,24 @@ func _init(catalogue: CatalogueDefinition, balance: BalanceDefinition) -> void:
 	page.add_child(_worn_label)
 	for index: int in catalogue.pins.size():
 		var row: PinRow = PinRow.new(catalogue.pins[index], index)
-		row.position = ROWS_AT + Vector2(0, index * ROW_STEP)
+		row.position = ROWS_AT + Vector2(0, (index % PAGE_ROWS) * ROW_STEP)
 		page.add_child(row)
 		_rows.append(row)
+	_prev = MenuPlate.new("‹", MenuPlate.Kind.PLATE, ARROW_SIZE)
+	_prev.name = "PrevPage"
+	_prev.position = PREV_AT
+	page.add_child(_prev)
+	_next = MenuPlate.new("›", MenuPlate.Kind.PLATE, ARROW_SIZE)
+	_next.name = "NextPage"
+	_next.position = NEXT_AT
+	page.add_child(_next)
+	_page_label = UiKit.number_label("", 18, false)
+	_page_label.add_theme_color_override("font_color", Palette.INK)
+	_page_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_page_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	_page_label.position = PAGE_RECT.position
+	_page_label.size = PAGE_RECT.size
+	page.add_child(_page_label)
 	_buy = MenuPlate.new(BUY_WORDS, MenuPlate.Kind.PLATE, BUY_SIZE)
 	_buy.name = "BuyPin"
 	_buy.position = BUY_AT
@@ -109,7 +135,7 @@ func _init(catalogue: CatalogueDefinition, balance: BalanceDefinition) -> void:
 	page.add_child(_note)
 	var entries: Array[BaseButton] = []
 	entries.assign(_rows)
-	entries.append_array([_buy, _back] as Array[BaseButton])
+	entries.append_array([_prev, _next, _buy, _back] as Array[BaseButton])
 	for entry: BaseButton in entries:
 		_add_entry(entry)
 		entry.pressed.connect(_press.bind(entry))
@@ -125,6 +151,7 @@ func open(
 	_log = event_log
 	_can_save = can_save
 	_note.text = ""
+	show_page(0)
 	_refresh()
 	Sfx.play_at(self, OPEN_SOUND)
 	return _show_popup()
@@ -136,6 +163,27 @@ func profile() -> ProfileState:
 
 func badge() -> NameBadge:
 	return _badge
+
+
+## The rows' pages, and (shown_page) the page shown, 0-based.
+func page_count() -> int:
+	return maxi(ceili(float(_rows.size()) / PAGE_ROWS), 1)
+
+
+func shown_page() -> int:
+	return _page
+
+
+## Shows page `index` (wrapping round): its rows, the others hidden.
+func show_page(index: int) -> void:
+	_page = posmod(index, page_count())
+	for row_index: int in _rows.size():
+		_rows[row_index].visible = floori(float(row_index) / PAGE_ROWS) == _page
+	var paged: bool = page_count() > 1
+	_prev.visible = paged
+	_next.visible = paged
+	_page_label.visible = paged
+	_page_label.text = "%d/%d" % [_page + 1, page_count()]
 
 
 func rows() -> Array[PinRow]:
@@ -245,6 +293,8 @@ func _refresh() -> void:
 func _show_marked(entry: Control, on: bool) -> void:
 	if entry is PinRow:
 		(entry as PinRow).marked = on
+		if on and not entry.visible:  # The keys' marker turns to its row's page.
+			show_page(floori(float(_rows.find(entry as PinRow)) / PAGE_ROWS))
 	elif entry is MenuPlate:
 		(entry as MenuPlate).marked = on
 
@@ -254,6 +304,9 @@ func _press(entry: Control) -> void:
 		return
 	if entry is PinRow:
 		toggle((entry as PinRow).pin)
+	elif entry == _prev or entry == _next:
+		Sfx.play_at(self, "ui_click")
+		show_page(_page + (1 if entry == _next else -1))
 	elif entry == _buy:
 		buy()
 	elif entry == _back:

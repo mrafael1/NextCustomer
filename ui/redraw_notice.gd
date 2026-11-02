@@ -5,7 +5,8 @@ extends RefCounted
 ## (armed), a basket hovered (hovered) and the redraw playing (redrawing). Display only: plain
 ## data and wording, no rule; RedrawPanel lays it out. With a Recycle pin (#122,
 ## RunPins.recycles) the old items go back in the pile rather than being set aside, and the
-## wording says so (`recycle`).
+## wording says so (`recycle`). With a Stock list pin (#132, PinPlay.peek; the user's call of
+## 2026-11-02) a hovered basket also shows the items its redraw would bring (`coming`).
 
 const RECYCLE_LINE := "Back in the pile, to draw again: %s."
 const RECYCLE_FOOT := "The old items go back in the pile (Recycle)."
@@ -39,7 +40,12 @@ static func of_run(run: RunState, hovered_basket: int) -> RedrawNotice:
 	var places: Array[CardInstance] = run.hand_places()
 	for place: int in run.basket_places(hovered_basket):
 		items.append(places[place].definition)
-	return hovered(hovered_basket, redraws_left, items, run.deck.draw_pile().size(), recycle)
+	var notice: RedrawNotice = hovered(
+		hovered_basket, redraws_left, items, run.deck.draw_pile().size(), recycle
+	)
+	var next: Array[CardDefinition] = definitions(PinPlay.peek(run))
+	notice.coming = next.slice(0, mini(notice.drawn, next.size()))
+	return notice
 
 
 ## Redraw mode armed, no basket hovered.

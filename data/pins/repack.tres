@@ -14,5 +14,6 @@ id = &"repack"
 display_name = "Repack"
 rule_text = "Move items between baskets while planning"
 face_text = "MIX"
+face_colour = 2
 unlock_condition = SubResource("Resource_win")
 repack = true

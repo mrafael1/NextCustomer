@@ -6,12 +6,17 @@ extends Control
 ## grey with "?"; an empty slot is a dashed ring (show_empty). Its own UI object: the badge, the
 ## badge screen's rows and the REWARDS card all show pins with it. Display only.
 
-## The pins' colours, by their place in the catalogue (wrapping): face, dark band, glint.
+## The pins' colours: face, dark band, glint. A pin picks one (PinDefinition.face_colour), else
+## it goes by its place in the catalogue (wrapping).
 const COLOURS: Array[Array] = [
 	[Palette.TOMATO, Palette.TOMATO_DARK, Palette.TOMATO_LIGHT],
 	[Palette.TEAL, Palette.TEAL_DARK, Palette.TEAL_LIGHT],
 	[Palette.MUSTARD, Palette.MUSTARD_DARK, Palette.MUSTARD_LIGHT],
 	[Palette.VELVET, Palette.VELVET_DARK, Palette.VELVET_SHEEN],
+	[Palette.GOOD, Palette.GREEN_DARK, Palette.GREEN_LIGHT],
+	[Palette.GOLD, Palette.BRASS_DARK, Palette.MUSTARD_PALE],
+	[Palette.BROWN, Palette.BROWN_DARKEST, Palette.BROWN_LIGHT],
+	[Palette.SLATE, Palette.TEAL_BLACK, Palette.TEAL_SHADE],
 ]
 const LOCKED_COLOURS: Array[Color] = [Palette.GREY_LIGHT, Palette.GREY, Palette.CREAM]
 ## The art px: the grid, the rim, the glint's size.
@@ -44,15 +49,24 @@ func _init(diameter: float = 48.0) -> void:
 	show_empty()
 
 
-## Shows `pin`, the `index`-th pin of the catalogue (its colour), or its locked face.
+## Shows `pin`, the `index`-th pin of the catalogue, in its colour (colour_index), or its locked
+## face.
 func show_pin(pin: PinDefinition, index: int, locked: bool = false) -> void:
 	_empty = false
-	_colours = LOCKED_COLOURS if locked else COLOURS[posmod(index, COLOURS.size())]
+	_colours = LOCKED_COLOURS if locked else COLOURS[colour_index(pin, index)]
 	_label.text = LOCKED_TEXT if locked else pin.face_text
 	_label.add_theme_color_override("font_color", Palette.INK if locked else Palette.PAPER)
 	_label.add_theme_color_override("font_outline_color", _colours[1])
 	_label.visible = true
 	queue_redraw()
+
+
+## The COLOURS entry of `pin`, the `index`-th pin of the catalogue: its face_colour, else its
+## place (wrapping).
+static func colour_index(pin: PinDefinition, index: int) -> int:
+	if pin.face_colour > 0 and pin.face_colour <= COLOURS.size():
+		return pin.face_colour - 1
+	return posmod(index, COLOURS.size())
 
 
 ## An empty slot: a dashed ring.
